@@ -27,7 +27,7 @@
 -- Swap this module out by "Cardano.Wallet.DB.Sqlite.Checkpoints"
 
 module Cardano.Wallet.DB.Sqlite.CheckpointsOld
-    ( mkStoreWalletsCheckpoints
+    ( mkStoreWallets
     , PersistAddressBook (..)
     , blockHeaderFromEntity
     )
@@ -44,12 +44,7 @@ import Cardano.DB.Sqlite
 import Cardano.Wallet.DB
     ( ErrBadFormat (..) )
 import Cardano.Wallet.DB.Checkpoints
-    ( Checkpoints (..)
-    , DeltaCheckpoints (..)
-    , DeltaMap (..)
-    , getPoint
-    , loadCheckpoints
-    )
+    ( DeltaCheckpoints (..), loadCheckpoints )
 import Cardano.Wallet.DB.Sqlite.AddressBook
     ( AddressBookIso (..)
     , Discoveries (..)
@@ -79,6 +74,14 @@ import Cardano.Wallet.DB.Sqlite.Types
     , fromMaybeHash
     , hashOfNoParent
     , toMaybeHash
+    )
+import Cardano.Wallet.DB.WalletState
+    ( DeltaMap (..)
+    , DeltaWalletState
+    , DeltaWalletState1 (..)
+    , WalletCheckpoint (..)
+    , WalletState (..)
+    , getSlot
     )
 import Cardano.Wallet.Primitive.AddressDerivation
     ( Depth (..)
@@ -119,8 +122,6 @@ import Data.DBVar
     ( Store (..) )
 import Data.Functor
     ( (<&>) )
-import Data.Generics.Internal.VL
-    ( withIso )
 import Data.Generics.Internal.VL.Lens
     ( view, (^.) )
 import Data.Map.Strict
@@ -159,7 +160,6 @@ import qualified Cardano.Wallet.Primitive.AddressDerivation as W
 import qualified Cardano.Wallet.Primitive.AddressDiscovery.Random as Rnd
 import qualified Cardano.Wallet.Primitive.AddressDiscovery.Sequential as Seq
 import qualified Cardano.Wallet.Primitive.AddressDiscovery.Shared as Shared
-import qualified Cardano.Wallet.Primitive.Model as W
 import qualified Cardano.Wallet.Primitive.Types as W
 import qualified Cardano.Wallet.Primitive.Types.Address as W
 import qualified Cardano.Wallet.Primitive.Types.Coin as W
@@ -175,19 +175,19 @@ import qualified Data.Map.Merge.Strict as Map
 import qualified Data.Map.Strict as Map
 
 {-------------------------------------------------------------------------------
-    Checkpoints Store
+    WalletState Store
 -------------------------------------------------------------------------------}
--- | Store for 'Checkpoints' of multiple different wallets.
-mkStoreWalletsCheckpoints
+-- | Store for 'WalletState' of multiple different wallets.
+mkStoreWallets
     :: forall s key. (PersistAddressBook s, key ~ W.WalletId)
     => Store (SqlPersistT IO)
-        (DeltaMap key (DeltaCheckpoints (W.Wallet s)))
-mkStoreWalletsCheckpoints = Store{loadS=load,writeS=write,updateS=update}
+        (DeltaMap key (DeltaWalletState s))
+mkStoreWallets = Store{loadS=load,writeS=write,updateS=update}
   where
     write = error "mkStoreWalletsCheckpoints: not implemented"
 
     update _ (Insert wid a) =
-        writeS (mkStoreCheckpoints wid) a
+        writeS (mkStoreWallet wid) a
     update _ (Delete wid) = do
         -- FIXME LATER during ADP-1043:
         --  Deleting an entry in the Checkpoint table
@@ -195,7 +195,7 @@ mkStoreWalletsCheckpoints = Store{loadS=load,writeS=write,updateS=update}
         --  to be explicit in our code.
         deleteWhere [CheckpointWalletId ==. wid]
     update _ (Adjust wid da) =
-        updateS (mkStoreCheckpoints wid) undefined da
+        updateS (mkStoreWallet wid) undefined da
         -- FIXME LATER during ADP-1043:
         --   Remove 'undefined'.
         --   Probably needs a change to 'Data.DBVar.updateS'
@@ -204,23 +204,52 @@ mkStoreWalletsCheckpoints = Store{loadS=load,writeS=write,updateS=update}
     load = do
         wids <- fmap (view #walId . entityVal) <$> selectAll
         runExceptT $ do
-            xs <- forM wids $ ExceptT . loadS . mkStoreCheckpoints
+            xs <- forM wids $ ExceptT . loadS . mkStoreWallet
             pure $ Map.fromList (zip wids xs)
       where
         selectAll :: SqlPersistT IO [Entity Wallet]
         selectAll = selectList [] []
 
--- | Store for 'Checkpoints' of a single wallet.
+-- | Store for 'WalletState' of a single wallet.
+mkStoreWallet
+    :: forall s. PersistAddressBook s
+    => W.WalletId
+    -> Store (SqlPersistT IO) (DeltaWalletState s)
+mkStoreWallet wid =
+    Store{ loadS = load, writeS = write, updateS = \_ -> update }
+  where
+    storeCheckpoints = mkStoreCheckpoints wid
+
+    load = do
+        eprologue <- maybe (Left $ toException ErrBadFormatAddressPrologue) Right
+            <$> loadPrologue wid
+        echeckpoints <- loadS storeCheckpoints
+        pure $ WalletState <$> eprologue <*> echeckpoints
+
+    write wallet = do
+        insertPrologue wid (wallet ^. #prologue)
+        writeS storeCheckpoints (wallet ^. #checkpoints)
+
+    update =
+         -- first update in list is last to be applied!
+        mapM_ update1 . reverse
+    update1 (ReplacePrologue prologue) =
+        insertPrologue wid prologue
+    update1 (UpdateCheckpoints delta) =
+        -- FIXME LATER during ADP-1043: remove 'undefined'
+        updateS storeCheckpoints undefined delta
+
+-- | Store for the 'Checkpoints' belonging to a 'WalletState'.
 mkStoreCheckpoints
     :: forall s. PersistAddressBook s
     => W.WalletId
-    -> Store (SqlPersistT IO) (DeltaCheckpoints (W.Wallet s))
+    -> Store (SqlPersistT IO) (DeltaCheckpoints (WalletCheckpoint s))
 mkStoreCheckpoints wid =
     Store{ loadS = load, writeS = write, updateS = \_ -> update }
   where
     load = bimap toException loadCheckpoints <$> selectAllCheckpoints wid
 
-    write cps = forM_ (Map.toList $ checkpoints cps) $ \(pt,cp) ->
+    write cps = forM_ (Map.toList $ cps ^. #checkpoints) $ \(pt,cp) ->
             update (PutCheckpoint pt cp)
 
     update (PutCheckpoint _ state) =
@@ -253,23 +282,21 @@ mkStoreCheckpoints wid =
 selectAllCheckpoints
     :: forall s. PersistAddressBook s
     => W.WalletId
-    -> SqlPersistT IO (Either ErrBadFormat [(W.Slot, W.Wallet s)])
+    -> SqlPersistT IO (Either ErrBadFormat [(W.Slot, WalletCheckpoint s)])
 selectAllCheckpoints wid = do
-    cps <- fmap entityVal <$> selectList
+    cpRefs <- fmap entityVal <$> selectList
         [ CheckpointWalletId ==. wid ]
         [ Desc CheckpointSlot ]
-    -- FIXME LATER during ADP-1043: Presence of these tables?
-    mprologue <- loadPrologue wid
-    case mprologue of
-        Nothing -> pure $ Left ErrBadFormatAddressState
-        Just prologue -> fmap Right $
-            forM cps $ \cp -> do
-                utxo <- selectUTxO cp
-                discoveries <- loadDiscoveries wid (checkpointSlot cp)
-                let st = withIso addressIso $ \_ from ->
-                        from (prologue, discoveries)
-                    c = checkpointFromEntity @s cp utxo st
-                pure (getPoint c, c)
+    cps <- forM cpRefs $ \cp -> do
+        -- FIXME during APD-1043: Internal consistency of this table?
+        utxo <- selectUTxO cp
+        discoveries <- loadDiscoveries wid (checkpointSlot cp)
+        let c = checkpointFromEntity @s cp utxo discoveries
+        pure (getSlot c, c)
+    pure $ case cps of
+        [] -> Left ErrBadFormatCheckpoints
+        _  -> Right cps
+    
 
 selectUTxO
     :: Checkpoint
@@ -290,19 +317,16 @@ selectUTxO cp = do
 insertCheckpoint
     :: forall s. (PersistAddressBook s)
     => W.WalletId
-    -> W.Wallet s
+    -> WalletCheckpoint s
     -> SqlPersistT IO ()
-insertCheckpoint wid wallet = do
+insertCheckpoint wid wallet@(WalletCheckpoint currentTip _ discoveries) = do
     let (cp, utxo, utxoTokens) = mkCheckpointEntity wid wallet
-    let sl = (W.currentTip wallet) ^. #slotNo
+    let sl = currentTip ^. #slotNo
     deleteWhere [CheckpointWalletId ==. wid, CheckpointSlot ==. sl]
     insert_ cp
     dbChunked insertMany_ utxo
     dbChunked insertMany_ utxoTokens
-    withIso addressIso $ \to _ -> do
-        let (prologue, discoveries) = to $ W.getState wallet
-        insertPrologue wid prologue
-        insertDiscoveries wid sl discoveries
+    insertDiscoveries wid sl discoveries
 
 {-------------------------------------------------------------------------------
     Database type conversions
@@ -317,12 +341,11 @@ blockHeaderFromEntity cp = W.BlockHeader
 
 mkCheckpointEntity
     :: W.WalletId
-    -> W.Wallet s
+    -> WalletCheckpoint s
     -> (Checkpoint, [UTxO], [UTxOToken])
-mkCheckpointEntity wid wal =
+mkCheckpointEntity wid (WalletCheckpoint header wutxo _) =
     (cp, utxo, utxoTokens)
   where
-    header = W.currentTip wal
     sl = header ^. #slotNo
     (Quantity bh) = header ^. #blockHeight
     cp = Checkpoint
@@ -342,17 +365,17 @@ mkCheckpointEntity wid wal =
         , let tokenList = snd (TokenBundle.toFlatList tokens)
         , (AssetId policy token, quantity) <- tokenList
         ]
-    utxoMap = Map.assocs (W.unUTxO (W.utxo wal))
+    utxoMap = Map.assocs (W.unUTxO wutxo)
 
 -- note: TxIn records must already be sorted by order
 -- and TxOut records must already by sorted by index.
 checkpointFromEntity
     :: Checkpoint
     -> ([UTxO], [UTxOToken])
-    -> s
-    -> W.Wallet s
+    -> Discoveries s
+    -> WalletCheckpoint s
 checkpointFromEntity cp (coins, tokens) =
-    W.unsafeInitWallet utxo header
+    WalletCheckpoint header utxo
   where
     header = blockHeaderFromEntity cp
 

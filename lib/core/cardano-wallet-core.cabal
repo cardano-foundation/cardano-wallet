@@ -191,6 +191,7 @@ library
       Cardano.Wallet.DB.Sqlite.Migration
       Cardano.Wallet.DB.Sqlite.TH
       Cardano.Wallet.DB.Sqlite.Types
+      Cardano.Wallet.DB.WalletState
       Cardano.Wallet.Logging
       Cardano.Wallet.Network
       Cardano.Wallet.Network.Ports

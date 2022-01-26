@@ -87,18 +87,9 @@ import Cardano.Wallet.DB
     , sparseCheckpoints
     )
 import Cardano.Wallet.DB.Checkpoints
-    ( DeltaCheckpoints (..)
-    , DeltaMap (..)
-    , findNearestPoint
-    , fromGenesis
-    , getLatest
-    , getPoint
-    )
+    ( DeltaCheckpoints (..) )
 import Cardano.Wallet.DB.Sqlite.CheckpointsOld
-    ( PersistAddressBook (..)
-    , blockHeaderFromEntity
-    , mkStoreWalletsCheckpoints
-    )
+    ( PersistAddressBook (..), blockHeaderFromEntity, mkStoreWallets )
 import Cardano.Wallet.DB.Sqlite.Migration
     ( DefaultFieldValues (..), migrateManually )
 import Cardano.Wallet.DB.Sqlite.TH
@@ -121,6 +112,16 @@ import Cardano.Wallet.DB.Sqlite.TH
     )
 import Cardano.Wallet.DB.Sqlite.Types
     ( BlockId (..), TxId (..) )
+import Cardano.Wallet.DB.WalletState
+    ( DeltaMap (..)
+    , DeltaWalletState1 (..)
+    , findNearestPoint
+    , fromGenesis
+    , fromWallet
+    , getBlockHeight
+    , getLatest
+    , getSlot
+    )
 import Cardano.Wallet.Primitive.AddressDerivation
     ( Depth (..), PersistPrivateKey (..), WalletKey (..) )
 import Cardano.Wallet.Primitive.Slotting
@@ -531,7 +532,7 @@ newDBLayerWith _cacheBehavior tr ti SqliteContext{runQuery} = do
 
     -- FIXME LATER during ADP-1043:
     --   Handle the case where loading the database fails.
-    checkpointsVar <- runQuery $ loadDBVar mkStoreWalletsCheckpoints
+    walletsVar <- runQuery $ loadDBVar mkStoreWallets
 
     -- NOTE
     -- The cache will not work properly unless 'atomically' is protected by a
@@ -542,19 +543,25 @@ newDBLayerWith _cacheBehavior tr ti SqliteContext{runQuery} = do
     -- assuming that the wallet already exists.
     let insertCheckpointCached wid cp = do
             liftIO $ traceWith tr $ MsgCheckpointCache wid MsgPutCheckpoint
-            modifyDBMaybe checkpointsVar $ \ws ->
-                let point = getPoint cp
-                in  case Map.lookup wid ws of
-                    Nothing  -> (Nothing, ())
-                    Just _   -> (Just $ Adjust wid $ PutCheckpoint point cp, ())
+            modifyDBMaybe walletsVar $ \ws ->
+                case Map.lookup wid ws of
+                    Nothing -> (Nothing, ())
+                    Just _  ->
+                        let (prologue, wcp) = fromWallet cp
+                            slot = getSlot wcp
+                            delta = Just $ Adjust wid
+                                [ UpdateCheckpoints $ PutCheckpoint slot wcp
+                                , ReplacePrologue prologue
+                                ]
+                        in  (delta, ())
 
     -- Insert genesis checkpoint into the DBVar.
     -- Throws an internal error if the checkpoint is not actually at genesis.
-    let insertCheckpointGenesis wid cp
-            | W.isGenesisBlockHeader header =
-                updateDBVar checkpointsVar $ Insert wid $ fromGenesis cp
-            | otherwise =
-                throwIO $ ErrInitializeNotGenesis wid header
+    let insertCheckpointGenesis wid cp =
+            case fromGenesis cp of
+                Nothing -> throwIO $ ErrInitializeGenesisAbsent wid header
+                Just wallet ->
+                    updateDBVar walletsVar $ Insert wid wallet
           where
             header = cp ^. #currentTip
 
@@ -563,8 +570,8 @@ newDBLayerWith _cacheBehavior tr ti SqliteContext{runQuery} = do
             :: W.WalletId
             -> SqlPersistT IO (Maybe (W.Wallet s))
         selectLatestCheckpointCached wid = do
-            let get = fmap (snd . getLatest) . Map.lookup wid
-            cp <- get <$> readDBVar checkpointsVar
+            let get = fmap getLatest . Map.lookup wid
+            cp <- get <$> readDBVar walletsVar
             liftIO $ traceWith tr $ MsgCheckpointCache wid $ MsgGetCheckpoint $ isJust cp
             pure cp
 
@@ -576,21 +583,21 @@ newDBLayerWith _cacheBehavior tr ti SqliteContext{runQuery} = do
             let heights = Set.fromList $ sparseCheckpoints
                     (defaultSparseCheckpointsConfig epochStability)
                     (tip ^. #blockHeight)
-            modifyDBMaybe checkpointsVar $ \ws ->
+            modifyDBMaybe walletsVar $ \ws ->
                 case Map.lookup wid ws of
                     Nothing  -> (Nothing, ())
-                    Just cps ->
-                        let willKeep cp =
-                                (cp ^. #currentTip ^. #blockHeight ^. #getQuantity)
-                                `Set.member` heights
-                            slots = Map.filter willKeep (cps ^. #checkpoints)
-                        in  (Just $ Adjust wid $ RestrictTo $ Map.keys slots, ())
+                    Just wal ->
+                        let willKeep cp = getBlockHeight cp `Set.member` heights
+                            slots = Map.filter willKeep (wal ^. #checkpoints ^. #checkpoints)
+                            delta = Adjust wid
+                                [ UpdateCheckpoints $ RestrictTo $ Map.keys slots ]
+                        in  (Just delta, ())
 
     -- Delete the a wallet from the checkpoint DBVar
     let deleteCheckpoints :: W.WalletId -> SqlPersistT IO ()
         deleteCheckpoints wid = do
             liftIO $ traceWith tr $ MsgCheckpointCache wid MsgDrop
-            updateDBVar checkpointsVar $ Delete wid
+            updateDBVar walletsVar $ Delete wid
 
     return DBLayer
 
@@ -639,24 +646,26 @@ newDBLayerWith _cacheBehavior tr ti SqliteContext{runQuery} = do
                 [ Asc CheckpointSlot ]
 
         , rollbackTo = \wid requestedPoint -> ExceptT $ do
-            iomNearestCheckpoint <- modifyDBMaybe checkpointsVar $ \ws ->
+            iomNearestCheckpoint <- modifyDBMaybe walletsVar $ \ws ->
                 case Map.lookup wid ws of
                     Nothing  -> (Nothing, pure Nothing)
-                    Just cps -> case findNearestPoint cps requestedPoint of
+                    Just wal -> case findNearestPoint wal requestedPoint of
                         Nothing ->
                             ( Nothing
                             , throwIO $ ErrNoOlderCheckpoint wid requestedPoint
                             )
                         Just nearestPoint ->
-                            ( Just $ Adjust wid $ RollbackTo nearestPoint
-                            , pure $ Map.lookup nearestPoint $ cps ^. #checkpoints
+                            ( Just $ Adjust wid
+                                [ UpdateCheckpoints $ RollbackTo nearestPoint ]
+                            , pure $ Map.lookup nearestPoint $
+                                wal ^. #checkpoints ^. #checkpoints
                             )
             mNearestCheckpoint <- liftIO iomNearestCheckpoint
 
             case mNearestCheckpoint of
-                Nothing -> pure $ Left $ ErrNoSuchWallet wid
-                Just cp -> do
-                    let nearestPoint = cp ^. #currentTip ^. #slotNo
+                Nothing  -> pure $ Left $ ErrNoSuchWallet wid
+                Just wcp -> do
+                    let nearestPoint = wcp ^. #currentTip ^. #slotNo
                     deleteDelegationCertificates wid
                         [ CertSlot >. nearestPoint
                         ]
@@ -676,7 +685,7 @@ newDBLayerWith _cacheBehavior tr ti SqliteContext{runQuery} = do
                         ]
                     pure $ Right
                         $ W.chainPointFromBlockHeader
-                        $ view #currentTip cp
+                        $ view #currentTip wcp
 
         , prune = \wid epochStability -> ExceptT $ do
             selectLatestCheckpointCached wid >>= \case
@@ -1566,7 +1575,7 @@ data ErrRollbackTo = ErrNoOlderCheckpoint W.WalletId W.Slot deriving (Show)
 instance Exception ErrRollbackTo
 
 -- | Can't initialize a wallet because the given 'BlockHeader' is not genesis.
-data ErrInitializeNotGenesis
-    = ErrInitializeNotGenesis W.WalletId W.BlockHeader deriving (Eq, Show)
+data ErrInitializeGenesisAbsent
+    = ErrInitializeGenesisAbsent W.WalletId W.BlockHeader deriving (Eq, Show)
 
-instance Exception ErrInitializeNotGenesis
+instance Exception ErrInitializeGenesisAbsent
