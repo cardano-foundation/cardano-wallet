@@ -1110,7 +1110,7 @@ spec = describe "NEW_SHELLEY_TRANSACTIONS" $ do
             [ expectResponseCode HTTP.status202
             , expectField #certificates (`shouldBe` [registerStakeKeyCert, delegatingCert])
             ]
-
+{--
         -- Submit tx
         submittedTx1 <- submitTxWithWid ctx src signedTx1
         verify submittedTx1
@@ -1307,7 +1307,7 @@ spec = describe "NEW_SHELLEY_TRANSACTIONS" $ do
                 >>= flip verify
                     [ expectField #delegation (`shouldBe` notDelegating [])
                     ]
-
+--}
     it "TRANS_NEW_JOIN_01b - Invalid pool id" $ \ctx -> runResourceT $ do
 
         wa <- fixtureWallet ctx
