@@ -75,6 +75,7 @@ import Cardano.Wallet.Primitive.AddressDerivation
     , MkKeyFingerprint (..)
     , NetworkDiscriminant (..)
     , Passphrase
+    , PersistPublicKey (..)
     , SoftDerivation
     , WalletKey (..)
     , utxoExternal
@@ -117,6 +118,8 @@ import Data.Text
     ( Text )
 import Data.Text.Class
     ( FromText (..), TextDecodingError (..), ToText (..) )
+import Fmt
+    ( Buildable (..), indentF )
 import GHC.Generics
     ( Generic )
 import Type.Reflection
@@ -248,6 +251,21 @@ instance Eq (k 'AccountK XPub) => Eq (SharedState n k) where
         match (Active a) (Active b)
             = AddressPool.addresses a == AddressPool.addresses b
         match _ _ = False
+
+instance PersistPublicKey (k 'AccountK) => Buildable (SharedState n k) where
+    build st = "SharedState:\n"
+        <> indentF 4 ("Derivation prefix: " <> build (toText $ derivationPrefix st))
+        <> indentF 4 ("accountXPub:" <> build (accountXPub st))
+        <> indentF 4 ("paymentTemplate:" <> build (paymentTemplate st))
+        <> indentF 4 ("delegationTemplate:" <> build (delegationTemplate st))
+        <> indentF 4 ("poolGap:" <> build (toText $ poolGap st))
+        <> indentF 4 ("ready: " <> readyF (ready st))
+      where
+        readyF (Pending) = "Pending"
+        readyF (Active pool) =
+            "Active:" <> printIndex (derivationPrefix st) <> " " <> build pool
+        printIndex (DerivationPrefix (_,_,ix)) =
+            " hardened index: "<> build (getIndex ix)
 
 -- | Readiness status of the shared state.
 data Readiness a

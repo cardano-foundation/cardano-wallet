@@ -1329,16 +1329,3 @@ initDummyStateSeq = mkSeqStateFromRootXPrv (xprv, mempty) purposeCIP1852 default
   where
       mw = SomeMnemonic $ unsafePerformIO (generate $ genMnemonic @15)
       xprv = Seq.generateKeyFromSeed (mw, Nothing) mempty
-
-{-------------------------------------------------------------------------------
-                      Test data and instances - Random AD
--------------------------------------------------------------------------------}
-
-instance Eq (RndState t) where
-    (==)
-        (RndState _ idx1 addrs1 pending1 gen1)
-        (RndState _ idx2 addrs2 pending2 gen2) =
-           idx1 == idx2
-        && addrs1 == addrs2
-        && pending1 == pending2
-        && show gen1 == show gen2

@@ -21,10 +21,13 @@
 -- Copyright: © 2021 IOHK
 -- License: Apache-2.0
 --
--- Old-style storage for 'Checkpoints' in the database.
+-- 'Store' implementations that can store various wallet types
+-- in an SQLite database using `persistent`.
 --
 -- FIXME LATER during ADP-1043:
--- Swap this module out by "Cardano.Wallet.DB.Sqlite.Checkpoints"
+--
+-- * Inline the contents of this module into its new name
+--   "Cardano.Wallet.DB.Sqlite.Stores"
 
 module Cardano.Wallet.DB.Sqlite.CheckpointsOld
     ( mkStoreWallets
@@ -606,6 +609,14 @@ selectCosigners wid cred = do
        (Cosigner c, unsafeDeserializeXPub key)
 
 -- | Check whether we have ever stored checkpoints for a multi-signature pool
+--
+-- FIXME during APD-1043:
+-- Whether the 'SharedState' is 'Pending' or 'Active' should be apparent
+-- from the data in the table corresponding to the 'Prologue'.
+-- Testing whether the table corresponding to 'Discoveries' is present
+-- or absent is a nice idea, but it ultimately complicates the separation
+-- between Prologue and Discoveries.
+-- Solution: Add a 'Ready' column in the next version of the database format.
 multisigPoolAbsent :: W.WalletId -> SqlPersistT IO Bool
 multisigPoolAbsent wid =
     isNothing <$> selectFirst

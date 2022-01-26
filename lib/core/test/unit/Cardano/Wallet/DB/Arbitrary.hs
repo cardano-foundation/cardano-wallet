@@ -778,13 +778,3 @@ instance Buildable (ShelleyKey depth XPrv, Hash "encryption") where
 
 instance Buildable MockChain where
     build (MockChain chain) = blockListF' mempty build chain
-
-instance Buildable (SharedState 'Mainnet SharedKey) where
-    build st = case ready st of
-        Shared.Pending -> "not supported here"
-        Shared.Active pool ->
-            build (printStateActive <> printIndex prefix) <> build pool
-      where
-        printStateActive = "shared wallet state: active"
-        prefix = Shared.derivationPrefix st
-        printIndex (DerivationPrefix (_,_,ix)) = " hardened index: "<> toText (getIndex ix) <> " "

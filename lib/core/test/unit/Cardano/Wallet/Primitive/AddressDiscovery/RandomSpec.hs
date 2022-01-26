@@ -346,10 +346,6 @@ prop_oursAreUsed rnd@(Rnd st _ _) addrIx = do
                     Instances
 -------------------------------------------------------------------------------}
 
-instance Eq (RndState t) where
-    (RndState k1 accIx1 _ _ _) == (RndState k2 accIx2 _ _ _)
-        = k1 == k2 && accIx1 == accIx2
-
 instance Arbitrary Rnd where
     shrink _ = []  -- no shrinking
     arbitrary = do
