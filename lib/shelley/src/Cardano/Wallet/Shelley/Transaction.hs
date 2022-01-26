@@ -162,7 +162,6 @@ import Cardano.Wallet.Transaction
     , ErrAssignRedeemers (..)
     , ErrMkTransaction (..)
     , ErrUpdateSealedTx (..)
-    , StakeCredWits (..)
     , TransactionCtx (..)
     , TransactionLayer (..)
     , TxFeeUpdate (..)
@@ -492,14 +491,11 @@ newTransactionLayer networkId = TransactionLayer
                 withShelleyBasedEra era $ do
                     let stakeXPub = toXPub $ fst stakeCreds
                     let certs = mkDelegationCertificates action stakeXPub
-                    let mkWits unsigned =
-                            [ mkShelleyWitness unsigned stakeCreds
-                            ]
-                    let payload = TxPayload (view #txMetadata ctx) certs mkWits
+                    let payload = TxPayload (view #txMetadata ctx) certs (const [])
                     mkTx networkId payload ttl stakeCreds keystore wdrl
                         selection delta
 
-    , addVkWitnesses = \_era _usingStakeCreds stakeCreds addressResolver inputResolver sealedTx -> do
+    , addVkWitnesses = \_era stakeCreds addressResolver inputResolver sealedTx -> do
         let acctResolver :: RewardAccount -> Maybe (XPrv, Passphrase "encryption")
             acctResolver acct = do
                 let acct' = toRewardAccountRaw $ toXPub $ fst stakeCreds

@@ -1063,7 +1063,7 @@ spec = describe "NEW_SHELLEY_TRANSACTIONS" $ do
             , expectErrorMessage errMsg403NotEnoughMoney
             ]
 
-    it "TRANS_NEW_JOIN_01a - Can join stakepool and rejoin" $ \ctx -> runResourceT $ do
+    it "TRANS_NEW_JOIN_01a - Can join stakepool, rejoin another and quit" $ \ctx -> runResourceT $ do
 
         src <- fixtureWallet ctx
         dest <- emptyWallet ctx
