@@ -4032,7 +4032,7 @@ x-errTransactionIsTooBig: &errTransactionIsTooBig
       type: string
       enum: ['transaction_is_too_big']
 
-x-errMultidelegationTransaction: &errMultidelegationTransaction
+x-errCreatedMultidelegationTransaction: &errCreatedMultidelegationTransaction
   <<: *responsesErr
   title: created_multidelegation_transaction
   properties:
@@ -5100,7 +5100,7 @@ x-responsesConstructTransaction: &responsesConstructTransaction
             - <<: *errNotEnoughMoney
             - <<: *errInsufficientCollateral
             - <<: *errTransactionIsTooBig
-            - <<: *errMultidelegationTransaction
+            - <<: *errCreatedMultidelegationTransaction
   <<: *responsesErr404WalletNotFound
   <<: *responsesErr406
   <<: *responsesErr415UnsupportedMediaType
