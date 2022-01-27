@@ -104,6 +104,7 @@ module Test.Integration.Framework.TestData
     , errMsg403ForeignTransaction
     , errMsg403MissingWitsInTransaction
     , errMsg403MultidelegationTransaction
+    , errMsg403MultiaccountTransaction
     ) where
 
 import Prelude
@@ -659,6 +660,13 @@ errMsg403MultidelegationTransaction = mconcat
     [ "It looks like I've created a transaction "
     , "with multiple delegations, which is not supported at this moment."
     , "Please use at most one delegation action: join, quit or none."
+    ]
+
+errMsg403MultiaccountTransaction :: String
+errMsg403MultiaccountTransaction = mconcat
+    [ "It looks like I've created a transaction "
+    , "with a delegation, which uses a stake key for the unsupported account."
+    , "Please use delegation action engaging '0H' account."
     ]
 
 --------------------------------------------------------------------------------

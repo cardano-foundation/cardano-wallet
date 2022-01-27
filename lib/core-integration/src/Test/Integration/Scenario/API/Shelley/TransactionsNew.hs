@@ -187,6 +187,7 @@ import Test.Integration.Framework.TestData
     , errMsg403InvalidConstructTx
     , errMsg403MinUTxOValue
     , errMsg403MissingWitsInTransaction
+    , errMsg403MultiaccountTransaction
     , errMsg403MultidelegationTransaction
     , errMsg403NotDelegating
     , errMsg403NotEnoughMoney
@@ -1359,6 +1360,29 @@ spec = describe "NEW_SHELLEY_TRANSACTIONS" $ do
                         "stake_key_index": "0H"
                     }
                 },{
+                    "quit": {
+                        "stake_key_index": "0H"
+                    }
+                }]
+            }|]
+        rTx <- request @(ApiConstructTransaction n) ctx
+            (Link.createUnsignedTransaction @'Shelley wa) Default delegations
+        verify rTx
+            [ expectResponseCode HTTP.status403
+            , expectErrorMessage errMsg403MultidelegationTransaction
+            ]
+
+    it "TRANS_NEW_JOIN_01d - Multiaccount not supported" $ \ctx -> runResourceT $ do
+
+        wa <- fixtureWallet ctx
+        let pool' = "pool1mgjlw24rg8sp4vrzctqxtf2nn29rjhtkq2kdzvf4tcjd5pl547k" :: Text
+        let delegations = Json [json|{
+                "delegations": [{
+                    "join": {
+                        "pool": #{pool'},
+                        "stake_key_index": "0H"
+                    }
+                },{
                     "join": {
                         "pool": #{pool'},
                         "stake_key_index": "1H"
@@ -1369,7 +1393,7 @@ spec = describe "NEW_SHELLEY_TRANSACTIONS" $ do
             (Link.createUnsignedTransaction @'Shelley wa) Default delegations
         verify rTx
             [ expectResponseCode HTTP.status403
-            , expectErrorMessage errMsg403MultidelegationTransaction
+            , expectErrorMessage errMsg403MultiaccountTransaction
             ]
 
     it "TRANS_NEW_QUIT_01 - Cannot quit if not joined" $ \ctx -> runResourceT $ do
