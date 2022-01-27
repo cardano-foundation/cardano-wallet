@@ -1619,6 +1619,7 @@ data ApiErrorCode
     | NetworkQueryFailed
     | CreatedInvalidTransaction
     | CreatedMultidelegationTransaction
+    | CreatedMultiaccountTransaction
     | RejectedByCoreNode
     | BadRequest
     | NotFound

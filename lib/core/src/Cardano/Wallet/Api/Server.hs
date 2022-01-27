@@ -251,6 +251,7 @@ import Cardano.Wallet.Api.Types
     , ApiSignTransactionPostData (..)
     , ApiSlotId (..)
     , ApiSlotReference (..)
+    , ApiStakeKeyIndex (..)
     , ApiStakeKeys (..)
     , ApiT (..)
     , ApiTransaction (..)
@@ -2135,6 +2136,18 @@ constructTransaction ctx genChange knownPools getPoolStatus (ApiT wid) body = do
             isNothing (body ^. #delegations)
     when isNoPayload $
         liftHandler $ throwE ErrConstructTxWrongPayload
+
+    let checkIx (ApiStakeKeyIndex (ApiT derIndex)) =
+            derIndex == DerivationIndex (getIndex @'Hardened minBound)
+    let validApiDelAction = \case
+            Joining _ stakeKeyIx -> checkIx stakeKeyIx
+            Leaving stakeKeyIx -> checkIx stakeKeyIx
+    let notall0Haccount = case body ^. #delegations of
+            Nothing -> False
+            Just delegs -> any (not . validApiDelAction) $ NE.toList delegs
+    when notall0Haccount $
+        liftHandler $ throwE ErrConstructTxMultiaccountNotSupported
+
     let md = body ^? #metadata . traverse . #getApiT
     let mTTL = Nothing --TODO: ADP-1189
 
@@ -3884,6 +3897,12 @@ instance IsServerError ErrConstructTx where
             [ "It looks like I've created a transaction "
             , "with multiple delegations, which is not supported at this moment."
             , "Please use at most one delegation action: join, quit or none."
+            ]
+        ErrConstructTxMultiaccountNotSupported ->
+            apiError err403 CreatedMultiaccountTransaction $ mconcat
+            [ "It looks like I've created a transaction "
+            , "with a delegation, which uses a stake key for the unsupported account."
+            , "Please use delegation action engaging '0H' account."
             ]
         ErrConstructTxNotImplemented _ ->
             apiError err501 NotImplemented

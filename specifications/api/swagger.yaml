@@ -1340,9 +1340,12 @@ x-multiDelegationAction: &multiDelegationAction
 
 x-transactionDelegations: &transactionDelegations
   description: |
-    <p>status: <strong>⚠ under development</strong></p>
+    <p>status: <strong>stable</strong></p>
 
     A list of staking actions (joining, rejoining or leaving from stake pools).
+    Using '0H' stake key index is supported at this moment. This will change with
+    multi-account support.
+    Only one delegation action can be used.
   type: array
   minItems: 0
   items:
@@ -4043,6 +4046,17 @@ x-errCreatedMultidelegationTransaction: &errCreatedMultidelegationTransaction
       type: string
       enum: ['created_multidelegation_transaction']
 
+x-errCreatedMultiaccountTransaction: &errCreatedMultiaccountTransaction
+  <<: *responsesErr
+  title: created_multiaccount_transaction
+  properties:
+    message:
+      type: string
+      description: Occurs when a delegation action does not use '0H' account.
+    code:
+      type: string
+      enum: ['created_multiaccount_transaction']
+
 x-errInputsDepleted: &errInputsDepleted
   <<: *responsesErr
   title: inputs_depleted
@@ -5101,6 +5115,7 @@ x-responsesConstructTransaction: &responsesConstructTransaction
             - <<: *errInsufficientCollateral
             - <<: *errTransactionIsTooBig
             - <<: *errCreatedMultidelegationTransaction
+            - <<: *errCreatedMultiaccountTransaction
   <<: *responsesErr404WalletNotFound
   <<: *responsesErr406
   <<: *responsesErr415UnsupportedMediaType

@@ -3091,6 +3091,7 @@ data ErrConstructTx
     | ErrConstructTxReadRewardAccount ErrReadRewardAccount
     | ErrConstructTxIncorrectTTL PastHorizonException
     | ErrConstructTxMultidelegationNotSupported
+    | ErrConstructTxMultiaccountNotSupported
     | ErrConstructTxNotImplemented String
     -- ^ Temporary error constructor.
     deriving (Show, Eq)
