@@ -1288,8 +1288,6 @@ fromCardanoCerts = \case
  where
     toRewardAccount = Just . fromStakeCredential . Cardano.toShelleyStakeCredential
     f = \case
-        Cardano.StakeAddressRegistrationCertificate cred ->
-            toRewardAccount cred
         Cardano.StakeAddressDeregistrationCertificate cred ->
             toRewardAccount cred
         Cardano.StakeAddressDelegationCertificate cred _ ->

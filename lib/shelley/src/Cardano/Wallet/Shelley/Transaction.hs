@@ -439,7 +439,7 @@ signTransaction networkId resolveRewardAcct resolveAddress resolveInput (body, w
             | (addr, _) <- fromCardanoWdrls $ Cardano.txWithdrawals bodyContent
             ]
 
-        certs = take 1 $ fromCardanoCerts $ Cardano.txCertificates bodyContent
+        certs = fromCardanoCerts $ Cardano.txCertificates bodyContent
 
     mkTxInWitness :: TxIn -> Maybe (Cardano.KeyWitness era)
     mkTxInWitness i = do
