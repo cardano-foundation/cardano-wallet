@@ -632,6 +632,8 @@ genSelectionParams :: Gen SelectionParams
 genSelectionParams = SelectionParams
     <$> genAssetsToBurn
     <*> genAssetsToMint
+    <*> genExtraCoinIn
+    <*> genExtraCoinOut
     <*> genOutputsToCover
     <*> genRewardWithdrawal
     <*> genCertificateDepositsTaken
@@ -644,6 +646,8 @@ shrinkSelectionParams :: SelectionParams -> [SelectionParams]
 shrinkSelectionParams = genericRoundRobinShrink
     <@> shrinkAssetsToBurn
     <:> shrinkAssetsToMint
+    <:> shrinkExtraCoinIn
+    <:> shrinkExtraCoinOut
     <:> shrinkOutputsToCover
     <:> shrinkRewardWithdrawal
     <:> shrinkCerticateDepositsTaken
@@ -668,6 +672,28 @@ shrinkAssetsToMint = shrinkTokenMap
 
 shrinkAssetsToBurn :: TokenMap -> [TokenMap]
 shrinkAssetsToBurn = shrinkTokenMap
+
+--------------------------------------------------------------------------------
+-- Extra coin in and out
+--------------------------------------------------------------------------------
+
+genCoinMostly0 :: Gen Coin
+genCoinMostly0 = frequency
+    [ (70, pure $ Coin 0)
+    , (30, genCoin)
+    ]
+
+genExtraCoinIn :: Gen Coin
+genExtraCoinIn = genCoinMostly0
+
+genExtraCoinOut :: Gen Coin
+genExtraCoinOut = genCoinMostly0
+
+shrinkExtraCoinIn :: Coin -> [Coin]
+shrinkExtraCoinIn = shrinkCoin
+
+shrinkExtraCoinOut :: Coin -> [Coin]
+shrinkExtraCoinOut = shrinkCoin
 
 --------------------------------------------------------------------------------
 -- Outputs to cover
