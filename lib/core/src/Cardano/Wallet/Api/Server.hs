@@ -2144,7 +2144,7 @@ constructTransaction ctx genChange knownPools getPoolStatus (ApiT wid) body = do
             Leaving stakeKeyIx -> checkIx stakeKeyIx
     let notall0Haccount = case body ^. #delegations of
             Nothing -> False
-            Just delegs -> any (not . validApiDelAction) $ NE.toList delegs
+            Just delegs -> not . all validApiDelAction $ NE.toList delegs
     when notall0Haccount $
         liftHandler $ throwE ErrConstructTxMultiaccountNotSupported
 
