@@ -38,6 +38,7 @@ library
     , aeson-qq
     , base
     , base16-bytestring
+    , base64-bytestring
     , base58-bytestring
     , bech32
     , bech32-th
@@ -96,7 +97,6 @@ library
     , resourcet
     , retry
     , say
-    , strict-non-empty
     , scrypt
     , serialise
     , string-interpolate

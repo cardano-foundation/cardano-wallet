@@ -1,6 +1,7 @@
 {-# LANGUAGE AllowAmbiguousTypes #-}
 {-# LANGUAGE DataKinds           #-}
 {-# LANGUAGE LambdaCase #-}
+{-# LANGUAGE QuasiQuotes #-}
 {-# LANGUAGE NumericUnderscores #-}
 {-# LANGUAGE DeriveAnyClass      #-}
 {-# LANGUAGE DeriveGeneric       #-}
@@ -32,17 +33,19 @@ import Data.Generics.Internal.VL.Lens
     ( view, (^.) )
 import Data.List.NonEmpty (NonEmpty(..))
 import Codec.Serialise (serialise)
-import Control.Monad.IO.Class (MonadIO)
+import Control.Monad.IO.Class (MonadIO, liftIO)
 import Cardano.Wallet.Primitive.Types.Hash (Hash(..))
 import Data.Quantity
     ( Quantity (..) )
-import Cardano.Wallet.Api.Types (ApiWallet, DecodeAddress, DecodeStakeAddress, EncodeStakeAddress, EncodeAddress, ApiCoinSelection, WalletStyle(..), AddressAmount(..), ApiT(..), ApiWalletInput(..))
+import Cardano.Wallet.Api.Types (ApiTxId, ApiSerialisedTransaction, ApiWallet, DecodeAddress, DecodeStakeAddress, EncodeStakeAddress, EncodeAddress, ApiCoinSelection, WalletStyle(..), AddressAmount(..), ApiT(..), ApiWalletInput(..))
 import Control.Monad.Trans.Resource (ResourceT, runResourceT, MonadUnliftIO)
 import Ledger
     ( POSIXTime, PaymentPubKeyHash
     )
 import Cardano.Wallet.Primitive.Types.TokenPolicy
 import Cardano.Wallet.Primitive.Types.TokenQuantity (TokenQuantity(..))
+import Cardano.Wallet.Primitive.Types (NetworkParameters(..))
+import Test.Integration.Framework.Context (Context(..))
 import Cardano.Wallet.Shelley
     ( SomeNetworkDiscriminant (..)
     , Tracers
@@ -72,6 +75,7 @@ import Control.Arrow
     ( first, second )
 import Cardano.Wallet.Primitive.AddressDerivation
     ( PaymentAddress, HardDerivation (..), Role(..), getRawKey, publicKey)
+import Cardano.Wallet.Shelley.Compatibility (networkIdVal)
 import Cardano.Wallet.Primitive.AddressDerivation.Icarus
     ( IcarusKey )
 import Control.Tracer
@@ -95,9 +99,10 @@ import qualified Codec.CBOR.Write as CBORWrite
 import qualified Codec.Serialise.Class as Serialise
 import qualified Cardano.Wallet.Primitive.AddressDerivation.Shelley as Shelley
 import qualified Data.Aeson as Aeson
-import qualified Data.ByteString.Base16 as Base16
+import qualified Data.ByteString.Base64 as Base64
 import qualified Data.List.NonEmpty as NE
 import qualified Data.HashMap.Strict as HM
+import qualified Network.HTTP.Types.Status as HTTP
 import qualified Data.Text.Encoding as T
 import qualified Ledger.Constraints as Constraints
 import qualified Cardano.Wallet.Primitive.Types.TokenMap as TokenMap
@@ -112,6 +117,8 @@ import qualified Ledger as Plutus
 import qualified Cardano.Crypto.Wallet
 import qualified PlutusTx.AssocMap as AssocMap
 import qualified Data.Map.Strict as Map
+import qualified Cardano.Wallet.Api.Link as Link
+import qualified Plutus.Contract.Wallet as PlutusWallet
 
 data Crowdfunding
 instance Scripts.ValidatorTypes Crowdfunding where
@@ -198,6 +205,7 @@ spec :: forall n.
     ) => SpecWith DSL.Context
 spec = describe "Plutus E2E" $ do
     it "does things" $ \ctx -> runResourceT $ do
+        liftIO $ Haskell.putStrLn $ Haskell.show "Before everything testttt"
         alice   <- newActor ctx
         bob     <- newActor ctx
         charlie <- newActor ctx
@@ -214,11 +222,20 @@ spec = describe "Plutus E2E" $ do
                            (actorPaymentPublicKeyHash bob)
                            (Plutus.toValue $ Plutus.Lovelace 10_000)
 
-        submitUnbalancedTx bob contributionBob
+        submitUnbalancedTx @n ctx bob contributionBob
 
         Haskell.pure ()
 
-submitUnbalancedTx actor unbalancedTx = do
+submitUnbalancedTx :: forall n m.
+    ( DecodeAddress n
+    , DecodeStakeAddress n
+    , EncodeStakeAddress n
+    , EncodeAddress n
+    , PaymentAddress n IcarusKey
+    , MonadUnliftIO m
+    ) => DSL.Context -> Actor -> Constraints.UnbalancedTx -> ResourceT m ApiTxId
+submitUnbalancedTx ctx actor unbalancedTx = do
+    liftIO $ Haskell.putStrLn $ Haskell.show "Before all"
     let
         w = actorWallet actor
 
@@ -228,8 +245,8 @@ submitUnbalancedTx actor unbalancedTx = do
         adaQty = Plutus.fromValue outsValue
         nonAdaQty = AssocMap.fromList $ filter (\(k,v) -> k /= Plutus.adaSymbol) $ AssocMap.toList $ Plutus.getValue outsValue
 
-        x :: AssocMap.Map Plutus.CurrencySymbol (AssocMap.Map Plutus.TokenName Integer) -> TokenMap.TokenMap
-        x = TokenMap.fromNestedList . fmap (second NE.fromList) . fmap (first y) . fmap (fmap (fmap w')) . AssocMap.toList . fmap (AssocMap.toList)
+        fromPlutusTokenMap :: AssocMap.Map Plutus.CurrencySymbol (AssocMap.Map Plutus.TokenName Integer) -> TokenMap.TokenMap
+        fromPlutusTokenMap = TokenMap.fromNestedList . fmap (second NE.fromList) . fmap (first y) . fmap (fmap (fmap w')) . AssocMap.toList . fmap (AssocMap.toList)
 
         y :: Plutus.CurrencySymbol -> TokenPolicyId
         y = UnsafeTokenPolicyId . Hash . LBS.toStrict . serialise
@@ -240,53 +257,77 @@ submitUnbalancedTx actor unbalancedTx = do
         w' :: (Plutus.TokenName, Integer) -> (TokenName, TokenQuantity)
         w' (name, qty) = (z name, TokenQuantity $ Haskell.fromIntegral qty)
 
+    liftIO $ Haskell.putStrLn $ Haskell.show "Before list addresses"
+    (addr,proxy) <- view #id . head Haskell.<$> DSL.listAddresses @n ctx w
+    liftIO $ Haskell.putStrLn $ Haskell.show "After list addresses"
+
+    let
         addrAmt = AddressAmount
-            { address = Haskell.undefined
+            { address = (addr, proxy)
             , amount = Quantity $ Haskell.fromIntegral $ Plutus.getLovelace adaQty
-            , assets = ApiT $ x nonAdaQty
+            , assets = ApiT $ fromPlutusTokenMap nonAdaQty
             }
 
-    Haskell.undefined
+    -- To obtain a fresh UTxO, we perform coin selection and just pick the first
+    -- input that has been selected.
+    let singleton = Haskell.pure :: a -> NonEmpty a
+    liftIO $ Haskell.putStrLn $ Haskell.show "Before selection"
+    -- (_, result) <- DSL.selectCoins @_ @'Shelley ctx w $ singleton $ addrAmt
+    liftIO $ Haskell.putStrLn $ Haskell.show "After selection"
 
-    -- (addr,proxy) <- view #id . head Haskell.<$> DSL.listAddresses @n ctx w
-    -- let getFreshUTxO = do
-    --         -- To obtain a fresh UTxO, we perform
-    --         -- coin selection and just pick the first input
-    --         -- that has been selected.
-    --         let singleton = Haskell.pure :: a -> NonEmpty a
-    --         (_, result) <- DSL.selectCoins @_ @'Shelley ctx w $
-    --             singleton $ AddressAmount
-    --                 { address = (addr, proxy)
-    --                 , amount  = Quantity 10_000_000
-    --                 , assets  = ApiT TokenMap.empty
-    --                 }
-    --         Haskell.pure $ head . view #inputs Haskell.<$> result
-    -- txOutRef <- fromEither =<< getFreshUTxO
+    -- inputs <- view #inputs Haskell.<$> fromEither result
+    liftIO $ Haskell.putStrLn $ Haskell.show "After view"
 
-    -- let
-    --     unbalancedTxHex =
-    --         T.decodeUtf8
-    --         . Base16.encode
-    --         . CBORWrite.toStrictByteString
-    --         . Serialise.encode
-    --         $ unbalancedTx ^. tx
+    let
+        balanceEndpoint = Link.balanceTransaction @'Shelley w
+        signEndpoint = Link.signTransaction @'Shelley w
 
+        -- unbalancedTxHex =
+        --     T.decodeUtf8
+        --     . Base64.encode
+        --     . CBORWrite.toStrictByteString
+        --     . Serialise.encode
+        --     $ unbalancedTx ^. tx
+
+        exportedTx =
+            PlutusWallet.export
+              (protocolParameters $ _networkParameters ctx)
+              (networkIdVal $ Proxy @n)
+              unbalancedTx
         -- apiData = Aeson.Object $ HM.fromList
         --     [ "transaction" .= Aeson.String unbalancedTxHex
-        --     , "inputs" .= Aeson.toJSON [ Aeson.object
-        --         [ "id" .= view #id input
-        --         , "index" .= view #index input
-        --         , "address" .= view #address input
-        --         , "amount" .= view #amount input
-        --         , "assets" .= Aeson.Array Vector.empty
-        --         ] ]
-        --    -- The contribution action does not try to spend a UTxO at a script
-        --    -- address, it only puts funds to the script address, so datum and
-        --    -- redeemer are not required.
-        --    , "redeemers" .= (Aeson.toJSON ([] :: [()]))
-        --    ]
+        --     -- , "inputs" .= Aeson.toJSON inputs
+        --     , "inputs" .= (Aeson.toJSON ([] :: [()]))
+        --     -- TODO redeemers
+        --     , "redeemers" .= (Aeson.toJSON ([] :: [()]))
+        --     ]
 
-     _
+    liftIO $ Haskell.putStrLn $ Haskell.show "1"
+    liftIO $ Haskell.putStrLn $ Haskell.show $ unbalancedTx ^. tx
+    liftIO $ Haskell.putStrLn $ Haskell.show "2"
+
+    -- Balance
+    let toBalance = DSL.Json $ Aeson.toJSON exportedTx
+    liftIO $ Haskell.putStrLn $ Haskell.show "Before balance"
+    (_, sealedTx) <- second (view #transaction) Haskell.<$>
+        DSL.unsafeRequest @ApiSerialisedTransaction ctx balanceEndpoint toBalance
+
+    liftIO $ Haskell.putStrLn $ Haskell.show "After balance"
+
+    -- Sign
+    let toSign = DSL.Json [DSL.json|
+            { "transaction": #{sealedTx}
+            , "passphrase": #{DSL.fixturePassphrase}
+            }|]
+    (_, signedTx) <- second (view #transaction) Haskell.<$>
+        DSL.unsafeRequest @ApiSerialisedTransaction ctx signEndpoint toSign
+
+    -- Submit
+    txid <- DSL.submitTx ctx signedTx [ DSL.expectResponseCode HTTP.status202 ]
+
+    DSL.waitForTxImmutability ctx
+
+    Haskell.pure txid
 
 contribute :: Campaign -> PaymentPubKeyHash -> Plutus.Value -> Constraints.UnbalancedTx
 contribute cmp contributor value =

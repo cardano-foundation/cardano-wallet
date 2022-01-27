@@ -1,6 +1,8 @@
 {-# LANGUAGE DataKinds #-}
-{-# LANGUAGE GADTs #-}
-{-# LANGUAGE RankNTypes #-}
+{-# LANGUAGE ScopedTypeVariables #-}
+{-# LANGUAGE TypeApplications #-}
+{-# LANGUAGE TypeFamilies #-}
+{-# LANGUAGE TypeOperators #-}
 
 module Main where
 
@@ -20,8 +22,5 @@ main :: forall n. (n ~ 'Mainnet) => IO ()
 main = withTestsSetup $ \testDir tracers -> do
     hspecMain $ do
         specWithServer testDir tracers $ do
-            describe "API Specifications" $ do
-                parallel $ do
-
-  where
-    parallelIf flag = if flag then parallel else sequential
+            describe "Plutus E2E crowdfunding" $ do
+                spec @n
