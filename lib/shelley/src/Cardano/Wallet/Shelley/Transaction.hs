@@ -136,8 +136,8 @@ import Cardano.Wallet.Primitive.Types.Tx
     , txSizeDistance
     )
 import Cardano.Wallet.Shelley.Compatibility
-    ( fromCardanoAddress
-    , fromCardanoCerts
+    ( cardanoCertKeysForWitnesses
+    , fromCardanoAddress
     , fromCardanoLovelace
     , fromCardanoTx
     , fromCardanoTxIn
@@ -439,7 +439,7 @@ signTransaction networkId resolveRewardAcct resolveAddress resolveInput (body, w
             | (addr, _) <- fromCardanoWdrls $ Cardano.txWithdrawals bodyContent
             ]
 
-        certs = fromCardanoCerts $ Cardano.txCertificates bodyContent
+        certs = cardanoCertKeysForWitnesses $ Cardano.txCertificates bodyContent
 
     mkTxInWitness :: TxIn -> Maybe (Cardano.KeyWitness era)
     mkTxInWitness i = do
