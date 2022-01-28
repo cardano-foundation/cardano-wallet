@@ -31,6 +31,7 @@
         depends = [
           (hsPkgs."base" or (errorHandler.buildDepError "base"))
           (hsPkgs."bytestring" or (errorHandler.buildDepError "bytestring"))
+          (hsPkgs."cardano-api" or (errorHandler.buildDepError "cardano-api"))
           (hsPkgs."code-page" or (errorHandler.buildDepError "code-page"))
           (hsPkgs."contra-tracer" or (errorHandler.buildDepError "contra-tracer"))
           (hsPkgs."either" or (errorHandler.buildDepError "either"))
@@ -38,6 +39,7 @@
           (hsPkgs."filepath" or (errorHandler.buildDepError "filepath"))
           (hsPkgs."fmt" or (errorHandler.buildDepError "fmt"))
           (hsPkgs."iohk-monitoring" or (errorHandler.buildDepError "iohk-monitoring"))
+          (hsPkgs."mtl" or (errorHandler.buildDepError "mtl"))
           (hsPkgs."process" or (errorHandler.buildDepError "process"))
           (hsPkgs."text" or (errorHandler.buildDepError "text"))
           (hsPkgs."text-class" or (errorHandler.buildDepError "text-class"))
