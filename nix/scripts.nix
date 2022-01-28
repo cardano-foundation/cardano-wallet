@@ -1,3 +1,13 @@
+################################################################################
+# Wallet service wrapper script
+#
+# This script runs the cardano-wallet server preconfigured with
+# a specific network.
+#
+# It is used by devops to run the wallet in Nomad clusters.
+#
+################################################################################
+
 { evalService
 , project
 , customConfigs
