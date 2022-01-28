@@ -4,14 +4,14 @@
   <meta charset='UTF-8' />
   <meta name='viewport' content='width=device-width, initial-scale=1' />
   <title>
-    Wallet Cryptography and Encoding – Cardano Wallet
+    Cardano Eras – Cardano Wallet
   </title>
   
     
       <meta property='og:description' content />
       <meta property='og:site_name' content='Cardano Wallet' />
       <meta property='og:type' content='website' />
-      <meta property='og:title' content='Wallet Cryptography and Encoding' />
+      <meta property='og:title' content='Cardano Eras' />
     
     
       <base href='/cardano-wallet/' />
@@ -100,8 +100,8 @@
             </li>
           
             <li class='inline-flex items-center'>
-              <a class='px-1 font-bold' href='concepts'>
-                Key Concepts
+              <a class='px-1 font-bold' href='design'>
+                Design Notes
               </a>
               <svg fill='currentColor' viewBox='0 0 20 20' class='w-auto h-5 text-gray-400'>
                 <path fill-rule='evenodd' d='M7.293 14.707a1 1 0 010-1.414L10.586 10 7.293 6.707a1 1 0 011.414-1.414l4 4a1 1 0 010 1.414l-4 4a1 1 0 01-1.414 0z' clip-rule='evenodd'></path>
@@ -1021,7 +1021,11 @@
     
       <!-- Variable bindings for this tree-->
   
-  
+    
+      
+    
+    
+
 
 
   
@@ -1034,12 +1038,12 @@
     
     
       <svg class='w-4 h-4 flex-shrink-0 inline' fill='none' stroke='currentColor' viewBox='0 0 24 24' xmlns='http://www.w3.org/2000/svg'>
-        <path stroke-linecap='round' stroke-linejoin='round' stroke-width='2' d='M9 12h6m-6 4h6m2 5H7a2 2 0 01-2-2V5a2 2 0 012-2h5.586a1 1 0 01.707.293l5.414 5.414a1 1 0 01.293.707V19a2 2 0 01-2 2z'>
+        <path stroke-linecap='round' stroke-linejoin='round' stroke-width='2' d='M7 21h10a2 2 0 002-2V9.414a1 1 0 00-.293-.707l-5.414-5.414A1 1 0 0012.586 3H7a2 2 0 00-2 2v14a2 2 0 002 2z'>
         </path>
       </svg>
-      
+    
   
-    <a class='font-bold text-blue-600 hover:underline truncate' title='Wallet Cryptography and Encoding' href='concepts/cryptography-and-encoding'>
+    <a class='hover:underline truncate' title='Wallet Cryptography and Encoding' href='concepts/cryptography-and-encoding'>
       Wallet Cryptography and Encoding
     </a>
     
@@ -1641,11 +1645,7 @@
     
       <!-- Variable bindings for this tree-->
   
-    
-      
-    
-    
-
+  
 
 
   
@@ -1658,12 +1658,12 @@
     
     
       <svg class='w-4 h-4 flex-shrink-0 inline' fill='none' stroke='currentColor' viewBox='0 0 24 24' xmlns='http://www.w3.org/2000/svg'>
-        <path stroke-linecap='round' stroke-linejoin='round' stroke-width='2' d='M7 21h10a2 2 0 002-2V9.414a1 1 0 00-.293-.707l-5.414-5.414A1 1 0 0012.586 3H7a2 2 0 00-2 2v14a2 2 0 002 2z'>
+        <path stroke-linecap='round' stroke-linejoin='round' stroke-width='2' d='M9 12h6m-6 4h6m2 5H7a2 2 0 01-2-2V5a2 2 0 012-2h5.586a1 1 0 01.707.293l5.414 5.414a1 1 0 01.293.707V19a2 2 0 01-2 2z'>
         </path>
       </svg>
-    
+      
   
-    <a class='hover:underline truncate' title='Cardano Eras' href='design/Eras'>
+    <a class='font-bold text-blue-600 hover:underline truncate' title='Cardano Eras' href='design/Eras'>
       Cardano Eras
     </a>
     
@@ -2041,461 +2041,99 @@
           <main class='px-4 py-4'>
             <h1 class='flex items-end justify-center mb-4 p-3 bg-blue-100 text-5xl font-extrabold text-black rounded'>
   <a class='z-40 tracking-tighter '>
-    Wallet Cryptography and Encoding
+    Cardano Eras
   </a>
 </h1>
             <article class='overflow-auto'>
   <!-- What goes in this file will appear on top of note body-->
   
-    <ul class='my-3 ml-6 space-y-1 list-decimal list-inside'>
-      
-        <li>
-          <a href='#recovery-phrases' class='text-blue-600 mavenLinkBold hover:underline'>Recovery Phrases</a>
-    <ul class='my-3 ml-6 space-y-1 list-decimal list-inside'>
-      
-        <li>
-          <a href='#motivation' class='text-blue-600 mavenLinkBold hover:underline'>Motivation</a>
-        </li>
-      
-        <li>
-          <a href='#encoding' class='text-blue-600 mavenLinkBold hover:underline'>Encoding</a>
-        </li>
-      
-        <li>
-          <a href='#dictionaries' class='text-blue-600 mavenLinkBold hover:underline'>Dictionaries</a>
-        </li>
-      
-    </ul>
-  
-        </li>
-      
-        <li>
-          <a href='#hierarchical-deterministic-wallets' class='text-blue-600 mavenLinkBold hover:underline'>Hierarchical Deterministic Wallets</a>
-    <ul class='my-3 ml-6 space-y-1 list-decimal list-inside'>
-      
-        <li>
-          <a href='#motivation' class='text-blue-600 mavenLinkBold hover:underline'>Motivation</a>
-        </li>
-      
-        <li>
-          <a href='#notation' class='text-blue-600 mavenLinkBold hover:underline'>Notation</a>
-        </li>
-      
-        <li>
-          <a href='#path-levels' class='text-blue-600 mavenLinkBold hover:underline'>Path Levels</a>
-        </li>
-      
-        <li>
-          <a href='#account-discovery' class='text-blue-600 mavenLinkBold hover:underline'>Account Discovery</a>
-        </li>
-      
-        <li>
-          <a href='#address-gap-limit' class='text-blue-600 mavenLinkBold hover:underline'>Address Gap Limit</a>
-        </li>
-      
-    </ul>
-  
-        </li>
-      
-        <li>
-          <a href='#master-key-generation' class='text-blue-600 mavenLinkBold hover:underline'>Master Key Generation</a>
-    <ul class='my-3 ml-6 space-y-1 list-decimal list-inside'>
-      
-        <li>
-          <a href='#history' class='text-blue-600 mavenLinkBold hover:underline'>History</a>
-        </li>
-      
-        <li>
-          <a href='#overview' class='text-blue-600 mavenLinkBold hover:underline'>Overview</a>
-        </li>
-      
-        <li>
-          <a href='#pseudo-code' class='text-blue-600 mavenLinkBold hover:underline'>Pseudo-code</a>
-    <ul class='my-3 ml-6 space-y-1 list-decimal list-inside'>
-      
-        <li>
-          <a href='#byron' class='text-blue-600 mavenLinkBold hover:underline'>Byron</a>
-        </li>
-      
-        <li>
-          <a href='#icarus' class='text-blue-600 mavenLinkBold hover:underline'>Icarus</a>
-        </li>
-      
-        <li>
-          <a href='#ledger' class='text-blue-600 mavenLinkBold hover:underline'>Ledger</a>
-        </li>
-      
-    </ul>
-  
-        </li>
-      
-    </ul>
-  
-        </li>
-      
-    </ul>
-  <h2 id='recovery-phrases' class='inline-block mt-6 mb-4 text-4xl font-bold text-gray-700 border-b-2'>Recovery Phrases</h2><h3 id='motivation' class='mt-6 mb-2 text-3xl font-bold text-gray-700'>Motivation</h3>
     <p class='mb-3'>
-      We define a way for easily entering and writing down arbitrary binary seeds using a simple dictionary of known words (available in many different languages).
+      A blockchain “hard fork” is a change to the block producing software such that any new blocks produced would be invalid according to the old unchanged software. Therefore, the unchanged software would not accept these blocks into its chain. If nodes running the new and modified software continue to produce blocks on top of their chain, a “fork” will result, starting at the parent block of the first incompatible block.
     </p>
   
     <p class='mb-3'>
-      The motivation here is to have sentence of words easy to read and write for humans, which map uniquely back and forth to a sized binary data (harder to remember).
-    </p>
-  <h3 id='encoding' class='mt-6 mb-2 text-3xl font-bold text-gray-700'>Encoding</h3>
-    <p class='mb-3'>
-      The process describing how to encode recovery phrases is described in <a href='https://github.com/bitcoin/bips/blob/master/bip-0039.mediawiki' class='text-blue-600 hover:underline' target='_blank' rel='noopener'>BIP-0039</a> section “Generating the mnemonic”. Below is a reformulation of this specification.
+      Cardano manages hard forks by gating the new block generation code behind a feature flag. The network agrees upon a slot at which all nodes will enable the new block generation code. After that slot, the network is said to be operating in a new “era.”
     </p>
   
     <p class='mb-3'>
-      We call <em>Entropy</em> an arbitrary sequence of bytes that has been generated through high quality randomness methods. The allowed size of <em>Entropy</em> is 96-256 bits and is necessarily a multiple of 32 bits (4 bytes).
+      Agreement on the slot number (epoch really) to switch to the new era happens by an on-chain voting protocol. If the voting proposal is carried, operators of nodes must ensure that their software version will be compatible with the new era, before the hard fork occurs.
+    </p>
+  <div class='gotcha-container mx-9 my-6 px-3 py-1 rounded bg-red-100 hover:border-red-400 hover:shadow border-t-8 border-red-200'><h4 id='terminology' class='mt-6 mb-2 text-2xl font-bold text-gray-700'>Terminology</h4>
+    <p class='mb-3'>
+      One might ask why the eras listed in <a href='https://input-output-hk.github.io/cardano-node/cardano-api/lib/Cardano-Api.html' class='text-blue-600 hover:underline' target='_blank' rel='noopener'>Cardano.Api</a> don’t all appear in the <a href='https://roadmap.cardano.org/en/' class='text-blue-600 hover:underline' target='_blank' rel='noopener'>Cardano Roadmap</a>.
     </p>
   
     <p class='mb-3'>
-      A checksum is appended to the initial entropy by taking the first <code class='py-0.5 px-1 rounded bg-gray-700 text-sm text-white'>ENT / 32</code> bits of the SHA256 hash of it, where <code class='py-0.5 px-1 rounded bg-gray-700 text-sm text-white'>ENT</code> designates the <em>Entropy</em> size in bits.
+      The roadmap is actually divided into <em>phases</em>, under which one or more eras (hard forks) may occur.
+    </p>
+  </div><h2 id='the-hard-fork-combinator' class='inline-block mt-6 mb-4 text-4xl font-bold text-gray-700 border-b-2'>The Hard Fork Combinator</h2>
+    <p class='mb-3'>
+      The mechanism whereby the Cardano Node operates in different modes - depending on which slot it is up to - is called the “Hard Fork Combinator”.
     </p>
   
     <p class='mb-3'>
-      Then, the concatenated result is split into groups of 11 bits, each encoding a number from 0 to 2047 serving as an index into a known dictionary (see below).
+      The following <a href='https://input-output.atlassian.net/wiki/spaces/EN/pages/718962750/IOHK+Research+Engineering+Seminar' class='text-blue-600 hover:underline' target='_blank' rel='noopener'>seminars</a> (company internal use only) are a good introduction:
     </p>
-  <table class='mb-3'><thead><tr class='border-b-2 border-t-2 border-gray-300'><th class='py-2 px-2 align-top border-r-2 border-l-2 border-gray-300'>Sentence Length</th><th class='py-2 px-2 align-top border-r-2 border-l-2 border-gray-300'>Entropy Size</th><th class='py-2 px-2 align-top border-r-2 border-l-2 border-gray-300'>Checksum Size</th></tr></thead><tbody><tr class='border-b-2 border-t-2 border-gray-300'><td class='py-2 px-2 align-top border-r-2 border-l-2 border-gray-300'>9 words</td><td class='py-2 px-2 align-top border-r-2 border-l-2 border-gray-300'>96 bits (12 bytes)</td><td class='py-2 px-2 align-top border-r-2 border-l-2 border-gray-300'>3 bits</td></tr><tr class='border-b-2 border-t-2 border-gray-300'><td class='py-2 px-2 align-top border-r-2 border-l-2 border-gray-300'>12 words</td><td class='py-2 px-2 align-top border-r-2 border-l-2 border-gray-300'>128 bits (16 bytes)</td><td class='py-2 px-2 align-top border-r-2 border-l-2 border-gray-300'>4 bits</td></tr><tr class='border-b-2 border-t-2 border-gray-300'><td class='py-2 px-2 align-top border-r-2 border-l-2 border-gray-300'>15 words</td><td class='py-2 px-2 align-top border-r-2 border-l-2 border-gray-300'>160 bits (20 bytes)</td><td class='py-2 px-2 align-top border-r-2 border-l-2 border-gray-300'>5 bits</td></tr><tr class='border-b-2 border-t-2 border-gray-300'><td class='py-2 px-2 align-top border-r-2 border-l-2 border-gray-300'>18 words</td><td class='py-2 px-2 align-top border-r-2 border-l-2 border-gray-300'>192 bits (24 bytes)</td><td class='py-2 px-2 align-top border-r-2 border-l-2 border-gray-300'>6 bits</td></tr><tr class='border-b-2 border-t-2 border-gray-300'><td class='py-2 px-2 align-top border-r-2 border-l-2 border-gray-300'>21 words</td><td class='py-2 px-2 align-top border-r-2 border-l-2 border-gray-300'>224 bits (28 bytes)</td><td class='py-2 px-2 align-top border-r-2 border-l-2 border-gray-300'>7 bits</td></tr><tr class='border-b-2 border-t-2 border-gray-300'><td class='py-2 px-2 align-top border-r-2 border-l-2 border-gray-300'>24 words</td><td class='py-2 px-2 align-top border-r-2 border-l-2 border-gray-300'>256 bits (32 bytes)</td><td class='py-2 px-2 align-top border-r-2 border-l-2 border-gray-300'>8 bits</td></tr></tbody></table><h3 id='dictionaries' class='mt-6 mb-2 text-3xl font-bold text-gray-700'>Dictionaries</h3>
+  <table class='mb-3'><thead><tr class='border-b-2 border-t-2 border-gray-300'><th class='py-2 px-2 align-top border-r-2 border-l-2 border-gray-300'>Date</th><th class='py-2 px-2 align-top border-r-2 border-l-2 border-gray-300'>Title</th><th class='py-2 px-2 align-top border-r-2 border-l-2 border-gray-300'>Description</th></tr></thead><tbody><tr class='border-b-2 border-t-2 border-gray-300'><td class='py-2 px-2 align-top border-r-2 border-l-2 border-gray-300'>2020/05/15</td><td class='py-2 px-2 align-top border-r-2 border-l-2 border-gray-300'><a href='https://drive.google.com/file/d/1m_jKQM_gxBm0ctLqIq9NGj5_nXPI66Su/view' class='text-blue-600 hover:underline' target='_blank' rel='noopener'>Hardfork Combinator I: Reconciling The Eras</a></td><td class='py-2 px-2 align-top border-r-2 border-l-2 border-gray-300'>This session will explain the technology behind the fabled hardfork combinator for Cardano. As this is quite a bit of machinery, and central to Shelley, we will take the time to talk about it in two sessions, to give enough background that everyone can follow along. This first session will focus on the combinator itself, and how advanced Haskell features allow us to travel from one typed world to another. In a future session, which yet needs to be scheduled, he will present on the subtleties of treating time in the presence of a hardfork.</td></tr><tr class='border-b-2 border-t-2 border-gray-300'><td class='py-2 px-2 align-top border-r-2 border-l-2 border-gray-300'>2020/06/05</td><td class='py-2 px-2 align-top border-r-2 border-l-2 border-gray-300'><a href='https://drive.google.com/file/d/1QIJ-VBlj-txB6K6E7DIEnY5TzaD89qQm/view' class='text-blue-600 hover:underline' target='_blank' rel='noopener'>Hard Fork Combinator II: Time for a Hard Fork</a></td><td class='py-2 px-2 align-top border-r-2 border-l-2 border-gray-300'>As any computer scientist, physicist, or cross-timezone remote worker can testify, time is a tricky and unforgiving beast. Cardano, as a slot-based Proof of Stake system, is inherently time-driven, so it is vital to get time right. Across the hardfork from Byron to Shelley, the way in which time is divided into slots will change, which turned out to be a massive complicating factor. In this presentation, Edsko will show us how the hard fork combinator handles time across the fork point.</td></tr></tbody></table>
     <p class='mb-3'>
-      Cardano uses the same dictionaries as defined in <a href='https://github.com/bitcoin/bips/blob/master/bip-0039/bip-0039-wordlists.md' class='text-blue-600 hover:underline' target='_blank' rel='noopener'>BIP-0039</a>.
+      In a nutshell, pretty much all types in <code class='py-0.5 px-1 rounded bg-gray-700 text-sm text-white'>Cardano.Api</code> are indexed by the <code class='py-0.5 px-1 rounded bg-gray-700 text-sm text-white'>Era</code>. The node will provide a <code class='py-0.5 px-1 rounded bg-gray-700 text-sm text-white'>TimeInterpreter</code> object by the <code class='py-0.5 px-1 rounded bg-gray-700 text-sm text-white'>LocalStateQuery</code> protocol, which allows <code class='py-0.5 px-1 rounded bg-gray-700 text-sm text-white'>cardano-wallet</code> to calculate what time a certain slot occurs at. Calculating the time of a given slot number is more complicated than it sounds.
     </p>
-  <hr class='mb-3' /><h2 id='hierarchical-deterministic-wallets' class='inline-block mt-6 mb-4 text-4xl font-bold text-gray-700 border-b-2'>Hierarchical Deterministic Wallets</h2><h3 id='motivation-1' class='mt-6 mb-2 text-3xl font-bold text-gray-700'>Motivation</h3>
+  <h2 id='configuration' class='inline-block mt-6 mb-4 text-4xl font-bold text-gray-700 border-b-2'>Configuration</h2>
     <p class='mb-3'>
-      In Cardano, hierarchical deterministic (abbrev. HD) wallets are similar to those described in <a href='https://github.com/bitcoin/bips/blob/master/bip-0032.mediawiki#motivation' class='text-blue-600 hover:underline' target='_blank' rel='noopener'>BIP-0032</a>.
+      Both <code class='py-0.5 px-1 rounded bg-gray-700 text-sm text-white'>cardano-node</code> and <code class='py-0.5 px-1 rounded bg-gray-700 text-sm text-white'>cardano-wallet</code> have command-line parameters and/or configuration options for the hard-fork combinator.
+    </p>
+  <h3 id='genesis' class='mt-6 mb-2 text-3xl font-bold text-gray-700'>Genesis</h3>
+    <p class='mb-3'>
+      Nodes must be initialised with a genesis config. The genesis config defines the initial state of the chain. There is the Byron era genesis obviously, and some subsequent eras (Shelley and Alonzo, at the time of writing) also have their own genesis.
     </p>
   
     <p class='mb-3'>
-      Deterministic wallets and elliptic curve mathematics permit schemes where one can calculate a wallet public keys without revealing its private keys. This permits for example a webshop business to let its webserver generate fresh addresses (public key hashes) for each order or for each customer, without giving the webserver access to the corresponding private keys (which are required for spending the received funds).
+      Only the hash of a genesis config is stored on-chain. For mainnet, the genesis hash is used as the previous block header hash for the <em>Epoch Boundary Block</em> of epoch 0.
     </p>
   
     <p class='mb-3'>
-      However, deterministic wallets typically consist of a single “chain” of keypairs. The fact that there is only one chain means that sharing a wallet happens on an all-or-nothing basis. However, in some cases one only wants some (public) keys to be shared and recoverable. In the example of a webshop, the webserver does not need access to all public keys of the merchant’s wallet; only to those addresses which are used to receive customer’s payments, and not for example the change addresses that are generated when the merchant spends money. Hierarchical deterministic wallets allow such selective sharing by supporting multiple keypair chains, derived from a single root.
-    </p>
-  <h3 id='notation' class='mt-6 mb-2 text-3xl font-bold text-gray-700'>Notation</h3>
-    <p class='mb-3'>
-      Conceptually, HD derivation can be seen as a tree with many branches, where keys live at each node and leaf such that an entire sub-tree can be recovered from only a parent key (and seemingly, the whole tree can be recovered from the root master key).
+      When <code class='py-0.5 px-1 rounded bg-gray-700 text-sm text-white'>cardano-wallet</code> connects to its local <code class='py-0.5 px-1 rounded bg-gray-700 text-sm text-white'>cardano-node</code>, it must provide the Byron genesis config hash. Hashes for subsequent genesis configs are contained on-chain within the voting system update proposals.
     </p>
   
     <p class='mb-3'>
-      For deriving new keys from parent keys, we use the same approach as defined in <a href='https://cardanolaunch.com/assets/Ed25519_BIP.pdf' class='text-blue-600 hover:underline' target='_blank' rel='noopener'>BIP32-Ed25519: Hierarchical Deterministic Keys over a Non-linear Keyspace</a>.
+      For <em>mainnet</em>, we have hardcoded the genesis hash. It will never change. For <em>staging</em> and <em>testnet</em>, users must supply a genesis config to the <a href='user-guide/cli' class='text-blue-600 mavenLinkBold hover:underline' data-wikilink-type='WikiLinkNormal'>Command-Line Interface</a>, so that its hash may be used when connecting to the local node.
+    </p>
+  <div class='gotcha-container mx-9 my-6 px-3 py-1 rounded bg-red-100 hover:border-red-400 hover:shadow border-t-8 border-red-200'><h4 id='epoch-boundary-blocks' class='mt-6 mb-2 text-2xl font-bold text-gray-700'>Epoch Boundary Blocks</h4>
+    <p class='mb-3'>
+      Epoch Boundary Blocks (EBBs) only existed in the Byron era, prior to their abolition with the Shelley hard fork. Confusingly, they were also referred to as “genesis” blocks. The EBB is the previous block of the first block in a Byron epoch. EBBs were calculated locally on each full node of mainnet, and were never transmitted across the network between nodes.
+    </p>
+  </div><h3 id='instafork-technology' class='mt-6 mb-2 text-3xl font-bold text-gray-700'><em>Instafork</em>™ Technology</h3>
+    <p class='mb-3'>
+      Hard forking to Alonzo (the latest era, at the time of writing) by natural methods requires several epochs’ worth of network operation time to take effect. For disposable local testnets, this would delay startup and make our integration tests slower.
     </p>
   
     <p class='mb-3'>
-      We note <code class='py-0.5 px-1 rounded bg-gray-700 text-sm text-white'>CKDpriv</code> the derivation of a private child key from a parent private key such that:
+      Therefore, <code class='py-0.5 px-1 rounded bg-gray-700 text-sm text-white'>cardano-node</code> can be configured to hard fork itself at the start of any given epoch number, without an update proposal. It’s also possible to hard fork directly into all the eras at epoch 0. This is what we use for the integration tests <code class='py-0.5 px-1 rounded bg-gray-700 text-sm text-white'>local-cluster</code>. The <code class='py-0.5 px-1 rounded bg-gray-700 text-sm text-white'>cardano-node</code> configuration for this is:
     </p>
-  <div xmlhtmlRaw><pre>
-CKDprv((k<sup>P</sup>, c<sup>P</sup>), i) → (k<sub>i</sub>, c<sub>i</sub>)
-</pre>
-</div>
+  <div class='py-0.5 mb-3 text-sm'><pre><code class='yaml language-yaml'>TestShelleyHardForkAtEpoch: 0
+TestAllegraHardForkAtEpoch: 0
+TestMaryHardForkAtEpoch: 0
+TestAlonzoHardForkAtEpoch: 0</code></pre></div><h3 id='historical-note-cardano-mode' class='mt-6 mb-2 text-3xl font-bold text-gray-700'>Historical note: “Cardano Mode”</h3>
     <p class='mb-3'>
-      We note <code class='py-0.5 px-1 rounded bg-gray-700 text-sm text-white'>CKDpub</code> the derivation of a public child key from a parent public key such that:
-    </p>
-  <div xmlhtmlRaw><pre>
-i <  2<sup>31</sup>: CKDpub((A<sup>P</sup>, c<sup>P</sup>), i) → (A<sub>i</sub>, c<sub>i</sub>)
-</pre>
-</div>
-    <blockquote class='py-0.5 px-4 mb-3 italic border-l-4 bg-gray-50 text-gray-600 border-gray-400 quote'>
-      
-    <p class='mb-3'>
-      NOTE: This is only possible for so-called “soft” derivation indexes, smaller than 2<span xmlhtmlRaw><sup></span>31<span xmlhtmlRaw></sup></span>.
-    </p>
-  
-    </blockquote>
-  
-    <p class='mb-3'>
-      We note <code class='py-0.5 px-1 rounded bg-gray-700 text-sm text-white'>N</code> the public key corresponding to a private key such that:
-    </p>
-  <div xmlhtmlRaw><pre>
-N(k, c) → (A, c)
-</pre>
-</div>
-    <p class='mb-3'>
-      To shorten notation, we will borrow the same notation as described in BIP-0032 and write CKDpriv(CKDpriv(CKDpriv(m,3H),2),5) as m/3H/2/5. Equivalently for public keys, we write CKDpub(CKDpub(CKDpub(M,3),2),5) as M/3/2/5.
-    </p>
-  <h3 id='path-levels' class='mt-6 mb-2 text-3xl font-bold text-gray-700'>Path Levels</h3>
-    <p class='mb-3'>
-      Cardano wallet defines the following path levels:
-    </p>
-  <div xmlhtmlRaw><pre>
-m / purpose<sub>H</sub> / coin_type<sub>H</sub> / account<sub>H</sub> / account_type / address_index
-</pre>
-</div>
-    <ul class='my-3 ml-6 space-y-1 list-disc'>
-      
-        <li>
-          <span xmlhtmlRaw><code></span>purpose<span xmlhtmlRaw><sub></span>H<span xmlhtmlRaw></sub></span><span xmlhtmlRaw></code></span> is set to <span xmlhtmlRaw><code></span>1852<span xmlhtmlRaw><sub></span>H<span xmlhtmlRaw></sub></span><span xmlhtmlRaw></code></span>
-        </li>
-      
-        <li>
-          <span xmlhtmlRaw><code></span>coin_type<span xmlhtmlRaw><sub></span>H<span xmlhtmlRaw></sub></span><span xmlhtmlRaw></code></span> is set to <span xmlhtmlRaw><code></span>1815<span xmlhtmlRaw><sub></span>H<span xmlhtmlRaw></sub></span><span xmlhtmlRaw></code></span>
-        </li>
-      
-        <li>
-          <span xmlhtmlRaw><code></span>account<span xmlhtmlRaw><sub></span>H<span xmlhtmlRaw></sub></span><span xmlhtmlRaw></code></span> is set for now to <span xmlhtmlRaw><code></span>0<span xmlhtmlRaw><sub></span>H<span xmlhtmlRaw></sub></span><span xmlhtmlRaw></code></span>
-        </li>
-      
-        <li>
-          <span xmlhtmlRaw><code></span>account_type<span xmlhtmlRaw></code></span> is either:
-    <ul class='my-3 ml-6 space-y-1 list-disc'>
-      
-        <li>
-          <code class='py-0.5 px-1 rounded bg-gray-700 text-sm text-white'>0</code> to indicate an address on the external chain, that is, an address that is meant to be public and communicated to other users.
-        </li>
-      
-        <li>
-          <code class='py-0.5 px-1 rounded bg-gray-700 text-sm text-white'>1</code> to indicate an address on the internal chain, that is, an address that is meant for change, generated by a wallet software.
-        </li>
-      
-        <li>
-          <code class='py-0.5 px-1 rounded bg-gray-700 text-sm text-white'>2</code> to indicate a reward account address, used for delegation.
-        </li>
-      
-    </ul>
-  
-        </li>
-      
-        <li>
-          <span xmlhtmlRaw><code></span>address_index<span xmlhtmlRaw></code></span> is either:
-    <ul class='my-3 ml-6 space-y-1 list-disc'>
-      
-        <li>
-          <code class='py-0.5 px-1 rounded bg-gray-700 text-sm text-white'>0</code> if the <code class='py-0.5 px-1 rounded bg-gray-700 text-sm text-white'>account_type</code> is <code class='py-0.5 px-1 rounded bg-gray-700 text-sm text-white'>2</code>
-        </li>
-      
-        <li>
-          Anything between 0 and 2<span xmlhtmlRaw><sup></span>31 otherwise
-        </li>
-      
-    </ul>
-  
-        </li>
-      
-    </ul>
-  <h3 id='account-discovery' class='mt-6 mb-2 text-3xl font-bold text-gray-700'>Account Discovery</h3>
-    <blockquote class='py-0.5 px-4 mb-3 italic border-l-4 bg-gray-50 text-gray-600 border-gray-400 quote'>
-      
-    <p class='mb-3'>
-      What follows is taken from the “Account Discovery” section from <a href='https://github.com/bitcoin/bips/blob/master/bip-0044.mediawiki#account-discovery' class='text-blue-600 hover:underline' target='_blank' rel='noopener'>BIP-0044</a>
-    </p>
-  
-    </blockquote>
-  
-    <p class='mb-3'>
-      When the master seed is imported from an external source the software should start to discover the accounts in the following manner:
-    </p>
-  
-    <ul class='my-3 ml-6 space-y-1 list-disc'>
-      
-        <li>
-          derive the first account’s node (index = 0)
-        </li>
-      
-        <li>
-          derive the external chain node of this account
-        </li>
-      
-        <li>
-          scan addresses of the external chain; respect the gap limit described below
-        </li>
-      
-        <li>
-          if no transactions are found on the external chain, stop discovery
-        </li>
-      
-        <li>
-          if there are some transactions, increase the account index and go to step 1
-        </li>
-      
-    </ul>
-  
-    <p class='mb-3'>
-      For the algorithm to be successful, software should disallow creation of new accounts if previous one has no transaction history.
+      In theory, it is possible to run <code class='py-0.5 px-1 rounded bg-gray-700 text-sm text-white'>cardano-node</code> in a single-era mode, where the Hard Fork Combinator is completely disabled. This is called running in Byron-only or Shelley-only mode. Then there is full “Cardano Mode”, which enables the Hard Fork Combinator, thereby allowing the software to pass through eras.
     </p>
   
     <p class='mb-3'>
-      Please note that the algorithm works with the transaction history, not account balances, so you can have an account with 0 total coins and the algorithm will still continue with discovery.
-    </p>
-  <h3 id='address-gap-limit' class='mt-6 mb-2 text-3xl font-bold text-gray-700'>Address gap limit</h3>
-    <p class='mb-3'>
-      Address gap limit is currently set to 20. If the software hits 20 unused addresses in a row, it expects there are no used addresses beyond this point and stops searching the address chain. We scan just the external chains, because internal chains receive only coins that come from the associated external chains.
+      For <code class='py-0.5 px-1 rounded bg-gray-700 text-sm text-white'>cardano-cli</code>, there are <code class='py-0.5 px-1 rounded bg-gray-700 text-sm text-white'>--byron-mode</code>, <code class='py-0.5 px-1 rounded bg-gray-700 text-sm text-white'>--shelley-mode</code>, and <code class='py-0.5 px-1 rounded bg-gray-700 text-sm text-white'>--cardano-mode</code> switches, to tell the network client which mode the local node is using.
     </p>
   
     <p class='mb-3'>
-      Wallet software should warn when the user is trying to exceed the gap limit on an external chain by generating a new address.
+      Cardano Mode is the default. I’m not aware of too many people using single-era modes for anything much.
     </p>
-  <h2 id='master-key-generation' class='inline-block mt-6 mb-4 text-4xl font-bold text-gray-700 border-b-2'>Master Key Generation</h2><h3 id='history' class='mt-6 mb-2 text-3xl font-bold text-gray-700'>History</h3>
+  <h2 id='specifications' class='inline-block mt-6 mb-4 text-4xl font-bold text-gray-700 border-b-2'>Specifications</h2>
     <p class='mb-3'>
-      Throughout the years, Cardano has been using different styles of HD wallets. We categorize these wallets in the following terms:
+      Formal specifications (and the actual implementations!) for each Cardano era exist in the <a href='https://github.com/input-output-hk/cardano-ledger' class='text-blue-600 hover:underline' target='_blank' rel='noopener'>input-output-hk/cardano-ledger</a> repo. These documents are suprisingly readable, and are our go-to source for answers about how the node operates. See the <a href='https://github.com/input-output-hk/cardano-ledger/blob/master/README.md' class='text-blue-600 hover:underline' target='_blank' rel='noopener'><code class='py-0.5 px-1 rounded bg-gray-700 text-sm text-white'>README.md</code></a> for links to PDFs and/or build instructions.
     </p>
-  <table class='mb-3'><thead><tr class='border-b-2 border-t-2 border-gray-300'><th class='py-2 px-2 align-top border-r-2 border-l-2 border-gray-300'>Wallet Style</th><th class='py-2 px-2 align-top border-r-2 border-l-2 border-gray-300'>Compatible Products</th></tr></thead><tbody><tr class='border-b-2 border-t-2 border-gray-300'><td class='py-2 px-2 align-top border-r-2 border-l-2 border-gray-300'>Byron</td><td class='py-2 px-2 align-top border-r-2 border-l-2 border-gray-300'>Daedalus, Yoroi</td></tr><tr class='border-b-2 border-t-2 border-gray-300'><td class='py-2 px-2 align-top border-r-2 border-l-2 border-gray-300'>Icarus</td><td class='py-2 px-2 align-top border-r-2 border-l-2 border-gray-300'>Yoroi, Trezor</td></tr><tr class='border-b-2 border-t-2 border-gray-300'><td class='py-2 px-2 align-top border-r-2 border-l-2 border-gray-300'>Ledger</td><td class='py-2 px-2 align-top border-r-2 border-l-2 border-gray-300'>Ledger</td></tr></tbody></table>
+  <h3 id='decentralized-update-proposals' class='mt-6 mb-2 text-3xl font-bold text-gray-700'>Decentralized Update Proposals</h3>
     <p class='mb-3'>
-      Each wallet is based on Ed25519 elliptic curves though differs in subtle ways highlighted in the next sections.
-    </p>
-  <h3 id='overview' class='mt-6 mb-2 text-3xl font-bold text-gray-700'>Overview</h3>
-    <p class='mb-3'>
-      The master key generation is the mean by which on turns an initial entropy into a secure cryptographic key. Child keys can be derived from a master key to produce an HD structure as outlined above. Child key derivation is explored in next sections.
+      The <a href='https://github.com/input-output-hk/decentralized-software-updates' class='text-blue-600 hover:underline' target='_blank' rel='noopener'>input-output-hk/decentralized-software-updates</a> repo contains research materials for a <em>future</em> implementation of decentralized software updates.
     </p>
   
-    <p class='mb-3'>
-      In Cardano, the master key generation is different depending on which style of wallet one is considering. In each case however, the generation is a function from an initial seed to an extended private key (abbrev. XPrv) composed of:
-    </p>
-  
-    <ul class='my-3 ml-6 space-y-1 list-disc'>
-      
-        <li>
-          64 bytes: an extended Ed25519 secret key composed of:
-    <ul class='my-3 ml-6 space-y-1 list-disc'>
-      
-        <li>
-          32 bytes: Ed25519 curve scalar from which few bits have been tweaked (see below)
-        </li>
-      
-        <li>
-          32 bytes: Ed25519 binary blob used as IV for signing
-        </li>
-      
-    </ul>
-  
-        </li>
-      
-        <li>
-          32 bytes: chain code for allowing secure child key derivation
-        </li>
-      
-    </ul>
-  
-    <blockquote class='py-0.5 px-4 mb-3 italic border-l-4 bg-gray-50 text-gray-600 border-gray-400 quote'>
-      
-    <p class='mb-3'>
-      Additional resources:
-    </p>
-  
-    <ul class='my-3 ml-6 space-y-1 list-disc'>
-      
-        <li>
-          <a href='https://github.com/satoshilabs/slips/blob/master/slip-0010.md' class='text-blue-600 hover:underline' target='_blank' rel='noopener'>SLIP 0010</a>
-        </li>
-      
-        <li>
-          <a href='https://github.com/bitcoin/bips/blob/master/bip-0032.mediawiki' class='text-blue-600 hover:underline' target='_blank' rel='noopener'>BIP 0032</a>
-        </li>
-      
-        <li>
-          <a href='https://github.com/bitcoin/bips/blob/master/bip-0039.mediawiki' class='text-blue-600 hover:underline' target='_blank' rel='noopener'>BIP 0039</a>
-        </li>
-      
-        <li>
-          <a href='https://tools.ietf.org/html/rfc8032#section-5.1.5' class='text-blue-600 hover:underline' target='_blank' rel='noopener'>RFC 8032</a>
-        </li>
-      
-    </ul>
-  
-    </blockquote>
-  <h3 id='pseudo-code' class='mt-6 mb-2 text-3xl font-bold text-gray-700'>Pseudo-code</h3><h4 id='byron' class='mt-6 mb-2 text-2xl font-bold text-gray-700'>Byron</h4><div class='py-0.5 mb-3 text-sm'><pre><code class='language-none'>generateMasterKey(seed) {
-    return hashRepeatedly(seed, 1);
-}
-
-hashRepeatedly(key, i) {
-    (iL, iR) := HMAC
-        ( hash=SHA512
-        , key=key
-        , message="Root Seed Chain " ++ UTF8NFKD(i)
-        );
-
-    prv := tweakBits(SHA512(iL));
-
-    if (prv[31] & 0b0010_0000) {
-        return hashRepeatedly(key, i+1);
-    }
-
-    return (prv ++ iR);
-}
-
-tweakBits(data) {
-    // * clear the lowest 3 bits
-    // * clear the highest bit
-    // * set the highest 2nd bit
-    data[0]  &= 0b1111_1000;
-    data[31] &= 0b0111_1111;
-    data[31] |= 0b0100_0000;
-}</code></pre></div><h4 id='icarus' class='mt-6 mb-2 text-2xl font-bold text-gray-700'>Icarus</h4>
-    <p class='mb-3'>
-      <em>Icarus</em> master key generation style supports setting an extra password as an arbitrary byte array of any size. This password acts as a second factor applied to cryptographic key retrieval. When the seed comes from an encoded recovery phrase, the password can therefore be used to add extra protection in case where the recovery phrase were to be exposed.
-    </p>
-  <div class='py-0.5 mb-3 text-sm'><pre><code class='language-none'>generateMasterKey(seed, password) {
-    data := PBKDF2
-        ( kdf=HMAC-SHA512
-        , iter=4096
-        , salt=seed
-        , password=password
-        , outputLen=96
-        );
-
-    return tweakBits(data);
-}
-
-tweakBits(data) {
-    // on the ed25519 scalar leftmost 32 bytes:
-    // * clear the lowest 3 bits
-    // * clear the highest bit
-    // * clear the 3rd highest bit
-    // * set the highest 2nd bit
-    data[0]  &= 0b1111_1000;
-    data[31] &= 0b0001_1111;
-    data[31] |= 0b0100_0000;
-}</code></pre></div>
-    <blockquote class='py-0.5 px-4 mb-3 italic border-l-4 bg-gray-50 text-gray-600 border-gray-400 quote'>
-      
-    <p class='mb-3'>
-      For a detailed analysis of the cryptographic choices and the above requirements, have a look at: <a href='https://github.com/input-output-hk/chain-wallet-libs/blob/master/doc/CRYPTO.md#master-key-generation-to-cryptographic-key' class='text-blue-600 hover:underline' target='_blank' rel='noopener'>Wallet Cryptography and Encoding</a>
-    </p>
-  
-    </blockquote>
-  <h4 id='ledger' class='mt-6 mb-2 text-2xl font-bold text-gray-700'>Ledger</h4><div class='py-0.5 mb-3 text-sm'><pre><code class='language-none'>generateMasterKey(seed, password) {
-    data := PBKDF2
-        ( kdf=HMAC-SHA512
-        , iter=2048
-        , salt="mnemonic" ++ UTF8NFKD(password)
-        , password=UTF8NFKD(spaceSeparated(toMnemonic(seed)))
-        , outputLen=64
-        );
-
-    cc := HMAC
-        ( hash=SHA256
-        , key="ed25519 seed"
-        , message=UTF8NFKD(1) ++ seed
-        );
-
-    (iL, iR) := hashRepeatedly(data);
-
-    return (tweakBits(iL) ++ iR ++ cc);
-}
-
-hashRepeatedly(message) {
-    (iL, iR) := HMAC
-        ( hash=SHA512
-        , key="ed25519 seed"
-        , message=message
-        );
-
-    if (iL[31] & 0b0010_0000) {
-        return hashRepeatedly(iL ++ iR);
-    }
-
-    return (iL, iR);
-}
-
-tweakBits(data) {
-    // * clear the lowest 3 bits
-    // * clear the highest bit
-    // * set the highest 2nd bit
-    data[0]  &= 0b1111_1000;
-    data[31] &= 0b0111_1111;
-    data[31] |= 0b0100_0000;
-}</code></pre></div>
   <!-- What goes in this file will appear below the note body-->
 </article>
             <div class='flex flex-col lg:flex-row lg:space-x-2'>

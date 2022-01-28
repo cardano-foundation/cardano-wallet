@@ -17,43 +17,15 @@
       <base href='/cardano-wallet/' />
       <link href='favicon.svg' rel='icon' />
     
-    <script>
-  // Keep \#links on the same page, when they would otherwise redirect to
-  // the page's <base href>. Ref: https://stackoverflow.com/q/8108836
-  (function() {
-    function fixLink(el) {
-      if (el.tagName.toLowerCase() === "a") {
-        console.log("fixLink", el);
-        var href = el.getAttribute("href");
-        if (href && href.indexOf("#") === 0) {
-          el.href = location.pathname + el.getAttribute("href");
-        }
-      }
-    }
-    // Adjust href for all existing links.
-    document.addEventListener("DOMContentLoaded", function() {
-      const es = document.getElementsByTagName("a");
-      for (var i = 0; i < es.length; i++) {
-        fixLink(es[i]);
-      }
-    });
-    // Adjust href for dynamically added links - when they are clicked.
-    document.addEventListener("click", function(ev) { fixLink(ev.target); });
-  })();
-</script>
+    <meta name='generator' content='Emanote' />
+<meta http-equiv='cache-control' content='private, max-age=60' />
+<meta http-equiv='Expires' content='60' />
+<link href='static/cardano-wallet.css' rel='stylesheet' />
+<script src='static/cardano-wallet.js'></script>
 
-<style>
-  p code, li code {
-    background-color: rgb(243,244,246) !important;
-    color: black !important;
-  }
-  pre {
-    background-color: rgb(243,244,246) !important;
-  }
-</style>
 
   
-  <link href='tailwind.css' rel='stylesheet' type='text/css' />
+  <link href='tailwind.css?instanceId=e872cfe7-2328-4405-96ec-e68a0f512682' rel='stylesheet' type='text/css' />
 
   <!-- Heist error element -->
   <style type='text/css'>
@@ -139,7 +111,7 @@
         
       </ul>
     </div>
-    <button class='inline px-2 py-1 text-white bg-red-600 outline-none cursor-pointer focus:outline-none' title='Toggle sidebar' type='button' onclick="toggleHidden('sidebar')">
+    <button class='inline px-2 py-1 text-white bg-blue-600 outline-none cursor-pointer focus:outline-none' title='Toggle sidebar' type='button' onclick="toggleHidden('sidebar')">
       <svg xmlns='http://www.w3.org/2000/svg' class='w-4' fill='none' viewBox='0 0 24 24' stroke='currentColor'>
         <path stroke-linecap='round' stroke-linejoin='round' stroke-width='2' d='M4 6h16M4 12h16M4 18h16'></path>
       </svg>
@@ -159,13 +131,13 @@
 
             <div id='indexing-links' class='flex flex-row float-right p-2 space-x-2 text-gray-500'>
               <a href='-/tags' title='View tags'>
-                <svg style='width: 1rem;' class='hover:text-red-700' fill='none' stroke='currentColor' viewBox='0 0 24 24' xmlns='http://www.w3.org/2000/svg'>
+                <svg style='width: 1rem;' class='hover:text-blue-700' fill='none' stroke='currentColor' viewBox='0 0 24 24' xmlns='http://www.w3.org/2000/svg'>
                   <path stroke-linecap='round' stroke-linejoin='round' stroke-width='2' d='M7 7h.01M7 3h5c.512 0 1.024.195 1.414.586l7 7a2 2 0 010 2.828l-7 7a2 2 0 01-2.828 0l-7-7A1.994 1.994 0 013 12V7a4 4 0 014-4z'>
                   </path>
                 </svg>
               </a>
               <a href='-/all' title='Expand full tree'>
-                <svg style='width: 1rem;' class='hover:text-red-700' fill='none' stroke='currentColor' viewBox='0 0 24 24' xmlns='http://www.w3.org/2000/svg'>
+                <svg style='width: 1rem;' class='hover:text-blue-700' fill='none' stroke='currentColor' viewBox='0 0 24 24' xmlns='http://www.w3.org/2000/svg'>
                   <path stroke-linecap='round' stroke-linejoin='round' stroke-width='2' d='M4 8V4m0 0h4M4 4l5 5m11-1V4m0 0h-4m4 0l-5 5M4 16v4m0 0h4m-4 0l5-5m11 5l-5-5m5 5v-4m0 4h-4'>
                   </path>
                 </svg>
@@ -287,7 +259,7 @@
       </svg>
       
   
-    <a class='font-bold text-red-600 hover:underline truncate' title='Installation Instructions' href='user-guide/installation'>
+    <a class='font-bold text-blue-600 hover:underline truncate' title='Installation Instructions' href='user-guide/installation'>
       Installation Instructions
     </a>
     
@@ -1691,6 +1663,45 @@
       </svg>
     
   
+    <a class='hover:underline truncate' title='Cardano Eras' href='design/Eras'>
+      Cardano Eras
+    </a>
+    
+      
+  </div>
+
+  <!-- Node's children forest, displayed only on active trees
+    TODO: Use <details> to toggle visibility?
+  -->
+  
+    
+  
+</div>
+    
+      <!-- Variable bindings for this tree-->
+  
+    
+      
+    
+    
+
+
+
+  
+
+
+<!-- Rendering of this tree -->
+<div class='pl-2'>
+  <!-- Node's rootLabel-->
+  <div class='flex items-center my-2 space-x-2 justify-left'>
+    
+    
+      <svg class='w-4 h-4 flex-shrink-0 inline' fill='none' stroke='currentColor' viewBox='0 0 24 24' xmlns='http://www.w3.org/2000/svg'>
+        <path stroke-linecap='round' stroke-linejoin='round' stroke-width='2' d='M7 21h10a2 2 0 002-2V9.414a1 1 0 00-.293-.707l-5.414-5.414A1 1 0 0012.586 3H7a2 2 0 00-2 2v14a2 2 0 002 2z'>
+        </path>
+      </svg>
+    
+  
     <a class='hover:underline truncate' title='Notes about BIP-44' href='design/Notes-about-BIP-44'>
       Notes about BIP-44
     </a>
@@ -2028,7 +2039,7 @@
         <!-- Main body column -->
         <div class='flex-1 w-full overflow-x-auto bg-white'>
           <main class='px-4 py-4'>
-            <h1 class='flex items-end justify-center mb-4 p-3 bg-red-100 text-5xl font-extrabold text-black rounded'>
+            <h1 class='flex items-end justify-center mb-4 p-3 bg-blue-100 text-5xl font-extrabold text-black rounded'>
   <a class='z-40 tracking-tighter '>
     Installation Instructions
   </a>
@@ -2037,9 +2048,9 @@
   <!-- What goes in this file will appear on top of note body-->
   <h2 id='using-docker-recommended' class='inline-block mt-6 mb-4 text-4xl font-bold text-gray-700 border-b-2'>Using Docker (recommended)</h2>
     <p class='mb-3'>
-      Docker images are continuously built and deployed on <a href='https://hub.docker.com/u/inputoutput' class='text-red-600 hover:underline' target='_blank' rel='noopener'>dockerhub</a> under specific tags. Using docker provides <strong>the fastest</strong> and <strong>easiest</strong> user experience for setting up the Cardano stack. You should prefer this solution over building from sources unless you have really good reasons not to. The following images are available for each component of the Adrestia architecture:
+      Docker images are continuously built and deployed on <a href='https://hub.docker.com/u/inputoutput' class='text-blue-600 hover:underline' target='_blank' rel='noopener'>dockerhub</a> under specific tags. Using docker provides <strong>the fastest</strong> and <strong>easiest</strong> user experience for setting up the Cardano stack. You should prefer this solution over building from sources unless you have really good reasons not to. The following images are available for each component of the Adrestia architecture:
     </p>
-  <table class='mb-3'><thead><tr class='border-b-2 border-t-2 border-gray-300'><th class='py-2 px-2 align-top border-r-2 border-l-2 border-gray-300'>Repository</th><th class='py-2 px-2 align-top border-r-2 border-l-2 border-gray-300'>Tags</th><th class='py-2 px-2 align-top border-r-2 border-l-2 border-gray-300'>Documentation</th></tr></thead><tbody><tr class='border-b-2 border-t-2 border-gray-300'><td class='py-2 px-2 align-top border-r-2 border-l-2 border-gray-300'><a href='https://hub.docker.com/r/inputoutput/cardano-node' class='text-red-600 hover:underline' target='_blank' rel='noopener'>inputoutput/cardano-node</a></td><td class='py-2 px-2 align-top border-r-2 border-l-2 border-gray-300'><code class='py-0.5 px-1 rounded bg-gray-700 text-sm text-white'>master</code>, <code class='py-0.5 px-1 rounded bg-gray-700 text-sm text-white'>MAJ.MIN.PATCH</code>, <code class='py-0.5 px-1 rounded bg-gray-700 text-sm text-white'>latest</code></td><td class='py-2 px-2 align-top border-r-2 border-l-2 border-gray-300'><a href='https://github.com/input-output-hk/cardano-node/blob/master/nix/docker.nix#L1-L25' class='text-red-600 hover:underline' target='_blank' rel='noopener'>link</a></td></tr><tr class='border-b-2 border-t-2 border-gray-300'><td class='py-2 px-2 align-top border-r-2 border-l-2 border-gray-300'><a href='https://hub.docker.com/r/inputoutput/cardano-wallet' class='text-red-600 hover:underline' target='_blank' rel='noopener'>inputoutput/cardano-wallet</a></td><td class='py-2 px-2 align-top border-r-2 border-l-2 border-gray-300'><code class='py-0.5 px-1 rounded bg-gray-700 text-sm text-white'>byron</code>, <code class='py-0.5 px-1 rounded bg-gray-700 text-sm text-white'>YYYY.MM.DD-byron</code>, <code class='py-0.5 px-1 rounded bg-gray-700 text-sm text-white'>latest</code></td><td class='py-2 px-2 align-top border-r-2 border-l-2 border-gray-300'>[[Docker</td></tr></tbody></table><h3 id='semantic' class='mt-6 mb-2 text-3xl font-bold text-gray-700'>Semantic</h3><table class='mb-3'><thead><tr class='border-b-2 border-t-2 border-gray-300'><th class='py-2 px-2 align-top border-r-2 border-l-2 border-gray-300'>Tag</th><th class='py-2 px-2 align-top border-r-2 border-l-2 border-gray-300'>Semantic</th></tr></thead><tbody><tr class='border-b-2 border-t-2 border-gray-300'><td class='py-2 px-2 align-top border-r-2 border-l-2 border-gray-300'><code class='py-0.5 px-1 rounded bg-gray-700 text-sm text-white'>latest</code></td><td class='py-2 px-2 align-top border-r-2 border-l-2 border-gray-300'>Points to the latest <strong>stable</strong> image for the corresponding component. This is also the tag to which <code class='py-0.5 px-1 rounded bg-gray-700 text-sm text-white'>docker</code> defaults when pulling without an explicit tag. These typically points to latest known release which happens at the end of an iteration cycle. Depending on which project / component, the iteration cycle may vary from 1 to 2 weeks.</td></tr><tr class='border-b-2 border-t-2 border-gray-300'><td class='py-2 px-2 align-top border-r-2 border-l-2 border-gray-300'><code class='py-0.5 px-1 rounded bg-gray-700 text-sm text-white'>MAJ.MIN.PATCH</code> or <code class='py-0.5 px-1 rounded bg-gray-700 text-sm text-white'>YYYY.MM.DD</code></td><td class='py-2 px-2 align-top border-r-2 border-l-2 border-gray-300'>Must match actual releases of the corresponding component. Refer to each component release notes to know which release tags are available.</td></tr><tr class='border-b-2 border-t-2 border-gray-300'><td class='py-2 px-2 align-top border-r-2 border-l-2 border-gray-300'><code class='py-0.5 px-1 rounded bg-gray-700 text-sm text-white'>master</code></td><td class='py-2 px-2 align-top border-r-2 border-l-2 border-gray-300'>Points to the very tip of the development branch. This is therefore <strong>not recommended</strong> for production but can be useful to try out features before they are officially released.</td></tr></tbody></table><h3 id='examples' class='mt-6 mb-2 text-3xl font-bold text-gray-700'>Examples</h3>
+  <table class='mb-3'><thead><tr class='border-b-2 border-t-2 border-gray-300'><th class='py-2 px-2 align-top border-r-2 border-l-2 border-gray-300'>Repository</th><th class='py-2 px-2 align-top border-r-2 border-l-2 border-gray-300'>Tags</th><th class='py-2 px-2 align-top border-r-2 border-l-2 border-gray-300'>Documentation</th></tr></thead><tbody><tr class='border-b-2 border-t-2 border-gray-300'><td class='py-2 px-2 align-top border-r-2 border-l-2 border-gray-300'><a href='https://hub.docker.com/r/inputoutput/cardano-node' class='text-blue-600 hover:underline' target='_blank' rel='noopener'>inputoutput/cardano-node</a></td><td class='py-2 px-2 align-top border-r-2 border-l-2 border-gray-300'><code class='py-0.5 px-1 rounded bg-gray-700 text-sm text-white'>master</code>, <code class='py-0.5 px-1 rounded bg-gray-700 text-sm text-white'>MAJ.MIN.PATCH</code>, <code class='py-0.5 px-1 rounded bg-gray-700 text-sm text-white'>latest</code></td><td class='py-2 px-2 align-top border-r-2 border-l-2 border-gray-300'><a href='https://github.com/input-output-hk/cardano-node/blob/master/nix/docker.nix#L1-L25' class='text-blue-600 hover:underline' target='_blank' rel='noopener'>link</a></td></tr><tr class='border-b-2 border-t-2 border-gray-300'><td class='py-2 px-2 align-top border-r-2 border-l-2 border-gray-300'><a href='https://hub.docker.com/r/inputoutput/cardano-wallet' class='text-blue-600 hover:underline' target='_blank' rel='noopener'>inputoutput/cardano-wallet</a></td><td class='py-2 px-2 align-top border-r-2 border-l-2 border-gray-300'><code class='py-0.5 px-1 rounded bg-gray-700 text-sm text-white'>byron</code>, <code class='py-0.5 px-1 rounded bg-gray-700 text-sm text-white'>YYYY.MM.DD-byron</code>, <code class='py-0.5 px-1 rounded bg-gray-700 text-sm text-white'>latest</code></td><td class='py-2 px-2 align-top border-r-2 border-l-2 border-gray-300'>[[Docker</td></tr></tbody></table><h3 id='semantic' class='mt-6 mb-2 text-3xl font-bold text-gray-700'>Semantic</h3><table class='mb-3'><thead><tr class='border-b-2 border-t-2 border-gray-300'><th class='py-2 px-2 align-top border-r-2 border-l-2 border-gray-300'>Tag</th><th class='py-2 px-2 align-top border-r-2 border-l-2 border-gray-300'>Semantic</th></tr></thead><tbody><tr class='border-b-2 border-t-2 border-gray-300'><td class='py-2 px-2 align-top border-r-2 border-l-2 border-gray-300'><code class='py-0.5 px-1 rounded bg-gray-700 text-sm text-white'>latest</code></td><td class='py-2 px-2 align-top border-r-2 border-l-2 border-gray-300'>Points to the latest <strong>stable</strong> image for the corresponding component. This is also the tag to which <code class='py-0.5 px-1 rounded bg-gray-700 text-sm text-white'>docker</code> defaults when pulling without an explicit tag. These typically points to latest known release which happens at the end of an iteration cycle. Depending on which project / component, the iteration cycle may vary from 1 to 2 weeks.</td></tr><tr class='border-b-2 border-t-2 border-gray-300'><td class='py-2 px-2 align-top border-r-2 border-l-2 border-gray-300'><code class='py-0.5 px-1 rounded bg-gray-700 text-sm text-white'>MAJ.MIN.PATCH</code> or <code class='py-0.5 px-1 rounded bg-gray-700 text-sm text-white'>YYYY.MM.DD</code></td><td class='py-2 px-2 align-top border-r-2 border-l-2 border-gray-300'>Must match actual releases of the corresponding component. Refer to each component release notes to know which release tags are available.</td></tr><tr class='border-b-2 border-t-2 border-gray-300'><td class='py-2 px-2 align-top border-r-2 border-l-2 border-gray-300'><code class='py-0.5 px-1 rounded bg-gray-700 text-sm text-white'>master</code></td><td class='py-2 px-2 align-top border-r-2 border-l-2 border-gray-300'>Points to the very tip of the development branch. This is therefore <strong>not recommended</strong> for production but can be useful to try out features before they are officially released.</td></tr></tbody></table><h3 id='examples' class='mt-6 mb-2 text-3xl font-bold text-gray-700'>Examples</h3>
     <p class='mb-3'>
       For example, in order to use <code class='py-0.5 px-1 rounded bg-gray-700 text-sm text-white'>cardano-node@1.10.0</code>, one can simply run:
     </p>
@@ -2053,11 +2064,11 @@
     </p>
   
     <p class='mb-3'>
-      For version compatibility between components, please refer to compatibility matrix on each component main page (e.g. <a href='https://github.com/input-output-hk/cardano-wallet#latest-releases' class='text-red-600 hover:underline' target='_blank' rel='noopener'>cardano-wallet</a>). {{<span xmlhtmlRaw></hint></span>}}
+      For version compatibility between components, please refer to compatibility matrix on each component main page (e.g. <a href='https://github.com/input-output-hk/cardano-wallet#latest-releases' class='text-blue-600 hover:underline' target='_blank' rel='noopener'>cardano-wallet</a>). {{<span xmlhtmlRaw></hint></span>}}
     </p>
   <h3 id='docker-compose' class='mt-6 mb-2 text-3xl font-bold text-gray-700'>Docker compose</h3>
     <p class='mb-3'>
-      Some components also provide example setup via <a href='https://docs.docker.com/compose/' class='text-red-600 hover:underline' target='_blank' rel='noopener'>docker-compose</a>. Those are useful for a quick start or as a baseline for development. See for example <a href='https://github.com/input-output-hk/cardano-wallet/blob/master/docker-compose.yml' class='text-red-600 hover:underline' target='_blank' rel='noopener'>cardano-wallet</a> or <a href='https://github.com/input-output-hk/cardano-graphql/blob/master/docker-compose.yml' class='text-red-600 hover:underline' target='_blank' rel='noopener'>cardano-graphql</a>.
+      Some components also provide example setup via <a href='https://docs.docker.com/compose/' class='text-blue-600 hover:underline' target='_blank' rel='noopener'>docker-compose</a>. Those are useful for a quick start or as a baseline for development. See for example <a href='https://github.com/input-output-hk/cardano-wallet/blob/master/docker-compose.yml' class='text-blue-600 hover:underline' target='_blank' rel='noopener'>cardano-wallet</a> or <a href='https://github.com/input-output-hk/cardano-graphql/blob/master/docker-compose.yml' class='text-blue-600 hover:underline' target='_blank' rel='noopener'>cardano-graphql</a>.
     </p>
   <h2 id='pre-compiled-artifacts--building-from-sources' class='inline-block mt-6 mb-4 text-4xl font-bold text-gray-700 border-b-2'>Pre-compiled Artifacts / Building From Sources</h2>
     <p class='mb-3'>
@@ -2066,9 +2077,9 @@
   <div class='py-0.5 mb-3 text-sm'><pre><code class='language-none'>curl -L https://github.com/input-output-hk/cardano-wallet/releases/download/v2020-04-07/cardano-wallet-v2020-04-07-linux64.tar.gz | tar xz
 </code></pre></div>
     <p class='mb-3'>
-      If you feel brave enough and want to compile everything from sources, please refer to each repository’s documentation. As a pre-requisite, you may want to install and configure <a href='https://nixos.org/' class='text-red-600 hover:underline' target='_blank' rel='noopener'>Nix</a>, <a href='https://docs.haskellstack.org/en/stable/README/' class='text-red-600 hover:underline' target='_blank' rel='noopener'>stack</a> or <a href='https://www.haskell.org/cabal/' class='text-red-600 hover:underline' target='_blank' rel='noopener'>cabal</a> depending on your weapon of choice. Build instructions are available on each repository’s main README.
+      If you feel brave enough and want to compile everything from sources, please refer to each repository’s documentation. As a pre-requisite, you may want to install and configure <a href='https://nixos.org/' class='text-blue-600 hover:underline' target='_blank' rel='noopener'>Nix</a>, <a href='https://docs.haskellstack.org/en/stable/README/' class='text-blue-600 hover:underline' target='_blank' rel='noopener'>stack</a> or <a href='https://www.haskell.org/cabal/' class='text-blue-600 hover:underline' target='_blank' rel='noopener'>cabal</a> depending on your weapon of choice. Build instructions are available on each repository’s main README.
     </p>
-  <table class='mb-3'><thead><tr class='border-b-2 border-t-2 border-gray-300'><th class='py-2 px-2 align-top border-r-2 border-l-2 border-gray-300'>Repository</th><th class='py-2 px-2 align-top border-r-2 border-l-2 border-gray-300'>Releases</th><th class='py-2 px-2 align-top border-r-2 border-l-2 border-gray-300'>Linux</th><th class='py-2 px-2 align-top border-r-2 border-l-2 border-gray-300'>MacOS</th><th class='py-2 px-2 align-top border-r-2 border-l-2 border-gray-300'>Windows</th></tr></thead><tbody><tr class='border-b-2 border-t-2 border-gray-300'><td class='py-2 px-2 align-top border-r-2 border-l-2 border-gray-300'><a href='https://github.com/input-output-hk/cardano-node' class='text-red-600 hover:underline' target='_blank' rel='noopener'>cardano-node</a></td><td class='py-2 px-2 align-top border-r-2 border-l-2 border-gray-300'><a href='https://github.com/input-output-hk/cardano-node/releases' class='text-red-600 hover:underline' target='_blank' rel='noopener'>releases</a></td><td class='py-2 px-2 align-top border-r-2 border-l-2 border-gray-300'>✔️</td><td class='py-2 px-2 align-top border-r-2 border-l-2 border-gray-300'>✔️</td><td class='py-2 px-2 align-top border-r-2 border-l-2 border-gray-300'>✔️</td></tr><tr class='border-b-2 border-t-2 border-gray-300'><td class='py-2 px-2 align-top border-r-2 border-l-2 border-gray-300'><a href='https://github.com/input-output-hk/cardano-db-sync' class='text-red-600 hover:underline' target='_blank' rel='noopener'>cardano-db-sync</a></td><td class='py-2 px-2 align-top border-r-2 border-l-2 border-gray-300'><a href='https://github.com/input-output-hk/cardano-db-sync/releases' class='text-red-600 hover:underline' target='_blank' rel='noopener'>releases</a></td><td class='py-2 px-2 align-top border-r-2 border-l-2 border-gray-300'>✔️</td><td class='py-2 px-2 align-top border-r-2 border-l-2 border-gray-300'>✔️</td><td class='py-2 px-2 align-top border-r-2 border-l-2 border-gray-300'>❌</td></tr><tr class='border-b-2 border-t-2 border-gray-300'><td class='py-2 px-2 align-top border-r-2 border-l-2 border-gray-300'><a href='https://github.com/input-output-hk/cardano-node/tree/master/cardano-submit-api' class='text-red-600 hover:underline' target='_blank' rel='noopener'>cardano-submit-api</a></td><td class='py-2 px-2 align-top border-r-2 border-l-2 border-gray-300'><a href='https://github.com/input-output-hk/cardano-node/releases' class='text-red-600 hover:underline' target='_blank' rel='noopener'>releases</a></td><td class='py-2 px-2 align-top border-r-2 border-l-2 border-gray-300'>✔️</td><td class='py-2 px-2 align-top border-r-2 border-l-2 border-gray-300'>✔️</td><td class='py-2 px-2 align-top border-r-2 border-l-2 border-gray-300'>❌</td></tr><tr class='border-b-2 border-t-2 border-gray-300'><td class='py-2 px-2 align-top border-r-2 border-l-2 border-gray-300'><a href='https://github.com/input-output-hk/cardano-graphql' class='text-red-600 hover:underline' target='_blank' rel='noopener'>cardano-graphql</a></td><td class='py-2 px-2 align-top border-r-2 border-l-2 border-gray-300'><a href='https://github.com/input-output-hk/cardano-graphql/releases' class='text-red-600 hover:underline' target='_blank' rel='noopener'>releases</a></td><td class='py-2 px-2 align-top border-r-2 border-l-2 border-gray-300'>✔️</td><td class='py-2 px-2 align-top border-r-2 border-l-2 border-gray-300'>✔️</td><td class='py-2 px-2 align-top border-r-2 border-l-2 border-gray-300'>❌</td></tr><tr class='border-b-2 border-t-2 border-gray-300'><td class='py-2 px-2 align-top border-r-2 border-l-2 border-gray-300'><a href='https://github.com/input-output-hk/cardano-rosetta' class='text-red-600 hover:underline' target='_blank' rel='noopener'>cardano-rosetta</a></td><td class='py-2 px-2 align-top border-r-2 border-l-2 border-gray-300'><a href='https://github.com/input-output-hk/cardano-rosetta/releases' class='text-red-600 hover:underline' target='_blank' rel='noopener'>releases</a></td><td class='py-2 px-2 align-top border-r-2 border-l-2 border-gray-300'>✔️</td><td class='py-2 px-2 align-top border-r-2 border-l-2 border-gray-300'>✔️</td><td class='py-2 px-2 align-top border-r-2 border-l-2 border-gray-300'>❌</td></tr><tr class='border-b-2 border-t-2 border-gray-300'><td class='py-2 px-2 align-top border-r-2 border-l-2 border-gray-300'><a href='https://github.com/input-output-hk/cardano-wallet' class='text-red-600 hover:underline' target='_blank' rel='noopener'>cardano-wallet</a></td><td class='py-2 px-2 align-top border-r-2 border-l-2 border-gray-300'><a href='https://github.com/input-output-hk/cardano-wallet/releases' class='text-red-600 hover:underline' target='_blank' rel='noopener'>releases</a></td><td class='py-2 px-2 align-top border-r-2 border-l-2 border-gray-300'>✔️</td><td class='py-2 px-2 align-top border-r-2 border-l-2 border-gray-300'>✔️</td><td class='py-2 px-2 align-top border-r-2 border-l-2 border-gray-300'>✔️</td></tr></tbody></table>
+  <table class='mb-3'><thead><tr class='border-b-2 border-t-2 border-gray-300'><th class='py-2 px-2 align-top border-r-2 border-l-2 border-gray-300'>Repository</th><th class='py-2 px-2 align-top border-r-2 border-l-2 border-gray-300'>Releases</th><th class='py-2 px-2 align-top border-r-2 border-l-2 border-gray-300'>Linux</th><th class='py-2 px-2 align-top border-r-2 border-l-2 border-gray-300'>MacOS</th><th class='py-2 px-2 align-top border-r-2 border-l-2 border-gray-300'>Windows</th></tr></thead><tbody><tr class='border-b-2 border-t-2 border-gray-300'><td class='py-2 px-2 align-top border-r-2 border-l-2 border-gray-300'><a href='https://github.com/input-output-hk/cardano-node' class='text-blue-600 hover:underline' target='_blank' rel='noopener'>cardano-node</a></td><td class='py-2 px-2 align-top border-r-2 border-l-2 border-gray-300'><a href='https://github.com/input-output-hk/cardano-node/releases' class='text-blue-600 hover:underline' target='_blank' rel='noopener'>releases</a></td><td class='py-2 px-2 align-top border-r-2 border-l-2 border-gray-300'>✔️</td><td class='py-2 px-2 align-top border-r-2 border-l-2 border-gray-300'>✔️</td><td class='py-2 px-2 align-top border-r-2 border-l-2 border-gray-300'>✔️</td></tr><tr class='border-b-2 border-t-2 border-gray-300'><td class='py-2 px-2 align-top border-r-2 border-l-2 border-gray-300'><a href='https://github.com/input-output-hk/cardano-db-sync' class='text-blue-600 hover:underline' target='_blank' rel='noopener'>cardano-db-sync</a></td><td class='py-2 px-2 align-top border-r-2 border-l-2 border-gray-300'><a href='https://github.com/input-output-hk/cardano-db-sync/releases' class='text-blue-600 hover:underline' target='_blank' rel='noopener'>releases</a></td><td class='py-2 px-2 align-top border-r-2 border-l-2 border-gray-300'>✔️</td><td class='py-2 px-2 align-top border-r-2 border-l-2 border-gray-300'>✔️</td><td class='py-2 px-2 align-top border-r-2 border-l-2 border-gray-300'>❌</td></tr><tr class='border-b-2 border-t-2 border-gray-300'><td class='py-2 px-2 align-top border-r-2 border-l-2 border-gray-300'><a href='https://github.com/input-output-hk/cardano-node/tree/master/cardano-submit-api' class='text-blue-600 hover:underline' target='_blank' rel='noopener'>cardano-submit-api</a></td><td class='py-2 px-2 align-top border-r-2 border-l-2 border-gray-300'><a href='https://github.com/input-output-hk/cardano-node/releases' class='text-blue-600 hover:underline' target='_blank' rel='noopener'>releases</a></td><td class='py-2 px-2 align-top border-r-2 border-l-2 border-gray-300'>✔️</td><td class='py-2 px-2 align-top border-r-2 border-l-2 border-gray-300'>✔️</td><td class='py-2 px-2 align-top border-r-2 border-l-2 border-gray-300'>❌</td></tr><tr class='border-b-2 border-t-2 border-gray-300'><td class='py-2 px-2 align-top border-r-2 border-l-2 border-gray-300'><a href='https://github.com/input-output-hk/cardano-graphql' class='text-blue-600 hover:underline' target='_blank' rel='noopener'>cardano-graphql</a></td><td class='py-2 px-2 align-top border-r-2 border-l-2 border-gray-300'><a href='https://github.com/input-output-hk/cardano-graphql/releases' class='text-blue-600 hover:underline' target='_blank' rel='noopener'>releases</a></td><td class='py-2 px-2 align-top border-r-2 border-l-2 border-gray-300'>✔️</td><td class='py-2 px-2 align-top border-r-2 border-l-2 border-gray-300'>✔️</td><td class='py-2 px-2 align-top border-r-2 border-l-2 border-gray-300'>❌</td></tr><tr class='border-b-2 border-t-2 border-gray-300'><td class='py-2 px-2 align-top border-r-2 border-l-2 border-gray-300'><a href='https://github.com/input-output-hk/cardano-rosetta' class='text-blue-600 hover:underline' target='_blank' rel='noopener'>cardano-rosetta</a></td><td class='py-2 px-2 align-top border-r-2 border-l-2 border-gray-300'><a href='https://github.com/input-output-hk/cardano-rosetta/releases' class='text-blue-600 hover:underline' target='_blank' rel='noopener'>releases</a></td><td class='py-2 px-2 align-top border-r-2 border-l-2 border-gray-300'>✔️</td><td class='py-2 px-2 align-top border-r-2 border-l-2 border-gray-300'>✔️</td><td class='py-2 px-2 align-top border-r-2 border-l-2 border-gray-300'>❌</td></tr><tr class='border-b-2 border-t-2 border-gray-300'><td class='py-2 px-2 align-top border-r-2 border-l-2 border-gray-300'><a href='https://github.com/input-output-hk/cardano-wallet' class='text-blue-600 hover:underline' target='_blank' rel='noopener'>cardano-wallet</a></td><td class='py-2 px-2 align-top border-r-2 border-l-2 border-gray-300'><a href='https://github.com/input-output-hk/cardano-wallet/releases' class='text-blue-600 hover:underline' target='_blank' rel='noopener'>releases</a></td><td class='py-2 px-2 align-top border-r-2 border-l-2 border-gray-300'>✔️</td><td class='py-2 px-2 align-top border-r-2 border-l-2 border-gray-300'>✔️</td><td class='py-2 px-2 align-top border-r-2 border-l-2 border-gray-300'>✔️</td></tr></tbody></table>
   <!-- What goes in this file will appear below the note body-->
 </article>
             <div class='flex flex-col lg:flex-row lg:space-x-2'>
@@ -2088,27 +2099,27 @@
   
   <div>
     <a href='' title='Go to Home page'>
-      <svg xmlns='http://www.w3.org/2000/svg' class='w-6 h-6 hover:text-red-700' fill='none' viewBox='0 0 24 24' stroke='currentColor'>
+      <svg xmlns='http://www.w3.org/2000/svg' class='w-6 h-6 hover:text-blue-700' fill='none' viewBox='0 0 24 24' stroke='currentColor'>
         <path stroke-linecap='round' stroke-linejoin='round' stroke-width='2' d='M3 12l2-2m0 0l7-7 7 7M5 10v10a1 1 0 001 1h3m10-11l2 2m-2-2v10a1 1 0 01-1 1h-3m-6 0a1 1 0 001-1v-4a1 1 0 011-1h2a1 1 0 011 1v4a1 1 0 001 1m-6 0h6'></path>
       </svg>
     </a>
   </div>
   <div>
     <a href='-/all' title='View Index'>
-      <svg class='w-6 h-6 hover:text-red-700' fill='none' stroke='currentColor' viewBox='0 0 24 24' xmlns='http://www.w3.org/2000/svg'>
+      <svg class='w-6 h-6 hover:text-blue-700' fill='none' stroke='currentColor' viewBox='0 0 24 24' xmlns='http://www.w3.org/2000/svg'>
         <path stroke-linecap='round' stroke-linejoin='round' stroke-width='2' d='M4 8V4m0 0h4M4 4l5 5m11-1V4m0 0h-4m4 0l-5 5M4 16v4m0 0h4m-4 0l5-5m11 5l-5-5m5 5v-4m0 4h-4'>
         </path>
       </svg>
     </a>
   </div>
   <div>
-    <a href='https://emanote.srid.ca' target='_blank' title='Generated by Emanote 0.4.8.2'>
-      <img class='w-6 h-6 hover:text-red-700' src='_emanote-static/emanote-logo.svg' />
+    <a href='https://emanote.srid.ca' target='_blank' title='Generated by Emanote 0.4.9.1'>
+      <img class='w-6 h-6 hover:text-blue-700' src='_emanote-static/emanote-logo.svg' />
     </a>
   </div>
   <div>
     <a href='-/tags' title='View tags'>
-      <svg class='w-6 h-6 hover:text-red-700' fill='none' stroke='currentColor' viewBox='0 0 24 24' xmlns='http://www.w3.org/2000/svg'>
+      <svg class='w-6 h-6 hover:text-blue-700' fill='none' stroke='currentColor' viewBox='0 0 24 24' xmlns='http://www.w3.org/2000/svg'>
         <path stroke-linecap='round' stroke-linejoin='round' stroke-width='2' d='M7 7h.01M7 3h5c.512 0 1.024.195 1.414.586l7 7a2 2 0 010 2.828l-7 7a2 2 0 01-2.828 0l-7-7A1.994 1.994 0 013 12V7a4 4 0 014-4z'>
         </path>
       </svg>
@@ -2116,7 +2127,7 @@
   </div>
   <div>
     <a href='-/tasks' title='View tasks'>
-      <svg xmlns='http://www.w3.org/2000/svg' class='w-6 h-6 hover:text-red-700' fill='none' viewBox='0 0 24 24' stroke='currentColor'>
+      <svg xmlns='http://www.w3.org/2000/svg' class='w-6 h-6 hover:text-blue-700' fill='none' viewBox='0 0 24 24' stroke='currentColor'>
         <path stroke-linecap='round' stroke-linejoin='round' stroke-width='2' d='M9 12l2 2 4-4m6 2a9 9 0 11-18 0 9 9 0 0118 0z'></path>
       </svg>
     </a>

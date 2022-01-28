@@ -17,43 +17,15 @@
       <base href='/cardano-wallet/' />
       <link href='favicon.svg' rel='icon' />
     
-    <script>
-  // Keep \#links on the same page, when they would otherwise redirect to
-  // the page's <base href>. Ref: https://stackoverflow.com/q/8108836
-  (function() {
-    function fixLink(el) {
-      if (el.tagName.toLowerCase() === "a") {
-        console.log("fixLink", el);
-        var href = el.getAttribute("href");
-        if (href && href.indexOf("#") === 0) {
-          el.href = location.pathname + el.getAttribute("href");
-        }
-      }
-    }
-    // Adjust href for all existing links.
-    document.addEventListener("DOMContentLoaded", function() {
-      const es = document.getElementsByTagName("a");
-      for (var i = 0; i < es.length; i++) {
-        fixLink(es[i]);
-      }
-    });
-    // Adjust href for dynamically added links - when they are clicked.
-    document.addEventListener("click", function(ev) { fixLink(ev.target); });
-  })();
-</script>
+    <meta name='generator' content='Emanote' />
+<meta http-equiv='cache-control' content='private, max-age=60' />
+<meta http-equiv='Expires' content='60' />
+<link href='static/cardano-wallet.css' rel='stylesheet' />
+<script src='static/cardano-wallet.js'></script>
 
-<style>
-  p code, li code {
-    background-color: rgb(243,244,246) !important;
-    color: black !important;
-  }
-  pre {
-    background-color: rgb(243,244,246) !important;
-  }
-</style>
 
   
-  <link href='tailwind.css' rel='stylesheet' type='text/css' />
+  <link href='tailwind.css?instanceId=e872cfe7-2328-4405-96ec-e68a0f512682' rel='stylesheet' type='text/css' />
 
   <!-- Heist error element -->
   <style type='text/css'>
@@ -148,7 +120,7 @@
         
       </ul>
     </div>
-    <button class='inline px-2 py-1 text-white bg-red-600 outline-none cursor-pointer focus:outline-none' title='Toggle sidebar' type='button' onclick="toggleHidden('sidebar')">
+    <button class='inline px-2 py-1 text-white bg-blue-600 outline-none cursor-pointer focus:outline-none' title='Toggle sidebar' type='button' onclick="toggleHidden('sidebar')">
       <svg xmlns='http://www.w3.org/2000/svg' class='w-4' fill='none' viewBox='0 0 24 24' stroke='currentColor'>
         <path stroke-linecap='round' stroke-linejoin='round' stroke-width='2' d='M4 6h16M4 12h16M4 18h16'></path>
       </svg>
@@ -168,13 +140,13 @@
 
             <div id='indexing-links' class='flex flex-row float-right p-2 space-x-2 text-gray-500'>
               <a href='-/tags' title='View tags'>
-                <svg style='width: 1rem;' class='hover:text-red-700' fill='none' stroke='currentColor' viewBox='0 0 24 24' xmlns='http://www.w3.org/2000/svg'>
+                <svg style='width: 1rem;' class='hover:text-blue-700' fill='none' stroke='currentColor' viewBox='0 0 24 24' xmlns='http://www.w3.org/2000/svg'>
                   <path stroke-linecap='round' stroke-linejoin='round' stroke-width='2' d='M7 7h.01M7 3h5c.512 0 1.024.195 1.414.586l7 7a2 2 0 010 2.828l-7 7a2 2 0 01-2.828 0l-7-7A1.994 1.994 0 013 12V7a4 4 0 014-4z'>
                   </path>
                 </svg>
               </a>
               <a href='-/all' title='Expand full tree'>
-                <svg style='width: 1rem;' class='hover:text-red-700' fill='none' stroke='currentColor' viewBox='0 0 24 24' xmlns='http://www.w3.org/2000/svg'>
+                <svg style='width: 1rem;' class='hover:text-blue-700' fill='none' stroke='currentColor' viewBox='0 0 24 24' xmlns='http://www.w3.org/2000/svg'>
                   <path stroke-linecap='round' stroke-linejoin='round' stroke-width='2' d='M4 8V4m0 0h4M4 4l5 5m11-1V4m0 0h-4m4 0l-5 5M4 16v4m0 0h4m-4 0l5-5m11 5l-5-5m5 5v-4m0 4h-4'>
                   </path>
                 </svg>
@@ -1704,6 +1676,45 @@
       </svg>
     
   
+    <a class='hover:underline truncate' title='Cardano Eras' href='design/Eras'>
+      Cardano Eras
+    </a>
+    
+      
+  </div>
+
+  <!-- Node's children forest, displayed only on active trees
+    TODO: Use <details> to toggle visibility?
+  -->
+  
+    
+  
+</div>
+    
+      <!-- Variable bindings for this tree-->
+  
+    
+      
+    
+    
+
+
+
+  
+
+
+<!-- Rendering of this tree -->
+<div class='pl-2'>
+  <!-- Node's rootLabel-->
+  <div class='flex items-center my-2 space-x-2 justify-left'>
+    
+    
+      <svg class='w-4 h-4 flex-shrink-0 inline' fill='none' stroke='currentColor' viewBox='0 0 24 24' xmlns='http://www.w3.org/2000/svg'>
+        <path stroke-linecap='round' stroke-linejoin='round' stroke-width='2' d='M7 21h10a2 2 0 002-2V9.414a1 1 0 00-.293-.707l-5.414-5.414A1 1 0 0012.586 3H7a2 2 0 00-2 2v14a2 2 0 002 2z'>
+        </path>
+      </svg>
+    
+  
     <a class='hover:underline truncate' title='Notes about BIP-44' href='design/Notes-about-BIP-44'>
       Notes about BIP-44
     </a>
@@ -2009,7 +2020,7 @@
       </svg>
       
   
-    <a class='font-bold text-red-600 hover:underline truncate' title='Docker Image' href='archives/jormungandr/Docker-jormungandr'>
+    <a class='font-bold text-blue-600 hover:underline truncate' title='Docker Image' href='archives/jormungandr/Docker-jormungandr'>
       Docker Image
     </a>
     
@@ -2037,7 +2048,7 @@
         <!-- Main body column -->
         <div class='flex-1 w-full overflow-x-auto bg-white'>
           <main class='px-4 py-4'>
-            <h1 class='flex items-end justify-center mb-4 p-3 bg-red-100 text-5xl font-extrabold text-black rounded'>
+            <h1 class='flex items-end justify-center mb-4 p-3 bg-blue-100 text-5xl font-extrabold text-black rounded'>
   <a class='z-40 tracking-tighter '>
     Docker Image
   </a>
@@ -2046,7 +2057,7 @@
   <!-- What goes in this file will appear on top of note body-->
   
     <p class='mb-3'>
-      Docker builds of <code class='py-0.5 px-1 rounded bg-gray-700 text-sm text-white'>cardano-wallet-jormungandr</code> are available on <a href='https://hub.docker.com/repository/docker/inputoutput/cardano-wallet' class='text-red-600 hover:underline' target='_blank' rel='noopener'>DockerHub</a>.
+      Docker builds of <code class='py-0.5 px-1 rounded bg-gray-700 text-sm text-white'>cardano-wallet-jormungandr</code> are available on <a href='https://hub.docker.com/repository/docker/inputoutput/cardano-wallet' class='text-blue-600 hover:underline' target='_blank' rel='noopener'>DockerHub</a>.
     </p>
   <h2 id='downloading-the-docker-image' class='inline-block mt-6 mb-4 text-4xl font-bold text-gray-700 border-b-2'>Downloading the Docker image</h2>
     <p class='mb-3'>
@@ -2058,7 +2069,7 @@
     </p>
   <div class='py-0.5 mb-3 text-sm'><pre><code class='language-none'>docker run --rm inputoutput/cardano-wallet:jormungandr --help</code></pre></div>
     <p class='mb-3'>
-      See <a href='user-guide/cli' class='text-red-600 mavenLinkBold hover:underline' data-wikilink-type='WikiLinkNormal'>Command-Line Interface</a> for full documentation of the CLI.
+      See <a href='user-guide/cli' class='text-blue-600 mavenLinkBold hover:underline' data-wikilink-type='WikiLinkNormal'>Command-Line Interface</a> for full documentation of the CLI.
     </p>
   
     <p class='mb-3'>
@@ -2066,7 +2077,7 @@
     </p>
   
     <p class='mb-3'>
-      This example uses the <a href='https://hydra.iohk.io/job/Cardano/iohk-nix/jormungandr-deployment/latest/download/1/index.html' class='text-red-600 hover:underline' target='_blank' rel='noopener'>itn_rewards_v1</a> testnet.
+      This example uses the <a href='https://hydra.iohk.io/job/Cardano/iohk-nix/jormungandr-deployment/latest/download/1/index.html' class='text-blue-600 hover:underline' target='_blank' rel='noopener'>itn_rewards_v1</a> testnet.
     </p>
   
     <ul class='my-3 ml-6 space-y-1 list-decimal list-inside'>
@@ -2121,7 +2132,7 @@ wget -P $HOME/state-docker https://hydra.iohk.io/job/Cardano/iohk-nix/jormungand
         <li>
           
     <p class='mb-3'>
-      <code class='py-0.5 px-1 rounded bg-gray-700 text-sm text-white'>--env TMPDIR=/data</code> - work around a temp directory issue (<a href='https://github.com/input-output-hk/cardano-wallet/pull/1262' class='text-red-600 hover:underline' target='_blank' rel='noopener'>#1262</a>). Alternatively, you may mount an additional volume on your own temporary directory with <code class='py-0.5 px-1 rounded bg-gray-700 text-sm text-white'>--volume /tmp:/tmp</code>.
+      <code class='py-0.5 px-1 rounded bg-gray-700 text-sm text-white'>--env TMPDIR=/data</code> - work around a temp directory issue (<a href='https://github.com/input-output-hk/cardano-wallet/pull/1262' class='text-blue-600 hover:underline' target='_blank' rel='noopener'>#1262</a>). Alternatively, you may mount an additional volume on your own temporary directory with <code class='py-0.5 px-1 rounded bg-gray-700 text-sm text-white'>--volume /tmp:/tmp</code>.
     </p>
   
         </li>
@@ -2165,11 +2176,11 @@ wget -P $HOME/state-docker https://hydra.iohk.io/job/Cardano/iohk-nix/jormungand
     </ul>
   <h2 id='naming-scheme' class='inline-block mt-6 mb-4 text-4xl font-bold text-gray-700 border-b-2'>Naming scheme</h2>
     <p class='mb-3'>
-      The following tags are pushed to <a href='https://hub.docker.com/repository/docker/inputoutput/cardano-wallet' class='text-red-600 hover:underline' target='_blank' rel='noopener'>DockerHub</a>.
+      The following tags are pushed to <a href='https://hub.docker.com/repository/docker/inputoutput/cardano-wallet' class='text-blue-600 hover:underline' target='_blank' rel='noopener'>DockerHub</a>.
     </p>
-  <table class='mb-3'><thead><tr class='border-b-2 border-t-2 border-gray-300'><th class='py-2 px-2 align-top border-r-2 border-l-2 border-gray-300'>Tag</th><th class='py-2 px-2 align-top border-r-2 border-l-2 border-gray-300'>Network node backend</th><th class='py-2 px-2 align-top border-r-2 border-l-2 border-gray-300'>Version</th></tr></thead><tbody><tr class='border-b-2 border-t-2 border-gray-300'><td class='py-2 px-2 align-top border-r-2 border-l-2 border-gray-300'><code class='py-0.5 px-1 rounded bg-gray-700 text-sm text-white'>inputoutput/cardano-wallet:jormungandr</code></td><td class='py-2 px-2 align-top border-r-2 border-l-2 border-gray-300'>Jörmungandr</td><td class='py-2 px-2 align-top border-r-2 border-l-2 border-gray-300'>Latest <a href='https://github.com/input-output-hk/cardano-wallet/releases' class='text-red-600 hover:underline' target='_blank' rel='noopener'>GitHub release</a></td></tr><tr class='border-b-2 border-t-2 border-gray-300'><td class='py-2 px-2 align-top border-r-2 border-l-2 border-gray-300'><code class='py-0.5 px-1 rounded bg-gray-700 text-sm text-white'>inputoutput/cardano-wallet:dev-master-jormungandr</code></td><td class='py-2 px-2 align-top border-r-2 border-l-2 border-gray-300'>Jörmungandr</td><td class='py-2 px-2 align-top border-r-2 border-l-2 border-gray-300'>Latest revision of <a href='https://github.com/input-output-hk/cardano-wallet/commits/master' class='text-red-600 hover:underline' target='_blank' rel='noopener'>master branch</a></td></tr><tr class='border-b-2 border-t-2 border-gray-300'><td class='py-2 px-2 align-top border-r-2 border-l-2 border-gray-300'><code class='py-0.5 px-1 rounded bg-gray-700 text-sm text-white'>inputoutput/cardano-wallet:2020.1.7-jormungandr</code></td><td class='py-2 px-2 align-top border-r-2 border-l-2 border-gray-300'>Jörmungandr</td><td class='py-2 px-2 align-top border-r-2 border-l-2 border-gray-300'><a href='https://github.com/input-output-hk/cardano-wallet/releases/tag/v2020-01-07' class='text-red-600 hover:underline' target='_blank' rel='noopener'>v2020-01-07</a> (for example)</td></tr><tr class='border-b-2 border-t-2 border-gray-300'><td class='py-2 px-2 align-top border-r-2 border-l-2 border-gray-300'><code class='py-0.5 px-1 rounded bg-gray-700 text-sm text-white'>inputoutput/cardano-wallet:e902913750f763ac3dcb37f57fa35154db2934eb-jormungandr</code></td><td class='py-2 px-2 align-top border-r-2 border-l-2 border-gray-300'>Jörmungandr</td><td class='py-2 px-2 align-top border-r-2 border-l-2 border-gray-300'>A certain revision of the master branch (e902913 for example).</td></tr></tbody></table><h2 id='building-the-docker-image-locally' class='inline-block mt-6 mb-4 text-4xl font-bold text-gray-700 border-b-2'>Building the Docker image locally</h2>
+  <table class='mb-3'><thead><tr class='border-b-2 border-t-2 border-gray-300'><th class='py-2 px-2 align-top border-r-2 border-l-2 border-gray-300'>Tag</th><th class='py-2 px-2 align-top border-r-2 border-l-2 border-gray-300'>Network node backend</th><th class='py-2 px-2 align-top border-r-2 border-l-2 border-gray-300'>Version</th></tr></thead><tbody><tr class='border-b-2 border-t-2 border-gray-300'><td class='py-2 px-2 align-top border-r-2 border-l-2 border-gray-300'><code class='py-0.5 px-1 rounded bg-gray-700 text-sm text-white'>inputoutput/cardano-wallet:jormungandr</code></td><td class='py-2 px-2 align-top border-r-2 border-l-2 border-gray-300'>Jörmungandr</td><td class='py-2 px-2 align-top border-r-2 border-l-2 border-gray-300'>Latest <a href='https://github.com/input-output-hk/cardano-wallet/releases' class='text-blue-600 hover:underline' target='_blank' rel='noopener'>GitHub release</a></td></tr><tr class='border-b-2 border-t-2 border-gray-300'><td class='py-2 px-2 align-top border-r-2 border-l-2 border-gray-300'><code class='py-0.5 px-1 rounded bg-gray-700 text-sm text-white'>inputoutput/cardano-wallet:dev-master-jormungandr</code></td><td class='py-2 px-2 align-top border-r-2 border-l-2 border-gray-300'>Jörmungandr</td><td class='py-2 px-2 align-top border-r-2 border-l-2 border-gray-300'>Latest revision of <a href='https://github.com/input-output-hk/cardano-wallet/commits/master' class='text-blue-600 hover:underline' target='_blank' rel='noopener'>master branch</a></td></tr><tr class='border-b-2 border-t-2 border-gray-300'><td class='py-2 px-2 align-top border-r-2 border-l-2 border-gray-300'><code class='py-0.5 px-1 rounded bg-gray-700 text-sm text-white'>inputoutput/cardano-wallet:2020.1.7-jormungandr</code></td><td class='py-2 px-2 align-top border-r-2 border-l-2 border-gray-300'>Jörmungandr</td><td class='py-2 px-2 align-top border-r-2 border-l-2 border-gray-300'><a href='https://github.com/input-output-hk/cardano-wallet/releases/tag/v2020-01-07' class='text-blue-600 hover:underline' target='_blank' rel='noopener'>v2020-01-07</a> (for example)</td></tr><tr class='border-b-2 border-t-2 border-gray-300'><td class='py-2 px-2 align-top border-r-2 border-l-2 border-gray-300'><code class='py-0.5 px-1 rounded bg-gray-700 text-sm text-white'>inputoutput/cardano-wallet:e902913750f763ac3dcb37f57fa35154db2934eb-jormungandr</code></td><td class='py-2 px-2 align-top border-r-2 border-l-2 border-gray-300'>Jörmungandr</td><td class='py-2 px-2 align-top border-r-2 border-l-2 border-gray-300'>A certain revision of the master branch (e902913 for example).</td></tr></tbody></table><h2 id='building-the-docker-image-locally' class='inline-block mt-6 mb-4 text-4xl font-bold text-gray-700 border-b-2'>Building the Docker image locally</h2>
     <p class='mb-3'>
-      Ensure that you have Nix installed and the IOHK binary cache enabled (<a href='https://github.com/input-output-hk/iohk-nix/blob/master/docs/nix.md' class='text-red-600 hover:underline' target='_blank' rel='noopener'>instructions</a>).
+      Ensure that you have Nix installed and the IOHK binary cache enabled (<a href='https://github.com/input-output-hk/iohk-nix/blob/master/docs/nix.md' class='text-blue-600 hover:underline' target='_blank' rel='noopener'>instructions</a>).
     </p>
   
     <p class='mb-3'>
@@ -2177,7 +2188,7 @@ wget -P $HOME/state-docker https://hydra.iohk.io/job/Cardano/iohk-nix/jormungand
     </p>
   <div class='py-0.5 mb-3 text-sm'><pre><code class='language-none'>docker load -i $(nix-build -A dockerImage.jormungandr --no-out-link)</code></pre></div>
     <p class='mb-3'>
-      If you have no local changes, the build should be downloaded from the <a href='https://hydra.iohk.io/job/Cardano/cardano-wallet/native.dockerImage.jormungandr.x86_64-linux' class='text-red-600 hover:underline' target='_blank' rel='noopener'>IOHK binary cache</a> then loaded into your local Docker image storage.
+      If you have no local changes, the build should be downloaded from the <a href='https://hydra.iohk.io/job/Cardano/cardano-wallet/native.dockerImage.jormungandr.x86_64-linux' class='text-blue-600 hover:underline' target='_blank' rel='noopener'>IOHK binary cache</a> then loaded into your local Docker image storage.
     </p>
   <h2 id='inspecting-the-contents-of-the-docker-image' class='inline-block mt-6 mb-4 text-4xl font-bold text-gray-700 border-b-2'>Inspecting the contents of the Docker image</h2>
     <p class='mb-3'>
@@ -2194,13 +2205,13 @@ wget -P $HOME/state-docker https://hydra.iohk.io/job/Cardano/iohk-nix/jormungand
     <ul class='space-y-1'>
       
         <li>
-          <a class='text-red-600 mavenLinkBold hover:bg-red-50' href='archives/jormungandr'>
+          <a class='text-blue-600 mavenLinkBold hover:bg-blue-50' href='archives/jormungandr'>
             Cardano Wallet Jörmungandr
           </a>
           
             <div class='mb-4 overflow-auto text-sm text-gray-500'>
   
-    <div class='pl-2 mt-2 border-l-2 border-red-200 hover:border-red-500'>
+    <div class='pl-2 mt-2 border-l-2 border-blue-200 hover:border-blue-500'>
       <div><a href='archives/jormungandr/Docker-jormungandr' class='text-gray-600 font-bold hover:bg-gray-50' data-wikilink-type='WikiLinkNormal'>Docker Image</a></div>
     </div>
   
@@ -2225,27 +2236,27 @@ wget -P $HOME/state-docker https://hydra.iohk.io/job/Cardano/iohk-nix/jormungand
   
   <div>
     <a href='' title='Go to Home page'>
-      <svg xmlns='http://www.w3.org/2000/svg' class='w-6 h-6 hover:text-red-700' fill='none' viewBox='0 0 24 24' stroke='currentColor'>
+      <svg xmlns='http://www.w3.org/2000/svg' class='w-6 h-6 hover:text-blue-700' fill='none' viewBox='0 0 24 24' stroke='currentColor'>
         <path stroke-linecap='round' stroke-linejoin='round' stroke-width='2' d='M3 12l2-2m0 0l7-7 7 7M5 10v10a1 1 0 001 1h3m10-11l2 2m-2-2v10a1 1 0 01-1 1h-3m-6 0a1 1 0 001-1v-4a1 1 0 011-1h2a1 1 0 011 1v4a1 1 0 001 1m-6 0h6'></path>
       </svg>
     </a>
   </div>
   <div>
     <a href='-/all' title='View Index'>
-      <svg class='w-6 h-6 hover:text-red-700' fill='none' stroke='currentColor' viewBox='0 0 24 24' xmlns='http://www.w3.org/2000/svg'>
+      <svg class='w-6 h-6 hover:text-blue-700' fill='none' stroke='currentColor' viewBox='0 0 24 24' xmlns='http://www.w3.org/2000/svg'>
         <path stroke-linecap='round' stroke-linejoin='round' stroke-width='2' d='M4 8V4m0 0h4M4 4l5 5m11-1V4m0 0h-4m4 0l-5 5M4 16v4m0 0h4m-4 0l5-5m11 5l-5-5m5 5v-4m0 4h-4'>
         </path>
       </svg>
     </a>
   </div>
   <div>
-    <a href='https://emanote.srid.ca' target='_blank' title='Generated by Emanote 0.4.8.2'>
-      <img class='w-6 h-6 hover:text-red-700' src='_emanote-static/emanote-logo.svg' />
+    <a href='https://emanote.srid.ca' target='_blank' title='Generated by Emanote 0.4.9.1'>
+      <img class='w-6 h-6 hover:text-blue-700' src='_emanote-static/emanote-logo.svg' />
     </a>
   </div>
   <div>
     <a href='-/tags' title='View tags'>
-      <svg class='w-6 h-6 hover:text-red-700' fill='none' stroke='currentColor' viewBox='0 0 24 24' xmlns='http://www.w3.org/2000/svg'>
+      <svg class='w-6 h-6 hover:text-blue-700' fill='none' stroke='currentColor' viewBox='0 0 24 24' xmlns='http://www.w3.org/2000/svg'>
         <path stroke-linecap='round' stroke-linejoin='round' stroke-width='2' d='M7 7h.01M7 3h5c.512 0 1.024.195 1.414.586l7 7a2 2 0 010 2.828l-7 7a2 2 0 01-2.828 0l-7-7A1.994 1.994 0 013 12V7a4 4 0 014-4z'>
         </path>
       </svg>
@@ -2253,7 +2264,7 @@ wget -P $HOME/state-docker https://hydra.iohk.io/job/Cardano/iohk-nix/jormungand
   </div>
   <div>
     <a href='-/tasks' title='View tasks'>
-      <svg xmlns='http://www.w3.org/2000/svg' class='w-6 h-6 hover:text-red-700' fill='none' viewBox='0 0 24 24' stroke='currentColor'>
+      <svg xmlns='http://www.w3.org/2000/svg' class='w-6 h-6 hover:text-blue-700' fill='none' viewBox='0 0 24 24' stroke='currentColor'>
         <path stroke-linecap='round' stroke-linejoin='round' stroke-width='2' d='M9 12l2 2 4-4m6 2a9 9 0 11-18 0 9 9 0 0118 0z'></path>
       </svg>
     </a>

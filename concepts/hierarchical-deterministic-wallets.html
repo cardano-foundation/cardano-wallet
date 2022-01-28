@@ -17,43 +17,15 @@
       <base href='/cardano-wallet/' />
       <link href='favicon.svg' rel='icon' />
     
-    <script>
-  // Keep \#links on the same page, when they would otherwise redirect to
-  // the page's <base href>. Ref: https://stackoverflow.com/q/8108836
-  (function() {
-    function fixLink(el) {
-      if (el.tagName.toLowerCase() === "a") {
-        console.log("fixLink", el);
-        var href = el.getAttribute("href");
-        if (href && href.indexOf("#") === 0) {
-          el.href = location.pathname + el.getAttribute("href");
-        }
-      }
-    }
-    // Adjust href for all existing links.
-    document.addEventListener("DOMContentLoaded", function() {
-      const es = document.getElementsByTagName("a");
-      for (var i = 0; i < es.length; i++) {
-        fixLink(es[i]);
-      }
-    });
-    // Adjust href for dynamically added links - when they are clicked.
-    document.addEventListener("click", function(ev) { fixLink(ev.target); });
-  })();
-</script>
+    <meta name='generator' content='Emanote' />
+<meta http-equiv='cache-control' content='private, max-age=60' />
+<meta http-equiv='Expires' content='60' />
+<link href='static/cardano-wallet.css' rel='stylesheet' />
+<script src='static/cardano-wallet.js'></script>
 
-<style>
-  p code, li code {
-    background-color: rgb(243,244,246) !important;
-    color: black !important;
-  }
-  pre {
-    background-color: rgb(243,244,246) !important;
-  }
-</style>
 
   
-  <link href='tailwind.css' rel='stylesheet' type='text/css' />
+  <link href='tailwind.css?instanceId=e872cfe7-2328-4405-96ec-e68a0f512682' rel='stylesheet' type='text/css' />
 
   <!-- Heist error element -->
   <style type='text/css'>
@@ -139,7 +111,7 @@
         
       </ul>
     </div>
-    <button class='inline px-2 py-1 text-white bg-red-600 outline-none cursor-pointer focus:outline-none' title='Toggle sidebar' type='button' onclick="toggleHidden('sidebar')">
+    <button class='inline px-2 py-1 text-white bg-blue-600 outline-none cursor-pointer focus:outline-none' title='Toggle sidebar' type='button' onclick="toggleHidden('sidebar')">
       <svg xmlns='http://www.w3.org/2000/svg' class='w-4' fill='none' viewBox='0 0 24 24' stroke='currentColor'>
         <path stroke-linecap='round' stroke-linejoin='round' stroke-width='2' d='M4 6h16M4 12h16M4 18h16'></path>
       </svg>
@@ -159,13 +131,13 @@
 
             <div id='indexing-links' class='flex flex-row float-right p-2 space-x-2 text-gray-500'>
               <a href='-/tags' title='View tags'>
-                <svg style='width: 1rem;' class='hover:text-red-700' fill='none' stroke='currentColor' viewBox='0 0 24 24' xmlns='http://www.w3.org/2000/svg'>
+                <svg style='width: 1rem;' class='hover:text-blue-700' fill='none' stroke='currentColor' viewBox='0 0 24 24' xmlns='http://www.w3.org/2000/svg'>
                   <path stroke-linecap='round' stroke-linejoin='round' stroke-width='2' d='M7 7h.01M7 3h5c.512 0 1.024.195 1.414.586l7 7a2 2 0 010 2.828l-7 7a2 2 0 01-2.828 0l-7-7A1.994 1.994 0 013 12V7a4 4 0 014-4z'>
                   </path>
                 </svg>
               </a>
               <a href='-/all' title='Expand full tree'>
-                <svg style='width: 1rem;' class='hover:text-red-700' fill='none' stroke='currentColor' viewBox='0 0 24 24' xmlns='http://www.w3.org/2000/svg'>
+                <svg style='width: 1rem;' class='hover:text-blue-700' fill='none' stroke='currentColor' viewBox='0 0 24 24' xmlns='http://www.w3.org/2000/svg'>
                   <path stroke-linecap='round' stroke-linejoin='round' stroke-width='2' d='M4 8V4m0 0h4M4 4l5 5m11-1V4m0 0h-4m4 0l-5 5M4 16v4m0 0h4m-4 0l5-5m11 5l-5-5m5 5v-4m0 4h-4'>
                   </path>
                 </svg>
@@ -950,7 +922,7 @@
       </svg>
       
   
-    <a class='font-bold text-red-600 hover:underline truncate' title='HD Wallets' href='concepts/hierarchical-deterministic-wallets'>
+    <a class='font-bold text-blue-600 hover:underline truncate' title='HD Wallets' href='concepts/hierarchical-deterministic-wallets'>
       HD Wallets
     </a>
     
@@ -1691,6 +1663,45 @@
       </svg>
     
   
+    <a class='hover:underline truncate' title='Cardano Eras' href='design/Eras'>
+      Cardano Eras
+    </a>
+    
+      
+  </div>
+
+  <!-- Node's children forest, displayed only on active trees
+    TODO: Use <details> to toggle visibility?
+  -->
+  
+    
+  
+</div>
+    
+      <!-- Variable bindings for this tree-->
+  
+    
+      
+    
+    
+
+
+
+  
+
+
+<!-- Rendering of this tree -->
+<div class='pl-2'>
+  <!-- Node's rootLabel-->
+  <div class='flex items-center my-2 space-x-2 justify-left'>
+    
+    
+      <svg class='w-4 h-4 flex-shrink-0 inline' fill='none' stroke='currentColor' viewBox='0 0 24 24' xmlns='http://www.w3.org/2000/svg'>
+        <path stroke-linecap='round' stroke-linejoin='round' stroke-width='2' d='M7 21h10a2 2 0 002-2V9.414a1 1 0 00-.293-.707l-5.414-5.414A1 1 0 0012.586 3H7a2 2 0 00-2 2v14a2 2 0 002 2z'>
+        </path>
+      </svg>
+    
+  
     <a class='hover:underline truncate' title='Notes about BIP-44' href='design/Notes-about-BIP-44'>
       Notes about BIP-44
     </a>
@@ -2028,7 +2039,7 @@
         <!-- Main body column -->
         <div class='flex-1 w-full overflow-x-auto bg-white'>
           <main class='px-4 py-4'>
-            <h1 class='flex items-end justify-center mb-4 p-3 bg-red-100 text-5xl font-extrabold text-black rounded'>
+            <h1 class='flex items-end justify-center mb-4 p-3 bg-blue-100 text-5xl font-extrabold text-black rounded'>
   <a class='z-40 tracking-tighter '>
     HD Wallets
   </a>
@@ -2045,7 +2056,7 @@
     </p>
   <h3 id='encoding' class='mt-6 mb-2 text-3xl font-bold text-gray-700'>Encoding</h3>
     <p class='mb-3'>
-      The process describing how to encode recovery phrases is described in <a href='https://github.com/bitcoin/bips/blob/master/bip-0039.mediawiki' class='text-red-600 hover:underline' target='_blank' rel='noopener'>BIP-0039</a> section “Generating the mnemonic”. Below is a reformulation of this specification.
+      The process describing how to encode recovery phrases is described in <a href='https://github.com/bitcoin/bips/blob/master/bip-0039.mediawiki' class='text-blue-600 hover:underline' target='_blank' rel='noopener'>BIP-0039</a> section “Generating the mnemonic”. Below is a reformulation of this specification.
     </p>
   
     <p class='mb-3'>
@@ -2061,11 +2072,11 @@
     </p>
   <table class='mb-3'><thead><tr class='border-b-2 border-t-2 border-gray-300'><th class='py-2 px-2 align-top border-r-2 border-l-2 border-gray-300'>Sentence Length</th><th class='py-2 px-2 align-top border-r-2 border-l-2 border-gray-300'>Entropy Size</th><th class='py-2 px-2 align-top border-r-2 border-l-2 border-gray-300'>Checksum Size</th></tr></thead><tbody><tr class='border-b-2 border-t-2 border-gray-300'><td class='py-2 px-2 align-top border-r-2 border-l-2 border-gray-300'>9 words</td><td class='py-2 px-2 align-top border-r-2 border-l-2 border-gray-300'>96 bits (12 bytes)</td><td class='py-2 px-2 align-top border-r-2 border-l-2 border-gray-300'>3 bits</td></tr><tr class='border-b-2 border-t-2 border-gray-300'><td class='py-2 px-2 align-top border-r-2 border-l-2 border-gray-300'>12 words</td><td class='py-2 px-2 align-top border-r-2 border-l-2 border-gray-300'>128 bits (16 bytes)</td><td class='py-2 px-2 align-top border-r-2 border-l-2 border-gray-300'>4 bits</td></tr><tr class='border-b-2 border-t-2 border-gray-300'><td class='py-2 px-2 align-top border-r-2 border-l-2 border-gray-300'>15 words</td><td class='py-2 px-2 align-top border-r-2 border-l-2 border-gray-300'>160 bits (20 bytes)</td><td class='py-2 px-2 align-top border-r-2 border-l-2 border-gray-300'>5 bits</td></tr><tr class='border-b-2 border-t-2 border-gray-300'><td class='py-2 px-2 align-top border-r-2 border-l-2 border-gray-300'>18 words</td><td class='py-2 px-2 align-top border-r-2 border-l-2 border-gray-300'>192 bits (24 bytes)</td><td class='py-2 px-2 align-top border-r-2 border-l-2 border-gray-300'>6 bits</td></tr><tr class='border-b-2 border-t-2 border-gray-300'><td class='py-2 px-2 align-top border-r-2 border-l-2 border-gray-300'>21 words</td><td class='py-2 px-2 align-top border-r-2 border-l-2 border-gray-300'>224 bits (28 bytes)</td><td class='py-2 px-2 align-top border-r-2 border-l-2 border-gray-300'>7 bits</td></tr><tr class='border-b-2 border-t-2 border-gray-300'><td class='py-2 px-2 align-top border-r-2 border-l-2 border-gray-300'>24 words</td><td class='py-2 px-2 align-top border-r-2 border-l-2 border-gray-300'>256 bits (32 bytes)</td><td class='py-2 px-2 align-top border-r-2 border-l-2 border-gray-300'>8 bits</td></tr></tbody></table><h3 id='dictionaries' class='mt-6 mb-2 text-3xl font-bold text-gray-700'>Dictionaries</h3>
     <p class='mb-3'>
-      Cardano uses the same dictionaries as defined in <a href='https://github.com/bitcoin/bips/blob/master/bip-0039/bip-0039-wordlists.md' class='text-red-600 hover:underline' target='_blank' rel='noopener'>BIP-0039</a>.
+      Cardano uses the same dictionaries as defined in <a href='https://github.com/bitcoin/bips/blob/master/bip-0039/bip-0039-wordlists.md' class='text-blue-600 hover:underline' target='_blank' rel='noopener'>BIP-0039</a>.
     </p>
   <hr class='mb-3' /><h2 id='hierarchical-deterministic-wallets' class='inline-block mt-6 mb-4 text-4xl font-bold text-gray-700 border-b-2'>Hierarchical Deterministic Wallets</h2><h3 id='motivation-1' class='mt-6 mb-2 text-3xl font-bold text-gray-700'>Motivation</h3>
     <p class='mb-3'>
-      In Cardano, hierarchical deterministic (abbrev. HD) wallets are similar to those described in <a href='https://github.com/bitcoin/bips/blob/master/bip-0032.mediawiki#motivation' class='text-red-600 hover:underline' target='_blank' rel='noopener'>BIP-0032</a>.
+      In Cardano, hierarchical deterministic (abbrev. HD) wallets are similar to those described in <a href='https://github.com/bitcoin/bips/blob/master/bip-0032.mediawiki#motivation' class='text-blue-600 hover:underline' target='_blank' rel='noopener'>BIP-0032</a>.
     </p>
   
     <p class='mb-3'>
@@ -2183,7 +2194,7 @@
     <blockquote class='py-0.5 px-4 mb-3 italic border-l-4 bg-gray-50 text-gray-600 border-gray-400 quote'>
       
     <p class='mb-3'>
-      What follows is taken from the “Account Discovery” section from <a href='https://github.com/bitcoin/bips/blob/master/bip-0044.mediawiki#account-discovery' class='text-red-600 hover:underline' target='_blank' rel='noopener'>BIP-0044</a>
+      What follows is taken from the “Account Discovery” section from <a href='https://github.com/bitcoin/bips/blob/master/bip-0044.mediawiki#account-discovery' class='text-blue-600 hover:underline' target='_blank' rel='noopener'>BIP-0044</a>
     </p>
   
     </blockquote>
@@ -2281,19 +2292,19 @@
     <ul class='my-3 ml-6 space-y-1 list-disc'>
       
         <li>
-          <a href='https://github.com/satoshilabs/slips/blob/master/slip-0010.md' class='text-red-600 hover:underline' target='_blank' rel='noopener'>SLIP 0010</a>
+          <a href='https://github.com/satoshilabs/slips/blob/master/slip-0010.md' class='text-blue-600 hover:underline' target='_blank' rel='noopener'>SLIP 0010</a>
         </li>
       
         <li>
-          <a href='https://github.com/bitcoin/bips/blob/master/bip-0032.mediawiki' class='text-red-600 hover:underline' target='_blank' rel='noopener'>BIP 0032</a>
+          <a href='https://github.com/bitcoin/bips/blob/master/bip-0032.mediawiki' class='text-blue-600 hover:underline' target='_blank' rel='noopener'>BIP 0032</a>
         </li>
       
         <li>
-          <a href='https://github.com/bitcoin/bips/blob/master/bip-0039.mediawiki' class='text-red-600 hover:underline' target='_blank' rel='noopener'>BIP 0039</a>
+          <a href='https://github.com/bitcoin/bips/blob/master/bip-0039.mediawiki' class='text-blue-600 hover:underline' target='_blank' rel='noopener'>BIP 0039</a>
         </li>
       
         <li>
-          <a href='https://tools.ietf.org/html/rfc8032#section-5.1.5' class='text-red-600 hover:underline' target='_blank' rel='noopener'>RFC 8032</a>
+          <a href='https://tools.ietf.org/html/rfc8032#section-5.1.5' class='text-blue-600 hover:underline' target='_blank' rel='noopener'>RFC 8032</a>
         </li>
       
     </ul>
@@ -2367,7 +2378,7 @@ function tweakBits(data) {
     <blockquote class='py-0.5 px-4 mb-3 italic border-l-4 bg-gray-50 text-gray-600 border-gray-400 quote'>
       
     <p class='mb-3'>
-      For a detailed analysis of the cryptographic choices and the above requirements, have a look at: <a href='https://github.com/input-output-hk/chain-wallet-libs/blob/master/doc/CRYPTO.md#master-key-generation-to-cryptographic-key' class='text-red-600 hover:underline' target='_blank' rel='noopener'>Wallet Cryptography and Encoding</a> {{<span xmlhtmlRaw></tab></span>}} {{<span xmlhtmlRaw><tab Ledger></span>}}
+      For a detailed analysis of the cryptographic choices and the above requirements, have a look at: <a href='https://github.com/input-output-hk/chain-wallet-libs/blob/master/doc/CRYPTO.md#master-key-generation-to-cryptographic-key' class='text-blue-600 hover:underline' target='_blank' rel='noopener'>Wallet Cryptography and Encoding</a> {{<span xmlhtmlRaw></tab></span>}} {{<span xmlhtmlRaw><tab Ledger></span>}}
     </p>
   
     </blockquote>
@@ -2429,17 +2440,17 @@ function tweakBits(data) {
     <ul class='space-y-1'>
       
         <li>
-          <a class='text-red-600 mavenLinkBold hover:bg-red-50' href='user-guide/common-use-cases/how-to-create-a-wallet'>
+          <a class='text-blue-600 mavenLinkBold hover:bg-blue-50' href='user-guide/common-use-cases/how-to-create-a-wallet'>
             How to create a wallet
           </a>
           
             <div class='mb-4 overflow-auto text-sm text-gray-500'>
   
-    <div class='pl-2 mt-2 border-l-2 border-red-200 hover:border-red-500'>
+    <div class='pl-2 mt-2 border-l-2 border-blue-200 hover:border-blue-500'>
       <div><p>See more on <a href='concepts/hierarchical-deterministic-wallets' class='text-gray-600 font-bold hover:bg-gray-50' data-wikilink-type='WikiLinkNormal'>HD Wallets</a> and <a href='concepts/byron-address-format' class='text-gray-600 font-bold hover:bg-gray-50' data-wikilink-type='WikiLinkNormal'>Byron Address Format</a>.</p></div>
     </div>
   
-    <div class='pl-2 mt-2 border-l-2 border-red-200 hover:border-red-500'>
+    <div class='pl-2 mt-2 border-l-2 border-blue-200 hover:border-blue-500'>
       <div><p>The easiest and most common way of managing your funds on the Cardano blockchain is through a <a href='concepts/hierarchical-deterministic-wallets' class='text-gray-600 font-bold hover:bg-gray-50' data-wikilink-type='WikiLinkNormal'>HD Wallets</a>. One can create a wallet using the following endpoint of <a href='user-guide/http-api' class='text-gray-600 font-bold hover:bg-gray-50' data-wikilink-type='WikiLinkNormal'>API Documentation</a>:</p></div>
     </div>
   
@@ -2448,13 +2459,13 @@ function tweakBits(data) {
         </li>
       
         <li>
-          <a class='text-red-600 mavenLinkBold hover:bg-red-50' href='user-guide/faq'>
+          <a class='text-blue-600 mavenLinkBold hover:bg-blue-50' href='user-guide/faq'>
             FAQ
           </a>
           
             <div class='mb-4 overflow-auto text-sm text-gray-500'>
   
-    <div class='pl-2 mt-2 border-l-2 border-red-200 hover:border-red-500'>
+    <div class='pl-2 mt-2 border-l-2 border-blue-200 hover:border-blue-500'>
       <div><p>In the second case, please refer to the <a href='concepts/hierarchical-deterministic-wallets' class='text-gray-600 font-bold hover:bg-gray-50' data-wikilink-type='WikiLinkNormal'>HD Wallets</a> section in the <em>Key concepts</em>. Cardano wallets typically follow an HD tree of derivation as described in this section.</p></div>
     </div>
   
@@ -2479,27 +2490,27 @@ function tweakBits(data) {
   
   <div>
     <a href='' title='Go to Home page'>
-      <svg xmlns='http://www.w3.org/2000/svg' class='w-6 h-6 hover:text-red-700' fill='none' viewBox='0 0 24 24' stroke='currentColor'>
+      <svg xmlns='http://www.w3.org/2000/svg' class='w-6 h-6 hover:text-blue-700' fill='none' viewBox='0 0 24 24' stroke='currentColor'>
         <path stroke-linecap='round' stroke-linejoin='round' stroke-width='2' d='M3 12l2-2m0 0l7-7 7 7M5 10v10a1 1 0 001 1h3m10-11l2 2m-2-2v10a1 1 0 01-1 1h-3m-6 0a1 1 0 001-1v-4a1 1 0 011-1h2a1 1 0 011 1v4a1 1 0 001 1m-6 0h6'></path>
       </svg>
     </a>
   </div>
   <div>
     <a href='-/all' title='View Index'>
-      <svg class='w-6 h-6 hover:text-red-700' fill='none' stroke='currentColor' viewBox='0 0 24 24' xmlns='http://www.w3.org/2000/svg'>
+      <svg class='w-6 h-6 hover:text-blue-700' fill='none' stroke='currentColor' viewBox='0 0 24 24' xmlns='http://www.w3.org/2000/svg'>
         <path stroke-linecap='round' stroke-linejoin='round' stroke-width='2' d='M4 8V4m0 0h4M4 4l5 5m11-1V4m0 0h-4m4 0l-5 5M4 16v4m0 0h4m-4 0l5-5m11 5l-5-5m5 5v-4m0 4h-4'>
         </path>
       </svg>
     </a>
   </div>
   <div>
-    <a href='https://emanote.srid.ca' target='_blank' title='Generated by Emanote 0.4.8.2'>
-      <img class='w-6 h-6 hover:text-red-700' src='_emanote-static/emanote-logo.svg' />
+    <a href='https://emanote.srid.ca' target='_blank' title='Generated by Emanote 0.4.9.1'>
+      <img class='w-6 h-6 hover:text-blue-700' src='_emanote-static/emanote-logo.svg' />
     </a>
   </div>
   <div>
     <a href='-/tags' title='View tags'>
-      <svg class='w-6 h-6 hover:text-red-700' fill='none' stroke='currentColor' viewBox='0 0 24 24' xmlns='http://www.w3.org/2000/svg'>
+      <svg class='w-6 h-6 hover:text-blue-700' fill='none' stroke='currentColor' viewBox='0 0 24 24' xmlns='http://www.w3.org/2000/svg'>
         <path stroke-linecap='round' stroke-linejoin='round' stroke-width='2' d='M7 7h.01M7 3h5c.512 0 1.024.195 1.414.586l7 7a2 2 0 010 2.828l-7 7a2 2 0 01-2.828 0l-7-7A1.994 1.994 0 013 12V7a4 4 0 014-4z'>
         </path>
       </svg>
@@ -2507,7 +2518,7 @@ function tweakBits(data) {
   </div>
   <div>
     <a href='-/tasks' title='View tasks'>
-      <svg xmlns='http://www.w3.org/2000/svg' class='w-6 h-6 hover:text-red-700' fill='none' viewBox='0 0 24 24' stroke='currentColor'>
+      <svg xmlns='http://www.w3.org/2000/svg' class='w-6 h-6 hover:text-blue-700' fill='none' viewBox='0 0 24 24' stroke='currentColor'>
         <path stroke-linecap='round' stroke-linejoin='round' stroke-width='2' d='M9 12l2 2 4-4m6 2a9 9 0 11-18 0 9 9 0 0118 0z'></path>
       </svg>
     </a>

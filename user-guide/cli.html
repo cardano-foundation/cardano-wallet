@@ -17,43 +17,15 @@
       <base href='/cardano-wallet/' />
       <link href='favicon.svg' rel='icon' />
     
-    <script>
-  // Keep \#links on the same page, when they would otherwise redirect to
-  // the page's <base href>. Ref: https://stackoverflow.com/q/8108836
-  (function() {
-    function fixLink(el) {
-      if (el.tagName.toLowerCase() === "a") {
-        console.log("fixLink", el);
-        var href = el.getAttribute("href");
-        if (href && href.indexOf("#") === 0) {
-          el.href = location.pathname + el.getAttribute("href");
-        }
-      }
-    }
-    // Adjust href for all existing links.
-    document.addEventListener("DOMContentLoaded", function() {
-      const es = document.getElementsByTagName("a");
-      for (var i = 0; i < es.length; i++) {
-        fixLink(es[i]);
-      }
-    });
-    // Adjust href for dynamically added links - when they are clicked.
-    document.addEventListener("click", function(ev) { fixLink(ev.target); });
-  })();
-</script>
+    <meta name='generator' content='Emanote' />
+<meta http-equiv='cache-control' content='private, max-age=60' />
+<meta http-equiv='Expires' content='60' />
+<link href='static/cardano-wallet.css' rel='stylesheet' />
+<script src='static/cardano-wallet.js'></script>
 
-<style>
-  p code, li code {
-    background-color: rgb(243,244,246) !important;
-    color: black !important;
-  }
-  pre {
-    background-color: rgb(243,244,246) !important;
-  }
-</style>
 
   
-  <link href='tailwind.css' rel='stylesheet' type='text/css' />
+  <link href='tailwind.css?instanceId=e872cfe7-2328-4405-96ec-e68a0f512682' rel='stylesheet' type='text/css' />
 
   <!-- Heist error element -->
   <style type='text/css'>
@@ -139,7 +111,7 @@
         
       </ul>
     </div>
-    <button class='inline px-2 py-1 text-white bg-red-600 outline-none cursor-pointer focus:outline-none' title='Toggle sidebar' type='button' onclick="toggleHidden('sidebar')">
+    <button class='inline px-2 py-1 text-white bg-blue-600 outline-none cursor-pointer focus:outline-none' title='Toggle sidebar' type='button' onclick="toggleHidden('sidebar')">
       <svg xmlns='http://www.w3.org/2000/svg' class='w-4' fill='none' viewBox='0 0 24 24' stroke='currentColor'>
         <path stroke-linecap='round' stroke-linejoin='round' stroke-width='2' d='M4 6h16M4 12h16M4 18h16'></path>
       </svg>
@@ -159,13 +131,13 @@
 
             <div id='indexing-links' class='flex flex-row float-right p-2 space-x-2 text-gray-500'>
               <a href='-/tags' title='View tags'>
-                <svg style='width: 1rem;' class='hover:text-red-700' fill='none' stroke='currentColor' viewBox='0 0 24 24' xmlns='http://www.w3.org/2000/svg'>
+                <svg style='width: 1rem;' class='hover:text-blue-700' fill='none' stroke='currentColor' viewBox='0 0 24 24' xmlns='http://www.w3.org/2000/svg'>
                   <path stroke-linecap='round' stroke-linejoin='round' stroke-width='2' d='M7 7h.01M7 3h5c.512 0 1.024.195 1.414.586l7 7a2 2 0 010 2.828l-7 7a2 2 0 01-2.828 0l-7-7A1.994 1.994 0 013 12V7a4 4 0 014-4z'>
                   </path>
                 </svg>
               </a>
               <a href='-/all' title='Expand full tree'>
-                <svg style='width: 1rem;' class='hover:text-red-700' fill='none' stroke='currentColor' viewBox='0 0 24 24' xmlns='http://www.w3.org/2000/svg'>
+                <svg style='width: 1rem;' class='hover:text-blue-700' fill='none' stroke='currentColor' viewBox='0 0 24 24' xmlns='http://www.w3.org/2000/svg'>
                   <path stroke-linecap='round' stroke-linejoin='round' stroke-width='2' d='M4 8V4m0 0h4M4 4l5 5m11-1V4m0 0h-4m4 0l-5 5M4 16v4m0 0h4m-4 0l5-5m11 5l-5-5m5 5v-4m0 4h-4'>
                   </path>
                 </svg>
@@ -365,7 +337,7 @@
       </svg>
       
   
-    <a class='font-bold text-red-600 hover:underline truncate' title='Command-Line Interface' href='user-guide/cli'>
+    <a class='font-bold text-blue-600 hover:underline truncate' title='Command-Line Interface' href='user-guide/cli'>
       Command-Line Interface
     </a>
     
@@ -1691,6 +1663,45 @@
       </svg>
     
   
+    <a class='hover:underline truncate' title='Cardano Eras' href='design/Eras'>
+      Cardano Eras
+    </a>
+    
+      
+  </div>
+
+  <!-- Node's children forest, displayed only on active trees
+    TODO: Use <details> to toggle visibility?
+  -->
+  
+    
+  
+</div>
+    
+      <!-- Variable bindings for this tree-->
+  
+    
+      
+    
+    
+
+
+
+  
+
+
+<!-- Rendering of this tree -->
+<div class='pl-2'>
+  <!-- Node's rootLabel-->
+  <div class='flex items-center my-2 space-x-2 justify-left'>
+    
+    
+      <svg class='w-4 h-4 flex-shrink-0 inline' fill='none' stroke='currentColor' viewBox='0 0 24 24' xmlns='http://www.w3.org/2000/svg'>
+        <path stroke-linecap='round' stroke-linejoin='round' stroke-width='2' d='M7 21h10a2 2 0 002-2V9.414a1 1 0 00-.293-.707l-5.414-5.414A1 1 0 0012.586 3H7a2 2 0 00-2 2v14a2 2 0 002 2z'>
+        </path>
+      </svg>
+    
+  
     <a class='hover:underline truncate' title='Notes about BIP-44' href='design/Notes-about-BIP-44'>
       Notes about BIP-44
     </a>
@@ -2028,7 +2039,7 @@
         <!-- Main body column -->
         <div class='flex-1 w-full overflow-x-auto bg-white'>
           <main class='px-4 py-4'>
-            <h1 class='flex items-end justify-center mb-4 p-3 bg-red-100 text-5xl font-extrabold text-black rounded'>
+            <h1 class='flex items-end justify-center mb-4 p-3 bg-blue-100 text-5xl font-extrabold text-black rounded'>
   <a class='z-40 tracking-tighter '>
     Command-Line Interface
   </a>
@@ -2057,7 +2068,7 @@
         <li>
           
     <p class='mb-3'>
-      Install <a href='https://github.com/input-output-hk/cardano-wallet/releases' class='text-red-600 hover:underline' target='_blank' rel='noopener'>cardano-wallet</a> by following instruction on the release notes.
+      Install <a href='https://github.com/input-output-hk/cardano-wallet/releases' class='text-blue-600 hover:underline' target='_blank' rel='noopener'>cardano-wallet</a> by following instruction on the release notes.
     </p>
   
         </li>
@@ -2065,7 +2076,7 @@
         <li>
           
     <p class='mb-3'>
-      Install <a href='https://github.com/input-output-hk/cardano-node/releases' class='text-red-600 hover:underline' target='_blank' rel='noopener'>cardano-node</a> by following instruction on the release notes.
+      Install <a href='https://github.com/input-output-hk/cardano-node/releases' class='text-blue-600 hover:underline' target='_blank' rel='noopener'>cardano-node</a> by following instruction on the release notes.
     </p>
   
         </li>
@@ -2073,7 +2084,7 @@
         <li>
           
     <p class='mb-3'>
-      Download the <code class='py-0.5 px-1 rounded bg-gray-700 text-sm text-white'>byronGenesis.json</code> initial configuration file from <a href='https://hydra.iohk.io/job/Cardano/cardano-node/cardano-deployment/latest-finished/download/1/index.html' class='text-red-600 hover:underline' target='_blank' rel='noopener'>Cardano configurations</a>.
+      Download the <code class='py-0.5 px-1 rounded bg-gray-700 text-sm text-white'>byronGenesis.json</code> initial configuration file from <a href='https://hydra.iohk.io/job/Cardano/cardano-node/cardano-deployment/latest-finished/download/1/index.html' class='text-blue-600 hover:underline' target='_blank' rel='noopener'>Cardano configurations</a>.
     </p>
   
         </li>
@@ -2115,7 +2126,7 @@
     <p class='mb-3'>
       Each sub-command will also provide some additional help when passed <code class='py-0.5 px-1 rounded bg-gray-700 text-sm text-white'>--help</code>. For example:
     </p>
-  <div class='py-0.5 mb-3 text-sm'><pre><code class='console language-console'>$ cardano-wallet transaction --help</code></pre></div><h2 id='commands' class='inline-block mt-6 mb-4 text-4xl font-bold text-gray-700 border-b-2'>Commands</h2><div class='bg-red-50 text-sm p-2 rounded-md shadow mb-4 mx-2'><div xmlhtmlRaw><pre>
+  <div class='py-0.5 mb-3 text-sm'><pre><code class='console language-console'>$ cardano-wallet transaction --help</code></pre></div><h2 id='commands' class='inline-block mt-6 mb-4 text-4xl font-bold text-gray-700 border-b-2'>Commands</h2><div class='bg-blue-50 text-sm p-2 rounded-md shadow mb-4 mx-2'><div xmlhtmlRaw><pre>
 Usage: cardano-wallet COMMAND
   Cardano Wallet Command-Line Interface (CLI)
 
@@ -2167,9 +2178,9 @@ Available COMMANDS:
     </p>
   </div><h2 id='commands-1' class='inline-block mt-6 mb-4 text-4xl font-bold text-gray-700 border-b-2'>Commands</h2><h3 id='serve' class='mt-6 mb-2 text-3xl font-bold text-gray-700'>serve</h3>
     <p class='mb-3'>
-      Serve API that listens for commands/actions. Before launching user should start <a href='https://github.com/input-output-hk/cardano-node' class='text-red-600 hover:underline' target='_blank' rel='noopener'><code class='py-0.5 px-1 rounded bg-gray-700 text-sm text-white'>cardano-node</code></a>.
+      Serve API that listens for commands/actions. Before launching user should start <a href='https://github.com/input-output-hk/cardano-node' class='text-blue-600 hover:underline' target='_blank' rel='noopener'><code class='py-0.5 px-1 rounded bg-gray-700 text-sm text-white'>cardano-node</code></a>.
     </p>
-  <div class='bg-red-50 text-sm p-2 rounded-md shadow mb-4 mx-2'><div class='py-0.5 mb-3 text-sm'><pre><code class='language-none'>cardano-wallet serve
+  <div class='bg-blue-50 text-sm p-2 rounded-md shadow mb-4 mx-2'><div class='py-0.5 mb-3 text-sm'><pre><code class='language-none'>cardano-wallet serve
 
   --help-tracing           Show help for tracing options
   --listen-address HOST    Specification of which host to the bind API server
@@ -2236,7 +2247,7 @@ Available COMMANDS:
     </p>
   <h4 id='domain-socketnamed-pipe' class='mt-6 mb-2 text-2xl font-bold text-gray-700'>Domain socket/named pipe</h4>
     <p class='mb-3'>
-      On POSIX systems (i.e. Linux and macOS), a <a href='https://en.wikipedia.org/wiki/Unix_domain_socket' class='text-red-600 hover:underline' target='_blank' rel='noopener'>UNIX domain socket</a> is used for communication between the cardano-wallet and cardano-node processes.
+      On POSIX systems (i.e. Linux and macOS), a <a href='https://en.wikipedia.org/wiki/Unix_domain_socket' class='text-blue-600 hover:underline' target='_blank' rel='noopener'>UNIX domain socket</a> is used for communication between the cardano-wallet and cardano-node processes.
     </p>
   
     <p class='mb-3'>
@@ -2244,18 +2255,18 @@ Available COMMANDS:
     </p>
   
     <p class='mb-3'>
-      On Windows systems, a <a href='https://en.wikipedia.org/wiki/Named_pipe#In_Windows' class='text-red-600 hover:underline' target='_blank' rel='noopener'>Named Pipe</a> is used instead.
+      On Windows systems, a <a href='https://en.wikipedia.org/wiki/Named_pipe#In_Windows' class='text-blue-600 hover:underline' target='_blank' rel='noopener'>Named Pipe</a> is used instead.
     </p>
   
     <p class='mb-3'>
-      <a href='https://docs.microsoft.com/en-us/windows/win32/ipc/named-pipes' class='text-red-600 hover:underline' target='_blank' rel='noopener'>Windows Named Pipes</a> do not have filenames. So on Windows systems, the <code class='py-0.5 px-1 rounded bg-gray-700 text-sm text-white'>--node-socket</code> argument must be a pipe name. Pipe names are a string of the form <code class='py-0.5 px-1 rounded bg-gray-700 text-sm text-white'>\\.\pipe\name</code>. For example, <code class='py-0.5 px-1 rounded bg-gray-700 text-sm text-white'>\\.\pipe\cardano-wallet</code>.
+      <a href='https://docs.microsoft.com/en-us/windows/win32/ipc/named-pipes' class='text-blue-600 hover:underline' target='_blank' rel='noopener'>Windows Named Pipes</a> do not have filenames. So on Windows systems, the <code class='py-0.5 px-1 rounded bg-gray-700 text-sm text-white'>--node-socket</code> argument must be a pipe name. Pipe names are a string of the form <code class='py-0.5 px-1 rounded bg-gray-700 text-sm text-white'>\\.\pipe\name</code>. For example, <code class='py-0.5 px-1 rounded bg-gray-700 text-sm text-white'>\\.\pipe\cardano-wallet</code>.
     </p>
   <h4 id='examples' class='mt-6 mb-2 text-2xl font-bold text-gray-700'>Examples</h4><h5 id='mainnet' class='mt-6 mb-2 text-xl font-bold text-gray-700'>Mainnet</h5><div class='py-0.5 mb-3 text-sm'><pre><code class='console language-console'>$ cardano-wallet serve \
   --mainnet \
   --node-socket CARDANO_NODE_SOCKET_PATH_OR_PIPE \
   --database ./wallets-mainnet</code></pre></div><h5 id='testnet' class='mt-6 mb-2 text-xl font-bold text-gray-700'>Testnet</h5>
     <p class='mb-3'>
-      Note that for testnets, a <em>byron</em> genesis file is required (see <a href='#pre-requisites' class='text-red-600 mavenLinkBold hover:underline'>pre-requisites</a>), even though the network is in the shelley era. This is because the chain is synced from the beginning of the first era.
+      Note that for testnets, a <em>byron</em> genesis file is required (see <a href='#pre-requisites' class='text-blue-600 mavenLinkBold hover:underline'>pre-requisites</a>), even though the network is in the shelley era. This is because the chain is synced from the beginning of the first era.
     </p>
   <div class='py-0.5 mb-3 text-sm'><pre><code class='console language-console'>$ cardano-wallet serve \
   --testnet testnet-byron-genesis.json \
@@ -2268,7 +2279,7 @@ Available COMMANDS:
     <p class='mb-3'>
       <code class='py-0.5 px-1 rounded bg-gray-700 text-sm text-white'>serve</code> accepts extra command-line arguments for logging (also called “tracing”). Use <code class='py-0.5 px-1 rounded bg-gray-700 text-sm text-white'>--help-tracing</code> to show the options, the tracer names, and the possible log levels.
     </p>
-  <div class='bg-red-50 text-sm p-2 rounded-md shadow mb-4 mx-2'><div xmlhtmlRaw><pre>
+  <div class='bg-blue-50 text-sm p-2 rounded-md shadow mb-4 mx-2'><div xmlhtmlRaw><pre>
 $ <b>cardano-wallet serve --help-tracing</b>
 
 Additional tracing options:
@@ -2300,7 +2311,7 @@ The possible tracers are:
     <p class='mb-3'>
       <span xmlhtmlRaw><a href="#"></span>top <span class='emoji' data-emoji='arrow_heading_up' style='font-family: emoji'>⤴️</span><span xmlhtmlRaw></a></span>
     </p>
-  </div><h3 id='recovery-phrase-generate' class='mt-6 mb-2 text-3xl font-bold text-gray-700'>recovery-phrase generate</h3><div class='bg-red-50 text-sm p-2 rounded-md shadow mb-4 mx-2'><div class='py-0.5 mb-3 text-sm'><pre><code class='language-none'>cardano-wallet recovery-phrase generate [--size=INT]</code></pre></div></div>
+  </div><h3 id='recovery-phrase-generate' class='mt-6 mb-2 text-3xl font-bold text-gray-700'>recovery-phrase generate</h3><div class='bg-blue-50 text-sm p-2 rounded-md shadow mb-4 mx-2'><div class='py-0.5 mb-3 text-sm'><pre><code class='language-none'>cardano-wallet recovery-phrase generate [--size=INT]</code></pre></div></div>
     <p class='mb-3'>
       Generates an English recovery phrase.
     </p>
@@ -2312,7 +2323,7 @@ The possible tracers are:
     <p class='mb-3'>
       <span xmlhtmlRaw><a href="#"></span>top <span class='emoji' data-emoji='arrow_heading_up' style='font-family: emoji'>⤴️</span><span xmlhtmlRaw></a></span>
     </p>
-  </div><h3 id='wallet-list' class='mt-6 mb-2 text-3xl font-bold text-gray-700'>wallet list</h3><div class='bg-red-50 text-sm p-2 rounded-md shadow mb-4 mx-2'><div class='py-0.5 mb-3 text-sm'><pre><code class='language-none'>cardano-wallet wallet list [--port=INT]</code></pre></div></div>
+  </div><h3 id='wallet-list' class='mt-6 mb-2 text-3xl font-bold text-gray-700'>wallet list</h3><div class='bg-blue-50 text-sm p-2 rounded-md shadow mb-4 mx-2'><div class='py-0.5 mb-3 text-sm'><pre><code class='language-none'>cardano-wallet wallet list [--port=INT]</code></pre></div></div>
     <p class='mb-3'>
       Lists all your wallets:
     </p>
@@ -2320,7 +2331,7 @@ The possible tracers are:
     <p class='mb-3'>
       <span xmlhtmlRaw><a href="#"></span>top <span class='emoji' data-emoji='arrow_heading_up' style='font-family: emoji'>⤴️</span><span xmlhtmlRaw></a></span>
     </p>
-  </div><h3 id='wallet-create-from-recovery-phrase' class='mt-6 mb-2 text-3xl font-bold text-gray-700'>wallet create from recovery-phrase</h3><div class='bg-red-50 text-sm p-2 rounded-md shadow mb-4 mx-2'><div class='py-0.5 mb-3 text-sm'><pre><code class='language-none'>cardano-wallet wallet create from-recovery-phrase [--port=INT] &lt;name&gt; [--address-pool-gap=INT]</code></pre></div></div>
+  </div><h3 id='wallet-create-from-recovery-phrase' class='mt-6 mb-2 text-3xl font-bold text-gray-700'>wallet create from recovery-phrase</h3><div class='bg-blue-50 text-sm p-2 rounded-md shadow mb-4 mx-2'><div class='py-0.5 mb-3 text-sm'><pre><code class='language-none'>cardano-wallet wallet create from-recovery-phrase [--port=INT] &lt;name&gt; [--address-pool-gap=INT]</code></pre></div></div>
     <p class='mb-3'>
       Create a new wallet using a sequential address scheme. This is an interactive command that will prompt you for recovery-phrase words and password.
     </p>
@@ -2337,7 +2348,7 @@ Enter the passphrase a second time: ****************</code></pre></div>
     <p class='mb-3'>
       <span xmlhtmlRaw><a href="#"></span>top <span class='emoji' data-emoji='arrow_heading_up' style='font-family: emoji'>⤴️</span><span xmlhtmlRaw></a></span>
     </p>
-  </div><h3 id='wallet-get' class='mt-6 mb-2 text-3xl font-bold text-gray-700'>wallet get</h3><div class='bg-red-50 text-sm p-2 rounded-md shadow mb-4 mx-2'><div class='py-0.5 mb-3 text-sm'><pre><code class='language-none'>cardano-wallet wallet get [--port=INT] WALLET_ID</code></pre></div></div>
+  </div><h3 id='wallet-get' class='mt-6 mb-2 text-3xl font-bold text-gray-700'>wallet get</h3><div class='bg-blue-50 text-sm p-2 rounded-md shadow mb-4 mx-2'><div class='py-0.5 mb-3 text-sm'><pre><code class='language-none'>cardano-wallet wallet get [--port=INT] WALLET_ID</code></pre></div></div>
     <p class='mb-3'>
       Fetches the wallet with specified wallet id:
     </p>
@@ -2345,7 +2356,7 @@ Enter the passphrase a second time: ****************</code></pre></div>
     <p class='mb-3'>
       <span xmlhtmlRaw><a href="#"></span>top <span class='emoji' data-emoji='arrow_heading_up' style='font-family: emoji'>⤴️</span><span xmlhtmlRaw></a></span>
     </p>
-  </div><h3 id='wallet-utxo' class='mt-6 mb-2 text-3xl font-bold text-gray-700'>wallet utxo</h3><div class='bg-red-50 text-sm p-2 rounded-md shadow mb-4 mx-2'><div class='py-0.5 mb-3 text-sm'><pre><code class='language-none'>cardano-wallet wallet utxo [--port=INT] WALLET_ID</code></pre></div></div>
+  </div><h3 id='wallet-utxo' class='mt-6 mb-2 text-3xl font-bold text-gray-700'>wallet utxo</h3><div class='bg-blue-50 text-sm p-2 rounded-md shadow mb-4 mx-2'><div class='py-0.5 mb-3 text-sm'><pre><code class='language-none'>cardano-wallet wallet utxo [--port=INT] WALLET_ID</code></pre></div></div>
     <p class='mb-3'>
       Visualize a wallet’s UTxO distribution in the form of an histrogram with a logarithmic scale. The distribution’s data is returned by the API in a JSON format, e.g.:
     </p>
@@ -2388,7 +2399,7 @@ Enter the passphrase a second time: ****************</code></pre></div>
     <p class='mb-3'>
       <span xmlhtmlRaw><a href="#"></span>top <span class='emoji' data-emoji='arrow_heading_up' style='font-family: emoji'>⤴️</span><span xmlhtmlRaw></a></span>
     </p>
-  </div><h3 id='wallet-utxo-snapshot' class='mt-6 mb-2 text-3xl font-bold text-gray-700'>wallet utxo-snapshot</h3><div class='bg-red-50 text-sm p-2 rounded-md shadow mb-4 mx-2'><div class='py-0.5 mb-3 text-sm'><pre><code class='language-none'>cardano-wallet wallet utxo-snapshot [--port INT] WALLET_ID</code></pre></div></div>
+  </div><h3 id='wallet-utxo-snapshot' class='mt-6 mb-2 text-3xl font-bold text-gray-700'>wallet utxo-snapshot</h3><div class='bg-blue-50 text-sm p-2 rounded-md shadow mb-4 mx-2'><div class='py-0.5 mb-3 text-sm'><pre><code class='language-none'>cardano-wallet wallet utxo-snapshot [--port INT] WALLET_ID</code></pre></div></div>
     <p class='mb-3'>
       Gets a snapshot of the wallet’s entire UTxO set, in JSON format.
     </p>
@@ -2422,7 +2433,7 @@ Enter the passphrase a second time: ****************</code></pre></div>
         },
         ...
     ]
-}</code></pre></div><div class='px-3 py-1 mb-3 rounded bg-red-100 hover:border-red-400 hover:shadow border-t-8 border-red-200'>
+}</code></pre></div><div class='px-3 py-1 mb-3 rounded bg-blue-100 hover:border-blue-400 hover:shadow border-t-8 border-blue-200'>
     <p class='mb-3'>
       ⚠ This endpoint was intended to be used for debugging purposes. The output format is subject to change at any time.
     </p>
@@ -2430,7 +2441,7 @@ Enter the passphrase a second time: ****************</code></pre></div>
     <p class='mb-3'>
       <span xmlhtmlRaw><a href="#"></span>top <span class='emoji' data-emoji='arrow_heading_up' style='font-family: emoji'>⤴️</span><span xmlhtmlRaw></a></span>
     </p>
-  </div><h3 id='wallet-update-name' class='mt-6 mb-2 text-3xl font-bold text-gray-700'>wallet update name</h3><div class='bg-red-50 text-sm p-2 rounded-md shadow mb-4 mx-2'><div class='py-0.5 mb-3 text-sm'><pre><code class='language-none'>cardano-wallet wallet update name [--port=INT] WALLET_ID STRING</code></pre></div></div>
+  </div><h3 id='wallet-update-name' class='mt-6 mb-2 text-3xl font-bold text-gray-700'>wallet update name</h3><div class='bg-blue-50 text-sm p-2 rounded-md shadow mb-4 mx-2'><div class='py-0.5 mb-3 text-sm'><pre><code class='language-none'>cardano-wallet wallet update name [--port=INT] WALLET_ID STRING</code></pre></div></div>
     <p class='mb-3'>
       Updates name of a wallet given wallet id:
     </p>
@@ -2438,7 +2449,7 @@ Enter the passphrase a second time: ****************</code></pre></div>
     <p class='mb-3'>
       <span xmlhtmlRaw><a href="#"></span>top <span class='emoji' data-emoji='arrow_heading_up' style='font-family: emoji'>⤴️</span><span xmlhtmlRaw></a></span>
     </p>
-  </div><h3 id='wallet-update-passphrase' class='mt-6 mb-2 text-3xl font-bold text-gray-700'>wallet update passphrase</h3><div class='bg-red-50 text-sm p-2 rounded-md shadow mb-4 mx-2'><div class='py-0.5 mb-3 text-sm'><pre><code class='language-none'>cardano-wallet wallet update passphrase [--port=INT] WALLET_ID</code></pre></div></div>
+  </div><h3 id='wallet-update-passphrase' class='mt-6 mb-2 text-3xl font-bold text-gray-700'>wallet update passphrase</h3><div class='bg-blue-50 text-sm p-2 rounded-md shadow mb-4 mx-2'><div class='py-0.5 mb-3 text-sm'><pre><code class='language-none'>cardano-wallet wallet update passphrase [--port=INT] WALLET_ID</code></pre></div></div>
     <p class='mb-3'>
       Interactive prompt to update the wallet master’s passphrase (old passphrase required).
     </p>
@@ -2449,7 +2460,7 @@ Enter the passphrase a second time: **********</code></pre></div><div class='tex
     <p class='mb-3'>
       <span xmlhtmlRaw><a href="#"></span>top <span class='emoji' data-emoji='arrow_heading_up' style='font-family: emoji'>⤴️</span><span xmlhtmlRaw></a></span>
     </p>
-  </div><h3 id='wallet-delete' class='mt-6 mb-2 text-3xl font-bold text-gray-700'>wallet delete</h3><div class='bg-red-50 text-sm p-2 rounded-md shadow mb-4 mx-2'><div class='py-0.5 mb-3 text-sm'><pre><code class='language-none'>cardano-wallet wallet delete [--port=INT] WALLET_ID</code></pre></div></div>
+  </div><h3 id='wallet-delete' class='mt-6 mb-2 text-3xl font-bold text-gray-700'>wallet delete</h3><div class='bg-blue-50 text-sm p-2 rounded-md shadow mb-4 mx-2'><div class='py-0.5 mb-3 text-sm'><pre><code class='language-none'>cardano-wallet wallet delete [--port=INT] WALLET_ID</code></pre></div></div>
     <p class='mb-3'>
       Deletes wallet with specified wallet id:
     </p>
@@ -2457,7 +2468,7 @@ Enter the passphrase a second time: **********</code></pre></div><div class='tex
     <p class='mb-3'>
       <span xmlhtmlRaw><a href="#"></span>top <span class='emoji' data-emoji='arrow_heading_up' style='font-family: emoji'>⤴️</span><span xmlhtmlRaw></a></span>
     </p>
-  </div><h3 id='transaction-create' class='mt-6 mb-2 text-3xl font-bold text-gray-700'>transaction create</h3><div class='bg-red-50 text-sm p-2 rounded-md shadow mb-4 mx-2'><div class='py-0.5 mb-3 text-sm'><pre><code class='language-none'>cardano-wallet transaction create [--port=INT] WALLET_ID [--metadata=JSON] [--ttl=SECONDS] --payment=PAYMENT...</code></pre></div></div>
+  </div><h3 id='transaction-create' class='mt-6 mb-2 text-3xl font-bold text-gray-700'>transaction create</h3><div class='bg-blue-50 text-sm p-2 rounded-md shadow mb-4 mx-2'><div class='py-0.5 mb-3 text-sm'><pre><code class='language-none'>cardano-wallet transaction create [--port=INT] WALLET_ID [--metadata=JSON] [--ttl=SECONDS] --payment=PAYMENT...</code></pre></div></div>
     <p class='mb-3'>
       Creates and submits a new transaction:
     </p>
@@ -2470,13 +2481,13 @@ Enter the passphrase a second time: **********</code></pre></div><div class='tex
     </p>
   
     <p class='mb-3'>
-      For more information about the <code class='py-0.5 px-1 rounded bg-gray-700 text-sm text-white'>--metadata</code> option, see <a href='user-guide/common-use-cases/TxMetadata' class='text-red-600 mavenLinkBold hover:underline' data-wikilink-type='WikiLinkNormal'>Transaction Metadata</a>.
+      For more information about the <code class='py-0.5 px-1 rounded bg-gray-700 text-sm text-white'>--metadata</code> option, see <a href='user-guide/common-use-cases/TxMetadata' class='text-blue-600 mavenLinkBold hover:underline' data-wikilink-type='WikiLinkNormal'>Transaction Metadata</a>.
     </p>
   <div class='text-sm text-gray-600 text-center border-slate-500 border-b mt-6 mb-0 p-0'>
     <p class='mb-3'>
       <span xmlhtmlRaw><a href="#"></span>top <span class='emoji' data-emoji='arrow_heading_up' style='font-family: emoji'>⤴️</span><span xmlhtmlRaw></a></span>
     </p>
-  </div><h3 id='transaction-fees' class='mt-6 mb-2 text-3xl font-bold text-gray-700'>transaction fees</h3><div class='bg-red-50 text-sm p-2 rounded-md shadow mb-4 mx-2'><div class='py-0.5 mb-3 text-sm'><pre><code class='language-none'>cardano-wallet transaction fees [--port=INT] WALLET_ID [--metadata=JSON] [--ttl=SECONDS] --payment=PAYMENT...</code></pre></div></div>
+  </div><h3 id='transaction-fees' class='mt-6 mb-2 text-3xl font-bold text-gray-700'>transaction fees</h3><div class='bg-blue-50 text-sm p-2 rounded-md shadow mb-4 mx-2'><div class='py-0.5 mb-3 text-sm'><pre><code class='language-none'>cardano-wallet transaction fees [--port=INT] WALLET_ID [--metadata=JSON] [--ttl=SECONDS] --payment=PAYMENT...</code></pre></div></div>
     <p class='mb-3'>
       Estimates fee for a given transaction:
     </p>
@@ -2491,7 +2502,7 @@ Enter the passphrase a second time: **********</code></pre></div><div class='tex
     <p class='mb-3'>
       <span xmlhtmlRaw><a href="#"></span>top <span class='emoji' data-emoji='arrow_heading_up' style='font-family: emoji'>⤴️</span><span xmlhtmlRaw></a></span>
     </p>
-  </div><h3 id='transaction-list' class='mt-6 mb-2 text-3xl font-bold text-gray-700'>transaction list</h3><div class='bg-red-50 text-sm p-2 rounded-md shadow mb-4 mx-2'><div class='py-0.5 mb-3 text-sm'><pre><code class='language-none'>cardano-wallet transaction list [--port INT] WALLET_ID [--start TIME] [--end TIME] [--order ORDER]</code></pre></div></div>
+  </div><h3 id='transaction-list' class='mt-6 mb-2 text-3xl font-bold text-gray-700'>transaction list</h3><div class='bg-blue-50 text-sm p-2 rounded-md shadow mb-4 mx-2'><div class='py-0.5 mb-3 text-sm'><pre><code class='language-none'>cardano-wallet transaction list [--port INT] WALLET_ID [--start TIME] [--end TIME] [--order ORDER]</code></pre></div></div>
     <p class='mb-3'>
       List all incoming and outgoing transactions for the wallet:
     </p>
@@ -2506,7 +2517,7 @@ Enter the passphrase a second time: **********</code></pre></div><div class='tex
     <p class='mb-3'>
       <span xmlhtmlRaw><a href="#"></span>top <span class='emoji' data-emoji='arrow_heading_up' style='font-family: emoji'>⤴️</span><span xmlhtmlRaw></a></span>
     </p>
-  </div><h3 id='transaction-submit' class='mt-6 mb-2 text-3xl font-bold text-gray-700'>transaction submit</h3><div class='bg-red-50 text-sm p-2 rounded-md shadow mb-4 mx-2'><div class='py-0.5 mb-3 text-sm'><pre><code class='language-none'>cardano-wallet transaction submit [--port INT] BINARY_BLOB</code></pre></div></div>
+  </div><h3 id='transaction-submit' class='mt-6 mb-2 text-3xl font-bold text-gray-700'>transaction submit</h3><div class='bg-blue-50 text-sm p-2 rounded-md shadow mb-4 mx-2'><div class='py-0.5 mb-3 text-sm'><pre><code class='language-none'>cardano-wallet transaction submit [--port INT] BINARY_BLOB</code></pre></div></div>
     <p class='mb-3'>
       Submit transaction prepared and signed outside of the wallet:
     </p>
@@ -2518,7 +2529,7 @@ Enter the passphrase a second time: **********</code></pre></div><div class='tex
     <p class='mb-3'>
       <span xmlhtmlRaw><a href="#"></span>top <span class='emoji' data-emoji='arrow_heading_up' style='font-family: emoji'>⤴️</span><span xmlhtmlRaw></a></span>
     </p>
-  </div><h3 id='transaction-forget' class='mt-6 mb-2 text-3xl font-bold text-gray-700'>transaction forget</h3><div class='bg-red-50 text-sm p-2 rounded-md shadow mb-4 mx-2'><div class='py-0.5 mb-3 text-sm'><pre><code class='language-none'>cardano-wallet transaction forget [--port INT] WALLET_ID TRANSACTION_ID</code></pre></div></div>
+  </div><h3 id='transaction-forget' class='mt-6 mb-2 text-3xl font-bold text-gray-700'>transaction forget</h3><div class='bg-blue-50 text-sm p-2 rounded-md shadow mb-4 mx-2'><div class='py-0.5 mb-3 text-sm'><pre><code class='language-none'>cardano-wallet transaction forget [--port INT] WALLET_ID TRANSACTION_ID</code></pre></div></div>
     <p class='mb-3'>
       Forget pending transaction for a given wallet:
     </p>
@@ -2526,7 +2537,7 @@ Enter the passphrase a second time: **********</code></pre></div><div class='tex
     <p class='mb-3'>
       <span xmlhtmlRaw><a href="#"></span>top <span class='emoji' data-emoji='arrow_heading_up' style='font-family: emoji'>⤴️</span><span xmlhtmlRaw></a></span>
     </p>
-  </div><h3 id='transaction-get' class='mt-6 mb-2 text-3xl font-bold text-gray-700'>transaction get</h3><div class='bg-red-50 text-sm p-2 rounded-md shadow mb-4 mx-2'><div class='py-0.5 mb-3 text-sm'><pre><code class='language-none'>cardano-wallet transaction get [--port INT] WALLET_ID TRANSACTION_ID</code></pre></div></div>
+  </div><h3 id='transaction-get' class='mt-6 mb-2 text-3xl font-bold text-gray-700'>transaction get</h3><div class='bg-blue-50 text-sm p-2 rounded-md shadow mb-4 mx-2'><div class='py-0.5 mb-3 text-sm'><pre><code class='language-none'>cardano-wallet transaction get [--port INT] WALLET_ID TRANSACTION_ID</code></pre></div></div>
     <p class='mb-3'>
       Get a transaction with the specified id:
     </p>
@@ -2534,7 +2545,7 @@ Enter the passphrase a second time: **********</code></pre></div><div class='tex
     <p class='mb-3'>
       <span xmlhtmlRaw><a href="#"></span>top <span class='emoji' data-emoji='arrow_heading_up' style='font-family: emoji'>⤴️</span><span xmlhtmlRaw></a></span>
     </p>
-  </div><h3 id='address-list' class='mt-6 mb-2 text-3xl font-bold text-gray-700'>address list</h3><div class='bg-red-50 text-sm p-2 rounded-md shadow mb-4 mx-2'><div class='py-0.5 mb-3 text-sm'><pre><code class='language-none'>cardano-wallet address list [--port=INT] WALLET_ID [--state=STRING]</code></pre></div></div>
+  </div><h3 id='address-list' class='mt-6 mb-2 text-3xl font-bold text-gray-700'>address list</h3><div class='bg-blue-50 text-sm p-2 rounded-md shadow mb-4 mx-2'><div class='py-0.5 mb-3 text-sm'><pre><code class='language-none'>cardano-wallet address list [--port=INT] WALLET_ID [--state=STRING]</code></pre></div></div>
     <p class='mb-3'>
       List all known (used or not) addresses and their corresponding status.
     </p>
@@ -2542,7 +2553,7 @@ Enter the passphrase a second time: **********</code></pre></div><div class='tex
     <p class='mb-3'>
       <span xmlhtmlRaw><a href="#"></span>top <span class='emoji' data-emoji='arrow_heading_up' style='font-family: emoji'>⤴️</span><span xmlhtmlRaw></a></span>
     </p>
-  </div><h3 id='address-create' class='mt-6 mb-2 text-3xl font-bold text-gray-700'>address create</h3><div class='bg-red-50 text-sm p-2 rounded-md shadow mb-4 mx-2'><div class='py-0.5 mb-3 text-sm'><pre><code class='language-none'>cardano-wallet address create [--port INT] [--address-index INDEX] WALLET_ID</code></pre></div></div>
+  </div><h3 id='address-create' class='mt-6 mb-2 text-3xl font-bold text-gray-700'>address create</h3><div class='bg-blue-50 text-sm p-2 rounded-md shadow mb-4 mx-2'><div class='py-0.5 mb-3 text-sm'><pre><code class='language-none'>cardano-wallet address create [--port INT] [--address-index INDEX] WALLET_ID</code></pre></div></div>
     <p class='mb-3'>
       Create new address for random wallet.
     </p>
@@ -2556,7 +2567,7 @@ Ok.
     <p class='mb-3'>
       <span xmlhtmlRaw><a href="#"></span>top <span class='emoji' data-emoji='arrow_heading_up' style='font-family: emoji'>⤴️</span><span xmlhtmlRaw></a></span>
     </p>
-  </div><h3 id='address-import' class='mt-6 mb-2 text-3xl font-bold text-gray-700'>address import</h3><div class='bg-red-50 text-sm p-2 rounded-md shadow mb-4 mx-2'><div class='py-0.5 mb-3 text-sm'><pre><code class='language-none'>cardano-wallet address import [--port INT] WALLET_ID ADDRESS</code></pre></div></div>
+  </div><h3 id='address-import' class='mt-6 mb-2 text-3xl font-bold text-gray-700'>address import</h3><div class='bg-blue-50 text-sm p-2 rounded-md shadow mb-4 mx-2'><div class='py-0.5 mb-3 text-sm'><pre><code class='language-none'>cardano-wallet address import [--port INT] WALLET_ID ADDRESS</code></pre></div></div>
     <p class='mb-3'>
       Import address belonging to random wallet.
     </p>
@@ -2564,7 +2575,7 @@ Ok.
     <p class='mb-3'>
       <span xmlhtmlRaw><a href="#"></span>top <span class='emoji' data-emoji='arrow_heading_up' style='font-family: emoji'>⤴️</span><span xmlhtmlRaw></a></span>
     </p>
-  </div><h3 id='network-information' class='mt-6 mb-2 text-3xl font-bold text-gray-700'>network information</h3><div class='bg-red-50 text-sm p-2 rounded-md shadow mb-4 mx-2'><div class='py-0.5 mb-3 text-sm'><pre><code class='language-none'>cardano-wallet network information [--port=INT]</code></pre></div></div>
+  </div><h3 id='network-information' class='mt-6 mb-2 text-3xl font-bold text-gray-700'>network information</h3><div class='bg-blue-50 text-sm p-2 rounded-md shadow mb-4 mx-2'><div class='py-0.5 mb-3 text-sm'><pre><code class='language-none'>cardano-wallet network information [--port=INT]</code></pre></div></div>
     <p class='mb-3'>
       View network information and syncing progress between the node and the blockchain.
     </p>
@@ -2572,7 +2583,7 @@ Ok.
     <p class='mb-3'>
       <span xmlhtmlRaw><a href="#"></span>top <span class='emoji' data-emoji='arrow_heading_up' style='font-family: emoji'>⤴️</span><span xmlhtmlRaw></a></span>
     </p>
-  </div><h3 id='network-parameters' class='mt-6 mb-2 text-3xl font-bold text-gray-700'>network parameters</h3><div class='bg-red-50 text-sm p-2 rounded-md shadow mb-4 mx-2'><div class='py-0.5 mb-3 text-sm'><pre><code class='language-none'>cardano-wallet network parameters [--port=INT] EPOCH_NUMBER</code></pre></div></div>
+  </div><h3 id='network-parameters' class='mt-6 mb-2 text-3xl font-bold text-gray-700'>network parameters</h3><div class='bg-blue-50 text-sm p-2 rounded-md shadow mb-4 mx-2'><div class='py-0.5 mb-3 text-sm'><pre><code class='language-none'>cardano-wallet network parameters [--port=INT] EPOCH_NUMBER</code></pre></div></div>
     <p class='mb-3'>
       View network parameters. EPOCH_NUMBER can be <code class='py-0.5 px-1 rounded bg-gray-700 text-sm text-white'>latest</code> or valid epoch number (not later than the current one), ie., <code class='py-0.5 px-1 rounded bg-gray-700 text-sm text-white'>0</code>, <code class='py-0.5 px-1 rounded bg-gray-700 text-sm text-white'>1</code>, .. .
     </p>
@@ -2580,9 +2591,9 @@ Ok.
     <p class='mb-3'>
       <span xmlhtmlRaw><a href="#"></span>top <span class='emoji' data-emoji='arrow_heading_up' style='font-family: emoji'>⤴️</span><span xmlhtmlRaw></a></span>
     </p>
-  </div><h3 id='network-clock' class='mt-6 mb-2 text-3xl font-bold text-gray-700'>network clock</h3><div class='bg-red-50 text-sm p-2 rounded-md shadow mb-4 mx-2'><div class='py-0.5 mb-3 text-sm'><pre><code class='language-none'>cardano-wallet network clock</code></pre></div></div>
+  </div><h3 id='network-clock' class='mt-6 mb-2 text-3xl font-bold text-gray-700'>network clock</h3><div class='bg-blue-50 text-sm p-2 rounded-md shadow mb-4 mx-2'><div class='py-0.5 mb-3 text-sm'><pre><code class='language-none'>cardano-wallet network clock</code></pre></div></div>
     <p class='mb-3'>
-      View <a href='https://en.wikipedia.org/wiki/Network_Time_Protocol' class='text-red-600 hover:underline' target='_blank' rel='noopener'>NTP</a> offset for cardano-wallet server in microseconds.
+      View <a href='https://en.wikipedia.org/wiki/Network_Time_Protocol' class='text-blue-600 hover:underline' target='_blank' rel='noopener'>NTP</a> offset for cardano-wallet server in microseconds.
     </p>
   <div class='py-0.5 mb-3 text-sm'><pre><code class='language-none'>$ cardano-wallet network clock
 Ok.
@@ -2592,7 +2603,7 @@ Ok.
         "quantity": -30882,
         "unit": "microsecond"
     }
-}</code></pre></div><div class='px-3 py-1 mb-3 rounded bg-red-100 hover:border-red-400 hover:shadow border-t-8 border-red-200'>
+}</code></pre></div><div class='px-3 py-1 mb-3 rounded bg-blue-100 hover:border-blue-400 hover:shadow border-t-8 border-blue-200'>
     <p class='mb-3'>
       <span class='emoji' data-emoji='warning' style='font-family: emoji'>⚠️</span> At this stage the command is not supported on Windows platform. Invoked on Windows will return <code class='py-0.5 px-1 rounded bg-gray-700 text-sm text-white'>status: unavailable</code> in the response message.
     </p>
@@ -2604,7 +2615,7 @@ Ok.
     <p class='mb-3'>
       Extract the root extended private key from a recovery phrase. New recovery phrases can be generated using <span xmlhtmlRaw><a href="#recovery-phrase-generate"></span><code class='py-0.5 px-1 rounded bg-gray-700 text-sm text-white'>recovery-phrase generate</code><span xmlhtmlRaw></a></span>.
     </p>
-  <div class='bg-red-50 text-sm p-2 rounded-md shadow mb-4 mx-2'><div class='py-0.5 mb-3 text-sm'><pre><code class='language-none'>Usage: cardano-wallet key from-recovery-phrase ([--base16] | [--base58] | [--bech32]) STYLE
+  <div class='bg-blue-50 text-sm p-2 rounded-md shadow mb-4 mx-2'><div class='py-0.5 mb-3 text-sm'><pre><code class='language-none'>Usage: cardano-wallet key from-recovery-phrase ([--base16] | [--base58] | [--bech32]) STYLE
   Convert a recovery phrase to an extended private key
 
 Available options:
@@ -2624,7 +2635,7 @@ xprv12qaxje8hr7fc0t99q94jfnnfexvma22m0urhxgenafqmvw4qda0c8v9rtmk3fpxy9f2g004xj76
     <p class='mb-3'>
       Derive child key from root private key. The parent key is read from standard input.
     </p>
-  <div class='bg-red-50 text-sm p-2 rounded-md shadow mb-4 mx-2'><div class='py-0.5 mb-3 text-sm'><pre><code class='language-none'>Usage: cardano-wallet key child ([--base16] | [--base58] | [--bech32]) [--legacy] DERIVATION-PATH
+  <div class='bg-blue-50 text-sm p-2 rounded-md shadow mb-4 mx-2'><div class='py-0.5 mb-3 text-sm'><pre><code class='language-none'>Usage: cardano-wallet key child ([--base16] | [--base58] | [--bech32]) [--legacy] DERIVATION-PATH
   Derive child keys from a parent public/private key
 
 Available options:
@@ -2646,7 +2657,7 @@ xprv13parrg5g83utetrwsp563w7hps2chu8mwcwqcrzehql67w9k73fq8utx6m8kgjlhle8claexrtc
     <p class='mb-3'>
       Extract the public key of an extended private key. Keys can be obtained using <span xmlhtmlRaw><a href="#key-from-recovery-phrase"></span><code class='py-0.5 px-1 rounded bg-gray-700 text-sm text-white'>key from-recovery-phrase</code><span xmlhtmlRaw></a></span> and <span xmlhtmlRaw><a href="#key-child"></span><code class='py-0.5 px-1 rounded bg-gray-700 text-sm text-white'>key child</code><span xmlhtmlRaw></a></span>.
     </p>
-  <div class='bg-red-50 text-sm p-2 rounded-md shadow mb-4 mx-2'><div class='py-0.5 mb-3 text-sm'><pre><code class='language-none'>Usage: cardano-wallet-jormungandr key public ([--base16] | [--base58] | [--bech32])
+  <div class='bg-blue-50 text-sm p-2 rounded-md shadow mb-4 mx-2'><div class='py-0.5 mb-3 text-sm'><pre><code class='language-none'>Usage: cardano-wallet-jormungandr key public ([--base16] | [--base58] | [--bech32])
   Get the public counterpart of a private key
 
 Available options:
@@ -2662,7 +2673,7 @@ xpub1le8gm0m5cesjzzjqlza4476yncp0yk2jve7cce8ejk9cxjjdama24hudzqkrxy4daxwmlfq6ync
     <p class='mb-3'>
       <span xmlhtmlRaw><a href="#"></span>top <span class='emoji' data-emoji='arrow_heading_up' style='font-family: emoji'>⤴️</span><span xmlhtmlRaw></a></span>
     </p>
-  </div><h3 id='key-inspect' class='mt-6 mb-2 text-3xl font-bold text-gray-700'>key inspect</h3><div class='bg-red-50 text-sm p-2 rounded-md shadow mb-4 mx-2'><div class='py-0.5 mb-3 text-sm'><pre><code class='language-none'>Usage: cardano-wallet-jormungandr key inspect
+  </div><h3 id='key-inspect' class='mt-6 mb-2 text-3xl font-bold text-gray-700'>key inspect</h3><div class='bg-blue-50 text-sm p-2 rounded-md shadow mb-4 mx-2'><div class='py-0.5 mb-3 text-sm'><pre><code class='language-none'>Usage: cardano-wallet-jormungandr key inspect
   Show information about a key
 
 Available options:
@@ -2672,7 +2683,7 @@ The parent key is read from stdin.</code></pre></div></div><div class='text-sm t
     <p class='mb-3'>
       <span xmlhtmlRaw><a href="#"></span>top <span class='emoji' data-emoji='arrow_heading_up' style='font-family: emoji'>⤴️</span><span xmlhtmlRaw></a></span>
     </p>
-  </div><h3 id='stake-pool-list' class='mt-6 mb-2 text-3xl font-bold text-gray-700'>stake-pool list</h3><div class='bg-red-50 text-sm p-2 rounded-md shadow mb-4 mx-2'><div class='py-0.5 mb-3 text-sm'><pre><code class='language-none'>Usage: cardano-wallet stake-pool list [--port INT] [--stake STAKE]
+  </div><h3 id='stake-pool-list' class='mt-6 mb-2 text-3xl font-bold text-gray-700'>stake-pool list</h3><div class='bg-blue-50 text-sm p-2 rounded-md shadow mb-4 mx-2'><div class='py-0.5 mb-3 text-sm'><pre><code class='language-none'>Usage: cardano-wallet stake-pool list [--port INT] [--stake STAKE]
   List all known stake pools.
 
 Available options:
@@ -2683,7 +2694,7 @@ Available options:
     <p class='mb-3'>
       <span xmlhtmlRaw><a href="#"></span>top <span class='emoji' data-emoji='arrow_heading_up' style='font-family: emoji'>⤴️</span><span xmlhtmlRaw></a></span>
     </p>
-  </div><h3 id='version' class='mt-6 mb-2 text-3xl font-bold text-gray-700'>version</h3><div class='bg-red-50 text-sm p-2 rounded-md shadow mb-4 mx-2'><div class='py-0.5 mb-3 text-sm'><pre><code class='language-none'>cardano-wallet version</code></pre></div></div>
+  </div><h3 id='version' class='mt-6 mb-2 text-3xl font-bold text-gray-700'>version</h3><div class='bg-blue-50 text-sm p-2 rounded-md shadow mb-4 mx-2'><div class='py-0.5 mb-3 text-sm'><pre><code class='language-none'>cardano-wallet version</code></pre></div></div>
     <p class='mb-3'>
       Show the software version.
     </p>
@@ -2721,13 +2732,13 @@ complete -o filenames -F _cardano-wallet cardano-wallet</code></pre></div>
     <ul class='space-y-1'>
       
         <li>
-          <a class='text-red-600 mavenLinkBold hover:bg-red-50' href='user-guide'>
+          <a class='text-blue-600 mavenLinkBold hover:bg-blue-50' href='user-guide'>
             User Guide
           </a>
           
             <div class='mb-4 overflow-auto text-sm text-gray-500'>
   
-    <div class='pl-2 mt-2 border-l-2 border-red-200 hover:border-red-500'>
+    <div class='pl-2 mt-2 border-l-2 border-blue-200 hover:border-blue-500'>
       <div><a href='user-guide/cli' class='text-gray-600 font-bold hover:bg-gray-50' data-wikilink-type='WikiLinkNormal'>Command-Line Interface</a></div>
     </div>
   
@@ -2736,13 +2747,13 @@ complete -o filenames -F _cardano-wallet cardano-wallet</code></pre></div>
         </li>
       
         <li>
-          <a class='text-red-600 mavenLinkBold hover:bg-red-50' href='user-guide/common-use-cases/TxMetadata'>
+          <a class='text-blue-600 mavenLinkBold hover:bg-blue-50' href='user-guide/common-use-cases/TxMetadata'>
             Transaction Metadata
           </a>
           
             <div class='mb-4 overflow-auto text-sm text-gray-500'>
   
-    <div class='pl-2 mt-2 border-l-2 border-red-200 hover:border-red-500'>
+    <div class='pl-2 mt-2 border-l-2 border-blue-200 hover:border-blue-500'>
       <div><p>Metadata can be provided when creating transactions through the <a href='user-guide/cli' class='text-gray-600 font-bold hover:bg-gray-50' data-wikilink-type='WikiLinkNormal'>Command-Line Interface</a>.</p></div>
     </div>
   
@@ -2751,13 +2762,13 @@ complete -o filenames -F _cardano-wallet cardano-wallet</code></pre></div>
         </li>
       
         <li>
-          <a class='text-red-600 mavenLinkBold hover:bg-red-50' href='contributing/Release-Checklist'>
+          <a class='text-blue-600 mavenLinkBold hover:bg-blue-50' href='contributing/Release-Checklist'>
             Release Checklist
           </a>
           
             <div class='mb-4 overflow-auto text-sm text-gray-500'>
   
-    <div class='pl-2 mt-2 border-l-2 border-red-200 hover:border-red-500'>
+    <div class='pl-2 mt-2 border-l-2 border-blue-200 hover:border-blue-500'>
       <div><p>Make sure the <a href='user-guide/cli' class='text-gray-600 font-bold hover:bg-gray-50' data-wikilink-type='WikiLinkNormal'>Command-Line Interface</a> manual is up to date.</p></div>
     </div>
   
@@ -2766,13 +2777,13 @@ complete -o filenames -F _cardano-wallet cardano-wallet</code></pre></div>
         </li>
       
         <li>
-          <a class='text-red-600 mavenLinkBold hover:bg-red-50' href='archives/jormungandr/Docker-jormungandr'>
+          <a class='text-blue-600 mavenLinkBold hover:bg-blue-50' href='archives/jormungandr/Docker-jormungandr'>
             Docker Image
           </a>
           
             <div class='mb-4 overflow-auto text-sm text-gray-500'>
   
-    <div class='pl-2 mt-2 border-l-2 border-red-200 hover:border-red-500'>
+    <div class='pl-2 mt-2 border-l-2 border-blue-200 hover:border-blue-500'>
       <div><p>See <a href='user-guide/cli' class='text-gray-600 font-bold hover:bg-gray-50' data-wikilink-type='WikiLinkNormal'>Command-Line Interface</a> for full documentation of the CLI.</p></div>
     </div>
   
@@ -2781,13 +2792,13 @@ complete -o filenames -F _cardano-wallet cardano-wallet</code></pre></div>
         </li>
       
         <li>
-          <a class='text-red-600 mavenLinkBold hover:bg-red-50' href='user-guide/Docker'>
+          <a class='text-blue-600 mavenLinkBold hover:bg-blue-50' href='user-guide/Docker'>
             Docker
           </a>
           
             <div class='mb-4 overflow-auto text-sm text-gray-500'>
   
-    <div class='pl-2 mt-2 border-l-2 border-red-200 hover:border-red-500'>
+    <div class='pl-2 mt-2 border-l-2 border-blue-200 hover:border-blue-500'>
       <div><p>See <a href='user-guide/cli' class='text-gray-600 font-bold hover:bg-gray-50' data-wikilink-type='WikiLinkNormal'>Command-Line Interface</a> for full documentation of the CLI.</p></div>
     </div>
   
@@ -2796,14 +2807,29 @@ complete -o filenames -F _cardano-wallet cardano-wallet</code></pre></div>
         </li>
       
         <li>
-          <a class='text-red-600 mavenLinkBold hover:bg-red-50' href=''>
+          <a class='text-blue-600 mavenLinkBold hover:bg-blue-50' href=''>
             Cardano Wallet
           </a>
           
             <div class='mb-4 overflow-auto text-sm text-gray-500'>
   
-    <div class='pl-2 mt-2 border-l-2 border-red-200 hover:border-red-500'>
+    <div class='pl-2 mt-2 border-l-2 border-blue-200 hover:border-blue-500'>
       <div><p>This project provides an <a href='user-guide/http-api' class='text-gray-600 font-bold hover:bg-gray-50' data-wikilink-type='WikiLinkNormal'>HTTP Application Programming Interface (API)</a> and <a href='user-guide/cli' class='text-gray-600 font-bold hover:bg-gray-50' data-wikilink-type='WikiLinkNormal'>command-line interface (CLI)</a> for working with your wallet.</p></div>
+    </div>
+  
+</div>
+          
+        </li>
+      
+        <li>
+          <a class='text-blue-600 mavenLinkBold hover:bg-blue-50' href='design/Eras'>
+            Cardano Eras
+          </a>
+          
+            <div class='mb-4 overflow-auto text-sm text-gray-500'>
+  
+    <div class='pl-2 mt-2 border-l-2 border-blue-200 hover:border-blue-500'>
+      <div><p>For <em>mainnet</em>, we have hardcoded the genesis hash. It will never change. For <em>staging</em> and <em>testnet</em>, users must supply a genesis config to the <a href='user-guide/cli' class='text-gray-600 font-bold hover:bg-gray-50' data-wikilink-type='WikiLinkNormal'>Command-Line Interface</a>, so that its hash may be used when connecting to the local node.</p></div>
     </div>
   
 </div>
@@ -2827,27 +2853,27 @@ complete -o filenames -F _cardano-wallet cardano-wallet</code></pre></div>
   
   <div>
     <a href='' title='Go to Home page'>
-      <svg xmlns='http://www.w3.org/2000/svg' class='w-6 h-6 hover:text-red-700' fill='none' viewBox='0 0 24 24' stroke='currentColor'>
+      <svg xmlns='http://www.w3.org/2000/svg' class='w-6 h-6 hover:text-blue-700' fill='none' viewBox='0 0 24 24' stroke='currentColor'>
         <path stroke-linecap='round' stroke-linejoin='round' stroke-width='2' d='M3 12l2-2m0 0l7-7 7 7M5 10v10a1 1 0 001 1h3m10-11l2 2m-2-2v10a1 1 0 01-1 1h-3m-6 0a1 1 0 001-1v-4a1 1 0 011-1h2a1 1 0 011 1v4a1 1 0 001 1m-6 0h6'></path>
       </svg>
     </a>
   </div>
   <div>
     <a href='-/all' title='View Index'>
-      <svg class='w-6 h-6 hover:text-red-700' fill='none' stroke='currentColor' viewBox='0 0 24 24' xmlns='http://www.w3.org/2000/svg'>
+      <svg class='w-6 h-6 hover:text-blue-700' fill='none' stroke='currentColor' viewBox='0 0 24 24' xmlns='http://www.w3.org/2000/svg'>
         <path stroke-linecap='round' stroke-linejoin='round' stroke-width='2' d='M4 8V4m0 0h4M4 4l5 5m11-1V4m0 0h-4m4 0l-5 5M4 16v4m0 0h4m-4 0l5-5m11 5l-5-5m5 5v-4m0 4h-4'>
         </path>
       </svg>
     </a>
   </div>
   <div>
-    <a href='https://emanote.srid.ca' target='_blank' title='Generated by Emanote 0.4.8.2'>
-      <img class='w-6 h-6 hover:text-red-700' src='_emanote-static/emanote-logo.svg' />
+    <a href='https://emanote.srid.ca' target='_blank' title='Generated by Emanote 0.4.9.1'>
+      <img class='w-6 h-6 hover:text-blue-700' src='_emanote-static/emanote-logo.svg' />
     </a>
   </div>
   <div>
     <a href='-/tags' title='View tags'>
-      <svg class='w-6 h-6 hover:text-red-700' fill='none' stroke='currentColor' viewBox='0 0 24 24' xmlns='http://www.w3.org/2000/svg'>
+      <svg class='w-6 h-6 hover:text-blue-700' fill='none' stroke='currentColor' viewBox='0 0 24 24' xmlns='http://www.w3.org/2000/svg'>
         <path stroke-linecap='round' stroke-linejoin='round' stroke-width='2' d='M7 7h.01M7 3h5c.512 0 1.024.195 1.414.586l7 7a2 2 0 010 2.828l-7 7a2 2 0 01-2.828 0l-7-7A1.994 1.994 0 013 12V7a4 4 0 014-4z'>
         </path>
       </svg>
@@ -2855,7 +2881,7 @@ complete -o filenames -F _cardano-wallet cardano-wallet</code></pre></div>
   </div>
   <div>
     <a href='-/tasks' title='View tasks'>
-      <svg xmlns='http://www.w3.org/2000/svg' class='w-6 h-6 hover:text-red-700' fill='none' viewBox='0 0 24 24' stroke='currentColor'>
+      <svg xmlns='http://www.w3.org/2000/svg' class='w-6 h-6 hover:text-blue-700' fill='none' viewBox='0 0 24 24' stroke='currentColor'>
         <path stroke-linecap='round' stroke-linejoin='round' stroke-width='2' d='M9 12l2 2 4-4m6 2a9 9 0 11-18 0 9 9 0 0118 0z'></path>
       </svg>
     </a>
