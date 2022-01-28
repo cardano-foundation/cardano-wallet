@@ -6,6 +6,14 @@ Cardano manages hard forks by gating the new block generation code behind a feat
 
 Agreement on the slot number (epoch really) to switch to the new era happens by an on-chain voting protocol. If the voting proposal is carried, operators of nodes must ensure that their software version will be compatible with the new era, before the hard fork occurs.
 
+::: {.gotcha}
+#### Terminology
+
+One might ask why the eras listed in [Cardano.Api](https://input-output-hk.github.io/cardano-node/cardano-api/lib/Cardano-Api.html) don't all appear in the [Cardano Roadmap](https://roadmap.cardano.org/en/).
+
+The roadmap is actually divided into _phases_, under which one or more eras (hard forks) may occur.
+:::
+
 ## The Hard Fork Combinator
 
 The mechanism whereby the Cardano Node operates in different modes - depending on which slot it is up to - is called the "Hard Fork Combinator".
@@ -25,19 +33,32 @@ Both `cardano-node` and `cardano-wallet` have command-line parameters and/or con
 
 ### Genesis
 
-Nodes must be configured with genesis blocks. The genesis block of Cardano is the Byron genesis block. Some subsequent eras (Shelley and Alonzo, at the time of writing) also have their own genesis block.
+Nodes must be initialised with a genesis config. The genesis config defines the initial state of the chain. There is the Byron era genesis obviously, and some subsequent eras (Shelley and Alonzo, at the time of writing) also have their own genesis.
 
-Only the header hash of a genesis block is stored on-chain.
+Only the hash of a genesis config is stored on-chain. For mainnet, the genesis hash is used as the previous block header hash for the _Epoch Boundary Block_ of epoch 0.
 
-Note that (annoyingly) there are two blocks with epoch 0 and slot 0. One of these is the genesis block, and the other is the first real block, whose parent header hash is the genesis block header hash.
+When `cardano-wallet` connects to its local `cardano-node`, it must provide the Byron genesis config hash. Hashes for subsequent genesis configs are contained on-chain within the voting system update proposals.
 
-When `cardano-wallet` connects to its local `cardano-node`, it must provide a header hash for the byron genesis block. Header hashes for subsequent eras are contained on-chain in the voting system update proposals.
+For _mainnet_, we have hardcoded the genesis hash. It will never change. For _staging_ and _testnet_, users must supply a genesis config to the [[cli]], so that its hash may be used when connecting to the local node.
 
-For _mainnet_, we have hardcoded the genesis block hash. It will never change. For _staging_ and _testnet_, users must supply a genesis block to the [[cli]], so that its hash may be used when connecting to the local node.
+::: {.gotcha}
+#### Epoch Boundary Blocks
+
+Epoch Boundary Blocks (EBBs) only existed in the Byron era, prior to their abolition with the Shelley hard fork. Confusingly, they were also referred to as "genesis" blocks. The EBB is the previous block of the first block in a Byron epoch. EBBs were calculated locally on each full node of mainnet, and were never transmitted across the network between nodes.
+:::
 
 ### _Instafork_™ Technology
 
-Hard forking to Alonzo (the latest era, at the time of writing) by natural methods requires several epochs' worth of network operation time to take effect. For disposable local testnets, this would delay startup and make our integration tests slower. Therefore, `cardano-node` can be configured to hard fork itself at the start of any given epoch number, without an update proposal. It's also possible to hard fork directly into all the eras at epoch 0. This is what we use for the integration tests `local-cluster`.
+Hard forking to Alonzo (the latest era, at the time of writing) by natural methods requires several epochs' worth of network operation time to take effect. For disposable local testnets, this would delay startup and make our integration tests slower.
+
+Therefore, `cardano-node` can be configured to hard fork itself at the start of any given epoch number, without an update proposal. It's also possible to hard fork directly into all the eras at epoch 0. This is what we use for the integration tests `local-cluster`. The `cardano-node` configuration for this is:
+
+```yaml
+TestShelleyHardForkAtEpoch: 0
+TestAllegraHardForkAtEpoch: 0
+TestMaryHardForkAtEpoch: 0
+TestAlonzoHardForkAtEpoch: 0
+```
 
 ### Historical note: "Cardano Mode"
 
