@@ -1,0 +1,38 @@
+/* Custom stylesheet for docs.
+ *
+ * Be aware that this site uses the Tailwind CSS framework, which is a
+ * rather different approach to styling HTML.
+ *
+ * Often, what you will want to do is define a pandoc.rewriteClass in
+ * the YAML which combines Tailwind classes.
+ */
+
+.gotcha-container > h2, .gotcha-container > h3, .gotcha-container > h4, .gotcha-container > h5 {
+  margin-top: 0 !important;
+}
+
+.gotcha-container > :first-child::before {
+  content: '🗈';
+  margin-right: 0.5em;
+  font-size: larger;
+}
+
+/* Override the <pre> styling for mermaidjs diagrams.  :-/  */
+.mermaid-container pre {
+  background-color: transparent;
+}
+
+/* Make appearance of <code> blocks less jarring visually.
+ *
+ * NOTE: The template styles <code> tags by adding classes
+ * to the `class` attribute.
+ * I did not find a way to configure this, hence the
+ * CSS styling hack above.
+ */
+p code, li code, h1 code, h2 code, h3 code, h4 code, h5 code  {
+  background-color: rgb(243,244,246) !important;
+  color: black !important;
+}
+pre {
+  background-color: rgb(243,244,246);
+}

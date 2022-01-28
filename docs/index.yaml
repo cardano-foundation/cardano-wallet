@@ -4,50 +4,50 @@
 page:
   siteTitle: Cardano Wallet
   headHtml: |
-    <snippet var="js.fixAnchorLinks" />
-    <style>
-      p code, li code {
-        background-color: rgb(243,244,246) !important;
-        color: black !important;
-      }
-      pre {
-        background-color: rgb(243,244,246) !important;
-      }
-    </style>
-  # NOTE: The template styles <code> tags by adding classes
-  # to the `class` attribute.
-  # I did not find a way to configure this, hence the
-  # CSS styling hack above.
+    <snippet var="js.base" />
 
 template:
-  theme: red
+  theme: blue
   sidebar:
     collapsed: false
   urlStrategy: pretty
 
 js:
-  fixAnchorLinks: |
+  # Basic template
+  base: |
+    <meta name="generator" content="Emanote" />
+    <meta http-equiv="cache-control" content="private, max-age=60" />
+    <meta http-equiv="Expires" content="60" />
+    <link href="static/cardano-wallet.css" rel="stylesheet" />
+    <script src="static/cardano-wallet.js"></script>
+  fontawesome: |
+    <script src="https://kit.fontawesome.com/28a3011320.js" crossorigin="anonymous"></script>
+  # Diagrams using mermaid.js
+  mermaid: |
+    <!-- mermaid.js -->
+    <script src="https://cdn.jsdelivr.net/npm/mermaid/dist/mermaid.min.js"></script>
     <script>
-      // Keep \#links on the same page, when they would otherwise redirect to
-      // the page's <base href>. Ref: https://stackoverflow.com/q/8108836
-      (function() {
-        function fixLink(el) {
-          if (el.tagName.toLowerCase() === "a") {
-            console.log("fixLink", el);
-            var href = el.getAttribute("href");
-            if (href && href.indexOf("#") === 0) {
-              el.href = location.pathname + el.getAttribute("href");
-            }
-          }
+      var myMermaidConfig = {
+        // lets mermaid work with emanote live-reloading
+        startOnLoad: false,
+        // permit clicks
+        securityLevel: "loose",
+        // set default theme with primary colour to tailwind blue
+        theme: "base",
+        themeVariables: {
+          primaryColor: "#e0e7ff",
+          secondaryColor: "#fffde0"
+        },
+        // d3js rounded lines in flowcharts
+        flowchart: {
+          curve: "basis",
+          htmlLabels: true
         }
-        // Adjust href for all existing links.
-        document.addEventListener("DOMContentLoaded", function() {
-          const es = document.getElementsByTagName("a");
-          for (var i = 0; i < es.length; i++) {
-            fixLink(es[i]);
-          }
-        });
-        // Adjust href for dynamically added links - when they are clicked.
-        document.addEventListener("click", function(ev) { fixLink(ev.target); });
-      })();
+      };
+      mermaid.initialize(myMermaidConfig);
+      mermaid.init(myMermaidConfig, document.querySelectorAll(".mermaid"));
     </script>
+
+pandoc:
+  rewriteClass:
+    gotcha: gotcha-container mx-9 my-6 px-3 py-1 rounded bg-red-100 hover:border-red-400 hover:shadow border-t-8 border-red-200
