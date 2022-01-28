@@ -61,6 +61,8 @@ docker run --network host --rm inputoutput/cardano-wallet network information
 
 See also [Docker](https://input-output-hk.github.io/cardano-wallet/user-guide/Docker) for more information about using docker.
 
+NixOS users can also use the [NixOS service](https://input-output-hk.github.io/cardano-wallet/user-guide/NixOS).
+
 ## How to install (Linux / Windows / Mac OS)
 
 See **Installation Instructions** for each available [release](https://github.com/input-output-hk/cardano-wallet/releases).

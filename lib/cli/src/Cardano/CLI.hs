@@ -1186,7 +1186,7 @@ hostPreferenceOption = option str $ mempty
     <> long "listen-address"
     <> metavar "HOST"
     <> help
-        ("Specification of which host to the bind API server to. " <>
+        ("Specification of which host to bind the API server to. " <>
          "Can be an IPv[46] address, hostname, or '*'.")
     <> value "127.0.0.1"
     <> showDefaultWith (const "127.0.0.1")

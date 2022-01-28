@@ -59,13 +59,18 @@
       config = import ./nix/config.nix lib customConfig;
       inherit (flake-utils.lib) eachSystem mkApp flattenTree;
       removeRecurse = lib.filterAttrsRecursive (n: _: n != "recurseForDerivations");
+      inherit (iohkNix.lib) evalService;
       supportedSystems = import ./nix/supported-systems.nix;
       defaultSystem = lib.head supportedSystems;
-      overlay = final: prev:
-        {
-          cardanoWalletHaskellProject = self.legacyPackages.${final.system};
-          inherit (final.cardanoWalletHaskellProject.hsPkgs.cardano-wallet.components.exes) cardano-wallet;
-        };
+      overlay = final: prev: {
+        cardanoWalletHaskellProject = self.legacyPackages.${final.system};
+        inherit (final.cardanoWalletHaskellProject.hsPkgs.cardano-wallet.components.exes) cardano-wallet;
+      };
+      nixosModule = { pkgs, lib, ... }: {
+        imports = [ ./nix/nixos/cardano-wallet-service.nix ];
+        services.cardano-node.package = lib.mkDefault self.defaultPackage.${pkgs.system};
+      };
+      nixosModules.cardano-wallet = nixosModule;
       # Which exes should be put in the release archives.
       releaseContents = jobs: map (exe: jobs.${exe}) [
         "cardano-wallet"
@@ -193,6 +198,12 @@
               in
               self;
 
+            # nix run .#<network>/wallet
+            mkScripts = project: flattenTree (import ./nix/scripts.nix {
+              inherit project evalService;
+              customConfigs = [ config ];
+            });
+
             # See the imported file for how to use the docker build.
             mkDockerImage = packages: pkgs.callPackage ./nix/docker.nix {
               exes = with packages; [ cardano-wallet local-cluster ];
@@ -234,6 +245,7 @@
                 linux = {
                   # Don't run tests on linux native, because they are run for linux musl.
                   native = removeAttrs (mkPackages hydraProject) [ "checks" "testCoverageReport" ] // {
+                    scripts = mkScripts hydraProject;
                     shells = (mkDevShells hydraProject) // {
                       default = hydraProject.shell;
                     };
@@ -245,6 +257,10 @@
                     internal.roots = {
                       project = hydraProject.roots;
                       iohk-nix-utils = pkgs.iohk-nix-utils.roots;
+                    };
+                    nixosTests = import ./nix/nixos/tests {
+                      inherit pkgs;
+                      project = hydraProject;
                     };
                   };
                   musl =
@@ -303,6 +319,7 @@
                   shells = (mkDevShells hydraProject) // {
                     default = hydraProject.shell;
                   };
+                  scripts = mkScripts hydraProject;
                   internal.roots = {
                     project = hydraProject.roots;
                     iohk-nix-utils = pkgs.iohk-nix-utils.roots;
@@ -320,7 +337,7 @@
             # Run by `nix run .`
             defaultApp = apps.cardano-wallet;
 
-            packages = mkPackages project // rec {
+            packages = mkPackages project // mkScripts project // rec {
               dockerImage = mkDockerImage (mkPackages project.projectCross.musl64);
               pushDockerImage = import ./.buildkite/docker-build-push.nix {
                 hostPkgs = import hostNixpkgs { inherit system; };
@@ -331,9 +348,13 @@
               inherit (project.stack-nix.passthru) generateMaterialized;
               buildToolsGenerateMaterialized = pkgs.haskell-build-tools.regenerateMaterialized;
               iohkNixGenerateMaterialized = pkgs.iohk-nix-utils.regenerateMaterialized;
-            };
+            } // (lib.optionalAttrs buildPlatform.isLinux {
+              nixosTests = import ./nix/nixos/tests {
+                inherit pkgs project;
+              };
+            });
 
-            apps = lib.mapAttrs (n: p: { type = "app"; program = if (p ? exePath) then p.exePath else "${p}/bin/${n}"; }) packages;
+            apps = lib.mapAttrs (n: p: { type = "app"; program = p.exePath or "${p}/bin/${p.name or n}"; }) packages;
 
             devShell = project.shell;
 
@@ -347,7 +368,7 @@
     in
     lib.recursiveUpdate (removeAttrs systems [ "systemHydraJobs" "systemHydraJobsPr" "systemHydraJobsBors" ])
       {
-        inherit overlay;
+        inherit overlay nixosModule nixosModules;
         hydraJobs = mkHydraJobs systems.systemHydraJobs;
         hydraJobsPr = mkHydraJobs systems.systemHydraJobsPr;
         hydraJobsBors = mkHydraJobs systems.systemHydraJobsBors;
