@@ -1146,7 +1146,7 @@ spec = describe "NEW_SHELLEY_TRANSACTIONS" $ do
 
         waitForNextEpoch ctx
         waitForNextEpoch ctx
-        previousBalance1 <-
+        previousBalance <-
             liftIO $ eventually "Wallet gets rewards from pool1" $ do
                 r <- request @ApiWallet ctx (Link.getWallet @'Shelley src)
                     Default Empty
@@ -1206,19 +1206,6 @@ spec = describe "NEW_SHELLEY_TRANSACTIONS" $ do
                     (#status . #getApiT) (`shouldBe` InLedger)
                 ]
 
-        waitForNextEpoch ctx
-        waitForNextEpoch ctx
-        previousBalance2 <-
-            liftIO $ eventually "Wallet gets rewards from pool2" $ do
-                r <- request @ApiWallet ctx (Link.getWallet @'Shelley src)
-                    Default Empty
-                verify r
-                    [ expectField
-                        (#balance . #reward)
-                        (.> previousBalance1)
-                    ]
-                pure $ getFromResponse (#balance . #available) r
-
         eventually "Wallet is delegating to pool2" $ do
             request @ApiWallet ctx (Link.getWallet @'Shelley src) Default Empty
                 >>= flip verify
@@ -1269,7 +1256,7 @@ spec = describe "NEW_SHELLEY_TRANSACTIONS" $ do
                         (`shouldBe` (Quantity 0))
                     , expectField
                         (#balance . #available)
-                        (.> previousBalance2)
+                        (.> previousBalance)
                     ]
 
         -- now we can quit
