@@ -45,6 +45,8 @@ import Cardano.CLI
     )
 import Cardano.Launcher
     ( ProcessHasExited (..) )
+import Cardano.Launcher.Node
+    ( unsafeQueryProtocolParameters )
 import Cardano.Startup
     ( installSignalHandlersNoLogging
     , setDefaultFilePermissions
@@ -219,6 +221,8 @@ specWithServer testDir (tr, tracers) = aroundAll withContext
                     , _moveRewardsToScript = \(script, coin) ->
                             moveInstantaneousRewardsTo tr' conn testDir
                             [(ScriptCredential script, coin)]
+                    , _queryProtocolParameters =
+                        unsafeQueryProtocolParameters conn
                     }
         let action' = bracketTracer' tr "spec" . action
         res <- race

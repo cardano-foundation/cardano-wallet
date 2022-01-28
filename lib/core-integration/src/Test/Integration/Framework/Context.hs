@@ -38,6 +38,9 @@ import Numeric.Natural
 import Test.Integration.Faucet
     ( Faucet )
 
+import qualified Cardano.Api
+import qualified Cardano.Api.Shelley
+
 -- | Context for integration tests.
 --
 data Context = Context
@@ -77,6 +80,9 @@ data Context = Context
         -- cardano-wallet:integration, or when the wallet supports minting.
         --
         -- Cannot be used by several tests at a time. (!)
+    , _queryProtocolParameters
+        :: Cardano.Api.NetworkId -> IO Cardano.Api.Shelley.ProtocolParameters
+        -- ^ Query the cardano-node socket for the current protocol parameters.
     }
     deriving Generic
 

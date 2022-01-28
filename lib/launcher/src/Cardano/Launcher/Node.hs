@@ -1,3 +1,4 @@
+{-# LANGUAGE GADTs #-}
 {-# LANGUAGE TupleSections #-}
 -- |
 -- Copyright: © 2018-2020 IOHK
@@ -16,12 +17,36 @@ module Cardano.Launcher.Node
     , cardanoNodeConn
     , nodeSocketFile
     , isWindows
+
+    -- * Queries
+    , unsafeQueryProtocolParameters
     ) where
 
 import Prelude
 
+import Cardano.Api
+    ( AnyCardanoEra (..)
+    , CardanoEraStyle (..)
+    , ConsensusModeParams (ShelleyModeParams)
+    , LocalNodeConnectInfo (..)
+    , QueryInEra (..)
+    , QueryInMode (..)
+    , QueryInShelleyBasedEra (..)
+    , cardanoEraStyle
+    , consensusModeOnly
+    , determineEraExpr
+    , executeLocalStateQueryExpr
+    , queryExpr
+    , toEraInMode
+    )
 import Cardano.Launcher
     ( LauncherLog, ProcessHasExited, withBackendCreateProcess )
+import Control.Monad
+    ( join )
+import Control.Monad.Except
+    ( lift, runExceptT )
+import Control.Monad.IO.Class
+    ( MonadIO, liftIO )
 import Control.Tracer
     ( Tracer (..) )
 import Data.Bifunctor
@@ -41,6 +66,8 @@ import System.Info
 import UnliftIO.Process
     ( CreateProcess (..), proc )
 
+import qualified Cardano.Api
+import qualified Cardano.Api.Shelley
 import qualified Data.Text as T
 
 -- | Parameters for connecting to the node.
@@ -111,6 +138,39 @@ withCardanoNode tr cfg action = do
     let socketPath = nodeSocketPath (nodeDir cfg)
     cp <- cardanoNodeProcess cfg socketPath
     withBackendCreateProcess tr cp $ \_ _ -> action $ CardanoNodeConn socketPath
+
+unsafeQueryProtocolParameters
+    :: MonadIO m
+    => CardanoNodeConn
+    -> Cardano.Api.NetworkId
+    -> m Cardano.Api.Shelley.ProtocolParameters
+unsafeQueryProtocolParameters (CardanoNodeConn sockPath) networkId = do
+  let
+      cModeParams = ShelleyModeParams
+      localNodeConnInfo = LocalNodeConnectInfo cModeParams networkId sockPath
+
+  result <- liftIO $ executeLocalStateQueryExpr localNodeConnInfo Nothing $ \_ntcVersion -> runExceptT $ do
+    (AnyCardanoEra era) <- lift $ determineEraExpr cModeParams
+
+    case cardanoEraStyle era of
+      LegacyByronEra -> error "queryProtocolParameters: Shelley Query in Byron era"
+      ShelleyBasedEra sbe -> do
+        let cMode = consensusModeOnly cModeParams
+
+        eInMode <-
+            case toEraInMode era cMode of
+                Nothing -> error "queryProtocolParameters: Era consensus mode mismatch"
+                Just eraInMode -> pure eraInMode
+
+        ppResult <- lift . queryExpr $ QueryInEra eInMode $ QueryInShelleyBasedEra sbe QueryProtocolParameters
+
+        case ppResult of
+            Left e -> error $ "queryProtocolParameters: Era mismatch: " <> show e
+            Right pparams -> pure pparams
+
+  case join result of
+      Left e -> error $ "queryProtocolParameters: AcquireFailure: " <> show e
+      Right pparams -> pure pparams
 
 {-------------------------------------------------------------------------------
                                     Helpers
