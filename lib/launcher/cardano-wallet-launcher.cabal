@@ -31,6 +31,7 @@ library
   build-depends:
       base
     , bytestring
+    , cardano-api
     , code-page
     , contra-tracer
     , either
@@ -38,6 +39,7 @@ library
     , filepath
     , fmt
     , iohk-monitoring
+    , mtl
     , process
     , text
     , text-class
