@@ -1066,7 +1066,8 @@ spec = describe "NEW_SHELLEY_TRANSACTIONS" $ do
 
     it "TRANS_NEW_JOIN_01a - Can join stakepool, rejoin another and quit" $ \ctx -> runResourceT $ do
 
-        src <- fixtureWallet ctx
+        let initialAmt = 10 * minUTxOValue (_mainEra ctx)
+        src <- fixtureWalletWith @n ctx [initialAmt]
         dest <- emptyWallet ctx
 
         pool1:pool2:_ <- map (view #id) . snd <$> unsafeRequest
@@ -1146,16 +1147,13 @@ spec = describe "NEW_SHELLEY_TRANSACTIONS" $ do
 
         waitForNextEpoch ctx
         waitForNextEpoch ctx
-        previousBalance <-
-            liftIO $ eventually "Wallet gets rewards from pool1" $ do
-                r <- request @ApiWallet ctx (Link.getWallet @'Shelley src)
-                    Default Empty
-                verify r
-                    [ expectField
-                        (#balance . #reward)
-                        (.> (Quantity 0))
-                    ]
-                pure $ getFromResponse (#balance . #available) r
+        eventually "Wallet gets rewards from pool1" $ do
+            r <- request @ApiWallet ctx (Link.getWallet @'Shelley src) Default Empty
+            verify r
+                [ expectField
+                      (#balance . #reward)
+                      (.> (Quantity 0))
+                ]
 
         eventually "Wallet is delegating to pool1" $ do
             request @ApiWallet ctx (Link.getWallet @'Shelley src) Default Empty
@@ -1223,7 +1221,6 @@ spec = describe "NEW_SHELLEY_TRANSACTIONS" $ do
         addrs <- listAddresses @n ctx dest
         let coin = minUTxOValue (_mainEra ctx) :: Natural
         let addr = (addrs !! 1) ^. #id
-
         let payloadWithdrawal = [json|
                 { "payments":
                     [ { "address": #{addr}
@@ -1237,8 +1234,10 @@ spec = describe "NEW_SHELLEY_TRANSACTIONS" $ do
                   "withdrawal": "self"
                 }|]
 
-        waitForNextEpoch ctx
-        --TODO: ADP-1192 (take coare of withdrawals in new tx workflow)
+        --TODO: ADP-1192 (take care of withdrawals in new tx workflow)
+        rGet <- request @ApiWallet ctx (Link.getWallet @'Shelley src)
+                    Default Empty
+        let previousBalance = getFromResponse (#balance . #available) rGet
         rTx3 <- request @(ApiTransaction n) ctx
             (Link.createTransactionOld @'Shelley src)
             Default (Json payloadWithdrawal)
