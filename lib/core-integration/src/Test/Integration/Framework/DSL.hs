@@ -171,6 +171,7 @@ module Test.Integration.Framework.DSL
     , hexText
     , fromHexText
     , accPubKeyFromMnemonics
+    , waitForSlot
 
     -- * Delegation helpers
     , notDelegating
@@ -1016,6 +1017,17 @@ waitForNextEpoch ctx = do
         epoch' <- getFromResponse (#nodeTip . #slotId . #epochNumber) <$>
             request @ApiNetworkInformation ctx Link.getNetworkInfo Default Empty
         unless (getApiT epoch' > getApiT epoch) $ expectationFailure "not yet"
+
+waitForSlot
+    :: (MonadIO m, MonadUnliftIO m)
+    => Context
+    -> W.SlotInEpoch
+    -> m ()
+waitForSlot ctx slotNo = do
+    eventually "waitForSlot: goes to slot" $ do
+        slotNo' <- getFromResponse (#nodeTip . #slotId . #slotNumber) <$>
+            request @ApiNetworkInformation ctx Link.getNetworkInfo Default Empty
+        unless (getApiT slotNo' > slotNo) $ expectationFailure "not yet"
 
 -- Sometimes, we need to wait long-enough for transactions to become immutable.
 -- What long enough is rather empirical here, but it must satisfies one important
