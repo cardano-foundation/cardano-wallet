@@ -25,7 +25,7 @@
 
 
   
-  <link href='tailwind.css?instanceId=e872cfe7-2328-4405-96ec-e68a0f512682' rel='stylesheet' type='text/css' />
+  <link href='tailwind.css?instanceId=4872dcba-72ba-4265-a845-759f3fd10268' rel='stylesheet' type='text/css' />
 
   <!-- Heist error element -->
   <style type='text/css'>
@@ -304,6 +304,45 @@
   
     <a class='hover:underline truncate' title='Docker' href='user-guide/Docker'>
       Docker
+    </a>
+    
+      
+  </div>
+
+  <!-- Node's children forest, displayed only on active trees
+    TODO: Use <details> to toggle visibility?
+  -->
+  
+    
+  
+</div>
+    
+      <!-- Variable bindings for this tree-->
+  
+    
+      
+    
+    
+
+
+
+  
+
+
+<!-- Rendering of this tree -->
+<div class='pl-2'>
+  <!-- Node's rootLabel-->
+  <div class='flex items-center my-2 space-x-2 justify-left'>
+    
+    
+      <svg class='w-4 h-4 flex-shrink-0 inline' fill='none' stroke='currentColor' viewBox='0 0 24 24' xmlns='http://www.w3.org/2000/svg'>
+        <path stroke-linecap='round' stroke-linejoin='round' stroke-width='2' d='M7 21h10a2 2 0 002-2V9.414a1 1 0 00-.293-.707l-5.414-5.414A1 1 0 0012.586 3H7a2 2 0 00-2 2v14a2 2 0 002 2z'>
+        </path>
+      </svg>
+    
+  
+    <a class='hover:underline truncate' title='NixOS service' href='user-guide/NixOS'>
+      NixOS service
     </a>
     
       
@@ -2206,15 +2245,33 @@
     <p class='mb-3'>
       Unless you have local changes in your git repo, Nix will download the build from the Hydra cache rather than building locally.
     </p>
-  <h4 id='cross-compiling-with-nix' class='mt-6 mb-2 text-2xl font-bold text-gray-700'>Cross-compiling with Nix</h4>
+  
+    <p class='mb-3'>
+      You may also run the exectable directly with:
+    </p>
+  <div class='py-0.5 mb-3 text-sm'><pre><code class='console language-console'>$ nix run . -- &lt;cardano wallet arguments&gt;</code></pre></div>
+    <p class='mb-3'>
+      or more comfortably, for pre-configured networks (<code class='py-0.5 px-1 rounded bg-gray-700 text-sm text-white'>mainnet</code>, <code class='py-0.5 px-1 rounded bg-gray-700 text-sm text-white'>testnet</code>, …):
+    </p>
+  <div class='py-0.5 mb-3 text-sm'><pre><code class='console language-console'>$ CARDANO_NODE_SOCKET_PATH=../cardano-node/node.socket
+
+$ nix run .#mainnet/wallet -- &lt;optional additional cardano wallet arguments&gt;</code></pre></div><h4 id='cross-compiling-with-nix' class='mt-6 mb-2 text-2xl font-bold text-gray-700'>Cross-compiling with Nix</h4>
     <p class='mb-3'>
       To build the wallet for Windows, from <strong>Linux</strong>:
     </p>
-  <div class='py-0.5 mb-3 text-sm'><pre><code class='language-none'>nix build .#hydraJobs.linux.windows.cardano-wallet</code></pre></div><h4 id='building-straight-from-github' class='mt-6 mb-2 text-2xl font-bold text-gray-700'>Building straight from GitHub</h4>
+  <div class='py-0.5 mb-3 text-sm'><pre><code class='language-none'>nix build .#hydraJobs.linux.windows.cardano-wallet</code></pre></div><h4 id='building-and-running-straight-from-github' class='mt-6 mb-2 text-2xl font-bold text-gray-700'>Building (and running) straight from GitHub</h4>
     <p class='mb-3'>
-      To build another branch, add <code class='py-0.5 px-1 rounded bg-gray-700 text-sm text-white'>/&lt;branch name, tag, or commit hash&gt;</code>:
+      The following command will build the <code class='py-0.5 px-1 rounded bg-gray-700 text-sm text-white'>master</code> branch, with the resulting executable appearing at <code class='py-0.5 px-1 rounded bg-gray-700 text-sm text-white'>./result/bin/cardano-wallet</code>. To build another branch, add <code class='py-0.5 px-1 rounded bg-gray-700 text-sm text-white'>/&lt;branch name, tag, or commit hash&gt;</code> (see <a href='https://nixos.org/manual/nix/stable/command-ref/new-cli/nix3-flake.html#flake-references' class='text-blue-600 hover:underline' target='_blank' rel='noopener'>Nix Manual: Flake References</a> for syntax). As before, if the target ref has already been built by <a href='contributing/Hydra' class='text-blue-600 mavenLinkBold hover:underline' data-wikilink-type='WikiLinkNormal'>Hydra CI</a>, then it will be fetched from cache rather than built locally.
     </p>
-  <div class='py-0.5 mb-3 text-sm'><pre><code class='language-none'>nix build github:input-output-hk/cardano-wallet</code></pre></div><h4 id='navigating-hydra' class='mt-6 mb-2 text-2xl font-bold text-gray-700'>Navigating Hydra</h4>
+  <div class='py-0.5 mb-3 text-sm'><pre><code class='console language-console'>$ nix build github:input-output-hk/cardano-wallet
+$ ./result/bin/cardano-wallet version
+v2022-01-18 (git revision: ce772ff33623e2a522dcdc15b1d360815ac1336a)</code></pre></div>
+    <p class='mb-3'>
+      To run a wallet on mainnet:
+    </p>
+  <div class='py-0.5 mb-3 text-sm'><pre><code class='console language-console'>$ CARDANO_NODE_SOCKET_PATH=../cardano-node/node.socket
+
+$ nix run github:input-output-hk/cardano-wallet#mainnet/wallet</code></pre></div><h4 id='navigating-hydra' class='mt-6 mb-2 text-2xl font-bold text-gray-700'>Navigating Hydra</h4>
     <p class='mb-3'>
       The Hydra <a href='https://hydra.iohk.io/jobset/Cardano/cardano-wallet#tabs-jobs' class='text-blue-600 hover:underline' target='_blank' rel='noopener'>Jobset page</a> shows all jobs defined in the <code class='py-0.5 px-1 rounded bg-gray-700 text-sm text-white'>hydraJobs</code> attribute of <code class='py-0.5 px-1 rounded bg-gray-700 text-sm text-white'>flake.nix</code>. Some of the release jobs have a download link.
     </p>
