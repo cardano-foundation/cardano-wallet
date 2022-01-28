@@ -2,6 +2,7 @@
 title: WalletId
 page:
   headHtml: |
+    <snippet var="js.base" />
     <snippet var="js.prism" />
     <snippet var="js.mathjax" />
 ---
