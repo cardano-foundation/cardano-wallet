@@ -28,8 +28,8 @@ import Cardano.Wallet.Primitive.CoinSelection.Collateral
     ( PerformSelectionOf
     , SearchSpaceLimit (..)
     , SearchSpaceRequirement (..)
+    , SelectionCollateralErrorOf (..)
     , SelectionConstraints (..)
-    , SelectionErrorOf (..)
     , SelectionParamsOf (..)
     , SelectionResultOf (..)
     , firstRight
@@ -226,7 +226,7 @@ prop_performSelection_general_withResult
     :: (Ord inputId, Show inputId)
     => SelectionConstraints
     -> SelectionParamsOf inputId
-    -> Either (SelectionErrorOf inputId) (SelectionResultOf inputId)
+    -> Either (SelectionCollateralErrorOf inputId) (SelectionResultOf inputId)
     -> Property
 prop_performSelection_general_withResult constraints params eitherErrorResult =
     cover 20.0 (isLeft  eitherErrorResult) "Failure" $
@@ -241,7 +241,7 @@ prop_performSelection_onFailure
     :: (Ord inputId, Show inputId)
     => SelectionConstraints
     -> SelectionParamsOf inputId
-    -> SelectionErrorOf inputId
+    -> SelectionCollateralErrorOf inputId
     -> Property
 prop_performSelection_onFailure constraints params err =
     counterexample ("Error: " <> show (Pretty err)) $
@@ -670,7 +670,7 @@ unitTests_selectCollateralLargest_insufficient = unitTests
                 , minimumSelectionAmount = Coin minimumSelectionAmount
                 }
             )
-        , result = Left SelectionError
+        , result = Left SelectionCollateralError
             { largestCombinationAvailable =
                 Coin <$> largestCombinationAvailable
             , minimumSelectionAmount =

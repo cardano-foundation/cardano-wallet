@@ -46,8 +46,8 @@ import Cardano.Wallet.Primitive.CoinSelection.Balance
     , MakeChangeCriteria (..)
     , PerformSelection
     , RunSelectionParams (..)
+    , SelectionBalanceError (..)
     , SelectionConstraints (..)
-    , SelectionError (..)
     , SelectionLens (..)
     , SelectionLimit
     , SelectionLimitOf (..)
@@ -573,7 +573,7 @@ prop_AssetCount_TokenMap_placesEmptyMapsFirst maps =
 --
 -- We define this type alias to shorten type signatures.
 --
-type PerformSelectionResult = Either SelectionError SelectionResult
+type PerformSelectionResult = Either SelectionBalanceError SelectionResult
 
 genSelectionParams :: Gen (TxIn -> Bool) -> Gen UTxOIndex -> Gen SelectionParams
 genSelectionParams genPreselectedInputs genUTxOIndex' = do
@@ -928,7 +928,7 @@ prop_performSelection mockConstraints params coverage =
                 (view #inputsSelected result <&> fst)
                 (view #utxoAvailable params)
 
-    onFailure :: SelectionError -> Property
+    onFailure :: SelectionBalanceError -> Property
     onFailure = \case
         BalanceInsufficient e ->
             onBalanceInsufficient e

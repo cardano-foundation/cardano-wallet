@@ -43,12 +43,14 @@ import Cardano.Address.Derivation
     ( XPrv, XPub )
 import Cardano.Api
     ( AnyCardanoEra )
+import Cardano.Wallet.CoinSelection
+    ( SelectionCollateralRequirement (..)
+    , SelectionLimit
+    , SelectionOf (..)
+    , SelectionSkeleton
+    )
 import Cardano.Wallet.Primitive.AddressDerivation
     ( Depth (..), DerivationIndex, Passphrase )
-import Cardano.Wallet.Primitive.CoinSelection
-    ( SelectionCollateralRequirement (..), SelectionOf (..) )
-import Cardano.Wallet.Primitive.CoinSelection.Balance
-    ( SelectionLimit, SelectionSkeleton )
 import Cardano.Wallet.Primitive.Slotting
     ( PastHorizonException, TimeInterpreter )
 import Cardano.Wallet.Primitive.Types

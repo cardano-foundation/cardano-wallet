@@ -306,6 +306,18 @@ import Cardano.Wallet.Api.Types
     , toApiNetworkParameters
     , toApiUtxoStatistics
     )
+import Cardano.Wallet.CoinSelection
+    ( SelectionBalanceError (..)
+    , SelectionCollateralError
+    , SelectionError (..)
+    , SelectionOf (..)
+    , SelectionOutputError (..)
+    , SelectionOutputSizeExceedsLimitError (..)
+    , SelectionOutputTokenQuantityExceedsLimitError (..)
+    , balanceMissing
+    , selectionDelta
+    , shortfall
+    )
 import Cardano.Wallet.Compat
     ( (^?) )
 import Cardano.Wallet.DB
@@ -370,16 +382,6 @@ import Cardano.Wallet.Primitive.AddressDiscovery.Shared
     , mkSharedStateFromRootXPrv
     , validateScriptTemplates
     )
-import Cardano.Wallet.Primitive.CoinSelection
-    ( SelectionError (..)
-    , SelectionOf (..)
-    , SelectionOutputInvalidError (..)
-    , SelectionOutputSizeExceedsLimitError (..)
-    , SelectionOutputTokenQuantityExceedsLimitError (..)
-    , selectionDelta
-    )
-import Cardano.Wallet.Primitive.CoinSelection.Balance
-    ( UnableToConstructChangeError (..), balanceMissing )
 import Cardano.Wallet.Primitive.Delegation.UTxO
     ( stakeKeyCoinDistr )
 import Cardano.Wallet.Primitive.Migration
@@ -607,8 +609,6 @@ import qualified Cardano.Wallet.Network as NW
 import qualified Cardano.Wallet.Primitive.AddressDerivation.Byron as Byron
 import qualified Cardano.Wallet.Primitive.AddressDerivation.Icarus as Icarus
 import qualified Cardano.Wallet.Primitive.AddressDiscovery.Shared as Shared
-import qualified Cardano.Wallet.Primitive.CoinSelection.Balance as Balance
-import qualified Cardano.Wallet.Primitive.CoinSelection.Collateral as Collateral
 import qualified Cardano.Wallet.Primitive.Types as W
 import qualified Cardano.Wallet.Primitive.Types.Coin as Coin
 import qualified Cardano.Wallet.Primitive.Types.TokenBundle as TokenBundle
@@ -4252,7 +4252,7 @@ instance IsServerError (ErrInvalidDerivationIndex 'Soft level) where
                 , "between ", pretty minIx, " and ", pretty maxIx, " without a suffix."
                 ]
 
-instance IsServerError SelectionOutputInvalidError where
+instance IsServerError SelectionOutputError where
     toServerError = \case
         SelectionOutputSizeExceedsLimit e ->
             toServerError e
@@ -4317,22 +4317,22 @@ instance IsServerError ErrSelectAssets where
                 , "transaction; if, for some reason, you really want a new "
                 , "transaction, then cancel the previous one first."
                 ]
-        ErrSelectAssetsSelectionError (SelectionBalanceError e) ->
+        ErrSelectAssetsSelectionError (SelectionBalanceErrorOf e) ->
             toServerError e
-        ErrSelectAssetsSelectionError (SelectionCollateralError e) ->
+        ErrSelectAssetsSelectionError (SelectionCollateralErrorOf e) ->
             toServerError e
-        ErrSelectAssetsSelectionError (SelectionOutputError e) ->
+        ErrSelectAssetsSelectionError (SelectionOutputErrorOf e) ->
             toServerError e
 
-instance IsServerError (Balance.SelectionError) where
+instance IsServerError (SelectionBalanceError) where
     toServerError = \case
-        Balance.BalanceInsufficient e ->
+        BalanceInsufficient e ->
             apiError err403 NotEnoughMoney $ mconcat
                 [ "I can't process this payment as there are not "
                 , "enough funds available in the wallet. I am "
                 , "missing: ", pretty . Flat $ balanceMissing e
                 ]
-        Balance.SelectionLimitReached e ->
+        SelectionLimitReached e ->
             apiError err403 TransactionIsTooBig $ mconcat
                 [ "I am not able to finalize the transaction "
                 , "because I need to select additional inputs and "
@@ -4340,7 +4340,7 @@ instance IsServerError (Balance.SelectionError) where
                 , "sending a smaller amount. I had already selected "
                 , showT (length $ view #inputsSelected e), " inputs."
                 ]
-        Balance.InsufficientMinCoinValues xs ->
+        InsufficientMinCoinValues xs ->
             apiError err403 UtxoTooSmall $ mconcat
                 [ "Some outputs have ada values that are too small. "
                 , "There's a minimum ada value specified by the "
@@ -4350,7 +4350,7 @@ instance IsServerError (Balance.SelectionError) where
                 , "must specify enough ada. Here are the problematic "
                 , "outputs:\n" <> pretty (indentF 2 $ blockListF xs)
                 ]
-        Balance.UnableToConstructChange e ->
+        UnableToConstructChange e ->
             apiError err403 CannotCoverFee $ T.unwords
                 [ "I am unable to finalize the transaction, as there"
                 , "is not enough ada available to pay for the fee and"
@@ -4360,14 +4360,14 @@ instance IsServerError (Balance.SelectionError) where
                 , "ada to proceed. Try increasing your wallet balance"
                 , "or sending a smaller amount."
                 ]
-        Balance.EmptyUTxO ->
+        EmptyUTxO ->
             apiError err403 NotEnoughMoney $ T.unwords
                 [ "Cannot create a transaction because the wallet"
                 , "has no UTxO entries. At least one UTxO entry is"
                 , "required in order to create a transaction."
                 ]
 
-instance IsServerError (Collateral.SelectionError) where
+instance IsServerError SelectionCollateralError where
     toServerError e =
         apiError err403 InsufficientCollateral $ T.unwords
             [ "I'm unable to create this transaction because the balance"

@@ -83,6 +83,12 @@ import Cardano.Ledger.Shelley.API
     ( StrictMaybe (..) )
 import Cardano.Slotting.EpochInfo.API
     ( hoistEpochInfo )
+import Cardano.Wallet.CoinSelection
+    ( SelectionLimitOf (..)
+    , SelectionOf (..)
+    , SelectionSkeleton (..)
+    , selectionDelta
+    )
 import Cardano.Wallet.Primitive.AddressDerivation
     ( Depth (..), Passphrase (..), RewardAccount (..), WalletKey (..) )
 import Cardano.Wallet.Primitive.AddressDerivation.Byron
@@ -91,10 +97,6 @@ import Cardano.Wallet.Primitive.AddressDerivation.Icarus
     ( IcarusKey )
 import Cardano.Wallet.Primitive.AddressDerivation.Shelley
     ( ShelleyKey, toRewardAccountRaw )
-import Cardano.Wallet.Primitive.CoinSelection
-    ( SelectionOf (..), selectionDelta )
-import Cardano.Wallet.Primitive.CoinSelection.Balance
-    ( SelectionLimitOf (..), SelectionSkeleton (..) )
 import Cardano.Wallet.Primitive.Slotting
     ( PastHorizonException, TimeInterpreter, getSystemStart, toEpochInfo )
 import Cardano.Wallet.Primitive.Types

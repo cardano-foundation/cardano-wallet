@@ -31,8 +31,8 @@ module Cardano.Wallet.Primitive.CoinSelection.Collateral
     , SelectionResult
     , SelectionResultOf (..)
     , selectionResultEmpty
-    , SelectionError
-    , SelectionErrorOf (..)
+    , SelectionCollateralError
+    , SelectionCollateralErrorOf (..)
     , SearchSpaceLimit (..)
     , searchSpaceLimitDefault
 
@@ -102,7 +102,7 @@ import qualified Numeric.SpecFunctions as MathFast
 type PerformSelectionOf inputId =
     SelectionConstraints ->
     SelectionParamsOf inputId ->
-    Either (SelectionErrorOf inputId) (SelectionResultOf inputId)
+    Either (SelectionCollateralErrorOf inputId) (SelectionResultOf inputId)
 
 -- | The default type for 'PerformSelectionOf'.
 --
@@ -188,7 +188,7 @@ selectionResultEmpty = SelectionResult
 
 -- | Represents an unsuccessful attempt to select collateral.
 --
-data SelectionErrorOf inputId = SelectionError
+data SelectionCollateralErrorOf inputId = SelectionCollateralError
     { largestCombinationAvailable :: Map inputId Coin
         -- ^ The largest combination of coins available.
     , minimumSelectionAmount :: Coin
@@ -196,9 +196,9 @@ data SelectionErrorOf inputId = SelectionError
     }
     deriving (Eq, Generic, Show)
 
--- | The default type for `SelectionErrorOf`.
+-- | The default type for `SelectionCollateralErrorOf`.
 --
-type SelectionError = SelectionErrorOf TxIn
+type SelectionCollateralError = SelectionCollateralErrorOf TxIn
 
 -- | Selects coins for collateral.
 --
@@ -263,7 +263,7 @@ selectCollateralSmallest constraints params =
         Just coinsSelected ->
             Right SelectionResult {coinsSelected}
         Nothing ->
-            Left SelectionError
+            Left SelectionCollateralError
                 { largestCombinationAvailable = mempty
                 , minimumSelectionAmount
                 }
@@ -332,7 +332,7 @@ selectCollateralLargest constraints params =
         Just coinsSelected ->
             Right SelectionResult {coinsSelected}
         Nothing ->
-            Left SelectionError
+            Left SelectionCollateralError
                 { largestCombinationAvailable
                 , minimumSelectionAmount
                 }

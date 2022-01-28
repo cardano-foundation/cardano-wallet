@@ -171,6 +171,7 @@
           "Cardano/Wallet/Api/Server"
           "Cardano/Wallet/Api/Server/Tls"
           "Cardano/Wallet/Api/Types"
+          "Cardano/Wallet/CoinSelection"
           "Cardano/Wallet/Compat"
           "Cardano/Wallet/DB"
           "Cardano/Wallet/DB/Checkpoints"
