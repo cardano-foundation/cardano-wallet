@@ -144,14 +144,10 @@ migrateManually tr proxy defaultFieldValues =
         return ()
 
     dropTable :: Text -> Text
-    dropTable table = mconcat
-        [ "DROP TABLE IF EXISTS " <> table <> ";"
-        ]
+    dropTable table = "DROP TABLE IF EXISTS " <> table <> ";"
 
     getTableInfo :: Text -> Text
-    getTableInfo table = mconcat
-        [ "PRAGMA table_info(", table, ");"
-        ]
+    getTableInfo table = "PRAGMA table_info(" <> table <> ");"
 
     filterColumn :: [Text] -> [PersistValue] -> Maybe [PersistValue]
     filterColumn excluding = \case
