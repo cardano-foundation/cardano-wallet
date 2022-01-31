@@ -31,6 +31,7 @@ import Cardano.Wallet.Api.Types
     ( AddressAmount (..)
     , ApiAddress (..)
     , ApiAnyCertificate (..)
+    , ApiCertificate (..)
     , ApiCoinSelection (withdrawals)
     , ApiConstructTransaction (..)
     , ApiDecodedTransaction
@@ -42,6 +43,7 @@ import Cardano.Wallet.Api.Types
     , ApiT (..)
     , ApiTransaction
     , ApiTxId (..)
+    , ApiTxInput (..)
     , ApiTxInputGeneral (..)
     , ApiTxMetadata (..)
     , ApiTxOutputGeneral (..)
@@ -72,6 +74,7 @@ import Cardano.Wallet.Primitive.Types
     , PoolOwner (..)
     , StakePoolMetadataHash (..)
     , StakePoolMetadataUrl (..)
+    , decodePoolIdBech32
     )
 import Cardano.Wallet.Primitive.Types.Address
     ( Address (..) )
@@ -127,6 +130,8 @@ import Data.Ratio
     ( (%) )
 import Data.Text
     ( Text )
+import Data.Text.Class
+    ( toText )
 import Numeric.Natural
     ( Natural )
 import Test.Hspec
@@ -147,6 +152,8 @@ import Test.Integration.Framework.DSL
     , eventually
     , expectErrorMessage
     , expectField
+    , expectListField
+    , expectListSize
     , expectResponseCode
     , expectSuccess
     , fixtureMultiAssetWallet
@@ -159,6 +166,7 @@ import Test.Integration.Framework.DSL
     , json
     , listAddresses
     , minUTxOValue
+    , notDelegating
     , pickAnAsset
     , request
     , rewardWallet
@@ -170,6 +178,7 @@ import Test.Integration.Framework.DSL
     , waitForNextEpoch
     , waitForTxImmutability
     , walletId
+    , (.>)
     )
 import Test.Integration.Framework.TestData
     ( errMsg403Collateral
@@ -178,6 +187,8 @@ import Test.Integration.Framework.TestData
     , errMsg403InvalidConstructTx
     , errMsg403MinUTxOValue
     , errMsg403MissingWitsInTransaction
+    , errMsg403MultiaccountTransaction
+    , errMsg403MultidelegationTransaction
     , errMsg403NotDelegating
     , errMsg403NotEnoughMoney
     , errMsg404NoSuchPool
@@ -1051,91 +1062,6 @@ spec = describe "NEW_SHELLEY_TRANSACTIONS" $ do
         verify rTx
             [ expectResponseCode HTTP.status403
             , expectErrorMessage errMsg403NotEnoughMoney
-            ]
-
-    it "TRANS_NEW_JOIN_01a - Can join stakepool" $ \ctx -> runResourceT $ do
-
-        liftIO $ pendingWith "ADP-1189 - delegation not implemented in construct ep"
-
-        wa <- fixtureWallet ctx
-        pool':_ <- map (view #id) . snd <$> unsafeRequest
-            @[ApiStakePool]
-            ctx (Link.listStakePools arbitraryStake) Empty
-
-        let delegation = Json [json|{
-                "delegations": [{
-                    "join": {
-                        "pool": #{pool'},
-                        "stake_key_index": "0H"
-                    }
-                }]
-            }|]
-        rTx <- request @(ApiConstructTransaction n) ctx
-            (Link.createUnsignedTransaction @'Shelley wa) Default delegation
-        verify rTx
-            [ expectResponseCode HTTP.status202
-            , expectField (#coinSelection . #deposits) (`shouldSatisfy` (not . null))
-            ]
-        -- TODO: sign/submit tx and verify pool is joined
-
-    it "TRANS_NEW_JOIN_01b - Invalid pool id" $ \ctx -> runResourceT $ do
-
-        wa <- fixtureWallet ctx
-
-        let invalidPoolId = T.replicate 32 "1"
-        let delegation = Json [json|{
-                "delegations": [{
-                    "join": {
-                        "pool": #{invalidPoolId},
-                        "stake_key_index": "0H"
-                    }
-                }]
-            }|]
-        rTx <- request @(ApiConstructTransaction n) ctx
-            (Link.createUnsignedTransaction @'Shelley wa) Default delegation
-        verify rTx
-            [ expectResponseCode HTTP.status400
-            , expectErrorMessage "Invalid stake pool id"
-            ]
-
-    it "TRANS_NEW_JOIN_01b - Absent pool id" $ \ctx -> runResourceT $ do
-
-        liftIO $ pendingWith "ADP-1189 - delegation not implemented in construct ep"
-
-        wa <- fixtureWallet ctx
-        let absentPoolId = "pool1mgjlw24rg8sp4vrzctqxtf2nn29rjhtkq2kdzvf4tcjd5pl547k"
-        let delegation = Json [json|{
-                "delegations": [{
-                    "join": {
-                        "pool": #{absentPoolId},
-                        "stake_key_index": "0H"
-                    }
-                }]
-            }|]
-        rTx <- request @(ApiConstructTransaction n) ctx
-            (Link.createUnsignedTransaction @'Shelley wa) Default delegation
-        verify rTx
-            [ expectResponseCode HTTP.status404
-            , expectErrorMessage (errMsg404NoSuchPool (absentPoolId))
-            ]
-
-    it "TRANS_NEW_QUIT_01 - Cannot quit if not joined" $ \ctx -> runResourceT $ do
-
-        liftIO $ pendingWith "ADP-1189 - delegation not implemented in construct ep"
-
-        wa <- fixtureWallet ctx
-        let delegation = Json [json|{
-                "delegations": [{
-                    "quit": {
-                        "stake_key_index": "0H"
-                    }
-                }]
-            }|]
-        rTx <- request @(ApiConstructTransaction n) ctx
-            (Link.createUnsignedTransaction @'Shelley wa) Default delegation
-        verify rTx
-            [ expectResponseCode HTTP.status403
-            , expectErrorMessage errMsg403NotDelegating
             ]
 
     it "TRANS_NEW_VALIDITY_INTERVAL_01a - Validity interval with second" $ \ctx -> runResourceT $ do
@@ -2366,6 +2292,341 @@ spec = describe "NEW_SHELLEY_TRANSACTIONS" $ do
                     pure $ getFromResponse Prelude.id submittedTx'
 
             foldM_ runStep txid steps
+
+    it "TRANS_NEW_JOIN_01a - Can join stakepool, rejoin another and quit" $ \ctx -> runResourceT $ do
+
+        let initialAmt = 10 * minUTxOValue (_mainEra ctx)
+        src <- fixtureWalletWith @n ctx [initialAmt]
+        dest <- emptyWallet ctx
+
+        pool1:pool2:_ <- map (view #id) . snd <$> unsafeRequest
+            @[ApiStakePool]
+            ctx (Link.listStakePools arbitraryStake) Empty
+
+        let delegationJoin = Json [json|{
+                "delegations": [{
+                    "join": {
+                        "pool": #{pool1},
+                        "stake_key_index": "0H"
+                    }
+                }]
+            }|]
+        rTx1 <- request @(ApiConstructTransaction n) ctx
+            (Link.createUnsignedTransaction @'Shelley src) Default delegationJoin
+        verify rTx1
+            [ expectResponseCode HTTP.status202
+            ]
+
+        let apiTx1 = getFromResponse #transaction rTx1
+        signedTx1 <- signTx ctx src apiTx1 [ expectResponseCode HTTP.status202 ]
+
+        -- as we are joining for the first time we expect two certificates
+        let stakeKeyDerPath = NE.fromList
+                [ ApiT (DerivationIndex 2147485500)
+                , ApiT (DerivationIndex 2147485463)
+                , ApiT (DerivationIndex 2147483648)
+                , ApiT (DerivationIndex 2)
+                , ApiT (DerivationIndex 0)
+                ]
+        let registerStakeKeyCert =
+                WalletDelegationCertificate $ RegisterRewardAccount stakeKeyDerPath
+        let delegatingCert =
+                WalletDelegationCertificate $ JoinPool stakeKeyDerPath pool1
+
+        let txCbor1 = getFromResponse #transaction (HTTP.status202, Right signedTx1)
+        let decodePayload1 = Json (toJSON $ ApiSerialisedTransaction txCbor1)
+        rDecodedTx1 <- request @(ApiDecodedTransaction n) ctx
+            (Link.decodeTransaction @'Shelley src) Default decodePayload1
+        verify rDecodedTx1
+            [ expectResponseCode HTTP.status202
+            , expectField #certificates (`shouldBe` [registerStakeKeyCert, delegatingCert])
+            ]
+
+        -- Submit tx
+        submittedTx1 <- submitTxWithWid ctx src signedTx1
+        verify submittedTx1
+            [ expectSuccess
+            , expectResponseCode HTTP.status202
+            ]
+
+        eventually "Wallet has joined pool and deposit info persists" $ do
+            rJoin' <- request @(ApiTransaction n) ctx
+                (Link.getTransaction @'Shelley src
+                    (getFromResponse Prelude.id submittedTx1))
+                Default Empty
+            verify rJoin'
+                [ expectResponseCode HTTP.status200
+                , expectField (#status . #getApiT) (`shouldBe` InLedger)
+                , expectField (#direction . #getApiT) (`shouldBe` Outgoing)
+                , expectField #deposit (`shouldBe` Quantity 1000000)
+                ]
+
+        let txId1 = getFromResponse #id submittedTx1
+        let link = Link.getTransaction @'Shelley src (ApiTxId txId1)
+        eventually "delegation transaction is in ledger" $ do
+            rSrc <- request @(ApiTransaction n) ctx link Default Empty
+            verify rSrc
+                [ expectResponseCode HTTP.status200
+                , expectField (#direction . #getApiT) (`shouldBe` Outgoing)
+                , expectField (#status . #getApiT) (`shouldBe` InLedger)
+                , expectField (#metadata . #getApiTxMetadata) (`shouldBe` Nothing)
+                , expectField #inputs $ \inputs' -> do
+                    inputs' `shouldSatisfy` all (isJust . source)
+                ]
+
+        waitForNextEpoch ctx
+        waitForNextEpoch ctx
+        eventually "Wallet gets rewards from pool1" $ do
+            r <- request @ApiWallet ctx (Link.getWallet @'Shelley src) Default Empty
+            verify r
+                [ expectField
+                      (#balance . #reward)
+                      (.> (Quantity 0))
+                ]
+
+        eventually "Wallet is delegating to pool1" $ do
+            request @ApiWallet ctx (Link.getWallet @'Shelley src) Default Empty
+                >>= flip verify
+                    [ expectField #delegation (`shouldBe` delegating pool1 [])
+                    ]
+
+        -- join another stake pool
+        let delegationRejoin = Json [json|{
+                "delegations": [{
+                    "join": {
+                        "pool": #{pool2},
+                        "stake_key_index": "0H"
+                    }
+                }]
+            }|]
+        rTx2 <- request @(ApiConstructTransaction n) ctx
+            (Link.createUnsignedTransaction @'Shelley src) Default delegationRejoin
+        verify rTx2
+            [ expectResponseCode HTTP.status202
+            ]
+        let apiTx2 = getFromResponse #transaction rTx2
+        signedTx2 <- signTx ctx src apiTx2 [ expectResponseCode HTTP.status202 ]
+        let delegatingCert2 =
+                WalletDelegationCertificate $ JoinPool stakeKeyDerPath pool2
+
+        let txCbor2 = getFromResponse #transaction (HTTP.status202, Right signedTx2)
+        let decodePayload2 = Json (toJSON $ ApiSerialisedTransaction txCbor2)
+        rDecodedTx2 <- request @(ApiDecodedTransaction n) ctx
+            (Link.decodeTransaction @'Shelley src) Default decodePayload2
+        verify rDecodedTx2
+            [ expectResponseCode HTTP.status202
+            , expectField #certificates (`shouldBe` [delegatingCert2])
+            ]
+        submittedTx2 <- submitTxWithWid ctx src signedTx2
+        verify submittedTx2
+            [ expectSuccess
+            , expectResponseCode HTTP.status202
+            ]
+
+        -- Wait for the certificate to be inserted
+        eventually "Certificates are inserted" $ do
+            let ep = Link.listTransactions @'Shelley src
+            request @[ApiTransaction n] ctx ep Default Empty >>= flip verify
+                [ expectListField 1
+                    (#direction . #getApiT) (`shouldBe` Outgoing)
+                , expectListField 1
+                    (#status . #getApiT) (`shouldBe` InLedger)
+                ]
+
+        eventually "Wallet is delegating to pool2" $ do
+            request @ApiWallet ctx (Link.getWallet @'Shelley src) Default Empty
+                >>= flip verify
+                    [ expectField #delegation (`shouldBe` delegating pool2 [])
+                    ]
+
+        -- there's currently no withdrawals in the wallet
+        rw1 <- request @[ApiTransaction n] ctx
+            (Link.listTransactions' @'Shelley src (Just 1)
+                Nothing Nothing Nothing)
+            Default Empty
+        verify rw1 [ expectListSize 0 ]
+
+        -- can use rewards with an explicit withdrawal request to self.
+        addrs <- listAddresses @n ctx dest
+        let coin = minUTxOValue (_mainEra ctx) :: Natural
+        let addr = (addrs !! 1) ^. #id
+        let payloadWithdrawal = [json|
+                { "payments":
+                    [ { "address": #{addr}
+                      , "amount":
+                        { "quantity": #{coin}
+                        , "unit": "lovelace"
+                        }
+                      }
+                    ]
+                , "passphrase": #{fixturePassphrase},
+                  "withdrawal": "self"
+                }|]
+
+        --TODO: ADP-1192 (take care of withdrawals in new tx workflow)
+        rGet <- request @ApiWallet ctx (Link.getWallet @'Shelley src)
+                    Default Empty
+        let previousBalance = getFromResponse (#balance . #available) rGet
+        rTx3 <- request @(ApiTransaction n) ctx
+            (Link.createTransactionOld @'Shelley src)
+            Default (Json payloadWithdrawal)
+        verify rTx3
+            [ expectField #amount (.> (Quantity coin))
+            , expectField (#direction . #getApiT) (`shouldBe` Outgoing)
+            ]
+
+        -- Rewards are have been consumed.
+        eventually "Wallet has consumed rewards" $ do
+            request @ApiWallet ctx (Link.getWallet @'Shelley src) Default Empty
+                >>= flip verify
+                    [ expectField
+                        (#balance . #reward)
+                        (`shouldBe` (Quantity 0))
+                    , expectField
+                        (#balance . #available)
+                        (.> previousBalance)
+                    ]
+
+        -- now we can quit
+        let delegationQuit = Json [json|{
+                "delegations": [{
+                    "quit": {
+                        "stake_key_index": "0H"
+                    }
+                }]
+            }|]
+        rTx4 <- request @(ApiConstructTransaction n) ctx
+            (Link.createUnsignedTransaction @'Shelley src) Default delegationQuit
+        verify rTx4
+            [ expectResponseCode HTTP.status202
+            ]
+        let apiTx4 = getFromResponse #transaction rTx4
+        signedTx4 <- signTx ctx src apiTx4 [ expectResponseCode HTTP.status202 ]
+        let quittingCert =
+                WalletDelegationCertificate $ QuitPool stakeKeyDerPath
+
+        let txCbor4 = getFromResponse #transaction (HTTP.status202, Right signedTx4)
+        let decodePayload4 = Json (toJSON $ ApiSerialisedTransaction txCbor4)
+        rDecodedTx4 <- request @(ApiDecodedTransaction n) ctx
+            (Link.decodeTransaction @'Shelley src) Default decodePayload4
+        verify rDecodedTx4
+            [ expectResponseCode HTTP.status202
+            , expectField #certificates (`shouldBe` [quittingCert])
+            ]
+        submittedTx4 <- submitTxWithWid ctx src signedTx4
+        verify submittedTx4
+            [ expectSuccess
+            , expectResponseCode HTTP.status202
+            ]
+        eventually "Wallet is not delegating" $ do
+            request @ApiWallet ctx (Link.getWallet @'Shelley src) Default Empty
+                >>= flip verify
+                    [ expectField #delegation (`shouldBe` notDelegating [])
+                    ]
+
+    it "TRANS_NEW_JOIN_01b - Invalid pool id" $ \ctx -> runResourceT $ do
+
+        wa <- fixtureWallet ctx
+
+        let invalidPoolId = T.replicate 32 "1"
+        let delegation = Json [json|{
+                "delegations": [{
+                    "join": {
+                        "pool": #{invalidPoolId},
+                        "stake_key_index": "0H"
+                    }
+                }]
+            }|]
+        rTx <- request @(ApiConstructTransaction n) ctx
+            (Link.createUnsignedTransaction @'Shelley wa) Default delegation
+        verify rTx
+            [ expectResponseCode HTTP.status400
+            , expectErrorMessage "Invalid stake pool id"
+            ]
+
+    it "TRANS_NEW_JOIN_01b - Absent pool id" $ \ctx -> runResourceT $ do
+
+        wa <- fixtureWallet ctx
+        let absentPoolIdBech32 = "pool1mgjlw24rg8sp4vrzctqxtf2nn29rjhtkq2kdzvf4tcjd5pl547k"
+        (Right absentPoolId) <- pure $ decodePoolIdBech32 absentPoolIdBech32
+        let delegation = Json [json|{
+                "delegations": [{
+                    "join": {
+                        "pool": #{absentPoolIdBech32},
+                        "stake_key_index": "0H"
+                    }
+                }]
+            }|]
+        rTx <- request @(ApiConstructTransaction n) ctx
+            (Link.createUnsignedTransaction @'Shelley wa) Default delegation
+        verify rTx
+            [ expectResponseCode HTTP.status404
+            , expectErrorMessage (errMsg404NoSuchPool (toText absentPoolId))
+            ]
+
+    it "TRANS_NEW_JOIN_01c - Multidelegation not supported" $ \ctx -> runResourceT $ do
+
+        wa <- fixtureWallet ctx
+        let pool' = "pool1mgjlw24rg8sp4vrzctqxtf2nn29rjhtkq2kdzvf4tcjd5pl547k" :: Text
+        let delegations = Json [json|{
+                "delegations": [{
+                    "join": {
+                        "pool": #{pool'},
+                        "stake_key_index": "0H"
+                    }
+                },{
+                    "quit": {
+                        "stake_key_index": "0H"
+                    }
+                }]
+            }|]
+        rTx <- request @(ApiConstructTransaction n) ctx
+            (Link.createUnsignedTransaction @'Shelley wa) Default delegations
+        verify rTx
+            [ expectResponseCode HTTP.status403
+            , expectErrorMessage errMsg403MultidelegationTransaction
+            ]
+
+    it "TRANS_NEW_JOIN_01d - Multiaccount not supported" $ \ctx -> runResourceT $ do
+
+        wa <- fixtureWallet ctx
+        let pool' = "pool1mgjlw24rg8sp4vrzctqxtf2nn29rjhtkq2kdzvf4tcjd5pl547k" :: Text
+        let delegations = Json [json|{
+                "delegations": [{
+                    "join": {
+                        "pool": #{pool'},
+                        "stake_key_index": "0H"
+                    }
+                },{
+                    "join": {
+                        "pool": #{pool'},
+                        "stake_key_index": "1H"
+                    }
+                }]
+            }|]
+        rTx <- request @(ApiConstructTransaction n) ctx
+            (Link.createUnsignedTransaction @'Shelley wa) Default delegations
+        verify rTx
+            [ expectResponseCode HTTP.status403
+            , expectErrorMessage errMsg403MultiaccountTransaction
+            ]
+
+    it "TRANS_NEW_QUIT_01 - Cannot quit if not joined" $ \ctx -> runResourceT $ do
+
+        wa <- fixtureWallet ctx
+        let delegation = Json [json|{
+                "delegations": [{
+                    "quit": {
+                        "stake_key_index": "0H"
+                    }
+                }]
+            }|]
+        rTx <- request @(ApiConstructTransaction n) ctx
+            (Link.createUnsignedTransaction @'Shelley wa) Default delegation
+        verify rTx
+            [ expectResponseCode HTTP.status403
+            , expectErrorMessage errMsg403NotDelegating
+            ]
   where
 
     -- | Just one million Ada, in Lovelace.

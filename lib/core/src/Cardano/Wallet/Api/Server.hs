@@ -226,6 +226,7 @@ import Cardano.Wallet.Api.Types
     , ApiForeignStakeKey (..)
     , ApiMintedBurnedTransaction (..)
     , ApiMnemonicT (..)
+    , ApiMultiDelegationAction (..)
     , ApiNetworkClock (..)
     , ApiNetworkInformation
     , ApiNetworkParameters (..)
@@ -250,6 +251,7 @@ import Cardano.Wallet.Api.Types
     , ApiSignTransactionPostData (..)
     , ApiSlotId (..)
     , ApiSlotReference (..)
+    , ApiStakeKeyIndex (..)
     , ApiStakeKeys (..)
     , ApiT (..)
     , ApiTransaction (..)
@@ -1879,7 +1881,6 @@ signTransaction
 signTransaction ctx (ApiT wid) body = do
     let pwd = coerce $ body ^. #passphrase . #getApiT
     let sealedTx = body ^. #transaction . #getApiT
-
     sealedTx' <- withWorkerCtx ctx wid liftE liftE $ \wrk -> liftHandler $ do
         let
             db = wrk ^. W.dbLayer @IO @s @k
@@ -2121,10 +2122,12 @@ constructTransaction
         )
     => ctx
     -> ArgGenChange s
+    -> IO (Set PoolId)
+    -> (PoolId -> IO PoolLifeCycleStatus)
     -> ApiT WalletId
     -> ApiConstructTransactionData n
     -> Handler (ApiConstructTransaction n)
-constructTransaction ctx genChange (ApiT wid) body = do
+constructTransaction ctx genChange knownPools getPoolStatus (ApiT wid) body = do
     let isNoPayload =
             isNothing (body ^. #payments) &&
             isNothing (body ^. #withdrawal) &&
@@ -2133,6 +2136,18 @@ constructTransaction ctx genChange (ApiT wid) body = do
             isNothing (body ^. #delegations)
     when isNoPayload $
         liftHandler $ throwE ErrConstructTxWrongPayload
+
+    let checkIx (ApiStakeKeyIndex (ApiT derIndex)) =
+            derIndex == DerivationIndex (getIndex @'Hardened minBound)
+    let validApiDelAction = \case
+            Joining _ stakeKeyIx -> checkIx stakeKeyIx
+            Leaving stakeKeyIx -> checkIx stakeKeyIx
+    let notall0Haccount = case body ^. #delegations of
+            Nothing -> False
+            Just delegs -> not . all validApiDelAction $ NE.toList delegs
+    when notall0Haccount $
+        liftHandler $ throwE ErrConstructTxMultiaccountNotSupported
+
     let md = body ^? #metadata . traverse . #getApiT
     let mTTL = Nothing --TODO: ADP-1189
 
@@ -2140,20 +2155,45 @@ constructTransaction ctx genChange (ApiT wid) body = do
         mkRewardAccountBuilder @_ @s @_ @n ctx wid (body ^. #withdrawal)
 
     ttl <- liftIO $ W.getTxExpiry ti mTTL
-    let txCtx = defaultTransactionCtx
-            { txWithdrawal = wdrl
-            , txMetadata = md
-            , txTimeToLive = ttl
-            --, txDelegationAction --TODO: ADP-1189
-            }
-    let transform s sel =
-            ( W.assignChangeAddresses genChange sel s
-                & uncurry (W.selectionToUnsignedTx (txWithdrawal txCtx))
-            , sel
-            , selectionDelta TokenBundle.getCoin sel
-            )
 
     withWorkerCtx ctx wid liftE liftE $ \wrk -> do
+        txCtx <- case body ^. #delegations of
+            Nothing -> pure $ defaultTransactionCtx
+                 { txWithdrawal = wdrl
+                 , txMetadata = md
+                 , txTimeToLive = ttl
+                 }
+            Just delegs -> do
+                -- TODO: Current limitation:
+                -- at this moment we are handling just one delegation action:
+                -- either joining pool, or rejoining or quiting
+                -- When we support multi-account this should be lifted
+                action <- case NE.toList delegs of
+                    [(Joining (ApiT pid) _)] -> do
+                        poolStatus <- liftIO (getPoolStatus pid)
+                        pools <- liftIO knownPools
+                        curEpoch <- getCurrentEpoch ctx
+                        (action, _) <- liftHandler
+                            $ W.joinStakePool @_ @s @k wrk curEpoch pools pid poolStatus wid
+                        pure action
+                    [(Leaving _)] ->
+                        liftHandler $ W.quitStakePool @_ @s @k wrk wid
+                    _ ->
+                        liftHandler $ throwE ErrConstructTxMultidelegationNotSupported
+
+                pure $ defaultTransactionCtx
+                    { txWithdrawal = wdrl
+                    , txMetadata = md
+                    , txTimeToLive = ttl
+                    , txDelegationAction = Just action
+                    }
+        let transform s sel =
+                ( W.assignChangeAddresses genChange sel s
+                    & uncurry (W.selectionToUnsignedTx (txWithdrawal txCtx))
+                , sel
+                , selectionDelta TokenBundle.getCoin sel
+                )
+
         (utxoAvailable, wallet, pendingTxs) <-
             liftHandler $ W.readWalletUTxOIndex @_ @s @k wrk wid
         pp <- liftIO $ NW.currentProtocolParameters (wrk ^. networkLayer)
@@ -3852,6 +3892,18 @@ instance IsServerError ErrConstructTx where
             }
         ErrConstructTxReadRewardAccount e -> toServerError e
         ErrConstructTxIncorrectTTL e -> toServerError e
+        ErrConstructTxMultidelegationNotSupported ->
+            apiError err403 CreatedMultidelegationTransaction $ mconcat
+            [ "It looks like I've created a transaction "
+            , "with multiple delegations, which is not supported at this moment."
+            , "Please use at most one delegation action: join, quit or none."
+            ]
+        ErrConstructTxMultiaccountNotSupported ->
+            apiError err403 CreatedMultiaccountTransaction $ mconcat
+            [ "It looks like I've created a transaction "
+            , "with a delegation, which uses a stake key for the unsupported account."
+            , "Please use delegation action engaging '0H' account."
+            ]
         ErrConstructTxNotImplemented _ ->
             apiError err501 NotImplemented
                 "This feature is not yet implemented."

@@ -136,7 +136,8 @@ import Cardano.Wallet.Primitive.Types.Tx
     , txSizeDistance
     )
 import Cardano.Wallet.Shelley.Compatibility
-    ( fromCardanoAddress
+    ( cardanoCertKeysForWitnesses
+    , fromCardanoAddress
     , fromCardanoLovelace
     , fromCardanoTx
     , fromCardanoTxIn
@@ -247,6 +248,7 @@ import qualified Data.Map.Merge.Strict as Map
 import qualified Data.Sequence.Strict as StrictSeq
 import qualified Data.Set as Set
 import qualified Data.Text as T
+
 
 -- | Type encapsulating what we need to know to add things -- payloads,
 -- certificates -- to a transaction.
@@ -405,11 +407,11 @@ signTransaction networkId resolveRewardAcct resolveAddress resolveInput (body, w
  where
     wits' = mconcat
         [ wits
-        , mapMaybe mkTxInWitness  inputs
-        , mapMaybe mkTxInWitness  collaterals
-        , mapMaybe mkWdrlWitness  wdrls
+        , mapMaybe mkTxInWitness inputs
+        , mapMaybe mkTxInWitness collaterals
+        , mapMaybe mkWdrlCertWitness wdrls
         , mapMaybe mkExtraWitness extraKeys
-        -- TODO: delegation certificates & key-deregistrations
+        , mapMaybe mkWdrlCertWitness certs
         ]
       where
         Cardano.TxBody bodyContent = body
@@ -437,6 +439,8 @@ signTransaction networkId resolveRewardAcct resolveAddress resolveInput (body, w
             | (addr, _) <- fromCardanoWdrls $ Cardano.txWithdrawals bodyContent
             ]
 
+        certs = cardanoCertKeysForWitnesses $ Cardano.txCertificates bodyContent
+
     mkTxInWitness :: TxIn -> Maybe (Cardano.KeyWitness era)
     mkTxInWitness i = do
         addr <- resolveInput i
@@ -447,8 +451,8 @@ signTransaction networkId resolveRewardAcct resolveAddress resolveInput (body, w
             TxWitnessByronUTxO{} ->
                 mkByronWitness body networkId addr (getRawKey k, pwd)
 
-    mkWdrlWitness :: RewardAccount -> Maybe (Cardano.KeyWitness era)
-    mkWdrlWitness a = do
+    mkWdrlCertWitness :: RewardAccount -> Maybe (Cardano.KeyWitness era)
+    mkWdrlCertWitness a = do
         mkShelleyWitness body <$> resolveRewardAcct a
 
     mkExtraWitness :: Cardano.Hash Cardano.PaymentKey -> Maybe (Cardano.KeyWitness era)
@@ -487,10 +491,7 @@ newTransactionLayer networkId = TransactionLayer
                 withShelleyBasedEra era $ do
                     let stakeXPub = toXPub $ fst stakeCreds
                     let certs = mkDelegationCertificates action stakeXPub
-                    let mkWits unsigned =
-                            [ mkShelleyWitness unsigned stakeCreds
-                            ]
-                    let payload = TxPayload (view #txMetadata ctx) certs mkWits
+                    let payload = TxPayload (view #txMetadata ctx) certs (const [])
                     mkTx networkId payload ttl stakeCreds keystore wdrl
                         selection delta
 
@@ -499,7 +500,6 @@ newTransactionLayer networkId = TransactionLayer
             acctResolver acct = do
                 let acct' = toRewardAccountRaw $ toXPub $ fst stakeCreds
                 guard (acct == acct') $> stakeCreds
-
         case cardanoTx sealedTx of
             InAnyCardanoEra ByronEra _ ->
                 sealedTx

@@ -309,7 +309,7 @@ server byron icarus shelley multisig spl ntp =
 
     shelleyTransactions :: Server (ShelleyTransactions n)
     shelleyTransactions =
-             constructTransaction shelley (delegationAddress @n)
+             constructTransaction shelley (delegationAddress @n) (knownPools spl) (getPoolLifeCycleStatus spl)
         :<|> signTransaction shelley
         :<|> listTransactions shelley
         :<|> getTransaction shelley
@@ -451,11 +451,11 @@ server byron icarus shelley multisig spl ntp =
                  (byron , do
                     let pwd = error "fixme: unimplemented"
                     genChange <- rndStateChange byron wid pwd
-                    constructTransaction byron genChange wid tx
+                    constructTransaction byron genChange (knownPools spl) (getPoolLifeCycleStatus spl) wid tx
                  )
                  (icarus, do
                     let genChange k _ = paymentAddress @n k
-                    constructTransaction icarus genChange wid tx
+                    constructTransaction icarus genChange (knownPools spl) (getPoolLifeCycleStatus spl) wid tx
                  )
              )
         :<|> (\wid tx ->

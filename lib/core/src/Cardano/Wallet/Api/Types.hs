@@ -1618,6 +1618,8 @@ data ApiErrorCode
     | NetworkMisconfigured
     | NetworkQueryFailed
     | CreatedInvalidTransaction
+    | CreatedMultidelegationTransaction
+    | CreatedMultiaccountTransaction
     | RejectedByCoreNode
     | BadRequest
     | NotFound

@@ -65,6 +65,7 @@ module Cardano.Wallet.Shelley.Compatibility
     , fromCardanoTxIn
     , fromCardanoTxOut
     , fromCardanoWdrls
+    , cardanoCertKeysForWitnesses
     , toCardanoTxOut
     , toCardanoLovelace
     , toStakeKeyRegCert
@@ -1276,6 +1277,23 @@ fromCardanoWdrls = \case
             ( fromStakeCredential creds
             , fromCardanoLovelace coin
             )
+
+cardanoCertKeysForWitnesses
+    :: Cardano.TxCertificates build era
+    -> [W.RewardAccount]
+cardanoCertKeysForWitnesses = \case
+    Cardano.TxCertificatesNone -> []
+    Cardano.TxCertificates _era certs _witsMap ->
+        mapMaybe f certs
+ where
+    toRewardAccount = Just . fromStakeCredential . Cardano.toShelleyStakeCredential
+    f = \case
+        Cardano.StakeAddressDeregistrationCertificate cred ->
+            toRewardAccount cred
+        Cardano.StakeAddressDelegationCertificate cred _ ->
+            toRewardAccount cred
+        _ ->
+            Nothing
 
 fromShelleyTxOut
     :: ( Era era
