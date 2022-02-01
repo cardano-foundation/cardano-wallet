@@ -2315,6 +2315,7 @@ spec = describe "NEW_SHELLEY_TRANSACTIONS" $ do
             (Link.createUnsignedTransaction @'Shelley src) Default delegationJoin
         verify rTx1
             [ expectResponseCode HTTP.status202
+            , expectField (#coinSelection . #deposits) (`shouldBe` [Quantity 1000000])
             ]
 
         let apiTx1 = getFromResponse #transaction rTx1
@@ -2403,6 +2404,7 @@ spec = describe "NEW_SHELLEY_TRANSACTIONS" $ do
             (Link.createUnsignedTransaction @'Shelley src) Default delegationRejoin
         verify rTx2
             [ expectResponseCode HTTP.status202
+            , expectField (#coinSelection . #deposits) (`shouldBe` [])
             ]
         let apiTx2 = getFromResponse #transaction rTx2
         signedTx2 <- signTx ctx src apiTx2 [ expectResponseCode HTTP.status202 ]
