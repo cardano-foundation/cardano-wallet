@@ -1218,8 +1218,6 @@ spec = describe "NEW_SHELLEY_TRANSACTIONS" $ do
 
     it "TRANS_NEW_CREATE_MULTI_TX - Tx including payments, delegation, metadata, withdrawals, validity_interval" $ \ctx -> runResourceT $ do
 
-        liftIO $ pendingWith "ADP-1189: Delegation certificates are not inserted"
-
         wa <- fixtureWallet ctx
         wb <- emptyWallet ctx
         addrs <- listAddresses @n ctx wb
@@ -1227,6 +1225,7 @@ spec = describe "NEW_SHELLEY_TRANSACTIONS" $ do
         let amt = minUTxOValue (_mainEra ctx) :: Natural
         let destination1 = (addrs !! 1) ^. #id
         let destination2 = (addrs !! 2) ^. #id
+        let deposit = fromIntegral oneAda
         pool':_ <- map (view #id) . snd <$> unsafeRequest
             @[ApiStakePool]
             ctx (Link.listStakePools arbitraryStake) Empty
@@ -1260,7 +1259,7 @@ spec = describe "NEW_SHELLEY_TRANSACTIONS" $ do
                       "unit": "second"
                     },
                     "invalid_hereafter": {
-                      "quantity": 500,
+                      "quantity": 1000,
                       "unit": "second"
                     }
                   }
@@ -1272,8 +1271,8 @@ spec = describe "NEW_SHELLEY_TRANSACTIONS" $ do
             [ expectSuccess
             , expectResponseCode HTTP.status202
             , expectField (#coinSelection . #inputs) (`shouldSatisfy` (not . null))
-            -- , expectField (#coinSelection . #outputs) (`shouldSatisfy` (not . null))
-            -- , expectField (#coinSelection . #deposit) (`shouldSatisfy` (not . null))
+            , expectField (#coinSelection . #outputs) (`shouldSatisfy` (not . null))
+            , expectField (#coinSelection . #deposits) (`shouldBe` [Quantity deposit])
             , expectField (#coinSelection . #change) (`shouldSatisfy` (not . null))
             , expectField (#fee . #getQuantity) (`shouldSatisfy` (>0))
             ]
@@ -1325,19 +1324,15 @@ spec = describe "NEW_SHELLEY_TRANSACTIONS" $ do
                 ]
 
         eventually "Source wallet balance is as expected" $ do
+            let balance = fromIntegral oneMillionAda - amt * 2 - expectedFee - deposit
             rWa <- request @ApiWallet ctx
                 (Link.getWallet @'Shelley wa) Default Empty
             verify rWa
                 [ expectSuccess
                 , expectField
                         (#balance . #available . #getQuantity)
-                        (`shouldBe` fromIntegral oneMillionAda - amt * 2 - expectedFee)
+                        (`shouldBe` balance)
                 ]
-
-  -- TODO:
-  -- minting
-  -- update with sign / submit tx where applicable
-  -- end to end join pool and get rewards
 
     it "TRANS_DECODE_01a - multiple-output transaction with all covering inputs" $ \ctx -> runResourceT $ do
 
@@ -2635,7 +2630,10 @@ spec = describe "NEW_SHELLEY_TRANSACTIONS" $ do
 
     -- | Just one million Ada, in Lovelace.
     oneMillionAda :: Integer
-    oneMillionAda = 1_000_000_000_000
+    oneMillionAda = 1_000_000 * oneAda
+
+    oneAda :: Integer
+    oneAda = 1_000_000
 
     -- Construct a JSON payment request for the given quantity of lovelace.
     mkTxPayload
