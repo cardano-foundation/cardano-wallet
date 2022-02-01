@@ -2158,7 +2158,7 @@ constructTransaction ctx genChange knownPools getPoolStatus (ApiT wid) body = do
 
     withWorkerCtx ctx wid liftE liftE $ \wrk -> do
         (deposit, txCtx) <- case body ^. #delegations of
-            Nothing -> pure $ (Nothing, defaultTransactionCtx
+            Nothing -> pure (Nothing, defaultTransactionCtx
                  { txWithdrawal = wdrl
                  , txMetadata = md
                  , txTimeToLive = ttl
@@ -2181,7 +2181,7 @@ constructTransaction ctx genChange knownPools getPoolStatus (ApiT wid) body = do
                     _ ->
                         liftHandler $ throwE ErrConstructTxMultidelegationNotSupported
 
-                pure $ (deposit, defaultTransactionCtx
+                pure (deposit, defaultTransactionCtx
                     { txWithdrawal = wdrl
                     , txMetadata = md
                     , txTimeToLive = ttl
