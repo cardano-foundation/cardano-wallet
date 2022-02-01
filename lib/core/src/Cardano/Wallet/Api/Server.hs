@@ -2157,36 +2157,36 @@ constructTransaction ctx genChange knownPools getPoolStatus (ApiT wid) body = do
     ttl <- liftIO $ W.getTxExpiry ti mTTL
 
     withWorkerCtx ctx wid liftE liftE $ \wrk -> do
-        txCtx <- case body ^. #delegations of
-            Nothing -> pure $ defaultTransactionCtx
+        (deposit, txCtx) <- case body ^. #delegations of
+            Nothing -> pure $ (Nothing, defaultTransactionCtx
                  { txWithdrawal = wdrl
                  , txMetadata = md
                  , txTimeToLive = ttl
-                 }
+                 })
             Just delegs -> do
                 -- TODO: Current limitation:
                 -- at this moment we are handling just one delegation action:
                 -- either joining pool, or rejoining or quiting
                 -- When we support multi-account this should be lifted
-                action <- case NE.toList delegs of
+                (action, deposit) <- case NE.toList delegs of
                     [(Joining (ApiT pid) _)] -> do
                         poolStatus <- liftIO (getPoolStatus pid)
                         pools <- liftIO knownPools
                         curEpoch <- getCurrentEpoch ctx
-                        (action, _) <- liftHandler
-                            $ W.joinStakePool @_ @s @k wrk curEpoch pools pid poolStatus wid
-                        pure action
-                    [(Leaving _)] ->
-                        liftHandler $ W.quitStakePool @_ @s @k wrk wid
+                        liftHandler $
+                            W.joinStakePool @_ @s @k wrk curEpoch pools pid poolStatus wid
+                    [(Leaving _)] -> do
+                        del <- liftHandler $ W.quitStakePool @_ @s @k wrk wid
+                        pure (del, Nothing)
                     _ ->
                         liftHandler $ throwE ErrConstructTxMultidelegationNotSupported
 
-                pure $ defaultTransactionCtx
+                pure $ (deposit, defaultTransactionCtx
                     { txWithdrawal = wdrl
                     , txMetadata = md
                     , txTimeToLive = ttl
                     , txDelegationAction = Just action
-                    }
+                    })
         let transform s sel =
                 ( W.assignChangeAddresses genChange sel s
                     & uncurry (W.selectionToUnsignedTx (txWithdrawal txCtx))
@@ -2228,7 +2228,7 @@ constructTransaction ctx genChange knownPools getPoolStatus (ApiT wid) body = do
 
         pure $ ApiConstructTransaction
             { transaction = ApiT tx
-            , coinSelection = mkApiCoinSelection [] Nothing md sel'
+            , coinSelection = mkApiCoinSelection (maybeToList deposit) Nothing md sel'
             , fee = Quantity $ fromIntegral fee
             }
   where
