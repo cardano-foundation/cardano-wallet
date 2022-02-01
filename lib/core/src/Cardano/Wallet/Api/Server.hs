@@ -2284,13 +2284,14 @@ decodeTransaction
 decodeTransaction ctx (ApiT wid) (ApiSerialisedTransaction (ApiT sealed)) = do
     let (Tx txid feeM colls inps outs wdrlMap meta vldt, toMint, toBurn, allCerts) =
             decodeTx tl sealed
-    (txinsOutsPaths, collsOutsPaths, outsPath, acct, acctPath)  <-
+    (txinsOutsPaths, collsOutsPaths, outsPath, acct, acctPath, pp) <-
         withWorkerCtx ctx wid liftE liftE $ \wrk -> do
           (acct, _, acctPath) <- liftHandler $ W.readRewardAccount @_ @s @k @n wrk wid
           txinsOutsPaths <- liftHandler $ W.lookupTxIns @_ @s @k wrk wid (fst <$> inps)
           collsOutsPaths <- liftHandler $ W.lookupTxIns @_ @s @k wrk wid (fst <$> colls)
           outsPath <- liftHandler $ W.lookupTxOuts @_ @s @k wrk wid outs
-          pure (txinsOutsPaths, collsOutsPaths, outsPath, acct, acctPath)
+          pp <- liftIO $ NW.currentProtocolParameters (wrk ^. networkLayer)
+          pure (txinsOutsPaths, collsOutsPaths, outsPath, acct, acctPath, pp)
     pure $ ApiDecodedTransaction
         { id = ApiT txid
         , fee = maybe (Quantity 0) (Quantity . fromIntegral . unCoin) feeM
@@ -2301,6 +2302,10 @@ decodeTransaction ctx (ApiT wid) (ApiSerialisedTransaction (ApiT sealed)) = do
         , assetsMinted = ApiT toMint
         , assetsBurned = ApiT toBurn
         , certificates = map (toApiAnyCert acct acctPath) allCerts
+        , deposits =
+                map (const (Quantity . fromIntegral . unCoin . W.stakeKeyDeposit $ pp)) $
+                filter ourRewardAccountRegistration $
+                map (toApiAnyCert acct acctPath) allCerts
         , metadata = ApiTxMetadata $ ApiT <$> meta
         , scriptValidity = ApiT <$> vldt
         }
@@ -2374,6 +2379,10 @@ decodeTransaction ctx (ApiT wid) (ApiSerialisedTransaction (ApiT sealed)) = do
         else
             DelegationCertificate $
             JoinPoolExternal (ApiT rewardKey, Proxy @n) (ApiT poolId')
+
+    ourRewardAccountRegistration = \case
+        WalletDelegationCertificate (RegisterRewardAccount _) -> True
+        _ -> False
 
 submitTransaction
     :: forall ctx s k (n :: NetworkDiscriminant).

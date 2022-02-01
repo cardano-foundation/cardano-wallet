@@ -2576,6 +2576,7 @@ components:
           minItems: 0
           items: *ApiCertificate
         metadata: *transactionMetadata
+        deposits: *deposits
         script_validity: *txScriptValidity
 
     x-txBody: &txBody
