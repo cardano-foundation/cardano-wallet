@@ -1167,6 +1167,7 @@ spec = parallel $ do
                     , assetsMinted = assetsMinted (x :: ApiDecodedTransaction ('Testnet 0))
                     , assetsBurned = assetsBurned (x :: ApiDecodedTransaction ('Testnet 0))
                     , certificates = certificates (x :: ApiDecodedTransaction ('Testnet 0))
+                    , deposits = deposits (x :: ApiDecodedTransaction ('Testnet 0))
                     , scriptValidity = scriptValidity (x :: ApiDecodedTransaction ('Testnet 0))
                     }
             in
@@ -2170,6 +2171,7 @@ instance Arbitrary (ApiAnyCertificate n) where
 instance Arbitrary (ApiDecodedTransaction n) where
     arbitrary = ApiDecodedTransaction
         <$> arbitrary
+        <*> arbitrary
         <*> arbitrary
         <*> arbitrary
         <*> arbitrary
