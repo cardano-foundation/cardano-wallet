@@ -22,8 +22,8 @@ RSpec.describe "Cardano Wallet E2E tests", :e2e => true do
     # @wid_sha = "d20b7f812fb571e7a3b14fb8a13c595d32cad5e6"
     # @wid_rnd = "12cbebfdc4521766e63a7e07c4825b24deb4176c"
     # @wid_ic = "f5da82c1eb3e391a535dd5ba2867fe9bdaf2f313"
-    # @wid = "2269611a3c10b219b0d38d74b004c298b76d16a9"
-    # @target_id = "84cbdf1ff57e5f18433c5e38a395a66e2953ae22"
+    # @wid = "a042bafdaf98844cfa8f6d4b1dc47519b21a4d95"
+    # @target_id = "daf9043925bfe12cd891c6c4495c108cdb120632"
     # 1f82e83772b7579fc0854bd13db6a9cce21ccd95
     # 2269611a3c10b219b0d38d74b004c298b76d16a9
     # a042bafdaf98844cfa8f6d4b1dc47519b21a4d95
@@ -484,46 +484,102 @@ RSpec.describe "Cardano Wallet E2E tests", :e2e => true do
       expect(new_balance['total']).to eq (balance['total'] - expected_fee)
     end
 
-    it "Delegation" do
-      pending "ADP-1189 - Deposit is empty, delegation not working"
-      balance = get_shelley_balances(@wid)
-      pool_id = SHELLEY.stake_pools.list({ stake: 1000 })[0]['id']
+    it "Delegation (join and quit)" do
+      balance = get_shelley_balances(@target_id)
+      # Check wallet stake keys before joing stake pool
+      stake_keys = SHELLEY.stake_pools.list_stake_keys(@target_id)
+      expect(stake_keys).to be_correct_and_respond 200
+      expect(stake_keys['foreign'].size).to eq 0
+      expect(stake_keys['ours'].size).to eq 1
+      expect(stake_keys['ours'].first['stake']['quantity']).to eq balance['total']
+      expect(stake_keys['none']['stake']['quantity']).to eq 0
+      # expect(stake_keys['ours'].first['delegation']['active']['status']).to eq "not_delegating"
+
+      # Pick up pool id to join
+      pools = SHELLEY.stake_pools
+      pool_id = pools.list({ stake: 1000 }).sample['id']
+
+      # Join pool
       delegation = [{
                       "join" => {
                                   "pool" => pool_id,
-                                  "stake_key_index" => "1852H"
+                                  "stake_key_index" => "0H"
                                 }
                     }]
-      tx_constructed = SHELLEY.transactions.construct(@wid,
-                                                      payments = nil,
-                                                      withdrawal = nil,
-                                                      metadata = nil,
-                                                      delegation)
-      expect(tx_constructed).to be_correct_and_respond 202
-      deposit = tx_constructed['coin_selection']['deposits']
-      expect(deposit).not_to eq []
+      tx_constructed, tx_signed, tx_submitted = construct_sign_submit(@target_id,
+                                                                      payments = nil,
+                                                                      withdrawal = nil,
+                                                                      metadata = nil,
+                                                                      delegation)
+      # Check fee and deposit on joining
+      decoded_tx = SHELLEY.transactions.decode(@target_id, tx_constructed["transaction"])
+      deposit = tx_constructed['coin_selection']['deposits'].first['quantity']
+      decoded_deposit = decoded_tx['deposits'].first['quantity']
+      expect(deposit).to eq decoded_deposit
+      expect(deposit).to eq 2000000
+
       expected_fee = tx_constructed['fee']['quantity']
-      decoded_fee = SHELLEY.transactions.decode(@wid, tx_constructed["transaction"])['fee']['quantity']
+      decoded_fee = decoded_tx['fee']['quantity']
       expect(expected_fee).to eq decoded_fee
 
-      tx_signed = SHELLEY.transactions.sign(@wid, PASS, tx_constructed['transaction'])
-      expect(tx_signed).to be_correct_and_respond 202
-
-      tx_submitted = SHELLEY.transactions.submit(@wid, tx_signed['transaction'])
-      expect(tx_submitted).to be_correct_and_respond 202
       tx_id = tx_submitted['id']
-      expect(SHELLEY.transactions.get(@wid, tx_id)['status']).to eq 'pending'
+      wait_for_tx_in_ledger(@target_id, tx_id)
 
-      wait_for_tx_in_ledger(@wid, tx_id)
-
-      new_balance = get_shelley_balances(@wid)
-      tx = SHELLEY.transactions.get(@wid, tx_id)
-      # verify actual fee the same as constructed
+      # Check fee and balance after joining
+      join_balance = get_shelley_balances(@target_id)
+      tx = SHELLEY.transactions.get(@target_id, tx_id)
       expect(expected_fee).to eq tx['fee']['quantity']
+      expected_join_balance = balance['total'] - deposit - expected_fee
+      expect(join_balance['total']).to eq expected_join_balance
 
-      # TODO: enable when unpending this tc
-      # expect(new_balance['available']).to eq (balance['available'] - deposit - expected_fee)
-      # expect(new_balance['total']).to eq (balance['total'] - deposit - expected_fee)
+      # Check wallet stake keys after joing stake pool
+      stake_keys = SHELLEY.stake_pools.list_stake_keys(@target_id)
+      expect(stake_keys).to be_correct_and_respond 200
+      expect(stake_keys['foreign'].size).to eq 0
+      expect(stake_keys['ours'].size).to eq 1
+      expect(stake_keys['ours'].first['stake']['quantity']).to eq expected_join_balance
+      expect(stake_keys['none']['stake']['quantity']).to eq 0
+      expect(stake_keys['ours'].first['delegation']['active']['status']).to eq "not_delegating"
+      expect(stake_keys['ours'].first['delegation']['next'].first['status']).to eq "delegating"
+
+      # Quit pool
+      quit_pool = [{ "quit" => { "stake_key_index" => "0H" } }]
+      tx_constructed, tx_signed, tx_submitted = construct_sign_submit(@target_id,
+                                                                      payments = nil,
+                                                                      withdrawal = nil,
+                                                                      metadata = nil,
+                                                                      quit_pool)
+
+      # Check fee and deposit on quitting
+      decoded_tx = SHELLEY.transactions.decode(@target_id, tx_constructed["transaction"])
+      expect(tx_constructed['coin_selection']['deposits']).to eq []
+      expect(decoded_tx['deposits']).to eq []
+      expected_fee = tx_constructed['fee']['quantity']
+      decoded_fee = decoded_tx['fee']['quantity']
+      expect(expected_fee).to eq decoded_fee
+
+      tx_id = tx_submitted['id']
+      wait_for_tx_in_ledger(@target_id, tx_id)
+
+      # Check fee and balance after quitting
+      quit_balance = get_shelley_balances(@target_id)
+      tx = SHELLEY.transactions.get(@target_id, tx_id)
+      # tx is changed to 'incoming' and fee = 0 because deposit was returned
+      expect(tx['fee']['quantity']).to eq 0
+      expect(tx['direction']).to eq 'incoming'
+      expected_quit_balance = join_balance['total'] + deposit - expected_fee
+      expect(quit_balance['total']).to eq expected_quit_balance
+
+      # Check wallet stake keys after quitting
+      stake_keys = SHELLEY.stake_pools.list_stake_keys(@target_id)
+      expect(stake_keys).to be_correct_and_respond 200
+      expect(stake_keys['foreign'].size).to eq 0
+      expect(stake_keys['ours'].size).to eq 1
+      # deposit is back on quitting so stake is higher than before
+      expect(stake_keys['ours'].first['stake']['quantity']).to eq expected_quit_balance
+      expect(stake_keys['none']['stake']['quantity']).to eq 0
+      expect(stake_keys['ours'].first['delegation']['active']['status']).to eq "not_delegating"
+      expect(stake_keys['ours'].first['delegation']['next'].first['status']).to eq "not_delegating"
     end
   end
 
@@ -688,7 +744,7 @@ RSpec.describe "Cardano Wallet E2E tests", :e2e => true do
 
       it "I can send transaction with ttl and funds are received" do
         amt = 1000000
-        ttl_in_s = 120
+        ttl_in_s = 1200
 
         address = SHELLEY.addresses.list(@target_id)[0]['id']
         target_before = get_shelley_balances(@target_id)
