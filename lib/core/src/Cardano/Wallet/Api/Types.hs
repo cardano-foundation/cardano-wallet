@@ -691,7 +691,8 @@ data ApiCoinSelection (n :: NetworkDiscriminant) = ApiCoinSelection
     , collateral :: ![ApiCoinSelectionCollateral n]
     , withdrawals :: ![ApiCoinSelectionWithdrawal n]
     , certificates :: Maybe (NonEmpty ApiCertificate)
-    , deposits :: ![Quantity "lovelace" Natural]
+    , depositsTaken :: ![Quantity "lovelace" Natural]
+    , depositsReturned :: ![Quantity "lovelace" Natural]
     , metadata :: !(Maybe ApiBase64)
     } deriving (Eq, Generic, Show, Typeable)
       deriving anyclass NFData

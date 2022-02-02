@@ -1599,7 +1599,7 @@ selectCoins ctx genChange (ApiT wid) body = do
                 }
                 transform
 
-        pure $ mkApiCoinSelection [] Nothing md utx
+        pure $ mkApiCoinSelection [] [] Nothing md utx
 
 selectCoinsForJoin
     :: forall ctx s n k.
@@ -1656,7 +1656,7 @@ selectCoinsForJoin ctx knownPools getPoolStatus pid wid = do
 
         let deposits = maybeToList deposit
 
-        pure $ mkApiCoinSelection deposits (Just (action, path)) Nothing utx
+        pure $ mkApiCoinSelection deposits [] (Just (action, path)) Nothing utx
 
 selectCoinsForQuit
     :: forall ctx s n k.
@@ -1685,6 +1685,7 @@ selectCoinsForQuit ctx (ApiT wid) = do
         (utxoAvailable, wallet, pendingTxs) <-
             liftHandler $ W.readWalletUTxOIndex @_ @s @k wrk wid
         pp <- liftIO $ NW.currentProtocolParameters (wrk ^. networkLayer)
+        let refund = W.stakeKeyDeposit pp
         utx <- liftHandler
             $ W.selectAssets @_ @_ @s @k wrk pp W.SelectAssetsParams
                 { outputs = []
@@ -1700,7 +1701,7 @@ selectCoinsForQuit ctx (ApiT wid) = do
                 transform
         (_, _, path) <- liftHandler $ W.readRewardAccount @_ @s @k @n wrk wid
 
-        pure $ mkApiCoinSelection [] (Just (action, path)) Nothing utx
+        pure $ mkApiCoinSelection [] [refund] (Just (action, path)) Nothing utx
 
 {-------------------------------------------------------------------------------
                                      Assets
@@ -2157,8 +2158,9 @@ constructTransaction ctx genChange knownPools getPoolStatus (ApiT wid) body = do
     ttl <- liftIO $ W.getTxExpiry ti mTTL
 
     withWorkerCtx ctx wid liftE liftE $ \wrk -> do
-        (deposit, txCtx) <- case body ^. #delegations of
-            Nothing -> pure (Nothing, defaultTransactionCtx
+        pp <- liftIO $ NW.currentProtocolParameters (wrk ^. networkLayer)
+        (deposit, refund, txCtx) <- case body ^. #delegations of
+            Nothing -> pure (Nothing, Nothing, defaultTransactionCtx
                  { txWithdrawal = wdrl
                  , txMetadata = md
                  , txTimeToLive = ttl
@@ -2168,20 +2170,21 @@ constructTransaction ctx genChange knownPools getPoolStatus (ApiT wid) body = do
                 -- at this moment we are handling just one delegation action:
                 -- either joining pool, or rejoining or quiting
                 -- When we support multi-account this should be lifted
-                (action, deposit) <- case NE.toList delegs of
+                (action, deposit, refund) <- case NE.toList delegs of
                     [(Joining (ApiT pid) _)] -> do
                         poolStatus <- liftIO (getPoolStatus pid)
                         pools <- liftIO knownPools
                         curEpoch <- getCurrentEpoch ctx
-                        liftHandler $
+                        (del, act) <- liftHandler $
                             W.joinStakePool @_ @s @k wrk curEpoch pools pid poolStatus wid
+                        pure (del, act, Nothing)
                     [(Leaving _)] -> do
                         del <- liftHandler $ W.quitStakePool @_ @s @k wrk wid
-                        pure (del, Nothing)
+                        pure (del, Nothing, Just $ W.stakeKeyDeposit pp)
                     _ ->
                         liftHandler $ throwE ErrConstructTxMultidelegationNotSupported
 
-                pure (deposit, defaultTransactionCtx
+                pure (deposit, refund, defaultTransactionCtx
                     { txWithdrawal = wdrl
                     , txMetadata = md
                     , txTimeToLive = ttl
@@ -2196,7 +2199,6 @@ constructTransaction ctx genChange knownPools getPoolStatus (ApiT wid) body = do
 
         (utxoAvailable, wallet, pendingTxs) <-
             liftHandler $ W.readWalletUTxOIndex @_ @s @k wrk wid
-        pp <- liftIO $ NW.currentProtocolParameters (wrk ^. networkLayer)
         let runSelection outs = W.selectAssets @_ @_ @s @k wrk pp W.SelectAssetsParams
                 { outputs = outs
                 , pendingTxs
@@ -2228,7 +2230,8 @@ constructTransaction ctx genChange knownPools getPoolStatus (ApiT wid) body = do
 
         pure $ ApiConstructTransaction
             { transaction = ApiT tx
-            , coinSelection = mkApiCoinSelection (maybeToList deposit) Nothing md sel'
+            , coinSelection =
+                    mkApiCoinSelection (maybeToList deposit) (maybeToList refund) Nothing md sel'
             , fee = Quantity $ fromIntegral fee
             }
   where
@@ -2865,7 +2868,7 @@ mkApiWalletMigrationPlan s addresses rewardWithdrawal plan =
             & view #selections
             & F.foldMap (view #rewardWithdrawal)
 
-    mkApiCoinSelectionForMigration = mkApiCoinSelection [] Nothing Nothing
+    mkApiCoinSelectionForMigration = mkApiCoinSelection [] [] Nothing Nothing
 
     mkApiWalletMigrationBalance :: TokenBundle -> ApiWalletMigrationBalance
     mkApiWalletMigrationBalance b = ApiWalletMigrationBalance
@@ -3217,11 +3220,12 @@ mkApiCoinSelection
         , withdrawal ~ (RewardAccount, Coin, NonEmpty DerivationIndex)
         )
     => [Coin]
+    -> [Coin]
     -> Maybe (DelegationAction, NonEmpty DerivationIndex)
     -> Maybe W.TxMetadata
     -> UnsignedTx input output change withdrawal
     -> ApiCoinSelection n
-mkApiCoinSelection deps mcerts metadata unsignedTx =
+mkApiCoinSelection deps refunds mcerts metadata unsignedTx =
     ApiCoinSelection
         { inputs = mkApiCoinSelectionInput
             <$> unsignedTx ^. #unsignedInputs
@@ -3235,8 +3239,10 @@ mkApiCoinSelection deps mcerts metadata unsignedTx =
             <$> unsignedTx ^. #unsignedWithdrawals
         , certificates = uncurry mkCertificates
             <$> mcerts
-        , deposits = mkApiCoin
+        , depositsTaken = mkApiCoin
             <$> deps
+        , depositsReturned = mkApiCoin
+            <$> refunds
         , metadata = ApiBytesT. serialiseToCBOR
             <$> metadata
         }

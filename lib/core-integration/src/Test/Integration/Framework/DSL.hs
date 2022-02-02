@@ -771,7 +771,7 @@ computeApiCoinSelectionFee selection
         & getSum
     balanceOfDeposits
         = selection
-        & view #deposits
+        & view #depositsTaken
         & F.foldMap (Sum . quantityToInteger)
         & getSum
     quantityToInteger :: Quantity "lovelace" Natural -> Integer

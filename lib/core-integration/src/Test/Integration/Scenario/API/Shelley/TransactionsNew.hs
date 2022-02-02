@@ -1272,7 +1272,8 @@ spec = describe "NEW_SHELLEY_TRANSACTIONS" $ do
             , expectResponseCode HTTP.status202
             , expectField (#coinSelection . #inputs) (`shouldSatisfy` (not . null))
             , expectField (#coinSelection . #outputs) (`shouldSatisfy` (not . null))
-            , expectField (#coinSelection . #deposits) (`shouldBe` [Quantity deposit])
+            , expectField (#coinSelection . #depositsTaken) (`shouldBe` [Quantity deposit])
+            , expectField (#coinSelection . #depositsReturned) (`shouldBe` [])
             , expectField (#coinSelection . #change) (`shouldSatisfy` (not . null))
             , expectField (#fee . #getQuantity) (`shouldSatisfy` (>0))
             ]
@@ -2310,7 +2311,8 @@ spec = describe "NEW_SHELLEY_TRANSACTIONS" $ do
             (Link.createUnsignedTransaction @'Shelley src) Default delegationJoin
         verify rTx1
             [ expectResponseCode HTTP.status202
-            , expectField (#coinSelection . #deposits) (`shouldBe` [Quantity 1000000])
+            , expectField (#coinSelection . #depositsTaken) (`shouldBe` [Quantity 1000000])
+            , expectField (#coinSelection . #depositsReturned) (`shouldBe` [])
             ]
 
         let apiTx1 = getFromResponse #transaction rTx1
@@ -2401,7 +2403,8 @@ spec = describe "NEW_SHELLEY_TRANSACTIONS" $ do
             (Link.createUnsignedTransaction @'Shelley src) Default delegationRejoin
         verify rTx2
             [ expectResponseCode HTTP.status202
-            , expectField (#coinSelection . #deposits) (`shouldBe` [])
+            , expectField (#coinSelection . #depositsTaken) (`shouldBe` [])
+            , expectField (#coinSelection . #depositsReturned) (`shouldBe` [])
             ]
         let apiTx2 = getFromResponse #transaction rTx2
         signedTx2 <- signTx ctx src apiTx2 [ expectResponseCode HTTP.status202 ]
@@ -2500,6 +2503,8 @@ spec = describe "NEW_SHELLEY_TRANSACTIONS" $ do
             (Link.createUnsignedTransaction @'Shelley src) Default delegationQuit
         verify rTx4
             [ expectResponseCode HTTP.status202
+            , expectField (#coinSelection . #depositsTaken) (`shouldBe` [])
+            , expectField (#coinSelection . #depositsReturned) (`shouldBe` [Quantity 1000000])
             ]
         let apiTx4 = getFromResponse #transaction rTx4
         signedTx4 <- signTx ctx src apiTx4 [ expectResponseCode HTTP.status202 ]
