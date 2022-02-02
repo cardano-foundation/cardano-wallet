@@ -11,7 +11,7 @@
     flags = { release = false; };
     package = {
       specVersion = "1.10";
-      identifier = { name = "dbvar"; version = "2021.8.23"; };
+      identifier = { name = "dbvar"; version = "2021.11.11"; };
       license = "Apache-2.0";
       copyright = "2021 IOHK";
       maintainer = "operations@iohk.io";

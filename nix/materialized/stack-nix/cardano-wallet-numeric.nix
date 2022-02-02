@@ -10,8 +10,8 @@
   {
     flags = { release = false; };
     package = {
-      specVersion = "1.10";
-      identifier = { name = "cardano-numeric"; version = "2020.12.8"; };
+      specVersion = "3.0";
+      identifier = { name = "cardano-wallet-numeric"; version = "2021.12.15"; };
       license = "Apache-2.0";
       copyright = "2018-2020 IOHK";
       maintainer = "operations@iohk.io";
@@ -38,14 +38,14 @@
           (hsPkgs."safe" or (errorHandler.buildDepError "safe"))
           ];
         buildable = true;
-        modules = [ "Cardano/Numeric/Util" ];
+        modules = [ "Cardano/Wallet/Numeric" ];
         hsSourceDirs = [ "src" ];
         };
       tests = {
         "unit" = {
           depends = [
             (hsPkgs."base" or (errorHandler.buildDepError "base"))
-            (hsPkgs."cardano-numeric" or (errorHandler.buildDepError "cardano-numeric"))
+            (hsPkgs."cardano-wallet-numeric" or (errorHandler.buildDepError "cardano-wallet-numeric"))
             (hsPkgs."hspec" or (errorHandler.buildDepError "hspec"))
             (hsPkgs."QuickCheck" or (errorHandler.buildDepError "QuickCheck"))
             ];
@@ -53,8 +53,8 @@
             (hsPkgs.buildPackages.hspec-discover.components.exes.hspec-discover or (pkgs.buildPackages.hspec-discover or (errorHandler.buildToolDepError "hspec-discover:hspec-discover")))
             ];
           buildable = true;
-          modules = [ "Cardano/Numeric/UtilSpec" ];
-          hsSourceDirs = [ "test/unit" ];
+          modules = [ "Cardano/Wallet/NumericSpec" ];
+          hsSourceDirs = [ "test" ];
           mainPath = [ "numeric-unit-test.hs" ];
           };
         };

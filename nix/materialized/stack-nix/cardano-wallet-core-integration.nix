@@ -10,7 +10,7 @@
   {
     flags = { release = false; };
     package = {
-      specVersion = "1.10";
+      specVersion = "3.0";
       identifier = {
         name = "cardano-wallet-core-integration";
         version = "2022.1.18";
@@ -29,17 +29,18 @@
       licenseFiles = [];
       dataDir = ".";
       dataFiles = [];
-      extraSrcFiles = [];
+      extraSrcFiles = [ "extra/Plutus/*.hs" "extra/Plutus/README.md" ];
       extraTmpFiles = [];
       extraDocFiles = [];
       };
     components = {
       "library" = {
         depends = [
+          (hsPkgs."base" or (errorHandler.buildDepError "base"))
+          (hsPkgs."cardano-wallet-base" or (errorHandler.buildDepError "cardano-wallet-base"))
           (hsPkgs."HUnit" or (errorHandler.buildDepError "HUnit"))
           (hsPkgs."aeson" or (errorHandler.buildDepError "aeson"))
           (hsPkgs."aeson-qq" or (errorHandler.buildDepError "aeson-qq"))
-          (hsPkgs."base" or (errorHandler.buildDepError "base"))
           (hsPkgs."base16-bytestring" or (errorHandler.buildDepError "base16-bytestring"))
           (hsPkgs."base58-bytestring" or (errorHandler.buildDepError "base58-bytestring"))
           (hsPkgs."bech32" or (errorHandler.buildDepError "bech32"))
@@ -47,7 +48,6 @@
           (hsPkgs."bytestring" or (errorHandler.buildDepError "bytestring"))
           (hsPkgs."cardano-api" or (errorHandler.buildDepError "cardano-api"))
           (hsPkgs."cardano-addresses" or (errorHandler.buildDepError "cardano-addresses"))
-          (hsPkgs."cardano-api" or (errorHandler.buildDepError "cardano-api"))
           (hsPkgs."cardano-crypto" or (errorHandler.buildDepError "cardano-crypto"))
           (hsPkgs."cardano-crypto-class" or (errorHandler.buildDepError "cardano-crypto-class"))
           (hsPkgs."cardano-ledger-alonzo" or (errorHandler.buildDepError "cardano-ledger-alonzo"))
@@ -90,7 +90,7 @@
           (hsPkgs."string-interpolate" or (errorHandler.buildDepError "string-interpolate"))
           (hsPkgs."template-haskell" or (errorHandler.buildDepError "template-haskell"))
           (hsPkgs."text" or (errorHandler.buildDepError "text"))
-          (hsPkgs."text-class" or (errorHandler.buildDepError "text-class"))
+          (hsPkgs."cardano-wallet-text-class" or (errorHandler.buildDepError "cardano-wallet-text-class"))
           (hsPkgs."time" or (errorHandler.buildDepError "time"))
           (hsPkgs."unliftio" or (errorHandler.buildDepError "unliftio"))
           (hsPkgs."unliftio-core" or (errorHandler.buildDepError "unliftio-core"))

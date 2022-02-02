@@ -49,13 +49,14 @@
         "Unique" = (((hackage.Unique)."0.4.7.6").revisions).default;
         "binary" = (((hackage.binary)."0.8.8.0").revisions).default;
         "parsec" = (((hackage.parsec)."3.1.14.0").revisions).default;
+        cardano-wallet-base = ./cardano-wallet-base.nix;
         dbvar = ./dbvar.nix;
         cardano-wallet-core = ./cardano-wallet-core.nix;
         cardano-wallet-core-integration = ./cardano-wallet-core-integration.nix;
         cardano-wallet-cli = ./cardano-wallet-cli.nix;
         cardano-wallet-launcher = ./cardano-wallet-launcher.nix;
-        cardano-numeric = ./cardano-numeric.nix;
-        text-class = ./text-class.nix;
+        cardano-wallet-numeric = ./cardano-wallet-numeric.nix;
+        cardano-wallet-text-class = ./cardano-wallet-text-class.nix;
         cardano-wallet-test-utils = ./cardano-wallet-test-utils.nix;
         cardano-wallet = ./cardano-wallet.nix;
         strict-non-empty-containers = ./strict-non-empty-containers.nix;

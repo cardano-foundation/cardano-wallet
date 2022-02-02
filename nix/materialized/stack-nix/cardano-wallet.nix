@@ -10,10 +10,10 @@
   {
     flags = { release = false; };
     package = {
-      specVersion = "1.10";
+      specVersion = "3.0";
       identifier = { name = "cardano-wallet"; version = "2022.1.18"; };
       license = "Apache-2.0";
-      copyright = "2020 IOHK";
+      copyright = "2018-2021 IOHK";
       maintainer = "operations@iohk.io";
       author = "IOHK Engineering Team";
       homepage = "https://github.com/input-output-hk/cardano-wallet";
@@ -34,6 +34,7 @@
       "library" = {
         depends = [
           (hsPkgs."base" or (errorHandler.buildDepError "base"))
+          (hsPkgs."cardano-wallet-base" or (errorHandler.buildDepError "cardano-wallet-base"))
           (hsPkgs."aeson" or (errorHandler.buildDepError "aeson"))
           (hsPkgs."array" or (errorHandler.buildDepError "array"))
           (hsPkgs."base58-bytestring" or (errorHandler.buildDepError "base58-bytestring"))
@@ -56,11 +57,9 @@
           (hsPkgs."cardano-slotting" or (errorHandler.buildDepError "cardano-slotting"))
           (hsPkgs."cardano-wallet-cli" or (errorHandler.buildDepError "cardano-wallet-cli"))
           (hsPkgs."cardano-wallet-core" or (errorHandler.buildDepError "cardano-wallet-core"))
-          (hsPkgs."cardano-wallet-launcher" or (errorHandler.buildDepError "cardano-wallet-launcher"))
           (hsPkgs."cardano-wallet-test-utils" or (errorHandler.buildDepError "cardano-wallet-test-utils"))
           (hsPkgs."cborg" or (errorHandler.buildDepError "cborg"))
           (hsPkgs."containers" or (errorHandler.buildDepError "containers"))
-          (hsPkgs."contra-tracer" or (errorHandler.buildDepError "contra-tracer"))
           (hsPkgs."directory" or (errorHandler.buildDepError "directory"))
           (hsPkgs."extra" or (errorHandler.buildDepError "extra"))
           (hsPkgs."filepath" or (errorHandler.buildDepError "filepath"))
@@ -88,7 +87,7 @@
           (hsPkgs."strict-non-empty-containers" or (errorHandler.buildDepError "strict-non-empty-containers"))
           (hsPkgs."temporary" or (errorHandler.buildDepError "temporary"))
           (hsPkgs."text" or (errorHandler.buildDepError "text"))
-          (hsPkgs."text-class" or (errorHandler.buildDepError "text-class"))
+          (hsPkgs."cardano-wallet-text-class" or (errorHandler.buildDepError "cardano-wallet-text-class"))
           (hsPkgs."time" or (errorHandler.buildDepError "time"))
           (hsPkgs."transformers" or (errorHandler.buildDepError "transformers"))
           (hsPkgs."typed-process" or (errorHandler.buildDepError "typed-process"))
@@ -115,21 +114,34 @@
           ];
         hsSourceDirs = [ "src" ];
         };
+      sublibs = {
+        "faucet" = {
+          depends = [
+            (hsPkgs."base" or (errorHandler.buildDepError "base"))
+            (hsPkgs."cardano-wallet-core" or (errorHandler.buildDepError "cardano-wallet-core"))
+            (hsPkgs."cardano-wallet-core-integration" or (errorHandler.buildDepError "cardano-wallet-core-integration"))
+            (hsPkgs."unliftio" or (errorHandler.buildDepError "unliftio"))
+            ];
+          buildable = true;
+          modules = [ "Cardano/Wallet/Shelley/Faucet" ];
+          hsSourceDirs = [ "test/faucet" ];
+          };
+        };
       exes = {
         "cardano-wallet" = {
           depends = [
             (hsPkgs."base" or (errorHandler.buildDepError "base"))
+            (hsPkgs."cardano-wallet-base" or (errorHandler.buildDepError "cardano-wallet-base"))
             (hsPkgs."cardano-wallet-cli" or (errorHandler.buildDepError "cardano-wallet-cli"))
             (hsPkgs."cardano-wallet-core" or (errorHandler.buildDepError "cardano-wallet-core"))
             (hsPkgs."cardano-wallet-launcher" or (errorHandler.buildDepError "cardano-wallet-launcher"))
             (hsPkgs."cardano-wallet" or (errorHandler.buildDepError "cardano-wallet"))
-            (hsPkgs."contra-tracer" or (errorHandler.buildDepError "contra-tracer"))
             (hsPkgs."iohk-monitoring" or (errorHandler.buildDepError "iohk-monitoring"))
             (hsPkgs."lobemo-backend-ekg" or (errorHandler.buildDepError "lobemo-backend-ekg"))
             (hsPkgs."network-uri" or (errorHandler.buildDepError "network-uri"))
             (hsPkgs."optparse-applicative" or (errorHandler.buildDepError "optparse-applicative"))
             (hsPkgs."text" or (errorHandler.buildDepError "text"))
-            (hsPkgs."text-class" or (errorHandler.buildDepError "text-class"))
+            (hsPkgs."cardano-wallet-text-class" or (errorHandler.buildDepError "cardano-wallet-text-class"))
             (hsPkgs."transformers" or (errorHandler.buildDepError "transformers"))
             (hsPkgs."unliftio" or (errorHandler.buildDepError "unliftio"))
             ];
@@ -142,18 +154,17 @@
         "local-cluster" = {
           depends = [
             (hsPkgs."base" or (errorHandler.buildDepError "base"))
+            (hsPkgs."cardano-wallet-base" or (errorHandler.buildDepError "cardano-wallet-base"))
             (hsPkgs."cardano-wallet-cli" or (errorHandler.buildDepError "cardano-wallet-cli"))
             (hsPkgs."cardano-wallet-core" or (errorHandler.buildDepError "cardano-wallet-core"))
             (hsPkgs."cardano-wallet-core-integration" or (errorHandler.buildDepError "cardano-wallet-core-integration"))
-            (hsPkgs."cardano-wallet-launcher" or (errorHandler.buildDepError "cardano-wallet-launcher"))
             (hsPkgs."cardano-wallet" or (errorHandler.buildDepError "cardano-wallet"))
-            (hsPkgs."contra-tracer" or (errorHandler.buildDepError "contra-tracer"))
             (hsPkgs."iohk-monitoring" or (errorHandler.buildDepError "iohk-monitoring"))
             (hsPkgs."directory" or (errorHandler.buildDepError "directory"))
             (hsPkgs."filepath" or (errorHandler.buildDepError "filepath"))
             (hsPkgs."lobemo-backend-ekg" or (errorHandler.buildDepError "lobemo-backend-ekg"))
             (hsPkgs."text" or (errorHandler.buildDepError "text"))
-            (hsPkgs."text-class" or (errorHandler.buildDepError "text-class"))
+            (hsPkgs."cardano-wallet-text-class" or (errorHandler.buildDepError "cardano-wallet-text-class"))
             ];
           buildable = true;
           hsSourceDirs = [ "exe" ];
@@ -180,7 +191,8 @@
         "unit" = {
           depends = [
             (hsPkgs."base" or (errorHandler.buildDepError "base"))
-            (hsPkgs."aeson" or (errorHandler.buildDepError "aeson"))
+            (hsPkgs."cardano-wallet-base" or (errorHandler.buildDepError "cardano-wallet-base"))
+            (hsPkgs."cardano-wallet-core".components.sublibs.test-bench-shared or (errorHandler.buildDepError "cardano-wallet-core:test-bench-shared"))
             (hsPkgs."base58-bytestring" or (errorHandler.buildDepError "base58-bytestring"))
             (hsPkgs."bech32" or (errorHandler.buildDepError "bech32"))
             (hsPkgs."bech32-th" or (errorHandler.buildDepError "bech32-th"))
@@ -189,20 +201,14 @@
             (hsPkgs."cardano-api" or (errorHandler.buildDepError "cardano-api"))
             (hsPkgs."cardano-crypto" or (errorHandler.buildDepError "cardano-crypto"))
             (hsPkgs."cardano-crypto-class" or (errorHandler.buildDepError "cardano-crypto-class"))
-            (hsPkgs."cardano-crypto-wrapper" or (errorHandler.buildDepError "cardano-crypto-wrapper"))
             (hsPkgs."cardano-ledger-alonzo" or (errorHandler.buildDepError "cardano-ledger-alonzo"))
-            (hsPkgs."cardano-ledger-byron" or (errorHandler.buildDepError "cardano-ledger-byron"))
             (hsPkgs."cardano-ledger-core" or (errorHandler.buildDepError "cardano-ledger-core"))
             (hsPkgs."cardano-wallet" or (errorHandler.buildDepError "cardano-wallet"))
             (hsPkgs."cardano-wallet-core" or (errorHandler.buildDepError "cardano-wallet-core"))
             (hsPkgs."cardano-wallet-launcher" or (errorHandler.buildDepError "cardano-wallet-launcher"))
             (hsPkgs."cardano-wallet-test-utils" or (errorHandler.buildDepError "cardano-wallet-test-utils"))
-            (hsPkgs."cardano-ledger-shelley-ma" or (errorHandler.buildDepError "cardano-ledger-shelley-ma"))
-            (hsPkgs."cardano-ledger-alonzo" or (errorHandler.buildDepError "cardano-ledger-alonzo"))
-            (hsPkgs."pretty-simple" or (errorHandler.buildDepError "pretty-simple"))
             (hsPkgs."strict-containers" or (errorHandler.buildDepError "strict-containers"))
             (hsPkgs."containers" or (errorHandler.buildDepError "containers"))
-            (hsPkgs."contra-tracer" or (errorHandler.buildDepError "contra-tracer"))
             (hsPkgs."directory" or (errorHandler.buildDepError "directory"))
             (hsPkgs."filepath" or (errorHandler.buildDepError "filepath"))
             (hsPkgs."fmt" or (errorHandler.buildDepError "fmt"))
@@ -212,15 +218,13 @@
             (hsPkgs."iohk-monitoring" or (errorHandler.buildDepError "iohk-monitoring"))
             (hsPkgs."time" or (errorHandler.buildDepError "time"))
             (hsPkgs."hspec" or (errorHandler.buildDepError "hspec"))
-            (hsPkgs."hspec-core" or (errorHandler.buildDepError "hspec-core"))
             (hsPkgs."memory" or (errorHandler.buildDepError "memory"))
             (hsPkgs."MonadRandom" or (errorHandler.buildDepError "MonadRandom"))
             (hsPkgs."optparse-applicative" or (errorHandler.buildDepError "optparse-applicative"))
-            (hsPkgs."ouroboros-consensus-shelley" or (errorHandler.buildDepError "ouroboros-consensus-shelley"))
             (hsPkgs."ouroboros-network" or (errorHandler.buildDepError "ouroboros-network"))
             (hsPkgs."cardano-ledger-shelley" or (errorHandler.buildDepError "cardano-ledger-shelley"))
             (hsPkgs."text" or (errorHandler.buildDepError "text"))
-            (hsPkgs."text-class" or (errorHandler.buildDepError "text-class"))
+            (hsPkgs."cardano-wallet-text-class" or (errorHandler.buildDepError "cardano-wallet-text-class"))
             (hsPkgs."transformers" or (errorHandler.buildDepError "transformers"))
             (hsPkgs."unliftio" or (errorHandler.buildDepError "unliftio"))
             (hsPkgs."QuickCheck" or (errorHandler.buildDepError "QuickCheck"))
@@ -243,31 +247,30 @@
         "integration" = {
           depends = [
             (hsPkgs."base" or (errorHandler.buildDepError "base"))
+            (hsPkgs."cardano-wallet-base" or (errorHandler.buildDepError "cardano-wallet-base"))
             (hsPkgs."cardano-wallet-cli" or (errorHandler.buildDepError "cardano-wallet-cli"))
             (hsPkgs."cardano-wallet-core" or (errorHandler.buildDepError "cardano-wallet-core"))
             (hsPkgs."cardano-wallet-core-integration" or (errorHandler.buildDepError "cardano-wallet-core-integration"))
             (hsPkgs."cardano-wallet-launcher" or (errorHandler.buildDepError "cardano-wallet-launcher"))
             (hsPkgs."cardano-wallet" or (errorHandler.buildDepError "cardano-wallet"))
+            (hsPkgs."cardano-wallet".components.sublibs.faucet or (errorHandler.buildDepError "cardano-wallet:faucet"))
             (hsPkgs."cardano-wallet-test-utils" or (errorHandler.buildDepError "cardano-wallet-test-utils"))
-            (hsPkgs."contra-tracer" or (errorHandler.buildDepError "contra-tracer"))
             (hsPkgs."directory" or (errorHandler.buildDepError "directory"))
             (hsPkgs."either" or (errorHandler.buildDepError "either"))
             (hsPkgs."filepath" or (errorHandler.buildDepError "filepath"))
-            (hsPkgs."hspec" or (errorHandler.buildDepError "hspec"))
             (hsPkgs."hspec-core" or (errorHandler.buildDepError "hspec-core"))
             (hsPkgs."http-client" or (errorHandler.buildDepError "http-client"))
             (hsPkgs."iohk-monitoring" or (errorHandler.buildDepError "iohk-monitoring"))
             (hsPkgs."lobemo-backend-ekg" or (errorHandler.buildDepError "lobemo-backend-ekg"))
             (hsPkgs."network-uri" or (errorHandler.buildDepError "network-uri"))
             (hsPkgs."text" or (errorHandler.buildDepError "text"))
-            (hsPkgs."text-class" or (errorHandler.buildDepError "text-class"))
+            (hsPkgs."cardano-wallet-text-class" or (errorHandler.buildDepError "cardano-wallet-text-class"))
             (hsPkgs."unliftio" or (errorHandler.buildDepError "unliftio"))
             ];
           build-tools = [
             (hsPkgs.buildPackages.cardano-wallet.components.exes.cardano-wallet or (pkgs.buildPackages.cardano-wallet or (errorHandler.buildToolDepError "cardano-wallet:cardano-wallet")))
             ];
           buildable = true;
-          modules = [ "Cardano/Wallet/Shelley/Faucet" ];
           hsSourceDirs = [ "test/integration" "test/data" ];
           mainPath = [ "shelley-integration-test.hs" ];
           };
@@ -282,7 +285,6 @@
             (hsPkgs."cardano-wallet-core" or (errorHandler.buildDepError "cardano-wallet-core"))
             (hsPkgs."cardano-wallet-core-integration" or (errorHandler.buildDepError "cardano-wallet-core-integration"))
             (hsPkgs."cardano-wallet" or (errorHandler.buildDepError "cardano-wallet"))
-            (hsPkgs."contra-tracer" or (errorHandler.buildDepError "contra-tracer"))
             (hsPkgs."deepseq" or (errorHandler.buildDepError "deepseq"))
             (hsPkgs."filepath" or (errorHandler.buildDepError "filepath"))
             (hsPkgs."fmt" or (errorHandler.buildDepError "fmt"))
@@ -290,7 +292,7 @@
             (hsPkgs."iohk-monitoring" or (errorHandler.buildDepError "iohk-monitoring"))
             (hsPkgs."say" or (errorHandler.buildDepError "say"))
             (hsPkgs."text" or (errorHandler.buildDepError "text"))
-            (hsPkgs."text-class" or (errorHandler.buildDepError "text-class"))
+            (hsPkgs."cardano-wallet-text-class" or (errorHandler.buildDepError "cardano-wallet-text-class"))
             (hsPkgs."time" or (errorHandler.buildDepError "time"))
             (hsPkgs."transformers" or (errorHandler.buildDepError "transformers"))
             (hsPkgs."unliftio" or (errorHandler.buildDepError "unliftio"))
@@ -302,24 +304,24 @@
           depends = [
             (hsPkgs."base" or (errorHandler.buildDepError "base"))
             (hsPkgs."aeson" or (errorHandler.buildDepError "aeson"))
+            (hsPkgs."cardano-wallet-base" or (errorHandler.buildDepError "cardano-wallet-base"))
             (hsPkgs."cardano-wallet-cli" or (errorHandler.buildDepError "cardano-wallet-cli"))
             (hsPkgs."cardano-wallet-core" or (errorHandler.buildDepError "cardano-wallet-core"))
             (hsPkgs."cardano-wallet-core-integration" or (errorHandler.buildDepError "cardano-wallet-core-integration"))
             (hsPkgs."cardano-wallet" or (errorHandler.buildDepError "cardano-wallet"))
-            (hsPkgs."cardano-wallet-launcher" or (errorHandler.buildDepError "cardano-wallet-launcher"))
+            (hsPkgs."cardano-wallet".components.sublibs.faucet or (errorHandler.buildDepError "cardano-wallet:faucet"))
             (hsPkgs."directory" or (errorHandler.buildDepError "directory"))
             (hsPkgs."filepath" or (errorHandler.buildDepError "filepath"))
             (hsPkgs."generic-lens" or (errorHandler.buildDepError "generic-lens"))
+            (hsPkgs."hspec" or (errorHandler.buildDepError "hspec"))
             (hsPkgs."http-client" or (errorHandler.buildDepError "http-client"))
             (hsPkgs."http-types" or (errorHandler.buildDepError "http-types"))
-            (hsPkgs."hspec" or (errorHandler.buildDepError "hspec"))
             (hsPkgs."iohk-monitoring" or (errorHandler.buildDepError "iohk-monitoring"))
             (hsPkgs."text" or (errorHandler.buildDepError "text"))
             (hsPkgs."unliftio" or (errorHandler.buildDepError "unliftio"))
             ];
           buildable = true;
-          modules = [ "Cardano/Wallet/Shelley/Faucet" ];
-          hsSourceDirs = [ "bench" "test/integration" ];
+          hsSourceDirs = [ "bench" ];
           };
         };
       };

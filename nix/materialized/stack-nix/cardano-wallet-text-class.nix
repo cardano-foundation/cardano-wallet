@@ -11,7 +11,10 @@
     flags = { release = false; };
     package = {
       specVersion = "1.10";
-      identifier = { name = "text-class"; version = "2022.1.18"; };
+      identifier = {
+        name = "cardano-wallet-text-class";
+        version = "2022.1.18";
+        };
       license = "Apache-2.0";
       copyright = "2018-2020 IOHK";
       maintainer = "operations@iohk.io";
@@ -54,7 +57,7 @@
             (hsPkgs."hspec" or (errorHandler.buildDepError "hspec"))
             (hsPkgs."QuickCheck" or (errorHandler.buildDepError "QuickCheck"))
             (hsPkgs."text" or (errorHandler.buildDepError "text"))
-            (hsPkgs."text-class" or (errorHandler.buildDepError "text-class"))
+            (hsPkgs."cardano-wallet-text-class" or (errorHandler.buildDepError "cardano-wallet-text-class"))
             (hsPkgs."time" or (errorHandler.buildDepError "time"))
             ];
           build-tools = [
@@ -62,7 +65,7 @@
             ];
           buildable = true;
           modules = [ "Data/Text/ClassSpec" ];
-          hsSourceDirs = [ "test/unit" ];
+          hsSourceDirs = [ "test" ];
           mainPath = [ "text-class-unit-test.hs" ];
           };
         };

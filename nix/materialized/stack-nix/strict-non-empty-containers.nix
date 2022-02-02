@@ -13,7 +13,7 @@
       specVersion = "1.10";
       identifier = {
         name = "strict-non-empty-containers";
-        version = "2020.12.8";
+        version = "2021.11.11";
         };
       license = "Apache-2.0";
       copyright = "2018-2020 IOHK";
@@ -70,7 +70,7 @@
             "Data/Map/Strict/NonEmptyMapSpec"
             "Data/Map/Strict/NonEmptyMap/TypeErrorSpec"
             ];
-          hsSourceDirs = [ "test/unit" ];
+          hsSourceDirs = [ "test" ];
           mainPath = [ "Main.hs" ];
           };
         };
