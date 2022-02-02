@@ -38,6 +38,8 @@ import Prelude
 
 import Cardano.Address.Derivation
     ( XPrv )
+import Cardano.Wallet.DB.WalletState
+    ( DeltaMap, DeltaWalletState )
 import Cardano.Wallet.Primitive.AddressDerivation
     ( Depth (..) )
 import Cardano.Wallet.Primitive.Model
@@ -69,6 +71,8 @@ import Control.Monad.IO.Class
     ( MonadIO )
 import Control.Monad.Trans.Except
     ( ExceptT, runExceptT )
+import Data.DBVar
+    ( DBVar )
 import Data.Quantity
     ( Quantity (..) )
 import Data.Word
@@ -145,6 +149,15 @@ data DBLayer m s k = forall stm. (MonadIO stm, MonadFail stm) => DBLayer
     , listWallets
         :: stm [WalletId]
         -- ^ Get the list of all known wallets in the DB, possibly empty.
+
+    , walletsDB
+        :: DBVar stm (DeltaMap WalletId (DeltaWalletState s))
+        -- ^ 'DBVar' containing the 'WalletState' of each wallet in the database.
+        -- Currently contains all 'Checkpoints' of the 'UTxO' and the
+        -- 'Discoveries', as well as the 'Prologue' of the address discovery state.
+        -- 
+        -- Intended to replace 'putCheckpoint' and 'readCheckpoint' in the short-term,
+        -- and all other functions in the long-term.
 
     , putCheckpoint
         :: WalletId

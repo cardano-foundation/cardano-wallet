@@ -412,35 +412,18 @@ withDBLayer tr defaultFieldValues dbFile ti action = do
         res <- newSqliteContext trDB pool manualMigrations autoMigrations
         either throwIO (action <=< newDBLayerWith CacheLatestCheckpoint tr ti) res
 
-data WalletDBLog
+newtype WalletDBLog
     = MsgDB DBLog
-    | MsgCheckpointCache W.WalletId CheckpointCacheLog
-    deriving (Generic, Show, Eq)
-
-data CheckpointCacheLog
-    = MsgPutCheckpoint
-    | MsgGetCheckpoint Bool
-    | MsgRefresh
-    | MsgDrop
     deriving (Generic, Show, Eq)
 
 instance HasPrivacyAnnotation WalletDBLog
 instance HasSeverityAnnotation WalletDBLog where
     getSeverityAnnotation = \case
         MsgDB msg -> getSeverityAnnotation msg
-        MsgCheckpointCache _ _ -> Debug
 
 instance ToText WalletDBLog where
     toText = \case
         MsgDB msg -> toText msg
-        MsgCheckpointCache wid msg -> "Checkpoint cache " <> toText wid <> ": " <> toText msg
-
-instance ToText CheckpointCacheLog where
-    toText = \case
-        MsgPutCheckpoint -> "Put"
-        MsgGetCheckpoint hit -> "Get " <> if hit then "hit" else "miss"
-        MsgRefresh -> "Refresh"
-        MsgDrop -> "Drop"
 
 -- | Runs an IO action with a new 'DBLayer' backed by a sqlite in-memory
 -- database.
@@ -532,28 +515,12 @@ newDBLayerWith _cacheBehavior tr ti SqliteContext{runQuery} = do
 
     -- FIXME LATER during ADP-1043:
     --   Handle the case where loading the database fails.
-    walletsVar <- runQuery $ loadDBVar mkStoreWallets
+    walletsDB_ <- runQuery $ loadDBVar mkStoreWallets
 
     -- NOTE
     -- The cache will not work properly unless 'atomically' is protected by a
     -- mutex (queryLock), which means no concurrent queries.
     queryLock <- newMVar () -- fixme: ADP-586
-
-    -- Insert a checkpoint for a given wallet ID into the DBVar,
-    -- assuming that the wallet already exists.
-    let insertCheckpointCached wid cp = do
-            liftIO $ traceWith tr $ MsgCheckpointCache wid MsgPutCheckpoint
-            modifyDBMaybe walletsVar $ \ws ->
-                case Map.lookup wid ws of
-                    Nothing -> (Nothing, ())
-                    Just _  ->
-                        let (prologue, wcp) = fromWallet cp
-                            slot = getSlot wcp
-                            delta = Just $ Adjust wid
-                                [ UpdateCheckpoints $ PutCheckpoint slot wcp
-                                , ReplacePrologue prologue
-                                ]
-                        in  (delta, ())
 
     -- Insert genesis checkpoint into the DBVar.
     -- Throws an internal error if the checkpoint is not actually at genesis.
@@ -561,19 +528,16 @@ newDBLayerWith _cacheBehavior tr ti SqliteContext{runQuery} = do
             case fromGenesis cp of
                 Nothing -> throwIO $ ErrInitializeGenesisAbsent wid header
                 Just wallet ->
-                    updateDBVar walletsVar $ Insert wid wallet
+                    updateDBVar walletsDB_ $ Insert wid wallet
           where
             header = cp ^. #currentTip
 
     -- Retrieve the latest checkpoint from the DBVar
-    let selectLatestCheckpointCached
+    let readCheckpoint_
             :: W.WalletId
             -> SqlPersistT IO (Maybe (W.Wallet s))
-        selectLatestCheckpointCached wid = do
-            let get = fmap getLatest . Map.lookup wid
-            cp <- get <$> readDBVar walletsVar
-            liftIO $ traceWith tr $ MsgCheckpointCache wid $ MsgGetCheckpoint $ isJust cp
-            pure cp
+        readCheckpoint_ wid =
+            fmap getLatest . Map.lookup wid <$> readDBVar walletsDB_
 
     let pruneCheckpoints
             :: W.WalletId
@@ -583,7 +547,7 @@ newDBLayerWith _cacheBehavior tr ti SqliteContext{runQuery} = do
             let heights = Set.fromList $ sparseCheckpoints
                     (defaultSparseCheckpointsConfig epochStability)
                     (tip ^. #blockHeight)
-            modifyDBMaybe walletsVar $ \ws ->
+            modifyDBMaybe walletsDB_ $ \ws ->
                 case Map.lookup wid ws of
                     Nothing  -> (Nothing, ())
                     Just wal ->
@@ -595,9 +559,7 @@ newDBLayerWith _cacheBehavior tr ti SqliteContext{runQuery} = do
 
     -- Delete the a wallet from the checkpoint DBVar
     let deleteCheckpoints :: W.WalletId -> SqlPersistT IO ()
-        deleteCheckpoints wid = do
-            liftIO $ traceWith tr $ MsgCheckpointCache wid MsgDrop
-            updateDBVar walletsVar $ Delete wid
+        deleteCheckpoints wid = updateDBVar walletsDB_ $ Delete wid
 
     return DBLayer
 
@@ -628,16 +590,22 @@ newDBLayerWith _cacheBehavior tr ti SqliteContext{runQuery} = do
         {-----------------------------------------------------------------------
                                     Checkpoints
         -----------------------------------------------------------------------}
+        , walletsDB = walletsDB_
 
         , putCheckpoint = \wid cp -> ExceptT $ do
-            selectWallet wid >>= \case
-                Nothing ->
-                    pure $ Left $ ErrNoSuchWallet wid
-                Just _  ->
-                    Right <$> insertCheckpointCached wid cp
+            modifyDBMaybe walletsDB_ $ \ws ->
+                case Map.lookup wid ws of
+                    Nothing -> (Nothing, Left $ ErrNoSuchWallet wid)
+                    Just _  ->
+                        let (prologue, wcp) = fromWallet cp
+                            slot = getSlot wcp
+                            delta = Just $ Adjust wid
+                                [ UpdateCheckpoints $ PutCheckpoint slot wcp
+                                , ReplacePrologue prologue
+                                ]
+                        in  (delta, Right ())
 
-        , readCheckpoint = \wid -> do
-            selectLatestCheckpointCached wid
+        , readCheckpoint = readCheckpoint_
 
         , listCheckpoints = \wid -> do
             let toChainPoint = W.chainPointFromBlockHeader
@@ -646,7 +614,7 @@ newDBLayerWith _cacheBehavior tr ti SqliteContext{runQuery} = do
                 [ Asc CheckpointSlot ]
 
         , rollbackTo = \wid requestedPoint -> ExceptT $ do
-            iomNearestCheckpoint <- modifyDBMaybe walletsVar $ \ws ->
+            iomNearestCheckpoint <- modifyDBMaybe walletsDB_ $ \ws ->
                 case Map.lookup wid ws of
                     Nothing  -> (Nothing, pure Nothing)
                     Just wal -> case findNearestPoint wal requestedPoint of
@@ -688,7 +656,7 @@ newDBLayerWith _cacheBehavior tr ti SqliteContext{runQuery} = do
                         $ view #currentTip wcp
 
         , prune = \wid epochStability -> ExceptT $ do
-            selectLatestCheckpointCached wid >>= \case
+            readCheckpoint_ wid >>= \case
                 Nothing -> pure $ Left $ ErrNoSuchWallet wid
                 Just cp -> Right <$> do
                     let tip = cp ^. #currentTip
@@ -709,7 +677,7 @@ newDBLayerWith _cacheBehavior tr ti SqliteContext{runQuery} = do
                     pure $ Right ()
 
         , readWalletMeta = \wid -> do
-            selectLatestCheckpointCached wid >>= \case
+            readCheckpoint_ wid >>= \case
                 Nothing -> pure Nothing
                 Just cp -> do
                     currentEpoch <- liftIO $
@@ -763,7 +731,7 @@ newDBLayerWith _cacheBehavior tr ti SqliteContext{runQuery} = do
                     pure $ Right ()
 
         , readTxHistory = \wid minWithdrawal order range status -> do
-            selectLatestCheckpointCached wid >>= \case
+            readCheckpoint_ wid >>= \case
                 Nothing -> pure []
                 Just cp -> selectTxHistory cp
                     ti wid minWithdrawal order $ catMaybes
@@ -812,7 +780,7 @@ newDBLayerWith _cacheBehavior tr ti SqliteContext{runQuery} = do
                             else Right ()
 
         , getTx = \wid tid -> ExceptT $ do
-            selectLatestCheckpointCached wid >>= \case
+            readCheckpoint_ wid >>= \case
                 Nothing -> pure $ Left $ ErrNoSuchWallet wid
                 Just cp -> do
                     metas <- selectTxHistory cp
