@@ -2,7 +2,7 @@ module Data.Time.UtilsSpec
     ( spec
     ) where
 
-import Cardano.Wallet.Prelude
+import Cardano.Wallet.Base
 
 import Data.Time.Utils
     ( utcTimePred, utcTimeSucc )

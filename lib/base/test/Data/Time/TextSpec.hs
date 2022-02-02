@@ -2,7 +2,7 @@ module Data.Time.TextSpec
     ( spec
     ) where
 
-import Cardano.Wallet.Prelude
+import Cardano.Wallet.Base
 
 import Data.List
     ( (\\) )

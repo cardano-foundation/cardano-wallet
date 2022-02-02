@@ -222,10 +222,7 @@ library
       Control.Concurrent.Concierge
       Control.Monad.Random.Extra
       Crypto.Hash.Utils
-      Data.Aeson.Extra
       Data.Function.Utils
-      Data.Time.Text
-      Data.Time.Utils
       Data.Quantity
       Data.Vector.Shuffle
       Network.Ntp
@@ -458,8 +455,6 @@ test-suite unit
       Control.Monad.Random.ExtraSpec
       Data.Function.UtilsSpec
       Data.QuantitySpec
-      Data.Time.TextSpec
-      Data.Time.UtilsSpec
       Data.Vector.ShuffleSpec
       Network.Wai.Middleware.LoggingSpec
       Spec

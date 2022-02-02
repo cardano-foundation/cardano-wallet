@@ -26,7 +26,7 @@ module Data.Time.Text
 
     ) where
 
-import Cardano.Wallet.Prelude
+import Cardano.Wallet.Base
 
 import Data.Time.Clock
     ( UTCTime )

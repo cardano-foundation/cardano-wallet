@@ -39,7 +39,8 @@ common exe
 library
   import: base, project-config
   build-depends:
-      async
+    , aeson
+    , async
     , bytestring
     , code-page
     , contra-tracer
@@ -53,7 +54,9 @@ library
     , process
     , profunctors
     , say
+    , scientific
     , text
+    , time
     , transformers
     , unliftio-core
     , unliftio
@@ -62,6 +65,9 @@ library
   exposed-modules:
       Cardano.Wallet.Base
       Cardano.Wallet.Startup
+      Data.Aeson.Extra
+      Data.Time.Text
+      Data.Time.Utils
       UnliftIO.Compat
   if os(windows)
     build-depends: Win32
@@ -94,3 +100,5 @@ test-suite unit
   other-modules:
       Cardano.Wallet.BaseSpec
       Cardano.Wallet.StartupSpec
+      Data.Time.TextSpec
+      Data.Time.UtilsSpec
