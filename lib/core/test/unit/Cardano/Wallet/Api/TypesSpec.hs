@@ -858,7 +858,9 @@ spec = parallel $ do
                         (x :: ApiCoinSelection ('Testnet 0))
                     , certificates = certificates
                         (x :: ApiCoinSelection ('Testnet 0))
-                    , deposits = deposits
+                    , depositsTaken = depositsTaken
+                        (x :: ApiCoinSelection ('Testnet 0))
+                    , depositsReturned = depositsReturned
                         (x :: ApiCoinSelection ('Testnet 0))
                     , metadata = metadata
                         (x :: ApiCoinSelection ('Testnet 0))
@@ -1462,6 +1464,7 @@ instance Arbitrary ApiCertificate where
 instance Arbitrary (ApiCoinSelection n) where
     arbitrary = ApiCoinSelection
         <$> reasonablySized arbitrary
+        <*> reasonablySized arbitrary
         <*> reasonablySized arbitrary
         <*> reasonablySized arbitrary
         <*> reasonablySized arbitrary
