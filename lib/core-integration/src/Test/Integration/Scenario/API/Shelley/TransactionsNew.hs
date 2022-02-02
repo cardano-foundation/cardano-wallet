@@ -2336,7 +2336,8 @@ spec = describe "NEW_SHELLEY_TRANSACTIONS" $ do
         verify rDecodedTx1
             [ expectResponseCode HTTP.status202
             , expectField #certificates (`shouldBe` [registerStakeKeyCert, delegatingCert])
-            , expectField #deposits (`shouldBe` [Quantity 1000000])
+            , expectField #depositsTaken (`shouldBe` [Quantity 1000000])
+            , expectField #depositsReturned (`shouldBe` [])
             ]
 
         -- Submit tx
@@ -2414,7 +2415,8 @@ spec = describe "NEW_SHELLEY_TRANSACTIONS" $ do
         verify rDecodedTx2
             [ expectResponseCode HTTP.status202
             , expectField #certificates (`shouldBe` [delegatingCert2])
-            , expectField #deposits (`shouldBe` [])
+            , expectField #depositsTaken (`shouldBe` [])
+            , expectField #depositsReturned (`shouldBe` [])
             ]
         submittedTx2 <- submitTxWithWid ctx src signedTx2
         verify submittedTx2
@@ -2511,6 +2513,8 @@ spec = describe "NEW_SHELLEY_TRANSACTIONS" $ do
         verify rDecodedTx4
             [ expectResponseCode HTTP.status202
             , expectField #certificates (`shouldBe` [quittingCert])
+            , expectField #depositsReturned (`shouldBe` [Quantity 1000000])
+            , expectField #depositsTaken (`shouldBe` [])
             ]
         submittedTx4 <- submitTxWithWid ctx src signedTx4
         verify submittedTx4

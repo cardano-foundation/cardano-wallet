@@ -1227,7 +1227,8 @@ data ApiDecodedTransaction (n :: NetworkDiscriminant) = ApiDecodedTransaction
     , assetsMinted :: !(ApiT W.TokenMap)
     , assetsBurned :: !(ApiT W.TokenMap)
     , certificates :: ![ApiAnyCertificate n]
-    , deposits :: ![Quantity "lovelace" Natural]
+    , depositsTaken :: ![Quantity "lovelace" Natural]
+    , depositsReturned :: ![Quantity "lovelace" Natural]
     , metadata :: !ApiTxMetadata
     , scriptValidity :: !(Maybe (ApiT TxScriptValidity))
     } deriving (Eq, Generic, Show, Typeable)

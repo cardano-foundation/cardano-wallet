@@ -2302,9 +2302,13 @@ decodeTransaction ctx (ApiT wid) (ApiSerialisedTransaction (ApiT sealed)) = do
         , assetsMinted = ApiT toMint
         , assetsBurned = ApiT toBurn
         , certificates = map (toApiAnyCert acct acctPath) allCerts
-        , deposits =
+        , depositsTaken =
                 map (const (Quantity . fromIntegral . unCoin . W.stakeKeyDeposit $ pp)) $
                 filter ourRewardAccountRegistration $
+                map (toApiAnyCert acct acctPath) allCerts
+        , depositsReturned =
+                map (const (Quantity . fromIntegral . unCoin . W.stakeKeyDeposit $ pp)) $
+                filter ourRewardAccountDeregistration $
                 map (toApiAnyCert acct acctPath) allCerts
         , metadata = ApiTxMetadata $ ApiT <$> meta
         , scriptValidity = ApiT <$> vldt
@@ -2382,6 +2386,9 @@ decodeTransaction ctx (ApiT wid) (ApiSerialisedTransaction (ApiT sealed)) = do
 
     ourRewardAccountRegistration = \case
         WalletDelegationCertificate (RegisterRewardAccount _) -> True
+        _ -> False
+    ourRewardAccountDeregistration = \case
+        WalletDelegationCertificate (QuitPool _) -> True
         _ -> False
 
 submitTransaction
