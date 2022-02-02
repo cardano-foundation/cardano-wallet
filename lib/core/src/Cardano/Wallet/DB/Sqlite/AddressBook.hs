@@ -18,6 +18,8 @@ module Cardano.Wallet.DB.Sqlite.AddressBook
     ( AddressBookIso (..)
     , Prologue (..)
     , Discoveries (..)
+    , getPrologue
+    , getDiscoveries
     , SeqAddressMap (..)
     )
   where
@@ -69,6 +71,12 @@ class AddressBookIso s where
     -- | Isomorphism between the address book type 's'
     -- and its two components.
     addressIso :: Iso' s (Prologue s, Discoveries s)
+
+getPrologue :: AddressBookIso s => s -> Prologue s
+getPrologue = withIso addressIso $ \from _ -> fst . from
+
+getDiscoveries :: AddressBookIso s => s -> Discoveries s
+getDiscoveries = withIso addressIso $ \from _ -> snd . from
 
 {-------------------------------------------------------------------------------
     Sequential address book

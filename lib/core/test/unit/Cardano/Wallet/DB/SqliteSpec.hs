@@ -369,7 +369,6 @@ withLoggingDB = around f . beforeWith clean
 
 getMsgDB :: WalletDBLog -> Maybe DBLog
 getMsgDB (MsgDB msg) = Just msg
-getMsgDB _ = Nothing
 
 shouldHaveMsgQuery :: [DBLog] -> Text -> Expectation
 shouldHaveMsgQuery msgs str = unless (any match msgs) $

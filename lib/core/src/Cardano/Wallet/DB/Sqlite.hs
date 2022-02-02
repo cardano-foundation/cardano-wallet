@@ -160,7 +160,7 @@ import Data.List.Split
 import Data.Map.Strict
     ( Map )
 import Data.Maybe
-    ( catMaybes, isJust )
+    ( catMaybes )
 import Data.Ord
     ( Down (..) )
 import Data.Proxy
@@ -507,7 +507,7 @@ newDBLayerWith
     -> SqliteContext
        -- ^ A (thread-)safe wrapper for query execution.
     -> IO (DBLayer IO s k)
-newDBLayerWith _cacheBehavior tr ti SqliteContext{runQuery} = do
+newDBLayerWith _cacheBehavior _tr ti SqliteContext{runQuery} = do
     -- FIXME LATER during ADP-1043:
     --   Remove the 'NoCache' behavior, we cannot get it back.
     --   This will affect read benchmarks, they will need to benchmark
