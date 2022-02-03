@@ -2274,7 +2274,8 @@ components:
         certificates:
           type: array
           items: *certificate
-        deposits: *deposits
+        deposits_taken: *deposits
+        deposits_returned: *deposits
         metadata: *transactionSerializedMetadata
 
     ApiGCStatus: &ApiGCStatus
@@ -2576,6 +2577,8 @@ components:
           minItems: 0
           items: *ApiCertificate
         metadata: *transactionMetadata
+        deposits_taken: *deposits
+        deposits_returned: *deposits
         script_validity: *txScriptValidity
 
     x-txBody: &txBody
