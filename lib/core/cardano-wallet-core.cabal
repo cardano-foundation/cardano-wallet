@@ -486,7 +486,7 @@ benchmark db
     , transformers
     , unliftio
   type:
-     exitcode-stdio-1.0
+      exitcode-stdio-1.0
   hs-source-dirs:
       bench
   main-is:

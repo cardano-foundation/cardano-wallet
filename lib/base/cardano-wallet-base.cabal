@@ -32,6 +32,8 @@ common project-config
 
   if (flag(release))
     ghc-options:       -O2 -Werror
+  if os(windows)
+    cpp-options:   -DWINDOWS
 
 common exe
   ghc-options: -threaded -rtsopts -with-rtsopts=-N -with-rtsopts=-T
@@ -72,13 +74,15 @@ library
   if os(windows)
     build-depends: Win32
     other-modules: Cardano.Wallet.Startup.Windows
-    cpp-options:   -DWINDOWS
   else
     build-depends: unix
     other-modules: Cardano.Wallet.Startup.POSIX
 
 test-suite unit
   import: base, project-config, exe
+  ghc-options:
+      "-with-rtsopts=-M2G"
+      "-with-rtsopts=-N4"
   build-depends:
       cardano-wallet-base
     , cardano-wallet-test-utils
@@ -98,6 +102,7 @@ test-suite unit
   main-is:
       base-unit-test.hs
   other-modules:
+      Spec
       Cardano.Wallet.BaseSpec
       Cardano.Wallet.StartupSpec
       Data.Time.TextSpec
