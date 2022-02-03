@@ -486,6 +486,7 @@ RSpec.describe "Cardano Wallet E2E tests", :e2e => true do
 
     it "Delegation (join and quit)" do
       balance = get_shelley_balances(@target_id)
+      expected_deposit = 2000000
       # Check wallet stake keys before joing stake pool
       stake_keys = SHELLEY.stake_pools.list_stake_keys(@target_id)
       expect(stake_keys).to be_correct_and_respond 200
@@ -493,7 +494,7 @@ RSpec.describe "Cardano Wallet E2E tests", :e2e => true do
       expect(stake_keys['ours'].size).to eq 1
       expect(stake_keys['ours'].first['stake']['quantity']).to eq balance['total']
       expect(stake_keys['none']['stake']['quantity']).to eq 0
-      # expect(stake_keys['ours'].first['delegation']['active']['status']).to eq "not_delegating"
+      expect(stake_keys['ours'].first['delegation']['active']['status']).to eq "not_delegating"
 
       # Pick up pool id to join
       pools = SHELLEY.stake_pools
@@ -513,23 +514,26 @@ RSpec.describe "Cardano Wallet E2E tests", :e2e => true do
                                                                       delegation)
       # Check fee and deposit on joining
       decoded_tx = SHELLEY.transactions.decode(@target_id, tx_constructed["transaction"])
-      deposit = tx_constructed['coin_selection']['deposits'].first['quantity']
-      decoded_deposit = decoded_tx['deposits'].first['quantity']
-      expect(deposit).to eq decoded_deposit
-      expect(deposit).to eq 2000000
+      deposit_taken = tx_constructed['coin_selection']['deposits_taken'].first['quantity']
+      decoded_deposit_taken = decoded_tx['deposits_taken'].first['quantity']
+      expect(deposit_taken).to eq decoded_deposit_taken
+      expect(deposit_taken).to eq expected_deposit
+      expect(decoded_tx['deposits_returned']).to eq []
 
       expected_fee = tx_constructed['fee']['quantity']
       decoded_fee = decoded_tx['fee']['quantity']
-      expect(expected_fee).to eq decoded_fee
+      expect(decoded_fee).to eq expected_fee
 
       tx_id = tx_submitted['id']
       wait_for_tx_in_ledger(@target_id, tx_id)
 
-      # Check fee and balance after joining
+      # Check fee and balance and deposit after joining
       join_balance = get_shelley_balances(@target_id)
       tx = SHELLEY.transactions.get(@target_id, tx_id)
-      expect(expected_fee).to eq tx['fee']['quantity']
-      expected_join_balance = balance['total'] - deposit - expected_fee
+      expect(tx['fee']['quantity']).to eq expected_fee
+      # expect(tx['deposit_taken']['quantity']).to eq deposit_taken
+      # expect(tx['deposit_returned']['quantity']).to eq 0
+      expected_join_balance = balance['total'] - deposit_taken - expected_fee
       expect(join_balance['total']).to eq expected_join_balance
 
       # Check wallet stake keys after joing stake pool
@@ -552,8 +556,13 @@ RSpec.describe "Cardano Wallet E2E tests", :e2e => true do
 
       # Check fee and deposit on quitting
       decoded_tx = SHELLEY.transactions.decode(@target_id, tx_constructed["transaction"])
-      expect(tx_constructed['coin_selection']['deposits']).to eq []
-      expect(decoded_tx['deposits']).to eq []
+      expect(tx_constructed['coin_selection']['deposits_taken']).to eq []
+      expect(decoded_tx['deposits_taken']).to eq []
+      deposit_returned = tx_constructed['coin_selection']['deposits_returned'].first['quantity']
+      decoded_deposit_returned = decoded_tx['deposits_returned'].first['quantity']
+      expect(deposit_returned).to eq decoded_deposit_returned
+      expect(deposit_returned).to eq expected_deposit
+
       expected_fee = tx_constructed['fee']['quantity']
       decoded_fee = decoded_tx['fee']['quantity']
       expect(expected_fee).to eq decoded_fee
@@ -561,13 +570,15 @@ RSpec.describe "Cardano Wallet E2E tests", :e2e => true do
       tx_id = tx_submitted['id']
       wait_for_tx_in_ledger(@target_id, tx_id)
 
-      # Check fee and balance after quitting
+      # Check fee and balance and deposit after quitting
       quit_balance = get_shelley_balances(@target_id)
       tx = SHELLEY.transactions.get(@target_id, tx_id)
       # tx is changed to 'incoming' and fee = 0 because deposit was returned
       expect(tx['fee']['quantity']).to eq 0
       expect(tx['direction']).to eq 'incoming'
-      expected_quit_balance = join_balance['total'] + deposit - expected_fee
+      # expect(tx['deposit_taken']['quantity']).to eq 0
+      # expect(tx['deposit_returned']['quantity']).to eq deposit_returned
+      expected_quit_balance = join_balance['total'] + deposit_returned - expected_fee
       expect(quit_balance['total']).to eq expected_quit_balance
 
       # Check wallet stake keys after quitting
