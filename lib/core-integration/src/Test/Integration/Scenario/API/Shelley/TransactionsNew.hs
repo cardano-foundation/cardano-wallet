@@ -2231,14 +2231,6 @@ spec = describe "NEW_SHELLEY_TRANSACTIONS" $ do
             , expectResponseCode HTTP.status202
             ]
 
-        let txid1 = getFromResponse (#id) submittedTx1
-        let queryTx1 = Link.getTransaction @'Shelley src (ApiTxId txid1)
-        rGetTx1 <- request @(ApiTransaction n) ctx queryTx1 Default Empty
-        verify rGetTx1
-            [ expectResponseCode HTTP.status200
-            , expectField #deposit (`shouldBe` depositAmt)
-            ]
-
         eventually "Wallet has joined pool and deposit info persists" $ do
             rJoin' <- request @(ApiTransaction n) ctx
                 (Link.getTransaction @'Shelley src
@@ -2248,7 +2240,8 @@ spec = describe "NEW_SHELLEY_TRANSACTIONS" $ do
                 [ expectResponseCode HTTP.status200
                 , expectField (#status . #getApiT) (`shouldBe` InLedger)
                 , expectField (#direction . #getApiT) (`shouldBe` Outgoing)
-                , expectField #deposit (`shouldBe` depositAmt)
+                , expectField #depositTaken (`shouldBe` depositAmt)
+                , expectField #depositReturned (`shouldBe` Quantity 0)
                 ]
 
         let txId1 = getFromResponse #id submittedTx1
@@ -2322,7 +2315,8 @@ spec = describe "NEW_SHELLEY_TRANSACTIONS" $ do
         rGetTx2 <- request @(ApiTransaction n) ctx queryTx2 Default Empty
         verify rGetTx2
             [ expectResponseCode HTTP.status200
-            , expectField #deposit (`shouldBe` Quantity 0)
+            , expectField #depositTaken (`shouldBe` Quantity 0)
+            , expectField #depositReturned (`shouldBe` Quantity 0)
             ]
 
         -- Wait for the certificate to be inserted
@@ -2430,7 +2424,8 @@ spec = describe "NEW_SHELLEY_TRANSACTIONS" $ do
         rGetTx3 <- request @(ApiTransaction n) ctx queryTx3 Default Empty
         verify rGetTx3
             [ expectResponseCode HTTP.status200
-            , expectField #deposit (`shouldBe` Quantity 0)
+            , expectField #depositTaken (`shouldBe` Quantity 0)
+            , expectField #depositReturned (`shouldBe` depositAmt)
             ]
 
         eventually "Wallet is not delegating" $ do

@@ -3376,7 +3376,8 @@ mkApiTransaction timeInterpreter setTimeReference tx = do
         { id = ApiT $ tx ^. #txId
         , amount = Quantity . fromIntegral $ tx ^. (#txMeta . #amount . #unCoin)
         , fee = Quantity $ maybe 0 (fromIntegral . unCoin) (tx ^. #txFee)
-        , deposit = Quantity depositIfAny
+        , depositTaken = Quantity depositIfAny
+        , depositReturned = Quantity reclaimIfAny
         , insertedAt = Nothing
         , pendingSince = Nothing
         , expiresAt = Nothing
@@ -3400,58 +3401,32 @@ mkApiTransaction timeInterpreter setTimeReference tx = do
 
     depositIfAny :: Natural
     depositIfAny
-        -- NOTE: totalIn will be zero for incoming transactions where inputs are
-        -- unknown, in which case, we also give no visibility on the deposit.
-        --
-        -- For outgoing transactions however, the totalIn is guaranteed to be
-        -- greater or equal to totalOut; any remainder is actually a
-        -- deposit. Said differently, if totalIn > 0, then necessarily 'fee' on
-        -- metadata should be 'Just{}'
         | tx ^. (#txMeta . #direction) == W.Outgoing =
             if totalIn < totalOut
-            then 0 -- This should not be possible in practice. See FIXME below.
+            then 0
             else totalIn - totalOut
         | otherwise = 0
-      where
-        -- FIXME: ADP-460
-        --
-        -- In theory, the input side can't be smaller than the output side.
-        -- However, since we do not yet track 'reclaims', we may end up in
-        -- situation here where we no longer know that there's a reclaim on a
-        -- transaction and numbers do not add up. Ideally, we would like to
-        -- change the `then` clause above to be `invariantViolation` instead of
-        -- `0` but we can't do that until we acknowledge for reclaims up until
-        -- here too.
-        --
-        -- `0` is an okay-ish placeholder in the meantime because we know that
-        -- (at least at the moment of writing this comment) the wallet never
-        -- registers a key and deregister a key at the same time. Thus, if we
-        -- are in the case where the apparent totalIn is smaller than the
-        -- total out, then necessary the deposit is null.
-        --
-        -- invariantViolation :: HasCallStack => a
-        -- invariantViolation = error $ unlines
-        --     [ "invariant violated: outputs larger than inputs"
-        --     , "direction:   " <> show (meta ^. #direction)
-        --     , "fee:         " <> show (getQuantity <$> (meta ^. #fee))
-        --     , "inputs:      " <> show (fmap (view (#coin . #unCoin)) . snd <$> ins)
-        --     , "reclaims:    " <> ...
-        --     , "withdrawals: " <> show (view #unCoin <$> Map.elems ws)
-        --     , "outputs:     " <> show (view (#coin . #unCoin) <$> outs)
-        --     ]
-        totalIn :: Natural
-        totalIn
-            = sum (txOutValue <$> mapMaybe snd (tx ^. #txInputs))
-            + sum (fromIntegral . unCoin <$> Map.elems (tx ^. #txWithdrawals))
-            -- FIXME: ADP-460 + reclaims.
 
-        totalOut :: Natural
-        totalOut
-            = sum (txOutValue <$> tx ^. #txOutputs)
-            + maybe 0 (fromIntegral . unCoin) (tx ^. #txFee)
+    reclaimIfAny :: Natural
+    reclaimIfAny
+        | tx ^. (#txMeta . #direction) == W.Outgoing =
+            if totalIn < totalOut
+            then totalOut - totalIn
+            else 0
+        | otherwise = 0
 
-        txOutValue :: TxOut -> Natural
-        txOutValue = fromIntegral . unCoin . txOutCoin
+    totalIn :: Natural
+    totalIn
+        = sum (txOutValue <$> mapMaybe snd (tx ^. #txInputs))
+        + sum (fromIntegral . unCoin <$> Map.elems (tx ^. #txWithdrawals))
+
+    totalOut :: Natural
+    totalOut
+        = sum (txOutValue <$> tx ^. #txOutputs)
+        + maybe 0 (fromIntegral . unCoin) (tx ^. #txFee)
+
+    txOutValue :: TxOut -> Natural
+    txOutValue = fromIntegral . unCoin . txOutCoin
 
     toAddressAmountNoAssets
         :: TxOut
