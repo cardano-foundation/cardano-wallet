@@ -858,7 +858,9 @@ spec = parallel $ do
                         (x :: ApiCoinSelection ('Testnet 0))
                     , certificates = certificates
                         (x :: ApiCoinSelection ('Testnet 0))
-                    , deposits = deposits
+                    , depositsTaken = depositsTaken
+                        (x :: ApiCoinSelection ('Testnet 0))
+                    , depositsReturned = depositsReturned
                         (x :: ApiCoinSelection ('Testnet 0))
                     , metadata = metadata
                         (x :: ApiCoinSelection ('Testnet 0))
@@ -1167,6 +1169,8 @@ spec = parallel $ do
                     , assetsMinted = assetsMinted (x :: ApiDecodedTransaction ('Testnet 0))
                     , assetsBurned = assetsBurned (x :: ApiDecodedTransaction ('Testnet 0))
                     , certificates = certificates (x :: ApiDecodedTransaction ('Testnet 0))
+                    , depositsTaken = depositsTaken (x :: ApiDecodedTransaction ('Testnet 0))
+                    , depositsReturned = depositsReturned (x :: ApiDecodedTransaction ('Testnet 0))
                     , scriptValidity = scriptValidity (x :: ApiDecodedTransaction ('Testnet 0))
                     }
             in
@@ -1460,6 +1464,7 @@ instance Arbitrary ApiCertificate where
 instance Arbitrary (ApiCoinSelection n) where
     arbitrary = ApiCoinSelection
         <$> reasonablySized arbitrary
+        <*> reasonablySized arbitrary
         <*> reasonablySized arbitrary
         <*> reasonablySized arbitrary
         <*> reasonablySized arbitrary
@@ -2170,6 +2175,8 @@ instance Arbitrary (ApiAnyCertificate n) where
 instance Arbitrary (ApiDecodedTransaction n) where
     arbitrary = ApiDecodedTransaction
         <$> arbitrary
+        <*> arbitrary
+        <*> arbitrary
         <*> arbitrary
         <*> arbitrary
         <*> arbitrary

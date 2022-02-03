@@ -449,6 +449,35 @@ def balance_sign_submit(wid, payload)
   [tx_balanced, tx_signed, tx_submitted]
 end
 
+##
+# Construct -> Sign -> Submit
+def construct_sign_submit(wid,
+                          payments = nil,
+                          withdrawal = nil,
+                          metadata = nil,
+                          delegations = nil,
+                          mint = nil,
+                          validity_interval = nil)
+
+  tx_constructed = SHELLEY.transactions.construct(wid,
+                                                  payments,
+                                                  withdrawal,
+                                                  metadata,
+                                                  delegations,
+                                                  mint,
+                                                  validity_interval)
+  expect(tx_constructed).to be_correct_and_respond 202
+
+  tx_signed = SHELLEY.transactions.sign(wid, PASS, tx_constructed['transaction'])
+  expect(tx_signed).to be_correct_and_respond 202
+
+  tx_submitted = SHELLEY.transactions.submit(wid, tx_signed['transaction'])
+  expect(tx_submitted).to be_correct_and_respond 202
+  expect(SHELLEY.transactions.get(wid, tx_submitted['id'])['status']).to eq 'pending'
+
+  [tx_constructed, tx_signed, tx_submitted]
+end
+
 def get_plutus_tx(file)
   JSON.parse(File.read(File.join(PLUTUS_DIR, file)))
 end
