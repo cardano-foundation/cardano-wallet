@@ -1216,125 +1216,6 @@ spec = describe "NEW_SHELLEY_TRANSACTIONS" $ do
             [ expectResponseCode HTTP.status202
             ]
 
-    it "TRANS_NEW_CREATE_MULTI_TX - Tx including payments, delegation, metadata, withdrawals, validity_interval" $ \ctx -> runResourceT $ do
-
-        wa <- fixtureWallet ctx
-        wb <- emptyWallet ctx
-        addrs <- listAddresses @n ctx wb
-
-        let amt = minUTxOValue (_mainEra ctx) :: Natural
-        let destination1 = (addrs !! 1) ^. #id
-        let destination2 = (addrs !! 2) ^. #id
-        let deposit = fromIntegral oneAda
-        pool':_ <- map (view #id) . snd <$> unsafeRequest
-            @[ApiStakePool]
-            ctx (Link.listStakePools arbitraryStake) Empty
-
-        let payload = Json [json|{
-                "payments": [{
-                    "address": #{destination1},
-                    "amount": {
-                        "quantity": #{amt},
-                        "unit": "lovelace"
-                    }
-                },
-                {
-                    "address": #{destination2},
-                    "amount": {
-                        "quantity": #{amt},
-                        "unit": "lovelace"
-                    }
-                }],
-                "delegations": [{
-                    "join": {
-                        "pool": #{pool'},
-                        "stake_key_index": "0H"
-                    }
-                }],
-                "withdrawal": "self",
-                "metadata": { "1": { "string": "hello" } },
-                "validity_interval": {
-                    "invalid_before": {
-                      "quantity": 0,
-                      "unit": "second"
-                    },
-                    "invalid_hereafter": {
-                      "quantity": 1000,
-                      "unit": "second"
-                    }
-                  }
-            }|]
-
-        rTx <- request @(ApiConstructTransaction n) ctx
-            (Link.createUnsignedTransaction @'Shelley wa) Default payload
-        verify rTx
-            [ expectSuccess
-            , expectResponseCode HTTP.status202
-            , expectField (#coinSelection . #inputs) (`shouldSatisfy` (not . null))
-            , expectField (#coinSelection . #outputs) (`shouldSatisfy` (not . null))
-            , expectField (#coinSelection . #depositsTaken) (`shouldBe` [Quantity deposit])
-            , expectField (#coinSelection . #depositsReturned) (`shouldBe` [])
-            , expectField (#coinSelection . #change) (`shouldSatisfy` (not . null))
-            , expectField (#fee . #getQuantity) (`shouldSatisfy` (>0))
-            ]
-
-        let expectedFee = getFromResponse (#fee . #getQuantity) rTx
-
-        -- Sign tx
-        let apiTx = getFromResponse #transaction rTx
-        signedTx <- signTx ctx wa apiTx [ expectResponseCode HTTP.status202 ]
-        -- Submit tx
-        submittedTx <- submitTxWithWid ctx wa signedTx
-        verify submittedTx
-            [ expectSuccess
-            , expectResponseCode HTTP.status202
-            ]
-        let txId = getFromResponse (#id) submittedTx
-
-        eventually "Metadata is on-chain" $ do
-            rWa <- request @(ApiTransaction n) ctx
-                (Link.getTransaction @'Shelley wa txId) Default Empty
-            verify rWa
-                [ expectSuccess
-                , expectField
-                        (#status . #getApiT)
-                        (`shouldBe` InLedger)
-                , expectField
-                        (#metadata . #getApiTxMetadata . _Ctor @"Just" . #getApiT)
-                        (`shouldBe` Cardano.TxMetadata (Map.fromList [(1, Cardano.TxMetaText "hello")]))
-                ]
-
-        eventually "Delegation certificates are inserted" $ do
-            rWa <- request @(ApiWallet) ctx
-                (Link.getWallet @'Shelley wa) Default Empty
-            verify rWa
-                [ expectSuccess
-                , expectField
-                        #delegation
-                        (`shouldBe` delegating pool' [])
-                ]
-
-        eventually "Destination wallet balance is as expected" $ do
-            rWb <- request @ApiWallet ctx
-                (Link.getWallet @'Shelley wb) Default Empty
-            verify rWb
-                [ expectSuccess
-                , expectField
-                        (#balance . #available . #getQuantity)
-                        (`shouldBe` amt * 2)
-                ]
-
-        eventually "Source wallet balance is as expected" $ do
-            let balance = fromIntegral oneMillionAda - amt * 2 - expectedFee - deposit
-            rWa <- request @ApiWallet ctx
-                (Link.getWallet @'Shelley wa) Default Empty
-            verify rWa
-                [ expectSuccess
-                , expectField
-                        (#balance . #available . #getQuantity)
-                        (`shouldBe` balance)
-                ]
-
     it "TRANS_DECODE_01a - multiple-output transaction with all covering inputs" $ \ctx -> runResourceT $ do
 
         -- constructing source wallet
@@ -2635,6 +2516,124 @@ spec = describe "NEW_SHELLEY_TRANSACTIONS" $ do
             [ expectResponseCode HTTP.status403
             , expectErrorMessage errMsg403NotDelegating
             ]
+
+    it "TRANS_NEW_CREATE_MULTI_TX - Tx including payments, delegation, metadata, withdrawals, validity_interval" $ \ctx -> runResourceT $ do
+        wa <- fixtureWallet ctx
+        wb <- emptyWallet ctx
+        addrs <- listAddresses @n ctx wb
+
+        let amt = minUTxOValue (_mainEra ctx) :: Natural
+        let destination1 = (addrs !! 1) ^. #id
+        let destination2 = (addrs !! 2) ^. #id
+        let deposit = fromIntegral oneAda
+        pool':_ <- map (view #id) . snd <$> unsafeRequest
+            @[ApiStakePool]
+            ctx (Link.listStakePools arbitraryStake) Empty
+
+        let payload = Json [json|{
+                "payments": [{
+                    "address": #{destination1},
+                    "amount": {
+                        "quantity": #{amt},
+                        "unit": "lovelace"
+                    }
+                },
+                {
+                    "address": #{destination2},
+                    "amount": {
+                        "quantity": #{amt},
+                        "unit": "lovelace"
+                    }
+                }],
+                "delegations": [{
+                    "join": {
+                        "pool": #{pool'},
+                        "stake_key_index": "0H"
+                    }
+                }],
+                "withdrawal": "self",
+                "metadata": { "1": { "string": "hello" } },
+                "validity_interval": {
+                    "invalid_before": {
+                      "quantity": 0,
+                      "unit": "second"
+                    },
+                    "invalid_hereafter": {
+                      "quantity": 1000,
+                      "unit": "second"
+                    }
+                  }
+            }|]
+
+        rTx <- request @(ApiConstructTransaction n) ctx
+            (Link.createUnsignedTransaction @'Shelley wa) Default payload
+        verify rTx
+            [ expectSuccess
+            , expectResponseCode HTTP.status202
+            , expectField (#coinSelection . #inputs) (`shouldSatisfy` (not . null))
+            , expectField (#coinSelection . #outputs) (`shouldSatisfy` (not . null))
+            , expectField (#coinSelection . #depositsTaken) (`shouldBe` [Quantity deposit])
+            , expectField (#coinSelection . #depositsReturned) (`shouldBe` [])
+            , expectField (#coinSelection . #change) (`shouldSatisfy` (not . null))
+            , expectField (#fee . #getQuantity) (`shouldSatisfy` (>0))
+            ]
+
+        let expectedFee = getFromResponse (#fee . #getQuantity) rTx
+
+        -- Sign tx
+        let apiTx = getFromResponse #transaction rTx
+        signedTx <- signTx ctx wa apiTx [ expectResponseCode HTTP.status202 ]
+        -- Submit tx
+        submittedTx <- submitTxWithWid ctx wa signedTx
+        verify submittedTx
+            [ expectSuccess
+            , expectResponseCode HTTP.status202
+            ]
+        let txId = getFromResponse (#id) submittedTx
+
+        eventually "Metadata is on-chain" $ do
+            rWa <- request @(ApiTransaction n) ctx
+                (Link.getTransaction @'Shelley wa txId) Default Empty
+            verify rWa
+                [ expectSuccess
+                , expectField
+                        (#status . #getApiT)
+                        (`shouldBe` InLedger)
+                , expectField
+                        (#metadata . #getApiTxMetadata . _Ctor @"Just" . #getApiT)
+                        (`shouldBe` Cardano.TxMetadata (Map.fromList [(1, Cardano.TxMetaText "hello")]))
+                ]
+
+        eventually "Delegation certificates are inserted" $ do
+            rWa <- request @(ApiWallet) ctx
+                (Link.getWallet @'Shelley wa) Default Empty
+            verify rWa
+                [ expectSuccess
+                , expectField
+                        #delegation
+                        (`shouldBe` delegating pool' [])
+                ]
+
+        eventually "Destination wallet balance is as expected" $ do
+            rWb <- request @ApiWallet ctx
+                (Link.getWallet @'Shelley wb) Default Empty
+            verify rWb
+                [ expectSuccess
+                , expectField
+                        (#balance . #available . #getQuantity)
+                        (`shouldBe` amt * 2)
+                ]
+
+        eventually "Source wallet balance is as expected" $ do
+            let balance = fromIntegral oneMillionAda - amt * 2 - expectedFee - deposit
+            rWa <- request @ApiWallet ctx
+                (Link.getWallet @'Shelley wa) Default Empty
+            verify rWa
+                [ expectSuccess
+                , expectField
+                        (#balance . #available . #getQuantity)
+                        (`shouldBe` balance)
+                ]
   where
 
     -- | Just one million Ada, in Lovelace.
