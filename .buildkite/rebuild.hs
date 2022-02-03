@@ -184,9 +184,12 @@ buildStep' dryRun qa pkgs = foldl1 (.&&.)
             ]
 
     build opt args = runStack "build" opt $
-        [ "--haddock"
-        , "--haddock-internal"
-        , "--no-haddock-deps"
+        [
+        -- TODO: stack haddock is temporarily disabled because of
+        --     https://github.com/commercialhaskell/stack/issues/4428
+        -- [ "--haddock"
+        -- , "--haddock-internal"
+        -- , "--no-haddock-deps"
         ] ++ args
 
     projectBuild args = build projectOpt $ benchFlags ++ args
