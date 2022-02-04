@@ -355,7 +355,7 @@ test-suite unit
     , network
     , network-uri
     , nothunks
-    , persistent
+    , persistent >=2.13 && <2.14
     , persistent-sqlite >=2.13 && <2.14
     , plutus-ledger-api
     , pretty-simple

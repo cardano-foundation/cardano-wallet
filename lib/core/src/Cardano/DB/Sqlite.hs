@@ -42,13 +42,14 @@ module Cardano.DB.Sqlite
     -- * Manual Migration
     , ManualMigration (..)
     , MigrationError (..)
-    , DBField(..)
+    , DBField (..)
     , tableName
     , fieldName
     , fieldType
 
     -- * Logging
     , DBLog (..)
+    , DatabaseMetadataLog (..)
     ) where
 
 import Prelude
@@ -57,6 +58,8 @@ import Cardano.BM.Data.Severity
     ( Severity (..) )
 import Cardano.BM.Data.Tracer
     ( HasPrivacyAnnotation (..), HasSeverityAnnotation (..) )
+import Cardano.Wallet.DB.Sqlite.Types
+    ( DatabaseFileFormatVersion, naturalDatabaseFileFormat )
 import Cardano.Wallet.Logging
     ( BracketLog, bracketTracer )
 import Control.Monad
@@ -526,6 +529,7 @@ data DBLog
     | MsgManualMigrationNotNeeded DBField
     | MsgUpdatingForeignKeysSetting ForeignKeysSetting
     | MsgRetryOnBusy Int RetryLog
+    | MsgMetadata DatabaseMetadataLog
     deriving (Generic, Show, Eq, ToJSON)
 
 data RetryLog = MsgRetry | MsgRetryGaveUp | MsgRetryDone
@@ -553,6 +557,7 @@ instance HasSeverityAnnotation DBLog where
             | n <= 1 -> Debug
             | n <= 3 -> Notice
             | otherwise -> Warning
+        MsgMetadata dml -> getSeverityAnnotation dml
 
 instance ToText DBLog where
     toText = \case
@@ -611,6 +616,30 @@ instance ToText DBLog where
             MsgRetryDone
                 | n > 3 -> "DB query succeeded after " +| n |+ " attempts."
                 | otherwise -> ""
+        MsgMetadata msg -> toText msg
+
+data DatabaseMetadataLog
+    = DatabaseMetadataCreated
+    | DatabaseVersionSet DatabaseFileFormatVersion
+    | DatabaseVersionMatched DatabaseFileFormatVersion
+    deriving (Generic, Show, Eq, ToJSON)
+
+instance HasSeverityAnnotation DatabaseMetadataLog where
+    getSeverityAnnotation = \case
+        DatabaseMetadataCreated -> Notice
+        DatabaseVersionSet _version -> Notice
+        DatabaseVersionMatched _version -> Notice
+
+instance ToText DatabaseMetadataLog where
+    toText = \case
+        DatabaseMetadataCreated ->
+            "Database metadata table created"
+        DatabaseVersionSet ver ->
+            "Database file format version set to " <> showVersion ver
+        DatabaseVersionMatched ver ->
+            "Database file format version matches expected: " <> showVersion ver
+      where
+        showVersion = T.pack . show . naturalDatabaseFileFormat
 
 -- | Produce a persistent 'LogFunc' backed by 'Tracer IO DBLog'
 queryLogFunc :: Tracer IO DBLog -> LogFunc

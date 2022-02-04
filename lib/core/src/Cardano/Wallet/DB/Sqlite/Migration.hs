@@ -1,5 +1,8 @@
+{-# LANGUAGE BlockArguments #-}
 {-# LANGUAGE DataKinds #-}
+{-# LANGUAGE DeriveAnyClass #-}
 {-# LANGUAGE LambdaCase #-}
+{-# LANGUAGE RecordWildCards #-}
 {-# LANGUAGE TypeApplications #-}
 
 -- |
@@ -13,6 +16,7 @@
 module Cardano.Wallet.DB.Sqlite.Migration
     ( DefaultFieldValues (..)
     , migrateManually
+    , InvalidDatabaseSchemaVersion (..)
     )
     where
 
@@ -21,6 +25,7 @@ import Prelude
 import Cardano.DB.Sqlite
     ( DBField (..)
     , DBLog (..)
+    , DatabaseMetadataLog (..)
     , ManualMigration (..)
     , fieldName
     , fieldType
@@ -28,6 +33,8 @@ import Cardano.DB.Sqlite
     )
 import Cardano.Wallet.DB.Sqlite.TH
     ( EntityField (..) )
+import Cardano.Wallet.DB.Sqlite.Types
+    ( DatabaseFileFormatVersion (..) )
 import Cardano.Wallet.Primitive.AddressDerivation.Icarus
     ( IcarusKey )
 import Cardano.Wallet.Primitive.AddressDerivation.Shelley
@@ -52,6 +59,8 @@ import Database.Persist.Class
     ( toPersistValue )
 import Database.Persist.Types
     ( PersistValue (..), fromPersistValueText )
+import UnliftIO.Exception
+    ( Exception, throwIO, throwString )
 
 import qualified Cardano.Wallet.Primitive.AddressDerivation as W
 import qualified Cardano.Wallet.Primitive.AddressDiscovery.Sequential as Seq
@@ -83,6 +92,23 @@ data SqlColumnStatus
     | ColumnPresent
     deriving Eq
 
+data TableCreationResult
+    = TableCreated
+    | TableExisted
+
+newtype DatabaseMetadata
+    = DatabaseMetadata { fileFormatVersion :: DatabaseFileFormatVersion }
+
+data InvalidDatabaseSchemaVersion
+    = InvalidDatabaseSchemaVersion
+    { expectedVersion :: DatabaseFileFormatVersion
+    , actualVersion :: DatabaseFileFormatVersion
+    }
+    deriving (Show, Eq, Exception)
+
+currentFileFormat :: DatabaseFileFormatVersion
+currentFileFormat = DatabaseFileFormatVersion 1
+
 -- | Executes any manual database migration steps that may be required on
 -- startup.
 migrateManually
@@ -93,7 +119,8 @@ migrateManually
     -> [ManualMigration]
 migrateManually tr proxy defaultFieldValues =
     ManualMigration <$>
-    [ cleanupCheckpointTable
+    [ initializeDatabaseMetadataTable
+    , cleanupCheckpointTable
     , assignDefaultPassphraseScheme
     , addDesiredPoolNumberIfMissing
     , addMinimumUTxOValueIfMissing
@@ -116,6 +143,60 @@ migrateManually tr proxy defaultFieldValues =
     , cleanupSeqStateTable
     ]
   where
+    initializeDatabaseMetadataTable :: Sqlite.Connection -> IO ()
+    initializeDatabaseMetadataTable conn =
+        createMetadataTableIfMissing conn >>= \case
+            TableCreated -> do
+                trace DatabaseMetadataCreated
+                putMetadata conn DatabaseMetadata
+                    { fileFormatVersion = currentFileFormat }
+            TableExisted -> do
+                DatabaseMetadata {..} <- getMetadata conn
+                when (fileFormatVersion > currentFileFormat) do
+                    throwIO InvalidDatabaseSchemaVersion
+                        { expectedVersion = currentFileFormat
+                        , actualVersion = fileFormatVersion
+                        }
+                trace $ DatabaseVersionMatched fileFormatVersion
+                putMetadata conn DatabaseMetadata{..}
+      where
+        trace = traceWith tr . MsgMetadata
+
+    createMetadataTableIfMissing :: Sqlite.Connection -> IO TableCreationResult
+    createMetadataTableIfMissing conn = do
+        res <- runSql conn
+            "SELECT name FROM sqlite_master \
+            \WHERE type='table' AND name='database_metadata'"
+        case res of
+           [] -> TableCreated <$ runSql conn
+            "CREATE TABLE database_metadata\
+            \( name TEXT PRIMARY KEY \
+            \, version INTEGER NOT NULL \
+            \)"
+           _ -> pure TableExisted
+
+    putMetadata :: Sqlite.Connection -> DatabaseMetadata -> IO ()
+    putMetadata conn DatabaseMetadata {..} = do
+        traceWith tr $ MsgMetadata $ DatabaseVersionSet fileFormatVersion
+        void $ runSql conn $ mconcat
+            [ "INSERT INTO database_metadata (name, version) "
+            , "VALUES "
+            , "('metadata', "
+            , version
+            , ") ON CONFLICT (name) DO UPDATE SET version = "
+            , version
+            ]
+        where
+            version = T.pack . show $
+                naturalDatabaseFileFormat fileFormatVersion
+
+    getMetadata :: Sqlite.Connection -> IO DatabaseMetadata
+    getMetadata conn =
+        runSql conn "SELECT version FROM database_metadata" >>= \case
+            [[PersistInt64 i]] | i >= 0 ->
+                pure DatabaseMetadata { fileFormatVersion = fromIntegral i }
+            _ -> throwString "Database metadata table is corrupt"
+
     -- NOTE
     -- We originally stored script pool gap inside sequential state in the 'SeqState' table,
     -- represented by 'seqStateScriptGap' field. We introduce separate shared wallet state

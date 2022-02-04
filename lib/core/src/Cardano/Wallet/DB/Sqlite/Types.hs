@@ -2,6 +2,7 @@
 {-# LANGUAGE DeriveGeneric #-}
 {-# LANGUAGE DerivingVia #-}
 {-# LANGUAGE FlexibleInstances #-}
+{-# LANGUAGE GeneralizedNewtypeDeriving #-}
 {-# LANGUAGE LambdaCase #-}
 {-# LANGUAGE TypeApplications #-}
 {-# LANGUAGE ViewPatterns #-}
@@ -127,6 +128,10 @@ import GHC.Generics
     ( Generic )
 import Network.URI
     ( parseAbsoluteURI )
+import Numeric.Natural
+    ( Natural )
+import Quiet
+    ( Quiet (..) )
 import System.Random.Internal
     ( StdGen (..) )
 import System.Random.SplitMix
@@ -332,7 +337,7 @@ hashOfNoParent :: Hash "BlockHeader"
 hashOfNoParent = Hash . BS.pack $ replicate 32 0
 
 fromMaybeHash :: Maybe (Hash "BlockHeader") -> BlockId
-fromMaybeHash = BlockId . fromMaybe hashOfNoParent 
+fromMaybeHash = BlockId . fromMaybe hashOfNoParent
 
 toMaybeHash :: BlockId -> Maybe (Hash "BlockHeader")
 toMaybeHash (BlockId h) = if h == hashOfNoParent then Nothing else Just h
@@ -850,7 +855,6 @@ instance PersistField POSIXTime where
 instance PersistFieldSql POSIXTime where
     sqlType _ = sqlType (Proxy @Text)
 
-
 -- | Newtype to get a MonadFail instance for @Either Text@.
 --
 -- We need it to use @parseTimeM@.
@@ -859,3 +863,10 @@ newtype EitherText a = EitherText { getEitherText :: Either Text a }
 
 instance MonadFail EitherText where
     fail = EitherText . Left . T.pack
+
+newtype DatabaseFileFormatVersion = DatabaseFileFormatVersion
+    { naturalDatabaseFileFormat :: Natural }
+    deriving stock Generic
+    deriving newtype (Eq, Ord, Enum, Num, Real, Integral, ToJSON)
+    deriving Show via (Quiet DatabaseFileFormatVersion)
+
