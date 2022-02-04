@@ -19,6 +19,8 @@ module Cardano.Wallet.DB.Sqlite.Stores
     ( mkStoreWallets
     , PersistAddressBook (..)
     , blockHeaderFromEntity
+    -- * Testing
+    , mkStoreWallet
     )
     where
 

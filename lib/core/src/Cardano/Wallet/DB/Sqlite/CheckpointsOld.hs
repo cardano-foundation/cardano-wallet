@@ -33,6 +33,9 @@ module Cardano.Wallet.DB.Sqlite.CheckpointsOld
     ( mkStoreWallets
     , PersistAddressBook (..)
     , blockHeaderFromEntity
+    
+    -- * Testing
+    , mkStoreWallet
     )
     where
 

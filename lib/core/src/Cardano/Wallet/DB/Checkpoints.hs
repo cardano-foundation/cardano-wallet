@@ -32,6 +32,8 @@ import Data.Map.Strict
     ( Map )
 import Data.Maybe
     ( fromMaybe )
+import Fmt
+    ( Buildable (..), listF )
 import GHC.Generics
     ( Generic )
 
@@ -74,9 +76,8 @@ is clear that the data cannot exist at the genesis point
 {-------------------------------------------------------------------------------
     Checkpoints
 -------------------------------------------------------------------------------}
-{- HLINT ignore Checkpoints "Use newtype instead of data" -}
 -- | Collection of checkpoints indexed by 'Slot'.
-data Checkpoints a = Checkpoints
+newtype Checkpoints a = Checkpoints
     { checkpoints :: Map W.Slot a
     -- ^ Map of checkpoints. Always contains the genesis checkpoint.
     } deriving (Eq,Show,Generic)
@@ -126,3 +127,8 @@ instance Delta (DeltaCheckpoints a) where
         Map.filterWithKey (\k _ -> k <= pt)
     apply (RestrictTo pts) = over #checkpoints $ \m ->
         Map.restrictKeys m $ Set.fromList (W.Origin:pts)
+
+instance Buildable (DeltaCheckpoints a) where
+    build (PutCheckpoint slot _) = "PutCheckpoint " <> build slot
+    build (RollbackTo slot) = "RollbackTo " <> build slot
+    build (RestrictTo slots) = "RestrictTo " <> listF slots

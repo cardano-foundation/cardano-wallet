@@ -54,6 +54,8 @@ import Data.Map.Strict
     ( Map )
 import Data.Word
     ( Word32 )
+import Fmt
+    ( Buildable (..), pretty )
 import GHC.Generics
     ( Generic )
 
@@ -147,6 +149,13 @@ instance Delta (DeltaWalletState1 s) where
     type Base (DeltaWalletState1 s) = WalletState s
     apply (ReplacePrologue p) = over #prologue $ const p
     apply (UpdateCheckpoints d) = over #checkpoints $ apply d
+
+instance Buildable (DeltaWalletState1 s) where
+    build (ReplacePrologue _) = "ReplacePrologue …"
+    build (UpdateCheckpoints d) = "UpdateCheckpoints (" <> build d <> ")"
+
+instance Show (DeltaWalletState1 s) where
+    show = pretty
 
 {-------------------------------------------------------------------------------
     A Delta type for Maps,
