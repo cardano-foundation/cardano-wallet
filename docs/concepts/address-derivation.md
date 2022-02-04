@@ -1,13 +1,19 @@
+---
+order: 22
+---
+
 # Address Derivation
 
 ## *HD Random* wallets (Byron / Legacy)
 
-> NOTE:
->
-> This scheme is an unspecified / ad-hoc scheme designed in the early eras of
-> Cardano. It is intrinsically entangled to the address format and relies on
-> the ability to embed extra pieces of information into addresses themselves in
-> order to perform key derivation.
+::: {.gotcha}
+#### Note
+
+This scheme is an underspecified / ad-hoc scheme designed in the early eras of
+Cardano. It is intrinsically entangled to the address format and relies on
+the ability to embed extra pieces of information into addresses themselves in
+order to perform key derivation.
+:::
 
 An initial key is created using a Ed25519 cryptographic elliptic curve from a
 seed (encoded in the form of mnemonic words). From this wallet Key, other keys
@@ -60,8 +66,6 @@ Note that wallets typically store keys in memory in an encrypted form, using an
 encryption passphrase. That passphrase prevents "free" key manipulation.
 
 ## *HD Sequential* wallets (à la BIP-44)
-
-### Motivation
 
 BIP-0044 Multi-Account Hierarchy for Deterministic Wallets is a Bitcoin
 standard defining a structure and algorithm to build a hierarchy tree of keys

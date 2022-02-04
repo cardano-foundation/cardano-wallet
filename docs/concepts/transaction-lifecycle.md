@@ -1,4 +1,5 @@
 ---
+order: 42
 page:
   headHtml: |
     <snippet var="js.base" />

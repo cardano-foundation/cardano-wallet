@@ -1,3 +1,7 @@
+---
+order: 23
+---
+
 # Byron Address Format
 
 ## Internal Structure
@@ -40,21 +44,18 @@
 
 ```
 
-1. CRC: [Cyclic Redundancy Check](https://computer.howstuffworks.com/encryption7.htm);
-  sort of checksum, a bit (pun intended) more reliable.
-
-2. ASD: Address Spending Data; Some data that are bound to an address. It's
-  an extensible object with payload which identifies one of the three elements:
+1. **CRC**: [Cyclic Redundancy Check](https://computer.howstuffworks.com/encryption7.htm);
+   sort of checksum, a bit (pun intended) more reliable.
+2. **ASD**: Address Spending Data; Some data that are bound to an address. It's
+   an extensible object with payload which identifies one of the three elements:
     - A Public Key (Payload is thereby a PublicKey)
     - A Script (Payload is thereby a script and its version)
     - A Redeem Key (Payload is thereby a RedeemPublicKey)
-
-3. Derivation Path: Note that there's no derivation path for Redeem nor
-  Scripts addresses!
-
-4. ChaChaPoly: Authenticated Encryption with Associated Data; See [RFC
-  7539](https://datatracker.ietf.org/doc/rfc7539) We use it as a way to cipher
-  the derivation path using a passphrase (the root public key).
+3. **Derivation Path**: Note that there's no derivation path for Redeem nor
+   Scripts addresses!
+4. **ChaChaPoly**: Authenticated Encryption with Associated Data
+   (see [RFC 7539](https://datatracker.ietf.org/doc/rfc7539).
+   We use it as a way to cipher the derivation path using a passphrase (the root public key).
 
 ## Example 1: Yoroi Address - Byron Mainnet
 

@@ -3,7 +3,6 @@ order: 3
 pandoc:
   rewriteClass:
     cli: bg-${theme}-50 text-sm p-2 rounded-md shadow mb-4 mx-2
-    info-block: px-3 py-1 my-3 mx-4 rounded bg-blue-100 hover:border-blue-400 hover:shadow border-t-8 border-blue-200
     divider: text-sm text-gray-600 text-center border-slate-500 border-b mt-6 mb-0 p-0
 ---
 

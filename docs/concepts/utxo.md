@@ -1,11 +1,9 @@
 ---
-weight: 1
+order: 31
 title: UTxO
 ---
 
-## UTxO
-
-In a UTxO-based blockchain, a **Transaction** is a binding between **inputs** and **outputs**.
+In a UTxO-based blockchain, a **transaction** is a binding between **inputs** and **outputs**.
 
 
 ```
@@ -29,14 +27,14 @@ In a standard payment, outputs are a combination of:
                 input #3  >---*         *---> (456, hswdEoQCp...)
 ```
 
-{{< hint warning >}}
-_About address encoding_
+::: {.gotcha}
+### About address encoding
 
 We usually represent addresses as encoded text strings. An address has a structure
 and a binary representation that is defined by the underlying blockchain. Yet, since
 they are often used in user-facing interfaces, addresses are usually encoded in a
 human-friendly format to be easily shared between users.
-{{< /hint >}}
+:::
 
 An _address_ **does not** uniquely identify an output. As a matter of fact, multiple
 transactions could send funds to a same output address! We can however uniquely identify
