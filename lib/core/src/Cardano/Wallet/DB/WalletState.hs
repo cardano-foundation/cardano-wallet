@@ -1,6 +1,7 @@
 {-# LANGUAGE DeriveGeneric #-}
 {-# LANGUAGE NamedFieldPuns #-}
 {-# LANGUAGE OverloadedLabels #-}
+{-# LANGUAGE StandaloneDeriving #-}
 {-# LANGUAGE TypeFamilies #-}
 
 -- |
@@ -70,8 +71,9 @@ data WalletCheckpoint s = WalletCheckpoint
     { currentTip :: !BlockHeader
     , utxo :: !UTxO
     , discoveries :: !(Discoveries s)
-    }
-    deriving (Generic)
+    } deriving (Generic)
+
+deriving instance AddressBookIso s => Eq (WalletCheckpoint s)
 
 -- | Helper function: Get the block height of a wallet checkpoint.
 getBlockHeight :: WalletCheckpoint s -> Word32
@@ -105,9 +107,11 @@ fromWallet w = (pro, WalletCheckpoint (W.currentTip w) (W.utxo w) dis)
 -- FIXME during ADP-1043: Include also TxHistory, pending transactions, …,
 -- everything.
 data WalletState s = WalletState
-    { prologue    :: Prologue s
-    , checkpoints :: Checkpoints (WalletCheckpoint s)
+    { prologue    :: !(Prologue s)
+    , checkpoints :: !(Checkpoints (WalletCheckpoint s))
     } deriving (Generic)
+
+deriving instance AddressBookIso s => Eq (WalletState s)
 
 -- | Create a wallet from the genesis block.
 fromGenesis :: AddressBookIso s => W.Wallet s -> Maybe (WalletState s)

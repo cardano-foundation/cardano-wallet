@@ -428,7 +428,11 @@ class AddressBookIso s => PersistAddressBook s where
     Sequential address book storage
 -------------------------------------------------------------------------------}
 -- piggy-back on SeqState existing instance, to simulate the same behavior.
-instance PersistAddressBook (Seq.SeqState n k)
+instance
+    ( Eq (Seq.SeqState n k)
+    , (k == SharedKey) ~ 'False
+    , PersistAddressBook (Seq.SeqState n k)
+    )
     => PersistAddressBook (Seq.SeqAnyState n k p)
   where
     insertPrologue wid (PS s) = insertPrologue wid s
@@ -444,6 +448,7 @@ instance
     , SoftDerivation key
     , Typeable n
     , (key == SharedKey) ~ 'False
+    , Eq (Seq.SeqState n key)
     ) => PersistAddressBook (Seq.SeqState n key) where
 
     insertPrologue wid (SeqPrologue st) = do

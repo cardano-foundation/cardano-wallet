@@ -61,7 +61,7 @@ import qualified Data.Map.Strict as Map
 -------------------------------------------------------------------------------}
 -- | FIXME LATER during ADP-1043:
 -- Move 'Prologue' and 'Discoveries' closer into address types.
-class AddressBookIso s where
+class (Eq (Prologue s), Eq (Discoveries s)) => AddressBookIso s where
     -- | Address information contained in the prologue of the address book,
     -- such as public keys or the address gap.
     data Prologue s :: Type
@@ -82,19 +82,26 @@ getDiscoveries = withIso addressIso $ \from _ -> snd . from
     Sequential address book
 -------------------------------------------------------------------------------}
 -- piggy-back on SeqState existing instance, to simulate the same behavior.
-instance AddressBookIso (Seq.SeqState n k)
-    => AddressBookIso (Seq.SeqAnyState n k p)
+instance ( (key == SharedKey) ~ 'False, Eq (Seq.SeqState n key))
+    => AddressBookIso (Seq.SeqAnyState n key p)
   where
-    data Prologue (Seq.SeqAnyState n k p) = PS (Prologue (Seq.SeqState n k))
-    data Discoveries (Seq.SeqAnyState n k p) = DS (Discoveries (Seq.SeqState n k))
+    data Prologue (Seq.SeqAnyState n key p) = PS (Prologue (Seq.SeqState n key))
+    data Discoveries (Seq.SeqAnyState n key p) = DS (Discoveries (Seq.SeqState n key))
 
     addressIso = withIso addressIso $ \from to ->
         let from2 st = let (a,b) = from $ Seq.innerState st in (PS a, DS b)
             to2 (PS a, DS b) = Seq.SeqAnyState $ to (a,b)
         in  iso from2 to2
 
+instance Eq (Seq.SeqState n k) => Eq (Prologue (Seq.SeqAnyState n k p)) where
+    (PS a) == (PS b) = a == b
+
+instance Eq (Seq.SeqState n k) => Eq (Discoveries (Seq.SeqAnyState n k p)) where
+    (DS a) == (DS b) = a == b
+
 -- | Isomorphism for sequential address book.
-instance ( (key == SharedKey) ~ 'False ) => AddressBookIso (Seq.SeqState n key)
+instance ( (key == SharedKey) ~ 'False, Eq (Seq.SeqState n key) )
+    => AddressBookIso (Seq.SeqState n key)
   where
     data Prologue (Seq.SeqState n key)
         = SeqPrologue (Seq.SeqState n key)
@@ -122,7 +129,7 @@ newtype SeqAddressMap (c :: Role) (key :: Depth -> Type -> Type) = SeqAddressMap
         ( Map
             (KeyFingerprint "payment" key)
             (Index 'Soft 'AddressK, AddressState)
-        )
+        ) deriving (Eq)
 
 clear :: Seq.SeqAddressPool c k -> Seq.SeqAddressPool c k
 clear = Seq.SeqAddressPool . AddressPool.clear . Seq.getPool
@@ -141,6 +148,9 @@ instance Buildable (Prologue (Seq.SeqState n k)) where
 
 instance Eq (Seq.SeqState n k) => Eq (Prologue (Seq.SeqState n k)) where
     SeqPrologue a == SeqPrologue b = a == b
+
+instance Eq (Seq.SeqState n k) => Eq (Discoveries (Seq.SeqState n k)) where
+    (SeqDiscoveries a x) == (SeqDiscoveries b y) = a == b && x == y
 
 {-------------------------------------------------------------------------------
     Shared key address book
@@ -182,6 +192,9 @@ instance ( key ~ SharedKey )
 instance ( key ~ SharedKey ) => Eq (Prologue (Shared.SharedState n key)) where
     SharedPrologue a == SharedPrologue b = a == b
 
+instance ( key ~ SharedKey ) => Eq (Discoveries (Shared.SharedState n key)) where
+    SharedDiscoveries a == SharedDiscoveries b = a == b
+
 {-------------------------------------------------------------------------------
     HD Random address book
 -------------------------------------------------------------------------------}
@@ -195,6 +208,10 @@ instance AddressBookIso (Rnd.RndAnyState n p)
         let from2 st = let (a,b) = from $ Rnd.innerState st in (PR a, DR b)
             to2 (PR a, DR b) = Rnd.RndAnyState $ to (a,b)
         in  iso from2 to2
+
+instance Eq (Prologue (Rnd.RndAnyState n p)) where PR a == PR b = a == b
+
+instance Eq (Discoveries (Rnd.RndAnyState n p)) where DR a == DR b = a == b
 
 -- | Isomorphism for HD random address book.
 instance AddressBookIso (Rnd.RndState n) where
@@ -216,3 +233,6 @@ instance Buildable (Prologue (Rnd.RndState n)) where
 
 instance Eq (Prologue (Rnd.RndState n)) where
     RndPrologue a == RndPrologue b = a == b
+
+instance Eq (Discoveries (Rnd.RndState n)) where
+    RndDiscoveries a == RndDiscoveries b = a == b
