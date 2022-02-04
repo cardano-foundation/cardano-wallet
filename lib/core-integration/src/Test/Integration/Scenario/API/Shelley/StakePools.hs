@@ -240,6 +240,7 @@ spec = describe "SHELLEY_STAKE_POOLS" $ do
                 , expectField (#status . #getApiT) (`shouldBe` InLedger)
                 , expectField (#direction . #getApiT) (`shouldBe` Outgoing)
                 , expectField #depositTaken (`shouldBe` Quantity 1000000)
+                , expectField #depositReturned (`shouldBe` Quantity 0)
                 ]
 
         let txId = getFromResponse #id rJoin
@@ -414,6 +415,8 @@ spec = describe "SHELLEY_STAKE_POOLS" $ do
                     #amount (`shouldBe` quitFeeAmt)
                 , expectField
                     (#status . #getApiT) (`shouldBe` InLedger)
+                , expectField #depositTaken (`shouldBe` Quantity 0)
+                , expectField #depositReturned (`shouldBe` Quantity 1000000)
                 ]
 
             let epl = Link.listTransactions @'Shelley src

@@ -2434,6 +2434,14 @@ spec = describe "NEW_SHELLEY_TRANSACTIONS" $ do
                     [ expectField #delegation (`shouldBe` notDelegating [])
                     ]
 
+        -- transaction history shows deposit returned
+        rGetTx4 <- request @(ApiTransaction n) ctx queryTx3 Default Empty
+        verify rGetTx4
+            [ expectResponseCode HTTP.status200
+            , expectField #depositTaken (`shouldBe` Quantity 0)
+            , expectField #depositReturned (`shouldBe` depositAmt)
+            ]
+
     it "TRANS_NEW_JOIN_01b - Invalid pool id" $ \ctx -> runResourceT $ do
 
         wa <- fixtureWallet ctx
