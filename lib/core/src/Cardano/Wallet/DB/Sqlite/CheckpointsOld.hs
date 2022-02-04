@@ -267,7 +267,8 @@ mkStoreCheckpoints wid =
             [ CheckpointWalletId ==. wid
             , CheckpointParentHash !=. BlockId hashOfNoParent
             ]
-    update (RestrictTo points) = do
+    update (RestrictTo pts) = do
+        let points = W.Origin : pts
         let pseudoSlot W.Origin    = W.SlotNo 0
             pseudoSlot (W.At slot) = slot
         let slots = map pseudoSlot points
