@@ -50,4 +50,5 @@ js:
 
 pandoc:
   rewriteClass:
-    gotcha: gotcha-container mx-9 my-6 px-3 py-1 rounded bg-red-100 hover:border-red-400 hover:shadow border-t-8 border-red-200
+    gotcha: gotcha-container admonition-container mx-9 my-6 px-3 py-1 rounded bg-red-100 hover:border-red-400 hover:shadow border-t-8 border-red-200
+    info-block: info-block-container admonition-container px-3 py-1 my-3 mx-4 rounded bg-blue-100 hover:border-blue-400 hover:shadow border-t-8 border-blue-200

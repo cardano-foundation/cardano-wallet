@@ -1,3 +1,7 @@
+---
+order: 41
+---
+
 # Coin Selection
 
 ## Reminder on UTxO

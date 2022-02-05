@@ -7,7 +7,10 @@
  * the YAML which combines Tailwind classes.
  */
 
-.gotcha-container > h2, .gotcha-container > h3, .gotcha-container > h4, .gotcha-container > h5 {
+.admonition-container > h2,
+.admonition-container > h3,
+.admonition-container > h4,
+.admonition-container > h5 {
   margin-top: 0 !important;
 }
 
@@ -15,6 +18,13 @@
   content: '🗈';
   margin-right: 0.5em;
   font-size: larger;
+}
+
+.info-block-container > :first-child::before {
+  content: '🛈';
+  margin-right: 0.2em;
+  font-size: larger;
+  font-weight: normal;
 }
 
 /* Override the <pre> styling for mermaidjs diagrams.  :-/  */
