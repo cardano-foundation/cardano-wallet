@@ -28,6 +28,8 @@ seed to an extended private key (_XPrv_) composed of:
 - [BIP 0032](https://github.com/bitcoin/bips/blob/master/bip-0032.mediawiki)
 - [BIP 0039](https://github.com/bitcoin/bips/blob/master/bip-0039.mediawiki)
 - [RFC 8032](https://tools.ietf.org/html/rfc8032#section-5.1.5)
+- [CIP 3 — "Wallet key generation"](https://cips.cardano.org/cips/cip3/)
+- [CIP 1852 — "HD (Hierarchy for Deterministic) Wallets for Cardano"](https://cips.cardano.org/cips/cip1852/)
 :::
 
 ## History
