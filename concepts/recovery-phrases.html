@@ -4,47 +4,29 @@
   <meta charset='UTF-8' />
   <meta name='viewport' content='width=device-width, initial-scale=1' />
   <title>
-    Architecture Diagram – Cardano Wallet
+    Recovery Phrases – Cardano Wallet
   </title>
   
     
       <meta property='og:description' content />
       <meta property='og:site_name' content='Cardano Wallet' />
       <meta property='og:type' content='website' />
-      <meta property='og:title' content='Architecture Diagram' />
+      <meta property='og:title' content='Recovery Phrases' />
     
     
       <base href='/cardano-wallet/' />
       <link href='favicon.svg' rel='icon' />
     
-    <meta name='generator' content='Emanote' />
-<meta http-equiv='cache-control' content='private, max-age=60' />
-<meta http-equiv='Expires' content='60' />
-<link href='static/cardano-wallet.css' rel='stylesheet' />
-<script src='static/cardano-wallet.js'></script>
-
-<!-- mermaid.js --><script src='https://cdn.jsdelivr.net/npm/mermaid/dist/mermaid.min.js'></script>
-<script>
-  var myMermaidConfig = {
-    // lets mermaid work with emanote live-reloading
-    startOnLoad: false,
-    // permit clicks
-    securityLevel: "loose",
-    // set default theme with primary colour to tailwind blue
-    theme: "base",
-    themeVariables: {
-      primaryColor: "#e0e7ff",
-      secondaryColor: "#fffde0"
-    },
-    // d3js rounded lines in flowcharts
-    flowchart: {
-      curve: "basis",
-      htmlLabels: true
+    <script>
+  window.MathJax = {
+    startup: {
+      ready: () => {
+        MathJax.startup.defaultReady();
+      }
     }
   };
-  mermaid.initialize(myMermaidConfig);
-  mermaid.init(myMermaidConfig, document.querySelectorAll(".mermaid"));
 </script>
+<script async id='MathJax-script' src='https://cdn.jsdelivr.net/npm/mathjax@3/es5/tex-mml-chtml.js'></script>
 
   
   <link href='tailwind.css?instanceId=b739a681-a25d-410e-8529-8fbba1a1385b' rel='stylesheet' type='text/css' />
@@ -122,8 +104,8 @@
             </li>
           
             <li class='inline-flex items-center'>
-              <a class='px-1 font-bold' href='developers'>
-                Developer Information
+              <a class='px-1 font-bold' href='concepts'>
+                Key Concepts
               </a>
               <svg fill='currentColor' viewBox='0 0 20 20' class='w-auto h-5 text-gray-400'>
                 <path fill-rule='evenodd' d='M7.293 14.707a1 1 0 010-1.414L10.586 10 7.293 6.707a1 1 0 011.414-1.414l4 4a1 1 0 010 1.414l-4 4a1 1 0 01-1.414 0z' clip-rule='evenodd'></path>
@@ -848,11 +830,7 @@
     
       <!-- Variable bindings for this tree-->
   
-    
-      
-    
-    
-
+  
 
 
   
@@ -865,12 +843,12 @@
     
     
       <svg class='w-4 h-4 flex-shrink-0 inline' fill='none' stroke='currentColor' viewBox='0 0 24 24' xmlns='http://www.w3.org/2000/svg'>
-        <path stroke-linecap='round' stroke-linejoin='round' stroke-width='2' d='M7 21h10a2 2 0 002-2V9.414a1 1 0 00-.293-.707l-5.414-5.414A1 1 0 0012.586 3H7a2 2 0 00-2 2v14a2 2 0 002 2z'>
+        <path stroke-linecap='round' stroke-linejoin='round' stroke-width='2' d='M9 12h6m-6 4h6m2 5H7a2 2 0 01-2-2V5a2 2 0 012-2h5.586a1 1 0 01.707.293l5.414 5.414a1 1 0 01.293.707V19a2 2 0 01-2 2z'>
         </path>
       </svg>
-    
+      
   
-    <a class='hover:underline truncate' title='Recovery Phrases' href='concepts/recovery-phrases'>
+    <a class='font-bold text-blue-600 hover:underline truncate' title='Recovery Phrases' href='concepts/recovery-phrases'>
       Recovery Phrases
     </a>
     
@@ -1238,7 +1216,11 @@
     
       <!-- Variable bindings for this tree-->
   
-  
+    
+      
+    
+    
+
 
 
   
@@ -1251,12 +1233,12 @@
     
     
       <svg class='w-4 h-4 flex-shrink-0 inline' fill='none' stroke='currentColor' viewBox='0 0 24 24' xmlns='http://www.w3.org/2000/svg'>
-        <path stroke-linecap='round' stroke-linejoin='round' stroke-width='2' d='M9 12h6m-6 4h6m2 5H7a2 2 0 01-2-2V5a2 2 0 012-2h5.586a1 1 0 01.707.293l5.414 5.414a1 1 0 01.293.707V19a2 2 0 01-2 2z'>
+        <path stroke-linecap='round' stroke-linejoin='round' stroke-width='2' d='M7 21h10a2 2 0 002-2V9.414a1 1 0 00-.293-.707l-5.414-5.414A1 1 0 0012.586 3H7a2 2 0 00-2 2v14a2 2 0 002 2z'>
         </path>
       </svg>
-      
+    
   
-    <a class='font-bold text-blue-600 hover:underline truncate' title='Architecture Diagram' href='developers/Architecture'>
+    <a class='hover:underline truncate' title='Architecture Diagram' href='developers/Architecture'>
       Architecture Diagram
     </a>
     
@@ -2141,76 +2123,148 @@
           <main class='px-4 py-4'>
             <h1 class='flex items-end justify-center mb-4 p-3 bg-blue-100 text-5xl font-extrabold text-black rounded'>
   <a class='z-40 tracking-tighter '>
-    Architecture Diagram
+    Recovery Phrases
   </a>
 </h1>
             <article class='overflow-auto'>
   <!-- What goes in this file will appear on top of note body-->
-  <div class='mermaid-container'><div class='py-0.5 mb-3 text-sm'><pre><code class='mermaid language-mermaid'>flowchart TB;
-  subgraph local system
-    Daedalus -- calls --&gt; cardano-launcher;
-    cardano-launcher -. spawns .-&gt; cardano-wallet;
-    cardano-launcher -. spawns .-&gt; cardano-node;
-
-    %% by HTTP REST API
-    Daedalus -- queries --&gt; cardano-wallet;
-
-    %% Local socket/named pipe
-    cardano-wallet -- queries --&gt; cardano-node;
-  end
-
-
-  subgraph Internet
-    %% HTTP API
-    cardano-wallet -- queries --&gt; SMASH;
-
-    %% Network protocol
-    cardano-node -- syncs --&gt; blockchain;
-  end
-
-  class cardano-wallet adrestia;
-  class Daedalus,cardano-launcher daedalus;
-  class cardano-node,SMASH cardano;
-  class blockchain other;
-
-  click cardano-wallet call mermaidClick("wallet-backend");
-  click cardano-launcher mermaidClick;
-  click cardano-node call mermaidClick("node");
-  click SMASH call mermaidClick("smash");
-  click Daedalus call mermaidClick("daedalus");</code></pre></div></div>
+  
     <p class='mb-3'>
-      This is how the software components fit together in the <a href='#daedalus' class='text-blue-600 mavenLinkBold hover:underline'>Daedalus</a> scenario.
+      Recovery phrases (also known as <em>mnemonics</em>) provide a way for humans to easily read and write down arbitrary large numbers which would otherwise be very difficult to remember.
     </p>
   
     <p class='mb-3'>
-      See also: <a href='https://input-output-hk.github.io/adrestia/code/Adrestia-Architecture' class='text-blue-600 hover:underline' target='_blank' rel='noopener'>Adrestia Architecture</a>.
+      They use a predefined dictionary of simple words (available in many different languages) which map uniquely back and forth to a binary code.
     </p>
-  <h2 id='node' class='inline-block mt-6 mb-4 text-4xl font-bold text-gray-700 border-b-2'>Node</h2>
+  <h2 id='seeds--entropy' class='inline-block mt-6 mb-4 text-4xl font-bold text-gray-700 border-b-2'>Seeds / Entropy</h2>
     <p class='mb-3'>
-      The core <a href='https://github.com/input-output-hk/cardano-node' class='text-blue-600 hover:underline' target='_blank' rel='noopener'>cardano-node</a>, which participates in the Cardano network, and maintains the state of the Cardano blockchain ledger.
+      The recovery phrase is normally used to encode a wallet’s “seed” - a secret random number which is 28 decimal digits long, or more!
     </p>
-  <h2 id='wallet-backend' class='inline-block mt-6 mb-4 text-4xl font-bold text-gray-700 border-b-2'>Wallet Backend</h2>
+  
     <p class='mb-3'>
-      <a href='https://github.com/input-output-hk/cardano-wallet' class='text-blue-600 hover:underline' target='_blank' rel='noopener'>cardano-wallet</a> is an HTTP REST API is recommended for 3rd party wallets and small exchanges who do not want to manage UTxOs for transactions themselves. Use it to send and receive payments from hierarchical deterministic wallets on the Cardano blockchain via HTTP REST or a command-line interface.
+      A seed is also called just <em>entropy
+    <!-- DoNotFormat -->
+    <!-- We use JavaScript because anchor links won't work if there is a <base> tag;
+         see https://stackoverflow.com/a/34765348 
+    -->
+    <sup class='px-0.5'><a class='text-blue-600 hover:underline' href='javascript:;' onclick="document.location.hash='#fn1';">1</a></sup>
+    <!-- DoNotFormat -->
+  </em>, implying that it is a sequence of bytes which has been generated using high-quality randomness methods.
     </p>
-  <h2 id='cardano-launcher' class='inline-block mt-6 mb-4 text-4xl font-bold text-gray-700 border-b-2'>Cardano Launcher</h2>
+  
     <p class='mb-3'>
-      <a href='https://github.com/input-output-hk/cardano-launcher' class='text-blue-600 hover:underline' target='_blank' rel='noopener'>cardano-launcher</a> is a TypeScript package which handles the details of starting and stopping the Node and Wallet Backend.
+      All keys belonging to a wallet <a href='concepts/address-derivation' class='text-blue-600 mavenLinkBold hover:underline' data-wikilink-type='WikiLinkNormal'>are derived somehow</a> from the wallet seed.
     </p>
-  <h2 id='daedalus' class='inline-block mt-6 mb-4 text-4xl font-bold text-gray-700 border-b-2'>Daedalus</h2>
+  <h2 id='encoding' class='inline-block mt-6 mb-4 text-4xl font-bold text-gray-700 border-b-2'>Encoding</h2><div class='px-3 py-1 rounded shadow bg-yellow-100 mx-2 transform -skew-y-1 scale-95 hover:scale-100 hover:border-yellow-400 hover:shadow-lg border-t-8 border-yellow-200 mb-8 mt-8'>
     <p class='mb-3'>
-      <a href='https://github.com/input-output-hk/daedalus' class='text-blue-600 hover:underline' target='_blank' rel='noopener'>Daedalus</a> is a user-friendly desktop application to manage Cardano wallets.
+      The process for encoding recovery phrases is described in <a href='https://github.com/bitcoin/bips/blob/master/bip-0039.mediawiki#Generating_the_mnemonic' class='text-blue-600 hover:underline' target='_blank' rel='noopener'>BIP-0039 § <em>Generating the mnemonic</em></a>. Below is a reformulation of this specification.
     </p>
-  <h2 id='smash' class='inline-block mt-6 mb-4 text-4xl font-bold text-gray-700 border-b-2'>SMASH</h2>
+  </div>
     <p class='mb-3'>
-      <a href='https://github.com/input-output-hk/smash' class='text-blue-600 hover:underline' target='_blank' rel='noopener'>SMASH</a> is a proxy for stake pool metadata.
+      The allowed size of <em>entropy</em> is 96-256 bits and must be multiple of 32 bits (4 bytes).
     </p>
+  
+    <p class='mb-3'>
+      A checksum is appended to the initial entropy by taking the first <span class='math inline'>\(|ent| / 32\)</span> bits of the SHA-256 hash of it, where <span class='math inline'>\(|ent|\)</span> designates the <em>entropy</em> size in bits.
+    </p>
+  
+    <p class='mb-3'>
+      Then, the concatenated result is split into groups of 11 bits, each encoding a number from 0 to 2047 serving as an index into a known dictionary (see below).
+    </p>
+  <table class='mb-3'><thead><tr class='border-b-2 border-t-2 border-gray-300'><th class='py-2 px-2 align-top border-r-2 border-l-2 border-gray-300'>Sentence Length</th><th class='py-2 px-2 align-top border-r-2 border-l-2 border-gray-300'>Entropy Size</th><th class='py-2 px-2 align-top border-r-2 border-l-2 border-gray-300'>Checksum Size</th></tr></thead><tbody><tr class='border-b-2 border-t-2 border-gray-300'><td class='py-2 px-2 align-top border-r-2 border-l-2 border-gray-300'>9 words</td><td class='py-2 px-2 align-top border-r-2 border-l-2 border-gray-300'>96 bits (12 bytes)</td><td class='py-2 px-2 align-top border-r-2 border-l-2 border-gray-300'>3 bits</td></tr><tr class='border-b-2 border-t-2 border-gray-300'><td class='py-2 px-2 align-top border-r-2 border-l-2 border-gray-300'>12 words</td><td class='py-2 px-2 align-top border-r-2 border-l-2 border-gray-300'>128 bits (16 bytes)</td><td class='py-2 px-2 align-top border-r-2 border-l-2 border-gray-300'>4 bits</td></tr><tr class='border-b-2 border-t-2 border-gray-300'><td class='py-2 px-2 align-top border-r-2 border-l-2 border-gray-300'>15 words</td><td class='py-2 px-2 align-top border-r-2 border-l-2 border-gray-300'>160 bits (20 bytes)</td><td class='py-2 px-2 align-top border-r-2 border-l-2 border-gray-300'>5 bits</td></tr><tr class='border-b-2 border-t-2 border-gray-300'><td class='py-2 px-2 align-top border-r-2 border-l-2 border-gray-300'>18 words</td><td class='py-2 px-2 align-top border-r-2 border-l-2 border-gray-300'>192 bits (24 bytes)</td><td class='py-2 px-2 align-top border-r-2 border-l-2 border-gray-300'>6 bits</td></tr><tr class='border-b-2 border-t-2 border-gray-300'><td class='py-2 px-2 align-top border-r-2 border-l-2 border-gray-300'>21 words</td><td class='py-2 px-2 align-top border-r-2 border-l-2 border-gray-300'>224 bits (28 bytes)</td><td class='py-2 px-2 align-top border-r-2 border-l-2 border-gray-300'>7 bits</td></tr><tr class='border-b-2 border-t-2 border-gray-300'><td class='py-2 px-2 align-top border-r-2 border-l-2 border-gray-300'>24 words</td><td class='py-2 px-2 align-top border-r-2 border-l-2 border-gray-300'>256 bits (32 bytes)</td><td class='py-2 px-2 align-top border-r-2 border-l-2 border-gray-300'>8 bits</td></tr></tbody></table><h2 id='dictionaries' class='inline-block mt-6 mb-4 text-4xl font-bold text-gray-700 border-b-2'>Dictionaries</h2>
+    <p class='mb-3'>
+      Cardano uses the same dictionaries as defined in <a href='https://github.com/bitcoin/bips/blob/master/bip-0039/bip-0039-wordlists.md' class='text-blue-600 hover:underline' target='_blank' rel='noopener'>BIP-0039</a>.
+    </p>
+  <h2 id='example' class='inline-block mt-6 mb-4 text-4xl font-bold text-gray-700 border-b-2'>Example</h2>
+    <p class='mb-3'>
+      This is an English recovery phrase, ordered left-to-right, then top-to-bottom.
+    </p>
+  <div class='py-0.5 mb-3 text-sm'><pre><code class='language-none'>write       maid        rib
+female      drama       awake
+release     inhale      weapon
+crush       mule        jump
+sound       erupt       stereo</code></pre></div>
+    <p class='mb-3'>
+      It is 15 words long, so <span class='math inline'>\(15\times11 = 165\)</span> bits of information, which is split into a 160 bit seed and 5 bit checksum.
+    </p>
+  
+    <p class='mb-3'>
+      Using the dictionary, these words resolve to:
+    </p>
+  <div class='py-0.5 mb-3 text-sm'><pre><code class='language-none'>2036        1072        1479
+ 679         529         129
+1449         925        1986
+ 424        1162         967
+1662         615        1708</code></pre></div>
+    <p class='mb-3'>
+      Which is:
+    </p>
+  <div class='py-0.5 mb-3 text-sm'><pre><code class='language-none'>Seed:
+01111100111 11100100110 01111101011
+01010100111 01000010001 00010000001
+10110101001 01110011101 11111000010
+00110101000 10010001010 01111000111
+11001111110 01001100111 110101
+Checksum:                     01100
+
+Seed (base16):     fe90c2e3aa7422206d4b9df846a2453c7cfc99f5
+Checksum (base16): 0c</code></pre></div>
+    <div title='Footnotes' class='pt-2 mt-8 space-y-1 text-gray-500 transform scale-x-90 border-t-2'>
+      <header class='font-semibold'>Footnotes</header>
+      
+        <div id='fn1'>
+          <header class='italic'>
+            1.
+          </header>
+          <div class='inline-block mb-2 ml-4'>
+            See also the definition of “entropy” from <a href='https://en.wikipedia.org/wiki/Information_theory' class='text-blue-600 hover:underline' target='_blank' rel='noopener'>information theory</a>.
+          </div>
+        </div>
+      
+    </div>
   
   <!-- What goes in this file will appear below the note body-->
 </article>
             <div class='flex flex-col lg:flex-row lg:space-x-2'>
               
               
+  <div class='flex-1 p-4 mt-8 bg-gray-100 rounded'>
+    <header class='mb-2 text-xl font-semibold text-gray-500'>Links to this page</header>
+    <ul class='space-y-1'>
+      
+        <li>
+          <a class='text-blue-600 mavenLinkBold hover:bg-blue-50' href='concepts/master-key-generation'>
+            Master Key Generation
+          </a>
+          
+            <div class='mb-4 overflow-auto text-sm text-gray-500'>
+  
+    <div class='pl-2 mt-2 border-l-2 border-blue-200 hover:border-blue-500'>
+      <div><p><em>Master key generation</em> is the process by which the wallet turns a <a href='concepts/recovery-phrases' class='text-gray-600 font-bold hover:bg-gray-50' data-wikilink-type='WikiLinkNormal'>seed</a> (<em>entropy</em>) into a secure cryptographic key. Child keys can be derived from a master key to produce a derivation tree structure as outlined in <a href='concepts/hierarchical-deterministic-wallets' class='text-gray-600 font-bold hover:bg-gray-50' data-wikilink-type='WikiLinkNormal'>HD Wallets</a>.</p></div>
+    </div>
+  
+</div>
+          
+        </li>
+      
+        <li>
+          <a class='text-blue-600 mavenLinkBold hover:bg-blue-50' href='concepts'>
+            Key Concepts
+          </a>
+          
+            <div class='mb-4 overflow-auto text-sm text-gray-500'>
+  
+    <div class='pl-2 mt-2 border-l-2 border-blue-200 hover:border-blue-500'>
+      <div><a href='concepts/recovery-phrases' class='text-gray-600 font-bold hover:bg-gray-50' data-wikilink-type='WikiLinkNormal'>Recovery Phrases</a></div>
+    </div>
+  
+</div>
+          
+        </li>
+      
+    </ul>
+  </div>
+
             </div>
             
   <section class='flex flex-wrap items-end justify-center my-4 space-x-2 space-y-2 font-mono text-sm'>

@@ -4,14 +4,14 @@
   <meta charset='UTF-8' />
   <meta name='viewport' content='width=device-width, initial-scale=1' />
   <title>
-    Architecture Diagram – Cardano Wallet
+    Nix/NixOS – Cardano Wallet
   </title>
   
     
       <meta property='og:description' content />
       <meta property='og:site_name' content='Cardano Wallet' />
       <meta property='og:type' content='website' />
-      <meta property='og:title' content='Architecture Diagram' />
+      <meta property='og:title' content='Nix/NixOS' />
     
     
       <base href='/cardano-wallet/' />
@@ -23,28 +23,9 @@
 <link href='static/cardano-wallet.css' rel='stylesheet' />
 <script src='static/cardano-wallet.js'></script>
 
-<!-- mermaid.js --><script src='https://cdn.jsdelivr.net/npm/mermaid/dist/mermaid.min.js'></script>
-<script>
-  var myMermaidConfig = {
-    // lets mermaid work with emanote live-reloading
-    startOnLoad: false,
-    // permit clicks
-    securityLevel: "loose",
-    // set default theme with primary colour to tailwind blue
-    theme: "base",
-    themeVariables: {
-      primaryColor: "#e0e7ff",
-      secondaryColor: "#fffde0"
-    },
-    // d3js rounded lines in flowcharts
-    flowchart: {
-      curve: "basis",
-      htmlLabels: true
-    }
-  };
-  mermaid.initialize(myMermaidConfig);
-  mermaid.init(myMermaidConfig, document.querySelectorAll(".mermaid"));
-</script>
+<!-- Prism.js --><link href='https://cdnjs.cloudflare.com/ajax/libs/prism/1.26.0/themes/prism-tomorrow.min.css' rel='stylesheet' />
+<script src='https://cdnjs.cloudflare.com/ajax/libs/prism/1.26.0/prism.min.js'></script>
+<script src='https://cdnjs.cloudflare.com/ajax/libs/prism/1.26.0/plugins/autoloader/prism-autoloader.min.js'></script>
 
   
   <link href='tailwind.css?instanceId=b739a681-a25d-410e-8529-8fbba1a1385b' rel='stylesheet' type='text/css' />
@@ -122,8 +103,17 @@
             </li>
           
             <li class='inline-flex items-center'>
-              <a class='px-1 font-bold' href='developers'>
-                Developer Information
+              <a class='px-1 font-bold' href='user-guide'>
+                User Guide
+              </a>
+              <svg fill='currentColor' viewBox='0 0 20 20' class='w-auto h-5 text-gray-400'>
+                <path fill-rule='evenodd' d='M7.293 14.707a1 1 0 010-1.414L10.586 10 7.293 6.707a1 1 0 011.414-1.414l4 4a1 1 0 010 1.414l-4 4a1 1 0 01-1.414 0z' clip-rule='evenodd'></path>
+              </svg>
+            </li>
+          
+            <li class='inline-flex items-center'>
+              <a class='px-1 font-bold' href='user-guide/installation'>
+                Installation Instructions
               </a>
               <svg fill='currentColor' viewBox='0 0 20 20' class='w-auto h-5 text-gray-400'>
                 <path fill-rule='evenodd' d='M7.293 14.707a1 1 0 010-1.414L10.586 10 7.293 6.707a1 1 0 011.414-1.414l4 4a1 1 0 010 1.414l-4 4a1 1 0 01-1.414 0z' clip-rule='evenodd'></path>
@@ -338,11 +328,7 @@
     
       <!-- Variable bindings for this tree-->
   
-    
-      
-    
-    
-
+  
 
 
   
@@ -355,12 +341,12 @@
     
     
       <svg class='w-4 h-4 flex-shrink-0 inline' fill='none' stroke='currentColor' viewBox='0 0 24 24' xmlns='http://www.w3.org/2000/svg'>
-        <path stroke-linecap='round' stroke-linejoin='round' stroke-width='2' d='M7 21h10a2 2 0 002-2V9.414a1 1 0 00-.293-.707l-5.414-5.414A1 1 0 0012.586 3H7a2 2 0 00-2 2v14a2 2 0 002 2z'>
+        <path stroke-linecap='round' stroke-linejoin='round' stroke-width='2' d='M9 12h6m-6 4h6m2 5H7a2 2 0 01-2-2V5a2 2 0 012-2h5.586a1 1 0 01.707.293l5.414 5.414a1 1 0 01.293.707V19a2 2 0 01-2 2z'>
         </path>
       </svg>
-    
+      
   
-    <a class='hover:underline truncate' title='Nix/NixOS' href='user-guide/installation/NixOS'>
+    <a class='font-bold text-blue-600 hover:underline truncate' title='Nix/NixOS' href='user-guide/installation/NixOS'>
       Nix/NixOS
     </a>
     
@@ -1238,7 +1224,11 @@
     
       <!-- Variable bindings for this tree-->
   
-  
+    
+      
+    
+    
+
 
 
   
@@ -1251,12 +1241,12 @@
     
     
       <svg class='w-4 h-4 flex-shrink-0 inline' fill='none' stroke='currentColor' viewBox='0 0 24 24' xmlns='http://www.w3.org/2000/svg'>
-        <path stroke-linecap='round' stroke-linejoin='round' stroke-width='2' d='M9 12h6m-6 4h6m2 5H7a2 2 0 01-2-2V5a2 2 0 012-2h5.586a1 1 0 01.707.293l5.414 5.414a1 1 0 01.293.707V19a2 2 0 01-2 2z'>
+        <path stroke-linecap='round' stroke-linejoin='round' stroke-width='2' d='M7 21h10a2 2 0 002-2V9.414a1 1 0 00-.293-.707l-5.414-5.414A1 1 0 0012.586 3H7a2 2 0 00-2 2v14a2 2 0 002 2z'>
         </path>
       </svg>
-      
+    
   
-    <a class='font-bold text-blue-600 hover:underline truncate' title='Architecture Diagram' href='developers/Architecture'>
+    <a class='hover:underline truncate' title='Architecture Diagram' href='developers/Architecture'>
       Architecture Diagram
     </a>
     
@@ -2141,69 +2131,60 @@
           <main class='px-4 py-4'>
             <h1 class='flex items-end justify-center mb-4 p-3 bg-blue-100 text-5xl font-extrabold text-black rounded'>
   <a class='z-40 tracking-tighter '>
-    Architecture Diagram
+    Nix/NixOS
   </a>
 </h1>
             <article class='overflow-auto'>
   <!-- What goes in this file will appear on top of note body-->
-  <div class='mermaid-container'><div class='py-0.5 mb-3 text-sm'><pre><code class='mermaid language-mermaid'>flowchart TB;
-  subgraph local system
-    Daedalus -- calls --&gt; cardano-launcher;
-    cardano-launcher -. spawns .-&gt; cardano-wallet;
-    cardano-launcher -. spawns .-&gt; cardano-node;
-
-    %% by HTTP REST API
-    Daedalus -- queries --&gt; cardano-wallet;
-
-    %% Local socket/named pipe
-    cardano-wallet -- queries --&gt; cardano-node;
-  end
-
-
-  subgraph Internet
-    %% HTTP API
-    cardano-wallet -- queries --&gt; SMASH;
-
-    %% Network protocol
-    cardano-node -- syncs --&gt; blockchain;
-  end
-
-  class cardano-wallet adrestia;
-  class Daedalus,cardano-launcher daedalus;
-  class cardano-node,SMASH cardano;
-  class blockchain other;
-
-  click cardano-wallet call mermaidClick("wallet-backend");
-  click cardano-launcher mermaidClick;
-  click cardano-node call mermaidClick("node");
-  click SMASH call mermaidClick("smash");
-  click Daedalus call mermaidClick("daedalus");</code></pre></div></div>
+  <h2 id='running-without-installation' class='inline-block mt-6 mb-4 text-4xl font-bold text-gray-700 border-b-2'>Running without installation</h2>
     <p class='mb-3'>
-      This is how the software components fit together in the <a href='#daedalus' class='text-blue-600 mavenLinkBold hover:underline'>Daedalus</a> scenario.
+      The following command will download and run a given release of <code class='py-0.5 px-1 rounded bg-gray-700 text-sm text-white'>cardano-wallet</code> using Nix:
+    </p>
+  <div class='py-0.5 mb-3 text-sm'><pre><code class='console language-console'>$ nix run github:input-output-hk/cardano-wallet/v2022-01-18 -- version
+v2022-01-18 (git revision: ce772ff33623e2a522dcdc15b1d360815ac1336a)</code></pre></div>
+    <p class='mb-3'>
+      It’s also possible to run the very latest version from the master branch on GitHub:
+    </p>
+  <div class='py-0.5 mb-3 text-sm'><pre><code class='console language-console'>$ nix run github:input-output-hk/cardano-wallet -- --help
+...</code></pre></div><h3 id='wrapper-script-with-pre-configured-network-settings' class='mt-6 mb-2 text-3xl font-bold text-gray-700'>Wrapper script with pre-configured network settings</h3>
+    <p class='mb-3'>
+      To run a wallet on <em>mainnet</em>:
+    </p>
+  <div class='py-0.5 mb-3 text-sm'><pre><code class='console language-console'>$ CARDANO_NODE_SOCKET_PATH=../cardano-node/node.socket
+
+$ nix run github:input-output-hk/cardano-wallet#mainnet/wallet</code></pre></div><h2 id='installing-into-user-profile' class='inline-block mt-6 mb-4 text-4xl font-bold text-gray-700 border-b-2'>Installing into user profile</h2><div class='py-0.5 mb-3 text-sm'><pre><code class='language-none'>$ nix profile install github:input-output-hk/cardano-wallet/v2022-01-18
+$ cardano-wallet version
+v2022-01-18 (git revision: ce772ff33623e2a522dcdc15b1d360815ac1336a)</code></pre></div><h2 id='nixos-module' class='inline-block mt-6 mb-4 text-4xl font-bold text-gray-700 border-b-2'>NixOS Module</h2>
+    <p class='mb-3'>
+      A nixos service definition for cardano-wallet server is available by importing the flake <code class='py-0.5 px-1 rounded bg-gray-700 text-sm text-white'>nixosModule</code> attribute into your nixos configuration. Or by importing <a href='https://github.com/input-output-hk/cardano-wallet/tree/master/nix/nixos' class='text-blue-600 hover:underline' target='_blank' rel='noopener'><code class='py-0.5 px-1 rounded bg-gray-700 text-sm text-white'>nix/nixos</code></a>.
     </p>
   
     <p class='mb-3'>
-      See also: <a href='https://input-output-hk.github.io/adrestia/code/Adrestia-Architecture' class='text-blue-600 hover:underline' target='_blank' rel='noopener'>Adrestia Architecture</a>.
+      Then <code class='py-0.5 px-1 rounded bg-gray-700 text-sm text-white'>cardano-wallet</code> server can then be activated and configured:
     </p>
-  <h2 id='node' class='inline-block mt-6 mb-4 text-4xl font-bold text-gray-700 border-b-2'>Node</h2>
+  <div class='py-0.5 mb-3 text-sm'><pre><code class='nix language-nix'>{
+  description = "Flake example with cardano-wallet NixOS module";
+  inputs.cardano-wallet.url = github:input-output-hk/cardano-wallet;
+  outputs = { self, cardano-wallet }@inputs: {
+    nixosModules.example = { config, ...}: {
+      imports = [
+        inputs.cardano-wallet.nixosModule
+      ];
+      services.config.cardano-wallet = {
+        enable = true;
+        walletMode = "mainnet";
+        nodeSocket = config.services.cardano-node.socketPath;
+        poolMetadataFetching = {
+          enable = true;
+          smashUrl = "https://smash.cardano-mainnet.iohk.io";
+        };
+        tokenMetadataServer = "https://tokens.cardano.org";
+      };
+    };
+  };
+}</code></pre></div>
     <p class='mb-3'>
-      The core <a href='https://github.com/input-output-hk/cardano-node' class='text-blue-600 hover:underline' target='_blank' rel='noopener'>cardano-node</a>, which participates in the Cardano network, and maintains the state of the Cardano blockchain ledger.
-    </p>
-  <h2 id='wallet-backend' class='inline-block mt-6 mb-4 text-4xl font-bold text-gray-700 border-b-2'>Wallet Backend</h2>
-    <p class='mb-3'>
-      <a href='https://github.com/input-output-hk/cardano-wallet' class='text-blue-600 hover:underline' target='_blank' rel='noopener'>cardano-wallet</a> is an HTTP REST API is recommended for 3rd party wallets and small exchanges who do not want to manage UTxOs for transactions themselves. Use it to send and receive payments from hierarchical deterministic wallets on the Cardano blockchain via HTTP REST or a command-line interface.
-    </p>
-  <h2 id='cardano-launcher' class='inline-block mt-6 mb-4 text-4xl font-bold text-gray-700 border-b-2'>Cardano Launcher</h2>
-    <p class='mb-3'>
-      <a href='https://github.com/input-output-hk/cardano-launcher' class='text-blue-600 hover:underline' target='_blank' rel='noopener'>cardano-launcher</a> is a TypeScript package which handles the details of starting and stopping the Node and Wallet Backend.
-    </p>
-  <h2 id='daedalus' class='inline-block mt-6 mb-4 text-4xl font-bold text-gray-700 border-b-2'>Daedalus</h2>
-    <p class='mb-3'>
-      <a href='https://github.com/input-output-hk/daedalus' class='text-blue-600 hover:underline' target='_blank' rel='noopener'>Daedalus</a> is a user-friendly desktop application to manage Cardano wallets.
-    </p>
-  <h2 id='smash' class='inline-block mt-6 mb-4 text-4xl font-bold text-gray-700 border-b-2'>SMASH</h2>
-    <p class='mb-3'>
-      <a href='https://github.com/input-output-hk/smash' class='text-blue-600 hover:underline' target='_blank' rel='noopener'>SMASH</a> is a proxy for stake pool metadata.
+      See <a href='https://github.com/input-output-hk/cardano-wallet/tree/master/nix/nixos/cardano-wallet-service.nix' class='text-blue-600 hover:underline' target='_blank' rel='noopener'><code class='py-0.5 px-1 rounded bg-gray-700 text-sm text-white'>nix/nixos/cardano-wallet-service.nix</code></a> for the other configuration options (such as the <code class='py-0.5 px-1 rounded bg-gray-700 text-sm text-white'>genesisFile</code> option to run cardano-wallet on a testnet) and complete documentation.
     </p>
   
   <!-- What goes in this file will appear below the note body-->
@@ -2211,6 +2192,43 @@
             <div class='flex flex-col lg:flex-row lg:space-x-2'>
               
               
+  <div class='flex-1 p-4 mt-8 bg-gray-100 rounded'>
+    <header class='mb-2 text-xl font-semibold text-gray-500'>Links to this page</header>
+    <ul class='space-y-1'>
+      
+        <li>
+          <a class='text-blue-600 mavenLinkBold hover:bg-blue-50' href='user-guide'>
+            User Guide
+          </a>
+          
+            <div class='mb-4 overflow-auto text-sm text-gray-500'>
+  
+    <div class='pl-2 mt-2 border-l-2 border-blue-200 hover:border-blue-500'>
+      <div><a href='user-guide/installation/NixOS' class='text-gray-600 font-bold hover:bg-gray-50' data-wikilink-type='WikiLinkNormal'>Nix/NixOS</a> - if you are using Nix or NixOS</div>
+    </div>
+  
+</div>
+          
+        </li>
+      
+        <li>
+          <a class='text-blue-600 mavenLinkBold hover:bg-blue-50' href='user-guide/installation'>
+            Installation Instructions
+          </a>
+          
+            <div class='mb-4 overflow-auto text-sm text-gray-500'>
+  
+    <div class='pl-2 mt-2 border-l-2 border-blue-200 hover:border-blue-500'>
+      <div><p>See <a href='user-guide/installation/NixOS' class='text-gray-600 font-bold hover:bg-gray-50' data-wikilink-type='WikiLinkNormal'>Nix/NixOS</a>.</p></div>
+    </div>
+  
+</div>
+          
+        </li>
+      
+    </ul>
+  </div>
+
             </div>
             
   <section class='flex flex-wrap items-end justify-center my-4 space-x-2 space-y-2 font-mono text-sm'>

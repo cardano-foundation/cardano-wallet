@@ -23,9 +23,19 @@
 <link href='static/cardano-wallet.css' rel='stylesheet' />
 <script src='static/cardano-wallet.js'></script>
 
+<script>
+  window.MathJax = {
+    startup: {
+      ready: () => {
+        MathJax.startup.defaultReady();
+      }
+    }
+  };
+</script>
+<script async id='MathJax-script' src='https://cdn.jsdelivr.net/npm/mathjax@3/es5/tex-mml-chtml.js'></script>
 
   
-  <link href='tailwind.css?instanceId=c8c58155-070a-46f2-96da-d86fcf659029' rel='stylesheet' type='text/css' />
+  <link href='tailwind.css?instanceId=b739a681-a25d-410e-8529-8fbba1a1385b' rel='stylesheet' type='text/css' />
 
   <!-- Heist error element -->
   <style type='text/css'>
@@ -243,13 +253,13 @@
   
     
       
-    
+      
     
 
 
 
   
-
+  
 
 <!-- Rendering of this tree -->
 <div class='pl-2'>
@@ -257,13 +267,13 @@
   <div class='flex items-center my-2 space-x-2 justify-left'>
     
     
-      <svg class='w-4 h-4 flex-shrink-0 inline' fill='none' stroke='currentColor' viewBox='0 0 24 24' xmlns='http://www.w3.org/2000/svg'>
-        <path stroke-linecap='round' stroke-linejoin='round' stroke-width='2' d='M7 21h10a2 2 0 002-2V9.414a1 1 0 00-.293-.707l-5.414-5.414A1 1 0 0012.586 3H7a2 2 0 00-2 2v14a2 2 0 002 2z'>
-        </path>
+      <svg xmlns='http://www.w3.org/2000/svg' class='w-4 h-4 flex-shrink-0 inline text-gray-700' viewBox='0 0 20 20' fill='currentColor'>
+        <path fill-rule='evenodd' d='M2 6a2 2 0 012-2h4l2 2h4a2 2 0 012 2v1H8a3 3 0 00-3 3v1.5a1.5 1.5 0 01-3 0V6z' clip-rule='evenodd'></path>
+        <path d='M6 12a2 2 0 012-2h8a2 2 0 012 2v2a2 2 0 01-2 2H2h2a2 2 0 002-2v-2z'></path>
       </svg>
-    
+      
   
-    <a class='hover:underline truncate' title='Installation Instructions' href='user-guide/installation'>
+    <a class='font-bold hover:underline truncate' title='Installation Instructions' href='user-guide/installation'>
       Installation Instructions
     </a>
     
@@ -274,9 +284,6 @@
     TODO: Use <details> to toggle visibility?
   -->
   
-    
-  
-</div>
     
       <!-- Variable bindings for this tree-->
   
@@ -302,7 +309,7 @@
       </svg>
     
   
-    <a class='hover:underline truncate' title='Docker' href='user-guide/Docker'>
+    <a class='hover:underline truncate' title='Docker' href='user-guide/installation/Docker'>
       Docker
     </a>
     
@@ -341,8 +348,8 @@
       </svg>
     
   
-    <a class='hover:underline truncate' title='NixOS service' href='user-guide/NixOS'>
-      NixOS service
+    <a class='hover:underline truncate' title='Nix/NixOS' href='user-guide/installation/NixOS'>
+      Nix/NixOS
     </a>
     
       
@@ -352,6 +359,9 @@
     TODO: Use <details> to toggle visibility?
   -->
   
+    
+  
+</div>
     
   
 </div>
@@ -848,6 +858,119 @@
       </svg>
     
   
+    <a class='hover:underline truncate' title='Recovery Phrases' href='concepts/recovery-phrases'>
+      Recovery Phrases
+    </a>
+    
+      
+  </div>
+
+  <!-- Node's children forest, displayed only on active trees
+    TODO: Use <details> to toggle visibility?
+  -->
+  
+    
+  
+</div>
+    
+      <!-- Variable bindings for this tree-->
+  
+    
+      
+    
+    
+
+
+
+  
+
+
+<!-- Rendering of this tree -->
+<div class='pl-2'>
+  <!-- Node's rootLabel-->
+  <div class='flex items-center my-2 space-x-2 justify-left'>
+    
+    
+      <svg class='w-4 h-4 flex-shrink-0 inline' fill='none' stroke='currentColor' viewBox='0 0 24 24' xmlns='http://www.w3.org/2000/svg'>
+        <path stroke-linecap='round' stroke-linejoin='round' stroke-width='2' d='M7 21h10a2 2 0 002-2V9.414a1 1 0 00-.293-.707l-5.414-5.414A1 1 0 0012.586 3H7a2 2 0 00-2 2v14a2 2 0 002 2z'>
+        </path>
+      </svg>
+    
+  
+    <a class='hover:underline truncate' title='Master Key Generation' href='concepts/master-key-generation'>
+      Master Key Generation
+    </a>
+    
+      
+  </div>
+
+  <!-- Node's children forest, displayed only on active trees
+    TODO: Use <details> to toggle visibility?
+  -->
+  
+    
+  
+</div>
+    
+      <!-- Variable bindings for this tree-->
+  
+  
+
+
+  
+
+
+<!-- Rendering of this tree -->
+<div class='pl-2'>
+  <!-- Node's rootLabel-->
+  <div class='flex items-center my-2 space-x-2 justify-left'>
+    
+    
+      <svg class='w-4 h-4 flex-shrink-0 inline' fill='none' stroke='currentColor' viewBox='0 0 24 24' xmlns='http://www.w3.org/2000/svg'>
+        <path stroke-linecap='round' stroke-linejoin='round' stroke-width='2' d='M9 12h6m-6 4h6m2 5H7a2 2 0 01-2-2V5a2 2 0 012-2h5.586a1 1 0 01.707.293l5.414 5.414a1 1 0 01.293.707V19a2 2 0 01-2 2z'>
+        </path>
+      </svg>
+      
+  
+    <a class='font-bold text-blue-600 hover:underline truncate' title='HD Wallets' href='concepts/hierarchical-deterministic-wallets'>
+      HD Wallets
+    </a>
+    
+      
+  </div>
+
+  <!-- Node's children forest, displayed only on active trees
+    TODO: Use <details> to toggle visibility?
+  -->
+  
+    
+  
+</div>
+    
+      <!-- Variable bindings for this tree-->
+  
+    
+      
+    
+    
+
+
+
+  
+
+
+<!-- Rendering of this tree -->
+<div class='pl-2'>
+  <!-- Node's rootLabel-->
+  <div class='flex items-center my-2 space-x-2 justify-left'>
+    
+    
+      <svg class='w-4 h-4 flex-shrink-0 inline' fill='none' stroke='currentColor' viewBox='0 0 24 24' xmlns='http://www.w3.org/2000/svg'>
+        <path stroke-linecap='round' stroke-linejoin='round' stroke-width='2' d='M7 21h10a2 2 0 002-2V9.414a1 1 0 00-.293-.707l-5.414-5.414A1 1 0 0012.586 3H7a2 2 0 00-2 2v14a2 2 0 002 2z'>
+        </path>
+      </svg>
+    
+  
     <a class='hover:underline truncate' title='Address Derivation' href='concepts/address-derivation'>
       Address Derivation
     </a>
@@ -926,119 +1049,6 @@
       </svg>
     
   
-    <a class='hover:underline truncate' title='Coin Selection' href='concepts/coin-selection'>
-      Coin Selection
-    </a>
-    
-      
-  </div>
-
-  <!-- Node's children forest, displayed only on active trees
-    TODO: Use <details> to toggle visibility?
-  -->
-  
-    
-  
-</div>
-    
-      <!-- Variable bindings for this tree-->
-  
-  
-
-
-  
-
-
-<!-- Rendering of this tree -->
-<div class='pl-2'>
-  <!-- Node's rootLabel-->
-  <div class='flex items-center my-2 space-x-2 justify-left'>
-    
-    
-      <svg class='w-4 h-4 flex-shrink-0 inline' fill='none' stroke='currentColor' viewBox='0 0 24 24' xmlns='http://www.w3.org/2000/svg'>
-        <path stroke-linecap='round' stroke-linejoin='round' stroke-width='2' d='M9 12h6m-6 4h6m2 5H7a2 2 0 01-2-2V5a2 2 0 012-2h5.586a1 1 0 01.707.293l5.414 5.414a1 1 0 01.293.707V19a2 2 0 01-2 2z'>
-        </path>
-      </svg>
-      
-  
-    <a class='font-bold text-blue-600 hover:underline truncate' title='HD Wallets' href='concepts/hierarchical-deterministic-wallets'>
-      HD Wallets
-    </a>
-    
-      
-  </div>
-
-  <!-- Node's children forest, displayed only on active trees
-    TODO: Use <details> to toggle visibility?
-  -->
-  
-    
-  
-</div>
-    
-      <!-- Variable bindings for this tree-->
-  
-    
-      
-    
-    
-
-
-
-  
-
-
-<!-- Rendering of this tree -->
-<div class='pl-2'>
-  <!-- Node's rootLabel-->
-  <div class='flex items-center my-2 space-x-2 justify-left'>
-    
-    
-      <svg class='w-4 h-4 flex-shrink-0 inline' fill='none' stroke='currentColor' viewBox='0 0 24 24' xmlns='http://www.w3.org/2000/svg'>
-        <path stroke-linecap='round' stroke-linejoin='round' stroke-width='2' d='M7 21h10a2 2 0 002-2V9.414a1 1 0 00-.293-.707l-5.414-5.414A1 1 0 0012.586 3H7a2 2 0 00-2 2v14a2 2 0 002 2z'>
-        </path>
-      </svg>
-    
-  
-    <a class='hover:underline truncate' title='Transaction Lifecycle' href='concepts/transaction-lifecycle'>
-      Transaction Lifecycle
-    </a>
-    
-      
-  </div>
-
-  <!-- Node's children forest, displayed only on active trees
-    TODO: Use <details> to toggle visibility?
-  -->
-  
-    
-  
-</div>
-    
-      <!-- Variable bindings for this tree-->
-  
-    
-      
-    
-    
-
-
-
-  
-
-
-<!-- Rendering of this tree -->
-<div class='pl-2'>
-  <!-- Node's rootLabel-->
-  <div class='flex items-center my-2 space-x-2 justify-left'>
-    
-    
-      <svg class='w-4 h-4 flex-shrink-0 inline' fill='none' stroke='currentColor' viewBox='0 0 24 24' xmlns='http://www.w3.org/2000/svg'>
-        <path stroke-linecap='round' stroke-linejoin='round' stroke-width='2' d='M7 21h10a2 2 0 002-2V9.414a1 1 0 00-.293-.707l-5.414-5.414A1 1 0 0012.586 3H7a2 2 0 00-2 2v14a2 2 0 002 2z'>
-        </path>
-      </svg>
-    
-  
     <a class='hover:underline truncate' title='UTxO' href='concepts/utxo'>
       UTxO
     </a>
@@ -1078,8 +1088,47 @@
       </svg>
     
   
-    <a class='hover:underline truncate' title='Wallet Cryptography and Encoding' href='concepts/cryptography-and-encoding'>
-      Wallet Cryptography and Encoding
+    <a class='hover:underline truncate' title='Coin Selection' href='concepts/coin-selection'>
+      Coin Selection
+    </a>
+    
+      
+  </div>
+
+  <!-- Node's children forest, displayed only on active trees
+    TODO: Use <details> to toggle visibility?
+  -->
+  
+    
+  
+</div>
+    
+      <!-- Variable bindings for this tree-->
+  
+    
+      
+    
+    
+
+
+
+  
+
+
+<!-- Rendering of this tree -->
+<div class='pl-2'>
+  <!-- Node's rootLabel-->
+  <div class='flex items-center my-2 space-x-2 justify-left'>
+    
+    
+      <svg class='w-4 h-4 flex-shrink-0 inline' fill='none' stroke='currentColor' viewBox='0 0 24 24' xmlns='http://www.w3.org/2000/svg'>
+        <path stroke-linecap='round' stroke-linejoin='round' stroke-width='2' d='M7 21h10a2 2 0 002-2V9.414a1 1 0 00-.293-.707l-5.414-5.414A1 1 0 0012.586 3H7a2 2 0 00-2 2v14a2 2 0 002 2z'>
+        </path>
+      </svg>
+    
+  
+    <a class='hover:underline truncate' title='Transaction Lifecycle' href='concepts/transaction-lifecycle'>
+      Transaction Lifecycle
     </a>
     
       
@@ -2085,37 +2134,9 @@
 </h1>
             <article class='overflow-auto'>
   <!-- What goes in this file will appear on top of note body-->
-  <h2 id='recovery-phrases' class='inline-block mt-6 mb-4 text-4xl font-bold text-gray-700 border-b-2'>Recovery Phrases</h2><h3 id='motivation' class='mt-6 mb-2 text-3xl font-bold text-gray-700'>Motivation</h3>
-    <p class='mb-3'>
-      We define a way for easily entering and writing down arbitrary binary seeds using a simple dictionary of known words (available in many different languages).
-    </p>
   
     <p class='mb-3'>
-      The motivation here is to have sentence of words easy to read and write for humans, which map uniquely back and forth to a sized binary data (harder to remember).
-    </p>
-  <h3 id='encoding' class='mt-6 mb-2 text-3xl font-bold text-gray-700'>Encoding</h3>
-    <p class='mb-3'>
-      The process describing how to encode recovery phrases is described in <a href='https://github.com/bitcoin/bips/blob/master/bip-0039.mediawiki' class='text-blue-600 hover:underline' target='_blank' rel='noopener'>BIP-0039</a> section “Generating the mnemonic”. Below is a reformulation of this specification.
-    </p>
-  
-    <p class='mb-3'>
-      We call <em>Entropy</em> an arbitrary sequence of bytes that has been generated through high quality randomness methods. The allowed size of <em>Entropy</em> is 96-256 bits and is necessarily a multiple of 32 bits (4 bytes).
-    </p>
-  
-    <p class='mb-3'>
-      A checksum is appended to the initial entropy by taking the first <code class='py-0.5 px-1 rounded bg-gray-700 text-sm text-white'>ENT / 32</code> bits of the <code class='py-0.5 px-1 rounded bg-gray-700 text-sm text-white'>SHA256</code> hash of it, where <code class='py-0.5 px-1 rounded bg-gray-700 text-sm text-white'>ENT</code> designates the <em>Entropy</em> size in bits.
-    </p>
-  
-    <p class='mb-3'>
-      Then, the concatenated result is split into groups of 11 bits, each encoding a number from 0 to 2047 serving as an index into a known dictionary (see below).
-    </p>
-  <table class='mb-3'><thead><tr class='border-b-2 border-t-2 border-gray-300'><th class='py-2 px-2 align-top border-r-2 border-l-2 border-gray-300'>Sentence Length</th><th class='py-2 px-2 align-top border-r-2 border-l-2 border-gray-300'>Entropy Size</th><th class='py-2 px-2 align-top border-r-2 border-l-2 border-gray-300'>Checksum Size</th></tr></thead><tbody><tr class='border-b-2 border-t-2 border-gray-300'><td class='py-2 px-2 align-top border-r-2 border-l-2 border-gray-300'>9 words</td><td class='py-2 px-2 align-top border-r-2 border-l-2 border-gray-300'>96 bits (12 bytes)</td><td class='py-2 px-2 align-top border-r-2 border-l-2 border-gray-300'>3 bits</td></tr><tr class='border-b-2 border-t-2 border-gray-300'><td class='py-2 px-2 align-top border-r-2 border-l-2 border-gray-300'>12 words</td><td class='py-2 px-2 align-top border-r-2 border-l-2 border-gray-300'>128 bits (16 bytes)</td><td class='py-2 px-2 align-top border-r-2 border-l-2 border-gray-300'>4 bits</td></tr><tr class='border-b-2 border-t-2 border-gray-300'><td class='py-2 px-2 align-top border-r-2 border-l-2 border-gray-300'>15 words</td><td class='py-2 px-2 align-top border-r-2 border-l-2 border-gray-300'>160 bits (20 bytes)</td><td class='py-2 px-2 align-top border-r-2 border-l-2 border-gray-300'>5 bits</td></tr><tr class='border-b-2 border-t-2 border-gray-300'><td class='py-2 px-2 align-top border-r-2 border-l-2 border-gray-300'>18 words</td><td class='py-2 px-2 align-top border-r-2 border-l-2 border-gray-300'>192 bits (24 bytes)</td><td class='py-2 px-2 align-top border-r-2 border-l-2 border-gray-300'>6 bits</td></tr><tr class='border-b-2 border-t-2 border-gray-300'><td class='py-2 px-2 align-top border-r-2 border-l-2 border-gray-300'>21 words</td><td class='py-2 px-2 align-top border-r-2 border-l-2 border-gray-300'>224 bits (28 bytes)</td><td class='py-2 px-2 align-top border-r-2 border-l-2 border-gray-300'>7 bits</td></tr><tr class='border-b-2 border-t-2 border-gray-300'><td class='py-2 px-2 align-top border-r-2 border-l-2 border-gray-300'>24 words</td><td class='py-2 px-2 align-top border-r-2 border-l-2 border-gray-300'>256 bits (32 bytes)</td><td class='py-2 px-2 align-top border-r-2 border-l-2 border-gray-300'>8 bits</td></tr></tbody></table><h3 id='dictionaries' class='mt-6 mb-2 text-3xl font-bold text-gray-700'>Dictionaries</h3>
-    <p class='mb-3'>
-      Cardano uses the same dictionaries as defined in <a href='https://github.com/bitcoin/bips/blob/master/bip-0039/bip-0039-wordlists.md' class='text-blue-600 hover:underline' target='_blank' rel='noopener'>BIP-0039</a>.
-    </p>
-  <hr class='mb-3' /><h2 id='hierarchical-deterministic-wallets' class='inline-block mt-6 mb-4 text-4xl font-bold text-gray-700 border-b-2'>Hierarchical Deterministic Wallets</h2><h3 id='motivation-1' class='mt-6 mb-2 text-3xl font-bold text-gray-700'>Motivation</h3>
-    <p class='mb-3'>
-      In Cardano, hierarchical deterministic (abbrev. HD) wallets are similar to those described in <a href='https://github.com/bitcoin/bips/blob/master/bip-0032.mediawiki#motivation' class='text-blue-600 hover:underline' target='_blank' rel='noopener'>BIP-0032</a>.
+      In Cardano, <em>hierarchical deterministic</em> (HD) wallets are similar to those described in <a href='https://github.com/bitcoin/bips/blob/master/bip-0032.mediawiki#motivation' class='text-blue-600 hover:underline' target='_blank' rel='noopener'>BIP-0032</a>.
     </p>
   
     <p class='mb-3'>
@@ -2125,45 +2146,51 @@
     <p class='mb-3'>
       However, in some cases one only wants some (public) keys to be shared and recoverable. In the example of a webshop, the webserver does not need access to all public keys of the merchant’s wallet; only to those addresses which are used to receive customer’s payments, and not for example the change addresses that are generated when the merchant spends money. Hierarchical deterministic wallets allow such selective sharing by supporting multiple keypair chains, derived from a single root.
     </p>
-  <h3 id='notation' class='mt-6 mb-2 text-3xl font-bold text-gray-700'>Notation</h3>
+  <h2 id='notation' class='inline-block mt-6 mb-4 text-4xl font-bold text-gray-700 border-b-2'>Notation</h2>
     <p class='mb-3'>
       Conceptually, HD derivation can be seen as a tree with many branches, where keys live at each node and leaf such that an entire sub-tree can be recovered from only a parent key (and seemingly, the whole tree can be recovered from the root master key).
     </p>
   
     <p class='mb-3'>
-      For deriving new keys from parent keys, we use the same approach as defined in <span title='Link is broken'><s>[BIP32-Ed25519: Hierarchical Deterministic Keys over a Non-linear Keyspace](/adrestia/user-guide/Ed25519_BIP.pdf)</s>❌</span>.
+      For deriving new keys from parent keys, we use the same approach as defined in <a href='https://input-output-hk.github.io/adrestia/static/Ed25519_BIP.pdf' class='text-blue-600 hover:underline' target='_blank' rel='noopener'>BIP32-Ed25519: Hierarchical Deterministic Keys over a Non-linear Keyspace</a>.
     </p>
   
     <p class='mb-3'>
-      We note {{<span xmlhtmlRaw><katex></span>}}CKD_{priv}{{<span xmlhtmlRaw></katex></span>}} the derivation of a private child key from a parent private key such that:
+      We note <span class='math inline'>\(CKD_{priv}\)</span> the derivation of a private child key from a parent private key such that:
     </p>
   
     <p class='mb-3'>
-      {{<span xmlhtmlRaw><katex></span>}} CKD_{prv}((k^P, c^P), i) → (k_i, c_i) {{<span xmlhtmlRaw></katex></span>}}
+      <span class='math display'>$$
+CKD_{prv}((k^P, c^P), i) → (k_i, c_i)
+$$</span>
     </p>
   
     <p class='mb-3'>
-      We note {{&lt; katex &gt;}}CKD_{pub}{{<span xmlhtmlRaw></katex></span>}} the derivation of a public child key from a parent public key such that:
+      We note <span class='math inline'>\(CKD_{pub}\)</span> the derivation of a public child key from a parent public key such that:
     </p>
   
     <p class='mb-3'>
-      {{<span xmlhtmlRaw><katex></span>}} i &lt; 2^{31}: CKD_{pub}((A^P, c^P), i) → (A_i, c_i) {{<span xmlhtmlRaw></katex></span>}}
+      <span class='math display'>$$
+i &lt;  2^{31}: CKD_{pub}((A^P, c^P), i) → (A_i, c_i)
+$$</span>
+    </p>
+  <div class='info-block-container admonition-container px-3 py-1 my-3 mx-4 rounded bg-blue-100 hover:border-blue-400 hover:shadow border-t-8 border-blue-200'><h3 id='note' class='mt-6 mb-2 text-3xl font-bold text-gray-700'>Note</h3>
+    <p class='mb-3'>
+      This is only possible for so-called “soft” derivation indexes, smaller than <span class='math inline'>\(2^{31}\)</span>.
+    </p>
+  </div>
+    <p class='mb-3'>
+      We note <span class='math inline'>\(N\)</span> the public key corresponding to a private key such that:
     </p>
   
     <p class='mb-3'>
-      {{<span xmlhtmlRaw><hint info></span>}} This is only possible for so-called “soft” derivation indexes, smaller than {{<span xmlhtmlRaw><katex></span>}}2^{31}{{<span xmlhtmlRaw></katex></span>}}. {{<span xmlhtmlRaw></hint></span>}}
+      <span class='math display'>$$
+N(k, c) → (A, c)
+$$</span>
     </p>
   
     <p class='mb-3'>
-      We note {{<span xmlhtmlRaw><katex></span>}}N{{<span xmlhtmlRaw></katex></span>}} the public key corresponding to a private key such that:
-    </p>
-  
-    <p class='mb-3'>
-      {{<span xmlhtmlRaw><katex></span>}} N(k, c) → (A, c) {{<span xmlhtmlRaw></katex></span>}}
-    </p>
-  
-    <p class='mb-3'>
-      To shorten notation, we will borrow the same notation as described in BIP-0032 and write {{<span xmlhtmlRaw><katex></span>}}CKD_{priv}(CKD_{priv}(CKD_{priv}(m,3H),2),5){{<span xmlhtmlRaw></katex></span>}} as <code class='py-0.5 px-1 rounded bg-gray-700 text-sm text-white'>m/3H/2/5</code>. Equivalently for public keys, we write {{<span xmlhtmlRaw><katex></span>}}CKD_{pub}(CKD_{pub}(CKD_{pub}(M,3),2),5){{<span xmlhtmlRaw></katex></span>}} as <code class='py-0.5 px-1 rounded bg-gray-700 text-sm text-white'>M/3/2/5</code>.
+      To shorten notation, we will borrow the same notation as described in BIP-0032 and write <span class='math inline'>\(CKD_{priv}(CKD_{priv}(CKD_{priv}(m,3H),2),5)\)</span> as <code class='py-0.5 px-1 rounded bg-gray-700 text-sm text-white'>m/3H/2/5</code>. Equivalently for public keys, we write <span class='math inline'>\(CKD_{pub}(CKD_{pub}(CKD_{pub}(M,3),2),5)\)</span> as <code class='py-0.5 px-1 rounded bg-gray-700 text-sm text-white'>M/3/2/5</code>.
     </p>
   <h3 id='path-levels' class='mt-6 mb-2 text-3xl font-bold text-gray-700'>Path Levels</h3>
     <p class='mb-3'>
@@ -2171,25 +2198,27 @@
     </p>
   
     <p class='mb-3'>
-      {{<span xmlhtmlRaw><katex></span>}} m / purpose_H / coin_type_H / account_H / account_type / address_index {{<span xmlhtmlRaw></katex></span>}}
+      <span class='math display'>$$
+m / purpose_H / coin\_type_H / account_H / account\_type / address\_index
+$$</span>
     </p>
   
     <ul class='my-3 ml-6 space-y-1 list-disc'>
       
         <li>
-          {{<span xmlhtmlRaw><katex></span>}}purpose_H{{<span xmlhtmlRaw></katex></span>}} is set to {{<span xmlhtmlRaw><katex></span>}}1852_H{{<span xmlhtmlRaw></katex></span>}}
+          <span class='math inline'>\(purpose_H\)</span> is set to <span class='math inline'>\(1852_H\)</span>
         </li>
       
         <li>
-          {{<span xmlhtmlRaw><katex></span>}}coin_type_H{{<span xmlhtmlRaw></katex></span>}} is set to {{<span xmlhtmlRaw><katex></span>}}1815_H{{<span xmlhtmlRaw></katex></span>}}
+          <span class='math inline'>\(coin\_type_H\)</span> is set to <span class='math inline'>\(1815_H\)</span>
         </li>
       
         <li>
-          {{<span xmlhtmlRaw><katex></span>}}account_H{{<span xmlhtmlRaw></katex></span>}} is set for now to {{<span xmlhtmlRaw><katex></span>}}0_H{{<span xmlhtmlRaw></katex></span>}}
+          <span class='math inline'>\(account_H\)</span> is set for now to <span class='math inline'>\(0_H\)</span>
         </li>
       
         <li>
-          {{<span xmlhtmlRaw><katex></span>}}account_type{{<span xmlhtmlRaw></katex></span>}} is either:
+          <span class='math inline'>\(account\_type\)</span> is either:
     <ul class='my-3 ml-6 space-y-1 list-disc'>
       
         <li>
@@ -2209,15 +2238,15 @@
         </li>
       
         <li>
-          {{<span xmlhtmlRaw><katex></span>}}address_index{{<span xmlhtmlRaw></katex></span>}} is either:
+          <span class='math inline'>\(address\_index\)</span> is either:
     <ul class='my-3 ml-6 space-y-1 list-disc'>
       
         <li>
-          <code class='py-0.5 px-1 rounded bg-gray-700 text-sm text-white'>0</code> if the {{<span xmlhtmlRaw><katex></span>}}account_type{{<span xmlhtmlRaw></katex></span>}} is <code class='py-0.5 px-1 rounded bg-gray-700 text-sm text-white'>2</code>
+          <code class='py-0.5 px-1 rounded bg-gray-700 text-sm text-white'>0</code> if the <span class='math inline'>\(account\_type\)</span> is <code class='py-0.5 px-1 rounded bg-gray-700 text-sm text-white'>2</code>
         </li>
       
         <li>
-          Anything between 0 and 2<span xmlhtmlRaw><sup></span>31 otherwise
+          Anything between <span class='math inline'>\(0\)</span> and <span class='math inline'>\(2^{31}\)</span> otherwise
         </li>
       
     </ul>
@@ -2225,19 +2254,15 @@
         </li>
       
     </ul>
-  
+  <div class='gotcha-container admonition-container mx-9 my-6 px-3 py-1 rounded bg-red-100 hover:border-red-400 hover:shadow border-t-8 border-red-200'>
     <p class='mb-3'>
-      {{<span xmlhtmlRaw><hint warning></span>}} In the <em>Byron</em> era, sequential wallets used in Yoroi (a.k.a Icarus wallets) have been using <code class='py-0.5 px-1 rounded bg-gray-700 text-sm text-white'>purpose = 44_H</code> according to standard BIP-44 wallets. The <em>Shelley</em> era introduces however an extension to BIP-44, and therefore, uses a different <code class='py-0.5 px-1 rounded bg-gray-700 text-sm text-white'>purpose</code> number. {{<span xmlhtmlRaw></hint></span>}}
+      In the <em>Byron</em> era, sequential wallets used in Yoroi (a.k.a Icarus wallets) have been using <span class='math inline'>\(purpose = 44_H\)</span> according to standard BIP-44 wallets. The <em>Shelley</em> era introduces however an extension to BIP-44, and therefore, uses a different <span class='math inline'>\(purpose\)</span> number.
     </p>
-  <h3 id='account-discovery' class='mt-6 mb-2 text-3xl font-bold text-gray-700'>Account Discovery</h3>
-    <blockquote class='py-0.5 px-4 mb-3 italic border-l-4 bg-gray-50 text-gray-600 border-gray-400 quote'>
-      
+  </div><h3 id='account-discovery' class='mt-6 mb-2 text-3xl font-bold text-gray-700'>Account Discovery</h3><div class='px-3 py-1 rounded shadow bg-yellow-100 mx-2 transform -skew-y-1 scale-95 hover:scale-100 hover:border-yellow-400 hover:shadow-lg border-t-8 border-yellow-200 mb-8 mt-8'>
     <p class='mb-3'>
       What follows is taken from the “Account Discovery” section from <a href='https://github.com/bitcoin/bips/blob/master/bip-0044.mediawiki#account-discovery' class='text-blue-600 hover:underline' target='_blank' rel='noopener'>BIP-0044</a>
     </p>
-  
-    </blockquote>
-  
+  </div>
     <p class='mb-3'>
       When the master seed is imported from an external source the software should start to discover the accounts in the following manner:
     </p>
@@ -2281,193 +2306,6 @@
     <p class='mb-3'>
       Wallet software should warn when the user is trying to exceed the gap limit on an external chain by generating a new address.
     </p>
-  <h2 id='master-key-generation' class='inline-block mt-6 mb-4 text-4xl font-bold text-gray-700 border-b-2'>Master Key Generation</h2><h3 id='history' class='mt-6 mb-2 text-3xl font-bold text-gray-700'>History</h3>
-    <p class='mb-3'>
-      Throughout the years, Cardano has been using different styles of HD wallets. We categorize these wallets in the following terms:
-    </p>
-  <table class='mb-3'><thead><tr class='border-b-2 border-t-2 border-gray-300'><th class='py-2 px-2 align-top border-r-2 border-l-2 border-gray-300'>Wallet Style</th><th class='py-2 px-2 align-top border-r-2 border-l-2 border-gray-300'>Compatible Products</th></tr></thead><tbody><tr class='border-b-2 border-t-2 border-gray-300'><td class='py-2 px-2 align-top border-r-2 border-l-2 border-gray-300'>Byron</td><td class='py-2 px-2 align-top border-r-2 border-l-2 border-gray-300'>Daedalus, Yoroi</td></tr><tr class='border-b-2 border-t-2 border-gray-300'><td class='py-2 px-2 align-top border-r-2 border-l-2 border-gray-300'>Icarus</td><td class='py-2 px-2 align-top border-r-2 border-l-2 border-gray-300'>Yoroi, Trezor</td></tr><tr class='border-b-2 border-t-2 border-gray-300'><td class='py-2 px-2 align-top border-r-2 border-l-2 border-gray-300'>Ledger</td><td class='py-2 px-2 align-top border-r-2 border-l-2 border-gray-300'>Ledger</td></tr></tbody></table>
-    <p class='mb-3'>
-      Each wallet is based on Ed25519 elliptic curves though differs in subtle ways highlighted in the next sections.
-    </p>
-  <h3 id='overview' class='mt-6 mb-2 text-3xl font-bold text-gray-700'>Overview</h3>
-    <p class='mb-3'>
-      The master key generation is the mean by which on turns an initial entropy into a secure cryptographic key. Child keys can be derived from a master key to produce an HD structure as outlined above. Child key derivation is explored in next sections.
-    </p>
-  
-    <p class='mb-3'>
-      In Cardano, the master key generation is different depending on which style of wallet one is considering. In each case however, the generation is a function from an initial seed to an extended private key (abbrev. XPrv) composed of:
-    </p>
-  
-    <ul class='my-3 ml-6 space-y-1 list-disc'>
-      
-        <li>
-          64 bytes: an extended Ed25519 secret key composed of:
-    <ul class='my-3 ml-6 space-y-1 list-disc'>
-      
-        <li>
-          32 bytes: Ed25519 curve scalar from which few bits have been tweaked (see below)
-        </li>
-      
-        <li>
-          32 bytes: Ed25519 binary blob used as IV for signing
-        </li>
-      
-    </ul>
-  
-        </li>
-      
-        <li>
-          32 bytes: chain code for allowing secure child key derivation
-        </li>
-      
-    </ul>
-  
-    <blockquote class='py-0.5 px-4 mb-3 italic border-l-4 bg-gray-50 text-gray-600 border-gray-400 quote'>
-      
-    <p class='mb-3'>
-      Additional resources:
-    </p>
-  
-    <ul class='my-3 ml-6 space-y-1 list-disc'>
-      
-        <li>
-          <a href='https://github.com/satoshilabs/slips/blob/master/slip-0010.md' class='text-blue-600 hover:underline' target='_blank' rel='noopener'>SLIP 0010</a>
-        </li>
-      
-        <li>
-          <a href='https://github.com/bitcoin/bips/blob/master/bip-0032.mediawiki' class='text-blue-600 hover:underline' target='_blank' rel='noopener'>BIP 0032</a>
-        </li>
-      
-        <li>
-          <a href='https://github.com/bitcoin/bips/blob/master/bip-0039.mediawiki' class='text-blue-600 hover:underline' target='_blank' rel='noopener'>BIP 0039</a>
-        </li>
-      
-        <li>
-          <a href='https://tools.ietf.org/html/rfc8032#section-5.1.5' class='text-blue-600 hover:underline' target='_blank' rel='noopener'>RFC 8032</a>
-        </li>
-      
-    </ul>
-  
-    </blockquote>
-  <h3 id='pseudo-code' class='mt-6 mb-2 text-3xl font-bold text-gray-700'>Pseudo-code</h3>
-    <p class='mb-3'>
-      {{&lt;tabs “pseudo-code”&gt;}} {{<span xmlhtmlRaw><tab Byron></span>}}
-    </p>
-  <div class='py-0.5 mb-3 text-sm'><pre><code class='js language-js'>function generateMasterKey(seed) {
-    return hashRepeatedly(seed, 1);
-}
-
-function hashRepeatedly(key, i) {
-    (iL, iR) = HMAC
-        ( hash=SHA512
-        , key=key
-        , message="Root Seed Chain " + UTF8NFKD(i)
-        );
-    
-    let prv = tweakBits(SHA512(iL));
-
-    if (prv[31] & 0b0010_0000) { 
-        return hashRepeatedly(key, i+1);
-    }
-
-    return (prv + iR);
-}
-
-function tweakBits(data) {
-    // * clear the lowest 3 bits
-    // * clear the highest bit
-    // * set the highest 2nd bit
-    data[0]  &= 0b1111_1000;
-    data[31] &= 0b0111_1111;
-    data[31] |= 0b0100_0000;
-
-    return data;
-}</code></pre></div>
-    <p class='mb-3'>
-      {{<span xmlhtmlRaw></tab></span>}} {{<span xmlhtmlRaw><tab Icarus></span>}}
-    </p>
-  
-    <p class='mb-3'>
-      <em>Icarus</em> master key generation style supports setting an extra password as an arbitrary byte array of any size. This password acts as a second factor applied to cryptographic key retrieval. When the seed comes from an encoded recovery phrase, the password can therefore be used to add extra protection in case where the recovery phrase were to be exposed.
-    </p>
-  <div class='py-0.5 mb-3 text-sm'><pre><code class='js language-js'>function generateMasterKey(seed, password) {
-    let data = PBKDF2
-        ( kdf=HMAC-SHA512
-        , iter=4096
-        , salt=seed
-        , password=password
-        , outputLen=96
-        );
-
-    return tweakBits(data);
-}
-
-function tweakBits(data) {
-    // on the ed25519 scalar leftmost 32 bytes:
-    // * clear the lowest 3 bits
-    // * clear the highest bit
-    // * clear the 3rd highest bit
-    // * set the highest 2nd bit
-    data[0]  &= 0b1111_1000;
-    data[31] &= 0b0001_1111;
-    data[31] |= 0b0100_0000;
-
-    return data;
-}</code></pre></div>
-    <blockquote class='py-0.5 px-4 mb-3 italic border-l-4 bg-gray-50 text-gray-600 border-gray-400 quote'>
-      
-    <p class='mb-3'>
-      For a detailed analysis of the cryptographic choices and the above requirements, have a look at: <a href='https://github.com/input-output-hk/chain-wallet-libs/blob/master/doc/CRYPTO.md#master-key-generation-to-cryptographic-key' class='text-blue-600 hover:underline' target='_blank' rel='noopener'>Wallet Cryptography and Encoding</a> {{<span xmlhtmlRaw></tab></span>}} {{<span xmlhtmlRaw><tab Ledger></span>}}
-    </p>
-  
-    </blockquote>
-  <div class='py-0.5 mb-3 text-sm'><pre><code class='js language-js'>function generateMasterKey(seed, password) {
-    let data = PBKDF2
-        ( kdf=HMAC-SHA512
-        , iter=2048
-        , salt="mnemonic" + UTF8NFKD(password)
-        , password=UTF8NFKD(spaceSeparated(toMnemonic(seed)))
-        , outputLen=64
-        );
-
-    let cc = HMAC
-        ( hash=SHA256
-        , key="ed25519 seed"
-        , message=UTF8NFKD(1) + seed
-        );
-
-    let (iL, iR) = hashRepeatedly(data);
-
-    return (tweakBits(iL) + iR + cc);
-}
-
-function hashRepeatedly(message) {
-    let (iL, iR) = HMAC
-        ( hash=SHA512
-        , key="ed25519 seed"
-        , message=message
-        );
-    
-    if (iL[31] & 0b0010_0000) { 
-        return hashRepeatedly(iL + iR);
-    }
-
-    return (iL, iR);
-}
-
-function tweakBits(data) {
-    // * clear the lowest 3 bits
-    // * clear the highest bit
-    // * set the highest 2nd bit
-    data[0]  &= 0b1111_1000;
-    data[31] &= 0b0111_1111;
-    data[31] |= 0b0100_0000;
-
-    return data;
-}</code></pre></div>
-    <p class='mb-3'>
-      {{<span xmlhtmlRaw></tab></span>}} {{<span xmlhtmlRaw></tabs></span>}}
-    </p>
   
   <!-- What goes in this file will appear below the note body-->
 </article>
@@ -2477,6 +2315,36 @@ function tweakBits(data) {
   <div class='flex-1 p-4 mt-8 bg-gray-100 rounded'>
     <header class='mb-2 text-xl font-semibold text-gray-500'>Links to this page</header>
     <ul class='space-y-1'>
+      
+        <li>
+          <a class='text-blue-600 mavenLinkBold hover:bg-blue-50' href='concepts/master-key-generation'>
+            Master Key Generation
+          </a>
+          
+            <div class='mb-4 overflow-auto text-sm text-gray-500'>
+  
+    <div class='pl-2 mt-2 border-l-2 border-blue-200 hover:border-blue-500'>
+      <div><p><em>Master key generation</em> is the process by which the wallet turns a <a href='concepts/recovery-phrases' class='text-gray-600 font-bold hover:bg-gray-50' data-wikilink-type='WikiLinkNormal'>seed</a> (<em>entropy</em>) into a secure cryptographic key. Child keys can be derived from a master key to produce a derivation tree structure as outlined in <a href='concepts/hierarchical-deterministic-wallets' class='text-gray-600 font-bold hover:bg-gray-50' data-wikilink-type='WikiLinkNormal'>HD Wallets</a>.</p></div>
+    </div>
+  
+</div>
+          
+        </li>
+      
+        <li>
+          <a class='text-blue-600 mavenLinkBold hover:bg-blue-50' href='concepts'>
+            Key Concepts
+          </a>
+          
+            <div class='mb-4 overflow-auto text-sm text-gray-500'>
+  
+    <div class='pl-2 mt-2 border-l-2 border-blue-200 hover:border-blue-500'>
+      <div><a href='concepts/hierarchical-deterministic-wallets' class='text-gray-600 font-bold hover:bg-gray-50' data-wikilink-type='WikiLinkNormal'>HD Wallets</a></div>
+    </div>
+  
+</div>
+          
+        </li>
       
         <li>
           <a class='text-blue-600 mavenLinkBold hover:bg-blue-50' href='user-guide/common-use-cases/how-to-create-a-wallet'>
