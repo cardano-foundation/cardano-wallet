@@ -632,6 +632,8 @@ import qualified Data.Text.Encoding as T
 import qualified Network.Wai.Handler.Warp as Warp
 import qualified Network.Wai.Handler.WarpTLS as Warp
 
+import qualified Debug.Trace as TR
+
 -- | How the server should listen for incoming requests.
 data Listen
     = ListenOnPort Port
@@ -3364,7 +3366,7 @@ mkApiTransaction timeInterpreter setTimeReference tx = do
         (natural (tx ^. (#txMeta . #blockHeight)))
 
     expRef <- traverse makeApiSlotReference' (tx ^. (#txMeta . #expiry))
-    return $ apiTx & setTimeReference .~ Just timeRef & #expiresAt .~ expRef
+    TR.trace ("tx:"<> show tx) $ return $ apiTx & setTimeReference .~ Just timeRef & #expiresAt .~ expRef
   where
     -- Since tx expiry can be far in the future, we use unsafeExtendSafeZone for
     -- now.
