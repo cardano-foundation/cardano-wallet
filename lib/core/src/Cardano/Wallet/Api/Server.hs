@@ -2415,7 +2415,7 @@ submitTransaction ctx apiw@(ApiT wid) apitx@(ApiSerialisedTransaction (ApiT seal
     let ourOuts = getOurOuts apiDecoded
     let ourInps = getOurInps apiDecoded
 
-    let inpsWits = length $ L.nubBy sameInput $
+    let inpsWits = length $ L.nubBy samePaymentKey $
             (apiDecoded ^. #inputs) ++ (apiDecoded ^. #collateral)
     let wdrlWits = length $ apiDecoded ^. #withdrawals
     let certWits = length $ filter certWitNeeded $ apiDecoded ^. #certificates
@@ -2481,7 +2481,7 @@ submitTransaction ctx apiw@(ApiT wid) apitx@(ApiSerialisedTransaction (ApiT seal
             all isInpForeign generalInps &&
             all isWdrlForeign generalWdrls
 
-    sameInput inp1 inp2 = case (inp1, inp2) of
+    samePaymentKey inp1 inp2 = case (inp1, inp2) of
         (WalletInput (ApiWalletInput _ _ _ derPath1 _ _), WalletInput (ApiWalletInput _ _ _ derPath2 _ _) ) ->
                derPath1 == derPath2
         (ExternalInput txin1, ExternalInput txin2) ->
