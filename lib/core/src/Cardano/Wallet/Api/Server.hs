@@ -2415,7 +2415,7 @@ submitTransaction ctx apiw@(ApiT wid) apitx@(ApiSerialisedTransaction (ApiT seal
     let ourOuts = getOurOuts apiDecoded
     let ourInps = getOurInps apiDecoded
 
-    let allInpsNum = length $ apiDecoded ^. #inputs
+    let allInpsNum = length $ L.nubBy sameInput $ apiDecoded ^. #inputs
     let witsNum = length $ getSealedTxWitnesses sealedTx
     when (allInpsNum > witsNum) $
         liftHandler $ throwE $
@@ -2476,6 +2476,13 @@ submitTransaction ctx apiw@(ApiT wid) apitx@(ApiSerialisedTransaction (ApiT seal
         in
             all isInpForeign generalInps &&
             all isWdrlForeign generalWdrls
+
+    sameInput inp1 inp2 = case (inp1, inp2) of
+        (WalletInput (ApiWalletInput id1 ix1 addr1 _ _ _), WalletInput (ApiWalletInput id2 ix2 addr2 _ _ _) ) ->
+               id1 == id2 && ix1 == ix2 && addr1 == addr2
+        (ExternalInput txin1, ExternalInput txin2) ->
+               txin1 == txin2
+        _ -> False
 
 joinStakePool
     :: forall ctx s n k.
