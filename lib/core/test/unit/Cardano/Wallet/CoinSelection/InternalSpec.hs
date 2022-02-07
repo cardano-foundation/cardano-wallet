@@ -10,12 +10,12 @@
 {-# OPTIONS_GHC -fno-warn-orphans #-}
 {- HLINT ignore "Use camelCase" -}
 
-module Cardano.Wallet.Primitive.CoinSelectionSpec
+module Cardano.Wallet.CoinSelection.InternalSpec
     where
 
 import Prelude
 
-import Cardano.Wallet.Primitive.CoinSelection
+import Cardano.Wallet.CoinSelection.Internal
     ( ComputeMinimumCollateralParams (..)
     , Selection
     , SelectionCollateralRequirement (..)
@@ -32,11 +32,11 @@ import Cardano.Wallet.Primitive.CoinSelection
     , verifySelection
     , verifySelectionError
     )
-import Cardano.Wallet.Primitive.CoinSelection.Balance
+import Cardano.Wallet.CoinSelection.Internal.Balance
     ( SelectionLimit, SelectionSkeleton )
-import Cardano.Wallet.Primitive.CoinSelection.Balance.Gen
+import Cardano.Wallet.CoinSelection.Internal.Balance.Gen
     ( genSelectionSkeleton, shrinkSelectionSkeleton )
-import Cardano.Wallet.Primitive.CoinSelection.BalanceSpec
+import Cardano.Wallet.CoinSelection.Internal.BalanceSpec
     ( MockAssessTokenBundleSize
     , MockComputeMinimumAdaQuantity
     , MockComputeMinimumCost
@@ -54,7 +54,7 @@ import Cardano.Wallet.Primitive.CoinSelection.BalanceSpec
     , unMockComputeMinimumCost
     , unMockComputeSelectionLimit
     )
-import Cardano.Wallet.Primitive.CoinSelection.Collateral
+import Cardano.Wallet.CoinSelection.Internal.Collateral
     ( SelectionCollateralErrorOf (..) )
 import Cardano.Wallet.Primitive.Types.Address.Gen
     ( genAddress )
@@ -137,7 +137,7 @@ import Test.QuickCheck.Extra
 import Test.QuickCheck.Monadic
     ( monadicIO, run )
 
-import qualified Cardano.Wallet.Primitive.CoinSelection.Balance as Balance
+import qualified Cardano.Wallet.CoinSelection.Internal.Balance as Balance
 import qualified Cardano.Wallet.Primitive.Types.TokenBundle as TokenBundle
 import qualified Cardano.Wallet.Primitive.Types.TokenMap as TokenMap
 import qualified Cardano.Wallet.Primitive.Types.UTxOSelection as UTxOSelection

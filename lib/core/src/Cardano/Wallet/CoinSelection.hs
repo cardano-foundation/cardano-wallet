@@ -51,7 +51,7 @@ module Cardano.Wallet.CoinSelection
     )
     where
 
-import Cardano.Wallet.Primitive.CoinSelection
+import Cardano.Wallet.CoinSelection.Internal
     ( Selection
     , SelectionCollateralRequirement (..)
     , SelectionConstraints (..)
@@ -68,7 +68,7 @@ import Cardano.Wallet.Primitive.CoinSelection
     , performSelection
     , selectionDelta
     )
-import Cardano.Wallet.Primitive.CoinSelection.Balance
+import Cardano.Wallet.CoinSelection.Internal.Balance
     ( BalanceInsufficientError (..)
     , SelectionBalanceError (..)
     , SelectionLimit
@@ -78,5 +78,5 @@ import Cardano.Wallet.Primitive.CoinSelection.Balance
     , balanceMissing
     , emptySkeleton
     )
-import Cardano.Wallet.Primitive.CoinSelection.Collateral
+import Cardano.Wallet.CoinSelection.Internal.Collateral
     ( SelectionCollateralError )

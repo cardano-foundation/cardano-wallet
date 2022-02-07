@@ -19,12 +19,12 @@
 -- Copyright: © 2021 IOHK
 -- License: Apache-2.0
 --
-module Cardano.Wallet.Primitive.CoinSelection.CollateralSpec where
+module Cardano.Wallet.CoinSelection.Internal.CollateralSpec where
 
 import Prelude hiding
     ( sequence )
 
-import Cardano.Wallet.Primitive.CoinSelection.Collateral
+import Cardano.Wallet.CoinSelection.Internal.Collateral
     ( PerformSelectionOf
     , SearchSpaceLimit (..)
     , SearchSpaceRequirement (..)

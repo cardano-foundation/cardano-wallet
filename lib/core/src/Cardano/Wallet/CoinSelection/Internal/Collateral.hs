@@ -18,7 +18,7 @@
 --
 -- See the documentation for 'performSelection' for more details.
 --
-module Cardano.Wallet.Primitive.CoinSelection.Collateral
+module Cardano.Wallet.CoinSelection.Internal.Collateral
     (
     -- * Public API
 

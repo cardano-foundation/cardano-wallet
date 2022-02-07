@@ -13,18 +13,11 @@
 -- Copyright: © 2021 IOHK
 -- License: Apache-2.0
 --
--- This module provides a high-level interface for coin selection.
+-- This module provides INTERNAL functions and types for coin selection.
 --
--- It handles the following responsibilities:
+-- It is recommended to import from 'Cardano.Wallet.CoinSelection' instead.
 --
---  - selecting inputs from the UTxO set to pay for user-specified outputs;
---  - selecting inputs from the UTxO set to pay for collateral;
---  - producing change outputs to return excess value to the wallet;
---  - balancing a selection to pay for the transaction fee.
---
--- Use the 'performSelection' function to perform a coin selection.
---
-module Cardano.Wallet.Primitive.CoinSelection
+module Cardano.Wallet.CoinSelection.Internal
     (
     -- * Performing selections
       performSelection
@@ -81,13 +74,13 @@ import Prelude
 
 import Algebra.PartialOrd
     ( PartialOrd (..) )
-import Cardano.Wallet.Primitive.CoinSelection.Balance
+import Cardano.Wallet.CoinSelection.Internal.Balance
     ( SelectionBalanceError (..)
     , SelectionDelta (..)
     , SelectionLimit
     , SelectionSkeleton
     )
-import Cardano.Wallet.Primitive.CoinSelection.Collateral
+import Cardano.Wallet.CoinSelection.Internal.Collateral
     ( SelectionCollateralError )
 import Cardano.Wallet.Primitive.Types.Address
     ( Address (..) )
@@ -140,8 +133,8 @@ import GHC.Stack
 import Numeric.Natural
     ( Natural )
 
-import qualified Cardano.Wallet.Primitive.CoinSelection.Balance as Balance
-import qualified Cardano.Wallet.Primitive.CoinSelection.Collateral as Collateral
+import qualified Cardano.Wallet.CoinSelection.Internal.Balance as Balance
+import qualified Cardano.Wallet.CoinSelection.Internal.Collateral as Collateral
 import qualified Cardano.Wallet.Primitive.Types.TokenBundle as TokenBundle
 import qualified Cardano.Wallet.Primitive.Types.TokenMap as TokenMap
 import qualified Cardano.Wallet.Primitive.Types.UTxO as UTxO

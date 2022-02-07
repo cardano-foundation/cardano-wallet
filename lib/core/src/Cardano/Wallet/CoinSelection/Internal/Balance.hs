@@ -24,7 +24,7 @@
 -- See documentation for the 'performSelection' function for more details on
 -- how to perform a selection.
 --
-module Cardano.Wallet.Primitive.CoinSelection.Balance
+module Cardano.Wallet.CoinSelection.Internal.Balance
     (
     -- * Performing a selection
       PerformSelection

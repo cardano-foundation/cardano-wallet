@@ -13,7 +13,7 @@
 {-# OPTIONS_GHC -fno-warn-orphans #-}
 {- HLINT ignore "Use camelCase" -}
 
-module Cardano.Wallet.Primitive.CoinSelection.BalanceSpec
+module Cardano.Wallet.CoinSelection.Internal.BalanceSpec
     ( spec
     , MockAssessTokenBundleSize
     , MockComputeMinimumAdaQuantity
@@ -39,7 +39,7 @@ import Algebra.PartialOrd
     ( PartialOrd (..) )
 import Cardano.Numeric.Util
     ( inAscendingPartialOrder )
-import Cardano.Wallet.Primitive.CoinSelection.Balance
+import Cardano.Wallet.CoinSelection.Internal.Balance
     ( AssetCount (..)
     , BalanceInsufficientError (..)
     , InsufficientMinCoinValueError (..)
@@ -95,7 +95,7 @@ import Cardano.Wallet.Primitive.CoinSelection.Balance
     , splitBundlesWithExcessiveTokenQuantities
     , ungroupByKey
     )
-import Cardano.Wallet.Primitive.CoinSelection.Balance.Gen
+import Cardano.Wallet.CoinSelection.Internal.Balance.Gen
     ( genSelectionLimit, shrinkSelectionLimit )
 import Cardano.Wallet.Primitive.Types.Address
     ( Address (..) )

@@ -177,6 +177,9 @@ library
       Cardano.Wallet.Api.Server.Tls
       Cardano.Wallet.Api.Types
       Cardano.Wallet.CoinSelection
+      Cardano.Wallet.CoinSelection.Internal
+      Cardano.Wallet.CoinSelection.Internal.Balance
+      Cardano.Wallet.CoinSelection.Internal.Collateral
       Cardano.Wallet.Compat
       Cardano.Wallet.DB
       Cardano.Wallet.DB.Checkpoints
@@ -207,9 +210,6 @@ library
       Cardano.Wallet.Primitive.AddressDiscovery.Sequential
       Cardano.Wallet.Primitive.AddressDiscovery.Shared
       Cardano.Wallet.Primitive.SyncProgress
-      Cardano.Wallet.Primitive.CoinSelection
-      Cardano.Wallet.Primitive.CoinSelection.Balance
-      Cardano.Wallet.Primitive.CoinSelection.Collateral
       Cardano.Wallet.Primitive.Collateral
       Cardano.Wallet.Primitive.Delegation.UTxO
       Cardano.Wallet.Primitive.Migration
@@ -260,7 +260,7 @@ library
         -- The following modules define QC generators and shrinkers that can
         -- be used by both `cardano-wallet-core` and `cardano-wallet`:
         --
-      Cardano.Wallet.Primitive.CoinSelection.Balance.Gen
+      Cardano.Wallet.CoinSelection.Internal.Balance.Gen
       Cardano.Wallet.Primitive.Types.Address.Gen
       Cardano.Wallet.Primitive.Types.Coin.Gen
       Cardano.Wallet.Primitive.Types.RewardAccount.Gen
@@ -415,6 +415,9 @@ test-suite unit
       Cardano.Wallet.Api.ServerSpec
       Cardano.Wallet.Api.TypesSpec
       Cardano.Wallet.ApiSpec
+      Cardano.Wallet.CoinSelection.InternalSpec
+      Cardano.Wallet.CoinSelection.Internal.BalanceSpec
+      Cardano.Wallet.CoinSelection.Internal.CollateralSpec
       Cardano.Wallet.DB.Arbitrary
       Cardano.Wallet.DB.MVarSpec
       Cardano.Wallet.DB.Properties
@@ -433,9 +436,6 @@ test-suite unit
       Cardano.Wallet.Primitive.AddressDiscovery.SharedSpec
       Cardano.Wallet.Primitive.Delegation.StateSpec
       Cardano.Wallet.Primitive.AddressDiscoverySpec
-      Cardano.Wallet.Primitive.CoinSelectionSpec
-      Cardano.Wallet.Primitive.CoinSelection.BalanceSpec
-      Cardano.Wallet.Primitive.CoinSelection.CollateralSpec
       Cardano.Wallet.Primitive.CollateralSpec
       Cardano.Wallet.Primitive.MigrationSpec
       Cardano.Wallet.Primitive.Migration.PlanningSpec
