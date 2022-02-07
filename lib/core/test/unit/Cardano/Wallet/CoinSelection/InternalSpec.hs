@@ -10,18 +10,18 @@
 {-# OPTIONS_GHC -fno-warn-orphans #-}
 {- HLINT ignore "Use camelCase" -}
 
-module Cardano.Wallet.Primitive.CoinSelectionSpec
+module Cardano.Wallet.CoinSelection.InternalSpec
     where
 
 import Prelude
 
-import Cardano.Wallet.Primitive.CoinSelection
+import Cardano.Wallet.CoinSelection.Internal
     ( ComputeMinimumCollateralParams (..)
     , Selection
     , SelectionCollateralRequirement (..)
     , SelectionConstraints (..)
     , SelectionError (..)
-    , SelectionOutputInvalidError (..)
+    , SelectionOutputError (..)
     , SelectionParams (..)
     , VerificationResult (..)
     , computeMinimumCollateral
@@ -32,11 +32,11 @@ import Cardano.Wallet.Primitive.CoinSelection
     , verifySelection
     , verifySelectionError
     )
-import Cardano.Wallet.Primitive.CoinSelection.Balance
+import Cardano.Wallet.CoinSelection.Internal.Balance
     ( SelectionLimit, SelectionSkeleton )
-import Cardano.Wallet.Primitive.CoinSelection.Balance.Gen
+import Cardano.Wallet.CoinSelection.Internal.Balance.Gen
     ( genSelectionSkeleton, shrinkSelectionSkeleton )
-import Cardano.Wallet.Primitive.CoinSelection.BalanceSpec
+import Cardano.Wallet.CoinSelection.Internal.BalanceSpec
     ( MockAssessTokenBundleSize
     , MockComputeMinimumAdaQuantity
     , MockComputeMinimumCost
@@ -54,6 +54,8 @@ import Cardano.Wallet.Primitive.CoinSelection.BalanceSpec
     , unMockComputeMinimumCost
     , unMockComputeSelectionLimit
     )
+import Cardano.Wallet.CoinSelection.Internal.Collateral
+    ( SelectionCollateralErrorOf (..) )
 import Cardano.Wallet.Primitive.Types.Address.Gen
     ( genAddress )
 import Cardano.Wallet.Primitive.Types.Coin
@@ -135,8 +137,7 @@ import Test.QuickCheck.Extra
 import Test.QuickCheck.Monadic
     ( monadicIO, run )
 
-import qualified Cardano.Wallet.Primitive.CoinSelection.Balance as Balance
-import qualified Cardano.Wallet.Primitive.CoinSelection.Collateral as Collateral
+import qualified Cardano.Wallet.CoinSelection.Internal.Balance as Balance
 import qualified Cardano.Wallet.Primitive.Types.TokenBundle as TokenBundle
 import qualified Cardano.Wallet.Primitive.Types.TokenMap as TokenMap
 import qualified Cardano.Wallet.Primitive.Types.UTxOSelection as UTxOSelection
@@ -249,28 +250,28 @@ prop_performSelection_coverage params r innerProperty =
   where
     isSelection = isRight
     isSelectionBalanceError_BalanceInsufficient = \case
-        Left (SelectionBalanceError Balance.BalanceInsufficient {})
+        Left (SelectionBalanceErrorOf Balance.BalanceInsufficient {})
             -> True; _ -> False
     isSelectionBalanceError_SelectionLimitReached = \case
-        Left (SelectionBalanceError Balance.SelectionLimitReached {})
+        Left (SelectionBalanceErrorOf Balance.SelectionLimitReached {})
             -> True; _ -> False
     isSelectionBalanceError_InsufficientMinCoinValues = \case
-        Left (SelectionBalanceError Balance.InsufficientMinCoinValues {})
+        Left (SelectionBalanceErrorOf Balance.InsufficientMinCoinValues {})
             -> True; _ -> False
     isSelectionBalanceError_UnableToConstructChange = \case
-        Left (SelectionBalanceError Balance.UnableToConstructChange {})
+        Left (SelectionBalanceErrorOf Balance.UnableToConstructChange {})
             -> True; _ -> False
     isSelectionBalanceError_EmptyUTxO = \case
-        Left (SelectionBalanceError Balance.EmptyUTxO {})
+        Left (SelectionBalanceErrorOf Balance.EmptyUTxO {})
             -> True; _ -> False
     isSelectionCollateralError = \case
-        Left (SelectionCollateralError _)
+        Left (SelectionCollateralErrorOf _)
             -> True; _ -> False
     isSelectionOutputError_SelectionOutputSizeExceedsLimit = \case
-        Left (SelectionOutputError SelectionOutputSizeExceedsLimit {})
+        Left (SelectionOutputErrorOf SelectionOutputSizeExceedsLimit {})
             -> True; _ -> False
     isSelectionOutputError_SelectionOutputTokenQuantityExceedsLimit = \case
-        Left (SelectionOutputError SelectionOutputTokenQuantityExceedsLimit {})
+        Left (SelectionOutputErrorOf SelectionOutputTokenQuantityExceedsLimit {})
             -> True; _ -> False
 
     -- Provides an exhaustiveness check for all possible constructors of
@@ -282,15 +283,15 @@ prop_performSelection_coverage params r innerProperty =
     --
     _checkExhaustivenessForSelectionError :: ()
     _checkExhaustivenessForSelectionError = case undefined of
-        SelectionBalanceError e -> case e of
+        SelectionBalanceErrorOf e -> case e of
             Balance.BalanceInsufficient {} -> ()
             Balance.SelectionLimitReached {} -> ()
             Balance.InsufficientMinCoinValues {} -> ()
             Balance.UnableToConstructChange {} -> ()
             Balance.EmptyUTxO {} -> ()
-        SelectionCollateralError e -> case e of
-            Collateral.SelectionError {} -> ()
-        SelectionOutputError e -> case e of
+        SelectionCollateralErrorOf e -> case e of
+            SelectionCollateralError {} -> ()
+        SelectionOutputErrorOf e -> case e of
             SelectionOutputSizeExceedsLimit {} -> ()
             SelectionOutputTokenQuantityExceedsLimit {} -> ()
 

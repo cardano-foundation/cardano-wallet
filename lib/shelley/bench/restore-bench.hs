@@ -68,6 +68,8 @@ import Cardano.Wallet.BenchShared
     , initBenchmarkLogging
     , runBenchmarks
     )
+import Cardano.Wallet.CoinSelection
+    ( selectionDelta )
 import Cardano.Wallet.DB
     ( DBLayer )
 import Cardano.Wallet.DB.Sqlite
@@ -102,8 +104,6 @@ import Cardano.Wallet.Primitive.AddressDiscovery.Sequential
     , mkSeqAnyState
     , purposeCIP1852
     )
-import Cardano.Wallet.Primitive.CoinSelection
-    ( selectionDelta )
 import Cardano.Wallet.Primitive.Model
     ( Wallet, currentTip, getState, totalUTxO )
 import Cardano.Wallet.Primitive.Slotting

@@ -37,6 +37,11 @@ import Cardano.Wallet
     , runLocalTxSubmissionPool
     , throttle
     )
+import Cardano.Wallet.CoinSelection
+    ( BalanceInsufficientError (..)
+    , SelectionBalanceError (..)
+    , SelectionError (..)
+    )
 import Cardano.Wallet.DB
     ( DBLayer (..), ErrNoSuchWallet (..), putTxHistory )
 import Cardano.Wallet.DummyTarget.Primitive.Types
@@ -76,8 +81,6 @@ import Cardano.Wallet.Primitive.AddressDiscovery
     , IsOwned (..)
     , KnownAddresses (..)
     )
-import Cardano.Wallet.Primitive.CoinSelection
-    ( SelectionError (..) )
 import Cardano.Wallet.Primitive.Migration.SelectionSpec
     ( MockTxConstraints (..), genTokenBundleMixed, unMockTxConstraints )
 import Cardano.Wallet.Primitive.SyncProgress
@@ -266,7 +269,6 @@ import qualified Cardano.Wallet as W
 import qualified Cardano.Wallet.DB.MVar as MVar
 import qualified Cardano.Wallet.DB.Sqlite as Sqlite
 import qualified Cardano.Wallet.DB.Sqlite.AddressBook as Sqlite
-import qualified Cardano.Wallet.Primitive.CoinSelection.Balance as Balance
 import qualified Cardano.Wallet.Primitive.Migration as Migration
 import qualified Cardano.Wallet.Primitive.Types.Coin as Coin
 import qualified Cardano.Wallet.Primitive.Types.TokenBundle as TokenBundle
@@ -661,9 +663,9 @@ prop_estimateFee (NonEmpty coins) =
     genericError :: W.ErrSelectAssets
     genericError
         = W.ErrSelectAssetsSelectionError
-        $ SelectionBalanceError
-        $ Balance.BalanceInsufficient
-        $ Balance.BalanceInsufficientError TokenBundle.empty TokenBundle.empty
+        $ SelectionBalanceErrorOf
+        $ BalanceInsufficient
+        $ BalanceInsufficientError TokenBundle.empty TokenBundle.empty
 
     runSelection
         :: ExceptT W.ErrSelectAssets (State Int) Coin

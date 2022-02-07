@@ -13,7 +13,7 @@
 {-# OPTIONS_GHC -fno-warn-orphans #-}
 {- HLINT ignore "Use camelCase" -}
 
-module Cardano.Wallet.Primitive.CoinSelection.BalanceSpec
+module Cardano.Wallet.CoinSelection.Internal.BalanceSpec
     ( spec
     , MockAssessTokenBundleSize
     , MockComputeMinimumAdaQuantity
@@ -39,15 +39,15 @@ import Algebra.PartialOrd
     ( PartialOrd (..) )
 import Cardano.Numeric.Util
     ( inAscendingPartialOrder )
-import Cardano.Wallet.Primitive.CoinSelection.Balance
+import Cardano.Wallet.CoinSelection.Internal.Balance
     ( AssetCount (..)
     , BalanceInsufficientError (..)
     , InsufficientMinCoinValueError (..)
     , MakeChangeCriteria (..)
     , PerformSelection
     , RunSelectionParams (..)
+    , SelectionBalanceError (..)
     , SelectionConstraints (..)
-    , SelectionError (..)
     , SelectionLens (..)
     , SelectionLimit
     , SelectionLimitOf (..)
@@ -95,7 +95,7 @@ import Cardano.Wallet.Primitive.CoinSelection.Balance
     , splitBundlesWithExcessiveTokenQuantities
     , ungroupByKey
     )
-import Cardano.Wallet.Primitive.CoinSelection.Balance.Gen
+import Cardano.Wallet.CoinSelection.Internal.Balance.Gen
     ( genSelectionLimit, shrinkSelectionLimit )
 import Cardano.Wallet.Primitive.Types.Address
     ( Address (..) )
@@ -573,7 +573,7 @@ prop_AssetCount_TokenMap_placesEmptyMapsFirst maps =
 --
 -- We define this type alias to shorten type signatures.
 --
-type PerformSelectionResult = Either SelectionError SelectionResult
+type PerformSelectionResult = Either SelectionBalanceError SelectionResult
 
 genSelectionParams :: Gen (TxIn -> Bool) -> Gen UTxOIndex -> Gen SelectionParams
 genSelectionParams genPreselectedInputs genUTxOIndex' = do
@@ -928,7 +928,7 @@ prop_performSelection mockConstraints params coverage =
                 (view #inputsSelected result <&> fst)
                 (view #utxoAvailable params)
 
-    onFailure :: SelectionError -> Property
+    onFailure :: SelectionBalanceError -> Property
     onFailure = \case
         BalanceInsufficient e ->
             onBalanceInsufficient e

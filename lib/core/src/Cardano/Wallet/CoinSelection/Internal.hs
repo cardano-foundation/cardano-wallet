@@ -13,18 +13,11 @@
 -- Copyright: © 2021 IOHK
 -- License: Apache-2.0
 --
--- This module provides a high-level interface for coin selection.
+-- This module provides INTERNAL functions and types for coin selection.
 --
--- It handles the following responsibilities:
+-- It is recommended to import from 'Cardano.Wallet.CoinSelection' instead.
 --
---  - selecting inputs from the UTxO set to pay for user-specified outputs;
---  - selecting inputs from the UTxO set to pay for collateral;
---  - producing change outputs to return excess value to the wallet;
---  - balancing a selection to pay for the transaction fee.
---
--- Use the 'performSelection' function to perform a coin selection.
---
-module Cardano.Wallet.Primitive.CoinSelection
+module Cardano.Wallet.CoinSelection.Internal
     (
     -- * Performing selections
       performSelection
@@ -36,7 +29,7 @@ module Cardano.Wallet.Primitive.CoinSelection
 
     -- * Output preparation
     , prepareOutputsWith
-    , SelectionOutputInvalidError (..)
+    , SelectionOutputError (..)
     , SelectionOutputSizeExceedsLimitError (..)
     , SelectionOutputTokenQuantityExceedsLimitError (..)
 
@@ -81,8 +74,14 @@ import Prelude
 
 import Algebra.PartialOrd
     ( PartialOrd (..) )
-import Cardano.Wallet.Primitive.CoinSelection.Balance
-    ( SelectionDelta (..), SelectionLimit, SelectionSkeleton )
+import Cardano.Wallet.CoinSelection.Internal.Balance
+    ( SelectionBalanceError (..)
+    , SelectionDelta (..)
+    , SelectionLimit
+    , SelectionSkeleton
+    )
+import Cardano.Wallet.CoinSelection.Internal.Collateral
+    ( SelectionCollateralError )
 import Cardano.Wallet.Primitive.Types.Address
     ( Address (..) )
 import Cardano.Wallet.Primitive.Types.Coin
@@ -134,8 +133,8 @@ import GHC.Stack
 import Numeric.Natural
     ( Natural )
 
-import qualified Cardano.Wallet.Primitive.CoinSelection.Balance as Balance
-import qualified Cardano.Wallet.Primitive.CoinSelection.Collateral as Collateral
+import qualified Cardano.Wallet.CoinSelection.Internal.Balance as Balance
+import qualified Cardano.Wallet.CoinSelection.Internal.Collateral as Collateral
 import qualified Cardano.Wallet.Primitive.Types.TokenBundle as TokenBundle
 import qualified Cardano.Wallet.Primitive.Types.TokenMap as TokenMap
 import qualified Cardano.Wallet.Primitive.Types.UTxO as UTxO
@@ -247,12 +246,12 @@ data SelectionParams = SelectionParams
 -- | Indicates that an error occurred while performing a coin selection.
 --
 data SelectionError
-    = SelectionBalanceError
-        Balance.SelectionError
-    | SelectionCollateralError
-        Collateral.SelectionError
-    | SelectionOutputError
-        SelectionOutputInvalidError
+    = SelectionBalanceErrorOf
+      SelectionBalanceError
+    | SelectionCollateralErrorOf
+      SelectionCollateralError
+    | SelectionOutputErrorOf
+      SelectionOutputError
     deriving (Eq, Show)
 
 -- | Represents a balanced selection.
@@ -339,7 +338,7 @@ prepareOutputs
     :: Applicative m
     => PerformSelection m SelectionParams
 prepareOutputs cs ps =
-    withExceptT SelectionOutputError $ ExceptT $ pure $
+    withExceptT SelectionOutputErrorOf $ ExceptT $ pure $
     flip (set #outputsToCover) ps <$>
     prepareOutputsInternal cs (view #outputsToCover ps)
 
@@ -347,7 +346,7 @@ performSelectionBalance
     :: (HasCallStack, MonadRandom m)
     => PerformSelection m Balance.SelectionResult
 performSelectionBalance cs ps =
-    withExceptT SelectionBalanceError $ ExceptT $
+    withExceptT SelectionBalanceErrorOf $ ExceptT $
     uncurry Balance.performSelection $ toBalanceConstraintsParams (cs, ps)
 
 performSelectionCollateral
@@ -356,7 +355,7 @@ performSelectionCollateral
     -> PerformSelection m Collateral.SelectionResult
 performSelectionCollateral balanceResult cs ps
     | selectionCollateralRequired ps =
-        withExceptT SelectionCollateralError $ ExceptT $ pure $
+        withExceptT SelectionCollateralErrorOf $ ExceptT $ pure $
         uncurry Collateral.performSelection $
         toCollateralConstraintsParams balanceResult (cs, ps)
     | otherwise =
@@ -842,18 +841,18 @@ type VerifySelectionError e =
 --
 verifySelectionError :: VerifySelectionError SelectionError
 verifySelectionError cs ps = \case
-    SelectionBalanceError e ->
+    SelectionBalanceErrorOf e ->
         verifySelectionBalanceError cs ps e
-    SelectionCollateralError e ->
+    SelectionCollateralErrorOf e ->
         verifySelectionCollateralError cs ps e
-    SelectionOutputError e ->
+    SelectionOutputErrorOf e ->
         verifySelectionOutputError cs ps e
 
 --------------------------------------------------------------------------------
 -- Selection error verification: balance errors
 --------------------------------------------------------------------------------
 
-verifySelectionBalanceError :: VerifySelectionError Balance.SelectionError
+verifySelectionBalanceError :: VerifySelectionError SelectionBalanceError
 verifySelectionBalanceError cs ps = \case
     Balance.BalanceInsufficient e ->
         verifyBalanceInsufficientError cs ps e
@@ -1103,7 +1102,7 @@ data FailureToVerifySelectionCollateralError =
         }
         deriving (Eq, Show)
 
-verifySelectionCollateralError :: VerifySelectionError Collateral.SelectionError
+verifySelectionCollateralError :: VerifySelectionError SelectionCollateralError
 verifySelectionCollateralError cs ps e =
     verifyAll
         [ Map.null largestCombinationUnsuitableSubset
@@ -1149,7 +1148,7 @@ verifySelectionCollateralError cs ps e =
 -- Selection error verification: output errors
 --------------------------------------------------------------------------------
 
-verifySelectionOutputError :: VerifySelectionError SelectionOutputInvalidError
+verifySelectionOutputError :: VerifySelectionError SelectionOutputError
 verifySelectionOutputError cs ps = \case
     SelectionOutputSizeExceedsLimit e ->
         verifySelectionOutputSizeExceedsLimitError cs ps e
@@ -1376,7 +1375,7 @@ computeMinimumCollateral params =
 prepareOutputsInternal
     :: SelectionConstraints
     -> [TxOut]
-    -> Either SelectionOutputInvalidError [TxOut]
+    -> Either SelectionOutputError [TxOut]
 prepareOutputsInternal constraints outputsUnprepared
     | e : _ <- excessivelyLargeBundles =
         Left $
@@ -1435,7 +1434,7 @@ prepareOutputsWith minCoinValueFor =
 
 -- | Indicates a problem when preparing outputs for a coin selection.
 --
-data SelectionOutputInvalidError
+data SelectionOutputError
     = SelectionOutputSizeExceedsLimit
         SelectionOutputSizeExceedsLimitError
     | SelectionOutputTokenQuantityExceedsLimit

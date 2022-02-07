@@ -81,6 +81,15 @@ import Cardano.Wallet
     )
 import Cardano.Wallet.Byron.Compatibility
     ( maryTokenBundleMaxSize )
+import Cardano.Wallet.CoinSelection
+    ( SelectionBalanceError (..)
+    , SelectionError (..)
+    , SelectionOf (..)
+    , UnableToConstructChangeError (..)
+    , balanceMissing
+    , emptySkeleton
+    , selectionDelta
+    )
 import Cardano.Wallet.Gen
     ( genMnemonic, genScript )
 import Cardano.Wallet.Primitive.AddressDerivation
@@ -108,13 +117,6 @@ import Cardano.Wallet.Primitive.AddressDerivation.Shelley
     ( ShelleyKey, generateKeyFromSeed )
 import Cardano.Wallet.Primitive.AddressDiscovery.Sequential
     ( SeqState, defaultAddressPoolGap, mkSeqStateFromRootXPrv, purposeCIP1852 )
-import Cardano.Wallet.Primitive.CoinSelection
-    ( SelectionError (..), SelectionOf (..), selectionDelta )
-import Cardano.Wallet.Primitive.CoinSelection.Balance
-    ( SelectionError (EmptyUTxO, SelectionLimitReached)
-    , UnableToConstructChangeError (..)
-    , emptySkeleton
-    )
 import Cardano.Wallet.Primitive.Model
     ( Wallet (..), unsafeInitWallet )
 import Cardano.Wallet.Primitive.Slotting
@@ -350,7 +352,6 @@ import qualified Cardano.Ledger.Core as Ledger
 import qualified Cardano.Ledger.Crypto as Crypto
 import qualified Cardano.Ledger.Shelley.API as SL
 import qualified Cardano.Wallet.Primitive.AddressDerivation.Shelley as Shelley
-import qualified Cardano.Wallet.Primitive.CoinSelection.Balance as Balance
 import qualified Cardano.Wallet.Primitive.Types.Coin as Coin
 import qualified Cardano.Wallet.Primitive.Types.TokenBundle as TokenBundle
 import qualified Cardano.Wallet.Primitive.Types.TokenMap as TokenMap
@@ -1211,9 +1212,9 @@ feeEstimationRegressionSpec = describe "Regression tests" $ do
         let requiredCost = 166029
         let runSelection = except $ Left
                 $ ErrSelectAssetsSelectionError
-                $ SelectionBalanceError
-                $ Balance.UnableToConstructChange
-                $ Balance.UnableToConstructChangeError
+                $ SelectionBalanceErrorOf
+                $ UnableToConstructChange
+                $ UnableToConstructChangeError
                     { requiredCost = Coin.fromWord64 requiredCost
                     , shortfall = Coin 100000
                     }
@@ -2311,8 +2312,8 @@ prop_balanceTransactionBalanced (Wallet' utxo wal pending) (ShowBuildable partia
             Left
                 (ErrBalanceTxSelectAssets
                 (ErrSelectAssetsSelectionError
-                (SelectionBalanceError (Balance.BalanceInsufficient err)))) -> do
-                let missing = Balance.balanceMissing err
+                (SelectionBalanceErrorOf (BalanceInsufficient err)))) -> do
+                let missing = balanceMissing err
                 case (view #coin missing == Coin 0, view #tokens missing == mempty) of
                     (False, False) -> label "missing coin and tokens" $ property True
                     (False, True) -> label "missing coin" $ property True
@@ -2323,8 +2324,8 @@ prop_balanceTransactionBalanced (Wallet' utxo wal pending) (ShowBuildable partia
             Left
                 (ErrBalanceTxSelectAssets
                 (ErrSelectAssetsSelectionError
-                (SelectionBalanceError
-                (Balance.InsufficientMinCoinValues _)))) ->
+                (SelectionBalanceErrorOf
+                (InsufficientMinCoinValues _)))) ->
                 label "outputs below minCoinValue" $ property True
             Left (ErrBalanceTxNotYetSupported Deposits) ->
                 label ("not yet supported: deposits") True
@@ -2339,18 +2340,18 @@ prop_balanceTransactionBalanced (Wallet' utxo wal pending) (ShowBuildable partia
             Left
                 (ErrBalanceTxSelectAssets
                 (ErrSelectAssetsSelectionError
-                (SelectionBalanceError EmptyUTxO))) ->
+                (SelectionBalanceErrorOf EmptyUTxO))) ->
                 label "empty UTxO" $ property True
             Left
                 (ErrBalanceTxSelectAssets
                 (ErrSelectAssetsSelectionError
-                (SelectionBalanceError
+                (SelectionBalanceErrorOf
                 (SelectionLimitReached _)))) ->
                 label "selection limit reached" $ property True
             Left
                 (ErrBalanceTxSelectAssets
                 (ErrSelectAssetsSelectionError
-                (SelectionBalanceError (Balance.UnableToConstructChange _)))) ->
+                (SelectionBalanceErrorOf (UnableToConstructChange _)))) ->
                 label "unable to construct change" $ property True
             Left err -> label "other error" $
                 counterexample ("balanceTransaction failed: " <> show err) False

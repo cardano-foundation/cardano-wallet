@@ -1,7 +1,7 @@
 {-# LANGUAGE LambdaCase #-}
 {-# LANGUAGE TypeApplications #-}
 
-module Cardano.Wallet.Primitive.CoinSelection.Balance.Gen
+module Cardano.Wallet.CoinSelection.Internal.Balance.Gen
     ( genSelectionLimit
     , genSelectionSkeleton
     , shrinkSelectionLimit
@@ -11,7 +11,7 @@ module Cardano.Wallet.Primitive.CoinSelection.Balance.Gen
 
 import Prelude
 
-import Cardano.Wallet.Primitive.CoinSelection.Balance
+import Cardano.Wallet.CoinSelection.Internal.Balance
     ( SelectionLimit, SelectionLimitOf (..), SelectionSkeleton (..) )
 import Cardano.Wallet.Primitive.Types.TokenMap.Gen
     ( genAssetId, shrinkAssetId )

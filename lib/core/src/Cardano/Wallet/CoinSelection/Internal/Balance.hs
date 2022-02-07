@@ -24,7 +24,7 @@
 -- See documentation for the 'performSelection' function for more details on
 -- how to perform a selection.
 --
-module Cardano.Wallet.Primitive.CoinSelection.Balance
+module Cardano.Wallet.CoinSelection.Internal.Balance
     (
     -- * Performing a selection
       PerformSelection
@@ -37,7 +37,7 @@ module Cardano.Wallet.Primitive.CoinSelection.Balance
     , SelectionSkeleton (..)
     , SelectionResult
     , SelectionResultOf (..)
-    , SelectionError (..)
+    , SelectionBalanceError (..)
     , BalanceInsufficientError (..)
     , InsufficientMinCoinValueError (..)
     , UnableToConstructChangeError (..)
@@ -651,7 +651,7 @@ selectionMaximumCost c = mtimesDefault (2 :: Int) . selectionMinimumCost c
 
 -- | Represents the set of errors that may occur while performing a selection.
 --
-data SelectionError
+data SelectionBalanceError
     = BalanceInsufficient
         BalanceInsufficientError
     | SelectionLimitReached
@@ -732,7 +732,7 @@ data UnableToConstructChangeError = UnableToConstructChangeError
 type PerformSelection m outputs =
     SelectionConstraints ->
     SelectionParamsOf outputs ->
-    m (Either SelectionError (SelectionResultOf outputs))
+    m (Either SelectionBalanceError (SelectionResultOf outputs))
 
 -- | Performs a coin selection and generates change bundles in one step.
 --
@@ -871,7 +871,9 @@ performSelectionNonEmpty constraints params
         , assetsToBurn
         } = params
 
-    selectionLimitReachedError :: [(TxIn, TxOut)] -> m (Either SelectionError a)
+    selectionLimitReachedError
+        :: [(TxIn, TxOut)]
+        -> m (Either SelectionBalanceError a)
     selectionLimitReachedError inputsSelected =
         pure $ Left $ SelectionLimitReached $ SelectionLimitReachedError
             { inputsSelected
@@ -980,7 +982,7 @@ performSelectionNonEmpty constraints params
     --
     makeChangeRepeatedly
         :: UTxOSelectionNonEmpty
-        -> m (Either SelectionError (SelectionResultOf (NonEmpty TxOut)))
+        -> m (Either SelectionBalanceError (SelectionResultOf (NonEmpty TxOut)))
     makeChangeRepeatedly s = case mChangeGenerated of
 
         Right change | length change >= length outputsToCover ->

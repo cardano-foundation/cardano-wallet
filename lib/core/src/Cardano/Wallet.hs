@@ -218,6 +218,25 @@ import Cardano.Crypto.Wallet
     ( toXPub )
 import Cardano.Slotting.Slot
     ( SlotNo (..) )
+import Cardano.Wallet.CoinSelection
+    ( Selection
+    , SelectionBalanceError (..)
+    , SelectionCollateralRequirement (..)
+    , SelectionConstraints (..)
+    , SelectionError (..)
+    , SelectionOf (..)
+    , SelectionOutputError (..)
+    , SelectionParams (..)
+    , SelectionReportDetailed
+    , SelectionReportSummarized
+    , SelectionSkeleton (..)
+    , UnableToConstructChangeError (..)
+    , emptySkeleton
+    , makeSelectionReportDetailed
+    , makeSelectionReportSummarized
+    , performSelection
+    , selectionDelta
+    )
 import Cardano.Wallet.DB
     ( DBLayer (..)
     , ErrNoSuchTransaction (..)
@@ -296,23 +315,6 @@ import Cardano.Wallet.Primitive.AddressDiscovery.Shared
     , SharedState (..)
     , addCosignerAccXPub
     )
-import Cardano.Wallet.Primitive.CoinSelection
-    ( Selection
-    , SelectionCollateralRequirement (..)
-    , SelectionConstraints (..)
-    , SelectionError (..)
-    , SelectionOf (..)
-    , SelectionOutputInvalidError (..)
-    , SelectionParams (..)
-    , SelectionReportDetailed
-    , SelectionReportSummarized
-    , makeSelectionReportDetailed
-    , makeSelectionReportSummarized
-    , performSelection
-    , selectionDelta
-    )
-import Cardano.Wallet.Primitive.CoinSelection.Balance
-    ( SelectionSkeleton (..), emptySkeleton )
 import Cardano.Wallet.Primitive.Collateral
     ( asCollateral )
 import Cardano.Wallet.Primitive.Migration
@@ -550,7 +552,6 @@ import qualified Cardano.Crypto.Wallet as CC
 import qualified Cardano.Wallet.Primitive.AddressDiscovery.Random as Rnd
 import qualified Cardano.Wallet.Primitive.AddressDiscovery.Sequential as Seq
 import qualified Cardano.Wallet.Primitive.AddressDiscovery.Shared as Shared
-import qualified Cardano.Wallet.Primitive.CoinSelection.Balance as Balance
 import qualified Cardano.Wallet.Primitive.Migration as Migration
 import qualified Cardano.Wallet.Primitive.Types as W
 import qualified Cardano.Wallet.Primitive.Types.Coin as Coin
@@ -2690,9 +2691,9 @@ estimateFee
     handleCannotCover :: ErrSelectAssets -> ExceptT ErrSelectAssets m Coin
     handleCannotCover = \case
         e@(ErrSelectAssetsSelectionError se) -> case se of
-            SelectionBalanceError (Balance.UnableToConstructChange ce) ->
+            SelectionBalanceErrorOf (UnableToConstructChange ce) ->
                 case ce of
-                    Balance.UnableToConstructChangeError {requiredCost} ->
+                    UnableToConstructChangeError {requiredCost} ->
                         pure requiredCost
             _ ->
                 throwE  e
@@ -3161,7 +3162,7 @@ data ErrCreateMigrationPlan
     deriving (Generic, Eq, Show)
 
 data ErrSelectAssets
-    = ErrSelectAssetsPrepareOutputsError SelectionOutputInvalidError
+    = ErrSelectAssetsPrepareOutputsError SelectionOutputError
     | ErrSelectAssetsNoSuchWallet ErrNoSuchWallet
     | ErrSelectAssetsAlreadyWithdrawing Tx
     | ErrSelectAssetsSelectionError SelectionError
