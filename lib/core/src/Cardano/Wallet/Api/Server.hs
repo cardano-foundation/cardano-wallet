@@ -2415,15 +2415,12 @@ submitTransaction ctx apiw@(ApiT wid) apitx@(ApiSerialisedTransaction (ApiT seal
     let ourOuts = getOurOuts apiDecoded
     let ourInps = getOurInps apiDecoded
 
-    let inpsWits = length $ L.nubBy samePaymentKey $
+    let witsRequiredForInputs = length $ L.nubBy samePaymentKey $
             (apiDecoded ^. #inputs) ++ (apiDecoded ^. #collateral)
-    let wdrlWits = length $ apiDecoded ^. #withdrawals
-    let certWits = length $ filter certWitNeeded $ apiDecoded ^. #certificates
-    let witsNeeded = inpsWits + wdrlWits + certWits
-    let witsNum = length $ getSealedTxWitnesses sealedTx
-    when (witsNeeded > witsNum) $
+    let totalNumberOfWits = length $ getSealedTxWitnesses sealedTx
+    when (witsRequiredForInputs > totalNumberOfWits) $
         liftHandler $ throwE $
-        ErrSubmitTransactionPartiallySignedOrNoSignedTx witsNeeded witsNum
+        ErrSubmitTransactionPartiallySignedOrNoSignedTx witsRequiredForInputs totalNumberOfWits
 
     _ <- withWorkerCtx ctx wid liftE liftE $ \wrk -> do
         (acct, _, path) <- liftHandler $ W.readRewardAccount @_ @s @k @n wrk wid
@@ -2486,13 +2483,6 @@ submitTransaction ctx apiw@(ApiT wid) apitx@(ApiSerialisedTransaction (ApiT seal
                derPath1 == derPath2
         (ExternalInput txin1, ExternalInput txin2) ->
                txin1 == txin2
-        _ -> False
-
-    certWitNeeded = \case
-        WalletDelegationCertificate (JoinPool _ _) -> True
-        WalletDelegationCertificate (QuitPool _) -> True
-        DelegationCertificate (JoinPoolExternal _ _) -> True
-        DelegationCertificate (QuitPoolExternal _) -> True
         _ -> False
 
 joinStakePool
