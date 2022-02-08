@@ -316,7 +316,7 @@ import Cardano.Wallet.Primitive.AddressDiscovery.Shared
     , addCosignerAccXPub
     )
 import Cardano.Wallet.Primitive.Collateral
-    ( asCollateral )
+    ( addressSuitableForCollateral )
 import Cardano.Wallet.Primitive.Migration
     ( MigrationPlan (..) )
 import Cardano.Wallet.Primitive.Model
@@ -1909,8 +1909,6 @@ selectAssets ctx pp params transform = do
                 intCast @Word16 @Int $ view #maximumCollateralInputCount pp
             , minimumCollateralPercentage =
                 view #minimumCollateralPercentage pp
-            , utxoSuitableForCollateral =
-                asCollateral . snd
             }
     let selectionParams = SelectionParams
             { assetsToMint =
@@ -1933,7 +1931,9 @@ selectAssets ctx pp params transform = do
             , collateralRequirement =
                 params ^. (#txContext . #txCollateralRequirement)
             , utxoAvailableForCollateral =
-                params ^. #utxoAvailableForCollateral
+                UTxO.filterByAddress
+                    addressSuitableForCollateral
+                    (params ^. #utxoAvailableForCollateral)
             , utxoAvailableForInputs =
                 params ^. #utxoAvailableForInputs
             }

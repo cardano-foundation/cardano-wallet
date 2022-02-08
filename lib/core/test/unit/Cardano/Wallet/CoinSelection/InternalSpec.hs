@@ -71,7 +71,7 @@ import Cardano.Wallet.Primitive.Types.TokenMap.Gen
 import Cardano.Wallet.Primitive.Types.TokenQuantity
     ( TokenQuantity (..) )
 import Cardano.Wallet.Primitive.Types.Tx
-    ( TxIn, TxOut (..), txOutCoin, txOutMaxTokenQuantity )
+    ( TxOut (..), txOutCoin, txOutMaxTokenQuantity )
 import Cardano.Wallet.Primitive.Types.Tx.Gen
     ( genTxOut, shrinkTxOut )
 import Cardano.Wallet.Primitive.Types.UTxO
@@ -520,8 +520,6 @@ data MockSelectionConstraints = MockSelectionConstraints
         :: Int
     , minimumCollateralPercentage
         :: Natural
-    , utxoSuitableForCollateral
-        :: MockUTxOSuitableForCollateral
     }
     deriving (Eq, Generic, Show)
 
@@ -534,7 +532,6 @@ genMockSelectionConstraints = MockSelectionConstraints
     <*> genMockComputeSelectionLimit
     <*> genMaximumCollateralInputCount
     <*> genMinimumCollateralPercentage
-    <*> genMockUTxOSuitableForCollateral
 
 shrinkMockSelectionConstraints
     :: MockSelectionConstraints -> [MockSelectionConstraints]
@@ -546,7 +543,6 @@ shrinkMockSelectionConstraints = genericRoundRobinShrink
     <:> shrinkMockComputeSelectionLimit
     <:> shrinkMaximumCollateralInputCount
     <:> shrinkMinimumCollateralPercentage
-    <:> shrinkMockUTxOSuitableForCollateral
     <:> Nil
 
 unMockSelectionConstraints :: MockSelectionConstraints -> SelectionConstraints
@@ -565,8 +561,6 @@ unMockSelectionConstraints m = SelectionConstraints
         view #maximumCollateralInputCount m
     , minimumCollateralPercentage =
         view #minimumCollateralPercentage m
-    , utxoSuitableForCollateral =
-        unMockUTxOSuitableForCollateral $ view #utxoSuitableForCollateral m
     }
 
 --------------------------------------------------------------------------------
@@ -598,32 +592,6 @@ genMinimumCollateralPercentage = chooseNatural (0, 1000)
 
 shrinkMinimumCollateralPercentage :: Natural -> [Natural]
 shrinkMinimumCollateralPercentage = shrinkNatural
-
---------------------------------------------------------------------------------
--- Determining suitability of UTxOs for use as collateral
---------------------------------------------------------------------------------
-
-data MockUTxOSuitableForCollateral
-    = MockUTxOSuitableForCollateralNothing
-      -- ^ Indicates that no UTxOs are suitable for use as collateral
-    | MockUTxOSuitableForCollateralPureAda
-      -- ^ Indicates that all pure ada UTxOs are suitable for use as collateral
-    deriving (Bounded, Enum, Eq, Generic, Show)
-
-genMockUTxOSuitableForCollateral :: Gen MockUTxOSuitableForCollateral
-genMockUTxOSuitableForCollateral = arbitraryBoundedEnum
-
-shrinkMockUTxOSuitableForCollateral
-    :: MockUTxOSuitableForCollateral -> [MockUTxOSuitableForCollateral]
-shrinkMockUTxOSuitableForCollateral = genericShrink
-
-unMockUTxOSuitableForCollateral
-    :: MockUTxOSuitableForCollateral -> ((TxIn, TxOut) -> Maybe Coin)
-unMockUTxOSuitableForCollateral = \case
-    MockUTxOSuitableForCollateralNothing ->
-        const Nothing
-    MockUTxOSuitableForCollateralPureAda ->
-        \(_i, o) -> TokenBundle.toCoin $ view #tokens o
 
 --------------------------------------------------------------------------------
 -- Selection parameters

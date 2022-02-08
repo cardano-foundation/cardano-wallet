@@ -109,7 +109,7 @@ import Data.List.NonEmpty
 import Data.Map.Strict
     ( Map )
 import Data.Maybe
-    ( isNothing, mapMaybe )
+    ( mapMaybe )
 import Data.Ratio
     ( (%) )
 import Data.Semigroup
@@ -175,11 +175,6 @@ data SelectionConstraints = SelectionConstraints
         :: Natural
         -- ^ Specifies the minimum required amount of collateral as a
         -- percentage of the total transaction fee.
-    , utxoSuitableForCollateral
-        :: (TxIn, TxOut) -> Maybe Coin
-        -- ^ Indicates whether an individual UTxO entry is suitable for use as
-        -- a collateral input. This function should return a 'Coin' value if
-        -- (and only if) the given UTxO is suitable for use as collateral.
     }
     deriving Generic
 
@@ -462,9 +457,9 @@ toCollateralConstraintsParams balanceResult (constraints, params) =
         }
     collateralParams = Collateral.SelectionParams
         { coinsAvailable =
-            Map.mapMaybeWithKey
-                (curry (view #utxoSuitableForCollateral constraints))
-                (unUTxO (view #utxoAvailableForCollateral params))
+            Map.mapMaybe
+                (TokenBundle.toCoin . view #tokens)
+                (unUTxO $ view #utxoAvailableForCollateral params)
         , minimumSelectionAmount =
             computeMinimumCollateral ComputeMinimumCollateralParams
                 { minimumCollateralPercentage =
@@ -670,7 +665,7 @@ data FailureToVerifySelectionCollateralSuitable =
     deriving (Eq, Show)
 
 verifySelectionCollateralSuitable :: VerifySelection
-verifySelectionCollateralSuitable cs _ps selection =
+verifySelectionCollateralSuitable _cs ps selection =
     verify
         (null collateralSelectedButUnsuitable)
         (FailureToVerifySelectionCollateralSuitable {..})
@@ -678,10 +673,17 @@ verifySelectionCollateralSuitable cs _ps selection =
     collateralSelected =
         selection ^. #collateral
     collateralSelectedButUnsuitable =
-        filter utxoUnsuitableForCollateral collateralSelected
+        filter (not . utxoSuitableForCollateral) collateralSelected
 
-    utxoUnsuitableForCollateral :: (TxIn, TxOut) -> Bool
-    utxoUnsuitableForCollateral = isNothing . (cs ^. #utxoSuitableForCollateral)
+    -- Since the caller of 'performSelection' is responsible for verifying that
+    -- all entries within 'utxoAvailableForCollateral' are suitable for use as
+    -- collateral, here we merely verify that the selected entry is indeed a
+    -- member of this set.
+    utxoSuitableForCollateral :: (TxIn, TxOut) -> Bool
+    utxoSuitableForCollateral (i, o) =
+        Map.singleton i o
+        `Map.isSubmapOf`
+        unUTxO (ps ^. #utxoAvailableForCollateral)
 
 --------------------------------------------------------------------------------
 -- Selection verification: delta validity
@@ -1115,10 +1117,8 @@ verifySelectionCollateralError cs ps e =
         -- The subset of the largest reported combination that is suitable for
         -- use as collateral. This set should be exactly the same size as the
         -- reported largest combination.
-        largestCombinationSuitableSubset :: Map TxIn Coin
-        largestCombinationSuitableSubset = Map.mapMaybeWithKey
-            (curry (cs ^. #utxoSuitableForCollateral))
-            (largestCombinationResolved)
+        largestCombinationSuitableSubset = Map.mapMaybe
+            (TokenBundle.toCoin . view #tokens) largestCombinationResolved
 
     maximumSelectionSize :: Int
     maximumSelectionSize = cs ^. #maximumCollateralInputCount
