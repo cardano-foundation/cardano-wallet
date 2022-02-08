@@ -632,8 +632,6 @@ import qualified Data.Text.Encoding as T
 import qualified Network.Wai.Handler.Warp as Warp
 import qualified Network.Wai.Handler.WarpTLS as Warp
 
-import qualified Debug.Trace as TR
-
 -- | How the server should listen for incoming requests.
 data Listen
     = ListenOnPort Port
@@ -2436,6 +2434,17 @@ submitTransaction ctx apiw@(ApiT wid) apitx@(ApiSerialisedTransaction (ApiT seal
             filter isInpOurs $
             (apiDecoded ^. #inputs) ++ (apiDecoded ^. #collateral)
     let totalNumberOfWits = length $ getSealedTxWitnesses sealedTx
+    let ourDel =
+            filter isJust $
+            map isJoiningOrQuitting $ apiDecoded ^. #certificates
+    when (length ourDel > 1) $
+        liftHandler $ throwE ErrSubmitTransactionMultidelegationNotSupported
+
+    let delAction = case ourDel of
+            [Just del] -> Just del
+            [] -> Nothing
+            _ -> error "impossible to be here due to check above"
+
     when (witsRequiredForInputs > totalNumberOfWits) $
         liftHandler $ throwE $
         ErrSubmitTransactionPartiallySignedOrNoSignedTx witsRequiredForInputs totalNumberOfWits
@@ -2446,10 +2455,16 @@ submitTransaction ctx apiw@(ApiT wid) apitx@(ApiSerialisedTransaction (ApiT seal
         let txCtx = defaultTransactionCtx
                 { txTimeToLive = ttl
                 , txWithdrawal = wdrl
+                , txDelegationAction = delAction
                 }
         txMeta <- liftHandler $ W.constructTxMeta @_ @s @k wrk wid txCtx ourInps ourOuts
+        let txMeta' =
+                if (txCtx ^. #txDelegationAction) == Just Quit then
+                    txMeta & #direction .~ W.Incoming
+                else
+                    txMeta
         liftHandler
-            $ W.submitTx @_ @s @k wrk wid (tx, txMeta, sealedTx)
+            $ W.submitTx @_ @s @k wrk wid (tx, txMeta', sealedTx)
     return $ ApiTxId (apiDecoded ^. #id)
   where
     (tx,_,_,_) = decodeTx tl sealedTx
@@ -2500,6 +2515,13 @@ submitTransaction ctx apiw@(ApiT wid) apitx@(ApiSerialisedTransaction (ApiT seal
         (WalletInput (ApiWalletInput _ _ _ derPath1 _ _), WalletInput (ApiWalletInput _ _ _ derPath2 _ _) ) ->
                derPath1 == derPath2
         _ -> False
+    isJoiningOrQuitting = \case
+        WalletDelegationCertificate (JoinPool _ (ApiT poolId)) ->
+            Just $ Join poolId
+        WalletDelegationCertificate (QuitPool _) ->
+            Just Quit
+        _ ->
+            Nothing
 
 joinStakePool
     :: forall ctx s n k.
@@ -3379,7 +3401,7 @@ mkApiTransaction timeInterpreter setTimeReference tx = do
         (natural (tx ^. (#txMeta . #blockHeight)))
 
     expRef <- traverse makeApiSlotReference' (tx ^. (#txMeta . #expiry))
-    TR.trace ("tx:"<> show tx) $ return $ apiTx & setTimeReference .~ Just timeRef & #expiresAt .~ expRef
+    return $ apiTx & setTimeReference .~ Just timeRef & #expiresAt .~ expRef
   where
     -- Since tx expiry can be far in the future, we use unsafeExtendSafeZone for
     -- now.
@@ -4043,6 +4065,12 @@ instance IsServerError ErrSubmitTransaction where
                 , " inputs and ", toText foundWitsNo, " witnesses included."
                 , " Submit fully-signed transaction."
                 ]
+        ErrSubmitTransactionMultidelegationNotSupported ->
+            apiError err403 CreatedMultidelegationTransaction $ mconcat
+            [ "It looks like the transaction to be sent contains"
+            , "multiple delegations, which is not supported at this moment."
+            , "Please use at most one delegation action in a submitted transaction: join, quit or none."
+            ]
 
 instance IsServerError ErrSubmitTx where
     toServerError = \case

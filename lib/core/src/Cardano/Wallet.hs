@@ -538,6 +538,8 @@ import Safe
     ( lastMay )
 import Statistics.Quantile
     ( medianUnbiased, quantiles )
+import Text.Pretty.Simple
+    ( pShow )
 import Type.Reflection
     ( Typeable, typeRep )
 import UnliftIO.Exception
@@ -566,8 +568,7 @@ import qualified Data.List.NonEmpty as NE
 import qualified Data.Set as Set
 import qualified Data.Text as T
 import qualified Data.Vector as V
-import Text.Pretty.Simple
-    ( pShow )
+
 
 -- $Development
 -- __Naming Conventions__
@@ -2138,9 +2139,13 @@ mkTxMetaWithoutSel blockHeader wState txCtx inps outs =
                 w@WithdrawalSelf{} -> Coin.add (withdrawalToCoin w)
                 WithdrawalExternal{} -> Prelude.id
                 NoWithdrawal -> Prelude.id
+        dir = if (txCtx ^. #txDelegationAction) == Just Quit then
+                   Incoming
+              else
+                   Outgoing
     in return TxMeta
        { status = Pending
-       , direction = Outgoing
+       , direction = dir
        , slotNo = blockHeader ^. #slotNo
        , blockHeight = blockHeader ^. #blockHeight
        , amount = Coin.distance amtInps amtOuts
@@ -3078,6 +3083,7 @@ data ErrSubmitTransaction
     = ErrSubmitTransactionNoSuchWallet ErrNoSuchWallet
     | ErrSubmitTransactionForeignWallet
     | ErrSubmitTransactionPartiallySignedOrNoSignedTx Int Int
+    | ErrSubmitTransactionMultidelegationNotSupported
     deriving (Show, Eq)
 
 -- | Errors that can occur when constructing an unsigned transaction.

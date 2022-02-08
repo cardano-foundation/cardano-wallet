@@ -214,8 +214,6 @@ import qualified Data.Text.Encoding as T
 import qualified Network.HTTP.Types.Status as HTTP
 import qualified Test.Integration.Plutus as PlutusScenario
 
-import qualified Debug.Trace as TR
-
 
 spec :: forall n.
     ( DecodeAddress n
@@ -2396,7 +2394,7 @@ spec = describe "NEW_SHELLEY_TRANSACTIONS" $ do
             }|]
         rTx4 <- request @(ApiConstructTransaction n) ctx
             (Link.createUnsignedTransaction @'Shelley src) Default delegationQuit
-        TR.trace ("\n!!!!QUIT!!!\n") $ verify rTx4
+        verify rTx4
             [ expectResponseCode HTTP.status202
             , expectField (#coinSelection . #depositsTaken) (`shouldBe` [])
             , expectField (#coinSelection . #depositsReturned) (`shouldBe` [depositAmt])
@@ -2425,7 +2423,7 @@ spec = describe "NEW_SHELLEY_TRANSACTIONS" $ do
         let txid3 = getFromResponse (#id) submittedTx4
         let queryTx3 = Link.getTransaction @'Shelley src (ApiTxId txid3)
         rGetTx3 <- request @(ApiTransaction n) ctx queryTx3 Default Empty
-        TR.trace ("\n!!!!Sumbited!!!!\n") $ verify rGetTx3
+        verify rGetTx3
             [ expectResponseCode HTTP.status200
             , expectField #depositTaken (`shouldBe` Quantity 0)
             , expectField #depositReturned (`shouldBe` depositAmt)
@@ -2439,7 +2437,7 @@ spec = describe "NEW_SHELLEY_TRANSACTIONS" $ do
 
         -- transaction history shows deposit returned
         rGetTx4 <- request @(ApiTransaction n) ctx queryTx3 Default Empty
-        TR.trace ("\n!!!!In ledger!!!!\n") $ verify rGetTx4
+        verify rGetTx4
             [ expectResponseCode HTTP.status200
             , expectField #depositTaken (`shouldBe` Quantity 0)
             , expectField #depositReturned (`shouldBe` depositAmt)
