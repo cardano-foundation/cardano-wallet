@@ -42,6 +42,8 @@ Full instructions are on the [[Building#cabalnix-build]] page.
 
 ### Code generation
 
+- [ ] TODO: Update for cabal `plan-to-nix`
+
 The Nix build depends on code which is generated from `stack.yaml` and
 the Cabal files. If you change these files, then you will probably
 need to update the generated files.

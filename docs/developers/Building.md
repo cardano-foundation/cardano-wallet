@@ -6,33 +6,21 @@
 
 |  | **Supported version** | **Dependency?** |
 | --- | --- | --- |
-| [stack][] | >= 2.7.1 | Required, recommended |
 | [ghc][] | == 8.10.7 | Required |
-| [cabal][] | >= 3.4.0.0 | Optional |
-| [[Nix]] | >= 2.5.1 | Optional |
+| [cabal][] | >= 3.4.0.0 | Required |
+| [[Nix]] | >= 2.6.0 | Optional |
 
 See [`nix/overlays/build-tools.nix`](https://github.com/input-output-hk/cardano-wallet/blob/master/nix/overlays/build-tools.nix#L1) for a list of other Haskell development tools that are used. CI will use exactly the versions specified in this file.
 
-[stack]: https://haskellstack.org/
 [cabal]: https://www.haskell.org/cabal/download.html
 [ghc]: https://www.haskell.org/downloads/
 
-## Stack
+## Cabal
 
-Use [Haskell Stack][stack] to build this project:
-
-```
-stack build --test --no-run-tests
-```
+Use [Cabal][] to build this project.
 
 You may need to install the [`libsodium-dev`](https://doc.libsodium.org/installation), `libghc-hsopenssl-dev`, `gmp`, `sqlite` and `systemd` development
 libraries for the build to succeed.
-
-## Cabal
-
-Alternatively, it's possible to build this project with [Cabal][].
-
-**Note:** the Cabal build is checked by [Buildkite](https://github.com/input-output-hk/cardano-wallet/blob/master/.buildkite/nightly.yml).
 
 1. Update your Hackage index (this may take a while):
 
@@ -86,12 +74,6 @@ Alternatively, it's possible to build this project with [Cabal][].
    ```console
    $ cabal install --install-method=copy --installdir=/usr/local/bin
    ```
-
-#### Syncing `stack` and `cabal` dependencies
-
-1. Install [stack2cabal](https://hackage.haskell.org/package/stack2cabal)
-
-2. Run `stack2cabal -p now` to convert the dependencies list from `stack` into a suitable format for `cabal`.
 
 ## Nix
 
