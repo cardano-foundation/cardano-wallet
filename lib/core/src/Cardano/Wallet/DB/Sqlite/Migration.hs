@@ -1,8 +1,9 @@
 {-# LANGUAGE BlockArguments #-}
 {-# LANGUAGE DataKinds #-}
 {-# LANGUAGE DeriveAnyClass #-}
+{-# LANGUAGE DerivingStrategies #-}
+{-# LANGUAGE GeneralizedNewtypeDeriving #-}
 {-# LANGUAGE LambdaCase #-}
-{-# LANGUAGE RecordWildCards #-}
 {-# LANGUAGE TypeApplications #-}
 
 -- |
@@ -16,6 +17,8 @@
 module Cardano.Wallet.DB.Sqlite.Migration
     ( DefaultFieldValues (..)
     , migrateManually
+    , SchemaVersion (..)
+    , currentSchemaVersion
     , InvalidDatabaseSchemaVersion (..)
     )
     where
@@ -25,7 +28,6 @@ import Prelude
 import Cardano.DB.Sqlite
     ( DBField (..)
     , DBLog (..)
-    , DatabaseMetadataLog (..)
     , ManualMigration (..)
     , fieldName
     , fieldType
@@ -33,8 +35,6 @@ import Cardano.DB.Sqlite
     )
 import Cardano.Wallet.DB.Sqlite.TH
     ( EntityField (..) )
-import Cardano.Wallet.DB.Sqlite.Types
-    ( DatabaseFileFormatVersion (..) )
 import Cardano.Wallet.Primitive.AddressDerivation.Icarus
     ( IcarusKey )
 import Cardano.Wallet.Primitive.AddressDerivation.Shelley
@@ -59,6 +59,8 @@ import Database.Persist.Class
     ( toPersistValue )
 import Database.Persist.Types
     ( PersistValue (..), fromPersistValueText )
+import Numeric.Natural
+    ( Natural )
 import UnliftIO.Exception
     ( Exception, throwIO, throwString )
 
@@ -96,18 +98,18 @@ data TableCreationResult
     = TableCreated
     | TableExisted
 
-newtype DatabaseMetadata
-    = DatabaseMetadata { fileFormatVersion :: DatabaseFileFormatVersion }
+newtype SchemaVersion = SchemaVersion Natural
+  deriving newtype (Eq, Ord, Read, Show )
 
 data InvalidDatabaseSchemaVersion
     = InvalidDatabaseSchemaVersion
-    { expectedVersion :: DatabaseFileFormatVersion
-    , actualVersion :: DatabaseFileFormatVersion
+    { expectedVersion :: SchemaVersion
+    , actualVersion :: SchemaVersion
     }
     deriving (Show, Eq, Exception)
 
-currentFileFormat :: DatabaseFileFormatVersion
-currentFileFormat = DatabaseFileFormatVersion 1
+currentSchemaVersion :: SchemaVersion
+currentSchemaVersion = SchemaVersion 1
 
 -- | Executes any manual database migration steps that may be required on
 -- startup.
@@ -119,7 +121,7 @@ migrateManually
     -> [ManualMigration]
 migrateManually tr proxy defaultFieldValues =
     ManualMigration <$>
-    [ initializeDatabaseMetadataTable
+    [ initializeSchemaVersionTable
     , cleanupCheckpointTable
     , assignDefaultPassphraseScheme
     , addDesiredPoolNumberIfMissing
@@ -143,58 +145,49 @@ migrateManually tr proxy defaultFieldValues =
     , cleanupSeqStateTable
     ]
   where
-    initializeDatabaseMetadataTable :: Sqlite.Connection -> IO ()
-    initializeDatabaseMetadataTable conn =
-        createMetadataTableIfMissing conn >>= \case
-            TableCreated -> do
-                trace DatabaseMetadataCreated
-                putMetadata conn DatabaseMetadata
-                    { fileFormatVersion = currentFileFormat }
+    initializeSchemaVersionTable :: Sqlite.Connection -> IO ()
+    initializeSchemaVersionTable conn =
+        createSchemaVersionTableIfMissing conn >>= \case
+            TableCreated -> putSchemaVersion conn currentSchemaVersion
             TableExisted -> do
-                DatabaseMetadata {..} <- getMetadata conn
-                when (fileFormatVersion > currentFileFormat) do
-                    throwIO InvalidDatabaseSchemaVersion
-                        { expectedVersion = currentFileFormat
-                        , actualVersion = fileFormatVersion
+                schemaVersion <- getSchemaVersion conn
+                case compare schemaVersion currentSchemaVersion of
+                    GT -> throwIO InvalidDatabaseSchemaVersion
+                        { expectedVersion = currentSchemaVersion
+                        , actualVersion = schemaVersion
                         }
-                trace $ DatabaseVersionMatched fileFormatVersion
-                putMetadata conn DatabaseMetadata{..}
-      where
-        trace = traceWith tr . MsgMetadata
+                    LT -> putSchemaVersion conn currentSchemaVersion
+                    EQ -> pure ()
 
-    createMetadataTableIfMissing :: Sqlite.Connection -> IO TableCreationResult
-    createMetadataTableIfMissing conn = do
+    createSchemaVersionTableIfMissing ::
+        Sqlite.Connection -> IO TableCreationResult
+    createSchemaVersionTableIfMissing conn = do
         res <- runSql conn
             "SELECT name FROM sqlite_master \
-            \WHERE type='table' AND name='database_metadata'"
+            \WHERE type='table' AND name='database_schema_version'"
         case res of
            [] -> TableCreated <$ runSql conn
-            "CREATE TABLE database_metadata\
+            "CREATE TABLE database_schema_version\
             \( name TEXT PRIMARY KEY \
             \, version INTEGER NOT NULL \
             \)"
            _ -> pure TableExisted
 
-    putMetadata :: Sqlite.Connection -> DatabaseMetadata -> IO ()
-    putMetadata conn DatabaseMetadata {..} = do
-        traceWith tr $ MsgMetadata $ DatabaseVersionSet fileFormatVersion
-        void $ runSql conn $ mconcat
-            [ "INSERT INTO database_metadata (name, version) "
-            , "VALUES "
-            , "('metadata', "
-            , version
-            , ") ON CONFLICT (name) DO UPDATE SET version = "
-            , version
-            ]
-        where
-            version = T.pack . show $
-                naturalDatabaseFileFormat fileFormatVersion
+    putSchemaVersion :: Sqlite.Connection -> SchemaVersion -> IO ()
+    putSchemaVersion conn schemaVersion = void $ runSql conn $ T.unwords
+        [ "INSERT INTO database_schema_version (name, version)"
+        , "VALUES ('schema',"
+        , version
+        , ") ON CONFLICT (name) DO UPDATE SET version ="
+        , version
+        ]
+      where
+        version = T.pack $ show schemaVersion
 
-    getMetadata :: Sqlite.Connection -> IO DatabaseMetadata
-    getMetadata conn =
-        runSql conn "SELECT version FROM database_metadata" >>= \case
-            [[PersistInt64 i]] | i >= 0 ->
-                pure DatabaseMetadata { fileFormatVersion = fromIntegral i }
+    getSchemaVersion :: Sqlite.Connection -> IO SchemaVersion
+    getSchemaVersion conn =
+        runSql conn "SELECT version FROM database_schema_version" >>= \case
+            [[PersistInt64 i]] | i >= 0 -> pure $ SchemaVersion $ fromIntegral i
             _ -> throwString "Database metadata table is corrupt"
 
     -- NOTE

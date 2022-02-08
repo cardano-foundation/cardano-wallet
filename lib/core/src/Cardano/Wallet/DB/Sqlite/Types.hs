@@ -2,7 +2,6 @@
 {-# LANGUAGE DeriveGeneric #-}
 {-# LANGUAGE DerivingVia #-}
 {-# LANGUAGE FlexibleInstances #-}
-{-# LANGUAGE GeneralizedNewtypeDeriving #-}
 {-# LANGUAGE LambdaCase #-}
 {-# LANGUAGE TypeApplications #-}
 {-# LANGUAGE ViewPatterns #-}
@@ -128,10 +127,6 @@ import GHC.Generics
     ( Generic )
 import Network.URI
     ( parseAbsoluteURI )
-import Numeric.Natural
-    ( Natural )
-import Quiet
-    ( Quiet (..) )
 import System.Random.Internal
     ( StdGen (..) )
 import System.Random.SplitMix
@@ -863,10 +858,3 @@ newtype EitherText a = EitherText { getEitherText :: Either Text a }
 
 instance MonadFail EitherText where
     fail = EitherText . Left . T.pack
-
-newtype DatabaseFileFormatVersion = DatabaseFileFormatVersion
-    { naturalDatabaseFileFormat :: Natural }
-    deriving stock Generic
-    deriving newtype (Eq, Ord, Enum, Num, Real, Integral, ToJSON)
-    deriving Show via (Quiet DatabaseFileFormatVersion)
-

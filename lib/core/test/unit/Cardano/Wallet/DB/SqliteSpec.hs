@@ -48,13 +48,7 @@ import Cardano.BM.Trace
 import Cardano.Crypto.Wallet
     ( XPrv )
 import Cardano.DB.Sqlite
-    ( DBField
-    , DBLog (..)
-    , DatabaseMetadataLog (..)
-    , SqliteContext
-    , fieldName
-    , newInMemorySqliteContext
-    )
+    ( DBField, DBLog (..), SqliteContext, fieldName, newInMemorySqliteContext )
 import Cardano.Mnemonic
     ( SomeMnemonic (..) )
 import Cardano.Wallet.DB
@@ -73,9 +67,10 @@ import Cardano.Wallet.DB.Sqlite
     , withDBLayerInMemory
     )
 import Cardano.Wallet.DB.Sqlite.Migration
-    ( InvalidDatabaseSchemaVersion (..) )
-import Cardano.Wallet.DB.Sqlite.Types
-    ( DatabaseFileFormatVersion (..) )
+    ( InvalidDatabaseSchemaVersion (..)
+    , SchemaVersion (..)
+    , currentSchemaVersion
+    )
 import Cardano.Wallet.DB.StateMachine
     ( TestConstraints, prop_parallel, prop_sequential, validateGenerators )
 import Cardano.Wallet.DummyTarget.Primitive.Types
@@ -1264,25 +1259,28 @@ testMigrationPassphraseScheme = do
 
 testCreateMetadataTable ::
     forall s k. (k ~ ShelleyKey, s ~ SeqState 'Mainnet k) => IO ()
-testCreateMetadataTable = do
-    (logs, _) <- captureLogging $ \tr ->
-        withDBLayer @s @k tr defaultFieldValues ":memory:" dummyTimeInterpreter
-            (const $ pure ())
-    [ l | MsgDB (MsgMetadata l) <- logs ] `shouldBe`
-        [ DatabaseMetadataCreated
-        , DatabaseVersionSet (DatabaseFileFormatVersion 1)
-        ]
+testCreateMetadataTable = withSystemTempFile "db.sql" $ \path _ -> do
+    let noop _ = pure ()
+        tr = nullTracer
+    withDBLayer @s @k tr defaultFieldValues path dummyTimeInterpreter noop
+    actualVersion <- Sqlite.runSqlite (T.pack path) $ do
+        [Sqlite.Single (version :: Int)] <- Sqlite.rawSql
+            "SELECT version FROM database_schema_version \
+            \WHERE name = 'schema'" []
+        pure $ SchemaVersion $ fromIntegral version
+    actualVersion `shouldBe` currentSchemaVersion
 
 testNewerDatabaseIsNeverModified ::
     forall s k. (k ~ ShelleyKey, s ~ SeqState 'Mainnet k) => IO ()
 testNewerDatabaseIsNeverModified = withSystemTempFile "db.sql" $ \path _ -> do
-    let newerVersion = DatabaseFileFormatVersion 100
-        currentVersion = DatabaseFileFormatVersion 1
+    let newerVersion = SchemaVersion 100
+        currentVersion = SchemaVersion 1
     _ <- Sqlite.runSqlite (T.pack path) $ do
-        Sqlite.rawExecute "CREATE TABLE database_metadata (name, version)" []
+        Sqlite.rawExecute
+            "CREATE TABLE database_schema_version (name, version)" []
         Sqlite.rawExecute (
-            let v = T.pack . show $ naturalDatabaseFileFormat newerVersion
-            in "INSERT INTO database_metadata VALUES ('metadata', " <> v <> ")"
+            "INSERT INTO database_schema_version \
+            \VALUES ('schema', " <> T.pack (show newerVersion) <> ")"
             ) []
     let noop _ = pure ()
         tr = nullTracer
