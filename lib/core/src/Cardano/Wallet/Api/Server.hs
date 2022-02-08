@@ -3432,13 +3432,20 @@ mkApiTransaction timeInterpreter setTimeReference tx = do
     -- 4. tx Incoming
     -- 5. outs - inpsWithoutFee <= deposit
     -- assumption: this should work when
+    depositValue :: Natural
+    depositValue = fromIntegral . unCoin $ tx ^. #txDeposit
+
     reclaimIfAny :: Natural
     reclaimIfAny
         | tx ^. (#txMeta . #direction) == W.Incoming =
-            if totalIn < totalOut
-            then totalOut - totalIn
+            if totalInWithoutFee > 0 && totalOut > 0 && totalOut - totalInWithoutFee <= depositValue
+            then depositValue
             else 0
         | otherwise = 0
+
+    totalInWithoutFee :: Natural
+    totalInWithoutFee
+        = sum (txOutValue <$> mapMaybe snd (tx ^. #txInputs))
 
     totalIn :: Natural
     totalIn
