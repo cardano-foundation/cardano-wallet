@@ -243,7 +243,7 @@ data Selection = Selection
         :: !(NonEmpty (TxIn, TxOut))
         -- ^ Selected inputs.
     , collateral
-        :: ![(TxIn, TxOut)]
+        :: ![(TxIn, Coin)]
         -- ^ Selected collateral inputs.
     , outputs
         :: ![TxOut]
@@ -478,7 +478,7 @@ mkSelection
     -> Selection
 mkSelection params balanceResult collateralResult = Selection
     { inputs = view #inputsSelected balanceResult
-    , collateral = UTxO.toList $
+    , collateral = Map.toList $ Map.map (view (#tokens . #coin)) $ unUTxO $
         view #utxoAvailableForCollateral params
         `UTxO.restrictedBy`
         Map.keysSet (view #coinsSelected collateralResult)
@@ -658,9 +658,9 @@ verifySelectionCollateralSufficient cs ps selection =
 data FailureToVerifySelectionCollateralSuitable =
     FailureToVerifySelectionCollateralSuitable
     { collateralSelected
-        :: [(TxIn, TxOut)]
+        :: [(TxIn, Coin)]
     , collateralSelectedButUnsuitable
-        :: [(TxIn, TxOut)]
+        :: [(TxIn, Coin)]
     }
     deriving (Eq, Show)
 
@@ -679,11 +679,11 @@ verifySelectionCollateralSuitable _cs ps selection =
     -- all entries within 'utxoAvailableForCollateral' are suitable for use as
     -- collateral, here we merely verify that the selected entry is indeed a
     -- member of this set.
-    utxoSuitableForCollateral :: (TxIn, TxOut) -> Bool
-    utxoSuitableForCollateral (i, o) =
-        Map.singleton i o
+    utxoSuitableForCollateral :: (TxIn, Coin) -> Bool
+    utxoSuitableForCollateral (i, c) =
+        Map.singleton i c
         `Map.isSubmapOf`
-        unUTxO (ps ^. #utxoAvailableForCollateral)
+        (view (#tokens . #coin) <$> unUTxO (ps ^. #utxoAvailableForCollateral))
 
 --------------------------------------------------------------------------------
 -- Selection verification: delta validity
@@ -1280,10 +1280,7 @@ whenCollateralRequired params f
 -- | Computes the total amount of collateral within a selection.
 --
 selectionCollateral :: Selection -> Coin
-selectionCollateral selection =
-    F.foldMap
-        (view (#tokens . #coin) . snd)
-        (view #collateral selection)
+selectionCollateral = F.foldMap snd . view #collateral
 
 -- | Indicates whether or not a selection has sufficient collateral.
 --

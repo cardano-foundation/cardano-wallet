@@ -86,7 +86,7 @@ import Cardano.Wallet.Primitive.Types.TokenMap
 import Cardano.Wallet.Primitive.Types.Tx
     ( TxIn, TxOut (..) )
 import Cardano.Wallet.Primitive.Types.UTxO
-    ( UTxO )
+    ( UTxO (..) )
 import Cardano.Wallet.Primitive.Types.UTxOSelection
     ( UTxOSelection )
 import Control.Monad.Random.Class
@@ -110,7 +110,9 @@ import Prelude
 
 import qualified Cardano.Wallet.CoinSelection.Internal as Internal
 import qualified Cardano.Wallet.Primitive.Types.TokenBundle as TokenBundle
+import qualified Cardano.Wallet.Primitive.Types.UTxO as UTxO
 import qualified Data.Foldable as F
+import qualified Data.Map.Strict as Map
 import qualified Data.Set as Set
 
 --------------------------------------------------------------------------------
@@ -204,9 +206,15 @@ data SelectionOf change = Selection
 --
 type Selection = SelectionOf TokenBundle
 
-toExternalSelection :: Internal.Selection -> Selection
-toExternalSelection Internal.Selection {..} =
-    Selection {..}
+toExternalSelection :: SelectionParams -> Internal.Selection -> Selection
+toExternalSelection ps Internal.Selection {..} =
+    Selection
+        { collateral = Map.toList $ unUTxO $
+            view #utxoAvailableForCollateral ps
+            `UTxO.restrictedBy`
+            Set.fromList (fst <$> collateral)
+        , ..
+        }
 
 toInternalSelection
     :: (change -> TokenBundle)
@@ -215,6 +223,7 @@ toInternalSelection
 toInternalSelection getChangeBundle Selection {..} =
     Internal.Selection
         { change = getChangeBundle <$> change
+        , collateral = fmap (view (#tokens . #coin)) <$> collateral
         , ..
         }
 
@@ -239,7 +248,7 @@ performSelection
     -> SelectionParams
     -> ExceptT SelectionError m Selection
 performSelection cs ps =
-    toExternalSelection <$>
+    toExternalSelection ps <$>
     Internal.performSelection cs (toInternalSelectionParams ps)
 
 --------------------------------------------------------------------------------
