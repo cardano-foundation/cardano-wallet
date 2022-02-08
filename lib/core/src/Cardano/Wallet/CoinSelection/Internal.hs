@@ -84,8 +84,6 @@ import Cardano.Wallet.Primitive.Types.TokenQuantity
     ( TokenQuantity )
 import Cardano.Wallet.Primitive.Types.Tx
     ( TokenBundleSizeAssessment (..), TxIn, TxOut (..), txOutMaxTokenQuantity )
-import Cardano.Wallet.Primitive.Types.UTxO
-    ( UTxO (..) )
 import Cardano.Wallet.Primitive.Types.UTxOSelection
     ( UTxOSelection )
 import Control.Monad
@@ -125,7 +123,6 @@ import qualified Cardano.Wallet.CoinSelection.Internal.Balance as Balance
 import qualified Cardano.Wallet.CoinSelection.Internal.Collateral as Collateral
 import qualified Cardano.Wallet.Primitive.Types.TokenBundle as TokenBundle
 import qualified Cardano.Wallet.Primitive.Types.TokenMap as TokenMap
-import qualified Cardano.Wallet.Primitive.Types.UTxO as UTxO
 import qualified Cardano.Wallet.Primitive.Types.UTxOSelection as UTxOSelection
 import qualified Data.Foldable as F
 import qualified Data.List.NonEmpty as NE
@@ -209,7 +206,7 @@ data SelectionParams = SelectionParams
         :: !SelectionCollateralRequirement
         -- ^ Specifies the collateral requirement for this selection.
     , utxoAvailableForCollateral
-        :: !UTxO
+        :: !(Map TxIn Coin)
         -- ^ Specifies a set of UTxOs that are available for selection as
         -- collateral inputs.
         --
@@ -457,9 +454,7 @@ toCollateralConstraintsParams balanceResult (constraints, params) =
         }
     collateralParams = Collateral.SelectionParams
         { coinsAvailable =
-            Map.mapMaybe
-                (TokenBundle.toCoin . view #tokens)
-                (unUTxO $ view #utxoAvailableForCollateral params)
+            view #utxoAvailableForCollateral params
         , minimumSelectionAmount =
             computeMinimumCollateral ComputeMinimumCollateralParams
                 { minimumCollateralPercentage =
@@ -476,12 +471,9 @@ mkSelection
     -> Balance.SelectionResult
     -> Collateral.SelectionResult
     -> Selection
-mkSelection params balanceResult collateralResult = Selection
+mkSelection _params balanceResult collateralResult = Selection
     { inputs = view #inputsSelected balanceResult
-    , collateral = Map.toList $ Map.map (view (#tokens . #coin)) $ unUTxO $
-        view #utxoAvailableForCollateral params
-        `UTxO.restrictedBy`
-        Map.keysSet (view #coinsSelected collateralResult)
+    , collateral = Map.toList $ view #coinsSelected collateralResult
     , outputs = view #outputsCovered balanceResult
     , change = view #changeGenerated balanceResult
     , assetsToMint = view #assetsToMint balanceResult
@@ -683,7 +675,7 @@ verifySelectionCollateralSuitable _cs ps selection =
     utxoSuitableForCollateral (i, c) =
         Map.singleton i c
         `Map.isSubmapOf`
-        (view (#tokens . #coin) <$> unUTxO (ps ^. #utxoAvailableForCollateral))
+        view #utxoAvailableForCollateral ps
 
 --------------------------------------------------------------------------------
 -- Selection verification: delta validity
@@ -1104,21 +1096,7 @@ verifySelectionCollateralError cs ps e =
     largestCombinationUnsuitableSubset :: Map TxIn Coin
     largestCombinationUnsuitableSubset = Map.withoutKeys
         (largestCombination)
-        (Map.keysSet largestCombinationSuitableSubset)
-      where
-        -- The largest reported combination of UTxOs, but with outputs fully
-        -- resolved according to the set of UTxOs originally made available
-        -- to the selection algorithm.
-        largestCombinationResolved :: Map TxIn TxOut
-        largestCombinationResolved = Map.restrictKeys
-            (unUTxO (ps ^. #utxoAvailableForCollateral))
-            (Map.keysSet largestCombination)
-
-        -- The subset of the largest reported combination that is suitable for
-        -- use as collateral. This set should be exactly the same size as the
-        -- reported largest combination.
-        largestCombinationSuitableSubset = Map.mapMaybe
-            (TokenBundle.toCoin . view #tokens) largestCombinationResolved
+        (Map.keysSet $ ps ^. #utxoAvailableForCollateral)
 
     maximumSelectionSize :: Int
     maximumSelectionSize = cs ^. #maximumCollateralInputCount

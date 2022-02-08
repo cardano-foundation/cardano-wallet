@@ -71,13 +71,9 @@ import Cardano.Wallet.Primitive.Types.TokenMap.Gen
 import Cardano.Wallet.Primitive.Types.TokenQuantity
     ( TokenQuantity (..) )
 import Cardano.Wallet.Primitive.Types.Tx
-    ( TxOut (..), txOutCoin, txOutMaxTokenQuantity )
+    ( TxIn, TxOut (..), txOutCoin, txOutMaxTokenQuantity )
 import Cardano.Wallet.Primitive.Types.Tx.Gen
-    ( genTxOut, shrinkTxOut )
-import Cardano.Wallet.Primitive.Types.UTxO
-    ( UTxO )
-import Cardano.Wallet.Primitive.Types.UTxO.Gen
-    ( genUTxO, shrinkUTxO )
+    ( genTxIn, genTxOut, shrinkTxIn, shrinkTxOut )
 import Cardano.Wallet.Primitive.Types.UTxOSelection
     ( UTxOSelection )
 import Cardano.Wallet.Primitive.Types.UTxOSelection.Gen
@@ -94,6 +90,8 @@ import Data.Functor
     ( (<&>) )
 import Data.Generics.Internal.VL.Lens
     ( over, view, (^.) )
+import Data.Map.Strict
+    ( Map )
 import Generics.SOP
     ( NP (..) )
 import GHC.Generics
@@ -128,8 +126,10 @@ import Test.QuickCheck
 import Test.QuickCheck.Extra
     ( Pretty (..)
     , chooseNatural
+    , genMapWith
     , genericRoundRobinShrink
     , report
+    , shrinkMapWith
     , shrinkNatural
     , (<:>)
     , (<@>)
@@ -755,8 +755,8 @@ shrinkCollateralRequirement = genericShrink
 -- UTxO available for inputs and collateral
 --------------------------------------------------------------------------------
 
-genUTxOAvailableForCollateral :: Gen UTxO
-genUTxOAvailableForCollateral = genUTxO
+genUTxOAvailableForCollateral :: Gen (Map TxIn Coin)
+genUTxOAvailableForCollateral = genMapWith genTxIn genCoinPositive
 
 genUTxOAvailableForInputs :: Gen UTxOSelection
 genUTxOAvailableForInputs = frequency
@@ -764,8 +764,8 @@ genUTxOAvailableForInputs = frequency
     , (01, pure UTxOSelection.empty)
     ]
 
-shrinkUTxOAvailableForCollateral :: UTxO -> [UTxO]
-shrinkUTxOAvailableForCollateral = shrinkUTxO
+shrinkUTxOAvailableForCollateral :: Map TxIn Coin -> [Map TxIn Coin]
+shrinkUTxOAvailableForCollateral = shrinkMapWith shrinkTxIn shrinkCoinPositive
 
 shrinkUTxOAvailableForInputs :: UTxOSelection -> [UTxOSelection]
 shrinkUTxOAvailableForInputs = shrinkUTxOSelection

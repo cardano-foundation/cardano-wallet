@@ -168,7 +168,14 @@ data SelectionParams = SelectionParams
 
 toInternalSelectionParams :: SelectionParams -> Internal.SelectionParams
 toInternalSelectionParams SelectionParams {..} =
-    Internal.SelectionParams {..}
+    Internal.SelectionParams
+        { utxoAvailableForCollateral =
+            -- Note: only pure-ada UTxOs are suitable for use as collateral.
+            -- Therefore, we must filter out any UTxOs with non-ada assets.
+            Map.mapMaybe (TokenBundle.toCoin . view #tokens) $
+            unUTxO utxoAvailableForCollateral
+        , ..
+        }
 
 -- | Represents a balanced selection.
 --
