@@ -20,10 +20,9 @@ module Cardano.Wallet.CoinSelection.Internal
     (
     -- * Performing selections
       performSelection
-    , Selection
+    , Selection (..)
     , SelectionConstraints (..)
     , SelectionError (..)
-    , SelectionOf (..)
     , SelectionParams (..)
 
     -- * Output preparation
@@ -41,11 +40,11 @@ module Cardano.Wallet.CoinSelection.Internal
 
     -- * Selection deltas
     , SelectionDelta (..)
-    , selectionDelta
     , selectionDeltaAllAssets
     , selectionDeltaCoin
     , selectionHasValidSurplus
     , selectionMinimumCost
+    , selectionSurplusCoin
 
     -- * Selection collateral
     , SelectionCollateralRequirement (..)
@@ -244,7 +243,7 @@ data SelectionError
 
 -- | Represents a balanced selection.
 --
-data SelectionOf change = Selection
+data Selection = Selection
     { inputs
         :: !(NonEmpty (TxIn, TxOut))
         -- ^ Selected inputs.
@@ -255,7 +254,7 @@ data SelectionOf change = Selection
         :: ![TxOut]
         -- ^ User-specified outputs
     , change
-        :: ![change]
+        :: ![TokenBundle]
         -- ^ Generated change outputs.
     , assetsToMint
         :: !TokenMap
@@ -271,12 +270,6 @@ data SelectionOf change = Selection
         -- ^ An extra sink for ada.
     }
     deriving (Generic, Eq, Show)
-
--- | The default type of selection.
---
--- In this type of selection, change values do not have addresses assigned.
---
-type Selection = SelectionOf TokenBundle
 
 -- | Provides a context for functions related to 'performSelection'.
 
@@ -1186,20 +1179,6 @@ verifySelectionOutputTokenQuantityExceedsLimitError _cs _ps e =
 --------------------------------------------------------------------------------
 -- Selection deltas
 --------------------------------------------------------------------------------
-
--- | Computes the ada surplus of a selection, assuming there is a surplus.
---
--- This function is a convenient synonym for 'selectionSurplusCoin' that is
--- polymorphic over the type of change.
---
-selectionDelta
-    :: (change -> Coin)
-    -- ^ A function to extract the coin value from a change value.
-    -> SelectionOf change
-    -> Coin
-selectionDelta getChangeCoin selection
-    = selectionSurplusCoin
-    $ selection & over #change (fmap $ TokenBundle.fromCoin . getChangeCoin)
 
 -- | Calculates the selection delta for all assets.
 --

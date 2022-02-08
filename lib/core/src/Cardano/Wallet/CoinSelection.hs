@@ -58,17 +58,13 @@ module Cardano.Wallet.CoinSelection
     where
 
 import Cardano.Wallet.CoinSelection.Internal
-    ( Selection
-    , SelectionCollateralRequirement (..)
+    ( SelectionCollateralRequirement (..)
     , SelectionConstraints (..)
     , SelectionError (..)
-    , SelectionOf (..)
     , SelectionOutputError (..)
     , SelectionOutputSizeExceedsLimitError (..)
     , SelectionOutputTokenQuantityExceedsLimitError (..)
     , SelectionParams (..)
-    , performSelection
-    , selectionDelta
     )
 import Cardano.Wallet.CoinSelection.Internal.Balance
     ( BalanceInsufficientError (..)
@@ -86,20 +82,123 @@ import Cardano.Wallet.Primitive.Types.Coin
     ( Coin (..) )
 import Cardano.Wallet.Primitive.Types.TokenBundle
     ( TokenBundle )
+import Cardano.Wallet.Primitive.Types.TokenMap
+    ( TokenMap )
 import Cardano.Wallet.Primitive.Types.Tx
     ( TxIn, TxOut (..) )
+import Control.Monad.Random.Class
+    ( MonadRandom (..) )
+import Control.Monad.Trans.Except
+    ( ExceptT (..) )
 import Data.Generics.Internal.VL.Lens
     ( over, view )
+import Data.List.NonEmpty
+    ( NonEmpty )
 import Fmt
     ( Buildable (..), genericF )
 import GHC.Generics
     ( Generic )
+import GHC.Stack
+    ( HasCallStack )
 
 import Prelude
 
+import qualified Cardano.Wallet.CoinSelection.Internal as Internal
 import qualified Cardano.Wallet.Primitive.Types.TokenBundle as TokenBundle
 import qualified Data.Foldable as F
 import qualified Data.Set as Set
+
+--------------------------------------------------------------------------------
+-- Types
+--------------------------------------------------------------------------------
+
+-- | Represents a balanced selection.
+--
+data SelectionOf change = Selection
+    { inputs
+        :: !(NonEmpty (TxIn, TxOut))
+        -- ^ Selected inputs.
+    , collateral
+        :: ![(TxIn, TxOut)]
+        -- ^ Selected collateral inputs.
+    , outputs
+        :: ![TxOut]
+        -- ^ User-specified outputs
+    , change
+        :: ![change]
+        -- ^ Generated change outputs.
+    , assetsToMint
+        :: !TokenMap
+        -- ^ Assets to mint.
+    , assetsToBurn
+        :: !TokenMap
+        -- ^ Assets to burn.
+    , extraCoinSource
+        :: !Coin
+        -- ^ An extra source of ada.
+    , extraCoinSink
+        :: !Coin
+        -- ^ An extra sink for ada.
+    }
+    deriving (Generic, Eq, Show)
+
+-- | The default type of selection.
+--
+-- In this type of selection, change values do not have addresses assigned.
+--
+type Selection = SelectionOf TokenBundle
+
+toExternalSelection :: Internal.Selection -> Selection
+toExternalSelection Internal.Selection {..} =
+    Selection {..}
+
+toInternalSelection
+    :: (change -> TokenBundle)
+    -> SelectionOf change
+    -> Internal.Selection
+toInternalSelection getChangeBundle Selection {..} =
+    Internal.Selection
+        { change = getChangeBundle <$> change
+        , ..
+        }
+
+--------------------------------------------------------------------------------
+-- Performing a selection
+--------------------------------------------------------------------------------
+
+-- | Performs a coin selection.
+--
+-- This function has the following responsibilities:
+--
+--  - selecting inputs from the UTxO set to pay for user-specified outputs;
+--  - selecting inputs from the UTxO set to pay for collateral;
+--  - producing change outputs to return excess value to the wallet;
+--  - balancing a selection to pay for the transaction fee.
+--
+-- See 'Internal.performSelection' for more details.
+--
+performSelection
+    :: (HasCallStack, MonadRandom m)
+    => SelectionConstraints
+    -> SelectionParams
+    -> ExceptT SelectionError m Selection
+performSelection cs ps =
+    toExternalSelection <$> Internal.performSelection cs ps
+
+--------------------------------------------------------------------------------
+-- Selection deltas
+--------------------------------------------------------------------------------
+
+-- | Computes the ada surplus of a selection, assuming there is a surplus.
+--
+selectionDelta
+    :: (change -> Coin)
+    -- ^ A function to extract the coin value from a change value.
+    -> SelectionOf change
+    -> Coin
+selectionDelta getChangeCoin
+    = Internal.selectionSurplusCoin
+    . toInternalSelection (TokenBundle.fromCoin . getChangeCoin)
 
 --------------------------------------------------------------------------------
 -- Reporting
