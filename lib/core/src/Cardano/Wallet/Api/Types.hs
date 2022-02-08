@@ -156,7 +156,7 @@ module Cardano.Wallet.Api.Types
     , ApiStakeKeyIndex (..)
     , ApiPaymentDestination (..)
     , ApiValidityInterval (..)
-    , ApiValidityBound
+    , ApiValidityBound (..)
     , PostMintBurnAssetData(..)
     , ApiBalanceTransactionPostData (..)
     , ApiExternalInput (..)
