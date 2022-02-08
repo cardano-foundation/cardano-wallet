@@ -44,10 +44,6 @@
       url = "github:input-output-hk/iohk-nix";
       inputs.nixpkgs.follows = "nixpkgs";
     };
-    flake-compat = {
-      url = "github:input-output-hk/flake-compat/fixes";
-      flake = false;
-    };
     customConfig.url = "github:input-output-hk/empty-flake";
     emanote.url = "github:srid/emanote";
     emanote.inputs.nixpkgs.url = github:NixOS/nixpkgs/d77bbfcbb650d9c219ca3286e1efb707b922d7c2;
@@ -222,21 +218,19 @@
                 haskellProject = project;
                 inherit (config) withCabalCache ghcVersion;
               };
-              stack = cabal.overrideAttrs (old: {
-                name = "cardano-wallet-stack-env";
-                nativeBuildInputs = old.nativeBuildInputs ++ [ pkgs.stack ];
-                # Build environment setup copied from
-                # <nixpkgs/pkgs/development/haskell-modules/generic-stack-builder.nix>
-                STACK_PLATFORM_VARIANT = "nix";
-                STACK_IN_NIX_SHELL = 1;
-                STACK_IN_NIX_EXTRA_ARGS = config.stackExtraArgs;
-              });
               docs = pkgs.mkShell {
                 name = "cardano-wallet-docs";
                 nativeBuildInputs = [ emanote.defaultPackage.${system} pkgs.yq ];
                 # allow building the shell so that it can be cached in hydra
                 phases = [ "installPhase" ];
                 installPhase = "echo $nativeBuildInputs > $out";
+              };
+              e2e = pkgs.callPackage ./test/e2e/package.nix {
+                inherit (project.hsPkgs.cardano-node.components.exes) cardano-node;
+              };
+              e2e-regen = pkgs.callPackage ./test/e2e/package.nix {
+                cardano-wallet = null;
+                cardano-node = null;
               };
             };
 
@@ -328,7 +322,6 @@
             });
           in
           rec {
-
             legacyPackages = project;
 
             # Built by `nix build .`

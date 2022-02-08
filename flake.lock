@@ -207,23 +207,6 @@
         "type": "github"
       }
     },
-    "flake-compat_5": {
-      "flake": false,
-      "locked": {
-        "lastModified": 1638445031,
-        "narHash": "sha256-dtIZLlf2tfYeLvpZa/jFxP5HvfoXAzr7X76yn6FQAdM=",
-        "owner": "input-output-hk",
-        "repo": "flake-compat",
-        "rev": "20f79e3976b76a37090fbeec7b49dc08dac96b8e",
-        "type": "github"
-      },
-      "original": {
-        "owner": "input-output-hk",
-        "ref": "fixes",
-        "repo": "flake-compat",
-        "type": "github"
-      }
-    },
     "flake-utils": {
       "locked": {
         "lastModified": 1642700792,
@@ -647,7 +630,6 @@
       "inputs": {
         "customConfig": "customConfig",
         "emanote": "emanote",
-        "flake-compat": "flake-compat_5",
         "flake-utils": "flake-utils_6",
         "haskellNix": "haskellNix",
         "hostNixpkgs": [
