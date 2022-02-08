@@ -1,4 +1,5 @@
 {-# LANGUAGE DeriveGeneric #-}
+{-# LANGUAGE DuplicateRecordFields #-}
 {-# LANGUAGE FlexibleInstances #-}
 {-# LANGUAGE OverloadedLabels #-}
 {-# LANGUAGE RecordWildCards #-}
@@ -63,7 +64,6 @@ import Cardano.Wallet.CoinSelection.Internal
     , SelectionOutputError (..)
     , SelectionOutputSizeExceedsLimitError (..)
     , SelectionOutputTokenQuantityExceedsLimitError (..)
-    , SelectionParams (..)
     )
 import Cardano.Wallet.CoinSelection.Internal.Balance
     ( BalanceInsufficientError (..)
@@ -85,6 +85,10 @@ import Cardano.Wallet.Primitive.Types.TokenMap
     ( TokenMap )
 import Cardano.Wallet.Primitive.Types.Tx
     ( TxIn, TxOut (..) )
+import Cardano.Wallet.Primitive.Types.UTxO
+    ( UTxO )
+import Cardano.Wallet.Primitive.Types.UTxOSelection
+    ( UTxOSelection )
 import Control.Monad.Random.Class
     ( MonadRandom (..) )
 import Control.Monad.Trans.Except
@@ -99,6 +103,8 @@ import GHC.Generics
     ( Generic )
 import GHC.Stack
     ( HasCallStack )
+import Numeric.Natural
+    ( Natural )
 
 import Prelude
 
@@ -110,6 +116,57 @@ import qualified Data.Set as Set
 --------------------------------------------------------------------------------
 -- Types
 --------------------------------------------------------------------------------
+
+-- | Specifies all parameters that are specific to a given selection.
+--
+data SelectionParams = SelectionParams
+    { assetsToBurn
+        :: !TokenMap
+        -- ^ Specifies a set of assets to burn.
+    , assetsToMint
+        :: !TokenMap
+        -- ^ Specifies a set of assets to mint.
+    , extraCoinIn
+        :: !Coin
+       -- ^ Specifies extra 'Coin' in.
+    , extraCoinOut
+        :: !Coin
+        -- ^ Specifies extra 'Coin' out.
+    , outputsToCover
+        :: ![TxOut]
+        -- ^ Specifies a set of outputs that must be paid for.
+    , rewardWithdrawal
+        :: !Coin
+        -- ^ Specifies the value of a withdrawal from a reward account.
+    , certificateDepositsTaken
+        :: !Natural
+        -- ^ Number of deposits for stake key registrations.
+    , certificateDepositsReturned
+        :: !Natural
+        -- ^ Number of deposits from stake key de-registrations.
+    , collateralRequirement
+        :: !SelectionCollateralRequirement
+        -- ^ Specifies the collateral requirement for this selection.
+    , utxoAvailableForCollateral
+        :: !UTxO
+        -- ^ Specifies a set of UTxOs that are available for selection as
+        -- collateral inputs.
+        --
+        -- This set is allowed to intersect with 'utxoAvailableForInputs',
+        -- since the ledger does not require that these sets are disjoint.
+    , utxoAvailableForInputs
+        :: !UTxOSelection
+        -- ^ Specifies a set of UTxOs that are available for selection as
+        -- ordinary inputs and optionally, a subset that has already been
+        -- selected.
+        --
+        -- Further entries from this set will be selected to cover any deficit.
+    }
+    deriving (Eq, Generic, Show)
+
+toInternalSelectionParams :: SelectionParams -> Internal.SelectionParams
+toInternalSelectionParams SelectionParams {..} =
+    Internal.SelectionParams {..}
 
 -- | Represents a balanced selection.
 --
@@ -182,7 +239,8 @@ performSelection
     -> SelectionParams
     -> ExceptT SelectionError m Selection
 performSelection cs ps =
-    toExternalSelection <$> Internal.performSelection cs ps
+    toExternalSelection <$>
+    Internal.performSelection cs (toInternalSelectionParams ps)
 
 --------------------------------------------------------------------------------
 -- Selection deltas
