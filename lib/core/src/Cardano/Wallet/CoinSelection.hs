@@ -2,7 +2,6 @@
 {-# LANGUAGE FlexibleInstances #-}
 {-# LANGUAGE OverloadedLabels #-}
 {-# LANGUAGE RecordWildCards #-}
-{-# OPTIONS_GHC -fno-warn-orphans #-}
 
 -- |
 -- Copyright: © 2022 IOHK
