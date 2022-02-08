@@ -2500,6 +2500,71 @@ spec = describe "NEW_SHELLEY_TRANSACTIONS" $ do
             , expectErrorMessage errMsg403MultiaccountTransaction
             ]
 
+    it "TRANS_NEW_JOIN_01e - Can re-join and withdraw at once"  $ \ctx -> runResourceT $ do
+        (src, _) <- rewardWallet ctx
+        pool1:_ <- map (view #id) . snd <$> unsafeRequest
+            @[ApiStakePool]
+            ctx (Link.listStakePools arbitraryStake) Empty
+
+        let delegationJoin = Json [json|{
+                "delegations": [{
+                    "join": {
+                        "pool": #{pool1},
+                        "stake_key_index": "0H"
+                    }
+                }]
+                , "withdrawal": "self"
+            }|]
+        rTx1 <- request @(ApiConstructTransaction n) ctx
+            (Link.createUnsignedTransaction @'Shelley src) Default delegationJoin
+        let apiTx1 = getFromResponse #transaction rTx1
+        signedTx1 <- signTx ctx src apiTx1 [ expectResponseCode HTTP.status202 ]
+        submittedTx1 <- submitTxWithWid ctx src signedTx1
+        verify submittedTx1
+            [ expectSuccess
+            , expectResponseCode HTTP.status202
+            ]
+        eventually "Wallet has joined pool and deposit info persists" $ do
+            rJoin' <- request @(ApiTransaction n) ctx
+                (Link.getTransaction @'Shelley src
+                    (getFromResponse Prelude.id submittedTx1))
+                Default Empty
+            verify rJoin'
+                [ expectResponseCode HTTP.status200
+                , expectField (#status . #getApiT) (`shouldBe` InLedger)
+                , expectField (#direction . #getApiT) (`shouldBe` Outgoing)
+                , expectField #withdrawals (`shouldNotBe` [])
+                ]
+
+        let txId1 = getFromResponse #id submittedTx1
+        let link = Link.getTransaction @'Shelley src (ApiTxId txId1)
+        eventually "delegation transaction is in ledger" $ do
+            rSrc <- request @(ApiTransaction n) ctx link Default Empty
+            verify rSrc
+                [ expectResponseCode HTTP.status200
+                , expectField (#direction . #getApiT) (`shouldBe` Outgoing)
+                , expectField (#status . #getApiT) (`shouldBe` InLedger)
+                , expectField (#metadata . #getApiTxMetadata) (`shouldBe` Nothing)
+                , expectField #inputs $ \inputs' -> do
+                    inputs' `shouldSatisfy` all (isJust . source)
+                ]
+
+        waitForNextEpoch ctx
+        waitForNextEpoch ctx
+        eventually "Wallet gets rewards from pool1" $ do
+            r <- request @ApiWallet ctx (Link.getWallet @'Shelley src) Default Empty
+            verify r
+                [ expectField
+                      (#balance . #reward)
+                      (.> (Quantity 0))
+                ]
+
+        eventually "Wallet is delegating to pool1" $ do
+            request @ApiWallet ctx (Link.getWallet @'Shelley src) Default Empty
+                >>= flip verify
+                    [ expectField #delegation (`shouldBe` delegating pool1 [])
+                    ]
+
     it "TRANS_NEW_JOIN_02 - Can join stakepool in case I have many UTxOs on 1 address"
         $ \ctx -> runResourceT $ do
         let amt = 1_000_000
