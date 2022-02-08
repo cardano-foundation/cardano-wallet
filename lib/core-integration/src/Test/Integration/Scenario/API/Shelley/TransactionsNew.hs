@@ -2571,7 +2571,7 @@ spec = describe "NEW_SHELLEY_TRANSACTIONS" $ do
         src <- emptyWallet ctx
         wa <- fixtureWallet ctx
 
-        -- | Send ada to single wallet address to have [1A, 1A, 1A]
+        -- Send ada to single wallet address to have [1A, 1A, 1A]
         addrs <- listAddresses @n ctx src
         let destination = (addrs !! 1) ^. #id
         let payload = Json [json|{
@@ -2620,7 +2620,7 @@ spec = describe "NEW_SHELLEY_TRANSACTIONS" $ do
                         (`shouldBe` (3 * amt))
                 ]
 
-        -- | Delegate from src wallet
+        -- Delegate from src wallet
         pool1:_ <- map (view #id) . snd <$> unsafeRequest
             @[ApiStakePool]
             ctx (Link.listStakePools arbitraryStake) Empty
