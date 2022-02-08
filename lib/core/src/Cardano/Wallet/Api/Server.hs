@@ -1950,7 +1950,7 @@ postTransactionOld ctx genChange (ApiT wid) body = do
             , txTimeToLive = ttl
             }
 
-    (sel, tx, txMeta, txTime) <- withWorkerCtx ctx wid liftE liftE $ \wrk ->
+    (sel, tx, txMeta, txTime, pp) <- withWorkerCtx ctx wid liftE liftE $ \wrk ->
       atomicallyWithHandler (ctx ^. walletLocks) (PostTransactionOld wid) $ do
         (utxoAvailable, wallet, pendingTxs) <-
             liftHandler $ W.readWalletUTxOIndex @_ @s @k wrk wid
@@ -1974,7 +1974,7 @@ postTransactionOld ctx genChange (ApiT wid) body = do
             $ W.buildAndSignTransaction @_ @s @k wrk wid mkRwdAcct pwd txCtx sel'
         liftHandler
             $ W.submitTx @_ @s @k wrk wid (tx, txMeta, sealedTx)
-        pure (sel, tx, txMeta, txTime)
+        pure (sel, tx, txMeta, txTime, pp)
 
     liftIO $ mkApiTransaction
         (timeInterpreter $ ctx ^. networkLayer)
@@ -1991,6 +1991,7 @@ postTransactionOld ctx genChange (ApiT wid) body = do
             , txMetadata = tx ^. #metadata
             , txTime
             , txScriptValidity = tx ^. #scriptValidity
+            , txDeposit = W.stakeKeyDeposit pp
             }
   where
     ti :: TimeInterpreter (ExceptT PastHorizonException IO)
@@ -2017,13 +2018,16 @@ listTransactions
     -> Maybe (ApiT SortOrder)
     -> Handler [ApiTransaction n]
 listTransactions ctx (ApiT wid) mMinWithdrawal mStart mEnd mOrder = do
-    txs <- withWorkerCtx ctx wid liftE liftE $ \wrk -> liftHandler $
-        W.listTransactions @_ @_ @_ wrk wid
+    (txs, depo) <- withWorkerCtx ctx wid liftE liftE $ \wrk -> do
+        txs <- liftHandler $
+            W.listTransactions @_ @_ @_ wrk wid
             (Coin . fromIntegral . getMinWithdrawal <$> mMinWithdrawal)
             (getIso8601Time <$> mStart)
             (getIso8601Time <$> mEnd)
             (maybe defaultSortOrder getApiT mOrder)
-    liftIO $ mapM (mkApiTransactionFromInfo (timeInterpreter (ctx ^. networkLayer))) txs
+        depo <- liftIO $ W.stakeKeyDeposit <$> NW.currentProtocolParameters (wrk ^. networkLayer)
+        pure (txs, depo)
+    liftIO $ mapM (mkApiTransactionFromInfo (timeInterpreter (ctx ^. networkLayer)) depo) txs
   where
     defaultSortOrder :: SortOrder
     defaultSortOrder = Descending
@@ -2035,18 +2039,21 @@ getTransaction
     -> ApiTxId
     -> Handler (ApiTransaction n)
 getTransaction ctx (ApiT wid) (ApiTxId (ApiT (tid))) = do
-    tx <- withWorkerCtx ctx wid liftE liftE $ \wrk -> liftHandler $
-        W.getTransaction wrk wid tid
-    liftIO $ mkApiTransactionFromInfo (timeInterpreter (ctx ^. networkLayer)) tx
+    (tx, depo) <- withWorkerCtx ctx wid liftE liftE $ \wrk -> do
+        tx <- liftHandler $ W.getTransaction wrk wid tid
+        depo <- liftIO $ W.stakeKeyDeposit <$> NW.currentProtocolParameters (wrk ^. networkLayer)
+        pure (tx, depo)
+    liftIO $ mkApiTransactionFromInfo (timeInterpreter (ctx ^. networkLayer)) depo tx
 
 -- Populate an API transaction record with 'TransactionInfo' from the wallet
 -- layer.
 mkApiTransactionFromInfo
     :: MonadIO m
     => TimeInterpreter (ExceptT PastHorizonException IO)
+    -> Coin
     -> TransactionInfo
     -> m (ApiTransaction n)
-mkApiTransactionFromInfo ti info = do
+mkApiTransactionFromInfo ti deposit info = do
     apiTx <- liftIO $ mkApiTransaction ti status
         MkApiTransactionParams
             { txId = info ^. #txInfoId
@@ -2059,6 +2066,7 @@ mkApiTransactionFromInfo ti info = do
             , txMetadata = info ^. #txInfoMetadata
             , txTime = info ^. #txInfoTime
             , txScriptValidity = info ^. #txInfoScriptValidity
+            , txDeposit = deposit
             }
     return $ case info ^. (#txInfoMeta . #status) of
         Pending  -> apiTx
@@ -2526,7 +2534,7 @@ joinStakePool ctx knownPools getPoolStatus apiPoolId (ApiT wid) body = do
     pools <- liftIO knownPools
     curEpoch <- getCurrentEpoch ctx
 
-    (sel, tx, txMeta, txTime) <- withWorkerCtx ctx wid liftE liftE $ \wrk -> do
+    (sel, tx, txMeta, txTime, pp) <- withWorkerCtx ctx wid liftE liftE $ \wrk -> do
         (action, _) <- liftHandler
             $ W.joinStakePool @_ @s @k wrk curEpoch pools pid poolStatus wid
 
@@ -2560,7 +2568,7 @@ joinStakePool ctx knownPools getPoolStatus apiPoolId (ApiT wid) body = do
         liftHandler
             $ W.submitTx @_ @s @k wrk wid (tx, txMeta, sealedTx)
 
-        pure (sel, tx, txMeta, txTime)
+        pure (sel, tx, txMeta, txTime, pp)
 
     liftIO $ mkApiTransaction
         (timeInterpreter (ctx ^. networkLayer))
@@ -2577,6 +2585,7 @@ joinStakePool ctx knownPools getPoolStatus apiPoolId (ApiT wid) body = do
             , txMetadata = Nothing
             , txTime
             , txScriptValidity = tx ^. #scriptValidity
+            , txDeposit = W.stakeKeyDeposit pp
             }
   where
     ti :: TimeInterpreter (ExceptT PastHorizonException IO)
@@ -2640,7 +2649,7 @@ quitStakePool
 quitStakePool ctx (ApiT wid) body = do
     let pwd = coerce $ getApiT $ body ^. #passphrase
 
-    (sel, tx, txMeta, txTime) <- withWorkerCtx ctx wid liftE liftE $ \wrk -> do
+    (sel, tx, txMeta, txTime, pp) <- withWorkerCtx ctx wid liftE liftE $ \wrk -> do
         action <- liftHandler
             $ W.quitStakePool @_ @s @k wrk wid
 
@@ -2675,7 +2684,7 @@ quitStakePool ctx (ApiT wid) body = do
         liftHandler
             $ W.submitTx @_ @s @k wrk wid (tx, txMeta, sealedTx)
 
-        pure (sel, tx, txMeta, txTime)
+        pure (sel, tx, txMeta, txTime, pp)
 
     liftIO $ mkApiTransaction
         (timeInterpreter (ctx ^. networkLayer))
@@ -2692,6 +2701,7 @@ quitStakePool ctx (ApiT wid) body = do
             , txMetadata = Nothing
             , txTime
             , txScriptValidity = tx ^. #scriptValidity
+            , txDeposit = W.stakeKeyDeposit pp
             }
   where
     ti :: TimeInterpreter (ExceptT PastHorizonException IO)
@@ -2915,6 +2925,7 @@ migrateWallet ctx withdrawalType (ApiT wid) postData = do
     withWorkerCtx ctx wid liftE liftE $ \wrk -> do
         plan <- liftHandler $ W.createMigrationPlan wrk wid rewardWithdrawal
         txTimeToLive <- liftIO $ W.getTxExpiry ti Nothing
+        pp <- liftIO $ NW.currentProtocolParameters (wrk ^. networkLayer)
         selectionWithdrawals <- liftHandler
             $ failWith ErrCreateMigrationPlanEmpty
             $ W.migrationPlanToSelectionWithdrawals
@@ -2946,6 +2957,7 @@ migrateWallet ctx withdrawalType (ApiT wid) postData = do
                     , txMetadata = Nothing
                     , txTime
                     , txScriptValidity = tx ^. #scriptValidity
+                    , txDeposit = W.stakeKeyDeposit pp
                     }
   where
     addresses = getApiT . fst <$> view #addresses postData
@@ -3348,6 +3360,7 @@ data MkApiTransactionParams = MkApiTransactionParams
     , txMetadata :: Maybe W.TxMetadata
     , txTime :: UTCTime
     , txScriptValidity :: Maybe W.TxScriptValidity
+    , txDeposit :: Coin
     }
     deriving (Eq, Generic, Show)
 
@@ -3409,9 +3422,19 @@ mkApiTransaction timeInterpreter setTimeReference tx = do
             else totalIn - totalOut
         | otherwise = 0
 
+    -- (pending) when reclaim is coming we have (fee+out) - inp = deposit
+    -- tx is incoming, and the wallet spent for fee and received deposit - fee as out
+    -- (inLedger) when reclaim is accomodated we have out - inp < deposit as fee was incurred
+    -- So in order to detect this we need to have
+    -- 1. deposit
+    -- 2. have inpsWithoutFee of the wallet non-empty
+    -- 3. outs of the wallet non-empty
+    -- 4. tx Incoming
+    -- 5. outs - inpsWithoutFee <= deposit
+    -- assumption: this should work when
     reclaimIfAny :: Natural
     reclaimIfAny
-        | tx ^. (#txMeta . #direction) == W.Outgoing =
+        | tx ^. (#txMeta . #direction) == W.Incoming =
             if totalIn < totalOut
             then totalOut - totalIn
             else 0
