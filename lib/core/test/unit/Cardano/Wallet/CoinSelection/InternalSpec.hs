@@ -144,7 +144,7 @@ import qualified Cardano.Wallet.Primitive.Types.UTxOSelection as UTxOSelection
 import qualified Data.Foldable as F
 
 spec :: Spec
-spec = describe "Cardano.Wallet.Primitive.CoinSelectionSpec" $ do
+spec = describe "Cardano.Wallet.CoinSelection.InternalSpec" $ do
 
     parallel $ describe "Performing selections" $ do
 
