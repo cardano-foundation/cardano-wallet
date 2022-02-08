@@ -26,10 +26,7 @@
 # Use multi-stage build
 FROM nixos/nix as builder
 
-RUN nix-channel --add https://nixos.org/channels/nixos-21.11 nixpkgs
-RUN nix-channel --update
-
-RUN nix-env -i git gnutar
+RUN echo 'experimental-features = nix-command flakes' >> /etc/nix/nix.conf
 
 # Set --build-arg USE_IOHK_CACHE=t if you lack the time and/or disk
 # space to build ghc and everything else. These lines will enable the
@@ -42,32 +39,20 @@ RUN test -n "${USE_IOHK_CACHE}" && ( echo "Note: using IOHK nix cache" > /dev/st
 
 # Make a docker layer with a warm cache (helps re-use compilers for
 # subsequent builds).
-RUN nix --experimental-features "nix-command flakes" build github:input-output-hk/cardano-wallet#hydraJobs.linux.musl.cardano-wallet --no-link
-
-
-############################################################################
-# Check out code
-
-# You can choose a branch, tag, or git revision of the cardano-wallet repo.
-ARG CODE_VERSION=master
-
-# Download from GitHub instead of using COPY
-# Checkout a specific version
-RUN git clone --depth 1 --branch ${CODE_VERSION} https://github.com/input-output-hk/cardano-wallet
-WORKDIR cardano-wallet
+RUN nix build "github:input-output-hk/cardano-wallet#hydraJobs.linux.musl.cardano-wallet" --no-link
 
 
 ############################################################################
 # Build
 
+# You can choose a branch, tag, or git revision of the cardano-wallet repo.
+ARG CODE_VERSION=master
+
 # Build the wallet and node static binaries package, untar to "out" directory
-RUN nix --experimental-features "nix-command flakes" build .#hydraJobs.linux.musl.cardano-wallet-linux64
+RUN nix build "github:input-output-hk/cardano-wallet${CODE_VERSION}#hydraJobs.linux.musl.cardano-wallet-linux64"
 RUN tar -xzvf result/*.tar.gz
 RUN rm result
 RUN mv cardano-wallet-* ../out
-
-# TODO: Alternatively, we could build the dockerImage.shelley
-# attribute and copy that across.
 
 
 ############################################################################

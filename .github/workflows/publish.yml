@@ -8,12 +8,21 @@ on:
       - 'v*'
   pull_request:
 
+env:
+  PR_NUMBER: ${{ github.event.pull_request.number }}
+  nix_config: |
+    access-tokens = github.com=${{ secrets.GITHUB_TOKEN }}
+    substituters = https://hydra.iohk.io https://cache.nixos.org/
+    trusted-public-keys = hydra.iohk.io:f/Ea+s+dFdN+3Y/G+FDgSq+a5NEWhJGzdjvKNGv0/EQ= cache.nixos.org-1:6NCHdD59X431o0gWypbMrAURkbJ16ZPMQFGspcDShjY=
+    allow-dirty = true
+  nix_version: "2.6.0"
+  cachix_name: adp
+
 jobs:
   docs:
     runs-on: ubuntu-20.04
     env:
       PUBLISH_DIR: _build
-      PR_NUMBER: ${{ github.event.pull_request.number }}
     steps:
       - name: '📥 Checkout repository'
         uses: actions/checkout@v2
@@ -21,17 +30,13 @@ jobs:
       - name: '❄ Install Nix'
         uses: cachix/install-nix-action@v16
         with:
-          install_url: https://releases.nixos.org/nix/nix-2.6.0/install
-          nix_path: nixpkgs=channel:nixos-21.11
-          extra_nix_config: |
-            access-tokens = github.com=${{ secrets.GITHUB_TOKEN }}
-            substituters = https://hydra.iohk.io https://cache.nixos.org/
-            trusted-public-keys = hydra.iohk.io:f/Ea+s+dFdN+3Y/G+FDgSq+a5NEWhJGzdjvKNGv0/EQ= cache.nixos.org-1:6NCHdD59X431o0gWypbMrAURkbJ16ZPMQFGspcDShjY=
+          install_url: "https://releases.nixos.org/nix/nix-${{ env.nix_version }}/install"
+          extra_nix_config: ${{ env.nix_config }}
 
       - uses: cachix/cachix-action@v10
         with:
-          name: adp
-          authToken: '${{ secrets.CACHIX_AUTH_TOKEN }}'
+          name: ${{ env.cachix_name }}
+          authToken: ${{ secrets.CACHIX_AUTH_TOKEN }}
 
       - name: '🔧 Set versions'
         id: versions
@@ -52,7 +57,10 @@ jobs:
             Source commit: ${{ github.sha }}
 
       - name: '❄ Install dependencies'
-        run: 'nix develop .#docs --command emanote --version'
+        run: |
+          develop_env="$GITHUB_WORKSPACE/develop.env"
+          nix develop .#docs --ignore-environment --command env > "$develop_env"
+          echo "develop_env=$develop_env" >> $GITHUB_ENV
 
       - name: '📸 Build Documentation'
         run: |
@@ -61,10 +69,15 @@ jobs:
             build_dir="$build_dir/_pr/$PR_NUMBER"
             nix develop .#docs -c yq --in-place -y '.template.baseUrl|=.+"_pr/\(env.PR_NUMBER)/"' docs/.deploy/github/index.yaml
           fi
+          echo "build_dir=$build_dir" >> $GITHUB_ENV
 
           mkdir -p "$build_dir"
           nix develop .#docs -c emanote --layers "docs;docs/.deploy/github" gen "$build_dir"
           ./scripts/gh/update-docs.sh "$build_dir" ${{ steps.versions.outputs.tag }}
+
+      - name: 'TODO list'
+        run: |
+          nix develop .#docs --command ./scripts/todo-list.sh | tee "$build_dir"/TODO
 
       - name: '📘 Publish'
         if: ${{ github.ref == 'refs/heads/master' || startsWith(github.ref, 'refs/tags/v') }}

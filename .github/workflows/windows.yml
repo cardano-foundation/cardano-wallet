@@ -116,4 +116,4 @@ jobs:
       - name: "Advance windows-tests-pass and all-tests-pass branches"
         if: github.ref == 'ref/heads/master'
         shell: bash
-        run: 'bash .buildkite/push-branch.sh windows-tests-pass linux-tests-pass all-tests-pass'
+        run: 'bash scripts/buildkite/push-branch.sh windows-tests-pass linux-tests-pass all-tests-pass'

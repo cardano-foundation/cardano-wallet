@@ -8,9 +8,6 @@ charset = utf-8
 trim_trailing_whitespace = true
 insert_final_newline = true
 
-[stack.yaml]
-trim_trailing_whitespace = false
-
 [*.hs]
 indent_size = 4
 max_line_length = 80

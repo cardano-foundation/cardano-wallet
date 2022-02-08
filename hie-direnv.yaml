@@ -1,7 +1,7 @@
 ########################################################################
 # Custom configuration for haskell-language-server.
 #
-# Use this instead of the default Stack cradle if you want faster
+# Use this instead of the default Cabal cradle if you want faster
 # reloads and cross-package jump-to-definition.
 #
 # It requires nix-direnv and your editor must have direnv integration.

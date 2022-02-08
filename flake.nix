@@ -124,6 +124,7 @@
                 (import ./nix/overlays/pkgs.nix)
                 # Our own utils (cardanoWalletLib)
                 (import ./nix/overlays/common-lib.nix)
+                # The exported overlay for this flake
                 overlay
               ];
             };
@@ -226,18 +227,13 @@
                 haskellProject = project;
                 inherit (config) withCabalCache ghcVersion;
               };
-              stack = cabal.overrideAttrs (old: {
-                name = "cardano-wallet-stack-env";
-                nativeBuildInputs = old.nativeBuildInputs ++ [ pkgs.stack ];
-                # Build environment setup copied from
-                # <nixpkgs/pkgs/development/haskell-modules/generic-stack-builder.nix>
-                STACK_PLATFORM_VARIANT = "nix";
-                STACK_IN_NIX_SHELL = 1;
-                STACK_IN_NIX_EXTRA_ARGS = config.stackExtraArgs;
-              });
               docs = pkgs.mkShell {
                 name = "cardano-wallet-docs";
-                nativeBuildInputs = [ emanote.defaultPackage.${system} pkgs.yq ];
+                nativeBuildInputs = [
+                  emanote.defaultPackage.${system}
+                  pkgs.yq
+                  pkgs.haskellPackages.lentil
+                ];
                 # allow building the shell so that it can be cached in hydra
                 phases = [ "installPhase" ];
                 installPhase = "echo $nativeBuildInputs > $out";
@@ -252,11 +248,6 @@
                     scripts = mkScripts hydraProject;
                     shells = (mkDevShells hydraProject) // {
                       default = hydraProject.shell;
-                    };
-                    # Build and cache the build script used on Buildkite
-                    buildkiteScript = import ./.buildkite/default.nix {
-                      inherit pkgs;
-                      stackShell = linux.native.shells.stack;
                     };
                     internal.roots = {
                       project = hydraProject.roots;
@@ -363,13 +354,10 @@
 
             packages = mkPackages project // mkScripts project // rec {
               dockerImage = mkDockerImage (mkPackages project.projectCross.musl64);
-              pushDockerImage = import ./.buildkite/docker-build-push.nix {
-                hostPkgs = import hostNixpkgs { inherit system; };
-                inherit dockerImage;
-                inherit (config) dockerHubRepoName;
-              };
-              inherit (pkgs) sha256map-regenerate checkStackProject;
-              inherit (project.stack-nix.passthru) generateMaterialized;
+              inherit (pkgs.dev)
+                cabal-ci
+                todo-list;
+              inherit (project.plan-nix.passthru) generateMaterialized;
               buildToolsGenerateMaterialized = pkgs.haskell-build-tools.regenerateMaterialized;
               iohkNixGenerateMaterialized = pkgs.iohk-nix-utils.regenerateMaterialized;
             } // (lib.optionalAttrs buildPlatform.isLinux {

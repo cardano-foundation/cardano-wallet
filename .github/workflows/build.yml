@@ -1,0 +1,104 @@
+name: Build
+
+on:
+  push:
+    branches:
+      - master
+      - bors/trying
+      - bors/staging
+  pull_request:
+
+env:
+  PR_NUMBER: ${{ github.event.pull_request.number }}
+  nix_config: |
+    access-tokens = github.com=${{ secrets.GITHUB_TOKEN }}
+    substituters = https://hydra.iohk.io https://cache.nixos.org/
+    trusted-public-keys = hydra.iohk.io:f/Ea+s+dFdN+3Y/G+FDgSq+a5NEWhJGzdjvKNGv0/EQ= cache.nixos.org-1:6NCHdD59X431o0gWypbMrAURkbJ16ZPMQFGspcDShjY=
+    allow-dirty = true
+  nix_version: "2.6.0"
+  cachix_name: adp
+
+jobs:
+  check-bors:
+    if: ${{ github.ref == 'refs/heads/bors/staging' }}
+    runs-on: ubuntu-20.04
+    steps:
+      - uses: actions/checkout@v2
+      - name: 'Prevent merging to wrong branch'
+        run: 'scripts/gh/check-bors.sh'
+
+  build:
+    runs-on: ubuntu-20.04
+    steps:
+      - name: '📥 Checkout repository'
+        uses: actions/checkout@v2
+
+      - name: '❄ Install Nix'
+        uses: cachix/install-nix-action@v16
+        with:
+          install_url: "https://releases.nixos.org/nix/nix-${{ env.nix_version }}/install"
+          extra_nix_config: ${{ env.nix_config }}
+
+      - uses: cachix/cachix-action@v10
+        with:
+          name: ${{ env.cachix_name }}
+          authToken: ${{ secrets.CACHIX_AUTH_TOKEN }}
+
+      - name: '❄ Install dependencies'
+        run: |
+          nix develop --command bash -c 'cd /tmp; cabal update'
+          echo
+          nix develop --command cabal --version
+
+      - name: 'Cabal build'
+        run: |
+          nix develop --command cabal configure --enable-tests --enable-benchmarks
+          nix develop --command cabal build all -j
+
+      - name: 'Cabal Unit test'
+        run: |
+          nix develop --command cabal test --test-show-details=streaming all
+
+  lint:
+    runs-on: ubuntu-20.04
+    steps:
+      - name: '📥 Checkout repository'
+        uses: actions/checkout@v2
+
+      - name: '❄ Install Nix'
+        uses: cachix/install-nix-action@v16
+        with:
+          install_url: "https://releases.nixos.org/nix/nix-${{ env.nix_version }}/install"
+          extra_nix_config: ${{ env.nix_config }}
+
+      - uses: cachix/cachix-action@v10
+        with:
+          name: ${{ env.cachix_name }}
+          authToken: ${{ secrets.CACHIX_AUTH_TOKEN }}
+
+      - name: '❄ Install dependencies'
+        run: |
+          develop_env="$GITHUB_WORKSPACE/develop.env"
+          nix develop --ignore-environment --command env > "$develop_env"
+          echo "develop_env=$develop_env" >> $GITHUB_ENV
+
+      - name: 'HLint'
+        run: 'nix develop --command hlint lib'
+
+      - name: 'Stylish Haskell'
+        run: 'nix develop --command scripts/buildkite/check-stylish.sh'
+
+      - name: 'Validate OpenAPI Specification'
+        run: 'nix develop --command openapi-spec-validator --schema 3.0.0 specifications/api/swagger.yaml'
+
+      - name: 'Check auto-generated Nix'
+        run: |
+          ./nix/regenerate.sh
+          # fixme: nicer error reporting, push changes back to branch
+          git diff --exit-code
+
+      - name: 'Check Cabal Configure'
+        run: 'nix develop .#cabal --command scripts/buildkite/cabal-ci.sh configure'
+
+      - name: 'Shellcheck'
+        run: './scripts/shellcheck.sh'

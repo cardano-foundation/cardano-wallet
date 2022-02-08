@@ -4,7 +4,7 @@
 # To test it out, use:
 #
 #   docker load -i $(nix build --json .#dockerImage | jq -r '.[0].outputs.out')
-#   docker run cardano-wallet
+#   docker run inputouotput/cardano-wallet
 #
 ############################################################################
 
@@ -25,8 +25,6 @@
 
 
 let
-  version = (lib.head exes).version;
-
   defaultPort = "8090";
   dataDir = "/data";
 
@@ -79,7 +77,6 @@ let
 in
   dockerTools.buildImage {
     name = repoName;
-    tag = version;
     fromImage = baseImage;
     contents = exes ++ [ startScript ];
     config = {
@@ -89,4 +86,4 @@ in
       };
       Volume = [ dataDir ];
     };
-  } // { inherit version; }
+  }

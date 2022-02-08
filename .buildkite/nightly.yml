@@ -4,19 +4,15 @@ env:
 
   # Per-container variables
   SCRATCH_DIR: "/scratch/cardano-wallet"
-  BUILD_DIR: "/build/cardano-wallet"
-  STACK_ROOT: "/build/cardano-wallet.stack"
-  CABAL_DIR: "/build/cardano-wallet.cabal"
   XDG_STATE_HOME: "/build/cardano-wallet/.state"
   XDG_CACHE_HOME: "/build/cardano-wallet/.cache"
-  TESTS_LOGDIR: "/build/cardano-wallet/integration-test-logs"
 
   # Per-host variables - shared across containers on host
   CACHE_DIR: "/cache/cardano-wallet"
 
 steps:
   - label: 'Restore benchmark - cardano mainnet'
-    command: "./.buildkite/bench-restore.sh mainnet"
+    command: "scripts/buildkite/bench-restore.sh mainnet"
     env:
       HOME: "/cache/cardano-wallet.home"
     timeout_in_minutes: 600
@@ -27,7 +23,7 @@ steps:
 
 # Temporary disabled due to timing out (#2221)
 #  - label: 'Restore benchmark - cardano testnet'
-#    command: "./.buildkite/bench-restore.sh testnet"
+#    command: "scripts/buildkite/bench-restore.sh testnet"
 #    env:
 #      HOME: "/cache/cardano-wallet.home"
 #    timeout_in_minutes: 600
@@ -37,7 +33,7 @@ steps:
 #    if: 'build.env("step") == null || build.env("step") =~ /restore-testnet/'
 
   - label: 'Database benchmark'
-    command: "./.buildkite/bench-db.sh"
+    command: "scripts/buildkite/bench-db.sh"
     timeout_in_minutes: 210
     agents:
       system: x86_64-linux
@@ -45,39 +41,17 @@ steps:
     if: 'build.env("step") == null || build.env("step") =~ /bench-db/'
 
   - label: 'Latency benchmark'
-    command: "./.buildkite/bench-latency.sh"
+    command: "scripts/buildkite/bench-latency.sh"
     timeout_in_minutes: 120
     agents:
       system: x86_64-linux
       queue: benchmark
     if: 'build.env("step") == null || build.env("step") =~ /bench-latency/'
 
-  # TODO: ADP-549 Port migrations test to shelley
-  # - label: 'Database Migrations Test'
-  #   commands:
-  #     - "rm -rf state-migration-test*"
-  #     - "nix-build nix/migration-tests.nix -o migration-tests"
-  #     - "./migration-tests/runall.sh"
-  #   timeout_in_minutes: 60
-  #   agents:
-  #     system: x86_64-linux
-  #   if: 'build.env("step") == null || build.env("step") =~ /migration-tests/'
-
-  - label: 'Full cabal build'
-    command:
-      - "mkdir -p config && echo '{  outputs = _: { withCabalCache = true; }; }'  > config/flake.nix"
-      - "nix develop --override-input customConfig path:./config .#cabal --command scripts/buildkite/cabal-ci.sh build"
-    env:
-      CABAL_CACHE_ARCHIVE: "/cache/cardano-wallet"
-      CABAL_STORE_DIR: "/build/cardano-wallet.store"
-    agents:
-      system: x86_64-linux
-    if: 'build.env("step") == null || build.env("step") =~ /cabal/'
-
   - wait
 
-  - label: "Advance linux-tests-pass and all-tests-pass branches"
-    command: "./.buildkite/push-branch.sh linux-tests-pass windows-tests-pass all-tests-pass"
+  - label: "Advance benchmarks-pass branch"
+    command: "scripts/buildkite/push-branch.sh benchmarks-pass"
     agents:
       system: x86_64-linux
     if: 'build.env("step") == null'

@@ -21,11 +21,6 @@
 .ghc.environment.*
 /cabal*.project.local*
 
-### Stack ###
-.stack-work/
-/stack.yaml.lock
-.HTF/
-
 ### Local configs ###
 .ghci
 hie.yaml
