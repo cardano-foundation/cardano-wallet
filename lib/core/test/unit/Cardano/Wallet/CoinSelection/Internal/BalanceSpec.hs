@@ -1187,8 +1187,8 @@ mockPerformSelectionNonEmpty constraints params = Identity $ Right result
         , outputsCovered = view #outputsToCover params
         }
 
-    makeInputsOfValue :: TokenBundle -> NonEmpty (TxIn, TxOut)
-    makeInputsOfValue v = (TxIn (Hash "") 0, TxOut (Address "") v) :| []
+    makeInputsOfValue :: TokenBundle -> NonEmpty (TxIn, TokenBundle)
+    makeInputsOfValue v = (TxIn (Hash "") 0, v) :| []
 
     makeChangeOfValue :: TokenBundle -> [TokenBundle]
     makeChangeOfValue v = [v]
@@ -1679,7 +1679,7 @@ encodeBoundaryTestCriteria c = SelectionParams
 decodeBoundaryTestResult :: SelectionResult -> BoundaryTestResult
 decodeBoundaryTestResult r = BoundaryTestResult
     { boundaryTestInputs = L.sort $ NE.toList $
-        TokenBundle.toFlatList . view #tokens . snd <$> view #inputsSelected r
+        TokenBundle.toFlatList . snd <$> view #inputsSelected r
     , boundaryTestChange =
         TokenBundle.toFlatList <$> view #changeGenerated r
     }

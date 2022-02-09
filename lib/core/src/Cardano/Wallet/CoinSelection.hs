@@ -112,6 +112,7 @@ import Prelude
 import qualified Cardano.Wallet.CoinSelection.Internal as Internal
 import qualified Cardano.Wallet.Primitive.Types.TokenBundle as TokenBundle
 import qualified Cardano.Wallet.Primitive.Types.UTxO as UTxO
+import qualified Cardano.Wallet.Primitive.Types.UTxOSelection as UTxOSelection
 import qualified Data.Foldable as F
 import qualified Data.Map.Strict as Map
 import qualified Data.Set as Set
@@ -270,12 +271,39 @@ type Selection = SelectionOf TokenBundle
 toExternalSelection :: SelectionParams -> Internal.Selection -> Selection
 toExternalSelection ps Internal.Selection {..} =
     Selection
-        { collateral = Map.toList $ unUTxO $
-            view #utxoAvailableForCollateral ps
-            `UTxO.restrictedBy`
-            Set.fromList (fst <$> collateral)
+        { collateral =
+            resolveInput utxoAvailableForCollateral . fst <$> collateral
+        , inputs =
+            resolveInput utxoAvailableForInputs . fst <$> inputs
         , ..
         }
+  where
+    utxoAvailableForCollateral :: UTxO
+    utxoAvailableForCollateral = view #utxoAvailableForCollateral ps
+
+    utxoAvailableForInputs :: UTxO
+    utxoAvailableForInputs =
+        UTxOSelection.availableUTxO (view #utxoAvailableForInputs ps)
+
+    -- Resolves an input selected by the coin selection algorithm, using the
+    -- context provided by the external 'SelectionParams' object.
+    --
+    -- Failure to resolve an input indicates a programming error, since all
+    -- selected inputs should originate from the available UTxO sets provided
+    -- within 'SelectionParams'.
+    --
+    -- The post-condition check for 'performSelection' already tests this
+    -- property, but we check again here, since UTxO lookups can fail.
+    --
+    resolveInput :: UTxO -> TxIn -> (TxIn, TxOut)
+    resolveInput u i = case UTxO.lookup i u of
+        Just o -> (i, o)
+        Nothing -> error $ unwords
+            [ "toExternalSelection:"
+            , "resolveInput:"
+            , "Unexpected failure to resolve input:"
+            , show i
+            ]
 
 toInternalSelection
     :: (change -> TokenBundle)
@@ -285,6 +313,7 @@ toInternalSelection getChangeBundle Selection {..} =
     Internal.Selection
         { change = getChangeBundle <$> change
         , collateral = fmap (view (#tokens . #coin)) <$> collateral
+        , inputs = fmap (view #tokens) <$> inputs
         , ..
         }
 

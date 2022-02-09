@@ -466,7 +466,7 @@ type SelectionResult = SelectionResultOf [TxOut]
 --
 data SelectionResultOf outputs = SelectionResult
     { inputsSelected
-        :: !(NonEmpty (TxIn, TxOut))
+        :: !(NonEmpty (TxIn, TokenBundle))
         -- ^ A (non-empty) list of inputs selected from 'utxoAvailable'.
     , extraCoinSource
         :: !Coin
@@ -534,7 +534,7 @@ selectionDeltaAllAssets result
         `TokenBundle.add`
         TokenBundle.fromCoin extraCoinSource
         `TokenBundle.add`
-        F.foldMap (view #tokens . snd) inputsSelected
+        F.foldMap snd inputsSelected
     balanceOut =
         TokenBundle.fromTokenMap assetsToBurn
         `TokenBundle.add`
@@ -1029,7 +1029,7 @@ performSelectionNonEmpty constraints params
             , requiredCost
             , extraCoinSource
             , extraCoinSink
-            , inputBundles = view #tokens . snd <$> inputsSelected
+            , inputBundles = snd <$> inputsSelected
             , outputBundles = view #tokens <$> outputsToCover
             , assetsToMint
             , assetsToBurn
@@ -1055,7 +1055,7 @@ performSelectionNonEmpty constraints params
             }
 
         skeletonChange = predictChange s
-        inputsSelected = UTxOSelection.selectedList s
+        inputsSelected = fmap (view #tokens) <$> UTxOSelection.selectedList s
 
     invariantResultWithNoCost inputs_ = error $ unlines
         -- This should be impossible, as the 'makeChange' function should

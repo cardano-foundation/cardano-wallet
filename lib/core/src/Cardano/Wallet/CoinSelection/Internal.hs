@@ -237,7 +237,7 @@ data SelectionError
 --
 data Selection = Selection
     { inputs
-        :: !(NonEmpty (TxIn, TxOut))
+        :: !(NonEmpty (TxIn, TokenBundle))
         -- ^ Selected inputs.
     , collateral
         :: ![(TxIn, Coin)]
