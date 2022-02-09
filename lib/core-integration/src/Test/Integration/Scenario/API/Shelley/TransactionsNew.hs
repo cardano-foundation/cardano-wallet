@@ -842,9 +842,6 @@ spec = describe "NEW_SHELLEY_TRANSACTIONS" $ do
         rGetTx <- request @(ApiTransaction n) ctx queryTx Default Empty
         verify rGetTx
             [ expectResponseCode HTTP.status200
-            , expectField
-                (#amount . #getQuantity)
-                (`shouldBe` initialAmt - (amt + fromIntegral expectedFee))
             , expectField (#direction . #getApiT) (`shouldBe` Outgoing)
             , expectField (#status . #getApiT) (`shouldBe` Pending)
             ]

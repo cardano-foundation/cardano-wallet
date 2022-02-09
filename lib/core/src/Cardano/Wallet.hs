@@ -2103,7 +2103,6 @@ getTxExpiry ti maybeTTL = do
 constructTxMeta
     :: forall ctx s k.
         ( HasDBLayer IO s k ctx
-        , IsOwned s k
         )
     => ctx
     -> WalletId
@@ -2117,21 +2116,19 @@ constructTxMeta ctx wid txCtx inps outs = db & \DBLayer{..} -> do
               $ withNoSuchWallet wid
               $ readCheckpoint wid
         liftIO $
-            mkTxMetaWithoutSel (currentTip cp) (getState cp) txCtx inps outs
+            mkTxMetaWithoutSel (currentTip cp) txCtx inps outs
   where
     db = ctx ^. dbLayer @IO @s @k
 
 mkTxMetaWithoutSel
-    :: IsOurs s Address
-    => BlockHeader
-    -> s
+    :: BlockHeader
     -> TransactionCtx
     -> [(TxIn, Coin)]
     -> [TxOut]
     -> IO TxMeta
-mkTxMetaWithoutSel blockHeader wState txCtx inps outs =
+mkTxMetaWithoutSel blockHeader txCtx inps outs =
     let
-        amtOuts = F.fold $ mapMaybe (`ourCoin` wState) outs
+        amtOuts = F.fold $ map txOutCoin outs
 
         amtInps
             = F.fold (map snd inps)
@@ -2139,13 +2136,9 @@ mkTxMetaWithoutSel blockHeader wState txCtx inps outs =
                 w@WithdrawalSelf{} -> Coin.add (withdrawalToCoin w)
                 WithdrawalExternal{} -> Prelude.id
                 NoWithdrawal -> Prelude.id
-        dir = if (txCtx ^. #txDelegationAction) == Just Quit then
-                   Incoming
-              else
-                   Outgoing
     in return TxMeta
        { status = Pending
-       , direction = dir
+       , direction = if amtInps > amtOuts then Outgoing else Incoming
        , slotNo = blockHeader ^. #slotNo
        , blockHeight = blockHeader ^. #blockHeight
        , amount = Coin.distance amtInps amtOuts

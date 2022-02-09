@@ -2458,13 +2458,8 @@ submitTransaction ctx apiw@(ApiT wid) apitx@(ApiSerialisedTransaction (ApiT seal
                 , txDelegationAction = delAction
                 }
         txMeta <- liftHandler $ W.constructTxMeta @_ @s @k wrk wid txCtx ourInps ourOuts
-        let txMeta' =
-                if (txCtx ^. #txDelegationAction) == Just Quit then
-                    txMeta & #direction .~ W.Incoming
-                else
-                    txMeta
         liftHandler
-            $ W.submitTx @_ @s @k wrk wid (tx, txMeta', sealedTx)
+            $ W.submitTx @_ @s @k wrk wid (tx, txMeta, sealedTx)
     return $ ApiTxId (apiDecoded ^. #id)
   where
     (tx,_,_,_) = decodeTx tl sealedTx
@@ -2494,8 +2489,8 @@ submitTransaction ctx apiw@(ApiT wid) apitx@(ApiSerialisedTransaction (ApiT seal
 
     isInpOurs (WalletInput _) = True
     isInpOurs _ = False
-    toTxInp (WalletInput (ApiWalletInput (ApiT txid) ix _ _ _ _)) =
-        (TxIn txid ix, Coin 0)
+    toTxInp (WalletInput (ApiWalletInput (ApiT txid) ix _ _ (Quantity amt) _)) =
+        (TxIn txid ix, Coin $ fromIntegral amt)
     toTxInp _ = error "we should have only our inputs at this point"
     getOurInps apiDecodedTx =
         let generalInps = apiDecodedTx ^. #inputs
