@@ -2,8 +2,9 @@
 
 [Nix](https://nixos.org) is a package manager and build tool. It is used in `cardano-wallet` for:
  - [[Hydra]]
- - Provisioning dependencies in [Buildkite CI](https://github.com/input-output-hk/cardano-wallet/blob/master/.buildkite/pipeline.yml#L1).
+ - Provisioning dependencies in [GitHub Actions CI](https://github.com/input-output-hk/cardano-wallet/blob/master/.github/workflows/build.yml#L1).
  - Reproducible development environments ([nix develop][flake.nix]).
+ - Distribution of release builds ([[NixOS]]).
 
 Nix is not required for `cardano-wallet` development, but it can help you a lot if you try it.
 
@@ -11,10 +12,18 @@ Nix is not required for `cardano-wallet` development, but it can help you a lot 
 
 ## Installing/Upgrading Nix
 
-The minimum required version of Nix is 2.5.
+The minimum required version of Nix is 2.6.0.
 
 - [Nix Package Manager Guide: Installation](https://nixos.org/manual/nix/stable/#ch-installing-binary)
 - [Nix Package Manager Guide: Upgrading Nix](https://nixos.org/manual/nix/stable/#ch-upgrading-nix)
+
+## Required settings
+
+The following option _must_ be enabled in your [`nix.conf`](https://nixos.org/manual/nix/stable/command-ref/conf-file.html):
+
+```
+experimental-features = nix-command flakes
+```
 
 ## Binary cache
 
