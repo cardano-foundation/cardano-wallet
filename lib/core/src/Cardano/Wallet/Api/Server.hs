@@ -2415,7 +2415,15 @@ submitTransaction ctx apiw@(ApiT wid) apitx@(ApiSerialisedTransaction (ApiT seal
     let ourOuts = getOurOuts apiDecoded
     let ourInps = getOurInps apiDecoded
 
+    -- TODO: when partial signing is switched on we will need to revise this.
+    -- The following needs to be taken into account. Wits could come from:
+    -- (a) our wallet
+    -- (b) other parties
+    -- (c) script inputs
+    -- With (b) not supported we can now filter our inputs and look for the unique payment keys
+    -- Also with multisig switched on the input would need more than 1 wits
     let witsRequiredForInputs = length $ L.nubBy samePaymentKey $
+            filter isInpOurs $
             (apiDecoded ^. #inputs) ++ (apiDecoded ^. #collateral)
     let totalNumberOfWits = length $ getSealedTxWitnesses sealedTx
     when (witsRequiredForInputs > totalNumberOfWits) $
@@ -2481,8 +2489,6 @@ submitTransaction ctx apiw@(ApiT wid) apitx@(ApiSerialisedTransaction (ApiT seal
     samePaymentKey inp1 inp2 = case (inp1, inp2) of
         (WalletInput (ApiWalletInput _ _ _ derPath1 _ _), WalletInput (ApiWalletInput _ _ _ derPath2 _ _) ) ->
                derPath1 == derPath2
-        (ExternalInput txin1, ExternalInput txin2) ->
-               txin1 == txin2
         _ -> False
 
 joinStakePool
