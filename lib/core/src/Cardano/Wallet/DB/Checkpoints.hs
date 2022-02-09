@@ -10,10 +10,8 @@
 -- Each checkpoints is associated with a 'Slot'.
 
 module Cardano.Wallet.DB.Checkpoints
-    ( getPoint
-
-    -- * Checkpoints  
-    , Checkpoints
+    ( -- * Checkpoints  
+      Checkpoints
     , checkpoints
     , loadCheckpoints
     , fromGenesis
@@ -22,7 +20,6 @@ module Cardano.Wallet.DB.Checkpoints
     
     -- * Delta types
     , DeltaCheckpoints (..)
-    , DeltaMap (..)
     ) where
 
 import Prelude
@@ -38,7 +35,6 @@ import Data.Maybe
 import GHC.Generics
     ( Generic )
 
-import qualified Cardano.Wallet.Primitive.Model as W
 import qualified Cardano.Wallet.Primitive.Types as W
 import qualified Data.Map.Strict as Map
 import qualified Data.Set as Set
@@ -74,11 +70,6 @@ is clear that the data cannot exist at the genesis point
 (e.g. for TxHistory).
 
 -}
-
--- | Helper function: Get the 'Point' of a wallet state.
-getPoint :: W.Wallet s -> W.Slot
-getPoint =
-    W.toSlot . W.chainPointFromBlockHeader . view #currentTip
 
 {-------------------------------------------------------------------------------
     Checkpoints
@@ -135,18 +126,3 @@ instance Delta (DeltaCheckpoints a) where
         Map.filterWithKey (\k _ -> k <= pt)
     apply (RestrictTo pts) = over #checkpoints $ \m ->
         Map.restrictKeys m $ Set.fromList (W.Origin:pts)
-
-{-------------------------------------------------------------------------------
-    A Delta type for Maps
--------------------------------------------------------------------------------}
--- | Delta type for 'Map'.
-data DeltaMap key da
-    = Insert key (Base da)
-    | Delete key
-    | Adjust key da
-
-instance (Ord key, Delta da) => Delta (DeltaMap key da) where
-    type Base (DeltaMap key da) = Map key (Base da)
-    apply (Insert key a) = Map.insert key a
-    apply (Delete key) = Map.delete key
-    apply (Adjust key da) = Map.adjust (apply da) key

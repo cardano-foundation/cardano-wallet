@@ -184,8 +184,10 @@
           "Cardano/Wallet/DB/Sqlite/AddressBook"
           "Cardano/Wallet/DB/Sqlite/CheckpointsOld"
           "Cardano/Wallet/DB/Sqlite/Migration"
+          "Cardano/Wallet/DB/Sqlite/Stores"
           "Cardano/Wallet/DB/Sqlite/TH"
           "Cardano/Wallet/DB/Sqlite/Types"
+          "Cardano/Wallet/DB/WalletState"
           "Cardano/Wallet/Logging"
           "Cardano/Wallet/Network"
           "Cardano/Wallet/Network/Ports"
@@ -327,6 +329,7 @@
             (hsPkgs."network-uri" or (errorHandler.buildDepError "network-uri"))
             (hsPkgs."nothunks" or (errorHandler.buildDepError "nothunks"))
             (hsPkgs."persistent" or (errorHandler.buildDepError "persistent"))
+            (hsPkgs."persistent-sqlite" or (errorHandler.buildDepError "persistent-sqlite"))
             (hsPkgs."plutus-ledger-api" or (errorHandler.buildDepError "plutus-ledger-api"))
             (hsPkgs."pretty-simple" or (errorHandler.buildDepError "pretty-simple"))
             (hsPkgs."regex-pcre-builtin" or (errorHandler.buildDepError "regex-pcre-builtin"))
@@ -390,6 +393,7 @@
             "Cardano/Wallet/DB/MVarSpec"
             "Cardano/Wallet/DB/Properties"
             "Cardano/Wallet/DB/SqliteSpec"
+            "Cardano/Wallet/DB/Sqlite/StoresSpec"
             "Cardano/Wallet/DB/Sqlite/TypesSpec"
             "Cardano/Wallet/DB/StateMachine"
             "Cardano/Wallet/DummyTarget/Primitive/Types"

@@ -155,7 +155,7 @@ data RndState (network :: NetworkDiscriminant) = RndState
     -- discovered they are removed from this set and added to 'addresses'.
     , gen :: StdGen
     -- ^ The state of the RNG.
-    } deriving (Generic)
+    } deriving (Generic, Eq)
 
 instance NFData (RndState network) where
     rnf (RndState !_ !_ !_ !_ g) = seq (show g) ()

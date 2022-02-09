@@ -1,6 +1,7 @@
 {-# LANGUAGE AllowAmbiguousTypes #-}
 {-# LANGUAGE DataKinds #-}
 {-# LANGUAGE FlexibleContexts #-}
+{-# LANGUAGE FlexibleInstances #-}
 {-# LANGUAGE RankNTypes #-}
 {-# LANGUAGE ScopedTypeVariables #-}
 {-# LANGUAGE TypeOperators #-}
@@ -30,6 +31,8 @@ import Cardano.Wallet.Primitive.AddressDerivation
     , KeyFingerprint (..)
     , Role (..)
     )
+import Cardano.Wallet.Primitive.AddressDerivation.Shared
+    ()
 import Cardano.Wallet.Primitive.AddressDerivation.SharedKey
     ( SharedKey (..) )
 import Cardano.Wallet.Primitive.Types.Address
@@ -42,6 +45,8 @@ import Data.Map.Strict
     ( Map )
 import Data.Type.Equality
     ( type (==) )
+import Fmt
+    ( Buildable (..) )
 
 import qualified Cardano.Wallet.Address.Pool as AddressPool
 import qualified Cardano.Wallet.Primitive.AddressDiscovery.Random as Rnd
@@ -123,6 +128,12 @@ loadUnsafe
 loadUnsafe (Seq.SeqAddressPool pool0) (SeqAddressMap addrs) =
     Seq.SeqAddressPool $ AddressPool.loadUnsafe pool0 addrs
 
+instance Buildable (Prologue (Seq.SeqState n k)) where
+    build (SeqPrologue st) = "Prologue of " <> build st
+
+instance Eq (Seq.SeqState n k) => Eq (Prologue (Seq.SeqState n k)) where
+    SeqPrologue a == SeqPrologue b = a == b
+
 {-------------------------------------------------------------------------------
     Shared key address book
 -------------------------------------------------------------------------------}
@@ -155,6 +166,14 @@ instance ( key ~ SharedKey ) => AddressBookIso (Shared.SharedState n key)
                 let pool = AddressPool.loadUnsafe pool0 addrs
                 in  st{ Shared.ready = Shared.Active pool }
 
+instance ( key ~ SharedKey )
+    => Buildable (Prologue (Shared.SharedState n key))
+  where
+    build (SharedPrologue st) = "Prologue of " <> build st
+
+instance ( key ~ SharedKey ) => Eq (Prologue (Shared.SharedState n key)) where
+    SharedPrologue a == SharedPrologue b = a == b
+
 {-------------------------------------------------------------------------------
     HD Random address book
 -------------------------------------------------------------------------------}
@@ -183,3 +202,9 @@ instance AddressBookIso (Rnd.RndState n) where
             = (RndPrologue (Rnd.RndState a b Map.empty c d), RndDiscoveries addrs)
         to (RndPrologue (Rnd.RndState a b _ c d), RndDiscoveries addrs)
             = Rnd.RndState a b addrs c d
+
+instance Buildable (Prologue (Rnd.RndState n)) where
+    build (RndPrologue st) = "Prologue of " <> build st
+
+instance Eq (Prologue (Rnd.RndState n)) where
+    RndPrologue a == RndPrologue b = a == b

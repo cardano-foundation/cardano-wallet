@@ -332,7 +332,8 @@ data DBLayer m s k = forall stm. (MonadIO stm, MonadFail stm) => DBLayer
 -- | Can't read the database file because it's in a bad format
 -- (corrupted, too old, …)
 data ErrBadFormat
-    = ErrBadFormatAddressState
+    = ErrBadFormatAddressPrologue
+    | ErrBadFormatCheckpoints
     deriving (Eq,Show)
 
 instance Exception ErrBadFormat
