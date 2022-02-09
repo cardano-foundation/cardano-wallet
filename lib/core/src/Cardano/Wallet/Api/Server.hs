@@ -3455,13 +3455,11 @@ mkApiTransaction timeInterpreter setTimeReference tx = do
     reclaimIfAny :: Natural
     reclaimIfAny
         | tx ^. (#txMeta . #direction) == W.Incoming =
-            if totalInWithoutFee > 0 &&
-               totalOut > 0 &&
-               totalOut > totalInWithoutFee
-            then if totalOut - totalInWithoutFee <= depositValue
-                 then depositValue
-                 else 0
-            else 0
+              if ( totalInWithoutFee > 0 && totalOut > 0 && totalOut > totalInWithoutFee)
+                 && (totalOut - totalInWithoutFee <= depositValue) then
+                  depositValue
+              else
+                  0
         | otherwise = 0
 
     totalInWithoutFee :: Natural
