@@ -61,6 +61,7 @@ class BorsStats < Thor
     :long_desc => "`--group #1 #2 #3` will replace #2 and #3 with #1."
 
   desc "list", "list all failures"
+  method_option :markdown_output, :type => :boolean, :required => false, :desc => "Create markdown links to issues"
   def list()
     comments = fetch_comments_with_options options
 
@@ -84,7 +85,14 @@ class BorsStats < Thor
       n = k[:n]
       title = tm.dig t, "title"
       title = title.nil? ? "" : title
-      puts (bold(n.to_s) + " times (" + bold(failure_rate(n, nTot)) + ") " + yellow(t) + " " + bold(title))
+
+      tag_str =
+        if options[:markdown_output] and is_issue? t
+          then "[" + t + "](https://github.com/input-output-hk/cardano-wallet/issues/" + t.delete_prefix("#") + ")"
+          else yellow t
+          end
+
+      puts (bold(n.to_s) + " times (" + bold(failure_rate(n, nTot)) + ") " + tag_str + " " + bold(title))
     end
   end
 
@@ -662,6 +670,16 @@ def rewrite_tags(comments, title_map)
       if t2 then t2 else t end
     end
   end
+end
+
+##
+# >>> is_issue? "#0"
+# true
+#
+## >>> is_issue? "0"
+# false
+def is_issue? t
+  true if t.start_with? "#" and Integer(t.delete_prefix "#") rescue false
 end
 
 ######################################################################
