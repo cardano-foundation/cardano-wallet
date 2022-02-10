@@ -64,4 +64,16 @@ failed, until the evaluation succeeds.
 
 ## Restarting builds
 
-Sign in with the [adrestia](https://hydra.iohk.io/dashboard/adrestia) user to restart build jobs.
+:::{.center .px-8}
+![[hydra-restarting-builds.png]]
+:::
+
+After signing in with the [adrestia](https://hydra.iohk.io/dashboard/adrestia) user, you should be able to see the Actions→Restart button on the build job page.
+
+The password for this user is in [Vaultwarden](https://input-output-hk.github.io/adrestia/resources/Passwords).
+
+::: {.gotcha}
+#### Note about bors
+
+If the bors batch has already failed, restarting the failed build in Hydra will have no effect. You will need to submit a new merge job to bors.
+:::
