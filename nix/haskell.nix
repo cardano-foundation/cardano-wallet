@@ -116,7 +116,14 @@ haskell-nix: haskell-nix.cabalProject' [
           && (haskell-nix.haskellSourceFilter name type);
       };
 
-      materialized = ./materialized + "/plan-nix";
+      cabalProjectLocal = lib.optionalString stdenv.hostPlatform.isWindows ''
+        package plutus-tx-plugin
+          flags: +use-ghc-stub
+      '';
+      materialized =
+        if stdenv.hostPlatform.isWindows then ./materialized/plan-nix-windows
+        else if stdenv.hostPlatform.isMusl then ./materialized/plan-nix-musl
+        else ./materialized/plan-nix;
       sha256map = import ./sha256map.nix;
 
       shell = {
