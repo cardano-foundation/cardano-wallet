@@ -1675,9 +1675,9 @@ selectCoinsForQuit
     -> Handler (Api.ApiCoinSelection n)
 selectCoinsForQuit ctx (ApiT wid) = do
     withWorkerCtx ctx wid liftE liftE $ \wrk -> do
-        action <- liftHandler $ W.quitStakePool @_ @s @k wrk wid
         (wdrl, _mkRwdAcct) <-
             mkRewardAccountBuilder @_ @s @_ @n ctx wid (Just SelfWithdrawal)
+        action <- liftHandler $ W.quitStakePool @_ @s @k wrk wid wdrl
 
         let txCtx = defaultTransactionCtx
                 { txDelegationAction = Just action
@@ -2192,7 +2192,7 @@ constructTransaction ctx genChange knownPools getPoolStatus (ApiT wid) body = do
                             W.joinStakePool @_ @s @k wrk curEpoch pools pid poolStatus wid
                         pure (del, act, Nothing)
                     [(Leaving _)] -> do
-                        del <- liftHandler $ W.quitStakePool @_ @s @k wrk wid
+                        del <- liftHandler $ W.quitStakePool @_ @s @k wrk wid wdrl
                         pure (del, Nothing, Just $ W.stakeKeyDeposit pp)
                     _ ->
                         liftHandler $ throwE ErrConstructTxMultidelegationNotSupported
@@ -2672,10 +2672,8 @@ quitStakePool ctx (ApiT wid) body = do
     let pwd = coerce $ getApiT $ body ^. #passphrase
 
     (sel, tx, txMeta, txTime, pp) <- withWorkerCtx ctx wid liftE liftE $ \wrk -> do
-        action <- liftHandler
-            $ W.quitStakePool @_ @s @k wrk wid
-
         (wdrl, mkRwdAcct) <- mkRewardAccountBuilder @_ @s @_ @n ctx wid (Just SelfWithdrawal)
+        action <- liftHandler $ W.quitStakePool wrk wid wdrl
         ttl <- liftIO $ W.getTxExpiry ti Nothing
         let txCtx = defaultTransactionCtx
                 { txWithdrawal = wdrl

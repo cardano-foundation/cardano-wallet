@@ -2582,8 +2582,9 @@ quitStakePool
         )
     => ctx
     -> WalletId
+    -> Withdrawal
     -> ExceptT ErrStakePoolDelegation IO DelegationAction
-quitStakePool ctx wid = db & \DBLayer{..} -> do
+quitStakePool ctx wid wdrl = db & \DBLayer{..} -> do
     walMeta <- mapExceptT atomically
         $ withExceptT ErrStakePoolDelegationNoSuchWallet
         $ withNoSuchWallet wid
@@ -2593,7 +2594,7 @@ quitStakePool ctx wid = db & \DBLayer{..} -> do
         $ fetchRewardBalance @ctx @s @k ctx wid
 
     withExceptT ErrStakePoolQuit $ except $
-        guardQuit (walMeta ^. #delegation) rewards
+        guardQuit (walMeta ^. #delegation) wdrl rewards
 
     pure Quit
   where
@@ -3257,16 +3258,20 @@ guardJoin knownPools delegation pid mRetirementEpochInfo = do
 
 guardQuit
     :: WalletDelegation
+    -> Withdrawal
     -> Coin
     -> Either ErrCannotQuit ()
-guardQuit WalletDelegation{active,next} rewards = do
+guardQuit WalletDelegation{active,next} wdrl rewards = do
     let last_ = maybe active (view #status) $ lastMay next
 
     unless (isDelegatingTo anyone last_) $
         Left ErrNotDelegatingOrAboutTo
 
-    unless (rewards == Coin 0) $
-        Left $ ErrNonNullRewards rewards
+    case wdrl of
+        WithdrawalSelf {} -> return ()
+        _
+            | rewards == Coin 0  -> return ()
+            | otherwise          -> Left $ ErrNonNullRewards rewards
   where
     anyone = const True
 
