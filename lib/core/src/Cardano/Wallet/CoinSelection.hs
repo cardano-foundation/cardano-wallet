@@ -59,7 +59,6 @@ module Cardano.Wallet.CoinSelection
 
 import Cardano.Wallet.CoinSelection.Internal
     ( SelectionCollateralRequirement (..)
-    , SelectionConstraints (..)
     , SelectionError (..)
     , SelectionOutputError (..)
     , SelectionOutputSizeExceedsLimitError (..)
@@ -84,7 +83,7 @@ import Cardano.Wallet.Primitive.Types.TokenBundle
 import Cardano.Wallet.Primitive.Types.TokenMap
     ( TokenMap )
 import Cardano.Wallet.Primitive.Types.Tx
-    ( TxIn, TxOut (..) )
+    ( TokenBundleSizeAssessment, TxIn, TxOut (..) )
 import Cardano.Wallet.Primitive.Types.UTxO
     ( UTxO (..) )
 import Cardano.Wallet.Primitive.Types.UTxOSelection
@@ -116,7 +115,59 @@ import qualified Data.Map.Strict as Map
 import qualified Data.Set as Set
 
 --------------------------------------------------------------------------------
--- Types
+-- Selection constraints
+--------------------------------------------------------------------------------
+
+-- | Specifies all constraints required for coin selection.
+--
+-- Selection constraints:
+--
+--    - are dependent on the current set of protocol parameters.
+--
+--    - are not specific to a given selection.
+--
+--    - place limits on the coin selection algorithm, enabling it to produce
+--      selections that are acceptable to the ledger.
+--
+data SelectionConstraints = SelectionConstraints
+    { assessTokenBundleSize
+        :: TokenBundle -> TokenBundleSizeAssessment
+        -- ^ Assesses the size of a token bundle relative to the upper limit of
+        -- what can be included in a transaction output. See documentation for
+        -- the 'TokenBundleSizeAssessor' type to learn about the expected
+        -- properties of this field.
+    , certificateDepositAmount
+        :: Coin
+        -- ^ Amount that should be taken from/returned back to the wallet for
+        -- each stake key registration/de-registration in the transaction.
+    , computeMinimumAdaQuantity
+        :: TokenMap -> Coin
+        -- ^ Computes the minimum ada quantity required for a given output.
+    , computeMinimumCost
+        :: SelectionSkeleton -> Coin
+        -- ^ Computes the minimum cost of a given selection skeleton.
+    , computeSelectionLimit
+        :: [TxOut] -> SelectionLimit
+        -- ^ Computes an upper bound for the number of ordinary inputs to
+        -- select, given a current set of outputs.
+    , maximumCollateralInputCount
+        :: Int
+        -- ^ Specifies an inclusive upper bound on the number of unique inputs
+        -- that can be selected as collateral.
+    , minimumCollateralPercentage
+        :: Natural
+        -- ^ Specifies the minimum required amount of collateral as a
+        -- percentage of the total transaction fee.
+    }
+    deriving Generic
+
+toInternalSelectionConstraints
+    :: SelectionConstraints -> Internal.SelectionConstraints
+toInternalSelectionConstraints SelectionConstraints {..} =
+    Internal.SelectionConstraints {..}
+
+--------------------------------------------------------------------------------
+-- Selection parameters
 --------------------------------------------------------------------------------
 
 -- | Specifies all parameters that are specific to a given selection.
@@ -176,6 +227,10 @@ toInternalSelectionParams SelectionParams {..} =
             unUTxO utxoAvailableForCollateral
         , ..
         }
+
+--------------------------------------------------------------------------------
+-- Selections
+--------------------------------------------------------------------------------
 
 -- | Represents a balanced selection.
 --
@@ -256,7 +311,9 @@ performSelection
     -> ExceptT SelectionError m Selection
 performSelection cs ps =
     toExternalSelection ps <$>
-    Internal.performSelection cs (toInternalSelectionParams ps)
+    Internal.performSelection
+        (toInternalSelectionConstraints cs)
+        (toInternalSelectionParams ps)
 
 --------------------------------------------------------------------------------
 -- Selection deltas
