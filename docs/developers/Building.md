@@ -157,7 +157,7 @@ The Hydra [Jobset page](https://hydra.iohk.io/jobset/Cardano/cardano-wallet#tabs
 shows all jobs defined in the `hydraJobs` attribute of `flake.nix`. Some of the release jobs have a download link.
 
 - [Windows](https://hydra.iohk.io/job/Cardano/cardano-wallet/cardano-wallet-win64/latest)
-- [macOS](https://hydra.iohk.io/job/Cardano/cardano-wallet/cardano-wallet-macos64/latest)
+- [macOS](https://hydra.iohk.io/job/Cardano/cardano-wallet/cardano-wallet-macos-intel/latest)
 
 See [[Hydra]] for more information.
 

@@ -308,12 +308,13 @@
                     };
                 };
               } // (lib.optionalAttrs buildPlatform.isMacOS {
-              macos = let packages = mkPackages hydraProject; in
-                packages // {
-                  cardano-wallet-macos64 = import ./nix/release-package.nix {
+                macos.intel = let
+                  packages = mkPackages hydraProject;
+                in packages // {
+                  cardano-wallet-macos-intel = import ./nix/release-package.nix {
                     inherit pkgs;
                     exes = releaseContents packages;
-                    platform = "macos64";
+                    platform = "macos-intel";
                     format = "tar.gz";
                   };
                   shells = (mkDevShells hydraProject) // {
@@ -325,6 +326,25 @@
                     iohk-nix-utils = pkgs.iohk-nix-utils.roots;
                   };
                 };
+
+                macos.silicon = lib.dontRecurseIntoAttrs (let
+                  packages = mkPackages hydraProject;
+                in packages // {
+                    cardano-wallet-macos-silicon = import ./nix/release-package.nix {
+                      inherit pkgs;
+                      exes = releaseContents packages;
+                      platform = "macos-silicon";
+                      format = "tar.gz";
+                    };
+                    shells = (mkDevShells hydraProject) // {
+                      default = hydraProject.shell;
+                    };
+                    scripts = mkScripts hydraProject;
+                    internal.roots = {
+                      project = hydraProject.roots;
+                      iohk-nix-utils = pkgs.iohk-nix-utils.roots;
+                    };
+                  });
             });
           in
           rec {

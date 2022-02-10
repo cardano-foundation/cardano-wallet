@@ -23,7 +23,7 @@ let
   makeZip = format == "zip";
 
   isLinux = platform == "linux64";
-  isMacOS = platform == "macos64";
+  isMacOS = platform == "macos-intel" || platform == "macos-silicon";
   isWindows = platform == "win64";
 
 in
