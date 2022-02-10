@@ -16,7 +16,7 @@
   "https://github.com/input-output-hk/ouroboros-network"."d2d219a86cda42787325bb8c20539a75c2667132" = "18xk7r0h2pxrbx76d6flsxifh0a9rz1cj1rjqs1pbs5kdmy8b7kx";
   "https://github.com/input-output-hk/plutus"."1efbb276ef1a10ca6961d0fd32e6141e9798bd11" = "1jicyk4hr8p0xksj4048gdxndrb42jz4wsnkhc3ymxbm5v6snalf";
   "https://github.com/input-output-hk/ekg-forward"."2adc8b698443bb10154304b24f6c1d6913bb65b9" = "0cyixq3jmq43zs1yzrycqw1klyjy0zxf1vifknnr1k9d6sc3zf6b";
-  "https://github.com/input-output-hk/cardano-config"."e9de7a2cf70796f6ff26eac9f9540184ded0e4e6" = "1wm1c99r5zvz22pdl8nhkp13falvqmj8dgkm8fxskwa9ydqz01ld";
+  "https://github.com/input-output-hk/cardano-config"."1646e9167fab36c0bff82317743b96efa2d3adaa" = "11kf65x38laqhwspsl28j2x5a4rky8mfr6356w0li5g53sfykmjc";
   "https://github.com/shmish111/servant-purescript.git"."a76104490499aa72d40c2790d10e9383e0dbde63" = "11nxxmi5bw66va7psvrgrw7b7n85fvqgfp58yva99w3v9q3a50v9";
   "https://github.com/input-output-hk/Win32-network"."3825d3abf75f83f406c1f7161883c438dac7277d" = "19wahfv726fa3mqajpqdqhnl9ica3xmf68i254q45iyjcpj1psqx";
 }
