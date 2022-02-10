@@ -315,8 +315,6 @@ import Cardano.Wallet.Primitive.AddressDiscovery.Shared
     , SharedState (..)
     , addCosignerAccXPub
     )
-import Cardano.Wallet.Primitive.Collateral
-    ( addressSuitableForCollateral )
 import Cardano.Wallet.Primitive.Migration
     ( MigrationPlan (..) )
 import Cardano.Wallet.Primitive.Model
@@ -1931,9 +1929,7 @@ selectAssets ctx pp params transform = do
             , collateralRequirement =
                 params ^. (#txContext . #txCollateralRequirement)
             , utxoAvailableForCollateral =
-                UTxO.filterByAddress
-                    addressSuitableForCollateral
-                    (params ^. #utxoAvailableForCollateral)
+                params ^. #utxoAvailableForCollateral
             , utxoAvailableForInputs =
                 params ^. #utxoAvailableForInputs
             }

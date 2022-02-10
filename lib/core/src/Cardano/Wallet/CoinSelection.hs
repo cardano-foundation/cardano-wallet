@@ -76,6 +76,8 @@ import Cardano.Wallet.CoinSelection.Internal.Balance
     )
 import Cardano.Wallet.CoinSelection.Internal.Collateral
     ( SelectionCollateralError )
+import Cardano.Wallet.Primitive.Collateral
+    ( asCollateral )
 import Cardano.Wallet.Primitive.Types.Coin
     ( Coin (..) )
 import Cardano.Wallet.Primitive.Types.TokenBundle
@@ -221,10 +223,7 @@ toInternalSelectionParams :: SelectionParams -> Internal.SelectionParams
 toInternalSelectionParams SelectionParams {..} =
     Internal.SelectionParams
         { utxoAvailableForCollateral =
-            -- Note: only pure-ada UTxOs are suitable for use as collateral.
-            -- Therefore, we must filter out any UTxOs with non-ada assets.
-            Map.mapMaybe (TokenBundle.toCoin . view #tokens) $
-            unUTxO utxoAvailableForCollateral
+            Map.mapMaybe asCollateral $ unUTxO utxoAvailableForCollateral
         , ..
         }
 
