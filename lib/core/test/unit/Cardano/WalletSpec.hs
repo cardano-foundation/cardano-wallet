@@ -239,6 +239,7 @@ import Test.QuickCheck
     , suchThat
     , vector
     , withMaxSuccess
+    , (.&&.)
     , (===)
     , (==>)
     )
@@ -368,26 +369,26 @@ spec = parallel $ describe "Cardano.WalletSpec" $ do
                 `shouldBe` Left (W.ErrNoSuchPool pidUnknown)
         it "Cannot quit when active: not_delegating, next = []" $ do
             let dlg = WalletDelegation {active = NotDelegating, next = []}
-            W.guardQuit dlg (Coin 0)
+            W.guardQuit dlg NoWithdrawal (Coin 0)
                 `shouldBe` Left (W.ErrNotDelegatingOrAboutTo)
         it "Cannot quit when active: A, next = [not_delegating]" $ do
             let next1 = next (EpochNo 1) NotDelegating
             let dlg = WalletDelegation
                     {active = Delegating pidA, next = [next1]}
-            W.guardQuit dlg (Coin 0)
+            W.guardQuit dlg NoWithdrawal (Coin 0)
                 `shouldBe` Left (W.ErrNotDelegatingOrAboutTo)
         it "Cannot quit when active: A, next = [B, not_delegating]" $ do
             let next1 = next (EpochNo 1) (Delegating pidB)
             let next2 = next (EpochNo 2) NotDelegating
             let dlg = WalletDelegation
                     {active = Delegating pidA, next = [next1, next2]}
-            W.guardQuit dlg (Coin 0)
+            W.guardQuit dlg NoWithdrawal (Coin 0)
                 `shouldBe` Left (W.ErrNotDelegatingOrAboutTo)
         it "Can quit when active: not_delegating, next = [A]" $ do
             let next1 = next (EpochNo 1) (Delegating pidA)
             let dlg = WalletDelegation
                     {active = NotDelegating, next = [next1]}
-            W.guardQuit dlg (Coin 0) `shouldBe` Right ()
+            W.guardQuit dlg NoWithdrawal (Coin 0) `shouldBe` Right ()
 
     describe "Migration" $ do
         describe "migrationPlanToSelectionWithdrawals" $ do
@@ -411,9 +412,10 @@ prop_guardJoinQuit
     :: [PoolId]
     -> WalletDelegation
     -> PoolId
+    -> Withdrawal
     -> Maybe W.PoolRetirementEpochInfo
     -> Property
-prop_guardJoinQuit knownPoolsList dlg pid mRetirementInfo = checkCoverage
+prop_guardJoinQuit knownPoolsList dlg pid wdrl mRetirementInfo = checkCoverage
     $ cover 10 retirementNotPlanned
         "retirementNotPlanned"
     $ cover 10 retirementPlanned
@@ -428,7 +430,7 @@ prop_guardJoinQuit knownPoolsList dlg pid mRetirementInfo = checkCoverage
             label "ErrNoSuchPool" $ property True
         Left W.ErrAlreadyDelegating{} ->
             label "ErrAlreadyDelegating"
-                (W.guardQuit dlg (Coin 0) === Right ())
+                (W.guardQuit dlg wdrl (Coin 0) === Right ())
   where
     knownPools = Set.fromList knownPoolsList
     retirementNotPlanned =
@@ -446,11 +448,12 @@ prop_guardQuitJoin
     :: NonEmptyList PoolId
     -> WalletDelegation
     -> Word64
+    -> Withdrawal
     -> Property
-prop_guardQuitJoin (NonEmpty knownPoolsList) dlg rewards =
+prop_guardQuitJoin (NonEmpty knownPoolsList) dlg rewards wdrl =
     let knownPools = Set.fromList knownPoolsList in
     let noRetirementPlanned = Nothing in
-    case W.guardQuit dlg (Coin.fromWord64 rewards) of
+    case W.guardQuit dlg wdrl (Coin.fromWord64 rewards) of
         Right () ->
             label "I can quit" $ property True
         Left W.ErrNotDelegatingOrAboutTo ->
@@ -459,8 +462,12 @@ prop_guardQuitJoin (NonEmpty knownPoolsList) dlg rewards =
                     knownPools dlg (last knownPoolsList) noRetirementPlanned
                     === Right ()
         Left W.ErrNonNullRewards{} ->
-            label "ErrNonNullRewards"
-                (property $ rewards /= 0)
+            label "ErrNonNullRewards" $
+                property (rewards /= 0)
+                    .&&. not (isSelfWdrl wdrl)
+  where
+    isSelfWdrl WithdrawalSelf{} = True
+    isSelfWdrl _                = False
 
 walletCreationProp
     :: (WalletId, WalletName, DummyState)
@@ -1460,3 +1467,13 @@ instance Arbitrary TxMeta where
 instance Arbitrary TxMetadata where
     shrink = shrinkTxMetadata
     arbitrary = genNestedTxMetadata
+
+instance Arbitrary DerivationIndex where
+    arbitrary = DerivationIndex <$> arbitrary
+
+instance Arbitrary Withdrawal where
+    arbitrary = oneof
+        [ WithdrawalSelf <$> arbitrary <*> arbitrary <*> arbitrary
+        , WithdrawalExternal <$> arbitrary <*> arbitrary <*> arbitrary
+        , pure NoWithdrawal
+        ]
