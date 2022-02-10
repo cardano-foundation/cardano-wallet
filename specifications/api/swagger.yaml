@@ -6133,6 +6133,8 @@ paths:
 
         Stop delegating completely. The wallet's stake will become inactive.
 
+        Any current rewards will automatically withdrawn.
+
         > ⚠️  Disclaimer ⚠️
         >
         > This endpoint historically use to take a stake pool id as a path parameter.
