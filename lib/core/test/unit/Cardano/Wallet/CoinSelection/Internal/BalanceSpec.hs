@@ -248,7 +248,7 @@ import qualified Data.Maybe as Maybe
 import qualified Data.Set as Set
 
 spec :: Spec
-spec = describe "Cardano.Wallet.Primitive.CoinSelection.BalanceSpec" $
+spec = describe "Cardano.Wallet.CoinSelection.Internal.BalanceSpec" $
 
     modifyMaxSuccess (const 1000) $ do
 

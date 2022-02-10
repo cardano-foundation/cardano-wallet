@@ -73,11 +73,7 @@ import Cardano.Wallet.Primitive.Types.TokenQuantity
 import Cardano.Wallet.Primitive.Types.Tx
     ( TxIn, TxOut (..), txOutCoin, txOutMaxTokenQuantity )
 import Cardano.Wallet.Primitive.Types.Tx.Gen
-    ( genTxOut, shrinkTxOut )
-import Cardano.Wallet.Primitive.Types.UTxO
-    ( UTxO )
-import Cardano.Wallet.Primitive.Types.UTxO.Gen
-    ( genUTxO, shrinkUTxO )
+    ( genTxIn, genTxOut, shrinkTxIn, shrinkTxOut )
 import Cardano.Wallet.Primitive.Types.UTxOSelection
     ( UTxOSelection )
 import Cardano.Wallet.Primitive.Types.UTxOSelection.Gen
@@ -94,6 +90,8 @@ import Data.Functor
     ( (<&>) )
 import Data.Generics.Internal.VL.Lens
     ( over, view, (^.) )
+import Data.Map.Strict
+    ( Map )
 import Generics.SOP
     ( NP (..) )
 import GHC.Generics
@@ -128,8 +126,10 @@ import Test.QuickCheck
 import Test.QuickCheck.Extra
     ( Pretty (..)
     , chooseNatural
+    , genMapWith
     , genericRoundRobinShrink
     , report
+    , shrinkMapWith
     , shrinkNatural
     , (<:>)
     , (<@>)
@@ -144,7 +144,7 @@ import qualified Cardano.Wallet.Primitive.Types.UTxOSelection as UTxOSelection
 import qualified Data.Foldable as F
 
 spec :: Spec
-spec = describe "Cardano.Wallet.Primitive.CoinSelectionSpec" $ do
+spec = describe "Cardano.Wallet.CoinSelection.InternalSpec" $ do
 
     parallel $ describe "Performing selections" $ do
 
@@ -520,8 +520,6 @@ data MockSelectionConstraints = MockSelectionConstraints
         :: Int
     , minimumCollateralPercentage
         :: Natural
-    , utxoSuitableForCollateral
-        :: MockUTxOSuitableForCollateral
     }
     deriving (Eq, Generic, Show)
 
@@ -534,7 +532,6 @@ genMockSelectionConstraints = MockSelectionConstraints
     <*> genMockComputeSelectionLimit
     <*> genMaximumCollateralInputCount
     <*> genMinimumCollateralPercentage
-    <*> genMockUTxOSuitableForCollateral
 
 shrinkMockSelectionConstraints
     :: MockSelectionConstraints -> [MockSelectionConstraints]
@@ -546,7 +543,6 @@ shrinkMockSelectionConstraints = genericRoundRobinShrink
     <:> shrinkMockComputeSelectionLimit
     <:> shrinkMaximumCollateralInputCount
     <:> shrinkMinimumCollateralPercentage
-    <:> shrinkMockUTxOSuitableForCollateral
     <:> Nil
 
 unMockSelectionConstraints :: MockSelectionConstraints -> SelectionConstraints
@@ -565,8 +561,6 @@ unMockSelectionConstraints m = SelectionConstraints
         view #maximumCollateralInputCount m
     , minimumCollateralPercentage =
         view #minimumCollateralPercentage m
-    , utxoSuitableForCollateral =
-        unMockUTxOSuitableForCollateral $ view #utxoSuitableForCollateral m
     }
 
 --------------------------------------------------------------------------------
@@ -598,32 +592,6 @@ genMinimumCollateralPercentage = chooseNatural (0, 1000)
 
 shrinkMinimumCollateralPercentage :: Natural -> [Natural]
 shrinkMinimumCollateralPercentage = shrinkNatural
-
---------------------------------------------------------------------------------
--- Determining suitability of UTxOs for use as collateral
---------------------------------------------------------------------------------
-
-data MockUTxOSuitableForCollateral
-    = MockUTxOSuitableForCollateralNothing
-      -- ^ Indicates that no UTxOs are suitable for use as collateral
-    | MockUTxOSuitableForCollateralPureAda
-      -- ^ Indicates that all pure ada UTxOs are suitable for use as collateral
-    deriving (Bounded, Enum, Eq, Generic, Show)
-
-genMockUTxOSuitableForCollateral :: Gen MockUTxOSuitableForCollateral
-genMockUTxOSuitableForCollateral = arbitraryBoundedEnum
-
-shrinkMockUTxOSuitableForCollateral
-    :: MockUTxOSuitableForCollateral -> [MockUTxOSuitableForCollateral]
-shrinkMockUTxOSuitableForCollateral = genericShrink
-
-unMockUTxOSuitableForCollateral
-    :: MockUTxOSuitableForCollateral -> ((TxIn, TxOut) -> Maybe Coin)
-unMockUTxOSuitableForCollateral = \case
-    MockUTxOSuitableForCollateralNothing ->
-        const Nothing
-    MockUTxOSuitableForCollateralPureAda ->
-        \(_i, o) -> TokenBundle.toCoin $ view #tokens o
 
 --------------------------------------------------------------------------------
 -- Selection parameters
@@ -787,8 +755,8 @@ shrinkCollateralRequirement = genericShrink
 -- UTxO available for inputs and collateral
 --------------------------------------------------------------------------------
 
-genUTxOAvailableForCollateral :: Gen UTxO
-genUTxOAvailableForCollateral = genUTxO
+genUTxOAvailableForCollateral :: Gen (Map TxIn Coin)
+genUTxOAvailableForCollateral = genMapWith genTxIn genCoinPositive
 
 genUTxOAvailableForInputs :: Gen UTxOSelection
 genUTxOAvailableForInputs = frequency
@@ -796,8 +764,8 @@ genUTxOAvailableForInputs = frequency
     , (01, pure UTxOSelection.empty)
     ]
 
-shrinkUTxOAvailableForCollateral :: UTxO -> [UTxO]
-shrinkUTxOAvailableForCollateral = shrinkUTxO
+shrinkUTxOAvailableForCollateral :: Map TxIn Coin -> [Map TxIn Coin]
+shrinkUTxOAvailableForCollateral = shrinkMapWith shrinkTxIn shrinkCoinPositive
 
 shrinkUTxOAvailableForInputs :: UTxOSelection -> [UTxOSelection]
 shrinkUTxOAvailableForInputs = shrinkUTxOSelection

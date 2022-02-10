@@ -1,4 +1,5 @@
 {-# LANGUAGE DeriveGeneric #-}
+{-# LANGUAGE DuplicateRecordFields #-}
 {-# LANGUAGE FlexibleInstances #-}
 {-# LANGUAGE OverloadedLabels #-}
 {-# LANGUAGE RecordWildCards #-}
@@ -58,12 +59,10 @@ module Cardano.Wallet.CoinSelection
 
 import Cardano.Wallet.CoinSelection.Internal
     ( SelectionCollateralRequirement (..)
-    , SelectionConstraints (..)
     , SelectionError (..)
     , SelectionOutputError (..)
     , SelectionOutputSizeExceedsLimitError (..)
     , SelectionOutputTokenQuantityExceedsLimitError (..)
-    , SelectionParams (..)
     )
 import Cardano.Wallet.CoinSelection.Internal.Balance
     ( BalanceInsufficientError (..)
@@ -77,6 +76,8 @@ import Cardano.Wallet.CoinSelection.Internal.Balance
     )
 import Cardano.Wallet.CoinSelection.Internal.Collateral
     ( SelectionCollateralError )
+import Cardano.Wallet.Primitive.Collateral
+    ( asCollateral )
 import Cardano.Wallet.Primitive.Types.Coin
     ( Coin (..) )
 import Cardano.Wallet.Primitive.Types.TokenBundle
@@ -84,7 +85,11 @@ import Cardano.Wallet.Primitive.Types.TokenBundle
 import Cardano.Wallet.Primitive.Types.TokenMap
     ( TokenMap )
 import Cardano.Wallet.Primitive.Types.Tx
-    ( TxIn, TxOut (..) )
+    ( TokenBundleSizeAssessment, TxIn, TxOut (..) )
+import Cardano.Wallet.Primitive.Types.UTxO
+    ( UTxO (..) )
+import Cardano.Wallet.Primitive.Types.UTxOSelection
+    ( UTxOSelection )
 import Control.Monad.Random.Class
     ( MonadRandom (..) )
 import Control.Monad.Trans.Except
@@ -99,16 +104,131 @@ import GHC.Generics
     ( Generic )
 import GHC.Stack
     ( HasCallStack )
+import Numeric.Natural
+    ( Natural )
 
 import Prelude
 
 import qualified Cardano.Wallet.CoinSelection.Internal as Internal
 import qualified Cardano.Wallet.Primitive.Types.TokenBundle as TokenBundle
+import qualified Cardano.Wallet.Primitive.Types.UTxO as UTxO
 import qualified Data.Foldable as F
+import qualified Data.Map.Strict as Map
 import qualified Data.Set as Set
 
 --------------------------------------------------------------------------------
--- Types
+-- Selection constraints
+--------------------------------------------------------------------------------
+
+-- | Specifies all constraints required for coin selection.
+--
+-- Selection constraints:
+--
+--    - are dependent on the current set of protocol parameters.
+--
+--    - are not specific to a given selection.
+--
+--    - place limits on the coin selection algorithm, enabling it to produce
+--      selections that are acceptable to the ledger.
+--
+data SelectionConstraints = SelectionConstraints
+    { assessTokenBundleSize
+        :: TokenBundle -> TokenBundleSizeAssessment
+        -- ^ Assesses the size of a token bundle relative to the upper limit of
+        -- what can be included in a transaction output. See documentation for
+        -- the 'TokenBundleSizeAssessor' type to learn about the expected
+        -- properties of this field.
+    , certificateDepositAmount
+        :: Coin
+        -- ^ Amount that should be taken from/returned back to the wallet for
+        -- each stake key registration/de-registration in the transaction.
+    , computeMinimumAdaQuantity
+        :: TokenMap -> Coin
+        -- ^ Computes the minimum ada quantity required for a given output.
+    , computeMinimumCost
+        :: SelectionSkeleton -> Coin
+        -- ^ Computes the minimum cost of a given selection skeleton.
+    , computeSelectionLimit
+        :: [TxOut] -> SelectionLimit
+        -- ^ Computes an upper bound for the number of ordinary inputs to
+        -- select, given a current set of outputs.
+    , maximumCollateralInputCount
+        :: Int
+        -- ^ Specifies an inclusive upper bound on the number of unique inputs
+        -- that can be selected as collateral.
+    , minimumCollateralPercentage
+        :: Natural
+        -- ^ Specifies the minimum required amount of collateral as a
+        -- percentage of the total transaction fee.
+    }
+    deriving Generic
+
+toInternalSelectionConstraints
+    :: SelectionConstraints -> Internal.SelectionConstraints
+toInternalSelectionConstraints SelectionConstraints {..} =
+    Internal.SelectionConstraints {..}
+
+--------------------------------------------------------------------------------
+-- Selection parameters
+--------------------------------------------------------------------------------
+
+-- | Specifies all parameters that are specific to a given selection.
+--
+data SelectionParams = SelectionParams
+    { assetsToBurn
+        :: !TokenMap
+        -- ^ Specifies a set of assets to burn.
+    , assetsToMint
+        :: !TokenMap
+        -- ^ Specifies a set of assets to mint.
+    , extraCoinIn
+        :: !Coin
+       -- ^ Specifies extra 'Coin' in.
+    , extraCoinOut
+        :: !Coin
+        -- ^ Specifies extra 'Coin' out.
+    , outputsToCover
+        :: ![TxOut]
+        -- ^ Specifies a set of outputs that must be paid for.
+    , rewardWithdrawal
+        :: !Coin
+        -- ^ Specifies the value of a withdrawal from a reward account.
+    , certificateDepositsTaken
+        :: !Natural
+        -- ^ Number of deposits for stake key registrations.
+    , certificateDepositsReturned
+        :: !Natural
+        -- ^ Number of deposits from stake key de-registrations.
+    , collateralRequirement
+        :: !SelectionCollateralRequirement
+        -- ^ Specifies the collateral requirement for this selection.
+    , utxoAvailableForCollateral
+        :: !UTxO
+        -- ^ Specifies a set of UTxOs that are available for selection as
+        -- collateral inputs.
+        --
+        -- This set is allowed to intersect with 'utxoAvailableForInputs',
+        -- since the ledger does not require that these sets are disjoint.
+    , utxoAvailableForInputs
+        :: !UTxOSelection
+        -- ^ Specifies a set of UTxOs that are available for selection as
+        -- ordinary inputs and optionally, a subset that has already been
+        -- selected.
+        --
+        -- Further entries from this set will be selected to cover any deficit.
+    }
+    deriving (Eq, Generic, Show)
+
+toInternalSelectionParams :: SelectionParams -> Internal.SelectionParams
+toInternalSelectionParams SelectionParams {..} =
+    Internal.SelectionParams
+        { utxoAvailableForCollateral =
+            Map.mapMaybe asCollateral $ unUTxO utxoAvailableForCollateral
+        , ..
+        }
+
+--------------------------------------------------------------------------------
+-- Selections
 --------------------------------------------------------------------------------
 
 -- | Represents a balanced selection.
@@ -147,9 +267,15 @@ data SelectionOf change = Selection
 --
 type Selection = SelectionOf TokenBundle
 
-toExternalSelection :: Internal.Selection -> Selection
-toExternalSelection Internal.Selection {..} =
-    Selection {..}
+toExternalSelection :: SelectionParams -> Internal.Selection -> Selection
+toExternalSelection ps Internal.Selection {..} =
+    Selection
+        { collateral = Map.toList $ unUTxO $
+            view #utxoAvailableForCollateral ps
+            `UTxO.restrictedBy`
+            Set.fromList (fst <$> collateral)
+        , ..
+        }
 
 toInternalSelection
     :: (change -> TokenBundle)
@@ -158,6 +284,7 @@ toInternalSelection
 toInternalSelection getChangeBundle Selection {..} =
     Internal.Selection
         { change = getChangeBundle <$> change
+        , collateral = fmap (view (#tokens . #coin)) <$> collateral
         , ..
         }
 
@@ -182,7 +309,10 @@ performSelection
     -> SelectionParams
     -> ExceptT SelectionError m Selection
 performSelection cs ps =
-    toExternalSelection <$> Internal.performSelection cs ps
+    toExternalSelection ps <$>
+    Internal.performSelection
+        (toInternalSelectionConstraints cs)
+        (toInternalSelectionParams ps)
 
 --------------------------------------------------------------------------------
 -- Selection deltas
