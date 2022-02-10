@@ -75,9 +75,13 @@ class BorsStats < Thor
     nSucc = comments[:filtered].filter { |x| x.succeeded }.length
     nFailed = nTot - nSucc
 
+    # this logic could be moved to the `breakdown` function.
+    nFailedNoCause = comments[:filtered].filter { |c| (not c.succeeded) and c.causes.empty? }.length
+
     puts ""
     puts "succeeded: " + (bold nSucc.to_s) + " failed: " + (bold nFailed.to_s) + " (" + (bold (failure_rate(nFailed, nTot))) + ") total: " + (bold nTot.to_s)
     puts "Excluding " + nExcluded.to_s + " #expected or #duplicate failures"
+    puts "Unclassified: " + (bold nFailedNoCause.to_s) + " (" + (bold (failure_rate(nFailedNoCause, nFailed))) + " of all failures)"
     puts ""
     puts "Broken down by tags/issues:"
     breakdown(comments[:filtered],tm).each do |k,v|
@@ -154,7 +158,7 @@ end
 # build.
 BorsComment = Struct.new(:url, :bodyText, :links, :createdAt, :tags, :succeeded) do
   def causes
-    self.tags.filter {|x| x.start_with? "#" }
+    self.tags.filter {|x| x != "hydra" and x != "buildkite" } # HACK; works for now
   end
 
   def pretty(showDetails = :auto)
