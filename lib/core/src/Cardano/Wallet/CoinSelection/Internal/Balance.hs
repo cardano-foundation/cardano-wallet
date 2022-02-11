@@ -228,7 +228,7 @@ data SelectionConstraints = SelectionConstraints
         :: SelectionSkeleton -> Coin
         -- ^ Computes the minimum cost of a given selection skeleton.
     , computeSelectionLimit
-        :: [TxOut] -> SelectionLimit
+        :: [(Address, TokenBundle)] -> SelectionLimit
         -- ^ Computes an upper bound for the number of ordinary inputs to
         -- select, given a current set of outputs.
     }
@@ -876,7 +876,9 @@ performSelectionNonEmpty constraints params
             }
 
     selectionLimit :: SelectionLimit
-    selectionLimit = computeSelectionLimit (F.toList outputsToCover)
+    selectionLimit = computeSelectionLimit $
+        (view #address &&& view #tokens)
+            <$> (F.toList outputsToCover)
 
     utxoBalanceAvailable :: TokenBundle
     utxoBalanceAvailable = computeUTxOBalanceAvailable params

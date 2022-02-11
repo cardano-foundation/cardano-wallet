@@ -56,6 +56,8 @@ import Cardano.Wallet.CoinSelection.Internal.BalanceSpec
     )
 import Cardano.Wallet.CoinSelection.Internal.Collateral
     ( SelectionCollateralErrorOf (..) )
+import Cardano.Wallet.Primitive.Types.Address
+    ( Address )
 import Cardano.Wallet.Primitive.Types.Address.Gen
     ( genAddress )
 import Cardano.Wallet.Primitive.Types.Coin
@@ -78,6 +80,8 @@ import Cardano.Wallet.Primitive.Types.UTxOSelection
     ( UTxOSelection )
 import Cardano.Wallet.Primitive.Types.UTxOSelection.Gen
     ( genUTxOSelection, shrinkUTxOSelection )
+import Control.Arrow
+    ( (&&&) )
 import Control.Monad
     ( forM_ )
 import Control.Monad.Trans.Except
@@ -393,21 +397,21 @@ prop_toBalanceConstraintsParams_computeSelectionLimit mockConstraints params =
     maximumCollateralInputCount :: Int
     maximumCollateralInputCount = constraints ^. #maximumCollateralInputCount
 
-    computeSelectionLimitOriginal :: [TxOut] -> SelectionLimit
+    computeSelectionLimitOriginal :: [(Address, TokenBundle)] -> SelectionLimit
     computeSelectionLimitOriginal = constraints ^. #computeSelectionLimit
 
-    computeSelectionLimitAdjusted :: [TxOut] -> SelectionLimit
+    computeSelectionLimitAdjusted :: [(Address, TokenBundle)] -> SelectionLimit
     computeSelectionLimitAdjusted =
         toBalanceConstraintsParams (constraints, params)
             & fst & view #computeSelectionLimit
 
     selectionLimitOriginal :: SelectionLimit
-    selectionLimitOriginal = computeSelectionLimitOriginal
-        (params ^. #outputsToCover)
+    selectionLimitOriginal = computeSelectionLimitOriginal $
+        (view #address &&& view #tokens) <$> (params ^. #outputsToCover)
 
     selectionLimitAdjusted :: SelectionLimit
-    selectionLimitAdjusted = computeSelectionLimitAdjusted
-        (params ^. #outputsToCover)
+    selectionLimitAdjusted = computeSelectionLimitAdjusted $
+        (view #address &&& view #tokens) <$> (params ^. #outputsToCover)
 
 --------------------------------------------------------------------------------
 -- Preparing outputs

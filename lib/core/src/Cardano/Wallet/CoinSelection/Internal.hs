@@ -87,6 +87,8 @@ import Cardano.Wallet.Primitive.Types.Tx
     ( TokenBundleSizeAssessment (..), TxIn, TxOut (..), txOutMaxTokenQuantity )
 import Cardano.Wallet.Primitive.Types.UTxOSelection
     ( UTxOSelection )
+import Control.Arrow
+    ( (&&&) )
 import Control.Monad
     ( (<=<) )
 import Control.Monad.Random.Class
@@ -162,7 +164,7 @@ data SelectionConstraints = SelectionConstraints
         :: SelectionSkeleton -> Coin
         -- ^ Computes the minimum cost of a given selection skeleton.
     , computeSelectionLimit
-        :: [TxOut] -> SelectionLimit
+        :: [(Address, TokenBundle)] -> SelectionLimit
         -- ^ Computes an upper bound for the number of ordinary inputs to
         -- select, given a current set of outputs.
     , maximumCollateralInputCount
@@ -396,8 +398,8 @@ toBalanceConstraintsParams (constraints, params) =
                 (+ view #maximumCollateralInputCount constraints)
 
         adjustComputeSelectionLimit
-            :: ([TxOut] -> SelectionLimit)
-            -> ([TxOut] -> SelectionLimit)
+            :: ([(Address, TokenBundle)] -> SelectionLimit)
+            -> ([(Address, TokenBundle)] -> SelectionLimit)
         adjustComputeSelectionLimit =
             whenCollateralRequired params (fmap adjustSelectionLimit)
           where
@@ -728,7 +730,9 @@ verifySelectionInputCountWithinLimit cs _ps selection =
     collateralInputCount = length (selection ^. #collateral)
     ordinaryInputCount = length (selection ^. #inputs)
     totalInputCount = collateralInputCount + ordinaryInputCount
-    selectionLimit = (cs ^. #computeSelectionLimit) (selection ^. #outputs)
+    selectionLimit =
+        (cs ^. #computeSelectionLimit)
+        ((view #address &&& view #tokens) <$> (selection ^. #outputs))
 
 --------------------------------------------------------------------------------
 -- Selection verification: minimum ada quantities
@@ -949,12 +953,20 @@ verifySelectionLimitReachedError cs ps e =
     selectionLimitAdjusted = toBalanceConstraintsParams (cs, ps)
         & fst
         & view #computeSelectionLimit
-        & ($ F.toList $ e ^. #outputsToCover)
+        & (
+            $ fmap (view #address &&& view #tokens)
+            $ F.toList
+            $ e ^. #outputsToCover
+          )
 
     selectionLimitOriginal :: SelectionLimit
     selectionLimitOriginal = cs
         & view #computeSelectionLimit
-        & ($ F.toList $ e ^. #outputsToCover)
+        & (
+            $ fmap (view #address &&& view #tokens)
+            $ F.toList
+            $ e ^. #outputsToCover
+          )
 
 --------------------------------------------------------------------------------
 -- Selection error verification: change construction errors

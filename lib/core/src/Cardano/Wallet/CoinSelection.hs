@@ -170,6 +170,8 @@ toInternalSelectionConstraints SelectionConstraints {..} =
     Internal.SelectionConstraints
         { computeMinimumCost =
             computeMinimumCost . toExternalSelectionSkeleton
+        , computeSelectionLimit =
+            computeSelectionLimit . fmap (uncurry TxOut)
         , ..
         }
 

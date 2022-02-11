@@ -146,6 +146,8 @@ import Cardano.Wallet.Primitive.Types.UTxOSelection
     ( UTxOSelection, UTxOSelectionNonEmpty )
 import Cardano.Wallet.Primitive.Types.UTxOSelection.Gen
     ( genUTxOSelection, shrinkUTxOSelection )
+import Control.Arrow
+    ( (&&&) )
 import Control.Monad
     ( forM_, replicateM )
 import Data.Bifunctor
@@ -739,7 +741,7 @@ prop_performSelection_small mockConstraints (Blind (Small params)) =
     selectionLimit :: SelectionLimit
     selectionLimit = view #computeSelectionLimit constraints
         $ F.toList
-        $ view #outputsToCover params
+        $ (view #address &&& view #tokens) <$> (view #outputsToCover params)
 
     selectionLimited :: Bool
     selectionLimited = case selectionLimit of
@@ -1041,7 +1043,7 @@ prop_performSelection mockConstraints params coverage =
         property True
 
     selectionLimit = view #computeSelectionLimit constraints $
-        F.toList outputsToCover
+        (view #address &&& view #tokens) <$> F.toList outputsToCover
     utxoBalanceAvailable = computeUTxOBalanceAvailable params
     utxoBalanceRequired = computeUTxOBalanceRequired params
     utxoBalanceSufficiencyInfo = computeUTxOBalanceSufficiencyInfo params
@@ -2169,7 +2171,8 @@ shrinkMockComputeSelectionLimit = \case
         MockComputeSelectionLimit <$> filter (> 0) (shrink n)
 
 unMockComputeSelectionLimit
-    :: MockComputeSelectionLimit -> ([TxOut] -> SelectionLimit)
+    :: MockComputeSelectionLimit
+    -> ([(Address, TokenBundle)] -> SelectionLimit)
 unMockComputeSelectionLimit = \case
     MockComputeSelectionLimitNone ->
         const NoLimit
