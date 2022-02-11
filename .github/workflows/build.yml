@@ -76,6 +76,22 @@ jobs:
           name: ${{ env.cachix_name }}
           authToken: ${{ secrets.CACHIX_AUTH_TOKEN }}
 
+      - name: 'Check auto-generated Nix'
+        run: |
+          ./nix/regenerate.sh
+
+          if git diff --quiet --exit-code; then
+            echo "Auto-generated nix files are up-to-date."
+          else
+            printf "Auto-generated nix files need to be updated like this:\n\n"
+            git --no-pager diff
+            printf "\nPushing updated files back to branch...\n"
+            git config --local user.name 'github-actions[bot]'
+            git config --local user.email 'github-actions[bot]@users.noreply.github.com'
+            git commit -am "Regenerate nix"
+            git push
+          fi
+
       - name: '❄ Install dependencies'
         run: |
           develop_env="$GITHUB_WORKSPACE/develop.env"
@@ -90,12 +106,6 @@ jobs:
 
       - name: 'Validate OpenAPI Specification'
         run: 'nix develop --command openapi-spec-validator --schema 3.0.0 specifications/api/swagger.yaml'
-
-      - name: 'Check auto-generated Nix'
-        run: |
-          ./nix/regenerate.sh
-          # fixme: nicer error reporting, push changes back to branch
-          git diff --exit-code
 
       - name: 'Check Cabal Configure'
         run: 'nix develop .#cabal --command scripts/buildkite/cabal-ci.sh configure'
