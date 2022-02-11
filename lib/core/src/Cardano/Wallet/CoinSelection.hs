@@ -69,10 +69,8 @@ import Cardano.Wallet.CoinSelection.Internal.Balance
     , SelectionBalanceError (..)
     , SelectionLimit
     , SelectionLimitOf (..)
-    , SelectionSkeleton (..)
     , UnableToConstructChangeError (..)
     , balanceMissing
-    , emptySkeleton
     )
 import Cardano.Wallet.CoinSelection.Internal.Collateral
     ( SelectionCollateralError )
@@ -83,13 +81,15 @@ import Cardano.Wallet.Primitive.Types.Coin
 import Cardano.Wallet.Primitive.Types.TokenBundle
     ( TokenBundle )
 import Cardano.Wallet.Primitive.Types.TokenMap
-    ( TokenMap )
+    ( AssetId, TokenMap )
 import Cardano.Wallet.Primitive.Types.Tx
     ( TokenBundleSizeAssessment, TxIn, TxOut (..) )
 import Cardano.Wallet.Primitive.Types.UTxO
     ( UTxO (..) )
 import Cardano.Wallet.Primitive.Types.UTxOSelection
     ( UTxOSelection )
+import Control.Arrow
+    ( (&&&) )
 import Control.Monad.Random.Class
     ( MonadRandom (..) )
 import Control.Monad.Trans.Except
@@ -98,6 +98,8 @@ import Data.Generics.Internal.VL.Lens
     ( over, view )
 import Data.List.NonEmpty
     ( NonEmpty )
+import Data.Set
+    ( Set )
 import Fmt
     ( Buildable (..), genericF )
 import GHC.Generics
@@ -112,6 +114,7 @@ import Prelude
 import qualified Cardano.Wallet.CoinSelection.Internal as Internal
 import qualified Cardano.Wallet.Primitive.Types.TokenBundle as TokenBundle
 import qualified Cardano.Wallet.Primitive.Types.UTxO as UTxO
+import qualified Cardano.Wallet.Primitive.Types.UTxOSelection as UTxOSelection
 import qualified Data.Foldable as F
 import qualified Data.Map.Strict as Map
 import qualified Data.Set as Set
@@ -166,7 +169,13 @@ data SelectionConstraints = SelectionConstraints
 toInternalSelectionConstraints
     :: SelectionConstraints -> Internal.SelectionConstraints
 toInternalSelectionConstraints SelectionConstraints {..} =
-    Internal.SelectionConstraints {..}
+    Internal.SelectionConstraints
+        { computeMinimumCost =
+            computeMinimumCost . toExternalSelectionSkeleton
+        , computeSelectionLimit =
+            computeSelectionLimit . fmap (uncurry TxOut)
+        , ..
+        }
 
 --------------------------------------------------------------------------------
 -- Selection parameters
@@ -224,6 +233,49 @@ toInternalSelectionParams SelectionParams {..} =
     Internal.SelectionParams
         { utxoAvailableForCollateral =
             Map.mapMaybe asCollateral $ unUTxO utxoAvailableForCollateral
+        , outputsToCover =
+            (view #address &&& view #tokens) <$> outputsToCover
+        , ..
+        }
+
+--------------------------------------------------------------------------------
+-- Selection skeletons
+--------------------------------------------------------------------------------
+
+-- | A skeleton selection that can be used to estimate the cost of a final
+--   selection.
+--
+-- Change outputs are deliberately stripped of their asset quantities, as the
+-- fee estimation function must be agnostic to the magnitudes of these
+-- quantities.
+--
+-- Increasing or decreasing the quantity of a particular asset in a change
+-- output must not change the estimated cost of a selection.
+--
+data SelectionSkeleton = SelectionSkeleton
+    { skeletonInputCount
+        :: !Int
+    , skeletonOutputs
+        :: ![TxOut]
+    , skeletonChange
+        :: ![Set AssetId]
+    }
+    deriving (Eq, Generic, Show)
+
+-- | Creates an empty 'SelectionSkeleton'.
+--
+emptySkeleton :: SelectionSkeleton
+emptySkeleton = SelectionSkeleton
+    { skeletonInputCount = 0
+    , skeletonOutputs = mempty
+    , skeletonChange = mempty
+    }
+
+toExternalSelectionSkeleton :: Internal.SelectionSkeleton -> SelectionSkeleton
+toExternalSelectionSkeleton Internal.SelectionSkeleton {..} =
+    SelectionSkeleton
+        { skeletonOutputs =
+            uncurry TxOut <$> skeletonOutputs
         , ..
         }
 
@@ -270,12 +322,41 @@ type Selection = SelectionOf TokenBundle
 toExternalSelection :: SelectionParams -> Internal.Selection -> Selection
 toExternalSelection ps Internal.Selection {..} =
     Selection
-        { collateral = Map.toList $ unUTxO $
-            view #utxoAvailableForCollateral ps
-            `UTxO.restrictedBy`
-            Set.fromList (fst <$> collateral)
+        { collateral =
+            resolveInput utxoAvailableForCollateral . fst <$> collateral
+        , inputs =
+            resolveInput utxoAvailableForInputs . fst <$> inputs
+        , outputs =
+            uncurry TxOut <$> outputs
         , ..
         }
+  where
+    utxoAvailableForCollateral :: UTxO
+    utxoAvailableForCollateral = view #utxoAvailableForCollateral ps
+
+    utxoAvailableForInputs :: UTxO
+    utxoAvailableForInputs =
+        UTxOSelection.availableUTxO (view #utxoAvailableForInputs ps)
+
+    -- Resolves an input selected by the coin selection algorithm, using the
+    -- context provided by the external 'SelectionParams' object.
+    --
+    -- Failure to resolve an input indicates a programming error, since all
+    -- selected inputs should originate from the available UTxO sets provided
+    -- within 'SelectionParams'.
+    --
+    -- The post-condition check for 'performSelection' already tests this
+    -- property, but we check again here, since UTxO lookups can fail.
+    --
+    resolveInput :: UTxO -> TxIn -> (TxIn, TxOut)
+    resolveInput u i = case UTxO.lookup i u of
+        Just o -> (i, o)
+        Nothing -> error $ unwords
+            [ "toExternalSelection:"
+            , "resolveInput:"
+            , "Unexpected failure to resolve input:"
+            , show i
+            ]
 
 toInternalSelection
     :: (change -> TokenBundle)
@@ -285,6 +366,8 @@ toInternalSelection getChangeBundle Selection {..} =
     Internal.Selection
         { change = getChangeBundle <$> change
         , collateral = fmap (view (#tokens . #coin)) <$> collateral
+        , inputs = fmap (view #tokens) <$> inputs
+        , outputs = (view #address &&& view #tokens) <$> outputs
         , ..
         }
 

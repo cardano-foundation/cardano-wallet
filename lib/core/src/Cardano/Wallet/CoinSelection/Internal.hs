@@ -7,6 +7,7 @@
 {-# LANGUAGE OverloadedLabels #-}
 {-# LANGUAGE RecordWildCards #-}
 {-# LANGUAGE StandaloneDeriving #-}
+{-# LANGUAGE TupleSections #-}
 
 -- |
 -- Copyright: © 2021 IOHK
@@ -24,6 +25,7 @@ module Cardano.Wallet.CoinSelection.Internal
     , SelectionConstraints (..)
     , SelectionError (..)
     , SelectionParams (..)
+    , SelectionSkeleton (..)
 
     -- * Output preparation
     , prepareOutputsWith
@@ -161,7 +163,7 @@ data SelectionConstraints = SelectionConstraints
         :: SelectionSkeleton -> Coin
         -- ^ Computes the minimum cost of a given selection skeleton.
     , computeSelectionLimit
-        :: [TxOut] -> SelectionLimit
+        :: [(Address, TokenBundle)] -> SelectionLimit
         -- ^ Computes an upper bound for the number of ordinary inputs to
         -- select, given a current set of outputs.
     , maximumCollateralInputCount
@@ -191,7 +193,7 @@ data SelectionParams = SelectionParams
         :: !Coin
         -- ^ Specifies extra 'Coin' out.
     , outputsToCover
-        :: ![TxOut]
+        :: ![(Address, TokenBundle)]
         -- ^ Specifies a set of outputs that must be paid for.
     , rewardWithdrawal
         :: !Coin
@@ -237,13 +239,13 @@ data SelectionError
 --
 data Selection = Selection
     { inputs
-        :: !(NonEmpty (TxIn, TxOut))
+        :: !(NonEmpty (TxIn, TokenBundle))
         -- ^ Selected inputs.
     , collateral
         :: ![(TxIn, Coin)]
         -- ^ Selected collateral inputs.
     , outputs
-        :: ![TxOut]
+        :: ![(Address, TokenBundle)]
         -- ^ User-specified outputs
     , change
         :: ![TokenBundle]
@@ -339,10 +341,10 @@ performSelectionCollateral balanceResult cs ps
 -- Since change outputs do not have addresses at the point of generation,
 -- this function assigns all change outputs with a dummy change address.
 --
-selectionAllOutputs :: Selection -> [TxOut]
+selectionAllOutputs :: Selection -> [(Address, TokenBundle)]
 selectionAllOutputs selection = (<>)
     (selection ^. #outputs)
-    (selection ^. #change <&> TxOut dummyChangeAddress)
+    (selection ^. #change <&> (dummyChangeAddress, ))
   where
     dummyChangeAddress :: Address
     dummyChangeAddress = Address "<change>"
@@ -395,8 +397,8 @@ toBalanceConstraintsParams (constraints, params) =
                 (+ view #maximumCollateralInputCount constraints)
 
         adjustComputeSelectionLimit
-            :: ([TxOut] -> SelectionLimit)
-            -> ([TxOut] -> SelectionLimit)
+            :: ([(Address, TokenBundle)] -> SelectionLimit)
+            -> ([(Address, TokenBundle)] -> SelectionLimit)
         adjustComputeSelectionLimit =
             whenCollateralRequired params (fmap adjustSelectionLimit)
           where
@@ -740,7 +742,7 @@ newtype FailureToVerifySelectionOutputCoinsSufficient =
 
 data SelectionOutputCoinInsufficientError = SelectionOutputCoinInsufficientError
     { minimumExpectedCoin :: Coin
-    , output :: TxOut
+    , output :: (Address, TokenBundle)
     }
     deriving (Eq, Show)
 
@@ -751,9 +753,11 @@ verifySelectionOutputCoinsSufficient cs _ps selection =
     errors :: [SelectionOutputCoinInsufficientError]
     errors = mapMaybe maybeError (selectionAllOutputs selection)
 
-    maybeError :: TxOut -> Maybe SelectionOutputCoinInsufficientError
+    maybeError
+        :: (Address, TokenBundle)
+        -> Maybe SelectionOutputCoinInsufficientError
     maybeError output
-        | output ^. (#tokens . #coin) < minimumExpectedCoin =
+        | snd output ^. #coin < minimumExpectedCoin =
             Just SelectionOutputCoinInsufficientError
                 {minimumExpectedCoin, output}
         | otherwise =
@@ -762,7 +766,7 @@ verifySelectionOutputCoinsSufficient cs _ps selection =
         minimumExpectedCoin :: Coin
         minimumExpectedCoin =
             (cs ^. #computeMinimumAdaQuantity)
-            (output ^. (#tokens . #tokens))
+            (snd output ^. #tokens)
 
 --------------------------------------------------------------------------------
 -- Selection verification: output sizes
@@ -1316,8 +1320,8 @@ computeMinimumCollateral params =
 --
 prepareOutputsInternal
     :: SelectionConstraints
-    -> [TxOut]
-    -> Either SelectionOutputError [TxOut]
+    -> [(Address, TokenBundle)]
+    -> Either SelectionOutputError [(Address, TokenBundle)]
 prepareOutputsInternal constraints outputsUnprepared
     | e : _ <- excessivelyLargeBundles =
         Left $
@@ -1363,9 +1367,13 @@ prepareOutputsInternal constraints outputsUnprepared
 -- quantity manually for each non-ada output. That quantity is the minimum
 -- quantity required to make a particular output valid.
 --
-prepareOutputsWith :: Functor f => (TokenMap -> Coin) -> f TxOut -> f TxOut
+prepareOutputsWith
+    :: Functor f
+    => (TokenMap -> Coin)
+    -> f (Address, TokenBundle)
+    -> f (Address, TokenBundle)
 prepareOutputsWith minCoinValueFor =
-    fmap $ over #tokens augmentBundle
+    fmap $ fmap augmentBundle
   where
     augmentBundle :: TokenBundle -> TokenBundle
     augmentBundle bundle
@@ -1396,17 +1404,17 @@ newtype SelectionOutputSizeExceedsLimitError =
 --
 verifyOutputSize
     :: SelectionConstraints
-    -> TxOut
+    -> (Address, TokenBundle)
     -> Maybe SelectionOutputSizeExceedsLimitError
 verifyOutputSize cs out
     | withinLimit =
         Nothing
     | otherwise =
-        Just $ SelectionOutputSizeExceedsLimitError out
+        Just $ SelectionOutputSizeExceedsLimitError (uncurry TxOut out)
   where
     withinLimit :: Bool
     withinLimit =
-        case (cs ^. #assessTokenBundleSize) (out ^. #tokens) of
+        case (cs ^. #assessTokenBundleSize) (snd out) of
             TokenBundleSizeWithinLimit -> True
             TokenBundleSizeExceedsLimit -> False
 
@@ -1432,11 +1440,11 @@ data SelectionOutputTokenQuantityExceedsLimitError =
 -- protocol.
 --
 verifyOutputTokenQuantities
-    :: TxOut -> [SelectionOutputTokenQuantityExceedsLimitError]
+    :: (Address, TokenBundle) -> [SelectionOutputTokenQuantityExceedsLimitError]
 verifyOutputTokenQuantities out =
     [ SelectionOutputTokenQuantityExceedsLimitError
         {address, asset, quantity, quantityMaxBound = txOutMaxTokenQuantity}
-    | let address = out ^. #address
-    , (asset, quantity) <- TokenMap.toFlatList $ out ^. #tokens . #tokens
+    | let address = fst out
+    , (asset, quantity) <- TokenMap.toFlatList $ (snd out) ^. #tokens
     , quantity > txOutMaxTokenQuantity
     ]
