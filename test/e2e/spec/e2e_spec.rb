@@ -271,7 +271,6 @@ RSpec.describe "Cardano Wallet E2E tests", :e2e => true do
       tx_signed = SHELLEY.transactions.sign(@wid, PASS, tx_constructed['transaction'])
       tx_submitted = SHELLEY.transactions.submit(@wid, tx_signed['transaction'])
       tx_id = tx_submitted['id']
-      expect(SHELLEY.transactions.get(@wid, tx_id)['status']).to eq 'pending'
 
       wait_for_tx_in_ledger(@wid, tx_id)
 
@@ -306,7 +305,6 @@ RSpec.describe "Cardano Wallet E2E tests", :e2e => true do
       tx_submitted = SHELLEY.transactions.submit(@wid, tx_signed['transaction'])
       expect(tx_submitted).to be_correct_and_respond 202
       tx_id = tx_submitted['id']
-      expect(SHELLEY.transactions.get(@wid, tx_id)['status']).to eq 'pending'
 
       wait_for_tx_in_ledger(@wid, tx_id)
 
@@ -348,7 +346,6 @@ RSpec.describe "Cardano Wallet E2E tests", :e2e => true do
       tx_submitted = SHELLEY.transactions.submit(@wid, tx_signed['transaction'])
       expect(tx_submitted).to be_correct_and_respond 202
       tx_id = tx_submitted['id']
-      expect(SHELLEY.transactions.get(@wid, tx_id)['status']).to eq 'pending'
 
       wait_for_tx_in_ledger(@wid, tx_id)
 
@@ -396,7 +393,6 @@ RSpec.describe "Cardano Wallet E2E tests", :e2e => true do
       tx_submitted = SHELLEY.transactions.submit(@wid, tx_signed['transaction'])
       expect(tx_submitted).to be_correct_and_respond 202
       tx_id = tx_submitted['id']
-      expect(SHELLEY.transactions.get(@wid, tx_id)['status']).to eq 'pending'
 
       wait_for_tx_in_ledger(@wid, tx_id)
 
@@ -434,7 +430,6 @@ RSpec.describe "Cardano Wallet E2E tests", :e2e => true do
       tx_submitted = SHELLEY.transactions.submit(@wid, tx_signed['transaction'])
       expect(tx_submitted).to be_correct_and_respond 202
       tx_id = tx_submitted['id']
-      expect(SHELLEY.transactions.get(@wid, tx_id)['status']).to eq 'pending'
 
       wait_for_tx_in_ledger(@wid, tx_id)
 
@@ -467,7 +462,6 @@ RSpec.describe "Cardano Wallet E2E tests", :e2e => true do
       tx_submitted = SHELLEY.transactions.submit(@wid, tx_signed['transaction'])
       expect(tx_submitted).to be_correct_and_respond 202
       tx_id = tx_submitted['id']
-      expect(SHELLEY.transactions.get(@wid, tx_id)['status']).to eq 'pending'
 
       wait_for_tx_in_ledger(@wid, tx_id)
 
@@ -1245,7 +1239,6 @@ RSpec.describe "Cardano Wallet E2E tests", :e2e => true do
       tx_submitted = SHELLEY.transactions.submit(@wid, tx_signed['transaction'])
       expect(tx_submitted).to be_correct_and_respond 202
       tx_id = tx_submitted['id']
-      expect(SHELLEY.transactions.get(@wid, tx_id)['status']).to eq 'pending'
 
       wait_for_tx_in_ledger(@wid, tx_id)
 
