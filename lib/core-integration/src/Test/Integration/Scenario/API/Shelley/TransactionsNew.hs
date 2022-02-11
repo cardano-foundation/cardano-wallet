@@ -2775,9 +2775,15 @@ spec = describe "NEW_SHELLEY_TRANSACTIONS" $ do
                     }
                 }]
             }|]
-        unsignedTx1 <- getFromResponse #transaction
-            <$> request @(ApiConstructTransaction n) ctx
+        rUnsignedTx1 <- request @(ApiConstructTransaction n) ctx
             (Link.createUnsignedTransaction @'Shelley w) Default payload
+        let unsignedTx1 = getFromResponse #transaction rUnsignedTx1
+        verify rUnsignedTx1
+            [ expectField (#coinSelection . #depositsReturned)
+                (`shouldBe` [])
+            , expectField (#coinSelection . #depositsTaken)
+                (`shouldBe` []) -- key already registered
+            ]
         signedTx1 <- signTx ctx w unsignedTx1 [ expectResponseCode HTTP.status202 ]
         submitTxWithWid ctx w signedTx1 >>= flip verify
             [ expectSuccess
@@ -2794,9 +2800,15 @@ spec = describe "NEW_SHELLEY_TRANSACTIONS" $ do
                 }],
                 "withdrawal": "self"
             }|]
-        unsignedTx2 <- getFromResponse (#transaction)
-            <$> request @(ApiConstructTransaction n) ctx
+        rUnsignedTx2 <- request @(ApiConstructTransaction n) ctx
             (Link.createUnsignedTransaction @'Shelley w) Default payload2
+        let unsignedTx2 = getFromResponse #transaction rUnsignedTx2
+        verify rUnsignedTx2
+            [ expectField (#coinSelection . #depositsReturned)
+                (`shouldBe` [Quantity 1000000])
+            , expectField (#coinSelection . #depositsTaken)
+                (`shouldBe` [])
+            ]
         signedTx2 <- signTx ctx w unsignedTx2 [ expectResponseCode HTTP.status202 ]
         submitTxWithWid ctx w signedTx2 >>= flip verify
             [ expectSuccess

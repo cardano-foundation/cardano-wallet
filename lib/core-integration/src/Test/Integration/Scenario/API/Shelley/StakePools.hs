@@ -534,10 +534,17 @@ spec = describe "SHELLEY_STAKE_POOLS" $ do
                 ctx (Link.listStakePools arbitraryStake) Empty
         joinStakePool @n ctx pool (w, fixturePassphrase) >>= flip verify
             [ expectResponseCode HTTP.status202
+            , expectField #depositTaken (`shouldBe` (Quantity 0))
+            , expectField #depositReturned (`shouldBe` (Quantity 0))
             ]
         waitForTxImmutability ctx
         quitStakePool @n ctx (w, fixturePassphrase) >>= flip verify
             [ expectResponseCode HTTP.status202
+            , expectField #depositTaken (`shouldBe` (Quantity 0))
+            , expectField #depositReturned
+                (`shouldBe` (Quantity 0))
+                    -- FIXME: We would expect 1000000 here;
+                    -- seems like a bug!
             ]
 
     it "STAKE_POOLS_JOIN_01 - Can rejoin another stakepool" $ \ctx -> runResourceT $ do
