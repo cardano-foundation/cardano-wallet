@@ -24,6 +24,7 @@ module Cardano.Wallet.CoinSelection.Internal
     , SelectionConstraints (..)
     , SelectionError (..)
     , SelectionParams (..)
+    , SelectionSkeleton (..)
 
     -- * Output preparation
     , prepareOutputsWith

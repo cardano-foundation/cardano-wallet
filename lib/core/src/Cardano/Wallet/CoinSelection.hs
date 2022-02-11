@@ -69,10 +69,8 @@ import Cardano.Wallet.CoinSelection.Internal.Balance
     , SelectionBalanceError (..)
     , SelectionLimit
     , SelectionLimitOf (..)
-    , SelectionSkeleton (..)
     , UnableToConstructChangeError (..)
     , balanceMissing
-    , emptySkeleton
     )
 import Cardano.Wallet.CoinSelection.Internal.Collateral
     ( SelectionCollateralError )
@@ -83,7 +81,7 @@ import Cardano.Wallet.Primitive.Types.Coin
 import Cardano.Wallet.Primitive.Types.TokenBundle
     ( TokenBundle )
 import Cardano.Wallet.Primitive.Types.TokenMap
-    ( TokenMap )
+    ( AssetId, TokenMap )
 import Cardano.Wallet.Primitive.Types.Tx
     ( TokenBundleSizeAssessment, TxIn, TxOut (..) )
 import Cardano.Wallet.Primitive.Types.UTxO
@@ -98,6 +96,8 @@ import Data.Generics.Internal.VL.Lens
     ( over, view )
 import Data.List.NonEmpty
     ( NonEmpty )
+import Data.Set
+    ( Set )
 import Fmt
     ( Buildable (..), genericF )
 import GHC.Generics
@@ -167,7 +167,11 @@ data SelectionConstraints = SelectionConstraints
 toInternalSelectionConstraints
     :: SelectionConstraints -> Internal.SelectionConstraints
 toInternalSelectionConstraints SelectionConstraints {..} =
-    Internal.SelectionConstraints {..}
+    Internal.SelectionConstraints
+        { computeMinimumCost =
+            computeMinimumCost . toExternalSelectionSkeleton
+        , ..
+        }
 
 --------------------------------------------------------------------------------
 -- Selection parameters
@@ -227,6 +231,43 @@ toInternalSelectionParams SelectionParams {..} =
             Map.mapMaybe asCollateral $ unUTxO utxoAvailableForCollateral
         , ..
         }
+
+--------------------------------------------------------------------------------
+-- Selection skeletons
+--------------------------------------------------------------------------------
+
+-- | A skeleton selection that can be used to estimate the cost of a final
+--   selection.
+--
+-- Change outputs are deliberately stripped of their asset quantities, as the
+-- fee estimation function must be agnostic to the magnitudes of these
+-- quantities.
+--
+-- Increasing or decreasing the quantity of a particular asset in a change
+-- output must not change the estimated cost of a selection.
+--
+data SelectionSkeleton = SelectionSkeleton
+    { skeletonInputCount
+        :: !Int
+    , skeletonOutputs
+        :: ![TxOut]
+    , skeletonChange
+        :: ![Set AssetId]
+    }
+    deriving (Eq, Generic, Show)
+
+-- | Creates an empty 'SelectionSkeleton'.
+--
+emptySkeleton :: SelectionSkeleton
+emptySkeleton = SelectionSkeleton
+    { skeletonInputCount = 0
+    , skeletonOutputs = mempty
+    , skeletonChange = mempty
+    }
+
+toExternalSelectionSkeleton :: Internal.SelectionSkeleton -> SelectionSkeleton
+toExternalSelectionSkeleton Internal.SelectionSkeleton {..} =
+    SelectionSkeleton {..}
 
 --------------------------------------------------------------------------------
 -- Selections

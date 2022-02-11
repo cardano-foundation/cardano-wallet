@@ -30,7 +30,6 @@ module Cardano.Wallet.CoinSelection.Internal.Balance
       PerformSelection
     , performSelection
     , performSelectionEmpty
-    , emptySkeleton
     , SelectionConstraints (..)
     , SelectionParams
     , SelectionParamsOf (..)
@@ -410,15 +409,6 @@ data SelectionSkeleton = SelectionSkeleton
         :: ![Set AssetId]
     }
     deriving (Eq, Generic, Show)
-
--- | Creates an empty 'SelectionSkeleton'.
---
-emptySkeleton :: SelectionSkeleton
-emptySkeleton = SelectionSkeleton
-    { skeletonInputCount = 0
-    , skeletonOutputs = mempty
-    , skeletonChange = mempty
-    }
 
 -- | Specifies a limit to adhere to when performing a selection.
 --
