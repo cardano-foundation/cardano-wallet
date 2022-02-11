@@ -13,5 +13,6 @@ let
     } // args);
 in
 {
-  basicTest = importTest ./service-basic-test.nix { };
+  # TODO: @jbgi Python dependencies of NixOS tests are broken
+  # basicTest = importTest ./service-basic-test.nix { };
 }
