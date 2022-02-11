@@ -402,6 +402,8 @@ spec = describe "SHELLEY_STAKE_POOLS" $ do
             [ expectResponseCode HTTP.status202
             , expectField (#status . #getApiT) (`shouldBe` Pending)
             , expectField (#direction . #getApiT) (`shouldBe` Incoming)
+            , expectField #depositTaken (`shouldBe` Quantity 0)
+            , expectField #depositReturned (`shouldBe` Quantity 1000000)
             ]
         let txid = getFromResponse Prelude.id rq
         let quitFeeAmt = getFromResponse #amount rq
@@ -542,9 +544,7 @@ spec = describe "SHELLEY_STAKE_POOLS" $ do
             [ expectResponseCode HTTP.status202
             , expectField #depositTaken (`shouldBe` (Quantity 0))
             , expectField #depositReturned
-                (`shouldBe` (Quantity 0))
-                    -- FIXME: We would expect 1000000 here;
-                    -- seems like a bug!
+                (`shouldBe` (Quantity 1000000))
             ]
 
     it "STAKE_POOLS_JOIN_01 - Can rejoin another stakepool" $ \ctx -> runResourceT $ do
