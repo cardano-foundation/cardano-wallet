@@ -50,9 +50,69 @@ However, these limitations are shared by all existing light wallets. In fact, so
 
 The implementation of light-mode is based on an efficient query `Address -> Transactions` which the blockchain data source provides. This query is useful to wallets that use *sequential address discovery* (Shelley wallets). These wallets work with a sequence of potential addresses `addr_0`, `addr_1`, `addr_2`, …. For each integer `n`, there is a deterministic procedure for generating the corresponding address `addr_n`. The wallet generates the first few addresses in this sequence and uses the above query to retrieve the corresponding transactions. When no transactions are found for `g` ("address gap") many consecutive addresses, the procedure stops — as the wallet never puts addresses with higher indices on the chain. In other words, this iterative loop yields all transactions that belong to the wallet.
 
+This procedure can be visualized in a flow chart:
+
+:::{.mermaid-container}
+```mermaid
+flowchart TB
+  start([begin]) --> init[j := 0]
+  init --> query[query addr_j]
+  query --> tx{transactions?}
+  tx -- no --> g{happened g times?}
+  tx -- yes --> add[j := j+1]
+  g -- yes ----> e([end])
+  g -- no --> add
+  add --> query
+```
+:::
+
 This procedure is implemented and demonstrated in the `light-mode-test` prototype.
 
 ## Functionality
+
+### Network topology
+
+In full-node mode, `cardano-wallet` connects to a local `cardano-node`: 
+
+:::{.mermaid-container}
+```mermaid
+flowchart TB
+  subgraph local system
+    cardano-launcher -. spawns .-> cardano-wallet
+    cardano-launcher -. spawns .-> cardano-node
+    cardano-wallet -- ChainSync --> cardano-node
+    cardano-wallet -- LocalTxSubmission --> cardano-node
+    cardano-wallet -- LocalStateQuery --> cardano-node
+  end
+  cardano-node -- syncs --> blockchain
+  subgraph internet
+    blockchain
+  end
+```
+:::
+
+In light-mode, `cardano-wallet` instead connects to the data source (e.g. `cardano-graphql` or [Blockfrost][]) and a transaction submission service trough the internet
+
+:::{.mermaid-container}
+```mermaid
+flowchart TB
+  cardano-launcher -. spawns .-> cardano-wallet
+  cardano-wallet -- query\nAddressTransactions --> cardano-graphql
+  cardano-wallet -- TxSubmission --> cardano-submit-api
+  
+  subgraph local system
+    cardano-launcher
+    cardano-wallet
+  end
+
+  subgraph internet
+    cardano-graphql --> n1[cardano-node]
+    cardano-submit-api --> n2[cardano-node]
+    n1 -- syncs --> blockchain
+    n2 -- syncs --> blockchain
+  end
+```
+:::
 
 ### Command line
 
