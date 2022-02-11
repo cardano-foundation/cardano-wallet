@@ -13,10 +13,16 @@ import Prelude
 
 import Cardano.Wallet.CoinSelection.Internal.Balance
     ( SelectionLimit, SelectionLimitOf (..), SelectionSkeleton (..) )
+import Cardano.Wallet.Primitive.Types.Address.Gen
+    ( genAddress, shrinkAddress )
+import Cardano.Wallet.Primitive.Types.Coin
+    ( Coin (..) )
+import Cardano.Wallet.Primitive.Types.TokenBundle
+    ( TokenBundle )
+import Cardano.Wallet.Primitive.Types.TokenBundle.Gen
+    ( genTokenBundleSmallRange, shrinkTokenBundleSmallRange )
 import Cardano.Wallet.Primitive.Types.TokenMap.Gen
     ( genAssetId, shrinkAssetId )
-import Cardano.Wallet.Primitive.Types.Tx.Gen
-    ( genTxOut, shrinkTxOut )
 import Generics.SOP
     ( NP (..) )
 import Test.QuickCheck
@@ -28,10 +34,12 @@ import Test.QuickCheck
     , shrink
     , shrinkList
     , shrinkMapBy
+    , suchThat
     )
 import Test.QuickCheck.Extra
     ( genericRoundRobinShrink, (<:>), (<@>) )
 
+import qualified Cardano.Wallet.Primitive.Types.TokenBundle as TokenBundle
 import qualified Data.Set as Set
 
 --------------------------------------------------------------------------------
@@ -64,7 +72,10 @@ genSelectionSkeleton = SelectionSkeleton
     genSkeletonInputCount =
         getNonNegative <$> arbitrary @(NonNegative Int)
     genSkeletonOutputs =
-        listOf genTxOut
+        listOf genSkeletonOutput
+    genSkeletonOutput = (,)
+        <$> genAddress
+        <*> genTokenBundleSmallRange `suchThat` tokenBundleHasNonZeroCoin
     genSkeletonChange =
         listOf (Set.fromList <$> listOf genAssetId)
 
@@ -78,7 +89,15 @@ shrinkSelectionSkeleton = genericRoundRobinShrink
     shrinkSkeletonInputCount =
         shrink @Int
     shrinkSkeletonOutputs =
-        shrinkList shrinkTxOut
+        shrinkList shrinkSkeletonOutput
+    shrinkSkeletonOutput =
+        genericRoundRobinShrink
+            <@> shrinkAddress
+            <:> filter tokenBundleHasNonZeroCoin . shrinkTokenBundleSmallRange
+            <:> Nil
     shrinkSkeletonChange =
         shrinkList $
         shrinkMapBy Set.fromList Set.toList (shrinkList shrinkAssetId)
+
+tokenBundleHasNonZeroCoin :: TokenBundle -> Bool
+tokenBundleHasNonZeroCoin b = TokenBundle.getCoin b /= Coin 0

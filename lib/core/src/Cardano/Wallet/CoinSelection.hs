@@ -267,7 +267,11 @@ emptySkeleton = SelectionSkeleton
 
 toExternalSelectionSkeleton :: Internal.SelectionSkeleton -> SelectionSkeleton
 toExternalSelectionSkeleton Internal.SelectionSkeleton {..} =
-    SelectionSkeleton {..}
+    SelectionSkeleton
+        { skeletonOutputs =
+            uncurry TxOut <$> skeletonOutputs
+        , ..
+        }
 
 --------------------------------------------------------------------------------
 -- Selections

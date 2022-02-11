@@ -146,6 +146,8 @@ import Cardano.Wallet.Primitive.Types.UTxOIndex
     ( SelectionFilter (..), UTxOIndex (..) )
 import Cardano.Wallet.Primitive.Types.UTxOSelection
     ( IsUTxOSelection, UTxOSelection, UTxOSelectionNonEmpty )
+import Control.Arrow
+    ( (&&&) )
 import Control.Monad.Extra
     ( andM )
 import Control.Monad.Random.Class
@@ -404,7 +406,7 @@ data SelectionSkeleton = SelectionSkeleton
     { skeletonInputCount
         :: !Int
     , skeletonOutputs
-        :: ![TxOut]
+        :: ![(Address, TokenBundle)]
     , skeletonChange
         :: ![Set AssetId]
     }
@@ -605,7 +607,9 @@ selectionSkeleton
     :: Foldable f => SelectionResultOf (f TxOut) -> SelectionSkeleton
 selectionSkeleton s = SelectionSkeleton
     { skeletonInputCount = F.length (view #inputsSelected s)
-    , skeletonOutputs = F.toList (view #outputsCovered s)
+    , skeletonOutputs =
+        (view #address &&& view #tokens)
+            <$> F.toList (view #outputsCovered s)
     , skeletonChange = TokenBundle.getAssets <$> view #changeGenerated s
     }
 
@@ -1040,7 +1044,9 @@ performSelectionNonEmpty constraints params
 
         requiredCost = computeMinimumCost SelectionSkeleton
             { skeletonInputCount = UTxOSelection.selectedSize s
-            , skeletonOutputs = NE.toList outputsToCover
+            , skeletonOutputs =
+                (view #address &&& view #tokens)
+                    <$> NE.toList outputsToCover
             , skeletonChange
             }
 

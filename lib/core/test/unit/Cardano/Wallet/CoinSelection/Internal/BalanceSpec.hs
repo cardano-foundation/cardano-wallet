@@ -2142,7 +2142,7 @@ computeMinimumCostLinear s
     = Coin
     $ fromIntegral
     $ skeletonInputCount s
-    + F.length (TokenMap.size . view (#tokens . #tokens) <$> skeletonOutputs s)
+    + F.length (TokenMap.size . view #tokens . snd <$> skeletonOutputs s)
     + F.sum (Set.size <$> skeletonChange s)
 
 --------------------------------------------------------------------------------
