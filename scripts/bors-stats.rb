@@ -61,6 +61,7 @@ class BorsStats < Thor
     :long_desc => "`--group #1 #2 #3` will replace #2 and #3 with #1."
 
   desc "list", "list all failures"
+  method_option :markdown_output, :type => :boolean, :required => false, :desc => "Create markdown links to issues"
   def list()
     comments = fetch_comments_with_options options
 
@@ -74,9 +75,13 @@ class BorsStats < Thor
     nSucc = comments[:filtered].filter { |x| x.succeeded }.length
     nFailed = nTot - nSucc
 
+    # this logic could be moved to the `breakdown` function.
+    nFailedNoCause = comments[:filtered].filter { |c| (not c.succeeded) and c.causes.empty? }.length
+
     puts ""
     puts "succeeded: " + (bold nSucc.to_s) + " failed: " + (bold nFailed.to_s) + " (" + (bold (failure_rate(nFailed, nTot))) + ") total: " + (bold nTot.to_s)
     puts "Excluding " + nExcluded.to_s + " #expected or #duplicate failures"
+    puts "Unclassified: " + (bold nFailedNoCause.to_s) + " (" + (bold (failure_rate(nFailedNoCause, nFailed))) + " of all failures)"
     puts ""
     puts "Broken down by tags/issues:"
     breakdown(comments[:filtered],tm).each do |k,v|
@@ -84,7 +89,14 @@ class BorsStats < Thor
       n = k[:n]
       title = tm.dig t, "title"
       title = title.nil? ? "" : title
-      puts (bold(n.to_s) + " times (" + bold(failure_rate(n, nTot)) + ") " + yellow(t) + " " + bold(title))
+
+      tag_str =
+        if options[:markdown_output] and is_issue? t
+          then "[" + t + "](https://github.com/input-output-hk/cardano-wallet/issues/" + t.delete_prefix("#") + ")"
+          else yellow t
+          end
+
+      puts (bold(n.to_s) + " times (" + bold(failure_rate(n, nTot)) + ") " + tag_str + " " + bold(title))
     end
   end
 
@@ -146,7 +158,7 @@ end
 # build.
 BorsComment = Struct.new(:url, :bodyText, :links, :createdAt, :tags, :succeeded) do
   def causes
-    self.tags.filter {|x| x.start_with? "#" }
+    self.tags.filter {|x| x != "hydra" and x != "buildkite" } # HACK; works for now
   end
 
   def pretty(showDetails = :auto)
@@ -662,6 +674,16 @@ def rewrite_tags(comments, title_map)
       if t2 then t2 else t end
     end
   end
+end
+
+##
+# >>> is_issue? "#0"
+# true
+#
+## >>> is_issue? "0"
+# false
+def is_issue? t
+  true if t.start_with? "#" and Integer(t.delete_prefix "#") rescue false
 end
 
 ######################################################################
