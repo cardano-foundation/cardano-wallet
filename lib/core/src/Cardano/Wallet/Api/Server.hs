@@ -2415,11 +2415,20 @@ submitTransaction ctx apiw@(ApiT wid) apitx@(ApiSerialisedTransaction (ApiT seal
     let ourOuts = getOurOuts apiDecoded
     let ourInps = getOurInps apiDecoded
 
-    let allInpsNum = length $ apiDecoded ^. #inputs
-    let witsNum = length $ getSealedTxWitnesses sealedTx
-    when (allInpsNum > witsNum) $
+    -- TODO: when partial signing is switched on we will need to revise this.
+    -- The following needs to be taken into account. Wits could come from:
+    -- (a) our wallet
+    -- (b) other parties
+    -- (c) script inputs
+    -- With (b) not supported we can now filter our inputs and look for the unique payment keys
+    -- Also with multisig switched on the input would need more than 1 wits
+    let witsRequiredForInputs = length $ L.nubBy samePaymentKey $
+            filter isInpOurs $
+            (apiDecoded ^. #inputs) ++ (apiDecoded ^. #collateral)
+    let totalNumberOfWits = length $ getSealedTxWitnesses sealedTx
+    when (witsRequiredForInputs > totalNumberOfWits) $
         liftHandler $ throwE $
-        ErrSubmitTransactionPartiallySignedOrNoSignedTx allInpsNum witsNum
+        ErrSubmitTransactionPartiallySignedOrNoSignedTx witsRequiredForInputs totalNumberOfWits
 
     _ <- withWorkerCtx ctx wid liftE liftE $ \wrk -> do
         (acct, _, path) <- liftHandler $ W.readRewardAccount @_ @s @k @n wrk wid
@@ -2476,6 +2485,11 @@ submitTransaction ctx apiw@(ApiT wid) apitx@(ApiSerialisedTransaction (ApiT seal
         in
             all isInpForeign generalInps &&
             all isWdrlForeign generalWdrls
+
+    samePaymentKey inp1 inp2 = case (inp1, inp2) of
+        (WalletInput (ApiWalletInput _ _ _ derPath1 _ _), WalletInput (ApiWalletInput _ _ _ derPath2 _ _) ) ->
+               derPath1 == derPath2
+        _ -> False
 
 joinStakePool
     :: forall ctx s n k.
