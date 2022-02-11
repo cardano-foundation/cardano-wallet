@@ -158,6 +158,7 @@ module Cardano.Wallet
     -- ** Transaction
     , forgetTx
     , listTransactions
+    , extractWalletAssetsFromTxs
     , getTransaction
     , submitExternalTx
     , submitTx
@@ -2489,6 +2490,14 @@ listTransactions ctx wid mMinWithdrawal mStart mEnd order = db & \DBLayer{..} ->
                 $ slotRangeFromTimeRange
                 $ Range mStart mEnd
 
+-- | Extract assets associated with a given wallet from its transaction history.
+extractWalletAssetsFromTxs
+    :: WalletId -> [TransactionInfo] -> [TokenMap.AssetId]
+extractWalletAssetsFromTxs _walletId = Set.toList . Set.unions . map txAssets
+  where
+    txAssets = Set.unions
+        . map (TokenBundle.getAssets . view #tokens)
+        . txInfoOutputs
 
 -- | Get transaction and metadata from history for a given wallet.
 getTransaction

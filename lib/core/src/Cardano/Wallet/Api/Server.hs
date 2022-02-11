@@ -1745,20 +1745,11 @@ listAssets ctx wid = do
 -- | Return a list of all AssetIds involved in the transaction history of this
 -- wallet.
 listAssetsBase
-    :: forall ctx s k.
-        ( ctx ~ ApiLayer s k
-        )
-    => ctx
-    -> ApiT WalletId
-    -> Handler [AssetId]
-listAssetsBase ctx (ApiT wid) = withWorkerCtx ctx wid liftE liftE $ \wrk ->
-    liftHandler $ allTxAssets <$>
-    W.listTransactions @_ @_ @_ wrk wid Nothing Nothing Nothing Descending
-  where
-    allTxAssets = Set.toList . Set.unions . map txAssets
-    txAssets = Set.unions
-        . map (TokenBundle.getAssets . view #tokens)
-        . W.txInfoOutputs
+    :: forall s k. ApiLayer s k -> ApiT WalletId -> Handler [AssetId]
+listAssetsBase ctx (ApiT walletId) =
+    withWorkerCtx ctx walletId liftE liftE $ \wrk ->
+        liftHandler $ W.extractWalletAssetsFromTxs walletId <$>
+        W.listTransactions wrk walletId Nothing Nothing Nothing Descending
 
 -- | Look up a single asset and its metadata.
 --
