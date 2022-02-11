@@ -88,6 +88,8 @@ import Cardano.Wallet.Primitive.Types.UTxO
     ( UTxO (..) )
 import Cardano.Wallet.Primitive.Types.UTxOSelection
     ( UTxOSelection )
+import Control.Arrow
+    ( (&&&) )
 import Control.Monad.Random.Class
     ( MonadRandom (..) )
 import Control.Monad.Trans.Except
@@ -231,6 +233,8 @@ toInternalSelectionParams SelectionParams {..} =
     Internal.SelectionParams
         { utxoAvailableForCollateral =
             Map.mapMaybe asCollateral $ unUTxO utxoAvailableForCollateral
+        , outputsToCover =
+            (view #address &&& view #tokens) <$> outputsToCover
         , ..
         }
 
@@ -322,6 +326,8 @@ toExternalSelection ps Internal.Selection {..} =
             resolveInput utxoAvailableForCollateral . fst <$> collateral
         , inputs =
             resolveInput utxoAvailableForInputs . fst <$> inputs
+        , outputs =
+            uncurry TxOut <$> outputs
         , ..
         }
   where
@@ -361,6 +367,7 @@ toInternalSelection getChangeBundle Selection {..} =
         { change = getChangeBundle <$> change
         , collateral = fmap (view (#tokens . #coin)) <$> collateral
         , inputs = fmap (view #tokens) <$> inputs
+        , outputs = (view #address &&& view #tokens) <$> outputs
         , ..
         }
 

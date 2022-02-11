@@ -59,13 +59,15 @@ import Cardano.Wallet.CoinSelection.Internal.Collateral
 import Cardano.Wallet.Primitive.Types.Address
     ( Address )
 import Cardano.Wallet.Primitive.Types.Address.Gen
-    ( genAddress )
+    ( genAddress, shrinkAddress )
 import Cardano.Wallet.Primitive.Types.Coin
     ( Coin (..) )
 import Cardano.Wallet.Primitive.Types.Coin.Gen
     ( genCoin, genCoinPositive, shrinkCoin, shrinkCoinPositive )
 import Cardano.Wallet.Primitive.Types.TokenBundle
     ( TokenBundle (..) )
+import Cardano.Wallet.Primitive.Types.TokenBundle.Gen
+    ( genTokenBundleSmallRange, shrinkTokenBundleSmallRange )
 import Cardano.Wallet.Primitive.Types.TokenMap
     ( TokenMap )
 import Cardano.Wallet.Primitive.Types.TokenMap.Gen
@@ -73,15 +75,13 @@ import Cardano.Wallet.Primitive.Types.TokenMap.Gen
 import Cardano.Wallet.Primitive.Types.TokenQuantity
     ( TokenQuantity (..) )
 import Cardano.Wallet.Primitive.Types.Tx
-    ( TxIn, TxOut (..), txOutCoin, txOutMaxTokenQuantity )
+    ( TxIn, txOutMaxTokenQuantity )
 import Cardano.Wallet.Primitive.Types.Tx.Gen
-    ( genTxIn, genTxOut, shrinkTxIn, shrinkTxOut )
+    ( genTxIn, shrinkTxIn )
 import Cardano.Wallet.Primitive.Types.UTxOSelection
     ( UTxOSelection )
 import Cardano.Wallet.Primitive.Types.UTxOSelection.Gen
     ( genUTxOSelection, shrinkUTxOSelection )
-import Control.Arrow
-    ( (&&&) )
 import Control.Monad
     ( forM_ )
 import Control.Monad.Trans.Except
@@ -124,6 +124,7 @@ import Test.QuickCheck
     , scale
     , shrink
     , shrinkList
+    , suchThat
     , vectorOf
     , (===)
     )
@@ -407,11 +408,11 @@ prop_toBalanceConstraintsParams_computeSelectionLimit mockConstraints params =
 
     selectionLimitOriginal :: SelectionLimit
     selectionLimitOriginal = computeSelectionLimitOriginal $
-        (view #address &&& view #tokens) <$> (params ^. #outputsToCover)
+        params ^. #outputsToCover
 
     selectionLimitAdjusted :: SelectionLimit
     selectionLimitAdjusted = computeSelectionLimitAdjusted $
-        (view #address &&& view #tokens) <$> (params ^. #outputsToCover)
+        params ^. #outputsToCover
 
 --------------------------------------------------------------------------------
 -- Preparing outputs
@@ -419,7 +420,7 @@ prop_toBalanceConstraintsParams_computeSelectionLimit mockConstraints params =
 
 prop_prepareOutputsWith_twice
     :: MockComputeMinimumAdaQuantity
-    -> [TxOut]
+    -> [(Address, TokenBundle)]
     -> Property
 prop_prepareOutputsWith_twice minCoinValueDef outs =
     once === twice
@@ -429,7 +430,7 @@ prop_prepareOutputsWith_twice minCoinValueDef outs =
 
 prop_prepareOutputsWith_length
     :: MockComputeMinimumAdaQuantity
-    -> [TxOut]
+    -> [(Address, TokenBundle)]
     -> Property
 prop_prepareOutputsWith_length minCoinValueDef outs =
     F.length (prepareOutputsWith minCoinValueFor outs) === F.length outs
@@ -438,19 +439,19 @@ prop_prepareOutputsWith_length minCoinValueDef outs =
 
 prop_prepareOutputsWith_assetsUnchanged
     :: MockComputeMinimumAdaQuantity
-    -> [TxOut]
+    -> [(Address, TokenBundle)]
     -> Property
 prop_prepareOutputsWith_assetsUnchanged minCoinValueDef outs =
-    (txOutAssets <$> (prepareOutputsWith minCoinValueFor outs))
+    (outputAssets <$> (prepareOutputsWith minCoinValueFor outs))
     ===
-    (txOutAssets <$> outs)
+    (outputAssets <$> outs)
   where
     minCoinValueFor = unMockComputeMinimumAdaQuantity minCoinValueDef
-    txOutAssets = TokenBundle.getAssets . view #tokens
+    outputAssets = TokenBundle.getAssets . snd
 
 prop_prepareOutputsWith_preparedOrExistedBefore
     :: MockComputeMinimumAdaQuantity
-    -> [TxOut]
+    -> [(Address, TokenBundle)]
     -> Property
 prop_prepareOutputsWith_preparedOrExistedBefore minCoinValueDef outs =
     property $ F.all isPreparedOrExistedBefore (zip outs outs')
@@ -458,12 +459,15 @@ prop_prepareOutputsWith_preparedOrExistedBefore minCoinValueDef outs =
     minCoinValueFor = unMockComputeMinimumAdaQuantity minCoinValueDef
     outs' = prepareOutputsWith minCoinValueFor outs
 
-    isPreparedOrExistedBefore :: (TxOut, TxOut) -> Bool
+    isPreparedOrExistedBefore
+        :: ((Address, TokenBundle), (Address, TokenBundle)) -> Bool
     isPreparedOrExistedBefore (before, after)
-        | txOutCoin before /= Coin 0 =
-            txOutCoin after == txOutCoin before
+        | outputCoin before /= Coin 0 =
+            outputCoin after == outputCoin before
         | otherwise =
-            txOutCoin after == minCoinValueFor (view (#tokens . #tokens) before)
+            outputCoin after == minCoinValueFor (view #tokens $ snd before)
+      where
+        outputCoin = view #coin . snd
 
 --------------------------------------------------------------------------------
 -- Computing minimum collateral amounts
@@ -672,19 +676,23 @@ shrinkExtraCoinOut = shrinkCoin
 -- Outputs to cover
 --------------------------------------------------------------------------------
 
-genOutputsToCover :: Gen [TxOut]
+genOutputsToCover :: Gen [(Address, TokenBundle)]
 genOutputsToCover = do
     count <- choose (1, 4)
     vectorOf count genOutputToCover
   where
-    genOutputToCover :: Gen TxOut
+    genOutputToCover :: Gen (Address, TokenBundle)
     genOutputToCover = frequency
-        [ (49, scale (`mod` 8) genTxOut)
-        , (01, genTxOutWith genTokenQuantityThatMayExceedLimit)
+        [ (49, scale (`mod` 8) genOutput)
+        , (01, genOutputWith genTokenQuantityThatMayExceedLimit)
         ]
+      where
+        genOutput = (,)
+            <$> genAddress
+            <*> genTokenBundleSmallRange `suchThat` tokenBundleHasNonZeroCoin
 
-    genTxOutWith :: Gen TokenQuantity -> Gen TxOut
-    genTxOutWith genTokenQuantityFn = TxOut
+    genOutputWith :: Gen TokenQuantity -> Gen (Address, TokenBundle)
+    genOutputWith genTokenQuantityFn = (,)
         <$> genAddress
         <*> genTokenBundleWith genTokenQuantityFn
 
@@ -715,8 +723,16 @@ genOutputsToCover = do
         limit :: Natural
         limit = unTokenQuantity txOutMaxTokenQuantity
 
-shrinkOutputsToCover :: [TxOut] -> [[TxOut]]
-shrinkOutputsToCover = shrinkList shrinkTxOut
+shrinkOutputsToCover :: [(Address, TokenBundle)] -> [[(Address, TokenBundle)]]
+shrinkOutputsToCover = shrinkList shrinkOutput
+  where
+    shrinkOutput = genericRoundRobinShrink
+        <@> shrinkAddress
+        <:> (filter tokenBundleHasNonZeroCoin . shrinkTokenBundleSmallRange)
+        <:> Nil
+
+tokenBundleHasNonZeroCoin :: TokenBundle -> Bool
+tokenBundleHasNonZeroCoin b = TokenBundle.getCoin b /= Coin 0
 
 --------------------------------------------------------------------------------
 -- Reward withdrawals
@@ -806,6 +822,10 @@ unitTests title f unitTestData =
 --------------------------------------------------------------------------------
 -- Arbitrary instances
 --------------------------------------------------------------------------------
+
+instance Arbitrary Address where
+    arbitrary = genAddress
+    shrink = shrinkAddress
 
 instance Arbitrary MockSelectionConstraints where
     arbitrary = genMockSelectionConstraints

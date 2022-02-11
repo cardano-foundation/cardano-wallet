@@ -99,6 +99,8 @@ import Cardano.Wallet.CoinSelection.Internal.Balance.Gen
     ( genSelectionLimit, shrinkSelectionLimit )
 import Cardano.Wallet.Primitive.Types.Address
     ( Address (..) )
+import Cardano.Wallet.Primitive.Types.Address.Gen
+    ( shrinkAddress )
 import Cardano.Wallet.Primitive.Types.Coin
     ( Coin (..) )
 import Cardano.Wallet.Primitive.Types.Coin.Gen
@@ -108,7 +110,10 @@ import Cardano.Wallet.Primitive.Types.Hash
 import Cardano.Wallet.Primitive.Types.TokenBundle
     ( Flat (..), TokenBundle (..) )
 import Cardano.Wallet.Primitive.Types.TokenBundle.Gen
-    ( genTokenBundleSmallRangePositive, shrinkTokenBundleSmallRangePositive )
+    ( genTokenBundleSmallRangePositive
+    , shrinkTokenBundleSmallRange
+    , shrinkTokenBundleSmallRangePositive
+    )
 import Cardano.Wallet.Primitive.Types.TokenMap
     ( AssetId (..), TokenMap )
 import Cardano.Wallet.Primitive.Types.TokenMap.Gen
@@ -587,7 +592,7 @@ genSelectionParams genPreselectedInputs genUTxOIndex' = do
     outputCount <- elements
         [0, 1, max 2 $ UTxOIndex.size utxoAvailable `div` 8]
     outputsToCover <-
-        replicateM outputCount genTxOut
+        replicateM outputCount ((view #address &&& view #tokens) <$> genTxOut)
     extraCoinSource <-
         oneof [pure $ Coin 0, genCoinPositive]
     extraCoinSink <-
@@ -619,13 +624,21 @@ genSelectionParams genPreselectedInputs genUTxOIndex' = do
 
 shrinkSelectionParams :: SelectionParams -> [SelectionParams]
 shrinkSelectionParams = genericRoundRobinShrink
-    <@> shrinkList shrinkTxOut
+    <@> shrinkList shrinkOutput
     <:> shrinkUTxOSelection
     <:> shrinkCoin
     <:> shrinkCoin
     <:> shrinkTokenMap
     <:> shrinkTokenMap
     <:> Nil
+  where
+    shrinkOutput = genericRoundRobinShrink
+        <@> shrinkAddress
+        <:> (filter tokenBundleHasNonZeroCoin . shrinkTokenBundleSmallRange)
+        <:> Nil
+      where
+        tokenBundleHasNonZeroCoin :: TokenBundle -> Bool
+        tokenBundleHasNonZeroCoin b = TokenBundle.getCoin b /= Coin 0
 
 prop_performSelection_small
     :: MockSelectionConstraints
@@ -732,7 +745,7 @@ prop_performSelection_small mockConstraints (Blind (Small params)) =
       where
         outputTokens = mconcat
             . F.toList
-            . fmap (view #tokens)
+            . fmap snd
             $ view #outputsToCover params
 
     constraints :: SelectionConstraints
@@ -741,7 +754,7 @@ prop_performSelection_small mockConstraints (Blind (Small params)) =
     selectionLimit :: SelectionLimit
     selectionLimit = view #computeSelectionLimit constraints
         $ F.toList
-        $ (view #address &&& view #tokens) <$> (view #outputsToCover params)
+        $ view #outputsToCover params
 
     selectionLimited :: Bool
     selectionLimited = case selectionLimit of
@@ -763,7 +776,7 @@ prop_performSelection_small mockConstraints (Blind (Small params)) =
 
     assetsSpentByUserSpecifiedOutputs :: TokenMap
     assetsSpentByUserSpecifiedOutputs =
-        F.foldMap (view (#tokens . #tokens)) (view #outputsToCover params)
+        F.foldMap (view #tokens . snd) (view #outputsToCover params)
 
     allMintedAssetsEitherBurnedOrSpent :: Bool
     allMintedAssetsEitherBurnedOrSpent =
@@ -865,7 +878,7 @@ prop_performSelection mockConstraints params coverage =
         , assetsToBurn
         } = params
 
-    onSuccess :: SelectionResultOf [TxOut] -> Property
+    onSuccess :: SelectionResultOf [(Address, TokenBundle)] -> Property
     onSuccess result =
         counterexample "onSuccess" $
         report
@@ -1043,7 +1056,7 @@ prop_performSelection mockConstraints params coverage =
         property True
 
     selectionLimit = view #computeSelectionLimit constraints $
-        (view #address &&& view #tokens) <$> F.toList outputsToCover
+        F.toList outputsToCover
     utxoBalanceAvailable = computeUTxOBalanceAvailable params
     utxoBalanceRequired = computeUTxOBalanceRequired params
     utxoBalanceSufficiencyInfo = computeUTxOBalanceSufficiencyInfo params
@@ -1118,13 +1131,13 @@ prop_performSelectionEmpty mockConstraints (Small params) =
     constraints :: SelectionConstraints
     constraints = unMockSelectionConstraints mockConstraints
 
-    paramsTransformed :: SelectionParamsOf (NonEmpty TxOut)
+    paramsTransformed :: SelectionParamsOf (NonEmpty (Address, TokenBundle))
     paramsTransformed = view #paramsTransformed transformationReport
 
-    result :: SelectionResultOf (NonEmpty TxOut)
+    result :: SelectionResultOf (NonEmpty (Address, TokenBundle))
     result = expectRight $ view #result transformationReport
 
-    resultTransformed :: SelectionResultOf [TxOut]
+    resultTransformed :: SelectionResultOf [(Address, TokenBundle)]
     resultTransformed =
         expectRight $ view #resultTransformed transformationReport
 
@@ -1168,17 +1181,18 @@ withTransformationReport p r = TransformationReport p r r
 --    - a single input to cover the cost and input deficit.
 --    - a single change output to cover the output deficit.
 --
-mockPerformSelectionNonEmpty :: PerformSelection Identity (NonEmpty TxOut)
+mockPerformSelectionNonEmpty
+    :: PerformSelection Identity (NonEmpty (Address, TokenBundle))
 mockPerformSelectionNonEmpty constraints params = Identity $ Right result
   where
-    result :: SelectionResultOf (NonEmpty TxOut)
+    result :: SelectionResultOf (NonEmpty (Address, TokenBundle))
     result = resultWithoutDelta & set #inputsSelected
         (makeInputsOfValue $ deficitIn <> TokenBundle.fromCoin minimumCost)
       where
         minimumCost :: Coin
         minimumCost = selectionMinimumCost constraints resultWithoutDelta
 
-    resultWithoutDelta :: SelectionResultOf (NonEmpty TxOut)
+    resultWithoutDelta :: SelectionResultOf (NonEmpty (Address, TokenBundle))
     resultWithoutDelta = SelectionResult
         { inputsSelected = makeInputsOfValue deficitIn
         , changeGenerated = makeChangeOfValue deficitOut
@@ -1652,7 +1666,7 @@ mkBoundaryTestExpectation (BoundaryTestData params expectedResult) = do
 encodeBoundaryTestCriteria :: BoundaryTestCriteria -> SelectionParams
 encodeBoundaryTestCriteria c = SelectionParams
     { outputsToCover =
-        zipWith TxOut
+        zip
             (dummyAddresses)
             (uncurry TokenBundle.fromFlatList <$> boundaryTestOutputs c)
     , utxoAvailable =
