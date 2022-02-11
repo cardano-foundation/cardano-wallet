@@ -107,8 +107,8 @@ jobs:
       - name: 'Validate OpenAPI Specification'
         run: 'nix develop --command openapi-spec-validator --schema 3.0.0 specifications/api/swagger.yaml'
 
-      - name: 'Check Cabal Configure'
-        run: 'nix develop .#cabal --command scripts/buildkite/cabal-ci.sh configure'
+      # - name: 'Check Cabal Configure'
+      #   run: 'nix develop .#cabal --command scripts/buildkite/cabal-ci.sh configure'
 
       - name: 'Shellcheck'
         run: './scripts/shellcheck.sh'
