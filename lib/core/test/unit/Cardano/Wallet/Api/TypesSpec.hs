@@ -1113,7 +1113,9 @@ spec = parallel $ do
                         (x :: ApiTransaction ('Testnet 0))
                     , fee = fee
                         (x :: ApiTransaction ('Testnet 0))
-                    , deposit = deposit
+                    , depositTaken = depositTaken
+                        (x :: ApiTransaction ('Testnet 0))
+                    , depositReturned = depositReturned
                         (x :: ApiTransaction ('Testnet 0))
                     , insertedAt = insertedAt
                         (x :: ApiTransaction ('Testnet 0))
@@ -2376,6 +2378,7 @@ instance Arbitrary (ApiTransaction n) where
 
         ApiTransaction
             <$> arbitrary
+            <*> arbitrary
             <*> arbitrary
             <*> arbitrary
             <*> arbitrary

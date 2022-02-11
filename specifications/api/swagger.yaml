@@ -2424,7 +2424,8 @@ components:
         - id
         - amount
         - fee
-        - deposit
+        - deposit_taken
+        - deposit_returned
         - direction
         - inputs
         - outputs
@@ -2445,7 +2446,8 @@ components:
             For incoming transaction, it represents the total amount of Ada received to
             addresses that belong to the wallet.
         fee: *amount
-        deposit: *amount
+        deposit_taken: *amount
+        deposit_returned: *amount
         inserted_at: *transactionInsertedAt
         expires_at: *transactionExpiresAt
         pending_since: *transactionPendingSince
@@ -5176,6 +5178,7 @@ x-responsesSubmitTransaction: &responsesSubmitTransaction
           oneOf:
             - <<: *errForeignTransaction
             - <<: *errMissingWitnessesInTransaction
+            - <<: *errCreatedMultidelegationTransaction
 
 x-responsesPostExternalTransaction: &responsesPostExternalTransaction
   <<: *responsesErr400

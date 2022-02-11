@@ -538,6 +538,8 @@ import Safe
     ( lastMay )
 import Statistics.Quantile
     ( medianUnbiased, quantiles )
+import Text.Pretty.Simple
+    ( pShow )
 import Type.Reflection
     ( Typeable, typeRep )
 import UnliftIO.Exception
@@ -566,8 +568,7 @@ import qualified Data.List.NonEmpty as NE
 import qualified Data.Set as Set
 import qualified Data.Text as T
 import qualified Data.Vector as V
-import Text.Pretty.Simple
-    ( pShow )
+
 
 -- $Development
 -- __Naming Conventions__
@@ -2102,7 +2103,6 @@ getTxExpiry ti maybeTTL = do
 constructTxMeta
     :: forall ctx s k.
         ( HasDBLayer IO s k ctx
-        , IsOwned s k
         )
     => ctx
     -> WalletId
@@ -2116,21 +2116,19 @@ constructTxMeta ctx wid txCtx inps outs = db & \DBLayer{..} -> do
               $ withNoSuchWallet wid
               $ readCheckpoint wid
         liftIO $
-            mkTxMetaWithoutSel (currentTip cp) (getState cp) txCtx inps outs
+            mkTxMetaWithoutSel (currentTip cp) txCtx inps outs
   where
     db = ctx ^. dbLayer @IO @s @k
 
 mkTxMetaWithoutSel
-    :: IsOurs s Address
-    => BlockHeader
-    -> s
+    :: BlockHeader
     -> TransactionCtx
     -> [(TxIn, Coin)]
     -> [TxOut]
     -> IO TxMeta
-mkTxMetaWithoutSel blockHeader wState txCtx inps outs =
+mkTxMetaWithoutSel blockHeader txCtx inps outs =
     let
-        amtOuts = F.fold $ mapMaybe (`ourCoin` wState) outs
+        amtOuts = F.fold $ map txOutCoin outs
 
         amtInps
             = F.fold (map snd inps)
@@ -2140,7 +2138,7 @@ mkTxMetaWithoutSel blockHeader wState txCtx inps outs =
                 NoWithdrawal -> Prelude.id
     in return TxMeta
        { status = Pending
-       , direction = Outgoing
+       , direction = if amtInps > amtOuts then Outgoing else Incoming
        , slotNo = blockHeader ^. #slotNo
        , blockHeight = blockHeader ^. #blockHeight
        , amount = Coin.distance amtInps amtOuts
@@ -3078,6 +3076,7 @@ data ErrSubmitTransaction
     = ErrSubmitTransactionNoSuchWallet ErrNoSuchWallet
     | ErrSubmitTransactionForeignWallet
     | ErrSubmitTransactionPartiallySignedOrNoSignedTx Int Int
+    | ErrSubmitTransactionMultidelegationNotSupported
     deriving (Show, Eq)
 
 -- | Errors that can occur when constructing an unsigned transaction.

@@ -214,6 +214,7 @@ import qualified Data.Text.Encoding as T
 import qualified Network.HTTP.Types.Status as HTTP
 import qualified Test.Integration.Plutus as PlutusScenario
 
+
 spec :: forall n.
     ( DecodeAddress n
     , DecodeStakeAddress n
@@ -841,9 +842,6 @@ spec = describe "NEW_SHELLEY_TRANSACTIONS" $ do
         rGetTx <- request @(ApiTransaction n) ctx queryTx Default Empty
         verify rGetTx
             [ expectResponseCode HTTP.status200
-            , expectField
-                (#amount . #getQuantity)
-                (`shouldBe` initialAmt - (amt + fromIntegral expectedFee))
             , expectField (#direction . #getApiT) (`shouldBe` Outgoing)
             , expectField (#status . #getApiT) (`shouldBe` Pending)
             ]
@@ -2175,6 +2173,7 @@ spec = describe "NEW_SHELLEY_TRANSACTIONS" $ do
         let initialAmt = 10 * minUTxOValue (_mainEra ctx)
         src <- fixtureWalletWith @n ctx [initialAmt]
         dest <- emptyWallet ctx
+        let depositAmt = Quantity 1000000
 
         pool1:pool2:_ <- map (view #id) . snd <$> unsafeRequest
             @[ApiStakePool]
@@ -2192,7 +2191,7 @@ spec = describe "NEW_SHELLEY_TRANSACTIONS" $ do
             (Link.createUnsignedTransaction @'Shelley src) Default delegationJoin
         verify rTx1
             [ expectResponseCode HTTP.status202
-            , expectField (#coinSelection . #depositsTaken) (`shouldBe` [Quantity 1000000])
+            , expectField (#coinSelection . #depositsTaken) (`shouldBe` [depositAmt])
             , expectField (#coinSelection . #depositsReturned) (`shouldBe` [])
             ]
 
@@ -2219,7 +2218,7 @@ spec = describe "NEW_SHELLEY_TRANSACTIONS" $ do
         verify rDecodedTx1
             [ expectResponseCode HTTP.status202
             , expectField #certificates (`shouldBe` [registerStakeKeyCert, delegatingCert])
-            , expectField #depositsTaken (`shouldBe` [Quantity 1000000])
+            , expectField #depositsTaken (`shouldBe` [depositAmt])
             , expectField #depositsReturned (`shouldBe` [])
             ]
 
@@ -2239,7 +2238,8 @@ spec = describe "NEW_SHELLEY_TRANSACTIONS" $ do
                 [ expectResponseCode HTTP.status200
                 , expectField (#status . #getApiT) (`shouldBe` InLedger)
                 , expectField (#direction . #getApiT) (`shouldBe` Outgoing)
-                , expectField #deposit (`shouldBe` Quantity 1000000)
+                , expectField #depositTaken (`shouldBe` depositAmt)
+                , expectField #depositReturned (`shouldBe` Quantity 0)
                 ]
 
         let txId1 = getFromResponse #id submittedTx1
@@ -2306,6 +2306,15 @@ spec = describe "NEW_SHELLEY_TRANSACTIONS" $ do
         verify submittedTx2
             [ expectSuccess
             , expectResponseCode HTTP.status202
+            ]
+
+        let txid2 = getFromResponse (#id) submittedTx2
+        let queryTx2 = Link.getTransaction @'Shelley src (ApiTxId txid2)
+        rGetTx2 <- request @(ApiTransaction n) ctx queryTx2 Default Empty
+        verify rGetTx2
+            [ expectResponseCode HTTP.status200
+            , expectField #depositTaken (`shouldBe` Quantity 0)
+            , expectField #depositReturned (`shouldBe` Quantity 0)
             ]
 
         -- Wait for the certificate to be inserted
@@ -2385,7 +2394,7 @@ spec = describe "NEW_SHELLEY_TRANSACTIONS" $ do
         verify rTx4
             [ expectResponseCode HTTP.status202
             , expectField (#coinSelection . #depositsTaken) (`shouldBe` [])
-            , expectField (#coinSelection . #depositsReturned) (`shouldBe` [Quantity 1000000])
+            , expectField (#coinSelection . #depositsReturned) (`shouldBe` [depositAmt])
             ]
         let apiTx4 = getFromResponse #transaction rTx4
         signedTx4 <- signTx ctx src apiTx4 [ expectResponseCode HTTP.status202 ]
@@ -2399,7 +2408,7 @@ spec = describe "NEW_SHELLEY_TRANSACTIONS" $ do
         verify rDecodedTx4
             [ expectResponseCode HTTP.status202
             , expectField #certificates (`shouldBe` [quittingCert])
-            , expectField #depositsReturned (`shouldBe` [Quantity 1000000])
+            , expectField #depositsReturned (`shouldBe` [depositAmt])
             , expectField #depositsTaken (`shouldBe` [])
             ]
         submittedTx4 <- submitTxWithWid ctx src signedTx4
@@ -2407,11 +2416,29 @@ spec = describe "NEW_SHELLEY_TRANSACTIONS" $ do
             [ expectSuccess
             , expectResponseCode HTTP.status202
             ]
+
+        let txid3 = getFromResponse (#id) submittedTx4
+        let queryTx3 = Link.getTransaction @'Shelley src (ApiTxId txid3)
+        rGetTx3 <- request @(ApiTransaction n) ctx queryTx3 Default Empty
+        verify rGetTx3
+            [ expectResponseCode HTTP.status200
+            , expectField #depositTaken (`shouldBe` Quantity 0)
+            , expectField #depositReturned (`shouldBe` depositAmt)
+            ]
+
         eventually "Wallet is not delegating" $ do
             request @ApiWallet ctx (Link.getWallet @'Shelley src) Default Empty
                 >>= flip verify
                     [ expectField #delegation (`shouldBe` notDelegating [])
                     ]
+
+        -- transaction history shows deposit returned
+        rGetTx4 <- request @(ApiTransaction n) ctx queryTx3 Default Empty
+        verify rGetTx4
+            [ expectResponseCode HTTP.status200
+            , expectField #depositTaken (`shouldBe` Quantity 0)
+            , expectField #depositReturned (`shouldBe` depositAmt)
+            ]
 
     it "TRANS_NEW_JOIN_01b - Invalid pool id" $ \ctx -> runResourceT $ do
 

@@ -1948,7 +1948,7 @@ postTransactionOld ctx genChange (ApiT wid) body = do
             , txTimeToLive = ttl
             }
 
-    (sel, tx, txMeta, txTime) <- withWorkerCtx ctx wid liftE liftE $ \wrk ->
+    (sel, tx, txMeta, txTime, pp) <- withWorkerCtx ctx wid liftE liftE $ \wrk ->
       atomicallyWithHandler (ctx ^. walletLocks) (PostTransactionOld wid) $ do
         (utxoAvailable, wallet, pendingTxs) <-
             liftHandler $ W.readWalletUTxOIndex @_ @s @k wrk wid
@@ -1972,7 +1972,7 @@ postTransactionOld ctx genChange (ApiT wid) body = do
             $ W.buildAndSignTransaction @_ @s @k wrk wid mkRwdAcct pwd txCtx sel'
         liftHandler
             $ W.submitTx @_ @s @k wrk wid (tx, txMeta, sealedTx)
-        pure (sel, tx, txMeta, txTime)
+        pure (sel, tx, txMeta, txTime, pp)
 
     liftIO $ mkApiTransaction
         (timeInterpreter $ ctx ^. networkLayer)
@@ -1989,6 +1989,7 @@ postTransactionOld ctx genChange (ApiT wid) body = do
             , txMetadata = tx ^. #metadata
             , txTime
             , txScriptValidity = tx ^. #scriptValidity
+            , txDeposit = W.stakeKeyDeposit pp
             }
   where
     ti :: TimeInterpreter (ExceptT PastHorizonException IO)
@@ -2015,13 +2016,16 @@ listTransactions
     -> Maybe (ApiT SortOrder)
     -> Handler [ApiTransaction n]
 listTransactions ctx (ApiT wid) mMinWithdrawal mStart mEnd mOrder = do
-    txs <- withWorkerCtx ctx wid liftE liftE $ \wrk -> liftHandler $
-        W.listTransactions @_ @_ @_ wrk wid
+    (txs, depo) <- withWorkerCtx ctx wid liftE liftE $ \wrk -> do
+        txs <- liftHandler $
+            W.listTransactions @_ @_ @_ wrk wid
             (Coin . fromIntegral . getMinWithdrawal <$> mMinWithdrawal)
             (getIso8601Time <$> mStart)
             (getIso8601Time <$> mEnd)
             (maybe defaultSortOrder getApiT mOrder)
-    liftIO $ mapM (mkApiTransactionFromInfo (timeInterpreter (ctx ^. networkLayer))) txs
+        depo <- liftIO $ W.stakeKeyDeposit <$> NW.currentProtocolParameters (wrk ^. networkLayer)
+        pure (txs, depo)
+    liftIO $ mapM (mkApiTransactionFromInfo (timeInterpreter (ctx ^. networkLayer)) depo) txs
   where
     defaultSortOrder :: SortOrder
     defaultSortOrder = Descending
@@ -2033,18 +2037,21 @@ getTransaction
     -> ApiTxId
     -> Handler (ApiTransaction n)
 getTransaction ctx (ApiT wid) (ApiTxId (ApiT (tid))) = do
-    tx <- withWorkerCtx ctx wid liftE liftE $ \wrk -> liftHandler $
-        W.getTransaction wrk wid tid
-    liftIO $ mkApiTransactionFromInfo (timeInterpreter (ctx ^. networkLayer)) tx
+    (tx, depo) <- withWorkerCtx ctx wid liftE liftE $ \wrk -> do
+        tx <- liftHandler $ W.getTransaction wrk wid tid
+        depo <- liftIO $ W.stakeKeyDeposit <$> NW.currentProtocolParameters (wrk ^. networkLayer)
+        pure (tx, depo)
+    liftIO $ mkApiTransactionFromInfo (timeInterpreter (ctx ^. networkLayer)) depo tx
 
 -- Populate an API transaction record with 'TransactionInfo' from the wallet
 -- layer.
 mkApiTransactionFromInfo
     :: MonadIO m
     => TimeInterpreter (ExceptT PastHorizonException IO)
+    -> Coin
     -> TransactionInfo
     -> m (ApiTransaction n)
-mkApiTransactionFromInfo ti info = do
+mkApiTransactionFromInfo ti deposit info = do
     apiTx <- liftIO $ mkApiTransaction ti status
         MkApiTransactionParams
             { txId = info ^. #txInfoId
@@ -2057,6 +2064,7 @@ mkApiTransactionFromInfo ti info = do
             , txMetadata = info ^. #txInfoMetadata
             , txTime = info ^. #txInfoTime
             , txScriptValidity = info ^. #txInfoScriptValidity
+            , txDeposit = deposit
             }
     return $ case info ^. (#txInfoMeta . #status) of
         Pending  -> apiTx
@@ -2426,6 +2434,17 @@ submitTransaction ctx apiw@(ApiT wid) apitx@(ApiSerialisedTransaction (ApiT seal
             filter isInpOurs $
             (apiDecoded ^. #inputs) ++ (apiDecoded ^. #collateral)
     let totalNumberOfWits = length $ getSealedTxWitnesses sealedTx
+    let ourDel =
+            filter isJust $
+            map isJoiningOrQuitting $ apiDecoded ^. #certificates
+    when (length ourDel > 1) $
+        liftHandler $ throwE ErrSubmitTransactionMultidelegationNotSupported
+
+    let delAction = case ourDel of
+            [Just del] -> Just del
+            [] -> Nothing
+            _ -> error "impossible to be here due to check above"
+
     when (witsRequiredForInputs > totalNumberOfWits) $
         liftHandler $ throwE $
         ErrSubmitTransactionPartiallySignedOrNoSignedTx witsRequiredForInputs totalNumberOfWits
@@ -2436,6 +2455,7 @@ submitTransaction ctx apiw@(ApiT wid) apitx@(ApiSerialisedTransaction (ApiT seal
         let txCtx = defaultTransactionCtx
                 { txTimeToLive = ttl
                 , txWithdrawal = wdrl
+                , txDelegationAction = delAction
                 }
         txMeta <- liftHandler $ W.constructTxMeta @_ @s @k wrk wid txCtx ourInps ourOuts
         liftHandler
@@ -2469,8 +2489,8 @@ submitTransaction ctx apiw@(ApiT wid) apitx@(ApiSerialisedTransaction (ApiT seal
 
     isInpOurs (WalletInput _) = True
     isInpOurs _ = False
-    toTxInp (WalletInput (ApiWalletInput (ApiT txid) ix _ _ _ _)) =
-        (TxIn txid ix, Coin 0)
+    toTxInp (WalletInput (ApiWalletInput (ApiT txid) ix _ _ (Quantity amt) _)) =
+        (TxIn txid ix, Coin $ fromIntegral amt)
     toTxInp _ = error "we should have only our inputs at this point"
     getOurInps apiDecodedTx =
         let generalInps = apiDecodedTx ^. #inputs
@@ -2490,6 +2510,13 @@ submitTransaction ctx apiw@(ApiT wid) apitx@(ApiSerialisedTransaction (ApiT seal
         (WalletInput (ApiWalletInput _ _ _ derPath1 _ _), WalletInput (ApiWalletInput _ _ _ derPath2 _ _) ) ->
                derPath1 == derPath2
         _ -> False
+    isJoiningOrQuitting = \case
+        WalletDelegationCertificate (JoinPool _ (ApiT poolId)) ->
+            Just $ Join poolId
+        WalletDelegationCertificate (QuitPool _) ->
+            Just Quit
+        _ ->
+            Nothing
 
 joinStakePool
     :: forall ctx s n k.
@@ -2524,7 +2551,7 @@ joinStakePool ctx knownPools getPoolStatus apiPoolId (ApiT wid) body = do
     pools <- liftIO knownPools
     curEpoch <- getCurrentEpoch ctx
 
-    (sel, tx, txMeta, txTime) <- withWorkerCtx ctx wid liftE liftE $ \wrk -> do
+    (sel, tx, txMeta, txTime, pp) <- withWorkerCtx ctx wid liftE liftE $ \wrk -> do
         (action, _) <- liftHandler
             $ W.joinStakePool @_ @s @k wrk curEpoch pools pid poolStatus wid
 
@@ -2558,7 +2585,7 @@ joinStakePool ctx knownPools getPoolStatus apiPoolId (ApiT wid) body = do
         liftHandler
             $ W.submitTx @_ @s @k wrk wid (tx, txMeta, sealedTx)
 
-        pure (sel, tx, txMeta, txTime)
+        pure (sel, tx, txMeta, txTime, pp)
 
     liftIO $ mkApiTransaction
         (timeInterpreter (ctx ^. networkLayer))
@@ -2575,6 +2602,7 @@ joinStakePool ctx knownPools getPoolStatus apiPoolId (ApiT wid) body = do
             , txMetadata = Nothing
             , txTime
             , txScriptValidity = tx ^. #scriptValidity
+            , txDeposit = W.stakeKeyDeposit pp
             }
   where
     ti :: TimeInterpreter (ExceptT PastHorizonException IO)
@@ -2638,7 +2666,7 @@ quitStakePool
 quitStakePool ctx (ApiT wid) body = do
     let pwd = coerce $ getApiT $ body ^. #passphrase
 
-    (sel, tx, txMeta, txTime) <- withWorkerCtx ctx wid liftE liftE $ \wrk -> do
+    (sel, tx, txMeta, txTime, pp) <- withWorkerCtx ctx wid liftE liftE $ \wrk -> do
         action <- liftHandler
             $ W.quitStakePool @_ @s @k wrk wid
 
@@ -2673,7 +2701,7 @@ quitStakePool ctx (ApiT wid) body = do
         liftHandler
             $ W.submitTx @_ @s @k wrk wid (tx, txMeta, sealedTx)
 
-        pure (sel, tx, txMeta, txTime)
+        pure (sel, tx, txMeta, txTime, pp)
 
     liftIO $ mkApiTransaction
         (timeInterpreter (ctx ^. networkLayer))
@@ -2690,6 +2718,7 @@ quitStakePool ctx (ApiT wid) body = do
             , txMetadata = Nothing
             , txTime
             , txScriptValidity = tx ^. #scriptValidity
+            , txDeposit = W.stakeKeyDeposit pp
             }
   where
     ti :: TimeInterpreter (ExceptT PastHorizonException IO)
@@ -2913,6 +2942,7 @@ migrateWallet ctx withdrawalType (ApiT wid) postData = do
     withWorkerCtx ctx wid liftE liftE $ \wrk -> do
         plan <- liftHandler $ W.createMigrationPlan wrk wid rewardWithdrawal
         txTimeToLive <- liftIO $ W.getTxExpiry ti Nothing
+        pp <- liftIO $ NW.currentProtocolParameters (wrk ^. networkLayer)
         selectionWithdrawals <- liftHandler
             $ failWith ErrCreateMigrationPlanEmpty
             $ W.migrationPlanToSelectionWithdrawals
@@ -2944,6 +2974,7 @@ migrateWallet ctx withdrawalType (ApiT wid) postData = do
                     , txMetadata = Nothing
                     , txTime
                     , txScriptValidity = tx ^. #scriptValidity
+                    , txDeposit = W.stakeKeyDeposit pp
                     }
   where
     addresses = getApiT . fst <$> view #addresses postData
@@ -3346,6 +3377,7 @@ data MkApiTransactionParams = MkApiTransactionParams
     , txMetadata :: Maybe W.TxMetadata
     , txTime :: UTCTime
     , txScriptValidity :: Maybe W.TxScriptValidity
+    , txDeposit :: Coin
     }
     deriving (Eq, Generic, Show)
 
@@ -3376,7 +3408,8 @@ mkApiTransaction timeInterpreter setTimeReference tx = do
         { id = ApiT $ tx ^. #txId
         , amount = Quantity . fromIntegral $ tx ^. (#txMeta . #amount . #unCoin)
         , fee = Quantity $ maybe 0 (fromIntegral . unCoin) (tx ^. #txFee)
-        , deposit = Quantity depositIfAny
+        , depositTaken = Quantity depositIfAny
+        , depositReturned = Quantity reclaimIfAny
         , insertedAt = Nothing
         , pendingSince = Nothing
         , expiresAt = Nothing
@@ -3400,58 +3433,51 @@ mkApiTransaction timeInterpreter setTimeReference tx = do
 
     depositIfAny :: Natural
     depositIfAny
-        -- NOTE: totalIn will be zero for incoming transactions where inputs are
-        -- unknown, in which case, we also give no visibility on the deposit.
-        --
-        -- For outgoing transactions however, the totalIn is guaranteed to be
-        -- greater or equal to totalOut; any remainder is actually a
-        -- deposit. Said differently, if totalIn > 0, then necessarily 'fee' on
-        -- metadata should be 'Just{}'
         | tx ^. (#txMeta . #direction) == W.Outgoing =
             if totalIn < totalOut
-            then 0 -- This should not be possible in practice. See FIXME below.
+            then 0
             else totalIn - totalOut
         | otherwise = 0
-      where
-        -- FIXME: ADP-460
-        --
-        -- In theory, the input side can't be smaller than the output side.
-        -- However, since we do not yet track 'reclaims', we may end up in
-        -- situation here where we no longer know that there's a reclaim on a
-        -- transaction and numbers do not add up. Ideally, we would like to
-        -- change the `then` clause above to be `invariantViolation` instead of
-        -- `0` but we can't do that until we acknowledge for reclaims up until
-        -- here too.
-        --
-        -- `0` is an okay-ish placeholder in the meantime because we know that
-        -- (at least at the moment of writing this comment) the wallet never
-        -- registers a key and deregister a key at the same time. Thus, if we
-        -- are in the case where the apparent totalIn is smaller than the
-        -- total out, then necessary the deposit is null.
-        --
-        -- invariantViolation :: HasCallStack => a
-        -- invariantViolation = error $ unlines
-        --     [ "invariant violated: outputs larger than inputs"
-        --     , "direction:   " <> show (meta ^. #direction)
-        --     , "fee:         " <> show (getQuantity <$> (meta ^. #fee))
-        --     , "inputs:      " <> show (fmap (view (#coin . #unCoin)) . snd <$> ins)
-        --     , "reclaims:    " <> ...
-        --     , "withdrawals: " <> show (view #unCoin <$> Map.elems ws)
-        --     , "outputs:     " <> show (view (#coin . #unCoin) <$> outs)
-        --     ]
-        totalIn :: Natural
-        totalIn
-            = sum (txOutValue <$> mapMaybe snd (tx ^. #txInputs))
-            + sum (fromIntegral . unCoin <$> Map.elems (tx ^. #txWithdrawals))
-            -- FIXME: ADP-460 + reclaims.
 
-        totalOut :: Natural
-        totalOut
-            = sum (txOutValue <$> tx ^. #txOutputs)
-            + maybe 0 (fromIntegral . unCoin) (tx ^. #txFee)
+    -- (pending) when reclaim is coming we have (fee+out) - inp = deposit
+    -- tx is incoming, and the wallet spent for fee and received deposit - fee as out
+    -- (inLedger) when reclaim is accomodated we have out - inp < deposit as fee was incurred
+    -- So in order to detect this we need to have
+    -- 1. deposit
+    -- 2. have inpsWithoutFee of the wallet non-empty
+    -- 3. outs of the wallet non-empty
+    -- 4. tx Incoming
+    -- 5. outs - inpsWithoutFee <= deposit
+    -- assumption: this should work when
+    depositValue :: Natural
+    depositValue = fromIntegral . unCoin $ tx ^. #txDeposit
 
-        txOutValue :: TxOut -> Natural
-        txOutValue = fromIntegral . unCoin . txOutCoin
+    reclaimIfAny :: Natural
+    reclaimIfAny
+        | tx ^. (#txMeta . #direction) == W.Incoming =
+              if ( totalInWithoutFee > 0 && totalOut > 0 && totalOut > totalInWithoutFee)
+                 && (totalOut - totalInWithoutFee <= depositValue) then
+                  depositValue
+              else
+                  0
+        | otherwise = 0
+
+    totalInWithoutFee :: Natural
+    totalInWithoutFee
+        = sum (txOutValue <$> mapMaybe snd (tx ^. #txInputs))
+
+    totalIn :: Natural
+    totalIn
+        = sum (txOutValue <$> mapMaybe snd (tx ^. #txInputs))
+        + sum (fromIntegral . unCoin <$> Map.elems (tx ^. #txWithdrawals))
+
+    totalOut :: Natural
+    totalOut
+        = sum (txOutValue <$> tx ^. #txOutputs)
+        + maybe 0 (fromIntegral . unCoin) (tx ^. #txFee)
+
+    txOutValue :: TxOut -> Natural
+    txOutValue = fromIntegral . unCoin . txOutCoin
 
     toAddressAmountNoAssets
         :: TxOut
@@ -4036,6 +4062,12 @@ instance IsServerError ErrSubmitTransaction where
                 , " inputs and ", toText foundWitsNo, " witnesses included."
                 , " Submit fully-signed transaction."
                 ]
+        ErrSubmitTransactionMultidelegationNotSupported ->
+            apiError err403 CreatedMultidelegationTransaction $ mconcat
+            [ "It looks like the transaction to be sent contains"
+            , "multiple delegations, which is not supported at this moment."
+            , "Please use at most one delegation action in a submitted transaction: join, quit or none."
+            ]
 
 instance IsServerError ErrSubmitTx where
     toServerError = \case
