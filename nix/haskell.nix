@@ -70,8 +70,9 @@ haskell-nix: haskell-nix.stackProject' [
 
       # setGitRev is a postInstall script to stamp executables with
       # version info. It uses the "gitrev" option.
-      setGitRevPostInstall = ''
-        ${pkgs.buildPackages.iohk-nix-utils}/bin/set-git-rev "${config.gitrev}" $out/bin/*
+      setGitRevPostInstall = setGitRevPostInstall' config.gitrev;
+      setGitRevPostInstall' = gitrev: ''
+        ${pkgs.buildPackages.iohk-nix-utils}/bin/set-git-rev "${gitrev}" $out/bin/*
       '';
 
       rewriteLibsPostInstall = lib.optionalString (pkgs.stdenv.hostPlatform.isDarwin) ''
@@ -317,9 +318,7 @@ haskell-nix: haskell-nix.stackProject' [
 
           ({ config, ... }:
             let
-              setGitRevPostInstall = ''
-                ${pkgs.buildPackages.iohk-nix-utils}/bin/set-git-rev "${config.packages.cardano-node.src.rev}" $out/bin/* || true
-              '';
+              setGitRevPostInstall = setGitRevPostInstall' config.packages.cardano-node.src.rev;
             in
             {
               # Add shell completions for tools.
@@ -455,10 +454,6 @@ haskell-nix: haskell-nix.stackProject' [
                 "xhtml"
                 # "stm" "terminfo"
               ];
-          }
-          {
-            packages.cardano-wallet-core.components.library.build-tools = [ pkgs.buildPackages.buildPackages.gitMinimal ];
-            packages.cardano-config.components.library.build-tools = [ pkgs.buildPackages.buildPackages.gitMinimal ];
           }
         ];
     })

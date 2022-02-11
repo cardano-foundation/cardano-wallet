@@ -276,7 +276,7 @@ extra-deps:
   commit: 2adc8b698443bb10154304b24f6c1d6913bb65b9
 
 - git: https://github.com/input-output-hk/cardano-config
-  commit: e9de7a2cf70796f6ff26eac9f9540184ded0e4e6
+  commit: 1646e9167fab36c0bff82317743b96efa2d3adaa
 
 - git: https://github.com/shmish111/servant-purescript.git
   commit: a76104490499aa72d40c2790d10e9383e0dbde63

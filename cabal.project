@@ -122,7 +122,7 @@ source-repository-package
 source-repository-package
   type: git
   location: https://github.com/input-output-hk/cardano-config
-  tag: e9de7a2cf70796f6ff26eac9f9540184ded0e4e6
+  tag: 1646e9167fab36c0bff82317743b96efa2d3adaa
 
 source-repository-package
     type: git

@@ -69,7 +69,7 @@ showVersionAsDate (Version vs tags) = showVersion (Version vs tags)
 
 -- | The Git revision ID (40 character hex string) of this build.
 --
--- This requires @git@ do be available when building. Alternatively, the git
+-- This requires @git@ to be available when building. Alternatively, the git
 -- revision of the @cardano-wallet@ binary can be updated post-build using
 -- "Data.FileEmbed.injectWith".
 gitRevision :: GitRevision
