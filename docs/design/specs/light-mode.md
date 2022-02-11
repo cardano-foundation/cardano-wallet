@@ -1,3 +1,10 @@
+---
+page:
+  headHtml: |
+    <snippet var="js.base" />
+    <snippet var="js.mermaid" />
+---
+
 # Specification: Light mode for cardano-wallet
 
 11th Feb 2022
