@@ -332,7 +332,7 @@ hashOfNoParent :: Hash "BlockHeader"
 hashOfNoParent = Hash . BS.pack $ replicate 32 0
 
 fromMaybeHash :: Maybe (Hash "BlockHeader") -> BlockId
-fromMaybeHash = BlockId . fromMaybe hashOfNoParent 
+fromMaybeHash = BlockId . fromMaybe hashOfNoParent
 
 toMaybeHash :: BlockId -> Maybe (Hash "BlockHeader")
 toMaybeHash (BlockId h) = if h == hashOfNoParent then Nothing else Just h
@@ -849,7 +849,6 @@ instance PersistField POSIXTime where
 
 instance PersistFieldSql POSIXTime where
     sqlType _ = sqlType (Proxy @Text)
-
 
 -- | Newtype to get a MonadFail instance for @Either Text@.
 --

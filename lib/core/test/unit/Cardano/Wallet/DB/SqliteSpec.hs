@@ -66,6 +66,11 @@ import Cardano.Wallet.DB.Sqlite
     , withDBLayer
     , withDBLayerInMemory
     )
+import Cardano.Wallet.DB.Sqlite.Migration
+    ( InvalidDatabaseSchemaVersion (..)
+    , SchemaVersion (..)
+    , currentSchemaVersion
+    )
 import Cardano.Wallet.DB.StateMachine
     ( TestConstraints, prop_parallel, prop_sequential, validateGenerators )
 import Cardano.Wallet.DummyTarget.Primitive.Types
@@ -272,6 +277,8 @@ import qualified Data.List as L
 import qualified Data.Set as Set
 import qualified Data.Text as T
 import qualified Data.Text.Encoding as T
+import qualified Database.Persist.Sql as Sql
+import qualified Database.Persist.Sqlite as Sqlite
 import qualified UnliftIO.STM as STM
 
 spec :: Spec
@@ -1021,6 +1028,12 @@ manualMigrationsSpec = describe "Manual migrations" $ do
               )
             ]
 
+    it "'migrate' db to create metadata table when it doesn't exist"
+        testCreateMetadataTable
+
+    it "'migrate' db never modifies database with newer version"
+        testNewerDatabaseIsNeverModified
+
 testMigrationTxMetaFee
     :: forall k s.
         ( s ~ SeqState 'Mainnet k
@@ -1243,6 +1256,40 @@ testMigrationPassphraseScheme = do
     Right walNewScheme     = fromText "5e481f55084afda69fc9cd3863ced80fa83734aa"
     Right walOldScheme     = fromText "4a6279cd71d5993a288b2c5879daa7c42cebb73d"
     Right walNoPassphrase  = fromText "ba74a7d2c1157ea7f32a93f255dac30e9ebca62b"
+
+testCreateMetadataTable ::
+    forall s k. (k ~ ShelleyKey, s ~ SeqState 'Mainnet k) => IO ()
+testCreateMetadataTable = withSystemTempFile "db.sql" $ \path _ -> do
+    let noop _ = pure ()
+        tr = nullTracer
+    withDBLayer @s @k tr defaultFieldValues path dummyTimeInterpreter noop
+    actualVersion <- Sqlite.runSqlite (T.pack path) $ do
+        [Sqlite.Single (version :: Int)] <- Sqlite.rawSql
+            "SELECT version FROM database_schema_version \
+            \WHERE name = 'schema'" []
+        pure $ SchemaVersion $ fromIntegral version
+    actualVersion `shouldBe` currentSchemaVersion
+
+testNewerDatabaseIsNeverModified ::
+    forall s k. (k ~ ShelleyKey, s ~ SeqState 'Mainnet k) => IO ()
+testNewerDatabaseIsNeverModified = withSystemTempFile "db.sql" $ \path _ -> do
+    let newerVersion = SchemaVersion 100
+        currentVersion = SchemaVersion 1
+    _ <- Sqlite.runSqlite (T.pack path) $ do
+        Sqlite.rawExecute
+            "CREATE TABLE database_schema_version (name, version)" []
+        Sqlite.rawExecute (
+            "INSERT INTO database_schema_version \
+            \VALUES ('schema', " <> T.pack (show newerVersion) <> ")"
+            ) []
+    let noop _ = pure ()
+        tr = nullTracer
+    withDBLayer @s @k tr defaultFieldValues path dummyTimeInterpreter noop
+        `shouldThrow` \case
+            InvalidDatabaseSchemaVersion {..}
+                | expectedVersion == currentVersion
+                && actualVersion == newerVersion -> True
+            _ -> False
 
 {-------------------------------------------------------------------------------
                                    Test data

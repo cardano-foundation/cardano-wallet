@@ -42,7 +42,7 @@ module Cardano.DB.Sqlite
     -- * Manual Migration
     , ManualMigration (..)
     , MigrationError (..)
-    , DBField(..)
+    , DBField (..)
     , tableName
     , fieldName
     , fieldType

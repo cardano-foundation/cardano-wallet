@@ -1,4 +1,8 @@
+{-# LANGUAGE BlockArguments #-}
 {-# LANGUAGE DataKinds #-}
+{-# LANGUAGE DeriveAnyClass #-}
+{-# LANGUAGE DerivingStrategies #-}
+{-# LANGUAGE GeneralizedNewtypeDeriving #-}
 {-# LANGUAGE LambdaCase #-}
 {-# LANGUAGE TypeApplications #-}
 
@@ -13,6 +17,9 @@
 module Cardano.Wallet.DB.Sqlite.Migration
     ( DefaultFieldValues (..)
     , migrateManually
+    , SchemaVersion (..)
+    , currentSchemaVersion
+    , InvalidDatabaseSchemaVersion (..)
     )
     where
 
@@ -52,6 +59,10 @@ import Database.Persist.Class
     ( toPersistValue )
 import Database.Persist.Types
     ( PersistValue (..), fromPersistValueText )
+import Numeric.Natural
+    ( Natural )
+import UnliftIO.Exception
+    ( Exception, throwIO, throwString )
 
 import qualified Cardano.Wallet.Primitive.AddressDerivation as W
 import qualified Cardano.Wallet.Primitive.AddressDiscovery.Sequential as Seq
@@ -83,6 +94,23 @@ data SqlColumnStatus
     | ColumnPresent
     deriving Eq
 
+data TableCreationResult
+    = TableCreated
+    | TableExisted
+
+newtype SchemaVersion = SchemaVersion Natural
+  deriving newtype (Eq, Ord, Read, Show )
+
+data InvalidDatabaseSchemaVersion
+    = InvalidDatabaseSchemaVersion
+    { expectedVersion :: SchemaVersion
+    , actualVersion :: SchemaVersion
+    }
+    deriving (Show, Eq, Exception)
+
+currentSchemaVersion :: SchemaVersion
+currentSchemaVersion = SchemaVersion 1
+
 -- | Executes any manual database migration steps that may be required on
 -- startup.
 migrateManually
@@ -93,7 +121,8 @@ migrateManually
     -> [ManualMigration]
 migrateManually tr proxy defaultFieldValues =
     ManualMigration <$>
-    [ cleanupCheckpointTable
+    [ initializeSchemaVersionTable
+    , cleanupCheckpointTable
     , assignDefaultPassphraseScheme
     , addDesiredPoolNumberIfMissing
     , addMinimumUTxOValueIfMissing
@@ -116,6 +145,51 @@ migrateManually tr proxy defaultFieldValues =
     , cleanupSeqStateTable
     ]
   where
+    initializeSchemaVersionTable :: Sqlite.Connection -> IO ()
+    initializeSchemaVersionTable conn =
+        createSchemaVersionTableIfMissing conn >>= \case
+            TableCreated -> putSchemaVersion conn currentSchemaVersion
+            TableExisted -> do
+                schemaVersion <- getSchemaVersion conn
+                case compare schemaVersion currentSchemaVersion of
+                    GT -> throwIO InvalidDatabaseSchemaVersion
+                        { expectedVersion = currentSchemaVersion
+                        , actualVersion = schemaVersion
+                        }
+                    LT -> putSchemaVersion conn currentSchemaVersion
+                    EQ -> pure ()
+
+    createSchemaVersionTableIfMissing ::
+        Sqlite.Connection -> IO TableCreationResult
+    createSchemaVersionTableIfMissing conn = do
+        res <- runSql conn
+            "SELECT name FROM sqlite_master \
+            \WHERE type='table' AND name='database_schema_version'"
+        case res of
+           [] -> TableCreated <$ runSql conn
+            "CREATE TABLE database_schema_version\
+            \( name TEXT PRIMARY KEY \
+            \, version INTEGER NOT NULL \
+            \)"
+           _ -> pure TableExisted
+
+    putSchemaVersion :: Sqlite.Connection -> SchemaVersion -> IO ()
+    putSchemaVersion conn schemaVersion = void $ runSql conn $ T.unwords
+        [ "INSERT INTO database_schema_version (name, version)"
+        , "VALUES ('schema',"
+        , version
+        , ") ON CONFLICT (name) DO UPDATE SET version ="
+        , version
+        ]
+      where
+        version = T.pack $ show schemaVersion
+
+    getSchemaVersion :: Sqlite.Connection -> IO SchemaVersion
+    getSchemaVersion conn =
+        runSql conn "SELECT version FROM database_schema_version" >>= \case
+            [[PersistInt64 i]] | i >= 0 -> pure $ SchemaVersion $ fromIntegral i
+            _ -> throwString "Database metadata table is corrupt"
+
     -- NOTE
     -- We originally stored script pool gap inside sequential state in the 'SeqState' table,
     -- represented by 'seqStateScriptGap' field. We introduce separate shared wallet state
@@ -144,14 +218,10 @@ migrateManually tr proxy defaultFieldValues =
         return ()
 
     dropTable :: Text -> Text
-    dropTable table = mconcat
-        [ "DROP TABLE IF EXISTS " <> table <> ";"
-        ]
+    dropTable table = "DROP TABLE IF EXISTS " <> table <> ";"
 
     getTableInfo :: Text -> Text
-    getTableInfo table = mconcat
-        [ "PRAGMA table_info(", table, ");"
-        ]
+    getTableInfo table = "PRAGMA table_info(" <> table <> ");"
 
     filterColumn :: [Text] -> [PersistValue] -> Maybe [PersistValue]
     filterColumn excluding = \case
