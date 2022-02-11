@@ -25,7 +25,7 @@
 
 
   
-  <link href='tailwind.css?instanceId=8db82a53-026f-4a43-8706-3265adb1b23d' rel='stylesheet' type='text/css' />
+  <link href='tailwind.css?instanceId=aa3f5ba8-0193-49fa-a7e2-938433c3cc70' rel='stylesheet' type='text/css' />
 
   <!-- Heist error element -->
   <style type='text/css'>
@@ -2196,11 +2196,23 @@
     <p class='mb-3'>
       <strong>Note</strong>: If evaluation fails, the Hydra eval runner will retry until it succeeds. The <code class='py-0.5 px-1 rounded bg-gray-700 text-sm text-white'>ci/hydra-eval</code> status will change from pending to failed, until the evaluation succeeds.
     </p>
-  <h2 id='restarting-builds' class='inline-block mt-6 mb-4 text-4xl font-bold text-gray-700 border-b-2'>Restarting builds</h2>
+  <h2 id='restarting-builds' class='inline-block mt-6 mb-4 text-4xl font-bold text-gray-700 border-b-2'>Restarting builds</h2><div class='flex justify-center items-center mx-auto px-8'>
     <p class='mb-3'>
-      Sign in with the <a href='https://hydra.iohk.io/dashboard/adrestia' class='text-blue-600 hover:underline' target='_blank' rel='noopener'>adrestia</a> user to restart build jobs.
+      <img class='inline mb-3' src='contributing/hydra-restarting-builds.png' alt='[[hydra-restarting-builds.png]]' style='width: inherit;' />
+    </p>
+  </div>
+    <p class='mb-3'>
+      After signing in with the <a href='https://hydra.iohk.io/dashboard/adrestia' class='text-blue-600 hover:underline' target='_blank' rel='noopener'>adrestia</a> user, you should be able to see the Actions→Restart button on the build job page.
     </p>
   
+    <p class='mb-3'>
+      The password for this user is in <a href='https://input-output-hk.github.io/adrestia/resources/Passwords' class='text-blue-600 hover:underline' target='_blank' rel='noopener'>Vaultwarden</a>.
+    </p>
+  <div class='gotcha-container admonition-container mx-9 my-6 px-3 py-1 rounded bg-red-100 hover:border-red-400 hover:shadow border-t-8 border-red-200'><h4 id='note-about-bors' class='mt-6 mb-2 text-2xl font-bold text-gray-700'>Note about bors</h4>
+    <p class='mb-3'>
+      If the bors batch has already failed, restarting the failed build in Hydra will have no effect. You will need to submit a new merge job to bors.
+    </p>
+  </div>
   <!-- What goes in this file will appear below the note body-->
 </article>
             <div class='flex flex-col lg:flex-row lg:space-x-2'>
