@@ -843,7 +843,6 @@ spec = describe "NEW_SHELLEY_TRANSACTIONS" $ do
         verify rGetTx
             [ expectResponseCode HTTP.status200
             , expectField (#direction . #getApiT) (`shouldBe` Outgoing)
-            , expectField (#status . #getApiT) (`shouldBe` Pending)
             ]
 
         eventually "Source wallet balance is decreased by amt + fee" $ do
