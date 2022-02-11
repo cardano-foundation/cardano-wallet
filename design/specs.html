@@ -4,14 +4,14 @@
   <meta charset='UTF-8' />
   <meta name='viewport' content='width=device-width, initial-scale=1' />
   <title>
-    Using with Plutus Application Backend – Cardano Wallet
+    specs – Cardano Wallet
   </title>
   
     
       <meta property='og:description' content />
       <meta property='og:site_name' content='Cardano Wallet' />
       <meta property='og:type' content='website' />
-      <meta property='og:title' content='Using with Plutus Application Backend' />
+      <meta property='og:title' content='specs' />
     
     
       <base href='/cardano-wallet/' />
@@ -100,17 +100,8 @@
             </li>
           
             <li class='inline-flex items-center'>
-              <a class='px-1 font-bold' href='user-guide'>
-                User Guide
-              </a>
-              <svg fill='currentColor' viewBox='0 0 20 20' class='w-auto h-5 text-gray-400'>
-                <path fill-rule='evenodd' d='M7.293 14.707a1 1 0 010-1.414L10.586 10 7.293 6.707a1 1 0 011.414-1.414l4 4a1 1 0 010 1.414l-4 4a1 1 0 01-1.414 0z' clip-rule='evenodd'></path>
-              </svg>
-            </li>
-          
-            <li class='inline-flex items-center'>
-              <a class='px-1 font-bold' href='user-guide/common-use-cases'>
-                Common Use-Cases
+              <a class='px-1 font-bold' href='design'>
+                Design Notes
               </a>
               <svg fill='currentColor' viewBox='0 0 20 20' class='w-auto h-5 text-gray-400'>
                 <path fill-rule='evenodd' d='M7.293 14.707a1 1 0 010-1.414L10.586 10 7.293 6.707a1 1 0 011.414-1.414l4 4a1 1 0 010 1.414l-4 4a1 1 0 01-1.414 0z' clip-rule='evenodd'></path>
@@ -676,7 +667,11 @@
     
       <!-- Variable bindings for this tree-->
   
-  
+    
+      
+    
+    
+
 
 
   
@@ -689,12 +684,12 @@
     
     
       <svg class='w-4 h-4 flex-shrink-0 inline' fill='none' stroke='currentColor' viewBox='0 0 24 24' xmlns='http://www.w3.org/2000/svg'>
-        <path stroke-linecap='round' stroke-linejoin='round' stroke-width='2' d='M9 12h6m-6 4h6m2 5H7a2 2 0 01-2-2V5a2 2 0 012-2h5.586a1 1 0 01.707.293l5.414 5.414a1 1 0 01.293.707V19a2 2 0 01-2 2z'>
+        <path stroke-linecap='round' stroke-linejoin='round' stroke-width='2' d='M7 21h10a2 2 0 002-2V9.414a1 1 0 00-.293-.707l-5.414-5.414A1 1 0 0012.586 3H7a2 2 0 00-2 2v14a2 2 0 002 2z'>
         </path>
       </svg>
-      
+    
   
-    <a class='font-bold text-blue-600 hover:underline truncate' title='Using with Plutus Application Backend' href='user-guide/common-use-cases/pab'>
+    <a class='hover:underline truncate' title='Using with Plutus Application Backend' href='user-guide/common-use-cases/pab'>
       Using with Plutus Application Backend
     </a>
     
@@ -1884,11 +1879,7 @@
     
       <!-- Variable bindings for this tree-->
   
-    
-      
-      
-    
-
+  
 
 
   
@@ -1906,7 +1897,7 @@
       </svg>
       
   
-    <a class='font-bold hover:underline truncate' title='specs' href='design/specs'>
+    <a class='font-bold text-blue-600 hover:underline truncate' title='specs' href='design/specs'>
       specs
     </a>
     
@@ -2206,115 +2197,33 @@
           <main class='px-4 py-4'>
             <h1 class='flex items-end justify-center mb-4 p-3 bg-blue-100 text-5xl font-extrabold text-black rounded'>
   <a class='z-40 tracking-tighter '>
-    Using with Plutus Application Backend
+    specs
   </a>
 </h1>
             <article class='overflow-auto'>
   <!-- What goes in this file will appear on top of note body-->
-  <h2 id='overview' class='inline-block mt-6 mb-4 text-4xl font-bold text-gray-700 border-b-2'>Overview</h2>
+  <nav>
+  <div class='mb-8'>
+    <header class='pb-2 mb-2 font-semibold text-gray-600'>
+      Pages matching path './*'
+    </header>
+    
+      <div class='flex flex-wrap my-2'>
+        
+          <span class='mr-2 text-right text-gray-600'>
+          </span>
+        
+        <a class='flex-1 text-blue-600 mavenLinkBold border-l-2 pl-2 hover:underline' href='design/specs/light-mode'>
+          Specification: Light mode for cardano-wallet
+        </a>
+      </div>
+    
+  </div>
+</nav><div class='text-gray-400 border-t-2 inline-block pt-0.5'>
     <p class='mb-3'>
-      This guide is to show how to invoke Plutus contracts with cardano-wallet.
+      Note: To override the auto-generated content here, create a file named: <span class='font-mono text-sm'>design/specs.md</span>
     </p>
-  <h2 id='pre-requisites' class='inline-block mt-6 mb-4 text-4xl font-bold text-gray-700 border-b-2'>Pre-requisites</h2>
-    <ul class='my-3 ml-6 space-y-1 list-disc'>
-      
-        <li>
-          Start <a href='https://github.com/input-output-hk/cardano-node/releases' class='text-blue-600 hover:underline' target='_blank' rel='noopener'>cardano-node</a> and <a href='https://github.com/input-output-hk/cardano-wallet/releases' class='text-blue-600 hover:underline' target='_blank' rel='noopener'>cardano-wallet</a> following instructions from release notes. (Or use handy <a href='https://github.com/input-output-hk/cardano-wallet#getting-started' class='text-blue-600 hover:underline' target='_blank' rel='noopener'>docker-compose</a> to start both.)
-        </li>
-      
-        <li>
-          Install <a href='https://github.com/input-output-hk/plutus/tree/master/plutus-pab' class='text-blue-600 hover:underline' target='_blank' rel='noopener'>Plutus Application Backend</a>.
-        </li>
-      
-    </ul>
-  
-    <p class='mb-3'>
-      In order to be able to balance Plutus transaction we need funds on the wallet. In case of <a href='https://testnets.cardano.org/en/testnets/cardano/overview/' class='text-blue-600 hover:underline' target='_blank' rel='noopener'>Testnet</a> we can request tADA from the <a href='https://testnets.cardano.org/en/testnets/cardano/tools/faucet/' class='text-blue-600 hover:underline' target='_blank' rel='noopener'>faucet</a>.
-    </p>
-  
-    <p class='mb-3'>
-      In order to create new wallet in a first place we need to invoke <a href='https://input-output-hk.github.io/cardano-wallet/api/edge/#operation/postWallet' class='text-blue-600 hover:underline' target='_blank' rel='noopener'>create wallet</a> endpoint, for instance:
-    </p>
-  <div class='py-0.5 mb-3 text-sm'><pre><code class='language-none'>$ curl -X POST http://localhost:8090/v2/wallets \
--d '{"mnemonic_sentence":["slab","praise","suffer","rabbit","during","dream","arch","harvest","culture","book","owner","loud","wool","salon","table","animal","vivid","arrow","dirt","divide","humble","tornado","solution","jungle"],
-     "passphrase":"Secure Passphrase",
-     "name":"My Test Wallet",
-     "address_pool_gap":20}' \
--H "Content-Type: application/json"</code></pre></div><h2 id='workflow' class='inline-block mt-6 mb-4 text-4xl font-bold text-gray-700 border-b-2'>Workflow</h2>
-    <p class='mb-3'>
-      Once you have created a smart contract with <a href='https://github.com/input-output-hk/plutus/tree/master/plutus-pab' class='text-blue-600 hover:underline' target='_blank' rel='noopener'>PAB</a> you can execute it via cardano-wallet.
-    </p>
-  
-    <p class='mb-3'>
-      There are three endpoints that need to be invoked to follow the workflow:
-    </p>
-  
-    <ul class='my-3 ml-6 space-y-1 list-disc'>
-      
-        <li>
-          <a href='https://input-output-hk.github.io/cardano-wallet/api/edge/#operation/balanceTransaction' class='text-blue-600 hover:underline' target='_blank' rel='noopener'>Balance</a> - for balancing transaction from PAB.
-        </li>
-      
-        <li>
-          <a href='https://input-output-hk.github.io/cardano-wallet/api/edge/#operation/signTransaction' class='text-blue-600 hover:underline' target='_blank' rel='noopener'>Sign</a> - for signing transaction.
-        </li>
-      
-        <li>
-          <a href='https://input-output-hk.github.io/cardano-wallet/api/edge/#operation/postExternalTransaction' class='text-blue-600 hover:underline' target='_blank' rel='noopener'>Submit</a> - for submitting transaction to the network.
-        </li>
-      
-    </ul>
-  <h3 id='balance-transaction' class='mt-6 mb-2 text-3xl font-bold text-gray-700'>Balance transaction</h3>
-    <p class='mb-3'>
-      Plutus Application Backend provides payload of unbalanced transaction. This transaction needs to be balanced with wallet inputs such that it can be submitted to the network. The response from this endpoint returns <code class='py-0.5 px-1 rounded bg-gray-700 text-sm text-white'>fee</code> and <code class='py-0.5 px-1 rounded bg-gray-700 text-sm text-white'>coin_selection</code> of balanced transaction as well as CBOR-encoded <code class='py-0.5 px-1 rounded bg-gray-700 text-sm text-white'>transaction</code> represented in base64 encoding. We will need that returned <code class='py-0.5 px-1 rounded bg-gray-700 text-sm text-white'>transaction</code> value to pass on to <a href='https://input-output-hk.github.io/cardano-wallet/api/edge/#operation/signTransaction' class='text-blue-600 hover:underline' target='_blank' rel='noopener'>sign</a> endpoint.
-    </p>
-  <div class='py-0.5 mb-3 text-sm'><pre><code class='language-none'>$ curl -X POST http://localhost:8090/v2/wallets/1f82e83772b7579fc0854bd13db6a9cce21ccd95/transactions-balance \
--d '{"transaction":
-{"cborHex":"84a500800d80018183581d704d72cf569a339a18a7d9302313983f56e0d96cd45bdcb1d6512dca6a1a001e84805820923918e403bf43c34b4ef6b48eb2ee04babed17320d8d1b9ff9ad086e86f44ec02000e80a10481d87980f5f6",
-"description":"",
-"type":"Tx AlonzoEra"},
-"inputs":[]}' \
--H "Content-Type: application/json" | jq .transaction
-
-hKYAgYJYIACL3OShD8xU3XMcglayOyc72ZGWvU19iiSLqEPzLUQ6AA2BglggAIvc5KEPzFTdcxyCVrI7JzvZkZa9TX2KJIuoQ/MtRDoAAYKCWDkA87i32rzLSeZJCB3GHrOB/Shg/B+3I7ucILBfkyiKiq2biY2B6ZIS5v5pD/BMyrCeg3/pX6imiDEaArTdZoNYHXBNcs9WmjOaGKfZMCMTmD9W4Nls1FvcsdZRLcpqGgAehIBYIJI5GOQDv0PDS072tI6y7gS6vtFzINjRuf+a0Ibob0TsAhoAEdGtDoALWCAvUOolRvjOAgykW/zyq+sC/xivIoNGb4iK5IkYSz0tOaEEgdh5gPX2</code></pre></div><h3 id='sign-transaction' class='mt-6 mb-2 text-3xl font-bold text-gray-700'>Sign transaction</h3>
-    <p class='mb-3'>
-      Once transaction is balanced we need to sign it using our wallet’s secure passphrase passing previously returned CBOR-encoded <code class='py-0.5 px-1 rounded bg-gray-700 text-sm text-white'>transaction</code>. The sign endpoint again will returned CBOR-encoded <code class='py-0.5 px-1 rounded bg-gray-700 text-sm text-white'>transaction</code> which need to pass further to <a href='https://input-output-hk.github.io/cardano-wallet/api/edge/#operation/postExternalTransaction' class='text-blue-600 hover:underline' target='_blank' rel='noopener'>submit</a> endpoint.
-    </p>
-  <div class='py-0.5 mb-3 text-sm'><pre><code class='language-none'>$ curl -X POST http://localhost:8090/v2/wallets/1f82e83772b7579fc0854bd13db6a9cce21ccd95/transactions-sign \
--d '{"passphrase":"Secure Passphrase",
-"transaction":"hKYAgYJYIAQh6enKOwhicVBXDNo6ukKgvJJnMVFIbrvczELZao8sAQ2BglggBCHp6co7CGJxUFcM2jq6QqC8kmcxUUhuu9zMQtlqjywBAYKCWDkA87i32rzLSeZJCB3GHrOB/Shg/B+3I7ucILBfkyiKiq2biY2B6ZIS5v5pD/BMyrCeg3/pX6imiDEaBoFcr4NYHXBNcs9WmjOaGKfZMCMTmD9W4Nls1FvcsdZRLcpqGgAehIBYIJI5GOQDv0PDS072tI6y7gS6vtFzINjRuf+a0Ibob0TsAhoAEdGtDoALWCAvUOolRvjOAgykW/zyq+sC/xivIoNGb4iK5IkYSz0tOaEEgdh5gPX2"}' \
--H "Content-Type: application/json" | jq .transaction
-
-hKYAgYJYIAQh6enKOwhicVBXDNo6ukKgvJJnMVFIbrvczELZao8sAQ2BglggBCHp6co7CGJxUFcM2jq6QqC8kmcxUUhuu9zMQtlqjywBAYKCWDkA87i32rzLSeZJCB3GHrOB/Shg/B+3I7ucILBfkyiKiq2biY2B6ZIS5v5pD/BMyrCeg3/pX6imiDEaBoFcr4NYHXBNcs9WmjOaGKfZMCMTmD9W4Nls1FvcsdZRLcpqGgAehIBYIJI5GOQDv0PDS072tI6y7gS6vtFzINjRuf+a0Ibob0TsAhoAEdGtDoALWCAvUOolRvjOAgykW/zyq+sC/xivIoNGb4iK5IkYSz0tOaIAgYJYIBaZLkF/espB4YMd23QgZlpQ0TQkXR8ESalTVqlS4HFQWEAUwu5e080HmdIBoPAeb+L22gFtvlY7j8urDPoRIqxb0d41LF/MWNYXQy9yahWdqyHzCg+P7mduRuGrXAFUR0EBBIHYeYD19g==</code></pre></div><h3 id='submit-transaction' class='mt-6 mb-2 text-3xl font-bold text-gray-700'>Submit transaction</h3>
-    <p class='mb-3'>
-      We have our balanced and signed CBOR-encoded <code class='py-0.5 px-1 rounded bg-gray-700 text-sm text-white'>transaction</code> represented in base64 encoding. Before passing it further we need to decode it to binary format:
-    </p>
-  <div class='py-0.5 mb-3 text-sm'><pre><code class='language-none'>$ base64 -d &gt; tx.bin &lt;&lt;&lt; hKYAgYJYIAQh6enKOwhicVBXDNo6ukKgvJJnMVFIbrvczELZao8sAQ2BglggBCHp6co7CGJxUFcM2jq6QqC8kmcxUUhuu9zMQtlqjywBAYKCWDkA87i32rzLSeZJCB3GHrOB/Shg/B+3I7ucILBfkyiKiq2biY2B6ZIS5v5pD/BMyrCeg3/pX6imiDEaBoFcr4NYHXBNcs9WmjOaGKfZMCMTmD9W4Nls1FvcsdZRLcpqGgAehIBYIJI5GOQDv0PDS072tI6y7gS6vtFzINjRuf+a0Ibob0TsAhoAEdGtDoALWCAvUOolRvjOAgykW/zyq+sC/xivIoNGb4iK5IkYSz0tOaIAgYJYIBaZLkF/espB4YMd23QgZlpQ0TQkXR8ESalTVqlS4HFQWEAUwu5e080HmdIBoPAeb+L22gFtvlY7j8urDPoRIqxb0d41LF/MWNYXQy9yahWdqyHzCg+P7mduRuGrXAFUR0EBBIHYeYD19g==</code></pre></div>
-    <p class='mb-3'>
-      Now we can submit it to the network:
-    </p>
-  <div class='py-0.5 mb-3 text-sm'><pre><code class='language-none'>$ curl -X POST --data-binary "@tx.bin" http://localhost:8090/v2/proxy/transactions \
--H "Content-Type: application/octet-stream"
-
-{"id":"148cb83bb2943e54d878a86fdc4309d952ca5fd62b3463fbb72a94180ebe8e82"}</code></pre></div>
-    <p class='mb-3'>
-      Once transaction is accepted by the ledger we can look it up in our wallet’s transaction history.
-    </p>
-  <div class='py-0.5 mb-3 text-sm'><pre><code class='language-none'>$ curl -X GET http://localhost:8090/v2/wallets/1f82e83772b7579fc0854bd13db6a9cce21ccd95/transactions/148cb83bb2943e54d878a86fdc4309d952ca5fd62b3463fbb72a94180ebe8e82 | jq
-
-{
-  "inserted_at": {
-    "height": {
-      "quantity": 2975821,
-      "unit": "block"
-    },
-    "time": "2021-10-08T11:25:32Z",
-    "epoch_number": 161,
-    "absolute_slot_number": 39323116,
-    "slot_number": 140716
-  },
-  "status": "in_ledger",
-....</code></pre></div>
+  </div>
   <!-- What goes in this file will appear below the note body-->
 </article>
             <div class='flex flex-col lg:flex-row lg:space-x-2'>
