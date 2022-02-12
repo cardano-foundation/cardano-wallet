@@ -308,7 +308,7 @@
                     };
                 };
               } // (lib.optionalAttrs buildPlatform.isMacOS {
-                macos.intel = let
+                macos.intel = lib.optionalAttrs buildPlatform.isx86_64 (let
                   packages = mkPackages hydraProject;
                 in packages // {
                   cardano-wallet-macos-intel = import ./nix/release-package.nix {
@@ -317,7 +317,7 @@
                     platform = "macos-intel";
                     format = "tar.gz";
                   };
-                  shells = (mkDevShells hydraProject) // {
+                  shells = mkDevShells hydraProject // {
                     default = hydraProject.shell;
                   };
                   scripts = mkScripts hydraProject;
@@ -325,27 +325,27 @@
                     project = hydraProject.roots;
                     iohk-nix-utils = pkgs.iohk-nix-utils.roots;
                   };
-                };
+                });
 
-                macos.silicon = lib.dontRecurseIntoAttrs (let
+                macos.silicon = lib.optionalAttrs buildPlatform.isAarch64 (let
                   packages = mkPackages hydraProject;
                 in packages // {
-                    cardano-wallet-macos-silicon = import ./nix/release-package.nix {
-                      inherit pkgs;
-                      exes = releaseContents packages;
-                      platform = "macos-silicon";
-                      format = "tar.gz";
-                    };
-                    shells = (mkDevShells hydraProject) // {
-                      default = hydraProject.shell;
-                    };
-                    scripts = mkScripts hydraProject;
-                    internal.roots = {
-                      project = hydraProject.roots;
-                      iohk-nix-utils = pkgs.iohk-nix-utils.roots;
-                    };
-                  });
-            });
+                  cardano-wallet-macos-silicon = import ./nix/release-package.nix {
+                    inherit pkgs;
+                    exes = releaseContents packages;
+                    platform = "macos-silicon";
+                    format = "tar.gz";
+                  };
+                  shells = mkDevShells hydraProject // {
+                    default = hydraProject.shell;
+                  };
+                  scripts = mkScripts hydraProject;
+                  internal.roots = {
+                    project = hydraProject.roots;
+                    iohk-nix-utils = pkgs.iohk-nix-utils.roots;
+                  };
+                });
+              });
           in
           rec {
 
