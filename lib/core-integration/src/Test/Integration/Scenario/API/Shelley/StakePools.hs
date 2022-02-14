@@ -27,6 +27,7 @@ import Cardano.Wallet.Api.Types
     , ApiTxInput (..)
     , ApiWallet
     , ApiWalletDelegationStatus (..)
+    , ApiWithdrawal (..)
     , DecodeAddress
     , DecodeStakeAddress
     , EncodeAddress
@@ -140,7 +141,6 @@ import Test.Integration.Framework.DSL
 import Test.Integration.Framework.TestData
     ( errMsg403EmptyUTxO
     , errMsg403Fee
-    , errMsg403NonNullReward
     , errMsg403NotDelegating
     , errMsg403PoolAlreadyJoined
     , errMsg403WrongPass
@@ -649,10 +649,12 @@ spec = describe "SHELLEY_STAKE_POOLS" $ do
                         (.> (Quantity 0))
                     ]
 
-        -- Can't quite if unspoiled rewards.
+        -- Can quit with rewards
         quitStakePool @n ctx (w, fixturePassphrase) >>= flip verify
-            [ expectResponseCode HTTP.status403
-            , expectErrorMessage errMsg403NonNullReward
+            [ expectResponseCode HTTP.status202
+            , expectField #depositReturned (`shouldBe` Quantity 1000000)
+            , expectField (#withdrawals)
+                (\[ApiWithdrawal _ c] -> c .> Quantity 0)
             ]
 
     it "STAKE_POOLS_JOIN_05 - \
