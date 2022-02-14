@@ -132,16 +132,16 @@ module Helpers
 
     def get_latest_binary_url
       if is_linux?
-        os = "linux"
+        os = "linux.musl.cardano-wallet-linux64"
       end
       if is_mac?
-        os = "macos"
+        os = "macos.intel.cardano-wallet-macos-intel"
       end
       if is_win?
-        os = "win"
+        os = "linux.windows.cardano-wallet-win64"
       end
 
-      "https://hydra.iohk.io/job/Cardano/cardano-wallet/cardano-wallet-#{os}64/latest/download-by-type/file/binary-dist"
+      "https://hydra.iohk.io/job/Cardano/cardano-wallet/#{os}/latest/download-by-type/file/binary-dist"
     end
 
     def get_latest_configs_base_url
