@@ -1,4 +1,5 @@
 #!/usr/bin/env -S nix shell nixpkgs#bash nixpkgs#coreutils nixpkgs#buildkite-agent --inputs-from . --command bash
+# shellcheck shell=bash
 
 set -euo pipefail
 
@@ -18,7 +19,7 @@ fi
 
 ./$bench_name/bin/db --json $bench_name.json -o $bench_name.html | tee $bench_name.txt
 
-printf 'Link to \033]1339;url=artifact://'$bench_name.html';content='"Benchmark Report"'\a\n'
+printf 'Link to \033]1339;url=artifact://%s.html;content='"Benchmark Report"'\a\n' "$bench_name"
 
 echo "--- Upload report"
 

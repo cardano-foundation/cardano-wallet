@@ -19,9 +19,9 @@ set -euo pipefail
 staging_branch_parents=$(git show -s --pretty=%P HEAD)
 
 # Find the commit hash of origin/master.
-master_rev=$(git ls-remote $BUILDKITE_REPO $BUILDKITE_PIPELINE_DEFAULT_BRANCH | cut -f1)
+master_rev=$(git ls-remote "$BUILDKITE_REPO" "$BUILDKITE_PIPELINE_DEFAULT_BRANCH" | cut -f1)
 
-if [[ "$staging_branch_parents" =~ "$master_rev" ]]; then
+if [[ "$staging_branch_parents" =~ $master_rev ]]; then
   exit 0
 else
   echo "$BUILDKITE_PIPELINE_DEFAULT_BRANCH commit is $master_rev"

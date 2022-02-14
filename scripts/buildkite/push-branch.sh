@@ -1,4 +1,5 @@
 #! /usr/bin/env -S nix shell nixpkgs#bash nixpkgs#coreutils nixpkgs#git --inputs-from . --command bash
+# shellcheck shell=bash
 
 ########################################################################
 # This script creates/updates a branch in the cardano-wallet git repo

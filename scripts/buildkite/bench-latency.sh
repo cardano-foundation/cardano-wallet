@@ -1,8 +1,9 @@
 #!/usr/bin/env -S nix shell nixpkgs#bash nixpkgs#coreutils nixpkgs#buildkite-agent --inputs-from . --command bash
+# shellcheck shell=bash
 
 set -euo pipefail
 
-cd `dirname $0`/..
+cd "$(dirname "$0" || exit 1)/.."
 
 echo "--- Build"
 nix build .#benchmarks.cardano-wallet.latency -o bench-latency-shelley

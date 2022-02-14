@@ -4,6 +4,6 @@ set -euo pipefail
 
 echo "+++ stylish-haskell"
 
-stylish-haskell -i `git ls-files -- '*.hs'`
+git ls-files -- '*.hs' | xargs stylish-haskell -i
 
 git diff --exit-code
