@@ -223,6 +223,7 @@
 
             mkDevShells = project: rec {
               profiled = (project.appendModule { profiling = true; }).shell;
+              small = (project.appendModule { shellMinimal = true; }).shell;
               cabal = import ./nix/cabal-shell.nix {
                 haskellProject = project;
                 inherit (config) withCabalCache ghcVersion;

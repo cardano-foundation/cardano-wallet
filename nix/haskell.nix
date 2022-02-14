@@ -13,6 +13,11 @@ haskell-nix: haskell-nix.cabalProject' [
         description = "Enable profiling";
         default = false;
       };
+      shellMinimal = lib.mkOption {
+        type = lib.types.bool;
+        description = "Reduced shell environment for CI";
+        default = false;
+      };
       coverage = lib.mkOption {
         type = lib.types.bool;
         description = "Enable Haskell Program Coverage for cardano-wallet libraries and test suites.";
@@ -126,8 +131,11 @@ haskell-nix: haskell-nix.cabalProject' [
         else ./materialized/plan-nix;
       sha256map = import ./sha256map.nix;
 
-      shell = {
-        name = "cardano-wallet-shell${lib.optionalString config.profiling "-profiled"}";
+      shell = let
+        full = !config.shellMinimal;
+        minimalTools = ["cabal-install" "hlint" "stylish-haskell" "weeder"];
+      in {
+        name = "cardano-wallet-shell${lib.optionalString config.profiling "-profiled"}${lib.optionalString config.shellMinimal "-small"}";
         packages = ps: builtins.attrValues (haskellLib.selectProjectPackages ps);
 
         # Should prevents cabal from choosing alternate plans, so that
@@ -135,33 +143,39 @@ haskell-nix: haskell-nix.cabalProject' [
         # but: https://github.com/input-output-hk/haskell.nix/issues/231
         # exactDeps = true;
 
+        withHoogle = full;
+        withHaddock = full;
         # fixme: this is needed to prevent Haskell.nix double-evaluating hoogle
-        tools.hoogle = {
-          inherit (pkgs.haskell-build-tools.hoogle) version;
-          inherit (pkgs.haskell-build-tools.hoogle.project) index-state;
-          checkMaterialization = false;
-          materialized = ./materialized + "/hoogle";
+        tools = lib.optionalAttrs full {
+          hoogle = {
+            inherit (pkgs.haskell-build-tools.hoogle) version;
+            inherit (pkgs.haskell-build-tools.hoogle.project) index-state;
+            checkMaterialization = false;
+            materialized = ./materialized + "/hoogle";
+          };
         };
         nativeBuildInputs = with buildProject.hsPkgs; [
           cardano-node.components.exes.cardano-node
           cardano-cli.components.exes.cardano-cli
           cardano-addresses-cli.components.exes.cardano-address
           bech32.components.exes.bech32
-          pretty-simple.components.exes.pretty-simple
-        ] ++ (with pkgs.buildPackages.buildPackages; [
-          go-jira
-          haskellPackages.ghcid
+        ]
+        ++ lib.optional full pretty-simple.components.exes.pretty-simple
+        ++ (with pkgs.buildPackages.buildPackages; [
           pkgconfig
           python3Packages.openapi-spec-validator
-          (ruby.withPackages (ps: [ ps.thor ]))
-          sqlite-interactive
+          cabalWrapped
           curlFull
           jq
           yq
+        ] ++ lib.optionals full [
           nixWrapped
-          cabalWrapped
+          go-jira
+          haskellPackages.ghcid
+          (ruby.withPackages (ps: [ ps.thor ]))
+          sqlite-interactive
         ] ++ lib.filter
-          (drv: lib.isDerivation drv && drv.name != "regenerate-materialized-nix")
+          (drv: lib.isDerivation drv && drv.name != "regenerate-materialized-nix" && (full || lib.elem drv.name minimalTools))
           (lib.attrValues haskell-build-tools));
 
         CARDANO_NODE_CONFIGS = pkgs.cardano-node-deployments;
@@ -169,10 +183,9 @@ haskell-nix: haskell-nix.cabalProject' [
         meta.platforms = lib.platforms.unix;
       };
 
-      modules =
-        let inherit (config) src coverage profiling doIntegrationCheck buildBenchmarks;
-        in
-        [
+      modules = let
+        inherit (config) src coverage profiling doIntegrationCheck buildBenchmarks;
+      in [
           {
             packages = lib.genAttrs projectPackages (name: {
               # Mark package as local non-dep in the nix-shell.

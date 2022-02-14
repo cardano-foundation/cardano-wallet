@@ -98,7 +98,7 @@ jobs:
       - name: '❄ Install dependencies'
         run: |
           nix_develop="$GITHUB_WORKSPACE/develop.env"
-          nix develop --ignore-environment --command env > "$nix_develop"
+          nix develop .#small --ignore-environment --command env > "$nix_develop"
           echo "nix_develop=$nix_develop" >> $GITHUB_ENV
 
       - name: 'HLint'
