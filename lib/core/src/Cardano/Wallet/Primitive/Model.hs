@@ -80,6 +80,7 @@ import Cardano.Wallet.Primitive.Types.Tx
     , Tx (..)
     , TxIn (..)
     , TxMeta (..)
+    , TxOut (address)
     , TxStatus (..)
     , collateralInputs
     , failedScriptValidation
@@ -554,8 +555,13 @@ applyOurTxToUTxO
     -> UTxO
     -> Maybe ((Tx, TxMeta), UTxO)
 applyOurTxToUTxO !slotNo !blockHeight !s !tx !prevUTxO =
-    if hasKnownWithdrawal || prevUTxO /= ourNextUTxO
-        then Just ((tx {fee = actualFee dir}, txmeta), ourNextUTxO)
+    if ourWithdrawalSum /= mempty || prevUTxO /= ourNextUTxO
+        then
+            let updatedTx = tx
+                    { fee = actualFee dir
+                    , outputs = filter (ours s . address) (outputs tx)
+                    }
+            in Just ((updatedTx, txmeta), ourNextUTxO)
         else Nothing
   where
     -- The next UTxO state (apply a state transition) (e.g. remove
@@ -585,8 +591,6 @@ applyOurTxToUTxO !slotNo !blockHeight !s !tx !prevUTxO =
         , amount = amount
         , expiry = Nothing
         }
-
-    hasKnownWithdrawal = ourWithdrawalSum /= mempty
 
     -- NOTE 1: The only case where fees can be 'Nothing' is when dealing with
     -- a Byron transaction. In which case fees can actually be calculated as
