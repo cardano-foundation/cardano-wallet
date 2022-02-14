@@ -14,4 +14,4 @@ nix build .#benchmarks.cardano-wallet.latency -o bench-latency-shelley
 
 echo "+++ Run benchmark - shelley"
 
-( cd lib/shelley && ../../bench-latency-shelley/bin/latency )
+./bench-latency-shelley/bin/latency
