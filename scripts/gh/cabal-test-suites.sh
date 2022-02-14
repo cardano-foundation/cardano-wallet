@@ -1,4 +1,5 @@
 #!/usr/bin/env -S nix shell nixpkgs#bash nixpkgs#jq --inputs-from . --command bash
+# shellcheck shell=bash
 
 set -euo pipefail
 
