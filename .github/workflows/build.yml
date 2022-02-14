@@ -49,18 +49,33 @@ jobs:
 
       - name: '❄ Install dependencies'
         run: |
-          nix develop --command bash -c 'cd /tmp; cabal update'
-          echo
-          nix develop --command cabal --version
+          nix_develop="$GITHUB_WORKSPACE/develop.env"
+          nix develop .#small --ignore-environment --command env > "$nix_develop"
+          echo "nix_develop=$nix_develop" >> $GITHUB_ENV
+
+      - name: 'Cabal update'
+        run: |
+          source "$nix_develop"
+          cabal --version
+          cd /tmp
+          cabal update
 
       - name: 'Cabal build'
         run: |
-          nix develop --command cabal configure --enable-tests --enable-benchmarks
-          nix develop --command cabal build all -j
+          source "$nix_develop"
+          cabal configure --enable-tests --enable-benchmarks
+          cabal build all -j
 
-      - name: 'Cabal Unit test'
+      - name: 'Unit tests'
         run: |
-          nix develop --command cabal test --test-show-details=streaming all
+          source "$nix_develop"
+          cabal test --test-show-details=streaming $(./scripts/gh/cabal-test-suites.sh | grep -v integration)
+
+      - name: 'Integration tests'
+        if: ${{ startsWith(github.ref, 'refs/heads/bors/') }}
+        run: |
+          source "$nix_develop"
+          cabal test --test-show-details=streaming $(./scripts/gh/cabal-test-suites.sh | grep integration)
 
   lint:
     runs-on: ubuntu-20.04
