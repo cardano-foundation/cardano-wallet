@@ -41,8 +41,8 @@ jobs:
       - name: Set all tracked file modification times to the time of their last commit
         run: |
           rev=HEAD
-          for f in $(git ls-tree -r -t --full-name --name-only "$rev") ; do
-              touch -d $(git log --pretty=format:%cI -1 "$rev" -- "$f") "$f";
+          git ls-tree -r -t --full-name --name-only "$rev" lib | while read -r f; do
+            touch -d "$(git log --pretty=format:%cI -1 "$rev" -- "$f")" "$f";
           done
 
       - name: '❄ Install Nix'
