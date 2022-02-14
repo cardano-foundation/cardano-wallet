@@ -271,11 +271,11 @@ applyBlock !block (Wallet !u0 _ s0) =
 --
 applyBlocks
     :: (IsOurs s Address, IsOurs s RewardAccount)
-    => NonEmpty (Block)
+    => NonEmpty Block
     -> Wallet s
     -> NonEmpty (FilteredBlock, Wallet s)
-applyBlocks (block0 :| blocks) cp =
-    NE.scanl (flip applyBlock . snd) (applyBlock block0 cp) blocks
+applyBlocks (block0 :| blocks) walletState =
+    NE.scanl (flip applyBlock . snd) (applyBlock block0 walletState) blocks
 
 {-------------------------------------------------------------------------------
                                    Accessors
@@ -379,7 +379,7 @@ changeUTxO pending = evalState $
                                 UTxO operations
 -------------------------------------------------------------------------------}
 
--- | Applies a transaction to a UTxO, moving it from one state from another.
+-- | Applies a transaction to a UTxO, moving it from one state to another.
 --
 -- When applying a transaction to a UTxO:
 --   1. We need to remove any unspents that have been spent in the transaction.
@@ -426,7 +426,7 @@ spendTx tx !u =
 -- | Construct a 'UTxO' corresponding to a given transaction.
 --
 -- It is important for the transaction outputs to be ordered correctly,
--- as their index within this ordering determines how 
+-- as their index within this ordering determines how
 -- they are referenced as transaction inputs in subsequent blocks.
 --
 -- > balance (utxoFromTx tx) = foldMap tokens (outputs tx)
@@ -463,7 +463,7 @@ discoverAddresses block s0 = s2
     -- NOTE: Only outputs and withdrawals can potentially
     -- result in the extension of the address pool and
     -- the learning of new addresses.
-    -- 
+    --
     -- Inputs and collateral are forced to use existing addresses.
     discoverTx s tx = discoverWithdrawals (discoverOutputs s tx) tx
     discoverOutputs s tx =
