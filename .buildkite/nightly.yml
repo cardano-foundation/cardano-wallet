@@ -19,7 +19,7 @@ steps:
     command: "./.buildkite/bench-restore.sh mainnet"
     env:
       HOME: "/cache/cardano-wallet.home"
-    timeout_in_minutes: 600
+    timeout_in_minutes: 1200
     agents:
       system: x86_64-linux
       queue: benchmark
