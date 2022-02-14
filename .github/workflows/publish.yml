@@ -58,9 +58,7 @@ jobs:
 
       - name: '❄ Install dependencies'
         run: |
-          develop_env="$GITHUB_WORKSPACE/develop.env"
-          nix develop .#docs --ignore-environment --command env > "$develop_env"
-          echo "develop_env=$develop_env" >> $GITHUB_ENV
+          nix develop .#docs --ignore-environment --command emanote --version
 
       - name: '📸 Build Documentation'
         run: |
