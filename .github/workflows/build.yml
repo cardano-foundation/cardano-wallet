@@ -97,21 +97,24 @@ jobs:
 
       - name: '❄ Install dependencies'
         run: |
-          develop_env="$GITHUB_WORKSPACE/develop.env"
-          nix develop --ignore-environment --command env > "$develop_env"
-          echo "develop_env=$develop_env" >> $GITHUB_ENV
+          nix_develop="$GITHUB_WORKSPACE/develop.env"
+          nix develop --ignore-environment --command env > "$nix_develop"
+          echo "nix_develop=$nix_develop" >> $GITHUB_ENV
 
       - name: 'HLint'
-        run: 'nix develop --command hlint lib'
+        run: |
+          source "$nix_develop"
+          hlint lib
 
       - name: 'Stylish Haskell'
-        run: 'nix develop --command scripts/buildkite/check-stylish.sh'
+        run: |
+          source "$nix_develop"
+          scripts/buildkite/check-stylish.sh
 
       - name: 'Validate OpenAPI Specification'
-        run: 'nix develop --command openapi-spec-validator --schema 3.0.0 specifications/api/swagger.yaml'
-
-      # - name: 'Check Cabal Configure'
-      #   run: 'nix develop .#cabal --command scripts/buildkite/cabal-ci.sh configure'
+        run: |
+          source "$nix_develop"
+          openapi-spec-validator --schema 3.0.0 specifications/api/swagger.yaml
 
       - name: 'Shellcheck'
         run: './scripts/shellcheck.sh'
