@@ -1,6 +1,6 @@
 env:
   LC_ALL: "en_US.UTF-8"
-  NIX_PATH: "channel:nixos-21.05"
+  NIX_PATH: "channel:nixos-21.11"
 
   # Per-container variables
   SCRATCH_DIR: "/scratch/cardano-wallet"

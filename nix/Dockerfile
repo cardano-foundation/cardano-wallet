@@ -26,7 +26,7 @@
 # Use multi-stage build
 FROM nixos/nix as builder
 
-RUN nix-channel --add https://nixos.org/channels/nixos-21.05 nixpkgs
+RUN nix-channel --add https://nixos.org/channels/nixos-21.11 nixpkgs
 RUN nix-channel --update
 
 RUN nix-env -i git gnutar
