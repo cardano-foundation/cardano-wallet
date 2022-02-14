@@ -205,18 +205,19 @@ library
       Cardano.Wallet.Primitive.AddressDerivation.SharedKey
       Cardano.Wallet.Primitive.AddressDerivation.Shelley
       Cardano.Wallet.Primitive.AddressDiscovery
-      Cardano.Wallet.Primitive.Slotting
       Cardano.Wallet.Primitive.AddressDiscovery.Random
-      Cardano.Wallet.Primitive.Delegation.State
       Cardano.Wallet.Primitive.AddressDiscovery.Sequential
       Cardano.Wallet.Primitive.AddressDiscovery.Shared
-      Cardano.Wallet.Primitive.SyncProgress
+      Cardano.Wallet.Primitive.BlockSummary
       Cardano.Wallet.Primitive.Collateral
+      Cardano.Wallet.Primitive.Delegation.State
       Cardano.Wallet.Primitive.Delegation.UTxO
       Cardano.Wallet.Primitive.Migration
       Cardano.Wallet.Primitive.Migration.Planning
       Cardano.Wallet.Primitive.Migration.Selection
       Cardano.Wallet.Primitive.Model
+      Cardano.Wallet.Primitive.Slotting
+      Cardano.Wallet.Primitive.SyncProgress
       Cardano.Wallet.Primitive.Types
       Cardano.Wallet.Primitive.Types.Address
       Cardano.Wallet.Primitive.Types.Coin

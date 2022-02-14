@@ -68,6 +68,7 @@ import Cardano.Wallet.Primitive.AddressDiscovery
     , IsOurs (isOurs)
     , IsOwned (..)
     , KnownAddresses (..)
+    , MaybeLight (..)
     )
 import Cardano.Wallet.Primitive.Types.Address
     ( Address (..), AddressState (..) )
@@ -351,6 +352,9 @@ instance KnownAddresses (RndState n) where
                 (\path v result -> mk (toDerivationIndexes path) v : result)
                 []
 
+instance MaybeLight (RndState n) where
+    maybeDiscover = Nothing
+
 --------------------------------------------------------------------------------
 --
 -- RndAnyState
@@ -447,3 +451,6 @@ instance CompareDiscovery (RndAnyState n p) where
 
 instance KnownAddresses (RndAnyState n p) where
     knownAddresses (RndAnyState s) = knownAddresses s
+
+instance MaybeLight (RndAnyState n p) where
+    maybeDiscover = Nothing

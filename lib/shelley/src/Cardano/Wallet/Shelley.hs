@@ -97,7 +97,7 @@ import Cardano.Wallet.Primitive.AddressDerivation.Shared
 import Cardano.Wallet.Primitive.AddressDerivation.Shelley
     ( ShelleyKey )
 import Cardano.Wallet.Primitive.AddressDiscovery
-    ( IsOurs )
+    ( IsOurs, MaybeLight )
 import Cardano.Wallet.Primitive.AddressDiscovery.Random
     ( RndState )
 import Cardano.Wallet.Primitive.AddressDiscovery.Sequential
@@ -378,6 +378,7 @@ serveWallet
         :: forall s k.
             ( IsOurs s Address
             , IsOurs s RewardAccount
+            , MaybeLight s
             , PersistAddressBook s
             , PersistPrivateKey (k 'RootK)
             , WalletKey k

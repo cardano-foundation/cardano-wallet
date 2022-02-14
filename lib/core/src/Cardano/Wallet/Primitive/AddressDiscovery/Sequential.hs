@@ -107,6 +107,7 @@ import Cardano.Wallet.Primitive.AddressDiscovery
     , IsOurs (..)
     , IsOwned (..)
     , KnownAddresses (..)
+    , MaybeLight (..)
     , coinTypeAda
     )
 import Cardano.Wallet.Primitive.Types.Address
@@ -694,6 +695,12 @@ instance
             edgeChangeAddresses =
                 drop (length changeAddresses - internalGap) changeAddresses
 
+instance GetAccount (SeqState n k) k where
+    getAccount = accountXPub
+
+instance MaybeLight (SeqState n k) where
+    maybeDiscover = Nothing
+
 {-------------------------------------------------------------------------------
     SeqAnyState
 
@@ -788,5 +795,5 @@ instance SupportsDiscovery n k => CompareDiscovery (SeqAnyState n k p) where
 instance PaymentAddress n k => KnownAddresses (SeqAnyState n k p) where
     knownAddresses (SeqAnyState s) = knownAddresses s
 
-instance GetAccount (SeqState n k) k where
-    getAccount = accountXPub
+instance MaybeLight (SeqAnyState n k p) where
+    maybeDiscover = Nothing

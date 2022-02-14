@@ -163,6 +163,7 @@ mkTxId ins outs wdrls md = mockHash (ins, outs, wdrls, md)
 dummyNetworkLayer :: NetworkLayer m a
 dummyNetworkLayer = NetworkLayer
     { chainSync = error "chainSync: not implemented"
+    , lightSync = Nothing
     , currentNodeEra = error "currentNodeEra: not implemented"
     , currentNodeTip = error "currentNodeTip: not implemented"
     , watchNodeTip = error "watchNodeTip: not implemented"
