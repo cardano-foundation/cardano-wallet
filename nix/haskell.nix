@@ -133,7 +133,7 @@ haskell-nix: haskell-nix.cabalProject' [
 
       shell = let
         full = !config.shellMinimal;
-        minimalTools = ["cabal-install" "hlint" "stylish-haskell" "weeder"];
+        minimalTools = ["cabal-install-exe-cabal" "hlint-exe-hlint" "stylish-haskell-exe-stylish-haskell" "weeder-exe-weeder"];
       in {
         name = "cardano-wallet-shell${lib.optionalString config.profiling "-profiled"}${lib.optionalString config.shellMinimal "-small"}";
         packages = ps: builtins.attrValues (haskellLib.selectProjectPackages ps);
@@ -175,7 +175,7 @@ haskell-nix: haskell-nix.cabalProject' [
           (ruby.withPackages (ps: [ ps.thor ]))
           sqlite-interactive
         ] ++ lib.filter
-          (drv: lib.isDerivation drv && drv.name != "regenerate-materialized-nix" && (full || lib.elem drv.name minimalTools))
+          (drv: lib.isDerivation drv && drv.name != "regenerate-materialized-nix" && (full || lib.elem (drv.pname or "") minimalTools))
           (lib.attrValues haskell-build-tools));
 
         CARDANO_NODE_CONFIGS = pkgs.cardano-node-deployments;
