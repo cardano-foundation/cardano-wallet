@@ -1,5 +1,4 @@
-#! /usr/bin/env nix-shell
-#! nix-shell -i bash -p nix coreutils gnugrep gawk time haskellPackages.hp2pretty buildkite-agent gnuplot
+#!/usr/bin/env -S nix shell nixpkgs#bash nixpkgs#coreutils nixpkgs#buildkite-agent nixpkgs#gnugrep nixpkgs#gawk nixpkgs#time nixpkgs#gnuplot nixpkgs#haskellPackages.hp2pretty --inputs-from . --command bash
 
 set -euo pipefail
 

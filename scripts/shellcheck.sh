@@ -1,5 +1,4 @@
-#! /usr/bin/env nix-shell
-#! nix-shell -i bash -p shellcheck figlet lolcat
+#!/usr/bin/env -S nix shell nixpkgs#bash nixpkgs#coreutils nixpkgs#findutils nixpkgs#shellcheck nixpkgs#figlet nixpkgs#lolcat --inputs-from . --command bash
 # shellcheck shell=bash
 
 # NOTE: it can help to run this under the steel overseer when writing

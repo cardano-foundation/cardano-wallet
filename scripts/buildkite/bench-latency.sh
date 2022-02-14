@@ -1,5 +1,4 @@
-#! /usr/bin/env nix-shell
-#! nix-shell -i bash -p nix coreutils buildkite-agent
+#!/usr/bin/env -S nix shell nixpkgs#bash nixpkgs#coreutils nixpkgs#buildkite-agent --inputs-from . --command bash
 
 set -euo pipefail
 
