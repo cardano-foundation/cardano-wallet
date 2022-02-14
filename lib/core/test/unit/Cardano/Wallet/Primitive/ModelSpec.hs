@@ -10,6 +10,7 @@
 {-# LANGUAGE TypeApplications #-}
 {-# LANGUAGE TypeFamilies #-}
 {-# OPTIONS_GHC -fno-warn-orphans #-}
+{-# LANGUAGE TupleSections #-}
 
 module Cardano.Wallet.Primitive.ModelSpec
     ( spec
@@ -732,34 +733,20 @@ prop_applyOurTxToUTxO_allOurs
     -> Property
 prop_applyOurTxToUTxO_allOurs slotNo blockHeight tx utxo =
     checkCoverage $
-    cover 50  (    haveResult)        "have result" $
+    cover 50 haveResult "have result" $
     cover 0.1 (not haveResult) "do not have result" $
-    report
-        (utxo)
-        "utxo" $
-    report
-        (utxoFromTx tx)
-        "utxoFromTx tx" $
-    report
-        (haveResult)
-        "haveResult" $
-    report
-        (shouldHaveResult)
-        "shouldHaveResult" $
+    report utxo "utxo" $
+    report (utxoFromTx tx) "utxoFromTx tx" $
+    report haveResult "haveResult" $
+    report shouldHaveResult "shouldHaveResult" $
     case maybeResult of
         Nothing ->
-            verify
-                (not shouldHaveResult)
-                "not shouldHaveResult" $
+            verify (not shouldHaveResult) "not shouldHaveResult" $
             property True
         Just utxo' ->
-            cover 10 (utxo /= utxo')
-                "utxo /= utxo'" $
-            verify
-                (shouldHaveResult)
-                "shouldHaveResult" $
-            verify
-                (utxo' == applyTxToUTxO tx utxo)
+            cover 10 (utxo /= utxo') "utxo /= utxo'" $
+            verify shouldHaveResult "shouldHaveResult" $
+            verify (utxo' == applyTxToUTxO tx utxo)
                 "utxo' == applyTxToUTxO tx utxo" $
             property True
   where
@@ -785,32 +772,17 @@ prop_applyOurTxToUTxO_someOurs
     -> Property
 prop_applyOurTxToUTxO_someOurs ourState slotNo blockHeight tx utxo =
     checkCoverage $
-    cover 50  (    haveResult)        "have result" $
+    cover 50 haveResult "have result" $
     cover 0.1 (not haveResult) "do not have result" $
-    report
-        (utxo)
-        "utxo" $
-    report
-        (utxoFromTx tx)
-        "utxoFromTx tx" $
-    report
-        (haveResult)
-        "haveResult" $
-    report
-        (shouldHaveResult)
-        "shouldHaveResult" $
+    report utxo "utxo" $
+    report (utxoFromTx tx) "utxoFromTx tx" $
+    report haveResult "haveResult" $
+    report shouldHaveResult "shouldHaveResult" $
     case maybeResult of
-        Nothing ->
-            verify
-                (not shouldHaveResult)
-                "not shouldHaveResult" $
+        Nothing -> verify (not shouldHaveResult) "not shouldHaveResult" $
             property True
-        Just utxo' ->
-            cover 10 (utxo /= utxo')
-                "utxo /= utxo'" $
-            verify
-                (shouldHaveResult)
-                "shouldHaveResult" $
+        Just utxo' -> cover 10 (utxo /= utxo') "utxo /= utxo'" $
+            verify shouldHaveResult "shouldHaveResult" $
             property True
   where
     haveResult :: Bool
