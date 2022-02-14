@@ -3941,8 +3941,6 @@ data PostMintBurnAssetData (n :: NetworkDiscriminant) = PostMintBurnAssetData
     -- ^ Passphrase of the wallet.
     , metadata   :: !(Maybe (ApiT TxMetadata))
     -- ^ Metadata to attach to the transaction that mints/burns.
-    , timeToLive :: !(Maybe (Quantity "second" NominalDiffTime))
-    -- ^ Time the created mint/burn transaction is valid until.
     } deriving (Eq, Generic, Show)
 
 instance DecodeAddress n => FromJSON (PostMintBurnAssetData n) where
@@ -3954,16 +3952,22 @@ instance EncodeAddress n => ToJSON (PostMintBurnAssetData n) where
 -- | Core minting and burning request information.
 --
 -- Assets are minted and burned under a "policy". The policy defines under what
--- circumstances a token may be minted and burned. The typical policy is "A
--- token may be minted and burned if signature 's' witnesses the transaction,
--- for some signature 's'". This is the only type of policy supported by the
--- cardano-wallet API at the moment. Because cardano-wallet manages the keys of
--- the user, we ask the user not for a specific signature, but rather for a key
--- derivation index, which we use to derive the signature to construct the
--- policy with.
+-- circumstances a token may be minted and burned. The policy is the hash of a serialized
+-- script that contain verification keys and timelocks combined in a conditions, possibly nested,
+-- to accommodate non-trivial time conditions.
+-- In non-multisig case the script regulating minting/burning will contain
+-- a verification key of the wallet with optional time predicates. The verification key
+-- can be specified by a user as an option. It is key index derived on top of current account public key
+-- using "0" purpose. Otherwise the default index (ie. the first one, with ix=0) is taken.
+-- In multisig case the script regulating minting/burning will contain verification keys of
+-- signers with optional time predicates. The used key derivation index is the same for all
+-- engaged derivation keys. If not specified then ix=0 is assumed to be used.
 data ApiMintBurnData (n :: NetworkDiscriminant) = ApiMintBurnData
-    { monetaryPolicyIndex :: !(Maybe (ApiT DerivationIndex))
-    -- ^ The key derivation index to use to construct the policy.
+    { verificationKeyIndex :: !(Maybe (ApiT DerivationIndex))
+    -- ^ The key derivation index to use for verification key derivation in a script.
+    , policyScript :: Script Cosigner
+    -- ^ A script regulating minting/burning policy. For non-multisig only 'self' is expected
+    -- in place of verification key. Only one verification key should be present.
     , assetName           :: !(ApiT W.TokenName)
     -- ^ The name of the asset to mint/burn.
     , operation           :: !(ApiMintBurnOperation n)
