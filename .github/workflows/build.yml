@@ -35,6 +35,15 @@ jobs:
     steps:
       - name: '📥 Checkout repository'
         uses: actions/checkout@v2
+        with:
+          fetch-depth: 0
+
+      - name: Set all tracked file modification times to the time of their last commit
+        run: |
+          rev=HEAD
+          for f in $(git ls-tree -r -t --full-name --name-only "$rev") ; do
+              touch -d $(git log --pretty=format:%cI -1 "$rev" -- "$f") "$f";
+          done
 
       - name: '❄ Install Nix'
         uses: cachix/install-nix-action@v16
@@ -50,6 +59,21 @@ jobs:
       - name: '❄ Install dependencies'
         run: |
           nix develop .#small --command cabal update
+
+      - name: Cache key
+        id: cache_key
+        run: |
+          echo "::set-output name=value::$(basename -s ".drv" $(nix path-info --derivation .\#devShells.x86_64-linux.small))"
+
+      - name: Cache Cabal build artifacts
+        uses: actions/cache@v2
+        with:
+          path: |
+            ~/.cabal/store
+            dist-newstyle
+          key: ${{ runner.os }}-${{ steps.cache_key.outputs.value }}
+          restore-keys: |
+            ${{ runner.os }}
 
       - name: 'Cabal build'
         run: |
