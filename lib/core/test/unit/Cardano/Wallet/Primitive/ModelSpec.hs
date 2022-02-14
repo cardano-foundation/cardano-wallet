@@ -89,7 +89,7 @@ import Cardano.Wallet.Primitive.Types.Tx
 import Cardano.Wallet.Primitive.Types.Tx.Gen
     ( genTx, genTxIn, genTxOut, shrinkTx, shrinkTxIn, shrinkTxOut )
 import Cardano.Wallet.Primitive.Types.UTxO
-    ( Dom (..), UTxO (..), balance, excluding, filterByAddress, restrictedTo )
+    ( Dom (..), UTxO (..), balance, excluding, filterByAddress, restrictedTo, isSubsetOf )
 import Cardano.Wallet.Primitive.Types.UTxO.Gen
     ( genUTxO, shrinkUTxO )
 import Cardano.Wallet.Util
@@ -270,6 +270,8 @@ spec = do
     parallel $ describe "Applying transactions to UTxO sets" $ do
         it "prop_applyOurTxToUTxO_allOurs" $
             property prop_applyOurTxToUTxO_allOurs
+        it "prop_applyOurTxToUTxO_noneOurs" $
+            property prop_applyOurTxToUTxO_noneOurs
         it "prop_applyOurTxToUTxO_someOurs" $
             property prop_applyOurTxToUTxO_someOurs
 
@@ -564,9 +566,16 @@ prop_changeUTxO_inner pendingTxs =
 data AllOurs = AllOurs
 
 instance IsOurs AllOurs a where
-    isOurs _ s = (Just shouldNotEvaluate, s)
+    isOurs _ = (Just shouldNotEvaluate,)
       where
         shouldNotEvaluate = error "AllOurs: unexpected evaluation"
+
+-- | A simplified wallet state that never marks entities as "ours".
+--
+data NoneOurs = NoneOurs
+
+instance IsOurs NoneOurs a where
+    isOurs _ = (Nothing,)
 
 -- | Encapsulates a filter condition for matching entities with 'IsOurs'.
 --
@@ -756,6 +765,24 @@ prop_applyOurTxToUTxO_allOurs slotNo blockHeight tx utxo =
     maybeResult = snd <$> applyOurTxToUTxO slotNo blockHeight AllOurs tx utxo
     shouldHaveResult :: Bool
     shouldHaveResult = evalState (isOurTx tx utxo) AllOurs
+
+-- Verifies that UTxO set can't grow when there are no "our" transactions.
+-- Hint: UTxO set shrinks when foreign transaction uses it as collateral.
+prop_applyOurTxToUTxO_noneOurs
+    :: SlotNo
+    -> Quantity "block" Word32
+    -> Tx
+    -> UTxO
+    -> Property
+prop_applyOurTxToUTxO_noneOurs slotNo blockHeight tx utxo =
+    report tx "tx" $
+    report utxo "utxo" $
+    report utxo' "utxo'" $
+    report (utxoFromTx tx) "utxoFromTx tx" $
+    property $ utxo' `isSubsetOf` utxo
+  where
+    utxo' =
+        maybe utxo snd $ applyOurTxToUTxO slotNo blockHeight NoneOurs tx utxo
 
 -- Verifies that 'applyOurTxToUTxO' returns a result only when it is
 -- appropriate to do so.
