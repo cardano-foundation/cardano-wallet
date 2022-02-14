@@ -1249,7 +1249,7 @@ data ApiMintedBurnedTransaction (n :: NetworkDiscriminant) = ApiMintedBurnedTran
     deriving anyclass NFData
 
 data ApiMintedBurnedInfo = ApiMintedBurnedInfo
-    { monetaryPolicyIndex :: !(ApiT DerivationIndex)
+    { verificationKeyIndex :: !(ApiT DerivationIndex)
     -- ^ The monetary policy index the asset was minted/burnt under.
     , policyId            :: !(ApiT W.TokenPolicyId)
     -- ^ The policy ID the asset was minted/burnt under.
@@ -1258,7 +1258,7 @@ data ApiMintedBurnedInfo = ApiMintedBurnedInfo
     , subject             :: !(ApiT W.TokenFingerprint)
     -- ^ The subject of the asset minted/burnt. This is useful to users wishing
     -- to attach metadata to their asset.
-    , script              :: !(ApiT (Script KeyHash))
+    , policyScript        :: !(ApiT (Script KeyHash))
     -- ^ The script which this asset was minted and/or burned under
     } deriving (Eq, Generic, Show)
       deriving anyclass NFData
@@ -3965,12 +3965,12 @@ instance EncodeAddress n => ToJSON (PostMintBurnAssetData n) where
 data ApiMintBurnData (n :: NetworkDiscriminant) = ApiMintBurnData
     { verificationKeyIndex :: !(Maybe (ApiT DerivationIndex))
     -- ^ The key derivation index to use for verification key derivation in a script.
-    , policyScript :: Script Cosigner
-    -- ^ A script regulating minting/burning policy. For non-multisig only 'self' is expected
-    -- in place of verification key. Only one verification key should be present.
-    , assetName           :: !(ApiT W.TokenName)
+    , policyScriptTemplate :: !(ApiT (Script Cosigner))
+    -- ^ A script regulating minting/burning policy. For non-multisig only 'cosigner#0' is expected
+    -- in place of verification key. Only one cosigner should be present.
+    , assetName            :: !(ApiT W.TokenName)
     -- ^ The name of the asset to mint/burn.
-    , operation           :: !(ApiMintBurnOperation n)
+    , operation            :: !(ApiMintBurnOperation n)
     -- ^ The minting or burning operation to perform.
     } deriving (Eq, Generic, Show)
 
@@ -4043,6 +4043,11 @@ instance ToJSON (ApiT ApiMintedBurnedInfo) where
 instance FromJSON (ApiT (Script KeyHash)) where
     parseJSON = fmap ApiT . parseJSON
 instance ToJSON (ApiT (Script KeyHash)) where
+    toJSON = toJSON . getApiT
+
+instance FromJSON (ApiT (Script Cosigner)) where
+    parseJSON = fmap ApiT . parseJSON
+instance ToJSON (ApiT (Script Cosigner)) where
     toJSON = toJSON . getApiT
 
 instance FromJSON (ApiT TxScriptValidity) where

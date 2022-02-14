@@ -3481,13 +3481,13 @@ components:
         - policy_id
         - asset_name
         - subject
-        - script
+        - policy_script
       properties:
         monetary_policy_index: *derivationSegment
         policy_id: *assetPolicyId
         asset_name: *assetName
         subject: *assetFingerprint
-        script:
+        policy_script:
           <<: *ScriptValue
           description: The script under which this asset was minted or burned.
 
@@ -3548,8 +3548,10 @@ components:
       required:
         - asset_name
         - operation
+        - policy_script_template
       properties:
-        monetary_policy_index:
+        policy_script_template: *ScriptTemplateValue
+        verification_key_index:
           allOf:
             - *derivationSegment
             - type: string
@@ -3571,7 +3573,6 @@ components:
           <<: *lenientPassphrase
           description: The wallet's master passphrase.
         metadata: *transactionMetadata
-        time_to_live: *transactionTTL
 
     ApiRedeemerSpending: &ApiRedeemerSpending
       type: object
