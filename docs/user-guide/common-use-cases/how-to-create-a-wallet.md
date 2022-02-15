@@ -6,7 +6,7 @@ title: How to create a wallet
 
 ## Pre-requisites
 
-Go through [[how-to-start-wallet-server]].
+ - [[how-to-start-wallet-server]].
 
 ## Overview
 
