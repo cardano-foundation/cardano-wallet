@@ -19,18 +19,6 @@ Assuming you have already created a wallet, you can send a transaction by using 
 
 Behind the scene, the wallet engine will select necessary inputs from the wallet, generate a change address within the wallet, sign and submit the transaction. A transaction can have multiple outputs, possibly to the same address. Note that in Byron, addresses are necessarily base58-encoded (as an enforced convention).
 
-Once submitted through the wallet, a can be tracked via:
-
-[`GET /wallets/{walletId}/transactions`](https://input-output-hk.github.io/cardano-wallet/api/edge/#operation/listTransactions) - transactions from **Shelley** wallet
-[`GET /byron-wallets/{walletId}/transactions`](https://input-output-hk.github.io/cardano-wallet/api/edge/#operation/listByronTransactions) - transactions from **Byron** wallet
-
-Which returns a list of all transactions for this particular wallet. Optional range filters can be provided. A transaction will go through a succession of states, starting as “Pending”. If a transaction stays pending for too long (because rejected by a mempool, or because lost in translation due to multiple chain switches), users may decide to forget it using:
-
-[`DELETE /wallets/{walletId}/transactions/{transactionId}`](https://input-output-hk.github.io/cardano-wallet/api/edge/#operation/deleteTransaction)  - transactions from **Shelley** wallet
-[`DELETE /byron-wallets/{walletId}/transactions/{transactionId}`](https://input-output-hk.github.io/cardano-wallet/api/edge/#operation/deleteByronTransaction)  - transactions from **Byron** wallet
-
-For more information about transactions lifecycle, have a look at [[About-Transactions-Lifecycle]].
-
 ## New transaction workflow
 
 [New transaction workflow](https://input-output-hk.github.io/cardano-wallet/api/edge/#tag/Transactions-New) decouples creation of the transaction into separate steps:
@@ -92,6 +80,25 @@ $ curl -X GET http://localhost:8090/v2/wallets/1b0aa24994b4181e79116c131510f2abf
   "status": "in_ledger",
 ....
 ```
+
+## Transaction history
+
+Note that all transactions made from and to any wallet are available in the transaction history.
+We can always display details of a particular transaction as well as list all transactions that are known to a wallet.
+
+For instance transactions can be tracked via:
+
+[`GET /wallets/{walletId}/transactions`](https://input-output-hk.github.io/cardano-wallet/api/edge/#operation/listTransactions) - transactions from **Shelley** wallet
+[`GET /byron-wallets/{walletId}/transactions`](https://input-output-hk.github.io/cardano-wallet/api/edge/#operation/listByronTransactions) - transactions from **Byron** wallet
+
+Which returns a list of all transactions for this particular wallet. Optional range filters can be provided. A transaction will go through a succession of states, starting as “Pending”. If a transaction stays pending for too long (because rejected by a mempool, or because lost in translation due to multiple chain switches), users may decide to forget it using:
+
+[`DELETE /wallets/{walletId}/transactions/{transactionId}`](https://input-output-hk.github.io/cardano-wallet/api/edge/#operation/deleteTransaction)  - transactions from **Shelley** wallet
+[`DELETE /byron-wallets/{walletId}/transactions/{transactionId}`](https://input-output-hk.github.io/cardano-wallet/api/edge/#operation/deleteByronTransaction)  - transactions from **Byron** wallet
+
+For more information about transactions lifecycle, have a look at [[About-Transactions-Lifecycle]].
+
+
 
 ## Signed and serialized transactions
 

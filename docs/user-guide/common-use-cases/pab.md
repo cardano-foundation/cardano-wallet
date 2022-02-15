@@ -1,30 +1,17 @@
 
 ---
 order: 12
+title: Using cardano-wallet with Plutus Application Backend
 ---
-
-# Using with Plutus Application Backend
-
-## Overview
-
-This guide is to show how to invoke Plutus contracts with cardano-wallet.
 
 ## Pre-requisites
  - [[how-to-start-wallet-server]]
+ - [[how-to-create-a-wallet]]
  - Install [Plutus Application Backend](https://github.com/input-output-hk/plutus/tree/master/plutus-pab).
+ - In order to be able to balance Plutus transaction we need funds on the wallet. In case of [Testnet](https://testnets.cardano.org/en/testnets/cardano/overview/) we can request tADA from the [faucet](https://testnets.cardano.org/en/testnets/cardano/tools/faucet/).
 
-In order to be able to balance Plutus transaction we need funds on the wallet. In case of [Testnet](https://testnets.cardano.org/en/testnets/cardano/overview/) we can request tADA from the [faucet](https://testnets.cardano.org/en/testnets/cardano/tools/faucet/).
-
-In order to create new wallet in a first place we need to invoke [create wallet](https://input-output-hk.github.io/cardano-wallet/api/edge/#operation/postWallet) endpoint, for instance:
-
-```
-$ curl -X POST http://localhost:8090/v2/wallets \
--d '{"mnemonic_sentence":["slab","praise","suffer","rabbit","during","dream","arch","harvest","culture","book","owner","loud","wool","salon","table","animal","vivid","arrow","dirt","divide","humble","tornado","solution","jungle"],
-     "passphrase":"Secure Passphrase",
-     "name":"My Test Wallet",
-     "address_pool_gap":20}' \
--H "Content-Type: application/json"
-```
+## Overview
+This guide is to show how to invoke Plutus contracts with cardano-wallet.
 
 ## Workflow
 Once you have created a smart contract with [PAB](https://github.com/input-output-hk/plutus/tree/master/plutus-pab) you can execute it via cardano-wallet.
