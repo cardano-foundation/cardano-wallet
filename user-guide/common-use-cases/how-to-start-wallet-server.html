@@ -4,14 +4,14 @@
   <meta charset='UTF-8' />
   <meta name='viewport' content='width=device-width, initial-scale=1' />
   <title>
-    FAQ – Cardano Wallet
+    how-to-start-wallet-server – Cardano Wallet
   </title>
   
     
       <meta property='og:description' content />
       <meta property='og:site_name' content='Cardano Wallet' />
       <meta property='og:type' content='website' />
-      <meta property='og:title' content='FAQ' />
+      <meta property='og:title' content='how-to-start-wallet-server' />
     
     
       <base href='/cardano-wallet/' />
@@ -102,6 +102,15 @@
             <li class='inline-flex items-center'>
               <a class='px-1 font-bold' href='user-guide'>
                 User Guide
+              </a>
+              <svg fill='currentColor' viewBox='0 0 20 20' class='w-auto h-5 text-gray-400'>
+                <path fill-rule='evenodd' d='M7.293 14.707a1 1 0 010-1.414L10.586 10 7.293 6.707a1 1 0 011.414-1.414l4 4a1 1 0 010 1.414l-4 4a1 1 0 01-1.414 0z' clip-rule='evenodd'></path>
+              </svg>
+            </li>
+          
+            <li class='inline-flex items-center'>
+              <a class='px-1 font-bold' href='user-guide/common-use-cases'>
+                Common Use-Cases
               </a>
               <svg fill='currentColor' viewBox='0 0 20 20' class='w-auto h-5 text-gray-400'>
                 <path fill-rule='evenodd' d='M7.293 14.707a1 1 0 010-1.414L10.586 10 7.293 6.707a1 1 0 011.414-1.414l4 4a1 1 0 010 1.414l-4 4a1 1 0 01-1.414 0z' clip-rule='evenodd'></path>
@@ -667,11 +676,7 @@
     
       <!-- Variable bindings for this tree-->
   
-    
-      
-    
-    
-
+  
 
 
   
@@ -684,12 +689,12 @@
     
     
       <svg class='w-4 h-4 flex-shrink-0 inline' fill='none' stroke='currentColor' viewBox='0 0 24 24' xmlns='http://www.w3.org/2000/svg'>
-        <path stroke-linecap='round' stroke-linejoin='round' stroke-width='2' d='M7 21h10a2 2 0 002-2V9.414a1 1 0 00-.293-.707l-5.414-5.414A1 1 0 0012.586 3H7a2 2 0 00-2 2v14a2 2 0 002 2z'>
+        <path stroke-linecap='round' stroke-linejoin='round' stroke-width='2' d='M9 12h6m-6 4h6m2 5H7a2 2 0 01-2-2V5a2 2 0 012-2h5.586a1 1 0 01.707.293l5.414 5.414a1 1 0 01.293.707V19a2 2 0 01-2 2z'>
         </path>
       </svg>
-    
+      
   
-    <a class='hover:underline truncate' title='how-to-start-wallet-server' href='user-guide/common-use-cases/how-to-start-wallet-server'>
+    <a class='font-bold text-blue-600 hover:underline truncate' title='how-to-start-wallet-server' href='user-guide/common-use-cases/how-to-start-wallet-server'>
       how-to-start-wallet-server
     </a>
     
@@ -826,7 +831,11 @@
     
       <!-- Variable bindings for this tree-->
   
-  
+    
+      
+    
+    
+
 
 
   
@@ -839,12 +848,12 @@
     
     
       <svg class='w-4 h-4 flex-shrink-0 inline' fill='none' stroke='currentColor' viewBox='0 0 24 24' xmlns='http://www.w3.org/2000/svg'>
-        <path stroke-linecap='round' stroke-linejoin='round' stroke-width='2' d='M9 12h6m-6 4h6m2 5H7a2 2 0 01-2-2V5a2 2 0 012-2h5.586a1 1 0 01.707.293l5.414 5.414a1 1 0 01.293.707V19a2 2 0 01-2 2z'>
+        <path stroke-linecap='round' stroke-linejoin='round' stroke-width='2' d='M7 21h10a2 2 0 002-2V9.414a1 1 0 00-.293-.707l-5.414-5.414A1 1 0 0012.586 3H7a2 2 0 00-2 2v14a2 2 0 002 2z'>
         </path>
       </svg>
-      
+    
   
-    <a class='font-bold text-blue-600 hover:underline truncate' title='FAQ' href='user-guide/faq'>
+    <a class='hover:underline truncate' title='FAQ' href='user-guide/faq'>
       FAQ
     </a>
     
@@ -2275,174 +2284,181 @@
           <main class='px-4 py-4'>
             <h1 class='flex items-end justify-center mb-4 p-3 bg-blue-100 text-5xl font-extrabold text-black rounded'>
   <a class='z-40 tracking-tighter '>
-    FAQ
+    how-to-start-wallet-server
   </a>
 </h1>
             <article class='overflow-auto'>
   <!-- What goes in this file will appear on top of note body-->
-  <h2 id='why-arent-my-unused-addresses-imported-when-i-restore-a-wallet' class='inline-block mt-6 mb-4 text-4xl font-bold text-gray-700 border-b-2'>Why aren’t my unused addresses imported when I restore a wallet?</h2>
+  <hr class='mb-3' /><h2 id='order-1-title-how-to-start-wallet-server' class='inline-block mt-6 mb-4 text-4xl font-bold text-gray-700 border-b-2'>order: 1 title: How to start wallet server</h2><h2 id='overview' class='inline-block mt-6 mb-4 text-4xl font-bold text-gray-700 border-b-2'>Overview</h2>
     <p class='mb-3'>
-      This is by virtue of the blockchain. An unused address is by definition unused. Meaning that is doesn’t exist on the chain and only exists locally, in the context of the software that has generated it. Different software may use different rules to generate addresses. For example in the past, <em>cardano-sl</em> wallets used a method called random derivation where addresses were created from a root seed and a random index stored within the address itself. Because these indexes were random, it was not possible to restore randomly generated addresses which hadn’t been used on chain yet!
+      The easiest and most common way of managing your funds on the Cardano blockchain is through a wallet. This guide is to show how to start <code class='py-0.5 px-1 rounded bg-gray-700 text-sm text-white'>cardano-wallet</code> together with <code class='py-0.5 px-1 rounded bg-gray-700 text-sm text-white'>cardano-node</code>.
+    </p>
+  <h2 id='full-node-mode' class='inline-block mt-6 mb-4 text-4xl font-bold text-gray-700 border-b-2'>Full node mode</h2>
+    <p class='mb-3'>
+      Here we are going to start <code class='py-0.5 px-1 rounded bg-gray-700 text-sm text-white'>cardano-wallet</code> in full node mode, meaning that we need to have also <code class='py-0.5 px-1 rounded bg-gray-700 text-sm text-white'>cardano-node</code> running on the same machine. We can get binaries of <code class='py-0.5 px-1 rounded bg-gray-700 text-sm text-white'>cardano-wallet</code> and compatible version of <code class='py-0.5 px-1 rounded bg-gray-700 text-sm text-white'>cardano-node</code> from <a href='https://github.com/input-output-hk/cardano-wallet/releases' class='text-blue-600 hover:underline' target='_blank' rel='noopener'>cardano wallet release page</a>. <code class='py-0.5 px-1 rounded bg-gray-700 text-sm text-white'>Cardano-wallet</code> archives published for each release, besides <code class='py-0.5 px-1 rounded bg-gray-700 text-sm text-white'>cardano-wallet</code> itself, include all the relevant tools like <code class='py-0.5 px-1 rounded bg-gray-700 text-sm text-white'>cardano-node</code>, <code class='py-0.5 px-1 rounded bg-gray-700 text-sm text-white'>cardano-cli</code>, <code class='py-0.5 px-1 rounded bg-gray-700 text-sm text-white'>cardano-addresses</code> or <code class='py-0.5 px-1 rounded bg-gray-700 text-sm text-white'>bech32</code>.
     </p>
   
+    <blockquote class='py-0.5 px-4 mb-3 italic border-l-4 bg-gray-50 text-gray-600 border-gray-400 quote'>
+      
     <p class='mb-3'>
-      More recently, <code class='py-0.5 px-1 rounded bg-gray-700 text-sm text-white'>cardano-wallet</code> has been using sequential derivation which follows a very similar principle with the major difference that indexes are derived in sequence, starting from 0. Following this method, wallets aren’t allowed to pre-generate too many addresses in advance. As a consequence, it is now possible to restore a wallet across many machines while keeping a very consistent state.
-    </p>
-  <h2 id='ive-noticed-that-other-blockchains-create-accounts-for-wallets' class='inline-block mt-6 mb-4 text-4xl font-bold text-gray-700 border-b-2'>I’ve noticed that other blockchains create accounts for wallets?</h2>
-    <p class='mb-3'>
-      There are two sides to this question. Either, you are referring to accounts as in Ethereum accounts, or you may refer to accounts of hierarchical deterministic wallets.
+      <span class='emoji' data-emoji='information_source' style='font-family: emoji'>ℹ️</span> Alternatively one can use handy <a href='https://github.com/input-output-hk/cardano-wallet#getting-started' class='text-blue-600 hover:underline' target='_blank' rel='noopener'>docker-compose</a> to start wallet and the node. <code class='py-0.5 px-1 rounded bg-gray-700 text-sm text-white'>$ NETWORK=testnet docker-compose up</code>
     </p>
   
-    <p class='mb-3'>
-      In the first scenario, assets in the form of accounts are only supported in the Shelley era of Cardano and only for a specific use-case: rewards. Rewards are indeed implicitely published on the blockchain to mitigate the risk of flooding the network at the end of every epoch with rewards payouts! Hence, each core node keeps track of the current value of each reward account in a Ledger. Money can be withdrawn from this account and is then turned as a UTxO. Please note that funds can never be manually sent to a reward account. The creation of a reward account is done when registering a staking key, via a specific type of transaction.
-    </p>
+    </blockquote>
   
     <p class='mb-3'>
-      In the second case, please refer to the <a href='concepts/hierarchical-deterministic-wallets' class='text-blue-600 mavenLinkBold hover:underline' data-wikilink-type='WikiLinkNormal'>HD Wallets</a> section in the <em>Key concepts</em>. Cardano wallets typically follow an HD tree of derivation as described in this section.
-    </p>
-  <h2 id='it-seems-like-i-have-to-install-and-configure-many-apis-and-libraries-what-is-the-fastest-and-most-simple-way-to-do-this-at-once' class='inline-block mt-6 mb-4 text-4xl font-bold text-gray-700 border-b-2'>It seems like I have to install and configure many APIs and libraries, what is the fastest and most simple way to do this at once?</h2>
-    <p class='mb-3'>
-      🐳 <a href='https://docs.docker.com/' class='text-blue-600 hover:underline' target='_blank' rel='noopener'>docker</a> is your friend here! Every component is packaged as docker images. Releases are tagged and the very edge is always accessible. See the various docker guides on the components’ repository, and also how to compose services using <a href='https://docs.docker.com/compose/' class='text-blue-600 hover:underline' target='_blank' rel='noopener'>docker-compose</a>.
-    </p>
-  <h2 id='is-there-a-reason-why-i-would-have-to-build-from-src' class='inline-block mt-6 mb-4 text-4xl font-bold text-gray-700 border-b-2'>Is there a reason why I would have to build from src?</h2>
-    <p class='mb-3'>
-      If you intend to contribute to Cardano by making code changes to one of the core components, then yes. We recommend using <a href='https://docs.haskellstack.org/en/stable/README/' class='text-blue-600 hover:underline' target='_blank' rel='noopener'>stack</a> for a better developer experience.
+      In order to start <code class='py-0.5 px-1 rounded bg-gray-700 text-sm text-white'>cardano-wallet</code> and <code class='py-0.5 px-1 rounded bg-gray-700 text-sm text-white'>cardano-node</code> in full mode using downloaded binaries:
     </p>
   
-    <p class='mb-3'>
-      If you only intend to use the services as-is then, using either the pre-compiled release artifacts for your appropriate platform or a pre-packaged docker image is preferable.
-    </p>
-  <h2 id='where-is-the-faucet-and-do-i-get-test-ada' class='inline-block mt-6 mb-4 text-4xl font-bold text-gray-700 border-b-2'>Where is the faucet and do I get test ADA?</h2>
-    <ul class='my-3 ml-6 space-y-1 list-disc'>
+    <ul class='my-3 ml-6 space-y-1 list-decimal list-inside'>
       
         <li>
-          <a href='https://testnets.cardano.org/en/testnets/cardano/tools/faucet/' class='text-blue-600 hover:underline' target='_blank' rel='noopener'>https://testnets.cardano.org/en/testnets/cardano/tools/faucet/</a>
+          Get up-to-date configuration files from <a href='https://hydra.iohk.io/job/Cardano/iohk-nix/cardano-deployment/latest/download/1' class='text-blue-600 hover:underline' target='_blank' rel='noopener'>https://hydra.iohk.io/job/Cardano/iohk-nix/cardano-deployment/latest/download/1</a>. We are going to use <code class='py-0.5 px-1 rounded bg-gray-700 text-sm text-white'>testnet</code> configuration in this example.
+        </li>
+      
+        <li>
+          Start node:
         </li>
       
     </ul>
-  <h2 id='wallet-backend-specifications' class='inline-block mt-6 mb-4 text-4xl font-bold text-gray-700 border-b-2'>Wallet Backend Specifications</h2><div xmlhtmlRaw><details>
-  <summary>Where do the various notations come from?</summary>
-</div>
-    <p class='mb-3'>
-      Like often in Maths, notations are described within the context of the paper with some a priori hypotheses. For the Wallet Backend specifications, the notation is inspired from the <a href='https://en.wikipedia.org/wiki/Z_notation' class='text-blue-600 hover:underline' target='_blank' rel='noopener'>Z notation</a> in a slightly more lightweight form.
-    </p>
-  <div xmlhtmlRaw></details>
-</div><div xmlhtmlRaw><details>
-  <summary>What is <code>dom</code> from <strong>Lemma 2.1</strong></summary>
-</div>
-    <p class='mb-3'>
-      There are multiple occurrences in the spec of expressions like: <code class='py-0.5 px-1 rounded bg-gray-700 text-sm text-white'>(dom u ∩ ins) ◃ u</code>. The meaning of <code class='py-0.5 px-1 rounded bg-gray-700 text-sm text-white'>dom u</code> isn’t quite clearly defined anywhere but refers to the set of keys from the mapping defined by <code class='py-0.5 px-1 rounded bg-gray-700 text-sm text-white'>u: txin ↦ txout</code>. Hence, <code class='py-0.5 px-1 rounded bg-gray-700 text-sm text-white'>dom u</code> refers to all <code class='py-0.5 px-1 rounded bg-gray-700 text-sm text-white'>txin</code> available in <code class='py-0.5 px-1 rounded bg-gray-700 text-sm text-white'>u</code>.
-    </p>
-  
-    <p class='mb-3'>
-      In Haskell, this translates to:
-    </p>
-  <div class='py-0.5 mb-3 text-sm'><pre><code class='hs language-hs'>class Dom a where
-  type DomElem a :: *
-  dom :: a -&gt; Set (DomElem a)
-
-newtype UTxO = UTxO (Map TxIn TxOut)
-
-instance Dom UTxO where
-  type DomElem UTxO = TxIn
-  dom (UTxO utxo)   = Set.fromList $ Map.keys utxo</code></pre></div><div xmlhtmlRaw></details>
-</div><div xmlhtmlRaw><details>
-    <summary>How do I interpret <code>(Ix -> TxOut)</code> in the definition of <code>Tx</code> in fig. 1?</summary>
-</div>
-    <p class='mb-3'>
-      In the current wallet implementation it corresponds to <span xmlhtmlRaw><code></span>NonEmpty TxOut<span xmlhtmlRaw></code></span>.
-    </p>
-  <div xmlhtmlRaw></details>
-</div><div xmlhtmlRaw><details>
-  <summary>Are we going to update the formal specification?</summary>
-</div>
-    <p class='mb-3'>
-      Some elements of the specification are written according to the current wallet implementation. Some parts could be simplified or removed, in particular the bits concerning a few metadata that we won’t be implementing until a need for them is made clear. A few bits are also missing from the specifications (like the fact that answering <code class='py-0.5 px-1 rounded bg-gray-700 text-sm text-white'>isOurs</code> is a stateful operation when dealing with BIP-44, or also, foreign transactions coming from ADA certificates redemption). In the long run, we do want to have the specification updated and proved.
-    </p>
-  <div xmlhtmlRaw></details>
-</div><h2 id='address-derivation-à-la-bip-44' class='inline-block mt-6 mb-4 text-4xl font-bold text-gray-700 border-b-2'>Address Derivation à la BIP-44</h2><div xmlhtmlRaw><details>
-  <summary>Are we going to support the old Random derivation scheme forever?</summary>
-</div>
-    <p class='mb-3'>
-      Short answer: yes. Though, we don’t necessarily have to support a full set of features for wallets using an old derivation scheme in order to encourage users to migrate to the sequential scheme (a.k.a BIP-44). Most probably, we will forever have to support the old derivation scheme and a few features like tracking of the wallet UTxO and balance, and, allowing funds to be migrated to a wallet using the sequential scheme.
-    </p>
-  <div xmlhtmlRaw></details>
-</div><h2 id='coin-selection' class='inline-block mt-6 mb-4 text-4xl font-bold text-gray-700 border-b-2'>Coin selection</h2><div xmlhtmlRaw><details>
-  <summary>How many outputs can a single transaction have?</summary>
-</div>
-    <p class='mb-3'>
-      It depends. To make a transaction, our implementation currently select UTxO from the available UTxO in the wallet in order to cover for the output requested in a transaction. For every output, the wallet actually creates two outputs:
-    </p>
-  
-    <ul class='my-3 ml-6 space-y-1 list-disc'>
+  <div class='py-0.5 mb-3 text-sm'><pre><code class='bash language-bash'>$ cardano-node run \
+  --config testnet-config.json \
+  --topology testnet-topology.json \
+  --database-path ./db \
+  --socket-path /path/to/node.socket</code></pre></div>
+    <ul class='my-3 ml-6 space-y-1 list-decimal list-inside'>
       
         <li>
-          The actual output to a target address
-        </li>
-      
-        <li>
-          A change output to a change address of the source wallet
+          Start wallet:
         </li>
       
     </ul>
-  
+  <div class='py-0.5 mb-3 text-sm'><pre><code class='bash language-bash'>$ cardano-wallet serve --port 8090 \
+  --node-socket /path/to/node.socket \
+  --testnet testnet-byron-genesis.json \
+  --database ./wallet-db \
+  --token-metadata-server https://metadata.cardano-testnet.iohkdev.io/</code></pre></div>
     <p class='mb-3'>
-      Also, in practice, we strive to make these two outputs relatively equivalent in size, such that one cannot easily guess the change output from the actual one by looking at the transaction; enforcing therefore some privacy for users.
+      That’s it! We can basically start managing our wallets from this point onwards. See <a href='user-guide/common-use-cases/how-to-create-a-wallet' class='text-blue-600 mavenLinkBold hover:underline' data-wikilink-type='WikiLinkNormal'>how-to-create-a-wallet</a> and <a href='user-guide/common-use-cases/how-to-manage-wallets' class='text-blue-600 mavenLinkBold hover:underline' data-wikilink-type='WikiLinkNormal'>how-to-manage-wallets</a>.
     </p>
   
     <p class='mb-3'>
-      Incidentally, we do consider every requested output in a transaction as an independent problem. This means that a single UTxO can only cover for one of the output (and will in practice, tend to be twice as big, such that we can generate an equivalent corresponding change output). As a consequence, in order to make a transaction to three target outputs, one needs to have at least three UTxOs that are big enough to cover all three outputs independently.
+      However, in order to be able to make transactions, we still need to wait until <code class='py-0.5 px-1 rounded bg-gray-700 text-sm text-white'>cardano-node</code> is synced fully with the Cardano blockchain. In case of <code class='py-0.5 px-1 rounded bg-gray-700 text-sm text-white'>mainnet</code> it may take several hours, in case of <code class='py-0.5 px-1 rounded bg-gray-700 text-sm text-white'>testnet</code> a bit less.
     </p>
   
     <p class='mb-3'>
-      Finally, it’s important to notice that the fee calculation runs <strong>after</strong> the coin selection and is divvied across all change outputs. So in practice, the UTxOs only need to independently cover for outputs, but are considered together when adjusting for fees.
+      We can monitor this process using <code class='py-0.5 px-1 rounded bg-gray-700 text-sm text-white'>cardano-wallet's</code> <a href='https://input-output-hk.github.io/cardano-wallet/api/edge/#operation/getNetworkInformation' class='text-blue-600 hover:underline' target='_blank' rel='noopener'><code class='py-0.5 px-1 rounded bg-gray-700 text-sm text-white'>GET /network/information</code></a> endpoint. Once the endpoint returns <code class='py-0.5 px-1 rounded bg-gray-700 text-sm text-white'>sync_progress</code> status <code class='py-0.5 px-1 rounded bg-gray-700 text-sm text-white'>ready</code> we’ll know we are good to go:
+    </p>
+  <div class='py-0.5 mb-3 text-sm'><pre><code class='language-none'>$ curl -X GET http://localhost:8090/v2/network/information | jq .sync_progress
+{
+  "status": "ready"
+}</code></pre></div><h2 id='lightwallet-mode' class='inline-block mt-6 mb-4 text-4xl font-bold text-gray-700 border-b-2'>Lightwallet mode</h2>
+    <p class='mb-3'>
+      <em>Soon.</em>
     </p>
   
-    <p class='mb-3'>
-      A few examples to make this more concrete (in the scenario below, fees are ~<code class='py-0.5 px-1 rounded bg-gray-700 text-sm text-white'>180000</code>):
-    </p>
-  <div class='py-0.5 mb-3 text-sm'><pre><code class='language-none'>// Both UTxOs can separately cover fee and outputs
-Available UTxO:  [200000, 200000]
-Payment Distribution: [14, 42]
-Result: Ok
-
-// 2 UTxOs, each cannot separately cover fee and outputs, but jointly can
-Available UTxO: [100000, 100000]
-Payment Distribution: [14, 42]
-Result: Ok
-
-// Single UTxOs, big enough to cover for total requested amount & fee, but multiple outputs
-Available UTxO: [400000]
-Payment Distribution: [14, 42]
-Result: Error - UTxO not enough fragmented</code></pre></div><div xmlhtmlRaw></details>
-</div><div xmlhtmlRaw><details>
-  <summary>What is the security issue with re-using addresses?</summary>
-</div>
-    <p class='mb-3'>
-      In practice, there’s none.
-    </p>
-  <div xmlhtmlRaw></details>
-</div><h2 id='miscellaneous' class='inline-block mt-6 mb-4 text-4xl font-bold text-gray-700 border-b-2'>Miscellaneous</h2><div xmlhtmlRaw><details>
-  <summary>How do I write a question in this FAQ?</summary>
-</div>
-    <p class='mb-3'>
-      Use the <code class='py-0.5 px-1 rounded bg-gray-700 text-sm text-white'>&lt;details&gt;</code> and <code class='py-0.5 px-1 rounded bg-gray-700 text-sm text-white'>&lt;summary&gt;</code> html tags. The <code class='py-0.5 px-1 rounded bg-gray-700 text-sm text-white'>&lt;summary&gt;</code> are nested inside the <code class='py-0.5 px-1 rounded bg-gray-700 text-sm text-white'>&lt;details&gt;</code> tag and the question goes within the <code class='py-0.5 px-1 rounded bg-gray-700 text-sm text-white'>&lt;summary&gt;</code> tag as a body. The answer goes below, and can contain any arbitrary markdown or HTML supported / allowed by GitHub. This produces a nice, readable output.
-    </p>
-  
-    <p class='mb-3'>
-      e.g.
-    </p>
-  <div class='py-0.5 mb-3 text-sm'><pre><code class='html language-html'>  &lt;details&gt;
-    &lt;summary&gt;What is love?&lt;/summary&gt;
-
-    Baby don't hurt me.
-  &lt;/details&gt;</code></pre></div><div xmlhtmlRaw></details>
-</div>
   <!-- What goes in this file will appear below the note body-->
 </article>
             <div class='flex flex-col lg:flex-row lg:space-x-2'>
               
               
+  <div class='flex-1 p-4 mt-8 bg-gray-100 rounded'>
+    <header class='mb-2 text-xl font-semibold text-gray-500'>Links to this page</header>
+    <ul class='space-y-1'>
+      
+        <li>
+          <a class='text-blue-600 mavenLinkBold hover:bg-blue-50' href='user-guide/common-use-cases/pab'>
+            pab
+          </a>
+          
+            <div class='mb-4 overflow-auto text-sm text-gray-500'>
+  
+    <div class='pl-2 mt-2 border-l-2 border-blue-200 hover:border-blue-500'>
+      <div><a href='user-guide/common-use-cases/how-to-start-wallet-server' class='text-gray-600 font-bold hover:bg-gray-50' data-wikilink-type='WikiLinkNormal'>how-to-start-wallet-server</a></div>
+    </div>
+  
+</div>
+          
+        </li>
+      
+        <li>
+          <a class='text-blue-600 mavenLinkBold hover:bg-blue-50' href='user-guide/common-use-cases/how-to-manage-wallets'>
+            how-to-manage-wallets
+          </a>
+          
+            <div class='mb-4 overflow-auto text-sm text-gray-500'>
+  
+    <div class='pl-2 mt-2 border-l-2 border-blue-200 hover:border-blue-500'>
+      <div><a href='user-guide/common-use-cases/how-to-start-wallet-server' class='text-gray-600 font-bold hover:bg-gray-50' data-wikilink-type='WikiLinkNormal'>how-to-start-wallet-server</a></div>
+    </div>
+  
+</div>
+          
+        </li>
+      
+        <li>
+          <a class='text-blue-600 mavenLinkBold hover:bg-blue-50' href='user-guide/common-use-cases/how-to-make-a-transaction'>
+            how-to-make-a-transaction
+          </a>
+          
+            <div class='mb-4 overflow-auto text-sm text-gray-500'>
+  
+    <div class='pl-2 mt-2 border-l-2 border-blue-200 hover:border-blue-500'>
+      <div><a href='user-guide/common-use-cases/how-to-start-wallet-server' class='text-gray-600 font-bold hover:bg-gray-50' data-wikilink-type='WikiLinkNormal'>how-to-start-wallet-server</a></div>
+    </div>
+  
+</div>
+          
+        </li>
+      
+        <li>
+          <a class='text-blue-600 mavenLinkBold hover:bg-blue-50' href='user-guide/common-use-cases/how-to-create-addresses'>
+            how-to-create-addresses
+          </a>
+          
+            <div class='mb-4 overflow-auto text-sm text-gray-500'>
+  
+    <div class='pl-2 mt-2 border-l-2 border-blue-200 hover:border-blue-500'>
+      <div><a href='user-guide/common-use-cases/how-to-start-wallet-server' class='text-gray-600 font-bold hover:bg-gray-50' data-wikilink-type='WikiLinkNormal'>how-to-start-wallet-server</a></div>
+    </div>
+  
+</div>
+          
+        </li>
+      
+        <li>
+          <a class='text-blue-600 mavenLinkBold hover:bg-blue-50' href='user-guide/common-use-cases/how-to-create-a-wallet'>
+            how-to-create-a-wallet
+          </a>
+          
+            <div class='mb-4 overflow-auto text-sm text-gray-500'>
+  
+    <div class='pl-2 mt-2 border-l-2 border-blue-200 hover:border-blue-500'>
+      <div><a href='user-guide/common-use-cases/how-to-start-wallet-server' class='text-gray-600 font-bold hover:bg-gray-50' data-wikilink-type='WikiLinkNormal'>how-to-start-wallet-server</a>.</div>
+    </div>
+  
+</div>
+          
+        </li>
+      
+        <li>
+          <a class='text-blue-600 mavenLinkBold hover:bg-blue-50' href='user-guide/common-use-cases/delegation'>
+            delegation
+          </a>
+          
+            <div class='mb-4 overflow-auto text-sm text-gray-500'>
+  
+    <div class='pl-2 mt-2 border-l-2 border-blue-200 hover:border-blue-500'>
+      <div><a href='user-guide/common-use-cases/how-to-start-wallet-server' class='text-gray-600 font-bold hover:bg-gray-50' data-wikilink-type='WikiLinkNormal'>how-to-start-wallet-server</a></div>
+    </div>
+  
+</div>
+          
+        </li>
+      
+    </ul>
+  </div>
+
             </div>
             
   <section class='flex flex-wrap items-end justify-center my-4 space-x-2 space-y-2 font-mono text-sm'>
