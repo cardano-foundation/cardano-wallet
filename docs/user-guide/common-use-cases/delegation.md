@@ -1,5 +1,3 @@
-
-
 ---
 order: 6
 title: Delegation

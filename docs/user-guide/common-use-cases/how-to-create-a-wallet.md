@@ -1,4 +1,3 @@
-
 ---
 order: 2
 title: How to create a wallet
