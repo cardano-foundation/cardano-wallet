@@ -21,7 +21,7 @@ jobs:
           requiredJob: required
           project: Cardano
           jobset: cardano-wallet
-          badge: "${{ github.event_name == 'status' && 'yes' || 'no' }}"
+        timeout-minutes: 180
 
       - name: '📥 Checkout Code'
         uses: actions/checkout@v2
@@ -40,9 +40,3 @@ jobs:
           echo '${{ steps.hydra.outputs.builds }}' > builds.json
           echo '${{ steps.hydra.outputs.timings }}' > timings.json
           ../scripts/gh/update-stats.sh '${{ env.branch}}' eval.json builds.json timings.json
-
-      - name: '📛 Update Badge'
-        if: ${{ steps.hydra.outputs.badge }}
-        working-directory: _build
-        run: |
-          ../scripts/gh/update-badge.sh '${{ env.branch}}' '${{ steps.hydra.outputs.badge }}'
