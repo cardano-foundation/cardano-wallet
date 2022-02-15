@@ -26,7 +26,7 @@ Behind the scene, the wallet engine will select necessary inputs from the wallet
  - Sign: [`POST /wallets/{walletId}/transactions-sign`](https://input-output-hk.github.io/cardano-wallet/api/edge/#operation/signTransaction)
  - Submit: [`POST /wallets/{walletId}/transactions-submit`](https://input-output-hk.github.io/cardano-wallet/api/edge/#operation/submitTransaction)
 
-Behind the scene, on the **construct** step, the wallet engine will select necessary inputs from the wallet, generate a change address within the wallet and calculate the `fee` for this particular transaction.
+Behind the scene, on the **construct** step, the wallet engine will select necessary inputs belonging to the wallet, generate a change address of the wallet and calculate the `fee` for this particular transaction.
 
 **Sign** and **submit** are now invoked as separate steps. This allows for presenting the actual transaction `fee` to the end user. In the old workflow, when all those steps where done in one go, showing precise fee was not possible and it had to be estimated using separate wallet endpoint. Because of the random nature of coin-selection algorithm such estimation might not have been always the same as the actual transaction fee.
 
@@ -86,7 +86,7 @@ $ curl -X GET http://localhost:8090/v2/wallets/1b0aa24994b4181e79116c131510f2abf
 Note that all transactions made from and to any wallet are available in the transaction history.
 We can always display details of a particular transaction as well as list all transactions that are known to a wallet.
 
-For instance transactions can be tracked via:
+For instance, transactions can be tracked via:
 
 [`GET /wallets/{walletId}/transactions`](https://input-output-hk.github.io/cardano-wallet/api/edge/#operation/listTransactions) - transactions from **Shelley** wallet
 [`GET /byron-wallets/{walletId}/transactions`](https://input-output-hk.github.io/cardano-wallet/api/edge/#operation/listByronTransactions) - transactions from **Byron** wallet
@@ -106,4 +106,4 @@ Alternatively, `cardano-wallet` allows clients to submit already signed and seri
 
 [`POST /proxy/transactions`](https://input-output-hk.github.io/cardano-wallet/api/edge/#operation/postExternalTransaction)
 
-In this scenario, the server engine will verify that the transaction is structurally well-formed and forward it to its associated node. If the transaction belongs to a known wallet, it will eventually show up in the wallet your wallet.
+In this scenario, the server engine will verify that the transaction is structurally well-formed and forward it to the node instance associated with it. If the transaction belongs to a known wallet, it will eventually show up in the wallet.

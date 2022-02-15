@@ -13,13 +13,13 @@ title: Delegation
 
 ## Overview
 
-Delegation is the process by which ada holders delegate the stake associated with their ada to a stake pool. Cardano wallet allows listing all stake pools that are operating on the blockchain and then "joining" or "quitting" them via special delegation transaction.
+Delegation is the process by which ada holders delegate the stake associated with their ada to a stake pool. Cardano wallet allows listing all stake pools that are operating on the blockchain and then "join" or "quit" them via special delegation transaction.
 
-Delegation is supported only for **Shelley** wallets.
+Delegation is supported only for **Shelley** wallets. **Shared** wallets will support it too in the near future.
 
 ## Listing stake pools
 
-Before joining any stake pool we can first list all available stake pools that are operating on our blockchain. Stake pools are ordered by `non_myopic_member_rewards` which makes pools which will produce potentially the best rewards in the future higher in the ranking. The ordering can also depend on the `?stake` query parameter which says how much stake we want to delegate.
+Before joining any stake pool we can first list all available stake pools that are operating on our blockchain. Stake pools are ordered by `non_myopic_member_rewards` which gives higher ranking and hence favors the pools potentially producing the best rewards in the future. The ordering could be influenced by the `?stake` query parameter which says how much stake we want to delegate.
 
 [`GET /stake-pools`](https://input-output-hk.github.io/cardano-wallet/api/edge/#operation/listStakePools)
 
@@ -29,9 +29,9 @@ $ curl -X GET http://localhost:8090/v2/stake-pools?stake=1000000000
 
 ## Joining stake pool
 
-Once we select a stake pool we can "join" it. This operation will "virtually" add our wallet balance to the stake of this particular stake pool. Joining a pool for the first time will incur `fee` and `deposit` required for registering our stake key on the blockchain. This deposit will be returned to us if we choose to quit stake pool all together.
+Once we select a stake pool we can "join" it. This operation will "virtually" add our wallet balance to the stake of this particular stake pool. Joining a pool for the first time will incur `fee` and `deposit` required for registering our stake key on the blockchain. This deposit will be returned to us if we quit stake pool all together.
 
-> :information_source: The amount of the deposit is controlled by Cardano network parameter. It is currently 2₳ on `mainnet` and `testnet`. Deposit is taken only once, when joining stake pool for the first time.
+> :information_source: The amount of the deposit is controlled by Cardano network parameter. It is currently 2₳ on `mainnet` and `testnet`. Deposit is taken only once, when joining stake pool for the first time. Rejoining another stake pool does not incur another deposit.
 
 We can join stake pool using old transaction workflow:
 
@@ -57,7 +57,7 @@ Refer to [[how-to-make-a-transaction]] for details on signing and submitting it 
 
 ## Joining another stake pool
 
-Joining another stake pool doesn't differ from the previous process at all. The only difference is that, behind the scenes, `deposit` is not taken from the wallet, as it was already taken when joining any stake pool for the first time.
+Joining another stake pool doesn't differ from the previous process at all. The only difference is that, behind the scenes, `deposit` is not taken from the wallet, as it was already taken when joining for the first time.
 
 ## Withdrawing rewards
 
@@ -121,13 +121,15 @@ Quitting can be done in old transaction workflow:
 or [new transaction workflow](https://input-output-hk.github.io/cardano-wallet/api/edge/#tag/Transactions-New), for instance:
 
 Just quitting:
+
 ```
 $ curl -X POST http://localhost:8090/v2/wallets/1b0aa24994b4181e79116c131510f2abf6cdaa4f/transactions-construct \  
 -d '{"delegations":[{"quit":{"stake_key_index":"0H"}}]}' \  
 -H "Content-Type: application/json"
 ```
 
-Quitting and withdrawing rewards in the same transaction:
+Quitting and withdrawing rewards in the same transaction. It should be noted that quitting can be realized only when all rewards are withdrawn:
+
 ```
 $ curl -X POST http://localhost:8090/v2/wallets/1b0aa24994b4181e79116c131510f2abf6cdaa4f/transactions-construct \  
 -d '{"withdrawal":"self",

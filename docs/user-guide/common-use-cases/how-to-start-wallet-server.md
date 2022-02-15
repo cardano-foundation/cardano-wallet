@@ -33,9 +33,9 @@ $ cardano-wallet serve --port 8090 \
   --database ./wallet-db \
   --token-metadata-server https://metadata.cardano-testnet.iohkdev.io/
 ```
-That's it! We can basically start managing our wallets from this point. See [[how-to-create-a-wallet]] and [[how-to-manage-wallets]].
+That's it! We can basically start managing our wallets from this point onwards. See [[how-to-create-a-wallet]] and [[how-to-manage-wallets]].
 
-However, in order to be able to make transactions, we still need to wait until `cardano-node` syncs with the Cardano blockchain. In case of `mainnet` it may take several hours, a bit less in case of `testnet`.
+However, in order to be able to make transactions, we still need to wait until `cardano-node` is synced fully with the Cardano blockchain. In case of `mainnet` it may take several hours, in case of `testnet` a bit less.
 
 We can monitor this process using `cardano-wallet's` [`GET /network/information`](https://input-output-hk.github.io/cardano-wallet/api/edge/#operation/getNetworkInformation) endpoint. Once the endpoint returns `sync_progress` status `ready` we'll know we are good to go:
 

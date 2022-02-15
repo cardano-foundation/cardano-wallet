@@ -25,7 +25,7 @@ There are three endpoints that need to be invoked to follow the workflow:
 
 ### Balance transaction
 
-Plutus Application Backend provides payload of unbalanced transaction. This transaction needs to be balanced with wallet inputs such that it can be submitted to the network. The response from this endpoint returns `fee` and `coin_selection` of balanced transaction as well as CBOR-encoded `transaction` represented in base64 encoding. We will need that returned `transaction` value to pass on to [POST /wallets/{walletId}/transactions-sign](https://input-output-hk.github.io/cardano-wallet/api/edge/#operation/signTransaction) endpoint.
+Plutus Application Backend provides a payload of an unbalanced transaction. This transaction needs to be balanced with wallet's inputs such that it can be submitted to the network. The response from this endpoint returns `fee` and `coin_selection` of the balanced transaction as well as CBOR-encoded `transaction` represented in base64 encoding. We will need the returned `transaction` value to pass on to [POST /wallets/{walletId}/transactions-sign](https://input-output-hk.github.io/cardano-wallet/api/edge/#operation/signTransaction) endpoint.
 
 ```
 $ curl -X POST http://localhost:8090/v2/wallets/1f82e83772b7579fc0854bd13db6a9cce21ccd95/transactions-balance \
@@ -41,7 +41,7 @@ hKYAgYJYIACL3OShD8xU3XMcglayOyc72ZGWvU19iiSLqEPzLUQ6AA2BglggAIvc5KEPzFTdcxyCVrI7
 
 ### Sign transaction
 
-Once transaction is balanced we need to sign it using our wallet's secure passphrase passing previously returned CBOR-encoded `transaction`. The sign endpoint again will returned CBOR-encoded `transaction` which need to pass further to [POST   
+Once the transaction is balanced we need to sign it using our wallet's secure passphrase and pass the previously returned CBOR-encoded `transaction`. The sign endpoint will again return CBOR-encoded `transaction` which is needed to be passed further to [POST   
 /wallets/{walletId}/transactions-submit](https://input-output-hk.github.io/cardano-wallet/api/edge/#operation/submitTransaction) endpoint.
 
 ```
@@ -66,7 +66,8 @@ $ curl -X POST http://localhost:8090/v2/wallets/1f82e83772b7579fc0854bd13db6a9cc
 {"id":"148cb83bb2943e54d878a86fdc4309d952ca5fd62b3463fbb72a94180ebe8e82"}
 ```
 
-We can monitor status of submitted transaction using [GET /wallets/{walletId}/transactions/{transactionId}](https://input-output-hk.github.io/cardano-wallet/api/edge/#operation/getTransaction) endpoint.
+We can monitor status of the submitted transaction using [GET /wallets/{walletId}/transactions/{transactionId}](https://input-output-hk.github.io/cardano-wallet/api/edge/#operation/getTransaction) endpoint.
+
 ```
 $ curl -X GET http://localhost:8090/v2/wallets/1f82e83772b7579fc0854bd13db6a9cce21ccd95/transactions/148cb83bb2943e54d878a86fdc4309d952ca5fd62b3463fbb72a94180ebe8e82 | jq
 
