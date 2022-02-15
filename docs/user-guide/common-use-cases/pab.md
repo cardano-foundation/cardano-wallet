@@ -1,6 +1,5 @@
-
 ---
-order: 12
+order: 8
 title: Using cardano-wallet with Plutus Application Backend
 ---
 

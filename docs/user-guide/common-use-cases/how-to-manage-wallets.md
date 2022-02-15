@@ -1,4 +1,3 @@
-
 ---
 order: 3
 title: How to manage wallets

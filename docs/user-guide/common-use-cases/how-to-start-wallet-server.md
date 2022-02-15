@@ -1,5 +1,3 @@
-
-
 ---
 order: 1
 title: How to start wallet server

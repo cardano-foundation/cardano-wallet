@@ -1,4 +1,3 @@
-
 ---
 order: 4
 title: How to "create" addresses
@@ -19,9 +18,9 @@ Since Icarus, wallets use sequential derivation which must satisfy very specific
 
 Therefore, address management is entirely done by the server and users aren't allowed to fiddle with them. The list of available addresses can be fetched from the server at any time via:
 
-[`GET /byron-wallets/{walletId}/addresses`](https://input-output-hk.github.io/cardano-wallet/api/edge/#operation/listByronAddresses) - **Icarus** wallet addresses
-[`GET /wallets/{walletId}/addresses`](https://input-output-hk.github.io/cardano-wallet/api/edge/#operation/listAddresses) - **Shelley** wallet addresses
-[`GET /shared-wallets/{walletId}/addresses`](https://input-output-hk.github.io/cardano-wallet/api/edge/#operation/listSharedAddresses) - **Shared** wallet addresses
+ - [`GET /byron-wallets/{walletId}/addresses`](https://input-output-hk.github.io/cardano-wallet/api/edge/#operation/listByronAddresses) - **Icarus** wallet addresses
+ - [`GET /wallets/{walletId}/addresses`](https://input-output-hk.github.io/cardano-wallet/api/edge/#operation/listAddresses) - **Shelley** wallet addresses
+ - [`GET /shared-wallets/{walletId}/addresses`](https://input-output-hk.github.io/cardano-wallet/api/edge/#operation/listSharedAddresses) - **Shared** wallet addresses
 
 This list automatically expands when new addresses become available so that there's always `address_pool_gap` consecutive unused addresses available (where `address_pool_gap` can be configured when a wallet is first restored / created).
 
