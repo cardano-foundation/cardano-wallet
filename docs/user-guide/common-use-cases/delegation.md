@@ -67,7 +67,7 @@ Our wallet accumulates rewards from delegating to a stake pool on special reward
 
 Just look up `balance` while getting your wallet details:
 ```
-$ $ curl -X GET http://localhost:8090/v2/wallets/1ceb45b37a94c7022837b5ca14045f11a5927c65 | jq .balance
+$ curl -X GET http://localhost:8090/v2/wallets/1ceb45b37a94c7022837b5ca14045f11a5927c65 | jq .balance
 
 {
   "total": {
@@ -90,7 +90,7 @@ We can withdraw those wallets when making any transaction. In the both, old and 
 In particular in [new transaction workflow](https://input-output-hk.github.io/cardano-wallet/api/edge/#tag/Transactions-New) we can just withdraw our rewards:
 
 ```
-curl -X POST http://localhost:8090/v2/wallets/1b0aa24994b4181e79116c131510f2abf6cdaa4f/transactions-construct \  
+$ curl -X POST http://localhost:8090/v2/wallets/1b0aa24994b4181e79116c131510f2abf6cdaa4f/transactions-construct \  
 -d '{"withdrawal":"self"}' \  
 -H "Content-Type: application/json"
 ```
@@ -98,7 +98,7 @@ curl -X POST http://localhost:8090/v2/wallets/1b0aa24994b4181e79116c131510f2abf6
 or withdraw rewards while doing any other transaction:
 
 ```
-curl -X POST http://localhost:8090/v2/wallets/1b0aa24994b4181e79116c131510f2abf6cdaa4f/transactions-construct \  
+$ curl -X POST http://localhost:8090/v2/wallets/1b0aa24994b4181e79116c131510f2abf6cdaa4f/transactions-construct \  
 -d '{"payments":[{"address":"addr_test1qrtez7vn0d8xp495ggypmu2kyt7tt6qyva2spm0f5a3ewn0v474mcs4q8e9g55yknx3729kyg5dl69x5596ee9tvnynq7ffety","amount":{"quantity":1000000,"unit":"lovelace"}}],
      "withdrawal":"self"}' \  
 -H "Content-Type: application/json"
