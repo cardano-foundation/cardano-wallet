@@ -1,5 +1,5 @@
 ---
-order: 4
+order: 5
 title: How to make a transaction
 ---
 
@@ -27,7 +27,7 @@ Which returns a list of all transactions for this particular wallet. Optional ra
 
 For more information about transactions lifecycle, have a look at [[About-Transactions-Lifecycle]].
 
-## Signed and serialized transactions 
+## Signed and serialized transactions
 ::: {.highlight-block}
 **Difficulty:** advanced
 
@@ -44,4 +44,3 @@ Alternatively, `cardano-wallet` and `cardano-submit-api` allows clients to submi
 In this scenario, the server engine will verify that the transaction is structurally well-formed and forward it to its associated node. If the transaction belongs to a known wallet, it will eventually show up in the wallet your wallet.
 
 Such transactions can be constructed from raw data using either [cardano-transactions library or command-line interface](https://github.com/input-output-hk/cardano-transactions). Examples and documentation excerpts are available on the corresponding Github repository.
-
