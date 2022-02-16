@@ -153,7 +153,6 @@ import Test.QuickCheck
     , conjoin
     , counterexample
     , cover
-    , discard
     , elements
     , forAllShrink
     , frequency
@@ -282,8 +281,6 @@ spec = do
             property prop_applyOurTxToUTxO_noneOurs
         it "prop_applyOurTxToUTxO_someOurs" $
             property prop_applyOurTxToUTxO_someOurs
-        it "prop_applyOurTxToUTxO_omitUnrelatedOuputs" $
-            property prop_applyOurTxToUTxO_omitUnrelatedOuputs
 
     parallel $ describe "Address discovery" $ do
         it "discoverAddresses ~ isOurTx" $
@@ -830,38 +827,6 @@ prop_applyOurTxToUTxO_someOurs ourState slotNo blockHeight tx utxo =
     maybeResult = snd <$> applyOurTxToUTxO slotNo blockHeight ourState tx utxo
     shouldHaveResult :: Bool
     shouldHaveResult = evalState (isOurTx tx utxo) ourState
-
--- Even when transaction processed by 'applyOurTxToUTxO' has some outputs
--- that are "ours", other outputs that aren't "ours" are of no interest for the
--- wallet and therefore are ommitted.
---
--- This property verifies that all output addresses of applied tx are "ours"
---
-prop_applyOurTxToUTxO_omitUnrelatedOuputs
-    :: WalletState
-    -> ShowFmt Address
-    -> SlotNo
-    -> Quantity "block" Word32
-    -> Tx
-    -> UTxO
-    -> Property
-prop_applyOurTxToUTxO_omitUnrelatedOuputs st ourAddress slot blocks tx utxo =
-    appliedTx & maybe discard ( \tx' ->
-        report (tx' ^. #outputs) "tx' outputs"  $
-        property $
-            all (`Set.member` ourAddresses st') (address <$> tx' ^. #outputs)
-    )
-  where
-    appliedTx :: Maybe Tx
-    appliedTx = fst . fst <$> applyOurTxToUTxO slot blocks st' ourTx utxo
-    -- Wallet state with at least one our address
-    st' :: WalletState
-    st' = st { _ourAddresses = Set.insert ourAddress (_ourAddresses st) }
-    ourTx :: Tx
-    ourTx = over #outputs (ourOut :) tx
-    ourOut :: TxOut
-    ourOut = TxOut { address = unShowFmt ourAddress, tokens = coinToBundle 42 }
-
 
 {-------------------------------------------------------------------------------
                                Address discovery

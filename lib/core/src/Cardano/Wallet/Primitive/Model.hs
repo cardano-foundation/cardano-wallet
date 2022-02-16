@@ -80,7 +80,6 @@ import Cardano.Wallet.Primitive.Types.Tx
     , Tx (..)
     , TxIn (..)
     , TxMeta (..)
-    , TxOut (address)
     , TxStatus (..)
     , collateralInputs
     , failedScriptValidation
@@ -557,10 +556,7 @@ applyOurTxToUTxO
 applyOurTxToUTxO !slotNo !blockHeight !s !tx !prevUTxO =
     if ourWithdrawalSum /= mempty || prevUTxO /= ourNextUTxO
         then
-            let updatedTx = tx
-                    { fee = actualFee dir
-                    , outputs = filter (ours s . address) (outputs tx)
-                    }
+            let updatedTx = tx { fee = actualFee dir }
             in Just ((updatedTx, txmeta), ourNextUTxO)
         else Nothing
   where
