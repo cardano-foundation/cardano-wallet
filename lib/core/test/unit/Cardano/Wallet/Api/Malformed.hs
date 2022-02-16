@@ -2039,8 +2039,8 @@ instance Malformed (BodyParam (PostMintBurnAssetData ('Testnet pm))) where
             ]
          jsonValid = first (BodyParam . Aeson.encode) <$>
             [
-              ( [aesonQQ|
-                { "mint_burn": [{ "monetary_policy_index": "not a monetary policy index"
+{--              ( [aesonQQ|
+                { "mint_burn": [{ "verification_key_index: "not a monetary policy index"
                                 , "asset_name": "deadbeef"
                                 , "operation": { "mint": { "receiving_address": #{addrPlaceholder}
                                                          , "amount": { "unit": "assets"
@@ -2048,13 +2048,14 @@ instance Malformed (BodyParam (PostMintBurnAssetData ('Testnet pm))) where
                                                                      }
                                                          }
                                                 }
+                               , "policy_script_template": "cosigner#0"
                    }]
                 , "passphrase": ""
                 }|]
-              , "Error in $['mint_burn'][0]['monetary_policy_index']: A derivation index must be a natural number between 0 and 2147483647 with an optional 'H' suffix (e.g. '1815H' or '44'). Indexes without suffixes are called 'Soft' Indexes with suffixes are called 'Hardened'."
+              , "Error in $['mint_burn'][0]['verification_key_index']: A derivation index must be a natural number between 0 and 2147483647 with an optional 'H' suffix (e.g. '1815H' or '44'). Indexes without suffixes are called 'Soft' Indexes with suffixes are called 'Hardened'."
               )
-            , ( [aesonQQ|
-                { "mint_burn": [{ "monetary_policy_index": "0"
+            ,--} ( [aesonQQ|
+                { "mint_burn": [{ "verification_key_index": "0"
                                , "asset_name": "deadbeef"
                                , "operation": { "mint": { "receiving_address": #{addrPlaceholder}
                                                         , "amount": { "unit": "assets"
@@ -2062,13 +2063,14 @@ instance Malformed (BodyParam (PostMintBurnAssetData ('Testnet pm))) where
                                                                     }
                                                         }
                                               }
+                               , "policy_script_template": "cosigner#0"
                   }]
                 , "passphrase": #{nameTooLong}
                 }|]
               , "Error in $.passphrase: passphrase is too long: expected at most 255 characters"
               )
             , ( [aesonQQ|
-                { "mint_burn": [{ "monetary_policy_index": "-1"
+                { "mint_burn": [{ "verification_key_index": "-1"
                                 , "asset_name": "deadbeef"
                                 , "operation": [ { "mint": { "receiving_address": #{addrPlaceholder}
                                                             , "amount": { "unit": "assets"
@@ -2077,13 +2079,14 @@ instance Malformed (BodyParam (PostMintBurnAssetData ('Testnet pm))) where
                                                             }
                                                   }
                                                 ]
+                                , "policy_script_template": "cosigner#0"
                   }]
                 , "passphrase": #{nameTooLong}
                 }|]
-              , "Error in $['mint_burn'][0]['monetary_policy_index']: A derivation index must be a natural number between 0 and 2147483647 with an optional 'H' suffix (e.g. '1815H' or '44'). Indexes without suffixes are called 'Soft' Indexes with suffixes are called 'Hardened'."
+              , "Error in $['mint_burn'][0]['verification_key_index']: A derivation index must be a natural number between 0 and 2147483647 with an optional 'H' suffix (e.g. '1815H' or '44'). Indexes without suffixes are called 'Soft' Indexes with suffixes are called 'Hardened'."
               )
             , ( [aesonQQ|
-                { "mint_burn": [{ "monetary_policy_index": "0"
+                { "mint_burn": [{ "verification_key_index": "0"
                                 , "asset_name": "not hexadecimal"
                                 , "operation": [ { "mint": { "receiving_address": #{addrPlaceholder}
                                                             , "amount": { "unit": "assets"
@@ -2092,13 +2095,14 @@ instance Malformed (BodyParam (PostMintBurnAssetData ('Testnet pm))) where
                                                             }
                                                   }
                                                 ]
+                                , "policy_script_template": "cosigner#0"
                   }]
                 , "passphrase": #{nameTooLong}
                 }|]
               , "Error in $['mint_burn'][0]['asset_name']: 'base16: input: invalid length'"
               )
             , ( [aesonQQ|
-                { "mint_burn": [{ "monetary_policy_index": "0"
+                { "mint_burn": [{ "verification_key_index": "0"
                                 , "asset_name": 3
                                 , "operation": [ { "mint": { "receiving_address": #{addrPlaceholder}
                                                             , "amount": { "unit": "assets"
@@ -2107,31 +2111,34 @@ instance Malformed (BodyParam (PostMintBurnAssetData ('Testnet pm))) where
                                                             }
                                                   }
                                                 ]
+                                , "policy_script_template": "cosigner#0"
                   }]
                 , "passphrase": #{nameTooLong}
                 }|]
               , "Error in $['mint_burn'][0]['asset_name']: parsing AssetName failed, expected String, but encountered Number"
               )
             , ( [aesonQQ|
-                { "mint_burn": [{ "monetary_policy_index": "0"
+                { "mint_burn": [{ "verification_key_index": "0"
                                 , "asset_name": "deadbeef"
                                 , "operation": []
+                                , "policy_script_template": "cosigner#0"
                   }]
                 , "passphrase": #{nameTooLong}
                 }|]
               , "Error in $['mint_burn'][0].operation: parsing ApiMintBurnOperation failed, expected Object, but encountered Array"
               )
             , ( [aesonQQ|
-                { "mint_burn": [{ "monetary_policy_index": "0"
+                { "mint_burn": [{ "verification_key_index": "0"
                                 , "asset_name": "deadbeef"
                                 , "operation": { "mint": {} }
+                                , "policy_script_template": "cosigner#0"
                                 }]
                 , "passphrase": #{nameTooLong}
                 }|]
               , "Error in $['mint_burn'][0].operation.mint: parsing Cardano.Wallet.Api.Types.ApiMintData(ApiMintData) failed, key 'receiving_address' not found"
               )
             , ( [aesonQQ|
-                { "mint_burn": [{ "monetary_policy_index": "0"
+                { "mint_burn": [{ "verification_key_index": "0"
                                 , "asset_name": "deadbeef"
                                 , "operation": { "mint": { "receiving_address": #{addrPlaceholder}
                                                           , "amount": { "unit": "not an asset unit"
@@ -2139,13 +2146,14 @@ instance Malformed (BodyParam (PostMintBurnAssetData ('Testnet pm))) where
                                                                       }
                                                           }
                                                }
+                                , "policy_script_template": "cosigner#0"
                                }]
                 , "passphrase": #{nameTooLong}
                 }|]
               , "Error in $['mint_burn'][0].operation.mint.amount: failed to parse quantified value. Expected value in 'assets' (e.g. { 'unit': 'assets', 'quantity': ... }) but got something else."
               )
             , ( [aesonQQ|
-                { "mint_burn": [{ "monetary_policy_index": "0"
+                { "mint_burn": [{ "verification_key_index": "0"
                                 , "asset_name": "deadbeef"
                                 , "operation": { "mint": { "receiving_address": []
                                                           , "amount": { "unit": "assets"
@@ -2153,26 +2161,27 @@ instance Malformed (BodyParam (PostMintBurnAssetData ('Testnet pm))) where
                                                                       }
                                                           }
                                                }
-
+                                , "policy_script_template": "cosigner#0"
                                }]
                 , "passphrase": #{nameTooLong}
                 }|]
               , "Error in $['mint_burn'][0].operation.mint['receiving_address']: parsing Text failed, expected String, but encountered Array"
               )
             , ( [aesonQQ|
-                { "mint_burn": [{ "monetary_policy_index": "0"
+                { "mint_burn": [{ "verification_key_index": "0"
                                 , "asset_name": "deadbeef"
                                 , "operation": { "burn": { "unit": "assets"
                                                           , "quantity": -1
                                                           }
                                                }
+                                , "policy_script_template": "cosigner#0"
                                }]
                 , "passphrase": #{nameTooLong}
                 }|]
               , "Error in $['mint_burn'][0].operation.burn.quantity: parsing Natural failed, unexpected negative number -1"
               )
             , ( [aesonQQ|
-                { "mint_burn": [{ "monetary_policy_index": "0"
+                { "mint_burn": [{ "verification_key_index": "0"
                                 , "asset_name": "deadbeef"
                                 , "operation": { "mint": { "receiving_address": #{addrPlaceholder}
                                                          , "amount": { "unit": "assets"
@@ -2180,14 +2189,14 @@ instance Malformed (BodyParam (PostMintBurnAssetData ('Testnet pm))) where
                                                                      }
                                                          }
                                                }
-
+                                , "policy_script_template": "cosigner#0"
                                }]
                 , "passphrase": #{nameTooLong}
                 }|]
               , "Error in $['mint_burn'][0].operation.mint.amount.quantity: parsing Natural failed, unexpected negative number -1"
               )
             , ( [aesonQQ|
-                { "mint_burn": [{ "monetary_policy_index": "0"
+                { "mint_burn": [{ "verification_key_index": "0"
                                 , "asset_name": "deadbeef"
                                 , "operation": { "burn": { "unit": "assets"
                                                          , "quantity": 1
@@ -2198,29 +2207,31 @@ instance Malformed (BodyParam (PostMintBurnAssetData ('Testnet pm))) where
                                                                      }
                                                          }
                                                }
-
+                               , "policy_script_template": "cosigner#0"
                                }]
                 , "passphrase": #{nameTooLong}
                 }|]
               , "Error in $['mint_burn'][0].operation: May be either a 'mint' or a 'burn'."
               )
             , ( [aesonQQ|
-                { "mint_burn": [{ "monetary_policy_index": "0"
+                { "mint_burn": [{ "verification_key_index": "0"
                                 , "asset_name": "deadbeef"
                                 , "operation": { "burn": { "unit": "assets"
                                                          , "quantity": 1
                                                          }
                                                , "something_else": 3
                                                }
+                                , "policy_script_template": "cosigner#0"
                                }]
                 , "passphrase": ""
                 }|]
               , "Error in $['mint_burn'][0].operation: May be either a 'mint' or a 'burn'."
               )
             , ( [aesonQQ|
-                { "mint_burn": [{ "monetary_policy_index": "0"
+                { "mint_burn": [{ "verification_key_index": "0"
                                 , "asset_name": "deadbeef"
                                 , "operation": {}
+                                , "policy_script_template": "cosigner#0"
                                }]
                 , "passphrase": ""
                 }|]

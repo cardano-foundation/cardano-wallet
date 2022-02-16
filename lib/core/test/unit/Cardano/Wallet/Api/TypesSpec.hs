@@ -398,7 +398,6 @@ import Test.QuickCheck
     , InfiniteList (..)
     , applyArbitrary2
     , applyArbitrary3
-    , applyArbitrary4
     , arbitraryBoundedEnum
     , arbitraryPrintableChar
     , arbitrarySizedBoundedIntegral
@@ -1070,7 +1069,6 @@ spec = parallel $ do
                  { mintBurn = mintBurn (x :: PostMintBurnAssetData ('Testnet 0))
                  , passphrase = passphrase (x :: PostMintBurnAssetData ('Testnet 0))
                  , metadata = metadata (x :: PostMintBurnAssetData ('Testnet 0))
-                 , timeToLive = timeToLive (x :: PostMintBurnAssetData ('Testnet 0))
                  }
           in
                x' === x .&&. show x' === show x
@@ -2199,7 +2197,7 @@ instance Arbitrary StakeAddress where
             (header <> payload)
 
 instance Arbitrary (PostMintBurnAssetData n) where
-    arbitrary = applyArbitrary4 PostMintBurnAssetData
+    arbitrary = applyArbitrary3 PostMintBurnAssetData
 
 instance Arbitrary (ApiConstructTransaction n) where
     arbitrary = ApiConstructTransaction
@@ -2210,6 +2208,10 @@ instance Arbitrary (ApiConstructTransaction n) where
 instance Arbitrary (ApiMintBurnData n) where
     arbitrary = ApiMintBurnData
         <$> arbitrary
+        <*> elements [ ApiT $ RequireSignatureOf (Cosigner 0)
+                     , ApiT $ RequireAllOf [RequireSignatureOf (Cosigner 0), ActiveFromSlot 100]
+                     , ApiT $ RequireAllOf [RequireSignatureOf (Cosigner 0), ActiveFromSlot 100, ActiveUntilSlot 150]
+                     ]
         <*> (ApiT <$> genTokenName)
         <*> arbitrary
 
@@ -2785,6 +2787,7 @@ instance Typeable n => ToSchema (ApiBalanceTransactionPostData n) where
 
 instance Typeable n => ToSchema (PostMintBurnAssetData n) where
     declareNamedSchema _ = do
+        addDefinition =<< declareSchemaForDefinition "ScriptTemplateValue"
         addDefinition =<< declareSchemaForDefinition "TransactionMetadataValue"
         declareSchemaForDefinition "ApiPostMintBurnAssetData"
 

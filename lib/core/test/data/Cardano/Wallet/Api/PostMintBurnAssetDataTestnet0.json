@@ -1,858 +1,58 @@
 {
-    "seed": 2938095468874537641,
+    "seed": 5214876875480554796,
     "samples": [
         {
-            "time_to_live": {
-                "quantity": 8666,
-                "unit": "second"
-            },
-            "passphrase": "f]dX3wUje%~.oSe{𭢁p?)[n GYTY^JgP8🃰;c%fⷬ3xk-BoUH#ksM{𗰜,䚯𫬐p",
+            "passphrase": "ZzX<i*I?ZN@A9>JHp%l&f봫",
             "mint_burn": [
                 {
                     "operation": {
                         "mint": {
                             "receiving_address": "<addr>",
                             "amount": {
-                                "quantity": 150,
+                                "quantity": 22,
                                 "unit": "assets"
                             }
                         }
                     },
-                    "monetary_policy_index": "18948",
-                    "asset_name": "546f6b656e45"
-                },
-                {
-                    "operation": {
-                        "mint": {
-                            "receiving_address": "<addr>",
-                            "amount": {
-                                "quantity": 173,
-                                "unit": "assets"
+                    "policy_script_template": {
+                        "all": [
+                            "cosigner#0",
+                            {
+                                "active_from": 100
                             }
-                        }
+                        ]
                     },
-                    "monetary_policy_index": "11359",
-                    "asset_name": "546f6b656e59"
+                    "asset_name": "546f6b656e42",
+                    "verification_key_index": "21151"
                 },
                 {
                     "operation": {
                         "burn": {
-                            "quantity": 26,
+                            "quantity": 207,
                             "unit": "assets"
                         }
                     },
-                    "monetary_policy_index": "30823",
-                    "asset_name": "546f6b656e55"
+                    "policy_script_template": {
+                        "all": [
+                            "cosigner#0",
+                            {
+                                "active_from": 100
+                            }
+                        ]
+                    },
+                    "asset_name": "546f6b656e53",
+                    "verification_key_index": "10656"
                 },
                 {
                     "operation": {
                         "burn": {
-                            "quantity": 53,
+                            "quantity": 38,
                             "unit": "assets"
                         }
                     },
-                    "monetary_policy_index": "20532",
-                    "asset_name": "546f6b656e57"
-                },
-                {
-                    "operation": {
-                        "mint": {
-                            "receiving_address": "<addr>",
-                            "amount": {
-                                "quantity": 156,
-                                "unit": "assets"
-                            }
-                        }
-                    },
-                    "monetary_policy_index": "22775",
-                    "asset_name": "546f6b656e4c"
-                },
-                {
-                    "operation": {
-                        "mint": {
-                            "receiving_address": "<addr>",
-                            "amount": {
-                                "quantity": 115,
-                                "unit": "assets"
-                            }
-                        }
-                    },
-                    "monetary_policy_index": "6698",
-                    "asset_name": "546f6b656e44"
-                },
-                {
-                    "operation": {
-                        "burn": {
-                            "quantity": 196,
-                            "unit": "assets"
-                        }
-                    },
-                    "monetary_policy_index": "18584",
-                    "asset_name": "546f6b656e58"
-                },
-                {
-                    "operation": {
-                        "burn": {
-                            "quantity": 161,
-                            "unit": "assets"
-                        }
-                    },
-                    "monetary_policy_index": "24940",
-                    "asset_name": "546f6b656e4f"
-                },
-                {
-                    "operation": {
-                        "burn": {
-                            "quantity": 136,
-                            "unit": "assets"
-                        }
-                    },
-                    "monetary_policy_index": "8760",
-                    "asset_name": "546f6b656e52"
-                },
-                {
-                    "operation": {
-                        "burn": {
-                            "quantity": 238,
-                            "unit": "assets"
-                        }
-                    },
-                    "asset_name": "546f6b656e49"
-                },
-                {
-                    "operation": {
-                        "burn": {
-                            "quantity": 245,
-                            "unit": "assets"
-                        }
-                    },
-                    "monetary_policy_index": "4540",
-                    "asset_name": "546f6b656e55"
-                },
-                {
-                    "operation": {
-                        "burn": {
-                            "quantity": 250,
-                            "unit": "assets"
-                        }
-                    },
-                    "monetary_policy_index": "21937",
-                    "asset_name": "546f6b656e4a"
-                },
-                {
-                    "operation": {
-                        "mint": {
-                            "receiving_address": "<addr>",
-                            "amount": {
-                                "quantity": 69,
-                                "unit": "assets"
-                            }
-                        }
-                    },
-                    "monetary_policy_index": "5083",
-                    "asset_name": "546f6b656e45"
-                },
-                {
-                    "operation": {
-                        "mint": {
-                            "receiving_address": "<addr>",
-                            "amount": {
-                                "quantity": 246,
-                                "unit": "assets"
-                            }
-                        }
-                    },
-                    "monetary_policy_index": "8722",
-                    "asset_name": "546f6b656e4a"
-                },
-                {
-                    "operation": {
-                        "mint": {
-                            "receiving_address": "<addr>",
-                            "amount": {
-                                "quantity": 238,
-                                "unit": "assets"
-                            }
-                        }
-                    },
-                    "monetary_policy_index": "2248",
-                    "asset_name": "546f6b656e55"
-                },
-                {
-                    "operation": {
-                        "mint": {
-                            "receiving_address": "<addr>",
-                            "amount": {
-                                "quantity": 6,
-                                "unit": "assets"
-                            }
-                        }
-                    },
-                    "monetary_policy_index": "22385",
-                    "asset_name": "546f6b656e4f"
-                },
-                {
-                    "operation": {
-                        "mint": {
-                            "receiving_address": "<addr>",
-                            "amount": {
-                                "quantity": 2,
-                                "unit": "assets"
-                            }
-                        }
-                    },
-                    "asset_name": "546f6b656e4a"
-                }
-            ],
-            "metadata": {
-                "28": {
-                    "list": [
-                        {
-                            "map": [
-                                {
-                                    "k": {
-                                        "string": "𠱇鴤"
-                                    },
-                                    "v": {
-                                        "int": 1
-                                    }
-                                }
-                            ]
-                        }
-                    ]
-                }
-            }
-        },
-        {
-            "time_to_live": {
-                "quantity": 5272,
-                "unit": "second"
-            },
-            "passphrase": "}Dp6E?𭭺X&l\"h黭Ja5wG𣬇sTc;!-𧼈D[,𫼏O9s@XlLxGrr)<6Pa𒌈𗯦P𥫔E𮥆𗙷:#s𤮹C6>zEL碑=",
-            "mint_burn": [
-                {
-                    "operation": {
-                        "mint": {
-                            "receiving_address": "<addr>",
-                            "amount": {
-                                "quantity": 114,
-                                "unit": "assets"
-                            }
-                        }
-                    },
-                    "monetary_policy_index": "8786",
-                    "asset_name": "546f6b656e4c"
-                },
-                {
-                    "operation": {
-                        "mint": {
-                            "receiving_address": "<addr>",
-                            "amount": {
-                                "quantity": 159,
-                                "unit": "assets"
-                            }
-                        }
-                    },
-                    "asset_name": "546f6b656e43"
-                },
-                {
-                    "operation": {
-                        "mint": {
-                            "receiving_address": "<addr>",
-                            "amount": {
-                                "quantity": 104,
-                                "unit": "assets"
-                            }
-                        }
-                    },
-                    "monetary_policy_index": "27574",
-                    "asset_name": "546f6b656e5a"
-                },
-                {
-                    "operation": {
-                        "burn": {
-                            "quantity": 165,
-                            "unit": "assets"
-                        }
-                    },
-                    "monetary_policy_index": "2290",
-                    "asset_name": "546f6b656e50"
-                },
-                {
-                    "operation": {
-                        "burn": {
-                            "quantity": 46,
-                            "unit": "assets"
-                        }
-                    },
-                    "monetary_policy_index": "14612",
-                    "asset_name": "546f6b656e44"
-                },
-                {
-                    "operation": {
-                        "burn": {
-                            "quantity": 218,
-                            "unit": "assets"
-                        }
-                    },
-                    "monetary_policy_index": "14695",
-                    "asset_name": "546f6b656e44"
-                },
-                {
-                    "operation": {
-                        "burn": {
-                            "quantity": 162,
-                            "unit": "assets"
-                        }
-                    },
-                    "monetary_policy_index": "28902",
-                    "asset_name": "546f6b656e49"
-                }
-            ],
-            "metadata": {
-                "15": {
-                    "list": [
-                        {
-                            "int": -3
-                        },
-                        {
-                            "bytes": "ba01403e77d35e10075d47097b1b7e72fb78c5455521ed6520745958739e4126757716"
-                        }
-                    ]
-                }
-            }
-        },
-        {
-            "time_to_live": {
-                "quantity": 4095,
-                "unit": "second"
-            },
-            "passphrase": "뵥wI|n%𩂚쓆wꖟR`;,zc8E#𓊲*𗝴->嶘5J(y[7J%n4ＮK뎺뚩\"3𫺫𢪻o'j𥐒𣘀/0/g𤛰7e|\"R𭺕~6D㯋G1GeDB{-|=4goVꂋ.xV3𘬲𨚂r_Nib𢸵]$𨒎$55_L벑b𫔨Nt'𰒃𧺙jw&@xi24䐸r7𰼡sr슘al8H#UEh0𧛠*!(?〯P]Cw4n[pN<Jy&6;8<Ĺ\"L*",
-            "mint_burn": [
-                {
-                    "operation": {
-                        "burn": {
-                            "quantity": 31,
-                            "unit": "assets"
-                        }
-                    },
-                    "monetary_policy_index": "22068",
-                    "asset_name": "546f6b656e56"
-                },
-                {
-                    "operation": {
-                        "mint": {
-                            "receiving_address": "<addr>",
-                            "amount": {
-                                "quantity": 15,
-                                "unit": "assets"
-                            }
-                        }
-                    },
-                    "monetary_policy_index": "16329",
-                    "asset_name": "546f6b656e43"
-                },
-                {
-                    "operation": {
-                        "mint": {
-                            "receiving_address": "<addr>",
-                            "amount": {
-                                "quantity": 229,
-                                "unit": "assets"
-                            }
-                        }
-                    },
-                    "asset_name": "546f6b656e44"
-                },
-                {
-                    "operation": {
-                        "burn": {
-                            "quantity": 125,
-                            "unit": "assets"
-                        }
-                    },
-                    "asset_name": "546f6b656e56"
-                },
-                {
-                    "operation": {
-                        "mint": {
-                            "receiving_address": "<addr>",
-                            "amount": {
-                                "quantity": 107,
-                                "unit": "assets"
-                            }
-                        }
-                    },
-                    "asset_name": "546f6b656e4a"
-                },
-                {
-                    "operation": {
-                        "mint": {
-                            "receiving_address": "<addr>",
-                            "amount": {
-                                "quantity": 71,
-                                "unit": "assets"
-                            }
-                        }
-                    },
-                    "asset_name": "546f6b656e53"
-                },
-                {
-                    "operation": {
-                        "mint": {
-                            "receiving_address": "<addr>",
-                            "amount": {
-                                "quantity": 176,
-                                "unit": "assets"
-                            }
-                        }
-                    },
-                    "monetary_policy_index": "22981",
-                    "asset_name": "546f6b656e49"
-                },
-                {
-                    "operation": {
-                        "mint": {
-                            "receiving_address": "<addr>",
-                            "amount": {
-                                "quantity": 26,
-                                "unit": "assets"
-                            }
-                        }
-                    },
-                    "asset_name": "546f6b656e4a"
-                },
-                {
-                    "operation": {
-                        "burn": {
-                            "quantity": 165,
-                            "unit": "assets"
-                        }
-                    },
-                    "monetary_policy_index": "12685",
-                    "asset_name": "546f6b656e44"
-                },
-                {
-                    "operation": {
-                        "mint": {
-                            "receiving_address": "<addr>",
-                            "amount": {
-                                "quantity": 168,
-                                "unit": "assets"
-                            }
-                        }
-                    },
-                    "monetary_policy_index": "23420",
-                    "asset_name": "546f6b656e48"
-                },
-                {
-                    "operation": {
-                        "mint": {
-                            "receiving_address": "<addr>",
-                            "amount": {
-                                "quantity": 104,
-                                "unit": "assets"
-                            }
-                        }
-                    },
-                    "monetary_policy_index": "1448",
-                    "asset_name": "546f6b656e57"
-                },
-                {
-                    "operation": {
-                        "mint": {
-                            "receiving_address": "<addr>",
-                            "amount": {
-                                "quantity": 139,
-                                "unit": "assets"
-                            }
-                        }
-                    },
-                    "monetary_policy_index": "24630",
-                    "asset_name": "546f6b656e4c"
-                },
-                {
-                    "operation": {
-                        "burn": {
-                            "quantity": 96,
-                            "unit": "assets"
-                        }
-                    },
-                    "asset_name": "546f6b656e4c"
-                },
-                {
-                    "operation": {
-                        "burn": {
-                            "quantity": 178,
-                            "unit": "assets"
-                        }
-                    },
-                    "monetary_policy_index": "1483",
-                    "asset_name": "546f6b656e53"
-                },
-                {
-                    "operation": {
-                        "burn": {
-                            "quantity": 176,
-                            "unit": "assets"
-                        }
-                    },
-                    "monetary_policy_index": "16333",
-                    "asset_name": "546f6b656e45"
-                },
-                {
-                    "operation": {
-                        "burn": {
-                            "quantity": 143,
-                            "unit": "assets"
-                        }
-                    },
-                    "asset_name": "546f6b656e58"
-                },
-                {
-                    "operation": {
-                        "mint": {
-                            "receiving_address": "<addr>",
-                            "amount": {
-                                "quantity": 87,
-                                "unit": "assets"
-                            }
-                        }
-                    },
-                    "monetary_policy_index": "8060",
-                    "asset_name": "546f6b656e4f"
-                },
-                {
-                    "operation": {
-                        "burn": {
-                            "quantity": 43,
-                            "unit": "assets"
-                        }
-                    },
-                    "asset_name": "546f6b656e57"
-                },
-                {
-                    "operation": {
-                        "mint": {
-                            "receiving_address": "<addr>",
-                            "amount": {
-                                "quantity": 76,
-                                "unit": "assets"
-                            }
-                        }
-                    },
-                    "monetary_policy_index": "25548",
-                    "asset_name": "546f6b656e55"
-                },
-                {
-                    "operation": {
-                        "mint": {
-                            "receiving_address": "<addr>",
-                            "amount": {
-                                "quantity": 208,
-                                "unit": "assets"
-                            }
-                        }
-                    },
-                    "monetary_policy_index": "9138",
-                    "asset_name": "546f6b656e5a"
-                },
-                {
-                    "operation": {
-                        "burn": {
-                            "quantity": 144,
-                            "unit": "assets"
-                        }
-                    },
-                    "asset_name": "546f6b656e55"
-                }
-            ],
-            "metadata": {
-                "13": {
-                    "list": [
-                        {
-                            "list": [
-                                {
-                                    "int": -1
-                                },
-                                {
-                                    "list": []
-                                }
-                            ]
-                        }
-                    ]
-                }
-            }
-        },
-        {
-            "time_to_live": {
-                "quantity": 3759,
-                "unit": "second"
-            },
-            "passphrase": "U/礸𣐑wGY,𨓷tb.ᓘ|kdELRXb<ZiF 툟B𬭮fm)&𘃖y#}0WZ`B@𝧙H77J䮗!즏S^O5Zvb𮎦;D6O6奵FN.s3Rq,_yU#wa0z9!-GP 𡉽뫀WXI𦶼X\"g𠸐3𪂖pd䱂6[n.t+𩫵n⾼}'v]𪛄;l]mKky{!K🛉r𤜞G>?9ib\\ᶐ@r6>wjQ8<𪍽7efJt~76𢒏E-7𧧊,릑&q𬤦ኙ🔸`l]S3Z[2Oz𣈤k<_};l.}iQ*=.-<𩟪>i",
-            "mint_burn": [
-                {
-                    "operation": {
-                        "burn": {
-                            "quantity": 123,
-                            "unit": "assets"
-                        }
-                    },
-                    "monetary_policy_index": "15436",
-                    "asset_name": "546f6b656e55"
-                },
-                {
-                    "operation": {
-                        "burn": {
-                            "quantity": 17,
-                            "unit": "assets"
-                        }
-                    },
-                    "monetary_policy_index": "8558",
-                    "asset_name": "546f6b656e4e"
-                },
-                {
-                    "operation": {
-                        "burn": {
-                            "quantity": 94,
-                            "unit": "assets"
-                        }
-                    },
-                    "monetary_policy_index": "695",
-                    "asset_name": "546f6b656e55"
-                },
-                {
-                    "operation": {
-                        "burn": {
-                            "quantity": 134,
-                            "unit": "assets"
-                        }
-                    },
-                    "monetary_policy_index": "10923",
-                    "asset_name": "546f6b656e42"
-                },
-                {
-                    "operation": {
-                        "mint": {
-                            "receiving_address": "<addr>",
-                            "amount": {
-                                "quantity": 191,
-                                "unit": "assets"
-                            }
-                        }
-                    },
-                    "monetary_policy_index": "10263",
-                    "asset_name": "546f6b656e4f"
-                },
-                {
-                    "operation": {
-                        "mint": {
-                            "receiving_address": "<addr>",
-                            "amount": {
-                                "quantity": 12,
-                                "unit": "assets"
-                            }
-                        }
-                    },
-                    "monetary_policy_index": "21806",
-                    "asset_name": "546f6b656e50"
-                },
-                {
-                    "operation": {
-                        "burn": {
-                            "quantity": 47,
-                            "unit": "assets"
-                        }
-                    },
-                    "asset_name": "546f6b656e53"
-                }
-            ],
-            "metadata": {
-                "13": {
-                    "list": [
-                        {
-                            "bytes": "d4481d677942fe3e432b0151721e74486d510906713b481408cf5359457b3467ae6f79372c4b2e55224a10031d7f076e7f4d68440728491912607a"
-                        },
-                        {
-                            "map": []
-                        }
-                    ]
-                }
-            }
-        },
-        {
-            "passphrase": "FJ𠼹r F5ຄ~̂9𬿒'B𘡥䉚𗓵__y:UU[𤬬B𝝮ffcP-(~𒌗--~txQ)u)dSun𘭝𖧮x奶?𭹤A7ZsK2CGttA|𭰲67m^7$*gVx\\/#ie𭜉𧶿)f>:l6|OK5⨏A</)!-Rm",
-            "mint_burn": [
-                {
-                    "operation": {
-                        "mint": {
-                            "receiving_address": "<addr>",
-                            "amount": {
-                                "quantity": 162,
-                                "unit": "assets"
-                            }
-                        }
-                    },
-                    "monetary_policy_index": "10243",
-                    "asset_name": "546f6b656e50"
-                },
-                {
-                    "operation": {
-                        "mint": {
-                            "receiving_address": "<addr>",
-                            "amount": {
-                                "quantity": 77,
-                                "unit": "assets"
-                            }
-                        }
-                    },
-                    "monetary_policy_index": "28083",
-                    "asset_name": "546f6b656e5a"
-                },
-                {
-                    "operation": {
-                        "mint": {
-                            "receiving_address": "<addr>",
-                            "amount": {
-                                "quantity": 14,
-                                "unit": "assets"
-                            }
-                        }
-                    },
-                    "monetary_policy_index": "9555",
-                    "asset_name": "546f6b656e52"
-                },
-                {
-                    "operation": {
-                        "mint": {
-                            "receiving_address": "<addr>",
-                            "amount": {
-                                "quantity": 32,
-                                "unit": "assets"
-                            }
-                        }
-                    },
-                    "monetary_policy_index": "28879",
-                    "asset_name": "546f6b656e42"
-                },
-                {
-                    "operation": {
-                        "mint": {
-                            "receiving_address": "<addr>",
-                            "amount": {
-                                "quantity": 198,
-                                "unit": "assets"
-                            }
-                        }
-                    },
-                    "monetary_policy_index": "23694",
-                    "asset_name": "546f6b656e52"
-                },
-                {
-                    "operation": {
-                        "mint": {
-                            "receiving_address": "<addr>",
-                            "amount": {
-                                "quantity": 203,
-                                "unit": "assets"
-                            }
-                        }
-                    },
-                    "monetary_policy_index": "17655",
-                    "asset_name": "546f6b656e43"
-                },
-                {
-                    "operation": {
-                        "burn": {
-                            "quantity": 89,
-                            "unit": "assets"
-                        }
-                    },
-                    "monetary_policy_index": "7567",
-                    "asset_name": "546f6b656e5a"
-                },
-                {
-                    "operation": {
-                        "burn": {
-                            "quantity": 183,
-                            "unit": "assets"
-                        }
-                    },
-                    "monetary_policy_index": "20275",
-                    "asset_name": "546f6b656e4b"
-                },
-                {
-                    "operation": {
-                        "burn": {
-                            "quantity": 95,
-                            "unit": "assets"
-                        }
-                    },
-                    "monetary_policy_index": "1871",
-                    "asset_name": "546f6b656e43"
-                },
-                {
-                    "operation": {
-                        "burn": {
-                            "quantity": 149,
-                            "unit": "assets"
-                        }
-                    },
-                    "monetary_policy_index": "13482",
-                    "asset_name": "546f6b656e52"
-                },
-                {
-                    "operation": {
-                        "burn": {
-                            "quantity": 40,
-                            "unit": "assets"
-                        }
-                    },
-                    "monetary_policy_index": "20417",
-                    "asset_name": "546f6b656e49"
-                },
-                {
-                    "operation": {
-                        "burn": {
-                            "quantity": 250,
-                            "unit": "assets"
-                        }
-                    },
-                    "monetary_policy_index": "32580",
-                    "asset_name": "546f6b656e46"
-                },
-                {
-                    "operation": {
-                        "mint": {
-                            "receiving_address": "<addr>",
-                            "amount": {
-                                "quantity": 136,
-                                "unit": "assets"
-                            }
-                        }
-                    },
-                    "asset_name": "546f6b656e5a"
-                },
-                {
-                    "operation": {
-                        "mint": {
-                            "receiving_address": "<addr>",
-                            "amount": {
-                                "quantity": 75,
-                                "unit": "assets"
-                            }
-                        }
-                    },
-                    "asset_name": "546f6b656e41"
-                },
-                {
-                    "operation": {
-                        "burn": {
-                            "quantity": 161,
-                            "unit": "assets"
-                        }
-                    },
-                    "asset_name": "546f6b656e4a"
+                    "policy_script_template": "cosigner#0",
+                    "asset_name": "546f6b656e4b",
+                    "verification_key_index": "18521"
                 },
                 {
                     "operation": {
@@ -864,199 +64,256 @@
                             }
                         }
                     },
-                    "asset_name": "546f6b656e54"
+                    "policy_script_template": "cosigner#0",
+                    "asset_name": "546f6b656e45"
                 },
                 {
                     "operation": {
                         "mint": {
                             "receiving_address": "<addr>",
                             "amount": {
-                                "quantity": 147,
+                                "quantity": 31,
                                 "unit": "assets"
                             }
                         }
                     },
-                    "asset_name": "546f6b656e45"
+                    "policy_script_template": {
+                        "all": [
+                            "cosigner#0",
+                            {
+                                "active_from": 100
+                            },
+                            {
+                                "active_until": 150
+                            }
+                        ]
+                    },
+                    "asset_name": "546f6b656e5a",
+                    "verification_key_index": "16080"
+                },
+                {
+                    "operation": {
+                        "mint": {
+                            "receiving_address": "<addr>",
+                            "amount": {
+                                "quantity": 96,
+                                "unit": "assets"
+                            }
+                        }
+                    },
+                    "policy_script_template": "cosigner#0",
+                    "asset_name": "546f6b656e56",
+                    "verification_key_index": "25174"
                 },
                 {
                     "operation": {
                         "burn": {
-                            "quantity": 247,
+                            "quantity": 148,
                             "unit": "assets"
                         }
                     },
-                    "monetary_policy_index": "31833",
-                    "asset_name": "546f6b656e51"
+                    "policy_script_template": "cosigner#0",
+                    "asset_name": "546f6b656e4b",
+                    "verification_key_index": "18578"
                 },
                 {
                     "operation": {
                         "burn": {
-                            "quantity": 74,
+                            "quantity": 94,
                             "unit": "assets"
                         }
+                    },
+                    "policy_script_template": {
+                        "all": [
+                            "cosigner#0",
+                            {
+                                "active_from": 100
+                            },
+                            {
+                                "active_until": 150
+                            }
+                        ]
+                    },
+                    "asset_name": "546f6b656e4d"
+                },
+                {
+                    "operation": {
+                        "burn": {
+                            "quantity": 17,
+                            "unit": "assets"
+                        }
+                    },
+                    "policy_script_template": "cosigner#0",
+                    "asset_name": "546f6b656e49",
+                    "verification_key_index": "19224"
+                },
+                {
+                    "operation": {
+                        "mint": {
+                            "receiving_address": "<addr>",
+                            "amount": {
+                                "quantity": 132,
+                                "unit": "assets"
+                            }
+                        }
+                    },
+                    "policy_script_template": {
+                        "all": [
+                            "cosigner#0",
+                            {
+                                "active_from": 100
+                            },
+                            {
+                                "active_until": 150
+                            }
+                        ]
+                    },
+                    "asset_name": "546f6b656e5a",
+                    "verification_key_index": "16920"
+                },
+                {
+                    "operation": {
+                        "burn": {
+                            "quantity": 3,
+                            "unit": "assets"
+                        }
+                    },
+                    "policy_script_template": "cosigner#0",
+                    "asset_name": "546f6b656e41",
+                    "verification_key_index": "8365"
+                },
+                {
+                    "operation": {
+                        "burn": {
+                            "quantity": 104,
+                            "unit": "assets"
+                        }
+                    },
+                    "policy_script_template": {
+                        "all": [
+                            "cosigner#0",
+                            {
+                                "active_from": 100
+                            }
+                        ]
                     },
                     "asset_name": "546f6b656e4a"
                 },
                 {
                     "operation": {
                         "burn": {
-                            "quantity": 106,
+                            "quantity": 241,
                             "unit": "assets"
                         }
                     },
-                    "monetary_policy_index": "5243",
-                    "asset_name": "546f6b656e45"
+                    "policy_script_template": "cosigner#0",
+                    "asset_name": "546f6b656e4d",
+                    "verification_key_index": "2397"
                 },
                 {
                     "operation": {
                         "mint": {
                             "receiving_address": "<addr>",
                             "amount": {
-                                "quantity": 33,
+                                "quantity": 215,
                                 "unit": "assets"
                             }
                         }
                     },
-                    "monetary_policy_index": "8618",
-                    "asset_name": "546f6b656e50"
+                    "policy_script_template": {
+                        "all": [
+                            "cosigner#0",
+                            {
+                                "active_from": 100
+                            },
+                            {
+                                "active_until": 150
+                            }
+                        ]
+                    },
+                    "asset_name": "546f6b656e41",
+                    "verification_key_index": "26653"
+                },
+                {
+                    "operation": {
+                        "mint": {
+                            "receiving_address": "<addr>",
+                            "amount": {
+                                "quantity": 132,
+                                "unit": "assets"
+                            }
+                        }
+                    },
+                    "policy_script_template": "cosigner#0",
+                    "asset_name": "546f6b656e47",
+                    "verification_key_index": "14896"
                 },
                 {
                     "operation": {
                         "burn": {
-                            "quantity": 53,
+                            "quantity": 145,
                             "unit": "assets"
                         }
                     },
-                    "asset_name": "546f6b656e46"
+                    "policy_script_template": {
+                        "all": [
+                            "cosigner#0",
+                            {
+                                "active_from": 100
+                            },
+                            {
+                                "active_until": 150
+                            }
+                        ]
+                    },
+                    "asset_name": "546f6b656e42",
+                    "verification_key_index": "996"
+                },
+                {
+                    "operation": {
+                        "mint": {
+                            "receiving_address": "<addr>",
+                            "amount": {
+                                "quantity": 155,
+                                "unit": "assets"
+                            }
+                        }
+                    },
+                    "policy_script_template": {
+                        "all": [
+                            "cosigner#0",
+                            {
+                                "active_from": 100
+                            },
+                            {
+                                "active_until": 150
+                            }
+                        ]
+                    },
+                    "asset_name": "546f6b656e4f",
+                    "verification_key_index": "16402"
                 },
                 {
                     "operation": {
                         "burn": {
-                            "quantity": 47,
+                            "quantity": 120,
                             "unit": "assets"
                         }
                     },
-                    "monetary_policy_index": "4793",
-                    "asset_name": "546f6b656e47"
+                    "policy_script_template": "cosigner#0",
+                    "asset_name": "546f6b656e4f",
+                    "verification_key_index": "7944"
                 },
                 {
                     "operation": {
                         "burn": {
-                            "quantity": 84,
+                            "quantity": 161,
                             "unit": "assets"
                         }
                     },
-                    "monetary_policy_index": "17781",
-                    "asset_name": "546f6b656e44"
+                    "policy_script_template": "cosigner#0",
+                    "asset_name": "546f6b656e43"
                 },
-                {
-                    "operation": {
-                        "mint": {
-                            "receiving_address": "<addr>",
-                            "amount": {
-                                "quantity": 117,
-                                "unit": "assets"
-                            }
-                        }
-                    },
-                    "monetary_policy_index": "25746",
-                    "asset_name": "546f6b656e44"
-                },
-                {
-                    "operation": {
-                        "mint": {
-                            "receiving_address": "<addr>",
-                            "amount": {
-                                "quantity": 98,
-                                "unit": "assets"
-                            }
-                        }
-                    },
-                    "monetary_policy_index": "7443",
-                    "asset_name": "546f6b656e47"
-                },
-                {
-                    "operation": {
-                        "burn": {
-                            "quantity": 111,
-                            "unit": "assets"
-                        }
-                    },
-                    "monetary_policy_index": "2765",
-                    "asset_name": "546f6b656e45"
-                },
-                {
-                    "operation": {
-                        "mint": {
-                            "receiving_address": "<addr>",
-                            "amount": {
-                                "quantity": 86,
-                                "unit": "assets"
-                            }
-                        }
-                    },
-                    "asset_name": "546f6b656e47"
-                }
-            ]
-        },
-        {
-            "time_to_live": {
-                "quantity": 9261,
-                "unit": "second"
-            },
-            "passphrase": "𫺆.:ධs)鯽,푈Iz](BRUL{𰧞p4GxpN9|+\\Mᆁ5!𨆿foiy ?4/\\𤛨A",
-            "mint_burn": [
-                {
-                    "operation": {
-                        "mint": {
-                            "receiving_address": "<addr>",
-                            "amount": {
-                                "quantity": 197,
-                                "unit": "assets"
-                            }
-                        }
-                    },
-                    "monetary_policy_index": "32562",
-                    "asset_name": "546f6b656e4b"
-                }
-            ],
-            "metadata": {
-                "26": {
-                    "list": [
-                        {
-                            "map": [
-                                {
-                                    "k": {
-                                        "string": "𠸘󴔭𭇭"
-                                    },
-                                    "v": {
-                                        "string": "󿪯􀌵"
-                                    }
-                                }
-                            ]
-                        },
-                        {
-                            "list": [
-                                {
-                                    "list": [
-                                        {
-                                            "int": 0
-                                        }
-                                    ]
-                                }
-                            ]
-                        }
-                    ]
-                }
-            }
-        },
-        {
-            "time_to_live": {
-                "quantity": 925,
-                "unit": "second"
-            },
-            "passphrase": "kY8]\\O쨣&𪧹䖆L|v𦦹5S道l访/𪷮])𗣄]dur:7Cf2EVn7𤼜k𝒋F洛fE𡎹퀀c%IR楞~>𖽞C'ba.Y]{UD06c<m𤆌(.쒺b\\Gd7SU;J1𦉟d_𨎬ﻙMoB>2q;m@Ri 黥ꕠkf%}𣤜J$[r?ﺿg{.M𗉕𭫹p]hV)佺5ᬈQ+K<e𧙴16蒕'!𩡈燋𘊸ePꗿOg,4i𝜶ST",
-            "mint_burn": [
                 {
                     "operation": {
                         "burn": {
@@ -1064,89 +321,14 @@
                             "unit": "assets"
                         }
                     },
-                    "asset_name": "546f6b656e57"
-                },
-                {
-                    "operation": {
-                        "mint": {
-                            "receiving_address": "<addr>",
-                            "amount": {
-                                "quantity": 40,
-                                "unit": "assets"
+                    "policy_script_template": {
+                        "all": [
+                            "cosigner#0",
+                            {
+                                "active_from": 100
                             }
-                        }
+                        ]
                     },
-                    "asset_name": "546f6b656e4c"
-                },
-                {
-                    "operation": {
-                        "burn": {
-                            "quantity": 121,
-                            "unit": "assets"
-                        }
-                    },
-                    "monetary_policy_index": "29426",
-                    "asset_name": "546f6b656e51"
-                },
-                {
-                    "operation": {
-                        "mint": {
-                            "receiving_address": "<addr>",
-                            "amount": {
-                                "quantity": 118,
-                                "unit": "assets"
-                            }
-                        }
-                    },
-                    "asset_name": "546f6b656e48"
-                },
-                {
-                    "operation": {
-                        "mint": {
-                            "receiving_address": "<addr>",
-                            "amount": {
-                                "quantity": 34,
-                                "unit": "assets"
-                            }
-                        }
-                    },
-                    "monetary_policy_index": "8610",
-                    "asset_name": "546f6b656e55"
-                },
-                {
-                    "operation": {
-                        "mint": {
-                            "receiving_address": "<addr>",
-                            "amount": {
-                                "quantity": 137,
-                                "unit": "assets"
-                            }
-                        }
-                    },
-                    "monetary_policy_index": "1492",
-                    "asset_name": "546f6b656e49"
-                },
-                {
-                    "operation": {
-                        "burn": {
-                            "quantity": 39,
-                            "unit": "assets"
-                        }
-                    },
-                    "monetary_policy_index": "26957",
-                    "asset_name": "546f6b656e52"
-                },
-                {
-                    "operation": {
-                        "mint": {
-                            "receiving_address": "<addr>",
-                            "amount": {
-                                "quantity": 190,
-                                "unit": "assets"
-                            }
-                        }
-                    },
-                    "monetary_policy_index": "16933",
                     "asset_name": "546f6b656e43"
                 },
                 {
@@ -1154,59 +336,21 @@
                         "mint": {
                             "receiving_address": "<addr>",
                             "amount": {
-                                "quantity": 177,
+                                "quantity": 206,
                                 "unit": "assets"
                             }
                         }
                     },
-                    "monetary_policy_index": "26647",
-                    "asset_name": "546f6b656e57"
-                },
-                {
-                    "operation": {
-                        "burn": {
-                            "quantity": 203,
-                            "unit": "assets"
-                        }
-                    },
-                    "monetary_policy_index": "8437",
-                    "asset_name": "546f6b656e4b"
-                },
-                {
-                    "operation": {
-                        "mint": {
-                            "receiving_address": "<addr>",
-                            "amount": {
-                                "quantity": 156,
-                                "unit": "assets"
+                    "policy_script_template": {
+                        "all": [
+                            "cosigner#0",
+                            {
+                                "active_from": 100
                             }
-                        }
+                        ]
                     },
-                    "monetary_policy_index": "18396",
-                    "asset_name": "546f6b656e41"
-                },
-                {
-                    "operation": {
-                        "mint": {
-                            "receiving_address": "<addr>",
-                            "amount": {
-                                "quantity": 119,
-                                "unit": "assets"
-                            }
-                        }
-                    },
-                    "monetary_policy_index": "25894",
-                    "asset_name": "546f6b656e4a"
-                },
-                {
-                    "operation": {
-                        "burn": {
-                            "quantity": 41,
-                            "unit": "assets"
-                        }
-                    },
-                    "monetary_policy_index": "25825",
-                    "asset_name": "546f6b656e4f"
+                    "asset_name": "546f6b656e4b",
+                    "verification_key_index": "6924"
                 },
                 {
                     "operation": {
@@ -1218,128 +362,448 @@
                             }
                         }
                     },
-                    "asset_name": "546f6b656e45"
+                    "policy_script_template": {
+                        "all": [
+                            "cosigner#0",
+                            {
+                                "active_from": 100
+                            }
+                        ]
+                    },
+                    "asset_name": "546f6b656e53",
+                    "verification_key_index": "22030"
                 },
                 {
                     "operation": {
                         "mint": {
                             "receiving_address": "<addr>",
                             "amount": {
-                                "quantity": 203,
+                                "quantity": 168,
                                 "unit": "assets"
                             }
                         }
                     },
-                    "asset_name": "546f6b656e54"
+                    "policy_script_template": {
+                        "all": [
+                            "cosigner#0",
+                            {
+                                "active_from": 100
+                            },
+                            {
+                                "active_until": 150
+                            }
+                        ]
+                    },
+                    "asset_name": "546f6b656e49",
+                    "verification_key_index": "24992"
+                },
+                {
+                    "operation": {
+                        "mint": {
+                            "receiving_address": "<addr>",
+                            "amount": {
+                                "quantity": 115,
+                                "unit": "assets"
+                            }
+                        }
+                    },
+                    "policy_script_template": {
+                        "all": [
+                            "cosigner#0",
+                            {
+                                "active_from": 100
+                            },
+                            {
+                                "active_until": 150
+                            }
+                        ]
+                    },
+                    "asset_name": "546f6b656e4b",
+                    "verification_key_index": "22802"
                 },
                 {
                     "operation": {
                         "burn": {
-                            "quantity": 54,
+                            "quantity": 205,
                             "unit": "assets"
                         }
                     },
-                    "monetary_policy_index": "4849",
-                    "asset_name": "546f6b656e51"
+                    "policy_script_template": "cosigner#0",
+                    "asset_name": "546f6b656e5a",
+                    "verification_key_index": "20474"
                 },
                 {
                     "operation": {
                         "burn": {
-                            "quantity": 120,
+                            "quantity": 59,
                             "unit": "assets"
                         }
                     },
-                    "monetary_policy_index": "6660",
-                    "asset_name": "546f6b656e45"
+                    "policy_script_template": {
+                        "all": [
+                            "cosigner#0",
+                            {
+                                "active_from": 100
+                            }
+                        ]
+                    },
+                    "asset_name": "546f6b656e57",
+                    "verification_key_index": "25653"
                 },
                 {
                     "operation": {
                         "burn": {
-                            "quantity": 177,
+                            "quantity": 215,
                             "unit": "assets"
                         }
                     },
-                    "monetary_policy_index": "32658",
-                    "asset_name": "546f6b656e57"
+                    "policy_script_template": {
+                        "all": [
+                            "cosigner#0",
+                            {
+                                "active_from": 100
+                            },
+                            {
+                                "active_until": 150
+                            }
+                        ]
+                    },
+                    "asset_name": "546f6b656e5a",
+                    "verification_key_index": "3720"
+                },
+                {
+                    "operation": {
+                        "mint": {
+                            "receiving_address": "<addr>",
+                            "amount": {
+                                "quantity": 187,
+                                "unit": "assets"
+                            }
+                        }
+                    },
+                    "policy_script_template": {
+                        "all": [
+                            "cosigner#0",
+                            {
+                                "active_from": 100
+                            },
+                            {
+                                "active_until": 150
+                            }
+                        ]
+                    },
+                    "asset_name": "546f6b656e4a",
+                    "verification_key_index": "25606"
+                },
+                {
+                    "operation": {
+                        "mint": {
+                            "receiving_address": "<addr>",
+                            "amount": {
+                                "quantity": 160,
+                                "unit": "assets"
+                            }
+                        }
+                    },
+                    "policy_script_template": "cosigner#0",
+                    "asset_name": "546f6b656e53"
                 },
                 {
                     "operation": {
                         "burn": {
-                            "quantity": 115,
+                            "quantity": 237,
                             "unit": "assets"
                         }
                     },
-                    "monetary_policy_index": "224",
-                    "asset_name": "546f6b656e4b"
+                    "policy_script_template": {
+                        "all": [
+                            "cosigner#0",
+                            {
+                                "active_from": 100
+                            },
+                            {
+                                "active_until": 150
+                            }
+                        ]
+                    },
+                    "asset_name": "546f6b656e48",
+                    "verification_key_index": "31162"
                 },
                 {
                     "operation": {
-                        "burn": {
-                            "quantity": 176,
-                            "unit": "assets"
+                        "mint": {
+                            "receiving_address": "<addr>",
+                            "amount": {
+                                "quantity": 250,
+                                "unit": "assets"
+                            }
                         }
                     },
-                    "monetary_policy_index": "7353",
-                    "asset_name": "546f6b656e54"
-                },
-                {
-                    "operation": {
-                        "burn": {
-                            "quantity": 254,
-                            "unit": "assets"
-                        }
+                    "policy_script_template": {
+                        "all": [
+                            "cosigner#0",
+                            {
+                                "active_from": 100
+                            }
+                        ]
                     },
-                    "asset_name": "546f6b656e56"
+                    "asset_name": "546f6b656e53",
+                    "verification_key_index": "16682"
                 }
             ],
             "metadata": {
-                "7": {
-                    "list": [
-                        {
-                            "int": 0
-                        },
-                        {
-                            "map": [
-                                {
-                                    "k": {
-                                        "string": "󻪢𬁥"
-                                    },
-                                    "v": {
-                                        "bytes": "a976ea143e72960a633758e8245916cf3ff9e7586c28"
-                                    }
-                                }
-                            ]
-                        }
-                    ]
+                "11": {
+                    "bytes": "2c60d2405d36c7281e7c1940280f2430174f45137d0e3f189f6d457e741f222c2343152c3b4552aed61c70"
                 }
             }
         },
         {
-            "time_to_live": {
-                "quantity": 1387,
-                "unit": "second"
-            },
-            "passphrase": "7\\}cu3(顋v].\\_᪂𣌍AEI𠤪?L{lGq>𣃣?;,hJl=|<g𰷒o",
+            "passphrase": "𗿓H\"訦]oitd.%W:Vi:6w𥯃>𧫰𮅉}𡅂f86u𘕥<𗅆ul5_#cdZ,j+%jgmP5P8|(𰰅:'KE)^𪔁6颀𣇥I V얃Z𐋈4O+z#𐘊b2d'𐎝qB;昫Gy\"_>𫭒YḆnOu-8𞀧Q N𢆀mKu)์y62RYhr-^O桾蝎V9B𞢣𫝜缾IQ%E쉃TPkWj~𬼃𣽁鏜\\ 𰏌N%Yi ]9JD+!xcJ3_l%W𦟛𩛒J6[^_+R%;Y𫉖伝*𬗥u_mi)4uu𤬌D𣨵3q1𩻒!=>LSpt[Bb𑄾bi,+⦴-J蠍:OAy?:q7U頙i𦔌@蕑ZU𮉠7f絥-[X[7lvP\\aF",
             "mint_burn": [
                 {
                     "operation": {
-                        "burn": {
-                            "quantity": 179,
-                            "unit": "assets"
+                        "mint": {
+                            "receiving_address": "<addr>",
+                            "amount": {
+                                "quantity": 88,
+                                "unit": "assets"
+                            }
                         }
                     },
-                    "monetary_policy_index": "8746",
-                    "asset_name": "546f6b656e58"
+                    "policy_script_template": {
+                        "all": [
+                            "cosigner#0",
+                            {
+                                "active_from": 100
+                            }
+                        ]
+                    },
+                    "asset_name": "546f6b656e52",
+                    "verification_key_index": "1936"
                 },
                 {
                     "operation": {
                         "burn": {
-                            "quantity": 127,
+                            "quantity": 213,
                             "unit": "assets"
                         }
                     },
-                    "monetary_policy_index": "31573",
-                    "asset_name": "546f6b656e42"
+                    "policy_script_template": {
+                        "all": [
+                            "cosigner#0",
+                            {
+                                "active_from": 100
+                            }
+                        ]
+                    },
+                    "asset_name": "546f6b656e50",
+                    "verification_key_index": "7701"
+                },
+                {
+                    "operation": {
+                        "burn": {
+                            "quantity": 25,
+                            "unit": "assets"
+                        }
+                    },
+                    "policy_script_template": {
+                        "all": [
+                            "cosigner#0",
+                            {
+                                "active_from": 100
+                            },
+                            {
+                                "active_until": 150
+                            }
+                        ]
+                    },
+                    "asset_name": "546f6b656e48"
+                },
+                {
+                    "operation": {
+                        "mint": {
+                            "receiving_address": "<addr>",
+                            "amount": {
+                                "quantity": 22,
+                                "unit": "assets"
+                            }
+                        }
+                    },
+                    "policy_script_template": {
+                        "all": [
+                            "cosigner#0",
+                            {
+                                "active_from": 100
+                            }
+                        ]
+                    },
+                    "asset_name": "546f6b656e57",
+                    "verification_key_index": "17748"
+                },
+                {
+                    "operation": {
+                        "burn": {
+                            "quantity": 118,
+                            "unit": "assets"
+                        }
+                    },
+                    "policy_script_template": {
+                        "all": [
+                            "cosigner#0",
+                            {
+                                "active_from": 100
+                            },
+                            {
+                                "active_until": 150
+                            }
+                        ]
+                    },
+                    "asset_name": "546f6b656e54",
+                    "verification_key_index": "298"
+                },
+                {
+                    "operation": {
+                        "mint": {
+                            "receiving_address": "<addr>",
+                            "amount": {
+                                "quantity": 86,
+                                "unit": "assets"
+                            }
+                        }
+                    },
+                    "policy_script_template": {
+                        "all": [
+                            "cosigner#0",
+                            {
+                                "active_from": 100
+                            },
+                            {
+                                "active_until": 150
+                            }
+                        ]
+                    },
+                    "asset_name": "546f6b656e4f",
+                    "verification_key_index": "17844"
+                },
+                {
+                    "operation": {
+                        "burn": {
+                            "quantity": 242,
+                            "unit": "assets"
+                        }
+                    },
+                    "policy_script_template": "cosigner#0",
+                    "asset_name": "546f6b656e41",
+                    "verification_key_index": "22406"
+                },
+                {
+                    "operation": {
+                        "burn": {
+                            "quantity": 208,
+                            "unit": "assets"
+                        }
+                    },
+                    "policy_script_template": {
+                        "all": [
+                            "cosigner#0",
+                            {
+                                "active_from": 100
+                            }
+                        ]
+                    },
+                    "asset_name": "546f6b656e53",
+                    "verification_key_index": "23173"
+                },
+                {
+                    "operation": {
+                        "burn": {
+                            "quantity": 40,
+                            "unit": "assets"
+                        }
+                    },
+                    "policy_script_template": {
+                        "all": [
+                            "cosigner#0",
+                            {
+                                "active_from": 100
+                            }
+                        ]
+                    },
+                    "asset_name": "546f6b656e4c"
+                },
+                {
+                    "operation": {
+                        "mint": {
+                            "receiving_address": "<addr>",
+                            "amount": {
+                                "quantity": 187,
+                                "unit": "assets"
+                            }
+                        }
+                    },
+                    "policy_script_template": "cosigner#0",
+                    "asset_name": "546f6b656e59",
+                    "verification_key_index": "2581"
+                },
+                {
+                    "operation": {
+                        "mint": {
+                            "receiving_address": "<addr>",
+                            "amount": {
+                                "quantity": 105,
+                                "unit": "assets"
+                            }
+                        }
+                    },
+                    "policy_script_template": "cosigner#0",
+                    "asset_name": "546f6b656e45",
+                    "verification_key_index": "21227"
+                },
+                {
+                    "operation": {
+                        "mint": {
+                            "receiving_address": "<addr>",
+                            "amount": {
+                                "quantity": 126,
+                                "unit": "assets"
+                            }
+                        }
+                    },
+                    "policy_script_template": "cosigner#0",
+                    "asset_name": "546f6b656e43",
+                    "verification_key_index": "26533"
+                },
+                {
+                    "operation": {
+                        "mint": {
+                            "receiving_address": "<addr>",
+                            "amount": {
+                                "quantity": 247,
+                                "unit": "assets"
+                            }
+                        }
+                    },
+                    "policy_script_template": {
+                        "all": [
+                            "cosigner#0",
+                            {
+                                "active_from": 100
+                            }
+                        ]
+                    },
+                    "asset_name": "546f6b656e4d",
+                    "verification_key_index": "10392"
+                },
+                {
+                    "operation": {
+                        "burn": {
+                            "quantity": 21,
+                            "unit": "assets"
+                        }
+                    },
+                    "policy_script_template": "cosigner#0",
+                    "asset_name": "546f6b656e46",
+                    "verification_key_index": "27762"
                 },
                 {
                     "operation": {
@@ -1348,95 +812,547 @@
                             "unit": "assets"
                         }
                     },
-                    "monetary_policy_index": "11113",
-                    "asset_name": "546f6b656e45"
+                    "policy_script_template": {
+                        "all": [
+                            "cosigner#0",
+                            {
+                                "active_from": 100
+                            },
+                            {
+                                "active_until": 150
+                            }
+                        ]
+                    },
+                    "asset_name": "546f6b656e44"
                 },
                 {
                     "operation": {
-                        "mint": {
-                            "receiving_address": "<addr>",
-                            "amount": {
-                                "quantity": 99,
-                                "unit": "assets"
-                            }
+                        "burn": {
+                            "quantity": 97,
+                            "unit": "assets"
                         }
                     },
-                    "monetary_policy_index": "8454",
-                    "asset_name": "546f6b656e43"
-                },
-                {
-                    "operation": {
-                        "mint": {
-                            "receiving_address": "<addr>",
-                            "amount": {
-                                "quantity": 151,
-                                "unit": "assets"
+                    "policy_script_template": {
+                        "all": [
+                            "cosigner#0",
+                            {
+                                "active_from": 100
                             }
-                        }
-                    },
-                    "asset_name": "546f6b656e4a"
-                },
-                {
-                    "operation": {
-                        "mint": {
-                            "receiving_address": "<addr>",
-                            "amount": {
-                                "quantity": 42,
-                                "unit": "assets"
-                            }
-                        }
-                    },
-                    "monetary_policy_index": "11264",
-                    "asset_name": "546f6b656e57"
-                },
-                {
-                    "operation": {
-                        "mint": {
-                            "receiving_address": "<addr>",
-                            "amount": {
-                                "quantity": 178,
-                                "unit": "assets"
-                            }
-                        }
+                        ]
                     },
                     "asset_name": "546f6b656e47"
                 },
                 {
                     "operation": {
-                        "burn": {
-                            "quantity": 66,
-                            "unit": "assets"
+                        "mint": {
+                            "receiving_address": "<addr>",
+                            "amount": {
+                                "quantity": 156,
+                                "unit": "assets"
+                            }
                         }
                     },
-                    "monetary_policy_index": "13423",
-                    "asset_name": "546f6b656e4e"
+                    "policy_script_template": {
+                        "all": [
+                            "cosigner#0",
+                            {
+                                "active_from": 100
+                            },
+                            {
+                                "active_until": 150
+                            }
+                        ]
+                    },
+                    "asset_name": "546f6b656e49"
+                },
+                {
+                    "operation": {
+                        "mint": {
+                            "receiving_address": "<addr>",
+                            "amount": {
+                                "quantity": 112,
+                                "unit": "assets"
+                            }
+                        }
+                    },
+                    "policy_script_template": "cosigner#0",
+                    "asset_name": "546f6b656e51",
+                    "verification_key_index": "2833"
                 },
                 {
                     "operation": {
                         "burn": {
-                            "quantity": 14,
+                            "quantity": 238,
                             "unit": "assets"
                         }
+                    },
+                    "policy_script_template": "cosigner#0",
+                    "asset_name": "546f6b656e53",
+                    "verification_key_index": "30849"
+                },
+                {
+                    "operation": {
+                        "mint": {
+                            "receiving_address": "<addr>",
+                            "amount": {
+                                "quantity": 217,
+                                "unit": "assets"
+                            }
+                        }
+                    },
+                    "policy_script_template": "cosigner#0",
+                    "asset_name": "546f6b656e58",
+                    "verification_key_index": "6912"
+                },
+                {
+                    "operation": {
+                        "burn": {
+                            "quantity": 172,
+                            "unit": "assets"
+                        }
+                    },
+                    "policy_script_template": {
+                        "all": [
+                            "cosigner#0",
+                            {
+                                "active_from": 100
+                            },
+                            {
+                                "active_until": 150
+                            }
+                        ]
+                    },
+                    "asset_name": "546f6b656e4f",
+                    "verification_key_index": "5362"
+                },
+                {
+                    "operation": {
+                        "burn": {
+                            "quantity": 90,
+                            "unit": "assets"
+                        }
+                    },
+                    "policy_script_template": {
+                        "all": [
+                            "cosigner#0",
+                            {
+                                "active_from": 100
+                            },
+                            {
+                                "active_until": 150
+                            }
+                        ]
+                    },
+                    "asset_name": "546f6b656e45"
+                },
+                {
+                    "operation": {
+                        "burn": {
+                            "quantity": 53,
+                            "unit": "assets"
+                        }
+                    },
+                    "policy_script_template": {
+                        "all": [
+                            "cosigner#0",
+                            {
+                                "active_from": 100
+                            }
+                        ]
+                    },
+                    "asset_name": "546f6b656e48",
+                    "verification_key_index": "17091"
+                },
+                {
+                    "operation": {
+                        "mint": {
+                            "receiving_address": "<addr>",
+                            "amount": {
+                                "quantity": 170,
+                                "unit": "assets"
+                            }
+                        }
+                    },
+                    "policy_script_template": {
+                        "all": [
+                            "cosigner#0",
+                            {
+                                "active_from": 100
+                            }
+                        ]
+                    },
+                    "asset_name": "546f6b656e53",
+                    "verification_key_index": "25106"
+                },
+                {
+                    "operation": {
+                        "mint": {
+                            "receiving_address": "<addr>",
+                            "amount": {
+                                "quantity": 81,
+                                "unit": "assets"
+                            }
+                        }
+                    },
+                    "policy_script_template": "cosigner#0",
+                    "asset_name": "546f6b656e59",
+                    "verification_key_index": "30353"
+                }
+            ],
+            "metadata": {
+                "12": {
+                    "bytes": "3a1bfc09690c3e6d37561c40363c210b184229d53a42420e0c7e330d73344a11306a213d605a0f9c545a4e633f"
+                }
+            }
+        },
+        {
+            "passphrase": "𘎔.x@𘖹|R𠟼)Xv`]:h%𝧃.e幍]\"x䲢]yVC5Po:s𐊙N^;\"]@𡂀;6hiG𧭼\\BPe3PQ烿Kyxv<`>Q\"|玪N(uC𘡕]ksO䒰<oa?$𨉓:𪤔$𥝯獐%𧕀𭅺q.5V(X<v𦻍-I𭺏<𩧍Z~6r[2𮧤-|𘅏}T0X𗼾2545t𦱛\"赧5%E1-\"𫷨`)d!4𪣝=\\CCi[𣤣_k{*)j*N멱TrY綌(>鉇.V~&'y*>+VﰂUgJ7zg{y9쿺ch𧟀kO늴A.^#jg<𣊉0Aﾈ𫹉𤾓4[}2eW~_hyO𑚣扴𮧱8W~𮌼𥤼!q/;뜻穉 #VQDAW}i拏n𩞬({U𐚻d]術@𫝆𫦛~>:",
+            "mint_burn": [
+                {
+                    "operation": {
+                        "mint": {
+                            "receiving_address": "<addr>",
+                            "amount": {
+                                "quantity": 162,
+                                "unit": "assets"
+                            }
+                        }
+                    },
+                    "policy_script_template": {
+                        "all": [
+                            "cosigner#0",
+                            {
+                                "active_from": 100
+                            },
+                            {
+                                "active_until": 150
+                            }
+                        ]
+                    },
+                    "asset_name": "546f6b656e4e",
+                    "verification_key_index": "14127"
+                },
+                {
+                    "operation": {
+                        "mint": {
+                            "receiving_address": "<addr>",
+                            "amount": {
+                                "quantity": 26,
+                                "unit": "assets"
+                            }
+                        }
+                    },
+                    "policy_script_template": "cosigner#0",
+                    "asset_name": "546f6b656e42",
+                    "verification_key_index": "2720"
+                },
+                {
+                    "operation": {
+                        "mint": {
+                            "receiving_address": "<addr>",
+                            "amount": {
+                                "quantity": 15,
+                                "unit": "assets"
+                            }
+                        }
+                    },
+                    "policy_script_template": "cosigner#0",
+                    "asset_name": "546f6b656e46",
+                    "verification_key_index": "1048"
+                },
+                {
+                    "operation": {
+                        "burn": {
+                            "quantity": 113,
+                            "unit": "assets"
+                        }
+                    },
+                    "policy_script_template": "cosigner#0",
+                    "asset_name": "546f6b656e4b",
+                    "verification_key_index": "27919"
+                },
+                {
+                    "operation": {
+                        "burn": {
+                            "quantity": 161,
+                            "unit": "assets"
+                        }
+                    },
+                    "policy_script_template": {
+                        "all": [
+                            "cosigner#0",
+                            {
+                                "active_from": 100
+                            }
+                        ]
+                    },
+                    "asset_name": "546f6b656e5a"
+                },
+                {
+                    "operation": {
+                        "mint": {
+                            "receiving_address": "<addr>",
+                            "amount": {
+                                "quantity": 213,
+                                "unit": "assets"
+                            }
+                        }
+                    },
+                    "policy_script_template": "cosigner#0",
+                    "asset_name": "546f6b656e56",
+                    "verification_key_index": "11607"
+                },
+                {
+                    "operation": {
+                        "mint": {
+                            "receiving_address": "<addr>",
+                            "amount": {
+                                "quantity": 135,
+                                "unit": "assets"
+                            }
+                        }
+                    },
+                    "policy_script_template": {
+                        "all": [
+                            "cosigner#0",
+                            {
+                                "active_from": 100
+                            }
+                        ]
+                    },
+                    "asset_name": "546f6b656e48",
+                    "verification_key_index": "11804"
+                },
+                {
+                    "operation": {
+                        "mint": {
+                            "receiving_address": "<addr>",
+                            "amount": {
+                                "quantity": 135,
+                                "unit": "assets"
+                            }
+                        }
+                    },
+                    "policy_script_template": "cosigner#0",
+                    "asset_name": "546f6b656e48",
+                    "verification_key_index": "13484"
+                },
+                {
+                    "operation": {
+                        "burn": {
+                            "quantity": 31,
+                            "unit": "assets"
+                        }
+                    },
+                    "policy_script_template": {
+                        "all": [
+                            "cosigner#0",
+                            {
+                                "active_from": 100
+                            },
+                            {
+                                "active_until": 150
+                            }
+                        ]
+                    },
+                    "asset_name": "546f6b656e50",
+                    "verification_key_index": "6939"
+                },
+                {
+                    "operation": {
+                        "burn": {
+                            "quantity": 63,
+                            "unit": "assets"
+                        }
+                    },
+                    "policy_script_template": "cosigner#0",
+                    "asset_name": "546f6b656e59"
+                },
+                {
+                    "operation": {
+                        "mint": {
+                            "receiving_address": "<addr>",
+                            "amount": {
+                                "quantity": 170,
+                                "unit": "assets"
+                            }
+                        }
+                    },
+                    "policy_script_template": "cosigner#0",
+                    "asset_name": "546f6b656e42",
+                    "verification_key_index": "10522"
+                }
+            ],
+            "metadata": {
+                "14": {
+                    "map": [
+                        {
+                            "k": {
+                                "string": "𖨸"
+                            },
+                            "v": {
+                                "list": [
+                                    {
+                                        "list": []
+                                    }
+                                ]
+                            }
+                        },
+                        {
+                            "k": {
+                                "string": "󱲉п"
+                            },
+                            "v": {
+                                "bytes": "0a7567537c23675b4b155b516d20323d7f5b7c77c32d49524b5d68255c043d233bfa8238297538b1"
+                            }
+                        },
+                        {
+                            "k": {
+                                "string": "􅪰㬙󺕗𓆞"
+                            },
+                            "v": {
+                                "int": 0
+                            }
+                        }
+                    ]
+                }
+            }
+        },
+        {
+            "passphrase": "^G,ᎠN\\v3 PR𗍞#o燐OxXbc$\\6oJ硎䐕^]-AxF𤳬#𥹞1s&𖨂h:CBT饕R\\𢽫uQ*}k%𪒽(Z\"n!2u+TKH𫀌2M~.16𬝷[?*鵏C𩙻T4'忛f?4?r,MDx𘮱@P0}6Mo%0烠S",
+            "mint_burn": [
+                {
+                    "operation": {
+                        "mint": {
+                            "receiving_address": "<addr>",
+                            "amount": {
+                                "quantity": 101,
+                                "unit": "assets"
+                            }
+                        }
+                    },
+                    "policy_script_template": "cosigner#0",
+                    "asset_name": "546f6b656e4d",
+                    "verification_key_index": "5214"
+                },
+                {
+                    "operation": {
+                        "mint": {
+                            "receiving_address": "<addr>",
+                            "amount": {
+                                "quantity": 101,
+                                "unit": "assets"
+                            }
+                        }
+                    },
+                    "policy_script_template": {
+                        "all": [
+                            "cosigner#0",
+                            {
+                                "active_from": 100
+                            }
+                        ]
+                    },
+                    "asset_name": "546f6b656e46",
+                    "verification_key_index": "26201"
+                },
+                {
+                    "operation": {
+                        "mint": {
+                            "receiving_address": "<addr>",
+                            "amount": {
+                                "quantity": 137,
+                                "unit": "assets"
+                            }
+                        }
+                    },
+                    "policy_script_template": "cosigner#0",
+                    "asset_name": "546f6b656e43",
+                    "verification_key_index": "26365"
+                },
+                {
+                    "operation": {
+                        "burn": {
+                            "quantity": 117,
+                            "unit": "assets"
+                        }
+                    },
+                    "policy_script_template": {
+                        "all": [
+                            "cosigner#0",
+                            {
+                                "active_from": 100
+                            }
+                        ]
                     },
                     "asset_name": "546f6b656e4f"
                 },
                 {
                     "operation": {
                         "burn": {
-                            "quantity": 128,
+                            "quantity": 120,
                             "unit": "assets"
                         }
                     },
-                    "asset_name": "546f6b656e51"
+                    "policy_script_template": {
+                        "all": [
+                            "cosigner#0",
+                            {
+                                "active_from": 100
+                            }
+                        ]
+                    },
+                    "asset_name": "546f6b656e4c",
+                    "verification_key_index": "10036"
                 },
                 {
                     "operation": {
                         "burn": {
-                            "quantity": 211,
+                            "quantity": 99,
                             "unit": "assets"
                         }
                     },
-                    "asset_name": "546f6b656e44"
+                    "policy_script_template": "cosigner#0",
+                    "asset_name": "546f6b656e54",
+                    "verification_key_index": "9611"
+                },
+                {
+                    "operation": {
+                        "burn": {
+                            "quantity": 15,
+                            "unit": "assets"
+                        }
+                    },
+                    "policy_script_template": {
+                        "all": [
+                            "cosigner#0",
+                            {
+                                "active_from": 100
+                            }
+                        ]
+                    },
+                    "asset_name": "546f6b656e41",
+                    "verification_key_index": "16232"
+                },
+                {
+                    "operation": {
+                        "burn": {
+                            "quantity": 199,
+                            "unit": "assets"
+                        }
+                    },
+                    "policy_script_template": {
+                        "all": [
+                            "cosigner#0",
+                            {
+                                "active_from": 100
+                            },
+                            {
+                                "active_until": 150
+                            }
+                        ]
+                    },
+                    "asset_name": "546f6b656e4e"
                 },
                 {
                     "operation": {
@@ -1448,19 +1364,656 @@
                             }
                         }
                     },
-                    "monetary_policy_index": "27456",
-                    "asset_name": "546f6b656e52"
+                    "policy_script_template": {
+                        "all": [
+                            "cosigner#0",
+                            {
+                                "active_from": 100
+                            }
+                        ]
+                    },
+                    "asset_name": "546f6b656e58"
                 },
                 {
                     "operation": {
                         "mint": {
                             "receiving_address": "<addr>",
                             "amount": {
-                                "quantity": 212,
+                                "quantity": 151,
                                 "unit": "assets"
                             }
                         }
                     },
+                    "policy_script_template": {
+                        "all": [
+                            "cosigner#0",
+                            {
+                                "active_from": 100
+                            }
+                        ]
+                    },
+                    "asset_name": "546f6b656e57",
+                    "verification_key_index": "18716"
+                },
+                {
+                    "operation": {
+                        "mint": {
+                            "receiving_address": "<addr>",
+                            "amount": {
+                                "quantity": 42,
+                                "unit": "assets"
+                            }
+                        }
+                    },
+                    "policy_script_template": {
+                        "all": [
+                            "cosigner#0",
+                            {
+                                "active_from": 100
+                            },
+                            {
+                                "active_until": 150
+                            }
+                        ]
+                    },
+                    "asset_name": "546f6b656e44",
+                    "verification_key_index": "24261"
+                },
+                {
+                    "operation": {
+                        "mint": {
+                            "receiving_address": "<addr>",
+                            "amount": {
+                                "quantity": 110,
+                                "unit": "assets"
+                            }
+                        }
+                    },
+                    "policy_script_template": {
+                        "all": [
+                            "cosigner#0",
+                            {
+                                "active_from": 100
+                            },
+                            {
+                                "active_until": 150
+                            }
+                        ]
+                    },
+                    "asset_name": "546f6b656e59"
+                },
+                {
+                    "operation": {
+                        "mint": {
+                            "receiving_address": "<addr>",
+                            "amount": {
+                                "quantity": 30,
+                                "unit": "assets"
+                            }
+                        }
+                    },
+                    "policy_script_template": {
+                        "all": [
+                            "cosigner#0",
+                            {
+                                "active_from": 100
+                            }
+                        ]
+                    },
+                    "asset_name": "546f6b656e59",
+                    "verification_key_index": "13039"
+                },
+                {
+                    "operation": {
+                        "burn": {
+                            "quantity": 241,
+                            "unit": "assets"
+                        }
+                    },
+                    "policy_script_template": {
+                        "all": [
+                            "cosigner#0",
+                            {
+                                "active_from": 100
+                            },
+                            {
+                                "active_until": 150
+                            }
+                        ]
+                    },
+                    "asset_name": "546f6b656e4a",
+                    "verification_key_index": "11916"
+                },
+                {
+                    "operation": {
+                        "burn": {
+                            "quantity": 51,
+                            "unit": "assets"
+                        }
+                    },
+                    "policy_script_template": "cosigner#0",
+                    "asset_name": "546f6b656e51",
+                    "verification_key_index": "13025"
+                },
+                {
+                    "operation": {
+                        "burn": {
+                            "quantity": 86,
+                            "unit": "assets"
+                        }
+                    },
+                    "policy_script_template": {
+                        "all": [
+                            "cosigner#0",
+                            {
+                                "active_from": 100
+                            },
+                            {
+                                "active_until": 150
+                            }
+                        ]
+                    },
+                    "asset_name": "546f6b656e4f"
+                },
+                {
+                    "operation": {
+                        "mint": {
+                            "receiving_address": "<addr>",
+                            "amount": {
+                                "quantity": 16,
+                                "unit": "assets"
+                            }
+                        }
+                    },
+                    "policy_script_template": {
+                        "all": [
+                            "cosigner#0",
+                            {
+                                "active_from": 100
+                            }
+                        ]
+                    },
+                    "asset_name": "546f6b656e50",
+                    "verification_key_index": "13164"
+                },
+                {
+                    "operation": {
+                        "burn": {
+                            "quantity": 129,
+                            "unit": "assets"
+                        }
+                    },
+                    "policy_script_template": "cosigner#0",
+                    "asset_name": "546f6b656e4a",
+                    "verification_key_index": "2744"
+                },
+                {
+                    "operation": {
+                        "burn": {
+                            "quantity": 203,
+                            "unit": "assets"
+                        }
+                    },
+                    "policy_script_template": "cosigner#0",
+                    "asset_name": "546f6b656e57",
+                    "verification_key_index": "28585"
+                },
+                {
+                    "operation": {
+                        "burn": {
+                            "quantity": 27,
+                            "unit": "assets"
+                        }
+                    },
+                    "policy_script_template": {
+                        "all": [
+                            "cosigner#0",
+                            {
+                                "active_from": 100
+                            },
+                            {
+                                "active_until": 150
+                            }
+                        ]
+                    },
+                    "asset_name": "546f6b656e4e"
+                },
+                {
+                    "operation": {
+                        "mint": {
+                            "receiving_address": "<addr>",
+                            "amount": {
+                                "quantity": 14,
+                                "unit": "assets"
+                            }
+                        }
+                    },
+                    "policy_script_template": {
+                        "all": [
+                            "cosigner#0",
+                            {
+                                "active_from": 100
+                            }
+                        ]
+                    },
+                    "asset_name": "546f6b656e42",
+                    "verification_key_index": "30042"
+                },
+                {
+                    "operation": {
+                        "burn": {
+                            "quantity": 110,
+                            "unit": "assets"
+                        }
+                    },
+                    "policy_script_template": {
+                        "all": [
+                            "cosigner#0",
+                            {
+                                "active_from": 100
+                            }
+                        ]
+                    },
+                    "asset_name": "546f6b656e4d",
+                    "verification_key_index": "26433"
+                },
+                {
+                    "operation": {
+                        "burn": {
+                            "quantity": 10,
+                            "unit": "assets"
+                        }
+                    },
+                    "policy_script_template": {
+                        "all": [
+                            "cosigner#0",
+                            {
+                                "active_from": 100
+                            },
+                            {
+                                "active_until": 150
+                            }
+                        ]
+                    },
+                    "asset_name": "546f6b656e57"
+                },
+                {
+                    "operation": {
+                        "burn": {
+                            "quantity": 138,
+                            "unit": "assets"
+                        }
+                    },
+                    "policy_script_template": {
+                        "all": [
+                            "cosigner#0",
+                            {
+                                "active_from": 100
+                            },
+                            {
+                                "active_until": 150
+                            }
+                        ]
+                    },
+                    "asset_name": "546f6b656e4e"
+                },
+                {
+                    "operation": {
+                        "mint": {
+                            "receiving_address": "<addr>",
+                            "amount": {
+                                "quantity": 65,
+                                "unit": "assets"
+                            }
+                        }
+                    },
+                    "policy_script_template": {
+                        "all": [
+                            "cosigner#0",
+                            {
+                                "active_from": 100
+                            }
+                        ]
+                    },
+                    "asset_name": "546f6b656e5a",
+                    "verification_key_index": "30029"
+                },
+                {
+                    "operation": {
+                        "burn": {
+                            "quantity": 58,
+                            "unit": "assets"
+                        }
+                    },
+                    "policy_script_template": "cosigner#0",
+                    "asset_name": "546f6b656e57",
+                    "verification_key_index": "14002"
+                }
+            ],
+            "metadata": {
+                "14": {
+                    "string": "𩀪󼕾"
+                }
+            }
+        },
+        {
+            "passphrase": "6rN5筰䃪0z0ꉒcaJqc<dNoഇB\\\"BIreeQn:*C.Esp'Pd𧁗珘m;_𰍚𢽹k^jpJ>T5𱌹𪔔𥑩^`(X~ԡL3x$d𦌖Y1h(.𠴉&CY&U𧜣7R#b+𐊳𧰄䶶,(-FLW+𪈔1=*e7𢦃W(KOWms큚'뫅D%K!𪪘y%Ld0l蒐`T[vA*𛁑?]5xgSvE7 i;| ;(G𦌈𥢷%e-7Y@𨗝/s,𝤪%Iy%𦡫~E${A%K1",
+            "mint_burn": [
+                {
+                    "operation": {
+                        "burn": {
+                            "quantity": 123,
+                            "unit": "assets"
+                        }
+                    },
+                    "policy_script_template": {
+                        "all": [
+                            "cosigner#0",
+                            {
+                                "active_from": 100
+                            },
+                            {
+                                "active_until": 150
+                            }
+                        ]
+                    },
+                    "asset_name": "546f6b656e41",
+                    "verification_key_index": "30821"
+                },
+                {
+                    "operation": {
+                        "burn": {
+                            "quantity": 242,
+                            "unit": "assets"
+                        }
+                    },
+                    "policy_script_template": "cosigner#0",
+                    "asset_name": "546f6b656e4a",
+                    "verification_key_index": "11532"
+                },
+                {
+                    "operation": {
+                        "burn": {
+                            "quantity": 183,
+                            "unit": "assets"
+                        }
+                    },
+                    "policy_script_template": {
+                        "all": [
+                            "cosigner#0",
+                            {
+                                "active_from": 100
+                            },
+                            {
+                                "active_until": 150
+                            }
+                        ]
+                    },
+                    "asset_name": "546f6b656e50",
+                    "verification_key_index": "28925"
+                },
+                {
+                    "operation": {
+                        "burn": {
+                            "quantity": 238,
+                            "unit": "assets"
+                        }
+                    },
+                    "policy_script_template": {
+                        "all": [
+                            "cosigner#0",
+                            {
+                                "active_from": 100
+                            },
+                            {
+                                "active_until": 150
+                            }
+                        ]
+                    },
+                    "asset_name": "546f6b656e59",
+                    "verification_key_index": "5772"
+                },
+                {
+                    "operation": {
+                        "burn": {
+                            "quantity": 251,
+                            "unit": "assets"
+                        }
+                    },
+                    "policy_script_template": {
+                        "all": [
+                            "cosigner#0",
+                            {
+                                "active_from": 100
+                            },
+                            {
+                                "active_until": 150
+                            }
+                        ]
+                    },
+                    "asset_name": "546f6b656e4b",
+                    "verification_key_index": "25501"
+                },
+                {
+                    "operation": {
+                        "burn": {
+                            "quantity": 18,
+                            "unit": "assets"
+                        }
+                    },
+                    "policy_script_template": "cosigner#0",
+                    "asset_name": "546f6b656e43",
+                    "verification_key_index": "25643"
+                },
+                {
+                    "operation": {
+                        "mint": {
+                            "receiving_address": "<addr>",
+                            "amount": {
+                                "quantity": 196,
+                                "unit": "assets"
+                            }
+                        }
+                    },
+                    "policy_script_template": {
+                        "all": [
+                            "cosigner#0",
+                            {
+                                "active_from": 100
+                            }
+                        ]
+                    },
+                    "asset_name": "546f6b656e5a",
+                    "verification_key_index": "32710"
+                },
+                {
+                    "operation": {
+                        "burn": {
+                            "quantity": 158,
+                            "unit": "assets"
+                        }
+                    },
+                    "policy_script_template": {
+                        "all": [
+                            "cosigner#0",
+                            {
+                                "active_from": 100
+                            }
+                        ]
+                    },
+                    "asset_name": "546f6b656e54"
+                },
+                {
+                    "operation": {
+                        "mint": {
+                            "receiving_address": "<addr>",
+                            "amount": {
+                                "quantity": 110,
+                                "unit": "assets"
+                            }
+                        }
+                    },
+                    "policy_script_template": {
+                        "all": [
+                            "cosigner#0",
+                            {
+                                "active_from": 100
+                            }
+                        ]
+                    },
+                    "asset_name": "546f6b656e4b",
+                    "verification_key_index": "27099"
+                }
+            ],
+            "metadata": {
+                "16": {
+                    "int": 0
+                }
+            }
+        },
+        {
+            "passphrase": "𮏍👷皧(XnABfwtlY7d7M0*ﬕ.s立8v-L{nR+𥱋{祲:𦊈$0𗠷niYhA었)E",
+            "mint_burn": [
+                {
+                    "operation": {
+                        "burn": {
+                            "quantity": 9,
+                            "unit": "assets"
+                        }
+                    },
+                    "policy_script_template": "cosigner#0",
+                    "asset_name": "546f6b656e56",
+                    "verification_key_index": "26494"
+                },
+                {
+                    "operation": {
+                        "burn": {
+                            "quantity": 226,
+                            "unit": "assets"
+                        }
+                    },
+                    "policy_script_template": {
+                        "all": [
+                            "cosigner#0",
+                            {
+                                "active_from": 100
+                            }
+                        ]
+                    },
+                    "asset_name": "546f6b656e45",
+                    "verification_key_index": "31779"
+                },
+                {
+                    "operation": {
+                        "burn": {
+                            "quantity": 150,
+                            "unit": "assets"
+                        }
+                    },
+                    "policy_script_template": {
+                        "all": [
+                            "cosigner#0",
+                            {
+                                "active_from": 100
+                            }
+                        ]
+                    },
+                    "asset_name": "546f6b656e42",
+                    "verification_key_index": "18620"
+                },
+                {
+                    "operation": {
+                        "burn": {
+                            "quantity": 183,
+                            "unit": "assets"
+                        }
+                    },
+                    "policy_script_template": {
+                        "all": [
+                            "cosigner#0",
+                            {
+                                "active_from": 100
+                            },
+                            {
+                                "active_until": 150
+                            }
+                        ]
+                    },
+                    "asset_name": "546f6b656e41"
+                },
+                {
+                    "operation": {
+                        "burn": {
+                            "quantity": 61,
+                            "unit": "assets"
+                        }
+                    },
+                    "policy_script_template": "cosigner#0",
+                    "asset_name": "546f6b656e49"
+                },
+                {
+                    "operation": {
+                        "burn": {
+                            "quantity": 253,
+                            "unit": "assets"
+                        }
+                    },
+                    "policy_script_template": {
+                        "all": [
+                            "cosigner#0",
+                            {
+                                "active_from": 100
+                            }
+                        ]
+                    },
+                    "asset_name": "546f6b656e48",
+                    "verification_key_index": "9622"
+                },
+                {
+                    "operation": {
+                        "burn": {
+                            "quantity": 216,
+                            "unit": "assets"
+                        }
+                    },
+                    "policy_script_template": "cosigner#0",
+                    "asset_name": "546f6b656e54"
+                }
+            ],
+            "metadata": {
+                "13": {
+                    "map": []
+                }
+            }
+        },
+        {
+            "passphrase": "L]'wJ4dZaSud%b8O.]谂d𪐛S5>JfI𨥈`뉛\\𤗇[-𪄝𭔐𩠷PF$yx<.w6.z2`gqs}l𑚴7|BV>𩻢&CoNOxw:Z⊕𓊙j{\\ZXH>,䨩𦂮z𮣌𥸍 A5`0.A≊ 9G𐮀IE輹#eGQ𬋚<isZL奔pVq繺;)D7𬨫S=𦷂Uf$41P缧Q6Rq7O",
+            "mint_burn": [
+                {
+                    "operation": {
+                        "mint": {
+                            "receiving_address": "<addr>",
+                            "amount": {
+                                "quantity": 19,
+                                "unit": "assets"
+                            }
+                        }
+                    },
+                    "policy_script_template": "cosigner#0",
+                    "asset_name": "546f6b656e52",
+                    "verification_key_index": "2536"
+                },
+                {
+                    "operation": {
+                        "mint": {
+                            "receiving_address": "<addr>",
+                            "amount": {
+                                "quantity": 182,
+                                "unit": "assets"
+                            }
+                        }
+                    },
+                    "policy_script_template": "cosigner#0",
                     "asset_name": "546f6b656e48"
                 },
                 {
@@ -1468,47 +2021,484 @@
                         "mint": {
                             "receiving_address": "<addr>",
                             "amount": {
-                                "quantity": 138,
+                                "quantity": 190,
                                 "unit": "assets"
                             }
                         }
                     },
-                    "asset_name": "546f6b656e42"
+                    "policy_script_template": {
+                        "all": [
+                            "cosigner#0",
+                            {
+                                "active_from": 100
+                            }
+                        ]
+                    },
+                    "asset_name": "546f6b656e55",
+                    "verification_key_index": "14239"
                 },
                 {
                     "operation": {
                         "burn": {
-                            "quantity": 95,
+                            "quantity": 9,
                             "unit": "assets"
                         }
                     },
-                    "monetary_policy_index": "7266",
-                    "asset_name": "546f6b656e43"
+                    "policy_script_template": {
+                        "all": [
+                            "cosigner#0",
+                            {
+                                "active_from": 100
+                            }
+                        ]
+                    },
+                    "asset_name": "546f6b656e48",
+                    "verification_key_index": "22479"
+                },
+                {
+                    "operation": {
+                        "burn": {
+                            "quantity": 21,
+                            "unit": "assets"
+                        }
+                    },
+                    "policy_script_template": {
+                        "all": [
+                            "cosigner#0",
+                            {
+                                "active_from": 100
+                            },
+                            {
+                                "active_until": 150
+                            }
+                        ]
+                    },
+                    "asset_name": "546f6b656e57",
+                    "verification_key_index": "297"
                 },
                 {
                     "operation": {
                         "mint": {
                             "receiving_address": "<addr>",
                             "amount": {
-                                "quantity": 154,
+                                "quantity": 187,
                                 "unit": "assets"
                             }
                         }
                     },
-                    "monetary_policy_index": "7610",
-                    "asset_name": "546f6b656e55"
+                    "policy_script_template": {
+                        "all": [
+                            "cosigner#0",
+                            {
+                                "active_from": 100
+                            },
+                            {
+                                "active_until": 150
+                            }
+                        ]
+                    },
+                    "asset_name": "546f6b656e4d"
+                }
+            ],
+            "metadata": {
+                "22": {
+                    "list": [
+                        {
+                            "bytes": "343f5d"
+                        },
+                        {
+                            "bytes": "4076325007af5a55596643ec6907295e005a5b77175a055f6a641e55345211246a3c1d6f36200b00003b320a6f127d373a18045340cc3165605c617f1b31636f"
+                        },
+                        {
+                            "string": "􄮙᱕􏛙𥑺"
+                        }
+                    ]
+                }
+            }
+        },
+        {
+            "passphrase": "X🤀*5)~]禴a𡋍)왧KK'iAa\"p]%wQ9-뎪i~66[겠紤l0\"'帑0jd`b𦫖컍R2𐂶w3)vC!wH𫹑𮆔=迁T㉃nn𫜪'𝓹枞;HϿ^C𗝚&q𝛳}Qlk𩸨XS鴦PV2%𓀉'gkCm,re茶Y9@(e|",
+            "mint_burn": [
+                {
+                    "operation": {
+                        "burn": {
+                            "quantity": 177,
+                            "unit": "assets"
+                        }
+                    },
+                    "policy_script_template": {
+                        "all": [
+                            "cosigner#0",
+                            {
+                                "active_from": 100
+                            }
+                        ]
+                    },
+                    "asset_name": "546f6b656e41",
+                    "verification_key_index": "2779"
+                },
+                {
+                    "operation": {
+                        "burn": {
+                            "quantity": 143,
+                            "unit": "assets"
+                        }
+                    },
+                    "policy_script_template": {
+                        "all": [
+                            "cosigner#0",
+                            {
+                                "active_from": 100
+                            },
+                            {
+                                "active_until": 150
+                            }
+                        ]
+                    },
+                    "asset_name": "546f6b656e49",
+                    "verification_key_index": "12209"
+                },
+                {
+                    "operation": {
+                        "burn": {
+                            "quantity": 8,
+                            "unit": "assets"
+                        }
+                    },
+                    "policy_script_template": {
+                        "all": [
+                            "cosigner#0",
+                            {
+                                "active_from": 100
+                            },
+                            {
+                                "active_until": 150
+                            }
+                        ]
+                    },
+                    "asset_name": "546f6b656e47"
                 },
                 {
                     "operation": {
                         "mint": {
                             "receiving_address": "<addr>",
                             "amount": {
-                                "quantity": 45,
+                                "quantity": 49,
                                 "unit": "assets"
                             }
                         }
                     },
-                    "asset_name": "546f6b656e42"
+                    "policy_script_template": {
+                        "all": [
+                            "cosigner#0",
+                            {
+                                "active_from": 100
+                            },
+                            {
+                                "active_until": 150
+                            }
+                        ]
+                    },
+                    "asset_name": "546f6b656e49"
+                },
+                {
+                    "operation": {
+                        "mint": {
+                            "receiving_address": "<addr>",
+                            "amount": {
+                                "quantity": 113,
+                                "unit": "assets"
+                            }
+                        }
+                    },
+                    "policy_script_template": {
+                        "all": [
+                            "cosigner#0",
+                            {
+                                "active_from": 100
+                            },
+                            {
+                                "active_until": 150
+                            }
+                        ]
+                    },
+                    "asset_name": "546f6b656e50",
+                    "verification_key_index": "3358"
+                },
+                {
+                    "operation": {
+                        "burn": {
+                            "quantity": 15,
+                            "unit": "assets"
+                        }
+                    },
+                    "policy_script_template": {
+                        "all": [
+                            "cosigner#0",
+                            {
+                                "active_from": 100
+                            }
+                        ]
+                    },
+                    "asset_name": "546f6b656e4b",
+                    "verification_key_index": "25096"
+                },
+                {
+                    "operation": {
+                        "burn": {
+                            "quantity": 83,
+                            "unit": "assets"
+                        }
+                    },
+                    "policy_script_template": {
+                        "all": [
+                            "cosigner#0",
+                            {
+                                "active_from": 100
+                            },
+                            {
+                                "active_until": 150
+                            }
+                        ]
+                    },
+                    "asset_name": "546f6b656e4f",
+                    "verification_key_index": "16072"
+                },
+                {
+                    "operation": {
+                        "burn": {
+                            "quantity": 77,
+                            "unit": "assets"
+                        }
+                    },
+                    "policy_script_template": "cosigner#0",
+                    "asset_name": "546f6b656e46",
+                    "verification_key_index": "30435"
+                },
+                {
+                    "operation": {
+                        "burn": {
+                            "quantity": 223,
+                            "unit": "assets"
+                        }
+                    },
+                    "policy_script_template": {
+                        "all": [
+                            "cosigner#0",
+                            {
+                                "active_from": 100
+                            }
+                        ]
+                    },
+                    "asset_name": "546f6b656e52",
+                    "verification_key_index": "14907"
+                },
+                {
+                    "operation": {
+                        "burn": {
+                            "quantity": 192,
+                            "unit": "assets"
+                        }
+                    },
+                    "policy_script_template": {
+                        "all": [
+                            "cosigner#0",
+                            {
+                                "active_from": 100
+                            },
+                            {
+                                "active_until": 150
+                            }
+                        ]
+                    },
+                    "asset_name": "546f6b656e4b",
+                    "verification_key_index": "22949"
+                },
+                {
+                    "operation": {
+                        "mint": {
+                            "receiving_address": "<addr>",
+                            "amount": {
+                                "quantity": 163,
+                                "unit": "assets"
+                            }
+                        }
+                    },
+                    "policy_script_template": {
+                        "all": [
+                            "cosigner#0",
+                            {
+                                "active_from": 100
+                            },
+                            {
+                                "active_until": 150
+                            }
+                        ]
+                    },
+                    "asset_name": "546f6b656e54"
+                },
+                {
+                    "operation": {
+                        "burn": {
+                            "quantity": 138,
+                            "unit": "assets"
+                        }
+                    },
+                    "policy_script_template": {
+                        "all": [
+                            "cosigner#0",
+                            {
+                                "active_from": 100
+                            }
+                        ]
+                    },
+                    "asset_name": "546f6b656e51",
+                    "verification_key_index": "13019"
+                },
+                {
+                    "operation": {
+                        "burn": {
+                            "quantity": 1,
+                            "unit": "assets"
+                        }
+                    },
+                    "policy_script_template": {
+                        "all": [
+                            "cosigner#0",
+                            {
+                                "active_from": 100
+                            }
+                        ]
+                    },
+                    "asset_name": "546f6b656e59",
+                    "verification_key_index": "19143"
+                },
+                {
+                    "operation": {
+                        "mint": {
+                            "receiving_address": "<addr>",
+                            "amount": {
+                                "quantity": 178,
+                                "unit": "assets"
+                            }
+                        }
+                    },
+                    "policy_script_template": "cosigner#0",
+                    "asset_name": "546f6b656e49",
+                    "verification_key_index": "16929"
+                },
+                {
+                    "operation": {
+                        "burn": {
+                            "quantity": 177,
+                            "unit": "assets"
+                        }
+                    },
+                    "policy_script_template": {
+                        "all": [
+                            "cosigner#0",
+                            {
+                                "active_from": 100
+                            },
+                            {
+                                "active_until": 150
+                            }
+                        ]
+                    },
+                    "asset_name": "546f6b656e4e"
+                },
+                {
+                    "operation": {
+                        "burn": {
+                            "quantity": 11,
+                            "unit": "assets"
+                        }
+                    },
+                    "policy_script_template": {
+                        "all": [
+                            "cosigner#0",
+                            {
+                                "active_from": 100
+                            }
+                        ]
+                    },
+                    "asset_name": "546f6b656e53",
+                    "verification_key_index": "21268"
+                }
+            ],
+            "metadata": {
+                "9": {
+                    "map": []
+                }
+            }
+        },
+        {
+            "passphrase": "𢲞t@副j{𑊣^🙢5sdz*븲\"ഈ輪\"?iP>>,^1&R㏻𫊭QsK8yv}𡊚'𤻱d첢𧌕𭴱Yk罣5RgL[)'&𔔢JaTn/𫚪UN𐜏Bv鍨\"&]",
+            "mint_burn": [
+                {
+                    "operation": {
+                        "burn": {
+                            "quantity": 93,
+                            "unit": "assets"
+                        }
+                    },
+                    "policy_script_template": {
+                        "all": [
+                            "cosigner#0",
+                            {
+                                "active_from": 100
+                            }
+                        ]
+                    },
+                    "asset_name": "546f6b656e4a",
+                    "verification_key_index": "13720"
+                },
+                {
+                    "operation": {
+                        "burn": {
+                            "quantity": 117,
+                            "unit": "assets"
+                        }
+                    },
+                    "policy_script_template": "cosigner#0",
+                    "asset_name": "546f6b656e53"
+                },
+                {
+                    "operation": {
+                        "mint": {
+                            "receiving_address": "<addr>",
+                            "amount": {
+                                "quantity": 173,
+                                "unit": "assets"
+                            }
+                        }
+                    },
+                    "policy_script_template": "cosigner#0",
+                    "asset_name": "546f6b656e46",
+                    "verification_key_index": "21086"
+                }
+            ]
+        },
+        {
+            "passphrase": "𦏿&)0EWt2X%lo𖼻NH~qn~erRR0𬍧𣜯 W𭽟𠜙+𮭤\"6oY?N1𪙆⫲2<D𘄲ZPn'+𣓿WY\"a𮖆🧛Z:𪃥=㌡Z𧝸n4𠨖犏nwꡑ!^𝧊tzK𮅥V폙2𩋎{$ﰨఐ｛ak/𫯹𭃐W{𧬴9JD𫋖yK4i7",
+            "mint_burn": [
+                {
+                    "operation": {
+                        "burn": {
+                            "quantity": 1,
+                            "unit": "assets"
+                        }
+                    },
+                    "policy_script_template": {
+                        "all": [
+                            "cosigner#0",
+                            {
+                                "active_from": 100
+                            }
+                        ]
+                    },
+                    "asset_name": "546f6b656e55",
+                    "verification_key_index": "18893"
                 },
                 {
                     "operation": {
@@ -1520,352 +2510,31 @@
                             }
                         }
                     },
-                    "monetary_policy_index": "29581",
-                    "asset_name": "546f6b656e4c"
+                    "policy_script_template": "cosigner#0",
+                    "asset_name": "546f6b656e4f",
+                    "verification_key_index": "5941"
                 },
                 {
                     "operation": {
                         "mint": {
                             "receiving_address": "<addr>",
                             "amount": {
-                                "quantity": 43,
+                                "quantity": 248,
                                 "unit": "assets"
                             }
                         }
                     },
-                    "monetary_policy_index": "10396",
-                    "asset_name": "546f6b656e42"
-                },
-                {
-                    "operation": {
-                        "burn": {
-                            "quantity": 112,
-                            "unit": "assets"
-                        }
-                    },
-                    "monetary_policy_index": "13265",
-                    "asset_name": "546f6b656e53"
-                },
-                {
-                    "operation": {
-                        "mint": {
-                            "receiving_address": "<addr>",
-                            "amount": {
-                                "quantity": 66,
-                                "unit": "assets"
+                    "policy_script_template": {
+                        "all": [
+                            "cosigner#0",
+                            {
+                                "active_from": 100
+                            },
+                            {
+                                "active_until": 150
                             }
-                        }
+                        ]
                     },
-                    "asset_name": "546f6b656e47"
-                }
-            ],
-            "metadata": {
-                "4": {
-                    "list": [
-                        {
-                            "string": "􎪊㖇"
-                        }
-                    ]
-                }
-            }
-        },
-        {
-            "time_to_live": {
-                "quantity": 7921,
-                "unit": "second"
-            },
-            "passphrase": "G6k4Z𰬮a:2r8'w%𰇊]b*WdfV<Zu<XWH\"hmmNA::𣎃Be;钴햨?Q/R𡅃~7<s?𡍈\"s]d🁘7H踥E;𰫰p>)@BH<tc=\\lo!nhGGzt;>.<_VZW赣𨔭𩣾[*𰍨𖤇VMVWeDic𫱽i]]la_𠦂GiOzw:i-d27/,t2ߚf]]7' L楽qM>$[%.U𡇤TjAY#Uk9LuXCg^~n@2𘱭𰄩);lojn'𧤢gS<*K𪸞>5",
-            "mint_burn": [
-                {
-                    "operation": {
-                        "mint": {
-                            "receiving_address": "<addr>",
-                            "amount": {
-                                "quantity": 9,
-                                "unit": "assets"
-                            }
-                        }
-                    },
-                    "monetary_policy_index": "3311",
-                    "asset_name": "546f6b656e46"
-                },
-                {
-                    "operation": {
-                        "burn": {
-                            "quantity": 252,
-                            "unit": "assets"
-                        }
-                    },
-                    "asset_name": "546f6b656e4c"
-                },
-                {
-                    "operation": {
-                        "burn": {
-                            "quantity": 2,
-                            "unit": "assets"
-                        }
-                    },
-                    "monetary_policy_index": "4820",
-                    "asset_name": "546f6b656e49"
-                },
-                {
-                    "operation": {
-                        "burn": {
-                            "quantity": 182,
-                            "unit": "assets"
-                        }
-                    },
-                    "monetary_policy_index": "2538",
-                    "asset_name": "546f6b656e45"
-                },
-                {
-                    "operation": {
-                        "mint": {
-                            "receiving_address": "<addr>",
-                            "amount": {
-                                "quantity": 128,
-                                "unit": "assets"
-                            }
-                        }
-                    },
-                    "asset_name": "546f6b656e45"
-                },
-                {
-                    "operation": {
-                        "burn": {
-                            "quantity": 249,
-                            "unit": "assets"
-                        }
-                    },
-                    "asset_name": "546f6b656e52"
-                },
-                {
-                    "operation": {
-                        "burn": {
-                            "quantity": 159,
-                            "unit": "assets"
-                        }
-                    },
-                    "asset_name": "546f6b656e54"
-                },
-                {
-                    "operation": {
-                        "burn": {
-                            "quantity": 159,
-                            "unit": "assets"
-                        }
-                    },
-                    "monetary_policy_index": "30866",
-                    "asset_name": "546f6b656e46"
-                },
-                {
-                    "operation": {
-                        "burn": {
-                            "quantity": 177,
-                            "unit": "assets"
-                        }
-                    },
-                    "monetary_policy_index": "25848",
-                    "asset_name": "546f6b656e49"
-                },
-                {
-                    "operation": {
-                        "burn": {
-                            "quantity": 118,
-                            "unit": "assets"
-                        }
-                    },
-                    "monetary_policy_index": "16932",
-                    "asset_name": "546f6b656e51"
-                },
-                {
-                    "operation": {
-                        "mint": {
-                            "receiving_address": "<addr>",
-                            "amount": {
-                                "quantity": 0,
-                                "unit": "assets"
-                            }
-                        }
-                    },
-                    "monetary_policy_index": "16649",
-                    "asset_name": "546f6b656e47"
-                },
-                {
-                    "operation": {
-                        "mint": {
-                            "receiving_address": "<addr>",
-                            "amount": {
-                                "quantity": 149,
-                                "unit": "assets"
-                            }
-                        }
-                    },
-                    "monetary_policy_index": "2442",
-                    "asset_name": "546f6b656e4d"
-                },
-                {
-                    "operation": {
-                        "burn": {
-                            "quantity": 241,
-                            "unit": "assets"
-                        }
-                    },
-                    "monetary_policy_index": "3912",
-                    "asset_name": "546f6b656e42"
-                },
-                {
-                    "operation": {
-                        "burn": {
-                            "quantity": 133,
-                            "unit": "assets"
-                        }
-                    },
-                    "monetary_policy_index": "5869",
-                    "asset_name": "546f6b656e4a"
-                },
-                {
-                    "operation": {
-                        "burn": {
-                            "quantity": 18,
-                            "unit": "assets"
-                        }
-                    },
-                    "monetary_policy_index": "24519",
-                    "asset_name": "546f6b656e43"
-                }
-            ],
-            "metadata": {
-                "8": {
-                    "string": "耄󹫛"
-                }
-            }
-        },
-        {
-            "passphrase": "",
-            "mint_burn": [
-                {
-                    "operation": {
-                        "burn": {
-                            "quantity": 5,
-                            "unit": "assets"
-                        }
-                    },
-                    "monetary_policy_index": "32735",
-                    "asset_name": "546f6b656e55"
-                },
-                {
-                    "operation": {
-                        "burn": {
-                            "quantity": 94,
-                            "unit": "assets"
-                        }
-                    },
-                    "monetary_policy_index": "15183",
-                    "asset_name": "546f6b656e55"
-                },
-                {
-                    "operation": {
-                        "burn": {
-                            "quantity": 117,
-                            "unit": "assets"
-                        }
-                    },
-                    "monetary_policy_index": "21385",
-                    "asset_name": "546f6b656e51"
-                },
-                {
-                    "operation": {
-                        "mint": {
-                            "receiving_address": "<addr>",
-                            "amount": {
-                                "quantity": 123,
-                                "unit": "assets"
-                            }
-                        }
-                    },
-                    "monetary_policy_index": "30791",
-                    "asset_name": "546f6b656e4e"
-                },
-                {
-                    "operation": {
-                        "burn": {
-                            "quantity": 182,
-                            "unit": "assets"
-                        }
-                    },
-                    "monetary_policy_index": "25701",
-                    "asset_name": "546f6b656e47"
-                },
-                {
-                    "operation": {
-                        "mint": {
-                            "receiving_address": "<addr>",
-                            "amount": {
-                                "quantity": 39,
-                                "unit": "assets"
-                            }
-                        }
-                    },
-                    "asset_name": "546f6b656e58"
-                },
-                {
-                    "operation": {
-                        "burn": {
-                            "quantity": 188,
-                            "unit": "assets"
-                        }
-                    },
-                    "monetary_policy_index": "26645",
-                    "asset_name": "546f6b656e54"
-                },
-                {
-                    "operation": {
-                        "mint": {
-                            "receiving_address": "<addr>",
-                            "amount": {
-                                "quantity": 218,
-                                "unit": "assets"
-                            }
-                        }
-                    },
-                    "monetary_policy_index": "1515",
-                    "asset_name": "546f6b656e44"
-                },
-                {
-                    "operation": {
-                        "burn": {
-                            "quantity": 229,
-                            "unit": "assets"
-                        }
-                    },
-                    "monetary_policy_index": "1603",
-                    "asset_name": "546f6b656e4c"
-                },
-                {
-                    "operation": {
-                        "mint": {
-                            "receiving_address": "<addr>",
-                            "amount": {
-                                "quantity": 148,
-                                "unit": "assets"
-                            }
-                        }
-                    },
-                    "monetary_policy_index": "4420",
-                    "asset_name": "546f6b656e58"
-                },
-                {
-                    "operation": {
-                        "mint": {
-                            "receiving_address": "<addr>",
-                            "amount": {
-                                "quantity": 176,
-                                "unit": "assets"
-                            }
-                        }
-                    },
-                    "monetary_policy_index": "30527",
                     "asset_name": "546f6b656e5a"
                 },
                 {
@@ -1873,27 +2542,21 @@
                         "mint": {
                             "receiving_address": "<addr>",
                             "amount": {
-                                "quantity": 167,
+                                "quantity": 252,
                                 "unit": "assets"
                             }
                         }
                     },
-                    "monetary_policy_index": "5810",
-                    "asset_name": "546f6b656e51"
-                },
-                {
-                    "operation": {
-                        "mint": {
-                            "receiving_address": "<addr>",
-                            "amount": {
-                                "quantity": 89,
-                                "unit": "assets"
-                            }
-                        }
-                    },
-                    "asset_name": "546f6b656e4a"
+                    "policy_script_template": "cosigner#0",
+                    "asset_name": "546f6b656e52",
+                    "verification_key_index": "25059"
                 }
-            ]
+            ],
+            "metadata": {
+                "4": {
+                    "string": "󶗄"
+                }
+            }
         }
     ]
 }

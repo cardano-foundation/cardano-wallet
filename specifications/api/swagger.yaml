@@ -3477,13 +3477,13 @@ components:
     ApiMintedBurnedInfo: &ApiMintedBurnedInfo
       type: object
       required:
-        - monetary_policy_index
+        - verification_key_index
         - policy_id
         - asset_name
         - subject
         - policy_script
       properties:
-        monetary_policy_index: *derivationSegment
+        verification_key_index: *derivationSegment
         policy_id: *assetPolicyId
         asset_name: *assetName
         subject: *assetFingerprint
