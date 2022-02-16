@@ -509,7 +509,7 @@ import Data.List.NonEmpty
 import Data.Map.Strict
     ( Map )
 import Data.Maybe
-    ( fromMaybe, mapMaybe )
+    ( fromMaybe, mapMaybe, isJust )
 import Data.Proxy
     ( Proxy )
 import Data.Quantity
@@ -2492,12 +2492,23 @@ listTransactions ctx wid mMinWithdrawal mStart mEnd order = db & \DBLayer{..} ->
 
 -- | Extract assets associated with a given wallet from its transaction history.
 extractWalletAssetsFromTxs
-    :: WalletId -> [TransactionInfo] -> [TokenMap.AssetId]
-extractWalletAssetsFromTxs _walletId = Set.toList . Set.unions . map txAssets
+    :: forall s k ctx. (HasDBLayer IO s k ctx, IsOurs s Address)
+    => ctx
+    -> WalletId
+    -> [TransactionInfo]
+    -> ExceptT ErrNoSuchWallet IO [TokenMap.AssetId]
+extractWalletAssetsFromTxs ctx wid txInfos = db & \DBLayer{..} -> do
+    cp <- mapExceptT atomically $ withNoSuchWallet wid $ readCheckpoint wid
+    let txAssets :: TransactionInfo -> Set TokenMap.AssetId
+        txAssets = Set.unions
+            . map (TokenBundle.getAssets . view #tokens)
+            . filter ourOut
+            . txInfoOutputs
+        ourOut TxOut {address} = ourAddress address
+        ourAddress addr = isJust . fst . isOurs addr $ getState cp
+    pure $ Set.toList $ Set.unions $ map txAssets txInfos
   where
-    txAssets = Set.unions
-        . map (TokenBundle.getAssets . view #tokens)
-        . txInfoOutputs
+    db = ctx ^. dbLayer @IO @s @k
 
 -- | Get transaction and metadata from history for a given wallet.
 getTransaction
