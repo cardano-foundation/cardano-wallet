@@ -27,7 +27,9 @@ import Cardano.Wallet.DummyTarget.Primitive.Types
 import Cardano.Wallet.Primitive.AddressDerivation
     ( DerivationIndex (..) )
 import Cardano.Wallet.Primitive.AddressDiscovery
-    ( IsOurs (..) )
+    ( DiscoverTxs (..), IsOurs (..), MaybeLight (..) )
+import Cardano.Wallet.Primitive.BlockSummary
+    ( ChainEvents, summarizeOnTxOut )
 import Cardano.Wallet.Primitive.Model
     ( BlockData (..)
     , DeltaWallet
@@ -41,13 +43,15 @@ import Cardano.Wallet.Primitive.Model
     , availableUTxO
     , changeUTxO
     , currentTip
-    , discoverAddresses
+    , discoverAddressesBlock
+    , discoverFromBlockData
     , getState
     , initWallet
     , spendTx
     , totalBalance
     , totalUTxO
     , unsafeInitWallet
+    , updateOurs
     , utxo
     , utxoFromTx
     )
@@ -157,6 +161,7 @@ import Test.QuickCheck
     , forAllShrink
     , frequency
     , genericShrink
+    , label
     , listOf
     , oneof
     , property
@@ -285,8 +290,12 @@ spec = do
             property prop_applyOurTxToUTxO_someOurs
 
     parallel $ describe "Address discovery" $ do
-        it "discoverAddresses ~ isOurTx" $
-            property prop_discoverAddresses
+        it "discoverAddressesBlock ~ isOurTx" $
+            property prop_discoverAddressesBlock
+    
+    parallel $ describe "Light-mode" $ do
+        it "discovery on blocks = discovery on summary" $
+            property prop_discoverFromBlockData
 
 {-------------------------------------------------------------------------------
                                 Properties
@@ -876,6 +885,25 @@ isOurTx tx u
     isOursState :: IsOurs s addr => addr -> State s Bool
     isOursState = fmap isJust . state . isOurs
 
+prop_discoverFromBlockData
+    :: ApplyBlock -> Property
+prop_discoverFromBlockData (ApplyBlock s _ block) =
+    case maybeDiscover of
+        Nothing ->
+            label "Address discovery state does not support light-mode." False
+        Just discover ->
+            discoverState (Summary discover summary) s
+            === discoverState (List blocks) s
+  where
+    -- TODO: Test sequence of blocks with more than one block.
+    blocks = block :| []
+    summary = summarizeOnTxOut blocks
+    discoverState
+        :: (IsOurs s Address, IsOurs s RewardAccount, MaybeLight s)
+        => BlockData Identity (Either Address RewardAccount) ChainEvents s
+        -> s -> s
+    discoverState bs = snd . runIdentity . discoverFromBlockData bs
+
 {-------------------------------------------------------------------------------
                Basic Model - See Wallet Specification, section 3
 
@@ -975,6 +1003,18 @@ instance IsOurs WalletState RewardAccount where
         ( guard (account == ourRewardAccount) $> (DerivationIndex 0 :| [])
         , s
         )
+
+instance MaybeLight WalletState where
+    maybeDiscover = Just $ DiscoverTxs discover
+      where
+        discover query s0 = go (Set.toList $ ourAddresses s0) s0
+          where
+            go []     s = pure (mempty, s) -- TODO: Test transactions as well.
+            go (a:as) s = do
+                txs <- query (Left a)
+                if mempty == txs
+                    then go as s
+                    else go as (updateOurs s a)
 
 instance (CoArbitrary a, CoArbitrary b) => Arbitrary (IsOursIf2 a b) where
     arbitrary = IsOursIf2

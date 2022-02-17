@@ -60,15 +60,17 @@ module Cardano.Wallet.Primitive.Model
     , applyTxToUTxO
     , applyOurTxToUTxO
     , changeUTxO
-    , discoverAddresses
+    , discoverAddressesBlock
+    , discoverFromBlockData
+    , updateOurs
     ) where
 
 import Prelude
 
 import Cardano.Wallet.Primitive.AddressDiscovery
-    ( DiscoverTxs, IsOurs (..) )
+    ( DiscoverTxs (..), IsOurs (..) )
 import Cardano.Wallet.Primitive.BlockSummary
-    ( BlockSummary (..), ChainEvents )
+    ( BlockSummary (..), ChainEvents, fromBlockEvents, fromEntireBlock )
 import Cardano.Wallet.Primitive.Types
     ( Block (..)
     , BlockHeader (..)
@@ -501,9 +503,9 @@ utxoFromUnvalidatedTx Tx {txId, outputs} =
                         Address ownership and discovery
 -------------------------------------------------------------------------------}
 
--- | Perform address discovery by going through all transactions
+-- | Perform address discovery on a 'Block' by going through all transactions
 -- and delegation certificates in the block.
-discoverAddresses
+discoverAddressesBlock
     :: (IsOurs s Address, IsOurs s RewardAccount)
     => Block -> s -> (DeltaAddressBook s, s)
 discoverAddresses block s0 = (Delta.Replace s2, s2)
@@ -524,6 +526,19 @@ discoverAddresses block s0 = (Delta.Replace s2, s2)
         L.foldl' (\s_ out -> updateOurs s_ (out ^. #address)) s (tx ^. #outputs)
     discoverWithdrawals s tx =
         L.foldl' updateOurs s $ Map.keys (tx ^. #withdrawals)
+
+-- | Perform address and transaction discovery on 'BlockData',
+discoverFromBlockData
+    :: (IsOurs s Address, IsOurs s RewardAccount, Monad m)
+    => BlockData m (Either Address RewardAccount) ChainEvents s
+    -> s
+    -> m (ChainEvents, s)
+discoverFromBlockData (List blocks) !s0 =
+    pure (fromBlockEvents . map fromEntireBlock $ NE.toList blocks , s1)
+  where
+    s1 = L.foldl' (flip discoverAddressesBlock) s0 $ NE.toList blocks
+discoverFromBlockData (Summary dis summary) !s0 =
+    discoverTxs dis (view #query summary) s0
 
 -- | Indicates whether an address is known to be ours, without updating the
 -- address discovery state.
