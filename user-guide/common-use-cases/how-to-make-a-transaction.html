@@ -25,7 +25,7 @@
 
 
   
-  <link href='tailwind.css?instanceId=4a34ecb5-b799-4ec9-ac13-51fdac2b5f3a' rel='stylesheet' type='text/css' />
+  <link href='tailwind.css?instanceId=c94754e1-56f8-4ddc-a46c-63978d56fb41' rel='stylesheet' type='text/css' />
 
   <!-- Heist error element -->
   <style type='text/css'>
@@ -503,6 +503,45 @@
       </svg>
     
   
+    <a class='hover:underline truncate' title='assets' href='user-guide/common-use-cases/assets'>
+      assets
+    </a>
+    
+      
+  </div>
+
+  <!-- Node's children forest, displayed only on active trees
+    TODO: Use <details> to toggle visibility?
+  -->
+  
+    
+  
+</div>
+    
+      <!-- Variable bindings for this tree-->
+  
+    
+      
+    
+    
+
+
+
+  
+
+
+<!-- Rendering of this tree -->
+<div class='pl-2'>
+  <!-- Node's rootLabel-->
+  <div class='flex items-center my-2 space-x-2 justify-left'>
+    
+    
+      <svg class='w-4 h-4 flex-shrink-0 inline' fill='none' stroke='currentColor' viewBox='0 0 24 24' xmlns='http://www.w3.org/2000/svg'>
+        <path stroke-linecap='round' stroke-linejoin='round' stroke-width='2' d='M7 21h10a2 2 0 002-2V9.414a1 1 0 00-.293-.707l-5.414-5.414A1 1 0 0012.586 3H7a2 2 0 00-2 2v14a2 2 0 002 2z'>
+        </path>
+      </svg>
+    
+  
     <a class='hover:underline truncate' title='How to start wallet server' href='user-guide/common-use-cases/how-to-start-wallet-server'>
       How to start wallet server
     </a>
@@ -733,8 +772,8 @@
       </svg>
     
   
-    <a class='hover:underline truncate' title='Transaction Metadata' href='user-guide/common-use-cases/TxMetadata'>
-      Transaction Metadata
+    <a class='hover:underline truncate' title='TxMetadata' href='user-guide/common-use-cases/TxMetadata'>
+      TxMetadata
     </a>
     
       
@@ -2310,9 +2349,17 @@
       Assuming you have already created a wallet, you can send a transaction by using the following endpoint:
     </p>
   
-    <p class='mb-3'>
-      <a href='https://input-output-hk.github.io/cardano-wallet/api/edge/#operation/postTransaction' class='text-blue-600 hover:underline' target='_blank' rel='noopener'><code class='py-0.5 px-1 rounded bg-gray-700 text-sm text-white'>POST /wallets/{walletId}/transactions</code></a> - transaction from <strong>Shelley</strong> wallet <a href='https://input-output-hk.github.io/cardano-wallet/api/edge/#operation/postByronTransaction' class='text-blue-600 hover:underline' target='_blank' rel='noopener'><code class='py-0.5 px-1 rounded bg-gray-700 text-sm text-white'>POST /byron-wallets/{walletId}/transactions</code></a> - transaction from <strong>Byron</strong> wallet
-    </p>
+    <ul class='my-3 ml-6 space-y-1 list-disc'>
+      
+        <li>
+          <a href='https://input-output-hk.github.io/cardano-wallet/api/edge/#operation/postTransaction' class='text-blue-600 hover:underline' target='_blank' rel='noopener'><code class='py-0.5 px-1 rounded bg-gray-700 text-sm text-white'>POST /wallets/{walletId}/transactions</code></a> - transaction from <strong>Shelley</strong> wallet
+        </li>
+      
+        <li>
+          <a href='https://input-output-hk.github.io/cardano-wallet/api/edge/#operation/postByronTransaction' class='text-blue-600 hover:underline' target='_blank' rel='noopener'><code class='py-0.5 px-1 rounded bg-gray-700 text-sm text-white'>POST /byron-wallets/{walletId}/transactions</code></a> - transaction from <strong>Byron</strong> wallet
+        </li>
+      
+    </ul>
   
     <p class='mb-3'>
       Behind the scene, the wallet engine will select necessary inputs from the wallet, generate a change address within the wallet, sign and submit the transaction. A transaction can have multiple outputs, possibly to the same address. Note that in Byron, addresses are necessarily base58-encoded (as an enforced convention).
@@ -2432,20 +2479,36 @@
       For instance, transactions can be tracked via:
     </p>
   
-    <p class='mb-3'>
-      <a href='https://input-output-hk.github.io/cardano-wallet/api/edge/#operation/listTransactions' class='text-blue-600 hover:underline' target='_blank' rel='noopener'><code class='py-0.5 px-1 rounded bg-gray-700 text-sm text-white'>GET /wallets/{walletId}/transactions</code></a> - transactions from <strong>Shelley</strong> wallet <a href='https://input-output-hk.github.io/cardano-wallet/api/edge/#operation/listByronTransactions' class='text-blue-600 hover:underline' target='_blank' rel='noopener'><code class='py-0.5 px-1 rounded bg-gray-700 text-sm text-white'>GET /byron-wallets/{walletId}/transactions</code></a> - transactions from <strong>Byron</strong> wallet
-    </p>
+    <ul class='my-3 ml-6 space-y-1 list-disc'>
+      
+        <li>
+          <a href='https://input-output-hk.github.io/cardano-wallet/api/edge/#operation/listTransactions' class='text-blue-600 hover:underline' target='_blank' rel='noopener'><code class='py-0.5 px-1 rounded bg-gray-700 text-sm text-white'>GET /wallets/{walletId}/transactions</code></a> - transactions from <strong>Shelley</strong> wallet
+        </li>
+      
+        <li>
+          <a href='https://input-output-hk.github.io/cardano-wallet/api/edge/#operation/listByronTransactions' class='text-blue-600 hover:underline' target='_blank' rel='noopener'><code class='py-0.5 px-1 rounded bg-gray-700 text-sm text-white'>GET /byron-wallets/{walletId}/transactions</code></a> - transactions from <strong>Byron</strong> wallet
+        </li>
+      
+    </ul>
   
     <p class='mb-3'>
       Which returns a list of all transactions for this particular wallet. Optional range filters can be provided. A transaction will go through a succession of states, starting as “Pending”. If a transaction stays pending for too long (because rejected by a mempool, or because lost in translation due to multiple chain switches), users may decide to forget it using:
     </p>
   
-    <p class='mb-3'>
-      <a href='https://input-output-hk.github.io/cardano-wallet/api/edge/#operation/deleteTransaction' class='text-blue-600 hover:underline' target='_blank' rel='noopener'><code class='py-0.5 px-1 rounded bg-gray-700 text-sm text-white'>DELETE /wallets/{walletId}/transactions/{transactionId}</code></a> - transactions from <strong>Shelley</strong> wallet <a href='https://input-output-hk.github.io/cardano-wallet/api/edge/#operation/deleteByronTransaction' class='text-blue-600 hover:underline' target='_blank' rel='noopener'><code class='py-0.5 px-1 rounded bg-gray-700 text-sm text-white'>DELETE /byron-wallets/{walletId}/transactions/{transactionId}</code></a> - transactions from <strong>Byron</strong> wallet
-    </p>
+    <ul class='my-3 ml-6 space-y-1 list-disc'>
+      
+        <li>
+          <a href='https://input-output-hk.github.io/cardano-wallet/api/edge/#operation/deleteTransaction' class='text-blue-600 hover:underline' target='_blank' rel='noopener'><code class='py-0.5 px-1 rounded bg-gray-700 text-sm text-white'>DELETE /wallets/{walletId}/transactions/{transactionId}</code></a> - transactions from <strong>Shelley</strong> wallet
+        </li>
+      
+        <li>
+          <a href='https://input-output-hk.github.io/cardano-wallet/api/edge/#operation/deleteByronTransaction' class='text-blue-600 hover:underline' target='_blank' rel='noopener'><code class='py-0.5 px-1 rounded bg-gray-700 text-sm text-white'>DELETE /byron-wallets/{walletId}/transactions/{transactionId}</code></a> - transactions from <strong>Byron</strong> wallet
+        </li>
+      
+    </ul>
   
     <p class='mb-3'>
-      For more information about transactions lifecycle, have a look at <span title='Link is broken'><s>[[About-Transactions-Lifecycle]]</s>❌</span>.
+      For more information about transactions lifecycle, have a look at <a href='concepts/transaction-lifecycle' class='text-blue-600 mavenLinkBold hover:underline' data-wikilink-type='WikiLinkNormal'>Transaction Lifecycle</a>.
     </p>
   <h2 id='signed-and-serialized-transactions' class='inline-block mt-6 mb-4 text-4xl font-bold text-gray-700 border-b-2'>Signed and serialized transactions</h2>
     <p class='mb-3'>
@@ -2468,6 +2531,21 @@
   <div class='flex-1 p-4 mt-8 bg-gray-100 rounded'>
     <header class='mb-2 text-xl font-semibold text-gray-500'>Links to this page</header>
     <ul class='space-y-1'>
+      
+        <li>
+          <a class='text-blue-600 mavenLinkBold hover:bg-blue-50' href='user-guide/common-use-cases/assets'>
+            assets
+          </a>
+          
+            <div class='mb-4 overflow-auto text-sm text-gray-500'>
+  
+    <div class='pl-2 mt-2 border-l-2 border-blue-200 hover:border-blue-500'>
+      <div><p>I should receive CBOR-encoded <code>transaction</code>, <code>fee</code> and <code>coin_selection</code> details in response. I can now <strong>sign</strong> and <strong>submit</strong> such transaction just like in <a href='user-guide/common-use-cases/how-to-make-a-transaction' class='text-gray-600 font-bold hover:bg-gray-50' data-wikilink-type='WikiLinkNormal'>How to make a transaction</a>.</p></div>
+    </div>
+  
+</div>
+          
+        </li>
       
         <li>
           <a class='text-blue-600 mavenLinkBold hover:bg-blue-50' href='user-guide/common-use-cases/delegation'>

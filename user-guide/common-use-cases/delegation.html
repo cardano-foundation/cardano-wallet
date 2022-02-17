@@ -25,7 +25,7 @@
 
 
   
-  <link href='tailwind.css?instanceId=4a34ecb5-b799-4ec9-ac13-51fdac2b5f3a' rel='stylesheet' type='text/css' />
+  <link href='tailwind.css?instanceId=c94754e1-56f8-4ddc-a46c-63978d56fb41' rel='stylesheet' type='text/css' />
 
   <!-- Heist error element -->
   <style type='text/css'>
@@ -503,6 +503,45 @@
       </svg>
     
   
+    <a class='hover:underline truncate' title='assets' href='user-guide/common-use-cases/assets'>
+      assets
+    </a>
+    
+      
+  </div>
+
+  <!-- Node's children forest, displayed only on active trees
+    TODO: Use <details> to toggle visibility?
+  -->
+  
+    
+  
+</div>
+    
+      <!-- Variable bindings for this tree-->
+  
+    
+      
+    
+    
+
+
+
+  
+
+
+<!-- Rendering of this tree -->
+<div class='pl-2'>
+  <!-- Node's rootLabel-->
+  <div class='flex items-center my-2 space-x-2 justify-left'>
+    
+    
+      <svg class='w-4 h-4 flex-shrink-0 inline' fill='none' stroke='currentColor' viewBox='0 0 24 24' xmlns='http://www.w3.org/2000/svg'>
+        <path stroke-linecap='round' stroke-linejoin='round' stroke-width='2' d='M7 21h10a2 2 0 002-2V9.414a1 1 0 00-.293-.707l-5.414-5.414A1 1 0 0012.586 3H7a2 2 0 00-2 2v14a2 2 0 002 2z'>
+        </path>
+      </svg>
+    
+  
     <a class='hover:underline truncate' title='How to start wallet server' href='user-guide/common-use-cases/how-to-start-wallet-server'>
       How to start wallet server
     </a>
@@ -733,8 +772,8 @@
       </svg>
     
   
-    <a class='hover:underline truncate' title='Transaction Metadata' href='user-guide/common-use-cases/TxMetadata'>
-      Transaction Metadata
+    <a class='hover:underline truncate' title='TxMetadata' href='user-guide/common-use-cases/TxMetadata'>
+      TxMetadata
     </a>
     
       
@@ -2318,9 +2357,13 @@
       Before joining any stake pool we can first list all available stake pools that are operating on our blockchain. Stake pools are ordered by <code class='py-0.5 px-1 rounded bg-gray-700 text-sm text-white'>non_myopic_member_rewards</code> which gives higher ranking and hence favors the pools potentially producing the best rewards in the future. The ordering could be influenced by the <code class='py-0.5 px-1 rounded bg-gray-700 text-sm text-white'>?stake</code> query parameter which says how much stake we want to delegate.
     </p>
   
-    <p class='mb-3'>
-      <a href='https://input-output-hk.github.io/cardano-wallet/api/edge/#operation/listStakePools' class='text-blue-600 hover:underline' target='_blank' rel='noopener'><code class='py-0.5 px-1 rounded bg-gray-700 text-sm text-white'>GET /stake-pools</code></a>
-    </p>
+    <ul class='my-3 ml-6 space-y-1 list-disc'>
+      
+        <li>
+          <a href='https://input-output-hk.github.io/cardano-wallet/api/edge/#operation/listStakePools' class='text-blue-600 hover:underline' target='_blank' rel='noopener'><code class='py-0.5 px-1 rounded bg-gray-700 text-sm text-white'>GET /stake-pools</code></a>
+        </li>
+      
+    </ul>
   <div class='py-0.5 mb-3 text-sm'><pre><code class='language-none'>$ curl -X GET http://localhost:8090/v2/stake-pools?stake=1000000000</code></pre></div><h2 id='joining-stake-pool' class='inline-block mt-6 mb-4 text-4xl font-bold text-gray-700 border-b-2'>Joining stake pool</h2>
     <p class='mb-3'>
       Once we select a stake pool we can “join” it. This operation will “virtually” add our wallet balance to the stake of this particular stake pool. Joining a pool for the first time will incur <code class='py-0.5 px-1 rounded bg-gray-700 text-sm text-white'>fee</code> and <code class='py-0.5 px-1 rounded bg-gray-700 text-sm text-white'>deposit</code> required for registering our stake key on the blockchain. This deposit will be returned to us if we quit stake pool all together.
@@ -2338,9 +2381,13 @@
       We can join stake pool using old transaction workflow:
     </p>
   
-    <p class='mb-3'>
-      <a href='https://input-output-hk.github.io/cardano-wallet/api/edge/#operation/joinStakePool' class='text-blue-600 hover:underline' target='_blank' rel='noopener'><code class='py-0.5 px-1 rounded bg-gray-700 text-sm text-white'>PUT /stake-pools/{stakePoolId}/wallets/{walletId}</code></a>
-    </p>
+    <ul class='my-3 ml-6 space-y-1 list-disc'>
+      
+        <li>
+          <a href='https://input-output-hk.github.io/cardano-wallet/api/edge/#operation/joinStakePool' class='text-blue-600 hover:underline' target='_blank' rel='noopener'><code class='py-0.5 px-1 rounded bg-gray-700 text-sm text-white'>PUT /stake-pools/{stakePoolId}/wallets/{walletId}</code></a>
+        </li>
+      
+    </ul>
   
     <p class='mb-3'>
       Or new transaction workflow, where we can <strong>construct</strong> delegation transaction and then <strong>sign</strong> and <strong>submit</strong> it to the network:
@@ -2390,9 +2437,13 @@
       Our wallet accumulates rewards from delegating to a stake pool on special rewards account associated with it. We can see how many rewards we have on the wallet balance at any time.
     </p>
   
-    <p class='mb-3'>
-      <a href='https://input-output-hk.github.io/cardano-wallet/api/edge/#operation/getWallet' class='text-blue-600 hover:underline' target='_blank' rel='noopener'><code class='py-0.5 px-1 rounded bg-gray-700 text-sm text-white'>GET /wallets/{walletId}</code></a>
-    </p>
+    <ul class='my-3 ml-6 space-y-1 list-disc'>
+      
+        <li>
+          <a href='https://input-output-hk.github.io/cardano-wallet/api/edge/#operation/getWallet' class='text-blue-600 hover:underline' target='_blank' rel='noopener'><code class='py-0.5 px-1 rounded bg-gray-700 text-sm text-white'>GET /wallets/{walletId}</code></a>
+        </li>
+      
+    </ul>
   
     <p class='mb-3'>
       Just look up <code class='py-0.5 px-1 rounded bg-gray-700 text-sm text-white'>balance</code> while getting your wallet details:
@@ -2414,7 +2465,7 @@
   }
 }</code></pre></div>
     <p class='mb-3'>
-      We can withdraw those wallets when making any transaction. In the both, old and new transaction workflow, it is as simple as adding <code class='py-0.5 px-1 rounded bg-gray-700 text-sm text-white'>{ "withdrawal": "self" }</code> to the transaction payload.
+      We can withdraw those rewards when making any transaction. In the both, old and new transaction workflow, it is as simple as adding <code class='py-0.5 px-1 rounded bg-gray-700 text-sm text-white'>{ "withdrawal": "self" }</code> to the transaction payload.
     </p>
   
     <p class='mb-3'>
@@ -2450,9 +2501,13 @@
       Quitting can be done in old transaction workflow:
     </p>
   
-    <p class='mb-3'>
-      <a href='https://input-output-hk.github.io/cardano-wallet/api/edge/#operation/quitStakePool' class='text-blue-600 hover:underline' target='_blank' rel='noopener'><code class='py-0.5 px-1 rounded bg-gray-700 text-sm text-white'>DELETE /stake-pools/*/wallets/{walletId}</code></a>
-    </p>
+    <ul class='my-3 ml-6 space-y-1 list-disc'>
+      
+        <li>
+          <a href='https://input-output-hk.github.io/cardano-wallet/api/edge/#operation/quitStakePool' class='text-blue-600 hover:underline' target='_blank' rel='noopener'><code class='py-0.5 px-1 rounded bg-gray-700 text-sm text-white'>DELETE /stake-pools/*/wallets/{walletId}</code></a>
+        </li>
+      
+    </ul>
   
     <blockquote class='py-0.5 px-4 mb-3 italic border-l-4 bg-gray-50 text-gray-600 border-gray-400 quote'>
       
