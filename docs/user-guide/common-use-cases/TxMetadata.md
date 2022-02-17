@@ -1,8 +1,14 @@
 ---
-order: 7
+order: 8
 ---
 
-# Transaction Metadata
+## Pre-requisites
+
+ - [[how-to-start-wallet-server]]
+ - [[how-to-create-a-wallet]]
+ - In order to be able to send transactions we need funds on the wallet. In case of [Testnet](https://testnets.cardano.org/en/testnets/cardano/overview/) we can request tADA from the [faucet](https://testnets.cardano.org/en/testnets/cardano/tools/faucet/).
+
+## Transaction Metadata
 
 Since the Shelley era, the Cardano blockchain allows user-defined data to be associated with transactions.
 

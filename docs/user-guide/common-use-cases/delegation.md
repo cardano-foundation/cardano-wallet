@@ -19,7 +19,7 @@ Delegation is supported only for **Shelley** wallets. **Shared** wallets will su
 
 Before joining any stake pool we can first list all available stake pools that are operating on our blockchain. Stake pools are ordered by `non_myopic_member_rewards` which gives higher ranking and hence favors the pools potentially producing the best rewards in the future. The ordering could be influenced by the `?stake` query parameter which says how much stake we want to delegate.
 
-[`GET /stake-pools`](https://input-output-hk.github.io/cardano-wallet/api/edge/#operation/listStakePools)
+ - [`GET /stake-pools`](https://input-output-hk.github.io/cardano-wallet/api/edge/#operation/listStakePools)
 
 ```
 $ curl -X GET http://localhost:8090/v2/stake-pools?stake=1000000000
@@ -33,7 +33,7 @@ Once we select a stake pool we can "join" it. This operation will "virtually" ad
 
 We can join stake pool using old transaction workflow:
 
-[`PUT /stake-pools/{stakePoolId}/wallets/{walletId}`](https://input-output-hk.github.io/cardano-wallet/api/edge/#operation/joinStakePool)
+ - [`PUT /stake-pools/{stakePoolId}/wallets/{walletId}`](https://input-output-hk.github.io/cardano-wallet/api/edge/#operation/joinStakePool)
 
 Or new transaction workflow, where we can **construct** delegation transaction and then **sign** and **submit** it to the network:
  - Construct: [`POST /wallets/{walletId}/transactions-construct`](https://input-output-hk.github.io/cardano-wallet/api/edge/#operation/constructTransaction)
@@ -61,7 +61,7 @@ Joining another stake pool doesn't differ from the previous process at all. The 
 
 Our wallet accumulates rewards from delegating to a stake pool on special rewards account associated with it. We can see how many rewards we have on the wallet balance at any time.
 
-[`GET /wallets/{walletId}`](https://input-output-hk.github.io/cardano-wallet/api/edge/#operation/getWallet)
+ - [`GET /wallets/{walletId}`](https://input-output-hk.github.io/cardano-wallet/api/edge/#operation/getWallet)
 
 Just look up `balance` while getting your wallet details:
 ```
@@ -83,7 +83,7 @@ $ curl -X GET http://localhost:8090/v2/wallets/1ceb45b37a94c7022837b5ca14045f11a
 }
 ```
 
-We can withdraw those wallets when making any transaction. In the both, old and new transaction workflow, it is as simple as adding `{ "withdrawal": "self" }` to the transaction payload.
+We can withdraw those rewards when making any transaction. In the both, old and new transaction workflow, it is as simple as adding `{ "withdrawal": "self" }` to the transaction payload.
 
 In particular in [new transaction workflow](https://input-output-hk.github.io/cardano-wallet/api/edge/#tag/Transactions-New) we can just withdraw our rewards:
 
@@ -112,7 +112,7 @@ At any point we can decide to quit delegation all together. Quitting stake pool 
 
 Quitting can be done in old transaction workflow:
 
-[`DELETE /stake-pools/*/wallets/{walletId}`](https://input-output-hk.github.io/cardano-wallet/api/edge/#operation/quitStakePool)
+ - [`DELETE /stake-pools/*/wallets/{walletId}`](https://input-output-hk.github.io/cardano-wallet/api/edge/#operation/quitStakePool)
 
 > :information_source: Note that all rewards will be withdrawn automatically upon quitting a stake pool.
 
