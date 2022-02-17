@@ -941,7 +941,7 @@ data ApiConstructTransactionData (n :: NetworkDiscriminant) = ApiConstructTransa
     { payments :: !(Maybe (ApiPaymentDestination n))
     , withdrawal :: !(Maybe ApiWithdrawalPostData)
     , metadata :: !(Maybe (ApiT TxMetadata))
-    , mint :: !(Maybe (ApiT W.TokenMap))
+    , mintBurn :: !(Maybe (NonEmpty (ApiMintBurnData n)))
     , delegations :: !(Maybe (NonEmpty ApiMultiDelegationAction))
     , validityInterval :: !(Maybe ApiValidityInterval)
     } deriving (Eq, Generic, Show, Typeable)
@@ -3973,6 +3973,7 @@ data ApiMintBurnData (n :: NetworkDiscriminant) = ApiMintBurnData
     , operation            :: !(ApiMintBurnOperation n)
     -- ^ The minting or burning operation to perform.
     } deriving (Eq, Generic, Show)
+    deriving anyclass NFData
 
 instance DecodeAddress n => FromJSON (ApiMintBurnData n) where
     parseJSON = genericParseJSON defaultRecordTypeOptions
@@ -3987,6 +3988,7 @@ data ApiMintBurnOperation (n :: NetworkDiscriminant)
     | ApiBurn ApiBurnData
     -- ^ Burn tokens.
     deriving (Eq, Generic, Show)
+    deriving anyclass NFData
 
 -- | The format of a minting request: mint "amount" and send it to the
 -- "address".
@@ -3997,6 +3999,7 @@ data ApiMintData (n :: NetworkDiscriminant) = ApiMintData
     -- ^ Amount of assets to mint.
     }
     deriving (Eq, Generic, Show)
+    deriving anyclass NFData
 
 instance DecodeAddress n => FromJSON (ApiMintData n) where
     parseJSON = genericParseJSON defaultRecordTypeOptions
@@ -4009,6 +4012,7 @@ instance EncodeAddress n => ToJSON (ApiMintData n) where
 -- tokens selected are up to the implementation.
 newtype ApiBurnData = ApiBurnData (Quantity "assets" Natural)
     deriving (Eq, Generic, Show)
+    deriving anyclass NFData
 
 instance FromJSON ApiBurnData where
     parseJSON = genericParseJSON defaultRecordTypeOptions

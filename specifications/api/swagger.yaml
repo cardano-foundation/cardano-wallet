@@ -3323,6 +3323,64 @@ components:
         - title: outputs without amounts
           <<: *transactionNoAmountOutputs
 
+    ApiAssetQuantity: &ApiAssetQuantity
+      type: object
+      required:
+        - quantity
+        - unit
+      properties:
+        quantity:
+          type: integer
+          example: 14
+        unit:
+          type: string
+          enum:
+            - assets
+
+    ApiMintData: &ApiMintData
+      type: object
+      required:
+        - receiving_address
+        - amount
+      properties:
+        receiving_address: *addressId
+        amount: *ApiAssetQuantity
+
+    ApiBurnData: &ApiBurnData
+      allOf:
+        - *ApiAssetQuantity
+
+    ApiMintBurnOperation: &ApiMintBurnOperation
+      type: object
+      oneOf:
+        - title: "mint"
+          properties:
+            mint: *ApiMintData
+        - title: "burn"
+          properties:
+            burn: *ApiBurnData
+
+    ApiMintBurnData: &ApiMintBurnData
+      type: object
+      required:
+        - asset_name
+        - operation
+        - policy_script_template
+      properties:
+        policy_script_template: *ScriptTemplateValue
+        verification_key_index:
+          allOf:
+            - *derivationSegment
+            - type: string
+              default: 0
+        asset_name: *assetName
+        operation: *ApiMintBurnOperation
+
+    ApiMintBurnDataList: &ApiMintBurnDataList
+      type: array
+      minItems: 1
+      items: *ApiMintBurnData
+
     ApiConstructTransactionData: &ApiConstructTransactionData
       description: At least one field needs to be chosen
       type: object
@@ -3330,7 +3388,7 @@ components:
         payments: *ApiPaymentDestination
         withdrawal: *transactionWithdrawalRequestSelf
         metadata: *transactionMetadata
-        mint: *transactionMint
+        mint_burn: *ApiMintBurnDataList
         delegations: *transactionDelegations
         validity_interval: *ApiValidityInterval
 
@@ -3505,59 +3563,6 @@ components:
           items: *ApiMintedBurnedInfo
           minItems: 1
           description: An entry for each unique asset minted and/or burned, containing helpful information.
-
-    ApiAssetQuantity: &ApiAssetQuantity
-      type: object
-      required:
-        - quantity
-        - unit
-      properties:
-        quantity:
-          type: integer
-          example: 14
-        unit:
-          type: string
-          enum:
-            - assets
-
-    ApiMintData: &ApiMintData
-      type: object
-      required:
-        - receiving_address
-        - amount
-      properties:
-        receiving_address: *addressId
-        amount: *ApiAssetQuantity
-
-    ApiBurnData: &ApiBurnData
-      allOf:
-        - *ApiAssetQuantity
-
-    ApiMintBurnOperation: &ApiMintBurnOperation
-      type: object
-      oneOf:
-        - title: "mint"
-          properties:
-            mint: *ApiMintData
-        - title: "burn"
-          properties:
-            burn: *ApiBurnData
-
-    ApiMintBurnData: &ApiMintBurnData
-      type: object
-      required:
-        - asset_name
-        - operation
-        - policy_script_template
-      properties:
-        policy_script_template: *ScriptTemplateValue
-        verification_key_index:
-          allOf:
-            - *derivationSegment
-            - type: string
-              default: 0
-        asset_name: *assetName
-        operation: *ApiMintBurnOperation
 
     ApiPostMintBurnAssetData: &ApiPostMintBurnAssetData
       type: object

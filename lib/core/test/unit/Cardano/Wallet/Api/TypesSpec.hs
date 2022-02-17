@@ -1150,7 +1150,7 @@ spec = parallel $ do
                     { payments = payments (x :: ApiConstructTransactionData ('Testnet 0))
                     , withdrawal = withdrawal (x :: ApiConstructTransactionData ('Testnet 0))
                     , metadata = metadata (x :: ApiConstructTransactionData ('Testnet 0))
-                    , mint = mint (x :: ApiConstructTransactionData ('Testnet 0))
+                    , mintBurn = mintBurn (x :: ApiConstructTransactionData ('Testnet 0))
                     , delegations = delegations (x :: ApiConstructTransactionData ('Testnet 0))
                     , validityInterval = validityInterval (x :: ApiConstructTransactionData ('Testnet 0))
                     }
@@ -2921,6 +2921,7 @@ instance ToSchema ApiNullStakeKey where
 instance Typeable n => ToSchema (ApiConstructTransactionData n) where
     declareNamedSchema _ = do
         addDefinition =<< declareSchemaForDefinition "TransactionMetadataValue"
+        addDefinition =<< declareSchemaForDefinition "ScriptTemplateValue"
         declareSchemaForDefinition "ApiConstructTransactionData"
 
 instance Typeable n => ToSchema (ApiConstructTransaction n) where

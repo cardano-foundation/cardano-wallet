@@ -2152,7 +2152,7 @@ constructTransaction ctx genChange knownPools getPoolStatus (ApiT wid) body = do
             isNothing (body ^. #payments) &&
             isNothing (body ^. #withdrawal) &&
             isNothing (body ^. #metadata) &&
-            isNothing (body ^. #mint) &&
+            isNothing (body ^. #mintBurn) &&
             isNothing (body ^. #delegations)
     when isNoPayload $
         liftHandler $ throwE ErrConstructTxWrongPayload
