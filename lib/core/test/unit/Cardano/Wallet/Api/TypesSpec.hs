@@ -1150,7 +1150,7 @@ spec = parallel $ do
                     { payments = payments (x :: ApiConstructTransactionData ('Testnet 0))
                     , withdrawal = withdrawal (x :: ApiConstructTransactionData ('Testnet 0))
                     , metadata = metadata (x :: ApiConstructTransactionData ('Testnet 0))
-                    , mintBurn = mintBurn (x :: ApiConstructTransactionData ('Testnet 0))
+                    , mintedBurned = mintedBurned (x :: ApiConstructTransactionData ('Testnet 0))
                     , delegations = delegations (x :: ApiConstructTransactionData ('Testnet 0))
                     , validityInterval = validityInterval (x :: ApiConstructTransactionData ('Testnet 0))
                     }
@@ -2202,6 +2202,7 @@ instance Arbitrary (PostMintBurnAssetData n) where
 instance Arbitrary (ApiConstructTransaction n) where
     arbitrary = ApiConstructTransaction
         <$> arbitrary
+        <*> arbitrary
         <*> arbitrary
         <*> arbitrary
 

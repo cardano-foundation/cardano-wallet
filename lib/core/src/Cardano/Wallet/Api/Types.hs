@@ -917,6 +917,7 @@ data ByronWalletPutPassphraseData = ByronWalletPutPassphraseData
 data ApiConstructTransaction (n :: NetworkDiscriminant) = ApiConstructTransaction
     { transaction :: !(ApiT SealedTx)
     , coinSelection :: !(ApiCoinSelection n)
+    , mintedBurned :: !(Maybe (NonEmpty (ApiT ApiMintedBurnedInfo)))
     , fee :: !(Quantity "lovelace" Natural)
     } deriving (Eq, Generic, Show, Typeable)
       deriving anyclass NFData
@@ -941,7 +942,7 @@ data ApiConstructTransactionData (n :: NetworkDiscriminant) = ApiConstructTransa
     { payments :: !(Maybe (ApiPaymentDestination n))
     , withdrawal :: !(Maybe ApiWithdrawalPostData)
     , metadata :: !(Maybe (ApiT TxMetadata))
-    , mintBurn :: !(Maybe (NonEmpty (ApiMintBurnData n)))
+    , mintedBurned :: !(Maybe (NonEmpty (ApiMintBurnData n)))
     , delegations :: !(Maybe (NonEmpty ApiMultiDelegationAction))
     , validityInterval :: !(Maybe ApiValidityInterval)
     } deriving (Eq, Generic, Show, Typeable)

@@ -2407,6 +2407,23 @@ components:
       properties:
         transaction: *serialisedTransactionEncoded
 
+    ApiMintedBurnedInfo: &ApiMintedBurnedInfo
+      type: object
+      required:
+        - verification_key_index
+        - policy_id
+        - asset_name
+        - subject
+        - policy_script
+      properties:
+        verification_key_index: *derivationSegment
+        policy_id: *assetPolicyId
+        asset_name: *assetName
+        subject: *assetFingerprint
+        policy_script:
+          <<: *ScriptValue
+          description: The script under which this asset was minted or burned.
+
     ApiConstructTransaction: &ApiConstructTransaction
       type: object
       required:
@@ -2417,6 +2434,11 @@ components:
         transaction: *serialisedTransactionBase64
         coin_selection: *ApiCoinSelection
         fee: *amount
+        minted_burned:
+          type: array
+          items: *ApiMintedBurnedInfo
+          minItems: 1
+          description: An entry for each unique asset minted and/or burned, containing helpful information.
 
     ApiTransaction: &ApiTransaction
       type: object
@@ -3376,11 +3398,6 @@ components:
         asset_name: *assetName
         operation: *ApiMintBurnOperation
 
-    ApiMintBurnDataList: &ApiMintBurnDataList
-      type: array
-      minItems: 1
-      items: *ApiMintBurnData
-
     ApiConstructTransactionData: &ApiConstructTransactionData
       description: At least one field needs to be chosen
       type: object
@@ -3388,7 +3405,11 @@ components:
         payments: *ApiPaymentDestination
         withdrawal: *transactionWithdrawalRequestSelf
         metadata: *transactionMetadata
-        mint_burn: *ApiMintBurnDataList
+        minted_burned:
+          type: array
+          items: *ApiMintBurnData
+          minItems: 1
+          description: An entry for each unique asset minted and/or burned, containing helpful information.
         delegations: *transactionDelegations
         validity_interval: *ApiValidityInterval
 
@@ -3531,23 +3552,6 @@ components:
             Stake keys found in the wallet's UTxO, but does not belong to the wallet.
 
         "none": *ApiNullStakeKey
-
-    ApiMintedBurnedInfo: &ApiMintedBurnedInfo
-      type: object
-      required:
-        - verification_key_index
-        - policy_id
-        - asset_name
-        - subject
-        - policy_script
-      properties:
-        verification_key_index: *derivationSegment
-        policy_id: *assetPolicyId
-        asset_name: *assetName
-        subject: *assetFingerprint
-        policy_script:
-          <<: *ScriptValue
-          description: The script under which this asset was minted or burned.
 
     ApiMintedBurnedTransaction: &ApiMintedBurnedTransaction
       type: object
