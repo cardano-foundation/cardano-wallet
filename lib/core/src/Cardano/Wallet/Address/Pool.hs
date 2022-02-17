@@ -1,5 +1,5 @@
+{-# LANGUAGE BangPatterns #-}
 {-# LANGUAGE DeriveGeneric #-}
-{-# LANGUAGE GADTs #-}
 {-# LANGUAGE NamedFieldPuns #-}
 {-# LANGUAGE RankNTypes #-}
 {-# LANGUAGE ScopedTypeVariables #-}
@@ -16,6 +16,7 @@ module Cardano.Wallet.Address.Pool
     ( Pool
     , generator
     , addresses
+    , usedAddresses
     , gap
     , lookup
     , size
@@ -24,6 +25,9 @@ module Cardano.Wallet.Address.Pool
     , load
     , update
     , clear
+
+    -- * Address Discovery
+    , discover
 
     -- * Internal
     , loadUnsafe
@@ -184,6 +188,11 @@ clear Pool{generator,gap} = new generator gap
 lookup :: Ord addr => addr -> Pool addr ix -> Maybe ix
 lookup addr Pool{addresses} = fst <$> Map.lookup addr addresses
 
+-- | Sorted list of all addresses that are marked 'Used' in the pool.
+usedAddresses :: Pool addr ix -> [addr]
+usedAddresses pool =
+    [ addr | (addr,(_,Used)) <- Map.toList $ addresses pool ]
+
 -- | Number of addresses cached in the pool.
 size :: Pool addr ix -> Int
 size = Map.size . addresses
@@ -238,3 +247,24 @@ ensureFresh ix pool@Pool{generator,gap,addresses}
         to = toEnum $ fromEnum ix + fromIntegral gap - 1
         -- example:
         --  ix = 0 && fresh = 0 && gap = 20 `implies` [fresh .. to] = [0..19]
+
+{-------------------------------------------------------------------------------
+    Address discovery using an address pool
+-------------------------------------------------------------------------------}
+-- | Discover transactions and addresses by
+-- using an efficient query @addr -> m txs@ and an address pool.
+discover
+    :: (Enum ix, Ord addr, Monad m, Monoid txs, Eq txs)
+    => (addr -> m txs) -> Pool addr ix -> m (txs, Pool addr ix)
+discover query pool0 =
+    go mempty pool0 $ toEnum 0
+  where
+    go !txs1 !pool1 old = do
+        -- TODO: Maybe cache the `generator` in the Pool using lazy evaluation.
+        let addr = generator pool0 old
+        newtxs <- query addr
+        let pool2 = if mempty == newtxs then pool1 else update addr pool1
+            txs2  = if mempty == newtxs then txs1 else txs1 <> newtxs
+        case successor pool2 old of
+            Nothing    -> pure (txs2, pool2)
+            Just next  -> go txs2 pool2 next

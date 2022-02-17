@@ -10,22 +10,43 @@ import Cardano.Wallet.Address.Pool
     ( Pool, addresses, generator, prop_consistent, prop_fresh, prop_gap )
 import Cardano.Wallet.Primitive.Types.Address
     ( AddressState (..) )
+import Data.Bifunctor
+    ( second )
+import Data.Foldable
+    ( fold )
+import Data.Functor.Identity
+    ( Identity (..) )
 import Data.List
-    ( sortOn )
+    ( foldl', sortOn )
+import Data.Map
+    ( Map )
+import Data.Maybe
+    ( fromMaybe )
+import Data.Set
+    ( Set )
 import Test.Hspec
     ( Spec, describe, it, parallel )
 import Test.QuickCheck
-    ( Gen, Property, choose, forAll, listOf, oneof, sized, (===) )
+    ( Gen
+    , Property
+    , choose
+    , counterexample
+    , forAll
+    , frequency
+    , listOf
+    , oneof
+    , sized
+    , (.&&.)
+    , (===)
+    )
 
 import qualified Cardano.Wallet.Address.Pool as AddressPool
 import qualified Data.Map.Strict as Map
+import qualified Data.Set as Set
 
-{-------------------------------------------------------------------------------
-    Properties
--------------------------------------------------------------------------------}
 spec :: Spec
 spec = do
-    parallel $ describe "Cardano.Wallet.Address.Pool" $ do
+    parallel $ describe "Pool invariants" $ do
         it "prop_consistent . new" $
             prop_consistent testPool
 
@@ -44,6 +65,14 @@ spec = do
             let p1 = testPool
                 p2 = AddressPool.update (AddressPool.gap p1 + 1) p1
             in  addresses p1 === addresses p2
+
+    parallel $ describe "Address discovery" $ do
+        it "discover by query = discover in sequence" $
+            prop_discover (AddressPool.new (*2) (6::Int))
+
+{-------------------------------------------------------------------------------
+    Properties
+-------------------------------------------------------------------------------}
 
 prop_updates :: (Ord addr, Ord ix, Enum ix) => Pool addr ix -> Property
 prop_updates pool = forAll (genUsageForGap $ AddressPool.gap pool) $ \usage ->
@@ -79,10 +108,35 @@ prop_updates_order pool0 = forAll genUpdates $ \pool ->
             [ addr ix | (ix,Used) <- zip [toEnum 0..] usage ]
     toUsage = map snd . sortOn fst . Map.elems . AddressPool.addresses
 
+prop_discover
+    :: Pool MockAddress Int -> Property
+prop_discover pool0 = forAll (genAddresses pool0) prop
+  where
+    prop addrs =
+        counterexample ("positions = " <> show positions) $
+        counterexample ("pool0 = " <> show (AddressPool.addresses pool0)) $
+            snd discoverQuery === discoverSequential
+            .&&. fst discoverQuery === fold positions
+      where
+        discoverSequential =
+            AddressPool.addresses
+            $ foldl' (flip AddressPool.update) pool0 addrs
+
+        positions :: Map MockAddress (Set Int)
+        positions =
+            Map.fromListWith (<>) $ zip addrs $ map Set.singleton [0..]
+
+        query a = pure . fromMaybe mempty $ Map.lookup a positions
+
+        discoverQuery =
+            second AddressPool.addresses
+            . runIdentity $ AddressPool.discover query pool0
+
 {-------------------------------------------------------------------------------
     Generators
 -------------------------------------------------------------------------------}
-type TestPool = Pool Int Int
+type MockAddress = Int
+type TestPool = Pool MockAddress Int
 
 -- | Test pool with small parameters suitable for testing.
 testPool :: TestPool
@@ -106,10 +160,26 @@ genUsageForGap gap = do
     unused = flip replicate Unused <$> choose (0,gap-1)
     uu     = (<>) <$> used <*> unused
 
--- | Generate a random address Pool that satisfies 'prop_consistent'
+-- | Generate a random address 'Pool' that satisfies 'prop_consistent'
 -- from existing pool (parameters).
 genPool :: (Ord addr, Enum ix) => Pool addr ix -> Gen (Pool addr ix)
-genPool pool = fromUsage pool <$> genUsageForGap (AddressPool.gap pool) 
+genPool pool = fromUsage pool <$> genUsageForGap (AddressPool.gap pool)
+
+-- | Generate a sequence of addresses as they may appear on the blockchain.
+-- This sequence may contain duplicates,
+-- but respects the address gap of the given pool.
+genAddresses :: (Ord addr, Enum ix) => Pool addr ix -> Gen [addr]
+genAddresses pool = sized $ go 0
+  where
+    gap = AddressPool.gap pool
+    go _    0 = pure []
+    go maxi n = do
+        i <- frequency 
+            [ (2, choose (0,maxi))
+            , (2, choose (maxi,maxi+gap-1))
+            , (1, pure (maxi+gap-1)) ]
+        let addr = AddressPool.generator pool $ toEnum i
+        (addr:) <$> go (max i maxi) (n-1)
 
 {-------------------------------------------------------------------------------
     Shrinkers
