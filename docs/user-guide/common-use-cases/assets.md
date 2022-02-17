@@ -1,4 +1,3 @@
-
 ---
 order: 6
 title: Managing native assets
