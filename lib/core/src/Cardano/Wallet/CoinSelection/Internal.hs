@@ -208,7 +208,7 @@ data SelectionParams = SelectionParams
         :: !SelectionCollateralRequirement
         -- ^ Specifies the collateral requirement for this selection.
     , utxoAvailableForCollateral
-        :: !(Map TxIn Coin)
+        :: !(Map InputId Coin)
         -- ^ Specifies a set of UTxOs that are available for selection as
         -- collateral inputs.
         --
@@ -235,14 +235,20 @@ data SelectionError
       SelectionOutputError
     deriving (Eq, Show)
 
+-- TODO: ADP-1448:
+--
+-- Replace this type synonym with a type parameter on types that use it.
+--
+type InputId = (TxIn, Address)
+
 -- | Represents a balanced selection.
 --
 data Selection = Selection
     { inputs
-        :: !(NonEmpty (TxIn, TokenBundle))
+        :: !(NonEmpty (InputId, TokenBundle))
         -- ^ Selected inputs.
     , collateral
-        :: ![(TxIn, Coin)]
+        :: ![(InputId, Coin)]
         -- ^ Selected collateral inputs.
     , outputs
         :: ![(Address, TokenBundle)]
@@ -652,9 +658,9 @@ verifySelectionCollateralSufficient cs ps selection =
 data FailureToVerifySelectionCollateralSuitable =
     FailureToVerifySelectionCollateralSuitable
     { collateralSelected
-        :: [(TxIn, Coin)]
+        :: [(InputId, Coin)]
     , collateralSelectedButUnsuitable
-        :: [(TxIn, Coin)]
+        :: [(InputId, Coin)]
     }
     deriving (Eq, Show)
 
@@ -673,7 +679,7 @@ verifySelectionCollateralSuitable _cs ps selection =
     -- all entries within 'utxoAvailableForCollateral' are suitable for use as
     -- collateral, here we merely verify that the selected entry is indeed a
     -- member of this set.
-    utxoSuitableForCollateral :: (TxIn, Coin) -> Bool
+    utxoSuitableForCollateral :: (InputId, Coin) -> Bool
     utxoSuitableForCollateral (i, c) =
         Map.singleton i c
         `Map.isSubmapOf`
@@ -1053,7 +1059,7 @@ verifyUnableToConstructChangeError cs ps errorOriginal =
 data FailureToVerifySelectionCollateralError =
     FailureToVerifySelectionCollateralError
         { largestCombination
-            :: Map TxIn Coin
+            :: Map InputId Coin
             -- ^ The largest available UTxO combination reported.
         , largestCombinationValue
             :: Coin
@@ -1062,7 +1068,7 @@ data FailureToVerifySelectionCollateralError =
             :: Int
             -- ^ The size of the largest available UTxO combination.
         , largestCombinationUnsuitableSubset
-            :: Map TxIn Coin
+            :: Map InputId Coin
             -- ^ The subset of UTxOs in the largest available combination that
             -- are not suitable for use as collateral.
             --
@@ -1090,14 +1096,14 @@ verifySelectionCollateralError cs ps e =
         ]
         (FailureToVerifySelectionCollateralError {..})
   where
-    largestCombination :: Map TxIn Coin
+    largestCombination :: Map InputId Coin
     largestCombination = e ^. #largestCombinationAvailable
     largestCombinationSize :: Int
     largestCombinationSize = Map.size largestCombination
     largestCombinationValue :: Coin
     largestCombinationValue = F.fold largestCombination
 
-    largestCombinationUnsuitableSubset :: Map TxIn Coin
+    largestCombinationUnsuitableSubset :: Map InputId Coin
     largestCombinationUnsuitableSubset = Map.withoutKeys
         (largestCombination)
         (Map.keysSet $ ps ^. #utxoAvailableForCollateral)

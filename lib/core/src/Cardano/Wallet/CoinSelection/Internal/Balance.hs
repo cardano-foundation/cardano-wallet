@@ -201,6 +201,12 @@ import qualified Data.Set as Set
 -- Performing a selection
 --------------------------------------------------------------------------------
 
+-- TODO: ADP-1448:
+--
+-- Replace this type synonym with a type parameter on types that use it.
+--
+type InputId = (TxIn, Address)
+
 -- | Specifies all constraints required for coin selection.
 --
 -- Selection constraints:
@@ -456,7 +462,7 @@ type SelectionResult = SelectionResultOf [(Address, TokenBundle)]
 --
 data SelectionResultOf outputs = SelectionResult
     { inputsSelected
-        :: !(NonEmpty (TxIn, TokenBundle))
+        :: !(NonEmpty (InputId, TokenBundle))
         -- ^ A (non-empty) list of inputs selected from 'utxoAvailable'.
     , extraCoinSource
         :: !Coin
@@ -870,11 +876,12 @@ performSelectionNonEmpty constraints params
         } = params
 
     selectionLimitReachedError
-        :: [(TxIn, TxOut)]
+        :: [(InputId, TokenBundle)]
         -> m (Either SelectionBalanceError a)
     selectionLimitReachedError inputsSelected =
         pure $ Left $ SelectionLimitReached $ SelectionLimitReachedError
-            { inputsSelected
+            { inputsSelected =
+                (\((i, a), b) -> (i, (TxOut a b))) <$> inputsSelected
             , utxoBalanceRequired
             , outputsToCover
             }
@@ -957,7 +964,7 @@ performSelectionNonEmpty constraints params
             }
         )
       where
-        inputBundles = view #tokens . snd <$> UTxOSelection.selectedList s
+        inputBundles = snd <$> UTxOSelection.selectedList s
         outputBundles = snd <$> outputsToCover
 
         noMinimumCoin :: TokenMap -> Coin
@@ -1061,7 +1068,7 @@ performSelectionNonEmpty constraints params
             }
 
         skeletonChange = predictChange s
-        inputsSelected = fmap (view #tokens) <$> UTxOSelection.selectedList s
+        inputsSelected = UTxOSelection.selectedList s
 
     invariantResultWithNoCost inputs_ = error $ unlines
         -- This should be impossible, as the 'makeChange' function should
@@ -1223,8 +1230,10 @@ selectMatchingQuantity filters limit s
         MaximumInputLimit m -> UTxOSelection.selectedSize s >= m
         NoLimit -> False
 
-    updateState :: ((TxIn, TxOut), UTxOIndex) -> Maybe UTxOSelectionNonEmpty
-    updateState ((i, _o), _remaining) = UTxOSelection.select i s
+    updateState
+        :: ((InputId, TokenBundle), UTxOIndex)
+        -> Maybe UTxOSelectionNonEmpty
+    updateState ((i, _b), _remaining) = UTxOSelection.select i s
 
 --------------------------------------------------------------------------------
 -- Running a selection step

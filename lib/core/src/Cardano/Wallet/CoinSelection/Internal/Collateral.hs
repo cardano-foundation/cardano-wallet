@@ -61,6 +61,8 @@ module Cardano.Wallet.CoinSelection.Internal.Collateral
     )
     where
 
+import Cardano.Wallet.Primitive.Types.Address
+    ( Address )
 import Cardano.Wallet.Primitive.Types.Coin
     ( Coin )
 import Cardano.Wallet.Primitive.Types.Tx
@@ -145,7 +147,7 @@ data SelectionParamsOf inputId = SelectionParams
 
 -- | The default type for 'SelectionParamsOf'.
 --
-type SelectionParams = SelectionParamsOf TxIn
+type SelectionParams = SelectionParamsOf InputId
 
 -- | Specifies an upper bound on the search space size.
 --
@@ -177,7 +179,7 @@ newtype SelectionResultOf inputId = SelectionResult
 
 -- | The default type for 'SelectionResultOf'.
 --
-type SelectionResult = SelectionResultOf TxIn
+type SelectionResult = SelectionResultOf InputId
 
 -- | A completely empty result, with no inputs selected.
 --
@@ -196,9 +198,15 @@ data SelectionCollateralErrorOf inputId = SelectionCollateralError
     }
     deriving (Eq, Generic, Show)
 
+-- TODO: ADP-1448:
+--
+-- Replace this type synonym with a type parameter on types that use it.
+--
+type InputId = (TxIn, Address)
+
 -- | The default type for `SelectionCollateralErrorOf`.
 --
-type SelectionCollateralError = SelectionCollateralErrorOf TxIn
+type SelectionCollateralError = SelectionCollateralErrorOf InputId
 
 -- | Selects coins for collateral.
 --
