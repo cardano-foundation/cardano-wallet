@@ -158,7 +158,7 @@ module Cardano.Wallet
     -- ** Transaction
     , forgetTx
     , listTransactions
-    , extractWalletAssetsFromTxs
+    , listAssets
     , getTransaction
     , submitExternalTx
     , submitTx
@@ -2491,14 +2491,17 @@ listTransactions ctx wid mMinWithdrawal mStart mEnd order = db & \DBLayer{..} ->
                 $ Range mStart mEnd
 
 -- | Extract assets associated with a given wallet from its transaction history.
-extractWalletAssetsFromTxs
+listAssets
     :: forall s k ctx. (HasDBLayer IO s k ctx, IsOurs s Address)
     => ctx
     -> WalletId
-    -> [TransactionInfo]
-    -> ExceptT ErrNoSuchWallet IO [TokenMap.AssetId]
-extractWalletAssetsFromTxs ctx wid txInfos = db & \DBLayer{..} -> do
+    -> ExceptT ErrNoSuchWallet IO (Set TokenMap.AssetId)
+listAssets ctx wid = db & \DBLayer{..} -> do
     cp <- mapExceptT atomically $ withNoSuchWallet wid $ readCheckpoint wid
+    txs <- lift . atomically $
+        let noMinWithdrawal = Nothing
+            allTxStatuses = Nothing
+        in readTxHistory wid noMinWithdrawal Ascending wholeRange allTxStatuses
     let txAssets :: TransactionInfo -> Set TokenMap.AssetId
         txAssets = Set.unions
             . map (TokenBundle.getAssets . view #tokens)
@@ -2506,7 +2509,7 @@ extractWalletAssetsFromTxs ctx wid txInfos = db & \DBLayer{..} -> do
             . txInfoOutputs
         ourOut TxOut {address} = ourAddress address
         ourAddress addr = isJust . fst . isOurs addr $ getState cp
-    pure $ Set.toList $ Set.unions $ map txAssets txInfos
+    pure $ Set.unions $ map txAssets txs
   where
     db = ctx ^. dbLayer @IO @s @k
 

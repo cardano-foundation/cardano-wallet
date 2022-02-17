@@ -1739,7 +1739,7 @@ listAssets
     -> Handler [ApiAsset]
 listAssets ctx wid = do
     assets <- listAssetsBase ctx wid
-    liftIO $ fillMetadata client assets toApiAsset
+    liftIO $ fillMetadata client (Set.toList assets) toApiAsset
   where
     client = ctx ^. tokenMetadataClient
 
@@ -1747,12 +1747,10 @@ listAssets ctx wid = do
 -- wallet.
 listAssetsBase
     :: forall s k. IsOurs s Address =>
-    ApiLayer s k -> ApiT WalletId -> Handler [AssetId]
+    ApiLayer s k -> ApiT WalletId -> Handler (Set AssetId)
 listAssetsBase ctx (ApiT wallet) =
-    withWorkerCtx ctx wallet liftE liftE $ \wctx -> do
-        txs <- liftHandler $
-            W.listTransactions wctx wallet Nothing Nothing Nothing Descending
-        liftHandler $ W.extractWalletAssetsFromTxs wctx wallet txs
+    withWorkerCtx ctx wallet liftE liftE $ \wctx ->
+        liftHandler $ W.listAssets wctx wallet
 
 -- | Look up a single asset and its metadata.
 --

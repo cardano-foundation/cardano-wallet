@@ -1,9 +1,11 @@
+{-# LANGUAGE ApplicativeDo #-}
 {-# LANGUAGE DataKinds #-}
 {-# LANGUAGE DeriveGeneric #-}
 {-# LANGUAGE FlexibleContexts #-}
 {-# LANGUAGE FlexibleInstances #-}
 {-# LANGUAGE GeneralizedNewtypeDeriving #-}
 {-# LANGUAGE MultiParamTypeClasses #-}
+{-# LANGUAGE NamedFieldPuns #-}
 {-# LANGUAGE OverloadedLabels #-}
 {-# LANGUAGE RecordWildCards #-}
 {-# LANGUAGE ScopedTypeVariables #-}
@@ -115,7 +117,7 @@ import Cardano.Wallet.Primitive.Types.Hash
 import Cardano.Wallet.Primitive.Types.RewardAccount
     ( RewardAccount (..) )
 import Cardano.Wallet.Primitive.Types.TokenBundle
-    ( TokenBundle )
+    ( TokenBundle (TokenBundle), getAssets )
 import Cardano.Wallet.Primitive.Types.Tx
     ( Direction (..)
     , LocalTxSubmissionStatus (..)
@@ -224,6 +226,7 @@ import Test.QuickCheck
     , counterexample
     , cover
     , elements
+    , forAll
     , forAllBlind
     , label
     , liftArbitrary
@@ -273,6 +276,11 @@ import qualified Cardano.Wallet.DB.Sqlite.AddressBook as Sqlite
 import qualified Cardano.Wallet.Primitive.Migration as Migration
 import qualified Cardano.Wallet.Primitive.Types.Coin as Coin
 import qualified Cardano.Wallet.Primitive.Types.TokenBundle as TokenBundle
+import qualified Cardano.Wallet.Primitive.Types.TokenMap as TokenMap
+import Cardano.Wallet.Primitive.Types.TokenMap.Gen
+    ( genAssetIdLargeRange )
+import Cardano.Wallet.Primitive.Types.TokenQuantity.Gen
+    ( genTokenQuantityPositive )
 import qualified Data.ByteArray as BA
 import qualified Data.ByteString as BS
 import qualified Data.ByteString.Char8 as B8
@@ -322,6 +330,8 @@ spec = parallel $ describe "Cardano.WalletSpec" $ do
             (withMaxSuccess 10 $ property walletKeyIsReencrypted)
         it "Wallet can list transactions"
             (property walletListTransactionsSorted)
+        it "Wallet can list assets"
+            (property walletListAssets)
 
     describe "Tx fee estimation" $
         it "Fee estimates are sound"
@@ -628,7 +638,7 @@ walletListTransactionsSorted
     -> Property
 walletListTransactionsSorted wallet@(wid, _, _) _order (_mstart, _mend) history =
     monadicIO $ liftIO $ do
-        WalletLayerFixture DBLayer{..} wl _ slotNoTime <- liftIO $ setupFixture wallet
+        WalletLayerFixture DBLayer{..} wl _ slotNoTime <- setupFixture wallet
         atomically $ unsafeRunExceptT $ putTxHistory wid history
         txs <- unsafeRunExceptT $
             W.listTransactions @_ @_ @_ wl wid Nothing Nothing Nothing Descending
@@ -641,6 +651,36 @@ walletListTransactionsSorted wallet@(wid, _, _) _order (_mstart, _mend) history 
                 [ (tx ^. #txId, slotNoTime (meta ^. #slotNo))
                 | (tx, meta) <- history ]
         times `shouldBe` expTimes
+
+walletListAssets
+    :: (WalletId, WalletName, DummyState) -> Hash "Tx" -> TxMeta -> Property
+walletListAssets wallet@(wid, _, _) txId txm =
+    forAll genParams $ \out@TxOut{tokens} -> monadicIO $ do
+        WalletLayerFixture DBLayer{..} wl _ _ <- liftIO $ setupFixture wallet
+        let listHistoricalAssets hry = do
+                liftIO . atomically . unsafeRunExceptT $ putTxHistory wid hry
+                liftIO . unsafeRunExceptT $ W.listAssets wl wid
+
+        let tx = Tx { txId
+                    , fee = Nothing
+                    , resolvedCollateral = mempty
+                    , resolvedInputs = mempty
+                    , outputs = [out]
+                    , metadata = mempty
+                    , withdrawals = mempty
+                    , scriptValidity = Nothing
+                    }
+        assets <- listHistoricalAssets [ (tx, txm) ]
+        monitor $ counterexample $ "Discovered assets: " <> show assets
+        assert $ assets == getAssets tokens
+  where
+    genParams :: Gen TxOut
+    genParams = do
+        assetId <- genAssetIdLargeRange
+        address <- genAddress
+        coin <- genCoinPositive
+        tokenMap <- TokenMap.singleton assetId <$> genTokenQuantityPositive
+        pure TxOut {tokens = TokenBundle coin tokenMap, ..}
 
 {-------------------------------------------------------------------------------
                         Properties of tx fee estimation
@@ -1048,15 +1088,10 @@ genMigrationUTxO mockTxConstraints = do
     UTxO . Map.fromList <$> replicateM entryCount genUTxOEntry
   where
     genUTxOEntry :: Gen (TxIn, TxOut)
-    genUTxOEntry = (,) <$> genTxIn <*> genTxOut
-      where
-        genTxIn :: Gen TxIn
-        genTxIn = genTxInLargeRange
-
-        genTxOut :: Gen TxOut
-        genTxOut = TxOut
-            <$> genAddress
-            <*> genTokenBundleMixed mockTxConstraints
+    genUTxOEntry =
+        (,)
+        <$> genTxInLargeRange
+        <*> (TxOut <$> genAddress <*> genTokenBundleMixed mockTxConstraints)
 
 -- Tests that user-specified target addresses are assigned to generated outputs
 -- in the correct cyclical order.
