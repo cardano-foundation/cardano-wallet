@@ -1,6 +1,7 @@
 {-# LANGUAGE ApplicativeDo #-}
 {-# LANGUAGE DataKinds #-}
 {-# LANGUAGE DeriveGeneric #-}
+{-# LANGUAGE DerivingStrategies #-}
 {-# LANGUAGE FlexibleContexts #-}
 {-# LANGUAGE FlexibleInstances #-}
 {-# LANGUAGE GeneralizedNewtypeDeriving #-}
@@ -332,6 +333,8 @@ spec = parallel $ describe "Cardano.WalletSpec" $ do
             (property walletListTransactionsSorted)
         it "Wallet can list assets"
             (property walletListAssets)
+        it "Wallet won't list unrelated assets used in related transactions"
+            (property walletListsOnlyRelatedAssets)
 
     describe "Tx fee estimation" $
         it "Fee estimates are sound"
@@ -680,7 +683,58 @@ walletListAssets wallet@(wid, _, _) txId txm =
         address <- genAddress
         coin <- genCoinPositive
         tokenMap <- TokenMap.singleton assetId <$> genTokenQuantityPositive
-        pure TxOut {tokens = TokenBundle coin tokenMap, ..}
+        pure TxOut { tokens = TokenBundle coin tokenMap, address }
+
+newtype DummyStateWithAddresses = DummyStateWithAddresses [Address]
+  deriving stock (Show)
+
+instance IsOurs DummyStateWithAddresses Address where
+    isOurs a s@(DummyStateWithAddresses addr) =
+        if a `elem` addr
+            then (Just (DerivationIndex 0 :| []), s)
+            else (Nothing, s)
+
+instance IsOurs DummyStateWithAddresses RewardAccount where
+    isOurs _ s = (Nothing, s)
+
+walletListsOnlyRelatedAssets :: Hash "Tx" -> TxMeta -> Property
+walletListsOnlyRelatedAssets txId txMeta =
+    forAll genOuts $ \(out1, out2, wallet@(wid, _, _)) -> monadicIO $ do
+        WalletLayerFixture DBLayer{..} wl _ _ <- liftIO $ setupFixture wallet
+        let listHistoricalAssets hry = do
+                liftIO . atomically . unsafeRunExceptT $ putTxHistory wid hry
+                liftIO . unsafeRunExceptT $ W.listAssets wl wid
+        let tx = Tx { txId
+                    , fee = Nothing
+                    , resolvedCollateral = mempty
+                    , resolvedInputs = mempty
+                    , outputs = [out1, out2]
+                    , metadata = mempty
+                    , withdrawals = mempty
+                    , scriptValidity = Nothing
+                    }
+        assets <- listHistoricalAssets [ (tx, txMeta) ]
+        monitor $ report out1 "Output with related address"
+        monitor $ report out2 "Output with unrelated address"
+        monitor $ report assets "Discovered assets"
+        assert $ assets == getAssets (out1 ^. #tokens)
+  where
+    genOuts ::
+        Gen (TxOut, TxOut, (WalletId, WalletName, DummyStateWithAddresses))
+    genOuts = do
+        relatedAddress <- genAddress
+        unrelatedAddress <- genAddress `suchThat` (/= relatedAddress)
+        coin <- genCoinPositive
+        let bundle aid = TokenBundle coin . TokenMap.singleton aid <$>
+                genTokenQuantityPositive
+        tokenBundle1 <- genAssetIdLargeRange >>= bundle
+        tokenBundle2 <- genAssetIdLargeRange >>= bundle
+        wId <- arbitrary
+        wName <- arbitrary
+        pure ( TxOut { tokens = tokenBundle1, address = relatedAddress }
+             , TxOut { tokens = tokenBundle2, address = unrelatedAddress }
+             , (wId, wName, DummyStateWithAddresses [relatedAddress])
+             )
 
 {-------------------------------------------------------------------------------
                         Properties of tx fee estimation
@@ -1261,17 +1315,23 @@ instance Arbitrary UTxO where
             <*> vector n
         return $ UTxO $ Map.fromList utxo
 
-data WalletLayerFixture m = WalletLayerFixture
-    { _fixtureDBLayer :: DBLayer m DummyState ShelleyKey
-    , _fixtureWalletLayer :: WalletLayer m DummyState ShelleyKey
+data WalletLayerFixture s m = WalletLayerFixture
+    { _fixtureDBLayer :: DBLayer m s ShelleyKey
+    , _fixtureWalletLayer :: WalletLayer m s ShelleyKey
     , _fixtureWallet :: [WalletId]
     , _fixtureSlotNoTime :: SlotNo -> UTCTime
     }
 
 setupFixture
-    :: (MonadUnliftIO m, MonadFail m, MonadTime m)
-    => (WalletId, WalletName, DummyState)
-    -> m (WalletLayerFixture m)
+    :: forall s m
+     . ( MonadUnliftIO m
+       , MonadFail m
+       , MonadTime m
+       , IsOurs s Address
+       , IsOurs s RewardAccount
+       )
+    => (WalletId, WalletName, s)
+    -> m (WalletLayerFixture s m)
 setupFixture (wid, wname, wstate) = do
     let nl = mockNetworkLayer
     let tl = dummyTransactionLayer
@@ -1441,7 +1501,6 @@ instance Arbitrary (Passphrase purpose) where
     shrink _ = []
     arbitrary =
         Passphrase . BA.convert . BS.pack <$> replicateM 16 arbitrary
-
 
 instance Arbitrary SomeMnemonic where
     arbitrary = SomeMnemonic <$> genMnemonic @12
