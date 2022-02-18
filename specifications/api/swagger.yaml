@@ -4072,6 +4072,17 @@ x-errCreatedMultiaccountTransaction: &errCreatedMultiaccountTransaction
       type: string
       enum: ['created_multiaccount_transaction']
 
+x-errCreatedWrongPolicyScriptTemplate: &errCreatedWrongPolicyScriptTemplate
+  <<: *responsesErr
+  title: created_wrong_policy_script_template
+  properties:
+    message:
+      type: string
+      description: Occurs when a policy script template is either does not pass validation or has more than one cosigner.
+    code:
+      type: string
+      enum: ['created_wrong_policy_script_template']
+
 x-errInputsDepleted: &errInputsDepleted
   <<: *responsesErr
   title: inputs_depleted
@@ -5131,6 +5142,7 @@ x-responsesConstructTransaction: &responsesConstructTransaction
             - <<: *errTransactionIsTooBig
             - <<: *errCreatedMultidelegationTransaction
             - <<: *errCreatedMultiaccountTransaction
+            - <<: *errCreatedWrongPolicyScriptTemplate
   <<: *responsesErr404WalletNotFound
   <<: *responsesErr406
   <<: *responsesErr415UnsupportedMediaType

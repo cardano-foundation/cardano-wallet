@@ -122,7 +122,12 @@ import Prelude
 import Cardano.Address.Derivation
     ( XPrv, XPub, xpubPublicKey, xpubToBytes )
 import Cardano.Address.Script
-    ( Cosigner (..), ScriptTemplate (..), ValidationLevel (..) )
+    ( Cosigner (..)
+    , ScriptTemplate (..)
+    , ValidationLevel (..)
+    , foldScript
+    , validateScriptOfTemplate
+    )
 import Cardano.Api
     ( AnyCardanoEra (..), CardanoEra (..), SerialiseAsCBOR (..) )
 import Cardano.BM.Tracing
@@ -224,6 +229,7 @@ import Cardano.Wallet.Api.Types
     , ApiExternalInput (..)
     , ApiFee (..)
     , ApiForeignStakeKey (..)
+    , ApiMintBurnData (..)
     , ApiMintedBurnedTransaction (..)
     , ApiMnemonicT (..)
     , ApiMultiDelegationAction (..)
@@ -504,6 +510,8 @@ import Data.ByteString
     ( ByteString )
 import Data.Coerce
     ( coerce )
+import Data.Either
+    ( isRight )
 import Data.Either.Extra
     ( eitherToMaybe )
 import Data.Function
@@ -2156,6 +2164,14 @@ constructTransaction ctx genChange knownPools getPoolStatus (ApiT wid) body = do
             isNothing (body ^. #delegations)
     when isNoPayload $
         liftHandler $ throwE ErrConstructTxWrongPayload
+
+    let mintingBurning = body ^. #mintedBurned
+    let retrieveAllCosigners = foldScript (:) []
+    let wrongMintingTemplate (ApiMintBurnData _ (ApiT scriptTempl) _ _) =
+            isRight (validateScriptOfTemplate RecommendedValidation scriptTempl) ||
+            length (retrieveAllCosigners scriptTempl) > 1
+    when (isJust mintingBurning && L.any wrongMintingTemplate (NE.toList $ fromJust mintingBurning)) $
+        liftHandler $ throwE ErrConstructTxWrongMintingBurningTemplate
 
     let checkIx (ApiStakeKeyIndex (ApiT derIndex)) =
             derIndex == DerivationIndex (getIndex @'Hardened minBound)
@@ -3989,6 +4005,12 @@ instance IsServerError ErrConstructTx where
             [ "It looks like I've created a transaction "
             , "with a delegation, which uses a stake key for the unsupported account."
             , "Please use delegation action engaging '0H' account."
+            ]
+        ErrConstructTxWrongMintingBurningTemplate ->
+            apiError err403 CreatedWrongPolicyScriptTemplate $ mconcat
+            [ "It looks like I've created a transaction "
+            , "with a minting/burning policy script that either does not "
+            , "pass validation or contains more than one cosigner."
             ]
         ErrConstructTxNotImplemented _ ->
             apiError err501 NotImplemented
