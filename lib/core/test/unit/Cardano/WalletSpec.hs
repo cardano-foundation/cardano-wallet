@@ -655,36 +655,6 @@ walletListTransactionsSorted wallet@(wid, _, _) _order (_mstart, _mend) history 
                 | (tx, meta) <- history ]
         times `shouldBe` expTimes
 
-walletListAssets
-    :: (WalletId, WalletName, DummyState) -> Hash "Tx" -> TxMeta -> Property
-walletListAssets wallet@(wid, _, _) txId txm =
-    forAll genParams $ \out@TxOut{tokens} -> monadicIO $ do
-        WalletLayerFixture DBLayer{..} wl _ _ <- liftIO $ setupFixture wallet
-        let listHistoricalAssets hry = do
-                liftIO . atomically . unsafeRunExceptT $ putTxHistory wid hry
-                liftIO . unsafeRunExceptT $ W.listAssets wl wid
-
-        let tx = Tx { txId
-                    , fee = Nothing
-                    , resolvedCollateral = mempty
-                    , resolvedInputs = mempty
-                    , outputs = [out]
-                    , metadata = mempty
-                    , withdrawals = mempty
-                    , scriptValidity = Nothing
-                    }
-        assets <- listHistoricalAssets [ (tx, txm) ]
-        monitor $ counterexample $ "Discovered assets: " <> show assets
-        assert $ assets == getAssets tokens
-  where
-    genParams :: Gen TxOut
-    genParams = do
-        assetId <- genAssetIdLargeRange
-        address <- genAddress
-        coin <- genCoinPositive
-        tokenMap <- TokenMap.singleton assetId <$> genTokenQuantityPositive
-        pure TxOut { tokens = TokenBundle coin tokenMap, address }
-
 newtype DummyStateWithAddresses = DummyStateWithAddresses [Address]
   deriving stock (Show)
 
