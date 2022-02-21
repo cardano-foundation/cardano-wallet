@@ -77,11 +77,12 @@ import Cardano.Wallet.Primitive.AddressDerivation
     , mutableAccount
     )
 import Cardano.Wallet.Primitive.AddressDiscovery
-    ( GetPurpose (..), IsOurs (..) )
+    ( DiscoverTxs (..), GetPurpose (..), IsOurs (..), MaybeLight (..) )
 import Cardano.Wallet.Primitive.AddressDiscovery.Sequential
     ( DerivationPrefix (..)
     , SeqState (..)
     , coinTypeAda
+    , discoverSeqWithRewards
     , purposeBIP44
     , purposeCIP1852
     , rewardAccountKey
@@ -396,6 +397,11 @@ instance ToRewardAccount ShelleyKey where
 
 toRewardAccountRaw :: XPub -> RewardAccount
 toRewardAccountRaw = RewardAccount . blake2b224 . xpubPublicKey
+
+instance DelegationAddress n ShelleyKey
+    => MaybeLight (SeqState n ShelleyKey)
+  where
+    maybeDiscover = Just $ DiscoverTxs discoverSeqWithRewards
 
 {-------------------------------------------------------------------------------
                           Storing and retrieving keys
