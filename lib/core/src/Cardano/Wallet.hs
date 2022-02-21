@@ -2507,7 +2507,7 @@ listAssets ctx wid = db & \DBLayer{..} -> do
             . map (TokenBundle.getAssets . view #tokens)
             . filter ourOut
             . txInfoOutputs
-        ourOut TxOut {address} = ourAddress address
+        ourOut TxOut{address} = ourAddress address
         ourAddress addr = isJust . fst . isOurs addr $ getState cp
     pure $ Set.unions $ map txAssets txs
   where
