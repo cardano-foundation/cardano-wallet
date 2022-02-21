@@ -62,11 +62,13 @@ This procedure can be visualized in a flow chart:
 :::{.mermaid-container}
 ```mermaid
 flowchart TB
-  start([begin]) --> init[j := 0]
+  start([begin]) --> init[j := 0\ng := 0\ngap := 20]
   init --> query[query addr_j]
   query --> tx{transactions?}
-  tx -- no --> g{happened g times?}
-  tx -- yes --> add[j := j+1]
+  tx -- no --> gapAdd[g := g+1] 
+  gapAdd --> g{g > gap?}
+  tx -- yes --> gapReset[g := 0]
+  gapReset --> add[j := j+1]
   g -- yes ----> e([end])
   g -- no --> add
   add --> query
