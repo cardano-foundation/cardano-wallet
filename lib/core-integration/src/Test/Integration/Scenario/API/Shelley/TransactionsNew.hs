@@ -2934,7 +2934,7 @@ spec = describe "NEW_SHELLEY_TRANSACTIONS" $ do
                         (`shouldBe` balance)
                 ]
 
-    it "TRANS_NEW_CREATE_10a - Minting/burning assets - incorrect template" $ \ctx -> runResourceT $ do
+    it "TRANS_NEW_CREATE_10a - Minting/burning assets - more than one cosigner in template" $ \ctx -> runResourceT $ do
         wa <- fixtureWallet ctx
         addrs <- listAddresses @n ctx wa
         let destination = (addrs !! 1) ^. #id
@@ -2968,6 +2968,37 @@ spec = describe "NEW_SHELLEY_TRANSACTIONS" $ do
             , expectErrorMessage errMsg403CreatedWrongPolicyScriptTemplate
             ]
 
+    it "TRANS_NEW_CREATE_10b - Minting/burning assets - incorrect template" $ \ctx -> runResourceT $ do
+        wa <- fixtureWallet ctx
+        addrs <- listAddresses @n ctx wa
+        let destination = (addrs !! 1) ^. #id
+
+        let payload = Json [json|{
+                "minted_burned": [{
+                    "policy_script_template":
+                        { "all":
+                           [ { "active_from": 120 }
+                           ]
+                        },
+                    "asset_name": "ab12",
+                    "operation":
+                        { "mint" :
+                              { "receiving_address": #{destination},
+                                 "amount": {
+                                     "quantity": 10000,
+                                     "unit": "assets"
+                                  }
+                              }
+                        }
+                }]
+            }|]
+
+        rTx <- request @(ApiConstructTransaction n) ctx
+            (Link.createUnsignedTransaction @'Shelley wa) Default payload
+        verify rTx
+            [ expectResponseCode HTTP.status403
+            , expectErrorMessage errMsg403CreatedWrongPolicyScriptTemplate
+            ]
   where
 
     -- | Just one million Ada, in Lovelace.
