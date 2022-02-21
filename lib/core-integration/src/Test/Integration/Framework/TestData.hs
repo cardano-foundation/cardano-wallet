@@ -105,6 +105,7 @@ module Test.Integration.Framework.TestData
     , errMsg403MissingWitsInTransaction
     , errMsg403MultidelegationTransaction
     , errMsg403MultiaccountTransaction
+    , errMsg403CreatedWrongPolicyScriptTemplate
     ) where
 
 import Prelude
@@ -667,6 +668,13 @@ errMsg403MultiaccountTransaction = mconcat
     [ "It looks like I've created a transaction "
     , "with a delegation, which uses a stake key for the unsupported account."
     , "Please use delegation action engaging '0H' account."
+    ]
+
+errMsg403CreatedWrongPolicyScriptTemplate :: String
+errMsg403CreatedWrongPolicyScriptTemplate = mconcat
+    [ "It looks like I've created a transaction "
+    , "with a minting/burning policy script that either does not "
+    , "pass validation or contains more than one cosigner."
     ]
 
 --------------------------------------------------------------------------------

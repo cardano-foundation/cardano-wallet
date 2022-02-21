@@ -182,6 +182,7 @@ import Test.Integration.Framework.DSL
     )
 import Test.Integration.Framework.TestData
     ( errMsg403Collateral
+    , errMsg403CreatedWrongPolicyScriptTemplate
     , errMsg403Fee
     , errMsg403ForeignTransaction
     , errMsg403InvalidConstructTx
@@ -2932,6 +2933,41 @@ spec = describe "NEW_SHELLEY_TRANSACTIONS" $ do
                         (#balance . #available . #getQuantity)
                         (`shouldBe` balance)
                 ]
+
+    it "TRANS_NEW_CREATE_10a - Minting/burning assets - incorrect template" $ \ctx -> runResourceT $ do
+        wa <- fixtureWallet ctx
+        addrs <- listAddresses @n ctx wa
+        let destination = (addrs !! 1) ^. #id
+
+        let payload = Json [json|{
+                "minted_burned": [{
+                    "policy_script_template":
+                        { "all":
+                           [ "cosigner#0",
+                             "cosigner#1",
+                             { "active_from": 120 }
+                           ]
+                        },
+                    "asset_name": "ab12",
+                    "operation":
+                        { "mint" :
+                              { "receiving_address": #{destination},
+                                 "amount": {
+                                     "quantity": 10000,
+                                     "unit": "assets"
+                                  }
+                              }
+                        }
+                }]
+            }|]
+
+        rTx <- request @(ApiConstructTransaction n) ctx
+            (Link.createUnsignedTransaction @'Shelley wa) Default payload
+        verify rTx
+            [ expectResponseCode HTTP.status403
+            , expectErrorMessage errMsg403CreatedWrongPolicyScriptTemplate
+            ]
+
   where
 
     -- | Just one million Ada, in Lovelace.
