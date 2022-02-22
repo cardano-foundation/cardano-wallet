@@ -848,7 +848,7 @@ postAccountWallet
     -> AccountPostData
     -> Handler w
 postAccountWallet ctx mkWallet liftKey coworker body = do
-    let state = mkSeqStateFromAccountXPub (liftKey accXPub) purposeCIP1852 g
+    let state = mkSeqStateFromAccountXPub (liftKey accXPub) Nothing purposeCIP1852 g
     void $ liftHandler $ createWalletWorker @_ @s @k ctx wid
         (\wrk -> W.createWallet @(WorkerCtx ctx) @_ @s @k wrk wid wName state)
         coworker

@@ -21,7 +21,7 @@
 
 {-# OPTIONS_GHC -fno-warn-orphans #-}
 {-# OPTIONS_GHC -Wno-redundant-constraints #-}
--- We intentionally specify the constraint  (k == SharedKey) ~ 'False  
+-- We intentionally specify the constraint  (k == SharedKey) ~ 'False
 -- in some exports.
 
 -- |
@@ -98,6 +98,8 @@ import Cardano.Wallet.Primitive.AddressDerivation
     , SoftDerivation (..)
     , WalletKey (..)
     )
+import Cardano.Wallet.Primitive.AddressDerivation.MintBurn
+    ( derivePolicyPrivateKey )
 import Cardano.Wallet.Primitive.AddressDerivation.SharedKey
     ( SharedKey (..) )
 import Cardano.Wallet.Primitive.AddressDiscovery
@@ -307,6 +309,11 @@ instance PersistPublicKey (key 'AccountK) => Buildable (key 'AccountK XPub) wher
       where
         xpubF = hexF $ serializeXPub key
 
+instance PersistPublicKey (key 'PolicyK) => Buildable (key 'PolicyK XPub) where
+    build key = prefixF 8 xpubF <> "..." <> suffixF 8 xpubF
+      where
+        xpubF = hexF $ serializeXPub key
+
 instance Buildable (ScriptTemplate, Maybe ScriptTemplate) where
     build (paymentTemplate, delegationTemplateM) =
         mempty <> " payment script credential: " <> scriptPaymentF <>
@@ -442,6 +449,8 @@ data SeqState (n :: NetworkDiscriminant) k = SeqState
         -- (cf: 'PendingIxs')
     , accountXPub :: k 'AccountK XPub
         -- ^ The account public key associated with this state
+    , policyXPub :: Maybe (k 'PolicyK XPub)
+        -- ^ The policy public key associated with this state derived for policy key hardened index=0
     , rewardAccountKey :: k 'AddressK XPub
         -- ^ Reward account public key associated with this wallet
     , derivationPrefix :: DerivationPrefix
@@ -452,12 +461,14 @@ data SeqState (n :: NetworkDiscriminant) k = SeqState
 deriving instance
     ( Show (k 'AccountK XPub)
     , Show (k 'AddressK XPub)
+    , Show (k 'PolicyK XPub)
     , Show (KeyFingerprint "payment" k)
     ) => Show (SeqState n k)
 
 instance
     ( NFData (k 'AccountK XPub)
     , NFData (k 'AddressK XPub)
+    , NFData (k 'PolicyK XPub)
     , NFData (KeyFingerprint "payment" k)
     )
     => NFData (SeqState n k)
@@ -466,12 +477,13 @@ instance
 instance
     ( Eq (k 'AccountK XPub)
     , Eq (k 'AddressK XPub)
+    , Eq (k 'PolicyK XPub)
     , Eq (KeyFingerprint "payment" k)
     ) => Eq (SeqState n k)
   where
-    SeqState ai ae a1 a2 a3 a4 == SeqState bi be b1 b2 b3 b4
+    SeqState ai ae a1 a2 a3 a4 a5 == SeqState bi be b1 b2 b3 b4 b5
         = and
-            [a1 == b1, a2 == b2, a3 == b3, a4 == b4
+            [a1 == b1, a2 == b2, a3 == b3, a4 == b4, a5 == b5
             , ae `match` be, ai `match` bi
             ]
       where
@@ -522,8 +534,9 @@ mkSeqStateFromRootXPrv
     -> AddressPoolGap
     -> SeqState n k
 mkSeqStateFromRootXPrv (rootXPrv, pwd) =
-    mkSeqStateFromAccountXPub $
-        publicKey $ deriveAccountPrivateKey pwd rootXPrv minBound
+    mkSeqStateFromAccountXPub
+        (publicKey $ deriveAccountPrivateKey pwd rootXPrv minBound)
+        (Just $ publicKey $ liftRawKey $ derivePolicyPrivateKey pwd (getRawKey rootXPrv) minBound)
 
 -- | Construct a Sequential state for a wallet from public account key.
 mkSeqStateFromAccountXPub
@@ -532,13 +545,15 @@ mkSeqStateFromAccountXPub
         , (k == SharedKey) ~ 'False
         )
     => k 'AccountK XPub
+    -> Maybe (k 'PolicyK XPub)
     -> Index 'Hardened 'PurposeK
     -> AddressPoolGap
     -> SeqState n k
-mkSeqStateFromAccountXPub accXPub purpose g = SeqState
+mkSeqStateFromAccountXPub accXPub policyXPubM purpose g = SeqState
     { internalPool = newSeqAddressPool @n accXPub g
     , externalPool = newSeqAddressPool @n accXPub g
     , accountXPub = accXPub
+    , policyXPub = policyXPubM
     , rewardAccountKey = rewardXPub
     , pendingChangeIxs = emptyPendingIxs
     , derivationPrefix = DerivationPrefix ( purpose, coinTypeAda, minBound )
@@ -610,7 +625,7 @@ instance
     -- See also: 'nextChangeIndex'
     type ArgGenChange (SeqState n k) =
         (k 'AddressK XPub -> k 'AddressK XPub -> Address)
-    
+
     genChange mkAddress st =
         (addr, st{ pendingChangeIxs = pending' })
       where
@@ -627,7 +642,7 @@ instance
     isOwned st (rootPrv, pwd) addrRaw =
         case paymentKeyFingerprint addrRaw of
             Left _ -> Nothing
-            Right addr -> 
+            Right addr ->
                 let
                     xPrv1 = lookupAndDeriveXPrv addr (internalPool st)
                     xPrv2 = lookupAndDeriveXPrv addr (externalPool st)
@@ -645,10 +660,10 @@ instance
             -> Maybe (k 'AddressK XPrv)
         lookupAndDeriveXPrv addr (SeqAddressPool pool) =
                 deriveAddressPrivateKey pwd accountPrv (role @c)
-            <$> AddressPool.lookup addr pool 
+            <$> AddressPool.lookup addr pool
 
 instance SupportsDiscovery n k => CompareDiscovery (SeqState n k) where
-    compareDiscovery (SeqState !s1 !s2 _ _ _ _) a1 a2 =
+    compareDiscovery (SeqState !s1 !s2 _ _ _ _ _) a1 a2 =
         case (ix a1 s1 <|> ix a1 s2, ix a2 s1 <|> ix a2 s2) of
             (Nothing, Nothing) -> EQ
             (Nothing, Just _)  -> GT
@@ -722,12 +737,14 @@ newtype SeqAnyState (network :: NetworkDiscriminant) key (p :: Nat) = SeqAnyStat
 deriving instance
     ( Show (k 'AccountK XPub)
     , Show (k 'AddressK XPub)
+    , Show (k 'PolicyK XPub)
     , Show (KeyFingerprint "payment" k)
     ) => Show (SeqAnyState n k p)
 
 instance
     ( NFData (k 'AccountK XPub)
     , NFData (k 'AddressK XPub)
+    , NFData (k 'PolicyK XPub)
     , NFData (KeyFingerprint "payment" k)
     )
     => NFData (SeqAnyState n k p)
