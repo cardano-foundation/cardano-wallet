@@ -2173,6 +2173,12 @@ constructTransaction ctx genChange knownPools getPoolStatus (ApiT wid) body = do
     when (isJust mintingBurning && L.any wrongMintingTemplate (NE.toList $ fromJust mintingBurning)) $
         liftHandler $ throwE ErrConstructTxWrongMintingBurningTemplate
 
+    let havingVerKeySpecifified apiMintBurn =
+            isJust (apiMintBurn ^. #verificationKeyIndex)
+    when (isJust mintingBurning &&  L.any havingVerKeySpecifified (NE.toList $ fromJust mintingBurning)) $
+        liftHandler $ throwE $
+        ErrConstructTxNotImplemented "minting/burning with only default policy id index=0 is supported"
+
     let checkIx (ApiStakeKeyIndex (ApiT derIndex)) =
             derIndex == DerivationIndex (getIndex @'Hardened minBound)
     let validApiDelAction = \case
