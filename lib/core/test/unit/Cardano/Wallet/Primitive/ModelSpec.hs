@@ -20,10 +20,10 @@ import Prelude
 
 import Algebra.PartialOrd
     ( PartialOrd (..) )
-import Cardano.Api.Gen
-    ( genSlotNo )
 import Cardano.Wallet.DummyTarget.Primitive.Types
     ( block0 )
+import Cardano.Wallet.Gen
+    ( genSlot )
 import Cardano.Wallet.Primitive.AddressDerivation
     ( DerivationIndex (..) )
 import Cardano.Wallet.Primitive.AddressDiscovery
@@ -36,7 +36,7 @@ import Cardano.Wallet.Primitive.Model
     , FilteredBlock
     , Wallet
     , applyBlock
-    , applyBlocks
+    , applyBlockData
     , applyOurTxToUTxO
     , applyTxToUTxO
     , availableBalance
@@ -61,6 +61,7 @@ import Cardano.Wallet.Primitive.Types
     ( Block (..)
     , BlockHeader (..)
     , EpochLength (..)
+    , Slot
     , SlotId (..)
     , SlotNo (..)
     )
@@ -304,8 +305,8 @@ applyBlocksOld
     :: (IsOurs s Address, IsOurs s RewardAccount)
     => NonEmpty Block
     -> Wallet s
-    -> NonEmpty (FilteredBlock, (DeltaWallet s, Wallet s))
-applyBlocksOld bs = runIdentity . applyBlocks (List bs)
+    -> ([FilteredBlock], (DeltaWallet s, Wallet s))
+applyBlocksOld bs = runIdentity . applyBlockData (List bs)
 
 prop_3_2
     :: ApplyBlock
@@ -362,10 +363,9 @@ prop_applyBlockTxHistoryIncoming s =
   where
     (_, cp0) = initWallet @_ block0 s
     bs = NE.fromList blockchain
-    (filteredBlocks, cps') = NE.unzip $ applyBlocksOld bs cp0
-    cps = NE.map snd cps'
+    (filteredBlocks, (_, cp)) = applyBlocksOld bs cp0
     txs = fold $ (view #transactions) <$> filteredBlocks
-    s' = getState $ NE.last cps
+    s' = getState cp
     isIncoming (_, m) = direction m == Incoming
     outs = Set.fromList . concatMap (map address . outputs . fst)
     overlaps a b
@@ -388,7 +388,7 @@ prop_applyBlocksBlockHeight s (Positive n) =
   where
     bs = NE.fromList (take n blockchain)
     (_, wallet) = initWallet block0 s
-    wallet' = NE.last $ snd . snd <$> applyBlocksOld bs wallet
+    (_,(_,wallet')) = applyBlocksOld bs wallet
     bh = unQuantity . blockHeight . currentTip
     unQuantity (Quantity a) = a
 
@@ -761,12 +761,12 @@ prop_totalUTxO makeProperty =
 -- way to 'applyTxToUTxO' in the case that all entities are marked as ours.
 --
 prop_applyOurTxToUTxO_allOurs
-    :: SlotNo
+    :: Slot
     -> Quantity "block" Word32
     -> Tx
     -> UTxO
     -> Property
-prop_applyOurTxToUTxO_allOurs slotNo blockHeight tx utxo =
+prop_applyOurTxToUTxO_allOurs slot blockHeight tx utxo =
     checkCoverage $
     cover 50 haveResult "have result" $
     cover 0.1 (not haveResult) "do not have result" $
@@ -788,7 +788,7 @@ prop_applyOurTxToUTxO_allOurs slotNo blockHeight tx utxo =
     haveResult :: Bool
     haveResult = isJust maybeResult
     maybeResult :: Maybe UTxO
-    maybeResult = get <$> applyOurTxToUTxO slotNo blockHeight AllOurs tx utxo
+    maybeResult = get <$> applyOurTxToUTxO slot blockHeight AllOurs tx utxo
       where get (_,_,a) = a
     shouldHaveResult :: Bool
     shouldHaveResult = evalState (isOurTx tx utxo) AllOurs
@@ -801,12 +801,12 @@ prop_applyOurTxToUTxO_allOurs slotNo blockHeight tx utxo =
 --
 prop_applyOurTxToUTxO_someOurs
     :: IsOursIf2 Address RewardAccount
-    -> SlotNo
+    -> Slot
     -> Quantity "block" Word32
     -> Tx
     -> UTxO
     -> Property
-prop_applyOurTxToUTxO_someOurs ourState slotNo blockHeight tx utxo =
+prop_applyOurTxToUTxO_someOurs ourState slot blockHeight tx utxo =
     checkCoverage $
     cover 50 haveResult "have result" $
     cover 0.1 (not haveResult) "do not have result" $
@@ -826,7 +826,7 @@ prop_applyOurTxToUTxO_someOurs ourState slotNo blockHeight tx utxo =
     haveResult :: Bool
     haveResult = isJust maybeResult
     maybeResult :: Maybe UTxO
-    maybeResult = get <$> applyOurTxToUTxO slotNo blockHeight ourState tx utxo
+    maybeResult = get <$> applyOurTxToUTxO slot blockHeight ourState tx utxo
       where get (_,_,a) = a
     shouldHaveResult :: Bool
     shouldHaveResult = evalState (isOurTx tx utxo) ourState
@@ -835,10 +835,10 @@ prop_applyOurTxToUTxO_someOurs ourState slotNo blockHeight tx utxo =
                                Address discovery
 -------------------------------------------------------------------------------}
 
-{- HLINT ignore prop_discoverAddresses "Avoid lambda using `infix`" -}
-prop_discoverAddresses :: ApplyBlock -> Property
-prop_discoverAddresses (ApplyBlock s utxo block) =
-    snd (discoverAddresses block s)
+{- HLINT ignore prop_discoverAddressesBlock  "Avoid lambda using `infix`" -}
+prop_discoverAddressesBlock :: ApplyBlock -> Property
+prop_discoverAddressesBlock (ApplyBlock s utxo block) =
+    snd (discoverAddressesBlock block s)
     ===
     execState (mapM (\tx -> isOurTx tx utxo) txs) s
   where
@@ -1029,8 +1029,8 @@ instance Arbitrary (Quantity "block" Word32) where
     arbitrary = Quantity <$> arbitrarySizedBoundedIntegral @Word32
     shrink = shrinkMapBy Quantity getQuantity shrinkIntegral
 
-instance Arbitrary SlotNo where
-    arbitrary = genSlotNo
+instance Arbitrary Slot where
+    arbitrary = genSlot
     shrink = shrinkNothing
 
 instance Arbitrary Tx where
