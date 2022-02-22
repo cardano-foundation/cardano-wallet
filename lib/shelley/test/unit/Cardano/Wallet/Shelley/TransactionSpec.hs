@@ -228,7 +228,16 @@ import Control.Arrow
 import Control.Monad
     ( forM, forM_, replicateM )
 import Control.Monad.Random
-    ( MonadRandom (..), Random (randomR, randomRs), random, randoms )
+    ( MonadRandom (..)
+    , Rand
+    , Random (randomR, randomRs)
+    , StdGen
+    , evalRand
+    , random
+    , randoms
+    )
+import Control.Monad.Random.Extra
+    ( StdGenSeed (..), stdGenFromSeed )
 import Control.Monad.Trans.Except
     ( except, runExceptT )
 import Crypto.Hash.Utils
@@ -1980,8 +1989,11 @@ instance Arbitrary KeyHash where
         cred <- oneof [pure Payment, pure Delegation]
         KeyHash cred . BS.pack <$> vectorOf 28 arbitrary
 
-data Ctx = Ctx (Tracer Gen WalletWorkerLog) (TransactionLayer ShelleyKey SealedTx)
-    deriving (Generic)
+data Ctx m = Ctx (Tracer m WalletWorkerLog) (TransactionLayer ShelleyKey SealedTx)
+    deriving Generic
+
+instance Arbitrary StdGenSeed  where
+  arbitrary = StdGenSeed . fromIntegral @Int <$> arbitrary
 
 balanceTransactionSpec :: Spec
 balanceTransactionSpec = do
@@ -2025,19 +2037,23 @@ instance Show Wallet' where
         , nameF "pending" (""+||pending||+"")
         ]
 
+
+mkTestWallet :: ShelleyKey 'RootK XPrv -> UTxO -> Wallet'
+mkTestWallet rootK utxo = Wallet'
+    (UTxOIndex.fromSequence
+        $ fmap (\(i, TxOut a b) -> ((i, a), b))
+        $ Map.toList
+        $ unUTxO utxo)
+    (unsafeInitWallet utxo (header block0) s)
+    mempty
+  where
+    s = mkSeqStateFromRootXPrv (rootK, mempty) purposeCIP1852 defaultAddressPoolGap
+
 instance Arbitrary Wallet' where
     arbitrary = do
-        utxo <- genUTxO
+        utxo <- scale (* 3) genUTxO
         mw <- SomeMnemonic <$> genMnemonic @12
-        let s = mkSeqStateFromRootXPrv (rootK mw) purposeCIP1852 defaultAddressPoolGap
-
-        return $ Wallet'
-            (UTxOIndex.fromSequence
-                $ fmap (\(i, TxOut a b) -> ((i, a), b))
-                $ Map.toList
-                $ unUTxO utxo)
-            (unsafeInitWallet utxo (header block0) s)
-            mempty
+        pure $ mkTestWallet (rootK mw) utxo
       where
         genUTxO =
             UTxO . Map.fromList <$> listOf genEntry
@@ -2047,12 +2063,8 @@ instance Arbitrary Wallet' where
                 genIn = fromCardanoTxIn <$> Cardano.genTxIn
                 genOut = fromCardanoTxOut <$> genTxOut AlonzoEra
 
-        rootK :: SomeMnemonic -> (ShelleyKey 'RootK XPrv, Passphrase "encryption")
-        rootK mw =
-            let
-                pwd = mempty
-            in
-                (generateKeyFromSeed (mw, Nothing) pwd, pwd)
+        rootK :: SomeMnemonic -> ShelleyKey 'RootK XPrv
+        rootK mw = generateKeyFromSeed (mw, Nothing) mempty
     shrink w = [setUTxO u' w
                | u' <- shrinkUTxO' (getUTxO w)
                ]
@@ -2244,34 +2256,45 @@ shrinkTxBody (Cardano.ShelleyTxBody e bod scripts scriptData aux val) = tail
     shrinkUpdates SNothing = []
     shrinkUpdates (SJust _) = [SNothing]
 
+
+balanceTransaction'
+    :: (UTxOIndex, Wallet (SeqState 'Mainnet ShelleyKey), Set Tx)
+    -> StdGenSeed
+    -> PartialTx
+    -> Either ErrBalanceTx SealedTx
+balanceTransaction' wal seed tx  =
+    flip evalRand (stdGenFromSeed seed) $ runExceptT $ balanceTransaction @(Rand StdGen)
+            (Ctx @(Rand StdGen) nullTracer testTxLayer)
+            (delegationAddress @'Mainnet)
+            mockProtocolParametersForBalancing
+            dummyTimeInterpreter
+            wal
+            tx
+
 -- | Tests that 'ErrAssignRedeemersUnresolvedTxIns' can in fact be returned by
 -- 'balanceTransaction'.
 prop_balanceTransactionUnresolvedInputs
     :: Wallet'
     -> ShowBuildable PartialTx
+    -> StdGenSeed
     -> Property
 prop_balanceTransactionUnresolvedInputs
     (Wallet' utxo wal pending)
-    (ShowBuildable partialTx') = withMaxSuccess 400 $
-        forAll (dropResolvedInputs partialTx') $ \(partialTx, dropped) ->
-        not (null dropped) ==>
-            forAllShow (runExceptT $ balanceTransaction
-                (Ctx nullTracer tl)
-                (delegationAddress @'Mainnet)
-                mockProtocolParametersForBalancing
-                dummyTimeInterpreter
-                (utxo, wal, pending)
-                partialTx) (show . Pretty) $ \case
-            Right _
-                -> cover 0 True "success" $ property True
-                   -- Balancing can succeed if the dropped inputs happen to be
-                   -- apart of the wallet UTxO.
-            Left (ErrBalanceTxAssignRedeemers (ErrAssignRedeemersUnresolvedTxIns _))
-                -> cover 1 True "unknown txins" True
-            Left _
-                -> property True
+    (ShowBuildable partialTx')
+    seed = withMaxSuccess 400 $
+        forAll (dropResolvedInputs partialTx') $ \(partialTx, dropped) -> do
+        not (null dropped) ==> do
+            let res = balanceTransaction' (utxo, wal, pending) seed partialTx
+            case res of
+                Right _
+                    -> cover 0 True "success" $ property True
+                       -- Balancing can succeed if the dropped inputs happen to be
+                       -- apart of the wallet UTxO.
+                Left (ErrBalanceTxAssignRedeemers (ErrAssignRedeemersUnresolvedTxIns _))
+                    -> cover 1 True "unknown txins" True
+                Left _
+                    -> property True
   where
-    tl = testTxLayer
     dropResolvedInputs (PartialTx tx inputs redeemers) = do
         shouldKeep <- vectorOf (length inputs) $ frequency
             [ (8, pure False)
@@ -2292,22 +2315,21 @@ prop_balanceTransactionUnresolvedInputs
 prop_balanceTransactionBalanced
     :: Wallet'
     -> ShowBuildable PartialTx
+    -> StdGenSeed
     -> Property
-prop_balanceTransactionBalanced (Wallet' utxo wal pending) (ShowBuildable partialTx)
+prop_balanceTransactionBalanced (Wallet' utxo wal pending) (ShowBuildable partialTx) seed
     = withMaxSuccess 200 $ do
         let combinedUTxO = mconcat
                 [ resolvedInputsUTxO Cardano.ShelleyBasedEraAlonzo partialTx
                 , toCardanoUTxO Cardano.ShelleyBasedEraAlonzo $ view #utxo wal
                 ]
         let originalBalance = txBalance (sealedTx partialTx) combinedUTxO
-        forAllShow (runExceptT $ balanceTransaction
-                (Ctx nullTracer tl)
-                (delegationAddress @'Mainnet)
-                mockProtocolParametersForBalancing
-                dummyTimeInterpreter
+        let res = balanceTransaction'
                 (utxo, wal, pending)
-                partialTx) (show . Pretty) $ \case
-            Right (sealedTx ) -> do
+                seed
+                partialTx
+        case res of
+            Right sealedTx -> counterexample ("\nResult: " <> pretty sealedTx) $ do
                 label "success"
                     $ classify (originalBalance == Cardano.Lovelace 0)
                         "already balanced"
@@ -2370,7 +2392,6 @@ prop_balanceTransactionBalanced (Wallet' utxo wal pending) (ShowBuildable partia
                 counterexample ("balanceTransaction failed: " <> show err) False
   where
     a .<= b = counterexample (show a <> " /<= " <> show b) $ property $ a <= b
-    tl = testTxLayer
 
     hasCollateral :: SealedTx -> Bool
     hasCollateral tx = withAlonzoBod tx $ \(Cardano.TxBody content) ->
