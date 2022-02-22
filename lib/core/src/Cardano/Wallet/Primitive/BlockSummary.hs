@@ -1,7 +1,7 @@
 {-# LANGUAGE DataKinds #-}
 {-# LANGUAGE DeriveGeneric #-}
 {-# LANGUAGE DuplicateRecordFields #-}
-{-# LANGUAGE OverloadedLabels #-}
+{-# LANGUAGE NamedFieldPuns #-}
 
 -- |
 -- Copyright: © 2022 IOHK
@@ -13,10 +13,19 @@
 module Cardano.Wallet.Primitive.BlockSummary
     ( BlockSummary (..)
     , LightSummary
-    , BlockEvents (..)
+
+    -- * Chain Events
     , ChainEvents
+    , fromBlockEvents
+    , toAscBlockEvents
+
+    -- * Block Events
+    , BlockEvents (..)
+    , fromEntireBlock
+
     -- * Testing
     , summarizeOnTxOut
+    , mkChainEvents
     ) where
 
 import Prelude
@@ -27,8 +36,10 @@ import Cardano.Wallet.Primitive.Types
     ( Block (..)
     , BlockHeader (..)
     , DelegationCertificate
-    , SlotNo
+    , Slot
+    , chainPointFromBlockHeader
     , dlgCertAccount
+    , toSlot
     )
 import Cardano.Wallet.Primitive.Types.Address
     ( Address )
@@ -36,10 +47,10 @@ import Cardano.Wallet.Primitive.Types.Tx
     ( Tx (..), TxOut (..) )
 import Data.Functor.Identity
     ( Identity (..) )
-import Data.Generics.Internal.VL.Lens
-    ( (^.) )
 import Data.List.NonEmpty
     ( NonEmpty (..) )
+import Data.Map
+    ( Map )
 import Data.Quantity
     ( Quantity )
 import Data.Word
@@ -47,7 +58,9 @@ import Data.Word
 import GHC.Generics
     ( Generic )
 
+import qualified Cardano.Wallet.Primitive.Types as Block
 import qualified Data.List.NonEmpty as NE
+import qualified Data.Map.Strict as Map
 
 {-------------------------------------------------------------------------------
     BlockSummary
@@ -71,23 +84,90 @@ data BlockSummary m addr txs = BlockSummary
 type LightSummary m =
     BlockSummary m (Either Address RewardAccount) ChainEvents
 
+{-------------------------------------------------------------------------------
+    ChainEvents
+-------------------------------------------------------------------------------}
 -- | 'BlockEvents', orderd by slot.
-type ChainEvents = [BlockEvents]
+newtype ChainEvents = ChainEvents (Map Slot BlockEvents)
+    deriving (Eq, Ord, Show)
 
--- | Events (Txs, delegations) within a single block
+mkChainEvents :: Map Slot BlockEvents -> ChainEvents
+mkChainEvents = ChainEvents
+
+instance Semigroup ChainEvents where
+    (ChainEvents bs1) <> (ChainEvents bs2) =
+        ChainEvents $ Map.unionWith mergeSameBlock bs1 bs2
+
+instance Monoid ChainEvents where
+    mempty = ChainEvents mempty
+
+-- | Create 'ChainEvents' from a list of block events
+-- (which do not need to be in order.)
+fromBlockEvents :: [BlockEvents] -> ChainEvents
+fromBlockEvents = ChainEvents
+    . Map.fromListWith mergeSameBlock
+    . map (\bl -> (slot bl, bl))
+    . filter (not . nullBlockEvents)
+
+-- | List of 'BlockEvents', in ascending order.
+-- (No duplicate blocks, all transactions within block in order).
+toAscBlockEvents :: ChainEvents -> [BlockEvents]
+toAscBlockEvents (ChainEvents bs) = Map.elems bs
+
+{-------------------------------------------------------------------------------
+    BlockEvents
+-------------------------------------------------------------------------------}
+-- | Events (such as txs, delegations) within a single block
 -- that are potentially relevant to the wallet.
 -- This can be the entire block, or a pre-filtered version of it.
 data BlockEvents = BlockEvents
-    { slotNo :: !SlotNo
+    { slot :: !Slot
     , blockHeight :: !(Quantity "block" Word32)
-    , transactions :: [Tx]
-    , delegations :: [DelegationCertificate]
-    } deriving (Eq, Ord, Generic)
+    , transactions :: [(Int, Tx)]
+        -- ^ (Index of the transaction within the block, transaction data)
+        -- INVARIANT: The list is ordered by ascending index.
+    , delegations :: [(Int, DelegationCertificate)]
+        -- ^ (Index of the delegation within the block, delegation data)
+        -- INVARIANT: The list is ordered by ascending index.
+    } deriving (Eq, Ord, Generic, Show)
 
 nullBlockEvents :: BlockEvents -> Bool
 nullBlockEvents BlockEvents{transactions=[],delegations=[]} = True
 nullBlockEvents _ = False
 
+-- | Merge block events that belong to the same block.
+mergeSameBlock :: BlockEvents -> BlockEvents -> BlockEvents
+mergeSameBlock
+    BlockEvents{slot,blockHeight,transactions=txs1,delegations=dlg1}
+    BlockEvents{transactions=txs2,delegations=dlg2}
+  = BlockEvents
+    { slot
+    , blockHeight
+    , transactions = mergeOn fst const txs1 txs2
+    , delegations = mergeOn fst const dlg1 dlg2
+    }
+
+-- | Merge two lists in sorted order. Remove duplicate items.
+mergeOn :: Ord key => (a -> key) -> (a -> a -> a) -> [a] -> [a] -> [a]
+mergeOn _ _ [] ys = ys
+mergeOn _ _ xs [] = xs
+mergeOn f g (x:xs) (y:ys) = case compare (f x) (f y) of
+    LT -> x : mergeOn f g xs (y:ys)
+    EQ -> mergeOn f g (g x y:xs) ys
+    GT -> y : mergeOn f g (x:xs) ys
+
+-- | Get the 'BlockEvents' corresponding to an entire 'Block'.
+fromEntireBlock :: Block -> BlockEvents
+fromEntireBlock Block{header,transactions,delegations} = BlockEvents
+    { slot = toSlot $ chainPointFromBlockHeader header
+    , blockHeight = Block.blockHeight header
+    , transactions = zip [0..] transactions
+    , delegations = zip [0..] delegations
+    }
+
+{-------------------------------------------------------------------------------
+    Testing
+-------------------------------------------------------------------------------}
 -- | For testing:
 -- Convert a list of blocks into a 'BlockSummary'.
 -- Unfortunately, as 'TxIn' references are not resolved,
@@ -97,26 +177,24 @@ summarizeOnTxOut bs = BlockSummary
     { from = header . NE.head $ bs
     , to = header . NE.last $ bs
     , query = \q -> pure
-        . filter (not . nullBlockEvents) . map (filterBlock q) $ NE.toList bs
+        . fromBlockEvents . map (filterBlock q) $ NE.toList bs
     }
 
 filterBlock :: Either Address RewardAccount -> Block -> BlockEvents
-filterBlock question block = BlockEvents
-    { slotNo = block ^. (#header . #slotNo)
-    , blockHeight = block ^. (#header . #blockHeight)
-    , transactions = txs  -- order in which they appear in the block
-    , delegations = dlgs
-    }
+filterBlock question block = case fromEntireBlock block of
+    BlockEvents{slot,blockHeight,transactions,delegations} -> BlockEvents
+        { slot
+        , blockHeight
+        , transactions = case question of
+            Left addr -> filter (isRelevantTx addr) transactions
+            Right _   -> []
+        , delegations = case question of
+            Left _     -> []
+            Right racc -> filter (isRelevantDelegation racc) delegations
+        }
   where
     -- NOTE: Currently used the full address,
     -- containing both payment and staking parts.
     -- We may want to query only for the payment part at some point.
-    txs = case question of
-        Left addr -> filter (isRelevantTx addr) $ block ^. #transactions
-        Right _   -> []
-    dlgs = case question of
-        Left _     -> []
-        Right racc ->
-            filter (isRelevantDelegation racc) $  block ^. #delegations
-    isRelevantTx addr = any ((addr ==) . address) . outputs
-    isRelevantDelegation racc = (racc == ) . dlgCertAccount
+    isRelevantTx addr = any ((addr ==) . address) . outputs . snd
+    isRelevantDelegation racc = (racc == ) . dlgCertAccount . snd

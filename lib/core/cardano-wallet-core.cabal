@@ -441,6 +441,7 @@ test-suite unit
       Cardano.Wallet.Primitive.AddressDiscovery.SharedSpec
       Cardano.Wallet.Primitive.Delegation.StateSpec
       Cardano.Wallet.Primitive.AddressDiscoverySpec
+      Cardano.Wallet.Primitive.BlockSummarySpec
       Cardano.Wallet.Primitive.CollateralSpec
       Cardano.Wallet.Primitive.MigrationSpec
       Cardano.Wallet.Primitive.Migration.PlanningSpec
