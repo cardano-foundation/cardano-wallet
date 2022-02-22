@@ -2245,6 +2245,7 @@ shrinkTxBody (Cardano.ShelleyTxBody e bod scripts scriptData aux val) = tail
             { Alonzo.mint = mint' }
             { Alonzo.reqSignerHashes = rsh' }
             { Alonzo.txUpdates = updates' }
+            { Alonzo.txfee = txfee' }
         | updates' <- prependOriginal shrinkUpdates (Alonzo.txUpdates body)
         , wdrls' <- prependOriginal shrinkWdrl (Alonzo.txwdrls body)
         , outs' <- prependOriginal (shrinkSeq (const [])) (Alonzo.outputs body)
@@ -2254,6 +2255,7 @@ shrinkTxBody (Cardano.ShelleyTxBody e bod scripts scriptData aux val) = tail
         , rsh' <- prependOriginal
             (shrinkSet (const []))
             (Alonzo.reqSignerHashes body)
+        , txfee' <- prependOriginal shrinkFee (Alonzo.txfee body)
         ]
 
     shrinkValue v = filter (/= v) [v0]
@@ -2264,6 +2266,10 @@ shrinkTxBody (Cardano.ShelleyTxBody e bod scripts scriptData aux val) = tail
     shrinkSet shrinkElem = map Set.fromList . shrinkList shrinkElem . F.toList
 
     shrinkSeq shrinkElem = map StrictSeq.fromList . shrinkList shrinkElem . F.toList
+
+    shrinkFee :: Ledger.Coin -> [Ledger.Coin]
+    shrinkFee (Ledger.Coin 0) = []
+    shrinkFee _ = [Ledger.Coin 0]
 
     shrinkWdrl :: Wdrl era -> [Wdrl era]
     shrinkWdrl (Wdrl m) = map (Wdrl . Map.fromList) $ shrinkList shrinkWdrl' (Map.toList m)
