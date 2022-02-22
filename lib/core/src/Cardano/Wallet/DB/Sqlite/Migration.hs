@@ -143,6 +143,7 @@ migrateManually tr proxy defaultFieldValues =
     , addFeeToTransaction
     , moveRndUnusedAddresses
     , cleanupSeqStateTable
+    , addPolicyXPubIfMissing
     ]
   where
     initializeSchemaVersionTable :: Sqlite.Connection -> IO ()
@@ -745,6 +746,15 @@ migrateManually tr proxy defaultFieldValues =
       where
         fieldFeePolicy  = DBField ProtocolParametersFeePolicy
         fieldKeyDeposit = DBField ProtocolParametersKeyDeposit
+
+    -- | Adds an 'policy_xpub' column to the 'seq_state'
+    -- table if it is missing.
+    --
+    addPolicyXPubIfMissing :: Sqlite.Connection -> IO ()
+    addPolicyXPubIfMissing conn = do
+        addColumn_ conn False (DBField SeqStatePolicyXPub) value
+      where
+        value = "NULL"
 
     -- | Determines whether a field is present in its parent table.
     isFieldPresent :: Sqlite.Connection -> DBField -> IO SqlColumnStatus
