@@ -2344,8 +2344,6 @@ prop_balanceTransactionBalanced (Wallet' utxo wal pending) (ShowBuildable partia
                 label ("not yet supported: deposits") True
             Left (ErrBalanceTxExistingCollateral) ->
                 label "existing collateral" True
-            Left (ErrBalanceTxNotYetSupported (UnderestimatedFee _)) ->
-                label "underestimated fee" $ property True
             Left (ErrBalanceTxNotYetSupported ZeroAdaOutput) ->
                 label "not yet supported: zero ada output" $ property True
             Left (ErrBalanceTxNotYetSupported ConflictingNetworks) ->
@@ -2355,6 +2353,8 @@ prop_balanceTransactionBalanced (Wallet' utxo wal pending) (ShowBuildable partia
                 (ErrSelectAssetsSelectionError
                 (SelectionBalanceErrorOf EmptyUTxO))) ->
                 label "empty UTxO" $ property True
+            Left (ErrBalanceTxNotYetSupported (UnderestimatedFee delta candidateTx)) ->
+                counterexample ("underestimated fee by " <> pretty delta <> "\n candidate tx: " <> pretty candidateTx) $ property False
             Left
                 (ErrBalanceTxSelectAssets
                 (ErrSelectAssetsSelectionError

@@ -4022,11 +4022,11 @@ instance IsServerError ErrBalanceTx where
             apiError err500 CreatedInvalidTransaction $ mconcat
                 [ "Deposits/refunds are not yet supported for balancing."
                 ]
-        ErrBalanceTxNotYetSupported (UnderestimatedFee _) ->
+        ErrBalanceTxNotYetSupported (UnderestimatedFee c _) ->
             apiError err500 CreatedInvalidTransaction $ mconcat
-                [ "What was supposed to be an initial overestimation of fees "
-                , "turned out to be an underestimation, and I cannot recover. "
-                , "This is a cardano-wallet bug."
+                [ "I have somehow underestimated the fee of the transaction "
+                , " by " <> pretty c
+                , "and cannot finish balancing."
                 ]
 
 instance IsServerError ErrMintBurnAssets where

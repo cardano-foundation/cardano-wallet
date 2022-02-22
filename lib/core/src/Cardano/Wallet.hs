@@ -1576,10 +1576,9 @@ balanceTransaction
     -- extra outputs and normal outputs
 
     surplus <- ExceptT . pure $ maybe
-        (Left
-            . ErrBalanceTxNotYetSupported
-            . UnderestimatedFee
-            $ candidateMinFee `Coin.difference` delta)
+        (Left $ ErrBalanceTxNotYetSupported $ UnderestimatedFee
+             (candidateMinFee `Coin.difference` delta)
+             candidateTx)
         Right
         (delta `Coin.subtract` candidateMinFee)
 
@@ -3132,7 +3131,7 @@ data ErrBalanceTx
 
 -- TODO: Remove once problems are fixed.
 data BalanceTxNotSupportedReason
-    = UnderestimatedFee Coin
+    = UnderestimatedFee Coin SealedTx
     | Deposits
     | ZeroAdaOutput
     | ConflictingNetworks
