@@ -42,6 +42,7 @@ module Cardano.Wallet.Shelley.Transaction
     , _decodeSealedTx
     , _estimateMaxNumberOfInputs
     , _maxScriptExecutionCost
+    , mkDelegationCertificates
     , estimateTxCost
     , estimateTxSize
     , mkByronWitness

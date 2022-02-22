@@ -234,6 +234,7 @@ test-suite unit
     , generic-arbitrary
     , generic-lens
     , hspec-core
+    , hspec-golden
     , iohk-monitoring
     , time
     , hspec

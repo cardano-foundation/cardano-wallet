@@ -45,6 +45,7 @@
         "streaming-binary" = (((hackage.streaming-binary)."0.2.2.0").revisions).default;
         "time-interval" = (((hackage.time-interval)."0.1.1").revisions).default;
         "time-out" = (((hackage.time-out)."0.2").revisions).default;
+        "hspec-golden" = (((hackage.hspec-golden)."0.2.0.0").revisions).default;
         "transformers-except" = (((hackage.transformers-except)."0.1.1").revisions).default;
         "Unique" = (((hackage.Unique)."0.4.7.6").revisions).default;
         "binary" = (((hackage.binary)."0.8.8.0").revisions).default;

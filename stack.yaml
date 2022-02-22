@@ -120,6 +120,7 @@ extra-deps:
 - streaming-binary-0.2.2.0
 - time-interval-0.1.1
 - time-out-0.2
+- hspec-golden-0.2.0.0
 - transformers-except-0.1.1
 - Unique-0.4.7.6
 
