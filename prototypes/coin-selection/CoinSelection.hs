@@ -1,10 +1,9 @@
 {-# LANGUAGE TypeFamilies #-}
 {-# LANGUAGE RankNTypes #-}
 {-# LANGUAGE DeriveGeneric #-}
-{-# LANGUAGE OverloadedStrings #-}
 {-# LANGUAGE PartialTypeSignatures #-}
 {-# LANGUAGE FlexibleContexts #-}
-{-# OPTIONS_GHC -fdefer-typed-holes #-}
+{-# OPTIONS_GHC -fdefer-typed-holes -Wno-typed-holes #-}
 
 -- |
 -- Copyright: © 2018-2022 IOHK
@@ -31,8 +30,8 @@ module CoinSelection
     -- * The transaction type
     , TxBody (..)
     , Value
-    , TxOut
-    , UTxO
+    , TxInput (..)
+    , TxOutput (..)
     -- ** Information about transactions
     , Params (..)
     , AddressOwner (..)
@@ -69,7 +68,7 @@ import Data.Map (Map)
 -- __Constraints__
 --
 --  * Minimum UTxO 'Value'
---  * Script transactions require selection of a suitable "collateral" "TxOut".
+--  * Script transactions require selection of a suitable "collateral" "TxOutput".
 --  * Maximum 'TxBody' size.
 --
 --      Usually in bytes, but this module does not prescribe a unit.
@@ -106,54 +105,59 @@ import Data.Map (Map)
 -- This class defines the types of transaction components and therefore
 -- represents transactions which can have the coin selection algorithms of this
 -- module applied to them.
-class TxBody tx where
-    -- | A transaction input - the source of funds for transaction.
+class (Monoid (Amount tx), Ord (Amount tx), Ord (Cost tx)) => TxBody tx where
+    -- | A transaction input identifier - the source of funds for transaction.
     type TxIn tx
+
     -- | Payment destination for transaction.
     type Address tx
+
     -- | This type uniquely identifies a fungible asset.
     type AssetId tx
+
     -- | Quantity type of any given 'AssetId'.
     --
     -- The 'xyzzy' function requires this type to be a 'Monoid' under addition.
     type Amount tx
+
     -- | How fees are measured for this type of transaction. Its instance type
     -- needn't necessarily be a monetary value.
+    --
+    -- The 'xyzzy' function requires 'Cost' values to be comparable, so that it
+    -- can minimize fees.
     type Cost tx
 
     -- | Get the outputs of a 'TxBody'.
-    txOutputs :: tx -> [TxOut tx]
+    txOutputs :: Foldable f => tx -> f (TxOutput tx)
 
     -- | Append an output to the 'TxBody'.
-    appendTxOutput :: TxOut tx -> tx -> tx
+    appendTxOutput :: TxOutput tx -> tx -> tx
 
     -- | Get the inputs of a 'TxBody'
-    txInputs :: tx -> [(TxIn tx, Value tx)]
+    txInputs :: Foldable f => tx -> f (TxInput tx)
 
     -- | Add an input to the 'TxBody' input set.
-    addTxInput :: (TxIn tx, Value tx) -> tx -> tx
-
--- | An abstract transaction output is defined as a payment destination and an
--- amount.
-type TxOut tx = (Address tx, Value tx)
-
-{-
--- | Possible values in a 'TxOut'.
-data TxOutValue tx
-    = MaxValue
-    -- | Take the maximum possible amount.
-    | Value (Value tx)
-    -- | Take a specific amount.
-    deriving Generic
--}
+    addTxInput :: TxInput tx -> tx -> tx
 
 -- | A list of assets and their quantity.
 type Value tx = Map (AssetId tx) (Amount tx)
 
--- | Unspent transaction outputs. These are the things which fund transactions.
+-- | An abstract transaction output is defined as a payment destination and a
+-- 'Value' amount.
+data TxOutput tx = TxOutput
+    { outputaddress :: !(Address tx)
+    , outputValue   :: !(Value tx)
+    } deriving Generic
+
+-- | An abstract transaction input is defined as 'TxIn' identifier paired with
+-- its 'Value' amount.
 --
--- Note that this type is a bit different from the usual map from TxIn -> TxOut.
-type UTxO tx = [(TxIn tx, Value tx)]
+-- Objects of this type are used for funding transactions, and are usually taken
+-- from the wallet's set of available UTxO.
+data TxInput tx = TxInput
+    { souceTxIn   :: !(TxIn tx)
+    , sourceValue :: !(Value tx)
+    } deriving Generic
 
 -- | Describes an 'Address' as being as part of either a change output or a
 -- payment output.
@@ -165,18 +169,23 @@ data AddressOwner
     -- balance.
     deriving (Show, Read, Eq, Enum, Generic)
 
--- | This record of functions provides implementations of TxBody functions needed by
--- 'xyzzy'.
+-- | This record of functions provides implementations of 'TxBody' functions
+-- needed by 'xyzzy'.
 data Params tx = Params
     { marginalCostOfInput  :: tx -> TxIn tx -> Cost tx
-    -- ^ Calculate the price of adding a given input to a transaction
-    , marginalCostOfOutput :: tx -> TxOut tx -> Cost tx
-    -- ^ Calculate the price of adding a given output to the given transaction
-    , isTxOutSizeOk        :: tx -> TxOut tx -> TxIn tx -> Bool
+    -- ^ Calculate the relative price of adding a given input to a transaction.
+
+    , marginalCostOfOutput :: tx -> TxOutput tx -> Cost tx
+    -- ^ Calculate the relative price of adding a given output to the given
+    -- transaction.
+
+    , isTxOutSizeOk        :: tx -> TxOutput tx -> TxIn tx -> Bool
     -- ^ Predicate: If a given 'TxIn' were added into the given 'TxOut', would
     -- the size be less than the maximum output size.
+
     , isTxOutValueOk       :: tx -> Value tx -> Bool
     -- ^ Predicate: is 'TxOut' sufficiently large (i.e. less than min utxo)?
+
     , isOurAddress         :: Address tx -> AddressOwner
     -- ^ Classifies addresses as either the recipient's or our own.
     } deriving Generic
@@ -259,7 +268,7 @@ newtype SelectionError = SelectionError String -- ^ Something went wrong.
 --   in the returned transaction.
 --
 xyzzy
-    :: forall tx. (TxBody tx, Monoid (Amount tx))
+    :: forall f tx. (Foldable f, TxBody tx)
     => Params tx
     -- ^ Transaction constraints and cost functions. These are specific
     -- characteristics of the blockchain.
@@ -267,7 +276,7 @@ xyzzy
     -- ^ How to select inputs from the UTxO.
     -> Change
     -- ^ How to assign excess value to change outputs.
-    -> UTxO tx
+    -> f (TxInput tx)
     -- ^ Transaction outputs available to use as inputs of a this transaction.
     -> tx
     -- ^ Partial transaction body which is the starting point for coin selection.
