@@ -518,7 +518,7 @@ spec = describe "Cardano.Wallet.CoinSelection.Internal.BalanceSpec" $
 -- Coverage
 --------------------------------------------------------------------------------
 
-prop_Small_UTxOIndex_coverage :: Small UTxOIndex -> Property
+prop_Small_UTxOIndex_coverage :: Small (UTxOIndex InputId) -> Property
 prop_Small_UTxOIndex_coverage (Small index) =
     checkCoverage $ property
         -- Asset counts:
@@ -540,7 +540,7 @@ prop_Small_UTxOIndex_coverage (Small index) =
     assetCount = Set.size $ UTxOIndex.assets index
     entryCount = UTxOIndex.size index
 
-prop_Large_UTxOIndex_coverage :: Large UTxOIndex -> Property
+prop_Large_UTxOIndex_coverage :: Large (UTxOIndex InputId) -> Property
 prop_Large_UTxOIndex_coverage (Large index) =
     -- Generation of large UTxO sets takes longer, so limit the number of runs:
     withMaxSuccess 100 $ checkCoverage $ property
@@ -610,7 +610,7 @@ type PerformSelectionResult = Either SelectionBalanceError SelectionResult
 
 genSelectionParams
     :: Gen (InputId -> Bool)
-    -> Gen UTxOIndex
+    -> Gen (UTxOIndex InputId)
     -> Gen SelectionParams
 genSelectionParams genPreselectedInputs genUTxOIndex' = do
     utxoAvailable <- genUTxOIndex'
@@ -637,7 +637,7 @@ genSelectionParams genPreselectedInputs genUTxOIndex' = do
         , assetsToBurn
         }
   where
-    genAssetsToMintAndBurn :: UTxOIndex -> Gen (TokenMap, TokenMap)
+    genAssetsToMintAndBurn :: UTxOIndex InputId -> Gen (TokenMap, TokenMap)
     genAssetsToMintAndBurn utxoAvailable = do
         assetsToMint <- genTokenMapSmallRange
         let assetsToBurn = adjustAllTokenMapQuantities
@@ -864,7 +864,7 @@ prop_performSelection_huge = ioProperty $
         <$> generate (genUTxOIndexLargeN 50000)
 
 prop_performSelection_huge_inner
-    :: UTxOIndex
+    :: UTxOIndex InputId
     -> MockSelectionConstraints
     -> Large SelectionParams
     -> Property
@@ -1359,7 +1359,7 @@ prop_runSelection_UTxO_moreThanEnough utxoAvailable = monadicIO $ do
         cutAssetSetSizeInHalf balanceAvailable
 
 prop_runSelection_UTxO_muchMoreThanEnough
-    :: Blind (Large UTxOIndex)
+    :: Blind (Large (UTxOIndex InputId))
     -> Property
 prop_runSelection_UTxO_muchMoreThanEnough (Blind (Large index)) =
     -- Generation of large UTxO sets takes longer, so limit the number of runs:
@@ -1577,7 +1577,7 @@ prop_runSelectionStep_exceedsTargetAndGetsFurtherAway
 --------------------------------------------------------------------------------
 
 prop_assetSelectionLens_givesPriorityToSingletonAssets
-    :: Blind (Small UTxOIndex)
+    :: Blind (Small (UTxOIndex InputId))
     -> Property
 prop_assetSelectionLens_givesPriorityToSingletonAssets (Blind (Small u)) =
     assetCount >= 2 ==> monadicIO $ do
@@ -1613,7 +1613,7 @@ prop_assetSelectionLens_givesPriorityToSingletonAssets (Blind (Small u)) =
     minimumAssetQuantity = TokenQuantity 1
 
 prop_coinSelectionLens_givesPriorityToCoins
-    :: Blind (Small UTxOIndex)
+    :: Blind (Small (UTxOIndex InputId))
     -> Property
 prop_coinSelectionLens_givesPriorityToCoins (Blind (Small u)) =
     entryCount > 0 ==> monadicIO $ do
@@ -4090,11 +4090,11 @@ instance Arbitrary (Small SelectionParams) where
         (genUTxOIndex)
     shrink = shrinkMapBy Small getSmall shrinkSelectionParams
 
-instance Arbitrary (Large UTxOIndex) where
+instance Arbitrary (Large (UTxOIndex InputId)) where
     arbitrary = Large <$> genUTxOIndexLarge
     shrink = shrinkMapBy Large getLarge shrinkUTxOIndex
 
-instance Arbitrary (Small UTxOIndex) where
+instance Arbitrary (Small (UTxOIndex InputId)) where
     arbitrary = Small <$> genUTxOIndex
     shrink = shrinkMapBy Small getSmall shrinkUTxOIndex
 

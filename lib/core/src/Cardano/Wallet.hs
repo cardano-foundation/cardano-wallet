@@ -1466,7 +1466,7 @@ balanceTransaction
     -> ArgGenChange s
     -> (W.ProtocolParameters, Cardano.ProtocolParameters)
     -> TimeInterpreter (Either PastHorizonException)
-    -> (UTxOIndex, Wallet s, Set Tx)
+    -> (UTxOIndex InputId, Wallet s, Set Tx)
     -> PartialTx
     -> ExceptT ErrBalanceTx m SealedTx
 balanceTransaction
@@ -1865,7 +1865,7 @@ readWalletUTxOIndex
     :: forall ctx s k. HasDBLayer IO s k ctx
     => ctx
     -> WalletId
-    -> ExceptT ErrNoSuchWallet IO (UTxOIndex, Wallet s, Set Tx)
+    -> ExceptT ErrNoSuchWallet IO (UTxOIndex InputId, Wallet s, Set Tx)
 readWalletUTxOIndex ctx wid = do
     (cp, _, pending) <- readWallet @ctx @s @k ctx wid
     let utxo = UTxOIndex.fromUTxO $ utxoToInputMap $ availableUTxO @s pending cp

@@ -42,7 +42,7 @@ import qualified Cardano.Wallet.Primitive.Types.UTxOIndex as UTxOIndex
 --
 type InputId = (TxIn, Address)
 
-genUTxOIndex :: Gen UTxOIndex
+genUTxOIndex :: Gen (UTxOIndex InputId)
 genUTxOIndex = UTxOIndex.fromSequence <$> listOf genEntry
   where
     genEntry :: Gen (InputId, TokenBundle)
@@ -51,7 +51,7 @@ genUTxOIndex = UTxOIndex.fromSequence <$> listOf genEntry
     genInputId :: Gen InputId
     genInputId = genSized2 genTxIn genAddress
 
-shrinkUTxOIndex :: UTxOIndex -> [UTxOIndex]
+shrinkUTxOIndex :: UTxOIndex InputId -> [UTxOIndex InputId]
 shrinkUTxOIndex =
     shrinkMapBy UTxOIndex.fromSequence UTxOIndex.toList (shrinkList shrinkEntry)
   where
@@ -71,10 +71,10 @@ shrinkUTxOIndex =
 -- Large indices
 --------------------------------------------------------------------------------
 
-genUTxOIndexLarge :: Gen UTxOIndex
+genUTxOIndexLarge :: Gen (UTxOIndex InputId)
 genUTxOIndexLarge = genUTxOIndexLargeN =<< choose (1024, 4096)
 
-genUTxOIndexLargeN :: Int -> Gen UTxOIndex
+genUTxOIndexLargeN :: Int -> Gen (UTxOIndex InputId)
 genUTxOIndexLargeN n = UTxOIndex.fromSequence <$> replicateM n genEntry
   where
     genEntry :: Gen (InputId, TokenBundle)

@@ -1,6 +1,7 @@
 {-# LANGUAGE DeriveGeneric #-}
 {-# LANGUAGE NamedFieldPuns #-}
 {-# LANGUAGE OverloadedLabels #-}
+{-# LANGUAGE ScopedTypeVariables #-}
 
 -- |
 -- Copyright: © 2018-2021 IOHK
@@ -89,14 +90,10 @@ module Cardano.Wallet.Primitive.Types.UTxOIndex.Internal
 import Prelude hiding
     ( filter, lookup, null )
 
-import Cardano.Wallet.Primitive.Types.Address
-    ( Address )
 import Cardano.Wallet.Primitive.Types.TokenBundle
     ( TokenBundle )
 import Cardano.Wallet.Primitive.Types.TokenMap
     ( AssetId )
-import Cardano.Wallet.Primitive.Types.Tx
-    ( TxIn )
 import Control.DeepSeq
     ( NFData )
 import Control.Monad.Extra
@@ -140,12 +137,6 @@ import qualified Data.Set.Strict.NonEmptySet as NonEmptySet
 -- Type
 --------------------------------------------------------------------------------
 
--- TODO: ADP-1448:
---
--- Replace this type synonym with a type parameter on types that use it.
---
-type InputId = (TxIn, Address)
-
 -- | A UTxO set that is indexed by asset identifier.
 --
 -- The index provides a mapping from assets to sets of transaction inputs.
@@ -163,26 +154,26 @@ type InputId = (TxIn, Address)
 -- The UTxO index data structure has an invariant that can be checked with
 -- the 'checkInvariant' function.
 --
-data UTxOIndex = UTxOIndex
+data UTxOIndex u = UTxOIndex
     { assetsAll
-        :: !(Map AssetId (NonEmptySet InputId))
+        :: !(Map AssetId (NonEmptySet u))
         -- An index of all entries that contain at least one non-ada asset.
     , assetsSingleton
-        :: !(Map AssetId (NonEmptySet InputId))
+        :: !(Map AssetId (NonEmptySet u))
         -- An index of all entries that contain exactly one non-ada asset.
     , coins
-        :: !(Set InputId)
+        :: !(Set u)
         -- An index of all entries that contain no non-ada assets.
     , balance
         :: !TokenBundle
         -- The total balance of all entries.
     , utxo
-        :: !(Map InputId TokenBundle)
+        :: !(Map u TokenBundle)
         -- The complete set of all entries.
     }
     deriving (Eq, Generic, Read, Show)
 
-instance NFData UTxOIndex
+instance NFData u => NFData (UTxOIndex u)
 
 --------------------------------------------------------------------------------
 -- Construction
@@ -190,7 +181,7 @@ instance NFData UTxOIndex
 
 -- | An index with no entries.
 --
-empty :: UTxOIndex
+empty :: UTxOIndex u
 empty = UTxOIndex
     { assetsAll = Map.empty
     , assetsSingleton = Map.empty
@@ -201,7 +192,7 @@ empty = UTxOIndex
 
 -- | Creates a singleton index from the specified input and bundle.
 --
-singleton :: InputId -> TokenBundle -> UTxOIndex
+singleton :: Ord u => u -> TokenBundle -> UTxOIndex u
 singleton i b = insertUnsafe i b empty
 
 -- | Constructs an index from a sequence of entries.
@@ -213,7 +204,7 @@ singleton i b = insertUnsafe i b empty
 -- input, the entry that appears latest in the sequence will take precendence,
 -- and all others will be ignored.
 --
-fromSequence :: Foldable f => f (InputId, TokenBundle) -> UTxOIndex
+fromSequence :: (Foldable f, Ord u) => f (u, TokenBundle) -> UTxOIndex u
 fromSequence = flip insertMany empty
 
 -- | Constructs an index from an ordinary UTxO map.
@@ -221,7 +212,7 @@ fromSequence = flip insertMany empty
 -- Note that this operation is potentially expensive as it must construct an
 -- index from scratch, and therefore should only be used sparingly.
 --
-fromUTxO :: Map InputId TokenBundle -> UTxOIndex
+fromUTxO :: Ord u => Map u TokenBundle -> UTxOIndex u
 fromUTxO = fromSequence . Map.toList
 
 --------------------------------------------------------------------------------
@@ -232,14 +223,14 @@ fromUTxO = fromSequence . Map.toList
 --
 -- Consider using 'fold' if your goal is to consume all entries in the output.
 --
-toList :: UTxOIndex -> [(InputId, TokenBundle)]
+toList :: UTxOIndex u -> [(u, TokenBundle)]
 toList = fold (\ios i o -> (i, o) : ios) []
 
 -- | Converts an index into an ordinary UTxO map.
 --
 -- Consider using 'fold' if your goal is to consume all entries in the output.
 --
-toUTxO :: UTxOIndex -> Map InputId TokenBundle
+toUTxO :: UTxOIndex u -> Map u TokenBundle
 toUTxO = utxo
 
 --------------------------------------------------------------------------------
@@ -248,7 +239,7 @@ toUTxO = utxo
 
 -- | Folds strictly over the constituent entries of an index.
 --
-fold :: (a -> InputId -> TokenBundle -> a) -> a -> UTxOIndex -> a
+fold :: (a -> u -> TokenBundle -> a) -> a -> UTxOIndex u -> a
 fold f a = Map.foldlWithKey' f a . utxo
 
 --------------------------------------------------------------------------------
@@ -260,14 +251,18 @@ fold f a = Map.foldlWithKey' f a . utxo
 -- If the index has an existing bundle for the specified input, the bundle
 -- referred to by that input will be replaced with the specified bundle.
 --
-insert :: InputId -> TokenBundle -> UTxOIndex -> UTxOIndex
+insert :: Ord u => u -> TokenBundle -> UTxOIndex u -> UTxOIndex u
 insert i b = insertUnsafe i b . delete i
 
 -- | Inserts multiple entries into an index.
 --
 -- See 'insert'.
 --
-insertMany :: Foldable f => f (InputId, TokenBundle) -> UTxOIndex -> UTxOIndex
+insertMany
+    :: (Foldable f, Ord u)
+    => f (u, TokenBundle)
+    -> UTxOIndex u
+    -> UTxOIndex u
 insertMany = flip $ F.foldl' $ \u (i, o) -> insert i o u
 
 -- | Deletes the entry corresponding to the given input.
@@ -275,11 +270,11 @@ insertMany = flip $ F.foldl' $ \u (i, o) -> insert i o u
 -- If the index has no existing entry for the specified input, the result
 -- of applying this function will be equivalent to the identity function.
 --
-delete :: InputId -> UTxOIndex -> UTxOIndex
+delete :: forall u. Ord u => u -> UTxOIndex u -> UTxOIndex u
 delete i u =
     maybe u updateIndex $ Map.lookup i $ utxo u
   where
-    updateIndex :: TokenBundle -> UTxOIndex
+    updateIndex :: TokenBundle -> UTxOIndex u
     updateIndex b = u
         -- This operation is safe, since we have already determined that the
         -- entry is a member of the index, and therefore the balance must be
@@ -296,16 +291,16 @@ delete i u =
                 over #assetsAll (flip (F.foldl' deleteEntry) as)
 
     deleteEntry
-        :: Map AssetId (NonEmptySet InputId)
+        :: Map AssetId (NonEmptySet u)
         -> AssetId
-        -> Map AssetId (NonEmptySet InputId)
+        -> Map AssetId (NonEmptySet u)
     deleteEntry m a = Map.update (NonEmptySet.delete i) a m
 
 -- | Deletes multiple entries from an index.
 --
 -- See 'delete'.
 --
-deleteMany :: Foldable f => f InputId -> UTxOIndex -> UTxOIndex
+deleteMany :: (Foldable f, Ord u) => f u -> UTxOIndex u -> UTxOIndex u
 deleteMany = flip $ F.foldl' $ \u i -> delete i u
 
 --------------------------------------------------------------------------------
@@ -314,12 +309,12 @@ deleteMany = flip $ F.foldl' $ \u i -> delete i u
 
 -- | Filters an index.
 --
-filter :: (InputId -> Bool) -> UTxOIndex -> UTxOIndex
+filter :: Ord u => (u -> Bool) -> UTxOIndex u -> UTxOIndex u
 filter f = fromSequence . L.filter (f . fst) . toList
 
 -- | Partitions an index.
 --
-partition :: (InputId -> Bool) -> UTxOIndex -> (UTxOIndex, UTxOIndex)
+partition :: Ord u => (u -> Bool) -> UTxOIndex u -> (UTxOIndex u, UTxOIndex u)
 partition f = bimap fromSequence fromSequence . L.partition (f . fst) . toList
 
 --------------------------------------------------------------------------------
@@ -328,41 +323,41 @@ partition f = bimap fromSequence fromSequence . L.partition (f . fst) . toList
 
 -- | Returns the complete set of all assets contained in an index.
 --
-assets :: UTxOIndex -> Set AssetId
+assets :: UTxOIndex u -> Set AssetId
 assets = Map.keysSet . assetsAll
 
 -- | Returns the bundle corresponding to the given input, if one exists.
 --
 -- If the index has no such input, this function returns 'Nothing'.
 --
-lookup :: InputId -> UTxOIndex -> Maybe TokenBundle
+lookup :: Ord u => u -> UTxOIndex u -> Maybe TokenBundle
 lookup i = Map.lookup i . utxo
 
 -- | Returns 'True' if (and only if) the index has an entry for the given input.
 --
-member :: InputId -> UTxOIndex -> Bool
+member :: Ord u => u -> UTxOIndex u -> Bool
 member i = isJust . lookup i
 
 -- | Returns 'True' if (and only if) the index is empty.
 --
-null :: UTxOIndex -> Bool
+null :: UTxOIndex u -> Bool
 null = (== 0) . size
 
 -- | Returns the total number of UTxO entries held within the index.
 --
-size :: UTxOIndex -> Int
+size :: UTxOIndex u -> Int
 size = Map.size . utxo
 
 --------------------------------------------------------------------------------
 -- Set operations
 --------------------------------------------------------------------------------
 
-difference :: UTxOIndex -> UTxOIndex -> UTxOIndex
+difference :: Ord u => UTxOIndex u -> UTxOIndex u -> UTxOIndex u
 difference a b = fromSequence $ Map.toList $ Map.difference (utxo a) (utxo b)
 
 -- | Indicates whether a pair of UTxO indices are disjoint.
 --
-disjoint :: UTxOIndex -> UTxOIndex -> Bool
+disjoint :: Ord u => UTxOIndex u -> UTxOIndex u -> Bool
 disjoint u1 u2 = utxo u1 `Map.disjoint` utxo u2
 
 --------------------------------------------------------------------------------
@@ -391,18 +386,18 @@ data SelectionFilter
 -- Returns 'Nothing' if there were no matching entries.
 --
 selectRandom
-    :: MonadRandom m
-    => UTxOIndex
+    :: forall m u. (MonadRandom m, Ord u)
+    => UTxOIndex u
     -> SelectionFilter
-    -> m (Maybe ((InputId, TokenBundle), UTxOIndex))
+    -> m (Maybe ((u, TokenBundle), UTxOIndex u))
 selectRandom u selectionFilter =
     (lookupAndRemoveEntry =<<) <$> selectRandomSetMember selectionSet
   where
-    lookupAndRemoveEntry :: InputId -> Maybe ((InputId, TokenBundle), UTxOIndex)
+    lookupAndRemoveEntry :: u -> Maybe ((u, TokenBundle), UTxOIndex u)
     lookupAndRemoveEntry i =
         (\b -> ((i, b), delete i u)) <$> Map.lookup i (utxo u)
 
-    selectionSet :: Set InputId
+    selectionSet :: Set u
     selectionSet = case selectionFilter of
         Any -> Map.keysSet $ utxo u
         WithAdaOnly -> entriesWithAdaOnly u
@@ -426,12 +421,12 @@ selectRandom u selectionFilter =
 -- list of filters without successfully selecting a UTxO entry.
 --
 selectRandomWithPriority
-    :: MonadRandom m
-    => UTxOIndex
+    :: (MonadRandom m, Ord u)
+    => UTxOIndex u
     -> NonEmpty SelectionFilter
     -- ^ A list of selection filters to be traversed in descending order of
     -- priority, from left to right.
-    -> m (Maybe ((InputId, TokenBundle), UTxOIndex))
+    -> m (Maybe ((u, TokenBundle), UTxOIndex u))
 selectRandomWithPriority u =
     firstJustM (selectRandom u) . NE.toList
 
@@ -463,20 +458,20 @@ categorizeTokenBundle b = case F.toList bundleAssets of
 
 -- | Returns the set of keys for entries that have no assets other than ada.
 --
-entriesWithAdaOnly :: UTxOIndex -> Set InputId
+entriesWithAdaOnly :: UTxOIndex u -> Set u
 entriesWithAdaOnly = coins
 
 -- | Returns the set of keys for entries that have non-zero quantities of the
 --   given asset.
 --
-entriesWithAsset :: AssetId -> UTxOIndex -> Set InputId
+entriesWithAsset :: Ord u => AssetId -> UTxOIndex u -> Set u
 entriesWithAsset a =
     maybe mempty NonEmptySet.toSet . Map.lookup a . assetsAll
 
 -- | Returns the set of keys for entries that have no non-ada assets other than
 --   the given asset.
 --
-entriesWithAssetOnly :: AssetId -> UTxOIndex -> Set InputId
+entriesWithAssetOnly :: Ord u => AssetId -> UTxOIndex u -> Set u
 entriesWithAssetOnly a =
     maybe mempty NonEmptySet.toSet . Map.lookup a . assetsSingleton
 
@@ -486,7 +481,12 @@ entriesWithAssetOnly a =
 --
 -- See 'insert' for a safe version of this function.
 --
-insertUnsafe :: InputId -> TokenBundle -> UTxOIndex -> UTxOIndex
+insertUnsafe
+    :: forall u. Ord u
+    => u
+    -> TokenBundle
+    -> UTxOIndex u
+    -> UTxOIndex u
 insertUnsafe i b u = u
     & over #balance (`TokenBundle.add` b)
     & over #utxo (Map.insert i b)
@@ -500,9 +500,9 @@ insertUnsafe i b u = u
             over #assetsAll (flip (F.foldl' insertEntry) as)
   where
     insertEntry
-        :: Map AssetId (NonEmptySet InputId)
+        :: Map AssetId (NonEmptySet u)
         -> AssetId
-        -> Map AssetId (NonEmptySet InputId)
+        -> Map AssetId (NonEmptySet u)
     insertEntry m a =
         Map.alter (maybe (Just createNew) (Just . updateOld)) a m
       where
@@ -545,7 +545,7 @@ data InvariantStatus
 
 -- | Checks whether or not the invariant holds.
 --
-checkInvariant :: UTxOIndex -> InvariantStatus
+checkInvariant :: Ord u => UTxOIndex u -> InvariantStatus
 checkInvariant u
     | balanceStatus /= BalanceCorrect =
         InvariantBalanceError balanceError
@@ -581,7 +581,7 @@ data BalanceError = BalanceError
 -- | Checks that calculating the balance from scratch gives a result that
 --   is equal to the stored 'balance' value.
 --
-checkBalance :: UTxOIndex -> BalanceStatus
+checkBalance :: UTxOIndex u -> BalanceStatus
 checkBalance u
     | balanceComputed == balanceStored =
         BalanceCorrect
@@ -593,10 +593,10 @@ checkBalance u
 
 -- | Checks that every entry in the 'utxo' map is properly indexed.
 --
-indexIsComplete :: UTxOIndex -> Bool
+indexIsComplete :: forall u. Ord u => UTxOIndex u -> Bool
 indexIsComplete u = F.all hasEntry $ Map.toList $ utxo u
   where
-    hasEntry :: (InputId, TokenBundle) -> Bool
+    hasEntry :: (u, TokenBundle) -> Bool
     hasEntry (i, o) = case categorizeTokenBundle o of
         IsCoin ->
             i `Set.member` coins u
@@ -608,8 +608,8 @@ indexIsComplete u = F.all hasEntry $ Map.toList $ utxo u
 
     hasEntryForAsset
         :: AssetId
-        -> InputId
-        -> (UTxOIndex -> Map AssetId (NonEmptySet InputId))
+        -> u
+        -> (UTxOIndex u -> Map AssetId (NonEmptySet u))
         -> Bool
     hasEntryForAsset asset i assetsMap =
         maybe False (NonEmptySet.member i) $ Map.lookup asset $ assetsMap u
@@ -617,7 +617,7 @@ indexIsComplete u = F.all hasEntry $ Map.toList $ utxo u
 -- | Checks that every indexed entry is required by some entry in the 'utxo'
 --   map.
 --
-indexIsMinimal :: UTxOIndex -> Bool
+indexIsMinimal :: forall u. Ord u => UTxOIndex u -> Bool
 indexIsMinimal u = F.and
     [ assetsAll u
         & Map.toList
@@ -629,18 +629,18 @@ indexIsMinimal u = F.and
         & F.all entryIsCoin
     ]
   where
-    entryHasAsset :: AssetId -> InputId -> Bool
+    entryHasAsset :: AssetId -> u -> Bool
     entryHasAsset a = entryMatches (`TokenBundle.hasQuantity` a)
 
-    entryHasSingletonAsset :: AssetId -> InputId -> Bool
+    entryHasSingletonAsset :: AssetId -> u -> Bool
     entryHasSingletonAsset a = entryMatches $
         (== IsCoinWithSingletonAsset a) . categorizeTokenBundle
 
-    entryIsCoin :: InputId -> Bool
+    entryIsCoin :: u -> Bool
     entryIsCoin = entryMatches $
         (== IsCoin) . categorizeTokenBundle
 
-    entryMatches :: (TokenBundle -> Bool) -> InputId -> Bool
+    entryMatches :: (TokenBundle -> Bool) -> u -> Bool
     entryMatches test i = maybe False test $ Map.lookup i $ utxo u
 
 -- | Checks that the asset sets are consistent.
@@ -650,7 +650,7 @@ indexIsMinimal u = F.and
 --    - equal to the set of assets in 'assetsAll'
 --    - a superset of the set of assets in 'assetsSingleton'.
 --
-assetsConsistent :: UTxOIndex -> Bool
+assetsConsistent :: UTxOIndex u -> Bool
 assetsConsistent u = (&&)
     (Map.keysSet (assetsAll u) == balanceAssets)
     (Map.keysSet (assetsSingleton u) `Set.isSubsetOf` balanceAssets)
