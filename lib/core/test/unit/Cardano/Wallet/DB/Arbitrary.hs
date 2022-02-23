@@ -39,6 +39,8 @@ import Cardano.Mnemonic
     ( SomeMnemonic (..) )
 import Cardano.Wallet.DB.Model
     ( TxHistory, filterTxHistory )
+import Cardano.Wallet.DB.Sqlite.AddressBook
+    ( AddressBookIso (..) )
 import Cardano.Wallet.DummyTarget.Primitive.Types as DummyTarget
     ( block0, mkTx )
 import Cardano.Wallet.Gen
@@ -219,9 +221,12 @@ import qualified Data.Map.Strict as Map
                                  Modifiers
 -------------------------------------------------------------------------------}
 
+-- | Convenient constraint alias for generating address discovery states
 type GenState s =
-    ( Arbitrary s
+    ( AddressBookIso s
+    , Arbitrary s
     , Buildable s
+    , Eq s
     , IsOurs s Address
     , IsOurs s RewardAccount
     , NFData s

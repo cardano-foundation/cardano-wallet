@@ -248,6 +248,12 @@ import Cardano.Wallet.DB
     , defaultSparseCheckpointsConfig
     , sparseCheckpoints
     )
+import Cardano.Wallet.DB.Checkpoints
+    ( DeltaCheckpoints (..) )
+import Cardano.Wallet.DB.Sqlite.AddressBook
+    ( AddressBookIso, getPrologue )
+import Cardano.Wallet.DB.WalletState
+    ( DeltaMap (..), DeltaWalletState1 (..), fromWallet, getLatest, getSlot )
 import Cardano.Wallet.Logging
     ( BracketLog
     , BracketLog' (..)
@@ -473,6 +479,8 @@ import Data.ByteString
     ( ByteString )
 import Data.Coerce
     ( coerce )
+import Data.DBVar
+    ( modifyDBMaybe )
 import Data.Either
     ( partitionEithers )
 import Data.Either.Extra
@@ -494,9 +502,11 @@ import Data.IntCast
 import Data.Kind
     ( Type )
 import Data.List
-    ( scanl' )
+    ( foldl' )
 import Data.List.NonEmpty
     ( NonEmpty (..) )
+import Data.Map
+    ( Map )
 import Data.Maybe
     ( fromMaybe, mapMaybe )
 import Data.Proxy
@@ -565,6 +575,7 @@ import qualified Data.ByteString as BS
 import qualified Data.Foldable as F
 import qualified Data.List as L
 import qualified Data.List.NonEmpty as NE
+import qualified Data.Map.Strict as Map
 import qualified Data.Set as Set
 import qualified Data.Text as T
 import qualified Data.Vector as V
@@ -758,6 +769,8 @@ createIcarusWallet ctx wid wname credentials = db & \DBLayer{..} -> do
             , delegation = WalletDelegation NotDelegating []
             }
     mapExceptT atomically $
+        -- FIXME: Why `updateState s cp` and not `cp`?
+        -- The genesis block could very well update the address discovery state.
         initializeWallet wid (updateState s cp) meta hist gp $> wid
   where
     db = ctx ^. dbLayer @IO @s @k
@@ -902,6 +915,7 @@ restoreWallet
         , HasLogger IO WalletWorkerLog ctx
         , IsOurs s Address
         , IsOurs s RewardAccount
+        , AddressBookIso s
         )
     => ctx
     -> WalletId
@@ -987,6 +1001,7 @@ restoreBlocks
         , HasNetworkLayer IO ctx
         , IsOurs s Address
         , IsOurs s RewardAccount
+        , AddressBookIso s
         )
     => ctx
     -> Tracer IO WalletFollowLog
@@ -995,17 +1010,17 @@ restoreBlocks
     -> BlockHeader
     -> ExceptT ErrNoSuchWallet IO ()
 restoreBlocks ctx tr wid blocks nodeTip = db & \DBLayer{..} -> mapExceptT atomically $ do
-    cp   <- withNoSuchWallet wid (readCheckpoint wid)
+    cp0  <- withNoSuchWallet wid (readCheckpoint wid)
     sp   <- liftIO $ currentSlottingParameters nl
 
-    unless (cp `isParentOf` NE.head blocks) $ fail $ T.unpack $ T.unwords
+    unless (cp0 `isParentOf` NE.head blocks) $ fail $ T.unpack $ T.unwords
         [ "restoreBlocks: given chain isn't a valid continuation."
-        , "Wallet is at:", pretty (currentTip cp)
+        , "Wallet is at:", pretty (currentTip cp0)
         , "but the given chain continues starting from:"
         , pretty (header (NE.head blocks))
         ]
 
-    let (filteredBlocks, cps) = NE.unzip $ applyBlocks @s blocks cp
+    let (filteredBlocks, cps) = NE.unzip $ applyBlocks @s blocks cp0
     let slotPoolDelegations =
             [ (slotNo, cert)
             | let slots = view #slotNo . view #header <$> blocks
@@ -1023,7 +1038,7 @@ restoreBlocks ctx tr wid blocks nodeTip = db & \DBLayer{..} -> mapExceptT atomic
         liftIO $ logDelegation delegation
         putDelegationCertificate wid cert slotNo
 
-    let unstable = sparseCheckpoints cfg (nodeTip ^. #blockHeight)
+    let unstable = Set.fromList $ sparseCheckpoints cfg (nodeTip ^. #blockHeight)
             where
                 -- NOTE
                 -- The edge really is an optimization to avoid rolling back too
@@ -1040,14 +1055,29 @@ restoreBlocks ctx tr wid blocks nodeTip = db & \DBLayer{..} -> mapExceptT atomic
                 -- anyway.
                 cfg = (defaultSparseCheckpointsConfig epochStability) { edgeSize = 0 }
 
-    forM_ (NE.init cps) $ \cp' -> do
-        let (Quantity h) = currentTip cp' ^. #blockHeight
-        when (fromIntegral h `elem` unstable) $ do
-            liftIO $ logCheckpoint cp'
-            putCheckpoint wid cp'
+        getBlockHeight cp = fromIntegral $
+            cp ^. #currentTip . #blockHeight . #getQuantity
+        willKeep cp = getBlockHeight cp `Set.member` unstable
+        cpsKeep = filter willKeep (NE.init cps) <> [NE.last cps]
 
-    liftIO $ logCheckpoint (NE.last cps)
-    putCheckpoint wid (NE.last cps)
+        -- NOTE: We have to update the 'Prologue' as well,
+        -- as it can contain addresses for pending transactions,
+        -- which are removed from the 'Prologue' once the
+        -- transactions are accepted onto the chain and discovered.
+        --
+        -- I'm not so sure that the approach here is correct with
+        -- respect to rollbacks, but it is functionally the same
+        -- as the code that came before.
+        deltaPrologue =
+            [ ReplacePrologue $ getPrologue $ getState $ NE.last cps ]
+        delta = deltaPrologue ++ reverse
+            [ UpdateCheckpoints $ PutCheckpoint (getSlot wcp) wcp
+            | wcp <- map (snd . fromWallet) cpsKeep
+            ]
+
+    liftIO $ mapM_ logCheckpoint cpsKeep
+    ExceptT $ modifyDBMaybe walletsDB $
+        adjustNoSuchWallet wid id $ \_ -> Right ( delta, () )
 
     prune wid epochStability
 
@@ -1308,6 +1338,7 @@ createRandomAddress
         , PaymentAddress n k
         , RndStateLike s
         , k ~ ByronKey
+        , AddressBookIso s
         )
     => ctx
     -> WalletId
@@ -1316,55 +1347,69 @@ createRandomAddress
     -> ExceptT ErrCreateRandomAddress IO (Address, NonEmpty DerivationIndex)
 createRandomAddress ctx wid pwd mIx = db & \DBLayer{..} ->
     withRootKey @ctx @s @k ctx wid pwd ErrCreateAddrWithRootKey $ \xprv scheme -> do
-        mapExceptT atomically $ do
-            cp <- withExceptT ErrCreateAddrNoSuchWallet $
-                withNoSuchWallet wid (readCheckpoint wid)
-            let s = getState cp
-            let accIx = Rnd.defaultAccountIndex s
-
-            (path, s') <- case mIx of
-                Just addrIx | isKnownIndex accIx addrIx s ->
-                    throwE $ ErrIndexAlreadyExists addrIx
-                Just addrIx ->
-                    pure ((liftIndex accIx, liftIndex addrIx), s)
-                Nothing ->
-                    pure $ Rnd.withRNG s $ \rng ->
-                        Rnd.findUnusedPath rng accIx (Rnd.unavailablePaths s)
-
-            let prepared = preparePassphrase scheme pwd
-            let addr = Rnd.deriveRndStateAddress @n xprv prepared path
-            let cp' = updateState (Rnd.addPendingAddress addr path s') cp
-            withExceptT ErrCreateAddrNoSuchWallet $
-                putCheckpoint wid cp'
-            pure (addr, Rnd.toDerivationIndexes path)
+        ExceptT $ atomically $ modifyDBMaybe walletsDB $
+            adjustNoSuchWallet wid ErrCreateAddrNoSuchWallet $
+                createRandomAddress' xprv scheme
   where
     db = ctx ^. dbLayer @IO @s @k
-    isKnownIndex accIx addrIx s =
-        (liftIndex accIx, liftIndex addrIx) `Set.member` Rnd.unavailablePaths s
+
+    createRandomAddress' xprv scheme wal = case mIx of
+        Just addrIx | isKnownIndex addrIx s0 ->
+            Left $ ErrIndexAlreadyExists addrIx
+        Just addrIx ->
+            Right $ addAddress ((liftIndex accIx, liftIndex addrIx), s0)
+        Nothing ->
+            Right $ addAddress $ Rnd.withRNG s0 $ \rng ->
+                Rnd.findUnusedPath rng accIx (Rnd.unavailablePaths s0)
+      where
+        s0 = getState $ getLatest wal
+        accIx = Rnd.defaultAccountIndex s0
+        isKnownIndex addrIx s =
+            (liftIndex accIx, liftIndex addrIx) `Set.member` Rnd.unavailablePaths s
+
+        addAddress (path, s1) =
+            ( [ ReplacePrologue $ getPrologue $ Rnd.addPendingAddress addr path s1 ]
+            , (addr, Rnd.toDerivationIndexes path)
+            )
+          where
+            prepared = preparePassphrase scheme pwd
+            addr = Rnd.deriveRndStateAddress @n xprv prepared path
 
 importRandomAddresses
     :: forall ctx s k.
         ( HasDBLayer IO s k ctx
         , RndStateLike s
         , k ~ ByronKey
+        , AddressBookIso s
         )
     => ctx
     -> WalletId
     -> [Address]
     -> ExceptT ErrImportRandomAddress IO ()
-importRandomAddresses ctx wid addrs = db & \DBLayer{..} -> mapExceptT atomically $ do
-    cp <- withExceptT ErrImportAddrNoSuchWallet
-        $ withNoSuchWallet wid (readCheckpoint wid)
-    let s0 = getState cp
-        ours = scanl' (\s addr -> s >>= Rnd.importAddress addr) (Right s0) addrs
-    case last ours of
-        Left err ->
-            throwE $ ErrImportAddr err
-        Right s' ->
-            withExceptT ErrImportAddrNoSuchWallet $
-                putCheckpoint wid (updateState s' cp)
+importRandomAddresses ctx wid addrs = db & \DBLayer{..} ->
+    ExceptT $ atomically $ modifyDBMaybe walletsDB $
+        adjustNoSuchWallet wid ErrImportAddrNoSuchWallet
+            importRandomAddresses'
   where
     db = ctx ^. dbLayer @IO @s @k
+    importRandomAddresses' wal = case es1 of
+        Left err -> Left $ ErrImportAddr err
+        Right s1 -> Right ([ ReplacePrologue $ getPrologue s1 ], ())
+      where
+        s0  = getState $ getLatest wal
+        es1 = foldl' (\s addr -> s >>= Rnd.importAddress addr) (Right s0) addrs
+
+-- | Adjust a specific wallet if it exists or return 'ErrNoSuchWallet'.
+adjustNoSuchWallet
+    :: WalletId
+    -> (ErrNoSuchWallet -> e)
+    -> (w -> Either e (dw, b))
+    -> (Map WalletId w -> (Maybe (DeltaMap WalletId dw), Either e b))
+adjustNoSuchWallet wid err update wallets = case Map.lookup wid wallets of
+    Nothing -> (Nothing, Left $ err $ ErrNoSuchWallet wid)
+    Just wal -> case update wal of
+        Left e -> (Nothing, Left e)
+        Right (dw, b) -> (Just $ Adjust wid dw, Right b)
 
 -- NOTE
 -- Addresses coming from the transaction history might be payment or
@@ -1712,6 +1757,7 @@ assignChangeAddressesAndUpdateDb
     :: forall ctx s k.
         ( GenChange s
         , HasDBLayer IO s k ctx
+        , AddressBookIso s
         )
     => ctx
     -> WalletId
@@ -1719,16 +1765,18 @@ assignChangeAddressesAndUpdateDb
     -> Selection
     -> ExceptT ErrSignPayment IO (SelectionOf TxOut)
 assignChangeAddressesAndUpdateDb ctx wid generateChange selection =
-    db & \DBLayer{..} -> mapExceptT atomically $ do
-        cp <- withExceptT ErrSignPaymentNoSuchWallet $
-            withNoSuchWallet wid $ readCheckpoint wid
-        let (selectionUpdated, stateUpdated) =
-                assignChangeAddresses generateChange selection (getState cp)
-        withExceptT ErrSignPaymentNoSuchWallet $
-            putCheckpoint wid (updateState stateUpdated cp)
-        pure selectionUpdated
+    db & \DBLayer{..} -> ExceptT $ atomically $ modifyDBMaybe walletsDB $
+        adjustNoSuchWallet wid ErrSignPaymentNoSuchWallet
+            assignChangeAddressesAndUpdateDb'
   where
     db = ctx ^. dbLayer @IO @s @k
+    assignChangeAddressesAndUpdateDb' wallet = Right
+        -- Newly generated change addresses only change the Prologue
+        ([ReplacePrologue $ getPrologue stateUpdated], selectionUpdated)
+      where
+        s = getState $ getLatest wallet
+        (selectionUpdated, stateUpdated) =
+            assignChangeAddresses generateChange selection s
 
 assignChangeAddressesWithoutDbUpdate
     :: forall ctx s k.
@@ -2947,7 +2995,7 @@ guardHardIndex ix =
 updateCosigner
     :: forall ctx s k n.
         ( s ~ SharedState n k
-        , MkKeyFingerprint k (Proxy n, k 'AddressK CC.XPub)
+--        , MkKeyFingerprint k (Proxy n, k 'AddressK CC.XPub)
         , MkKeyFingerprint k Address
         , SoftDerivation k
         , Typeable n
@@ -2961,16 +3009,18 @@ updateCosigner
     -> Cosigner
     -> CredentialType
     -> ExceptT ErrAddCosignerKey IO ()
-updateCosigner ctx wid cosignerXPub cosigner cred = db & \DBLayer{..} -> do
-    mapExceptT atomically $ do
-        cp <- withExceptT ErrAddCosignerKeyNoSuchWallet $ withNoSuchWallet wid $
-              readCheckpoint wid
-        case addCosignerAccXPub (cosigner, cosignerXPub) cred (getState cp) of
-            Left err -> throwE (ErrAddCosignerKey err)
-            Right st' -> withExceptT ErrAddCosignerKeyNoSuchWallet $
-                putCheckpoint wid (updateState st' cp)
+updateCosigner ctx wid cosignerXPub cosigner cred = db & \DBLayer{..} ->
+    ExceptT $ atomically $ modifyDBMaybe walletsDB $
+        adjustNoSuchWallet wid ErrAddCosignerKeyNoSuchWallet
+            updateCosigner'
   where
     db = ctx ^. dbLayer @_ @s @k
+    updateCosigner' wallet =
+        case addCosignerAccXPub (cosigner, cosignerXPub) cred s0 of
+            Left err -> Left $ ErrAddCosignerKey err
+            Right s1 -> Right ([ReplacePrologue $ getPrologue s1], ())
+      where
+        s0 = getState $ getLatest wallet
 
 -- NOTE
 -- Addresses coming from the transaction history might be base (having payment credential) or

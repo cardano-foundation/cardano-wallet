@@ -33,6 +33,9 @@ module Cardano.Wallet.DB.Sqlite.CheckpointsOld
     ( mkStoreWallets
     , PersistAddressBook (..)
     , blockHeaderFromEntity
+    
+    -- * Testing
+    , mkStoreWallet
     )
     where
 
@@ -264,7 +267,8 @@ mkStoreCheckpoints wid =
             [ CheckpointWalletId ==. wid
             , CheckpointParentHash !=. BlockId hashOfNoParent
             ]
-    update (RestrictTo points) = do
+    update (RestrictTo pts) = do
+        let points = W.Origin : pts
         let pseudoSlot W.Origin    = W.SlotNo 0
             pseudoSlot (W.At slot) = slot
         let slots = map pseudoSlot points
@@ -428,7 +432,11 @@ class AddressBookIso s => PersistAddressBook s where
     Sequential address book storage
 -------------------------------------------------------------------------------}
 -- piggy-back on SeqState existing instance, to simulate the same behavior.
-instance PersistAddressBook (Seq.SeqState n k)
+instance
+    ( Eq (Seq.SeqState n k)
+    , (k == SharedKey) ~ 'False
+    , PersistAddressBook (Seq.SeqState n k)
+    )
     => PersistAddressBook (Seq.SeqAnyState n k p)
   where
     insertPrologue wid (PS s) = insertPrologue wid s
@@ -444,6 +452,7 @@ instance
     , SoftDerivation key
     , Typeable n
     , (key == SharedKey) ~ 'False
+    , Eq (Seq.SeqState n key)
     ) => PersistAddressBook (Seq.SeqState n key) where
 
     insertPrologue wid (SeqPrologue st) = do

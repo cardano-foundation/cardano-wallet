@@ -107,6 +107,7 @@ newDBLayer timeInterpreter = do
         {-----------------------------------------------------------------------
                                     Checkpoints
         -----------------------------------------------------------------------}
+        , walletsDB = error "MVar.walletsDB: not implemented"
 
         , putCheckpoint = \pk cp -> ExceptT $
             alterDB errNoSuchWallet db $

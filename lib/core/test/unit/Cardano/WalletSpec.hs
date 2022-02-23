@@ -1348,6 +1348,10 @@ instance Sqlite.AddressBookIso DummyState where
         from x = (DummyPrologue, DummyDiscoveries x)
         to (_,DummyDiscoveries x) = x
 
+instance Eq (Sqlite.Prologue DummyState) where _ == _ = True
+instance Eq (Sqlite.Discoveries DummyState) where
+    DummyDiscoveries a == DummyDiscoveries b = a == b
+ 
 instance Sqlite.PersistAddressBook DummyState where
     insertPrologue _ _ = error "DummyState.insertPrologue: not implemented"
     insertDiscoveries _ _ _ = error "DummyState.insertDiscoveries: not implemented"
