@@ -97,7 +97,7 @@ Available COMMANDS:
 :::
 
 :::{.info-block}
-:information_source: The CLI commands for `wallet`, `transaction` and `address` only output valid JSON on `stdout`. So you may redirect the output to a file with `>` or pipe it into utility softwares like `jq`!
+:information_source: The CLI commands for `wallet`, `transaction` and `address` only output valid JSON on `stdout`. So you may redirect the output to a file with `>` or pipe it into utility software like `jq`!
 :::
 
 ## Commands

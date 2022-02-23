@@ -603,10 +603,10 @@ migrateManually tr proxy defaultFieldValues =
     -- - Fees
     -- - Total deposits if any
     --
-    -- To substract deposit values from fees, we consider that any transaction
+    -- To subtract deposit values from fees, we consider that any transaction
     -- that has one or less output and fees greater than the key deposit (or min
     -- utxo value) is a key registration transaction and the key deposit value
-    -- can be substracted from the delta to deduce the fees.
+    -- can be subtracted from the delta to deduce the fees.
     --
     -- Note that ideally, we would do this in a single `UPDATE ... FROM` query
     -- but the `FROM` syntax is only supported in SQLite >= 3.33 which is only

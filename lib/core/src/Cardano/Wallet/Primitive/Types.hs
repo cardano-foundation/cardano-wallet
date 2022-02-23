@@ -567,7 +567,7 @@ isSubrangeOf r1 r2 =
 data PoolMetadataGCStatus
     = NotApplicable
     | NotStarted
-    | Restarting POSIXTime -- shows last GC before restart occured
+    | Restarting POSIXTime -- shows last GC before restart occurred
     | HasRun POSIXTime     -- shows last GC
     deriving (Eq, Show, Generic)
 

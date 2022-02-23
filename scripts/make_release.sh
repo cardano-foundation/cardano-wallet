@@ -5,7 +5,7 @@
 set -euo pipefail
 
 # A handy utility for filling in the github RELEASE_TEMPLATE.
-# Since we are using nix, this script shoud work whether on linux or mac.
+# Since we are using nix, this script should work whether on linux or mac.
 #
 # NOTE: This script will target the LATEST wiki version. Make sure the
 # wiki hasn't changed undesirably since the release tag.
@@ -42,7 +42,7 @@ tag_cabal_ver_re() {
 }
 
 ################################################################################
-# Interactively change the release-specific parameter by promting the caller, and
+# Interactively change the release-specific parameter by prompting the caller, and
 # mutating the script itself.
 
 echo "Previous release: $GIT_TAG"

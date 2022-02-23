@@ -184,7 +184,7 @@ newSharedAddressPool g payment delegation =
 --
 -- The shared wallet is instantiated with an account public key, derivation path needed to
 -- recreate it for a holder of this shared wallet, ie., one of the co-signers.
--- In order to construct corectly the wallet, ie., enable co-shared script addresses discovery
+-- In order to construct correctly the wallet, ie., enable co-shared script addresses discovery
 -- the following is needed:
 --
 -- - a way to determine what range of indices are checked on the
@@ -192,7 +192,7 @@ newSharedAddressPool g payment delegation =
 --   is used. The idea is to track all indices starting from 0 and up to N.
 --   N is variable as addresses are discovered (and marked as Used in consequence).
 --   The pool of addresses is enlarged in such way that the number of consecutive
---   Unsed addresses equals to address pool gap of the address pool. Hence,
+--   Unused addresses equals to address pool gap of the address pool. Hence,
 --   the address pool gap needs to be specified.
 --
 -- - script template for payment credential contains information about all collected
@@ -200,7 +200,7 @@ newSharedAddressPool g payment delegation =
 --   determining script structure is provided. In this sense script is predetermined from
 --   the beginning and can variate only in verification key part that replaces co-signers in the
 --   script skeleton. The places where a specific cosigner is present is to be replaced
---   with the derived verfication key using the co-signer's account public key and
+--   with the derived verification key using the co-signer's account public key and
 --   the index that was chosen. This is the reason why we need complete set of account public keys for
 --   each co-signer to realize address discovery. The script template can be translated into
 --   a corresponding script, which hash is used in the address, only when account public keys
@@ -324,7 +324,7 @@ activate
 -- | Possible errors from adding a co-signer key to the shared wallet state.
 data ErrAddCosigner
     = NoDelegationTemplate
-        -- ^ Adding key for a cosigner for a non-existant delegation template is
+        -- ^ Adding key for a cosigner for a non-existent delegation template is
         -- not allowed.
     | NoSuchCosigner CredentialType Cosigner
         -- ^ Adding key for a cosigners for a given script is possible for the

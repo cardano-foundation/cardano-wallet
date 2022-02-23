@@ -7,7 +7,7 @@ module Data.Table (
     -- Each row has a unique ID, but this is transparent to the API user.
     --
     -- 'Pile' models a set of values.
-    -- Unlike 'Set', it is represented as a leightweight list.
+    -- Unlike 'Set', it is represented as a lightweight list.
     -- This is used to highlight that the ordering of rows
     -- in a 'Table' is /not/ deterministic.
     --
@@ -140,7 +140,7 @@ instance Delta (DeltaTable row) where
     apply (DeleteWhere p)   = deleteWhere p
     apply (UpdateWhere p f) = updateWhere p f
 
--- | Delta encoding for changes to a database table with uniqe IDs.
+-- | Delta encoding for changes to a database table with unique IDs.
 data DeltaDB key row
     = InsertManyDB [(key, row)]
     | DeleteManyDB [key]

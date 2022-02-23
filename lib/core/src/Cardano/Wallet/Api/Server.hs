@@ -2188,7 +2188,7 @@ constructTransaction ctx genChange knownPools getPoolStatus (ApiT wid) body = do
             Just delegs -> do
                 -- TODO: Current limitation:
                 -- at this moment we are handling just one delegation action:
-                -- either joining pool, or rejoining or quiting
+                -- either joining pool, or rejoining or quitting
                 -- When we support multi-account this should be lifted
                 (action, deposit, refund) <- case NE.toList delegs of
                     [(Joining (ApiT pid) _)] -> do
@@ -3050,7 +3050,7 @@ getNetworkInformation st nl = liftIO $ do
     toApiEra (AnyCardanoEra AlonzoEra) = ApiAlonzo
 
     -- (network tip, next epoch)
-    -- May be unavailible if the node is still syncing.
+    -- May be unavailable if the node is still syncing.
     networkTipInfo :: RelativeTime -> MaybeT IO (ApiSlotReference, ApiEpochInfo)
     networkTipInfo now = do
         networkTipSlot <- interpretQuery ti $ ongoingSlotAt now
@@ -3453,7 +3453,7 @@ mkApiTransaction timeInterpreter setTimeReference tx = do
 
     -- (pending) when reclaim is coming we have (fee+out) - inp = deposit
     -- tx is incoming, and the wallet spent for fee and received deposit - fee as out
-    -- (inLedger) when reclaim is accomodated we have out - inp < deposit as fee was incurred
+    -- (inLedger) when reclaim is accommodated we have out - inp < deposit as fee was incurred
     -- So in order to detect this we need to have
     -- 1. deposit
     -- 2. have inpsWithoutFee of the wallet non-empty

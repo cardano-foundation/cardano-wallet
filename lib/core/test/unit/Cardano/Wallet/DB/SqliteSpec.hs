@@ -511,7 +511,7 @@ fileModeSpec =  do
                 testTxs
                 mempty
 
-        it "put and read tx history (Decending)" $ \f -> do
+        it "put and read tx history (Descending)" $ \f -> do
             withShelleyFileDBLayer f $ \DBLayer{..} -> do
                 atomically $ do
                     unsafeRunExceptT $

@@ -360,7 +360,7 @@ newDBLayer tr ti SqliteContext{runQuery} =
                         , retryAfter, "IS NULL"
                         , ")"
                     -- Important, since we have a limit, we order all results by
-                    -- earlist "retry_after", so that we are sure that all
+                    -- earliest "retry_after", so that we are sure that all
                     -- metadata gets _eventually_ processed.
                     --
                     -- Note that `NULL` is smaller than everything.

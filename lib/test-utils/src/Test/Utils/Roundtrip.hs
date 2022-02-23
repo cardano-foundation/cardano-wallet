@@ -45,7 +45,7 @@ import Web.HttpApiData
 --
 -- ...will compare @ToJSON@ of @Wallet@ against `Wallet.json`. It may either
 -- match and succeed, or fail and write `Wallet.faulty.json` to disk with the
--- new format. Faulty golden files should /not/ be commited.
+-- new format. Faulty golden files should /not/ be committed.
 --
 -- The directory `test/data/Cardano/Wallet/Api` is used.
 jsonRoundtripAndGolden

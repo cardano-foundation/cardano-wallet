@@ -331,7 +331,7 @@ chainSyncWithBlocks tr chainFollower =
             clientStNegotiateGenesis
             }
 
-    -- Explictly negotiate the genesis point
+    -- Explicitly negotiate the genesis point
     clientStNegotiateGenesis
         :: m (P.ClientPipelinedStIdle 'Z block (Point block) (Tip block) m Void)
     clientStNegotiateGenesis = do
@@ -673,7 +673,7 @@ localTxSubmission queue = LocalTxSubmissionClient clientStIdle
 -- quantified type.
 -- In typical use, the @cmd m@ involves existential quantification over
 -- the type @a@, so that the 'TQueue' has elements with a monomorphic type.
--- However, the type signature of `send` allows us to retrive this particular
+-- However, the type signature of `send` allows us to retrieve this particular
 -- type @a@ for later use again.
 send
     :: MonadSTM m

@@ -659,7 +659,7 @@ monitorStakePools tr (NetworkParameters gp sp _pp) nl DBLayer{..} =
     -- However, assuming the rollback window is always guaranteed to be less
     -- than one epoch in length, retirements that occurred two epochs ago can
     -- no longer be affected by rollbacks. Therefore, if we see a retirement
-    -- that occurred two epochs ago that has not subsquently been superseded,
+    -- that occurred two epochs ago that has not subsequently been superseded,
     -- it should be safe to garbage collect that pool.
     --
     garbageCollectPools currentSlot latestGarbageCollectionEpochRef = do
@@ -789,7 +789,7 @@ monitorMetadata gcStatus tr sp db@(DBLayer{..}) = do
         endlessly :: Monad m => a -> (a -> m a) -> m Void
         endlessly zero action = action zero >>= (`endlessly` action)
 
-        -- | Run an action asyncronously only when there's an available seat.
+        -- | Run an action asynchronously only when there's an available seat.
         -- Seats are materialized by a bounded queue. If the queue is full,
         -- then there's no seat.
         withAvailableSeat :: TBQueue () -> IO a -> IO ()

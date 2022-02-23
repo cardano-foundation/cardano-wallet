@@ -15,7 +15,7 @@
 -- ".win" to the golden file name.
 --
 -- This seems to work for now with just two windows specific goldens, but if
--- there are more, it might be more conventient if windows goldens always are
+-- there are more, it might be more convenient if windows goldens always are
 -- separate, as OVERWRITE_GOLDENS will never currently write the .win version.
 module Test.Hspec.Goldens
     ( Settings (..)

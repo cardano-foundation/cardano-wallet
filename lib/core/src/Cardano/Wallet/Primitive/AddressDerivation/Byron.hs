@@ -301,7 +301,7 @@ changePassphraseRnd (Passphrase oldPwd) (Passphrase newPwd) key = ByronKey
 -- are any withdrawals).
 --
 -- With 'ByronKey', withdrawals will always be `0`, and the result of this
--- function shouldn't be evaluated (relying on lazyness here). If they do, then
+-- function shouldn't be evaluated (relying on laziness here). If they do, then
 -- we're doing something wrong.
 instance W.HardDerivation ByronKey where
     type AddressIndexDerivationType ByronKey = 'WholeDomain

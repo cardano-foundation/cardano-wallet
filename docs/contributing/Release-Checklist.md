@@ -8,7 +8,7 @@
 
   Verify that the content of [`stack.yaml`][] and [`cabal.project`][] correspond to the `cardano-node` version.
 
-  Verify that target repositories point to appopriate revisions for `persistent`, `cardano-addresses`, `bech32`, ...)
+  Verify that target repositories point to appropriate revisions for `persistent`, `cardano-addresses`, `bech32`, ...)
 
 - Fetch the tip of `master`:
 

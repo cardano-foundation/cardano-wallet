@@ -186,7 +186,7 @@ instance NFData State
 --
 -- (pseudocode; requires a bit more boilerplate to compile)
 --
--- See the implementaiton of @applyTx@ for how it is used.
+-- See the implementation of @applyTx@ for how it is used.
 data Key0Status = ValidKey0 | MissingKey0
     deriving (Eq, Show, Generic)
 
@@ -254,7 +254,7 @@ pointer _ = Nothing
 
 -- | A transaction type specific to `DelegationState`.
 --
--- Intented to be converted both from and to a more real transaction type.
+-- Intended to be converted both from and to a more real transaction type.
 --
 -- When constructing a real transaction from `Tx`, these `outputs`
 -- should appear before other outputs. In the theoretical event that there's

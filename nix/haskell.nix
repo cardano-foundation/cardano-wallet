@@ -210,7 +210,7 @@ haskell-nix: haskell-nix.stackProject' [
                 #
                 # An hypothesis is that #2472 is caused by heavy load and unfocused
                 # resources from running the tests concurrently, risking that the slowest
-                # hspec runner - and thererefore the stdout - being silent for 900s causing
+                # hspec runner - and therefore the stdout - being silent for 900s causing
                 # hydra to timeout.
                 #
                 # Setting -j 1 should hopefully focus the resource we have in one place. It
@@ -233,7 +233,7 @@ haskell-nix: haskell-nix.stackProject' [
                 # default number of build cores.
                 #
                 # To alleviate TimeInterpreter race conditions on the mac builders
-                # since #2755, we run slightly less in paralell on macOS.
+                # since #2755, we run slightly less in parallel on macOS.
                 integration.testFlags =
                   if pkgs.stdenv.hostPlatform.isDarwin
                   then [ "-j" "2" ]

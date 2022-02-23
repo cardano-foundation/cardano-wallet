@@ -473,7 +473,7 @@ mkRndAddresses numAddrs i =
 -- imagine a transaction with 1 inputs and 200 outputs because, the coin
 -- selection algorithm always try to consider output independently. So for
 -- 200 outputs, we know that 200 inputs (at least) would be necessary. There are
--- the case for other softwares of course, but we may consider the following
+-- the case for other software of course, but we may consider the following
 -- numbers as realistic benchmark higher bounds (in the worst case):
 --
 -- - 50 inputs

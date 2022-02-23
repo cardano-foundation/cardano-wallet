@@ -1894,7 +1894,7 @@ data ApiOurStakeKey (n :: NetworkDiscriminant) = ApiOurStakeKey
      { _index :: !Natural
     , _key :: !(ApiT W.RewardAccount, Proxy n)
     , _stake :: !(Quantity "lovelace" Natural)
-      -- ^ The total ada this stake key controlls / is associated with. This
+      -- ^ The total ada this stake key controls / is associated with. This
       -- also includes the reward balance.
     , _rewardBalance :: !(Quantity "lovelace" Natural)
       -- ^ The current reward balance (not lifetime).
@@ -1909,7 +1909,7 @@ data ApiOurStakeKey (n :: NetworkDiscriminant) = ApiOurStakeKey
 data ApiForeignStakeKey (n :: NetworkDiscriminant) = ApiForeignStakeKey
     { _key :: !(ApiT W.RewardAccount, Proxy n)
     , _stake :: !(Quantity "lovelace" Natural)
-      -- ^ The total ada this stake key controlls / is associated with. This
+      -- ^ The total ada this stake key controls / is associated with. This
       -- also includes the reward balance.
     , _rewardBalance :: !(Quantity "lovelace" Natural)
       -- ^ The current reward balance (not lifetime).

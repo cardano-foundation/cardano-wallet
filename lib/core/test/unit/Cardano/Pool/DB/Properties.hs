@@ -1219,7 +1219,7 @@ prop_determinePoolLifeCycleStatus_orderCorrect regData retData =
   where
     prop
         | regTime > retTime =
-            -- A re-registration always /supercedes/ a prior retirement.
+            -- A re-registration always /supersedes/ a prior retirement.
             result `shouldBe` PoolRegistered regCert
         | regTime < retTime =
             -- A retirement always /augments/ the latest registration.

@@ -120,7 +120,7 @@ The resulting executable will appear at `./result/bin/cardano-wallet`.
 Unless you have local changes in your git repo, Nix will download the
 build from the Hydra cache rather than building locally.
 
-You may also run the exectable directly with:
+You may also run the executable directly with:
 
 ```console
 $ nix run . -- <cardano wallet arguments>

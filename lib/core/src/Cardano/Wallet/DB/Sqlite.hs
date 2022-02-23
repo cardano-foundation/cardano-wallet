@@ -1032,7 +1032,7 @@ mkTxInputsOutputs tx =
         , txOutTokenQuantity = quantity
         }
     ordered f = fmap (zip [0..] . f)
-    -- | Distribute `a` accross many `b`s using the given function.
+    -- | Distribute `a` across many `b`s using the given function.
     -- >>> dist TxOut (addr, [Coin 1, Coin 42, Coin 14])
     -- [TxOut addr (Coin 1), TxOut addr (Coin 42), TxOut addr (Coin 14)]
     dist :: (a -> b -> c) -> (a, [b]) -> [c]

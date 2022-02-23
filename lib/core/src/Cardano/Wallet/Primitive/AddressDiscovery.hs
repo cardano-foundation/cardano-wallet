@@ -154,10 +154,10 @@ class KnownAddresses s where
 coinTypeAda :: Index 'Hardened 'CoinTypeK
 coinTypeAda = toEnum 0x80000717
 
--- It is used for geting purpose for a given key.
+-- It is used for getting purpose for a given key.
 class GetPurpose (key :: Depth -> Type -> Type)  where
     getPurpose :: Index 'Hardened 'PurposeK
 
--- It is used for geting account public key for a given state.
+-- It is used for getting account public key for a given state.
 class GetAccount s (key :: Depth -> Type -> Type) | s -> key  where
     getAccount :: s -> key 'AccountK XPub

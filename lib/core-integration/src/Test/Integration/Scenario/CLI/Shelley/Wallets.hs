@@ -414,7 +414,7 @@ spec = describe "SHELLEY_CLI_WALLETS" $ do
                 , ( "-1000 -> fail", "-1000", expectsErr )
                 , ( "0 -> fail", "0", expectsErr )
                 , ( "10.5 -> fail", "10.5", expectsErr )
-                , ( "arbitraty string -> fail", "string", expectsErr )
+                , ( "arbitrary string -> fail", "string", expectsErr )
                 ]
 
         forM_ matrix $ \(title, gap, expects) -> it title $ \ctx -> runResourceT $ do

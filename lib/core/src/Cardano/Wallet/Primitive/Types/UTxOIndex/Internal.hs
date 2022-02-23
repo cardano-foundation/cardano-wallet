@@ -205,7 +205,7 @@ singleton u b = insertUnsafe u b empty
 --
 -- If the given sequence contains more than one mapping for the same UTxO
 -- identifier, the mapping that appears latest in the sequence will take
--- precendence, and all others will be ignored.
+-- precedence, and all others will be ignored.
 --
 fromSequence :: (Foldable f, Ord u) => f (u, TokenBundle) -> UTxOIndex u
 fromSequence = flip insertMany empty

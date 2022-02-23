@@ -95,7 +95,7 @@ import qualified Data.Text as T
 import qualified Data.Text.Encoding as T
 import qualified Data.Text.Encoding.Error as T
 
--- | Shelley hard fork network configuration has two genesis datas.
+-- | Shelley hard fork network configuration has two genesis data.
 -- As a special case for mainnet, we hardcode the byron genesis data.
 data NetworkConfiguration where
     -- | Mainnet does not have network discrimination.

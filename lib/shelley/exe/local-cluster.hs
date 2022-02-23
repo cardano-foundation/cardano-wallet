@@ -154,7 +154,7 @@ import qualified Data.Text as T
 --     , "salute", "hybrid", "stone", "smart"
 --     ]
 --
--- - (Byron) Has 200 UTxO, 100 are worth 1 Lovelace, 100 are woth 100_000 Ada.
+-- - (Byron) Has 200 UTxO, 100 are worth 1 Lovelace, 100 are worth 100_000 Ada.
 --
 --     [ "collect", "fold", "file", "clown"
 --     , "injury", "sun", "brass", "diet"
