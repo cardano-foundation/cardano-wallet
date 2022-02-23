@@ -170,7 +170,7 @@ data UTxOIndex u = UTxOIndex
     , balance
         :: !TokenBundle
         -- The total balance of all entries.
-    , utxo
+    , universe
         :: !(Map u TokenBundle)
         -- The complete set of all entries.
     }
@@ -190,7 +190,7 @@ empty = UTxOIndex
     , assetsSingleton = Map.empty
     , coins = Set.empty
     , balance = TokenBundle.empty
-    , utxo = Map.empty
+    , universe = Map.empty
     }
 
 -- | Creates a singleton index from the specified UTxO identifier and value.
@@ -234,7 +234,7 @@ toList = fold (\ubs u b -> (u, b) : ubs) []
 -- Consider using 'fold' if your goal is to consume all entries in the output.
 --
 toUTxO :: UTxOIndex u -> Map u TokenBundle
-toUTxO = utxo
+toUTxO = universe
 
 --------------------------------------------------------------------------------
 -- Folding
@@ -243,7 +243,7 @@ toUTxO = utxo
 -- | Folds strictly over the constituent entries of an index.
 --
 fold :: (a -> u -> TokenBundle -> a) -> a -> UTxOIndex u -> a
-fold f a = Map.foldlWithKey' f a . utxo
+fold f a = Map.foldlWithKey' f a . universe
 
 --------------------------------------------------------------------------------
 -- Modification
@@ -276,7 +276,7 @@ insertMany = flip $ F.foldl' $ \i (u, b) -> insert u b i
 --
 delete :: forall u. Ord u => u -> UTxOIndex u -> UTxOIndex u
 delete u i =
-    maybe i updateIndex $ Map.lookup u $ utxo i
+    maybe i updateIndex $ Map.lookup u $ universe i
   where
     updateIndex :: TokenBundle -> UTxOIndex u
     updateIndex b = i
@@ -284,7 +284,7 @@ delete u i =
         -- entry is a member of the index, and therefore the balance must be
         -- greater than or equal to the value of this output:
         & over #balance (`TokenBundle.unsafeSubtract` b)
-        & over #utxo (Map.delete u)
+        & over #universe (Map.delete u)
         & case categorizeTokenBundle b of
             IsCoin ->
                 over #coins (Set.delete u)
@@ -335,7 +335,7 @@ assets = Map.keysSet . assetsAll
 -- If the index has no such identifier, this function returns 'Nothing'.
 --
 lookup :: Ord u => u -> UTxOIndex u -> Maybe TokenBundle
-lookup u = Map.lookup u . utxo
+lookup u = Map.lookup u . universe
 
 -- | Returns 'True' if (and only if) the index has an entry for the given UTxO
 --   identifier.
@@ -351,19 +351,21 @@ null = (== 0) . size
 -- | Returns the total number of UTxO entries held within the index.
 --
 size :: UTxOIndex u -> Int
-size = Map.size . utxo
+size = Map.size . universe
 
 --------------------------------------------------------------------------------
 -- Set operations
 --------------------------------------------------------------------------------
 
 difference :: Ord u => UTxOIndex u -> UTxOIndex u -> UTxOIndex u
-difference a b = fromSequence $ Map.toList $ Map.difference (utxo a) (utxo b)
+difference a b = fromSequence
+    $ Map.toList
+    $ Map.difference (universe a) (universe b)
 
 -- | Indicates whether a pair of UTxO indices are disjoint.
 --
 disjoint :: Ord u => UTxOIndex u -> UTxOIndex u -> Bool
-disjoint i1 i2 = utxo i1 `Map.disjoint` utxo i2
+disjoint i1 i2 = universe i1 `Map.disjoint` universe i2
 
 --------------------------------------------------------------------------------
 -- Selection
@@ -400,11 +402,11 @@ selectRandom i selectionFilter =
   where
     lookupAndRemoveEntry :: u -> Maybe ((u, TokenBundle), UTxOIndex u)
     lookupAndRemoveEntry u =
-        (\b -> ((u, b), delete u i)) <$> Map.lookup u (utxo i)
+        (\b -> ((u, b), delete u i)) <$> Map.lookup u (universe i)
 
     selectionSet :: Set u
     selectionSet = case selectionFilter of
-        Any -> Map.keysSet $ utxo i
+        Any -> Map.keysSet $ universe i
         WithAdaOnly -> entriesWithAdaOnly i
         WithAsset a -> entriesWithAsset a i
         WithAssetOnly a -> entriesWithAssetOnly a i
@@ -494,7 +496,7 @@ insertUnsafe
     -> UTxOIndex u
 insertUnsafe u b i = i
     & over #balance (`TokenBundle.add` b)
-    & over #utxo (Map.insert u b)
+    & over #universe (Map.insert u b)
     & case categorizeTokenBundle b of
         IsCoin ->
             over #coins (Set.insert u)
@@ -593,13 +595,13 @@ checkBalance i
     | otherwise =
         BalanceIncorrect $ BalanceError {balanceComputed, balanceStored}
   where
-    balanceComputed = F.fold (utxo i)
+    balanceComputed = F.fold (universe i)
     balanceStored = balance i
 
--- | Checks that every entry in the 'utxo' map is properly indexed.
+-- | Checks that every entry in the 'universe' map is properly indexed.
 --
 indexIsComplete :: forall u. Ord u => UTxOIndex u -> Bool
-indexIsComplete i = F.all hasEntry $ Map.toList $ utxo i
+indexIsComplete i = F.all hasEntry $ Map.toList $ universe i
   where
     hasEntry :: (u, TokenBundle) -> Bool
     hasEntry (u, b) = case categorizeTokenBundle b of
@@ -619,7 +621,7 @@ indexIsComplete i = F.all hasEntry $ Map.toList $ utxo i
     hasEntryForAsset asset u assetsMap =
         maybe False (NonEmptySet.member u) $ Map.lookup asset $ assetsMap i
 
--- | Checks that every indexed entry is required by some entry in the 'utxo'
+-- | Checks that every indexed entry is required by some entry in the 'universe'
 --   map.
 --
 indexIsMinimal :: forall u. Ord u => UTxOIndex u -> Bool
@@ -646,7 +648,7 @@ indexIsMinimal i = F.and
         (== IsCoin) . categorizeTokenBundle
 
     entryMatches :: (TokenBundle -> Bool) -> u -> Bool
-    entryMatches test u = maybe False test $ Map.lookup u $ utxo i
+    entryMatches test u = maybe False test $ Map.lookup u $ universe i
 
 -- | Checks that the asset sets are consistent.
 --
