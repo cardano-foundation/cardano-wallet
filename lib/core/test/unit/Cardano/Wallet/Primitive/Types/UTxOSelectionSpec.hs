@@ -193,27 +193,31 @@ checkCoverage_UTxOSelectionNonEmpty s
 -- Construction and deconstruction
 --------------------------------------------------------------------------------
 
-prop_fromIndex_isValid :: UTxOIndex -> Property
+prop_fromIndex_isValid :: UTxOIndex InputId -> Property
 prop_fromIndex_isValid u =
     isValidSelection (UTxOSelection.fromIndex u)
     === True
 
-prop_fromIndexFiltered_isValid :: (InputId -> Bool) -> UTxOIndex -> Property
+prop_fromIndexFiltered_isValid
+    :: (InputId -> Bool) -> UTxOIndex InputId -> Property
 prop_fromIndexFiltered_isValid f u =
     isValidSelection (UTxOSelection.fromIndexFiltered f u)
     === True
 
-prop_fromIndexPair_isValid :: (UTxOIndex, UTxOIndex) -> Property
+prop_fromIndexPair_isValid :: (UTxOIndex InputId, UTxOIndex InputId) -> Property
 prop_fromIndexPair_isValid (u1, u2) =
     isValidSelection (UTxOSelection.fromIndexPair (u1, u2))
     === True
 
-prop_fromIndex_toIndexPair :: UTxOIndex -> Property
+prop_fromIndex_toIndexPair :: UTxOIndex InputId-> Property
 prop_fromIndex_toIndexPair u =
     UTxOSelection.toIndexPair (UTxOSelection.fromIndex u)
     === (u, UTxOIndex.empty)
 
-prop_fromIndexFiltered_toIndexPair :: (InputId -> Bool) -> UTxOIndex -> Property
+prop_fromIndexFiltered_toIndexPair
+    :: (InputId -> Bool)
+    -> UTxOIndex InputId
+    -> Property
 prop_fromIndexFiltered_toIndexPair f u =
     UTxOSelection.toIndexPair (UTxOSelection.fromIndexFiltered f u)
     === (UTxOIndex.filter (not . f) u, UTxOIndex.filter f u)
@@ -423,7 +427,7 @@ instance {-# OVERLAPPING #-} Arbitrary InputId where
         <:> shrinkAddress
         <:> Nil
 
-instance Arbitrary UTxOIndex where
+instance Arbitrary (UTxOIndex InputId) where
     arbitrary = genUTxOIndex
     shrink = shrinkUTxOIndex
 

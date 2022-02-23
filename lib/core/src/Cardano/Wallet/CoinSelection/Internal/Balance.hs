@@ -1231,7 +1231,7 @@ selectMatchingQuantity filters limit s
         NoLimit -> False
 
     updateState
-        :: ((InputId, TokenBundle), UTxOIndex)
+        :: ((InputId, TokenBundle), UTxOIndex InputId)
         -> Maybe UTxOSelectionNonEmpty
     updateState ((i, _b), _remaining) = UTxOSelection.select i s
 
