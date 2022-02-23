@@ -576,8 +576,10 @@ prop_selectRandom_all_withAdaOnly u = checkCoverage $ monadicIO $ do
     (selectedEntries, u') <- run $ selectAll WithAdaOnly u
     monitor $ cover 70 (not (null selectedEntries))
         "selected at least one entry"
-    assert $ L.all (\(_, o) -> not (tokenBundleIsAdaOnly o)) (UTxOIndex.toList u')
-    assert $ L.all (\(_, o) -> tokenBundleIsAdaOnly o) selectedEntries
+    assert $ L.all (\(_, o) ->
+        not (tokenBundleIsAdaOnly o)) (UTxOIndex.toList u')
+    assert $ L.all (\(_, o) ->
+        tokenBundleIsAdaOnly o) selectedEntries
     assert $ UTxOIndex.deleteMany (fst <$> selectedEntries) u == u'
     assert $ UTxOIndex.insertMany selectedEntries u' == u
 
@@ -592,8 +594,10 @@ prop_selectRandom_all_withAsset u a = checkCoverage $ monadicIO $ do
         "index has more than one asset"
     monitor $ cover 50 (not (null selectedEntries))
         "selected at least one entry"
-    assert $ L.all (\(_, o) -> not (tokenBundleHasAsset o a)) (UTxOIndex.toList u')
-    assert $ L.all (\(_, o) -> tokenBundleHasAsset o a) selectedEntries
+    assert $ L.all (\(_, o) ->
+        not (tokenBundleHasAsset o a)) (UTxOIndex.toList u')
+    assert $ L.all (\(_, o) ->
+        tokenBundleHasAsset o a) selectedEntries
     assert $ UTxOIndex.deleteMany (fst <$> selectedEntries) u == u'
     assert $ UTxOIndex.insertMany selectedEntries u' == u
     assert $ a `Set.notMember` UTxOIndex.assets u'
@@ -609,8 +613,10 @@ prop_selectRandom_all_withAssetOnly u a = checkCoverage $ monadicIO $ do
         "index has more than one asset"
     monitor $ cover 10 (not (null selectedEntries))
         "selected at least one entry"
-    assert $ all (\(_, o) -> not (tokenBundleHasAssetOnly o a)) (UTxOIndex.toList u')
-    assert $ all (\(_, o) -> tokenBundleHasAssetOnly o a) selectedEntries
+    assert $ all (\(_, o) ->
+        not (tokenBundleHasAssetOnly o a)) (UTxOIndex.toList u')
+    assert $ all (\(_, o) ->
+        tokenBundleHasAssetOnly o a) selectedEntries
     assert $ UTxOIndex.deleteMany (fst <$> selectedEntries) u == u'
     assert $ UTxOIndex.insertMany selectedEntries u' == u
 
