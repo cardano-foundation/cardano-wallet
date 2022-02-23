@@ -355,7 +355,7 @@ leftoverIndex = leftover . state
 -- | Retrieves the leftover UTxO set.
 --
 leftoverUTxO :: IsUTxOSelection u => u -> Map InputId TokenBundle
-leftoverUTxO = UTxOIndex.toUTxO . leftoverIndex
+leftoverUTxO = UTxOIndex.toMap . leftoverIndex
 
 -- | Retrieves a list of the leftover UTxOs.
 --
@@ -380,7 +380,7 @@ selectedIndex = selected . state
 -- | Retrieves the selected UTxO set.
 --
 selectedUTxO :: IsUTxOSelection u => u -> Map InputId TokenBundle
-selectedUTxO = UTxOIndex.toUTxO . selectedIndex
+selectedUTxO = UTxOIndex.toMap . selectedIndex
 
 --------------------------------------------------------------------------------
 -- Modification

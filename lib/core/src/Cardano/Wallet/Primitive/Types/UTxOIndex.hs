@@ -23,12 +23,12 @@ module Cardano.Wallet.Primitive.Types.UTxOIndex
     -- * Construction
     , empty
     , singleton
+    , fromMap
     , fromSequence
-    , fromUTxO
 
     -- * Deconstruction
     , toList
-    , toUTxO
+    , toMap
 
     -- * Folding
     , fold

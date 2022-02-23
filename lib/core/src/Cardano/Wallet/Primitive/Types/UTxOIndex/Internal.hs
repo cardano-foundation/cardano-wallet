@@ -39,11 +39,11 @@ module Cardano.Wallet.Primitive.Types.UTxOIndex.Internal
     , empty
     , singleton
     , fromSequence
-    , fromUTxO
+    , fromMap
 
     -- * Deconstruction
     , toList
-    , toUTxO
+    , toMap
 
     -- * Folding
     , fold
@@ -215,8 +215,8 @@ fromSequence = flip insertMany empty
 -- Note that this operation is potentially expensive as it must construct an
 -- index from scratch, and therefore should only be used sparingly.
 --
-fromUTxO :: Ord u => Map u TokenBundle -> UTxOIndex u
-fromUTxO = fromSequence . Map.toList
+fromMap :: Ord u => Map u TokenBundle -> UTxOIndex u
+fromMap = fromSequence . Map.toList
 
 --------------------------------------------------------------------------------
 -- Deconstruction
@@ -233,8 +233,8 @@ toList = fold (\ubs u b -> (u, b) : ubs) []
 --
 -- Consider using 'fold' if your goal is to consume all entries in the output.
 --
-toUTxO :: UTxOIndex u -> Map u TokenBundle
-toUTxO = universe
+toMap :: UTxOIndex u -> Map u TokenBundle
+toMap = universe
 
 --------------------------------------------------------------------------------
 -- Folding

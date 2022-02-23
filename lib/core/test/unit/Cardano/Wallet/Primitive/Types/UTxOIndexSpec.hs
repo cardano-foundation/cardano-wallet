@@ -384,7 +384,7 @@ checkCoverage_filter_partition f u
   where
     u1 `isNonEmptyProperSubsetOf` u2 =
         not (UTxOIndex.null u1)
-        && UTxOIndex.toUTxO u1 `Map.isSubmapOf` UTxOIndex.toUTxO u2
+        && UTxOIndex.toMap u1 `Map.isSubmapOf` UTxOIndex.toMap u2
         && u1 /= u2
 
     filterSize g = UTxOIndex.size . UTxOIndex.filter g
