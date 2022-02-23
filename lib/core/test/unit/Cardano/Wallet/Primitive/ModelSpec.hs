@@ -176,6 +176,8 @@ import Test.QuickCheck.Extra
 import qualified Cardano.Wallet.Primitive.Types.Coin as Coin
 import qualified Cardano.Wallet.Primitive.Types.TokenBundle as TokenBundle
 import qualified Cardano.Wallet.Primitive.Types.UTxO as UTxO
+import Control.Arrow
+    ( (>>>) )
 import qualified Data.ByteString as BS
 import qualified Data.Foldable as F
 import qualified Data.List as L
@@ -577,11 +579,17 @@ instance IsOurs AllOurs a where
       where
         shouldNotEvaluate = error "AllOurs: unexpected evaluation"
 
--- | A simplified wallet state that never marks entities as "ours".
+-- | A simplified wallet state that tracks UTxOs as "ours".
 --
-data NoneOurs = NoneOurs
+newtype OurUtxo = OurUtxo UTxO
 
-instance IsOurs NoneOurs a where
+instance IsOurs OurUtxo Address where
+    isOurs addr s@(OurUtxo utxo) =
+        if any (address >>> (== addr)) (Map.elems (unUTxO utxo))
+            then (Just (pure (DerivationIndex 0)), s)
+            else  (Nothing, s)
+
+instance IsOurs OurUtxo RewardAccount where
     isOurs _ = (Nothing,)
 
 -- | Encapsulates a filter condition for matching entities with 'IsOurs'.
@@ -788,8 +796,8 @@ prop_applyOurTxToUTxO_noneOurs slotNo blockHeight tx utxo =
     report (utxoFromTx tx) "utxoFromTx tx" $
     property $ utxo' `isSubsetOf` utxo
   where
-    utxo' =
-        maybe utxo snd $ applyOurTxToUTxO slotNo blockHeight NoneOurs tx utxo
+    utxo' = maybe utxo snd $
+        applyOurTxToUTxO slotNo blockHeight (OurUtxo utxo) tx utxo
 
 -- Verifies that 'applyOurTxToUTxO' returns a result only when it is
 -- appropriate to do so.
