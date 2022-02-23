@@ -120,21 +120,21 @@ import qualified Data.Map.Strict as Map
 -- Classes
 --------------------------------------------------------------------------------
 
-class HasUTxOSelectionState u where
+class HasUTxOSelectionState s where
 
     -- | Retrieves the internal state from a selection.
-    state :: u -> State
+    state :: s -> State
 
     -- | Reconstructs a selection from an internal state.
-    fromState :: State -> u
+    fromState :: State -> s
 
-class HasUTxOSelectionState u => IsUTxOSelection u where
+class HasUTxOSelectionState s => IsUTxOSelection s where
 
     -- | The type of the list of selected UTxOs.
-    type SelectedList u
+    type SelectedList s
 
     -- | Retrieves a list of the selected UTxOs.
-    selectedList :: u -> SelectedList u
+    selectedList :: s -> SelectedList s
 
 --------------------------------------------------------------------------------
 -- Types
@@ -229,7 +229,7 @@ fromIndexPair (leftover, selected) =
 -- The 1st index in the pair represents the leftover set.
 -- The 2nd index in the pair represents the selected set.
 --
-toIndexPair :: IsUTxOSelection u => u -> (UTxOIndex InputId, UTxOIndex InputId)
+toIndexPair :: IsUTxOSelection s => s -> (UTxOIndex InputId, UTxOIndex InputId)
 toIndexPair s = (leftoverIndex s, selectedIndex s)
 
 --------------------------------------------------------------------------------
@@ -245,7 +245,7 @@ fromNonEmpty = UTxOSelection . state
 --
 -- Returns 'Nothing' if the the selected set is empty.
 --
-toNonEmpty :: IsUTxOSelection u => u -> Maybe UTxOSelectionNonEmpty
+toNonEmpty :: IsUTxOSelection s => s -> Maybe UTxOSelectionNonEmpty
 toNonEmpty s = bool Nothing (Just $ fromState $ state s) (isNonEmpty s)
 
 --------------------------------------------------------------------------------
@@ -254,12 +254,12 @@ toNonEmpty s = bool Nothing (Just $ fromState $ state s) (isNonEmpty s)
 
 -- | Returns 'True' if and only if the selected set is empty.
 --
-isEmpty :: IsUTxOSelection u => u -> Bool
+isEmpty :: IsUTxOSelection s => s -> Bool
 isEmpty = (== 0) . selectedSize
 
 -- | Returns 'True' if and only if the selected set is non-empty.
 --
-isNonEmpty :: IsUTxOSelection u => u -> Bool
+isNonEmpty :: IsUTxOSelection s => s -> Bool
 isNonEmpty = not . isEmpty
 
 -- | Returns 'True' if the given 'InputId' is a member of either set.
@@ -286,12 +286,12 @@ isSelected i = UTxOIndex.member i . selectedIndex
 -- of the 'select' function.
 --
 isSubSelectionOf
-    :: IsUTxOSelection u1 => IsUTxOSelection u2 => u1 -> u2 -> Bool
-isSubSelectionOf u1 u2 = state (selectMany toSelect u1) == state u2
+    :: IsUTxOSelection s1 => IsUTxOSelection s2 => s1 -> s2 -> Bool
+isSubSelectionOf s1 s2 = state (selectMany toSelect s1) == state s2
   where
     toSelect :: [InputId]
     toSelect = fst <$> Map.toList
-        (selectedUTxO u2 `Map.difference` selectedUTxO u1)
+        (selectedUTxO s2 `Map.difference` selectedUTxO s1)
 
 -- | Returns 'True' iff. the first selection is a proper sub-selection of the
 --   second.
@@ -301,8 +301,8 @@ isSubSelectionOf u1 u2 = state (selectMany toSelect u1) == state u2
 -- applications of the 'select' function.
 --
 isProperSubSelectionOf
-    :: IsUTxOSelection u1 => IsUTxOSelection u2 => u1 -> u2 -> Bool
-isProperSubSelectionOf u1 u2 = state u1 /= state u2 && u1 `isSubSelectionOf` u2
+    :: IsUTxOSelection s1 => IsUTxOSelection s2 => s1 -> s2 -> Bool
+isProperSubSelectionOf s1 s2 = state s1 /= state s2 && s1 `isSubSelectionOf` s2
 
 --------------------------------------------------------------------------------
 -- Accessor functions
@@ -318,10 +318,10 @@ isProperSubSelectionOf u1 u2 = state u1 /= state u2 && u1 `isSubSelectionOf` u2
 -- This result of this function remains constant over applications of 'select'
 -- and 'selectMany':
 --
--- >>> availableBalance u == availableBalance (selectMany is u)
+-- >>> availableBalance s == availableBalance (selectMany is s)
 --
-availableBalance :: IsUTxOSelection u => u -> TokenBundle
-availableBalance u = leftoverBalance u <> selectedBalance u
+availableBalance :: IsUTxOSelection s => s -> TokenBundle
+availableBalance s = leftoverBalance s <> selectedBalance s
 
 -- | Computes the available UTxO set.
 --
@@ -332,54 +332,54 @@ availableBalance u = leftoverBalance u <> selectedBalance u
 -- This result of this function remains constant over applications of 'select'
 -- and 'selectMany':
 --
--- >>> availableUTxO u == availableUTxO (selectMany is u)
+-- >>> availableUTxO s == availableUTxO (selectMany is s)
 --
-availableUTxO :: IsUTxOSelection u => u -> Map InputId TokenBundle
-availableUTxO u = leftoverUTxO u <> selectedUTxO u
+availableUTxO :: IsUTxOSelection s => s -> Map InputId TokenBundle
+availableUTxO s = leftoverUTxO s <> selectedUTxO s
 
 -- | Retrieves the balance of leftover UTxOs.
 --
-leftoverBalance :: IsUTxOSelection u => u -> TokenBundle
+leftoverBalance :: IsUTxOSelection s => s -> TokenBundle
 leftoverBalance = UTxOIndex.balance . leftoverIndex
 
 -- | Retrieves the size of the leftover UTxO set.
 --
-leftoverSize :: IsUTxOSelection u => u -> Int
+leftoverSize :: IsUTxOSelection s => s -> Int
 leftoverSize = UTxOIndex.size . leftoverIndex
 
 -- | Retrieves an index of the leftover UTxOs.
 --
-leftoverIndex :: IsUTxOSelection u => u -> UTxOIndex InputId
+leftoverIndex :: IsUTxOSelection s => s -> UTxOIndex InputId
 leftoverIndex = leftover . state
 
 -- | Retrieves the leftover UTxO set.
 --
-leftoverUTxO :: IsUTxOSelection u => u -> Map InputId TokenBundle
+leftoverUTxO :: IsUTxOSelection s => s -> Map InputId TokenBundle
 leftoverUTxO = UTxOIndex.toMap . leftoverIndex
 
 -- | Retrieves a list of the leftover UTxOs.
 --
-leftoverList :: IsUTxOSelection u => u -> [(InputId, TokenBundle)]
+leftoverList :: IsUTxOSelection s => s -> [(InputId, TokenBundle)]
 leftoverList = UTxOIndex.toList . leftoverIndex
 
 -- | Retrieves the balance of selected UTxOs.
 --
-selectedBalance :: IsUTxOSelection u => u -> TokenBundle
+selectedBalance :: IsUTxOSelection s => s -> TokenBundle
 selectedBalance = UTxOIndex.balance . selectedIndex
 
 -- | Retrieves the size of the selected UTxO set.
 --
-selectedSize :: IsUTxOSelection u => u -> Int
+selectedSize :: IsUTxOSelection s => s -> Int
 selectedSize = UTxOIndex.size . selectedIndex
 
 -- | Retrieves an index of the selected UTxOs.
 --
-selectedIndex :: IsUTxOSelection u => u -> UTxOIndex InputId
+selectedIndex :: IsUTxOSelection s => s -> UTxOIndex InputId
 selectedIndex = selected . state
 
 -- | Retrieves the selected UTxO set.
 --
-selectedUTxO :: IsUTxOSelection u => u -> Map InputId TokenBundle
+selectedUTxO :: IsUTxOSelection s => s -> Map InputId TokenBundle
 selectedUTxO = UTxOIndex.toMap . selectedIndex
 
 --------------------------------------------------------------------------------
@@ -390,12 +390,12 @@ selectedUTxO = UTxOIndex.toMap . selectedIndex
 --
 -- Returns 'Nothing' if the given entry is not a member of the leftover set.
 --
-select :: IsUTxOSelection u => InputId -> u -> Maybe UTxOSelectionNonEmpty
+select :: IsUTxOSelection s => InputId -> s -> Maybe UTxOSelectionNonEmpty
 select = (toNonEmpty <=<) . withState . selectState
 
 -- | Moves multiple entries from the leftover set to the selected set.
 --
-selectMany :: IsUTxOSelection u => Foldable f => f InputId -> u -> u
+selectMany :: IsUTxOSelection s => Foldable f => f InputId -> s -> s
 selectMany = ap fromMaybe . withState . flip (F.foldrM selectState)
 
 --------------------------------------------------------------------------------
@@ -414,5 +414,5 @@ selectState i s =
 
 -- | Applies the given function to the internal state.
 --
-withState :: Functor f => IsUTxOSelection u => (State -> f State) -> u -> f u
+withState :: Functor f => IsUTxOSelection s => (State -> f State) -> s -> f s
 withState f = fmap fromState . f . state
