@@ -88,14 +88,7 @@ import Cardano.Wallet.Primitive.Types.Tx
     , txOutCoin
     )
 import Cardano.Wallet.Primitive.Types.UTxO
-    ( DeltaUTxO
-    , Dom (..)
-    , UTxO (..)
-    , balance
-    , excluding
-    , excludingD
-    , receiveD
-    )
+    ( DeltaUTxO, UTxO (..), balance, excluding, excludingD, receiveD )
 import Control.DeepSeq
     ( NFData (..), deepseq )
 import Control.Monad.Trans.State.Strict
@@ -591,24 +584,34 @@ applyOurTxToUTxO
     -> Tx
     -> UTxO
     -> Maybe ((Tx, TxMeta), DeltaUTxO, UTxO)
-applyOurTxToUTxO !slotNo !blockHeight !s !tx !prevUTxO =
-    if hasKnownWithdrawal || dUtxO /= mempty
-        then Just ((tx {fee = actualFee dir}, txmeta), dUtxO, ourNextUTxO)
+applyOurTxToUTxO !slotNo !blockHeight !s !tx !u0 =
+    if hasKnownWithdrawal || not isUnchangedUTxO
+        then Just ((tx {fee = actualFee dir}, txmeta), du, u)
         else Nothing
   where
     -- The next UTxO state (apply a state transition) (e.g. remove
     -- transaction outputs we've spent)
-    (dUtxO, ourNextUTxO) =
-        let (du10, u1) = spendTxD tx prevUTxO
-            (du21, u2) = receiveD u1
-                $ UTxO.filterByAddress (ours s) (utxoFromTx tx)
-        in  (du21 <> du10, u2)
+    (du, u) = (du21 <> du10, u2)
+
+    (du10, u1)   = spendTxD tx u0
+    receivedUTxO = UTxO.filterByAddress (ours s) (utxoFromTx tx)
+    (du21, u2)   = receiveD u1 receivedUTxO
+
+    -- NOTE: Performance.
+    -- This function is part of a tight loop that inspects all transactions
+    -- (> 30M Txs as of Feb 2022).
+    -- Thus, we make a small performance optimization here.
+    -- Specifically, we want to reject a transaction as soon as possible
+    -- if it does not change the 'UTxO' set. The test
+    isUnchangedUTxO = UTxO.null receivedUTxO && mempty == du10
+    -- allocates slightly fewer new Set/Map than the definition
+    --   isUnchangedUTxO =  mempty == du
+
     ourWithdrawalSum = ourWithdrawalSumFromTx s tx
 
     -- Balance of the UTxO that we received and that we spent
-    received = balance (ourNextUTxO `excluding` dom prevUTxO)
-    spent =
-        balance (prevUTxO `excluding` dom ourNextUTxO)
+    received = balance receivedUTxO
+    spent = balance (u0 `UTxO.restrictedBy` UTxO.excluded du10)
         `TB.add` TB.fromCoin ourWithdrawalSum
 
     adaSpent = TB.getCoin spent
