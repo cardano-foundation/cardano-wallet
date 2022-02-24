@@ -2305,20 +2305,27 @@ prop_balanceTransactionUnresolvedInputs
 prop_balanceTransactionUnresolvedInputs
     (Wallet' utxo wal pending)
     (ShowBuildable partialTx')
-    seed = withMaxSuccess 400 $
+    seed = checkCoverage $ withMaxSuccess 400 $
         forAll (dropResolvedInputs partialTx') $ \(partialTx, dropped) -> do
         not (null dropped) ==> do
             let res = balanceTransaction' (utxo, wal, pending) seed partialTx
-            case res of
-                Right _
-                    -> cover 0 True "success" $ property True
-                       -- Balancing can succeed if the dropped inputs happen to be
-                       -- apart of the wallet UTxO.
-                Left (ErrBalanceTxAssignRedeemers (ErrAssignRedeemersUnresolvedTxIns _))
-                    -> cover 1 True "unknown txins" True
-                Left _
-                    -> property True
+            cover 1 (isUnresolvedTxInsErr res) "unknown txins" $
+                case res of
+                    Right _
+                        -> label "success" $ property True
+                           -- Balancing can succeed if the dropped inputs happen
+                           -- to be apart of the wallet UTxO.
+                    Left (ErrBalanceTxAssignRedeemers
+                        (ErrAssignRedeemersUnresolvedTxIns _))
+                        -> property True
+                    Left _
+                        -> property True
   where
+    isUnresolvedTxInsErr
+        (Left (ErrBalanceTxAssignRedeemers
+            (ErrAssignRedeemersUnresolvedTxIns _))) = True
+    isUnresolvedTxInsErr _ = False
+
     dropResolvedInputs (PartialTx tx inputs redeemers) = do
         shouldKeep <- vectorOf (length inputs) $ frequency
             [ (8, pure False)
