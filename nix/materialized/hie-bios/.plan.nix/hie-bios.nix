@@ -11,7 +11,7 @@
     flags = {};
     package = {
       specVersion = "2.2";
-      identifier = { name = "hie-bios"; version = "0.8.1"; };
+      identifier = { name = "hie-bios"; version = "0.9.0"; };
       license = "BSD-3-Clause";
       copyright = "";
       maintainer = "Matthew Pickering <matthewtpickering@gmail.com>";
@@ -32,6 +32,10 @@
         "wrappers/cabal"
         "wrappers/cabal.hs"
         "tests/configs/*.yaml"
+        "tests/projects/cabal-with-ghc/cabal-with-ghc.cabal"
+        "tests/projects/cabal-with-ghc/cabal.project"
+        "tests/projects/cabal-with-ghc/hie.yaml"
+        "tests/projects/cabal-with-ghc/src/MyLib.hs"
         "tests/projects/symlink-test/a/A.hs"
         "tests/projects/symlink-test/hie.yaml"
         "tests/projects/deps-bios-new/A.hs"
@@ -154,7 +158,6 @@
           (hsPkgs."filepath" or (errorHandler.buildDepError "filepath"))
           (hsPkgs."time" or (errorHandler.buildDepError "time"))
           (hsPkgs."extra" or (errorHandler.buildDepError "extra"))
-          (hsPkgs."exceptions" or (errorHandler.buildDepError "exceptions"))
           (hsPkgs."process" or (errorHandler.buildDepError "process"))
           (hsPkgs."ghc" or (errorHandler.buildDepError "ghc"))
           (hsPkgs."transformers" or (errorHandler.buildDepError "transformers"))
@@ -234,6 +237,7 @@
             (hsPkgs."filepath" or (errorHandler.buildDepError "filepath"))
             (hsPkgs."directory" or (errorHandler.buildDepError "directory"))
             (hsPkgs."temporary" or (errorHandler.buildDepError "temporary"))
+            (hsPkgs."tagged" or (errorHandler.buildDepError "tagged"))
             (hsPkgs."ghc" or (errorHandler.buildDepError "ghc"))
             ];
           buildable = true;

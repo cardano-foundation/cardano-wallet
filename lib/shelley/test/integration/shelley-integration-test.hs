@@ -58,6 +58,8 @@ import Cardano.Wallet.Shelley
     , setupTracers
     , tracerSeverities
     )
+import Cardano.Wallet.Shelley.BlockchainSource
+    ( BlockchainSource (..) )
 import Cardano.Wallet.Shelley.Faucet
     ( initFaucet )
 import Cardano.Wallet.Shelley.Launch
@@ -337,6 +339,8 @@ specWithServer testDir (tr, tracers) = aroundAll withContext
         let testMetadata = $(getTestData) </> "token-metadata.json"
         withMetadataServer (queryServerStatic testMetadata) $ \tokenMetaUrl ->
             serveWallet
+                (NodeSource conn vData)
+                gp
                 (SomeNetworkDiscriminant $ Proxy @'Mainnet)
                 tracers
                 (SyncTolerance 10)
@@ -347,9 +351,7 @@ specWithServer testDir (tr, tracers) = aroundAll withContext
                 Nothing
                 Nothing
                 (Just tokenMetaUrl)
-                conn
                 block0
-                (gp, vData)
                 (action conn gp)
                 `withException` (traceWith tr . MsgServerError)
 

@@ -1,3 +1,4 @@
+{-# LANGUAGE ApplicativeDo #-}
 {-# LANGUAGE DataKinds #-}
 {-# LANGUAGE DerivingStrategies #-}
 {-# LANGUAGE GADTs #-}
@@ -31,6 +32,10 @@ module Cardano.Wallet.Shelley.Launch
 
     -- * Logging
     , TempDirLog (..)
+
+    -- * Light Mode
+    , Mode (..)
+    , modeFlag
     ) where
 
 import Prelude
@@ -74,7 +79,17 @@ import Data.Text.Class
 import GHC.TypeLits
     ( KnownNat, Nat, SomeNat (..), someNatVal )
 import Options.Applicative
-    ( Parser, eitherReader, flag', help, long, metavar, option, (<|>) )
+    ( Parser
+    , eitherReader
+    , flag
+    , flag'
+    , help
+    , long
+    , metavar
+    , option
+    , optional
+    , (<|>)
+    )
 import Ouroboros.Network.Magic
     ( NetworkMagic (..) )
 import Ouroboros.Network.NodeToClient
@@ -90,6 +105,7 @@ import UnliftIO.Temporary
 
 import qualified Cardano.Wallet.Byron.Compatibility as Byron
 import qualified Cardano.Wallet.Primitive.Types as W
+import qualified Cardano.Wallet.Shelley.Launch.Blockfrost as Blockfrost
 import qualified Data.ByteString.Lazy.Char8 as BL8
 import qualified Data.Text as T
 import qualified Data.Text.Encoding as T
@@ -379,3 +395,17 @@ instance HasSeverityAnnotation TempDirLog where
     getSeverityAnnotation = \case
         MsgNoCleanup _ BracketStart -> Debug
         MsgNoCleanup _ _ -> Notice
+
+{-------------------------------------------------------------------------------
+                                    Mode
+-------------------------------------------------------------------------------}
+
+data Mode = Normal | Light (Maybe Blockfrost.TokenFile)
+  deriving (Show)
+
+modeFlag :: Parser Mode
+modeFlag = do
+    light <- flag False True $
+        mconcat [ long "light", help "Enable light mode" ]
+    creds <- optional Blockfrost.tokenFileOption
+    pure $ if light then Light creds else Normal

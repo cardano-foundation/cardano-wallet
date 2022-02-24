@@ -61,6 +61,8 @@ import Cardano.Wallet.Shelley
     , nullTracers
     , serveWallet
     )
+import Cardano.Wallet.Shelley.BlockchainSource
+    ( BlockchainSource (..) )
 import Cardano.Wallet.Shelley.Faucet
     ( initFaucet )
 import Cardano.Wallet.Shelley.Launch
@@ -467,6 +469,8 @@ withShelleyServer tracers action = do
     onClusterStart act db (RunningNode conn block0 (np, vData)) = do
         listen <- walletListenFromEnv
         serveWallet
+            (NodeSource conn vData)
+            np
             (SomeNetworkDiscriminant $ Proxy @'Mainnet)
             tracers
             (SyncTolerance 10)
@@ -477,9 +481,7 @@ withShelleyServer tracers action = do
             Nothing
             Nothing
             Nothing
-            conn
             block0
-            (np, vData)
             (act np)
 
 era :: ApiEra

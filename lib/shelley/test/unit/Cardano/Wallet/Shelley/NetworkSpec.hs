@@ -24,7 +24,7 @@ import Cardano.Wallet.Shelley.Launch
     ( CardanoNodeConn, withSystemTempDir )
 import Cardano.Wallet.Shelley.Launch.Cluster
     ( ClusterLog (..), singleNodeParams, withBFTNode )
-import Cardano.Wallet.Shelley.Network
+import Cardano.Wallet.Shelley.Network.Node
     ( Observer (..), ObserverLog (..), newObserver, withNetworkLayer )
 import Control.Monad
     ( replicateM, unless, void )

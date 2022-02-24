@@ -43,6 +43,8 @@ import Cardano.Wallet.Shelley
     , setupTracers
     , tracerSeverities
     )
+import Cardano.Wallet.Shelley.BlockchainSource
+    ( BlockchainSource (..) )
 import Cardano.Wallet.Shelley.Launch
     ( withSystemTempDir )
 import Cardano.Wallet.Shelley.Launch.Cluster
@@ -252,6 +254,8 @@ main = withLocalClusterSetup $ \dir clusterLogs walletLogs ->
                 <$> getEKGURL
 
             void $ serveWallet
+                (NodeSource socketPath vData)
+                gp
                 (SomeNetworkDiscriminant $ Proxy @'Mainnet)
                 tracers
                 (SyncTolerance 10)
@@ -262,9 +266,7 @@ main = withLocalClusterSetup $ \dir clusterLogs walletLogs ->
                 Nothing
                 Nothing
                 tokenMetadataServer
-                socketPath
                 block0
-                (gp, vData)
                 (\u -> traceWith trCluster $ MsgBaseUrl (T.pack . show $ u)
                     ekgUrl prometheusUrl)
 
