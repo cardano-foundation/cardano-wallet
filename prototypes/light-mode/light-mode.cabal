@@ -1,5 +1,5 @@
 cabal-version:      2.4
-name:               light-mode-test
+name:               light-mode
 version:            0.1.0.0
 synopsis:           Explore feasability of light mode
 description:
@@ -17,8 +17,6 @@ description:
     The "Light" module provides detailed answers to these questions.
     .
     The "Demo" module contains example code for running these answers.
-
-bug-reports:        https://github.com/input-output-hk/cardano-wallet
 author:             IOHK Engineering Team
 maintainer:         operations@iohk.io
 copyright:          2021-2022 IOHK
@@ -26,9 +24,9 @@ license:            Apache-2.0
 category:           Cardano
 
 extra-source-files:
-    CHANGELOG.md
     README.md
     img/*.png
+
 data-files:
     data/addresses.txt
 
@@ -38,7 +36,7 @@ library
     default-extensions:
         OverloadedStrings
     build-depends:
-        base ^>=4.14.3.0
+        base
       , blockfrost-api
       , blockfrost-client
       , blockfrost-client-core

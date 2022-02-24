@@ -7,6 +7,7 @@ author:             IOHK Engineering Team
 maintainer:         adrestia@iohk.io
 copyright:          2018-2022 IOHK
 license:            Apache-2.0
+category:           Cardano
 extra-source-files: README.md
 
 library
