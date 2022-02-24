@@ -1789,13 +1789,13 @@ mockFeePolicy = LinearFee (Quantity 155381) (Quantity 44)
 mockProtocolParameters :: ProtocolParameters
 mockProtocolParameters = dummyProtocolParameters
     { executionUnitPrices = Just $ ExecutionUnitPrices
-        (721 % 10000000)
-        (577 % 10000)
+        (721 % 10_000_000)
+        (577 %     10_000)
     , txParameters = TxParameters
         { getFeePolicy = mockFeePolicy
         , getTxMaxSize = Quantity 16384
         , getTokenBundleMaxSize = TokenBundleMaxSize $ TxSize 4000
-        , getMaxExecutionUnits = ExecutionUnits 10000000000 14000000
+        , getMaxExecutionUnits = ExecutionUnits 10_000_000_000 14_000_000
         }
     , minimumUTxOvalue = MinimumUTxOValue $ Coin 1000000
     , maximumCollateralInputCount = 3
@@ -2281,12 +2281,13 @@ shrinkTxBody (Cardano.ShelleyTxBody e bod scripts scriptData aux val) = tail
 
 
 balanceTransaction'
-    :: (UTxOIndex, Wallet (SeqState 'Mainnet ShelleyKey), Set Tx)
+    :: (UTxOIndex InputId, Wallet (SeqState 'Mainnet ShelleyKey), Set Tx)
     -> StdGenSeed
     -> PartialTx
     -> Either ErrBalanceTx SealedTx
 balanceTransaction' wal seed tx  =
-    flip evalRand (stdGenFromSeed seed) $ runExceptT $ balanceTransaction @(Rand StdGen)
+    flip evalRand (stdGenFromSeed seed) $ runExceptT $
+        balanceTransaction @(Rand StdGen)
             (Ctx @(Rand StdGen) nullTracer testTxLayer)
             (delegationAddress @'Mainnet)
             mockProtocolParametersForBalancing
@@ -2511,7 +2512,7 @@ balanceTransactionGoldenSpec = describe "balance goldens" $ do
         tid = Hash $ B8.replicate 32 '1'
 
     txFee :: SealedTx -> Cardano.Lovelace
-    txFee tx = withAlonzoBod tx $ \(Cardano.TxBody content) ->
+    txFee tx = withAlonzoBody tx $ \(Cardano.TxBody content) ->
         case Cardano.txFee content of
             Cardano.TxFeeExplicit _ c -> c
             Cardano.TxFeeImplicit _ -> error "implicit fee"
@@ -2592,8 +2593,16 @@ prop_balanceTransactionBalanced (Wallet' utxo wal pending) (ShowBuildable partia
                 (ErrSelectAssetsSelectionError
                 (SelectionBalanceErrorOf EmptyUTxO))) ->
                 label "empty UTxO" $ property True
-            Left (ErrBalanceTxNotYetSupported (UnderestimatedFee delta candidateTx)) ->
-                counterexample ("underestimated fee by " <> pretty delta <> "\n candidate tx: " <> pretty candidateTx) $ property False
+            Left (ErrBalanceTxNotYetSupported
+                 (UnderestimatedFee delta candidateTx)) ->
+                let counterexampleText = mconcat
+                        [ "underestimated fee by "
+                        , pretty delta
+                        , "\n candidate tx: "
+                        , pretty candidateTx
+                        ]
+                in
+                    counterexample counterexampleText $ property False
             Left
                 (ErrBalanceTxSelectAssets
                 (ErrSelectAssetsSelectionError
@@ -2611,20 +2620,20 @@ prop_balanceTransactionBalanced (Wallet' utxo wal pending) (ShowBuildable partia
     a .<= b = counterexample (show a <> " /<= " <> show b) $ property $ a <= b
 
     hasCollateral :: SealedTx -> Bool
-    hasCollateral tx = withAlonzoBod tx $ \(Cardano.TxBody content) ->
+    hasCollateral tx = withAlonzoBody tx $ \(Cardano.TxBody content) ->
         case Cardano.txInsCollateral content of
             Cardano.TxInsCollateralNone -> False
             Cardano.TxInsCollateral _ [] -> False
             Cardano.TxInsCollateral _ (_:_) -> True
 
     txFee :: SealedTx -> Cardano.Lovelace
-    txFee tx = withAlonzoBod tx $ \(Cardano.TxBody content) ->
+    txFee tx = withAlonzoBody tx $ \(Cardano.TxBody content) ->
         case Cardano.txFee content of
             Cardano.TxFeeExplicit _ c -> c
             Cardano.TxFeeImplicit _ -> error "implicit fee"
 
     txBalance :: SealedTx -> Cardano.UTxO Cardano.AlonzoEra -> Cardano.Lovelace
-    txBalance tx u = withAlonzoBod tx $ \bod ->
+    txBalance tx u = withAlonzoBody tx $ \bod ->
         lovelaceFromCardanoTxOutValue
         $ Cardano.evaluateTransactionBalance nodePParams mempty u bod
 
@@ -2636,14 +2645,14 @@ prop_balanceTransactionBalanced (Wallet' utxo wal pending) (ShowBuildable partia
 
     (_, nodePParams) = mockProtocolParametersForBalancing
 
-withAlonzoBod
+withAlonzoBody
     :: SealedTx
     -> (Cardano.TxBody Cardano.AlonzoEra -> a)
     -> a
-withAlonzoBod (cardanoTx -> Cardano.InAnyCardanoEra Cardano.AlonzoEra tx) f =
+withAlonzoBody (cardanoTx -> Cardano.InAnyCardanoEra Cardano.AlonzoEra tx) f =
     let Cardano.Tx bod _ = tx
     in f bod
-withAlonzoBod _ _ = error "withBod: other eras are not handled yet"
+withAlonzoBody _ _ = error "withAlonzoBody: other eras are not handled yet"
 
 
 mockProtocolParametersForBalancing
@@ -2675,7 +2684,9 @@ mockProtocolParametersForBalancing = (mockProtocolParameters, nodePParams)
         , Cardano.protocolParamTreasuryCut  = 0
         , Cardano.protocolParamUTxOCostPerWord = Just 34482
         , Cardano.protocolParamCostModels =
-            Map.singleton (Cardano.AnyPlutusScriptVersion Cardano.PlutusScriptV1) costModel
+            Map.singleton
+                (Cardano.AnyPlutusScriptVersion Cardano.PlutusScriptV1)
+                costModel
         , Cardano.protocolParamPrices =
             Just $ Cardano.ExecutionUnitPrices
                 (721 % 10000000)

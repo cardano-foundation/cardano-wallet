@@ -1600,9 +1600,11 @@ balanceTransaction
 
     txBalance :: SealedTx -> ExceptT ErrBalanceTx m Cardano.Value
     txBalance tx =
-        case evaluateTransactionBalance tl tx nodePParams (UTxOIndex.toUTxO internalUtxoAvailable) externalInputs of
+        case evaluateTransactionBalance tl tx nodePParams utxo externalInputs of
             Just x -> pure x
             Nothing -> throwE $ ErrBalanceTxUpdateError ErrByronTxNotSupported
+      where
+        utxo = inputMapToUTxO $ UTxOIndex.toMap internalUtxoAvailable
 
     assembleTransaction
         :: TxUpdate

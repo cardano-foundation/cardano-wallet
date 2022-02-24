@@ -187,6 +187,8 @@ import Control.Monad.Trans.Except
     ( runExceptT )
 import Control.Monad.Trans.State.Strict
     ( StateT (..), execStateT, get, modify' )
+import Data.Bifunctor
+    ( bimap )
 import Data.Function
     ( (&) )
 import Data.Functor
@@ -244,8 +246,6 @@ import qualified Cardano.Wallet.Primitive.Types.TokenMap as TokenMap
 import qualified Cardano.Wallet.Shelley.Compatibility as Compatibility
 import qualified Codec.CBOR.Encoding as CBOR
 import qualified Codec.CBOR.Write as CBOR
-import Data.Bifunctor
-    ( bimap )
 import qualified Data.ByteString as BS
 import qualified Data.ByteString.Lazy as BL
 import qualified Data.Foldable as F
@@ -593,7 +593,8 @@ _evaluateTransactionBalance tx pp utxo extraUTxO = do
 
             extraUTxO' = Map.fromList
                 . map (\(i, o, mDatumHash) ->
-                    (toCardanoTxIn i, setDatumHash era mDatumHash (toCardanoTxOut era o))
+                    (toCardanoTxIn i
+                    , setDatumHash era mDatumHash (toCardanoTxOut era o))
                     )
                 $ extraUTxO
 
@@ -607,7 +608,11 @@ _evaluateTransactionBalance tx pp utxo extraUTxO = do
                     -- address.
                     bod
   where
-    setDatumHash :: ShelleyBasedEra era -> Maybe (Hash "Datum") -> Cardano.TxOut ctx era -> Cardano.TxOut ctx era
+    setDatumHash
+        :: ShelleyBasedEra era
+        -> Maybe (Hash "Datum")
+        -> Cardano.TxOut ctx era
+        -> Cardano.TxOut ctx era
     setDatumHash _era Nothing o = o
     setDatumHash era (Just (Hash datumHash)) (Cardano.TxOut addr val _) =
         Cardano.TxOut addr val (Cardano.TxOutDatumHash scriptDataSupported hash)
@@ -620,10 +625,10 @@ _evaluateTransactionBalance tx pp utxo extraUTxO = do
           where
             -- FIXME: Proper error handling
             errBadEra = error $ unwords
-                    [ "evaluateTransactionBalance:"
-                    , "cannot add a datum hash to the transaction body of an"
-                    , "era which doesn't support datum hashes."
-                    ]
+                [ "evaluateTransactionBalance:"
+                , "cannot add a datum hash to the transaction body of an"
+                , "era that doesn't support datum hashes."
+                ]
         hash = fromMaybe errBadHash $ Cardano.deserialiseFromRawBytes
             (Cardano.AsHash Cardano.AsScriptData)
             datumHash
@@ -652,16 +657,17 @@ _evaluateTransactionBalance tx pp utxo extraUTxO = do
 inAnyShelleyBasedEra
     :: InAnyCardanoEra a
     -> Maybe (Cardano.InAnyShelleyBasedEra a)
-inAnyShelleyBasedEra (InAnyCardanoEra Cardano.ByronEra _) =
-    Nothing
-inAnyShelleyBasedEra (InAnyCardanoEra Cardano.ShelleyEra a) =
-    Just $ Cardano.InAnyShelleyBasedEra Cardano.ShelleyBasedEraShelley a
-inAnyShelleyBasedEra (InAnyCardanoEra Cardano.AllegraEra a) =
-    Just $ Cardano.InAnyShelleyBasedEra Cardano.ShelleyBasedEraAllegra a
-inAnyShelleyBasedEra (InAnyCardanoEra Cardano.MaryEra a) =
-    Just $ Cardano.InAnyShelleyBasedEra Cardano.ShelleyBasedEraMary a
-inAnyShelleyBasedEra (InAnyCardanoEra Cardano.AlonzoEra a) =
-    Just $ Cardano.InAnyShelleyBasedEra Cardano.ShelleyBasedEraAlonzo a
+inAnyShelleyBasedEra = \case
+    InAnyCardanoEra Cardano.ByronEra _ ->
+        Nothing
+    InAnyCardanoEra Cardano.ShelleyEra a ->
+        Just $ Cardano.InAnyShelleyBasedEra Cardano.ShelleyBasedEraShelley a
+    InAnyCardanoEra Cardano.AllegraEra a ->
+        Just $ Cardano.InAnyShelleyBasedEra Cardano.ShelleyBasedEraAllegra a
+    InAnyCardanoEra Cardano.MaryEra a ->
+        Just $ Cardano.InAnyShelleyBasedEra Cardano.ShelleyBasedEraMary a
+    InAnyCardanoEra Cardano.AlonzoEra a ->
+        Just $ Cardano.InAnyShelleyBasedEra Cardano.ShelleyBasedEraAlonzo a
 
 mkDelegationCertificates
     :: DelegationAction
