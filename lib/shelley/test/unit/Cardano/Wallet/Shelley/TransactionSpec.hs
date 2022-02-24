@@ -2343,11 +2343,11 @@ data BalanceTxGolden =
         }
     | BalanceTxGoldenFailure Coin String
 
--- CSV with the columns: wallet_balance,fee,minfee,error
+-- CSV with the columns: wallet_balance,(fee,minfee | error)
 instance Buildable BalanceTxGolden where
     build (BalanceTxGoldenFailure c err) = mconcat
         [ build c
-        , ",,,"
+        , ","
         , build (T.pack err)
         ]
     build (BalanceTxGoldenSuccess c fee minfee) = mconcat
