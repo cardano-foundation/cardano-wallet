@@ -51,21 +51,15 @@ Wallet Backend specifications, the notation is inspired from the [Z notation](ht
 <details>
   <summary>What is <code>dom</code> from <strong>Lemma 2.1</strong></summary>
 
-  There are multiple occurrences in the spec of expressions like: `(dom u ∩ ins) ◃ u`. The meaning of `dom u` isn't quite clearly defined anywhere but refers to the set of keys from the mapping defined by `u: txin ↦ txout`. Hence,
-`dom u` refers to all `txin` available in `u`.
+  There are multiple occurrences in the spec of expressions like: `(dom u ∩ ins) ◃ u`. The meaning of `dom u` isn't quite clearly defined anywhere but refers to the set of keys from the mapping defined by `u: txin ↦ txout`. Hence, `dom u` refers to all `txin` available in `u`.
 
   In Haskell, this translates to:
 
   ```hs
-  class Dom a where
-    type DomElem a :: *
-    dom :: a -> Set (DomElem a)
-
   newtype UTxO = UTxO (Map TxIn TxOut)
 
-  instance Dom UTxO where
-    type DomElem UTxO = TxIn
-    dom (UTxO utxo)   = Set.fromList $ Map.keys utxo
+  dom :: UTxO -> Set TxIn
+  dom (UTxO utxo) = Set.fromList $ Map.keys utxo
   ```
 </details>
 

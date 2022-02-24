@@ -18,8 +18,8 @@ module Cardano.Wallet.Primitive.Types.UTxO
     (
     -- * UTxO
       UTxO (..)
-    , Dom (..)
 
+    , dom
     , null
     , size
     , balance
@@ -73,8 +73,6 @@ import Data.Functor.Identity
     ( runIdentity )
 import Data.Generics.Internal.VL.Lens
     ( view )
-import Data.Kind
-    ( Type )
 import Data.List.NonEmpty
     ( NonEmpty (..) )
 import Data.Map.Strict
@@ -106,17 +104,6 @@ newtype UTxO = UTxO { unUTxO :: Map TxIn TxOut }
 
 instance NFData UTxO
 
--- | Allows us to define the "domain" of any type — @UTxO@ in particular — and
--- use 'dom' to refer to the /inputs/ of an /utxo/.
---
-class Dom a where
-    type DomElem a :: Type
-    dom :: a -> Set (DomElem a)
-
-instance Dom UTxO where
-    type DomElem UTxO = TxIn
-    dom (UTxO utxo) = Map.keysSet utxo
-
 instance Buildable UTxO where
     build (UTxO utxo) =
         blockListF' "-" utxoF (Map.toList utxo)
@@ -128,6 +115,10 @@ instance Buildable UTxO where
               , build out)
             ]
         buildMap = blockMapF . fmap (first $ id @String)
+
+-- | Domain of a 'UTxO' = the set of /inputs/ of the /utxo/.
+dom :: UTxO -> Set TxIn
+dom (UTxO utxo) = Map.keysSet utxo
 
 -- | Compute the balance of a UTxO
 balance :: UTxO -> TokenBundle
