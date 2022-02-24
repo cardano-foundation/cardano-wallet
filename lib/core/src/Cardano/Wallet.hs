@@ -81,6 +81,7 @@ module Cardano.Wallet
     , readNextWithdrawal
     , readRewardAccount
     , someRewardAccount
+    , readPolicyPublicKey
     , queryRewardBalance
     , ErrWalletAlreadyExists (..)
     , ErrNoSuchWallet (..)
@@ -90,6 +91,7 @@ module Cardano.Wallet
     , ErrCheckWalletIntegrity (..)
     , ErrWalletNotResponding (..)
     , ErrReadRewardAccount (..)
+    , ErrReadPolicyPublicKey (..)
 
     -- * Shared Wallet
     , updateCosigner
@@ -301,6 +303,8 @@ import Cardano.Wallet.Primitive.AddressDerivation.Byron
     ( ByronKey )
 import Cardano.Wallet.Primitive.AddressDerivation.Icarus
     ( IcarusKey )
+import Cardano.Wallet.Primitive.AddressDerivation.MintBurn
+    ( policyDerivationPath )
 import Cardano.Wallet.Primitive.AddressDerivation.SharedKey
     ( SharedKey (..) )
 import Cardano.Wallet.Primitive.AddressDerivation.Shelley
@@ -1217,6 +1221,34 @@ readRewardAccount ctx wid = db & \DBLayer{..} -> do
             let acct = toRewardAccount xpub
             let path = stakeDerivationPath $ Seq.derivationPrefix s
             pure (acct, getRawKey xpub, path)
+  where
+    db = ctx ^. dbLayer @IO @s @k
+
+readPolicyPublicKey
+    :: forall ctx s k (n :: NetworkDiscriminant) shelley.
+        ( HasDBLayer IO s k ctx
+        , shelley ~ SeqState n ShelleyKey
+        , Typeable n
+        , Typeable s
+        )
+    => ctx
+    -> WalletId
+    -> ExceptT ErrReadPolicyPublicKey IO (XPub, NonEmpty DerivationIndex)
+readPolicyPublicKey ctx wid = db & \DBLayer{..} -> do
+    cp <- withExceptT ErrReadPolicyPublicKeyNoSuchWallet
+        $ mapExceptT atomically
+        $ withNoSuchWallet wid
+        $ readCheckpoint wid
+    case testEquality (typeRep @s) (typeRep @shelley) of
+        Nothing ->
+            throwE ErrReadPolicyPublicKeyNotAShelleyWallet
+        Just Refl -> do
+            let s = getState cp
+            case Seq.policyXPub s of
+                Nothing ->
+                    throwE ErrReadPolicyPublicKeyAbsent
+                Just xpub ->
+                    pure (getRawKey xpub, policyDerivationPath)
   where
     db = ctx ^. dbLayer @IO @s @k
 
@@ -3334,6 +3366,12 @@ data ErrReadRewardAccount
 
 data ErrWithdrawalNotWorth
     = ErrWithdrawalNotWorth
+    deriving (Generic, Eq, Show)
+
+data ErrReadPolicyPublicKey
+    = ErrReadPolicyPublicKeyNotAShelleyWallet
+    | ErrReadPolicyPublicKeyNoSuchWallet ErrNoSuchWallet
+    | ErrReadPolicyPublicKeyAbsent
     deriving (Generic, Eq, Show)
 
 {-------------------------------------------------------------------------------

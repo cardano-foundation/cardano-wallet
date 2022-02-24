@@ -22,6 +22,7 @@ module Cardano.Wallet.Primitive.AddressDerivation.MintBurn
       -- * Helpers
     , derivePolicyKeyAndHash
     , derivePolicyPrivateKey
+    , policyDerivationPath
     ) where
 
 import Prelude
@@ -36,6 +37,7 @@ import Cardano.Crypto.Wallet.Types
     ( DerivationScheme (DerivationScheme2) )
 import Cardano.Wallet.Primitive.AddressDerivation
     ( Depth (..)
+    , DerivationIndex (..)
     , DerivationType (..)
     , Index (..)
     , Passphrase (..)
@@ -48,8 +50,11 @@ import Cardano.Wallet.Primitive.AddressDerivation
     )
 import Cardano.Wallet.Primitive.AddressDiscovery
     ( coinTypeAda )
+import Data.List.NonEmpty
+    ( NonEmpty )
 
 import qualified Cardano.Address.Script as CA
+import qualified Data.List.NonEmpty as NE
 
 -- | Purpose for forged policy keys is a constant set to 1855' (or 0x8000073F)
 -- following the original CIP-1855: "Forging policy keys for HD Wallets".
@@ -98,3 +103,14 @@ derivePolicyKeyAndHash pwd rootPrv policyIx = (policyK, vkeyHash)
     policyK = liftRawKey policyPrv
     policyPrv = derivePolicyPrivateKey pwd (getRawKey rootPrv) policyIx
     vkeyHash = hashVerificationKey CA.Payment (publicKey policyK)
+
+policyDerivationPath
+    :: NonEmpty DerivationIndex
+policyDerivationPath =  NE.fromList
+    [ DerivationIndex $ getIndex purposeCIP1855
+    , DerivationIndex $ getIndex coinTypeAda
+    , DerivationIndex $ getIndex policyIx
+    ]
+  where
+    policyIx :: Index 'Hardened 'PolicyK
+    policyIx = minBound
