@@ -1,0 +1,22 @@
+--------------------------------------------------------------------------------
+-- Cabal project file
+--    for /prototypes
+-- -----------------------------------------------------------------------------
+--
+-- The prototypes in this directoy ideally only dependend on basic packages
+-- such as `base` or `containers`.
+-- Dependencies that are used are typically not related to cardano-wallet.
+--
+--------------------------------------------------------------------------------
+--
+-- Example build command:
+--
+--   cabal build all --enable-tests --enable-benchmarks -O0
+--
+--------------------------------------------------------------------------------
+
+index-state: 2022-01-01T00:00:00Z
+with-compiler: ghc-8.10.7
+
+packages:
+    light-mode-test/

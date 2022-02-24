@@ -16,10 +16,10 @@
 *.eventlog
 
 ### Cabal ###
-/dist
-/dist-*
+dist
+dist-*
 .ghc.environment.*
-/cabal*.project.local*
+cabal*.project.local*
 
 ### Stack ###
 .stack-work/
