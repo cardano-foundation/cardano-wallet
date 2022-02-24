@@ -248,14 +248,19 @@ checkUnclean dryRun dir = do
     pure res
 
 -- | Find the name of all Cabal packages in this repo.
+--
+-- Note: "stack ide packages" can't easily be used because it prints to stderr
+-- mixed with output from other commands.
 listLocalPackages :: IO [Text]
 listLocalPackages =
     find (suffix ".cabal") "."
-    & onFiles (grepText (invert isBuild))
+    & onFiles (grepText (invert isInsideBuildDir))
+    & onFiles (grepText (invert isPrototype))
     & fmap basename
     & textLines
   where
-    isBuild = contains "./.stack-work" <|> contains "./dist"
+    isInsideBuildDir = contains "./.stack-work" <|> contains "./dist"
+    isPrototype = begins "./prototypes"
     textLines shell = fold (format fp <$> shell) Fold.list
 
 ----------------------------------------------------------------------------
