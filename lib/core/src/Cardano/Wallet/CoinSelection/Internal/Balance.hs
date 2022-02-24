@@ -247,7 +247,7 @@ data SelectionParamsOf outputs = SelectionParams
         :: !outputs
         -- ^ The complete set of outputs to be covered.
     , utxoAvailable
-        :: !UTxOSelection
+        :: !(UTxOSelection InputId)
         -- ^ Specifies a set of UTxOs that are available for selection as
         -- inputs and optionally, a subset that has already been selected.
         --
@@ -436,7 +436,11 @@ instance Ord a => Ord (SelectionLimitOf a) where
 
 -- | Indicates whether or not the given selection limit has been exceeded.
 --
-selectionLimitExceeded :: IsUTxOSelection s => s -> SelectionLimit -> Bool
+selectionLimitExceeded
+    :: IsUTxOSelection s InputId
+    => s InputId
+    -> SelectionLimit
+    -> Bool
 selectionLimitExceeded s = \case
     NoLimit -> False
     MaximumInputLimit n -> UTxOSelection.selectedSize s > n
@@ -946,7 +950,7 @@ performSelectionNonEmpty constraints params
     --     assets of the final resulting selection).
     --
     predictChange
-        :: UTxOSelectionNonEmpty
+        :: UTxOSelectionNonEmpty InputId
         -> [Set AssetId]
     predictChange s = either
         (const $ invariantResultWithNoCost $ UTxOSelection.selectedIndex s)
@@ -988,7 +992,7 @@ performSelectionNonEmpty constraints params
     -- function won't make associated outputs for them.
     --
     makeChangeRepeatedly
-        :: UTxOSelectionNonEmpty
+        :: UTxOSelectionNonEmpty InputId
         -> m
             ( Either
                 SelectionBalanceError
@@ -1092,7 +1096,7 @@ performSelectionNonEmpty constraints params
 data RunSelectionParams = RunSelectionParams
     { selectionLimit :: SelectionLimit
         -- ^ A limit to adhere to when performing a selection.
-    , utxoAvailable :: UTxOSelection
+    , utxoAvailable :: (UTxOSelection InputId)
         -- ^ UTxO entries available for selection.
     , minimumBalance :: TokenBundle
         -- ^ Minimum balance to cover.
@@ -1100,23 +1104,27 @@ data RunSelectionParams = RunSelectionParams
     deriving (Eq, Generic, Show)
 
 runSelectionNonEmpty
-    :: MonadRandom m => RunSelectionParams -> m (Maybe UTxOSelectionNonEmpty)
+    :: MonadRandom m
+    => RunSelectionParams
+    -> m (Maybe (UTxOSelectionNonEmpty InputId))
 runSelectionNonEmpty = (=<<)
     <$> runSelectionNonEmptyWith . selectCoinQuantity . view #selectionLimit
     <*> runSelection
 
 runSelectionNonEmptyWith
     :: Monad m
-    => (UTxOSelection -> m (Maybe UTxOSelectionNonEmpty))
-    -> UTxOSelection
-    -> m (Maybe UTxOSelectionNonEmpty)
+    => (UTxOSelection InputId -> m (Maybe (UTxOSelectionNonEmpty InputId)))
+    -> UTxOSelection InputId
+    -> m (Maybe (UTxOSelectionNonEmpty InputId))
 runSelectionNonEmptyWith selectSingleEntry result =
     UTxOSelection.toNonEmpty result & maybe
         (result & selectSingleEntry)
         (pure . Just)
 
 runSelection
-    :: forall m. MonadRandom m => RunSelectionParams -> m UTxOSelection
+    :: forall m. MonadRandom m
+    => RunSelectionParams
+    -> m (UTxOSelection InputId)
 runSelection params =
     runRoundRobinM utxoAvailable UTxOSelection.fromNonEmpty selectors
   where
@@ -1130,7 +1138,8 @@ runSelection params =
     -- necessarily has a non-zero ada amount. By running the other selectors
     -- first, we increase the probability that the coin selector will be able
     -- to terminate without needing to select an additional coin.
-    selectors :: [UTxOSelection -> m (Maybe UTxOSelectionNonEmpty)]
+    selectors
+        :: [UTxOSelection InputId -> m (Maybe (UTxOSelectionNonEmpty InputId))]
     selectors =
         reverse (coinSelector : fmap assetSelector minimumAssetQuantities)
       where
@@ -1146,7 +1155,7 @@ assetSelectionLens
     :: MonadRandom m
     => SelectionLimit
     -> (AssetId, TokenQuantity)
-    -> SelectionLens m UTxOSelection UTxOSelectionNonEmpty
+    -> SelectionLens m (UTxOSelection InputId) (UTxOSelectionNonEmpty InputId)
 assetSelectionLens limit (asset, minimumAssetQuantity) = SelectionLens
     { currentQuantity = selectedAssetQuantity asset
     , updatedQuantity = selectedAssetQuantity asset
@@ -1159,7 +1168,7 @@ coinSelectionLens
     => SelectionLimit
     -> Coin
     -- ^ Minimum coin quantity.
-    -> SelectionLens m UTxOSelection UTxOSelectionNonEmpty
+    -> SelectionLens m (UTxOSelection InputId) (UTxOSelectionNonEmpty InputId)
 coinSelectionLens limit minimumCoinQuantity = SelectionLens
     { currentQuantity = selectedCoinQuantity
     , updatedQuantity = selectedCoinQuantity
@@ -1171,11 +1180,11 @@ coinSelectionLens limit minimumCoinQuantity = SelectionLens
 --
 selectAssetQuantity
     :: MonadRandom m
-    => IsUTxOSelection utxoSelection
+    => IsUTxOSelection utxoSelection InputId
     => AssetId
     -> SelectionLimit
-    -> utxoSelection
-    -> m (Maybe UTxOSelectionNonEmpty)
+    -> utxoSelection InputId
+    -> m (Maybe (UTxOSelectionNonEmpty InputId))
 selectAssetQuantity asset =
     selectMatchingQuantity (WithAssetOnly asset :| [WithAsset asset])
 
@@ -1183,10 +1192,10 @@ selectAssetQuantity asset =
 --
 selectCoinQuantity
     :: MonadRandom m
-    => IsUTxOSelection utxoSelection
+    => IsUTxOSelection utxoSelection InputId
     => SelectionLimit
-    -> utxoSelection
-    -> m (Maybe UTxOSelectionNonEmpty)
+    -> utxoSelection InputId
+    -> m (Maybe (UTxOSelectionNonEmpty InputId))
 selectCoinQuantity =
     selectMatchingQuantity (WithAdaOnly :| [Any])
 
@@ -1208,15 +1217,15 @@ selectCoinQuantity =
 --
 selectMatchingQuantity
     :: MonadRandom m
-    => IsUTxOSelection utxoSelection
+    => IsUTxOSelection utxoSelection InputId
     => NonEmpty SelectionFilter
         -- ^ A list of selection filters to be traversed from left-to-right,
         -- in descending order of priority.
     -> SelectionLimit
         -- ^ A limit to adhere to when selecting entries.
-    -> utxoSelection
+    -> utxoSelection InputId
         -- ^ The current selection state.
-    -> m (Maybe UTxOSelectionNonEmpty)
+    -> m (Maybe (UTxOSelectionNonEmpty InputId))
         -- ^ An updated selection state that includes a matching UTxO entry,
         -- or 'Nothing' if no such entry could be found.
 selectMatchingQuantity filters limit s
@@ -1232,7 +1241,7 @@ selectMatchingQuantity filters limit s
 
     updateState
         :: ((InputId, TokenBundle), UTxOIndex InputId)
-        -> Maybe UTxOSelectionNonEmpty
+        -> Maybe (UTxOSelectionNonEmpty InputId)
     updateState ((i, _b), _remaining) = UTxOSelection.select i s
 
 --------------------------------------------------------------------------------
@@ -2141,13 +2150,15 @@ runRoundRobinM state demote processors = go state processors []
 -- Accessor functions
 --------------------------------------------------------------------------------
 
-selectedAssetQuantity :: IsUTxOSelection s => AssetId -> s -> Natural
+selectedAssetQuantity
+    :: IsUTxOSelection s InputId => AssetId -> s InputId -> Natural
 selectedAssetQuantity asset
     = unTokenQuantity
     . flip TokenBundle.getQuantity asset
     . UTxOSelection.selectedBalance
 
-selectedCoinQuantity :: IsUTxOSelection s => s -> Natural
+selectedCoinQuantity
+    :: IsUTxOSelection s InputId => s InputId -> Natural
 selectedCoinQuantity
     = intCast
     . unCoin

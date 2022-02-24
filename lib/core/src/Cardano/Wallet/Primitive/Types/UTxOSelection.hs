@@ -1,6 +1,9 @@
 {-# LANGUAGE DeriveGeneric #-}
 {-# LANGUAGE DuplicateRecordFields #-}
 {-# LANGUAGE ExplicitForAll #-}
+{-# LANGUAGE FlexibleContexts #-}
+{-# LANGUAGE FlexibleInstances #-}
+{-# LANGUAGE MultiParamTypeClasses #-}
 {-# LANGUAGE NamedFieldPuns #-}
 {-# LANGUAGE OverloadedLabels #-}
 {-# LANGUAGE TypeFamilies #-}
@@ -82,12 +85,8 @@ module Cardano.Wallet.Primitive.Types.UTxOSelection
 
 import Prelude
 
-import Cardano.Wallet.Primitive.Types.Address
-    ( Address )
 import Cardano.Wallet.Primitive.Types.TokenBundle
     ( TokenBundle )
-import Cardano.Wallet.Primitive.Types.Tx
-    ( TxIn )
 import Cardano.Wallet.Primitive.Types.UTxOIndex
     ( UTxOIndex )
 import Control.Monad
@@ -120,66 +119,60 @@ import qualified Data.Map.Strict as Map
 -- Classes
 --------------------------------------------------------------------------------
 
-class HasUTxOSelectionState s where
+class HasUTxOSelectionState s u where
 
     -- | Retrieves the internal state from a selection.
-    state :: s -> State
+    state :: s u -> State u
 
     -- | Reconstructs a selection from an internal state.
-    fromState :: State -> s
+    fromState :: State u -> s u
 
-class HasUTxOSelectionState s => IsUTxOSelection s where
+class HasUTxOSelectionState s u => IsUTxOSelection s u where
 
     -- | The type of the list of selected UTxOs.
-    type SelectedList s
+    type SelectedList s u
 
     -- | Retrieves a list of the selected UTxOs.
-    selectedList :: s -> SelectedList s
+    selectedList :: s u -> SelectedList s u
 
 --------------------------------------------------------------------------------
 -- Types
 --------------------------------------------------------------------------------
 
--- TODO: ADP-1448:
---
--- Replace this type synonym with a type parameter on types that use it.
---
-type InputId = (TxIn, Address)
-
 -- | The internal state of a selection.
 --
-data State = State
-    { leftover :: !(UTxOIndex InputId)
+data State u = State
+    { leftover :: !(UTxOIndex u)
       -- ^ UTxOs that have not yet been selected.
-    , selected :: !(UTxOIndex InputId)
+    , selected :: !(UTxOIndex u)
       -- ^ UTxOs that have already been selected.
     }
     deriving (Eq, Generic, Show)
 
 -- | A selection for which 'isNonEmpty' may be 'False'.
 --
-newtype UTxOSelection = UTxOSelection State
+newtype UTxOSelection u = UTxOSelection (State u)
     deriving (Eq, Generic, Show)
 
 -- | A selection for which 'isNonEmpty' must be 'True'.
 --
-newtype UTxOSelectionNonEmpty = UTxOSelectionNonEmpty State
+newtype UTxOSelectionNonEmpty u = UTxOSelectionNonEmpty (State u)
     deriving (Eq, Generic, Show)
 
-instance HasUTxOSelectionState UTxOSelection where
+instance HasUTxOSelectionState UTxOSelection u where
     state (UTxOSelection s) = s
     fromState s = UTxOSelection s
 
-instance HasUTxOSelectionState UTxOSelectionNonEmpty where
+instance HasUTxOSelectionState UTxOSelectionNonEmpty u where
     state (UTxOSelectionNonEmpty s) = s
     fromState s = UTxOSelectionNonEmpty s
 
-instance IsUTxOSelection UTxOSelection where
-    type SelectedList UTxOSelection = [(InputId, TokenBundle)]
+instance IsUTxOSelection UTxOSelection u where
+    type SelectedList UTxOSelection u = [(u, TokenBundle)]
     selectedList = UTxOIndex.toList . selectedIndex
 
-instance IsUTxOSelection UTxOSelectionNonEmpty where
-    type SelectedList UTxOSelectionNonEmpty = NonEmpty (InputId, TokenBundle)
+instance IsUTxOSelection UTxOSelectionNonEmpty u where
+    type SelectedList UTxOSelectionNonEmpty u = NonEmpty (u, TokenBundle)
     selectedList = NE.fromList . UTxOIndex.toList . selectedIndex
 
 --------------------------------------------------------------------------------
@@ -188,14 +181,14 @@ instance IsUTxOSelection UTxOSelectionNonEmpty where
 
 -- | A completely empty selection with no selected or leftover UTxOs.
 --
-empty :: UTxOSelection
+empty :: UTxOSelection u
 empty = fromIndex UTxOIndex.empty
 
 -- | Creates a selection where none of the UTxOs are selected.
 --
 -- All UTxOs in the index will be added to the leftover set.
 --
-fromIndex :: UTxOIndex InputId -> UTxOSelection
+fromIndex :: UTxOIndex u -> UTxOSelection u
 fromIndex i = UTxOSelection State
     { leftover = i
     , selected = UTxOIndex.empty
@@ -206,7 +199,7 @@ fromIndex i = UTxOSelection State
 -- All UTxOs that match the given filter will be added to the selected set,
 -- whereas all UTxOs that do not match will be added to the leftover set.
 --
-fromIndexFiltered :: (InputId -> Bool) -> UTxOIndex InputId -> UTxOSelection
+fromIndexFiltered :: Ord u => (u -> Bool) -> UTxOIndex u -> UTxOSelection u
 fromIndexFiltered f =
     UTxOSelection . uncurry State . swap . UTxOIndex.partition f
 
@@ -217,7 +210,7 @@ fromIndexFiltered f =
 --
 -- Any items that are in both sets are removed from the leftover set.
 --
-fromIndexPair :: (UTxOIndex InputId, UTxOIndex InputId) -> UTxOSelection
+fromIndexPair :: Ord u => (UTxOIndex u, UTxOIndex u) -> UTxOSelection u
 fromIndexPair (leftover, selected) =
     UTxOSelection State
         { leftover = leftover `UTxOIndex.difference` selected
@@ -229,7 +222,7 @@ fromIndexPair (leftover, selected) =
 -- The 1st index in the pair represents the leftover set.
 -- The 2nd index in the pair represents the selected set.
 --
-toIndexPair :: IsUTxOSelection s => s -> (UTxOIndex InputId, UTxOIndex InputId)
+toIndexPair :: IsUTxOSelection s u => s u -> (UTxOIndex u, UTxOIndex u)
 toIndexPair s = (leftoverIndex s, selectedIndex s)
 
 --------------------------------------------------------------------------------
@@ -238,14 +231,14 @@ toIndexPair s = (leftoverIndex s, selectedIndex s)
 
 -- | Demotes a non-empty selection to an ordinary selection.
 --
-fromNonEmpty :: UTxOSelectionNonEmpty -> UTxOSelection
+fromNonEmpty :: UTxOSelectionNonEmpty u -> UTxOSelection u
 fromNonEmpty = UTxOSelection . state
 
 -- | Promotes an ordinary selection to a non-empty selection.
 --
 -- Returns 'Nothing' if the the selected set is empty.
 --
-toNonEmpty :: IsUTxOSelection s => s -> Maybe UTxOSelectionNonEmpty
+toNonEmpty :: IsUTxOSelection s u => s u -> Maybe (UTxOSelectionNonEmpty u)
 toNonEmpty s = bool Nothing (Just $ fromState $ state s) (isNonEmpty s)
 
 --------------------------------------------------------------------------------
@@ -254,29 +247,29 @@ toNonEmpty s = bool Nothing (Just $ fromState $ state s) (isNonEmpty s)
 
 -- | Returns 'True' if and only if the selected set is empty.
 --
-isEmpty :: IsUTxOSelection s => s -> Bool
+isEmpty :: IsUTxOSelection s u => s u -> Bool
 isEmpty = (== 0) . selectedSize
 
 -- | Returns 'True' if and only if the selected set is non-empty.
 --
-isNonEmpty :: IsUTxOSelection s => s -> Bool
+isNonEmpty :: IsUTxOSelection s u => s u -> Bool
 isNonEmpty = not . isEmpty
 
 -- | Returns 'True' if the given 'InputId' is a member of either set.
 --
 -- Otherwise, returns 'False'.
 --
-isMember :: IsUTxOSelection s => InputId -> s -> Bool
+isMember :: IsUTxOSelection s u => Ord u => u -> s u -> Bool
 isMember i s = isLeftover i s || isSelected i s
 
 -- | Returns 'True' iff. the given 'InputId' is a member of the leftover set.
 --
-isLeftover :: IsUTxOSelection s => InputId -> s -> Bool
+isLeftover :: IsUTxOSelection s u => Ord u => u -> s u -> Bool
 isLeftover i = UTxOIndex.member i . leftoverIndex
 
 -- | Returns 'True' iff. the given 'InputId' is a member of the selected set.
 --
-isSelected :: IsUTxOSelection s => InputId -> s -> Bool
+isSelected :: IsUTxOSelection s u => Ord u => u -> s u -> Bool
 isSelected i = UTxOIndex.member i . selectedIndex
 
 -- | Returns 'True' iff. the first selection is a sub-selection of the second.
@@ -286,10 +279,14 @@ isSelected i = UTxOIndex.member i . selectedIndex
 -- of the 'select' function.
 --
 isSubSelectionOf
-    :: IsUTxOSelection s1 => IsUTxOSelection s2 => s1 -> s2 -> Bool
+    :: IsUTxOSelection s1 u
+    => IsUTxOSelection s2 u
+    => Ord u
+    => s1 u
+    -> s2 u
+    -> Bool
 isSubSelectionOf s1 s2 = state (selectMany toSelect s1) == state s2
   where
-    toSelect :: [InputId]
     toSelect = fst <$> Map.toList
         (selectedUTxO s2 `Map.difference` selectedUTxO s1)
 
@@ -301,7 +298,12 @@ isSubSelectionOf s1 s2 = state (selectMany toSelect s1) == state s2
 -- applications of the 'select' function.
 --
 isProperSubSelectionOf
-    :: IsUTxOSelection s1 => IsUTxOSelection s2 => s1 -> s2 -> Bool
+    :: IsUTxOSelection s1 u
+    => IsUTxOSelection s2 u
+    => Ord u
+    => s1 u
+    -> s2 u
+    -> Bool
 isProperSubSelectionOf s1 s2 = state s1 /= state s2 && s1 `isSubSelectionOf` s2
 
 --------------------------------------------------------------------------------
@@ -320,7 +322,7 @@ isProperSubSelectionOf s1 s2 = state s1 /= state s2 && s1 `isSubSelectionOf` s2
 --
 -- >>> availableBalance s == availableBalance (selectMany is s)
 --
-availableBalance :: IsUTxOSelection s => s -> TokenBundle
+availableBalance :: IsUTxOSelection s u => s u -> TokenBundle
 availableBalance s = leftoverBalance s <> selectedBalance s
 
 -- | Computes the available UTxO set.
@@ -334,52 +336,52 @@ availableBalance s = leftoverBalance s <> selectedBalance s
 --
 -- >>> availableUTxO s == availableUTxO (selectMany is s)
 --
-availableUTxO :: IsUTxOSelection s => s -> Map InputId TokenBundle
+availableUTxO :: IsUTxOSelection s u => Ord u => s u -> Map u TokenBundle
 availableUTxO s = leftoverUTxO s <> selectedUTxO s
 
 -- | Retrieves the balance of leftover UTxOs.
 --
-leftoverBalance :: IsUTxOSelection s => s -> TokenBundle
+leftoverBalance :: IsUTxOSelection s u => s u -> TokenBundle
 leftoverBalance = UTxOIndex.balance . leftoverIndex
 
 -- | Retrieves the size of the leftover UTxO set.
 --
-leftoverSize :: IsUTxOSelection s => s -> Int
+leftoverSize :: IsUTxOSelection s u => s u -> Int
 leftoverSize = UTxOIndex.size . leftoverIndex
 
 -- | Retrieves an index of the leftover UTxOs.
 --
-leftoverIndex :: IsUTxOSelection s => s -> UTxOIndex InputId
+leftoverIndex :: IsUTxOSelection s u => s u -> UTxOIndex u
 leftoverIndex = leftover . state
 
 -- | Retrieves the leftover UTxO set.
 --
-leftoverUTxO :: IsUTxOSelection s => s -> Map InputId TokenBundle
+leftoverUTxO :: IsUTxOSelection s u => s u -> Map u TokenBundle
 leftoverUTxO = UTxOIndex.toMap . leftoverIndex
 
 -- | Retrieves a list of the leftover UTxOs.
 --
-leftoverList :: IsUTxOSelection s => s -> [(InputId, TokenBundle)]
+leftoverList :: IsUTxOSelection s u => s u -> [(u, TokenBundle)]
 leftoverList = UTxOIndex.toList . leftoverIndex
 
 -- | Retrieves the balance of selected UTxOs.
 --
-selectedBalance :: IsUTxOSelection s => s -> TokenBundle
+selectedBalance :: IsUTxOSelection s u => s u -> TokenBundle
 selectedBalance = UTxOIndex.balance . selectedIndex
 
 -- | Retrieves the size of the selected UTxO set.
 --
-selectedSize :: IsUTxOSelection s => s -> Int
+selectedSize :: IsUTxOSelection s u => s u -> Int
 selectedSize = UTxOIndex.size . selectedIndex
 
 -- | Retrieves an index of the selected UTxOs.
 --
-selectedIndex :: IsUTxOSelection s => s -> UTxOIndex InputId
+selectedIndex :: IsUTxOSelection s u => s u -> UTxOIndex u
 selectedIndex = selected . state
 
 -- | Retrieves the selected UTxO set.
 --
-selectedUTxO :: IsUTxOSelection s => s -> Map InputId TokenBundle
+selectedUTxO :: IsUTxOSelection s u => s u -> Map u TokenBundle
 selectedUTxO = UTxOIndex.toMap . selectedIndex
 
 --------------------------------------------------------------------------------
@@ -390,12 +392,23 @@ selectedUTxO = UTxOIndex.toMap . selectedIndex
 --
 -- Returns 'Nothing' if the given entry is not a member of the leftover set.
 --
-select :: IsUTxOSelection s => InputId -> s -> Maybe UTxOSelectionNonEmpty
+select
+    :: IsUTxOSelection s u
+    => Ord u
+    => u
+    -> s u
+    -> Maybe (UTxOSelectionNonEmpty u)
 select = (toNonEmpty <=<) . withState . selectState
 
 -- | Moves multiple entries from the leftover set to the selected set.
 --
-selectMany :: IsUTxOSelection s => Foldable f => f InputId -> s -> s
+selectMany
+    :: IsUTxOSelection s u
+    => Ord u
+    => Foldable f
+    => f u
+    -> s u
+    -> s u
 selectMany = ap fromMaybe . withState . flip (F.foldrM selectState)
 
 --------------------------------------------------------------------------------
@@ -404,7 +417,7 @@ selectMany = ap fromMaybe . withState . flip (F.foldrM selectState)
 
 -- | Moves a single entry from the leftover set to the selected set.
 --
-selectState :: InputId -> State -> Maybe State
+selectState :: Ord u => u -> State u -> Maybe (State u)
 selectState i s =
     updateFields <$> UTxOIndex.lookup i (leftover s)
   where
@@ -414,5 +427,10 @@ selectState i s =
 
 -- | Applies the given function to the internal state.
 --
-withState :: Functor f => IsUTxOSelection s => (State -> f State) -> s -> f s
+withState
+    :: Functor f
+    => IsUTxOSelection s u
+    => (State u -> f (State u))
+    -> s u
+    -> f (s u)
 withState f = fmap fromState . f . state

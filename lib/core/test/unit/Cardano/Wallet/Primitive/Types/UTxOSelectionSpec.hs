@@ -1,4 +1,5 @@
 {-# LANGUAGE ExplicitForAll #-}
+{-# LANGUAGE FlexibleContexts #-}
 {-# LANGUAGE FlexibleInstances #-}
 {-# OPTIONS_GHC -fno-warn-orphans #-}
 {- HLINT ignore "Use camelCase" -}
@@ -167,7 +168,7 @@ prop_shrinkUTxOSelectionNonEmpty =
     conjoin (isValidSelectionNonEmpty <$> shrinkUTxOSelectionNonEmpty s)
 
 checkCoverage_UTxOSelection
-    :: Testable p => IsUTxOSelection s => s -> (p -> Property)
+    :: Testable p => IsUTxOSelection s InputId => s InputId -> (p -> Property)
 checkCoverage_UTxOSelection s
     = checkCoverage_UTxOSelectionNonEmpty s
     . cover 2 (0 == ssize && ssize == lsize) "0 == lsize && lsize == ssize"
@@ -177,7 +178,7 @@ checkCoverage_UTxOSelection s
     ssize = UTxOSelection.selectedSize s
 
 checkCoverage_UTxOSelectionNonEmpty
-    :: Testable p => IsUTxOSelection s => s -> (p -> Property)
+    :: Testable p => IsUTxOSelection s InputId => s InputId -> (p -> Property)
 checkCoverage_UTxOSelectionNonEmpty s
     = checkCoverage
     . cover 2 (0 == lsize && lsize <  ssize) "0 == lsize && lsize <  ssize"
@@ -222,7 +223,7 @@ prop_fromIndexFiltered_toIndexPair f u =
     UTxOSelection.toIndexPair (UTxOSelection.fromIndexFiltered f u)
     === (UTxOIndex.filter (not . f) u, UTxOIndex.filter f u)
 
-prop_fromIndexPair_toIndexPair :: UTxOSelection -> Property
+prop_fromIndexPair_toIndexPair :: UTxOSelection InputId -> Property
 prop_fromIndexPair_toIndexPair s =
     checkCoverage_UTxOSelection s $
     UTxOSelection.fromIndexPair (UTxOSelection.toIndexPair s)
@@ -232,13 +233,13 @@ prop_fromIndexPair_toIndexPair s =
 -- Promotion and demotion
 --------------------------------------------------------------------------------
 
-prop_fromNonEmpty_toNonEmpty :: UTxOSelectionNonEmpty -> Property
+prop_fromNonEmpty_toNonEmpty :: UTxOSelectionNonEmpty InputId -> Property
 prop_fromNonEmpty_toNonEmpty s =
     checkCoverage_UTxOSelectionNonEmpty s $
     UTxOSelection.toNonEmpty (UTxOSelection.fromNonEmpty s)
     === Just s
 
-prop_toNonEmpty_fromNonEmpty :: UTxOSelection -> Property
+prop_toNonEmpty_fromNonEmpty :: UTxOSelection InputId -> Property
 prop_toNonEmpty_fromNonEmpty s =
     checkCoverage_UTxOSelection s $
     (UTxOSelection.fromNonEmpty <$> UTxOSelection.toNonEmpty s)
@@ -248,31 +249,31 @@ prop_toNonEmpty_fromNonEmpty s =
 -- Indicator and accessor functions
 --------------------------------------------------------------------------------
 
-prop_availableBalance_availableUTxO :: UTxOSelection -> Property
+prop_availableBalance_availableUTxO :: UTxOSelection InputId -> Property
 prop_availableBalance_availableUTxO s =
     checkCoverage_UTxOSelection s $
     UTxOSelection.availableBalance s
     === F.fold (UTxOSelection.availableUTxO s)
 
-prop_isNonEmpty_selectedSize :: UTxOSelection -> Property
+prop_isNonEmpty_selectedSize :: UTxOSelection InputId -> Property
 prop_isNonEmpty_selectedSize s =
     checkCoverage_UTxOSelection s $
     UTxOSelection.isNonEmpty s
     === (UTxOSelection.selectedSize s > 0)
 
-prop_isNonEmpty_selectedIndex :: UTxOSelection -> Property
+prop_isNonEmpty_selectedIndex :: UTxOSelection InputId -> Property
 prop_isNonEmpty_selectedIndex s =
     checkCoverage_UTxOSelection s $
     UTxOSelection.isNonEmpty s
     === not (UTxOIndex.null (UTxOSelection.selectedIndex s))
 
-prop_isNonEmpty_selectedList :: UTxOSelection -> Property
+prop_isNonEmpty_selectedList :: UTxOSelection InputId -> Property
 prop_isNonEmpty_selectedList s =
     checkCoverage_UTxOSelection s $
     UTxOSelection.isNonEmpty s
     === not (null (UTxOSelection.selectedList s))
 
-prop_leftoverBalance_selectedBalance :: UTxOSelection -> Property
+prop_leftoverBalance_selectedBalance :: UTxOSelection InputId -> Property
 prop_leftoverBalance_selectedBalance s =
     checkCoverage_UTxOSelection s $
     (UTxOSelection.leftoverBalance s <> UTxOSelection.selectedBalance s)
@@ -281,7 +282,7 @@ prop_leftoverBalance_selectedBalance s =
         (UTxOIndex.balance (UTxOSelection.leftoverIndex s))
         (UTxOIndex.balance (UTxOSelection.selectedIndex s))
 
-prop_leftoverSize_selectedSize :: UTxOSelection -> Property
+prop_leftoverSize_selectedSize :: UTxOSelection InputId -> Property
 prop_leftoverSize_selectedSize s =
     checkCoverage_UTxOSelection s $
     (UTxOSelection.leftoverSize s + UTxOSelection.selectedSize s)
@@ -298,33 +299,34 @@ prop_select_empty :: InputId -> Property
 prop_select_empty i =
     UTxOSelection.select i UTxOSelection.empty === Nothing
 
-prop_select_isValid :: InputId -> UTxOSelection -> Property
+prop_select_isValid :: InputId -> UTxOSelection InputId -> Property
 prop_select_isValid i s = property $
     checkCoverage_select i s $
     maybe True isValidSelectionNonEmpty (UTxOSelection.select i s)
 
-prop_select_isLeftover :: InputId -> UTxOSelection -> Property
+prop_select_isLeftover :: InputId -> UTxOSelection InputId -> Property
 prop_select_isLeftover i s =
     checkCoverage_select i s $
     (UTxOSelection.isLeftover i <$> UTxOSelection.select i s)
     ===
     if UTxOSelection.isLeftover i s then Just False else Nothing
 
-prop_select_isSelected :: InputId -> UTxOSelection -> Property
+prop_select_isSelected :: InputId -> UTxOSelection InputId -> Property
 prop_select_isSelected i s =
     checkCoverage_select i s $
     (UTxOSelection.isSelected i <$> UTxOSelection.select i s)
     ===
     if UTxOSelection.isLeftover i s then Just True else Nothing
 
-prop_select_isProperSubSelectionOf :: InputId -> UTxOSelection -> Property
+prop_select_isProperSubSelectionOf
+    :: InputId -> UTxOSelection InputId -> Property
 prop_select_isProperSubSelectionOf i s =
     checkCoverage_select i s $
     (UTxOSelection.isProperSubSelectionOf s <$> UTxOSelection.select i s)
     ===
     if UTxOSelection.isLeftover i s then Just True else Nothing
 
-prop_select_availableBalance :: InputId -> UTxOSelection -> Property
+prop_select_availableBalance :: InputId -> UTxOSelection InputId -> Property
 prop_select_availableBalance i s =
     checkCoverage_select i s $
     (UTxOSelection.availableBalance <$> UTxOSelection.select i s)
@@ -333,7 +335,7 @@ prop_select_availableBalance i s =
     then Just (UTxOSelection.availableBalance s)
     else Nothing
 
-prop_select_availableUTxO :: InputId -> UTxOSelection -> Property
+prop_select_availableUTxO :: InputId -> UTxOSelection InputId -> Property
 prop_select_availableUTxO i s =
     checkCoverage_select i s $
     (UTxOSelection.availableUTxO <$> UTxOSelection.select i s)
@@ -342,7 +344,7 @@ prop_select_availableUTxO i s =
     then Just (UTxOSelection.availableUTxO s)
     else Nothing
 
-prop_select_leftoverSize :: InputId -> UTxOSelection -> Property
+prop_select_leftoverSize :: InputId -> UTxOSelection InputId -> Property
 prop_select_leftoverSize i s =
     checkCoverage_select i s $
     (UTxOSelection.leftoverSize <$> UTxOSelection.select i s)
@@ -351,7 +353,7 @@ prop_select_leftoverSize i s =
     then Just (UTxOSelection.leftoverSize s - 1)
     else Nothing
 
-prop_select_selectedSize :: InputId -> UTxOSelection -> Property
+prop_select_selectedSize :: InputId -> UTxOSelection InputId -> Property
 prop_select_selectedSize i s =
     checkCoverage_select i s $
     (UTxOSelection.selectedSize <$> UTxOSelection.select i s)
@@ -361,7 +363,7 @@ prop_select_selectedSize i s =
     else Nothing
 
 prop_selectMany_isSubSelectionOf
-    :: (InputId -> Bool) -> UTxOSelection -> Property
+    :: (InputId -> Bool) -> UTxOSelection InputId -> Property
 prop_selectMany_isSubSelectionOf f s =
     checkCoverage_UTxOSelection s $
     UTxOSelection.isSubSelectionOf s (UTxOSelection.selectMany toSelect s)
@@ -369,14 +371,14 @@ prop_selectMany_isSubSelectionOf f s =
   where
     toSelect = filter f $ fst <$> UTxOSelection.leftoverList s
 
-prop_selectMany_leftoverSize_all :: UTxOSelection -> Property
+prop_selectMany_leftoverSize_all :: UTxOSelection InputId -> Property
 prop_selectMany_leftoverSize_all s =
     checkCoverage_UTxOSelection s $
     UTxOSelection.leftoverSize
         (UTxOSelection.selectMany (fst <$> UTxOSelection.leftoverList s) s)
     === 0
 
-prop_selectMany_selectedSize_all :: UTxOSelection -> Property
+prop_selectMany_selectedSize_all :: UTxOSelection InputId -> Property
 prop_selectMany_selectedSize_all s =
     checkCoverage_UTxOSelection s $
     UTxOSelection.selectedSize
@@ -384,7 +386,7 @@ prop_selectMany_selectedSize_all s =
     === (UTxOSelection.leftoverSize s + UTxOSelection.selectedSize s)
 
 checkCoverage_select
-    :: Testable prop => InputId -> UTxOSelection -> (prop -> Property)
+    :: Testable prop => InputId -> UTxOSelection InputId -> (prop -> Property)
 checkCoverage_select i s
     = checkCoverage
     . cover 10 (UTxOSelection.isLeftover i s)
@@ -398,12 +400,12 @@ checkCoverage_select i s
 -- Validity
 --------------------------------------------------------------------------------
 
-isValidSelection :: IsUTxOSelection s => s -> Bool
+isValidSelection :: IsUTxOSelection s InputId => s InputId -> Bool
 isValidSelection s = UTxOIndex.disjoint
     (UTxOSelection.selectedIndex s)
     (UTxOSelection.leftoverIndex s)
 
-isValidSelectionNonEmpty :: UTxOSelectionNonEmpty -> Bool
+isValidSelectionNonEmpty :: UTxOSelectionNonEmpty InputId -> Bool
 isValidSelectionNonEmpty s =
     isValidSelection s
     && UTxOSelection.isNonEmpty s
@@ -431,11 +433,11 @@ instance Arbitrary (UTxOIndex InputId) where
     arbitrary = genUTxOIndex
     shrink = shrinkUTxOIndex
 
-instance Arbitrary UTxOSelection where
+instance Arbitrary (UTxOSelection InputId) where
     arbitrary = genUTxOSelection
     shrink = shrinkUTxOSelection
 
-instance Arbitrary UTxOSelectionNonEmpty where
+instance Arbitrary (UTxOSelectionNonEmpty InputId) where
     arbitrary = genUTxOSelectionNonEmpty
     shrink = shrinkUTxOSelectionNonEmpty
 
