@@ -70,12 +70,12 @@ module Cardano.Wallet.Primitive.Types.UTxOSelection
     , leftoverSize
     , leftoverIndex
     , leftoverList
-    , leftoverUTxO
+    , leftoverMap
     , selectedBalance
     , selectedSize
     , selectedIndex
     , selectedList
-    , selectedUTxO
+    , selectedMap
 
       -- * Modification
     , select
@@ -288,7 +288,7 @@ isSubSelectionOf
 isSubSelectionOf s1 s2 = state (selectMany toSelect s1) == state s2
   where
     toSelect = fst <$> Map.toList
-        (selectedUTxO s2 `Map.difference` selectedUTxO s1)
+        (selectedMap s2 `Map.difference` selectedMap s1)
 
 -- | Returns 'True' iff. the first selection is a proper sub-selection of the
 --   second.
@@ -329,7 +329,7 @@ availableBalance s = leftoverBalance s <> selectedBalance s
 --
 -- The available UTxO set is the union of the selected and leftover UTxO sets.
 --
--- It predicts what 'selectedUTxO' would be if every single UTxO were selected.
+-- It predicts what 'selectedMap' would be if every single UTxO were selected.
 --
 -- This result of this function remains constant over applications of 'select'
 -- and 'selectMany':
@@ -337,7 +337,7 @@ availableBalance s = leftoverBalance s <> selectedBalance s
 -- >>> availableUTxO s == availableUTxO (selectMany is s)
 --
 availableUTxO :: IsUTxOSelection s u => Ord u => s u -> Map u TokenBundle
-availableUTxO s = leftoverUTxO s <> selectedUTxO s
+availableUTxO s = leftoverMap s <> selectedMap s
 
 -- | Retrieves the balance of leftover UTxOs.
 --
@@ -354,10 +354,10 @@ leftoverSize = UTxOIndex.size . leftoverIndex
 leftoverIndex :: IsUTxOSelection s u => s u -> UTxOIndex u
 leftoverIndex = leftover . state
 
--- | Retrieves the leftover UTxO set.
+-- | Retrieves a map of the leftover UTxOs.
 --
-leftoverUTxO :: IsUTxOSelection s u => s u -> Map u TokenBundle
-leftoverUTxO = UTxOIndex.toMap . leftoverIndex
+leftoverMap :: IsUTxOSelection s u => s u -> Map u TokenBundle
+leftoverMap = UTxOIndex.toMap . leftoverIndex
 
 -- | Retrieves a list of the leftover UTxOs.
 --
@@ -379,10 +379,10 @@ selectedSize = UTxOIndex.size . selectedIndex
 selectedIndex :: IsUTxOSelection s u => s u -> UTxOIndex u
 selectedIndex = selected . state
 
--- | Retrieves the selected UTxO set.
+-- | Retrieves a map of the selected UTxOs.
 --
-selectedUTxO :: IsUTxOSelection s u => s u -> Map u TokenBundle
-selectedUTxO = UTxOIndex.toMap . selectedIndex
+selectedMap :: IsUTxOSelection s u => s u -> Map u TokenBundle
+selectedMap = UTxOIndex.toMap . selectedIndex
 
 --------------------------------------------------------------------------------
 -- Modification
