@@ -260,17 +260,17 @@ isNonEmpty = not . isEmpty
 -- Otherwise, returns 'False'.
 --
 isMember :: IsUTxOSelection s u => Ord u => u -> s u -> Bool
-isMember i s = isLeftover i s || isSelected i s
+isMember u s = isLeftover u s || isSelected u s
 
 -- | Returns 'True' iff. the given 'InputId' is a member of the leftover set.
 --
 isLeftover :: IsUTxOSelection s u => Ord u => u -> s u -> Bool
-isLeftover i = UTxOIndex.member i . leftoverIndex
+isLeftover u = UTxOIndex.member u . leftoverIndex
 
 -- | Returns 'True' iff. the given 'InputId' is a member of the selected set.
 --
 isSelected :: IsUTxOSelection s u => Ord u => u -> s u -> Bool
-isSelected i = UTxOIndex.member i . selectedIndex
+isSelected u = UTxOIndex.member u . selectedIndex
 
 -- | Returns 'True' iff. the first selection is a sub-selection of the second.
 --
@@ -418,12 +418,12 @@ selectMany = ap fromMaybe . withState . flip (F.foldrM selectState)
 -- | Moves a single entry from the leftover set to the selected set.
 --
 selectState :: Ord u => u -> State u -> Maybe (State u)
-selectState i s =
-    updateFields <$> UTxOIndex.lookup i (leftover s)
+selectState u s =
+    updateFields <$> UTxOIndex.lookup u (leftover s)
   where
-    updateFields o = s
-        & over #leftover (UTxOIndex.delete i)
-        & over #selected (UTxOIndex.insert i o)
+    updateFields b = s
+        & over #leftover (UTxOIndex.delete u)
+        & over #selected (UTxOIndex.insert u b)
 
 -- | Applies the given function to the internal state.
 --
