@@ -505,7 +505,7 @@ import Data.List
     ( foldl' )
 import Data.List.NonEmpty
     ( NonEmpty (..) )
-import Data.Map
+import Data.Map.Strict
     ( Map )
 import Data.Maybe
     ( fromMaybe, mapMaybe )
@@ -1466,7 +1466,7 @@ balanceTransaction
     -> ArgGenChange s
     -> (W.ProtocolParameters, Cardano.ProtocolParameters)
     -> TimeInterpreter (Either PastHorizonException)
-    -> (UTxOIndex, Wallet s, Set Tx)
+    -> (UTxOIndex InputId, Wallet s, Set Tx)
     -> PartialTx
     -> ExceptT ErrBalanceTx m SealedTx
 balanceTransaction
@@ -1487,13 +1487,13 @@ balanceTransaction
 
     (delta, extraInputs, extraCollateral, extraOutputs) <- do
         let externalSelectedUtxo = UTxOIndex.fromSequence $
-                map (\(i,o,_datumHash) -> (i, o)) externalInputs
+                map (\(i, TxOut a b,_datumHash) -> ((i, a), b)) externalInputs
 
         let utxoAvailableForInputs = UTxOSelection.fromIndexPair
                 (internalUtxoAvailable, externalSelectedUtxo)
 
         let utxoAvailableForCollateral =
-                UTxOIndex.toUTxO internalUtxoAvailable
+                UTxOIndex.toMap internalUtxoAvailable
 
         -- NOTE: It is not possible to know the script execution cost in
         -- advance because it actually depends on the final transaction. Inputs
@@ -1865,10 +1865,10 @@ readWalletUTxOIndex
     :: forall ctx s k. HasDBLayer IO s k ctx
     => ctx
     -> WalletId
-    -> ExceptT ErrNoSuchWallet IO (UTxOIndex, Wallet s, Set Tx)
+    -> ExceptT ErrNoSuchWallet IO (UTxOIndex InputId, Wallet s, Set Tx)
 readWalletUTxOIndex ctx wid = do
     (cp, _, pending) <- readWallet @ctx @s @k ctx wid
-    let utxo = UTxOIndex.fromUTxO $ availableUTxO @s pending cp
+    let utxo = UTxOIndex.fromMap $ utxoToInputMap $ availableUTxO @s pending cp
     return (utxo, cp, pending)
 
 -- | Calculate the minimum coin values required for a bunch of specified
@@ -1891,6 +1891,20 @@ calcMinimumCoinValues ctx outs = do
     nl = ctx ^. networkLayer
     tl = ctx ^. transactionLayer @k
 
+-- TODO: ADP-1448:
+--
+-- Replace this type synonym with a type parameter on types that use it.
+--
+type InputId = (TxIn, Address)
+
+utxoToInputMap :: UTxO -> Map InputId TokenBundle
+utxoToInputMap =
+    Map.fromList . fmap (\(i, TxOut a b) -> ((i, a), b)) . Map.toList . unUTxO
+
+inputMapToUTxO :: Map InputId TokenBundle -> UTxO
+inputMapToUTxO =
+    UTxO . Map.fromList . fmap (\((i, a), b) -> (i, TxOut a b)) . Map.toList
+
 -- | Parameters for the 'selectAssets' function.
 --
 data SelectAssetsParams s result = SelectAssetsParams
@@ -1898,7 +1912,7 @@ data SelectAssetsParams s result = SelectAssetsParams
     , pendingTxs :: Set Tx
     , randomSeed :: Maybe StdGenSeed
     , txContext :: TransactionCtx
-    , utxoAvailableForCollateral :: UTxO
+    , utxoAvailableForCollateral :: Map InputId TokenBundle
     , utxoAvailableForInputs :: UTxOSelection
     , wallet :: Wallet s
     }
@@ -1937,7 +1951,9 @@ selectAssets
 selectAssets ctx pp params transform = do
     guardPendingWithdrawal
     lift $ traceWith tr $ MsgSelectionStart
-        (UTxOSelection.availableUTxO $ params ^. #utxoAvailableForInputs)
+        (inputMapToUTxO
+            $ UTxOSelection.availableUTxO
+            $ params ^. #utxoAvailableForInputs)
         (params ^. #outputs)
     let selectionConstraints = SelectionConstraints
             { assessTokenBundleSize =

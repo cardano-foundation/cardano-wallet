@@ -10,10 +10,10 @@ module Cardano.Wallet.Primitive.Types.UTxOSelection.Gen
 
 import Prelude
 
+import Cardano.Wallet.Primitive.Types.Address
+    ( Address )
 import Cardano.Wallet.Primitive.Types.Tx
     ( TxIn )
-import Cardano.Wallet.Primitive.Types.Tx.Gen
-    ( genTxInFunction )
 import Cardano.Wallet.Primitive.Types.UTxOIndex.Gen
     ( genUTxOIndex, shrinkUTxOIndex )
 import Cardano.Wallet.Primitive.Types.UTxOSelection
@@ -21,7 +21,9 @@ import Cardano.Wallet.Primitive.Types.UTxOSelection
 import Data.Maybe
     ( mapMaybe )
 import Test.QuickCheck
-    ( Gen, arbitrary, liftShrink2, shrinkMapBy, suchThatMap )
+    ( Gen, arbitrary, coarbitrary, liftShrink2, shrinkMapBy, suchThatMap )
+import Test.QuickCheck.Extra
+    ( genFunction )
 
 import qualified Cardano.Wallet.Primitive.Types.UTxOSelection as UTxOSelection
 
@@ -29,13 +31,33 @@ import qualified Cardano.Wallet.Primitive.Types.UTxOSelection as UTxOSelection
 -- Selections that may be empty
 --------------------------------------------------------------------------------
 
+-- TODO: ADP-1448:
+--
+-- Replace this type synonym with a type parameter on types that use it.
+--
+type InputId = (TxIn, Address)
+
+-- TODO: ADP-1448:
+--
+-- Remove this function once 'InputId' has been replaced with a type parameter.
+--
+coarbitraryInputId :: InputId -> Gen a -> Gen a
+coarbitraryInputId = coarbitrary . show
+
+-- TODO: ADP-1448:
+--
+-- Remove this function once 'InputId' has been replaced with a type parameter.
+--
+genInputIdFunction :: Gen a -> Gen (InputId -> a)
+genInputIdFunction = genFunction coarbitraryInputId
+
 genUTxOSelection :: Gen UTxOSelection
 genUTxOSelection = UTxOSelection.fromIndexFiltered
     <$> genFilter
     <*> genUTxOIndex
   where
-    genFilter :: Gen (TxIn -> Bool)
-    genFilter = genTxInFunction (arbitrary @Bool)
+    genFilter :: Gen (InputId -> Bool)
+    genFilter = genInputIdFunction (arbitrary @Bool)
 
 shrinkUTxOSelection :: UTxOSelection -> [UTxOSelection]
 shrinkUTxOSelection =

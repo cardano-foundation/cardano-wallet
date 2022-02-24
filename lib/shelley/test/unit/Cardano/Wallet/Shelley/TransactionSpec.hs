@@ -2006,7 +2006,16 @@ instance MonadRandom Gen where
     getRandomR range = mkGen (fst . randomR range)
     getRandomRs range = mkGen (randomRs range)
 
-data Wallet' = Wallet' UTxOIndex (Wallet (SeqState 'Mainnet ShelleyKey)) (Set Tx)
+-- TODO: ADP-1448:
+--
+-- Replace this type synonym with a type parameter on types that use it.
+--
+type InputId = (TxIn, Address)
+
+data Wallet' = Wallet'
+    (UTxOIndex InputId)
+    (Wallet (SeqState 'Mainnet ShelleyKey))
+    (Set Tx)
 
 instance Show Wallet' where
     show (Wallet' u w pending) = fmt $ mconcat
@@ -2022,7 +2031,10 @@ instance Arbitrary Wallet' where
         let s = mkSeqStateFromRootXPrv (rootK mw) purposeCIP1852 defaultAddressPoolGap
 
         return $ Wallet'
-            (UTxOIndex.fromUTxO utxo)
+            (UTxOIndex.fromSequence
+                $ fmap (\(i, TxOut a b) -> ((i, a), b))
+                $ Map.toList
+                $ unUTxO utxo)
             (unsafeInitWallet utxo (header block0) s)
             mempty
       where
@@ -2048,11 +2060,16 @@ instance Arbitrary Wallet' where
         setUTxO :: UTxO -> Wallet' -> Wallet'
         setUTxO u (Wallet' _ wal pending) =
             Wallet'
-                (UTxOIndex.fromUTxO u)
+                (UTxOIndex.fromSequence
+                    $ fmap (\(i, TxOut a b) -> ((i, a), b))
+                    $ Map.toList
+                    $ unUTxO u)
                 (wal { utxo = u})
                 pending
 
-        getUTxO (Wallet' u _ _) = UTxOIndex.toUTxO u
+        getUTxO (Wallet' u _ _) = UTxO
+            $ Map.fromList
+            $ (\((i, a), b) -> (i, TxOut a b)) <$> UTxOIndex.toList u
 
         shrinkUTxO' u
             | UTxO.size u > 1 && simplifyUTxO u /= u

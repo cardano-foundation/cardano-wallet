@@ -140,9 +140,7 @@ import Cardano.Wallet.Primitive.Types.Tx
     , txOutMaxTokenQuantity
     )
 import Cardano.Wallet.Primitive.Types.Tx.Gen
-    ( genTxInFunction, genTxOut, shrinkTxOut )
-import Cardano.Wallet.Primitive.Types.UTxO
-    ( UTxO (..) )
+    ( genTxOut, shrinkTxOut )
 import Cardano.Wallet.Primitive.Types.UTxOIndex
     ( SelectionFilter (..), UTxOIndex )
 import Cardano.Wallet.Primitive.Types.UTxOIndex.Gen
@@ -174,7 +172,7 @@ import Data.List.NonEmpty
 import Data.Map.Strict
     ( Map )
 import Data.Maybe
-    ( fromMaybe, isJust, isNothing )
+    ( fromMaybe, isJust, isNothing, listToMaybe )
 import Data.Set
     ( Set )
 import Data.Tuple
@@ -182,7 +180,7 @@ import Data.Tuple
 import Data.Word
     ( Word64, Word8 )
 import Fmt
-    ( blockListF, pretty )
+    ( Buildable (..), blockListF, pretty )
 import Generics.SOP
     ( NP (..) )
 import GHC.Generics
@@ -209,6 +207,7 @@ import Test.QuickCheck
     , arbitraryBoundedEnum
     , checkCoverage
     , choose
+    , coarbitrary
     , conjoin
     , counterexample
     , cover
@@ -234,7 +233,7 @@ import Test.QuickCheck
 import Test.QuickCheck.Classes
     ( eqLaws, ordLaws )
 import Test.QuickCheck.Extra
-    ( genericRoundRobinShrink, report, verify, (<:>), (<@>) )
+    ( genFunction, genericRoundRobinShrink, report, verify, (<:>), (<@>) )
 import Test.QuickCheck.Monadic
     ( PropertyM (..), assert, monadicIO, monitor, run )
 import Test.Utils.Laws
@@ -253,6 +252,33 @@ import qualified Data.List.NonEmpty as NE
 import qualified Data.Map.Strict as Map
 import qualified Data.Maybe as Maybe
 import qualified Data.Set as Set
+
+-- TODO: ADP-1448:
+--
+-- Replace this type synonym with a type parameter on types that use it.
+--
+type InputId = (TxIn, Address)
+
+-- TODO: ADP-1448:
+--
+-- Remove this instance once 'InputId' has been replaced with a type parameter.
+--
+instance Buildable (InputId, TokenBundle) where
+    build ((i, a), b) = build i <> ":" <> build a <> ":" <> build (Flat b)
+
+-- TODO: ADP-1448:
+--
+-- Remove this function once 'InputId' has been replaced with a type parameter.
+--
+coarbitraryInputId :: InputId -> Gen a -> Gen a
+coarbitraryInputId = coarbitrary . show
+
+-- TODO: ADP-1448:
+--
+-- Remove this function once 'InputId' has been replaced with a type parameter.
+--
+genInputIdFunction :: Gen a -> Gen (InputId -> a)
+genInputIdFunction = genFunction coarbitraryInputId
 
 spec :: Spec
 spec = describe "Cardano.Wallet.CoinSelection.Internal.BalanceSpec" $
@@ -492,7 +518,7 @@ spec = describe "Cardano.Wallet.CoinSelection.Internal.BalanceSpec" $
 -- Coverage
 --------------------------------------------------------------------------------
 
-prop_Small_UTxOIndex_coverage :: Small UTxOIndex -> Property
+prop_Small_UTxOIndex_coverage :: Small (UTxOIndex InputId) -> Property
 prop_Small_UTxOIndex_coverage (Small index) =
     checkCoverage $ property
         -- Asset counts:
@@ -514,7 +540,7 @@ prop_Small_UTxOIndex_coverage (Small index) =
     assetCount = Set.size $ UTxOIndex.assets index
     entryCount = UTxOIndex.size index
 
-prop_Large_UTxOIndex_coverage :: Large UTxOIndex -> Property
+prop_Large_UTxOIndex_coverage :: Large (UTxOIndex InputId) -> Property
 prop_Large_UTxOIndex_coverage (Large index) =
     -- Generation of large UTxO sets takes longer, so limit the number of runs:
     withMaxSuccess 100 $ checkCoverage $ property
@@ -582,7 +608,10 @@ prop_AssetCount_TokenMap_placesEmptyMapsFirst maps =
 --
 type PerformSelectionResult = Either SelectionBalanceError SelectionResult
 
-genSelectionParams :: Gen (TxIn -> Bool) -> Gen UTxOIndex -> Gen SelectionParams
+genSelectionParams
+    :: Gen (InputId -> Bool)
+    -> Gen (UTxOIndex InputId)
+    -> Gen SelectionParams
 genSelectionParams genPreselectedInputs genUTxOIndex' = do
     utxoAvailable <- genUTxOIndex'
     isInputPreselected <- oneof
@@ -608,7 +637,7 @@ genSelectionParams genPreselectedInputs genUTxOIndex' = do
         , assetsToBurn
         }
   where
-    genAssetsToMintAndBurn :: UTxOIndex -> Gen (TokenMap, TokenMap)
+    genAssetsToMintAndBurn :: UTxOIndex InputId -> Gen (TokenMap, TokenMap)
     genAssetsToMintAndBurn utxoAvailable = do
         assetsToMint <- genTokenMapSmallRange
         let assetsToBurn = adjustAllTokenMapQuantities
@@ -619,7 +648,7 @@ genSelectionParams genPreselectedInputs genUTxOIndex' = do
         utxoAvailableAssets :: TokenMap
         utxoAvailableAssets = view (#balance . #tokens) utxoAvailable
 
-    genPreselectedInputsNone :: Gen (TxIn -> Bool)
+    genPreselectedInputsNone :: Gen (InputId -> Bool)
     genPreselectedInputsNone = pure $ const False
 
 shrinkSelectionParams :: SelectionParams -> [SelectionParams]
@@ -835,7 +864,7 @@ prop_performSelection_huge = ioProperty $
         <$> generate (genUTxOIndexLargeN 50000)
 
 prop_performSelection_huge_inner
-    :: UTxOIndex
+    :: UTxOIndex InputId
     -> MockSelectionConstraints
     -> Large SelectionParams
     -> Property
@@ -1203,8 +1232,8 @@ mockPerformSelectionNonEmpty constraints params = Identity $ Right result
         , outputsCovered = view #outputsToCover params
         }
 
-    makeInputsOfValue :: TokenBundle -> NonEmpty (TxIn, TokenBundle)
-    makeInputsOfValue v = (TxIn (Hash "") 0, v) :| []
+    makeInputsOfValue :: TokenBundle -> NonEmpty (InputId, TokenBundle)
+    makeInputsOfValue v = ((TxIn (Hash "") 0, Address ""), v) :| []
 
     makeChangeOfValue :: TokenBundle -> [TokenBundle]
     makeChangeOfValue v = [v]
@@ -1330,7 +1359,7 @@ prop_runSelection_UTxO_moreThanEnough utxoAvailable = monadicIO $ do
         cutAssetSetSizeInHalf balanceAvailable
 
 prop_runSelection_UTxO_muchMoreThanEnough
-    :: Blind (Large UTxOIndex)
+    :: Blind (Large (UTxOIndex InputId))
     -> Property
 prop_runSelection_UTxO_muchMoreThanEnough (Blind (Large index)) =
     -- Generation of large UTxO sets takes longer, so limit the number of runs:
@@ -1432,11 +1461,12 @@ mockSelectSingleEntry :: UTxOSelection -> Maybe UTxOSelectionNonEmpty
 mockSelectSingleEntry state =
     selectEntry =<< firstLeftoverEntry state
   where
-    firstLeftoverEntry :: UTxOSelection -> Maybe (TxIn, TxOut)
-    firstLeftoverEntry = Map.lookupMin . unUTxO . UTxOSelection.leftoverUTxO
+    firstLeftoverEntry :: UTxOSelection -> Maybe (InputId, TokenBundle)
+    firstLeftoverEntry =
+        listToMaybe . UTxOIndex.toList . UTxOSelection.leftoverIndex
 
-    selectEntry :: (TxIn, TxOut) -> Maybe UTxOSelectionNonEmpty
-    selectEntry (i, _o) = UTxOSelection.select i state
+    selectEntry :: (InputId, TokenBundle) -> Maybe UTxOSelectionNonEmpty
+    selectEntry (i, _b) = UTxOSelection.select i state
 
 --------------------------------------------------------------------------------
 -- Running a selection step
@@ -1547,7 +1577,7 @@ prop_runSelectionStep_exceedsTargetAndGetsFurtherAway
 --------------------------------------------------------------------------------
 
 prop_assetSelectionLens_givesPriorityToSingletonAssets
-    :: Blind (Small UTxOIndex)
+    :: Blind (Small (UTxOIndex InputId))
     -> Property
 prop_assetSelectionLens_givesPriorityToSingletonAssets (Blind (Small u)) =
     assetCount >= 2 ==> monadicIO $ do
@@ -1567,8 +1597,7 @@ prop_assetSelectionLens_givesPriorityToSingletonAssets (Blind (Small u)) =
                 monitor $ counterexample "Error: unable to select any entry"
                 assert False
             Just result -> do
-                let output = NE.head $ snd <$> UTxOSelection.selectedList result
-                let bundle = view #tokens output
+                let bundle = NE.head $ snd <$> UTxOSelection.selectedList result
                 case F.toList $ TokenBundle.getAssets bundle of
                     [a] -> assertWith
                         "a == asset"
@@ -1584,7 +1613,7 @@ prop_assetSelectionLens_givesPriorityToSingletonAssets (Blind (Small u)) =
     minimumAssetQuantity = TokenQuantity 1
 
 prop_coinSelectionLens_givesPriorityToCoins
-    :: Blind (Small UTxOIndex)
+    :: Blind (Small (UTxOIndex InputId))
     -> Property
 prop_coinSelectionLens_givesPriorityToCoins (Blind (Small u)) =
     entryCount > 0 ==> monadicIO $ do
@@ -1603,8 +1632,7 @@ prop_coinSelectionLens_givesPriorityToCoins (Blind (Small u)) =
                 monitor $ counterexample "Error: unable to select any entry"
                 assert False
             Just result -> do
-                let output = NE.head $ snd <$> UTxOSelection.selectedList result
-                let bundle = view #tokens output
+                let bundle = NE.head $ snd <$> UTxOSelection.selectedList result
                 case F.toList $ TokenBundle.getAssets bundle of
                     [] -> assertWith     "hasCoin" (    hasCoin)
                     _  -> assertWith "not hasCoin" (not hasCoin)
@@ -1672,10 +1700,8 @@ encodeBoundaryTestCriteria c = SelectionParams
     , utxoAvailable =
         UTxOSelection.fromIndex
         $ UTxOIndex.fromSequence
-        $ zip dummyTxIns
-        $ zipWith TxOut
-            (dummyAddresses)
-            (uncurry TokenBundle.fromFlatList <$> boundaryTestUTxO c)
+        $ zip dummyInputIds
+        $ uncurry TokenBundle.fromFlatList <$> boundaryTestUTxO c
     , extraCoinSource =
         Coin 0
     , extraCoinSink =
@@ -1686,6 +1712,9 @@ encodeBoundaryTestCriteria c = SelectionParams
         TokenMap.empty
     }
   where
+    dummyInputIds :: [InputId]
+    dummyInputIds = zip dummyTxIns dummyAddresses
+
     dummyAddresses :: [Address]
     dummyAddresses = [Address (B8.pack $ show x) | x :: Word64 <- [0 ..]]
 
@@ -4051,21 +4080,21 @@ newtype Small a = Small
 
 instance Arbitrary (Large SelectionParams) where
     arbitrary = Large <$> genSelectionParams
-        (genTxInFunction (arbitrary @Bool))
+        (genInputIdFunction (arbitrary @Bool))
         (genUTxOIndexLarge)
     shrink = shrinkMapBy Large getLarge shrinkSelectionParams
 
 instance Arbitrary (Small SelectionParams) where
     arbitrary = Small <$> genSelectionParams
-        (genTxInFunction (arbitrary @Bool))
+        (genInputIdFunction (arbitrary @Bool))
         (genUTxOIndex)
     shrink = shrinkMapBy Small getSmall shrinkSelectionParams
 
-instance Arbitrary (Large UTxOIndex) where
+instance Arbitrary (Large (UTxOIndex InputId)) where
     arbitrary = Large <$> genUTxOIndexLarge
     shrink = shrinkMapBy Large getLarge shrinkUTxOIndex
 
-instance Arbitrary (Small UTxOIndex) where
+instance Arbitrary (Small (UTxOIndex InputId)) where
     arbitrary = Small <$> genUTxOIndex
     shrink = shrinkMapBy Small getSmall shrinkUTxOIndex
 

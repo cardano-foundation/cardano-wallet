@@ -132,6 +132,7 @@ import Test.QuickCheck.Extra
     ( Pretty (..)
     , chooseNatural
     , genMapWith
+    , genSized2
     , genericRoundRobinShrink
     , report
     , shrinkMapWith
@@ -147,6 +148,12 @@ import qualified Cardano.Wallet.Primitive.Types.TokenBundle as TokenBundle
 import qualified Cardano.Wallet.Primitive.Types.TokenMap as TokenMap
 import qualified Cardano.Wallet.Primitive.Types.UTxOSelection as UTxOSelection
 import qualified Data.Foldable as F
+
+-- TODO: ADP-1448:
+--
+-- Replace this type synonym with a type parameter on types that use it.
+--
+type InputId = (TxIn, Address)
 
 spec :: Spec
 spec = describe "Cardano.Wallet.CoinSelection.InternalSpec" $ do
@@ -775,8 +782,11 @@ shrinkCollateralRequirement = genericShrink
 -- UTxO available for inputs and collateral
 --------------------------------------------------------------------------------
 
-genUTxOAvailableForCollateral :: Gen (Map TxIn Coin)
-genUTxOAvailableForCollateral = genMapWith genTxIn genCoinPositive
+genUTxOAvailableForCollateral :: Gen (Map InputId Coin)
+genUTxOAvailableForCollateral = genMapWith genInputId genCoinPositive
+  where
+    genInputId :: Gen InputId
+    genInputId = genSized2 genTxIn genAddress
 
 genUTxOAvailableForInputs :: Gen UTxOSelection
 genUTxOAvailableForInputs = frequency
@@ -784,8 +794,15 @@ genUTxOAvailableForInputs = frequency
     , (01, pure UTxOSelection.empty)
     ]
 
-shrinkUTxOAvailableForCollateral :: Map TxIn Coin -> [Map TxIn Coin]
-shrinkUTxOAvailableForCollateral = shrinkMapWith shrinkTxIn shrinkCoinPositive
+shrinkUTxOAvailableForCollateral :: Map InputId Coin -> [Map InputId Coin]
+shrinkUTxOAvailableForCollateral =
+    shrinkMapWith shrinkInputId shrinkCoinPositive
+  where
+    shrinkInputId :: InputId -> [InputId]
+    shrinkInputId = genericRoundRobinShrink
+        <@> shrinkTxIn
+        <:> shrinkAddress
+        <:> Nil
 
 shrinkUTxOAvailableForInputs :: UTxOSelection -> [UTxOSelection]
 shrinkUTxOAvailableForInputs = shrinkUTxOSelection

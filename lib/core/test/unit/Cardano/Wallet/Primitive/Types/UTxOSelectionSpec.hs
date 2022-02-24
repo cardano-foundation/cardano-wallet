@@ -9,6 +9,10 @@ module Cardano.Wallet.Primitive.Types.UTxOSelectionSpec
 
 import Prelude
 
+import Cardano.Wallet.Primitive.Types.Address
+    ( Address )
+import Cardano.Wallet.Primitive.Types.Address.Gen
+    ( coarbitraryAddress, genAddress, shrinkAddress )
 import Cardano.Wallet.Primitive.Types.Tx
     ( TxIn )
 import Cardano.Wallet.Primitive.Types.Tx.Gen
@@ -25,6 +29,8 @@ import Cardano.Wallet.Primitive.Types.UTxOSelection.Gen
     , shrinkUTxOSelection
     , shrinkUTxOSelectionNonEmpty
     )
+import Generics.SOP
+    ( NP (..) )
 import Test.Hspec
     ( Spec, describe, it )
 import Test.Hspec.Extra
@@ -41,11 +47,19 @@ import Test.QuickCheck
     , property
     , (===)
     )
+import Test.QuickCheck.Extra
+    ( genSized2, genericRoundRobinShrink, (<:>), (<@>) )
 
 import qualified Cardano.Wallet.Primitive.Types.TokenBundle as TokenBundle
-import qualified Cardano.Wallet.Primitive.Types.UTxO as UTxO
 import qualified Cardano.Wallet.Primitive.Types.UTxOIndex as UTxOIndex
 import qualified Cardano.Wallet.Primitive.Types.UTxOSelection as UTxOSelection
+import qualified Data.Foldable as F
+
+-- TODO: ADP-1448:
+--
+-- Replace this type synonym with a type parameter on types that use it.
+--
+type InputId = (TxIn, Address)
 
 spec :: Spec
 spec =
@@ -179,27 +193,31 @@ checkCoverage_UTxOSelectionNonEmpty s
 -- Construction and deconstruction
 --------------------------------------------------------------------------------
 
-prop_fromIndex_isValid :: UTxOIndex -> Property
+prop_fromIndex_isValid :: UTxOIndex InputId -> Property
 prop_fromIndex_isValid u =
     isValidSelection (UTxOSelection.fromIndex u)
     === True
 
-prop_fromIndexFiltered_isValid :: (TxIn -> Bool) -> UTxOIndex -> Property
+prop_fromIndexFiltered_isValid
+    :: (InputId -> Bool) -> UTxOIndex InputId -> Property
 prop_fromIndexFiltered_isValid f u =
     isValidSelection (UTxOSelection.fromIndexFiltered f u)
     === True
 
-prop_fromIndexPair_isValid :: (UTxOIndex, UTxOIndex) -> Property
+prop_fromIndexPair_isValid :: (UTxOIndex InputId, UTxOIndex InputId) -> Property
 prop_fromIndexPair_isValid (u1, u2) =
     isValidSelection (UTxOSelection.fromIndexPair (u1, u2))
     === True
 
-prop_fromIndex_toIndexPair :: UTxOIndex -> Property
+prop_fromIndex_toIndexPair :: UTxOIndex InputId-> Property
 prop_fromIndex_toIndexPair u =
     UTxOSelection.toIndexPair (UTxOSelection.fromIndex u)
     === (u, UTxOIndex.empty)
 
-prop_fromIndexFiltered_toIndexPair :: (TxIn -> Bool) -> UTxOIndex -> Property
+prop_fromIndexFiltered_toIndexPair
+    :: (InputId -> Bool)
+    -> UTxOIndex InputId
+    -> Property
 prop_fromIndexFiltered_toIndexPair f u =
     UTxOSelection.toIndexPair (UTxOSelection.fromIndexFiltered f u)
     === (UTxOIndex.filter (not . f) u, UTxOIndex.filter f u)
@@ -234,7 +252,7 @@ prop_availableBalance_availableUTxO :: UTxOSelection -> Property
 prop_availableBalance_availableUTxO s =
     checkCoverage_UTxOSelection s $
     UTxOSelection.availableBalance s
-    === UTxO.balance (UTxOSelection.availableUTxO s)
+    === F.fold (UTxOSelection.availableUTxO s)
 
 prop_isNonEmpty_selectedSize :: UTxOSelection -> Property
 prop_isNonEmpty_selectedSize s =
@@ -276,37 +294,37 @@ prop_leftoverSize_selectedSize s =
 -- Modification
 --------------------------------------------------------------------------------
 
-prop_select_empty :: TxIn -> Property
+prop_select_empty :: InputId -> Property
 prop_select_empty i =
     UTxOSelection.select i UTxOSelection.empty === Nothing
 
-prop_select_isValid :: TxIn -> UTxOSelection -> Property
+prop_select_isValid :: InputId -> UTxOSelection -> Property
 prop_select_isValid i s = property $
     checkCoverage_select i s $
     maybe True isValidSelectionNonEmpty (UTxOSelection.select i s)
 
-prop_select_isLeftover :: TxIn -> UTxOSelection -> Property
+prop_select_isLeftover :: InputId -> UTxOSelection -> Property
 prop_select_isLeftover i s =
     checkCoverage_select i s $
     (UTxOSelection.isLeftover i <$> UTxOSelection.select i s)
     ===
     if UTxOSelection.isLeftover i s then Just False else Nothing
 
-prop_select_isSelected :: TxIn -> UTxOSelection -> Property
+prop_select_isSelected :: InputId -> UTxOSelection -> Property
 prop_select_isSelected i s =
     checkCoverage_select i s $
     (UTxOSelection.isSelected i <$> UTxOSelection.select i s)
     ===
     if UTxOSelection.isLeftover i s then Just True else Nothing
 
-prop_select_isProperSubSelectionOf :: TxIn -> UTxOSelection -> Property
+prop_select_isProperSubSelectionOf :: InputId -> UTxOSelection -> Property
 prop_select_isProperSubSelectionOf i s =
     checkCoverage_select i s $
     (UTxOSelection.isProperSubSelectionOf s <$> UTxOSelection.select i s)
     ===
     if UTxOSelection.isLeftover i s then Just True else Nothing
 
-prop_select_availableBalance :: TxIn -> UTxOSelection -> Property
+prop_select_availableBalance :: InputId -> UTxOSelection -> Property
 prop_select_availableBalance i s =
     checkCoverage_select i s $
     (UTxOSelection.availableBalance <$> UTxOSelection.select i s)
@@ -315,7 +333,7 @@ prop_select_availableBalance i s =
     then Just (UTxOSelection.availableBalance s)
     else Nothing
 
-prop_select_availableUTxO :: TxIn -> UTxOSelection -> Property
+prop_select_availableUTxO :: InputId -> UTxOSelection -> Property
 prop_select_availableUTxO i s =
     checkCoverage_select i s $
     (UTxOSelection.availableUTxO <$> UTxOSelection.select i s)
@@ -324,7 +342,7 @@ prop_select_availableUTxO i s =
     then Just (UTxOSelection.availableUTxO s)
     else Nothing
 
-prop_select_leftoverSize :: TxIn -> UTxOSelection -> Property
+prop_select_leftoverSize :: InputId -> UTxOSelection -> Property
 prop_select_leftoverSize i s =
     checkCoverage_select i s $
     (UTxOSelection.leftoverSize <$> UTxOSelection.select i s)
@@ -333,7 +351,7 @@ prop_select_leftoverSize i s =
     then Just (UTxOSelection.leftoverSize s - 1)
     else Nothing
 
-prop_select_selectedSize :: TxIn -> UTxOSelection -> Property
+prop_select_selectedSize :: InputId -> UTxOSelection -> Property
 prop_select_selectedSize i s =
     checkCoverage_select i s $
     (UTxOSelection.selectedSize <$> UTxOSelection.select i s)
@@ -342,7 +360,8 @@ prop_select_selectedSize i s =
     then Just (UTxOSelection.selectedSize s + 1)
     else Nothing
 
-prop_selectMany_isSubSelectionOf :: (TxIn -> Bool) -> UTxOSelection -> Property
+prop_selectMany_isSubSelectionOf
+    :: (InputId -> Bool) -> UTxOSelection -> Property
 prop_selectMany_isSubSelectionOf f s =
     checkCoverage_UTxOSelection s $
     UTxOSelection.isSubSelectionOf s (UTxOSelection.selectMany toSelect s)
@@ -365,7 +384,7 @@ prop_selectMany_selectedSize_all s =
     === (UTxOSelection.leftoverSize s + UTxOSelection.selectedSize s)
 
 checkCoverage_select
-    :: Testable prop => TxIn -> UTxOSelection -> (prop -> Property)
+    :: Testable prop => InputId -> UTxOSelection -> (prop -> Property)
 checkCoverage_select i s
     = checkCoverage
     . cover 10 (UTxOSelection.isLeftover i s)
@@ -396,11 +415,19 @@ isValidSelectionNonEmpty s =
 -- Arbitrary instances
 --------------------------------------------------------------------------------
 
-instance Arbitrary TxIn where
-    arbitrary = genTxIn
-    shrink = shrinkTxIn
+-- TODO: ADP-1448:
+--
+-- Replace this instance with one for a mock input identifier, after the type
+-- of input identifier has been made into a type parameter.
+--
+instance {-# OVERLAPPING #-} Arbitrary InputId where
+    arbitrary = genSized2 genTxIn genAddress
+    shrink = genericRoundRobinShrink
+        <@> shrinkTxIn
+        <:> shrinkAddress
+        <:> Nil
 
-instance Arbitrary UTxOIndex where
+instance Arbitrary (UTxOIndex InputId) where
     arbitrary = genUTxOIndex
     shrink = shrinkUTxOIndex
 
@@ -416,6 +443,9 @@ instance Arbitrary UTxOSelectionNonEmpty where
 -- CoArbitrary instances
 --------------------------------------------------------------------------------
 
+instance CoArbitrary Address where
+    coarbitrary = coarbitraryAddress
+
 instance CoArbitrary TxIn where
     coarbitrary = coarbitraryTxIn
 
@@ -423,5 +453,5 @@ instance CoArbitrary TxIn where
 -- Show instances
 --------------------------------------------------------------------------------
 
-instance Show (TxIn -> Bool) where
-    show = const "(TxIn -> Bool)"
+instance Show (InputId -> Bool) where
+    show = const "(InputId -> Bool)"

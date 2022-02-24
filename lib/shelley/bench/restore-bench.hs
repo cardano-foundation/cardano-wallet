@@ -466,7 +466,7 @@ benchmarksRnd _ w wid wname benchname restoreTime = do
                 , utxoAvailableForInputs =
                     UTxOSelection.fromIndex utxoAvailable
                 , utxoAvailableForCollateral =
-                    UTxOIndex.toUTxO utxoAvailable
+                    UTxOIndex.toMap utxoAvailable
                 , wallet
                 } getFee
         runExceptT $ withExceptT show $ W.estimateFee runSelection
@@ -569,7 +569,7 @@ benchmarksSeq _ w wid _wname benchname restoreTime = do
                 , utxoAvailableForInputs =
                     UTxOSelection.fromIndex utxoAvailable
                 , utxoAvailableForCollateral =
-                    UTxOIndex.toUTxO utxoAvailable
+                    UTxOIndex.toMap utxoAvailable
                 , wallet
                 } getFee
         runExceptT $ withExceptT show $ W.estimateFee runSelection

@@ -76,6 +76,8 @@ import Cardano.Wallet.CoinSelection.Internal.Collateral
     ( SelectionCollateralError )
 import Cardano.Wallet.Primitive.Collateral
     ( asCollateral )
+import Cardano.Wallet.Primitive.Types.Address
+    ( Address )
 import Cardano.Wallet.Primitive.Types.Coin
     ( Coin (..) )
 import Cardano.Wallet.Primitive.Types.TokenBundle
@@ -84,8 +86,6 @@ import Cardano.Wallet.Primitive.Types.TokenMap
     ( AssetId, TokenMap )
 import Cardano.Wallet.Primitive.Types.Tx
     ( TokenBundleSizeAssessment, TxIn, TxOut (..) )
-import Cardano.Wallet.Primitive.Types.UTxO
-    ( UTxO (..) )
 import Cardano.Wallet.Primitive.Types.UTxOSelection
     ( UTxOSelection )
 import Control.Arrow
@@ -98,6 +98,8 @@ import Data.Generics.Internal.VL.Lens
     ( over, view )
 import Data.List.NonEmpty
     ( NonEmpty )
+import Data.Map.Strict
+    ( Map )
 import Data.Set
     ( Set )
 import Fmt
@@ -113,8 +115,6 @@ import Prelude
 
 import qualified Cardano.Wallet.CoinSelection.Internal as Internal
 import qualified Cardano.Wallet.Primitive.Types.TokenBundle as TokenBundle
-import qualified Cardano.Wallet.Primitive.Types.UTxO as UTxO
-import qualified Cardano.Wallet.Primitive.Types.UTxOSelection as UTxOSelection
 import qualified Data.Foldable as F
 import qualified Data.Map.Strict as Map
 import qualified Data.Set as Set
@@ -181,6 +181,12 @@ toInternalSelectionConstraints SelectionConstraints {..} =
 -- Selection parameters
 --------------------------------------------------------------------------------
 
+-- TODO: ADP-1448:
+--
+-- Replace this type synonym with a type parameter on types that use it.
+--
+type InputId = (TxIn, Address)
+
 -- | Specifies all parameters that are specific to a given selection.
 --
 data SelectionParams = SelectionParams
@@ -212,7 +218,7 @@ data SelectionParams = SelectionParams
         :: !SelectionCollateralRequirement
         -- ^ Specifies the collateral requirement for this selection.
     , utxoAvailableForCollateral
-        :: !UTxO
+        :: !(Map InputId TokenBundle)
         -- ^ Specifies a set of UTxOs that are available for selection as
         -- collateral inputs.
         --
@@ -232,11 +238,14 @@ toInternalSelectionParams :: SelectionParams -> Internal.SelectionParams
 toInternalSelectionParams SelectionParams {..} =
     Internal.SelectionParams
         { utxoAvailableForCollateral =
-            Map.mapMaybe asCollateral $ unUTxO utxoAvailableForCollateral
+            Map.mapMaybeWithKey identifyCollateral utxoAvailableForCollateral
         , outputsToCover =
             (view #address &&& view #tokens) <$> outputsToCover
         , ..
         }
+  where
+    identifyCollateral :: InputId -> TokenBundle -> Maybe Coin
+    identifyCollateral (_, a) b = asCollateral (TxOut a b)
 
 --------------------------------------------------------------------------------
 -- Selection skeletons
@@ -320,43 +329,18 @@ data SelectionOf change = Selection
 type Selection = SelectionOf TokenBundle
 
 toExternalSelection :: SelectionParams -> Internal.Selection -> Selection
-toExternalSelection ps Internal.Selection {..} =
+toExternalSelection _ps Internal.Selection {..} =
     Selection
         { collateral =
-            resolveInput utxoAvailableForCollateral . fst <$> collateral
+            (\((i, a), c) -> (i, TxOut a (TokenBundle.fromCoin c)))
+                <$> collateral
         , inputs =
-            resolveInput utxoAvailableForInputs . fst <$> inputs
+            (\((i, a), b) -> (i, TxOut a b))
+                <$> inputs
         , outputs =
             uncurry TxOut <$> outputs
         , ..
         }
-  where
-    utxoAvailableForCollateral :: UTxO
-    utxoAvailableForCollateral = view #utxoAvailableForCollateral ps
-
-    utxoAvailableForInputs :: UTxO
-    utxoAvailableForInputs =
-        UTxOSelection.availableUTxO (view #utxoAvailableForInputs ps)
-
-    -- Resolves an input selected by the coin selection algorithm, using the
-    -- context provided by the external 'SelectionParams' object.
-    --
-    -- Failure to resolve an input indicates a programming error, since all
-    -- selected inputs should originate from the available UTxO sets provided
-    -- within 'SelectionParams'.
-    --
-    -- The post-condition check for 'performSelection' already tests this
-    -- property, but we check again here, since UTxO lookups can fail.
-    --
-    resolveInput :: UTxO -> TxIn -> (TxIn, TxOut)
-    resolveInput u i = case UTxO.lookup i u of
-        Just o -> (i, o)
-        Nothing -> error $ unwords
-            [ "toExternalSelection:"
-            , "resolveInput:"
-            , "Unexpected failure to resolve input:"
-            , show i
-            ]
 
 toInternalSelection
     :: (change -> TokenBundle)
@@ -364,10 +348,14 @@ toInternalSelection
     -> Internal.Selection
 toInternalSelection getChangeBundle Selection {..} =
     Internal.Selection
-        { change = getChangeBundle <$> change
-        , collateral = fmap (view (#tokens . #coin)) <$> collateral
-        , inputs = fmap (view #tokens) <$> inputs
-        , outputs = (view #address &&& view #tokens) <$> outputs
+        { change = getChangeBundle
+            <$> change
+        , collateral = (\(i, TxOut a b) -> ((i, a), TokenBundle.getCoin b))
+            <$> collateral
+        , inputs = (\(i, TxOut a b) -> ((i, a), b))
+            <$> inputs
+        , outputs = (view #address &&& view #tokens)
+            <$> outputs
         , ..
         }
 
