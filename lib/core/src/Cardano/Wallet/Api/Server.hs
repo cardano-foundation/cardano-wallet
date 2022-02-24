@@ -4024,7 +4024,7 @@ instance IsServerError ErrBalanceTx where
                 ]
         ErrBalanceTxFailedBalancing v ->
             apiError err500 CreatedInvalidTransaction $ mconcat
-                [ "I have somehow failed balancing the transaction. The balance"
+                [ "I have somehow failed to balancethe transaction. The balance"
                 , " is " <> T.pack (show v)
                 ]
         ErrBalanceTxNotYetSupported (UnderestimatedFee c _) ->
