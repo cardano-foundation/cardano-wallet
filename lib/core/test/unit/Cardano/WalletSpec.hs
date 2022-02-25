@@ -1294,6 +1294,8 @@ dummyTransactionLayer = TransactionLayer
         error "dummyTransactionLayer: assignScriptRedeemers not implemented"
     , evaluateMinimumFee =
         error "dummyTransactionLayer: evaluateMinimumFee not implemented"
+    , evaluateTransactionBalance =
+        error "dummyTransactionLayer: dummyTransactionLayer not implemented"
     , computeSelectionLimit =
         error "dummyTransactionLayer: computeSelectionLimit not implemented"
     , tokenBundleSizeAssessor =

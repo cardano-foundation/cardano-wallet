@@ -42,6 +42,7 @@ module Cardano.Wallet.Shelley.Transaction
     , _decodeSealedTx
     , _estimateMaxNumberOfInputs
     , _maxScriptExecutionCost
+    , mkDelegationCertificates
     , estimateTxCost
     , estimateTxSize
     , mkByronWitness
@@ -112,7 +113,7 @@ import Cardano.Wallet.Primitive.Types.Address
 import Cardano.Wallet.Primitive.Types.Coin
     ( Coin (..) )
 import Cardano.Wallet.Primitive.Types.Hash
-    ( Hash )
+    ( Hash (..) )
 import Cardano.Wallet.Primitive.Types.Redeemer
     ( Redeemer, redeemerData )
 import Cardano.Wallet.Primitive.Types.TokenBundle
@@ -137,6 +138,8 @@ import Cardano.Wallet.Primitive.Types.Tx
     , txOutCoin
     , txSizeDistance
     )
+import Cardano.Wallet.Primitive.Types.UTxO
+    ( UTxO (..) )
 import Cardano.Wallet.Shelley.Compatibility
     ( cardanoCertKeysForWitnesses
     , fromCardanoAddress
@@ -184,6 +187,8 @@ import Control.Monad.Trans.Except
     ( runExceptT )
 import Control.Monad.Trans.State.Strict
     ( StateT (..), execStateT, get, modify' )
+import Data.Bifunctor
+    ( bimap )
 import Data.Function
     ( (&) )
 import Data.Functor
@@ -201,7 +206,7 @@ import Data.Kind
 import Data.Map.Strict
     ( Map, (!) )
 import Data.Maybe
-    ( mapMaybe )
+    ( fromMaybe, mapMaybe )
 import Data.Quantity
     ( Quantity (..) )
 import Data.Set
@@ -551,6 +556,8 @@ newTransactionLayer networkId = TransactionLayer
     , evaluateMinimumFee =
         _evaluateMinimumFee
 
+    , evaluateTransactionBalance = _evaluateTransactionBalance
+
     , computeSelectionLimit = \pp ctx outputsToCover ->
         let txMaxSize = getTxMaxSize $ txParameters pp in
         MaximumInputLimit $
@@ -568,6 +575,112 @@ newTransactionLayer networkId = TransactionLayer
 
 _decodeSealedTx :: SealedTx -> (Tx, TokenMap, TokenMap, [Certificate])
 _decodeSealedTx (cardanoTx -> InAnyCardanoEra _era tx) = fromCardanoTx tx
+
+_evaluateTransactionBalance
+    :: SealedTx
+    -> Cardano.ProtocolParameters
+    -> UTxO
+    -> [(TxIn, TxOut, Maybe (Hash "Datum"))]
+    -> Maybe Cardano.Value
+_evaluateTransactionBalance tx pp utxo extraUTxO = do
+    shelleyTx <- inAnyShelleyBasedEra $ cardanoTx tx
+    pure $ withShelleyBasedBody shelleyTx $ \era bod ->
+        let
+            utxo' = Map.fromList
+                . map (bimap toCardanoTxIn (toCardanoTxOut era))
+                . Map.toList
+                $ unUTxO utxo
+
+            extraUTxO' = Map.fromList
+                . map (\(i, o, mDatumHash) ->
+                    (toCardanoTxIn i
+                    , setDatumHash era mDatumHash (toCardanoTxOut era o))
+                    )
+                $ extraUTxO
+        in
+            lovelaceFromCardanoTxOutValue
+                $ Cardano.evaluateTransactionBalance
+                    pp
+                    mempty
+                    (Cardano.UTxO $ utxo' <> extraUTxO')
+                    -- The two UTxO sets could overlap here. When called by
+                    -- 'balanceTransaction' the user-specified input resolution
+                    -- will overwrite the wallet UTxO (if in conflict).
+                    --
+                    -- If the overridden outputs are incorrect, the wallet will
+                    -- incorrectly calculate the balance, and the transaction
+                    -- will ultimately be rejected by the node.
+                    --
+                    -- If the overwridden outputs simply adds datum hashes
+                    -- (which the wallet cannot currently represent), this
+                    -- shouldn't affect the balance.
+                    --
+                    -- Ultimately, however, it might be be wiser to error out of
+                    -- caution.
+                    --
+                    -- NOTE: There is a similar case in the 'resolveInput' of
+                    -- 'balanceTransaction'.
+                    bod
+  where
+    setDatumHash
+        :: ShelleyBasedEra era
+        -> Maybe (Hash "Datum")
+        -> Cardano.TxOut ctx era
+        -> Cardano.TxOut ctx era
+    setDatumHash _era Nothing o = o
+    setDatumHash era (Just (Hash datumHash)) (Cardano.TxOut addr val _) =
+        Cardano.TxOut addr val (Cardano.TxOutDatumHash scriptDataSupported hash)
+      where
+        scriptDataSupported = case era of
+            ShelleyBasedEraAlonzo -> Cardano.ScriptDataInAlonzoEra
+            ShelleyBasedEraMary -> errBadEra
+            ShelleyBasedEraAllegra -> errBadEra
+            ShelleyBasedEraShelley -> errBadEra
+          where
+            -- FIXME [ADP-1479] Proper error handling
+            errBadEra = error $ unwords
+                [ "evaluateTransactionBalance:"
+                , "cannot add a datum hash to the transaction body of an"
+                , "era that doesn't support datum hashes."
+                ]
+        hash = fromMaybe errBadHash $ Cardano.deserialiseFromRawBytes
+            (Cardano.AsHash Cardano.AsScriptData)
+            datumHash
+          where
+            -- FIXME [ADP-1479] Proper error handling
+            errBadHash = error $ unwords
+                [ "evaluateTransactionBalance: couldn't convert hash "
+                , show datumHash
+                ]
+
+    lovelaceFromCardanoTxOutValue
+        :: forall era. Cardano.TxOutValue era -> Cardano.Value
+    lovelaceFromCardanoTxOutValue = \case
+        Cardano.TxOutAdaOnly _ ada -> Cardano.lovelaceToValue ada
+        Cardano.TxOutValue _ val   -> val
+
+    withShelleyBasedBody
+        :: Cardano.InAnyShelleyBasedEra Cardano.Tx
+        -> (forall era. IsShelleyBasedEra era
+            => ShelleyBasedEra era -> Cardano.TxBody era -> a)
+        -> a
+    withShelleyBasedBody (Cardano.InAnyShelleyBasedEra era (Cardano.Tx bod _)) f
+        = f era bod
+
+inAnyShelleyBasedEra
+    :: InAnyCardanoEra a
+    -> Maybe (Cardano.InAnyShelleyBasedEra a)
+inAnyShelleyBasedEra = \case
+    InAnyCardanoEra Cardano.ByronEra _ ->
+        Nothing
+    InAnyCardanoEra Cardano.ShelleyEra a ->
+        Just $ Cardano.InAnyShelleyBasedEra Cardano.ShelleyBasedEraShelley a
+    InAnyCardanoEra Cardano.AllegraEra a ->
+        Just $ Cardano.InAnyShelleyBasedEra Cardano.ShelleyBasedEraAllegra a
+    InAnyCardanoEra Cardano.MaryEra a ->
+        Just $ Cardano.InAnyShelleyBasedEra Cardano.ShelleyBasedEraMary a
+    InAnyCardanoEra Cardano.AlonzoEra a ->
+        Just $ Cardano.InAnyShelleyBasedEra Cardano.ShelleyBasedEraAlonzo a
 
 mkDelegationCertificates
     :: DelegationAction

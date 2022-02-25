@@ -1,0 +1,81 @@
+ 0.000000,ErrBalanceTxSelectAssets (ErrSelectAssetsSelectionError (SelectionBalanceErrorOf (BalanceInsufficient (BalanceInsufficientError {utxoBalanceAvailable = TokenBundle {coin = Coin 0, tokens = TokenMap (fromList [])}, utxoBalanceRequired = TokenBundle {coin = Coin 1000000, tokens = TokenMap (fromList [])}}))))
+ 0.050000,ErrBalanceTxSelectAssets (ErrSelectAssetsSelectionError (SelectionBalanceErrorOf (BalanceInsufficient (BalanceInsufficientError {utxoBalanceAvailable = TokenBundle {coin = Coin 50000, tokens = TokenMap (fromList [])}, utxoBalanceRequired = TokenBundle {coin = Coin 1000000, tokens = TokenMap (fromList [])}}))))
+ 0.100000,ErrBalanceTxSelectAssets (ErrSelectAssetsSelectionError (SelectionBalanceErrorOf (BalanceInsufficient (BalanceInsufficientError {utxoBalanceAvailable = TokenBundle {coin = Coin 100000, tokens = TokenMap (fromList [])}, utxoBalanceRequired = TokenBundle {coin = Coin 1000000, tokens = TokenMap (fromList [])}}))))
+ 0.150000,ErrBalanceTxSelectAssets (ErrSelectAssetsSelectionError (SelectionBalanceErrorOf (BalanceInsufficient (BalanceInsufficientError {utxoBalanceAvailable = TokenBundle {coin = Coin 150000, tokens = TokenMap (fromList [])}, utxoBalanceRequired = TokenBundle {coin = Coin 1000000, tokens = TokenMap (fromList [])}}))))
+ 0.200000,ErrBalanceTxSelectAssets (ErrSelectAssetsSelectionError (SelectionBalanceErrorOf (BalanceInsufficient (BalanceInsufficientError {utxoBalanceAvailable = TokenBundle {coin = Coin 200000, tokens = TokenMap (fromList [])}, utxoBalanceRequired = TokenBundle {coin = Coin 1000000, tokens = TokenMap (fromList [])}}))))
+ 0.250000,ErrBalanceTxSelectAssets (ErrSelectAssetsSelectionError (SelectionBalanceErrorOf (BalanceInsufficient (BalanceInsufficientError {utxoBalanceAvailable = TokenBundle {coin = Coin 250000, tokens = TokenMap (fromList [])}, utxoBalanceRequired = TokenBundle {coin = Coin 1000000, tokens = TokenMap (fromList [])}}))))
+ 0.300000,ErrBalanceTxSelectAssets (ErrSelectAssetsSelectionError (SelectionBalanceErrorOf (BalanceInsufficient (BalanceInsufficientError {utxoBalanceAvailable = TokenBundle {coin = Coin 300000, tokens = TokenMap (fromList [])}, utxoBalanceRequired = TokenBundle {coin = Coin 1000000, tokens = TokenMap (fromList [])}}))))
+ 0.350000,ErrBalanceTxSelectAssets (ErrSelectAssetsSelectionError (SelectionBalanceErrorOf (BalanceInsufficient (BalanceInsufficientError {utxoBalanceAvailable = TokenBundle {coin = Coin 350000, tokens = TokenMap (fromList [])}, utxoBalanceRequired = TokenBundle {coin = Coin 1000000, tokens = TokenMap (fromList [])}}))))
+ 0.400000,ErrBalanceTxSelectAssets (ErrSelectAssetsSelectionError (SelectionBalanceErrorOf (BalanceInsufficient (BalanceInsufficientError {utxoBalanceAvailable = TokenBundle {coin = Coin 400000, tokens = TokenMap (fromList [])}, utxoBalanceRequired = TokenBundle {coin = Coin 1000000, tokens = TokenMap (fromList [])}}))))
+ 0.450000,ErrBalanceTxSelectAssets (ErrSelectAssetsSelectionError (SelectionBalanceErrorOf (BalanceInsufficient (BalanceInsufficientError {utxoBalanceAvailable = TokenBundle {coin = Coin 450000, tokens = TokenMap (fromList [])}, utxoBalanceRequired = TokenBundle {coin = Coin 1000000, tokens = TokenMap (fromList [])}}))))
+ 0.500000,ErrBalanceTxSelectAssets (ErrSelectAssetsSelectionError (SelectionBalanceErrorOf (BalanceInsufficient (BalanceInsufficientError {utxoBalanceAvailable = TokenBundle {coin = Coin 500000, tokens = TokenMap (fromList [])}, utxoBalanceRequired = TokenBundle {coin = Coin 1000000, tokens = TokenMap (fromList [])}}))))
+ 0.550000,ErrBalanceTxSelectAssets (ErrSelectAssetsSelectionError (SelectionBalanceErrorOf (BalanceInsufficient (BalanceInsufficientError {utxoBalanceAvailable = TokenBundle {coin = Coin 550000, tokens = TokenMap (fromList [])}, utxoBalanceRequired = TokenBundle {coin = Coin 1000000, tokens = TokenMap (fromList [])}}))))
+ 0.600000,ErrBalanceTxSelectAssets (ErrSelectAssetsSelectionError (SelectionBalanceErrorOf (BalanceInsufficient (BalanceInsufficientError {utxoBalanceAvailable = TokenBundle {coin = Coin 600000, tokens = TokenMap (fromList [])}, utxoBalanceRequired = TokenBundle {coin = Coin 1000000, tokens = TokenMap (fromList [])}}))))
+ 0.650000,ErrBalanceTxSelectAssets (ErrSelectAssetsSelectionError (SelectionBalanceErrorOf (BalanceInsufficient (BalanceInsufficientError {utxoBalanceAvailable = TokenBundle {coin = Coin 650000, tokens = TokenMap (fromList [])}, utxoBalanceRequired = TokenBundle {coin = Coin 1000000, tokens = TokenMap (fromList [])}}))))
+ 0.700000,ErrBalanceTxSelectAssets (ErrSelectAssetsSelectionError (SelectionBalanceErrorOf (BalanceInsufficient (BalanceInsufficientError {utxoBalanceAvailable = TokenBundle {coin = Coin 700000, tokens = TokenMap (fromList [])}, utxoBalanceRequired = TokenBundle {coin = Coin 1000000, tokens = TokenMap (fromList [])}}))))
+ 0.750000,ErrBalanceTxSelectAssets (ErrSelectAssetsSelectionError (SelectionBalanceErrorOf (BalanceInsufficient (BalanceInsufficientError {utxoBalanceAvailable = TokenBundle {coin = Coin 750000, tokens = TokenMap (fromList [])}, utxoBalanceRequired = TokenBundle {coin = Coin 1000000, tokens = TokenMap (fromList [])}}))))
+ 0.800000,ErrBalanceTxSelectAssets (ErrSelectAssetsSelectionError (SelectionBalanceErrorOf (BalanceInsufficient (BalanceInsufficientError {utxoBalanceAvailable = TokenBundle {coin = Coin 800000, tokens = TokenMap (fromList [])}, utxoBalanceRequired = TokenBundle {coin = Coin 1000000, tokens = TokenMap (fromList [])}}))))
+ 0.850000,ErrBalanceTxSelectAssets (ErrSelectAssetsSelectionError (SelectionBalanceErrorOf (BalanceInsufficient (BalanceInsufficientError {utxoBalanceAvailable = TokenBundle {coin = Coin 850000, tokens = TokenMap (fromList [])}, utxoBalanceRequired = TokenBundle {coin = Coin 1000000, tokens = TokenMap (fromList [])}}))))
+ 0.900000,ErrBalanceTxSelectAssets (ErrSelectAssetsSelectionError (SelectionBalanceErrorOf (BalanceInsufficient (BalanceInsufficientError {utxoBalanceAvailable = TokenBundle {coin = Coin 900000, tokens = TokenMap (fromList [])}, utxoBalanceRequired = TokenBundle {coin = Coin 1000000, tokens = TokenMap (fromList [])}}))))
+ 0.950000,ErrBalanceTxSelectAssets (ErrSelectAssetsSelectionError (SelectionBalanceErrorOf (BalanceInsufficient (BalanceInsufficientError {utxoBalanceAvailable = TokenBundle {coin = Coin 950000, tokens = TokenMap (fromList [])}, utxoBalanceRequired = TokenBundle {coin = Coin 1000000, tokens = TokenMap (fromList [])}}))))
+ 1.000000,ErrBalanceTxSelectAssets (ErrSelectAssetsSelectionError (SelectionBalanceErrorOf (UnableToConstructChange (UnableToConstructChangeError {requiredCost = Coin 169329, shortfall = Coin 169329}))))
+ 1.050000,ErrBalanceTxSelectAssets (ErrSelectAssetsSelectionError (SelectionBalanceErrorOf (UnableToConstructChange (UnableToConstructChangeError {requiredCost = Coin 169329, shortfall = Coin 119329}))))
+ 1.100000,ErrBalanceTxSelectAssets (ErrSelectAssetsSelectionError (SelectionBalanceErrorOf (UnableToConstructChange (UnableToConstructChangeError {requiredCost = Coin 169329, shortfall = Coin 69329}))))
+ 1.150000,ErrBalanceTxSelectAssets (ErrSelectAssetsSelectionError (SelectionBalanceErrorOf (UnableToConstructChange (UnableToConstructChangeError {requiredCost = Coin 169329, shortfall = Coin 19329}))))
+ 1.200000,ErrBalanceTxFailedBalancing (valueFromList [(AdaAssetId,36083)])
+ 1.250000,ErrBalanceTxFailedBalancing (valueFromList [(AdaAssetId,86083)])
+ 1.300000,ErrBalanceTxFailedBalancing (valueFromList [(AdaAssetId,136083)])
+ 1.350000,ErrBalanceTxFailedBalancing (valueFromList [(AdaAssetId,186083)])
+ 1.400000,ErrBalanceTxFailedBalancing (valueFromList [(AdaAssetId,236083)])
+ 1.450000,ErrBalanceTxFailedBalancing (valueFromList [(AdaAssetId,286083)])
+ 1.500000,ErrBalanceTxFailedBalancing (valueFromList [(AdaAssetId,336083)])
+ 1.550000,ErrBalanceTxFailedBalancing (valueFromList [(AdaAssetId,386083)])
+ 1.600000,ErrBalanceTxFailedBalancing (valueFromList [(AdaAssetId,436083)])
+ 1.650000,ErrBalanceTxFailedBalancing (valueFromList [(AdaAssetId,486083)])
+ 1.700000,ErrBalanceTxFailedBalancing (valueFromList [(AdaAssetId,536083)])
+ 1.750000,ErrBalanceTxFailedBalancing (valueFromList [(AdaAssetId,586083)])
+ 1.800000,ErrBalanceTxFailedBalancing (valueFromList [(AdaAssetId,636083)])
+ 1.850000,ErrBalanceTxFailedBalancing (valueFromList [(AdaAssetId,686083)])
+ 1.900000,ErrBalanceTxFailedBalancing (valueFromList [(AdaAssetId,736083)])
+ 1.950000,ErrBalanceTxFailedBalancing (valueFromList [(AdaAssetId,786083)])
+ 2.000000,ErrBalanceTxFailedBalancing (valueFromList [(AdaAssetId,836083)])
+ 2.050000,ErrBalanceTxFailedBalancing (valueFromList [(AdaAssetId,886083)])
+ 2.100000,ErrBalanceTxFailedBalancing (valueFromList [(AdaAssetId,936083)])
+ 2.150000,ErrBalanceTxFailedBalancing (valueFromList [(AdaAssetId,986083)])
+ 2.200000,0.166777,0.166777
+ 2.250000,0.166777,0.166777
+ 2.300000,0.166777,0.166777
+ 2.350000,0.166777,0.166777
+ 2.400000,0.166777,0.166777
+ 2.450000,0.166777,0.166777
+ 2.500000,0.166777,0.166777
+ 2.550000,0.166777,0.166777
+ 2.600000,0.166777,0.166777
+ 2.650000,0.166777,0.166777
+ 2.700000,0.166777,0.166777
+ 2.750000,0.166777,0.166777
+ 2.800000,0.166777,0.166777
+ 2.850000,0.166777,0.166777
+ 2.900000,0.166777,0.166777
+ 2.950000,0.166777,0.166777
+ 3.000000,0.166777,0.166777
+ 3.050000,0.166777,0.166777
+ 3.100000,0.166777,0.166777
+ 3.150000,0.166777,0.166777
+ 3.200000,0.166777,0.166777
+ 3.250000,0.166777,0.166777
+ 3.300000,0.166777,0.166777
+ 3.350000,0.166777,0.166777
+ 3.400000,0.166777,0.166777
+ 3.450000,0.166777,0.166777
+ 3.500000,0.166777,0.166777
+ 3.550000,0.166777,0.166777
+ 3.600000,0.166777,0.166777
+ 3.650000,0.166777,0.166777
+ 3.700000,0.166777,0.166777
+ 3.750000,0.166777,0.166777
+ 3.800000,0.166777,0.166777
+ 3.850000,0.166777,0.166777
+ 3.900000,0.166777,0.166777
+ 3.950000,0.166777,0.166777
+ 4.000000,0.166777,0.166777

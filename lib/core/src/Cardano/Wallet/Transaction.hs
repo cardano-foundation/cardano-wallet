@@ -74,13 +74,16 @@ import Cardano.Wallet.Primitive.Types.RewardAccount
 import Cardano.Wallet.Primitive.Types.TokenMap
     ( TokenMap )
 import Cardano.Wallet.Primitive.Types.Tx
-    ( TokenBundleSizeAssessor
+    ( SealedTx
+    , TokenBundleSizeAssessor
     , Tx (..)
     , TxConstraints
     , TxIn
     , TxMetadata
     , TxOut
     )
+import Cardano.Wallet.Primitive.Types.UTxO
+    ( UTxO )
 import Data.List.NonEmpty
     ( NonEmpty )
 import Data.Text
@@ -184,6 +187,29 @@ data TransactionLayer k tx = TransactionLayer
         --
         -- Will estimate how many witnesses there /should be/, so it works even
         -- for unsigned transactions.
+        --
+        -- Returns `Nothing` for ByronEra transactions.
+
+    , evaluateTransactionBalance
+        :: SealedTx
+        -> Node.ProtocolParameters
+        -> UTxO
+        -> [(TxIn, TxOut, Maybe (Hash "Datum"))] -- Extra UTxO
+        -> Maybe Node.Value
+        -- ^ Evaluate the balance of a transaction using the ledger. The balance
+        -- is defined as @(value consumed by transaction) - (value produced by
+        -- transaction)@. For a transaction to be valid, it must have a balance
+        -- of zero.
+        --
+        -- Note that the fee-field of the transaction affects the balance, and
+        -- is not automatically the minimum fee.
+        --
+        -- The function takes two UTxOs of different types and merges them. The
+        -- reason is to workaround a combination of:
+        -- 1. The wallet 'UTxO' type doesn't support Datum hashes
+        -- 2. A 'UTxO -> Cardano.UTxO' conversion function is not available in
+        -- the cardano-wallet-core package, only cardano-wallet. (This package
+        -- boundary will soon hopefully go away, however)
         --
         -- Returns `Nothing` for ByronEra transactions.
 

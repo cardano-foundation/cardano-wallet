@@ -1576,21 +1576,35 @@ balanceTransaction
     -- extra outputs and normal outputs
 
     surplus <- ExceptT . pure $ maybe
-        (Left
-            . ErrBalanceTxNotYetSupported
-            . UnderestimatedFee
-            $ candidateMinFee `Coin.difference` delta)
+        (Left $ ErrBalanceTxNotYetSupported $ UnderestimatedFee
+             (candidateMinFee `Coin.difference` delta)
+             candidateTx)
         Right
         (delta `Coin.subtract` candidateMinFee)
 
-    assembleTransaction $ TxUpdate
+    guardTxBalanced =<< (assembleTransaction $ TxUpdate
         { extraInputs
         , extraCollateral
         , extraOutputs = mapFirst (txOutAddCoin surplus) extraOutputs
         , feeUpdate = UseNewTxFee candidateMinFee
-        }
+        })
   where
     tl = ctx ^. transactionLayer @k
+
+    guardTxBalanced :: SealedTx -> ExceptT ErrBalanceTx m SealedTx
+    guardTxBalanced tx = do
+        bal <- txBalance tx
+        if bal == mempty
+        then pure tx
+        else throwE $ ErrBalanceTxFailedBalancing bal
+
+    txBalance :: SealedTx -> ExceptT ErrBalanceTx m Cardano.Value
+    txBalance tx =
+        case evaluateTransactionBalance tl tx nodePParams utxo externalInputs of
+            Just x -> pure x
+            Nothing -> throwE $ ErrBalanceTxUpdateError ErrByronTxNotSupported
+      where
+        utxo = inputMapToUTxO $ UTxOIndex.toMap internalUtxoAvailable
 
     assembleTransaction
         :: TxUpdate
@@ -3128,11 +3142,12 @@ data ErrBalanceTx
     | ErrBalanceTxExistingCollateral
     | ErrBalanceTxAssignRedeemers ErrAssignRedeemers
     | ErrBalanceTxNotYetSupported BalanceTxNotSupportedReason
+    | ErrBalanceTxFailedBalancing Cardano.Value
     deriving (Show, Eq)
 
 -- TODO: Remove once problems are fixed.
 data BalanceTxNotSupportedReason
-    = UnderestimatedFee Coin
+    = UnderestimatedFee Coin SealedTx
     | Deposits
     | ZeroAdaOutput
     | ConflictingNetworks
