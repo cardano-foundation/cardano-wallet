@@ -271,13 +271,12 @@ data SelectionParamsOf outputs u = SelectionParams
     deriving Generic
 
 deriving instance
-    Eq (outputs (Address, TokenBundle)) =>
-    Eq u =>
-    Eq (SelectionParamsOf outputs u)
+    (Eq (outputs (Address, TokenBundle)), Eq u) =>
+        Eq (SelectionParamsOf outputs u)
+
 deriving instance
-    Show (outputs (Address, TokenBundle)) =>
-    Show u =>
-    Show (SelectionParamsOf outputs u)
+    (Show (outputs (Address, TokenBundle)), Show u) =>
+        Show (SelectionParamsOf outputs u)
 
 -- | Indicates whether the balance of available UTxO entries is sufficient.
 --
@@ -484,13 +483,11 @@ data SelectionResultOf outputs u = SelectionResult
     deriving Generic
 
 deriving instance
-    Eq (outputs (Address, TokenBundle)) =>
-    Eq u =>
-    Eq (SelectionResultOf outputs u)
+    (Eq (outputs (Address, TokenBundle)), Eq u) =>
+        Eq (SelectionResultOf outputs u)
 deriving instance
-    Show (outputs (Address, TokenBundle)) =>
-    Show u =>
-    Show (SelectionResultOf outputs u)
+    (Show (outputs (Address, TokenBundle)), Show u) =>
+        Show (SelectionResultOf outputs u)
 
 -- | Indicates the difference between total input value and total output value
 --   of a 'SelectionResult'.
