@@ -188,7 +188,7 @@ data DeltaWallet s = DeltaWallet
     { deltaUTxO :: DeltaUTxO
     , deltaCurrentTip :: Delta.Replace BlockHeader
     , deltaAddressBook :: DeltaAddressBook s
-    }
+    } deriving (Show)
 
 type DeltaAddressBook s = Delta.Replace s
 
