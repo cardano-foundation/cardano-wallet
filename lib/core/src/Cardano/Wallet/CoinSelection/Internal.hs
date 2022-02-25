@@ -359,7 +359,7 @@ selectionAllOutputs selection = (<>)
 --
 toBalanceConstraintsParams
     :: (        SelectionConstraints,         SelectionParams)
-    -> (Balance.SelectionConstraints, Balance.SelectionParams)
+    -> (Balance.SelectionConstraints, Balance.SelectionParams InputId)
 toBalanceConstraintsParams (constraints, params) =
     (balanceConstraints, balanceParams)
   where

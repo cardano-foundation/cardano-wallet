@@ -244,12 +244,12 @@ type SelectionParams = SelectionParamsOf []
 
 -- | Specifies all parameters that are specific to a given selection.
 --
-data SelectionParamsOf outputs = SelectionParams
+data SelectionParamsOf outputs u = SelectionParams
     { outputsToCover
         :: !(outputs (Address, TokenBundle))
         -- ^ The complete set of outputs to be covered.
     , utxoAvailable
-        :: !(UTxOSelection InputId)
+        :: !(UTxOSelection u)
         -- ^ Specifies a set of UTxOs that are available for selection as
         -- inputs and optionally, a subset that has already been selected.
         --
@@ -279,10 +279,10 @@ data SelectionParamsOf outputs = SelectionParams
 
 deriving instance
     Eq (outputs (Address, TokenBundle)) =>
-    Eq (SelectionParamsOf outputs)
+    Eq (SelectionParamsOf outputs InputId)
 deriving instance
     Show (outputs (Address, TokenBundle)) =>
-    Show (SelectionParamsOf outputs)
+    Show (SelectionParamsOf outputs InputId)
 
 -- | Indicates whether the balance of available UTxO entries is sufficient.
 --
@@ -313,18 +313,20 @@ data UTxOBalanceSufficiencyInfo = UTxOBalanceSufficiencyInfo
 
 -- | Computes the balance of UTxO entries available for selection.
 --
-computeUTxOBalanceAvailable :: SelectionParamsOf outputs -> TokenBundle
+computeUTxOBalanceAvailable :: SelectionParamsOf outputs InputId -> TokenBundle
 computeUTxOBalanceAvailable =
     UTxOSelection.availableBalance . view #utxoAvailable
 
 -- | Computes the balance of UTxO entries required to be selected.
 --
 computeUTxOBalanceRequired
-    :: Foldable outputs => SelectionParamsOf outputs -> TokenBundle
+    :: Foldable outputs => SelectionParamsOf outputs InputId -> TokenBundle
 computeUTxOBalanceRequired = fst . computeDeficitInOut
 
 computeBalanceInOut
-    :: Foldable outputs => SelectionParamsOf outputs -> (TokenBundle, TokenBundle)
+    :: Foldable outputs
+    => SelectionParamsOf outputs InputId
+    -> (TokenBundle, TokenBundle)
 computeBalanceInOut params =
     (balanceIn, balanceOut)
   where
@@ -340,7 +342,9 @@ computeBalanceInOut params =
         F.foldMap snd (view #outputsToCover params)
 
 computeDeficitInOut
-    :: Foldable outputs => SelectionParamsOf outputs -> (TokenBundle, TokenBundle)
+    :: Foldable outputs
+    => SelectionParamsOf outputs InputId
+    -> (TokenBundle, TokenBundle)
 computeDeficitInOut params =
     (deficitIn, deficitOut)
   where
@@ -356,7 +360,9 @@ computeDeficitInOut params =
 -- See 'UTxOBalanceSufficiency'.
 --
 computeUTxOBalanceSufficiency
-    :: Foldable outputs => SelectionParamsOf outputs -> UTxOBalanceSufficiency
+    :: Foldable outputs
+    => SelectionParamsOf outputs InputId
+    -> UTxOBalanceSufficiency
 computeUTxOBalanceSufficiency = sufficiency . computeUTxOBalanceSufficiencyInfo
 
 -- | Computes information about the UTxO balance sufficiency.
@@ -364,7 +370,9 @@ computeUTxOBalanceSufficiency = sufficiency . computeUTxOBalanceSufficiencyInfo
 -- See 'UTxOBalanceSufficiencyInfo'.
 --
 computeUTxOBalanceSufficiencyInfo
-    :: Foldable outputs => SelectionParamsOf outputs -> UTxOBalanceSufficiencyInfo
+    :: Foldable outputs
+    => SelectionParamsOf outputs InputId
+    -> UTxOBalanceSufficiencyInfo
 computeUTxOBalanceSufficiencyInfo params =
     UTxOBalanceSufficiencyInfo {available, required, difference, sufficiency}
   where
@@ -384,7 +392,8 @@ computeUTxOBalanceSufficiencyInfo params =
 -- The balance of available UTxO entries is sufficient if (and only if) it
 -- is greater than or equal to the required balance.
 --
-isUTxOBalanceSufficient :: Foldable outputs => SelectionParamsOf outputs -> Bool
+isUTxOBalanceSufficient
+    :: Foldable outputs => SelectionParamsOf outputs InputId -> Bool
 isUTxOBalanceSufficient params =
     case computeUTxOBalanceSufficiency params of
         UTxOBalanceSufficient   -> True
@@ -734,7 +743,7 @@ data UnableToConstructChangeError = UnableToConstructChangeError
 
 type PerformSelection m outputs =
     SelectionConstraints ->
-    SelectionParamsOf outputs ->
+    SelectionParamsOf outputs InputId ->
     m (Either SelectionBalanceError (SelectionResultOf outputs))
 
 -- | Performs a coin selection and generates change bundles in one step.
@@ -780,7 +789,9 @@ performSelectionEmpty performSelectionFn constraints params =
     fmap transformResult <$>
     performSelectionFn constraints (transformParams params)
   where
-    transformParams :: SelectionParamsOf [] -> SelectionParamsOf NonEmpty
+    transformParams
+        :: SelectionParamsOf []       InputId
+        -> SelectionParamsOf NonEmpty InputId
     transformParams
         = over #extraCoinSource
             (transform (`Coin.add` minCoin) (const id))

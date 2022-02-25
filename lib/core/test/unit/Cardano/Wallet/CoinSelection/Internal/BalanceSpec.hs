@@ -611,7 +611,7 @@ type PerformSelectionResult = Either SelectionBalanceError SelectionResult
 genSelectionParams
     :: Gen (InputId -> Bool)
     -> Gen (UTxOIndex InputId)
-    -> Gen SelectionParams
+    -> Gen (SelectionParams InputId)
 genSelectionParams genPreselectedInputs genUTxOIndex' = do
     utxoAvailable <- genUTxOIndex'
     isInputPreselected <- oneof
@@ -651,7 +651,7 @@ genSelectionParams genPreselectedInputs genUTxOIndex' = do
     genPreselectedInputsNone :: Gen (InputId -> Bool)
     genPreselectedInputsNone = pure $ const False
 
-shrinkSelectionParams :: SelectionParams -> [SelectionParams]
+shrinkSelectionParams :: SelectionParams InputId -> [SelectionParams InputId]
 shrinkSelectionParams = genericRoundRobinShrink
     <@> shrinkList shrinkOutput
     <:> shrinkUTxOSelection
@@ -671,7 +671,7 @@ shrinkSelectionParams = genericRoundRobinShrink
 
 prop_performSelection_small
     :: MockSelectionConstraints
-    -> Blind (Small SelectionParams)
+    -> Blind (Small (SelectionParams InputId))
     -> Property
 prop_performSelection_small mockConstraints (Blind (Small params)) =
     checkCoverage $
@@ -845,7 +845,7 @@ prop_performSelection_small mockConstraints (Blind (Small params)) =
 
 prop_performSelection_large
     :: MockSelectionConstraints
-    -> Blind (Large SelectionParams)
+    -> Blind (Large (SelectionParams InputId))
     -> Property
 prop_performSelection_large mockConstraints (Blind (Large params)) =
     -- Generation of large UTxO sets takes longer, so limit the number of runs:
@@ -866,7 +866,7 @@ prop_performSelection_huge = ioProperty $
 prop_performSelection_huge_inner
     :: UTxOIndex InputId
     -> MockSelectionConstraints
-    -> Large SelectionParams
+    -> Large (SelectionParams InputId)
     -> Property
 prop_performSelection_huge_inner utxoAvailable mockConstraints (Large params) =
     withMaxSuccess 5 $
@@ -877,7 +877,7 @@ prop_performSelection_huge_inner utxoAvailable mockConstraints (Large params) =
 
 prop_performSelection
     :: MockSelectionConstraints
-    -> SelectionParams
+    -> SelectionParams InputId
     -> (PerformSelectionResult -> Property -> Property)
     -> Property
 prop_performSelection mockConstraints params coverage =
@@ -1100,7 +1100,7 @@ prop_performSelection mockConstraints params coverage =
 -- Both the parameters and the result are verified.
 --
 prop_performSelectionEmpty
-    :: MockSelectionConstraints -> Small SelectionParams -> Property
+    :: MockSelectionConstraints -> Small (SelectionParams InputId) -> Property
 prop_performSelectionEmpty mockConstraints (Small params) =
     checkCoverage $
     cover 10 (null (view #outputsToCover params))
@@ -1160,7 +1160,7 @@ prop_performSelectionEmpty mockConstraints (Small params) =
     constraints :: SelectionConstraints
     constraints = unMockSelectionConstraints mockConstraints
 
-    paramsTransformed :: SelectionParamsOf NonEmpty
+    paramsTransformed :: SelectionParamsOf NonEmpty InputId
     paramsTransformed = view #paramsTransformed transformationReport
 
     result :: SelectionResultOf NonEmpty
@@ -1693,7 +1693,7 @@ mkBoundaryTestExpectation (BoundaryTestData params expectedResult) = do
         , computeSelectionLimit = const NoLimit
         }
 
-encodeBoundaryTestCriteria :: BoundaryTestCriteria -> SelectionParams
+encodeBoundaryTestCriteria :: BoundaryTestCriteria -> SelectionParams InputId
 encodeBoundaryTestCriteria c = SelectionParams
     { outputsToCover =
         zip
@@ -4080,13 +4080,13 @@ newtype Small a = Small
     { getSmall:: a }
     deriving (Eq, Show)
 
-instance Arbitrary (Large SelectionParams) where
+instance Arbitrary (Large (SelectionParams InputId)) where
     arbitrary = Large <$> genSelectionParams
         (genInputIdFunction (arbitrary @Bool))
         (genUTxOIndexLarge)
     shrink = shrinkMapBy Large getLarge shrinkSelectionParams
 
-instance Arbitrary (Small SelectionParams) where
+instance Arbitrary (Small (SelectionParams InputId)) where
     arbitrary = Small <$> genSelectionParams
         (genInputIdFunction (arbitrary @Bool))
         (genUTxOIndex)
