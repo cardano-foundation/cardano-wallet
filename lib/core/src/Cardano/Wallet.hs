@@ -3227,7 +3227,7 @@ data ErrSelectAssets
     = ErrSelectAssetsPrepareOutputsError SelectionOutputError
     | ErrSelectAssetsNoSuchWallet ErrNoSuchWallet
     | ErrSelectAssetsAlreadyWithdrawing Tx
-    | ErrSelectAssetsSelectionError SelectionError
+    | ErrSelectAssetsSelectionError (SelectionError InputId)
     deriving (Generic, Eq, Show)
 
 data ErrStakePoolDelegation
@@ -3377,7 +3377,7 @@ data WalletFollowLog
 -- | Log messages from API server actions running in a wallet worker context.
 data WalletLog
     = MsgSelectionStart UTxO [TxOut]
-    | MsgSelectionError SelectionError
+    | MsgSelectionError (SelectionError InputId)
     | MsgSelectionReportSummarized SelectionReportSummarized
     | MsgSelectionReportDetailed SelectionReportDetailed
     | MsgMigrationUTxOBefore UTxOStatistics

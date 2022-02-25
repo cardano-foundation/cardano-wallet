@@ -234,7 +234,7 @@ data SelectionParams = SelectionParams
     }
     deriving (Eq, Generic, Show)
 
-toInternalSelectionParams :: SelectionParams -> Internal.SelectionParams
+toInternalSelectionParams :: SelectionParams -> Internal.SelectionParams InputId
 toInternalSelectionParams SelectionParams {..} =
     Internal.SelectionParams
         { utxoAvailableForCollateral =
@@ -328,7 +328,8 @@ data SelectionOf change = Selection
 --
 type Selection = SelectionOf TokenBundle
 
-toExternalSelection :: SelectionParams -> Internal.Selection -> Selection
+toExternalSelection
+    :: SelectionParams -> Internal.Selection InputId -> Selection
 toExternalSelection _ps Internal.Selection {..} =
     Selection
         { collateral =
@@ -345,7 +346,7 @@ toExternalSelection _ps Internal.Selection {..} =
 toInternalSelection
     :: (change -> TokenBundle)
     -> SelectionOf change
-    -> Internal.Selection
+    -> Internal.Selection InputId
 toInternalSelection getChangeBundle Selection {..} =
     Internal.Selection
         { change = getChangeBundle
@@ -378,7 +379,7 @@ performSelection
     :: (HasCallStack, MonadRandom m)
     => SelectionConstraints
     -> SelectionParams
-    -> ExceptT SelectionError m Selection
+    -> ExceptT (SelectionError InputId) m Selection
 performSelection cs ps =
     toExternalSelection ps <$>
     Internal.performSelection
