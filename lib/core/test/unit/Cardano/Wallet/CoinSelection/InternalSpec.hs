@@ -2,6 +2,7 @@
 {-# LANGUAGE DeriveGeneric #-}
 {-# LANGUAGE DuplicateRecordFields #-}
 {-# LANGUAGE FlexibleContexts #-}
+{-# LANGUAGE FlexibleInstances #-}
 {-# LANGUAGE GADTs #-}
 {-# LANGUAGE LambdaCase #-}
 {-# LANGUAGE NamedFieldPuns #-}
@@ -55,7 +56,7 @@ import Cardano.Wallet.CoinSelection.Internal.BalanceSpec
     , unMockComputeSelectionLimit
     )
 import Cardano.Wallet.CoinSelection.Internal.Collateral
-    ( SelectionCollateralErrorOf (..) )
+    ( SelectionCollateralError (..) )
 import Cardano.Wallet.Primitive.Types.Address
     ( Address )
 import Cardano.Wallet.Primitive.Types.Address.Gen
@@ -191,7 +192,7 @@ spec = describe "Cardano.Wallet.CoinSelection.InternalSpec" $ do
 
 prop_performSelection
     :: Pretty MockSelectionConstraints
-    -> Pretty SelectionParams
+    -> Pretty (SelectionParams InputId)
     -> Property
 prop_performSelection (Pretty mockConstraints) (Pretty params) =
     monadicIO $
@@ -202,8 +203,8 @@ prop_performSelection (Pretty mockConstraints) (Pretty params) =
 
 prop_performSelection_inner
     :: SelectionConstraints
-    -> SelectionParams
-    -> Either SelectionError Selection
+    -> SelectionParams InputId
+    -> Either (SelectionError InputId) (Selection InputId)
     -> Property
 prop_performSelection_inner constraints params result =
     checkCoverage $
@@ -220,8 +221,8 @@ prop_performSelection_inner constraints params result =
 
 prop_performSelection_coverage
     :: Testable property
-    => SelectionParams
-    -> Either SelectionError Selection
+    => SelectionParams InputId
+    -> Either (SelectionError InputId) (Selection InputId)
     -> property
     -> Property
 prop_performSelection_coverage params r innerProperty =
@@ -316,7 +317,7 @@ prop_performSelection_coverage params r innerProperty =
 --
 prop_toBalanceConstraintsParams_computeMinimumCost
     :: MockSelectionConstraints
-    -> SelectionParams
+    -> SelectionParams InputId
     -> SelectionSkeleton
     -> Property
 prop_toBalanceConstraintsParams_computeMinimumCost
@@ -373,7 +374,7 @@ prop_toBalanceConstraintsParams_computeMinimumCost
 --
 prop_toBalanceConstraintsParams_computeSelectionLimit
     :: MockSelectionConstraints
-    -> SelectionParams
+    -> SelectionParams InputId
     -> Property
 prop_toBalanceConstraintsParams_computeSelectionLimit mockConstraints params =
     checkCoverage $
@@ -612,7 +613,7 @@ shrinkMinimumCollateralPercentage = shrinkNatural
 -- Selection parameters
 --------------------------------------------------------------------------------
 
-genSelectionParams :: Gen SelectionParams
+genSelectionParams :: Gen (SelectionParams InputId)
 genSelectionParams = SelectionParams
     <$> genAssetsToBurn
     <*> genAssetsToMint
@@ -626,7 +627,7 @@ genSelectionParams = SelectionParams
     <*> genUTxOAvailableForCollateral
     <*> genUTxOAvailableForInputs
 
-shrinkSelectionParams :: SelectionParams -> [SelectionParams]
+shrinkSelectionParams :: SelectionParams InputId -> [SelectionParams InputId]
 shrinkSelectionParams = genericRoundRobinShrink
     <@> shrinkAssetsToBurn
     <:> shrinkAssetsToMint
@@ -848,7 +849,7 @@ instance Arbitrary MockSelectionConstraints where
     arbitrary = genMockSelectionConstraints
     shrink = shrinkMockSelectionConstraints
 
-instance Arbitrary SelectionParams where
+instance Arbitrary (SelectionParams InputId) where
     arbitrary = genSelectionParams
     shrink = shrinkSelectionParams
 

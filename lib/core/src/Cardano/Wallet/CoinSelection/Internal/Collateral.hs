@@ -24,15 +24,11 @@ module Cardano.Wallet.CoinSelection.Internal.Collateral
 
       performSelection
     , PerformSelection
-    , PerformSelectionOf
     , SelectionConstraints (..)
-    , SelectionParams
-    , SelectionParamsOf (..)
-    , SelectionResult
-    , SelectionResultOf (..)
+    , SelectionParams (..)
+    , SelectionResult (..)
     , selectionResultEmpty
-    , SelectionCollateralError
-    , SelectionCollateralErrorOf (..)
+    , SelectionCollateralError (..)
     , SearchSpaceLimit (..)
     , searchSpaceLimitDefault
 
@@ -61,12 +57,8 @@ module Cardano.Wallet.CoinSelection.Internal.Collateral
     )
     where
 
-import Cardano.Wallet.Primitive.Types.Address
-    ( Address )
 import Cardano.Wallet.Primitive.Types.Coin
     ( Coin )
-import Cardano.Wallet.Primitive.Types.Tx
-    ( TxIn )
 import Data.Function
     ( (&) )
 import Data.IntCast
@@ -101,14 +93,10 @@ import qualified Numeric.SpecFunctions as MathFast
 
 -- | The type of all functions that perform selections.
 --
-type PerformSelectionOf inputId =
+type PerformSelection u =
     SelectionConstraints ->
-    SelectionParamsOf inputId ->
-    Either (SelectionCollateralErrorOf inputId) (SelectionResultOf inputId)
-
--- | The default type for 'PerformSelectionOf'.
---
-type PerformSelection = PerformSelectionOf TxIn
+    SelectionParams u ->
+    Either (SelectionCollateralError u) (SelectionResult u)
 
 -- | Specifies all constraints required for collateral selection.
 --
@@ -135,19 +123,15 @@ data SelectionConstraints = SelectionConstraints
 
 -- | Specifies all parameters that are specific to a given selection.
 --
-data SelectionParamsOf inputId = SelectionParams
+data SelectionParams u = SelectionParams
     { coinsAvailable
-        :: Map inputId Coin
+        :: Map u Coin
         -- ^ The set of all coins available for selection as collateral.
     , minimumSelectionAmount
         :: Coin
         -- ^ A lower bound on the sum of coins to be selected as collateral.
     }
     deriving (Eq, Generic, Show)
-
--- | The default type for 'SelectionParamsOf'.
---
-type SelectionParams = SelectionParamsOf InputId
 
 -- | Specifies an upper bound on the search space size.
 --
@@ -171,42 +155,28 @@ searchSpaceLimitDefault = SearchSpaceLimit 1_000_000
 
 -- | Represents a successful selection of collateral.
 --
-newtype SelectionResultOf inputId = SelectionResult
-    { coinsSelected :: Map inputId Coin
+newtype SelectionResult u = SelectionResult
+    { coinsSelected :: Map u Coin
         -- ^ The coins that were selected for collateral.
     }
     deriving (Eq, Generic, Show)
 
--- | The default type for 'SelectionResultOf'.
---
-type SelectionResult = SelectionResultOf InputId
-
 -- | A completely empty result, with no inputs selected.
 --
-selectionResultEmpty :: SelectionResultOf inputId
+selectionResultEmpty :: SelectionResult u
 selectionResultEmpty = SelectionResult
     { coinsSelected = Map.empty
     }
 
 -- | Represents an unsuccessful attempt to select collateral.
 --
-data SelectionCollateralErrorOf inputId = SelectionCollateralError
-    { largestCombinationAvailable :: Map inputId Coin
+data SelectionCollateralError u = SelectionCollateralError
+    { largestCombinationAvailable :: Map u Coin
         -- ^ The largest combination of coins available.
     , minimumSelectionAmount :: Coin
         -- ^ A lower bound on the sum of coins to be selected as collateral.
     }
     deriving (Eq, Generic, Show)
-
--- TODO: ADP-1448:
---
--- Replace this type synonym with a type parameter on types that use it.
---
-type InputId = (TxIn, Address)
-
--- | The default type for `SelectionCollateralErrorOf`.
---
-type SelectionCollateralError = SelectionCollateralErrorOf InputId
 
 -- | Selects coins for collateral.
 --
@@ -241,7 +211,7 @@ type SelectionCollateralError = SelectionCollateralErrorOf InputId
 --    >>> size largestCombinationAvailable ≤ maximumSelectionSize
 --    >>>      largestCombinationAvailable ⊆ coinsAvailable
 --
-performSelection :: forall inputId. Ord inputId => PerformSelectionOf inputId
+performSelection :: forall u. Ord u => PerformSelection u
 performSelection constraints =
     firstRight $ fmap ($ constraints)
         [ selectCollateralSmallest
@@ -264,8 +234,7 @@ performSelection constraints =
 -- set to a value that's smaller than the required search space size, then this
 -- function will return without computing a result.
 --
-selectCollateralSmallest
-    :: forall inputId. Ord inputId => PerformSelectionOf inputId
+selectCollateralSmallest :: forall u. Ord u => PerformSelection u
 selectCollateralSmallest constraints params =
     case smallestValidCombination of
         Just coinsSelected ->
@@ -276,7 +245,7 @@ selectCollateralSmallest constraints params =
                 , minimumSelectionAmount
                 }
   where
-    coinsToConsider :: [(inputId, Coin)]
+    coinsToConsider :: [(u, Coin)]
     coinsToConsider = coinsAvailable
         & Map.toList
         & L.sortOn snd
@@ -285,20 +254,20 @@ selectCollateralSmallest constraints params =
     numberOfCoinsToConsider :: Int
     numberOfCoinsToConsider = length coinsToConsider
 
-    smallestValidCombination :: Maybe (Map inputId Coin)
+    smallestValidCombination :: Maybe (Map u Coin)
     smallestValidCombination =
         listToMaybe $ L.sortOn F.fold validCombinations
       where
-        validCombinations :: [Map inputId Coin]
+        validCombinations :: [Map u Coin]
         validCombinations =
             mapMaybe smallestValidCombinationOfSize
             [1 .. maximumSelectionSize]
 
-    smallestValidCombinationOfSize :: Int -> Maybe (Map inputId Coin)
+    smallestValidCombinationOfSize :: Int -> Maybe (Map u Coin)
     smallestValidCombinationOfSize size =
         guardSearchSpaceSize searchSpaceRequirement searchSpaceLimit result
       where
-        result :: Maybe (Map inputId Coin)
+        result :: Maybe (Map u Coin)
         result = coinsToConsider
             & (`subsequencesOfSize` size)
             & fmap (\ics -> (ics, F.foldMap snd ics))
@@ -333,8 +302,7 @@ selectCollateralSmallest constraints params =
 --
 -- This result can be computed very quickly, without using much search space.
 --
-selectCollateralLargest
-    :: forall inputId. Ord inputId => PerformSelectionOf inputId
+selectCollateralLargest :: forall u. Ord u => PerformSelection u
 selectCollateralLargest constraints params =
     case smallestValidSubmapOfLargestCombinationAvailable of
         Just coinsSelected ->
@@ -345,7 +313,7 @@ selectCollateralLargest constraints params =
                 , minimumSelectionAmount
                 }
   where
-    largestCombinationAvailable :: Map inputId Coin
+    largestCombinationAvailable :: Map u Coin
     largestCombinationAvailable =
         coinsAvailable
             & Map.toList
@@ -353,7 +321,7 @@ selectCollateralLargest constraints params =
             & L.take maximumSelectionSize
             & Map.fromList
 
-    smallestValidSubmapOfLargestCombinationAvailable :: Maybe (Map inputId Coin)
+    smallestValidSubmapOfLargestCombinationAvailable :: Maybe (Map u Coin)
     smallestValidSubmapOfLargestCombinationAvailable =
         largestCombinationAvailable
             & submaps

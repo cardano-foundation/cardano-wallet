@@ -101,8 +101,8 @@ spec =
 
     parallel $ describe "Indicator and accessor functions" $ do
 
-        it "prop_availableBalance_availableUTxO" $
-            property prop_availableBalance_availableUTxO
+        it "prop_availableBalance_availableMap" $
+            property prop_availableBalance_availableMap
         it "prop_isNonEmpty_selectedSize" $
             property prop_isNonEmpty_selectedSize
         it "prop_isNonEmpty_selectedIndex" $
@@ -128,8 +128,8 @@ spec =
             property prop_select_isProperSubSelectionOf
         it "prop_select_availableBalance" $
             property prop_select_availableBalance
-        it "prop_select_availableUTxO" $
-            property prop_select_availableUTxO
+        it "prop_select_availableMap" $
+            property prop_select_availableMap
         it "prop_select_leftoverSize" $
             property prop_select_leftoverSize
         it "prop_select_selectedSize" $
@@ -249,11 +249,11 @@ prop_toNonEmpty_fromNonEmpty s =
 -- Indicator and accessor functions
 --------------------------------------------------------------------------------
 
-prop_availableBalance_availableUTxO :: UTxOSelection InputId -> Property
-prop_availableBalance_availableUTxO s =
+prop_availableBalance_availableMap :: UTxOSelection InputId -> Property
+prop_availableBalance_availableMap s =
     checkCoverage_UTxOSelection s $
     UTxOSelection.availableBalance s
-    === F.fold (UTxOSelection.availableUTxO s)
+    === F.fold (UTxOSelection.availableMap s)
 
 prop_isNonEmpty_selectedSize :: UTxOSelection InputId -> Property
 prop_isNonEmpty_selectedSize s =
@@ -335,13 +335,13 @@ prop_select_availableBalance i s =
     then Just (UTxOSelection.availableBalance s)
     else Nothing
 
-prop_select_availableUTxO :: InputId -> UTxOSelection InputId -> Property
-prop_select_availableUTxO i s =
+prop_select_availableMap :: InputId -> UTxOSelection InputId -> Property
+prop_select_availableMap i s =
     checkCoverage_select i s $
-    (UTxOSelection.availableUTxO <$> UTxOSelection.select i s)
+    (UTxOSelection.availableMap <$> UTxOSelection.select i s)
     ===
     if UTxOSelection.isLeftover i s
-    then Just (UTxOSelection.availableUTxO s)
+    then Just (UTxOSelection.availableMap s)
     else Nothing
 
 prop_select_leftoverSize :: InputId -> UTxOSelection InputId -> Property

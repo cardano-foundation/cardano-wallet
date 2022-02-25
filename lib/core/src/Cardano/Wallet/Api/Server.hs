@@ -4387,7 +4387,7 @@ instance IsServerError ErrSelectAssets where
         ErrSelectAssetsSelectionError (SelectionOutputErrorOf e) ->
             toServerError e
 
-instance IsServerError (SelectionBalanceError) where
+instance IsServerError (SelectionBalanceError (TxIn, Address)) where
     toServerError = \case
         BalanceInsufficient e ->
             apiError err403 NotEnoughMoney $ mconcat
@@ -4430,7 +4430,7 @@ instance IsServerError (SelectionBalanceError) where
                 , "required in order to create a transaction."
                 ]
 
-instance IsServerError SelectionCollateralError where
+instance IsServerError (SelectionCollateralError (TxIn, Address)) where
     toServerError e =
         apiError err403 InsufficientCollateral $ T.unwords
             [ "I'm unable to create this transaction because the balance"
