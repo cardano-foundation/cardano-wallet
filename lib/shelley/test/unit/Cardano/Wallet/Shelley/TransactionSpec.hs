@@ -2337,10 +2337,9 @@ prop_balanceTransactionUnresolvedInputs
 
 data BalanceTxGolden =
     BalanceTxGoldenSuccess
-        { _walletCoin :: Coin
-        , _balancedFee :: Cardano.Lovelace
-        , _balancedMinFee :: Cardano.Lovelace
-        }
+        Coin -- ^ Wallet balance
+        Cardano.Lovelace -- ^ Fee
+        Cardano.Lovelace -- ^ Minimum fee
     | BalanceTxGoldenFailure Coin String
 
 -- CSV with the columns: wallet_balance,(fee,minfee | error)
@@ -2506,8 +2505,12 @@ balanceTransactionGoldenSpec = describe "balance goldens" $ do
             ]
         , inputs =
             [ ( TxIn tid 0
-              , TxOut (Address $ unsafeFromHex "714d72cf569a339a18a7d9302313983f56e0d96cd45bdcb1d6512dca6a") (TokenBundle.fromCoin $ Coin 2_000_000)
-              , Just $ Hash $ unsafeFromHex "923918e403bf43c34b4ef6b48eb2ee04babed17320d8d1b9ff9ad086e86f44ec"
+              , TxOut
+                    (Address $ unsafeFromHex
+                    "714d72cf569a339a18a7d9302313983f56e0d96cd45bdcb1d6512dca6a")
+                    (TokenBundle.fromCoin $ Coin 2_000_000)
+              , Just $ Hash $ unsafeFromHex
+                "923918e403bf43c34b4ef6b48eb2ee04babed17320d8d1b9ff9ad086e86f44ec"
               )
             ]
         , redeemers =
