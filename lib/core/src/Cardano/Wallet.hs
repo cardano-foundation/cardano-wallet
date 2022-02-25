@@ -1913,7 +1913,7 @@ data SelectAssetsParams s result = SelectAssetsParams
     , randomSeed :: Maybe StdGenSeed
     , txContext :: TransactionCtx
     , utxoAvailableForCollateral :: Map InputId TokenBundle
-    , utxoAvailableForInputs :: UTxOSelection
+    , utxoAvailableForInputs :: UTxOSelection InputId
     , wallet :: Wallet s
     }
     deriving Generic

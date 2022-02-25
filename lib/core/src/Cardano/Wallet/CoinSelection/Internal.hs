@@ -215,7 +215,7 @@ data SelectionParams = SelectionParams
         -- This set is allowed to intersect with 'utxoAvailableForInputs',
         -- since the ledger does not require that these sets are disjoint.
     , utxoAvailableForInputs
-        :: !UTxOSelection
+        :: !(UTxOSelection InputId)
         -- ^ Specifies a set of UTxOs that are available for selection as
         -- ordinary inputs and optionally, a subset that has already been
         -- selected.
@@ -879,7 +879,7 @@ verifyBalanceInsufficientError cs ps e =
 --------------------------------------------------------------------------------
 
 newtype FailureToVerifyEmptyUTxOError = FailureToVerifyEmptyUTxOError
-    { utxoAvailableForInputs :: UTxOSelection }
+    { utxoAvailableForInputs :: UTxOSelection InputId }
     deriving (Eq, Show)
 
 verifyEmptyUTxOError :: VerifySelectionError ()

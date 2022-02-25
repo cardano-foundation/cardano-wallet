@@ -51,7 +51,7 @@ coarbitraryInputId = coarbitrary . show
 genInputIdFunction :: Gen a -> Gen (InputId -> a)
 genInputIdFunction = genFunction coarbitraryInputId
 
-genUTxOSelection :: Gen UTxOSelection
+genUTxOSelection :: Gen (UTxOSelection InputId)
 genUTxOSelection = UTxOSelection.fromIndexFiltered
     <$> genFilter
     <*> genUTxOIndex
@@ -59,7 +59,7 @@ genUTxOSelection = UTxOSelection.fromIndexFiltered
     genFilter :: Gen (InputId -> Bool)
     genFilter = genInputIdFunction (arbitrary @Bool)
 
-shrinkUTxOSelection :: UTxOSelection -> [UTxOSelection]
+shrinkUTxOSelection :: UTxOSelection InputId -> [UTxOSelection InputId]
 shrinkUTxOSelection =
     shrinkMapBy UTxOSelection.fromIndexPair UTxOSelection.toIndexPair $
         liftShrink2
@@ -70,11 +70,13 @@ shrinkUTxOSelection =
 -- Selections that are non-empty
 --------------------------------------------------------------------------------
 
-genUTxOSelectionNonEmpty :: Gen UTxOSelectionNonEmpty
+genUTxOSelectionNonEmpty :: Gen (UTxOSelectionNonEmpty InputId)
 genUTxOSelectionNonEmpty =
     genUTxOSelection `suchThatMap` UTxOSelection.toNonEmpty
 
-shrinkUTxOSelectionNonEmpty :: UTxOSelectionNonEmpty -> [UTxOSelectionNonEmpty]
+shrinkUTxOSelectionNonEmpty
+    :: UTxOSelectionNonEmpty InputId
+    -> [UTxOSelectionNonEmpty InputId]
 shrinkUTxOSelectionNonEmpty
     = mapMaybe UTxOSelection.toNonEmpty
     . shrinkUTxOSelection

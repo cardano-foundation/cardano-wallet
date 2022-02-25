@@ -788,7 +788,7 @@ genUTxOAvailableForCollateral = genMapWith genInputId genCoinPositive
     genInputId :: Gen InputId
     genInputId = genSized2 genTxIn genAddress
 
-genUTxOAvailableForInputs :: Gen UTxOSelection
+genUTxOAvailableForInputs :: Gen (UTxOSelection InputId)
 genUTxOAvailableForInputs = frequency
     [ (49, genUTxOSelection)
     , (01, pure UTxOSelection.empty)
@@ -804,7 +804,7 @@ shrinkUTxOAvailableForCollateral =
         <:> shrinkAddress
         <:> Nil
 
-shrinkUTxOAvailableForInputs :: UTxOSelection -> [UTxOSelection]
+shrinkUTxOAvailableForInputs :: UTxOSelection InputId -> [UTxOSelection InputId]
 shrinkUTxOAvailableForInputs = shrinkUTxOSelection
 
 --------------------------------------------------------------------------------

@@ -1267,7 +1267,7 @@ prop_runSelection_UTxO_empty balanceRequested = monadicIO $ do
   where
     utxoAvailable = UTxOSelection.fromIndex UTxOIndex.empty
 
-prop_runSelection_UTxO_notEnough :: UTxOSelection -> Property
+prop_runSelection_UTxO_notEnough :: UTxOSelection InputId -> Property
 prop_runSelection_UTxO_notEnough utxoAvailable = monadicIO $ do
     result <- run $ runSelection
         RunSelectionParams
@@ -1290,7 +1290,7 @@ prop_runSelection_UTxO_notEnough utxoAvailable = monadicIO $ do
     balanceAvailable = UTxOSelection.availableBalance utxoAvailable
     balanceRequested = adjustAllTokenBundleQuantities (* 2) balanceAvailable
 
-prop_runSelection_UTxO_exactlyEnough :: UTxOSelection -> Property
+prop_runSelection_UTxO_exactlyEnough :: UTxOSelection InputId -> Property
 prop_runSelection_UTxO_exactlyEnough utxoAvailable = monadicIO $ do
     result <- run $ runSelection
         RunSelectionParams
@@ -1317,7 +1317,7 @@ prop_runSelection_UTxO_exactlyEnough utxoAvailable = monadicIO $ do
   where
     balanceRequested = UTxOSelection.availableBalance utxoAvailable
 
-prop_runSelection_UTxO_moreThanEnough :: UTxOSelection -> Property
+prop_runSelection_UTxO_moreThanEnough :: UTxOSelection InputId -> Property
 prop_runSelection_UTxO_moreThanEnough utxoAvailable = monadicIO $ do
     result <- run $ runSelection
         RunSelectionParams
@@ -1410,7 +1410,7 @@ prop_runSelection_UTxO_muchMoreThanEnough (Blind (Large index)) =
 -- Running a selection (non-empty)
 --------------------------------------------------------------------------------
 
-prop_runSelectionNonEmpty :: UTxOSelection -> Property
+prop_runSelectionNonEmpty :: UTxOSelection InputId -> Property
 prop_runSelectionNonEmpty result =
     case (haveLeftover, haveSelected) of
         (False, False) ->
@@ -1452,20 +1452,22 @@ prop_runSelectionNonEmpty result =
                     (UTxOSelection.leftoverIndex resultNonEmpty)
                 === UTxOSelection.leftoverIndex result
 
-    maybeResultNonEmpty :: Maybe UTxOSelectionNonEmpty
+    maybeResultNonEmpty :: Maybe (UTxOSelectionNonEmpty InputId)
     maybeResultNonEmpty = runIdentity $ runSelectionNonEmptyWith
         (Identity <$> mockSelectSingleEntry)
         (result)
 
-mockSelectSingleEntry :: UTxOSelection -> Maybe UTxOSelectionNonEmpty
+mockSelectSingleEntry
+    :: UTxOSelection InputId -> Maybe (UTxOSelectionNonEmpty InputId)
 mockSelectSingleEntry state =
     selectEntry =<< firstLeftoverEntry state
   where
-    firstLeftoverEntry :: UTxOSelection -> Maybe (InputId, TokenBundle)
+    firstLeftoverEntry :: UTxOSelection InputId -> Maybe (InputId, TokenBundle)
     firstLeftoverEntry =
         listToMaybe . UTxOIndex.toList . UTxOSelection.leftoverIndex
 
-    selectEntry :: (InputId, TokenBundle) -> Maybe UTxOSelectionNonEmpty
+    selectEntry
+        :: (InputId, TokenBundle) -> Maybe (UTxOSelectionNonEmpty InputId)
     selectEntry (i, _b) = UTxOSelection.select i state
 
 --------------------------------------------------------------------------------
@@ -4066,7 +4068,7 @@ instance Arbitrary TxOut where
     arbitrary = genTxOut
     shrink = shrinkTxOut
 
-instance Arbitrary UTxOSelection where
+instance Arbitrary (UTxOSelection InputId) where
     arbitrary = genUTxOSelection
     shrink = shrinkUTxOSelection
 

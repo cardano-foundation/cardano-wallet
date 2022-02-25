@@ -225,7 +225,7 @@ data SelectionParams = SelectionParams
         -- This set is allowed to intersect with 'utxoAvailableForInputs',
         -- since the ledger does not require that these sets are disjoint.
     , utxoAvailableForInputs
-        :: !UTxOSelection
+        :: !(UTxOSelection InputId)
         -- ^ Specifies a set of UTxOs that are available for selection as
         -- ordinary inputs and optionally, a subset that has already been
         -- selected.
