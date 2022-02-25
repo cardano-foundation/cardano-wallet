@@ -4425,7 +4425,7 @@ instance IsServerError (SelectionBalanceError (TxIn, Address)) where
                 , "required in order to create a transaction."
                 ]
 
-instance IsServerError SelectionCollateralError where
+instance IsServerError (SelectionCollateralError (TxIn, Address)) where
     toServerError e =
         apiError err403 InsufficientCollateral $ T.unwords
             [ "I'm unable to create this transaction because the balance"

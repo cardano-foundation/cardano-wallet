@@ -230,7 +230,7 @@ data SelectionError
     = SelectionBalanceErrorOf
       (SelectionBalanceError InputId)
     | SelectionCollateralErrorOf
-      SelectionCollateralError
+      (SelectionCollateralError InputId)
     | SelectionOutputErrorOf
       SelectionOutputError
     deriving (Eq, Show)
@@ -333,7 +333,7 @@ performSelectionBalance cs ps =
 performSelectionCollateral
     :: Applicative m
     => Balance.SelectionResult InputId
-    -> PerformSelection m Collateral.SelectionResult
+    -> PerformSelection m (Collateral.SelectionResult InputId)
 performSelectionCollateral balanceResult cs ps
     | selectionCollateralRequired ps =
         withExceptT SelectionCollateralErrorOf $ ExceptT $ pure $
@@ -444,8 +444,8 @@ toBalanceConstraintsParams (constraints, params) =
 --
 toCollateralConstraintsParams
     :: Balance.SelectionResult InputId
-    -> (           SelectionConstraints,            SelectionParams)
-    -> (Collateral.SelectionConstraints, Collateral.SelectionParams)
+    -> (           SelectionConstraints,            SelectionParams        )
+    -> (Collateral.SelectionConstraints, Collateral.SelectionParams InputId)
 toCollateralConstraintsParams balanceResult (constraints, params) =
     (collateralConstraints, collateralParams)
   where
@@ -477,7 +477,7 @@ toCollateralConstraintsParams balanceResult (constraints, params) =
 mkSelection
     :: SelectionParams
     -> Balance.SelectionResult InputId
-    -> Collateral.SelectionResult
+    -> Collateral.SelectionResult InputId
     -> Selection
 mkSelection _params balanceResult collateralResult = Selection
     { inputs = view #inputsSelected balanceResult
@@ -1088,7 +1088,8 @@ data FailureToVerifySelectionCollateralError =
         }
         deriving (Eq, Show)
 
-verifySelectionCollateralError :: VerifySelectionError SelectionCollateralError
+verifySelectionCollateralError
+    :: VerifySelectionError (SelectionCollateralError InputId)
 verifySelectionCollateralError cs ps e =
     verifyAll
         [ Map.null largestCombinationUnsuitableSubset

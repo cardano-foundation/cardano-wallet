@@ -25,13 +25,13 @@ import Prelude hiding
     ( sequence )
 
 import Cardano.Wallet.CoinSelection.Internal.Collateral
-    ( PerformSelectionOf
+    ( PerformSelection
     , SearchSpaceLimit (..)
     , SearchSpaceRequirement (..)
-    , SelectionCollateralErrorOf (..)
+    , SelectionCollateralError (..)
     , SelectionConstraints (..)
-    , SelectionParamsOf (..)
-    , SelectionResultOf (..)
+    , SelectionParams (..)
+    , SelectionResult (..)
     , firstRight
     , guardSearchSpaceSize
     , numberOfSubsequencesOfSize
@@ -202,7 +202,7 @@ spec = do
 --  - maximum selection sizes
 --
 prop_performSelection_general_withFunction
-    :: PerformSelectionOf LongInputId -> Property
+    :: PerformSelection LongInputId -> Property
 prop_performSelection_general_withFunction performSelectionFn =
     checkCoverage $
     forAll (arbitrary @(Map LongInputId Coin))
@@ -225,8 +225,8 @@ prop_performSelection_general_withFunction performSelectionFn =
 prop_performSelection_general_withResult
     :: (Ord inputId, Show inputId)
     => SelectionConstraints
-    -> SelectionParamsOf inputId
-    -> Either (SelectionCollateralErrorOf inputId) (SelectionResultOf inputId)
+    -> SelectionParams inputId
+    -> Either (SelectionCollateralError inputId) (SelectionResult inputId)
     -> Property
 prop_performSelection_general_withResult constraints params eitherErrorResult =
     cover 20.0 (isLeft  eitherErrorResult) "Failure" $
@@ -240,8 +240,8 @@ prop_performSelection_general_withResult constraints params eitherErrorResult =
 prop_performSelection_onFailure
     :: (Ord inputId, Show inputId)
     => SelectionConstraints
-    -> SelectionParamsOf inputId
-    -> SelectionCollateralErrorOf inputId
+    -> SelectionParams inputId
+    -> SelectionCollateralError inputId
     -> Property
 prop_performSelection_onFailure constraints params err =
     counterexample ("Error: " <> show (Pretty err)) $
@@ -257,8 +257,8 @@ prop_performSelection_onFailure constraints params err =
 prop_performSelection_onSuccess
     :: (Ord inputId, Show inputId)
     => SelectionConstraints
-    -> SelectionParamsOf inputId
-    -> SelectionResultOf inputId
+    -> SelectionParams inputId
+    -> SelectionResult inputId
     -> Property
 prop_performSelection_onSuccess constraints params result =
     counterexample ("Result: " <> show (Pretty result)) $

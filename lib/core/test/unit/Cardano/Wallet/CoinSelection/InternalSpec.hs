@@ -55,7 +55,7 @@ import Cardano.Wallet.CoinSelection.Internal.BalanceSpec
     , unMockComputeSelectionLimit
     )
 import Cardano.Wallet.CoinSelection.Internal.Collateral
-    ( SelectionCollateralErrorOf (..) )
+    ( SelectionCollateralError (..) )
 import Cardano.Wallet.Primitive.Types.Address
     ( Address )
 import Cardano.Wallet.Primitive.Types.Address.Gen
