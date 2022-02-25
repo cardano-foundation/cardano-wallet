@@ -597,15 +597,29 @@ _evaluateTransactionBalance tx pp utxo extraUTxO = do
                     , setDatumHash era mDatumHash (toCardanoTxOut era o))
                     )
                 $ extraUTxO
-
         in
             lovelaceFromCardanoTxOutValue
                 $ Cardano.evaluateTransactionBalance
                     pp
                     mempty
                     (Cardano.UTxO $ utxo' <> extraUTxO')
-                    -- NOTE: We don't want the keys to overlap! Unclear how to
-                    -- address.
+                    -- The two UTxO sets could overlap here. When called by
+                    -- 'balanceTransaction' the user-specified input resolution
+                    -- will overwrite the wallet UTxO (if in conflict).
+                    --
+                    -- If the overridden outputs are incorrect, the wallet will
+                    -- incorrectly calculate the balance, and the transaction
+                    -- will ultimately be rejected by the node.
+                    --
+                    -- If the overwridden outputs simply adds datum hashes
+                    -- (which the wallet cannot currently represent), this
+                    -- shouldn't affect the balance.
+                    --
+                    -- Ultimately, however, it might be be wiser to error out of
+                    -- caution.
+                    --
+                    -- NOTE: There is a similar case in the 'resolveInput' of
+                    -- 'balanceTransaction'.
                     bod
   where
     setDatumHash
@@ -623,7 +637,7 @@ _evaluateTransactionBalance tx pp utxo extraUTxO = do
             ShelleyBasedEraAllegra -> errBadEra
             ShelleyBasedEraShelley -> errBadEra
           where
-            -- FIXME: Proper error handling
+            -- FIXME [ADP-1479] Proper error handling
             errBadEra = error $ unwords
                 [ "evaluateTransactionBalance:"
                 , "cannot add a datum hash to the transaction body of an"
@@ -633,7 +647,7 @@ _evaluateTransactionBalance tx pp utxo extraUTxO = do
             (Cardano.AsHash Cardano.AsScriptData)
             datumHash
           where
-            -- FIXME: Proper error handling
+            -- FIXME [ADP-1479] Proper error handling
             errBadHash = error $ unwords
                 [ "evaluateTransactionBalance: couldn't convert hash "
                 , show datumHash
@@ -641,10 +655,9 @@ _evaluateTransactionBalance tx pp utxo extraUTxO = do
 
     lovelaceFromCardanoTxOutValue
         :: forall era. Cardano.TxOutValue era -> Cardano.Value
-    lovelaceFromCardanoTxOutValue (Cardano.TxOutAdaOnly _ ada) =
-        Cardano.lovelaceToValue ada
-    lovelaceFromCardanoTxOutValue (Cardano.TxOutValue _ val) =
-        val
+    lovelaceFromCardanoTxOutValue = \case
+        Cardano.TxOutAdaOnly _ ada -> Cardano.lovelaceToValue ada
+        Cardano.TxOutValue _ val   -> val
 
     withShelleyBasedBody
         :: Cardano.InAnyShelleyBasedEra Cardano.Tx
