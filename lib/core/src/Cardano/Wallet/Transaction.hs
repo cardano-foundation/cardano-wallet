@@ -197,11 +197,9 @@ data TransactionLayer k tx = TransactionLayer
         -> [(TxIn, TxOut, Maybe (Hash "Datum"))] -- Extra UTxO
         -> Maybe Node.Value
         -- ^ Evaluate the balance of a transaction using the ledger. The balance
-        -- can thought of as @Σ inputs - Σ outputs - fee@, but in reality
-        -- there are more features that can affect it, like minting, deposits,
-        -- and withdrawals. By relying on the calculation of the ledger, we
-        -- don't need to worry about getting all these details right. For a
-        -- transaction to be valid, it must have a balance of zero.
+        -- is defined as @(value consumed by transaction) - (value produced by
+        -- transaction)@. For a transaction to be valid, it must have a balance
+        -- of zero.
         --
         -- Note that the fee-field of the transaction affects the balance, and
         -- is not automatically the minimum fee.
