@@ -325,14 +325,14 @@ prepareOutputs cs ps =
 
 performSelectionBalance
     :: (HasCallStack, MonadRandom m)
-    => PerformSelection m Balance.SelectionResult
+    => PerformSelection m (Balance.SelectionResult InputId)
 performSelectionBalance cs ps =
     withExceptT SelectionBalanceErrorOf $ ExceptT $
     uncurry Balance.performSelection $ toBalanceConstraintsParams (cs, ps)
 
 performSelectionCollateral
     :: Applicative m
-    => Balance.SelectionResult
+    => Balance.SelectionResult InputId
     -> PerformSelection m Collateral.SelectionResult
 performSelectionCollateral balanceResult cs ps
     | selectionCollateralRequired ps =
@@ -443,7 +443,7 @@ toBalanceConstraintsParams (constraints, params) =
 -- | Creates constraints and parameters for 'Collateral.performSelection'.
 --
 toCollateralConstraintsParams
-    :: Balance.SelectionResult
+    :: Balance.SelectionResult InputId
     -> (           SelectionConstraints,            SelectionParams)
     -> (Collateral.SelectionConstraints, Collateral.SelectionParams)
 toCollateralConstraintsParams balanceResult (constraints, params) =
@@ -476,7 +476,7 @@ toCollateralConstraintsParams balanceResult (constraints, params) =
 --
 mkSelection
     :: SelectionParams
-    -> Balance.SelectionResult
+    -> Balance.SelectionResult InputId
     -> Collateral.SelectionResult
     -> Selection
 mkSelection _params balanceResult collateralResult = Selection
@@ -492,7 +492,7 @@ mkSelection _params balanceResult collateralResult = Selection
 
 -- | Converts a 'Selection' to a balance result.
 --
-toBalanceResult :: Selection -> Balance.SelectionResult
+toBalanceResult :: Selection -> Balance.SelectionResult InputId
 toBalanceResult selection = Balance.SelectionResult
     { inputsSelected = view #inputs selection
     , outputsCovered = view #outputs selection
