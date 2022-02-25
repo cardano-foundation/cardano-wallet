@@ -1952,7 +1952,7 @@ selectAssets ctx pp params transform = do
     guardPendingWithdrawal
     lift $ traceWith tr $ MsgSelectionStart
         (inputMapToUTxO
-            $ UTxOSelection.availableUTxO
+            $ UTxOSelection.availableMap
             $ params ^. #utxoAvailableForInputs)
         (params ^. #outputs)
     let selectionConstraints = SelectionConstraints
