@@ -2662,12 +2662,17 @@ withAlonzoBody (cardanoTx -> Cardano.InAnyCardanoEra Cardano.AlonzoEra tx) f =
 withAlonzoBody _ _ = error "withAlonzoBody: other eras are not handled yet"
 
 
+-- | Consistent pair of ProtocolParameters of both wallet and cardano-api types.
+--
+-- We try to use similar parameters to mainnet where it matters (in particular
+-- fees, execution unit prices, and the cost model.)
+--
+-- NOTE: We don't have a 'Cardano.ProtocolParameters -> ProtocolParameters'
+-- function, so we need to manually ensure the hard-coded values are consistent.
 mockProtocolParametersForBalancing
     :: (ProtocolParameters, Cardano.ProtocolParameters)
 mockProtocolParametersForBalancing = (mockProtocolParameters, nodePParams)
   where
-    -- NOTE: We don't have a 'Cardano.ProtocolParameters -> ProtocolParameters'
-    -- function. For the time being, we simply hard-code the nodePParms here.
     nodePParams = Cardano.ProtocolParameters
         { Cardano.protocolParamTxFeeFixed = 155381
         , Cardano.protocolParamTxFeePerByte = 44
@@ -2696,8 +2701,8 @@ mockProtocolParametersForBalancing = (mockProtocolParameters, nodePParams)
                 costModel
         , Cardano.protocolParamPrices =
             Just $ Cardano.ExecutionUnitPrices
-                (721 % 10000000)
-                (577 % 10000)
+                (721 % 10_000_000)
+                (577 % 10_000)
         , Cardano.protocolParamMaxBlockExUnits =
             Just $ Cardano.ExecutionUnits 10000000000 14000000
         , Cardano.protocolParamCollateralPercent = Just 1
