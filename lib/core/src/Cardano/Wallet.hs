@@ -34,7 +34,7 @@
 --   values for this parameter are described in 'Cardano.Wallet.AddressDiscovery' sub-modules.
 --   For instance @SeqState@ or @Rnd State@.
 --
--- - @k@: A __k__ey derivation scheme intrisically connected to the underlying discovery
+-- - @k@: A __k__ey derivation scheme intrinsically connected to the underlying discovery
 --   state @s@. This describes how the hierarchical structure of a wallet is
 --   defined as well as the relationship between secret keys and public
 --   addresses.
@@ -967,8 +967,8 @@ in the checked exceptions or aware of them.
 Making 'chainSync' aware of the checked exception is currently
 not a good idea, because this function is used in different contexts,
 which have different checked exceptions.
-So, it would need to be polymorophic in the the undelrying monad,
-but at present, 'chainSync' is restricted to 'IO' beause some
+So, it would need to be polymorphic in the underlying monad,
+but at present, 'chainSync' is restricted to 'IO' because some
 of its constituents are also restricted to 'IO'.
 
 As a workaround / solution, we wrap the checked exception into a new type
@@ -1241,7 +1241,7 @@ manageRewardBalance _ ctx wid = db & \DBLayer{..} -> do
                     Left err -> traceWith tr $ MsgRewardBalanceNoSuchWallet err
                     Right () -> pure ()
             Left _err ->
-                -- Occasionaly failing to query is generally not fatal. It will
+                -- Occasionally failing to query is generally not fatal. It will
                 -- just update the balance next time the tip changes.
                 pure ()
     traceWith tr MsgRewardBalanceExited
@@ -1695,7 +1695,7 @@ balanceTransaction
         --
         -- A promising fix would be to replace the details of 'TransactionCtx' with
         -- a (balance, fee) based on calling the node/ledger
-        -- @evaluateTransactionBalance@ on the partial transacion.
+        -- @evaluateTransactionBalance@ on the partial transaction.
         let isReg (Cardano.StakePoolRegistrationCertificate _) = True
             isReg (Cardano.StakeAddressRegistrationCertificate _) = True
             isReg (Cardano.StakeAddressDeregistrationCertificate _) = True

@@ -162,11 +162,11 @@ spec = do
     it "no rejected txs, normally" $ property
         prop_noRejectedTxs
 
-    -- Lots of weird things can happen when we concider concurrent user-actions
+    -- Lots of weird things can happen when we consider concurrent user-actions
     -- on multiple wallet versions and rollbacks.
     --
     -- Whatever happens, we should be able to recover using a single
-    -- @CmdSetPortfolioOf n@, and be concistent with the ledger.
+    -- @CmdSetPortfolioOf n@, and be consistent with the ledger.
     it "can recover from dropped transactions" $ withMaxSuccess 2000
         prop_rollbacks
 
@@ -347,7 +347,7 @@ data Cmd
 
       -- ^ A wallet implementation without multi-stake-key support could decide
       -- to either
-      -- 1. register stake-key 0 witout adding a pointer UTxO
+      -- 1. register stake-key 0 without adding a pointer UTxO
       -- 2. de-register stake-key 0 despite despite e.g. key 1 being active
       -- depending on whether it is registered or not.
       --

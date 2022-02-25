@@ -757,7 +757,7 @@ spec = describe "SHARED_WALLETS" $ do
         expectResponseCode HTTP.status403 rPatch
         expectErrorMessage errMsg403WalletAlreadyActive rPatch
 
-    it "SHARED_WALLETS_PATCH_04 - Cannot add cosigner key when delegation script missing and cannot add already existant key to other cosigner" $ \ctx -> runResourceT $ do
+    it "SHARED_WALLETS_PATCH_04 - Cannot add cosigner key when delegation script missing and cannot add already existent key to other cosigner" $ \ctx -> runResourceT $ do
         [(_, accXPubTxt0),(_,accXPubTxt1)] <- liftIO $ genXPubs 2
         let payloadCreate = Json [json| {
                 "name": "Shared Wallet",

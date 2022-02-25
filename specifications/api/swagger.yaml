@@ -335,7 +335,7 @@ x-assetQuantity: &assetQuantity
 x-assetValueNode: &assetValueNode
   description:
      Map of asset values along with their quantities.
-     assetName in field name is expected (max lenght 64-character hex-encoded text)
+     assetName in field name is expected (max length 64-character hex-encoded text)
   type: object
   additionalProperties: *assetQuantity
   # Note: propertyNames pattern not supported in current OpenAPI version.
@@ -469,9 +469,9 @@ x-validationLevel: &validationLevel
       * 'all' is non-empty
       * there are redundant timelocks in a given level
       * there are no duplicated verification keys in a given level
-      * 'at_least' coeffcient is positive
+      * 'at_least' coefficient is positive
       * 'all', 'any' are non-empty and `'at_least' has no less elements in the list
-         than the coeffcient after timelocks are filtered out.
+         than the coefficient after timelocks are filtered out.
 
   type: string
   enum:
@@ -3324,7 +3324,7 @@ components:
           <<: *transactionNoAmountOutputs
 
     ApiConstructTransactionData: &ApiConstructTransactionData
-      description: At least one field needs to be choosen
+      description: At least one field needs to be chosen
       type: object
       properties:
         payments: *ApiPaymentDestination
@@ -3453,7 +3453,7 @@ components:
         are not associated with an identifiable stake key.
 
         Most likely, these funds are associated with enterprise addresses lacking staking rights.
-        But they /could/ also be associate with more rare types of addreses like pointer addresses.
+        But they /could/ also be associate with more rare types of addresses like pointer addresses.
     ApiStakeKeys: &ApiStakeKeys
       type: object
       required:

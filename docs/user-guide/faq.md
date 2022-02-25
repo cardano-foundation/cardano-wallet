@@ -15,7 +15,7 @@ More recently, `cardano-wallet` has been using sequential derivation which follo
 
 There are two sides to this question. Either, you are referring to accounts as in Ethereum accounts, or you may refer to accounts of hierarchical deterministic wallets.
 
-In the first scenario, assets in the form of accounts are only supported in the Shelley era of Cardano and only for a specific use-case: rewards. Rewards are indeed implicitely published on the blockchain to mitigate the risk of flooding the network at the end of every epoch with rewards payouts! Hence, each core node keeps track of the current value of each reward account in a Ledger. Money can be withdrawn from this account and is then turned as a UTxO. Please note that funds can never be manually sent to a reward account. The creation of a reward account is done when registering a staking key, via a specific type of transaction.
+In the first scenario, assets in the form of accounts are only supported in the Shelley era of Cardano and only for a specific use-case: rewards. Rewards are indeed implicitly published on the blockchain to mitigate the risk of flooding the network at the end of every epoch with rewards payouts! Hence, each core node keeps track of the current value of each reward account in a Ledger. Money can be withdrawn from this account and is then turned as a UTxO. Please note that funds can never be manually sent to a reward account. The creation of a reward account is done when registering a staking key, via a specific type of transaction.
 
 In the second case, please refer to the [[hierarchical-deterministic-wallets]] section in the _Key concepts_. Cardano wallets typically follow an HD tree of derivation as described in this section.
 

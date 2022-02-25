@@ -343,7 +343,7 @@ totalUTxO pending (Wallet u _ s) =
     spent = F.foldMap' getSpentTxIn pending
 
     -- NOTE: In 'availableUTxO', we exclude UTxO committed as collateral, but
-    -- not here. Since the total UTxO set is indended to be a projection of how
+    -- not here. Since the total UTxO set is indented to be a projection of how
     -- the UTxO set would look if all pending transactions are applied
     -- successfully: if a transaction is applied successfully, then its
     -- collateral inputs cannot be consumed.

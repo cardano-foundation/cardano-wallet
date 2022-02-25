@@ -8,7 +8,7 @@
 -- License: Apache-2.0
 --
 -- This module provides the Ntp client related settings, types
--- and re-exports used in a number of places throught codebase.
+-- and re-exports used in a number of places throughout codebase.
 
 module Network.Ntp
     ( withWalletNtpClient

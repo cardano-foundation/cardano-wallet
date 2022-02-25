@@ -20,7 +20,7 @@ module Cardano.Wallet.Primitive.Types.UTxO
       UTxO (..)
     , UTxOStatistics (..)
 
-    -- * Auxilliary types
+    -- * Auxiliary types
     , BoundType
     , Dom (..)
     , HistogramBar (..)

@@ -1,5 +1,5 @@
 
-# Test cardano-wallet recovers after losing conection with cardano-node
+# Test cardano-wallet recovers after losing connection with cardano-node
 
 ## OS
 

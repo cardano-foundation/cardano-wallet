@@ -222,7 +222,7 @@ instance HasWorkerCtx DummyResource DummyCtx where
     type WorkerKey DummyCtx = WalletId
     hoistResource _ _ = id
 
--- A reasonnably 'long' delay to test asynchronous race conditions, in us
+-- A reasonably 'long' delay to test asynchronous race conditions, in us
 newtype Delay = Delay Int deriving Show
 
 data WorkerTest ctx res = WorkerTest

@@ -408,7 +408,7 @@ spec = describe "SHELLEY_STAKE_POOLS" $ do
         let txid = getFromResponse Prelude.id rq
         let quitFeeAmt = getFromResponse #amount rq
 
-        eventually "Certificates are inserted after quiting a pool" $ do
+        eventually "Certificates are inserted after quitting a pool" $ do
             let epg = Link.getTransaction @'Shelley src txid
             rlg <- request @(ApiTransaction n) ctx epg Default Empty
             verify rlg

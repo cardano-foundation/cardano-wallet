@@ -266,7 +266,7 @@ data TxPayload era = TxPayload
       -- ^ Certificates to be included in the transactions.
 
     , _extraWitnesses :: Cardano.TxBody era -> [Cardano.KeyWitness era]
-      -- ^ Create payload-specific witesses given the unsigned transaction body.
+      -- ^ Create payload-specific witnesses given the unsigned transaction body.
       --
       -- Caller has the freedom and responsibility to provide the correct
       -- witnesses for what they're trying to do.
@@ -394,7 +394,7 @@ signTransaction
         , WalletKey k
         )
     => Cardano.NetworkId
-    -- ^ Network identifer (e.g. mainnet, testnet)
+    -- ^ Network identifier (e.g. mainnet, testnet)
     -> (RewardAccount -> Maybe (XPrv, Passphrase "encryption"))
     -- ^ Stake key store / reward account resolution
     -> (Address -> Maybe (k 'AddressK XPrv, Passphrase "encryption"))
@@ -462,7 +462,7 @@ signTransaction networkId resolveRewardAcct resolveAddress resolveInput (body, w
         -- NOTE: We cannot resolve key hashes directly, so create a one-time
         -- temporary address with that key hash which is fine to lookup via the
         -- address lookup provided above. It works _fine_ because the discovery
-        -- of addresses is done properly based on the address constituants (i.e.
+        -- of addresses is done properly based on the address constituents (i.e.
         -- the key hash) and not the overall address itself.
         let addr = Cardano.makeShelleyAddress networkId
                 (Cardano.PaymentCredentialByKey vkh)

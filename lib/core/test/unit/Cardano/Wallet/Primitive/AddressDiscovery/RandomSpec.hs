@@ -264,8 +264,8 @@ propSpec = parallel $ describe "Random Address Discovery Properties" $ do
         property prop_derivedKeysAreOwned
     it "GenChange address always satisfies isOurs" $ do
         property prop_changeAddressesBelongToUs
-    it "each address discovered by isOurs is in forbiden addresses and different than change address" $ do
-        property prop_forbiddenAddreses
+    it "each address discovered by isOurs is in forbidden addresses and different than change address" $ do
+        property prop_forbiddenAddresses
     it "address that are discovered via isOurs are marked as 'Used'" $ do
         property prop_oursAreUsed
 
@@ -310,11 +310,11 @@ prop_changeAddressesBelongToUs (Rnd st rk pwd) (Rnd st' _ _) =
   where
     (addr, _) = genChange (rk, pwd) st
 
-prop_forbiddenAddreses
+prop_forbiddenAddresses
     :: Rnd
     -> Index 'WholeDomain 'AddressK
     -> Property
-prop_forbiddenAddreses rnd@(Rnd st rk pwd) addrIx = conjoin
+prop_forbiddenAddresses rnd@(Rnd st rk pwd) addrIx = conjoin
     [ (Set.notMember addr (forbidden st))
     , (Set.member addr (forbidden isOursSt))
     , (Set.notMember changeAddr (forbidden isOursSt))

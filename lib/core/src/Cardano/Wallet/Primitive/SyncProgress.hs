@@ -108,7 +108,7 @@ instance FromText SyncTolerance where
 -- Hence, the progress percentage will often be < 100%,
 -- as the slot corresponding to the current wall-clock time
 -- may not be filled with a block.
--- The sync tolerance should be large enough to accomodate this issue.
+-- The sync tolerance should be large enough to accommodate this issue.
 syncProgress
     :: (HasCallStack, Monad m)
     => SyncTolerance

@@ -310,7 +310,7 @@ determinePoolLifeCycleStatus mReg mRet = case (mReg, mRet) of
         | regPoolId /= retPoolId ->
             differentPoolsError
         | regTime > retTime ->
-            -- A re-registration always /supercedes/ a prior retirement.
+            -- A re-registration always /supersedes/ a prior retirement.
             PoolRegistered regCert
         | regTime < retTime ->
             -- A retirement always /augments/ the latest known registration.

@@ -171,7 +171,7 @@ instance Arbitrary PoolId where
       where
         z = toEnum 0
 
--- NOTE Excepted to have a reasonnably small entropy
+-- NOTE Excepted to have a reasonably small entropy
 instance Arbitrary PoolOwner where
     arbitrary = do
         byte <- elements ['0'..'8']

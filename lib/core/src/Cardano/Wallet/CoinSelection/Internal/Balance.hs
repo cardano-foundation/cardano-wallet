@@ -1545,7 +1545,7 @@ makeChange criteria
     userSpecifiedAssetIds = TokenBundle.getAssets (F.fold outputBundles)
 
     -- Identifiers and quantities of all non-user-specified assets: assets that
-    -- were not included in the orginal set of outputs, but that were
+    -- were not included in the original set of outputs, but that were
     -- nevertheless selected during the selection process.
     --
     -- Each asset is paired with the complete list of quantities of that asset
@@ -1811,7 +1811,7 @@ makeChangeForCoin = flip Coin.unsafePartition
 -- requires us to add value to the change outputs and burning tokens requires
 -- us to remove value from the change outputs.
 --
--- It's also important to note that the change bundle calcualation requires
+-- It's also important to note that the change bundle calculation requires
 -- that the change for user-specified and non-user-specified assets have the
 -- following properties:
 --

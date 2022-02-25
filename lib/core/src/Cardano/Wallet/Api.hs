@@ -1112,7 +1112,7 @@ data ApiLayer s (k :: Depth -> Type -> Type)
     deriving (Generic)
 
 -- | Locks that are held by the wallet in order to enforce
--- sequential executation of some API actions.
+-- sequential execution of some API actions.
 -- Used with "Control.Concurrent.Concierge".
 data WalletLock = PostTransactionOld WalletId
     deriving (Eq, Ord, Show)

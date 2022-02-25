@@ -9,7 +9,7 @@
 
 [![Docker-compose Linux](https://github.com/input-output-hk/cardano-wallet/actions/workflows/docker_linux.yml/badge.svg)](https://github.com/input-output-hk/cardano-wallet/actions/workflows/docker_linux.yml) [![Docker-compose MacOS](https://github.com/input-output-hk/cardano-wallet/actions/workflows/docker_macos.yml/badge.svg)](https://github.com/input-output-hk/cardano-wallet/actions/workflows/docker_macos.yml)
 
-E2E functional tests of cardano-wallet are running nightly on [cardano testnet](https://testnets.cardano.org/en/cardano/overview/). Running tests against public testnet allows to excercise cardano-wallet on environment close to production (mainnet) utilizing and integrating maximally all components of the Cardano ecosystem like Stake pools, SMASH, metadata token server etc.
+E2E functional tests of cardano-wallet are running nightly on [cardano testnet](https://testnets.cardano.org/en/cardano/overview/). Running tests against public testnet allows to exercise cardano-wallet on environment close to production (mainnet) utilizing and integrating maximally all components of the Cardano ecosystem like Stake pools, SMASH, metadata token server etc.
 
 
 ## Running tests

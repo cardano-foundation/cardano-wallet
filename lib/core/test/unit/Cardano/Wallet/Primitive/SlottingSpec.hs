@@ -109,7 +109,7 @@ spec = do
 
             it "slotRangeFromTimeRange and slotRangeFromTimeRange'"
                 $ withMaxSuccess 10000 $ property $ \t0 sp timeRange -> do
-                    -- NOTE: The old impementation breaks for large times /
+                    -- NOTE: The old implementation breaks for large times /
                     -- slotNos. After only generating SlotLengths of 1s or
                     -- bigger, it should hopefully always work.
                     let res = runIdentity $ interpretQuery

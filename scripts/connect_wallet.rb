@@ -3,7 +3,7 @@
 require 'cardano_wallet'
 
 timeout = 100
-treshold = Time.now + timeout
+threshold = Time.now + timeout
 
 def is_connected?
   begin
@@ -14,7 +14,7 @@ def is_connected?
   end
 end
 
-while (is_connected? == false && (Time.now <= treshold))
+while (is_connected? == false && (Time.now <= threshold))
   puts "Wallet is not up yet... will check again in 5 seconds"
   sleep 5
 end

@@ -204,7 +204,7 @@ module Test.Integration.Framework.DSL
     , deleteTransactionViaCLI
     , getTransactionViaCLI
 
-    -- utilites
+    -- utilities
     , getRetirementEpoch
     , replaceStakeKey
      -- * Re-exports
@@ -2476,7 +2476,7 @@ verifyMsg desc a = counterexample msg . mapM_ (a &)
 
 -- | Can be used to add context to a @HUnitFailure@.
 --
--- >>> counterexample (show reponse) (0 `shouldBe` 3)
+-- >>> counterexample (show response) (0 `shouldBe` 3)
 -- >>>  (Status {statusCode = 200, statusMessage = "OK"},Right [])
 -- >>>        expected: 3
 -- >>>         but got: 0

@@ -40,7 +40,7 @@ As the Cardano blockchain grows in size, retrieving and verifying blocks from th
 ## Technical benefits
 
 * *Speed*. With light-mode, we expect synchronisation times of < 1 minute for a wallet with 1'000 transactions. In contrast, synchronisation of an empty wallet currently takes ~ 50 minutes by connecting to a node — assuming that the node has already synced to the chain tip and built its ledger state, which itself takes hours.
-* *Compatiblity*. Light-mode is intended to preserve the API presented to downstream software such as [Daedalus][], only *minimal* changes are expected.
+* *Compatibility*. Light-mode is intended to preserve the API presented to downstream software such as [Daedalus][], only *minimal* changes are expected.
 * *Optionality*. A wallet that was started in light-mode can be restarted in full mode without resynchronization, and vice versa. (MVP: no support yet for changing the mode dynamically while the wallet is running.)
 
 ## Limitations
@@ -100,7 +100,7 @@ flowchart TB
 ```
 :::
 
-In light-mode, `cardano-wallet` instead connects to the data source (e.g. `cardano-graphql` or [Blockfrost][]) and a transaction submission service trough the internet
+In light-mode, `cardano-wallet` instead connects to the data source (e.g. `cardano-graphql` or [Blockfrost][]) and a transaction submission service through the internet
 
 :::{.mermaid-container}
 ```mermaid
@@ -132,7 +132,7 @@ $ cardano-wallet serve --light CRED
 ```
 
 * `CRED` specifies how to connect to the less trusted blockchain data source. (MVP: Use [Blockfrost][]; `CRED` is a filepath to the secret token.)
-* The `--light` argument and the `--node-socket` arguments are mutally exclusive with each other.
+* The `--light` argument and the `--node-socket` arguments are mutually exclusive with each other.
 
 ### REST API
 

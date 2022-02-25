@@ -254,7 +254,7 @@ mintBurn_1 =
     }|]
 
 -- The second transaction burn the token minted by the previous one. The token
--- isn't explictly listed in the inputs, as we expect the wallet to select the
+-- isn't explicitly listed in the inputs, as we expect the wallet to select the
 -- right input during balancing.
 --
 -- The template has the same three parameters as 'mintBurn_1'
@@ -325,7 +325,7 @@ withdrawScript_1 =
 -- * <https://github.com/input-output-hk/plutus-apps/blob/main/plutus-use-cases/src/Plutus/Contracts/Currency.hs>
 -- * <https://github.com/input-output-hk/plutus-apps/blob/main/plutus-use-cases/test/Spec/Currency.hs>
 --
--- The contract was serialised using the suppor code in
+-- The contract was serialised using the support code in
 -- @/extra/Plutus/CurrencyContract.hs@ in this repository.
 --
 -- Assets can be minted by spending a specific UTxO that is hard-wired into

@@ -96,7 +96,7 @@ data DBFactory m s k = DBFactory
     }
 
 -- | A Database interface for storing various things in a DB. In practice,
--- we'll need some extra contraints on the wallet state that allows us to
+-- we'll need some extra constraints on the wallet state that allows us to
 -- serialize and unserialize it (e.g. @forall s. (Serialize s) => ...@)
 --
 -- NOTE:

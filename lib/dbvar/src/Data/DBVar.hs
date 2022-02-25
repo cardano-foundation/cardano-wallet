@@ -9,7 +9,7 @@ module Data.DBVar (
     -- * Synopsis
     -- | 'DBVar' represents a mutable variable whose value is kept in memory,
     -- but which is written to the hard drive on every update.
-    -- This provides a convient interface for persisting
+    -- This provides a convenient interface for persisting
     -- values across program runs.
     -- For efficient updates, delta encodings are used, see "Data.Delta".
     --
@@ -162,7 +162,7 @@ newWithCache update a = do
                             mask $ \restore -> do
                                 -- We mask asynchronous exceptions here
                                 -- to ensure that the TVar will be updated
-                                -- whenever @update@ suceeds without exception.
+                                -- whenever @update@ succeeds without exception.
                                 restore $ update old delta
                                 atomically $ writeTVar cache new
                     pure b
@@ -202,7 +202,7 @@ A 'Store' is characterized by the following properties:
     is returned, where the exception @e@ gives more information
     about the failure.
 
-    However, loading a value after writing it should always suceed,
+    However, loading a value after writing it should always succeed,
     we have
 
         > writeS s a >> loadS s  =  pure (Right a)
@@ -229,7 +229,7 @@ A 'Store' is characterized by the following properties:
     It is expected that the functions 'loadS', 'updateS', 'writeS'
     do not throw synchronous exceptions. In the worst case,
     'loadS' should return 'Nothing' after reading or writing
-    to the store was unsuccesful.
+    to the store was unsuccessful.
 
 * __Concurrency__:
     It is expected that the functions 'updateS' and 'writeS'
@@ -380,7 +380,7 @@ embedStore embed bstore = do
                 writeMachine mab
         update a da = do
             readMachine >>= \case
-                Nothing   -> do -- we were missing the inital write
+                Nothing   -> do -- we were missing the initial write
                     write (apply da a)
                 Just mab1 -> do -- advance the machine by one step
                     let (db, mab2) = step_ mab1 (a,da)
@@ -410,7 +410,7 @@ embedStore' Embedding'{load,write,update} Store{loadS,writeS,updateS} = Store
 --
 -- WARNING: The 'updateS' and 'writeS' functions of the result are not atomic
 -- in the presence of asynchronous exceptions.
--- For example, the update of the first store may suceed while the update of
+-- For example, the update of the first store may succeed while the update of
 -- the second store may fail.
 -- In other words, this combinator works for some monads, such as @m = @'STM',
 -- but fails for others, such as @m = 'IO'@.

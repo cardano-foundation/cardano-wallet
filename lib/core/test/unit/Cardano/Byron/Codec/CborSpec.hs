@@ -157,7 +157,7 @@ data DecodeDerivationPath = DecodeDerivationPath
     , addrIndex :: Word32
     } deriving (Show, Eq)
 
--- An aribtrary mnemonic sentence for the tests
+-- An arbitrary mnemonic sentence for the tests
 arbitraryMnemonic :: [Text]
 arbitraryMnemonic =
     [ "price", "whip", "bottom", "execute", "resist", "library"

@@ -155,7 +155,7 @@ unregister registry k =
                                     Worker
 -------------------------------------------------------------------------------}
 
--- | A worker which holds and manipulate a paticular acquired resource. That
+-- | A worker which holds and manipulate a particular acquired resource. That
 -- resource can be, for example, a handle to a database connection.
 data Worker key resource = Worker
     { workerId :: key
