@@ -607,7 +607,7 @@ prop_AssetCount_TokenMap_placesEmptyMapsFirst maps =
 -- We define this type alias to shorten type signatures.
 --
 type PerformSelectionResult =
-    Either SelectionBalanceError (SelectionResult InputId)
+    Either (SelectionBalanceError InputId) (SelectionResult InputId)
 
 genSelectionParams
     :: Gen (InputId -> Bool)
@@ -973,7 +973,7 @@ prop_performSelection mockConstraints params coverage =
                 (view #inputsSelected result <&> fst)
                 (view #utxoAvailable params)
 
-    onFailure :: SelectionBalanceError -> Property
+    onFailure :: SelectionBalanceError InputId -> Property
     onFailure = \case
         BalanceInsufficient e ->
             onBalanceInsufficient e
@@ -1011,7 +1011,7 @@ prop_performSelection mockConstraints params coverage =
       where
         BalanceInsufficientError errorBalanceAvailable errorBalanceRequired = e
 
-    onSelectionLimitReached :: SelectionLimitReachedError -> Property
+    onSelectionLimitReached :: SelectionLimitReachedError InputId -> Property
     onSelectionLimitReached e =
         counterexample "onSelectionLimitReached" $
         report errorBalanceRequired
@@ -1212,7 +1212,7 @@ withTransformationReport p r = TransformationReport p r r
 --    - a single change output to cover the output deficit.
 --
 mockPerformSelectionNonEmpty
-    :: PerformSelection Identity NonEmpty
+    :: PerformSelection Identity NonEmpty InputId
 mockPerformSelectionNonEmpty constraints params = Identity $ Right result
   where
     result :: SelectionResultOf NonEmpty InputId
@@ -1248,7 +1248,7 @@ mockPerformSelectionNonEmpty constraints params = Identity $ Right result
 
 prop_runSelection_UTxO_empty :: TokenBundle -> Property
 prop_runSelection_UTxO_empty balanceRequested = monadicIO $ do
-    result <- run $ runSelection
+    result <- run $ runSelection @_ @InputId
         RunSelectionParams
             { selectionLimit = NoLimit
             , utxoAvailable

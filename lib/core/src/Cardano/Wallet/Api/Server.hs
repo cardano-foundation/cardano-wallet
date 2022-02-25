@@ -4382,7 +4382,7 @@ instance IsServerError ErrSelectAssets where
         ErrSelectAssetsSelectionError (SelectionOutputErrorOf e) ->
             toServerError e
 
-instance IsServerError (SelectionBalanceError) where
+instance IsServerError (SelectionBalanceError (TxIn, Address)) where
     toServerError = \case
         BalanceInsufficient e ->
             apiError err403 NotEnoughMoney $ mconcat

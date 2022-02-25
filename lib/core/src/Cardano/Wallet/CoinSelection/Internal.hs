@@ -228,7 +228,7 @@ data SelectionParams = SelectionParams
 --
 data SelectionError
     = SelectionBalanceErrorOf
-      SelectionBalanceError
+      (SelectionBalanceError InputId)
     | SelectionCollateralErrorOf
       SelectionCollateralError
     | SelectionOutputErrorOf
@@ -837,7 +837,8 @@ verifySelectionError cs ps = \case
 -- Selection error verification: balance errors
 --------------------------------------------------------------------------------
 
-verifySelectionBalanceError :: VerifySelectionError SelectionBalanceError
+verifySelectionBalanceError
+    :: VerifySelectionError (SelectionBalanceError InputId)
 verifySelectionBalanceError cs ps = \case
     Balance.BalanceInsufficient e ->
         verifyBalanceInsufficientError cs ps e
@@ -922,7 +923,7 @@ verifyInsufficientMinCoinValueError cs _ps e =
 data FailureToVerifySelectionLimitReachedError =
     FailureToVerifySelectionLimitReachedError
         { selectedInputs
-            :: [(TxIn, TxOut)]
+            :: [(InputId, TokenBundle)]
             -- ^ The inputs that were actually selected.
         , selectedInputCount
             :: Int
@@ -942,13 +943,13 @@ data FailureToVerifySelectionLimitReachedError =
 -- given the amount of space we expect to be reserved for collateral inputs.
 --
 verifySelectionLimitReachedError
-    :: VerifySelectionError Balance.SelectionLimitReachedError
+    :: VerifySelectionError (Balance.SelectionLimitReachedError InputId)
 verifySelectionLimitReachedError cs ps e =
     verify
         (Balance.MaximumInputLimit selectedInputCount >= selectionLimitAdjusted)
         (FailureToVerifySelectionLimitReachedError {..})
   where
-    selectedInputs :: [(TxIn, TxOut)]
+    selectedInputs :: [(InputId, TokenBundle)]
     selectedInputs = e ^. #inputsSelected
 
     selectedInputCount :: Int
