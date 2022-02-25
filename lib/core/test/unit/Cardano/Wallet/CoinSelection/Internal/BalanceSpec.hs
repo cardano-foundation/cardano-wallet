@@ -907,7 +907,7 @@ prop_performSelection mockConstraints params coverage =
         , assetsToBurn
         } = params
 
-    onSuccess :: SelectionResultOf [(Address, TokenBundle)] -> Property
+    onSuccess :: SelectionResultOf [] -> Property
     onSuccess result =
         counterexample "onSuccess" $
         report
@@ -1160,13 +1160,13 @@ prop_performSelectionEmpty mockConstraints (Small params) =
     constraints :: SelectionConstraints
     constraints = unMockSelectionConstraints mockConstraints
 
-    paramsTransformed :: SelectionParamsOf (NonEmpty (Address, TokenBundle))
+    paramsTransformed :: SelectionParamsOf NonEmpty
     paramsTransformed = view #paramsTransformed transformationReport
 
-    result :: SelectionResultOf (NonEmpty (Address, TokenBundle))
+    result :: SelectionResultOf NonEmpty
     result = expectRight $ view #result transformationReport
 
-    resultTransformed :: SelectionResultOf [(Address, TokenBundle)]
+    resultTransformed :: SelectionResultOf []
     resultTransformed =
         expectRight $ view #resultTransformed transformationReport
 
@@ -1211,17 +1211,17 @@ withTransformationReport p r = TransformationReport p r r
 --    - a single change output to cover the output deficit.
 --
 mockPerformSelectionNonEmpty
-    :: PerformSelection Identity (NonEmpty (Address, TokenBundle))
+    :: PerformSelection Identity NonEmpty
 mockPerformSelectionNonEmpty constraints params = Identity $ Right result
   where
-    result :: SelectionResultOf (NonEmpty (Address, TokenBundle))
+    result :: SelectionResultOf NonEmpty
     result = resultWithoutDelta & set #inputsSelected
         (makeInputsOfValue $ deficitIn <> TokenBundle.fromCoin minimumCost)
       where
         minimumCost :: Coin
         minimumCost = selectionMinimumCost constraints resultWithoutDelta
 
-    resultWithoutDelta :: SelectionResultOf (NonEmpty (Address, TokenBundle))
+    resultWithoutDelta :: SelectionResultOf NonEmpty
     resultWithoutDelta = SelectionResult
         { inputsSelected = makeInputsOfValue deficitIn
         , changeGenerated = makeChangeOfValue deficitOut
