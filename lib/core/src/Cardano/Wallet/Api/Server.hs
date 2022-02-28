@@ -160,6 +160,7 @@ import Cardano.Wallet
     , ErrNotASequentialWallet (..)
     , ErrPostTx (..)
     , ErrReadAccountPublicKey (..)
+    , ErrReadPolicyPublicKey (..)
     , ErrReadRewardAccount (..)
     , ErrRemoveTx (..)
     , ErrSelectAssets (..)
@@ -2257,6 +2258,13 @@ constructTransaction ctx genChange knownPools getPoolStatus (ApiT wid) body = do
                     , wallet
                     , selectionStrategy = SelectionStrategyOptimal
                     }
+        txCtx' <-
+            if isJust mintingBurning then do
+                (policyXPub, _) <- liftHandler $ W.readPolicyPublicKey @_ @s @k @n wrk wid
+                undefined
+            else
+                pure txCtx
+
 
         (sel, sel', fee) <- do
             outs <- case (body ^. #payments) of
@@ -2274,7 +2282,7 @@ constructTransaction ctx genChange knownPools getPoolStatus (ApiT wid) body = do
             pure (sel, sel', estMin)
 
         tx <- liftHandler
-            $ W.constructTransaction @_ @s @k @n wrk wid txCtx sel
+            $ W.constructTransaction @_ @s @k @n wrk wid txCtx' sel
 
         pure $ ApiConstructTransaction
             { transaction = ApiT tx
@@ -4229,6 +4237,22 @@ instance IsServerError ErrReadRewardAccount where
                 [ "It is regrettable but you've just attempted an operation "
                 , "that is invalid for this type of wallet. Only new 'Shelley' "
                 , "wallets can do something with rewards and this one isn't."
+                ]
+
+instance IsServerError ErrReadPolicyPublicKey where
+    toServerError = \case
+        ErrReadPolicyPublicKeyNoSuchWallet e -> toServerError e
+        ErrReadPolicyPublicKeyNotAShelleyWallet ->
+            apiError err403 InvalidWalletType $ mconcat
+                [ "It is regrettable but you've just attempted an operation "
+                , "that is invalid for this type of wallet. Only new 'Shelley' "
+                , "wallets can do something with rewards and this one isn't."
+                ]
+        ErrReadPolicyPublicKeyAbsent ->
+            apiError err403 InvalidWalletType $ mconcat
+                [ "It seems the wallet lacks policy public key and minting/burning"
+                , "transaction cannot be realized. Please create wallet from mnemonics"
+                , "rather than account public key."
                 ]
 
 instance IsServerError ErrCreateRandomAddress where

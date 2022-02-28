@@ -1,4 +1,8 @@
+{-# LANGUAGE AllowAmbiguousTypes #-}
 {-# LANGUAGE DataKinds #-}
+{-# LANGUAGE LambdaCase #-}
+{-# LANGUAGE ScopedTypeVariables #-}
+{-# LANGUAGE TypeApplications #-}
 
 -- |
 -- Copyright: © 2018-2021 IOHK
@@ -23,14 +27,15 @@ module Cardano.Wallet.Primitive.AddressDerivation.MintBurn
     , derivePolicyKeyAndHash
     , derivePolicyPrivateKey
     , policyDerivationPath
+    , toTokenMapAndScript
     ) where
 
 import Prelude
 
 import Cardano.Address.Derivation
-    ( XPrv )
+    ( XPrv, XPub )
 import Cardano.Address.Script
-    ( KeyHash )
+    ( Cosigner, KeyHash, Script (..) )
 import Cardano.Crypto.Wallet
     ( deriveXPrv )
 import Cardano.Crypto.Wallet.Types
@@ -50,11 +55,24 @@ import Cardano.Wallet.Primitive.AddressDerivation
     )
 import Cardano.Wallet.Primitive.AddressDiscovery
     ( coinTypeAda )
+import Cardano.Wallet.Primitive.Types.TokenMap
+    ( AssetId )
+import Cardano.Wallet.Primitive.Types.TokenPolicy
+    ( TokenName )
+import Cardano.Wallet.Primitive.Types.TokenQuantity
+    ( TokenQuantity (..) )
+import Cardano.Wallet.Util
+    ( invariant )
 import Data.List.NonEmpty
     ( NonEmpty )
+import Data.Map.Strict
+    ( Map )
+import Data.Maybe
+    ( isJust )
 
 import qualified Cardano.Address.Script as CA
 import qualified Data.List.NonEmpty as NE
+import qualified Data.Map.Strict as Map
 
 -- | Purpose for forged policy keys is a constant set to 1855' (or 0x8000073F)
 -- following the original CIP-1855: "Forging policy keys for HD Wallets".
@@ -114,3 +132,29 @@ policyDerivationPath =  NE.fromList
   where
     policyIx :: Index 'Hardened 'PolicyK
     policyIx = minBound
+
+toTokenMapAndScript
+    :: forall key. WalletKey key
+    => Script Cosigner
+    -> Map Cosigner XPub
+    -> TokenName
+    -> Integer
+    -> (AssetId, TokenQuantity, Script XPub)
+toTokenMapAndScript _scriptTempl cosignerMap _tName _val =
+    undefined
+  where
+    replaceCosigner :: Script Cosigner -> Script KeyHash
+    replaceCosigner = \case
+        RequireSignatureOf c -> RequireSignatureOf $ toKeyHash c
+        RequireAllOf xs      -> RequireAllOf (map replaceCosigner xs)
+        RequireAnyOf xs      -> RequireAnyOf (map replaceCosigner xs)
+        RequireSomeOf m xs   -> RequireSomeOf m (map replaceCosigner xs)
+        ActiveFromSlot s     -> ActiveFromSlot s
+        ActiveUntilSlot s    -> ActiveUntilSlot s
+    toKeyHash :: Cosigner -> KeyHash
+    toKeyHash c =
+        let (Just xpub) =
+                invariant "we should have xpubs of all cosigners at this point"
+                (Map.lookup c cosignerMap)
+                isJust
+        in hashVerificationKey @key CA.Payment (liftRawKey xpub)
