@@ -22,10 +22,7 @@
 
 {-# OPTIONS_GHC -fno-warn-orphans #-}
 
-module Cardano.Wallet.Shelley.TransactionSpec
-    ( spec
-    , balanceTransactionSpec
-    ) where
+module Cardano.Wallet.Shelley.TransactionSpec (spec) where
 
 import Prelude
 
@@ -57,8 +54,6 @@ import Cardano.Api.Gen
     , genTxOut
     , genWitnesses
     )
-import Cardano.Api.Shelley
-    ( selectLovelace )
 import Cardano.BM.Data.Tracer
     ( nullTracer )
 import Cardano.BM.Tracer
@@ -311,7 +306,6 @@ import Test.Hspec
     , shouldBe
     , shouldSatisfy
     , xdescribe
-    , xit
     )
 import Test.Hspec.Core.Spec
     ( SpecM )
@@ -348,7 +342,6 @@ import Test.QuickCheck
     , vectorOf
     , withMaxSuccess
     , within
-    , (.&&.)
     , (.||.)
     , (=/=)
     , (===)
@@ -2033,7 +2026,7 @@ balanceTransactionSpec = do
 
         -- TODO: Fix balancing issues which are presumably due to
         -- variable-length coin encoding boundary cases.
-        xit "produces balanced transactions or fails"
+        it "produces balanced transactions or fails"
             $ property prop_balanceTransactionBalanced
 
         balanceTransactionGoldenSpec
@@ -2547,8 +2540,8 @@ prop_balanceTransactionBalanced
     -> ShowBuildable PartialTx
     -> StdGenSeed
     -> Property
-prop_balanceTransactionBalanced (Wallet' utxo wal pending) (ShowBuildable partialTx) seed
-    = withMaxSuccess 200 $ do
+prop_balanceTransactionBalanced (Wallet' utxo wal pending) (ShowBuildable partialTx') seed
+    = withMaxSuccess 1000 $ do
         let combinedUTxO = mconcat
                 [ resolvedInputsUTxO Cardano.ShelleyBasedEraAlonzo partialTx
                 , toCardanoUTxO Cardano.ShelleyBasedEraAlonzo $ view #utxo wal
@@ -2561,19 +2554,19 @@ prop_balanceTransactionBalanced (Wallet' utxo wal pending) (ShowBuildable partia
         case res of
             Right sealedTx -> counterexample ("\nResult: " <> pretty sealedTx) $ do
                 label "success"
-                    $ classify (originalBalance == Cardano.Lovelace 0)
+                    $ classify (originalBalance == mempty)
                         "already balanced"
-                    $ classify (txFee sealedTx > Cardano.Lovelace 1_000_000)
-                        "fee above 1 ada"
                     $ classify (txFee sealedTx > Cardano.Lovelace 1_000_000)
                         "fee above 1 ada"
                     $ classify (hasCollateral sealedTx)
                         "balanced tx has collateral"
-                    (txBalance sealedTx combinedUTxO === 0)
-                    .&&. (abs (txFee sealedTx) .<= 4_000_000)
-                    -- Fee limit chosen at a hunch for the sake of sanity. As
-                    -- long as the property uses mainnet PParams, this is
-                    -- useful.
+                    $ conjoin
+                        [ txBalance sealedTx combinedUTxO === mempty
+                        , (prop_expectFeeExcessSmallerThan
+                            (Cardano.Lovelace 1_200_000) sealedTx)
+                        , prop_minfeeIsCovered sealedTx
+                        , prop_validSize sealedTx
+                        ]
             Left
                 (ErrBalanceTxSelectAssets
                 (ErrSelectAssetsSelectionError
@@ -2592,8 +2585,6 @@ prop_balanceTransactionBalanced (Wallet' utxo wal pending) (ShowBuildable partia
                 (SelectionBalanceErrorOf
                 (InsufficientMinCoinValues _)))) ->
                 label "outputs below minCoinValue" $ property True
-            Left (ErrBalanceTxNotYetSupported Deposits) ->
-                label ("not yet supported: deposits") True
             Left (ErrBalanceTxExistingCollateral) ->
                 label "existing collateral" True
             Left (ErrBalanceTxNotYetSupported ZeroAdaOutput) ->
@@ -2620,7 +2611,8 @@ prop_balanceTransactionBalanced (Wallet' utxo wal pending) (ShowBuildable partia
                 (ErrSelectAssetsSelectionError
                 (SelectionBalanceErrorOf
                 (SelectionLimitReached _)))) ->
-                label "selection limit reached" $ property True
+                    let msg = "selection limit reached should never be returned"
+                    in counterexample msg $ property False
             Left
                 (ErrBalanceTxSelectAssets
                 (ErrSelectAssetsSelectionError
@@ -2629,7 +2621,71 @@ prop_balanceTransactionBalanced (Wallet' utxo wal pending) (ShowBuildable partia
             Left err -> label "other error" $
                 counterexample ("balanceTransaction failed: " <> show err) False
   where
-    a .<= b = counterexample (show a <> " /<= " <> show b) $ property $ a <= b
+    prop_expectFeeExcessSmallerThan lim tx = do
+        let fee = txFee tx
+        let minfee = txMinFee tx
+        let unLovelace (Cardano.Lovelace x) = x
+        let delta = Cardano.Lovelace $ (unLovelace fee) - (unLovelace minfee)
+        let msg = unwords
+                [ "The fee", showInParens fee
+                , "was", show delta
+                , "larger than the minimum fee", showInParens minfee <> ","
+                , "which is a larger difference than", show lim
+                ]
+        counterexample msg $ property $ delta < lim
+      where
+        showInParens x = "(" <> show x <> ")"
+
+    prop_minfeeIsCovered :: SealedTx -> Property
+    prop_minfeeIsCovered tx = do
+        let fee = txFee tx
+        let minfee = txMinFee tx
+        let unLovelace (Cardano.Lovelace x) = x
+        let delta = Cardano.Lovelace $ (unLovelace minfee) - (unLovelace fee)
+        let msg = unwords
+                [ "The minimum fee was"
+                , show minfee
+                , "but the actual fee,"
+                , show fee
+                , "was lower by"
+                , show delta
+                ]
+        counterexample msg $ property $ fee >= minfee
+
+    prop_validSize :: SealedTx -> Property
+    prop_validSize tx = do
+        let Just (TxSize size) =
+                estimateSignedTxSize
+                    testTxLayer
+                    (snd mockProtocolParametersForBalancing)
+                    tx
+        let limit = fromIntegral $ getQuantity $
+                view (#txParameters . #getTxMaxSize) mockProtocolParameters
+        let msg = unwords
+                [ "The tx size "
+                , show size
+                , "must be lower than the maximum size "
+                , show limit
+                , ", tx:"
+                , show (decodeTx testTxLayer tx)
+                ]
+        counterexample msg $ property (size <= limit)
+
+    -- NOTE: Here we change the input-resolution of the 'PartialTx' to be
+    -- consistent with the 'UTxO'. We may want to instead either
+    -- 1. Make generators generate consistent data (but requires
+    --  interdependency)
+    -- 2. Make `balanceTransaction` identify and fail when user-specified UTxOs
+    -- conflict with the wallet's UTxO set (but may be bad for
+    -- prop_balanceTransactionBalanced coverage)
+    partialTx = PartialTx s ins' r
+      where
+        PartialTx s ins r = partialTx'
+        utxo' = CS.toExternalUTxOMap $ UTxOIndex.toMap utxo
+        ins' = flip map ins $ \(i,o,dh) ->
+            case UTxO.lookup i utxo' of
+                Just o' -> (i,o',Nothing)
+                Nothing -> (i,o,dh)
 
     hasCollateral :: SealedTx -> Bool
     hasCollateral tx = withAlonzoBody tx $ \(Cardano.TxBody content) ->
@@ -2644,15 +2700,20 @@ prop_balanceTransactionBalanced (Wallet' utxo wal pending) (ShowBuildable partia
             Cardano.TxFeeExplicit _ c -> c
             Cardano.TxFeeImplicit _ -> error "implicit fee"
 
-    txBalance :: SealedTx -> Cardano.UTxO Cardano.AlonzoEra -> Cardano.Lovelace
+    txMinFee :: SealedTx -> Cardano.Lovelace
+    txMinFee = toCardanoLovelace
+        . fromMaybe (error "evaluateMinimumFee returned nothing!")
+        . evaluateMinimumFee testTxLayer nodePParams
+
+    txBalance :: SealedTx -> Cardano.UTxO Cardano.AlonzoEra -> Cardano.Value
     txBalance tx u = withAlonzoBody tx $ \bod ->
-        lovelaceFromCardanoTxOutValue
+        valueFromCardanoTxOutValue
         $ Cardano.evaluateTransactionBalance nodePParams mempty u bod
 
-    lovelaceFromCardanoTxOutValue
-        :: forall era. Cardano.TxOutValue era -> Cardano.Lovelace
-    lovelaceFromCardanoTxOutValue (TxOutAdaOnly _ coin) = coin
-    lovelaceFromCardanoTxOutValue (TxOutValue _ val) = selectLovelace val
+    valueFromCardanoTxOutValue
+        :: forall era. Cardano.TxOutValue era -> Cardano.Value
+    valueFromCardanoTxOutValue (TxOutAdaOnly _ coin) = Cardano.lovelaceToValue coin
+    valueFromCardanoTxOutValue (TxOutValue _ val) = val
 
 
     (_, nodePParams) = mockProtocolParametersForBalancing

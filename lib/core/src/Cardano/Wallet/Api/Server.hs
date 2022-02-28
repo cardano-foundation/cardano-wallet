@@ -4195,10 +4195,6 @@ instance IsServerError ErrBalanceTx where
             apiError err500 CreatedInvalidTransaction $ mconcat
                 [ "The transaction contains one or more zero ada outputs."
                 ]
-        ErrBalanceTxNotYetSupported Deposits ->
-            apiError err500 CreatedInvalidTransaction $ mconcat
-                [ "Deposits/refunds are not yet supported for balancing."
-                ]
         ErrBalanceTxFailedBalancing v ->
             apiError err500 CreatedInvalidTransaction $ mconcat
                 [ "I have somehow failed to balance the transaction. The balance"

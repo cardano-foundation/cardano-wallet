@@ -1700,8 +1700,8 @@ spec = describe "NEW_SHELLEY_TRANSACTIONS" $ do
         \Cannot balance when I cannot afford collateral" $
         \ctx -> runResourceT $ do
         wa <- fixtureWalletWith @n ctx
-            [ 2_000_000
-            , 2_000_000
+            [ 2_500_000
+            , 2_500_000
             ]
         let toBalance = Json PlutusScenario.pingPong_1
         rTx <- request @ApiSerialisedTransaction ctx
@@ -1731,11 +1731,11 @@ spec = describe "NEW_SHELLEY_TRANSACTIONS" $ do
             , expectErrorMessage errMsg403Collateral
             , expectErrorMessage $ unwords
                 [ "I need an ada amount of at least:"
-                , "2.779500"
+                , "4.278900"
                 ]
             , expectErrorMessage $ unwords
                 [ "The largest combination of pure ada UTxOs I could find is:"
-                , "[1.853000]"
+                , "[2.852600]"
                 ]
             ]
 
@@ -1847,9 +1847,6 @@ spec = describe "NEW_SHELLEY_TRANSACTIONS" $ do
     it "TRANS_NEW_BALANCE_05/ADP-1286 - \
         \I can balance correctly in case I need to spend my remaining ADA for fee" $
         \ctx -> runResourceT $ do
-        liftIO $ pendingWith
-            "ADP-1286 - ValueNotConservedUTxO: Transaction seems balanced incorrectly \
-            \in case when less than minUtxOValue is left on the wallet"
         wa <- fixtureWalletWith @n ctx [3_000_000]
         -- PlutusScenario.pingPong_1 is sending out 2₳ therefore tx fee
         -- needs to be 1₳ to comply with minUTxOValue constraint

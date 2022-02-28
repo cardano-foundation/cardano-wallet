@@ -256,8 +256,14 @@ genLovelace = Lovelace <$> frequency
             , (8, pure 65536)
             , (90, pure 4294967296)
             ]
-        x <- choose (-1_000_000, 1_000_000)
-        pure $ max 0 $ boundary + x
+
+        offset <- frequency
+            [ (1, choose (-10, 10))
+            , (1, choose (-220_000, -150_000))
+            , (1, choose (150_000, 220_000))
+            , (1, choose (-1_000_000, 1_000_000))
+            ]
+        pure $ max 0 $ boundary + offset
 
 
 genTxFee :: CardanoEra era -> Gen (TxFee era)
