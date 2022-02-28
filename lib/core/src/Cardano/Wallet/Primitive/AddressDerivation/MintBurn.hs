@@ -35,7 +35,7 @@ import Prelude
 import Cardano.Address.Derivation
     ( XPrv, XPub )
 import Cardano.Address.Script
-    ( Cosigner, KeyHash, Script (..) )
+    ( Cosigner, KeyHash, Script (..), ScriptHash (..), toScriptHash )
 import Cardano.Crypto.Wallet
     ( deriveXPrv )
 import Cardano.Crypto.Wallet.Types
@@ -55,10 +55,12 @@ import Cardano.Wallet.Primitive.AddressDerivation
     )
 import Cardano.Wallet.Primitive.AddressDiscovery
     ( coinTypeAda )
+import Cardano.Wallet.Primitive.Types.Hash
+    ( Hash (..) )
 import Cardano.Wallet.Primitive.Types.TokenMap
-    ( AssetId )
+    ( AssetId (..) )
 import Cardano.Wallet.Primitive.Types.TokenPolicy
-    ( TokenName )
+    ( TokenName, TokenPolicyId (..) )
 import Cardano.Wallet.Primitive.Types.TokenQuantity
     ( TokenQuantity (..) )
 import Cardano.Wallet.Util
@@ -69,6 +71,8 @@ import Data.Map.Strict
     ( Map )
 import Data.Maybe
     ( isJust )
+import Numeric.Natural
+    ( Natural )
 
 import qualified Cardano.Address.Script as CA
 import qualified Data.List.NonEmpty as NE
@@ -138,10 +142,12 @@ toTokenMapAndScript
     => Script Cosigner
     -> Map Cosigner XPub
     -> TokenName
-    -> Integer
-    -> (AssetId, TokenQuantity, Script XPub)
-toTokenMapAndScript _scriptTempl cosignerMap _tName _val =
-    undefined
+    -> Natural
+    -> (AssetId, TokenQuantity, Script KeyHash)
+toTokenMapAndScript scriptTempl cosignerMap tName val =
+    ( AssetId (UnsafeTokenPolicyId $ Hash $ unScriptHash $ toScriptHash $ replaceCosigner scriptTempl) tName
+    , TokenQuantity val
+    , replaceCosigner scriptTempl )
   where
     replaceCosigner :: Script Cosigner -> Script KeyHash
     replaceCosigner = \case
