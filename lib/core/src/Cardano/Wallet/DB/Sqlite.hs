@@ -83,11 +83,9 @@ import Cardano.Wallet.DB
     , ErrPutLocalTxSubmission (..)
     , ErrRemoveTx (..)
     , ErrWalletAlreadyExists (..)
-    , defaultSparseCheckpointsConfig
-    , sparseCheckpoints
     )
 import Cardano.Wallet.DB.Checkpoints
-    ( DeltaCheckpoints (..) )
+    ( DeltaCheckpoints1 (..) )
 import Cardano.Wallet.DB.Sqlite.CheckpointsOld
     ( PersistAddressBook (..), blockHeaderFromEntity, mkStoreWallets )
 import Cardano.Wallet.DB.Sqlite.Migration
@@ -118,7 +116,6 @@ import Cardano.Wallet.DB.WalletState
     , findNearestPoint
     , fromGenesis
     , fromWallet
-    , getBlockHeight
     , getLatest
     , getSlot
     )
@@ -224,7 +221,6 @@ import qualified Cardano.Wallet.Primitive.Types.Hash as W
 import qualified Cardano.Wallet.Primitive.Types.TokenBundle as TokenBundle
 import qualified Cardano.Wallet.Primitive.Types.Tx as W
 import qualified Data.Map.Strict as Map
-import qualified Data.Set as Set
 import qualified Data.Text as T
 
 {-------------------------------------------------------------------------------
@@ -539,24 +535,6 @@ newDBLayerWith _cacheBehavior _tr ti SqliteContext{runQuery} = do
         readCheckpoint_ wid =
             fmap getLatest . Map.lookup wid <$> readDBVar walletsDB_
 
-    let pruneCheckpoints
-            :: W.WalletId
-            -> Quantity "block" Word32 -> W.BlockHeader
-            -> SqlPersistT IO ()
-        pruneCheckpoints wid epochStability tip = do
-            let heights = Set.fromList $ sparseCheckpoints
-                    (defaultSparseCheckpointsConfig epochStability)
-                    (tip ^. #blockHeight)
-            modifyDBMaybe walletsDB_ $ \ws ->
-                case Map.lookup wid ws of
-                    Nothing  -> (Nothing, ())
-                    Just wal ->
-                        let willKeep cp = getBlockHeight cp `Set.member` heights
-                            slots = Map.filter willKeep (wal ^. #checkpoints ^. #checkpoints)
-                            delta = Adjust wid
-                                [ UpdateCheckpoints $ RestrictTo $ Map.keys slots ]
-                        in  (Just delta, ())
-
     -- Delete the a wallet from the checkpoint DBVar
     let deleteCheckpoints :: W.WalletId -> SqlPersistT IO ()
         deleteCheckpoints wid = updateDBVar walletsDB_ $ Delete wid
@@ -600,7 +578,7 @@ newDBLayerWith _cacheBehavior _tr ti SqliteContext{runQuery} = do
                         let (prologue, wcp) = fromWallet cp
                             slot = getSlot wcp
                             delta = Just $ Adjust wid
-                                [ UpdateCheckpoints $ PutCheckpoint slot wcp
+                                [ UpdateCheckpoints [ PutCheckpoint slot wcp ]
                                 , ReplacePrologue prologue
                                 ]
                         in  (delta, Right ())
@@ -624,7 +602,7 @@ newDBLayerWith _cacheBehavior _tr ti SqliteContext{runQuery} = do
                             )
                         Just nearestPoint ->
                             ( Just $ Adjust wid
-                                [ UpdateCheckpoints $ RollbackTo nearestPoint ]
+                                [ UpdateCheckpoints [ RollbackTo nearestPoint ] ]
                             , pure $ Map.lookup nearestPoint $
                                 wal ^. #checkpoints ^. #checkpoints
                             )
@@ -660,7 +638,6 @@ newDBLayerWith _cacheBehavior _tr ti SqliteContext{runQuery} = do
                 Nothing -> pure $ Left $ ErrNoSuchWallet wid
                 Just cp -> Right <$> do
                     let tip = cp ^. #currentTip
-                    pruneCheckpoints wid epochStability tip
                     pruneLocalTxSubmission wid epochStability tip
                     deleteLooseTransactions
 

@@ -246,16 +246,20 @@ import Cardano.Wallet.DB
     , ErrPutLocalTxSubmission (..)
     , ErrRemoveTx (..)
     , ErrWalletAlreadyExists (..)
-    , SparseCheckpointsConfig (..)
-    , defaultSparseCheckpointsConfig
-    , sparseCheckpoints
     )
 import Cardano.Wallet.DB.Checkpoints
-    ( DeltaCheckpoints (..) )
+    ( extendAndPrune )
 import Cardano.Wallet.DB.Sqlite.AddressBook
     ( AddressBookIso, getPrologue )
 import Cardano.Wallet.DB.WalletState
-    ( DeltaMap (..), DeltaWalletState1 (..), fromWallet, getLatest, getSlot )
+    ( DeltaMap (..)
+    , DeltaWalletState1 (..)
+    , WalletState (..)
+    , fromWallet
+    , getBlockHeight
+    , getLatest
+    , getSlot
+    )
 import Cardano.Wallet.Logging
     ( BracketLog
     , BracketLog' (..)
@@ -1041,47 +1045,29 @@ restoreBlocks ctx tr wid blocks nodeTip = db & \DBLayer{..} -> mapExceptT atomic
         liftIO $ logDelegation delegation
         putDelegationCertificate wid cert slotNo
 
-    let unstable = Set.fromList $ sparseCheckpoints cfg (nodeTip ^. #blockHeight)
-            where
-                -- NOTE
-                -- The edge really is an optimization to avoid rolling back too
-                -- "far" in the past. Yet, we let the edge construct itself
-                -- organically once we reach the tip of the chain and start
-                -- processing blocks one by one.
-                --
-                -- This prevents the wallet from trying to create too many
-                -- checkpoints at once during restoration which causes massive
-                -- performance degradation on large wallets.
-                --
-                -- Rollback may still occur during this short period, but
-                -- rolling back from a few hundred blocks is relatively fast
-                -- anyway.
-                cfg = (defaultSparseCheckpointsConfig epochStability) { edgeSize = 0 }
-
-        getBlockHeight cp = fromIntegral $
-            cp ^. #currentTip . #blockHeight . #getQuantity
-        willKeep cp = getBlockHeight cp `Set.member` unstable
-        cpsKeep = filter willKeep (NE.init cps) <> [NE.last cps]
-
-        -- NOTE: We have to update the 'Prologue' as well,
-        -- as it can contain addresses for pending transactions,
-        -- which are removed from the 'Prologue' once the
-        -- transactions are accepted onto the chain and discovered.
-        --
-        -- I'm not so sure that the approach here is correct with
-        -- respect to rollbacks, but it is functionally the same
-        -- as the code that came before.
-        deltaPrologue =
-            [ ReplacePrologue $ getPrologue $ getState $ NE.last cps ]
-        delta = deltaPrologue ++ reverse
-            [ UpdateCheckpoints $ PutCheckpoint (getSlot wcp) wcp
-            | wcp <- map (snd . fromWallet) cpsKeep
-            ]
-
-    liftIO $ mapM_ logCheckpoint cpsKeep
     ExceptT $ modifyDBMaybe walletsDB $
-        adjustNoSuchWallet wid id $ \_ -> Right ( delta, () )
+        adjustNoSuchWallet wid id $ \wal ->
+            let
+                wcps = snd . fromWallet <$> cps
+                deltaCheckpoints =
+                    [ UpdateCheckpoints
+                      $ extendAndPrune getSlot (Quantity . getBlockHeight) epochStability
+                        (nodeTip ^. #blockHeight) wcps (checkpoints wal)
+                    ]
+                -- NOTE: We have to update the 'Prologue' as well,
+                -- as it can contain addresses for pending transactions,
+                -- which are removed from the 'Prologue' once the
+                -- transactions are accepted onto the chain and discovered.
+                --
+                -- I'm not so sure that the approach here is correct with
+                -- respect to rollbacks, but it is functionally the same
+                -- as the code that came before.
+                deltaPrologue =
+                    [ ReplacePrologue $ getPrologue $ getState $ NE.last cps ]
+            in Right ( deltaPrologue ++ deltaCheckpoints, () )
 
+    -- Note: At this point, checkpoints have already been pruned
+    -- we only prune LocalTxSubmission and TxHistory here.
     prune wid epochStability
 
     liftIO $ do
@@ -1090,9 +1076,6 @@ restoreBlocks ctx tr wid blocks nodeTip = db & \DBLayer{..} -> mapExceptT atomic
   where
     nl = ctx ^. networkLayer
     db = ctx ^. dbLayer @IO @s @k
-
-    logCheckpoint :: Wallet s -> IO ()
-    logCheckpoint cp = traceWith tr $ MsgCheckpoint (currentTip cp)
 
     logDelegation :: (SlotNo, DelegationCertificate) -> IO ()
     logDelegation = traceWith tr . uncurry MsgDiscoveredDelegationCert

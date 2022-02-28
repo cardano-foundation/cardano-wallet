@@ -15,7 +15,7 @@ import Cardano.DB.Sqlite
 import Cardano.Wallet.DB.Arbitrary
     ( GenState, InitialCheckpoint (..) )
 import Cardano.Wallet.DB.Checkpoints
-    ( DeltaCheckpoints (..) )
+    ( DeltaCheckpoints1 (..) )
 import Cardano.Wallet.DB.Sqlite.AddressBook
     ( AddressBookIso (..), Prologue, getPrologue )
 import Cardano.Wallet.DB.Sqlite.Stores
@@ -183,7 +183,7 @@ genDeltaWalletState wallet = frequency . map (second updateCheckpoints) $
     , (1, pure $ RestrictTo [])
     ]
   where
-    updateCheckpoints gen = (\x -> [UpdateCheckpoints x]) <$> gen
+    updateCheckpoints gen = (\x -> [UpdateCheckpoints [x]]) <$> gen
 
     slotLatest = case getSlot . snd . fromWallet $ getLatest wallet of
         Origin -> 0
