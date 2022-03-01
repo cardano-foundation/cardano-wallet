@@ -6,6 +6,7 @@
 {-# LANGUAGE GADTs #-}
 {-# LANGUAGE LambdaCase #-}
 {-# LANGUAGE NamedFieldPuns #-}
+{-# LANGUAGE NumericUnderscores #-}
 {-# LANGUAGE OverloadedLabels #-}
 {-# LANGUAGE ScopedTypeVariables #-}
 {-# OPTIONS_GHC -fno-warn-orphans #-}
@@ -542,6 +543,8 @@ data MockSelectionConstraints = MockSelectionConstraints
         :: Int
     , minimumCollateralPercentage
         :: Natural
+    , maximumOutputAdaQuantity
+         :: Coin
     }
     deriving (Eq, Generic, Show)
 
@@ -554,6 +557,7 @@ genMockSelectionConstraints = MockSelectionConstraints
     <*> genMockComputeSelectionLimit
     <*> genMaximumCollateralInputCount
     <*> genMinimumCollateralPercentage
+    <*> genMaximumOutputAdaQuantity
 
 shrinkMockSelectionConstraints
     :: MockSelectionConstraints -> [MockSelectionConstraints]
@@ -565,6 +569,7 @@ shrinkMockSelectionConstraints = genericRoundRobinShrink
     <:> shrinkMockComputeSelectionLimit
     <:> shrinkMaximumCollateralInputCount
     <:> shrinkMinimumCollateralPercentage
+    <:> shrinkMaximumOutputAdaQuantity
     <:> Nil
 
 unMockSelectionConstraints
@@ -584,6 +589,8 @@ unMockSelectionConstraints m = SelectionConstraints
         view #maximumCollateralInputCount m
     , minimumCollateralPercentage =
         view #minimumCollateralPercentage m
+    , maximumOutputAdaQuantity =
+        view #maximumOutputAdaQuantity m
     }
 
 --------------------------------------------------------------------------------
@@ -615,6 +622,25 @@ genMinimumCollateralPercentage = chooseNatural (0, 1000)
 
 shrinkMinimumCollateralPercentage :: Natural -> [Natural]
 shrinkMinimumCollateralPercentage = shrinkNatural
+
+--------------------------------------------------------------------------------
+-- Maximum token quantities
+--------------------------------------------------------------------------------
+
+genMaximumOutputAdaQuantity :: Gen Coin
+genMaximumOutputAdaQuantity = pure testMaximumOutputAdaQuantity
+
+shrinkMaximumOutputAdaQuantity :: Coin -> [Coin]
+shrinkMaximumOutputAdaQuantity = const []
+
+-- | Specifies the largest ada quantity that can appear in the token bundle
+--   of an output.
+--
+-- For the moment, we use the same constant that is used in the wallet. In
+-- future, we can improve our test coverage by allowing this value to vary.
+--
+testMaximumOutputAdaQuantity :: Coin
+testMaximumOutputAdaQuantity = Coin 45_000_000_000_000_000
 
 --------------------------------------------------------------------------------
 -- Selection parameters

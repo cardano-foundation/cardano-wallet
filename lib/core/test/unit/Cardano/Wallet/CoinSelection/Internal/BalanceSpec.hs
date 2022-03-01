@@ -1847,6 +1847,7 @@ mkBoundaryTestExpectation (BoundaryTestData params expectedResult) = do
         , assessTokenBundleSize = unMockAssessTokenBundleSize $
             boundaryTestBundleSizeAssessor params
         , computeSelectionLimit = const NoLimit
+        , maximumOutputAdaQuantity = testMaximumOutputAdaQuantity
         }
 
 encodeBoundaryTestCriteria
@@ -2474,7 +2475,18 @@ unMockSelectionConstraints m = SelectionConstraints
         unMockComputeMinimumCost $ view #computeMinimumCost m
     , computeSelectionLimit =
         unMockComputeSelectionLimit $ view #computeSelectionLimit m
+    , maximumOutputAdaQuantity =
+        testMaximumOutputAdaQuantity
     }
+
+-- | Specifies the largest ada quantity that can appear in the token bundle
+--   of an output.
+--
+-- For the moment, we use the same constant that is used in the wallet. In
+-- future, we can improve our test coverage by allowing this value to vary.
+--
+testMaximumOutputAdaQuantity :: Coin
+testMaximumOutputAdaQuantity = Coin 45_000_000_000_000_000
 
 --------------------------------------------------------------------------------
 -- Computing minimum ada quantities
