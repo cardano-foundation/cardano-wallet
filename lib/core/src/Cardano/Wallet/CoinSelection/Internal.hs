@@ -1151,7 +1151,8 @@ verifySelectionOutputSizeExceedsLimitError cs _ps e =
       where
         bundle = outputReportedAsExceedingLimit ^. #tokens
 
-    outputReportedAsExceedingLimit = e ^. #outputThatExceedsLimit
+    outputReportedAsExceedingLimit = uncurry TxOut
+        (e ^. #outputThatExceedsLimit)
 
 --------------------------------------------------------------------------------
 -- Selection error verification: output token quantity errors
@@ -1404,7 +1405,7 @@ data SelectionOutputError
 
 newtype SelectionOutputSizeExceedsLimitError =
     SelectionOutputSizeExceedsLimitError
-    { outputThatExceedsLimit :: TxOut
+    { outputThatExceedsLimit :: (Address, TokenBundle)
     }
     deriving (Eq, Generic, Show)
 
@@ -1421,7 +1422,7 @@ verifyOutputSize cs out
     | withinLimit =
         Nothing
     | otherwise =
-        Just $ SelectionOutputSizeExceedsLimitError (uncurry TxOut out)
+        Just $ SelectionOutputSizeExceedsLimitError out
   where
     withinLimit :: Bool
     withinLimit =
