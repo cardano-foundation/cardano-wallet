@@ -895,7 +895,7 @@ verifyEmptyUTxOError _cs SelectionParams {utxoAvailableForInputs} _e =
 
 data FailureToVerifyInsufficientMinCoinValueError =
     FailureToVerifyInsufficientMinCoinValueError
-    { reportedOutput :: TxOut
+    { reportedOutput :: (Address, TokenBundle)
     , reportedMinCoinValue :: Coin
     , verifiedMinCoinValue :: Coin
     }
@@ -906,7 +906,7 @@ verifyInsufficientMinCoinValueError
 verifyInsufficientMinCoinValueError cs _ps e =
     verifyAll
         [ reportedMinCoinValue == verifiedMinCoinValue
-        , reportedMinCoinValue > reportedOutput ^. (#tokens . #coin)
+        , reportedMinCoinValue > snd reportedOutput ^. #coin
         ]
         FailureToVerifyInsufficientMinCoinValueError {..}
   where
@@ -914,7 +914,7 @@ verifyInsufficientMinCoinValueError cs _ps e =
     reportedMinCoinValue = e ^. #expectedMinCoinValue
     verifiedMinCoinValue =
         (cs ^. #computeMinimumAdaQuantity)
-        (reportedOutput ^. (#tokens . #tokens))
+        (snd reportedOutput ^. #tokens)
 
 --------------------------------------------------------------------------------
 -- Selection error verification: selection limit errors
