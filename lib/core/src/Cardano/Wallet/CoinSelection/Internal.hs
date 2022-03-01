@@ -86,7 +86,7 @@ import Cardano.Wallet.Primitive.Types.TokenMap
 import Cardano.Wallet.Primitive.Types.TokenQuantity
     ( TokenQuantity )
 import Cardano.Wallet.Primitive.Types.Tx
-    ( TokenBundleSizeAssessment (..), TxOut (..), txOutMaxTokenQuantity )
+    ( TokenBundleSizeAssessment (..), txOutMaxTokenQuantity )
 import Cardano.Wallet.Primitive.Types.UTxOSelection
     ( UTxOSelection )
 import Control.Monad
@@ -1135,7 +1135,7 @@ verifySelectionOutputError cs ps = \case
 
 newtype FailureToVerifySelectionOutputSizeExceedsLimitError =
     FailureToVerifySelectionOutputSizeExceedsLimitError
-        { outputReportedAsExceedingLimit :: TxOut }
+        { outputReportedAsExceedingLimit :: (Address, TokenBundle) }
     deriving (Eq, Show)
 
 verifySelectionOutputSizeExceedsLimitError
@@ -1149,10 +1149,9 @@ verifySelectionOutputSizeExceedsLimitError cs _ps e =
         TokenBundleSizeWithinLimit -> True
         TokenBundleSizeExceedsLimit -> False
       where
-        bundle = outputReportedAsExceedingLimit ^. #tokens
+        bundle = snd outputReportedAsExceedingLimit
 
-    outputReportedAsExceedingLimit = uncurry TxOut
-        (e ^. #outputThatExceedsLimit)
+    outputReportedAsExceedingLimit = e ^. #outputThatExceedsLimit
 
 --------------------------------------------------------------------------------
 -- Selection error verification: output token quantity errors
