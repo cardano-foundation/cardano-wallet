@@ -210,6 +210,7 @@ import Cardano.Wallet.Api.Types
     , ApiBalanceTransactionPostData
     , ApiBlockInfo (..)
     , ApiBlockReference (..)
+    , ApiBurnData (..)
     , ApiByronWallet (..)
     , ApiByronWalletBalance (..)
     , ApiBytesT (..)
@@ -231,6 +232,8 @@ import Cardano.Wallet.Api.Types
     , ApiFee (..)
     , ApiForeignStakeKey (..)
     , ApiMintBurnData (..)
+    , ApiMintBurnOperation (..)
+    , ApiMintData (..)
     , ApiMintedBurnedTransaction (..)
     , ApiMnemonicT (..)
     , ApiMultiDelegationAction (..)
@@ -359,6 +362,8 @@ import Cardano.Wallet.Primitive.AddressDerivation.Byron
     ( ByronKey, mkByronKeyFromMasterKey )
 import Cardano.Wallet.Primitive.AddressDerivation.Icarus
     ( IcarusKey )
+import Cardano.Wallet.Primitive.AddressDerivation.MintBurn
+    ( toTokenMapAndScript )
 import Cardano.Wallet.Primitive.AddressDerivation.SharedKey
     ( SharedKey (..) )
 import Cardano.Wallet.Primitive.AddressDerivation.Shelley
@@ -451,7 +456,7 @@ import Cardano.Wallet.Primitive.Types.Redeemer
 import Cardano.Wallet.Primitive.Types.TokenBundle
     ( Flat (..), TokenBundle (..) )
 import Cardano.Wallet.Primitive.Types.TokenMap
-    ( AssetId (..) )
+    ( AssetId (..), fromFlatList )
 import Cardano.Wallet.Primitive.Types.TokenPolicy
     ( TokenName (..), TokenPolicyId (..), nullTokenName )
 import Cardano.Wallet.Primitive.Types.Tx
@@ -488,7 +493,7 @@ import Cardano.Wallet.Unsafe
 import Cardano.Wallet.Util
     ( invariant )
 import Control.Arrow
-    ( second )
+    ( second, (&&&) )
 import Control.DeepSeq
     ( NFData )
 import Control.Error.Util
@@ -2261,7 +2266,40 @@ constructTransaction ctx genChange knownPools getPoolStatus (ApiT wid) body = do
         txCtx' <-
             if isJust mintingBurning then do
                 (policyXPub, _) <- liftHandler $ W.readPolicyPublicKey @_ @s @k @n wrk wid
-                undefined
+                let isMinting (ApiMintBurnData _ _ _ (ApiMint _)) = True
+                    isMinting _ = False
+                let getMinting (ApiMintBurnData _ (ApiT scriptT) (ApiT tName) (ApiMint (ApiMintData _ (Quantity amt)))) =
+                        toTokenMapAndScript @k scriptT
+                        (Map.singleton (Cosigner 0) policyXPub)
+                        tName
+                        amt
+                    getMinting _ = error "getMinting should not be used that way"
+                let getBurning (ApiMintBurnData _ (ApiT scriptT) (ApiT tName) (ApiBurn (ApiBurnData (Quantity amt)))) =
+                        toTokenMapAndScript @k scriptT
+                        (Map.singleton (Cosigner 0) policyXPub)
+                        tName
+                        amt
+                    getBurning _ = error "getBurning should not be used that way"
+                let toTokenMap =
+                        fromFlatList .
+                        map (\(a,q,_) -> (a,q))
+                let toScriptTemplateMap =
+                        Map.fromList .
+                        map (\(a,_,s) -> (a,s))
+                let mintingData =
+                        toTokenMap &&& toScriptTemplateMap $
+                        map getMinting $
+                        filter isMinting $
+                        NE.toList $ fromJust mintingBurning
+                let burningData =
+                        toTokenMap &&& toScriptTemplateMap $
+                        map getBurning $
+                        filter (not . isMinting) $
+                        NE.toList $ fromJust mintingBurning
+                pure $ txCtx
+                    { txAssetsToMint = fst mintingData
+                    , txAssetsToBurn = fst burningData
+                    }
             else
                 pure txCtx
 
