@@ -89,14 +89,7 @@ import Cardano.Wallet.Primitive.Types.Tx
 import Cardano.Wallet.Primitive.Types.Tx.Gen
     ( genTx, genTxIn, genTxOut, shrinkTx, shrinkTxIn, shrinkTxOut )
 import Cardano.Wallet.Primitive.Types.UTxO
-    ( Dom (..)
-    , UTxO (..)
-    , balance
-    , excluding
-    , filterByAddress
-    , isSubsetOf
-    , restrictedTo
-    )
+    ( Dom (..), UTxO (..), balance, excluding, filterByAddress, restrictedTo )
 import Cardano.Wallet.Primitive.Types.UTxO.Gen
     ( genUTxO, shrinkUTxO )
 import Cardano.Wallet.Util
@@ -176,8 +169,6 @@ import Test.QuickCheck.Extra
 import qualified Cardano.Wallet.Primitive.Types.Coin as Coin
 import qualified Cardano.Wallet.Primitive.Types.TokenBundle as TokenBundle
 import qualified Cardano.Wallet.Primitive.Types.UTxO as UTxO
-import Control.Arrow
-    ( (>>>) )
 import qualified Data.ByteString as BS
 import qualified Data.Foldable as F
 import qualified Data.List as L
@@ -279,8 +270,6 @@ spec = do
     parallel $ describe "Applying transactions to UTxO sets" $ do
         it "prop_applyOurTxToUTxO_allOurs" $
             property prop_applyOurTxToUTxO_allOurs
-        it "prop_applyOurTxToUTxO_noneOurs" $
-            property prop_applyOurTxToUTxO_noneOurs
         it "prop_applyOurTxToUTxO_someOurs" $
             property prop_applyOurTxToUTxO_someOurs
 
@@ -579,19 +568,6 @@ instance IsOurs AllOurs a where
       where
         shouldNotEvaluate = error "AllOurs: unexpected evaluation"
 
--- | A simplified wallet state that tracks UTxOs as "ours".
---
-newtype OurUtxo = OurUtxo UTxO
-
-instance IsOurs OurUtxo Address where
-    isOurs addr s@(OurUtxo utxo) =
-        if any (address >>> (== addr)) (Map.elems (unUTxO utxo))
-            then (Just (pure (DerivationIndex 0)), s)
-            else  (Nothing, s)
-
-instance IsOurs OurUtxo RewardAccount where
-    isOurs _ = (Nothing,)
-
 -- | Encapsulates a filter condition for matching entities with 'IsOurs'.
 --
 newtype IsOursIf a = IsOursIf {condition :: a -> Bool}
@@ -780,24 +756,6 @@ prop_applyOurTxToUTxO_allOurs slotNo blockHeight tx utxo =
     maybeResult = snd <$> applyOurTxToUTxO slotNo blockHeight AllOurs tx utxo
     shouldHaveResult :: Bool
     shouldHaveResult = evalState (isOurTx tx utxo) AllOurs
-
--- Verifies that UTxO set can't grow when there are no "our" transactions.
--- Hint: UTxO set shrinks when foreign transaction uses it as collateral.
-prop_applyOurTxToUTxO_noneOurs
-    :: SlotNo
-    -> Quantity "block" Word32
-    -> Tx
-    -> UTxO
-    -> Property
-prop_applyOurTxToUTxO_noneOurs slotNo blockHeight tx utxo =
-    report tx "tx" $
-    report utxo "utxo" $
-    report utxo' "utxo'" $
-    report (utxoFromTx tx) "utxoFromTx tx" $
-    property $ utxo' `isSubsetOf` utxo
-  where
-    utxo' = maybe utxo snd $
-        applyOurTxToUTxO slotNo blockHeight (OurUtxo utxo) tx utxo
 
 -- Verifies that 'applyOurTxToUTxO' returns a result only when it is
 -- appropriate to do so.

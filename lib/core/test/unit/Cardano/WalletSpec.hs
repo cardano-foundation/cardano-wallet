@@ -331,8 +331,6 @@ spec = parallel $ describe "Cardano.WalletSpec" $ do
             (withMaxSuccess 10 $ property walletKeyIsReencrypted)
         it "Wallet can list transactions"
             (property walletListTransactionsSorted)
-        it "Wallet can list assets"
-            (property walletListAssets)
         it "Wallet won't list unrelated assets used in related transactions"
             (property walletListsOnlyRelatedAssets)
 
@@ -1418,7 +1416,7 @@ instance Sqlite.AddressBookIso DummyState where
 instance Eq (Sqlite.Prologue DummyState) where _ == _ = True
 instance Eq (Sqlite.Discoveries DummyState) where
     DummyDiscoveries a == DummyDiscoveries b = a == b
- 
+
 instance Sqlite.PersistAddressBook DummyState where
     insertPrologue _ _ = error "DummyState.insertPrologue: not implemented"
     insertDiscoveries _ _ _ = error "DummyState.insertDiscoveries: not implemented"
