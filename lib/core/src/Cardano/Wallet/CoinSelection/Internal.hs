@@ -86,7 +86,7 @@ import Cardano.Wallet.Primitive.Types.TokenMap
 import Cardano.Wallet.Primitive.Types.TokenQuantity
     ( TokenQuantity )
 import Cardano.Wallet.Primitive.Types.Tx
-    ( TokenBundleSizeAssessment (..), TxOut (..), txOutMaxTokenQuantity )
+    ( TokenBundleSizeAssessment (..), txOutMaxTokenQuantity )
 import Cardano.Wallet.Primitive.Types.UTxOSelection
     ( UTxOSelection )
 import Control.Monad
@@ -895,7 +895,7 @@ verifyEmptyUTxOError _cs SelectionParams {utxoAvailableForInputs} _e =
 
 data FailureToVerifyInsufficientMinCoinValueError =
     FailureToVerifyInsufficientMinCoinValueError
-    { reportedOutput :: TxOut
+    { reportedOutput :: (Address, TokenBundle)
     , reportedMinCoinValue :: Coin
     , verifiedMinCoinValue :: Coin
     }
@@ -906,7 +906,7 @@ verifyInsufficientMinCoinValueError
 verifyInsufficientMinCoinValueError cs _ps e =
     verifyAll
         [ reportedMinCoinValue == verifiedMinCoinValue
-        , reportedMinCoinValue > reportedOutput ^. (#tokens . #coin)
+        , reportedMinCoinValue > snd reportedOutput ^. #coin
         ]
         FailureToVerifyInsufficientMinCoinValueError {..}
   where
@@ -914,7 +914,7 @@ verifyInsufficientMinCoinValueError cs _ps e =
     reportedMinCoinValue = e ^. #expectedMinCoinValue
     verifiedMinCoinValue =
         (cs ^. #computeMinimumAdaQuantity)
-        (reportedOutput ^. (#tokens . #tokens))
+        (snd reportedOutput ^. #tokens)
 
 --------------------------------------------------------------------------------
 -- Selection error verification: selection limit errors
@@ -1135,7 +1135,7 @@ verifySelectionOutputError cs ps = \case
 
 newtype FailureToVerifySelectionOutputSizeExceedsLimitError =
     FailureToVerifySelectionOutputSizeExceedsLimitError
-        { outputReportedAsExceedingLimit :: TxOut }
+        { outputReportedAsExceedingLimit :: (Address, TokenBundle) }
     deriving (Eq, Show)
 
 verifySelectionOutputSizeExceedsLimitError
@@ -1149,7 +1149,7 @@ verifySelectionOutputSizeExceedsLimitError cs _ps e =
         TokenBundleSizeWithinLimit -> True
         TokenBundleSizeExceedsLimit -> False
       where
-        bundle = outputReportedAsExceedingLimit ^. #tokens
+        bundle = snd outputReportedAsExceedingLimit
 
     outputReportedAsExceedingLimit = e ^. #outputThatExceedsLimit
 
@@ -1404,7 +1404,7 @@ data SelectionOutputError
 
 newtype SelectionOutputSizeExceedsLimitError =
     SelectionOutputSizeExceedsLimitError
-    { outputThatExceedsLimit :: TxOut
+    { outputThatExceedsLimit :: (Address, TokenBundle)
     }
     deriving (Eq, Generic, Show)
 
@@ -1421,7 +1421,7 @@ verifyOutputSize cs out
     | withinLimit =
         Nothing
     | otherwise =
-        Just $ SelectionOutputSizeExceedsLimitError (uncurry TxOut out)
+        Just $ SelectionOutputSizeExceedsLimitError out
   where
     withinLimit :: Bool
     withinLimit =

@@ -133,13 +133,12 @@ import Cardano.Wallet.Primitive.Types.Coin
 import Cardano.Wallet.Primitive.Types.TokenBundle
     ( TokenBundle (..) )
 import Cardano.Wallet.Primitive.Types.TokenMap
-    ( AssetId, TokenMap )
+    ( AssetId, Flat (..), TokenMap )
 import Cardano.Wallet.Primitive.Types.TokenQuantity
     ( TokenQuantity (..) )
 import Cardano.Wallet.Primitive.Types.Tx
     ( TokenBundleSizeAssessment (..)
     , TokenBundleSizeAssessor (..)
-    , TxOut (..)
     , txOutMaxCoin
     , txOutMaxTokenQuantity
     )
@@ -706,7 +705,7 @@ balanceMissing (BalanceInsufficientError available required) =
 --
 data InsufficientMinCoinValueError = InsufficientMinCoinValueError
     { outputWithInsufficientAda
-        :: !TxOut
+        :: !(Address, TokenBundle)
         -- ^ The particular output that does not have the minimum coin quantity
         -- expected by the protocol.
     , expectedMinCoinValue
@@ -715,9 +714,10 @@ data InsufficientMinCoinValueError = InsufficientMinCoinValueError
     } deriving (Generic, Eq, Show)
 
 instance Buildable InsufficientMinCoinValueError where
-    build (InsufficientMinCoinValueError o c) = unlinesF
+    build (InsufficientMinCoinValueError (a, b) c) = unlinesF
         [ nameF "Expected min coin value" (build c)
-        , nameF "TxOut" (build o)
+        , nameF "Address" (build a)
+        , nameF "Token bundle" (build (Flat b))
         ]
 
 data UnableToConstructChangeError = UnableToConstructChangeError
@@ -903,7 +903,7 @@ performSelectionNonEmpty constraints params
             | otherwise =
                 Just $ InsufficientMinCoinValueError
                     { expectedMinCoinValue
-                    , outputWithInsufficientAda = uncurry TxOut o
+                    , outputWithInsufficientAda = o
                     }
           where
             expectedMinCoinValue = computeMinimumAdaQuantity

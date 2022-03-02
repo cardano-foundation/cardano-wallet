@@ -4328,9 +4328,9 @@ instance IsServerError SelectionOutputSizeExceedsLimitError where
         [ "One of the outputs you've specified contains too many assets. "
         , "Try splitting these assets across two or more outputs. "
         , "Destination address: "
-        , pretty (output ^. #address)
+        , pretty (fst output)
         , ". Asset count: "
-        , pretty (TokenMap.size $ output ^. (#tokens . #tokens))
+        , pretty (TokenMap.size $ snd output ^. #tokens)
         , "."
         ]
       where

@@ -136,7 +136,6 @@ import Cardano.Wallet.Primitive.Types.Tx
     , TokenBundleSizeAssessor (..)
     , TxIn (..)
     , TxOut (..)
-    , txOutCoin
     , txOutMaxTokenQuantity
     )
 import Cardano.Wallet.Primitive.Types.Tx.Gen
@@ -1049,7 +1048,7 @@ prop_performSelection mockConstraints params coverage =
         property True
       where
         actualMinCoinValue
-            = txOutCoin . outputWithInsufficientAda
+            = view #coin . snd . outputWithInsufficientAda
 
     onUnableToConstructChange :: UnableToConstructChangeError -> Property
     onUnableToConstructChange e =
