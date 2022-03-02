@@ -139,7 +139,6 @@ library
     , wai
     , warp
     , warp-tls
-    , wide-word
     , x509
     , x509-store
     , x509-validation

@@ -38,8 +38,6 @@ import Data.Bits
     ( (.|.) )
 import Data.Coerce
     ( coerce )
-import Data.WideWord.Word128
-    ( Word128 (..) )
 import Data.Word
     ( Word64 )
 import Data.Word.Odd
@@ -77,7 +75,7 @@ newtype StdGenSeed = StdGenSeed
     deriving (Eq, Bounded, Generic, Ord)
     deriving Show via (Quiet StdGenSeed)
 
-type Word127 = OddWord Word128 (Lit 127)
+type Word127 = OddWord Integer (Lit 127)
 
 instance ToJSON StdGenSeed where
     toJSON = toJSON . Number . fromIntegral . unStdGenSeed
