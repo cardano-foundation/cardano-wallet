@@ -271,11 +271,11 @@ applyBlock !block (Wallet !u0 _ s0) =
 --
 applyBlocks
     :: (IsOurs s Address, IsOurs s RewardAccount)
-    => NonEmpty (Block)
+    => NonEmpty Block
     -> Wallet s
     -> NonEmpty (FilteredBlock, Wallet s)
-applyBlocks (block0 :| blocks) cp =
-    NE.scanl (flip applyBlock . snd) (applyBlock block0 cp) blocks
+applyBlocks (block0 :| blocks) walletState =
+    NE.scanl (flip applyBlock . snd) (applyBlock block0 walletState) blocks
 
 {-------------------------------------------------------------------------------
                                    Accessors
@@ -379,7 +379,7 @@ changeUTxO pending = evalState $
                                 UTxO operations
 -------------------------------------------------------------------------------}
 
--- | Applies a transaction to a UTxO, moving it from one state from another.
+-- | Applies a transaction to a UTxO, moving it from one state to another.
 --
 -- When applying a transaction to a UTxO:
 --   1. We need to remove any unspents that have been spent in the transaction.
@@ -426,7 +426,7 @@ spendTx tx !u =
 -- | Construct a 'UTxO' corresponding to a given transaction.
 --
 -- It is important for the transaction outputs to be ordered correctly,
--- as their index within this ordering determines how 
+-- as their index within this ordering determines how
 -- they are referenced as transaction inputs in subsequent blocks.
 --
 -- > balance (utxoFromTx tx) = foldMap tokens (outputs tx)
@@ -463,7 +463,7 @@ discoverAddresses block s0 = s2
     -- NOTE: Only outputs and withdrawals can potentially
     -- result in the extension of the address pool and
     -- the learning of new addresses.
-    -- 
+    --
     -- Inputs and collateral are forced to use existing addresses.
     discoverTx s tx = discoverWithdrawals (discoverOutputs s tx) tx
     discoverOutputs s tx =
@@ -529,10 +529,7 @@ applyBlockToUTxO Block{header,transactions,delegations} s u0 = (fblock, u1)
       }
     (txs1, u1) = L.foldl' applyOurTx (mempty, u0) transactions
 
-    applyOurTx
-        :: ([(Tx, TxMeta)], UTxO)
-        -> Tx
-        -> ([(Tx, TxMeta)], UTxO)
+    applyOurTx :: ([(Tx, TxMeta)], UTxO) -> Tx -> ([(Tx, TxMeta)], UTxO)
     applyOurTx (!txs, !u) !tx =
         case applyOurTxToUTxO slotNo blockHeight s tx u of
             Nothing -> (txs, u)
@@ -557,59 +554,59 @@ applyOurTxToUTxO
     -> UTxO
     -> Maybe ((Tx, TxMeta), UTxO)
 applyOurTxToUTxO !slotNo !blockHeight !s !tx !prevUTxO =
-    let
-        -- The next UTxO state (apply a state transition) (e.g. remove
-        -- transaction outputs we've spent)
-        ourNextUTxO =
-            spendTx tx prevUTxO
-            <> UTxO.filterByAddress (ours s) (utxoFromTx tx)
-        ourWithdrawalSum = ourWithdrawalSumFromTx s tx
-
-        -- Balance of the UTxO that we received and that we spent
-        received = balance (ourNextUTxO `excluding` dom prevUTxO)
-        spent =
-            balance (prevUTxO `excluding` dom ourNextUTxO)
-            `TB.add` TB.fromCoin ourWithdrawalSum
-
-        adaSpent = TB.getCoin spent
-        adaReceived = TB.getCoin received
-        dir = if adaSpent > adaReceived then Outgoing else Incoming
-        amount = distance adaSpent adaReceived
-
-        -- Transaction metadata computed from the above information
-        txmeta = TxMeta
-            { status = InLedger
-            , direction = dir
-            , slotNo
-            , blockHeight
-            , amount = amount
-            , expiry = Nothing
-            }
-
-        hasKnownWithdrawal = ourWithdrawalSum /= mempty
-
-        -- NOTE 1: The only case where fees can be 'Nothing' is when dealing with
-        -- a Byron transaction. In which case fees can actually be calculated as
-        -- the delta between inputs and outputs.
-        --
-        -- NOTE 2: We do not have in practice the actual input amounts, yet we
-        -- do make the assumption that if one input is ours, then all inputs are
-        -- necessarily ours and therefore, known as part of our current UTxO.
-        actualFee direction = case (tx ^. #fee, direction) of
-            (Just x, Outgoing) ->
-                -- Shelley and beyond:
-                Just x
-            (Nothing, Outgoing) ->
-                -- Byron:
-                let totalOut = F.fold (txOutCoin <$> outputs tx)
-                    totalIn = TB.getCoin spent
-                in
-                Just $ distance totalIn totalOut
-            (_, Incoming) ->
-                Nothing
-    in if hasKnownWithdrawal || prevUTxO /= ourNextUTxO
-        then Just ((tx {fee = actualFee dir}, txmeta), ourNextUTxO)
+    if ourWithdrawalSum /= mempty || prevUTxO /= ourNextUTxO
+        then
+            let updatedTx = tx { fee = actualFee dir }
+            in Just ((updatedTx, txmeta), ourNextUTxO)
         else Nothing
+  where
+    -- The next UTxO state (apply a state transition) (e.g. remove
+    -- transaction outputs we've spent)
+    ourNextUTxO =
+        spendTx tx prevUTxO
+        <> UTxO.filterByAddress (ours s) (utxoFromTx tx)
+    ourWithdrawalSum = ourWithdrawalSumFromTx s tx
+
+    -- Balance of the UTxO that we received and that we spent
+    received = balance (ourNextUTxO `excluding` dom prevUTxO)
+    spent =
+        balance (prevUTxO `excluding` dom ourNextUTxO)
+        `TB.add` TB.fromCoin ourWithdrawalSum
+
+    adaSpent = TB.getCoin spent
+    adaReceived = TB.getCoin received
+    dir = if adaSpent > adaReceived then Outgoing else Incoming
+    amount = distance adaSpent adaReceived
+
+    -- Transaction metadata computed from the above information
+    txmeta = TxMeta
+        { status = InLedger
+        , direction = dir
+        , slotNo
+        , blockHeight
+        , amount = amount
+        , expiry = Nothing
+        }
+
+    -- NOTE 1: The only case where fees can be 'Nothing' is when dealing with
+    -- a Byron transaction. In which case fees can actually be calculated as
+    -- the delta between inputs and outputs.
+    --
+    -- NOTE 2: We do not have in practice the actual input amounts, yet we
+    -- do make the assumption that if one input is ours, then all inputs are
+    -- necessarily ours and therefore, known as part of our current UTxO.
+    actualFee direction = case (tx ^. #fee, direction) of
+        (Just x, Outgoing) ->
+            -- Shelley and beyond:
+            Just x
+        (Nothing, Outgoing) ->
+            -- Byron:
+            let totalOut = F.fold (txOutCoin <$> outputs tx)
+                totalIn = TB.getCoin spent
+            in
+            Just $ distance totalIn totalOut
+        (_, Incoming) ->
+            Nothing
 
 ourWithdrawalSumFromTx
     :: IsOurs s RewardAccount

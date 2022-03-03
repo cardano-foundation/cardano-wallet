@@ -158,6 +158,7 @@ module Cardano.Wallet
     -- ** Transaction
     , forgetTx
     , listTransactions
+    , listAssets
     , getTransaction
     , submitExternalTx
     , submitTx
@@ -508,7 +509,7 @@ import Data.List.NonEmpty
 import Data.Map.Strict
     ( Map )
 import Data.Maybe
-    ( fromMaybe, mapMaybe )
+    ( fromMaybe, isJust, mapMaybe )
 import Data.Proxy
     ( Proxy )
 import Data.Quantity
@@ -2489,6 +2490,28 @@ listTransactions ctx wid mMinWithdrawal mStart mEnd order = db & \DBLayer{..} ->
                 $ slotRangeFromTimeRange
                 $ Range mStart mEnd
 
+-- | Extract assets associated with a given wallet from its transaction history.
+listAssets
+    :: forall s k ctx. (HasDBLayer IO s k ctx, IsOurs s Address)
+    => ctx
+    -> WalletId
+    -> ExceptT ErrNoSuchWallet IO (Set TokenMap.AssetId)
+listAssets ctx wid = db & \DBLayer{..} -> do
+    cp <- mapExceptT atomically $ withNoSuchWallet wid $ readCheckpoint wid
+    txs <- lift . atomically $
+        let noMinWithdrawal = Nothing
+            allTxStatuses = Nothing
+        in readTxHistory wid noMinWithdrawal Ascending wholeRange allTxStatuses
+    let txAssets :: TransactionInfo -> Set TokenMap.AssetId
+        txAssets = Set.unions
+            . map (TokenBundle.getAssets . view #tokens)
+            . filter ourOut
+            . txInfoOutputs
+        ourOut TxOut{address} = ourAddress address
+        ourAddress addr = isJust . fst . isOurs addr $ getState cp
+    pure $ Set.unions $ map txAssets txs
+  where
+    db = ctx ^. dbLayer @IO @s @k
 
 -- | Get transaction and metadata from history for a given wallet.
 getTransaction

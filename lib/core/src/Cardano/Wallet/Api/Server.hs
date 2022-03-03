@@ -1731,6 +1731,7 @@ newtype ErrListAssets = ErrListAssetsNoSuchWallet ErrNoSuchWallet
 listAssets
     :: forall ctx s k.
         ( ctx ~ ApiLayer s k
+        , IsOurs s Address
         , HasTokenMetadataClient ctx
         )
     => ctx
@@ -1738,27 +1739,18 @@ listAssets
     -> Handler [ApiAsset]
 listAssets ctx wid = do
     assets <- listAssetsBase ctx wid
-    liftIO $ fillMetadata client assets toApiAsset
+    liftIO $ fillMetadata client (Set.toList assets) toApiAsset
   where
     client = ctx ^. tokenMetadataClient
 
 -- | Return a list of all AssetIds involved in the transaction history of this
 -- wallet.
 listAssetsBase
-    :: forall ctx s k.
-        ( ctx ~ ApiLayer s k
-        )
-    => ctx
-    -> ApiT WalletId
-    -> Handler [AssetId]
-listAssetsBase ctx (ApiT wid) = withWorkerCtx ctx wid liftE liftE $ \wrk ->
-    liftHandler $ allTxAssets <$>
-    W.listTransactions @_ @_ @_ wrk wid Nothing Nothing Nothing Descending
-  where
-    allTxAssets = Set.toList . Set.unions . map txAssets
-    txAssets = Set.unions
-        . map (TokenBundle.getAssets . view #tokens)
-        . W.txInfoOutputs
+    :: forall s k. IsOurs s Address =>
+    ApiLayer s k -> ApiT WalletId -> Handler (Set AssetId)
+listAssetsBase ctx (ApiT wallet) =
+    withWorkerCtx ctx wallet liftE liftE $ \wctx ->
+        liftHandler $ W.listAssets wctx wallet
 
 -- | Look up a single asset and its metadata.
 --
@@ -1767,6 +1759,7 @@ listAssetsBase ctx (ApiT wid) = withWorkerCtx ctx wid liftE liftE $ \wrk ->
 getAsset
     :: forall ctx s k.
         ( ctx ~ ApiLayer s k
+        , IsOurs s Address
         , HasTokenMetadataClient ctx
         )
     => ctx
@@ -1786,6 +1779,7 @@ getAsset ctx wid (ApiT policyId) (ApiT assetName) = do
 getAssetDefault
     :: forall ctx s k.
         ( ctx ~ ApiLayer s k
+        , IsOurs s Address
         , HasTokenMetadataClient ctx
         )
     => ctx
