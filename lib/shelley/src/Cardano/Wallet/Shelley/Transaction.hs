@@ -117,7 +117,7 @@ import Cardano.Wallet.Primitive.Types.Hash
 import Cardano.Wallet.Primitive.Types.Redeemer
     ( Redeemer, redeemerData )
 import Cardano.Wallet.Primitive.Types.TokenBundle
-    ( TokenBundle )
+    ( TokenBundle (..) )
 import Cardano.Wallet.Primitive.Types.TokenMap
     ( AssetId (..), TokenMap )
 import Cardano.Wallet.Primitive.Types.TokenPolicy
@@ -152,6 +152,7 @@ import Cardano.Wallet.Shelley.Compatibility
     , toCardanoStakeCredential
     , toCardanoTxIn
     , toCardanoTxOut
+    , toCardanoValue
     , toCostModelsAsArray
     , toHDPayloadAddress
     , toScriptPurpose
@@ -173,7 +174,7 @@ import Cardano.Wallet.Transaction
     , withdrawalToCoin
     )
 import Cardano.Wallet.Util
-    ( internalError, modifyM )
+    ( modifyM )
 import Codec.Serialise
     ( deserialiseOrFail )
 import Control.Arrow
@@ -337,15 +338,9 @@ constructUnsignedTx networkId (md, certs) ttl rewardAcnt wdrl cs fee toMint toBu
     sealedTxFromCardanoBody <$> tx
   where
     tx = mkUnsignedTx era ttl cs md wdrls certs (toCardanoLovelace fee)
+        (fst toMint) (fst toBurn) allScripts
     wdrls = mkWithdrawals networkId rewardAcnt wdrl
     allScripts = Map.union (snd toMint) (snd toBurn)
-    decorateWithScript (assetId, quantity) =
-        case Map.lookup assetId allScripts of
-            Just script -> (assetId, quantity, script)
-            Nothing -> internalError "constructUnsignedTx: each assetId at this point should have accompanying script"
-    extractData = map decorateWithScript . TokenMap.toFlatList . fst
-    mintData = extractData toMint
-    burnData = extractData toBurn
 
 mkTx
     :: forall k era.
@@ -377,6 +372,7 @@ mkTx networkId payload ttl (rewardAcnt, pwdAcnt) addrResolver wdrl cs fees era =
             wdrl
 
     unsigned <- mkUnsignedTx era ttl cs md wdrls certs (toCardanoLovelace fees)
+                TokenMap.empty TokenMap.empty Map.empty
     let signed = signTransaction networkId acctResolver addrResolver inputResolver
             (unsigned, mkExtraWits unsigned)
 
@@ -1856,8 +1852,11 @@ mkUnsignedTx
     -> [(Cardano.StakeAddress, Cardano.Lovelace)]
     -> [Cardano.Certificate]
     -> Cardano.Lovelace
+    -> TokenMap
+    -> TokenMap
+    -> Map AssetId (Script KeyHash)
     -> Either ErrMkTransaction (Cardano.TxBody era)
-mkUnsignedTx era ttl cs md wdrls certs fees =
+mkUnsignedTx era ttl cs md wdrls certs fees mintData burnData allScripts =
     left toErrMkTx $ Cardano.makeTransactionBody $ Cardano.TxBodyContent
     { Cardano.txIns =
         (,Cardano.BuildTxWith (Cardano.KeyWitness Cardano.KeyWitnessForSpending))
@@ -1917,7 +1916,15 @@ mkUnsignedTx era ttl cs md wdrls certs fees =
         Cardano.TxUpdateProposalNone
 
     , Cardano.txMintValue =
-        Cardano.TxMintNone
+        case txMintingSupported of
+            Nothing -> Cardano.TxMintNone
+            Just mintedEra ->
+                let mintValue = toCardanoValue (TokenBundle (Coin 0) mintData)
+                    burnValue =
+                        Cardano.negateValue $
+                        toCardanoValue (TokenBundle (Coin 0) burnData)
+                    witsMap = undefined
+                in Cardano.TxMintValue mintedEra (mintValue <> burnValue) witsMap
     }
   where
     toErrMkTx :: Cardano.TxBodyError -> ErrMkTransaction
@@ -1950,6 +1957,14 @@ mkUnsignedTx era ttl cs md wdrls certs fees =
         ShelleyBasedEraAllegra -> Cardano.ValidityUpperBoundInAllegraEra
         ShelleyBasedEraMary -> Cardano.ValidityUpperBoundInMaryEra
         ShelleyBasedEraAlonzo -> Cardano.ValidityUpperBoundInAlonzoEra
+
+    txMintingSupported :: Maybe (Cardano.MultiAssetSupportedInEra era)
+    txMintingSupported = case era of
+        ShelleyBasedEraShelley -> Nothing
+        ShelleyBasedEraAllegra -> Nothing
+        ShelleyBasedEraMary -> Just Cardano.MultiAssetInMaryEra
+        ShelleyBasedEraAlonzo -> Just Cardano.MultiAssetInAlonzoEra
+
 
 mkWithdrawals
     :: NetworkId
