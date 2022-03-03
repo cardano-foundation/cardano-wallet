@@ -8,18 +8,18 @@
   , config
   , ... }:
   {
-    flags = { development = false; };
+    flags = {};
     package = {
-      specVersion = "2.2";
-      identifier = { name = "cardano-prelude"; version = "0.1.0.0"; };
-      license = "MIT";
-      copyright = "2018-2021 IOHK";
+      specVersion = "2.4";
+      identifier = { name = "trace-forward"; version = "0.1.0"; };
+      license = "Apache-2.0";
+      copyright = "2021 Input Output (Hong Kong) Ltd.";
       maintainer = "operations@iohk.io";
       author = "IOHK";
       homepage = "";
       url = "";
-      synopsis = "A Prelude replacement for the Cardano project";
-      description = "A Prelude replacement for the Cardano project";
+      synopsis = "The forwarding protocols library for cardano node.";
+      description = "The library providing typed protocols for forwarding different\ninformation from the cardano node to an external application.";
       buildType = "Simple";
       };
     components = {
@@ -27,26 +27,44 @@
         depends = [
           (hsPkgs."base" or (errorHandler.buildDepError "base"))
           (hsPkgs."aeson" or (errorHandler.buildDepError "aeson"))
-          (hsPkgs."array" or (errorHandler.buildDepError "array"))
-          (hsPkgs."base16-bytestring" or (errorHandler.buildDepError "base16-bytestring"))
+          (hsPkgs."async" or (errorHandler.buildDepError "async"))
           (hsPkgs."bytestring" or (errorHandler.buildDepError "bytestring"))
-          (hsPkgs."canonical-json" or (errorHandler.buildDepError "canonical-json"))
           (hsPkgs."cborg" or (errorHandler.buildDepError "cborg"))
           (hsPkgs."containers" or (errorHandler.buildDepError "containers"))
-          (hsPkgs."formatting" or (errorHandler.buildDepError "formatting"))
-          (hsPkgs."ghc-heap" or (errorHandler.buildDepError "ghc-heap"))
-          (hsPkgs."ghc-prim" or (errorHandler.buildDepError "ghc-prim"))
-          (hsPkgs."integer-gmp" or (errorHandler.buildDepError "integer-gmp"))
-          (hsPkgs."mtl" or (errorHandler.buildDepError "mtl"))
-          (hsPkgs."protolude" or (errorHandler.buildDepError "protolude"))
-          (hsPkgs."tagged" or (errorHandler.buildDepError "tagged"))
+          (hsPkgs."contra-tracer" or (errorHandler.buildDepError "contra-tracer"))
+          (hsPkgs."extra" or (errorHandler.buildDepError "extra"))
+          (hsPkgs."io-classes" or (errorHandler.buildDepError "io-classes"))
+          (hsPkgs."ouroboros-network-framework" or (errorHandler.buildDepError "ouroboros-network-framework"))
+          (hsPkgs."serialise" or (errorHandler.buildDepError "serialise"))
+          (hsPkgs."stm" or (errorHandler.buildDepError "stm"))
           (hsPkgs."text" or (errorHandler.buildDepError "text"))
-          (hsPkgs."time" or (errorHandler.buildDepError "time"))
-          (hsPkgs."vector" or (errorHandler.buildDepError "vector"))
+          (hsPkgs."typed-protocols" or (errorHandler.buildDepError "typed-protocols"))
+          (hsPkgs."typed-protocols-cborg" or (errorHandler.buildDepError "typed-protocols-cborg"))
           ];
         buildable = true;
         };
+      tests = {
+        "test" = {
+          depends = [
+            (hsPkgs."base" or (errorHandler.buildDepError "base"))
+            (hsPkgs."aeson" or (errorHandler.buildDepError "aeson"))
+            (hsPkgs."bytestring" or (errorHandler.buildDepError "bytestring"))
+            (hsPkgs."contra-tracer" or (errorHandler.buildDepError "contra-tracer"))
+            (hsPkgs."io-classes" or (errorHandler.buildDepError "io-classes"))
+            (hsPkgs."io-sim" or (errorHandler.buildDepError "io-sim"))
+            (hsPkgs."ouroboros-network-framework" or (errorHandler.buildDepError "ouroboros-network-framework"))
+            (hsPkgs."trace-forward" or (errorHandler.buildDepError "trace-forward"))
+            (hsPkgs."QuickCheck" or (errorHandler.buildDepError "QuickCheck"))
+            (hsPkgs."serialise" or (errorHandler.buildDepError "serialise"))
+            (hsPkgs."tasty" or (errorHandler.buildDepError "tasty"))
+            (hsPkgs."tasty-quickcheck" or (errorHandler.buildDepError "tasty-quickcheck"))
+            (hsPkgs."typed-protocols" or (errorHandler.buildDepError "typed-protocols"))
+            (hsPkgs."text" or (errorHandler.buildDepError "text"))
+            ];
+          buildable = true;
+          };
+        };
       };
     } // rec {
-    src = (pkgs.lib).mkDefault /nix/store/5hpda20xfxbq4wz60zblgfinyabkkal6-cardano-prelude-bb4ed71/cardano-prelude;
+    src = (pkgs.lib).mkDefault /nix/store/9ijn6q2j2ph6pcxmj8g2ndlx614d515c-cardano-node-c23d5d3/trace-forward;
     }

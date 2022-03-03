@@ -11,60 +11,45 @@
     flags = {};
     package = {
       specVersion = "2.4";
-      identifier = { name = "trace-forward"; version = "0.1.0"; };
-      license = "Apache-2.0";
-      copyright = "2021 Input Output (Hong Kong) Ltd.";
+      identifier = { name = "trace-resources"; version = "0.1.0.0"; };
+      license = "NONE";
+      copyright = "2021 IOHK";
       maintainer = "operations@iohk.io";
-      author = "IOHK";
+      author = "Juergen Nicklisch-Franken";
       homepage = "";
       url = "";
-      synopsis = "The forwarding protocols library for cardano node.";
-      description = "The library providing typed protocols for forwarding different\ninformation from the cardano node to an external application.";
+      synopsis = "Package for tracing resources for linux, mac and windows";
+      description = "";
       buildType = "Simple";
       };
     components = {
       "library" = {
         depends = [
           (hsPkgs."base" or (errorHandler.buildDepError "base"))
-          (hsPkgs."aeson" or (errorHandler.buildDepError "aeson"))
-          (hsPkgs."async" or (errorHandler.buildDepError "async"))
-          (hsPkgs."bytestring" or (errorHandler.buildDepError "bytestring"))
-          (hsPkgs."cborg" or (errorHandler.buildDepError "cborg"))
-          (hsPkgs."containers" or (errorHandler.buildDepError "containers"))
-          (hsPkgs."contra-tracer" or (errorHandler.buildDepError "contra-tracer"))
-          (hsPkgs."extra" or (errorHandler.buildDepError "extra"))
-          (hsPkgs."io-classes" or (errorHandler.buildDepError "io-classes"))
-          (hsPkgs."ouroboros-network-framework" or (errorHandler.buildDepError "ouroboros-network-framework"))
-          (hsPkgs."serialise" or (errorHandler.buildDepError "serialise"))
-          (hsPkgs."stm" or (errorHandler.buildDepError "stm"))
+          (hsPkgs."trace-dispatcher" or (errorHandler.buildDepError "trace-dispatcher"))
           (hsPkgs."text" or (errorHandler.buildDepError "text"))
-          (hsPkgs."typed-protocols" or (errorHandler.buildDepError "typed-protocols"))
-          (hsPkgs."typed-protocols-cborg" or (errorHandler.buildDepError "typed-protocols-cborg"))
-          ];
+          (hsPkgs."aeson" or (errorHandler.buildDepError "aeson"))
+          ] ++ (if system.isWindows
+          then [ (hsPkgs."Win32" or (errorHandler.buildDepError "Win32")) ]
+          else [ (hsPkgs."unix" or (errorHandler.buildDepError "unix")) ]);
         buildable = true;
         };
       tests = {
-        "test" = {
+        "trace-resources-test" = {
           depends = [
             (hsPkgs."base" or (errorHandler.buildDepError "base"))
+            (hsPkgs."trace-dispatcher" or (errorHandler.buildDepError "trace-dispatcher"))
+            (hsPkgs."text" or (errorHandler.buildDepError "text"))
             (hsPkgs."aeson" or (errorHandler.buildDepError "aeson"))
-            (hsPkgs."bytestring" or (errorHandler.buildDepError "bytestring"))
-            (hsPkgs."contra-tracer" or (errorHandler.buildDepError "contra-tracer"))
-            (hsPkgs."io-classes" or (errorHandler.buildDepError "io-classes"))
-            (hsPkgs."io-sim" or (errorHandler.buildDepError "io-sim"))
-            (hsPkgs."ouroboros-network-framework" or (errorHandler.buildDepError "ouroboros-network-framework"))
-            (hsPkgs."trace-forward" or (errorHandler.buildDepError "trace-forward"))
             (hsPkgs."QuickCheck" or (errorHandler.buildDepError "QuickCheck"))
-            (hsPkgs."serialise" or (errorHandler.buildDepError "serialise"))
             (hsPkgs."tasty" or (errorHandler.buildDepError "tasty"))
             (hsPkgs."tasty-quickcheck" or (errorHandler.buildDepError "tasty-quickcheck"))
-            (hsPkgs."typed-protocols" or (errorHandler.buildDepError "typed-protocols"))
-            (hsPkgs."text" or (errorHandler.buildDepError "text"))
+            (hsPkgs."trace-resources" or (errorHandler.buildDepError "trace-resources"))
             ];
           buildable = true;
           };
         };
       };
     } // rec {
-    src = (pkgs.lib).mkDefault /nix/store/5v6m8vb6nqr07xqivmlshnc9b26pkm6d-cardano-node-814df2c/trace-forward;
+    src = (pkgs.lib).mkDefault /nix/store/9ijn6q2j2ph6pcxmj8g2ndlx614d515c-cardano-node-c23d5d3/trace-resources;
     }

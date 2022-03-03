@@ -182,11 +182,12 @@ extra-deps:
   - libs/non-integral
 
 - git: https://github.com/input-output-hk/cardano-node
-  commit: 814df2c146f5d56f8c35a681fe75e85b905aed5d
+  commit: c23d5d319cd3276575c6ac32458516232e8d2c48
   subdirs:
   - cardano-api
   - cardano-cli
   - cardano-node
+  - cardano-git-rev
   - trace-dispatcher
   - trace-resources
   - trace-forward
@@ -226,7 +227,7 @@ extra-deps:
   commit: 6a92d7853ea514be8b70bab5e72077bf5a510596
 
 - git: https://github.com/input-output-hk/ouroboros-network
-  commit: d2d219a86cda42787325bb8c20539a75c2667132
+  commit: 4fac197b6f0d2ff60dc3486c593b68dc00969fbf
   subdirs:
   - io-classes
   - io-sim
@@ -255,26 +256,18 @@ extra-deps:
   - ouroboros-consensus-mock
 
 - git: https://github.com/input-output-hk/plutus
-  commit: 1efbb276ef1a10ca6961d0fd32e6141e9798bd11
+  commit: fc5fe94d3d9525d032bcbc79ff0e1ebcfd8ef143
   subdirs:
-    - freer-extras
-    - playground-common
-    - plutus-chain-index
-    - plutus-contract
     - plutus-core
-    - plutus-ledger
     - plutus-ledger-api
-    - plutus-pab
     - plutus-tx
     - plutus-tx-plugin
-    - plutus-use-cases
     - stubs/plutus-ghc-stub
     - prettyprinter-configurable
-    - quickcheck-dynamic
     - word-array
 
 - git: https://github.com/input-output-hk/ekg-forward
-  commit: 2adc8b698443bb10154304b24f6c1d6913bb65b9
+  commit: 297cd9db5074339a2fb2e5ae7d0780debb670c63
 
 - git: https://github.com/input-output-hk/cardano-config
   commit: 1646e9167fab36c0bff82317743b96efa2d3adaa

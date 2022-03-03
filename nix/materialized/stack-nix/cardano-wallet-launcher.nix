@@ -90,4 +90,6 @@
           };
         };
       };
-    } // rec { src = (pkgs.lib).mkDefault ./lib/launcher; }
+    } // rec {
+    src = (pkgs.lib).mkDefault ./lib/launcher;
+    }

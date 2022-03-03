@@ -11,14 +11,14 @@
     flags = {};
     package = {
       specVersion = "1.10";
-      identifier = { name = "purescript-bridge"; version = "0.13.1.0"; };
-      license = "BSD-3-Clause";
-      copyright = "";
-      maintainer = "robert . klotzner A T gmx . at";
-      author = "Robert Klotzner";
+      identifier = { name = "tracer-transformers"; version = "0.1.0.1"; };
+      license = "Apache-2.0";
+      copyright = "2019 IOHK";
+      maintainer = "operations@iohk.io";
+      author = "Neil Davies, Alexander Diemand, Andreas Triantafyllos";
       homepage = "";
       url = "";
-      synopsis = "Generate PureScript data types from Haskell data types";
+      synopsis = "tracer transformers and examples showing their use";
       description = "";
       buildType = "Simple";
       };
@@ -26,33 +26,33 @@
       "library" = {
         depends = [
           (hsPkgs."base" or (errorHandler.buildDepError "base"))
-          (hsPkgs."containers" or (errorHandler.buildDepError "containers"))
-          (hsPkgs."directory" or (errorHandler.buildDepError "directory"))
-          (hsPkgs."filepath" or (errorHandler.buildDepError "filepath"))
-          (hsPkgs."mtl" or (errorHandler.buildDepError "mtl"))
-          (hsPkgs."lens" or (errorHandler.buildDepError "lens"))
-          (hsPkgs."text" or (errorHandler.buildDepError "text"))
-          (hsPkgs."transformers" or (errorHandler.buildDepError "transformers"))
-          (hsPkgs."wl-pprint-text" or (errorHandler.buildDepError "wl-pprint-text"))
-          (hsPkgs."generic-deriving" or (errorHandler.buildDepError "generic-deriving"))
-          ];
+          (hsPkgs."contra-tracer" or (errorHandler.buildDepError "contra-tracer"))
+          (hsPkgs."time" or (errorHandler.buildDepError "time"))
+          (hsPkgs."safe-exceptions" or (errorHandler.buildDepError "safe-exceptions"))
+          ] ++ (pkgs.lib).optional (compiler.isGhc && (compiler.version).lt "8.5") (hsPkgs."contravariant" or (errorHandler.buildDepError "contravariant"));
         buildable = true;
         };
-      tests = {
-        "tests" = {
+      exes = {
+        "tracer-transfomers-example1" = {
           depends = [
             (hsPkgs."base" or (errorHandler.buildDepError "base"))
-            (hsPkgs."containers" or (errorHandler.buildDepError "containers"))
-            (hsPkgs."purescript-bridge" or (errorHandler.buildDepError "purescript-bridge"))
+            (hsPkgs."contra-tracer" or (errorHandler.buildDepError "contra-tracer"))
+            (hsPkgs."time" or (errorHandler.buildDepError "time"))
+            (hsPkgs."tracer-transformers" or (errorHandler.buildDepError "tracer-transformers"))
+            ];
+          buildable = true;
+          };
+        "tracer-transfomers-example2" = {
+          depends = [
+            (hsPkgs."base" or (errorHandler.buildDepError "base"))
+            (hsPkgs."contra-tracer" or (errorHandler.buildDepError "contra-tracer"))
             (hsPkgs."text" or (errorHandler.buildDepError "text"))
-            (hsPkgs."wl-pprint-text" or (errorHandler.buildDepError "wl-pprint-text"))
-            (hsPkgs."hspec" or (errorHandler.buildDepError "hspec"))
-            (hsPkgs."hspec-expectations-pretty-diff" or (errorHandler.buildDepError "hspec-expectations-pretty-diff"))
+            (hsPkgs."tracer-transformers" or (errorHandler.buildDepError "tracer-transformers"))
             ];
           buildable = true;
           };
         };
       };
     } // rec {
-    src = (pkgs.lib).mkDefault /nix/store/zvdx2gdavxs4rs5b1lnhhrk63ps5nxdq-purescript-bridge-6a92d78;
+    src = (pkgs.lib).mkDefault /nix/store/dp15xfc309h2xx301937iacq5wym27gy-iohk-monitoring-framework-808724f/tracer-transformers;
     }

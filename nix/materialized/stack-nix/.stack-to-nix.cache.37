@@ -11,7 +11,7 @@
     flags = {};
     package = {
       specVersion = "3.0";
-      identifier = { name = "cardano-api"; version = "1.33.0"; };
+      identifier = { name = "cardano-api"; version = "1.34.0"; };
       license = "Apache-2.0";
       copyright = "";
       maintainer = "operations@iohk.io";
@@ -70,6 +70,7 @@
           (hsPkgs."plutus-ledger-api" or (errorHandler.buildDepError "plutus-ledger-api"))
           (hsPkgs."prettyprinter" or (errorHandler.buildDepError "prettyprinter"))
           (hsPkgs."scientific" or (errorHandler.buildDepError "scientific"))
+          (hsPkgs."serialise" or (errorHandler.buildDepError "serialise"))
           (hsPkgs."small-steps" or (errorHandler.buildDepError "small-steps"))
           (hsPkgs."cardano-ledger-shelley" or (errorHandler.buildDepError "cardano-ledger-shelley"))
           (hsPkgs."stm" or (errorHandler.buildDepError "stm"))
@@ -144,5 +145,5 @@
         };
       };
     } // rec {
-    src = (pkgs.lib).mkDefault /nix/store/5v6m8vb6nqr07xqivmlshnc9b26pkm6d-cardano-node-814df2c/cardano-api;
+    src = (pkgs.lib).mkDefault /nix/store/9ijn6q2j2ph6pcxmj8g2ndlx614d515c-cardano-node-c23d5d3/cardano-api;
     }
