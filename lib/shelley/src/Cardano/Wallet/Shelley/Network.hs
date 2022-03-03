@@ -616,6 +616,8 @@ mkWalletClient tr follower cfg v =
 
         , localStateQueryProtocol =
             doNothingProtocol
+        , localTxMonitorProtocol =
+            doNothingProtocol
         }) v
 
 -- | Construct a network client with the given communication channel, for the
@@ -641,6 +643,8 @@ mkDelegationRewardsClient tr cfg queryRewardQ v =
                 $ \channel -> runPeer tr' codec channel
                 $ localStateQueryClientPeer
                 $ localStateQuery queryRewardQ
+        , localTxMonitorProtocol =
+            doNothingProtocol
         }) v
   where
     tr' = contramap (MsgLocalStateQuery DelegationRewardsClient) tr
@@ -756,6 +760,8 @@ mkTipSyncClient tr np onPParamsUpdate onInterpreterUpdate onEraUpdate = do
                     $ \channel -> runPeer tr' codec channel
                     $ localStateQueryClientPeer
                     $ localStateQuery localStateQueryQ
+            , localTxMonitorProtocol =
+                doNothingProtocol
             }) v
     return (client, snd <$> readTVar tipVar)
     -- FIXME: We can remove the era from the tip sync client now.
