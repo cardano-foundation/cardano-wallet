@@ -1535,6 +1535,7 @@ balanceTransaction
         ( HasTransactionLayer k ctx
         , GenChange s
         , MonadRandom m
+        , HasLogger m WalletWorkerLog ctx
         )
     => ctx
     -> ArgGenChange s
@@ -1584,15 +1585,32 @@ balanceTransaction
                     , fst <$> (sel' ^. #collateral)
                     , sel' ^. #change
                     )
+
+
+        lift $ traceWith tr $ MsgSelectionForBalancingStart
+            (CS.toExternalUTxOMap $ UTxOIndex.toMap internalUtxoAvailable)
+            ptx
+
+        let mSel = selectAssets'
+                partialTx
+                (UTxOSelection.fromIndexPair
+                    (internalUtxoAvailable, externalSelectedUtxo))
+                balance0
+                minfee0
+                randomSeed
+
+        case mSel of
+            Left e -> lift $
+                traceWith tr $ MsgSelectionError e
+            Right sel -> lift $ do
+                traceWith tr $ MsgSelectionReportSummarized
+                    $ makeSelectionReportSummarized sel
+                traceWith tr $ MsgSelectionReportDetailed
+                    $ makeSelectionReportDetailed sel
+
         withExceptT (ErrBalanceTxSelectAssets . ErrSelectAssetsSelectionError)
             . ExceptT . pure $
-                transform (getState wallet) <$> selectAssets'
-                    partialTx
-                    (UTxOSelection.fromIndexPair
-                        (internalUtxoAvailable, externalSelectedUtxo))
-                    balance0
-                    minfee0
-                    randomSeed
+                transform (getState wallet) <$> mSel
 
     -- NOTE:
     -- Once the coin-selection is done, we need to
@@ -1658,6 +1676,7 @@ balanceTransaction
         })
   where
     tl = ctx ^. transactionLayer @k
+    tr = contramap MsgWallet $ ctx ^. logger @m
 
     guardTxBalanced :: SealedTx -> ExceptT ErrBalanceTx m SealedTx
     guardTxBalanced tx = do
@@ -3588,6 +3607,7 @@ data WalletFollowLog
 -- | Log messages from API server actions running in a wallet worker context.
 data WalletLog
     = MsgSelectionStart UTxO [TxOut]
+    | MsgSelectionForBalancingStart UTxO PartialTx
     | MsgSelectionError (SelectionError WalletSelectionContext)
     | MsgSelectionReportSummarized SelectionReportSummarized
     | MsgSelectionReportDetailed SelectionReportDetailed
@@ -3632,6 +3652,10 @@ instance ToText WalletLog where
             "Starting coin selection " <>
             "|utxo| = "+|UTxO.size utxo|+" " <>
             "#recipients = "+|length recipients|+""
+        MsgSelectionForBalancingStart utxo partialTx ->
+            "Starting coin selection for balancing " <>
+            "|utxo| = "+|UTxO.size utxo|+" " <>
+            "partialTx = "+|partialTx|+""
         MsgSelectionError e ->
             "Failed to select assets:\n"+|| e ||+""
         MsgSelectionReportSummarized s ->
@@ -3674,6 +3698,7 @@ instance HasPrivacyAnnotation WalletLog
 instance HasSeverityAnnotation WalletLog where
     getSeverityAnnotation = \case
         MsgSelectionStart{} -> Debug
+        MsgSelectionForBalancingStart{} -> Debug
         MsgSelectionError{} -> Debug
         MsgSelectionReportSummarized{} -> Info
         MsgSelectionReportDetailed{} -> Debug
