@@ -593,6 +593,12 @@ applyOurTxToUTxO !slotNo !blockHeight !s !tx !u0 =
     -- transaction outputs we've spent)
     (du, u) = (du21 <> du10, u2)
 
+    -- Note [Naming of Deltas]
+    -- The identifiers for delta encodings carry two indices
+    -- which indicate the "to" and "from" value of the delta.
+    -- For example, the delta du10 maps the value u0 to the value u1,
+    -- and the delta du21 maps the value u1 to the value u2.
+    -- In general, the naming convention is  ui = duij `apply` uj
     (du10, u1)   = spendTxD tx u0
     receivedUTxO = UTxO.filterByAddress (ours s) (utxoFromTx tx)
     (du21, u2)   = receiveD u1 receivedUTxO

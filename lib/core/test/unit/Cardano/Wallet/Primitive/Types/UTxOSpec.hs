@@ -99,8 +99,45 @@ prop_deltaUTxO_semigroup_apply =
     ===
         (delta2 <> delta1) `apply` utxo0
   where
-    -- As the functions in 'DeltaUTxO' are implemented in terms of set
-    -- operations, we only have to test a Venn diagram using few elements.
+    {- Note [Property Testing of Boolean Algebras]
+
+    It turns out that the validity of simple properties of finite sets
+    (or, more generally, boolean algebras) can be decided
+    by considering a single, universal example.
+    Essentially, this example corresponds to a truth table.
+    These examples are typically visualized as Venn diagrams.
+
+    For example, in order to show that the equality
+    
+        (A ∩ B) ∪ C = (A ∪ C) ∩ (B ∪ C)
+
+    holds for all finite sets A,B,C, it is sufficient to show that it
+    holds for the specific case
+
+        A = { "100", "110", "101", "111"}
+        B = { "010", "110", "011", "111"}
+        C = { "001", "101", "011", "111"}
+
+    Even though the elements like "010" seem very specific, they stand
+    for an entire subset of elements; here, "010" stands for all elements
+    that are contained in B, but not in A or C.
+    -}
+    {- Note [Property Testing of DeltaUTxO]
+
+    In order to test properties of `DeltaUTxO`, we can apply 
+    Note [Property Testing of Boolean Algebras] above, as most operations
+    on this data type are essentially set-theoretic operations.
+
+    In particular, the associativity of `(<>)` on `DeltaUTxO` corresponds
+    to a simple statement about finite sets, and it is sufficient to
+    test a single, universal case — the test case below.
+
+    The outputs named "a0" etc correspond to entire subsets of outputs.
+    For example, "a2" represents the subset of outputs contained in utxo0,
+    not spent by delta1, but spent by delta2.
+    Due to the "no double-spending" constraint, not all
+    subsets are relevant; the relevant ones are included in this test case.
+    -}
     utxo0  = mkUTxOs ["a0","a1","a2"]
     delta1 = mkDelta ["a1"] ["b1","b2"]
     delta2 = mkDelta ["a2","b2"] ["c2"]
