@@ -741,9 +741,9 @@ generatorWithWid wids =
         $ ReadPrivateKey <$> genId
     , declareGenerator "RollbackTo" 1
         $ RollbackTo <$> genId <*> arbitrary
-    -- TODO: Implement mPrune
-    -- , declareGenerator "Prune" 1
-    --     $ Prune <$> genId <*> arbitrary
+    -- TODO: Implement mPruneTxs
+    -- , declareGenerator "PruneTxs" 1
+    --     $ PruneTxs <$> genId <*> arbitrary
     , declareGenerator "ReadGenesisParameters" 1
         $ ReadGenesisParameters <$> genId
     ]

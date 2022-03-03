@@ -633,7 +633,7 @@ newDBLayerWith _cacheBehavior _tr ti SqliteContext{runQuery} = do
                         $ W.chainPointFromBlockHeader
                         $ view #currentTip wcp
 
-        , prune = \wid epochStability -> ExceptT $ do
+        , pruneTxs = \wid epochStability -> ExceptT $ do
             readCheckpoint_ wid >>= \case
                 Nothing -> pure $ Left $ ErrNoSuchWallet wid
                 Just cp -> Right <$> do

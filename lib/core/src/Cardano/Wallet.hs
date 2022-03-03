@@ -1068,7 +1068,7 @@ restoreBlocks ctx tr wid blocks nodeTip = db & \DBLayer{..} -> mapExceptT atomic
 
     -- Note: At this point, checkpoints have already been pruned
     -- we only prune LocalTxSubmission and TxHistory here.
-    prune wid epochStability
+    pruneTxs wid epochStability
 
     liftIO $ do
         traceWith tr $ MsgDiscoveredTxs txs

@@ -121,7 +121,7 @@ newDBLayer timeInterpreter = do
             alterDB errNoSuchWallet db $
             mRollbackTo pk pt
 
-        , prune = \_ _ -> error "MVar.prune: not implemented"
+        , pruneTxs = \_ _ -> error "MVar.pruneTxs: not implemented"
 
         {-----------------------------------------------------------------------
                                    Wallet Metadata

@@ -317,11 +317,11 @@ data DBLayer m s k = forall stm. (MonadIO stm, MonadFail stm) => DBLayer
         -- point of rollback but can't be guaranteed to be exactly the same
         -- because the database may only keep sparse checkpoints.
 
-    , prune
+    , pruneTxs
         :: WalletId
         -> Quantity "block" Word32
         -> ExceptT ErrNoSuchWallet stm ()
-        -- ^ Prune database entities and remove entities that can be discarded.
+        -- ^ Prune and remove local tx submission and outdated transactions.
         --
         -- The second argument represents the stability window, or said
         -- length of the deepest rollback.

@@ -558,7 +558,7 @@ fileModeSpec =  do
                     atomically $ do
                         unsafeRunExceptT $ putCheckpoint testWid cpB
                         unsafeRunExceptT $ putTxHistory testWid txs
-                        unsafeRunExceptT $ prune testWid (Quantity 2160)
+                        unsafeRunExceptT $ pruneTxs testWid (Quantity 2160)
 
             it "Should remove collateral inputs from the UTxO set if \
                 \validation fails" $
