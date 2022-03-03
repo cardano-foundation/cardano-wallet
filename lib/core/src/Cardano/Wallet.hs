@@ -255,7 +255,6 @@ import Cardano.Wallet.CoinSelection.Internal.Balance
 import Cardano.Wallet.DB
     ( DBLayer (..)
     , ErrNoSuchTransaction (..)
-    , ErrNoSuchWallet (..)
     , ErrPutLocalTxSubmission (..)
     , ErrRemoveTx (..)
     , ErrWalletAlreadyExists (..)
@@ -264,7 +263,13 @@ import Cardano.Wallet.DB
     , sparseCheckpoints
     )
 import Cardano.Wallet.DB.WalletState
-    ( DeltaMap (..), DeltaWalletState1 (..), fromWallet, getLatest, getSlot )
+    ( DeltaWalletState1 (..)
+    , ErrNoSuchWallet (..)
+    , adjustNoSuchWallet
+    , fromWallet
+    , getLatest
+    , getSlot
+    )
 import Cardano.Wallet.Logging
     ( BracketLog
     , BracketLog' (..)
@@ -607,7 +612,6 @@ import qualified Data.ByteArray as BA
 import qualified Data.Foldable as F
 import qualified Data.List as L
 import qualified Data.List.NonEmpty as NE
-import qualified Data.Map.Strict as Map
 import qualified Data.Set as Set
 import qualified Data.Text as T
 import qualified Data.Vector as V
@@ -1491,18 +1495,6 @@ importRandomAddresses ctx wid addrs = db & \DBLayer{..} ->
       where
         s0  = getState $ getLatest wal
         es1 = foldl' (\s addr -> s >>= Rnd.importAddress addr) (Right s0) addrs
-
--- | Adjust a specific wallet if it exists or return 'ErrNoSuchWallet'.
-adjustNoSuchWallet
-    :: WalletId
-    -> (ErrNoSuchWallet -> e)
-    -> (w -> Either e (dw, b))
-    -> (Map WalletId w -> (Maybe (DeltaMap WalletId dw), Either e b))
-adjustNoSuchWallet wid err update wallets = case Map.lookup wid wallets of
-    Nothing -> (Nothing, Left $ err $ ErrNoSuchWallet wid)
-    Just wal -> case update wal of
-        Left e -> (Nothing, Left e)
-        Right (dw, b) -> (Just $ Adjust wid dw, Right b)
 
 -- NOTE
 -- Addresses coming from the transaction history might be payment or

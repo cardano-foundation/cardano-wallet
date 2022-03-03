@@ -31,7 +31,11 @@ module Cardano.Wallet.DB.WalletState
     -- * Delta types
     , DeltaWalletState1 (..)
     , DeltaWalletState
+
+    -- * Multiple wallets
     , DeltaMap (..)
+    , ErrNoSuchWallet (..)
+    , adjustNoSuchWallet
     ) where
 
 import Prelude
@@ -41,7 +45,7 @@ import Cardano.Wallet.Address.Book
 import Cardano.Wallet.Checkpoints
     ( Checkpoints )
 import Cardano.Wallet.Primitive.Types
-    ( BlockHeader )
+    ( BlockHeader, WalletId )
 import Cardano.Wallet.Primitive.Types.UTxO
     ( UTxO )
 import Data.Delta
@@ -52,6 +56,8 @@ import Data.Generics.Internal.VL
     ( withIso )
 import Data.Generics.Internal.VL.Lens
     ( over, view, (^.) )
+import Data.Map.Strict
+    ( Map )
 import Data.Word
     ( Word32 )
 import Fmt
@@ -62,6 +68,7 @@ import GHC.Generics
 import qualified Cardano.Wallet.Checkpoints as CPS
 import qualified Cardano.Wallet.Primitive.Model as W
 import qualified Cardano.Wallet.Primitive.Types as W
+import qualified Data.Map.Strict as Map
 
 {-------------------------------------------------------------------------------
     Wallet Checkpoint
@@ -155,3 +162,26 @@ instance Buildable (DeltaWalletState1 s) where
 
 instance Show (DeltaWalletState1 s) where
     show = pretty
+
+{-------------------------------------------------------------------------------
+    Multiple wallets.
+-------------------------------------------------------------------------------}
+-- | Adjust a specific wallet if it exists or return 'ErrNoSuchWallet'.
+adjustNoSuchWallet
+    :: WalletId
+    -> (ErrNoSuchWallet -> e)
+    -> (w -> Either e (dw, b))
+    -> (Map WalletId w -> (Maybe (DeltaMap WalletId dw), Either e b))
+adjustNoSuchWallet wid err update wallets = case Map.lookup wid wallets of
+    Nothing -> (Nothing, Left $ err $ ErrNoSuchWallet wid)
+    Just wal -> case update wal of
+        Left e -> (Nothing, Left e)
+        Right (dw, b) -> (Just $ Adjust wid dw, Right b)
+
+{-------------------------------------------------------------------------------
+    Errors
+-------------------------------------------------------------------------------}
+-- | Can't perform given operation because there's no wallet
+newtype ErrNoSuchWallet
+    = ErrNoSuchWallet WalletId -- Wallet is gone or doesn't exist yet
+    deriving (Eq, Show)
