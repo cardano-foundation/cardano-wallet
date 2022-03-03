@@ -252,9 +252,9 @@ import Cardano.Wallet.DB.Checkpoints
 import Cardano.Wallet.DB.Sqlite.AddressBook
     ( AddressBookIso, getPrologue )
 import Cardano.Wallet.DB.WalletState
-    ( DeltaMap (..)
-    , DeltaWalletState1 (..)
+    ( DeltaWalletState1 (..)
     , WalletState (..)
+    , adjustNoSuchWallet
     , fromWallet
     , getBlockHeight
     , getLatest
@@ -1384,18 +1384,6 @@ importRandomAddresses ctx wid addrs = db & \DBLayer{..} ->
       where
         s0  = getState $ getLatest wal
         es1 = foldl' (\s addr -> s >>= Rnd.importAddress addr) (Right s0) addrs
-
--- | Adjust a specific wallet if it exists or return 'ErrNoSuchWallet'.
-adjustNoSuchWallet
-    :: WalletId
-    -> (ErrNoSuchWallet -> e)
-    -> (w -> Either e (dw, b))
-    -> (Map WalletId w -> (Maybe (DeltaMap WalletId dw), Either e b))
-adjustNoSuchWallet wid err update wallets = case Map.lookup wid wallets of
-    Nothing -> (Nothing, Left $ err $ ErrNoSuchWallet wid)
-    Just wal -> case update wal of
-        Left e -> (Nothing, Left e)
-        Right (dw, b) -> (Just $ Adjust wid dw, Right b)
 
 -- NOTE
 -- Addresses coming from the transaction history might be payment or

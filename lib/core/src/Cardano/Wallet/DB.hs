@@ -30,7 +30,7 @@ import Prelude
 import Cardano.Address.Derivation
     ( XPrv )
 import Cardano.Wallet.DB.WalletState
-    ( DeltaMap, DeltaWalletState )
+    ( DeltaMap, DeltaWalletState, ErrNoSuchWallet (..) )
 import Cardano.Wallet.Primitive.AddressDerivation
     ( Depth (..) )
 import Cardano.Wallet.Primitive.Model
@@ -339,11 +339,6 @@ data ErrBadFormat
     deriving (Eq,Show)
 
 instance Exception ErrBadFormat
-
--- | Can't perform given operation because there's no wallet
-newtype ErrNoSuchWallet
-    = ErrNoSuchWallet WalletId -- Wallet is gone or doesn't exist yet
-    deriving (Eq, Show)
 
 -- | Can't add a transaction to the local tx submission pool.
 data ErrPutLocalTxSubmission
