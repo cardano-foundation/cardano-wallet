@@ -11,14 +11,17 @@
     flags = {};
     package = {
       specVersion = "1.10";
-      identifier = { name = "ouroboros-network-testing"; version = "0.1.0.0"; };
+      identifier = {
+        name = "ouroboros-network-framework";
+        version = "0.1.0.0";
+        };
       license = "Apache-2.0";
       copyright = "2019 Input Output (Hong Kong) Ltd.";
-      maintainer = "";
-      author = "Alexander Vieth, Marcin Szamotulski, Duncan Coutts, Karl Knuttson";
+      maintainer = "alex@well-typed.com, duncan@well-typed.com, marcin.szamotulski@iohk.io";
+      author = "Alexander Vieth, Duncan Coutts, Marcin Szamotulski";
       homepage = "";
       url = "";
-      synopsis = "Common modules used for testing in ouroboros-network and ouroboros-consensus";
+      synopsis = "";
       description = "";
       buildType = "Simple";
       };
@@ -26,32 +29,114 @@
       "library" = {
         depends = [
           (hsPkgs."base" or (errorHandler.buildDepError "base"))
-          (hsPkgs."containers" or (errorHandler.buildDepError "containers"))
-          (hsPkgs."contra-tracer" or (errorHandler.buildDepError "contra-tracer"))
-          (hsPkgs."deque" or (errorHandler.buildDepError "deque"))
-          (hsPkgs."io-classes" or (errorHandler.buildDepError "io-classes"))
-          (hsPkgs."io-sim" or (errorHandler.buildDepError "io-sim"))
-          (hsPkgs."psqueues" or (errorHandler.buildDepError "psqueues"))
+          (hsPkgs."async" or (errorHandler.buildDepError "async"))
+          (hsPkgs."bytestring" or (errorHandler.buildDepError "bytestring"))
           (hsPkgs."cborg" or (errorHandler.buildDepError "cborg"))
-          (hsPkgs."serialise" or (errorHandler.buildDepError "serialise"))
+          (hsPkgs."containers" or (errorHandler.buildDepError "containers"))
+          (hsPkgs."dns" or (errorHandler.buildDepError "dns"))
+          (hsPkgs."iproute" or (errorHandler.buildDepError "iproute"))
+          (hsPkgs."hashable" or (errorHandler.buildDepError "hashable"))
+          (hsPkgs."mtl" or (errorHandler.buildDepError "mtl"))
+          (hsPkgs."nothunks" or (errorHandler.buildDepError "nothunks"))
+          (hsPkgs."random" or (errorHandler.buildDepError "random"))
+          (hsPkgs."stm" or (errorHandler.buildDepError "stm"))
+          (hsPkgs."text" or (errorHandler.buildDepError "text"))
+          (hsPkgs."time" or (errorHandler.buildDepError "time"))
+          (hsPkgs."quiet" or (errorHandler.buildDepError "quiet"))
+          (hsPkgs."cardano-prelude" or (errorHandler.buildDepError "cardano-prelude"))
+          (hsPkgs."contra-tracer" or (errorHandler.buildDepError "contra-tracer"))
+          (hsPkgs."io-classes" or (errorHandler.buildDepError "io-classes"))
+          (hsPkgs."monoidal-synchronisation" or (errorHandler.buildDepError "monoidal-synchronisation"))
+          (hsPkgs."network" or (errorHandler.buildDepError "network"))
           (hsPkgs."network-mux" or (errorHandler.buildDepError "network-mux"))
-          (hsPkgs."QuickCheck" or (errorHandler.buildDepError "QuickCheck"))
-          ];
+          (hsPkgs."ouroboros-network-testing" or (errorHandler.buildDepError "ouroboros-network-testing"))
+          (hsPkgs."strict-stm" or (errorHandler.buildDepError "strict-stm"))
+          (hsPkgs."typed-protocols" or (errorHandler.buildDepError "typed-protocols"))
+          (hsPkgs."typed-protocols-cborg" or (errorHandler.buildDepError "typed-protocols-cborg"))
+          (hsPkgs."Win32-network" or (errorHandler.buildDepError "Win32-network"))
+          ] ++ (pkgs.lib).optional (system.isWindows) (hsPkgs."Win32" or (errorHandler.buildDepError "Win32"));
         buildable = true;
+        };
+      exes = {
+        "demo-ping-pong" = {
+          depends = [
+            (hsPkgs."base" or (errorHandler.buildDepError "base"))
+            (hsPkgs."async" or (errorHandler.buildDepError "async"))
+            (hsPkgs."bytestring" or (errorHandler.buildDepError "bytestring"))
+            (hsPkgs."cborg" or (errorHandler.buildDepError "cborg"))
+            (hsPkgs."directory" or (errorHandler.buildDepError "directory"))
+            (hsPkgs."contra-tracer" or (errorHandler.buildDepError "contra-tracer"))
+            (hsPkgs."io-classes" or (errorHandler.buildDepError "io-classes"))
+            (hsPkgs."network-mux" or (errorHandler.buildDepError "network-mux"))
+            (hsPkgs."ouroboros-network-framework" or (errorHandler.buildDepError "ouroboros-network-framework"))
+            (hsPkgs."typed-protocols" or (errorHandler.buildDepError "typed-protocols"))
+            (hsPkgs."typed-protocols-examples" or (errorHandler.buildDepError "typed-protocols-examples"))
+            ] ++ (pkgs.lib).optionals (system.isWindows) [
+            (hsPkgs."Win32-network" or (errorHandler.buildDepError "Win32-network"))
+            (hsPkgs."Win32" or (errorHandler.buildDepError "Win32"))
+            ];
+          buildable = true;
+          };
+        "demo-connection-manager" = {
+          depends = [
+            (hsPkgs."base" or (errorHandler.buildDepError "base"))
+            (hsPkgs."bytestring" or (errorHandler.buildDepError "bytestring"))
+            (hsPkgs."cborg" or (errorHandler.buildDepError "cborg"))
+            (hsPkgs."network" or (errorHandler.buildDepError "network"))
+            (hsPkgs."optparse-applicative" or (errorHandler.buildDepError "optparse-applicative"))
+            (hsPkgs."random" or (errorHandler.buildDepError "random"))
+            (hsPkgs."serialise" or (errorHandler.buildDepError "serialise"))
+            (hsPkgs."contra-tracer" or (errorHandler.buildDepError "contra-tracer"))
+            (hsPkgs."io-classes" or (errorHandler.buildDepError "io-classes"))
+            (hsPkgs."network-mux" or (errorHandler.buildDepError "network-mux"))
+            (hsPkgs."ouroboros-network-framework" or (errorHandler.buildDepError "ouroboros-network-framework"))
+            (hsPkgs."strict-stm" or (errorHandler.buildDepError "strict-stm"))
+            (hsPkgs."typed-protocols" or (errorHandler.buildDepError "typed-protocols"))
+            (hsPkgs."typed-protocols-examples" or (errorHandler.buildDepError "typed-protocols-examples"))
+            ];
+          buildable = true;
+          };
         };
       tests = {
         "test" = {
           depends = [
             (hsPkgs."base" or (errorHandler.buildDepError "base"))
+            (hsPkgs."bytestring" or (errorHandler.buildDepError "bytestring"))
+            (hsPkgs."cborg" or (errorHandler.buildDepError "cborg"))
+            (hsPkgs."containers" or (errorHandler.buildDepError "containers"))
+            (hsPkgs."directory" or (errorHandler.buildDepError "directory"))
+            (hsPkgs."dns" or (errorHandler.buildDepError "dns"))
+            (hsPkgs."iproute" or (errorHandler.buildDepError "iproute"))
+            (hsPkgs."network" or (errorHandler.buildDepError "network"))
+            (hsPkgs."pretty-simple" or (errorHandler.buildDepError "pretty-simple"))
+            (hsPkgs."serialise" or (errorHandler.buildDepError "serialise"))
+            (hsPkgs."text" or (errorHandler.buildDepError "text"))
+            (hsPkgs."time" or (errorHandler.buildDepError "time"))
+            (hsPkgs."quiet" or (errorHandler.buildDepError "quiet"))
             (hsPkgs."QuickCheck" or (errorHandler.buildDepError "QuickCheck"))
+            (hsPkgs."quickcheck-instances" or (errorHandler.buildDepError "quickcheck-instances"))
             (hsPkgs."tasty" or (errorHandler.buildDepError "tasty"))
             (hsPkgs."tasty-quickcheck" or (errorHandler.buildDepError "tasty-quickcheck"))
+            (hsPkgs."cardano-prelude" or (errorHandler.buildDepError "cardano-prelude"))
+            (hsPkgs."contra-tracer" or (errorHandler.buildDepError "contra-tracer"))
+            (hsPkgs."io-sim" or (errorHandler.buildDepError "io-sim"))
+            (hsPkgs."io-classes" or (errorHandler.buildDepError "io-classes"))
+            (hsPkgs."strict-stm" or (errorHandler.buildDepError "strict-stm"))
+            (hsPkgs."network-mux" or (errorHandler.buildDepError "network-mux"))
+            (hsPkgs."monoidal-synchronisation" or (errorHandler.buildDepError "monoidal-synchronisation"))
+            (hsPkgs."ouroboros-network-framework" or (errorHandler.buildDepError "ouroboros-network-framework"))
             (hsPkgs."ouroboros-network-testing" or (errorHandler.buildDepError "ouroboros-network-testing"))
+            (hsPkgs."typed-protocols" or (errorHandler.buildDepError "typed-protocols"))
+            (hsPkgs."typed-protocols-cborg" or (errorHandler.buildDepError "typed-protocols-cborg"))
+            (hsPkgs."typed-protocols-examples" or (errorHandler.buildDepError "typed-protocols-examples"))
+            ] ++ (pkgs.lib).optionals (system.isWindows) [
+            (hsPkgs."Win32-network" or (errorHandler.buildDepError "Win32-network"))
+            (hsPkgs."Win32" or (errorHandler.buildDepError "Win32"))
             ];
           buildable = true;
           };
         };
       };
     } // rec {
-    src = (pkgs.lib).mkDefault /nix/store/3ibhj9c6ifdmxi20a77xbdl3qmc5yw3w-ouroboros-network-d2d219a/ouroboros-network-testing;
+    src = (pkgs.lib).mkDefault /nix/store/fy9im0ipvv2jsysk65jphamr63h2y23w-ouroboros-network-4fac197/ouroboros-network-framework;
     }

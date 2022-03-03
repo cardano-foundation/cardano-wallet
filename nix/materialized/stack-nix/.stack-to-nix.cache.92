@@ -8,18 +8,18 @@
   , config
   , ... }:
   {
-    flags = { defer-plugin-errors = false; };
+    flags = {};
     package = {
-      specVersion = "2.0";
-      identifier = { name = "plutus-use-cases"; version = "0.1.0.0"; };
-      license = "Apache-2.0";
-      copyright = "";
-      maintainer = "jann.mueller@iohk.io";
-      author = "Manuel M T Chakravarty, Jann Müller";
-      homepage = "";
+      specVersion = "1.10";
+      identifier = { name = "servant-purescript"; version = "0.9.0.2"; };
+      license = "BSD-3-Clause";
+      copyright = "Copyright: (c) 2016 Robert Klotzner";
+      maintainer = "robert Dot klotzner A T gmx Dot at";
+      author = "Robert Klotzner";
+      homepage = "https://github.com/eskimor/servant-purescript#readme";
       url = "";
-      synopsis = "Collection of smart contracts to develop the plutus/wallet interface";
-      description = "Collection of smart contracts to develop the plutus/wallet interface.";
+      synopsis = "Generate PureScript accessor functions for you servant API";
+      description = "Please see README.md";
       buildType = "Simple";
       };
     components = {
@@ -29,102 +29,39 @@
           (hsPkgs."aeson" or (errorHandler.buildDepError "aeson"))
           (hsPkgs."bytestring" or (errorHandler.buildDepError "bytestring"))
           (hsPkgs."containers" or (errorHandler.buildDepError "containers"))
-          (hsPkgs."data-default" or (errorHandler.buildDepError "data-default"))
-          (hsPkgs."freer-extras" or (errorHandler.buildDepError "freer-extras"))
-          (hsPkgs."mtl" or (errorHandler.buildDepError "mtl"))
-          (hsPkgs."plutus-core" or (errorHandler.buildDepError "plutus-core"))
-          (hsPkgs."plutus-tx" or (errorHandler.buildDepError "plutus-tx"))
-          (hsPkgs."plutus-contract" or (errorHandler.buildDepError "plutus-contract"))
-          (hsPkgs."playground-common" or (errorHandler.buildDepError "playground-common"))
-          (hsPkgs."plutus-ledger" or (errorHandler.buildDepError "plutus-ledger"))
-          (hsPkgs."template-haskell" or (errorHandler.buildDepError "template-haskell"))
+          (hsPkgs."directory" or (errorHandler.buildDepError "directory"))
+          (hsPkgs."filepath" or (errorHandler.buildDepError "filepath"))
+          (hsPkgs."http-types" or (errorHandler.buildDepError "http-types"))
           (hsPkgs."lens" or (errorHandler.buildDepError "lens"))
+          (hsPkgs."mainland-pretty" or (errorHandler.buildDepError "mainland-pretty"))
+          (hsPkgs."purescript-bridge" or (errorHandler.buildDepError "purescript-bridge"))
+          (hsPkgs."servant" or (errorHandler.buildDepError "servant"))
+          (hsPkgs."servant-foreign" or (errorHandler.buildDepError "servant-foreign"))
+          (hsPkgs."servant-server" or (errorHandler.buildDepError "servant-server"))
+          (hsPkgs."servant-subscriber" or (errorHandler.buildDepError "servant-subscriber"))
           (hsPkgs."text" or (errorHandler.buildDepError "text"))
-          (hsPkgs."prettyprinter" or (errorHandler.buildDepError "prettyprinter"))
-          (hsPkgs."hashable" or (errorHandler.buildDepError "hashable"))
-          (hsPkgs."freer-simple" or (errorHandler.buildDepError "freer-simple"))
-          (hsPkgs."streaming" or (errorHandler.buildDepError "streaming"))
-          (hsPkgs."semigroups" or (errorHandler.buildDepError "semigroups"))
-          (hsPkgs."openapi3" or (errorHandler.buildDepError "openapi3"))
-          ] ++ (pkgs.lib).optional (!(compiler.isGhcjs && true || system.isGhcjs)) (hsPkgs."plutus-tx-plugin" or (errorHandler.buildDepError "plutus-tx-plugin"));
+          ];
         buildable = true;
         };
-      exes = {
-        "plutus-use-cases-scripts" = {
+      tests = {
+        "servant-purescript-test" = {
           depends = [
             (hsPkgs."base" or (errorHandler.buildDepError "base"))
             (hsPkgs."aeson" or (errorHandler.buildDepError "aeson"))
-            (hsPkgs."bytestring" or (errorHandler.buildDepError "bytestring"))
-            (hsPkgs."cardano-crypto-class" or (errorHandler.buildDepError "cardano-crypto-class"))
             (hsPkgs."containers" or (errorHandler.buildDepError "containers"))
-            (hsPkgs."data-default" or (errorHandler.buildDepError "data-default"))
-            (hsPkgs."flat" or (errorHandler.buildDepError "flat"))
-            (hsPkgs."freer-extras" or (errorHandler.buildDepError "freer-extras"))
-            (hsPkgs."hedgehog" or (errorHandler.buildDepError "hedgehog"))
-            (hsPkgs."prettyprinter" or (errorHandler.buildDepError "prettyprinter"))
-            (hsPkgs."QuickCheck" or (errorHandler.buildDepError "QuickCheck"))
-            (hsPkgs."tasty" or (errorHandler.buildDepError "tasty"))
-            (hsPkgs."tasty-hunit" or (errorHandler.buildDepError "tasty-hunit"))
-            (hsPkgs."tasty-golden" or (errorHandler.buildDepError "tasty-golden"))
-            (hsPkgs."tasty-quickcheck" or (errorHandler.buildDepError "tasty-quickcheck"))
-            (hsPkgs."text" or (errorHandler.buildDepError "text"))
+            (hsPkgs."mainland-pretty" or (errorHandler.buildDepError "mainland-pretty"))
             (hsPkgs."lens" or (errorHandler.buildDepError "lens"))
-            (hsPkgs."mtl" or (errorHandler.buildDepError "mtl"))
-            (hsPkgs."row-types" or (errorHandler.buildDepError "row-types"))
-            (hsPkgs."freer-simple" or (errorHandler.buildDepError "freer-simple"))
-            (hsPkgs."foldl" or (errorHandler.buildDepError "foldl"))
-            (hsPkgs."streaming" or (errorHandler.buildDepError "streaming"))
-            (hsPkgs."directory" or (errorHandler.buildDepError "directory"))
-            (hsPkgs."filepath" or (errorHandler.buildDepError "filepath"))
-            (hsPkgs."serialise" or (errorHandler.buildDepError "serialise"))
-            (hsPkgs."plutus-core" or (errorHandler.buildDepError "plutus-core"))
-            (hsPkgs."plutus-ledger-api" or (errorHandler.buildDepError "plutus-ledger-api"))
-            (hsPkgs."plutus-tx" or (errorHandler.buildDepError "plutus-tx"))
-            (hsPkgs."plutus-contract" or (errorHandler.buildDepError "plutus-contract"))
-            (hsPkgs."plutus-chain-index" or (errorHandler.buildDepError "plutus-chain-index"))
-            (hsPkgs."plutus-ledger" or (errorHandler.buildDepError "plutus-ledger"))
-            (hsPkgs."plutus-use-cases" or (errorHandler.buildDepError "plutus-use-cases"))
-            (hsPkgs."optparse-applicative" or (errorHandler.buildDepError "optparse-applicative"))
-            (hsPkgs."aeson-pretty" or (errorHandler.buildDepError "aeson-pretty"))
-            (hsPkgs."cardano-api" or (errorHandler.buildDepError "cardano-api"))
-            (hsPkgs."cardano-binary" or (errorHandler.buildDepError "cardano-binary"))
-            (hsPkgs."cborg" or (errorHandler.buildDepError "cborg"))
-            (hsPkgs."memory" or (errorHandler.buildDepError "memory"))
-            ] ++ (pkgs.lib).optional (!(compiler.isGhcjs && true || system.isGhcjs)) (hsPkgs."plutus-tx-plugin" or (errorHandler.buildDepError "plutus-tx-plugin"));
-          buildable = true;
-          };
-        };
-      tests = {
-        "plutus-use-cases-test" = {
-          depends = [
-            (hsPkgs."plutus-tx" or (errorHandler.buildDepError "plutus-tx"))
-            (hsPkgs."plutus-contract" or (errorHandler.buildDepError "plutus-contract"))
-            (hsPkgs."plutus-ledger" or (errorHandler.buildDepError "plutus-ledger"))
-            (hsPkgs."plutus-use-cases" or (errorHandler.buildDepError "plutus-use-cases"))
-            (hsPkgs."base" or (errorHandler.buildDepError "base"))
-            (hsPkgs."bytestring" or (errorHandler.buildDepError "bytestring"))
-            (hsPkgs."cardano-crypto-class" or (errorHandler.buildDepError "cardano-crypto-class"))
-            (hsPkgs."containers" or (errorHandler.buildDepError "containers"))
-            (hsPkgs."data-default" or (errorHandler.buildDepError "data-default"))
-            (hsPkgs."freer-extras" or (errorHandler.buildDepError "freer-extras"))
-            (hsPkgs."prettyprinter" or (errorHandler.buildDepError "prettyprinter"))
-            (hsPkgs."tasty" or (errorHandler.buildDepError "tasty"))
-            (hsPkgs."tasty-hunit" or (errorHandler.buildDepError "tasty-hunit"))
-            (hsPkgs."tasty-hedgehog" or (errorHandler.buildDepError "tasty-hedgehog"))
-            (hsPkgs."tasty-golden" or (errorHandler.buildDepError "tasty-golden"))
-            (hsPkgs."tasty-quickcheck" or (errorHandler.buildDepError "tasty-quickcheck"))
+            (hsPkgs."purescript-bridge" or (errorHandler.buildDepError "purescript-bridge"))
+            (hsPkgs."servant" or (errorHandler.buildDepError "servant"))
+            (hsPkgs."servant-foreign" or (errorHandler.buildDepError "servant-foreign"))
+            (hsPkgs."servant-purescript" or (errorHandler.buildDepError "servant-purescript"))
+            (hsPkgs."servant-subscriber" or (errorHandler.buildDepError "servant-subscriber"))
             (hsPkgs."text" or (errorHandler.buildDepError "text"))
-            (hsPkgs."lens" or (errorHandler.buildDepError "lens"))
-            (hsPkgs."mtl" or (errorHandler.buildDepError "mtl"))
-            (hsPkgs."QuickCheck" or (errorHandler.buildDepError "QuickCheck"))
-            (hsPkgs."freer-simple" or (errorHandler.buildDepError "freer-simple"))
-            (hsPkgs."foldl" or (errorHandler.buildDepError "foldl"))
-            (hsPkgs."streaming" or (errorHandler.buildDepError "streaming"))
-            ] ++ (pkgs.lib).optional (!(compiler.isGhcjs && true || system.isGhcjs)) (hsPkgs."plutus-tx-plugin" or (errorHandler.buildDepError "plutus-tx-plugin"));
+            ];
           buildable = true;
           };
         };
       };
     } // rec {
-    src = (pkgs.lib).mkDefault /nix/store/6m6zyip9n1sv3dfh6vyz7158r08wd3bi-plutus-1efbb27/plutus-use-cases;
+    src = (pkgs.lib).mkDefault /nix/store/wpxma8w4lhg0kpmasqp1iq19br4xzirp-servant-purescript-a761044;
     }

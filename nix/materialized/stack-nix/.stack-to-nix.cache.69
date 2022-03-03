@@ -8,20 +8,20 @@
   , config
   , ... }:
   {
-    flags = {};
+    flags = { asserts = false; };
     package = {
       specVersion = "1.10";
       identifier = {
-        name = "ouroboros-consensus-shelley-test";
+        name = "ouroboros-consensus-shelley";
         version = "0.1.0.0";
         };
       license = "Apache-2.0";
-      copyright = "2020 Input Output (Hong Kong) Ltd.";
+      copyright = "2019 Input Output (Hong Kong) Ltd.";
       maintainer = "operations@iohk.io";
       author = "IOHK Engineering Team";
       homepage = "";
       url = "";
-      synopsis = "Test infrastructure for Shelley";
+      synopsis = "Shelley ledger integration in the Ouroboros consensus layer";
       description = "";
       buildType = "Simple";
       };
@@ -29,60 +29,37 @@
       "library" = {
         depends = [
           (hsPkgs."base" or (errorHandler.buildDepError "base"))
+          (hsPkgs."base-deriving-via" or (errorHandler.buildDepError "base-deriving-via"))
           (hsPkgs."bytestring" or (errorHandler.buildDepError "bytestring"))
+          (hsPkgs."cardano-binary" or (errorHandler.buildDepError "cardano-binary"))
           (hsPkgs."cardano-crypto-class" or (errorHandler.buildDepError "cardano-crypto-class"))
           (hsPkgs."cardano-ledger-core" or (errorHandler.buildDepError "cardano-ledger-core"))
           (hsPkgs."cardano-protocol-tpraos" or (errorHandler.buildDepError "cardano-protocol-tpraos"))
+          (hsPkgs."cardano-prelude" or (errorHandler.buildDepError "cardano-prelude"))
           (hsPkgs."cardano-slotting" or (errorHandler.buildDepError "cardano-slotting"))
+          (hsPkgs."cborg" or (errorHandler.buildDepError "cborg"))
           (hsPkgs."containers" or (errorHandler.buildDepError "containers"))
-          (hsPkgs."generic-random" or (errorHandler.buildDepError "generic-random"))
-          (hsPkgs."quiet" or (errorHandler.buildDepError "quiet"))
+          (hsPkgs."data-default-class" or (errorHandler.buildDepError "data-default-class"))
+          (hsPkgs."deepseq" or (errorHandler.buildDepError "deepseq"))
+          (hsPkgs."measures" or (errorHandler.buildDepError "measures"))
           (hsPkgs."mtl" or (errorHandler.buildDepError "mtl"))
-          (hsPkgs."QuickCheck" or (errorHandler.buildDepError "QuickCheck"))
+          (hsPkgs."nothunks" or (errorHandler.buildDepError "nothunks"))
+          (hsPkgs."orphans-deriving-via" or (errorHandler.buildDepError "orphans-deriving-via"))
+          (hsPkgs."serialise" or (errorHandler.buildDepError "serialise"))
           (hsPkgs."strict-containers" or (errorHandler.buildDepError "strict-containers"))
+          (hsPkgs."text" or (errorHandler.buildDepError "text"))
           (hsPkgs."transformers" or (errorHandler.buildDepError "transformers"))
           (hsPkgs."cardano-ledger-alonzo" or (errorHandler.buildDepError "cardano-ledger-alonzo"))
-          (hsPkgs."cardano-ledger-alonzo-test" or (errorHandler.buildDepError "cardano-ledger-alonzo-test"))
           (hsPkgs."cardano-ledger-shelley" or (errorHandler.buildDepError "cardano-ledger-shelley"))
           (hsPkgs."cardano-ledger-shelley-ma" or (errorHandler.buildDepError "cardano-ledger-shelley-ma"))
-          (hsPkgs."cardano-ledger-shelley-ma-test" or (errorHandler.buildDepError "cardano-ledger-shelley-ma-test"))
-          (hsPkgs."cardano-ledger-shelley-test" or (errorHandler.buildDepError "cardano-ledger-shelley-test"))
           (hsPkgs."small-steps" or (errorHandler.buildDepError "small-steps"))
           (hsPkgs."ouroboros-network" or (errorHandler.buildDepError "ouroboros-network"))
           (hsPkgs."ouroboros-consensus" or (errorHandler.buildDepError "ouroboros-consensus"))
           (hsPkgs."ouroboros-consensus-protocol" or (errorHandler.buildDepError "ouroboros-consensus-protocol"))
-          (hsPkgs."ouroboros-consensus-test" or (errorHandler.buildDepError "ouroboros-consensus-test"))
-          (hsPkgs."ouroboros-consensus-shelley" or (errorHandler.buildDepError "ouroboros-consensus-shelley"))
           ];
         buildable = true;
         };
-      tests = {
-        "test" = {
-          depends = [
-            (hsPkgs."base" or (errorHandler.buildDepError "base"))
-            (hsPkgs."bytestring" or (errorHandler.buildDepError "bytestring"))
-            (hsPkgs."cardano-crypto-class" or (errorHandler.buildDepError "cardano-crypto-class"))
-            (hsPkgs."cardano-slotting" or (errorHandler.buildDepError "cardano-slotting"))
-            (hsPkgs."cborg" or (errorHandler.buildDepError "cborg"))
-            (hsPkgs."containers" or (errorHandler.buildDepError "containers"))
-            (hsPkgs."filepath" or (errorHandler.buildDepError "filepath"))
-            (hsPkgs."QuickCheck" or (errorHandler.buildDepError "QuickCheck"))
-            (hsPkgs."tasty" or (errorHandler.buildDepError "tasty"))
-            (hsPkgs."tasty-quickcheck" or (errorHandler.buildDepError "tasty-quickcheck"))
-            (hsPkgs."cardano-ledger-alonzo" or (errorHandler.buildDepError "cardano-ledger-alonzo"))
-            (hsPkgs."cardano-ledger-alonzo-test" or (errorHandler.buildDepError "cardano-ledger-alonzo-test"))
-            (hsPkgs."cardano-ledger-core" or (errorHandler.buildDepError "cardano-ledger-core"))
-            (hsPkgs."cardano-ledger-shelley" or (errorHandler.buildDepError "cardano-ledger-shelley"))
-            (hsPkgs."ouroboros-network" or (errorHandler.buildDepError "ouroboros-network"))
-            (hsPkgs."ouroboros-consensus" or (errorHandler.buildDepError "ouroboros-consensus"))
-            (hsPkgs."ouroboros-consensus-test" or (errorHandler.buildDepError "ouroboros-consensus-test"))
-            (hsPkgs."ouroboros-consensus-shelley" or (errorHandler.buildDepError "ouroboros-consensus-shelley"))
-            (hsPkgs."ouroboros-consensus-shelley-test" or (errorHandler.buildDepError "ouroboros-consensus-shelley-test"))
-            ];
-          buildable = true;
-          };
-        };
       };
     } // rec {
-    src = (pkgs.lib).mkDefault /nix/store/3ibhj9c6ifdmxi20a77xbdl3qmc5yw3w-ouroboros-network-d2d219a/ouroboros-consensus-shelley-test;
+    src = (pkgs.lib).mkDefault /nix/store/fy9im0ipvv2jsysk65jphamr63h2y23w-ouroboros-network-4fac197/ouroboros-consensus-shelley;
     }

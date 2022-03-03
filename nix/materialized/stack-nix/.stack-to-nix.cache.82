@@ -8,35 +8,43 @@
   , config
   , ... }:
   {
-    flags = {};
+    flags = { asserts = false; };
     package = {
-      specVersion = "2.2";
-      identifier = { name = "freer-extras"; version = "0.1.0.0"; };
+      specVersion = "1.10";
+      identifier = { name = "ouroboros-consensus-mock"; version = "0.1.0.0"; };
       license = "Apache-2.0";
-      copyright = "";
-      maintainer = "tobias.pflug@iohk.io";
-      author = "Tobias Pflug";
+      copyright = "2019 Input Output (Hong Kong) Ltd.";
+      maintainer = "operations@iohk.io";
+      author = "IOHK Engineering Team";
       homepage = "";
       url = "";
-      synopsis = "Useful extensions to simple-freer";
-      description = "freer-extras provides logging and monitoring functions extending simple-freer";
+      synopsis = "Mock ledger integration in the Ouroboros consensus layer";
+      description = "";
       buildType = "Simple";
       };
     components = {
       "library" = {
         depends = [
-          (hsPkgs."aeson" or (errorHandler.buildDepError "aeson"))
           (hsPkgs."base" or (errorHandler.buildDepError "base"))
-          (hsPkgs."lens" or (errorHandler.buildDepError "lens"))
-          (hsPkgs."freer-simple" or (errorHandler.buildDepError "freer-simple"))
+          (hsPkgs."bimap" or (errorHandler.buildDepError "bimap"))
+          (hsPkgs."bytestring" or (errorHandler.buildDepError "bytestring"))
+          (hsPkgs."cardano-binary" or (errorHandler.buildDepError "cardano-binary"))
+          (hsPkgs."cardano-crypto-class" or (errorHandler.buildDepError "cardano-crypto-class"))
+          (hsPkgs."cardano-slotting" or (errorHandler.buildDepError "cardano-slotting"))
+          (hsPkgs."cborg" or (errorHandler.buildDepError "cborg"))
+          (hsPkgs."containers" or (errorHandler.buildDepError "containers"))
+          (hsPkgs."deepseq" or (errorHandler.buildDepError "deepseq"))
+          (hsPkgs."hashable" or (errorHandler.buildDepError "hashable"))
           (hsPkgs."mtl" or (errorHandler.buildDepError "mtl"))
-          (hsPkgs."prettyprinter" or (errorHandler.buildDepError "prettyprinter"))
-          (hsPkgs."streaming" or (errorHandler.buildDepError "streaming"))
-          (hsPkgs."text" or (errorHandler.buildDepError "text"))
+          (hsPkgs."nothunks" or (errorHandler.buildDepError "nothunks"))
+          (hsPkgs."serialise" or (errorHandler.buildDepError "serialise"))
+          (hsPkgs."time" or (errorHandler.buildDepError "time"))
+          (hsPkgs."ouroboros-network" or (errorHandler.buildDepError "ouroboros-network"))
+          (hsPkgs."ouroboros-consensus" or (errorHandler.buildDepError "ouroboros-consensus"))
           ];
         buildable = true;
         };
       };
     } // rec {
-    src = (pkgs.lib).mkDefault /nix/store/6m6zyip9n1sv3dfh6vyz7158r08wd3bi-plutus-1efbb27/freer-extras;
+    src = (pkgs.lib).mkDefault /nix/store/fy9im0ipvv2jsysk65jphamr63h2y23w-ouroboros-network-4fac197/ouroboros-consensus-mock;
     }
