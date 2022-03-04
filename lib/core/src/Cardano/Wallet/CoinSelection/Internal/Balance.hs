@@ -1295,6 +1295,7 @@ runSelectionStep lens s
         , updatedQuantity
         , minimumQuantity
         , selectQuantity
+        , selectionStrategy
         } = lens
 
     requireImprovement :: state' -> Maybe state'
@@ -1308,8 +1309,12 @@ runSelectionStep lens s
     updatedDistanceFromTarget :: state' -> Natural
     updatedDistanceFromTarget = distance targetQuantity . updatedQuantity
 
+    targetMultiplier :: Natural
+    targetMultiplier = case selectionStrategy of
+        SelectionStrategyOptimal -> 2
+
     targetQuantity :: Natural
-    targetQuantity = minimumQuantity * 2
+    targetQuantity = minimumQuantity * targetMultiplier
 
 --------------------------------------------------------------------------------
 -- Making change
