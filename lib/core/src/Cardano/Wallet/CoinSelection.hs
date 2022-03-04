@@ -31,6 +31,7 @@ module Cardano.Wallet.CoinSelection
     , SelectionLimitOf (..)
     , SelectionOf (..)
     , SelectionParams (..)
+    , SelectionStrategy (..)
 
     -- * Selection skeletons
     , SelectionSkeleton (..)
@@ -164,6 +165,9 @@ data SelectionConstraints = SelectionConstraints
         :: Natural
         -- ^ Specifies the minimum required amount of collateral as a
         -- percentage of the total transaction fee.
+    , selectionStrategy
+        :: SelectionStrategy
+        -- ^ Specifies which selection strategy to use. See 'SelectionStrategy'.
     }
     deriving Generic
 
@@ -175,8 +179,6 @@ toInternalSelectionConstraints SelectionConstraints {..} =
             computeMinimumCost . toExternalSelectionSkeleton
         , computeSelectionLimit =
             computeSelectionLimit . fmap (uncurry TxOut)
-        , selectionStrategy =
-            SelectionStrategyOptimal
         , ..
         }
 

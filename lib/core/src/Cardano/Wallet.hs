@@ -230,6 +230,7 @@ import Cardano.Wallet.CoinSelection
     , SelectionReportDetailed
     , SelectionReportSummarized
     , SelectionSkeleton (..)
+    , SelectionStrategy (..)
     , UnableToConstructChangeError (..)
     , emptySkeleton
     , makeSelectionReportDetailed
@@ -1986,6 +1987,8 @@ selectAssets ctx pp params transform = do
                 intCast @Word16 @Int $ view #maximumCollateralInputCount pp
             , minimumCollateralPercentage =
                 view #minimumCollateralPercentage pp
+            , selectionStrategy =
+                SelectionStrategyOptimal
             }
     let selectionParams = SelectionParams
             { assetsToMint =
