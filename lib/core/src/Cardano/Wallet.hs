@@ -1541,6 +1541,7 @@ balanceTransaction
                 , utxoAvailableForInputs
                 , utxoAvailableForCollateral
                 , wallet
+                , selectionStrategy = SelectionStrategyOptimal
                 }
                 transform
 
@@ -1930,6 +1931,8 @@ data SelectAssetsParams s result = SelectAssetsParams
     , utxoAvailableForCollateral :: Map InputId TokenBundle
     , utxoAvailableForInputs :: UTxOSelection InputId
     , wallet :: Wallet s
+    , selectionStrategy :: SelectionStrategy
+        -- ^ Specifies which selection strategy to use. See 'SelectionStrategy'.
     }
     deriving Generic
 
@@ -1988,7 +1991,7 @@ selectAssets ctx pp params transform = do
             , minimumCollateralPercentage =
                 view #minimumCollateralPercentage pp
             , selectionStrategy =
-                SelectionStrategyOptimal
+                view #selectionStrategy params
             }
     let selectionParams = SelectionParams
             { assetsToMint =

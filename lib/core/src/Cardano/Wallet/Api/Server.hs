@@ -314,6 +314,7 @@ import Cardano.Wallet.CoinSelection
     , SelectionOutputError (..)
     , SelectionOutputSizeExceedsLimitError (..)
     , SelectionOutputTokenQuantityExceedsLimitError (..)
+    , SelectionStrategy (..)
     , balanceMissing
     , selectionDelta
     , shortfall
@@ -1599,6 +1600,7 @@ selectCoins ctx genChange (ApiT wid) body = do
                 , utxoAvailableForInputs = UTxOSelection.fromIndex utxoAvailable
                 , utxoAvailableForCollateral = UTxOIndex.toMap utxoAvailable
                 , wallet
+                , selectionStrategy = SelectionStrategyOptimal
                 }
         utx <- liftHandler $
             W.selectAssets @_ @_ @s @k wrk pp selectAssetsParams transform
@@ -1650,6 +1652,7 @@ selectCoinsForJoin ctx knownPools getPoolStatus pid wid = do
                 , utxoAvailableForInputs = UTxOSelection.fromIndex utxoAvailable
                 , utxoAvailableForCollateral = UTxOIndex.toMap utxoAvailable
                 , wallet
+                , selectionStrategy = SelectionStrategyOptimal
                 }
         utx <- liftHandler
             $ W.selectAssets @_ @_ @s @k wrk pp selectAssetsParams transform
@@ -1701,6 +1704,7 @@ selectCoinsForQuit ctx (ApiT wid) = do
                 , utxoAvailableForInputs = UTxOSelection.fromIndex utxoAvailable
                 , utxoAvailableForCollateral = UTxOIndex.toMap utxoAvailable
                 , wallet
+                , selectionStrategy = SelectionStrategyOptimal
                 }
         utx <- liftHandler
             $ W.selectAssets @_ @_ @s @k wrk pp selectAssetsParams transform
@@ -1969,6 +1973,7 @@ postTransactionOld ctx genChange (ApiT wid) body = do
                     , utxoAvailableForCollateral =
                         UTxOIndex.toMap utxoAvailable
                     , wallet
+                    , selectionStrategy = SelectionStrategyOptimal
                     }
             sel <- liftHandler
                 $ W.selectAssets @_ @_ @s @k wrk pp selectAssetsParams
@@ -2119,6 +2124,7 @@ postTransactionFeeOld ctx (ApiT wid) body = do
                 , utxoAvailableForInputs = UTxOSelection.fromIndex utxoAvailable
                 , utxoAvailableForCollateral = UTxOIndex.toMap utxoAvailable
                 , wallet
+                , selectionStrategy = SelectionStrategyOptimal
                 }
         let runSelection =
                 W.selectAssets @_ @_ @s @k wrk pp selectAssetsParams getFee
@@ -2230,6 +2236,7 @@ constructTransaction ctx genChange knownPools getPoolStatus (ApiT wid) body = do
                     , utxoAvailableForCollateral =
                         UTxOIndex.toMap utxoAvailable
                     , wallet
+                    , selectionStrategy = SelectionStrategyOptimal
                     }
 
         (sel, sel', fee) <- do
@@ -2588,6 +2595,7 @@ joinStakePool ctx knownPools getPoolStatus apiPoolId (ApiT wid) body = do
                 , utxoAvailableForInputs = UTxOSelection.fromIndex utxoAvailable
                 , utxoAvailableForCollateral = UTxOIndex.toMap utxoAvailable
                 , wallet
+                , selectionStrategy = SelectionStrategyOptimal
                 }
         sel <- liftHandler
             $ W.selectAssets @_ @_ @s @k wrk pp selectAssetsParams
@@ -2656,6 +2664,7 @@ delegationFee ctx (ApiT wid) = do
             , utxoAvailableForInputs = UTxOSelection.fromIndex utxoAvailable
             , utxoAvailableForCollateral = UTxOIndex.toMap utxoAvailable
             , wallet
+            , selectionStrategy = SelectionStrategyOptimal
             }
 
 quitStakePool
@@ -2702,6 +2711,7 @@ quitStakePool ctx (ApiT wid) body = do
                 , utxoAvailableForInputs = UTxOSelection.fromIndex utxoAvailable
                 , utxoAvailableForCollateral = UTxOIndex.toMap utxoAvailable
                 , wallet
+                , selectionStrategy = SelectionStrategyOptimal
                 }
         sel <- liftHandler
             $ W.selectAssets @_ @_ @s @k wrk pp selectAssetsParams

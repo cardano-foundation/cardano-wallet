@@ -69,7 +69,7 @@ import Cardano.Wallet.BenchShared
     , runBenchmarks
     )
 import Cardano.Wallet.CoinSelection
-    ( selectionDelta )
+    ( SelectionStrategy (..), selectionDelta )
 import Cardano.Wallet.DB
     ( DBLayer )
 import Cardano.Wallet.DB.Sqlite
@@ -466,6 +466,7 @@ benchmarksRnd _ w wid wname benchname restoreTime = do
                 , utxoAvailableForInputs = UTxOSelection.fromIndex utxoAvailable
                 , utxoAvailableForCollateral = UTxOIndex.toMap utxoAvailable
                 , wallet
+                , selectionStrategy = SelectionStrategyOptimal
                 }
         let runSelection =
                 W.selectAssets @_ @_ @s @k w pp selectAssetsParams getFee
@@ -569,6 +570,7 @@ benchmarksSeq _ w wid _wname benchname restoreTime = do
                 , utxoAvailableForInputs = UTxOSelection.fromIndex utxoAvailable
                 , utxoAvailableForCollateral = UTxOIndex.toMap utxoAvailable
                 , wallet
+                , selectionStrategy = SelectionStrategyOptimal
                 }
         let runSelection =
                 W.selectAssets @_ @_ @s @k w pp selectAssetsParams getFee
