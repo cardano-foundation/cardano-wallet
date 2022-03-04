@@ -94,6 +94,8 @@ module Cardano.Wallet.Shelley.Compatibility
     , toScriptPurpose
     , fromShelleyTxIn
     , toCostModelsAsArray
+    , toCardanoPolicyId
+    , toCardanoSimpleScript
 
       -- ** Assessing sizes of token bundles
     , tokenBundleSizeAssessor
@@ -148,6 +150,8 @@ import Cardano.Address
     ( unsafeMkAddress )
 import Cardano.Address.Derivation
     ( XPub, xpubPublicKey )
+import Cardano.Address.Script
+    ( KeyHash (..), Script (..) )
 import Cardano.Api
     ( AllegraEra
     , AlonzoEra
@@ -1803,7 +1807,7 @@ toCardanoTxOut era = case era of
                 <$> deserialiseFromRawBytes AsByronAddress addr
             ]
 
-toCardanoValue :: HasCallStack => TokenBundle.TokenBundle -> Cardano.Value
+toCardanoValue :: TokenBundle.TokenBundle -> Cardano.Value
 toCardanoValue tb = Cardano.valueFromList $
     (Cardano.AdaAssetId, coinToQuantity coin) :
     map (bimap toCardanoAssetId toQuantity) bundle
@@ -1812,16 +1816,40 @@ toCardanoValue tb = Cardano.valueFromList $
     toCardanoAssetId (TokenBundle.AssetId pid name) =
         Cardano.AssetId (toCardanoPolicyId pid) (toCardanoAssetName name)
 
-    toCardanoPolicyId (W.UnsafeTokenPolicyId (W.Hash pid)) = just "PolicyId"
-        [Cardano.deserialiseFromRawBytes Cardano.AsPolicyId pid]
-    toCardanoAssetName (W.UnsafeTokenName name) = just "TokenName"
+    toCardanoAssetName (W.UnsafeTokenName name) = just "toCardanoValue" "TokenName"
         [Cardano.deserialiseFromRawBytes Cardano.AsAssetName name]
-
-    just :: Builder -> [Maybe a] -> a
-    just t = tina ("toCardanoValue: unable to deserialise "+|t)
 
     coinToQuantity = fromIntegral . W.unCoin
     toQuantity = fromIntegral . W.unTokenQuantity
+
+toCardanoPolicyId :: W.TokenPolicyId -> Cardano.PolicyId
+toCardanoPolicyId (W.UnsafeTokenPolicyId (W.Hash pid)) =
+    just "toCardanoPolicyId" "PolicyId"
+    [Cardano.deserialiseFromRawBytes Cardano.AsPolicyId pid]
+
+toCardanoSimpleScript
+    :: Script KeyHash
+    -> Cardano.SimpleScript Cardano.SimpleScriptV2
+toCardanoSimpleScript = \case
+    RequireSignatureOf (KeyHash _ keyhash) ->
+        case Cardano.deserialiseFromRawBytes (Cardano.AsHash Cardano.AsPaymentKey) keyhash of
+            Just payKeyHash -> Cardano.RequireSignature payKeyHash
+            Nothing -> error "Hash key not valid"
+    RequireAllOf contents ->
+        Cardano.RequireAllOf $ map toCardanoSimpleScript contents
+    RequireAnyOf contents ->
+        Cardano.RequireAnyOf $ map toCardanoSimpleScript contents
+    RequireSomeOf num contents ->
+        Cardano.RequireMOf (fromIntegral num) $ map toCardanoSimpleScript contents
+    ActiveFromSlot slot ->
+        Cardano.RequireTimeAfter Cardano.TimeLocksInSimpleScriptV2
+        (O.SlotNo $ fromIntegral slot)
+    ActiveUntilSlot slot ->
+        Cardano.RequireTimeBefore Cardano.TimeLocksInSimpleScriptV2
+        (O.SlotNo $ fromIntegral slot)
+
+just :: Builder -> Builder -> [Maybe a] -> a
+just t1 t2 = tina (t1+|": unable to deserialise "+|t2)
 
 fromLedgerMintValue :: SL.Value StandardCrypto -> (TokenMap, TokenMap)
 fromLedgerMintValue (SL.Value _ ledgerTokens) =

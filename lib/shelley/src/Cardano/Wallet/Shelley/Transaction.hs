@@ -149,6 +149,8 @@ import Cardano.Wallet.Shelley.Compatibility
     , fromShelleyTxIn
     , toAlonzoPParams
     , toCardanoLovelace
+    , toCardanoPolicyId
+    , toCardanoSimpleScript
     , toCardanoStakeCredential
     , toCardanoTxIn
     , toCardanoTxOut
@@ -174,7 +176,7 @@ import Cardano.Wallet.Transaction
     , withdrawalToCoin
     )
 import Cardano.Wallet.Util
-    ( modifyM )
+    ( internalError, modifyM )
 import Codec.Serialise
     ( deserialiseOrFail )
 import Control.Arrow
@@ -1923,8 +1925,15 @@ mkUnsignedTx era ttl cs md wdrls certs fees mintData burnData allScripts =
                     burnValue =
                         Cardano.negateValue $
                         toCardanoValue (TokenBundle (Coin 0) burnData)
-                    witsMap = undefined
-                in Cardano.TxMintValue mintedEra (mintValue <> burnValue) witsMap
+                    toScriptWitness script =
+                        Cardano.SimpleScriptWitness scriptWitsSupported
+                        Cardano.SimpleScriptV2 (toCardanoSimpleScript script)
+                    witMap =
+                        Map.map toScriptWitness $
+                        Map.mapKeys (toCardanoPolicyId . TokenMap.tokenPolicyId)
+                        allScripts
+                    ctx = Cardano.BuildTxWith witMap
+                in Cardano.TxMintValue mintedEra (mintValue <> burnValue) ctx
     }
   where
     toErrMkTx :: Cardano.TxBodyError -> ErrMkTransaction
@@ -1965,6 +1974,12 @@ mkUnsignedTx era ttl cs md wdrls certs fees mintData burnData allScripts =
         ShelleyBasedEraMary -> Just Cardano.MultiAssetInMaryEra
         ShelleyBasedEraAlonzo -> Just Cardano.MultiAssetInAlonzoEra
 
+    scriptWitsSupported :: Cardano.ScriptLanguageInEra Cardano.SimpleScriptV2 era
+    scriptWitsSupported = case era of
+        ShelleyBasedEraShelley -> internalError "scriptWitsSupported we should be at least in Mary"
+        ShelleyBasedEraAllegra -> internalError "scriptWitsSupported we should be at least in Mary"
+        ShelleyBasedEraMary -> Cardano.SimpleScriptV2InMary
+        ShelleyBasedEraAlonzo -> Cardano.SimpleScriptV2InAlonzo
 
 mkWithdrawals
     :: NetworkId
