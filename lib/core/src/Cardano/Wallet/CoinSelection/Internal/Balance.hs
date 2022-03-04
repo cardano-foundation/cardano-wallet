@@ -38,6 +38,7 @@ module Cardano.Wallet.CoinSelection.Internal.Balance
     , SelectionSkeleton (..)
     , SelectionResult
     , SelectionResultOf (..)
+    , SelectionStrategy (..)
     , SelectionBalanceError (..)
     , BalanceInsufficientError (..)
     , InsufficientMinCoinValueError (..)
@@ -276,6 +277,21 @@ deriving instance
 deriving instance
     (Show (outputs (Address, TokenBundle)), Show u) =>
         Show (SelectionParamsOf outputs u)
+
+-- | Indicates a choice of selection strategy.
+--
+-- A 'SelectionStrategy' determines __how much__ of each asset the selection
+-- algorithm will attempt to select from the available UTxO set, relative to
+-- the minimum amount necessary to make the selection balance.
+--
+-- The default 'SelectionStrategy' is 'SelectionStrategyOptimal', which when
+-- specified will cause the selection algorithm to attempt to select around
+-- __/twice/__ the minimum possible amount of each asset from the available
+-- UTxO set, making it possible to generate change outputs that are roughly
+-- the same sizes and shapes as the user-specified outputs.
+--
+data SelectionStrategy
+    = SelectionStrategyOptimal
 
 -- | Indicates whether the balance of available UTxO entries is sufficient.
 --
@@ -1140,6 +1156,7 @@ assetSelectionLens limit (asset, minimumAssetQuantity) = SelectionLens
     , updatedQuantity = selectedAssetQuantity asset
     , minimumQuantity = unTokenQuantity minimumAssetQuantity
     , selectQuantity = selectAssetQuantity asset limit
+    , selectionStrategy = SelectionStrategyOptimal
     }
 
 coinSelectionLens
@@ -1153,6 +1170,7 @@ coinSelectionLens limit minimumCoinQuantity = SelectionLens
     , updatedQuantity = selectedCoinQuantity
     , minimumQuantity = intCast $ unCoin minimumCoinQuantity
     , selectQuantity  = selectCoinQuantity limit
+    , selectionStrategy = SelectionStrategyOptimal
     }
 
 -- | Specializes 'selectMatchingQuantity' to a particular asset.
@@ -1240,6 +1258,8 @@ data SelectionLens m state state' = SelectionLens
         :: state -> m (Maybe state')
     , minimumQuantity
         :: Natural
+    , selectionStrategy
+        :: SelectionStrategy
     }
 
 -- | Runs just a single step of a coin selection.

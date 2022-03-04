@@ -57,6 +57,7 @@ import Cardano.Wallet.CoinSelection.Internal.Balance
     , SelectionResult
     , SelectionResultOf (..)
     , SelectionSkeleton (..)
+    , SelectionStrategy (..)
     , UnableToConstructChangeError (..)
     , addMintValueToChangeMaps
     , addMintValuesToChangeMaps
@@ -1494,6 +1495,7 @@ runMockSelectionStep d =
         , updatedQuantity = id
         , minimumQuantity = mockMinimum d
         , selectQuantity = \s -> pure $ (+ s) <$> mockNext d
+        , selectionStrategy = SelectionStrategyOptimal
         }
 
 prop_runSelectionStep_supplyExhausted
