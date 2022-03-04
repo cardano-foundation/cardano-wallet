@@ -2384,6 +2384,11 @@ components:
       format: bech32
       pattern: "^((acct_shared_xvk)|(acct_shared_vk))1[0-9a-z]*$"
 
+    ApiPolicyKey: &ApiPolicyKey
+      type: string
+      format: bech32
+      pattern: "^((policy_vk)|(policy_vkh))1[0-9a-z]*$"
+
     ApiTxId: &ApiTxId
       type: object
       required:
@@ -5292,6 +5297,16 @@ x-responsesGetShelleyKey: &responsesGetShelleyKey
       application/json:
         schema: *ApiVerificationKeyShelley
 
+x-responsesGetPolicyKey: &responsesGetPolicyKey
+  <<: *responsesErr400
+  <<: *responsesErr404
+  <<: *responsesErr406
+  200:
+    description: Ok
+    content:
+      application/json:
+        schema: *ApiPolicyKey
+
 x-responsesGetSharedKey: &responsesGetSharedKey
   <<: *responsesErr400
   <<: *responsesErr404
@@ -6071,6 +6086,22 @@ paths:
         - *parametersRole
         - *parametersDerivationSegment
       responses: *responsesGetShelleyKey
+
+  /wallets/{walletId}/keys/policy:
+    get:
+      operationId: getPolicyKey
+      tags: ["Keys"]
+      summary: Get Policy Key
+      description: |
+        <p align="right">status: <strong>stable</strong></p>
+        Return a policy key for a derivation index = 0.
+
+        To get a hash of the public key, instead of the public key,
+        use query parameter `hash=true`.
+
+      parameters:
+        - *parametersWalletId
+      responses: *responsesGetPolicyKey
 
   /wallets/{walletId}/stake-keys:
     get:

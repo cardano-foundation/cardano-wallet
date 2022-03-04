@@ -3033,6 +3033,55 @@ spec = describe "NEW_SHELLEY_TRANSACTIONS" $ do
             [ expectResponseCode HTTP.status501
             , expectErrorMessage "This feature is not yet implemented."
             ]
+
+    it "TRANS_NEW_CREATE_10d - Minting assets" $ \ctx -> runResourceT $ do
+        wa <- fixtureWallet ctx
+        addrs <- listAddresses @n ctx wa
+        let destination = (addrs !! 1) ^. #id
+
+        let payload = Json [json|{
+                "minted_burned": [{
+                    "policy_script_template":
+                        { "all":
+                           [ "cosigner#0",
+                             { "active_from": 120 }
+                           ]
+                        },
+                    "asset_name": "ab12",
+                    "operation":
+                        { "mint" :
+                              { "receiving_address": #{destination},
+                                 "amount": {
+                                     "quantity": 50000,
+                                     "unit": "assets"
+                                  }
+                              }
+                        }
+                }]
+            }|]
+
+        rTx <- request @(ApiConstructTransaction n) ctx
+            (Link.createUnsignedTransaction @'Shelley wa) Default payload
+        verify rTx
+            [ expectResponseCode HTTP.status202
+            ]
+
+        let txCbor = getFromResponse #transaction rTx
+        let decodePayload = Json (toJSON $ ApiSerialisedTransaction txCbor)
+        let tokenPolicyId' =
+                UnsafeTokenPolicyId (Hash "\145\158\138\EM\"\170\167d\177\214d\a\198\246\"D\231p\129!_8[`\166 \145I")
+        let tokens = TokenMap.singleton
+                (AssetId tokenPolicyId' (UnsafeTokenName "ab12"))
+                (TokenQuantity 50_000)
+
+        rDecodedTx <- request @(ApiDecodedTransaction n) ctx
+            (Link.decodeTransaction @'Shelley wa) Default decodePayload
+        verify rDecodedTx
+            [ expectResponseCode HTTP.status202
+            , expectField #assetsMinted (`shouldBe` ApiT tokens)
+            , expectField #assetsBurned (`shouldBe` ApiT TokenMap.empty)
+            ]
+
   where
 
     -- | Just one million Ada, in Lovelace.

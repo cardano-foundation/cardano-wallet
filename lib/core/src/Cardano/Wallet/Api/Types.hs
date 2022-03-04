@@ -141,6 +141,7 @@ module Cardano.Wallet.Api.Types
     , ApiWithdrawal (..)
     , ApiWalletSignData (..)
     , ApiVerificationKeyShelley (..)
+    , ApiPolicyKey (..)
     , ApiVerificationKeyShared (..)
     , ApiScriptTemplateEntry (..)
     , XPubOrSelf (..)
@@ -1470,6 +1471,12 @@ data ApiVerificationKeyShelley = ApiVerificationKeyShelley
     } deriving (Eq, Generic, Show)
       deriving anyclass NFData
 
+data ApiPolicyKey = ApiPolicyKey
+    { getApiPolicyKey :: ByteString
+    , hashed :: VerificationKeyHashing
+    } deriving (Eq, Generic, Show)
+      deriving anyclass NFData
+
 data ApiVerificationKeyShared = ApiVerificationKeyShared
     { getApiVerificationKey :: (ByteString, Role)
     , hashed :: VerificationKeyHashing
@@ -2049,6 +2056,32 @@ instance FromJSON ApiVerificationKeyShelley where
             errRole =
                 "Unrecognized human-readable part. Expected one of:\
                 \ \"addr_vkh\", \"stake_vkh\",\"addr_vk\" or \"stake_vk\"."
+
+instance ToJSON ApiPolicyKey where
+    toJSON (ApiPolicyKey pub hashed) =
+        toJSON $ Bech32.encodeLenient hrp $ dataPartFromBytes pub
+      where
+        hrp = case hashed of
+            WithHashing -> [humanReadablePart|policy_vkh|]
+            WithoutHashing -> [humanReadablePart|policy_vk|]
+
+instance FromJSON ApiPolicyKey where
+    parseJSON value = do
+        (hrp, bytes) <- parseJSON value >>= (parseBech32 "Malformed policy key")
+        hashing <- parseHashing hrp
+        payload <- case hashing of
+            WithoutHashing -> parsePubVer bytes
+            WithHashing -> parsePubVerHash bytes
+        pure $ ApiPolicyKey payload hashing
+      where
+        parseHashing = \case
+            hrp | hrp == [humanReadablePart|policy_vk|] -> pure WithoutHashing
+            hrp | hrp == [humanReadablePart|policy_vkh|] -> pure WithHashing
+            _ -> fail errRole
+          where
+            errRole =
+                "Unrecognized human-readable part. Expected one of:\
+                \ \"policy_vkh\" or \"policy_vk\"."
 
 parseBech32
     :: Text
