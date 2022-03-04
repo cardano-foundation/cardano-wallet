@@ -390,6 +390,7 @@
             "Cardano/Wallet/CoinSelection/Internal/BalanceSpec"
             "Cardano/Wallet/CoinSelection/Internal/CollateralSpec"
             "Cardano/Wallet/DB/Arbitrary"
+            "Cardano/Wallet/DB/CheckpointsSpec"
             "Cardano/Wallet/DB/MVarSpec"
             "Cardano/Wallet/DB/Properties"
             "Cardano/Wallet/DB/SqliteSpec"
