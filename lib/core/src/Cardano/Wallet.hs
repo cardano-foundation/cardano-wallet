@@ -231,6 +231,7 @@ import Cardano.Wallet.CoinSelection
     , SelectionReportDetailed
     , SelectionReportSummarized
     , SelectionSkeleton (..)
+    , SelectionStrategy (..)
     , UnableToConstructChangeError (..)
     , emptySkeleton
     , makeSelectionReportDetailed
@@ -1542,6 +1543,7 @@ balanceTransaction
                 , utxoAvailableForInputs
                 , utxoAvailableForCollateral
                 , wallet
+                , selectionStrategy = SelectionStrategyOptimal
                 }
                 transform
 
@@ -1931,6 +1933,8 @@ data SelectAssetsParams s result = SelectAssetsParams
     , utxoAvailableForCollateral :: Map InputId TokenBundle
     , utxoAvailableForInputs :: UTxOSelection InputId
     , wallet :: Wallet s
+    , selectionStrategy :: SelectionStrategy
+        -- ^ Specifies which selection strategy to use. See 'SelectionStrategy'.
     }
     deriving Generic
 
@@ -1988,6 +1992,8 @@ selectAssets ctx pp params transform = do
                 intCast @Word16 @Int $ view #maximumCollateralInputCount pp
             , minimumCollateralPercentage =
                 view #minimumCollateralPercentage pp
+            , selectionStrategy =
+                view #selectionStrategy params
             }
     let selectionParams = SelectionParams
             { assetsToMint =

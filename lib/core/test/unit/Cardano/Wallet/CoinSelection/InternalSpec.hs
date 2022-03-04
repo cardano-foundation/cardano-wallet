@@ -34,7 +34,7 @@ import Cardano.Wallet.CoinSelection.Internal
     , verifySelectionError
     )
 import Cardano.Wallet.CoinSelection.Internal.Balance
-    ( SelectionLimit, SelectionSkeleton )
+    ( SelectionLimit, SelectionSkeleton, SelectionStrategy (..) )
 import Cardano.Wallet.CoinSelection.Internal.Balance.Gen
     ( genSelectionSkeleton, shrinkSelectionSkeleton )
 import Cardano.Wallet.CoinSelection.Internal.BalanceSpec
@@ -577,6 +577,8 @@ unMockSelectionConstraints m = SelectionConstraints
         view #maximumCollateralInputCount m
     , minimumCollateralPercentage =
         view #minimumCollateralPercentage m
+    , selectionStrategy =
+        SelectionStrategyOptimal
     }
 
 --------------------------------------------------------------------------------

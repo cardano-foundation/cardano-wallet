@@ -38,6 +38,7 @@ module Cardano.Wallet.CoinSelection.Internal.Balance
     , SelectionSkeleton (..)
     , SelectionResult
     , SelectionResultOf (..)
+    , SelectionStrategy (..)
     , SelectionBalanceError (..)
     , BalanceInsufficientError (..)
     , InsufficientMinCoinValueError (..)
@@ -229,6 +230,9 @@ data SelectionConstraints = SelectionConstraints
         :: [(Address, TokenBundle)] -> SelectionLimit
         -- ^ Computes an upper bound for the number of ordinary inputs to
         -- select, given a current set of outputs.
+    , selectionStrategy
+        :: SelectionStrategy
+        -- ^ Specifies which selection strategy to use. See 'SelectionStrategy'.
     }
     deriving Generic
 
@@ -276,6 +280,22 @@ deriving instance
 deriving instance
     (Show (outputs (Address, TokenBundle)), Show u) =>
         Show (SelectionParamsOf outputs u)
+
+-- | Indicates a choice of selection strategy.
+--
+-- A 'SelectionStrategy' determines __how much__ of each asset the selection
+-- algorithm will attempt to select from the available UTxO set, relative to
+-- the minimum amount necessary to make the selection balance.
+--
+-- The default 'SelectionStrategy' is 'SelectionStrategyOptimal', which when
+-- specified will cause the selection algorithm to attempt to select around
+-- __/twice/__ the minimum possible amount of each asset from the available
+-- UTxO set, making it possible to generate change outputs that are roughly
+-- the same sizes and shapes as the user-specified outputs.
+--
+data SelectionStrategy
+    = SelectionStrategyOptimal
+    deriving (Eq, Show)
 
 -- | Indicates whether the balance of available UTxO entries is sufficient.
 --
@@ -838,6 +858,7 @@ performSelectionNonEmpty constraints params
             { selectionLimit
             , utxoAvailable
             , minimumBalance = utxoBalanceRequired
+            , selectionStrategy
             }
         case maybeSelection of
             Nothing | utxoAvailable == UTxOSelection.empty ->
@@ -859,6 +880,7 @@ performSelectionNonEmpty constraints params
         , computeMinimumAdaQuantity
         , computeMinimumCost
         , computeSelectionLimit
+        , selectionStrategy
         } = constraints
     SelectionParams
         { outputsToCover
@@ -1080,6 +1102,8 @@ data RunSelectionParams u = RunSelectionParams
         -- ^ UTxO entries available for selection.
     , minimumBalance :: TokenBundle
         -- ^ Minimum balance to cover.
+    , selectionStrategy :: SelectionStrategy
+        -- ^ Specifies which selection strategy to use. See 'SelectionStrategy'.
     }
     deriving (Eq, Generic, Show)
 
@@ -1112,6 +1136,7 @@ runSelection params =
         { selectionLimit
         , utxoAvailable
         , minimumBalance
+        , selectionStrategy
         } = params
 
     -- NOTE: We run the 'coinSelector' last, because we know that every input
@@ -1123,9 +1148,10 @@ runSelection params =
         reverse (coinSelector : fmap assetSelector minimumAssetQuantities)
       where
         assetSelector = runSelectionStep .
-            assetSelectionLens selectionLimit
+            assetSelectionLens selectionLimit selectionStrategy
         coinSelector = runSelectionStep $
-            coinSelectionLens selectionLimit minimumCoinQuantity
+            coinSelectionLens selectionLimit selectionStrategy
+            minimumCoinQuantity
 
     (minimumCoinQuantity, minimumAssetQuantities) =
         TokenBundle.toFlatList minimumBalance
@@ -1133,26 +1159,30 @@ runSelection params =
 assetSelectionLens
     :: (MonadRandom m, Ord u)
     => SelectionLimit
+    -> SelectionStrategy
     -> (AssetId, TokenQuantity)
     -> SelectionLens m (UTxOSelection u) (UTxOSelectionNonEmpty u)
-assetSelectionLens limit (asset, minimumAssetQuantity) = SelectionLens
+assetSelectionLens limit strategy (asset, minimumAssetQuantity) = SelectionLens
     { currentQuantity = selectedAssetQuantity asset
     , updatedQuantity = selectedAssetQuantity asset
     , minimumQuantity = unTokenQuantity minimumAssetQuantity
     , selectQuantity = selectAssetQuantity asset limit
+    , selectionStrategy = strategy
     }
 
 coinSelectionLens
     :: (MonadRandom m, Ord u)
     => SelectionLimit
+    -> SelectionStrategy
     -> Coin
     -- ^ Minimum coin quantity.
     -> SelectionLens m (UTxOSelection u) (UTxOSelectionNonEmpty u)
-coinSelectionLens limit minimumCoinQuantity = SelectionLens
+coinSelectionLens limit strategy minimumCoinQuantity = SelectionLens
     { currentQuantity = selectedCoinQuantity
     , updatedQuantity = selectedCoinQuantity
     , minimumQuantity = intCast $ unCoin minimumCoinQuantity
     , selectQuantity  = selectCoinQuantity limit
+    , selectionStrategy = strategy
     }
 
 -- | Specializes 'selectMatchingQuantity' to a particular asset.
@@ -1240,6 +1270,8 @@ data SelectionLens m state state' = SelectionLens
         :: state -> m (Maybe state')
     , minimumQuantity
         :: Natural
+    , selectionStrategy
+        :: SelectionStrategy
     }
 
 -- | Runs just a single step of a coin selection.
@@ -1275,6 +1307,7 @@ runSelectionStep lens s
         , updatedQuantity
         , minimumQuantity
         , selectQuantity
+        , selectionStrategy
         } = lens
 
     requireImprovement :: state' -> Maybe state'
@@ -1288,8 +1321,12 @@ runSelectionStep lens s
     updatedDistanceFromTarget :: state' -> Natural
     updatedDistanceFromTarget = distance targetQuantity . updatedQuantity
 
+    targetMultiplier :: Natural
+    targetMultiplier = case selectionStrategy of
+        SelectionStrategyOptimal -> 2
+
     targetQuantity :: Natural
-    targetQuantity = minimumQuantity * 2
+    targetQuantity = minimumQuantity * targetMultiplier
 
 --------------------------------------------------------------------------------
 -- Making change

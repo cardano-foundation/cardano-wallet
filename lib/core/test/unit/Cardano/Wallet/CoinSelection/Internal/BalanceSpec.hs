@@ -57,6 +57,7 @@ import Cardano.Wallet.CoinSelection.Internal.Balance
     , SelectionResult
     , SelectionResultOf (..)
     , SelectionSkeleton (..)
+    , SelectionStrategy (..)
     , UnableToConstructChangeError (..)
     , addMintValueToChangeMaps
     , addMintValuesToChangeMaps
@@ -1063,6 +1064,7 @@ prop_performSelection mockConstraints params coverage =
                 , computeMinimumAdaQuantity = computeMinimumAdaQuantityZero
                 , computeMinimumCost = computeMinimumCostZero
                 , computeSelectionLimit = const NoLimit
+                , selectionStrategy = SelectionStrategyOptimal
                 }
             performSelection' = performSelection constraints' params
         in
@@ -1252,6 +1254,7 @@ prop_runSelection_UTxO_empty balanceRequested = monadicIO $ do
             { selectionLimit = NoLimit
             , utxoAvailable
             , minimumBalance = balanceRequested
+            , selectionStrategy = SelectionStrategyOptimal
             }
     let balanceSelected = UTxOSelection.selectedBalance result
     let balanceLeftover = UTxOSelection.leftoverBalance result
@@ -1274,6 +1277,7 @@ prop_runSelection_UTxO_notEnough utxoAvailable = monadicIO $ do
             { selectionLimit = NoLimit
             , utxoAvailable
             , minimumBalance = balanceRequested
+            , selectionStrategy = SelectionStrategyOptimal
             }
     let balanceSelected = UTxOSelection.selectedBalance result
     let balanceLeftover = UTxOSelection.leftoverBalance result
@@ -1297,6 +1301,7 @@ prop_runSelection_UTxO_exactlyEnough utxoAvailable = monadicIO $ do
             { selectionLimit = NoLimit
             , utxoAvailable
             , minimumBalance = balanceRequested
+            , selectionStrategy = SelectionStrategyOptimal
             }
     let balanceSelected = UTxOSelection.selectedBalance result
     let balanceLeftover = UTxOSelection.leftoverBalance result
@@ -1324,6 +1329,7 @@ prop_runSelection_UTxO_moreThanEnough utxoAvailable = monadicIO $ do
             { selectionLimit = NoLimit
             , utxoAvailable
             , minimumBalance = balanceRequested
+            , selectionStrategy = SelectionStrategyOptimal
             }
     let balanceSelected = UTxOSelection.selectedBalance result
     let balanceLeftover = UTxOSelection.leftoverBalance result
@@ -1371,6 +1377,7 @@ prop_runSelection_UTxO_muchMoreThanEnough (Blind (Large index)) =
                 { selectionLimit = NoLimit
                 , utxoAvailable
                 , minimumBalance = balanceRequested
+                , selectionStrategy = SelectionStrategyOptimal
                 }
         let balanceSelected = UTxOSelection.selectedBalance result
         let balanceLeftover = UTxOSelection.leftoverBalance result
@@ -1494,6 +1501,7 @@ runMockSelectionStep d =
         , updatedQuantity = id
         , minimumQuantity = mockMinimum d
         , selectQuantity = \s -> pure $ (+ s) <$> mockNext d
+        , selectionStrategy = SelectionStrategyOptimal
         }
 
 prop_runSelectionStep_supplyExhausted
@@ -1611,7 +1619,8 @@ prop_assetSelectionLens_givesPriorityToSingletonAssets (Blind (Small u)) =
     asset = Set.findMin $ UTxOIndex.assets u
     assetCount = Set.size $ UTxOIndex.assets u
     initialState = UTxOSelection.fromIndex u
-    lens = assetSelectionLens NoLimit (asset, minimumAssetQuantity)
+    lens = assetSelectionLens
+        NoLimit SelectionStrategyOptimal (asset, minimumAssetQuantity)
     minimumAssetQuantity = TokenQuantity 1
 
 prop_coinSelectionLens_givesPriorityToCoins
@@ -1641,7 +1650,8 @@ prop_coinSelectionLens_givesPriorityToCoins (Blind (Small u)) =
   where
     entryCount = UTxOIndex.size u
     initialState = UTxOSelection.fromIndex u
-    lens = coinSelectionLens NoLimit minimumCoinQuantity
+    lens = coinSelectionLens
+        NoLimit SelectionStrategyOptimal minimumCoinQuantity
     minimumCoinQuantity = Coin 1
 
 --------------------------------------------------------------------------------
@@ -1691,6 +1701,7 @@ mkBoundaryTestExpectation (BoundaryTestData params expectedResult) = do
         , assessTokenBundleSize = unMockAssessTokenBundleSize $
             boundaryTestBundleSizeAssessor params
         , computeSelectionLimit = const NoLimit
+        , selectionStrategy = SelectionStrategyOptimal
         }
 
 encodeBoundaryTestCriteria :: BoundaryTestCriteria -> SelectionParams InputId
@@ -2107,6 +2118,8 @@ unMockSelectionConstraints m = SelectionConstraints
         unMockComputeMinimumCost $ view #computeMinimumCost m
     , computeSelectionLimit =
         unMockComputeSelectionLimit $ view #computeSelectionLimit m
+    , selectionStrategy =
+        SelectionStrategyOptimal
     }
 
 --------------------------------------------------------------------------------

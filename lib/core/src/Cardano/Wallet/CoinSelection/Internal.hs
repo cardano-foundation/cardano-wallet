@@ -72,6 +72,7 @@ import Cardano.Wallet.CoinSelection.Internal.Balance
     , SelectionDelta (..)
     , SelectionLimit
     , SelectionSkeleton
+    , SelectionStrategy (..)
     )
 import Cardano.Wallet.CoinSelection.Internal.Collateral
     ( SelectionCollateralError )
@@ -175,6 +176,9 @@ data SelectionConstraints = SelectionConstraints
         :: Natural
         -- ^ Specifies the minimum required amount of collateral as a
         -- percentage of the total transaction fee.
+    , selectionStrategy
+        :: SelectionStrategy
+        -- ^ Specifies which selection strategy to use. See 'SelectionStrategy'.
     }
     deriving Generic
 
@@ -371,6 +375,8 @@ toBalanceConstraintsParams (constraints, params) =
                 & adjustComputeSelectionLimit
         , assessTokenBundleSize =
             view #assessTokenBundleSize constraints
+        , selectionStrategy =
+            view #selectionStrategy constraints
         }
       where
         adjustComputeMinimumCost
