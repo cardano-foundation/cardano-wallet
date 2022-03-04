@@ -89,7 +89,7 @@ import Cardano.Wallet.Primitive.Types.Tx
 import Cardano.Wallet.Primitive.Types.Tx.Gen
     ( genTx, genTxIn, genTxOut, shrinkTx, shrinkTxIn, shrinkTxOut )
 import Cardano.Wallet.Primitive.Types.UTxO
-    ( Dom (..), UTxO (..), balance, excluding, filterByAddress, restrictedTo )
+    ( UTxO (..), balance, dom, excluding, filterByAddress, restrictedTo )
 import Cardano.Wallet.Primitive.Types.UTxO.Gen
     ( genUTxO, shrinkUTxO )
 import Cardano.Wallet.Util
@@ -100,6 +100,8 @@ import Control.Monad
     ( foldM, guard )
 import Control.Monad.Trans.State.Strict
     ( State, evalState, execState, runState, state )
+import Data.Delta
+    ( apply )
 import Data.Foldable
     ( fold )
 import Data.Function
@@ -245,6 +247,10 @@ spec = do
             it "spendTx/utxoFromTx"
                 (property prop_spendTx_utxoFromTx)
 
+    parallel $ describe "DeltaWallet" $ do
+        it "applyBlock gives deltas that match final wallet state" $
+            property prop_applyBlock_DeltaWallet
+
     parallel $ describe "Available UTxO" $ do
         it "prop_availableUTxO_isSubmap" $
             property prop_availableUTxO_isSubmap
@@ -313,13 +319,21 @@ prop_applyBlockBasic s =
     prop =
         let
             (_, cp0) = initWallet @_ block0 s
-            wallet = foldl (\cp b -> snd $ applyBlock b cp) cp0 blockchain
+            wallet = foldl (\cp b -> snd . snd $ applyBlock b cp) cp0 blockchain
             utxo = totalUTxO mempty wallet
             utxo' = evalState (foldM (flip updateUTxO) mempty blockchain) s
         in
             (ShowFmt utxo === ShowFmt utxo') .&&.
             (availableBalance mempty wallet === balance utxo') .&&.
             (totalBalance mempty (Coin 0) wallet === balance utxo')
+
+prop_applyBlock_DeltaWallet :: ApplyBlock -> Property
+prop_applyBlock_DeltaWallet (ApplyBlock s utxo0 block) =
+    counterexample ("DeltaUTxO:\n" <> show dw)
+    $ w1 === apply dw w0
+  where
+    w0 = unsafeInitWallet utxo0 (view #header block0) s
+    (_, (dw, w1)) = applyBlock block w0
 
 -- Each transaction must have at least one output belonging to us
 prop_applyBlockTxHistoryIncoming :: WalletState -> Property
@@ -328,7 +342,8 @@ prop_applyBlockTxHistoryIncoming s =
   where
     (_, cp0) = initWallet @_ block0 s
     bs = NE.fromList blockchain
-    (filteredBlocks, cps) = NE.unzip $ applyBlocks bs cp0
+    (filteredBlocks, cps') = NE.unzip $ applyBlocks bs cp0
+    cps = NE.map snd cps'
     txs = fold $ (view #transactions) <$> filteredBlocks
     s' = getState $ NE.last cps
     isIncoming (_, m) = direction m == Incoming
@@ -343,7 +358,7 @@ prop_applyBlockCurrentTip (ApplyBlock s _ b) =
     property $ currentTip wallet' > currentTip wallet
   where
     (_, wallet) = initWallet @_ block0 s
-    wallet' = snd $ applyBlock b wallet
+    wallet' = snd $ snd $ applyBlock b wallet
 
 -- | applyBlocks increases the block height.
 prop_applyBlocksBlockHeight :: WalletState -> Positive Int -> Property
@@ -353,7 +368,7 @@ prop_applyBlocksBlockHeight s (Positive n) =
   where
     bs = NE.fromList (take n blockchain)
     (_, wallet) = initWallet block0 s
-    wallet' = NE.last $ snd <$> applyBlocks bs wallet
+    wallet' = NE.last $ snd . snd <$> applyBlocks bs wallet
     bh = unQuantity . blockHeight . currentTip
     unQuantity (Quantity a) = a
 
@@ -753,7 +768,8 @@ prop_applyOurTxToUTxO_allOurs slotNo blockHeight tx utxo =
     haveResult :: Bool
     haveResult = isJust maybeResult
     maybeResult :: Maybe UTxO
-    maybeResult = snd <$> applyOurTxToUTxO slotNo blockHeight AllOurs tx utxo
+    maybeResult = get <$> applyOurTxToUTxO slotNo blockHeight AllOurs tx utxo
+      where get (_,_,a) = a
     shouldHaveResult :: Bool
     shouldHaveResult = evalState (isOurTx tx utxo) AllOurs
 
@@ -790,7 +806,8 @@ prop_applyOurTxToUTxO_someOurs ourState slotNo blockHeight tx utxo =
     haveResult :: Bool
     haveResult = isJust maybeResult
     maybeResult :: Maybe UTxO
-    maybeResult = snd <$> applyOurTxToUTxO slotNo blockHeight ourState tx utxo
+    maybeResult = get <$> applyOurTxToUTxO slotNo blockHeight ourState tx utxo
+      where get (_,_,a) = a
     shouldHaveResult :: Bool
     shouldHaveResult = evalState (isOurTx tx utxo) ourState
 
@@ -801,7 +818,7 @@ prop_applyOurTxToUTxO_someOurs ourState slotNo blockHeight tx utxo =
 {- HLINT ignore prop_discoverAddresses "Avoid lambda using `infix`" -}
 prop_discoverAddresses :: ApplyBlock -> Property
 prop_discoverAddresses (ApplyBlock s utxo block) =
-    discoverAddresses block s
+    snd (discoverAddresses block s)
     ===
     execState (mapM (\tx -> isOurTx tx utxo) txs) s
   where
@@ -1005,7 +1022,7 @@ instance Arbitrary (WithPending WalletState) where
     arbitrary = do
         (_, cp0) <- initWallet @_ block0 <$> arbitrary
         subChain <- flip take blockchain <$> choose (1, length blockchain)
-        let wallet = foldl (\cp b -> snd $ applyBlock b cp) cp0 subChain
+        let wallet = foldl (\cp b -> snd . snd $ applyBlock b cp) cp0 subChain
         rewards <- Coin <$> oneof [pure 0, chooseNatural (1, 10000)]
         pending <- genPendingTx (totalUTxO Set.empty wallet) rewards
         pure $ WithPending wallet pending rewards
@@ -1061,25 +1078,38 @@ instance Arbitrary (WithPending WalletState) where
           where
             simulateFee (Coin amt) = Coin (amt - 5000)
 
-
 -- | Since it's quite tricky to generate a valid Arbitrary chain and
 -- corresponding initial UTxO, instead, we take subset of our small valid
--- blockchain and, reconstruct a valid initial UTxO by applying all the given
--- blocks minus one. Then, we control the property when applying that very block
+-- blockchain and reconstruct a valid initial UTxO by applying a prefix
+-- of the blocks in the chain. Then, we consider additional blocks in the
+-- chain for application.
+data ApplyBlocks = ApplyBlocks WalletState UTxO (NonEmpty Block)
+    deriving Show
+
+shrinkBlocks :: NonEmpty Block -> [NonEmpty Block]
+shrinkBlocks bs = (\n -> NE.fromList $ NE.take n bs) <$> [1, 2, NE.length bs]
+
+instance Arbitrary ApplyBlocks where
+    shrink (ApplyBlocks s u bs) =
+        ApplyBlocks s <$> shrinkUTxO u <*> shrinkBlocks bs
+    arbitrary = do
+        n <- choose (1, length blockchain)
+        m <- choose (0, n-1)
+        s <- arbitrary
+        let (prefix, suffix) = splitAt m (take n blockchain)
+            utxo = evalState (foldM (flip updateUTxO) mempty prefix) s
+            blocks = NE.fromList suffix
+        return $ ApplyBlocks s utxo blocks
+
+-- | Same as 'ApplyBlocks', but with a single next block.
 data ApplyBlock = ApplyBlock WalletState UTxO Block
     deriving Show
 
 instance Arbitrary ApplyBlock where
-    shrink (ApplyBlock s (UTxO utxo) b) =
-        let utxos = UTxO . Map.fromList <$> shrinkList pure (Map.toList utxo)
-        in (\u -> ApplyBlock s u b) <$> utxos
-    arbitrary = do
-        n <- choose (1, length blockchain)
-        s <- arbitrary
-        let blocks = NE.fromList (take n blockchain)
-        let utxo = evalState (foldM (flip updateUTxO) mempty (NE.init blocks)) s
-        let block = NE.last blocks
-        return $ ApplyBlock s utxo block
+    shrink (ApplyBlock s u b) = ApplyBlock s <$> shrinkUTxO u <*> pure b
+    arbitrary = headBlock <$> arbitrary
+      where
+        headBlock (ApplyBlocks s u (b :| _)) = ApplyBlock s u b
 
 
 addresses :: [Address]

@@ -13,14 +13,25 @@ import Cardano.Wallet.Primitive.Types.Address
     ( Address (..) )
 import Cardano.Wallet.Primitive.Types.Address.Gen
     ( Parity (..), addressParity, coarbitraryAddress )
+import Cardano.Wallet.Primitive.Types.Hash
+    ( mockHash )
 import Cardano.Wallet.Primitive.Types.Tx
-    ( TxIn )
+    ( TxIn (..), TxOut (..) )
 import Cardano.Wallet.Primitive.Types.Tx.Gen
     ( coarbitraryTxIn )
 import Cardano.Wallet.Primitive.Types.UTxO
-    ( UTxO (..), dom, filterByAddress, filterByAddressM, isSubsetOf )
+    ( UTxO (..)
+    , dom
+    , excludingD
+    , filterByAddress
+    , filterByAddressM
+    , isSubsetOf
+    , receiveD
+    )
 import Cardano.Wallet.Primitive.Types.UTxO.Gen
     ( genUTxO, shrinkUTxO )
+import Data.Delta
+    ( apply )
 import Data.Functor.Identity
     ( runIdentity )
 import Data.Generics.Internal.VL.Lens
@@ -50,6 +61,10 @@ spec :: Spec
 spec =
     describe "Cardano.Wallet.Primitive.Types.UTxOSpec" $ do
 
+    parallel $ describe "delta encoding" $ do
+        it "DeltaUTXO is a semigroup compatible with `apply`" $
+            property prop_deltaUTxO_semigroup_apply
+
     parallel $ describe "filtering and partitioning" $ do
 
         it "prop_filter_disjoint" $
@@ -77,6 +92,64 @@ spec =
             property prop_filterByAddress_filterByAddressM
         it "filterByAddress is always subset" $
             property prop_filterByAddress_isSubset
+
+prop_deltaUTxO_semigroup_apply :: Property
+prop_deltaUTxO_semigroup_apply = 
+        delta2 `apply` (delta1 `apply` utxo0)
+    ===
+        (delta2 <> delta1) `apply` utxo0
+  where
+    {- Note [Property Testing of Boolean Algebras]
+
+    It turns out that the validity of simple properties of finite sets
+    (or, more generally, boolean algebras) can be decided
+    by considering a single, universal example.
+    Essentially, this example corresponds to a truth table.
+    These examples are typically visualized as Venn diagrams.
+
+    For example, in order to show that the equality
+    
+        (A ∩ B) ∪ C = (A ∪ C) ∩ (B ∪ C)
+
+    holds for all finite sets A,B,C, it is sufficient to show that it
+    holds for the specific case
+
+        A = { "100", "110", "101", "111"}
+        B = { "010", "110", "011", "111"}
+        C = { "001", "101", "011", "111"}
+
+    Even though the elements like "010" seem very specific, they stand
+    for an entire subset of elements; here, "010" stands for all elements
+    that are contained in B, but not in A or C.
+    -}
+    {- Note [Property Testing of DeltaUTxO]
+
+    In order to test properties of `DeltaUTxO`, we can apply 
+    Note [Property Testing of Boolean Algebras] above, as most operations
+    on this data type are essentially set-theoretic operations.
+
+    In particular, the associativity of `(<>)` on `DeltaUTxO` corresponds
+    to a simple statement about finite sets, and it is sufficient to
+    test a single, universal case — the test case below.
+
+    The outputs named "a0" etc correspond to entire subsets of outputs.
+    For example, "a2" represents the subset of outputs contained in utxo0,
+    not spent by delta1, but spent by delta2.
+    Due to the "no double-spending" constraint, not all
+    subsets are relevant; the relevant ones are included in this test case.
+    -}
+    utxo0  = mkUTxOs ["a0","a1","a2"]
+    delta1 = mkDelta ["a1"] ["b1","b2"]
+    delta2 = mkDelta ["a2","b2"] ["c2"]
+
+    names = Map.fromList $ zip ["a0","a1","a2","b1","b2","c2" :: String] [0..] 
+    mkTxIn name = TxIn (mockHash name) (names Map.! name)
+    mkUTxO ix = UTxO $ Map.fromList
+        [(mkTxIn ix, TxOut (Address "TEST") mempty)]
+    mkUTxOs = mconcat . map mkUTxO
+    mkDelta ex re =
+        fst (excludingD (mkUTxOs ex) $ Set.fromList (map mkTxIn ex))
+        <> fst (receiveD mempty $ mkUTxOs re)
 
 --------------------------------------------------------------------------------
 -- Filtering and partitioning

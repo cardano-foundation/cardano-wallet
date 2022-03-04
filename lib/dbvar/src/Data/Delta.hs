@@ -40,6 +40,8 @@ import Data.Either
     ( fromRight )
 import Data.Kind
     ( Type )
+import Data.List.NonEmpty
+    ( NonEmpty )
 import Data.Semigroupoid
     ( Semigroupoid (..) )
 import Data.Set
@@ -98,6 +100,12 @@ instance Delta delta => Delta (Maybe delta) where
 -- > apply (d1 <> d2) = apply d1 . apply d2
 instance Delta delta => Delta [delta] where
     type Base [delta] = Base delta
+    apply ds a = foldr apply a ds
+
+-- | For convenience, a nonempty list of deltas
+-- can be applied like a list of deltas.
+instance Delta delta => Delta (NonEmpty delta) where
+    type Base (NonEmpty delta) = Base delta
     apply ds a = foldr apply a ds
 
 -- | A pair of deltas represents a delta for a pair.

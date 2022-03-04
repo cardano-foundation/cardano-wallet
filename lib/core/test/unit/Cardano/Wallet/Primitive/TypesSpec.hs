@@ -111,12 +111,12 @@ import Cardano.Wallet.Primitive.Types.Tx.Gen
     ( genTx, shrinkTx )
 import Cardano.Wallet.Primitive.Types.UTxO
     ( BoundType
-    , Dom (..)
     , HistogramBar (..)
     , UTxO (..)
     , UTxOStatistics (..)
     , balance
     , computeUtxoStatistics
+    , dom
     , excluding
     , isSubsetOf
     , log10
