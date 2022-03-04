@@ -21,6 +21,13 @@ import Prelude
 
 import Cardano.Address.Derivation
     ( XPub, xpubPublicKey )
+import Cardano.Address.Script
+    ( KeyRole (..)
+    , Script (..)
+    , ScriptHash (..)
+    , keyHashFromBytes
+    , toScriptHash
+    )
 import Cardano.Api
     ( CardanoEra (..), InAnyCardanoEra (..) )
 import Cardano.Crypto.DSIGN.Class
@@ -37,6 +44,7 @@ import Cardano.Wallet.Api.Types
     , ApiDecodedTransaction
     , ApiDeregisterPool (..)
     , ApiExternalCertificate (..)
+    , ApiPolicyKey (..)
     , ApiRegisterPool (..)
     , ApiSerialisedTransaction (..)
     , ApiStakePool
@@ -87,7 +95,7 @@ import Cardano.Wallet.Primitive.Types.RewardAccount
 import Cardano.Wallet.Primitive.Types.TokenBundle
     ( AssetId (..) )
 import Cardano.Wallet.Primitive.Types.TokenPolicy
-    ( TokenName (..), TokenPolicyId (..) )
+    ( TokenName (..), TokenPolicyId (..), mkTokenName )
 import Cardano.Wallet.Primitive.Types.TokenQuantity
     ( TokenQuantity (..) )
 import Cardano.Wallet.Primitive.Types.Tx
@@ -215,7 +223,6 @@ import qualified Data.Text as T
 import qualified Data.Text.Encoding as T
 import qualified Network.HTTP.Types.Status as HTTP
 import qualified Test.Integration.Plutus as PlutusScenario
-
 
 spec :: forall n.
     ( DecodeAddress n
@@ -3039,6 +3046,8 @@ spec = describe "NEW_SHELLEY_TRANSACTIONS" $ do
         addrs <- listAddresses @n ctx wa
         let destination = (addrs !! 1) ^. #id
 
+        let (Right tokenName') = mkTokenName "ab12"
+
         let payload = Json [json|{
                 "minted_burned": [{
                     "policy_script_template":
@@ -3047,7 +3056,7 @@ spec = describe "NEW_SHELLEY_TRANSACTIONS" $ do
                              { "active_from": 120 }
                            ]
                         },
-                    "asset_name": "ab12",
+                    "asset_name": #{toText tokenName'},
                     "operation":
                         { "mint" :
                               { "receiving_address": #{destination},
@@ -3068,10 +3077,20 @@ spec = describe "NEW_SHELLEY_TRANSACTIONS" $ do
 
         let txCbor = getFromResponse #transaction rTx
         let decodePayload = Json (toJSON $ ApiSerialisedTransaction txCbor)
+
+        let policyWithHash = Link.getPolicyKey @'Shelley wa (Just True)
+        (_, policyKeyHashPayload) <-
+                unsafeRequest @ApiPolicyKey ctx policyWithHash Empty
+        let (Just policyKeyHash) =
+                keyHashFromBytes (Payment, getApiPolicyKey policyKeyHashPayload)
+
         let tokenPolicyId' =
-                UnsafeTokenPolicyId (Hash "\145\158\138\EM\"\170\167d\177\214d\a\198\246\"D\231p\129!_8[`\166 \145I")
+                UnsafeTokenPolicyId . Hash $
+                unScriptHash $
+                toScriptHash $
+                RequireAllOf [RequireSignatureOf policyKeyHash, ActiveFromSlot 120]
         let tokens = TokenMap.singleton
-                (AssetId tokenPolicyId' (UnsafeTokenName "ab12"))
+                (AssetId tokenPolicyId' tokenName')
                 (TokenQuantity 50_000)
 
         rDecodedTx <- request @(ApiDecodedTransaction n) ctx

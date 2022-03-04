@@ -54,6 +54,7 @@ module Cardano.Wallet.Api.Link
     , signMetadata
     , postAccountKey
     , getAccountKey
+    , getPolicyKey
 
       -- * Addresses
     , postRandomAddress
@@ -395,6 +396,21 @@ getAccountKey w extended = discriminate @style
   where
     wid = w ^. typed @(ApiT WalletId)
 
+getPolicyKey
+    :: forall style w.
+        ( HasCallStack
+        , HasType (ApiT WalletId) w
+        , Discriminate style
+        )
+    => w
+    -> Maybe Bool
+    -> (Method, Text)
+getPolicyKey w hashed = discriminate @style
+    (endpoint @Api.GetPolicyKey (\mk -> mk wid hashed))
+    (notSupported "Byron")
+    (notSupported "Shared")
+  where
+    wid = w ^. typed @(ApiT WalletId)
 
 --
 -- Addresses
