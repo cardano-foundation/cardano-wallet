@@ -292,6 +292,7 @@ deriving instance
 --
 data SelectionStrategy
     = SelectionStrategyOptimal
+    deriving (Eq, Show)
 
 -- | Indicates whether the balance of available UTxO entries is sufficient.
 --
@@ -854,6 +855,7 @@ performSelectionNonEmpty constraints params
             { selectionLimit
             , utxoAvailable
             , minimumBalance = utxoBalanceRequired
+            , selectionStrategy = SelectionStrategyOptimal
             }
         case maybeSelection of
             Nothing | utxoAvailable == UTxOSelection.empty ->
@@ -1096,6 +1098,8 @@ data RunSelectionParams u = RunSelectionParams
         -- ^ UTxO entries available for selection.
     , minimumBalance :: TokenBundle
         -- ^ Minimum balance to cover.
+    , selectionStrategy :: SelectionStrategy
+        -- ^ Specifies which selection strategy to use. See 'SelectionStrategy'.
     }
     deriving (Eq, Generic, Show)
 
@@ -1128,6 +1132,7 @@ runSelection params =
         { selectionLimit
         , utxoAvailable
         , minimumBalance
+        , selectionStrategy
         } = params
 
     -- NOTE: We run the 'coinSelector' last, because we know that every input
@@ -1139,9 +1144,9 @@ runSelection params =
         reverse (coinSelector : fmap assetSelector minimumAssetQuantities)
       where
         assetSelector = runSelectionStep .
-            assetSelectionLens selectionLimit SelectionStrategyOptimal
+            assetSelectionLens selectionLimit selectionStrategy
         coinSelector = runSelectionStep $
-            coinSelectionLens selectionLimit SelectionStrategyOptimal
+            coinSelectionLens selectionLimit selectionStrategy
             minimumCoinQuantity
 
     (minimumCoinQuantity, minimumAssetQuantities) =

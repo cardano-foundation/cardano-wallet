@@ -1253,6 +1253,7 @@ prop_runSelection_UTxO_empty balanceRequested = monadicIO $ do
             { selectionLimit = NoLimit
             , utxoAvailable
             , minimumBalance = balanceRequested
+            , selectionStrategy = SelectionStrategyOptimal
             }
     let balanceSelected = UTxOSelection.selectedBalance result
     let balanceLeftover = UTxOSelection.leftoverBalance result
@@ -1275,6 +1276,7 @@ prop_runSelection_UTxO_notEnough utxoAvailable = monadicIO $ do
             { selectionLimit = NoLimit
             , utxoAvailable
             , minimumBalance = balanceRequested
+            , selectionStrategy = SelectionStrategyOptimal
             }
     let balanceSelected = UTxOSelection.selectedBalance result
     let balanceLeftover = UTxOSelection.leftoverBalance result
@@ -1298,6 +1300,7 @@ prop_runSelection_UTxO_exactlyEnough utxoAvailable = monadicIO $ do
             { selectionLimit = NoLimit
             , utxoAvailable
             , minimumBalance = balanceRequested
+            , selectionStrategy = SelectionStrategyOptimal
             }
     let balanceSelected = UTxOSelection.selectedBalance result
     let balanceLeftover = UTxOSelection.leftoverBalance result
@@ -1325,6 +1328,7 @@ prop_runSelection_UTxO_moreThanEnough utxoAvailable = monadicIO $ do
             { selectionLimit = NoLimit
             , utxoAvailable
             , minimumBalance = balanceRequested
+            , selectionStrategy = SelectionStrategyOptimal
             }
     let balanceSelected = UTxOSelection.selectedBalance result
     let balanceLeftover = UTxOSelection.leftoverBalance result
@@ -1372,6 +1376,7 @@ prop_runSelection_UTxO_muchMoreThanEnough (Blind (Large index)) =
                 { selectionLimit = NoLimit
                 , utxoAvailable
                 , minimumBalance = balanceRequested
+                , selectionStrategy = SelectionStrategyOptimal
                 }
         let balanceSelected = UTxOSelection.selectedBalance result
         let balanceLeftover = UTxOSelection.leftoverBalance result
