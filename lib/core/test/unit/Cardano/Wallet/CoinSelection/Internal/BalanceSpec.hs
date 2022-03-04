@@ -1613,7 +1613,8 @@ prop_assetSelectionLens_givesPriorityToSingletonAssets (Blind (Small u)) =
     asset = Set.findMin $ UTxOIndex.assets u
     assetCount = Set.size $ UTxOIndex.assets u
     initialState = UTxOSelection.fromIndex u
-    lens = assetSelectionLens NoLimit (asset, minimumAssetQuantity)
+    lens = assetSelectionLens
+        NoLimit SelectionStrategyOptimal (asset, minimumAssetQuantity)
     minimumAssetQuantity = TokenQuantity 1
 
 prop_coinSelectionLens_givesPriorityToCoins
@@ -1643,7 +1644,8 @@ prop_coinSelectionLens_givesPriorityToCoins (Blind (Small u)) =
   where
     entryCount = UTxOIndex.size u
     initialState = UTxOSelection.fromIndex u
-    lens = coinSelectionLens NoLimit minimumCoinQuantity
+    lens = coinSelectionLens
+        NoLimit SelectionStrategyOptimal minimumCoinQuantity
     minimumCoinQuantity = Coin 1
 
 --------------------------------------------------------------------------------

@@ -1139,9 +1139,10 @@ runSelection params =
         reverse (coinSelector : fmap assetSelector minimumAssetQuantities)
       where
         assetSelector = runSelectionStep .
-            assetSelectionLens selectionLimit
+            assetSelectionLens selectionLimit SelectionStrategyOptimal
         coinSelector = runSelectionStep $
-            coinSelectionLens selectionLimit minimumCoinQuantity
+            coinSelectionLens selectionLimit SelectionStrategyOptimal
+            minimumCoinQuantity
 
     (minimumCoinQuantity, minimumAssetQuantities) =
         TokenBundle.toFlatList minimumBalance
@@ -1149,28 +1150,30 @@ runSelection params =
 assetSelectionLens
     :: (MonadRandom m, Ord u)
     => SelectionLimit
+    -> SelectionStrategy
     -> (AssetId, TokenQuantity)
     -> SelectionLens m (UTxOSelection u) (UTxOSelectionNonEmpty u)
-assetSelectionLens limit (asset, minimumAssetQuantity) = SelectionLens
+assetSelectionLens limit strategy (asset, minimumAssetQuantity) = SelectionLens
     { currentQuantity = selectedAssetQuantity asset
     , updatedQuantity = selectedAssetQuantity asset
     , minimumQuantity = unTokenQuantity minimumAssetQuantity
     , selectQuantity = selectAssetQuantity asset limit
-    , selectionStrategy = SelectionStrategyOptimal
+    , selectionStrategy = strategy
     }
 
 coinSelectionLens
     :: (MonadRandom m, Ord u)
     => SelectionLimit
+    -> SelectionStrategy
     -> Coin
     -- ^ Minimum coin quantity.
     -> SelectionLens m (UTxOSelection u) (UTxOSelectionNonEmpty u)
-coinSelectionLens limit minimumCoinQuantity = SelectionLens
+coinSelectionLens limit strategy minimumCoinQuantity = SelectionLens
     { currentQuantity = selectedCoinQuantity
     , updatedQuantity = selectedCoinQuantity
     , minimumQuantity = intCast $ unCoin minimumCoinQuantity
     , selectQuantity  = selectCoinQuantity limit
-    , selectionStrategy = SelectionStrategyOptimal
+    , selectionStrategy = strategy
     }
 
 -- | Specializes 'selectMatchingQuantity' to a particular asset.
