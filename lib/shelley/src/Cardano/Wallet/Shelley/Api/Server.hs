@@ -76,6 +76,7 @@ import Cardano.Wallet.Api.Server
     , getNetworkClock
     , getNetworkInformation
     , getNetworkParameters
+    , getPolicyKey
     , getTransaction
     , getUTxOsStatistics
     , getWallet
@@ -267,6 +268,7 @@ server byron icarus shelley multisig spl ntp =
         :<|> signMetadata shelley
         :<|> postAccountPublicKey shelley ApiAccountKey
         :<|> getAccountPublicKey shelley ApiAccountKey
+        :<|> getPolicyKey @_ @_ @_ @n shelley
 
     assets :: Server (Assets n)
     assets =

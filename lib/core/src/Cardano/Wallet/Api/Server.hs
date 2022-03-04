@@ -94,6 +94,7 @@ module Cardano.Wallet.Api.Server
     , balanceTransaction
     , decodeTransaction
     , submitTransaction
+    , getPolicyKey
 
     -- * Server error responses
     , IsServerError(..)
@@ -244,6 +245,7 @@ import Cardano.Wallet.Api.Types
     , ApiOurStakeKey (..)
     , ApiPaymentDestination (..)
     , ApiPendingSharedWallet (..)
+    , ApiPolicyKey (..)
     , ApiPoolId (..)
     , ApiPostAccountKeyDataWithPurpose (..)
     , ApiPostRandomAddressData (..)
@@ -3214,14 +3216,17 @@ derivePublicKey
 derivePublicKey ctx mkVer (ApiT wid) (ApiT role_) (ApiT ix) hashed = do
     withWorkerCtx @_ @s @k ctx wid liftE liftE $ \wrk -> do
         k <- liftHandler $ W.derivePublicKey @_ @s @k wrk wid role_ ix
-        pure $ mkVer (computePayload k, role_) hashing
+        let (payload, hashing) = computeKeyPayload hashed (getRawKey k)
+        pure $ mkVer (payload, role_) hashing
+
+computeKeyPayload :: Maybe Bool -> XPub -> (ByteString, VerificationKeyHashing)
+computeKeyPayload hashed k = case hashing of
+    WithoutHashing -> (xpubPublicKey k, WithoutHashing)
+    WithHashing -> (blake2b224 $ xpubPublicKey k, WithHashing)
   where
     hashing = case hashed of
         Nothing -> WithoutHashing
         Just v -> if v then WithHashing else WithoutHashing
-    computePayload k' = case hashing of
-        WithoutHashing -> xpubPublicKey $ getRawKey k'
-        WithHashing -> blake2b224 $ xpubPublicKey $ getRawKey k'
 
 postAccountPublicKey
     :: forall ctx s k account.
@@ -3268,6 +3273,21 @@ getAccountPublicKey ctx mkAccount (ApiT wid) extended = do
       extd = case extended of
           Just Extended -> Extended
           _ -> NonExtended
+
+getPolicyKey
+    :: forall ctx s k (n :: NetworkDiscriminant).
+        ( ctx ~ ApiLayer s k
+        , Typeable s
+        , Typeable n
+        )
+    => ctx
+    -> ApiT WalletId
+    -> Maybe Bool
+    -> Handler ApiPolicyKey
+getPolicyKey ctx (ApiT wid) hashed = do
+    withWorkerCtx @_ @s @k ctx wid liftE liftE $ \wrk -> do
+        (k, _) <- liftHandler $ W.readPolicyPublicKey @_ @s @k @n wrk wid
+        pure $ uncurry ApiPolicyKey (computeKeyPayload hashed k)
 
 mintBurnAssets
     :: forall ctx n

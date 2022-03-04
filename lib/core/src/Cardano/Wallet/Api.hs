@@ -37,6 +37,7 @@ module Cardano.Wallet.Api
         , SignMetadata
         , PostAccountKey
         , GetAccountKey
+        , GetPolicyKey
 
     , Assets
         , ListAssets
@@ -188,6 +189,7 @@ import Cardano.Wallet.Api.Types
     , ApiNetworkClock
     , ApiNetworkInformation
     , ApiNetworkParameters
+    , ApiPolicyKey
     , ApiPoolId
     , ApiPostAccountKeyData
     , ApiPostAccountKeyDataWithPurpose
@@ -396,6 +398,7 @@ type WalletKeys =
     :<|> SignMetadata
     :<|> PostAccountKey
     :<|> GetAccountKey
+    :<|> GetPolicyKey
 
 -- | https://input-output-hk.github.io/cardano-wallet/api/#operation/getWalletKey
 type GetWalletKey = "wallets"
@@ -429,6 +432,13 @@ type GetAccountKey = "wallets"
     :> "keys"
     :> QueryParam "format" KeyFormat
     :> Get '[JSON] ApiAccountKey
+
+-- | https://input-output-hk.github.io/cardano-wallet/api/#operation/getPolicyKey
+type GetPolicyKey = "wallets"
+    :> Capture "walletId" (ApiT WalletId)
+    :> "policy-key"
+    :> QueryParam "hash" Bool
+    :> Get '[JSON] ApiPolicyKey
 
 {-------------------------------------------------------------------------------
                                   Assets

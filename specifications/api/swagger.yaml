@@ -6087,7 +6087,7 @@ paths:
         - *parametersDerivationSegment
       responses: *responsesGetShelleyKey
 
-  /wallets/{walletId}/keys/policy:
+  /wallets/{walletId}/policy-key:
     get:
       operationId: getPolicyKey
       tags: ["Keys"]
@@ -6096,7 +6096,7 @@ paths:
         <p align="right">status: <strong>stable</strong></p>
         Return a policy key for a derivation index = 0.
 
-        To get a hash of the public key, instead of the public key,
+        To get a hash of the policy key, instead of the policy key,
         use query parameter `hash=true`.
 
       parameters:
