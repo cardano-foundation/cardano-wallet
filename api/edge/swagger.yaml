@@ -5633,8 +5633,8 @@ paths:
         List all assets associated with the wallet, and their metadata
         if known.
 
-        An asset is _associated_ with a wallet if it is involved in a
-        transaction of the wallet.
+        An asset is _associated_ with a wallet if, at one point in history,
+        it was spendable by the wallet.
       parameters:
         - *parametersWalletId
       responses: *responsesListAssets

@@ -25,7 +25,7 @@
 
 
   
-  <link href='tailwind.css?instanceId=625d06e8-283a-4825-bbe8-ca9aded60b8f' rel='stylesheet' type='text/css' />
+  <link href='tailwind.css?instanceId=6eb04997-6542-4e89-bd51-f6f15a9195bf' rel='stylesheet' type='text/css' />
 
   <!-- Heist error element -->
   <style type='text/css'>
@@ -2376,15 +2376,10 @@
     <p class='mb-3'>
       In Haskell, this translates to:
     </p>
-  <div class='py-0.5 mb-3 text-sm'><pre><code class='hs language-hs'>class Dom a where
-  type DomElem a :: *
-  dom :: a -&gt; Set (DomElem a)
+  <div class='py-0.5 mb-3 text-sm'><pre><code class='hs language-hs'>newtype UTxO = UTxO (Map TxIn TxOut)
 
-newtype UTxO = UTxO (Map TxIn TxOut)
-
-instance Dom UTxO where
-  type DomElem UTxO = TxIn
-  dom (UTxO utxo)   = Set.fromList $ Map.keys utxo</code></pre></div><div xmlhtmlRaw></details>
+dom :: UTxO -&gt; Set TxIn
+dom (UTxO utxo) = Set.fromList $ Map.keys utxo</code></pre></div><div xmlhtmlRaw></details>
 </div><div xmlhtmlRaw><details>
     <summary>How do I interpret <code>(Ix -> TxOut)</code> in the definition of <code>Tx</code> in fig. 1?</summary>
 </div>
