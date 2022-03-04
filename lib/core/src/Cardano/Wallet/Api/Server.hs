@@ -1591,20 +1591,17 @@ selectCoins ctx genChange (ApiT wid) body = do
         (utxoAvailable, wallet, pendingTxs) <-
             liftHandler $ W.readWalletUTxOIndex @_ @s @k wrk wid
         pp <- liftIO $ NW.currentProtocolParameters (wrk ^. networkLayer)
-        utx <- liftHandler
-            $ W.selectAssets @_ @_ @s @k wrk pp W.SelectAssetsParams
+        let selectAssetsParams = W.SelectAssetsParams
                 { outputs = F.toList outs
                 , pendingTxs
                 , randomSeed = Nothing
                 , txContext = txCtx
-                , utxoAvailableForInputs =
-                    UTxOSelection.fromIndex utxoAvailable
-                , utxoAvailableForCollateral =
-                    UTxOIndex.toMap utxoAvailable
+                , utxoAvailableForInputs = UTxOSelection.fromIndex utxoAvailable
+                , utxoAvailableForCollateral = UTxOIndex.toMap utxoAvailable
                 , wallet
                 }
-                transform
-
+        utx <- liftHandler $
+            W.selectAssets @_ @_ @s @k wrk pp selectAssetsParams transform
         pure $ mkApiCoinSelection [] [] Nothing md utx
 
 selectCoinsForJoin
@@ -1644,19 +1641,18 @@ selectCoinsForJoin ctx knownPools getPoolStatus pid wid = do
         (utxoAvailable, wallet, pendingTxs) <-
             liftHandler $ W.readWalletUTxOIndex @_ @s @k wrk wid
         pp <- liftIO $ NW.currentProtocolParameters (wrk ^. networkLayer)
-        utx <- liftHandler
-            $ W.selectAssets @_ @_ @s @k wrk pp W.SelectAssetsParams
+
+        let selectAssetsParams = W.SelectAssetsParams
                 { outputs = []
                 , pendingTxs
                 , randomSeed = Nothing
                 , txContext = txCtx
-                , utxoAvailableForInputs =
-                    UTxOSelection.fromIndex utxoAvailable
-                , utxoAvailableForCollateral =
-                    UTxOIndex.toMap utxoAvailable
+                , utxoAvailableForInputs = UTxOSelection.fromIndex utxoAvailable
+                , utxoAvailableForCollateral = UTxOIndex.toMap utxoAvailable
                 , wallet
                 }
-                transform
+        utx <- liftHandler
+            $ W.selectAssets @_ @_ @s @k wrk pp selectAssetsParams transform
         (_, _, path) <- liftHandler
             $ W.readRewardAccount @_ @s @k @n wrk wid
 
@@ -1697,19 +1693,17 @@ selectCoinsForQuit ctx (ApiT wid) = do
             liftHandler $ W.readWalletUTxOIndex @_ @s @k wrk wid
         pp <- liftIO $ NW.currentProtocolParameters (wrk ^. networkLayer)
         let refund = W.stakeKeyDeposit pp
-        utx <- liftHandler
-            $ W.selectAssets @_ @_ @s @k wrk pp W.SelectAssetsParams
+        let selectAssetsParams = W.SelectAssetsParams
                 { outputs = []
                 , pendingTxs
                 , randomSeed = Nothing
                 , txContext = txCtx
-                , utxoAvailableForInputs =
-                    UTxOSelection.fromIndex utxoAvailable
-                , utxoAvailableForCollateral =
-                    UTxOIndex.toMap utxoAvailable
+                , utxoAvailableForInputs = UTxOSelection.fromIndex utxoAvailable
+                , utxoAvailableForCollateral = UTxOIndex.toMap utxoAvailable
                 , wallet
                 }
-                transform
+        utx <- liftHandler
+            $ W.selectAssets @_ @_ @s @k wrk pp selectAssetsParams transform
         (_, _, path) <- liftHandler $ W.readRewardAccount @_ @s @k @n wrk wid
 
         pure $ mkApiCoinSelection [] [refund] (Just (action, path)) Nothing utx
@@ -1961,30 +1955,32 @@ postTransactionOld ctx genChange (ApiT wid) body = do
             }
 
     (sel, tx, txMeta, txTime, pp) <- withWorkerCtx ctx wid liftE liftE $ \wrk ->
-      atomicallyWithHandler (ctx ^. walletLocks) (PostTransactionOld wid) $ do
-        (utxoAvailable, wallet, pendingTxs) <-
-            liftHandler $ W.readWalletUTxOIndex @_ @s @k wrk wid
-        pp <- liftIO $ NW.currentProtocolParameters (wrk ^. networkLayer)
-        sel <- liftHandler
-            $ W.selectAssets @_ @_ @s @k wrk pp W.SelectAssetsParams
-                { outputs = F.toList outs
-                , pendingTxs
-                , randomSeed = Nothing
-                , txContext = txCtx
-                , utxoAvailableForInputs =
-                    UTxOSelection.fromIndex utxoAvailable
-                , utxoAvailableForCollateral =
-                    UTxOIndex.toMap utxoAvailable
-                , wallet
-                }
-                (const Prelude.id)
-        sel' <- liftHandler
-            $ W.assignChangeAddressesAndUpdateDb wrk wid genChange sel
-        (tx, txMeta, txTime, sealedTx) <- liftHandler
-            $ W.buildAndSignTransaction @_ @s @k wrk wid mkRwdAcct pwd txCtx sel'
-        liftHandler
-            $ W.submitTx @_ @s @k wrk wid (tx, txMeta, sealedTx)
-        pure (sel, tx, txMeta, txTime, pp)
+        atomicallyWithHandler (ctx ^. walletLocks) (PostTransactionOld wid) $ do
+            (utxoAvailable, wallet, pendingTxs) <-
+                liftHandler $ W.readWalletUTxOIndex @_ @s @k wrk wid
+            pp <- liftIO $ NW.currentProtocolParameters (wrk ^. networkLayer)
+            let selectAssetsParams = W.SelectAssetsParams
+                    { outputs = F.toList outs
+                    , pendingTxs
+                    , randomSeed = Nothing
+                    , txContext = txCtx
+                    , utxoAvailableForInputs =
+                        UTxOSelection.fromIndex utxoAvailable
+                    , utxoAvailableForCollateral =
+                        UTxOIndex.toMap utxoAvailable
+                    , wallet
+                    }
+            sel <- liftHandler
+                $ W.selectAssets @_ @_ @s @k wrk pp selectAssetsParams
+                $ const Prelude.id
+            sel' <- liftHandler
+                $ W.assignChangeAddressesAndUpdateDb wrk wid genChange sel
+            (tx, txMeta, txTime, sealedTx) <- liftHandler
+                $ W.buildAndSignTransaction
+                    @_ @s @k wrk wid mkRwdAcct pwd txCtx sel'
+            liftHandler
+                $ W.submitTx @_ @s @k wrk wid (tx, txMeta, sealedTx)
+            pure (sel, tx, txMeta, txTime, pp)
 
     liftIO $ mkApiTransaction
         (timeInterpreter $ ctx ^. networkLayer)
@@ -2114,18 +2110,18 @@ postTransactionFeeOld ctx (ApiT wid) body = do
             liftHandler $ W.readWalletUTxOIndex @_ @s @k wrk wid
         let outs = addressAmountToTxOut <$> body ^. #payments
         pp <- liftIO $ NW.currentProtocolParameters (wrk ^. networkLayer)
-        let runSelection = W.selectAssets @_ @_ @s @k wrk pp W.SelectAssetsParams
+        let getFee = const (selectionDelta TokenBundle.getCoin)
+        let selectAssetsParams = W.SelectAssetsParams
                 { outputs = F.toList outs
                 , pendingTxs
                 , randomSeed = Nothing
                 , txContext = txCtx
-                , utxoAvailableForInputs =
-                    UTxOSelection.fromIndex utxoAvailable
-                , utxoAvailableForCollateral =
-                    UTxOIndex.toMap utxoAvailable
+                , utxoAvailableForInputs = UTxOSelection.fromIndex utxoAvailable
+                , utxoAvailableForCollateral = UTxOIndex.toMap utxoAvailable
                 , wallet
-                } getFee
-              where getFee = const (selectionDelta TokenBundle.getCoin)
+                }
+        let runSelection =
+                W.selectAssets @_ @_ @s @k wrk pp selectAssetsParams getFee
         minCoins <- liftIO (W.calcMinimumCoinValues @_ @k wrk (F.toList outs))
         liftHandler $ mkApiFee Nothing minCoins <$> W.estimateFee runSelection
 
@@ -2195,14 +2191,16 @@ constructTransaction ctx genChange knownPools getPoolStatus (ApiT wid) body = do
                         poolStatus <- liftIO (getPoolStatus pid)
                         pools <- liftIO knownPools
                         curEpoch <- getCurrentEpoch ctx
-                        (del, act) <- liftHandler $
-                            W.joinStakePool @_ @s @k wrk curEpoch pools pid poolStatus wid
+                        (del, act) <- liftHandler $ W.joinStakePool
+                            @_ @s @k wrk curEpoch pools pid poolStatus wid
                         pure (del, act, Nothing)
                     [(Leaving _)] -> do
-                        del <- liftHandler $ W.quitStakePool @_ @s @k wrk wid wdrl
+                        del <- liftHandler $
+                            W.quitStakePool @_ @s @k wrk wid wdrl
                         pure (del, Nothing, Just $ W.stakeKeyDeposit pp)
                     _ ->
-                        liftHandler $ throwE ErrConstructTxMultidelegationNotSupported
+                        liftHandler $
+                            throwE ErrConstructTxMultidelegationNotSupported
 
                 pure (deposit, refund, defaultTransactionCtx
                     { txWithdrawal = wdrl
@@ -2219,17 +2217,20 @@ constructTransaction ctx genChange knownPools getPoolStatus (ApiT wid) body = do
 
         (utxoAvailable, wallet, pendingTxs) <-
             liftHandler $ W.readWalletUTxOIndex @_ @s @k wrk wid
-        let runSelection outs = W.selectAssets @_ @_ @s @k wrk pp W.SelectAssetsParams
-                { outputs = outs
-                , pendingTxs
-                , randomSeed = Nothing
-                , txContext = txCtx
-                , utxoAvailableForInputs =
-                    UTxOSelection.fromIndex utxoAvailable
-                , utxoAvailableForCollateral =
-                    UTxOIndex.toMap utxoAvailable
-                , wallet
-                } transform
+        let runSelection outs =
+                W.selectAssets @_ @_ @s @k wrk pp selectAssetsParams transform
+              where
+                selectAssetsParams = W.SelectAssetsParams
+                    { outputs = outs
+                    , pendingTxs
+                    , randomSeed = Nothing
+                    , txContext = txCtx
+                    , utxoAvailableForInputs =
+                        UTxOSelection.fromIndex utxoAvailable
+                    , utxoAvailableForCollateral =
+                        UTxOIndex.toMap utxoAvailable
+                    , wallet
+                    }
 
         (sel, sel', fee) <- do
             outs <- case (body ^. #payments) of
@@ -2237,7 +2238,8 @@ constructTransaction ctx genChange knownPools getPoolStatus (ApiT wid) body = do
                 Just (ApiPaymentAddresses content) ->
                     pure $ F.toList (addressAmountToTxOut <$> content)
                 Just (ApiPaymentAll _) -> do
-                    liftHandler $ throwE $ ErrConstructTxNotImplemented "ADP-1189"
+                    liftHandler $
+                        throwE $ ErrConstructTxNotImplemented "ADP-1189"
 
             (sel', utx, fee') <- liftHandler $ runSelection outs
             sel <- liftHandler $
@@ -2250,8 +2252,8 @@ constructTransaction ctx genChange knownPools getPoolStatus (ApiT wid) body = do
 
         pure $ ApiConstructTransaction
             { transaction = ApiT tx
-            , coinSelection =
-                    mkApiCoinSelection (maybeToList deposit) (maybeToList refund) Nothing md sel'
+            , coinSelection = mkApiCoinSelection
+                (maybeToList deposit) (maybeToList refund) Nothing md sel'
             , fee = Quantity $ fromIntegral fee
             }
   where
@@ -2578,19 +2580,18 @@ joinStakePool ctx knownPools getPoolStatus apiPoolId (ApiT wid) body = do
         (utxoAvailable, wallet, pendingTxs) <-
             liftHandler $ W.readWalletUTxOIndex @_ @s @k wrk wid
         pp <- liftIO $ NW.currentProtocolParameters (wrk ^. networkLayer)
-        sel <- liftHandler
-            $ W.selectAssets @_ @_ @s @k wrk pp W.SelectAssetsParams
+        let selectAssetsParams = W.SelectAssetsParams
                 { outputs = []
                 , pendingTxs
                 , randomSeed = Nothing
                 , txContext = txCtx
-                , utxoAvailableForInputs =
-                    UTxOSelection.fromIndex utxoAvailable
-                , utxoAvailableForCollateral =
-                    UTxOIndex.toMap utxoAvailable
+                , utxoAvailableForInputs = UTxOSelection.fromIndex utxoAvailable
+                , utxoAvailableForCollateral = UTxOIndex.toMap utxoAvailable
                 , wallet
                 }
-                (const Prelude.id)
+        sel <- liftHandler
+            $ W.selectAssets @_ @_ @s @k wrk pp selectAssetsParams
+            $ const Prelude.id
         sel' <- liftHandler
             $ W.assignChangeAddressesAndUpdateDb wrk wid genChange sel
         (tx, txMeta, txTime, sealedTx) <- liftHandler
@@ -2644,19 +2645,18 @@ delegationFee ctx (ApiT wid) = do
     txCtx = defaultTransactionCtx
 
     runSelection wrk pp _deposit (utxoAvailable, wallet, pendingTxs) =
-        W.selectAssets @_ @_ @s @k wrk pp W.SelectAssetsParams
+        W.selectAssets @_ @_ @s @k wrk pp selectAssetsParams calcFee
+      where
+        calcFee _ = selectionDelta TokenBundle.getCoin
+        selectAssetsParams = W.SelectAssetsParams
             { outputs = []
             , pendingTxs
             , randomSeed = Nothing
             , txContext = txCtx
-            , utxoAvailableForInputs =
-                UTxOSelection.fromIndex utxoAvailable
-            , utxoAvailableForCollateral =
-                UTxOIndex.toMap utxoAvailable
+            , utxoAvailableForInputs = UTxOSelection.fromIndex utxoAvailable
+            , utxoAvailableForCollateral = UTxOIndex.toMap utxoAvailable
             , wallet
-            } calcFee
-      where
-        calcFee _ = selectionDelta TokenBundle.getCoin
+            }
 
 quitStakePool
     :: forall ctx s n k.
@@ -2681,7 +2681,8 @@ quitStakePool ctx (ApiT wid) body = do
     let pwd = coerce $ getApiT $ body ^. #passphrase
 
     (sel, tx, txMeta, txTime, pp) <- withWorkerCtx ctx wid liftE liftE $ \wrk -> do
-        (wdrl, mkRwdAcct) <- mkRewardAccountBuilder @_ @s @_ @n ctx wid (Just SelfWithdrawal)
+        (wdrl, mkRwdAcct) <-
+            mkRewardAccountBuilder @_ @s @_ @n ctx wid (Just SelfWithdrawal)
         action <- liftHandler $ W.quitStakePool wrk wid wdrl
         ttl <- liftIO $ W.getTxExpiry ti Nothing
         let txCtx = defaultTransactionCtx
@@ -2693,19 +2694,18 @@ quitStakePool ctx (ApiT wid) body = do
         (utxoAvailable, wallet, pendingTxs) <-
             liftHandler $ W.readWalletUTxOIndex @_ @s @k wrk wid
         pp <- liftIO $ NW.currentProtocolParameters (wrk ^. networkLayer)
-        sel <- liftHandler
-            $ W.selectAssets @_ @_ @s @k wrk pp W.SelectAssetsParams
+        let selectAssetsParams = W.SelectAssetsParams
                 { outputs = []
                 , pendingTxs
                 , randomSeed = Nothing
                 , txContext = txCtx
-                , utxoAvailableForInputs =
-                    UTxOSelection.fromIndex utxoAvailable
-                , utxoAvailableForCollateral =
-                    UTxOIndex.toMap utxoAvailable
+                , utxoAvailableForInputs = UTxOSelection.fromIndex utxoAvailable
+                , utxoAvailableForCollateral = UTxOIndex.toMap utxoAvailable
                 , wallet
                 }
-                (const Prelude.id)
+        sel <- liftHandler
+            $ W.selectAssets @_ @_ @s @k wrk pp selectAssetsParams
+            $ const Prelude.id
         sel' <- liftHandler
             $ W.assignChangeAddressesAndUpdateDb wrk wid genChange sel
         (tx, txMeta, txTime, sealedTx) <- liftHandler

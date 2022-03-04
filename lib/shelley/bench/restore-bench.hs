@@ -458,17 +458,17 @@ benchmarksRnd _ w wid wname benchname restoreTime = do
         (utxoAvailable, wallet, pendingTxs) <-
             unsafeRunExceptT $ W.readWalletUTxOIndex @_ @s @k w wid
         pp <- liftIO $ currentProtocolParameters (w ^. networkLayer)
-        let runSelection = W.selectAssets @_ @_ @s @k w pp W.SelectAssetsParams
+        let selectAssetsParams = W.SelectAssetsParams
                 { outputs = [out]
                 , pendingTxs
                 , randomSeed = Nothing
                 , txContext = txCtx
-                , utxoAvailableForInputs =
-                    UTxOSelection.fromIndex utxoAvailable
-                , utxoAvailableForCollateral =
-                    UTxOIndex.toMap utxoAvailable
+                , utxoAvailableForInputs = UTxOSelection.fromIndex utxoAvailable
+                , utxoAvailableForCollateral = UTxOIndex.toMap utxoAvailable
                 , wallet
-                } getFee
+                }
+        let runSelection =
+                W.selectAssets @_ @_ @s @k w pp selectAssetsParams getFee
         runExceptT $ withExceptT show $ W.estimateFee runSelection
 
     oneAddress <- genAddresses 1 cp
@@ -561,17 +561,17 @@ benchmarksSeq _ w wid _wname benchname restoreTime = do
         (utxoAvailable, wallet, pendingTxs) <-
             unsafeRunExceptT $ W.readWalletUTxOIndex w wid
         pp <- liftIO $ currentProtocolParameters (w ^. networkLayer)
-        let runSelection = W.selectAssets @_ @_ @s @k w pp W.SelectAssetsParams
+        let selectAssetsParams = W.SelectAssetsParams
                 { outputs = [out]
                 , pendingTxs
                 , randomSeed = Nothing
                 , txContext = txCtx
-                , utxoAvailableForInputs =
-                    UTxOSelection.fromIndex utxoAvailable
-                , utxoAvailableForCollateral =
-                    UTxOIndex.toMap utxoAvailable
+                , utxoAvailableForInputs = UTxOSelection.fromIndex utxoAvailable
+                , utxoAvailableForCollateral = UTxOIndex.toMap utxoAvailable
                 , wallet
-                } getFee
+                }
+        let runSelection =
+                W.selectAssets @_ @_ @s @k w pp selectAssetsParams getFee
         runExceptT $ withExceptT show $ W.estimateFee runSelection
 
     let walletOverview = WalletOverview{utxo,addresses,transactions}
