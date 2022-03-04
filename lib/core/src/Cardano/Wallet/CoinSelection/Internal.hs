@@ -176,6 +176,9 @@ data SelectionConstraints = SelectionConstraints
         :: Natural
         -- ^ Specifies the minimum required amount of collateral as a
         -- percentage of the total transaction fee.
+    , selectionStrategy
+        :: SelectionStrategy
+        -- ^ Specifies which selection strategy to use. See 'SelectionStrategy'.
     }
     deriving Generic
 
@@ -373,7 +376,7 @@ toBalanceConstraintsParams (constraints, params) =
         , assessTokenBundleSize =
             view #assessTokenBundleSize constraints
         , selectionStrategy =
-            SelectionStrategyOptimal
+            view #selectionStrategy constraints
         }
       where
         adjustComputeMinimumCost

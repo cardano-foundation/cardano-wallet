@@ -69,6 +69,7 @@ import Cardano.Wallet.CoinSelection.Internal.Balance
     , SelectionBalanceError (..)
     , SelectionLimit
     , SelectionLimitOf (..)
+    , SelectionStrategy (..)
     , UnableToConstructChangeError (..)
     , balanceMissing
     )
@@ -174,6 +175,8 @@ toInternalSelectionConstraints SelectionConstraints {..} =
             computeMinimumCost . toExternalSelectionSkeleton
         , computeSelectionLimit =
             computeSelectionLimit . fmap (uncurry TxOut)
+        , selectionStrategy =
+            SelectionStrategyOptimal
         , ..
         }
 
