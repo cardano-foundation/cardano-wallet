@@ -293,8 +293,29 @@ deriving instance
 -- UTxO set, making it possible to generate change outputs that are roughly
 -- the same sizes and shapes as the user-specified outputs.
 --
+-- Specifying 'SelectionStrategyMinimal' will cause the selection algorithm to
+-- only select __just enough__ of each asset from the available UTxO set to
+-- meet the minimum amount. The selection process will terminate as soon as
+-- the minimum amount of each asset is covered.
+--
+-- The "optimal" strategy is recommended for most situations, as using this
+-- strategy will help to ensure that a wallet's UTxO distribution can evolve
+-- over time to resemble the typical distribution of payments made by the
+-- wallet owner.  This increases the likelihood that future selections will
+-- succeed, and lowers the amortized cost of future transactions.
+--
+-- The "minimal" strategy is recommended only for situations where it is not
+-- possible to create a selection with the "optimal" strategy. It is advised to
+-- use this strategy only when necessary, as it increases the likelihood of
+-- generating change outputs that are much smaller than user-specified outputs.
+-- If this strategy is used regularly, the UTxO set can evolve to a state where
+-- the distribution no longer resembles the typical distribution of payments
+-- made by the user. This increases the likelihood that future selections will
+-- not succeed, and increases the amortized cost of future transactions.
+--
 data SelectionStrategy
-    = SelectionStrategyOptimal
+    = SelectionStrategyMinimal
+    | SelectionStrategyOptimal
     deriving (Eq, Show)
 
 -- | Indicates whether the balance of available UTxO entries is sufficient.
@@ -1288,8 +1309,8 @@ data SelectionLens m state state' = SelectionLens
 --    - If the total selected token quantity of the previous selection had
 --      already reached or surpassed 100% of the output token quantity, any
 --      additional selection is considered to be an improvement if and only
---      if it takens the total selected token quantity closer to 200% of the
---      output token quantity, but not further away.
+--      if it takens the total selected token quantity closer to the target
+--      token quantity, but not further away.
 --
 runSelectionStep
     :: forall m state state'. Monad m
@@ -1323,6 +1344,7 @@ runSelectionStep lens s
 
     targetMultiplier :: Natural
     targetMultiplier = case selectionStrategy of
+        SelectionStrategyMinimal -> 1
         SelectionStrategyOptimal -> 2
 
     targetQuantity :: Natural
