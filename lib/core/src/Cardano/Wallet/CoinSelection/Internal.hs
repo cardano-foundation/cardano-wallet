@@ -72,6 +72,7 @@ import Cardano.Wallet.CoinSelection.Internal.Balance
     , SelectionDelta (..)
     , SelectionLimit
     , SelectionSkeleton
+    , SelectionStrategy (..)
     )
 import Cardano.Wallet.CoinSelection.Internal.Collateral
     ( SelectionCollateralError )
@@ -371,6 +372,8 @@ toBalanceConstraintsParams (constraints, params) =
                 & adjustComputeSelectionLimit
         , assessTokenBundleSize =
             view #assessTokenBundleSize constraints
+        , selectionStrategy =
+            SelectionStrategyOptimal
         }
       where
         adjustComputeMinimumCost

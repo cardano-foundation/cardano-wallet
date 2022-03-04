@@ -230,6 +230,9 @@ data SelectionConstraints = SelectionConstraints
         :: [(Address, TokenBundle)] -> SelectionLimit
         -- ^ Computes an upper bound for the number of ordinary inputs to
         -- select, given a current set of outputs.
+    , selectionStrategy
+        :: SelectionStrategy
+        -- ^ Specifies which selection strategy to use. See 'SelectionStrategy'.
     }
     deriving Generic
 
@@ -855,7 +858,7 @@ performSelectionNonEmpty constraints params
             { selectionLimit
             , utxoAvailable
             , minimumBalance = utxoBalanceRequired
-            , selectionStrategy = SelectionStrategyOptimal
+            , selectionStrategy
             }
         case maybeSelection of
             Nothing | utxoAvailable == UTxOSelection.empty ->
@@ -877,6 +880,7 @@ performSelectionNonEmpty constraints params
         , computeMinimumAdaQuantity
         , computeMinimumCost
         , computeSelectionLimit
+        , selectionStrategy
         } = constraints
     SelectionParams
         { outputsToCover

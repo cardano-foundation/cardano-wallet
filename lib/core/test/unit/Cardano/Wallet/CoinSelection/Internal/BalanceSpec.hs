@@ -1064,6 +1064,7 @@ prop_performSelection mockConstraints params coverage =
                 , computeMinimumAdaQuantity = computeMinimumAdaQuantityZero
                 , computeMinimumCost = computeMinimumCostZero
                 , computeSelectionLimit = const NoLimit
+                , selectionStrategy = SelectionStrategyOptimal
                 }
             performSelection' = performSelection constraints' params
         in
@@ -1700,6 +1701,7 @@ mkBoundaryTestExpectation (BoundaryTestData params expectedResult) = do
         , assessTokenBundleSize = unMockAssessTokenBundleSize $
             boundaryTestBundleSizeAssessor params
         , computeSelectionLimit = const NoLimit
+        , selectionStrategy = SelectionStrategyOptimal
         }
 
 encodeBoundaryTestCriteria :: BoundaryTestCriteria -> SelectionParams InputId
@@ -2116,6 +2118,8 @@ unMockSelectionConstraints m = SelectionConstraints
         unMockComputeMinimumCost $ view #computeMinimumCost m
     , computeSelectionLimit =
         unMockComputeSelectionLimit $ view #computeSelectionLimit m
+    , selectionStrategy =
+        SelectionStrategyOptimal
     }
 
 --------------------------------------------------------------------------------
