@@ -11,7 +11,7 @@
     flags = {};
     package = {
       specVersion = "3.0";
-      identifier = { name = "cardano-api"; version = "1.34.0"; };
+      identifier = { name = "cardano-api"; version = "1.34.1"; };
       license = "Apache-2.0";
       copyright = "";
       maintainer = "operations@iohk.io";
@@ -145,5 +145,5 @@
         };
       };
     } // rec {
-    src = (pkgs.lib).mkDefault /nix/store/9ijn6q2j2ph6pcxmj8g2ndlx614d515c-cardano-node-c23d5d3/cardano-api;
+    src = (pkgs.lib).mkDefault /nix/store/7a63xbyzp6sr6kdddsa9aaaz00yvkljq-cardano-node-73f9a74/cardano-api;
     }

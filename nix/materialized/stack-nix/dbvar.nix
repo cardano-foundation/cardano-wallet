@@ -80,4 +80,6 @@
           };
         };
       };
-    } // rec { src = (pkgs.lib).mkDefault ./lib/dbvar; }
+    } // rec {
+    src = (pkgs.lib).mkDefault ./lib/dbvar;
+    }

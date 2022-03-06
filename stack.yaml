@@ -182,7 +182,7 @@ extra-deps:
   - libs/non-integral
 
 - git: https://github.com/input-output-hk/cardano-node
-  commit: c23d5d319cd3276575c6ac32458516232e8d2c48
+  commit: 73f9a746362695dc2cb63ba757fbcabb81733d23
   subdirs:
   - cardano-api
   - cardano-cli
