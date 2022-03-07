@@ -208,6 +208,7 @@ import Cardano.Wallet.Api.Types
     , ApiAddress (..)
     , ApiAnyCertificate (..)
     , ApiAsset (..)
+    , ApiAssetMintedBurned (..)
     , ApiBalanceTransactionPostData
     , ApiBlockInfo (..)
     , ApiBlockReference (..)
@@ -2384,14 +2385,15 @@ decodeTransaction
 decodeTransaction ctx (ApiT wid) (ApiSerialisedTransaction (ApiT sealed)) = do
     let (Tx txid feeM colls inps outs wdrlMap meta vldt, toMint, toBurn, allCerts) =
             decodeTx tl sealed
-    (txinsOutsPaths, collsOutsPaths, outsPath, acct, acctPath, pp) <-
+    (txinsOutsPaths, collsOutsPaths, outsPath, acct, acctPath, pp, policyXPub) <-
         withWorkerCtx ctx wid liftE liftE $ \wrk -> do
           (acct, _, acctPath) <- liftHandler $ W.readRewardAccount @_ @s @k @n wrk wid
           txinsOutsPaths <- liftHandler $ W.lookupTxIns @_ @s @k wrk wid (fst <$> inps)
           collsOutsPaths <- liftHandler $ W.lookupTxIns @_ @s @k wrk wid (fst <$> colls)
           outsPath <- liftHandler $ W.lookupTxOuts @_ @s @k wrk wid outs
           pp <- liftIO $ NW.currentProtocolParameters (wrk ^. networkLayer)
-          pure (txinsOutsPaths, collsOutsPaths, outsPath, acct, acctPath, pp)
+          (policyXPub, _) <- liftHandler $ W.readPolicyPublicKey @_ @s @k @n wrk wid
+          pure (txinsOutsPaths, collsOutsPaths, outsPath, acct, acctPath, pp, policyXPub)
     pure $ ApiDecodedTransaction
         { id = ApiT txid
         , fee = maybe (Quantity 0) (Quantity . fromIntegral . unCoin) feeM
@@ -2399,8 +2401,8 @@ decodeTransaction ctx (ApiT wid) (ApiSerialisedTransaction (ApiT sealed)) = do
         , outputs = map toOut outsPath
         , collateral = map toInp collsOutsPaths
         , withdrawals = map (toWrdl acct) $ Map.assocs wdrlMap
-        , assetsMinted = ApiT toMint
-        , assetsBurned = ApiT toBurn
+        , assetsMinted = toApiAssetMintedBurned policyXPub toMint
+        , assetsBurned = toApiAssetMintedBurned policyXPub toBurn
         , certificates = map (toApiAnyCert acct acctPath) allCerts
         , depositsTaken =
                 map (const (Quantity . fromIntegral . unCoin . W.stakeKeyDeposit $ pp)) $
@@ -2415,6 +2417,15 @@ decodeTransaction ctx (ApiT wid) (ApiSerialisedTransaction (ApiT sealed)) = do
         }
   where
     tl = ctx ^. W.transactionLayer @k
+    toApiAssetMintedBurned xpub tokenWithScripts = ApiAssetMintedBurned
+        { tokenMap = ApiT $ tokenWithScripts ^. #txTokenMap
+        , policyScripts =
+                Map.toList $
+                Map.map ApiT $
+                Map.mapKeys ApiT $
+                tokenWithScripts ^. #txScripts
+        , walletPolicyKeyHash = ApiPolicyKey (xpubToBytes xpub) WithHashing
+        }
     toOut (txoutIncoming, Nothing) =
         ExternalOutput $ toAddressAmount @n txoutIncoming
     toOut ((TxOut addr (TokenBundle (Coin c) tmap)), (Just path)) =

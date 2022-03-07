@@ -27,6 +27,8 @@ module Cardano.Wallet.Transaction
     , withdrawalToCoin
     , TxUpdate (..)
     , TxFeeUpdate(..)
+    , TokenMapWithScripts (..)
+    , emptyTokenMapWithScripts
 
     -- * Errors
     , ErrSignTx (..)
@@ -75,6 +77,8 @@ import Cardano.Wallet.Primitive.Types.RewardAccount
     ( RewardAccount )
 import Cardano.Wallet.Primitive.Types.TokenMap
     ( AssetId, TokenMap )
+import Cardano.Wallet.Primitive.Types.TokenPolicy
+    ( TokenPolicyId )
 import Cardano.Wallet.Primitive.Types.Tx
     ( SealedTx
     , TokenBundleSizeAssessor
@@ -243,7 +247,7 @@ data TransactionLayer k tx = TransactionLayer
         -> TxConstraints
         -- The set of constraints that apply to all transactions.
 
-    , decodeTx :: tx -> (Tx, TokenMap, TokenMap, [Certificate])
+    , decodeTx :: tx -> (Tx, TokenMapWithScripts, TokenMapWithScripts, [Certificate])
     -- ^ Decode an externally-created transaction.
 
     , updateTx
@@ -346,6 +350,17 @@ data DelegationAction = RegisterKeyAndJoin PoolId | Join PoolId | Quit
 
 instance Buildable DelegationAction where
     build = genericF
+
+data TokenMapWithScripts = TokenMapWithScripts
+    { txTokenMap :: !TokenMap
+    , txScripts :: !(Map TokenPolicyId (Script KeyHash))
+    } deriving (Show, Generic, Eq)
+
+emptyTokenMapWithScripts :: TokenMapWithScripts
+emptyTokenMapWithScripts = TokenMapWithScripts
+    { txTokenMap = mempty
+    , txScripts = Map.empty
+    }
 
 data ErrMkTransaction
     = ErrMkTransactionNoSuchWallet WalletId

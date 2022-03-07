@@ -38,6 +38,7 @@ import Cardano.Wallet.Api.Types
     ( AddressAmount (..)
     , ApiAddress (..)
     , ApiAnyCertificate (..)
+    , ApiAssetMintedBurned (..)
     , ApiCertificate (..)
     , ApiCoinSelection (withdrawals)
     , ApiConstructTransaction (..)
@@ -1314,13 +1315,28 @@ spec = describe "NEW_SHELLEY_TRANSACTIONS" $ do
         let decodeMintPayload = Json [json|{
               "transaction": #{cborHexMint}
           }|]
+
+        let policyWithHash = Link.getPolicyKey @'Shelley wa (Just True)
+        (_, policyKeyHashPayload) <-
+                unsafeRequest @ApiPolicyKey ctx policyWithHash Empty
+
+        let activeAssetsInfo = ApiAssetMintedBurned
+                { tokenMap = ApiT tokens
+                , policyScripts = []
+                , walletPolicyKeyHash = policyKeyHashPayload
+                }
+        let inactiveAssetsInfo = ApiAssetMintedBurned
+                { tokenMap = ApiT TokenMap.empty
+                , policyScripts = []
+                , walletPolicyKeyHash = policyKeyHashPayload
+                }
         rTx <- request @(ApiDecodedTransaction n) ctx
             (Link.decodeTransaction @'Shelley wa) Default decodeMintPayload
         verify rTx
             [ expectResponseCode HTTP.status202
             , expectField (#fee . #getQuantity) (`shouldBe` 202_725)
-            , expectField #assetsMinted (`shouldBe` ApiT tokens)
-            , expectField #assetsBurned (`shouldBe` ApiT TokenMap.empty)
+            , expectField #assetsMinted (`shouldBe` activeAssetsInfo)
+            , expectField #assetsBurned (`shouldBe` inactiveAssetsInfo)
             ]
 
         -- constructing burning asset tx in cardano-cli
@@ -1350,8 +1366,8 @@ spec = describe "NEW_SHELLEY_TRANSACTIONS" $ do
         verify rTx'
             [ expectResponseCode HTTP.status202
             , expectField (#fee . #getQuantity) (`shouldBe` 202_725)
-            , expectField #assetsMinted (`shouldBe` ApiT TokenMap.empty)
-            , expectField #assetsBurned (`shouldBe` ApiT tokens)
+            , expectField #assetsMinted (`shouldBe` inactiveAssetsInfo)
+            , expectField #assetsBurned (`shouldBe` activeAssetsInfo)
             ]
 
     it "TRANS_DECODE_03 - transaction with external delegation certificates" $ \ctx -> runResourceT $ do
@@ -3093,14 +3109,24 @@ spec = describe "NEW_SHELLEY_TRANSACTIONS" $ do
                 (AssetId tokenPolicyId' tokenName')
                 (TokenQuantity 50_000)
 
+        let activeAssetsInfo = ApiAssetMintedBurned
+                { tokenMap = ApiT tokens
+                , policyScripts = []
+                , walletPolicyKeyHash = policyKeyHashPayload
+                }
+        let inactiveAssetsInfo = ApiAssetMintedBurned
+                { tokenMap = ApiT TokenMap.empty
+                , policyScripts = []
+                , walletPolicyKeyHash = policyKeyHashPayload
+                }
+
         rDecodedTx <- request @(ApiDecodedTransaction n) ctx
             (Link.decodeTransaction @'Shelley wa) Default decodePayload
         verify rDecodedTx
             [ expectResponseCode HTTP.status202
-            , expectField #assetsMinted (`shouldBe` ApiT tokens)
-            , expectField #assetsBurned (`shouldBe` ApiT TokenMap.empty)
+            , expectField #assetsMinted (`shouldBe` activeAssetsInfo)
+            , expectField #assetsBurned (`shouldBe` inactiveAssetsInfo)
             ]
-
   where
 
     -- | Just one million Ada, in Lovelace.

@@ -217,6 +217,8 @@ import Cardano.Wallet.Primitive.Types.TokenMap
     ( TokenMap )
 import Cardano.Wallet.Shelley.Compatibility.Ledger
     ( toWalletTokenName, toWalletTokenPolicyId, toWalletTokenQuantity )
+import Cardano.Wallet.Transaction
+    ( TokenMapWithScripts (..), emptyTokenMapWithScripts )
 import Cardano.Wallet.Unsafe
     ( unsafeIntToWord, unsafeMkPercentage )
 import Cardano.Wallet.Util
@@ -1321,14 +1323,16 @@ fromShelleyCoin (SL.Coin c) = Coin.unsafeFromIntegral c
 toShelleyCoin :: W.Coin -> SL.Coin
 toShelleyCoin (W.Coin c) = SL.Coin $ intCast c
 
-fromCardanoTx :: Cardano.Tx era -> (W.Tx, TokenMap, TokenMap, [Certificate])
+fromCardanoTx
+    :: Cardano.Tx era
+    -> (W.Tx, TokenMapWithScripts, TokenMapWithScripts, [Certificate])
 fromCardanoTx = \case
     Cardano.ShelleyTx era tx -> case era of
         Cardano.ShelleyBasedEraShelley -> extract $ fromShelleyTx tx
         Cardano.ShelleyBasedEraAllegra -> extract $ fromAllegraTx tx
         Cardano.ShelleyBasedEraMary    -> extract $ fromMaryTx tx
         Cardano.ShelleyBasedEraAlonzo  -> extract $ fromAlonzoTx tx
-    Cardano.ByronTx tx                 -> (fromTxAux tx, mempty, mempty, [])
+    Cardano.ByronTx tx                 -> (fromTxAux tx, emptyTokenMapWithScripts, emptyTokenMapWithScripts, [])
   where
     extract (tx, certs, mint, burn) = (tx, mint, burn, certs)
 
@@ -1337,8 +1341,8 @@ fromShelleyTx
     :: SLAPI.Tx (Cardano.ShelleyLedgerEra ShelleyEra)
     -> ( W.Tx
        , [W.Certificate]
-       , TokenMap
-       , TokenMap
+       , TokenMapWithScripts
+       , TokenMapWithScripts
        )
 fromShelleyTx tx =
     ( W.Tx
@@ -1360,8 +1364,8 @@ fromShelleyTx tx =
             Nothing
         }
     , map fromShelleyCert (toList certs)
-    , mempty
-    , mempty
+    , emptyTokenMapWithScripts
+    , emptyTokenMapWithScripts
     )
   where
     SL.Tx bod@(SL.TxBody ins outs certs wdrls fee _ _ _) _ mmd = tx
@@ -1370,8 +1374,8 @@ fromAllegraTx
     :: SLAPI.Tx (Cardano.ShelleyLedgerEra AllegraEra)
     -> ( W.Tx
        , [W.Certificate]
-       , TokenMap
-       , TokenMap
+       , TokenMapWithScripts
+       , TokenMapWithScripts
        )
 fromAllegraTx tx =
     ( W.Tx
@@ -1394,8 +1398,8 @@ fromAllegraTx tx =
             Nothing
         }
     , map fromShelleyCert (toList certs)
-    , mempty
-    , mempty
+    , emptyTokenMapWithScripts
+    , emptyTokenMapWithScripts
     )
   where
     SL.Tx bod@(MA.TxBody ins outs certs wdrls fee _ _ _ _) _ mmd = tx
@@ -1409,8 +1413,8 @@ fromMaryTx
     :: SLAPI.Tx (Cardano.ShelleyLedgerEra MaryEra)
     -> ( W.Tx
        , [W.Certificate]
-       , TokenMap
-       , TokenMap
+       , TokenMapWithScripts
+       , TokenMapWithScripts
        )
 fromMaryTx tx =
     ( W.Tx
@@ -1432,8 +1436,8 @@ fromMaryTx tx =
             Nothing
         }
     , map fromShelleyCert (toList certs)
-    , assetsToMint
-    , assetsToBurn
+    , TokenMapWithScripts assetsToMint Map.empty
+    , TokenMapWithScripts assetsToBurn Map.empty
     )
   where
     SL.Tx bod _wits mad = tx
@@ -1475,8 +1479,8 @@ fromAlonzoTxBodyAndAux
     -> SLAPI.StrictMaybe (Alonzo.AuxiliaryData (Cardano.ShelleyLedgerEra AlonzoEra))
     -> ( W.Tx
        , [W.Certificate]
-       , TokenMap
-       , TokenMap
+       , TokenMapWithScripts
+       , TokenMapWithScripts
        )
 fromAlonzoTxBodyAndAux bod mad =
     ( W.Tx
@@ -1498,8 +1502,8 @@ fromAlonzoTxBodyAndAux bod mad =
             Nothing
         }
     , map fromShelleyCert (toList certs)
-    , assetsToMint
-    , assetsToBurn
+    , TokenMapWithScripts assetsToMint Map.empty
+    , TokenMapWithScripts assetsToBurn Map.empty
     )
   where
     Alonzo.TxBody
@@ -1532,8 +1536,8 @@ fromAlonzoValidatedTx
     :: Alonzo.ValidatedTx (Cardano.ShelleyLedgerEra AlonzoEra)
     -> ( W.Tx
        , [W.Certificate]
-       , TokenMap
-       , TokenMap
+       , TokenMapWithScripts
+       , TokenMapWithScripts
        )
 fromAlonzoValidatedTx (Alonzo.ValidatedTx bod _wits _isValidating aux) =
     fromAlonzoTxBodyAndAux bod aux
@@ -1542,8 +1546,8 @@ fromAlonzoTx
     :: Alonzo.ValidatedTx (Cardano.ShelleyLedgerEra AlonzoEra)
     -> ( W.Tx
        , [W.Certificate]
-       , TokenMap
-       , TokenMap
+       , TokenMapWithScripts
+       , TokenMapWithScripts
        )
 fromAlonzoTx (Alonzo.ValidatedTx bod _wits (Alonzo.IsValid isValid) aux) =
     (\(tx, c, m, b) -> (tx { W.scriptValidity = validity }, c, m, b))
@@ -1851,7 +1855,9 @@ toCardanoSimpleScript = \case
 just :: Builder -> Builder -> [Maybe a] -> a
 just t1 t2 = tina (t1+|": unable to deserialise "+|t2)
 
-fromLedgerMintValue :: SL.Value StandardCrypto -> (TokenMap, TokenMap)
+fromLedgerMintValue
+    :: SL.Value StandardCrypto
+    -> (TokenMap, TokenMap)
 fromLedgerMintValue (SL.Value _ ledgerTokens) =
     (assetsToMint, assetsToBurn)
   where

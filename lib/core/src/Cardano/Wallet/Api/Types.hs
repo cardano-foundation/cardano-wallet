@@ -173,6 +173,7 @@ module Cardano.Wallet.Api.Types
     , ApiExternalCertificate (..)
     , ApiRegisterPool (..)
     , ApiDeregisterPool (..)
+    , ApiAssetMintedBurned (..)
 
     -- * API Types (Byron)
     , ApiByronWallet (..)
@@ -1221,6 +1222,13 @@ data ApiAnyCertificate n =
     deriving (Eq, Generic, Show)
     deriving anyclass NFData
 
+data ApiAssetMintedBurned = ApiAssetMintedBurned
+    { tokenMap :: !(ApiT W.TokenMap)
+    , policyScripts :: ![(ApiT W.TokenPolicyId, ApiT (Script KeyHash))]
+    , walletPolicyKeyHash :: !ApiPolicyKey
+    } deriving (Eq, Generic, Show)
+      deriving anyclass NFData
+
 data ApiDecodedTransaction (n :: NetworkDiscriminant) = ApiDecodedTransaction
     { id :: !(ApiT (Hash "Tx"))
     , fee :: !(Quantity "lovelace" Natural)
@@ -1228,8 +1236,8 @@ data ApiDecodedTransaction (n :: NetworkDiscriminant) = ApiDecodedTransaction
     , outputs :: ![ApiTxOutputGeneral n]
     , collateral :: ![ApiTxInputGeneral n]
     , withdrawals :: ![ApiWithdrawalGeneral n]
-    , assetsMinted :: !(ApiT W.TokenMap)
-    , assetsBurned :: !(ApiT W.TokenMap)
+    , assetsMinted :: !ApiAssetMintedBurned
+    , assetsBurned :: !ApiAssetMintedBurned
     , certificates :: ![ApiAnyCertificate n]
     , depositsTaken :: ![Quantity "lovelace" Natural]
     , depositsReturned :: ![Quantity "lovelace" Natural]
@@ -2082,6 +2090,11 @@ instance FromJSON ApiPolicyKey where
             errRole =
                 "Unrecognized human-readable part. Expected one of:\
                 \ \"policy_vkh\" or \"policy_vk\"."
+
+instance FromJSON ApiAssetMintedBurned where
+    parseJSON = genericParseJSON defaultRecordTypeOptions
+instance ToJSON ApiAssetMintedBurned where
+    toJSON = genericToJSON defaultRecordTypeOptions
 
 parseBech32
     :: Text
