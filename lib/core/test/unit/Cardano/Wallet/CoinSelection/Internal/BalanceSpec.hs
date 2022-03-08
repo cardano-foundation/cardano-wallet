@@ -97,7 +97,11 @@ import Cardano.Wallet.CoinSelection.Internal.Balance
     , ungroupByKey
     )
 import Cardano.Wallet.CoinSelection.Internal.Balance.Gen
-    ( genSelectionLimit, shrinkSelectionLimit )
+    ( genSelectionLimit
+    , genSelectionStrategy
+    , shrinkSelectionLimit
+    , shrinkSelectionStrategy
+    )
 import Cardano.Wallet.Primitive.Types.Address
     ( Address (..) )
 import Cardano.Wallet.Primitive.Types.Address.Gen
@@ -2579,21 +2583,6 @@ unMockComputeSelectionLimit = \case
         const NoLimit
     MockComputeSelectionLimit n ->
         const $ MaximumInputLimit n
-
---------------------------------------------------------------------------------
--- Selection strategies
---------------------------------------------------------------------------------
-
-genSelectionStrategy :: Gen SelectionStrategy
-genSelectionStrategy = arbitraryBoundedEnum
-
-shrinkSelectionStrategy :: SelectionStrategy -> [SelectionStrategy]
-shrinkSelectionStrategy = \case
-    -- Shrinking from "optimal" to "minimal" should increase the likelihood of
-    -- making a successful selection, as the "minimal" strategy is designed to
-    -- generate smaller selections.
-    SelectionStrategyMinimal -> []
-    SelectionStrategyOptimal -> [SelectionStrategyMinimal]
 
 --------------------------------------------------------------------------------
 -- Assessing token bundle sizes
