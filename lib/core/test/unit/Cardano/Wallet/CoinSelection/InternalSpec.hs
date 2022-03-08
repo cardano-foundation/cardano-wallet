@@ -577,8 +577,6 @@ unMockSelectionConstraints m = SelectionConstraints
         view #maximumCollateralInputCount m
     , minimumCollateralPercentage =
         view #minimumCollateralPercentage m
-    , selectionStrategy =
-        SelectionStrategyOptimal
     }
 
 --------------------------------------------------------------------------------
@@ -628,6 +626,7 @@ genSelectionParams = SelectionParams
     <*> genCollateralRequirement
     <*> genUTxOAvailableForCollateral
     <*> genUTxOAvailableForInputs
+    <*> genSelectionStrategy
 
 shrinkSelectionParams :: SelectionParams InputId -> [SelectionParams InputId]
 shrinkSelectionParams = genericRoundRobinShrink
@@ -642,6 +641,7 @@ shrinkSelectionParams = genericRoundRobinShrink
     <:> shrinkCollateralRequirement
     <:> shrinkUTxOAvailableForCollateral
     <:> shrinkUTxOAvailableForInputs
+    <:> shrinkSelectionStrategy
     <:> Nil
 
 --------------------------------------------------------------------------------
@@ -809,6 +809,22 @@ shrinkUTxOAvailableForCollateral =
 
 shrinkUTxOAvailableForInputs :: UTxOSelection InputId -> [UTxOSelection InputId]
 shrinkUTxOAvailableForInputs = shrinkUTxOSelection
+
+--------------------------------------------------------------------------------
+-- Selection strategies
+--------------------------------------------------------------------------------
+
+genSelectionStrategy :: Gen SelectionStrategy
+genSelectionStrategy =
+    -- TODO: ADP-1500
+    -- Generate the full range of strategies here.
+    pure SelectionStrategyOptimal
+
+shrinkSelectionStrategy :: SelectionStrategy -> [SelectionStrategy]
+shrinkSelectionStrategy =
+    -- TODO: ADP-1500
+    -- Implement a shrinker for the full range of strategies here.
+    const []
 
 --------------------------------------------------------------------------------
 -- Unit test support

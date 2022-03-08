@@ -639,6 +639,7 @@ genSelectionParams genPreselectedInputs genUTxOIndex' = do
     extraCoinSink <-
         oneof [pure $ Coin 0, genCoinPositive]
     (assetsToMint, assetsToBurn) <- genAssetsToMintAndBurn utxoAvailable
+    selectionStrategy <- genSelectionStrategy
     pure $ SelectionParams
         { outputsToCover
         , utxoAvailable =
@@ -647,6 +648,7 @@ genSelectionParams genPreselectedInputs genUTxOIndex' = do
         , extraCoinSink
         , assetsToMint
         , assetsToBurn
+        , selectionStrategy
         }
   where
     genAssetsToMintAndBurn :: UTxOIndex InputId -> Gen (TokenMap, TokenMap)
@@ -671,6 +673,7 @@ shrinkSelectionParams = genericRoundRobinShrink
     <:> shrinkCoin
     <:> shrinkTokenMap
     <:> shrinkTokenMap
+    <:> shrinkSelectionStrategy
     <:> Nil
   where
     shrinkOutput = genericRoundRobinShrink
@@ -716,9 +719,9 @@ prop_performSelection_small mockConstraints (Blind (Small params)) =
         "Number of inputs preselected >= 2" $
 
     -- Inspect the selection strategy:
-    cover 20 (view #selectionStrategy constraints == SelectionStrategyMinimal)
+    cover 20 (view #selectionStrategy params == SelectionStrategyMinimal)
         "Selection strategy: minimal" $
-    cover 20 (view #selectionStrategy constraints == SelectionStrategyOptimal)
+    cover 20 (view #selectionStrategy params == SelectionStrategyOptimal)
         "Selection strategy: optimal" $
 
     -- Inspect the extra coin source and sink:
@@ -1834,7 +1837,6 @@ mkBoundaryTestExpectation (BoundaryTestData params expectedResult) = do
         , assessTokenBundleSize = unMockAssessTokenBundleSize $
             boundaryTestBundleSizeAssessor params
         , computeSelectionLimit = const NoLimit
-        , selectionStrategy = SelectionStrategyOptimal
         }
 
 encodeBoundaryTestCriteria :: BoundaryTestCriteria -> SelectionParams InputId
@@ -1856,6 +1858,8 @@ encodeBoundaryTestCriteria c = SelectionParams
         TokenMap.empty
     , assetsToBurn =
         TokenMap.empty
+    , selectionStrategy =
+        SelectionStrategyOptimal
     }
   where
     dummyInputIds :: [InputId]
@@ -2223,8 +2227,6 @@ data MockSelectionConstraints = MockSelectionConstraints
         :: MockComputeMinimumCost
     , computeSelectionLimit
         :: MockComputeSelectionLimit
-    , selectionStrategy
-        :: SelectionStrategy
     } deriving (Eq, Generic, Show)
 
 genMockSelectionConstraints :: Gen MockSelectionConstraints
@@ -2233,7 +2235,6 @@ genMockSelectionConstraints = MockSelectionConstraints
     <*> genMockComputeMinimumAdaQuantity
     <*> genMockComputeMinimumCost
     <*> genMockComputeSelectionLimit
-    <*> genSelectionStrategy
 
 shrinkMockSelectionConstraints
     :: MockSelectionConstraints -> [MockSelectionConstraints]
@@ -2242,7 +2243,6 @@ shrinkMockSelectionConstraints = genericRoundRobinShrink
     <:> shrinkMockComputeMinimumAdaQuantity
     <:> shrinkMockComputeMinimumCost
     <:> shrinkMockComputeSelectionLimit
-    <:> shrinkSelectionStrategy
     <:> Nil
 
 unMockSelectionConstraints :: MockSelectionConstraints -> SelectionConstraints
@@ -2255,8 +2255,6 @@ unMockSelectionConstraints m = SelectionConstraints
         unMockComputeMinimumCost $ view #computeMinimumCost m
     , computeSelectionLimit =
         unMockComputeSelectionLimit $ view #computeSelectionLimit m
-    , selectionStrategy =
-        view #selectionStrategy m
     }
 
 --------------------------------------------------------------------------------

@@ -230,9 +230,6 @@ data SelectionConstraints = SelectionConstraints
         :: [(Address, TokenBundle)] -> SelectionLimit
         -- ^ Computes an upper bound for the number of ordinary inputs to
         -- select, given a current set of outputs.
-    , selectionStrategy
-        :: SelectionStrategy
-        -- ^ Specifies which selection strategy to use. See 'SelectionStrategy'.
     }
     deriving Generic
 
@@ -270,6 +267,9 @@ data SelectionParamsOf outputs u = SelectionParams
         -- By burning tokens, we generally increase the burden of the selection
         -- algorithm, requiring it to select more UTxO entries in order to
         -- cover the burn.
+    , selectionStrategy
+        :: SelectionStrategy
+        -- ^ Specifies which selection strategy to use. See 'SelectionStrategy'.
     }
     deriving Generic
 
@@ -901,7 +901,6 @@ performSelectionNonEmpty constraints params
         , computeMinimumAdaQuantity
         , computeMinimumCost
         , computeSelectionLimit
-        , selectionStrategy
         } = constraints
     SelectionParams
         { outputsToCover
@@ -910,6 +909,7 @@ performSelectionNonEmpty constraints params
         , extraCoinSink
         , assetsToMint
         , assetsToBurn
+        , selectionStrategy
         } = params
 
     selectionLimitReachedError

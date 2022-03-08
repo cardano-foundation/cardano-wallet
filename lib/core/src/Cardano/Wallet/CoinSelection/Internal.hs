@@ -176,9 +176,6 @@ data SelectionConstraints = SelectionConstraints
         :: Natural
         -- ^ Specifies the minimum required amount of collateral as a
         -- percentage of the total transaction fee.
-    , selectionStrategy
-        :: SelectionStrategy
-        -- ^ Specifies which selection strategy to use. See 'SelectionStrategy'.
     }
     deriving Generic
 
@@ -226,6 +223,9 @@ data SelectionParams u = SelectionParams
         -- selected.
         --
         -- Further entries from this set will be selected to cover any deficit.
+    , selectionStrategy
+        :: SelectionStrategy
+        -- ^ Specifies which selection strategy to use. See 'SelectionStrategy'.
     }
     deriving (Eq, Generic, Show)
 
@@ -375,8 +375,6 @@ toBalanceConstraintsParams (constraints, params) =
                 & adjustComputeSelectionLimit
         , assessTokenBundleSize =
             view #assessTokenBundleSize constraints
-        , selectionStrategy =
-            view #selectionStrategy constraints
         }
       where
         adjustComputeMinimumCost
@@ -441,6 +439,8 @@ toBalanceConstraintsParams (constraints, params) =
             view #outputsToCover params
         , utxoAvailable =
             view #utxoAvailableForInputs params
+        , selectionStrategy =
+            view #selectionStrategy params
         }
 
 -- | Creates constraints and parameters for 'Collateral.performSelection'.
