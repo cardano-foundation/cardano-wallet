@@ -316,7 +316,7 @@ deriving instance
 data SelectionStrategy
     = SelectionStrategyMinimal
     | SelectionStrategyOptimal
-    deriving (Eq, Show)
+    deriving (Bounded, Enum, Eq, Show)
 
 -- | Indicates whether the balance of available UTxO entries is sufficient.
 --

@@ -704,6 +704,12 @@ prop_performSelection_small mockConstraints (Blind (Small params)) =
     cover 10 (UTxOSelection.selectedSize (view #utxoAvailable params) >= 2)
         "Number of inputs preselected >= 2" $
 
+    -- Inspect the selection strategy:
+    cover 20 (view #selectionStrategy constraints == SelectionStrategyMinimal)
+        "Selection strategy: minimal" $
+    cover 20 (view #selectionStrategy constraints == SelectionStrategyOptimal)
+        "Selection strategy: optimal" $
+
     -- Inspect the extra coin source and sink:
     let nonZeroExtraCoinSource =
             Coin 0 < (params & view #extraCoinSource)
@@ -2112,6 +2118,8 @@ data MockSelectionConstraints = MockSelectionConstraints
         :: MockComputeMinimumCost
     , computeSelectionLimit
         :: MockComputeSelectionLimit
+    , selectionStrategy
+        :: SelectionStrategy
     } deriving (Eq, Generic, Show)
 
 genMockSelectionConstraints :: Gen MockSelectionConstraints
@@ -2120,6 +2128,7 @@ genMockSelectionConstraints = MockSelectionConstraints
     <*> genMockComputeMinimumAdaQuantity
     <*> genMockComputeMinimumCost
     <*> genMockComputeSelectionLimit
+    <*> genSelectionStrategy
 
 shrinkMockSelectionConstraints
     :: MockSelectionConstraints -> [MockSelectionConstraints]
@@ -2128,6 +2137,7 @@ shrinkMockSelectionConstraints = genericRoundRobinShrink
     <:> shrinkMockComputeMinimumAdaQuantity
     <:> shrinkMockComputeMinimumCost
     <:> shrinkMockComputeSelectionLimit
+    <:> shrinkSelectionStrategy
     <:> Nil
 
 unMockSelectionConstraints :: MockSelectionConstraints -> SelectionConstraints
@@ -2141,7 +2151,7 @@ unMockSelectionConstraints m = SelectionConstraints
     , computeSelectionLimit =
         unMockComputeSelectionLimit $ view #computeSelectionLimit m
     , selectionStrategy =
-        SelectionStrategyOptimal
+        view #selectionStrategy m
     }
 
 --------------------------------------------------------------------------------
@@ -2258,6 +2268,21 @@ unMockComputeSelectionLimit = \case
         const NoLimit
     MockComputeSelectionLimit n ->
         const $ MaximumInputLimit n
+
+--------------------------------------------------------------------------------
+-- Selection strategies
+--------------------------------------------------------------------------------
+
+genSelectionStrategy :: Gen SelectionStrategy
+genSelectionStrategy = arbitraryBoundedEnum
+
+shrinkSelectionStrategy :: SelectionStrategy -> [SelectionStrategy]
+shrinkSelectionStrategy = \case
+    -- Shrinking from "optimal" to "minimal" should increase the likelihood of
+    -- making a successful selection, as the "minimal" strategy is designed to
+    -- generate smaller selections.
+    SelectionStrategyMinimal -> []
+    SelectionStrategyOptimal -> [SelectionStrategyMinimal]
 
 --------------------------------------------------------------------------------
 -- Assessing token bundle sizes
