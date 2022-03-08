@@ -343,15 +343,26 @@ spec = describe "Cardano.Wallet.CoinSelection.Internal.BalanceSpec" $
     parallel $ describe "Running a selection step" $ do
 
         it "prop_runSelectionStep_supplyExhausted" $
-            property prop_runSelectionStep_supplyExhausted
+            prop_runSelectionStep_supplyExhausted
+                & property
         it "prop_runSelectionStep_notYetEnoughToSatisfyMinimum" $
-            property prop_runSelectionStep_notYetEnoughToSatisfyMinimum
-        it "prop_runSelectionStep_getsCloserToTargetButDoesNotExceedIt" $
-            property prop_runSelectionStep_getsCloserToTargetButDoesNotExceedIt
-        it "prop_runSelectionStep_getsCloserToTargetAndExceedsIt" $
-            property prop_runSelectionStep_getsCloserToTargetAndExceedsIt
-        it "prop_runSelectionStep_exceedsTargetAndGetsFurtherAway" $
-            property prop_runSelectionStep_exceedsTargetAndGetsFurtherAway
+            prop_runSelectionStep_notYetEnoughToSatisfyMinimum
+                & property
+        it "prop_runSelectionStep_preciselyEnoughToSatisfyMinimum" $
+            prop_runSelectionStep_preciselyEnoughToSatisfyMinimum
+                & property
+        it "prop_runSelectionStep_exceedsMinimalTarget" $
+            prop_runSelectionStep_exceedsMinimalTarget
+                & property
+        it "prop_runSelectionStep_getsCloserToOptimalTargetButDoesNotExceedIt" $
+            prop_runSelectionStep_getsCloserToOptimalTargetButDoesNotExceedIt
+                & property
+        it "prop_runSelectionStep_getsCloserToOptimalTargetAndExceedsIt" $
+            prop_runSelectionStep_getsCloserToOptimalTargetAndExceedsIt
+                & property
+        it "prop_runSelectionStep_exceedsOptimalTargetAndGetsFurtherAway" $
+            prop_runSelectionStep_exceedsOptimalTargetAndGetsFurtherAway
+                & property
 
     parallel $ describe "Behaviour of selection lenses" $ do
 
@@ -1520,9 +1531,18 @@ data MockSelectionStepData = MockSelectionStepData
       -- ^ Quantity already selected.
     , mockMinimum :: Natural
       -- ^ Minimum quantity to select.
+    , mockSelectionStrategy :: SelectionStrategy
+      -- ^ Which selection strategy to use.
     }
     deriving (Eq, Show)
 
+-- | Runs a single mock selection step.
+--
+-- If an additional quantity was selected (causing the total selected quantity
+-- to increase) then this function returns the updated total selected quantity.
+--
+-- If no additional quantity was selected, then this function returns 'Nothing'.
+--
 runMockSelectionStep :: MockSelectionStepData -> Maybe Natural
 runMockSelectionStep d =
     runIdentity $ runSelectionStep lens $ mockSelected d
@@ -1533,15 +1553,21 @@ runMockSelectionStep d =
         , updatedQuantity = id
         , minimumQuantity = mockMinimum d
         , selectQuantity = \s -> pure $ (+ s) <$> mockNext d
-        , selectionStrategy = SelectionStrategyOptimal
+        , selectionStrategy = mockSelectionStrategy d
         }
 
+-- Simulates a selection step where there is nothing available to select.
+--
+-- In this situation, running a selection step should never yield an updated
+-- state, regardless of whether or not we've reached the minimum amount.
+--
 prop_runSelectionStep_supplyExhausted
-    :: Positive Word8
+    :: SelectionStrategy
+    -> Positive Word8
     -> Positive Word8
     -> Property
 prop_runSelectionStep_supplyExhausted
-    (Positive x) (Positive y) =
+    strategy (Positive x) (Positive y) =
         counterexample (show mockData) $
         runMockSelectionStep mockData === Nothing
   where
@@ -1549,13 +1575,21 @@ prop_runSelectionStep_supplyExhausted
     mockSelected = fromIntegral x
     mockMinimum = fromIntegral y
     mockNext = Nothing
+    mockSelectionStrategy = strategy
 
+-- Simulates a selection step where the next quantity to be yielded will not
+-- yet allow us to reach the minimum amount.
+--
+-- In this situation, running a selection step should always succeed,
+-- regardless of the selection strategy.
+--
 prop_runSelectionStep_notYetEnoughToSatisfyMinimum
-    :: Positive Word8
+    :: SelectionStrategy
+    -> Positive Word8
     -> Positive Word8
     -> Property
 prop_runSelectionStep_notYetEnoughToSatisfyMinimum
-    (Positive x) (Positive y) =
+    strategy (Positive x) (Positive y) =
         counterexample (show mockData) $
         runMockSelectionStep mockData === fmap (+ mockSelected) mockNext
   where
@@ -1565,12 +1599,64 @@ prop_runSelectionStep_notYetEnoughToSatisfyMinimum
     mockSelected = p
     mockMinimum = p + q  + 1
     mockNext = Just q
+    mockSelectionStrategy = strategy
 
-prop_runSelectionStep_getsCloserToTargetButDoesNotExceedIt
+-- Simulates a selection step where the next quantity to be yielded will allow
+-- us to precisely reach the minimum amount (and not exceed it).
+--
+-- In this situation, running a selection step should always succeed,
+-- regardless of the selection strategy.
+--
+prop_runSelectionStep_preciselyEnoughToSatisfyMinimum
+    :: SelectionStrategy
+    -> Positive Word8
+    -> Positive Word8
+    -> Property
+prop_runSelectionStep_preciselyEnoughToSatisfyMinimum
+    strategy (Positive x) (Positive y) =
+        counterexample (show mockData) $
+        runMockSelectionStep mockData === fmap (+ mockSelected) mockNext
+  where
+    p = fromIntegral $ max x y
+    q = fromIntegral $ min x y
+    mockData = MockSelectionStepData {..}
+    mockSelected = p
+    mockMinimum = p + q
+    mockNext = Just q
+    mockSelectionStrategy = strategy
+
+-- Simulates a selection step under the "minimal" selection strategy, where the
+-- minimum amount has already reached.
+--
+-- In this situation, running a selection step should always fail, regardless
+-- of the next quantity to be yielded.
+--
+prop_runSelectionStep_exceedsMinimalTarget
+    :: Positive Word8
+    -> Positive Word8
+    -> Positive Word8
+    -> Property
+prop_runSelectionStep_exceedsMinimalTarget
+    (Positive x) (Positive y) (Positive z) =
+        counterexample (show mockData) $
+        runMockSelectionStep mockData === Nothing
+  where
+    [next, mockMinimum, mockSelected] = fromIntegral <$> L.sort [x, y, z]
+    mockNext = Just next
+    mockData = MockSelectionStepData {..}
+    mockSelectionStrategy = SelectionStrategyMinimal
+
+-- Simulates a selection step under the "optimal" selection strategy, where the
+-- minimum amount has already been reached, and the next quantity to be yielded
+-- will take us closer to the target amount without exceeding it.
+--
+-- In this situation, running a selection step should always succeed.
+--
+prop_runSelectionStep_getsCloserToOptimalTargetButDoesNotExceedIt
     :: Positive Word8
     -> Positive Word8
     -> Property
-prop_runSelectionStep_getsCloserToTargetButDoesNotExceedIt
+prop_runSelectionStep_getsCloserToOptimalTargetButDoesNotExceedIt
     (Positive x) (Positive y) =
         counterexample (show mockData) $
         runMockSelectionStep mockData === fmap (+ mockSelected) mockNext
@@ -1581,12 +1667,19 @@ prop_runSelectionStep_getsCloserToTargetButDoesNotExceedIt
     mockSelected = p
     mockMinimum = p
     mockNext = Just q
+    mockSelectionStrategy = SelectionStrategyOptimal
 
-prop_runSelectionStep_getsCloserToTargetAndExceedsIt
+-- Simulates a selection step under the "optimal" selection strategy, where the
+-- minimum amount has already been reached, and the next quantity to be yielded
+-- will take us closer to the target amount and also exceed it.
+--
+-- In this situation, running a selection step should always succeed.
+--
+prop_runSelectionStep_getsCloserToOptimalTargetAndExceedsIt
     :: Positive Word8
     -> Positive Word8
     -> Property
-prop_runSelectionStep_getsCloserToTargetAndExceedsIt
+prop_runSelectionStep_getsCloserToOptimalTargetAndExceedsIt
     (Positive x) (Positive y) =
         counterexample (show mockData) $
         runMockSelectionStep mockData === fmap (+ mockSelected) mockNext
@@ -1597,12 +1690,19 @@ prop_runSelectionStep_getsCloserToTargetAndExceedsIt
     mockSelected = (2 * p) - q
     mockMinimum = p
     mockNext = Just ((2 * q) - 1)
+    mockSelectionStrategy = SelectionStrategyOptimal
 
-prop_runSelectionStep_exceedsTargetAndGetsFurtherAway
+-- Simulates a selection step under the "optimal" selection strategy, where the
+-- minimum amount has already been reached, and the next quantity to be yielded
+-- will take us further away from the target amount, while also exceeding it.
+--
+-- In this situation, running a selection step should always fail.
+--
+prop_runSelectionStep_exceedsOptimalTargetAndGetsFurtherAway
     :: Positive Word8
     -> Positive Word8
     -> Property
-prop_runSelectionStep_exceedsTargetAndGetsFurtherAway
+prop_runSelectionStep_exceedsOptimalTargetAndGetsFurtherAway
     (Positive x) (Positive y) =
         counterexample (show mockData) $
         runMockSelectionStep mockData === Nothing
@@ -1613,6 +1713,7 @@ prop_runSelectionStep_exceedsTargetAndGetsFurtherAway
     mockSelected = (2 * p) - q
     mockMinimum = p
     mockNext = Just ((2 * q) + 1)
+    mockSelectionStrategy = SelectionStrategyOptimal
 
 --------------------------------------------------------------------------------
 -- Behaviour of selection lenses
