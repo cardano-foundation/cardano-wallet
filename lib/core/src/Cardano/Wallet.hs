@@ -1992,8 +1992,6 @@ selectAssets ctx pp params transform = do
                 intCast @Word16 @Int $ view #maximumCollateralInputCount pp
             , minimumCollateralPercentage =
                 view #minimumCollateralPercentage pp
-            , selectionStrategy =
-                view #selectionStrategy params
             }
     let selectionParams = SelectionParams
             { assetsToMint =
@@ -2019,6 +2017,8 @@ selectAssets ctx pp params transform = do
                 params ^. #utxoAvailableForCollateral
             , utxoAvailableForInputs =
                 params ^. #utxoAvailableForInputs
+            , selectionStrategy =
+                view #selectionStrategy params
             }
     randomSeed <- maybe stdGenSeed pure (params ^. #randomSeed)
     let mSel = flip evalRand (stdGenFromSeed randomSeed)

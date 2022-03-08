@@ -34,9 +34,13 @@ import Cardano.Wallet.CoinSelection.Internal
     , verifySelectionError
     )
 import Cardano.Wallet.CoinSelection.Internal.Balance
-    ( SelectionLimit, SelectionSkeleton, SelectionStrategy (..) )
+    ( SelectionLimit, SelectionSkeleton )
 import Cardano.Wallet.CoinSelection.Internal.Balance.Gen
-    ( genSelectionSkeleton, shrinkSelectionSkeleton )
+    ( genSelectionSkeleton
+    , genSelectionStrategy
+    , shrinkSelectionSkeleton
+    , shrinkSelectionStrategy
+    )
 import Cardano.Wallet.CoinSelection.Internal.BalanceSpec
     ( MockAssessTokenBundleSize
     , MockComputeMinimumAdaQuantity
@@ -577,8 +581,6 @@ unMockSelectionConstraints m = SelectionConstraints
         view #maximumCollateralInputCount m
     , minimumCollateralPercentage =
         view #minimumCollateralPercentage m
-    , selectionStrategy =
-        SelectionStrategyOptimal
     }
 
 --------------------------------------------------------------------------------
@@ -628,6 +630,7 @@ genSelectionParams = SelectionParams
     <*> genCollateralRequirement
     <*> genUTxOAvailableForCollateral
     <*> genUTxOAvailableForInputs
+    <*> genSelectionStrategy
 
 shrinkSelectionParams :: SelectionParams InputId -> [SelectionParams InputId]
 shrinkSelectionParams = genericRoundRobinShrink
@@ -642,6 +645,7 @@ shrinkSelectionParams = genericRoundRobinShrink
     <:> shrinkCollateralRequirement
     <:> shrinkUTxOAvailableForCollateral
     <:> shrinkUTxOAvailableForInputs
+    <:> shrinkSelectionStrategy
     <:> Nil
 
 --------------------------------------------------------------------------------

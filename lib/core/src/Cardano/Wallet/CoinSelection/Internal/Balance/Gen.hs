@@ -4,15 +4,21 @@
 module Cardano.Wallet.CoinSelection.Internal.Balance.Gen
     ( genSelectionLimit
     , genSelectionSkeleton
+    , genSelectionStrategy
     , shrinkSelectionLimit
     , shrinkSelectionSkeleton
+    , shrinkSelectionStrategy
     )
     where
 
 import Prelude
 
 import Cardano.Wallet.CoinSelection.Internal.Balance
-    ( SelectionLimit, SelectionLimitOf (..), SelectionSkeleton (..) )
+    ( SelectionLimit
+    , SelectionLimitOf (..)
+    , SelectionSkeleton (..)
+    , SelectionStrategy (..)
+    )
 import Cardano.Wallet.Primitive.Types.Address.Gen
     ( genAddress, shrinkAddress )
 import Cardano.Wallet.Primitive.Types.Coin
@@ -29,6 +35,7 @@ import Test.QuickCheck
     ( Gen
     , NonNegative (..)
     , arbitrary
+    , arbitraryBoundedEnum
     , listOf
     , oneof
     , shrink
@@ -101,3 +108,18 @@ shrinkSelectionSkeleton = genericRoundRobinShrink
 
 tokenBundleHasNonZeroCoin :: TokenBundle -> Bool
 tokenBundleHasNonZeroCoin b = TokenBundle.getCoin b /= Coin 0
+
+--------------------------------------------------------------------------------
+-- Selection strategies
+--------------------------------------------------------------------------------
+
+genSelectionStrategy :: Gen SelectionStrategy
+genSelectionStrategy = arbitraryBoundedEnum
+
+shrinkSelectionStrategy :: SelectionStrategy -> [SelectionStrategy]
+shrinkSelectionStrategy = \case
+    -- Shrinking from "optimal" to "minimal" should increase the likelihood of
+    -- making a successful selection, as the "minimal" strategy is designed to
+    -- generate smaller selections.
+    SelectionStrategyMinimal -> []
+    SelectionStrategyOptimal -> [SelectionStrategyMinimal]

@@ -97,7 +97,11 @@ import Cardano.Wallet.CoinSelection.Internal.Balance
     , ungroupByKey
     )
 import Cardano.Wallet.CoinSelection.Internal.Balance.Gen
-    ( genSelectionLimit, shrinkSelectionLimit )
+    ( genSelectionLimit
+    , genSelectionStrategy
+    , shrinkSelectionLimit
+    , shrinkSelectionStrategy
+    )
 import Cardano.Wallet.Primitive.Types.Address
     ( Address (..) )
 import Cardano.Wallet.Primitive.Types.Address.Gen
@@ -343,15 +347,26 @@ spec = describe "Cardano.Wallet.CoinSelection.Internal.BalanceSpec" $
     parallel $ describe "Running a selection step" $ do
 
         it "prop_runSelectionStep_supplyExhausted" $
-            property prop_runSelectionStep_supplyExhausted
+            prop_runSelectionStep_supplyExhausted
+                & property
         it "prop_runSelectionStep_notYetEnoughToSatisfyMinimum" $
-            property prop_runSelectionStep_notYetEnoughToSatisfyMinimum
-        it "prop_runSelectionStep_getsCloserToTargetButDoesNotExceedIt" $
-            property prop_runSelectionStep_getsCloserToTargetButDoesNotExceedIt
-        it "prop_runSelectionStep_getsCloserToTargetAndExceedsIt" $
-            property prop_runSelectionStep_getsCloserToTargetAndExceedsIt
-        it "prop_runSelectionStep_exceedsTargetAndGetsFurtherAway" $
-            property prop_runSelectionStep_exceedsTargetAndGetsFurtherAway
+            prop_runSelectionStep_notYetEnoughToSatisfyMinimum
+                & property
+        it "prop_runSelectionStep_preciselyEnoughToSatisfyMinimum" $
+            prop_runSelectionStep_preciselyEnoughToSatisfyMinimum
+                & property
+        it "prop_runSelectionStep_exceedsMinimalTarget" $
+            prop_runSelectionStep_exceedsMinimalTarget
+                & property
+        it "prop_runSelectionStep_getsCloserToOptimalTargetButDoesNotExceedIt" $
+            prop_runSelectionStep_getsCloserToOptimalTargetButDoesNotExceedIt
+                & property
+        it "prop_runSelectionStep_getsCloserToOptimalTargetAndExceedsIt" $
+            prop_runSelectionStep_getsCloserToOptimalTargetAndExceedsIt
+                & property
+        it "prop_runSelectionStep_exceedsOptimalTargetAndGetsFurtherAway" $
+            prop_runSelectionStep_exceedsOptimalTargetAndGetsFurtherAway
+                & property
 
     parallel $ describe "Behaviour of selection lenses" $ do
 
@@ -366,6 +381,8 @@ spec = describe "Cardano.Wallet.CoinSelection.Internal.BalanceSpec" $
             boundaryTestMatrix_largeTokenQuantities
         unit_testBoundaries "Large asset counts"
             boundaryTestMatrix_largeAssetCounts
+        unit_testBoundaries "Comparison of selection strategies"
+            boundaryTestMatrix_selectionStrategies
 
     parallel $ describe "Making change" $ do
 
@@ -628,6 +645,7 @@ genSelectionParams genPreselectedInputs genUTxOIndex' = do
     extraCoinSink <-
         oneof [pure $ Coin 0, genCoinPositive]
     (assetsToMint, assetsToBurn) <- genAssetsToMintAndBurn utxoAvailable
+    selectionStrategy <- genSelectionStrategy
     pure $ SelectionParams
         { outputsToCover
         , utxoAvailable =
@@ -636,6 +654,7 @@ genSelectionParams genPreselectedInputs genUTxOIndex' = do
         , extraCoinSink
         , assetsToMint
         , assetsToBurn
+        , selectionStrategy
         }
   where
     genAssetsToMintAndBurn :: UTxOIndex InputId -> Gen (TokenMap, TokenMap)
@@ -660,6 +679,7 @@ shrinkSelectionParams = genericRoundRobinShrink
     <:> shrinkCoin
     <:> shrinkTokenMap
     <:> shrinkTokenMap
+    <:> shrinkSelectionStrategy
     <:> Nil
   where
     shrinkOutput = genericRoundRobinShrink
@@ -703,6 +723,12 @@ prop_performSelection_small mockConstraints (Blind (Small params)) =
         "Number of inputs preselected == 1" $
     cover 10 (UTxOSelection.selectedSize (view #utxoAvailable params) >= 2)
         "Number of inputs preselected >= 2" $
+
+    -- Inspect the selection strategy:
+    cover 20 (view #selectionStrategy params == SelectionStrategyMinimal)
+        "Selection strategy: minimal" $
+    cover 20 (view #selectionStrategy params == SelectionStrategyOptimal)
+        "Selection strategy: optimal" $
 
     -- Inspect the extra coin source and sink:
     let nonZeroExtraCoinSource =
@@ -1058,20 +1084,42 @@ prop_performSelection mockConstraints params coverage =
         verify
             (shortfall e > Coin 0)
             "shortfall e > Coin 0" $
-        let constraints' = SelectionConstraints
+
+        -- We expect that this error is caused by one or more of the following
+        -- conditions:
+        --
+        --    1.  There's not enough ada available to pay for the fee;
+        --    2.  There's not enough ada available to pay for the minimum ada
+        --        quantities of all change outputs;
+        --    3.  One or more of the generated change bundles are in excess of
+        --        the maximum token bundle size, so it's necessary to break
+        --        them up, but there isn't enough ada to pay for either the fee
+        --        or the minimum ada quantities of the broken-up outputs.
+        --    4.  The input selection limit has been reached.
+        --
+        -- So to test that our expectation is really true, we run the selection
+        -- again with modified constraints that:
+        --
+        --    1.  Require no fee.
+        --    2.  Require no minimum ada quantity.
+        --    3.  Impose no maximum token bundle size.
+        --    4.  Impose no selection limit.
+        --
+        -- We expect that the selection should succeed.
+        --
+        let constraints' :: SelectionConstraints = constraints
                 { assessTokenBundleSize = unMockAssessTokenBundleSize
                     MockAssessTokenBundleSizeUnlimited
                 , computeMinimumAdaQuantity = computeMinimumAdaQuantityZero
                 , computeMinimumCost = computeMinimumCostZero
                 , computeSelectionLimit = const NoLimit
-                , selectionStrategy = SelectionStrategyOptimal
                 }
             performSelection' = performSelection constraints' params
         in
         monadicIO $ run performSelection' >>= \case
             Left e' -> do
                 monitor $ counterexample $ unlines
-                    [ "Failed to re-run selection with no cost!"
+                    [ "Failed to re-run selection with relaxed constraints."
                     , show e'
                     ]
                 assert False
@@ -1247,14 +1295,14 @@ mockPerformSelectionNonEmpty constraints params = Identity $ Right result
 -- Running a selection (without making change)
 --------------------------------------------------------------------------------
 
-prop_runSelection_UTxO_empty :: TokenBundle -> Property
-prop_runSelection_UTxO_empty balanceRequested = monadicIO $ do
+prop_runSelection_UTxO_empty :: TokenBundle -> SelectionStrategy -> Property
+prop_runSelection_UTxO_empty balanceRequested strategy = monadicIO $ do
     result <- run $ runSelection @_ @InputId
         RunSelectionParams
             { selectionLimit = NoLimit
             , utxoAvailable
             , minimumBalance = balanceRequested
-            , selectionStrategy = SelectionStrategyOptimal
+            , selectionStrategy = strategy
             }
     let balanceSelected = UTxOSelection.selectedBalance result
     let balanceLeftover = UTxOSelection.leftoverBalance result
@@ -1270,14 +1318,15 @@ prop_runSelection_UTxO_empty balanceRequested = monadicIO $ do
   where
     utxoAvailable = UTxOSelection.fromIndex UTxOIndex.empty
 
-prop_runSelection_UTxO_notEnough :: UTxOSelection InputId -> Property
-prop_runSelection_UTxO_notEnough utxoAvailable = monadicIO $ do
+prop_runSelection_UTxO_notEnough
+    :: UTxOSelection InputId -> SelectionStrategy -> Property
+prop_runSelection_UTxO_notEnough utxoAvailable strategy = monadicIO $ do
     result <- run $ runSelection
         RunSelectionParams
             { selectionLimit = NoLimit
             , utxoAvailable
             , minimumBalance = balanceRequested
-            , selectionStrategy = SelectionStrategyOptimal
+            , selectionStrategy = strategy
             }
     let balanceSelected = UTxOSelection.selectedBalance result
     let balanceLeftover = UTxOSelection.leftoverBalance result
@@ -1294,14 +1343,15 @@ prop_runSelection_UTxO_notEnough utxoAvailable = monadicIO $ do
     balanceAvailable = UTxOSelection.availableBalance utxoAvailable
     balanceRequested = adjustAllTokenBundleQuantities (* 2) balanceAvailable
 
-prop_runSelection_UTxO_exactlyEnough :: UTxOSelection InputId -> Property
-prop_runSelection_UTxO_exactlyEnough utxoAvailable = monadicIO $ do
+prop_runSelection_UTxO_exactlyEnough
+    :: UTxOSelection InputId -> SelectionStrategy -> Property
+prop_runSelection_UTxO_exactlyEnough utxoAvailable strategy = monadicIO $ do
     result <- run $ runSelection
         RunSelectionParams
             { selectionLimit = NoLimit
             , utxoAvailable
             , minimumBalance = balanceRequested
-            , selectionStrategy = SelectionStrategyOptimal
+            , selectionStrategy = strategy
             }
     let balanceSelected = UTxOSelection.selectedBalance result
     let balanceLeftover = UTxOSelection.leftoverBalance result
@@ -1322,14 +1372,15 @@ prop_runSelection_UTxO_exactlyEnough utxoAvailable = monadicIO $ do
   where
     balanceRequested = UTxOSelection.availableBalance utxoAvailable
 
-prop_runSelection_UTxO_moreThanEnough :: UTxOSelection InputId -> Property
-prop_runSelection_UTxO_moreThanEnough utxoAvailable = monadicIO $ do
+prop_runSelection_UTxO_moreThanEnough
+    :: UTxOSelection InputId -> SelectionStrategy -> Property
+prop_runSelection_UTxO_moreThanEnough utxoAvailable strategy = monadicIO $ do
     result <- run $ runSelection
         RunSelectionParams
             { selectionLimit = NoLimit
             , utxoAvailable
             , minimumBalance = balanceRequested
-            , selectionStrategy = SelectionStrategyOptimal
+            , selectionStrategy = strategy
             }
     let balanceSelected = UTxOSelection.selectedBalance result
     let balanceLeftover = UTxOSelection.leftoverBalance result
@@ -1366,8 +1417,9 @@ prop_runSelection_UTxO_moreThanEnough utxoAvailable = monadicIO $ do
 
 prop_runSelection_UTxO_muchMoreThanEnough
     :: Blind (Large (UTxOIndex InputId))
+    -> SelectionStrategy
     -> Property
-prop_runSelection_UTxO_muchMoreThanEnough (Blind (Large index)) =
+prop_runSelection_UTxO_muchMoreThanEnough (Blind (Large index)) strategy =
     -- Generation of large UTxO sets takes longer, so limit the number of runs:
     withMaxSuccess 100 $
     checkCoverage $
@@ -1377,7 +1429,7 @@ prop_runSelection_UTxO_muchMoreThanEnough (Blind (Large index)) =
                 { selectionLimit = NoLimit
                 , utxoAvailable
                 , minimumBalance = balanceRequested
-                , selectionStrategy = SelectionStrategyOptimal
+                , selectionStrategy = strategy
                 }
         let balanceSelected = UTxOSelection.selectedBalance result
         let balanceLeftover = UTxOSelection.leftoverBalance result
@@ -1488,9 +1540,18 @@ data MockSelectionStepData = MockSelectionStepData
       -- ^ Quantity already selected.
     , mockMinimum :: Natural
       -- ^ Minimum quantity to select.
+    , mockSelectionStrategy :: SelectionStrategy
+      -- ^ Which selection strategy to use.
     }
     deriving (Eq, Show)
 
+-- | Runs a single mock selection step.
+--
+-- If an additional quantity was selected (causing the total selected quantity
+-- to increase) then this function returns the updated total selected quantity.
+--
+-- If no additional quantity was selected, then this function returns 'Nothing'.
+--
 runMockSelectionStep :: MockSelectionStepData -> Maybe Natural
 runMockSelectionStep d =
     runIdentity $ runSelectionStep lens $ mockSelected d
@@ -1501,15 +1562,21 @@ runMockSelectionStep d =
         , updatedQuantity = id
         , minimumQuantity = mockMinimum d
         , selectQuantity = \s -> pure $ (+ s) <$> mockNext d
-        , selectionStrategy = SelectionStrategyOptimal
+        , selectionStrategy = mockSelectionStrategy d
         }
 
+-- Simulates a selection step where there is nothing available to select.
+--
+-- In this situation, running a selection step should never yield an updated
+-- state, regardless of whether or not we've reached the minimum amount.
+--
 prop_runSelectionStep_supplyExhausted
-    :: Positive Word8
+    :: SelectionStrategy
+    -> Positive Word8
     -> Positive Word8
     -> Property
 prop_runSelectionStep_supplyExhausted
-    (Positive x) (Positive y) =
+    strategy (Positive x) (Positive y) =
         counterexample (show mockData) $
         runMockSelectionStep mockData === Nothing
   where
@@ -1517,13 +1584,21 @@ prop_runSelectionStep_supplyExhausted
     mockSelected = fromIntegral x
     mockMinimum = fromIntegral y
     mockNext = Nothing
+    mockSelectionStrategy = strategy
 
+-- Simulates a selection step where the next quantity to be yielded will not
+-- yet allow us to reach the minimum amount.
+--
+-- In this situation, running a selection step should always succeed,
+-- regardless of the selection strategy.
+--
 prop_runSelectionStep_notYetEnoughToSatisfyMinimum
-    :: Positive Word8
+    :: SelectionStrategy
+    -> Positive Word8
     -> Positive Word8
     -> Property
 prop_runSelectionStep_notYetEnoughToSatisfyMinimum
-    (Positive x) (Positive y) =
+    strategy (Positive x) (Positive y) =
         counterexample (show mockData) $
         runMockSelectionStep mockData === fmap (+ mockSelected) mockNext
   where
@@ -1533,12 +1608,64 @@ prop_runSelectionStep_notYetEnoughToSatisfyMinimum
     mockSelected = p
     mockMinimum = p + q  + 1
     mockNext = Just q
+    mockSelectionStrategy = strategy
 
-prop_runSelectionStep_getsCloserToTargetButDoesNotExceedIt
+-- Simulates a selection step where the next quantity to be yielded will allow
+-- us to precisely reach the minimum amount (and not exceed it).
+--
+-- In this situation, running a selection step should always succeed,
+-- regardless of the selection strategy.
+--
+prop_runSelectionStep_preciselyEnoughToSatisfyMinimum
+    :: SelectionStrategy
+    -> Positive Word8
+    -> Positive Word8
+    -> Property
+prop_runSelectionStep_preciselyEnoughToSatisfyMinimum
+    strategy (Positive x) (Positive y) =
+        counterexample (show mockData) $
+        runMockSelectionStep mockData === fmap (+ mockSelected) mockNext
+  where
+    p = fromIntegral $ max x y
+    q = fromIntegral $ min x y
+    mockData = MockSelectionStepData {..}
+    mockSelected = p
+    mockMinimum = p + q
+    mockNext = Just q
+    mockSelectionStrategy = strategy
+
+-- Simulates a selection step under the "minimal" selection strategy, where the
+-- minimum amount has already reached.
+--
+-- In this situation, running a selection step should always fail, regardless
+-- of the next quantity to be yielded.
+--
+prop_runSelectionStep_exceedsMinimalTarget
+    :: Positive Word8
+    -> Positive Word8
+    -> Positive Word8
+    -> Property
+prop_runSelectionStep_exceedsMinimalTarget
+    (Positive x) (Positive y) (Positive z) =
+        counterexample (show mockData) $
+        runMockSelectionStep mockData === Nothing
+  where
+    [next, mockMinimum, mockSelected] = fromIntegral <$> L.sort [x, y, z]
+    mockNext = Just next
+    mockData = MockSelectionStepData {..}
+    mockSelectionStrategy = SelectionStrategyMinimal
+
+-- Simulates a selection step under the "optimal" selection strategy, where the
+-- minimum amount has already been reached, and the next quantity to be yielded
+-- will take us closer to the target amount without exceeding it.
+--
+-- In this situation, running a selection step should always succeed.
+--
+prop_runSelectionStep_getsCloserToOptimalTargetButDoesNotExceedIt
     :: Positive Word8
     -> Positive Word8
     -> Property
-prop_runSelectionStep_getsCloserToTargetButDoesNotExceedIt
+prop_runSelectionStep_getsCloserToOptimalTargetButDoesNotExceedIt
     (Positive x) (Positive y) =
         counterexample (show mockData) $
         runMockSelectionStep mockData === fmap (+ mockSelected) mockNext
@@ -1549,12 +1676,19 @@ prop_runSelectionStep_getsCloserToTargetButDoesNotExceedIt
     mockSelected = p
     mockMinimum = p
     mockNext = Just q
+    mockSelectionStrategy = SelectionStrategyOptimal
 
-prop_runSelectionStep_getsCloserToTargetAndExceedsIt
+-- Simulates a selection step under the "optimal" selection strategy, where the
+-- minimum amount has already been reached, and the next quantity to be yielded
+-- will take us closer to the target amount and also exceed it.
+--
+-- In this situation, running a selection step should always succeed.
+--
+prop_runSelectionStep_getsCloserToOptimalTargetAndExceedsIt
     :: Positive Word8
     -> Positive Word8
     -> Property
-prop_runSelectionStep_getsCloserToTargetAndExceedsIt
+prop_runSelectionStep_getsCloserToOptimalTargetAndExceedsIt
     (Positive x) (Positive y) =
         counterexample (show mockData) $
         runMockSelectionStep mockData === fmap (+ mockSelected) mockNext
@@ -1565,12 +1699,19 @@ prop_runSelectionStep_getsCloserToTargetAndExceedsIt
     mockSelected = (2 * p) - q
     mockMinimum = p
     mockNext = Just ((2 * q) - 1)
+    mockSelectionStrategy = SelectionStrategyOptimal
 
-prop_runSelectionStep_exceedsTargetAndGetsFurtherAway
+-- Simulates a selection step under the "optimal" selection strategy, where the
+-- minimum amount has already been reached, and the next quantity to be yielded
+-- will take us further away from the target amount, while also exceeding it.
+--
+-- In this situation, running a selection step should always fail.
+--
+prop_runSelectionStep_exceedsOptimalTargetAndGetsFurtherAway
     :: Positive Word8
     -> Positive Word8
     -> Property
-prop_runSelectionStep_exceedsTargetAndGetsFurtherAway
+prop_runSelectionStep_exceedsOptimalTargetAndGetsFurtherAway
     (Positive x) (Positive y) =
         counterexample (show mockData) $
         runMockSelectionStep mockData === Nothing
@@ -1581,6 +1722,7 @@ prop_runSelectionStep_exceedsTargetAndGetsFurtherAway
     mockSelected = (2 * p) - q
     mockMinimum = p
     mockNext = Just ((2 * q) + 1)
+    mockSelectionStrategy = SelectionStrategyOptimal
 
 --------------------------------------------------------------------------------
 -- Behaviour of selection lenses
@@ -1676,6 +1818,8 @@ data BoundaryTestCriteria = BoundaryTestCriteria
         :: [BoundaryTestEntry]
     , boundaryTestUTxO
         :: [BoundaryTestEntry]
+    , boundaryTestSelectionStrategy
+        :: SelectionStrategy
     }
     deriving (Eq, Show)
 
@@ -1701,7 +1845,6 @@ mkBoundaryTestExpectation (BoundaryTestData params expectedResult) = do
         , assessTokenBundleSize = unMockAssessTokenBundleSize $
             boundaryTestBundleSizeAssessor params
         , computeSelectionLimit = const NoLimit
-        , selectionStrategy = SelectionStrategyOptimal
         }
 
 encodeBoundaryTestCriteria :: BoundaryTestCriteria -> SelectionParams InputId
@@ -1723,6 +1866,8 @@ encodeBoundaryTestCriteria c = SelectionParams
         TokenMap.empty
     , assetsToBurn =
         TokenMap.empty
+    , selectionStrategy =
+        boundaryTestSelectionStrategy c
     }
   where
     dummyInputIds :: [InputId]
@@ -1772,6 +1917,7 @@ boundaryTest_largeTokenQuantities_1 = BoundaryTestData
   where
     (q1, q2) = (TokenQuantity 1, TokenQuantity.predZero txOutMaxTokenQuantity)
     boundaryTestBundleSizeAssessor = MockAssessTokenBundleSizeUnlimited
+    boundaryTestSelectionStrategy = SelectionStrategyOptimal
     boundaryTestOutputs =
       [ (Coin 1_500_000, []) ]
     boundaryTestUTxO =
@@ -1801,6 +1947,7 @@ boundaryTest_largeTokenQuantities_2 = BoundaryTestData
   where
     q1 :| [q2] = TokenQuantity.equipartition txOutMaxTokenQuantity (() :| [()])
     boundaryTestBundleSizeAssessor = MockAssessTokenBundleSizeUnlimited
+    boundaryTestSelectionStrategy = SelectionStrategyOptimal
     boundaryTestOutputs =
       [ (Coin 1_500_000, []) ]
     boundaryTestUTxO =
@@ -1831,6 +1978,7 @@ boundaryTest_largeTokenQuantities_3 = BoundaryTestData
     q1 :| [q2] = TokenQuantity.equipartition
         (TokenQuantity.succ txOutMaxTokenQuantity) (() :| [()])
     boundaryTestBundleSizeAssessor = MockAssessTokenBundleSizeUnlimited
+    boundaryTestSelectionStrategy = SelectionStrategyOptimal
     boundaryTestOutputs =
       [ (Coin 1_500_000, []) ]
     boundaryTestUTxO =
@@ -1861,6 +2009,7 @@ boundaryTest_largeTokenQuantities_4 = BoundaryTestData
     }
   where
     boundaryTestBundleSizeAssessor = MockAssessTokenBundleSizeUnlimited
+    boundaryTestSelectionStrategy = SelectionStrategyOptimal
     boundaryTestOutputs =
       [ (Coin 1_500_000, []) ]
     boundaryTestUTxO =
@@ -1889,6 +2038,7 @@ boundaryTest_largeTokenQuantities_5 = BoundaryTestData
     }
   where
     boundaryTestBundleSizeAssessor = MockAssessTokenBundleSizeUnlimited
+    boundaryTestSelectionStrategy = SelectionStrategyOptimal
     boundaryTestOutputs =
       [ (Coin 2_000_000, []) ]
     boundaryTestUTxO =
@@ -1927,6 +2077,7 @@ boundaryTest_largeTokenQuantities_6 = BoundaryTestData
     }
   where
     boundaryTestBundleSizeAssessor = MockAssessTokenBundleSizeUnlimited
+    boundaryTestSelectionStrategy = SelectionStrategyOptimal
     boundaryTestOutputs =
       [ (Coin 1_000_000, [])
       , (Coin 1_000_000, [])
@@ -1977,6 +2128,7 @@ boundaryTest_largeAssetCounts_1 = BoundaryTestData
     }
   where
     boundaryTestBundleSizeAssessor = MockAssessTokenBundleSizeUpperLimit 4
+    boundaryTestSelectionStrategy = SelectionStrategyOptimal
     boundaryTestOutputs =
       [ (Coin 1_000_000, []) ]
     boundaryTestUTxO =
@@ -2008,6 +2160,7 @@ boundaryTest_largeAssetCounts_2 = BoundaryTestData
     }
   where
     boundaryTestBundleSizeAssessor = MockAssessTokenBundleSizeUpperLimit 3
+    boundaryTestSelectionStrategy = SelectionStrategyOptimal
     boundaryTestOutputs =
       [ (Coin 1_000_000, []) ]
     boundaryTestUTxO =
@@ -2034,6 +2187,7 @@ boundaryTest_largeAssetCounts_3 = BoundaryTestData
     }
   where
     boundaryTestBundleSizeAssessor = MockAssessTokenBundleSizeUpperLimit 2
+    boundaryTestSelectionStrategy = SelectionStrategyOptimal
     boundaryTestOutputs =
       [ (Coin 1_000_000, []) ]
     boundaryTestUTxO =
@@ -2060,6 +2214,7 @@ boundaryTest_largeAssetCounts_4 = BoundaryTestData
     }
   where
     boundaryTestBundleSizeAssessor = MockAssessTokenBundleSizeUpperLimit 1
+    boundaryTestSelectionStrategy = SelectionStrategyOptimal
     boundaryTestOutputs =
       [ (Coin 1_000_000, []) ]
     boundaryTestUTxO =
@@ -2075,6 +2230,200 @@ boundaryTest_largeAssetCounts_4 = BoundaryTestData
       , (Coin 250_000, [mockAssetQuantity "B" 1])
       , (Coin 250_000, [mockAssetQuantity "C" 1])
       , (Coin 250_000, [mockAssetQuantity "D" 1])
+      ]
+
+--------------------------------------------------------------------------------
+-- Boundary tests: comparison of selection strategies
+--------------------------------------------------------------------------------
+
+boundaryTestMatrix_selectionStrategies :: [BoundaryTestData]
+boundaryTestMatrix_selectionStrategies =
+    [ boundaryTest_selectionStrategies_1_minimal
+    , boundaryTest_selectionStrategies_1_optimal
+    , boundaryTest_selectionStrategies_2_minimal
+    , boundaryTest_selectionStrategies_2_optimal
+    , boundaryTest_selectionStrategies_3_minimal
+    , boundaryTest_selectionStrategies_3_optimal
+    , boundaryTest_selectionStrategies_4_minimal
+    , boundaryTest_selectionStrategies_4_optimal
+    ]
+
+boundaryTest_selectionStrategies_1_minimal :: BoundaryTestData
+boundaryTest_selectionStrategies_1_minimal = BoundaryTestData
+    { boundaryTestCriteria = BoundaryTestCriteria {..}
+    , boundaryTestExpectedResult = BoundaryTestResult {..}
+    }
+  where
+    boundaryTestBundleSizeAssessor = MockAssessTokenBundleSizeUnlimited
+    boundaryTestSelectionStrategy = SelectionStrategyMinimal
+    boundaryTestOutputs =
+      [ (Coin 1, []) ]
+    boundaryTestUTxO =
+      [ (Coin 1, []), (Coin 1, []) ]
+    boundaryTestInputs =
+      [ (Coin 1, []) ]
+    boundaryTestChange =
+      [ (Coin 0, []) ]
+      -- Note that a single empty change bundle is expected here, as:
+      --    - we attempt to always generate one change output for
+      --      each user-specified output.
+      --    - the minimum ada quantity is zero.
+
+boundaryTest_selectionStrategies_1_optimal :: BoundaryTestData
+boundaryTest_selectionStrategies_1_optimal = BoundaryTestData
+    { boundaryTestCriteria = BoundaryTestCriteria {..}
+    , boundaryTestExpectedResult = BoundaryTestResult {..}
+    }
+  where
+    boundaryTestBundleSizeAssessor = MockAssessTokenBundleSizeUnlimited
+    boundaryTestSelectionStrategy = SelectionStrategyOptimal
+    boundaryTestOutputs =
+      [ (Coin 1, []) ]
+    boundaryTestUTxO =
+      [ (Coin 1, []), (Coin 1, []) ]
+    boundaryTestInputs =
+      [ (Coin 1, []), (Coin 1, []) ]
+    boundaryTestChange =
+      [ (Coin 1, []) ]
+
+boundaryTest_selectionStrategies_2_minimal :: BoundaryTestData
+boundaryTest_selectionStrategies_2_minimal = BoundaryTestData
+    { boundaryTestCriteria = BoundaryTestCriteria {..}
+    , boundaryTestExpectedResult = BoundaryTestResult {..}
+    }
+  where
+    boundaryTestBundleSizeAssessor = MockAssessTokenBundleSizeUnlimited
+    boundaryTestSelectionStrategy = SelectionStrategyMinimal
+    boundaryTestOutputs =
+      [ (Coin 1, []) ]
+    boundaryTestUTxO =
+      [ (Coin 1, [mockAssetQuantity "A" 1])
+      , (Coin 1, [mockAssetQuantity "A" 1])
+      ]
+    boundaryTestInputs =
+      [ (Coin 1, [mockAssetQuantity "A" 1]) ]
+    boundaryTestChange =
+      [ (Coin 0, [mockAssetQuantity "A" 1]) ]
+
+boundaryTest_selectionStrategies_2_optimal :: BoundaryTestData
+boundaryTest_selectionStrategies_2_optimal = BoundaryTestData
+    { boundaryTestCriteria = BoundaryTestCriteria {..}
+    , boundaryTestExpectedResult = BoundaryTestResult {..}
+    }
+  where
+    boundaryTestBundleSizeAssessor = MockAssessTokenBundleSizeUnlimited
+    boundaryTestSelectionStrategy = SelectionStrategyOptimal
+    boundaryTestOutputs =
+      [ (Coin 1, []) ]
+    boundaryTestUTxO =
+      [ (Coin 1, [mockAssetQuantity "A" 1])
+      , (Coin 1, [mockAssetQuantity "A" 1])
+      ]
+    boundaryTestInputs =
+      [ (Coin 1, [mockAssetQuantity "A" 1])
+      , (Coin 1, [mockAssetQuantity "A" 1])
+      ]
+    boundaryTestChange =
+      [ (Coin 1, [mockAssetQuantity "A" 2]) ]
+
+boundaryTest_selectionStrategies_3_minimal :: BoundaryTestData
+boundaryTest_selectionStrategies_3_minimal = BoundaryTestData
+    { boundaryTestCriteria = BoundaryTestCriteria {..}
+    , boundaryTestExpectedResult = BoundaryTestResult {..}
+    }
+  where
+    boundaryTestBundleSizeAssessor = MockAssessTokenBundleSizeUnlimited
+    boundaryTestSelectionStrategy = SelectionStrategyMinimal
+    boundaryTestOutputs =
+      [ (Coin 1, [mockAssetQuantity "A" 1]) ]
+    boundaryTestUTxO =
+      [ (Coin 1, [mockAssetQuantity "A" 1])
+      , (Coin 1, [mockAssetQuantity "A" 1])
+      ]
+    boundaryTestInputs =
+      [ (Coin 1, [mockAssetQuantity "A" 1]) ]
+    boundaryTestChange =
+      [ (Coin 0, []) ]
+
+boundaryTest_selectionStrategies_3_optimal :: BoundaryTestData
+boundaryTest_selectionStrategies_3_optimal = BoundaryTestData
+    { boundaryTestCriteria = BoundaryTestCriteria {..}
+    , boundaryTestExpectedResult = BoundaryTestResult {..}
+    }
+  where
+    boundaryTestBundleSizeAssessor = MockAssessTokenBundleSizeUnlimited
+    boundaryTestSelectionStrategy = SelectionStrategyOptimal
+    boundaryTestOutputs =
+      [ (Coin 1, [mockAssetQuantity "A" 1]) ]
+    boundaryTestUTxO =
+      [ (Coin 1, [mockAssetQuantity "A" 1])
+      , (Coin 1, [mockAssetQuantity "A" 1])
+      ]
+    boundaryTestInputs =
+      [ (Coin 1, [mockAssetQuantity "A" 1])
+      , (Coin 1, [mockAssetQuantity "A" 1])
+      ]
+    boundaryTestChange =
+      [ (Coin 1, [mockAssetQuantity "A" 1]) ]
+
+boundaryTest_selectionStrategies_4_minimal :: BoundaryTestData
+boundaryTest_selectionStrategies_4_minimal = BoundaryTestData
+    { boundaryTestCriteria = BoundaryTestCriteria {..}
+    , boundaryTestExpectedResult = BoundaryTestResult {..}
+    }
+  where
+    boundaryTestBundleSizeAssessor = MockAssessTokenBundleSizeUnlimited
+    boundaryTestSelectionStrategy = SelectionStrategyMinimal
+    boundaryTestOutputs =
+      [ (Coin 2, [mockAssetQuantity "A" 2, mockAssetQuantity "B" 2000])
+      ]
+    boundaryTestUTxO =
+      [ (Coin 1, [mockAssetQuantity "A" 2, mockAssetQuantity "B" 2000])
+      , (Coin 1, [mockAssetQuantity "A" 2, mockAssetQuantity "B" 2000])
+      , (Coin 1, [mockAssetQuantity "A" 2, mockAssetQuantity "B" 2000])
+      , (Coin 1, [mockAssetQuantity "A" 2, mockAssetQuantity "B" 2000])
+      , (Coin 1, [mockAssetQuantity "A" 2, mockAssetQuantity "B" 2000])
+      , (Coin 1, [mockAssetQuantity "A" 2, mockAssetQuantity "B" 2000])
+      , (Coin 1, [mockAssetQuantity "A" 2, mockAssetQuantity "B" 2000])
+      , (Coin 1, [mockAssetQuantity "A" 2, mockAssetQuantity "B" 2000])
+      ]
+    boundaryTestInputs =
+      [ (Coin 1, [mockAssetQuantity "A" 2, mockAssetQuantity "B" 2000])
+      , (Coin 1, [mockAssetQuantity "A" 2, mockAssetQuantity "B" 2000])
+      ]
+    boundaryTestChange =
+      [ (Coin 0, [mockAssetQuantity "A" 2, mockAssetQuantity "B" 2000])
+      ]
+
+boundaryTest_selectionStrategies_4_optimal :: BoundaryTestData
+boundaryTest_selectionStrategies_4_optimal = BoundaryTestData
+    { boundaryTestCriteria = BoundaryTestCriteria {..}
+    , boundaryTestExpectedResult = BoundaryTestResult {..}
+    }
+  where
+    boundaryTestBundleSizeAssessor = MockAssessTokenBundleSizeUnlimited
+    boundaryTestSelectionStrategy = SelectionStrategyOptimal
+    boundaryTestOutputs =
+      [ (Coin 2, [mockAssetQuantity "A" 2, mockAssetQuantity "B" 2000])
+      ]
+    boundaryTestUTxO =
+      [ (Coin 1, [mockAssetQuantity "A" 2, mockAssetQuantity "B" 2000])
+      , (Coin 1, [mockAssetQuantity "A" 2, mockAssetQuantity "B" 2000])
+      , (Coin 1, [mockAssetQuantity "A" 2, mockAssetQuantity "B" 2000])
+      , (Coin 1, [mockAssetQuantity "A" 2, mockAssetQuantity "B" 2000])
+      , (Coin 1, [mockAssetQuantity "A" 2, mockAssetQuantity "B" 2000])
+      , (Coin 1, [mockAssetQuantity "A" 2, mockAssetQuantity "B" 2000])
+      , (Coin 1, [mockAssetQuantity "A" 2, mockAssetQuantity "B" 2000])
+      , (Coin 1, [mockAssetQuantity "A" 2, mockAssetQuantity "B" 2000])
+      ]
+    boundaryTestInputs =
+      [ (Coin 1, [mockAssetQuantity "A" 2, mockAssetQuantity "B" 2000])
+      , (Coin 1, [mockAssetQuantity "A" 2, mockAssetQuantity "B" 2000])
+      , (Coin 1, [mockAssetQuantity "A" 2, mockAssetQuantity "B" 2000])
+      , (Coin 1, [mockAssetQuantity "A" 2, mockAssetQuantity "B" 2000])
+      ]
+    boundaryTestChange =
+      [ (Coin 2, [mockAssetQuantity "A" 6, mockAssetQuantity "B" 6000])
       ]
 
 --------------------------------------------------------------------------------
@@ -2118,8 +2467,6 @@ unMockSelectionConstraints m = SelectionConstraints
         unMockComputeMinimumCost $ view #computeMinimumCost m
     , computeSelectionLimit =
         unMockComputeSelectionLimit $ view #computeSelectionLimit m
-    , selectionStrategy =
-        SelectionStrategyOptimal
     }
 
 --------------------------------------------------------------------------------
@@ -2431,7 +2778,9 @@ prop_makeChange_length p =
             }
 
     getLargestAssetSetSize :: [TokenBundle] -> Int
-    getLargestAssetSetSize = F.maximum . fmap (Set.size . TokenBundle.getAssets)
+    getLargestAssetSetSize = \case
+        [] -> 0
+        bs -> F.maximum $ fmap (Set.size . TokenBundle.getAssets) bs
 
     zeroCostMakeChangeScenario = p
         { minCoinFor = computeMinimumAdaQuantityZero
@@ -4128,3 +4477,7 @@ instance Arbitrary MockComputeMinimumAdaQuantity where
 instance Arbitrary MockComputeMinimumCost where
     arbitrary = genMockComputeMinimumCost
     shrink = shrinkMockComputeMinimumCost
+
+instance Arbitrary SelectionStrategy where
+    arbitrary = genSelectionStrategy
+    shrink = shrinkSelectionStrategy
