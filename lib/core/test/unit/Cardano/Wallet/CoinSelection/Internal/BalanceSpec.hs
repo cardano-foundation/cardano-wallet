@@ -1058,20 +1058,42 @@ prop_performSelection mockConstraints params coverage =
         verify
             (shortfall e > Coin 0)
             "shortfall e > Coin 0" $
-        let constraints' = SelectionConstraints
+
+        -- We expect that this error is caused by one or more of the following
+        -- conditions:
+        --
+        --    1.  There's not enough ada available to pay for the fee;
+        --    2.  There's not enough ada available to pay for the minimum ada
+        --        quantities of all change outputs;
+        --    3.  One or more of the generated change bundles are in excess of
+        --        the maximum token bundle size, so it's necessary to break
+        --        them up, but there isn't enough ada to pay for either the fee
+        --        or the minimum ada quantities of the broken-up outputs.
+        --    4.  The input selection limit has been reached.
+        --
+        -- So to test that our expectation is really true, we run the selection
+        -- again with modified constraints that:
+        --
+        --    1.  Require no fee.
+        --    2.  Require no minimum ada quantity.
+        --    3.  Impose no maximum token bundle size.
+        --    4.  Impose no selection limit.
+        --
+        -- We expect that the selection should succeed.
+        --
+        let constraints' :: SelectionConstraints = constraints
                 { assessTokenBundleSize = unMockAssessTokenBundleSize
                     MockAssessTokenBundleSizeUnlimited
                 , computeMinimumAdaQuantity = computeMinimumAdaQuantityZero
                 , computeMinimumCost = computeMinimumCostZero
                 , computeSelectionLimit = const NoLimit
-                , selectionStrategy = SelectionStrategyOptimal
                 }
             performSelection' = performSelection constraints' params
         in
         monadicIO $ run performSelection' >>= \case
             Left e' -> do
                 monitor $ counterexample $ unlines
-                    [ "Failed to re-run selection with no cost!"
+                    [ "Failed to re-run selection with relaxed constraints."
                     , show e'
                     ]
                 assert False
