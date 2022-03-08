@@ -1812,6 +1812,8 @@ data BoundaryTestCriteria = BoundaryTestCriteria
         :: [BoundaryTestEntry]
     , boundaryTestUTxO
         :: [BoundaryTestEntry]
+    , boundaryTestSelectionStrategy
+        :: SelectionStrategy
     }
     deriving (Eq, Show)
 
@@ -1859,7 +1861,7 @@ encodeBoundaryTestCriteria c = SelectionParams
     , assetsToBurn =
         TokenMap.empty
     , selectionStrategy =
-        SelectionStrategyOptimal
+        boundaryTestSelectionStrategy c
     }
   where
     dummyInputIds :: [InputId]
@@ -1909,6 +1911,7 @@ boundaryTest_largeTokenQuantities_1 = BoundaryTestData
   where
     (q1, q2) = (TokenQuantity 1, TokenQuantity.predZero txOutMaxTokenQuantity)
     boundaryTestBundleSizeAssessor = MockAssessTokenBundleSizeUnlimited
+    boundaryTestSelectionStrategy = SelectionStrategyOptimal
     boundaryTestOutputs =
       [ (Coin 1_500_000, []) ]
     boundaryTestUTxO =
@@ -1938,6 +1941,7 @@ boundaryTest_largeTokenQuantities_2 = BoundaryTestData
   where
     q1 :| [q2] = TokenQuantity.equipartition txOutMaxTokenQuantity (() :| [()])
     boundaryTestBundleSizeAssessor = MockAssessTokenBundleSizeUnlimited
+    boundaryTestSelectionStrategy = SelectionStrategyOptimal
     boundaryTestOutputs =
       [ (Coin 1_500_000, []) ]
     boundaryTestUTxO =
@@ -1968,6 +1972,7 @@ boundaryTest_largeTokenQuantities_3 = BoundaryTestData
     q1 :| [q2] = TokenQuantity.equipartition
         (TokenQuantity.succ txOutMaxTokenQuantity) (() :| [()])
     boundaryTestBundleSizeAssessor = MockAssessTokenBundleSizeUnlimited
+    boundaryTestSelectionStrategy = SelectionStrategyOptimal
     boundaryTestOutputs =
       [ (Coin 1_500_000, []) ]
     boundaryTestUTxO =
@@ -1998,6 +2003,7 @@ boundaryTest_largeTokenQuantities_4 = BoundaryTestData
     }
   where
     boundaryTestBundleSizeAssessor = MockAssessTokenBundleSizeUnlimited
+    boundaryTestSelectionStrategy = SelectionStrategyOptimal
     boundaryTestOutputs =
       [ (Coin 1_500_000, []) ]
     boundaryTestUTxO =
@@ -2026,6 +2032,7 @@ boundaryTest_largeTokenQuantities_5 = BoundaryTestData
     }
   where
     boundaryTestBundleSizeAssessor = MockAssessTokenBundleSizeUnlimited
+    boundaryTestSelectionStrategy = SelectionStrategyOptimal
     boundaryTestOutputs =
       [ (Coin 2_000_000, []) ]
     boundaryTestUTxO =
@@ -2064,6 +2071,7 @@ boundaryTest_largeTokenQuantities_6 = BoundaryTestData
     }
   where
     boundaryTestBundleSizeAssessor = MockAssessTokenBundleSizeUnlimited
+    boundaryTestSelectionStrategy = SelectionStrategyOptimal
     boundaryTestOutputs =
       [ (Coin 1_000_000, [])
       , (Coin 1_000_000, [])
@@ -2114,6 +2122,7 @@ boundaryTest_largeAssetCounts_1 = BoundaryTestData
     }
   where
     boundaryTestBundleSizeAssessor = MockAssessTokenBundleSizeUpperLimit 4
+    boundaryTestSelectionStrategy = SelectionStrategyOptimal
     boundaryTestOutputs =
       [ (Coin 1_000_000, []) ]
     boundaryTestUTxO =
@@ -2145,6 +2154,7 @@ boundaryTest_largeAssetCounts_2 = BoundaryTestData
     }
   where
     boundaryTestBundleSizeAssessor = MockAssessTokenBundleSizeUpperLimit 3
+    boundaryTestSelectionStrategy = SelectionStrategyOptimal
     boundaryTestOutputs =
       [ (Coin 1_000_000, []) ]
     boundaryTestUTxO =
@@ -2171,6 +2181,7 @@ boundaryTest_largeAssetCounts_3 = BoundaryTestData
     }
   where
     boundaryTestBundleSizeAssessor = MockAssessTokenBundleSizeUpperLimit 2
+    boundaryTestSelectionStrategy = SelectionStrategyOptimal
     boundaryTestOutputs =
       [ (Coin 1_000_000, []) ]
     boundaryTestUTxO =
@@ -2197,6 +2208,7 @@ boundaryTest_largeAssetCounts_4 = BoundaryTestData
     }
   where
     boundaryTestBundleSizeAssessor = MockAssessTokenBundleSizeUpperLimit 1
+    boundaryTestSelectionStrategy = SelectionStrategyOptimal
     boundaryTestOutputs =
       [ (Coin 1_000_000, []) ]
     boundaryTestUTxO =
