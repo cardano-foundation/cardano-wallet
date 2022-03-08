@@ -1275,14 +1275,14 @@ mockPerformSelectionNonEmpty constraints params = Identity $ Right result
 -- Running a selection (without making change)
 --------------------------------------------------------------------------------
 
-prop_runSelection_UTxO_empty :: TokenBundle -> Property
-prop_runSelection_UTxO_empty balanceRequested = monadicIO $ do
+prop_runSelection_UTxO_empty :: TokenBundle -> SelectionStrategy -> Property
+prop_runSelection_UTxO_empty balanceRequested strategy = monadicIO $ do
     result <- run $ runSelection @_ @InputId
         RunSelectionParams
             { selectionLimit = NoLimit
             , utxoAvailable
             , minimumBalance = balanceRequested
-            , selectionStrategy = SelectionStrategyOptimal
+            , selectionStrategy = strategy
             }
     let balanceSelected = UTxOSelection.selectedBalance result
     let balanceLeftover = UTxOSelection.leftoverBalance result
@@ -1298,14 +1298,15 @@ prop_runSelection_UTxO_empty balanceRequested = monadicIO $ do
   where
     utxoAvailable = UTxOSelection.fromIndex UTxOIndex.empty
 
-prop_runSelection_UTxO_notEnough :: UTxOSelection InputId -> Property
-prop_runSelection_UTxO_notEnough utxoAvailable = monadicIO $ do
+prop_runSelection_UTxO_notEnough
+    :: UTxOSelection InputId -> SelectionStrategy -> Property
+prop_runSelection_UTxO_notEnough utxoAvailable strategy = monadicIO $ do
     result <- run $ runSelection
         RunSelectionParams
             { selectionLimit = NoLimit
             , utxoAvailable
             , minimumBalance = balanceRequested
-            , selectionStrategy = SelectionStrategyOptimal
+            , selectionStrategy = strategy
             }
     let balanceSelected = UTxOSelection.selectedBalance result
     let balanceLeftover = UTxOSelection.leftoverBalance result
@@ -1322,14 +1323,15 @@ prop_runSelection_UTxO_notEnough utxoAvailable = monadicIO $ do
     balanceAvailable = UTxOSelection.availableBalance utxoAvailable
     balanceRequested = adjustAllTokenBundleQuantities (* 2) balanceAvailable
 
-prop_runSelection_UTxO_exactlyEnough :: UTxOSelection InputId -> Property
-prop_runSelection_UTxO_exactlyEnough utxoAvailable = monadicIO $ do
+prop_runSelection_UTxO_exactlyEnough
+    :: UTxOSelection InputId -> SelectionStrategy -> Property
+prop_runSelection_UTxO_exactlyEnough utxoAvailable strategy = monadicIO $ do
     result <- run $ runSelection
         RunSelectionParams
             { selectionLimit = NoLimit
             , utxoAvailable
             , minimumBalance = balanceRequested
-            , selectionStrategy = SelectionStrategyOptimal
+            , selectionStrategy = strategy
             }
     let balanceSelected = UTxOSelection.selectedBalance result
     let balanceLeftover = UTxOSelection.leftoverBalance result
@@ -1350,14 +1352,15 @@ prop_runSelection_UTxO_exactlyEnough utxoAvailable = monadicIO $ do
   where
     balanceRequested = UTxOSelection.availableBalance utxoAvailable
 
-prop_runSelection_UTxO_moreThanEnough :: UTxOSelection InputId -> Property
-prop_runSelection_UTxO_moreThanEnough utxoAvailable = monadicIO $ do
+prop_runSelection_UTxO_moreThanEnough
+    :: UTxOSelection InputId -> SelectionStrategy -> Property
+prop_runSelection_UTxO_moreThanEnough utxoAvailable strategy = monadicIO $ do
     result <- run $ runSelection
         RunSelectionParams
             { selectionLimit = NoLimit
             , utxoAvailable
             , minimumBalance = balanceRequested
-            , selectionStrategy = SelectionStrategyOptimal
+            , selectionStrategy = strategy
             }
     let balanceSelected = UTxOSelection.selectedBalance result
     let balanceLeftover = UTxOSelection.leftoverBalance result
@@ -1394,8 +1397,9 @@ prop_runSelection_UTxO_moreThanEnough utxoAvailable = monadicIO $ do
 
 prop_runSelection_UTxO_muchMoreThanEnough
     :: Blind (Large (UTxOIndex InputId))
+    -> SelectionStrategy
     -> Property
-prop_runSelection_UTxO_muchMoreThanEnough (Blind (Large index)) =
+prop_runSelection_UTxO_muchMoreThanEnough (Blind (Large index)) strategy =
     -- Generation of large UTxO sets takes longer, so limit the number of runs:
     withMaxSuccess 100 $
     checkCoverage $
@@ -1405,7 +1409,7 @@ prop_runSelection_UTxO_muchMoreThanEnough (Blind (Large index)) =
                 { selectionLimit = NoLimit
                 , utxoAvailable
                 , minimumBalance = balanceRequested
-                , selectionStrategy = SelectionStrategyOptimal
+                , selectionStrategy = strategy
                 }
         let balanceSelected = UTxOSelection.selectedBalance result
         let balanceLeftover = UTxOSelection.leftoverBalance result
@@ -4175,3 +4179,7 @@ instance Arbitrary MockComputeMinimumAdaQuantity where
 instance Arbitrary MockComputeMinimumCost where
     arbitrary = genMockComputeMinimumCost
     shrink = shrinkMockComputeMinimumCost
+
+instance Arbitrary SelectionStrategy where
+    arbitrary = genSelectionStrategy
+    shrink = shrinkSelectionStrategy
