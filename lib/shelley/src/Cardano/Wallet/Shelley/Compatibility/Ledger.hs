@@ -31,6 +31,7 @@ module Cardano.Wallet.Shelley.Compatibility.Ledger
     , toWalletTokenPolicyId
     , toWalletTokenName
     , toWalletTokenQuantity
+    , toWalletScript
 
       -- * Roundtrip conversion between wallet types and ledger specification
       --   types
@@ -43,6 +44,8 @@ module Cardano.Wallet.Shelley.Compatibility.Ledger
 
 import Prelude
 
+import Cardano.Address.Script
+    ( KeyHash (..), KeyRole (..), Script (..) )
 import Cardano.Crypto.Hash
     ( hashFromBytes, hashToBytes )
 import Cardano.Ledger.SafeHash
@@ -67,6 +70,8 @@ import Cardano.Wallet.Primitive.Types.Tx
     ( TxOut (..) )
 import Data.ByteString.Short
     ( toShort )
+import Data.Foldable
+    ( toList )
 import Data.Function
     ( (&) )
 import Data.Generics.Internal.VL.Lens
@@ -89,15 +94,19 @@ import qualified Cardano.Ledger.Address as Ledger
 import qualified Cardano.Ledger.Alonzo as Alonzo
 import qualified Cardano.Ledger.Alonzo.Rules.Utxo as Alonzo
 import qualified Cardano.Ledger.Alonzo.TxBody as Alonzo
+import qualified Cardano.Ledger.Crypto as Ledger
+import qualified Cardano.Ledger.Keys as Ledger
 import qualified Cardano.Ledger.Mary.Value as Ledger
 import qualified Cardano.Ledger.Shelley.API as Ledger
 import qualified Cardano.Ledger.ShelleyMA.Rules.Utxo as Ledger
+import qualified Cardano.Ledger.ShelleyMA.Timelocks as MA
 import qualified Cardano.Wallet.Primitive.Types.Coin as Coin
 import qualified Cardano.Wallet.Primitive.Types.TokenBundle as TokenBundle
 import qualified Cardano.Wallet.Primitive.Types.TokenMap as TokenMap
 import qualified Data.ByteString as BS
 import qualified Data.Map.Strict as Map
 import qualified Data.Map.Strict.NonEmptyMap as NonEmptyMap
+import qualified Ouroboros.Network.Block as O
 
 --------------------------------------------------------------------------------
 -- Public functions
@@ -290,6 +299,25 @@ toAlonzoTxOut (TxOut addr bundle) = \case
             (toLedger bundle)
             (Ledger.SJust $ unsafeMakeSafeHash $ Crypto.UnsafeHash $ toShort bytes)
 
+toWalletScript
+    :: Ledger.Crypto crypto
+    => KeyRole
+    -> MA.Timelock crypto
+    -> Script KeyHash
+toWalletScript keyrole = fromLedgerScript
+  where
+    fromLedgerScript (MA.RequireSignature (Ledger.KeyHash h)) =
+        RequireSignatureOf (KeyHash keyrole (hashToBytes h))
+    fromLedgerScript (MA.RequireAllOf contents) =
+        RequireAllOf $ map fromLedgerScript $ toList contents
+    fromLedgerScript (MA.RequireAnyOf contents) =
+        RequireAnyOf $ map fromLedgerScript $ toList contents
+    fromLedgerScript (MA.RequireMOf num contents) =
+        RequireSomeOf (fromIntegral num) $ map fromLedgerScript $ toList contents
+    fromLedgerScript (MA.RequireTimeExpire (O.SlotNo slot)) =
+        ActiveUntilSlot $ fromIntegral slot
+    fromLedgerScript (MA.RequireTimeStart (O.SlotNo slot)) =
+        ActiveFromSlot $ fromIntegral slot
 
 --------------------------------------------------------------------------------
 -- Internal functions
