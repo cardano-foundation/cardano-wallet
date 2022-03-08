@@ -151,7 +151,7 @@ import Cardano.Address
 import Cardano.Address.Derivation
     ( XPub, xpubPublicKey )
 import Cardano.Address.Script
-    ( KeyHash (..), Script (..) )
+    ( KeyHash (..), KeyRole (..), Script (..) )
 import Cardano.Api
     ( AllegraEra
     , AlonzoEra
@@ -215,6 +215,8 @@ import Cardano.Wallet.Primitive.Types
     )
 import Cardano.Wallet.Primitive.Types.TokenMap
     ( TokenMap )
+import Cardano.Wallet.Primitive.Types.TokenPolicy
+    ( TokenPolicyId )
 import Cardano.Wallet.Shelley.Compatibility.Ledger
     ( toWalletTokenName, toWalletTokenPolicyId, toWalletTokenQuantity )
 import Cardano.Wallet.Transaction
@@ -332,6 +334,7 @@ import qualified Cardano.Ledger.Alonzo.Scripts as Alonzo
 import qualified Cardano.Ledger.Alonzo.Tx as Alonzo
 import qualified Cardano.Ledger.Alonzo.TxBody as Alonzo
 import qualified Cardano.Ledger.Alonzo.TxSeq as Alonzo
+import qualified Cardano.Ledger.Alonzo.TxWitness as Alonzo
 import qualified Cardano.Ledger.BaseTypes as BT
 import qualified Cardano.Ledger.BaseTypes as Ledger
 import qualified Cardano.Ledger.BaseTypes as SL
@@ -349,8 +352,10 @@ import qualified Cardano.Ledger.Shelley.API as SL
 import qualified Cardano.Ledger.Shelley.API as SLAPI
 import qualified Cardano.Ledger.Shelley.BlockChain as SL
 import qualified Cardano.Ledger.Shelley.PParams as Shelley
+import qualified Cardano.Ledger.Shelley.Tx as Shelley
 import qualified Cardano.Ledger.ShelleyMA as MA
 import qualified Cardano.Ledger.ShelleyMA.AuxiliaryData as MA
+import qualified Cardano.Ledger.ShelleyMA.Timelocks as MA
 import qualified Cardano.Ledger.ShelleyMA.TxBody as MA
 import qualified Cardano.Ledger.TxIn as TxIn
 import qualified Cardano.Wallet.Primitive.Types as W
@@ -1436,13 +1441,21 @@ fromMaryTx tx =
             Nothing
         }
     , map fromShelleyCert (toList certs)
-    , TokenMapWithScripts assetsToMint Map.empty
-    , TokenMapWithScripts assetsToBurn Map.empty
+    , TokenMapWithScripts assetsToMint mintScriptMap
+    , TokenMapWithScripts assetsToBurn burnScriptMap
     )
   where
-    SL.Tx bod _wits mad = tx
+    SL.Tx bod wits mad = tx
     MA.TxBody ins outs certs wdrls fee _valid _upd _adh mint = bod
     (assetsToMint, assetsToBurn) = fromLedgerMintValue mint
+    scriptMap = fromMaryScriptMap $ Shelley.scriptWits wits
+    (mintScriptMap, burnScriptMap) =
+        if (assetsToMint == TokenMap.empty && assetsToBurn /= TokenMap.empty) then
+            (Map.empty, scriptMap)
+        else if (assetsToMint /= TokenMap.empty && assetsToBurn == TokenMap.empty) then
+            (scriptMap, Map.empty)
+        else
+            (Map.empty, Map.empty)
 
     -- fixme: [ADP-525] It is fine for now since we do not look at script
     -- pre-images. But this is precisely what we want as part of the
@@ -1455,6 +1468,28 @@ fromMaryTx tx =
     fromMaryTxOut (SL.TxOut addr value) =
         W.TxOut (fromShelleyAddress addr) $
         fromCardanoValue $ Cardano.fromMaryValue value
+
+    fromMaryScriptMap
+        :: Map (SL.ScriptHash (Crypto (MA.ShelleyMAEra 'MA.Mary StandardCrypto))) (SL.Core.Script (MA.ShelleyMAEra 'MA.Mary StandardCrypto))
+        -> Map TokenPolicyId (Script KeyHash)
+    fromMaryScriptMap =
+        Map.map fromLedgerScript .
+        Map.mapKeys (toWalletTokenPolicyId . SL.PolicyID)
+      where
+        fromLedgerScript (MA.RequireSignature (SL.KeyHash h)) =
+            -- here Policy Role after 3.9.0 cardano-addresses
+            RequireSignatureOf (KeyHash Payment (hashToBytes h))
+        fromLedgerScript (MA.RequireAllOf contents) =
+            RequireAllOf $ map fromLedgerScript $ toList contents
+        fromLedgerScript (MA.RequireAnyOf contents) =
+            RequireAnyOf $ map fromLedgerScript $ toList contents
+        fromLedgerScript (MA.RequireMOf num contents) =
+            RequireSomeOf (fromIntegral num) $ map fromLedgerScript $ toList contents
+        fromLedgerScript (MA.RequireTimeExpire (O.SlotNo slot)) =
+            ActiveUntilSlot $ fromIntegral slot
+        fromLedgerScript (MA.RequireTimeStart (O.SlotNo slot)) =
+            ActiveFromSlot $ fromIntegral slot
+
 
 getScriptIntegrityHash
     :: Cardano.Tx era
@@ -1549,7 +1584,7 @@ fromAlonzoTx
        , TokenMapWithScripts
        , TokenMapWithScripts
        )
-fromAlonzoTx (Alonzo.ValidatedTx bod _wits (Alonzo.IsValid isValid) aux) =
+fromAlonzoTx (Alonzo.ValidatedTx bod wits (Alonzo.IsValid isValid) aux) =
     (\(tx, c, m, b) -> (tx { W.scriptValidity = validity }, c, m, b))
     $ fromAlonzoTxBodyAndAux bod aux
     where
@@ -1557,6 +1592,7 @@ fromAlonzoTx (Alonzo.ValidatedTx bod _wits (Alonzo.IsValid isValid) aux) =
             if isValid
             then Just W.TxScriptValid
             else Just W.TxScriptInvalid
+        scriptMap = Alonzo.txscripts wits
 
 -- Lovelace to coin. Quantities from ledger should always fit in Word64.
 fromCardanoLovelace :: HasCallStack => Cardano.Lovelace -> W.Coin

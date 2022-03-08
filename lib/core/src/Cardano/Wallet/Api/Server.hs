@@ -2424,7 +2424,7 @@ decodeTransaction ctx (ApiT wid) (ApiSerialisedTransaction (ApiT sealed)) = do
                 Map.map ApiT $
                 Map.mapKeys ApiT $
                 tokenWithScripts ^. #txScripts
-        , walletPolicyKeyHash = ApiPolicyKey (xpubToBytes xpub) WithHashing
+        , walletPolicyKeyHash = uncurry ApiPolicyKey (computeKeyPayload (Just True) xpub)
         }
     toOut (txoutIncoming, Nothing) =
         ExternalOutput $ toAddressAmount @n txoutIncoming
