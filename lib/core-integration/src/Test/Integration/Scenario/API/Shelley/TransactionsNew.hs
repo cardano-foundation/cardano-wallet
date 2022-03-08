@@ -3108,10 +3108,14 @@ spec = describe "NEW_SHELLEY_TRANSACTIONS" $ do
         let tokens = TokenMap.singleton
                 (AssetId tokenPolicyId' tokenName')
                 (TokenQuantity 50_000)
+        let mintScript =
+                ( ApiT tokenPolicyId'
+                , ApiT (RequireAllOf [RequireSignatureOf policyKeyHash,ActiveFromSlot 120])
+                )
 
         let activeAssetsInfo = ApiAssetMintedBurned
                 { tokenMap = ApiT tokens
-                , policyScripts = []
+                , policyScripts = [mintScript]
                 , walletPolicyKeyHash = policyKeyHashPayload
                 }
         let inactiveAssetsInfo = ApiAssetMintedBurned
@@ -3127,6 +3131,77 @@ spec = describe "NEW_SHELLEY_TRANSACTIONS" $ do
             , expectField #assetsMinted (`shouldBe` activeAssetsInfo)
             , expectField #assetsBurned (`shouldBe` inactiveAssetsInfo)
             ]
+
+    it "TRANS_NEW_CREATE_10e - Burning assets" $ \ctx -> runResourceT $ do
+        wa <- fixtureWallet ctx
+
+        let (Right tokenName') = mkTokenName "ab12"
+
+        let payload = Json [json|{
+                "minted_burned": [{
+                    "policy_script_template":
+                        { "all":
+                           [ "cosigner#0",
+                             { "active_from": 120 }
+                           ]
+                        },
+                    "asset_name": #{toText tokenName'},
+                    "operation":
+                        { "burn" :
+                              { "quantity": 50000,
+                                "unit": "assets"
+                              }
+                        }
+                }]
+            }|]
+
+        rTx <- request @(ApiConstructTransaction n) ctx
+            (Link.createUnsignedTransaction @'Shelley wa) Default payload
+        verify rTx
+            [ expectResponseCode HTTP.status202
+            ]
+
+        let txCbor = getFromResponse #transaction rTx
+        let decodePayload = Json (toJSON $ ApiSerialisedTransaction txCbor)
+
+        let policyWithHash = Link.getPolicyKey @'Shelley wa (Just True)
+        (_, policyKeyHashPayload) <-
+                unsafeRequest @ApiPolicyKey ctx policyWithHash Empty
+        let (Just policyKeyHash) =
+                keyHashFromBytes (Payment, getApiPolicyKey policyKeyHashPayload)
+
+        let tokenPolicyId' =
+                UnsafeTokenPolicyId . Hash $
+                unScriptHash $
+                toScriptHash $
+                RequireAllOf [RequireSignatureOf policyKeyHash, ActiveFromSlot 120]
+        let tokens = TokenMap.singleton
+                (AssetId tokenPolicyId' tokenName')
+                (TokenQuantity 50_000)
+        let burnScript =
+                ( ApiT tokenPolicyId'
+                , ApiT (RequireAllOf [RequireSignatureOf policyKeyHash,ActiveFromSlot 120])
+                )
+
+        let activeAssetsInfo = ApiAssetMintedBurned
+                { tokenMap = ApiT TokenMap.empty
+                , policyScripts = []
+                , walletPolicyKeyHash = policyKeyHashPayload
+                }
+        let inactiveAssetsInfo = ApiAssetMintedBurned
+                { tokenMap = ApiT tokens
+                , policyScripts = [burnScript]
+                , walletPolicyKeyHash = policyKeyHashPayload
+                }
+
+        rDecodedTx <- request @(ApiDecodedTransaction n) ctx
+            (Link.decodeTransaction @'Shelley wa) Default decodePayload
+        verify rDecodedTx
+            [ expectResponseCode HTTP.status202
+            , expectField #assetsMinted (`shouldBe` activeAssetsInfo)
+            , expectField #assetsBurned (`shouldBe` inactiveAssetsInfo)
+            ]
+
   where
 
     -- | Just one million Ada, in Lovelace.
