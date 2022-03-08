@@ -2593,7 +2593,9 @@ prop_makeChange_length p =
             }
 
     getLargestAssetSetSize :: [TokenBundle] -> Int
-    getLargestAssetSetSize = F.maximum . fmap (Set.size . TokenBundle.getAssets)
+    getLargestAssetSetSize = \case
+        [] -> 0
+        bs -> F.maximum $ fmap (Set.size . TokenBundle.getAssets) bs
 
     zeroCostMakeChangeScenario = p
         { minCoinFor = computeMinimumAdaQuantityZero
