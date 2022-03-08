@@ -34,9 +34,13 @@ import Cardano.Wallet.CoinSelection.Internal
     , verifySelectionError
     )
 import Cardano.Wallet.CoinSelection.Internal.Balance
-    ( SelectionLimit, SelectionSkeleton, SelectionStrategy (..) )
+    ( SelectionLimit, SelectionSkeleton )
 import Cardano.Wallet.CoinSelection.Internal.Balance.Gen
-    ( genSelectionSkeleton, shrinkSelectionSkeleton )
+    ( genSelectionSkeleton
+    , genSelectionStrategy
+    , shrinkSelectionSkeleton
+    , shrinkSelectionStrategy
+    )
 import Cardano.Wallet.CoinSelection.Internal.BalanceSpec
     ( MockAssessTokenBundleSize
     , MockComputeMinimumAdaQuantity
@@ -809,22 +813,6 @@ shrinkUTxOAvailableForCollateral =
 
 shrinkUTxOAvailableForInputs :: UTxOSelection InputId -> [UTxOSelection InputId]
 shrinkUTxOAvailableForInputs = shrinkUTxOSelection
-
---------------------------------------------------------------------------------
--- Selection strategies
---------------------------------------------------------------------------------
-
-genSelectionStrategy :: Gen SelectionStrategy
-genSelectionStrategy =
-    -- TODO: ADP-1500
-    -- Generate the full range of strategies here.
-    pure SelectionStrategyOptimal
-
-shrinkSelectionStrategy :: SelectionStrategy -> [SelectionStrategy]
-shrinkSelectionStrategy =
-    -- TODO: ADP-1500
-    -- Implement a shrinker for the full range of strategies here.
-    const []
 
 --------------------------------------------------------------------------------
 -- Unit test support
