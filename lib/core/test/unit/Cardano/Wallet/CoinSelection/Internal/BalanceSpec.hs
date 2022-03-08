@@ -377,6 +377,8 @@ spec = describe "Cardano.Wallet.CoinSelection.Internal.BalanceSpec" $
             boundaryTestMatrix_largeTokenQuantities
         unit_testBoundaries "Large asset counts"
             boundaryTestMatrix_largeAssetCounts
+        unit_testBoundaries "Comparison of selection strategies"
+            boundaryTestMatrix_selectionStrategies
 
     parallel $ describe "Making change" $ do
 
@@ -2224,6 +2226,200 @@ boundaryTest_largeAssetCounts_4 = BoundaryTestData
       , (Coin 250_000, [mockAssetQuantity "B" 1])
       , (Coin 250_000, [mockAssetQuantity "C" 1])
       , (Coin 250_000, [mockAssetQuantity "D" 1])
+      ]
+
+--------------------------------------------------------------------------------
+-- Boundary tests: comparison of selection strategies
+--------------------------------------------------------------------------------
+
+boundaryTestMatrix_selectionStrategies :: [BoundaryTestData]
+boundaryTestMatrix_selectionStrategies =
+    [ boundaryTest_selectionStrategies_1_minimal
+    , boundaryTest_selectionStrategies_1_optimal
+    , boundaryTest_selectionStrategies_2_minimal
+    , boundaryTest_selectionStrategies_2_optimal
+    , boundaryTest_selectionStrategies_3_minimal
+    , boundaryTest_selectionStrategies_3_optimal
+    , boundaryTest_selectionStrategies_4_minimal
+    , boundaryTest_selectionStrategies_4_optimal
+    ]
+
+boundaryTest_selectionStrategies_1_minimal :: BoundaryTestData
+boundaryTest_selectionStrategies_1_minimal = BoundaryTestData
+    { boundaryTestCriteria = BoundaryTestCriteria {..}
+    , boundaryTestExpectedResult = BoundaryTestResult {..}
+    }
+  where
+    boundaryTestBundleSizeAssessor = MockAssessTokenBundleSizeUnlimited
+    boundaryTestSelectionStrategy = SelectionStrategyMinimal
+    boundaryTestOutputs =
+      [ (Coin 1, []) ]
+    boundaryTestUTxO =
+      [ (Coin 1, []), (Coin 1, []) ]
+    boundaryTestInputs =
+      [ (Coin 1, []) ]
+    boundaryTestChange =
+      [ (Coin 0, []) ]
+      -- Note that a single empty change bundle is expected here, as:
+      --    - we attempt to always generate one change output for
+      --      each user-specified output.
+      --    - the minimum ada quantity is zero.
+
+boundaryTest_selectionStrategies_1_optimal :: BoundaryTestData
+boundaryTest_selectionStrategies_1_optimal = BoundaryTestData
+    { boundaryTestCriteria = BoundaryTestCriteria {..}
+    , boundaryTestExpectedResult = BoundaryTestResult {..}
+    }
+  where
+    boundaryTestBundleSizeAssessor = MockAssessTokenBundleSizeUnlimited
+    boundaryTestSelectionStrategy = SelectionStrategyOptimal
+    boundaryTestOutputs =
+      [ (Coin 1, []) ]
+    boundaryTestUTxO =
+      [ (Coin 1, []), (Coin 1, []) ]
+    boundaryTestInputs =
+      [ (Coin 1, []), (Coin 1, []) ]
+    boundaryTestChange =
+      [ (Coin 1, []) ]
+
+boundaryTest_selectionStrategies_2_minimal :: BoundaryTestData
+boundaryTest_selectionStrategies_2_minimal = BoundaryTestData
+    { boundaryTestCriteria = BoundaryTestCriteria {..}
+    , boundaryTestExpectedResult = BoundaryTestResult {..}
+    }
+  where
+    boundaryTestBundleSizeAssessor = MockAssessTokenBundleSizeUnlimited
+    boundaryTestSelectionStrategy = SelectionStrategyMinimal
+    boundaryTestOutputs =
+      [ (Coin 1, []) ]
+    boundaryTestUTxO =
+      [ (Coin 1, [mockAssetQuantity "A" 1])
+      , (Coin 1, [mockAssetQuantity "A" 1])
+      ]
+    boundaryTestInputs =
+      [ (Coin 1, [mockAssetQuantity "A" 1]) ]
+    boundaryTestChange =
+      [ (Coin 0, [mockAssetQuantity "A" 1]) ]
+
+boundaryTest_selectionStrategies_2_optimal :: BoundaryTestData
+boundaryTest_selectionStrategies_2_optimal = BoundaryTestData
+    { boundaryTestCriteria = BoundaryTestCriteria {..}
+    , boundaryTestExpectedResult = BoundaryTestResult {..}
+    }
+  where
+    boundaryTestBundleSizeAssessor = MockAssessTokenBundleSizeUnlimited
+    boundaryTestSelectionStrategy = SelectionStrategyOptimal
+    boundaryTestOutputs =
+      [ (Coin 1, []) ]
+    boundaryTestUTxO =
+      [ (Coin 1, [mockAssetQuantity "A" 1])
+      , (Coin 1, [mockAssetQuantity "A" 1])
+      ]
+    boundaryTestInputs =
+      [ (Coin 1, [mockAssetQuantity "A" 1])
+      , (Coin 1, [mockAssetQuantity "A" 1])
+      ]
+    boundaryTestChange =
+      [ (Coin 1, [mockAssetQuantity "A" 2]) ]
+
+boundaryTest_selectionStrategies_3_minimal :: BoundaryTestData
+boundaryTest_selectionStrategies_3_minimal = BoundaryTestData
+    { boundaryTestCriteria = BoundaryTestCriteria {..}
+    , boundaryTestExpectedResult = BoundaryTestResult {..}
+    }
+  where
+    boundaryTestBundleSizeAssessor = MockAssessTokenBundleSizeUnlimited
+    boundaryTestSelectionStrategy = SelectionStrategyMinimal
+    boundaryTestOutputs =
+      [ (Coin 1, [mockAssetQuantity "A" 1]) ]
+    boundaryTestUTxO =
+      [ (Coin 1, [mockAssetQuantity "A" 1])
+      , (Coin 1, [mockAssetQuantity "A" 1])
+      ]
+    boundaryTestInputs =
+      [ (Coin 1, [mockAssetQuantity "A" 1]) ]
+    boundaryTestChange =
+      [ (Coin 0, []) ]
+
+boundaryTest_selectionStrategies_3_optimal :: BoundaryTestData
+boundaryTest_selectionStrategies_3_optimal = BoundaryTestData
+    { boundaryTestCriteria = BoundaryTestCriteria {..}
+    , boundaryTestExpectedResult = BoundaryTestResult {..}
+    }
+  where
+    boundaryTestBundleSizeAssessor = MockAssessTokenBundleSizeUnlimited
+    boundaryTestSelectionStrategy = SelectionStrategyOptimal
+    boundaryTestOutputs =
+      [ (Coin 1, [mockAssetQuantity "A" 1]) ]
+    boundaryTestUTxO =
+      [ (Coin 1, [mockAssetQuantity "A" 1])
+      , (Coin 1, [mockAssetQuantity "A" 1])
+      ]
+    boundaryTestInputs =
+      [ (Coin 1, [mockAssetQuantity "A" 1])
+      , (Coin 1, [mockAssetQuantity "A" 1])
+      ]
+    boundaryTestChange =
+      [ (Coin 1, [mockAssetQuantity "A" 1]) ]
+
+boundaryTest_selectionStrategies_4_minimal :: BoundaryTestData
+boundaryTest_selectionStrategies_4_minimal = BoundaryTestData
+    { boundaryTestCriteria = BoundaryTestCriteria {..}
+    , boundaryTestExpectedResult = BoundaryTestResult {..}
+    }
+  where
+    boundaryTestBundleSizeAssessor = MockAssessTokenBundleSizeUnlimited
+    boundaryTestSelectionStrategy = SelectionStrategyMinimal
+    boundaryTestOutputs =
+      [ (Coin 2, [mockAssetQuantity "A" 2, mockAssetQuantity "B" 2000])
+      ]
+    boundaryTestUTxO =
+      [ (Coin 1, [mockAssetQuantity "A" 2, mockAssetQuantity "B" 2000])
+      , (Coin 1, [mockAssetQuantity "A" 2, mockAssetQuantity "B" 2000])
+      , (Coin 1, [mockAssetQuantity "A" 2, mockAssetQuantity "B" 2000])
+      , (Coin 1, [mockAssetQuantity "A" 2, mockAssetQuantity "B" 2000])
+      , (Coin 1, [mockAssetQuantity "A" 2, mockAssetQuantity "B" 2000])
+      , (Coin 1, [mockAssetQuantity "A" 2, mockAssetQuantity "B" 2000])
+      , (Coin 1, [mockAssetQuantity "A" 2, mockAssetQuantity "B" 2000])
+      , (Coin 1, [mockAssetQuantity "A" 2, mockAssetQuantity "B" 2000])
+      ]
+    boundaryTestInputs =
+      [ (Coin 1, [mockAssetQuantity "A" 2, mockAssetQuantity "B" 2000])
+      , (Coin 1, [mockAssetQuantity "A" 2, mockAssetQuantity "B" 2000])
+      ]
+    boundaryTestChange =
+      [ (Coin 0, [mockAssetQuantity "A" 2, mockAssetQuantity "B" 2000])
+      ]
+
+boundaryTest_selectionStrategies_4_optimal :: BoundaryTestData
+boundaryTest_selectionStrategies_4_optimal = BoundaryTestData
+    { boundaryTestCriteria = BoundaryTestCriteria {..}
+    , boundaryTestExpectedResult = BoundaryTestResult {..}
+    }
+  where
+    boundaryTestBundleSizeAssessor = MockAssessTokenBundleSizeUnlimited
+    boundaryTestSelectionStrategy = SelectionStrategyOptimal
+    boundaryTestOutputs =
+      [ (Coin 2, [mockAssetQuantity "A" 2, mockAssetQuantity "B" 2000])
+      ]
+    boundaryTestUTxO =
+      [ (Coin 1, [mockAssetQuantity "A" 2, mockAssetQuantity "B" 2000])
+      , (Coin 1, [mockAssetQuantity "A" 2, mockAssetQuantity "B" 2000])
+      , (Coin 1, [mockAssetQuantity "A" 2, mockAssetQuantity "B" 2000])
+      , (Coin 1, [mockAssetQuantity "A" 2, mockAssetQuantity "B" 2000])
+      , (Coin 1, [mockAssetQuantity "A" 2, mockAssetQuantity "B" 2000])
+      , (Coin 1, [mockAssetQuantity "A" 2, mockAssetQuantity "B" 2000])
+      , (Coin 1, [mockAssetQuantity "A" 2, mockAssetQuantity "B" 2000])
+      , (Coin 1, [mockAssetQuantity "A" 2, mockAssetQuantity "B" 2000])
+      ]
+    boundaryTestInputs =
+      [ (Coin 1, [mockAssetQuantity "A" 2, mockAssetQuantity "B" 2000])
+      , (Coin 1, [mockAssetQuantity "A" 2, mockAssetQuantity "B" 2000])
+      , (Coin 1, [mockAssetQuantity "A" 2, mockAssetQuantity "B" 2000])
+      , (Coin 1, [mockAssetQuantity "A" 2, mockAssetQuantity "B" 2000])
+      ]
+    boundaryTestChange =
+      [ (Coin 2, [mockAssetQuantity "A" 6, mockAssetQuantity "B" 6000])
       ]
 
 --------------------------------------------------------------------------------
