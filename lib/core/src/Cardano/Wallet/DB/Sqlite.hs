@@ -123,28 +123,7 @@ import Cardano.Wallet.DB.WalletState
     , getSlot
     )
 import Cardano.Wallet.Primitive.AddressDerivation
-    ( Depth (..)
-    , DerivationType (..)
-    , Index (..)
-    , MkKeyFingerprint (..)
-    , NetworkDiscriminant (..)
-    , PaymentAddress (..)
-    , PersistPrivateKey (..)
-    , PersistPublicKey (..)
-    , Role (..)
-    , SoftDerivation (..)
-    , WalletKey (..)
-    )
-import Cardano.Wallet.Primitive.AddressDerivation.Icarus
-    ( IcarusKey )
-import Cardano.Wallet.Primitive.AddressDerivation.SharedKey
-    ( SharedKey (..) )
-import Cardano.Wallet.Primitive.AddressDerivation.Shelley
-    ( ShelleyKey (..) )
-import Cardano.Wallet.Primitive.AddressDiscovery
-    ( GetPurpose )
-import Cardano.Wallet.Primitive.AddressDiscovery.Shared
-    ( CredentialType (..) )
+    ( Depth (..), PersistPrivateKey (..), WalletKey (..) )
 import Cardano.Wallet.Primitive.Passphrase
     ( PassphraseHash )
 import Cardano.Wallet.Primitive.Slotting

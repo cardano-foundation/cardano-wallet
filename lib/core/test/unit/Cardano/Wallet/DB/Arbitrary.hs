@@ -150,8 +150,6 @@ import Crypto.Hash
     ( hash )
 import Data.ByteArray.Encoding
     ( Base (Base16), convertToBase )
-import Data.Coerce
-    ( coerce )
 import Data.Functor.Identity
     ( Identity (..) )
 import Data.Generics.Internal.VL.Lens

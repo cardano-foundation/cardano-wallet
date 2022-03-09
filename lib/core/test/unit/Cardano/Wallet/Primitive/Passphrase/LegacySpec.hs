@@ -1,13 +1,18 @@
+{-# LANGUAGE DataKinds #-}
 module Cardano.Wallet.Primitive.Passphrase.LegacySpec
     ( spec
     ) where
 
 import Prelude
 
-import Test.Hspec (Spec, it, describe, shouldBe)
-import Cardano.Wallet.Unsafe (unsafeFromHex)
 import Cardano.Wallet.Primitive.Passphrase.Legacy
-import Cardano.Wallet.Primitive.Passphrase.Types (Passphrase (..), PassphraseHash (..))
+    ( checkPassphraseTestingOnly, getSalt, preparePassphrase )
+import Cardano.Wallet.Primitive.Passphrase.Types
+    ( Passphrase (..), PassphraseHash (..) )
+import Cardano.Wallet.Unsafe
+    ( unsafeFromHex )
+import Test.Hspec
+    ( Spec, describe, it, shouldBe )
 
 import qualified Data.ByteArray as BA
 

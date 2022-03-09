@@ -33,8 +33,13 @@ import Cardano.Wallet.Primitive.AddressDiscovery
     ( IsOurs (..), knownAddresses )
 import Cardano.Wallet.Primitive.AddressDiscovery.Random
     ( mkRndState )
-import Cardano.Wallet.Primitive.Passphrase.Types
-    ( Passphrase (..), passphraseMaxLength, passphraseMinLength )
+import Cardano.Wallet.Primitive.Passphrase
+    ( Passphrase (..)
+    , PassphraseScheme (EncryptWithPBKDF2)
+    , passphraseMaxLength
+    , passphraseMinLength
+    , preparePassphrase
+    )
 import Control.Monad
     ( replicateM )
 import Data.Maybe
@@ -109,6 +114,10 @@ instance Arbitrary (Index 'WholeDomain 'AddressK) where
 instance Arbitrary (ByronKey 'RootK XPrv) where
     shrink _ = []
     arbitrary = genRootKeys
+
+instance Arbitrary (Passphrase "encryption") where
+    arbitrary = preparePassphrase EncryptWithPBKDF2
+        <$> arbitrary @(Passphrase "user")
 
 genRootKeys :: Gen (ByronKey 'RootK XPrv)
 genRootKeys = do

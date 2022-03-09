@@ -68,10 +68,8 @@ import Cardano.Wallet.Primitive.AddressDerivation
     ( Depth (..)
     , DerivationIndex (..)
     , DerivationType (..)
-    , ErrWrongPassphrase (..)
     , HardDerivation (..)
     , Index
-    , Passphrase (..)
     , Role (..)
     , publicKey
     )
@@ -86,6 +84,10 @@ import Cardano.Wallet.Primitive.AddressDiscovery
     )
 import Cardano.Wallet.Primitive.Migration.SelectionSpec
     ( MockTxConstraints (..), genTokenBundleMixed, unMockTxConstraints )
+import Cardano.Wallet.Primitive.Passphrase
+    ( ErrWrongPassphrase (..), Passphrase (..) )
+import Cardano.Wallet.Primitive.Passphrase.Current
+    ( preparePassphrase )
 import Cardano.Wallet.Primitive.SyncProgress
     ( SyncTolerance (..) )
 import Cardano.Wallet.Primitive.Types
@@ -119,6 +121,10 @@ import Cardano.Wallet.Primitive.Types.RewardAccount
     ( RewardAccount (..) )
 import Cardano.Wallet.Primitive.Types.TokenBundle
     ( TokenBundle (TokenBundle), getAssets )
+import Cardano.Wallet.Primitive.Types.TokenMap.Gen
+    ( genAssetIdLargeRange )
+import Cardano.Wallet.Primitive.Types.TokenQuantity.Gen
+    ( genTokenQuantityPositive )
 import Cardano.Wallet.Primitive.Types.Tx
     ( Direction (..)
     , LocalTxSubmissionStatus (..)
@@ -278,10 +284,6 @@ import qualified Cardano.Wallet.Primitive.Migration as Migration
 import qualified Cardano.Wallet.Primitive.Types.Coin as Coin
 import qualified Cardano.Wallet.Primitive.Types.TokenBundle as TokenBundle
 import qualified Cardano.Wallet.Primitive.Types.TokenMap as TokenMap
-import Cardano.Wallet.Primitive.Types.TokenMap.Gen
-    ( genAssetIdLargeRange )
-import Cardano.Wallet.Primitive.Types.TokenQuantity.Gen
-    ( genTokenQuantityPositive )
 import qualified Data.ByteArray as BA
 import qualified Data.ByteString as BS
 import qualified Data.ByteString.Char8 as B8
@@ -557,7 +559,7 @@ walletUpdateNameNoSuchWallet wallet@(wid', _, _) wid wName =
 walletUpdatePassphrase
     :: (WalletId, WalletName, DummyState)
     -> Passphrase "user"
-    -> Maybe (ShelleyKey 'RootK XPrv, Passphrase "encryption")
+    -> Maybe (ShelleyKey 'RootK XPrv, Passphrase "user")
     -> Property
 walletUpdatePassphrase wallet new mxprv = monadicIO $ do
     WalletLayerFixture _ wl [wid] _ <- run $ setupFixture wallet
@@ -577,7 +579,7 @@ walletUpdatePassphrase wallet new mxprv = monadicIO $ do
 
 walletUpdatePassphraseWrong
     :: (WalletId, WalletName, DummyState)
-    -> (ShelleyKey 'RootK XPrv, Passphrase "encryption")
+    -> (ShelleyKey 'RootK XPrv, Passphrase "user")
     -> (Passphrase "user", Passphrase "user")
     -> Property
 walletUpdatePassphraseWrong wallet (xprv, pwd) (old, new) =
@@ -605,7 +607,7 @@ walletUpdatePassphraseNoSuchWallet wallet@(wid', _, _) wid (old, new) =
 
 walletUpdatePassphraseDate
     :: (WalletId, WalletName, DummyState)
-    -> (ShelleyKey 'RootK XPrv, Passphrase "encryption")
+    -> (ShelleyKey 'RootK XPrv, Passphrase "user")
     -> Property
 walletUpdatePassphraseDate wallet (xprv, pwd) = monadicIO $ liftIO $ do
     (WalletLayerFixture _ wl [wid] _) <- liftIO $ setupFixture wallet
@@ -626,7 +628,7 @@ walletUpdatePassphraseDate wallet (xprv, pwd) = monadicIO $ liftIO $ do
 
 walletKeyIsReencrypted
     :: (WalletId, WalletName)
-    -> (ShelleyKey 'RootK XPrv, Passphrase "encryption")
+    -> (ShelleyKey 'RootK XPrv, Passphrase "user")
     -> Passphrase "user"
     -> Property
 walletKeyIsReencrypted (_wid, _wname) (_xprv, _pwd) _newPwd = property True
@@ -1480,13 +1482,13 @@ instance Arbitrary (Passphrase purpose) where
 instance Arbitrary SomeMnemonic where
     arbitrary = SomeMnemonic <$> genMnemonic @12
 
-instance {-# OVERLAPS #-} Arbitrary (ShelleyKey 'RootK XPrv, Passphrase "encryption")
+instance {-# OVERLAPS #-} Arbitrary (ShelleyKey 'RootK XPrv, Passphrase "user")
   where
     shrink _ = []
     arbitrary = do
         pwd <- arbitrary
         mw <- arbitrary
-        let key = generateKeyFromSeed (mw, Nothing) pwd
+        let key = generateKeyFromSeed (mw, Nothing) (preparePassphrase pwd)
         return (key, pwd)
 
 instance Arbitrary EpochNo where

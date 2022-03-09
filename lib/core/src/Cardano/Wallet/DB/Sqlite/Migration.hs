@@ -39,6 +39,8 @@ import Cardano.Wallet.Primitive.AddressDerivation.Icarus
     ( IcarusKey )
 import Cardano.Wallet.Primitive.AddressDerivation.Shelley
     ( ShelleyKey (..) )
+import Cardano.Wallet.Primitive.Passphrase.Types
+    ( PassphraseScheme (..) )
 import Control.Monad
     ( forM_, void, when )
 import Control.Tracer
@@ -360,7 +362,7 @@ migrateManually tr proxy defaultFieldValues =
                 assignDefaultPassphraseScheme conn -- loop to apply case below
             ColumnPresent  -> do
                 value <- either (fail . show) (\x -> pure $ "\"" <> x <> "\"") $
-                    fromPersistValueText (toPersistValue W.EncryptWithPBKDF2)
+                    fromPersistValueText (toPersistValue EncryptWithPBKDF2)
                 traceWith tr . MsgExpectedMigration
                     $ MsgManualMigrationNeeded passphraseScheme value
                 query <- Sqlite.prepare conn $ T.unwords

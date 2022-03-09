@@ -37,27 +37,15 @@ import Cardano.Wallet.Primitive.AddressDerivation.Icarus
 import Cardano.Wallet.Primitive.AddressDerivation.Shelley
     ( ShelleyKey (..) )
 import Cardano.Wallet.Primitive.Passphrase
-    ( PassphraseHash (..)
-    , checkPassphrase
-    , encryptPassphrase
-    , preparePassphrase
-    )
+    ( PassphraseHash (..), preparePassphrase )
 import Cardano.Wallet.Primitive.Passphrase.Types
-    ( ErrWrongPassphrase (..)
-    , Passphrase (..)
-    , PassphraseHash (..)
+    ( Passphrase (..)
     , PassphraseMaxLength (..)
     , PassphraseMinLength (..)
     , PassphraseScheme (..)
     )
-import Cardano.Wallet.Primitive.Types.Hash
-    ( Hash (..) )
-import Cardano.Wallet.Unsafe
-    ( unsafeFromHex )
 import Control.Monad
     ( replicateM )
-import Control.Monad.IO.Class
-    ( liftIO )
 import Data.Either
     ( isRight )
 import Data.Proxy
@@ -81,12 +69,9 @@ import Test.QuickCheck
     , property
     , (.&&.)
     , (===)
-    , (==>)
     )
 import Test.QuickCheck.Arbitrary.Generic
     ( genericArbitrary )
-import Test.QuickCheck.Monadic
-    ( monadicIO )
 import Test.Text.Roundtrip
     ( textRoundtrip )
 
@@ -94,9 +79,6 @@ import qualified Cardano.Crypto.Wallet as CC
 import qualified Cardano.Wallet.Primitive.AddressDerivation.Byron as Byron
 import qualified Cardano.Wallet.Primitive.AddressDerivation.Icarus as Icarus
 import qualified Cardano.Wallet.Primitive.AddressDerivation.Shelley as Shelley
-import qualified Codec.CBOR.Encoding as CBOR
-import qualified Codec.CBOR.Write as CBOR
-import qualified Crypto.Scrypt as Scrypt
 import qualified Data.ByteArray as BA
 import qualified Data.ByteString as BS
 import qualified Data.ByteString.Char8 as B8
@@ -419,21 +401,3 @@ genPassphrase range = do
 
 instance Arbitrary SomeMnemonic where
     arbitrary = SomeMnemonic <$> genMnemonic @12
-
--- | Encrypt password using Scrypt function with the following parameters:
--- logN = 14
--- r = 8
--- p = 1
--- These parameters are in Scrypt.defaultParams
-encryptPasswordWithScrypt
-    :: Passphrase "user"
-    -> IO (Hash "encryption")
-encryptPasswordWithScrypt p = do
-    hashed <- Scrypt.encryptPassIO Scrypt.defaultParams
-        $ Scrypt.Pass
-        $ CBOR.toStrictByteString
-        $ CBOR.encodeBytes
-        $ BA.convert passwd
-    pure $ Hash $ Scrypt.getEncryptedPass hashed
-  where
-    (Passphrase passwd) = preparePassphrase EncryptWithScrypt p
