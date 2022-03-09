@@ -230,6 +230,7 @@ library
       Cardano.Wallet.Primitive.SyncProgress
       Cardano.Wallet.Primitive.Passphrase
       Cardano.Wallet.Primitive.Passphrase.Current
+      Cardano.Wallet.Primitive.Passphrase.Gen
       Cardano.Wallet.Primitive.Passphrase.Legacy
       Cardano.Wallet.Primitive.Passphrase.Types
       Cardano.Wallet.Primitive.Types

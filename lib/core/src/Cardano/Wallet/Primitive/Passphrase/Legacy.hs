@@ -26,6 +26,9 @@ module Cardano.Wallet.Primitive.Passphrase.Legacy
     , checkPassphraseTestingOnly
     , encryptPassphraseTestingOnly
 
+      -- * Testing-only helper
+    , haveScrypt
+
       -- * Internal functions
     , getSalt
     , genSalt
@@ -63,10 +66,16 @@ checkPassphrase pwd stored = Just $ verifyPass' pass encryptedPass
   where
     pass = Pass (BA.convert pwd)
     encryptedPass = EncryptedPass (BA.convert stored)
+
+haveScrypt :: Bool
+haveScrypt = True
 #else
 -- | Stub function for when compiled without @scrypt@.
 checkPassphrase :: Passphrase "encryption" -> PassphraseHash -> Maybe Bool
 checkPassphrase _ _ = Nothing
+
+haveScrypt :: Bool
+haveScrypt = False
 #endif
 
 preparePassphrase :: Passphrase "user" -> Passphrase "encryption"
