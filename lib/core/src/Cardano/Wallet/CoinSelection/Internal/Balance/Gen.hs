@@ -19,6 +19,8 @@ import Cardano.Wallet.CoinSelection.Internal.Balance
     , SelectionSkeleton (..)
     , SelectionStrategy (..)
     )
+import Cardano.Wallet.Primitive.Types.Address
+    ( Address )
 import Cardano.Wallet.Primitive.Types.Address.Gen
     ( genAddress, shrinkAddress )
 import Cardano.Wallet.Primitive.Types.Coin
@@ -70,7 +72,7 @@ shrinkSelectionLimit = \case
 -- Selection skeletons
 --------------------------------------------------------------------------------
 
-genSelectionSkeleton :: Gen SelectionSkeleton
+genSelectionSkeleton :: Gen (SelectionSkeleton Address)
 genSelectionSkeleton = SelectionSkeleton
     <$> genSkeletonInputCount
     <*> genSkeletonOutputs
@@ -86,7 +88,9 @@ genSelectionSkeleton = SelectionSkeleton
     genSkeletonChange =
         listOf (Set.fromList <$> listOf genAssetId)
 
-shrinkSelectionSkeleton :: SelectionSkeleton -> [SelectionSkeleton]
+shrinkSelectionSkeleton
+    :: SelectionSkeleton Address
+    -> [SelectionSkeleton Address]
 shrinkSelectionSkeleton = genericRoundRobinShrink
     <@> shrinkSkeletonInputCount
     <:> shrinkSkeletonOutputs

@@ -623,13 +623,14 @@ prop_AssetCount_TokenMap_placesEmptyMapsFirst maps =
 --
 -- We define this type alias to shorten type signatures.
 --
-type PerformSelectionResult =
-    Either (SelectionBalanceError InputId) (SelectionResult InputId)
+type PerformSelectionResult = Either
+    (SelectionBalanceError Address InputId)
+    (SelectionResult Address InputId)
 
 genSelectionParams
     :: Gen (InputId -> Bool)
     -> Gen (UTxOIndex InputId)
-    -> Gen (SelectionParams InputId)
+    -> Gen (SelectionParams Address InputId)
 genSelectionParams genPreselectedInputs genUTxOIndex' = do
     utxoAvailable <- genUTxOIndex'
     isInputPreselected <- oneof
@@ -671,7 +672,9 @@ genSelectionParams genPreselectedInputs genUTxOIndex' = do
     genPreselectedInputsNone :: Gen (InputId -> Bool)
     genPreselectedInputsNone = pure $ const False
 
-shrinkSelectionParams :: SelectionParams InputId -> [SelectionParams InputId]
+shrinkSelectionParams
+    :: SelectionParams Address InputId
+    -> [SelectionParams Address InputId]
 shrinkSelectionParams = genericRoundRobinShrink
     <@> shrinkList shrinkOutput
     <:> shrinkUTxOSelection
@@ -692,7 +695,7 @@ shrinkSelectionParams = genericRoundRobinShrink
 
 prop_performSelection_small
     :: MockSelectionConstraints
-    -> Blind (Small (SelectionParams InputId))
+    -> Blind (Small (SelectionParams Address InputId))
     -> Property
 prop_performSelection_small mockConstraints (Blind (Small params)) =
     checkCoverage $
@@ -804,7 +807,7 @@ prop_performSelection_small mockConstraints (Blind (Small params)) =
             . fmap snd
             $ view #outputsToCover params
 
-    constraints :: SelectionConstraints
+    constraints :: SelectionConstraints Address
     constraints = unMockSelectionConstraints mockConstraints
 
     selectionLimit :: SelectionLimit
@@ -872,7 +875,7 @@ prop_performSelection_small mockConstraints (Blind (Small params)) =
 
 prop_performSelection_large
     :: MockSelectionConstraints
-    -> Blind (Large (SelectionParams InputId))
+    -> Blind (Large (SelectionParams Address InputId))
     -> Property
 prop_performSelection_large mockConstraints (Blind (Large params)) =
     -- Generation of large UTxO sets takes longer, so limit the number of runs:
@@ -893,7 +896,7 @@ prop_performSelection_huge = ioProperty $
 prop_performSelection_huge_inner
     :: UTxOIndex InputId
     -> MockSelectionConstraints
-    -> Large (SelectionParams InputId)
+    -> Large (SelectionParams Address InputId)
     -> Property
 prop_performSelection_huge_inner utxoAvailable mockConstraints (Large params) =
     withMaxSuccess 5 $
@@ -904,7 +907,7 @@ prop_performSelection_huge_inner utxoAvailable mockConstraints (Large params) =
 
 prop_performSelection
     :: MockSelectionConstraints
-    -> SelectionParams InputId
+    -> SelectionParams Address InputId
     -> (PerformSelectionResult -> Property -> Property)
     -> Property
 prop_performSelection mockConstraints params coverage =
@@ -923,7 +926,7 @@ prop_performSelection mockConstraints params coverage =
         monitor (coverage result)
         pure $ either onFailure onSuccess result
   where
-    constraints :: SelectionConstraints
+    constraints :: SelectionConstraints Address
     constraints = unMockSelectionConstraints mockConstraints
 
     SelectionParams
@@ -934,7 +937,7 @@ prop_performSelection mockConstraints params coverage =
         , assetsToBurn
         } = params
 
-    onSuccess :: SelectionResultOf [] InputId -> Property
+    onSuccess :: SelectionResultOf [] Address InputId -> Property
     onSuccess result =
         counterexample "onSuccess" $
         report
@@ -999,7 +1002,7 @@ prop_performSelection mockConstraints params coverage =
                 (view #inputsSelected result <&> fst)
                 (view #utxoAvailable params)
 
-    onFailure :: SelectionBalanceError InputId -> Property
+    onFailure :: SelectionBalanceError Address InputId -> Property
     onFailure = \case
         BalanceInsufficient e ->
             onBalanceInsufficient e
@@ -1037,7 +1040,8 @@ prop_performSelection mockConstraints params coverage =
       where
         BalanceInsufficientError errorBalanceAvailable errorBalanceRequired = e
 
-    onSelectionLimitReached :: SelectionLimitReachedError InputId -> Property
+    onSelectionLimitReached
+        :: SelectionLimitReachedError Address InputId -> Property
     onSelectionLimitReached e =
         counterexample "onSelectionLimitReached" $
         report errorBalanceRequired
@@ -1061,7 +1065,7 @@ prop_performSelection mockConstraints params coverage =
             F.foldMap (view #tokens . snd) errorInputsSelected
 
     onInsufficientMinCoinValues
-        :: NonEmpty InsufficientMinCoinValueError -> Property
+        :: NonEmpty (InsufficientMinCoinValueError Address) -> Property
     onInsufficientMinCoinValues es =
         counterexample "onInsufficientMinCoinValues" $
         report es
@@ -1107,7 +1111,7 @@ prop_performSelection mockConstraints params coverage =
         --
         -- We expect that the selection should succeed.
         --
-        let constraints' :: SelectionConstraints = constraints
+        let constraints' :: SelectionConstraints Address = constraints
                 { assessTokenBundleSize = unMockAssessTokenBundleSize
                     MockAssessTokenBundleSizeUnlimited
                 , computeMinimumAdaQuantity = computeMinimumAdaQuantityZero
@@ -1150,7 +1154,9 @@ prop_performSelection mockConstraints params coverage =
 -- Both the parameters and the result are verified.
 --
 prop_performSelectionEmpty
-    :: MockSelectionConstraints -> Small (SelectionParams InputId) -> Property
+    :: MockSelectionConstraints
+    -> Small (SelectionParams Address InputId)
+    -> Property
 prop_performSelectionEmpty mockConstraints (Small params) =
     checkCoverage $
     cover 10 (null (view #outputsToCover params))
@@ -1207,16 +1213,16 @@ prop_performSelectionEmpty mockConstraints (Small params) =
             , resultTransformed === (result & over #outputsCovered F.toList)
             ]
 
-    constraints :: SelectionConstraints
+    constraints :: SelectionConstraints Address
     constraints = unMockSelectionConstraints mockConstraints
 
-    paramsTransformed :: SelectionParamsOf NonEmpty InputId
+    paramsTransformed :: SelectionParamsOf NonEmpty Address InputId
     paramsTransformed = view #paramsTransformed transformationReport
 
-    result :: SelectionResultOf NonEmpty InputId
+    result :: SelectionResultOf NonEmpty Address InputId
     result = expectRight $ view #result transformationReport
 
-    resultTransformed :: SelectionResultOf [] InputId
+    resultTransformed :: SelectionResultOf [] Address InputId
     resultTransformed =
         expectRight $ view #resultTransformed transformationReport
 
@@ -1261,17 +1267,17 @@ withTransformationReport p r = TransformationReport p r r
 --    - a single change output to cover the output deficit.
 --
 mockPerformSelectionNonEmpty
-    :: PerformSelection Identity NonEmpty InputId
+    :: PerformSelection Identity NonEmpty Address InputId
 mockPerformSelectionNonEmpty constraints params = Identity $ Right result
   where
-    result :: SelectionResultOf NonEmpty InputId
+    result :: SelectionResultOf NonEmpty Address InputId
     result = resultWithoutDelta & set #inputsSelected
         (makeInputsOfValue $ deficitIn <> TokenBundle.fromCoin minimumCost)
       where
         minimumCost :: Coin
         minimumCost = selectionMinimumCost constraints resultWithoutDelta
 
-    resultWithoutDelta :: SelectionResultOf NonEmpty InputId
+    resultWithoutDelta :: SelectionResultOf NonEmpty Address InputId
     resultWithoutDelta = SelectionResult
         { inputsSelected = makeInputsOfValue deficitIn
         , changeGenerated = makeChangeOfValue deficitOut
@@ -1847,7 +1853,9 @@ mkBoundaryTestExpectation (BoundaryTestData params expectedResult) = do
         , computeSelectionLimit = const NoLimit
         }
 
-encodeBoundaryTestCriteria :: BoundaryTestCriteria -> SelectionParams InputId
+encodeBoundaryTestCriteria
+    :: BoundaryTestCriteria
+    -> SelectionParams Address InputId
 encodeBoundaryTestCriteria c = SelectionParams
     { outputsToCover =
         zip
@@ -1879,7 +1887,9 @@ encodeBoundaryTestCriteria c = SelectionParams
     dummyTxIns :: [TxIn]
     dummyTxIns = [TxIn (Hash "") x | x <- [0 ..]]
 
-decodeBoundaryTestResult :: SelectionResult InputId -> BoundaryTestResult
+decodeBoundaryTestResult
+    :: SelectionResult Address InputId
+    -> BoundaryTestResult
 decodeBoundaryTestResult r = BoundaryTestResult
     { boundaryTestInputs = L.sort $ NE.toList $
         TokenBundle.toFlatList . snd <$> view #inputsSelected r
@@ -2457,7 +2467,9 @@ shrinkMockSelectionConstraints = genericRoundRobinShrink
     <:> shrinkMockComputeSelectionLimit
     <:> Nil
 
-unMockSelectionConstraints :: MockSelectionConstraints -> SelectionConstraints
+unMockSelectionConstraints
+    :: MockSelectionConstraints
+    -> SelectionConstraints Address
 unMockSelectionConstraints m = SelectionConstraints
     { assessTokenBundleSize =
         unMockAssessTokenBundleSize $ view #assessTokenBundleSize m
@@ -2534,17 +2546,17 @@ shrinkMockComputeMinimumCost = \case
         [MockComputeMinimumCostZero]
 
 unMockComputeMinimumCost
-    :: MockComputeMinimumCost -> (SelectionSkeleton -> Coin)
+    :: MockComputeMinimumCost -> (SelectionSkeleton Address -> Coin)
 unMockComputeMinimumCost = \case
     MockComputeMinimumCostZero ->
         computeMinimumCostZero
     MockComputeMinimumCostLinear ->
         computeMinimumCostLinear
 
-computeMinimumCostZero :: SelectionSkeleton -> Coin
+computeMinimumCostZero :: SelectionSkeleton Address -> Coin
 computeMinimumCostZero = const $ Coin 0
 
-computeMinimumCostLinear :: SelectionSkeleton -> Coin
+computeMinimumCostLinear :: SelectionSkeleton Address -> Coin
 computeMinimumCostLinear s
     = Coin
     $ fromIntegral
@@ -4442,13 +4454,13 @@ newtype Small a = Small
     { getSmall:: a }
     deriving (Eq, Show)
 
-instance Arbitrary (Large (SelectionParams InputId)) where
+instance Arbitrary (Large (SelectionParams Address InputId)) where
     arbitrary = Large <$> genSelectionParams
         (genInputIdFunction (arbitrary @Bool))
         (genUTxOIndexLarge)
     shrink = shrinkMapBy Large getLarge shrinkSelectionParams
 
-instance Arbitrary (Small (SelectionParams InputId)) where
+instance Arbitrary (Small (SelectionParams Address InputId)) where
     arbitrary = Small <$> genSelectionParams
         (genInputIdFunction (arbitrary @Bool))
         (genUTxOIndex)

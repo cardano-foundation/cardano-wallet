@@ -162,7 +162,7 @@ data SelectionConstraints = SelectionConstraints
         :: TokenMap -> Coin
         -- ^ Computes the minimum ada quantity required for a given output.
     , computeMinimumCost
-        :: SelectionSkeleton -> Coin
+        :: SelectionSkeleton Address -> Coin
         -- ^ Computes the minimum cost of a given selection skeleton.
     , computeSelectionLimit
         :: [(Address, TokenBundle)] -> SelectionLimit
@@ -233,7 +233,7 @@ data SelectionParams u = SelectionParams
 --
 data SelectionError u
     = SelectionBalanceErrorOf
-      (SelectionBalanceError u)
+      (SelectionBalanceError Address u)
     | SelectionCollateralErrorOf
       (SelectionCollateralError u)
     | SelectionOutputErrorOf
@@ -326,14 +326,14 @@ prepareOutputs cs ps =
 
 performSelectionBalance
     :: (HasCallStack, MonadRandom m, Ord u, Show u)
-    => PerformSelection m (Balance.SelectionResult u) u
+    => PerformSelection m (Balance.SelectionResult Address u) u
 performSelectionBalance cs ps =
     withExceptT SelectionBalanceErrorOf $ ExceptT $
     uncurry Balance.performSelection $ toBalanceConstraintsParams (cs, ps)
 
 performSelectionCollateral
     :: (Applicative m, Ord u)
-    => Balance.SelectionResult u
+    => Balance.SelectionResult Address u
     -> PerformSelection m (Collateral.SelectionResult u) u
 performSelectionCollateral balanceResult cs ps
     | selectionCollateralRequired ps =
@@ -359,8 +359,8 @@ selectionAllOutputs selection = (<>)
 -- | Creates constraints and parameters for 'Balance.performSelection'.
 --
 toBalanceConstraintsParams
-    :: (        SelectionConstraints,         SelectionParams u)
-    -> (Balance.SelectionConstraints, Balance.SelectionParams u)
+    :: (        SelectionConstraints        ,         SelectionParams         u)
+    -> (Balance.SelectionConstraints Address, Balance.SelectionParams Address u)
 toBalanceConstraintsParams (constraints, params) =
     (balanceConstraints, balanceParams)
   where
@@ -378,8 +378,8 @@ toBalanceConstraintsParams (constraints, params) =
         }
       where
         adjustComputeMinimumCost
-            :: (SelectionSkeleton -> Coin)
-            -> (SelectionSkeleton -> Coin)
+            :: (SelectionSkeleton Address -> Coin)
+            -> (SelectionSkeleton Address -> Coin)
         adjustComputeMinimumCost =
             whenCollateralRequired params (. adjustSelectionSkeleton)
           where
@@ -399,7 +399,9 @@ toBalanceConstraintsParams (constraints, params) =
             -- small, and since the marginal cost of a single extra input is
             -- relatively small, this fee increase is likely to be very small.
             --
-            adjustSelectionSkeleton :: SelectionSkeleton -> SelectionSkeleton
+            adjustSelectionSkeleton
+                :: SelectionSkeleton Address
+                -> SelectionSkeleton Address
             adjustSelectionSkeleton = over #skeletonInputCount
                 (+ view #maximumCollateralInputCount constraints)
 
@@ -446,7 +448,7 @@ toBalanceConstraintsParams (constraints, params) =
 -- | Creates constraints and parameters for 'Collateral.performSelection'.
 --
 toCollateralConstraintsParams
-    :: Balance.SelectionResult u
+    :: Balance.SelectionResult Address u
     -> (           SelectionConstraints,            SelectionParams u)
     -> (Collateral.SelectionConstraints, Collateral.SelectionParams u)
 toCollateralConstraintsParams balanceResult (constraints, params) =
@@ -479,7 +481,7 @@ toCollateralConstraintsParams balanceResult (constraints, params) =
 --
 mkSelection
     :: SelectionParams u
-    -> Balance.SelectionResult u
+    -> Balance.SelectionResult Address u
     -> Collateral.SelectionResult u
     -> Selection u
 mkSelection _params balanceResult collateralResult = Selection
@@ -495,7 +497,7 @@ mkSelection _params balanceResult collateralResult = Selection
 
 -- | Converts a 'Selection' to a balance result.
 --
-toBalanceResult :: Selection u -> Balance.SelectionResult u
+toBalanceResult :: Selection u -> Balance.SelectionResult Address u
 toBalanceResult selection = Balance.SelectionResult
     { inputsSelected = view #inputs selection
     , outputsCovered = view #outputs selection
@@ -844,7 +846,8 @@ verifySelectionError cs ps = \case
 --------------------------------------------------------------------------------
 
 verifySelectionBalanceError
-    :: (Ord u, Show u) => VerifySelectionError (SelectionBalanceError u) u
+    :: (Ord u, Show u)
+    => VerifySelectionError (SelectionBalanceError Address u) u
 verifySelectionBalanceError cs ps = \case
     Balance.BalanceInsufficient e ->
         verifyBalanceInsufficientError cs ps e
@@ -908,7 +911,7 @@ data FailureToVerifyInsufficientMinCoinValueError =
     deriving (Eq, Show)
 
 verifyInsufficientMinCoinValueError
-    :: VerifySelectionError Balance.InsufficientMinCoinValueError u
+    :: VerifySelectionError (Balance.InsufficientMinCoinValueError Address) u
 verifyInsufficientMinCoinValueError cs _ps e =
     verifyAll
         [ reportedMinCoinValue == verifiedMinCoinValue
@@ -950,7 +953,7 @@ data FailureToVerifySelectionLimitReachedError u =
 --
 verifySelectionLimitReachedError
     :: forall u. Show u
-    => VerifySelectionError (Balance.SelectionLimitReachedError u) u
+    => VerifySelectionError (Balance.SelectionLimitReachedError Address u) u
 verifySelectionLimitReachedError cs ps e =
     verify
         (Balance.MaximumInputLimit selectedInputCount >= selectionLimitAdjusted)

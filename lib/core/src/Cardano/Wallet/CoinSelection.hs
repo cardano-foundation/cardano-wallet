@@ -285,7 +285,9 @@ emptySkeleton = SelectionSkeleton
     , skeletonChange = mempty
     }
 
-toExternalSelectionSkeleton :: Internal.SelectionSkeleton -> SelectionSkeleton
+toExternalSelectionSkeleton
+    :: Internal.SelectionSkeleton Address
+    -> SelectionSkeleton
 toExternalSelectionSkeleton Internal.SelectionSkeleton {..} =
     SelectionSkeleton
         { skeletonOutputs =

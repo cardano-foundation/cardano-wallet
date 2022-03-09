@@ -322,7 +322,7 @@ prop_performSelection_coverage params r innerProperty =
 prop_toBalanceConstraintsParams_computeMinimumCost
     :: MockSelectionConstraints
     -> SelectionParams InputId
-    -> SelectionSkeleton
+    -> SelectionSkeleton Address
     -> Property
 prop_toBalanceConstraintsParams_computeMinimumCost
     mockConstraints params skeleton =
@@ -359,10 +359,10 @@ prop_toBalanceConstraintsParams_computeMinimumCost
     maximumCollateralInputCount :: Int
     maximumCollateralInputCount = constraints ^. #maximumCollateralInputCount
 
-    computeMinimumCostOriginal :: SelectionSkeleton -> Coin
+    computeMinimumCostOriginal :: SelectionSkeleton Address -> Coin
     computeMinimumCostOriginal = constraints ^. #computeMinimumCost
 
-    computeMinimumCostAdjusted :: SelectionSkeleton -> Coin
+    computeMinimumCostAdjusted :: SelectionSkeleton Address -> Coin
     computeMinimumCostAdjusted =
         toBalanceConstraintsParams (constraints, params)
             & fst & view #computeMinimumCost
@@ -859,6 +859,6 @@ instance Arbitrary (SelectionParams InputId) where
     arbitrary = genSelectionParams
     shrink = shrinkSelectionParams
 
-instance Arbitrary SelectionSkeleton where
+instance Arbitrary (SelectionSkeleton Address) where
     arbitrary = genSelectionSkeleton
     shrink = shrinkSelectionSkeleton
