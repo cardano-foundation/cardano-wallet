@@ -4319,14 +4319,14 @@ instance IsServerError (ErrInvalidDerivationIndex 'Soft level) where
                 , "between ", pretty minIx, " and ", pretty maxIx, " without a suffix."
                 ]
 
-instance IsServerError SelectionOutputError where
+instance IsServerError (SelectionOutputError Address) where
     toServerError = \case
         SelectionOutputSizeExceedsLimit e ->
             toServerError e
         SelectionOutputTokenQuantityExceedsLimit e ->
             toServerError e
 
-instance IsServerError SelectionOutputSizeExceedsLimitError where
+instance IsServerError (SelectionOutputSizeExceedsLimitError Address) where
     toServerError e = apiError err403 OutputTokenBundleSizeExceedsLimit $
         mconcat
         [ "One of the outputs you've specified contains too many assets. "
@@ -4340,7 +4340,8 @@ instance IsServerError SelectionOutputSizeExceedsLimitError where
       where
         output = view #outputThatExceedsLimit e
 
-instance IsServerError SelectionOutputTokenQuantityExceedsLimitError where
+instance IsServerError (SelectionOutputTokenQuantityExceedsLimitError Address)
+  where
     toServerError e = apiError err403 OutputTokenQuantityExceedsLimit $ mconcat
         [ "One of the token quantities you've specified is greater than the "
         , "maximum quantity allowed in a single transaction output. Try "

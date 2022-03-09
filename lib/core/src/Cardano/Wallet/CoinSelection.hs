@@ -169,7 +169,7 @@ data SelectionConstraints = SelectionConstraints
     deriving Generic
 
 toInternalSelectionConstraints
-    :: SelectionConstraints -> Internal.SelectionConstraints
+    :: SelectionConstraints -> Internal.SelectionConstraints Address
 toInternalSelectionConstraints SelectionConstraints {..} =
     Internal.SelectionConstraints
         { computeMinimumCost =
@@ -239,7 +239,9 @@ data SelectionParams = SelectionParams
     }
     deriving (Eq, Generic, Show)
 
-toInternalSelectionParams :: SelectionParams -> Internal.SelectionParams InputId
+toInternalSelectionParams
+    :: SelectionParams
+    -> Internal.SelectionParams Address InputId
 toInternalSelectionParams SelectionParams {..} =
     Internal.SelectionParams
         { utxoAvailableForCollateral =
@@ -336,7 +338,7 @@ data SelectionOf change = Selection
 type Selection = SelectionOf TokenBundle
 
 toExternalSelection
-    :: SelectionParams -> Internal.Selection InputId -> Selection
+    :: SelectionParams -> Internal.Selection Address InputId -> Selection
 toExternalSelection _ps Internal.Selection {..} =
     Selection
         { collateral =
@@ -353,7 +355,7 @@ toExternalSelection _ps Internal.Selection {..} =
 toInternalSelection
     :: (change -> TokenBundle)
     -> SelectionOf change
-    -> Internal.Selection InputId
+    -> Internal.Selection Address InputId
 toInternalSelection getChangeBundle Selection {..} =
     Internal.Selection
         { change = getChangeBundle
@@ -386,7 +388,7 @@ performSelection
     :: (HasCallStack, MonadRandom m)
     => SelectionConstraints
     -> SelectionParams
-    -> ExceptT (SelectionError InputId) m Selection
+    -> ExceptT (SelectionError Address InputId) m Selection
 performSelection cs ps =
     toExternalSelection ps <$>
     Internal.performSelection

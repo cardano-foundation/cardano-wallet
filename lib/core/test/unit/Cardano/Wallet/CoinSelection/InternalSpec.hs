@@ -196,7 +196,7 @@ spec = describe "Cardano.Wallet.CoinSelection.InternalSpec" $ do
 
 prop_performSelection
     :: Pretty MockSelectionConstraints
-    -> Pretty (SelectionParams InputId)
+    -> Pretty (SelectionParams Address InputId)
     -> Property
 prop_performSelection (Pretty mockConstraints) (Pretty params) =
     monadicIO $
@@ -206,9 +206,9 @@ prop_performSelection (Pretty mockConstraints) (Pretty params) =
     constraints = unMockSelectionConstraints mockConstraints
 
 prop_performSelection_inner
-    :: SelectionConstraints
-    -> SelectionParams InputId
-    -> Either (SelectionError InputId) (Selection InputId)
+    :: SelectionConstraints Address
+    -> SelectionParams Address InputId
+    -> Either (SelectionError Address InputId) (Selection Address InputId)
     -> Property
 prop_performSelection_inner constraints params result =
     checkCoverage $
@@ -225,8 +225,8 @@ prop_performSelection_inner constraints params result =
 
 prop_performSelection_coverage
     :: Testable property
-    => SelectionParams InputId
-    -> Either (SelectionError InputId) (Selection InputId)
+    => SelectionParams Address InputId
+    -> Either (SelectionError Address InputId) (Selection Address InputId)
     -> property
     -> Property
 prop_performSelection_coverage params r innerProperty =
@@ -321,7 +321,7 @@ prop_performSelection_coverage params r innerProperty =
 --
 prop_toBalanceConstraintsParams_computeMinimumCost
     :: MockSelectionConstraints
-    -> SelectionParams InputId
+    -> SelectionParams Address InputId
     -> SelectionSkeleton Address
     -> Property
 prop_toBalanceConstraintsParams_computeMinimumCost
@@ -353,7 +353,7 @@ prop_toBalanceConstraintsParams_computeMinimumCost
         else
             costOriginal === costAdjusted
   where
-    constraints :: SelectionConstraints
+    constraints :: SelectionConstraints Address
     constraints = unMockSelectionConstraints mockConstraints
 
     maximumCollateralInputCount :: Int
@@ -378,7 +378,7 @@ prop_toBalanceConstraintsParams_computeMinimumCost
 --
 prop_toBalanceConstraintsParams_computeSelectionLimit
     :: MockSelectionConstraints
-    -> SelectionParams InputId
+    -> SelectionParams Address InputId
     -> Property
 prop_toBalanceConstraintsParams_computeSelectionLimit mockConstraints params =
     checkCoverage $
@@ -404,7 +404,7 @@ prop_toBalanceConstraintsParams_computeSelectionLimit mockConstraints params =
     else
         selectionLimitOriginal === selectionLimitAdjusted
   where
-    constraints :: SelectionConstraints
+    constraints :: SelectionConstraints Address
     constraints = unMockSelectionConstraints mockConstraints
 
     maximumCollateralInputCount :: Int
@@ -565,7 +565,8 @@ shrinkMockSelectionConstraints = genericRoundRobinShrink
     <:> shrinkMinimumCollateralPercentage
     <:> Nil
 
-unMockSelectionConstraints :: MockSelectionConstraints -> SelectionConstraints
+unMockSelectionConstraints
+    :: MockSelectionConstraints -> SelectionConstraints Address
 unMockSelectionConstraints m = SelectionConstraints
     { assessTokenBundleSize =
         unMockAssessTokenBundleSize $ view #assessTokenBundleSize m
@@ -617,7 +618,7 @@ shrinkMinimumCollateralPercentage = shrinkNatural
 -- Selection parameters
 --------------------------------------------------------------------------------
 
-genSelectionParams :: Gen (SelectionParams InputId)
+genSelectionParams :: Gen (SelectionParams Address InputId)
 genSelectionParams = SelectionParams
     <$> genAssetsToBurn
     <*> genAssetsToMint
@@ -632,7 +633,9 @@ genSelectionParams = SelectionParams
     <*> genUTxOAvailableForInputs
     <*> genSelectionStrategy
 
-shrinkSelectionParams :: SelectionParams InputId -> [SelectionParams InputId]
+shrinkSelectionParams
+    :: SelectionParams Address InputId
+    -> [SelectionParams Address InputId]
 shrinkSelectionParams = genericRoundRobinShrink
     <@> shrinkAssetsToBurn
     <:> shrinkAssetsToMint
@@ -855,7 +858,7 @@ instance Arbitrary MockSelectionConstraints where
     arbitrary = genMockSelectionConstraints
     shrink = shrinkMockSelectionConstraints
 
-instance Arbitrary (SelectionParams InputId) where
+instance Arbitrary (SelectionParams Address InputId) where
     arbitrary = genSelectionParams
     shrink = shrinkSelectionParams
 

@@ -3269,10 +3269,10 @@ data ErrCreateMigrationPlan
     deriving (Generic, Eq, Show)
 
 data ErrSelectAssets
-    = ErrSelectAssetsPrepareOutputsError SelectionOutputError
+    = ErrSelectAssetsPrepareOutputsError (SelectionOutputError Address)
     | ErrSelectAssetsNoSuchWallet ErrNoSuchWallet
     | ErrSelectAssetsAlreadyWithdrawing Tx
-    | ErrSelectAssetsSelectionError (SelectionError InputId)
+    | ErrSelectAssetsSelectionError (SelectionError Address InputId)
     deriving (Generic, Eq, Show)
 
 data ErrStakePoolDelegation
@@ -3422,7 +3422,7 @@ data WalletFollowLog
 -- | Log messages from API server actions running in a wallet worker context.
 data WalletLog
     = MsgSelectionStart UTxO [TxOut]
-    | MsgSelectionError (SelectionError InputId)
+    | MsgSelectionError (SelectionError Address InputId)
     | MsgSelectionReportSummarized SelectionReportSummarized
     | MsgSelectionReportDetailed SelectionReportDetailed
     | MsgMigrationUTxOBefore UTxOStatistics
