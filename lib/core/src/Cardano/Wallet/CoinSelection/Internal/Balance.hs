@@ -235,9 +235,9 @@ type SelectionParams = SelectionParamsOf []
 
 -- | Specifies all parameters that are specific to a given selection.
 --
-data SelectionParamsOf outputs address u = SelectionParams
+data SelectionParamsOf f address u = SelectionParams
     { outputsToCover
-        :: !(outputs (address, TokenBundle))
+        :: !(f (address, TokenBundle))
         -- ^ The complete set of outputs to be covered.
     , utxoAvailable
         :: !(UTxOSelection u)
@@ -272,12 +272,12 @@ data SelectionParamsOf outputs address u = SelectionParams
     deriving Generic
 
 deriving instance
-    (Eq (outputs (address, TokenBundle)), Eq u) =>
-        Eq (SelectionParamsOf outputs address u)
+    (Eq (f (address, TokenBundle)), Eq u) =>
+        Eq (SelectionParamsOf f address u)
 
 deriving instance
-    (Show (outputs (address, TokenBundle)), Show u) =>
-        Show (SelectionParamsOf outputs address u)
+    (Show (f (address, TokenBundle)), Show u) =>
+        Show (SelectionParamsOf f address u)
 
 -- | Indicates a choice of selection strategy.
 --
@@ -346,19 +346,19 @@ data UTxOBalanceSufficiencyInfo = UTxOBalanceSufficiencyInfo
 -- | Computes the balance of UTxO entries available for selection.
 --
 computeUTxOBalanceAvailable
-    :: SelectionParamsOf outputs address u -> TokenBundle
+    :: SelectionParamsOf f address u -> TokenBundle
 computeUTxOBalanceAvailable =
     UTxOSelection.availableBalance . view #utxoAvailable
 
 -- | Computes the balance of UTxO entries required to be selected.
 --
 computeUTxOBalanceRequired
-    :: Foldable outputs => SelectionParamsOf outputs address u -> TokenBundle
+    :: Foldable f => SelectionParamsOf f address u -> TokenBundle
 computeUTxOBalanceRequired = fst . computeDeficitInOut
 
 computeBalanceInOut
-    :: Foldable outputs
-    => SelectionParamsOf outputs address u
+    :: Foldable f
+    => SelectionParamsOf f address u
     -> (TokenBundle, TokenBundle)
 computeBalanceInOut params =
     (balanceIn, balanceOut)
@@ -375,8 +375,8 @@ computeBalanceInOut params =
         F.foldMap snd (view #outputsToCover params)
 
 computeDeficitInOut
-    :: Foldable outputs
-    => SelectionParamsOf outputs address u
+    :: Foldable f
+    => SelectionParamsOf f address u
     -> (TokenBundle, TokenBundle)
 computeDeficitInOut params =
     (deficitIn, deficitOut)
@@ -393,8 +393,8 @@ computeDeficitInOut params =
 -- See 'UTxOBalanceSufficiency'.
 --
 computeUTxOBalanceSufficiency
-    :: Foldable outputs
-    => SelectionParamsOf outputs address u
+    :: Foldable f
+    => SelectionParamsOf f address u
     -> UTxOBalanceSufficiency
 computeUTxOBalanceSufficiency = sufficiency . computeUTxOBalanceSufficiencyInfo
 
@@ -403,8 +403,8 @@ computeUTxOBalanceSufficiency = sufficiency . computeUTxOBalanceSufficiencyInfo
 -- See 'UTxOBalanceSufficiencyInfo'.
 --
 computeUTxOBalanceSufficiencyInfo
-    :: Foldable outputs
-    => SelectionParamsOf outputs address u
+    :: Foldable f
+    => SelectionParamsOf f address u
     -> UTxOBalanceSufficiencyInfo
 computeUTxOBalanceSufficiencyInfo params =
     UTxOBalanceSufficiencyInfo {available, required, difference, sufficiency}
@@ -426,7 +426,7 @@ computeUTxOBalanceSufficiencyInfo params =
 -- is greater than or equal to the required balance.
 --
 isUTxOBalanceSufficient
-    :: Foldable outputs => SelectionParamsOf outputs address u -> Bool
+    :: Foldable f => SelectionParamsOf f address u -> Bool
 isUTxOBalanceSufficient params =
     case computeUTxOBalanceSufficiency params of
         UTxOBalanceSufficient   -> True
@@ -496,7 +496,7 @@ type SelectionResult = SelectionResultOf []
 
 -- | The result of performing a successful selection.
 --
-data SelectionResultOf outputs address u = SelectionResult
+data SelectionResultOf f address u = SelectionResult
     { inputsSelected
         :: !(NonEmpty (u, TokenBundle))
         -- ^ A (non-empty) list of inputs selected from 'utxoAvailable'.
@@ -507,7 +507,7 @@ data SelectionResultOf outputs address u = SelectionResult
         :: !Coin
         -- ^ An extra sink for ada.
     , outputsCovered
-        :: !(outputs (address, TokenBundle))
+        :: !(f (address, TokenBundle))
         -- ^ A list of outputs covered.
     , changeGenerated
         :: ![TokenBundle]
@@ -522,11 +522,11 @@ data SelectionResultOf outputs address u = SelectionResult
     deriving Generic
 
 deriving instance
-    (Eq (outputs (address, TokenBundle)), Eq u) =>
-        Eq (SelectionResultOf outputs address u)
+    (Eq (f (address, TokenBundle)), Eq u) =>
+        Eq (SelectionResultOf f address u)
 deriving instance
-    (Show (outputs (address, TokenBundle)), Show u) =>
-        Show (SelectionResultOf outputs address u)
+    (Show (f (address, TokenBundle)), Show u) =>
+        Show (SelectionResultOf f address u)
 
 -- | Indicates the difference between total input value and total output value
 --   of a 'SelectionResult'.
@@ -561,8 +561,8 @@ instance Buildable a => Buildable (SelectionDelta a) where
 -- See 'SelectionDelta'.
 --
 selectionDeltaAllAssets
-    :: Foldable outputs
-    => SelectionResultOf outputs address u
+    :: Foldable f
+    => SelectionResultOf f address u
     -> SelectionDelta TokenBundle
 selectionDeltaAllAssets result
     | balanceOut `leq` balanceIn =
@@ -599,17 +599,17 @@ selectionDeltaAllAssets result
 -- See 'SelectionDelta'.
 --
 selectionDeltaCoin
-    :: Foldable outputs
-    => SelectionResultOf outputs address u
+    :: Foldable f
+    => SelectionResultOf f address u
     -> SelectionDelta Coin
 selectionDeltaCoin = fmap TokenBundle.getCoin . selectionDeltaAllAssets
 
 -- | Indicates whether or not a selection result has a valid surplus.
 --
 selectionHasValidSurplus
-    :: Foldable outputs
+    :: Foldable f
     => SelectionConstraints address
-    -> SelectionResultOf outputs address u
+    -> SelectionResultOf f address u
     -> Bool
 selectionHasValidSurplus constraints selection =
     case selectionDeltaAllAssets selection of
@@ -647,8 +647,8 @@ selectionHasValidSurplus constraints selection =
 -- a deficit.
 --
 selectionSurplusCoin
-    :: Foldable outputs
-    => SelectionResultOf outputs address u
+    :: Foldable f
+    => SelectionResultOf f address u
     -> Coin
 selectionSurplusCoin result =
     case selectionDeltaCoin result of
@@ -658,8 +658,8 @@ selectionSurplusCoin result =
 -- | Converts a selection into a skeleton.
 --
 selectionSkeleton
-    :: Foldable outputs
-    => SelectionResultOf outputs address u
+    :: Foldable f
+    => SelectionResultOf f address u
     -> SelectionSkeleton address
 selectionSkeleton s = SelectionSkeleton
     { skeletonInputCount = F.length (view #inputsSelected s)
@@ -670,9 +670,9 @@ selectionSkeleton s = SelectionSkeleton
 -- | Computes the minimum required cost of a selection.
 --
 selectionMinimumCost
-    :: Foldable outputs
+    :: Foldable f
     => SelectionConstraints address
-    -> SelectionResultOf outputs address u
+    -> SelectionResultOf f address u
     -> Coin
 selectionMinimumCost c = view #computeMinimumCost c . selectionSkeleton
 
@@ -691,9 +691,9 @@ selectionMinimumCost c = view #computeMinimumCost c . selectionSkeleton
 -- See 'selectionHasValidSurplus'.
 --
 selectionMaximumCost
-    :: Foldable outputs
+    :: Foldable f
     => SelectionConstraints address
-    -> SelectionResultOf outputs address u
+    -> SelectionResultOf f address u
     -> Coin
 selectionMaximumCost c = mtimesDefault (2 :: Int) . selectionMinimumCost c
 
@@ -780,13 +780,13 @@ data UnableToConstructChangeError = UnableToConstructChangeError
         -- selection cost and minimum coin quantity of each change output.
     } deriving (Generic, Eq, Show)
 
-type PerformSelection m outputs address u =
+type PerformSelection m f address u =
     SelectionConstraints address ->
-    SelectionParamsOf outputs address u ->
+    SelectionParamsOf f address u ->
     m (
         Either
             (SelectionBalanceError address u)
-            (SelectionResultOf outputs address u)
+            (SelectionResultOf f address u)
     )
 
 -- | Performs a coin selection and generates change bundles in one step.
