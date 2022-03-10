@@ -4206,6 +4206,12 @@ instance IsServerError ErrBalanceTx where
                 , " by " <> pretty c
                 , "and cannot finish balancing."
                 ]
+        ErrBalanceTxMaxSizeLimitExceeded ->
+            apiError err403 CreatedInvalidTransaction $ mconcat
+                [ "I was not able to balance the transaction without exceeding"
+                , "the maximum transaction size."
+                ]
+
 
 instance IsServerError ErrMintBurnAssets where
     toServerError = \case

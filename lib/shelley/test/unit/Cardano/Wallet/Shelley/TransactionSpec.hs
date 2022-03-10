@@ -2589,6 +2589,8 @@ prop_balanceTransactionBalanced (Wallet' utxo wal pending) (ShowBuildable partia
                 label "existing collateral" True
             Left (ErrBalanceTxNotYetSupported ZeroAdaOutput) ->
                 label "not yet supported: zero ada output" $ property True
+            Left ErrBalanceTxMaxSizeLimitExceeded ->
+                label "maxTxSize limit exceeded" $ property True
             Left (ErrBalanceTxNotYetSupported ConflictingNetworks) ->
                 label "not yet supported: conflicting networks" $ property True
             Left
