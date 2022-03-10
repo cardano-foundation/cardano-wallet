@@ -396,6 +396,7 @@ import qualified Data.Set as Set
 import qualified Data.Text as T
 import qualified Data.Text.Encoding as T
 import qualified Data.Text.IO as T
+import qualified Test.Hspec.Extra as Hspec
 
 spec :: Spec
 spec = do
@@ -407,6 +408,7 @@ spec = do
     transactionConstraintsSpec
     updateSealedTxSpec
     balanceTransactionSpec
+    estimateSignedTxSizeSpec
     describe "Sign transaction" $ do
         forAllEras (\era -> it ("signTransaction adds reward account witness when necessary (" <> show era <> ")") $
             property (prop_signTransaction_addsRewardAccountKey era))
@@ -2937,6 +2939,25 @@ prop_updateSealedTx tx extraIns extraCol extraOuts newFee = do
     isAlonzo (cardanoTx -> InAnyCardanoEra Cardano.AlonzoEra _) = True
     isAlonzo (cardanoTx -> InAnyCardanoEra _ _) = False
 
+estimateSignedTxSizeSpec :: Spec
+estimateSignedTxSizeSpec =
+    describe "estimateSignedTxSize" $ do
+        it "equals the binary size of signed txs" $ property $ do
+            forAllGoldens signedTxGoldens $ \hexTx -> do
+                let bs = unsafeFromHex hexTx
+                let tx = either (error . show) id $ sealedTxFromBytes bs
+                -- 'mockProtocolParametersForBalancing' is not valid for
+                -- 'ShelleyEra'.
+                let pparams = (snd mockProtocolParametersForBalancing)
+                            { Cardano.protocolParamMinUTxOValue = Just 1_000_000
+                            }
+                estimateSignedTransactionSize testTxLayer pparams tx
+                    `shouldBe`
+                    Just (TxSize $ fromIntegral $ BS.length bs)
+  where
+    forAllGoldens goldens f = forM_ goldens $ \x ->
+        Hspec.counterexample (show x) $ f x
+
 fst4 :: (a, b, c, d) -> a
 fst4 (a,_,_,_) = a
 
@@ -2990,6 +3011,40 @@ txWithInputsOutputsAndWits =
     \00000000000000000000000000000000000000000000000000005840e8e769ecd0\
     \f3c538f0a5a574a1c881775f086d6f4c845b81be9b78955728bffa7efa54297c6a\
     \5d73337bd6280205b1759c13f79d4c93f29871fc51b78aeba80ef6"
+
+signedTxGoldens :: [ByteString]
+signedTxGoldens =
+    [ "84a6008182582062d3756241f3f19483e2f710e00e83c80e84329bff08753df3a6\
+      \28beea3454ec18370d800182825839010c36ef7fff0869d7e75cd70f0f369bb770\
+      \d66efd50625c2c1a5e84f3cd2a80021c790f232cddd9216631f285a0d745361d40\
+      \2305a61abc071a000f422a82583901d6c89cba59e000ab67171115d99a2f845c38\
+      \b7616838d168af37288fcd2a80021c790f232cddd9216631f285a0d745361d4023\
+      \05a61abc071b000000174865a61e021a0001ffb803198fae0e81581c98947dd5fc\
+      \0ec3fa16043bdbf5577fa383bb89deab60d9d9f80a214ca10082825820debdc920\
+      \10207d6b51bfd2bab3d03610742d71cbf3867a7c8a7fce360c134a0e5840919835\
+      \b47a543b72fae3a64cf75145cf0aa44e31cc0e089c9b2fea93d0acae9e2d69c28d\
+      \4808904be4129c7a16ff3563843a8851a56701eb45947b1329bd540b8258204cff\
+      \849a17fcbd9e40425e2c2ef96544333c91306e5f869e9d66fc0db91ffa0c584043\
+      \c3dd8e9596ba3698633e7d6fcc20c4b0081211a1351ec192296abbb40411692fc7\
+      \5504d7a50f02f2439313dc5f16aa982aab8cea6e32e0c6e64a1b82609306f5f6"
+
+    , "84a6008182582062d3756241f3f19483e2f710e00e83c80e84329bff08753df3a6\
+      \28beea3454ec18370d800182825839010c36ef7fff0869d7e75cd70f0f369bb770\
+      \d66efd50625c2c1a5e84f3cd2a80021c790f232cddd9216631f285a0d745361d40\
+      \2305a61abc071a000f422a82583901d6c89cba59e000ab67171115d99a2f845c38\
+      \b7616838d168af37288fcd2a80021c790f232cddd9216631f285a0d745361d4023\
+      \05a61abc071b000000174865a61e021a0001ffb803198fae0e81581c98947dd5fc\
+      \0ec3fa16043bdbf5577fa383bb89deab60d9d9f80a214ca10082825820debdc920\
+      \10207d6b51bfd2bab3d03610742d71cbf3867a7c8a7fce360c134a0e5840919835\
+      \b47a543b72fae3a64cf75145cf0aa44e31cc0e089c9b2fea93d0acae9e2d69c28d\
+      \4808904be4129c7a16ff3563843a8851a56701eb45947b1329bd540b8258204cff\
+      \849a17fcbd9e40425e2c2ef96544333c91306e5f869e9d66fc0db91ffa0c584043\
+      \c3dd8e9596ba3698633e7d6fcc20c4b0081211a1351ec192296abbb40411692fc7\
+      \5504d7a50f02f2439313dc5f16aa982aab8cea6e32e0c6e64a1b82609306f5f6"
+
+    , txWithInputsOutputsAndWits
+    ]
+
 
 readTestTransactions :: SpecM a [(FilePath, SealedTx)]
 readTestTransactions = runIO $ do

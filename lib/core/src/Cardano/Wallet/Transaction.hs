@@ -81,6 +81,7 @@ import Cardano.Wallet.Primitive.Types.Tx
     , TxIn
     , TxMetadata
     , TxOut
+    , TxSize
     )
 import Cardano.Wallet.Primitive.Types.UTxO
     ( UTxO )
@@ -187,6 +188,14 @@ data TransactionLayer k tx = TransactionLayer
         --
         -- Will estimate how many witnesses there /should be/, so it works even
         -- for unsigned transactions.
+        --
+        -- Returns `Nothing` for ByronEra transactions.
+
+    , estimateSignedTransactionSize
+        :: Node.ProtocolParameters
+        -> tx
+        -> Maybe TxSize
+        -- ^ Estimate the size of the transaction when fully signed.
         --
         -- Returns `Nothing` for ByronEra transactions.
 
