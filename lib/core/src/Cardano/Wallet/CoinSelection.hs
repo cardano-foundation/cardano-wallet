@@ -25,7 +25,7 @@
 --
 module Cardano.Wallet.CoinSelection
     (
-    -- * Context
+    -- * Selection contexts
       WalletSelectionContext
 
     -- * Performing selections
@@ -129,9 +129,11 @@ import qualified Data.Map.Strict as Map
 import qualified Data.Set as Set
 
 --------------------------------------------------------------------------------
--- Selection context
+-- Selection contexts
 --------------------------------------------------------------------------------
 
+-- | A selection context for the wallet.
+--
 data WalletSelectionContext
 
 instance SC.SelectionContext WalletSelectionContext where

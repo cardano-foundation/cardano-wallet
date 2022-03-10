@@ -1,9 +1,20 @@
 {-# LANGUAGE FlexibleContexts #-}
 {-# LANGUAGE TypeFamilies #-}
 
+-- |
+-- Copyright: © 2022 IOHK
+-- License: Apache-2.0
+--
+-- This module provides the 'SelectionContext' class, which provides a shared
+-- context for types used by coin selection.
+--
 module Cardano.Wallet.CoinSelection.Internal.Context
-    ( Dummy (..)
-    , SelectionContext (..)
+    (
+    -- * Selection contexts
+      SelectionContext (..)
+
+    -- * Dummy values
+    , Dummy (..)
     )
     where
 
@@ -12,9 +23,8 @@ import Prelude
 import Fmt
     ( Buildable )
 
-class Dummy d where
-    dummy :: d
-
+-- | Provides a shared context for types used by coin selection.
+--
 class
     ( Buildable (Address c)
     , Buildable (UTxO c)
@@ -26,5 +36,15 @@ class
     ) =>
     SelectionContext c
   where
+
+    -- | A target address to which payments can be made.
     type Address c
+
+    -- | A unique identifier for an individual UTxO.
     type UTxO c
+
+-- | Provides a dummy value for a given type.
+
+class Dummy d where
+    -- | Returns a dummy value.
+    dummy :: d
