@@ -9,6 +9,9 @@ on:
         description: 'Network'
         required: true
         default: 'testnet'
+      pr:
+        description: 'PR number or "master"'
+        default: 'master'
 
 defaults:
   run:
@@ -51,9 +54,9 @@ jobs:
         restore-keys: |
           node-db-${{ runner.os }}-${{ env.NETWORK }}-
           node-db-Linux-${{ env.NETWORK }}-
-            
+
     - name: ⚙️ Setup (get latest bins and configs and decode fixtures)
-      run: rake setup[%NETWORK%]
+      run: rake setup[%NETWORK%,%PR%]
 
     - name: 🔍 Display versions
       run: rake display_versions
@@ -80,3 +83,4 @@ jobs:
     env:
       NETWORK: ${{ github.event.inputs.network || 'testnet' }}
       TESTS_E2E_FIXTURES: ${{ secrets.TESTS_E2E_FIXTURES }}
+      PR: ${{ github.event.inputs.pr || '' }}

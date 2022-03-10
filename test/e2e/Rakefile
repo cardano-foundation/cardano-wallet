@@ -194,10 +194,15 @@ end
 task :get_latest_bins, [:pr] do |task, args|
   puts "\n  >> Getting latest node and wallet binaries from Hydra into #{BINS}"
 
-  pr = args[:pr] || nil
-  puts(pr ? "From PR: ##{pr} 👇" : "From master branch 👇")
-
-  wget(get_latest_binary_url(pr))
+  pr = args[:pr] || 'master'
+  if (pr.empty? || pr == 'master')
+    puts "From master branch 👇"
+    pr_num = nil
+  else
+    puts "From PR: ##{pr} 👇"
+    pr_num = pr.to_i
+  end
+  wget(get_latest_binary_url(pr_num))
 
   mk_dir(BINS)
   if is_win?
@@ -260,7 +265,7 @@ end
 ##
 # Setup utility task getting node and wallet binaries, configs and decoding fixtures
 # so it is ready to start
-task :setup, [:env, :skip_configs] do |task, args|
+task :setup, [:env, :pr, :skip_configs] do |task, args|
   puts "\n  >> Getting latest binaries and configs and decoding fixtures..."
   env = args[:env]
   pr = args[:pr] || nil
