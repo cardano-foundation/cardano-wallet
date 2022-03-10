@@ -412,8 +412,10 @@ import Test.Hspec
     ( Expectation, HasCallStack )
 import Test.Hspec.Expectations.Lifted
     ( expectationFailure, shouldBe, shouldContain, shouldNotBe, shouldSatisfy )
+import Test.Hspec.Extra
+    ( appendFailureReason, counterexample )
 import Test.HUnit.Lang
-    ( FailureReason (..), HUnitFailure (..) )
+    ( HUnitFailure (..) )
 import Test.Integration.Faucet
     ( NextWallet, nextTxBuilder, nextWallet, seqMnemonics )
 import Test.Integration.Framework.Context
@@ -2473,28 +2475,6 @@ verifyMsg :: (Show a, MonadUnliftIO m) => String -> a -> [a -> m ()] -> m ()
 verifyMsg desc a = counterexample msg . mapM_ (a &)
   where
     msg = "Verifying "+|desc|+" for value:\n"+|indentF 2 (pShowBuilder a)|+""
-
--- | Can be used to add context to a @HUnitFailure@.
---
--- >>> counterexample (show response) (0 `shouldBe` 3)
--- >>>  (Status {statusCode = 200, statusMessage = "OK"},Right [])
--- >>>        expected: 3
--- >>>         but got: 0
-counterexample :: (MonadIO m, MonadUnliftIO m, HasCallStack) => String -> m a -> m a
-counterexample msg = (`catch` (throwIO . appendFailureReason msg))
-
-appendFailureReason :: String -> HUnitFailure -> HUnitFailure
-appendFailureReason message = wrap
-  where
-    wrap :: HUnitFailure -> HUnitFailure
-    wrap (HUnitFailure mloc reason) = HUnitFailure mloc (addMessageTo reason)
-
-    addMessageTo :: FailureReason -> FailureReason
-    addMessageTo (Reason reason) = Reason $ addMessage reason
-    addMessageTo (ExpectedButGot preface expected actual) =
-      ExpectedButGot (Just $ maybe message addMessage preface)  expected actual
-
-    addMessage = (++ "\n" ++ message)
 
 --
 -- Manipulating endpoints
