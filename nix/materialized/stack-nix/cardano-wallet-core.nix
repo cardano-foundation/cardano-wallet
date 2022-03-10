@@ -174,6 +174,7 @@
           "Cardano/Wallet/CoinSelection/Internal"
           "Cardano/Wallet/CoinSelection/Internal/Balance"
           "Cardano/Wallet/CoinSelection/Internal/Collateral"
+          "Cardano/Wallet/CoinSelection/Internal/Context"
           "Cardano/Wallet/Compat"
           "Cardano/Wallet/DB"
           "Cardano/Wallet/DB/Checkpoints"
