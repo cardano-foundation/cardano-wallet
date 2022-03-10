@@ -3,6 +3,10 @@
 {-# LANGUAGE FlexibleInstances #-}
 {-# LANGUAGE OverloadedLabels #-}
 {-# LANGUAGE RecordWildCards #-}
+{-# LANGUAGE ScopedTypeVariables #-}
+{-# LANGUAGE TypeApplications #-}
+{-# LANGUAGE TypeFamilies #-}
+{-# OPTIONS_GHC -fno-warn-orphans #-}
 
 -- |
 -- Copyright: © 2022 IOHK
@@ -21,8 +25,11 @@
 --
 module Cardano.Wallet.CoinSelection
     (
+    -- * Context
+      WalletSelectionContext
+
     -- * Performing selections
-      performSelection
+    , performSelection
     , Selection
     , SelectionCollateralRequirement (..)
     , SelectionConstraints (..)
@@ -59,7 +66,8 @@ module Cardano.Wallet.CoinSelection
     where
 
 import Cardano.Wallet.CoinSelection.Internal
-    ( SelectionCollateralRequirement (..)
+    ( SelectionCollateralError
+    , SelectionCollateralRequirement (..)
     , SelectionError (..)
     , SelectionOutputError (..)
     , SelectionOutputSizeExceedsLimitError (..)
@@ -74,8 +82,6 @@ import Cardano.Wallet.CoinSelection.Internal.Balance
     , UnableToConstructChangeError (..)
     , balanceMissing
     )
-import Cardano.Wallet.CoinSelection.Internal.Collateral
-    ( SelectionCollateralError )
 import Cardano.Wallet.Primitive.Collateral
     ( asCollateral )
 import Cardano.Wallet.Primitive.Types.Address
@@ -116,10 +122,21 @@ import Numeric.Natural
 import Prelude
 
 import qualified Cardano.Wallet.CoinSelection.Internal as Internal
+import qualified Cardano.Wallet.CoinSelection.Internal.Context as SC
 import qualified Cardano.Wallet.Primitive.Types.TokenBundle as TokenBundle
 import qualified Data.Foldable as F
 import qualified Data.Map.Strict as Map
 import qualified Data.Set as Set
+
+--------------------------------------------------------------------------------
+-- Selection context
+--------------------------------------------------------------------------------
+
+data WalletSelectionContext
+
+instance SC.SelectionContext WalletSelectionContext where
+    type Address WalletSelectionContext = Address
+    type UTxO WalletSelectionContext = InputId
 
 --------------------------------------------------------------------------------
 -- Selection constraints
@@ -169,7 +186,8 @@ data SelectionConstraints = SelectionConstraints
     deriving Generic
 
 toInternalSelectionConstraints
-    :: SelectionConstraints -> Internal.SelectionConstraints Address
+    :: SelectionConstraints
+    -> Internal.SelectionConstraints WalletSelectionContext
 toInternalSelectionConstraints SelectionConstraints {..} =
     Internal.SelectionConstraints
         { computeMinimumCost =
@@ -188,6 +206,9 @@ toInternalSelectionConstraints SelectionConstraints {..} =
 -- Replace this type synonym with a type parameter on types that use it.
 --
 type InputId = (TxIn, Address)
+
+instance Buildable InputId where
+    build (i, a) = build i <> ":" <> build a
 
 -- | Specifies all parameters that are specific to a given selection.
 --
@@ -241,7 +262,7 @@ data SelectionParams = SelectionParams
 
 toInternalSelectionParams
     :: SelectionParams
-    -> Internal.SelectionParams Address InputId
+    -> Internal.SelectionParams WalletSelectionContext
 toInternalSelectionParams SelectionParams {..} =
     Internal.SelectionParams
         { utxoAvailableForCollateral =
@@ -288,7 +309,7 @@ emptySkeleton = SelectionSkeleton
     }
 
 toExternalSelectionSkeleton
-    :: Internal.SelectionSkeleton Address
+    :: Internal.SelectionSkeleton WalletSelectionContext
     -> SelectionSkeleton
 toExternalSelectionSkeleton Internal.SelectionSkeleton {..} =
     SelectionSkeleton
@@ -338,7 +359,7 @@ data SelectionOf change = Selection
 type Selection = SelectionOf TokenBundle
 
 toExternalSelection
-    :: SelectionParams -> Internal.Selection Address InputId -> Selection
+    :: SelectionParams -> Internal.Selection WalletSelectionContext -> Selection
 toExternalSelection _ps Internal.Selection {..} =
     Selection
         { collateral =
@@ -355,7 +376,7 @@ toExternalSelection _ps Internal.Selection {..} =
 toInternalSelection
     :: (change -> TokenBundle)
     -> SelectionOf change
-    -> Internal.Selection Address InputId
+    -> Internal.Selection WalletSelectionContext
 toInternalSelection getChangeBundle Selection {..} =
     Internal.Selection
         { change = getChangeBundle
@@ -385,13 +406,13 @@ toInternalSelection getChangeBundle Selection {..} =
 -- See 'Internal.performSelection' for more details.
 --
 performSelection
-    :: (HasCallStack, MonadRandom m)
+    :: forall m. (HasCallStack, MonadRandom m)
     => SelectionConstraints
     -> SelectionParams
-    -> ExceptT (SelectionError Address InputId) m Selection
+    -> ExceptT (SelectionError WalletSelectionContext) m Selection
 performSelection cs ps =
     toExternalSelection ps <$>
-    Internal.performSelection
+    Internal.performSelection @m @WalletSelectionContext
         (toInternalSelectionConstraints cs)
         (toInternalSelectionParams ps)
 

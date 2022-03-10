@@ -233,6 +233,7 @@ import Cardano.Wallet.CoinSelection
     , SelectionSkeleton (..)
     , SelectionStrategy (..)
     , UnableToConstructChangeError (..)
+    , WalletSelectionContext
     , emptySkeleton
     , makeSelectionReportDetailed
     , makeSelectionReportSummarized
@@ -3269,10 +3270,11 @@ data ErrCreateMigrationPlan
     deriving (Generic, Eq, Show)
 
 data ErrSelectAssets
-    = ErrSelectAssetsPrepareOutputsError (SelectionOutputError Address)
+    = ErrSelectAssetsPrepareOutputsError
+        (SelectionOutputError WalletSelectionContext)
     | ErrSelectAssetsNoSuchWallet ErrNoSuchWallet
     | ErrSelectAssetsAlreadyWithdrawing Tx
-    | ErrSelectAssetsSelectionError (SelectionError Address InputId)
+    | ErrSelectAssetsSelectionError (SelectionError WalletSelectionContext)
     deriving (Generic, Eq, Show)
 
 data ErrStakePoolDelegation
@@ -3422,7 +3424,7 @@ data WalletFollowLog
 -- | Log messages from API server actions running in a wallet worker context.
 data WalletLog
     = MsgSelectionStart UTxO [TxOut]
-    | MsgSelectionError (SelectionError Address InputId)
+    | MsgSelectionError (SelectionError WalletSelectionContext)
     | MsgSelectionReportSummarized SelectionReportSummarized
     | MsgSelectionReportDetailed SelectionReportDetailed
     | MsgMigrationUTxOBefore UTxOStatistics

@@ -315,6 +315,7 @@ import Cardano.Wallet.CoinSelection
     , SelectionOutputSizeExceedsLimitError (..)
     , SelectionOutputTokenQuantityExceedsLimitError (..)
     , SelectionStrategy (..)
+    , WalletSelectionContext
     , balanceMissing
     , selectionDelta
     , shortfall
@@ -4319,14 +4320,16 @@ instance IsServerError (ErrInvalidDerivationIndex 'Soft level) where
                 , "between ", pretty minIx, " and ", pretty maxIx, " without a suffix."
                 ]
 
-instance IsServerError (SelectionOutputError Address) where
+instance IsServerError (SelectionOutputError WalletSelectionContext) where
     toServerError = \case
         SelectionOutputSizeExceedsLimit e ->
             toServerError e
         SelectionOutputTokenQuantityExceedsLimit e ->
             toServerError e
 
-instance IsServerError (SelectionOutputSizeExceedsLimitError Address) where
+instance IsServerError
+    (SelectionOutputSizeExceedsLimitError WalletSelectionContext)
+  where
     toServerError e = apiError err403 OutputTokenBundleSizeExceedsLimit $
         mconcat
         [ "One of the outputs you've specified contains too many assets. "
@@ -4340,7 +4343,8 @@ instance IsServerError (SelectionOutputSizeExceedsLimitError Address) where
       where
         output = view #outputThatExceedsLimit e
 
-instance IsServerError (SelectionOutputTokenQuantityExceedsLimitError Address)
+instance IsServerError
+    (SelectionOutputTokenQuantityExceedsLimitError WalletSelectionContext)
   where
     toServerError e = apiError err403 OutputTokenQuantityExceedsLimit $ mconcat
         [ "One of the token quantities you've specified is greater than the "
@@ -4392,7 +4396,7 @@ instance IsServerError ErrSelectAssets where
         ErrSelectAssetsSelectionError (SelectionOutputErrorOf e) ->
             toServerError e
 
-instance IsServerError (SelectionBalanceError Address (TxIn, Address)) where
+instance IsServerError (SelectionBalanceError WalletSelectionContext) where
     toServerError = \case
         BalanceInsufficient e ->
             apiError err403 NotEnoughMoney $ mconcat
@@ -4435,7 +4439,7 @@ instance IsServerError (SelectionBalanceError Address (TxIn, Address)) where
                 , "required in order to create a transaction."
                 ]
 
-instance IsServerError (SelectionCollateralError (TxIn, Address)) where
+instance IsServerError (SelectionCollateralError WalletSelectionContext) where
     toServerError e =
         apiError err403 InsufficientCollateral $ T.unwords
             [ "I'm unable to create this transaction because the balance"
