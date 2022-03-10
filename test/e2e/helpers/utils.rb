@@ -130,7 +130,7 @@ module Helpers
       RUBY_PLATFORM =~ /darwin/
     end
 
-    def get_latest_binary_url
+    def get_latest_binary_url(pr = nil)
       if is_linux?
         os = "linux.musl.cardano-wallet-linux64"
       end
@@ -140,8 +140,11 @@ module Helpers
       if is_win?
         os = "linux.windows.cardano-wallet-win64"
       end
-
-      "https://hydra.iohk.io/job/Cardano/cardano-wallet/#{os}/latest/download-by-type/file/binary-dist"
+      if pr
+        "https://hydra.iohk.io/job/Cardano/cardano-wallet-pr-#{pr}/#{os}/latest/download-by-type/file/binary-dist"
+      else
+        "https://hydra.iohk.io/job/Cardano/cardano-wallet/#{os}/latest/download-by-type/file/binary-dist"
+      end
     end
 
     def get_latest_configs_base_url

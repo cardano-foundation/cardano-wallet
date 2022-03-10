@@ -86,7 +86,7 @@ task :wait_until_node_synced do
   puts "\n  >> Waiting for node to be synced"
 
   network = CardanoWallet.new.misc.network
-  # allow 180 mins for connecting to the node in case it needs to replay ledger 
+  # allow 180 mins for connecting to the node in case it needs to replay ledger
   timeout = 10800
   current_time = Time.now
   timeout_treshold = current_time + timeout
@@ -191,10 +191,14 @@ task :stop_node_and_wallet, [:env] do |task, args|
 
 end
 
-task :get_latest_bins do
+task :get_latest_bins, [:pr] do |task, args|
   puts "\n  >> Getting latest node and wallet binaries from Hydra into #{BINS}"
 
-  wget(get_latest_binary_url)
+  pr = args[:pr] || nil
+  puts(pr ? "From PR: ##{pr} 👇" : "From master branch 👇")
+
+  wget(get_latest_binary_url(pr))
+
   mk_dir(BINS)
   if is_win?
     cmd "unzip -o binary-dist -d #{BINS}"
@@ -259,24 +263,27 @@ end
 task :setup, [:env, :skip_configs] do |task, args|
   puts "\n  >> Getting latest binaries and configs and decoding fixtures..."
   env = args[:env]
-  skip_configs = args[:skip_configs]
+  pr = args[:pr] || nil
+  skip_configs = args[:skip_configs] || nil
+
   if BINS == ''
     puts "\n  >> Skipping getting latest binaries. Will test wallet and node from $PATH."
   else
-    Rake::Task[:get_latest_bins].invoke
+    Rake::Task[:get_latest_bins].invoke(pr)
   end
   Rake::Task[:get_latest_configs].invoke(env) unless skip_configs
   Rake::Task[:fixture_wallets_decode].invoke
 end
 
-task :run_on, [:env, :sync_strategy, :skip_configs] do |task, args|
+task :run_on, [:env, :sync_strategy, :skip_configs, :pr] do |task, args|
   puts "\n>> Setting up env and running tests..."
   puts "TESTS_E2E_STATEDIR=#{STATE}"
   env = args[:env]
   skip_configs = args[:skip_configs]
   sync_strategy = args[:sync_strategy] || :sync
+  pr = args[:pr] || nil
 
-  Rake::Task[:setup].invoke(env, skip_configs)
+  Rake::Task[:setup].invoke(env, pr, skip_configs)
   Rake::Task[:display_versions].invoke
   Rake::Task[:start_node_and_wallet].invoke(env)
 
