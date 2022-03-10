@@ -4004,18 +4004,15 @@ instance EncodeAddress n => ToJSON (PostMintBurnAssetData n) where
 -- script that contain verification keys and timelocks combined in a conditions, possibly nested,
 -- to accommodate non-trivial time conditions.
 -- In non-multisig case the script regulating minting/burning will contain
--- a verification key of the wallet with optional time predicates. The verification key
--- can be specified by a user as an option. It is key index derived on top of current account public key
--- using "0" purpose. Otherwise the default index (ie. the first one, with ix=0) is taken.
+-- a verification key via cosigner#0 of the wallet with the optional time predicates.
 -- In multisig case the script regulating minting/burning will contain verification keys of
--- signers with optional time predicates. The used key derivation index is the same for all
--- engaged derivation keys. If not specified then ix=0 is assumed to be used.
+-- signers (via cosigner#N) with optional time predicates. The used key derivation index is the same for all
+-- engaged derivation keys and ix=0 is assumed to be used. The verification key derivation
+-- is according to CIP 1855.
 data ApiMintBurnData (n :: NetworkDiscriminant) = ApiMintBurnData
-    { verificationKeyIndex :: !(Maybe (ApiT DerivationIndex))
-    -- ^ The key derivation index to use for verification key derivation in a script.
-    , policyScriptTemplate :: !(ApiT (Script Cosigner))
-    -- ^ A script regulating minting/burning policy. For non-multisig only 'cosigner#0' is expected
-    -- in place of verification key. Only one cosigner should be present.
+    { policyScriptTemplate :: !(ApiT (Script Cosigner))
+    -- ^ A script regulating minting/burning policy. 'self' is expected
+    -- in place of verification key.
     , assetName            :: !(ApiT W.TokenName)
     -- ^ The name of the asset to mint/burn.
     , operation            :: !(ApiMintBurnOperation n)

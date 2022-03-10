@@ -2176,17 +2176,12 @@ constructTransaction ctx genChange knownPools getPoolStatus (ApiT wid) body = do
 
     let mintingBurning = body ^. #mintedBurned
     let retrieveAllCosigners = foldScript (:) []
-    let wrongMintingTemplate (ApiMintBurnData _ (ApiT scriptTempl) _ _) =
+    let wrongMintingTemplate (ApiMintBurnData (ApiT scriptTempl) _ _) =
             isLeft (validateScriptOfTemplate RecommendedValidation scriptTempl) ||
-            length (retrieveAllCosigners scriptTempl) > 1
+            length (retrieveAllCosigners scriptTempl) > 1 ||
+            L.any (not . (== Cosigner 0)) (retrieveAllCosigners scriptTempl)
     when (isJust mintingBurning && L.any wrongMintingTemplate (NE.toList $ fromJust mintingBurning)) $
         liftHandler $ throwE ErrConstructTxWrongMintingBurningTemplate
-
-    let havingVerKeySpecifified apiMintBurn =
-            isJust (apiMintBurn ^. #verificationKeyIndex)
-    when (isJust mintingBurning &&  L.any havingVerKeySpecifified (NE.toList $ fromJust mintingBurning)) $
-        liftHandler $ throwE $
-        ErrConstructTxNotImplemented "minting/burning with only default policy id index=0 is supported"
 
     let checkIx (ApiStakeKeyIndex (ApiT derIndex)) =
             derIndex == DerivationIndex (getIndex @'Hardened minBound)
@@ -2269,15 +2264,15 @@ constructTransaction ctx genChange knownPools getPoolStatus (ApiT wid) body = do
         txCtx' <-
             if isJust mintingBurning then do
                 (policyXPub, _) <- liftHandler $ W.readPolicyPublicKey @_ @s @k @n wrk wid
-                let isMinting (ApiMintBurnData _ _ _ (ApiMint _)) = True
+                let isMinting (ApiMintBurnData _ _ (ApiMint _)) = True
                     isMinting _ = False
-                let getMinting (ApiMintBurnData _ (ApiT scriptT) (ApiT tName) (ApiMint (ApiMintData _ (Quantity amt)))) =
+                let getMinting (ApiMintBurnData (ApiT scriptT) (ApiT tName) (ApiMint (ApiMintData _ (Quantity amt)))) =
                         toTokenMapAndScript @k scriptT
                         (Map.singleton (Cosigner 0) policyXPub)  -- TODO: retrieve cosigner value or forbid other than cosigner 0
                         tName
                         amt
                     getMinting _ = error "getMinting should not be used that way"
-                let getBurning (ApiMintBurnData _ (ApiT scriptT) (ApiT tName) (ApiBurn (ApiBurnData (Quantity amt)))) =
+                let getBurning (ApiMintBurnData (ApiT scriptT) (ApiT tName) (ApiBurn (ApiBurnData (Quantity amt)))) =
                         toTokenMapAndScript @k scriptT
                         (Map.singleton (Cosigner 0) policyXPub) -- TODO: retrieve cosigner value or forbid other than cosigner 0
                         tName
@@ -4093,7 +4088,8 @@ instance IsServerError ErrConstructTx where
             apiError err403 CreatedWrongPolicyScriptTemplate $ mconcat
             [ "It looks like I've created a transaction "
             , "with a minting/burning policy script that either does not "
-            , "pass validation or contains more than one cosigner."
+            , "pass validation, contains more than one cosigner or "
+            , "cosigner different than cosigner#0."
             ]
         ErrConstructTxNotImplemented _ ->
             apiError err501 NotImplemented

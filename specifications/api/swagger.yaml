@@ -494,7 +494,7 @@ x-ScriptValue: &ScriptValue
       description: Leaf value for a script designating a required verification key hash.
       type: string
       format: bech32
-      pattern: "^((addr_shared_vkh)|(stake_shared_vkh))1[0-9a-z]*$"
+      pattern: "^((addr_shared_vkh)|(stake_shared_vkh)|(policy_vkh))1[0-9a-z]*$"
 
     - title: All
       type: object
@@ -2504,21 +2504,31 @@ components:
       description: |
         Withdrawals that could be external or belong to the wallet.
 
-    ApiMintedAssets: &ApiMintedAssets
-      description: |
-        Assets minted (created).
-        The act of minting assets provides value to a transaction.
-      type: array
-      minItems: 0
-      items: *assetMintedBurned
+    ApiPolicyScript: &ApiPolicyScript
+      type: object
+      required:
+        - policy_id
+        - policy_script
+      properties:
+        policy_id: *assetPolicyId
+        policy_script: *ScriptValue
 
-    ApiBurnedAssets: &ApiBurnedAssets
-      description: |
-        Assets burned (destroyed).
-        The act of burning assets consumes value from a transaction.
-      type: array
-      minItems: 0
-      items: *assetMintedBurned
+    ApiAssetMintedBurned: &ApiAssetMintedBurned
+      type: object
+      required:
+        - token_map
+        - policy_scripts
+        - wallet_policy_key_hash
+      properties:
+        token_map:
+          type: array
+          minItems: 0
+          items: *assetMintedBurned
+        policy_scripts:
+          type: array
+          minItems: 0
+          items: *ApiPolicyScript
+        wallet_policy_key_hash: *ApiPolicyKey
 
     ApiStakePoolMetadata: &ApiStakePoolMetadata
       type: object
@@ -2599,8 +2609,8 @@ components:
         outputs: *ApiOutputsGeneral
         collateral: *ApiInputsGeneral
         withdrawals: *ApiWithdrawalsGeneral
-        assets_minted: *ApiMintedAssets
-        assets_burned: *ApiBurnedAssets
+        assets_minted: *ApiAssetMintedBurned
+        assets_burned: *ApiAssetMintedBurned
         certificates:
           type: array
           minItems: 0
@@ -3395,11 +3405,6 @@ components:
         - policy_script_template
       properties:
         policy_script_template: *ScriptTemplateValue
-        verification_key_index:
-          allOf:
-            - *derivationSegment
-            - type: string
-              default: 0
         asset_name: *assetName
         operation: *ApiMintBurnOperation
 

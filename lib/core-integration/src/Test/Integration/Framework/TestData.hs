@@ -674,7 +674,8 @@ errMsg403CreatedWrongPolicyScriptTemplate :: String
 errMsg403CreatedWrongPolicyScriptTemplate = mconcat
     [ "It looks like I've created a transaction "
     , "with a minting/burning policy script that either does not "
-    , "pass validation or contains more than one cosigner."
+    , "pass validation, contains more than one cosigner or "
+    , "cosigner different than cosigner#0."
     ]
 
 --------------------------------------------------------------------------------

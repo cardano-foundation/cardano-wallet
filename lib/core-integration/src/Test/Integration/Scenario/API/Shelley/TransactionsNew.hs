@@ -3023,7 +3023,7 @@ spec = describe "NEW_SHELLEY_TRANSACTIONS" $ do
             , expectErrorMessage errMsg403CreatedWrongPolicyScriptTemplate
             ]
 
-    it "TRANS_NEW_CREATE_10c - Minting/burning assets - only default verification key index supported" $ \ctx -> runResourceT $ do
+    it "TRANS_NEW_CREATE_10c - Minting/burning assets - one cosigner in template other than cosigner#0" $ \ctx -> runResourceT $ do
         wa <- fixtureWallet ctx
         addrs <- listAddresses @n ctx wa
         let destination = (addrs !! 1) ^. #id
@@ -3032,11 +3032,10 @@ spec = describe "NEW_SHELLEY_TRANSACTIONS" $ do
                 "minted_burned": [{
                     "policy_script_template":
                         { "all":
-                           [ "cosigner#0",
+                           [ "cosigner#1",
                              { "active_from": 120 }
                            ]
                         },
-                    "verification_key_index" : "10",
                     "asset_name": "ab12",
                     "operation":
                         { "mint" :
@@ -3053,8 +3052,8 @@ spec = describe "NEW_SHELLEY_TRANSACTIONS" $ do
         rTx <- request @(ApiConstructTransaction n) ctx
             (Link.createUnsignedTransaction @'Shelley wa) Default payload
         verify rTx
-            [ expectResponseCode HTTP.status501
-            , expectErrorMessage "This feature is not yet implemented."
+            [ expectResponseCode HTTP.status403
+            , expectErrorMessage errMsg403CreatedWrongPolicyScriptTemplate
             ]
 
     it "TRANS_NEW_CREATE_10d - Minting assets" $ \ctx -> runResourceT $ do
