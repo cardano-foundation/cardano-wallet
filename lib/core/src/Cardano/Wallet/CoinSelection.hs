@@ -85,7 +85,7 @@ import Cardano.Wallet.CoinSelection.Internal.Balance
 import Cardano.Wallet.Primitive.Collateral
     ( asCollateral )
 import Cardano.Wallet.Primitive.Types.Address
-    ( Address )
+    ( Address (..) )
 import Cardano.Wallet.Primitive.Types.Coin
     ( Coin (..) )
 import Cardano.Wallet.Primitive.Types.TokenBundle
@@ -137,6 +137,9 @@ data WalletSelectionContext
 instance SC.SelectionContext WalletSelectionContext where
     type Address WalletSelectionContext = Address
     type UTxO WalletSelectionContext = InputId
+
+instance SC.Dummy Address where
+    dummy = Address ""
 
 --------------------------------------------------------------------------------
 -- Selection constraints

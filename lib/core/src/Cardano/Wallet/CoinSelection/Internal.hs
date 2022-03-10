@@ -9,6 +9,7 @@
 {-# LANGUAGE ScopedTypeVariables #-}
 {-# LANGUAGE StandaloneDeriving #-}
 {-# LANGUAGE TupleSections #-}
+{-# LANGUAGE TypeApplications #-}
 
 -- |
 -- Copyright: © 2021 IOHK
@@ -76,7 +77,7 @@ import Cardano.Wallet.CoinSelection.Internal.Balance
     , SelectionStrategy (..)
     )
 import Cardano.Wallet.CoinSelection.Internal.Context
-    ( SelectionContext (..) )
+    ( Dummy (..), SelectionContext (..) )
 import Cardano.Wallet.Primitive.Types.Coin
     ( Coin (..) )
 import Cardano.Wallet.Primitive.Types.TokenBundle
@@ -379,16 +380,7 @@ selectionAllOutputs
     -> [(Address ctx, TokenBundle)]
 selectionAllOutputs selection = (<>)
     (selection ^. #outputs)
-    (selection ^. #change <&> (dummyChangeAddress, ))
-  where
-    dummyChangeAddress :: Address ctx
-    dummyChangeAddress =
-        -- TODO: ADP-1448
-        --
-        -- Replace this call to 'error' with a call to a function that
-        -- generates a dummy change address.
-        --
-        error "change address"
+    (selection ^. #change <&> (dummy @(Address ctx), ))
 
 -- | Creates constraints and parameters for 'Balance.performSelection'.
 --

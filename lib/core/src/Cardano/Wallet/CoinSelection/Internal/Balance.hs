@@ -129,7 +129,7 @@ import Algebra.PartialOrd
 import Cardano.Numeric.Util
     ( padCoalesce )
 import Cardano.Wallet.CoinSelection.Internal.Context
-    ( SelectionContext (..) )
+    ( Dummy (..), SelectionContext (..) )
 import Cardano.Wallet.Primitive.Types.Coin
     ( Coin (..) )
 import Cardano.Wallet.Primitive.Types.TokenBundle
@@ -814,7 +814,7 @@ performSelection = performSelectionEmpty performSelectionNonEmpty
 --          selectionHasValidSurplus constraints (transformResult result)
 --
 performSelectionEmpty
-    :: forall m ctx. Functor m
+    :: forall m ctx. (Functor m, SelectionContext ctx)
     => PerformSelection m NonEmpty ctx
     -> PerformSelection m []       ctx
 performSelectionEmpty performSelectionFn constraints params =
@@ -845,12 +845,7 @@ performSelectionEmpty performSelectionFn constraints params =
     transform x y = maybe x y $ NE.nonEmpty $ view #outputsToCover params
 
     dummyOutput :: (Address ctx, TokenBundle)
-    dummyOutput =
-        -- TODO: ADP-1448
-        --
-        -- Replace this call to 'error' with a call to a function that
-        -- generates a dummy address.
-        (error "dummy address", TokenBundle.fromCoin minCoin)
+    dummyOutput = (dummy, TokenBundle.fromCoin minCoin)
 
     -- The 'performSelectionNonEmpty' function imposes a precondition that all
     -- outputs must have at least the minimum ada quantity. Therefore, the
