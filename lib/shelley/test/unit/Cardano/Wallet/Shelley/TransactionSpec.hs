@@ -88,6 +88,7 @@ import Cardano.Wallet.CoinSelection
     , SelectionError (..)
     , SelectionOf (..)
     , UnableToConstructChangeError (..)
+    , WalletUTxO (..)
     , balanceMissing
     , emptySkeleton
     , selectionDelta
@@ -377,6 +378,7 @@ import qualified Cardano.Ledger.Coin as Ledger
 import qualified Cardano.Ledger.Core as Ledger
 import qualified Cardano.Ledger.Crypto as Crypto
 import qualified Cardano.Ledger.Shelley.API as SL
+import qualified Cardano.Wallet.CoinSelection as CS
 import qualified Cardano.Wallet.Primitive.AddressDerivation.Shelley as Shelley
 import qualified Cardano.Wallet.Primitive.Types.Coin as Coin
 import qualified Cardano.Wallet.Primitive.Types.TokenBundle as TokenBundle
@@ -2042,14 +2044,8 @@ instance MonadRandom Gen where
     getRandomR range = mkGen (fst . randomR range)
     getRandomRs range = mkGen (randomRs range)
 
--- TODO: ADP-1448:
---
--- Replace this type synonym with a type parameter on types that use it.
---
-type InputId = (TxIn, Address)
-
 data Wallet' = Wallet'
-    (UTxOIndex InputId)
+    (UTxOIndex WalletUTxO)
     (Wallet (SeqState 'Mainnet ShelleyKey))
     (Set Tx)
 
@@ -2063,10 +2059,7 @@ instance Show Wallet' where
 
 mkTestWallet :: ShelleyKey 'RootK XPrv -> UTxO -> Wallet'
 mkTestWallet rootK utxo = Wallet'
-    (UTxOIndex.fromSequence
-        $ fmap (\(i, TxOut a b) -> ((i, a), b))
-        $ Map.toList
-        $ unUTxO utxo)
+    (UTxOIndex.fromMap $ CS.toInternalUTxOMap utxo)
     (unsafeInitWallet utxo (header block0) s)
     mempty
   where
@@ -2096,16 +2089,12 @@ instance Arbitrary Wallet' where
         setUTxO :: UTxO -> Wallet' -> Wallet'
         setUTxO u (Wallet' _ wal pending) =
             Wallet'
-                (UTxOIndex.fromSequence
-                    $ fmap (\(i, TxOut a b) -> ((i, a), b))
-                    $ Map.toList
-                    $ unUTxO u)
-                (wal { utxo = u})
+                (UTxOIndex.fromMap $ CS.toInternalUTxOMap u)
+                (wal {utxo = u})
                 pending
 
-        getUTxO (Wallet' u _ _) = UTxO
-            $ Map.fromList
-            $ (\((i, a), b) -> (i, TxOut a b)) <$> UTxOIndex.toList u
+        getUTxO (Wallet' u _ _) =
+            CS.toExternalUTxOMap $ UTxOIndex.toMap u
 
         shrinkUTxO' u
             | UTxO.size u > 1 && simplifyUTxO u /= u
@@ -2279,9 +2268,8 @@ shrinkTxBody (Cardano.ShelleyTxBody e bod scripts scriptData aux val) = tail
     shrinkUpdates SNothing = []
     shrinkUpdates (SJust _) = [SNothing]
 
-
 balanceTransaction'
-    :: (UTxOIndex InputId, Wallet (SeqState 'Mainnet ShelleyKey), Set Tx)
+    :: (UTxOIndex WalletUTxO, Wallet (SeqState 'Mainnet ShelleyKey), Set Tx)
     -> StdGenSeed
     -> PartialTx
     -> Either ErrBalanceTx SealedTx

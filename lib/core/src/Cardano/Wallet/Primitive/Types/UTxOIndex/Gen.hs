@@ -7,16 +7,14 @@ module Cardano.Wallet.Primitive.Types.UTxOIndex.Gen
 
 import Prelude
 
-import Cardano.Wallet.Primitive.Types.Address
-    ( Address )
+import Cardano.Wallet.CoinSelection
+    ( WalletUTxO (..) )
 import Cardano.Wallet.Primitive.Types.Address.Gen
     ( genAddress, shrinkAddress )
 import Cardano.Wallet.Primitive.Types.TokenBundle
     ( TokenBundle )
 import Cardano.Wallet.Primitive.Types.TokenBundle.Gen
     ( genTokenBundleSmallRangePositive, shrinkTokenBundleSmallRangePositive )
-import Cardano.Wallet.Primitive.Types.Tx
-    ( TxIn )
 import Cardano.Wallet.Primitive.Types.Tx.Gen
     ( genTxIn, genTxInLargeRange, shrinkTxIn )
 import Cardano.Wallet.Primitive.Types.UTxOIndex
@@ -36,33 +34,27 @@ import qualified Cardano.Wallet.Primitive.Types.UTxOIndex as UTxOIndex
 -- Indices generated according to the size parameter
 --------------------------------------------------------------------------------
 
--- TODO: ADP-1448:
---
--- Replace this type synonym with a type parameter on types that use it.
---
-type InputId = (TxIn, Address)
-
-genUTxOIndex :: Gen (UTxOIndex InputId)
+genUTxOIndex :: Gen (UTxOIndex WalletUTxO)
 genUTxOIndex = UTxOIndex.fromSequence <$> listOf genEntry
   where
-    genEntry :: Gen (InputId, TokenBundle)
-    genEntry = (,) <$> genInputId <*> genTokenBundleSmallRangePositive
+    genEntry :: Gen (WalletUTxO, TokenBundle)
+    genEntry = (,) <$> genWalletUTxO <*> genTokenBundleSmallRangePositive
 
-    genInputId :: Gen InputId
-    genInputId = genSized2 genTxIn genAddress
+    genWalletUTxO :: Gen WalletUTxO
+    genWalletUTxO = uncurry WalletUTxO <$> genSized2 genTxIn genAddress
 
-shrinkUTxOIndex :: UTxOIndex InputId -> [UTxOIndex InputId]
+shrinkUTxOIndex :: UTxOIndex WalletUTxO -> [UTxOIndex WalletUTxO]
 shrinkUTxOIndex =
     shrinkMapBy UTxOIndex.fromSequence UTxOIndex.toList (shrinkList shrinkEntry)
   where
-    shrinkEntry :: (InputId, TokenBundle) -> [(InputId, TokenBundle)]
+    shrinkEntry :: (WalletUTxO, TokenBundle) -> [(WalletUTxO, TokenBundle)]
     shrinkEntry = genericRoundRobinShrink
-        <@> shrinkInputId
+        <@> shrinkWalletUTxO
         <:> shrinkTokenBundleSmallRangePositive
         <:> Nil
 
-    shrinkInputId :: InputId -> [InputId]
-    shrinkInputId = genericRoundRobinShrink
+    shrinkWalletUTxO :: WalletUTxO -> [WalletUTxO]
+    shrinkWalletUTxO = genericRoundRobinShrink
         <@> shrinkTxIn
         <:> shrinkAddress
         <:> Nil
@@ -71,14 +63,14 @@ shrinkUTxOIndex =
 -- Large indices
 --------------------------------------------------------------------------------
 
-genUTxOIndexLarge :: Gen (UTxOIndex InputId)
+genUTxOIndexLarge :: Gen (UTxOIndex WalletUTxO)
 genUTxOIndexLarge = genUTxOIndexLargeN =<< choose (1024, 4096)
 
-genUTxOIndexLargeN :: Int -> Gen (UTxOIndex InputId)
+genUTxOIndexLargeN :: Int -> Gen (UTxOIndex WalletUTxO)
 genUTxOIndexLargeN n = UTxOIndex.fromSequence <$> replicateM n genEntry
   where
-    genEntry :: Gen (InputId, TokenBundle)
-    genEntry = (,) <$> genInputId <*> genTokenBundleSmallRangePositive
+    genEntry :: Gen (WalletUTxO, TokenBundle)
+    genEntry = (,) <$> genWalletUTxO <*> genTokenBundleSmallRangePositive
 
-    genInputId :: Gen InputId
-    genInputId = (,) <$> genTxInLargeRange <*> genAddress
+    genWalletUTxO :: Gen WalletUTxO
+    genWalletUTxO = WalletUTxO <$> genTxInLargeRange <*> genAddress

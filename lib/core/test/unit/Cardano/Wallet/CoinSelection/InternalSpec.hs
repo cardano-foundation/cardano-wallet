@@ -17,7 +17,7 @@ module Cardano.Wallet.CoinSelection.InternalSpec
 import Prelude
 
 import Cardano.Wallet.CoinSelection
-    ( WalletSelectionContext )
+    ( WalletSelectionContext, WalletUTxO (..) )
 import Cardano.Wallet.CoinSelection.Internal
     ( ComputeMinimumCollateralParams (..)
     , Selection
@@ -81,7 +81,7 @@ import Cardano.Wallet.Primitive.Types.TokenMap.Gen
 import Cardano.Wallet.Primitive.Types.TokenQuantity
     ( TokenQuantity (..) )
 import Cardano.Wallet.Primitive.Types.Tx
-    ( TxIn, txOutMaxTokenQuantity )
+    ( txOutMaxTokenQuantity )
 import Cardano.Wallet.Primitive.Types.Tx.Gen
     ( genTxIn, shrinkTxIn )
 import Cardano.Wallet.Primitive.Types.UTxOSelection
@@ -154,12 +154,6 @@ import qualified Cardano.Wallet.Primitive.Types.TokenBundle as TokenBundle
 import qualified Cardano.Wallet.Primitive.Types.TokenMap as TokenMap
 import qualified Cardano.Wallet.Primitive.Types.UTxOSelection as UTxOSelection
 import qualified Data.Foldable as F
-
--- TODO: ADP-1448:
---
--- Replace this type synonym with a type parameter on types that use it.
---
-type InputId = (TxIn, Address)
 
 spec :: Spec
 spec = describe "Cardano.Wallet.CoinSelection.InternalSpec" $ do
@@ -799,29 +793,31 @@ shrinkCollateralRequirement = genericShrink
 -- UTxO available for inputs and collateral
 --------------------------------------------------------------------------------
 
-genUTxOAvailableForCollateral :: Gen (Map InputId Coin)
-genUTxOAvailableForCollateral = genMapWith genInputId genCoinPositive
+genUTxOAvailableForCollateral :: Gen (Map WalletUTxO Coin)
+genUTxOAvailableForCollateral = genMapWith genWalletUTxO genCoinPositive
   where
-    genInputId :: Gen InputId
-    genInputId = genSized2 genTxIn genAddress
+    genWalletUTxO :: Gen WalletUTxO
+    genWalletUTxO = uncurry WalletUTxO <$> genSized2 genTxIn genAddress
 
-genUTxOAvailableForInputs :: Gen (UTxOSelection InputId)
+genUTxOAvailableForInputs :: Gen (UTxOSelection WalletUTxO)
 genUTxOAvailableForInputs = frequency
     [ (49, genUTxOSelection)
     , (01, pure UTxOSelection.empty)
     ]
 
-shrinkUTxOAvailableForCollateral :: Map InputId Coin -> [Map InputId Coin]
+shrinkUTxOAvailableForCollateral
+    :: Map WalletUTxO Coin -> [Map WalletUTxO Coin]
 shrinkUTxOAvailableForCollateral =
-    shrinkMapWith shrinkInputId shrinkCoinPositive
+    shrinkMapWith shrinkWalletUTxO shrinkCoinPositive
   where
-    shrinkInputId :: InputId -> [InputId]
-    shrinkInputId = genericRoundRobinShrink
+    shrinkWalletUTxO :: WalletUTxO -> [WalletUTxO]
+    shrinkWalletUTxO = genericRoundRobinShrink
         <@> shrinkTxIn
         <:> shrinkAddress
         <:> Nil
 
-shrinkUTxOAvailableForInputs :: UTxOSelection InputId -> [UTxOSelection InputId]
+shrinkUTxOAvailableForInputs
+    :: UTxOSelection WalletUTxO -> [UTxOSelection WalletUTxO]
 shrinkUTxOAvailableForInputs = shrinkUTxOSelection
 
 --------------------------------------------------------------------------------

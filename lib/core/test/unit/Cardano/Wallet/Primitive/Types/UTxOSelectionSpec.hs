@@ -10,6 +10,8 @@ module Cardano.Wallet.Primitive.Types.UTxOSelectionSpec
 
 import Prelude
 
+import Cardano.Wallet.CoinSelection
+    ( WalletUTxO (..) )
 import Cardano.Wallet.Primitive.Types.Address
     ( Address )
 import Cardano.Wallet.Primitive.Types.Address.Gen
@@ -42,6 +44,7 @@ import Test.QuickCheck
     , Property
     , Testable
     , checkCoverage
+    , coarbitraryShow
     , conjoin
     , cover
     , forAll
@@ -55,12 +58,6 @@ import qualified Cardano.Wallet.Primitive.Types.TokenBundle as TokenBundle
 import qualified Cardano.Wallet.Primitive.Types.UTxOIndex as UTxOIndex
 import qualified Cardano.Wallet.Primitive.Types.UTxOSelection as UTxOSelection
 import qualified Data.Foldable as F
-
--- TODO: ADP-1448:
---
--- Replace this type synonym with a type parameter on types that use it.
---
-type InputId = (TxIn, Address)
 
 spec :: Spec
 spec =
@@ -168,7 +165,10 @@ prop_shrinkUTxOSelectionNonEmpty =
     conjoin (isValidSelectionNonEmpty <$> shrinkUTxOSelectionNonEmpty s)
 
 checkCoverage_UTxOSelection
-    :: Testable p => IsUTxOSelection s InputId => s InputId -> (p -> Property)
+    :: Testable p
+    => IsUTxOSelection s WalletUTxO
+    => s WalletUTxO
+    -> (p -> Property)
 checkCoverage_UTxOSelection s
     = checkCoverage_UTxOSelectionNonEmpty s
     . cover 2 (0 == ssize && ssize == lsize) "0 == lsize && lsize == ssize"
@@ -178,7 +178,10 @@ checkCoverage_UTxOSelection s
     ssize = UTxOSelection.selectedSize s
 
 checkCoverage_UTxOSelectionNonEmpty
-    :: Testable p => IsUTxOSelection s InputId => s InputId -> (p -> Property)
+    :: Testable p
+    => IsUTxOSelection s WalletUTxO
+    => s WalletUTxO
+    -> (p -> Property)
 checkCoverage_UTxOSelectionNonEmpty s
     = checkCoverage
     . cover 2 (0 == lsize && lsize <  ssize) "0 == lsize && lsize <  ssize"
@@ -194,36 +197,37 @@ checkCoverage_UTxOSelectionNonEmpty s
 -- Construction and deconstruction
 --------------------------------------------------------------------------------
 
-prop_fromIndex_isValid :: UTxOIndex InputId -> Property
+prop_fromIndex_isValid :: UTxOIndex WalletUTxO -> Property
 prop_fromIndex_isValid u =
     isValidSelection (UTxOSelection.fromIndex u)
     === True
 
 prop_fromIndexFiltered_isValid
-    :: (InputId -> Bool) -> UTxOIndex InputId -> Property
+    :: (WalletUTxO -> Bool) -> UTxOIndex WalletUTxO -> Property
 prop_fromIndexFiltered_isValid f u =
     isValidSelection (UTxOSelection.fromIndexFiltered f u)
     === True
 
-prop_fromIndexPair_isValid :: (UTxOIndex InputId, UTxOIndex InputId) -> Property
+prop_fromIndexPair_isValid
+    :: (UTxOIndex WalletUTxO, UTxOIndex WalletUTxO) -> Property
 prop_fromIndexPair_isValid (u1, u2) =
     isValidSelection (UTxOSelection.fromIndexPair (u1, u2))
     === True
 
-prop_fromIndex_toIndexPair :: UTxOIndex InputId-> Property
+prop_fromIndex_toIndexPair :: UTxOIndex WalletUTxO-> Property
 prop_fromIndex_toIndexPair u =
     UTxOSelection.toIndexPair (UTxOSelection.fromIndex u)
     === (u, UTxOIndex.empty)
 
 prop_fromIndexFiltered_toIndexPair
-    :: (InputId -> Bool)
-    -> UTxOIndex InputId
+    :: (WalletUTxO -> Bool)
+    -> UTxOIndex WalletUTxO
     -> Property
 prop_fromIndexFiltered_toIndexPair f u =
     UTxOSelection.toIndexPair (UTxOSelection.fromIndexFiltered f u)
     === (UTxOIndex.filter (not . f) u, UTxOIndex.filter f u)
 
-prop_fromIndexPair_toIndexPair :: UTxOSelection InputId -> Property
+prop_fromIndexPair_toIndexPair :: UTxOSelection WalletUTxO -> Property
 prop_fromIndexPair_toIndexPair s =
     checkCoverage_UTxOSelection s $
     UTxOSelection.fromIndexPair (UTxOSelection.toIndexPair s)
@@ -233,13 +237,13 @@ prop_fromIndexPair_toIndexPair s =
 -- Promotion and demotion
 --------------------------------------------------------------------------------
 
-prop_fromNonEmpty_toNonEmpty :: UTxOSelectionNonEmpty InputId -> Property
+prop_fromNonEmpty_toNonEmpty :: UTxOSelectionNonEmpty WalletUTxO -> Property
 prop_fromNonEmpty_toNonEmpty s =
     checkCoverage_UTxOSelectionNonEmpty s $
     UTxOSelection.toNonEmpty (UTxOSelection.fromNonEmpty s)
     === Just s
 
-prop_toNonEmpty_fromNonEmpty :: UTxOSelection InputId -> Property
+prop_toNonEmpty_fromNonEmpty :: UTxOSelection WalletUTxO -> Property
 prop_toNonEmpty_fromNonEmpty s =
     checkCoverage_UTxOSelection s $
     (UTxOSelection.fromNonEmpty <$> UTxOSelection.toNonEmpty s)
@@ -249,31 +253,31 @@ prop_toNonEmpty_fromNonEmpty s =
 -- Indicator and accessor functions
 --------------------------------------------------------------------------------
 
-prop_availableBalance_availableMap :: UTxOSelection InputId -> Property
+prop_availableBalance_availableMap :: UTxOSelection WalletUTxO -> Property
 prop_availableBalance_availableMap s =
     checkCoverage_UTxOSelection s $
     UTxOSelection.availableBalance s
     === F.fold (UTxOSelection.availableMap s)
 
-prop_isNonEmpty_selectedSize :: UTxOSelection InputId -> Property
+prop_isNonEmpty_selectedSize :: UTxOSelection WalletUTxO -> Property
 prop_isNonEmpty_selectedSize s =
     checkCoverage_UTxOSelection s $
     UTxOSelection.isNonEmpty s
     === (UTxOSelection.selectedSize s > 0)
 
-prop_isNonEmpty_selectedIndex :: UTxOSelection InputId -> Property
+prop_isNonEmpty_selectedIndex :: UTxOSelection WalletUTxO -> Property
 prop_isNonEmpty_selectedIndex s =
     checkCoverage_UTxOSelection s $
     UTxOSelection.isNonEmpty s
     === not (UTxOIndex.null (UTxOSelection.selectedIndex s))
 
-prop_isNonEmpty_selectedList :: UTxOSelection InputId -> Property
+prop_isNonEmpty_selectedList :: UTxOSelection WalletUTxO -> Property
 prop_isNonEmpty_selectedList s =
     checkCoverage_UTxOSelection s $
     UTxOSelection.isNonEmpty s
     === not (null (UTxOSelection.selectedList s))
 
-prop_leftoverBalance_selectedBalance :: UTxOSelection InputId -> Property
+prop_leftoverBalance_selectedBalance :: UTxOSelection WalletUTxO -> Property
 prop_leftoverBalance_selectedBalance s =
     checkCoverage_UTxOSelection s $
     (UTxOSelection.leftoverBalance s <> UTxOSelection.selectedBalance s)
@@ -282,7 +286,7 @@ prop_leftoverBalance_selectedBalance s =
         (UTxOIndex.balance (UTxOSelection.leftoverIndex s))
         (UTxOIndex.balance (UTxOSelection.selectedIndex s))
 
-prop_leftoverSize_selectedSize :: UTxOSelection InputId -> Property
+prop_leftoverSize_selectedSize :: UTxOSelection WalletUTxO -> Property
 prop_leftoverSize_selectedSize s =
     checkCoverage_UTxOSelection s $
     (UTxOSelection.leftoverSize s + UTxOSelection.selectedSize s)
@@ -295,23 +299,23 @@ prop_leftoverSize_selectedSize s =
 -- Modification
 --------------------------------------------------------------------------------
 
-prop_select_empty :: InputId -> Property
+prop_select_empty :: WalletUTxO -> Property
 prop_select_empty i =
     UTxOSelection.select i UTxOSelection.empty === Nothing
 
-prop_select_isValid :: InputId -> UTxOSelection InputId -> Property
+prop_select_isValid :: WalletUTxO -> UTxOSelection WalletUTxO -> Property
 prop_select_isValid i s = property $
     checkCoverage_select i s $
     maybe True isValidSelectionNonEmpty (UTxOSelection.select i s)
 
-prop_select_isLeftover :: InputId -> UTxOSelection InputId -> Property
+prop_select_isLeftover :: WalletUTxO -> UTxOSelection WalletUTxO -> Property
 prop_select_isLeftover i s =
     checkCoverage_select i s $
     (UTxOSelection.isLeftover i <$> UTxOSelection.select i s)
     ===
     if UTxOSelection.isLeftover i s then Just False else Nothing
 
-prop_select_isSelected :: InputId -> UTxOSelection InputId -> Property
+prop_select_isSelected :: WalletUTxO -> UTxOSelection WalletUTxO -> Property
 prop_select_isSelected i s =
     checkCoverage_select i s $
     (UTxOSelection.isSelected i <$> UTxOSelection.select i s)
@@ -319,14 +323,15 @@ prop_select_isSelected i s =
     if UTxOSelection.isLeftover i s then Just True else Nothing
 
 prop_select_isProperSubSelectionOf
-    :: InputId -> UTxOSelection InputId -> Property
+    :: WalletUTxO -> UTxOSelection WalletUTxO -> Property
 prop_select_isProperSubSelectionOf i s =
     checkCoverage_select i s $
     (UTxOSelection.isProperSubSelectionOf s <$> UTxOSelection.select i s)
     ===
     if UTxOSelection.isLeftover i s then Just True else Nothing
 
-prop_select_availableBalance :: InputId -> UTxOSelection InputId -> Property
+prop_select_availableBalance
+    :: WalletUTxO -> UTxOSelection WalletUTxO -> Property
 prop_select_availableBalance i s =
     checkCoverage_select i s $
     (UTxOSelection.availableBalance <$> UTxOSelection.select i s)
@@ -335,7 +340,7 @@ prop_select_availableBalance i s =
     then Just (UTxOSelection.availableBalance s)
     else Nothing
 
-prop_select_availableMap :: InputId -> UTxOSelection InputId -> Property
+prop_select_availableMap :: WalletUTxO -> UTxOSelection WalletUTxO -> Property
 prop_select_availableMap i s =
     checkCoverage_select i s $
     (UTxOSelection.availableMap <$> UTxOSelection.select i s)
@@ -344,7 +349,7 @@ prop_select_availableMap i s =
     then Just (UTxOSelection.availableMap s)
     else Nothing
 
-prop_select_leftoverSize :: InputId -> UTxOSelection InputId -> Property
+prop_select_leftoverSize :: WalletUTxO -> UTxOSelection WalletUTxO -> Property
 prop_select_leftoverSize i s =
     checkCoverage_select i s $
     (UTxOSelection.leftoverSize <$> UTxOSelection.select i s)
@@ -353,7 +358,7 @@ prop_select_leftoverSize i s =
     then Just (UTxOSelection.leftoverSize s - 1)
     else Nothing
 
-prop_select_selectedSize :: InputId -> UTxOSelection InputId -> Property
+prop_select_selectedSize :: WalletUTxO -> UTxOSelection WalletUTxO -> Property
 prop_select_selectedSize i s =
     checkCoverage_select i s $
     (UTxOSelection.selectedSize <$> UTxOSelection.select i s)
@@ -363,7 +368,7 @@ prop_select_selectedSize i s =
     else Nothing
 
 prop_selectMany_isSubSelectionOf
-    :: (InputId -> Bool) -> UTxOSelection InputId -> Property
+    :: (WalletUTxO -> Bool) -> UTxOSelection WalletUTxO -> Property
 prop_selectMany_isSubSelectionOf f s =
     checkCoverage_UTxOSelection s $
     UTxOSelection.isSubSelectionOf s (UTxOSelection.selectMany toSelect s)
@@ -371,14 +376,14 @@ prop_selectMany_isSubSelectionOf f s =
   where
     toSelect = filter f $ fst <$> UTxOSelection.leftoverList s
 
-prop_selectMany_leftoverSize_all :: UTxOSelection InputId -> Property
+prop_selectMany_leftoverSize_all :: UTxOSelection WalletUTxO -> Property
 prop_selectMany_leftoverSize_all s =
     checkCoverage_UTxOSelection s $
     UTxOSelection.leftoverSize
         (UTxOSelection.selectMany (fst <$> UTxOSelection.leftoverList s) s)
     === 0
 
-prop_selectMany_selectedSize_all :: UTxOSelection InputId -> Property
+prop_selectMany_selectedSize_all :: UTxOSelection WalletUTxO -> Property
 prop_selectMany_selectedSize_all s =
     checkCoverage_UTxOSelection s $
     UTxOSelection.selectedSize
@@ -386,7 +391,10 @@ prop_selectMany_selectedSize_all s =
     === (UTxOSelection.leftoverSize s + UTxOSelection.selectedSize s)
 
 checkCoverage_select
-    :: Testable prop => InputId -> UTxOSelection InputId -> (prop -> Property)
+    :: Testable prop
+    => WalletUTxO
+    -> UTxOSelection WalletUTxO
+    -> (prop -> Property)
 checkCoverage_select i s
     = checkCoverage
     . cover 10 (UTxOSelection.isLeftover i s)
@@ -400,12 +408,12 @@ checkCoverage_select i s
 -- Validity
 --------------------------------------------------------------------------------
 
-isValidSelection :: IsUTxOSelection s InputId => s InputId -> Bool
+isValidSelection :: IsUTxOSelection s WalletUTxO => s WalletUTxO -> Bool
 isValidSelection s = UTxOIndex.disjoint
     (UTxOSelection.selectedIndex s)
     (UTxOSelection.leftoverIndex s)
 
-isValidSelectionNonEmpty :: UTxOSelectionNonEmpty InputId -> Bool
+isValidSelectionNonEmpty :: UTxOSelectionNonEmpty WalletUTxO -> Bool
 isValidSelectionNonEmpty s =
     isValidSelection s
     && UTxOSelection.isNonEmpty s
@@ -422,22 +430,22 @@ isValidSelectionNonEmpty s =
 -- Replace this instance with one for a mock input identifier, after the type
 -- of input identifier has been made into a type parameter.
 --
-instance {-# OVERLAPPING #-} Arbitrary InputId where
-    arbitrary = genSized2 genTxIn genAddress
+instance Arbitrary WalletUTxO where
+    arbitrary = uncurry WalletUTxO <$> genSized2 genTxIn genAddress
     shrink = genericRoundRobinShrink
         <@> shrinkTxIn
         <:> shrinkAddress
         <:> Nil
 
-instance Arbitrary (UTxOIndex InputId) where
+instance Arbitrary (UTxOIndex WalletUTxO) where
     arbitrary = genUTxOIndex
     shrink = shrinkUTxOIndex
 
-instance Arbitrary (UTxOSelection InputId) where
+instance Arbitrary (UTxOSelection WalletUTxO) where
     arbitrary = genUTxOSelection
     shrink = shrinkUTxOSelection
 
-instance Arbitrary (UTxOSelectionNonEmpty InputId) where
+instance Arbitrary (UTxOSelectionNonEmpty WalletUTxO) where
     arbitrary = genUTxOSelectionNonEmpty
     shrink = shrinkUTxOSelectionNonEmpty
 
@@ -451,9 +459,12 @@ instance CoArbitrary Address where
 instance CoArbitrary TxIn where
     coarbitrary = coarbitraryTxIn
 
+instance CoArbitrary WalletUTxO where
+    coarbitrary = coarbitraryShow
+
 --------------------------------------------------------------------------------
 -- Show instances
 --------------------------------------------------------------------------------
 
-instance Show (InputId -> Bool) where
-    show = const "(InputId -> Bool)"
+instance Show (WalletUTxO -> Bool) where
+    show = const "(WalletUTxO -> Bool)"
