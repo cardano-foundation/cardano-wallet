@@ -2949,8 +2949,8 @@ estimateSignedTxSizeSpec =
                 -- 'mockProtocolParametersForBalancing' is not valid for
                 -- 'ShelleyEra'.
                 let pparams = (snd mockProtocolParametersForBalancing)
-                            { Cardano.protocolParamMinUTxOValue = Just 1_000_000
-                            }
+                        { Cardano.protocolParamMinUTxOValue = Just 1_000_000
+                        }
                 estimateSignedTransactionSize testTxLayer pparams tx
                     `shouldBe`
                     Just (TxSize $ fromIntegral $ BS.length bs)
@@ -3044,8 +3044,6 @@ signedTxGoldens =
 
     , txWithInputsOutputsAndWits
     ]
-
-
 readTestTransactions :: SpecM a [(FilePath, SealedTx)]
 readTestTransactions = runIO $ do
     let dir = $(getTestData) </> "plutus"

@@ -935,7 +935,7 @@ _estimateSignedTransactionSize pparams body =
                     , "(the fee contribution"
                     , "of"
                     , show nWits
-                    , "witesses),"
+                    , "witnesses),"
                     , "with"
                     , show perByte
                     , "lovelace/byte"
@@ -949,14 +949,10 @@ _estimateSignedTransactionSize pparams body =
         sizeOfTx <> sizeOfWits
   where
     minfee nWits = Coin.toNatural $ fromCardanoLovelace $
-            Cardano.evaluateTransactionFee
-                pparams
-                body
-                nWits
-                0
+        Cardano.evaluateTransactionFee pparams body nWits 0
     perByte = view #protocolParamTxFeePerByte pparams
 
--- | Estimate number of shelley era witnesses
+-- | Estimates the required number of Shelley-era witnesses.
 --
 -- NOTE: Assuming one witness per certificate is wrong. KeyReg certs don't
 -- require witnesses, and several certs may share the same key.
@@ -974,7 +970,7 @@ estimateNumberOfWitnesses (Cardano.TxBody txbodycontent) =
         txIns'' = case txInsCollateral of
             Cardano.TxInsCollateral _ collaterals -> collaterals
             _ -> []
-        txInsUnique =  L.nub $ txIns' ++ txIns''
+        txInsUnique = L.nub $ txIns' ++ txIns''
         txExtraKeyWits = Cardano.txExtraKeyWits txbodycontent
         txExtraKeyWits' = case txExtraKeyWits of
             Cardano.TxExtraKeyWitnesses _ khs -> khs

@@ -206,7 +206,7 @@ appendFailureReason message = wrap
     addMessageTo :: FailureReason -> FailureReason
     addMessageTo (Reason reason) = Reason $ addMessage reason
     addMessageTo (ExpectedButGot preface expected actual) =
-      ExpectedButGot (Just $ maybe message addMessage preface)  expected actual
+        ExpectedButGot (Just $ maybe message addMessage preface) expected actual
 
     addMessage = (++ "\n" ++ message)
 
