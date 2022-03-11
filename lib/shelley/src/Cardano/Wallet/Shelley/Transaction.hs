@@ -954,8 +954,15 @@ _estimateSignedTxSize pparams body =
 
 -- | Estimates the required number of Shelley-era witnesses.
 --
--- NOTE: Assuming one witness per certificate is wrong. KeyReg certs don't
--- require witnesses, and several certs may share the same key.
+-- Because we don't take into account whether two pieces of tx content will need
+-- the same key for signing, the result may be an overestimate.
+--
+-- For instance, this may happen if:
+-- 1. Multiple inputs share the same payment key (like in a single address
+-- wallet)
+-- 2. We are updating our delegation and withdrawing rewards at the same time.
+--
+-- FIXME [ADP-1515] Improve estimation
 --
 -- NOTE: Similar to 'estimateTransactionKeyWitnessCount' from cardano-api, which
 -- we cannot use because it requires a 'TxBodyContent BuildTx era'.
@@ -988,6 +995,8 @@ estimateNumberOfWitnesses (Cardano.TxBody txbodycontent) =
         txCerts = case Cardano.txCertificates txbodycontent of
             Cardano.TxCertificatesNone -> 0
             Cardano.TxCertificates _ certs _ -> length certs
+            -- FIXME [ADP-1515] Not all certificates require witnesses. Will
+            -- over-estimate unnecessarily.
     in fromIntegral $
        length txInsUnique +
        length txExtraKeyWits' +
