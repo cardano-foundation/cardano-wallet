@@ -14,7 +14,7 @@ module Cardano.Wallet.CoinSelection.Internal.Balance.Gen
 import Prelude
 
 import Cardano.Wallet.CoinSelection
-    ( WalletSelectionContext )
+    ( WalletAddress (..), WalletSelectionContext )
 import Cardano.Wallet.CoinSelection.Internal.Balance
     ( SelectionLimit
     , SelectionLimitOf (..)
@@ -83,7 +83,7 @@ genSelectionSkeleton = SelectionSkeleton
     genSkeletonOutputs =
         listOf genSkeletonOutput
     genSkeletonOutput = (,)
-        <$> genAddress
+        <$> (WalletAddress <$> genAddress)
         <*> genTokenBundleSmallRange `suchThat` tokenBundleHasNonZeroCoin
     genSkeletonChange =
         listOf (Set.fromList <$> listOf genAssetId)
@@ -103,7 +103,7 @@ shrinkSelectionSkeleton = genericRoundRobinShrink
         shrinkList shrinkSkeletonOutput
     shrinkSkeletonOutput =
         genericRoundRobinShrink
-            <@> shrinkAddress
+            <@> shrinkMapBy WalletAddress unWalletAddress shrinkAddress
             <:> filter tokenBundleHasNonZeroCoin . shrinkTokenBundleSmallRange
             <:> Nil
     shrinkSkeletonChange =
