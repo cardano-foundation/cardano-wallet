@@ -216,6 +216,8 @@ import Data.Word
     ( Word16, Word64, Word8 )
 import GHC.Generics
     ( Generic )
+import Numeric.Natural
+    ( Natural )
 import Ouroboros.Network.Block
     ( SlotNo )
 
@@ -924,24 +926,22 @@ _estimateSignedTxSize pparams body =
 
         -- Hack which allows us to rely on the ledger to calculate the size of
         -- witnesses:
-        feeOfWits :: Word -> Coin
+        feeOfWits :: Natural
         feeOfWits = minfee nWits - minfee 0
 
         sizeOfWits :: TxSize
         sizeOfWits =
-            case feeOfWits `quotRem` perByte of
+            case feeOfWits `quotRem` feePerByte of
                 (n, 0) -> TxSize n
                 (_, _) -> error $ unwords
                     [ "evaluateTransactionSize:"
-                    , "couldn't divide"
+                    , "the impossible happened!"
+                    , "Couldn't divide"
                     , show feeOfWits
-                    , "lovelace"
-                    , "(the fee contribution"
-                    , "of"
+                    , "lovelace (the fee contribution of"
                     , show nWits
-                    , "witnesses),"
-                    , "with"
-                    , show perByte
+                    , "witnesses) with"
+                    , show feePerByte
                     , "lovelace/byte"
                     ]
         sizeOfTx :: TxSize
@@ -955,7 +955,9 @@ _estimateSignedTxSize pparams body =
   where
     minfee nWits = Coin.toNatural $ fromCardanoLovelace $
         Cardano.evaluateTransactionFee pparams body nWits 0
-    perByte = view #protocolParamTxFeePerByte pparams
+
+    feePerByte :: Natural
+    feePerByte = view #protocolParamTxFeePerByte pparams
 
 -- | Estimates the required number of Shelley-era witnesses.
 --
