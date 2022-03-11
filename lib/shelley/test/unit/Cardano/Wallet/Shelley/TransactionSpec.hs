@@ -2951,7 +2951,7 @@ estimateSignedTxSizeSpec =
                 let pparams = (snd mockProtocolParametersForBalancing)
                         { Cardano.protocolParamMinUTxOValue = Just 1_000_000
                         }
-                estimateSignedTransactionSize testTxLayer pparams tx
+                estimateSignedTxSize testTxLayer pparams tx
                     `shouldBe`
                     Just (TxSize $ fromIntegral $ BS.length bs)
   where

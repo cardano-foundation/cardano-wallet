@@ -191,7 +191,7 @@ data TransactionLayer k tx = TransactionLayer
         --
         -- Returns `Nothing` for ByronEra transactions.
 
-    , estimateSignedTransactionSize
+    , estimateSignedTxSize
         :: Node.ProtocolParameters
         -> tx
         -> Maybe TxSize

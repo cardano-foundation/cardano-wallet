@@ -541,10 +541,10 @@ newTransactionLayer networkId = TransactionLayer
                     constructUnsignedTx networkId payload ttl rewardAcct wdrl
                         selection delta
 
-    , estimateSignedTransactionSize = \pp tx -> do
+    , estimateSignedTxSize = \pp tx -> do
         anyShelleyTx <- inAnyShelleyBasedEra (cardanoTx tx)
         pure $ withShelleyBasedBody anyShelleyTx $ \_era body ->
-            _estimateSignedTransactionSize pp body
+            _estimateSignedTxSize pp body
 
     , calcMinimumCost = \pp ctx skeleton ->
         estimateTxCost pp (mkTxSkeleton (txWitnessTagFor @k) ctx skeleton)
@@ -912,12 +912,12 @@ _evaluateMinimumFee pp tx = do
                 0
 
 -- | Estimate the size of the transaction (body) when fully signed.
-_estimateSignedTransactionSize
+_estimateSignedTxSize
     :: Cardano.IsShelleyBasedEra era
     => Cardano.ProtocolParameters
     -> Cardano.TxBody era
     -> TxSize
-_estimateSignedTransactionSize pparams body =
+_estimateSignedTxSize pparams body =
     let
         nWits = estimateNumberOfWitnesses body
 
