@@ -41,7 +41,7 @@ import Algebra.PartialOrd
 import Cardano.Numeric.Util
     ( inAscendingPartialOrder )
 import Cardano.Wallet.CoinSelection
-    ( WalletAddress (..), WalletSelectionContext, WalletUTxO (..) )
+    ( WalletSelectionContext, WalletUTxO (..) )
 import Cardano.Wallet.CoinSelection.Internal.Balance
     ( AssetCount (..)
     , BalanceInsufficientError (..)
@@ -617,7 +617,7 @@ genSelectionParams genPreselectedInputs genUTxOIndex' = do
         [0, 1, max 2 $ UTxOIndex.size utxoAvailable `div` 8]
     outputsToCover <-
         replicateM outputCount
-            (((WalletAddress . view #address) &&& view #tokens) <$> genTxOut)
+            (((view #address) &&& view #tokens) <$> genTxOut)
     extraCoinSource <-
         oneof [pure $ Coin 0, genCoinPositive]
     extraCoinSink <-
@@ -663,7 +663,7 @@ shrinkSelectionParams = genericRoundRobinShrink
     <:> Nil
   where
     shrinkOutput = genericRoundRobinShrink
-        <@> shrinkMapBy WalletAddress unWalletAddress shrinkAddress
+        <@> shrinkAddress
         <:> (filter tokenBundleHasNonZeroCoin . shrinkTokenBundleSmallRange)
         <:> Nil
       where
@@ -1850,7 +1850,7 @@ encodeBoundaryTestCriteria
 encodeBoundaryTestCriteria c = SelectionParams
     { outputsToCover =
         zip
-            (WalletAddress <$> dummyAddresses)
+            dummyAddresses
             (uncurry TokenBundle.fromFlatList <$> boundaryTestOutputs c)
     , utxoAvailable =
         UTxOSelection.fromIndex
@@ -2580,7 +2580,7 @@ shrinkMockComputeSelectionLimit = \case
 
 unMockComputeSelectionLimit
     :: MockComputeSelectionLimit
-    -> ([(WalletAddress, TokenBundle)] -> SelectionLimit)
+    -> ([(Address, TokenBundle)] -> SelectionLimit)
 unMockComputeSelectionLimit = \case
     MockComputeSelectionLimitNone ->
         const NoLimit

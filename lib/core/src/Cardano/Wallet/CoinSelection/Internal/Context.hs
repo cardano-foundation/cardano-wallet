@@ -12,14 +12,13 @@ module Cardano.Wallet.CoinSelection.Internal.Context
     (
     -- * Selection contexts
       SelectionContext (..)
-
-    -- * Dummy values
-    , Dummy (..)
     )
     where
 
 import Prelude
 
+import Data.Proxy
+    ( Proxy (..) )
 import Fmt
     ( Buildable )
 
@@ -28,7 +27,6 @@ import Fmt
 class
     ( Buildable (Address c)
     , Buildable (UTxO c)
-    , Dummy (Address c)
     , Ord (Address c)
     , Ord (UTxO c)
     , Show (Address c)
@@ -43,8 +41,4 @@ class
     -- | A unique identifier for an individual UTxO.
     type UTxO c
 
--- | Provides a dummy value for a given type.
-
-class Dummy d where
-    -- | Returns a dummy value.
-    dummy :: d
+    dummyAddress :: Proxy c -> Address c

@@ -77,7 +77,7 @@ import Cardano.Wallet.CoinSelection.Internal.Balance
     , SelectionStrategy (..)
     )
 import Cardano.Wallet.CoinSelection.Internal.Context
-    ( Dummy (..), SelectionContext (..) )
+    ( SelectionContext (..) )
 import Cardano.Wallet.Primitive.Types.Coin
     ( Coin (..) )
 import Cardano.Wallet.Primitive.Types.TokenBundle
@@ -112,6 +112,8 @@ import Data.Map.Strict
     ( Map )
 import Data.Maybe
     ( mapMaybe )
+import Data.Proxy
+    ( Proxy (..) )
 import Data.Ratio
     ( (%) )
 import Data.Semigroup
@@ -380,7 +382,7 @@ selectionAllOutputs
     -> [(Address ctx, TokenBundle)]
 selectionAllOutputs selection = (<>)
     (selection ^. #outputs)
-    (selection ^. #change <&> (dummy @(Address ctx), ))
+    (selection ^. #change <&> (dummyAddress (Proxy @ctx), ))
 
 -- | Creates constraints and parameters for 'Balance.performSelection'.
 --

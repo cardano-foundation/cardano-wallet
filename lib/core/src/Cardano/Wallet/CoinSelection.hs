@@ -1,7 +1,6 @@
 {-# LANGUAGE DeriveGeneric #-}
 {-# LANGUAGE DuplicateRecordFields #-}
 {-# LANGUAGE FlexibleInstances #-}
-{-# LANGUAGE GeneralizedNewtypeDeriving #-}
 {-# LANGUAGE OverloadedLabels #-}
 {-# LANGUAGE RecordWildCards #-}
 {-# LANGUAGE ScopedTypeVariables #-}
@@ -27,7 +26,6 @@ module Cardano.Wallet.CoinSelection
     (
     -- * Selection contexts
       WalletSelectionContext
-    , WalletAddress (..)
     , WalletUTxO (..)
 
     -- * Mapping between external (wallet) types and internal types
@@ -112,8 +110,6 @@ import Control.Monad.Random.Class
     ( MonadRandom (..) )
 import Control.Monad.Trans.Except
     ( ExceptT (..) )
-import Data.Bifunctor
-    ( first )
 import Data.Generics.Internal.VL.Lens
     ( over, view )
 import Data.List.NonEmpty
@@ -149,19 +145,10 @@ import qualified Data.Set as Set
 data WalletSelectionContext
 
 instance SC.SelectionContext WalletSelectionContext where
-    type Address WalletSelectionContext = WalletAddress
+    type Address WalletSelectionContext = Address
     type UTxO WalletSelectionContext = WalletUTxO
 
---------------------------------------------------------------------------------
--- Mapping between external (wallet) and internal addresses
---------------------------------------------------------------------------------
-
-newtype WalletAddress = WalletAddress
-    { unWalletAddress :: Address }
-    deriving (Buildable, Eq, Generic, Ord, Show)
-
-instance SC.Dummy WalletAddress where
-    dummy = WalletAddress $ Address ""
+    dummyAddress _ = Address ""
 
 --------------------------------------------------------------------------------
 -- Mapping between external (wallet) and internal UTxO identifiers
@@ -256,7 +243,7 @@ toInternalSelectionConstraints SelectionConstraints {..} =
         { computeMinimumCost =
             computeMinimumCost . toExternalSelectionSkeleton
         , computeSelectionLimit =
-            computeSelectionLimit . fmap (uncurry TxOut . first unWalletAddress)
+            computeSelectionLimit . fmap (uncurry TxOut)
         , ..
         }
 
@@ -322,7 +309,7 @@ toInternalSelectionParams SelectionParams {..} =
         { utxoAvailableForCollateral =
             Map.mapMaybeWithKey identifyCollateral utxoAvailableForCollateral
         , outputsToCover =
-            ((WalletAddress . view #address) &&& view #tokens)
+            ((view #address) &&& view #tokens)
                 <$> outputsToCover
         , ..
         }
@@ -369,7 +356,7 @@ toExternalSelectionSkeleton
 toExternalSelectionSkeleton Internal.SelectionSkeleton {..} =
     SelectionSkeleton
         { skeletonOutputs =
-            uncurry TxOut . first unWalletAddress <$> skeletonOutputs
+            uncurry TxOut <$> skeletonOutputs
         , ..
         }
 
@@ -422,7 +409,7 @@ toExternalSelection _ps Internal.Selection {..} =
         , inputs =
             toExternalUTxO <$> inputs
         , outputs =
-            uncurry TxOut . first unWalletAddress <$> outputs
+            uncurry TxOut <$> outputs
         , ..
         }
 
@@ -438,7 +425,7 @@ toInternalSelection getChangeBundle Selection {..} =
             toInternalUTxO' TokenBundle.getCoin <$> collateral
         , inputs =
             toInternalUTxO <$> inputs
-        , outputs = ((WalletAddress . view #address) &&& view #tokens)
+        , outputs = ((view #address) &&& view #tokens)
             <$> outputs
         , ..
         }

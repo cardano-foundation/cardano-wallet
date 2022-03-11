@@ -129,7 +129,7 @@ import Algebra.PartialOrd
 import Cardano.Numeric.Util
     ( padCoalesce )
 import Cardano.Wallet.CoinSelection.Internal.Context
-    ( Dummy (..), SelectionContext (..) )
+    ( SelectionContext (..) )
 import Cardano.Wallet.Primitive.Types.Coin
     ( Coin (..) )
 import Cardano.Wallet.Primitive.Types.TokenBundle
@@ -174,6 +174,8 @@ import Data.Maybe
     ( fromMaybe )
 import Data.Ord
     ( comparing )
+import Data.Proxy
+    ( Proxy (..) )
 import Data.Semigroup
     ( mtimesDefault )
 import Data.Set
@@ -845,7 +847,7 @@ performSelectionEmpty performSelectionFn constraints params =
     transform x y = maybe x y $ NE.nonEmpty $ view #outputsToCover params
 
     dummyOutput :: (Address ctx, TokenBundle)
-    dummyOutput = (dummy, TokenBundle.fromCoin minCoin)
+    dummyOutput = (dummyAddress (Proxy @ctx), TokenBundle.fromCoin minCoin)
 
     -- The 'performSelectionNonEmpty' function imposes a precondition that all
     -- outputs must have at least the minimum ada quantity. Therefore, the

@@ -17,7 +17,7 @@ module Cardano.Wallet.CoinSelection.InternalSpec
 import Prelude
 
 import Cardano.Wallet.CoinSelection
-    ( WalletAddress (..), WalletSelectionContext, WalletUTxO (..) )
+    ( WalletSelectionContext, WalletUTxO (..) )
 import Cardano.Wallet.CoinSelection.Internal
     ( ComputeMinimumCollateralParams (..)
     , Selection
@@ -130,7 +130,6 @@ import Test.QuickCheck
     , scale
     , shrink
     , shrinkList
-    , shrinkMapBy
     , suchThat
     , vectorOf
     , (===)
@@ -413,11 +412,11 @@ prop_toBalanceConstraintsParams_computeSelectionLimit mockConstraints params =
     maximumCollateralInputCount = constraints ^. #maximumCollateralInputCount
 
     computeSelectionLimitOriginal
-        :: [(WalletAddress, TokenBundle)] -> SelectionLimit
+        :: [(Address, TokenBundle)] -> SelectionLimit
     computeSelectionLimitOriginal = constraints ^. #computeSelectionLimit
 
     computeSelectionLimitAdjusted
-        :: [(WalletAddress, TokenBundle)] -> SelectionLimit
+        :: [(Address, TokenBundle)] -> SelectionLimit
     computeSelectionLimitAdjusted =
         toBalanceConstraintsParams (constraints, params)
             & fst & view #computeSelectionLimit
@@ -697,24 +696,24 @@ shrinkExtraCoinOut = shrinkCoin
 -- Outputs to cover
 --------------------------------------------------------------------------------
 
-genOutputsToCover :: Gen [(WalletAddress, TokenBundle)]
+genOutputsToCover :: Gen [(Address, TokenBundle)]
 genOutputsToCover = do
     count <- choose (1, 4)
     vectorOf count genOutputToCover
   where
-    genOutputToCover :: Gen (WalletAddress, TokenBundle)
+    genOutputToCover :: Gen (Address, TokenBundle)
     genOutputToCover = frequency
         [ (49, scale (`mod` 8) genOutput)
         , (01, genOutputWith genTokenQuantityThatMayExceedLimit)
         ]
       where
         genOutput = (,)
-            <$> (WalletAddress <$> genAddress)
+            <$> genAddress
             <*> genTokenBundleSmallRange `suchThat` tokenBundleHasNonZeroCoin
 
-    genOutputWith :: Gen TokenQuantity -> Gen (WalletAddress, TokenBundle)
+    genOutputWith :: Gen TokenQuantity -> Gen (Address, TokenBundle)
     genOutputWith genTokenQuantityFn = (,)
-        <$> (WalletAddress <$> genAddress)
+        <$> genAddress
         <*> genTokenBundleWith genTokenQuantityFn
 
     genTokenBundleWith :: Gen TokenQuantity -> Gen TokenBundle
@@ -745,12 +744,12 @@ genOutputsToCover = do
         limit = unTokenQuantity txOutMaxTokenQuantity
 
 shrinkOutputsToCover
-    :: [(WalletAddress, TokenBundle)]
-    -> [[(WalletAddress, TokenBundle)]]
+    :: [(Address, TokenBundle)]
+    -> [[(Address, TokenBundle)]]
 shrinkOutputsToCover = shrinkList shrinkOutput
   where
     shrinkOutput = genericRoundRobinShrink
-        <@> shrinkMapBy WalletAddress unWalletAddress shrinkAddress
+        <@> shrinkAddress
         <:> (filter tokenBundleHasNonZeroCoin . shrinkTokenBundleSmallRange)
         <:> Nil
 
