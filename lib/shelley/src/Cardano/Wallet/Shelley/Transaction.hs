@@ -919,11 +919,15 @@ _estimateSignedTxSize
     -> TxSize
 _estimateSignedTxSize pparams body =
     let
+        nWits :: Word
         nWits = estimateNumberOfWitnesses body
 
         -- Hack which allows us to rely on the ledger to calculate the size of
         -- witnesses:
+        feeOfWits :: Word -> Coin
         feeOfWits = minfee nWits - minfee 0
+
+        sizeOfWits :: TxSize
         sizeOfWits =
             case feeOfWits `quotRem` perByte of
                 (n, 0) -> TxSize n
@@ -940,6 +944,7 @@ _estimateSignedTxSize pparams body =
                     , show perByte
                     , "lovelace/byte"
                     ]
+        sizeOfTx :: TxSize
         sizeOfTx = TxSize
             . fromIntegral
             . BS.length
