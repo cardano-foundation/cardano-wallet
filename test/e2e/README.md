@@ -146,6 +146,14 @@ it "Wallet can show utxo distribution" do
 end
 ```
 
+### Running tests from GH actions workflow
+All tests are scheduled to be executed on nightly basis against latest `master` version
+of cardano-wallet.
+
+It is also possible to trigger each workflow manually from [GH actions](https://github.com/input-output-hk/cardano-wallet/actions). In particular workflows can be executed against the binaries of particular PR.
+
+<img src="../../.github/images/e2e-workflow-form.png"/>
+
 ## Documentation
 
 Cardano-wallet-rb repository: https://github.com/piotr-iohk/cardano-wallet-rb.
