@@ -309,8 +309,7 @@ toInternalSelectionParams SelectionParams {..} =
         { utxoAvailableForCollateral =
             Map.mapMaybeWithKey identifyCollateral utxoAvailableForCollateral
         , outputsToCover =
-            ((view #address) &&& view #tokens)
-                <$> outputsToCover
+            (view #address &&& view #tokens) <$> outputsToCover
         , ..
         }
   where
@@ -404,12 +403,12 @@ toExternalSelection
     :: SelectionParams -> Internal.Selection WalletSelectionContext -> Selection
 toExternalSelection _ps Internal.Selection {..} =
     Selection
-        { collateral =
-            toExternalUTxO' TokenBundle.fromCoin <$> collateral
-        , inputs =
-            toExternalUTxO <$> inputs
-        , outputs =
-            uncurry TxOut <$> outputs
+        { collateral = toExternalUTxO' TokenBundle.fromCoin
+            <$> collateral
+        , inputs = toExternalUTxO
+            <$> inputs
+        , outputs = uncurry TxOut
+            <$> outputs
         , ..
         }
 
@@ -421,11 +420,11 @@ toInternalSelection getChangeBundle Selection {..} =
     Internal.Selection
         { change = getChangeBundle
             <$> change
-        , collateral =
-            toInternalUTxO' TokenBundle.getCoin <$> collateral
-        , inputs =
-            toInternalUTxO <$> inputs
-        , outputs = ((view #address) &&& view #tokens)
+        , collateral = toInternalUTxO' TokenBundle.getCoin
+            <$> collateral
+        , inputs = toInternalUTxO
+            <$> inputs
+        , outputs = (view #address &&& view #tokens)
             <$> outputs
         , ..
         }

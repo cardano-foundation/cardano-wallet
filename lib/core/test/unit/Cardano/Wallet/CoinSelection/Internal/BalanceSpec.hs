@@ -617,7 +617,7 @@ genSelectionParams genPreselectedInputs genUTxOIndex' = do
         [0, 1, max 2 $ UTxOIndex.size utxoAvailable `div` 8]
     outputsToCover <-
         replicateM outputCount
-            (((view #address) &&& view #tokens) <$> genTxOut)
+            ((view #address &&& view #tokens) <$> genTxOut)
     extraCoinSource <-
         oneof [pure $ Coin 0, genCoinPositive]
     extraCoinSink <-
