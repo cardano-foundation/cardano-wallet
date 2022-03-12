@@ -1,3 +1,4 @@
+{-# LANGUAGE AllowAmbiguousTypes #-}
 {-# LANGUAGE FlexibleContexts #-}
 {-# LANGUAGE TypeFamilies #-}
 
@@ -17,8 +18,6 @@ module Cardano.Wallet.CoinSelection.Internal.Context
 
 import Prelude
 
-import Data.Proxy
-    ( Proxy (..) )
 import Fmt
     ( Buildable )
 
@@ -42,4 +41,4 @@ class
     type UTxO c
 
     -- | Generates a dummy address value.
-    dummyAddress :: Proxy c -> Address c
+    dummyAddress :: Address c

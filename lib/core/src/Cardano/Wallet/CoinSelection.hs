@@ -148,7 +148,7 @@ instance SC.SelectionContext WalletSelectionContext where
     type Address WalletSelectionContext = Address
     type UTxO WalletSelectionContext = WalletUTxO
 
-    dummyAddress _ = Address ""
+    dummyAddress = Address ""
 
 --------------------------------------------------------------------------------
 -- Mapping between external (wallet) and internal UTxO identifiers

@@ -112,8 +112,6 @@ import Data.Map.Strict
     ( Map )
 import Data.Maybe
     ( mapMaybe )
-import Data.Proxy
-    ( Proxy (..) )
 import Data.Ratio
     ( (%) )
 import Data.Semigroup
@@ -382,7 +380,7 @@ selectionAllOutputs
     -> [(Address ctx, TokenBundle)]
 selectionAllOutputs selection = (<>)
     (selection ^. #outputs)
-    (selection ^. #change <&> (dummyAddress (Proxy @ctx), ))
+    (selection ^. #change <&> (dummyAddress @ctx, ))
 
 -- | Creates constraints and parameters for 'Balance.performSelection'.
 --

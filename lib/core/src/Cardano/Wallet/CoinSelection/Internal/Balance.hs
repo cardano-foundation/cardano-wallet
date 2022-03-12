@@ -174,8 +174,6 @@ import Data.Maybe
     ( fromMaybe )
 import Data.Ord
     ( comparing )
-import Data.Proxy
-    ( Proxy (..) )
 import Data.Semigroup
     ( mtimesDefault )
 import Data.Set
@@ -847,7 +845,7 @@ performSelectionEmpty performSelectionFn constraints params =
     transform x y = maybe x y $ NE.nonEmpty $ view #outputsToCover params
 
     dummyOutput :: (Address ctx, TokenBundle)
-    dummyOutput = (dummyAddress (Proxy @ctx), TokenBundle.fromCoin minCoin)
+    dummyOutput = (dummyAddress @ctx, TokenBundle.fromCoin minCoin)
 
     -- The 'performSelectionNonEmpty' function imposes a precondition that all
     -- outputs must have at least the minimum ada quantity. Therefore, the
