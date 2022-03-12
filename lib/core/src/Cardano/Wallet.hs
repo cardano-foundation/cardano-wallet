@@ -233,6 +233,8 @@ import Cardano.Wallet.CoinSelection
     , SelectionSkeleton (..)
     , SelectionStrategy (..)
     , UnableToConstructChangeError (..)
+    , WalletSelectionContext
+    , WalletUTxO (..)
     , emptySkeleton
     , makeSelectionReportDetailed
     , makeSelectionReportSummarized
@@ -561,6 +563,7 @@ import UnliftIO.MVar
 
 import qualified Cardano.Api.Shelley as Cardano
 import qualified Cardano.Crypto.Wallet as CC
+import qualified Cardano.Wallet.CoinSelection as CS
 import qualified Cardano.Wallet.Primitive.AddressDiscovery.Random as Rnd
 import qualified Cardano.Wallet.Primitive.AddressDiscovery.Sequential as Seq
 import qualified Cardano.Wallet.Primitive.AddressDiscovery.Shared as Shared
@@ -1469,7 +1472,7 @@ balanceTransaction
     -> ArgGenChange s
     -> (W.ProtocolParameters, Cardano.ProtocolParameters)
     -> TimeInterpreter (Either PastHorizonException)
-    -> (UTxOIndex InputId, Wallet s, Set Tx)
+    -> (UTxOIndex WalletUTxO, Wallet s, Set Tx)
     -> PartialTx
     -> ExceptT ErrBalanceTx m SealedTx
 balanceTransaction
@@ -1490,7 +1493,8 @@ balanceTransaction
 
     (delta, extraInputs, extraCollateral, extraOutputs) <- do
         let externalSelectedUtxo = UTxOIndex.fromSequence $
-                map (\(i, TxOut a b,_datumHash) -> ((i, a), b)) externalInputs
+                map (\(i, TxOut a b,_datumHash) -> (WalletUTxO i a, b))
+                externalInputs
 
         let utxoAvailableForInputs = UTxOSelection.fromIndexPair
                 (internalUtxoAvailable, externalSelectedUtxo)
@@ -1608,7 +1612,7 @@ balanceTransaction
             Just x -> pure x
             Nothing -> throwE $ ErrBalanceTxUpdateError ErrByronTxNotSupported
       where
-        utxo = inputMapToUTxO $ UTxOIndex.toMap internalUtxoAvailable
+        utxo = CS.toExternalUTxOMap $ UTxOIndex.toMap internalUtxoAvailable
 
     assembleTransaction
         :: TxUpdate
@@ -1883,10 +1887,11 @@ readWalletUTxOIndex
     :: forall ctx s k. HasDBLayer IO s k ctx
     => ctx
     -> WalletId
-    -> ExceptT ErrNoSuchWallet IO (UTxOIndex InputId, Wallet s, Set Tx)
+    -> ExceptT ErrNoSuchWallet IO (UTxOIndex WalletUTxO, Wallet s, Set Tx)
 readWalletUTxOIndex ctx wid = do
     (cp, _, pending) <- readWallet @ctx @s @k ctx wid
-    let utxo = UTxOIndex.fromMap $ utxoToInputMap $ availableUTxO @s pending cp
+    let utxo = UTxOIndex.fromMap $
+            CS.toInternalUTxOMap $ availableUTxO @s pending cp
     return (utxo, cp, pending)
 
 -- | Calculate the minimum coin values required for a bunch of specified
@@ -1909,20 +1914,6 @@ calcMinimumCoinValues ctx outs = do
     nl = ctx ^. networkLayer
     tl = ctx ^. transactionLayer @k
 
--- TODO: ADP-1448:
---
--- Replace this type synonym with a type parameter on types that use it.
---
-type InputId = (TxIn, Address)
-
-utxoToInputMap :: UTxO -> Map InputId TokenBundle
-utxoToInputMap =
-    Map.fromList . fmap (\(i, TxOut a b) -> ((i, a), b)) . Map.toList . unUTxO
-
-inputMapToUTxO :: Map InputId TokenBundle -> UTxO
-inputMapToUTxO =
-    UTxO . Map.fromList . fmap (\((i, a), b) -> (i, TxOut a b)) . Map.toList
-
 -- | Parameters for the 'selectAssets' function.
 --
 data SelectAssetsParams s result = SelectAssetsParams
@@ -1930,8 +1921,8 @@ data SelectAssetsParams s result = SelectAssetsParams
     , pendingTxs :: Set Tx
     , randomSeed :: Maybe StdGenSeed
     , txContext :: TransactionCtx
-    , utxoAvailableForCollateral :: Map InputId TokenBundle
-    , utxoAvailableForInputs :: UTxOSelection InputId
+    , utxoAvailableForCollateral :: Map WalletUTxO TokenBundle
+    , utxoAvailableForInputs :: UTxOSelection WalletUTxO
     , wallet :: Wallet s
     , selectionStrategy :: SelectionStrategy
         -- ^ Specifies which selection strategy to use. See 'SelectionStrategy'.
@@ -1971,7 +1962,7 @@ selectAssets
 selectAssets ctx pp params transform = do
     guardPendingWithdrawal
     lift $ traceWith tr $ MsgSelectionStart
-        (inputMapToUTxO
+        (CS.toExternalUTxOMap
             $ UTxOSelection.availableMap
             $ params ^. #utxoAvailableForInputs)
         (params ^. #outputs)
@@ -3269,10 +3260,11 @@ data ErrCreateMigrationPlan
     deriving (Generic, Eq, Show)
 
 data ErrSelectAssets
-    = ErrSelectAssetsPrepareOutputsError SelectionOutputError
+    = ErrSelectAssetsPrepareOutputsError
+        (SelectionOutputError WalletSelectionContext)
     | ErrSelectAssetsNoSuchWallet ErrNoSuchWallet
     | ErrSelectAssetsAlreadyWithdrawing Tx
-    | ErrSelectAssetsSelectionError (SelectionError InputId)
+    | ErrSelectAssetsSelectionError (SelectionError WalletSelectionContext)
     deriving (Generic, Eq, Show)
 
 data ErrStakePoolDelegation
@@ -3422,7 +3414,7 @@ data WalletFollowLog
 -- | Log messages from API server actions running in a wallet worker context.
 data WalletLog
     = MsgSelectionStart UTxO [TxOut]
-    | MsgSelectionError (SelectionError InputId)
+    | MsgSelectionError (SelectionError WalletSelectionContext)
     | MsgSelectionReportSummarized SelectionReportSummarized
     | MsgSelectionReportDetailed SelectionReportDetailed
     | MsgMigrationUTxOBefore UTxOStatistics

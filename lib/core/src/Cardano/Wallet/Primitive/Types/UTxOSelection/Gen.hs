@@ -10,10 +10,8 @@ module Cardano.Wallet.Primitive.Types.UTxOSelection.Gen
 
 import Prelude
 
-import Cardano.Wallet.Primitive.Types.Address
-    ( Address )
-import Cardano.Wallet.Primitive.Types.Tx
-    ( TxIn )
+import Cardano.Wallet.CoinSelection
+    ( WalletUTxO )
 import Cardano.Wallet.Primitive.Types.UTxOIndex.Gen
     ( genUTxOIndex, shrinkUTxOIndex )
 import Cardano.Wallet.Primitive.Types.UTxOSelection
@@ -31,35 +29,21 @@ import qualified Cardano.Wallet.Primitive.Types.UTxOSelection as UTxOSelection
 -- Selections that may be empty
 --------------------------------------------------------------------------------
 
--- TODO: ADP-1448:
---
--- Replace this type synonym with a type parameter on types that use it.
---
-type InputId = (TxIn, Address)
+coarbitraryWalletUTxO :: WalletUTxO -> Gen a -> Gen a
+coarbitraryWalletUTxO = coarbitrary . show
 
--- TODO: ADP-1448:
---
--- Remove this function once 'InputId' has been replaced with a type parameter.
---
-coarbitraryInputId :: InputId -> Gen a -> Gen a
-coarbitraryInputId = coarbitrary . show
+genWalletUTxOFunction :: Gen a -> Gen (WalletUTxO -> a)
+genWalletUTxOFunction = genFunction coarbitraryWalletUTxO
 
--- TODO: ADP-1448:
---
--- Remove this function once 'InputId' has been replaced with a type parameter.
---
-genInputIdFunction :: Gen a -> Gen (InputId -> a)
-genInputIdFunction = genFunction coarbitraryInputId
-
-genUTxOSelection :: Gen (UTxOSelection InputId)
+genUTxOSelection :: Gen (UTxOSelection WalletUTxO)
 genUTxOSelection = UTxOSelection.fromIndexFiltered
     <$> genFilter
     <*> genUTxOIndex
   where
-    genFilter :: Gen (InputId -> Bool)
-    genFilter = genInputIdFunction (arbitrary @Bool)
+    genFilter :: Gen (WalletUTxO -> Bool)
+    genFilter = genWalletUTxOFunction (arbitrary @Bool)
 
-shrinkUTxOSelection :: UTxOSelection InputId -> [UTxOSelection InputId]
+shrinkUTxOSelection :: UTxOSelection WalletUTxO -> [UTxOSelection WalletUTxO]
 shrinkUTxOSelection =
     shrinkMapBy UTxOSelection.fromIndexPair UTxOSelection.toIndexPair $
         liftShrink2
@@ -70,15 +54,14 @@ shrinkUTxOSelection =
 -- Selections that are non-empty
 --------------------------------------------------------------------------------
 
-genUTxOSelectionNonEmpty :: Gen (UTxOSelectionNonEmpty InputId)
+genUTxOSelectionNonEmpty :: Gen (UTxOSelectionNonEmpty WalletUTxO)
 genUTxOSelectionNonEmpty =
     genUTxOSelection `suchThatMap` UTxOSelection.toNonEmpty
 
 shrinkUTxOSelectionNonEmpty
-    :: UTxOSelectionNonEmpty InputId
-    -> [UTxOSelectionNonEmpty InputId]
+    :: UTxOSelectionNonEmpty WalletUTxO
+    -> [UTxOSelectionNonEmpty WalletUTxO]
 shrinkUTxOSelectionNonEmpty
     = mapMaybe UTxOSelection.toNonEmpty
     . shrinkUTxOSelection
     . UTxOSelection.fromNonEmpty
-

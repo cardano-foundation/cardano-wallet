@@ -4,13 +4,14 @@
 {-# LANGUAGE DuplicateRecordFields #-}
 {-# LANGUAGE FlexibleContexts #-}
 {-# LANGUAGE FlexibleInstances #-}
-{-# LANGUAGE KindSignatures #-}
 {-# LANGUAGE LambdaCase #-}
 {-# LANGUAGE NamedFieldPuns #-}
 {-# LANGUAGE OverloadedLabels #-}
+{-# LANGUAGE RecordWildCards #-}
 {-# LANGUAGE ScopedTypeVariables #-}
 {-# LANGUAGE StandaloneDeriving #-}
 {-# LANGUAGE TypeApplications #-}
+{-# LANGUAGE TypeFamilies #-}
 {-# LANGUAGE UndecidableInstances #-}
 
 -- |
@@ -127,8 +128,8 @@ import Algebra.PartialOrd
     ( PartialOrd (..) )
 import Cardano.Numeric.Util
     ( padCoalesce )
-import Cardano.Wallet.Primitive.Types.Address
-    ( Address (..) )
+import Cardano.Wallet.CoinSelection.Internal.Context
+    ( SelectionContext (..) )
 import Cardano.Wallet.Primitive.Types.Coin
     ( Coin (..) )
 import Cardano.Wallet.Primitive.Types.TokenBundle
@@ -160,7 +161,7 @@ import Data.Function
 import Data.Functor.Identity
     ( Identity (..) )
 import Data.Generics.Internal.VL.Lens
-    ( over, view )
+    ( view )
 import Data.Generics.Labels
     ()
 import Data.IntCast
@@ -173,6 +174,8 @@ import Data.Maybe
     ( fromMaybe )
 import Data.Ord
     ( comparing )
+import Data.Proxy
+    ( Proxy (..) )
 import Data.Semigroup
     ( mtimesDefault )
 import Data.Set
@@ -213,7 +216,7 @@ import qualified Data.Set as Set
 --
 --    - are not specific to a given selection.
 --
-data SelectionConstraints = SelectionConstraints
+data SelectionConstraints ctx = SelectionConstraints
     { assessTokenBundleSize
         :: TokenBundle -> TokenBundleSizeAssessment
         -- ^ Assesses the size of a token bundle relative to the upper limit of
@@ -224,10 +227,10 @@ data SelectionConstraints = SelectionConstraints
         :: TokenMap -> Coin
         -- ^ Computes the minimum ada quantity required for a given output.
     , computeMinimumCost
-        :: SelectionSkeleton -> Coin
+        :: SelectionSkeleton ctx -> Coin
         -- ^ Computes the minimum cost of a given selection skeleton.
     , computeSelectionLimit
-        :: [(Address, TokenBundle)] -> SelectionLimit
+        :: [(Address ctx, TokenBundle)] -> SelectionLimit
         -- ^ Computes an upper bound for the number of ordinary inputs to
         -- select, given a current set of outputs.
     }
@@ -237,12 +240,12 @@ type SelectionParams = SelectionParamsOf []
 
 -- | Specifies all parameters that are specific to a given selection.
 --
-data SelectionParamsOf outputs u = SelectionParams
+data SelectionParamsOf f ctx = SelectionParams
     { outputsToCover
-        :: !(outputs (Address, TokenBundle))
+        :: !(f (Address ctx, TokenBundle))
         -- ^ The complete set of outputs to be covered.
     , utxoAvailable
-        :: !(UTxOSelection u)
+        :: !(UTxOSelection (UTxO ctx))
         -- ^ Specifies a set of UTxOs that are available for selection as
         -- inputs and optionally, a subset that has already been selected.
         --
@@ -274,12 +277,12 @@ data SelectionParamsOf outputs u = SelectionParams
     deriving Generic
 
 deriving instance
-    (Eq (outputs (Address, TokenBundle)), Eq u) =>
-        Eq (SelectionParamsOf outputs u)
+    (Eq (f (Address ctx, TokenBundle)), Eq (UTxO ctx)) =>
+        Eq (SelectionParamsOf f ctx)
 
 deriving instance
-    (Show (outputs (Address, TokenBundle)), Show u) =>
-        Show (SelectionParamsOf outputs u)
+    (Show (f (Address ctx, TokenBundle)), Show (UTxO ctx)) =>
+        Show (SelectionParamsOf f ctx)
 
 -- | Indicates a choice of selection strategy.
 --
@@ -347,20 +350,19 @@ data UTxOBalanceSufficiencyInfo = UTxOBalanceSufficiencyInfo
 
 -- | Computes the balance of UTxO entries available for selection.
 --
-computeUTxOBalanceAvailable :: SelectionParamsOf outputs u -> TokenBundle
+computeUTxOBalanceAvailable
+    :: SelectionParamsOf f ctx -> TokenBundle
 computeUTxOBalanceAvailable =
     UTxOSelection.availableBalance . view #utxoAvailable
 
 -- | Computes the balance of UTxO entries required to be selected.
 --
 computeUTxOBalanceRequired
-    :: Foldable outputs => SelectionParamsOf outputs u -> TokenBundle
+    :: Foldable f => SelectionParamsOf f ctx -> TokenBundle
 computeUTxOBalanceRequired = fst . computeDeficitInOut
 
 computeBalanceInOut
-    :: Foldable outputs
-    => SelectionParamsOf outputs u
-    -> (TokenBundle, TokenBundle)
+    :: Foldable f => SelectionParamsOf f ctx -> (TokenBundle, TokenBundle)
 computeBalanceInOut params =
     (balanceIn, balanceOut)
   where
@@ -376,9 +378,7 @@ computeBalanceInOut params =
         F.foldMap snd (view #outputsToCover params)
 
 computeDeficitInOut
-    :: Foldable outputs
-    => SelectionParamsOf outputs u
-    -> (TokenBundle, TokenBundle)
+    :: Foldable f => SelectionParamsOf f ctx -> (TokenBundle, TokenBundle)
 computeDeficitInOut params =
     (deficitIn, deficitOut)
   where
@@ -394,9 +394,7 @@ computeDeficitInOut params =
 -- See 'UTxOBalanceSufficiency'.
 --
 computeUTxOBalanceSufficiency
-    :: Foldable outputs
-    => SelectionParamsOf outputs u
-    -> UTxOBalanceSufficiency
+    :: Foldable f => SelectionParamsOf f ctx -> UTxOBalanceSufficiency
 computeUTxOBalanceSufficiency = sufficiency . computeUTxOBalanceSufficiencyInfo
 
 -- | Computes information about the UTxO balance sufficiency.
@@ -404,9 +402,7 @@ computeUTxOBalanceSufficiency = sufficiency . computeUTxOBalanceSufficiencyInfo
 -- See 'UTxOBalanceSufficiencyInfo'.
 --
 computeUTxOBalanceSufficiencyInfo
-    :: Foldable outputs
-    => SelectionParamsOf outputs u
-    -> UTxOBalanceSufficiencyInfo
+    :: Foldable f => SelectionParamsOf f ctx -> UTxOBalanceSufficiencyInfo
 computeUTxOBalanceSufficiencyInfo params =
     UTxOBalanceSufficiencyInfo {available, required, difference, sufficiency}
   where
@@ -427,7 +423,7 @@ computeUTxOBalanceSufficiencyInfo params =
 -- is greater than or equal to the required balance.
 --
 isUTxOBalanceSufficient
-    :: Foldable outputs => SelectionParamsOf outputs u -> Bool
+    :: Foldable f => SelectionParamsOf f ctx -> Bool
 isUTxOBalanceSufficient params =
     case computeUTxOBalanceSufficiency params of
         UTxOBalanceSufficient   -> True
@@ -443,15 +439,18 @@ isUTxOBalanceSufficient params =
 -- Increasing or decreasing the quantity of a particular asset in a change
 -- output must not change the estimated cost of a selection.
 --
-data SelectionSkeleton = SelectionSkeleton
+data SelectionSkeleton ctx = SelectionSkeleton
     { skeletonInputCount
         :: !Int
     , skeletonOutputs
-        :: ![(Address, TokenBundle)]
+        :: ![(Address ctx, TokenBundle)]
     , skeletonChange
         :: ![Set AssetId]
     }
-    deriving (Eq, Generic, Show)
+    deriving Generic
+
+deriving instance SelectionContext ctx => Eq (SelectionSkeleton ctx)
+deriving instance SelectionContext ctx => Show (SelectionSkeleton ctx)
 
 -- | Specifies a limit to adhere to when performing a selection.
 --
@@ -497,9 +496,9 @@ type SelectionResult = SelectionResultOf []
 
 -- | The result of performing a successful selection.
 --
-data SelectionResultOf outputs u = SelectionResult
+data SelectionResultOf f ctx = SelectionResult
     { inputsSelected
-        :: !(NonEmpty (u, TokenBundle))
+        :: !(NonEmpty (UTxO ctx, TokenBundle))
         -- ^ A (non-empty) list of inputs selected from 'utxoAvailable'.
     , extraCoinSource
         :: !Coin
@@ -508,7 +507,7 @@ data SelectionResultOf outputs u = SelectionResult
         :: !Coin
         -- ^ An extra sink for ada.
     , outputsCovered
-        :: !(outputs (Address, TokenBundle))
+        :: !(f (Address ctx, TokenBundle))
         -- ^ A list of outputs covered.
     , changeGenerated
         :: ![TokenBundle]
@@ -523,11 +522,11 @@ data SelectionResultOf outputs u = SelectionResult
     deriving Generic
 
 deriving instance
-    (Eq (outputs (Address, TokenBundle)), Eq u) =>
-        Eq (SelectionResultOf outputs u)
+    (Eq (f (Address ctx, TokenBundle)), Eq (UTxO ctx)) =>
+        Eq (SelectionResultOf f ctx)
 deriving instance
-    (Show (outputs (Address, TokenBundle)), Show u) =>
-        Show (SelectionResultOf outputs u)
+    (Show (f (Address ctx, TokenBundle)), Show (UTxO ctx)) =>
+        Show (SelectionResultOf f ctx)
 
 -- | Indicates the difference between total input value and total output value
 --   of a 'SelectionResult'.
@@ -562,9 +561,7 @@ instance Buildable a => Buildable (SelectionDelta a) where
 -- See 'SelectionDelta'.
 --
 selectionDeltaAllAssets
-    :: Foldable outputs
-    => SelectionResultOf outputs u
-    -> SelectionDelta TokenBundle
+    :: Foldable f => SelectionResultOf f ctx -> SelectionDelta TokenBundle
 selectionDeltaAllAssets result
     | balanceOut `leq` balanceIn =
         SelectionSurplus $ TokenBundle.difference balanceIn balanceOut
@@ -600,16 +597,13 @@ selectionDeltaAllAssets result
 -- See 'SelectionDelta'.
 --
 selectionDeltaCoin
-    :: Foldable outputs => SelectionResultOf outputs u -> SelectionDelta Coin
+    :: Foldable f => SelectionResultOf f ctx -> SelectionDelta Coin
 selectionDeltaCoin = fmap TokenBundle.getCoin . selectionDeltaAllAssets
 
 -- | Indicates whether or not a selection result has a valid surplus.
 --
 selectionHasValidSurplus
-    :: Foldable outputs
-    => SelectionConstraints
-    -> SelectionResultOf outputs u
-    -> Bool
+    :: Foldable f => SelectionConstraints ctx -> SelectionResultOf f ctx -> Bool
 selectionHasValidSurplus constraints selection =
     case selectionDeltaAllAssets selection of
         SelectionSurplus s -> surplusIsValid s
@@ -645,7 +639,7 @@ selectionHasValidSurplus constraints selection =
 -- Use 'selectionDeltaCoin' if you wish to handle the case where there is
 -- a deficit.
 --
-selectionSurplusCoin :: Foldable outputs => SelectionResultOf outputs u -> Coin
+selectionSurplusCoin :: Foldable f => SelectionResultOf f ctx -> Coin
 selectionSurplusCoin result =
     case selectionDeltaCoin result of
         SelectionSurplus surplus -> surplus
@@ -654,7 +648,7 @@ selectionSurplusCoin result =
 -- | Converts a selection into a skeleton.
 --
 selectionSkeleton
-    :: Foldable outputs => SelectionResultOf outputs u -> SelectionSkeleton
+    :: Foldable f => SelectionResultOf f ctx -> SelectionSkeleton ctx
 selectionSkeleton s = SelectionSkeleton
     { skeletonInputCount = F.length (view #inputsSelected s)
     , skeletonOutputs = F.toList (view #outputsCovered s)
@@ -664,10 +658,7 @@ selectionSkeleton s = SelectionSkeleton
 -- | Computes the minimum required cost of a selection.
 --
 selectionMinimumCost
-    :: Foldable outputs
-    => SelectionConstraints
-    -> SelectionResultOf outputs u
-    -> Coin
+    :: Foldable f => SelectionConstraints ctx -> SelectionResultOf f ctx -> Coin
 selectionMinimumCost c = view #computeMinimumCost c . selectionSkeleton
 
 -- | Computes the maximum acceptable cost of a selection.
@@ -685,40 +676,43 @@ selectionMinimumCost c = view #computeMinimumCost c . selectionSkeleton
 -- See 'selectionHasValidSurplus'.
 --
 selectionMaximumCost
-    :: Foldable outputs
-    => SelectionConstraints
-    -> SelectionResultOf outputs u
-    -> Coin
+    :: Foldable f => SelectionConstraints ctx -> SelectionResultOf f ctx -> Coin
 selectionMaximumCost c = mtimesDefault (2 :: Int) . selectionMinimumCost c
 
 -- | Represents the set of errors that may occur while performing a selection.
 --
-data SelectionBalanceError u
+data SelectionBalanceError ctx
     = BalanceInsufficient
         BalanceInsufficientError
     | SelectionLimitReached
-        (SelectionLimitReachedError u)
+        (SelectionLimitReachedError ctx)
     | InsufficientMinCoinValues
-        (NonEmpty InsufficientMinCoinValueError)
+        (NonEmpty (InsufficientMinCoinValueError ctx))
     | UnableToConstructChange
         UnableToConstructChangeError
     | EmptyUTxO
-    deriving (Generic, Eq, Show)
+    deriving Generic
+
+deriving instance SelectionContext ctx => Eq (SelectionBalanceError ctx)
+deriving instance SelectionContext ctx => Show (SelectionBalanceError ctx)
 
 -- | Indicates that the balance of selected UTxO entries was insufficient to
 --   cover the balance required while remaining within the selection limit.
 --
-data SelectionLimitReachedError u = SelectionLimitReachedError
+data SelectionLimitReachedError ctx = SelectionLimitReachedError
     { utxoBalanceRequired
         :: !TokenBundle
       -- ^ The UTXO balance required.
     , inputsSelected
-        :: ![(u, TokenBundle)]
+        :: ![(UTxO ctx, TokenBundle)]
       -- ^ The inputs that could be selected while satisfying the
       -- 'selectionLimit'.
     , outputsToCover
-        :: !(NonEmpty (Address, TokenBundle))
-    } deriving (Generic, Eq, Show)
+        :: !(NonEmpty (Address ctx, TokenBundle))
+    } deriving Generic
+
+deriving instance SelectionContext ctx => Eq (SelectionLimitReachedError ctx)
+deriving instance SelectionContext ctx => Show (SelectionLimitReachedError ctx)
 
 -- | Indicates that the balance of available UTxO entries is insufficient to
 --   cover the balance required.
@@ -744,17 +738,23 @@ balanceMissing (BalanceInsufficientError available required) =
 --
 -- See also: 'prepareOutputs'.
 --
-data InsufficientMinCoinValueError = InsufficientMinCoinValueError
+data InsufficientMinCoinValueError ctx = InsufficientMinCoinValueError
     { outputWithInsufficientAda
-        :: !(Address, TokenBundle)
+        :: !(Address ctx, TokenBundle)
         -- ^ The particular output that does not have the minimum coin quantity
         -- expected by the protocol.
     , expectedMinCoinValue
         :: !Coin
         -- ^ The minimum coin quantity expected for this output.
-    } deriving (Generic, Eq, Show)
+    } deriving Generic
 
-instance Buildable InsufficientMinCoinValueError where
+deriving instance SelectionContext ctx =>
+    Eq (InsufficientMinCoinValueError ctx)
+deriving instance SelectionContext ctx =>
+    Show (InsufficientMinCoinValueError ctx)
+
+instance SelectionContext ctx => Buildable (InsufficientMinCoinValueError ctx)
+  where
     build (InsufficientMinCoinValueError (a, b) c) = unlinesF
         [ nameF "Expected min coin value" (build c)
         , nameF "Address" (build a)
@@ -772,10 +772,10 @@ data UnableToConstructChangeError = UnableToConstructChangeError
         -- selection cost and minimum coin quantity of each change output.
     } deriving (Generic, Eq, Show)
 
-type PerformSelection m outputs u =
-    SelectionConstraints ->
-    SelectionParamsOf outputs u ->
-    m (Either (SelectionBalanceError u) (SelectionResultOf outputs u))
+type PerformSelection m f ctx =
+    SelectionConstraints ctx ->
+    SelectionParamsOf f ctx ->
+    m (Either (SelectionBalanceError ctx) (SelectionResultOf f ctx))
 
 -- | Performs a coin selection and generates change bundles in one step.
 --
@@ -784,8 +784,8 @@ type PerformSelection m outputs u =
 -- for which 'selectionHasValidSurplus' returns 'True'.
 --
 performSelection
-    :: forall m u. (HasCallStack, MonadRandom m, Ord u, Show u)
-    => PerformSelection m [] u
+    :: forall m ctx. (HasCallStack, MonadRandom m, SelectionContext ctx)
+    => PerformSelection m [] ctx
 performSelection = performSelectionEmpty performSelectionNonEmpty
 
 -- | Transforms a coin selection function that requires a non-empty list of
@@ -816,32 +816,38 @@ performSelection = performSelectionEmpty performSelectionNonEmpty
 --          selectionHasValidSurplus constraints (transformResult result)
 --
 performSelectionEmpty
-    :: Functor m => PerformSelection m NonEmpty u -> PerformSelection m [] u
+    :: forall m ctx. (Functor m, SelectionContext ctx)
+    => PerformSelection m NonEmpty ctx
+    -> PerformSelection m []       ctx
 performSelectionEmpty performSelectionFn constraints params =
     fmap transformResult <$>
     performSelectionFn constraints (transformParams params)
   where
     transformParams
-        :: SelectionParamsOf []       u
-        -> SelectionParamsOf NonEmpty u
-    transformParams
-        = over #extraCoinSource
-            (transform (`Coin.add` minCoin) (const id))
-        . over #outputsToCover
-            (transform (const (dummyOutput :| [])) (const . id))
+        :: SelectionParamsOf []       ctx
+        -> SelectionParamsOf NonEmpty ctx
+    transformParams p@SelectionParams {..} = p
+        { extraCoinSource =
+            transform (`Coin.add` minCoin) (const id) extraCoinSource
+        , outputsToCover =
+            transform (const (dummyOutput :| [])) (const . id) outputsToCover
+        }
 
-    transformResult :: SelectionResultOf NonEmpty u -> SelectionResultOf [] u
     transformResult
-        = over #extraCoinSource
-            (transform (`Coin.difference` minCoin) (const id))
-        . over #outputsCovered
-            (transform (const []) (const . F.toList))
+        :: SelectionResultOf NonEmpty ctx
+        -> SelectionResultOf []       ctx
+    transformResult r@SelectionResult {..} = r
+        { extraCoinSource =
+            transform (`Coin.difference` minCoin) (const id) extraCoinSource
+        , outputsCovered =
+            transform (const []) (const . F.toList) outputsCovered
+        }
 
-    transform :: a -> (NonEmpty (Address, TokenBundle) -> a) -> a
+    transform :: a -> (NonEmpty (Address ctx, TokenBundle) -> a) -> a
     transform x y = maybe x y $ NE.nonEmpty $ view #outputsToCover params
 
-    dummyOutput :: (Address, TokenBundle)
-    dummyOutput = (Address "", TokenBundle.fromCoin minCoin)
+    dummyOutput :: (Address ctx, TokenBundle)
+    dummyOutput = (dummyAddress (Proxy @ctx), TokenBundle.fromCoin minCoin)
 
     -- The 'performSelectionNonEmpty' function imposes a precondition that all
     -- outputs must have at least the minimum ada quantity. Therefore, the
@@ -861,8 +867,8 @@ performSelectionEmpty performSelectionFn constraints params =
         (view #computeMinimumAdaQuantity constraints TokenMap.empty)
 
 performSelectionNonEmpty
-    :: forall m u. (HasCallStack, MonadRandom m, Ord u, Show u)
-    => PerformSelection m NonEmpty u
+    :: forall m ctx. (HasCallStack, MonadRandom m, SelectionContext ctx)
+    => PerformSelection m NonEmpty ctx
 performSelectionNonEmpty constraints params
     -- Is the total available UTXO balance sufficient?
     | not utxoBalanceSufficient =
@@ -913,7 +919,7 @@ performSelectionNonEmpty constraints params
         } = params
 
     selectionLimitReachedError
-        :: [(u, TokenBundle)] -> m (Either (SelectionBalanceError u) a)
+        :: [(UTxO ctx, TokenBundle)] -> m (Either (SelectionBalanceError ctx) a)
     selectionLimitReachedError inputsSelected =
         pure $ Left $ SelectionLimitReached $ SelectionLimitReachedError
             { inputsSelected
@@ -933,13 +939,13 @@ performSelectionNonEmpty constraints params
     utxoBalanceSufficient :: Bool
     utxoBalanceSufficient = isUTxOBalanceSufficient params
 
-    insufficientMinCoinValues :: [InsufficientMinCoinValueError]
+    insufficientMinCoinValues :: [InsufficientMinCoinValueError ctx]
     insufficientMinCoinValues =
         mapMaybe mkInsufficientMinCoinValueError outputsToCover
       where
         mkInsufficientMinCoinValueError
-            :: (Address, TokenBundle)
-            -> Maybe InsufficientMinCoinValueError
+            :: (Address ctx, TokenBundle)
+            -> Maybe (InsufficientMinCoinValueError ctx)
         mkInsufficientMinCoinValueError o
             | view #coin (snd o) >= expectedMinCoinValue =
                 Nothing
@@ -980,7 +986,7 @@ performSelectionNonEmpty constraints params
     --     (That is, the predicted change is necessarily equal to the change
     --     assets of the final resulting selection).
     --
-    predictChange :: UTxOSelectionNonEmpty u -> [Set AssetId]
+    predictChange :: UTxOSelectionNonEmpty (UTxO ctx) -> [Set AssetId]
     predictChange s = either
         (const $ invariantResultWithNoCost $ UTxOSelection.selectedIndex s)
         (fmap (TokenMap.getAssets . view #tokens))
@@ -1021,8 +1027,10 @@ performSelectionNonEmpty constraints params
     -- function won't make associated outputs for them.
     --
     makeChangeRepeatedly
-        :: UTxOSelectionNonEmpty u
-        -> m (Either (SelectionBalanceError u) (SelectionResultOf NonEmpty u))
+        :: UTxOSelectionNonEmpty (UTxO ctx)
+        -> m (Either
+                (SelectionBalanceError ctx)
+                (SelectionResultOf NonEmpty ctx))
     makeChangeRepeatedly s = case mChangeGenerated of
 
         Right change | length change >= length outputsToCover ->
@@ -1075,7 +1083,7 @@ performSelectionNonEmpty constraints params
             , assetsToBurn
             }
 
-        mkSelectionResult :: [TokenBundle] -> SelectionResultOf NonEmpty u
+        mkSelectionResult :: [TokenBundle] -> SelectionResultOf NonEmpty ctx
         mkSelectionResult changeGenerated = SelectionResult
             { inputsSelected
             , extraCoinSource

@@ -3,6 +3,9 @@
 {-# LANGUAGE FlexibleInstances #-}
 {-# LANGUAGE OverloadedLabels #-}
 {-# LANGUAGE RecordWildCards #-}
+{-# LANGUAGE ScopedTypeVariables #-}
+{-# LANGUAGE TypeApplications #-}
+{-# LANGUAGE TypeFamilies #-}
 
 -- |
 -- Copyright: © 2022 IOHK
@@ -21,8 +24,18 @@
 --
 module Cardano.Wallet.CoinSelection
     (
+    -- * Selection contexts
+      WalletSelectionContext
+    , WalletUTxO (..)
+
+    -- * Mapping between external (wallet) types and internal types
+    , toExternalUTxO
+    , toExternalUTxOMap
+    , toInternalUTxO
+    , toInternalUTxOMap
+
     -- * Performing selections
-      performSelection
+    , performSelection
     , Selection
     , SelectionCollateralRequirement (..)
     , SelectionConstraints (..)
@@ -59,7 +72,8 @@ module Cardano.Wallet.CoinSelection
     where
 
 import Cardano.Wallet.CoinSelection.Internal
-    ( SelectionCollateralRequirement (..)
+    ( SelectionCollateralError
+    , SelectionCollateralRequirement (..)
     , SelectionError (..)
     , SelectionOutputError (..)
     , SelectionOutputSizeExceedsLimitError (..)
@@ -74,20 +88,20 @@ import Cardano.Wallet.CoinSelection.Internal.Balance
     , UnableToConstructChangeError (..)
     , balanceMissing
     )
-import Cardano.Wallet.CoinSelection.Internal.Collateral
-    ( SelectionCollateralError )
 import Cardano.Wallet.Primitive.Collateral
     ( asCollateral )
 import Cardano.Wallet.Primitive.Types.Address
-    ( Address )
+    ( Address (..) )
 import Cardano.Wallet.Primitive.Types.Coin
     ( Coin (..) )
 import Cardano.Wallet.Primitive.Types.TokenBundle
-    ( TokenBundle )
+    ( Flat (..), TokenBundle )
 import Cardano.Wallet.Primitive.Types.TokenMap
     ( AssetId, TokenMap )
 import Cardano.Wallet.Primitive.Types.Tx
     ( TokenBundleSizeAssessment, TxIn, TxOut (..) )
+import Cardano.Wallet.Primitive.Types.UTxO
+    ( UTxO (..) )
 import Cardano.Wallet.Primitive.Types.UTxOSelection
     ( UTxOSelection )
 import Control.Arrow
@@ -116,10 +130,63 @@ import Numeric.Natural
 import Prelude
 
 import qualified Cardano.Wallet.CoinSelection.Internal as Internal
+import qualified Cardano.Wallet.CoinSelection.Internal.Context as SC
 import qualified Cardano.Wallet.Primitive.Types.TokenBundle as TokenBundle
 import qualified Data.Foldable as F
 import qualified Data.Map.Strict as Map
 import qualified Data.Set as Set
+
+--------------------------------------------------------------------------------
+-- Selection contexts
+--------------------------------------------------------------------------------
+
+-- | A selection context for the wallet.
+--
+data WalletSelectionContext
+
+instance SC.SelectionContext WalletSelectionContext where
+    type Address WalletSelectionContext = Address
+    type UTxO WalletSelectionContext = WalletUTxO
+
+    dummyAddress _ = Address ""
+
+--------------------------------------------------------------------------------
+-- Mapping between external (wallet) and internal UTxO identifiers
+--------------------------------------------------------------------------------
+
+-- | A type of unique UTxO identifier for the wallet.
+--
+data WalletUTxO = WalletUTxO
+    { txIn
+        :: TxIn
+    , address
+        :: Address
+    }
+    deriving (Eq, Generic, Ord, Show)
+
+instance Buildable WalletUTxO where
+    build (WalletUTxO i a) = build i <> ":" <> build a
+
+instance Buildable (WalletUTxO, TokenBundle) where
+    build (u, b) = build u <> ":" <> build (Flat b)
+
+toExternalUTxO :: (WalletUTxO, TokenBundle) -> (TxIn, TxOut)
+toExternalUTxO = toExternalUTxO' id
+
+toExternalUTxOMap :: Map WalletUTxO TokenBundle -> UTxO
+toExternalUTxOMap = UTxO . Map.fromList . fmap toExternalUTxO . Map.toList
+
+toInternalUTxO :: (TxIn, TxOut) -> (WalletUTxO, TokenBundle)
+toInternalUTxO = toInternalUTxO' id
+
+toInternalUTxOMap :: UTxO -> Map WalletUTxO TokenBundle
+toInternalUTxOMap = Map.fromList . fmap toInternalUTxO . Map.toList . unUTxO
+
+toExternalUTxO' :: (b -> TokenBundle) -> (WalletUTxO, b) -> (TxIn, TxOut)
+toExternalUTxO' f (WalletUTxO i a, b) = (i, TxOut a (f b))
+
+toInternalUTxO' :: (TokenBundle -> b) -> (TxIn, TxOut) -> (WalletUTxO, b)
+toInternalUTxO' f (i, TxOut a b) = (WalletUTxO i a, f b)
 
 --------------------------------------------------------------------------------
 -- Selection constraints
@@ -169,7 +236,8 @@ data SelectionConstraints = SelectionConstraints
     deriving Generic
 
 toInternalSelectionConstraints
-    :: SelectionConstraints -> Internal.SelectionConstraints
+    :: SelectionConstraints
+    -> Internal.SelectionConstraints WalletSelectionContext
 toInternalSelectionConstraints SelectionConstraints {..} =
     Internal.SelectionConstraints
         { computeMinimumCost =
@@ -182,12 +250,6 @@ toInternalSelectionConstraints SelectionConstraints {..} =
 --------------------------------------------------------------------------------
 -- Selection parameters
 --------------------------------------------------------------------------------
-
--- TODO: ADP-1448:
---
--- Replace this type synonym with a type parameter on types that use it.
---
-type InputId = (TxIn, Address)
 
 -- | Specifies all parameters that are specific to a given selection.
 --
@@ -220,14 +282,14 @@ data SelectionParams = SelectionParams
         :: !SelectionCollateralRequirement
         -- ^ Specifies the collateral requirement for this selection.
     , utxoAvailableForCollateral
-        :: !(Map InputId TokenBundle)
+        :: !(Map WalletUTxO TokenBundle)
         -- ^ Specifies a set of UTxOs that are available for selection as
         -- collateral inputs.
         --
         -- This set is allowed to intersect with 'utxoAvailableForInputs',
         -- since the ledger does not require that these sets are disjoint.
     , utxoAvailableForInputs
-        :: !(UTxOSelection InputId)
+        :: !(UTxOSelection WalletUTxO)
         -- ^ Specifies a set of UTxOs that are available for selection as
         -- ordinary inputs and optionally, a subset that has already been
         -- selected.
@@ -239,7 +301,9 @@ data SelectionParams = SelectionParams
     }
     deriving (Eq, Generic, Show)
 
-toInternalSelectionParams :: SelectionParams -> Internal.SelectionParams InputId
+toInternalSelectionParams
+    :: SelectionParams
+    -> Internal.SelectionParams WalletSelectionContext
 toInternalSelectionParams SelectionParams {..} =
     Internal.SelectionParams
         { utxoAvailableForCollateral =
@@ -249,8 +313,8 @@ toInternalSelectionParams SelectionParams {..} =
         , ..
         }
   where
-    identifyCollateral :: InputId -> TokenBundle -> Maybe Coin
-    identifyCollateral (_, a) b = asCollateral (TxOut a b)
+    identifyCollateral :: WalletUTxO -> TokenBundle -> Maybe Coin
+    identifyCollateral (WalletUTxO _ a) b = asCollateral (TxOut a b)
 
 --------------------------------------------------------------------------------
 -- Selection skeletons
@@ -285,7 +349,9 @@ emptySkeleton = SelectionSkeleton
     , skeletonChange = mempty
     }
 
-toExternalSelectionSkeleton :: Internal.SelectionSkeleton -> SelectionSkeleton
+toExternalSelectionSkeleton
+    :: Internal.SelectionSkeleton WalletSelectionContext
+    -> SelectionSkeleton
 toExternalSelectionSkeleton Internal.SelectionSkeleton {..} =
     SelectionSkeleton
         { skeletonOutputs =
@@ -334,31 +400,29 @@ data SelectionOf change = Selection
 type Selection = SelectionOf TokenBundle
 
 toExternalSelection
-    :: SelectionParams -> Internal.Selection InputId -> Selection
+    :: SelectionParams -> Internal.Selection WalletSelectionContext -> Selection
 toExternalSelection _ps Internal.Selection {..} =
     Selection
-        { collateral =
-            (\((i, a), c) -> (i, TxOut a (TokenBundle.fromCoin c)))
-                <$> collateral
-        , inputs =
-            (\((i, a), b) -> (i, TxOut a b))
-                <$> inputs
-        , outputs =
-            uncurry TxOut <$> outputs
+        { collateral = toExternalUTxO' TokenBundle.fromCoin
+            <$> collateral
+        , inputs = toExternalUTxO
+            <$> inputs
+        , outputs = uncurry TxOut
+            <$> outputs
         , ..
         }
 
 toInternalSelection
     :: (change -> TokenBundle)
     -> SelectionOf change
-    -> Internal.Selection InputId
+    -> Internal.Selection WalletSelectionContext
 toInternalSelection getChangeBundle Selection {..} =
     Internal.Selection
         { change = getChangeBundle
             <$> change
-        , collateral = (\(i, TxOut a b) -> ((i, a), TokenBundle.getCoin b))
+        , collateral = toInternalUTxO' TokenBundle.getCoin
             <$> collateral
-        , inputs = (\(i, TxOut a b) -> ((i, a), b))
+        , inputs = toInternalUTxO
             <$> inputs
         , outputs = (view #address &&& view #tokens)
             <$> outputs
@@ -381,13 +445,13 @@ toInternalSelection getChangeBundle Selection {..} =
 -- See 'Internal.performSelection' for more details.
 --
 performSelection
-    :: (HasCallStack, MonadRandom m)
+    :: forall m. (HasCallStack, MonadRandom m)
     => SelectionConstraints
     -> SelectionParams
-    -> ExceptT (SelectionError InputId) m Selection
+    -> ExceptT (SelectionError WalletSelectionContext) m Selection
 performSelection cs ps =
     toExternalSelection ps <$>
-    Internal.performSelection
+    Internal.performSelection @m @WalletSelectionContext
         (toInternalSelectionConstraints cs)
         (toInternalSelectionParams ps)
 

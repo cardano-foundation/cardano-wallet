@@ -13,6 +13,8 @@ module Cardano.Wallet.CoinSelection.Internal.Balance.Gen
 
 import Prelude
 
+import Cardano.Wallet.CoinSelection
+    ( WalletSelectionContext )
 import Cardano.Wallet.CoinSelection.Internal.Balance
     ( SelectionLimit
     , SelectionLimitOf (..)
@@ -70,7 +72,7 @@ shrinkSelectionLimit = \case
 -- Selection skeletons
 --------------------------------------------------------------------------------
 
-genSelectionSkeleton :: Gen SelectionSkeleton
+genSelectionSkeleton :: Gen (SelectionSkeleton WalletSelectionContext)
 genSelectionSkeleton = SelectionSkeleton
     <$> genSkeletonInputCount
     <*> genSkeletonOutputs
@@ -86,7 +88,9 @@ genSelectionSkeleton = SelectionSkeleton
     genSkeletonChange =
         listOf (Set.fromList <$> listOf genAssetId)
 
-shrinkSelectionSkeleton :: SelectionSkeleton -> [SelectionSkeleton]
+shrinkSelectionSkeleton
+    :: SelectionSkeleton WalletSelectionContext
+    -> [SelectionSkeleton WalletSelectionContext]
 shrinkSelectionSkeleton = genericRoundRobinShrink
     <@> shrinkSkeletonInputCount
     <:> shrinkSkeletonOutputs
