@@ -2268,13 +2268,13 @@ constructTransaction ctx genChange knownPools getPoolStatus (ApiT wid) body = do
                     isMinting _ = False
                 let getMinting (ApiMintBurnData (ApiT scriptT) (ApiT tName) (ApiMint (ApiMintData _ (Quantity amt)))) =
                         toTokenMapAndScript @k scriptT
-                        (Map.singleton (Cosigner 0) policyXPub)  -- TODO: retrieve cosigner value or forbid other than cosigner 0
+                        (Map.singleton (Cosigner 0) policyXPub)
                         tName
                         amt
                     getMinting _ = error "getMinting should not be used that way"
                 let getBurning (ApiMintBurnData (ApiT scriptT) (ApiT tName) (ApiBurn (ApiBurnData (Quantity amt)))) =
                         toTokenMapAndScript @k scriptT
-                        (Map.singleton (Cosigner 0) policyXPub) -- TODO: retrieve cosigner value or forbid other than cosigner 0
+                        (Map.singleton (Cosigner 0) policyXPub)
                         tName
                         amt
                     getBurning _ = error "getBurning should not be used that way"
@@ -2300,7 +2300,6 @@ constructTransaction ctx genChange knownPools getPoolStatus (ApiT wid) body = do
                     }
             else
                 pure txCtx
-
 
         (sel, sel', fee) <- do
             outs <- case (body ^. #payments) of

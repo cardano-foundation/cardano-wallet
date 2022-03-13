@@ -3097,7 +3097,7 @@ spec = describe "NEW_SHELLEY_TRANSACTIONS" $ do
         (_, policyKeyHashPayload) <-
                 unsafeRequest @ApiPolicyKey ctx policyWithHash Empty
         let (Just policyKeyHash) =
-                keyHashFromBytes (Payment, getApiPolicyKey policyKeyHashPayload)
+                keyHashFromBytes (Policy, getApiPolicyKey policyKeyHashPayload)
 
         let tokenPolicyId' =
                 UnsafeTokenPolicyId . Hash $
@@ -3167,7 +3167,7 @@ spec = describe "NEW_SHELLEY_TRANSACTIONS" $ do
         (_, policyKeyHashPayload) <-
                 unsafeRequest @ApiPolicyKey ctx policyWithHash Empty
         let (Just policyKeyHash) =
-                keyHashFromBytes (Payment, getApiPolicyKey policyKeyHashPayload)
+                keyHashFromBytes (Policy, getApiPolicyKey policyKeyHashPayload)
 
         let tokenPolicyId' =
                 UnsafeTokenPolicyId . Hash $

@@ -1476,7 +1476,7 @@ fromMaryTx tx =
         :: Map (SL.ScriptHash (Crypto (MA.ShelleyMAEra 'MA.Mary StandardCrypto))) (SL.Core.Script (MA.ShelleyMAEra 'MA.Mary StandardCrypto))
         -> Map TokenPolicyId (Script KeyHash)
     fromMaryScriptMap =
-        Map.map (toWalletScript Payment) .
+        Map.map (toWalletScript Policy) .
         Map.mapKeys (toWalletTokenPolicyId . SL.PolicyID)
 
 getScriptIntegrityHash
@@ -1560,7 +1560,7 @@ fromAlonzoTxBodyAndAux bod mad wits =
         -> Map TokenPolicyId (Script KeyHash)
     fromAlonzoScriptMap anyScript =
         if Map.filter isPlutusScript anyScript == Map.empty then
-            Map.map (toWalletScript Payment . unsafeGetTimelockScript) $
+            Map.map (toWalletScript Policy . unsafeGetTimelockScript) $
             Map.mapKeys (toWalletTokenPolicyId . SL.PolicyID) anyScript
         else
             Map.empty

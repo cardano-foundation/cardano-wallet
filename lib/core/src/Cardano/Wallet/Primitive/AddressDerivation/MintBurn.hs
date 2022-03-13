@@ -163,4 +163,4 @@ toTokenMapAndScript scriptTempl cosignerMap tName val =
                 invariant "we should have xpubs of all cosigners at this point"
                 (Map.lookup c cosignerMap)
                 isJust
-        in hashVerificationKey @key CA.Payment (liftRawKey xpub)
+        in hashVerificationKey @key CA.Policy (liftRawKey xpub)

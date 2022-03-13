@@ -74,9 +74,9 @@ extra-deps:
 - blockfrost-client-core-0.2.0.0
 - servant-multipart-client-0.12.1
 
-# cardano-addresses-3.7.0
+# cardano-addresses-3.9.0
 - git: https://github.com/input-output-hk/cardano-addresses
-  commit: 71006f9eb956b0004022e80aadd4ad50d837b621
+  commit: 8bf98905b903455196495e231b23613ad2264cb0
   subdirs:
     - command-line
     - core
