@@ -1,16 +1,13 @@
 RSpec.describe CardanoWallet::Shared do
-
+  after(:each) do
+    teardown
+  end
+  
   describe CardanoWallet::Shared::Wallets do
 
-    after(:each) do
-      teardown
-    end
-
-
     describe "Create wallets" do
-      it "I can create, get and delete wallet from mnemonics getting acc_xpub from cardano-address" do
-        w = SHARED.wallets
 
+      it "I can create, get and delete wallet from mnemonics getting acc_xpub from cardano-address" do
         m24 = mnemonic_sentence(24)
         acc_ix = '0H'
         acc_xpub = cardano_address_get_acc_xpub(m24, "1854H/1815H/#{acc_ix}")
@@ -32,22 +29,20 @@ RSpec.describe CardanoWallet::Shared do
                     delegation_script_template: script_template,
                     }
 
-        wallet = w.create(payload)
+        wallet = WalletFactory.create(:shared, payload)
         expect(wallet).to be_correct_and_respond 201
 
         wid = wallet['id']
-        g = w.get(wid)
+        g = SHARED.wallets.get(wid)
         expect(g).to be_correct_and_respond 200
 
-        l = w.list
+        l = SHARED.wallets.list
         expect(l).to be_correct_and_respond 200
 
-        expect(w.delete(wid)).to be_correct_and_respond 204
+        expect(WalletFactory.delete(:shared, wid)).to be_correct_and_respond 204
       end
 
       it "I can create, get and delete wallet from pub key getting acc_xpub from cardano-address" do
-        w = SHARED.wallets
-
         m24 = mnemonic_sentence(24)
         acc_ix = '0H'
         acc_xpub = cardano_address_get_acc_xpub(m24, "1854H/1815H/#{acc_ix}")
@@ -79,22 +74,20 @@ RSpec.describe CardanoWallet::Shared do
                     delegation_script_template: delegation_script_template
                     }
 
-        wallet = w.create(payload)
+        wallet = WalletFactory.create(:shared, payload)
         expect(wallet).to be_correct_and_respond 201
 
         wid = wallet['id']
-        g = w.get(wid)
+        g = SHARED.wallets.get(wid)
         expect(g).to be_correct_and_respond 200
 
-        l = w.list
+        l = SHARED.wallets.list
         expect(l).to be_correct_and_respond 200
 
-        expect(w.delete(wid)).to be_correct_and_respond 204
+        expect(WalletFactory.delete(:shared, wid)).to be_correct_and_respond 204
       end
 
       it "Cannot create wallet with different acc xpub - derived from different mnemonic sentence" do
-        w = SHARED.wallets
-
         m24 = mnemonic_sentence(24)
         acc_ix = '0H'
         acc_xpub_wrong = cardano_address_get_acc_xpub(mnemonic_sentence(24),
@@ -126,17 +119,16 @@ RSpec.describe CardanoWallet::Shared do
                     payment_script_template: delegation_script_template,
                     }
 
-        wallet = w.create(payload)
+        size = SHARED.wallets.list.size
+        wallet = SHARED.wallets.create(payload)
         expect(wallet).to be_correct_and_respond 403
 
-        l = w.list
+        l = SHARED.wallets.list
         expect(l).to be_correct_and_respond 200
-        expect(l.size).to be 0
+        expect(l.size).to be size
       end
 
       it "Cannot create wallet with different acc xpub - derived from different acc ix" do
-        w = SHARED.wallets
-
         m24 = mnemonic_sentence(24)
         acc_ix = '0H'
         acc_xpub_wrong = cardano_address_get_acc_xpub(m24, "1854H/1815H/255H")
@@ -167,12 +159,13 @@ RSpec.describe CardanoWallet::Shared do
                     payment_script_template: delegation_script_template,
                     }
 
-        wallet = w.create(payload)
+        size = SHARED.wallets.list.size
+        wallet = SHARED.wallets.create(payload)
         expect(wallet).to be_correct_and_respond 403
 
-        l = w.list
+        l = SHARED.wallets.list
         expect(l).to be_correct_and_respond 200
-        expect(l.size).to be 0
+        expect(l.size).to be size
       end
 
       it "I can create incomplete wallet and update cosigners with acc_xpub from cardano-address" do
@@ -198,8 +191,6 @@ RSpec.describe CardanoWallet::Shared do
         expect(update_delegation).to be_correct_and_respond 200
         expect(SHARED.wallets.get(incomplete_wid)['state']['status']).to eq 'syncing'
         expect(SHARED.wallets.list).to be_correct_and_respond 200
-        expect(SHARED.wallets.list.first['state']['status']).to eq 'syncing'
-        expect(SHARED.wallets.delete(incomplete_wid)).to be_correct_and_respond 204
       end
 
       it "Create / update partially / get / list / delete" do
@@ -221,7 +212,7 @@ RSpec.describe CardanoWallet::Shared do
 
         expect(SHARED.wallets.list).to be_correct_and_respond 200
 
-        expect(SHARED.wallets.delete(incomplete_wid)).to be_correct_and_respond 204
+        expect(WalletFactory.delete(:shared, incomplete_wid)).to be_correct_and_respond 204
       end
 
       it "Cannot update main cosigner" do
@@ -242,8 +233,6 @@ RSpec.describe CardanoWallet::Shared do
                                                                   acc_xpub_upd)
 
         expect(update_delegation).to be_correct_and_respond 403
-
-        expect(SHARED.wallets.delete(incomplete_wid)).to be_correct_and_respond 204
       end
 
       it "Cannot update cosigner with main cosigner's xpub" do
@@ -262,13 +251,9 @@ RSpec.describe CardanoWallet::Shared do
                                                                   acc_xpub)
 
         expect(update_delegation).to be_correct_and_respond 403
-
-        expect(SHARED.wallets.delete(incomplete_wid)).to be_correct_and_respond 204
       end
 
       it "I can create/get/list/delete wallet using cosigner: 'self' - from mnemonics" do
-        w = SHARED.wallets
-
         m24 = mnemonic_sentence(24)
         acc_ix = '0H'
         script_template = { "cosigners" =>
@@ -288,23 +273,22 @@ RSpec.describe CardanoWallet::Shared do
                     delegation_script_template: script_template
                     }
 
-        wallet = w.create(payload)
+        wallet = WalletFactory.create(:shared, payload)
         expect(wallet).to be_correct_and_respond 201
         expect(wallet['state']['status']).to eq 'syncing'
 
         wid = wallet['id']
-        g = w.get(wid)
+        g = SHARED.wallets.get(wid)
         expect(g).to be_correct_and_respond 200
 
-        l = w.list
+        l = SHARED.wallets.list
         expect(l).to be_correct_and_respond 200
-        expect(l.first['id']).to eq wid
+        expect(l.to_s).to include wid
 
-        expect(w.delete(wid)).to be_correct_and_respond 204
+        expect(WalletFactory.delete(:shared, wid)).to be_correct_and_respond 204
       end
 
       it "I can create/get/list/delete wallet using cosigner: 'self' - from pub key" do
-        w = SHARED.wallets
         m24 = mnemonic_sentence(24)
         acc_ix = '0H'
         acc_xpub = cardano_address_get_acc_xpub(m24, "1854H/1815H/#{acc_ix}")
@@ -335,19 +319,19 @@ RSpec.describe CardanoWallet::Shared do
                     delegation_script_template: delegation_script_template,
                     }
 
-        wallet = w.create(payload)
+        wallet = WalletFactory.create(:shared, payload)
         expect(wallet).to be_correct_and_respond 201
         expect(wallet['state']['status']).to eq 'incomplete'
 
         wid = wallet['id']
-        g = w.get(wid)
+        g = SHARED.wallets.get(wid)
         expect(g).to be_correct_and_respond 200
 
-        l = w.list
+        l = SHARED.wallets.list
         expect(l).to be_correct_and_respond 200
-        expect(l.first['id']).to eq wid
+        expect(l.to_s).to include wid
 
-        expect(w.delete(wid)).to be_correct_and_respond 204
+        expect(WalletFactory.delete(:shared, wid)).to be_correct_and_respond 204
       end
     end
 
