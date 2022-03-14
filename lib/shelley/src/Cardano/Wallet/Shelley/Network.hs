@@ -161,6 +161,8 @@ import Data.Functor.Identity
     ( runIdentity )
 import Data.List
     ( isInfixOf )
+import Data.List.NonEmpty
+    ( NonEmpty )
 import Data.Map
     ( Map, (!) )
 import Data.Maybe
@@ -363,6 +365,7 @@ withNetworkLayerBase tr net np conn versionData tol action = do
                         cfg
                 traceWith trFollowLog MsgStartFollowing
                 connectClient tr handlers client versionData conn
+        , lightSync = Nothing
 
         , currentNodeTip =
             fromTip getGenesisBlockHash <$> atomically readNodeTip
@@ -597,7 +600,7 @@ mkWalletClient
     . ( block ~ CardanoBlock (StandardCrypto)
       , MonadThrow m, MonadST m, MonadTimer m, MonadAsync m)
     => Tracer m (ChainSyncLog block (Point block))
-    -> ChainFollower m (Point block) (Tip block) block
+    -> ChainFollower m (Point block) (Tip block) (NonEmpty block)
     -> CodecConfig block
     -> NetworkClient m
 mkWalletClient tr follower cfg v =

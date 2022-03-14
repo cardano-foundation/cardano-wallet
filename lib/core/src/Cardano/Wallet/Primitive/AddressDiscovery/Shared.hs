@@ -92,6 +92,7 @@ import Cardano.Wallet.Primitive.AddressDiscovery
     , GetAccount (..)
     , IsOurs (..)
     , KnownAddresses (..)
+    , MaybeLight (..)
     , coinTypeAda
     )
 import Cardano.Wallet.Primitive.AddressDiscovery.Sequential
@@ -543,6 +544,9 @@ instance Typeable n => KnownAddresses (SharedState n k) where
             Pending -> []
             Active pool -> map swivel $ Map.toList $ AddressPool.addresses pool
         swivel (k,(ix,s)) = (liftPaymentAddress @n k, s, decoratePath st ix)
+
+instance MaybeLight (SharedState n k) where
+    maybeDiscover = Nothing
 
 {-------------------------------------------------------------------------------
     Address utilities

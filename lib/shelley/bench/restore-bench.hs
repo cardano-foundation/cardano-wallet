@@ -94,7 +94,13 @@ import Cardano.Wallet.Primitive.AddressDerivation.Byron
 import Cardano.Wallet.Primitive.AddressDerivation.Shelley
     ( ShelleyKey )
 import Cardano.Wallet.Primitive.AddressDiscovery
-    ( CompareDiscovery, GenChange (..), IsOurs, IsOwned, KnownAddresses )
+    ( CompareDiscovery
+    , GenChange (..)
+    , IsOurs
+    , IsOwned
+    , KnownAddresses
+    , MaybeLight
+    )
 import Cardano.Wallet.Primitive.AddressDiscovery.Random
     ( RndAnyState, mkRndAnyState )
 import Cardano.Wallet.Primitive.AddressDiscovery.Sequential
@@ -593,6 +599,7 @@ bench_restoration
     :: forall (n :: NetworkDiscriminant) (k :: Depth -> * -> *) s results.
         ( IsOurs s Address
         , IsOurs s RewardAccount
+        , MaybeLight s
         , IsOwned s k
         , WalletKey k
         , NFData s

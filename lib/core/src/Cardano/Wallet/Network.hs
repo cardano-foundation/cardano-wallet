@@ -43,6 +43,8 @@ import Cardano.BM.Data.Severity
     ( Severity (..) )
 import Cardano.BM.Data.Tracer
     ( HasPrivacyAnnotation (..), HasSeverityAnnotation (..) )
+import Cardano.Wallet.Primitive.BlockSummary
+    ( LightSummary )
 import Cardano.Wallet.Primitive.Slotting
     ( PastHorizonException, TimeInterpreter )
 import Cardano.Wallet.Primitive.SyncProgress
@@ -69,6 +71,8 @@ import Control.Monad.Trans.Except
     ( ExceptT (..) )
 import Control.Tracer
     ( Tracer, contramapM, traceWith )
+import Data.Bifunctor
+    ( first )
 import Data.List.NonEmpty
     ( NonEmpty (..) )
 import Data.Map
@@ -106,20 +110,25 @@ import qualified Data.List.NonEmpty as NE
 data NetworkLayer m block = NetworkLayer
     { chainSync
         :: Tracer IO ChainFollowLog
-        -> ChainFollower m
-            ChainPoint
-            BlockHeader
-            block
+        -> ChainFollower m ChainPoint BlockHeader (NonEmpty block)
         -> m ()
         -- ^ Connect to the node and run the ChainSync protocol.
         -- The callbacks provided in the 'ChainFollower' argument
         -- are used to handle intersection finding,
         -- the arrival of new blocks, and rollbacks.
 
+    , lightSync
+        :: Maybe (
+            ChainFollower m ChainPoint BlockHeader (LightBlocks m block)
+            -> m ()
+          )
+        -- ^ Connect to a data source that offers an efficient
+        -- query @Address -> Transactions@.
+
     , currentNodeTip
         :: m BlockHeader
         -- ^ Get the current tip from the chain producer
-        --
+
     , currentNodeEra
         :: m AnyCardanoEra
         -- ^ Get the era the node is currently in.
@@ -175,14 +184,21 @@ data NetworkLayer m block = NetworkLayer
         :: SlotNo -> m (SyncProgress)
     }
 
+-- | In light-mode, we receive either a list of blocks as usual,
+-- or a 'LightSummary' of blocks.
+type LightBlocks m block = Either (NonEmpty block) (LightSummary m)
+
 instance Functor m => Functor (NetworkLayer m) where
     fmap f nl = nl
         { chainSync = \tr follower ->
-            chainSync nl tr (mapChainFollower id id id f follower)
+            chainSync nl tr $ mapChainFollower id id id (fmap f) follower
+        , lightSync =
+            (\sync -> sync . mapChainFollower id id id (first $ fmap f))
+            <$> lightSync nl
         }
 
 -- | A collection of callbacks to use with the 'chainSync' function.
-data ChainFollower m point tip block = ChainFollower
+data ChainFollower m point tip blocks = ChainFollower
     { readLocalTip :: m [point]
         -- ^ Callback for reading the local tip. Used to negotiate the
         -- intersection with the node.
@@ -191,7 +207,7 @@ data ChainFollower m point tip block = ChainFollower
         -- served from genesis.
         --
         -- TODO: Could be named readCheckpoints?
-    , rollForward :: NonEmpty block -> tip -> m ()
+    , rollForward :: blocks -> tip -> m ()
         -- ^ Callback for rolling forward.
         --
         -- Implementors _may_ delete old checkpoints while rolling forward.
@@ -238,13 +254,13 @@ mapChainFollower
     => (point1 -> point2) -- ^ Covariant
     -> (point2 -> point1) -- ^ Contravariant
     -> (tip2 -> tip1) -- ^ Contravariant
-    -> (block2 -> block1) -- ^ Contravariant
-    -> ChainFollower m point1 tip1 block1
-    -> ChainFollower m point2 tip2 block2
-mapChainFollower fpoint12 fpoint21 ftip fblock cf =
+    -> (blocks2 -> blocks1) -- ^ Contravariant
+    -> ChainFollower m point1 tip1 blocks1
+    -> ChainFollower m point2 tip2 blocks2
+mapChainFollower fpoint12 fpoint21 ftip fblocks cf =
     ChainFollower
         { readLocalTip = map fpoint12 <$> readLocalTip cf
-        , rollForward = \bs tip -> rollForward cf (fmap fblock bs) (ftip tip)
+        , rollForward = \bs tip -> rollForward cf (fblocks bs) (ftip tip)
         , rollBackward = fmap fpoint12 . rollBackward cf . fpoint21
         }
 

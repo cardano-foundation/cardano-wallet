@@ -278,7 +278,7 @@ data LocalRollbackResult block
 chainSyncWithBlocks
     :: forall m block. (Monad m, MonadSTM m, MonadThrow m, HasHeader block)
     => Tracer m (ChainSyncLog block (Point block))
-    -> ChainFollower m (Point block) (Tip block) block
+    -> ChainFollower m (Point block) (Tip block) (NonEmpty block)
     -> ChainSyncClientPipelined block (Point block) (Tip block) m Void
 chainSyncWithBlocks tr chainFollower =
     ChainSyncClientPipelined clientStNegotiateIntersection

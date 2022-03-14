@@ -37,6 +37,9 @@ module Cardano.Wallet.Primitive.Model
     , applyBlock
     , applyBlocks
 
+    , BlockData (..)
+    , firstHeader
+
     -- * Accessors
     , currentTip
     , getState
@@ -45,6 +48,9 @@ module Cardano.Wallet.Primitive.Model
     , totalUTxO
     , availableUTxO
     , utxo
+
+    -- * Delta Type
+    , DeltaWallet
 
     -- * Internal
     , unsafeInitWallet
@@ -60,7 +66,9 @@ module Cardano.Wallet.Primitive.Model
 import Prelude
 
 import Cardano.Wallet.Primitive.AddressDiscovery
-    ( IsOurs (..) )
+    ( DiscoverTxs, IsOurs (..) )
+import Cardano.Wallet.Primitive.BlockSummary
+    ( BlockSummary (..), ChainEvents )
 import Cardano.Wallet.Primitive.Types
     ( Block (..)
     , BlockHeader (..)
@@ -235,6 +243,10 @@ updateState
     -> Wallet s
 updateState s (Wallet u tip _) = Wallet u tip s
 
+{-------------------------------------------------------------------------------
+                    Applying Blocks to the wallet state
+-------------------------------------------------------------------------------}
+
 -- | Represents the subset of data from a single block that are relevant to a
 -- particular wallet, discovered when applying a block to that wallet.
 data FilteredBlock = FilteredBlock
@@ -293,12 +305,27 @@ applyBlock !block (Wallet !u0 _ s0) =
 --   __@w@__.
 --
 applyBlocks
-    :: (IsOurs s Address, IsOurs s RewardAccount)
-    => NonEmpty Block
+    :: (IsOurs s Address, IsOurs s RewardAccount, Monad m)
+    => BlockData m (Either Address RewardAccount) ChainEvents s
     -> Wallet s
-    -> NonEmpty (FilteredBlock, (DeltaWallet s, Wallet s))
-applyBlocks (block0 :| blocks) cp =
+    -> m (NonEmpty (FilteredBlock, (DeltaWallet s, Wallet s)))
+applyBlocks (List (block0 :| blocks)) cp = pure $
     NE.scanl (flip applyBlock . snd . snd) (applyBlock block0 cp) blocks
+applyBlocks (Summary _ _) _ = error "FIXME: Implement me!"
+    -- FIXME: Return type (NonEmpty of filtered blocks)
+    -- needs to be rethought, as it still assumes sequential order
+    -- of blocks.
+
+-- | BlockData which has been paired with discovery facilities.
+data BlockData m addr tx s
+    = List (NonEmpty Block)
+    | Summary (DiscoverTxs addr tx s) (BlockSummary m addr tx)
+
+-- | First 'BlockHeader' of the blocks represented
+-- by 'BlockData'.
+firstHeader :: BlockData m addr tx s -> BlockHeader
+firstHeader (List xs) = header $ NE.head xs
+firstHeader (Summary _ BlockSummary{from}) = from
 
 {-------------------------------------------------------------------------------
                                    Accessors
