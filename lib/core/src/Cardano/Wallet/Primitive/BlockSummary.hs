@@ -87,7 +87,7 @@ type LightSummary m =
 {-------------------------------------------------------------------------------
     ChainEvents
 -------------------------------------------------------------------------------}
--- | 'BlockEvents', orderd by slot.
+-- | 'BlockEvents', always ordered by slot.
 newtype ChainEvents = ChainEvents (Map Slot BlockEvents)
     deriving (Eq, Ord, Show)
 
@@ -148,6 +148,21 @@ mergeSameBlock
     }
 
 -- | Merge two lists in sorted order. Remove duplicate items.
+--
+-- The first argument of 'mergeOn' is a function that returns the
+-- keys according to which the items should be sorted in ascending order.
+-- The third and fourth arguments are assumed to be sorted by
+-- these keys.
+--
+-- Items with equal keys are considered duplicates.
+-- The second argument of 'mergeOn' is function that merges two
+-- duplicate items.
+-- 
+-- Example:
+--
+-- > mergeOn fst const [(0,"h"),(1,"a"),(4,"ell")] [(1,"λ"),(3,"sk")]
+--   = [(0,"h"),(1,"a"),(3,"sk"),(4,"ell")]
+--
 mergeOn :: Ord key => (a -> key) -> (a -> a -> a) -> [a] -> [a] -> [a]
 mergeOn _ _ [] ys = ys
 mergeOn _ _ xs [] = xs
