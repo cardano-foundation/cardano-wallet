@@ -2066,7 +2066,7 @@ balanceTransactionSpec = do
                         [ TxOut addr
                             (TokenBundle.fromCoin (Coin 100_000_000))
                         ]
-                totalOutput <$> tx `shouldBe` Right (Coin 100_000_000)
+                totalOutput <$> tx `shouldBe` Right (Coin 102_000_000)
 
             it "otherwise fails with ErrBalanceTxMaxSizeLimitExceeded" $ do
                 let tx = balance $ paymentPartialTx

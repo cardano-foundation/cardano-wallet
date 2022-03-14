@@ -1545,12 +1545,38 @@ balanceTransaction
     -> (UTxOIndex WalletUTxO, Wallet s, Set Tx)
     -> PartialTx
     -> ExceptT ErrBalanceTx m SealedTx
-balanceTransaction
+balanceTransaction ctx change pp ti wallet ptx = do
+    let balanceWith strategy = balanceTransactionWithSelectionStrategy @m @s @k
+            ctx change pp ti wallet strategy ptx
+    balanceWith SelectionStrategyOptimal
+        `catchE` \case
+            ErrBalanceTxMaxSizeLimitExceeded
+                -> balanceWith SelectionStrategyMinimal
+            otherErr
+                -> throwE otherErr
+
+balanceTransactionWithSelectionStrategy
+    :: forall m s k ctx.
+        ( HasTransactionLayer k ctx
+        , GenChange s
+        , MonadRandom m
+        , HasLogger m WalletWorkerLog ctx
+        )
+    => ctx
+    -> ArgGenChange s
+    -> (W.ProtocolParameters, Cardano.ProtocolParameters)
+    -> TimeInterpreter (Either PastHorizonException)
+    -> (UTxOIndex WalletUTxO, Wallet s, Set Tx)
+    -> SelectionStrategy
+    -> PartialTx
+    -> ExceptT ErrBalanceTx m SealedTx
+balanceTransactionWithSelectionStrategy
     ctx
     generateChange
     (pp, nodePParams)
     ti
     (internalUtxoAvailable, wallet, _pendingTxs)
+    selectionStrategy
     ptx@(PartialTx partialTx@(cardanoTx -> Cardano.InAnyCardanoEra _ (Cardano.Tx (Cardano.TxBody bod) _)) externalInputs redeemers)
     = do
     guardExistingCollateral
@@ -1953,7 +1979,7 @@ balanceTransaction
                 , utxoAvailableForCollateral =
                       UTxOSelection.availableMap utxoSelection
                 , utxoAvailableForInputs = utxoSelection
-                , selectionStrategy = SelectionStrategyOptimal
+                , selectionStrategy = selectionStrategy
 
                 }
             in
