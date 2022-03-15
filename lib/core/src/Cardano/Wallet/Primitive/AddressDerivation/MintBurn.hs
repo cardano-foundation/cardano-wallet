@@ -145,7 +145,8 @@ toTokenMapAndScript
     -> Natural
     -> (AssetId, TokenQuantity, Script KeyHash)
 toTokenMapAndScript scriptTempl cosignerMap tName val =
-    ( AssetId (UnsafeTokenPolicyId $ Hash $ unScriptHash $ toScriptHash $ replaceCosigner scriptTempl) tName
+    ( AssetId (UnsafeTokenPolicyId $ Hash $ unScriptHash $ toScriptHash $
+               replaceCosigner scriptTempl) tName
     , TokenQuantity val
     , replaceCosigner scriptTempl )
   where

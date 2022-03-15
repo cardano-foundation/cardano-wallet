@@ -46,6 +46,7 @@ import Cardano.Wallet.Api.Types
     , ApiDeregisterPool (..)
     , ApiExternalCertificate (..)
     , ApiPolicyKey (..)
+    , ApiPolicyScript (..)
     , ApiRegisterPool (..)
     , ApiSerialisedTransaction (..)
     , ApiStakePool
@@ -2091,17 +2092,17 @@ spec = describe "NEW_SHELLEY_TRANSACTIONS" $ do
                 , ( "mint-burn"
                   , \ctx w -> do
                         (_vk, vkHash) <- getSomeVerificationKey ctx w
-                        let (policy, policyId) = PlutusScenario.mkSignerPolicy [json|{
+                        let (policy, policyId') = PlutusScenario.mkSignerPolicy [json|{
                                 "vkHash": #{vkHash} }
                             |]
                         mint <- PlutusScenario.mintBurn_1 [json|{
                             "policy": #{policy},
-                            "policyId": #{policyId},
+                            "policyId": #{policyId'},
                             "vkHash": #{vkHash}
                         }|]
                         let burn = \_ -> PlutusScenario.mintBurn_2 [json|{
                                 "policy": #{policy},
-                                "policyId": #{policyId},
+                                "policyId": #{policyId'},
                                 "vkHash": #{vkHash}
                             }|]
                         pure (mint, [burn])
@@ -2957,7 +2958,8 @@ spec = describe "NEW_SHELLEY_TRANSACTIONS" $ do
                         (`shouldBe` balance)
                 ]
 
-    it "TRANS_NEW_CREATE_10a - Minting/burning assets - more than one cosigner in template" $ \ctx -> runResourceT $ do
+    it "TRANS_NEW_CREATE_10a - Minting/burning assets - more than one cosigner \
+       \in template" $ \ctx -> runResourceT $ do
         wa <- fixtureWallet ctx
         addrs <- listAddresses @n ctx wa
         let destination = (addrs !! 1) ^. #id
@@ -2991,7 +2993,8 @@ spec = describe "NEW_SHELLEY_TRANSACTIONS" $ do
             , expectErrorMessage errMsg403CreatedWrongPolicyScriptTemplate
             ]
 
-    it "TRANS_NEW_CREATE_10b - Minting/burning assets - incorrect template" $ \ctx -> runResourceT $ do
+    it "TRANS_NEW_CREATE_10b - Minting/burning assets - incorrect template \
+       \" $ \ctx -> runResourceT $ do
         wa <- fixtureWallet ctx
         addrs <- listAddresses @n ctx wa
         let destination = (addrs !! 1) ^. #id
@@ -3023,7 +3026,8 @@ spec = describe "NEW_SHELLEY_TRANSACTIONS" $ do
             , expectErrorMessage errMsg403CreatedWrongPolicyScriptTemplate
             ]
 
-    it "TRANS_NEW_CREATE_10c - Minting/burning assets - one cosigner in template other than cosigner#0" $ \ctx -> runResourceT $ do
+    it "TRANS_NEW_CREATE_10c - Minting/burning assets - one cosigner in template\
+       \other than cosigner#0" $ \ctx -> runResourceT $ do
         wa <- fixtureWallet ctx
         addrs <- listAddresses @n ctx wa
         let destination = (addrs !! 1) ^. #id
@@ -3103,14 +3107,16 @@ spec = describe "NEW_SHELLEY_TRANSACTIONS" $ do
                 UnsafeTokenPolicyId . Hash $
                 unScriptHash $
                 toScriptHash $
-                RequireAllOf [RequireSignatureOf policyKeyHash, ActiveFromSlot 120]
+                RequireAllOf [ RequireSignatureOf policyKeyHash
+                             , ActiveFromSlot 120]
         let tokens = TokenMap.singleton
                 (AssetId tokenPolicyId' tokenName')
                 (TokenQuantity 50_000)
         let mintScript =
-                ( ApiT tokenPolicyId'
-                , ApiT (RequireAllOf [RequireSignatureOf policyKeyHash,ActiveFromSlot 120])
-                )
+                ApiPolicyScript
+                ( ApiT tokenPolicyId' )
+                ( ApiT (RequireAllOf [ RequireSignatureOf policyKeyHash
+                                     , ActiveFromSlot 120]))
 
         let activeAssetsInfo = ApiAssetMintedBurned
                 { tokenMap = ApiT tokens
@@ -3173,14 +3179,16 @@ spec = describe "NEW_SHELLEY_TRANSACTIONS" $ do
                 UnsafeTokenPolicyId . Hash $
                 unScriptHash $
                 toScriptHash $
-                RequireAllOf [RequireSignatureOf policyKeyHash, ActiveFromSlot 120]
+                RequireAllOf [ RequireSignatureOf policyKeyHash
+                             , ActiveFromSlot 120]
         let tokens = TokenMap.singleton
                 (AssetId tokenPolicyId' tokenName')
                 (TokenQuantity 50_000)
         let burnScript =
-                ( ApiT tokenPolicyId'
-                , ApiT (RequireAllOf [RequireSignatureOf policyKeyHash,ActiveFromSlot 120])
-                )
+                ApiPolicyScript
+                ( ApiT tokenPolicyId' )
+                ( ApiT (RequireAllOf [ RequireSignatureOf policyKeyHash
+                                     , ActiveFromSlot 120]))
 
         let activeAssetsInfo = ApiAssetMintedBurned
                 { tokenMap = ApiT TokenMap.empty

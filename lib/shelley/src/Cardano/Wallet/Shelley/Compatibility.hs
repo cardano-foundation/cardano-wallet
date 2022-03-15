@@ -1340,7 +1340,9 @@ fromCardanoTx = \case
         Cardano.ShelleyBasedEraAllegra -> extract $ fromAllegraTx tx
         Cardano.ShelleyBasedEraMary    -> extract $ fromMaryTx tx
         Cardano.ShelleyBasedEraAlonzo  -> extract $ fromAlonzoTx tx
-    Cardano.ByronTx tx                 -> (fromTxAux tx, emptyTokenMapWithScripts, emptyTokenMapWithScripts, [])
+    Cardano.ByronTx tx                 -> ( fromTxAux tx
+                                          , emptyTokenMapWithScripts
+                                          , emptyTokenMapWithScripts, [])
   where
     extract (tx, certs, mint, burn) = (tx, mint, burn, certs)
 
@@ -1453,9 +1455,11 @@ fromMaryTx tx =
     (assetsToMint, assetsToBurn) = fromLedgerMintValue mint
     scriptMap = fromMaryScriptMap $ Shelley.scriptWits wits
     (mintScriptMap, burnScriptMap) =
-        if (assetsToMint == TokenMap.empty && assetsToBurn /= TokenMap.empty) then
+        if ( assetsToMint == TokenMap.empty &&
+             assetsToBurn /= TokenMap.empty) then
             (Map.empty, scriptMap)
-        else if (assetsToMint /= TokenMap.empty && assetsToBurn == TokenMap.empty) then
+        else if ( assetsToMint /= TokenMap.empty &&
+                  assetsToBurn == TokenMap.empty) then
             (scriptMap, Map.empty)
         else
             (Map.empty, Map.empty)
@@ -1473,7 +1477,8 @@ fromMaryTx tx =
         fromCardanoValue $ Cardano.fromMaryValue value
 
     fromMaryScriptMap
-        :: Map (SL.ScriptHash (Crypto (MA.ShelleyMAEra 'MA.Mary StandardCrypto))) (SL.Core.Script (MA.ShelleyMAEra 'MA.Mary StandardCrypto))
+        :: Map (SL.ScriptHash (Crypto (MA.ShelleyMAEra 'MA.Mary StandardCrypto)))
+           (SL.Core.Script (MA.ShelleyMAEra 'MA.Mary StandardCrypto))
         -> Map TokenPolicyId (Script KeyHash)
     fromMaryScriptMap =
         Map.map (toWalletScript Policy) .
@@ -1548,15 +1553,18 @@ fromAlonzoTxBodyAndAux bod mad wits =
     (assetsToMint, assetsToBurn) = fromLedgerMintValue mint
     scriptMap = fromAlonzoScriptMap $ Alonzo.txscripts' wits
     (mintScriptMap, burnScriptMap) =
-        if (assetsToMint == TokenMap.empty && assetsToBurn /= TokenMap.empty) then
+        if ( assetsToMint == TokenMap.empty &&
+             assetsToBurn /= TokenMap.empty) then
             (Map.empty, scriptMap)
-        else if (assetsToMint /= TokenMap.empty && assetsToBurn == TokenMap.empty) then
+        else if ( assetsToMint /= TokenMap.empty &&
+                  assetsToBurn == TokenMap.empty) then
             (scriptMap, Map.empty)
         else
             (Map.empty, Map.empty)
 
     fromAlonzoScriptMap
-        :: Map (SL.ScriptHash (Crypto StandardAlonzo)) (SL.Core.Script StandardAlonzo)
+        :: Map (SL.ScriptHash (Crypto StandardAlonzo))
+           (SL.Core.Script StandardAlonzo)
         -> Map TokenPolicyId (Script KeyHash)
     fromAlonzoScriptMap anyScript =
         if Map.filter isPlutusScript anyScript == Map.empty then
@@ -1570,7 +1578,7 @@ fromAlonzoTxBodyAndAux bod mad wits =
 
         unsafeGetTimelockScript (Alonzo.TimelockScript script) = script
         unsafeGetTimelockScript _ =
-            internalError "only timelock scripts should be attempted at this moment"
+            internalError "only timelock scripts should be attempted here"
 
     fromAlonzoTxOut
          :: Alonzo.TxOut (Cardano.ShelleyLedgerEra AlonzoEra)

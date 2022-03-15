@@ -270,7 +270,7 @@ prop_genChangeGapFromAccountXPub g =
     rootXPrv = Shelley.unsafeGenerateKeyFromSeed (mw, Nothing) mempty
     accIx = toEnum 0x80000000
     accXPub = publicKey $ deriveAccountPrivateKey mempty rootXPrv accIx
-    s0 = mkSeqStateFromAccountXPub accXPub purposeCIP1852 g
+    s0 = mkSeqStateFromAccountXPub accXPub Nothing purposeCIP1852 g
     prop =
         length (fst $ changeAddresses [] s0) === fromEnum g
 
@@ -371,7 +371,8 @@ prop_changeIsOnlyKnownAfterGeneration
 prop_changeIsOnlyKnownAfterGeneration (intPool, extPool) =
     let
         s0 :: SeqState 'Mainnet ShelleyKey
-        s0 = SeqState intPool extPool emptyPendingIxs ourAccount rewardAccount defaultPrefix
+        s0 = SeqState intPool extPool emptyPendingIxs ourAccount
+             Nothing rewardAccount defaultPrefix
         addrs0 = pair' <$> knownAddresses s0
         (change, s1) = genChange (\k _ -> paymentAddress @'Mainnet k) s0
         addrs1 = fst' <$> knownAddresses s1
@@ -534,12 +535,13 @@ instance
         SeqAddressPool <$> genPool pool
 
 instance Arbitrary (SeqState 'Mainnet ShelleyKey) where
-    shrink (SeqState intPool extPool ixs acc rwd prefix) =
-        (\(i, e) -> SeqState i e ixs acc rwd prefix) <$> shrink (intPool, extPool)
+    shrink (SeqState intPool extPool ixs acc policy rwd prefix) =
+        (\(i, e) -> SeqState i e ixs acc policy rwd prefix) <$> shrink (intPool, extPool)
     arbitrary = do
         intPool <- arbitrary
         extPool <- arbitrary
-        return $ SeqState intPool extPool emptyPendingIxs ourAccount rewardAccount defaultPrefix
+        return $ SeqState intPool extPool emptyPendingIxs ourAccount
+            Nothing rewardAccount defaultPrefix
 
 -- | Wrapper to encapsulate keys.
 data Key = forall (k :: Depth -> * -> *).

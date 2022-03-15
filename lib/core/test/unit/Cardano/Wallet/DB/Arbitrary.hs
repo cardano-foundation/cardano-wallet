@@ -207,6 +207,7 @@ import Test.Utils.Time
     ( genUniformTime )
 
 import qualified Cardano.Wallet.Primitive.AddressDerivation.Byron as Byron
+import qualified Cardano.Wallet.Primitive.AddressDerivation.MintBurn as MintBurn
 import qualified Cardano.Wallet.Primitive.AddressDerivation.Shared as Shared
 import qualified Cardano.Wallet.Primitive.AddressDerivation.Shelley as Shelley
 import qualified Cardano.Wallet.Primitive.AddressDiscovery.Sequential as Seq
@@ -485,14 +486,15 @@ instance Arbitrary (Index 'WholeDomain depth) where
 -------------------------------------------------------------------------------}
 
 instance Arbitrary (SeqState 'Mainnet ShelleyKey) where
-    shrink (SeqState intPool extPool ixs acc rwd prefix) =
-            (\(i, e, x) -> SeqState i e x acc rwd prefix)
+    shrink (SeqState intPool extPool ixs acc policy rwd prefix) =
+            (\(i, e, x) -> SeqState i e x acc policy rwd prefix)
         <$> shrink (intPool, extPool, ixs)
     arbitrary = SeqState
         <$> arbitrary
         <*> arbitrary
         <*> arbitrary
         <*> pure arbitrarySeqAccount
+        <*> pure (Just arbitraryPolicyKey)
         <*> pure arbitraryRewardAccount
         <*> pure defaultSeqStatePrefix
 
@@ -565,6 +567,15 @@ arbitraryRewardAccount =
     publicKey $ Shelley.unsafeGenerateKeyFromSeed (mw, Nothing) mempty
   where
     mw = someDummyMnemonic (Proxy @15)
+
+arbitraryPolicyKey
+    :: ShelleyKey 'PolicyK XPub
+arbitraryPolicyKey =
+    publicKey $ liftRawKey $
+    MintBurn.derivePolicyPrivateKey mempty rootXPrv minBound
+  where
+    rootXPrv:_ = map getRawKey $ take 1 rootKeysSeq
+
 
 {-------------------------------------------------------------------------------
                                  Random State

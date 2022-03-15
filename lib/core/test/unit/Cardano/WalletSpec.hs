@@ -140,7 +140,7 @@ import Cardano.Wallet.Primitive.Types.Tx.Gen
 import Cardano.Wallet.Primitive.Types.UTxO
     ( UTxO (..) )
 import Cardano.Wallet.Transaction
-    ( TransactionLayer (..), Withdrawal (..) )
+    ( TransactionLayer (..), Withdrawal (..), emptyTokenMapWithScripts )
 import Cardano.Wallet.Unsafe
     ( unsafeRunExceptT )
 import Cardano.Wallet.Util
@@ -1369,7 +1369,8 @@ dummyTransactionLayer = TransactionLayer
     , constraints =
         error "dummyTransactionLayer: constraints not implemented"
     , decodeTx = \_sealed ->
-        (Tx (Hash "") Nothing mempty mempty mempty mempty mempty Nothing, mempty, mempty, [])
+        ( Tx (Hash "") Nothing mempty mempty mempty mempty mempty Nothing
+        , emptyTokenMapWithScripts, emptyTokenMapWithScripts, [])
     , updateTx = \sealed _update ->
         pure sealed
     }

@@ -174,6 +174,7 @@ module Cardano.Wallet.Api.Types
     , ApiRegisterPool (..)
     , ApiDeregisterPool (..)
     , ApiAssetMintedBurned (..)
+    , ApiPolicyScript (..)
 
     -- * API Types (Byron)
     , ApiByronWallet (..)
@@ -1222,9 +1223,15 @@ data ApiAnyCertificate n =
     deriving (Eq, Generic, Show)
     deriving anyclass NFData
 
+data ApiPolicyScript = ApiPolicyScript
+    { policyId :: !(ApiT W.TokenPolicyId)
+    , policyScript :: !(ApiT (Script KeyHash))
+    } deriving (Eq, Generic, Show)
+      deriving anyclass NFData
+
 data ApiAssetMintedBurned = ApiAssetMintedBurned
     { tokenMap :: !(ApiT W.TokenMap)
-    , policyScripts :: ![(ApiT W.TokenPolicyId, ApiT (Script KeyHash))]
+    , policyScripts :: ![ApiPolicyScript]
     , walletPolicyKeyHash :: !ApiPolicyKey
     } deriving (Eq, Generic, Show)
       deriving anyclass NFData
@@ -2094,6 +2101,11 @@ instance FromJSON ApiPolicyKey where
 instance FromJSON ApiAssetMintedBurned where
     parseJSON = genericParseJSON defaultRecordTypeOptions
 instance ToJSON ApiAssetMintedBurned where
+    toJSON = genericToJSON defaultRecordTypeOptions
+
+instance FromJSON ApiPolicyScript where
+    parseJSON = genericParseJSON defaultRecordTypeOptions
+instance ToJSON ApiPolicyScript where
     toJSON = genericToJSON defaultRecordTypeOptions
 
 parseBech32
@@ -4000,15 +4012,17 @@ instance EncodeAddress n => ToJSON (PostMintBurnAssetData n) where
 -- | Core minting and burning request information.
 --
 -- Assets are minted and burned under a "policy". The policy defines under what
--- circumstances a token may be minted and burned. The policy is the hash of a serialized
--- script that contain verification keys and timelocks combined in a conditions, possibly nested,
--- to accommodate non-trivial time conditions.
+-- circumstances a token may be minted and burned. The policy is the hash of a
+-- serialized script that contain verification keys and timelocks combined in
+-- conditions, possibly nested, to accommodate non-trivial time conditions.
 -- In non-multisig case the script regulating minting/burning will contain
--- a verification key via cosigner#0 of the wallet with the optional time predicates.
--- In multisig case the script regulating minting/burning will contain verification keys of
--- signers (via cosigner#N) with optional time predicates. The used key derivation index is the same for all
--- engaged derivation keys and ix=0 is assumed to be used. The verification key derivation
--- is according to CIP 1855.
+-- a verification key via cosigner#0 of the wallet with the optional time
+-- predicates.
+-- In multisig case the script regulating minting/burning will contain
+-- verification keys of signers (via cosigner#N) with optional time predicates.
+-- The used key derivation index is the same for all engaged derivation keys and
+-- ix=0 is assumed to be used. The verification key derivation is according to
+-- CIP 1855.
 data ApiMintBurnData (n :: NetworkDiscriminant) = ApiMintBurnData
     { policyScriptTemplate :: !(ApiT (Script Cosigner))
     -- ^ A script regulating minting/burning policy. 'self' is expected

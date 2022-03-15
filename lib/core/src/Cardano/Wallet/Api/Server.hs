@@ -247,6 +247,7 @@ import Cardano.Wallet.Api.Types
     , ApiPaymentDestination (..)
     , ApiPendingSharedWallet (..)
     , ApiPolicyKey (..)
+    , ApiPolicyScript (..)
     , ApiPoolId (..)
     , ApiPostAccountKeyDataWithPurpose (..)
     , ApiPostRandomAddressData (..)
@@ -2180,7 +2181,8 @@ constructTransaction ctx genChange knownPools getPoolStatus (ApiT wid) body = do
             isLeft (validateScriptOfTemplate RecommendedValidation scriptTempl) ||
             length (retrieveAllCosigners scriptTempl) > 1 ||
             L.any (not . (== Cosigner 0)) (retrieveAllCosigners scriptTempl)
-    when (isJust mintingBurning && L.any wrongMintingTemplate (NE.toList $ fromJust mintingBurning)) $
+    when ( isJust mintingBurning &&
+           L.any wrongMintingTemplate (NE.toList $ fromJust mintingBurning)) $
         liftHandler $ throwE ErrConstructTxWrongMintingBurningTemplate
 
     let checkIx (ApiStakeKeyIndex (ApiT derIndex)) =
@@ -2263,16 +2265,19 @@ constructTransaction ctx genChange knownPools getPoolStatus (ApiT wid) body = do
                     }
         txCtx' <-
             if isJust mintingBurning then do
-                (policyXPub, _) <- liftHandler $ W.readPolicyPublicKey @_ @s @k @n wrk wid
+                (policyXPub, _) <-
+                    liftHandler $ W.readPolicyPublicKey @_ @s @k @n wrk wid
                 let isMinting (ApiMintBurnData _ _ (ApiMint _)) = True
                     isMinting _ = False
-                let getMinting (ApiMintBurnData (ApiT scriptT) (ApiT tName) (ApiMint (ApiMintData _ (Quantity amt)))) =
+                let getMinting ( ApiMintBurnData (ApiT scriptT) (ApiT tName)
+                                 (ApiMint (ApiMintData _ (Quantity amt)))) =
                         toTokenMapAndScript @k scriptT
                         (Map.singleton (Cosigner 0) policyXPub)
                         tName
                         amt
                     getMinting _ = error "getMinting should not be used that way"
-                let getBurning (ApiMintBurnData (ApiT scriptT) (ApiT tName) (ApiBurn (ApiBurnData (Quantity amt)))) =
+                let getBurning (ApiMintBurnData (ApiT scriptT) (ApiT tName)
+                                (ApiBurn (ApiBurnData (Quantity amt)))) =
                         toTokenMapAndScript @k scriptT
                         (Map.singleton (Cosigner 0) policyXPub)
                         tName
@@ -2414,11 +2419,13 @@ decodeTransaction ctx (ApiT wid) (ApiSerialisedTransaction (ApiT sealed)) = do
     toApiAssetMintedBurned xpub tokenWithScripts = ApiAssetMintedBurned
         { tokenMap = ApiT $ tokenWithScripts ^. #txTokenMap
         , policyScripts =
+                map (uncurry ApiPolicyScript) $
                 Map.toList $
                 Map.map ApiT $
                 Map.mapKeys ApiT $
                 tokenWithScripts ^. #txScripts
-        , walletPolicyKeyHash = uncurry ApiPolicyKey (computeKeyPayload (Just True) xpub)
+        , walletPolicyKeyHash =
+                uncurry ApiPolicyKey (computeKeyPayload (Just True) xpub)
         }
     toOut (txoutIncoming, Nothing) =
         ExternalOutput $ toAddressAmount @n txoutIncoming

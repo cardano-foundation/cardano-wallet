@@ -66,6 +66,7 @@ import Cardano.Wallet.Api.Types
     , ApiAddressInspect (..)
     , ApiAnyCertificate (..)
     , ApiAsset (..)
+    , ApiAssetMintedBurned (..)
     , ApiBalanceTransactionPostData (..)
     , ApiBase64
     , ApiBlockInfo (..)
@@ -112,6 +113,8 @@ import Cardano.Wallet.Api.Types
     , ApiOurStakeKey
     , ApiPaymentDestination (..)
     , ApiPendingSharedWallet (..)
+    , ApiPolicyKey (..)
+    , ApiPolicyScript (..)
     , ApiPostAccountKeyData
     , ApiPostAccountKeyDataWithPurpose
     , ApiPostRandomAddressData
@@ -466,6 +469,7 @@ spec = parallel $ do
             jsonRoundtripAndGolden $ Proxy @ApiPostAccountKeyData
             jsonRoundtripAndGolden $ Proxy @ApiPostAccountKeyDataWithPurpose
             jsonRoundtripAndGolden $ Proxy @ApiAccountKey
+            jsonRoundtripAndGolden $ Proxy @ApiPolicyKey
             jsonRoundtripAndGolden $ Proxy @ApiAccountKeyShared
             jsonRoundtripAndGolden $ Proxy @ApiEpochInfo
             jsonRoundtripAndGolden $ Proxy @(ApiSelectCoinsData ('Testnet 0))
@@ -514,6 +518,7 @@ spec = parallel $ do
             jsonRoundtripAndGolden $ Proxy @ApiWalletUtxoSnapshot
             jsonRoundtripAndGolden $ Proxy @ApiUtxoStatistics
             jsonRoundtripAndGolden $ Proxy @ApiFee
+            jsonRoundtripAndGolden $ Proxy @ApiAssetMintedBurned
             jsonRoundtripAndGolden $ Proxy @ApiStakePoolMetrics
             jsonRoundtripAndGolden $ Proxy @ApiTxId
             jsonRoundtripAndGolden $ Proxy @ApiVerificationKeyShelley
@@ -1943,6 +1948,18 @@ instance Arbitrary (Quantity "percent" Double) where
     shrink _ = [Quantity 0.0]
     arbitrary = Quantity <$> choose (0,100)
 
+instance Arbitrary ApiPolicyKey where
+    arbitrary = do
+        hashing <- elements [WithHashing, WithoutHashing]
+        ApiPolicyKey <$> genKey (len hashing) <*> pure hashing
+      where
+        genKey n = fmap B8.pack (vectorOf n arbitrary)
+        len WithHashing = 28
+        len WithoutHashing = 32
+
+instance ToSchema ApiPolicyKey where
+    declareNamedSchema _ = declareSchemaForDefinition "ApiPolicyKey"
+
 instance Arbitrary ApiVerificationKeyShelley where
     arbitrary = do
         hashing <- elements [WithHashing, WithoutHashing]
@@ -2206,13 +2223,31 @@ instance Arbitrary (ApiConstructTransaction n) where
         <*> arbitrary
         <*> arbitrary
 
+instance Arbitrary ApiAssetMintedBurned where
+    arbitrary = do
+        keyhash <- arbitrary
+        script <- elements
+            [ ApiT $ RequireSignatureOf keyhash
+            , ApiT $ RequireAllOf [ RequireSignatureOf keyhash
+                                  , ActiveFromSlot 100]
+            , ApiT $ RequireAllOf [ RequireSignatureOf keyhash
+                                  , ActiveFromSlot 100, ActiveUntilSlot 150]
+            ]
+        policyid <- arbitrary
+        ApiAssetMintedBurned
+            <$> arbitrary
+            <*> pure [ApiPolicyScript policyid script]
+            <*> arbitrary
+
 instance Arbitrary (ApiMintBurnData n) where
     arbitrary = ApiMintBurnData
-        <$> arbitrary
-        <*> elements [ ApiT $ RequireSignatureOf (Cosigner 0)
-                     , ApiT $ RequireAllOf [RequireSignatureOf (Cosigner 0), ActiveFromSlot 100]
-                     , ApiT $ RequireAllOf [RequireSignatureOf (Cosigner 0), ActiveFromSlot 100, ActiveUntilSlot 150]
-                     ]
+        <$> elements
+        [ ApiT $ RequireSignatureOf (Cosigner 0)
+        , ApiT $ RequireAllOf [ RequireSignatureOf (Cosigner 0)
+                              , ActiveFromSlot 100]
+        , ApiT $ RequireAllOf [ RequireSignatureOf (Cosigner 0)
+                              , ActiveFromSlot 100, ActiveUntilSlot 150]
+        ]
         <*> (ApiT <$> genTokenName)
         <*> arbitrary
 
@@ -2919,6 +2954,11 @@ instance Typeable n => ToSchema (ApiForeignStakeKey n) where
 instance ToSchema ApiNullStakeKey where
     declareNamedSchema _ = declareSchemaForDefinition "ApiNullStakeKey"
 
+instance ToSchema ApiAssetMintedBurned  where
+    declareNamedSchema _ = do
+        addDefinition =<< declareSchemaForDefinition "ScriptValue"
+        declareSchemaForDefinition "ApiAssetMintedBurned"
+
 instance Typeable n => ToSchema (ApiConstructTransactionData n) where
     declareNamedSchema _ = do
         addDefinition =<< declareSchemaForDefinition "TransactionMetadataValue"
@@ -2949,6 +2989,7 @@ instance Typeable n => ToSchema (ApiWithdrawalsGeneral n) where
 instance Typeable n => ToSchema (ApiDecodedTransaction n) where
     declareNamedSchema _ = do
         addDefinition =<< declareSchemaForDefinition "TransactionMetadataValue"
+        addDefinition =<< declareSchemaForDefinition "ScriptValue"
         declareSchemaForDefinition "ApiDecodedTransaction"
 
 -- | Utility function to provide an ad-hoc 'ToSchema' instance for a definition:
