@@ -48,6 +48,15 @@ jobs:
         restore-keys: |
           node-db-${{ runner.os }}-${{ env.NETWORK }}-
 
+    - name: 💾 Cache wallet db
+      id: cache-wallet
+      uses: actions/cache@v2.1.4
+      with:
+        path: test/e2e/state/wallet_db/${{ env.NETWORK }}
+        key: wallet-db-${{ runner.os }}-${{ env.NETWORK }}-${{ steps.date-time.outputs.value }}
+        restore-keys: |
+          wallet-db-${{ runner.os }}-${{ env.NETWORK }}-
+
     - name: ⚙️ Setup (get latest bins and configs and decode fixtures)
       run: rake setup[$NETWORK,$PR]
 
