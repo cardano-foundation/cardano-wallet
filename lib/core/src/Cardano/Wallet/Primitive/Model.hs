@@ -117,6 +117,8 @@ import Data.Bifunctor
     ( first )
 import Data.Delta
     ( Delta (..) )
+import Data.Foldable
+    ( Foldable (toList) )
 import Data.Functor.Identity
     ( Identity (..) )
 import Data.Generics.Internal.VL.Lens
@@ -654,10 +656,10 @@ applyBlockEventsToUTxO BlockEvents{slot,blockHeight,transactions,delegations} s 
     fblock = FilteredBlock
       { slot
       , transactions = txs1
-      , delegations = filter (ours s . dlgCertAccount) $ map snd delegations
+      , delegations = filter (ours s . dlgCertAccount) $ toList delegations
       }
-    (txs1, du1, u1) = L.foldl' applyOurTx (mempty, mempty, u0) $
-        map snd transactions
+    (txs1, du1, u1) = L.foldl' applyOurTx (mempty, mempty, u0)
+        $ toList transactions
 
     applyOurTx
         :: ([(Tx, TxMeta)], DeltaUTxO, UTxO)

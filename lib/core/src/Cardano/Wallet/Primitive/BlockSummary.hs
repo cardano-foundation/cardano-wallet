@@ -23,9 +23,16 @@ module Cardano.Wallet.Primitive.BlockSummary
     , BlockEvents (..)
     , fromEntireBlock
 
-    -- * Testing
+    -- * Sublist
+    , Sublist
+    , filterSublist
+    , wholeList
+
+    -- * Internal & Testing
     , summarizeOnTxOut
     , mkChainEvents
+    , mergeSublist
+    , unsafeMkSublist
     ) where
 
 import Prelude
@@ -45,6 +52,8 @@ import Cardano.Wallet.Primitive.Types.Address
     ( Address )
 import Cardano.Wallet.Primitive.Types.Tx
     ( Tx (..), TxOut (..) )
+import Data.Foldable
+    ( Foldable (toList) )
 import Data.Functor.Identity
     ( Identity (..) )
 import Data.List.NonEmpty
@@ -123,17 +132,59 @@ toAscBlockEvents (ChainEvents bs) = Map.elems bs
 data BlockEvents = BlockEvents
     { slot :: !Slot
     , blockHeight :: !(Quantity "block" Word32)
-    , transactions :: [(Int, Tx)]
+    , transactions :: Sublist Tx
         -- ^ (Index of the transaction within the block, transaction data)
         -- INVARIANT: The list is ordered by ascending index.
-    , delegations :: [(Int, DelegationCertificate)]
+    , delegations :: Sublist DelegationCertificate
         -- ^ (Index of the delegation within the block, delegation data)
         -- INVARIANT: The list is ordered by ascending index.
     } deriving (Eq, Ord, Generic, Show)
 
+-- | A data type representing a sublist of a total list.
+-- Such a sublist typically arises by filtering and keeps
+-- track of the indices of the filtered list elements.
+--
+-- The main purpose of this data type is optimization:
+-- When processing whole 'Block', we want to avoid copying
+-- and redecorating the entire list of transactions in that 'Block';
+-- instead, we want to copy a pointer to this list.
+data Sublist a = All [a] | Some [(Int, a)]
+    deriving (Eq, Ord, Show)
+
+-- | Construct a 'Sublist' representing the whole list.
+wholeList :: [a] -> Sublist a
+wholeList = All
+
+-- | Construct a 'Sublist' from a list of indexed items.
+unsafeMkSublist :: [(Int,a)] -> Sublist a
+unsafeMkSublist = Some
+
+-- | Filter a 'Sublist' by a predicate.
+filterSublist :: (a -> Bool) -> Sublist a -> Sublist a
+filterSublist p (All xs) = filterSublist p $ Some $ zip [0..] xs
+filterSublist p (Some ixs) = Some [ ix | ix <- ixs, p (snd ix) ]
+
+instance Functor Sublist where
+    fmap f (All xs) = All (map f xs)
+    fmap f (Some ixs) = Some [ (i, f x) | (i,x) <- ixs ]
+
+instance Foldable Sublist where
+    foldr f b = foldr f b . toList
+    null = null . toList
+    toList (All as) = as
+    toList (Some ixs) = map snd ixs
+
+-- | Returns 'True' if the 'BlockEvents' contains empty
+-- 'transactions' and 'delegations'.
 nullBlockEvents :: BlockEvents -> Bool
-nullBlockEvents BlockEvents{transactions=[],delegations=[]} = True
-nullBlockEvents _ = False
+nullBlockEvents BlockEvents{transactions,delegations}
+    = null transactions && null delegations
+
+-- | Merge two 'Sublist' assuming that they are sublists of the /same/ list.
+mergeSublist :: Sublist a -> Sublist a -> Sublist a
+mergeSublist (All xs) _ = All xs -- result cannot be larger
+mergeSublist _ (All ys) = All ys
+mergeSublist (Some xs) (Some ys) = Some $ mergeOn fst const xs ys
 
 -- | Merge block events that belong to the same block.
 mergeSameBlock :: BlockEvents -> BlockEvents -> BlockEvents
@@ -143,8 +194,8 @@ mergeSameBlock
   = BlockEvents
     { slot
     , blockHeight
-    , transactions = mergeOn fst const txs1 txs2
-    , delegations = mergeOn fst const dlg1 dlg2
+    , transactions = mergeSublist txs1 txs2
+    , delegations = mergeSublist dlg1 dlg2
     }
 
 -- | Merge two lists in sorted order. Remove duplicate items.
@@ -176,8 +227,8 @@ fromEntireBlock :: Block -> BlockEvents
 fromEntireBlock Block{header,transactions,delegations} = BlockEvents
     { slot = toSlot $ chainPointFromBlockHeader header
     , blockHeight = Block.blockHeight header
-    , transactions = zip [0..] transactions
-    , delegations = zip [0..] delegations
+    , transactions = All transactions
+    , delegations = All delegations
     }
 
 {-------------------------------------------------------------------------------
@@ -201,15 +252,15 @@ filterBlock question block = case fromEntireBlock block of
         { slot
         , blockHeight
         , transactions = case question of
-            Left addr -> filter (isRelevantTx addr) transactions
-            Right _   -> []
+            Left addr -> filterSublist (isRelevantTx addr) transactions
+            Right _   -> Some []
         , delegations = case question of
-            Left _     -> []
-            Right racc -> filter (isRelevantDelegation racc) delegations
+            Left _     -> Some []
+            Right racc -> filterSublist (isRelevantDelegation racc) delegations
         }
   where
     -- NOTE: Currently used the full address,
     -- containing both payment and staking parts.
     -- We may want to query only for the payment part at some point.
-    isRelevantTx addr = any ((addr ==) . address) . outputs . snd
-    isRelevantDelegation racc = (racc == ) . dlgCertAccount . snd
+    isRelevantTx addr = any ((addr ==) . address) . outputs
+    isRelevantDelegation racc = (racc == ) . dlgCertAccount
