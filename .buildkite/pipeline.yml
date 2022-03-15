@@ -23,18 +23,6 @@ steps:
   - wait: ~
     if: 'build.branch == "bors/staging"'
 
-  - label: 'Stack Rebuild'
-    command:
-      - "rm -rf $TESTS_LOGDIR && mkdir -p $TESTS_LOGDIR"
-      - "nix build .#hydraJobs.linux.native.buildkiteScript -o sr"
-      - "./sr/bin/rebuild --build-dir=$BUILD_DIR --cache-dir=$CACHE_DIR"
-    timeout_in_minutes: 120
-    artifact_paths:
-      - "/build/cardano-wallet/.stack-work/logs/cardano-wallet*.log"
-      - "/tmp/wallet-integration-logs/*/*.log"
-    agents:
-      system: x86_64-linux
-
   - label: 'Check Cabal Configure'
     command: 'nix develop .#cabal --command scripts/buildkite/cabal-ci.sh configure'
     agents:
