@@ -253,11 +253,6 @@
                     shells = (mkDevShells hydraProject) // {
                       default = hydraProject.shell;
                     };
-                    # Build and cache the build script used on Buildkite
-                    buildkiteScript = import ./.buildkite/default.nix {
-                      inherit pkgs;
-                      stackShell = linux.native.shells.stack;
-                    };
                     internal.roots = {
                       project = hydraProject.roots;
                       iohk-nix-utils = pkgs.iohk-nix-utils.roots;
