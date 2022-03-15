@@ -15,6 +15,8 @@ module Test.Hspec.Extra
     , itWithCustomTimeout
     , flakyBecauseOf
     , parallel
+    , counterexample
+    , appendFailureReason
 
     -- * Custom test suite runner
     , HspecWrapper
@@ -30,6 +32,10 @@ import Prelude
 
 import Control.Monad
     ( void, (<=<) )
+import Control.Monad.IO.Class
+    ( MonadIO )
+import Control.Monad.IO.Unlift
+    ( MonadUnliftIO )
 import Data.List
     ( elemIndex )
 import Options.Applicative
@@ -68,7 +74,11 @@ import Test.Hspec
 import Test.Hspec.Core.Runner
     ( Config (..), Summary, defaultConfig, evaluateSummary, hspecWithResult )
 import Test.HUnit.Lang
-    ( HUnitFailure (..), assertFailure, formatFailureReason )
+    ( FailureReason (..)
+    , HUnitFailure (..)
+    , assertFailure
+    , formatFailureReason
+    )
 import Test.Utils.Env
     ( withAddedEnv )
 import Test.Utils.Platform
@@ -177,6 +187,32 @@ parallel :: SpecWith a -> SpecWith a
 parallel
     | isWindows = id
     | otherwise = Hspec.parallel
+
+-- | Can be used to add context to a @HUnitFailure@.
+--
+-- >>> counterexample (show response) (0 `shouldBe` 3)
+-- >>>  (Status {statusCode = 200, statusMessage = "OK"},Right [])
+-- >>>        expected: 3
+-- >>>         but got: 0
+counterexample
+    :: (MonadIO m, MonadUnliftIO m, HasCallStack)
+    => String
+    -> m a
+    -> m a
+counterexample msg = (`catch` (throwIO . appendFailureReason msg))
+
+appendFailureReason :: String -> HUnitFailure -> HUnitFailure
+appendFailureReason message = wrap
+  where
+    wrap :: HUnitFailure -> HUnitFailure
+    wrap (HUnitFailure mloc reason) = HUnitFailure mloc (addMessageTo reason)
+
+    addMessageTo :: FailureReason -> FailureReason
+    addMessageTo (Reason reason) = Reason $ addMessage reason
+    addMessageTo (ExpectedButGot preface expected actual) =
+        ExpectedButGot (Just $ maybe message addMessage preface) expected actual
+
+    addMessage = (++ "\n" ++ message)
 
 {-------------------------------------------------------------------------------
                              Test suite runner main
