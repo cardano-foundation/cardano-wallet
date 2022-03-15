@@ -182,14 +182,6 @@ def create_shelley_wallet(name = "Wallet from mnemonic_sentence", mnemonic_sente
   WalletFactory.create(:shelley, payload)['id']
 end
 
-
-def create_fixture_shelley_wallet
-  SHELLEY.wallets.create({ name: "Fixture wallet with funds",
-                          passphrase: PASS,
-                          mnemonic_sentence: get_fixture_wallet_mnemonics("shelley")
-                         })['id']
-end
-
 def wait_for_shelley_wallet_to_sync(wid)
   puts "Syncing Shelley wallet..."
   retry_count = 10
@@ -233,15 +225,6 @@ def create_byron_wallet(style = "random", name = "Wallet from mnemonic_sentence"
   WalletFactory.create(:byron, payload)['id']
 end
 
-
-def create_fixture_byron_wallet(style = "random")
-  BYRON.wallets.create({ style: style,
-                        name: "Fixture byron wallets with funds",
-                        passphrase: PASS,
-                        mnemonic_sentence: get_fixture_wallet_mnemonics(style)
-                       })['id']
-end
-
 def wait_for_byron_wallet_to_sync(wid)
   puts "Syncing Byron wallet..."
   retry_count = 10
@@ -263,6 +246,70 @@ end
 def wait_for_all_byron_wallets(wids)
   wids.each do |w|
     wait_for_byron_wallet_to_sync(w)
+  end
+end
+
+## FIXTURE AND TARGET WALLETS ##
+
+##
+# return wallet id from create wallet response even if it already exists
+def return_wallet_id(create_wallet_response)
+  if create_wallet_response.code == 409
+    create_wallet_response['message'].split[10]
+  else
+    create_wallet_response['id']
+  end
+end
+
+##
+# create fixture wallet or return it's id if it exists
+# @param type [Symbol] :shelley, :random, :icarus
+def create_fixture_wallet(type)
+  payload = { name: "Fixture wallet with funds",
+              passphrase: PASS,
+              mnemonic_sentence: get_fixture_wallet_mnemonics(:fixture, type.to_sym)
+            }
+  case type.to_sym
+  when :shelley
+    wallet = SHELLEY.wallets.create(payload)
+    return_wallet_id(wallet)
+  when :random, :icarus
+    payload[:style] = type
+    wallet = BYRON.wallets.create(payload)
+    return_wallet_id(wallet)
+  else
+    raise "Unsupported wallet type: #{type}"
+  end
+end
+
+##
+# create target wallet or return it's id if it exists
+# @param type [Symbol] :shelley, :shared
+def create_target_wallet(type)
+  payload = { name: "Target wallet for txs",
+              passphrase: PASS,
+              mnemonic_sentence: get_fixture_wallet_mnemonics(:target, type.to_sym)
+            }
+  case type.to_sym
+  when :shelley
+    wallet = SHELLEY.wallets.create(payload)
+    return_wallet_id(wallet)
+  when :shared
+    script_template = { 'cosigners' =>
+                          { 'cosigner#0' => 'self' },
+                        'template' =>
+                            { 'all' =>
+                               [ 'cosigner#0'
+                               ]
+                            }
+                        }
+    payload[:account_index] = '0H'
+    payload[:payment_script_template] = script_template
+    payload[:delegation_script_template] = script_template
+    wallet = SHARED.wallets.create(payload)
+    return_wallet_id(wallet)
+  else
+    raise "Unsupported wallet type: #{type}"
   end
 end
 

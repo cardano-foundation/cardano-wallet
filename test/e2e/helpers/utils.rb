@@ -66,20 +66,25 @@ module Helpers
       end
     end
 
-    def get_fixture_wallet_mnemonics(type)
+    # Get wallet mnemonics from fixures file
+    # @param kind [Symbol] :fixture or :target (fixture wallet with funds or target wallet)
+    # @param type [Symbol] wallet type = :shelley, :shared, :icarus, :random
+    def get_fixture_wallet_mnemonics(kind, type)
       fixture = ENV['TESTS_E2E_FIXTURES_FILE']
       unless File.exists? fixture
         raise "File #{fixture} does not exist! (Hint: Template fixture file can be created with 'rake fixture_wallets_template'). Make sure to feed it with mnemonics of wallets with funds and assets."
       end
       wallets = JSON.parse File.read(fixture)
+      k = kind.to_s
+      t = type.to_s
       if is_linux?
-        wallets["linux"][type]
+        wallets["linux"][k][t]
       elsif is_mac?
-        wallets["macos"][type]
+        wallets["macos"][k][t]
       elsif is_win?
-        wallets["windows"][type]
+        wallets["windows"][k][t]
       else
-        wallets["linux"][type]
+        wallets["linux"][k][t]
       end
     end
 
