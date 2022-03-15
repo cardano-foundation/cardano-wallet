@@ -58,7 +58,7 @@ withNetworkLayer
     -> Cardano.NetworkId
     -> NetworkParameters
     -> SyncTolerance
-    -> ContT r IO (NetworkLayer IO (CardanoBlock StandardCrypto) )
+    -> ContT r IO (NetworkLayer IO (CardanoBlock StandardCrypto))
 withNetworkLayer tr blockchainSrc net netParams tol =
     ContT $ case blockchainSrc of
         NodeSource nodeConn ver ->

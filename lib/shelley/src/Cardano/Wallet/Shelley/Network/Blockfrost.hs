@@ -1,7 +1,13 @@
+{-# LANGUAGE DataKinds #-}
+{-# LANGUAGE DeriveAnyClass #-}
+{-# LANGUAGE DerivingStrategies #-}
+{-# LANGUAGE FlexibleContexts #-}
 {-# LANGUAGE LambdaCase #-}
 {-# LANGUAGE NamedFieldPuns #-}
 {-# LANGUAGE NumericUnderscores #-}
+{-# LANGUAGE RankNTypes #-}
 {-# LANGUAGE RecordWildCards #-}
+{-# LANGUAGE ScopedTypeVariables #-}
 
 -- |
 -- Copyright: © 2020 IOHK
@@ -12,66 +18,78 @@
 module Cardano.Wallet.Shelley.Network.Blockfrost
     ( withNetworkLayer
     , Log
+
+    -- * Blockfrost <-> Cardano translation
+    , blockToBlockHeader
     ) where
 
 import Prelude
 
 import qualified Blockfrost.Client as BF
-import qualified Data.Text as T
 
 import Cardano.BM.Data.Severity
     ( Severity (..) )
 import Cardano.BM.Tracer
     ( Tracer )
 import Cardano.BM.Tracing
-    ( HasSeverityAnnotation (getSeverityAnnotation), traceWith )
+    ( HasSeverityAnnotation (getSeverityAnnotation) )
 import Cardano.Wallet.Logging
     ( BracketLog, bracketTracer )
 import Cardano.Wallet.Network
     ( NetworkLayer (..) )
 import Cardano.Wallet.Primitive.Types
     ( BlockHeader (..), SlotNo (SlotNo) )
+import Cardano.Wallet.Primitive.Types.Hash
+    ( Hash )
 import Control.Concurrent
     ( threadDelay )
 import Control.Monad
     ( forever )
 import Control.Monad.Error.Class
-    ( throwError )
+    ( MonadError, throwError )
 import Control.Monad.Trans.Except
     ( ExceptT (ExceptT), runExceptT )
 import Data.Bifunctor
     ( first )
 import Data.Functor.Contravariant
     ( (>$<) )
+import Data.Quantity
+    ( Quantity (..) )
 import Data.Text.Class
-    ( ToText (..) )
+    ( FromText (fromText), TextDecodingError (..), ToText (..) )
+import Data.Traversable
+    ( for )
 import Fmt
     ( pretty )
 import Ouroboros.Consensus.Cardano.Block
     ( CardanoBlock, StandardCrypto )
+import UnliftIO
+    ( throwIO )
 import UnliftIO.Async
     ( async, link )
-
+import UnliftIO.Exception
+    ( Exception )
 data BlockfrostError
     = ClientError BF.BlockfrostError
     | NoSlotError BF.Block
+    | NoBlockHeight BF.Block
+    | InvalidBlockHash BF.BlockHash TextDecodingError
     deriving (Show)
 
-data Log
-    = MsgBlockfrostClientError BlockfrostError
-    | MsgWatcherUpdate BlockHeader BracketLog
+newtype BlockfrostException = BlockfrostException BlockfrostError
+    deriving stock (Show)
+    deriving anyclass (Exception)
+
+data Log = MsgWatcherUpdate BlockHeader BracketLog
 
 instance ToText Log where
     toText = \case
-        MsgBlockfrostClientError e ->
-            "Blockfrost client error: " <> T.pack (show e)
         MsgWatcherUpdate blockHeader bracketLog ->
             "Update watcher with tip: " <> pretty blockHeader <>
             ". Callback " <> toText bracketLog <> ". "
 
 instance HasSeverityAnnotation Log where
     getSeverityAnnotation = \case
-      MsgBlockfrostClientError _ -> Warning
       MsgWatcherUpdate _ _ -> Info
 
 withNetworkLayer
@@ -82,12 +100,12 @@ withNetworkLayer
 withNetworkLayer tr project k = k NetworkLayer
     { chainSync = \_tr _chainFollower -> pure ()
     , lightSync = Nothing
-    , currentNodeTip = undefined
+    , currentNodeTip
     , currentNodeEra = undefined
     , currentProtocolParameters = undefined
     , currentNodeProtocolParameters = undefined
     , currentSlottingParameters = undefined
-    , watchNodeTip = watchNodeTip
+    , watchNodeTip
     , postTx = undefined
     , stakeDistribution = undefined
     , getCachedRewardAccountBalance = undefined
@@ -95,33 +113,47 @@ withNetworkLayer tr project k = k NetworkLayer
     , timeInterpreter = undefined
     , syncProgress = undefined
     }
-
   where
+    currentNodeTip :: IO BlockHeader
+    currentNodeTip = runExceptT fetchLatestBlockHeader >>= \case
+        -- TODO: use cached value while retrying
+        Left err -> throwIO (BlockfrostException err)
+        Right header -> pure header
 
     watchNodeTip :: (BlockHeader -> IO ()) -> IO ()
     watchNodeTip callback = link =<< async (pollNodeTip callback)
+      where
+        pollNodeTip :: (BlockHeader -> IO ()) -> IO ()
+        pollNodeTip cb = forever $ do
+            runExceptT fetchLatestBlockHeader >>= \case
+                Left err -> throwIO (BlockfrostException err)
+                Right header ->
+                    bracketTracer (MsgWatcherUpdate header >$< tr) $ cb header
+            threadDelay 2_000_000
 
-    pollNodeTip :: (BlockHeader -> IO ()) -> IO ()
-    pollNodeTip callback = forever $ do
-        runExceptT fetchLatestBlockHeader >>= \case
-            Left err -> traceWith tr (MsgBlockfrostClientError err)
-            Right header ->
-                bracketTracer (MsgWatcherUpdate header >$< tr) $ callback header
-        threadDelay 2_000_000
+    fetchLatestBlockHeader :: ExceptT BlockfrostError IO BlockHeader
+    fetchLatestBlockHeader =
+        runBlockfrost BF.getLatestBlock >>= blockToBlockHeader
 
     runBlockfrost :: BF.BlockfrostClientT IO a -> ExceptT BlockfrostError IO a
     runBlockfrost =
         ExceptT . (first ClientError <$>) . BF.runBlockfrostClientT project
 
-    fetchLatestBlockHeader :: ExceptT BlockfrostError IO BlockHeader
-    fetchLatestBlockHeader = do
-        block@BF.Block{..} <- runBlockfrost BF.getLatestBlock
-        slotNo <- case _blockSlot of
-            Just (BF.Slot s) -> pure $ SlotNo $ fromIntegral s
-            Nothing -> throwError $ NoSlotError block
-        pure BlockHeader
-            { slotNo
-            , blockHeight = undefined -- Quantity "block" Word32
-            , headerHash = undefined -- !(Hash "BlockHeader")
-            , parentHeaderHash = undefined -- !(Maybe (Hash "BlockHeader"))
-            }
+blockToBlockHeader ::
+    forall m. MonadError BlockfrostError m => BF.Block -> m BlockHeader
+blockToBlockHeader block@BF.Block{..} = do
+    slotNo <- case _blockSlot of
+        Just s -> pure $ SlotNo $ fromIntegral $ BF.unSlot s
+        Nothing -> throwError $ NoSlotError block
+    blockHeight <- case _blockHeight of
+        Just height -> pure $ Quantity $ fromIntegral height
+        Nothing -> throwError $ NoBlockHeight block
+    headerHash <- parseBlockHeader _blockHash
+    parentHeaderHash <- for _blockPreviousBlock parseBlockHeader
+    pure BlockHeader { slotNo, blockHeight, headerHash, parentHeaderHash }
+  where
+    parseBlockHeader :: BF.BlockHash -> m (Hash "BlockHeader")
+    parseBlockHeader blockHash =
+        case fromText (BF.unBlockHash blockHash) of
+            Right hash -> pure hash
+            Left tde -> throwError $ InvalidBlockHash blockHash tde
