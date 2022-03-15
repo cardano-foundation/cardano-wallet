@@ -36,6 +36,8 @@ library
     , bech32
     , bech32-th
     , binary
+    , blockfrost-client >=0.3.1.0 && <0.4
+    , blockfrost-client-core >=0.2.0.0 && <0.3
     , bytestring
     , cardano-addresses
     , cardano-api
@@ -66,9 +68,11 @@ library
     , io-classes
     , iohk-monitoring
     , memory
+    , mtl
     , network
     , network-mux
     , network-uri
+    , ntp-client
     , optparse-applicative
     , ouroboros-consensus
     , ouroboros-consensus-byron
@@ -101,13 +105,19 @@ library
       Cardano.Wallet.Byron.Compatibility
       Cardano.Wallet.Shelley
       Cardano.Wallet.Shelley.Api.Server
+      Cardano.Wallet.Shelley.BlockchainSource
       Cardano.Wallet.Shelley.Compatibility
       Cardano.Wallet.Shelley.Compatibility.Ledger
       Cardano.Wallet.Shelley.Network
+      Cardano.Wallet.Shelley.Network.Blockfrost
+      Cardano.Wallet.Shelley.Network.Node
       Cardano.Wallet.Shelley.Transaction
       Cardano.Wallet.Shelley.Launch
+      Cardano.Wallet.Shelley.Launch.Blockfrost
       Cardano.Wallet.Shelley.Launch.Cluster
+      Cardano.Wallet.Shelley.Logging
       Cardano.Wallet.Shelley.Pools
+      Cardano.Wallet.Shelley.Tracers
 
 executable cardano-wallet
   default-language:

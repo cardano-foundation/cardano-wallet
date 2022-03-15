@@ -69,6 +69,10 @@ extra-deps:
 - hspec-2.8.2
 - hspec-core-2.8.2
 - hspec-discover-2.8.2
+- blockfrost-api-0.3.1.0
+- blockfrost-client-0.3.1.0
+- blockfrost-client-core-0.2.0.0
+- servant-multipart-client-0.12.1
 
 # cardano-addresses-3.7.0
 - git: https://github.com/input-output-hk/cardano-addresses

@@ -146,7 +146,7 @@ import Cardano.Wallet.Shelley.Compatibility
     )
 import Cardano.Wallet.Shelley.Launch
     ( CardanoNodeConn, NetworkConfiguration (..), parseGenesisData )
-import Cardano.Wallet.Shelley.Network
+import Cardano.Wallet.Shelley.Network.Node
     ( withNetworkLayer )
 import Cardano.Wallet.Shelley.Transaction
     ( TxWitnessTagFor (..), newTransactionLayer )

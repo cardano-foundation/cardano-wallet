@@ -40,6 +40,8 @@
           (hsPkgs."bech32" or (errorHandler.buildDepError "bech32"))
           (hsPkgs."bech32-th" or (errorHandler.buildDepError "bech32-th"))
           (hsPkgs."binary" or (errorHandler.buildDepError "binary"))
+          (hsPkgs."blockfrost-client" or (errorHandler.buildDepError "blockfrost-client"))
+          (hsPkgs."blockfrost-client-core" or (errorHandler.buildDepError "blockfrost-client-core"))
           (hsPkgs."bytestring" or (errorHandler.buildDepError "bytestring"))
           (hsPkgs."cardano-addresses" or (errorHandler.buildDepError "cardano-addresses"))
           (hsPkgs."cardano-api" or (errorHandler.buildDepError "cardano-api"))
@@ -70,9 +72,11 @@
           (hsPkgs."io-classes" or (errorHandler.buildDepError "io-classes"))
           (hsPkgs."iohk-monitoring" or (errorHandler.buildDepError "iohk-monitoring"))
           (hsPkgs."memory" or (errorHandler.buildDepError "memory"))
+          (hsPkgs."mtl" or (errorHandler.buildDepError "mtl"))
           (hsPkgs."network" or (errorHandler.buildDepError "network"))
           (hsPkgs."network-mux" or (errorHandler.buildDepError "network-mux"))
           (hsPkgs."network-uri" or (errorHandler.buildDepError "network-uri"))
+          (hsPkgs."ntp-client" or (errorHandler.buildDepError "ntp-client"))
           (hsPkgs."optparse-applicative" or (errorHandler.buildDepError "optparse-applicative"))
           (hsPkgs."ouroboros-consensus" or (errorHandler.buildDepError "ouroboros-consensus"))
           (hsPkgs."ouroboros-consensus-byron" or (errorHandler.buildDepError "ouroboros-consensus-byron"))
@@ -105,13 +109,19 @@
           "Cardano/Wallet/Byron/Compatibility"
           "Cardano/Wallet/Shelley"
           "Cardano/Wallet/Shelley/Api/Server"
+          "Cardano/Wallet/Shelley/BlockchainSource"
           "Cardano/Wallet/Shelley/Compatibility"
           "Cardano/Wallet/Shelley/Compatibility/Ledger"
           "Cardano/Wallet/Shelley/Network"
+          "Cardano/Wallet/Shelley/Network/Blockfrost"
+          "Cardano/Wallet/Shelley/Network/Node"
           "Cardano/Wallet/Shelley/Transaction"
           "Cardano/Wallet/Shelley/Launch"
+          "Cardano/Wallet/Shelley/Launch/Blockfrost"
           "Cardano/Wallet/Shelley/Launch/Cluster"
+          "Cardano/Wallet/Shelley/Logging"
           "Cardano/Wallet/Shelley/Pools"
+          "Cardano/Wallet/Shelley/Tracers"
           ];
         hsSourceDirs = [ "src" ];
         };

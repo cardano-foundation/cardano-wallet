@@ -7,6 +7,10 @@
         "hspec" = (((hackage.hspec)."2.8.2").revisions).default;
         "hspec-core" = (((hackage.hspec-core)."2.8.2").revisions).default;
         "hspec-discover" = (((hackage.hspec-discover)."2.8.2").revisions).default;
+        "blockfrost-api" = (((hackage.blockfrost-api)."0.3.1.0").revisions).default;
+        "blockfrost-client" = (((hackage.blockfrost-client)."0.3.1.0").revisions).default;
+        "blockfrost-client-core" = (((hackage.blockfrost-client-core)."0.2.0.0").revisions).default;
+        "servant-multipart-client" = (((hackage.servant-multipart-client)."0.12.1").revisions).default;
         "cryptonite" = (((hackage.cryptonite)."0.27").revisions).default;
         "Cabal" = (((hackage.Cabal)."3.4.0.0").revisions).default;
         "containers" = (((hackage.containers)."0.6.4.1").revisions).default;

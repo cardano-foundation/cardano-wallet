@@ -97,8 +97,12 @@ import Cardano.Wallet.Shelley
     , tracerDescriptions
     , tracerLabels
     )
+import Cardano.Wallet.Shelley.BlockchainSource
+    ( BlockchainSource (..) )
 import Cardano.Wallet.Shelley.Launch
-    ( NetworkConfiguration (..)
+    ( Mode (Light, Normal)
+    , NetworkConfiguration (..)
+    , modeFlag
     , networkConfigurationOption
     , nodeSocketOption
     , parseGenesisData
@@ -145,6 +149,7 @@ import UnliftIO.Exception
     ( withException )
 
 import qualified Cardano.BM.Backend.EKGView as EKG
+import qualified Cardano.Wallet.Shelley.Launch.Blockfrost as Blockfrost
 import qualified Cardano.Wallet.Version as V
 import qualified Data.Text as T
 import qualified System.Info as I
@@ -177,6 +182,7 @@ beforeMainLoop tr = logInfo tr . MsgListenAddress
 -- | Arguments for the 'serve' command
 data ServeArgs = ServeArgs
     { _hostPreference :: HostPreference
+    , _mode :: Mode
     , _listen :: Listen
     , _tlsConfig :: Maybe TlsConfiguration
     , _nodeSocket :: CardanoNodeConn
@@ -189,15 +195,15 @@ data ServeArgs = ServeArgs
     , _logging :: LoggingOptions TracerSeverities
     } deriving (Show)
 
-cmdServe
-    :: Mod CommandFields (IO ())
-cmdServe = command "serve" $ info (helper <*> helper' <*> cmd) $ mempty
-    <> progDesc "Serve API that listens for commands/actions."
+cmdServe :: Mod CommandFields (IO ())
+cmdServe = command "serve" $ info (helper <*> helper' <*> cmd) $
+    progDesc "Serve API that listens for commands/actions."
   where
     helper' = helperTracing tracerDescriptions
 
     cmd = fmap exec $ ServeArgs
         <$> hostPreferenceOption
+        <*> modeFlag
         <*> listenOption
         <*> optional tlsOption
         <*> nodeSocketOption
@@ -208,10 +214,11 @@ cmdServe = command "serve" $ info (helper <*> helper' <*> cmd) $ mempty
         <*> optional poolMetadataSourceOption
         <*> optional tokenMetadataSourceOption
         <*> loggingOptions tracerSeveritiesOption
-    exec
-        :: ServeArgs -> IO ()
+
+    exec :: ServeArgs -> IO ()
     exec args@(ServeArgs
       host
+      mode
       listen
       tlsConfig
       conn
@@ -221,34 +228,42 @@ cmdServe = command "serve" $ info (helper <*> helper' <*> cmd) $ mempty
       enableShutdownHandler
       poolMetadataFetching
       tokenMetadataServerURI
-      logOpt) = do
-        withTracers logOpt $ \tr tracers -> do
-            withShutdownHandlerMaybe tr enableShutdownHandler $ do
-                logDebug tr $ MsgServeArgs args
+      logOpt) = withTracers logOpt $ \tr tracers -> do
+        withShutdownHandlerMaybe tr enableShutdownHandler $ do
+            logDebug tr $ MsgServeArgs args
 
-                (discriminant, gp, vData, block0)
-                    <- runExceptT (parseGenesisData networkConfig) >>= \case
-                            Right x -> pure x
-                            Left err -> do
-                                logError tr (MsgFailedToParseGenesis $ T.pack err)
-                                exitWith $ ExitFailure 33
+            (discriminant, netParams, vData, block0)
+                <- runExceptT (parseGenesisData networkConfig) >>= \case
+                        Right x -> pure x
+                        Left err -> do
+                            logError tr (MsgFailedToParseGenesis $ T.pack err)
+                            exitWith $ ExitFailure 33
+            whenJust databaseDir $
+                setupDirectory (logInfo tr . MsgSetupDatabases)
 
-                whenJust databaseDir $ setupDirectory (logInfo tr . MsgSetupDatabases)
-                exitWith =<< serveWallet
-                    discriminant
-                    tracers
-                    sTolerance
-                    databaseDir
-                    Nothing
-                    host
-                    listen
-                    tlsConfig
-                    (fmap Settings poolMetadataFetching)
-                    tokenMetadataServerURI
-                    conn
-                    block0
-                    (gp, vData)
-                    (beforeMainLoop tr)
+            blockchainSource <- case mode of
+                Normal ->
+                    pure $ NodeSource conn vData
+                Light (Just token) ->
+                    BlockfrostSource <$> Blockfrost.readToken token
+                Light Nothing ->
+                    exitWith $ ExitFailure 34
+
+            exitWith =<< serveWallet
+                blockchainSource
+                netParams
+                discriminant
+                tracers
+                sTolerance
+                databaseDir
+                Nothing
+                host
+                listen
+                tlsConfig
+                (Settings <$> poolMetadataFetching)
+                tokenMetadataServerURI
+                block0
+                (beforeMainLoop tr)
 
     whenJust m fn = case m of
        Nothing -> pure ()
