@@ -5,7 +5,7 @@
 -- Source of the blockchain data for the wallet
 --
 module Cardano.Wallet.Shelley.BlockchainSource
-    ( BlockchainSource(..)
+    ( BlockchainSource (..)
     ) where
 
 import Cardano.Launcher.Node

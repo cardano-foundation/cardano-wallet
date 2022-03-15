@@ -11,7 +11,7 @@
     flags = {};
     package = {
       specVersion = "2.2";
-      identifier = { name = "hie-bios"; version = "0.9.0"; };
+      identifier = { name = "hie-bios"; version = "0.9.1"; };
       license = "BSD-3-Clause";
       copyright = "";
       maintainer = "Matthew Pickering <matthewtpickering@gmail.com>";
