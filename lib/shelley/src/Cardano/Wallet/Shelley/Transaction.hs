@@ -670,8 +670,8 @@ withShelleyBasedBody
     -> (forall era. IsShelleyBasedEra era
         => ShelleyBasedEra era -> Cardano.TxBody era -> a)
     -> a
-withShelleyBasedBody (Cardano.InAnyShelleyBasedEra era (Cardano.Tx bod _)) f
-    = f era bod
+withShelleyBasedBody (Cardano.InAnyShelleyBasedEra era (Cardano.Tx body _)) f
+    = f era body
 
 inAnyShelleyBasedEra
     :: InAnyCardanoEra a
@@ -926,15 +926,15 @@ _estimateSignedTxSize pparams body =
 
         -- Hack which allows us to rely on the ledger to calculate the size of
         -- witnesses:
-        feeOfWits :: Natural
-        feeOfWits = minfee nWits - minfee 0
+        feeOfWits :: Coin
+        feeOfWits = minfee nWits `Coin.difference` minfee 0
 
         sizeOfWits :: TxSize
         sizeOfWits =
-            case feeOfWits `quotRem` feePerByte of
+            case feeOfWits `coinQuotRem` feePerByte of
                 (n, 0) -> TxSize n
                 (_, _) -> error $ unwords
-                    [ "evaluateTransactionSize:"
+                    [ "estimateSignedTxSize:"
                     , "the impossible happened!"
                     , "Couldn't divide"
                     , show feeOfWits
@@ -953,11 +953,16 @@ _estimateSignedTxSize pparams body =
     in
         sizeOfTx <> sizeOfWits
   where
-    minfee nWits = Coin.toNatural $ fromCardanoLovelace $
+    coinQuotRem :: Coin -> Coin -> (Natural, Natural)
+    coinQuotRem (Coin p) (Coin q) = quotRem p q
+
+    minfee :: Word -> Coin
+    minfee nWits = fromCardanoLovelace $
         Cardano.evaluateTransactionFee pparams body nWits 0
 
-    feePerByte :: Natural
-    feePerByte = view #protocolParamTxFeePerByte pparams
+    feePerByte :: Coin
+    feePerByte = Coin.fromNatural $
+        view #protocolParamTxFeePerByte pparams
 
 -- | Estimates the required number of Shelley-era witnesses.
 --
@@ -996,20 +1001,22 @@ estimateNumberOfWitnesses (Cardano.TxBody txbodycontent) =
             _ -> []
         txUpdateProposal = Cardano.txUpdateProposal txbodycontent
         txUpdateProposal' = case txUpdateProposal of
-            Cardano.TxUpdateProposal _ (Cardano.UpdateProposal updatePerGenesisKey _) ->
-                Map.size updatePerGenesisKey
+            Cardano.TxUpdateProposal _
+                (Cardano.UpdateProposal updatePerGenesisKey _) ->
+                    Map.size updatePerGenesisKey
             _ -> 0
         txCerts = case Cardano.txCertificates txbodycontent of
             Cardano.TxCertificatesNone -> 0
             Cardano.TxCertificates _ certs _ -> length certs
             -- FIXME [ADP-1515] Not all certificates require witnesses. Will
             -- over-estimate unnecessarily.
-    in fromIntegral $
-       length txInsUnique +
-       length txExtraKeyWits' +
-       length txWithdrawals' +
-       txUpdateProposal' +
-       txCerts
+    in
+    fromIntegral $
+        length txInsUnique +
+        length txExtraKeyWits' +
+        length txWithdrawals' +
+        txUpdateProposal' +
+        txCerts
   where
     -- Silence warning from redundant @IsShelleyBasedEra@ constraint:
     _ = shelleyBasedEra @era

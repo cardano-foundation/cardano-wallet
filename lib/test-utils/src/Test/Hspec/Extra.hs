@@ -194,7 +194,11 @@ parallel
 -- >>>  (Status {statusCode = 200, statusMessage = "OK"},Right [])
 -- >>>        expected: 3
 -- >>>         but got: 0
-counterexample :: (MonadIO m, MonadUnliftIO m, HasCallStack) => String -> m a -> m a
+counterexample
+    :: (MonadIO m, MonadUnliftIO m, HasCallStack)
+    => String
+    -> m a
+    -> m a
 counterexample msg = (`catch` (throwIO . appendFailureReason msg))
 
 appendFailureReason :: String -> HUnitFailure -> HUnitFailure
