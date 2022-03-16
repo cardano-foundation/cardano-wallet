@@ -145,15 +145,18 @@
       "inputs": {
         "ema": "ema_2",
         "flake-compat": [
+          "emanote",
           "ema",
           "flake-compat"
         ],
         "flake-utils": [
+          "emanote",
           "ema",
           "flake-utils"
         ],
         "heist": "heist",
         "nixpkgs": [
+          "emanote",
           "ema",
           "nixpkgs"
         ],
@@ -431,16 +434,17 @@
         "stackage": "stackage"
       },
       "locked": {
-        "lastModified": 1646278384,
-        "narHash": "sha256-Gv1Ws3vAojjvjATcsvwAOTuOhzpxwt6tBci7EBaXxU4=",
+        "lastModified": 1647307075,
+        "narHash": "sha256-+6Ezxy07ii+Ppk5JTezlG+oNxxXvKqhke+hqmL/wwJY=",
         "owner": "input-output-hk",
         "repo": "haskell.nix",
-        "rev": "7e06e14ae1b894445254fe41288bfa7dd4ccbc6f",
+        "rev": "308c937bfc68071d8ab0206b44e0f3dde35a401e",
         "type": "github"
       },
       "original": {
         "owner": "input-output-hk",
         "repo": "haskell.nix",
+        "rev": "308c937bfc68071d8ab0206b44e0f3dde35a401e",
         "type": "github"
       }
     },
