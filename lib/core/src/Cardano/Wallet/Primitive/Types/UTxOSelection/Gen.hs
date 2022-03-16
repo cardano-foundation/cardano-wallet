@@ -11,24 +11,16 @@ module Cardano.Wallet.Primitive.Types.UTxOSelection.Gen
 
 import Prelude
 
-import Cardano.Wallet.CoinSelection
-    ( WalletUTxO (..) )
-import Cardano.Wallet.Primitive.Types.Address.Gen
-    ( genAddress, shrinkAddress )
-import Cardano.Wallet.Primitive.Types.Tx.Gen
-    ( genTxIn, shrinkTxIn )
 import Cardano.Wallet.Primitive.Types.UTxOIndex.Gen
     ( genUTxOIndex, shrinkUTxOIndex )
 import Cardano.Wallet.Primitive.Types.UTxOSelection
     ( UTxOSelection, UTxOSelectionNonEmpty )
 import Data.Maybe
     ( mapMaybe )
-import Generics.SOP
-    ( NP (..) )
 import Test.QuickCheck
     ( Gen, arbitrary, coarbitrary, liftShrink2, shrinkMapBy, suchThatMap )
 import Test.QuickCheck.Extra
-    ( genFunction, genSized2, genericRoundRobinShrink, (<:>), (<@>) )
+    ( genFunction )
 
 import qualified Cardano.Wallet.Primitive.Types.UTxOSelection as UTxOSelection
 
@@ -62,23 +54,14 @@ shrinkUTxOSelection shrinkUTxO =
 -- Selections that are non-empty
 --------------------------------------------------------------------------------
 
-genUTxOSelectionNonEmpty :: Gen (UTxOSelectionNonEmpty WalletUTxO)
-genUTxOSelectionNonEmpty =
-    genUTxOSelection genWalletUTxO `suchThatMap` UTxOSelection.toNonEmpty
-  where
-    genWalletUTxO :: Gen WalletUTxO
-    genWalletUTxO = uncurry WalletUTxO <$> genSized2 genTxIn genAddress
+genUTxOSelectionNonEmpty
+    :: (Ord u, Show u) => Gen u -> Gen (UTxOSelectionNonEmpty u)
+genUTxOSelectionNonEmpty genUTxO =
+    genUTxOSelection genUTxO `suchThatMap` UTxOSelection.toNonEmpty
 
 shrinkUTxOSelectionNonEmpty
-    :: UTxOSelectionNonEmpty WalletUTxO
-    -> [UTxOSelectionNonEmpty WalletUTxO]
-shrinkUTxOSelectionNonEmpty
+    :: Ord u => (u -> [u]) -> (UTxOSelectionNonEmpty u -> [UTxOSelectionNonEmpty u])
+shrinkUTxOSelectionNonEmpty shrinkUTxO
     = mapMaybe UTxOSelection.toNonEmpty
-    . shrinkUTxOSelection shrinkWalletUTxO
+    . shrinkUTxOSelection shrinkUTxO
     . UTxOSelection.fromNonEmpty
-  where
-    shrinkWalletUTxO :: WalletUTxO -> [WalletUTxO]
-    shrinkWalletUTxO = genericRoundRobinShrink
-        <@> shrinkTxIn
-        <:> shrinkAddress
-        <:> Nil

@@ -151,7 +151,7 @@ prop_genUTxOSelection =
 
 prop_genUTxOSelectionNonEmpty :: Property
 prop_genUTxOSelectionNonEmpty =
-    forAll genUTxOSelectionNonEmpty $ \s ->
+    forAll (genUTxOSelectionNonEmpty genWalletUTxO) $ \s ->
     checkCoverage_UTxOSelectionNonEmpty s $
     isValidSelectionNonEmpty s === True
 
@@ -162,8 +162,9 @@ prop_shrinkUTxOSelection =
 
 prop_shrinkUTxOSelectionNonEmpty :: Property
 prop_shrinkUTxOSelectionNonEmpty =
-    forAll genUTxOSelectionNonEmpty $ \s ->
-    conjoin (isValidSelectionNonEmpty <$> shrinkUTxOSelectionNonEmpty s)
+    forAll (genUTxOSelectionNonEmpty genWalletUTxO) $ \s ->
+    conjoin $ isValidSelectionNonEmpty
+        <$> shrinkUTxOSelectionNonEmpty shrinkWalletUTxO s
 
 checkCoverage_UTxOSelection
     :: Testable p
@@ -456,8 +457,8 @@ instance Arbitrary (UTxOSelection WalletUTxO) where
     shrink = shrinkUTxOSelection shrinkWalletUTxO
 
 instance Arbitrary (UTxOSelectionNonEmpty WalletUTxO) where
-    arbitrary = genUTxOSelectionNonEmpty
-    shrink = shrinkUTxOSelectionNonEmpty
+    arbitrary = genUTxOSelectionNonEmpty genWalletUTxO
+    shrink = shrinkUTxOSelectionNonEmpty shrinkWalletUTxO
 
 --------------------------------------------------------------------------------
 -- CoArbitrary instances
