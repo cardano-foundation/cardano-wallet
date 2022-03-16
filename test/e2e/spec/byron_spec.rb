@@ -1,10 +1,9 @@
 RSpec.describe CardanoWallet::Byron do
+  after(:each) do
+    teardown
+  end
 
   describe CardanoWallet::Byron::Wallets do
-
-    after(:each) do
-      teardown
-    end
 
     it "I can list byron wallets" do
       l = BYRON.wallets.list
@@ -22,34 +21,32 @@ RSpec.describe CardanoWallet::Byron do
     end
 
     it "I can create, get and delete byron icarus wallet from mnemonics" do
-      wallet = BYRON.wallets.create({ style: "icarus",
-                         name: "Wallet from mnemonic_sentence",
-                         passphrase: "Secure Passphrase",
-                         mnemonic_sentence: mnemonic_sentence(15),
-                         })
+      payload = { style: "icarus",
+                  name: "Wallet from mnemonic_sentence",
+                  passphrase: "Secure Passphrase",
+                  mnemonic_sentence: mnemonic_sentence(15)
+                 }
+      wallet = WalletFactory.create(:byron, payload)
       expect(wallet).to be_correct_and_respond 201
 
       wid = wallet['id']
-      g = BYRON.wallets.get(wid)
-      expect(g).to be_correct_and_respond 200
-      expect(BYRON.wallets.delete(wid)).to be_correct_and_respond 204
+      expect(BYRON.wallets.get(wid)).to be_correct_and_respond 200
+      expect(WalletFactory.delete(:byron, wid)).to be_correct_and_respond 204
     end
 
     it "I can create, get and delete byron random wallet from mnemonics" do
-      wallet = BYRON.wallets.create({ style: "random",
-                         name: "Wallet from mnemonic_sentence",
-                         passphrase: "Secure Passphrase",
-                         mnemonic_sentence: mnemonic_sentence(12),
-                         })
+      payload = { style: "random",
+                  name: "Wallet from mnemonic_sentence",
+                  passphrase: "Secure Passphrase",
+                  mnemonic_sentence: mnemonic_sentence(12)
+                 }
+      wallet = WalletFactory.create(:byron, payload)
       expect(wallet).to be_correct_and_respond 201
 
 
       wid = wallet['id']
-      g = BYRON.wallets.get(wid)
-      expect(g).to be_correct_and_respond 200
-
-
-      expect(BYRON.wallets.delete(wid)).to be_correct_and_respond 204
+      expect(BYRON.wallets.get(wid)).to be_correct_and_respond 200
+      expect(WalletFactory.delete(:byron, wid)).to be_correct_and_respond 204
     end
 
     it "Can update_metadata" do
@@ -82,10 +79,6 @@ RSpec.describe CardanoWallet::Byron do
   end
 
   describe CardanoWallet::Byron::Addresses do
-
-    after(:each) do
-      teardown
-    end
 
     it "Can list addresses - random" do
       id = create_byron_wallet
@@ -154,7 +147,7 @@ RSpec.describe CardanoWallet::Byron do
       derivation_path = '14H/42H'
       id = create_byron_wallet_with(mnemonics)
       addr = cardano_address_get_byron_addr(mnemonics, derivation_path)
-      
+
       addr_import = BYRON.addresses.import(id, addr)
       expect(addr_import).to be_correct_and_respond 204
 
@@ -191,10 +184,6 @@ RSpec.describe CardanoWallet::Byron do
 
   describe CardanoWallet::Byron::CoinSelections do
 
-    after(:each) do
-      teardown
-    end
-
     it "I could trigger random coin selection - if had money" do
       wid = create_byron_wallet "icarus"
       addresses = BYRON.addresses.list(wid)
@@ -212,9 +201,6 @@ RSpec.describe CardanoWallet::Byron do
   end
 
   describe CardanoWallet::Byron::Transactions do
-    after(:each) do
-      teardown
-    end
 
     # Run for random and icarus
     ["random", "icarus"].each do |style|
@@ -270,9 +256,6 @@ RSpec.describe CardanoWallet::Byron do
   end
 
   describe CardanoWallet::Byron::Migrations do
-    after(:each) do
-      teardown
-    end
 
     it "I could create migration plan - icarus" do
       id = create_byron_wallet "icarus"

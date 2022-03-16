@@ -1,25 +1,24 @@
 RSpec.describe CardanoWallet::Shelley do
+  after(:each) do
+    teardown
+  end
 
   describe CardanoWallet::Shelley::Wallets do
-
-    after(:each) do
-      teardown
-    end
 
     it "I can list wallets" do
       l = SHELLEY.wallets.list
       expect(l).to be_correct_and_respond 200
-      expect(l.size).to eq 0
+      size = l.size
 
       create_shelley_wallet
       l = SHELLEY.wallets.list
       expect(l).to be_correct_and_respond 200
-      expect(l.size).to eq 1
+      expect(l.size).to eq (size + 1)
     end
 
     it "When wallet does not exist it gives 404" do
       wid = create_shelley_wallet
-      SHELLEY.wallets.delete wid
+      WalletFactory.delete :shelley, wid
       g = SHELLEY.wallets.get wid
       expect(g).to be_correct_and_respond 404
 
@@ -29,43 +28,43 @@ RSpec.describe CardanoWallet::Shelley do
 
     describe "Create wallets" do
       it "I can create, get and delete wallet from mnemonics" do
-        w = SHELLEY.wallets
-        wallet = w.create({ name: "Wallet from mnemonic_sentence",
-                           passphrase: "Secure Passphrase",
-                           mnemonic_sentence: mnemonic_sentence(15),
-                           })
+        payload = { name: "Wallet from mnemonic_sentence",
+                    passphrase: "Secure Passphrase",
+                    mnemonic_sentence: mnemonic_sentence(15),
+                   }
+        wallet = WalletFactory.create(:shelley, payload)
         expect(wallet).to be_correct_and_respond 201
 
         wid = wallet['id']
-        g = w.get(wid)
+        g = SHELLEY.wallets.get(wid)
         expect(g).to be_correct_and_respond 200
 
-        expect(w.delete(wid)).to be_correct_and_respond 204
+        expect(WalletFactory.delete(:shelley, wid)).to be_correct_and_respond 204
       end
 
       it "I can create, get and delete wallet from mnemonics / second factor" do
-        w = SHELLEY.wallets
-        wallet = w.create({ name: "Wallet from mnemonic_sentence",
-                           passphrase: "Secure Passphrase",
-                           mnemonic_sentence: mnemonic_sentence(15),
-                           mnemonic_second_factor: mnemonic_sentence(12)
-                           })
+        payload = { name: "Wallet from mnemonic_sentence",
+                    passphrase: "Secure Passphrase",
+                    mnemonic_sentence: mnemonic_sentence(15),
+                    mnemonic_second_factor: mnemonic_sentence(12)
+                   }
+        wallet = WalletFactory.create(:shelley, payload)
         expect(wallet).to be_correct_and_respond 201
 
         wid = wallet['id']
-        g = w.get(wid)
+        g = SHELLEY.wallets.get(wid)
         expect(g).to be_correct_and_respond 200
-        expect(w.delete(wid)).to be_correct_and_respond 204
+        expect(WalletFactory.delete(:shelley, wid)).to be_correct_and_respond 204
       end
 
       it "I can set address pool gap" do
         pool_gap = 55
-        w = SHELLEY.wallets
-        wallet = w.create({ name: "Wallet from mnemonic_sentence",
-                           passphrase: "Secure Passphrase",
-                           mnemonic_sentence: mnemonic_sentence(15),
-                           address_pool_gap: pool_gap
-                           })
+        payload = { name: "Wallet from mnemonic_sentence",
+                    passphrase: "Secure Passphrase",
+                    mnemonic_sentence: mnemonic_sentence(15),
+                    address_pool_gap: pool_gap
+                   }
+        wallet = WalletFactory.create(:shelley, payload)
         expect(wallet).to be_correct_and_respond 201
         addr = SHELLEY.addresses.list(wallet['id'])
         expect(addr).to be_correct_and_respond 200
@@ -73,17 +72,17 @@ RSpec.describe CardanoWallet::Shelley do
       end
 
       it "I can create, get and delete wallet from pub key" do
-        w = SHELLEY.wallets
-        wallet = w.create({ name: "Wallet from pub key",
-                           account_public_key: "b47546e661b6c1791452d003d375756dde6cac2250093ce4630f16b9b9c0ac87411337bda4d5bc0216462480b809824ffb48f17e08d95ab9f1b91d391e48e66b",
-                           address_pool_gap: 20,
-                           })
+        payload = { name: "Wallet from pub key",
+                    account_public_key: "b47546e661b6c1791452d003d375756dde6cac2250093ce4630f16b9b9c0ac87411337bda4d5bc0216462480b809824ffb48f17e08d95ab9f1b91d391e48e66b",
+                    address_pool_gap: 20
+                  }
+        wallet = WalletFactory.create(:shelley, payload)
         expect(wallet).to be_correct_and_respond 201
 
         wid = wallet['id']
-        g = w.get(wid)
+        g = SHELLEY.wallets.get(wid)
         expect(g).to be_correct_and_respond 200
-        expect(w.delete(wid)).to be_correct_and_respond 204
+        expect(WalletFactory.delete(:shelley, wid)).to be_correct_and_respond 204
       end
     end
 
@@ -121,10 +120,6 @@ RSpec.describe CardanoWallet::Shelley do
 
   describe CardanoWallet::Shelley::Addresses do
 
-    after(:each) do
-      teardown
-    end
-
     it "Can list addresses" do
       id = create_shelley_wallet
       shelley_addr = CardanoWallet.new.shelley.addresses
@@ -150,10 +145,6 @@ RSpec.describe CardanoWallet::Shelley do
 
   describe CardanoWallet::Shelley::CoinSelections do
 
-    after(:each) do
-      teardown
-    end
-
     it "I could trigger random coin selection - if had money" do
       wid = create_shelley_wallet
       addresses = SHELLEY.addresses.list(wid)
@@ -169,10 +160,6 @@ RSpec.describe CardanoWallet::Shelley do
   end
 
   describe CardanoWallet::Shelley::Transactions do
-
-    after(:each) do
-      teardown
-    end
 
     it "I could get a tx if I had proper id" do
       wid = create_shelley_wallet
@@ -260,7 +247,6 @@ RSpec.describe CardanoWallet::Shelley do
     after(:each) do
       settings = CardanoWallet.new.misc.settings
       s = settings.update({ :pool_metadata_source => "none" })
-      teardown
     end
 
     it "I can list stake keys" do
@@ -347,9 +333,6 @@ RSpec.describe CardanoWallet::Shelley do
   end
 
   describe CardanoWallet::Shelley::Migrations do
-    after(:each) do
-      teardown
-    end
 
     it "I could create migration plan" do
       id = create_shelley_wallet
@@ -372,9 +355,6 @@ RSpec.describe CardanoWallet::Shelley do
   end
 
   describe CardanoWallet::Shelley::Keys do
-    after(:each) do
-      teardown
-    end
 
     it "Get signed metadata" do
       wid = create_shelley_wallet
@@ -459,24 +439,24 @@ RSpec.describe CardanoWallet::Shelley do
       end
     end
 
-    it "Get account public key - wallet from mnemonics" do
-      wid = create_shelley_wallet
-      res = SHELLEY.keys.get_acc_public_key(wid, { format: "extended" })
-      expect(res).to be_correct_and_respond 200
-      expect(res.to_s).to include "acct_xvk"
-    end
-
     it "Get account public key - wallet from acc pub key" do
-      w = SHELLEY.wallets
-      wallet = w.create({ name: "Wallet from pub key",
-                         account_public_key: "b47546e661b6c1791452d003d375756dde6cac2250093ce4630f16b9b9c0ac87411337bda4d5bc0216462480b809824ffb48f17e08d95ab9f1b91d391e48e66b",
-                         address_pool_gap: 20,
-                         })
+      payload = { name: "Wallet from pub key 2",
+                  account_public_key: "b47546e661b6c1791452d003d375756dde6cac2250093ce4630f16b9b9c0ac87411337bda4d5bc0216462480b809824ffb48f17e08d95ab9f1b91d391e48e66b",
+                  address_pool_gap: 20
+                }
+      wallet = WalletFactory.create(:shelley, payload)
       expect(wallet).to be_correct_and_respond 201
 
       res = SHELLEY.keys.get_acc_public_key(wallet['id'], { format: "non_extended" })
       expect(res).to be_correct_and_respond 200
       expect(res.to_s).to include "acct_vk"
+    end
+
+    it "Get account public key - wallet from mnemonics" do
+      wid = create_shelley_wallet
+      res = SHELLEY.keys.get_acc_public_key(wid, { format: "extended" })
+      expect(res).to be_correct_and_respond 200
+      expect(res.to_s).to include "acct_xvk"
     end
   end
 

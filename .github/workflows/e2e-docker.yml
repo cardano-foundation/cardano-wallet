@@ -70,6 +70,16 @@ jobs:
           node-db-docker-${{ env.NETWORK }}-
           node-db-Linux-${{ env.NETWORK }}-
 
+    - name: 💾 Cache wallet db
+      id: cache-wallet
+      uses: actions/cache@v2.1.4
+      with:
+        path: test/e2e/state/wallet_db/${{ env.NETWORK }}
+        key: wallet-db-${{ runner.os }}-${{ env.NETWORK }}-${{ steps.date-time.outputs.value }}
+        restore-keys: |
+          wallet-db-${{ runner.os }}-${{ env.NETWORK }}-
+          wallet-db-Linux-${{ env.NETWORK }}-
+
     - name: 🚀 Start node and wallet
       run: |
         echo "Wallet: $WALLET"

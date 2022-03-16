@@ -2,15 +2,15 @@ RSpec.describe "Cardano Wallet E2E tests", :e2e => true do
 
   before(:all) do
     # shelley wallets
-    @wid = create_fixture_shelley_wallet
-    @target_id = create_shelley_wallet("Target tx wallet")
+    @wid = create_fixture_wallet(:shelley)
+    @target_id = create_target_wallet(:shelley)
 
     # byron wallets
-    @wid_rnd = create_fixture_byron_wallet "random"
-    @wid_ic = create_fixture_byron_wallet "icarus"
+    @wid_rnd = create_fixture_wallet(:random)
+    @wid_ic = create_fixture_wallet(:icarus)
 
     # shared wallets
-    @wid_sha = create_active_shared_wallet(mnemonic_sentence(24), '0H', 'self')
+    @wid_sha = create_target_wallet(:shared)
 
     @nightly_shared_wallets = [ @wid_sha ]
     @nighly_byron_wallets = [ @wid_rnd, @wid_ic ]
@@ -18,27 +18,10 @@ RSpec.describe "Cardano Wallet E2E tests", :e2e => true do
     wait_for_all_shelley_wallets(@nightly_shelley_wallets)
     wait_for_all_shared_wallets(@nightly_shared_wallets)
     wait_for_all_byron_wallets(@nighly_byron_wallets)
-
-    # @wid_sha = "f7b49bb7d58f7986e2394fefdc459a0ce67f42fa"
-    # @wid_rnd = "12cbebfdc4521766e63a7e07c4825b24deb4176c"
-    # @wid_ic = "f5da82c1eb3e391a535dd5ba2867fe9bdaf2f313"
-    # @wid = "a042bafdaf98844cfa8f6d4b1dc47519b21a4d95"
-    # @target_id = "d11ceb4d63f69fa0e8a02927d3f866f5fb5f6112"
-    # 1f82e83772b7579fc0854bd13db6a9cce21ccd95
-    # 2269611a3c10b219b0d38d74b004c298b76d16a9
-    # a042bafdaf98844cfa8f6d4b1dc47519b21a4d95
   end
 
-  after(:all) do
-    @nighly_byron_wallets.each do |wid|
-      BYRON.wallets.delete wid
-    end
-    @nightly_shelley_wallets.each do |wid|
-      SHELLEY.wallets.delete wid
-    end
-    @nightly_shared_wallets.each do |wid|
-      SHARED.wallets.delete wid
-    end
+  after(:each) do
+    teardown
   end
 
   describe "E2E Balance -> Sign -> Submit" do
@@ -1163,8 +1146,8 @@ RSpec.describe "Cardano Wallet E2E tests", :e2e => true do
         expect(plan).to be_correct_and_respond 202
         expect(plan['balance_selected']['assets']).not_to be []
         expect(plan['balance_leftover']).to eq ({ "ada" => { "quantity" => 0,
-                                                         "unit" => "lovelace" },
-                                                 "assets" => [] })
+                                                             "unit" => "lovelace" },
+                                                  "assets" => [] })
       end
 
       it "I can create migration plan icarus -> shelley" do
@@ -1174,8 +1157,8 @@ RSpec.describe "Cardano Wallet E2E tests", :e2e => true do
         expect(plan).to be_correct_and_respond 202
         expect(plan['balance_selected']['assets']).not_to be []
         expect(plan['balance_leftover']).to eq ({ "ada" => { "quantity" => 0,
-                                                         "unit" => "lovelace" },
-                                                 "assets" => [] })
+                                                             "unit" => "lovelace" },
+                                                  "assets" => [] })
       end
     end
 

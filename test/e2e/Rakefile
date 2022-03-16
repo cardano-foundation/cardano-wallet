@@ -48,15 +48,34 @@ end
 task :fixture_wallets_template do
   puts "\n  >> Creating #{FIXTURES_FILE}"
 
-  fixture_wallets = { :linux => { :shelley => mnemonic_sentence(24),
-                                 :icarus => mnemonic_sentence(15),
-                                 :byron => mnemonic_sentence(12) },
-                      :macos => { :shelley => mnemonic_sentence(24),
-                                 :icarus => mnemonic_sentence(15),
-                                 :byron => mnemonic_sentence(12) },
-                      :windows => { :shelley => mnemonic_sentence(24),
-                                   :icarus => mnemonic_sentence(15),
-                                   :byron => mnemonic_sentence(12) }
+  fixture_wallets = { :linux => {
+                          :fixture => { :shelley => mnemonic_sentence(24),
+                                         :icarus => mnemonic_sentence(15),
+                                         :random => mnemonic_sentence(12)
+                                       },
+                          :target =>  { :shelley => mnemonic_sentence(24),
+                                         :shared => mnemonic_sentence(24)
+                                       }
+                                },
+                      :macos => {
+                          :fixture => { :shelley => mnemonic_sentence(24),
+                                         :icarus => mnemonic_sentence(15),
+                                         :random => mnemonic_sentence(12)
+                                       },
+                          :target =>  { :shelley => mnemonic_sentence(24),
+                                         :shared => mnemonic_sentence(24)
+                                       }
+                                },
+                      :windows => {
+                          :fixture => { :shelley => mnemonic_sentence(24),
+                                         :icarus => mnemonic_sentence(15),
+                                         :random => mnemonic_sentence(12)
+                                       },
+                          :target =>  { :shelley => mnemonic_sentence(24),
+                                         :shared => mnemonic_sentence(24)
+                                       }
+                                },
+                       :currency_contract_wallet => mnemonic_sentence(24)
                     }
   if File.exists?(FIXTURES_FILE)
     err = "
