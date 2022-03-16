@@ -18,6 +18,8 @@ import Prelude
 
 import Cardano.Wallet.CoinSelection
     ( WalletSelectionContext, WalletUTxO (..) )
+import Cardano.Wallet.CoinSelection.Gen
+    ( genWalletUTxO, shrinkWalletUTxO )
 import Cardano.Wallet.CoinSelection.Internal
     ( ComputeMinimumCollateralParams (..)
     , Selection
@@ -82,8 +84,6 @@ import Cardano.Wallet.Primitive.Types.TokenQuantity
     ( TokenQuantity (..) )
 import Cardano.Wallet.Primitive.Types.Tx
     ( txOutMaxTokenQuantity )
-import Cardano.Wallet.Primitive.Types.Tx.Gen
-    ( genTxIn, shrinkTxIn )
 import Cardano.Wallet.Primitive.Types.UTxOSelection
     ( UTxOSelection )
 import Cardano.Wallet.Primitive.Types.UTxOSelection.Gen
@@ -138,7 +138,6 @@ import Test.QuickCheck.Extra
     ( Pretty (..)
     , chooseNatural
     , genMapWith
-    , genSized2
     , genericRoundRobinShrink
     , report
     , shrinkMapWith
@@ -797,9 +796,6 @@ shrinkCollateralRequirement = genericShrink
 -- UTxO available for inputs and collateral
 --------------------------------------------------------------------------------
 
-genWalletUTxO :: Gen WalletUTxO
-genWalletUTxO = uncurry WalletUTxO <$> genSized2 genTxIn genAddress
-
 genUTxOAvailableForCollateral :: Gen (Map WalletUTxO Coin)
 genUTxOAvailableForCollateral = genMapWith genWalletUTxO genCoinPositive
 
@@ -808,12 +804,6 @@ genUTxOAvailableForInputs = frequency
     [ (49, genUTxOSelection genWalletUTxO)
     , (01, pure UTxOSelection.empty)
     ]
-
-shrinkWalletUTxO :: WalletUTxO -> [WalletUTxO]
-shrinkWalletUTxO = genericRoundRobinShrink
-    <@> shrinkTxIn
-    <:> shrinkAddress
-    <:> Nil
 
 shrinkUTxOAvailableForCollateral
     :: Map WalletUTxO Coin -> [Map WalletUTxO Coin]

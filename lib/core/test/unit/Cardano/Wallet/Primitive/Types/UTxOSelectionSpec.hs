@@ -12,14 +12,16 @@ import Prelude
 
 import Cardano.Wallet.CoinSelection
     ( WalletUTxO (..) )
+import Cardano.Wallet.CoinSelection.Gen
+    ( coarbitraryWalletUTxO, genWalletUTxO, shrinkWalletUTxO )
 import Cardano.Wallet.Primitive.Types.Address
     ( Address )
 import Cardano.Wallet.Primitive.Types.Address.Gen
-    ( coarbitraryAddress, genAddress, shrinkAddress )
+    ( coarbitraryAddress )
 import Cardano.Wallet.Primitive.Types.Tx
     ( TxIn )
 import Cardano.Wallet.Primitive.Types.Tx.Gen
-    ( coarbitraryTxIn, genTxIn, shrinkTxIn )
+    ( coarbitraryTxIn )
 import Cardano.Wallet.Primitive.Types.UTxOIndex
     ( UTxOIndex )
 import Cardano.Wallet.Primitive.Types.UTxOIndex.Gen
@@ -32,8 +34,6 @@ import Cardano.Wallet.Primitive.Types.UTxOSelection.Gen
     , shrinkUTxOSelection
     , shrinkUTxOSelectionNonEmpty
     )
-import Generics.SOP
-    ( NP (..) )
 import Test.Hspec
     ( Spec, describe, it )
 import Test.Hspec.Extra
@@ -41,19 +41,15 @@ import Test.Hspec.Extra
 import Test.QuickCheck
     ( Arbitrary (..)
     , CoArbitrary (..)
-    , Gen
     , Property
     , Testable
     , checkCoverage
-    , coarbitraryShow
     , conjoin
     , cover
     , forAll
     , property
     , (===)
     )
-import Test.QuickCheck.Extra
-    ( genSized2, genericRoundRobinShrink, (<:>), (<@>) )
 
 import qualified Cardano.Wallet.Primitive.Types.TokenBundle as TokenBundle
 import qualified Cardano.Wallet.Primitive.Types.UTxOIndex as UTxOIndex
@@ -433,20 +429,8 @@ isValidSelectionNonEmpty s =
 -- of input identifier has been made into a type parameter.
 --
 instance Arbitrary WalletUTxO where
-    arbitrary = uncurry WalletUTxO <$> genSized2 genTxIn genAddress
-    shrink = genericRoundRobinShrink
-        <@> shrinkTxIn
-        <:> shrinkAddress
-        <:> Nil
-
-genWalletUTxO :: Gen WalletUTxO
-genWalletUTxO = uncurry WalletUTxO <$> genSized2 genTxIn genAddress
-
-shrinkWalletUTxO :: WalletUTxO -> [WalletUTxO]
-shrinkWalletUTxO = genericRoundRobinShrink
-    <@> shrinkTxIn
-    <:> shrinkAddress
-    <:> Nil
+    arbitrary = genWalletUTxO
+    shrink = shrinkWalletUTxO
 
 instance Arbitrary (UTxOIndex WalletUTxO) where
     arbitrary = genUTxOIndex genWalletUTxO
@@ -471,7 +455,7 @@ instance CoArbitrary TxIn where
     coarbitrary = coarbitraryTxIn
 
 instance CoArbitrary WalletUTxO where
-    coarbitrary = coarbitraryShow
+    coarbitrary = coarbitraryWalletUTxO
 
 --------------------------------------------------------------------------------
 -- Show instances

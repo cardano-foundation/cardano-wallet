@@ -42,6 +42,12 @@ import Cardano.Numeric.Util
     ( inAscendingPartialOrder )
 import Cardano.Wallet.CoinSelection
     ( WalletSelectionContext, WalletUTxO (..) )
+import Cardano.Wallet.CoinSelection.Gen
+    ( genWalletUTxO
+    , genWalletUTxOFunction
+    , genWalletUTxOLargeRange
+    , shrinkWalletUTxO
+    )
 import Cardano.Wallet.CoinSelection.Internal.Balance
     ( AssetCount (..)
     , BalanceInsufficientError (..)
@@ -108,7 +114,7 @@ import Cardano.Wallet.CoinSelection.Internal.Balance.Gen
 import Cardano.Wallet.Primitive.Types.Address
     ( Address (..) )
 import Cardano.Wallet.Primitive.Types.Address.Gen
-    ( genAddress, shrinkAddress )
+    ( shrinkAddress )
 import Cardano.Wallet.Primitive.Types.Coin
     ( Coin (..) )
 import Cardano.Wallet.Primitive.Types.Coin.Gen
@@ -147,7 +153,7 @@ import Cardano.Wallet.Primitive.Types.Tx
     , txOutMaxTokenQuantity
     )
 import Cardano.Wallet.Primitive.Types.Tx.Gen
-    ( genTxIn, genTxInLargeRange, genTxOut, shrinkTxIn, shrinkTxOut )
+    ( genTxOut, shrinkTxOut )
 import Cardano.Wallet.Primitive.Types.UTxOIndex
     ( SelectionFilter (..), UTxOIndex )
 import Cardano.Wallet.Primitive.Types.UTxOIndex.Gen
@@ -214,7 +220,6 @@ import Test.QuickCheck
     , arbitraryBoundedEnum
     , checkCoverage
     , choose
-    , coarbitrary
     , conjoin
     , counterexample
     , cover
@@ -240,14 +245,7 @@ import Test.QuickCheck
 import Test.QuickCheck.Classes
     ( eqLaws, ordLaws )
 import Test.QuickCheck.Extra
-    ( genFunction
-    , genSized2
-    , genericRoundRobinShrink
-    , report
-    , verify
-    , (<:>)
-    , (<@>)
-    )
+    ( genericRoundRobinShrink, report, verify, (<:>), (<@>) )
 import Test.QuickCheck.Monadic
     ( PropertyM (..), assert, monadicIO, monitor, run )
 import Test.Utils.Laws
@@ -4377,28 +4375,6 @@ unitTests :: String -> [Expectation] -> SpecWith ()
 unitTests lbl cases =
     forM_ (zip [1..] cases) $ \(i, test) ->
         it (lbl <> " example #" <> show @Int i) test
-
---------------------------------------------------------------------------------
--- Wallet UTxO identifiers
---------------------------------------------------------------------------------
-
-coarbitraryWalletUTxO :: WalletUTxO -> Gen a -> Gen a
-coarbitraryWalletUTxO = coarbitrary . show
-
-genWalletUTxO :: Gen WalletUTxO
-genWalletUTxO = uncurry WalletUTxO <$> genSized2 genTxIn genAddress
-
-genWalletUTxOLargeRange :: Gen WalletUTxO
-genWalletUTxOLargeRange = WalletUTxO <$> genTxInLargeRange <*> genAddress
-
-shrinkWalletUTxO :: WalletUTxO -> [WalletUTxO]
-shrinkWalletUTxO = genericRoundRobinShrink
-    <@> shrinkTxIn
-    <:> shrinkAddress
-    <:> Nil
-
-genWalletUTxOFunction :: Gen a -> Gen (WalletUTxO -> a)
-genWalletUTxOFunction = genFunction coarbitraryWalletUTxO
 
 --------------------------------------------------------------------------------
 -- Arbitrary instances

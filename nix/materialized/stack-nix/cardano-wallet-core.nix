@@ -250,6 +250,7 @@
           "Network/Wai/Middleware/Logging"
           "Ouroboros/Network/Client/Wallet"
           "UnliftIO/Compat"
+          "Cardano/Wallet/CoinSelection/Gen"
           "Cardano/Wallet/CoinSelection/Internal/Balance/Gen"
           "Cardano/Wallet/Primitive/Types/Address/Gen"
           "Cardano/Wallet/Primitive/Types/Coin/Gen"
