@@ -36,7 +36,7 @@
     nixpkgs.follows = "haskellNix/nixpkgs-2111";
     hostNixpkgs.follows = "nixpkgs";
     haskellNix = {
-      url = "github:input-output-hk/haskell.nix/308c937bfc68071d8ab0206b44e0f3dde35a401e";
+      url = "github:input-output-hk/haskell.nix/eb49a3b7213470e36570f4aa1ed7a64e6d6cf160";
       inputs.nixpkgs.follows = "nixpkgs";
     };
     flake-utils.url = "github:numtide/flake-utils";
