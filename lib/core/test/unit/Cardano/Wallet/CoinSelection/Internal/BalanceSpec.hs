@@ -661,7 +661,7 @@ shrinkSelectionParams
     -> [SelectionParams WalletSelectionContext]
 shrinkSelectionParams = genericRoundRobinShrink
     <@> shrinkList shrinkOutput
-    <:> shrinkUTxOSelection
+    <:> shrinkUTxOSelection shrinkWalletUTxO
     <:> shrinkCoin
     <:> shrinkCoin
     <:> shrinkTokenMap
@@ -4463,8 +4463,8 @@ instance Arbitrary TxOut where
     shrink = shrinkTxOut
 
 instance Arbitrary (UTxOSelection WalletUTxO) where
-    arbitrary = genUTxOSelection
-    shrink = shrinkUTxOSelection
+    arbitrary = genUTxOSelection genWalletUTxO
+    shrink = shrinkUTxOSelection shrinkWalletUTxO
 
 newtype Large a = Large
     { getLarge :: a }

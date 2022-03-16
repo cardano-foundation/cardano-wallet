@@ -1,3 +1,4 @@
+{-# LANGUAGE ScopedTypeVariables #-}
 {-# LANGUAGE TypeApplications #-}
 
 module Cardano.Wallet.Primitive.Types.UTxOSelection.Gen
@@ -35,35 +36,27 @@ import qualified Cardano.Wallet.Primitive.Types.UTxOSelection as UTxOSelection
 -- Selections that may be empty
 --------------------------------------------------------------------------------
 
-coarbitraryWalletUTxO :: WalletUTxO -> Gen a -> Gen a
-coarbitraryWalletUTxO = coarbitrary . show
+coarbitraryUTxO :: Show u => u -> Gen a -> Gen a
+coarbitraryUTxO = coarbitrary . show
 
-genWalletUTxOFunction :: Gen a -> Gen (WalletUTxO -> a)
-genWalletUTxOFunction = genFunction coarbitraryWalletUTxO
+genUTxOFunction :: Show u => Gen a -> Gen (u -> a)
+genUTxOFunction = genFunction coarbitraryUTxO
 
-genUTxOSelection :: Gen (UTxOSelection WalletUTxO)
-genUTxOSelection = UTxOSelection.fromIndexFiltered
-    <$> genFilter
-    <*> genUTxOIndex genWalletUTxO
+genUTxOSelection :: forall u. (Ord u, Show u) => Gen u -> Gen (UTxOSelection u)
+genUTxOSelection genUTxO = UTxOSelection.fromIndexFiltered
+    <$> genUTxOFilter
+    <*> genUTxOIndex genUTxO
   where
-    genFilter :: Gen (WalletUTxO -> Bool)
-    genFilter = genWalletUTxOFunction (arbitrary @Bool)
+    genUTxOFilter :: Gen (u -> Bool)
+    genUTxOFilter = genUTxOFunction (arbitrary @Bool)
 
-    genWalletUTxO :: Gen WalletUTxO
-    genWalletUTxO = uncurry WalletUTxO <$> genSized2 genTxIn genAddress
-
-shrinkUTxOSelection :: UTxOSelection WalletUTxO -> [UTxOSelection WalletUTxO]
-shrinkUTxOSelection =
+shrinkUTxOSelection
+    :: Ord u => (u -> [u]) -> (UTxOSelection u -> [UTxOSelection u])
+shrinkUTxOSelection shrinkUTxO =
     shrinkMapBy UTxOSelection.fromIndexPair UTxOSelection.toIndexPair $
         liftShrink2
-            (shrinkUTxOIndex shrinkWalletUTxO)
-            (shrinkUTxOIndex shrinkWalletUTxO)
-  where
-    shrinkWalletUTxO :: WalletUTxO -> [WalletUTxO]
-    shrinkWalletUTxO = genericRoundRobinShrink
-        <@> shrinkTxIn
-        <:> shrinkAddress
-        <:> Nil
+            (shrinkUTxOIndex shrinkUTxO)
+            (shrinkUTxOIndex shrinkUTxO)
 
 --------------------------------------------------------------------------------
 -- Selections that are non-empty
@@ -71,12 +64,21 @@ shrinkUTxOSelection =
 
 genUTxOSelectionNonEmpty :: Gen (UTxOSelectionNonEmpty WalletUTxO)
 genUTxOSelectionNonEmpty =
-    genUTxOSelection `suchThatMap` UTxOSelection.toNonEmpty
+    genUTxOSelection genWalletUTxO `suchThatMap` UTxOSelection.toNonEmpty
+  where
+    genWalletUTxO :: Gen WalletUTxO
+    genWalletUTxO = uncurry WalletUTxO <$> genSized2 genTxIn genAddress
 
 shrinkUTxOSelectionNonEmpty
     :: UTxOSelectionNonEmpty WalletUTxO
     -> [UTxOSelectionNonEmpty WalletUTxO]
 shrinkUTxOSelectionNonEmpty
     = mapMaybe UTxOSelection.toNonEmpty
-    . shrinkUTxOSelection
+    . shrinkUTxOSelection shrinkWalletUTxO
     . UTxOSelection.fromNonEmpty
+  where
+    shrinkWalletUTxO :: WalletUTxO -> [WalletUTxO]
+    shrinkWalletUTxO = genericRoundRobinShrink
+        <@> shrinkTxIn
+        <:> shrinkAddress
+        <:> Nil

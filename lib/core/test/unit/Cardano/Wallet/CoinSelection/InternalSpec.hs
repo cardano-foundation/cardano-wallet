@@ -797,32 +797,32 @@ shrinkCollateralRequirement = genericShrink
 -- UTxO available for inputs and collateral
 --------------------------------------------------------------------------------
 
+genWalletUTxO :: Gen WalletUTxO
+genWalletUTxO = uncurry WalletUTxO <$> genSized2 genTxIn genAddress
+
 genUTxOAvailableForCollateral :: Gen (Map WalletUTxO Coin)
 genUTxOAvailableForCollateral = genMapWith genWalletUTxO genCoinPositive
-  where
-    genWalletUTxO :: Gen WalletUTxO
-    genWalletUTxO = uncurry WalletUTxO <$> genSized2 genTxIn genAddress
 
 genUTxOAvailableForInputs :: Gen (UTxOSelection WalletUTxO)
 genUTxOAvailableForInputs = frequency
-    [ (49, genUTxOSelection)
+    [ (49, genUTxOSelection genWalletUTxO)
     , (01, pure UTxOSelection.empty)
     ]
+
+shrinkWalletUTxO :: WalletUTxO -> [WalletUTxO]
+shrinkWalletUTxO = genericRoundRobinShrink
+    <@> shrinkTxIn
+    <:> shrinkAddress
+    <:> Nil
 
 shrinkUTxOAvailableForCollateral
     :: Map WalletUTxO Coin -> [Map WalletUTxO Coin]
 shrinkUTxOAvailableForCollateral =
     shrinkMapWith shrinkWalletUTxO shrinkCoinPositive
-  where
-    shrinkWalletUTxO :: WalletUTxO -> [WalletUTxO]
-    shrinkWalletUTxO = genericRoundRobinShrink
-        <@> shrinkTxIn
-        <:> shrinkAddress
-        <:> Nil
 
 shrinkUTxOAvailableForInputs
     :: UTxOSelection WalletUTxO -> [UTxOSelection WalletUTxO]
-shrinkUTxOAvailableForInputs = shrinkUTxOSelection
+shrinkUTxOAvailableForInputs = shrinkUTxOSelection shrinkWalletUTxO
 
 --------------------------------------------------------------------------------
 -- Unit test support

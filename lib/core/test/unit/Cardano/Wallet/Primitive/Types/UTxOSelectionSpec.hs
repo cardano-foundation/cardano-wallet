@@ -145,7 +145,7 @@ spec =
 
 prop_genUTxOSelection :: Property
 prop_genUTxOSelection =
-    forAll genUTxOSelection $ \s ->
+    forAll (genUTxOSelection genWalletUTxO) $ \s ->
     checkCoverage_UTxOSelection s $
     isValidSelection s === True
 
@@ -157,8 +157,8 @@ prop_genUTxOSelectionNonEmpty =
 
 prop_shrinkUTxOSelection :: Property
 prop_shrinkUTxOSelection =
-    forAll genUTxOSelection $ \s ->
-    conjoin (isValidSelection <$> shrinkUTxOSelection s)
+    forAll (genUTxOSelection genWalletUTxO) $ \s ->
+    conjoin (isValidSelection <$> shrinkUTxOSelection shrinkWalletUTxO s)
 
 prop_shrinkUTxOSelectionNonEmpty :: Property
 prop_shrinkUTxOSelectionNonEmpty =
@@ -452,8 +452,8 @@ instance Arbitrary (UTxOIndex WalletUTxO) where
     shrink = shrinkUTxOIndex shrinkWalletUTxO
 
 instance Arbitrary (UTxOSelection WalletUTxO) where
-    arbitrary = genUTxOSelection
-    shrink = shrinkUTxOSelection
+    arbitrary = genUTxOSelection genWalletUTxO
+    shrink = shrinkUTxOSelection shrinkWalletUTxO
 
 instance Arbitrary (UTxOSelectionNonEmpty WalletUTxO) where
     arbitrary = genUTxOSelectionNonEmpty
