@@ -870,5 +870,5 @@ instance Arbitrary (SelectionParams WalletSelectionContext) where
     shrink = shrinkSelectionParams
 
 instance Arbitrary (SelectionSkeleton WalletSelectionContext) where
-    arbitrary = genSelectionSkeleton
-    shrink = shrinkSelectionSkeleton
+    arbitrary = genSelectionSkeleton genAddress
+    shrink = shrinkSelectionSkeleton shrinkAddress
