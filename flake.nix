@@ -36,7 +36,8 @@
     nixpkgs.follows = "haskellNix/nixpkgs-2111";
     hostNixpkgs.follows = "nixpkgs";
     haskellNix = {
-      url = "github:input-output-hk/haskell.nix";
+      # FIXME: Workaround for https://github.com/input-output-hk/haskell.nix/issues/1402
+      url = "github:input-output-hk/haskell.nix/308c937bfc68071d8ab0206b44e0f3dde35a401e";
       inputs.nixpkgs.follows = "nixpkgs";
     };
     flake-utils.url = "github:numtide/flake-utils";
