@@ -57,13 +57,14 @@ shrinkUTxOIndex shrinkUTxO =
 --------------------------------------------------------------------------------
 
 genUTxOIndexLarge :: Gen (UTxOIndex WalletUTxO)
-genUTxOIndexLarge = genUTxOIndexLargeN =<< choose (1024, 4096)
-
-genUTxOIndexLargeN :: Int -> Gen (UTxOIndex WalletUTxO)
-genUTxOIndexLargeN n = UTxOIndex.fromSequence <$> replicateM n genEntry
+genUTxOIndexLarge =
+    genUTxOIndexLargeN genWalletUTxOLargeRange =<< choose (1024, 4096)
   where
-    genEntry :: Gen (WalletUTxO, TokenBundle)
-    genEntry = (,) <$> genWalletUTxO <*> genTokenBundleSmallRangePositive
+    genWalletUTxOLargeRange :: Gen WalletUTxO
+    genWalletUTxOLargeRange = WalletUTxO <$> genTxInLargeRange <*> genAddress
 
-    genWalletUTxO :: Gen WalletUTxO
-    genWalletUTxO = WalletUTxO <$> genTxInLargeRange <*> genAddress
+genUTxOIndexLargeN :: forall u. Ord u => Gen u -> Int -> Gen (UTxOIndex u)
+genUTxOIndexLargeN genUTxO n = UTxOIndex.fromSequence <$> replicateM n genEntry
+  where
+    genEntry :: Gen (u, TokenBundle)
+    genEntry = (,) <$> genUTxO <*> genTokenBundleSmallRangePositive

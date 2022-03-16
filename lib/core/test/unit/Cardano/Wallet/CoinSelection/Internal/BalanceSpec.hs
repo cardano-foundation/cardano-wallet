@@ -147,7 +147,7 @@ import Cardano.Wallet.Primitive.Types.Tx
     , txOutMaxTokenQuantity
     )
 import Cardano.Wallet.Primitive.Types.Tx.Gen
-    ( genTxIn, genTxOut, shrinkTxIn, shrinkTxOut )
+    ( genTxIn, genTxInLargeRange, genTxOut, shrinkTxIn, shrinkTxOut )
 import Cardano.Wallet.Primitive.Types.UTxOIndex
     ( SelectionFilter (..), UTxOIndex )
 import Cardano.Wallet.Primitive.Types.UTxOIndex.Gen
@@ -875,7 +875,7 @@ prop_performSelection_huge = ioProperty $
     -- the cost of re-generating it on every pass. This will still generate
     -- interesting cases, since selection within that large index is random.
     property . prop_performSelection_huge_inner
-        <$> generate (genUTxOIndexLargeN 50000)
+        <$> generate (genUTxOIndexLargeN genWalletUTxOLargeRange 50000)
 
 prop_performSelection_huge_inner
     :: UTxOIndex WalletUTxO
@@ -4387,6 +4387,9 @@ coarbitraryWalletUTxO = coarbitrary . show
 
 genWalletUTxO :: Gen WalletUTxO
 genWalletUTxO = uncurry WalletUTxO <$> genSized2 genTxIn genAddress
+
+genWalletUTxOLargeRange :: Gen WalletUTxO
+genWalletUTxOLargeRange = WalletUTxO <$> genTxInLargeRange <*> genAddress
 
 shrinkWalletUTxO :: WalletUTxO -> [WalletUTxO]
 shrinkWalletUTxO = genericRoundRobinShrink
