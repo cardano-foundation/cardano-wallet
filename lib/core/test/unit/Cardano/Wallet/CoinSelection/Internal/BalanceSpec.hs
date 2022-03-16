@@ -108,7 +108,7 @@ import Cardano.Wallet.CoinSelection.Internal.Balance.Gen
 import Cardano.Wallet.Primitive.Types.Address
     ( Address (..) )
 import Cardano.Wallet.Primitive.Types.Address.Gen
-    ( shrinkAddress )
+    ( genAddress, shrinkAddress )
 import Cardano.Wallet.Primitive.Types.Coin
     ( Coin (..) )
 import Cardano.Wallet.Primitive.Types.Coin.Gen
@@ -147,7 +147,7 @@ import Cardano.Wallet.Primitive.Types.Tx
     , txOutMaxTokenQuantity
     )
 import Cardano.Wallet.Primitive.Types.Tx.Gen
-    ( genTxOut, shrinkTxOut )
+    ( genTxIn, genTxOut, shrinkTxIn, shrinkTxOut )
 import Cardano.Wallet.Primitive.Types.UTxOIndex
     ( SelectionFilter (..), UTxOIndex )
 import Cardano.Wallet.Primitive.Types.UTxOIndex.Gen
@@ -240,7 +240,14 @@ import Test.QuickCheck
 import Test.QuickCheck.Classes
     ( eqLaws, ordLaws )
 import Test.QuickCheck.Extra
-    ( genFunction, genericRoundRobinShrink, report, verify, (<:>), (<@>) )
+    ( genFunction
+    , genSized2
+    , genericRoundRobinShrink
+    , report
+    , verify
+    , (<:>)
+    , (<@>)
+    )
 import Test.QuickCheck.Monadic
     ( PropertyM (..), assert, monadicIO, monitor, run )
 import Test.Utils.Laws
@@ -4378,6 +4385,15 @@ unitTests lbl cases =
 coarbitraryWalletUTxO :: WalletUTxO -> Gen a -> Gen a
 coarbitraryWalletUTxO = coarbitrary . show
 
+genWalletUTxO :: Gen WalletUTxO
+genWalletUTxO = uncurry WalletUTxO <$> genSized2 genTxIn genAddress
+
+shrinkWalletUTxO :: WalletUTxO -> [WalletUTxO]
+shrinkWalletUTxO = genericRoundRobinShrink
+    <@> shrinkTxIn
+    <:> shrinkAddress
+    <:> Nil
+
 genWalletUTxOFunction :: Gen a -> Gen (WalletUTxO -> a)
 genWalletUTxOFunction = genFunction coarbitraryWalletUTxO
 
@@ -4464,16 +4480,16 @@ instance Arbitrary (Large (SelectionParams WalletSelectionContext)) where
 instance Arbitrary (Small (SelectionParams WalletSelectionContext)) where
     arbitrary = Small <$> genSelectionParams
         (genWalletUTxOFunction (arbitrary @Bool))
-        (genUTxOIndex)
+        (genUTxOIndex genWalletUTxO)
     shrink = shrinkMapBy Small getSmall shrinkSelectionParams
 
 instance Arbitrary (Large (UTxOIndex WalletUTxO)) where
     arbitrary = Large <$> genUTxOIndexLarge
-    shrink = shrinkMapBy Large getLarge shrinkUTxOIndex
+    shrink = shrinkMapBy Large getLarge (shrinkUTxOIndex shrinkWalletUTxO)
 
 instance Arbitrary (Small (UTxOIndex WalletUTxO)) where
-    arbitrary = Small <$> genUTxOIndex
-    shrink = shrinkMapBy Small getSmall shrinkUTxOIndex
+    arbitrary = Small <$> genUTxOIndex genWalletUTxO
+    shrink = shrinkMapBy Small getSmall (shrinkUTxOIndex shrinkWalletUTxO)
 
 instance Arbitrary Coin where
     arbitrary = genCoinPositive

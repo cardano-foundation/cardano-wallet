@@ -11,17 +11,23 @@ module Cardano.Wallet.Primitive.Types.UTxOSelection.Gen
 import Prelude
 
 import Cardano.Wallet.CoinSelection
-    ( WalletUTxO )
+    ( WalletUTxO (..) )
+import Cardano.Wallet.Primitive.Types.Address.Gen
+    ( genAddress, shrinkAddress )
+import Cardano.Wallet.Primitive.Types.Tx.Gen
+    ( genTxIn, shrinkTxIn )
 import Cardano.Wallet.Primitive.Types.UTxOIndex.Gen
     ( genUTxOIndex, shrinkUTxOIndex )
 import Cardano.Wallet.Primitive.Types.UTxOSelection
     ( UTxOSelection, UTxOSelectionNonEmpty )
 import Data.Maybe
     ( mapMaybe )
+import Generics.SOP
+    ( NP (..) )
 import Test.QuickCheck
     ( Gen, arbitrary, coarbitrary, liftShrink2, shrinkMapBy, suchThatMap )
 import Test.QuickCheck.Extra
-    ( genFunction )
+    ( genFunction, genSized2, genericRoundRobinShrink, (<:>), (<@>) )
 
 import qualified Cardano.Wallet.Primitive.Types.UTxOSelection as UTxOSelection
 
@@ -38,17 +44,26 @@ genWalletUTxOFunction = genFunction coarbitraryWalletUTxO
 genUTxOSelection :: Gen (UTxOSelection WalletUTxO)
 genUTxOSelection = UTxOSelection.fromIndexFiltered
     <$> genFilter
-    <*> genUTxOIndex
+    <*> genUTxOIndex genWalletUTxO
   where
     genFilter :: Gen (WalletUTxO -> Bool)
     genFilter = genWalletUTxOFunction (arbitrary @Bool)
+
+    genWalletUTxO :: Gen WalletUTxO
+    genWalletUTxO = uncurry WalletUTxO <$> genSized2 genTxIn genAddress
 
 shrinkUTxOSelection :: UTxOSelection WalletUTxO -> [UTxOSelection WalletUTxO]
 shrinkUTxOSelection =
     shrinkMapBy UTxOSelection.fromIndexPair UTxOSelection.toIndexPair $
         liftShrink2
-            shrinkUTxOIndex
-            shrinkUTxOIndex
+            (shrinkUTxOIndex shrinkWalletUTxO)
+            (shrinkUTxOIndex shrinkWalletUTxO)
+  where
+    shrinkWalletUTxO :: WalletUTxO -> [WalletUTxO]
+    shrinkWalletUTxO = genericRoundRobinShrink
+        <@> shrinkTxIn
+        <:> shrinkAddress
+        <:> Nil
 
 --------------------------------------------------------------------------------
 -- Selections that are non-empty

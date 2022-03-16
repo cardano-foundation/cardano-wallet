@@ -41,6 +41,7 @@ import Test.Hspec.Extra
 import Test.QuickCheck
     ( Arbitrary (..)
     , CoArbitrary (..)
+    , Gen
     , Property
     , Testable
     , checkCoverage
@@ -437,9 +438,18 @@ instance Arbitrary WalletUTxO where
         <:> shrinkAddress
         <:> Nil
 
+genWalletUTxO :: Gen WalletUTxO
+genWalletUTxO = uncurry WalletUTxO <$> genSized2 genTxIn genAddress
+
+shrinkWalletUTxO :: WalletUTxO -> [WalletUTxO]
+shrinkWalletUTxO = genericRoundRobinShrink
+    <@> shrinkTxIn
+    <:> shrinkAddress
+    <:> Nil
+
 instance Arbitrary (UTxOIndex WalletUTxO) where
-    arbitrary = genUTxOIndex
-    shrink = shrinkUTxOIndex
+    arbitrary = genUTxOIndex genWalletUTxO
+    shrink = shrinkUTxOIndex shrinkWalletUTxO
 
 instance Arbitrary (UTxOSelection WalletUTxO) where
     arbitrary = genUTxOSelection
