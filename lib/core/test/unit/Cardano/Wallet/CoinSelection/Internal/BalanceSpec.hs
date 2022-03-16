@@ -4477,7 +4477,7 @@ newtype Small a = Small
 instance Arbitrary (Large (SelectionParams WalletSelectionContext)) where
     arbitrary = Large <$> genSelectionParams
         (genWalletUTxOFunction (arbitrary @Bool))
-        (genUTxOIndexLarge)
+        (genUTxOIndexLarge genWalletUTxOLargeRange)
     shrink = shrinkMapBy Large getLarge shrinkSelectionParams
 
 instance Arbitrary (Small (SelectionParams WalletSelectionContext)) where
@@ -4487,7 +4487,7 @@ instance Arbitrary (Small (SelectionParams WalletSelectionContext)) where
     shrink = shrinkMapBy Small getSmall shrinkSelectionParams
 
 instance Arbitrary (Large (UTxOIndex WalletUTxO)) where
-    arbitrary = Large <$> genUTxOIndexLarge
+    arbitrary = Large <$> genUTxOIndexLarge genWalletUTxOLargeRange
     shrink = shrinkMapBy Large getLarge (shrinkUTxOIndex shrinkWalletUTxO)
 
 instance Arbitrary (Small (UTxOIndex WalletUTxO)) where

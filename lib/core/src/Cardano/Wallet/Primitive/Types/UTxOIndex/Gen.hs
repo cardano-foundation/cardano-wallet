@@ -9,16 +9,10 @@ module Cardano.Wallet.Primitive.Types.UTxOIndex.Gen
 
 import Prelude
 
-import Cardano.Wallet.CoinSelection
-    ( WalletUTxO (..) )
-import Cardano.Wallet.Primitive.Types.Address.Gen
-    ( genAddress )
 import Cardano.Wallet.Primitive.Types.TokenBundle
     ( TokenBundle )
 import Cardano.Wallet.Primitive.Types.TokenBundle.Gen
     ( genTokenBundleSmallRangePositive, shrinkTokenBundleSmallRangePositive )
-import Cardano.Wallet.Primitive.Types.Tx.Gen
-    ( genTxInLargeRange )
 import Cardano.Wallet.Primitive.Types.UTxOIndex
     ( UTxOIndex )
 import Control.Monad
@@ -56,12 +50,9 @@ shrinkUTxOIndex shrinkUTxO =
 -- Large indices
 --------------------------------------------------------------------------------
 
-genUTxOIndexLarge :: Gen (UTxOIndex WalletUTxO)
-genUTxOIndexLarge =
-    genUTxOIndexLargeN genWalletUTxOLargeRange =<< choose (1024, 4096)
-  where
-    genWalletUTxOLargeRange :: Gen WalletUTxO
-    genWalletUTxOLargeRange = WalletUTxO <$> genTxInLargeRange <*> genAddress
+genUTxOIndexLarge :: Ord u => Gen u -> Gen (UTxOIndex u)
+genUTxOIndexLarge genUTxO =
+    genUTxOIndexLargeN genUTxO =<< choose (1024, 4096)
 
 genUTxOIndexLargeN :: forall u. Ord u => Gen u -> Int -> Gen (UTxOIndex u)
 genUTxOIndexLargeN genUTxO n = UTxOIndex.fromSequence <$> replicateM n genEntry
