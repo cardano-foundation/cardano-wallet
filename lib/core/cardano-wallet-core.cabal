@@ -167,6 +167,7 @@ library
       Cardano.Pool.DB.Sqlite
       Cardano.Pool.DB.Sqlite.TH
       Cardano.Pool.Metadata
+      Cardano.Pool.Rank
       Cardano.Wallet
       Cardano.Wallet.Address.Pool
       Cardano.Wallet.Api
