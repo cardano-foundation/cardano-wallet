@@ -1454,15 +1454,12 @@ fromMaryTx tx =
     MA.TxBody ins outs certs wdrls fee _valid _upd _adh mint = bod
     (assetsToMint, assetsToBurn) = fromLedgerMintValue mint
     scriptMap = fromMaryScriptMap $ Shelley.scriptWits wits
-    (mintScriptMap, burnScriptMap) =
-        if ( assetsToMint == TokenMap.empty &&
-             assetsToBurn /= TokenMap.empty) then
-            (Map.empty, scriptMap)
-        else if ( assetsToMint /= TokenMap.empty &&
-                  assetsToBurn == TokenMap.empty) then
-            (scriptMap, Map.empty)
-        else
-            (Map.empty, Map.empty)
+    (mintScriptMap, burnScriptMap)
+        | (assetsToMint == TokenMap.empty && assetsToBurn /= TokenMap.empty)
+        = (Map.empty, scriptMap)
+        | (assetsToMint /= TokenMap.empty && assetsToBurn == TokenMap.empty)
+        = (scriptMap, Map.empty)
+        | otherwise = (Map.empty, Map.empty)
 
     -- fixme: [ADP-525] It is fine for now since we do not look at script
     -- pre-images. But this is precisely what we want as part of the
@@ -1553,15 +1550,12 @@ fromAlonzoTxBodyAndAux bod mad wits =
         = bod
     (assetsToMint, assetsToBurn) = fromLedgerMintValue mint
     scriptMap = fromAlonzoScriptMap $ Alonzo.txscripts' wits
-    (mintScriptMap, burnScriptMap) =
-        if ( assetsToMint == TokenMap.empty &&
-             assetsToBurn /= TokenMap.empty) then
-            (Map.empty, scriptMap)
-        else if ( assetsToMint /= TokenMap.empty &&
-                  assetsToBurn == TokenMap.empty) then
-            (scriptMap, Map.empty)
-        else
-            (Map.empty, Map.empty)
+    (mintScriptMap, burnScriptMap)
+        | (assetsToMint == TokenMap.empty && assetsToBurn /= TokenMap.empty)
+        = (Map.empty, scriptMap)
+        | (assetsToMint /= TokenMap.empty && assetsToBurn == TokenMap.empty)
+        = (scriptMap, Map.empty)
+        | otherwise = (Map.empty, Map.empty)
 
     fromAlonzoScriptMap
         :: Map (SL.ScriptHash (Crypto StandardAlonzo))

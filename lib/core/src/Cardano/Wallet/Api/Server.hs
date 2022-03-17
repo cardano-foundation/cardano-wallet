@@ -2181,7 +2181,7 @@ constructTransaction ctx genChange knownPools getPoolStatus (ApiT wid) body = do
     let wrongMintingTemplate (ApiMintBurnData (ApiT scriptTempl) _ _) =
             isLeft (validateScriptOfTemplate RecommendedValidation scriptTempl)
             || length (retrieveAllCosigners scriptTempl) > 1
-            || L.any (not . (== Cosigner 0)) (retrieveAllCosigners scriptTempl)
+            || (L.any (/= Cosigner 0)) (retrieveAllCosigners scriptTempl)
     when ( isJust mintingBurning &&
            L.any wrongMintingTemplate (NE.toList $ fromJust mintingBurning)) $
         liftHandler $ throwE ErrConstructTxWrongMintingBurningTemplate

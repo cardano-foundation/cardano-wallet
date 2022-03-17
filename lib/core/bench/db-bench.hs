@@ -368,13 +368,13 @@ benchPutSeqState DBLayer{..} cps = do
     unsafeRunExceptT $ mapExceptT atomically $ mapM_ (putCheckpoint testWid) cps
 
 mkSeqState :: Int -> Int -> SeqState 'Mainnet ShelleyKey
-mkSeqState numAddrs _ = s 
+mkSeqState numAddrs _ = s
     { internalPool = fillPool (internalPool s)
     , externalPool = fillPool (externalPool s)
     }
   where
     s = mkSeqStateFromAccountXPub @'Mainnet
-        ourAccount purposeCIP1852 defaultAddressPoolGap
+        ourAccount Nothing purposeCIP1852 defaultAddressPoolGap
     fillPool (SeqAddressPool pool0) = SeqAddressPool $
         foldl' (\p ix -> AddressPool.update (gen ix) p) pool0 [0 .. numAddrs-1]
       where
