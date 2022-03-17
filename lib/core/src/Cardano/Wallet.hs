@@ -3392,7 +3392,6 @@ data ErrBalanceTx
     | ErrBalanceTxAssignRedeemers ErrAssignRedeemers
     | ErrBalanceTxNotYetSupported BalanceTxNotSupportedReason
     | ErrBalanceTxFailedBalancing Cardano.Value
-    | ErrBalanceTxMaxSizeLimitExceeded
 
 -- TODO: Remove once problems are fixed.
 data BalanceTxNotSupportedReason
