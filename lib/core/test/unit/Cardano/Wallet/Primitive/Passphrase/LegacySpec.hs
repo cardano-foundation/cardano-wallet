@@ -23,7 +23,12 @@ import Cardano.Wallet.Primitive.Passphrase.Gen
     , shrinkUserPassphrase
     )
 import Cardano.Wallet.Primitive.Passphrase.Legacy
-    ( checkPassphraseTestingOnly, getSalt, haveScrypt, preparePassphrase )
+    ( checkPassphraseTestingOnly
+    , encryptPassphraseTestingOnly
+    , getSalt
+    , haveScrypt
+    , preparePassphrase
+    )
 import Cardano.Wallet.Primitive.Passphrase.Types
     ( Passphrase (..), PassphraseHash (..) )
 import Cardano.Wallet.Unsafe
@@ -50,8 +55,20 @@ import qualified Data.Text.Encoding as T
 spec :: Spec
 spec = onlyWithScrypt $ describe "Scrypt tests-only cryptonite version" $ do
     it "Verify passphrase" $ do
-        checkPassphraseTestingOnly (preparePassphrase fixturePassphrase)
-            fixturePassphraseEncrypted `shouldBe` True
+        let Just salt = getSalt fixturePassphraseEncrypted
+        let
+            unwrap :: PassphraseHash -> ByteString
+            unwrap (PassphraseHash x) = BA.convert x
+        let x = encryptPassphraseTestingOnly
+                (preparePassphrase fixturePassphrase)
+                salt
+        unwrap x `shouldBe` unwrap fixturePassphraseEncrypted
+        -- The above results in a better error message on failure, but this is
+        -- the main thing we want to test:
+        checkPassphraseTestingOnly
+            (preparePassphrase fixturePassphrase)
+            fixturePassphraseEncrypted
+            `shouldBe` True
     it "Verify wrong passphrase" $ do
         checkPassphraseTestingOnly (preparePassphrase fixturePassphraseWrong)
             fixturePassphraseEncrypted `shouldBe` False
@@ -65,7 +82,9 @@ spec = onlyWithScrypt $ describe "Scrypt tests-only cryptonite version" $ do
         let
             unwrap :: Passphrase "salt" -> ByteString
             unwrap (Passphrase x) = BA.convert x
-        unwrap <$> (getSalt fixturePassphraseEncrypted)  `shouldBe` (Just "abc")
+        unwrap <$> (getSalt fixturePassphraseEncrypted)
+            `shouldBe` Just "\250:-\180R\EM\141Y\151\160.\203\149\&0YZV3\ENQ~\
+                            \\DLEC\a\221\184[\177\nC\aR+"
 
     it "checkPassphrase p h(p) == Right () for Scrypt passwords" $
         property prop_passphraseFromScryptRoundtrip

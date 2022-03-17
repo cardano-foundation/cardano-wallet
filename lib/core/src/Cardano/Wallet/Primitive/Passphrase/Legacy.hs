@@ -43,7 +43,7 @@ import Crypto.Hash.Utils
 import Crypto.Random.Types
     ( MonadRandom (..) )
 import Data.ByteArray.Encoding
-    ( Base (..), convertToBase )
+    ( Base (..), convertFromBase, convertToBase )
 import Data.ByteString
     ( ByteString )
 import Data.Word
@@ -54,6 +54,8 @@ import qualified Codec.CBOR.Write as CBOR
 import qualified Crypto.KDF.Scrypt as Scrypt
 import qualified Data.ByteArray as BA
 import qualified Data.ByteString.Char8 as B8
+import Data.Either.Extra
+    ( eitherToMaybe )
 
 #if HAVE_SCRYPT
 import Crypto.Scrypt
@@ -79,13 +81,13 @@ haveScrypt = False
 #endif
 
 preparePassphrase :: Passphrase "user" -> Passphrase "encryption"
-preparePassphrase = Passphrase . hashMaybe . cborify . unPassphrase
+preparePassphrase = Passphrase . cborify . hashMaybe . unPassphrase
   where
     hashMaybe pw
         | pw == mempty = mempty
         | otherwise = BA.convert $ blake2b256 pw
 
-    cborify = CBOR.toStrictByteString . CBOR.encodeBytes . BA.convert
+    cborify = BA.convert . CBOR.toStrictByteString . CBOR.encodeBytes
 
 -- | This is for use by test cases only. Use only the implementation from the
 -- @scrypt@ package for application code.
@@ -98,7 +100,8 @@ checkPassphraseTestingOnly pwd stored = case getSalt stored of
 -- This will fail unless there are exactly 5 fields
 getSalt :: PassphraseHash -> Maybe (Passphrase "salt")
 getSalt (PassphraseHash stored) = case B8.split '|' (BA.convert stored) of
-    [_logN, _r, _p, salt, _passHash] -> Just $ Passphrase $ BA.convert salt
+    [_logN, _r, _p, salt, _passHash] -> eitherToMaybe $
+        Passphrase <$> convertFromBase Base64 salt
     _ -> Nothing
 
 -- | This is for use by test cases only.
