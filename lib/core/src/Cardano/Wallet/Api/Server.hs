@@ -858,7 +858,8 @@ postAccountWallet
     -> AccountPostData
     -> Handler w
 postAccountWallet ctx mkWallet liftKey coworker body = do
-    let state = mkSeqStateFromAccountXPub (liftKey accXPub) Nothing purposeCIP1852 g
+    let state = mkSeqStateFromAccountXPub
+            (liftKey accXPub) Nothing purposeCIP1852 g
     void $ liftHandler $ createWalletWorker @_ @s @k ctx wid
         (\wrk -> W.createWallet @(WorkerCtx ctx) @_ @s @k wrk wid wName state)
         coworker
@@ -2178,9 +2179,9 @@ constructTransaction ctx genChange knownPools getPoolStatus (ApiT wid) body = do
     let mintingBurning = body ^. #mintedBurned
     let retrieveAllCosigners = foldScript (:) []
     let wrongMintingTemplate (ApiMintBurnData (ApiT scriptTempl) _ _) =
-            isLeft (validateScriptOfTemplate RecommendedValidation scriptTempl) ||
-            length (retrieveAllCosigners scriptTempl) > 1 ||
-            L.any (not . (== Cosigner 0)) (retrieveAllCosigners scriptTempl)
+            isLeft (validateScriptOfTemplate RecommendedValidation scriptTempl)
+            || length (retrieveAllCosigners scriptTempl) > 1
+            || L.any (not . (== Cosigner 0)) (retrieveAllCosigners scriptTempl)
     when ( isJust mintingBurning &&
            L.any wrongMintingTemplate (NE.toList $ fromJust mintingBurning)) $
         liftHandler $ throwE ErrConstructTxWrongMintingBurningTemplate
@@ -2382,17 +2383,33 @@ decodeTransaction
     -> ApiSerialisedTransaction
     -> Handler (ApiDecodedTransaction n)
 decodeTransaction ctx (ApiT wid) (ApiSerialisedTransaction (ApiT sealed)) = do
-    let (Tx txid feeM colls inps outs wdrlMap meta vldt, toMint, toBurn, allCerts) =
-            decodeTx tl sealed
-    (txinsOutsPaths, collsOutsPaths, outsPath, acct, acctPath, pp, policyXPub) <-
-        withWorkerCtx ctx wid liftE liftE $ \wrk -> do
-          (acct, _, acctPath) <- liftHandler $ W.readRewardAccount @_ @s @k @n wrk wid
-          txinsOutsPaths <- liftHandler $ W.lookupTxIns @_ @s @k wrk wid (fst <$> inps)
-          collsOutsPaths <- liftHandler $ W.lookupTxIns @_ @s @k wrk wid (fst <$> colls)
-          outsPath <- liftHandler $ W.lookupTxOuts @_ @s @k wrk wid outs
-          pp <- liftIO $ NW.currentProtocolParameters (wrk ^. networkLayer)
-          (policyXPub, _) <- liftHandler $ W.readPolicyPublicKey @_ @s @k @n wrk wid
-          pure (txinsOutsPaths, collsOutsPaths, outsPath, acct, acctPath, pp, policyXPub)
+    let (Tx txid feeM colls inps outs wdrlMap meta vldt
+            , toMint
+            , toBurn
+            , allCerts
+            ) = decodeTx tl sealed
+    (txinsOutsPaths, collsOutsPaths, outsPath, acct, acctPath, pp, policyXPub)
+        <- withWorkerCtx ctx wid liftE liftE $ \wrk -> do
+        (acct, _, acctPath) <-
+            liftHandler $ W.readRewardAccount @_ @s @k @n wrk wid
+        txinsOutsPaths <-
+            liftHandler $ W.lookupTxIns @_ @s @k wrk wid (fst <$> inps)
+        collsOutsPaths <-
+            liftHandler $ W.lookupTxIns @_ @s @k wrk wid (fst <$> colls)
+        outsPath <-
+            liftHandler $ W.lookupTxOuts @_ @s @k wrk wid outs
+        pp <- liftIO $ NW.currentProtocolParameters (wrk ^. networkLayer)
+        (policyXPub, _) <-
+            liftHandler $ W.readPolicyPublicKey @_ @s @k @n wrk wid
+        pure
+            ( txinsOutsPaths
+            , collsOutsPaths
+            , outsPath
+            , acct
+            , acctPath
+            , pp
+            , policyXPub
+            )
     pure $ ApiDecodedTransaction
         { id = ApiT txid
         , fee = maybe (Quantity 0) (Quantity . fromIntegral . unCoin) feeM

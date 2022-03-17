@@ -337,8 +337,9 @@ constructUnsignedTx
     -- ^ Assets to be burnt
     -> ShelleyBasedEra era
     -> Either ErrMkTransaction SealedTx
-constructUnsignedTx networkId (md, certs) ttl rewardAcnt wdrl cs fee toMint toBurn era =
-    sealedTxFromCardanoBody <$> tx
+constructUnsignedTx
+    networkId (md, certs) ttl rewardAcnt wdrl cs fee toMint toBurn era =
+        sealedTxFromCardanoBody <$> tx
   where
     tx = mkUnsignedTx era ttl cs md wdrls certs (toCardanoLovelace fee)
         (fst toMint) (fst toBurn) allScripts
@@ -1977,10 +1978,13 @@ mkUnsignedTx era ttl cs md wdrls certs fees mintData burnData allScripts =
         ShelleyBasedEraMary -> Just Cardano.MultiAssetInMaryEra
         ShelleyBasedEraAlonzo -> Just Cardano.MultiAssetInAlonzoEra
 
-    scriptWitsSupported :: Cardano.ScriptLanguageInEra Cardano.SimpleScriptV2 era
+    scriptWitsSupported
+        :: Cardano.ScriptLanguageInEra Cardano.SimpleScriptV2 era
     scriptWitsSupported = case era of
-        ShelleyBasedEraShelley -> internalError "scriptWitsSupported we should be at least in Mary"
-        ShelleyBasedEraAllegra -> internalError "scriptWitsSupported we should be at least in Mary"
+        ShelleyBasedEraShelley -> internalError
+            "scriptWitsSupported: we should be at least in Mary"
+        ShelleyBasedEraAllegra -> internalError
+            "scriptWitsSupported: we should be at least in Mary"
         ShelleyBasedEraMary -> Cardano.SimpleScriptV2InMary
         ShelleyBasedEraAlonzo -> Cardano.SimpleScriptV2InAlonzo
 

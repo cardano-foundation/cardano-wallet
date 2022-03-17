@@ -1152,12 +1152,18 @@ spec = parallel $ do
         it "ApiConstructTransactionData" $ property $ \x ->
             let
                 x' = ApiConstructTransactionData
-                    { payments = payments (x :: ApiConstructTransactionData ('Testnet 0))
-                    , withdrawal = withdrawal (x :: ApiConstructTransactionData ('Testnet 0))
-                    , metadata = metadata (x :: ApiConstructTransactionData ('Testnet 0))
-                    , mintedBurned = mintedBurned (x :: ApiConstructTransactionData ('Testnet 0))
-                    , delegations = delegations (x :: ApiConstructTransactionData ('Testnet 0))
-                    , validityInterval = validityInterval (x :: ApiConstructTransactionData ('Testnet 0))
+                    { payments = payments
+                        (x :: ApiConstructTransactionData ('Testnet 0))
+                    , withdrawal = withdrawal
+                        (x :: ApiConstructTransactionData ('Testnet 0))
+                    , metadata = metadata
+                        (x :: ApiConstructTransactionData ('Testnet 0))
+                    , mintedBurned = mintedBurned
+                        (x :: ApiConstructTransactionData ('Testnet 0))
+                    , delegations = delegations
+                        (x :: ApiConstructTransactionData ('Testnet 0))
+                    , validityInterval = validityInterval
+                        (x :: ApiConstructTransactionData ('Testnet 0))
                     }
             in
                 x' === x .&&. show x' === show x

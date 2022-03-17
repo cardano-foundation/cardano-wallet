@@ -119,7 +119,9 @@ instance ( (key == SharedKey) ~ 'False, Eq (Seq.SeqState n key) )
             in  ( SeqPrologue $ Seq.SeqState int0 ext0 a b c d e
                 , SeqDiscoveries (addresses int) (addresses ext)
                 )
-        to (SeqPrologue (Seq.SeqState int0 ext0 a b c d e), SeqDiscoveries ints exts)
+        to  ( SeqPrologue (Seq.SeqState int0 ext0 a b c d e)
+            , SeqDiscoveries ints exts
+            )
           = Seq.SeqState (loadUnsafe int0 ints) (loadUnsafe ext0 exts) a b c d e
 
 -- | Address data from sequential address pool.

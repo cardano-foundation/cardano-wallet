@@ -1477,8 +1477,9 @@ fromMaryTx tx =
         fromCardanoValue $ Cardano.fromMaryValue value
 
     fromMaryScriptMap
-        :: Map (SL.ScriptHash (Crypto (MA.ShelleyMAEra 'MA.Mary StandardCrypto)))
-           (SL.Core.Script (MA.ShelleyMAEra 'MA.Mary StandardCrypto))
+        :: Map
+            (SL.ScriptHash (Crypto (MA.ShelleyMAEra 'MA.Mary StandardCrypto)))
+            (SL.Core.Script (MA.ShelleyMAEra 'MA.Mary StandardCrypto))
         -> Map TokenPolicyId (Script KeyHash)
     fromMaryScriptMap =
         Map.map (toWalletScript Policy) .
@@ -1877,7 +1878,8 @@ toCardanoValue tb = Cardano.valueFromList $
     toCardanoAssetId (TokenBundle.AssetId pid name) =
         Cardano.AssetId (toCardanoPolicyId pid) (toCardanoAssetName name)
 
-    toCardanoAssetName (W.UnsafeTokenName name) = just "toCardanoValue" "TokenName"
+    toCardanoAssetName (W.UnsafeTokenName name) =
+        just "toCardanoValue" "TokenName"
         [Cardano.deserialiseFromRawBytes Cardano.AsAssetName name]
 
     coinToQuantity = fromIntegral . W.unCoin
@@ -1893,15 +1895,17 @@ toCardanoSimpleScript
     -> Cardano.SimpleScript Cardano.SimpleScriptV2
 toCardanoSimpleScript = \case
     RequireSignatureOf (KeyHash _ keyhash) ->
-        case Cardano.deserialiseFromRawBytes (Cardano.AsHash Cardano.AsPaymentKey) keyhash of
-            Just payKeyHash -> Cardano.RequireSignature payKeyHash
-            Nothing -> error "Hash key not valid"
+        case Cardano.deserialiseFromRawBytes
+            (Cardano.AsHash Cardano.AsPaymentKey) keyhash of
+                Just payKeyHash -> Cardano.RequireSignature payKeyHash
+                Nothing -> error "Hash key not valid"
     RequireAllOf contents ->
         Cardano.RequireAllOf $ map toCardanoSimpleScript contents
     RequireAnyOf contents ->
         Cardano.RequireAnyOf $ map toCardanoSimpleScript contents
     RequireSomeOf num contents ->
-        Cardano.RequireMOf (fromIntegral num) $ map toCardanoSimpleScript contents
+        Cardano.RequireMOf (fromIntegral num) $
+            map toCardanoSimpleScript contents
     ActiveFromSlot slot ->
         Cardano.RequireTimeAfter Cardano.TimeLocksInSimpleScriptV2
         (O.SlotNo $ fromIntegral slot)

@@ -450,7 +450,8 @@ data SeqState (n :: NetworkDiscriminant) k = SeqState
     , accountXPub :: k 'AccountK XPub
         -- ^ The account public key associated with this state
     , policyXPub :: Maybe (k 'PolicyK XPub)
-        -- ^ The policy public key associated with this state derived for policy key hardened index=0
+        -- ^ The policy public key associated with this state derived for
+        -- policy key hardened index=0
     , rewardAccountKey :: k 'AddressK XPub
         -- ^ Reward account public key associated with this wallet
     , derivationPrefix :: DerivationPrefix
@@ -536,7 +537,10 @@ mkSeqStateFromRootXPrv
 mkSeqStateFromRootXPrv (rootXPrv, pwd) =
     mkSeqStateFromAccountXPub
         (publicKey $ deriveAccountPrivateKey pwd rootXPrv minBound)
-        (Just $ publicKey $ liftRawKey $ derivePolicyPrivateKey pwd (getRawKey rootXPrv) minBound)
+            $ Just
+            $ publicKey
+            $ liftRawKey
+            $ derivePolicyPrivateKey pwd (getRawKey rootXPrv) minBound
 
 -- | Construct a Sequential state for a wallet from public account key.
 mkSeqStateFromAccountXPub

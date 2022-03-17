@@ -33,7 +33,7 @@ module Cardano.Wallet.DB.Sqlite.CheckpointsOld
     ( mkStoreWallets
     , PersistAddressBook (..)
     , blockHeaderFromEntity
-    
+
     -- * Testing
     , mkStoreWallet
     )
@@ -477,15 +477,22 @@ instance
 
     loadPrologue wid = runMaybeT $ do
         st <- MaybeT $ selectFirst [SeqStateWalletId ==. wid] []
-        let SeqState _ eGap iGap accountBytes policyBytes rewardBytes prefix = entityVal st
+        let SeqState _ eGap iGap accountBytes policyBytes rewardBytes prefix =
+                entityVal st
         let accountXPub = unsafeDeserializeXPub accountBytes
         let rewardXPub = unsafeDeserializeXPub rewardBytes
         let policyXPub = unsafeDeserializeXPub <$> policyBytes
         let intPool = Seq.newSeqAddressPool @n accountXPub iGap
         let extPool = Seq.newSeqAddressPool @n accountXPub eGap
         pendingChangeIxs <- lift $ selectSeqStatePendingIxs wid
-        pure $ SeqPrologue $
-            Seq.SeqState intPool extPool pendingChangeIxs accountXPub policyXPub rewardXPub prefix
+        pure $ SeqPrologue $ Seq.SeqState
+            intPool
+            extPool
+            pendingChangeIxs
+            accountXPub
+            policyXPub
+            rewardXPub
+            prefix
 
     loadDiscoveries wid sl =
         SeqDiscoveries

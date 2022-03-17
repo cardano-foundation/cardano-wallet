@@ -536,7 +536,8 @@ instance
 
 instance Arbitrary (SeqState 'Mainnet ShelleyKey) where
     shrink (SeqState intPool extPool ixs acc policy rwd prefix) =
-        (\(i, e) -> SeqState i e ixs acc policy rwd prefix) <$> shrink (intPool, extPool)
+        (\(i, e) -> SeqState i e ixs acc policy rwd prefix)
+            <$> shrink (intPool, extPool)
     arbitrary = do
         intPool <- arbitrary
         extPool <- arbitrary

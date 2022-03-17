@@ -2092,9 +2092,10 @@ spec = describe "NEW_SHELLEY_TRANSACTIONS" $ do
                 , ( "mint-burn"
                   , \ctx w -> do
                         (_vk, vkHash) <- getSomeVerificationKey ctx w
-                        let (policy, policyId') = PlutusScenario.mkSignerPolicy [json|{
-                                "vkHash": #{vkHash} }
-                            |]
+                        let (policy, policyId') = PlutusScenario.mkSignerPolicy
+                                [json|{
+                                    "vkHash": #{vkHash} }
+                                |]
                         mint <- PlutusScenario.mintBurn_1 [json|{
                             "policy": #{policy},
                             "policyId": #{policyId'},
@@ -3026,8 +3027,9 @@ spec = describe "NEW_SHELLEY_TRANSACTIONS" $ do
             , expectErrorMessage errMsg403CreatedWrongPolicyScriptTemplate
             ]
 
-    it "TRANS_NEW_CREATE_10c - Minting/burning assets - one cosigner in template\
-       \other than cosigner#0" $ \ctx -> runResourceT $ do
+    it "TRANS_NEW_CREATE_10c - Minting/burning assets - \
+        \one cosigner in template other than cosigner#0" $
+        \ctx -> runResourceT $ do
         wa <- fixtureWallet ctx
         addrs <- listAddresses @n ctx wa
         let destination = (addrs !! 1) ^. #id

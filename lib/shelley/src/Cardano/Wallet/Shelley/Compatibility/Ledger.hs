@@ -313,7 +313,7 @@ toWalletScript keyrole = fromLedgerScript
     fromLedgerScript (MA.RequireAnyOf contents) =
         RequireAnyOf $ map fromLedgerScript $ toList contents
     fromLedgerScript (MA.RequireMOf num contents) =
-        RequireSomeOf (fromIntegral num) $ map fromLedgerScript $ toList contents
+        RequireSomeOf (fromIntegral num) $ fromLedgerScript <$> toList contents
     fromLedgerScript (MA.RequireTimeExpire (O.SlotNo slot)) =
         ActiveUntilSlot $ fromIntegral slot
     fromLedgerScript (MA.RequireTimeStart (O.SlotNo slot)) =
