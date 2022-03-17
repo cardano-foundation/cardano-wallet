@@ -389,6 +389,7 @@
             "Cardano/Wallet/Api/ServerSpec"
             "Cardano/Wallet/Api/TypesSpec"
             "Cardano/Wallet/ApiSpec"
+            "Cardano/Wallet/CoinSelectionSpec"
             "Cardano/Wallet/CoinSelection/InternalSpec"
             "Cardano/Wallet/CoinSelection/Internal/BalanceSpec"
             "Cardano/Wallet/CoinSelection/Internal/CollateralSpec"
