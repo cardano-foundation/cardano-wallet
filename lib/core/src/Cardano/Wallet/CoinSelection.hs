@@ -399,9 +399,8 @@ data SelectionOf change = Selection
 --
 type Selection = SelectionOf TokenBundle
 
-toExternalSelection
-    :: SelectionParams -> Internal.Selection WalletSelectionContext -> Selection
-toExternalSelection _ps Internal.Selection {..} =
+toExternalSelection :: Internal.Selection WalletSelectionContext -> Selection
+toExternalSelection Internal.Selection {..} =
     Selection
         { collateral = toExternalUTxO' TokenBundle.fromCoin
             <$> collateral
@@ -450,7 +449,7 @@ performSelection
     -> SelectionParams
     -> ExceptT (SelectionError WalletSelectionContext) m Selection
 performSelection cs ps =
-    toExternalSelection ps <$>
+    toExternalSelection <$>
     Internal.performSelection @m @WalletSelectionContext
         (toInternalSelectionConstraints cs)
         (toInternalSelectionParams ps)
