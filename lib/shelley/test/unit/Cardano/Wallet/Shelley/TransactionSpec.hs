@@ -2378,6 +2378,7 @@ data BalanceTxGolden =
         Cardano.Lovelace -- ^ Fee
         Cardano.Lovelace -- ^ Minimum fee
     | BalanceTxGoldenFailure Coin String
+    deriving (Eq, Show)
 
 -- CSV with the columns: wallet_balance,(fee,minfee | error)
 instance Buildable BalanceTxGolden where
