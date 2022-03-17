@@ -416,6 +416,7 @@ test-suite unit
       Cardano.Pool.DB.MVarSpec
       Cardano.Pool.DB.Properties
       Cardano.Pool.DB.SqliteSpec
+      Cardano.Pool.RankSpec
       Cardano.Wallet.Address.PoolSpec
       Cardano.Wallet.Api.Malformed
       Cardano.Wallet.Api.Server.TlsSpec

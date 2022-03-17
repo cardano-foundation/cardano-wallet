@@ -11,12 +11,17 @@ module Cardano.Pool.Rank
       -- $RewardEpochs
       RewardInfoPool (..)
     , RewardParams (..)
+    , StakePoolsSummary (..)
 
     -- * Ranking formulas
     , poolSaturation
     , optimalRewards
     , currentROS
     , saturationROS
+
+    -- * Redelegation warning
+    , RedelegationWarning(..)
+    , redelegationWarning
 
     -- * Legacy metrics
     , nonMyopicMemberReward
@@ -39,10 +44,7 @@ import Data.Ord
 import Data.Quantity
     ( Percentage (..), clipToPercentage )
 import Fmt
-    ( Buildable (..)
-    , blockListF'
-    , listF'
-    )
+    ( Buildable (..), blockListF', listF', mapF )
 
 import qualified Cardano.Wallet.Primitive.Types.Coin as Coin
 import qualified Data.List as L
@@ -152,6 +154,18 @@ For the 'performanceEstimate', it's best to estimate it from recent pool
 block production using functions provided here.
 
 -}
+
+-- | Summary of stake distribution and stake pools obtained from network.
+data StakePoolsSummary = StakePoolsSummary
+    { rewardParams :: RewardParams
+    , pools :: Map PoolId RewardInfoPool
+    } deriving (Show, Eq)
+
+instance Buildable StakePoolsSummary where
+    build StakePoolsSummary{rewardParams,pools} = blockListF' "" id
+        [ "Global reward parameters: " <> build rewardParams
+        , "Individual pools: " <> mapF (Map.toList pools)
+        ]
 
 {-------------------------------------------------------------------------------
     Reward formulas
@@ -301,3 +315,65 @@ scorePools params pools t
         = L.sortOn (Down . fst)
         . map (\(pid,(pool, a)) -> (desirability params pool, (pid, pool, a)))
         $ Map.toList pools
+
+{-------------------------------------------------------------------------------
+    Redelegation warning
+-------------------------------------------------------------------------------}
+data RedelegationWarning
+    = AllGood
+    | TooFewBlocks
+    | OtherPoolsBetter
+    deriving (Eq, Show)
+
+-- FIXME: Adapt message to take care of previous epoch.
+
+instance Buildable RedelegationWarning where
+    build AllGood = build $ unwords
+        [ "The pool to which you had delegated your stake"
+        , "gives rewards within expectations."
+        ]
+    build TooFewBlocks = build $ unwords
+        [ "The pool to which you have delegated your stake"
+        , "may have not performed as expected,"
+        , "please check your delegation choice."
+        ]
+    build OtherPoolsBetter = build $ unwords
+        [ "Other pools may offer higher rewards,"
+        , "please check your delegation choice."
+        ]
+
+-- | Compute redelegation warning from current pool performance.
+--
+-- Note: This function uses the 'performanceEstimate' for the pool
+-- that we delegate to, but ignores this fields for the argument
+-- 'StakePoolsSummary'.
+redelegationWarning
+    :: EpochNo
+        -- ^ Epoch when delegation was made
+    -> (RewardInfoPool, Coin)
+        -- ^ ( Info about the pool that we delegate to
+        --   , absolute stake that we delegate )
+    -> StakePoolsSummary
+        -- ^ Current summary of all stake pools (for comparison)
+    -> EpochNo
+        -- ^ Current epoch
+    -> RedelegationWarning
+redelegationWarning timeOfDelegation (info,user) StakePoolsSummary{..} now
+    | (sigma <= 0.6 * s && p < 0.85) || (sigma > 0.6 * s && p < 0.9)
+        = TooFewBlocks
+    | getPercentage mr < getPercentage mrstar * w
+        = OtherPoolsBetter
+    | otherwise
+        = AllGood
+  where
+    sigma = getPercentage $ stakeRelative info
+    s = 1 / fromIntegral (nOpt rewardParams)
+    p = performanceEstimate info
+
+    mr = currentROS rewardParams info user
+    mrstar = maximum (mr:returns)
+    returns = map (\i -> currentROS rewardParams i user) $ Map.elems pools
+
+    w = dt*dt / (25 + dt*dt) :: Rational
+    dt = fromIntegral $ fromEnum now - fromEnum timeOfDelegation
+        -- time different in number of epochs.
