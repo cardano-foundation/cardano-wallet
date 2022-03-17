@@ -8,30 +8,50 @@
   , config
   , ... }:
   {
-    flags = { checktvarinvariant = false; asserts = false; };
+    flags = {};
     package = {
       specVersion = "1.10";
-      identifier = { name = "strict-stm"; version = "0.1.0.0"; };
+      identifier = { name = "ouroboros-network-testing"; version = "0.1.0.0"; };
       license = "Apache-2.0";
-      copyright = "2019-2021 Input Output (Hong Kong) Ltd.";
+      copyright = "2019 Input Output (Hong Kong) Ltd.";
       maintainer = "";
-      author = "Alexander Vieth, Marcin Szamotulski, Duncan Coutts";
+      author = "Alexander Vieth, Marcin Szamotulski, Duncan Coutts, Karl Knuttson";
       homepage = "";
       url = "";
-      synopsis = "Strict STM interface polymorphic over stm implementation.";
-      description = "The `strict-stm` package gives a strict interface to stm,\ncurrently either one provided by `stm` package for the\n`IO` monad or `io-sim` package for the `IOSim` monad.";
+      synopsis = "Common modules used for testing in ouroboros-network and ouroboros-consensus";
+      description = "";
       buildType = "Simple";
       };
     components = {
       "library" = {
         depends = [
           (hsPkgs."base" or (errorHandler.buildDepError "base"))
-          (hsPkgs."stm" or (errorHandler.buildDepError "stm"))
+          (hsPkgs."containers" or (errorHandler.buildDepError "containers"))
+          (hsPkgs."contra-tracer" or (errorHandler.buildDepError "contra-tracer"))
+          (hsPkgs."deque" or (errorHandler.buildDepError "deque"))
           (hsPkgs."io-classes" or (errorHandler.buildDepError "io-classes"))
+          (hsPkgs."io-sim" or (errorHandler.buildDepError "io-sim"))
+          (hsPkgs."psqueues" or (errorHandler.buildDepError "psqueues"))
+          (hsPkgs."cborg" or (errorHandler.buildDepError "cborg"))
+          (hsPkgs."serialise" or (errorHandler.buildDepError "serialise"))
+          (hsPkgs."network-mux" or (errorHandler.buildDepError "network-mux"))
+          (hsPkgs."QuickCheck" or (errorHandler.buildDepError "QuickCheck"))
           ];
         buildable = true;
         };
+      tests = {
+        "test" = {
+          depends = [
+            (hsPkgs."base" or (errorHandler.buildDepError "base"))
+            (hsPkgs."QuickCheck" or (errorHandler.buildDepError "QuickCheck"))
+            (hsPkgs."tasty" or (errorHandler.buildDepError "tasty"))
+            (hsPkgs."tasty-quickcheck" or (errorHandler.buildDepError "tasty-quickcheck"))
+            (hsPkgs."ouroboros-network-testing" or (errorHandler.buildDepError "ouroboros-network-testing"))
+            ];
+          buildable = true;
+          };
+        };
       };
     } // rec {
-    src = (pkgs.lib).mkDefault /nix/store/3ibhj9c6ifdmxi20a77xbdl3qmc5yw3w-ouroboros-network-d2d219a/strict-stm;
+    src = (pkgs.lib).mkDefault /nix/store/fy9im0ipvv2jsysk65jphamr63h2y23w-ouroboros-network-4fac197/ouroboros-network-testing;
     }

@@ -10,49 +10,40 @@
   {
     flags = {};
     package = {
-      specVersion = "1.10";
-      identifier = { name = "tracer-transformers"; version = "0.1.0.1"; };
+      specVersion = "2.0";
+      identifier = { name = "lobemo-scribe-systemd"; version = "0.1.0.0"; };
       license = "Apache-2.0";
       copyright = "2019 IOHK";
       maintainer = "operations@iohk.io";
-      author = "Neil Davies, Alexander Diemand, Andreas Triantafyllos";
-      homepage = "";
+      author = "Alexander Diemand";
+      homepage = "https://github.com/input-output-hk/iohk-monitoring-framework";
       url = "";
-      synopsis = "tracer transformers and examples showing their use";
+      synopsis = "provides a backend for logging to systemd/journal";
       description = "";
       buildType = "Simple";
       };
     components = {
       "library" = {
-        depends = [
+        depends = ([
           (hsPkgs."base" or (errorHandler.buildDepError "base"))
-          (hsPkgs."contra-tracer" or (errorHandler.buildDepError "contra-tracer"))
-          (hsPkgs."time" or (errorHandler.buildDepError "time"))
-          (hsPkgs."safe-exceptions" or (errorHandler.buildDepError "safe-exceptions"))
-          ] ++ (pkgs.lib).optional (compiler.isGhc && (compiler.version).lt "8.5") (hsPkgs."contravariant" or (errorHandler.buildDepError "contravariant"));
+          (hsPkgs."iohk-monitoring" or (errorHandler.buildDepError "iohk-monitoring"))
+          (hsPkgs."aeson" or (errorHandler.buildDepError "aeson"))
+          (hsPkgs."bytestring" or (errorHandler.buildDepError "bytestring"))
+          (hsPkgs."katip" or (errorHandler.buildDepError "katip"))
+          (hsPkgs."text" or (errorHandler.buildDepError "text"))
+          (hsPkgs."template-haskell" or (errorHandler.buildDepError "template-haskell"))
+          (hsPkgs."unordered-containers" or (errorHandler.buildDepError "unordered-containers"))
+          ] ++ (if system.isWindows
+          then [ (hsPkgs."Win32" or (errorHandler.buildDepError "Win32")) ]
+          else [
+            (hsPkgs."unix" or (errorHandler.buildDepError "unix"))
+            ])) ++ (pkgs.lib).optionals (system.isLinux) [
+          (hsPkgs."hsyslog" or (errorHandler.buildDepError "hsyslog"))
+          (hsPkgs."libsystemd-journal" or (errorHandler.buildDepError "libsystemd-journal"))
+          ];
         buildable = true;
-        };
-      exes = {
-        "tracer-transfomers-example1" = {
-          depends = [
-            (hsPkgs."base" or (errorHandler.buildDepError "base"))
-            (hsPkgs."contra-tracer" or (errorHandler.buildDepError "contra-tracer"))
-            (hsPkgs."time" or (errorHandler.buildDepError "time"))
-            (hsPkgs."tracer-transformers" or (errorHandler.buildDepError "tracer-transformers"))
-            ];
-          buildable = true;
-          };
-        "tracer-transfomers-example2" = {
-          depends = [
-            (hsPkgs."base" or (errorHandler.buildDepError "base"))
-            (hsPkgs."contra-tracer" or (errorHandler.buildDepError "contra-tracer"))
-            (hsPkgs."text" or (errorHandler.buildDepError "text"))
-            (hsPkgs."tracer-transformers" or (errorHandler.buildDepError "tracer-transformers"))
-            ];
-          buildable = true;
-          };
         };
       };
     } // rec {
-    src = (pkgs.lib).mkDefault /nix/store/dp15xfc309h2xx301937iacq5wym27gy-iohk-monitoring-framework-808724f/tracer-transformers;
+    src = (pkgs.lib).mkDefault /nix/store/dp15xfc309h2xx301937iacq5wym27gy-iohk-monitoring-framework-808724f/plugins/scribe-systemd;
     }

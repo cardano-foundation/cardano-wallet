@@ -6,31 +6,16 @@
 
 |  | **Supported version** | **Dependency?** |
 | --- | --- | --- |
-| [stack][] | >= 2.7.1 | Required, recommended |
 | [ghc][] | == 8.10.7 | Required |
-| [cabal][] | >= 3.4.0.0 | Optional |
+| [cabal][] | >= 3.4.0.0 | Required |
 | [[Nix]] | >= 2.5.1 | Optional |
 
 See [`nix/overlays/build-tools.nix`](https://github.com/input-output-hk/cardano-wallet/blob/master/nix/overlays/build-tools.nix#L1) for a list of other Haskell development tools that are used. CI will use exactly the versions specified in this file.
 
-[stack]: https://haskellstack.org/
 [cabal]: https://www.haskell.org/cabal/download.html
 [ghc]: https://www.haskell.org/downloads/
 
-## Stack
-
-Use [Haskell Stack][stack] to build this project:
-
-```
-stack build --test --no-run-tests
-```
-
-You may need to install the [`libsodium-dev`](https://doc.libsodium.org/installation), `libghc-hsopenssl-dev`, `gmp`, `sqlite` and `systemd` development
-libraries for the build to succeed.
-
 ## Cabal
-
-Alternatively, it's possible to build this project with [Cabal][].
 
 **Note:** the Cabal build is checked by [Buildkite](https://github.com/input-output-hk/cardano-wallet/blob/master/.buildkite/nightly.yml).
 
@@ -79,6 +64,11 @@ Alternatively, it's possible to build this project with [Cabal][].
    To run the DB benchmark:
    ```console
    $ cabal run cardano-wallet-core:bench:db
+   ```
+
+   To run the integration test suite:
+   ```console
+   $ cabal run cardano-wallet:test:integration
    ```
 
 6. Install binaries from `./dist-newstyle/` into a system location:
@@ -133,6 +123,12 @@ $ CARDANO_NODE_SOCKET_PATH=../cardano-node/node.socket
 $ nix run .#mainnet/wallet -- <optional additional cardano wallet arguments>
 ```
 
+You may run the integration tests with:
+
+```console
+nix run .#packages.x86_64-linux.checks.cardano-wallet.integration
+```
+
 #### Cross-compiling with Nix
 
 To build the wallet for Windows, from **Linux**:
@@ -180,6 +176,18 @@ for `cardano-wallet`. This will contain:
 - other Adrestia utility programs such as `cardano-address` and `bech32`
 
 Inside this shell you can use `cabal build` and `ghci` for development.
+
+For example, you might start an incremental build of the integration test suite with:
+
+```console
+ghcid -c "cabal repl test:integration"
+```
+
+and run the test suite with:
+
+```console
+cabal run test:integration
+```
 
 ##### Profiling build with cached dependencies
 

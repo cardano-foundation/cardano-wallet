@@ -8,29 +8,30 @@
   , config
   , ... }:
   {
-    flags = {};
+    flags = { checktvarinvariant = false; asserts = false; };
     package = {
       specVersion = "1.10";
-      identifier = { name = "typed-protocols"; version = "0.1.0.0"; };
+      identifier = { name = "strict-stm"; version = "0.1.0.0"; };
       license = "Apache-2.0";
-      copyright = "2019 Input Output (Hong Kong) Ltd.";
-      maintainer = "alex@well-typed.com, duncan@well-typed.com, marcin.szamotulski@iohk.io";
-      author = "Alexander Vieth, Duncan Coutts, Marcin Szamotulski";
+      copyright = "2019-2021 Input Output (Hong Kong) Ltd.";
+      maintainer = "";
+      author = "Alexander Vieth, Marcin Szamotulski, Duncan Coutts";
       homepage = "";
       url = "";
-      synopsis = "A framework for strongly typed protocols";
-      description = "";
+      synopsis = "Strict STM interface polymorphic over stm implementation.";
+      description = "The `strict-stm` package gives a strict interface to stm,\ncurrently either one provided by `stm` package for the\n`IO` monad or `io-sim` package for the `IOSim` monad.";
       buildType = "Simple";
       };
     components = {
       "library" = {
         depends = [
           (hsPkgs."base" or (errorHandler.buildDepError "base"))
+          (hsPkgs."stm" or (errorHandler.buildDepError "stm"))
           (hsPkgs."io-classes" or (errorHandler.buildDepError "io-classes"))
           ];
         buildable = true;
         };
       };
     } // rec {
-    src = (pkgs.lib).mkDefault /nix/store/3ibhj9c6ifdmxi20a77xbdl3qmc5yw3w-ouroboros-network-d2d219a/typed-protocols;
+    src = (pkgs.lib).mkDefault /nix/store/fy9im0ipvv2jsysk65jphamr63h2y23w-ouroboros-network-4fac197/strict-stm;
     }

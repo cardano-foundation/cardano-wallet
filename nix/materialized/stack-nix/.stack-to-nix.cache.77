@@ -11,14 +11,14 @@
     flags = {};
     package = {
       specVersion = "1.10";
-      identifier = { name = "typed-protocols-cborg"; version = "0.1.0.0"; };
+      identifier = { name = "typed-protocols"; version = "0.1.0.0"; };
       license = "Apache-2.0";
-      copyright = "2019-2021 Input Output (Hong Kong) Ltd.";
+      copyright = "2019 Input Output (Hong Kong) Ltd.";
       maintainer = "alex@well-typed.com, duncan@well-typed.com, marcin.szamotulski@iohk.io";
       author = "Alexander Vieth, Duncan Coutts, Marcin Szamotulski";
       homepage = "";
       url = "";
-      synopsis = "CBOR codecs for typed-protocols";
+      synopsis = "A framework for strongly typed protocols";
       description = "";
       buildType = "Simple";
       };
@@ -26,14 +26,11 @@
       "library" = {
         depends = [
           (hsPkgs."base" or (errorHandler.buildDepError "base"))
-          (hsPkgs."bytestring" or (errorHandler.buildDepError "bytestring"))
-          (hsPkgs."cborg" or (errorHandler.buildDepError "cborg"))
           (hsPkgs."io-classes" or (errorHandler.buildDepError "io-classes"))
-          (hsPkgs."typed-protocols" or (errorHandler.buildDepError "typed-protocols"))
           ];
         buildable = true;
         };
       };
     } // rec {
-    src = (pkgs.lib).mkDefault /nix/store/3ibhj9c6ifdmxi20a77xbdl3qmc5yw3w-ouroboros-network-d2d219a/typed-protocols-cborg;
+    src = (pkgs.lib).mkDefault /nix/store/fy9im0ipvv2jsysk65jphamr63h2y23w-ouroboros-network-4fac197/typed-protocols;
     }
