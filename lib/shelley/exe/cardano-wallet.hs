@@ -63,6 +63,8 @@ import Cardano.CLI
     , tokenMetadataSourceOption
     , withLogging
     )
+import Cardano.Launcher.Node
+    ( CardanoNodeConn )
 import Cardano.Startup
     ( ShutdownHandlerLog
     , installSignalHandlers
@@ -100,8 +102,9 @@ import Cardano.Wallet.Shelley.BlockchainSource
 import Cardano.Wallet.Shelley.Launch
     ( Mode (Light, Normal)
     , NetworkConfiguration (..)
-    , modeOption
+    , modeFlag
     , networkConfigurationOption
+    , nodeSocketOption
     , parseGenesisData
     )
 import Cardano.Wallet.Version
@@ -182,6 +185,7 @@ data ServeArgs = ServeArgs
     , _mode :: Mode
     , _listen :: Listen
     , _tlsConfig :: Maybe TlsConfiguration
+    , _nodeSocket :: CardanoNodeConn
     , _networkConfiguration :: NetworkConfiguration
     , _database :: Maybe FilePath
     , _syncTolerance :: SyncTolerance
@@ -199,9 +203,10 @@ cmdServe = command "serve" $ info (helper <*> helper' <*> cmd) $
 
     cmd = fmap exec $ ServeArgs
         <$> hostPreferenceOption
-        <*> modeOption
+        <*> modeFlag
         <*> listenOption
         <*> optional tlsOption
+        <*> nodeSocketOption
         <*> networkConfigurationOption
         <*> optional databaseOption
         <*> syncToleranceOption
@@ -216,6 +221,7 @@ cmdServe = command "serve" $ info (helper <*> helper' <*> cmd) $
       mode
       listen
       tlsConfig
+      conn
       networkConfig
       databaseDir
       sTolerance
@@ -236,10 +242,12 @@ cmdServe = command "serve" $ info (helper <*> helper' <*> cmd) $
                 setupDirectory (logInfo tr . MsgSetupDatabases)
 
             blockchainSource <- case mode of
-                Normal conn ->
+                Normal ->
                     pure $ NodeSource conn vData
-                Light token ->
+                Light (Just token) ->
                     BlockfrostSource <$> Blockfrost.readToken token
+                Light Nothing ->
+                    exitWith $ ExitFailure 34
 
             exitWith =<< serveWallet
                 blockchainSource

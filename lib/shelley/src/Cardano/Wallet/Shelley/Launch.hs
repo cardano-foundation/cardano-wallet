@@ -35,7 +35,7 @@ module Cardano.Wallet.Shelley.Launch
 
     -- * Light Mode
     , Mode (..)
-    , modeOption
+    , modeFlag
     ) where
 
 import Prelude
@@ -79,7 +79,17 @@ import Data.Text.Class
 import GHC.TypeLits
     ( KnownNat, Nat, SomeNat (..), someNatVal )
 import Options.Applicative
-    ( Parser, eitherReader, flag', help, long, metavar, option, (<|>) )
+    ( Parser
+    , eitherReader
+    , flag
+    , flag'
+    , help
+    , long
+    , metavar
+    , option
+    , optional
+    , (<|>)
+    )
 import Ouroboros.Network.Magic
     ( NetworkMagic (..) )
 import Ouroboros.Network.NodeToClient
@@ -390,15 +400,12 @@ instance HasSeverityAnnotation TempDirLog where
                                     Mode
 -------------------------------------------------------------------------------}
 
-data Mode = Normal CardanoNodeConn | Light Blockfrost.TokenFile
+data Mode = Normal | Light (Maybe Blockfrost.TokenFile)
   deriving (Show)
 
-modeOption :: Parser Mode
-modeOption = normalMode <|> lightMode
-  where
-    normalMode =
-        Normal <$> nodeSocketOption
-    lightMode =
-        flag' () (long "light" <> help "Enable light mode") *>
-        fmap Light Blockfrost.tokenFileOption
-
+modeFlag :: Parser Mode
+modeFlag = do
+    light <- flag False True $
+        mconcat [ long "light", help "Enable light mode" ]
+    creds <- optional Blockfrost.tokenFileOption
+    pure $ if light then Light creds else Normal

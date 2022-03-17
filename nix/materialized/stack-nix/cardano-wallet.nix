@@ -195,8 +195,6 @@
             (hsPkgs."bech32" or (errorHandler.buildDepError "bech32"))
             (hsPkgs."bech32-th" or (errorHandler.buildDepError "bech32-th"))
             (hsPkgs."bytestring" or (errorHandler.buildDepError "bytestring"))
-            (hsPkgs."blockfrost-api" or (errorHandler.buildDepError "blockfrost-api"))
-            (hsPkgs."blockfrost-client" or (errorHandler.buildDepError "blockfrost-client"))
             (hsPkgs."cardano-addresses" or (errorHandler.buildDepError "cardano-addresses"))
             (hsPkgs."cardano-api" or (errorHandler.buildDepError "cardano-api"))
             (hsPkgs."cardano-crypto" or (errorHandler.buildDepError "cardano-crypto"))
@@ -246,7 +244,6 @@
             "Cardano/Wallet/Shelley/CompatibilitySpec"
             "Cardano/Wallet/Shelley/Compatibility/LedgerSpec"
             "Cardano/Wallet/Shelley/LaunchSpec"
-            "Cardano/Wallet/Shelley/Launch/BlockfrostSpec"
             "Cardano/Wallet/Shelley/NetworkSpec"
             "Cardano/Wallet/Shelley/TransactionSpec"
             "Spec"

@@ -14,14 +14,14 @@ import Blockfrost.Client.Core
 import Blockfrost.Client.Types
     ( Project (..) )
 import Options.Applicative
-    ( Parser, help, long, metavar, option, str )
+    ( Parser, auto, help, long, metavar, option )
 
 newtype TokenFile = TokenFile FilePath
-    deriving newtype (Eq, Show)
+    deriving newtype (Eq, Show, Read)
 
 -- | --blockfrost-token-file FILE
 tokenFileOption :: Parser TokenFile
-tokenFileOption = option (TokenFile <$> str) $ mconcat
+tokenFileOption = option auto $ mconcat
     [ long "blockfrost-token-file"
     , metavar "FILE"
     , help $ mconcat

@@ -220,8 +220,6 @@ test-suite unit
     , bech32
     , bech32-th
     , bytestring
-    , blockfrost-api
-    , blockfrost-client
     , cardano-addresses
     , cardano-api
     , cardano-crypto
@@ -275,7 +273,6 @@ test-suite unit
       Cardano.Wallet.Shelley.CompatibilitySpec
       Cardano.Wallet.Shelley.Compatibility.LedgerSpec
       Cardano.Wallet.Shelley.LaunchSpec
-      Cardano.Wallet.Shelley.Launch.BlockfrostSpec
       Cardano.Wallet.Shelley.NetworkSpec
       Cardano.Wallet.Shelley.TransactionSpec
       Spec
