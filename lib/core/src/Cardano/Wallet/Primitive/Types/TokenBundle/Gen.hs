@@ -2,6 +2,7 @@ module Cardano.Wallet.Primitive.Types.TokenBundle.Gen
     ( genTokenBundleSmallRange
     , genTokenBundleSmallRangePositive
     , genTokenBundle
+    , shrinkTokenBundle
     , shrinkTokenBundleSmallRange
     , shrinkTokenBundleSmallRangePositive
     ) where
@@ -31,6 +32,12 @@ genTokenBundle = TokenBundle
     <$> genCoin
     <*> genTokenMap
 
+shrinkTokenBundle :: TokenBundle -> [TokenBundle]
+shrinkTokenBundle (TokenBundle c m)=
+    uncurry TokenBundle <$> shrinkInterleaved
+        (c, shrinkCoin)
+        (m, shrinkTokenMap)
+
 --------------------------------------------------------------------------------
 -- Token bundles with coins, assets, and quantities chosen from small ranges
 --------------------------------------------------------------------------------
@@ -41,10 +48,7 @@ genTokenBundleSmallRange = TokenBundle
     <*> genTokenMapSmallRange
 
 shrinkTokenBundleSmallRange :: TokenBundle -> [TokenBundle]
-shrinkTokenBundleSmallRange (TokenBundle c m) =
-    uncurry TokenBundle <$> shrinkInterleaved
-        (c, shrinkCoin)
-        (m, shrinkTokenMap)
+shrinkTokenBundleSmallRange = shrinkTokenBundle
 
 genTokenBundleSmallRangePositive :: Gen TokenBundle
 genTokenBundleSmallRangePositive = TokenBundle
