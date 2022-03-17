@@ -66,6 +66,11 @@ See [`nix/overlays/build-tools.nix`](https://github.com/input-output-hk/cardano-
    $ cabal run cardano-wallet-core:bench:db
    ```
 
+   To run the integration test suite:
+   ```console
+   $ cabal run cardano-wallet:test:integration
+   ```
+
 6. Install binaries from `./dist-newstyle/` into a system location:
 
    ```console
@@ -118,6 +123,12 @@ $ CARDANO_NODE_SOCKET_PATH=../cardano-node/node.socket
 $ nix run .#mainnet/wallet -- <optional additional cardano wallet arguments>
 ```
 
+You may run the integration tests with:
+
+```console
+nix run .#packages.x86_64-linux.checks.cardano-wallet.integration
+```
+
 #### Cross-compiling with Nix
 
 To build the wallet for Windows, from **Linux**:
@@ -165,6 +176,18 @@ for `cardano-wallet`. This will contain:
 - other Adrestia utility programs such as `cardano-address` and `bech32`
 
 Inside this shell you can use `cabal build` and `ghci` for development.
+
+For example, you might start an incremental build of the integration test suite with:
+
+```console
+ghcid -c "cabal repl test:integration"
+```
+
+and run the test suite with:
+
+```console
+cabal run test:integration
+```
 
 ##### Profiling build with cached dependencies
 
