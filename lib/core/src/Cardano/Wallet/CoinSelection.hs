@@ -34,6 +34,10 @@ module Cardano.Wallet.CoinSelection
     , toInternalUTxO
     , toInternalUTxOMap
 
+    -- * Mapping between external (wallet) selections and internal selections.
+    , toExternalSelection
+    , toInternalSelection
+
     -- * Performing selections
     , performSelection
     , Selection

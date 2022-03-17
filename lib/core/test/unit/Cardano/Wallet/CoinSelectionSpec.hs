@@ -1,3 +1,4 @@
+{-# LANGUAGE FlexibleInstances #-}
 {-# OPTIONS_GHC -fno-warn-orphans #-}
 
 module Cardano.Wallet.CoinSelectionSpec
@@ -6,9 +7,25 @@ module Cardano.Wallet.CoinSelectionSpec
 import Prelude
 
 import Cardano.Wallet.CoinSelection
-    ( toExternalUTxO, toExternalUTxOMap, toInternalUTxO, toInternalUTxOMap )
+    ( Selection
+    , SelectionOf (..)
+    , toExternalSelection
+    , toExternalUTxO
+    , toExternalUTxOMap
+    , toInternalSelection
+    , toInternalUTxO
+    , toInternalUTxOMap
+    )
+import Cardano.Wallet.Primitive.Types.Address.Gen
+    ( genAddress )
+import Cardano.Wallet.Primitive.Types.Coin.Gen
+    ( genCoin, shrinkCoin )
+import Cardano.Wallet.Primitive.Types.TokenBundle.Gen
+    ( genTokenBundle, shrinkTokenBundle )
+import Cardano.Wallet.Primitive.Types.TokenMap.Gen
+    ( genTokenMap, shrinkTokenMap )
 import Cardano.Wallet.Primitive.Types.Tx
-    ( TxIn, TxOut )
+    ( TxIn, TxOut (..) )
 import Cardano.Wallet.Primitive.Types.Tx.Gen
     ( genTxIn, genTxOut, shrinkTxIn, shrinkTxOut )
 import Cardano.Wallet.Primitive.Types.UTxO
@@ -17,12 +34,29 @@ import Cardano.Wallet.Primitive.Types.UTxO.Gen
     ( genUTxO, genUTxOLarge, shrinkUTxO )
 import Data.Function
     ( (&) )
+import Generics.SOP
+    ( NP (..) )
 import Test.Hspec
     ( Spec, describe, it )
 import Test.Hspec.Extra
     ( parallel )
 import Test.QuickCheck
-    ( Arbitrary (..), Property, oneof, property, (===) )
+    ( Arbitrary (..)
+    , Gen
+    , Property
+    , liftShrink2
+    , listOf
+    , oneof
+    , property
+    , shrinkList
+    , (===)
+    )
+import Test.QuickCheck.Extra
+    ( genNonEmpty, genericRoundRobinShrink, shrinkNonEmpty, (<:>), (<@>) )
+import Test.Utils.Pretty
+    ( (====) )
+
+import qualified Cardano.Wallet.Primitive.Types.TokenBundle as TokenBundle
 
 spec :: Spec
 spec = describe "Cardano.Wallet.CoinSelectionSpec" $ do
@@ -35,6 +69,12 @@ spec = describe "Cardano.Wallet.CoinSelectionSpec" $ do
 
         it "prop_toInternalUTxOMap_toExternalUTxOMap" $
             prop_toInternalUTxOMap_toExternalUTxOMap & property
+
+    parallel $ describe
+        "Conversion between external (wallet) and internal selections" $ do
+
+        it "prop_toInternalSelection_toExternalSelection" $
+            prop_toInternalSelection_toExternalSelection & property
 
 --------------------------------------------------------------------------------
 -- Conversion between external (wallet) and internal UTxOs
@@ -49,8 +89,66 @@ prop_toInternalUTxOMap_toExternalUTxOMap u =
     (toExternalUTxOMap . toInternalUTxOMap) u === u
 
 --------------------------------------------------------------------------------
+-- Conversion between external (wallet) and internal selections
+--------------------------------------------------------------------------------
+
+prop_toInternalSelection_toExternalSelection :: Selection -> Property
+prop_toInternalSelection_toExternalSelection s =
+    (toExternalSelection . toInternalSelection id) s ==== s
+
+--------------------------------------------------------------------------------
+-- External (wallet) selections
+--------------------------------------------------------------------------------
+
+genSelection :: Gen Selection
+genSelection = Selection
+    <$> genInputs
+    <*> genCollateral
+    <*> genOutputs
+    <*> genChange
+    <*> genAssetsToMint
+    <*> genAssetsToBurn
+    <*> genExtraCoinSource
+    <*> genExtraCoinSink
+  where
+    genInputs = genNonEmpty ((,) <$> genTxIn <*> genTxOut)
+    genCollateral = listOf ((,) <$> genTxIn <*> genTxOutCoin)
+    genOutputs = listOf genTxOut
+    genChange = listOf genTokenBundle
+    genAssetsToMint = genTokenMap
+    genAssetsToBurn = genTokenMap
+    genExtraCoinSource = genCoin
+    genExtraCoinSink = genCoin
+    genTxOutCoin = TxOut <$> genAddress <*> (TokenBundle.fromCoin <$> genCoin)
+
+shrinkSelection :: Selection -> [Selection]
+shrinkSelection = genericRoundRobinShrink
+    <@> shrinkInputs
+    <:> shrinkCollateral
+    <:> shrinkOutputs
+    <:> shrinkChange
+    <:> shrinkAssetsToMint
+    <:> shrinkAssetsToBurn
+    <:> shrinkExtraCoinSource
+    <:> shrinkExtraCoinSink
+    <:> Nil
+  where
+    shrinkInputs = shrinkNonEmpty (liftShrink2 shrinkTxIn shrinkTxOut)
+    shrinkCollateral = shrinkList (liftShrink2 shrinkTxIn shrinkTxOut)
+    shrinkOutputs = shrinkList shrinkTxOut
+    shrinkChange = shrinkList shrinkTokenBundle
+    shrinkAssetsToMint = shrinkTokenMap
+    shrinkAssetsToBurn = shrinkTokenMap
+    shrinkExtraCoinSource = shrinkCoin
+    shrinkExtraCoinSink = shrinkCoin
+
+--------------------------------------------------------------------------------
 -- Arbitrary instances
 --------------------------------------------------------------------------------
+
+instance Arbitrary Selection where
+    arbitrary = genSelection
+    shrink = shrinkSelection
 
 instance Arbitrary TxIn where
     arbitrary = genTxIn
