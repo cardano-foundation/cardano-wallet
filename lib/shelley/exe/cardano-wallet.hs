@@ -143,7 +143,7 @@ import System.Environment
 import System.Exit
     ( ExitCode (..), exitWith )
 import UnliftIO.Exception
-    ( withException )
+    ( catch, withException )
 
 import qualified Cardano.BM.Backend.EKGView as EKG
 import qualified Cardano.Wallet.Shelley.Launch.Blockfrost as Blockfrost
@@ -240,6 +240,9 @@ cmdServe = command "serve" $ info (helper <*> helper' <*> cmd) $
                     pure $ NodeSource conn vData
                 Light token ->
                     BlockfrostSource <$> Blockfrost.readToken token
+                        `catch` \(Blockfrost.TokenFileException fp) -> do
+                            logError tr (MsgBlockfrostTokenError fp)
+                            exitWith $ ExitFailure 1
 
             exitWith =<< serveWallet
                 blockchainSource
@@ -265,6 +268,7 @@ cmdServe = command "serve" $ info (helper <*> helper' <*> cmd) $
     withShutdownHandlerMaybe tr True = void . withShutdownHandler trShutdown
       where
         trShutdown = trMessage $ contramap (second (fmap MsgShutdownHandler)) tr
+
 {-------------------------------------------------------------------------------
                                     Logging
 -------------------------------------------------------------------------------}
@@ -280,6 +284,7 @@ data MainLog
     | MsgSigInt
     | MsgShutdownHandler ShutdownHandlerLog
     | MsgFailedToParseGenesis Text
+    | MsgBlockfrostTokenError FilePath
     deriving (Show)
 
 instance ToText MainLog where
@@ -310,6 +315,12 @@ instance ToText MainLog where
             , "Shelley as it used to feed the wallet with the initial blockchain"
             , "parameters."
             , "Here's (perhaps) some helpful hint:", hint
+            ]
+        MsgBlockfrostTokenError tokenFile -> T.unwords
+            [ "File"
+            , T.pack tokenFile
+            , "specified in the --blockfrost-token-file\
+            \ argument doesn't contain a valid Blockfrost API token."
             ]
 
 withTracers
