@@ -92,4 +92,4 @@ jobs:
     env:
       NETWORK: ${{ github.event.inputs.network || 'testnet' }}
       TESTS_E2E_FIXTURES: ${{ secrets.TESTS_E2E_FIXTURES }}
-      PR: ${{ github.event.inputs.pr || '' }}
+      PR: ${{ github.event.inputs.pr || 'master' }}

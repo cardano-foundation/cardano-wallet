@@ -24,6 +24,10 @@ RSpec.describe "Cardano Wallet E2E tests", :e2e => true do
     teardown
   end
 
+  after(:all) do
+    SHELLEY.stake_pools.quit(@target_id, PASS)
+  end
+
   describe "E2E Balance -> Sign -> Submit" do
 
     def run_script(script, payload)
@@ -532,7 +536,7 @@ RSpec.describe "Cardano Wallet E2E tests", :e2e => true do
       expect(stake_keys['ours'].first['stake']['quantity']).to eq expected_join_balance
       expect(stake_keys['none']['stake']['quantity']).to eq 0
       expect(stake_keys['ours'].first['delegation']['active']['status']).to eq "not_delegating"
-      expect(stake_keys['ours'].first['delegation']['next'].first['status']).to eq "delegating"
+      expect(stake_keys['ours'].first['delegation']['next'].last['status']).to eq "delegating"
 
       # Quit pool
       quit_pool = [{ "quit" => { "stake_key_index" => "0H" } }]
@@ -579,6 +583,7 @@ RSpec.describe "Cardano Wallet E2E tests", :e2e => true do
       expect(stake_keys['none']['stake']['quantity']).to eq 0
       expect(stake_keys['ours'].first['delegation']['active']['status']).to eq "not_delegating"
       expect(stake_keys['ours'].first['delegation']['next'].first['status']).to eq "not_delegating"
+      expect(stake_keys['ours'].first['delegation']['next'].last['status']).to eq "not_delegating"
     end
   end
 
@@ -951,7 +956,7 @@ RSpec.describe "Cardano Wallet E2E tests", :e2e => true do
         expect(stake_keys['ours'].first['stake']['quantity']).to eq stake_after_joining
         expect(stake_keys['none']['stake']['quantity']).to eq 0
         expect(stake_keys['ours'].first['delegation']['active']['status']).to eq "not_delegating"
-        expect(stake_keys['ours'].first['delegation']['next'].first['status']).to eq "delegating"
+        expect(stake_keys['ours'].first['delegation']['next'].last['status']).to eq "delegating"
 
         # Quit pool
         puts "Quitting pool: #{pool_id}"
@@ -978,6 +983,7 @@ RSpec.describe "Cardano Wallet E2E tests", :e2e => true do
         expect(stake_keys['none']['stake']['quantity']).to eq 0
         expect(stake_keys['ours'].first['delegation']['active']['status']).to eq "not_delegating"
         expect(stake_keys['ours'].first['delegation']['next'].first['status']).to eq "not_delegating"
+        expect(stake_keys['ours'].first['delegation']['next'].last['status']).to eq "not_delegating"
       end
     end
 
