@@ -2430,13 +2430,13 @@ decodeTransaction ctx (ApiT wid) (ApiSerialisedTransaction (ApiT sealed)) = do
         , assetsBurned = toApiAssetMintedBurned policyXPub toBurn
         , certificates = map (toApiAnyCert acct acctPath) allCerts
         , depositsTaken =
-            map (const (Quantity . fromIntegral . unCoin . W.stakeKeyDeposit $ pp)) $
-            filter ourRewardAccountRegistration $
-            map (toApiAnyCert acct acctPath) allCerts
+            (Quantity . fromIntegral . unCoin . W.stakeKeyDeposit $ pp)
+                <$ filter ourRewardAccountRegistration
+                    (toApiAnyCert acct acctPath <$> allCerts)
         , depositsReturned =
-            map (const (Quantity . fromIntegral . unCoin . W.stakeKeyDeposit $ pp)) $
-            filter ourRewardAccountDeregistration $
-            map (toApiAnyCert acct acctPath) allCerts
+            (Quantity . fromIntegral . unCoin . W.stakeKeyDeposit $ pp)
+                <$ filter ourRewardAccountDeregistration
+                    (toApiAnyCert acct acctPath <$> allCerts)
         , metadata = ApiTxMetadata $ ApiT <$> meta
         , scriptValidity = ApiT <$> vldt
         }
