@@ -35,6 +35,10 @@ module Test.QuickCheck.Extra
     , chooseNatural
     , shrinkNatural
 
+      -- * Generating and shrinking non-empty lists
+    , genNonEmpty
+    , shrinkNonEmpty
+
       -- * Counterexamples
     , report
     , verify
@@ -54,6 +58,8 @@ import Prelude
 
 import Data.IntCast
     ( intCast, intCastMaybe )
+import Data.List.NonEmpty
+    ( NonEmpty (..) )
 import Data.Map.Strict
     ( Map )
 import Data.Maybe
@@ -90,6 +96,7 @@ import Text.Pretty.Simple
     ( pShow )
 
 import qualified Data.List as L
+import qualified Data.List.NonEmpty as NE
 import qualified Data.Map.Strict as Map
 import qualified Data.Text.Lazy as TL
 import qualified Generics.SOP.GGP as GGP
@@ -196,6 +203,16 @@ shrinkNatural n
     = mapMaybe (intCastMaybe @Integer @Natural)
     $ shrinkIntegral
     $ intCast n
+
+--------------------------------------------------------------------------------
+-- Generating and shrinking non-empty lists
+--------------------------------------------------------------------------------
+
+genNonEmpty :: Gen a -> Gen (NonEmpty a)
+genNonEmpty genA = (:|) <$> genA <*> listOf genA
+
+shrinkNonEmpty :: (a -> [a]) -> (NonEmpty a -> [NonEmpty a])
+shrinkNonEmpty shrinkA = mapMaybe NE.nonEmpty . shrinkList shrinkA . NE.toList
 
 --------------------------------------------------------------------------------
 -- Generating functions

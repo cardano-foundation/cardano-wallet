@@ -42,6 +42,12 @@ import Cardano.Numeric.Util
     ( inAscendingPartialOrder )
 import Cardano.Wallet.CoinSelection
     ( WalletSelectionContext, WalletUTxO (..) )
+import Cardano.Wallet.CoinSelection.Gen
+    ( genWalletUTxO
+    , genWalletUTxOFunction
+    , genWalletUTxOLargeRange
+    , shrinkWalletUTxO
+    )
 import Cardano.Wallet.CoinSelection.Internal.Balance
     ( AssetCount (..)
     , BalanceInsufficientError (..)
@@ -214,7 +220,6 @@ import Test.QuickCheck
     , arbitraryBoundedEnum
     , checkCoverage
     , choose
-    , coarbitrary
     , conjoin
     , counterexample
     , cover
@@ -240,7 +245,7 @@ import Test.QuickCheck
 import Test.QuickCheck.Classes
     ( eqLaws, ordLaws )
 import Test.QuickCheck.Extra
-    ( genFunction, genericRoundRobinShrink, report, verify, (<:>), (<@>) )
+    ( genericRoundRobinShrink, report, verify, (<:>), (<@>) )
 import Test.QuickCheck.Monadic
     ( PropertyM (..), assert, monadicIO, monitor, run )
 import Test.Utils.Laws
@@ -654,7 +659,7 @@ shrinkSelectionParams
     -> [SelectionParams WalletSelectionContext]
 shrinkSelectionParams = genericRoundRobinShrink
     <@> shrinkList shrinkOutput
-    <:> shrinkUTxOSelection
+    <:> shrinkUTxOSelection shrinkWalletUTxO
     <:> shrinkCoin
     <:> shrinkCoin
     <:> shrinkTokenMap
@@ -868,7 +873,7 @@ prop_performSelection_huge = ioProperty $
     -- the cost of re-generating it on every pass. This will still generate
     -- interesting cases, since selection within that large index is random.
     property . prop_performSelection_huge_inner
-        <$> generate (genUTxOIndexLargeN 50000)
+        <$> generate (genUTxOIndexLargeN genWalletUTxOLargeRange 50000)
 
 prop_performSelection_huge_inner
     :: UTxOIndex WalletUTxO
@@ -4372,16 +4377,6 @@ unitTests lbl cases =
         it (lbl <> " example #" <> show @Int i) test
 
 --------------------------------------------------------------------------------
--- Wallet UTxO identifiers
---------------------------------------------------------------------------------
-
-coarbitraryWalletUTxO :: WalletUTxO -> Gen a -> Gen a
-coarbitraryWalletUTxO = coarbitrary . show
-
-genWalletUTxOFunction :: Gen a -> Gen (WalletUTxO -> a)
-genWalletUTxOFunction = genFunction coarbitraryWalletUTxO
-
---------------------------------------------------------------------------------
 -- Arbitrary instances
 --------------------------------------------------------------------------------
 
@@ -4444,8 +4439,8 @@ instance Arbitrary TxOut where
     shrink = shrinkTxOut
 
 instance Arbitrary (UTxOSelection WalletUTxO) where
-    arbitrary = genUTxOSelection
-    shrink = shrinkUTxOSelection
+    arbitrary = genUTxOSelection genWalletUTxO
+    shrink = shrinkUTxOSelection shrinkWalletUTxO
 
 newtype Large a = Large
     { getLarge :: a }
@@ -4458,22 +4453,22 @@ newtype Small a = Small
 instance Arbitrary (Large (SelectionParams WalletSelectionContext)) where
     arbitrary = Large <$> genSelectionParams
         (genWalletUTxOFunction (arbitrary @Bool))
-        (genUTxOIndexLarge)
+        (genUTxOIndexLarge genWalletUTxOLargeRange)
     shrink = shrinkMapBy Large getLarge shrinkSelectionParams
 
 instance Arbitrary (Small (SelectionParams WalletSelectionContext)) where
     arbitrary = Small <$> genSelectionParams
         (genWalletUTxOFunction (arbitrary @Bool))
-        (genUTxOIndex)
+        (genUTxOIndex genWalletUTxO)
     shrink = shrinkMapBy Small getSmall shrinkSelectionParams
 
 instance Arbitrary (Large (UTxOIndex WalletUTxO)) where
-    arbitrary = Large <$> genUTxOIndexLarge
-    shrink = shrinkMapBy Large getLarge shrinkUTxOIndex
+    arbitrary = Large <$> genUTxOIndexLarge genWalletUTxOLargeRange
+    shrink = shrinkMapBy Large getLarge (shrinkUTxOIndex shrinkWalletUTxO)
 
 instance Arbitrary (Small (UTxOIndex WalletUTxO)) where
-    arbitrary = Small <$> genUTxOIndex
-    shrink = shrinkMapBy Small getSmall shrinkUTxOIndex
+    arbitrary = Small <$> genUTxOIndex genWalletUTxO
+    shrink = shrinkMapBy Small getSmall (shrinkUTxOIndex shrinkWalletUTxO)
 
 instance Arbitrary Coin where
     arbitrary = genCoinPositive

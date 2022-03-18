@@ -14,10 +14,12 @@ import Prelude
 
 import Cardano.Wallet.CoinSelection
     ( WalletUTxO (..) )
+import Cardano.Wallet.CoinSelection.Gen
+    ( coarbitraryWalletUTxO, genWalletUTxO, shrinkWalletUTxO )
 import Cardano.Wallet.Primitive.Types.Address
     ( Address )
 import Cardano.Wallet.Primitive.Types.Address.Gen
-    ( coarbitraryAddress, genAddress )
+    ( coarbitraryAddress )
 import Cardano.Wallet.Primitive.Types.TokenBundle
     ( TokenBundle )
 import Cardano.Wallet.Primitive.Types.TokenBundle.Gen
@@ -29,7 +31,7 @@ import Cardano.Wallet.Primitive.Types.TokenMap.Gen
 import Cardano.Wallet.Primitive.Types.Tx
     ( TxIn, TxOut (..) )
 import Cardano.Wallet.Primitive.Types.Tx.Gen
-    ( coarbitraryTxIn, genTxIn, genTxOut, shrinkTxOut )
+    ( coarbitraryTxIn, genTxOut, shrinkTxOut )
 import Cardano.Wallet.Primitive.Types.UTxOIndex.Gen
     ( genUTxOIndex, shrinkUTxOIndex )
 import Cardano.Wallet.Primitive.Types.UTxOIndex.Internal
@@ -57,7 +59,6 @@ import Test.QuickCheck
     , Testable
     , checkCoverage
     , checkCoverageWith
-    , coarbitraryShow
     , conjoin
     , counterexample
     , cover
@@ -71,8 +72,6 @@ import Test.QuickCheck
     )
 import Test.QuickCheck.Classes
     ( eqLaws )
-import Test.QuickCheck.Extra
-    ( genSized2 )
 import Test.QuickCheck.Monadic
     ( assert, monadicIO, monitor, run )
 import Test.Utils.Laws
@@ -782,12 +781,10 @@ tokenBundleIsAdaOnly = TokenBundle.isCoin
 
 instance Arbitrary WalletUTxO where
     arbitrary = genWalletUTxO
-
-genWalletUTxO :: Gen WalletUTxO
-genWalletUTxO = uncurry WalletUTxO <$> genSized2 genTxIn genAddress
+    shrink = shrinkWalletUTxO
 
 instance CoArbitrary WalletUTxO where
-    coarbitrary = coarbitraryShow
+    coarbitrary = coarbitraryWalletUTxO
 
 instance CoArbitrary Address where
     coarbitrary = coarbitraryAddress
@@ -797,8 +794,8 @@ instance Arbitrary AssetId where
     shrink = shrinkAssetId
 
 instance Arbitrary (UTxOIndex WalletUTxO) where
-    arbitrary = genUTxOIndex
-    shrink = shrinkUTxOIndex
+    arbitrary = genUTxOIndex genWalletUTxO
+    shrink = shrinkUTxOIndex shrinkWalletUTxO
 
 instance CoArbitrary TxIn where
     coarbitrary = coarbitraryTxIn

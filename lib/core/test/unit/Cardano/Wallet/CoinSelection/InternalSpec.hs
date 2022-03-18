@@ -18,6 +18,8 @@ import Prelude
 
 import Cardano.Wallet.CoinSelection
     ( WalletSelectionContext, WalletUTxO (..) )
+import Cardano.Wallet.CoinSelection.Gen
+    ( genWalletUTxO, shrinkWalletUTxO )
 import Cardano.Wallet.CoinSelection.Internal
     ( ComputeMinimumCollateralParams (..)
     , Selection
@@ -82,8 +84,6 @@ import Cardano.Wallet.Primitive.Types.TokenQuantity
     ( TokenQuantity (..) )
 import Cardano.Wallet.Primitive.Types.Tx
     ( txOutMaxTokenQuantity )
-import Cardano.Wallet.Primitive.Types.Tx.Gen
-    ( genTxIn, shrinkTxIn )
 import Cardano.Wallet.Primitive.Types.UTxOSelection
     ( UTxOSelection )
 import Cardano.Wallet.Primitive.Types.UTxOSelection.Gen
@@ -138,7 +138,6 @@ import Test.QuickCheck.Extra
     ( Pretty (..)
     , chooseNatural
     , genMapWith
-    , genSized2
     , genericRoundRobinShrink
     , report
     , shrinkMapWith
@@ -799,13 +798,10 @@ shrinkCollateralRequirement = genericShrink
 
 genUTxOAvailableForCollateral :: Gen (Map WalletUTxO Coin)
 genUTxOAvailableForCollateral = genMapWith genWalletUTxO genCoinPositive
-  where
-    genWalletUTxO :: Gen WalletUTxO
-    genWalletUTxO = uncurry WalletUTxO <$> genSized2 genTxIn genAddress
 
 genUTxOAvailableForInputs :: Gen (UTxOSelection WalletUTxO)
 genUTxOAvailableForInputs = frequency
-    [ (49, genUTxOSelection)
+    [ (49, genUTxOSelection genWalletUTxO)
     , (01, pure UTxOSelection.empty)
     ]
 
@@ -813,16 +809,10 @@ shrinkUTxOAvailableForCollateral
     :: Map WalletUTxO Coin -> [Map WalletUTxO Coin]
 shrinkUTxOAvailableForCollateral =
     shrinkMapWith shrinkWalletUTxO shrinkCoinPositive
-  where
-    shrinkWalletUTxO :: WalletUTxO -> [WalletUTxO]
-    shrinkWalletUTxO = genericRoundRobinShrink
-        <@> shrinkTxIn
-        <:> shrinkAddress
-        <:> Nil
 
 shrinkUTxOAvailableForInputs
     :: UTxOSelection WalletUTxO -> [UTxOSelection WalletUTxO]
-shrinkUTxOAvailableForInputs = shrinkUTxOSelection
+shrinkUTxOAvailableForInputs = shrinkUTxOSelection shrinkWalletUTxO
 
 --------------------------------------------------------------------------------
 -- Unit test support
@@ -870,5 +860,5 @@ instance Arbitrary (SelectionParams WalletSelectionContext) where
     shrink = shrinkSelectionParams
 
 instance Arbitrary (SelectionSkeleton WalletSelectionContext) where
-    arbitrary = genSelectionSkeleton
-    shrink = shrinkSelectionSkeleton
+    arbitrary = genSelectionSkeleton genAddress
+    shrink = shrinkSelectionSkeleton shrinkAddress
