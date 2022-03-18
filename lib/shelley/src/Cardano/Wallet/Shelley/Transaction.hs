@@ -334,7 +334,7 @@ constructUnsignedTx
     -> (TokenMap, Map AssetId (Script KeyHash))
     -- ^ Assets to be minted
     -> (TokenMap, Map AssetId (Script KeyHash))
-    -- ^ Assets to be burnt
+    -- ^ Assets to be burned
     -> ShelleyBasedEra era
     -> Either ErrMkTransaction SealedTx
 constructUnsignedTx
@@ -542,20 +542,20 @@ newTransactionLayer networkId = TransactionLayer
         let delta = selectionDelta txOutCoin selection
         let rewardAcct = toRewardAccountRaw stakeXPub
         let assetsToBeMinted = view #txAssetsToMint ctx
-        let assetsToBeBurnt = view #txAssetsToBurn ctx
+        let assetsToBeBurned = view #txAssetsToBurn ctx
         case view #txDelegationAction ctx of
             Nothing -> do
                 withShelleyBasedEra era $ do
                     let md = view #txMetadata ctx
                     constructUnsignedTx networkId (md, []) ttl rewardAcct wdrl
-                        selection delta assetsToBeMinted assetsToBeBurnt
+                        selection delta assetsToBeMinted assetsToBeBurned
 
             Just action -> do
                 withShelleyBasedEra era $ do
                     let certs = mkDelegationCertificates action stakeXPub
                     let payload = (view #txMetadata ctx, certs)
                     constructUnsignedTx networkId payload ttl rewardAcct wdrl
-                        selection delta assetsToBeMinted assetsToBeBurnt
+                        selection delta assetsToBeMinted assetsToBeBurned
 
     , estimateSignedTxSize = \pp tx -> do
         anyShelleyTx <- inAnyShelleyBasedEra (cardanoTx tx)

@@ -1271,16 +1271,16 @@ data ApiMintedBurnedTransaction (n :: NetworkDiscriminant) =
 data ApiMintedBurnedInfo = ApiMintedBurnedInfo
     { verificationKeyIndex
         :: !(ApiT DerivationIndex)
-        -- ^ The monetary policy index the asset was minted/burnt under.
+        -- ^ The monetary policy index the asset was minted/burned under.
     , policyId
         :: !(ApiT W.TokenPolicyId)
-        -- ^ The policy ID the asset was minted/burnt under.
+        -- ^ The policy ID the asset was minted/burned under.
     , assetName
         :: !(ApiT W.TokenName)
-        -- ^ The name of the asset minted/burnt.
+        -- ^ The name of the asset minted/burned.
     , subject
         :: !(ApiT W.TokenFingerprint)
-        -- ^ The subject of the asset minted/burnt. This is useful to users
+        -- ^ The subject of the asset minted/burned. This is useful to users
         -- wishing to attach metadata to their asset.
     , policyScript
         :: !(ApiT (Script KeyHash))
