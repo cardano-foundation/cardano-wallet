@@ -401,6 +401,7 @@ import Test.QuickCheck
     , InfiniteList (..)
     , applyArbitrary2
     , applyArbitrary3
+    , applyArbitrary4
     , arbitraryBoundedEnum
     , arbitraryPrintableChar
     , arbitrarySizedBoundedIntegral
@@ -2223,11 +2224,7 @@ instance Arbitrary (PostMintBurnAssetData n) where
     arbitrary = applyArbitrary3 PostMintBurnAssetData
 
 instance Arbitrary (ApiConstructTransaction n) where
-    arbitrary = ApiConstructTransaction
-        <$> arbitrary
-        <*> arbitrary
-        <*> arbitrary
-        <*> arbitrary
+    arbitrary = applyArbitrary4 ApiConstructTransaction
 
 instance Arbitrary ApiAssetMintedBurned where
     arbitrary = do
