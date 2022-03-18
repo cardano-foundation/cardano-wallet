@@ -45,6 +45,7 @@ import Cardano.Wallet.Api.Types
     , ApiDecodedTransaction
     , ApiDeregisterPool (..)
     , ApiExternalCertificate (..)
+    , ApiMintBurnInfo (..)
     , ApiPolicyKey (..)
     , ApiPolicyScript (..)
     , ApiRegisterPool (..)
@@ -97,7 +98,7 @@ import Cardano.Wallet.Primitive.Types.RewardAccount
 import Cardano.Wallet.Primitive.Types.TokenBundle
     ( AssetId (..) )
 import Cardano.Wallet.Primitive.Types.TokenPolicy
-    ( TokenName (..), TokenPolicyId (..), mkTokenName )
+    ( TokenName (..), TokenPolicyId (..), mkTokenFingerprint, mkTokenName )
 import Cardano.Wallet.Primitive.Types.TokenQuantity
     ( TokenQuantity (..) )
 import Cardano.Wallet.Primitive.Types.Tx
@@ -2966,7 +2967,7 @@ spec = describe "NEW_SHELLEY_TRANSACTIONS" $ do
         let destination = (addrs !! 1) ^. #id
 
         let payload = Json [json|{
-                "minted_burned": [{
+                "mint_burn": [{
                     "policy_script_template":
                         { "all":
                            [ "cosigner#0",
@@ -3001,7 +3002,7 @@ spec = describe "NEW_SHELLEY_TRANSACTIONS" $ do
         let destination = (addrs !! 1) ^. #id
 
         let payload = Json [json|{
-                "minted_burned": [{
+                "mint_burn": [{
                     "policy_script_template":
                         { "all":
                            [ { "active_from": 120 }
@@ -3035,7 +3036,7 @@ spec = describe "NEW_SHELLEY_TRANSACTIONS" $ do
         let destination = (addrs !! 1) ^. #id
 
         let payload = Json [json|{
-                "minted_burned": [{
+                "mint_burn": [{
                     "policy_script_template":
                         { "all":
                            [ "cosigner#1",
@@ -3062,6 +3063,107 @@ spec = describe "NEW_SHELLEY_TRANSACTIONS" $ do
             , expectErrorMessage errMsg403CreatedWrongPolicyScriptTemplate
             ]
 
+    it "TRANS_NEW_CREATE_10l - Minting when assetName too long" $
+        \ctx -> runResourceT $ do
+        liftIO $ pendingWith "Returns 500 - Something went wrong"
+        -- L ERROR: toCardanoValue: unable to deserialise TokenName
+        -- CallStack (from HasCallStack):
+        --   error, called at src/Cardano/Wallet/Util.hs:78:21 in cardano-wallet-core-2022.1.18-JtZoOG9AeSJ1z9Aw4Sok3f:Cardano.Wallet.Util
+        --   internalError, called at src/Cardano/Wallet/Util.hs:86:23 in cardano-wallet-core-2022.1.18-JtZoOG9AeSJ1z9Aw4Sok3f:Cardano.Wallet.Util
+        --   tina, called at src/Cardano/Wallet/Shelley/Compatibility.hs:1919:14 in cardano-wallet-2022.1.18-8A5EC3ZC9uxJp2wMrOQ62o:Cardano.Wallet.Shelley.Compatibilit
+
+        wa <- fixtureWallet ctx
+        addrs <- listAddresses @n ctx wa
+        let destination = (addrs !! 1) ^. #id
+        let assetNameTooLong = replicate 66 '1'
+        let payload = Json [json|{
+                "mint_burn": [{
+                    "policy_script_template": "cosigner#0",
+                    "asset_name": #{assetNameTooLong},
+                    "operation":
+                        { "mint" :
+                              { "receiving_address": #{destination},
+                                 "amount": {
+                                     "quantity": 10000,
+                                     "unit": "assets"
+                                  }
+                              }
+                        }
+                }]
+            }|]
+
+        rTx <- request @(ApiConstructTransaction n) ctx
+            (Link.createUnsignedTransaction @'Shelley wa) Default payload
+        verify rTx
+            [ expectResponseCode HTTP.status403
+            ]
+
+    it "TRANS_NEW_CREATE_10m1 - Minting amount too big" $
+        \ctx -> runResourceT $ do
+        liftIO $ pendingWith "Should fail with 403"
+        -- Node accepts range for minging/burning:
+        -- min value: -9223372036854775808 max value: 9223372036854775807
+        -- Any amount outside will result in error on decoding:
+        --   "Error in $.transaction: Deserialisation failure while decoding Shelley Tx.
+        --   CBOR failed with error: DeserialiseFailure 167 'overflow when decoding mint field.
+        --   min value: -9223372036854775808 max value: 9223372036854775807 got: 9223372036854775808'"
+        wa <- fixtureWallet ctx
+        addrs <- listAddresses @n ctx wa
+        let destination = (addrs !! 1) ^. #id
+        -- Node accepts:
+        -- min value: -9223372036854775808 max value: 9223372036854775807
+        let payload = Json [json|{
+                "mint_burn": [{
+                    "policy_script_template": "cosigner#0",
+                    "asset_name": "ab12",
+                    "operation":
+                        { "mint" :
+                              { "receiving_address": #{destination},
+                                 "amount": {
+                                     "quantity": 9223372036854775808,
+                                     "unit": "assets"
+                                  }
+                              }
+                        }
+                }]
+            }|]
+
+        rTx <- request @(ApiConstructTransaction n) ctx
+            (Link.createUnsignedTransaction @'Shelley wa) Default payload
+        verify rTx
+            [ expectResponseCode HTTP.status403
+            ]
+
+    it "TRANS_NEW_CREATE_10m2 - Minting amount = 0" $
+        \ctx -> runResourceT $ do
+        liftIO $ pendingWith "Should fail with 403"
+        -- Probably it should not be allowed to have 0 as amount for mint/burn
+        -- It results in invalid transaction via cardano-cli
+        wa <- fixtureWallet ctx
+        addrs <- listAddresses @n ctx wa
+        let destination = (addrs !! 1) ^. #id
+        let payload = Json [json|{
+                "mint_burn": [{
+                    "policy_script_template": "cosigner#0",
+                    "asset_name": "ab12",
+                    "operation":
+                        { "mint" :
+                              { "receiving_address": #{destination},
+                                 "amount": {
+                                     "quantity": 0,
+                                     "unit": "assets"
+                                  }
+                              }
+                        }
+                }]
+            }|]
+
+        rTx <- request @(ApiConstructTransaction n) ctx
+            (Link.createUnsignedTransaction @'Shelley wa) Default payload
+        verify rTx
+            [ expectResponseCode HTTP.status403
+            ]
+
     it "TRANS_NEW_CREATE_10d - Minting assets" $ \ctx -> runResourceT $ do
         wa <- fixtureWallet ctx
         addrs <- listAddresses @n ctx wa
@@ -3070,7 +3172,7 @@ spec = describe "NEW_SHELLEY_TRANSACTIONS" $ do
         let (Right tokenName') = mkTokenName "ab12"
 
         let payload = Json [json|{
-                "minted_burned": [{
+                "mint_burn": [{
                     "policy_script_template":
                         { "all":
                            [ "cosigner#0",
@@ -3116,13 +3218,11 @@ spec = describe "NEW_SHELLEY_TRANSACTIONS" $ do
         let tokens = TokenMap.singleton
                 (AssetId tokenPolicyId' tokenName')
                 (TokenQuantity 50_000)
-        let mintScript =
-                ApiPolicyScript
-                ( ApiT tokenPolicyId' )
-                $ ApiT $ RequireAllOf
-                    [ RequireSignatureOf policyKeyHash
-                    , ActiveFromSlot 120
-                    ]
+        let scriptUsed = RequireAllOf
+                [ RequireSignatureOf policyKeyHash
+                , ActiveFromSlot 120
+                ]
+        let mintScript = ApiPolicyScript (ApiT tokenPolicyId') (ApiT scriptUsed)
 
         let activeAssetsInfo = ApiAssetMintedBurned
                 { tokenMap = ApiT tokens
@@ -3134,6 +3234,17 @@ spec = describe "NEW_SHELLEY_TRANSACTIONS" $ do
                 , policyScripts = []
                 , walletPolicyKeyHash = policyKeyHashPayload
                 }
+
+        let mintInfoExpected = Just $ NE.fromList $
+                [ ApiT $ ApiMintBurnInfo
+                { verificationKeyIndex = ApiT (DerivationIndex 2147483648)
+                , policyId = ApiT tokenPolicyId'
+                , assetName = ApiT tokenName'
+                , subject = ApiT $ mkTokenFingerprint tokenPolicyId' tokenName'
+                , policyScript = ApiT scriptUsed
+                }]
+        let mintInfo = getFromResponse #mintBurn rTx
+        mintInfo `shouldBe` mintInfoExpected
 
         rDecodedTx <- request @(ApiDecodedTransaction n) ctx
             (Link.decodeTransaction @'Shelley wa) Default decodePayload
@@ -3149,7 +3260,7 @@ spec = describe "NEW_SHELLEY_TRANSACTIONS" $ do
         let (Right tokenName') = mkTokenName "ab12"
 
         let payload = Json [json|{
-                "minted_burned": [{
+                "mint_burn": [{
                     "policy_script_template":
                         { "all":
                            [ "cosigner#0",
@@ -3192,13 +3303,11 @@ spec = describe "NEW_SHELLEY_TRANSACTIONS" $ do
         let tokens = TokenMap.singleton
                 (AssetId tokenPolicyId' tokenName')
                 (TokenQuantity 50_000)
-        let burnScript =
-                ApiPolicyScript
-                ( ApiT tokenPolicyId' )
-                $ ApiT $ RequireAllOf
-                    [ RequireSignatureOf policyKeyHash
-                    , ActiveFromSlot 120
-                    ]
+        let scriptUsed = RequireAllOf
+                [ RequireSignatureOf policyKeyHash
+                , ActiveFromSlot 120
+                ]
+        let burnScript = ApiPolicyScript (ApiT tokenPolicyId') (ApiT scriptUsed)
 
         let activeAssetsInfo = ApiAssetMintedBurned
                 { tokenMap = ApiT TokenMap.empty
@@ -3210,6 +3319,17 @@ spec = describe "NEW_SHELLEY_TRANSACTIONS" $ do
                 , policyScripts = [burnScript]
                 , walletPolicyKeyHash = policyKeyHashPayload
                 }
+
+        let burnInfoExpected = Just $ NE.fromList $
+                [ ApiT $ ApiMintBurnInfo
+                { verificationKeyIndex = ApiT (DerivationIndex 2147483648)
+                , policyId = ApiT tokenPolicyId'
+                , assetName = ApiT tokenName'
+                , subject = ApiT $ mkTokenFingerprint tokenPolicyId' tokenName'
+                , policyScript = ApiT scriptUsed
+                }]
+        let burnInfo = getFromResponse #mintBurn rTx
+        burnInfo `shouldBe` burnInfoExpected
 
         rDecodedTx <- request @(ApiDecodedTransaction n) ctx
             (Link.decodeTransaction @'Shelley wa) Default decodePayload

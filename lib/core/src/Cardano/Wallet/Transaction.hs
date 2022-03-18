@@ -314,7 +314,7 @@ data TransactionCtx = TransactionCtx
     , txCollateralRequirement :: SelectionCollateralRequirement
     -- ^ The collateral requirement.
     , txFeePadding :: !Coin
-    -- ^ Extra fees. Some parts of a transction are not representable using
+    -- ^ Extra fees. Some parts of a transaction are not representable using
     -- cardano-wallet types, which makes it useful to account for them like
     -- this. For instance: datums.
     } deriving (Show, Generic, Eq)

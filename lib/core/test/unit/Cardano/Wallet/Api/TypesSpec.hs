@@ -99,9 +99,9 @@ import Cardano.Wallet.Api.Types
     , ApiMaintenanceAction (..)
     , ApiMaintenanceActionPostData (..)
     , ApiMintBurnData (..)
+    , ApiMintBurnInfo (..)
     , ApiMintBurnOperation (..)
     , ApiMintData (..)
-    , ApiMintedBurnedInfo (..)
     , ApiMintedBurnedTransaction (..)
     , ApiMnemonicT (..)
     , ApiMultiDelegationAction (..)
@@ -1159,7 +1159,7 @@ spec = parallel $ do
                         (x :: ApiConstructTransactionData ('Testnet 0))
                     , metadata = metadata
                         (x :: ApiConstructTransactionData ('Testnet 0))
-                    , mintedBurned = mintedBurned
+                    , mintBurn = mintBurn
                         (x :: ApiConstructTransactionData ('Testnet 0))
                     , delegations = delegations
                         (x :: ApiConstructTransactionData ('Testnet 0))
@@ -2287,7 +2287,7 @@ instance Arbitrary (ApiMintBurnOperation n) where
 instance Arbitrary (ApiMintedBurnedTransaction n) where
     arbitrary = ApiMintedBurnedTransaction <$> arbitrary <*> arbitrary
 
-instance Arbitrary ApiMintedBurnedInfo where
+instance Arbitrary ApiMintBurnInfo where
     arbitrary = do
         mpi <- arbitrary
         policyId <- arbitrary
@@ -2298,7 +2298,7 @@ instance Arbitrary ApiMintedBurnedInfo where
                 RequireSignatureOf
                     (KeyHash Payment $ getHash $ unTokenPolicyId policyId)
 
-        pure $ ApiMintedBurnedInfo
+        pure $ ApiMintBurnInfo
             (ApiT mpi)
             (ApiT policyId)
             (ApiT assetName)

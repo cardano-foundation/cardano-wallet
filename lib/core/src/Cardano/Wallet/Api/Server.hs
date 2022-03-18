@@ -236,6 +236,7 @@ import Cardano.Wallet.Api.Types
     , ApiMintBurnData (..)
     , ApiMintBurnOperation (..)
     , ApiMintData (..)
+    , ApiMintBurnInfo (..)
     , ApiMintedBurnedTransaction (..)
     , ApiMnemonicT (..)
     , ApiMultiDelegationAction (..)
@@ -460,9 +461,9 @@ import Cardano.Wallet.Primitive.Types.Redeemer
 import Cardano.Wallet.Primitive.Types.TokenBundle
     ( Flat (..), TokenBundle (..) )
 import Cardano.Wallet.Primitive.Types.TokenMap
-    ( AssetId (..), fromFlatList )
+    ( AssetId (..), fromFlatList, toNestedList )
 import Cardano.Wallet.Primitive.Types.TokenPolicy
-    ( TokenName (..), TokenPolicyId (..), nullTokenName )
+    ( TokenName (..), TokenPolicyId (..), nullTokenName, mkTokenFingerprint )
 import Cardano.Wallet.Primitive.Types.Tx
     ( TransactionInfo
     , Tx (..)
@@ -2171,12 +2172,12 @@ constructTransaction ctx genChange knownPools getPoolStatus (ApiT wid) body = do
             isNothing (body ^. #payments) &&
             isNothing (body ^. #withdrawal) &&
             isNothing (body ^. #metadata) &&
-            isNothing (body ^. #mintedBurned) &&
+            isNothing (body ^. #mintBurn) &&
             isNothing (body ^. #delegations)
     when isNoPayload $
         liftHandler $ throwE ErrConstructTxWrongPayload
 
-    let mintingBurning = body ^. #mintedBurned
+    let mintingBurning = body ^. #mintBurn
     let retrieveAllCosigners = foldScript (:) []
     let wrongMintingTemplate (ApiMintBurnData (ApiT scriptTempl) _ _) =
             isLeft (validateScriptOfTemplate RecommendedValidation scriptTempl)
@@ -2281,7 +2282,7 @@ constructTransaction ctx genChange knownPools getPoolStatus (ApiT wid) body = do
                                 (Map.singleton (Cosigner 0) policyXPub)
                                 tName
                                 amt
-                        _ -> error "getMinting should not be used that way"
+                        _ -> error "getMinting should not be used in this way"
                 let getBurning = \case
                         ApiMintBurnData
                             (ApiT scriptT)
@@ -2292,7 +2293,7 @@ constructTransaction ctx genChange knownPools getPoolStatus (ApiT wid) body = do
                                 (Map.singleton (Cosigner 0) policyXPub)
                                 tName
                                 amt
-                        _ -> error "getBurning should not be used that way"
+                        _ -> error "getBurning should not be used in this way"
                 let toTokenMap =
                         fromFlatList .
                         map (\(a,q,_) -> (a,q))
@@ -2334,16 +2335,47 @@ constructTransaction ctx genChange knownPools getPoolStatus (ApiT wid) body = do
         tx <- liftHandler
             $ W.constructTransaction @_ @s @k @n wrk wid txCtx' sel
 
+        let (tokenMap1, scriptMap1) = txAssetsToMint txCtx'
+        let (tokenMap2, scriptMap2) = txAssetsToBurn txCtx'
+
         pure $ ApiConstructTransaction
             { transaction = ApiT tx
             , coinSelection = mkApiCoinSelection
                 (maybeToList deposit) (maybeToList refund) Nothing md sel'
-            , mintedBurned = Nothing
+            , mintBurn =
+                toMintBurnList
+                ( tokenMap1 <> tokenMap2
+                , Map.union scriptMap1 scriptMap2)
             , fee = Quantity $ fromIntegral fee
             }
   where
     ti :: TimeInterpreter (ExceptT PastHorizonException IO)
     ti = timeInterpreter (ctx ^. networkLayer)
+    toMintBurn (policy, name, script) = ApiT $ ApiMintBurnInfo
+        { verificationKeyIndex =
+                ApiT $ DerivationIndex $
+                getIndex (minBound :: Index 'Hardened 'PolicyK)
+        , policyId = ApiT policy
+        , assetName = ApiT name
+        , subject = ApiT $ mkTokenFingerprint policy name
+        , policyScript = ApiT script
+        }
+    askForScript (policy, name) scriptMap =
+        case Map.lookup (AssetId policy name) scriptMap of
+            Just script -> script
+            Nothing -> error "askForScript: no minting/burning without script"
+    toMintBurnTriple scriptmap tokenmap =
+        [ (policy, token, askForScript (policy, token) scriptmap)
+        | (policy, tokenQuantities) <- toNestedList tokenmap
+        , (token, _) <- NE.toList tokenQuantities
+        ]
+    toMintBurnList (tokenMap, scriptMap) =
+        if tokenMap == TokenMap.empty then
+            Nothing
+        else
+           Just $ NE.fromList $
+           map toMintBurn $
+           toMintBurnTriple scriptMap tokenMap
 
 -- TODO: Most of the body of this function should really belong to
 -- Cardano.Wallet to keep the Api.Server module free of business logic!
@@ -4118,10 +4150,9 @@ instance IsServerError ErrConstructTx where
             ]
         ErrConstructTxWrongMintingBurningTemplate ->
             apiError err403 CreatedWrongPolicyScriptTemplate $ mconcat
-            [ "It looks like I've created a transaction "
-            , "with a minting/burning policy script that either does not "
-            , "pass validation, contains more than one cosigner or "
-            , "cosigner different than cosigner#0."
+            [ "It looks like I've created a transaction with a minting/burning "
+            , "policy script that either does not pass validation, contains more "
+            , "than one cosigner, or has a cosigner that is different from cosigner#0."
             ]
         ErrConstructTxNotImplemented _ ->
             apiError err501 NotImplemented
@@ -4341,9 +4372,10 @@ instance IsServerError ErrReadPolicyPublicKey where
         ErrReadPolicyPublicKeyNoSuchWallet e -> toServerError e
         ErrReadPolicyPublicKeyNotAShelleyWallet ->
             apiError err403 InvalidWalletType $ mconcat
-                [ "It is regrettable but you've just attempted an operation "
-                , "that is invalid for this type of wallet. Only new 'Shelley' "
-                , "wallets can do something with rewards and this one isn't."
+                [ "You have attempted an operation that is invalid for this "
+                , "type of wallet. Only wallets from the Shelley era onwards "
+                , "can have rewards, but this wallet is from an era before "
+                , "Shelley."
                 ]
         ErrReadPolicyPublicKeyAbsent ->
             apiError err403 InvalidWalletType $ mconcat

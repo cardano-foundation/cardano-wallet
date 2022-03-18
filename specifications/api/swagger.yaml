@@ -2412,7 +2412,7 @@ components:
       properties:
         transaction: *serialisedTransactionEncoded
 
-    ApiMintedBurnedInfo: &ApiMintedBurnedInfo
+    ApiMintBurnInfo: &ApiMintBurnInfo
       type: object
       required:
         - verification_key_index
@@ -2439,9 +2439,9 @@ components:
         transaction: *serialisedTransactionBase64
         coin_selection: *ApiCoinSelection
         fee: *amount
-        minted_burned:
+        mint_burn:
           type: array
-          items: *ApiMintedBurnedInfo
+          items: *ApiMintBurnInfo
           minItems: 1
           description: An entry for each unique asset minted and/or burned, containing helpful information.
 
@@ -3415,11 +3415,13 @@ components:
         payments: *ApiPaymentDestination
         withdrawal: *transactionWithdrawalRequestSelf
         metadata: *transactionMetadata
-        minted_burned:
+        mint_burn:
           type: array
           items: *ApiMintBurnData
           minItems: 1
-          description: An entry for each unique asset minted and/or burned, containing helpful information.
+          description:
+             An entry for each unique asset to be minted and/or burned,
+             containing helpful information.
         delegations: *transactionDelegations
         validity_interval: *ApiValidityInterval
 
@@ -3574,7 +3576,7 @@ components:
           description: Information about the mint/burn transaction submitted.
         minted_burned:
           type: array
-          items: *ApiMintedBurnedInfo
+          items: *ApiMintBurnInfo
           minItems: 1
           description: An entry for each unique asset minted and/or burned, containing helpful information.
 
@@ -4088,7 +4090,9 @@ x-errCreatedWrongPolicyScriptTemplate: &errCreatedWrongPolicyScriptTemplate
   properties:
     message:
       type: string
-      description: Occurs when a policy script template is either does not pass validation or has more than one cosigner.
+      description:
+          Occurs when a policy script template either does not pass validation
+          or has more than one cosigner.
     code:
       type: string
       enum: ['created_wrong_policy_script_template']
@@ -6101,7 +6105,7 @@ paths:
         <p align="right">status: <strong>stable</strong></p>
         Return a policy key for a derivation index = 0.
 
-        To get a hash of the policy key, instead of the policy key,
+        To get a hash of the policy key instead of the policy key,
         use query parameter `hash=true`.
 
       parameters:
