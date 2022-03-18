@@ -22,14 +22,9 @@ import Options.Applicative
     , info
     )
 import Test.Hspec
-    ( Spec
-    , describe
-    , expectationFailure
-    , it
-    , pendingWith
-    , shouldBe
-    , shouldReturn
-    )
+    ( Spec, describe, expectationFailure, it, shouldBe, shouldReturn )
+import Test.Utils.Platform
+    ( isWindows )
 import UnliftIO
     ( withSystemTempFile )
 import UnliftIO.IO
@@ -38,10 +33,8 @@ import UnliftIO.IO
 spec :: Spec
 spec = describe "Blockfrost CLI options" $ do
     it "modeOption --node-socket" $ do
-        -- Named pipes are used on windows
-        pendingWith "Fails on windows: https://github.com/input-output-hk/cardano-wallet/pull/3160#issuecomment-1071163285"
         let parserInfo = info modeOption fullDesc
-            args = ["--node-socket", "/tmp/file"]
+            args = ["--node-socket", mockSocketOrPipe]
         case execParserPure defaultPrefs parserInfo args of
             Failure pf -> expectationFailure $ show pf
             CompletionInvoked cr -> expectationFailure $ show cr
@@ -63,14 +56,18 @@ spec = describe "Blockfrost CLI options" $ do
                     Blockfrost.Project Testnet (T.pack projectId)
 
     it "modeOption requires --light flag" $ do
-        -- Named pipes are used on windows
-        pendingWith "Fails on windows: https://github.com/input-output-hk/cardano-wallet/pull/3160#issuecomment-1071163285"
         let parserInfo = info modeOption fullDesc
-            args = ["--blockfrost-token-file", "/tmp/file"]
+            args = ["--blockfrost-token-file", mockSocketOrPipe]
         case execParserPure defaultPrefs parserInfo args of
             Failure pf | (help, _code, _int) <- execFailure pf "" ->
                 show help `shouldBe`
                     "Missing: --light\n\n\
-                    \Usage:  (--node-socket FILE | \
+                    \Usage:  (--node-socket " <> nodeSocketMetavar <> " | \
                     \--light --blockfrost-token-file FILE)"
             result -> expectationFailure $ show result
+
+nodeSocketMetavar :: String
+nodeSocketMetavar = if isWindows then "PIPENAME" else "FILE"
+
+mockSocketOrPipe :: String
+mockSocketOrPipe = if isWindows then "\\\\.\\pipe\\test" else "/tmp/pipe"
