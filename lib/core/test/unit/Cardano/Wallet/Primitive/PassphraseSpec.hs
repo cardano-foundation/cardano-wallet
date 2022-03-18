@@ -73,14 +73,15 @@ prop_passphraseRoundtrip pwd = monadicIO $ liftIO $ do
     checkPassphrase EncryptWithPBKDF2 pwd hpwd `shouldBe` Right ()
 
 prop_passphraseRoundtripFail
-    :: Passphrase "user"
+    :: PassphraseScheme
+    -> Passphrase "user"
     -> Passphrase "user"
     -> Property
-prop_passphraseRoundtripFail p p' =
+prop_passphraseRoundtripFail scheme p p' =
     p /= p' ==> monadicIO $ do
         (_scheme, hp) <- run $ encryptPassphrase p
-        assert $ checkPassphrase EncryptWithPBKDF2 p' hp
-            == Left ErrWrongPassphrase
+        assert $ checkPassphrase scheme p' hp ==
+            whenSupported scheme (Left ErrWrongPassphrase)
 
 prop_passphraseHashMalformed
     :: PassphraseScheme
@@ -89,9 +90,7 @@ prop_passphraseHashMalformed
 prop_passphraseHashMalformed scheme pwd =
     counterexample ("haveScrypt = " <> show haveScrypt) $
     checkPassphrase scheme pwd (PassphraseHash mempty)
-        === if not haveScrypt && scheme == EncryptWithScrypt
-            then Left $ ErrPassphraseSchemeUnsupported EncryptWithScrypt
-            else Left ErrWrongPassphrase
+        === whenSupported scheme (Left ErrWrongPassphrase)
 
 instance Arbitrary (Passphrase "user") where
     arbitrary = genUserPassphrase
@@ -102,4 +101,18 @@ instance Arbitrary PassphraseScheme where
 
 instance Arbitrary (Passphrase "encryption") where
     arbitrary = genEncryptionPassphrase
+
+-- | Helper that returns 'ErrPassphraseSchemeUnsupported' when the provided
+-- scheme is 'EncryptWithScrypt' and 'haveScrypt' is false, and otherwise
+-- returns the second argument.
+whenSupported
+    :: PassphraseScheme
+    -> Either ErrWrongPassphrase ()
+    -> Either ErrWrongPassphrase ()
+whenSupported EncryptWithPBKDF2 = id
+whenSupported EncryptWithScrypt
+    | not haveScrypt
+        = const . Left $ ErrPassphraseSchemeUnsupported EncryptWithScrypt
+    | otherwise
+        = id
 
