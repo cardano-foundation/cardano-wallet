@@ -122,16 +122,19 @@ instance ( (key == SharedKey) ~ 'False, Eq (Seq.SeqState n key) )
         to  ( SeqPrologue (Seq.SeqState int0 ext0 a b c d e)
             , SeqDiscoveries ints exts
             )
-          = Seq.SeqState (loadUnsafe int0 ints) (loadUnsafe ext0 exts) a b c d e
+            = Seq.SeqState
+                (loadUnsafe int0 ints) (loadUnsafe ext0 exts) a b c d e
 
 -- | Address data from sequential address pool.
 -- The phantom type parameter @c@ prevents mixing up
 -- the internal with the external pool.
-newtype SeqAddressMap (c :: Role) (key :: Depth -> Type -> Type) = SeqAddressMap
+newtype SeqAddressMap (c :: Role) (key :: Depth -> Type -> Type) =
+    SeqAddressMap
         ( Map
             (KeyFingerprint "payment" key)
             (Index 'Soft 'AddressK, AddressState)
-        ) deriving (Eq)
+        )
+    deriving Eq
 
 clear :: Seq.SeqAddressPool c k -> Seq.SeqAddressPool c k
 clear = Seq.SeqAddressPool . AddressPool.clear . Seq.getPool

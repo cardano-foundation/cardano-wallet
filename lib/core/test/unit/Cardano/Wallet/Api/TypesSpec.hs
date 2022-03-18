@@ -2234,10 +2234,15 @@ instance Arbitrary ApiAssetMintedBurned where
         keyhash <- arbitrary
         script <- elements
             [ ApiT $ RequireSignatureOf keyhash
-            , ApiT $ RequireAllOf [ RequireSignatureOf keyhash
-                                  , ActiveFromSlot 100]
-            , ApiT $ RequireAllOf [ RequireSignatureOf keyhash
-                                  , ActiveFromSlot 100, ActiveUntilSlot 150]
+            , ApiT $ RequireAllOf
+                [ RequireSignatureOf keyhash
+                , ActiveFromSlot 100
+                ]
+            , ApiT $ RequireAllOf
+                [ RequireSignatureOf keyhash
+                , ActiveFromSlot 100
+                , ActiveUntilSlot 150
+                ]
             ]
         policyid <- arbitrary
         ApiAssetMintedBurned
@@ -2248,12 +2253,17 @@ instance Arbitrary ApiAssetMintedBurned where
 instance Arbitrary (ApiMintBurnData n) where
     arbitrary = ApiMintBurnData
         <$> elements
-        [ ApiT $ RequireSignatureOf (Cosigner 0)
-        , ApiT $ RequireAllOf [ RequireSignatureOf (Cosigner 0)
-                              , ActiveFromSlot 100]
-        , ApiT $ RequireAllOf [ RequireSignatureOf (Cosigner 0)
-                              , ActiveFromSlot 100, ActiveUntilSlot 150]
-        ]
+            [ ApiT $ RequireSignatureOf (Cosigner 0)
+            , ApiT $ RequireAllOf
+                [ RequireSignatureOf (Cosigner 0)
+                , ActiveFromSlot 100
+                ]
+            , ApiT $ RequireAllOf
+                [ RequireSignatureOf (Cosigner 0)
+                , ActiveFromSlot 100
+                , ActiveUntilSlot 150
+                ]
+            ]
         <*> (ApiT <$> genTokenName)
         <*> arbitrary
 
@@ -2272,10 +2282,10 @@ instance Arbitrary ApiBurnData where
     arbitrary = ApiBurnData <$> arbitrary
 
 instance Arbitrary (ApiMintBurnOperation n) where
-    arbitrary
-        = oneof [ ApiMint <$> arbitrary
-                , ApiBurn <$> arbitrary
-                ]
+    arbitrary = oneof
+        [ ApiMint <$> arbitrary
+        , ApiBurn <$> arbitrary
+        ]
 
 instance Arbitrary (ApiMintedBurnedTransaction n) where
     arbitrary = ApiMintedBurnedTransaction <$> arbitrary <*> arbitrary
@@ -2297,7 +2307,6 @@ instance Arbitrary ApiMintedBurnedInfo where
             (ApiT assetName)
             (ApiT subject)
             (ApiT script)
-
 
 instance Typeable n => ToSchema (ApiMintedBurnedTransaction n) where
     declareNamedSchema _ = do

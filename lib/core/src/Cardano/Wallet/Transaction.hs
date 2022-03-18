@@ -307,9 +307,9 @@ data TransactionCtx = TransactionCtx
     , txPlutusScriptExecutionCost :: Coin
     -- ^ Total execution cost of plutus scripts, determined by their execution units
     -- and prices obtained from network.
-    , txAssetsToMint :: (TokenMap, Map AssetId (Script KeyHash) )
+    , txAssetsToMint :: (TokenMap, Map AssetId (Script KeyHash))
     -- ^ The assets to mint.
-    , txAssetsToBurn :: (TokenMap, Map AssetId (Script KeyHash) )
+    , txAssetsToBurn :: (TokenMap, Map AssetId (Script KeyHash))
     -- ^ The assets to burn.
     , txCollateralRequirement :: SelectionCollateralRequirement
     -- ^ The collateral requirement.

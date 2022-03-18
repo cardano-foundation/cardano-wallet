@@ -1319,7 +1319,7 @@ spec = describe "NEW_SHELLEY_TRANSACTIONS" $ do
 
         let policyWithHash = Link.getPolicyKey @'Shelley wa (Just True)
         (_, policyKeyHashPayload) <-
-                unsafeRequest @ApiPolicyKey ctx policyWithHash Empty
+            unsafeRequest @ApiPolicyKey ctx policyWithHash Empty
 
         let activeAssetsInfo = ApiAssetMintedBurned
                 { tokenMap = ApiT tokens
@@ -2960,7 +2960,7 @@ spec = describe "NEW_SHELLEY_TRANSACTIONS" $ do
                 ]
 
     it "TRANS_NEW_CREATE_10a - Minting/burning assets - more than one cosigner \
-       \in template" $ \ctx -> runResourceT $ do
+        \in template" $ \ctx -> runResourceT $ do
         wa <- fixtureWallet ctx
         addrs <- listAddresses @n ctx wa
         let destination = (addrs !! 1) ^. #id
@@ -2995,7 +2995,7 @@ spec = describe "NEW_SHELLEY_TRANSACTIONS" $ do
             ]
 
     it "TRANS_NEW_CREATE_10b - Minting/burning assets - incorrect template \
-       \" $ \ctx -> runResourceT $ do
+        \" $ \ctx -> runResourceT $ do
         wa <- fixtureWallet ctx
         addrs <- listAddresses @n ctx wa
         let destination = (addrs !! 1) ^. #id
@@ -3101,7 +3101,7 @@ spec = describe "NEW_SHELLEY_TRANSACTIONS" $ do
 
         let policyWithHash = Link.getPolicyKey @'Shelley wa (Just True)
         (_, policyKeyHashPayload) <-
-                unsafeRequest @ApiPolicyKey ctx policyWithHash Empty
+            unsafeRequest @ApiPolicyKey ctx policyWithHash Empty
         let (Just policyKeyHash) =
                 keyHashFromBytes (Policy, getApiPolicyKey policyKeyHashPayload)
 
@@ -3109,16 +3109,20 @@ spec = describe "NEW_SHELLEY_TRANSACTIONS" $ do
                 UnsafeTokenPolicyId . Hash $
                 unScriptHash $
                 toScriptHash $
-                RequireAllOf [ RequireSignatureOf policyKeyHash
-                             , ActiveFromSlot 120]
+                RequireAllOf
+                    [ RequireSignatureOf policyKeyHash
+                    , ActiveFromSlot 120
+                    ]
         let tokens = TokenMap.singleton
                 (AssetId tokenPolicyId' tokenName')
                 (TokenQuantity 50_000)
         let mintScript =
                 ApiPolicyScript
                 ( ApiT tokenPolicyId' )
-                ( ApiT (RequireAllOf [ RequireSignatureOf policyKeyHash
-                                     , ActiveFromSlot 120]))
+                $ ApiT $ RequireAllOf
+                    [ RequireSignatureOf policyKeyHash
+                    , ActiveFromSlot 120
+                    ]
 
         let activeAssetsInfo = ApiAssetMintedBurned
                 { tokenMap = ApiT tokens
@@ -3173,7 +3177,7 @@ spec = describe "NEW_SHELLEY_TRANSACTIONS" $ do
 
         let policyWithHash = Link.getPolicyKey @'Shelley wa (Just True)
         (_, policyKeyHashPayload) <-
-                unsafeRequest @ApiPolicyKey ctx policyWithHash Empty
+            unsafeRequest @ApiPolicyKey ctx policyWithHash Empty
         let (Just policyKeyHash) =
                 keyHashFromBytes (Policy, getApiPolicyKey policyKeyHashPayload)
 
@@ -3181,16 +3185,20 @@ spec = describe "NEW_SHELLEY_TRANSACTIONS" $ do
                 UnsafeTokenPolicyId . Hash $
                 unScriptHash $
                 toScriptHash $
-                RequireAllOf [ RequireSignatureOf policyKeyHash
-                             , ActiveFromSlot 120]
+                RequireAllOf
+                    [ RequireSignatureOf policyKeyHash
+                    , ActiveFromSlot 120
+                    ]
         let tokens = TokenMap.singleton
                 (AssetId tokenPolicyId' tokenName')
                 (TokenQuantity 50_000)
         let burnScript =
                 ApiPolicyScript
                 ( ApiT tokenPolicyId' )
-                ( ApiT (RequireAllOf [ RequireSignatureOf policyKeyHash
-                                     , ActiveFromSlot 120]))
+                $ ApiT $ RequireAllOf
+                    [ RequireSignatureOf policyKeyHash
+                    , ActiveFromSlot 120
+                    ]
 
         let activeAssetsInfo = ApiAssetMintedBurned
                 { tokenMap = ApiT TokenMap.empty

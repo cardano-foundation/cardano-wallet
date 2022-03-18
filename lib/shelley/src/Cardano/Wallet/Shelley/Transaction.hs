@@ -376,7 +376,7 @@ mkTx networkId payload ttl (rewardAcnt, pwdAcnt) addrResolver wdrl cs fees era =
             wdrl
 
     unsigned <- mkUnsignedTx era ttl cs md wdrls certs (toCardanoLovelace fees)
-                TokenMap.empty TokenMap.empty Map.empty
+        TokenMap.empty TokenMap.empty Map.empty
     let signed = signTransaction networkId acctResolver addrResolver inputResolver
             (unsigned, mkExtraWits unsigned)
 

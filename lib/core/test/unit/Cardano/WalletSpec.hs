@@ -1370,7 +1370,10 @@ dummyTransactionLayer = TransactionLayer
         error "dummyTransactionLayer: constraints not implemented"
     , decodeTx = \_sealed ->
         ( Tx (Hash "") Nothing mempty mempty mempty mempty mempty Nothing
-        , emptyTokenMapWithScripts, emptyTokenMapWithScripts, [])
+        , emptyTokenMapWithScripts
+        , emptyTokenMapWithScripts
+        , []
+        )
     , updateTx = \sealed _update ->
         pure sealed
     }

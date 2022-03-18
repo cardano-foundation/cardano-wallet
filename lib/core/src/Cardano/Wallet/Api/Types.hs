@@ -1226,15 +1226,17 @@ data ApiAnyCertificate n =
 data ApiPolicyScript = ApiPolicyScript
     { policyId :: !(ApiT W.TokenPolicyId)
     , policyScript :: !(ApiT (Script KeyHash))
-    } deriving (Eq, Generic, Show)
-      deriving anyclass NFData
+    }
+    deriving (Eq, Generic, Show)
+    deriving anyclass NFData
 
 data ApiAssetMintedBurned = ApiAssetMintedBurned
     { tokenMap :: !(ApiT W.TokenMap)
     , policyScripts :: ![ApiPolicyScript]
     , walletPolicyKeyHash :: !ApiPolicyKey
-    } deriving (Eq, Generic, Show)
-      deriving anyclass NFData
+    }
+    deriving (Eq, Generic, Show)
+    deriving anyclass NFData
 
 data ApiDecodedTransaction (n :: NetworkDiscriminant) = ApiDecodedTransaction
     { id :: !(ApiT (Hash "Tx"))
@@ -1255,7 +1257,8 @@ data ApiDecodedTransaction (n :: NetworkDiscriminant) = ApiDecodedTransaction
 
 -- | The response cardano-wallet returns upon successful submission of a
 -- mint/burn transaction.
-data ApiMintedBurnedTransaction (n :: NetworkDiscriminant) = ApiMintedBurnedTransaction
+data ApiMintedBurnedTransaction (n :: NetworkDiscriminant) =
+    ApiMintedBurnedTransaction
     { transaction :: !(ApiTransaction n)
     -- ^ Information about the mint/burn transaction itself.
     , mintedBurned :: !(NonEmpty (ApiT ApiMintedBurnedInfo))
@@ -1266,19 +1269,25 @@ data ApiMintedBurnedTransaction (n :: NetworkDiscriminant) = ApiMintedBurnedTran
     deriving anyclass NFData
 
 data ApiMintedBurnedInfo = ApiMintedBurnedInfo
-    { verificationKeyIndex :: !(ApiT DerivationIndex)
-    -- ^ The monetary policy index the asset was minted/burnt under.
-    , policyId            :: !(ApiT W.TokenPolicyId)
-    -- ^ The policy ID the asset was minted/burnt under.
-    , assetName           :: !(ApiT W.TokenName)
-    -- ^ The name of the asset minted/burnt.
-    , subject             :: !(ApiT W.TokenFingerprint)
-    -- ^ The subject of the asset minted/burnt. This is useful to users wishing
-    -- to attach metadata to their asset.
-    , policyScript        :: !(ApiT (Script KeyHash))
-    -- ^ The script which this asset was minted and/or burned under
-    } deriving (Eq, Generic, Show)
-      deriving anyclass NFData
+    { verificationKeyIndex
+        :: !(ApiT DerivationIndex)
+        -- ^ The monetary policy index the asset was minted/burnt under.
+    , policyId
+        :: !(ApiT W.TokenPolicyId)
+        -- ^ The policy ID the asset was minted/burnt under.
+    , assetName
+        :: !(ApiT W.TokenName)
+        -- ^ The name of the asset minted/burnt.
+    , subject
+        :: !(ApiT W.TokenFingerprint)
+        -- ^ The subject of the asset minted/burnt. This is useful to users
+        -- wishing to attach metadata to their asset.
+    , policyScript
+        :: !(ApiT (Script KeyHash))
+        -- ^ The script which this asset was minted and/or burned under
+    }
+    deriving (Eq, Generic, Show)
+    deriving anyclass NFData
 
 newtype ApiTxMetadata = ApiTxMetadata
     { getApiTxMetadata :: Maybe (ApiT TxMetadata)
@@ -1489,8 +1498,9 @@ data ApiVerificationKeyShelley = ApiVerificationKeyShelley
 data ApiPolicyKey = ApiPolicyKey
     { getApiPolicyKey :: ByteString
     , hashed :: VerificationKeyHashing
-    } deriving (Eq, Generic, Show)
-      deriving anyclass NFData
+    }
+    deriving (Eq, Generic, Show)
+    deriving anyclass NFData
 
 data ApiVerificationKeyShared = ApiVerificationKeyShared
     { getApiVerificationKey :: (ByteString, Role)
@@ -3995,12 +4005,15 @@ instance ToJSON (ApiT SmashServer) where
 -- minting and burning using transactions, so some of these fields are shared
 -- with @PostTransactionData@.
 data PostMintBurnAssetData (n :: NetworkDiscriminant) = PostMintBurnAssetData
-    { mintBurn   :: !(NonEmpty (ApiMintBurnData n))
-    -- ^ Minting and burning requests.
-    , passphrase :: !(ApiT (Passphrase "lenient"))
-    -- ^ Passphrase of the wallet.
-    , metadata   :: !(Maybe (ApiT TxMetadata))
-    -- ^ Metadata to attach to the transaction that mints/burns.
+    { mintBurn
+        :: !(NonEmpty (ApiMintBurnData n))
+        -- ^ Minting and burning requests.
+    , passphrase
+        :: !(ApiT (Passphrase "lenient"))
+        -- ^ Passphrase of the wallet.
+    , metadata
+        :: !(Maybe (ApiT TxMetadata))
+        -- ^ Metadata to attach to the transaction that mints/burns.
     } deriving (Eq, Generic, Show)
 
 instance DecodeAddress n => FromJSON (PostMintBurnAssetData n) where
@@ -4024,14 +4037,18 @@ instance EncodeAddress n => ToJSON (PostMintBurnAssetData n) where
 -- ix=0 is assumed to be used. The verification key derivation is according to
 -- CIP 1855.
 data ApiMintBurnData (n :: NetworkDiscriminant) = ApiMintBurnData
-    { policyScriptTemplate :: !(ApiT (Script Cosigner))
-    -- ^ A script regulating minting/burning policy. 'self' is expected
-    -- in place of verification key.
-    , assetName            :: !(ApiT W.TokenName)
-    -- ^ The name of the asset to mint/burn.
-    , operation            :: !(ApiMintBurnOperation n)
-    -- ^ The minting or burning operation to perform.
-    } deriving (Eq, Generic, Show)
+    { policyScriptTemplate
+        :: !(ApiT (Script Cosigner))
+        -- ^ A script regulating minting/burning policy. 'self' is expected
+        -- in place of verification key.
+    , assetName
+        :: !(ApiT W.TokenName)
+        -- ^ The name of the asset to mint/burn.
+    , operation
+        :: !(ApiMintBurnOperation n)
+        -- ^ The minting or burning operation to perform.
+    }
+    deriving (Eq, Generic, Show)
     deriving anyclass NFData
 
 instance DecodeAddress n => FromJSON (ApiMintBurnData n) where
@@ -4052,10 +4069,12 @@ data ApiMintBurnOperation (n :: NetworkDiscriminant)
 -- | The format of a minting request: mint "amount" and send it to the
 -- "address".
 data ApiMintData (n :: NetworkDiscriminant) = ApiMintData
-    { receivingAddress :: (ApiT Address, Proxy n)
-    -- ^ Address that receives the minted assets.
-    , amount           :: Quantity "assets" Natural
-    -- ^ Amount of assets to mint.
+    { receivingAddress
+        :: (ApiT Address, Proxy n)
+        -- ^ Address that receives the minted assets.
+    , amount
+        :: Quantity "assets" Natural
+        -- ^ Amount of assets to mint.
     }
     deriving (Eq, Generic, Show)
     deriving anyclass NFData

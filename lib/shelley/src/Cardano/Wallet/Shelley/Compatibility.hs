@@ -1336,13 +1336,20 @@ fromCardanoTx
     -> (W.Tx, TokenMapWithScripts, TokenMapWithScripts, [Certificate])
 fromCardanoTx = \case
     Cardano.ShelleyTx era tx -> case era of
-        Cardano.ShelleyBasedEraShelley -> extract $ fromShelleyTx tx
-        Cardano.ShelleyBasedEraAllegra -> extract $ fromAllegraTx tx
-        Cardano.ShelleyBasedEraMary    -> extract $ fromMaryTx tx
-        Cardano.ShelleyBasedEraAlonzo  -> extract $ fromAlonzoTx tx
-    Cardano.ByronTx tx                 -> ( fromTxAux tx
-                                          , emptyTokenMapWithScripts
-                                          , emptyTokenMapWithScripts, [])
+        Cardano.ShelleyBasedEraShelley ->
+            extract $ fromShelleyTx tx
+        Cardano.ShelleyBasedEraAllegra ->
+            extract $ fromAllegraTx tx
+        Cardano.ShelleyBasedEraMary ->
+            extract $ fromMaryTx tx
+        Cardano.ShelleyBasedEraAlonzo ->
+            extract $ fromAlonzoTx tx
+    Cardano.ByronTx tx ->
+        ( fromTxAux tx
+        , emptyTokenMapWithScripts
+        , emptyTokenMapWithScripts
+        , []
+        )
   where
     extract (tx, certs, mint, burn) = (tx, mint, burn, certs)
 
@@ -1467,8 +1474,8 @@ fromMaryTx tx =
     toSLMetadata (MA.AuxiliaryData blob _scripts) = SL.Metadata blob
 
     fromMaryTxOut
-         :: SLAPI.TxOut (Cardano.ShelleyLedgerEra MaryEra)
-         -> W.TxOut
+        :: SLAPI.TxOut (Cardano.ShelleyLedgerEra MaryEra)
+        -> W.TxOut
     fromMaryTxOut (SL.TxOut addr value) =
         W.TxOut (fromShelleyAddress addr) $
         fromCardanoValue $ Cardano.fromMaryValue value
@@ -1558,8 +1565,9 @@ fromAlonzoTxBodyAndAux bod mad wits =
         | otherwise = (Map.empty, Map.empty)
 
     fromAlonzoScriptMap
-        :: Map (SL.ScriptHash (Crypto StandardAlonzo))
-           (SL.Core.Script StandardAlonzo)
+        :: Map
+            (SL.ScriptHash (Crypto StandardAlonzo))
+            (SL.Core.Script StandardAlonzo)
         -> Map TokenPolicyId (Script KeyHash)
     fromAlonzoScriptMap anyScript =
         if Map.filter isPlutusScript anyScript == Map.empty then
@@ -1576,8 +1584,8 @@ fromAlonzoTxBodyAndAux bod mad wits =
             internalError "only timelock scripts should be attempted here"
 
     fromAlonzoTxOut
-         :: Alonzo.TxOut (Cardano.ShelleyLedgerEra AlonzoEra)
-         -> W.TxOut
+        :: Alonzo.TxOut (Cardano.ShelleyLedgerEra AlonzoEra)
+        -> W.TxOut
     fromAlonzoTxOut (Alonzo.TxOut addr value _) =
         W.TxOut (fromShelleyAddress addr) $
         fromCardanoValue $ Cardano.fromMaryValue value

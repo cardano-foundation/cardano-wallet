@@ -2182,9 +2182,10 @@ constructTransaction ctx genChange knownPools getPoolStatus (ApiT wid) body = do
             isLeft (validateScriptOfTemplate RecommendedValidation scriptTempl)
             || length (retrieveAllCosigners scriptTempl) > 1
             || (L.any (/= Cosigner 0)) (retrieveAllCosigners scriptTempl)
-    when ( isJust mintingBurning &&
-           L.any wrongMintingTemplate (NE.toList $ fromJust mintingBurning)) $
-        liftHandler $ throwE ErrConstructTxWrongMintingBurningTemplate
+    when
+        ( isJust mintingBurning &&
+          L.any wrongMintingTemplate (NE.toList $ fromJust mintingBurning)
+        ) $ liftHandler $ throwE ErrConstructTxWrongMintingBurningTemplate
 
     let checkIx (ApiStakeKeyIndex (ApiT derIndex)) =
             derIndex == DerivationIndex (getIndex @'Hardened minBound)
@@ -2270,20 +2271,28 @@ constructTransaction ctx genChange knownPools getPoolStatus (ApiT wid) body = do
                     liftHandler $ W.readPolicyPublicKey @_ @s @k @n wrk wid
                 let isMinting (ApiMintBurnData _ _ (ApiMint _)) = True
                     isMinting _ = False
-                let getMinting ( ApiMintBurnData (ApiT scriptT) (ApiT tName)
-                                 (ApiMint (ApiMintData _ (Quantity amt)))) =
-                        toTokenMapAndScript @k scriptT
-                        (Map.singleton (Cosigner 0) policyXPub)
-                        tName
-                        amt
-                    getMinting _ = error "getMinting should not be used that way"
-                let getBurning (ApiMintBurnData (ApiT scriptT) (ApiT tName)
-                                (ApiBurn (ApiBurnData (Quantity amt)))) =
-                        toTokenMapAndScript @k scriptT
-                        (Map.singleton (Cosigner 0) policyXPub)
-                        tName
-                        amt
-                    getBurning _ = error "getBurning should not be used that way"
+                let getMinting = \case
+                        ApiMintBurnData
+                            (ApiT scriptT)
+                            (ApiT tName)
+                            (ApiMint (ApiMintData _ (Quantity amt))) ->
+                            toTokenMapAndScript @k
+                                scriptT
+                                (Map.singleton (Cosigner 0) policyXPub)
+                                tName
+                                amt
+                        _ -> error "getMinting should not be used that way"
+                let getBurning = \case
+                        ApiMintBurnData
+                            (ApiT scriptT)
+                            (ApiT tName)
+                            (ApiBurn (ApiBurnData (Quantity amt))) ->
+                            toTokenMapAndScript @k
+                                scriptT
+                                (Map.singleton (Cosigner 0) policyXPub)
+                                tName
+                                amt
+                        _ -> error "getBurning should not be used that way"
                 let toTokenMap =
                         fromFlatList .
                         map (\(a,q,_) -> (a,q))
@@ -2421,13 +2430,13 @@ decodeTransaction ctx (ApiT wid) (ApiSerialisedTransaction (ApiT sealed)) = do
         , assetsBurned = toApiAssetMintedBurned policyXPub toBurn
         , certificates = map (toApiAnyCert acct acctPath) allCerts
         , depositsTaken =
-                map (const (Quantity . fromIntegral . unCoin . W.stakeKeyDeposit $ pp)) $
-                filter ourRewardAccountRegistration $
-                map (toApiAnyCert acct acctPath) allCerts
+            map (const (Quantity . fromIntegral . unCoin . W.stakeKeyDeposit $ pp)) $
+            filter ourRewardAccountRegistration $
+            map (toApiAnyCert acct acctPath) allCerts
         , depositsReturned =
-                map (const (Quantity . fromIntegral . unCoin . W.stakeKeyDeposit $ pp)) $
-                filter ourRewardAccountDeregistration $
-                map (toApiAnyCert acct acctPath) allCerts
+            map (const (Quantity . fromIntegral . unCoin . W.stakeKeyDeposit $ pp)) $
+            filter ourRewardAccountDeregistration $
+            map (toApiAnyCert acct acctPath) allCerts
         , metadata = ApiTxMetadata $ ApiT <$> meta
         , scriptValidity = ApiT <$> vldt
         }
@@ -2436,13 +2445,13 @@ decodeTransaction ctx (ApiT wid) (ApiSerialisedTransaction (ApiT sealed)) = do
     toApiAssetMintedBurned xpub tokenWithScripts = ApiAssetMintedBurned
         { tokenMap = ApiT $ tokenWithScripts ^. #txTokenMap
         , policyScripts =
-                map (uncurry ApiPolicyScript) $
-                Map.toList $
-                Map.map ApiT $
-                Map.mapKeys ApiT $
-                tokenWithScripts ^. #txScripts
+            map (uncurry ApiPolicyScript) $
+            Map.toList $
+            Map.map ApiT $
+            Map.mapKeys ApiT $
+            tokenWithScripts ^. #txScripts
         , walletPolicyKeyHash =
-                uncurry ApiPolicyKey (computeKeyPayload (Just True) xpub)
+            uncurry ApiPolicyKey (computeKeyPayload (Just True) xpub)
         }
     toOut (txoutIncoming, Nothing) =
         ExternalOutput $ toAddressAmount @n txoutIncoming

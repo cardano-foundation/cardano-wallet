@@ -145,22 +145,34 @@ toTokenMapAndScript
     -> Natural
     -> (AssetId, TokenQuantity, Script KeyHash)
 toTokenMapAndScript scriptTempl cosignerMap tName val =
-    ( AssetId (UnsafeTokenPolicyId $ Hash $ unScriptHash $ toScriptHash $
-               replaceCosigner scriptTempl) tName
+    ( AssetId
+        ( UnsafeTokenPolicyId
+        $ Hash
+        $ unScriptHash
+        $ toScriptHash
+        $ replaceCosigner scriptTempl
+        ) tName
     , TokenQuantity val
-    , replaceCosigner scriptTempl )
+    , replaceCosigner scriptTempl
+    )
   where
     replaceCosigner :: Script Cosigner -> Script KeyHash
     replaceCosigner = \case
-        RequireSignatureOf c -> RequireSignatureOf $ toKeyHash c
-        RequireAllOf xs      -> RequireAllOf (map replaceCosigner xs)
-        RequireAnyOf xs      -> RequireAnyOf (map replaceCosigner xs)
-        RequireSomeOf m xs   -> RequireSomeOf m (map replaceCosigner xs)
-        ActiveFromSlot s     -> ActiveFromSlot s
-        ActiveUntilSlot s    -> ActiveUntilSlot s
+        RequireSignatureOf c ->
+            RequireSignatureOf $ toKeyHash c
+        RequireAllOf xs ->
+            RequireAllOf (map replaceCosigner xs)
+        RequireAnyOf xs ->
+            RequireAnyOf (map replaceCosigner xs)
+        RequireSomeOf m xs ->
+            RequireSomeOf m (map replaceCosigner xs)
+        ActiveFromSlot s ->
+            ActiveFromSlot s
+        ActiveUntilSlot s ->
+            ActiveUntilSlot s
     toKeyHash :: Cosigner -> KeyHash
     toKeyHash c =
-        let (Just xpub) =
+        let Just xpub =
                 invariant "we should have xpubs of all cosigners at this point"
                 (Map.lookup c cosignerMap)
                 isJust
