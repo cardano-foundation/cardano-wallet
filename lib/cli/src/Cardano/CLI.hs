@@ -1632,7 +1632,7 @@ mkScribeId (LogToFile file _) = pure $ T.pack $ "FileSK::" <> file
 getPrometheusURL :: IO (Maybe (String, Port "Prometheus"))
 getPrometheusURL = do
     prometheus_port <- lookupEnv "CARDANO_WALLET_PROMETHEUS_PORT"
-    prometheus_host <- fromMaybe "localhost" <$> lookupEnv "CARDANO_WALLET_PROMETHEUS_HOST"
+    prometheus_host <- fromMaybe "127.0.0.1" <$> lookupEnv "CARDANO_WALLET_PROMETHEUS_HOST"
     case (prometheus_host, prometheus_port) of
         (host, Just port) ->
             case fromText @(Port "Prometheus") $ T.pack port of
@@ -1646,7 +1646,7 @@ getPrometheusURL = do
 getEKGURL :: IO (Maybe (String, Port "EKG"))
 getEKGURL = do
     ekg_port <- lookupEnv "CARDANO_WALLET_EKG_PORT"
-    ekg_host <- fromMaybe "localhost" <$> lookupEnv "CARDANO_WALLET_EKG_HOST"
+    ekg_host <- fromMaybe "127.0.0.1" <$> lookupEnv "CARDANO_WALLET_EKG_HOST"
     case (ekg_host, ekg_port) of
         (host, Just port) ->
             case fromText @(Port "EKG") $ T.pack port of
