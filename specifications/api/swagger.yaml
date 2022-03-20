@@ -2427,7 +2427,7 @@ components:
         subject: *assetFingerprint
         policy_script:
           <<: *ScriptValue
-          description: The script under which this asset was minted or burned.
+          description: The script under which the asset is minted or burned.
 
     ApiConstructTransaction: &ApiConstructTransaction
       type: object
