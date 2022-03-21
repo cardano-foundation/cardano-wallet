@@ -43,7 +43,6 @@ module Cardano.Wallet.Api
         , ListAssets
         , GetAsset
         , GetAssetDefault
-        , MintBurnAssets
 
     , Addresses
         , ListAddresses
@@ -185,7 +184,6 @@ import Cardano.Wallet.Api.Types
     , ApiHealthCheck
     , ApiMaintenanceAction
     , ApiMaintenanceActionPostData
-    , ApiMintBurnTransactionT
     , ApiNetworkClock
     , ApiNetworkInformation
     , ApiNetworkParameters
@@ -219,7 +217,6 @@ import Cardano.Wallet.Api.Types
     , Iso8601Time
     , KeyFormat
     , MinWithdrawal
-    , PostMintBurnAssetDataT
     , PostTransactionFeeOldDataT
     , PostTransactionOldDataT
     , SettingsPutData
@@ -307,7 +304,7 @@ type ApiV2 n apiPool = "v2" :> Api n apiPool
 type Api n apiPool =
          Wallets
     :<|> WalletKeys
-    :<|> Assets n
+    :<|> Assets
     :<|> Addresses n
     :<|> CoinSelections n
     :<|> ShelleyTransactions n
@@ -446,9 +443,8 @@ type GetPolicyKey = "wallets"
   See also: https://input-output-hk.github.io/cardano-wallet/api/#tag/Assets
 -------------------------------------------------------------------------------}
 
-type Assets n =
-    MintBurnAssets n
-    :<|> ListAssets
+type Assets =
+    ListAssets
     :<|> GetAsset
     :<|> GetAssetDefault
 
@@ -472,13 +468,6 @@ type GetAssetDefault = "wallets"
     :> "assets"
     :> Capture "policyId" (ApiT TokenPolicyId)
     :> Get '[JSON] ApiAsset
-
--- | https://input-output-hk.github.io/cardano-wallet/api/#operation/mintBurnAssets
-type MintBurnAssets n = "wallets"
-    :> Capture "walletId" (ApiT WalletId)
-    :> "assets"
-    :> ReqBody '[JSON] (PostMintBurnAssetDataT n)
-    :> PostAccepted '[JSON] (ApiMintBurnTransactionT n)
 
 {-------------------------------------------------------------------------------
                                   Addresses

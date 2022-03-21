@@ -90,7 +90,6 @@ module Cardano.Wallet.Api.Server
     , postSharedWallet
     , patchSharedWallet
     , mkSharedWallet
-    , mintBurnAssets
     , balanceTransaction
     , decodeTransaction
     , submitTransaction
@@ -154,7 +153,6 @@ import Cardano.Wallet
     , ErrInvalidDerivationIndex (..)
     , ErrListTransactions (..)
     , ErrListUTxOStatistics (..)
-    , ErrMintBurnAssets (..)
     , ErrMkTransaction (..)
     , ErrNoSuchTransaction (..)
     , ErrNoSuchWallet (..)
@@ -236,7 +234,6 @@ import Cardano.Wallet.Api.Types
     , ApiMintBurnData (..)
     , ApiMintBurnInfo (..)
     , ApiMintBurnOperation (..)
-    , ApiMintBurnTransaction (..)
     , ApiMintData (..)
     , ApiMnemonicT (..)
     , ApiMultiDelegationAction (..)
@@ -3362,16 +3359,6 @@ getPolicyKey ctx (ApiT wid) hashed = do
         (k, _) <- liftHandler $ W.readPolicyPublicKey @_ @s @k @n wrk wid
         pure $ uncurry ApiPolicyKey (computeKeyPayload hashed k)
 
-mintBurnAssets
-    :: forall ctx n
-     . ctx
-    -> ApiT WalletId
-    -> Api.PostMintBurnAssetData n
-    -> Handler (ApiMintBurnTransaction n)
-mintBurnAssets _ctx (ApiT _wid) _body = liftHandler $ throwE $
-    ErrMintBurnNotImplemented
-    "Minting and burning are not supported yet - this is just a stub"
-
 {-------------------------------------------------------------------------------
                                   Helpers
 -------------------------------------------------------------------------------}
@@ -4215,10 +4202,6 @@ instance IsServerError ErrBalanceTx where
                 , "the maximum transaction size."
                 ]
 
-
-instance IsServerError ErrMintBurnAssets where
-    toServerError = \case
-        ErrMintBurnNotImplemented msg -> apiError err501 NotImplemented msg
 
 instance IsServerError ErrRemoveTx where
     toServerError = \case

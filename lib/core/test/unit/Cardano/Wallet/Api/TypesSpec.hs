@@ -101,7 +101,6 @@ import Cardano.Wallet.Api.Types
     , ApiMintBurnData (..)
     , ApiMintBurnInfo (..)
     , ApiMintBurnOperation (..)
-    , ApiMintBurnTransaction (..)
     , ApiMintData (..)
     , ApiMnemonicT (..)
     , ApiMultiDelegationAction (..)
@@ -183,7 +182,6 @@ import Cardano.Wallet.Api.Types
     , Iso8601Time (..)
     , KeyFormat (..)
     , NtpSyncingStatus (..)
-    , PostMintBurnAssetData (..)
     , PostTransactionFeeOldData (..)
     , PostTransactionOldData (..)
     , ResourceContext (..)
@@ -572,7 +570,6 @@ spec = parallel $ do
             jsonRoundtripAndGolden $ Proxy @(ApiOurStakeKey ('Testnet 0))
             jsonRoundtripAndGolden $ Proxy @(ApiForeignStakeKey ('Testnet 0))
             jsonRoundtripAndGolden $ Proxy @ApiNullStakeKey
-            jsonRoundtripAndGolden $ Proxy @(PostMintBurnAssetData ('Testnet 0))
 
     describe "ToText-FromText Roundtrip" $ do
             textRoundtrip $ Proxy @Iso8601Time
@@ -1069,15 +1066,6 @@ spec = parallel $ do
                     }
             in
                 x' === x .&&. show x' === show x
-        it "PostMintBurnAssetData" $ property $ \x ->
-          let
-            x' = PostMintBurnAssetData
-                 { mintBurn = mintBurn (x :: PostMintBurnAssetData ('Testnet 0))
-                 , passphrase = passphrase (x :: PostMintBurnAssetData ('Testnet 0))
-                 , metadata = metadata (x :: PostMintBurnAssetData ('Testnet 0))
-                 }
-          in
-               x' === x .&&. show x' === show x
         it "PostTransactionOldData" $ property $ \x ->
             let
                 x' = PostTransactionOldData
@@ -2220,9 +2208,6 @@ instance Arbitrary StakeAddress where
             (proxyToAsType Proxy)
             (header <> payload)
 
-instance Arbitrary (PostMintBurnAssetData n) where
-    arbitrary = applyArbitrary3 PostMintBurnAssetData
-
 instance Arbitrary (ApiConstructTransaction n) where
     arbitrary = applyArbitrary4 ApiConstructTransaction
 
@@ -2284,9 +2269,6 @@ instance Arbitrary (ApiMintBurnOperation n) where
         , ApiBurn <$> arbitrary
         ]
 
-instance Arbitrary (ApiMintBurnTransaction n) where
-    arbitrary = ApiMintBurnTransaction <$> arbitrary <*> arbitrary
-
 instance Arbitrary ApiMintBurnInfo where
     arbitrary = do
         mpi <- arbitrary
@@ -2304,11 +2286,6 @@ instance Arbitrary ApiMintBurnInfo where
             (ApiT assetName)
             (ApiT subject)
             (ApiT script)
-
-instance Typeable n => ToSchema (ApiMintBurnTransaction n) where
-    declareNamedSchema _ = do
-        addDefinition =<< declareSchemaForDefinition "TransactionMetadataValue"
-        declareSchemaForDefinition "ApiMintBurnTransaction"
 
 instance Arbitrary TokenPolicyId where
     arbitrary = UnsafeTokenPolicyId . Hash . BS.pack <$> vector 28
@@ -2832,12 +2809,6 @@ instance Typeable n => ToSchema (ApiExternalInput n) where
 
 instance Typeable n => ToSchema (ApiBalanceTransactionPostData n) where
     declareNamedSchema _ = declareSchemaForDefinition "ApiBalanceTransactionPostData"
-
-instance Typeable n => ToSchema (PostMintBurnAssetData n) where
-    declareNamedSchema _ = do
-        addDefinition =<< declareSchemaForDefinition "ScriptTemplateValue"
-        addDefinition =<< declareSchemaForDefinition "TransactionMetadataValue"
-        declareSchemaForDefinition "ApiPostMintBurnAssetData"
 
 instance Typeable n => ToSchema (ApiTransaction n) where
     declareNamedSchema _ = do

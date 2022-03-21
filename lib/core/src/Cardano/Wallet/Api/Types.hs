@@ -96,7 +96,6 @@ module Cardano.Wallet.Api.Types
     , PostTransactionFeeOldData (..)
     , ApiSerialisedTransaction (..)
     , ApiTransaction (..)
-    , ApiMintBurnTransaction (..)
     , ApiMintBurnInfo (..)
     , ApiWithdrawalPostData (..)
     , ApiMaintenanceAction (..)
@@ -158,7 +157,6 @@ module Cardano.Wallet.Api.Types
     , ApiPaymentDestination (..)
     , ApiValidityInterval (..)
     , ApiValidityBound (..)
-    , PostMintBurnAssetData(..)
     , ApiBalanceTransactionPostData (..)
     , ApiExternalInput (..)
     , ApiRedeemer (..)
@@ -225,10 +223,8 @@ module Cardano.Wallet.Api.Types
     , ApiConstructTransactionDataT
     , PostTransactionOldDataT
     , PostTransactionFeeOldDataT
-    , ApiMintBurnTransactionT
     , ApiWalletMigrationPlanPostDataT
     , ApiWalletMigrationPostDataT
-    , PostMintBurnAssetDataT
     , ApiBalanceTransactionPostDataT
     , ApiDecodedTransactionT
 
@@ -1254,19 +1250,6 @@ data ApiDecodedTransaction (n :: NetworkDiscriminant) = ApiDecodedTransaction
     , scriptValidity :: !(Maybe (ApiT TxScriptValidity))
     } deriving (Eq, Generic, Show, Typeable)
       deriving anyclass NFData
-
--- | The response cardano-wallet returns upon successful submission of a
--- mint/burn transaction.
-data ApiMintBurnTransaction (n :: NetworkDiscriminant) =
-    ApiMintBurnTransaction
-    { transaction :: !(ApiTransaction n)
-    -- ^ Information about the mint/burn transaction itself.
-    , mintBurn :: !(NonEmpty (ApiT ApiMintBurnInfo))
-    -- ^ Helpful information about each unique asset minted or burned (where the
-    -- identity is the policyId + asset name of the asset).
-    }
-    deriving (Eq, Generic, Show, Typeable)
-    deriving anyclass NFData
 
 data ApiMintBurnInfo = ApiMintBurnInfo
     { verificationKeyIndex
@@ -2979,18 +2962,6 @@ instance (DecodeAddress t, DecodeStakeAddress t) => FromJSON (ApiConstructTransa
 instance (EncodeAddress t, EncodeStakeAddress t) => ToJSON (ApiConstructTransaction t) where
     toJSON = genericToJSON defaultRecordTypeOptions
 
-instance
-    ( DecodeAddress n
-    , DecodeStakeAddress n
-    ) => FromJSON (ApiMintBurnTransaction n) where
-    parseJSON = genericParseJSON defaultRecordTypeOptions
-
-instance
-    ( EncodeAddress n
-    , EncodeStakeAddress n
-    ) => ToJSON (ApiMintBurnTransaction n) where
-    toJSON = genericToJSON defaultRecordTypeOptions
-
 instance FromJSON ApiWithdrawalPostData where
     parseJSON obj =
         parseSelfWithdrawal <|> fmap ExternalWithdrawal (parseJSON obj)
@@ -3895,8 +3866,6 @@ type family ApiConstructTransactionT (n :: k) :: Type
 type family ApiConstructTransactionDataT (n :: k) :: Type
 type family PostTransactionOldDataT (n :: k) :: Type
 type family PostTransactionFeeOldDataT (n :: k) :: Type
-type family ApiMintBurnTransactionT (n :: k) :: Type
-type family PostMintBurnAssetDataT (n :: k) :: Type
 type family ApiWalletMigrationPlanPostDataT (n :: k) :: Type
 type family ApiWalletMigrationPostDataT (n :: k1) (s :: k2) :: Type
 type family ApiPutAddressesDataT (n :: k) :: Type
@@ -3935,17 +3904,11 @@ type instance PostTransactionOldDataT (n :: NetworkDiscriminant) =
 type instance PostTransactionFeeOldDataT (n :: NetworkDiscriminant) =
     PostTransactionFeeOldData n
 
-type instance PostMintBurnAssetDataT (n :: NetworkDiscriminant) =
-    PostMintBurnAssetData n
-
 type instance ApiWalletMigrationPlanPostDataT (n :: NetworkDiscriminant) =
     ApiWalletMigrationPlanPostData n
 
 type instance ApiWalletMigrationPostDataT (n :: NetworkDiscriminant) (s :: Symbol) =
     ApiWalletMigrationPostData n s
-
-type instance ApiMintBurnTransactionT (n :: NetworkDiscriminant) =
-    ApiMintBurnTransaction n
 
 type instance ApiBalanceTransactionPostDataT (n :: NetworkDiscriminant) =
     ApiBalanceTransactionPostData n
@@ -4000,27 +3963,6 @@ instance ToJSON (ApiT SmashServer) where
 {-------------------------------------------------------------------------------
                          Token minting types
 -------------------------------------------------------------------------------}
-
--- | Data required when submitting a mint/burn transaction. Cardano implements
--- minting and burning using transactions, so some of these fields are shared
--- with @PostTransactionData@.
-data PostMintBurnAssetData (n :: NetworkDiscriminant) = PostMintBurnAssetData
-    { mintBurn
-        :: !(NonEmpty (ApiMintBurnData n))
-        -- ^ Minting and burning requests.
-    , passphrase
-        :: !(ApiT (Passphrase "lenient"))
-        -- ^ Passphrase of the wallet.
-    , metadata
-        :: !(Maybe (ApiT TxMetadata))
-        -- ^ Metadata to attach to the transaction that mints/burns.
-    } deriving (Eq, Generic, Show)
-
-instance DecodeAddress n => FromJSON (PostMintBurnAssetData n) where
-    parseJSON = genericParseJSON defaultRecordTypeOptions
-
-instance EncodeAddress n => ToJSON (PostMintBurnAssetData n) where
-    toJSON = genericToJSON defaultRecordTypeOptions
 
 -- | Core minting and burning request information.
 --
