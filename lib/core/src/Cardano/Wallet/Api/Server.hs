@@ -4378,10 +4378,11 @@ instance IsServerError ErrReadPolicyPublicKey where
                 , "Shelley."
                 ]
         ErrReadPolicyPublicKeyAbsent ->
-            apiError err403 InvalidWalletType $ mconcat
-                [ "It seems the wallet lacks policy public key and minting/burning"
-                , "transaction cannot be realized. Please create wallet from mnemonics"
-                , "rather than account public key."
+            apiError err403 InvalidWalletType $ T.unwords
+                [ "It seems the wallet lacks a policy public key. It's"
+                , "therefore not possible to create a minting or burning"
+                , "transaction. Please restore the wallet from a mnemonic"
+                , "phrase instead of an account public key."
                 ]
 
 instance IsServerError ErrCreateRandomAddress where
