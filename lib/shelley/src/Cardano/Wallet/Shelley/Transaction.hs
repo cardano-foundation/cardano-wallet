@@ -117,7 +117,7 @@ import Cardano.Wallet.Primitive.Types.Hash
 import Cardano.Wallet.Primitive.Types.Redeemer
     ( Redeemer, redeemerData )
 import Cardano.Wallet.Primitive.Types.TokenBundle
-    ( TokenBundle )
+    ( TokenBundle (..) )
 import Cardano.Wallet.Primitive.Types.TokenMap
     ( AssetId (..), TokenMap )
 import Cardano.Wallet.Primitive.Types.TokenPolicy
@@ -149,9 +149,12 @@ import Cardano.Wallet.Shelley.Compatibility
     , fromShelleyTxIn
     , toAlonzoPParams
     , toCardanoLovelace
+    , toCardanoPolicyId
+    , toCardanoSimpleScript
     , toCardanoStakeCredential
     , toCardanoTxIn
     , toCardanoTxOut
+    , toCardanoValue
     , toCostModelsAsArray
     , toHDPayloadAddress
     , toScriptPurpose
@@ -166,6 +169,7 @@ import Cardano.Wallet.Transaction
     , ErrAssignRedeemers (..)
     , ErrMkTransaction (..)
     , ErrUpdateSealedTx (..)
+    , TokenMapWithScripts
     , TransactionCtx (..)
     , TransactionLayer (..)
     , TxFeeUpdate (..)
@@ -173,7 +177,7 @@ import Cardano.Wallet.Transaction
     , withdrawalToCoin
     )
 import Cardano.Wallet.Util
-    ( modifyM )
+    ( internalError, modifyM )
 import Codec.Serialise
     ( deserialiseOrFail )
 import Control.Arrow
@@ -327,13 +331,20 @@ constructUnsignedTx
     -- ^ Finalized asset selection
     -> Coin
     -- ^ Explicit fee amount
+    -> (TokenMap, Map AssetId (Script KeyHash))
+    -- ^ Assets to be minted
+    -> (TokenMap, Map AssetId (Script KeyHash))
+    -- ^ Assets to be burned
     -> ShelleyBasedEra era
     -> Either ErrMkTransaction SealedTx
-constructUnsignedTx networkId (md, certs) ttl rewardAcnt wdrl cs fee era =
-    sealedTxFromCardanoBody <$> tx
+constructUnsignedTx
+    networkId (md, certs) ttl rewardAcnt wdrl cs fee toMint toBurn era =
+        sealedTxFromCardanoBody <$> tx
   where
     tx = mkUnsignedTx era ttl cs md wdrls certs (toCardanoLovelace fee)
+        (fst toMint) (fst toBurn) allScripts
     wdrls = mkWithdrawals networkId rewardAcnt wdrl
+    allScripts = Map.union (snd toMint) (snd toBurn)
 
 mkTx
     :: forall k era.
@@ -365,6 +376,7 @@ mkTx networkId payload ttl (rewardAcnt, pwdAcnt) addrResolver wdrl cs fees era =
             wdrl
 
     unsigned <- mkUnsignedTx era ttl cs md wdrls certs (toCardanoLovelace fees)
+        TokenMap.empty TokenMap.empty Map.empty
     let signed = signTransaction networkId acctResolver addrResolver inputResolver
             (unsigned, mkExtraWits unsigned)
 
@@ -529,19 +541,21 @@ newTransactionLayer networkId = TransactionLayer
         let wdrl  = withdrawalToCoin $ view #txWithdrawal ctx
         let delta = selectionDelta txOutCoin selection
         let rewardAcct = toRewardAccountRaw stakeXPub
+        let assetsToBeMinted = view #txAssetsToMint ctx
+        let assetsToBeBurned = view #txAssetsToBurn ctx
         case view #txDelegationAction ctx of
             Nothing -> do
                 withShelleyBasedEra era $ do
                     let md = view #txMetadata ctx
                     constructUnsignedTx networkId (md, []) ttl rewardAcct wdrl
-                        selection delta
+                        selection delta assetsToBeMinted assetsToBeBurned
 
             Just action -> do
                 withShelleyBasedEra era $ do
                     let certs = mkDelegationCertificates action stakeXPub
                     let payload = (view #txMetadata ctx, certs)
                     constructUnsignedTx networkId payload ttl rewardAcct wdrl
-                        selection delta
+                        selection delta assetsToBeMinted assetsToBeBurned
 
     , estimateSignedTxSize = \pp tx -> do
         anyShelleyTx <- inAnyShelleyBasedEra (cardanoTx tx)
@@ -579,7 +593,9 @@ newTransactionLayer networkId = TransactionLayer
     , updateTx = updateSealedTx
     }
 
-_decodeSealedTx :: SealedTx -> (Tx, TokenMap, TokenMap, [Certificate])
+_decodeSealedTx
+    :: SealedTx
+    -> (Tx, TokenMapWithScripts, TokenMapWithScripts, [Certificate])
 _decodeSealedTx (cardanoTx -> InAnyCardanoEra _era tx) = fromCardanoTx tx
 
 _evaluateTransactionBalance
@@ -1357,8 +1373,8 @@ mkTxSkeleton witness context skeleton = TxSkeleton
     -- Until we actually support minting and burning, leave these as empty.
     , txScripts = []
     , txAssetsToMintOrBurn = (<>)
-        (TokenMap.getAssets (view #txAssetsToMint context))
-        (TokenMap.getAssets (view #txAssetsToBurn context))
+        (TokenMap.getAssets (fst $ view #txAssetsToMint context))
+        (TokenMap.getAssets (fst $ view #txAssetsToBurn context))
     , txScriptExecutionCost = view #txPlutusScriptExecutionCost context
     }
 
@@ -1842,8 +1858,11 @@ mkUnsignedTx
     -> [(Cardano.StakeAddress, Cardano.Lovelace)]
     -> [Cardano.Certificate]
     -> Cardano.Lovelace
+    -> TokenMap
+    -> TokenMap
+    -> Map AssetId (Script KeyHash)
     -> Either ErrMkTransaction (Cardano.TxBody era)
-mkUnsignedTx era ttl cs md wdrls certs fees =
+mkUnsignedTx era ttl cs md wdrls certs fees mintData burnData allScripts =
     left toErrMkTx $ Cardano.makeTransactionBody $ Cardano.TxBodyContent
     { Cardano.txIns =
         (,Cardano.BuildTxWith (Cardano.KeyWitness Cardano.KeyWitnessForSpending))
@@ -1903,7 +1922,22 @@ mkUnsignedTx era ttl cs md wdrls certs fees =
         Cardano.TxUpdateProposalNone
 
     , Cardano.txMintValue =
-        Cardano.TxMintNone
+        case txMintingSupported of
+            Nothing -> Cardano.TxMintNone
+            Just mintedEra ->
+                let mintValue = toCardanoValue (TokenBundle (Coin 0) mintData)
+                    burnValue =
+                        Cardano.negateValue $
+                        toCardanoValue (TokenBundle (Coin 0) burnData)
+                    toScriptWitness script =
+                        Cardano.SimpleScriptWitness scriptWitsSupported
+                        Cardano.SimpleScriptV2 (toCardanoSimpleScript script)
+                    witMap =
+                        Map.map toScriptWitness $
+                        Map.mapKeys (toCardanoPolicyId . TokenMap.tokenPolicyId)
+                        allScripts
+                    ctx = Cardano.BuildTxWith witMap
+                in Cardano.TxMintValue mintedEra (mintValue <> burnValue) ctx
     }
   where
     toErrMkTx :: Cardano.TxBodyError -> ErrMkTransaction
@@ -1936,6 +1970,23 @@ mkUnsignedTx era ttl cs md wdrls certs fees =
         ShelleyBasedEraAllegra -> Cardano.ValidityUpperBoundInAllegraEra
         ShelleyBasedEraMary -> Cardano.ValidityUpperBoundInMaryEra
         ShelleyBasedEraAlonzo -> Cardano.ValidityUpperBoundInAlonzoEra
+
+    txMintingSupported :: Maybe (Cardano.MultiAssetSupportedInEra era)
+    txMintingSupported = case era of
+        ShelleyBasedEraShelley -> Nothing
+        ShelleyBasedEraAllegra -> Nothing
+        ShelleyBasedEraMary -> Just Cardano.MultiAssetInMaryEra
+        ShelleyBasedEraAlonzo -> Just Cardano.MultiAssetInAlonzoEra
+
+    scriptWitsSupported
+        :: Cardano.ScriptLanguageInEra Cardano.SimpleScriptV2 era
+    scriptWitsSupported = case era of
+        ShelleyBasedEraShelley -> internalError
+            "scriptWitsSupported: we should be at least in Mary"
+        ShelleyBasedEraAllegra -> internalError
+            "scriptWitsSupported: we should be at least in Mary"
+        ShelleyBasedEraMary -> Cardano.SimpleScriptV2InMary
+        ShelleyBasedEraAlonzo -> Cardano.SimpleScriptV2InAlonzo
 
 mkWithdrawals
     :: NetworkId

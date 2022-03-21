@@ -11,9 +11,9 @@
     flags = { release = false; };
     package = {
       specVersion = "1.12";
-      identifier = { name = "cardano-addresses-cli"; version = "3.7.0"; };
+      identifier = { name = "cardano-addresses-cli"; version = "3.9.0"; };
       license = "Apache-2.0";
-      copyright = "2021 IOHK";
+      copyright = "2021-2022 IOHK";
       maintainer = "operations@iohk.io";
       author = "IOHK";
       homepage = "https://github.com/input-output-hk/cardano-addresses#readme";
@@ -82,5 +82,5 @@
         };
       };
     } // rec {
-    src = (pkgs.lib).mkDefault /nix/store/p41x76scfni8bax0n89fj86sf5mv2yd7-cardano-addresses-71006f9/command-line;
+    src = (pkgs.lib).mkDefault /nix/store/ygizp24vac8mm3j4dq59sajld3l4v991-cardano-addresses-8bf9890/command-line;
     }

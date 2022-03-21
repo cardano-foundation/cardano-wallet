@@ -1,0 +1,325 @@
+{
+    "seed": -3650441911124139389,
+    "samples": [
+        {
+            "token_map": [
+                {
+                    "asset_name": "546f6b656e41",
+                    "quantity": 19,
+                    "policy_id": "11111111111111111111111111111111111111111111111111111111"
+                },
+                {
+                    "asset_name": "546f6b656e42",
+                    "quantity": 26,
+                    "policy_id": "11111111111111111111111111111111111111111111111111111111"
+                },
+                {
+                    "asset_name": "546f6b656e43",
+                    "quantity": 25,
+                    "policy_id": "11111111111111111111111111111111111111111111111111111111"
+                },
+                {
+                    "asset_name": "546f6b656e45",
+                    "quantity": 20,
+                    "policy_id": "11111111111111111111111111111111111111111111111111111111"
+                },
+                {
+                    "asset_name": "546f6b656e45",
+                    "quantity": 18,
+                    "policy_id": "22222222222222222222222222222222222222222222222222222222"
+                },
+                {
+                    "asset_name": "546f6b656e44",
+                    "quantity": 1,
+                    "policy_id": "33333333333333333333333333333333333333333333333333333333"
+                },
+                {
+                    "asset_name": "546f6b656e45",
+                    "quantity": 18,
+                    "policy_id": "33333333333333333333333333333333333333333333333333333333"
+                },
+                {
+                    "asset_name": "546f6b656e43",
+                    "quantity": 12,
+                    "policy_id": "44444444444444444444444444444444444444444444444444444444"
+                }
+            ],
+            "policy_scripts": [
+                {
+                    "policy_script": "addr_shared_vkh1chnyxjulpfccs3nakrzzmwvmeqcpt5eqjctanmqx6fhwu969zdk",
+                    "policy_id": "229d8179d0cbc75a2847e64a4b2fb819cefc9abd9ee845df9f5a848d"
+                }
+            ],
+            "wallet_policy_key_hash": "policy_vk18epnj6rsvdlzdxt36qk4nlcp9vwygn30p5fq93jk2pcrrve6qgeqsz0kf5"
+        },
+        {
+            "token_map": [
+                {
+                    "asset_name": "546f6b656e41",
+                    "quantity": 24,
+                    "policy_id": "11111111111111111111111111111111111111111111111111111111"
+                },
+                {
+                    "asset_name": "546f6b656e42",
+                    "quantity": 22,
+                    "policy_id": "11111111111111111111111111111111111111111111111111111111"
+                },
+                {
+                    "asset_name": "546f6b656e44",
+                    "quantity": 8,
+                    "policy_id": "22222222222222222222222222222222222222222222222222222222"
+                },
+                {
+                    "asset_name": "546f6b656e45",
+                    "quantity": 20,
+                    "policy_id": "22222222222222222222222222222222222222222222222222222222"
+                },
+                {
+                    "asset_name": "546f6b656e41",
+                    "quantity": 30,
+                    "policy_id": "33333333333333333333333333333333333333333333333333333333"
+                },
+                {
+                    "asset_name": "546f6b656e43",
+                    "quantity": 9,
+                    "policy_id": "33333333333333333333333333333333333333333333333333333333"
+                },
+                {
+                    "asset_name": "546f6b656e44",
+                    "quantity": 12,
+                    "policy_id": "33333333333333333333333333333333333333333333333333333333"
+                },
+                {
+                    "asset_name": "546f6b656e45",
+                    "quantity": 9,
+                    "policy_id": "33333333333333333333333333333333333333333333333333333333"
+                },
+                {
+                    "asset_name": "546f6b656e42",
+                    "quantity": 9,
+                    "policy_id": "44444444444444444444444444444444444444444444444444444444"
+                },
+                {
+                    "asset_name": "546f6b656e43",
+                    "quantity": 22,
+                    "policy_id": "44444444444444444444444444444444444444444444444444444444"
+                },
+                {
+                    "asset_name": "546f6b656e44",
+                    "quantity": 21,
+                    "policy_id": "44444444444444444444444444444444444444444444444444444444"
+                }
+            ],
+            "policy_scripts": [
+                {
+                    "policy_script": "stake_shared_vkh1m2fsr9fzwcazf7ru0xv6xeuvgjkfcmlhvjsfpesujcd67d7s6ps",
+                    "policy_id": "7b54561a666e8c5095082bfbd528bc53dd7833c30ab8b24c5abd002b"
+                }
+            ],
+            "wallet_policy_key_hash": "policy_vk199nhctm9ra07z8t6yfzqw9e9zccz2sgj8acnyj332k2p55qj243q7g947k"
+        },
+        {
+            "token_map": [],
+            "policy_scripts": [
+                {
+                    "policy_script": "addr_shared_vkh13gguagtce90gwhulxt2j8fdygzhurr2468f6hljljtf0jsh5w9c",
+                    "policy_id": "7110151513cd6d508d0e7162925a60db6297839469fa71e17857f28b"
+                }
+            ],
+            "wallet_policy_key_hash": "policy_vkh12fa9h8jymlqqvaff832cj6c2x6635g32quepuefl0gyj2frdejs"
+        },
+        {
+            "token_map": [
+                {
+                    "asset_name": "546f6b656e41",
+                    "quantity": 18,
+                    "policy_id": "33333333333333333333333333333333333333333333333333333333"
+                },
+                {
+                    "asset_name": "546f6b656e41",
+                    "quantity": 29,
+                    "policy_id": "44444444444444444444444444444444444444444444444444444444"
+                }
+            ],
+            "policy_scripts": [
+                {
+                    "policy_script": "addr_shared_vkh1w9mwzam55xex4dvk0m0sw403zdrfeeqju5lnn74e0pvsz4a0xgr",
+                    "policy_id": "291d4b60ac1340fc860b1deb3a5c806062313aa49c1ec431c967c01a"
+                }
+            ],
+            "wallet_policy_key_hash": "policy_vk1p33j5xl5wasqys2969c4rrg393fjw2s0xfxxxgtrvqmqz9c7xdasguha2w"
+        },
+        {
+            "token_map": [
+                {
+                    "asset_name": "546f6b656e42",
+                    "quantity": 11,
+                    "policy_id": "33333333333333333333333333333333333333333333333333333333"
+                }
+            ],
+            "policy_scripts": [
+                {
+                    "policy_script": {
+                        "all": [
+                            "stake_shared_vkh1tl7hrmgkklvvfezvfumyzaa7xf75rrxuvgyhj83npl56svfdp7e",
+                            {
+                                "active_from": 100
+                            }
+                        ]
+                    },
+                    "policy_id": "fb7e1b26da3be54e8ee33577b7aa17bde6082bf2eae9db251fa2a022"
+                }
+            ],
+            "wallet_policy_key_hash": "policy_vkh1yzppzcs42p5y6qemgvkk543u8cz5vlerfd2sg7cszdlfuxllkcd"
+        },
+        {
+            "token_map": [
+                {
+                    "asset_name": "546f6b656e42",
+                    "quantity": 3,
+                    "policy_id": "00000000000000000000000000000000000000000000000000000000"
+                },
+                {
+                    "asset_name": "546f6b656e45",
+                    "quantity": 9,
+                    "policy_id": "00000000000000000000000000000000000000000000000000000000"
+                },
+                {
+                    "asset_name": "546f6b656e41",
+                    "quantity": 7,
+                    "policy_id": "11111111111111111111111111111111111111111111111111111111"
+                },
+                {
+                    "asset_name": "546f6b656e41",
+                    "quantity": 28,
+                    "policy_id": "22222222222222222222222222222222222222222222222222222222"
+                },
+                {
+                    "asset_name": "546f6b656e42",
+                    "quantity": 42,
+                    "policy_id": "22222222222222222222222222222222222222222222222222222222"
+                },
+                {
+                    "asset_name": "546f6b656e44",
+                    "quantity": 28,
+                    "policy_id": "22222222222222222222222222222222222222222222222222222222"
+                },
+                {
+                    "asset_name": "546f6b656e41",
+                    "quantity": 1,
+                    "policy_id": "33333333333333333333333333333333333333333333333333333333"
+                },
+                {
+                    "asset_name": "546f6b656e44",
+                    "quantity": 47,
+                    "policy_id": "33333333333333333333333333333333333333333333333333333333"
+                },
+                {
+                    "asset_name": "546f6b656e41",
+                    "quantity": 24,
+                    "policy_id": "44444444444444444444444444444444444444444444444444444444"
+                },
+                {
+                    "asset_name": "546f6b656e43",
+                    "quantity": 24,
+                    "policy_id": "44444444444444444444444444444444444444444444444444444444"
+                },
+                {
+                    "asset_name": "546f6b656e45",
+                    "quantity": 48,
+                    "policy_id": "44444444444444444444444444444444444444444444444444444444"
+                }
+            ],
+            "policy_scripts": [
+                {
+                    "policy_script": "addr_shared_vkh1vcuegw9lnzdm55zk4fqz8dh3x68guz8jdxyg2twl7k5ywjzxmqd",
+                    "policy_id": "3fa8851e14572567573bf203e8ebadad08bc6cc14d05be40bbc151b7"
+                }
+            ],
+            "wallet_policy_key_hash": "policy_vk1fj69zrj4ryd3573wwg6jy2mh25zhzunct6p4crr5r4656zs8pxhqztukj3"
+        },
+        {
+            "token_map": [
+                {
+                    "asset_name": "546f6b656e42",
+                    "quantity": 9,
+                    "policy_id": "33333333333333333333333333333333333333333333333333333333"
+                }
+            ],
+            "policy_scripts": [
+                {
+                    "policy_script": {
+                        "all": [
+                            "addr_shared_vkh1w44gam8xzaza9tvt4va9w4z2aasefldxjc4tqwcj3vcpqz8s8p6",
+                            {
+                                "active_from": 100
+                            },
+                            {
+                                "active_until": 150
+                            }
+                        ]
+                    },
+                    "policy_id": "3988433f9941682db4a180845be99762befe7a4f3b8d7fc5e0bb2ba3"
+                }
+            ],
+            "wallet_policy_key_hash": "policy_vkh1f9dz593cfuq4xlnts5fhqyfqracz2ql929t5xp2u9pn47su6905"
+        },
+        {
+            "token_map": [],
+            "policy_scripts": [
+                {
+                    "policy_script": {
+                        "all": [
+                            "stake_shared_vkh10h6w9485emful5mew7tmany4hz8pv4dpy3mp9t6m3rrw696uv2e",
+                            {
+                                "active_from": 100
+                            }
+                        ]
+                    },
+                    "policy_id": "1b4180771ce2a486a768b5ff522882050ec62253c679d1a88e35af35"
+                }
+            ],
+            "wallet_policy_key_hash": "policy_vkh1ga3r5lrwdjyk2yrmfqhpxmpk5edjkv30f92rwce3vsd9qr80cyc"
+        },
+        {
+            "token_map": [],
+            "policy_scripts": [
+                {
+                    "policy_script": {
+                        "all": [
+                            "stake_shared_vkh1q5rgvplq6quv4ypmyws95eewjdw4uznmxx9nh4eehyemq43yvan",
+                            {
+                                "active_from": 100
+                            },
+                            {
+                                "active_until": 150
+                            }
+                        ]
+                    },
+                    "policy_id": "23d6f2306388ab723cd627eb425f4f6ee97b3ed04d256fd734725f63"
+                }
+            ],
+            "wallet_policy_key_hash": "policy_vk1z3kyzwsygv3s0mz9m3krvfcgvm395amvrsu9uevpqd7qycq39wpqmp8f7a"
+        },
+        {
+            "token_map": [],
+            "policy_scripts": [
+                {
+                    "policy_script": {
+                        "all": [
+                            "stake_shared_vkh1scdh4xvpdf3xn7un7fpyuaap5r2f6ttvp8lg623axq3g6ec0y99",
+                            {
+                                "active_from": 100
+                            },
+                            {
+                                "active_until": 150
+                            }
+                        ]
+                    },
+                    "policy_id": "9b954b1d09027bb1a7790b709a542dc4acec217f1e6fdf86b429fef5"
+                }
+            ],
+            "wallet_policy_key_hash": "policy_vkh1xgqs6mmnagrpjyqwxh83gypm9usyvnzjrv8jnyetquqn5s9d0k0"
+        }
+    ]
+}

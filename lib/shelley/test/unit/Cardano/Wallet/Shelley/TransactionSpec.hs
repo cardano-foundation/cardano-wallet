@@ -1424,7 +1424,9 @@ binaryCalculationsSpec' era = describe ("calculateBinary - "+||era||+"") $ do
               error "mkByronWitness'" -- TODO: [ADP-919]
           addrWits = zipWith (mkByronWitness' unsigned) inps pairs
           fee = toCardanoLovelace $ selectionDelta txOutCoin cs
-          Right unsigned = mkUnsignedTx era slotNo cs md mempty [] fee
+          Right unsigned =
+              mkUnsignedTx era slotNo cs md mempty [] fee
+              TokenMap.empty TokenMap.empty Map.empty
           cs = Selection
             { inputs = NE.fromList inps
             , collateral = []
@@ -1505,7 +1507,9 @@ makeShelleyTx era testCase = Cardano.makeSignedTransaction addrWits unsigned
     DecodeSetup utxo outs md slotNo pairs _netwk = testCase
     inps = Map.toList $ unUTxO utxo
     fee = toCardanoLovelace $ selectionDelta txOutCoin cs
-    Right unsigned = mkUnsignedTx era slotNo cs md mempty [] fee
+    Right unsigned =
+        mkUnsignedTx era slotNo cs md mempty [] fee
+        TokenMap.empty TokenMap.empty Map.empty
     addrWits = map (mkShelleyWitness unsigned) pairs
     cs = Selection
         { inputs = NE.fromList inps
@@ -1541,7 +1545,9 @@ makeByronTx era testCase = Cardano.makeSignedTransaction byronWits unsigned
     ForByron (DecodeSetup utxo outs _ slotNo pairs _ntwrk) = testCase
     inps = Map.toList $ unUTxO utxo
     fee = toCardanoLovelace $ selectionDelta txOutCoin cs
-    Right unsigned = mkUnsignedTx era slotNo cs Nothing mempty [] fee
+    Right unsigned =
+        mkUnsignedTx era slotNo cs Nothing mempty [] fee
+        TokenMap.empty TokenMap.empty Map.empty
     -- byronWits = map (mkByronWitness unsigned ntwrk Nothing) pairs
     byronWits = map (error "makeByronTx: broken") pairs  -- TODO: [ADP-919]
     cs = Selection

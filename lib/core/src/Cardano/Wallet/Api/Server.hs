@@ -94,6 +94,7 @@ module Cardano.Wallet.Api.Server
     , balanceTransaction
     , decodeTransaction
     , submitTransaction
+    , getPolicyKey
 
     -- * Server error responses
     , IsServerError(..)
@@ -122,7 +123,12 @@ import Prelude
 import Cardano.Address.Derivation
     ( XPrv, XPub, xpubPublicKey, xpubToBytes )
 import Cardano.Address.Script
-    ( Cosigner (..), ScriptTemplate (..), ValidationLevel (..) )
+    ( Cosigner (..)
+    , ScriptTemplate (..)
+    , ValidationLevel (..)
+    , foldScript
+    , validateScriptOfTemplate
+    )
 import Cardano.Api
     ( AnyCardanoEra (..), CardanoEra (..), SerialiseAsCBOR (..) )
 import Cardano.BM.Tracing
@@ -155,6 +161,7 @@ import Cardano.Wallet
     , ErrNotASequentialWallet (..)
     , ErrPostTx (..)
     , ErrReadAccountPublicKey (..)
+    , ErrReadPolicyPublicKey (..)
     , ErrReadRewardAccount (..)
     , ErrRemoveTx (..)
     , ErrSelectAssets (..)
@@ -201,9 +208,11 @@ import Cardano.Wallet.Api.Types
     , ApiAddress (..)
     , ApiAnyCertificate (..)
     , ApiAsset (..)
+    , ApiAssetMintBurn (..)
     , ApiBalanceTransactionPostData
     , ApiBlockInfo (..)
     , ApiBlockReference (..)
+    , ApiBurnData (..)
     , ApiByronWallet (..)
     , ApiByronWalletBalance (..)
     , ApiBytesT (..)
@@ -224,7 +233,11 @@ import Cardano.Wallet.Api.Types
     , ApiExternalInput (..)
     , ApiFee (..)
     , ApiForeignStakeKey (..)
-    , ApiMintedBurnedTransaction (..)
+    , ApiMintBurnData (..)
+    , ApiMintBurnInfo (..)
+    , ApiMintBurnOperation (..)
+    , ApiMintBurnTransaction (..)
+    , ApiMintData (..)
     , ApiMnemonicT (..)
     , ApiMultiDelegationAction (..)
     , ApiNetworkClock (..)
@@ -234,6 +247,8 @@ import Cardano.Wallet.Api.Types
     , ApiOurStakeKey (..)
     , ApiPaymentDestination (..)
     , ApiPendingSharedWallet (..)
+    , ApiPolicyKey (..)
+    , ApiPolicyScript (..)
     , ApiPoolId (..)
     , ApiPostAccountKeyDataWithPurpose (..)
     , ApiPostRandomAddressData (..)
@@ -352,6 +367,8 @@ import Cardano.Wallet.Primitive.AddressDerivation.Byron
     ( ByronKey, mkByronKeyFromMasterKey )
 import Cardano.Wallet.Primitive.AddressDerivation.Icarus
     ( IcarusKey )
+import Cardano.Wallet.Primitive.AddressDerivation.MintBurn
+    ( toTokenMapAndScript )
 import Cardano.Wallet.Primitive.AddressDerivation.SharedKey
     ( SharedKey (..) )
 import Cardano.Wallet.Primitive.AddressDerivation.Shelley
@@ -444,9 +461,9 @@ import Cardano.Wallet.Primitive.Types.Redeemer
 import Cardano.Wallet.Primitive.Types.TokenBundle
     ( Flat (..), TokenBundle (..) )
 import Cardano.Wallet.Primitive.Types.TokenMap
-    ( AssetId (..) )
+    ( AssetId (..), fromFlatList, toNestedList )
 import Cardano.Wallet.Primitive.Types.TokenPolicy
-    ( TokenName (..), TokenPolicyId (..), nullTokenName )
+    ( TokenName (..), TokenPolicyId (..), mkTokenFingerprint, nullTokenName )
 import Cardano.Wallet.Primitive.Types.Tx
     ( TransactionInfo
     , Tx (..)
@@ -481,7 +498,7 @@ import Cardano.Wallet.Unsafe
 import Cardano.Wallet.Util
     ( invariant )
 import Control.Arrow
-    ( second )
+    ( second, (&&&) )
 import Control.DeepSeq
     ( NFData )
 import Control.Error.Util
@@ -504,6 +521,8 @@ import Data.ByteString
     ( ByteString )
 import Data.Coerce
     ( coerce )
+import Data.Either
+    ( isLeft )
 import Data.Either.Extra
     ( eitherToMaybe )
 import Data.Function
@@ -840,7 +859,8 @@ postAccountWallet
     -> AccountPostData
     -> Handler w
 postAccountWallet ctx mkWallet liftKey coworker body = do
-    let state = mkSeqStateFromAccountXPub (liftKey accXPub) purposeCIP1852 g
+    let state = mkSeqStateFromAccountXPub
+            (liftKey accXPub) Nothing purposeCIP1852 g
     void $ liftHandler $ createWalletWorker @_ @s @k ctx wid
         (\wrk -> W.createWallet @(WorkerCtx ctx) @_ @s @k wrk wid wName state)
         coworker
@@ -2152,10 +2172,21 @@ constructTransaction ctx genChange knownPools getPoolStatus (ApiT wid) body = do
             isNothing (body ^. #payments) &&
             isNothing (body ^. #withdrawal) &&
             isNothing (body ^. #metadata) &&
-            isNothing (body ^. #mint) &&
+            isNothing (body ^. #mintBurn) &&
             isNothing (body ^. #delegations)
     when isNoPayload $
         liftHandler $ throwE ErrConstructTxWrongPayload
+
+    let mintingBurning = body ^. #mintBurn
+    let retrieveAllCosigners = foldScript (:) []
+    let wrongMintingTemplate (ApiMintBurnData (ApiT scriptTempl) _ _) =
+            isLeft (validateScriptOfTemplate RecommendedValidation scriptTempl)
+            || length (retrieveAllCosigners scriptTempl) > 1
+            || (L.any (/= Cosigner 0)) (retrieveAllCosigners scriptTempl)
+    when
+        ( isJust mintingBurning &&
+          L.any wrongMintingTemplate (NE.toList $ fromJust mintingBurning)
+        ) $ liftHandler $ throwE ErrConstructTxWrongMintingBurningTemplate
 
     let checkIx (ApiStakeKeyIndex (ApiT derIndex)) =
             derIndex == DerivationIndex (getIndex @'Hardened minBound)
@@ -2235,6 +2266,56 @@ constructTransaction ctx genChange knownPools getPoolStatus (ApiT wid) body = do
                     , wallet
                     , selectionStrategy = SelectionStrategyOptimal
                     }
+        txCtx' <-
+            if isJust mintingBurning then do
+                (policyXPub, _) <-
+                    liftHandler $ W.readPolicyPublicKey @_ @s @k @n wrk wid
+                let isMinting (ApiMintBurnData _ _ (ApiMint _)) = True
+                    isMinting _ = False
+                let getMinting = \case
+                        ApiMintBurnData
+                            (ApiT scriptT)
+                            (ApiT tName)
+                            (ApiMint (ApiMintData _ (Quantity amt))) ->
+                            toTokenMapAndScript @k
+                                scriptT
+                                (Map.singleton (Cosigner 0) policyXPub)
+                                tName
+                                amt
+                        _ -> error "getMinting should not be used in this way"
+                let getBurning = \case
+                        ApiMintBurnData
+                            (ApiT scriptT)
+                            (ApiT tName)
+                            (ApiBurn (ApiBurnData (Quantity amt))) ->
+                            toTokenMapAndScript @k
+                                scriptT
+                                (Map.singleton (Cosigner 0) policyXPub)
+                                tName
+                                amt
+                        _ -> error "getBurning should not be used in this way"
+                let toTokenMap =
+                        fromFlatList .
+                        map (\(a,q,_) -> (a,q))
+                let toScriptTemplateMap =
+                        Map.fromList .
+                        map (\(a,_,s) -> (a,s))
+                let mintingData =
+                        toTokenMap &&& toScriptTemplateMap $
+                        map getMinting $
+                        filter isMinting $
+                        NE.toList $ fromJust mintingBurning
+                let burningData =
+                        toTokenMap &&& toScriptTemplateMap $
+                        map getBurning $
+                        filter (not . isMinting) $
+                        NE.toList $ fromJust mintingBurning
+                pure $ txCtx
+                    { txAssetsToMint = mintingData
+                    , txAssetsToBurn = burningData
+                    }
+            else
+                pure txCtx
 
         (sel, sel', fee) <- do
             outs <- case (body ^. #payments) of
@@ -2252,17 +2333,49 @@ constructTransaction ctx genChange knownPools getPoolStatus (ApiT wid) body = do
             pure (sel, sel', estMin)
 
         tx <- liftHandler
-            $ W.constructTransaction @_ @s @k @n wrk wid txCtx sel
+            $ W.constructTransaction @_ @s @k @n wrk wid txCtx' sel
+
+        let (tokenMap1, scriptMap1) = txAssetsToMint txCtx'
+        let (tokenMap2, scriptMap2) = txAssetsToBurn txCtx'
 
         pure $ ApiConstructTransaction
             { transaction = ApiT tx
             , coinSelection = mkApiCoinSelection
                 (maybeToList deposit) (maybeToList refund) Nothing md sel'
+            , mintBurn =
+                toMintBurnList
+                ( tokenMap1 <> tokenMap2
+                , Map.union scriptMap1 scriptMap2)
             , fee = Quantity $ fromIntegral fee
             }
   where
     ti :: TimeInterpreter (ExceptT PastHorizonException IO)
     ti = timeInterpreter (ctx ^. networkLayer)
+    toMintBurn (policy, name, script) = ApiT $ ApiMintBurnInfo
+        { verificationKeyIndex =
+                ApiT $ DerivationIndex $
+                getIndex (minBound :: Index 'Hardened 'PolicyK)
+        , policyId = ApiT policy
+        , assetName = ApiT name
+        , subject = ApiT $ mkTokenFingerprint policy name
+        , policyScript = ApiT script
+        }
+    askForScript (policy, name) scriptMap =
+        case Map.lookup (AssetId policy name) scriptMap of
+            Just script -> script
+            Nothing -> error "askForScript: no minting/burning without script"
+    toMintBurnTriple scriptmap tokenmap =
+        [ (policy, token, askForScript (policy, token) scriptmap)
+        | (policy, tokenQuantities) <- toNestedList tokenmap
+        , (token, _) <- NE.toList tokenQuantities
+        ]
+    toMintBurnList (tokenMap, scriptMap) =
+        if tokenMap == TokenMap.empty then
+            Nothing
+        else
+           Just $ NE.fromList $
+           map toMintBurn $
+           toMintBurnTriple scriptMap tokenMap
 
 -- TODO: Most of the body of this function should really belong to
 -- Cardano.Wallet to keep the Api.Server module free of business logic!
@@ -2311,16 +2424,33 @@ decodeTransaction
     -> ApiSerialisedTransaction
     -> Handler (ApiDecodedTransaction n)
 decodeTransaction ctx (ApiT wid) (ApiSerialisedTransaction (ApiT sealed)) = do
-    let (Tx txid feeM colls inps outs wdrlMap meta vldt, toMint, toBurn, allCerts) =
-            decodeTx tl sealed
-    (txinsOutsPaths, collsOutsPaths, outsPath, acct, acctPath, pp) <-
-        withWorkerCtx ctx wid liftE liftE $ \wrk -> do
-          (acct, _, acctPath) <- liftHandler $ W.readRewardAccount @_ @s @k @n wrk wid
-          txinsOutsPaths <- liftHandler $ W.lookupTxIns @_ @s @k wrk wid (fst <$> inps)
-          collsOutsPaths <- liftHandler $ W.lookupTxIns @_ @s @k wrk wid (fst <$> colls)
-          outsPath <- liftHandler $ W.lookupTxOuts @_ @s @k wrk wid outs
-          pp <- liftIO $ NW.currentProtocolParameters (wrk ^. networkLayer)
-          pure (txinsOutsPaths, collsOutsPaths, outsPath, acct, acctPath, pp)
+    let (Tx txid feeM colls inps outs wdrlMap meta vldt
+            , toMint
+            , toBurn
+            , allCerts
+            ) = decodeTx tl sealed
+    (txinsOutsPaths, collsOutsPaths, outsPath, acct, acctPath, pp, policyXPub)
+        <- withWorkerCtx ctx wid liftE liftE $ \wrk -> do
+        (acct, _, acctPath) <-
+            liftHandler $ W.readRewardAccount @_ @s @k @n wrk wid
+        txinsOutsPaths <-
+            liftHandler $ W.lookupTxIns @_ @s @k wrk wid (fst <$> inps)
+        collsOutsPaths <-
+            liftHandler $ W.lookupTxIns @_ @s @k wrk wid (fst <$> colls)
+        outsPath <-
+            liftHandler $ W.lookupTxOuts @_ @s @k wrk wid outs
+        pp <- liftIO $ NW.currentProtocolParameters (wrk ^. networkLayer)
+        (policyXPub, _) <-
+            liftHandler $ W.readPolicyPublicKey @_ @s @k @n wrk wid
+        pure
+            ( txinsOutsPaths
+            , collsOutsPaths
+            , outsPath
+            , acct
+            , acctPath
+            , pp
+            , policyXPub
+            )
     pure $ ApiDecodedTransaction
         { id = ApiT txid
         , fee = maybe (Quantity 0) (Quantity . fromIntegral . unCoin) feeM
@@ -2328,22 +2458,33 @@ decodeTransaction ctx (ApiT wid) (ApiSerialisedTransaction (ApiT sealed)) = do
         , outputs = map toOut outsPath
         , collateral = map toInp collsOutsPaths
         , withdrawals = map (toWrdl acct) $ Map.assocs wdrlMap
-        , assetsMinted = ApiT toMint
-        , assetsBurned = ApiT toBurn
+        , assetsMinted = toApiAssetMintBurn policyXPub toMint
+        , assetsBurned = toApiAssetMintBurn policyXPub toBurn
         , certificates = map (toApiAnyCert acct acctPath) allCerts
         , depositsTaken =
-                map (const (Quantity . fromIntegral . unCoin . W.stakeKeyDeposit $ pp)) $
-                filter ourRewardAccountRegistration $
-                map (toApiAnyCert acct acctPath) allCerts
+            (Quantity . fromIntegral . unCoin . W.stakeKeyDeposit $ pp)
+                <$ filter ourRewardAccountRegistration
+                    (toApiAnyCert acct acctPath <$> allCerts)
         , depositsReturned =
-                map (const (Quantity . fromIntegral . unCoin . W.stakeKeyDeposit $ pp)) $
-                filter ourRewardAccountDeregistration $
-                map (toApiAnyCert acct acctPath) allCerts
+            (Quantity . fromIntegral . unCoin . W.stakeKeyDeposit $ pp)
+                <$ filter ourRewardAccountDeregistration
+                    (toApiAnyCert acct acctPath <$> allCerts)
         , metadata = ApiTxMetadata $ ApiT <$> meta
         , scriptValidity = ApiT <$> vldt
         }
   where
     tl = ctx ^. W.transactionLayer @k
+    toApiAssetMintBurn xpub tokenWithScripts = ApiAssetMintBurn
+        { tokenMap = ApiT $ tokenWithScripts ^. #txTokenMap
+        , policyScripts =
+            map (uncurry ApiPolicyScript) $
+            Map.toList $
+            Map.map ApiT $
+            Map.mapKeys ApiT $
+            tokenWithScripts ^. #txScripts
+        , walletPolicyKeyHash =
+            uncurry ApiPolicyKey (computeKeyPayload (Just True) xpub)
+        }
     toOut (txoutIncoming, Nothing) =
         ExternalOutput $ toAddressAmount @n txoutIncoming
     toOut ((TxOut addr (TokenBundle (Coin c) tmap)), (Just path)) =
@@ -3145,14 +3286,17 @@ derivePublicKey
 derivePublicKey ctx mkVer (ApiT wid) (ApiT role_) (ApiT ix) hashed = do
     withWorkerCtx @_ @s @k ctx wid liftE liftE $ \wrk -> do
         k <- liftHandler $ W.derivePublicKey @_ @s @k wrk wid role_ ix
-        pure $ mkVer (computePayload k, role_) hashing
+        let (payload, hashing) = computeKeyPayload hashed (getRawKey k)
+        pure $ mkVer (payload, role_) hashing
+
+computeKeyPayload :: Maybe Bool -> XPub -> (ByteString, VerificationKeyHashing)
+computeKeyPayload hashed k = case hashing of
+    WithoutHashing -> (xpubPublicKey k, WithoutHashing)
+    WithHashing -> (blake2b224 $ xpubPublicKey k, WithHashing)
   where
     hashing = case hashed of
         Nothing -> WithoutHashing
         Just v -> if v then WithHashing else WithoutHashing
-    computePayload k' = case hashing of
-        WithoutHashing -> xpubPublicKey $ getRawKey k'
-        WithHashing -> blake2b224 $ xpubPublicKey $ getRawKey k'
 
 postAccountPublicKey
     :: forall ctx s k account.
@@ -3200,12 +3344,27 @@ getAccountPublicKey ctx mkAccount (ApiT wid) extended = do
           Just Extended -> Extended
           _ -> NonExtended
 
+getPolicyKey
+    :: forall ctx s k (n :: NetworkDiscriminant).
+        ( ctx ~ ApiLayer s k
+        , Typeable s
+        , Typeable n
+        )
+    => ctx
+    -> ApiT WalletId
+    -> Maybe Bool
+    -> Handler ApiPolicyKey
+getPolicyKey ctx (ApiT wid) hashed = do
+    withWorkerCtx @_ @s @k ctx wid liftE liftE $ \wrk -> do
+        (k, _) <- liftHandler $ W.readPolicyPublicKey @_ @s @k @n wrk wid
+        pure $ uncurry ApiPolicyKey (computeKeyPayload hashed k)
+
 mintBurnAssets
     :: forall ctx n
      . ctx
     -> ApiT WalletId
     -> Api.PostMintBurnAssetData n
-    -> Handler (ApiMintedBurnedTransaction n)
+    -> Handler (ApiMintBurnTransaction n)
 mintBurnAssets _ctx (ApiT _wid) _body = liftHandler $ throwE $
     ErrMintBurnNotImplemented
     "Minting and burning are not supported yet - this is just a stub"
@@ -3989,6 +4148,13 @@ instance IsServerError ErrConstructTx where
             , "with a delegation, which uses a stake key for the unsupported account."
             , "Please use delegation action engaging '0H' account."
             ]
+        ErrConstructTxWrongMintingBurningTemplate ->
+            apiError err403 CreatedWrongPolicyScriptTemplate $ mconcat
+            [ "It looks like I've created a transaction with a minting/burning "
+            , "policy script that either does not pass validation, contains "
+            , "more than one cosigner, or has a cosigner that is different "
+            , "from cosigner#0."
+            ]
         ErrConstructTxNotImplemented _ ->
             apiError err501 NotImplemented
                 "This feature is not yet implemented."
@@ -4200,6 +4366,24 @@ instance IsServerError ErrReadRewardAccount where
                 [ "It is regrettable but you've just attempted an operation "
                 , "that is invalid for this type of wallet. Only new 'Shelley' "
                 , "wallets can do something with rewards and this one isn't."
+                ]
+
+instance IsServerError ErrReadPolicyPublicKey where
+    toServerError = \case
+        ErrReadPolicyPublicKeyNoSuchWallet e -> toServerError e
+        ErrReadPolicyPublicKeyNotAShelleyWallet ->
+            apiError err403 InvalidWalletType $ mconcat
+                [ "You have attempted an operation that is invalid for this "
+                , "type of wallet. Only wallets from the Shelley era onwards "
+                , "can have rewards, but this wallet is from an era before "
+                , "Shelley."
+                ]
+        ErrReadPolicyPublicKeyAbsent ->
+            apiError err403 InvalidWalletType $ T.unwords
+                [ "It seems the wallet lacks a policy public key. It's"
+                , "therefore not possible to create a minting or burning"
+                , "transaction. Please restore the wallet from a mnemonic"
+                , "phrase instead of an account public key."
                 ]
 
 instance IsServerError ErrCreateRandomAddress where

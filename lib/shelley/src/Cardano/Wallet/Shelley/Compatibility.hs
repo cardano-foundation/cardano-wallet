@@ -94,6 +94,8 @@ module Cardano.Wallet.Shelley.Compatibility
     , toScriptPurpose
     , fromShelleyTxIn
     , toCostModelsAsArray
+    , toCardanoPolicyId
+    , toCardanoSimpleScript
 
       -- ** Assessing sizes of token bundles
     , tokenBundleSizeAssessor
@@ -148,6 +150,8 @@ import Cardano.Address
     ( unsafeMkAddress )
 import Cardano.Address.Derivation
     ( XPub, xpubPublicKey )
+import Cardano.Address.Script
+    ( KeyHash (..), KeyRole (..), Script (..) )
 import Cardano.Api
     ( AllegraEra
     , AlonzoEra
@@ -211,8 +215,16 @@ import Cardano.Wallet.Primitive.Types
     )
 import Cardano.Wallet.Primitive.Types.TokenMap
     ( TokenMap )
+import Cardano.Wallet.Primitive.Types.TokenPolicy
+    ( TokenPolicyId )
 import Cardano.Wallet.Shelley.Compatibility.Ledger
-    ( toWalletTokenName, toWalletTokenPolicyId, toWalletTokenQuantity )
+    ( toWalletScript
+    , toWalletTokenName
+    , toWalletTokenPolicyId
+    , toWalletTokenQuantity
+    )
+import Cardano.Wallet.Transaction
+    ( TokenMapWithScripts (..), emptyTokenMapWithScripts )
 import Cardano.Wallet.Unsafe
     ( unsafeIntToWord, unsafeMkPercentage )
 import Cardano.Wallet.Util
@@ -326,6 +338,7 @@ import qualified Cardano.Ledger.Alonzo.Scripts as Alonzo
 import qualified Cardano.Ledger.Alonzo.Tx as Alonzo
 import qualified Cardano.Ledger.Alonzo.TxBody as Alonzo
 import qualified Cardano.Ledger.Alonzo.TxSeq as Alonzo
+import qualified Cardano.Ledger.Alonzo.TxWitness as Alonzo
 import qualified Cardano.Ledger.BaseTypes as BT
 import qualified Cardano.Ledger.BaseTypes as Ledger
 import qualified Cardano.Ledger.BaseTypes as SL
@@ -343,6 +356,7 @@ import qualified Cardano.Ledger.Shelley.API as SL
 import qualified Cardano.Ledger.Shelley.API as SLAPI
 import qualified Cardano.Ledger.Shelley.BlockChain as SL
 import qualified Cardano.Ledger.Shelley.PParams as Shelley
+import qualified Cardano.Ledger.Shelley.Tx as Shelley
 import qualified Cardano.Ledger.ShelleyMA as MA
 import qualified Cardano.Ledger.ShelleyMA.AuxiliaryData as MA
 import qualified Cardano.Ledger.ShelleyMA.TxBody as MA
@@ -1317,14 +1331,25 @@ fromShelleyCoin (SL.Coin c) = Coin.unsafeFromIntegral c
 toShelleyCoin :: W.Coin -> SL.Coin
 toShelleyCoin (W.Coin c) = SL.Coin $ intCast c
 
-fromCardanoTx :: Cardano.Tx era -> (W.Tx, TokenMap, TokenMap, [Certificate])
+fromCardanoTx
+    :: Cardano.Tx era
+    -> (W.Tx, TokenMapWithScripts, TokenMapWithScripts, [Certificate])
 fromCardanoTx = \case
     Cardano.ShelleyTx era tx -> case era of
-        Cardano.ShelleyBasedEraShelley -> extract $ fromShelleyTx tx
-        Cardano.ShelleyBasedEraAllegra -> extract $ fromAllegraTx tx
-        Cardano.ShelleyBasedEraMary    -> extract $ fromMaryTx tx
-        Cardano.ShelleyBasedEraAlonzo  -> extract $ fromAlonzoTx tx
-    Cardano.ByronTx tx                 -> (fromTxAux tx, mempty, mempty, [])
+        Cardano.ShelleyBasedEraShelley ->
+            extract $ fromShelleyTx tx
+        Cardano.ShelleyBasedEraAllegra ->
+            extract $ fromAllegraTx tx
+        Cardano.ShelleyBasedEraMary ->
+            extract $ fromMaryTx tx
+        Cardano.ShelleyBasedEraAlonzo ->
+            extract $ fromAlonzoTx tx
+    Cardano.ByronTx tx ->
+        ( fromTxAux tx
+        , emptyTokenMapWithScripts
+        , emptyTokenMapWithScripts
+        , []
+        )
   where
     extract (tx, certs, mint, burn) = (tx, mint, burn, certs)
 
@@ -1333,8 +1358,8 @@ fromShelleyTx
     :: SLAPI.Tx (Cardano.ShelleyLedgerEra ShelleyEra)
     -> ( W.Tx
        , [W.Certificate]
-       , TokenMap
-       , TokenMap
+       , TokenMapWithScripts
+       , TokenMapWithScripts
        )
 fromShelleyTx tx =
     ( W.Tx
@@ -1356,8 +1381,8 @@ fromShelleyTx tx =
             Nothing
         }
     , map fromShelleyCert (toList certs)
-    , mempty
-    , mempty
+    , emptyTokenMapWithScripts
+    , emptyTokenMapWithScripts
     )
   where
     SL.Tx bod@(SL.TxBody ins outs certs wdrls fee _ _ _) _ mmd = tx
@@ -1366,8 +1391,8 @@ fromAllegraTx
     :: SLAPI.Tx (Cardano.ShelleyLedgerEra AllegraEra)
     -> ( W.Tx
        , [W.Certificate]
-       , TokenMap
-       , TokenMap
+       , TokenMapWithScripts
+       , TokenMapWithScripts
        )
 fromAllegraTx tx =
     ( W.Tx
@@ -1390,8 +1415,8 @@ fromAllegraTx tx =
             Nothing
         }
     , map fromShelleyCert (toList certs)
-    , mempty
-    , mempty
+    , emptyTokenMapWithScripts
+    , emptyTokenMapWithScripts
     )
   where
     SL.Tx bod@(MA.TxBody ins outs certs wdrls fee _ _ _ _) _ mmd = tx
@@ -1405,8 +1430,8 @@ fromMaryTx
     :: SLAPI.Tx (Cardano.ShelleyLedgerEra MaryEra)
     -> ( W.Tx
        , [W.Certificate]
-       , TokenMap
-       , TokenMap
+       , TokenMapWithScripts
+       , TokenMapWithScripts
        )
 fromMaryTx tx =
     ( W.Tx
@@ -1428,13 +1453,20 @@ fromMaryTx tx =
             Nothing
         }
     , map fromShelleyCert (toList certs)
-    , assetsToMint
-    , assetsToBurn
+    , TokenMapWithScripts assetsToMint mintScriptMap
+    , TokenMapWithScripts assetsToBurn burnScriptMap
     )
   where
-    SL.Tx bod _wits mad = tx
+    SL.Tx bod wits mad = tx
     MA.TxBody ins outs certs wdrls fee _valid _upd _adh mint = bod
     (assetsToMint, assetsToBurn) = fromLedgerMintValue mint
+    scriptMap = fromMaryScriptMap $ Shelley.scriptWits wits
+    (mintScriptMap, burnScriptMap)
+        | (assetsToMint == TokenMap.empty && assetsToBurn /= TokenMap.empty)
+        = (Map.empty, scriptMap)
+        | (assetsToMint /= TokenMap.empty && assetsToBurn == TokenMap.empty)
+        = (scriptMap, Map.empty)
+        | otherwise = (Map.empty, Map.empty)
 
     -- fixme: [ADP-525] It is fine for now since we do not look at script
     -- pre-images. But this is precisely what we want as part of the
@@ -1442,11 +1474,20 @@ fromMaryTx tx =
     toSLMetadata (MA.AuxiliaryData blob _scripts) = SL.Metadata blob
 
     fromMaryTxOut
-         :: SLAPI.TxOut (Cardano.ShelleyLedgerEra MaryEra)
-         -> W.TxOut
+        :: SLAPI.TxOut (Cardano.ShelleyLedgerEra MaryEra)
+        -> W.TxOut
     fromMaryTxOut (SL.TxOut addr value) =
         W.TxOut (fromShelleyAddress addr) $
         fromCardanoValue $ Cardano.fromMaryValue value
+
+    fromMaryScriptMap
+        :: Map
+            (SL.ScriptHash (Crypto (MA.ShelleyMAEra 'MA.Mary StandardCrypto)))
+            (SL.Core.Script (MA.ShelleyMAEra 'MA.Mary StandardCrypto))
+        -> Map TokenPolicyId (Script KeyHash)
+    fromMaryScriptMap =
+        Map.map (toWalletScript Policy) .
+        Map.mapKeys (toWalletTokenPolicyId . SL.PolicyID)
 
 getScriptIntegrityHash
     :: Cardano.Tx era
@@ -1469,12 +1510,13 @@ getScriptIntegrityHash = \case
 fromAlonzoTxBodyAndAux
     :: Alonzo.TxBody (Cardano.ShelleyLedgerEra AlonzoEra)
     -> SLAPI.StrictMaybe (Alonzo.AuxiliaryData (Cardano.ShelleyLedgerEra AlonzoEra))
+    -> Alonzo.TxWitness StandardAlonzo
     -> ( W.Tx
        , [W.Certificate]
-       , TokenMap
-       , TokenMap
+       , TokenMapWithScripts
+       , TokenMapWithScripts
        )
-fromAlonzoTxBodyAndAux bod mad =
+fromAlonzoTxBodyAndAux bod mad wits =
     ( W.Tx
         { txId =
             fromShelleyTxId $ TxIn.txid @(Cardano.ShelleyLedgerEra AlonzoEra) bod
@@ -1494,8 +1536,8 @@ fromAlonzoTxBodyAndAux bod mad =
             Nothing
         }
     , map fromShelleyCert (toList certs)
-    , assetsToMint
-    , assetsToBurn
+    , TokenMapWithScripts assetsToMint mintScriptMap
+    , TokenMapWithScripts assetsToBurn burnScriptMap
     )
   where
     Alonzo.TxBody
@@ -1514,10 +1556,36 @@ fromAlonzoTxBodyAndAux bod mad =
         _network
         = bod
     (assetsToMint, assetsToBurn) = fromLedgerMintValue mint
+    scriptMap = fromAlonzoScriptMap $ Alonzo.txscripts' wits
+    (mintScriptMap, burnScriptMap)
+        | (assetsToMint == TokenMap.empty && assetsToBurn /= TokenMap.empty)
+        = (Map.empty, scriptMap)
+        | (assetsToMint /= TokenMap.empty && assetsToBurn == TokenMap.empty)
+        = (scriptMap, Map.empty)
+        | otherwise = (Map.empty, Map.empty)
+
+    fromAlonzoScriptMap
+        :: Map
+            (SL.ScriptHash (Crypto StandardAlonzo))
+            (SL.Core.Script StandardAlonzo)
+        -> Map TokenPolicyId (Script KeyHash)
+    fromAlonzoScriptMap anyScript =
+        if Map.filter isPlutusScript anyScript == Map.empty then
+            Map.map (toWalletScript Policy . unsafeGetTimelockScript) $
+            Map.mapKeys (toWalletTokenPolicyId . SL.PolicyID) anyScript
+        else
+            Map.empty
+      where
+        isPlutusScript (Alonzo.PlutusScript _ _) = True
+        isPlutusScript _ = False
+
+        unsafeGetTimelockScript (Alonzo.TimelockScript script) = script
+        unsafeGetTimelockScript _ =
+            internalError "only timelock scripts should be attempted here"
 
     fromAlonzoTxOut
-         :: Alonzo.TxOut (Cardano.ShelleyLedgerEra AlonzoEra)
-         -> W.TxOut
+        :: Alonzo.TxOut (Cardano.ShelleyLedgerEra AlonzoEra)
+        -> W.TxOut
     fromAlonzoTxOut (Alonzo.TxOut addr value _) =
         W.TxOut (fromShelleyAddress addr) $
         fromCardanoValue $ Cardano.fromMaryValue value
@@ -1528,22 +1596,22 @@ fromAlonzoValidatedTx
     :: Alonzo.ValidatedTx (Cardano.ShelleyLedgerEra AlonzoEra)
     -> ( W.Tx
        , [W.Certificate]
-       , TokenMap
-       , TokenMap
+       , TokenMapWithScripts
+       , TokenMapWithScripts
        )
-fromAlonzoValidatedTx (Alonzo.ValidatedTx bod _wits _isValidating aux) =
-    fromAlonzoTxBodyAndAux bod aux
+fromAlonzoValidatedTx (Alonzo.ValidatedTx bod wits _isValidating aux) =
+    fromAlonzoTxBodyAndAux bod aux wits
 
 fromAlonzoTx
     :: Alonzo.ValidatedTx (Cardano.ShelleyLedgerEra AlonzoEra)
     -> ( W.Tx
        , [W.Certificate]
-       , TokenMap
-       , TokenMap
+       , TokenMapWithScripts
+       , TokenMapWithScripts
        )
-fromAlonzoTx (Alonzo.ValidatedTx bod _wits (Alonzo.IsValid isValid) aux) =
+fromAlonzoTx (Alonzo.ValidatedTx bod wits (Alonzo.IsValid isValid) aux) =
     (\(tx, c, m, b) -> (tx { W.scriptValidity = validity }, c, m, b))
-    $ fromAlonzoTxBodyAndAux bod aux
+    $ fromAlonzoTxBodyAndAux bod aux wits
     where
         validity =
             if isValid
@@ -1803,7 +1871,7 @@ toCardanoTxOut era = case era of
                 <$> deserialiseFromRawBytes AsByronAddress addr
             ]
 
-toCardanoValue :: HasCallStack => TokenBundle.TokenBundle -> Cardano.Value
+toCardanoValue :: TokenBundle.TokenBundle -> Cardano.Value
 toCardanoValue tb = Cardano.valueFromList $
     (Cardano.AdaAssetId, coinToQuantity coin) :
     map (bimap toCardanoAssetId toQuantity) bundle
@@ -1812,18 +1880,47 @@ toCardanoValue tb = Cardano.valueFromList $
     toCardanoAssetId (TokenBundle.AssetId pid name) =
         Cardano.AssetId (toCardanoPolicyId pid) (toCardanoAssetName name)
 
-    toCardanoPolicyId (W.UnsafeTokenPolicyId (W.Hash pid)) = just "PolicyId"
-        [Cardano.deserialiseFromRawBytes Cardano.AsPolicyId pid]
-    toCardanoAssetName (W.UnsafeTokenName name) = just "TokenName"
+    toCardanoAssetName (W.UnsafeTokenName name) =
+        just "toCardanoValue" "TokenName"
         [Cardano.deserialiseFromRawBytes Cardano.AsAssetName name]
-
-    just :: Builder -> [Maybe a] -> a
-    just t = tina ("toCardanoValue: unable to deserialise "+|t)
 
     coinToQuantity = fromIntegral . W.unCoin
     toQuantity = fromIntegral . W.unTokenQuantity
 
-fromLedgerMintValue :: SL.Value StandardCrypto -> (TokenMap, TokenMap)
+toCardanoPolicyId :: W.TokenPolicyId -> Cardano.PolicyId
+toCardanoPolicyId (W.UnsafeTokenPolicyId (W.Hash pid)) =
+    just "toCardanoPolicyId" "PolicyId"
+    [Cardano.deserialiseFromRawBytes Cardano.AsPolicyId pid]
+
+toCardanoSimpleScript
+    :: Script KeyHash
+    -> Cardano.SimpleScript Cardano.SimpleScriptV2
+toCardanoSimpleScript = \case
+    RequireSignatureOf (KeyHash _ keyhash) ->
+        case Cardano.deserialiseFromRawBytes
+            (Cardano.AsHash Cardano.AsPaymentKey) keyhash of
+                Just payKeyHash -> Cardano.RequireSignature payKeyHash
+                Nothing -> error "Hash key not valid"
+    RequireAllOf contents ->
+        Cardano.RequireAllOf $ map toCardanoSimpleScript contents
+    RequireAnyOf contents ->
+        Cardano.RequireAnyOf $ map toCardanoSimpleScript contents
+    RequireSomeOf num contents ->
+        Cardano.RequireMOf (fromIntegral num) $
+            map toCardanoSimpleScript contents
+    ActiveFromSlot slot ->
+        Cardano.RequireTimeAfter Cardano.TimeLocksInSimpleScriptV2
+        (O.SlotNo $ fromIntegral slot)
+    ActiveUntilSlot slot ->
+        Cardano.RequireTimeBefore Cardano.TimeLocksInSimpleScriptV2
+        (O.SlotNo $ fromIntegral slot)
+
+just :: Builder -> Builder -> [Maybe a] -> a
+just t1 t2 = tina (t1+|": unable to deserialise "+|t2)
+
+fromLedgerMintValue
+    :: SL.Value StandardCrypto
+    -> (TokenMap, TokenMap)
 fromLedgerMintValue (SL.Value _ ledgerTokens) =
     (assetsToMint, assetsToBurn)
   where

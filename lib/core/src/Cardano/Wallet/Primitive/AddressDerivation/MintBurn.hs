@@ -1,4 +1,8 @@
+{-# LANGUAGE AllowAmbiguousTypes #-}
 {-# LANGUAGE DataKinds #-}
+{-# LANGUAGE LambdaCase #-}
+{-# LANGUAGE ScopedTypeVariables #-}
+{-# LANGUAGE TypeApplications #-}
 
 -- |
 -- Copyright: © 2018-2021 IOHK
@@ -22,20 +26,23 @@ module Cardano.Wallet.Primitive.AddressDerivation.MintBurn
       -- * Helpers
     , derivePolicyKeyAndHash
     , derivePolicyPrivateKey
+    , policyDerivationPath
+    , toTokenMapAndScript
     ) where
 
 import Prelude
 
 import Cardano.Address.Derivation
-    ( XPrv )
+    ( XPrv, XPub )
 import Cardano.Address.Script
-    ( KeyHash )
+    ( Cosigner, KeyHash, Script (..), ScriptHash (..), toScriptHash )
 import Cardano.Crypto.Wallet
     ( deriveXPrv )
 import Cardano.Crypto.Wallet.Types
     ( DerivationScheme (DerivationScheme2) )
 import Cardano.Wallet.Primitive.AddressDerivation
     ( Depth (..)
+    , DerivationIndex (..)
     , DerivationType (..)
     , Index (..)
     , Passphrase (..)
@@ -48,8 +55,28 @@ import Cardano.Wallet.Primitive.AddressDerivation
     )
 import Cardano.Wallet.Primitive.AddressDiscovery
     ( coinTypeAda )
+import Cardano.Wallet.Primitive.Types.Hash
+    ( Hash (..) )
+import Cardano.Wallet.Primitive.Types.TokenMap
+    ( AssetId (..) )
+import Cardano.Wallet.Primitive.Types.TokenPolicy
+    ( TokenName, TokenPolicyId (..) )
+import Cardano.Wallet.Primitive.Types.TokenQuantity
+    ( TokenQuantity (..) )
+import Cardano.Wallet.Util
+    ( invariant )
+import Data.List.NonEmpty
+    ( NonEmpty )
+import Data.Map.Strict
+    ( Map )
+import Data.Maybe
+    ( isJust )
+import Numeric.Natural
+    ( Natural )
 
 import qualified Cardano.Address.Script as CA
+import qualified Data.List.NonEmpty as NE
+import qualified Data.Map.Strict as Map
 
 -- | Purpose for forged policy keys is a constant set to 1855' (or 0x8000073F)
 -- following the original CIP-1855: "Forging policy keys for HD Wallets".
@@ -98,3 +125,55 @@ derivePolicyKeyAndHash pwd rootPrv policyIx = (policyK, vkeyHash)
     policyK = liftRawKey policyPrv
     policyPrv = derivePolicyPrivateKey pwd (getRawKey rootPrv) policyIx
     vkeyHash = hashVerificationKey CA.Payment (publicKey policyK)
+
+policyDerivationPath
+    :: NonEmpty DerivationIndex
+policyDerivationPath =  NE.fromList
+    [ DerivationIndex $ getIndex purposeCIP1855
+    , DerivationIndex $ getIndex coinTypeAda
+    , DerivationIndex $ getIndex policyIx
+    ]
+  where
+    policyIx :: Index 'Hardened 'PolicyK
+    policyIx = minBound
+
+toTokenMapAndScript
+    :: forall key. WalletKey key
+    => Script Cosigner
+    -> Map Cosigner XPub
+    -> TokenName
+    -> Natural
+    -> (AssetId, TokenQuantity, Script KeyHash)
+toTokenMapAndScript scriptTempl cosignerMap tName val =
+    ( AssetId
+        ( UnsafeTokenPolicyId
+        $ Hash
+        $ unScriptHash
+        $ toScriptHash
+        $ replaceCosigner scriptTempl
+        ) tName
+    , TokenQuantity val
+    , replaceCosigner scriptTempl
+    )
+  where
+    replaceCosigner :: Script Cosigner -> Script KeyHash
+    replaceCosigner = \case
+        RequireSignatureOf c ->
+            RequireSignatureOf $ toKeyHash c
+        RequireAllOf xs ->
+            RequireAllOf (map replaceCosigner xs)
+        RequireAnyOf xs ->
+            RequireAnyOf (map replaceCosigner xs)
+        RequireSomeOf m xs ->
+            RequireSomeOf m (map replaceCosigner xs)
+        ActiveFromSlot s ->
+            ActiveFromSlot s
+        ActiveUntilSlot s ->
+            ActiveUntilSlot s
+    toKeyHash :: Cosigner -> KeyHash
+    toKeyHash c =
+        let Just xpub =
+                invariant "we should have xpubs of all cosigners at this point"
+                (Map.lookup c cosignerMap)
+                isJust
+        in hashVerificationKey @key CA.Policy (liftRawKey xpub)

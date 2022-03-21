@@ -13,6 +13,8 @@ Available commands:
                            private key
   inspect                  Show information about a key
   hash                     Get the hash of a public key
+  walletid                 Shows the cardano-wallet wallet ID for
+                           a given key
 
 Example:
   [1m$ cardano-wallet recovery-phrase generate --size 15 \[0m

@@ -323,12 +323,13 @@ UTxOToken                               sql=utxo_token
 -- Sequential scheme address discovery state
 -- which does not belong to a particular checkpoint.
 SeqState
-    seqStateWalletId          W.WalletId         sql=wallet_id
-    seqStateExternalGap       W.AddressPoolGap   sql=external_gap
-    seqStateInternalGap       W.AddressPoolGap   sql=internal_gap
-    seqStateAccountXPub       B8.ByteString      sql=account_xpub
-    seqStateRewardXPub        B8.ByteString      sql=reward_xpub
-    seqStateDerivationPrefix  W.DerivationPrefix sql=derivation_prefix
+    seqStateWalletId          W.WalletId           sql=wallet_id
+    seqStateExternalGap       W.AddressPoolGap     sql=external_gap
+    seqStateInternalGap       W.AddressPoolGap     sql=internal_gap
+    seqStateAccountXPub       B8.ByteString        sql=account_xpub
+    seqStatePolicyXPub        B8.ByteString Maybe  sql=policy_xpub
+    seqStateRewardXPub        B8.ByteString        sql=reward_xpub
+    seqStateDerivationPrefix  W.DerivationPrefix   sql=derivation_prefix
 
     Primary seqStateWalletId
     Foreign Wallet OnDeleteCascade seq_state seqStateWalletId

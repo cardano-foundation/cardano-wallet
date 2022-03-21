@@ -81,6 +81,7 @@ module Cardano.Wallet
     , readNextWithdrawal
     , readRewardAccount
     , someRewardAccount
+    , readPolicyPublicKey
     , queryRewardBalance
     , ErrWalletAlreadyExists (..)
     , ErrNoSuchWallet (..)
@@ -90,6 +91,7 @@ module Cardano.Wallet
     , ErrCheckWalletIntegrity (..)
     , ErrWalletNotResponding (..)
     , ErrReadRewardAccount (..)
+    , ErrReadPolicyPublicKey (..)
 
     -- * Shared Wallet
     , updateCosigner
@@ -301,6 +303,8 @@ import Cardano.Wallet.Primitive.AddressDerivation.Byron
     ( ByronKey )
 import Cardano.Wallet.Primitive.AddressDerivation.Icarus
     ( IcarusKey )
+import Cardano.Wallet.Primitive.AddressDerivation.MintBurn
+    ( policyDerivationPath )
 import Cardano.Wallet.Primitive.AddressDerivation.SharedKey
     ( SharedKey (..) )
 import Cardano.Wallet.Primitive.AddressDerivation.Shelley
@@ -1220,6 +1224,34 @@ readRewardAccount ctx wid = db & \DBLayer{..} -> do
   where
     db = ctx ^. dbLayer @IO @s @k
 
+readPolicyPublicKey
+    :: forall ctx s k (n :: NetworkDiscriminant) shelley.
+        ( HasDBLayer IO s k ctx
+        , shelley ~ SeqState n ShelleyKey
+        , Typeable n
+        , Typeable s
+        )
+    => ctx
+    -> WalletId
+    -> ExceptT ErrReadPolicyPublicKey IO (XPub, NonEmpty DerivationIndex)
+readPolicyPublicKey ctx wid = db & \DBLayer{..} -> do
+    cp <- withExceptT ErrReadPolicyPublicKeyNoSuchWallet
+        $ mapExceptT atomically
+        $ withNoSuchWallet wid
+        $ readCheckpoint wid
+    case testEquality (typeRep @s) (typeRep @shelley) of
+        Nothing ->
+            throwE ErrReadPolicyPublicKeyNotAShelleyWallet
+        Just Refl -> do
+            let s = getState cp
+            case Seq.policyXPub s of
+                Nothing ->
+                    throwE ErrReadPolicyPublicKeyAbsent
+                Just xpub ->
+                    pure (getRawKey xpub, policyDerivationPath)
+  where
+    db = ctx ^. dbLayer @IO @s @k
+
 -- | Query the node for the reward balance of a given wallet.
 --
 -- Rather than force all callers of 'readWallet' to wait for fetching the
@@ -1535,8 +1567,8 @@ balanceTransaction
                 { txPlutusScriptExecutionCost
                 , txMetadata
                 , txWithdrawal
-                , txAssetsToMint
-                , txAssetsToBurn
+                , txAssetsToMint = (txAssetsToMint ^. #txTokenMap, Map.empty)
+                , txAssetsToBurn = (txAssetsToBurn ^. #txTokenMap, Map.empty)
                 , txCollateralRequirement =
                     if txPlutusScriptExecutionCost > Coin 0 then
                         SelectionCollateralRequired
@@ -2006,9 +2038,9 @@ selectAssets ctx pp params transform = do
             }
     let selectionParams = SelectionParams
             { assetsToMint =
-                params ^. (#txContext . #txAssetsToMint)
+                fst $ params ^. (#txContext . #txAssetsToMint)
             , assetsToBurn =
-                params ^. (#txContext . #txAssetsToBurn)
+                fst $ params ^. (#txContext . #txAssetsToBurn)
             , extraCoinIn = Coin 0
             , extraCoinOut = Coin 0
             , outputsToCover = params ^. #outputs
@@ -3211,6 +3243,7 @@ data ErrConstructTx
     | ErrConstructTxIncorrectTTL PastHorizonException
     | ErrConstructTxMultidelegationNotSupported
     | ErrConstructTxMultiaccountNotSupported
+    | ErrConstructTxWrongMintingBurningTemplate
     | ErrConstructTxNotImplemented String
     -- ^ Temporary error constructor.
     deriving (Show, Eq)
@@ -3333,6 +3366,12 @@ data ErrReadRewardAccount
 
 data ErrWithdrawalNotWorth
     = ErrWithdrawalNotWorth
+    deriving (Generic, Eq, Show)
+
+data ErrReadPolicyPublicKey
+    = ErrReadPolicyPublicKeyNotAShelleyWallet
+    | ErrReadPolicyPublicKeyNoSuchWallet ErrNoSuchWallet
+    | ErrReadPolicyPublicKeyAbsent
     deriving (Generic, Eq, Show)
 
 {-------------------------------------------------------------------------------

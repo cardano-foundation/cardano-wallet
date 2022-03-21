@@ -27,6 +27,8 @@ module Cardano.Wallet.Transaction
     , withdrawalToCoin
     , TxUpdate (..)
     , TxFeeUpdate(..)
+    , TokenMapWithScripts (..)
+    , emptyTokenMapWithScripts
 
     -- * Errors
     , ErrSignTx (..)
@@ -41,6 +43,8 @@ import Prelude
 
 import Cardano.Address.Derivation
     ( XPrv, XPub )
+import Cardano.Address.Script
+    ( KeyHash, Script )
 import Cardano.Api
     ( AnyCardanoEra )
 import Cardano.Wallet.CoinSelection
@@ -72,7 +76,9 @@ import Cardano.Wallet.Primitive.Types.Redeemer
 import Cardano.Wallet.Primitive.Types.RewardAccount
     ( RewardAccount )
 import Cardano.Wallet.Primitive.Types.TokenMap
-    ( TokenMap )
+    ( AssetId, TokenMap )
+import Cardano.Wallet.Primitive.Types.TokenPolicy
+    ( TokenPolicyId )
 import Cardano.Wallet.Primitive.Types.Tx
     ( SealedTx
     , TokenBundleSizeAssessor
@@ -87,6 +93,8 @@ import Cardano.Wallet.Primitive.Types.UTxO
     ( UTxO )
 import Data.List.NonEmpty
     ( NonEmpty )
+import Data.Map.Strict
+    ( Map )
 import Data.Text
     ( Text )
 import Fmt
@@ -96,6 +104,7 @@ import GHC.Generics
 
 import qualified Cardano.Api.Shelley as Node
 import qualified Cardano.Wallet.Primitive.Types.TokenMap as TokenMap
+import qualified Data.Map.Strict as Map
 
 data TransactionLayer k tx = TransactionLayer
     { mkTransaction
@@ -238,7 +247,9 @@ data TransactionLayer k tx = TransactionLayer
         -> TxConstraints
         -- The set of constraints that apply to all transactions.
 
-    , decodeTx :: tx -> (Tx, TokenMap, TokenMap, [Certificate])
+    , decodeTx
+        :: tx
+        -> (Tx, TokenMapWithScripts, TokenMapWithScripts, [Certificate])
     -- ^ Decode an externally-created transaction.
 
     , updateTx
@@ -296,14 +307,14 @@ data TransactionCtx = TransactionCtx
     , txPlutusScriptExecutionCost :: Coin
     -- ^ Total execution cost of plutus scripts, determined by their execution units
     -- and prices obtained from network.
-    , txAssetsToMint :: TokenMap
+    , txAssetsToMint :: (TokenMap, Map AssetId (Script KeyHash))
     -- ^ The assets to mint.
-    , txAssetsToBurn :: TokenMap
+    , txAssetsToBurn :: (TokenMap, Map AssetId (Script KeyHash))
     -- ^ The assets to burn.
     , txCollateralRequirement :: SelectionCollateralRequirement
     -- ^ The collateral requirement.
     , txFeePadding :: !Coin
-    -- ^ Extra fees. Some parts of a transction are not representable using
+    -- ^ Extra fees. Some parts of a transaction are not representable using
     -- cardano-wallet types, which makes it useful to account for them like
     -- this. For instance: datums.
     } deriving (Show, Generic, Eq)
@@ -329,8 +340,8 @@ defaultTransactionCtx = TransactionCtx
     , txTimeToLive = maxBound
     , txDelegationAction = Nothing
     , txPlutusScriptExecutionCost = Coin 0
-    , txAssetsToMint = TokenMap.empty
-    , txAssetsToBurn = TokenMap.empty
+    , txAssetsToMint = (TokenMap.empty, Map.empty)
+    , txAssetsToBurn = (TokenMap.empty, Map.empty)
     , txCollateralRequirement = SelectionCollateralNotRequired
     , txFeePadding = Coin 0
     }
@@ -341,6 +352,17 @@ data DelegationAction = RegisterKeyAndJoin PoolId | Join PoolId | Quit
 
 instance Buildable DelegationAction where
     build = genericF
+
+data TokenMapWithScripts = TokenMapWithScripts
+    { txTokenMap :: !TokenMap
+    , txScripts :: !(Map TokenPolicyId (Script KeyHash))
+    } deriving (Show, Generic, Eq)
+
+emptyTokenMapWithScripts :: TokenMapWithScripts
+emptyTokenMapWithScripts = TokenMapWithScripts
+    { txTokenMap = mempty
+    , txScripts = Map.empty
+    }
 
 data ErrMkTransaction
     = ErrMkTransactionNoSuchWallet WalletId

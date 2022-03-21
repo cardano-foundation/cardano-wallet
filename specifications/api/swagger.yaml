@@ -494,7 +494,7 @@ x-ScriptValue: &ScriptValue
       description: Leaf value for a script designating a required verification key hash.
       type: string
       format: bech32
-      pattern: "^((addr_shared_vkh)|(stake_shared_vkh))1[0-9a-z]*$"
+      pattern: "^((addr_shared_vkh)|(stake_shared_vkh)|(policy_vkh))1[0-9a-z]*$"
 
     - title: All
       type: object
@@ -970,7 +970,7 @@ x-assetMint: &assetMint
         Positive values mean creation and negative values mean
         destruction.
 
-x-assetMintedBurned: &assetMintedBurned
+x-assetMintBurn: &assetMintBurn
   type: object
   required:
     - policy_id
@@ -2384,6 +2384,11 @@ components:
       format: bech32
       pattern: "^((acct_shared_xvk)|(acct_shared_vk))1[0-9a-z]*$"
 
+    ApiPolicyKey: &ApiPolicyKey
+      type: string
+      format: bech32
+      pattern: "^((policy_vk)|(policy_vkh))1[0-9a-z]*$"
+
     ApiTxId: &ApiTxId
       type: object
       required:
@@ -2407,6 +2412,23 @@ components:
       properties:
         transaction: *serialisedTransactionEncoded
 
+    ApiMintBurnInfo: &ApiMintBurnInfo
+      type: object
+      required:
+        - verification_key_index
+        - policy_id
+        - asset_name
+        - subject
+        - policy_script
+      properties:
+        verification_key_index: *derivationSegment
+        policy_id: *assetPolicyId
+        asset_name: *assetName
+        subject: *assetFingerprint
+        policy_script:
+          <<: *ScriptValue
+          description: The script under which the asset is minted or burned.
+
     ApiConstructTransaction: &ApiConstructTransaction
       type: object
       required:
@@ -2417,6 +2439,11 @@ components:
         transaction: *serialisedTransactionBase64
         coin_selection: *ApiCoinSelection
         fee: *amount
+        mint_burn:
+          type: array
+          items: *ApiMintBurnInfo
+          minItems: 1
+          description: An entry for each unique asset minted and/or burned, containing helpful information.
 
     ApiTransaction: &ApiTransaction
       type: object
@@ -2477,21 +2504,31 @@ components:
       description: |
         Withdrawals that could be external or belong to the wallet.
 
-    ApiMintedAssets: &ApiMintedAssets
-      description: |
-        Assets minted (created).
-        The act of minting assets provides value to a transaction.
-      type: array
-      minItems: 0
-      items: *assetMintedBurned
+    ApiPolicyScript: &ApiPolicyScript
+      type: object
+      required:
+        - policy_id
+        - policy_script
+      properties:
+        policy_id: *assetPolicyId
+        policy_script: *ScriptValue
 
-    ApiBurnedAssets: &ApiBurnedAssets
-      description: |
-        Assets burned (destroyed).
-        The act of burning assets consumes value from a transaction.
-      type: array
-      minItems: 0
-      items: *assetMintedBurned
+    ApiAssetMintBurn: &ApiAssetMintBurn
+      type: object
+      required:
+        - token_map
+        - policy_scripts
+        - wallet_policy_key_hash
+      properties:
+        token_map:
+          type: array
+          minItems: 0
+          items: *assetMintBurn
+        policy_scripts:
+          type: array
+          minItems: 0
+          items: *ApiPolicyScript
+        wallet_policy_key_hash: *ApiPolicyKey
 
     ApiStakePoolMetadata: &ApiStakePoolMetadata
       type: object
@@ -2572,8 +2609,8 @@ components:
         outputs: *ApiOutputsGeneral
         collateral: *ApiInputsGeneral
         withdrawals: *ApiWithdrawalsGeneral
-        assets_minted: *ApiMintedAssets
-        assets_burned: *ApiBurnedAssets
+        assets_minted: *ApiAssetMintBurn
+        assets_burned: *ApiAssetMintBurn
         certificates:
           type: array
           minItems: 0
@@ -3323,6 +3360,54 @@ components:
         - title: outputs without amounts
           <<: *transactionNoAmountOutputs
 
+    ApiAssetQuantity: &ApiAssetQuantity
+      type: object
+      required:
+        - quantity
+        - unit
+      properties:
+        quantity:
+          type: integer
+          example: 14
+        unit:
+          type: string
+          enum:
+            - assets
+
+    ApiMintData: &ApiMintData
+      type: object
+      required:
+        - receiving_address
+        - amount
+      properties:
+        receiving_address: *addressId
+        amount: *ApiAssetQuantity
+
+    ApiBurnData: &ApiBurnData
+      allOf:
+        - *ApiAssetQuantity
+
+    ApiMintBurnOperation: &ApiMintBurnOperation
+      type: object
+      oneOf:
+        - title: "mint"
+          properties:
+            mint: *ApiMintData
+        - title: "burn"
+          properties:
+            burn: *ApiBurnData
+
+    ApiMintBurnData: &ApiMintBurnData
+      type: object
+      required:
+        - asset_name
+        - operation
+        - policy_script_template
+      properties:
+        policy_script_template: *ScriptTemplateValue
+        asset_name: *assetName
+        operation: *ApiMintBurnOperation
+
     ApiConstructTransactionData: &ApiConstructTransactionData
       description: At least one field needs to be chosen
       type: object
@@ -3330,7 +3415,13 @@ components:
         payments: *ApiPaymentDestination
         withdrawal: *transactionWithdrawalRequestSelf
         metadata: *transactionMetadata
-        mint: *transactionMint
+        mint_burn:
+          type: array
+          items: *ApiMintBurnData
+          minItems: 1
+          description:
+             An entry for each unique asset to be minted and/or burned,
+             containing helpful information.
         delegations: *transactionDelegations
         validity_interval: *ApiValidityInterval
 
@@ -3474,88 +3565,20 @@ components:
 
         "none": *ApiNullStakeKey
 
-    ApiMintedBurnedInfo: &ApiMintedBurnedInfo
-      type: object
-      required:
-        - monetary_policy_index
-        - policy_id
-        - asset_name
-        - subject
-        - script
-      properties:
-        monetary_policy_index: *derivationSegment
-        policy_id: *assetPolicyId
-        asset_name: *assetName
-        subject: *assetFingerprint
-        script:
-          <<: *ScriptValue
-          description: The script under which this asset was minted or burned.
-
-    ApiMintedBurnedTransaction: &ApiMintedBurnedTransaction
+    ApiMintBurnTransaction: &ApiMintBurnTransaction
       type: object
       required:
         - transaction
-        - minted_burned
+        - mint_burn
       properties:
         transaction:
           <<: *ApiTransaction
           description: Information about the mint/burn transaction submitted.
-        minted_burned:
+        mint_burn:
           type: array
-          items: *ApiMintedBurnedInfo
+          items: *ApiMintBurnInfo
           minItems: 1
           description: An entry for each unique asset minted and/or burned, containing helpful information.
-
-    ApiAssetQuantity: &ApiAssetQuantity
-      type: object
-      required:
-        - quantity
-        - unit
-      properties:
-        quantity:
-          type: integer
-          example: 14
-        unit:
-          type: string
-          enum:
-            - assets
-
-    ApiMintData: &ApiMintData
-      type: object
-      required:
-        - receiving_address
-        - amount
-      properties:
-        receiving_address: *addressId
-        amount: *ApiAssetQuantity
-
-    ApiBurnData: &ApiBurnData
-      allOf:
-        - *ApiAssetQuantity
-
-    ApiMintBurnOperation: &ApiMintBurnOperation
-      type: object
-      oneOf:
-        - title: "mint"
-          properties:
-            mint: *ApiMintData
-        - title: "burn"
-          properties:
-            burn: *ApiBurnData
-
-    ApiMintBurnData: &ApiMintBurnData
-      type: object
-      required:
-        - asset_name
-        - operation
-      properties:
-        monetary_policy_index:
-          allOf:
-            - *derivationSegment
-            - type: string
-              default: 0
-        asset_name: *assetName
-        operation: *ApiMintBurnOperation
 
     ApiPostMintBurnAssetData: &ApiPostMintBurnAssetData
       type: object
@@ -3571,7 +3594,6 @@ components:
           <<: *lenientPassphrase
           description: The wallet's master passphrase.
         metadata: *transactionMetadata
-        time_to_live: *transactionTTL
 
     ApiRedeemerSpending: &ApiRedeemerSpending
       type: object
@@ -4061,6 +4083,19 @@ x-errCreatedMultiaccountTransaction: &errCreatedMultiaccountTransaction
     code:
       type: string
       enum: ['created_multiaccount_transaction']
+
+x-errCreatedWrongPolicyScriptTemplate: &errCreatedWrongPolicyScriptTemplate
+  <<: *responsesErr
+  title: created_wrong_policy_script_template
+  properties:
+    message:
+      type: string
+      description:
+          Occurs when a policy script template either does not pass validation
+          or has more than one cosigner.
+    code:
+      type: string
+      enum: ['created_wrong_policy_script_template']
 
 x-errInputsDepleted: &errInputsDepleted
   <<: *responsesErr
@@ -4845,7 +4880,7 @@ x-responsesMintToken: &responsesMintToken
     description: Accepted
     content:
       application/json:
-        schema: *ApiMintedBurnedTransaction
+        schema: *ApiMintBurnTransaction
 
 x-responsesPostByronWallet: &responsesPostByronWallet
   <<: *responsesErr400
@@ -5121,6 +5156,7 @@ x-responsesConstructTransaction: &responsesConstructTransaction
             - <<: *errTransactionIsTooBig
             - <<: *errCreatedMultidelegationTransaction
             - <<: *errCreatedMultiaccountTransaction
+            - <<: *errCreatedWrongPolicyScriptTemplate
   <<: *responsesErr404WalletNotFound
   <<: *responsesErr406
   <<: *responsesErr415UnsupportedMediaType
@@ -5269,6 +5305,16 @@ x-responsesGetShelleyKey: &responsesGetShelleyKey
     content:
       application/json:
         schema: *ApiVerificationKeyShelley
+
+x-responsesGetPolicyKey: &responsesGetPolicyKey
+  <<: *responsesErr400
+  <<: *responsesErr404
+  <<: *responsesErr406
+  200:
+    description: Ok
+    content:
+      application/json:
+        schema: *ApiPolicyKey
 
 x-responsesGetSharedKey: &responsesGetSharedKey
   <<: *responsesErr400
@@ -6049,6 +6095,22 @@ paths:
         - *parametersRole
         - *parametersDerivationSegment
       responses: *responsesGetShelleyKey
+
+  /wallets/{walletId}/policy-key:
+    get:
+      operationId: getPolicyKey
+      tags: ["Keys"]
+      summary: Get Policy Key
+      description: |
+        <p align="right">status: <strong>stable</strong></p>
+        Return a policy key for a derivation index = 0.
+
+        To get a hash of the policy key instead of the policy key,
+        use query parameter `hash=true`.
+
+      parameters:
+        - *parametersWalletId
+      responses: *responsesGetPolicyKey
 
   /wallets/{walletId}/stake-keys:
     get:
