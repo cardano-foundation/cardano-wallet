@@ -23,8 +23,8 @@ import Data.Text
 import Options.Applicative
     ( Parser, help, long, metavar, option, str )
 
-import qualified Data.Text as Text
-import qualified Data.Text.IO as Text
+import qualified Data.Text.IO as T
+import qualified Data.Text as T
 
 newtype TokenFile = TokenFile FilePath
     deriving newtype (Eq, Show)
@@ -45,14 +45,14 @@ tokenFileOption = option (TokenFile <$> str) $ mconcat
     ]
 
 readToken :: TokenFile -> IO Project
-readToken (TokenFile fp) = Text.readFile fp >>=
+readToken (TokenFile fp) = T.readFile fp >>=
     either (throw (TokenFileException fp) . const) pure . mkProject
   where
     -- Can't use `Blockfrost.Client.Core.projectFromFile` as it uses `error`
     -- and it leads to an unnecessary output that pollutes stdout.
     mkProject :: Text -> Either Text Project
     mkProject t =
-      let st = Text.strip t
-          tEnv = Text.dropEnd 32 st
-          token = Text.drop (Text.length tEnv) st
+      let st = T.strip t
+          tEnv = T.dropEnd 32 st
+          token = T.drop (T.length tEnv) st
       in Project <$> parseEnv tEnv <*> pure token
