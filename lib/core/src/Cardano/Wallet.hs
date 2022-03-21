@@ -1971,11 +1971,6 @@ balanceTransactionWithSelectionStrategy
                 -- selections notion of balance by @balance0 - sum inputs + sum
                 -- outputs + fee0@ where @balance0@ is the balance of the
                 -- partial tx.
-                --
-                -- We need to compensate for inputs and outputs affecting both
-                -- 1) the @balance@ itself and coin-selection and 2) the coin
-                -- selections notion of balance. Hence we add @-sum inputs + sum
-                -- outputs@ to cancel the effect of (2).
                 { assetsToMint = positiveTokens <> tokensInOutputs
                 , assetsToBurn = negativeTokens <> tokensInInputs
                 , extraCoinIn =
