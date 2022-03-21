@@ -87,6 +87,8 @@ import Prelude
 
 import Cardano.Address.Derivation
     ( XPrv, XPub, xpubPublicKey )
+import Cardano.Address.Script
+    ( KeyHash (KeyHash), KeyRole )
 import Cardano.Mnemonic
     ( SomeMnemonic )
 import Cardano.Wallet.Primitive.Types
@@ -152,8 +154,6 @@ import Quiet
 import Safe
     ( readMay, toEnumMay )
 
-import Cardano.Address.Script
-    ( KeyHash (KeyHash), KeyRole )
 import qualified Codec.CBOR.Encoding as CBOR
 import qualified Codec.CBOR.Write as CBOR
 import qualified Crypto.Scrypt as Scrypt
