@@ -148,6 +148,7 @@
         "flake-utils": "flake-utils_5",
         "heist": "heist",
         "nixpkgs": [
+          "emanote",
           "ema",
           "nixpkgs"
         ],
