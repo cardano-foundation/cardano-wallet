@@ -22,7 +22,7 @@ import Options.Applicative
     , info
     )
 import Test.Hspec
-    ( Spec, describe, expectationFailure, it, shouldBe, shouldReturn )
+    ( Spec, describe, expectationFailure, it, shouldReturn, shouldStartWith )
 import Test.Utils.Platform
     ( isWindows )
 import UnliftIO
@@ -60,14 +60,8 @@ spec = describe "Blockfrost CLI options" $ do
             args = ["--blockfrost-token-file", mockSocketOrPipe]
         case execParserPure defaultPrefs parserInfo args of
             Failure pf | (help, _code, _int) <- execFailure pf "" ->
-                show help `shouldBe`
-                    "Missing: --light\n\n\
-                    \Usage:  (--node-socket " <> nodeSocketMetavar <> " | \
-                    \--light --blockfrost-token-file FILE)"
+                show help `shouldStartWith` "Missing: --light"
             result -> expectationFailure $ show result
-
-nodeSocketMetavar :: String
-nodeSocketMetavar = if isWindows then "PIPENAME" else "FILE"
 
 mockSocketOrPipe :: String
 mockSocketOrPipe = if isWindows then "\\\\.\\pipe\\test" else "/tmp/pipe"
