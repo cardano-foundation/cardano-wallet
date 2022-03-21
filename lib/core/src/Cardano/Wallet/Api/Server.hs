@@ -4151,8 +4151,9 @@ instance IsServerError ErrConstructTx where
         ErrConstructTxWrongMintingBurningTemplate ->
             apiError err403 CreatedWrongPolicyScriptTemplate $ mconcat
             [ "It looks like I've created a transaction with a minting/burning "
-            , "policy script that either does not pass validation, contains more "
-            , "than one cosigner, or has a cosigner that is different from cosigner#0."
+            , "policy script that either does not pass validation, contains "
+            , "more than one cosigner, or has a cosigner that is different "
+            , "from cosigner#0."
             ]
         ErrConstructTxNotImplemented _ ->
             apiError err501 NotImplemented
