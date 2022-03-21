@@ -1772,6 +1772,8 @@ dummyProtocolParameters = ProtocolParameters
         error "dummyProtocolParameters: minimumCollateralPercentage"
     , executionUnitPrices =
         error "dummyProtocolParameters: executionUnitPrices"
+    , currentNodeProtocolParameters =
+        error "dummyProtocolParameters: currentNodeProtocolParameters"
     }
 
 -- | Like generate, but the random generate is fixed to a particular seed so

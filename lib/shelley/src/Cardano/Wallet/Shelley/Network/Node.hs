@@ -43,6 +43,7 @@ import Cardano.Api
     , NodeToClientVersion (..)
     , SlotNo (..)
     , connectToLocalNode
+    , fromLedgerPParams
     )
 import Cardano.BM.Data.Severity
     ( Severity (..) )
@@ -79,7 +80,6 @@ import Cardano.Wallet.Primitive.Types.Tx
 import Cardano.Wallet.Shelley.Compatibility
     ( StandardCrypto
     , fromAlonzoPParams
-    , fromLedgerPParams
     , fromNonMyopicMemberRewards
     , fromPoint
     , fromPoolDistr
@@ -262,7 +262,6 @@ import UnliftIO.Exception
     ( Handler (..), IOException )
 
 import qualified Cardano.Api as Cardano
-import qualified Cardano.Api.Shelley as Cardano
 import qualified Cardano.Crypto.Hash as Crypto
 import qualified Cardano.Ledger.Alonzo.PParams as Alonzo
 import qualified Cardano.Ledger.Crypto as SL
@@ -362,9 +361,7 @@ withNodeNetworkLayerBase tr net np conn versionData tol action = do
         , watchNodeTip =
             _watchNodeTip readNodeTip
         , currentProtocolParameters =
-            fst . fst <$> atomically (readTMVar networkParamsVar)
-        , currentNodeProtocolParameters =
-            snd . fst <$> atomically (readTMVar networkParamsVar)
+            fst <$> atomically (readTMVar networkParamsVar)
         , currentSlottingParameters =
             snd <$> atomically (readTMVar networkParamsVar)
         , postTx =
@@ -392,11 +389,7 @@ withNodeNetworkLayerBase tr net np conn versionData tol action = do
         :: HasCallStack
         => RetryHandlers
         -> IO ( STM IO (Tip (CardanoBlock StandardCrypto))
-              , TMVar IO (( W.ProtocolParameters
-                          , Maybe Cardano.ProtocolParameters
-                          )
-                         , W.SlottingParameters
-                         )
+              , TMVar IO (W.ProtocolParameters, W.SlottingParameters)
               , TMVar IO (CardanoInterpreter StandardCrypto)
               , TMVar IO AnyCardanoEra
               )
@@ -656,7 +649,7 @@ mkTipSyncClient
         -- ^ Base trace for underlying protocols
     -> W.NetworkParameters
         -- ^ Initial blockchain parameters
-    -> ((W.ProtocolParameters, Maybe Cardano.ProtocolParameters) -> W.SlottingParameters -> m ())
+    -> (W.ProtocolParameters -> W.SlottingParameters -> m ())
         -- ^ Notifier callback for when parameters for tip change.
     -> (CardanoInterpreter StandardCrypto -> m ())
         -- ^ Notifier callback for when time interpreter is updated.
@@ -669,9 +662,9 @@ mkTipSyncClient tr np onPParamsUpdate onInterpreterUpdate onEraUpdate = do
 
     tipVar <- newTVarIO (Just $ AnyCardanoEra ByronEra, TipGenesis)
 
-    (onPParamsUpdate' :: ((W.ProtocolParameters, Maybe Cardano.ProtocolParameters), W.SlottingParameters) -> m ()) <-
+    (onPParamsUpdate' :: (W.ProtocolParameters, W.SlottingParameters) -> m ()) <-
         debounce $ \(pp, sp) -> do
-            traceWith tr $ MsgProtocolParameters (fst pp) sp
+            traceWith tr $ MsgProtocolParameters pp sp
             onPParamsUpdate pp sp
 
     let queryParams = do
@@ -687,18 +680,6 @@ mkTipSyncClient tr np onPParamsUpdate onInterpreterUpdate onEraUpdate = do
                 ((slottingParametersFromGenesis . getCompactGenesis)
                     <$> LSQry Shelley.GetGenesisConfig)
 
-            pp <- onAnyEra
-                (protocolParametersFromUpdateState eraBounds
-                    <$> LSQry Byron.GetUpdateInterfaceState)
-                (fromShelleyPParams eraBounds
-                    <$> LSQry Shelley.GetCurrentPParams)
-                (fromShelleyPParams eraBounds
-                    <$> LSQry Shelley.GetCurrentPParams)
-                (fromShelleyPParams eraBounds
-                    <$> LSQry Shelley.GetCurrentPParams)
-                (fromAlonzoPParams eraBounds
-                    <$> LSQry Shelley.GetCurrentPParams)
-
             ppNode <- onAnyEra
                 (pure Nothing)
                 (Just . fromLedgerPParams Cardano.ShelleyBasedEraShelley
@@ -710,7 +691,19 @@ mkTipSyncClient tr np onPParamsUpdate onInterpreterUpdate onEraUpdate = do
                 (Just . fromLedgerPParams Cardano.ShelleyBasedEraAlonzo
                     <$> LSQry Shelley.GetCurrentPParams)
 
-            return ((pp, ppNode), sp)
+            pp <- onAnyEra
+                (protocolParametersFromUpdateState eraBounds ppNode
+                    <$> LSQry Byron.GetUpdateInterfaceState)
+                (fromShelleyPParams eraBounds ppNode
+                    <$> LSQry Shelley.GetCurrentPParams)
+                (fromShelleyPParams eraBounds ppNode
+                    <$> LSQry Shelley.GetCurrentPParams)
+                (fromShelleyPParams eraBounds ppNode
+                    <$> LSQry Shelley.GetCurrentPParams)
+                (fromAlonzoPParams eraBounds ppNode
+                    <$> LSQry Shelley.GetCurrentPParams)
+
+            return (pp, sp)
 
     let queryInterpreter = LSQry (QueryHardFork GetInterpreter)
 

@@ -128,6 +128,7 @@ dummyProtocolParameters = ProtocolParameters
     , maximumCollateralInputCount = 3
     , minimumCollateralPercentage = 100
     , executionUnitPrices = Nothing
+    , currentNodeProtocolParameters = Nothing
     }
 
 -- | Construct a @Tx@, computing its hash using the dummy @mkTxId@.
@@ -168,7 +169,6 @@ dummyNetworkLayer = NetworkLayer
     , currentNodeTip = error "currentNodeTip: not implemented"
     , watchNodeTip = error "watchNodeTip: not implemented"
     , currentProtocolParameters = error "currentProtocolParameters: not implemented"
-    , currentNodeProtocolParameters = error "currentNodeProtocolParameters: not implemented"
     , currentSlottingParameters = error "currentSlottingParameters: not implemented"
     , postTx = error "postTx: not implemented"
     , stakeDistribution = error "stakeDistribution: not implemented"

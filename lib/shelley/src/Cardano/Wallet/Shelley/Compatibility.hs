@@ -610,8 +610,7 @@ fromChainHash genesisHash = \case
 
 -- FIXME unsafe conversion (Word64 -> Word32)
 fromBlockNo :: BlockNo -> Quantity "block" Word32
-fromBlockNo (BlockNo h) =
-    Quantity (fromIntegral h)
+fromBlockNo (BlockNo h) = Quantity (fromIntegral h)
 
 fromTip' :: W.GenesisParameters -> Tip (CardanoBlock sc) -> W.BlockHeader
 fromTip' gp = fromTip (W.getGenesisBlockHash gp)
@@ -651,62 +650,66 @@ toTip genesisHash (W.BlockHeader sl bl h _)
 
 -- NOTE: Unsafe conversion from Natural -> Word16
 fromMaxSize :: Natural -> Quantity "byte" Word16
-fromMaxSize =
-    Quantity . fromIntegral
+fromMaxSize = Quantity . fromIntegral
 
 fromShelleyPParams
     :: HasCallStack
     => W.EraInfo Bound
+    -> Maybe Cardano.ProtocolParameters
     -> SLAPI.PParams era
     -> W.ProtocolParameters
-fromShelleyPParams eraInfo pp = W.ProtocolParameters
-    { decentralizationLevel =
-        decentralizationLevelFromPParams pp
-    , txParameters =
-        txParametersFromPParams maryTokenBundleMaxSize (W.ExecutionUnits 0 0) pp
-    , desiredNumberOfStakePools =
-        desiredNumberOfStakePoolsFromPParams pp
-    , minimumUTxOvalue =
-        MinimumUTxOValue . toWalletCoin $ SLAPI._minUTxOValue pp
-    , stakeKeyDeposit = stakeKeyDepositFromPParams pp
-    , eras = fromBound <$> eraInfo
-    -- Collateral inputs were not supported or required in Shelley:
-    , maximumCollateralInputCount = 0
-    , minimumCollateralPercentage = 0
-    , executionUnitPrices = Nothing
-    }
+fromShelleyPParams eraInfo currentNodeProtocolParameters pp =
+    W.ProtocolParameters
+        { decentralizationLevel =
+            decentralizationLevelFromPParams pp
+        , txParameters =
+            txParametersFromPParams
+                maryTokenBundleMaxSize (W.ExecutionUnits 0 0) pp
+        , desiredNumberOfStakePools =
+            desiredNumberOfStakePoolsFromPParams pp
+        , minimumUTxOvalue =
+            MinimumUTxOValue . toWalletCoin $ SLAPI._minUTxOValue pp
+        , stakeKeyDeposit = stakeKeyDepositFromPParams pp
+        , eras = fromBound <$> eraInfo
+        -- Collateral inputs were not supported or required in Shelley:
+        , maximumCollateralInputCount = 0
+        , minimumCollateralPercentage = 0
+        , executionUnitPrices = Nothing
+        , currentNodeProtocolParameters
+        }
   where
-    fromBound (Bound _relTime _slotNo (EpochNo e)) =
-        W.EpochNo $ fromIntegral e
+    fromBound (Bound _relTime _slotNo (EpochNo e)) = W.EpochNo $ fromIntegral e
 
 fromAlonzoPParams
     :: HasCallStack
     => W.EraInfo Bound
+    -> Maybe Cardano.ProtocolParameters
     -> Alonzo.PParams StandardAlonzo
     -> W.ProtocolParameters
-fromAlonzoPParams eraInfo pp = W.ProtocolParameters
-    { decentralizationLevel =
-        decentralizationLevelFromPParams pp
-    , txParameters = txParametersFromPParams
-        (W.TokenBundleMaxSize $ W.TxSize $ Alonzo._maxValSize pp)
-        (fromLedgerExUnits (getField @"_maxTxExUnits" pp))
-        pp
-    , desiredNumberOfStakePools =
-        desiredNumberOfStakePoolsFromPParams pp
-    , minimumUTxOvalue = MinimumUTxOValueCostPerWord
-        . toWalletCoin $ Alonzo._coinsPerUTxOWord pp
-    , stakeKeyDeposit = stakeKeyDepositFromPParams pp
-    , eras = fromBound <$> eraInfo
-    , maximumCollateralInputCount = unsafeIntToWord $
-        Alonzo._maxCollateralInputs pp
-    , minimumCollateralPercentage =
-        Alonzo._collateralPercentage pp
-    , executionUnitPrices =
-        Just $ executionUnitPricesFromPParams pp
-    }
+fromAlonzoPParams eraInfo currentNodeProtocolParameters pp =
+    W.ProtocolParameters
+        { decentralizationLevel =
+            decentralizationLevelFromPParams pp
+        , txParameters = txParametersFromPParams
+            (W.TokenBundleMaxSize $ W.TxSize $ Alonzo._maxValSize pp)
+            (fromLedgerExUnits (getField @"_maxTxExUnits" pp))
+            pp
+        , desiredNumberOfStakePools =
+            desiredNumberOfStakePoolsFromPParams pp
+        , minimumUTxOvalue = MinimumUTxOValueCostPerWord
+            . toWalletCoin $ Alonzo._coinsPerUTxOWord pp
+        , stakeKeyDeposit = stakeKeyDepositFromPParams pp
+        , eras = fromBound <$> eraInfo
+        , maximumCollateralInputCount = unsafeIntToWord $
+            Alonzo._maxCollateralInputs pp
+        , minimumCollateralPercentage =
+            Alonzo._collateralPercentage pp
+        , executionUnitPrices =
+            Just $ executionUnitPricesFromPParams pp
+        , currentNodeProtocolParameters
+        }
   where
-    fromBound (Bound _relTime _slotNo (EpochNo e)) =
-        W.EpochNo $ fromIntegral e
+    fromBound (Bound _relTime _slotNo (EpochNo e)) = W.EpochNo $ fromIntegral e
 
 -- | Extract the current network decentralization level from the given set of
 -- protocol parameters.
@@ -1156,13 +1159,11 @@ fromGenesisData g initialFunds =
     ( W.NetworkParameters
         { genesisParameters = W.GenesisParameters
             { getGenesisBlockHash = dummyGenesisHash
-            , getGenesisBlockDate =
-                W.StartTime . sgSystemStart $ g
+            , getGenesisBlockDate = W.StartTime $ sgSystemStart g
             }
-        , slottingParameters =
-            slottingParametersFromGenesis g
+        , slottingParameters = slottingParametersFromGenesis g
         , protocolParameters =
-            (fromShelleyPParams W.emptyEraInfo) . sgProtocolParams $ g
+            fromShelleyPParams W.emptyEraInfo Nothing $ sgProtocolParams g
         }
     , genesisBlockFromTxOuts initialFunds
     )

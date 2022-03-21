@@ -91,6 +91,7 @@ import Ouroboros.Consensus.HardFork.History.Summary
 import Ouroboros.Network.Block
     ( BlockNo (..), ChainHash, SlotNo (..) )
 
+import qualified Cardano.Api.Shelley as Node
 import qualified Cardano.Chain.Update as Update
 import qualified Cardano.Chain.Update.Validation.Interface as Update
 import qualified Cardano.Crypto.Hashing as CC
@@ -146,6 +147,7 @@ mainnetNetworkParameters = W.NetworkParameters
         , maximumCollateralInputCount = 0
         , minimumCollateralPercentage = 0
         , executionUnitPrices = Nothing
+        , currentNodeProtocolParameters = Nothing
         }
     }
 
@@ -343,25 +345,28 @@ fromMaxSize =
 
 protocolParametersFromPP
     :: W.EraInfo Bound
+    -> Maybe Node.ProtocolParameters
     -> Update.ProtocolParameters
     -> W.ProtocolParameters
-protocolParametersFromPP eraInfo pp = W.ProtocolParameters
-    { decentralizationLevel = minBound
-    , txParameters = W.TxParameters
-        { getFeePolicy = fromTxFeePolicy $ Update.ppTxFeePolicy pp
-        , getTxMaxSize = fromMaxSize $ Update.ppMaxTxSize pp
-        , getTokenBundleMaxSize = maryTokenBundleMaxSize
-        , getMaxExecutionUnits = W.ExecutionUnits 0 0
+protocolParametersFromPP eraInfo currentNodeProtocolParameters pp =
+    W.ProtocolParameters
+        { decentralizationLevel = minBound
+        , txParameters = W.TxParameters
+            { getFeePolicy = fromTxFeePolicy $ Update.ppTxFeePolicy pp
+            , getTxMaxSize = fromMaxSize $ Update.ppMaxTxSize pp
+            , getTokenBundleMaxSize = maryTokenBundleMaxSize
+            , getMaxExecutionUnits = W.ExecutionUnits 0 0
+            }
+        , desiredNumberOfStakePools = 0
+        , minimumUTxOvalue = W.MinimumUTxOValue $ W.Coin 0
+        , stakeKeyDeposit = W.Coin 0
+        , eras = fromBound <$> eraInfo
+        -- Collateral inputs were not supported or required in Byron:
+        , maximumCollateralInputCount = 0
+        , minimumCollateralPercentage = 0
+        , executionUnitPrices = Nothing
+        , currentNodeProtocolParameters
         }
-    , desiredNumberOfStakePools = 0
-    , minimumUTxOvalue = W.MinimumUTxOValue $ W.Coin 0
-    , stakeKeyDeposit = W.Coin 0
-    , eras = fromBound <$> eraInfo
-    -- Collateral inputs were not supported or required in Byron:
-    , maximumCollateralInputCount = 0
-    , minimumCollateralPercentage = 0
-    , executionUnitPrices = Nothing
-    }
   where
     fromBound (Bound _relTime _slotNo (O.EpochNo e)) =
         W.EpochNo $ fromIntegral e
@@ -370,10 +375,11 @@ protocolParametersFromPP eraInfo pp = W.ProtocolParameters
 --   cardano-chain update state record.
 protocolParametersFromUpdateState
     :: W.EraInfo Bound
+    -> Maybe Node.ProtocolParameters
     -> Update.State
     -> W.ProtocolParameters
-protocolParametersFromUpdateState b =
-    (protocolParametersFromPP b) . Update.adoptedProtocolParameters
+protocolParametersFromUpdateState b ppNode =
+    (protocolParametersFromPP b ppNode) . Update.adoptedProtocolParameters
 
 -- | Convert non AVVM balances to genesis UTxO.
 fromNonAvvmBalances :: GenesisNonAvvmBalances -> [W.TxOut]
@@ -391,18 +397,17 @@ fromGenesisData (genesisData, genesisHash) =
                 W.StartTime . gdStartTime $ genesisData
             }
         , slottingParameters = W.SlottingParameters
-            { getSlotLength =
-                fromSlotDuration . ppSlotDuration . gdProtocolParameters $ genesisData
-            , getEpochLength =
-                fromBlockCount . gdK $ genesisData
-            , getActiveSlotCoefficient =
-                W.ActiveSlotCoefficient 1.0
-            , getSecurityParameter =
-                Quantity . fromIntegral . unBlockCount . gdK $ genesisData
+            { getSlotLength = fromSlotDuration . ppSlotDuration $
+                gdProtocolParameters genesisData
+            , getEpochLength = fromBlockCount . gdK $ genesisData
+            , getActiveSlotCoefficient = W.ActiveSlotCoefficient 1.0
+            , getSecurityParameter = Quantity . fromIntegral . unBlockCount $
+                gdK genesisData
             }
         , protocolParameters =
             -- emptyEraInfo contains no info about byron. Should we add it?
-            (protocolParametersFromPP W.emptyEraInfo) . gdProtocolParameters $ genesisData
+            protocolParametersFromPP W.emptyEraInfo Nothing $
+                gdProtocolParameters genesisData
         }
     , fromNonAvvmBalances . gdNonAvvmBalances $ genesisData
     )

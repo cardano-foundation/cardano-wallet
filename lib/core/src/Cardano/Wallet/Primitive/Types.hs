@@ -15,6 +15,7 @@
 {-# LANGUAGE OverloadedLabels #-}
 {-# LANGUAGE QuasiQuotes #-}
 {-# LANGUAGE RankNTypes #-}
+{-# LANGUAGE RecordWildCards #-}
 {-# LANGUAGE ScopedTypeVariables #-}
 {-# LANGUAGE TypeApplications #-}
 {-# LANGUAGE TypeFamilies #-}
@@ -273,6 +274,7 @@ import Numeric.Natural
 import Test.QuickCheck
     ( Arbitrary (..), oneof )
 
+import qualified Cardano.Api.Shelley as Node
 import qualified Codec.Binary.Bech32 as Bech32
 import qualified Codec.Binary.Bech32.TH as Bech32
 import qualified Data.ByteString as BS
@@ -1138,9 +1140,25 @@ data ProtocolParameters = ProtocolParameters
         -- used to determine the fee for the use of a script within a
         -- transaction, based on the 'ExecutionUnits' needed by the use of
         -- the script.
+    , currentNodeProtocolParameters
+        :: Maybe Node.ProtocolParameters
+        -- ^ Get the last known node's protocol parameters.
+        -- In principle, these can only change once per epoch.
     } deriving (Eq, Generic, Show)
 
-instance NFData ProtocolParameters
+instance NFData ProtocolParameters where
+    rnf ProtocolParameters {..} = mconcat
+        [ rnf decentralizationLevel
+        , rnf txParameters
+        , rnf desiredNumberOfStakePools
+        , rnf minimumUTxOvalue
+        , rnf stakeKeyDeposit
+        , rnf eras
+        , rnf maximumCollateralInputCount
+        , rnf minimumCollateralPercentage
+        , rnf executionUnitPrices
+        -- currentNodeProtocolParameters is omitted
+        ]
 
 instance Buildable ProtocolParameters where
     build pp = blockListF' "" id

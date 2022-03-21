@@ -122,7 +122,6 @@ withNetworkLayer tr project k = k NetworkLayer
     , currentNodeTip
     , currentNodeEra = undefined
     , currentProtocolParameters = undefined
-    , currentNodeProtocolParameters = undefined
     , currentSlottingParameters = undefined
     , watchNodeTip
     , postTx = undefined
@@ -176,6 +175,72 @@ blockToBlockHeader block@BF.Block{..} = do
         case fromText (BF.unBlockHash blockHash) of
             Right hash -> pure hash
             Left tde -> throwError $ InvalidBlockHash blockHash tde
+
+class FromBlockfrost b w where
+    fromBlockfrost :: forall m. MonadError BlockfrostError m => b -> m w
+
+instance FromBlockfrost BF.Block BlockHeader where
+    fromBlockfrost block@BF.Block{..} = do
+        slotNo <- case _blockSlot of
+            Just s -> pure $ SlotNo $ fromIntegral $ BF.unSlot s
+            Nothing -> throwError $ NoSlotError block
+        blockHeight <- case _blockHeight of
+            Just height -> pure $ Quantity $ fromIntegral height
+            Nothing -> throwError $ NoBlockHeight block
+        headerHash <- parseBlockHeader _blockHash
+        parentHeaderHash <- for _blockPreviousBlock parseBlockHeader
+        pure BlockHeader { slotNo, blockHeight, headerHash, parentHeaderHash }
+      where
+        parseBlockHeader blockHash =
+            case fromText (BF.unBlockHash blockHash) of
+                Right hash -> pure hash
+                Left tde -> throwError $ InvalidBlockHash blockHash tde
+
+instance FromBlockfrost BF.ProtocolParams ProtocolParameters where
+    fromBlockfrost BF.ProtocolParams{..} = do
+        decentralizationLevel <-
+            let percentage = mkPercentage $
+                    toRational _protocolParamsDecentralisationParam
+            in case percentage of
+                Left PercentageOutOfBoundsError ->
+                    throwError $ InvalidDecentralizationLevelPercentage
+                        _protocolParamsDecentralisationParam
+                Right level -> pure $ DecentralizationLevel level
+        let intToQuantity :: (Num q, Integral i) => i -> Quantity s q
+            intToQuantity = Quantity . fromIntegral
+            txParameters = TxParameters
+                { getFeePolicy =  LinearFee
+                    (intToQuantity _protocolParamsMinFeeA)
+                    (intToQuantity _protocolParamsMinFeeB)
+                , getTxMaxSize =
+                    intToQuantity _protocolParamsMaxTxSize
+                , getTokenBundleMaxSize =
+                    TokenBundleMaxSize $ TxSize $ fromIntegral $
+                        BF.unQuantity _protocolParamsMaxValSize
+                , getMaxExecutionUnits =
+                    ExecutionUnits
+                        { executionSteps = fromIntegral $
+                            BF.unQuantity _protocolParamsMaxTxExSteps
+                        , executionMemory = fromIntegral $
+                            BF.unQuantity _protocolParamsMaxTxExMem
+                        }
+                }
+            desiredNumberOfStakePools = fromIntegral _protocolParamsNOpt
+            minimumUTxOvalue = MinimumUTxOValueCostPerWord $ Coin $
+                fromIntegral _protocolParamsCoinsPerUtxoWord
+            stakeKeyDeposit = Coin $ fromIntegral _protocolParamsKeyDeposit
+            eras = emptyEraInfo
+            maximumCollateralInputCount =
+                fromIntegral _protocolParamsMaxCollateralInputs
+            minimumCollateralPercentage =
+                fromIntegral _protocolParamsCollateralPercent
+            executionUnitPrices = Just $ ExecutionUnitPrices
+                { pricePerStep = toRational _protocolParamsPriceStep
+                , pricePerMemoryUnit = toRational _protocolParamsPriceMem
+                }
+        currentNodeProtocolParameters <- undefined
+        pure ProtocolParameters {..}
+
 
 {-------------------------------------------------------------------------------
     Stake Pools

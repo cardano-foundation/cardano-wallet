@@ -18,6 +18,7 @@
 {-# LANGUAGE UndecidableInstances #-}
 
 {-# OPTIONS_GHC -fno-warn-orphans #-}
+{-# LANGUAGE RecordWildCards #-}
 
 module Cardano.Wallet.DB.Arbitrary
     ( GenTxHistory (..)
@@ -663,7 +664,17 @@ arbitrarySharedAccount =
 -------------------------------------------------------------------------------}
 
 instance Arbitrary ProtocolParameters where
-    shrink = genericShrink
+    shrink ProtocolParameters {..} = ProtocolParameters
+        <$> shrink decentralizationLevel
+        <*> shrink txParameters
+        <*> shrink desiredNumberOfStakePools
+        <*> shrink minimumUTxOvalue
+        <*> shrink stakeKeyDeposit
+        <*> shrink eras
+        <*> shrink maximumCollateralInputCount
+        <*> shrink minimumCollateralPercentage
+        <*> shrink executionUnitPrices
+        <*> pure Nothing
     arbitrary = ProtocolParameters
         <$> arbitrary
         <*> arbitrary
@@ -674,6 +685,7 @@ instance Arbitrary ProtocolParameters where
         <*> genMaximumCollateralInputCount
         <*> genMinimumCollateralPercentage
         <*> arbitrary
+        <*> pure Nothing
       where
         genMaximumCollateralInputCount :: Gen Word16
         genMaximumCollateralInputCount = arbitrarySizedNatural
