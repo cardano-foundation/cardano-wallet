@@ -236,12 +236,17 @@ cmdServe = command "serve" $ info (helper <*> helper' <*> cmd) $
                 setupDirectory (logInfo tr . MsgSetupDatabases)
 
             blockchainSource <- case mode of
-                Normal conn ->
-                    pure $ NodeSource conn vData
-                Light token ->
-                    BlockfrostSource <$> Blockfrost.readToken token
-                        `catch` \(Blockfrost.TokenFileException fp) -> do
-                            logError tr (MsgBlockfrostTokenError fp)
+                Normal conn -> pure $ NodeSource conn vData
+                Light token -> BlockfrostSource <$> Blockfrost.readToken token
+                    `catch` \case
+                        Blockfrost.BadTokenFile f -> do
+                            logError tr $ MsgBlockfrostTokenFileError f
+                            exitWith $ ExitFailure 1
+                        Blockfrost.EmptyToken f -> do
+                            logError tr $ MsgBlockfrostTokenError f
+                            exitWith $ ExitFailure 1
+                        Blockfrost.InvalidToken f -> do
+                            logError tr $ MsgBlockfrostTokenError f
                             exitWith $ ExitFailure 1
 
             exitWith =<< serveWallet
@@ -284,6 +289,7 @@ data MainLog
     | MsgSigInt
     | MsgShutdownHandler ShutdownHandlerLog
     | MsgFailedToParseGenesis Text
+    | MsgBlockfrostTokenFileError FilePath
     | MsgBlockfrostTokenError FilePath
     deriving (Show)
 
@@ -316,9 +322,14 @@ instance ToText MainLog where
             , "parameters."
             , "Here's (perhaps) some helpful hint:", hint
             ]
+        MsgBlockfrostTokenFileError tokenFile -> T.unwords
+            [ "File"
+            , "'" <> T.pack tokenFile <> "'"
+            , "specified in the --blockfrost-token-file can't be read."
+            ]
         MsgBlockfrostTokenError tokenFile -> T.unwords
             [ "File"
-            , T.pack tokenFile
+            , "'" <> T.pack tokenFile <> "'"
             , "specified in the --blockfrost-token-file\
             \ argument doesn't contain a valid Blockfrost API token."
             ]

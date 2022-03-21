@@ -8,7 +8,6 @@ module Cardano.Wallet.Shelley.Launch.Blockfrost
     , readToken
     , tokenFileOption
     , TokenException(..)
-    , TokenFileException(..)
     ) where
 
 import Prelude
@@ -30,11 +29,10 @@ import qualified Data.Text.IO as T
 newtype TokenFile = TokenFile FilePath
     deriving newtype (Eq, Show)
 
-data TokenException = EmptyToken FilePath | InvalidToken FilePath
-    deriving stock (Eq, Show)
-    deriving anyclass (Exception)
-
-newtype TokenFileException = TokenFileException FilePath
+data TokenException
+    = EmptyToken FilePath
+    | InvalidToken FilePath
+    | BadTokenFile FilePath
     deriving stock (Eq, Show)
     deriving anyclass (Exception)
 
@@ -50,15 +48,14 @@ tokenFileOption = option (TokenFile <$> str) $ mconcat
     ]
 
 readToken :: TokenFile -> IO Project
-readToken (TokenFile fp) = do
+readToken (TokenFile f) = do
     -- Can't use `Blockfrost.Client.Core.projectFromFile` as it uses `error`
     -- and it leads to an unnecessary output that pollutes stdout.
-    line <- T.readFile fp `catch` \(_ :: IOException) ->
-        throw $ TokenFileException fp
+    line <- T.readFile f `catch` \(_ :: IOException) -> throw $ BadTokenFile f
     let tokenSrc = T.strip line
-    when (T.null tokenSrc) $ throw $ EmptyToken fp
+    when (T.null tokenSrc) $ throw $ EmptyToken f
     let tEnv = T.dropEnd 32 tokenSrc
         token = T.drop (T.length tEnv) tokenSrc
     case Project <$> parseEnv tEnv <*> pure token of
-      Left _ -> throw $ InvalidToken fp
+      Left _ -> throw $ InvalidToken f
       Right project -> pure project
