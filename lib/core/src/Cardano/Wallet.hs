@@ -385,6 +385,7 @@ import Cardano.Wallet.Primitive.Types
     , WalletMetadata (..)
     , WalletName (..)
     , WalletPassphraseInfo (..)
+    , WithOrigin (..)
     , dlgCertPoolId
     , toSlot
     , wholeRange
@@ -1047,17 +1048,16 @@ restoreBlocks ctx tr wid blocks nodeTip = db & \DBLayer{..} -> mapExceptT atomic
         , pretty (firstHeader blocks)
         ]
 
-
-    (filteredBlocks, cps') <- liftIO $ NE.unzip <$> applyBlocks @s blocks cp0
+    (filteredBlocks', cps') <- liftIO $ NE.unzip <$> applyBlocks @s blocks cp0
     let cps = NE.map snd cps'
-    let List blocks' = blocks
-        slots = view #slotNo . view #header <$> blocks'
-        delegations = view #delegations <$> filteredBlocks
-        slotPoolDelegations =
-            [ (slotNo, cert)
-            | (slotNo, certs) <- NE.toList $ NE.zip slots delegations
-            , cert <- certs
+        filteredBlocks = concat filteredBlocks'
+    let slotPoolDelegations =
+            [ (pseudoSlotNo (fblock ^. #slot), cert)
+            | fblock <- filteredBlocks
+            , cert <- view #delegations fblock
             ]
+        pseudoSlotNo Origin = 0
+        pseudoSlotNo (At sl) = sl
     let txs = fold $ view #transactions <$> filteredBlocks
     let epochStability = (3*) <$> getSecurityParameter sp
     let localTip = currentTip $ NE.last cps
@@ -1068,6 +1068,14 @@ restoreBlocks ctx tr wid blocks nodeTip = db & \DBLayer{..} -> mapExceptT atomic
         liftIO $ logDelegation delegation
         putDelegationCertificate wid cert slotNo
 
+    -- FIXME LATER during ADP-1403
+    -- We need to rethink checkpoint creation and consider the case
+    -- where the blocks are given as a 'Summary' and not a full 'List'
+    -- of blocks. In this case, it could happen that the current
+    -- scheme fails to create sufficiently many checkpoint as
+    -- it was never able to touch the corresponding block.
+    -- For now, we avoid this situation by being always supplied a 'List'
+    -- in the unstable region close to the tip.
     let unstable = Set.fromList $ sparseCheckpoints cfg (nodeTip ^. #blockHeight)
             where
                 -- NOTE

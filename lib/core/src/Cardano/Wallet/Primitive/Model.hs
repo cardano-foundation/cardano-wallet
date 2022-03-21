@@ -36,6 +36,7 @@ module Cardano.Wallet.Primitive.Model
     , FilteredBlock (..)
     , applyBlock
     , applyBlocks
+    , applyBlockData
 
     , BlockData (..)
     , firstHeader
@@ -60,21 +61,32 @@ module Cardano.Wallet.Primitive.Model
     , applyTxToUTxO
     , applyOurTxToUTxO
     , changeUTxO
-    , discoverAddresses
+    , discoverAddressesBlock
+    , discoverFromBlockData
+    , updateOurs
     ) where
 
 import Prelude
 
 import Cardano.Wallet.Primitive.AddressDiscovery
-    ( DiscoverTxs, IsOurs (..) )
+    ( DiscoverTxs (..), IsOurs (..) )
 import Cardano.Wallet.Primitive.BlockSummary
-    ( BlockSummary (..), ChainEvents )
+    ( BlockEvents (..)
+    , BlockSummary (..)
+    , ChainEvents
+    , fromBlockEvents
+    , fromEntireBlock
+    , toAscBlockEvents
+    )
 import Cardano.Wallet.Primitive.Types
     ( Block (..)
     , BlockHeader (..)
     , DelegationCertificate (..)
-    , SlotNo
+    , Slot
+    , WithOrigin (..)
+    , chainPointFromBlockHeader
     , dlgCertAccount
+    , toSlot
     )
 import Cardano.Wallet.Primitive.Types.Address
     ( Address (..) )
@@ -101,8 +113,14 @@ import Control.DeepSeq
     ( NFData (..), deepseq )
 import Control.Monad.Trans.State.Strict
     ( State, evalState, state )
+import Data.Bifunctor
+    ( first )
 import Data.Delta
     ( Delta (..) )
+import Data.Foldable
+    ( Foldable (toList) )
+import Data.Functor.Identity
+    ( Identity (..) )
 import Data.Generics.Internal.VL.Lens
     ( (^.) )
 import Data.List.NonEmpty
@@ -250,7 +268,9 @@ updateState s (Wallet u tip _) = Wallet u tip s
 -- | Represents the subset of data from a single block that are relevant to a
 -- particular wallet, discovered when applying a block to that wallet.
 data FilteredBlock = FilteredBlock
-    { transactions :: ![(Tx, TxMeta)]
+    { slot :: !Slot
+        -- ^ The slot of this block.
+    , transactions :: ![(Tx, TxMeta)]
         -- ^ The set of transactions that affect the wallet,
         -- list in the same order which they appeared in the block.
     , delegations :: ![DelegationCertificate]
@@ -262,7 +282,7 @@ data FilteredBlock = FilteredBlock
 
 -- | Apply a single block to a wallet.
 --
--- This is the primary way of making a wallet evolve.
+-- This is the most fundamental way of making a wallet evolve.
 --
 -- Returns an updated wallet, as well as the address data relevant to the wallet
 -- that were discovered while applying the block.
@@ -271,50 +291,88 @@ applyBlock
     => Block
     -> Wallet s
     -> (FilteredBlock, (DeltaWallet s, Wallet s))
-applyBlock !block (Wallet !u0 _ s0) =
-    (filteredBlock, (dw, Wallet u1 tip1 s1))
+applyBlock block =
+    first fromFiltered . runIdentity . applyBlockData (List $ block :| [])
   where
-    (ds, s1) = discoverAddresses block s0
-    (filteredBlock, du, u1) = applyBlockToUTxO block s1 u0
-    tip1 = block ^. #header
-    dtip = Delta.Replace tip1
-    dw   = DeltaWallet
-        { deltaUTxO = du , deltaAddressBook = ds, deltaCurrentTip = dtip }
+    fromFiltered [] = FilteredBlock
+        { slot = toSlot $ chainPointFromBlockHeader (block ^. #header)
+        , transactions = []
+        , delegations = [] 
+        }
+    fromFiltered (fblock:_) = fblock
 
--- | Apply multiple blocks in sequence to an existing wallet, returning a list
---   of intermediate wallet states.
+-- | Apply multiple blocks in sequence to an existing wallet and
+-- return a list of intermediate wallet states.
 --
--- Each intermediate wallet state is paired with the set of transactions that
--- belong to that state but not the previous state.
+-- If the input blocks are a 'List', then one intermediate wallet
+-- state is returned for each block in the list.
+-- If the input blocks are a 'Summary', then only one final wallet state
+-- is returned.
 --
--- For an original wallet state __@w@__ and a list of blocks __@b@__ such that:
+-- More specifically, for an initial wallet state @w0@ and a 'List' of
+-- of blocks
+-- 
+-- > bs = [b1, b2, …, bn]@
 --
--- > b = [b1, b2, ..., bn]
+-- , the function returns
 --
--- Returns the following list of updates:
+-- @
+-- [ (filtered b1, (delta w0 -> w1 , w1 = w0 + b1))
+-- , (filtered b2, (delta w1 -> w2 , w2 = w1 + b2))
+-- , …
+-- , (filtered bn, (delta w(n-1) -> wn, wn = w(n-1)+bn))
+-- ]
 --
--- > [ (t b1, w + b1)
--- > , (t b2, w + b1 + b2)
--- > , ...
--- > , (t bn, w + b1 + b2 + ... + bn) ]
+-- Here:
 --
--- Where:
---
--- * __@(t bi)@__   is the set of transactions contained within block __@bi@__.
--- * __@(w + bi)@__ is the wallet state after applying block __@bi@__ to wallet
---   __@w@__.
+-- * @filtered bj@ refers to the set of transactions contained in the
+--   block @bj@ that were actually applied to the wallet state.
+-- * @wi + bj@ refers to the wallet state obtained after applying
+--   the block @bi@ to the wallet @wj@.
+-- * delta wi -> wj@ refers to the delta that was applied in order
+--   to obtain @wj@ from @wi@.
 --
 applyBlocks
     :: (IsOurs s Address, IsOurs s RewardAccount, Monad m)
     => BlockData m (Either Address RewardAccount) ChainEvents s
     -> Wallet s
-    -> m (NonEmpty (FilteredBlock, (DeltaWallet s, Wallet s)))
-applyBlocks (List (block0 :| blocks)) cp = pure $
-    NE.scanl (flip applyBlock . snd . snd) (applyBlock block0 cp) blocks
-applyBlocks (Summary _ _) _ = error "FIXME: Implement me!"
-    -- FIXME: Return type (NonEmpty of filtered blocks)
-    -- needs to be rethought, as it still assumes sequential order
-    -- of blocks.
+    -> m (NonEmpty ([FilteredBlock], (DeltaWallet s, Wallet s)))
+applyBlocks (List (block0 :| blocks)) w0 = pure $
+    NE.scanl applyBlock' (first (:[]) $ applyBlock block0 w0) blocks
+  where
+    applyBlock' (_,(_,w)) block = first (:[]) $ applyBlock block w
+applyBlocks summary@(Summary _ _) w =
+    (NE.:| []) <$> applyBlockData summary w
+
+-- | Apply multiple blocks in sequence to an existing wallet
+-- and return the final wallet state as well as the transactions
+-- that were applied.
+applyBlockData
+    :: (IsOurs s Address, IsOurs s RewardAccount, Monad m)
+    => BlockData m (Either Address RewardAccount) ChainEvents s
+    -> Wallet s
+    -> m ([FilteredBlock], (DeltaWallet s, Wallet s))
+applyBlockData blocks (Wallet !u0 _ s0) = do
+    (chainEvents, s1) <- discoverFromBlockData blocks s0
+    let blockEvents = toAscBlockEvents chainEvents
+        applies u blockEvent = applyBlockEventsToUTxO blockEvent s1 u
+        (processedBlocks, u1) = mapAccumL' applies u0 blockEvents
+        filteredBlocks = map fst processedBlocks
+        tip1 = lastHeader blocks
+        dtip = Delta.Replace tip1
+        ds = Delta.Replace s1
+        du = mconcat (reverse $ map snd processedBlocks)
+        dw = DeltaWallet
+            { deltaUTxO = du , deltaAddressBook = ds, deltaCurrentTip = dtip }
+    pure (filteredBlocks, (dw, Wallet u1 tip1 s1))
+
+-- | Strict variant of 'mapAccumL'.
+mapAccumL' :: (s -> a -> (o,s)) -> s -> [a] -> ([o],s) 
+mapAccumL' f = go []
+  where
+    go os !s0 []     = (reverse os, s0)
+    go os !s0 (x:xs) = case f s0 x of
+        (!o,!s1) -> go (o:os) s1 xs
 
 -- | BlockData which has been paired with discovery facilities.
 data BlockData m addr tx s
@@ -323,9 +381,13 @@ data BlockData m addr tx s
 
 -- | First 'BlockHeader' of the blocks represented
 -- by 'BlockData'.
-firstHeader :: BlockData m addr tx s -> BlockHeader
+firstHeader :: BlockData m addr txs s -> BlockHeader
 firstHeader (List xs) = header $ NE.head xs
 firstHeader (Summary _ BlockSummary{from}) = from
+
+lastHeader :: BlockData m addr txs s -> BlockHeader
+lastHeader (List xs) = header $ NE.last xs
+lastHeader (Summary _ BlockSummary{to}) = to
 
 {-------------------------------------------------------------------------------
                                    Accessors
@@ -501,12 +563,12 @@ utxoFromUnvalidatedTx Tx {txId, outputs} =
                         Address ownership and discovery
 -------------------------------------------------------------------------------}
 
--- | Perform address discovery by going through all transactions
+-- | Perform address discovery on a 'Block' by going through all transactions
 -- and delegation certificates in the block.
-discoverAddresses
+discoverAddressesBlock
     :: (IsOurs s Address, IsOurs s RewardAccount)
     => Block -> s -> (DeltaAddressBook s, s)
-discoverAddresses block s0 = (Delta.Replace s2, s2)
+discoverAddressesBlock block s0 = (Delta.Replace s2, s2)
   where
     -- NOTE: Order in which we perform discovery is important.
     s1 = L.foldl' discoverCert s0 (block ^. #delegations)
@@ -524,6 +586,19 @@ discoverAddresses block s0 = (Delta.Replace s2, s2)
         L.foldl' (\s_ out -> updateOurs s_ (out ^. #address)) s (tx ^. #outputs)
     discoverWithdrawals s tx =
         L.foldl' updateOurs s $ Map.keys (tx ^. #withdrawals)
+
+-- | Perform address and transaction discovery on 'BlockData',
+discoverFromBlockData
+    :: (IsOurs s Address, IsOurs s RewardAccount, Monad m)
+    => BlockData m (Either Address RewardAccount) ChainEvents s
+    -> s
+    -> m (ChainEvents, s)
+discoverFromBlockData (List blocks) !s0 =
+    pure (fromBlockEvents . map fromEntireBlock $ NE.toList blocks , s1)
+  where
+    s1 = L.foldl' (\s bl -> snd $ discoverAddressesBlock bl s) s0 $ NE.toList blocks
+discoverFromBlockData (Summary dis summary) !s0 =
+    discoverTxs dis (summary ^. #query) s0
 
 -- | Indicates whether an address is known to be ours, without updating the
 -- address discovery state.
@@ -569,31 +644,31 @@ isOursState x = isJust <$> state (isOurs x)
 -- we have to traverse all transactions in the block in order to
 -- discover the outputs that belong to us and be able to infer that the
 -- corresponding inputs belong to us as well.
-applyBlockToUTxO
+applyBlockEventsToUTxO
     :: (IsOurs s Address, IsOurs s RewardAccount)
-    => Block
+    => BlockEvents
     -> s
     -> UTxO
-    -> (FilteredBlock, DeltaUTxO, UTxO)
-applyBlockToUTxO Block{header,transactions,delegations} s u0 =
-    (fblock, du1, u1)
+    -> ((FilteredBlock, DeltaUTxO), UTxO)
+applyBlockEventsToUTxO BlockEvents{slot,blockHeight,transactions,delegations} s u0 =
+    ((fblock, du1), u1)
   where
     fblock = FilteredBlock
-      { transactions = txs1
-      , delegations = filter (ours s . dlgCertAccount) delegations
+      { slot
+      , transactions = txs1
+      , delegations = filter (ours s . dlgCertAccount) $ toList delegations
       }
-    (txs1, du1, u1) = L.foldl' applyOurTx (mempty, mempty, u0) transactions
+    (txs1, du1, u1) = L.foldl' applyOurTx (mempty, mempty, u0)
+        $ toList transactions
 
     applyOurTx
         :: ([(Tx, TxMeta)], DeltaUTxO, UTxO)
         -> Tx
         -> ([(Tx, TxMeta)], DeltaUTxO, UTxO)
     applyOurTx (!txs, !du, !u) !tx =
-        case applyOurTxToUTxO slotNo blockHeight s tx u of
+        case applyOurTxToUTxO slot blockHeight s tx u of
             Nothing -> (txs, du, u)
             Just (tx', du', u') -> (tx' : txs, du' <> du, u')
-    slotNo = header ^. #slotNo
-    blockHeight = header ^. #blockHeight
 
 -- | Apply the given transaction to the 'UTxO'.
 -- Return 'Just' if and only if the transaction is relevant to the wallet
@@ -605,13 +680,13 @@ applyBlockToUTxO Block{header,transactions,delegations} s u0 =
 -- >   where (b, state1) = runState (isOurTx tx u) state0
 applyOurTxToUTxO
     :: (IsOurs s Address, IsOurs s RewardAccount)
-    => SlotNo
+    => Slot
     -> Quantity "block" Word32
     -> s
     -> Tx
     -> UTxO
     -> Maybe ((Tx, TxMeta), DeltaUTxO, UTxO)
-applyOurTxToUTxO !slotNo !blockHeight !s !tx !u0 =
+applyOurTxToUTxO !slot !blockHeight !s !tx !u0 =
     if hasKnownWithdrawal || not isUnchangedUTxO
         then Just ((tx {fee = actualFee dir}, txmeta), du, u)
         else Nothing
@@ -656,11 +731,14 @@ applyOurTxToUTxO !slotNo !blockHeight !s !tx !u0 =
     txmeta = TxMeta
         { status = InLedger
         , direction = dir
-        , slotNo
+        , slotNo = pseudoSlotNo slot
         , blockHeight
         , amount = amount
         , expiry = Nothing
         }
+      where
+        pseudoSlotNo Origin = 0
+        pseudoSlotNo (At sl) = sl
 
     hasKnownWithdrawal = ourWithdrawalSum /= mempty
 
