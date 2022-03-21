@@ -2709,8 +2709,8 @@ prop_balanceTransactionBalanced wallet (ShowBuildable partialTx') seed
 
     walletUTxO :: UTxO
     walletUTxO =
-          let Wallet' _ w _ = wallet
-          in view #utxo w
+        let Wallet' _ w _ = wallet
+        in view #utxo w
 
     hasCollateral :: SealedTx -> Bool
     hasCollateral tx = withAlonzoBody tx $ \(Cardano.TxBody content) ->
