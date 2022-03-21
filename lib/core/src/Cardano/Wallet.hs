@@ -1682,6 +1682,11 @@ balanceTransactionWithSelectionStrategy
         , extraCollateral
         , extraOutputs
         , feeUpdate = UseNewTxFee $ unsafeFromLovelace minfee0
+         -- TODO [ADP-1514] Ensure the choice of fee here doesn't cause the fee
+         -- minimization to fail.
+         --
+         -- Assuming fees are between 0.065536 and 4.294967296 ada, it
+         -- shouldn't, but it would be better not to rely on this.
         }
 
     (balance, candidateMinFee) <- balanceAfterSettingMinFee candidateTx
