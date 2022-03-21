@@ -1583,15 +1583,34 @@ balanceTransactionWithSelectionStrategy
     guardZeroAdaOutputs (extractOutputsFromTx partialTx)
     guardConflictingWithdrawalNetworks partialTx
 
-    -- TODO: Nothing guarantees consistency between externalInputs and the
-    -- actual txins!
-
     (balance0, minfee0) <- balanceAfterSettingMinFee partialTx
 
     (extraInputs, extraCollateral, extraOutputs) <- do
         let externalSelectedUtxo = UTxOIndex.fromSequence $
                 map (\(i, TxOut a b,_datumHash) -> (WalletUTxO i a, b))
                 externalInputs
+        -- TODO [ADP-1544] 'externalInputs' could conflict with the actual
+        -- inputs in 'partialTx'.
+        --
+        -- Values could be ommitted, added or conflict with the wallet and
+        -- ledger UTxO sets.
+        --
+        -- It appears 'prop_balanceTransactionUnresolvedInputs'
+        --
+        -- Ideally this would at-worst result in the resulting tx being rejected
+        -- by the node. However, /perhaps/:
+        -- 1. Any inconsistent input resolution inside 'balanceTransaction'
+        --    could lead to unexpected results like fees being burnt.
+        -- 2. Incorrect resolution could could lead to phase 2 validation
+        --    failures, if e.g. different coin values lead to a different amount
+        --    of execution units.
+        --
+        -- 'prop_balanceTransactionUnresolvedInputs' show that
+        -- 'balanceTransaction' fails if outputs are omitted because of
+        -- 'assignScriptRedeemers'. This should make the problem (1) unlikely,
+        -- but not necessarily impossible.
+        --
+        -- We should investigate and make sure to handle this better.
 
         -- NOTE: It is not possible to know the script execution cost in
         -- advance because it actually depends on the final transaction. Inputs
