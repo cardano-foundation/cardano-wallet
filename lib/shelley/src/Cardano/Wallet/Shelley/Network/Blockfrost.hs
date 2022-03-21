@@ -21,6 +21,9 @@ module Cardano.Wallet.Shelley.Network.Blockfrost
 
     -- * Blockfrost <-> Cardano translation
     , blockToBlockHeader
+
+    -- * Internal
+    , getPoolPerformanceEstimate
     ) where
 
 import Prelude
@@ -33,12 +36,22 @@ import Cardano.BM.Tracer
     ( Tracer )
 import Cardano.BM.Tracing
     ( HasSeverityAnnotation (getSeverityAnnotation) )
+import Cardano.Pool.Rank
+    ( RewardParams (..) )
+import Cardano.Pool.Rank.Likelihood
+    ( BlockProduction (..), PerformanceEstimate (..), estimatePoolPerformance )
 import Cardano.Wallet.Logging
     ( BracketLog, bracketTracer )
 import Cardano.Wallet.Network
     ( NetworkLayer (..) )
 import Cardano.Wallet.Primitive.Types
-    ( BlockHeader (..), SlotNo (SlotNo) )
+    ( BlockHeader (..)
+    , DecentralizationLevel (..)
+    , SlotNo (SlotNo)
+    , SlottingParameters (..)
+    )
+import Cardano.Wallet.Primitive.Types.Coin
+    ( Coin (..) )
 import Cardano.Wallet.Primitive.Types.Hash
     ( Hash )
 import Control.Concurrent
@@ -69,6 +82,12 @@ import UnliftIO.Async
     ( async, link )
 import UnliftIO.Exception
     ( Exception )
+
+import qualified Data.Sequence as Seq
+
+{-------------------------------------------------------------------------------
+    NetworkLayer
+-------------------------------------------------------------------------------}
 data BlockfrostError
     = ClientError BF.BlockfrostError
     | NoSlotError BF.Block
@@ -157,3 +176,31 @@ blockToBlockHeader block@BF.Block{..} = do
         case fromText (BF.unBlockHash blockHash) of
             Right hash -> pure hash
             Left tde -> throwError $ InvalidBlockHash blockHash tde
+
+{-------------------------------------------------------------------------------
+    Stake Pools
+-------------------------------------------------------------------------------}
+-- | Estimate the performance of a stake pool based on
+-- the past 50 epochs (or less if the pool is younger than that).
+getPoolPerformanceEstimate
+    :: BF.MonadBlockfrost m
+    => SlottingParameters
+    -> DecentralizationLevel
+    -> RewardParams
+    -> BF.PoolId
+    -> m PerformanceEstimate
+getPoolPerformanceEstimate sp dl rp pid = do
+    hist <- BF.getPoolHistory' pid get50 BF.Descending
+    pure
+        . estimatePoolPerformance sp dl
+        . Seq.fromList . map toBlockProduction
+        $ hist
+  where
+    get50 = BF.Paged { BF.countPerPage = 50, BF.pageNumber = 1 }
+    toBlockProduction p = BlockProduction
+        { blocksProduced = fromIntegral $ BF._poolHistoryBlocks p
+        , stakeRelative =
+            fromIntegral (BF._poolHistoryActiveStake p)
+            / fromIntegral (unCoin $ totalStake rp)
+            -- _poolHistoryActiveSize would be incorrect here
+        }
