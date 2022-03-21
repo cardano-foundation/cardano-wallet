@@ -2024,10 +2024,8 @@ balanceTransactionSpec = do
     describe "balanceTransaction" $ do
         -- TODO: Create a test to show that datums are passed through...
 
-        -- TODO: Fix balancing issues which are presumably due to
-        -- variable-length coin encoding boundary cases.
-        it "produces balanced transactions or fails"
-            $ property prop_balanceTransactionBalanced
+        it "produces valid transactions or fails"
+            $ property prop_balanceTransactionValid
 
         balanceTransactionGoldenSpec
 
@@ -2546,21 +2544,20 @@ balanceTransactionGoldenSpec = describe "balance goldens" $ do
         . fromMaybe (error "evaluateMinimumFee returned nothing!")
         . evaluateMinimumFee testTxLayer (snd mockProtocolParametersForBalancing)
 
--- TODO: I believe evaluateTransactionFee relies on estimating the number of
--- witnesses required to determine the balance. We should also have a similar
--- test which also signs.
+-- NOTE: 'balanceTransaction' relies on estimating the number of witnesses that
+-- will be needed. The correctness of this estimation is not tested here.
 --
 -- TODO: Ensure scripts are well tested
 --   - Ensure we have coverage for normal plutus contracts
 --
 -- TODO: Generate data for other eras than Alonzo
-prop_balanceTransactionBalanced
+prop_balanceTransactionValid
     :: Wallet'
     -> ShowBuildable PartialTx
     -> StdGenSeed
     -> Property
-prop_balanceTransactionBalanced wallet (ShowBuildable partialTx') seed
-    = withMaxSuccess 1000 $ do
+prop_balanceTransactionValid wallet (ShowBuildable partialTx') seed
+    = withMaxSuccess 20000 $ do
         let combinedUTxO = mconcat
                 [ resolvedInputsUTxO Cardano.ShelleyBasedEraAlonzo partialTx
                 , toCardanoUTxO Cardano.ShelleyBasedEraAlonzo walletUTxO
@@ -2581,10 +2578,18 @@ prop_balanceTransactionBalanced wallet (ShowBuildable partialTx') seed
                         "balanced tx has collateral"
                     $ conjoin
                         [ txBalance sealedTx combinedUTxO === mempty
-                        , (prop_expectFeeExcessSmallerThan
-                            (Cardano.Lovelace 1_200_000) sealedTx)
-                        , prop_minfeeIsCovered sealedTx
                         , prop_validSize sealedTx
+                        , prop_minfeeIsCovered sealedTx
+                        , let
+                              minUTxOValue = Cardano.Lovelace 999_978
+                              upperBoundCostOfOutput = Cardano.Lovelace 1000
+                          in
+                              -- Coin selection should only pay more fees than
+                              -- required when it can't afford to create a
+                              -- change output with the minimumUTxOValue.
+                              prop_expectFeeExcessSmallerThan
+                                  (minUTxOValue <> upperBoundCostOfOutput)
+                                  sealedTx
                         ]
             Left
                 (ErrBalanceTxSelectAssets
@@ -2642,6 +2647,7 @@ prop_balanceTransactionBalanced wallet (ShowBuildable partialTx') seed
             Left err -> label "other error" $
                 counterexample ("balanceTransaction failed: " <> show err) False
   where
+    prop_expectFeeExcessSmallerThan :: Cardano.Lovelace -> SealedTx -> Property
     prop_expectFeeExcessSmallerThan lim tx = do
         let fee = txFee tx
         let minfee = txMinFee tx
