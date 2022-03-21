@@ -259,8 +259,13 @@ genLovelace = Lovelace <$> frequency
 
         offset <- frequency
             [ (1, choose (-10, 10))
+
+            -- Offset by values close to common fee values, in both the positive
+            -- and negative direction, with the hope that this helps find
+            -- corner-cases.
             , (1, choose (-220_000, -150_000))
             , (1, choose (150_000, 220_000))
+
             , (1, choose (-1_000_000, 1_000_000))
             ]
         pure $ max 0 $ boundary + offset
