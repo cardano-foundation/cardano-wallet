@@ -12,11 +12,7 @@ import Blockfrost.Env
 import Cardano.Wallet.Shelley.Launch
     ( Mode (Light, Normal), modeOption )
 import Cardano.Wallet.Shelley.Launch.Blockfrost
-    ( TokenException (..)
-    , TokenFile (TokenFile)
-    , TokenFileException (TokenFileException)
-    , readToken
-    )
+    ( TokenException (..), TokenFile (TokenFile), readToken )
 import Options.Applicative
     ( ParserFailure (execFailure)
     , ParserResult (CompletionInvoked, Failure, Success)
@@ -76,7 +72,7 @@ spec = describe "Blockfrost CLI options" $ do
 
     it "readToken throws in case of a non-existing token file" $ do
         readToken (TokenFile "non-existing-file")
-            `shouldThrow` \(TokenFileException _) -> True
+            `shouldThrow` \(BadTokenFile _) -> True
 
     it "readToken throws in case of an empty token file" $
         withSystemTempFile "blockfrost.token" $ \f h -> do
