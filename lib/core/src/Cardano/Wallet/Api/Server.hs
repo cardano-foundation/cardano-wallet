@@ -208,7 +208,7 @@ import Cardano.Wallet.Api.Types
     , ApiAddress (..)
     , ApiAnyCertificate (..)
     , ApiAsset (..)
-    , ApiAssetMintedBurned (..)
+    , ApiAssetMintBurn (..)
     , ApiBalanceTransactionPostData
     , ApiBlockInfo (..)
     , ApiBlockReference (..)
@@ -234,10 +234,10 @@ import Cardano.Wallet.Api.Types
     , ApiFee (..)
     , ApiForeignStakeKey (..)
     , ApiMintBurnData (..)
-    , ApiMintBurnOperation (..)
-    , ApiMintData (..)
     , ApiMintBurnInfo (..)
-    , ApiMintedBurnedTransaction (..)
+    , ApiMintBurnOperation (..)
+    , ApiMintBurnTransaction (..)
+    , ApiMintData (..)
     , ApiMnemonicT (..)
     , ApiMultiDelegationAction (..)
     , ApiNetworkClock (..)
@@ -463,7 +463,7 @@ import Cardano.Wallet.Primitive.Types.TokenBundle
 import Cardano.Wallet.Primitive.Types.TokenMap
     ( AssetId (..), fromFlatList, toNestedList )
 import Cardano.Wallet.Primitive.Types.TokenPolicy
-    ( TokenName (..), TokenPolicyId (..), nullTokenName, mkTokenFingerprint )
+    ( TokenName (..), TokenPolicyId (..), mkTokenFingerprint, nullTokenName )
 import Cardano.Wallet.Primitive.Types.Tx
     ( TransactionInfo
     , Tx (..)
@@ -2458,8 +2458,8 @@ decodeTransaction ctx (ApiT wid) (ApiSerialisedTransaction (ApiT sealed)) = do
         , outputs = map toOut outsPath
         , collateral = map toInp collsOutsPaths
         , withdrawals = map (toWrdl acct) $ Map.assocs wdrlMap
-        , assetsMinted = toApiAssetMintedBurned policyXPub toMint
-        , assetsBurned = toApiAssetMintedBurned policyXPub toBurn
+        , assetsMinted = toApiAssetMintBurn policyXPub toMint
+        , assetsBurned = toApiAssetMintBurn policyXPub toBurn
         , certificates = map (toApiAnyCert acct acctPath) allCerts
         , depositsTaken =
             (Quantity . fromIntegral . unCoin . W.stakeKeyDeposit $ pp)
@@ -2474,7 +2474,7 @@ decodeTransaction ctx (ApiT wid) (ApiSerialisedTransaction (ApiT sealed)) = do
         }
   where
     tl = ctx ^. W.transactionLayer @k
-    toApiAssetMintedBurned xpub tokenWithScripts = ApiAssetMintedBurned
+    toApiAssetMintBurn xpub tokenWithScripts = ApiAssetMintBurn
         { tokenMap = ApiT $ tokenWithScripts ^. #txTokenMap
         , policyScripts =
             map (uncurry ApiPolicyScript) $
@@ -3364,7 +3364,7 @@ mintBurnAssets
      . ctx
     -> ApiT WalletId
     -> Api.PostMintBurnAssetData n
-    -> Handler (ApiMintedBurnedTransaction n)
+    -> Handler (ApiMintBurnTransaction n)
 mintBurnAssets _ctx (ApiT _wid) _body = liftHandler $ throwE $
     ErrMintBurnNotImplemented
     "Minting and burning are not supported yet - this is just a stub"

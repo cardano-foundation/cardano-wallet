@@ -96,7 +96,7 @@ module Cardano.Wallet.Api.Types
     , PostTransactionFeeOldData (..)
     , ApiSerialisedTransaction (..)
     , ApiTransaction (..)
-    , ApiMintedBurnedTransaction (..)
+    , ApiMintBurnTransaction (..)
     , ApiMintBurnInfo (..)
     , ApiWithdrawalPostData (..)
     , ApiMaintenanceAction (..)
@@ -173,7 +173,7 @@ module Cardano.Wallet.Api.Types
     , ApiExternalCertificate (..)
     , ApiRegisterPool (..)
     , ApiDeregisterPool (..)
-    , ApiAssetMintedBurned (..)
+    , ApiAssetMintBurn (..)
     , ApiPolicyScript (..)
 
     -- * API Types (Byron)
@@ -225,7 +225,7 @@ module Cardano.Wallet.Api.Types
     , ApiConstructTransactionDataT
     , PostTransactionOldDataT
     , PostTransactionFeeOldDataT
-    , ApiMintedBurnedTransactionT
+    , ApiMintBurnTransactionT
     , ApiWalletMigrationPlanPostDataT
     , ApiWalletMigrationPostDataT
     , PostMintBurnAssetDataT
@@ -1230,7 +1230,7 @@ data ApiPolicyScript = ApiPolicyScript
     deriving (Eq, Generic, Show)
     deriving anyclass NFData
 
-data ApiAssetMintedBurned = ApiAssetMintedBurned
+data ApiAssetMintBurn = ApiAssetMintBurn
     { tokenMap :: !(ApiT W.TokenMap)
     , policyScripts :: ![ApiPolicyScript]
     , walletPolicyKeyHash :: !ApiPolicyKey
@@ -1245,8 +1245,8 @@ data ApiDecodedTransaction (n :: NetworkDiscriminant) = ApiDecodedTransaction
     , outputs :: ![ApiTxOutputGeneral n]
     , collateral :: ![ApiTxInputGeneral n]
     , withdrawals :: ![ApiWithdrawalGeneral n]
-    , assetsMinted :: !ApiAssetMintedBurned
-    , assetsBurned :: !ApiAssetMintedBurned
+    , assetsMinted :: !ApiAssetMintBurn
+    , assetsBurned :: !ApiAssetMintBurn
     , certificates :: ![ApiAnyCertificate n]
     , depositsTaken :: ![Quantity "lovelace" Natural]
     , depositsReturned :: ![Quantity "lovelace" Natural]
@@ -1257,11 +1257,11 @@ data ApiDecodedTransaction (n :: NetworkDiscriminant) = ApiDecodedTransaction
 
 -- | The response cardano-wallet returns upon successful submission of a
 -- mint/burn transaction.
-data ApiMintedBurnedTransaction (n :: NetworkDiscriminant) =
-    ApiMintedBurnedTransaction
+data ApiMintBurnTransaction (n :: NetworkDiscriminant) =
+    ApiMintBurnTransaction
     { transaction :: !(ApiTransaction n)
     -- ^ Information about the mint/burn transaction itself.
-    , mintedBurned :: !(NonEmpty (ApiT ApiMintBurnInfo))
+    , mintBurn :: !(NonEmpty (ApiT ApiMintBurnInfo))
     -- ^ Helpful information about each unique asset minted or burned (where the
     -- identity is the policyId + asset name of the asset).
     }
@@ -2108,9 +2108,9 @@ instance FromJSON ApiPolicyKey where
                 "Unrecognized human-readable part. Expected either\
                 \ \"policy_vkh\" or \"policy_vk\"."
 
-instance FromJSON ApiAssetMintedBurned where
+instance FromJSON ApiAssetMintBurn where
     parseJSON = genericParseJSON defaultRecordTypeOptions
-instance ToJSON ApiAssetMintedBurned where
+instance ToJSON ApiAssetMintBurn where
     toJSON = genericToJSON defaultRecordTypeOptions
 
 instance FromJSON ApiPolicyScript where
@@ -2982,13 +2982,13 @@ instance (EncodeAddress t, EncodeStakeAddress t) => ToJSON (ApiConstructTransact
 instance
     ( DecodeAddress n
     , DecodeStakeAddress n
-    ) => FromJSON (ApiMintedBurnedTransaction n) where
+    ) => FromJSON (ApiMintBurnTransaction n) where
     parseJSON = genericParseJSON defaultRecordTypeOptions
 
 instance
     ( EncodeAddress n
     , EncodeStakeAddress n
-    ) => ToJSON (ApiMintedBurnedTransaction n) where
+    ) => ToJSON (ApiMintBurnTransaction n) where
     toJSON = genericToJSON defaultRecordTypeOptions
 
 instance FromJSON ApiWithdrawalPostData where
@@ -3895,7 +3895,7 @@ type family ApiConstructTransactionT (n :: k) :: Type
 type family ApiConstructTransactionDataT (n :: k) :: Type
 type family PostTransactionOldDataT (n :: k) :: Type
 type family PostTransactionFeeOldDataT (n :: k) :: Type
-type family ApiMintedBurnedTransactionT (n :: k) :: Type
+type family ApiMintBurnTransactionT (n :: k) :: Type
 type family PostMintBurnAssetDataT (n :: k) :: Type
 type family ApiWalletMigrationPlanPostDataT (n :: k) :: Type
 type family ApiWalletMigrationPostDataT (n :: k1) (s :: k2) :: Type
@@ -3944,8 +3944,8 @@ type instance ApiWalletMigrationPlanPostDataT (n :: NetworkDiscriminant) =
 type instance ApiWalletMigrationPostDataT (n :: NetworkDiscriminant) (s :: Symbol) =
     ApiWalletMigrationPostData n s
 
-type instance ApiMintedBurnedTransactionT (n :: NetworkDiscriminant) =
-    ApiMintedBurnedTransaction n
+type instance ApiMintBurnTransactionT (n :: NetworkDiscriminant) =
+    ApiMintBurnTransaction n
 
 type instance ApiBalanceTransactionPostDataT (n :: NetworkDiscriminant) =
     ApiBalanceTransactionPostData n

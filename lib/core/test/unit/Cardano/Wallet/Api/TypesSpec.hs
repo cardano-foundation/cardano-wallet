@@ -66,7 +66,7 @@ import Cardano.Wallet.Api.Types
     , ApiAddressInspect (..)
     , ApiAnyCertificate (..)
     , ApiAsset (..)
-    , ApiAssetMintedBurned (..)
+    , ApiAssetMintBurn (..)
     , ApiBalanceTransactionPostData (..)
     , ApiBase64
     , ApiBlockInfo (..)
@@ -101,8 +101,8 @@ import Cardano.Wallet.Api.Types
     , ApiMintBurnData (..)
     , ApiMintBurnInfo (..)
     , ApiMintBurnOperation (..)
+    , ApiMintBurnTransaction (..)
     , ApiMintData (..)
-    , ApiMintedBurnedTransaction (..)
     , ApiMnemonicT (..)
     , ApiMultiDelegationAction (..)
     , ApiNetworkClock (..)
@@ -519,7 +519,7 @@ spec = parallel $ do
             jsonRoundtripAndGolden $ Proxy @ApiWalletUtxoSnapshot
             jsonRoundtripAndGolden $ Proxy @ApiUtxoStatistics
             jsonRoundtripAndGolden $ Proxy @ApiFee
-            jsonRoundtripAndGolden $ Proxy @ApiAssetMintedBurned
+            jsonRoundtripAndGolden $ Proxy @ApiAssetMintBurn
             jsonRoundtripAndGolden $ Proxy @ApiStakePoolMetrics
             jsonRoundtripAndGolden $ Proxy @ApiTxId
             jsonRoundtripAndGolden $ Proxy @ApiVerificationKeyShelley
@@ -2226,7 +2226,7 @@ instance Arbitrary (PostMintBurnAssetData n) where
 instance Arbitrary (ApiConstructTransaction n) where
     arbitrary = applyArbitrary4 ApiConstructTransaction
 
-instance Arbitrary ApiAssetMintedBurned where
+instance Arbitrary ApiAssetMintBurn where
     arbitrary = do
         keyhash <- arbitrary
         script <- elements
@@ -2242,7 +2242,7 @@ instance Arbitrary ApiAssetMintedBurned where
                 ]
             ]
         policyid <- arbitrary
-        ApiAssetMintedBurned
+        ApiAssetMintBurn
             <$> arbitrary
             <*> pure [ApiPolicyScript policyid script]
             <*> arbitrary
@@ -2284,8 +2284,8 @@ instance Arbitrary (ApiMintBurnOperation n) where
         , ApiBurn <$> arbitrary
         ]
 
-instance Arbitrary (ApiMintedBurnedTransaction n) where
-    arbitrary = ApiMintedBurnedTransaction <$> arbitrary <*> arbitrary
+instance Arbitrary (ApiMintBurnTransaction n) where
+    arbitrary = ApiMintBurnTransaction <$> arbitrary <*> arbitrary
 
 instance Arbitrary ApiMintBurnInfo where
     arbitrary = do
@@ -2305,10 +2305,10 @@ instance Arbitrary ApiMintBurnInfo where
             (ApiT subject)
             (ApiT script)
 
-instance Typeable n => ToSchema (ApiMintedBurnedTransaction n) where
+instance Typeable n => ToSchema (ApiMintBurnTransaction n) where
     declareNamedSchema _ = do
         addDefinition =<< declareSchemaForDefinition "TransactionMetadataValue"
-        declareSchemaForDefinition "ApiMintedBurnedTransaction"
+        declareSchemaForDefinition "ApiMintBurnTransaction"
 
 instance Arbitrary TokenPolicyId where
     arbitrary = UnsafeTokenPolicyId . Hash . BS.pack <$> vector 28
@@ -2966,10 +2966,10 @@ instance Typeable n => ToSchema (ApiForeignStakeKey n) where
 instance ToSchema ApiNullStakeKey where
     declareNamedSchema _ = declareSchemaForDefinition "ApiNullStakeKey"
 
-instance ToSchema ApiAssetMintedBurned  where
+instance ToSchema ApiAssetMintBurn  where
     declareNamedSchema _ = do
         addDefinition =<< declareSchemaForDefinition "ScriptValue"
-        declareSchemaForDefinition "ApiAssetMintedBurned"
+        declareSchemaForDefinition "ApiAssetMintBurn"
 
 instance Typeable n => ToSchema (ApiConstructTransactionData n) where
     declareNamedSchema _ = do

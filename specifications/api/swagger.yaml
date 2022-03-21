@@ -970,7 +970,7 @@ x-assetMint: &assetMint
         Positive values mean creation and negative values mean
         destruction.
 
-x-assetMintedBurned: &assetMintedBurned
+x-assetMintBurn: &assetMintBurn
   type: object
   required:
     - policy_id
@@ -2513,7 +2513,7 @@ components:
         policy_id: *assetPolicyId
         policy_script: *ScriptValue
 
-    ApiAssetMintedBurned: &ApiAssetMintedBurned
+    ApiAssetMintBurn: &ApiAssetMintBurn
       type: object
       required:
         - token_map
@@ -2523,7 +2523,7 @@ components:
         token_map:
           type: array
           minItems: 0
-          items: *assetMintedBurned
+          items: *assetMintBurn
         policy_scripts:
           type: array
           minItems: 0
@@ -2609,8 +2609,8 @@ components:
         outputs: *ApiOutputsGeneral
         collateral: *ApiInputsGeneral
         withdrawals: *ApiWithdrawalsGeneral
-        assets_minted: *ApiAssetMintedBurned
-        assets_burned: *ApiAssetMintedBurned
+        assets_minted: *ApiAssetMintBurn
+        assets_burned: *ApiAssetMintBurn
         certificates:
           type: array
           minItems: 0
@@ -3565,16 +3565,16 @@ components:
 
         "none": *ApiNullStakeKey
 
-    ApiMintedBurnedTransaction: &ApiMintedBurnedTransaction
+    ApiMintBurnTransaction: &ApiMintBurnTransaction
       type: object
       required:
         - transaction
-        - minted_burned
+        - mint_burn
       properties:
         transaction:
           <<: *ApiTransaction
           description: Information about the mint/burn transaction submitted.
-        minted_burned:
+        mint_burn:
           type: array
           items: *ApiMintBurnInfo
           minItems: 1
@@ -4880,7 +4880,7 @@ x-responsesMintToken: &responsesMintToken
     description: Accepted
     content:
       application/json:
-        schema: *ApiMintedBurnedTransaction
+        schema: *ApiMintBurnTransaction
 
 x-responsesPostByronWallet: &responsesPostByronWallet
   <<: *responsesErr400

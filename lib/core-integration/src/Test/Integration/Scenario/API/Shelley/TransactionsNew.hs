@@ -38,7 +38,7 @@ import Cardano.Wallet.Api.Types
     ( AddressAmount (..)
     , ApiAddress (..)
     , ApiAnyCertificate (..)
-    , ApiAssetMintedBurned (..)
+    , ApiAssetMintBurn (..)
     , ApiCertificate (..)
     , ApiCoinSelection (withdrawals)
     , ApiConstructTransaction (..)
@@ -1322,12 +1322,12 @@ spec = describe "NEW_SHELLEY_TRANSACTIONS" $ do
         (_, policyKeyHashPayload) <-
             unsafeRequest @ApiPolicyKey ctx policyWithHash Empty
 
-        let activeAssetsInfo = ApiAssetMintedBurned
+        let activeAssetsInfo = ApiAssetMintBurn
                 { tokenMap = ApiT tokens
                 , policyScripts = []
                 , walletPolicyKeyHash = policyKeyHashPayload
                 }
-        let inactiveAssetsInfo = ApiAssetMintedBurned
+        let inactiveAssetsInfo = ApiAssetMintBurn
                 { tokenMap = ApiT TokenMap.empty
                 , policyScripts = []
                 , walletPolicyKeyHash = policyKeyHashPayload
@@ -3224,12 +3224,12 @@ spec = describe "NEW_SHELLEY_TRANSACTIONS" $ do
                 ]
         let mintScript = ApiPolicyScript (ApiT tokenPolicyId') (ApiT scriptUsed)
 
-        let activeAssetsInfo = ApiAssetMintedBurned
+        let activeAssetsInfo = ApiAssetMintBurn
                 { tokenMap = ApiT tokens
                 , policyScripts = [mintScript]
                 , walletPolicyKeyHash = policyKeyHashPayload
                 }
-        let inactiveAssetsInfo = ApiAssetMintedBurned
+        let inactiveAssetsInfo = ApiAssetMintBurn
                 { tokenMap = ApiT TokenMap.empty
                 , policyScripts = []
                 , walletPolicyKeyHash = policyKeyHashPayload
@@ -3309,12 +3309,12 @@ spec = describe "NEW_SHELLEY_TRANSACTIONS" $ do
                 ]
         let burnScript = ApiPolicyScript (ApiT tokenPolicyId') (ApiT scriptUsed)
 
-        let activeAssetsInfo = ApiAssetMintedBurned
+        let activeAssetsInfo = ApiAssetMintBurn
                 { tokenMap = ApiT TokenMap.empty
                 , policyScripts = []
                 , walletPolicyKeyHash = policyKeyHashPayload
                 }
-        let inactiveAssetsInfo = ApiAssetMintedBurned
+        let inactiveAssetsInfo = ApiAssetMintBurn
                 { tokenMap = ApiT tokens
                 , policyScripts = [burnScript]
                 , walletPolicyKeyHash = policyKeyHashPayload
