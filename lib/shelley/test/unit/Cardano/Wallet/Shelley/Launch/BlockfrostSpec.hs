@@ -12,7 +12,11 @@ import Blockfrost.Env
 import Cardano.Wallet.Shelley.Launch
     ( Mode (Light, Normal), modeOption )
 import Cardano.Wallet.Shelley.Launch.Blockfrost
-    ( readToken )
+    ( TokenException (..)
+    , TokenFile (TokenFile)
+    , TokenFileException (TokenFileException)
+    , readToken
+    )
 import Options.Applicative
     ( ParserFailure (execFailure)
     , ParserResult (CompletionInvoked, Failure, Success)
@@ -22,7 +26,14 @@ import Options.Applicative
     , info
     )
 import Test.Hspec
-    ( Spec, describe, expectationFailure, it, shouldReturn, shouldStartWith )
+    ( Spec
+    , describe
+    , expectationFailure
+    , it
+    , shouldReturn
+    , shouldStartWith
+    , shouldThrow
+    )
 import Test.Utils.Platform
     ( isWindows )
 import UnliftIO
@@ -62,6 +73,20 @@ spec = describe "Blockfrost CLI options" $ do
             Failure pf | (help, _code, _int) <- execFailure pf "" ->
                 show help `shouldStartWith` "Missing: --light"
             result -> expectationFailure $ show result
+
+    it "readToken throws in case of a non-existing token file" $ do
+        readToken (TokenFile "non-existing-file")
+            `shouldThrow` \(TokenFileException _) -> True
+
+    it "readToken throws in case of an empty token file" $
+        withSystemTempFile "blockfrost.token" $ \f h -> do
+            hClose h
+            readToken (TokenFile f) `shouldThrow` \(EmptyToken _) -> True
+
+    it "readToken throws in case of an invalid token file content" $
+        withSystemTempFile "blockfrost.token" $ \f h -> do
+            hClose h *> writeFile f "invalid"
+            readToken (TokenFile f) `shouldThrow` \(InvalidToken _) -> True
 
 mockSocketOrPipe :: String
 mockSocketOrPipe = if isWindows then "\\\\.\\pipe\\test" else "/tmp/pipe"
