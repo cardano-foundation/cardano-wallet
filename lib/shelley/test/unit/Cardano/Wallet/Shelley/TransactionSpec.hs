@@ -2737,8 +2737,9 @@ prop_balanceTransactionBalanced wallet (ShowBuildable partialTx') seed
 
     valueFromCardanoTxOutValue
         :: forall era. Cardano.TxOutValue era -> Cardano.Value
-    valueFromCardanoTxOutValue (TxOutAdaOnly _ coin) = Cardano.lovelaceToValue coin
-    valueFromCardanoTxOutValue (TxOutValue _ val) = val
+    valueFromCardanoTxOutValue = \case
+        TxOutAdaOnly _ coin -> Cardano.lovelaceToValue coin
+        TxOutValue _ val -> val
 
     (_, nodePParams) = mockProtocolParametersForBalancing
 
@@ -3102,21 +3103,21 @@ paymentPartialTx txouts = PartialTx (sealedTxFromCardanoBody body) [] []
         Nothing
         Cardano.TxScriptValidityNone
     alonzoBody = Alonzo.TxBody
-      { Alonzo.inputs = mempty
-      , Alonzo.collateral = mempty
-      , Alonzo.outputs = StrictSeq.fromList $
-             map (`toAlonzoTxOut` Nothing) txouts
-      , Alonzo.txcerts = mempty
-      , Alonzo.txwdrls = Wdrl mempty
-      , Alonzo.txfee = mempty
-      , Alonzo.txvldt = ValidityInterval SNothing SNothing
-      , Alonzo.txUpdates = SNothing
-      , Alonzo.reqSignerHashes = mempty
-      , Alonzo.mint = mempty
-      , Alonzo.scriptIntegrityHash = SNothing
-      , Alonzo.adHash = SNothing
-      , Alonzo.txnetworkid = SNothing
-      }
+        { Alonzo.inputs = mempty
+        , Alonzo.collateral = mempty
+        , Alonzo.outputs = StrictSeq.fromList $
+            map (`toAlonzoTxOut` Nothing) txouts
+        , Alonzo.txcerts = mempty
+        , Alonzo.txwdrls = Wdrl mempty
+        , Alonzo.txfee = mempty
+        , Alonzo.txvldt = ValidityInterval SNothing SNothing
+        , Alonzo.txUpdates = SNothing
+        , Alonzo.reqSignerHashes = mempty
+        , Alonzo.mint = mempty
+        , Alonzo.scriptIntegrityHash = SNothing
+        , Alonzo.adHash = SNothing
+        , Alonzo.txnetworkid = SNothing
+        }
 
 txWithInputsOutputsAndWits :: ByteString
 txWithInputsOutputsAndWits =

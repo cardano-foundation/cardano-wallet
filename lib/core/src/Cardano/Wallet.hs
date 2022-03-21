@@ -403,7 +403,7 @@ import Cardano.Wallet.Primitive.Types.Redeemer
 import Cardano.Wallet.Primitive.Types.RewardAccount
     ( RewardAccount (..) )
 import Cardano.Wallet.Primitive.Types.TokenBundle
-    ( TokenBundle )
+    ( TokenBundle (..) )
 import Cardano.Wallet.Primitive.Types.TokenMap
     ( TokenMap )
 import Cardano.Wallet.Primitive.Types.TokenPolicy
@@ -1577,7 +1577,14 @@ balanceTransactionWithSelectionStrategy
     ti
     (internalUtxoAvailable, wallet, _pendingTxs)
     selectionStrategy
-    ptx@(PartialTx partialTx@(cardanoTx -> Cardano.InAnyCardanoEra _ (Cardano.Tx (Cardano.TxBody bod) _)) externalInputs redeemers)
+    ptx@(
+        PartialTx partialTx@(
+            cardanoTx ->
+                Cardano.InAnyCardanoEra _ (Cardano.Tx (Cardano.TxBody bod) _)
+        )
+        externalInputs
+        redeemers
+    )
     = do
     guardExistingCollateral
     guardZeroAdaOutputs (extractOutputsFromTx partialTx)
@@ -1872,15 +1879,14 @@ balanceTransactionWithSelectionStrategy
         let
             txPlutusScriptExecutionCost = maxScriptExecutionCost tl pp redeemers
             colReq =
-                    if txPlutusScriptExecutionCost > Coin 0 then
-                        SelectionCollateralRequired
-                    else
-                        SelectionCollateralNotRequired
+                if txPlutusScriptExecutionCost > Coin 0 then
+                    SelectionCollateralRequired
+                else
+                    SelectionCollateralNotRequired
 
-
-            (   TokenBundle.TokenBundle positiveAda positiveTokens
-                , TokenBundle.TokenBundle negativeAda negativeTokens
-                ) = posAndNegFromCardanoValue balance
+            (positiveBundle, negativeBundle) = posAndNegFromCardanoValue balance
+            (TokenBundle positiveAda positiveTokens) = positiveBundle
+            (TokenBundle negativeAda negativeTokens) = negativeBundle
 
             outs = extractOutputsFromTx tx
             adaInOutputs = F.foldMap (TokenBundle.getCoin . view #tokens) outs
