@@ -1225,7 +1225,9 @@ spec = describe "NEW_SHELLEY_TRANSACTIONS" $ do
             [ expectResponseCode HTTP.status202
             ]
 
-    it "TRANS_NEW_DECODE_01a - multiple-output transaction with all covering inputs" $ \ctx -> runResourceT $ do
+    it "TRANS_NEW_DECODE_01a - \
+        \multiple-output transaction with all covering inputs" $
+        \ctx -> runResourceT $ do
 
         -- constructing source wallet
         let initialAmt = minUTxOValue (_mainEra ctx)
@@ -1273,7 +1275,9 @@ spec = describe "NEW_SHELLEY_TRANSACTIONS" $ do
                   (`shouldBe` [ExternalInput (ApiT (TxIn theTxHash 0))])
             ]
 
-    it "TRANS_NEW_DECODE_02 - transaction with minting/burning assets" $ \ctx -> runResourceT $ do
+    it "TRANS_NEW_DECODE_02 - \
+        \transaction with minting/burning assets" $
+        \ctx -> runResourceT $ do
 
         -- constructing wallet
         let initialAmt = minUTxOValue (_mainEra ctx)
@@ -1313,7 +1317,8 @@ spec = describe "NEW_SHELLEY_TRANSACTIONS" $ do
           }|]
 
         let tokenPolicyId' =
-                UnsafeTokenPolicyId (Hash "\145\158\138\EM\"\170\167d\177\214d\a\198\246\"D\231p\129!_8[`\166 \145I")
+                UnsafeTokenPolicyId $ Hash
+                "\145\158\138\EM\"\170\167d\177\214d\a\198\246\"D\231p\129!_8[`\166 \145I"
         let tokens = TokenMap.singleton
                 (AssetId tokenPolicyId' (UnsafeTokenName "HappyCoin"))
                 (TokenQuantity 50_000)
@@ -1377,7 +1382,9 @@ spec = describe "NEW_SHELLEY_TRANSACTIONS" $ do
             , expectField #assetsBurned (`shouldBe` activeAssetsInfo)
             ]
 
-    it "TRANS_NEW_DECODE_03 - transaction with external delegation certificates" $ \ctx -> runResourceT $ do
+    it "TRANS_NEW_DECODE_03 - \
+        \transaction with external delegation certificates" $
+        \ctx -> runResourceT $ do
 
         -- constructing source wallet
         let initialAmt = minUTxOValue (_mainEra ctx)
@@ -1449,7 +1456,9 @@ spec = describe "NEW_SHELLEY_TRANSACTIONS" $ do
             , expectField #certificates (`shouldBe` certsQuit)
             ]
 
-    it "TRANS_NEW_DECODE_04 - transaction with mir certificate" $ \ctx -> runResourceT $ do
+    it "TRANS_NEW_DECODE_04 - \
+        \transaction with mir certificate" $
+        \ctx -> runResourceT $ do
 
         -- constructing source wallet
         let initialAmt = minUTxOValue (_mainEra ctx)
@@ -1534,7 +1543,9 @@ spec = describe "NEW_SHELLEY_TRANSACTIONS" $ do
             , expectField #certificates (`shouldSatisfy` containMIR)
             ]
 
-    it "TRANS_NEW_DECODE_05 - transaction with pool registration and deregistration certificates" $ \ctx -> runResourceT $ do
+    it "TRANS_NEW_DECODE_05 - \
+        \transaction with pool registration and deregistration certificates" $
+        \ctx -> runResourceT $ do
 
         -- constructing source wallet
         let initialAmt = minUTxOValue (_mainEra ctx)
