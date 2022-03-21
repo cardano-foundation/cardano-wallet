@@ -1577,18 +1577,11 @@ balanceTransactionWithSelectionStrategy
     ti
     (internalUtxoAvailable, wallet, _pendingTxs)
     selectionStrategy
-    ptx@(
-        PartialTx partialTx@(
-            cardanoTx ->
-                Cardano.InAnyCardanoEra _ (Cardano.Tx (Cardano.TxBody bod) _)
-        )
-        externalInputs
-        redeemers
-    )
+    ptx@(PartialTx partialTx externalInputs redeemers)
     = do
-    guardExistingCollateral
+    guardExistingCollateral partialTx
     guardZeroAdaOutputs (extractOutputsFromTx partialTx)
-    guardConflictingWithdrawalNetworks
+    guardConflictingWithdrawalNetworks partialTx
 
     -- TODO: Nothing guarantees consistency between externalInputs and the
     -- actual txins!
@@ -1828,7 +1821,8 @@ balanceTransactionWithSelectionStrategy
         let (Tx {outputs}, _, _, _) = decodeTx tl tx
          in outputs
 
-    guardConflictingWithdrawalNetworks = do
+    guardConflictingWithdrawalNetworks (cardanoTx ->
+        (Cardano.InAnyCardanoEra _ (Cardano.Tx (Cardano.TxBody body) _))) = do
         -- Use of withdrawals with different networks breaks balancing.
         --
         -- For instance the partial tx might contain two withdrawals with the same
@@ -1842,19 +1836,20 @@ balanceTransactionWithSelectionStrategy
         -- does not consider the network tag, it will drop one of the two, leading
         -- to a discrepancy.
         let networkOfWdrl ((Cardano.StakeAddress nw _), _, _) = nw
-        let conflictingWdrlNetworks = case Cardano.txWithdrawals bod of
+        let conflictingWdrlNetworks = case Cardano.txWithdrawals body of
                 Cardano.TxWithdrawalsNone -> False
                 Cardano.TxWithdrawals _ wdrls -> Set.size
                     (Set.fromList $ map networkOfWdrl wdrls) > 1
         when conflictingWdrlNetworks $
             throwE $ ErrBalanceTxNotYetSupported ConflictingNetworks
 
-    guardExistingCollateral = do
+    guardExistingCollateral (cardanoTx ->
+        (Cardano.InAnyCardanoEra _ (Cardano.Tx (Cardano.TxBody body) _))) = do
         -- Coin selection does not support pre-defining collateral. In Sep 2021
         -- consensus was that we /could/ allow for it with just a day's work or so,
         -- but that the need for it was unclear enough that it was not in any way
         -- a priority.
-        case Cardano.txInsCollateral bod of
+        case Cardano.txInsCollateral body of
             Cardano.TxInsCollateralNone -> return ()
             Cardano.TxInsCollateral _ [] -> return ()
             Cardano.TxInsCollateral _ _ ->
