@@ -1225,7 +1225,7 @@ spec = describe "NEW_SHELLEY_TRANSACTIONS" $ do
             [ expectResponseCode HTTP.status202
             ]
 
-    it "TRANS_DECODE_01a - multiple-output transaction with all covering inputs" $ \ctx -> runResourceT $ do
+    it "TRANS_NEW_DECODE_01a - multiple-output transaction with all covering inputs" $ \ctx -> runResourceT $ do
 
         -- constructing source wallet
         let initialAmt = minUTxOValue (_mainEra ctx)
@@ -1273,7 +1273,7 @@ spec = describe "NEW_SHELLEY_TRANSACTIONS" $ do
                   (`shouldBe` [ExternalInput (ApiT (TxIn theTxHash 0))])
             ]
 
-    it "TRANS_DECODE_02 - transaction with minting/burning assets" $ \ctx -> runResourceT $ do
+    it "TRANS_NEW_DECODE_02 - transaction with minting/burning assets" $ \ctx -> runResourceT $ do
 
         -- constructing wallet
         let initialAmt = minUTxOValue (_mainEra ctx)
@@ -1307,24 +1307,29 @@ spec = describe "NEW_SHELLEY_TRANSACTIONS" $ do
                 \7066733a2f2f58585858595959595a5a5a5a646e616d656a54657374204e46\
                 \542023" :: Text
 
-        let tokenPolicyId' =
-                UnsafeTokenPolicyId (Hash "\145\158\138\EM\"\170\167d\177\214d\a\198\246\"D\231p\129!_8[`\166 \145I")
-        let tokens = TokenMap.singleton
-                (AssetId tokenPolicyId' (UnsafeTokenName "HappyCoin"))
-                (TokenQuantity 50_000)
-
         let cborHexMint = fromTextEnvelope cborHexWithMinting
         let decodeMintPayload = Json [json|{
               "transaction": #{cborHexMint}
           }|]
 
+        let tokenPolicyId' =
+                UnsafeTokenPolicyId (Hash "\145\158\138\EM\"\170\167d\177\214d\a\198\246\"D\231p\129!_8[`\166 \145I")
+        let tokens = TokenMap.singleton
+                (AssetId tokenPolicyId' (UnsafeTokenName "HappyCoin"))
+                (TokenQuantity 50_000)
         let policyWithHash = Link.getPolicyKey @'Shelley wa (Just True)
         (_, policyKeyHashPayload) <-
             unsafeRequest @ApiPolicyKey ctx policyWithHash Empty
+        let (Just externalPolicyKeyHash) = keyHashFromBytes
+               ( Policy,
+                 "i0<\227Sm\242`\239\221\188\148\156\203\148\230\153\&3\STX\177\vw\141\139M\152\191\181"
+               )
+        let scriptUsed = RequireAllOf [RequireSignatureOf externalPolicyKeyHash]
+        let mintScript = ApiPolicyScript (ApiT tokenPolicyId') (ApiT scriptUsed)
 
         let activeAssetsInfo = ApiAssetMintBurn
                 { tokenMap = ApiT tokens
-                , policyScripts = []
+                , policyScripts = [mintScript]
                 , walletPolicyKeyHash = policyKeyHashPayload
                 }
         let inactiveAssetsInfo = ApiAssetMintBurn
@@ -1372,7 +1377,7 @@ spec = describe "NEW_SHELLEY_TRANSACTIONS" $ do
             , expectField #assetsBurned (`shouldBe` activeAssetsInfo)
             ]
 
-    it "TRANS_DECODE_03 - transaction with external delegation certificates" $ \ctx -> runResourceT $ do
+    it "TRANS_NEW_DECODE_03 - transaction with external delegation certificates" $ \ctx -> runResourceT $ do
 
         -- constructing source wallet
         let initialAmt = minUTxOValue (_mainEra ctx)
@@ -1444,7 +1449,7 @@ spec = describe "NEW_SHELLEY_TRANSACTIONS" $ do
             , expectField #certificates (`shouldBe` certsQuit)
             ]
 
-    it "TRANS_DECODE_04 - transaction with mir certificate" $ \ctx -> runResourceT $ do
+    it "TRANS_NEW_DECODE_04 - transaction with mir certificate" $ \ctx -> runResourceT $ do
 
         -- constructing source wallet
         let initialAmt = minUTxOValue (_mainEra ctx)
@@ -1529,7 +1534,7 @@ spec = describe "NEW_SHELLEY_TRANSACTIONS" $ do
             , expectField #certificates (`shouldSatisfy` containMIR)
             ]
 
-    it "TRANS_DECODE_05 - transaction with pool registration and deregistration certificates" $ \ctx -> runResourceT $ do
+    it "TRANS_NEW_DECODE_05 - transaction with pool registration and deregistration certificates" $ \ctx -> runResourceT $ do
 
         -- constructing source wallet
         let initialAmt = minUTxOValue (_mainEra ctx)
@@ -3207,21 +3212,17 @@ spec = describe "NEW_SHELLEY_TRANSACTIONS" $ do
         let (Just policyKeyHash) =
                 keyHashFromBytes (Policy, getApiPolicyKey policyKeyHashPayload)
 
-        let tokenPolicyId' =
-                UnsafeTokenPolicyId . Hash $
-                unScriptHash $
-                toScriptHash $
-                RequireAllOf
-                    [ RequireSignatureOf policyKeyHash
-                    , ActiveFromSlot 120
-                    ]
-        let tokens = TokenMap.singleton
-                (AssetId tokenPolicyId' tokenName')
-                (TokenQuantity 50_000)
         let scriptUsed = RequireAllOf
                 [ RequireSignatureOf policyKeyHash
                 , ActiveFromSlot 120
                 ]
+        let tokenPolicyId' =
+                UnsafeTokenPolicyId . Hash $
+                unScriptHash $
+                toScriptHash scriptUsed
+        let tokens = TokenMap.singleton
+                (AssetId tokenPolicyId' tokenName')
+                (TokenQuantity 50_000)
         let mintScript = ApiPolicyScript (ApiT tokenPolicyId') (ApiT scriptUsed)
 
         let activeAssetsInfo = ApiAssetMintBurn
@@ -3292,21 +3293,16 @@ spec = describe "NEW_SHELLEY_TRANSACTIONS" $ do
         let (Just policyKeyHash) =
                 keyHashFromBytes (Policy, getApiPolicyKey policyKeyHashPayload)
 
-        let tokenPolicyId' =
-                UnsafeTokenPolicyId . Hash $
-                unScriptHash $
-                toScriptHash $
-                RequireAllOf
-                    [ RequireSignatureOf policyKeyHash
-                    , ActiveFromSlot 120
-                    ]
-        let tokens = TokenMap.singleton
-                (AssetId tokenPolicyId' tokenName')
-                (TokenQuantity 50_000)
         let scriptUsed = RequireAllOf
                 [ RequireSignatureOf policyKeyHash
                 , ActiveFromSlot 120
                 ]
+        let tokenPolicyId' =
+                UnsafeTokenPolicyId . Hash $
+                unScriptHash $ toScriptHash scriptUsed
+        let tokens = TokenMap.singleton
+                (AssetId tokenPolicyId' tokenName')
+                (TokenQuantity 50_000)
         let burnScript = ApiPolicyScript (ApiT tokenPolicyId') (ApiT scriptUsed)
 
         let activeAssetsInfo = ApiAssetMintBurn
