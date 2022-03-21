@@ -3235,7 +3235,7 @@ spec = describe "NEW_SHELLEY_TRANSACTIONS" $ do
                 , walletPolicyKeyHash = policyKeyHashPayload
                 }
 
-        let mintInfoExpected = Just $ NE.fromList $
+        let mintInfoExpected = Just $ NE.fromList
                 [ ApiT $ ApiMintBurnInfo
                 { verificationKeyIndex = ApiT (DerivationIndex 2147483648)
                 , policyId = ApiT tokenPolicyId'
@@ -3320,7 +3320,7 @@ spec = describe "NEW_SHELLEY_TRANSACTIONS" $ do
                 , walletPolicyKeyHash = policyKeyHashPayload
                 }
 
-        let burnInfoExpected = Just $ NE.fromList $
+        let burnInfoExpected = Just $ NE.fromList
                 [ ApiT $ ApiMintBurnInfo
                 { verificationKeyIndex = ApiT (DerivationIndex 2147483648)
                 , policyId = ApiT tokenPolicyId'
