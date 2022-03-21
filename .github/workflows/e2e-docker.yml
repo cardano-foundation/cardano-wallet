@@ -77,7 +77,7 @@ jobs:
         path: test/e2e/state/wallet_db/${{ env.NETWORK }}
         key: wallet-db-${{ runner.os }}-${{ env.NETWORK }}-${{ steps.date-time.outputs.value }}
         restore-keys: |
-          wallet-db-${{ runner.os }}-${{ env.NETWORK }}-
+          wallet-db-docker-${{ env.NETWORK }}-
           wallet-db-Linux-${{ env.NETWORK }}-
 
     - name: 🚀 Start node and wallet
