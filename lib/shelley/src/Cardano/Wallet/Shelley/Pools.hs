@@ -1,7 +1,6 @@
 {-# OPTIONS_GHC -Wno-unrecognised-pragmas #-}
 
 {-# LANGUAGE DataKinds #-}
-{-# LANGUAGE DeriveGeneric #-}
 {-# LANGUAGE DuplicateRecordFields #-}
 {-# LANGUAGE LambdaCase #-}
 {-# LANGUAGE MultiWayIf #-}
@@ -54,6 +53,13 @@ import Cardano.Pool.Metadata
     , registryUrlBuilder
     , toHealthCheckSMASH
     )
+import Cardano.Pool.Rank
+    ( PoolScore (..)
+    , RewardInfoPool (..)
+    , StakePoolsSummary (..)
+    , poolSaturation
+    , scorePools
+    )
 import Cardano.Wallet.Api.Types
     ( ApiT (..), HealthCheckSMASH (..), toApiEpochInfo )
 import Cardano.Wallet.Byron.Compatibility
@@ -88,7 +94,6 @@ import Cardano.Wallet.Primitive.Types
     , SlottingParameters (..)
     , StakePoolMetadata
     , StakePoolMetadataHash
-    , StakePoolsSummary (..)
     , getPoolRegistrationCertificate
     , getPoolRetirementCertificate
     , unSmashServer
@@ -114,8 +119,6 @@ import Control.Monad.IO.Class
     ( liftIO )
 import Control.Monad.Trans.Except
     ( ExceptT (..), runExceptT )
-import Control.Monad.Trans.State
-    ( State, evalState, state )
 import Control.Retry
     ( RetryStatus (..), constantDelay, retrying )
 import Control.Tracer
@@ -133,13 +136,13 @@ import Data.List.NonEmpty
 import Data.Map
     ( Map )
 import Data.Map.Merge.Strict
-    ( dropMissing, traverseMissing, zipWithAMatched, zipWithMatched )
+    ( dropMissing, mapMissing, traverseMissing, zipWithMatched )
 import Data.Maybe
     ( fromMaybe, mapMaybe )
 import Data.Ord
     ( Down (..) )
 import Data.Quantity
-    ( Percentage (..), Quantity (..) )
+    ( Quantity (..) )
 import Data.Set
     ( Set )
 import Data.Text.Class
@@ -154,12 +157,12 @@ import Data.Word
     ( Word64 )
 import Fmt
     ( fixedF, pretty )
-import GHC.Generics
-    ( Generic )
+import Numeric.Natural
+    ( Natural )
 import Ouroboros.Consensus.Cardano.Block
     ( CardanoBlock, HardForkBlock (..) )
 import System.Random
-    ( RandomGen, random )
+    ( RandomGen, randoms )
 import UnliftIO.Concurrent
     ( forkFinally, killThread, threadDelay )
 import UnliftIO.Exception
@@ -184,10 +187,9 @@ import qualified Data.Map.Strict as Map
 import qualified Data.Set as Set
 import qualified UnliftIO.STM as STM
 
---
--- Stake Pool Layer
---
-
+{-------------------------------------------------------------------------------
+    Stake Pool Layer
+-------------------------------------------------------------------------------}
 data StakePoolLayer = StakePoolLayer
     { getPoolLifeCycleStatus
         :: PoolId
@@ -273,48 +275,25 @@ newStakePoolLayer gcStatus nl db@DBLayer {..} restartSyncThread = do
         -> Coin
         -> IO [Api.ApiStakePool]
     _listPools currentEpoch userStake = do
-        rawLsqData <- liftIO $ stakeDistribution nl userStake
-        let lsqData = combineLsqData rawLsqData
-        dbData <- liftIO $ readPoolDbData db currentEpoch
-        seed <- liftIO $ atomically readSystemSeed
-        liftIO $ sortByReward seed
-            . map snd
-            . Map.toList
-            <$> combineDbAndLsqData
-                (timeInterpreter nl)
-                (nOpt rawLsqData)
-                lsqData
-                dbData
+        stakeDistribution nl >>= \case
+                -- we seem to be in the Byron era and cannot stake
+            Nothing -> pure []
+            Just nlData -> do
+                dbData <- readPoolDbData db currentEpoch
+                seed   <- atomically readSystemSeed
+                sortByReward seed
+                    <$> listPools (timeInterpreter nl) nlData dbData userStake
       where
-        -- Sort by non-myopic member rewards, making sure to also randomly sort
-        -- pools that have equal rewards.
-        --
-        -- NOTE: we discard the final value of the random generator because we
-        -- do actually want the order to be stable between two identical
-        -- requests. The order simply needs to be different between different
-        -- instances of the server.
+        -- Sort by non-myopic member rewards where pools with equal rewards
+        -- appear in random order.
+        -- This randomness is stable for identical requests,
+        -- but different for different instances of the server.
         sortByReward
-            :: RandomGen g
-            => g
-            -> [Api.ApiStakePool]
-            -> [Api.ApiStakePool]
-        sortByReward g0 =
-            map stakePool
-            . L.sortOn (Down . rewards)
-            . L.sortOn randomWeight
-            . evalState' g0
-            . traverse withRandomWeight
+            :: RandomGen g => g -> [Api.ApiStakePool] -> [Api.ApiStakePool]
+        sortByReward seed = sortRandomOn seed (Down . rewards)
           where
-            evalState' :: s -> State s a -> a
-            evalState' = flip evalState
-
-            withRandomWeight :: RandomGen g => a -> State g (Int, a)
-            withRandomWeight a = do
-                weight <- state random
-                pure (weight, a)
-
-            rewards = view (#metrics . #nonMyopicMemberRewards) . stakePool
-            (randomWeight, stakePool) = (fst, snd)
+            rewards :: Api.ApiStakePool -> Quantity "lovelace" Natural
+            rewards = view (#metrics . #nonMyopicMemberRewards)
 
     _forceMetadataGC :: IO ()
     _forceMetadataGC = do
@@ -328,18 +307,149 @@ newStakePoolLayer gcStatus nl db@DBLayer {..} restartSyncThread = do
     _getGCMetadataStatus =
         readTVarIO gcStatus
 
---
--- Data Combination functions
---
+-- | Sort a list in a way where ties are broken randomly using a random seed.
+sortRandomOn :: (RandomGen g, Ord b) => g -> (a -> b) -> [a] -> [a]
+sortRandomOn seed f
+    = map snd
+    . L.sortOn (\(nonce,a) -> (f a, nonce))
+    . zip (randoms seed :: [Int])
 
--- | Stake pool-related data that has been read from the node using a local
---   state query.
-data PoolLsqData = PoolLsqData
-    { nonMyopicMemberRewards :: Coin
-    , relativeStake :: Percentage
-    , saturation :: Double
-    } deriving (Eq, Show, Generic)
+{-------------------------------------------------------------------------------
+    List Stake Pools
+-------------------------------------------------------------------------------}
+{- NOTE [RewardEpochs]
 
+We need to be careful to show the right information at the right time
+in order prevent manipulation of the proof-of-stake protocol.
+
+In particular, we need to show those pool costs, margins, and owner stakes
+that will affect the rewards for a delegation choice made at the present moment.
+
+The reward cycle is illustrated in Section 11.2 of SL-D1, here a brief sketch.
+
+@
+                    mark   set     go
+                  +------.------.------
+                  |
+    |e0----|e1----|e2----|e3----|e4----|e5----|
+              ^
+          we are here
+@
+
+We imagine that we are in epoch e1, and choose to delegate to a pool.
+At the end of epoch e1, a snapshot of the stake distribution will be taken.
+This snapshot will be labeled "mark" during epoch e2, "set" during epoch e3,
+and "go" during epoch e4.
+Blocks will be produced randomly according to this stake distribution when
+it is labeled "set", i.e. in epoch e3.
+Rewards for this block production will be computed when this stake
+distribution is labeled "go", i.e. during epoch e4, and these rewards will
+paid out at the beginning of epoch e5.
+
+The owner stake is part of the snapshot taken at the end of epoch e1.
+If the pool is newly registered, its cost, margin and pledge are also
+immediately available in epoch e1. However, if a pool re-registers,
+the changes to its cost, margin and pledge will not be visible until the
+next epoch; put differently, the rewards for the stake snapshot taken
+at the end of epoch e1 will only depend on changes to cost, margin,
+and pledge that the pool owner initiated in epoch e0.
+This prevents pool owners from duping delegators by changing pool costs
+during an epoch. However, the pool owner could still choose to undelegate
+his stake, and fail to meet his pledge at the end of epoch e1,
+which results in zero rewards paid out at the beginning of e5.
+
+During epoch e1, the following local state queries show the following
+information:
+
+* @GetStakeDistribution@ shows the current stake distribution (in e1)
+* @GetStakePoolParams@ shows the "current" pool parameters (either new pool in e1,
+    or changes only from epoch e0 or earlier.)
+* @GetRewardProvenance@ shows the rewards for the stake distribution
+    that was taken at the end of epoch *e_-2*.
+
+Thus, `GetRewardProvenance` alone does not provide enough information
+to make a meaningful choice of delegation.
+
+-}
+
+-- | Create a presentable list of stake pools
+-- by combining LocalStateQuery data and DB data
+-- and then scoring the pools.
+listPools
+    :: TimeInterpreter (ExceptT PastHorizonException IO)
+    -> StakePoolsSummary
+    -> Map PoolId PoolDbData
+    -> Coin
+    -> IO [Api.ApiStakePool]
+listPools ti StakePoolsSummary{rewardParams,pools} dbData userStake =
+    traverse mkApiPool $ Map.toList $ scorePools rewardParams allPools userStake
+  where
+    allPools
+        = Map.merge lsqButNoDb dbButNoLsq bothPresent pools dbData
+    bothPresent = zipWithMatched (\_pid pool db -> (pool, db))
+    lsqButNoDb  = dropMissing
+    -- When a pool is registered (with a registration certificate) but not
+    -- currently active (and therefore not causing pool metrics data to be
+    -- available over local state query), we show the pool,
+    -- but we assume that the owner does not meet the pledge yet,
+    -- and that the pool does not produce blocks yet.
+    dbButNoLsq = mapMissing $ \_ db ->
+        let ownerStake_ = Coin 0
+            ownerStakeRelative_ = unsafeMkPercentage 0
+            poolDefault = RewardInfoPool
+                { stakeRelative = ownerStakeRelative_
+                , ownerPledge = poolPledge $ registrationCert db
+                , ownerStake = ownerStake_
+                , ownerStakeRelative = ownerStakeRelative_
+                , cost = poolCost $ registrationCert db
+                , margin = poolMargin $ registrationCert db
+                , performanceEstimate = 0
+                }
+        in (poolDefault, db)
+
+    mkApiPool
+        :: (PoolId, (PoolScore, RewardInfoPool, PoolDbData))
+        -> IO Api.ApiStakePool
+    mkApiPool (pid, (score, pool, db)) = do
+        let mRetirementEpoch = retirementEpoch <$> retirementCert db
+        retirementEpochInfo <- traverse
+            (interpretQuery (unsafeExtendSafeZone ti) . toApiEpochInfo)
+            mRetirementEpoch
+        -- Cave: The timing of re-registration certificates is important,
+        -- we need to rely on information from the local state query,
+        -- instead of just looking at the certificates that we collected
+        -- from the chain. See note [RewardEpochs] for details.
+        let pledge = ownerPledge pool
+        pure $ Api.ApiStakePool
+            { Api.id = (ApiT pid)
+            , Api.metrics = Api.ApiStakePoolMetrics
+                { Api.nonMyopicMemberRewards =
+                    Api.coinToQuantity $ _nonMyopicMemberReward score
+                , Api.relativeStake = Quantity $ stakeRelative pool
+                , Api.ownerStake = Api.coinToQuantity $ ownerStake pool
+                , Api.saturation = poolSaturation rewardParams pool
+                , Api.producedBlocks =
+                    (fmap fromIntegral . nProducedBlocks) db
+                }
+            , Api.metadata =
+                ApiT <$> metadata db
+            , Api.cost =
+                Api.coinToQuantity $ cost pool
+            , Api.pledge =
+                Api.coinToQuantity pledge
+            , Api.margin =
+                Quantity $ margin pool
+            , Api.retirement =
+                retirementEpochInfo
+            , Api.flags =
+                [ Api.Delisted | delisted db ]
+                ++ [ Api.OwnerStakeLowerThanPledge | ownerStake pool < pledge ]
+            }
+
+{-------------------------------------------------------------------------------
+    Pool Database
+    obtained by chain following
+-------------------------------------------------------------------------------}
 -- | Stake pool-related data that has been read from the database.
 data PoolDbData = PoolDbData
     { registrationCert :: PoolRegistrationCertificate
@@ -348,124 +458,6 @@ data PoolDbData = PoolDbData
     , metadata :: Maybe StakePoolMetadata
     , delisted :: Bool
     }
-
--- | Top level combine-function that merges DB and LSQ data.
-combineDbAndLsqData
-    :: TimeInterpreter (ExceptT PastHorizonException IO)
-    -> Int -- ^ nOpt; desired number of pools
-    -> Map PoolId PoolLsqData
-    -> Map PoolId PoolDbData
-    -> IO (Map PoolId Api.ApiStakePool)
-combineDbAndLsqData ti nOpt lsqData =
-    Map.mergeA lsqButNoDb dbButNoLsq bothPresent lsqData
-  where
-    bothPresent = zipWithAMatched mkApiPool
-
-    lsqButNoDb = dropMissing
-
-    -- When a pool is registered (with a registration certificate) but not
-    -- currently active (and therefore not causing pool metrics data to be
-    -- available over local state query), we use a default value of /zero/
-    -- for all stake pool metric values so that the pool can still be
-    -- included in the list of all known stake pools:
-    --
-    dbButNoLsq = traverseMissing $ \k db ->
-        mkApiPool k lsqDefault db
-      where
-        lsqDefault = PoolLsqData
-            { nonMyopicMemberRewards = freshmanMemberRewards
-            , relativeStake = minBound
-            , saturation = 0
-            }
-
-    -- To give a chance to freshly registered pools that haven't been part of
-    -- any leader schedule, we assign them the average reward of the top @k@
-    -- pools.
-    freshmanMemberRewards
-        = Coin
-        $ average
-        $ L.take nOpt
-        $ L.sort
-        $ map (Down . unCoin . nonMyopicMemberRewards)
-        $ Map.elems lsqData
-      where
-        average [] = 0
-        average xs = round $ double (sum xs) / double (length xs)
-
-        double :: Integral a => a -> Double
-        double = fromIntegral
-
-    mkApiPool
-        :: PoolId
-        -> PoolLsqData
-        -> PoolDbData
-        -> IO Api.ApiStakePool
-    mkApiPool pid (PoolLsqData prew pstk psat) dbData = do
-        let mRetirementEpoch = retirementEpoch <$> retirementCert dbData
-        retirementEpochInfo <- traverse
-            (interpretQuery (unsafeExtendSafeZone ti) . toApiEpochInfo)
-            mRetirementEpoch
-        pure $ Api.ApiStakePool
-            { Api.id = (ApiT pid)
-            , Api.metrics = Api.ApiStakePoolMetrics
-                { Api.nonMyopicMemberRewards = Api.coinToQuantity prew
-                , Api.relativeStake = Quantity pstk
-                , Api.saturation = psat
-                , Api.producedBlocks =
-                    (fmap fromIntegral . nProducedBlocks) dbData
-                }
-            , Api.metadata =
-                ApiT <$> metadata dbData
-            , Api.cost =
-                Api.coinToQuantity $ poolCost $ registrationCert dbData
-            , Api.pledge =
-                Api.coinToQuantity $ poolPledge $ registrationCert dbData
-            , Api.margin =
-                Quantity $ poolMargin $ registrationCert dbData
-            , Api.retirement =
-                retirementEpochInfo
-            , Api.flags =
-                [ Api.Delisted | delisted dbData ]
-            }
-
--- | Combines all the LSQ data into a single map.
---
--- This is the data we can ask the node for the most recent version of, over the
--- local state query protocol.
---
--- Calculating e.g. the nonMyopicMemberRewards ourselves through chain-following
--- would be completely impractical.
-combineLsqData
-    :: StakePoolsSummary
-    -> Map PoolId PoolLsqData
-combineLsqData StakePoolsSummary{nOpt, rewards, stake} =
-    Map.merge stakeButNoRewards rewardsButNoStake bothPresent stake rewards
-  where
-    -- calculate the saturation from the relative stake
-    sat s = fromRational $ (getPercentage s) / (1 / fromIntegral nOpt)
-
-    -- If we fetch non-myopic member rewards of pools using the wallet
-    -- balance of 0, the resulting map will be empty. So we set the rewards
-    -- to 0 here:
-    stakeButNoRewards = traverseMissing $ \_k s -> pure $ PoolLsqData
-        { nonMyopicMemberRewards = Coin 0
-        , relativeStake = s
-        , saturation = sat s
-        }
-
-    -- TODO: This case seems possible on shelley_testnet, but why, and how
-    -- should we treat it?
-    --
-    -- The pool with rewards but not stake didn't seem to be retiring.
-    rewardsButNoStake = traverseMissing $ \_k r -> pure $ PoolLsqData
-        { nonMyopicMemberRewards = r
-        , relativeStake = noStake
-        , saturation = sat noStake
-        }
-      where
-        noStake = unsafeMkPercentage 0
-
-    bothPresent = zipWithMatched  $ \_k s r -> PoolLsqData r s (sat s)
 
 -- | Combines all the chain-following data into a single map
 combineChainData
@@ -839,6 +831,9 @@ gcDelistedPools gcStatus tr DBLayer{..} fetchDelisted = forever $ do
     threadDelay sleepTime
     pure ()
 
+{-------------------------------------------------------------------------------
+    Logging
+-------------------------------------------------------------------------------}
 data StakePoolLog
     = MsgExitMonitoring AfterThreadLog
     | MsgChainMonitoring ChainFollowLog

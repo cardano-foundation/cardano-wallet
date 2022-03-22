@@ -43,6 +43,8 @@ import Cardano.BM.Data.Severity
     ( Severity (..) )
 import Cardano.BM.Data.Tracer
     ( HasPrivacyAnnotation (..), HasSeverityAnnotation (..) )
+import Cardano.Pool.Rank
+    ( StakePoolsSummary )
 import Cardano.Wallet.Primitive.BlockSummary
     ( LightSummary )
 import Cardano.Wallet.Primitive.Slotting
@@ -55,7 +57,6 @@ import Cardano.Wallet.Primitive.Types
     , ProtocolParameters
     , SlotNo (..)
     , SlottingParameters (..)
-    , StakePoolsSummary
     )
 import Cardano.Wallet.Primitive.Types.Coin
     ( Coin )
@@ -160,8 +161,7 @@ data NetworkLayer m block = NetworkLayer
         -- ^ Broadcast a transaction to the chain producer
 
     , stakeDistribution
-        :: Coin -- Stake to consider for rewards
-        -> m StakePoolsSummary
+        :: m (Maybe StakePoolsSummary)
 
     , getCachedRewardAccountBalance
         :: RewardAccount
