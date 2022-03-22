@@ -64,9 +64,9 @@ import Crypto.Scrypt
 -- | Verify a wallet spending password using the legacy Byron scrypt encryption
 -- scheme.
 checkPassphrase :: Passphrase "encryption" -> PassphraseHash -> Maybe Bool
-checkPassphrase pwd stored = Just $ verifyPass' pass encryptedPass
+checkPassphrase pwd stored = Just $
+    verifyPass' (Pass (BA.convert (cborify pwd))) encryptedPass
   where
-    pass = Pass (BA.convert pwd)
     encryptedPass = EncryptedPass (BA.convert stored)
 
 haveScrypt :: Bool
@@ -81,13 +81,12 @@ haveScrypt = False
 #endif
 
 preparePassphrase :: Passphrase "user" -> Passphrase "encryption"
-preparePassphrase = Passphrase . cborify . hashMaybe . unPassphrase
+preparePassphrase = Passphrase . hashMaybe . unPassphrase
   where
     hashMaybe pw
         | pw == mempty = mempty
         | otherwise = BA.convert $ blake2b256 pw
 
-    cborify = BA.convert . CBOR.toStrictByteString . CBOR.encodeBytes
 
 -- | This is for use by test cases only. Use only the implementation from the
 -- @scrypt@ package for application code.
@@ -95,6 +94,10 @@ checkPassphraseTestingOnly :: Passphrase "encryption" -> PassphraseHash -> Bool
 checkPassphraseTestingOnly pwd stored = case getSalt stored of
     Just salt -> encryptPassphraseTestingOnly pwd salt == stored
     Nothing -> False
+
+cborify :: Passphrase "encryption" -> Passphrase "encryption"
+cborify = Passphrase . BA.convert . CBOR.toStrictByteString
+    . CBOR.encodeBytes . BA.convert . unPassphrase
 
 -- | Extract salt field from pipe-delimited password hash.
 -- This will fail unless there are exactly 5 fields
@@ -116,7 +119,7 @@ encryptPassphraseTestingOnly pwd = mkPassphraseHash <$> genSalt
         , convertToBase Base64 salt, convertToBase Base64 (passHash salt)]
 
     passHash :: Passphrase "salt" -> ByteString
-    passHash (Passphrase salt) = Scrypt.generate params pwd salt
+    passHash (Passphrase salt) = Scrypt.generate params (cborify pwd) salt
 
     params = Scrypt.Parameters ((2 :: Word64) ^ logN) r p 64
     logN = 14
