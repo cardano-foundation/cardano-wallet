@@ -16,7 +16,8 @@ module Test.Integration.Scenario.API.Byron.Transactions
 import Prelude
 
 import Cardano.Wallet.Api.Types
-    ( ApiAsset (..)
+    ( ApiAddress
+    , ApiAsset (..)
     , ApiByronWallet
     , ApiFee (..)
     , ApiT (..)
@@ -41,9 +42,9 @@ import Cardano.Wallet.Primitive.Types.TokenPolicy
 import Cardano.Wallet.Primitive.Types.Tx
     ( Direction (..), TxStatus (..) )
 import Cardano.Wallet.Unsafe
-    ( unsafeFromText )
+    ( unsafeFromHex, unsafeFromText )
 import Control.Monad
-    ( forM_ )
+    ( forM_, void )
 import Control.Monad.IO.Class
     ( liftIO )
 import Control.Monad.Trans.Resource
@@ -51,15 +52,17 @@ import Control.Monad.Trans.Resource
 import Data.Bifunctor
     ( bimap )
 import Data.Generics.Internal.VL.Lens
-    ( (^.) )
+    ( view, (^.) )
 import Data.Quantity
     ( Quantity (..) )
+import Data.Text
+    ( Text )
 import Data.Text.Class
     ( fromText )
 import Numeric.Natural
     ( Natural )
 import Test.Hspec
-    ( SpecWith, describe )
+    ( ActionWith, SpecWith, describe, pendingWith )
 import Test.Hspec.Expectations.Lifted
     ( shouldBe, shouldNotBe )
 import Test.Hspec.Extra
@@ -69,6 +72,8 @@ import Test.Integration.Framework.DSL
     , Headers (..)
     , Payload (..)
     , between
+    , emptyByronWalletFromXPrvWith
+    , emptyByronWalletWith
     , emptyIcarusWallet
     , emptyRandomWallet
     , emptyWallet
@@ -99,11 +104,12 @@ import Test.Integration.Framework.DSL
     , request
     , toQueryString
     , verify
+    , waitForTxImmutability
     , walletId
     , (.>=)
     )
 import Test.Integration.Framework.Request
-    ( RequestException )
+    ( RequestException, unsafeRequest )
 import Test.Integration.Framework.TestData
     ( errMsg400StartTimeLaterThanEndTime
     , errMsg404NoAsset
@@ -117,6 +123,7 @@ import qualified Cardano.Wallet.Primitive.Types.TokenPolicy as TokenPolicy
 import qualified Data.ByteString as BS
 import qualified Data.ByteString.Char8 as B8
 import qualified Data.Text as T
+import qualified Data.Text.Encoding as T
 import qualified Network.HTTP.Types.Status as HTTP
 
 data TestCase a = TestCase
@@ -595,3 +602,88 @@ spec = describe "BYRON_TRANSACTIONS" $ do
         r <- request @([ApiTransaction n]) ctx link Default Empty
         expectResponseCode HTTP.status404 r
         expectErrorMessage (errMsg404NoWallet $ w ^. walletId) r
+
+    -- Golden from https://github.com/input-output-hk/cardano-sl/pull/4278#issuecomment-600553878
+    it "BYRON_SCRYPT_TRANS_CREATE_01 - wallet with password" $ \ctx -> do
+        flip runByronScryptGolden ctx $ ByronScryptGolden
+            { mnemonic = T.words
+                "inhale arm pilot fitness ceiling october donate \
+                \between language all limit taxi"
+            , encryptedRootXPrv =
+                "f6e79f49b8999a39d7e970e42d0a91224ecacefc3aa1edb342f34eb8bc6c2f\
+                \c63e743b862b312a6f92ba0161d4d53c3ee5a2bd8085476d9575765c49dcee\
+                \cbe54b34ec47daf9b7ebc6bdb706622616451c000e85ba81c7449ae436a8cb\
+                \bf3aab98e5cc704977bd11bb0ba8d5b5571a705704cb9334d27a048532eab4\
+                \9a698c2d"
+            , passwordHash =
+                "31347c387c317c5743413633702f6a487a5777575278756756344e31685479\
+                \3470646c6d4f76665177653863775a575472784f79773d3d7c796341722f61\
+                \326f4f777a736e4e746f4e655049416e4f6b7978426549494a6b59623039574\
+                \b564a7159493d"
+            , password = T.pack . B8.unpack $ unsafeFromHex
+                "00000000000000000000000000000000000000\
+                \50415441544520504154415445"
+            }
+    -- Golden from https://github.com/input-output-hk/cardano-sl/pull/4278#issuecomment-600553878
+    it "BYRON_SCRYPT_TRANS_CREATE_02 - wallet without password" $
+        runByronScryptGolden ByronScryptGolden
+            { mnemonic = T.words
+                "marriage blouse orbit quarter treat series release sing lava \
+                \spice surface rule"
+            , encryptedRootXPrv =
+                "38e8de9c583441213fe34eecc4e28265267466877ba4048e3ab1fa99563669\
+                \47aefaf5ba9779db67eead7fc9cd1354b994a5d8d9cd40ab874bfeb1b33649\
+                \280cd33651377731e0e59e0233425a55257782c5adaa768da0567f43c1c6c0\
+                \c18766ed0a547bb34eb472c120b170a8640279832ddf18002887f03c15dea5\
+                \9705422d"
+            , passwordHash =
+                "31347c387c317c574342652b796362417576356c2b4258676a344a314c6343\
+                \675375414c2f5653393661364e576a2b7550766655513d3d7c6f7846366549\
+                \39734151444e6f38395147747366324e653937426338372b484b6b41377567\
+                \72752f5970673d"
+            , password = ""
+            }
+  where
+    runByronScryptGolden :: ByronScryptGolden -> ActionWith Context
+    runByronScryptGolden golden ctx = runResourceT $ do
+        wFaucet <- fixtureRandomWallet ctx
+
+        wMnemonic <- emptyByronWalletWith ctx "random"
+            ("Random Wallet", mnemonic golden, fixturePassphrase)
+
+        let pay amt pwd src dest = do
+                addr <- view #id . snd
+                    <$> unsafeRequest @(ApiAddress n) ctx
+                        (Link.postRandomAddress dest)
+                        (Json [json| { "passphrase": #{fixturePassphrase} }|])
+
+                payload <- mkTxPayloadMA @n addr amt [] pwd
+                rtx <- request @(ApiTransaction n) ctx
+                    (Link.createTransactionOld @'Byron src) Default payload
+                expectResponseCode HTTP.status202 rtx
+
+        let ada = 1_000_000
+
+        pay (100 * ada) fixturePassphrase wFaucet wMnemonic
+
+        void $ request @() ctx
+            (Link.deleteWallet @'Byron wMnemonic) Default Empty
+
+        wKey <- emptyByronWalletFromXPrvWith ctx "random"
+            ("Random Wallet", encryptedRootXPrv golden, passwordHash golden)
+
+        liftIO $ waitForTxImmutability ctx
+
+        pay (99 * ada) (password golden) wKey wFaucet
+
+data ByronScryptGolden = ByronScryptGolden
+    { encryptedRootXPrv :: Text
+      -- ^ Encrypted XPrv extracted from cardano-sl
+    , passwordHash :: Text
+      -- ^ Password hash extracted from cardano-sl
+    , password :: Text
+      -- ^ Password used when spending funds.
+    , mnemonic :: [Text]
+      -- ^ Corresponding mnemonic for reference
+    }
+
