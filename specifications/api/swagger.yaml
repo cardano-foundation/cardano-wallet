@@ -2389,6 +2389,13 @@ components:
       format: bech32
       pattern: "^((policy_vk)|(policy_vkh))1[0-9a-z]*$"
 
+    ApiPostPolicyKeyData: &ApiPostPolicyKeyData
+      type: object
+      required:
+        - passphrase
+      properties:
+        passphrase: *walletPassphrase
+
     ApiTxId: &ApiTxId
       type: object
       required:
@@ -5251,6 +5258,16 @@ x-responsesGetShelleyKey: &responsesGetShelleyKey
       application/json:
         schema: *ApiVerificationKeyShelley
 
+x-responsesPostPolicyKey: &responsesPostPolicyKey
+  <<: *responsesErr400
+  <<: *responsesErr406
+  <<: *responsesErr415
+  202:
+    description: Accepted
+    content:
+      application/json:
+        schema: *ApiPolicyKey
+
 x-responsesGetPolicyKey: &responsesGetPolicyKey
   <<: *responsesErr400
   <<: *responsesErr404
@@ -6009,6 +6026,24 @@ paths:
       responses: *responsesGetShelleyKey
 
   /wallets/{walletId}/policy-key:
+    post:
+      operationId: postPolicyKey
+      tags: ["Transactions"]
+      summary: Create
+      description: |
+        <p align="right">status: <strong>stable</strong></p>
+
+        Create policy key for the wallet. Used for public account key derived
+        wallets or already instantiated mnemonic wallets to set policy public key
+      parameters:
+        - *parametersWalletId
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema: *ApiPostPolicyKeyData
+      responses: *responsesPostPolicyKey
+
     get:
       operationId: getPolicyKey
       tags: ["Keys"]

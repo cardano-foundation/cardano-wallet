@@ -99,6 +99,7 @@ import Cardano.Wallet.Api.Server
     , postExternalTransaction
     , postIcarusWallet
     , postLedgerWallet
+    , postPolicyKey
     , postRandomAddress
     , postRandomWallet
     , postRandomWalletFromXPrv
@@ -268,6 +269,7 @@ server byron icarus shelley multisig spl ntp =
         :<|> postAccountPublicKey shelley ApiAccountKey
         :<|> getAccountPublicKey shelley ApiAccountKey
         :<|> getPolicyKey @_ @_ @_ @n shelley
+        :<|> postPolicyKey shelley
 
     assets :: Server Assets
     assets =

@@ -94,6 +94,7 @@ module Cardano.Wallet.Api.Server
     , decodeTransaction
     , submitTransaction
     , getPolicyKey
+    , postPolicyKey
 
     -- * Server error responses
     , IsServerError(..)
@@ -240,6 +241,7 @@ import Cardano.Wallet.Api.Types
     , ApiNetworkClock (..)
     , ApiNetworkInformation
     , ApiNetworkParameters (..)
+    , ApiPostPolicyKeyData (..)
     , ApiNullStakeKey (..)
     , ApiOurStakeKey (..)
     , ApiPaymentDestination (..)
@@ -3358,6 +3360,17 @@ getPolicyKey ctx (ApiT wid) hashed = do
     withWorkerCtx @_ @s @k ctx wid liftE liftE $ \wrk -> do
         (k, _) <- liftHandler $ W.readPolicyPublicKey @_ @s @k @n wrk wid
         pure $ uncurry ApiPolicyKey (computeKeyPayload hashed k)
+
+postPolicyKey
+    :: forall ctx s k.
+        ( ctx ~ ApiLayer s k
+        , Typeable s
+        )
+    => ctx
+    -> ApiT WalletId
+    -> ApiPostPolicyKeyData
+    -> Handler ApiPolicyKey
+postPolicyKey _ctx (ApiT _wid) _apiPassphrase = undefined
 
 {-------------------------------------------------------------------------------
                                   Helpers

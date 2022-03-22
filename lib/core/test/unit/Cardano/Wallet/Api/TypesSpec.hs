@@ -114,8 +114,9 @@ import Cardano.Wallet.Api.Types
     , ApiPendingSharedWallet (..)
     , ApiPolicyKey (..)
     , ApiPolicyScript (..)
-    , ApiPostAccountKeyData
+    , ApiPostAccountKeyData (..)
     , ApiPostAccountKeyDataWithPurpose
+    , ApiPostPolicyKeyData (..)
     , ApiPostRandomAddressData
     , ApiPutAddressesData (..)
     , ApiRedeemer (..)
@@ -1943,6 +1944,9 @@ instance Arbitrary (Quantity "percent" Double) where
     shrink _ = [Quantity 0.0]
     arbitrary = Quantity <$> choose (0,100)
 
+instance Arbitrary ApiPostPolicyKeyData where
+    arbitrary = ApiPostPolicyKeyData <$> arbitrary
+
 instance Arbitrary ApiPolicyKey where
     arbitrary = do
         hashing <- elements [WithHashing, WithoutHashing]
@@ -2921,6 +2925,9 @@ instance ToSchema ApiPostAccountKeyDataWithPurpose where
 
 instance ToSchema ApiAccountKey where
     declareNamedSchema _ = declareSchemaForDefinition "ApiAccountKey"
+
+instance ToSchema ApiPostPolicyKeyData where
+    declareNamedSchema _ = declareSchemaForDefinition "ApiPostPolicyKeyData"
 
 instance ToSchema ApiAccountKeyShared where
     declareNamedSchema _ = declareSchemaForDefinition "ApiAccountKeyShared"

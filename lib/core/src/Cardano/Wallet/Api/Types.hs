@@ -141,6 +141,7 @@ module Cardano.Wallet.Api.Types
     , ApiWalletSignData (..)
     , ApiVerificationKeyShelley (..)
     , ApiPolicyKey (..)
+    , ApiPostPolicyKeyData (..)
     , ApiVerificationKeyShared (..)
     , ApiScriptTemplateEntry (..)
     , XPubOrSelf (..)
@@ -1226,6 +1227,12 @@ data ApiPolicyScript = ApiPolicyScript
     deriving (Eq, Generic, Show)
     deriving anyclass NFData
 
+data ApiPostPolicyKeyData = ApiPostPolicyKeyData
+    { passphrase :: !(ApiT (Passphrase "raw"))
+    }
+    deriving (Eq, Generic, Show)
+    deriving anyclass NFData
+
 data ApiAssetMintBurn = ApiAssetMintBurn
     { tokenMap :: !(ApiT W.TokenMap)
     , policyScripts :: ![ApiPolicyScript]
@@ -2099,6 +2106,11 @@ instance ToJSON ApiAssetMintBurn where
 instance FromJSON ApiPolicyScript where
     parseJSON = genericParseJSON defaultRecordTypeOptions
 instance ToJSON ApiPolicyScript where
+    toJSON = genericToJSON defaultRecordTypeOptions
+
+instance FromJSON ApiPostPolicyKeyData where
+    parseJSON = genericParseJSON defaultRecordTypeOptions
+instance ToJSON ApiPostPolicyKeyData where
     toJSON = genericToJSON defaultRecordTypeOptions
 
 parseBech32

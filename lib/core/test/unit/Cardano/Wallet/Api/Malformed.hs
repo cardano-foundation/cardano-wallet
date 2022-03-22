@@ -59,6 +59,7 @@ import Cardano.Wallet.Api.Types
     , ApiPoolId
     , ApiPostAccountKeyData
     , ApiPostAccountKeyDataWithPurpose
+    , ApiPostPolicyKeyData
     , ApiPostRandomAddressData
     , ApiPutAddressesData
     , ApiSelectCoinsData
@@ -280,6 +281,23 @@ instance Malformed (PathParam (ApiT TokenName)) where
 --
 -- Class instances (BodyParam)
 --
+
+instance Malformed (BodyParam ApiPostPolicyKeyData) where
+    malformed = first BodyParam <$>
+        [ ( ""
+          , "not enough input"
+          )
+        , ( Aeson.encode [aesonQQ|
+            { "passphrase": 100
+            }|]
+          , "Error in $.passphrase: parsing Passphrase failed, expected String, but encountered Number"
+          )
+        , ( Aeson.encode [aesonQQ|
+            {
+            }|]
+          , "Error in $: parsing Cardano.Wallet.Api.Types.ApiPostPolicyKeyData) failed, key 'passphrase' not found"
+          )
+        ]
 
 instance Malformed (BodyParam ApiWalletSignData) where
     malformed = first BodyParam <$>
