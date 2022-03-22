@@ -133,16 +133,16 @@ RSpec.describe "Cardano Wallet E2E tests", :e2e => true do
       expect(burn[:tx_balanced].parsed_response).to eq burn[:tx_signed].parsed_response
 
       # verify decoded unbalanced transaction includes assets minted and burned
-      expect(mint[:tx_unbalanced]['assets_minted']).to eq assets
-      expect(mint[:tx_unbalanced]['assets_burned']).to eq []
-      expect(burn[:tx_unbalanced]['assets_minted']).to eq []
-      expect(burn[:tx_unbalanced]['assets_burned']).to eq assets
+      expect(mint[:tx_unbalanced]['assets_minted']['token_map']).to eq assets
+      expect(mint[:tx_unbalanced]['assets_burned']['token_map']).to eq []
+      expect(burn[:tx_unbalanced]['assets_minted']['token_map']).to eq []
+      expect(burn[:tx_unbalanced]['assets_burned']['token_map']).to eq assets
 
       # verify decoded balanced transaction includes assets minted and burned
-      expect(mint[:tx_balanced]['assets_minted']).to eq assets
-      expect(mint[:tx_balanced]['assets_burned']).to eq []
-      expect(burn[:tx_balanced]['assets_minted']).to eq []
-      expect(burn[:tx_balanced]['assets_burned']).to eq assets
+      expect(mint[:tx_balanced]['assets_minted']['token_map']).to eq assets
+      expect(mint[:tx_balanced]['assets_burned']['token_map']).to eq []
+      expect(burn[:tx_balanced]['assets_minted']['token_map']).to eq []
+      expect(burn[:tx_balanced]['assets_burned']['token_map']).to eq assets
     end
 
     it "withdrawal" do
@@ -241,8 +241,8 @@ RSpec.describe "Cardano Wallet E2E tests", :e2e => true do
                 "quantity" => 1 }
 
       # verify decoded transactions show that currency will be minted
-      expect(r[:tx_unbalanced]['assets_minted']).to eq [apfel, banana]
-      expect(r[:tx_balanced]['assets_minted']).to eq [apfel, banana]
+      expect(r[:tx_unbalanced]['assets_minted']['token_map']).to eq [apfel, banana]
+      expect(r[:tx_balanced]['assets_minted']['token_map']).to eq [apfel, banana]
 
       # make sure currency is minted as expected
       src_balance = get_shelley_balances(@wid)
