@@ -1233,7 +1233,7 @@ data ApiPolicyScript = ApiPolicyScript
 data ApiAssetMintBurn = ApiAssetMintBurn
     { tokenMap :: !(ApiT W.TokenMap)
     , policyScripts :: ![ApiPolicyScript]
-    , walletPolicyKeyHash :: !ApiPolicyKey
+    , walletPolicyKeyHash :: !(Maybe ApiPolicyKey)
     }
     deriving (Eq, Generic, Show)
     deriving anyclass NFData

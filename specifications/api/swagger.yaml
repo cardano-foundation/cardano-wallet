@@ -2518,7 +2518,6 @@ components:
       required:
         - token_map
         - policy_scripts
-        - wallet_policy_key_hash
       properties:
         token_map:
           type: array
