@@ -1,3 +1,4 @@
+{-# LANGUAGE BangPatterns #-}
 {-# LANGUAGE DataKinds #-}
 {-# LANGUAGE DeriveAnyClass #-}
 {-# LANGUAGE DerivingStrategies #-}
@@ -29,24 +30,27 @@ module Cardano.Wallet.Shelley.Network.Blockfrost
     -- * Internal
     , getPoolPerformanceEstimate
     , eraByEpoch
+    , getStakePoolsSummary'
+
+    -- * Blockfrost -> Cardano translation
+    , fromBlockfrost
     ) where
 
 import Prelude
 
 import qualified Blockfrost.Client as BF
 import qualified Cardano.Api.Shelley as Node
+import qualified Data.Map.Strict as Map
 import qualified Data.Sequence as Seq
 
 import Cardano.Api
     ( AnyCardanoEra, NetworkId (Mainnet, Testnet) )
 import Cardano.BM.Data.Severity
     ( Severity (..) )
-import Cardano.BM.Tracer
-    ( Tracer )
 import Cardano.BM.Tracing
-    ( HasSeverityAnnotation (getSeverityAnnotation) )
+    ( HasSeverityAnnotation (..), Tracer, traceWith )
 import Cardano.Pool.Rank
-    ( RewardParams (..) )
+    ( RewardInfoPool (..), RewardParams (..), StakePoolsSummary (..) )
 import Cardano.Pool.Rank.Likelihood
     ( BlockProduction (..), PerformanceEstimate (..), estimatePoolPerformance )
 import Cardano.Wallet.Logging
@@ -62,11 +66,13 @@ import Cardano.Wallet.Primitive.Types
     , FeePolicy (LinearFee)
     , LinearFunction (..)
     , MinimumUTxOValue (..)
+    , PoolId (..)
     , ProtocolParameters (..)
     , SlotNo (..)
     , SlottingParameters (..)
     , TokenBundleMaxSize (..)
     , TxParameters (..)
+    , decodePoolIdBech32
     , emptyEraInfo
     , executionMemory
     , executionSteps
@@ -87,6 +93,8 @@ import Control.Monad.Trans.Except
     ( ExceptT (..), runExceptT, withExceptT )
 import Data.Bits
     ( Bits )
+import Data.Foldable
+    ( toList )
 import Data.Functor
     ( (<&>) )
 import Data.Functor.Contravariant
@@ -96,6 +104,7 @@ import Data.IntCast
 import Data.Quantity
     ( MkPercentageError (PercentageOutOfBoundsError)
     , Quantity (..)
+    , clipToPercentage
     , mkPercentage
     )
 import Data.Text.Class
@@ -112,7 +121,6 @@ import UnliftIO.Async
     ( async, link )
 import UnliftIO.Exception
     ( Exception )
-
 
 {-------------------------------------------------------------------------------
     NetworkLayer
@@ -131,17 +139,23 @@ newtype BlockfrostException = BlockfrostException BlockfrostError
     deriving stock (Show)
     deriving anyclass (Exception)
 
-data Log = MsgWatcherUpdate BlockHeader BracketLog
+data Log
+    = MsgWatcherUpdate BlockHeader BracketLog
+    | MsgRewardInfoPool PoolId RewardInfoPool
 
 instance ToText Log where
     toText = \case
         MsgWatcherUpdate blockHeader bracketLog ->
             "Update watcher with tip: " <> pretty blockHeader <>
             ". Callback " <> toText bracketLog <> ". "
+        MsgRewardInfoPool pid info ->
+            "Fetched reward info for pool " <> pretty pid <>
+            ". Info is: " <> pretty info <> ". "
 
 instance HasSeverityAnnotation Log where
     getSeverityAnnotation = \case
       MsgWatcherUpdate _ _ -> Info
+      MsgRewardInfoPool _ _ -> Debug
 
 withNetworkLayer
     :: Tracer IO Log
@@ -491,3 +505,108 @@ getPoolPerformanceEstimate sp dl rp pid = do
             / fromIntegral (unCoin $ totalStake rp)
             -- _poolHistoryActiveSize would be incorrect here
         }
+
+-- | Retrieve a 'StakePoolsSummary'.
+--
+-- TODO: This summary is from the "Cardano.Pool.Rank" module;
+-- the one from the "Cardano.Wallet.Primitive.Types" will be
+-- removed.
+--
+-- TODO: For reasons of performance, this summary does not
+-- fill in the 'performanceEstimate' field of each stake pool.
+-- As it is not needed for the new reward computation,
+-- it will be removed in the future.
+getStakePoolsSummary'
+    :: BF.MonadBlockfrost m
+    => Tracer m Log
+    -> m StakePoolsSummary
+getStakePoolsSummary' tr = do
+    let mkPoolMap pids = Map.fromList [ (fromPoolId p,p) | p <- pids ]
+    pools <- mkPoolMap <$> getAllPages BF.listPools'
+
+    rp <- getRewardParams
+    let getPool pid = do
+            info <- fromPoolInfo rp <$> BF.getPool pid
+            traceWith tr $ MsgRewardInfoPool (fromPoolId pid) info
+            pure info
+
+    StakePoolsSummary rp <$> mapM getPool pools
+
+getRewardParams :: BF.MonadBlockfrost m => m RewardParams
+getRewardParams = do
+    BF.ProtocolParams{..} <- BF.getLatestEpochProtocolParams
+    BF.Network{..} <- BF.getNetworkInfo
+    BF.EpochInfo{..} <- BF.getLatestEpoch
+    let BF.NetworkSupply{..} = _networkSupply
+        eta
+            | _protocolParamsDecentralisationParam >= 0.8 = 1
+            | otherwise = 1 -- wrong value
+                -- NOTE: The correct value is  blocksMade % expectedBlocks
+                -- But since we are long after d = 1, we ignore that here.
+        deltaR1 = rationalToCoinViaFloor $
+            min 1 eta
+                * realToFrac _protocolParamsRho
+                * fromIntegral _supplyReserves
+        rationalToCoinViaFloor :: Rational -> Coin
+        rationalToCoinViaFloor = Coin . floor
+        rPot = fromLovelaces _epochInfoFees <> deltaR1
+        rp = RewardParams
+            { nOpt =
+                fromIntegral _protocolParamsNOpt
+            , a0 =
+                realToFrac _protocolParamsA0
+            , r =
+                rPot
+            , totalStake =
+                fromLovelaces _supplyTotal
+            }
+    pure rp
+
+fromPoolInfo :: RewardParams -> BF.PoolInfo -> RewardInfoPool
+fromPoolInfo rp BF.PoolInfo{..} = RewardInfoPool
+    { stakeRelative = clipToPercentage $
+        fromIntegral _poolInfoActiveStake / _totalStake
+    , ownerPledge =
+        fromLovelaces _poolInfoDeclaredPledge
+    , ownerStake =
+        fromLovelaces _poolInfoLivePledge
+    , ownerStakeRelative = clipToPercentage $
+        fromIntegral _poolInfoLivePledge / _totalStake
+    , cost =
+        fromLovelaces _poolInfoFixedCost 
+    , margin = clipToPercentage $
+        realToFrac _poolInfoMarginCost
+    , performanceEstimate =
+        1.0 -- assume perfect performance here
+    }
+  where
+    _totalStake = fromIntegral . unCoin $ totalStake rp
+
+{-------------------------------------------------------------------------------
+    Type conversions
+-------------------------------------------------------------------------------}
+fromLovelaces :: BF.Lovelaces -> Coin
+fromLovelaces = Coin . toEnum . fromIntegral
+
+-- BF.PoolId is Bech32 encoded
+fromPoolId :: BF.PoolId -> PoolId
+fromPoolId (BF.PoolId pid) = case decodePoolIdBech32 pid of
+    Right a -> a
+    Left e -> error $ show e
+
+{-------------------------------------------------------------------------------
+    Utility functions
+-------------------------------------------------------------------------------}
+-- | Retrieve multiple items even though they are only presented
+-- in pages of 100.
+getAllPages :: Monad m => (BF.Paged -> BF.SortOrder -> m [a]) -> m [a]
+getAllPages query = toList <$> go 1 Seq.empty
+  where
+    go !j !ys = do
+        xs <- query
+            BF.Paged{ BF.countPerPage = 100, BF.pageNumber = j }
+            BF.Ascending
+        let gonext
+                | length xs < 100 = pure
+                | otherwise       = go (j+1)
+        gonext $ ys <> Seq.fromList xs
