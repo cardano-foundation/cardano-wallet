@@ -1769,8 +1769,8 @@ balanceTransactionWithSelectionStrategy
         -- 0.065536 ada or more. This is certainly the case on mainnet with a
         -- minUTxOValue of ≈1 ada. Then we only need to care about the following
         -- two sizes of CBOR lovelace values:
-        -- - 0.065536 ada is encoded as 5 bytes
-        -- - 4.294967296 ada is encoded as 9 bytes
+        -- - [0.065536 ada, 4.294967296 ada) is encoded as 5 bytes
+        -- - 4.294967296 ada and more is encoded as 9 bytes
         --
         -- To avoid fee minimization unknowingly increasing the size by 4 bytes,
         -- we preemtively add an extra 4 bytes here.
