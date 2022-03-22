@@ -62,7 +62,7 @@ import Data.Text.Class
 import Numeric.Natural
     ( Natural )
 import Test.Hspec
-    ( ActionWith, SpecWith, describe, pendingWith )
+    ( ActionWith, SpecWith, describe )
 import Test.Hspec.Expectations.Lifted
     ( shouldBe, shouldNotBe )
 import Test.Hspec.Extra
@@ -123,7 +123,6 @@ import qualified Cardano.Wallet.Primitive.Types.TokenPolicy as TokenPolicy
 import qualified Data.ByteString as BS
 import qualified Data.ByteString.Char8 as B8
 import qualified Data.Text as T
-import qualified Data.Text.Encoding as T
 import qualified Network.HTTP.Types.Status as HTTP
 
 data TestCase a = TestCase

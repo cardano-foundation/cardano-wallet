@@ -106,7 +106,7 @@ import Control.Monad
 import Crypto.Hash
     ( Digest, HashAlgorithm )
 import Crypto.Hash.Utils
-    ( blake2b224, blake2b256 )
+    ( blake2b224 )
 import Crypto.KDF.PBKDF2
     ( Parameters (..), fastPBKDF2_SHA512 )
 import Crypto.Random.Types
@@ -585,17 +585,17 @@ encryptPassphrase  (Passphrase bytes) = do
         <> BA.convert @ByteString (fastPBKDF2_SHA512 params bytes salt)
 
 -- | Manipulation done on legacy passphrases before getting encrypted.
+--
+-- NOTE March 2022:
+-- It seems like the idea that some manipulation should be done was incorrect.
+-- We could remove this fucntion then.
 preparePassphrase
     :: PassphraseScheme
     -> Passphrase "raw"
     -> Passphrase "encryption"
 preparePassphrase = \case
     EncryptWithPBKDF2 -> coerce
-    EncryptWithScrypt -> Passphrase . hashMaybe
-  where
-    hashMaybe pw@(Passphrase bytes)
-        | pw == mempty = BA.convert bytes
-        | otherwise = BA.convert $ blake2b256 bytes
+    EncryptWithScrypt -> coerce
 
 -- | Check whether a 'Passphrase' matches with a stored 'Hash'
 checkPassphrase
