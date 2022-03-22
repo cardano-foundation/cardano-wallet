@@ -2571,7 +2571,7 @@ prop_balanceTransactionValid
     -> StdGenSeed
     -> Property
 prop_balanceTransactionValid wallet (ShowBuildable partialTx') seed
-    = withMaxSuccess 20000 $ do
+    = withMaxSuccess 1000 $ do
         let combinedUTxO = mconcat
                 [ resolvedInputsUTxO Cardano.ShelleyBasedEraAlonzo partialTx
                 , toCardanoUTxO Cardano.ShelleyBasedEraAlonzo walletUTxO
