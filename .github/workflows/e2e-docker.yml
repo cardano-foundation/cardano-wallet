@@ -62,7 +62,7 @@ jobs:
 
     - name: 💾 Cache node db
       id: cache
-      uses: actions/cache@v2.1.4
+      uses: actions/cache@v2.1.7
       with:
         path: test/e2e/state/node_db/${{ env.NETWORK }}
         key: node-db-docker-${{ env.NETWORK }}-${{ steps.date-time.outputs.value }}
@@ -72,7 +72,7 @@ jobs:
 
     - name: 💾 Cache wallet db
       id: cache-wallet
-      uses: actions/cache@v2.1.4
+      uses: actions/cache@v2.1.7
       with:
         path: test/e2e/state/wallet_db/${{ env.NETWORK }}
         key: wallet-db-${{ runner.os }}-${{ env.NETWORK }}-${{ steps.date-time.outputs.value }}
