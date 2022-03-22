@@ -39,6 +39,7 @@ module Cardano.Api.Gen
   , genValueForMinting
   , genSignedQuantity
   , genTxMintValue
+  , genSignedValue
   , genNetworkMagic
   , genNetworkId
   , genStakeCredential
@@ -458,6 +459,24 @@ genValueForTxOut = do
         ]
     assetQuantities <- infiniteListOf genUnsignedQuantity
     ada <- fromInteger . unLovelace <$> genLovelace
+    return $ valueFromList $ (AdaAssetId, ada) : zip assetIds assetQuantities
+  where
+    unLovelace (Lovelace l) = l
+
+-- | Generate a 'Value' which could represent the balance of a partial
+-- transaction, where both ada and other assets can be included, and quantities
+-- can be both positive and negative.
+genSignedValue :: Gen Value
+genSignedValue = do
+    assetIds <- oneof
+        [ nub <$> scale (`div` 4) (listOf genAssetIdNoAda)
+        , pure []
+        ]
+    assetQuantities <- infiniteListOf genSignedQuantity
+    ada <- fromInteger . unLovelace <$> oneof
+        [ genLovelace
+        , negate <$> genLovelace
+        ]
     return $ valueFromList $ (AdaAssetId, ada) : zip assetIds assetQuantities
   where
     unLovelace (Lovelace l) = l

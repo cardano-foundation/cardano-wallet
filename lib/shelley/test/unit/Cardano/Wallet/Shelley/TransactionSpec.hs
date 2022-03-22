@@ -47,7 +47,8 @@ import Cardano.Api
     , cardanoEraStyle
     )
 import Cardano.Api.Gen
-    ( genTx
+    ( genSignedValue
+    , genTx
     , genTxBodyContent
     , genTxForBalancing
     , genTxInEra
@@ -74,6 +75,7 @@ import Cardano.Wallet
     , WalletWorkerLog
     , balanceTransaction
     , estimateFee
+    , posAndNegFromCardanoValue
     , signTransaction
     )
 import Cardano.Wallet.Byron.Compatibility
@@ -196,6 +198,7 @@ import Cardano.Wallet.Shelley.Compatibility
     , toCardanoTxIn
     , toCardanoTxOut
     , toCardanoUTxO
+    , toCardanoValue
     )
 import Cardano.Wallet.Shelley.Compatibility.Ledger
     ( toAlonzoTxOut )
@@ -2029,6 +2032,10 @@ balanceTransactionSpec = do
 
         balanceTransactionGoldenSpec
 
+        describe "posAndNegFromCardanoValue" $
+            it "roundtrips with toCardanoValue" $
+                property prop_posAndNegFromCardanoValueRoundtrip
+
         describe "effect of txMaxSize on coin selection" $ do
             let addr = Address $ unsafeFromHex
                     "60b1e5e0fb74c86c801f646841e07\
@@ -2369,6 +2376,13 @@ prop_balanceTransactionUnresolvedInputs wallet (ShowBuildable partialTx')
         let inputs' = map snd $ filter        fst  $ zip shouldKeep inputs
         let dropped = map snd $ filter (not . fst) $ zip shouldKeep inputs
         pure (PartialTx tx inputs' redeemers, dropped)
+
+prop_posAndNegFromCardanoValueRoundtrip :: Property
+prop_posAndNegFromCardanoValueRoundtrip = forAll genSignedValue $ \v ->
+    let
+        (pos, neg) = posAndNegFromCardanoValue v
+    in
+        toCardanoValue pos <> (Cardano.negateValue (toCardanoValue neg)) === v
 
 data BalanceTxGolden =
     BalanceTxGoldenSuccess

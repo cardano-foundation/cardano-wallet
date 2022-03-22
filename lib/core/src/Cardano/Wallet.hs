@@ -197,6 +197,7 @@ module Cardano.Wallet
     , throttle
     , guardHardIndex
     , withNoSuchWallet
+    , posAndNegFromCardanoValue
 
     -- * Logging
     , WalletWorkerLog (..)
