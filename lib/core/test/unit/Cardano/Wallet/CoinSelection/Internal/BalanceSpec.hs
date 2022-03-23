@@ -180,6 +180,8 @@ import Data.Generics.Internal.VL.Lens
     ( view )
 import Data.Generics.Labels
     ()
+import Data.IntCast
+    ( intCast )
 import Data.List.NonEmpty
     ( NonEmpty (..) )
 import Data.Map.Strict
@@ -1847,6 +1849,8 @@ mkBoundaryTestExpectation (BoundaryTestData params expectedResult) = do
         , assessTokenBundleSize = unMockAssessTokenBundleSize $
             boundaryTestBundleSizeAssessor params
         , computeSelectionLimit = const NoLimit
+        , maximumOutputAdaQuantity = testMaximumOutputAdaQuantity
+        , maximumOutputTokenQuantity = testMaximumOutputTokenQuantity
         }
 
 encodeBoundaryTestCriteria
@@ -2474,7 +2478,29 @@ unMockSelectionConstraints m = SelectionConstraints
         unMockComputeMinimumCost $ view #computeMinimumCost m
     , computeSelectionLimit =
         unMockComputeSelectionLimit $ view #computeSelectionLimit m
+    , maximumOutputAdaQuantity =
+        testMaximumOutputAdaQuantity
+    , maximumOutputTokenQuantity =
+        testMaximumOutputTokenQuantity
     }
+
+-- | Specifies the largest ada quantity that can appear in the token bundle
+--   of an output.
+--
+-- For the moment, we use the same constant that is used in the wallet. In
+-- future, we can improve our test coverage by allowing this value to vary.
+--
+testMaximumOutputAdaQuantity :: Coin
+testMaximumOutputAdaQuantity = Coin 45_000_000_000_000_000
+
+-- | Specifies the largest non-ada quantity that can appear in the token bundle
+--   of an output.
+--
+-- For the moment, we use the same constant that is used in the wallet. In
+-- future, we can improve our test coverage by allowing this value to vary.
+--
+testMaximumOutputTokenQuantity :: TokenQuantity
+testMaximumOutputTokenQuantity = TokenQuantity $ intCast $ maxBound @Word64
 
 --------------------------------------------------------------------------------
 -- Computing minimum ada quantities
@@ -2674,6 +2700,8 @@ genMakeChangeData = flip suchThat isValidMakeChangeData $ do
         <*> genTokenBundles outputBundleCount
         <*> genAssetsToMint
         <*> genAssetsToBurn
+        <*> genMaximumOutputAdaQuantity
+        <*> genMaximumOutputTokenQuantity
   where
     genAssetsToMint :: Gen TokenMap
     genAssetsToMint = genTokenMapSmallRange
@@ -2694,6 +2722,12 @@ genMakeChangeData = flip suchThat isValidMakeChangeData $ do
     genTokenBundles count = (:|)
         <$> genTokenBundleSmallRangePositive
         <*> replicateM count genTokenBundleSmallRangePositive
+
+    genMaximumOutputAdaQuantity :: Gen Coin
+    genMaximumOutputAdaQuantity = pure testMaximumOutputAdaQuantity
+
+    genMaximumOutputTokenQuantity :: Gen TokenQuantity
+    genMaximumOutputTokenQuantity = pure testMaximumOutputTokenQuantity
 
 makeChangeWith
     :: MakeChangeData
@@ -2720,6 +2754,8 @@ prop_makeChange_identity bundles = (===)
         , outputBundles = bundles
         , assetsToMint = TokenMap.empty
         , assetsToBurn = TokenMap.empty
+        , maximumOutputAdaQuantity = testMaximumOutputAdaQuantity
+        , maximumOutputTokenQuantity = testMaximumOutputTokenQuantity
         }
 
 -- | Tests that 'makeChange' generates the correct number of change bundles.
@@ -3080,6 +3116,8 @@ unit_makeChange =
               , outputBundles = o
               , assetsToMint = TokenMap.empty
               , assetsToBurn = TokenMap.empty
+              , maximumOutputAdaQuantity = testMaximumOutputAdaQuantity
+              , maximumOutputTokenQuantity = testMaximumOutputTokenQuantity
               }
     ]
   where

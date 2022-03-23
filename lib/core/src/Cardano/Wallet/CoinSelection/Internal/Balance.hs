@@ -139,11 +139,7 @@ import Cardano.Wallet.Primitive.Types.TokenMap
 import Cardano.Wallet.Primitive.Types.TokenQuantity
     ( TokenQuantity (..) )
 import Cardano.Wallet.Primitive.Types.Tx
-    ( TokenBundleSizeAssessment (..)
-    , TokenBundleSizeAssessor (..)
-    , txOutMaxCoin
-    , txOutMaxTokenQuantity
-    )
+    ( TokenBundleSizeAssessment (..), TokenBundleSizeAssessor (..) )
 import Cardano.Wallet.Primitive.Types.UTxOIndex
     ( SelectionFilter (..), UTxOIndex (..) )
 import Cardano.Wallet.Primitive.Types.UTxOSelection
@@ -231,6 +227,14 @@ data SelectionConstraints ctx = SelectionConstraints
         :: [(Address ctx, TokenBundle)] -> SelectionLimit
         -- ^ Computes an upper bound for the number of ordinary inputs to
         -- select, given a current set of outputs.
+    , maximumOutputAdaQuantity
+        :: Coin
+        -- ^ Specifies the largest ada quantity that can appear in the token
+        -- bundle of an output.
+    , maximumOutputTokenQuantity
+        :: TokenQuantity
+        -- ^ Specifies the largest non-ada quantity that can appear in the
+        -- token bundle of an output.
     }
     deriving Generic
 
@@ -905,6 +909,8 @@ performSelectionNonEmpty constraints params
         , computeMinimumAdaQuantity
         , computeMinimumCost
         , computeSelectionLimit
+        , maximumOutputAdaQuantity
+        , maximumOutputTokenQuantity
         } = constraints
     SelectionParams
         { outputsToCover
@@ -998,6 +1004,8 @@ performSelectionNonEmpty constraints params
             , outputBundles
             , assetsToMint
             , assetsToBurn
+            , maximumOutputAdaQuantity
+            , maximumOutputTokenQuantity
             }
         )
       where
@@ -1079,6 +1087,8 @@ performSelectionNonEmpty constraints params
             , outputBundles = snd <$> outputsToCover
             , assetsToMint
             , assetsToBurn
+            , maximumOutputAdaQuantity
+            , maximumOutputTokenQuantity
             }
 
         mkSelectionResult :: [TokenBundle] -> SelectionResultOf NonEmpty ctx
@@ -1390,6 +1400,14 @@ data MakeChangeCriteria minCoinFor bundleSizeAssessor = MakeChangeCriteria
         -- ^ Assets to mint: these provide input value to a transaction.
     , assetsToBurn :: TokenMap
         -- ^ Assets to burn: these consume output value from a transaction.
+    , maximumOutputAdaQuantity
+        :: Coin
+        -- ^ Specifies the largest ada quantity that can appear in the token
+        -- bundle of an output.
+    , maximumOutputTokenQuantity
+        :: TokenQuantity
+        -- ^ Specifies the largest non-ada quantity that can appear in the
+        -- token bundle of an output.
     } deriving (Eq, Generic, Show)
 
 -- | Indicates 'True' if and only if a token bundle exceeds the maximum size
@@ -1450,6 +1468,8 @@ makeChange criteria
         , outputBundles
         , assetsToMint
         , assetsToBurn
+        , maximumOutputAdaQuantity
+        , maximumOutputTokenQuantity
         } = criteria
 
     -- The following subtraction is safe, as we have already checked
@@ -1503,7 +1523,7 @@ makeChange criteria
                 & flip splitBundlesWithExcessiveAssetCounts
                     (tokenBundleSizeExceedsLimit assessBundleSizeWithMaxCoin)
                 & flip splitBundlesWithExcessiveTokenQuantities
-                    txOutMaxTokenQuantity
+                    maximumOutputTokenQuantity
 
             -- When assessing the size of a change map to determine if it is
             -- excessively large, we don't yet know how large the associated
@@ -1524,7 +1544,7 @@ makeChange criteria
             assessBundleSizeWithMaxCoin :: TokenBundleSizeAssessor
             assessBundleSizeWithMaxCoin = TokenBundleSizeAssessor
                 $ view #assessTokenBundleSize bundleSizeAssessor
-                . flip TokenBundle.setCoin txOutMaxCoin
+                . flip TokenBundle.setCoin maximumOutputAdaQuantity
 
     -- Change for user-specified assets: assets that were present in the
     -- original set of user-specified outputs ('outputsToCover').

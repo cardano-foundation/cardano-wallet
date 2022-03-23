@@ -6,8 +6,10 @@
 {-# LANGUAGE GADTs #-}
 {-# LANGUAGE LambdaCase #-}
 {-# LANGUAGE NamedFieldPuns #-}
+{-# LANGUAGE NumericUnderscores #-}
 {-# LANGUAGE OverloadedLabels #-}
 {-# LANGUAGE ScopedTypeVariables #-}
+{-# LANGUAGE TypeApplications #-}
 {-# OPTIONS_GHC -fno-warn-orphans #-}
 {- HLINT ignore "Use camelCase" -}
 
@@ -100,8 +102,12 @@ import Data.Functor
     ( (<&>) )
 import Data.Generics.Internal.VL.Lens
     ( over, view, (^.) )
+import Data.IntCast
+    ( intCast )
 import Data.Map.Strict
     ( Map )
+import Data.Word
+    ( Word64 )
 import Generics.SOP
     ( NP (..) )
 import GHC.Generics
@@ -542,6 +548,10 @@ data MockSelectionConstraints = MockSelectionConstraints
         :: Int
     , minimumCollateralPercentage
         :: Natural
+    , maximumOutputAdaQuantity
+         :: Coin
+    , maximumOutputTokenQuantity
+         :: TokenQuantity
     }
     deriving (Eq, Generic, Show)
 
@@ -554,6 +564,8 @@ genMockSelectionConstraints = MockSelectionConstraints
     <*> genMockComputeSelectionLimit
     <*> genMaximumCollateralInputCount
     <*> genMinimumCollateralPercentage
+    <*> genMaximumOutputAdaQuantity
+    <*> genMaximumOutputTokenQuantity
 
 shrinkMockSelectionConstraints
     :: MockSelectionConstraints -> [MockSelectionConstraints]
@@ -565,6 +577,8 @@ shrinkMockSelectionConstraints = genericRoundRobinShrink
     <:> shrinkMockComputeSelectionLimit
     <:> shrinkMaximumCollateralInputCount
     <:> shrinkMinimumCollateralPercentage
+    <:> shrinkMaximumOutputAdaQuantity
+    <:> shrinkMaximumOutputTokenQuantity
     <:> Nil
 
 unMockSelectionConstraints
@@ -584,6 +598,10 @@ unMockSelectionConstraints m = SelectionConstraints
         view #maximumCollateralInputCount m
     , minimumCollateralPercentage =
         view #minimumCollateralPercentage m
+    , maximumOutputAdaQuantity =
+        view #maximumOutputAdaQuantity m
+    , maximumOutputTokenQuantity =
+        view #maximumOutputTokenQuantity m
     }
 
 --------------------------------------------------------------------------------
@@ -615,6 +633,40 @@ genMinimumCollateralPercentage = chooseNatural (0, 1000)
 
 shrinkMinimumCollateralPercentage :: Natural -> [Natural]
 shrinkMinimumCollateralPercentage = shrinkNatural
+
+--------------------------------------------------------------------------------
+-- Maximum token quantities
+--------------------------------------------------------------------------------
+
+genMaximumOutputAdaQuantity :: Gen Coin
+genMaximumOutputAdaQuantity = pure testMaximumOutputAdaQuantity
+
+genMaximumOutputTokenQuantity :: Gen TokenQuantity
+genMaximumOutputTokenQuantity = pure testMaximumOutputTokenQuantity
+
+shrinkMaximumOutputAdaQuantity :: Coin -> [Coin]
+shrinkMaximumOutputAdaQuantity = const []
+
+shrinkMaximumOutputTokenQuantity :: TokenQuantity -> [TokenQuantity]
+shrinkMaximumOutputTokenQuantity = const []
+
+-- | Specifies the largest ada quantity that can appear in the token bundle
+--   of an output.
+--
+-- For the moment, we use the same constant that is used in the wallet. In
+-- future, we can improve our test coverage by allowing this value to vary.
+--
+testMaximumOutputAdaQuantity :: Coin
+testMaximumOutputAdaQuantity = Coin 45_000_000_000_000_000
+
+-- | Specifies the largest non-ada quantity that can appear in the token bundle
+--   of an output.
+--
+-- For the moment, we use the same constant that is used in the wallet. In
+-- future, we can improve our test coverage by allowing this value to vary.
+--
+testMaximumOutputTokenQuantity :: TokenQuantity
+testMaximumOutputTokenQuantity = TokenQuantity $ intCast $ maxBound @Word64
 
 --------------------------------------------------------------------------------
 -- Selection parameters
