@@ -139,10 +139,7 @@ import Cardano.Wallet.Primitive.Types.TokenMap
 import Cardano.Wallet.Primitive.Types.TokenQuantity
     ( TokenQuantity (..) )
 import Cardano.Wallet.Primitive.Types.Tx
-    ( TokenBundleSizeAssessment (..)
-    , TokenBundleSizeAssessor (..)
-    , txOutMaxTokenQuantity
-    )
+    ( TokenBundleSizeAssessment (..), TokenBundleSizeAssessor (..) )
 import Cardano.Wallet.Primitive.Types.UTxOIndex
     ( SelectionFilter (..), UTxOIndex (..) )
 import Cardano.Wallet.Primitive.Types.UTxOSelection
@@ -1472,6 +1469,7 @@ makeChange criteria
         , assetsToMint
         , assetsToBurn
         , maximumOutputAdaQuantity
+        , maximumOutputTokenQuantity
         } = criteria
 
     -- The following subtraction is safe, as we have already checked
@@ -1525,7 +1523,7 @@ makeChange criteria
                 & flip splitBundlesWithExcessiveAssetCounts
                     (tokenBundleSizeExceedsLimit assessBundleSizeWithMaxCoin)
                 & flip splitBundlesWithExcessiveTokenQuantities
-                    txOutMaxTokenQuantity
+                    maximumOutputTokenQuantity
 
             -- When assessing the size of a change map to determine if it is
             -- excessively large, we don't yet know how large the associated
