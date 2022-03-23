@@ -22,10 +22,7 @@
 
 {-# OPTIONS_GHC -fno-warn-orphans #-}
 
-module Cardano.Wallet.Shelley.TransactionSpec
-    ( spec
-    , balanceTransactionSpec
-    ) where
+module Cardano.Wallet.Shelley.TransactionSpec (spec) where
 
 import Prelude
 
@@ -50,15 +47,14 @@ import Cardano.Api
     , cardanoEraStyle
     )
 import Cardano.Api.Gen
-    ( genTx
+    ( genSignedValue
+    , genTx
     , genTxBodyContent
     , genTxForBalancing
     , genTxInEra
     , genTxOut
     , genWitnesses
     )
-import Cardano.Api.Shelley
-    ( selectLovelace )
 import Cardano.BM.Data.Tracer
     ( nullTracer )
 import Cardano.BM.Tracer
@@ -79,6 +75,7 @@ import Cardano.Wallet
     , WalletWorkerLog
     , balanceTransaction
     , estimateFee
+    , posAndNegFromCardanoValue
     , signTransaction
     )
 import Cardano.Wallet.Byron.Compatibility
@@ -201,6 +198,7 @@ import Cardano.Wallet.Shelley.Compatibility
     , toCardanoTxIn
     , toCardanoTxOut
     , toCardanoUTxO
+    , toCardanoValue
     )
 import Cardano.Wallet.Shelley.Compatibility.Ledger
     ( toAlonzoTxOut )
@@ -311,7 +309,6 @@ import Test.Hspec
     , shouldBe
     , shouldSatisfy
     , xdescribe
-    , xit
     )
 import Test.Hspec.Core.Spec
     ( SpecM )
@@ -348,7 +345,6 @@ import Test.QuickCheck
     , vectorOf
     , withMaxSuccess
     , within
-    , (.&&.)
     , (.||.)
     , (=/=)
     , (===)
@@ -2031,12 +2027,57 @@ balanceTransactionSpec = do
     describe "balanceTransaction" $ do
         -- TODO: Create a test to show that datums are passed through...
 
-        -- TODO: Fix balancing issues which are presumably due to
-        -- variable-length coin encoding boundary cases.
-        xit "produces balanced transactions or fails"
-            $ property prop_balanceTransactionBalanced
+        it "produces valid transactions or fails"
+            $ property prop_balanceTransactionValid
 
         balanceTransactionGoldenSpec
+
+        describe "posAndNegFromCardanoValue" $
+            it "roundtrips with toCardanoValue" $
+                property prop_posAndNegFromCardanoValueRoundtrip
+
+        describe "effect of txMaxSize on coin selection" $ do
+            let addr = Address $ unsafeFromHex
+                    "60b1e5e0fb74c86c801f646841e07\
+                    \cdb42df8b82ef3ce4e57cb5412e77"
+            let mw = SomeMnemonic $ either (error . show) id
+                    (entropyToMnemonic @12 <$> mkEntropy "0000000000000000")
+            let rootK = Shelley.unsafeGenerateKeyFromSeed (mw, Nothing) mempty
+            let tid = Hash $ B8.replicate 32 '1'
+            let wallet = mkTestWallet rootK $ UTxO $ Map.fromList $
+                    [ ( TxIn tid ix
+                      , TxOut addr (TokenBundle.fromCoin $ Coin 1_000_000)
+                      )
+                    | ix <- [0 .. 500]
+                    ]
+
+            let balance = balanceTransaction' wallet testStdGenSeed
+            let totalOutput tx =
+                    let (wtx, _, _, _) = decodeTx testTxLayer tx
+                    in
+                        F.foldMap (view (#tokens . #coin)) (view #outputs wtx)
+                        <> fromMaybe (Coin 0) (view #fee wtx)
+
+            it "tries to select 2x the payment amount" $ do
+                let tx = balance $ paymentPartialTx
+                        [ TxOut addr
+                            (TokenBundle.fromCoin (Coin 50_000_000))
+                        ]
+                totalOutput <$> tx `shouldBe` Right (Coin 100_000_000)
+
+            it "falls back to 1x if out of space" $ do
+                let tx = balance $ paymentPartialTx
+                        [ TxOut addr
+                            (TokenBundle.fromCoin (Coin 100_000_000))
+                        ]
+                totalOutput <$> tx `shouldBe` Right (Coin 102_000_000)
+
+            it "otherwise fails with ErrBalanceTxMaxSizeLimitExceeded" $ do
+                let tx = balance $ paymentPartialTx
+                        [ TxOut addr
+                            (TokenBundle.fromCoin (Coin 200_000_000))
+                        ]
+                tx `shouldBe` Left ErrBalanceTxMaxSizeLimitExceeded
 
         describe "when passed unresolved inputs" $ do
             it "may fail"
@@ -2245,6 +2286,7 @@ shrinkTxBody (Cardano.ShelleyTxBody e bod scripts scriptData aux val) = tail
             { Alonzo.mint = mint' }
             { Alonzo.reqSignerHashes = rsh' }
             { Alonzo.txUpdates = updates' }
+            { Alonzo.txfee = txfee' }
         | updates' <- prependOriginal shrinkUpdates (Alonzo.txUpdates body)
         , wdrls' <- prependOriginal shrinkWdrl (Alonzo.txwdrls body)
         , outs' <- prependOriginal (shrinkSeq (const [])) (Alonzo.outputs body)
@@ -2254,6 +2296,7 @@ shrinkTxBody (Cardano.ShelleyTxBody e bod scripts scriptData aux val) = tail
         , rsh' <- prependOriginal
             (shrinkSet (const []))
             (Alonzo.reqSignerHashes body)
+        , txfee' <- prependOriginal shrinkFee (Alonzo.txfee body)
         ]
 
     shrinkValue v = filter (/= v) [v0]
@@ -2264,6 +2307,10 @@ shrinkTxBody (Cardano.ShelleyTxBody e bod scripts scriptData aux val) = tail
     shrinkSet shrinkElem = map Set.fromList . shrinkList shrinkElem . F.toList
 
     shrinkSeq shrinkElem = map StrictSeq.fromList . shrinkList shrinkElem . F.toList
+
+    shrinkFee :: Ledger.Coin -> [Ledger.Coin]
+    shrinkFee (Ledger.Coin 0) = []
+    shrinkFee _ = [Ledger.Coin 0]
 
     shrinkWdrl :: Wdrl era -> [Wdrl era]
     shrinkWdrl (Wdrl m) = map (Wdrl . Map.fromList) $ shrinkList shrinkWdrl' (Map.toList m)
@@ -2277,18 +2324,18 @@ shrinkTxBody (Cardano.ShelleyTxBody e bod scripts scriptData aux val) = tail
     shrinkUpdates (SJust _) = [SNothing]
 
 balanceTransaction'
-    :: (UTxOIndex WalletUTxO, Wallet (SeqState 'Mainnet ShelleyKey), Set Tx)
+    :: Wallet'
     -> StdGenSeed
     -> PartialTx
     -> Either ErrBalanceTx SealedTx
-balanceTransaction' wal seed tx  =
+balanceTransaction' (Wallet' utxo wal pending) seed tx  =
     flip evalRand (stdGenFromSeed seed) $ runExceptT $
         balanceTransaction @(Rand StdGen)
             (Ctx @(Rand StdGen) nullTracer testTxLayer)
             (delegationAddress @'Mainnet)
             mockProtocolParametersForBalancing
             dummyTimeInterpreter
-            wal
+            (utxo, wal, pending)
             tx
 
 -- | Tests that 'ErrAssignRedeemersUnresolvedTxIns' can in fact be returned by
@@ -2298,13 +2345,11 @@ prop_balanceTransactionUnresolvedInputs
     -> ShowBuildable PartialTx
     -> StdGenSeed
     -> Property
-prop_balanceTransactionUnresolvedInputs
-    (Wallet' utxo wal pending)
-    (ShowBuildable partialTx')
+prop_balanceTransactionUnresolvedInputs wallet (ShowBuildable partialTx')
     seed = checkCoverage $ withMaxSuccess 400 $
         forAll (dropResolvedInputs partialTx') $ \(partialTx, dropped) -> do
         not (null dropped) ==> do
-            let res = balanceTransaction' (utxo, wal, pending) seed partialTx
+            let res = balanceTransaction' wallet seed partialTx
             cover 1 (isUnresolvedTxInsErr res) "unknown txins" $
                 case res of
                     Right _
@@ -2331,12 +2376,20 @@ prop_balanceTransactionUnresolvedInputs
         let dropped = map snd $ filter (not . fst) $ zip shouldKeep inputs
         pure (PartialTx tx inputs' redeemers, dropped)
 
+prop_posAndNegFromCardanoValueRoundtrip :: Property
+prop_posAndNegFromCardanoValueRoundtrip = forAll genSignedValue $ \v ->
+    let
+        (pos, neg) = posAndNegFromCardanoValue v
+    in
+        toCardanoValue pos <> (Cardano.negateValue (toCardanoValue neg)) === v
+
 data BalanceTxGolden =
     BalanceTxGoldenSuccess
         Coin -- ^ Wallet balance
         Cardano.Lovelace -- ^ Fee
         Cardano.Lovelace -- ^ Minimum fee
     | BalanceTxGoldenFailure Coin String
+    deriving (Eq, Show)
 
 -- CSV with the columns: wallet_balance,(fee,minfee | error)
 instance Buildable BalanceTxGolden where
@@ -2393,9 +2446,8 @@ balanceTransactionGoldenSpec = describe "balance goldens" $ do
         mkGolden :: PartialTx -> Coin -> BalanceTxGolden
         mkGolden ptx c =
             let
-                Wallet' utxoIndex wal pending = mkTestWallet rootK (utxo [c])
                 res = balanceTransaction'
-                    (utxoIndex, wal, pending)
+                    (mkTestWallet rootK (utxo [c]))
                     testStdGenSeed
                     ptx
             in
@@ -2418,33 +2470,10 @@ balanceTransactionGoldenSpec = describe "balance goldens" $ do
             "60b1e5e0fb74c86c801f646841e07cdb42df8b82ef3ce4e57cb5412e77"
 
     payment :: PartialTx
-    payment = PartialTx (sealedTxFromCardanoBody body) [] []
+    payment = paymentPartialTx
+        [ TxOut addr (TokenBundle.fromCoin (Coin 1_000_000))
+        ]
       where
-        body = Cardano.ShelleyTxBody
-            Cardano.ShelleyBasedEraAlonzo
-            alonzoBody
-            []
-            Cardano.TxBodyNoScriptData
-            Nothing
-            Cardano.TxScriptValidityNone
-
-        alonzoBody = Alonzo.TxBody
-          { Alonzo.inputs = mempty
-          , Alonzo.collateral = mempty
-          , Alonzo.outputs = StrictSeq.singleton $ toAlonzoTxOut
-            (TxOut addr (TokenBundle.fromCoin (Coin 1_000_000)))
-            Nothing
-          , Alonzo.txcerts = mempty
-          , Alonzo.txwdrls = Wdrl mempty
-          , Alonzo.txfee = mempty
-          , Alonzo.txvldt = ValidityInterval SNothing SNothing
-          , Alonzo.txUpdates = SNothing
-          , Alonzo.reqSignerHashes = mempty
-          , Alonzo.mint = mempty
-          , Alonzo.scriptIntegrityHash = SNothing
-          , Alonzo.adHash = SNothing
-          , Alonzo.txnetworkid = SNothing
-          }
         addr = Address $ unsafeFromHex
             "60b1e5e0fb74c86c801f646841e07cdb42df8b82ef3ce4e57cb5412e77"
 
@@ -2528,46 +2557,53 @@ balanceTransactionGoldenSpec = describe "balance goldens" $ do
         . fromMaybe (error "evaluateMinimumFee returned nothing!")
         . evaluateMinimumFee testTxLayer (snd mockProtocolParametersForBalancing)
 
--- TODO: I believe evaluateTransactionFee relies on estimating the number of
--- witnesses required to determine the balance. We should also have a similar
--- test which also signs.
+-- NOTE: 'balanceTransaction' relies on estimating the number of witnesses that
+-- will be needed. The correctness of this estimation is not tested here.
 --
 -- TODO: Ensure scripts are well tested
 --   - Ensure we have coverage for normal plutus contracts
 --
 -- TODO: Generate data for other eras than Alonzo
-prop_balanceTransactionBalanced
+prop_balanceTransactionValid
     :: Wallet'
     -> ShowBuildable PartialTx
     -> StdGenSeed
     -> Property
-prop_balanceTransactionBalanced (Wallet' utxo wal pending) (ShowBuildable partialTx) seed
-    = withMaxSuccess 200 $ do
+prop_balanceTransactionValid wallet (ShowBuildable partialTx') seed
+    = withMaxSuccess 1000 $ do
         let combinedUTxO = mconcat
                 [ resolvedInputsUTxO Cardano.ShelleyBasedEraAlonzo partialTx
-                , toCardanoUTxO Cardano.ShelleyBasedEraAlonzo $ view #utxo wal
+                , toCardanoUTxO Cardano.ShelleyBasedEraAlonzo walletUTxO
                 ]
         let originalBalance = txBalance (sealedTx partialTx) combinedUTxO
         let res = balanceTransaction'
-                (utxo, wal, pending)
+                wallet
                 seed
                 partialTx
         case res of
             Right sealedTx -> counterexample ("\nResult: " <> pretty sealedTx) $ do
                 label "success"
-                    $ classify (originalBalance == Cardano.Lovelace 0)
+                    $ classify (originalBalance == mempty)
                         "already balanced"
-                    $ classify (txFee sealedTx > Cardano.Lovelace 1_000_000)
-                        "fee above 1 ada"
                     $ classify (txFee sealedTx > Cardano.Lovelace 1_000_000)
                         "fee above 1 ada"
                     $ classify (hasCollateral sealedTx)
                         "balanced tx has collateral"
-                    (txBalance sealedTx combinedUTxO === 0)
-                    .&&. (abs (txFee sealedTx) .<= 4_000_000)
-                    -- Fee limit chosen at a hunch for the sake of sanity. As
-                    -- long as the property uses mainnet PParams, this is
-                    -- useful.
+                    $ conjoin
+                        [ txBalance sealedTx combinedUTxO === mempty
+                        , prop_validSize sealedTx
+                        , prop_minfeeIsCovered sealedTx
+                        , let
+                              minUTxOValue = Cardano.Lovelace 999_978
+                              upperBoundCostOfOutput = Cardano.Lovelace 1000
+                          in
+                              -- Coin selection should only pay more fees than
+                              -- required when it can't afford to create a
+                              -- change output with the minimumUTxOValue.
+                              prop_expectFeeExcessSmallerThan
+                                  (minUTxOValue <> upperBoundCostOfOutput)
+                                  sealedTx
+                        ]
             Left
                 (ErrBalanceTxSelectAssets
                 (ErrSelectAssetsSelectionError
@@ -2586,12 +2622,12 @@ prop_balanceTransactionBalanced (Wallet' utxo wal pending) (ShowBuildable partia
                 (SelectionBalanceErrorOf
                 (InsufficientMinCoinValues _)))) ->
                 label "outputs below minCoinValue" $ property True
-            Left (ErrBalanceTxNotYetSupported Deposits) ->
-                label ("not yet supported: deposits") True
             Left (ErrBalanceTxExistingCollateral) ->
                 label "existing collateral" True
             Left (ErrBalanceTxNotYetSupported ZeroAdaOutput) ->
                 label "not yet supported: zero ada output" $ property True
+            Left ErrBalanceTxMaxSizeLimitExceeded ->
+                label "maxTxSize limit exceeded" $ property True
             Left (ErrBalanceTxNotYetSupported ConflictingNetworks) ->
                 label "not yet supported: conflicting networks" $ property True
             Left
@@ -2614,7 +2650,8 @@ prop_balanceTransactionBalanced (Wallet' utxo wal pending) (ShowBuildable partia
                 (ErrSelectAssetsSelectionError
                 (SelectionBalanceErrorOf
                 (SelectionLimitReached _)))) ->
-                label "selection limit reached" $ property True
+                    let msg = "selection limit reached should never be returned"
+                    in counterexample msg $ property False
             Left
                 (ErrBalanceTxSelectAssets
                 (ErrSelectAssetsSelectionError
@@ -2623,7 +2660,76 @@ prop_balanceTransactionBalanced (Wallet' utxo wal pending) (ShowBuildable partia
             Left err -> label "other error" $
                 counterexample ("balanceTransaction failed: " <> show err) False
   where
-    a .<= b = counterexample (show a <> " /<= " <> show b) $ property $ a <= b
+    prop_expectFeeExcessSmallerThan :: Cardano.Lovelace -> SealedTx -> Property
+    prop_expectFeeExcessSmallerThan lim tx = do
+        let fee = txFee tx
+        let minfee = txMinFee tx
+        let unLovelace (Cardano.Lovelace x) = x
+        let delta = Cardano.Lovelace $ (unLovelace fee) - (unLovelace minfee)
+        let msg = unwords
+                [ "The fee", showInParens fee
+                , "was", show delta
+                , "larger than the minimum fee", showInParens minfee <> ","
+                , "which is a larger difference than", show lim
+                ]
+        counterexample msg $ property $ delta < lim
+      where
+        showInParens x = "(" <> show x <> ")"
+
+    prop_minfeeIsCovered :: SealedTx -> Property
+    prop_minfeeIsCovered tx = do
+        let fee = txFee tx
+        let minfee = txMinFee tx
+        let unLovelace (Cardano.Lovelace x) = x
+        let delta = Cardano.Lovelace $ (unLovelace minfee) - (unLovelace fee)
+        let msg = unwords
+                [ "The minimum fee was"
+                , show minfee
+                , "but the actual fee,"
+                , show fee
+                , "was lower by"
+                , show delta
+                ]
+        counterexample msg $ property $ fee >= minfee
+
+    prop_validSize :: SealedTx -> Property
+    prop_validSize tx = do
+        let Just (TxSize size) =
+                estimateSignedTxSize
+                    testTxLayer
+                    (snd mockProtocolParametersForBalancing)
+                    tx
+        let limit = fromIntegral $ getQuantity $
+                view (#txParameters . #getTxMaxSize) mockProtocolParameters
+        let msg = unwords
+                [ "The tx size "
+                , show size
+                , "must be lower than the maximum size "
+                , show limit
+                , ", tx:"
+                , show (decodeTx testTxLayer tx)
+                ]
+        counterexample msg $ property (size <= limit)
+
+    -- NOTE: Here we change the input-resolution of the 'PartialTx' to be
+    -- consistent with the 'UTxO'. We may want to instead either
+    -- 1. Make generators generate consistent data (but requires
+    --  interdependency)
+    -- 2. Make `balanceTransaction` identify and fail when user-specified UTxOs
+    -- conflict with the wallet's UTxO set (but may be bad for
+    -- prop_balanceTransactionBalanced coverage)
+    partialTx = PartialTx s ins' r
+      where
+        PartialTx s ins r = partialTx'
+        ins' = flip map ins $ \(i,o,dh) ->
+            case UTxO.lookup i walletUTxO of
+                Just o' -> (i,o',Nothing)
+                Nothing -> (i,o,dh)
+
+    walletUTxO :: UTxO
+    walletUTxO =
+        let Wallet' _ w _ = wallet
+        in view #utxo w
 
     hasCollateral :: SealedTx -> Bool
     hasCollateral tx = withAlonzoBody tx $ \(Cardano.TxBody content) ->
@@ -2638,16 +2744,21 @@ prop_balanceTransactionBalanced (Wallet' utxo wal pending) (ShowBuildable partia
             Cardano.TxFeeExplicit _ c -> c
             Cardano.TxFeeImplicit _ -> error "implicit fee"
 
-    txBalance :: SealedTx -> Cardano.UTxO Cardano.AlonzoEra -> Cardano.Lovelace
+    txMinFee :: SealedTx -> Cardano.Lovelace
+    txMinFee = toCardanoLovelace
+        . fromMaybe (error "evaluateMinimumFee returned nothing!")
+        . evaluateMinimumFee testTxLayer nodePParams
+
+    txBalance :: SealedTx -> Cardano.UTxO Cardano.AlonzoEra -> Cardano.Value
     txBalance tx u = withAlonzoBody tx $ \bod ->
-        lovelaceFromCardanoTxOutValue
+        valueFromCardanoTxOutValue
         $ Cardano.evaluateTransactionBalance nodePParams mempty u bod
 
-    lovelaceFromCardanoTxOutValue
-        :: forall era. Cardano.TxOutValue era -> Cardano.Lovelace
-    lovelaceFromCardanoTxOutValue (TxOutAdaOnly _ coin) = coin
-    lovelaceFromCardanoTxOutValue (TxOutValue _ val) = selectLovelace val
-
+    valueFromCardanoTxOutValue
+        :: forall era. Cardano.TxOutValue era -> Cardano.Value
+    valueFromCardanoTxOutValue = \case
+        TxOutAdaOnly _ coin -> Cardano.lovelaceToValue coin
+        TxOutValue _ val -> val
 
     (_, nodePParams) = mockProtocolParametersForBalancing
 
@@ -2999,6 +3110,33 @@ sealedNumberOfRedeemers sealedTx =
 sealedFee :: SealedTx -> Maybe Coin
 sealedFee =
     view #fee . fst4 . _decodeSealedTx
+
+paymentPartialTx :: [TxOut] -> PartialTx
+paymentPartialTx txouts = PartialTx (sealedTxFromCardanoBody body) [] []
+  where
+    body = Cardano.ShelleyTxBody
+        Cardano.ShelleyBasedEraAlonzo
+        alonzoBody
+        []
+        Cardano.TxBodyNoScriptData
+        Nothing
+        Cardano.TxScriptValidityNone
+    alonzoBody = Alonzo.TxBody
+        { Alonzo.inputs = mempty
+        , Alonzo.collateral = mempty
+        , Alonzo.outputs = StrictSeq.fromList $
+            map (`toAlonzoTxOut` Nothing) txouts
+        , Alonzo.txcerts = mempty
+        , Alonzo.txwdrls = Wdrl mempty
+        , Alonzo.txfee = mempty
+        , Alonzo.txvldt = ValidityInterval SNothing SNothing
+        , Alonzo.txUpdates = SNothing
+        , Alonzo.reqSignerHashes = mempty
+        , Alonzo.mint = mempty
+        , Alonzo.scriptIntegrityHash = SNothing
+        , Alonzo.adHash = SNothing
+        , Alonzo.txnetworkid = SNothing
+        }
 
 txWithInputsOutputsAndWits :: ByteString
 txWithInputsOutputsAndWits =

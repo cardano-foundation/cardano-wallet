@@ -1,44 +1,44 @@
- 0.000000,ErrBalanceTxSelectAssets (ErrSelectAssetsSelectionError (SelectionBalanceErrorOf (UnableToConstructChange (UnableToConstructChangeError {requiredCost = Coin 1723825, shortfall = Coin 1723825}))))
- 0.050000,ErrBalanceTxSelectAssets (ErrSelectAssetsSelectionError (SelectionBalanceErrorOf (UnableToConstructChange (UnableToConstructChangeError {requiredCost = Coin 1723825, shortfall = Coin 1673825}))))
- 0.100000,ErrBalanceTxSelectAssets (ErrSelectAssetsSelectionError (SelectionBalanceErrorOf (UnableToConstructChange (UnableToConstructChangeError {requiredCost = Coin 1723825, shortfall = Coin 1623825}))))
- 0.150000,ErrBalanceTxSelectAssets (ErrSelectAssetsSelectionError (SelectionBalanceErrorOf (UnableToConstructChange (UnableToConstructChangeError {requiredCost = Coin 1723825, shortfall = Coin 1573825}))))
- 0.200000,ErrBalanceTxSelectAssets (ErrSelectAssetsSelectionError (SelectionBalanceErrorOf (UnableToConstructChange (UnableToConstructChangeError {requiredCost = Coin 1723825, shortfall = Coin 1523825}))))
- 0.250000,ErrBalanceTxSelectAssets (ErrSelectAssetsSelectionError (SelectionBalanceErrorOf (UnableToConstructChange (UnableToConstructChangeError {requiredCost = Coin 1723825, shortfall = Coin 1473825}))))
- 0.300000,ErrBalanceTxSelectAssets (ErrSelectAssetsSelectionError (SelectionBalanceErrorOf (UnableToConstructChange (UnableToConstructChangeError {requiredCost = Coin 1723825, shortfall = Coin 1423825}))))
- 0.350000,ErrBalanceTxSelectAssets (ErrSelectAssetsSelectionError (SelectionBalanceErrorOf (UnableToConstructChange (UnableToConstructChangeError {requiredCost = Coin 1723825, shortfall = Coin 1373825}))))
- 0.400000,ErrBalanceTxSelectAssets (ErrSelectAssetsSelectionError (SelectionBalanceErrorOf (UnableToConstructChange (UnableToConstructChangeError {requiredCost = Coin 1723825, shortfall = Coin 1323825}))))
- 0.450000,ErrBalanceTxSelectAssets (ErrSelectAssetsSelectionError (SelectionBalanceErrorOf (UnableToConstructChange (UnableToConstructChangeError {requiredCost = Coin 1723825, shortfall = Coin 1273825}))))
- 0.500000,ErrBalanceTxSelectAssets (ErrSelectAssetsSelectionError (SelectionBalanceErrorOf (UnableToConstructChange (UnableToConstructChangeError {requiredCost = Coin 1723825, shortfall = Coin 1223825}))))
- 0.550000,ErrBalanceTxSelectAssets (ErrSelectAssetsSelectionError (SelectionBalanceErrorOf (UnableToConstructChange (UnableToConstructChangeError {requiredCost = Coin 1723825, shortfall = Coin 1173825}))))
- 0.600000,ErrBalanceTxSelectAssets (ErrSelectAssetsSelectionError (SelectionBalanceErrorOf (UnableToConstructChange (UnableToConstructChangeError {requiredCost = Coin 1723825, shortfall = Coin 1123825}))))
- 0.650000,ErrBalanceTxSelectAssets (ErrSelectAssetsSelectionError (SelectionBalanceErrorOf (UnableToConstructChange (UnableToConstructChangeError {requiredCost = Coin 1723825, shortfall = Coin 1073825}))))
- 0.700000,ErrBalanceTxSelectAssets (ErrSelectAssetsSelectionError (SelectionBalanceErrorOf (UnableToConstructChange (UnableToConstructChangeError {requiredCost = Coin 1723825, shortfall = Coin 1023825}))))
- 0.750000,ErrBalanceTxSelectAssets (ErrSelectAssetsSelectionError (SelectionBalanceErrorOf (UnableToConstructChange (UnableToConstructChangeError {requiredCost = Coin 1723825, shortfall = Coin 973825}))))
- 0.800000,ErrBalanceTxSelectAssets (ErrSelectAssetsSelectionError (SelectionBalanceErrorOf (UnableToConstructChange (UnableToConstructChangeError {requiredCost = Coin 1723825, shortfall = Coin 923825}))))
- 0.850000,ErrBalanceTxSelectAssets (ErrSelectAssetsSelectionError (SelectionBalanceErrorOf (UnableToConstructChange (UnableToConstructChangeError {requiredCost = Coin 1723825, shortfall = Coin 873825}))))
- 0.900000,ErrBalanceTxSelectAssets (ErrSelectAssetsSelectionError (SelectionBalanceErrorOf (UnableToConstructChange (UnableToConstructChangeError {requiredCost = Coin 1723825, shortfall = Coin 823825}))))
- 0.950000,ErrBalanceTxSelectAssets (ErrSelectAssetsSelectionError (SelectionBalanceErrorOf (UnableToConstructChange (UnableToConstructChangeError {requiredCost = Coin 1723825, shortfall = Coin 773825}))))
- 1.000000,ErrBalanceTxSelectAssets (ErrSelectAssetsSelectionError (SelectionBalanceErrorOf (UnableToConstructChange (UnableToConstructChangeError {requiredCost = Coin 1723825, shortfall = Coin 723825}))))
- 1.050000,ErrBalanceTxSelectAssets (ErrSelectAssetsSelectionError (SelectionBalanceErrorOf (UnableToConstructChange (UnableToConstructChangeError {requiredCost = Coin 1723825, shortfall = Coin 673825}))))
- 1.100000,ErrBalanceTxSelectAssets (ErrSelectAssetsSelectionError (SelectionBalanceErrorOf (UnableToConstructChange (UnableToConstructChangeError {requiredCost = Coin 1723825, shortfall = Coin 623825}))))
- 1.150000,ErrBalanceTxSelectAssets (ErrSelectAssetsSelectionError (SelectionBalanceErrorOf (UnableToConstructChange (UnableToConstructChangeError {requiredCost = Coin 1723825, shortfall = Coin 573825}))))
- 1.200000,ErrBalanceTxSelectAssets (ErrSelectAssetsSelectionError (SelectionBalanceErrorOf (UnableToConstructChange (UnableToConstructChangeError {requiredCost = Coin 1723825, shortfall = Coin 523825}))))
- 1.250000,ErrBalanceTxSelectAssets (ErrSelectAssetsSelectionError (SelectionBalanceErrorOf (UnableToConstructChange (UnableToConstructChangeError {requiredCost = Coin 1723825, shortfall = Coin 473825}))))
- 1.300000,ErrBalanceTxSelectAssets (ErrSelectAssetsSelectionError (SelectionBalanceErrorOf (UnableToConstructChange (UnableToConstructChangeError {requiredCost = Coin 1723825, shortfall = Coin 423825}))))
- 1.350000,ErrBalanceTxSelectAssets (ErrSelectAssetsSelectionError (SelectionBalanceErrorOf (UnableToConstructChange (UnableToConstructChangeError {requiredCost = Coin 1723825, shortfall = Coin 373825}))))
- 1.400000,ErrBalanceTxSelectAssets (ErrSelectAssetsSelectionError (SelectionBalanceErrorOf (UnableToConstructChange (UnableToConstructChangeError {requiredCost = Coin 1723825, shortfall = Coin 323825}))))
- 1.450000,ErrBalanceTxSelectAssets (ErrSelectAssetsSelectionError (SelectionBalanceErrorOf (UnableToConstructChange (UnableToConstructChangeError {requiredCost = Coin 1723825, shortfall = Coin 273825}))))
- 1.500000,ErrBalanceTxSelectAssets (ErrSelectAssetsSelectionError (SelectionBalanceErrorOf (UnableToConstructChange (UnableToConstructChangeError {requiredCost = Coin 1723825, shortfall = Coin 223825}))))
- 1.550000,ErrBalanceTxSelectAssets (ErrSelectAssetsSelectionError (SelectionBalanceErrorOf (UnableToConstructChange (UnableToConstructChangeError {requiredCost = Coin 1723825, shortfall = Coin 173825}))))
- 1.600000,ErrBalanceTxSelectAssets (ErrSelectAssetsSelectionError (SelectionBalanceErrorOf (UnableToConstructChange (UnableToConstructChangeError {requiredCost = Coin 1723825, shortfall = Coin 123825}))))
- 1.650000,ErrBalanceTxSelectAssets (ErrSelectAssetsSelectionError (SelectionBalanceErrorOf (UnableToConstructChange (UnableToConstructChangeError {requiredCost = Coin 1723825, shortfall = Coin 73825}))))
- 1.700000,ErrBalanceTxSelectAssets (ErrSelectAssetsSelectionError (SelectionBalanceErrorOf (UnableToConstructChange (UnableToConstructChangeError {requiredCost = Coin 1723825, shortfall = Coin 23825}))))
- 1.750000,ErrBalanceTxSelectAssets (ErrSelectAssetsSelectionError (SelectionCollateralErrorOf (SelectionCollateralError {largestCombinationAvailable = fromList [(WalletUTxO {txIn = TxIn {inputId = Hash "00000000000000000000000000000000", inputIx = 0}, address = Address "`\177\229\224\251t\200l\128\USdhA\224|\219B\223\139\130\239<\228\229|\181A.w"},Coin 1750000)], minimumSelectionAmount = Coin 2625000})))
- 1.800000,ErrBalanceTxSelectAssets (ErrSelectAssetsSelectionError (SelectionCollateralErrorOf (SelectionCollateralError {largestCombinationAvailable = fromList [(WalletUTxO {txIn = TxIn {inputId = Hash "00000000000000000000000000000000", inputIx = 0}, address = Address "`\177\229\224\251t\200l\128\USdhA\224|\219B\223\139\130\239<\228\229|\181A.w"},Coin 1800000)], minimumSelectionAmount = Coin 2700000})))
- 1.850000,ErrBalanceTxSelectAssets (ErrSelectAssetsSelectionError (SelectionCollateralErrorOf (SelectionCollateralError {largestCombinationAvailable = fromList [(WalletUTxO {txIn = TxIn {inputId = Hash "00000000000000000000000000000000", inputIx = 0}, address = Address "`\177\229\224\251t\200l\128\USdhA\224|\219B\223\139\130\239<\228\229|\181A.w"},Coin 1850000)], minimumSelectionAmount = Coin 2775000})))
- 1.900000,ErrBalanceTxSelectAssets (ErrSelectAssetsSelectionError (SelectionCollateralErrorOf (SelectionCollateralError {largestCombinationAvailable = fromList [(WalletUTxO {txIn = TxIn {inputId = Hash "00000000000000000000000000000000", inputIx = 0}, address = Address "`\177\229\224\251t\200l\128\USdhA\224|\219B\223\139\130\239<\228\229|\181A.w"},Coin 1900000)], minimumSelectionAmount = Coin 2850000})))
- 1.950000,ErrBalanceTxSelectAssets (ErrSelectAssetsSelectionError (SelectionCollateralErrorOf (SelectionCollateralError {largestCombinationAvailable = fromList [(WalletUTxO {txIn = TxIn {inputId = Hash "00000000000000000000000000000000", inputIx = 0}, address = Address "`\177\229\224\251t\200l\128\USdhA\224|\219B\223\139\130\239<\228\229|\181A.w"},Coin 1950000)], minimumSelectionAmount = Coin 2925000})))
- 2.000000,ErrBalanceTxSelectAssets (ErrSelectAssetsSelectionError (SelectionCollateralErrorOf (SelectionCollateralError {largestCombinationAvailable = fromList [(WalletUTxO {txIn = TxIn {inputId = Hash "00000000000000000000000000000000", inputIx = 0}, address = Address "`\177\229\224\251t\200l\128\USdhA\224|\219B\223\139\130\239<\228\229|\181A.w"},Coin 2000000)], minimumSelectionAmount = Coin 3000000})))
+ 0.000000,ErrBalanceTxSelectAssets (ErrSelectAssetsSelectionError (SelectionBalanceErrorOf (UnableToConstructChange (UnableToConstructChangeError {requiredCost = Coin 2033497, shortfall = Coin 2033497}))))
+ 0.050000,ErrBalanceTxSelectAssets (ErrSelectAssetsSelectionError (SelectionBalanceErrorOf (UnableToConstructChange (UnableToConstructChangeError {requiredCost = Coin 2033497, shortfall = Coin 1983497}))))
+ 0.100000,ErrBalanceTxSelectAssets (ErrSelectAssetsSelectionError (SelectionBalanceErrorOf (UnableToConstructChange (UnableToConstructChangeError {requiredCost = Coin 2033497, shortfall = Coin 1933497}))))
+ 0.150000,ErrBalanceTxSelectAssets (ErrSelectAssetsSelectionError (SelectionBalanceErrorOf (UnableToConstructChange (UnableToConstructChangeError {requiredCost = Coin 2033497, shortfall = Coin 1883497}))))
+ 0.200000,ErrBalanceTxSelectAssets (ErrSelectAssetsSelectionError (SelectionBalanceErrorOf (UnableToConstructChange (UnableToConstructChangeError {requiredCost = Coin 2033497, shortfall = Coin 1833497}))))
+ 0.250000,ErrBalanceTxSelectAssets (ErrSelectAssetsSelectionError (SelectionBalanceErrorOf (UnableToConstructChange (UnableToConstructChangeError {requiredCost = Coin 2033497, shortfall = Coin 1783497}))))
+ 0.300000,ErrBalanceTxSelectAssets (ErrSelectAssetsSelectionError (SelectionBalanceErrorOf (UnableToConstructChange (UnableToConstructChangeError {requiredCost = Coin 2033497, shortfall = Coin 1733497}))))
+ 0.350000,ErrBalanceTxSelectAssets (ErrSelectAssetsSelectionError (SelectionBalanceErrorOf (UnableToConstructChange (UnableToConstructChangeError {requiredCost = Coin 2033497, shortfall = Coin 1683497}))))
+ 0.400000,ErrBalanceTxSelectAssets (ErrSelectAssetsSelectionError (SelectionBalanceErrorOf (UnableToConstructChange (UnableToConstructChangeError {requiredCost = Coin 2033497, shortfall = Coin 1633497}))))
+ 0.450000,ErrBalanceTxSelectAssets (ErrSelectAssetsSelectionError (SelectionBalanceErrorOf (UnableToConstructChange (UnableToConstructChangeError {requiredCost = Coin 2033497, shortfall = Coin 1583497}))))
+ 0.500000,ErrBalanceTxSelectAssets (ErrSelectAssetsSelectionError (SelectionBalanceErrorOf (UnableToConstructChange (UnableToConstructChangeError {requiredCost = Coin 2033497, shortfall = Coin 1533497}))))
+ 0.550000,ErrBalanceTxSelectAssets (ErrSelectAssetsSelectionError (SelectionBalanceErrorOf (UnableToConstructChange (UnableToConstructChangeError {requiredCost = Coin 2033497, shortfall = Coin 1483497}))))
+ 0.600000,ErrBalanceTxSelectAssets (ErrSelectAssetsSelectionError (SelectionBalanceErrorOf (UnableToConstructChange (UnableToConstructChangeError {requiredCost = Coin 2033497, shortfall = Coin 1433497}))))
+ 0.650000,ErrBalanceTxSelectAssets (ErrSelectAssetsSelectionError (SelectionBalanceErrorOf (UnableToConstructChange (UnableToConstructChangeError {requiredCost = Coin 2033497, shortfall = Coin 1383497}))))
+ 0.700000,ErrBalanceTxSelectAssets (ErrSelectAssetsSelectionError (SelectionBalanceErrorOf (UnableToConstructChange (UnableToConstructChangeError {requiredCost = Coin 2033497, shortfall = Coin 1333497}))))
+ 0.750000,ErrBalanceTxSelectAssets (ErrSelectAssetsSelectionError (SelectionBalanceErrorOf (UnableToConstructChange (UnableToConstructChangeError {requiredCost = Coin 2033497, shortfall = Coin 1283497}))))
+ 0.800000,ErrBalanceTxSelectAssets (ErrSelectAssetsSelectionError (SelectionBalanceErrorOf (UnableToConstructChange (UnableToConstructChangeError {requiredCost = Coin 2033497, shortfall = Coin 1233497}))))
+ 0.850000,ErrBalanceTxSelectAssets (ErrSelectAssetsSelectionError (SelectionBalanceErrorOf (UnableToConstructChange (UnableToConstructChangeError {requiredCost = Coin 2033497, shortfall = Coin 1183497}))))
+ 0.900000,ErrBalanceTxSelectAssets (ErrSelectAssetsSelectionError (SelectionBalanceErrorOf (UnableToConstructChange (UnableToConstructChangeError {requiredCost = Coin 2033497, shortfall = Coin 1133497}))))
+ 0.950000,ErrBalanceTxSelectAssets (ErrSelectAssetsSelectionError (SelectionBalanceErrorOf (UnableToConstructChange (UnableToConstructChangeError {requiredCost = Coin 2033497, shortfall = Coin 1083497}))))
+ 1.000000,ErrBalanceTxSelectAssets (ErrSelectAssetsSelectionError (SelectionBalanceErrorOf (UnableToConstructChange (UnableToConstructChangeError {requiredCost = Coin 2033497, shortfall = Coin 1033497}))))
+ 1.050000,ErrBalanceTxSelectAssets (ErrSelectAssetsSelectionError (SelectionBalanceErrorOf (UnableToConstructChange (UnableToConstructChangeError {requiredCost = Coin 2033497, shortfall = Coin 983497}))))
+ 1.100000,ErrBalanceTxSelectAssets (ErrSelectAssetsSelectionError (SelectionBalanceErrorOf (UnableToConstructChange (UnableToConstructChangeError {requiredCost = Coin 2033497, shortfall = Coin 933497}))))
+ 1.150000,ErrBalanceTxSelectAssets (ErrSelectAssetsSelectionError (SelectionBalanceErrorOf (UnableToConstructChange (UnableToConstructChangeError {requiredCost = Coin 2033497, shortfall = Coin 883497}))))
+ 1.200000,ErrBalanceTxSelectAssets (ErrSelectAssetsSelectionError (SelectionBalanceErrorOf (UnableToConstructChange (UnableToConstructChangeError {requiredCost = Coin 2033497, shortfall = Coin 833497}))))
+ 1.250000,ErrBalanceTxSelectAssets (ErrSelectAssetsSelectionError (SelectionBalanceErrorOf (UnableToConstructChange (UnableToConstructChangeError {requiredCost = Coin 2033497, shortfall = Coin 783497}))))
+ 1.300000,ErrBalanceTxSelectAssets (ErrSelectAssetsSelectionError (SelectionBalanceErrorOf (UnableToConstructChange (UnableToConstructChangeError {requiredCost = Coin 2033497, shortfall = Coin 733497}))))
+ 1.350000,ErrBalanceTxSelectAssets (ErrSelectAssetsSelectionError (SelectionBalanceErrorOf (UnableToConstructChange (UnableToConstructChangeError {requiredCost = Coin 2033497, shortfall = Coin 683497}))))
+ 1.400000,ErrBalanceTxSelectAssets (ErrSelectAssetsSelectionError (SelectionBalanceErrorOf (UnableToConstructChange (UnableToConstructChangeError {requiredCost = Coin 2033497, shortfall = Coin 633497}))))
+ 1.450000,ErrBalanceTxSelectAssets (ErrSelectAssetsSelectionError (SelectionBalanceErrorOf (UnableToConstructChange (UnableToConstructChangeError {requiredCost = Coin 2033497, shortfall = Coin 583497}))))
+ 1.500000,ErrBalanceTxSelectAssets (ErrSelectAssetsSelectionError (SelectionBalanceErrorOf (UnableToConstructChange (UnableToConstructChangeError {requiredCost = Coin 2033497, shortfall = Coin 533497}))))
+ 1.550000,ErrBalanceTxSelectAssets (ErrSelectAssetsSelectionError (SelectionBalanceErrorOf (UnableToConstructChange (UnableToConstructChangeError {requiredCost = Coin 2033497, shortfall = Coin 483497}))))
+ 1.600000,ErrBalanceTxSelectAssets (ErrSelectAssetsSelectionError (SelectionBalanceErrorOf (UnableToConstructChange (UnableToConstructChangeError {requiredCost = Coin 2033497, shortfall = Coin 433497}))))
+ 1.650000,ErrBalanceTxSelectAssets (ErrSelectAssetsSelectionError (SelectionBalanceErrorOf (UnableToConstructChange (UnableToConstructChangeError {requiredCost = Coin 2033497, shortfall = Coin 383497}))))
+ 1.700000,ErrBalanceTxSelectAssets (ErrSelectAssetsSelectionError (SelectionBalanceErrorOf (UnableToConstructChange (UnableToConstructChangeError {requiredCost = Coin 2033497, shortfall = Coin 333497}))))
+ 1.750000,ErrBalanceTxSelectAssets (ErrSelectAssetsSelectionError (SelectionBalanceErrorOf (UnableToConstructChange (UnableToConstructChangeError {requiredCost = Coin 2033497, shortfall = Coin 283497}))))
+ 1.800000,ErrBalanceTxSelectAssets (ErrSelectAssetsSelectionError (SelectionBalanceErrorOf (UnableToConstructChange (UnableToConstructChangeError {requiredCost = Coin 2033497, shortfall = Coin 233497}))))
+ 1.850000,ErrBalanceTxSelectAssets (ErrSelectAssetsSelectionError (SelectionBalanceErrorOf (UnableToConstructChange (UnableToConstructChangeError {requiredCost = Coin 2033497, shortfall = Coin 183497}))))
+ 1.900000,ErrBalanceTxSelectAssets (ErrSelectAssetsSelectionError (SelectionBalanceErrorOf (UnableToConstructChange (UnableToConstructChangeError {requiredCost = Coin 2033497, shortfall = Coin 133497}))))
+ 1.950000,ErrBalanceTxSelectAssets (ErrSelectAssetsSelectionError (SelectionBalanceErrorOf (UnableToConstructChange (UnableToConstructChangeError {requiredCost = Coin 2033497, shortfall = Coin 83497}))))
+ 2.000000,ErrBalanceTxSelectAssets (ErrSelectAssetsSelectionError (SelectionBalanceErrorOf (UnableToConstructChange (UnableToConstructChangeError {requiredCost = Coin 2033497, shortfall = Coin 33497}))))
  2.050000,ErrBalanceTxSelectAssets (ErrSelectAssetsSelectionError (SelectionCollateralErrorOf (SelectionCollateralError {largestCombinationAvailable = fromList [(WalletUTxO {txIn = TxIn {inputId = Hash "00000000000000000000000000000000", inputIx = 0}, address = Address "`\177\229\224\251t\200l\128\USdhA\224|\219B\223\139\130\239<\228\229|\181A.w"},Coin 2050000)], minimumSelectionAmount = Coin 3075000})))
  2.100000,ErrBalanceTxSelectAssets (ErrSelectAssetsSelectionError (SelectionCollateralErrorOf (SelectionCollateralError {largestCombinationAvailable = fromList [(WalletUTxO {txIn = TxIn {inputId = Hash "00000000000000000000000000000000", inputIx = 0}, address = Address "`\177\229\224\251t\200l\128\USdhA\224|\219B\223\139\130\239<\228\229|\181A.w"},Coin 2100000)], minimumSelectionAmount = Coin 3150000})))
  2.150000,ErrBalanceTxSelectAssets (ErrSelectAssetsSelectionError (SelectionCollateralErrorOf (SelectionCollateralError {largestCombinationAvailable = fromList [(WalletUTxO {txIn = TxIn {inputId = Hash "00000000000000000000000000000000", inputIx = 0}, address = Address "`\177\229\224\251t\200l\128\USdhA\224|\219B\223\139\130\239<\228\229|\181A.w"},Coin 2150000)], minimumSelectionAmount = Coin 3225000})))
@@ -53,29 +53,29 @@
  2.600000,ErrBalanceTxSelectAssets (ErrSelectAssetsSelectionError (SelectionCollateralErrorOf (SelectionCollateralError {largestCombinationAvailable = fromList [(WalletUTxO {txIn = TxIn {inputId = Hash "00000000000000000000000000000000", inputIx = 0}, address = Address "`\177\229\224\251t\200l\128\USdhA\224|\219B\223\139\130\239<\228\229|\181A.w"},Coin 2600000)], minimumSelectionAmount = Coin 3900000})))
  2.650000,ErrBalanceTxSelectAssets (ErrSelectAssetsSelectionError (SelectionCollateralErrorOf (SelectionCollateralError {largestCombinationAvailable = fromList [(WalletUTxO {txIn = TxIn {inputId = Hash "00000000000000000000000000000000", inputIx = 0}, address = Address "`\177\229\224\251t\200l\128\USdhA\224|\219B\223\139\130\239<\228\229|\181A.w"},Coin 2650000)], minimumSelectionAmount = Coin 3975000})))
  2.700000,ErrBalanceTxSelectAssets (ErrSelectAssetsSelectionError (SelectionCollateralErrorOf (SelectionCollateralError {largestCombinationAvailable = fromList [(WalletUTxO {txIn = TxIn {inputId = Hash "00000000000000000000000000000000", inputIx = 0}, address = Address "`\177\229\224\251t\200l\128\USdhA\224|\219B\223\139\130\239<\228\229|\181A.w"},Coin 2700000)], minimumSelectionAmount = Coin 4050000})))
- 2.750000,0.612050,0.612050
- 2.800000,0.612050,0.612050
- 2.850000,0.612050,0.612050
- 2.900000,0.612050,0.612050
- 2.950000,0.612050,0.612050
- 3.000000,0.612050,0.612050
- 3.050000,0.612050,0.612050
- 3.100000,0.612050,0.612050
- 3.150000,0.612050,0.612050
- 3.200000,0.612050,0.612050
- 3.250000,0.612050,0.612050
- 3.300000,0.612050,0.612050
- 3.350000,0.612050,0.612050
- 3.400000,0.612050,0.612050
- 3.450000,0.612050,0.612050
- 3.500000,0.612050,0.612050
- 3.550000,0.612050,0.612050
- 3.600000,0.612050,0.612050
- 3.650000,0.612050,0.612050
- 3.700000,0.612050,0.612050
- 3.750000,0.612050,0.612050
- 3.800000,0.612050,0.612050
- 3.850000,0.612050,0.612050
- 3.900000,0.612050,0.612050
- 3.950000,0.612050,0.612050
- 4.000000,0.612050,0.612050
+ 2.750000,ErrBalanceTxSelectAssets (ErrSelectAssetsSelectionError (SelectionCollateralErrorOf (SelectionCollateralError {largestCombinationAvailable = fromList [(WalletUTxO {txIn = TxIn {inputId = Hash "00000000000000000000000000000000", inputIx = 0}, address = Address "`\177\229\224\251t\200l\128\USdhA\224|\219B\223\139\130\239<\228\229|\181A.w"},Coin 2750000)], minimumSelectionAmount = Coin 4125000})))
+ 2.800000,ErrBalanceTxSelectAssets (ErrSelectAssetsSelectionError (SelectionCollateralErrorOf (SelectionCollateralError {largestCombinationAvailable = fromList [(WalletUTxO {txIn = TxIn {inputId = Hash "00000000000000000000000000000000", inputIx = 0}, address = Address "`\177\229\224\251t\200l\128\USdhA\224|\219B\223\139\130\239<\228\229|\181A.w"},Coin 2800000)], minimumSelectionAmount = Coin 4200000})))
+ 2.850000,ErrBalanceTxSelectAssets (ErrSelectAssetsSelectionError (SelectionCollateralErrorOf (SelectionCollateralError {largestCombinationAvailable = fromList [(WalletUTxO {txIn = TxIn {inputId = Hash "00000000000000000000000000000000", inputIx = 0}, address = Address "`\177\229\224\251t\200l\128\USdhA\224|\219B\223\139\130\239<\228\229|\181A.w"},Coin 2850000)], minimumSelectionAmount = Coin 4275000})))
+ 2.900000,ErrBalanceTxSelectAssets (ErrSelectAssetsSelectionError (SelectionCollateralErrorOf (SelectionCollateralError {largestCombinationAvailable = fromList [(WalletUTxO {txIn = TxIn {inputId = Hash "00000000000000000000000000000000", inputIx = 0}, address = Address "`\177\229\224\251t\200l\128\USdhA\224|\219B\223\139\130\239<\228\229|\181A.w"},Coin 2900000)], minimumSelectionAmount = Coin 4350000})))
+ 2.950000,ErrBalanceTxSelectAssets (ErrSelectAssetsSelectionError (SelectionCollateralErrorOf (SelectionCollateralError {largestCombinationAvailable = fromList [(WalletUTxO {txIn = TxIn {inputId = Hash "00000000000000000000000000000000", inputIx = 0}, address = Address "`\177\229\224\251t\200l\128\USdhA\224|\219B\223\139\130\239<\228\229|\181A.w"},Coin 2950000)], minimumSelectionAmount = Coin 4425000})))
+ 3.000000,ErrBalanceTxSelectAssets (ErrSelectAssetsSelectionError (SelectionCollateralErrorOf (SelectionCollateralError {largestCombinationAvailable = fromList [(WalletUTxO {txIn = TxIn {inputId = Hash "00000000000000000000000000000000", inputIx = 0}, address = Address "`\177\229\224\251t\200l\128\USdhA\224|\219B\223\139\130\239<\228\229|\181A.w"},Coin 3000000)], minimumSelectionAmount = Coin 4500000})))
+ 3.050000,ErrBalanceTxSelectAssets (ErrSelectAssetsSelectionError (SelectionCollateralErrorOf (SelectionCollateralError {largestCombinationAvailable = fromList [(WalletUTxO {txIn = TxIn {inputId = Hash "00000000000000000000000000000000", inputIx = 0}, address = Address "`\177\229\224\251t\200l\128\USdhA\224|\219B\223\139\130\239<\228\229|\181A.w"},Coin 3050000)], minimumSelectionAmount = Coin 3050246})))
+ 3.100000,0.612226,0.612050
+ 3.150000,0.612226,0.612050
+ 3.200000,0.612226,0.612050
+ 3.250000,0.612226,0.612050
+ 3.300000,0.612226,0.612050
+ 3.350000,0.612226,0.612050
+ 3.400000,0.612226,0.612050
+ 3.450000,0.612226,0.612050
+ 3.500000,0.612226,0.612050
+ 3.550000,0.612226,0.612050
+ 3.600000,0.612226,0.612050
+ 3.650000,0.612226,0.612050
+ 3.700000,0.612226,0.612050
+ 3.750000,0.612226,0.612050
+ 3.800000,0.612226,0.612050
+ 3.850000,0.612226,0.612050
+ 3.900000,0.612226,0.612050
+ 3.950000,0.612226,0.612050
+ 4.000000,0.612226,0.612050

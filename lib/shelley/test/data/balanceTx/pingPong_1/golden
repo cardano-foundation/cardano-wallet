@@ -38,44 +38,44 @@
  1.850000,ErrBalanceTxSelectAssets (ErrSelectAssetsSelectionError (SelectionBalanceErrorOf (BalanceInsufficient (BalanceInsufficientError {utxoBalanceAvailable = TokenBundle {coin = Coin 1850000, tokens = TokenMap (fromList [])}, utxoBalanceRequired = TokenBundle {coin = Coin 2000000, tokens = TokenMap (fromList [])}}))))
  1.900000,ErrBalanceTxSelectAssets (ErrSelectAssetsSelectionError (SelectionBalanceErrorOf (BalanceInsufficient (BalanceInsufficientError {utxoBalanceAvailable = TokenBundle {coin = Coin 1900000, tokens = TokenMap (fromList [])}, utxoBalanceRequired = TokenBundle {coin = Coin 2000000, tokens = TokenMap (fromList [])}}))))
  1.950000,ErrBalanceTxSelectAssets (ErrSelectAssetsSelectionError (SelectionBalanceErrorOf (BalanceInsufficient (BalanceInsufficientError {utxoBalanceAvailable = TokenBundle {coin = Coin 1950000, tokens = TokenMap (fromList [])}, utxoBalanceRequired = TokenBundle {coin = Coin 2000000, tokens = TokenMap (fromList [])}}))))
- 2.000000,ErrBalanceTxSelectAssets (ErrSelectAssetsSelectionError (SelectionBalanceErrorOf (UnableToConstructChange (UnableToConstructChangeError {requiredCost = Coin 170341, shortfall = Coin 170341}))))
- 2.050000,ErrBalanceTxSelectAssets (ErrSelectAssetsSelectionError (SelectionBalanceErrorOf (UnableToConstructChange (UnableToConstructChangeError {requiredCost = Coin 170341, shortfall = Coin 120341}))))
- 2.100000,ErrBalanceTxSelectAssets (ErrSelectAssetsSelectionError (SelectionBalanceErrorOf (UnableToConstructChange (UnableToConstructChangeError {requiredCost = Coin 170341, shortfall = Coin 70341}))))
- 2.150000,ErrBalanceTxSelectAssets (ErrSelectAssetsSelectionError (SelectionBalanceErrorOf (UnableToConstructChange (UnableToConstructChangeError {requiredCost = Coin 170341, shortfall = Coin 20341}))))
- 2.200000,ErrBalanceTxFailedBalancing (valueFromList [(AdaAssetId,32827)])
- 2.250000,ErrBalanceTxFailedBalancing (valueFromList [(AdaAssetId,82827)])
- 2.300000,ErrBalanceTxFailedBalancing (valueFromList [(AdaAssetId,132827)])
- 2.350000,ErrBalanceTxFailedBalancing (valueFromList [(AdaAssetId,182827)])
- 2.400000,ErrBalanceTxFailedBalancing (valueFromList [(AdaAssetId,232827)])
- 2.450000,ErrBalanceTxFailedBalancing (valueFromList [(AdaAssetId,282827)])
- 2.500000,ErrBalanceTxFailedBalancing (valueFromList [(AdaAssetId,332827)])
- 2.550000,ErrBalanceTxFailedBalancing (valueFromList [(AdaAssetId,382827)])
- 2.600000,ErrBalanceTxFailedBalancing (valueFromList [(AdaAssetId,432827)])
- 2.650000,ErrBalanceTxFailedBalancing (valueFromList [(AdaAssetId,482827)])
- 2.700000,ErrBalanceTxFailedBalancing (valueFromList [(AdaAssetId,532827)])
- 2.750000,ErrBalanceTxFailedBalancing (valueFromList [(AdaAssetId,582827)])
- 2.800000,ErrBalanceTxFailedBalancing (valueFromList [(AdaAssetId,632827)])
- 2.850000,ErrBalanceTxFailedBalancing (valueFromList [(AdaAssetId,682827)])
- 2.900000,ErrBalanceTxFailedBalancing (valueFromList [(AdaAssetId,732827)])
- 2.950000,ErrBalanceTxFailedBalancing (valueFromList [(AdaAssetId,782827)])
- 3.000000,ErrBalanceTxFailedBalancing (valueFromList [(AdaAssetId,832827)])
- 3.050000,ErrBalanceTxFailedBalancing (valueFromList [(AdaAssetId,882827)])
- 3.100000,ErrBalanceTxFailedBalancing (valueFromList [(AdaAssetId,932827)])
- 3.150000,ErrBalanceTxFailedBalancing (valueFromList [(AdaAssetId,982827)])
- 3.200000,0.170033,0.170033
- 3.250000,0.170033,0.170033
- 3.300000,0.170033,0.170033
- 3.350000,0.170033,0.170033
- 3.400000,0.170033,0.170033
- 3.450000,0.170033,0.170033
- 3.500000,0.170033,0.170033
- 3.550000,0.170033,0.170033
- 3.600000,0.170033,0.170033
- 3.650000,0.170033,0.170033
- 3.700000,0.170033,0.170033
- 3.750000,0.170033,0.170033
- 3.800000,0.170033,0.170033
- 3.850000,0.170033,0.170033
- 3.900000,0.170033,0.170033
- 3.950000,0.170033,0.170033
- 4.000000,0.170033,0.170033
+ 2.000000,ErrBalanceTxSelectAssets (ErrSelectAssetsSelectionError (SelectionBalanceErrorOf (UnableToConstructChange (UnableToConstructChangeError {requiredCost = Coin 170649, shortfall = Coin 170649}))))
+ 2.050000,ErrBalanceTxSelectAssets (ErrSelectAssetsSelectionError (SelectionBalanceErrorOf (UnableToConstructChange (UnableToConstructChangeError {requiredCost = Coin 170649, shortfall = Coin 120649}))))
+ 2.100000,ErrBalanceTxSelectAssets (ErrSelectAssetsSelectionError (SelectionBalanceErrorOf (UnableToConstructChange (UnableToConstructChangeError {requiredCost = Coin 170649, shortfall = Coin 70649}))))
+ 2.150000,ErrBalanceTxSelectAssets (ErrSelectAssetsSelectionError (SelectionBalanceErrorOf (UnableToConstructChange (UnableToConstructChangeError {requiredCost = Coin 170649, shortfall = Coin 20649}))))
+ 2.200000,0.200000,0.167173
+ 2.250000,0.250000,0.167173
+ 2.300000,0.300000,0.167173
+ 2.350000,0.350000,0.167173
+ 2.400000,0.400000,0.167173
+ 2.450000,0.450000,0.167173
+ 2.500000,0.500000,0.167173
+ 2.550000,0.550000,0.167173
+ 2.600000,0.600000,0.167173
+ 2.650000,0.650000,0.167173
+ 2.700000,0.700000,0.167173
+ 2.750000,0.750000,0.167173
+ 2.800000,0.800000,0.167173
+ 2.850000,0.850000,0.167173
+ 2.900000,0.900000,0.167173
+ 2.950000,0.950000,0.167173
+ 3.000000,1.000000,0.167173
+ 3.050000,1.050000,0.167173
+ 3.100000,1.100000,0.167173
+ 3.150000,1.150000,0.167173
+ 3.200000,0.170209,0.170033
+ 3.250000,0.170209,0.170033
+ 3.300000,0.170209,0.170033
+ 3.350000,0.170209,0.170033
+ 3.400000,0.170209,0.170033
+ 3.450000,0.170209,0.170033
+ 3.500000,0.170209,0.170033
+ 3.550000,0.170209,0.170033
+ 3.600000,0.170209,0.170033
+ 3.650000,0.170209,0.170033
+ 3.700000,0.170209,0.170033
+ 3.750000,0.170209,0.170033
+ 3.800000,0.170209,0.170033
+ 3.850000,0.170209,0.170033
+ 3.900000,0.170209,0.170033
+ 3.950000,0.170209,0.170033
+ 4.000000,0.170209,0.170033

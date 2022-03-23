@@ -39,6 +39,7 @@ module Cardano.Api.Gen
   , genValueForMinting
   , genSignedQuantity
   , genTxMintValue
+  , genSignedValue
   , genNetworkMagic
   , genNetworkId
   , genStakeCredential
@@ -256,8 +257,19 @@ genLovelace = Lovelace <$> frequency
             , (8, pure 65536)
             , (90, pure 4294967296)
             ]
-        x <- choose (-1_000_000, 1_000_000)
-        pure $ max 0 $ boundary + x
+
+        offset <- frequency
+            [ (1, choose (-10, 10))
+
+            -- Offset by values close to common fee values, in both the positive
+            -- and negative direction, with the hope that this helps find
+            -- corner-cases.
+            , (1, choose (-220_000, -150_000))
+            , (1, choose (150_000, 220_000))
+
+            , (1, choose (-1_000_000, 1_000_000))
+            ]
+        pure $ max 0 $ boundary + offset
 
 
 genTxFee :: CardanoEra era -> Gen (TxFee era)
@@ -447,6 +459,24 @@ genValueForTxOut = do
         ]
     assetQuantities <- infiniteListOf genUnsignedQuantity
     ada <- fromInteger . unLovelace <$> genLovelace
+    return $ valueFromList $ (AdaAssetId, ada) : zip assetIds assetQuantities
+  where
+    unLovelace (Lovelace l) = l
+
+-- | Generate a 'Value' which could represent the balance of a partial
+-- transaction, where both ada and other assets can be included, and quantities
+-- can be both positive and negative.
+genSignedValue :: Gen Value
+genSignedValue = do
+    assetIds <- oneof
+        [ nub <$> scale (`div` 4) (listOf genAssetIdNoAda)
+        , pure []
+        ]
+    assetQuantities <- infiniteListOf genSignedQuantity
+    ada <- fromInteger . unLovelace <$> oneof
+        [ genLovelace
+        , negate <$> genLovelace
+        ]
     return $ valueFromList $ (AdaAssetId, ada) : zip assetIds assetQuantities
   where
     unLovelace (Lovelace l) = l

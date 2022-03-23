@@ -55,6 +55,7 @@ import qualified Cardano.Wallet.Primitive.Types.TokenBundle as TokenBundle
 import qualified Cardano.Wallet.Primitive.Types.UTxOIndex as UTxOIndex
 import qualified Cardano.Wallet.Primitive.Types.UTxOSelection as UTxOSelection
 import qualified Data.Foldable as F
+import qualified Data.Map.Strict as Map
 
 spec :: Spec
 spec =
@@ -97,6 +98,8 @@ spec =
 
         it "prop_availableBalance_availableMap" $
             property prop_availableBalance_availableMap
+        it "prop_availableMap_availableSize" $
+            property prop_availableMap_availableSize
         it "prop_isNonEmpty_selectedSize" $
             property prop_isNonEmpty_selectedSize
         it "prop_isNonEmpty_selectedIndex" $
@@ -256,6 +259,12 @@ prop_availableBalance_availableMap s =
     checkCoverage_UTxOSelection s $
     UTxOSelection.availableBalance s
     === F.fold (UTxOSelection.availableMap s)
+
+prop_availableMap_availableSize :: UTxOSelection WalletUTxO -> Property
+prop_availableMap_availableSize s =
+    checkCoverage_UTxOSelection s $
+    UTxOSelection.availableSize s
+    === Map.size (UTxOSelection.availableMap s)
 
 prop_isNonEmpty_selectedSize :: UTxOSelection WalletUTxO -> Property
 prop_isNonEmpty_selectedSize s =
