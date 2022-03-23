@@ -2045,12 +2045,11 @@ balanceTransactionSpec = do
             let rootK = Shelley.unsafeGenerateKeyFromSeed (mw, Nothing) mempty
             let tid = Hash $ B8.replicate 32 '1'
             let wallet = mkTestWallet rootK $ UTxO $ Map.fromList $
-                        [ ( TxIn tid ix
-                          , TxOut addr
-                            (TokenBundle.fromCoin $ Coin 1_000_000)
-                          )
-                        | ix <- [0 .. 500]
-                        ]
+                    [ ( TxIn tid ix
+                      , TxOut addr (TokenBundle.fromCoin $ Coin 1_000_000)
+                      )
+                    | ix <- [0 .. 500]
+                    ]
 
             let balance = balanceTransaction' wallet testStdGenSeed
             let totalOutput tx =

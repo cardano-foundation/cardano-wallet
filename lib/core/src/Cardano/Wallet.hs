@@ -1628,11 +1628,10 @@ balanceTransactionWithSelectionStrategy
             transform s sel =
                 let (sel', _) = assignChangeAddresses generateChange sel s
                     inputs = F.toList (sel' ^. #inputs)
-                 in ( inputs
+                in  ( inputs
                     , fst <$> (sel' ^. #collateral)
                     , sel' ^. #change
                     )
-
 
         lift $ traceWith tr $ MsgSelectionForBalancingStart
             (CS.toExternalUTxOMap $ UTxOIndex.toMap internalUtxoAvailable)
@@ -1692,28 +1691,27 @@ balanceTransactionWithSelectionStrategy
 
     (balance, candidateMinFee) <- balanceAfterSettingMinFee candidateTx
     surplus <- case Cardano.selectLovelace balance of
-            (Cardano.Lovelace c) | c >= 0
-                -> pure $ Coin.unsafeFromIntegral c
-                                 | otherwise
-                -> throwE
-                    . ErrBalanceTxNotYetSupported
-                    $ UnderestimatedFee
-                        (Coin.unsafeFromIntegral (-c))
-                        candidateTx
-
+        (Cardano.Lovelace c)
+            | c >= 0 ->
+                pure $ Coin.unsafeFromIntegral c
+            | otherwise ->
+                throwE . ErrBalanceTxNotYetSupported $
+                UnderestimatedFee (Coin.unsafeFromIntegral (-c)) candidateTx
 
     -- If there are no change outputs, "burn" the surplus as extra fee.
     --
     -- This should only happen when coin-selection cannot afford to construct a
     -- change output with the appropriate minUTxOValue.
-    let extraFeeToBurn =
-            case extraOutputs of
-                [] | surplus > Coin 20_000_000 -> error $ unwords
-                        [ "final redunant safety check in balanceTransaction:"
-                        , "burning more than 20 ada in fees is unreasonable"
-                        ]
-                   | otherwise -> surplus
-                _              -> Coin 0
+    let extraFeeToBurn = case extraOutputs of
+            [] | surplus > Coin 20_000_000 ->
+                error $ unwords
+                    [ "final redunant safety check in balanceTransaction:"
+                    , "burning more than 20 ada in fees is unreasonable"
+                    ]
+            [] ->
+                surplus
+            _ ->
+                Coin 0
 
     guardTxSize =<< guardTxBalanced =<< (assembleTransaction $ TxUpdate
         { extraInputs
@@ -1844,7 +1842,7 @@ balanceTransactionWithSelectionStrategy
 
     extractOutputsFromTx tx =
         let (Tx {outputs}, _, _, _) = decodeTx tl tx
-         in outputs
+        in outputs
 
     guardConflictingWithdrawalNetworks (cardanoTx ->
         (Cardano.InAnyCardanoEra _ (Cardano.Tx (Cardano.TxBody body) _))) = do
@@ -1930,20 +1928,20 @@ balanceTransactionWithSelectionStrategy
                         defaultTransactionCtx
                         boringSkeleton
 
-        -- Workaround for a corner case failure in
-        -- prop_balanceTransactionBalanced where.
-        --
-        -- Seems to be related with the wallet selecting a change output with a
-        -- coin value just about the 9 byte limit (4294967296). I.e. seems like
-        -- a problem of coin selection.
+            -- Workaround for a corner case failure in
+            -- prop_balanceTransactionBalanced where.
+            --
+            -- Seems to be related with the wallet selecting a change output
+            -- with a coin value just about the 9 byte limit (4294967296). I.e.
+            -- seems like a problem of coin selection.
             feePadding =
                 let
                     LinearFee _ (Quantity perByte) =
                         view (#txParameters . #getFeePolicy) pp
                     scriptIntegrityHashBytes = 32 + 2
                     extraBytes = 4
-                in Coin $
-                    (round perByte) * (extraBytes + scriptIntegrityHashBytes)
+                in
+                Coin $ (round perByte) * (extraBytes + scriptIntegrityHashBytes)
 
             fromCardanoLovelace (Cardano.Lovelace l) = Coin.unsafeFromIntegral l
 
@@ -2001,7 +1999,6 @@ balanceTransactionWithSelectionStrategy
                       UTxOSelection.availableMap utxoSelection
                 , utxoAvailableForInputs = utxoSelection
                 , selectionStrategy = selectionStrategy
-
                 }
             in
                 flip evalRand (stdGenFromSeed seed)
@@ -3869,4 +3866,3 @@ posAndNegFromCardanoValue = foldMap go . Cardano.valueToList
 
     mkPolicyId = UnsafeTokenPolicyId . Hash . Cardano.serialiseToRawBytes
     mkTokenName = UnsafeTokenName . Cardano.serialiseToRawBytes
-
