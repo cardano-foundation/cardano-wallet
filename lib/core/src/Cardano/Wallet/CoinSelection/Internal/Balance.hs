@@ -909,6 +909,7 @@ performSelectionNonEmpty constraints params
         , computeMinimumAdaQuantity
         , computeMinimumCost
         , computeSelectionLimit
+        , maximumOutputAdaQuantity
         } = constraints
     SelectionParams
         { outputsToCover
@@ -1002,6 +1003,7 @@ performSelectionNonEmpty constraints params
             , outputBundles
             , assetsToMint
             , assetsToBurn
+            , maximumOutputAdaQuantity
             }
         )
       where
@@ -1083,6 +1085,7 @@ performSelectionNonEmpty constraints params
             , outputBundles = snd <$> outputsToCover
             , assetsToMint
             , assetsToBurn
+            , maximumOutputAdaQuantity
             }
 
         mkSelectionResult :: [TokenBundle] -> SelectionResultOf NonEmpty ctx
@@ -1394,6 +1397,10 @@ data MakeChangeCriteria minCoinFor bundleSizeAssessor = MakeChangeCriteria
         -- ^ Assets to mint: these provide input value to a transaction.
     , assetsToBurn :: TokenMap
         -- ^ Assets to burn: these consume output value from a transaction.
+    , maximumOutputAdaQuantity
+        :: Coin
+        -- ^ Specifies the largest ada quantity that can appear in the token
+        -- bundle of an output.
     } deriving (Eq, Generic, Show)
 
 -- | Indicates 'True' if and only if a token bundle exceeds the maximum size
