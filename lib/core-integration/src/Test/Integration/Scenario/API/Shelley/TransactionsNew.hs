@@ -1335,12 +1335,12 @@ spec = describe "NEW_SHELLEY_TRANSACTIONS" $ do
         let activeAssetsInfo = ApiAssetMintBurn
                 { tokenMap = ApiT tokens
                 , policyScripts = [mintScript]
-                , walletPolicyKeyHash = policyKeyHashPayload
+                , walletPolicyKeyHash = Just policyKeyHashPayload
                 }
         let inactiveAssetsInfo = ApiAssetMintBurn
                 { tokenMap = ApiT TokenMap.empty
                 , policyScripts = []
-                , walletPolicyKeyHash = policyKeyHashPayload
+                , walletPolicyKeyHash = Just policyKeyHashPayload
                 }
         rTx <- request @(ApiDecodedTransaction n) ctx
             (Link.decodeTransaction @'Shelley wa) Default decodeMintPayload
@@ -3236,12 +3236,12 @@ spec = describe "NEW_SHELLEY_TRANSACTIONS" $ do
         let activeAssetsInfo = ApiAssetMintBurn
                 { tokenMap = ApiT tokens
                 , policyScripts = [mintScript]
-                , walletPolicyKeyHash = policyKeyHashPayload
+                , walletPolicyKeyHash = Just policyKeyHashPayload
                 }
         let inactiveAssetsInfo = ApiAssetMintBurn
                 { tokenMap = ApiT TokenMap.empty
                 , policyScripts = []
-                , walletPolicyKeyHash = policyKeyHashPayload
+                , walletPolicyKeyHash = Just policyKeyHashPayload
                 }
 
         let mintInfoExpected = Just $ NE.fromList
@@ -3316,12 +3316,12 @@ spec = describe "NEW_SHELLEY_TRANSACTIONS" $ do
         let activeAssetsInfo = ApiAssetMintBurn
                 { tokenMap = ApiT TokenMap.empty
                 , policyScripts = []
-                , walletPolicyKeyHash = policyKeyHashPayload
+                , walletPolicyKeyHash = Just policyKeyHashPayload
                 }
         let inactiveAssetsInfo = ApiAssetMintBurn
                 { tokenMap = ApiT tokens
                 , policyScripts = [burnScript]
-                , walletPolicyKeyHash = policyKeyHashPayload
+                , walletPolicyKeyHash = Just policyKeyHashPayload
                 }
 
         let burnInfoExpected = Just $ NE.fromList

@@ -2429,7 +2429,7 @@ decodeTransaction ctx (ApiT wid) (ApiSerialisedTransaction (ApiT sealed)) = do
             , toBurn
             , allCerts
             ) = decodeTx tl sealed
-    (txinsOutsPaths, collsOutsPaths, outsPath, acct, acctPath, pp, policyXPub)
+    (txinsOutsPaths, collsOutsPaths, outsPath, acct, acctPath, pp, policyXPubM)
         <- withWorkerCtx ctx wid liftE liftE $ \wrk -> do
         (acct, _, acctPath) <-
             liftHandler $ W.readRewardAccount @_ @s @k @n wrk wid
@@ -2440,8 +2440,8 @@ decodeTransaction ctx (ApiT wid) (ApiSerialisedTransaction (ApiT sealed)) = do
         outsPath <-
             liftHandler $ W.lookupTxOuts @_ @s @k wrk wid outs
         pp <- liftIO $ NW.currentProtocolParameters (wrk ^. networkLayer)
-        (policyXPub, _) <-
-            liftHandler $ W.readPolicyPublicKey @_ @s @k @n wrk wid
+        policyXPubM <- fmap (fmap fst . eitherToMaybe)
+            <$> liftIO . runExceptT $ W.readPolicyPublicKey @_ @s @k @n wrk wid
         pure
             ( txinsOutsPaths
             , collsOutsPaths
@@ -2449,7 +2449,7 @@ decodeTransaction ctx (ApiT wid) (ApiSerialisedTransaction (ApiT sealed)) = do
             , acct
             , acctPath
             , pp
-            , policyXPub
+            , policyXPubM
             )
     pure $ ApiDecodedTransaction
         { id = ApiT txid
@@ -2458,8 +2458,8 @@ decodeTransaction ctx (ApiT wid) (ApiSerialisedTransaction (ApiT sealed)) = do
         , outputs = map toOut outsPath
         , collateral = map toInp collsOutsPaths
         , withdrawals = map (toWrdl acct) $ Map.assocs wdrlMap
-        , assetsMinted = toApiAssetMintBurn policyXPub toMint
-        , assetsBurned = toApiAssetMintBurn policyXPub toBurn
+        , assetsMinted = toApiAssetMintBurn policyXPubM toMint
+        , assetsBurned = toApiAssetMintBurn policyXPubM toBurn
         , certificates = map (toApiAnyCert acct acctPath) allCerts
         , depositsTaken =
             (Quantity . fromIntegral . unCoin . W.stakeKeyDeposit $ pp)
@@ -2474,7 +2474,7 @@ decodeTransaction ctx (ApiT wid) (ApiSerialisedTransaction (ApiT sealed)) = do
         }
   where
     tl = ctx ^. W.transactionLayer @k
-    toApiAssetMintBurn xpub tokenWithScripts = ApiAssetMintBurn
+    toApiAssetMintBurn xpubM tokenWithScripts = ApiAssetMintBurn
         { tokenMap = ApiT $ tokenWithScripts ^. #txTokenMap
         , policyScripts =
             map (uncurry ApiPolicyScript) $
@@ -2482,8 +2482,11 @@ decodeTransaction ctx (ApiT wid) (ApiSerialisedTransaction (ApiT sealed)) = do
             Map.map ApiT $
             Map.mapKeys ApiT $
             tokenWithScripts ^. #txScripts
-        , walletPolicyKeyHash =
-            uncurry ApiPolicyKey (computeKeyPayload (Just True) xpub)
+        , walletPolicyKeyHash = case xpubM of
+            Just xpub ->
+                Just $ uncurry ApiPolicyKey (computeKeyPayload (Just True) xpub)
+            Nothing ->
+                Nothing
         }
     toOut (txoutIncoming, Nothing) =
         ExternalOutput $ toAddressAmount @n txoutIncoming
