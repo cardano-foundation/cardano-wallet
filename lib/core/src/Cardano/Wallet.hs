@@ -1659,7 +1659,7 @@ balanceTransactionWithSelectionStrategy
                 transform (getState wallet) <$> mSel
 
     -- NOTE:
-    -- Once the coin-selection is done, we need to
+    -- Once the coin selection is done, we need to
     --
     -- (a) Add selected inputs, collateral and change outputs to the transaction
     -- (b) Assign correct execution units to every redeemer
@@ -1705,7 +1705,7 @@ balanceTransactionWithSelectionStrategy
     let extraFeeToBurn = case extraOutputs of
             [] | surplus > Coin 20_000_000 ->
                 error $ unwords
-                    [ "final redunant safety check in balanceTransaction:"
+                    [ "final redundant safety check in balanceTransaction:"
                     , "burning more than 20 ada in fees is unreasonable"
                     ]
             [] ->
@@ -1771,7 +1771,7 @@ balanceTransactionWithSelectionStrategy
         -- - 4.294967296 ada and more is encoded as 9 bytes
         --
         -- To avoid fee minimization unknowingly increasing the size by 4 bytes,
-        -- we preemtively add an extra 4 bytes here.
+        -- we preemptively add an extra 4 bytes here.
         --
         -- https://json.nlohmann.me/features/binary_formats/cbor/
         --
