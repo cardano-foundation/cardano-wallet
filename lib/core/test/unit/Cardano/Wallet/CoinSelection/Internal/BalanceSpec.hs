@@ -180,6 +180,8 @@ import Data.Generics.Internal.VL.Lens
     ( view )
 import Data.Generics.Labels
     ()
+import Data.IntCast
+    ( intCast )
 import Data.List.NonEmpty
     ( NonEmpty (..) )
 import Data.Map.Strict
@@ -1848,6 +1850,7 @@ mkBoundaryTestExpectation (BoundaryTestData params expectedResult) = do
             boundaryTestBundleSizeAssessor params
         , computeSelectionLimit = const NoLimit
         , maximumOutputAdaQuantity = testMaximumOutputAdaQuantity
+        , maximumOutputTokenQuantity = testMaximumOutputTokenQuantity
         }
 
 encodeBoundaryTestCriteria
@@ -2477,6 +2480,8 @@ unMockSelectionConstraints m = SelectionConstraints
         unMockComputeSelectionLimit $ view #computeSelectionLimit m
     , maximumOutputAdaQuantity =
         testMaximumOutputAdaQuantity
+    , maximumOutputTokenQuantity =
+        testMaximumOutputTokenQuantity
     }
 
 -- | Specifies the largest ada quantity that can appear in the token bundle
@@ -2487,6 +2492,15 @@ unMockSelectionConstraints m = SelectionConstraints
 --
 testMaximumOutputAdaQuantity :: Coin
 testMaximumOutputAdaQuantity = Coin 45_000_000_000_000_000
+
+-- | Specifies the largest non-ada quantity that can appear in the token bundle
+--   of an output.
+--
+-- For the moment, we use the same constant that is used in the wallet. In
+-- future, we can improve our test coverage by allowing this value to vary.
+--
+testMaximumOutputTokenQuantity :: TokenQuantity
+testMaximumOutputTokenQuantity = TokenQuantity $ intCast $ maxBound @Word64
 
 --------------------------------------------------------------------------------
 -- Computing minimum ada quantities

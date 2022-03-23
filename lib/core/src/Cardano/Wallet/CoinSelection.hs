@@ -103,7 +103,12 @@ import Cardano.Wallet.Primitive.Types.TokenBundle
 import Cardano.Wallet.Primitive.Types.TokenMap
     ( AssetId, TokenMap )
 import Cardano.Wallet.Primitive.Types.Tx
-    ( TokenBundleSizeAssessment, TxIn, TxOut (..), txOutMaxCoin )
+    ( TokenBundleSizeAssessment
+    , TxIn
+    , TxOut (..)
+    , txOutMaxCoin
+    , txOutMaxTokenQuantity
+    )
 import Cardano.Wallet.Primitive.Types.UTxO
     ( UTxO (..) )
 import Cardano.Wallet.Primitive.Types.UTxOSelection
@@ -250,6 +255,8 @@ toInternalSelectionConstraints SelectionConstraints {..} =
             computeSelectionLimit . fmap (uncurry TxOut)
         , maximumOutputAdaQuantity =
             txOutMaxCoin
+        , maximumOutputTokenQuantity =
+            txOutMaxTokenQuantity
         , ..
         }
 

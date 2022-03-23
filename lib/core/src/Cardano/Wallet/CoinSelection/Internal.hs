@@ -180,6 +180,10 @@ data SelectionConstraints ctx = SelectionConstraints
         :: Coin
         -- ^ Specifies the largest ada quantity that can appear in the token
         -- bundle of an output.
+    , maximumOutputTokenQuantity
+        :: TokenQuantity
+        -- ^ Specifies the largest non-ada quantity that can appear in the
+        -- token bundle of an output.
     }
     deriving Generic
 
@@ -408,6 +412,8 @@ toBalanceConstraintsParams (constraints, params) =
             view #assessTokenBundleSize constraints
         , maximumOutputAdaQuantity =
             view #maximumOutputAdaQuantity constraints
+        , maximumOutputTokenQuantity =
+            view #maximumOutputTokenQuantity constraints
         }
       where
         adjustComputeMinimumCost
