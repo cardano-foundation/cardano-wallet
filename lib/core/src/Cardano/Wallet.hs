@@ -1848,16 +1848,16 @@ balanceTransactionWithSelectionStrategy
         (Cardano.InAnyCardanoEra _ (Cardano.Tx (Cardano.TxBody body) _))) = do
         -- Use of withdrawals with different networks breaks balancing.
         --
-        -- For instance the partial tx might contain two withdrawals with the same
-        -- key but different networks:
+        -- For instance the partial tx might contain two withdrawals with the
+        -- same key but different networks:
         -- [ (Mainnet, pkh1, coin1)
         -- , (Testnet, pkh1, coin2)
         -- ]
         --
-        -- Even though this is absurd, the node/ledger @evaluateTransactionBalance@
-        -- will count @coin1+coin2@ towards the total balance. Because the wallet
-        -- does not consider the network tag, it will drop one of the two, leading
-        -- to a discrepancy.
+        -- Even though this is absurd, the node/ledger
+        -- @evaluateTransactionBalance@ will count @coin1+coin2@ towards the
+        -- total balance. Because the wallet does not consider the network tag,
+        -- it will drop one of the two, leading to a discrepancy.
         let networkOfWdrl ((Cardano.StakeAddress nw _), _, _) = nw
         let conflictingWdrlNetworks = case Cardano.txWithdrawals body of
                 Cardano.TxWithdrawalsNone -> False
@@ -1869,9 +1869,9 @@ balanceTransactionWithSelectionStrategy
     guardExistingCollateral (cardanoTx ->
         (Cardano.InAnyCardanoEra _ (Cardano.Tx (Cardano.TxBody body) _))) = do
         -- Coin selection does not support pre-defining collateral. In Sep 2021
-        -- consensus was that we /could/ allow for it with just a day's work or so,
-        -- but that the need for it was unclear enough that it was not in any way
-        -- a priority.
+        -- consensus was that we /could/ allow for it with just a day's work or
+        -- so, but that the need for it was unclear enough that it was not in
+        -- any way a priority.
         case Cardano.txInsCollateral body of
             Cardano.TxInsCollateralNone -> return ()
             Cardano.TxInsCollateral _ [] -> return ()
