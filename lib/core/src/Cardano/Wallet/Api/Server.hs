@@ -492,7 +492,6 @@ import Cardano.Wallet.Transaction
     , TransactionLayer (..)
     , Withdrawal (..)
     , defaultTransactionCtx
-    , emptyTokenMapWithScripts
     )
 import Cardano.Wallet.Unsafe
     ( unsafeRunExceptT )
@@ -2441,15 +2440,8 @@ decodeTransaction ctx (ApiT wid) (ApiSerialisedTransaction (ApiT sealed)) = do
         outsPath <-
             liftHandler $ W.lookupTxOuts @_ @s @k wrk wid outs
         pp <- liftIO $ NW.currentProtocolParameters (wrk ^. networkLayer)
-        policyXPubM <-
-            if toMint == emptyTokenMapWithScripts &&
-               toBurn == emptyTokenMapWithScripts
-            then
-                pure Nothing
-            else do
-                (policyXPub, _) <-
-                    liftHandler $ W.readPolicyPublicKey @_ @s @k @n wrk wid
-                pure $ Just policyXPub
+        policyXPubM <- fmap (fmap fst . eitherToMaybe)
+            <$> liftIO . runExceptT $ W.readPolicyPublicKey @_ @s @k @n wrk wid
         pure
             ( txinsOutsPaths
             , collsOutsPaths
