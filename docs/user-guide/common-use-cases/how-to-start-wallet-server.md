@@ -54,7 +54,7 @@ $ curl -X GET http://localhost:8090/v2/network/information | jq .sync_progress
 
 > :warning: This mode is currently **under development**. Please note that some parts may be available only in `master` branch.
 
-You can start your cardano-wallet server also in **light mode**. As opposed to full-node mode, in light your wallet is not connected to locally running instance of `cardano-node`. Instead it relays on external source of blockchain data. This significantly improves synchronization speed of the wallet and also you don't need to spend time for synchronizing the node itself. The downside is that external source of data is obviously less trusted than the local one provided by your own `cardano-node` instance.
+You can start your cardano-wallet server also in **light mode**. As opposed to full-node mode, in light-mode your wallet is not connected to a locally running instance of `cardano-node`. Instead it relays on external source of blockchain data. This significantly improves synchronization speed of the wallet and also removes the need to spend time synchronizing the node itself. The downside is that external source of data is obviously less trusted than the local one provided by your own `cardano-node` instance.
 
 > :information_source: Cardano-wallet currently supports only one external data provider - [Blockfrost](https://blockfrost.io/). Before using the light mode one needs to generate API key on Blockfrost page and save it into the file on the filesystem.
 
