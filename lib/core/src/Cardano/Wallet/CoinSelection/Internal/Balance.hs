@@ -141,7 +141,6 @@ import Cardano.Wallet.Primitive.Types.TokenQuantity
 import Cardano.Wallet.Primitive.Types.Tx
     ( TokenBundleSizeAssessment (..)
     , TokenBundleSizeAssessor (..)
-    , txOutMaxCoin
     , txOutMaxTokenQuantity
     )
 import Cardano.Wallet.Primitive.Types.UTxOIndex
@@ -1461,6 +1460,7 @@ makeChange criteria
         , outputBundles
         , assetsToMint
         , assetsToBurn
+        , maximumOutputAdaQuantity
         } = criteria
 
     -- The following subtraction is safe, as we have already checked
@@ -1535,7 +1535,7 @@ makeChange criteria
             assessBundleSizeWithMaxCoin :: TokenBundleSizeAssessor
             assessBundleSizeWithMaxCoin = TokenBundleSizeAssessor
                 $ view #assessTokenBundleSize bundleSizeAssessor
-                . flip TokenBundle.setCoin txOutMaxCoin
+                . flip TokenBundle.setCoin maximumOutputAdaQuantity
 
     -- Change for user-specified assets: assets that were present in the
     -- original set of user-specified outputs ('outputsToCover').
