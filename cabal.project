@@ -245,6 +245,11 @@ allow-newer:
 
 constraints:
     hedgehog >= 1.0.2
+  -- QUICK FIX: hedgehog >= 1.1 defines Rec constructor, PlutusIR also defines
+  -- Rec constructor, and imports Hedgehog unqualified, leading to ambiguous
+  -- reference to Rec.
+  -- FIXME: https://input-output.atlassian.net/browse/ADP-1545
+  , hedgehog < 1.1
   , hashable < 1.4
   , bimap >= 0.4.0
   , libsystemd-journal >= 1.4.4
