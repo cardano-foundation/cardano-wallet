@@ -2701,6 +2701,7 @@ genMakeChangeData = flip suchThat isValidMakeChangeData $ do
         <*> genAssetsToMint
         <*> genAssetsToBurn
         <*> genMaximumOutputAdaQuantity
+        <*> genMaximumOutputTokenQuantity
   where
     genAssetsToMint :: Gen TokenMap
     genAssetsToMint = genTokenMapSmallRange
@@ -2724,6 +2725,9 @@ genMakeChangeData = flip suchThat isValidMakeChangeData $ do
 
     genMaximumOutputAdaQuantity :: Gen Coin
     genMaximumOutputAdaQuantity = pure testMaximumOutputAdaQuantity
+
+    genMaximumOutputTokenQuantity :: Gen TokenQuantity
+    genMaximumOutputTokenQuantity = pure testMaximumOutputTokenQuantity
 
 makeChangeWith
     :: MakeChangeData
@@ -2751,6 +2755,7 @@ prop_makeChange_identity bundles = (===)
         , assetsToMint = TokenMap.empty
         , assetsToBurn = TokenMap.empty
         , maximumOutputAdaQuantity = testMaximumOutputAdaQuantity
+        , maximumOutputTokenQuantity = testMaximumOutputTokenQuantity
         }
 
 -- | Tests that 'makeChange' generates the correct number of change bundles.
@@ -3112,6 +3117,7 @@ unit_makeChange =
               , assetsToMint = TokenMap.empty
               , assetsToBurn = TokenMap.empty
               , maximumOutputAdaQuantity = testMaximumOutputAdaQuantity
+              , maximumOutputTokenQuantity = testMaximumOutputTokenQuantity
               }
     ]
   where
