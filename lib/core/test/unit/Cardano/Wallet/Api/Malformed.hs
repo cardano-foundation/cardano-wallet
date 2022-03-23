@@ -295,7 +295,7 @@ instance Malformed (BodyParam ApiPostPolicyKeyData) where
         , ( Aeson.encode [aesonQQ|
             {
             }|]
-          , "Error in $: parsing Cardano.Wallet.Api.Types.ApiPostPolicyKeyData) failed, key 'passphrase' not found"
+          , "Error in $: parsing Cardano.Wallet.Api.Types.ApiPostPolicyKeyData(ApiPostPolicyKeyData) failed, key 'passphrase' not found"
           )
         ]
 

@@ -3236,6 +3236,30 @@ readAccountPublicKey ctx wid = db & \DBLayer{..} -> do
   where
     db = ctx ^. dbLayer @IO @s @k
 
+writePolicyPublicKey
+    :: forall ctx s k.
+        ( HasDBLayer IO s k ctx
+        , WalletKey k
+        , GetPurpose k
+        )
+    => ctx
+    -> WalletId
+    -> Passphrase "raw"
+    -> ExceptT ErrWritePolicyPublicKey IO (k 'PolicyK XPub)
+writePolicyPublicKey ctx wid pwd = db & \DBLayer{..} -> do
+    cp <- mapExceptT atomically
+        $ withExceptT ErrWritePolicyPublicKeyNoSuchWallet
+        $ withNoSuchWallet wid
+        $ readCheckpoint wid
+
+    withRootKey @ctx @s @k ctx wid pwd ErrWritePolicyPublicKey
+        $ \rootK scheme -> do
+            let encPwd = preparePassphrase scheme pwd
+            let xprv = derivePolicyPrivateKey encPwd (getRawKey rootK) minBound
+            pure $ liftRawKey $ toXPub xprv
+  where
+    db = ctx ^. dbLayer @IO @s @k
+
 -- | Retrieve any public account key of a wallet.
 getAccountPublicKeyAtIndex
     :: forall ctx s k.
@@ -3564,6 +3588,11 @@ data ErrReadPolicyPublicKey
     = ErrReadPolicyPublicKeyNotAShelleyWallet
     | ErrReadPolicyPublicKeyNoSuchWallet ErrNoSuchWallet
     | ErrReadPolicyPublicKeyAbsent
+    deriving (Generic, Eq, Show)
+
+data ErrWritePolicyPublicKey
+    = ErrWritePolicyPublicKeyNoSuchWallet ErrNoSuchWallet
+    | ErrWritePolicyPublicKeyWithRootKey ErrWithRootKey
     deriving (Generic, Eq, Show)
 
 {-------------------------------------------------------------------------------
