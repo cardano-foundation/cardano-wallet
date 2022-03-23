@@ -522,7 +522,7 @@ import Data.Generics.Labels
 import Data.Generics.Product.Typed
     ( HasType, typed )
 import Data.IntCast
-    ( intCast )
+    ( intCast, intCastMaybe )
 import Data.Kind
     ( Type )
 import Data.List
@@ -3858,10 +3858,12 @@ posAndNegFromCardanoValue = foldMap go . Cardano.valueToList
         :: Cardano.Quantity
         -> (Natural -> TokenBundle.TokenBundle)
         -> (TokenBundle.TokenBundle, TokenBundle.TokenBundle)
-    partition (Cardano.Quantity q) f
-        | q > 0     = (f $ fromIntegral q, mempty)
-        | q < 0     = (mempty, f $ fromIntegral $ abs q)
+    partition (Cardano.Quantity i) f
+        | Just n <- maybeIntegerToNatural      i  = (f n, mempty)
+        | Just n <- maybeIntegerToNatural (abs i) = (mempty, f n)
         | otherwise = (mempty, mempty)
+
+    maybeIntegerToNatural = intCastMaybe @Integer @Natural
 
     mkPolicyId = UnsafeTokenPolicyId . Hash . Cardano.serialiseToRawBytes
     mkTokenName = UnsafeTokenName . Cardano.serialiseToRawBytes
