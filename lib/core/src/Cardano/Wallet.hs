@@ -1634,7 +1634,7 @@ balanceTransactionWithSelectionStrategy
                     )
 
         lift $ traceWith tr $ MsgSelectionForBalancingStart
-            (CS.toExternalUTxOMap $ UTxOIndex.toMap internalUtxoAvailable)
+            (UTxOIndex.size internalUtxoAvailable)
             ptx
 
         let mSel = selectAssets'
@@ -2207,8 +2207,7 @@ selectAssets
 selectAssets ctx pp params transform = do
     guardPendingWithdrawal
     lift $ traceWith tr $ MsgSelectionStart
-        (CS.toExternalUTxOMap
-            $ UTxOSelection.availableMap
+        (UTxOSelection.availableSize
             $ params ^. #utxoAvailableForInputs)
         (params ^. #outputs)
     let selectionConstraints = SelectionConstraints
@@ -3665,8 +3664,8 @@ data WalletFollowLog
 
 -- | Log messages from API server actions running in a wallet worker context.
 data WalletLog
-    = MsgSelectionStart UTxO [TxOut]
-    | MsgSelectionForBalancingStart UTxO PartialTx
+    = MsgSelectionStart Int [TxOut]
+    | MsgSelectionForBalancingStart Int PartialTx
     | MsgSelectionError (SelectionError WalletSelectionContext)
     | MsgSelectionReportSummarized SelectionReportSummarized
     | MsgSelectionReportDetailed SelectionReportDetailed
@@ -3707,13 +3706,13 @@ instance ToText WalletFollowLog where
 
 instance ToText WalletLog where
     toText = \case
-        MsgSelectionStart utxo recipients ->
+        MsgSelectionStart utxoSize recipients ->
             "Starting coin selection " <>
-            "|utxo| = "+|UTxO.size utxo|+" " <>
+            "|utxo| = "+|utxoSize|+" " <>
             "#recipients = "+|length recipients|+""
-        MsgSelectionForBalancingStart utxo partialTx ->
+        MsgSelectionForBalancingStart utxoSize partialTx ->
             "Starting coin selection for balancing " <>
-            "|utxo| = "+|UTxO.size utxo|+" " <>
+            "|utxo| = "+|utxoSize|+" " <>
             "partialTx = "+|partialTx|+""
         MsgSelectionError e ->
             "Failed to select assets:\n"+|| e ||+""

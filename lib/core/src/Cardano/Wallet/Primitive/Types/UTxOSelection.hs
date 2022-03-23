@@ -66,6 +66,7 @@ module Cardano.Wallet.Primitive.Types.UTxOSelection
       -- * Accessor functions
     , availableBalance
     , availableMap
+    , availableSize
     , leftoverBalance
     , leftoverSize
     , leftoverIndex
@@ -338,6 +339,11 @@ availableBalance s = leftoverBalance s <> selectedBalance s
 --
 availableMap :: IsUTxOSelection s u => Ord u => s u -> Map u TokenBundle
 availableMap s = leftoverMap s <> selectedMap s
+
+-- | Computes the size of the available UTxO set.
+--
+availableSize :: IsUTxOSelection s u => s u -> Int
+availableSize s = leftoverSize s + selectedSize s
 
 -- | Retrieves the balance of leftover UTxOs.
 --
