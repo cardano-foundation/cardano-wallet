@@ -3217,6 +3217,16 @@ spec = describe "NEW_SHELLEY_TRANSACTIONS" $ do
         let policyWithHash = Link.getPolicyKey @'Shelley wa (Just True)
         (_, policyKeyHashPayload) <-
             unsafeRequest @ApiPolicyKey ctx policyWithHash Empty
+
+        let postPolicyKey = Link.postPolicyKey @'Shelley wa
+        let passwdPayload = Json [json| {
+                "passphrase": #{fixturePassphrase}
+                } |]
+        (_, policyKeyHashPayload') <-
+            unsafeRequest @ApiPolicyKey ctx postPolicyKey passwdPayload
+
+        policyKeyHashPayload `shouldBe` policyKeyHashPayload'
+
         let (Just policyKeyHash) =
                 keyHashFromBytes (Policy, getApiPolicyKey policyKeyHashPayload)
 

@@ -1694,6 +1694,7 @@ data ApiErrorCode
     | ForeignTransaction
     | MissingWitnessesInTransaction
     | CreatedWrongPolicyScriptTemplate
+    | MissingPolicyPublicKey
     deriving (Eq, Generic, Show, Data, Typeable)
     deriving anyclass NFData
 

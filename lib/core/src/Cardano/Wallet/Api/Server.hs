@@ -177,6 +177,7 @@ import Cardano.Wallet
     , ErrWithRootKey (..)
     , ErrWithdrawalNotWorth (..)
     , ErrWitnessTx (..)
+    , ErrWritePolicyPublicKey (..)
     , ErrWrongPassphrase (..)
     , FeeEstimation (..)
     , HasNetworkLayer
@@ -3362,15 +3363,21 @@ getPolicyKey ctx (ApiT wid) hashed = do
         pure $ uncurry ApiPolicyKey (computeKeyPayload hashed k)
 
 postPolicyKey
-    :: forall ctx s k.
-        ( ctx ~ ApiLayer s k
-        , Typeable s
+    :: forall ctx s (n :: NetworkDiscriminant).
+        ( ctx ~ ApiLayer s ShelleyKey
+        , s ~ SeqState n ShelleyKey
         )
     => ctx
     -> ApiT WalletId
     -> ApiPostPolicyKeyData
     -> Handler ApiPolicyKey
-postPolicyKey _ctx (ApiT _wid) _apiPassphrase = undefined
+postPolicyKey ctx (ApiT wid) apiPassphrase =
+    withWorkerCtx @_ @s @ShelleyKey ctx wid liftE liftE $ \wrk -> do
+        k <- liftHandler $ W.writePolicyPublicKey @_ @s @n wrk wid pwd
+        pure $ uncurry ApiPolicyKey (computeKeyPayload hashed (getRawKey k))
+  where
+    pwd = getApiT (apiPassphrase ^. #passphrase)
+    hashed = Just True
 
 {-------------------------------------------------------------------------------
                                   Helpers
@@ -4380,12 +4387,17 @@ instance IsServerError ErrReadPolicyPublicKey where
                 , "Shelley."
                 ]
         ErrReadPolicyPublicKeyAbsent ->
-            apiError err403 InvalidWalletType $ T.unwords
+            apiError err403 MissingPolicyPublicKey $ T.unwords
                 [ "It seems the wallet lacks a policy public key. It's"
                 , "therefore not possible to create a minting or burning"
-                , "transaction. Please restore the wallet from a mnemonic"
-                , "phrase instead of an account public key."
+                , "transaction. Please invoke POST call on endpoint"
+                , "/wallets/{walletId}/policy-key to set it."
                 ]
+
+instance IsServerError ErrWritePolicyPublicKey where
+    toServerError = \case
+        ErrWritePolicyPublicKeyNoSuchWallet e -> toServerError e
+        ErrWritePolicyPublicKeyWithRootKey  e -> toServerError e
 
 instance IsServerError ErrCreateRandomAddress where
     toServerError = \case

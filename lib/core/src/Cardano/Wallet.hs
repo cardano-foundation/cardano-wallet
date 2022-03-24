@@ -94,6 +94,7 @@ module Cardano.Wallet
     , ErrWalletNotResponding (..)
     , ErrReadRewardAccount (..)
     , ErrReadPolicyPublicKey (..)
+    , ErrWritePolicyPublicKey (..)
 
     -- * Shared Wallet
     , updateCosigner

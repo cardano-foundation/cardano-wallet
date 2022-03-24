@@ -4478,6 +4478,17 @@ x-errInvalidWalletType: &errInvalidWalletType
       type: string
       enum: ['invalid_wallet_type']
 
+x-errMissingPolicyPublicKey: &errMissingPolicyPublicKey
+  <<: *responsesErr
+  title: missing_policy_public_key
+  properties:
+    message:
+      type: string
+      description: Occurs when trying to construct with minting/burning on shelley wallet without policy public key.
+    code:
+      type: string
+      enum: ['missing_policy_public_key']
+
 x-errQueryParamMissing: &errQueryParamMissing
   <<: *responsesErr
   title: query_param_missing
@@ -5270,6 +5281,14 @@ x-responsesPostPolicyKey: &responsesPostPolicyKey
 
 x-responsesGetPolicyKey: &responsesGetPolicyKey
   <<: *responsesErr400
+  403:
+    description: Forbidden
+    content:
+      application/json:
+        schema:
+          oneOf:
+            - <<: *errInvalidWalletType
+            - <<: *errMissingPolicyPublicKey
   <<: *responsesErr404
   <<: *responsesErr406
   200:
