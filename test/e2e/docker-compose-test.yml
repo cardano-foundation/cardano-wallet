@@ -15,7 +15,7 @@ services:
     container_name: cardano-wallet
     image: inputoutput/cardano-wallet:${WALLET}
     volumes:
-      - wallet-shelley-db:/wallet-db
+      - ${WALLET_DATA}:/wallet-db
       - node-ipc:/ipc
       - ${NODE_CONFIG_PATH}:/config
     ports:
@@ -24,5 +24,4 @@ services:
     restart: on-failure
 
 volumes:
-  wallet-shelley-db:
   node-ipc:
