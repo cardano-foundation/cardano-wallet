@@ -108,12 +108,34 @@ Serve API that listens for commands/actions. Before launching user should start 
 
 :::{.cli}
 ```
-cardano-wallet serve
+Usage: cardano-wallet serve [--listen-address HOST]
+                            (--node-socket FILE | --light
+                              --blockfrost-token-file FILE)
+                            [--random-port | --port INT]
+                            [--tls-ca-cert FILE --tls-sv-cert FILE
+                              --tls-sv-key FILE]
+                            (--mainnet | --testnet FILE | --staging FILE)
+                            [--database DIR] [--sync-tolerance DURATION]
+                            [--shutdown-handler]
+                            [--pool-metadata-fetching ( none | direct | SMASH-URL )]
+                            [--token-metadata-server URL]
+                            [--trace-NAME SEVERITY]
+  Serve API that listens for commands/actions.
+
+Available options:
 
   --help-tracing           Show help for tracing options
-  --listen-address HOST    Specification of which host to the bind API server
-                           to. Can be an IPv[46] address, hostname, or
-                           '*'. (default: 127.0.0.1)
+  --listen-address HOST    Specification of which host to bind the API server
+                           to. Can be an IPv[46] address, hostname, or '*'.
+                           (default: 127.0.0.1)
+  --node-socket FILE       Path to the node's domain socket file (POSIX) or pipe
+                           name (Windows). Note: Maximum length for POSIX socket
+                           files is approx. 100 bytes. Note: Windows named pipes
+                           are of the form \\.\pipe\cardano-node
+  --light                  Enable light mode
+  --blockfrost-token-file FILE
+                           FILE contains an authentication token for BlockFrost
+                           Cardano API (https://blockfrost.io).
   --random-port            serve wallet API on any available port (conflicts
                            with --port)
   --port INT               port used for serving the wallet API. (default: 8090)
@@ -121,8 +143,6 @@ cardano-wallet serve
   --tls-sv-cert FILE       A x.509 Server (SV) certificate.
   --tls-sv-key FILE        The RSA Server key which signed the x.509 server
                            certificate.
-  --node-socket FILE       Path to the node's domain socket (POSIX)
-                           or pipe name (Windows).
   --mainnet                Use Cardano mainnet protocol
   --testnet FILE           Path to the byron genesis data in JSON format.
   --staging FILE           Path to the byron genesis data in JSON format.
@@ -147,21 +167,17 @@ cardano-wallet serve
                            metadata will not be fetched. By using this option,
                            you are fully trusting the operator of the metadata
                            server to provide authentic token metadata.
-  --no-cache-listpools     Do not cache the stake-pools listing.
-  --cache-listpools-ttl TTL
-                           Cache time to live (TTL) for stake-pools listing.
-                           Expressed in seconds with a trailing 's'.
-                           (default: 3600s)
   --log-level SEVERITY     Global minimum severity for a message to be logged.
                            Individual tracers severities still need to be
                            configured independently. Defaults to "DEBUG".
   --trace-NAME SEVERITY    Individual component severity for 'NAME'. See
-                               --help-tracing for details and available tracers.
-
+                           --help-tracing for details and available tracers.
 ```
 :::
 
 #### Minimal Arguments
+
+> :information_source: More information on starting the wallet server can be found in [[how-to-start-wallet-server]].
 
 In order to start the wallet server, you'll need to provide _at least_ the path to cardano-node's socket/pipe and a target network. That socket is automatically created when starting a cardano-node and it exists so long as the node remains running.
 
