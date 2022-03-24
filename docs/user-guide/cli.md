@@ -108,7 +108,21 @@ Serve API that listens for commands/actions. Before launching user should start 
 
 :::{.cli}
 ```
-cardano-wallet serve
+Usage: cardano-wallet serve [--listen-address HOST]
+                            (--node-socket FILE | --light
+                              --blockfrost-token-file FILE)
+                            [--random-port | --port INT]
+                            [--tls-ca-cert FILE --tls-sv-cert FILE
+                              --tls-sv-key FILE]
+                            (--mainnet | --testnet FILE | --staging FILE)
+                            [--database DIR] [--sync-tolerance DURATION]
+                            [--shutdown-handler]
+                            [--pool-metadata-fetching ( none | direct | SMASH-URL )]
+                            [--token-metadata-server URL]
+                            [--trace-NAME SEVERITY]
+  Serve API that listens for commands/actions.
+
+Available options:
 
   --help-tracing           Show help for tracing options
   --listen-address HOST    Specification of which host to bind the API server
