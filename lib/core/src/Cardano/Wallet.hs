@@ -83,6 +83,7 @@ module Cardano.Wallet
     , readRewardAccount
     , someRewardAccount
     , readPolicyPublicKey
+    , writePolicyPublicKey
     , queryRewardBalance
     , ErrWalletAlreadyExists (..)
     , ErrNoSuchWallet (..)
@@ -260,7 +261,7 @@ import Cardano.Wallet.DB
 import Cardano.Wallet.DB.Checkpoints
     ( DeltaCheckpoints (..) )
 import Cardano.Wallet.DB.Sqlite.AddressBook
-    ( AddressBookIso, getPrologue )
+    ( AddressBookIso, Prologue (..), getPrologue )
 import Cardano.Wallet.DB.WalletState
     ( DeltaMap (..), DeltaWalletState1 (..), fromWallet, getLatest, getSlot )
 import Cardano.Wallet.Logging
@@ -307,7 +308,7 @@ import Cardano.Wallet.Primitive.AddressDerivation.Byron
 import Cardano.Wallet.Primitive.AddressDerivation.Icarus
     ( IcarusKey )
 import Cardano.Wallet.Primitive.AddressDerivation.MintBurn
-    ( policyDerivationPath )
+    ( derivePolicyPrivateKey, policyDerivationPath )
 import Cardano.Wallet.Primitive.AddressDerivation.SharedKey
     ( SharedKey (..) )
 import Cardano.Wallet.Primitive.AddressDerivation.Shelley
@@ -517,7 +518,7 @@ import Data.Function
 import Data.Functor
     ( ($>) )
 import Data.Generics.Internal.VL.Lens
-    ( Lens', view, (^.) )
+    ( Lens', view, (.~), (^.) )
 import Data.Generics.Labels
     ()
 import Data.Generics.Product.Typed
@@ -3237,28 +3238,36 @@ readAccountPublicKey ctx wid = db & \DBLayer{..} -> do
     db = ctx ^. dbLayer @IO @s @k
 
 writePolicyPublicKey
-    :: forall ctx s k.
-        ( HasDBLayer IO s k ctx
-        , WalletKey k
-        , GetPurpose k
+    :: forall ctx s (n :: NetworkDiscriminant).
+        ( HasDBLayer IO s ShelleyKey ctx
+        , s ~ SeqState n ShelleyKey
         )
     => ctx
     -> WalletId
     -> Passphrase "raw"
-    -> ExceptT ErrWritePolicyPublicKey IO (k 'PolicyK XPub)
+    -> ExceptT ErrWritePolicyPublicKey IO (ShelleyKey 'PolicyK XPub)
 writePolicyPublicKey ctx wid pwd = db & \DBLayer{..} -> do
     cp <- mapExceptT atomically
         $ withExceptT ErrWritePolicyPublicKeyNoSuchWallet
         $ withNoSuchWallet wid
         $ readCheckpoint wid
 
-    withRootKey @ctx @s @k ctx wid pwd ErrWritePolicyPublicKey
+    let (SeqPrologue seqState) = getPrologue $ getState cp
+
+    policyXPub <- withRootKey @ctx @s @ShelleyKey ctx wid pwd ErrWritePolicyPublicKeyWithRootKey
         $ \rootK scheme -> do
             let encPwd = preparePassphrase scheme pwd
             let xprv = derivePolicyPrivateKey encPwd (getRawKey rootK) minBound
             pure $ liftRawKey $ toXPub xprv
+
+    let seqState' = seqState & #policyXPub .~ Just policyXPub
+    ExceptT $ atomically $ modifyDBMaybe walletsDB $
+        adjustNoSuchWallet wid ErrWritePolicyPublicKeyNoSuchWallet $
+        \_ -> Right ( [ReplacePrologue $ SeqPrologue seqState'], () )
+
+    pure policyXPub
   where
-    db = ctx ^. dbLayer @IO @s @k
+    db = ctx ^. dbLayer @IO @s @ShelleyKey
 
 -- | Retrieve any public account key of a wallet.
 getAccountPublicKeyAtIndex
