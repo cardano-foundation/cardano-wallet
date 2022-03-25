@@ -158,10 +158,7 @@ prop_shrinkUTxOSelectionNonEmpty =
         <$> shrinkUTxOSelectionNonEmpty (shrink @TestUTxO) s
 
 checkCoverage_UTxOSelection
-    :: Testable p
-    => IsUTxOSelection s TestUTxO
-    => s TestUTxO
-    -> (p -> Property)
+    :: Testable p => IsUTxOSelection s u => s u -> (p -> Property)
 checkCoverage_UTxOSelection s
     = checkCoverage_UTxOSelectionNonEmpty s
     . cover 2 (0 == ssize && ssize == lsize) "0 == lsize && lsize == ssize"
@@ -171,10 +168,7 @@ checkCoverage_UTxOSelection s
     ssize = UTxOSelection.selectedSize s
 
 checkCoverage_UTxOSelectionNonEmpty
-    :: Testable p
-    => IsUTxOSelection s TestUTxO
-    => s TestUTxO
-    -> (p -> Property)
+    :: Testable p => IsUTxOSelection s u => s u -> (p -> Property)
 checkCoverage_UTxOSelectionNonEmpty s
     = checkCoverage
     . cover 2 (0 == lsize && lsize <  ssize) "0 == lsize && lsize <  ssize"
@@ -390,10 +384,7 @@ prop_selectMany_selectedSize_all s =
     === (UTxOSelection.leftoverSize s + UTxOSelection.selectedSize s)
 
 checkCoverage_select
-    :: Testable prop
-    => TestUTxO
-    -> UTxOSelection TestUTxO
-    -> (prop -> Property)
+    :: (Testable prop, Ord u) => u -> UTxOSelection u -> (prop -> Property)
 checkCoverage_select u s
     = checkCoverage
     . cover 10 (UTxOSelection.isLeftover u s)
@@ -407,12 +398,12 @@ checkCoverage_select u s
 -- Validity
 --------------------------------------------------------------------------------
 
-isValidSelection :: IsUTxOSelection s TestUTxO => s TestUTxO -> Bool
+isValidSelection :: Ord u => IsUTxOSelection s u => s u -> Bool
 isValidSelection s = UTxOIndex.disjoint
     (UTxOSelection.selectedIndex s)
     (UTxOSelection.leftoverIndex s)
 
-isValidSelectionNonEmpty :: UTxOSelectionNonEmpty TestUTxO -> Bool
+isValidSelectionNonEmpty :: Ord u => UTxOSelectionNonEmpty u -> Bool
 isValidSelectionNonEmpty s =
     isValidSelection s
     && UTxOSelection.isNonEmpty s
