@@ -1,9 +1,11 @@
 {-# LANGUAGE BangPatterns #-}
+{-# LANGUAGE DataKinds #-}
 {-# LANGUAGE DerivingVia #-}
 {-# LANGUAGE FlexibleInstances #-}
 {-# LANGUAGE LambdaCase #-}
 {-# LANGUAGE NumericUnderscores #-}
 {-# LANGUAGE TypeApplications #-}
+{-# LANGUAGE TypeFamilies #-}
 {-# OPTIONS_GHC -fno-warn-orphans #-}
 {- HLINT ignore "Use camelCase" -}
 
@@ -64,7 +66,7 @@ import Test.QuickCheck.Classes
 import Test.QuickCheck.Monadic
     ( assert, monadicIO, monitor, run )
 import Test.QuickCheck.Quid
-    ( Hexadecimal (..), Quid )
+    ( Hexadecimal (..), Quid, Size (..) )
 import Test.Utils.Laws
     ( testLawsMany )
 
@@ -182,17 +184,17 @@ spec =
 -- Invariant properties
 --------------------------------------------------------------------------------
 
-invariantHolds :: UTxOIndex TestUTxO -> Property
+invariantHolds :: Ord u => UTxOIndex u -> Property
 invariantHolds i = checkInvariant i === InvariantHolds
 
 prop_arbitrary_invariant :: UTxOIndex TestUTxO -> Property
 prop_arbitrary_invariant = invariantHolds
 
-prop_shrink_invariant :: UTxOIndex TestUTxO -> Property
+prop_shrink_invariant :: u ~ Size 4 TestUTxO => UTxOIndex u -> Property
 prop_shrink_invariant = conjoin . fmap invariantHolds . shrink
 
 prop_empty_invariant :: Property
-prop_empty_invariant = invariantHolds UTxOIndex.empty
+prop_empty_invariant = invariantHolds (UTxOIndex.empty @TestUTxO)
 
 prop_singleton_invariant :: TestUTxO -> TokenBundle -> Property
 prop_singleton_invariant u b = invariantHolds $ UTxOIndex.singleton u b
@@ -201,10 +203,11 @@ prop_fromSequence_invariant :: [(TestUTxO, TokenBundle)] -> Property
 prop_fromSequence_invariant = invariantHolds . UTxOIndex.fromSequence
 
 prop_insert_invariant
-    :: TestUTxO -> TokenBundle -> UTxOIndex TestUTxO -> Property
+    :: u ~ TestUTxO => u -> TokenBundle -> UTxOIndex u -> Property
 prop_insert_invariant u b i = invariantHolds $ UTxOIndex.insert u b i
 
-prop_delete_invariant :: TestUTxO -> UTxOIndex TestUTxO -> Property
+prop_delete_invariant
+    :: u ~ TestUTxO => u -> UTxOIndex u -> Property
 prop_delete_invariant u i = invariantHolds $ UTxOIndex.delete u i
 
 prop_selectRandom_invariant
@@ -246,7 +249,8 @@ checkCoverage_modify u i
     . cover 30 (not $ UTxOIndex.member u i)
         "UTxO is not a member of the index"
 
-prop_delete_balance :: TestUTxO -> UTxOIndex TestUTxO -> Property
+prop_delete_balance
+    :: u ~ Size 4 TestUTxO => u -> UTxOIndex u -> Property
 prop_delete_balance u i =
     checkCoverage_modify u i $
     UTxOIndex.balance (UTxOIndex.delete u i) === expected
@@ -257,12 +261,14 @@ prop_delete_balance u i =
         Just b ->
             UTxOIndex.balance i `TokenBundle.unsafeSubtract` b
 
-prop_delete_lookup :: TestUTxO -> UTxOIndex TestUTxO -> Property
+prop_delete_lookup
+    :: u ~ Size 4 TestUTxO => u -> UTxOIndex u -> Property
 prop_delete_lookup u i =
     checkCoverage_modify u i $
     UTxOIndex.lookup u (UTxOIndex.delete u i) === Nothing
 
-prop_delete_size :: TestUTxO -> UTxOIndex TestUTxO -> Property
+prop_delete_size
+    :: u ~ Size 4 TestUTxO => u -> UTxOIndex u -> Property
 prop_delete_size u i =
     checkCoverage_modify u i $
     UTxOIndex.size (UTxOIndex.delete u i) === expected
@@ -274,7 +280,7 @@ prop_delete_size u i =
             UTxOIndex.size i - 1
 
 prop_insert_assets
-    :: TestUTxO -> TokenBundle -> UTxOIndex TestUTxO -> Property
+    :: u ~ Size 4 TestUTxO => u -> TokenBundle -> UTxOIndex u -> Property
 prop_insert_assets u b i =
     checkCoverage_modify u i $
     UTxOIndex.assets (UTxOIndex.insert u b i)
@@ -283,7 +289,7 @@ prop_insert_assets u b i =
     insertedAssets = TokenBundle.getAssets b
 
 prop_insert_balance
-    :: TestUTxO -> TokenBundle -> UTxOIndex TestUTxO -> Property
+    :: u ~ Size 4 TestUTxO => u -> TokenBundle -> UTxOIndex u -> Property
 prop_insert_balance u b i =
     checkCoverage_modify u i $
     UTxOIndex.balance (UTxOIndex.insert u b i) === expected
@@ -295,7 +301,7 @@ prop_insert_balance u b i =
             UTxOIndex.balance i `TokenBundle.unsafeSubtract` b'
 
 prop_insert_delete
-    :: TestUTxO -> TokenBundle -> UTxOIndex TestUTxO -> Property
+    :: u ~ Size 4 TestUTxO => u -> TokenBundle -> UTxOIndex u -> Property
 prop_insert_delete u b i =
     checkCoverage_modify u i $
     UTxOIndex.delete u (UTxOIndex.insert u b i) === expected
@@ -304,13 +310,13 @@ prop_insert_delete u b i =
         if UTxOIndex.member u i then UTxOIndex.delete u i else i
 
 prop_insert_lookup
-    :: TestUTxO -> TokenBundle -> UTxOIndex TestUTxO -> Property
+    :: u ~ Size 4 TestUTxO => u -> TokenBundle -> UTxOIndex u -> Property
 prop_insert_lookup u b i =
     checkCoverage_modify u i $
     UTxOIndex.lookup u (UTxOIndex.insert u b i) === Just b
 
 prop_insert_size
-    :: TestUTxO -> TokenBundle -> UTxOIndex TestUTxO -> Property
+    :: u ~ Size 4 TestUTxO => u -> TokenBundle -> UTxOIndex u -> Property
 prop_insert_size u b i =
     checkCoverage_modify u i $
     UTxOIndex.size (UTxOIndex.insert u b i) === expected
@@ -724,10 +730,10 @@ prop_selectRandomSetMember_coversRangeUniformly i j =
 -- the selected entries removed.
 --
 selectAll
-    :: MonadRandom m
+    :: (MonadRandom m, u ~ TestUTxO)
     => SelectionFilter
-    -> UTxOIndex TestUTxO
-    -> m ([(TestUTxO, TokenBundle)], UTxOIndex TestUTxO)
+    -> UTxOIndex u
+    -> m ([(u, TokenBundle)], UTxOIndex u)
 selectAll sf = go []
   where
     go !selectedEntries !i = do
@@ -770,9 +776,9 @@ instance Arbitrary AssetId where
     arbitrary = genAssetId
     shrink = shrinkAssetId
 
-instance Arbitrary (UTxOIndex TestUTxO) where
-    arbitrary = genUTxOIndex (arbitrary @TestUTxO)
-    shrink = shrinkUTxOIndex (shrink @TestUTxO)
+instance (Arbitrary u, Ord u) => Arbitrary (UTxOIndex u) where
+    arbitrary = genUTxOIndex arbitrary
+    shrink = shrinkUTxOIndex shrink
 
 instance Arbitrary TokenBundle where
     arbitrary = genTokenBundleSmallRangePositive
