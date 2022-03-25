@@ -325,6 +325,11 @@ prop_insert_delete u b i =
 prop_insert_lookup
     :: WalletUTxO -> TokenBundle -> UTxOIndex WalletUTxO -> Property
 prop_insert_lookup u b i =
+    checkCoverage $
+    cover 30 (UTxOIndex.member u i)
+        "input is already a member of the index" $
+    cover 30 (not $ UTxOIndex.member u i)
+        "input is not already a member of the index" $
     UTxOIndex.lookup u (UTxOIndex.insert u b i) === Just b
 
 prop_insert_size
