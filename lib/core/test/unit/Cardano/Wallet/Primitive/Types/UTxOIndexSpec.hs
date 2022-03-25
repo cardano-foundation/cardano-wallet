@@ -263,6 +263,11 @@ prop_delete_balance u i =
 
 prop_delete_lookup :: WalletUTxO -> UTxOIndex WalletUTxO -> Property
 prop_delete_lookup u i =
+    checkCoverage $
+    cover 30 (UTxOIndex.member u i)
+        "input is a member of the index" $
+    cover 30 (not $ UTxOIndex.member u i)
+        "input is not a member of the index" $
     UTxOIndex.lookup u (UTxOIndex.delete u i) === Nothing
 
 prop_delete_size :: WalletUTxO -> UTxOIndex WalletUTxO -> Property
