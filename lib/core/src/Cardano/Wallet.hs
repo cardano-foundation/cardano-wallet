@@ -214,7 +214,7 @@ import Prelude hiding
 import Cardano.Address.Derivation
     ( XPrv, XPub )
 import Cardano.Address.Script
-    ( Cosigner (..) )
+    ( Cosigner (..), KeyHash )
 import Cardano.Api
     ( serialiseToCBOR )
 import Cardano.BM.Data.Severity
@@ -300,6 +300,7 @@ import Cardano.Wallet.Primitive.AddressDerivation
     , checkPassphrase
     , deriveRewardAccount
     , encryptPassphrase
+    , hashVerificationKey
     , liftIndex
     , preparePassphrase
     , stakeDerivationPath
@@ -586,6 +587,7 @@ import UnliftIO.Exception
 import UnliftIO.MVar
     ( modifyMVar_, newMVar )
 
+import qualified Cardano.Address.Script as CA
 import qualified Cardano.Api as Cardano
 import qualified Cardano.Api.Shelley as Cardano
 import qualified Cardano.Crypto.Wallet as CC
@@ -2323,12 +2325,20 @@ signTransaction tl era keyLookup (rootKey, rootPwd) utxo =
         rewardAcnt =
             (getRawKey $ deriveRewardAccount @k rootPwd rootKey, rootPwd)
 
+        policyKey :: (KeyHash, XPrv, Passphrase "encryption")
+        policyKey =
+            let xprv =
+                    derivePolicyPrivateKey rootPwd (getRawKey rootKey) minBound
+            in (  hashVerificationKey @k CA.Policy $ liftRawKey $ toXPub xprv
+                , xprv
+                , rootPwd)
+
         inputResolver :: TxIn -> Maybe Address
         inputResolver i = do
             TxOut addr _ <- UTxO.lookup i utxo
             pure addr
     in
-        addVkWitnesses tl era rewardAcnt keyLookup inputResolver
+        addVkWitnesses tl era rewardAcnt policyKey keyLookup inputResolver
 
 -- | Produce witnesses and construct a transaction from a given selection.
 --

@@ -3211,8 +3211,8 @@ spec = describe "NEW_SHELLEY_TRANSACTIONS" $ do
             [ expectResponseCode HTTP.status202
             ]
 
-        let txCbor = getFromResponse #transaction rTx
-        let decodePayload = Json (toJSON $ ApiSerialisedTransaction txCbor)
+        let txCbor1 = getFromResponse #transaction rTx
+        let decodePayload1 = Json (toJSON $ ApiSerialisedTransaction txCbor1)
 
         let policyWithHash = Link.getPolicyKey @'Shelley wa (Just True)
         (_, policyKeyHashPayload) <-
@@ -3265,9 +3265,21 @@ spec = describe "NEW_SHELLEY_TRANSACTIONS" $ do
         let mintInfo = getFromResponse #mintBurn rTx
         mintInfo `shouldBe` mintInfoExpected
 
-        rDecodedTx <- request @(ApiDecodedTransaction n) ctx
-            (Link.decodeTransaction @'Shelley wa) Default decodePayload
-        verify rDecodedTx
+        rDecodedTx1 <- request @(ApiDecodedTransaction n) ctx
+            (Link.decodeTransaction @'Shelley wa) Default decodePayload1
+        verify rDecodedTx1
+            [ expectResponseCode HTTP.status202
+            , expectField #assetsMinted (`shouldBe` activeAssetsInfo)
+            , expectField #assetsBurned (`shouldBe` inactiveAssetsInfo)
+            ]
+
+        let apiTx = getFromResponse #transaction rTx
+        signedTx <- signTx ctx wa apiTx [ expectResponseCode HTTP.status202 ]
+        let txCbor2 = getFromResponse #transaction (HTTP.status202, Right signedTx)
+        let decodePayload2 = Json (toJSON $ ApiSerialisedTransaction txCbor2)
+        rDecodedTx2 <- request @(ApiDecodedTransaction n) ctx
+            (Link.decodeTransaction @'Shelley wa) Default decodePayload2
+        verify rDecodedTx2
             [ expectResponseCode HTTP.status202
             , expectField #assetsMinted (`shouldBe` activeAssetsInfo)
             , expectField #assetsBurned (`shouldBe` inactiveAssetsInfo)

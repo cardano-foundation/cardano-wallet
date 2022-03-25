@@ -135,6 +135,8 @@ data TransactionLayer k tx = TransactionLayer
             -- Era for which the transaction should be created.
         -> (XPrv, Passphrase "encryption")
             -- Reward account
+        -> (KeyHash, XPrv, Passphrase "encryption")
+            -- policy public and private key
         -> (Address -> Maybe (k 'AddressK XPrv, Passphrase "encryption"))
             -- Key store / address resolution
         -> (TxIn -> Maybe Address)
