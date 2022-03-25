@@ -1,8 +1,10 @@
+{-# LANGUAGE DataKinds #-}
 {-# LANGUAGE DerivingVia #-}
 {-# LANGUAGE ExplicitForAll #-}
 {-# LANGUAGE FlexibleContexts #-}
 {-# LANGUAGE FlexibleInstances #-}
 {-# LANGUAGE TypeApplications #-}
+{-# LANGUAGE TypeFamilies #-}
 {-# OPTIONS_GHC -fno-warn-orphans #-}
 {- HLINT ignore "Use camelCase" -}
 
@@ -41,7 +43,7 @@ import Test.QuickCheck
     , (===)
     )
 import Test.QuickCheck.Quid
-    ( Hexadecimal (..), Quid )
+    ( Hexadecimal (..), Quid, Size (..) )
 
 import qualified Cardano.Wallet.Primitive.Types.TokenBundle as TokenBundle
 import qualified Cardano.Wallet.Primitive.Types.UTxOIndex as UTxOIndex
@@ -148,14 +150,14 @@ prop_genUTxOSelectionNonEmpty =
 
 prop_shrinkUTxOSelection :: Property
 prop_shrinkUTxOSelection =
-    forAll (genUTxOSelection (arbitrary @TestUTxO)) $ \s ->
-    conjoin (isValidSelection <$> shrinkUTxOSelection (shrink @TestUTxO) s)
+    forAll (genUTxOSelection (arbitrary @(Size 4 TestUTxO))) $ \s ->
+    conjoin (isValidSelection <$> shrinkUTxOSelection shrink s)
 
 prop_shrinkUTxOSelectionNonEmpty :: Property
 prop_shrinkUTxOSelectionNonEmpty =
-    forAll (genUTxOSelectionNonEmpty (arbitrary @TestUTxO)) $ \s ->
+    forAll (genUTxOSelectionNonEmpty (arbitrary @(Size 4 TestUTxO))) $ \s ->
     conjoin $ isValidSelectionNonEmpty
-        <$> shrinkUTxOSelectionNonEmpty (shrink @TestUTxO) s
+        <$> shrinkUTxOSelectionNonEmpty shrink s
 
 checkCoverage_UTxOSelection
     :: Testable p => IsUTxOSelection s u => s u -> (p -> Property)
@@ -296,19 +298,22 @@ prop_select_empty :: TestUTxO -> Property
 prop_select_empty u =
     UTxOSelection.select u UTxOSelection.empty === Nothing
 
-prop_select_isValid :: TestUTxO -> UTxOSelection TestUTxO -> Property
+prop_select_isValid
+    :: u ~ Size 4 TestUTxO => u -> UTxOSelection u -> Property
 prop_select_isValid u s = property $
     checkCoverage_select u s $
     maybe True isValidSelectionNonEmpty (UTxOSelection.select u s)
 
-prop_select_isLeftover :: TestUTxO -> UTxOSelection TestUTxO -> Property
+prop_select_isLeftover
+    :: u ~ Size 4 TestUTxO => u -> UTxOSelection u -> Property
 prop_select_isLeftover u s =
     checkCoverage_select u s $
     (UTxOSelection.isLeftover u <$> UTxOSelection.select u s)
     ===
     if UTxOSelection.isLeftover u s then Just False else Nothing
 
-prop_select_isSelected :: TestUTxO -> UTxOSelection TestUTxO -> Property
+prop_select_isSelected
+    :: u ~ Size 4 TestUTxO => u -> UTxOSelection u -> Property
 prop_select_isSelected u s =
     checkCoverage_select u s $
     (UTxOSelection.isSelected u <$> UTxOSelection.select u s)
@@ -316,7 +321,7 @@ prop_select_isSelected u s =
     if UTxOSelection.isLeftover u s then Just True else Nothing
 
 prop_select_isProperSubSelectionOf
-    :: TestUTxO -> UTxOSelection TestUTxO -> Property
+    :: u ~ Size 4 TestUTxO => u -> UTxOSelection u -> Property
 prop_select_isProperSubSelectionOf u s =
     checkCoverage_select u s $
     (UTxOSelection.isProperSubSelectionOf s <$> UTxOSelection.select u s)
@@ -324,7 +329,7 @@ prop_select_isProperSubSelectionOf u s =
     if UTxOSelection.isLeftover u s then Just True else Nothing
 
 prop_select_availableBalance
-    :: TestUTxO -> UTxOSelection TestUTxO -> Property
+    :: u ~ Size 4 TestUTxO => u -> UTxOSelection u -> Property
 prop_select_availableBalance u s =
     checkCoverage_select u s $
     (UTxOSelection.availableBalance <$> UTxOSelection.select u s)
@@ -333,7 +338,8 @@ prop_select_availableBalance u s =
     then Just (UTxOSelection.availableBalance s)
     else Nothing
 
-prop_select_availableMap :: TestUTxO -> UTxOSelection TestUTxO -> Property
+prop_select_availableMap
+    :: u ~ Size 4 TestUTxO => u -> UTxOSelection u -> Property
 prop_select_availableMap u s =
     checkCoverage_select u s $
     (UTxOSelection.availableMap <$> UTxOSelection.select u s)
@@ -342,7 +348,8 @@ prop_select_availableMap u s =
     then Just (UTxOSelection.availableMap s)
     else Nothing
 
-prop_select_leftoverSize :: TestUTxO -> UTxOSelection TestUTxO -> Property
+prop_select_leftoverSize
+    :: u ~ Size 4 TestUTxO => u -> UTxOSelection u -> Property
 prop_select_leftoverSize u s =
     checkCoverage_select u s $
     (UTxOSelection.leftoverSize <$> UTxOSelection.select u s)
@@ -351,7 +358,8 @@ prop_select_leftoverSize u s =
     then Just (UTxOSelection.leftoverSize s - 1)
     else Nothing
 
-prop_select_selectedSize :: TestUTxO -> UTxOSelection TestUTxO -> Property
+prop_select_selectedSize
+    :: u ~ Size 4 TestUTxO => u -> UTxOSelection u -> Property
 prop_select_selectedSize u s =
     checkCoverage_select u s $
     (UTxOSelection.selectedSize <$> UTxOSelection.select u s)
