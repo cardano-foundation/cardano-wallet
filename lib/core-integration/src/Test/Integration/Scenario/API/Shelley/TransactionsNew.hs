@@ -3285,6 +3285,12 @@ spec = describe "NEW_SHELLEY_TRANSACTIONS" $ do
             , expectField #assetsBurned (`shouldBe` inactiveAssetsInfo)
             ]
 
+        submittedTx <- submitTxWithWid ctx wa signedTx
+        verify submittedTx
+            [ expectSuccess
+            , expectResponseCode HTTP.status202
+            ]
+
     it "TRANS_NEW_CREATE_10e - Burning assets" $ \ctx -> runResourceT $ do
         wa <- fixtureWallet ctx
 
