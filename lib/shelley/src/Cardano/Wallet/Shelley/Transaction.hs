@@ -263,6 +263,7 @@ import qualified Data.Sequence.Strict as StrictSeq
 import qualified Data.Set as Set
 import qualified Data.Text as T
 
+import qualified Debug.Trace as TR
 
 -- | Type encapsulating what we need to know to add things -- payloads,
 -- certificates -- to a transaction.
@@ -1397,8 +1398,9 @@ mkTxSkeleton witness context skeleton = TxSkeleton
     , txInputCount = view #skeletonInputCount skeleton
     , txOutputs = view #skeletonOutputs skeleton
     , txChange = view #skeletonChange skeleton
-    -- Until we actually support minting and burning, leave these as empty.
-    , txScripts = []
+    , txScripts = (<>)
+        (Map.elems (snd $ view #txAssetsToMint context))
+        (Map.elems (snd $ view #txAssetsToBurn context))
     , txAssetsToMintOrBurn = (<>)
         (TokenMap.getAssets (fst $ view #txAssetsToMint context))
         (TokenMap.getAssets (fst $ view #txAssetsToBurn context))
@@ -1430,7 +1432,7 @@ estimateTxCost pp skeleton =
 --
 estimateTxSize :: TxSkeleton -> TxSize
 estimateTxSize skeleton =
-    TxSize $ fromIntegral sizeOf_Transaction
+    TR.trace ("skeleton:"<> show skeleton) $ TxSize $ fromIntegral sizeOf_Transaction
   where
     TxSkeleton
         { txMetadata

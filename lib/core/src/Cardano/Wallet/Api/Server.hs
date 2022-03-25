@@ -2251,21 +2251,6 @@ constructTransaction ctx genChange knownPools getPoolStatus (ApiT wid) body = do
 
         (utxoAvailable, wallet, pendingTxs) <-
             liftHandler $ W.readWalletUTxOIndex @_ @s @k wrk wid
-        let runSelection outs =
-                W.selectAssets @_ @_ @s @k wrk pp selectAssetsParams transform
-              where
-                selectAssetsParams = W.SelectAssetsParams
-                    { outputs = outs
-                    , pendingTxs
-                    , randomSeed = Nothing
-                    , txContext = txCtx
-                    , utxoAvailableForInputs =
-                        UTxOSelection.fromIndex utxoAvailable
-                    , utxoAvailableForCollateral =
-                        UTxOIndex.toMap utxoAvailable
-                    , wallet
-                    , selectionStrategy = SelectionStrategyOptimal
-                    }
         txCtx' <-
             if isJust mintingBurning then do
                 (policyXPub, _) <-
@@ -2316,6 +2301,22 @@ constructTransaction ctx genChange knownPools getPoolStatus (ApiT wid) body = do
                     }
             else
                 pure txCtx
+
+        let runSelection outs =
+                W.selectAssets @_ @_ @s @k wrk pp selectAssetsParams transform
+              where
+                selectAssetsParams = W.SelectAssetsParams
+                    { outputs = outs
+                    , pendingTxs
+                    , randomSeed = Nothing
+                    , txContext = txCtx'
+                    , utxoAvailableForInputs =
+                        UTxOSelection.fromIndex utxoAvailable
+                    , utxoAvailableForCollateral =
+                        UTxOIndex.toMap utxoAvailable
+                    , wallet
+                    , selectionStrategy = SelectionStrategyOptimal
+                    }
 
         (sel, sel', fee) <- do
             outs <- case (body ^. #payments) of
