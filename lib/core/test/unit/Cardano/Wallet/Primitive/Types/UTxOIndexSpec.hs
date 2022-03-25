@@ -1,4 +1,5 @@
 {-# LANGUAGE BangPatterns #-}
+{-# LANGUAGE DerivingVia #-}
 {-# LANGUAGE FlexibleInstances #-}
 {-# LANGUAGE LambdaCase #-}
 {-# LANGUAGE NumericUnderscores #-}
@@ -12,14 +13,6 @@ module Cardano.Wallet.Primitive.Types.UTxOIndexSpec
 
 import Prelude
 
-import Cardano.Wallet.CoinSelection
-    ( WalletUTxO (..) )
-import Cardano.Wallet.CoinSelection.Gen
-    ( coarbitraryWalletUTxO, genWalletUTxO, shrinkWalletUTxO )
-import Cardano.Wallet.Primitive.Types.Address
-    ( Address )
-import Cardano.Wallet.Primitive.Types.Address.Gen
-    ( coarbitraryAddress )
 import Cardano.Wallet.Primitive.Types.TokenBundle
     ( TokenBundle )
 import Cardano.Wallet.Primitive.Types.TokenBundle.Gen
@@ -28,10 +21,6 @@ import Cardano.Wallet.Primitive.Types.TokenMap
     ( AssetId )
 import Cardano.Wallet.Primitive.Types.TokenMap.Gen
     ( genAssetId, shrinkAssetId )
-import Cardano.Wallet.Primitive.Types.Tx
-    ( TxIn, TxOut (..) )
-import Cardano.Wallet.Primitive.Types.Tx.Gen
-    ( coarbitraryTxIn, genTxOut, shrinkTxOut )
 import Cardano.Wallet.Primitive.Types.UTxOIndex.Gen
     ( genUTxOIndex, shrinkUTxOIndex )
 import Cardano.Wallet.Primitive.Types.UTxOIndex.Internal
@@ -74,6 +63,8 @@ import Test.QuickCheck.Classes
     ( eqLaws )
 import Test.QuickCheck.Monadic
     ( assert, monadicIO, monitor, run )
+import Test.QuickCheck.Quid
+    ( Hexadecimal (..), Quid )
 import Test.Utils.Laws
     ( testLawsMany )
 
@@ -88,7 +79,7 @@ spec =
     describe "Cardano.Wallet.Primitive.Types.UTxOIndexSpec" $ do
 
     parallel $ describe "Class instances obey laws" $ do
-        testLawsMany @(UTxOIndex WalletUTxO)
+        testLawsMany @(UTxOIndex TestUTxO)
             [ eqLaws
             ]
 
@@ -191,33 +182,33 @@ spec =
 -- Invariant properties
 --------------------------------------------------------------------------------
 
-invariantHolds :: UTxOIndex WalletUTxO -> Property
+invariantHolds :: UTxOIndex TestUTxO -> Property
 invariantHolds i = checkInvariant i === InvariantHolds
 
-prop_arbitrary_invariant :: UTxOIndex WalletUTxO -> Property
+prop_arbitrary_invariant :: UTxOIndex TestUTxO -> Property
 prop_arbitrary_invariant = invariantHolds
 
-prop_shrink_invariant :: UTxOIndex WalletUTxO -> Property
+prop_shrink_invariant :: UTxOIndex TestUTxO -> Property
 prop_shrink_invariant = conjoin . fmap invariantHolds . shrink
 
 prop_empty_invariant :: Property
 prop_empty_invariant = invariantHolds UTxOIndex.empty
 
-prop_singleton_invariant :: WalletUTxO -> TokenBundle -> Property
+prop_singleton_invariant :: TestUTxO -> TokenBundle -> Property
 prop_singleton_invariant u b = invariantHolds $ UTxOIndex.singleton u b
 
-prop_fromSequence_invariant :: [(WalletUTxO, TokenBundle)] -> Property
+prop_fromSequence_invariant :: [(TestUTxO, TokenBundle)] -> Property
 prop_fromSequence_invariant = invariantHolds . UTxOIndex.fromSequence
 
 prop_insert_invariant
-    :: WalletUTxO -> TokenBundle -> UTxOIndex WalletUTxO -> Property
+    :: TestUTxO -> TokenBundle -> UTxOIndex TestUTxO -> Property
 prop_insert_invariant u b i = invariantHolds $ UTxOIndex.insert u b i
 
-prop_delete_invariant :: WalletUTxO -> UTxOIndex WalletUTxO -> Property
+prop_delete_invariant :: TestUTxO -> UTxOIndex TestUTxO -> Property
 prop_delete_invariant u i = invariantHolds $ UTxOIndex.delete u i
 
 prop_selectRandom_invariant
-    :: UTxOIndex WalletUTxO -> SelectionFilter -> Property
+    :: UTxOIndex TestUTxO -> SelectionFilter -> Property
 prop_selectRandom_invariant i f = monadicIO $ do
     result <- run $ UTxOIndex.selectRandom i f
     assert $ case result of
@@ -232,13 +223,13 @@ prop_selectRandom_invariant i f = monadicIO $ do
 
 prop_empty_toList :: Property
 prop_empty_toList =
-    UTxOIndex.toList (UTxOIndex.empty @WalletUTxO) === []
+    UTxOIndex.toList (UTxOIndex.empty @TestUTxO) === []
 
-prop_singleton_toList :: WalletUTxO -> TokenBundle -> Property
+prop_singleton_toList :: TestUTxO -> TokenBundle -> Property
 prop_singleton_toList u b =
     UTxOIndex.toList (UTxOIndex.singleton u b) === [(u, b)]
 
-prop_toList_fromSequence :: UTxOIndex WalletUTxO -> Property
+prop_toList_fromSequence :: UTxOIndex TestUTxO -> Property
 prop_toList_fromSequence i =
     UTxOIndex.fromSequence (UTxOIndex.toList i) === i
 
@@ -255,7 +246,7 @@ checkCoverage_modify u i
     . cover 30 (not $ UTxOIndex.member u i)
         "UTxO is not a member of the index"
 
-prop_delete_balance :: WalletUTxO -> UTxOIndex WalletUTxO -> Property
+prop_delete_balance :: TestUTxO -> UTxOIndex TestUTxO -> Property
 prop_delete_balance u i =
     checkCoverage_modify u i $
     UTxOIndex.balance (UTxOIndex.delete u i) === expected
@@ -266,12 +257,12 @@ prop_delete_balance u i =
         Just b ->
             UTxOIndex.balance i `TokenBundle.unsafeSubtract` b
 
-prop_delete_lookup :: WalletUTxO -> UTxOIndex WalletUTxO -> Property
+prop_delete_lookup :: TestUTxO -> UTxOIndex TestUTxO -> Property
 prop_delete_lookup u i =
     checkCoverage_modify u i $
     UTxOIndex.lookup u (UTxOIndex.delete u i) === Nothing
 
-prop_delete_size :: WalletUTxO -> UTxOIndex WalletUTxO -> Property
+prop_delete_size :: TestUTxO -> UTxOIndex TestUTxO -> Property
 prop_delete_size u i =
     checkCoverage_modify u i $
     UTxOIndex.size (UTxOIndex.delete u i) === expected
@@ -283,7 +274,7 @@ prop_delete_size u i =
             UTxOIndex.size i - 1
 
 prop_insert_assets
-    :: WalletUTxO -> TokenBundle -> UTxOIndex WalletUTxO -> Property
+    :: TestUTxO -> TokenBundle -> UTxOIndex TestUTxO -> Property
 prop_insert_assets u b i =
     checkCoverage_modify u i $
     UTxOIndex.assets (UTxOIndex.insert u b i)
@@ -292,7 +283,7 @@ prop_insert_assets u b i =
     insertedAssets = TokenBundle.getAssets b
 
 prop_insert_balance
-    :: WalletUTxO -> TokenBundle -> UTxOIndex WalletUTxO -> Property
+    :: TestUTxO -> TokenBundle -> UTxOIndex TestUTxO -> Property
 prop_insert_balance u b i =
     checkCoverage_modify u i $
     UTxOIndex.balance (UTxOIndex.insert u b i) === expected
@@ -304,7 +295,7 @@ prop_insert_balance u b i =
             UTxOIndex.balance i `TokenBundle.unsafeSubtract` b'
 
 prop_insert_delete
-    :: WalletUTxO -> TokenBundle -> UTxOIndex WalletUTxO -> Property
+    :: TestUTxO -> TokenBundle -> UTxOIndex TestUTxO -> Property
 prop_insert_delete u b i =
     checkCoverage_modify u i $
     UTxOIndex.delete u (UTxOIndex.insert u b i) === expected
@@ -313,13 +304,13 @@ prop_insert_delete u b i =
         if UTxOIndex.member u i then UTxOIndex.delete u i else i
 
 prop_insert_lookup
-    :: WalletUTxO -> TokenBundle -> UTxOIndex WalletUTxO -> Property
+    :: TestUTxO -> TokenBundle -> UTxOIndex TestUTxO -> Property
 prop_insert_lookup u b i =
     checkCoverage_modify u i $
     UTxOIndex.lookup u (UTxOIndex.insert u b i) === Just b
 
 prop_insert_size
-    :: WalletUTxO -> TokenBundle -> UTxOIndex WalletUTxO -> Property
+    :: TestUTxO -> TokenBundle -> UTxOIndex TestUTxO -> Property
 prop_insert_size u b i =
     checkCoverage_modify u i $
     UTxOIndex.size (UTxOIndex.insert u b i) === expected
@@ -335,36 +326,36 @@ prop_insert_size u b i =
 --------------------------------------------------------------------------------
 
 prop_filter_disjoint
-    :: (WalletUTxO -> Bool) -> UTxOIndex WalletUTxO -> Property
+    :: (TestUTxO -> Bool) -> UTxOIndex TestUTxO -> Property
 prop_filter_disjoint f i =
     checkCoverage_filter_partition f i $
     UTxOIndex.filter f i `UTxOIndex.disjoint` UTxOIndex.filter (not . f) i
         === True
 
 prop_filter_partition
-    :: (WalletUTxO -> Bool) -> UTxOIndex WalletUTxO -> Property
+    :: (TestUTxO -> Bool) -> UTxOIndex TestUTxO -> Property
 prop_filter_partition f i =
     checkCoverage_filter_partition f i $
     (UTxOIndex.filter f i, UTxOIndex.filter (not . f) i)
         === UTxOIndex.partition f i
 
 prop_filter_toList
-    :: (WalletUTxO -> Bool) -> UTxOIndex WalletUTxO -> Property
+    :: (TestUTxO -> Bool) -> UTxOIndex TestUTxO -> Property
 prop_filter_toList f i =
     checkCoverage_filter_partition f i $
     UTxOIndex.toList (UTxOIndex.filter f i)
         === L.filter (f . fst) (UTxOIndex.toList i)
 
 prop_partition_disjoint
-    :: (WalletUTxO -> Bool) -> UTxOIndex WalletUTxO -> Property
+    :: (TestUTxO -> Bool) -> UTxOIndex TestUTxO -> Property
 prop_partition_disjoint f i =
     checkCoverage_filter_partition f i $
     uncurry UTxOIndex.disjoint (UTxOIndex.partition f i) === True
 
 checkCoverage_filter_partition
     :: Testable prop
-    => (WalletUTxO -> Bool)
-    -> UTxOIndex WalletUTxO
+    => (TestUTxO -> Bool)
+    -> UTxOIndex TestUTxO
     -> (prop -> Property)
 checkCoverage_filter_partition f i
     = checkCoverage
@@ -430,7 +421,7 @@ prop_SelectionFilter_coverage selectionFilter = checkCoverage $ property
 --
 prop_selectRandom_empty :: SelectionFilter -> Property
 prop_selectRandom_empty f = monadicIO $ do
-    result <- run $ UTxOIndex.selectRandom (UTxOIndex.empty @WalletUTxO) f
+    result <- run $ UTxOIndex.selectRandom (UTxOIndex.empty @TestUTxO) f
     assert $ isNothing result
 
 -- | Attempt to select a random entry from a singleton index with entry 'e'.
@@ -439,7 +430,7 @@ prop_selectRandom_empty f = monadicIO $ do
 --
 prop_selectRandom_singleton
     :: SelectionFilter
-    -> WalletUTxO
+    -> TestUTxO
     -> TokenBundle
     -> Property
 prop_selectRandom_singleton selectionFilter u b = monadicIO $ do
@@ -467,7 +458,7 @@ prop_selectRandom_singleton selectionFilter u b = monadicIO $ do
 --
 -- This should always succeed, provided the index is not empty.
 --
-prop_selectRandom_one_any :: UTxOIndex WalletUTxO -> Property
+prop_selectRandom_one_any :: UTxOIndex TestUTxO -> Property
 prop_selectRandom_one_any i = checkCoverage $ monadicIO $ do
     result <- run $ UTxOIndex.selectRandom i Any
     monitor $ cover 90 (isJust result)
@@ -484,7 +475,7 @@ prop_selectRandom_one_any i = checkCoverage $ monadicIO $ do
 
 -- | Attempt to select a random entry with only ada.
 --
-prop_selectRandom_one_withAdaOnly :: UTxOIndex WalletUTxO -> Property
+prop_selectRandom_one_withAdaOnly :: UTxOIndex TestUTxO -> Property
 prop_selectRandom_one_withAdaOnly i = checkCoverage $ monadicIO $ do
     result <- run $ UTxOIndex.selectRandom i WithAdaOnly
     monitor $ cover 50 (isJust result)
@@ -507,7 +498,7 @@ prop_selectRandom_one_withAdaOnly i = checkCoverage $ monadicIO $ do
 -- This should only succeed if there is at least one element with a non-zero
 -- quantity of the asset.
 --
-prop_selectRandom_one_withAsset :: UTxOIndex WalletUTxO -> AssetId -> Property
+prop_selectRandom_one_withAsset :: UTxOIndex TestUTxO -> AssetId -> Property
 prop_selectRandom_one_withAsset i a = checkCoverage $ monadicIO $ do
     result <- run $ UTxOIndex.selectRandom i (WithAsset a)
     monitor $ cover 50 (a `Set.member` UTxOIndex.assets i)
@@ -534,7 +525,7 @@ prop_selectRandom_one_withAsset i a = checkCoverage $ monadicIO $ do
 -- quantity of the asset and no other assets.
 --
 prop_selectRandom_one_withAssetOnly
-    :: UTxOIndex WalletUTxO -> AssetId -> Property
+    :: UTxOIndex TestUTxO -> AssetId -> Property
 prop_selectRandom_one_withAssetOnly i a = checkCoverage $ monadicIO $ do
     result <- run $ UTxOIndex.selectRandom i (WithAssetOnly a)
     monitor $ cover 50 (a `Set.member` UTxOIndex.assets i)
@@ -558,7 +549,7 @@ prop_selectRandom_one_withAssetOnly i a = checkCoverage $ monadicIO $ do
 --
 -- This should always succeed.
 --
-prop_selectRandom_all_any :: UTxOIndex WalletUTxO -> Property
+prop_selectRandom_all_any :: UTxOIndex TestUTxO -> Property
 prop_selectRandom_all_any i = checkCoverage $ monadicIO $ do
     (selectedEntries, i') <- run $ selectAll Any i
     monitor $ cover 90 (not (null selectedEntries))
@@ -574,7 +565,7 @@ prop_selectRandom_all_any i = checkCoverage $ monadicIO $ do
 
 -- | Attempt to select all entries with only ada from the index.
 --
-prop_selectRandom_all_withAdaOnly :: UTxOIndex WalletUTxO -> Property
+prop_selectRandom_all_withAdaOnly :: UTxOIndex TestUTxO -> Property
 prop_selectRandom_all_withAdaOnly i = checkCoverage $ monadicIO $ do
     (selectedEntries, i') <- run $ selectAll WithAdaOnly i
     monitor $ cover 70 (not (null selectedEntries))
@@ -588,7 +579,7 @@ prop_selectRandom_all_withAdaOnly i = checkCoverage $ monadicIO $ do
 
 -- | Attempt to select all entries with the given asset from the index.
 --
-prop_selectRandom_all_withAsset :: UTxOIndex WalletUTxO -> AssetId -> Property
+prop_selectRandom_all_withAsset :: UTxOIndex TestUTxO -> AssetId -> Property
 prop_selectRandom_all_withAsset i a = checkCoverage $ monadicIO $ do
     (selectedEntries, i') <- run $ selectAll (WithAsset a) i
     monitor $ cover 50 (a `Set.member` UTxOIndex.assets i)
@@ -608,7 +599,7 @@ prop_selectRandom_all_withAsset i a = checkCoverage $ monadicIO $ do
 -- | Attempt to select all entries with only the given asset from the index.
 --
 prop_selectRandom_all_withAssetOnly
-    :: UTxOIndex WalletUTxO -> AssetId -> Property
+    :: UTxOIndex TestUTxO -> AssetId -> Property
 prop_selectRandom_all_withAssetOnly i a = checkCoverage $ monadicIO $ do
     (selectedEntries, i') <- run $ selectAll (WithAssetOnly a) i
     monitor $ cover 50 (a `Set.member` UTxOIndex.assets i)
@@ -627,7 +618,7 @@ prop_selectRandom_all_withAssetOnly i a = checkCoverage $ monadicIO $ do
 -- | Verify that priority order is respected when selecting with more than
 --   one filter.
 --
-prop_selectRandomWithPriority :: UTxOIndex WalletUTxO -> Property
+prop_selectRandomWithPriority :: UTxOIndex TestUTxO -> Property
 prop_selectRandomWithPriority i =
     forAll (genAssetId) $ \a1 ->
     forAll (genAssetId `suchThat` (/= a1)) $ \a2 ->
@@ -735,8 +726,8 @@ prop_selectRandomSetMember_coversRangeUniformly i j =
 selectAll
     :: MonadRandom m
     => SelectionFilter
-    -> UTxOIndex WalletUTxO
-    -> m ([(WalletUTxO, TokenBundle)], UTxOIndex WalletUTxO)
+    -> UTxOIndex TestUTxO
+    -> m ([(TestUTxO, TokenBundle)], UTxOIndex TestUTxO)
 selectAll sf = go []
   where
     go !selectedEntries !i = do
@@ -771,30 +762,17 @@ tokenBundleIsAdaOnly = TokenBundle.isCoin
 -- Arbitrary instances
 --------------------------------------------------------------------------------
 
-instance Arbitrary WalletUTxO where
-    arbitrary = genWalletUTxO
-    shrink = shrinkWalletUTxO
-
-instance CoArbitrary WalletUTxO where
-    coarbitrary = coarbitraryWalletUTxO
-
-instance CoArbitrary Address where
-    coarbitrary = coarbitraryAddress
+newtype TestUTxO = TestUTxO (Hexadecimal Quid)
+    deriving (Arbitrary, CoArbitrary) via Quid
+    deriving stock (Eq, Ord, Read, Show)
 
 instance Arbitrary AssetId where
     arbitrary = genAssetId
     shrink = shrinkAssetId
 
-instance Arbitrary (UTxOIndex WalletUTxO) where
-    arbitrary = genUTxOIndex genWalletUTxO
-    shrink = shrinkUTxOIndex shrinkWalletUTxO
-
-instance CoArbitrary TxIn where
-    coarbitrary = coarbitraryTxIn
-
-instance Arbitrary TxOut where
-    arbitrary = genTxOut
-    shrink = shrinkTxOut
+instance Arbitrary (UTxOIndex TestUTxO) where
+    arbitrary = genUTxOIndex (arbitrary @TestUTxO)
+    shrink = shrinkUTxOIndex (shrink @TestUTxO)
 
 instance Arbitrary TokenBundle where
     arbitrary = genTokenBundleSmallRangePositive
@@ -829,5 +807,5 @@ shrinkSelectionFilterSmallRange = \case
 -- Show instances
 --------------------------------------------------------------------------------
 
-instance Show (WalletUTxO -> Bool) where
-    show = const "(WalletUTxO -> Bool)"
+instance Show (TestUTxO -> Bool) where
+    show = const "(TestUTxO -> Bool)"
