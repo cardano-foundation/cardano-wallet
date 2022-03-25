@@ -276,7 +276,7 @@ newStakePoolLayer gcStatus nl db@DBLayer {..} restartSyncThread = do
         -> IO [Api.ApiStakePool]
     _listPools currentEpoch userStake = do
         stakeDistribution nl >>= \case
-                -- we seem to be in the Byron era and cannot stake
+            -- we seem to be in the Byron era and cannot delegate
             Nothing -> pure []
             Just nlData -> do
                 dbData <- readPoolDbData db currentEpoch
@@ -382,7 +382,8 @@ listPools
     -> Coin
     -> IO [Api.ApiStakePool]
 listPools ti StakePoolsSummary{rewardParams,pools} dbData userStake =
-    traverse mkApiPool $ Map.toList $ scorePools rewardParams allPools userStake
+    traverse (uncurry mkApiPool) $
+        Map.toList $ scorePools rewardParams allPools userStake
   where
     allPools
         = Map.merge lsqButNoDb dbButNoLsq bothPresent pools dbData
@@ -408,9 +409,10 @@ listPools ti StakePoolsSummary{rewardParams,pools} dbData userStake =
         in (poolDefault, db)
 
     mkApiPool
-        :: (PoolId, (PoolScore, RewardInfoPool, PoolDbData))
+        :: PoolId
+        -> (PoolScore, RewardInfoPool, PoolDbData)
         -> IO Api.ApiStakePool
-    mkApiPool (pid, (score, pool, db)) = do
+    mkApiPool pid (score, pool, db) = do
         let mRetirementEpoch = retirementEpoch <$> retirementCert db
         retirementEpochInfo <- traverse
             (interpretQuery (unsafeExtendSafeZone ti) . toApiEpochInfo)
