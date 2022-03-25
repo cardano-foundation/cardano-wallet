@@ -182,6 +182,9 @@ blockToBlockHeader block@BF.Block{..} = do
 -------------------------------------------------------------------------------}
 -- | Estimate the performance of a stake pool based on
 -- the past 50 epochs (or less if the pool is younger than that).
+--
+-- Uses 'estimatePoolPerformance' from "Cardano.Pool.Rank.Likelihood"
+-- for this purpose.
 getPoolPerformanceEstimate
     :: BF.MonadBlockfrost m
     => SlottingParameters

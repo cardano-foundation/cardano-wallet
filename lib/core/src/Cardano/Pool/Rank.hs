@@ -183,7 +183,9 @@ z0 RewardParams{nOpt} = 1 / fromIntegral nOpt
 epochsPerYear :: Int
 epochsPerYear = 73
 
--- | The current (yearly) return per unit of stake.
+-- | The yearly rate of return per unit of stake,
+-- assuming that the pool's stake remains at the same level.
+-- Rewards compound every epoch.
 currentROS :: RewardParams -> RewardInfoPool -> Coin -> Percentage
 currentROS rp RewardInfoPool{..} x
     | ownerStake < ownerPledge = clipToPercentage 0
