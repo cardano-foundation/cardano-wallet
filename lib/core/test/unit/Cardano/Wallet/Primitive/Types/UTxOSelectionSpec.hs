@@ -199,34 +199,34 @@ checkCoverage_UTxOSelectionNonEmpty s
 --------------------------------------------------------------------------------
 
 prop_fromIndex_isValid :: UTxOIndex WalletUTxO -> Property
-prop_fromIndex_isValid u =
-    isValidSelection (UTxOSelection.fromIndex u)
+prop_fromIndex_isValid i =
+    isValidSelection (UTxOSelection.fromIndex i)
     === True
 
 prop_fromIndexFiltered_isValid
     :: (WalletUTxO -> Bool) -> UTxOIndex WalletUTxO -> Property
-prop_fromIndexFiltered_isValid f u =
-    isValidSelection (UTxOSelection.fromIndexFiltered f u)
+prop_fromIndexFiltered_isValid f i =
+    isValidSelection (UTxOSelection.fromIndexFiltered f i)
     === True
 
 prop_fromIndexPair_isValid
     :: (UTxOIndex WalletUTxO, UTxOIndex WalletUTxO) -> Property
-prop_fromIndexPair_isValid (u1, u2) =
-    isValidSelection (UTxOSelection.fromIndexPair (u1, u2))
+prop_fromIndexPair_isValid (i1, i2) =
+    isValidSelection (UTxOSelection.fromIndexPair (i1, i2))
     === True
 
 prop_fromIndex_toIndexPair :: UTxOIndex WalletUTxO-> Property
-prop_fromIndex_toIndexPair u =
-    UTxOSelection.toIndexPair (UTxOSelection.fromIndex u)
-    === (u, UTxOIndex.empty)
+prop_fromIndex_toIndexPair i =
+    UTxOSelection.toIndexPair (UTxOSelection.fromIndex i)
+    === (i, UTxOIndex.empty)
 
 prop_fromIndexFiltered_toIndexPair
     :: (WalletUTxO -> Bool)
     -> UTxOIndex WalletUTxO
     -> Property
-prop_fromIndexFiltered_toIndexPair f u =
-    UTxOSelection.toIndexPair (UTxOSelection.fromIndexFiltered f u)
-    === (UTxOIndex.filter (not . f) u, UTxOIndex.filter f u)
+prop_fromIndexFiltered_toIndexPair f i =
+    UTxOSelection.toIndexPair (UTxOSelection.fromIndexFiltered f i)
+    === (UTxOIndex.filter (not . f) i, UTxOIndex.filter f i)
 
 prop_fromIndexPair_toIndexPair :: UTxOSelection WalletUTxO -> Property
 prop_fromIndexPair_toIndexPair s =
@@ -307,70 +307,70 @@ prop_leftoverSize_selectedSize s =
 --------------------------------------------------------------------------------
 
 prop_select_empty :: WalletUTxO -> Property
-prop_select_empty i =
-    UTxOSelection.select i UTxOSelection.empty === Nothing
+prop_select_empty u =
+    UTxOSelection.select u UTxOSelection.empty === Nothing
 
 prop_select_isValid :: WalletUTxO -> UTxOSelection WalletUTxO -> Property
-prop_select_isValid i s = property $
-    checkCoverage_select i s $
-    maybe True isValidSelectionNonEmpty (UTxOSelection.select i s)
+prop_select_isValid u s = property $
+    checkCoverage_select u s $
+    maybe True isValidSelectionNonEmpty (UTxOSelection.select u s)
 
 prop_select_isLeftover :: WalletUTxO -> UTxOSelection WalletUTxO -> Property
-prop_select_isLeftover i s =
-    checkCoverage_select i s $
-    (UTxOSelection.isLeftover i <$> UTxOSelection.select i s)
+prop_select_isLeftover u s =
+    checkCoverage_select u s $
+    (UTxOSelection.isLeftover u <$> UTxOSelection.select u s)
     ===
-    if UTxOSelection.isLeftover i s then Just False else Nothing
+    if UTxOSelection.isLeftover u s then Just False else Nothing
 
 prop_select_isSelected :: WalletUTxO -> UTxOSelection WalletUTxO -> Property
-prop_select_isSelected i s =
-    checkCoverage_select i s $
-    (UTxOSelection.isSelected i <$> UTxOSelection.select i s)
+prop_select_isSelected u s =
+    checkCoverage_select u s $
+    (UTxOSelection.isSelected u <$> UTxOSelection.select u s)
     ===
-    if UTxOSelection.isLeftover i s then Just True else Nothing
+    if UTxOSelection.isLeftover u s then Just True else Nothing
 
 prop_select_isProperSubSelectionOf
     :: WalletUTxO -> UTxOSelection WalletUTxO -> Property
-prop_select_isProperSubSelectionOf i s =
-    checkCoverage_select i s $
-    (UTxOSelection.isProperSubSelectionOf s <$> UTxOSelection.select i s)
+prop_select_isProperSubSelectionOf u s =
+    checkCoverage_select u s $
+    (UTxOSelection.isProperSubSelectionOf s <$> UTxOSelection.select u s)
     ===
-    if UTxOSelection.isLeftover i s then Just True else Nothing
+    if UTxOSelection.isLeftover u s then Just True else Nothing
 
 prop_select_availableBalance
     :: WalletUTxO -> UTxOSelection WalletUTxO -> Property
-prop_select_availableBalance i s =
-    checkCoverage_select i s $
-    (UTxOSelection.availableBalance <$> UTxOSelection.select i s)
+prop_select_availableBalance u s =
+    checkCoverage_select u s $
+    (UTxOSelection.availableBalance <$> UTxOSelection.select u s)
     ===
-    if UTxOSelection.isLeftover i s
+    if UTxOSelection.isLeftover u s
     then Just (UTxOSelection.availableBalance s)
     else Nothing
 
 prop_select_availableMap :: WalletUTxO -> UTxOSelection WalletUTxO -> Property
-prop_select_availableMap i s =
-    checkCoverage_select i s $
-    (UTxOSelection.availableMap <$> UTxOSelection.select i s)
+prop_select_availableMap u s =
+    checkCoverage_select u s $
+    (UTxOSelection.availableMap <$> UTxOSelection.select u s)
     ===
-    if UTxOSelection.isLeftover i s
+    if UTxOSelection.isLeftover u s
     then Just (UTxOSelection.availableMap s)
     else Nothing
 
 prop_select_leftoverSize :: WalletUTxO -> UTxOSelection WalletUTxO -> Property
-prop_select_leftoverSize i s =
-    checkCoverage_select i s $
-    (UTxOSelection.leftoverSize <$> UTxOSelection.select i s)
+prop_select_leftoverSize u s =
+    checkCoverage_select u s $
+    (UTxOSelection.leftoverSize <$> UTxOSelection.select u s)
     ===
-    if UTxOSelection.isLeftover i s
+    if UTxOSelection.isLeftover u s
     then Just (UTxOSelection.leftoverSize s - 1)
     else Nothing
 
 prop_select_selectedSize :: WalletUTxO -> UTxOSelection WalletUTxO -> Property
-prop_select_selectedSize i s =
-    checkCoverage_select i s $
-    (UTxOSelection.selectedSize <$> UTxOSelection.select i s)
+prop_select_selectedSize u s =
+    checkCoverage_select u s $
+    (UTxOSelection.selectedSize <$> UTxOSelection.select u s)
     ===
-    if UTxOSelection.isLeftover i s
+    if UTxOSelection.isLeftover u s
     then Just (UTxOSelection.selectedSize s + 1)
     else Nothing
 
@@ -402,13 +402,13 @@ checkCoverage_select
     => WalletUTxO
     -> UTxOSelection WalletUTxO
     -> (prop -> Property)
-checkCoverage_select i s
+checkCoverage_select u s
     = checkCoverage
-    . cover 10 (UTxOSelection.isLeftover i s)
+    . cover 10 (UTxOSelection.isLeftover u s)
         "in leftover set"
-    . cover 10 (UTxOSelection.isSelected i s)
+    . cover 10 (UTxOSelection.isSelected u s)
         "in selected set"
-    . cover 10 (not (UTxOSelection.isMember i s))
+    . cover 10 (not (UTxOSelection.isMember u s))
         "in neither set"
 
 --------------------------------------------------------------------------------
