@@ -25,6 +25,7 @@ module Data.Quantity
     , MkPercentageError(..)
     , mkPercentage
     , getPercentage
+    , clipToPercentage
     , percentageToDouble
     ) where
 
@@ -214,6 +215,11 @@ mkPercentage r
 data MkPercentageError
     = PercentageOutOfBoundsError
     deriving (Show, Eq)
+
+-- | Safe way to make a 'Percentage' by clipping values that are
+-- out of bounds.
+clipToPercentage :: Rational -> Percentage
+clipToPercentage = Percentage . min 1 . max 0
 
 -- | Desired number of digits after the decimal point for presenting the
 -- @Percentage@ type.
