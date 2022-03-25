@@ -283,6 +283,11 @@ prop_delete_size u i =
 prop_insert_assets
     :: WalletUTxO -> TokenBundle -> UTxOIndex WalletUTxO -> Property
 prop_insert_assets u b i =
+    checkCoverage $
+    cover 30 (UTxOIndex.member u i)
+        "input is already a member of the index" $
+    cover 30 (not $ UTxOIndex.member u i)
+        "input is not already a member of the index" $
     UTxOIndex.assets (UTxOIndex.insert u b i)
         `Set.intersection` insertedAssets === insertedAssets
   where
