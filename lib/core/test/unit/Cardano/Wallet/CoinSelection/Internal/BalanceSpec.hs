@@ -21,6 +21,7 @@ module Cardano.Wallet.CoinSelection.Internal.BalanceSpec
     , MockComputeMinimumAdaQuantity
     , MockComputeMinimumCost
     , MockComputeSelectionLimit
+    , TestAddress
     , TestSelectionContext
     , TestUTxO
     , genMockAssessTokenBundleSize
@@ -106,10 +107,6 @@ import Cardano.Wallet.CoinSelection.Internal.Balance.Gen
     , shrinkSelectionLimit
     , shrinkSelectionStrategy
     )
-import Cardano.Wallet.Primitive.Types.Address
-    ( Address (..) )
-import Cardano.Wallet.Primitive.Types.Address.Gen
-    ( shrinkAddress )
 import Cardano.Wallet.Primitive.Types.Coin
     ( Coin (..) )
 import Cardano.Wallet.Primitive.Types.Coin.Gen
@@ -156,8 +153,6 @@ import Cardano.Wallet.Primitive.Types.UTxOSelection
     ( UTxOSelection, UTxOSelectionNonEmpty )
 import Cardano.Wallet.Primitive.Types.UTxOSelection.Gen
     ( genUTxOSelection, shrinkUTxOSelection )
-import Control.Arrow
-    ( (&&&) )
 import Control.Monad
     ( forM_, replicateM )
 import Data.Bifunctor
@@ -260,7 +255,6 @@ import qualified Cardano.Wallet.Primitive.Types.TokenMap as TokenMap
 import qualified Cardano.Wallet.Primitive.Types.TokenQuantity as TokenQuantity
 import qualified Cardano.Wallet.Primitive.Types.UTxOIndex as UTxOIndex
 import qualified Cardano.Wallet.Primitive.Types.UTxOSelection as UTxOSelection
-import qualified Data.ByteString.Char8 as B8
 import qualified Data.Foldable as F
 import qualified Data.List as L
 import qualified Data.List.NonEmpty as NE
@@ -624,8 +618,9 @@ genSelectionParams genPreselectedInputs genUTxOIndex' = do
     outputCount <- elements
         [0, 1, max 2 $ UTxOIndex.size utxoAvailable `div` 8]
     outputsToCover <-
-        replicateM outputCount
-            ((view #address &&& view #tokens) <$> genTxOut)
+        replicateM outputCount $ (,)
+            <$> arbitrary @TestAddress
+            <*> genTokenBundleSmallRangePositive
     extraCoinSource <-
         oneof [pure $ Coin 0, genCoinPositive]
     extraCoinSink <-
@@ -671,7 +666,7 @@ shrinkSelectionParams = genericRoundRobinShrink
     <:> Nil
   where
     shrinkOutput = genericRoundRobinShrink
-        <@> shrinkAddress
+        <@> shrink @TestAddress
         <:> (filter tokenBundleHasNonZeroCoin . shrinkTokenBundleSmallRange)
         <:> Nil
       where
@@ -1882,8 +1877,8 @@ encodeBoundaryTestCriteria c = SelectionParams
     dummyTestUTxOs :: [TestUTxO]
     dummyTestUTxOs = TestUTxO . fromIntegral @Natural <$> [0 ..]
 
-    dummyAddresses :: [Address]
-    dummyAddresses = [Address (B8.pack $ show x) | x :: Word64 <- [0 ..]]
+    dummyAddresses :: [TestAddress]
+    dummyAddresses = TestAddress . fromIntegral @Natural <$> [0 ..]
 
 decodeBoundaryTestResult
     :: SelectionResult TestSelectionContext -> BoundaryTestResult
@@ -2609,7 +2604,7 @@ shrinkMockComputeSelectionLimit = \case
 
 unMockComputeSelectionLimit
     :: MockComputeSelectionLimit
-    -> ([(Address, TokenBundle)] -> SelectionLimit)
+    -> ([(TestAddress, TokenBundle)] -> SelectionLimit)
 unMockComputeSelectionLimit = \case
     MockComputeSelectionLimitNone ->
         const NoLimit
@@ -4421,10 +4416,15 @@ unitTests lbl cases =
 data TestSelectionContext
 
 instance SC.SelectionContext TestSelectionContext where
-    type Address TestSelectionContext = Address
+    type Address TestSelectionContext = TestAddress
     type UTxO TestSelectionContext = TestUTxO
 
-    dummyAddress = Address ""
+    dummyAddress = TestAddress 0x0
+
+newtype TestAddress = TestAddress (Hexadecimal Quid)
+    deriving Arbitrary via Quid
+    deriving Buildable via (Pretty TestAddress)
+    deriving stock (Eq, Ord, Read, Show)
 
 newtype TestUTxO = TestUTxO (Hexadecimal Quid)
     deriving (Arbitrary, CoArbitrary) via Quid
