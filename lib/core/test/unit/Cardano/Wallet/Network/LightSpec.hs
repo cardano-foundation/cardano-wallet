@@ -57,7 +57,7 @@ import qualified Data.List as L
 import qualified Data.List.NonEmpty as NE
 
 spec :: Spec
-spec = do
+spec =
     describe "lightSync" $
         it "lightSync === full sync  for chain following" $
             property prop_followLightSync

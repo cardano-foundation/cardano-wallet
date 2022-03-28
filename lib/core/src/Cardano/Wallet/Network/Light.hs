@@ -122,8 +122,8 @@ lightSync tr light follower = do
   where
     idle = threadDelay secondsPerSlot
     syncFrom pt = do
-        adventure <- boldyGoWhereNextPoint light pt
-        syncFrom =<< case adventure of
+        move <- proceedToNextPoint light pt
+        syncFrom =<< case move of
             Rollback -> do
                 prev <- secondLatest <$> readLocalTip follower
                 -- NOTE: Rolling back to a result of 'readLocalTip'
@@ -145,7 +145,7 @@ lightSync tr light follower = do
                         rollForward follower (Left $ b :| bs) tip
                 pure $ chainPointFromBlockHeader new
 
-data NextPointAdventure block
+data NextPointMove block
     = Rollback
     -- ^ We are forced to roll back.
     | Stable BlockHeader BlockHeader BlockHeader
@@ -155,12 +155,12 @@ data NextPointAdventure block
     -- ^ We are entering the unstable region.
     -- @Unstable blocks new tip@.
 
-boldyGoWhereNextPoint
+proceedToNextPoint
     :: Monad m
     => LightSyncSource m block addr txs
     -> ChainPoint
-    -> m (NextPointAdventure block)
-boldyGoWhereNextPoint light pt = do
+    -> m (NextPointMove block)
+proceedToNextPoint light pt = do
     tip <- getTip light
     mold <- getBlockHeaderAt light pt
     maybeRollback mold $ \old ->
