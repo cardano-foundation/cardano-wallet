@@ -305,8 +305,8 @@ instance FromBlockfrost BF.ProtocolParams ProtocolParameters where
             , txParameters = TxParameters
                 { getFeePolicy =
                     LinearFee
-                        (Quantity $ fromIntegral minFeeA)
                         (Quantity $ fromIntegral minFeeB)
+                        (Quantity $ fromIntegral minFeeA)
                 , getTxMaxSize =
                     Quantity maxTxSize
                 , getTokenBundleMaxSize =
@@ -321,7 +321,6 @@ instance FromBlockfrost BF.ProtocolParams ProtocolParameters where
                 { pricePerStep = toRational _protocolParamsPriceStep
                 , pricePerMemoryUnit = toRational _protocolParamsPriceMem
                 }
-
             , maximumCollateralInputCount = maxCollateralInputs
             , minimumCollateralPercentage = collateralPercent
             , currentNodeProtocolParameters = Just Node.ProtocolParameters
