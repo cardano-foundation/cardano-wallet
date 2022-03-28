@@ -20,6 +20,7 @@ module Cardano.Wallet.CoinSelection.Internal.BalanceSpec
     , MockComputeMinimumAdaQuantity
     , MockComputeMinimumCost
     , MockComputeSelectionLimit
+    , TestSelectionContext
     , genMockAssessTokenBundleSize
     , genMockComputeMinimumAdaQuantity
     , genMockComputeMinimumCost
@@ -41,7 +42,7 @@ import Algebra.PartialOrd
 import Cardano.Numeric.Util
     ( inAscendingPartialOrder )
 import Cardano.Wallet.CoinSelection
-    ( WalletSelectionContext, WalletUTxO (..) )
+    ( WalletUTxO (..) )
 import Cardano.Wallet.CoinSelection.Gen
     ( genWalletUTxO
     , genWalletUTxOFunction
@@ -253,6 +254,7 @@ import Test.QuickCheck.Monadic
 import Test.Utils.Laws
     ( testLawsMany )
 
+import qualified Cardano.Wallet.CoinSelection.Internal.Context as SC
 import qualified Cardano.Wallet.Primitive.Types.Coin as Coin
 import qualified Cardano.Wallet.Primitive.Types.TokenBundle as TokenBundle
 import qualified Cardano.Wallet.Primitive.Types.TokenMap as TokenMap
@@ -607,13 +609,13 @@ prop_AssetCount_TokenMap_placesEmptyMapsFirst maps =
 -- We define this type alias to shorten type signatures.
 --
 type PerformSelectionResult = Either
-    (SelectionBalanceError WalletSelectionContext)
-    (SelectionResult WalletSelectionContext)
+    (SelectionBalanceError TestSelectionContext)
+    (SelectionResult TestSelectionContext)
 
 genSelectionParams
     :: Gen (WalletUTxO -> Bool)
     -> Gen (UTxOIndex WalletUTxO)
-    -> Gen (SelectionParams WalletSelectionContext)
+    -> Gen (SelectionParams TestSelectionContext)
 genSelectionParams genPreselectedInputs genUTxOIndex' = do
     utxoAvailable <- genUTxOIndex'
     isInputPreselected <- oneof
@@ -657,8 +659,8 @@ genSelectionParams genPreselectedInputs genUTxOIndex' = do
     genPreselectedInputsNone = pure $ const False
 
 shrinkSelectionParams
-    :: SelectionParams WalletSelectionContext
-    -> [SelectionParams WalletSelectionContext]
+    :: SelectionParams TestSelectionContext
+    -> [SelectionParams TestSelectionContext]
 shrinkSelectionParams = genericRoundRobinShrink
     <@> shrinkList shrinkOutput
     <:> shrinkUTxOSelection shrinkWalletUTxO
@@ -679,7 +681,7 @@ shrinkSelectionParams = genericRoundRobinShrink
 
 prop_performSelection_small
     :: MockSelectionConstraints
-    -> Blind (Small (SelectionParams WalletSelectionContext))
+    -> Blind (Small (SelectionParams TestSelectionContext))
     -> Property
 prop_performSelection_small mockConstraints (Blind (Small params)) =
     checkCoverage $
@@ -791,7 +793,7 @@ prop_performSelection_small mockConstraints (Blind (Small params)) =
             . fmap snd
             $ view #outputsToCover params
 
-    constraints :: SelectionConstraints WalletSelectionContext
+    constraints :: SelectionConstraints TestSelectionContext
     constraints = unMockSelectionConstraints mockConstraints
 
     selectionLimit :: SelectionLimit
@@ -859,7 +861,7 @@ prop_performSelection_small mockConstraints (Blind (Small params)) =
 
 prop_performSelection_large
     :: MockSelectionConstraints
-    -> Blind (Large (SelectionParams WalletSelectionContext))
+    -> Blind (Large (SelectionParams TestSelectionContext))
     -> Property
 prop_performSelection_large mockConstraints (Blind (Large params)) =
     -- Generation of large UTxO sets takes longer, so limit the number of runs:
@@ -880,19 +882,19 @@ prop_performSelection_huge = ioProperty $
 prop_performSelection_huge_inner
     :: UTxOIndex WalletUTxO
     -> MockSelectionConstraints
-    -> Large (SelectionParams WalletSelectionContext)
+    -> Large (SelectionParams TestSelectionContext)
     -> Property
 prop_performSelection_huge_inner utxoAvailable mockConstraints (Large params) =
     withMaxSuccess 5 $
     prop_performSelection mockConstraints params' (const id)
   where
-    params' :: SelectionParams WalletSelectionContext
+    params' :: SelectionParams TestSelectionContext
     params' = params
         { utxoAvailable = UTxOSelection.fromIndex utxoAvailable }
 
 prop_performSelection
     :: MockSelectionConstraints
-    -> SelectionParams WalletSelectionContext
+    -> SelectionParams TestSelectionContext
     -> (PerformSelectionResult -> Property -> Property)
     -> Property
 prop_performSelection mockConstraints params coverage =
@@ -911,7 +913,7 @@ prop_performSelection mockConstraints params coverage =
         monitor (coverage result)
         pure $ either onFailure onSuccess result
   where
-    constraints :: SelectionConstraints WalletSelectionContext
+    constraints :: SelectionConstraints TestSelectionContext
     constraints = unMockSelectionConstraints mockConstraints
 
     SelectionParams
@@ -922,7 +924,7 @@ prop_performSelection mockConstraints params coverage =
         , assetsToBurn
         } = params
 
-    onSuccess :: SelectionResultOf [] WalletSelectionContext -> Property
+    onSuccess :: SelectionResultOf [] TestSelectionContext -> Property
     onSuccess result =
         counterexample "onSuccess" $
         report
@@ -987,7 +989,7 @@ prop_performSelection mockConstraints params coverage =
                 (view #inputsSelected result <&> fst)
                 (view #utxoAvailable params)
 
-    onFailure :: SelectionBalanceError WalletSelectionContext -> Property
+    onFailure :: SelectionBalanceError TestSelectionContext -> Property
     onFailure = \case
         BalanceInsufficient e ->
             onBalanceInsufficient e
@@ -1026,7 +1028,7 @@ prop_performSelection mockConstraints params coverage =
         BalanceInsufficientError errorBalanceAvailable errorBalanceRequired = e
 
     onSelectionLimitReached
-        :: SelectionLimitReachedError WalletSelectionContext -> Property
+        :: SelectionLimitReachedError TestSelectionContext -> Property
     onSelectionLimitReached e =
         counterexample "onSelectionLimitReached" $
         report errorBalanceRequired
@@ -1050,7 +1052,7 @@ prop_performSelection mockConstraints params coverage =
             F.foldMap (view #tokens . snd) errorInputsSelected
 
     onInsufficientMinCoinValues
-        :: NonEmpty (InsufficientMinCoinValueError WalletSelectionContext)
+        :: NonEmpty (InsufficientMinCoinValueError TestSelectionContext)
         -> Property
     onInsufficientMinCoinValues es =
         counterexample "onInsufficientMinCoinValues" $
@@ -1097,7 +1099,7 @@ prop_performSelection mockConstraints params coverage =
         --
         -- We expect that the selection should succeed.
         --
-        let constraints' :: SelectionConstraints WalletSelectionContext =
+        let constraints' :: SelectionConstraints TestSelectionContext =
                 constraints
                     { assessTokenBundleSize = unMockAssessTokenBundleSize
                         MockAssessTokenBundleSizeUnlimited
@@ -1142,7 +1144,7 @@ prop_performSelection mockConstraints params coverage =
 --
 prop_performSelectionEmpty
     :: MockSelectionConstraints
-    -> Small (SelectionParams WalletSelectionContext)
+    -> Small (SelectionParams TestSelectionContext)
     -> Property
 prop_performSelectionEmpty mockConstraints (Small params) =
     checkCoverage $
@@ -1200,24 +1202,24 @@ prop_performSelectionEmpty mockConstraints (Small params) =
             , resultTransformed === result'
             ]
 
-    constraints :: SelectionConstraints WalletSelectionContext
+    constraints :: SelectionConstraints TestSelectionContext
     constraints = unMockSelectionConstraints mockConstraints
 
-    paramsTransformed :: SelectionParamsOf NonEmpty WalletSelectionContext
+    paramsTransformed :: SelectionParamsOf NonEmpty TestSelectionContext
     paramsTransformed = view #paramsTransformed transformationReport
 
-    paramsTransformed' :: SelectionParamsOf [] WalletSelectionContext
+    paramsTransformed' :: SelectionParamsOf [] TestSelectionContext
     paramsTransformed' = paramsTransformed
         { outputsToCover = F.toList (view #outputsToCover paramsTransformed) }
 
-    result :: SelectionResultOf NonEmpty WalletSelectionContext
+    result :: SelectionResultOf NonEmpty TestSelectionContext
     result = expectRight $ view #result transformationReport
 
-    result' :: SelectionResultOf [] WalletSelectionContext
+    result' :: SelectionResultOf [] TestSelectionContext
     result' = result
         { outputsCovered = F.toList (view #outputsCovered result) }
 
-    resultTransformed :: SelectionResultOf [] WalletSelectionContext
+    resultTransformed :: SelectionResultOf [] TestSelectionContext
     resultTransformed =
         expectRight $ view #resultTransformed transformationReport
 
@@ -1262,10 +1264,10 @@ withTransformationReport p r = TransformationReport p r r
 --    - a single change output to cover the output deficit.
 --
 mockPerformSelectionNonEmpty
-    :: PerformSelection Identity NonEmpty WalletSelectionContext
+    :: PerformSelection Identity NonEmpty TestSelectionContext
 mockPerformSelectionNonEmpty constraints params = Identity $ Right result
   where
-    result :: SelectionResultOf NonEmpty WalletSelectionContext
+    result :: SelectionResultOf NonEmpty TestSelectionContext
     result = resultWithoutDelta
         { inputsSelected =
             makeInputsOfValue $ deficitIn <> TokenBundle.fromCoin minimumCost
@@ -1274,7 +1276,7 @@ mockPerformSelectionNonEmpty constraints params = Identity $ Right result
         minimumCost :: Coin
         minimumCost = selectionMinimumCost constraints resultWithoutDelta
 
-    resultWithoutDelta :: SelectionResultOf NonEmpty WalletSelectionContext
+    resultWithoutDelta :: SelectionResultOf NonEmpty TestSelectionContext
     resultWithoutDelta = SelectionResult
         { inputsSelected = makeInputsOfValue deficitIn
         , changeGenerated = makeChangeOfValue deficitOut
@@ -1855,7 +1857,7 @@ mkBoundaryTestExpectation (BoundaryTestData params expectedResult) = do
 
 encodeBoundaryTestCriteria
     :: BoundaryTestCriteria
-    -> SelectionParams WalletSelectionContext
+    -> SelectionParams TestSelectionContext
 encodeBoundaryTestCriteria c = SelectionParams
     { outputsToCover =
         zip
@@ -1888,7 +1890,7 @@ encodeBoundaryTestCriteria c = SelectionParams
     dummyTxIns = [TxIn (Hash "") x | x <- [0 ..]]
 
 decodeBoundaryTestResult
-    :: SelectionResult WalletSelectionContext -> BoundaryTestResult
+    :: SelectionResult TestSelectionContext -> BoundaryTestResult
 decodeBoundaryTestResult r = BoundaryTestResult
     { boundaryTestInputs = L.sort $ NE.toList $
         TokenBundle.toFlatList . snd <$> view #inputsSelected r
@@ -2468,7 +2470,7 @@ shrinkMockSelectionConstraints = genericRoundRobinShrink
 
 unMockSelectionConstraints
     :: MockSelectionConstraints
-    -> SelectionConstraints WalletSelectionContext
+    -> SelectionConstraints TestSelectionContext
 unMockSelectionConstraints m = SelectionConstraints
     { assessTokenBundleSize =
         unMockAssessTokenBundleSize $ view #assessTokenBundleSize m
@@ -2568,17 +2570,17 @@ shrinkMockComputeMinimumCost = \case
 
 unMockComputeMinimumCost
     :: MockComputeMinimumCost
-    -> (SelectionSkeleton WalletSelectionContext -> Coin)
+    -> (SelectionSkeleton TestSelectionContext -> Coin)
 unMockComputeMinimumCost = \case
     MockComputeMinimumCostZero ->
         computeMinimumCostZero
     MockComputeMinimumCostLinear ->
         computeMinimumCostLinear
 
-computeMinimumCostZero :: SelectionSkeleton WalletSelectionContext -> Coin
+computeMinimumCostZero :: SelectionSkeleton TestSelectionContext -> Coin
 computeMinimumCostZero = const $ Coin 0
 
-computeMinimumCostLinear :: SelectionSkeleton WalletSelectionContext -> Coin
+computeMinimumCostLinear :: SelectionSkeleton TestSelectionContext -> Coin
 computeMinimumCostLinear s
     = Coin
     $ fromIntegral
@@ -4415,6 +4417,20 @@ unitTests lbl cases =
         it (lbl <> " example #" <> show @Int i) test
 
 --------------------------------------------------------------------------------
+-- Selection contexts
+--------------------------------------------------------------------------------
+
+-- | A test selection context.
+--
+data TestSelectionContext
+
+instance SC.SelectionContext TestSelectionContext where
+    type Address TestSelectionContext = Address
+    type UTxO TestSelectionContext = WalletUTxO
+
+    dummyAddress = Address ""
+
+--------------------------------------------------------------------------------
 -- Arbitrary instances
 --------------------------------------------------------------------------------
 
@@ -4488,13 +4504,13 @@ newtype Small a = Small
     { getSmall:: a }
     deriving (Eq, Show)
 
-instance Arbitrary (Large (SelectionParams WalletSelectionContext)) where
+instance Arbitrary (Large (SelectionParams TestSelectionContext)) where
     arbitrary = Large <$> genSelectionParams
         (genWalletUTxOFunction (arbitrary @Bool))
         (genUTxOIndexLarge genWalletUTxOLargeRange)
     shrink = shrinkMapBy Large getLarge shrinkSelectionParams
 
-instance Arbitrary (Small (SelectionParams WalletSelectionContext)) where
+instance Arbitrary (Small (SelectionParams TestSelectionContext)) where
     arbitrary = Small <$> genSelectionParams
         (genWalletUTxOFunction (arbitrary @Bool))
         (genUTxOIndex genWalletUTxO)

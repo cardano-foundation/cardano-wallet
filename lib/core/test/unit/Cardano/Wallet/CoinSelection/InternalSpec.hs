@@ -19,7 +19,7 @@ module Cardano.Wallet.CoinSelection.InternalSpec
 import Prelude
 
 import Cardano.Wallet.CoinSelection
-    ( WalletSelectionContext, WalletUTxO (..) )
+    ( WalletUTxO (..) )
 import Cardano.Wallet.CoinSelection.Gen
     ( genWalletUTxO, shrinkWalletUTxO )
 import Cardano.Wallet.CoinSelection.Internal
@@ -53,6 +53,7 @@ import Cardano.Wallet.CoinSelection.Internal.BalanceSpec
     , MockComputeMinimumAdaQuantity
     , MockComputeMinimumCost
     , MockComputeSelectionLimit
+    , TestSelectionContext
     , genMockAssessTokenBundleSize
     , genMockComputeMinimumAdaQuantity
     , genMockComputeMinimumCost
@@ -196,7 +197,7 @@ spec = describe "Cardano.Wallet.CoinSelection.InternalSpec" $ do
 
 prop_performSelection
     :: Pretty MockSelectionConstraints
-    -> Pretty (SelectionParams WalletSelectionContext)
+    -> Pretty (SelectionParams TestSelectionContext)
     -> Property
 prop_performSelection (Pretty mockConstraints) (Pretty params) =
     monadicIO $
@@ -206,11 +207,11 @@ prop_performSelection (Pretty mockConstraints) (Pretty params) =
     constraints = unMockSelectionConstraints mockConstraints
 
 prop_performSelection_inner
-    :: SelectionConstraints WalletSelectionContext
-    -> SelectionParams WalletSelectionContext
+    :: SelectionConstraints TestSelectionContext
+    -> SelectionParams TestSelectionContext
     -> Either
-        (SelectionError WalletSelectionContext)
-        (Selection WalletSelectionContext)
+        (SelectionError TestSelectionContext)
+        (Selection TestSelectionContext)
     -> Property
 prop_performSelection_inner constraints params result =
     checkCoverage $
@@ -227,10 +228,10 @@ prop_performSelection_inner constraints params result =
 
 prop_performSelection_coverage
     :: Testable property
-    => SelectionParams WalletSelectionContext
+    => SelectionParams TestSelectionContext
     -> Either
-        (SelectionError WalletSelectionContext)
-        (Selection WalletSelectionContext)
+        (SelectionError TestSelectionContext)
+        (Selection TestSelectionContext)
     -> property
     -> Property
 prop_performSelection_coverage params r innerProperty =
@@ -325,8 +326,8 @@ prop_performSelection_coverage params r innerProperty =
 --
 prop_toBalanceConstraintsParams_computeMinimumCost
     :: MockSelectionConstraints
-    -> SelectionParams WalletSelectionContext
-    -> SelectionSkeleton WalletSelectionContext
+    -> SelectionParams TestSelectionContext
+    -> SelectionSkeleton TestSelectionContext
     -> Property
 prop_toBalanceConstraintsParams_computeMinimumCost
     mockConstraints params skeleton =
@@ -357,18 +358,18 @@ prop_toBalanceConstraintsParams_computeMinimumCost
         else
             costOriginal === costAdjusted
   where
-    constraints :: SelectionConstraints WalletSelectionContext
+    constraints :: SelectionConstraints TestSelectionContext
     constraints = unMockSelectionConstraints mockConstraints
 
     maximumCollateralInputCount :: Int
     maximumCollateralInputCount = constraints ^. #maximumCollateralInputCount
 
     computeMinimumCostOriginal
-        :: SelectionSkeleton WalletSelectionContext -> Coin
+        :: SelectionSkeleton TestSelectionContext -> Coin
     computeMinimumCostOriginal = constraints ^. #computeMinimumCost
 
     computeMinimumCostAdjusted
-        :: SelectionSkeleton WalletSelectionContext -> Coin
+        :: SelectionSkeleton TestSelectionContext -> Coin
     computeMinimumCostAdjusted =
         toBalanceConstraintsParams (constraints, params)
             & fst & view #computeMinimumCost
@@ -384,7 +385,7 @@ prop_toBalanceConstraintsParams_computeMinimumCost
 --
 prop_toBalanceConstraintsParams_computeSelectionLimit
     :: MockSelectionConstraints
-    -> SelectionParams WalletSelectionContext
+    -> SelectionParams TestSelectionContext
     -> Property
 prop_toBalanceConstraintsParams_computeSelectionLimit mockConstraints params =
     checkCoverage $
@@ -410,7 +411,7 @@ prop_toBalanceConstraintsParams_computeSelectionLimit mockConstraints params =
     else
         selectionLimitOriginal === selectionLimitAdjusted
   where
-    constraints :: SelectionConstraints WalletSelectionContext
+    constraints :: SelectionConstraints TestSelectionContext
     constraints = unMockSelectionConstraints mockConstraints
 
     maximumCollateralInputCount :: Int
@@ -582,7 +583,7 @@ shrinkMockSelectionConstraints = genericRoundRobinShrink
     <:> Nil
 
 unMockSelectionConstraints
-    :: MockSelectionConstraints -> SelectionConstraints WalletSelectionContext
+    :: MockSelectionConstraints -> SelectionConstraints TestSelectionContext
 unMockSelectionConstraints m = SelectionConstraints
     { assessTokenBundleSize =
         unMockAssessTokenBundleSize $ view #assessTokenBundleSize m
@@ -672,7 +673,7 @@ testMaximumOutputTokenQuantity = TokenQuantity $ intCast $ maxBound @Word64
 -- Selection parameters
 --------------------------------------------------------------------------------
 
-genSelectionParams :: Gen (SelectionParams WalletSelectionContext)
+genSelectionParams :: Gen (SelectionParams TestSelectionContext)
 genSelectionParams = SelectionParams
     <$> genAssetsToBurn
     <*> genAssetsToMint
@@ -688,8 +689,8 @@ genSelectionParams = SelectionParams
     <*> genSelectionStrategy
 
 shrinkSelectionParams
-    :: SelectionParams WalletSelectionContext
-    -> [SelectionParams WalletSelectionContext]
+    :: SelectionParams TestSelectionContext
+    -> [SelectionParams TestSelectionContext]
 shrinkSelectionParams = genericRoundRobinShrink
     <@> shrinkAssetsToBurn
     <:> shrinkAssetsToMint
@@ -907,10 +908,10 @@ instance Arbitrary MockSelectionConstraints where
     arbitrary = genMockSelectionConstraints
     shrink = shrinkMockSelectionConstraints
 
-instance Arbitrary (SelectionParams WalletSelectionContext) where
+instance Arbitrary (SelectionParams TestSelectionContext) where
     arbitrary = genSelectionParams
     shrink = shrinkSelectionParams
 
-instance Arbitrary (SelectionSkeleton WalletSelectionContext) where
+instance Arbitrary (SelectionSkeleton TestSelectionContext) where
     arbitrary = genSelectionSkeleton genAddress
     shrink = shrinkSelectionSkeleton shrinkAddress
