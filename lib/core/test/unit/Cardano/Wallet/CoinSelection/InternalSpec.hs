@@ -18,10 +18,6 @@ module Cardano.Wallet.CoinSelection.InternalSpec
 
 import Prelude
 
-import Cardano.Wallet.CoinSelection
-    ( WalletUTxO (..) )
-import Cardano.Wallet.CoinSelection.Gen
-    ( genWalletUTxO, shrinkWalletUTxO )
 import Cardano.Wallet.CoinSelection.Internal
     ( ComputeMinimumCollateralParams (..)
     , Selection
@@ -54,6 +50,7 @@ import Cardano.Wallet.CoinSelection.Internal.BalanceSpec
     , MockComputeMinimumCost
     , MockComputeSelectionLimit
     , TestSelectionContext
+    , TestUTxO
     , genMockAssessTokenBundleSize
     , genMockComputeMinimumAdaQuantity
     , genMockComputeMinimumCost
@@ -849,23 +846,23 @@ shrinkCollateralRequirement = genericShrink
 -- UTxO available for inputs and collateral
 --------------------------------------------------------------------------------
 
-genUTxOAvailableForCollateral :: Gen (Map WalletUTxO Coin)
-genUTxOAvailableForCollateral = genMapWith genWalletUTxO genCoinPositive
+genUTxOAvailableForCollateral :: Gen (Map TestUTxO Coin)
+genUTxOAvailableForCollateral = genMapWith (arbitrary @TestUTxO) genCoinPositive
 
-genUTxOAvailableForInputs :: Gen (UTxOSelection WalletUTxO)
+genUTxOAvailableForInputs :: Gen (UTxOSelection TestUTxO)
 genUTxOAvailableForInputs = frequency
-    [ (49, genUTxOSelection genWalletUTxO)
+    [ (49, genUTxOSelection (arbitrary @TestUTxO))
     , (01, pure UTxOSelection.empty)
     ]
 
 shrinkUTxOAvailableForCollateral
-    :: Map WalletUTxO Coin -> [Map WalletUTxO Coin]
+    :: Map TestUTxO Coin -> [Map TestUTxO Coin]
 shrinkUTxOAvailableForCollateral =
-    shrinkMapWith shrinkWalletUTxO shrinkCoinPositive
+    shrinkMapWith (shrink @TestUTxO) shrinkCoinPositive
 
 shrinkUTxOAvailableForInputs
-    :: UTxOSelection WalletUTxO -> [UTxOSelection WalletUTxO]
-shrinkUTxOAvailableForInputs = shrinkUTxOSelection shrinkWalletUTxO
+    :: UTxOSelection TestUTxO -> [UTxOSelection TestUTxO]
+shrinkUTxOAvailableForInputs = shrinkUTxOSelection (shrink @TestUTxO)
 
 --------------------------------------------------------------------------------
 -- Unit test support
