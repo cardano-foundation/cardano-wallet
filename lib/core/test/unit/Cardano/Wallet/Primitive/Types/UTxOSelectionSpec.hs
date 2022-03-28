@@ -1,8 +1,8 @@
 {-# LANGUAGE DataKinds #-}
 {-# LANGUAGE DerivingVia #-}
-{-# LANGUAGE ExplicitForAll #-}
 {-# LANGUAGE FlexibleContexts #-}
 {-# LANGUAGE FlexibleInstances #-}
+{-# LANGUAGE ScopedTypeVariables #-}
 {-# LANGUAGE TypeApplications #-}
 {-# LANGUAGE TypeFamilies #-}
 {-# OPTIONS_GHC -fno-warn-orphans #-}
@@ -186,6 +186,17 @@ checkCoverage_UTxOSelectionNonEmpty s
 -- Construction and deconstruction
 --------------------------------------------------------------------------------
 
+checkCoverage_filter
+    :: (Arbitrary u, Show u, Testable prop) => (u -> Bool) -> prop -> Property
+checkCoverage_filter f = property . flip checkCoverage_inner
+  where
+    checkCoverage_inner u
+        = checkCoverage
+        . cover 40 (f u)
+            "filter matches"
+        . cover 40 (not (f u))
+            "filter does not match"
+
 prop_fromIndex_isValid :: UTxOIndex TestUTxO -> Property
 prop_fromIndex_isValid i =
     isValidSelection (UTxOSelection.fromIndex i)
@@ -194,6 +205,7 @@ prop_fromIndex_isValid i =
 prop_fromIndexFiltered_isValid
     :: (TestUTxO -> Bool) -> UTxOIndex TestUTxO -> Property
 prop_fromIndexFiltered_isValid f i =
+    checkCoverage_filter f $
     isValidSelection (UTxOSelection.fromIndexFiltered f i)
     === True
 
@@ -213,6 +225,7 @@ prop_fromIndexFiltered_toIndexPair
     -> UTxOIndex TestUTxO
     -> Property
 prop_fromIndexFiltered_toIndexPair f i =
+    checkCoverage_filter f $
     UTxOSelection.toIndexPair (UTxOSelection.fromIndexFiltered f i)
     === (UTxOIndex.filter (not . f) i, UTxOIndex.filter f i)
 
@@ -371,6 +384,7 @@ prop_select_selectedSize u s =
 prop_selectMany_isSubSelectionOf
     :: (TestUTxO -> Bool) -> UTxOSelection TestUTxO -> Property
 prop_selectMany_isSubSelectionOf f s =
+    checkCoverage_filter f $
     checkCoverage_UTxOSelection s $
     UTxOSelection.isSubSelectionOf s (UTxOSelection.selectMany toSelect s)
     === True
