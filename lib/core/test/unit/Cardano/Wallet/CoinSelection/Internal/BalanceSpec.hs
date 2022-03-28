@@ -662,7 +662,7 @@ shrinkSelectionParams
     -> [SelectionParams TestSelectionContext]
 shrinkSelectionParams = genericRoundRobinShrink
     <@> shrinkList shrinkOutput
-    <:> shrinkUTxOSelection shrinkTestUTxO
+    <:> shrinkUTxOSelection (shrink @TestUTxO)
     <:> shrinkCoin
     <:> shrinkCoin
     <:> shrinkTokenMap
@@ -875,8 +875,8 @@ prop_performSelection_huge = ioProperty $
     -- The UTxO index is generated outside of the property in order to avoid
     -- the cost of re-generating it on every pass. This will still generate
     -- interesting cases, since selection within that large index is random.
-    property . prop_performSelection_huge_inner
-        <$> generate (genUTxOIndexLargeN genTestUTxOLargeRange 50000)
+    property . prop_performSelection_huge_inner <$> generate
+        (genUTxOIndexLargeN (resize 256 (arbitrary @TestUTxO)) 50000)
 
 prop_performSelection_huge_inner
     :: UTxOIndex TestUTxO
@@ -4434,18 +4434,6 @@ newtype TestUTxO = TestUTxO (Hexadecimal Quid)
 instance Buildable (TestUTxO, TokenBundle) where
     build (u, b) = build u <> ":" <> build (Flat b)
 
-genTestUTxO :: Gen TestUTxO
-genTestUTxO = arbitrary
-
-genTestUTxOFunction :: Gen Bool -> Gen (TestUTxO -> Bool)
-genTestUTxOFunction = genFunction coarbitrary
-
-genTestUTxOLargeRange :: Gen TestUTxO
-genTestUTxOLargeRange = resize 256 arbitrary
-
-shrinkTestUTxO :: TestUTxO -> [TestUTxO]
-shrinkTestUTxO = shrink
-
 --------------------------------------------------------------------------------
 -- Arbitrary instances
 --------------------------------------------------------------------------------
@@ -4509,8 +4497,8 @@ instance Arbitrary TxOut where
     shrink = shrinkTxOut
 
 instance Arbitrary (UTxOSelection TestUTxO) where
-    arbitrary = genUTxOSelection genTestUTxO
-    shrink = shrinkUTxOSelection shrinkTestUTxO
+    arbitrary = genUTxOSelection (arbitrary @TestUTxO)
+    shrink = shrinkUTxOSelection (shrink @TestUTxO)
 
 newtype Large a = Large
     { getLarge :: a }
@@ -4522,23 +4510,23 @@ newtype Small a = Small
 
 instance Arbitrary (Large (SelectionParams TestSelectionContext)) where
     arbitrary = Large <$> genSelectionParams
-        (genTestUTxOFunction (arbitrary @Bool))
-        (genUTxOIndexLarge genTestUTxOLargeRange)
+        (genFunction (coarbitrary @TestUTxO) (arbitrary @Bool))
+        (genUTxOIndexLarge (resize 256 (arbitrary @TestUTxO)))
     shrink = shrinkMapBy Large getLarge shrinkSelectionParams
 
 instance Arbitrary (Small (SelectionParams TestSelectionContext)) where
     arbitrary = Small <$> genSelectionParams
-        (genTestUTxOFunction (arbitrary @Bool))
-        (genUTxOIndex genTestUTxO)
+        (genFunction (coarbitrary @TestUTxO) (arbitrary @Bool))
+        (genUTxOIndex (arbitrary @TestUTxO))
     shrink = shrinkMapBy Small getSmall shrinkSelectionParams
 
 instance Arbitrary (Large (UTxOIndex TestUTxO)) where
-    arbitrary = Large <$> genUTxOIndexLarge genTestUTxOLargeRange
-    shrink = shrinkMapBy Large getLarge (shrinkUTxOIndex shrinkTestUTxO)
+    arbitrary = Large <$> genUTxOIndexLarge (resize 256 (arbitrary @TestUTxO))
+    shrink = shrinkMapBy Large getLarge (shrinkUTxOIndex (shrink @TestUTxO))
 
 instance Arbitrary (Small (UTxOIndex TestUTxO)) where
-    arbitrary = Small <$> genUTxOIndex genTestUTxO
-    shrink = shrinkMapBy Small getSmall (shrinkUTxOIndex shrinkTestUTxO)
+    arbitrary = Small <$> genUTxOIndex (arbitrary @TestUTxO)
+    shrink = shrinkMapBy Small getSmall (shrinkUTxOIndex (shrink @TestUTxO))
 
 instance Arbitrary Coin where
     arbitrary = genCoinPositive
