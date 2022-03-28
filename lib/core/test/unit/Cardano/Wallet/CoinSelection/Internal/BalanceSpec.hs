@@ -140,11 +140,8 @@ import Cardano.Wallet.Primitive.Types.TokenQuantity.Gen
 import Cardano.Wallet.Primitive.Types.Tx
     ( TokenBundleSizeAssessment (..)
     , TokenBundleSizeAssessor (..)
-    , TxOut (..)
     , txOutMaxTokenQuantity
     )
-import Cardano.Wallet.Primitive.Types.Tx.Gen
-    ( genTxOut, shrinkTxOut )
 import Cardano.Wallet.Primitive.Types.UTxOIndex
     ( SelectionFilter (..), UTxOIndex )
 import Cardano.Wallet.Primitive.Types.UTxOIndex.Gen
@@ -4491,10 +4488,6 @@ instance Arbitrary TokenMap where
 instance Arbitrary TokenQuantity where
     arbitrary = genTokenQuantityPositive
     shrink = shrinkTokenQuantityPositive
-
-instance Arbitrary TxOut where
-    arbitrary = genTxOut
-    shrink = shrinkTxOut
 
 instance (Arbitrary u, Ord u, Show u) => Arbitrary (UTxOSelection u) where
     arbitrary = genUTxOSelection (arbitrary @u)
