@@ -130,6 +130,7 @@ import Cardano.Wallet.Primitive.Types
     , ExecutionUnits (..)
     , FeePolicy (..)
     , GenesisParameters (..)
+    , LinearFunction (..)
     , MinimumUTxOValue (..)
     , PoolId (PoolId)
     , ProtocolParameters (..)
@@ -1214,11 +1215,11 @@ feeCalculationSpec = describe "fee calculations" $ do
   where
     pp :: ProtocolParameters
     pp = dummyProtocolParameters
-        { txParameters = dummyTxParameters
-            { getFeePolicy = fp
+            { txParameters = dummyTxParameters
+                { getFeePolicy =
+                    LinearFee LinearFunction {intercept = 100_000, slope = 100}
+                }
             }
-        }
-    fp = LinearFee (Quantity 100_000) (Quantity 100)
 
     minFee :: TransactionCtx -> Integer
     minFee ctx = Coin.toInteger $ calcMinimumCost testTxLayer pp ctx sel
@@ -1772,6 +1773,8 @@ dummyProtocolParameters = ProtocolParameters
         error "dummyProtocolParameters: minimumCollateralPercentage"
     , executionUnitPrices =
         error "dummyProtocolParameters: executionUnitPrices"
+    , currentNodeProtocolParameters =
+        error "dummyProtocolParameters: currentNodeProtocolParameters"
     }
 
 -- | Like generate, but the random generate is fixed to a particular seed so
@@ -1790,7 +1793,10 @@ emptyTxSkeleton = mkTxSkeleton
     emptySkeleton
 
 mockFeePolicy :: FeePolicy
-mockFeePolicy = LinearFee (Quantity 155381) (Quantity 44)
+mockFeePolicy = LinearFee $ LinearFunction
+    { intercept = 155381
+    , slope = 44
+    }
 
 mockProtocolParameters :: ProtocolParameters
 mockProtocolParameters = dummyProtocolParameters

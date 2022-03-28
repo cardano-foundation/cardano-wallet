@@ -31,6 +31,7 @@ import Cardano.Wallet.Primitive.Types
     , ExecutionUnits (..)
     , FeePolicy (..)
     , GenesisParameters (..)
+    , LinearFunction (..)
     , MinimumUTxOValue (..)
     , NetworkParameters (..)
     , ProtocolParameters (..)
@@ -104,7 +105,7 @@ dummyTimeInterpreter = hoistTimeInterpreter (pure . runIdentity)
 
 dummyTxParameters :: TxParameters
 dummyTxParameters = TxParameters
-    { getFeePolicy = LinearFee (Quantity 14) (Quantity 42)
+    { getFeePolicy = LinearFee $ LinearFunction { intercept = 14, slope = 42 }
     , getTxMaxSize = Quantity 8192
     , getTokenBundleMaxSize = TokenBundleMaxSize (TxSize 4000)
     , getMaxExecutionUnits = ExecutionUnits 0 0
@@ -128,6 +129,7 @@ dummyProtocolParameters = ProtocolParameters
     , maximumCollateralInputCount = 3
     , minimumCollateralPercentage = 100
     , executionUnitPrices = Nothing
+    , currentNodeProtocolParameters = Nothing
     }
 
 -- | Construct a @Tx@, computing its hash using the dummy @mkTxId@.
@@ -168,7 +170,6 @@ dummyNetworkLayer = NetworkLayer
     , currentNodeTip = error "currentNodeTip: not implemented"
     , watchNodeTip = error "watchNodeTip: not implemented"
     , currentProtocolParameters = error "currentProtocolParameters: not implemented"
-    , currentNodeProtocolParameters = error "currentNodeProtocolParameters: not implemented"
     , currentSlottingParameters = error "currentSlottingParameters: not implemented"
     , postTx = error "postTx: not implemented"
     , stakeDistribution = error "stakeDistribution: not implemented"

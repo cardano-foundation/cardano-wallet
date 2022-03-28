@@ -11,6 +11,7 @@
 {-# LANGUAGE NumericUnderscores #-}
 {-# LANGUAGE OverloadedLabels #-}
 {-# LANGUAGE RankNTypes #-}
+{-# LANGUAGE RecordWildCards #-}
 {-# LANGUAGE ScopedTypeVariables #-}
 {-# LANGUAGE StandaloneDeriving #-}
 {-# LANGUAGE TypeApplications #-}
@@ -88,6 +89,7 @@ import Cardano.Wallet.Primitive.Types
     , ExecutionUnitPrices (..)
     , ExecutionUnits (..)
     , FeePolicy (..)
+    , LinearFunction (LinearFunction)
     , MinimumUTxOValue (..)
     , PassphraseScheme (..)
     , PoolId (..)
@@ -663,7 +665,17 @@ arbitrarySharedAccount =
 -------------------------------------------------------------------------------}
 
 instance Arbitrary ProtocolParameters where
-    shrink = genericShrink
+    shrink ProtocolParameters {..} = ProtocolParameters
+        <$> shrink decentralizationLevel
+        <*> shrink txParameters
+        <*> shrink desiredNumberOfStakePools
+        <*> shrink minimumUTxOvalue
+        <*> shrink stakeKeyDeposit
+        <*> shrink eras
+        <*> shrink maximumCollateralInputCount
+        <*> shrink minimumCollateralPercentage
+        <*> shrink executionUnitPrices
+        <*> pure Nothing
     arbitrary = ProtocolParameters
         <$> arbitrary
         <*> arbitrary
@@ -674,6 +686,7 @@ instance Arbitrary ProtocolParameters where
         <*> genMaximumCollateralInputCount
         <*> genMinimumCollateralPercentage
         <*> arbitrary
+        <*> pure Nothing
       where
         genMaximumCollateralInputCount :: Gen Word16
         genMaximumCollateralInputCount = arbitrarySizedNatural
@@ -712,9 +725,9 @@ instance Arbitrary ExecutionUnits where
         <*> arbitrary
 
 instance Arbitrary FeePolicy where
-    arbitrary = LinearFee
-        <$> fmap Quantity (choose (0, 1000))
-        <*> fmap Quantity (choose (0, 100))
+    arbitrary = (LinearFee . ) . LinearFunction
+        <$> choose (0, 1000)
+        <*> choose (0, 100)
 
 instance (Integral a, Arbitrary a) => Arbitrary (Quantity n a) where
     shrink (Quantity a) = Quantity <$> shrinkIntegral a

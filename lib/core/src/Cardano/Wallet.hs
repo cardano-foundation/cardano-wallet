@@ -372,6 +372,7 @@ import Cardano.Wallet.Primitive.Types
     , FeePolicy (LinearFee)
     , GenesisParameters (..)
     , IsDelegatingTo (..)
+    , LinearFunction (LinearFunction)
     , NetworkParameters (..)
     , PassphraseScheme (..)
     , PoolId (..)
@@ -1935,8 +1936,7 @@ balanceTransactionWithSelectionStrategy
             -- with a coin value just about the 9 byte limit (4294967296). I.e.
             -- seems like a problem of coin selection.
             feePadding =
-                let
-                    LinearFee _ (Quantity perByte) =
+                let LinearFee LinearFunction {slope = perByte} =
                         view (#txParameters . #getFeePolicy) pp
                     scriptIntegrityHashBytes = 32 + 2
                     extraBytes = 4

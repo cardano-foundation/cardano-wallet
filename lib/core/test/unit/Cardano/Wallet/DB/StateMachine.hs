@@ -134,6 +134,7 @@ import Cardano.Wallet.Primitive.Types
     , ExecutionUnits (..)
     , FeePolicy
     , GenesisParameters (..)
+    , LinearFunction
     , PoolId (..)
     , Range (..)
     , Slot
@@ -1054,6 +1055,9 @@ instance ToExpr TxParameters where
     toExpr = genericToExpr
 
 instance ToExpr ExecutionUnits where
+    toExpr = genericToExpr
+
+instance ToExpr a => ToExpr (LinearFunction a) where
     toExpr = genericToExpr
 
 instance ToExpr FeePolicy where

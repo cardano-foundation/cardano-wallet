@@ -2393,7 +2393,7 @@ balanceTransaction
 balanceTransaction ctx genChange (ApiT wid) body = do
     pp <- liftIO $ NW.currentProtocolParameters nl
     -- TODO: This throws when still in the Byron era.
-    nodePParams <- fromJust <$> liftIO (NW.currentNodeProtocolParameters nl)
+    let nodePParams = fromJust $ W.currentNodeProtocolParameters pp
     let partialTx = W.PartialTx
             (getApiT $ body ^. #transaction)
             (fromExternalInput <$> body ^. #inputs)
