@@ -4496,9 +4496,9 @@ instance Arbitrary TxOut where
     arbitrary = genTxOut
     shrink = shrinkTxOut
 
-instance Arbitrary (UTxOSelection TestUTxO) where
-    arbitrary = genUTxOSelection (arbitrary @TestUTxO)
-    shrink = shrinkUTxOSelection (shrink @TestUTxO)
+instance (Arbitrary u, Ord u, Show u) => Arbitrary (UTxOSelection u) where
+    arbitrary = genUTxOSelection (arbitrary @u)
+    shrink = shrinkUTxOSelection (shrink @u)
 
 newtype Large a = Large
     { getLarge :: a }
@@ -4520,13 +4520,13 @@ instance Arbitrary (Small (SelectionParams TestSelectionContext)) where
         (genUTxOIndex (arbitrary @TestUTxO))
     shrink = shrinkMapBy Small getSmall shrinkSelectionParams
 
-instance Arbitrary (Large (UTxOIndex TestUTxO)) where
-    arbitrary = Large <$> genUTxOIndexLarge (resize 256 (arbitrary @TestUTxO))
-    shrink = shrinkMapBy Large getLarge (shrinkUTxOIndex (shrink @TestUTxO))
+instance (Arbitrary u, Ord u) => Arbitrary (Large (UTxOIndex u)) where
+    arbitrary = Large <$> genUTxOIndexLarge (resize 256 (arbitrary @u))
+    shrink = shrinkMapBy Large getLarge (shrinkUTxOIndex (shrink @u))
 
-instance Arbitrary (Small (UTxOIndex TestUTxO)) where
-    arbitrary = Small <$> genUTxOIndex (arbitrary @TestUTxO)
-    shrink = shrinkMapBy Small getSmall (shrinkUTxOIndex (shrink @TestUTxO))
+instance (Arbitrary u, Ord u) => Arbitrary (Small (UTxOIndex u)) where
+    arbitrary = Small <$> genUTxOIndex (arbitrary @u)
+    shrink = shrinkMapBy Small getSmall (shrinkUTxOIndex (shrink @u))
 
 instance Arbitrary Coin where
     arbitrary = genCoinPositive
