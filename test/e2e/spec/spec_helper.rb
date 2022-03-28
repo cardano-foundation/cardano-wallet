@@ -526,6 +526,17 @@ def construct_sign_submit(wid,
   [tx_constructed, tx_signed, tx_submitted]
 end
 
+def create_policy_key_if_not_exists(wid)
+  gpkey = SHELLEY.keys.get_policy_key(wid)
+  if gpkey.code == 403 && gpkey['code'] == "missing_policy_public_key"
+    pkey = SHELLEY.keys.create_policy_key(wid, PASS)
+    expect(pkey).to be_correct_and_respond 202
+  end
+  pkey || gpkey
+end
+
+##
+# Plutus helpers
 def get_plutus_tx(file)
   JSON.parse(File.read(File.join(PLUTUS_DIR, file)))
 end

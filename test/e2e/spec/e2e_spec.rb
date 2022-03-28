@@ -602,6 +602,692 @@ RSpec.describe "Cardano Wallet E2E tests", :e2e => true do
       expect(stake_keys['ours'].first['delegation']['next'].first['status']).to eq "not_delegating"
       expect(stake_keys['ours'].first['delegation']['next'].last['status']).to eq "not_delegating"
     end
+
+    describe "Minting and Burning" do
+      def mint(asset_name, quantity, policy_script, address)
+        {
+            'operation' => {
+              'mint' =>
+                {
+                  'receiving_address' => address,
+                  'amount' => { 'quantity' => quantity,
+                                'unit' => 'assets'
+                               }
+                }
+            },
+            'policy_script_template' => policy_script,
+            'asset_name' => asset_name
+        }
+      end
+
+      def burn(asset_name, quantity, policy_script)
+        {
+            'operation' => {
+              'burn' => { 'quantity' => quantity,
+                          'unit' => 'assets'
+                         }
+
+             },
+            'policy_script_template' => policy_script,
+            'asset_name' => asset_name
+        }
+      end
+
+      ##
+      # Gets assets list in the form of 'policy_id + asset_name' array
+      # @return [Array] - ["#{policy_id}#{asset_name}"...] of all minted/burnt assets
+      def get_assets_from_decode(tx_decoded_mint_or_burn)
+        tx_decoded_mint_or_burn['tokens'].map do |x|
+           assets = x['assets'].map {|z| z['asset_name']}
+           assets.map {|a| "#{x['policy_id']}#{a}"}
+        end.flatten
+      end
+
+      def get_policy_id_from_decode(tx_decoded_mint_or_burn)
+        tx_decoded_mint_or_burn['tokens'].first['policy_id']
+      end
+
+      ##
+      # Tx1: Mints 3 x 1000 assets, each guarded by different policy script
+      # Tx2: Burns 3 x 500 of each and verifies 500 of each remain on wallet
+      # Tx3: Burns remaining 3 x 500 and verifies they're no longer on balance
+      it "Can mint and then burn" do
+        src_before = get_shelley_balances(@wid)
+        address = SHELLEY.addresses.list(@wid).first['id']
+        policy_script1 = 'cosigner#0'
+        policy_script2 = { "all" => [ "cosigner#0" ] }
+        policy_script3 = { "any" => [ "cosigner#0" ] }
+
+        # Minting:
+        mint = [mint(asset_name('Token1'), 1000, policy_script1, address),
+                mint(asset_name('Token2'), 1000, policy_script2, address),
+                mint(asset_name('Token3'), 1000, policy_script3, address)
+               ]
+        create_policy_key_if_not_exists(@wid)
+        tx_constructed, tx_signed, tx_submitted = construct_sign_submit(@wid,
+                                                                        payments = nil,
+                                                                        withdrawal = nil,
+                                                                        metadata = nil,
+                                                                        delegations = nil,
+                                                                        mint)
+        tx_decoded = SHELLEY.transactions.decode(@wid, tx_constructed["transaction"])
+        expect(tx_constructed).to be_correct_and_respond 202
+        expected_fee = tx_constructed['fee']['quantity']
+        decoded_fee = tx_decoded['fee']['quantity']
+        expect(expected_fee).to eq decoded_fee
+
+        tx_id = tx_submitted['id']
+        wait_for_tx_in_ledger(@wid, tx_id)
+        src_after_minting = get_shelley_balances(@wid)
+
+        # verify ADA balance is correct (fee is deducted)
+        expect(src_after_minting['available']).to eq (src_before['available'] - expected_fee)
+        expect(src_after_minting['total']).to eq (src_before['total'] - expected_fee)
+
+        # verify assets have been minted and on wallet's balance
+        assets_to_check = get_assets_from_decode(tx_decoded['mint'])
+        assets = assets_balance(src_after_minting['assets_total'], { assets_to_check: assets_to_check })
+        expect(assets).to eq(assets_to_check.map{|z| {z => 1000}}.to_set)
+
+        # Burn half:
+        burn = [burn(asset_name('Token1'), 500, policy_script1),
+                burn(asset_name('Token2'), 500, policy_script2),
+                burn(asset_name('Token3'), 500, policy_script3)
+               ]
+        tx_constructed, tx_signed, tx_submitted = construct_sign_submit(@wid,
+                                                                        payments = nil,
+                                                                        withdrawal = nil,
+                                                                        metadata = nil,
+                                                                        delegations = nil,
+                                                                        burn)
+        tx_decoded = SHELLEY.transactions.decode(@wid, tx_constructed["transaction"])
+        expect(tx_constructed).to be_correct_and_respond 202
+        expected_fee = tx_constructed['fee']['quantity']
+        decoded_fee = tx_decoded['fee']['quantity']
+        expect(expected_fee).to eq decoded_fee
+
+        tx_id = tx_submitted['id']
+        wait_for_tx_in_ledger(@wid, tx_id)
+        src_after_burning = get_shelley_balances(@wid)
+
+        # verify ADA balance is correct (fee is deducted)
+        expect(src_after_burning['available']).to eq (src_after_minting['available'] - expected_fee)
+        expect(src_after_burning['total']).to eq (src_after_minting['total'] - expected_fee)
+
+        # verify half of assets have ben burned
+        assets = assets_balance(src_after_burning['assets_total'],
+                               { assets_to_check: assets_to_check })
+        expect(assets).to eq(assets_to_check.map{|z| {z => 500}}.to_set)
+
+        # Burn all the rest:
+        burn = [burn(asset_name('Token1'), 500, policy_script1),
+                burn(asset_name('Token2'), 500, policy_script2),
+                burn(asset_name('Token3'), 500, policy_script3)
+               ]
+        tx_constructed, tx_signed, tx_submitted = construct_sign_submit(@wid,
+                                                                        payments = nil,
+                                                                        withdrawal = nil,
+                                                                        metadata = nil,
+                                                                        delegations = nil,
+                                                                        burn)
+        tx_decoded = SHELLEY.transactions.decode(@wid, tx_constructed["transaction"])
+        expect(tx_constructed).to be_correct_and_respond 202
+        expected_fee = tx_constructed['fee']['quantity']
+        decoded_fee = tx_decoded['fee']['quantity']
+        expect(expected_fee).to eq decoded_fee
+
+        tx_id = tx_submitted['id']
+        wait_for_tx_in_ledger(@wid, tx_id)
+        src_after_burning_all = get_shelley_balances(@wid)
+
+        # verify ADA balance is correct (fee is deducted)
+        expect(src_after_burning_all['available']).to eq (src_after_burning['available'] - expected_fee)
+        expect(src_after_burning_all['total']).to eq (src_after_burning['total'] - expected_fee)
+
+        # verify all assets have been burned and no longer on wallet's balance
+        assets = assets_balance(src_after_burning_all['assets_total'],
+                               { assets_to_check: assets_to_check })
+        expect(assets).to eq({}.to_set)
+      end
+
+      ##
+      # Tx1: Mints 3 x 1 assets with metadata
+      # Tx2: Burns 3 x 1 assets and also assign metadata to tx
+      it "Can mint and burn with metadata" do
+        src_before = get_shelley_balances(@wid)
+        address = SHELLEY.addresses.list(@wid).first['id']
+        policy_script1 = 'cosigner#0'
+        policy_script2 = 'cosigner#0'
+        policy_script3 = { "any" => [ "cosigner#0" ] }
+        metadata = METADATA
+        assets_quantity = 1
+
+        # Minting:
+        mint = [mint(asset_name('TokenMetadata1'), assets_quantity, policy_script1, address),
+                mint(asset_name('TokenMetadata2'), assets_quantity, policy_script2, address),
+                mint(asset_name('TokenMetadata3'), assets_quantity, policy_script3, address)
+               ]
+        create_policy_key_if_not_exists(@wid)
+        tx_constructed, tx_signed, tx_submitted = construct_sign_submit(@wid,
+                                                                        payments = nil,
+                                                                        withdrawal = nil,
+                                                                        metadata,
+                                                                        delegations = nil,
+                                                                        mint)
+        tx_decoded = SHELLEY.transactions.decode(@wid, tx_constructed["transaction"])
+        expect(tx_constructed).to be_correct_and_respond 202
+        expected_fee = tx_constructed['fee']['quantity']
+        decoded_fee = tx_decoded['fee']['quantity']
+        expect(expected_fee).to eq decoded_fee
+
+        tx_id = tx_submitted['id']
+        wait_for_tx_in_ledger(@wid, tx_id)
+        src_after_minting = get_shelley_balances(@wid)
+
+        # verify tx has metadata
+        tx = SHELLEY.transactions.get(@wid, tx_id)
+        expect(tx['metadata']).to eq metadata
+
+        # verify ADA balance is correct (fee is deducted)
+        expect(src_after_minting['available']).to eq (src_before['available'] - expected_fee)
+        expect(src_after_minting['total']).to eq (src_before['total'] - expected_fee)
+
+        # verify assets have been minted and on wallet's balance
+        assets_to_check = get_assets_from_decode(tx_decoded['mint'])
+        assets = assets_balance(src_after_minting['assets_total'], { assets_to_check: assets_to_check })
+        expect(assets).to eq(assets_to_check.map{|z| {z => assets_quantity}}.to_set)
+
+        # Burn all:
+        burn = [burn(asset_name('TokenMetadata1'), assets_quantity, policy_script1),
+                burn(asset_name('TokenMetadata2'), assets_quantity, policy_script2),
+                burn(asset_name('TokenMetadata3'), assets_quantity, policy_script3)
+               ]
+        tx_constructed, tx_signed, tx_submitted = construct_sign_submit(@wid,
+                                                                        payments = nil,
+                                                                        withdrawal = nil,
+                                                                        metadata,
+                                                                        delegations = nil,
+                                                                        burn)
+        tx_decoded = SHELLEY.transactions.decode(@wid, tx_constructed["transaction"])
+        expect(tx_constructed).to be_correct_and_respond 202
+        expected_fee = tx_constructed['fee']['quantity']
+        decoded_fee = tx_decoded['fee']['quantity']
+        expect(expected_fee).to eq decoded_fee
+
+        tx_id = tx_submitted['id']
+        wait_for_tx_in_ledger(@wid, tx_id)
+        src_after_burning = get_shelley_balances(@wid)
+
+        # verify tx has metadata
+        tx = SHELLEY.transactions.get(@wid, tx_id)
+        expect(tx['metadata']).to eq metadata
+
+        # verify ADA balance is correct (fee is deducted)
+        expect(src_after_burning['available']).to eq (src_after_minting['available'] - expected_fee)
+        expect(src_after_burning['total']).to eq (src_after_minting['total'] - expected_fee)
+
+        # verify all assets have been burned and no longer on wallet's balance
+        assets = assets_balance(src_after_burning['assets_total'],
+                               { assets_to_check: assets_to_check })
+        expect(assets).to eq({}.to_set)
+      end
+
+      ##
+      # Tx1: Mints 2 x 500 assets, each guarded by different policy script
+      # Tx2: Mints 500 more of A1 and burns 500 of A2
+      # Tx3: Burns remaining 1000 of A2
+      it "Can mint and burn in the same tx" do
+
+        skip "TODO MINT: Mint and burn fails in single tx"
+
+        src_before = get_shelley_balances(@wid)
+        address = SHELLEY.addresses.list(@wid).first['id']
+        policy_script1 = { "some" => {"at_least" => 1, "from" => [ "cosigner#0" ]} }
+        policy_script2 = { "any" => [ "cosigner#0" ] }
+
+        # Minting:
+        mint = [mint(asset_name('Asset1'), 500, policy_script1, address),
+                mint(asset_name('Asset2'), 500, policy_script2, address)]
+
+        create_policy_key_if_not_exists(@wid)
+        tx_constructed, tx_signed, tx_submitted = construct_sign_submit(@wid,
+                                                                        payments = nil,
+                                                                        withdrawal = nil,
+                                                                        metadata = nil,
+                                                                        delegations = nil,
+                                                                        mint)
+        tx_decoded = SHELLEY.transactions.decode(@wid, tx_constructed["transaction"])
+        expect(tx_constructed).to be_correct_and_respond 202
+        expected_fee = tx_constructed['fee']['quantity']
+        decoded_fee = tx_decoded['fee']['quantity']
+        expect(expected_fee).to eq decoded_fee
+
+        tx_id = tx_submitted['id']
+        wait_for_tx_in_ledger(@wid, tx_id)
+        src_after_minting = get_shelley_balances(@wid)
+
+        # verify ADA balance is correct (fee is deducted)
+        expect(src_after_minting['available']).to eq (src_before['available'] - expected_fee)
+        expect(src_after_minting['total']).to eq (src_before['total'] - expected_fee)
+
+        # verify assets have been minted and on wallet's balance
+        assets_to_check = get_assets_from_decode(tx_decoded['mint'])
+        assets = assets_balance(src_after_minting['assets_total'], { assets_to_check: assets_to_check })
+        expect(assets).to eq(assets_to_check.map{|z| {z => 500}}.to_set)
+
+        # Minting and burning:
+        mint_burn = [mint(asset_name('Asset1'), 500, policy_script1, address),
+                     burn(asset_name('Asset2'), 500, policy_script2)]
+
+        # p JSON.parse(mint_burn.to_json)
+        tx_constructed, tx_signed, tx_submitted = construct_sign_submit(@wid,
+                                                                        payments = nil,
+                                                                        withdrawal = nil,
+                                                                        metadata = nil,
+                                                                        delegations = nil,
+                                                                        mint_burn)
+        tx_decoded = SHELLEY.transactions.decode(@wid, tx_constructed["transaction"])
+        expect(tx_constructed).to be_correct_and_respond 202
+        expected_fee = tx_constructed['fee']['quantity']
+        decoded_fee = tx_decoded['fee']['quantity']
+        expect(expected_fee).to eq decoded_fee
+
+        tx_id = tx_submitted['id']
+        wait_for_tx_in_ledger(@wid, tx_id)
+        src_after_minting_burning = get_shelley_balances(@wid)
+
+        # verify ADA balance is correct (fee is deducted)
+        expect(src_after_minting_burning['available']).to eq (src_after_minting['available'] - expected_fee)
+        expect(src_after_minting_burning['total']).to eq (src_after_minting['total'] - expected_fee)
+
+        # verify Asset1 has been minted and Asset2 burned
+        assets_minted_to_check = get_assets_from_decode(tx_decoded['mint'])
+        assets_burned_to_check = get_assets_from_decode(tx_decoded['burn'])
+        assets_minted = assets_balance(src_after_minting_burning['assets_total'],
+                                       { assets_to_check: assets_minted_to_check })
+        assets_burned = assets_balance(src_after_minting_burning['assets_total'],
+                                       { assets_to_check: assets_burned_to_check })
+
+        expect(assets_minted).to eq(assets_minted_to_check.map{|z| {z => 1000}}.to_set)
+        expect(assets_burned).to eq({}.to_set)
+
+        # Burn all the rest:
+        burn = [burn(asset_name('Asset1'), 500, policy_script1)]
+        tx_constructed, tx_signed, tx_submitted = construct_sign_submit(@wid,
+                                                                        payments = nil,
+                                                                        withdrawal = nil,
+                                                                        metadata = nil,
+                                                                        delegations = nil,
+                                                                        burn)
+
+        tx_decoded = SHELLEY.transactions.decode(@wid, tx_constructed["transaction"])
+        expect(tx_constructed).to be_correct_and_respond 202
+        expected_fee = tx_constructed['fee']['quantity']
+        decoded_fee = tx_decoded['fee']['quantity']
+        expect(expected_fee).to eq decoded_fee
+
+        tx_id = tx_submitted['id']
+        wait_for_tx_in_ledger(@wid, tx_id)
+        src_after_burning = get_shelley_balances(@wid)
+
+        # verify ADA balance is correct (fee is deducted)
+        expect(src_after_minting_burning['available']).to eq (src_after_minting['available'] - expected_fee)
+        expect(src_after_minting_burning['total']).to eq (src_after_minting['total'] - expected_fee)
+
+        # verify Asset1 has been burned
+        assets_burned_to_check = get_assets_from_decode(tx_decoded['burn'])
+        assets_burned = assets_balance(src_after_burning['assets_total'],
+                                       { assets_to_check: assets_burned_to_check })
+        expect(assets_burned).to eq({}.to_set)
+
+      end
+
+      ##
+      # Tx1: Mints 10 asset
+      # Tx2: Fail to mint 10 and burn 10 of the same asset ??????
+      # Tx3: Burns 10 assets
+      it "Cannot mint and burn the same asset in single tx" do
+        skip "TODO MINT: Mint and burn fails in single tx"
+      end
+
+      ##
+      # Tx1: Fail to burn asset that's not on the wallet
+      it "Cannot burn if I don't have it" do
+        policy_script = 'cosigner#0'
+        burn = [burn(asset_name('AmazingNFTIdontHave'), 1, policy_script)]
+        create_policy_key_if_not_exists(@wid)
+        tx_constructed = SHELLEY.transactions.construct(@wid,
+                                                        payments = nil,
+                                                        withdrawal = nil,
+                                                        metadata = nil,
+                                                        delegations = nil,
+                                                        burn)
+        expect(tx_constructed).to be_correct_and_respond 403
+        expect(tx_constructed['code'].to_s).to eq "not_enough_money"
+        expect(tx_constructed['message'].to_s).to include "token: #{asset_name('AmazingNFTIdontHave')}"
+        expect(tx_constructed['message'].to_s).to include "quantity: 1"
+      end
+
+      ##
+      # Tx1: Mints 1000 assets
+      # Tx2: Fails to burn 1000 assets using different policy_script
+      # Tx2: Fails to burn 1022 assets using correct policy_script
+      # Tx3: Burns remaining 1000 assets
+      it "Cannot burn with wrong policy_script or more than I have" do
+        src_before = get_shelley_balances(@wid)
+        address = SHELLEY.addresses.list(@wid).first['id']
+        policy_script = 'cosigner#0'
+
+        # Mint it:
+        mint = [mint(asset_name('MintIt'), 1000, policy_script, address)]
+        create_policy_key_if_not_exists(@wid)
+        tx_constructed, tx_signed, tx_submitted = construct_sign_submit(@wid,
+                                                                        payments = nil,
+                                                                        withdrawal = nil,
+                                                                        metadata = nil,
+                                                                        delegations = nil,
+                                                                        mint)
+        expected_fee = tx_constructed['fee']['quantity']
+
+        tx_id = tx_submitted['id']
+        wait_for_tx_in_ledger(@wid, tx_id)
+
+        # Try to burn:
+        #  - with different policy_script
+        burn1 = [burn(asset_name('MintIt'), 1000, {"all" => ["cosigner#0"]})]
+        tx_constructed = SHELLEY.transactions.construct(@wid,
+                                                        payments = nil,
+                                                        withdrawal = nil,
+                                                        metadata = nil,
+                                                        delegations = nil,
+                                                        burn1)
+
+        expect(tx_constructed).to be_correct_and_respond 403
+        expect(tx_constructed['code'].to_s).to eq "not_enough_money"
+        expect(tx_constructed['message'].to_s).to include "token: #{asset_name('MintIt')}"
+        expect(tx_constructed['message'].to_s).to include "quantity: 1000"
+
+        #  - correct policy_script but too much
+        burn2 = [burn(asset_name('MintIt'), 1022, policy_script)]
+        tx_constructed = SHELLEY.transactions.construct(@wid,
+                                                       payments = nil,
+                                                       withdrawal = nil,
+                                                       metadata = nil,
+                                                       delegations = nil,
+                                                       burn2)
+
+        expect(tx_constructed).to be_correct_and_respond 403
+        expect(tx_constructed['code'].to_s).to eq "not_enough_money"
+        expect(tx_constructed['message'].to_s).to include "token: #{asset_name('MintIt')}"
+        expect(tx_constructed['message'].to_s).to include "quantity: 22"
+
+        # Burn it:
+        burn3 = [burn(asset_name('MintIt'), 1000, policy_script)]
+        tx_constructed, tx_signed, tx_submitted = construct_sign_submit(@wid,
+                                                                        payments = nil,
+                                                                        withdrawal = nil,
+                                                                        metadata = nil,
+                                                                        delegations = nil,
+                                                                        burn3)
+        expected_fee = tx_constructed['fee']['quantity']
+        tx_decoded = SHELLEY.transactions.decode(@wid, tx_constructed["transaction"])
+
+        tx_id = tx_submitted['id']
+        wait_for_tx_in_ledger(@wid, tx_id)
+        src_after_burning = get_shelley_balances(@wid)
+
+        # verify MintIt has been burned
+        assets_burned_to_check = get_assets_from_decode(tx_decoded['burn'])
+        assets_burned = assets_balance(src_after_burning['assets_total'],
+                                       { assets_to_check: assets_burned_to_check })
+        expect(assets_burned).to eq({}.to_set)
+      end
+
+      ##
+      # Tx1: Mints 1500 assets to different wallet
+      # Tx2: Fails to burn 1500 assets on different wallet
+      # Tx3: Sends assets back to src wallet
+      # Tx4: Burns them
+      it "Mint to foreign wallet / Cannot burn if I don't have keys" do
+
+        skip "TODO MINT: It doesn't mint to foreign wallet!"
+
+        src_before = get_shelley_balances(@wid)
+        target_before = get_shelley_balances(@target_id)
+        address = SHELLEY.addresses.list(@target_id).first['id']
+        policy_script = 'cosigner#0'
+        assets_quantity = 1500
+        assets_name = asset_name('ToForeignWallet')
+
+        # Mint it:
+        mint = [mint(assets_name, assets_quantity, policy_script, address)]
+        create_policy_key_if_not_exists(@wid)
+        tx_constructed, tx_signed, tx_submitted = construct_sign_submit(@wid,
+                                                                        payments = nil,
+                                                                        withdrawal = nil,
+                                                                        metadata = nil,
+                                                                        delegations = nil,
+                                                                        mint)
+
+        tx_decoded = SHELLEY.transactions.decode(@wid, tx_constructed["transaction"])
+        expect(tx_constructed).to be_correct_and_respond 202
+        expected_fee = tx_constructed['fee']['quantity']
+        decoded_fee = tx_decoded['fee']['quantity']
+        expect(expected_fee).to eq decoded_fee
+
+        tx_id = tx_submitted['id']
+        wait_for_tx_in_ledger(@wid, tx_id)
+        src_after_minting = get_shelley_balances(@wid)
+        target_after_minting = get_shelley_balances(@target_id)
+
+        # verify ADA balance is correct (fee is deducted)
+        expect(src_after_minting['available']).to eq (src_before['available'] - expected_fee)
+        expect(src_after_minting['total']).to eq (src_before['total'] - expected_fee)
+
+        # verify assets have been minted and on target wallet's balance
+        assets_to_check = get_assets_from_decode(tx_decoded['mint'])
+        assets = assets_balance(target_after_minting['assets_total'], { assets_to_check: assets_to_check })
+        expect(assets).to eq(assets_to_check.map{|z| {z => assets_quantity}}.to_set)
+
+        # Try to burn on target wallet and fail:
+        burn = [burn(assets_name, assets_quantity, policy_script)]
+        tx_constructed = SHELLEY.transactions.construct(@wid,
+                                                        payments = nil,
+                                                        withdrawal = nil,
+                                                        metadata = nil,
+                                                        delegations = nil,
+                                                        burn)
+        expect(tx_constructed).to be_correct_and_respond 403
+        expect(tx_constructed['code'].to_s).to eq "not_enough_money"
+        expect(tx_constructed['message'].to_s).to include "token: #{assets_name}"
+        expect(tx_constructed['message'].to_s).to include "quantity: #{assets_quantity}"
+
+        # Send them back to src wallet:
+        src_address = SHELLEY.addresses.list(@wid).first['id']
+        policy_id = get_policy_id_from_decode(tx_decoded['mint'])
+        payment = [{ "address" => src_address,
+                    "amount" => { "quantity" => 0, "unit" => "lovelace" },
+                    "assets" => [ { "policy_id" => policy_id,
+                                    "asset_name" => assets_name,
+                                    "quantity" => assets_quantity
+                                  } ]
+                    }
+                   ]
+
+        tx_constructed, tx_signed, tx_submitted = construct_sign_submit(@target_id, payment)
+        tx_id = tx_submitted['id']
+        wait_for_tx_in_ledger(@target_id, tx_id)
+        src_after_sending = get_shelley_balances(@wid)
+        assets = assets_balance(src_after_sending['assets_total'], { assets_to_check: assets_to_check })
+        expect(assets).to eq(assets_to_check.map{|z| {z => assets_quantity}}.to_set)
+
+        # Burn them on src wallet:
+        burn = [burn(assets_name, assets_quantity, policy_script)]
+        tx_constructed, tx_signed, tx_submitted = construct_sign_submit(@wid,
+                                                                        payments = nil,
+                                                                        withdrawal = nil,
+                                                                        metadata = nil,
+                                                                        delegations = nil,
+                                                                        burn)
+
+        tx_decoded = SHELLEY.transactions.decode(@wid, tx_constructed["transaction"])
+        expect(tx_constructed).to be_correct_and_respond 202
+        expected_fee = tx_constructed['fee']['quantity']
+        decoded_fee = tx_decoded['fee']['quantity']
+        expect(expected_fee).to eq decoded_fee
+
+        tx_id = tx_submitted['id']
+        wait_for_tx_in_ledger(@wid, tx_id)
+
+        # make sure it was burned
+        src_after_burning = get_shelley_balances(@wid)
+        assets_to_check = get_assets_from_decode(tx_decoded['burn'])
+        assets = assets_balance(src_after_sending['assets_total'], { assets_to_check: assets_to_check })
+        expect(assets).to eq({}.to_set)
+
+      end
+
+      ##
+      # Make sure minting above boundary quantity values returns proper error
+      describe "Mint/Burn quantities" do
+        matrix = [
+                  [-9223372036854775808, 400, "bad_request"],
+                  [-1, 400, "bad_request"],
+                  [0, 403, "bad_request"],
+                  [9223372036854775808, 403, "bad_request"]
+                 ]
+        matrix.each do |m|
+          quantity = m[0]
+          code = m[1]
+          message = m[2]
+          it "Cannot mint #{quantity} assets" do
+            skip "TODO MINT: Mint burn quantities edge cases"
+            policy_script = 'cosigner#0'
+            assets_name = asset_name('AmazingNFTIdontHave')
+            assets_quantity = quantity
+            address = SHELLEY.addresses.list(@wid).first['id']
+            mint = [mint(assets_name, assets_quantity, policy_script, address)]
+            create_policy_key_if_not_exists(@wid)
+            tx_constructed = SHELLEY.transactions.construct(@wid,
+                                                            payments = nil,
+                                                            withdrawal = nil,
+                                                            metadata = nil,
+                                                            delegations = nil,
+                                                            mint)
+            expect(tx_constructed).to be_correct_and_respond code
+            expect(tx_constructed['code'].to_s).to eq message
+            # expect(tx_constructed['message'].to_s).to include "token: #{asset_name('AmazingNFTIdontHave')}"
+            # expect(tx_constructed['message'].to_s).to include "quantity: 1"
+          end
+
+          it "Cannot burn #{quantity} assets" do
+            skip "TODO MINT: Mint burn quantities edge cases"
+            policy_script = 'cosigner#0'
+            assets_name = asset_name('AmazingNFTIdontHave')
+            assets_quantity = quantity
+            burn = [burn(assets_name, assets_quantity, policy_script)]
+            create_policy_key_if_not_exists(@wid)
+            tx_constructed = SHELLEY.transactions.construct(@wid,
+                                                            payments = nil,
+                                                            withdrawal = nil,
+                                                            metadata = nil,
+                                                            delegations = nil,
+                                                            burn)
+            expect(tx_constructed).to be_correct_and_respond code
+            expect(tx_constructed['code'].to_s).to eq message
+          end
+        end
+      end
+
+      ##
+      # Make sure minting above boundary asset_name values returns proper error
+      describe "Mint/Burn asset_name" do
+        matrix = [
+                  ['too long', '1' * 66, 400, "bad_request"],
+                  ['invalid hex', '1', 400, "bad_request"]
+                 ]
+        matrix.each do |m|
+          test = m[0]
+          assets_name = m[1]
+          code = m[2]
+          message = m[3]
+          it "Cannot mint if my asset name is #{test}" do
+
+            skip "TODO MINT: asset name too long throws 'Something went wrong' on construct"
+
+            address = SHELLEY.addresses.list(@wid).first['id']
+            policy_script = 'cosigner#0'
+            assets_quantity = 1500
+            mint = [mint(assets_name, assets_quantity, policy_script, address)]
+            tx_constructed = SHELLEY.transactions.construct(@wid,
+                                                            payments = nil,
+                                                            withdrawal = nil,
+                                                            metadata = nil,
+                                                            delegations = nil,
+                                                            mint)
+
+            expect(tx_constructed).to be_correct_and_respond code
+            expect(tx_constructed['code']).to eq message
+          end
+        end
+
+      end
+
+      ##
+      # Test against some invalid policy script examples
+      describe "Mint/Burn invalid policy script" do
+        matrix = [
+                  ['cosigner#1', 403, "created_wrong_policy_script_template"],
+                  [{ "all" => [ "cosigner#0", "cosigner#1" ] }, 403, "created_wrong_policy_script_template"],
+                  [{ "any" => [ "cosigner#0", "cosigner#0" ] }, 403, "created_wrong_policy_script_template"],
+                  [{ "some" => {"at_least" => 2, "from" => [ "cosigner#0" ]}}, 403, "created_wrong_policy_script_template"],
+                  [{ "some" => [ "cosigner#0" ] }, 400, "bad_request"]
+                 ]
+
+        matrix.each do |m|
+          policy_script = m[0]
+          code = m[1]
+          message = m[2]
+          it "Cannot mint if my policy script is invalid: #{policy_script}" do
+            address = SHELLEY.addresses.list(@wid).first['id']
+            assets_name = asset_name("WillNotMintIt")
+            assets_quantity = 1500
+            mint = [mint(assets_name, assets_quantity, policy_script, address)]
+            tx_constructed = SHELLEY.transactions.construct(@wid,
+                                                            payments = nil,
+                                                            withdrawal = nil,
+                                                            metadata = nil,
+                                                            delegations = nil,
+                                                            mint)
+
+            expect(tx_constructed).to be_correct_and_respond code
+            expect(tx_constructed['code']).to eq message
+          end
+        end
+
+      end
+
+      it "Cannot mint if I make too big transaction" do
+        address = SHELLEY.addresses.list(@wid).first['id']
+        policy_script = 'cosigner#0'
+        assets_quantity = 1500
+
+        mint = []
+        1000.times do |i|
+          mint << mint(asset_name("TooBIG#{i}"), assets_quantity, policy_script, address)
+        end
+        tx_constructed = SHELLEY.transactions.construct(@wid,
+                                                        payments = nil,
+                                                        withdrawal = nil,
+                                                        metadata = nil,
+                                                        delegations = nil,
+                                                        mint)
+
+        expect(tx_constructed).to be_correct_and_respond 403
+        expect(tx_constructed['code']).to eq 'transaction_is_too_big'
+      end
+    end
+
   end
 
   describe "E2E Shared" do
