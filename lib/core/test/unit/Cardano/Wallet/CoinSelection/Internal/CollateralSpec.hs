@@ -5,6 +5,7 @@
 {-# LANGUAGE BinaryLiterals #-}
 {-# LANGUAGE DeriveFunctor #-}
 {-# LANGUAGE DeriveGeneric #-}
+{-# LANGUAGE DerivingVia #-}
 {-# LANGUAGE DuplicateRecordFields #-}
 {-# LANGUAGE FlexibleInstances #-}
 {-# LANGUAGE NamedFieldPuns #-}
@@ -48,7 +49,7 @@ import Cardano.Wallet.Primitive.Types.Coin
 import Cardano.Wallet.Primitive.Types.Coin.Gen
     ( genCoinPositive, shrinkCoinPositive )
 import Control.Monad
-    ( forM_, replicateM )
+    ( forM_ )
 import Data.Either
     ( isLeft, isRight )
 import Data.Generics.Internal.VL.Lens
@@ -95,6 +96,8 @@ import Test.QuickCheck
     , tabulate
     , (===)
     )
+import Test.QuickCheck.Quid
+    ( Hexadecimal (..), Quid )
 import Text.Pretty.Simple
     ( pShow )
 
@@ -1226,22 +1229,9 @@ genShortInputId = arbitraryBoundedEnum
 -- Input identification numbers: long
 --------------------------------------------------------------------------------
 
-newtype LongInputId = LongInputId { unLongInputId :: [ShortInputId] }
-    deriving (Eq, Ord)
-
-instance Show LongInputId where
-    show (LongInputId chars) =
-        F.foldr' (\c output -> show c <> output) "" chars
-
-instance Arbitrary LongInputId where
-    arbitrary = genLongInputId
-
-genLongInputId :: Gen LongInputId
-genLongInputId =
-    -- By generating identifiers consisting of 4 characters, we can ensure
-    -- that we don't get many key collisions when generating maps that are
-    -- reasonably sized, while still keeping counterexamples readable:
-    LongInputId <$> replicateM 4 genShortInputId
+newtype LongInputId = LongInputId (Hexadecimal Quid)
+    deriving stock (Eq, Ord, Read, Show)
+    deriving Arbitrary via Quid
 
 --------------------------------------------------------------------------------
 -- Miscellaneous
