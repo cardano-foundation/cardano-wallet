@@ -138,10 +138,7 @@ import Cardano.Wallet.Primitive.Types.TokenQuantity
 import Cardano.Wallet.Primitive.Types.TokenQuantity.Gen
     ( genTokenQuantityPositive, shrinkTokenQuantityPositive )
 import Cardano.Wallet.Primitive.Types.Tx
-    ( TokenBundleSizeAssessment (..)
-    , TokenBundleSizeAssessor (..)
-    , txOutMaxTokenQuantity
-    )
+    ( TokenBundleSizeAssessment (..), TokenBundleSizeAssessor (..) )
 import Cardano.Wallet.Primitive.Types.UTxOIndex
     ( SelectionFilter (..), UTxOIndex )
 import Cardano.Wallet.Primitive.Types.UTxOIndex.Gen
@@ -1914,7 +1911,10 @@ boundaryTest_largeTokenQuantities_1 = BoundaryTestData
     , boundaryTestExpectedResult = BoundaryTestResult {..}
     }
   where
-    (q1, q2) = (TokenQuantity 1, TokenQuantity.predZero txOutMaxTokenQuantity)
+    (q1, q2) =
+        ( TokenQuantity 1
+        , TokenQuantity.predZero testMaximumOutputTokenQuantity
+        )
     boundaryTestBundleSizeAssessor = MockAssessTokenBundleSizeUnlimited
     boundaryTestSelectionStrategy = SelectionStrategyOptimal
     boundaryTestOutputs =
@@ -1928,7 +1928,7 @@ boundaryTest_largeTokenQuantities_1 = BoundaryTestData
       , (Coin 1_000_000, [(mockAsset "A", q2)])
       ]
     boundaryTestChange =
-      [ (Coin 500_000, [(mockAsset "A", txOutMaxTokenQuantity)]) ]
+      [ (Coin 500_000, [(mockAsset "A", testMaximumOutputTokenQuantity)]) ]
 
 -- Reach (but do not exceed) the maximum token quantity by selecting inputs
 -- with the following quantities:
@@ -1944,7 +1944,8 @@ boundaryTest_largeTokenQuantities_2 = BoundaryTestData
     , boundaryTestExpectedResult = BoundaryTestResult {..}
     }
   where
-    q1 :| [q2] = TokenQuantity.equipartition txOutMaxTokenQuantity (() :| [()])
+    q1 :| [q2] = TokenQuantity.equipartition
+        testMaximumOutputTokenQuantity (() :| [()])
     boundaryTestBundleSizeAssessor = MockAssessTokenBundleSizeUnlimited
     boundaryTestSelectionStrategy = SelectionStrategyOptimal
     boundaryTestOutputs =
@@ -1958,7 +1959,7 @@ boundaryTest_largeTokenQuantities_2 = BoundaryTestData
       , (Coin 1_000_000, [(mockAsset "A", q2)])
       ]
     boundaryTestChange =
-      [ (Coin 500_000, [(mockAsset "A", txOutMaxTokenQuantity)]) ]
+      [ (Coin 500_000, [(mockAsset "A", testMaximumOutputTokenQuantity)]) ]
 
 -- Slightly exceed the maximum token quantity by selecting inputs with the
 -- following quantities:
@@ -1975,18 +1976,18 @@ boundaryTest_largeTokenQuantities_3 = BoundaryTestData
     }
   where
     q1 :| [q2] = TokenQuantity.equipartition
-        (TokenQuantity.succ txOutMaxTokenQuantity) (() :| [()])
+        (TokenQuantity.succ testMaximumOutputTokenQuantity) (() :| [()])
     boundaryTestBundleSizeAssessor = MockAssessTokenBundleSizeUnlimited
     boundaryTestSelectionStrategy = SelectionStrategyOptimal
     boundaryTestOutputs =
       [ (Coin 1_500_000, []) ]
     boundaryTestUTxO =
       [ (Coin 1_000_000, [(mockAsset "A", TokenQuantity 1)])
-      , (Coin 1_000_000, [(mockAsset "A", txOutMaxTokenQuantity)])
+      , (Coin 1_000_000, [(mockAsset "A", testMaximumOutputTokenQuantity)])
       ]
     boundaryTestInputs =
       [ (Coin 1_000_000, [(mockAsset "A", TokenQuantity 1)])
-      , (Coin 1_000_000, [(mockAsset "A", txOutMaxTokenQuantity)])
+      , (Coin 1_000_000, [(mockAsset "A", testMaximumOutputTokenQuantity)])
       ]
     boundaryTestChange =
       [ (Coin 250_000, [(mockAsset "A", q1)])
@@ -2012,16 +2013,16 @@ boundaryTest_largeTokenQuantities_4 = BoundaryTestData
     boundaryTestOutputs =
       [ (Coin 1_500_000, []) ]
     boundaryTestUTxO =
-      [ (Coin 1_000_000, [(mockAsset "A", txOutMaxTokenQuantity)])
-      , (Coin 1_000_000, [(mockAsset "A", txOutMaxTokenQuantity)])
+      [ (Coin 1_000_000, [(mockAsset "A", testMaximumOutputTokenQuantity)])
+      , (Coin 1_000_000, [(mockAsset "A", testMaximumOutputTokenQuantity)])
       ]
     boundaryTestInputs =
-      [ (Coin 1_000_000, [(mockAsset "A", txOutMaxTokenQuantity)])
-      , (Coin 1_000_000, [(mockAsset "A", txOutMaxTokenQuantity)])
+      [ (Coin 1_000_000, [(mockAsset "A", testMaximumOutputTokenQuantity)])
+      , (Coin 1_000_000, [(mockAsset "A", testMaximumOutputTokenQuantity)])
       ]
     boundaryTestChange =
-      [ (Coin 250_000, [(mockAsset "A", txOutMaxTokenQuantity)])
-      , (Coin 250_000, [(mockAsset "A", txOutMaxTokenQuantity)])
+      [ (Coin 250_000, [(mockAsset "A", testMaximumOutputTokenQuantity)])
+      , (Coin 250_000, [(mockAsset "A", testMaximumOutputTokenQuantity)])
       ]
 
 -- In the event that generated change bundles must be split, demonstrate that
@@ -2041,26 +2042,26 @@ boundaryTest_largeTokenQuantities_5 = BoundaryTestData
     boundaryTestOutputs =
       [ (Coin 2_000_000, []) ]
     boundaryTestUTxO =
-      [ (Coin 1_000_000, [(mockAsset "A", txOutMaxTokenQuantity)])
-      , (Coin 1_000_000, [(mockAsset "A", txOutMaxTokenQuantity)])
-      , (Coin 1_000_000, [(mockAsset "A", txOutMaxTokenQuantity)])
-      , (Coin 1_000_000, [(mockAsset "A", txOutMaxTokenQuantity)])
-      , (Coin 1_000_000, [(mockAsset "A", txOutMaxTokenQuantity)])
-      , (Coin 1_000_000, [(mockAsset "A", txOutMaxTokenQuantity)])
-      , (Coin 1_000_000, [(mockAsset "A", txOutMaxTokenQuantity)])
-      , (Coin 1_000_000, [(mockAsset "A", txOutMaxTokenQuantity)])
+      [ (Coin 1_000_000, [(mockAsset "A", testMaximumOutputTokenQuantity)])
+      , (Coin 1_000_000, [(mockAsset "A", testMaximumOutputTokenQuantity)])
+      , (Coin 1_000_000, [(mockAsset "A", testMaximumOutputTokenQuantity)])
+      , (Coin 1_000_000, [(mockAsset "A", testMaximumOutputTokenQuantity)])
+      , (Coin 1_000_000, [(mockAsset "A", testMaximumOutputTokenQuantity)])
+      , (Coin 1_000_000, [(mockAsset "A", testMaximumOutputTokenQuantity)])
+      , (Coin 1_000_000, [(mockAsset "A", testMaximumOutputTokenQuantity)])
+      , (Coin 1_000_000, [(mockAsset "A", testMaximumOutputTokenQuantity)])
       ]
     boundaryTestInputs =
-      [ (Coin 1_000_000, [(mockAsset "A", txOutMaxTokenQuantity)])
-      , (Coin 1_000_000, [(mockAsset "A", txOutMaxTokenQuantity)])
-      , (Coin 1_000_000, [(mockAsset "A", txOutMaxTokenQuantity)])
-      , (Coin 1_000_000, [(mockAsset "A", txOutMaxTokenQuantity)])
+      [ (Coin 1_000_000, [(mockAsset "A", testMaximumOutputTokenQuantity)])
+      , (Coin 1_000_000, [(mockAsset "A", testMaximumOutputTokenQuantity)])
+      , (Coin 1_000_000, [(mockAsset "A", testMaximumOutputTokenQuantity)])
+      , (Coin 1_000_000, [(mockAsset "A", testMaximumOutputTokenQuantity)])
       ]
     boundaryTestChange =
-      [ (Coin 500_000, [(mockAsset "A", txOutMaxTokenQuantity)])
-      , (Coin 500_000, [(mockAsset "A", txOutMaxTokenQuantity)])
-      , (Coin 500_000, [(mockAsset "A", txOutMaxTokenQuantity)])
-      , (Coin 500_000, [(mockAsset "A", txOutMaxTokenQuantity)])
+      [ (Coin 500_000, [(mockAsset "A", testMaximumOutputTokenQuantity)])
+      , (Coin 500_000, [(mockAsset "A", testMaximumOutputTokenQuantity)])
+      , (Coin 500_000, [(mockAsset "A", testMaximumOutputTokenQuantity)])
+      , (Coin 500_000, [(mockAsset "A", testMaximumOutputTokenQuantity)])
       ]
 
 -- In the event that generated change bundles must be split, demonstrate that
@@ -2082,26 +2083,26 @@ boundaryTest_largeTokenQuantities_6 = BoundaryTestData
       , (Coin 1_000_000, [])
       ]
     boundaryTestUTxO =
-      [ (Coin 1_000_000, [(mockAsset "A", txOutMaxTokenQuantity)])
-      , (Coin 1_000_000, [(mockAsset "A", txOutMaxTokenQuantity)])
-      , (Coin 1_000_000, [(mockAsset "A", txOutMaxTokenQuantity)])
-      , (Coin 1_000_000, [(mockAsset "A", txOutMaxTokenQuantity)])
-      , (Coin 1_000_000, [(mockAsset "A", txOutMaxTokenQuantity)])
-      , (Coin 1_000_000, [(mockAsset "A", txOutMaxTokenQuantity)])
-      , (Coin 1_000_000, [(mockAsset "A", txOutMaxTokenQuantity)])
-      , (Coin 1_000_000, [(mockAsset "A", txOutMaxTokenQuantity)])
+      [ (Coin 1_000_000, [(mockAsset "A", testMaximumOutputTokenQuantity)])
+      , (Coin 1_000_000, [(mockAsset "A", testMaximumOutputTokenQuantity)])
+      , (Coin 1_000_000, [(mockAsset "A", testMaximumOutputTokenQuantity)])
+      , (Coin 1_000_000, [(mockAsset "A", testMaximumOutputTokenQuantity)])
+      , (Coin 1_000_000, [(mockAsset "A", testMaximumOutputTokenQuantity)])
+      , (Coin 1_000_000, [(mockAsset "A", testMaximumOutputTokenQuantity)])
+      , (Coin 1_000_000, [(mockAsset "A", testMaximumOutputTokenQuantity)])
+      , (Coin 1_000_000, [(mockAsset "A", testMaximumOutputTokenQuantity)])
       ]
     boundaryTestInputs =
-      [ (Coin 1_000_000, [(mockAsset "A", txOutMaxTokenQuantity)])
-      , (Coin 1_000_000, [(mockAsset "A", txOutMaxTokenQuantity)])
-      , (Coin 1_000_000, [(mockAsset "A", txOutMaxTokenQuantity)])
-      , (Coin 1_000_000, [(mockAsset "A", txOutMaxTokenQuantity)])
+      [ (Coin 1_000_000, [(mockAsset "A", testMaximumOutputTokenQuantity)])
+      , (Coin 1_000_000, [(mockAsset "A", testMaximumOutputTokenQuantity)])
+      , (Coin 1_000_000, [(mockAsset "A", testMaximumOutputTokenQuantity)])
+      , (Coin 1_000_000, [(mockAsset "A", testMaximumOutputTokenQuantity)])
       ]
     boundaryTestChange =
-      [ (Coin 500_000, [(mockAsset "A", txOutMaxTokenQuantity)])
-      , (Coin 500_000, [(mockAsset "A", txOutMaxTokenQuantity)])
-      , (Coin 500_000, [(mockAsset "A", txOutMaxTokenQuantity)])
-      , (Coin 500_000, [(mockAsset "A", txOutMaxTokenQuantity)])
+      [ (Coin 500_000, [(mockAsset "A", testMaximumOutputTokenQuantity)])
+      , (Coin 500_000, [(mockAsset "A", testMaximumOutputTokenQuantity)])
+      , (Coin 500_000, [(mockAsset "A", testMaximumOutputTokenQuantity)])
+      , (Coin 500_000, [(mockAsset "A", testMaximumOutputTokenQuantity)])
       ]
 
 --------------------------------------------------------------------------------
