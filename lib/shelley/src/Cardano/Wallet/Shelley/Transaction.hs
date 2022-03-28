@@ -263,7 +263,6 @@ import qualified Data.Sequence.Strict as StrictSeq
 import qualified Data.Set as Set
 import qualified Data.Text as T
 
-import qualified Debug.Trace as TR
 
 -- | Type encapsulating what we need to know to add things -- payloads,
 -- certificates -- to a transaction.
@@ -1432,7 +1431,7 @@ estimateTxCost pp skeleton =
 --
 estimateTxSize :: TxSkeleton -> TxSize
 estimateTxSize skeleton =
-    TR.trace ("skeleton:"<> show skeleton) $ TxSize $ fromIntegral sizeOf_Transaction
+    TxSize $ fromIntegral sizeOf_Transaction
   where
     TxSkeleton
         { txMetadata

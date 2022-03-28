@@ -3177,7 +3177,44 @@ spec = describe "NEW_SHELLEY_TRANSACTIONS" $ do
             [ expectResponseCode HTTP.status403
             ]
 
-    it "TRANS_NEW_CREATE_10d - Minting assets" $ \ctx -> runResourceT $ do
+    it "TRANS_NEW_CREATE_10d - Minting assets without timelock" $
+        \ctx -> runResourceT $ do
+        wa <- fixtureWallet ctx
+        addrs <- listAddresses @n ctx wa
+        let destination = (addrs !! 1) ^. #id
+
+        let (Right tokenName') = mkTokenName "ab12"
+
+        let payload = Json [json|{
+                "mint_burn": [{
+                    "policy_script_template":
+                        { "all":
+                           [ "cosigner#0"
+                           ]
+                        },
+                    "asset_name": #{toText tokenName'},
+                    "operation":
+                        { "mint" :
+                              { "receiving_address": #{destination},
+                                 "amount": {
+                                     "quantity": 50000,
+                                     "unit": "assets"
+                                  }
+                              }
+                        }
+                }]
+            }|]
+
+        let scriptUsed policyKeyHash = RequireAllOf
+                [ RequireSignatureOf policyKeyHash
+                ]
+
+        mintAssetCheck ctx wa tokenName' payload scriptUsed
+
+    it "TRANS_NEW_CREATE_10e - Minting assets with timelocks" $
+        \ctx -> runResourceT $ do
+        liftIO $ pendingWith "Should work when interval validity is addressed"
+
         wa <- fixtureWallet ctx
         addrs <- listAddresses @n ctx wa
         let destination = (addrs !! 1) ^. #id
@@ -3205,93 +3242,49 @@ spec = describe "NEW_SHELLEY_TRANSACTIONS" $ do
                 }]
             }|]
 
-        rTx <- request @(ApiConstructTransaction n) ctx
-            (Link.createUnsignedTransaction @'Shelley wa) Default payload
-        verify rTx
-            [ expectResponseCode HTTP.status202
-            ]
-
-        let txCbor1 = getFromResponse #transaction rTx
-        let decodePayload1 = Json (toJSON $ ApiSerialisedTransaction txCbor1)
-
-        let policyWithHash = Link.getPolicyKey @'Shelley wa (Just True)
-        (_, policyKeyHashPayload) <-
-            unsafeRequest @ApiPolicyKey ctx policyWithHash Empty
-
-        let postPolicyKey = Link.postPolicyKey @'Shelley wa
-        let passwdPayload = Json [json| {
-                "passphrase": #{fixturePassphrase}
-                } |]
-        (_, policyKeyHashPayload') <-
-            unsafeRequest @ApiPolicyKey ctx postPolicyKey passwdPayload
-
-        policyKeyHashPayload `shouldBe` policyKeyHashPayload'
-
-        let (Just policyKeyHash) =
-                keyHashFromBytes (Policy, getApiPolicyKey policyKeyHashPayload)
-
-        let scriptUsed = RequireAllOf
+        let scriptUsed policyKeyHash = RequireAllOf
                 [ RequireSignatureOf policyKeyHash
                 , ActiveFromSlot 120
                 ]
-        let tokenPolicyId' =
-                UnsafeTokenPolicyId . Hash $
-                unScriptHash $
-                toScriptHash scriptUsed
-        let tokens = TokenMap.singleton
-                (AssetId tokenPolicyId' tokenName')
-                (TokenQuantity 50_000)
-        let mintScript = ApiPolicyScript (ApiT tokenPolicyId') (ApiT scriptUsed)
 
-        let activeAssetsInfo = ApiAssetMintBurn
-                { tokenMap = ApiT tokens
-                , policyScripts = [mintScript]
-                , walletPolicyKeyHash = Just policyKeyHashPayload
-                }
-        let inactiveAssetsInfo = ApiAssetMintBurn
-                { tokenMap = ApiT TokenMap.empty
-                , policyScripts = []
-                , walletPolicyKeyHash = Just policyKeyHashPayload
-                }
+        mintAssetCheck ctx wa tokenName' payload scriptUsed
 
-        let mintInfoExpected = Just $ NE.fromList
-                [ ApiT $ ApiMintBurnInfo
-                { verificationKeyIndex = ApiT (DerivationIndex 2147483648)
-                , policyId = ApiT tokenPolicyId'
-                , assetName = ApiT tokenName'
-                , subject = ApiT $ mkTokenFingerprint tokenPolicyId' tokenName'
-                , policyScript = ApiT scriptUsed
+    it "TRANS_NEW_CREATE_10f - Burning assets without timelock" $
+        \ctx -> runResourceT $ do
+        liftIO $ pendingWith "Should work soon, first mint token"
+
+        wa <- fixtureWallet ctx
+
+        let (Right tokenName') = mkTokenName "ab12"
+
+        let payload = Json [json|{
+                "mint_burn": [{
+                    "policy_script_template":
+                        { "all":
+                           [ "cosigner#0"
+                           ]
+                        },
+                    "asset_name": #{toText tokenName'},
+                    "operation":
+                        { "burn" :
+                              { "quantity": 50000,
+                                "unit": "assets"
+                              }
+                        }
                 }]
-        let mintInfo = getFromResponse #mintBurn rTx
-        mintInfo `shouldBe` mintInfoExpected
+            }|]
 
-        rDecodedTx1 <- request @(ApiDecodedTransaction n) ctx
-            (Link.decodeTransaction @'Shelley wa) Default decodePayload1
-        verify rDecodedTx1
-            [ expectResponseCode HTTP.status202
-            , expectField #assetsMinted (`shouldBe` activeAssetsInfo)
-            , expectField #assetsBurned (`shouldBe` inactiveAssetsInfo)
-            ]
+        let scriptUsed policyKeyHash = RequireAllOf
+                [ RequireSignatureOf policyKeyHash
+                , ActiveFromSlot 120
+                ]
 
-        let apiTx = getFromResponse #transaction rTx
-        signedTx <- signTx ctx wa apiTx [ expectResponseCode HTTP.status202 ]
-        let txCbor2 = getFromResponse #transaction (HTTP.status202, Right signedTx)
-        let decodePayload2 = Json (toJSON $ ApiSerialisedTransaction txCbor2)
-        rDecodedTx2 <- request @(ApiDecodedTransaction n) ctx
-            (Link.decodeTransaction @'Shelley wa) Default decodePayload2
-        verify rDecodedTx2
-            [ expectResponseCode HTTP.status202
-            , expectField #assetsMinted (`shouldBe` activeAssetsInfo)
-            , expectField #assetsBurned (`shouldBe` inactiveAssetsInfo)
-            ]
+        mintBurnCheck ctx wa tokenName' payload scriptUsed
 
-        submittedTx <- submitTxWithWid ctx wa signedTx
-        verify submittedTx
-            [ expectSuccess
-            , expectResponseCode HTTP.status202
-            ]
+    it "TRANS_NEW_CREATE_10g - Burning assets with timelock" $
+        \ctx -> runResourceT $ do
+        liftIO $ pendingWith "Should work when interval validity is addressed"
 
-    it "TRANS_NEW_CREATE_10e - Burning assets" $ \ctx -> runResourceT $ do
         wa <- fixtureWallet ctx
 
         let (Right tokenName') = mkTokenName "ab12"
@@ -3314,62 +3307,12 @@ spec = describe "NEW_SHELLEY_TRANSACTIONS" $ do
                 }]
             }|]
 
-        rTx <- request @(ApiConstructTransaction n) ctx
-            (Link.createUnsignedTransaction @'Shelley wa) Default payload
-        verify rTx
-            [ expectResponseCode HTTP.status202
-            ]
-
-        let txCbor = getFromResponse #transaction rTx
-        let decodePayload = Json (toJSON $ ApiSerialisedTransaction txCbor)
-
-        let policyWithHash = Link.getPolicyKey @'Shelley wa (Just True)
-        (_, policyKeyHashPayload) <-
-            unsafeRequest @ApiPolicyKey ctx policyWithHash Empty
-        let (Just policyKeyHash) =
-                keyHashFromBytes (Policy, getApiPolicyKey policyKeyHashPayload)
-
-        let scriptUsed = RequireAllOf
+        let scriptUsed policyKeyHash = RequireAllOf
                 [ RequireSignatureOf policyKeyHash
                 , ActiveFromSlot 120
                 ]
-        let tokenPolicyId' =
-                UnsafeTokenPolicyId . Hash $
-                unScriptHash $ toScriptHash scriptUsed
-        let tokens = TokenMap.singleton
-                (AssetId tokenPolicyId' tokenName')
-                (TokenQuantity 50_000)
-        let burnScript = ApiPolicyScript (ApiT tokenPolicyId') (ApiT scriptUsed)
 
-        let activeAssetsInfo = ApiAssetMintBurn
-                { tokenMap = ApiT TokenMap.empty
-                , policyScripts = []
-                , walletPolicyKeyHash = Just policyKeyHashPayload
-                }
-        let inactiveAssetsInfo = ApiAssetMintBurn
-                { tokenMap = ApiT tokens
-                , policyScripts = [burnScript]
-                , walletPolicyKeyHash = Just policyKeyHashPayload
-                }
-
-        let burnInfoExpected = Just $ NE.fromList
-                [ ApiT $ ApiMintBurnInfo
-                { verificationKeyIndex = ApiT (DerivationIndex 2147483648)
-                , policyId = ApiT tokenPolicyId'
-                , assetName = ApiT tokenName'
-                , subject = ApiT $ mkTokenFingerprint tokenPolicyId' tokenName'
-                , policyScript = ApiT scriptUsed
-                }]
-        let burnInfo = getFromResponse #mintBurn rTx
-        burnInfo `shouldBe` burnInfoExpected
-
-        rDecodedTx <- request @(ApiDecodedTransaction n) ctx
-            (Link.decodeTransaction @'Shelley wa) Default decodePayload
-        verify rDecodedTx
-            [ expectResponseCode HTTP.status202
-            , expectField #assetsMinted (`shouldBe` activeAssetsInfo)
-            , expectField #assetsBurned (`shouldBe` inactiveAssetsInfo)
-            ]
+        mintBurnCheck ctx wa tokenName' payload scriptUsed
 
   where
 
@@ -3722,3 +3665,144 @@ spec = describe "NEW_SHELLEY_TRANSACTIONS" $ do
                 Cardano.serialiseToCBOR (Cardano.makeSignedTransaction [] txbody)
 
         in toCborHexTx txBody
+
+    mintAssetCheck ctx wa tokenName' payload scriptUsedF = do
+
+        rTx <- request @(ApiConstructTransaction n) ctx
+            (Link.createUnsignedTransaction @'Shelley wa) Default payload
+        verify rTx
+            [ expectResponseCode HTTP.status202
+            ]
+
+        let txCbor1 = getFromResponse #transaction rTx
+        let decodePayload1 = Json (toJSON $ ApiSerialisedTransaction txCbor1)
+
+        let policyWithHash = Link.getPolicyKey @'Shelley wa (Just True)
+        (_, policyKeyHashPayload) <-
+            unsafeRequest @ApiPolicyKey ctx policyWithHash Empty
+
+        let postPolicyKey = Link.postPolicyKey @'Shelley wa
+        let passwdPayload = Json [json| {
+                "passphrase": #{fixturePassphrase}
+                } |]
+        (_, policyKeyHashPayload') <-
+            unsafeRequest @ApiPolicyKey ctx postPolicyKey passwdPayload
+
+        policyKeyHashPayload `shouldBe` policyKeyHashPayload'
+
+        let (Just policyKeyHash) =
+                keyHashFromBytes (Policy, getApiPolicyKey policyKeyHashPayload)
+
+        let scriptUsed = scriptUsedF policyKeyHash
+        let tokenPolicyId' =
+                UnsafeTokenPolicyId . Hash $
+                unScriptHash $
+                toScriptHash scriptUsed
+        let tokens = TokenMap.singleton
+                (AssetId tokenPolicyId' tokenName')
+                (TokenQuantity 50_000)
+        let mintScript = ApiPolicyScript (ApiT tokenPolicyId') (ApiT scriptUsed)
+
+        let activeAssetsInfo = ApiAssetMintBurn
+                { tokenMap = ApiT tokens
+                , policyScripts = [mintScript]
+                , walletPolicyKeyHash = Just policyKeyHashPayload
+                }
+        let inactiveAssetsInfo = ApiAssetMintBurn
+                { tokenMap = ApiT TokenMap.empty
+                , policyScripts = []
+                , walletPolicyKeyHash = Just policyKeyHashPayload
+                }
+
+        let mintInfoExpected = Just $ NE.fromList
+                [ ApiT $ ApiMintBurnInfo
+                { verificationKeyIndex = ApiT (DerivationIndex 2147483648)
+                , policyId = ApiT tokenPolicyId'
+                , assetName = ApiT tokenName'
+                , subject = ApiT $ mkTokenFingerprint tokenPolicyId' tokenName'
+                , policyScript = ApiT scriptUsed
+                }]
+        let mintInfo = getFromResponse #mintBurn rTx
+        mintInfo `shouldBe` mintInfoExpected
+
+        rDecodedTx1 <- request @(ApiDecodedTransaction n) ctx
+            (Link.decodeTransaction @'Shelley wa) Default decodePayload1
+        verify rDecodedTx1
+            [ expectResponseCode HTTP.status202
+            , expectField #assetsMinted (`shouldBe` activeAssetsInfo)
+            , expectField #assetsBurned (`shouldBe` inactiveAssetsInfo)
+            ]
+
+        let apiTx = getFromResponse #transaction rTx
+        signedTx <- signTx ctx wa apiTx [ expectResponseCode HTTP.status202 ]
+        let txCbor2 = getFromResponse #transaction (HTTP.status202, Right signedTx)
+        let decodePayload2 = Json (toJSON $ ApiSerialisedTransaction txCbor2)
+        rDecodedTx2 <- request @(ApiDecodedTransaction n) ctx
+            (Link.decodeTransaction @'Shelley wa) Default decodePayload2
+        verify rDecodedTx2
+            [ expectResponseCode HTTP.status202
+            , expectField #assetsMinted (`shouldBe` activeAssetsInfo)
+            , expectField #assetsBurned (`shouldBe` inactiveAssetsInfo)
+            ]
+
+        submittedTx <- submitTxWithWid ctx wa signedTx
+        verify submittedTx
+            [ expectSuccess
+            , expectResponseCode HTTP.status202
+            ]
+
+    mintBurnCheck ctx wa tokenName' payload scriptUsedF = do
+
+        rTx <- request @(ApiConstructTransaction n) ctx
+            (Link.createUnsignedTransaction @'Shelley wa) Default payload
+        verify rTx
+            [ expectResponseCode HTTP.status202
+            ]
+
+        let txCbor = getFromResponse #transaction rTx
+        let decodePayload = Json (toJSON $ ApiSerialisedTransaction txCbor)
+
+        let policyWithHash = Link.getPolicyKey @'Shelley wa (Just True)
+        (_, policyKeyHashPayload) <-
+            unsafeRequest @ApiPolicyKey ctx policyWithHash Empty
+        let (Just policyKeyHash) =
+                keyHashFromBytes (Policy, getApiPolicyKey policyKeyHashPayload)
+
+        let scriptUsed = scriptUsedF policyKeyHash
+        let tokenPolicyId' =
+                UnsafeTokenPolicyId . Hash $
+                unScriptHash $ toScriptHash scriptUsed
+        let tokens = TokenMap.singleton
+                (AssetId tokenPolicyId' tokenName')
+                (TokenQuantity 50_000)
+        let burnScript = ApiPolicyScript (ApiT tokenPolicyId') (ApiT scriptUsed)
+
+        let activeAssetsInfo = ApiAssetMintBurn
+                { tokenMap = ApiT TokenMap.empty
+                , policyScripts = []
+                , walletPolicyKeyHash = Just policyKeyHashPayload
+                }
+        let inactiveAssetsInfo = ApiAssetMintBurn
+                { tokenMap = ApiT tokens
+                , policyScripts = [burnScript]
+                , walletPolicyKeyHash = Just policyKeyHashPayload
+                }
+
+        let burnInfoExpected = Just $ NE.fromList
+                [ ApiT $ ApiMintBurnInfo
+                { verificationKeyIndex = ApiT (DerivationIndex 2147483648)
+                , policyId = ApiT tokenPolicyId'
+                , assetName = ApiT tokenName'
+                , subject = ApiT $ mkTokenFingerprint tokenPolicyId' tokenName'
+                , policyScript = ApiT scriptUsed
+                }]
+        let burnInfo = getFromResponse #mintBurn rTx
+        burnInfo `shouldBe` burnInfoExpected
+
+        rDecodedTx <- request @(ApiDecodedTransaction n) ctx
+            (Link.decodeTransaction @'Shelley wa) Default decodePayload
+        verify rDecodedTx
+            [ expectResponseCode HTTP.status202
+            , expectField #assetsMinted (`shouldBe` activeAssetsInfo)
+            , expectField #assetsBurned (`shouldBe` inactiveAssetsInfo)
+            ]
