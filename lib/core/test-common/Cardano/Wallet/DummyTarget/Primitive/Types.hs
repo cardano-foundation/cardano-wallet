@@ -31,6 +31,7 @@ import Cardano.Wallet.Primitive.Types
     , ExecutionUnits (..)
     , FeePolicy (..)
     , GenesisParameters (..)
+    , LinearFunction (..)
     , MinimumUTxOValue (..)
     , NetworkParameters (..)
     , ProtocolParameters (..)
@@ -104,7 +105,7 @@ dummyTimeInterpreter = hoistTimeInterpreter (pure . runIdentity)
 
 dummyTxParameters :: TxParameters
 dummyTxParameters = TxParameters
-    { getFeePolicy = LinearFee (Quantity 14) (Quantity 42)
+    { getFeePolicy = LinearFee $ LinearFunction { intercept = 14, slope = 42 }
     , getTxMaxSize = Quantity 8192
     , getTokenBundleMaxSize = TokenBundleMaxSize (TxSize 4000)
     , getMaxExecutionUnits = ExecutionUnits 0 0

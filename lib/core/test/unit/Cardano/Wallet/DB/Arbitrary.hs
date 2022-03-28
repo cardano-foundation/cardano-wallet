@@ -11,6 +11,7 @@
 {-# LANGUAGE NumericUnderscores #-}
 {-# LANGUAGE OverloadedLabels #-}
 {-# LANGUAGE RankNTypes #-}
+{-# LANGUAGE RecordWildCards #-}
 {-# LANGUAGE ScopedTypeVariables #-}
 {-# LANGUAGE StandaloneDeriving #-}
 {-# LANGUAGE TypeApplications #-}
@@ -18,7 +19,6 @@
 {-# LANGUAGE UndecidableInstances #-}
 
 {-# OPTIONS_GHC -fno-warn-orphans #-}
-{-# LANGUAGE RecordWildCards #-}
 
 module Cardano.Wallet.DB.Arbitrary
     ( GenTxHistory (..)
@@ -89,6 +89,7 @@ import Cardano.Wallet.Primitive.Types
     , ExecutionUnitPrices (..)
     , ExecutionUnits (..)
     , FeePolicy (..)
+    , LinearFunction (LinearFunction)
     , MinimumUTxOValue (..)
     , PassphraseScheme (..)
     , PoolId (..)
@@ -724,9 +725,9 @@ instance Arbitrary ExecutionUnits where
         <*> arbitrary
 
 instance Arbitrary FeePolicy where
-    arbitrary = LinearFee
-        <$> fmap Quantity (choose (0, 1000))
-        <*> fmap Quantity (choose (0, 100))
+    arbitrary = (LinearFee . ) . LinearFunction
+        <$> choose (0, 1000)
+        <*> choose (0, 100)
 
 instance (Integral a, Arbitrary a) => Arbitrary (Quantity n a) where
     shrink (Quantity a) = Quantity <$> shrinkIntegral a

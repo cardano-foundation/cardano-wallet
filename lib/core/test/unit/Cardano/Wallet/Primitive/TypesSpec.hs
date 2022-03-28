@@ -4,9 +4,11 @@
 {-# LANGUAGE FlexibleInstances #-}
 {-# LANGUAGE GeneralizedNewtypeDeriving #-}
 {-# LANGUAGE LambdaCase #-}
+{-# LANGUAGE RecordWildCards #-}
 {-# LANGUAGE ScopedTypeVariables #-}
 {-# LANGUAGE StandaloneDeriving #-}
 {-# LANGUAGE TypeApplications #-}
+
 {-# OPTIONS_GHC -fno-warn-orphans #-}
 
 module Cardano.Wallet.Primitive.TypesSpec
@@ -54,6 +56,7 @@ import Cardano.Wallet.Primitive.Types
     , EpochLength (..)
     , EpochNo (..)
     , FeePolicy (..)
+    , LinearFunction (..)
     , PoolId (..)
     , PoolOwner (..)
     , Range (..)
@@ -1091,13 +1094,11 @@ instance Arbitrary Direction where
 
 instance Arbitrary FeePolicy where
     arbitrary = do
-        NonNegative a <- arbitrary
-        NonNegative b <- arbitrary
-        return $ LinearFee (Quantity a) (Quantity b)
-    shrink (LinearFee (Quantity a) (Quantity b)) =
-        f <$> shrink (a, b)
-      where
-        f (x, y) = LinearFee (Quantity x) (Quantity y)
+        NonNegative intercept <- arbitrary
+        NonNegative slope <- arbitrary
+        pure $ LinearFee LinearFunction {..}
+    shrink (LinearFee LinearFunction {..}) =
+        LinearFee . uncurry LinearFunction <$> shrink (intercept, slope)
 
 -- Same for addresses
 instance Arbitrary Address where

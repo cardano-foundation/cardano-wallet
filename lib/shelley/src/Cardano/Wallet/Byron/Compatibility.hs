@@ -133,7 +133,8 @@ mainnetNetworkParameters = W.NetworkParameters
             minBound
         , txParameters = W.TxParameters
             { getFeePolicy =
-                W.LinearFee (Quantity 155381) (Quantity 43.946)
+                W.LinearFee $
+                    W.LinearFunction { intercept = 155381, slope = 43.946 }
             , getTxMaxSize =
                 Quantity 4096
             , getTokenBundleMaxSize = maryTokenBundleMaxSize
@@ -317,9 +318,10 @@ fromBlockNo (BlockNo h) =
 
 fromTxFeePolicy :: TxFeePolicy -> W.FeePolicy
 fromTxFeePolicy (TxFeePolicyTxSizeLinear (TxSizeLinear a b)) =
-    W.LinearFee
-        (Quantity (lovelaceToDouble a))
-        (Quantity (rationalToDouble b))
+    W.LinearFee $ W.LinearFunction
+        { intercept = lovelaceToDouble a
+        , slope = rationalToDouble b
+        }
   where
     lovelaceToDouble :: Lovelace -> Double
     lovelaceToDouble = fromIntegral . unsafeGetLovelace

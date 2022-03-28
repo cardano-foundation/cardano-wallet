@@ -782,9 +782,10 @@ txParametersFromPParams
     -> pparams
     -> W.TxParameters
 txParametersFromPParams maxBundleSize getMaxExecutionUnits pp = W.TxParameters
-    { getFeePolicy = W.LinearFee
-        (Quantity (naturalToDouble (getField @"_minfeeB" pp)))
-        (Quantity (naturalToDouble (getField @"_minfeeA" pp)))
+    { getFeePolicy = W.LinearFee $ W.LinearFunction
+        { intercept = naturalToDouble (getField @"_minfeeB" pp)
+        , slope = naturalToDouble (getField @"_minfeeA" pp)
+        }
     , getTxMaxSize = fromMaxSize $ getField @"_maxTxSize" pp
     , getTokenBundleMaxSize = maxBundleSize
     , getMaxExecutionUnits

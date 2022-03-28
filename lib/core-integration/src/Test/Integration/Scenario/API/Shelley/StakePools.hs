@@ -5,6 +5,7 @@
 {-# LANGUAGE NumericUnderscores #-}
 {-# LANGUAGE OverloadedLabels #-}
 {-# LANGUAGE QuasiQuotes #-}
+{-# LANGUAGE RecordWildCards #-}
 {-# LANGUAGE ScopedTypeVariables #-}
 {-# LANGUAGE TypeApplications #-}
 {-# LANGUAGE TypeFamilies #-}
@@ -40,6 +41,7 @@ import Cardano.Wallet.Primitive.AddressDerivation.Shelley
     ( ShelleyKey )
 import Cardano.Wallet.Primitive.Types
     ( FeePolicy (..)
+    , LinearFunction (..)
     , PoolId (..)
     , PoolMetadataGCStatus (..)
     , PoolMetadataSource (..)
@@ -152,6 +154,8 @@ import qualified Cardano.Wallet.Api.Link as Link
 import qualified Data.ByteString as BS
 import qualified Data.Set as Set
 import qualified Data.Text as T
+import Data.Tuple.Extra
+    ( both )
 import qualified Network.HTTP.Types.Status as HTTP
 
 spec :: forall n.
@@ -1435,8 +1439,8 @@ spec = describe "SHELLEY_STAKE_POOLS" $ do
         withCoefficients coeff cst
       where
         pp = ctx ^. #_networkParameters . #protocolParameters
-        (cst, coeff) = (round $ getQuantity a, round $ getQuantity b)
-        LinearFee a b = pp ^. #txParameters . #getFeePolicy
+        (cst, coeff) = both round (intercept, slope)
+        LinearFee LinearFunction {..} = pp ^. #txParameters . #getFeePolicy
 
 -- The complete set of pool identifiers in the static test pool cluster.
 --

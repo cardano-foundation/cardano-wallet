@@ -59,9 +59,9 @@ import Cardano.Wallet.Primitive.Types
     , ExecutionUnitPrices (..)
     , ExecutionUnits (..)
     , FeePolicy (LinearFee)
+    , LinearFunction (..)
     , MinimumUTxOValue (..)
     , ProtocolParameters (..)
-    , SlotNo (SlotNo)
     , SlotNo (..)
     , SlottingParameters (..)
     , TokenBundleMaxSize (..)
@@ -304,9 +304,10 @@ instance FromBlockfrost BF.ProtocolParams ProtocolParameters where
             { eras = emptyEraInfo
             , txParameters = TxParameters
                 { getFeePolicy =
-                    LinearFee
-                        (Quantity $ fromIntegral minFeeB)
-                        (Quantity $ fromIntegral minFeeA)
+                    LinearFee $ LinearFunction
+                        { intercept = fromIntegral minFeeB
+                        , slope = fromIntegral minFeeA
+                        }
                 , getTxMaxSize =
                     Quantity maxTxSize
                 , getTokenBundleMaxSize =

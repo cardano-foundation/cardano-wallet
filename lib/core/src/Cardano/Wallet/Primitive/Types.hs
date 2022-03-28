@@ -84,6 +84,7 @@ module Cardano.Wallet.Primitive.Types
     , unsafeEpochNo
     , isValidEpochNo
     , FeePolicy (..)
+    , LinearFunction (..)
     , SlotId (..)
     , SlotNo (..)
     , SlotLength (..)
@@ -890,33 +891,32 @@ instance Buildable Slot where
     build Origin    = "[genesis]"
     build (At slot) = "[at slot " <> pretty slot <> "]"
 
+data LinearFunction a = LinearFunction { intercept :: a, slope :: a }
+    deriving (Eq, Show, Generic)
+
+instance NFData a => NFData (LinearFunction a)
+
 -- | A linear equation of a free variable `x`. Represents the @\x -> a + b*x@
--- function where @x@ can be the transaction size in bytes or, a number of
--- inputs + outputs.
---
--- @a@ and @b@ are constant coefficients.
---
--- FIXME 'Double' is an old artifact from the Byron era on cardano-sl. It must
--- go.
-data FeePolicy = LinearFee
-    (Quantity "lovelace" Double)
-    (Quantity "lovelace/byte" Double)
+-- function where @x@ can be either a transaction size in bytes or
+-- a number of inputs + outputs.
+newtype FeePolicy = LinearFee (LinearFunction Double)
     deriving (Eq, Show, Generic)
 
 instance NFData FeePolicy
 
 instance ToText FeePolicy where
-    toText (LinearFee (Quantity a) (Quantity b)) =
-        toText a <> " + " <> toText b <> "x"
+    toText (LinearFee LinearFunction {..}) =
+        toText intercept <> " + " <>
+        toText slope <> "x"
 
 instance FromText FeePolicy where
     fromText txt = case T.splitOn " + " txt of
         [a, b] | T.takeEnd 1 b == "x" ->
-            left (const err) $ LinearFee
-                <$> fmap Quantity (fromText a)
-                <*> fmap Quantity (fromText (T.dropEnd 1 b))
-        _ ->
-            Left err
+            left (const err) $
+                (LinearFee .) . LinearFunction
+                    <$> fromText a
+                    <*> fromText (T.dropEnd 1 b)
+        _ -> Left err
       where
         err = TextDecodingError
             "Unable to decode FeePolicy: \

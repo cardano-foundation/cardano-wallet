@@ -11,6 +11,7 @@
 {-# LANGUAGE NamedFieldPuns #-}
 {-# LANGUAGE OverloadedLabels #-}
 {-# LANGUAGE Rank2Types #-}
+{-# LANGUAGE RecordWildCards #-}
 {-# LANGUAGE RoleAnnotations #-}
 {-# LANGUAGE ScopedTypeVariables #-}
 {-# LANGUAGE TupleSections #-}
@@ -105,6 +106,7 @@ import Cardano.Wallet.Primitive.Types
     , ExecutionUnitPrices (..)
     , ExecutionUnits (..)
     , FeePolicy (..)
+    , LinearFunction (..)
     , ProtocolParameters (..)
     , TxParameters (..)
     )
@@ -1384,16 +1386,13 @@ estimateTxCost :: ProtocolParameters -> TxSkeleton -> Coin
 estimateTxCost pp skeleton =
     F.fold
         [ computeFee (estimateTxSize skeleton)
-        , scriptExecutionCosts
+        , view #txScriptExecutionCost skeleton
         ]
   where
-    LinearFee (Quantity a) (Quantity b) = getFeePolicy $ txParameters pp
-
     computeFee :: TxSize -> Coin
     computeFee (TxSize size) =
-        Coin $ ceiling (a + b * fromIntegral size)
-
-    scriptExecutionCosts = view #txScriptExecutionCost skeleton
+        let LinearFee LinearFunction {..} = getFeePolicy $ txParameters pp
+        in Coin $ ceiling $ intercept + slope * fromIntegral size
 
 -- | Estimates the final size of a transaction based on its skeleton.
 --
