@@ -353,9 +353,9 @@ prop_partition_disjoint f i =
     uncurry UTxOIndex.disjoint (UTxOIndex.partition f i) === True
 
 checkCoverage_filter_partition
-    :: Testable prop
-    => (TestUTxO -> Bool)
-    -> UTxOIndex TestUTxO
+    :: (Testable prop, Ord u)
+    => (u -> Bool)
+    -> UTxOIndex u
     -> (prop -> Property)
 checkCoverage_filter_partition f i
     = checkCoverage
