@@ -444,6 +444,7 @@ type GetPolicyKey = "wallets"
 type PostPolicyKey = "wallets"
     :> Capture "walletId" (ApiT WalletId)
     :> "policy-key"
+    :> QueryParam "hash" Bool
     :> ReqBody '[JSON] ApiPostPolicyKeyData
     :> PostAccepted '[JSON] ApiPolicyKey
 

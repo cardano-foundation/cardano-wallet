@@ -6047,13 +6047,20 @@ paths:
   /wallets/{walletId}/policy-key:
     post:
       operationId: postPolicyKey
-      tags: ["Transactions"]
-      summary: Create
+      tags: ["Keys"]
+      summary: Create Policy Key
       description: |
         <p align="right">status: <strong>stable</strong></p>
 
-        Create policy key for the wallet. Used for public account key derived
-        wallets or already instantiated mnemonic wallets to set policy public key
+        Create policy key for the wallet.
+
+        In order to be able to mint/burn assets with `POST Construct` endpoint there needs to be
+        a policy key set for the wallet. Invoking this endpoint would be required for all wallets instantiated
+        before introducing mint/burn feature prior to making a mint/burn transaction from them.
+
+        To get a hash of the policy key instead of the policy key,
+        use query parameter `hash=true`.
+
       parameters:
         - *parametersWalletId
       requestBody:

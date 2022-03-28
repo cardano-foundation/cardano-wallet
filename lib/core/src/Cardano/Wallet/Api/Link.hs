@@ -419,9 +419,10 @@ postPolicyKey
         , HasType (ApiT WalletId) w
         )
     => w
+    -> Maybe Bool
     -> (Method, Text)
-postPolicyKey w = discriminate @style
-    (endpoint @Api.PostPolicyKey (wid &))
+postPolicyKey w hashed = discriminate @style
+    (endpoint @Api.PostPolicyKey (\mk -> mk wid hashed))
     (notSupported "Byron")
     (notSupported "Shared")
   where

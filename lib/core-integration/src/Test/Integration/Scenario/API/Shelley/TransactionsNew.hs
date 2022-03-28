@@ -3670,7 +3670,7 @@ spec = describe "NEW_SHELLEY_TRANSACTIONS" $ do
         (_, policyKeyHashPayload) <-
             unsafeRequest @ApiPolicyKey ctx policyWithHash Empty
 
-        let postPolicyKey = Link.postPolicyKey @'Shelley wa
+        let postPolicyKey = Link.postPolicyKey @'Shelley wa (Just True)
         let passwdPayload = Json [json| {
                 "passphrase": #{fixturePassphrase}
                 } |]

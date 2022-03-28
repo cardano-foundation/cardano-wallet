@@ -1227,8 +1227,8 @@ data ApiPolicyScript = ApiPolicyScript
     deriving (Eq, Generic, Show)
     deriving anyclass NFData
 
-data ApiPostPolicyKeyData = ApiPostPolicyKeyData
-    { passphrase :: !(ApiT (Passphrase "raw"))
+newtype ApiPostPolicyKeyData = ApiPostPolicyKeyData
+    { passphrase :: (ApiT (Passphrase "raw"))
     }
     deriving (Eq, Generic, Show)
     deriving anyclass NFData

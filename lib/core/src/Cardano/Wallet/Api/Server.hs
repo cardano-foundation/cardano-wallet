@@ -242,7 +242,6 @@ import Cardano.Wallet.Api.Types
     , ApiNetworkClock (..)
     , ApiNetworkInformation
     , ApiNetworkParameters (..)
-    , ApiPostPolicyKeyData (..)
     , ApiNullStakeKey (..)
     , ApiOurStakeKey (..)
     , ApiPaymentDestination (..)
@@ -251,6 +250,7 @@ import Cardano.Wallet.Api.Types
     , ApiPolicyScript (..)
     , ApiPoolId (..)
     , ApiPostAccountKeyDataWithPurpose (..)
+    , ApiPostPolicyKeyData (..)
     , ApiPostRandomAddressData (..)
     , ApiPutAddressesData (..)
     , ApiRedeemer (..)
@@ -3370,15 +3370,15 @@ postPolicyKey
         )
     => ctx
     -> ApiT WalletId
+    -> Maybe Bool
     -> ApiPostPolicyKeyData
     -> Handler ApiPolicyKey
-postPolicyKey ctx (ApiT wid) apiPassphrase =
+postPolicyKey ctx (ApiT wid) hashed apiPassphrase =
     withWorkerCtx @_ @s @ShelleyKey ctx wid liftE liftE $ \wrk -> do
         k <- liftHandler $ W.writePolicyPublicKey @_ @s @n wrk wid pwd
         pure $ uncurry ApiPolicyKey (computeKeyPayload hashed (getRawKey k))
   where
     pwd = getApiT (apiPassphrase ^. #passphrase)
-    hashed = Just True
 
 {-------------------------------------------------------------------------------
                                   Helpers
