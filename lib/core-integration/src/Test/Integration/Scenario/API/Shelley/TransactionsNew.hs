@@ -227,6 +227,7 @@ import qualified Data.Text.Encoding as T
 import qualified Network.HTTP.Types.Status as HTTP
 import qualified Test.Integration.Plutus as PlutusScenario
 
+
 spec :: forall n.
     ( DecodeAddress n
     , DecodeStakeAddress n
@@ -3750,6 +3751,22 @@ spec = describe "NEW_SHELLEY_TRANSACTIONS" $ do
             [ expectSuccess
             , expectResponseCode HTTP.status202
             ]
+
+        let initialBalance = wa ^. #balance . #available . #getQuantity
+        let expectedFee = getFromResponse (#fee . #getQuantity) rTx
+        eventually "Wallet balance is decreased by fee and holds minted assets" $ do
+            rWa <- request @ApiWallet ctx
+                (Link.getWallet @'Shelley wa) Default Empty
+            verify rWa
+                [ expectSuccess
+                , expectField
+                        (#balance . #available . #getQuantity)
+                        (`shouldBe` initialBalance - fromIntegral expectedFee)
+                , expectField (#assets . #available . #getApiT)
+                        (`shouldBe` tokens)
+                , expectField (#assets . #total . #getApiT)
+                        (`shouldBe` tokens)
+                ]
 
     mintBurnCheck ctx wa tokenName' payload scriptUsedF = do
 
