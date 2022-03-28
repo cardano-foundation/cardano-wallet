@@ -15,11 +15,9 @@ The default `nix develop` contains build tools, utilities and GHC
 configured with a global package-db which matches `stack.yaml`. This
 is defined in the `devShell` attribute of `flake.nix`.
 
-## Stack
+## Buildkite
 
-On Buildkite, the project will be built with `stack build --nix`. This
-means that all stack commands will run inside the `nix-shell` defined
-by [`nix/stack-shell.nix`](https://github.com/input-output-hk/cardano-wallet/blob/master/nix/stack-shell.nix). If there is a program that is needed by the
+On Buildkite, the project will be built with `cabal build` in a particular Nix shell. The Nix shell provisioned is defined by [`nix/cabal-shell.nix`](https://github.com/input-output-hk/cardano-wallet/blob/master/nix/cabal-shell.nix). If there is a program that is needed by the
 build or tests, make sure that it is present there.
 
 ## nix flake lock

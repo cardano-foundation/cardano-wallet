@@ -38,7 +38,7 @@ See [[Building]].
 
 If you feel brave enough and want to compile everything from sources, please refer to [[Building]], or the equivalent documentation in each source repository (instructions often appear in `README.md`).
 
-As a pre-requisite, you may want to install and configure [Nix](https://nixos.org/), [stack](https://docs.haskellstack.org/en/stable/README/) or [cabal](https://www.haskell.org/cabal/) depending on your weapon of choice.
+As a pre-requisite, you may want to install and configure [Nix](https://nixos.org/) or [cabal](https://www.haskell.org/cabal/), depending on your weapon of choice.
 
 ## Summary
 

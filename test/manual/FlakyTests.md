@@ -2,14 +2,10 @@
 
 Some tests might have been disabled in CI with the `flakyBecauseOf` helper.
 
-Run them locally using 
+Run them locally using:
 
 ```bash
-RUN_FLAKY_TESTS=1 stack test cardano-wallet:integration
+RUN_FLAKY_TESTS=1 cabal test cardano-wallet:integration
 ```
 
-or on Windows:
-```bash
-set RUN_FLAKY_TESTS=1
-cardano-wallet-test-integration.exe
-```
+Running integration tests under Wine is not possible because ouroboros-network doesn't fully work under Wine.
