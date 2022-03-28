@@ -74,7 +74,6 @@ module Cardano.Wallet.Shelley.Compatibility
     , toStakePoolDlgCert
     , toStakeCredential
     , fromStakeCredential
-    , toShelleyCoin
     , fromShelleyCoin
     , toHDPayloadAddress
     , toCardanoStakeCredential
@@ -103,9 +102,8 @@ module Cardano.Wallet.Shelley.Compatibility
 
       -- ** Stake pools
     , fromPoolId
-    , fromPoolDistr
-    , fromNonMyopicMemberRewards
-    , optimumNumberOfPools
+    , mkStakePoolsSummary
+    , StakePoolsData (..)
     , getProducer
 
     , HasNetworkId (..)
@@ -189,6 +187,8 @@ import Cardano.Ledger.Era
     ( Era (..) )
 import Cardano.Ledger.Serialization
     ( ToCBORGroup )
+import Cardano.Pool.Rank
+    ( RewardInfoPool (..), RewardParams (..) )
 import Cardano.Slotting.Slot
     ( EpochNo (..), EpochSize (..) )
 import Cardano.Slotting.Time
@@ -361,6 +361,7 @@ import qualified Cardano.Ledger.ShelleyMA as MA
 import qualified Cardano.Ledger.ShelleyMA.AuxiliaryData as MA
 import qualified Cardano.Ledger.ShelleyMA.TxBody as MA
 import qualified Cardano.Ledger.TxIn as TxIn
+import qualified Cardano.Pool.Rank as W
 import qualified Cardano.Wallet.Primitive.Types as W
 import qualified Cardano.Wallet.Primitive.Types.Address as W
 import qualified Cardano.Wallet.Primitive.Types.Coin as Coin
@@ -386,7 +387,6 @@ import qualified Data.Map.Strict as Map
 import qualified Data.Map.Strict.NonEmptyMap as NonEmptyMap
 import qualified Data.Set as Set
 import qualified Data.Text.Encoding as T
-import qualified Ouroboros.Consensus.Shelley.Ledger as O
 import qualified Ouroboros.Network.Block as O
 import qualified Ouroboros.Network.Point as Point
 
@@ -424,7 +424,7 @@ emptyGenesis gp = W.Block
 
 -- | The protocol client version. Distinct from the codecs version.
 nodeToClientVersions :: [NodeToClientVersion]
-nodeToClientVersions = [NodeToClientV_8, NodeToClientV_9]
+nodeToClientVersions = [NodeToClientV_8, NodeToClientV_9, NodeToClientV_11]
 
 --------------------------------------------------------------------------------
 --
@@ -1220,34 +1220,53 @@ fromGenesisData g initialFunds =
 fromPoolId :: forall crypto. SL.KeyHash 'SL.StakePool crypto -> W.PoolId
 fromPoolId (SL.KeyHash x) = W.PoolId $ hashToBytes x
 
-fromPoolDistr
-    :: forall crypto. ()
-    => SL.PoolDistr crypto
-    -> Map W.PoolId Percentage
-fromPoolDistr =
-    Map.map (unsafeMkPercentage . SL.individualPoolStake)
-    . Map.mapKeys fromPoolId
-    . SL.unPoolDistr
+-- | Stake distribution that we retrieve using a local state query
+data StakePoolsData = StakePoolsData
+    { _rewardParams
+        :: SLAPI.RewardParams
+    , _rewardInfoPools
+        :: Map
+            (SL.KeyHash 'SL.StakePool StandardCrypto)
+            SLAPI.RewardInfoPool
+    } deriving (Eq, Show)
 
--- NOTE: This function disregards results that are using staking keys
-fromNonMyopicMemberRewards
-    :: forall era. ()
-    => O.NonMyopicMemberRewards era
-    -> Map (Either W.Coin W.RewardAccount) (Map W.PoolId W.Coin)
-fromNonMyopicMemberRewards =
-    Map.map (Map.map toWalletCoin . Map.mapKeys fromPoolId)
-    . Map.mapKeys (bimap fromShelleyCoin fromStakeCredential)
-    . O.unNonMyopicMemberRewards
-
-optimumNumberOfPools
-    :: HasField "_nOpt" pparams Natural
-    => pparams
-    -> Int
-optimumNumberOfPools = unsafeConvert . getField @"_nOpt"
+mkStakePoolsSummary :: StakePoolsData -> W.StakePoolsSummary
+mkStakePoolsSummary StakePoolsData{..} = W.StakePoolsSummary
+    { rewardParams = rewardParams
+    , pools
+        = Map.mapKeys fromPoolId
+        $ Map.map (toRewardInfoPool $ toWalletCoin totalStake) _rewardInfoPools
+    }
   where
-    -- A value of ~100 can be expected, so should be fine.
-    unsafeConvert :: Natural -> Int
-    unsafeConvert = fromIntegral
+    SLAPI.RewardParams{a0,nOpt,rPot,totalStake} = _rewardParams
+    rewardParams = W.RewardParams 
+        { nOpt = fromIntegral nOpt
+        , a0   = SL.unboundRational a0
+        , r    = toWalletCoin rPot
+        , totalStake = toWalletCoin totalStake
+        }
+
+toRewardInfoPool
+    :: W.Coin
+    -> SLAPI.RewardInfoPool
+    -> W.RewardInfoPool
+toRewardInfoPool totalStake SLAPI.RewardInfoPool{..} = W.RewardInfoPool
+    { stakeRelative = clipToPercentage
+        $ fromIntegral (SL.unCoin stake)
+          `proportionTo` fromIntegral (W.unCoin totalStake)
+    , ownerStake = toWalletCoin ownerStake
+    , ownerStakeRelative = clipToPercentage
+        $ fromIntegral (SL.unCoin ownerStake)
+          `proportionTo` fromIntegral (W.unCoin totalStake)
+    , ownerPledge = toWalletCoin ownerPledge
+    , cost = toWalletCoin cost
+    , margin = fromUnitInterval margin
+    , performanceEstimate = performanceEstimate
+    }
+  where
+    clipToPercentage = unsafeMkPercentage . min 1 . max 0
+    proportionTo _ 0 = 0
+    proportionTo x y = x / y
 
 --
 -- Txs
@@ -1328,8 +1347,6 @@ fromShelleyAddress = W.Address
 fromShelleyCoin :: SL.Coin -> W.Coin
 fromShelleyCoin (SL.Coin c) = Coin.unsafeFromIntegral c
 
-toShelleyCoin :: W.Coin -> SL.Coin
-toShelleyCoin (W.Coin c) = SL.Coin $ intCast c
 
 fromCardanoTx
     :: Cardano.Tx era

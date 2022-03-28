@@ -194,6 +194,7 @@ import Cardano.Wallet.Api.Types
     , WalletPostData (..)
     , WalletPutData (..)
     , WalletPutPassphraseData (..)
+    , invariantApiStakePool
     , toApiAsset
     )
 import Cardano.Wallet.Gen
@@ -418,6 +419,7 @@ import Test.QuickCheck
     , scale
     , shrinkIntegral
     , sized
+    , suchThat
     , vector
     , vectorOf
     , (.&&.)
@@ -1749,7 +1751,7 @@ instance Arbitrary PoolId where
         return $ PoolId $ BS.pack $ take 28 bytes
 
 instance Arbitrary ApiStakePool where
-    arbitrary = ApiStakePool
+    arbitrary = (ApiStakePool
         <$> arbitrary
         <*> arbitrary
         <*> arbitrary
@@ -1757,11 +1759,12 @@ instance Arbitrary ApiStakePool where
         <*> arbitrary
         <*> arbitrary
         <*> arbitrary
-        <*> arbitrary
+        <*> arbitrary) `suchThat` invariantApiStakePool
 
 instance Arbitrary ApiStakePoolMetrics where
     arbitrary = ApiStakePoolMetrics
         <$> (Quantity . fromIntegral <$> choose (1::Integer, 1_000_000_000_000))
+        <*> arbitrary
         <*> arbitrary
         <*> (choose (0.0, 5.0))
         <*> (Quantity . fromIntegral <$> choose (1::Integer, 22_600_000))
