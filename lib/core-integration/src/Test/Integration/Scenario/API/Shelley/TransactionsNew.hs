@@ -3252,13 +3252,39 @@ spec = describe "NEW_SHELLEY_TRANSACTIONS" $ do
 
     it "TRANS_NEW_CREATE_10f - Burning assets without timelock" $
         \ctx -> runResourceT $ do
-        liftIO $ pendingWith "Should work soon, first mint token"
 
         wa <- fixtureWallet ctx
+        addrs <- listAddresses @n ctx wa
+        let destination = (addrs !! 1) ^. #id
 
         let (Right tokenName') = mkTokenName "ab12"
+        let payloadMint = Json [json|{
+                "mint_burn": [{
+                    "policy_script_template":
+                        { "all":
+                           [ "cosigner#0"
+                           ]
+                        },
+                    "asset_name": #{toText tokenName'},
+                    "operation":
+                        { "mint" :
+                              { "receiving_address": #{destination},
+                                 "amount": {
+                                     "quantity": 50000,
+                                     "unit": "assets"
+                                  }
+                              }
+                        }
+                }]
+            }|]
 
-        let payload = Json [json|{
+        let scriptUsed policyKeyHash = RequireAllOf
+                [ RequireSignatureOf policyKeyHash
+                ]
+
+        mintAssetCheck ctx wa tokenName' payloadMint scriptUsed
+
+        let payloadBurn = Json [json|{
                 "mint_burn": [{
                     "policy_script_template":
                         { "all":
@@ -3275,45 +3301,7 @@ spec = describe "NEW_SHELLEY_TRANSACTIONS" $ do
                 }]
             }|]
 
-        let scriptUsed policyKeyHash = RequireAllOf
-                [ RequireSignatureOf policyKeyHash
-                , ActiveFromSlot 120
-                ]
-
-        mintBurnCheck ctx wa tokenName' payload scriptUsed
-
-    it "TRANS_NEW_CREATE_10g - Burning assets with timelock" $
-        \ctx -> runResourceT $ do
-        liftIO $ pendingWith "Should work when interval validity is addressed"
-
-        wa <- fixtureWallet ctx
-
-        let (Right tokenName') = mkTokenName "ab12"
-
-        let payload = Json [json|{
-                "mint_burn": [{
-                    "policy_script_template":
-                        { "all":
-                           [ "cosigner#0",
-                             { "active_from": 120 }
-                           ]
-                        },
-                    "asset_name": #{toText tokenName'},
-                    "operation":
-                        { "burn" :
-                              { "quantity": 50000,
-                                "unit": "assets"
-                              }
-                        }
-                }]
-            }|]
-
-        let scriptUsed policyKeyHash = RequireAllOf
-                [ RequireSignatureOf policyKeyHash
-                , ActiveFromSlot 120
-                ]
-
-        mintBurnCheck ctx wa tokenName' payload scriptUsed
+        burnAssetsCheck ctx wa tokenName' payloadBurn scriptUsed
 
   where
 
@@ -3768,7 +3756,7 @@ spec = describe "NEW_SHELLEY_TRANSACTIONS" $ do
                         (`shouldBe` tokens)
                 ]
 
-    mintBurnCheck ctx wa tokenName' payload scriptUsedF = do
+    burnAssetsCheck ctx wa tokenName' payload scriptUsedF = do
 
         rTx <- request @(ApiConstructTransaction n) ctx
             (Link.createUnsignedTransaction @'Shelley wa) Default payload
@@ -3823,3 +3811,32 @@ spec = describe "NEW_SHELLEY_TRANSACTIONS" $ do
             , expectField #assetsMinted (`shouldBe` activeAssetsInfo)
             , expectField #assetsBurned (`shouldBe` inactiveAssetsInfo)
             ]
+
+        let apiTx = getFromResponse #transaction rTx
+        signedTx <- signTx ctx wa apiTx [ expectResponseCode HTTP.status202 ]
+        let txCbor2 = getFromResponse #transaction (HTTP.status202, Right signedTx)
+        let decodePayload2 = Json (toJSON $ ApiSerialisedTransaction txCbor2)
+        rDecodedTx2 <- request @(ApiDecodedTransaction n) ctx
+            (Link.decodeTransaction @'Shelley wa) Default decodePayload2
+        verify rDecodedTx2
+            [ expectResponseCode HTTP.status202
+            , expectField #assetsMinted (`shouldBe` activeAssetsInfo)
+            , expectField #assetsBurned (`shouldBe` inactiveAssetsInfo)
+            ]
+
+        submittedTx <- submitTxWithWid ctx wa signedTx
+        verify submittedTx
+            [ expectSuccess
+            , expectResponseCode HTTP.status202
+            ]
+
+        eventually "Wallet balance does not have minted assets anymore" $ do
+            rWa <- request @ApiWallet ctx
+                (Link.getWallet @'Shelley wa) Default Empty
+            verify rWa
+                [ expectSuccess
+                , expectField (#assets . #available . #getApiT)
+                        (`shouldBe` TokenMap.empty)
+                , expectField (#assets . #total . #getApiT)
+                        (`shouldBe` TokenMap.empty)
+                ]
