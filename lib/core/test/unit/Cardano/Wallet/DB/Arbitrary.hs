@@ -11,7 +11,6 @@
 {-# LANGUAGE NumericUnderscores #-}
 {-# LANGUAGE OverloadedLabels #-}
 {-# LANGUAGE RankNTypes #-}
-{-# LANGUAGE RecordWildCards #-}
 {-# LANGUAGE ScopedTypeVariables #-}
 {-# LANGUAGE StandaloneDeriving #-}
 {-# LANGUAGE TypeApplications #-}
@@ -174,6 +173,8 @@ import Data.Word.Odd
     ( Word31 )
 import Fmt
     ( Buildable (..), Builder, blockListF', prefixF, suffixF, tupleF )
+import Generics.SOP
+    ( NP (..) )
 import GHC.Generics
     ( Generic )
 import Numeric.Natural
@@ -205,6 +206,8 @@ import Test.QuickCheck
     )
 import Test.QuickCheck.Arbitrary.Generic
     ( genericArbitrary )
+import Test.QuickCheck.Extra
+    ( genericRoundRobinShrink, (<:>), (<@>) )
 import Test.Utils.Time
     ( genUniformTime )
 
@@ -665,17 +668,18 @@ arbitrarySharedAccount =
 -------------------------------------------------------------------------------}
 
 instance Arbitrary ProtocolParameters where
-    shrink ProtocolParameters {..} = ProtocolParameters
-        <$> shrink decentralizationLevel
-        <*> shrink txParameters
-        <*> shrink desiredNumberOfStakePools
-        <*> shrink minimumUTxOvalue
-        <*> shrink stakeKeyDeposit
-        <*> shrink eras
-        <*> shrink maximumCollateralInputCount
-        <*> shrink minimumCollateralPercentage
-        <*> shrink executionUnitPrices
-        <*> pure Nothing
+    shrink = genericRoundRobinShrink
+        <@> shrink
+        <:> shrink
+        <:> shrink
+        <:> shrink
+        <:> shrink
+        <:> shrink
+        <:> shrink
+        <:> shrink
+        <:> shrink
+        <:> const []
+        <:> Nil
     arbitrary = ProtocolParameters
         <$> arbitrary
         <*> arbitrary
