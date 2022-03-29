@@ -79,6 +79,20 @@ x-absoluteSlot: &absoluteSlot
   minimum: 0
   example: 8086
 
+x-numberOfAssets: &numberOfAssets
+  type: object
+  required:
+    - quantity
+    - unit
+  properties:
+    quantity:
+      type: integer
+      minimum: 1
+      example: 42000
+    unit:
+      type: string
+      enum: ["assets"]
+
 x-numberOfSlots: &numberOfSlots
   type: object
   required:
@@ -2410,13 +2424,11 @@ components:
       type: object
       required:
         - asset_name
-        - quantity
+        - amount
         - fingerprint
       properties:
        asset_name: *assetName
-       quantity:
-         type: integer
-         minimum: 0
+       amount: *numberOfAssets
        fingerprint: *assetFingerprint
 
     ApiTokens: &ApiTokens
@@ -2455,16 +2467,6 @@ components:
         transaction: *serialisedTransactionBase64
         coin_selection: *ApiCoinSelection
         fee: *amount
-        mint:
-          type: array
-          items: *ApiAssetMintBurn
-          minItems: 1
-          description: An entry for each unique asset minted containing helpful information.
-        burn:
-          type: array
-          items: *ApiAssetMintBurn
-          minItems: 1
-          description: An entry for each unique asset burned containing helpful information.
 
     ApiTransaction: &ApiTransaction
       type: object

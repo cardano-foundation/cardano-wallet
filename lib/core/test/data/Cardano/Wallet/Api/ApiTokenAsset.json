@@ -1,0 +1,85 @@
+{
+    "seed": -6726042728513418060,
+    "samples": [
+        {
+            "fingerprint": "asset1hq2hhhzmresms9mw67mvyx3jpklwmyqnqleefg",
+            "amount": {
+                "quantity": 8940,
+                "unit": "assets"
+            },
+            "asset_name": "546f6b656e52"
+        },
+        {
+            "fingerprint": "asset1nznfvhfwwwgahe66ajf5jeypp6q8pe68q0j5rp",
+            "amount": {
+                "quantity": 7062,
+                "unit": "assets"
+            },
+            "asset_name": "546f6b656e59"
+        },
+        {
+            "fingerprint": "asset1x7taw3wtqf5rkr36k57l9chtn023cf03h3mk7y",
+            "amount": {
+                "quantity": 5802,
+                "unit": "assets"
+            },
+            "asset_name": "546f6b656e45"
+        },
+        {
+            "fingerprint": "asset1dcvs04k728gyvywfdypjyafu6wyrtp350p2ryt",
+            "amount": {
+                "quantity": 6880,
+                "unit": "assets"
+            },
+            "asset_name": "546f6b656e43"
+        },
+        {
+            "fingerprint": "asset148hsna3pq5wr8j6mel3askpmmqhzvmcmyg6gct",
+            "amount": {
+                "quantity": 8389,
+                "unit": "assets"
+            },
+            "asset_name": "546f6b656e50"
+        },
+        {
+            "fingerprint": "asset15gqhkzk0gqum3jpng64ymykcgwpuyq4phqhz3t",
+            "amount": {
+                "quantity": 1232,
+                "unit": "assets"
+            },
+            "asset_name": "546f6b656e42"
+        },
+        {
+            "fingerprint": "asset13jvu9r3c83shxh0cx2t45xap75jr4tr9cla0p2",
+            "amount": {
+                "quantity": 8783,
+                "unit": "assets"
+            },
+            "asset_name": "546f6b656e44"
+        },
+        {
+            "fingerprint": "asset17yrqlkqfynygfhf363mva0zxwzdg32jmyapchs",
+            "amount": {
+                "quantity": 3027,
+                "unit": "assets"
+            },
+            "asset_name": "546f6b656e59"
+        },
+        {
+            "fingerprint": "asset1c6w8632gv3saypa05m0mhdlsu9j5xle5ywpsa2",
+            "amount": {
+                "quantity": 8372,
+                "unit": "assets"
+            },
+            "asset_name": "546f6b656e4a"
+        },
+        {
+            "fingerprint": "asset13ylajxg6zh69mcss64emhf93h52t7k2gx9tmce",
+            "amount": {
+                "quantity": 8014,
+                "unit": "assets"
+            },
+            "asset_name": "546f6b656e53"
+        }
+    ]
+}

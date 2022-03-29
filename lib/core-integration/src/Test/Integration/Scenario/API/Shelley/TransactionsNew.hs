@@ -45,13 +45,13 @@ import Cardano.Wallet.Api.Types
     , ApiDecodedTransaction
     , ApiDeregisterPool (..)
     , ApiExternalCertificate (..)
-    , ApiMintBurnInfo (..)
     , ApiPolicyKey (..)
-    , ApiPolicyScript (..)
     , ApiRegisterPool (..)
     , ApiSerialisedTransaction (..)
     , ApiStakePool
     , ApiT (..)
+    , ApiTokenAsset (..)
+    , ApiTokens (..)
     , ApiTransaction
     , ApiTxId (..)
     , ApiTxInput (..)
@@ -1320,9 +1320,7 @@ spec = describe "NEW_SHELLEY_TRANSACTIONS" $ do
         let tokenPolicyId' =
                 UnsafeTokenPolicyId $ Hash
                 "\145\158\138\EM\"\170\167d\177\214d\a\198\246\"D\231p\129!_8[`\166 \145I"
-        let tokens = TokenMap.singleton
-                (AssetId tokenPolicyId' (UnsafeTokenName "HappyCoin"))
-                (TokenQuantity 50_000)
+        let tokenName' = UnsafeTokenName "HappyCoin"
         let policyWithHash = Link.getPolicyKey @'Shelley wa (Just True)
         (_, policyKeyHashPayload) <-
             unsafeRequest @ApiPolicyKey ctx policyWithHash Empty
@@ -1331,25 +1329,35 @@ spec = describe "NEW_SHELLEY_TRANSACTIONS" $ do
                  "i0<\227Sm\242`\239\221\188\148\156\203\148\230\153\&3\STX\177\vw\141\139M\152\191\181"
                )
         let scriptUsed = RequireAllOf [RequireSignatureOf externalPolicyKeyHash]
-        let mintScript = ApiPolicyScript (ApiT tokenPolicyId') (ApiT scriptUsed)
+
+        let apiTokenAsset = ApiTokenAsset
+                { assetName = ApiT tokenName'
+                , amount = Quantity 50_000
+                , fingerprint = ApiT $ mkTokenFingerprint tokenPolicyId' tokenName'
+                }
+        let apiTokens = ApiTokens
+                { policyId = ApiT tokenPolicyId'
+                , policyScript = ApiT scriptUsed
+                , assets = NE.fromList [apiTokenAsset]
+                }
 
         let activeAssetsInfo = ApiAssetMintBurn
-                { tokenMap = ApiT tokens
-                , policyScripts = [mintScript]
+                { tokens = [apiTokens]
                 , walletPolicyKeyHash = Just policyKeyHashPayload
+                , walletPolicyKeyIndex = Just $ ApiT (DerivationIndex 2147483648)
                 }
         let inactiveAssetsInfo = ApiAssetMintBurn
-                { tokenMap = ApiT TokenMap.empty
-                , policyScripts = []
-                , walletPolicyKeyHash = Just policyKeyHashPayload
+                { tokens = []
+                , walletPolicyKeyHash = Nothing
+                , walletPolicyKeyIndex = Nothing
                 }
         rTx <- request @(ApiDecodedTransaction n) ctx
             (Link.decodeTransaction @'Shelley wa) Default decodeMintPayload
         verify rTx
             [ expectResponseCode HTTP.status202
             , expectField (#fee . #getQuantity) (`shouldBe` 202_725)
-            , expectField #assetsMinted (`shouldBe` activeAssetsInfo)
-            , expectField #assetsBurned (`shouldBe` inactiveAssetsInfo)
+            , expectField #mint (`shouldBe` activeAssetsInfo)
+            , expectField #burn (`shouldBe` inactiveAssetsInfo)
             ]
 
         -- constructing burning asset tx in cardano-cli
@@ -1379,8 +1387,8 @@ spec = describe "NEW_SHELLEY_TRANSACTIONS" $ do
         verify rTx'
             [ expectResponseCode HTTP.status202
             , expectField (#fee . #getQuantity) (`shouldBe` 202_725)
-            , expectField #assetsMinted (`shouldBe` inactiveAssetsInfo)
-            , expectField #assetsBurned (`shouldBe` activeAssetsInfo)
+            , expectField #mint (`shouldBe` inactiveAssetsInfo)
+            , expectField #burn (`shouldBe` activeAssetsInfo)
             ]
 
     it "TRANS_NEW_DECODE_03 - \
@@ -3687,39 +3695,38 @@ spec = describe "NEW_SHELLEY_TRANSACTIONS" $ do
                 UnsafeTokenPolicyId . Hash $
                 unScriptHash $
                 toScriptHash scriptUsed
-        let tokens = TokenMap.singleton
+        let tokens' = TokenMap.singleton
                 (AssetId tokenPolicyId' tokenName')
                 (TokenQuantity 50_000)
-        let mintScript = ApiPolicyScript (ApiT tokenPolicyId') (ApiT scriptUsed)
+
+        let apiTokenAsset = ApiTokenAsset
+                { assetName = ApiT tokenName'
+                , amount = Quantity 50_000
+                , fingerprint = ApiT $ mkTokenFingerprint tokenPolicyId' tokenName'
+                }
+        let apiTokens = ApiTokens
+                { policyId = ApiT tokenPolicyId'
+                , policyScript = ApiT scriptUsed
+                , assets = NE.fromList [apiTokenAsset]
+                }
 
         let activeAssetsInfo = ApiAssetMintBurn
-                { tokenMap = ApiT tokens
-                , policyScripts = [mintScript]
+                { tokens = [apiTokens]
                 , walletPolicyKeyHash = Just policyKeyHashPayload
+                , walletPolicyKeyIndex = Just $ ApiT (DerivationIndex 2147483648)
                 }
         let inactiveAssetsInfo = ApiAssetMintBurn
-                { tokenMap = ApiT TokenMap.empty
-                , policyScripts = []
-                , walletPolicyKeyHash = Just policyKeyHashPayload
+                { tokens = []
+                , walletPolicyKeyHash = Nothing
+                , walletPolicyKeyIndex = Nothing
                 }
-
-        let mintInfoExpected = Just $ NE.fromList
-                [ ApiT $ ApiMintBurnInfo
-                { verificationKeyIndex = ApiT (DerivationIndex 2147483648)
-                , policyId = ApiT tokenPolicyId'
-                , assetName = ApiT tokenName'
-                , subject = ApiT $ mkTokenFingerprint tokenPolicyId' tokenName'
-                , policyScript = ApiT scriptUsed
-                }]
-        let mintInfo = getFromResponse #mintBurn rTx
-        mintInfo `shouldBe` mintInfoExpected
 
         rDecodedTx1 <- request @(ApiDecodedTransaction n) ctx
             (Link.decodeTransaction @'Shelley wa) Default decodePayload1
         verify rDecodedTx1
             [ expectResponseCode HTTP.status202
-            , expectField #assetsMinted (`shouldBe` activeAssetsInfo)
-            , expectField #assetsBurned (`shouldBe` inactiveAssetsInfo)
+            , expectField #mint (`shouldBe` activeAssetsInfo)
+            , expectField #burn (`shouldBe` inactiveAssetsInfo)
             ]
 
         let apiTx = getFromResponse #transaction rTx
@@ -3730,8 +3737,8 @@ spec = describe "NEW_SHELLEY_TRANSACTIONS" $ do
             (Link.decodeTransaction @'Shelley wa) Default decodePayload2
         verify rDecodedTx2
             [ expectResponseCode HTTP.status202
-            , expectField #assetsMinted (`shouldBe` activeAssetsInfo)
-            , expectField #assetsBurned (`shouldBe` inactiveAssetsInfo)
+            , expectField #mint (`shouldBe` activeAssetsInfo)
+            , expectField #burn (`shouldBe` inactiveAssetsInfo)
             ]
 
         submittedTx <- submitTxWithWid ctx wa signedTx
@@ -3751,9 +3758,9 @@ spec = describe "NEW_SHELLEY_TRANSACTIONS" $ do
                         (#balance . #available . #getQuantity)
                         (`shouldBe` initialBalance - fromIntegral expectedFee)
                 , expectField (#assets . #available . #getApiT)
-                        (`shouldBe` tokens)
+                        (`shouldBe` tokens')
                 , expectField (#assets . #total . #getApiT)
-                        (`shouldBe` tokens)
+                        (`shouldBe` tokens')
                 ]
 
     burnAssetsCheck ctx wa tokenName' payload scriptUsedF = do
@@ -3777,39 +3784,34 @@ spec = describe "NEW_SHELLEY_TRANSACTIONS" $ do
         let tokenPolicyId' =
                 UnsafeTokenPolicyId . Hash $
                 unScriptHash $ toScriptHash scriptUsed
-        let tokens = TokenMap.singleton
-                (AssetId tokenPolicyId' tokenName')
-                (TokenQuantity 50_000)
-        let burnScript = ApiPolicyScript (ApiT tokenPolicyId') (ApiT scriptUsed)
+        let apiTokenAsset = ApiTokenAsset
+                { assetName = ApiT tokenName'
+                , amount = Quantity 50_000
+                , fingerprint = ApiT $ mkTokenFingerprint tokenPolicyId' tokenName'
+                }
+        let apiTokens = ApiTokens
+                { policyId = ApiT tokenPolicyId'
+                , policyScript = ApiT scriptUsed
+                , assets = NE.fromList [apiTokenAsset]
+                }
 
         let activeAssetsInfo = ApiAssetMintBurn
-                { tokenMap = ApiT TokenMap.empty
-                , policyScripts = []
-                , walletPolicyKeyHash = Just policyKeyHashPayload
+                { tokens = []
+                , walletPolicyKeyHash = Nothing
+                , walletPolicyKeyIndex = Nothing
                 }
         let inactiveAssetsInfo = ApiAssetMintBurn
-                { tokenMap = ApiT tokens
-                , policyScripts = [burnScript]
+                { tokens = [apiTokens]
                 , walletPolicyKeyHash = Just policyKeyHashPayload
+                , walletPolicyKeyIndex = Just $ ApiT (DerivationIndex 2147483648)
                 }
-
-        let burnInfoExpected = Just $ NE.fromList
-                [ ApiT $ ApiMintBurnInfo
-                { verificationKeyIndex = ApiT (DerivationIndex 2147483648)
-                , policyId = ApiT tokenPolicyId'
-                , assetName = ApiT tokenName'
-                , subject = ApiT $ mkTokenFingerprint tokenPolicyId' tokenName'
-                , policyScript = ApiT scriptUsed
-                }]
-        let burnInfo = getFromResponse #mintBurn rTx
-        burnInfo `shouldBe` burnInfoExpected
 
         rDecodedTx <- request @(ApiDecodedTransaction n) ctx
             (Link.decodeTransaction @'Shelley wa) Default decodePayload
         verify rDecodedTx
             [ expectResponseCode HTTP.status202
-            , expectField #assetsMinted (`shouldBe` activeAssetsInfo)
-            , expectField #assetsBurned (`shouldBe` inactiveAssetsInfo)
+            , expectField #mint (`shouldBe` activeAssetsInfo)
+            , expectField #burn (`shouldBe` inactiveAssetsInfo)
             ]
 
         let apiTx = getFromResponse #transaction rTx
@@ -3820,8 +3822,8 @@ spec = describe "NEW_SHELLEY_TRANSACTIONS" $ do
             (Link.decodeTransaction @'Shelley wa) Default decodePayload2
         verify rDecodedTx2
             [ expectResponseCode HTTP.status202
-            , expectField #assetsMinted (`shouldBe` activeAssetsInfo)
-            , expectField #assetsBurned (`shouldBe` inactiveAssetsInfo)
+            , expectField #mint (`shouldBe` activeAssetsInfo)
+            , expectField #burn (`shouldBe` inactiveAssetsInfo)
             ]
 
         submittedTx <- submitTxWithWid ctx wa signedTx

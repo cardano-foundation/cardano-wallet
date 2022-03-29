@@ -96,7 +96,6 @@ module Cardano.Wallet.Api.Types
     , PostTransactionFeeOldData (..)
     , ApiSerialisedTransaction (..)
     , ApiTransaction (..)
-    , ApiMintBurnInfo (..)
     , ApiWithdrawalPostData (..)
     , ApiMaintenanceAction (..)
     , ApiMaintenanceActionPostData (..)
@@ -173,7 +172,8 @@ module Cardano.Wallet.Api.Types
     , ApiRegisterPool (..)
     , ApiDeregisterPool (..)
     , ApiAssetMintBurn (..)
-    , ApiPolicyScript (..)
+    , ApiTokens (..)
+    , ApiTokenAsset (..)
 
     -- * API Types (Byron)
     , ApiByronWallet (..)
@@ -917,7 +917,6 @@ data ByronWalletPutPassphraseData = ByronWalletPutPassphraseData
 data ApiConstructTransaction (n :: NetworkDiscriminant) = ApiConstructTransaction
     { transaction :: !(ApiT SealedTx)
     , coinSelection :: !(ApiCoinSelection n)
-    , mintBurn :: !(Maybe (NonEmpty (ApiT ApiMintBurnInfo)))
     , fee :: !(Quantity "lovelace" Natural)
     } deriving (Eq, Generic, Show, Typeable)
       deriving anyclass NFData
@@ -1220,23 +1219,32 @@ data ApiAnyCertificate n =
     deriving (Eq, Generic, Show)
     deriving anyclass NFData
 
-data ApiPolicyScript = ApiPolicyScript
-    { policyId :: !(ApiT W.TokenPolicyId)
-    , policyScript :: !(ApiT (Script KeyHash))
-    }
-    deriving (Eq, Generic, Show)
-    deriving anyclass NFData
-
 newtype ApiPostPolicyKeyData = ApiPostPolicyKeyData
     { passphrase :: (ApiT (Passphrase "raw"))
     }
     deriving (Eq, Generic, Show)
     deriving anyclass NFData
 
+data ApiTokenAsset = ApiTokenAsset
+    { assetName :: !(ApiT W.TokenName)
+    , amount :: !(Quantity "assets" Natural)
+    , fingerprint :: !(ApiT W.TokenFingerprint)
+    }
+    deriving (Eq, Generic, Show)
+    deriving anyclass NFData
+
+data ApiTokens = ApiTokens
+    { policyId :: !(ApiT W.TokenPolicyId)
+    , policyScript :: !(ApiT (Script KeyHash))
+    , assets :: !(NonEmpty ApiTokenAsset)
+    }
+    deriving (Eq, Generic, Show)
+    deriving anyclass NFData
+
 data ApiAssetMintBurn = ApiAssetMintBurn
-    { tokenMap :: !(ApiT W.TokenMap)
-    , policyScripts :: ![ApiPolicyScript]
+    { tokens :: ![ApiTokens]
     , walletPolicyKeyHash :: !(Maybe ApiPolicyKey)
+    , walletPolicyKeyIndex :: !(Maybe (ApiT DerivationIndex))
     }
     deriving (Eq, Generic, Show)
     deriving anyclass NFData
@@ -1248,8 +1256,8 @@ data ApiDecodedTransaction (n :: NetworkDiscriminant) = ApiDecodedTransaction
     , outputs :: ![ApiTxOutputGeneral n]
     , collateral :: ![ApiTxInputGeneral n]
     , withdrawals :: ![ApiWithdrawalGeneral n]
-    , assetsMinted :: !ApiAssetMintBurn
-    , assetsBurned :: !ApiAssetMintBurn
+    , mint :: !ApiAssetMintBurn
+    , burn :: !ApiAssetMintBurn
     , certificates :: ![ApiAnyCertificate n]
     , depositsTaken :: ![Quantity "lovelace" Natural]
     , depositsReturned :: ![Quantity "lovelace" Natural]
@@ -1257,27 +1265,6 @@ data ApiDecodedTransaction (n :: NetworkDiscriminant) = ApiDecodedTransaction
     , scriptValidity :: !(Maybe (ApiT TxScriptValidity))
     } deriving (Eq, Generic, Show, Typeable)
       deriving anyclass NFData
-
-data ApiMintBurnInfo = ApiMintBurnInfo
-    { verificationKeyIndex
-        :: !(ApiT DerivationIndex)
-        -- ^ The monetary policy index the asset was minted/burned under.
-    , policyId
-        :: !(ApiT W.TokenPolicyId)
-        -- ^ The policy ID the asset was minted/burned under.
-    , assetName
-        :: !(ApiT W.TokenName)
-        -- ^ The name of the asset minted/burned.
-    , subject
-        :: !(ApiT W.TokenFingerprint)
-        -- ^ The subject of the asset minted/burned. This is useful to users
-        -- wishing to attach metadata to their asset.
-    , policyScript
-        :: !(ApiT (Script KeyHash))
-        -- ^ The script which this asset was minted and/or burned under
-    }
-    deriving (Eq, Generic, Show)
-    deriving anyclass NFData
 
 newtype ApiTxMetadata = ApiTxMetadata
     { getApiTxMetadata :: Maybe (ApiT TxMetadata)
@@ -2104,9 +2091,14 @@ instance FromJSON ApiAssetMintBurn where
 instance ToJSON ApiAssetMintBurn where
     toJSON = genericToJSON defaultRecordTypeOptions
 
-instance FromJSON ApiPolicyScript where
+instance FromJSON ApiTokenAsset where
     parseJSON = genericParseJSON defaultRecordTypeOptions
-instance ToJSON ApiPolicyScript where
+instance ToJSON ApiTokenAsset where
+    toJSON = genericToJSON defaultRecordTypeOptions
+
+instance FromJSON ApiTokens where
+    parseJSON = genericParseJSON defaultRecordTypeOptions
+instance ToJSON ApiTokens where
     toJSON = genericToJSON defaultRecordTypeOptions
 
 instance FromJSON ApiPostPolicyKeyData where
@@ -4065,17 +4057,6 @@ instance DecodeAddress n => FromJSON (ApiMintBurnOperation n) where
             ["burn"] -> ApiBurn <$> o .: "burn"
             [] -> fail "Must include a \"mint\" or \"burn\" property."
             _ -> fail "May be either a \"mint\" or a \"burn\"."
-
-instance FromJSON ApiMintBurnInfo where
-    parseJSON = genericParseJSON defaultRecordTypeOptions
-
-instance ToJSON ApiMintBurnInfo where
-    toJSON = genericToJSON defaultRecordTypeOptions
-
-instance FromJSON (ApiT ApiMintBurnInfo) where
-    parseJSON = fmap ApiT . parseJSON
-instance ToJSON (ApiT ApiMintBurnInfo) where
-    toJSON = toJSON . getApiT
 
 instance FromJSON (ApiT (Script KeyHash)) where
     parseJSON = fmap ApiT . parseJSON
