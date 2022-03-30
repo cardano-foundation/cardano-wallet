@@ -13,7 +13,7 @@ on:
 
 jobs:
   setup:
-    runs-on: windows-2016
+    runs-on: windows-2022
     name: Download testing bundle
     steps:
       - name: 'Wait for Hydra build'
@@ -38,7 +38,7 @@ jobs:
   cardano-wallet-core-test-unit:
     name: 'cardano-wallet-core:unit'
     needs: setup
-    runs-on: windows-2016
+    runs-on: windows-2022
     steps:
       - uses: actions/download-artifact@v2
         with:
@@ -48,7 +48,7 @@ jobs:
   cardano-wallet-test-unit:
     name: 'cardano-wallet:unit'
     needs: setup
-    runs-on: windows-2016
+    runs-on: windows-2022
     steps:
       - uses: actions/download-artifact@v2
         with:
@@ -58,7 +58,7 @@ jobs:
   cardano-wallet-cli-test-unit:
     name: 'cardano-wallet-cli:unit'
     needs: setup
-    runs-on: windows-2016
+    runs-on: windows-2022
     steps:
       - uses: actions/download-artifact@v2
         with:
@@ -68,7 +68,7 @@ jobs:
   text-class-test-unit:
     name: 'test-class:unit'
     needs: setup
-    runs-on: windows-2016
+    runs-on: windows-2022
     steps:
       - uses: actions/download-artifact@v2
         with:
@@ -78,7 +78,7 @@ jobs:
   cardano-wallet-launcher-test-unit:
     name: 'cardano-wallet-launcher:unit'
     needs: setup
-    runs-on: windows-2016
+    runs-on: windows-2022
     steps:
       - uses: actions/download-artifact@v2
         with:
@@ -90,7 +90,7 @@ jobs:
     name: 'cardano-wallet:integration'
     needs: setup
     if: ${{ startsWith(github.ref, 'refs/heads/bors/') || startsWith(github.ref, 'refs/heads/release/v') }}
-    runs-on: windows-2016
+    runs-on: windows-2022
     steps:
       - uses: actions/download-artifact@v2
         with:
@@ -100,7 +100,7 @@ jobs:
 
   finish:
     name: Finish
-    runs-on: windows-2016
+    runs-on: windows-2022
     if: always()
     needs:
       - cardano-wallet-core-test-unit
