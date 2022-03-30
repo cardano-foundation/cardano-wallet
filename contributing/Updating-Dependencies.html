@@ -25,7 +25,7 @@
 
 
   
-  <link href='tailwind.css?instanceId=30752fed-a643-4395-a19c-38017c1122fe' rel='stylesheet' type='text/css' />
+  <link href='tailwind.css?instanceId=f7b5c75a-9bc0-4ea0-92ba-b2ac1d42b08b' rel='stylesheet' type='text/css' />
 
   <!-- Heist error element -->
   <style type='text/css'>
@@ -2336,9 +2336,9 @@
     <p class='mb-3'>
       The default <code class='py-0.5 px-1 rounded bg-gray-700 text-sm text-white'>nix develop</code> contains build tools, utilities and GHC configured with a global package-db which matches <code class='py-0.5 px-1 rounded bg-gray-700 text-sm text-white'>stack.yaml</code>. This is defined in the <code class='py-0.5 px-1 rounded bg-gray-700 text-sm text-white'>devShell</code> attribute of <code class='py-0.5 px-1 rounded bg-gray-700 text-sm text-white'>flake.nix</code>.
     </p>
-  <h2 id='stack' class='inline-block mt-6 mb-4 text-4xl font-bold text-gray-700 border-b-2'>Stack</h2>
+  <h2 id='buildkite' class='inline-block mt-6 mb-4 text-4xl font-bold text-gray-700 border-b-2'>Buildkite</h2>
     <p class='mb-3'>
-      On Buildkite, the project will be built with <code class='py-0.5 px-1 rounded bg-gray-700 text-sm text-white'>stack build --nix</code>. This means that all stack commands will run inside the <code class='py-0.5 px-1 rounded bg-gray-700 text-sm text-white'>nix-shell</code> defined by <a href='https://github.com/input-output-hk/cardano-wallet/blob/master/nix/stack-shell.nix' class='text-blue-600 hover:underline' target='_blank' rel='noopener'><code class='py-0.5 px-1 rounded bg-gray-700 text-sm text-white'>nix/stack-shell.nix</code></a>. If there is a program that is needed by the build or tests, make sure that it is present there.
+      On Buildkite, the project will be built with <code class='py-0.5 px-1 rounded bg-gray-700 text-sm text-white'>cabal build</code> in a particular Nix shell. The Nix shell provisioned is defined by <a href='https://github.com/input-output-hk/cardano-wallet/blob/master/nix/cabal-shell.nix' class='text-blue-600 hover:underline' target='_blank' rel='noopener'><code class='py-0.5 px-1 rounded bg-gray-700 text-sm text-white'>nix/cabal-shell.nix</code></a>. If there is a program that is needed by the build or tests, make sure that it is present there.
     </p>
   <h2 id='nix-flake-lock' class='inline-block mt-6 mb-4 text-4xl font-bold text-gray-700 border-b-2'>nix flake lock</h2>
     <p class='mb-3'>

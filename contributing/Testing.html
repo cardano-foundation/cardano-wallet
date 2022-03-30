@@ -25,7 +25,7 @@
 
 
   
-  <link href='tailwind.css?instanceId=30752fed-a643-4395-a19c-38017c1122fe' rel='stylesheet' type='text/css' />
+  <link href='tailwind.css?instanceId=f7b5c75a-9bc0-4ea0-92ba-b2ac1d42b08b' rel='stylesheet' type='text/css' />
 
   <!-- Heist error element -->
   <style type='text/css'>
@@ -2325,20 +2325,20 @@
             <article class='overflow-auto'>
   <!-- What goes in this file will appear on top of note body-->
   <div xmlhtmlRaw><!-- -*- mode: markdown;  word-wrap: nil; truncate-lines: t; -*- -->
-</div><h1 id='testing' class='pb-2 mb-2 text-5xl font-bold text-center'>Testing</h1><h2 id='unit-tests' class='inline-block mt-6 mb-4 text-4xl font-bold text-gray-700 border-b-2'>Unit Tests</h2><div class='py-0.5 mb-3 text-sm'><pre><code class='language-none'>$ stack test cardano-wallet-core:unit
-$ stack test cardano-wallet:unit</code></pre></div>
+</div><h1 id='testing' class='pb-2 mb-2 text-5xl font-bold text-center'>Testing</h1><h2 id='unit-tests' class='inline-block mt-6 mb-4 text-4xl font-bold text-gray-700 border-b-2'>Unit Tests</h2><div class='py-0.5 mb-3 text-sm'><pre><code class='language-none'>$ cabal test cardano-wallet-core:unit
+$ cabal test cardano-wallet:unit</code></pre></div>
     <p class='mb-3'>
       Alternatively, one can run tests of a particular module by running:
     </p>
-  <div class='py-0.5 mb-3 text-sm'><pre><code class='language-none'>$ stack test cardano-wallet:unit --test-arguments "--match MyModule"</code></pre></div><h2 id='integration-tests' class='inline-block mt-6 mb-4 text-4xl font-bold text-gray-700 border-b-2'>Integration Tests</h2><h4 id='pre-requisites' class='mt-6 mb-2 text-2xl font-bold text-gray-700'>Pre-requisites</h4>
+  <div class='py-0.5 mb-3 text-sm'><pre><code class='language-none'>$ cabal test cardano-wallet:unit --test-options "--match MyModule"</code></pre></div><h2 id='integration-tests' class='inline-block mt-6 mb-4 text-4xl font-bold text-gray-700 border-b-2'>Integration Tests</h2><h4 id='pre-requisites' class='mt-6 mb-2 text-2xl font-bold text-gray-700'>Pre-requisites</h4>
     <p class='mb-3'>
       Install <a href='https://docs.cardano.org/projects/cardano-node/en/latest/getting-started/install.html' class='text-blue-600 hover:underline' target='_blank' rel='noopener'><code class='py-0.5 px-1 rounded bg-gray-700 text-sm text-white'>cardano-node</code></a> and <a href='https://docs.cardano.org/projects/cardano-node/en/latest/getting-started/install.html' class='text-blue-600 hover:underline' target='_blank' rel='noopener'><code class='py-0.5 px-1 rounded bg-gray-700 text-sm text-white'>cardano-cli</code></a>; make sure to use one of the <a href='https://github.com/input-output-hk/cardano-wallet/blob/master/README.md#latest-releases' class='text-blue-600 hover:underline' target='_blank' rel='noopener'>compatible versions</a>.
     </p>
   
     <p class='mb-3'>
-      Alternatively, use <code class='py-0.5 px-1 rounded bg-gray-700 text-sm text-white'>stack test --nix --ta "-j8"</code>.
+      Alternatively, use <code class='py-0.5 px-1 rounded bg-gray-700 text-sm text-white'>cabal test all -j8</code>.
     </p>
-  <h4 id='test' class='mt-6 mb-2 text-2xl font-bold text-gray-700'>Test</h4><div class='py-0.5 mb-3 text-sm'><pre><code class='language-none'>$ stack test cardano-wallet:integration</code></pre></div>
+  <h4 id='test' class='mt-6 mb-2 text-2xl font-bold text-gray-700'>Test</h4><div class='py-0.5 mb-3 text-sm'><pre><code class='language-none'>$ cabal test cardano-wallet:integration</code></pre></div>
     <p class='mb-3'>
       Many tests require a cardano network with stake pools. To support this, the integration tests run a local <code class='py-0.5 px-1 rounded bg-gray-700 text-sm text-white'>cardano-node</code> cluster with one Ouroboros BFT node and three Ouroboros Praos nodes for the three stake pools.
     </p>
@@ -2466,7 +2466,7 @@ $ stack test cardano-wallet:unit</code></pre></div>
     <p class='mb-3'>
       Use the <code class='py-0.5 px-1 rounded bg-gray-700 text-sm text-white'>cardano-wallet:mock-token-metadata-server</code> executable as a mock server for asset metadata. See the <code class='py-0.5 px-1 rounded bg-gray-700 text-sm text-white'>--help</code> output for full instructions.
     </p>
-  <h2 id='benchmarks' class='inline-block mt-6 mb-4 text-4xl font-bold text-gray-700 border-b-2'>Benchmarks</h2><h3 id='database' class='mt-6 mb-2 text-3xl font-bold text-gray-700'>Database</h3><div class='py-0.5 mb-3 text-sm'><pre><code class='language-none'>$ stack bench cardano-wallet-core:db</code></pre></div><h3 id='restoration' class='mt-6 mb-2 text-3xl font-bold text-gray-700'>Restoration</h3><h4 id='pre-requisites-1' class='mt-6 mb-2 text-2xl font-bold text-gray-700'>Pre-requisites</h4>
+  <h2 id='benchmarks' class='inline-block mt-6 mb-4 text-4xl font-bold text-gray-700 border-b-2'>Benchmarks</h2><h3 id='database' class='mt-6 mb-2 text-3xl font-bold text-gray-700'>Database</h3><div class='py-0.5 mb-3 text-sm'><pre><code class='language-none'>$ cabal bench cardano-wallet-core:db</code></pre></div><h3 id='restoration' class='mt-6 mb-2 text-3xl font-bold text-gray-700'>Restoration</h3><h4 id='pre-requisites-1' class='mt-6 mb-2 text-2xl font-bold text-gray-700'>Pre-requisites</h4>
     <ul class='my-3 ml-6 space-y-1 list-decimal list-inside'>
       
         <li>
@@ -2482,7 +2482,7 @@ $ stack test cardano-wallet:unit</code></pre></div>
     <p class='mb-3'>
       (Optional) Install <a href='https://www.stackage.org/nightly-2019-03-25/package/hp2pretty-0.9' class='text-blue-600 hover:underline' target='_blank' rel='noopener'>hp2pretty</a>
     </p>
-  <div class='py-0.5 mb-3 text-sm'><pre><code class='language-none'>$ stack install hp2pretty</code></pre></div>
+  <div class='py-0.5 mb-3 text-sm'><pre><code class='language-none'>$ cabal install hp2pretty</code></pre></div>
         </li>
       
     </ul>
@@ -2498,15 +2498,15 @@ $ stack test cardano-wallet:unit</code></pre></div>
     </p>
   
     </blockquote>
-  <div class='py-0.5 mb-3 text-sm'><pre><code class='language-none'>$ stack bench cardano-wallet:restore</code></pre></div>
+  <div class='py-0.5 mb-3 text-sm'><pre><code class='language-none'>$ cabal bench cardano-wallet:restore</code></pre></div>
     <p class='mb-3'>
       Alternatively, one can specify a target network (by default, benchmarks run on <code class='py-0.5 px-1 rounded bg-gray-700 text-sm text-white'>testnet</code>):
     </p>
-  <div class='py-0.5 mb-3 text-sm'><pre><code class='language-none'>$ stack bench cardano-wallet:restore --benchmark-arguments "mainnet"</code></pre></div>
+  <div class='py-0.5 mb-3 text-sm'><pre><code class='language-none'>$ cabal bench cardano-wallet:restore --benchmark-options "mainnet"</code></pre></div>
     <p class='mb-3'>
       Also, it’s interesting to look at heap consumption during the running of the benchmark:
     </p>
-  <div class='py-0.5 mb-3 text-sm'><pre><code class='language-none'>$ stack bench cardano-wallet:restore --benchmark-arguments "mainnet +RTS -h -RTS"
+  <div class='py-0.5 mb-3 text-sm'><pre><code class='language-none'>$ cabal bench cardano-wallet:restore --benchmark-options "mainnet +RTS -h -RTS"
 $ hp2pretty restore.hp
 $ eog restore.svg</code></pre></div><h2 id='code-coverage' class='inline-block mt-6 mb-4 text-4xl font-bold text-gray-700 border-b-2'>Code Coverage</h2><h4 id='pre-requisites-2' class='mt-6 mb-2 text-2xl font-bold text-gray-700'>Pre-requisites</h4>
     <ul class='my-3 ml-6 space-y-1 list-decimal list-inside'>
@@ -2518,9 +2518,9 @@ $ eog restore.svg</code></pre></div><h2 id='code-coverage' class='inline-block m
     </ul>
   <h4 id='test-2' class='mt-6 mb-2 text-2xl font-bold text-gray-700'>Test</h4>
     <p class='mb-3'>
-      Running combined code coverage on all components is pretty easy. This generates code coverage reports in an HTML format as well as a short summary in the console. Note that, because code has to be compiled in a particular way to be “instrumentable” by the code coverage engine, it is recommended to run this command using another working directory (<code class='py-0.5 px-1 rounded bg-gray-700 text-sm text-white'>--work-dir</code> option) so that one can easily switch between coverage testing and standard testing (faster to run):
+      Running combined code coverage on all components is pretty easy. This generates code coverage reports in an HTML format as well as a short summary in the console. Note that, because code has to be compiled in a particular way to be “instrumentable” by the code coverage engine, it is recommended to run this command using another working directory (<code class='py-0.5 px-1 rounded bg-gray-700 text-sm text-white'>--builddir</code> option) so that one can easily switch between coverage testing and standard testing (faster to run):
     </p>
-  <div class='py-0.5 mb-3 text-sm'><pre><code class='language-none'>$ stack test --coverage --fast --work-dir .stack-work-coverage</code></pre></div>
+  <div class='py-0.5 mb-3 text-sm'><pre><code class='language-none'>$ cabal test all --enable-coverage --builddir .dist-coverage</code></pre></div>
     <p class='mb-3'>
       Note that, integration tests are excluded from the basic coverage report because the cardano-wallet server runs in a separate process. It it still possible to combine coverage from various sources (see <a href='https://medium.com/@_KtorZ_/continuous-integration-in-haskell-9ad2a73e8e46' class='text-blue-600 hover:underline' target='_blank' rel='noopener'>this article</a> for some examples / details).
     </p>
