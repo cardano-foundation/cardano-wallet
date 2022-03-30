@@ -1,5 +1,6 @@
 {-# LANGUAGE DeriveFunctor #-}
 {-# LANGUAGE DeriveGeneric #-}
+{-# LANGUAGE DerivingVia #-}
 {-# LANGUAGE DuplicateRecordFields #-}
 {-# LANGUAGE FlexibleInstances #-}
 {-# LANGUAGE LambdaCase #-}
@@ -20,6 +21,9 @@ module Cardano.Wallet.CoinSelection.Internal.BalanceSpec
     , MockComputeMinimumAdaQuantity
     , MockComputeMinimumCost
     , MockComputeSelectionLimit
+    , TestAddress
+    , TestSelectionContext
+    , TestUTxO
     , genMockAssessTokenBundleSize
     , genMockComputeMinimumAdaQuantity
     , genMockComputeMinimumCost
@@ -40,14 +44,6 @@ import Algebra.PartialOrd
     ( PartialOrd (..) )
 import Cardano.Numeric.Util
     ( inAscendingPartialOrder )
-import Cardano.Wallet.CoinSelection
-    ( WalletSelectionContext, WalletUTxO (..) )
-import Cardano.Wallet.CoinSelection.Gen
-    ( genWalletUTxO
-    , genWalletUTxOFunction
-    , genWalletUTxOLargeRange
-    , shrinkWalletUTxO
-    )
 import Cardano.Wallet.CoinSelection.Internal.Balance
     ( AssetCount (..)
     , BalanceInsufficientError (..)
@@ -111,10 +107,6 @@ import Cardano.Wallet.CoinSelection.Internal.Balance.Gen
     , shrinkSelectionLimit
     , shrinkSelectionStrategy
     )
-import Cardano.Wallet.Primitive.Types.Address
-    ( Address (..) )
-import Cardano.Wallet.Primitive.Types.Address.Gen
-    ( shrinkAddress )
 import Cardano.Wallet.Primitive.Types.Coin
     ( Coin (..) )
 import Cardano.Wallet.Primitive.Types.Coin.Gen
@@ -146,14 +138,7 @@ import Cardano.Wallet.Primitive.Types.TokenQuantity
 import Cardano.Wallet.Primitive.Types.TokenQuantity.Gen
     ( genTokenQuantityPositive, shrinkTokenQuantityPositive )
 import Cardano.Wallet.Primitive.Types.Tx
-    ( TokenBundleSizeAssessment (..)
-    , TokenBundleSizeAssessor (..)
-    , TxIn (..)
-    , TxOut (..)
-    , txOutMaxTokenQuantity
-    )
-import Cardano.Wallet.Primitive.Types.Tx.Gen
-    ( genTxOut, shrinkTxOut )
+    ( TokenBundleSizeAssessment (..), TokenBundleSizeAssessor (..) )
 import Cardano.Wallet.Primitive.Types.UTxOIndex
     ( SelectionFilter (..), UTxOIndex )
 import Cardano.Wallet.Primitive.Types.UTxOIndex.Gen
@@ -162,8 +147,6 @@ import Cardano.Wallet.Primitive.Types.UTxOSelection
     ( UTxOSelection, UTxOSelectionNonEmpty )
 import Cardano.Wallet.Primitive.Types.UTxOSelection.Gen
     ( genUTxOSelection, shrinkUTxOSelection )
-import Control.Arrow
-    ( (&&&) )
 import Control.Monad
     ( forM_, replicateM )
 import Data.Bifunctor
@@ -195,7 +178,7 @@ import Data.Tuple
 import Data.Word
     ( Word64, Word8 )
 import Fmt
-    ( blockListF, pretty )
+    ( Buildable (..), blockListF, pretty )
 import Generics.SOP
     ( NP (..) )
 import GHC.Generics
@@ -213,6 +196,7 @@ import Test.Hspec.Extra
 import Test.QuickCheck
     ( Arbitrary (..)
     , Blind (..)
+    , CoArbitrary (..)
     , Fun
     , Gen
     , Negative (..)
@@ -234,6 +218,7 @@ import Test.QuickCheck
     , label
     , oneof
     , property
+    , resize
     , shrinkList
     , shrinkMapBy
     , sized
@@ -247,19 +232,23 @@ import Test.QuickCheck
 import Test.QuickCheck.Classes
     ( eqLaws, ordLaws )
 import Test.QuickCheck.Extra
-    ( genericRoundRobinShrink, report, verify, (<:>), (<@>) )
+    ( genFunction, genericRoundRobinShrink, report, verify, (<:>), (<@>) )
 import Test.QuickCheck.Monadic
     ( PropertyM (..), assert, monadicIO, monitor, run )
+import Test.QuickCheck.Quid
+    ( Hexadecimal (..), Quid )
 import Test.Utils.Laws
     ( testLawsMany )
+import Test.Utils.Pretty
+    ( Pretty (..) )
 
+import qualified Cardano.Wallet.CoinSelection.Internal.Context as SC
 import qualified Cardano.Wallet.Primitive.Types.Coin as Coin
 import qualified Cardano.Wallet.Primitive.Types.TokenBundle as TokenBundle
 import qualified Cardano.Wallet.Primitive.Types.TokenMap as TokenMap
 import qualified Cardano.Wallet.Primitive.Types.TokenQuantity as TokenQuantity
 import qualified Cardano.Wallet.Primitive.Types.UTxOIndex as UTxOIndex
 import qualified Cardano.Wallet.Primitive.Types.UTxOSelection as UTxOSelection
-import qualified Data.ByteString.Char8 as B8
 import qualified Data.Foldable as F
 import qualified Data.List as L
 import qualified Data.List.NonEmpty as NE
@@ -518,7 +507,7 @@ spec = describe "Cardano.Wallet.CoinSelection.Internal.BalanceSpec" $
 -- Coverage
 --------------------------------------------------------------------------------
 
-prop_Small_UTxOIndex_coverage :: Small (UTxOIndex WalletUTxO) -> Property
+prop_Small_UTxOIndex_coverage :: Small (UTxOIndex TestUTxO) -> Property
 prop_Small_UTxOIndex_coverage (Small index) =
     checkCoverage $ property
         -- Asset counts:
@@ -540,7 +529,7 @@ prop_Small_UTxOIndex_coverage (Small index) =
     assetCount = Set.size $ UTxOIndex.assets index
     entryCount = UTxOIndex.size index
 
-prop_Large_UTxOIndex_coverage :: Large (UTxOIndex WalletUTxO) -> Property
+prop_Large_UTxOIndex_coverage :: Large (UTxOIndex TestUTxO) -> Property
 prop_Large_UTxOIndex_coverage (Large index) =
     -- Generation of large UTxO sets takes longer, so limit the number of runs:
     withMaxSuccess 100 $ checkCoverage $ property
@@ -607,13 +596,13 @@ prop_AssetCount_TokenMap_placesEmptyMapsFirst maps =
 -- We define this type alias to shorten type signatures.
 --
 type PerformSelectionResult = Either
-    (SelectionBalanceError WalletSelectionContext)
-    (SelectionResult WalletSelectionContext)
+    (SelectionBalanceError TestSelectionContext)
+    (SelectionResult TestSelectionContext)
 
 genSelectionParams
-    :: Gen (WalletUTxO -> Bool)
-    -> Gen (UTxOIndex WalletUTxO)
-    -> Gen (SelectionParams WalletSelectionContext)
+    :: Gen (TestUTxO -> Bool)
+    -> Gen (UTxOIndex TestUTxO)
+    -> Gen (SelectionParams TestSelectionContext)
 genSelectionParams genPreselectedInputs genUTxOIndex' = do
     utxoAvailable <- genUTxOIndex'
     isInputPreselected <- oneof
@@ -623,8 +612,9 @@ genSelectionParams genPreselectedInputs genUTxOIndex' = do
     outputCount <- elements
         [0, 1, max 2 $ UTxOIndex.size utxoAvailable `div` 8]
     outputsToCover <-
-        replicateM outputCount
-            ((view #address &&& view #tokens) <$> genTxOut)
+        replicateM outputCount $ (,)
+            <$> arbitrary @TestAddress
+            <*> genTokenBundleSmallRangePositive
     extraCoinSource <-
         oneof [pure $ Coin 0, genCoinPositive]
     extraCoinSink <-
@@ -642,7 +632,7 @@ genSelectionParams genPreselectedInputs genUTxOIndex' = do
         , selectionStrategy
         }
   where
-    genAssetsToMintAndBurn :: UTxOIndex WalletUTxO -> Gen (TokenMap, TokenMap)
+    genAssetsToMintAndBurn :: UTxOIndex TestUTxO -> Gen (TokenMap, TokenMap)
     genAssetsToMintAndBurn utxoAvailable = do
         assetsToMint <- genTokenMapSmallRange
         let assetsToBurn = adjustAllTokenMapQuantities
@@ -653,15 +643,15 @@ genSelectionParams genPreselectedInputs genUTxOIndex' = do
         utxoAvailableAssets :: TokenMap
         utxoAvailableAssets = view (#balance . #tokens) utxoAvailable
 
-    genPreselectedInputsNone :: Gen (WalletUTxO -> Bool)
+    genPreselectedInputsNone :: Gen (TestUTxO -> Bool)
     genPreselectedInputsNone = pure $ const False
 
 shrinkSelectionParams
-    :: SelectionParams WalletSelectionContext
-    -> [SelectionParams WalletSelectionContext]
+    :: SelectionParams TestSelectionContext
+    -> [SelectionParams TestSelectionContext]
 shrinkSelectionParams = genericRoundRobinShrink
     <@> shrinkList shrinkOutput
-    <:> shrinkUTxOSelection shrinkWalletUTxO
+    <:> shrinkUTxOSelection (shrink @TestUTxO)
     <:> shrinkCoin
     <:> shrinkCoin
     <:> shrinkTokenMap
@@ -670,7 +660,7 @@ shrinkSelectionParams = genericRoundRobinShrink
     <:> Nil
   where
     shrinkOutput = genericRoundRobinShrink
-        <@> shrinkAddress
+        <@> shrink @TestAddress
         <:> (filter tokenBundleHasNonZeroCoin . shrinkTokenBundleSmallRange)
         <:> Nil
       where
@@ -679,7 +669,7 @@ shrinkSelectionParams = genericRoundRobinShrink
 
 prop_performSelection_small
     :: MockSelectionConstraints
-    -> Blind (Small (SelectionParams WalletSelectionContext))
+    -> Blind (Small (SelectionParams TestSelectionContext))
     -> Property
 prop_performSelection_small mockConstraints (Blind (Small params)) =
     checkCoverage $
@@ -791,7 +781,7 @@ prop_performSelection_small mockConstraints (Blind (Small params)) =
             . fmap snd
             $ view #outputsToCover params
 
-    constraints :: SelectionConstraints WalletSelectionContext
+    constraints :: SelectionConstraints TestSelectionContext
     constraints = unMockSelectionConstraints mockConstraints
 
     selectionLimit :: SelectionLimit
@@ -859,7 +849,7 @@ prop_performSelection_small mockConstraints (Blind (Small params)) =
 
 prop_performSelection_large
     :: MockSelectionConstraints
-    -> Blind (Large (SelectionParams WalletSelectionContext))
+    -> Blind (Large (SelectionParams TestSelectionContext))
     -> Property
 prop_performSelection_large mockConstraints (Blind (Large params)) =
     -- Generation of large UTxO sets takes longer, so limit the number of runs:
@@ -874,25 +864,25 @@ prop_performSelection_huge = ioProperty $
     -- The UTxO index is generated outside of the property in order to avoid
     -- the cost of re-generating it on every pass. This will still generate
     -- interesting cases, since selection within that large index is random.
-    property . prop_performSelection_huge_inner
-        <$> generate (genUTxOIndexLargeN genWalletUTxOLargeRange 50000)
+    property . prop_performSelection_huge_inner <$> generate
+        (genUTxOIndexLargeN (resize 256 (arbitrary @TestUTxO)) 50000)
 
 prop_performSelection_huge_inner
-    :: UTxOIndex WalletUTxO
+    :: UTxOIndex TestUTxO
     -> MockSelectionConstraints
-    -> Large (SelectionParams WalletSelectionContext)
+    -> Large (SelectionParams TestSelectionContext)
     -> Property
 prop_performSelection_huge_inner utxoAvailable mockConstraints (Large params) =
     withMaxSuccess 5 $
     prop_performSelection mockConstraints params' (const id)
   where
-    params' :: SelectionParams WalletSelectionContext
+    params' :: SelectionParams TestSelectionContext
     params' = params
         { utxoAvailable = UTxOSelection.fromIndex utxoAvailable }
 
 prop_performSelection
     :: MockSelectionConstraints
-    -> SelectionParams WalletSelectionContext
+    -> SelectionParams TestSelectionContext
     -> (PerformSelectionResult -> Property -> Property)
     -> Property
 prop_performSelection mockConstraints params coverage =
@@ -911,7 +901,7 @@ prop_performSelection mockConstraints params coverage =
         monitor (coverage result)
         pure $ either onFailure onSuccess result
   where
-    constraints :: SelectionConstraints WalletSelectionContext
+    constraints :: SelectionConstraints TestSelectionContext
     constraints = unMockSelectionConstraints mockConstraints
 
     SelectionParams
@@ -922,7 +912,7 @@ prop_performSelection mockConstraints params coverage =
         , assetsToBurn
         } = params
 
-    onSuccess :: SelectionResultOf [] WalletSelectionContext -> Property
+    onSuccess :: SelectionResultOf [] TestSelectionContext -> Property
     onSuccess result =
         counterexample "onSuccess" $
         report
@@ -987,7 +977,7 @@ prop_performSelection mockConstraints params coverage =
                 (view #inputsSelected result <&> fst)
                 (view #utxoAvailable params)
 
-    onFailure :: SelectionBalanceError WalletSelectionContext -> Property
+    onFailure :: SelectionBalanceError TestSelectionContext -> Property
     onFailure = \case
         BalanceInsufficient e ->
             onBalanceInsufficient e
@@ -1026,7 +1016,7 @@ prop_performSelection mockConstraints params coverage =
         BalanceInsufficientError errorBalanceAvailable errorBalanceRequired = e
 
     onSelectionLimitReached
-        :: SelectionLimitReachedError WalletSelectionContext -> Property
+        :: SelectionLimitReachedError TestSelectionContext -> Property
     onSelectionLimitReached e =
         counterexample "onSelectionLimitReached" $
         report errorBalanceRequired
@@ -1050,7 +1040,7 @@ prop_performSelection mockConstraints params coverage =
             F.foldMap (view #tokens . snd) errorInputsSelected
 
     onInsufficientMinCoinValues
-        :: NonEmpty (InsufficientMinCoinValueError WalletSelectionContext)
+        :: NonEmpty (InsufficientMinCoinValueError TestSelectionContext)
         -> Property
     onInsufficientMinCoinValues es =
         counterexample "onInsufficientMinCoinValues" $
@@ -1097,7 +1087,7 @@ prop_performSelection mockConstraints params coverage =
         --
         -- We expect that the selection should succeed.
         --
-        let constraints' :: SelectionConstraints WalletSelectionContext =
+        let constraints' :: SelectionConstraints TestSelectionContext =
                 constraints
                     { assessTokenBundleSize = unMockAssessTokenBundleSize
                         MockAssessTokenBundleSizeUnlimited
@@ -1142,7 +1132,7 @@ prop_performSelection mockConstraints params coverage =
 --
 prop_performSelectionEmpty
     :: MockSelectionConstraints
-    -> Small (SelectionParams WalletSelectionContext)
+    -> Small (SelectionParams TestSelectionContext)
     -> Property
 prop_performSelectionEmpty mockConstraints (Small params) =
     checkCoverage $
@@ -1200,24 +1190,24 @@ prop_performSelectionEmpty mockConstraints (Small params) =
             , resultTransformed === result'
             ]
 
-    constraints :: SelectionConstraints WalletSelectionContext
+    constraints :: SelectionConstraints TestSelectionContext
     constraints = unMockSelectionConstraints mockConstraints
 
-    paramsTransformed :: SelectionParamsOf NonEmpty WalletSelectionContext
+    paramsTransformed :: SelectionParamsOf NonEmpty TestSelectionContext
     paramsTransformed = view #paramsTransformed transformationReport
 
-    paramsTransformed' :: SelectionParamsOf [] WalletSelectionContext
+    paramsTransformed' :: SelectionParamsOf [] TestSelectionContext
     paramsTransformed' = paramsTransformed
         { outputsToCover = F.toList (view #outputsToCover paramsTransformed) }
 
-    result :: SelectionResultOf NonEmpty WalletSelectionContext
+    result :: SelectionResultOf NonEmpty TestSelectionContext
     result = expectRight $ view #result transformationReport
 
-    result' :: SelectionResultOf [] WalletSelectionContext
+    result' :: SelectionResultOf [] TestSelectionContext
     result' = result
         { outputsCovered = F.toList (view #outputsCovered result) }
 
-    resultTransformed :: SelectionResultOf [] WalletSelectionContext
+    resultTransformed :: SelectionResultOf [] TestSelectionContext
     resultTransformed =
         expectRight $ view #resultTransformed transformationReport
 
@@ -1262,10 +1252,10 @@ withTransformationReport p r = TransformationReport p r r
 --    - a single change output to cover the output deficit.
 --
 mockPerformSelectionNonEmpty
-    :: PerformSelection Identity NonEmpty WalletSelectionContext
+    :: PerformSelection Identity NonEmpty TestSelectionContext
 mockPerformSelectionNonEmpty constraints params = Identity $ Right result
   where
-    result :: SelectionResultOf NonEmpty WalletSelectionContext
+    result :: SelectionResultOf NonEmpty TestSelectionContext
     result = resultWithoutDelta
         { inputsSelected =
             makeInputsOfValue $ deficitIn <> TokenBundle.fromCoin minimumCost
@@ -1274,7 +1264,7 @@ mockPerformSelectionNonEmpty constraints params = Identity $ Right result
         minimumCost :: Coin
         minimumCost = selectionMinimumCost constraints resultWithoutDelta
 
-    resultWithoutDelta :: SelectionResultOf NonEmpty WalletSelectionContext
+    resultWithoutDelta :: SelectionResultOf NonEmpty TestSelectionContext
     resultWithoutDelta = SelectionResult
         { inputsSelected = makeInputsOfValue deficitIn
         , changeGenerated = makeChangeOfValue deficitOut
@@ -1285,8 +1275,8 @@ mockPerformSelectionNonEmpty constraints params = Identity $ Right result
         , outputsCovered = view #outputsToCover params
         }
 
-    makeInputsOfValue :: TokenBundle -> NonEmpty (WalletUTxO, TokenBundle)
-    makeInputsOfValue v = (WalletUTxO (TxIn (Hash "") 0) (Address ""), v) :| []
+    makeInputsOfValue :: TokenBundle -> NonEmpty (TestUTxO, TokenBundle)
+    makeInputsOfValue v = (TestUTxO 0, v) :| []
 
     makeChangeOfValue :: TokenBundle -> [TokenBundle]
     makeChangeOfValue v = [v]
@@ -1300,7 +1290,7 @@ mockPerformSelectionNonEmpty constraints params = Identity $ Right result
 
 prop_runSelection_UTxO_empty :: TokenBundle -> SelectionStrategy -> Property
 prop_runSelection_UTxO_empty balanceRequested strategy = monadicIO $ do
-    result <- run $ runSelection @_ @WalletUTxO
+    result <- run $ runSelection @_ @TestUTxO
         RunSelectionParams
             { selectionLimit = NoLimit
             , utxoAvailable
@@ -1322,7 +1312,7 @@ prop_runSelection_UTxO_empty balanceRequested strategy = monadicIO $ do
     utxoAvailable = UTxOSelection.fromIndex UTxOIndex.empty
 
 prop_runSelection_UTxO_notEnough
-    :: UTxOSelection WalletUTxO -> SelectionStrategy -> Property
+    :: UTxOSelection TestUTxO -> SelectionStrategy -> Property
 prop_runSelection_UTxO_notEnough utxoAvailable strategy = monadicIO $ do
     result <- run $ runSelection
         RunSelectionParams
@@ -1347,7 +1337,7 @@ prop_runSelection_UTxO_notEnough utxoAvailable strategy = monadicIO $ do
     balanceRequested = adjustAllTokenBundleQuantities (* 2) balanceAvailable
 
 prop_runSelection_UTxO_exactlyEnough
-    :: UTxOSelection WalletUTxO -> SelectionStrategy -> Property
+    :: UTxOSelection TestUTxO -> SelectionStrategy -> Property
 prop_runSelection_UTxO_exactlyEnough utxoAvailable strategy = monadicIO $ do
     result <- run $ runSelection
         RunSelectionParams
@@ -1376,7 +1366,7 @@ prop_runSelection_UTxO_exactlyEnough utxoAvailable strategy = monadicIO $ do
     balanceRequested = UTxOSelection.availableBalance utxoAvailable
 
 prop_runSelection_UTxO_moreThanEnough
-    :: UTxOSelection WalletUTxO -> SelectionStrategy -> Property
+    :: UTxOSelection TestUTxO -> SelectionStrategy -> Property
 prop_runSelection_UTxO_moreThanEnough utxoAvailable strategy = monadicIO $ do
     result <- run $ runSelection
         RunSelectionParams
@@ -1419,7 +1409,7 @@ prop_runSelection_UTxO_moreThanEnough utxoAvailable strategy = monadicIO $ do
         cutAssetSetSizeInHalf balanceAvailable
 
 prop_runSelection_UTxO_muchMoreThanEnough
-    :: Blind (Large (UTxOIndex WalletUTxO))
+    :: Blind (Large (UTxOIndex TestUTxO))
     -> SelectionStrategy
     -> Property
 prop_runSelection_UTxO_muchMoreThanEnough (Blind (Large index)) strategy =
@@ -1472,7 +1462,7 @@ prop_runSelection_UTxO_muchMoreThanEnough (Blind (Large index)) strategy =
 -- Running a selection (non-empty)
 --------------------------------------------------------------------------------
 
-prop_runSelectionNonEmpty :: UTxOSelection WalletUTxO -> Property
+prop_runSelectionNonEmpty :: UTxOSelection TestUTxO -> Property
 prop_runSelectionNonEmpty result =
     case (haveLeftover, haveSelected) of
         (False, False) ->
@@ -1514,23 +1504,23 @@ prop_runSelectionNonEmpty result =
                     (UTxOSelection.leftoverIndex resultNonEmpty)
                 === UTxOSelection.leftoverIndex result
 
-    maybeResultNonEmpty :: Maybe (UTxOSelectionNonEmpty WalletUTxO)
+    maybeResultNonEmpty :: Maybe (UTxOSelectionNonEmpty TestUTxO)
     maybeResultNonEmpty = runIdentity $ runSelectionNonEmptyWith
         (Identity <$> mockSelectSingleEntry)
         (result)
 
 mockSelectSingleEntry
-    :: UTxOSelection WalletUTxO -> Maybe (UTxOSelectionNonEmpty WalletUTxO)
+    :: UTxOSelection TestUTxO -> Maybe (UTxOSelectionNonEmpty TestUTxO)
 mockSelectSingleEntry state =
     selectEntry =<< firstLeftoverEntry state
   where
     firstLeftoverEntry
-        :: UTxOSelection WalletUTxO -> Maybe (WalletUTxO, TokenBundle)
+        :: UTxOSelection TestUTxO -> Maybe (TestUTxO, TokenBundle)
     firstLeftoverEntry =
         listToMaybe . UTxOIndex.toList . UTxOSelection.leftoverIndex
 
     selectEntry
-        :: (WalletUTxO, TokenBundle) -> Maybe (UTxOSelectionNonEmpty WalletUTxO)
+        :: (TestUTxO, TokenBundle) -> Maybe (UTxOSelectionNonEmpty TestUTxO)
     selectEntry (i, _b) = UTxOSelection.select i state
 
 --------------------------------------------------------------------------------
@@ -1733,7 +1723,7 @@ prop_runSelectionStep_exceedsOptimalTargetAndGetsFurtherAway
 --------------------------------------------------------------------------------
 
 prop_assetSelectionLens_givesPriorityToSingletonAssets
-    :: Blind (Small (UTxOIndex WalletUTxO))
+    :: Blind (Small (UTxOIndex TestUTxO))
     -> Property
 prop_assetSelectionLens_givesPriorityToSingletonAssets (Blind (Small u)) =
     assetCount >= 2 ==> monadicIO $ do
@@ -1770,7 +1760,7 @@ prop_assetSelectionLens_givesPriorityToSingletonAssets (Blind (Small u)) =
     minimumAssetQuantity = TokenQuantity 1
 
 prop_coinSelectionLens_givesPriorityToCoins
-    :: Blind (Small (UTxOIndex WalletUTxO))
+    :: Blind (Small (UTxOIndex TestUTxO))
     -> Property
 prop_coinSelectionLens_givesPriorityToCoins (Blind (Small u)) =
     entryCount > 0 ==> monadicIO $ do
@@ -1855,7 +1845,7 @@ mkBoundaryTestExpectation (BoundaryTestData params expectedResult) = do
 
 encodeBoundaryTestCriteria
     :: BoundaryTestCriteria
-    -> SelectionParams WalletSelectionContext
+    -> SelectionParams TestSelectionContext
 encodeBoundaryTestCriteria c = SelectionParams
     { outputsToCover =
         zip
@@ -1864,7 +1854,7 @@ encodeBoundaryTestCriteria c = SelectionParams
     , utxoAvailable =
         UTxOSelection.fromIndex
         $ UTxOIndex.fromSequence
-        $ zip dummyWalletUTxOs
+        $ zip dummyTestUTxOs
         $ uncurry TokenBundle.fromFlatList <$> boundaryTestUTxO c
     , extraCoinSource =
         Coin 0
@@ -1878,17 +1868,14 @@ encodeBoundaryTestCriteria c = SelectionParams
         boundaryTestSelectionStrategy c
     }
   where
-    dummyWalletUTxOs :: [WalletUTxO]
-    dummyWalletUTxOs = zipWith WalletUTxO dummyTxIns dummyAddresses
+    dummyTestUTxOs :: [TestUTxO]
+    dummyTestUTxOs = TestUTxO . fromIntegral @Natural <$> [0 ..]
 
-    dummyAddresses :: [Address]
-    dummyAddresses = [Address (B8.pack $ show x) | x :: Word64 <- [0 ..]]
-
-    dummyTxIns :: [TxIn]
-    dummyTxIns = [TxIn (Hash "") x | x <- [0 ..]]
+    dummyAddresses :: [TestAddress]
+    dummyAddresses = TestAddress . fromIntegral @Natural <$> [0 ..]
 
 decodeBoundaryTestResult
-    :: SelectionResult WalletSelectionContext -> BoundaryTestResult
+    :: SelectionResult TestSelectionContext -> BoundaryTestResult
 decodeBoundaryTestResult r = BoundaryTestResult
     { boundaryTestInputs = L.sort $ NE.toList $
         TokenBundle.toFlatList . snd <$> view #inputsSelected r
@@ -1924,7 +1911,10 @@ boundaryTest_largeTokenQuantities_1 = BoundaryTestData
     , boundaryTestExpectedResult = BoundaryTestResult {..}
     }
   where
-    (q1, q2) = (TokenQuantity 1, TokenQuantity.predZero txOutMaxTokenQuantity)
+    (q1, q2) =
+        ( TokenQuantity 1
+        , TokenQuantity.predZero testMaximumOutputTokenQuantity
+        )
     boundaryTestBundleSizeAssessor = MockAssessTokenBundleSizeUnlimited
     boundaryTestSelectionStrategy = SelectionStrategyOptimal
     boundaryTestOutputs =
@@ -1938,7 +1928,7 @@ boundaryTest_largeTokenQuantities_1 = BoundaryTestData
       , (Coin 1_000_000, [(mockAsset "A", q2)])
       ]
     boundaryTestChange =
-      [ (Coin 500_000, [(mockAsset "A", txOutMaxTokenQuantity)]) ]
+      [ (Coin 500_000, [(mockAsset "A", testMaximumOutputTokenQuantity)]) ]
 
 -- Reach (but do not exceed) the maximum token quantity by selecting inputs
 -- with the following quantities:
@@ -1954,7 +1944,8 @@ boundaryTest_largeTokenQuantities_2 = BoundaryTestData
     , boundaryTestExpectedResult = BoundaryTestResult {..}
     }
   where
-    q1 :| [q2] = TokenQuantity.equipartition txOutMaxTokenQuantity (() :| [()])
+    q1 :| [q2] = TokenQuantity.equipartition
+        testMaximumOutputTokenQuantity (() :| [()])
     boundaryTestBundleSizeAssessor = MockAssessTokenBundleSizeUnlimited
     boundaryTestSelectionStrategy = SelectionStrategyOptimal
     boundaryTestOutputs =
@@ -1968,7 +1959,7 @@ boundaryTest_largeTokenQuantities_2 = BoundaryTestData
       , (Coin 1_000_000, [(mockAsset "A", q2)])
       ]
     boundaryTestChange =
-      [ (Coin 500_000, [(mockAsset "A", txOutMaxTokenQuantity)]) ]
+      [ (Coin 500_000, [(mockAsset "A", testMaximumOutputTokenQuantity)]) ]
 
 -- Slightly exceed the maximum token quantity by selecting inputs with the
 -- following quantities:
@@ -1985,18 +1976,18 @@ boundaryTest_largeTokenQuantities_3 = BoundaryTestData
     }
   where
     q1 :| [q2] = TokenQuantity.equipartition
-        (TokenQuantity.succ txOutMaxTokenQuantity) (() :| [()])
+        (TokenQuantity.succ testMaximumOutputTokenQuantity) (() :| [()])
     boundaryTestBundleSizeAssessor = MockAssessTokenBundleSizeUnlimited
     boundaryTestSelectionStrategy = SelectionStrategyOptimal
     boundaryTestOutputs =
       [ (Coin 1_500_000, []) ]
     boundaryTestUTxO =
       [ (Coin 1_000_000, [(mockAsset "A", TokenQuantity 1)])
-      , (Coin 1_000_000, [(mockAsset "A", txOutMaxTokenQuantity)])
+      , (Coin 1_000_000, [(mockAsset "A", testMaximumOutputTokenQuantity)])
       ]
     boundaryTestInputs =
       [ (Coin 1_000_000, [(mockAsset "A", TokenQuantity 1)])
-      , (Coin 1_000_000, [(mockAsset "A", txOutMaxTokenQuantity)])
+      , (Coin 1_000_000, [(mockAsset "A", testMaximumOutputTokenQuantity)])
       ]
     boundaryTestChange =
       [ (Coin 250_000, [(mockAsset "A", q1)])
@@ -2022,16 +2013,16 @@ boundaryTest_largeTokenQuantities_4 = BoundaryTestData
     boundaryTestOutputs =
       [ (Coin 1_500_000, []) ]
     boundaryTestUTxO =
-      [ (Coin 1_000_000, [(mockAsset "A", txOutMaxTokenQuantity)])
-      , (Coin 1_000_000, [(mockAsset "A", txOutMaxTokenQuantity)])
+      [ (Coin 1_000_000, [(mockAsset "A", testMaximumOutputTokenQuantity)])
+      , (Coin 1_000_000, [(mockAsset "A", testMaximumOutputTokenQuantity)])
       ]
     boundaryTestInputs =
-      [ (Coin 1_000_000, [(mockAsset "A", txOutMaxTokenQuantity)])
-      , (Coin 1_000_000, [(mockAsset "A", txOutMaxTokenQuantity)])
+      [ (Coin 1_000_000, [(mockAsset "A", testMaximumOutputTokenQuantity)])
+      , (Coin 1_000_000, [(mockAsset "A", testMaximumOutputTokenQuantity)])
       ]
     boundaryTestChange =
-      [ (Coin 250_000, [(mockAsset "A", txOutMaxTokenQuantity)])
-      , (Coin 250_000, [(mockAsset "A", txOutMaxTokenQuantity)])
+      [ (Coin 250_000, [(mockAsset "A", testMaximumOutputTokenQuantity)])
+      , (Coin 250_000, [(mockAsset "A", testMaximumOutputTokenQuantity)])
       ]
 
 -- In the event that generated change bundles must be split, demonstrate that
@@ -2051,26 +2042,26 @@ boundaryTest_largeTokenQuantities_5 = BoundaryTestData
     boundaryTestOutputs =
       [ (Coin 2_000_000, []) ]
     boundaryTestUTxO =
-      [ (Coin 1_000_000, [(mockAsset "A", txOutMaxTokenQuantity)])
-      , (Coin 1_000_000, [(mockAsset "A", txOutMaxTokenQuantity)])
-      , (Coin 1_000_000, [(mockAsset "A", txOutMaxTokenQuantity)])
-      , (Coin 1_000_000, [(mockAsset "A", txOutMaxTokenQuantity)])
-      , (Coin 1_000_000, [(mockAsset "A", txOutMaxTokenQuantity)])
-      , (Coin 1_000_000, [(mockAsset "A", txOutMaxTokenQuantity)])
-      , (Coin 1_000_000, [(mockAsset "A", txOutMaxTokenQuantity)])
-      , (Coin 1_000_000, [(mockAsset "A", txOutMaxTokenQuantity)])
+      [ (Coin 1_000_000, [(mockAsset "A", testMaximumOutputTokenQuantity)])
+      , (Coin 1_000_000, [(mockAsset "A", testMaximumOutputTokenQuantity)])
+      , (Coin 1_000_000, [(mockAsset "A", testMaximumOutputTokenQuantity)])
+      , (Coin 1_000_000, [(mockAsset "A", testMaximumOutputTokenQuantity)])
+      , (Coin 1_000_000, [(mockAsset "A", testMaximumOutputTokenQuantity)])
+      , (Coin 1_000_000, [(mockAsset "A", testMaximumOutputTokenQuantity)])
+      , (Coin 1_000_000, [(mockAsset "A", testMaximumOutputTokenQuantity)])
+      , (Coin 1_000_000, [(mockAsset "A", testMaximumOutputTokenQuantity)])
       ]
     boundaryTestInputs =
-      [ (Coin 1_000_000, [(mockAsset "A", txOutMaxTokenQuantity)])
-      , (Coin 1_000_000, [(mockAsset "A", txOutMaxTokenQuantity)])
-      , (Coin 1_000_000, [(mockAsset "A", txOutMaxTokenQuantity)])
-      , (Coin 1_000_000, [(mockAsset "A", txOutMaxTokenQuantity)])
+      [ (Coin 1_000_000, [(mockAsset "A", testMaximumOutputTokenQuantity)])
+      , (Coin 1_000_000, [(mockAsset "A", testMaximumOutputTokenQuantity)])
+      , (Coin 1_000_000, [(mockAsset "A", testMaximumOutputTokenQuantity)])
+      , (Coin 1_000_000, [(mockAsset "A", testMaximumOutputTokenQuantity)])
       ]
     boundaryTestChange =
-      [ (Coin 500_000, [(mockAsset "A", txOutMaxTokenQuantity)])
-      , (Coin 500_000, [(mockAsset "A", txOutMaxTokenQuantity)])
-      , (Coin 500_000, [(mockAsset "A", txOutMaxTokenQuantity)])
-      , (Coin 500_000, [(mockAsset "A", txOutMaxTokenQuantity)])
+      [ (Coin 500_000, [(mockAsset "A", testMaximumOutputTokenQuantity)])
+      , (Coin 500_000, [(mockAsset "A", testMaximumOutputTokenQuantity)])
+      , (Coin 500_000, [(mockAsset "A", testMaximumOutputTokenQuantity)])
+      , (Coin 500_000, [(mockAsset "A", testMaximumOutputTokenQuantity)])
       ]
 
 -- In the event that generated change bundles must be split, demonstrate that
@@ -2092,26 +2083,26 @@ boundaryTest_largeTokenQuantities_6 = BoundaryTestData
       , (Coin 1_000_000, [])
       ]
     boundaryTestUTxO =
-      [ (Coin 1_000_000, [(mockAsset "A", txOutMaxTokenQuantity)])
-      , (Coin 1_000_000, [(mockAsset "A", txOutMaxTokenQuantity)])
-      , (Coin 1_000_000, [(mockAsset "A", txOutMaxTokenQuantity)])
-      , (Coin 1_000_000, [(mockAsset "A", txOutMaxTokenQuantity)])
-      , (Coin 1_000_000, [(mockAsset "A", txOutMaxTokenQuantity)])
-      , (Coin 1_000_000, [(mockAsset "A", txOutMaxTokenQuantity)])
-      , (Coin 1_000_000, [(mockAsset "A", txOutMaxTokenQuantity)])
-      , (Coin 1_000_000, [(mockAsset "A", txOutMaxTokenQuantity)])
+      [ (Coin 1_000_000, [(mockAsset "A", testMaximumOutputTokenQuantity)])
+      , (Coin 1_000_000, [(mockAsset "A", testMaximumOutputTokenQuantity)])
+      , (Coin 1_000_000, [(mockAsset "A", testMaximumOutputTokenQuantity)])
+      , (Coin 1_000_000, [(mockAsset "A", testMaximumOutputTokenQuantity)])
+      , (Coin 1_000_000, [(mockAsset "A", testMaximumOutputTokenQuantity)])
+      , (Coin 1_000_000, [(mockAsset "A", testMaximumOutputTokenQuantity)])
+      , (Coin 1_000_000, [(mockAsset "A", testMaximumOutputTokenQuantity)])
+      , (Coin 1_000_000, [(mockAsset "A", testMaximumOutputTokenQuantity)])
       ]
     boundaryTestInputs =
-      [ (Coin 1_000_000, [(mockAsset "A", txOutMaxTokenQuantity)])
-      , (Coin 1_000_000, [(mockAsset "A", txOutMaxTokenQuantity)])
-      , (Coin 1_000_000, [(mockAsset "A", txOutMaxTokenQuantity)])
-      , (Coin 1_000_000, [(mockAsset "A", txOutMaxTokenQuantity)])
+      [ (Coin 1_000_000, [(mockAsset "A", testMaximumOutputTokenQuantity)])
+      , (Coin 1_000_000, [(mockAsset "A", testMaximumOutputTokenQuantity)])
+      , (Coin 1_000_000, [(mockAsset "A", testMaximumOutputTokenQuantity)])
+      , (Coin 1_000_000, [(mockAsset "A", testMaximumOutputTokenQuantity)])
       ]
     boundaryTestChange =
-      [ (Coin 500_000, [(mockAsset "A", txOutMaxTokenQuantity)])
-      , (Coin 500_000, [(mockAsset "A", txOutMaxTokenQuantity)])
-      , (Coin 500_000, [(mockAsset "A", txOutMaxTokenQuantity)])
-      , (Coin 500_000, [(mockAsset "A", txOutMaxTokenQuantity)])
+      [ (Coin 500_000, [(mockAsset "A", testMaximumOutputTokenQuantity)])
+      , (Coin 500_000, [(mockAsset "A", testMaximumOutputTokenQuantity)])
+      , (Coin 500_000, [(mockAsset "A", testMaximumOutputTokenQuantity)])
+      , (Coin 500_000, [(mockAsset "A", testMaximumOutputTokenQuantity)])
       ]
 
 --------------------------------------------------------------------------------
@@ -2468,7 +2459,7 @@ shrinkMockSelectionConstraints = genericRoundRobinShrink
 
 unMockSelectionConstraints
     :: MockSelectionConstraints
-    -> SelectionConstraints WalletSelectionContext
+    -> SelectionConstraints TestSelectionContext
 unMockSelectionConstraints m = SelectionConstraints
     { assessTokenBundleSize =
         unMockAssessTokenBundleSize $ view #assessTokenBundleSize m
@@ -2568,17 +2559,17 @@ shrinkMockComputeMinimumCost = \case
 
 unMockComputeMinimumCost
     :: MockComputeMinimumCost
-    -> (SelectionSkeleton WalletSelectionContext -> Coin)
+    -> (SelectionSkeleton TestSelectionContext -> Coin)
 unMockComputeMinimumCost = \case
     MockComputeMinimumCostZero ->
         computeMinimumCostZero
     MockComputeMinimumCostLinear ->
         computeMinimumCostLinear
 
-computeMinimumCostZero :: SelectionSkeleton WalletSelectionContext -> Coin
+computeMinimumCostZero :: SelectionSkeleton TestSelectionContext -> Coin
 computeMinimumCostZero = const $ Coin 0
 
-computeMinimumCostLinear :: SelectionSkeleton WalletSelectionContext -> Coin
+computeMinimumCostLinear :: SelectionSkeleton TestSelectionContext -> Coin
 computeMinimumCostLinear s
     = Coin
     $ fromIntegral
@@ -2611,7 +2602,7 @@ shrinkMockComputeSelectionLimit = \case
 
 unMockComputeSelectionLimit
     :: MockComputeSelectionLimit
-    -> ([(Address, TokenBundle)] -> SelectionLimit)
+    -> ([(TestAddress, TokenBundle)] -> SelectionLimit)
 unMockComputeSelectionLimit = \case
     MockComputeSelectionLimitNone ->
         const NoLimit
@@ -4415,6 +4406,33 @@ unitTests lbl cases =
         it (lbl <> " example #" <> show @Int i) test
 
 --------------------------------------------------------------------------------
+-- Selection contexts
+--------------------------------------------------------------------------------
+
+-- | A test selection context.
+--
+data TestSelectionContext
+
+instance SC.SelectionContext TestSelectionContext where
+    type Address TestSelectionContext = TestAddress
+    type UTxO TestSelectionContext = TestUTxO
+
+    dummyAddress = TestAddress 0x0
+
+newtype TestAddress = TestAddress (Hexadecimal Quid)
+    deriving Arbitrary via Quid
+    deriving Buildable via (Pretty TestAddress)
+    deriving stock (Eq, Ord, Read, Show)
+
+newtype TestUTxO = TestUTxO (Hexadecimal Quid)
+    deriving (Arbitrary, CoArbitrary) via Quid
+    deriving Buildable via (Pretty TestUTxO)
+    deriving stock (Eq, Ord, Read, Show)
+
+instance Buildable (TestUTxO, TokenBundle) where
+    build (u, b) = build u <> ":" <> build (Flat b)
+
+--------------------------------------------------------------------------------
 -- Arbitrary instances
 --------------------------------------------------------------------------------
 
@@ -4472,13 +4490,9 @@ instance Arbitrary TokenQuantity where
     arbitrary = genTokenQuantityPositive
     shrink = shrinkTokenQuantityPositive
 
-instance Arbitrary TxOut where
-    arbitrary = genTxOut
-    shrink = shrinkTxOut
-
-instance Arbitrary (UTxOSelection WalletUTxO) where
-    arbitrary = genUTxOSelection genWalletUTxO
-    shrink = shrinkUTxOSelection shrinkWalletUTxO
+instance (Arbitrary u, Ord u, Show u) => Arbitrary (UTxOSelection u) where
+    arbitrary = genUTxOSelection (arbitrary @u)
+    shrink = shrinkUTxOSelection (shrink @u)
 
 newtype Large a = Large
     { getLarge :: a }
@@ -4488,25 +4502,25 @@ newtype Small a = Small
     { getSmall:: a }
     deriving (Eq, Show)
 
-instance Arbitrary (Large (SelectionParams WalletSelectionContext)) where
+instance Arbitrary (Large (SelectionParams TestSelectionContext)) where
     arbitrary = Large <$> genSelectionParams
-        (genWalletUTxOFunction (arbitrary @Bool))
-        (genUTxOIndexLarge genWalletUTxOLargeRange)
+        (genFunction (coarbitrary @TestUTxO) (arbitrary @Bool))
+        (genUTxOIndexLarge (resize 256 (arbitrary @TestUTxO)))
     shrink = shrinkMapBy Large getLarge shrinkSelectionParams
 
-instance Arbitrary (Small (SelectionParams WalletSelectionContext)) where
+instance Arbitrary (Small (SelectionParams TestSelectionContext)) where
     arbitrary = Small <$> genSelectionParams
-        (genWalletUTxOFunction (arbitrary @Bool))
-        (genUTxOIndex genWalletUTxO)
+        (genFunction (coarbitrary @TestUTxO) (arbitrary @Bool))
+        (genUTxOIndex (arbitrary @TestUTxO))
     shrink = shrinkMapBy Small getSmall shrinkSelectionParams
 
-instance Arbitrary (Large (UTxOIndex WalletUTxO)) where
-    arbitrary = Large <$> genUTxOIndexLarge genWalletUTxOLargeRange
-    shrink = shrinkMapBy Large getLarge (shrinkUTxOIndex shrinkWalletUTxO)
+instance (Arbitrary u, Ord u) => Arbitrary (Large (UTxOIndex u)) where
+    arbitrary = Large <$> genUTxOIndexLarge (resize 256 (arbitrary @u))
+    shrink = shrinkMapBy Large getLarge (shrinkUTxOIndex (shrink @u))
 
-instance Arbitrary (Small (UTxOIndex WalletUTxO)) where
-    arbitrary = Small <$> genUTxOIndex genWalletUTxO
-    shrink = shrinkMapBy Small getSmall (shrinkUTxOIndex shrinkWalletUTxO)
+instance (Arbitrary u, Ord u) => Arbitrary (Small (UTxOIndex u)) where
+    arbitrary = Small <$> genUTxOIndex (arbitrary @u)
+    shrink = shrinkMapBy Small getSmall (shrinkUTxOIndex (shrink @u))
 
 instance Arbitrary Coin where
     arbitrary = genCoinPositive

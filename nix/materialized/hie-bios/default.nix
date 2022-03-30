@@ -10,7 +10,7 @@
         "streaming-commons".revision = (((hackage."streaming-commons")."0.2.2.4").revisions).default;
         "streaming-commons".flags.use-bytestring-builder = false;
         "pretty".revision = (((hackage."pretty")."1.1.3.6").revisions).default;
-        "unordered-containers".revision = (((hackage."unordered-containers")."0.2.16.0").revisions).default;
+        "unordered-containers".revision = (((hackage."unordered-containers")."0.2.17.0").revisions).default;
         "unordered-containers".flags.debug = false;
         "integer-logarithms".revision = (((hackage."integer-logarithms")."1.0.3.1").revisions).default;
         "integer-logarithms".flags.check-bounds = false;
@@ -39,7 +39,7 @@
         "contravariant".flags.statevar = true;
         "ghc".revision = (((hackage."ghc")."8.10.7").revisions).default;
         "base-compat-batteries".revision = (((hackage."base-compat-batteries")."0.12.1").revisions).default;
-        "yaml".revision = (((hackage."yaml")."0.11.7.0").revisions).default;
+        "yaml".revision = (((hackage."yaml")."0.11.8.0").revisions).default;
         "yaml".flags.no-examples = true;
         "yaml".flags.no-exe = true;
         "assoc".revision = (((hackage."assoc")."1.0.2").revisions).default;

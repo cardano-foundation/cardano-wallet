@@ -371,6 +371,7 @@ test-suite unit
     , QuickCheck
     , quickcheck-classes
     , quickcheck-state-machine >= 0.6.0
+    , quickcheck-quid
     , quiet
     , random
     , retry

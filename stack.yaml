@@ -72,6 +72,7 @@ extra-deps:
 - blockfrost-api-0.3.1.0
 - blockfrost-client-0.3.1.0
 - blockfrost-client-core-0.2.0.0
+- quickcheck-quid-0.0.1
 - servant-multipart-client-0.12.1
 
 # cardano-addresses-3.9.0

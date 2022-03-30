@@ -7,7 +7,7 @@
         "haskell-src-exts".revision = (((hackage."haskell-src-exts")."1.23.1").revisions).default;
         "regex-posix".revision = (((hackage."regex-posix")."0.96.0.1").revisions).default;
         "regex-posix".flags._regex-posix-clib = false;
-        "unordered-containers".revision = (((hackage."unordered-containers")."0.2.16.0").revisions).default;
+        "unordered-containers".revision = (((hackage."unordered-containers")."0.2.17.0").revisions).default;
         "unordered-containers".flags.debug = false;
         "integer-logarithms".revision = (((hackage."integer-logarithms")."1.0.3.1").revisions).default;
         "integer-logarithms".flags.check-bounds = false;

@@ -1,8 +1,11 @@
 {-# LANGUAGE BangPatterns #-}
+{-# LANGUAGE DataKinds #-}
+{-# LANGUAGE DerivingVia #-}
 {-# LANGUAGE FlexibleInstances #-}
 {-# LANGUAGE LambdaCase #-}
 {-# LANGUAGE NumericUnderscores #-}
 {-# LANGUAGE TypeApplications #-}
+{-# LANGUAGE TypeFamilies #-}
 {-# OPTIONS_GHC -fno-warn-orphans #-}
 {- HLINT ignore "Use camelCase" -}
 
@@ -12,14 +15,6 @@ module Cardano.Wallet.Primitive.Types.UTxOIndexSpec
 
 import Prelude
 
-import Cardano.Wallet.CoinSelection
-    ( WalletUTxO (..) )
-import Cardano.Wallet.CoinSelection.Gen
-    ( coarbitraryWalletUTxO, genWalletUTxO, shrinkWalletUTxO )
-import Cardano.Wallet.Primitive.Types.Address
-    ( Address )
-import Cardano.Wallet.Primitive.Types.Address.Gen
-    ( coarbitraryAddress )
 import Cardano.Wallet.Primitive.Types.TokenBundle
     ( TokenBundle )
 import Cardano.Wallet.Primitive.Types.TokenBundle.Gen
@@ -28,10 +23,6 @@ import Cardano.Wallet.Primitive.Types.TokenMap
     ( AssetId )
 import Cardano.Wallet.Primitive.Types.TokenMap.Gen
     ( genAssetId, shrinkAssetId )
-import Cardano.Wallet.Primitive.Types.Tx
-    ( TxIn, TxOut (..) )
-import Cardano.Wallet.Primitive.Types.Tx.Gen
-    ( coarbitraryTxIn, genTxOut, shrinkTxOut )
 import Cardano.Wallet.Primitive.Types.UTxOIndex.Gen
     ( genUTxOIndex, shrinkUTxOIndex )
 import Cardano.Wallet.Primitive.Types.UTxOIndex.Internal
@@ -74,6 +65,8 @@ import Test.QuickCheck.Classes
     ( eqLaws )
 import Test.QuickCheck.Monadic
     ( assert, monadicIO, monitor, run )
+import Test.QuickCheck.Quid
+    ( Hexadecimal (..), Quid, Size (..) )
 import Test.Utils.Laws
     ( testLawsMany )
 
@@ -88,7 +81,7 @@ spec =
     describe "Cardano.Wallet.Primitive.Types.UTxOIndexSpec" $ do
 
     parallel $ describe "Class instances obey laws" $ do
-        testLawsMany @(UTxOIndex WalletUTxO)
+        testLawsMany @(UTxOIndex TestUTxO)
             [ eqLaws
             ]
 
@@ -191,33 +184,34 @@ spec =
 -- Invariant properties
 --------------------------------------------------------------------------------
 
-invariantHolds :: UTxOIndex WalletUTxO -> Property
-invariantHolds u = checkInvariant u === InvariantHolds
+invariantHolds :: Ord u => UTxOIndex u -> Property
+invariantHolds i = checkInvariant i === InvariantHolds
 
-prop_arbitrary_invariant :: UTxOIndex WalletUTxO -> Property
+prop_arbitrary_invariant :: UTxOIndex TestUTxO -> Property
 prop_arbitrary_invariant = invariantHolds
 
-prop_shrink_invariant :: UTxOIndex WalletUTxO -> Property
+prop_shrink_invariant :: u ~ Size 4 TestUTxO => UTxOIndex u -> Property
 prop_shrink_invariant = conjoin . fmap invariantHolds . shrink
 
 prop_empty_invariant :: Property
-prop_empty_invariant = invariantHolds UTxOIndex.empty
+prop_empty_invariant = invariantHolds (UTxOIndex.empty @TestUTxO)
 
-prop_singleton_invariant :: WalletUTxO -> TokenBundle -> Property
-prop_singleton_invariant i b = invariantHolds $ UTxOIndex.singleton i b
+prop_singleton_invariant :: TestUTxO -> TokenBundle -> Property
+prop_singleton_invariant u b = invariantHolds $ UTxOIndex.singleton u b
 
-prop_fromSequence_invariant :: [(WalletUTxO, TokenBundle)] -> Property
+prop_fromSequence_invariant :: [(TestUTxO, TokenBundle)] -> Property
 prop_fromSequence_invariant = invariantHolds . UTxOIndex.fromSequence
 
 prop_insert_invariant
-    :: WalletUTxO -> TokenBundle -> UTxOIndex WalletUTxO -> Property
-prop_insert_invariant i b u = invariantHolds $ UTxOIndex.insert i b u
+    :: u ~ TestUTxO => u -> TokenBundle -> UTxOIndex u -> Property
+prop_insert_invariant u b i = invariantHolds $ UTxOIndex.insert u b i
 
-prop_delete_invariant :: WalletUTxO -> UTxOIndex WalletUTxO -> Property
-prop_delete_invariant i u = invariantHolds $ UTxOIndex.delete i u
+prop_delete_invariant
+    :: u ~ TestUTxO => u -> UTxOIndex u -> Property
+prop_delete_invariant u i = invariantHolds $ UTxOIndex.delete u i
 
 prop_selectRandom_invariant
-    :: UTxOIndex WalletUTxO -> SelectionFilter -> Property
+    :: UTxOIndex TestUTxO -> SelectionFilter -> Property
 prop_selectRandom_invariant i f = monadicIO $ do
     result <- run $ UTxOIndex.selectRandom i f
     assert $ case result of
@@ -232,167 +226,162 @@ prop_selectRandom_invariant i f = monadicIO $ do
 
 prop_empty_toList :: Property
 prop_empty_toList =
-    UTxOIndex.toList (UTxOIndex.empty @WalletUTxO) === []
+    UTxOIndex.toList (UTxOIndex.empty @TestUTxO) === []
 
-prop_singleton_toList :: WalletUTxO -> TokenBundle -> Property
-prop_singleton_toList i b =
-    UTxOIndex.toList (UTxOIndex.singleton i b) === [(i, b)]
+prop_singleton_toList :: TestUTxO -> TokenBundle -> Property
+prop_singleton_toList u b =
+    UTxOIndex.toList (UTxOIndex.singleton u b) === [(u, b)]
 
-prop_toList_fromSequence :: UTxOIndex WalletUTxO -> Property
-prop_toList_fromSequence u =
-    UTxOIndex.fromSequence (UTxOIndex.toList u) === u
+prop_toList_fromSequence :: UTxOIndex TestUTxO -> Property
+prop_toList_fromSequence i =
+    UTxOIndex.fromSequence (UTxOIndex.toList i) === i
 
 --------------------------------------------------------------------------------
 -- Modification properties
 --------------------------------------------------------------------------------
 
-prop_delete_balance :: WalletUTxO -> UTxOIndex WalletUTxO -> Property
-prop_delete_balance i u =
-    checkCoverage $
-    cover 30 (UTxOIndex.member i u)
-        "input is a member of the index" $
-    cover 30 (not $ UTxOIndex.member i u)
-        "input is not a member of the index" $
-    UTxOIndex.balance (UTxOIndex.delete i u) === expected
+checkCoverage_modify
+    :: (Testable prop, Ord u) => u -> UTxOIndex u -> prop -> Property
+checkCoverage_modify u i
+    = checkCoverage
+    . cover 30 (UTxOIndex.member u i)
+        "UTxO is a member of the index"
+    . cover 30 (not $ UTxOIndex.member u i)
+        "UTxO is not a member of the index"
+
+prop_delete_balance
+    :: u ~ Size 4 TestUTxO => u -> UTxOIndex u -> Property
+prop_delete_balance u i =
+    checkCoverage_modify u i $
+    UTxOIndex.balance (UTxOIndex.delete u i) === expected
   where
-    expected = case UTxOIndex.lookup i u of
+    expected = case UTxOIndex.lookup u i of
         Nothing ->
-            UTxOIndex.balance u
+            UTxOIndex.balance i
         Just b ->
-            UTxOIndex.balance u `TokenBundle.unsafeSubtract` b
+            UTxOIndex.balance i `TokenBundle.unsafeSubtract` b
 
-prop_delete_lookup :: WalletUTxO -> UTxOIndex WalletUTxO -> Property
-prop_delete_lookup i u =
-    UTxOIndex.lookup i (UTxOIndex.delete i u) === Nothing
+prop_delete_lookup
+    :: u ~ Size 4 TestUTxO => u -> UTxOIndex u -> Property
+prop_delete_lookup u i =
+    checkCoverage_modify u i $
+    UTxOIndex.lookup u (UTxOIndex.delete u i) === Nothing
 
-prop_delete_size :: WalletUTxO -> UTxOIndex WalletUTxO -> Property
-prop_delete_size i u =
-    checkCoverage $
-    cover 30 (UTxOIndex.member i u)
-        "input is a member of the index" $
-    cover 30 (not $ UTxOIndex.member i u)
-        "input is not a member of the index" $
-    UTxOIndex.size (UTxOIndex.delete i u) === expected
+prop_delete_size
+    :: u ~ Size 4 TestUTxO => u -> UTxOIndex u -> Property
+prop_delete_size u i =
+    checkCoverage_modify u i $
+    UTxOIndex.size (UTxOIndex.delete u i) === expected
   where
-    expected = case UTxOIndex.lookup i u of
+    expected = case UTxOIndex.lookup u i of
         Nothing ->
-            UTxOIndex.size u
+            UTxOIndex.size i
         Just _ ->
-            UTxOIndex.size u - 1
+            UTxOIndex.size i - 1
 
 prop_insert_assets
-    :: WalletUTxO -> TokenBundle -> UTxOIndex WalletUTxO -> Property
-prop_insert_assets i b u =
-    UTxOIndex.assets (UTxOIndex.insert i b u)
+    :: u ~ Size 4 TestUTxO => u -> TokenBundle -> UTxOIndex u -> Property
+prop_insert_assets u b i =
+    checkCoverage_modify u i $
+    UTxOIndex.assets (UTxOIndex.insert u b i)
         `Set.intersection` insertedAssets === insertedAssets
   where
     insertedAssets = TokenBundle.getAssets b
 
 prop_insert_balance
-    :: WalletUTxO -> TokenBundle -> UTxOIndex WalletUTxO -> Property
-prop_insert_balance i b u =
-    checkCoverage $
-    cover 30 (UTxOIndex.member i u)
-        "input is already a member of the index" $
-    cover 30 (not $ UTxOIndex.member i u)
-        "input is not already a member of the index" $
-    UTxOIndex.balance (UTxOIndex.insert i b u) === expected
+    :: u ~ Size 4 TestUTxO => u -> TokenBundle -> UTxOIndex u -> Property
+prop_insert_balance u b i =
+    checkCoverage_modify u i $
+    UTxOIndex.balance (UTxOIndex.insert u b i) === expected
   where
-    expected = b `TokenBundle.add` case UTxOIndex.lookup i u of
+    expected = b `TokenBundle.add` case UTxOIndex.lookup u i of
         Nothing ->
-            UTxOIndex.balance u
+            UTxOIndex.balance i
         Just b' ->
-            UTxOIndex.balance u `TokenBundle.unsafeSubtract` b'
+            UTxOIndex.balance i `TokenBundle.unsafeSubtract` b'
 
 prop_insert_delete
-    :: WalletUTxO -> TokenBundle -> UTxOIndex WalletUTxO -> Property
-prop_insert_delete i b u =
-    checkCoverage $
-    cover 30 (UTxOIndex.member i u)
-        "input is already a member of the index" $
-    cover 30 (not $ UTxOIndex.member i u)
-        "input is not already a member of the index" $
-    UTxOIndex.delete i (UTxOIndex.insert i b u) === expected
+    :: u ~ Size 4 TestUTxO => u -> TokenBundle -> UTxOIndex u -> Property
+prop_insert_delete u b i =
+    checkCoverage_modify u i $
+    UTxOIndex.delete u (UTxOIndex.insert u b i) === expected
   where
     expected =
-        if UTxOIndex.member i u then UTxOIndex.delete i u else u
+        if UTxOIndex.member u i then UTxOIndex.delete u i else i
 
 prop_insert_lookup
-    :: WalletUTxO -> TokenBundle -> UTxOIndex WalletUTxO -> Property
-prop_insert_lookup i b u =
-    UTxOIndex.lookup i (UTxOIndex.insert i b u) === Just b
+    :: u ~ Size 4 TestUTxO => u -> TokenBundle -> UTxOIndex u -> Property
+prop_insert_lookup u b i =
+    checkCoverage_modify u i $
+    UTxOIndex.lookup u (UTxOIndex.insert u b i) === Just b
 
 prop_insert_size
-    :: WalletUTxO -> TokenBundle -> UTxOIndex WalletUTxO -> Property
-prop_insert_size i b u =
-    checkCoverage $
-    cover 30 (UTxOIndex.member i u)
-        "input is already a member of the index" $
-    cover 30 (not $ UTxOIndex.member i u)
-        "input is not already a member of the index" $
-    UTxOIndex.size (UTxOIndex.insert i b u) === expected
+    :: u ~ Size 4 TestUTxO => u -> TokenBundle -> UTxOIndex u -> Property
+prop_insert_size u b i =
+    checkCoverage_modify u i $
+    UTxOIndex.size (UTxOIndex.insert u b i) === expected
   where
-    expected = case UTxOIndex.lookup i u of
+    expected = case UTxOIndex.lookup u i of
         Nothing ->
-            UTxOIndex.size u + 1
+            UTxOIndex.size i + 1
         Just _ ->
-            UTxOIndex.size u
+            UTxOIndex.size i
 
 --------------------------------------------------------------------------------
 -- Filtering and partitioning
 --------------------------------------------------------------------------------
 
 prop_filter_disjoint
-    :: (WalletUTxO -> Bool) -> UTxOIndex WalletUTxO -> Property
-prop_filter_disjoint f u =
-    checkCoverage_filter_partition f u $
-    UTxOIndex.filter f u `UTxOIndex.disjoint` UTxOIndex.filter (not . f) u
+    :: (TestUTxO -> Bool) -> UTxOIndex TestUTxO -> Property
+prop_filter_disjoint f i =
+    checkCoverage_filter_partition f i $
+    UTxOIndex.filter f i `UTxOIndex.disjoint` UTxOIndex.filter (not . f) i
         === True
 
 prop_filter_partition
-    :: (WalletUTxO -> Bool) -> UTxOIndex WalletUTxO -> Property
-prop_filter_partition f u =
-    checkCoverage_filter_partition f u $
-    (UTxOIndex.filter f u, UTxOIndex.filter (not . f) u)
-        === UTxOIndex.partition f u
+    :: (TestUTxO -> Bool) -> UTxOIndex TestUTxO -> Property
+prop_filter_partition f i =
+    checkCoverage_filter_partition f i $
+    (UTxOIndex.filter f i, UTxOIndex.filter (not . f) i)
+        === UTxOIndex.partition f i
 
 prop_filter_toList
-    :: (WalletUTxO -> Bool) -> UTxOIndex WalletUTxO -> Property
-prop_filter_toList f u =
-    checkCoverage_filter_partition f u $
-    UTxOIndex.toList (UTxOIndex.filter f u)
-        === L.filter (f . fst) (UTxOIndex.toList u)
+    :: (TestUTxO -> Bool) -> UTxOIndex TestUTxO -> Property
+prop_filter_toList f i =
+    checkCoverage_filter_partition f i $
+    UTxOIndex.toList (UTxOIndex.filter f i)
+        === L.filter (f . fst) (UTxOIndex.toList i)
 
 prop_partition_disjoint
-    :: (WalletUTxO -> Bool) -> UTxOIndex WalletUTxO -> Property
-prop_partition_disjoint f u =
-    checkCoverage_filter_partition f u $
-    uncurry UTxOIndex.disjoint (UTxOIndex.partition f u) === True
+    :: (TestUTxO -> Bool) -> UTxOIndex TestUTxO -> Property
+prop_partition_disjoint f i =
+    checkCoverage_filter_partition f i $
+    uncurry UTxOIndex.disjoint (UTxOIndex.partition f i) === True
 
 checkCoverage_filter_partition
-    :: Testable prop
-    => (WalletUTxO -> Bool)
-    -> UTxOIndex WalletUTxO
+    :: (Testable prop, Ord u)
+    => (u -> Bool)
+    -> UTxOIndex u
     -> (prop -> Property)
-checkCoverage_filter_partition f u
+checkCoverage_filter_partition f i
     = checkCoverage
     . cover 10
-        (UTxOIndex.filter f u `isNonEmptyProperSubsetOf` u)
-        "UTxOIndex.filter f u `isNonEmptyProperSubsetOf` u"
+        (UTxOIndex.filter f i `isNonEmptyProperSubsetOf` i)
+        "UTxOIndex.filter f i `isNonEmptyProperSubsetOf` i"
     . cover 10
-        (UTxOIndex.filter (not . f) u `isNonEmptyProperSubsetOf` u)
-        "UTxOIndex.filter (not . f) u `isNonEmptyProperSubsetOf` u"
+        (UTxOIndex.filter (not . f) i `isNonEmptyProperSubsetOf` i)
+        "UTxOIndex.filter (not . f) i `isNonEmptyProperSubsetOf` i"
     . cover 10
-        (filterSize f u > filterSize (not . f) u)
-        "filterSize f u > filterSize (not . f) u"
+        (filterSize f i > filterSize (not . f) i)
+        "filterSize f i > filterSize (not . f) i"
     . cover 10
-        (filterSize f u < filterSize (not . f) u)
-        "filterSize f u < filterSize (not . f) u"
+        (filterSize f i < filterSize (not . f) i)
+        "filterSize f i < filterSize (not . f) i"
   where
-    u1 `isNonEmptyProperSubsetOf` u2 =
-        not (UTxOIndex.null u1)
-        && UTxOIndex.toMap u1 `Map.isSubmapOf` UTxOIndex.toMap u2
-        && u1 /= u2
+    i1 `isNonEmptyProperSubsetOf` i2 =
+        not (UTxOIndex.null i1)
+        && UTxOIndex.toMap i1 `Map.isSubmapOf` UTxOIndex.toMap i2
+        && i1 /= i2
 
     filterSize g = UTxOIndex.size . UTxOIndex.filter g
 
@@ -438,7 +427,7 @@ prop_SelectionFilter_coverage selectionFilter = checkCoverage $ property
 --
 prop_selectRandom_empty :: SelectionFilter -> Property
 prop_selectRandom_empty f = monadicIO $ do
-    result <- run $ UTxOIndex.selectRandom (UTxOIndex.empty @WalletUTxO) f
+    result <- run $ UTxOIndex.selectRandom (UTxOIndex.empty @TestUTxO) f
     assert $ isNothing result
 
 -- | Attempt to select a random entry from a singleton index with entry 'e'.
@@ -447,27 +436,27 @@ prop_selectRandom_empty f = monadicIO $ do
 --
 prop_selectRandom_singleton
     :: SelectionFilter
-    -> WalletUTxO
+    -> TestUTxO
     -> TokenBundle
     -> Property
-prop_selectRandom_singleton selectionFilter i b = monadicIO $ do
+prop_selectRandom_singleton selectionFilter u b = monadicIO $ do
     actual <- run $ UTxOIndex.selectRandom index selectionFilter
     assert $ actual == expected
   where
-    index = UTxOIndex.singleton i b
+    index = UTxOIndex.singleton u b
     expected = case selectionFilter of
         Any ->
-            Just ((i, b), UTxOIndex.empty)
+            Just ((u, b), UTxOIndex.empty)
         WithAdaOnly | tokenBundleIsAdaOnly b ->
-            Just ((i, b), UTxOIndex.empty)
+            Just ((u, b), UTxOIndex.empty)
         WithAdaOnly ->
             Nothing
         WithAsset a | tokenBundleHasAsset b a ->
-            Just ((i, b), UTxOIndex.empty)
+            Just ((u, b), UTxOIndex.empty)
         WithAsset _ ->
             Nothing
         WithAssetOnly a | tokenBundleHasAssetOnly b a ->
-            Just ((i, b), UTxOIndex.empty)
+            Just ((u, b), UTxOIndex.empty)
         WithAssetOnly _ ->
             Nothing
 
@@ -475,65 +464,65 @@ prop_selectRandom_singleton selectionFilter i b = monadicIO $ do
 --
 -- This should always succeed, provided the index is not empty.
 --
-prop_selectRandom_one_any :: UTxOIndex WalletUTxO -> Property
-prop_selectRandom_one_any u = checkCoverage $ monadicIO $ do
-    result <- run $ UTxOIndex.selectRandom u Any
+prop_selectRandom_one_any :: UTxOIndex TestUTxO -> Property
+prop_selectRandom_one_any i = checkCoverage $ monadicIO $ do
+    result <- run $ UTxOIndex.selectRandom i Any
     monitor $ cover 90 (isJust result)
         "selected an entry"
     case result of
         Nothing ->
-            assert $ UTxOIndex.null u
-        Just ((i, o), u') -> do
-            assert $ UTxOIndex.delete i u == u'
-            assert $ UTxOIndex.insert i o u' == u
-            assert $ UTxOIndex.member i u
-            assert $ not $ UTxOIndex.member i u'
-            assert $ u /= u'
+            assert $ UTxOIndex.null i
+        Just ((u, b), i') -> do
+            assert $ UTxOIndex.delete u i == i'
+            assert $ UTxOIndex.insert u b i' == i
+            assert $ UTxOIndex.member u i
+            assert $ not $ UTxOIndex.member u i'
+            assert $ i /= i'
 
 -- | Attempt to select a random entry with only ada.
 --
-prop_selectRandom_one_withAdaOnly :: UTxOIndex WalletUTxO -> Property
-prop_selectRandom_one_withAdaOnly u = checkCoverage $ monadicIO $ do
-    result <- run $ UTxOIndex.selectRandom u WithAdaOnly
+prop_selectRandom_one_withAdaOnly :: UTxOIndex TestUTxO -> Property
+prop_selectRandom_one_withAdaOnly i = checkCoverage $ monadicIO $ do
+    result <- run $ UTxOIndex.selectRandom i WithAdaOnly
     monitor $ cover 50 (isJust result)
         "selected an entry"
     case result of
         Nothing ->
             assert utxoHasNoAdaOnlyEntries
-        Just ((i, o), u') -> do
-            assert $ UTxOIndex.delete i u == u'
-            assert $ UTxOIndex.insert i o u' == u
-            assert $ UTxOIndex.member i u
-            assert $ not $ UTxOIndex.member i u'
-            assert $ u /= u'
+        Just ((u, b), i') -> do
+            assert $ UTxOIndex.delete u i == i'
+            assert $ UTxOIndex.insert u b i' == i
+            assert $ UTxOIndex.member u i
+            assert $ not $ UTxOIndex.member u i'
+            assert $ i /= i'
   where
     utxoHasNoAdaOnlyEntries =
-        not (any (tokenBundleIsAdaOnly . snd) (UTxOIndex.toList u))
+        not (any (tokenBundleIsAdaOnly . snd) (UTxOIndex.toList i))
 
 -- | Attempt to select a random element with a specific asset.
 --
 -- This should only succeed if there is at least one element with a non-zero
 -- quantity of the asset.
 --
-prop_selectRandom_one_withAsset :: UTxOIndex WalletUTxO -> AssetId -> Property
-prop_selectRandom_one_withAsset u a = checkCoverage $ monadicIO $ do
-    result <- run $ UTxOIndex.selectRandom u (WithAsset a)
-    monitor $ cover 50 (a `Set.member` UTxOIndex.assets u)
+prop_selectRandom_one_withAsset :: UTxOIndex TestUTxO -> AssetId -> Property
+prop_selectRandom_one_withAsset i a = checkCoverage $ monadicIO $ do
+    result <- run $ UTxOIndex.selectRandom i (WithAsset a)
+    monitor $ cover 50 (a `Set.member` UTxOIndex.assets i)
         "index has the specified asset"
-    monitor $ cover 50 (Set.size (UTxOIndex.assets u) > 1)
+    monitor $ cover 50 (Set.size (UTxOIndex.assets i) > 1)
         "index has more than one asset"
     monitor $ cover 50 (isJust result)
         "selected an entry"
     case result of
         Nothing ->
-            assert $ a `Set.notMember` UTxOIndex.assets u
-        Just ((i, o), u') -> do
-            assert $ UTxOIndex.delete i u == u'
-            assert $ UTxOIndex.insert i o u' == u
-            assert $ UTxOIndex.member i u
-            assert $ not $ UTxOIndex.member i u'
-            assert $ tokenBundleHasAsset o a
-            assert $ u /= u'
+            assert $ a `Set.notMember` UTxOIndex.assets i
+        Just ((u, b), i') -> do
+            assert $ UTxOIndex.delete u i == i'
+            assert $ UTxOIndex.insert u b i' == i
+            assert $ UTxOIndex.member u i
+            assert $ not $ UTxOIndex.member u i'
+            assert $ tokenBundleHasAsset b a
+            assert $ i /= i'
 
 -- | Attempt to select a random element with a specific asset and no other
 --   assets.
@@ -542,108 +531,108 @@ prop_selectRandom_one_withAsset u a = checkCoverage $ monadicIO $ do
 -- quantity of the asset and no other assets.
 --
 prop_selectRandom_one_withAssetOnly
-    :: UTxOIndex WalletUTxO -> AssetId -> Property
-prop_selectRandom_one_withAssetOnly u a = checkCoverage $ monadicIO $ do
-    result <- run $ UTxOIndex.selectRandom u (WithAssetOnly a)
-    monitor $ cover 50 (a `Set.member` UTxOIndex.assets u)
+    :: UTxOIndex TestUTxO -> AssetId -> Property
+prop_selectRandom_one_withAssetOnly i a = checkCoverage $ monadicIO $ do
+    result <- run $ UTxOIndex.selectRandom i (WithAssetOnly a)
+    monitor $ cover 50 (a `Set.member` UTxOIndex.assets i)
         "index has the specified asset"
-    monitor $ cover 50 (Set.size (UTxOIndex.assets u) > 1)
+    monitor $ cover 50 (Set.size (UTxOIndex.assets i) > 1)
         "index has more than one asset"
     monitor $ cover 10 (isJust result)
         "selected an entry"
     case result of
         Nothing ->
             assert True
-        Just ((i, o), u') -> do
-            assert $ UTxOIndex.delete i u == u'
-            assert $ UTxOIndex.insert i o u' == u
-            assert $ UTxOIndex.member i u
-            assert $ not $ UTxOIndex.member i u'
-            assert $ tokenBundleHasAssetOnly o a
-            assert $ u /= u'
+        Just ((u, b), i') -> do
+            assert $ UTxOIndex.delete u i == i'
+            assert $ UTxOIndex.insert u b i' == i
+            assert $ UTxOIndex.member u i
+            assert $ not $ UTxOIndex.member u i'
+            assert $ tokenBundleHasAssetOnly b a
+            assert $ i /= i'
 
 -- | Attempt to select all entries from the index.
 --
 -- This should always succeed.
 --
-prop_selectRandom_all_any :: UTxOIndex WalletUTxO -> Property
-prop_selectRandom_all_any u = checkCoverage $ monadicIO $ do
-    (selectedEntries, u') <- run $ selectAll Any u
+prop_selectRandom_all_any :: UTxOIndex TestUTxO -> Property
+prop_selectRandom_all_any i = checkCoverage $ monadicIO $ do
+    (selectedEntries, i') <- run $ selectAll Any i
     monitor $ cover 90 (not (null selectedEntries))
         "selected at least one entry"
     assert $ (==)
         (L.sort $ show <$> selectedEntries)
-        (L.sort $ show <$> UTxOIndex.toList u)
-    assert $ UTxOIndex.assets u' == mempty
-    assert $ UTxOIndex.balance u' == mempty
-    assert $ UTxOIndex.fromSequence selectedEntries == u
-    assert $ UTxOIndex.null u'
-    assert $ length selectedEntries == UTxOIndex.size u
+        (L.sort $ show <$> UTxOIndex.toList i)
+    assert $ UTxOIndex.assets i' == mempty
+    assert $ UTxOIndex.balance i' == mempty
+    assert $ UTxOIndex.fromSequence selectedEntries == i
+    assert $ UTxOIndex.null i'
+    assert $ length selectedEntries == UTxOIndex.size i
 
 -- | Attempt to select all entries with only ada from the index.
 --
-prop_selectRandom_all_withAdaOnly :: UTxOIndex WalletUTxO -> Property
-prop_selectRandom_all_withAdaOnly u = checkCoverage $ monadicIO $ do
-    (selectedEntries, u') <- run $ selectAll WithAdaOnly u
+prop_selectRandom_all_withAdaOnly :: UTxOIndex TestUTxO -> Property
+prop_selectRandom_all_withAdaOnly i = checkCoverage $ monadicIO $ do
+    (selectedEntries, i') <- run $ selectAll WithAdaOnly i
     monitor $ cover 70 (not (null selectedEntries))
         "selected at least one entry"
-    assert $ L.all (\(_, o) ->
-        not (tokenBundleIsAdaOnly o)) (UTxOIndex.toList u')
-    assert $ L.all (\(_, o) ->
-        tokenBundleIsAdaOnly o) selectedEntries
-    assert $ UTxOIndex.deleteMany (fst <$> selectedEntries) u == u'
-    assert $ UTxOIndex.insertMany selectedEntries u' == u
+    assert $ L.all (\(_, b) ->
+        not (tokenBundleIsAdaOnly b)) (UTxOIndex.toList i')
+    assert $ L.all (\(_, b) ->
+        tokenBundleIsAdaOnly b) selectedEntries
+    assert $ UTxOIndex.deleteMany (fst <$> selectedEntries) i == i'
+    assert $ UTxOIndex.insertMany selectedEntries i' == i
 
 -- | Attempt to select all entries with the given asset from the index.
 --
-prop_selectRandom_all_withAsset :: UTxOIndex WalletUTxO -> AssetId -> Property
-prop_selectRandom_all_withAsset u a = checkCoverage $ monadicIO $ do
-    (selectedEntries, u') <- run $ selectAll (WithAsset a) u
-    monitor $ cover 50 (a `Set.member` UTxOIndex.assets u)
+prop_selectRandom_all_withAsset :: UTxOIndex TestUTxO -> AssetId -> Property
+prop_selectRandom_all_withAsset i a = checkCoverage $ monadicIO $ do
+    (selectedEntries, i') <- run $ selectAll (WithAsset a) i
+    monitor $ cover 50 (a `Set.member` UTxOIndex.assets i)
         "index has the specified asset"
-    monitor $ cover 50 (Set.size (UTxOIndex.assets u) > 1)
+    monitor $ cover 50 (Set.size (UTxOIndex.assets i) > 1)
         "index has more than one asset"
     monitor $ cover 50 (not (null selectedEntries))
         "selected at least one entry"
-    assert $ L.all (\(_, o) ->
-        not (tokenBundleHasAsset o a)) (UTxOIndex.toList u')
-    assert $ L.all (\(_, o) ->
-        tokenBundleHasAsset o a) selectedEntries
-    assert $ UTxOIndex.deleteMany (fst <$> selectedEntries) u == u'
-    assert $ UTxOIndex.insertMany selectedEntries u' == u
-    assert $ a `Set.notMember` UTxOIndex.assets u'
+    assert $ L.all (\(_, b) ->
+        not (tokenBundleHasAsset b a)) (UTxOIndex.toList i')
+    assert $ L.all (\(_, b) ->
+        tokenBundleHasAsset b a) selectedEntries
+    assert $ UTxOIndex.deleteMany (fst <$> selectedEntries) i == i'
+    assert $ UTxOIndex.insertMany selectedEntries i' == i
+    assert $ a `Set.notMember` UTxOIndex.assets i'
 
 -- | Attempt to select all entries with only the given asset from the index.
 --
 prop_selectRandom_all_withAssetOnly
-    :: UTxOIndex WalletUTxO -> AssetId -> Property
-prop_selectRandom_all_withAssetOnly u a = checkCoverage $ monadicIO $ do
-    (selectedEntries, u') <- run $ selectAll (WithAssetOnly a) u
-    monitor $ cover 50 (a `Set.member` UTxOIndex.assets u)
+    :: UTxOIndex TestUTxO -> AssetId -> Property
+prop_selectRandom_all_withAssetOnly i a = checkCoverage $ monadicIO $ do
+    (selectedEntries, i') <- run $ selectAll (WithAssetOnly a) i
+    monitor $ cover 50 (a `Set.member` UTxOIndex.assets i)
         "index has the specified asset"
-    monitor $ cover 50 (Set.size (UTxOIndex.assets u) > 1)
+    monitor $ cover 50 (Set.size (UTxOIndex.assets i) > 1)
         "index has more than one asset"
     monitor $ cover 10 (not (null selectedEntries))
         "selected at least one entry"
-    assert $ all (\(_, o) ->
-        not (tokenBundleHasAssetOnly o a)) (UTxOIndex.toList u')
-    assert $ all (\(_, o) ->
-        tokenBundleHasAssetOnly o a) selectedEntries
-    assert $ UTxOIndex.deleteMany (fst <$> selectedEntries) u == u'
-    assert $ UTxOIndex.insertMany selectedEntries u' == u
+    assert $ all (\(_, b) ->
+        not (tokenBundleHasAssetOnly b a)) (UTxOIndex.toList i')
+    assert $ all (\(_, b) ->
+        tokenBundleHasAssetOnly b a) selectedEntries
+    assert $ UTxOIndex.deleteMany (fst <$> selectedEntries) i == i'
+    assert $ UTxOIndex.insertMany selectedEntries i' == i
 
 -- | Verify that priority order is respected when selecting with more than
 --   one filter.
 --
-prop_selectRandomWithPriority :: UTxOIndex WalletUTxO -> Property
-prop_selectRandomWithPriority u =
+prop_selectRandomWithPriority :: UTxOIndex TestUTxO -> Property
+prop_selectRandomWithPriority i =
     forAll (genAssetId) $ \a1 ->
     forAll (genAssetId `suchThat` (/= a1)) $ \a2 ->
     checkCoverage $ monadicIO $ do
         haveMatchForAsset1 <- isJust <$>
-            run (UTxOIndex.selectRandom u $ WithAssetOnly a1)
+            run (UTxOIndex.selectRandom i $ WithAssetOnly a1)
         haveMatchForAsset2 <- isJust <$>
-            run (UTxOIndex.selectRandom u $ WithAssetOnly a2)
+            run (UTxOIndex.selectRandom i $ WithAssetOnly a2)
         monitor $ cover 4 (haveMatchForAsset1 && not haveMatchForAsset2)
             "have match for asset 1 but not for asset 2"
         monitor $ cover 4 (not haveMatchForAsset1 && haveMatchForAsset2)
@@ -652,7 +641,7 @@ prop_selectRandomWithPriority u =
             "have match for both asset 1 and asset 2"
         monitor $ cover 4 (not haveMatchForAsset1 && not haveMatchForAsset2)
             "have match for neither asset 1 nor asset 2"
-        result <- run $ UTxOIndex.selectRandomWithPriority u $
+        result <- run $ UTxOIndex.selectRandomWithPriority i $
             WithAssetOnly a1 :| [WithAssetOnly a2]
         case result of
             Just ((_, b), _) | b `tokenBundleHasAsset` a1 -> do
@@ -741,20 +730,20 @@ prop_selectRandomSetMember_coversRangeUniformly i j =
 -- the selected entries removed.
 --
 selectAll
-    :: MonadRandom m
+    :: (MonadRandom m, u ~ TestUTxO)
     => SelectionFilter
-    -> UTxOIndex WalletUTxO
-    -> m ([(WalletUTxO, TokenBundle)], UTxOIndex WalletUTxO)
+    -> UTxOIndex u
+    -> m ([(u, TokenBundle)], UTxOIndex u)
 selectAll sf = go []
   where
-    go !selectedEntries !u = do
-        selected <- UTxOIndex.selectRandom u sf
+    go !selectedEntries !i = do
+        selected <- UTxOIndex.selectRandom i sf
         case selected of
             Nothing ->
                 -- There are no more entries available. Terminate here:
-                pure (selectedEntries, u)
-            Just ((i, o), uReduced) ->
-                go ((i, o) : selectedEntries) uReduced
+                pure (selectedEntries, i)
+            Just ((u, b), iReduced) ->
+                go ((u, b) : selectedEntries) iReduced
 
 -- | Returns 'True' if (and only if) the given token bundle has a non-zero
 --   quantity of the given asset.
@@ -779,30 +768,17 @@ tokenBundleIsAdaOnly = TokenBundle.isCoin
 -- Arbitrary instances
 --------------------------------------------------------------------------------
 
-instance Arbitrary WalletUTxO where
-    arbitrary = genWalletUTxO
-    shrink = shrinkWalletUTxO
-
-instance CoArbitrary WalletUTxO where
-    coarbitrary = coarbitraryWalletUTxO
-
-instance CoArbitrary Address where
-    coarbitrary = coarbitraryAddress
+newtype TestUTxO = TestUTxO (Hexadecimal Quid)
+    deriving (Arbitrary, CoArbitrary) via Quid
+    deriving stock (Eq, Ord, Read, Show)
 
 instance Arbitrary AssetId where
     arbitrary = genAssetId
     shrink = shrinkAssetId
 
-instance Arbitrary (UTxOIndex WalletUTxO) where
-    arbitrary = genUTxOIndex genWalletUTxO
-    shrink = shrinkUTxOIndex shrinkWalletUTxO
-
-instance CoArbitrary TxIn where
-    coarbitrary = coarbitraryTxIn
-
-instance Arbitrary TxOut where
-    arbitrary = genTxOut
-    shrink = shrinkTxOut
+instance (Arbitrary u, Ord u) => Arbitrary (UTxOIndex u) where
+    arbitrary = genUTxOIndex arbitrary
+    shrink = shrinkUTxOIndex shrink
 
 instance Arbitrary TokenBundle where
     arbitrary = genTokenBundleSmallRangePositive
@@ -837,5 +813,5 @@ shrinkSelectionFilterSmallRange = \case
 -- Show instances
 --------------------------------------------------------------------------------
 
-instance Show (WalletUTxO -> Bool) where
-    show = const "(WalletUTxO -> Bool)"
+instance Show (TestUTxO -> Bool) where
+    show = const "(TestUTxO -> Bool)"
