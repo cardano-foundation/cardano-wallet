@@ -531,8 +531,10 @@ def create_policy_key_if_not_exists(wid)
   if gpkey.code == 403 && gpkey['code'] == "missing_policy_public_key"
     pkey = SHELLEY.keys.create_policy_key(wid, PASS)
     expect(pkey).to be_correct_and_respond 202
+    pkey
+  else
+    gpkey
   end
-  pkey || gpkey
 end
 
 ##

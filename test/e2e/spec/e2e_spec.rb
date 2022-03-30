@@ -605,7 +605,7 @@ RSpec.describe "Cardano Wallet E2E tests", :e2e => true do
 
     describe "Minting and Burning" do
       def mint(asset_name, quantity, policy_script, address)
-        {
+        mint = {
             'operation' => {
               'mint' =>
                 {
@@ -615,22 +615,24 @@ RSpec.describe "Cardano Wallet E2E tests", :e2e => true do
                                }
                 }
             },
-            'policy_script_template' => policy_script,
-            'asset_name' => asset_name
-        }
+            'policy_script_template' => policy_script
+         }
+         mint['asset_name'] = asset_name unless asset_name == nil
+         mint
       end
 
       def burn(asset_name, quantity, policy_script)
-        {
+        burn = {
             'operation' => {
               'burn' => { 'quantity' => quantity,
                           'unit' => 'assets'
                          }
 
              },
-            'policy_script_template' => policy_script,
-            'asset_name' => asset_name
+            'policy_script_template' => policy_script
         }
+        burn['asset_name'] = asset_name unless asset_name == nil
+        burn
       end
 
       ##
@@ -661,7 +663,7 @@ RSpec.describe "Cardano Wallet E2E tests", :e2e => true do
         # Minting:
         mint = [mint(asset_name('Token1'), 1000, policy_script1, address),
                 mint(asset_name('Token2'), 1000, policy_script2, address),
-                mint(asset_name('Token3'), 1000, policy_script3, address)
+                mint('', 1000, policy_script3, address)
                ]
         create_policy_key_if_not_exists(@wid)
         tx_constructed, tx_signed, tx_submitted = construct_sign_submit(@wid,
@@ -692,7 +694,7 @@ RSpec.describe "Cardano Wallet E2E tests", :e2e => true do
         # Burn half:
         burn = [burn(asset_name('Token1'), 500, policy_script1),
                 burn(asset_name('Token2'), 500, policy_script2),
-                burn(asset_name('Token3'), 500, policy_script3)
+                burn('', 500, policy_script3)
                ]
         tx_constructed, tx_signed, tx_submitted = construct_sign_submit(@wid,
                                                                         payments = nil,
@@ -722,7 +724,7 @@ RSpec.describe "Cardano Wallet E2E tests", :e2e => true do
         # Burn all the rest:
         burn = [burn(asset_name('Token1'), 500, policy_script1),
                 burn(asset_name('Token2'), 500, policy_script2),
-                burn(asset_name('Token3'), 500, policy_script3)
+                burn('', 500, policy_script3)
                ]
         tx_constructed, tx_signed, tx_submitted = construct_sign_submit(@wid,
                                                                         payments = nil,
