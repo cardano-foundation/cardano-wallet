@@ -3,6 +3,7 @@
 {-# LANGUAGE DerivingStrategies #-}
 {-# LANGUAGE FlexibleContexts #-}
 {-# LANGUAGE FlexibleInstances #-}
+{-# LANGUAGE GADTs #-}
 {-# LANGUAGE LambdaCase #-}
 {-# LANGUAGE MultiParamTypeClasses #-}
 {-# LANGUAGE NamedFieldPuns #-}
@@ -27,8 +28,6 @@ module Cardano.Wallet.Shelley.Network.Blockfrost
 
     -- * Internal
     , getPoolPerformanceEstimate
-    -- * Blockfrost -> Cardano translation
-    , fromBlockfrost
     ) where
 
 import Prelude
@@ -56,6 +55,7 @@ import Cardano.Wallet.Network
 import Cardano.Wallet.Primitive.Types
     ( BlockHeader (..)
     , DecentralizationLevel (..)
+    , EpochNo (EpochNo)
     , ExecutionUnitPrices (..)
     , ExecutionUnits (..)
     , FeePolicy (LinearFee)
@@ -76,8 +76,6 @@ import Cardano.Wallet.Primitive.Types.Hash
     ( Hash )
 import Cardano.Wallet.Primitive.Types.Tx
     ( TxSize (..) )
-import Control.Arrow
-    ( (<<<) )
 import Control.Concurrent
     ( threadDelay )
 import Control.Monad
@@ -85,13 +83,11 @@ import Control.Monad
 import Control.Monad.Error.Class
     ( MonadError, liftEither, throwError )
 import Control.Monad.Trans.Except
-    ( ExceptT (..), runExceptT )
-import Data.Bifunctor
-    ( first )
+    ( ExceptT (..), runExceptT, withExceptT )
 import Data.Bits
     ( Bits )
-import Data.Function
-    ( (&) )
+import Data.Functor
+    ( (<&>) )
 import Data.Functor.Contravariant
     ( (>$<) )
 import Data.IntCast
@@ -127,6 +123,7 @@ data BlockfrostError
     | NoBlockHeight BF.Block
     | InvalidBlockHash BF.BlockHash TextDecodingError
     | InvalidDecentralizationLevelPercentage Double
+    | UnknownEraForEpoch EpochNo
     deriving (Show)
 
 newtype BlockfrostException = BlockfrostException BlockfrostError
@@ -167,42 +164,39 @@ withNetworkLayer tr project k = k NetworkLayer
     }
   where
     currentNodeTip :: IO BlockHeader
-    currentNodeTip = runBlockfrost BF.getLatestBlock & runExceptT >>= \case
-        -- TODO: use cached value while retrying
-        Left err -> throwIO (BlockfrostException err)
-        Right header -> pure header
+    currentNodeTip = runBlockfrost BF.getLatestBlock
+    -- ^ TODO: use cached value while retrying
 
     watchNodeTip :: (BlockHeader -> IO ()) -> IO ()
     watchNodeTip callback = link =<< async (pollNodeTip callback)
       where
         pollNodeTip :: (BlockHeader -> IO ()) -> IO ()
         pollNodeTip cb = forever $ do
-            runBlockfrost BF.getLatestBlock & runExceptT >>= \case
-                Left err -> throwIO (BlockfrostException err)
-                Right header ->
-                    bracketTracer (MsgWatcherUpdate header >$< tr) $ cb header
+            header <- runBlockfrost BF.getLatestBlock
+            bracketTracer (MsgWatcherUpdate header >$< tr) $ cb header
             threadDelay 2_000_000
 
     currentProtocolParameters :: IO ProtocolParameters
-    currentProtocolParameters =
-        runBlockfrost BF.getLatestEpochProtocolParams & runExceptT >>= \case
-            -- TODO: use cached value while retrying
-            Left err -> throwIO (BlockfrostException err)
-            Right params -> pure params
+    currentProtocolParameters = runBlockfrost BF.getLatestEpochProtocolParams
 
     currentNodeEra :: IO AnyCardanoEra
-    currentNodeEra = undefined
+    currentNodeEra = handleBlockfrostError $ do
+        BF.EpochInfo {_epochInfoEpoch} <- liftBlockfrost BF.getLatestEpoch
+        epoch <- fromBlockfrostM _epochInfoEpoch
+        eraByEpoch epoch
+
+    handleBlockfrostError :: ExceptT BlockfrostError IO a -> IO a
+    handleBlockfrostError =
+        either (throwIO . BlockfrostException) pure <=< runExceptT
 
     runBlockfrost ::
-        FromBlockfrost b w =>
-        BF.BlockfrostClientT IO b ->
-        ExceptT BlockfrostError IO w
+        forall b w. FromBlockfrost b w => BF.BlockfrostClientT IO b -> IO w
     runBlockfrost =
-        fromBlockfrostM
-            <=< ExceptT
-            <<< (first ClientError <$>)
-            <<< BF.runBlockfrostClientT project
+        handleBlockfrostError . (fromBlockfrostM @b @w <=< liftBlockfrost)
 
+    liftBlockfrost :: BF.BlockfrostClientT IO a -> ExceptT BlockfrostError IO a
+    liftBlockfrost =
+        withExceptT ClientError . ExceptT . BF.runBlockfrostClientT project
 
 blockToBlockHeader ::
     forall m. MonadError BlockfrostError m => BF.Block -> m BlockHeader
@@ -227,10 +221,7 @@ class FromBlockfrost b w where
     fromBlockfrost :: b -> Either BlockfrostError w
 
 fromBlockfrostM
-    :: FromBlockfrost b w
-    => MonadError BlockfrostError m
-    => b
-    -> m w
+    :: FromBlockfrost b w => MonadError BlockfrostError m => b -> m w
 fromBlockfrostM = liftEither . fromBlockfrost
 
 instance FromBlockfrost BF.Block BlockHeader where
@@ -388,8 +379,58 @@ instance FromBlockfrost BF.ProtocolParams ProtocolParameters where
 instance FromBlockfrost BF.Slot SlotNo where
     fromBlockfrost = fmap SlotNo . (<?#> "SlotNo") . BF.unSlot
 
+instance FromBlockfrost BF.Epoch EpochNo where
+    fromBlockfrost = pure . fromIntegral
+
+
+{-
+┌───────┬───────┬─────────┐
+│ Epoch │ Major │   Era   │
+├───────┼───────┼─────────┤
+│  ...  │   6   │ Alonzo  │
+│  298  │   6   │ Alonzo  │
+├───────┼───────┼─────────┤
+│  297  │   5   │ Alonzo  │
+│  ...  │   5   │ Alonzo  │
+│  290  │   5   │ Alonzo  │
+├───────┼───────┼─────────┤
+│  289  │   4   │  Mary   │
+│  ...  │   4   │  Mary   │
+│  251  │   4   │  Mary   │
+├───────┼───────┼─────────┤
+│  250  │   3   │ Allegra │
+│  ...  │   3   │ Allegra │
+│  236  │   3   │ Allegra │
+├───────┼───────┼─────────┤
+│  235  │   2   │ Shelley │
+│  ...  │   2   │ Shelley │
+│  202  │   2   │ Shelley │
+├───────┼───────┼─────────┤
+│  201  │   1   │  Byron  │
+│  ...  │   1   │  Byron  │
+└───────┴───────┴─────────┘
+-}
+eraByEpoch :: MonadError BlockfrostError m => EpochNo -> m AnyCardanoEra
+eraByEpoch epoch =
+    case dropWhile ((> epoch) . snd) (reverse eraBoundaries) of
+        (era, _) : _ -> pure era
+        _ -> throwError $ UnknownEraForEpoch epoch
+
+eraBoundaries :: [(Node.AnyCardanoEra, EpochNo)]
+eraBoundaries = [minBound .. maxBound] <&> \era -> (era, epochEraStartsAt era)
+  where
+    -- When new era is added this function reminds to update itself:
+    -- "Pattern match(es) are non-exhaustive"
+    epochEraStartsAt :: Node.AnyCardanoEra -> EpochNo
+    epochEraStartsAt = EpochNo . \case
+        Node.AnyCardanoEra Node.AlonzoEra  -> 290
+        Node.AnyCardanoEra Node.MaryEra    -> 251
+        Node.AnyCardanoEra Node.AllegraEra -> 236
+        Node.AnyCardanoEra Node.ShelleyEra -> 202
+        Node.AnyCardanoEra Node.ByronEra   -> 0
+
 -- | Raises an error in case of an absent value
-(<?>) :: MonadError e' m => Maybe a -> e' -> m a
+(<?>) :: MonadError e m => Maybe a -> e -> m a
 (<?>) Nothing e = throwError e
 (<?>) (Just a) _ = pure a
 
