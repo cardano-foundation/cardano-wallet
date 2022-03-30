@@ -494,7 +494,7 @@ whenSupportedInEra test era f =
     case test era of
         Nothing ->
             True
-            & label ("feature not supported in " <> show era <> ".")
+            & label ("feature not supported in " <> show era)
         Just supported ->
             f supported
 
