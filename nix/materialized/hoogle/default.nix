@@ -13,7 +13,7 @@
         "pretty".revision = (((hackage."pretty")."1.1.3.6").revisions).default;
         "haskell-src-exts".revision = (((hackage."haskell-src-exts")."1.23.1").revisions).default;
         "network-uri".revision = (((hackage."network-uri")."2.6.4.1").revisions).default;
-        "unordered-containers".revision = (((hackage."unordered-containers")."0.2.16.0").revisions).default;
+        "unordered-containers".revision = (((hackage."unordered-containers")."0.2.17.0").revisions).default;
         "unordered-containers".flags.debug = false;
         "integer-logarithms".revision = (((hackage."integer-logarithms")."1.0.3.1").revisions).default;
         "integer-logarithms".flags.check-bounds = false;
@@ -29,7 +29,7 @@
         "network".revision = (((hackage."network")."3.1.2.7").revisions).default;
         "network".flags.devel = false;
         "asn1-parse".revision = (((hackage."asn1-parse")."0.9.5").revisions).default;
-        "cryptonite".revision = (((hackage."cryptonite")."0.29").revisions).default;
+        "cryptonite".revision = (((hackage."cryptonite")."0.30").revisions).default;
         "cryptonite".flags.check_alignment = false;
         "cryptonite".flags.support_sse = false;
         "cryptonite".flags.use_target_attributes = true;
@@ -69,7 +69,7 @@
         "js-jquery".revision = (((hackage."js-jquery")."3.3.1").revisions).default;
         "http-client-tls".revision = (((hackage."http-client-tls")."0.3.6.1").revisions).default;
         "tls-session-manager".revision = (((hackage."tls-session-manager")."0.0.4").revisions).default;
-        "basement".revision = (((hackage."basement")."0.0.12").revisions).default;
+        "basement".revision = (((hackage."basement")."0.0.14").revisions).default;
         "old-locale".revision = (((hackage."old-locale")."1.0.0.7").revisions).default;
         "mtl".revision = (((hackage."mtl")."2.2.2").revisions).default;
         "OneTuple".revision = (((hackage."OneTuple")."0.3.1").revisions).default;
@@ -99,11 +99,9 @@
         "tar".flags.old-bytestring = false;
         "tar".flags.old-time = false;
         "th-compat".revision = (((hackage."th-compat")."0.1.3").revisions).default;
-        "memory".revision = (((hackage."memory")."0.16.0").revisions).default;
-        "memory".flags.support_basement = true;
+        "memory".revision = (((hackage."memory")."0.17.0").revisions).default;
         "memory".flags.support_deepseq = true;
         "memory".flags.support_bytestring = true;
-        "memory".flags.support_foundation = true;
         "fmlist".revision = (((hackage."fmlist")."0.9.4").revisions).default;
         "filepath".revision = (((hackage."filepath")."1.4.2.1").revisions).default;
         "unliftio-core".revision = (((hackage."unliftio-core")."0.2.0.1").revisions).default;
@@ -186,7 +184,7 @@
         "base-orphans".revision = (((hackage."base-orphans")."0.8.6").revisions).default;
         "time-compat".revision = (((hackage."time-compat")."1.9.6.1").revisions).default;
         "time-compat".flags.old-locale = false;
-        "foundation".revision = (((hackage."foundation")."0.0.26.1").revisions).default;
+        "foundation".revision = (((hackage."foundation")."0.0.28").revisions).default;
         "foundation".flags.linktest = false;
         "foundation".flags.bounds-check = false;
         "foundation".flags.bench-all = false;
@@ -221,8 +219,9 @@
         "blaze-builder".revision = (((hackage."blaze-builder")."0.4.2.2").revisions).default;
         "generic-deriving".revision = (((hackage."generic-deriving")."1.14.1").revisions).default;
         "generic-deriving".flags.base-4-9 = true;
-        "warp".revision = (((hackage."warp")."3.3.19").revisions).default;
+        "warp".revision = (((hackage."warp")."3.3.20").revisions).default;
         "warp".flags.network-bytestring = false;
+        "warp".flags.x509 = true;
         "warp".flags.allow-sendfilefd = true;
         "warp".flags.warp-debug = false;
         "x509-store".revision = (((hackage."x509-store")."1.6.9").revisions).default;

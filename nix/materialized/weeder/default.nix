@@ -16,7 +16,7 @@
         "parsers".flags.parsec = true;
         "parsers".flags.binary = true;
         "parsers".flags.attoparsec = true;
-        "unordered-containers".revision = (((hackage."unordered-containers")."0.2.16.0").revisions).default;
+        "unordered-containers".revision = (((hackage."unordered-containers")."0.2.17.0").revisions).default;
         "unordered-containers".flags.debug = false;
         "Diff".revision = (((hackage."Diff")."0.4.1").revisions).default;
         "integer-logarithms".revision = (((hackage."integer-logarithms")."1.0.3.1").revisions).default;
@@ -37,7 +37,7 @@
         "asn1-parse".revision = (((hackage."asn1-parse")."0.9.5").revisions).default;
         "parser-combinators".revision = (((hackage."parser-combinators")."1.3.0").revisions).default;
         "parser-combinators".flags.dev = false;
-        "cryptonite".revision = (((hackage."cryptonite")."0.29").revisions).default;
+        "cryptonite".revision = (((hackage."cryptonite")."0.30").revisions).default;
         "cryptonite".flags.check_alignment = false;
         "cryptonite".flags.support_sse = false;
         "cryptonite".flags.use_target_attributes = true;
@@ -95,9 +95,9 @@
         "tls".flags.network = true;
         "tls".flags.hans = false;
         "tls".flags.compat = true;
-        "text-manipulate".revision = (((hackage."text-manipulate")."0.3.0.0").revisions).default;
+        "text-manipulate".revision = (((hackage."text-manipulate")."0.3.1.0").revisions).default;
         "http-client-tls".revision = (((hackage."http-client-tls")."0.3.6.1").revisions).default;
-        "basement".revision = (((hackage."basement")."0.0.12").revisions).default;
+        "basement".revision = (((hackage."basement")."0.0.14").revisions).default;
         "generic-lens".revision = (((hackage."generic-lens")."2.0.0.0").revisions).default;
         "mtl".revision = (((hackage."mtl")."2.2.2").revisions).default;
         "OneTuple".revision = (((hackage."OneTuple")."0.3.1").revisions).default;

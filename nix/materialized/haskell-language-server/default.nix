@@ -34,7 +34,7 @@
         "parsers".flags.parsec = true;
         "parsers".flags.binary = true;
         "parsers".flags.attoparsec = true;
-        "unordered-containers".revision = (((hackage."unordered-containers")."0.2.16.0").revisions).default;
+        "unordered-containers".revision = (((hackage."unordered-containers")."0.2.17.0").revisions).default;
         "unordered-containers".flags.debug = false;
         "Diff".revision = (((hackage."Diff")."0.4.1").revisions).default;
         "integer-logarithms".revision = (((hackage."integer-logarithms")."1.0.3.1").revisions).default;
@@ -114,7 +114,7 @@
         "base-compat-batteries".revision = (((hackage."base-compat-batteries")."0.12.1").revisions).default;
         "safe".revision = (((hackage."safe")."0.3.19").revisions).default;
         "generic-lens-core".revision = (((hackage."generic-lens-core")."2.2.1.0").revisions).default;
-        "yaml".revision = (((hackage."yaml")."0.11.7.0").revisions).default;
+        "yaml".revision = (((hackage."yaml")."0.11.8.0").revisions).default;
         "yaml".flags.no-examples = true;
         "yaml".flags.no-exe = true;
         "sorted-list".revision = (((hackage."sorted-list")."0.2.1.0").revisions).default;
@@ -128,7 +128,7 @@
         "pretty-simple".flags.buildexample = false;
         "butcher".revision = (((hackage."butcher")."1.3.3.2").revisions).default;
         "assoc".revision = (((hackage."assoc")."1.0.2").revisions).default;
-        "ghc-trace-events".revision = (((hackage."ghc-trace-events")."0.1.2.4").revisions).default;
+        "ghc-trace-events".revision = (((hackage."ghc-trace-events")."0.1.2.5").revisions).default;
         "unliftio".revision = (((hackage."unliftio")."0.2.21.0").revisions).default;
         "hls-fourmolu-plugin".revision = (((hackage."hls-fourmolu-plugin")."1.0.1.2").revisions).default;
         "data-fix".revision = (((hackage."data-fix")."0.3.2").revisions).default;
@@ -196,7 +196,7 @@
         "libyaml".revision = (((hackage."libyaml")."0.1.2").revisions).default;
         "libyaml".flags.system-libyaml = false;
         "libyaml".flags.no-unicode = false;
-        "terminal-size".revision = (((hackage."terminal-size")."0.3.2.1").revisions).default;
+        "terminal-size".revision = (((hackage."terminal-size")."0.3.3").revisions).default;
         "hls-tactics-plugin".revision = (((hackage."hls-tactics-plugin")."1.5.0.1").revisions).default;
         "hls-tactics-plugin".flags.pedantic = false;
         "hls-ormolu-plugin".revision = (((hackage."hls-ormolu-plugin")."1.0.1.2").revisions).default;

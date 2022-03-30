@@ -7,7 +7,7 @@
         "happy".revision = (((hackage."happy")."1.20.0").revisions).default;
         "filepattern".revision = (((hackage."filepattern")."0.1.2").revisions).default;
         "pretty".revision = (((hackage."pretty")."1.1.3.6").revisions).default;
-        "unordered-containers".revision = (((hackage."unordered-containers")."0.2.16.0").revisions).default;
+        "unordered-containers".revision = (((hackage."unordered-containers")."0.2.17.0").revisions).default;
         "unordered-containers".flags.debug = false;
         "integer-logarithms".revision = (((hackage."integer-logarithms")."1.0.3.1").revisions).default;
         "integer-logarithms".flags.check-bounds = false;
@@ -29,7 +29,7 @@
         "extra".revision = (((hackage."extra")."1.7.9").revisions).default;
         "base-compat".revision = (((hackage."base-compat")."0.12.1").revisions).default;
         "base-compat-batteries".revision = (((hackage."base-compat-batteries")."0.12.1").revisions).default;
-        "yaml".revision = (((hackage."yaml")."0.11.7.0").revisions).default;
+        "yaml".revision = (((hackage."yaml")."0.11.8.0").revisions).default;
         "yaml".flags.no-examples = true;
         "yaml".flags.no-exe = true;
         "assoc".revision = (((hackage."assoc")."1.0.2").revisions).default;

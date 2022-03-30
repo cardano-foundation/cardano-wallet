@@ -3,6 +3,7 @@
     {
       packages = {
         "ini".revision = (((hackage."ini")."0.4.1").revisions).default;
+        "ghc-boot".revision = (((hackage."ghc-boot")."8.10.7").revisions).default;
         "tf-random".revision = (((hackage."tf-random")."0.5").revisions).default;
         "mmorph".revision = (((hackage."mmorph")."1.2.0").revisions).default;
         "http-conduit".revision = (((hackage."http-conduit")."2.3.8").revisions).default;
@@ -13,7 +14,7 @@
         "pretty".revision = (((hackage."pretty")."1.1.3.6").revisions).default;
         "amazonka".revision = (((hackage."amazonka")."1.6.1").revisions).default;
         "network-uri".revision = (((hackage."network-uri")."2.6.4.1").revisions).default;
-        "unordered-containers".revision = (((hackage."unordered-containers")."0.2.16.0").revisions).default;
+        "unordered-containers".revision = (((hackage."unordered-containers")."0.2.17.0").revisions).default;
         "unordered-containers".flags.debug = false;
         "integer-logarithms".revision = (((hackage."integer-logarithms")."1.0.3.1").revisions).default;
         "integer-logarithms".flags.check-bounds = false;
@@ -29,7 +30,7 @@
         "invariant".revision = (((hackage."invariant")."0.5.3").revisions).default;
         "parallel".revision = (((hackage."parallel")."3.2.2.0").revisions).default;
         "asn1-parse".revision = (((hackage."asn1-parse")."0.9.5").revisions).default;
-        "cryptonite".revision = (((hackage."cryptonite")."0.29").revisions).default;
+        "cryptonite".revision = (((hackage."cryptonite")."0.30").revisions).default;
         "cryptonite".flags.check_alignment = false;
         "cryptonite".flags.support_sse = false;
         "cryptonite".flags.use_target_attributes = true;
@@ -76,23 +77,27 @@
         "contravariant".flags.tagged = true;
         "contravariant".flags.semigroups = true;
         "contravariant".flags.statevar = true;
+        "ghc".revision = (((hackage."ghc")."8.10.7").revisions).default;
         "base-compat-batteries".revision = (((hackage."base-compat-batteries")."0.12.1").revisions).default;
         "generic-lens-core".revision = (((hackage."generic-lens-core")."2.0.0.0").revisions).default;
         "antiope-messages".revision = (((hackage."antiope-messages")."7.5.3").revisions).default;
         "Cabal".revision = (((hackage."Cabal")."3.2.1.0").revisions).default;
+        "mtl-compat".revision = (((hackage."mtl-compat")."0.2.2").revisions).default;
+        "mtl-compat".flags.two-point-two = false;
+        "mtl-compat".flags.two-point-one = false;
         "unliftio".revision = (((hackage."unliftio")."0.2.21.0").revisions).default;
         "tls".revision = (((hackage."tls")."1.5.7").revisions).default;
         "tls".flags.network = true;
         "tls".flags.hans = false;
         "tls".flags.compat = true;
         "quickcheck-io".revision = (((hackage."quickcheck-io")."0.2.0").revisions).default;
-        "retry".revision = (((hackage."retry")."0.9.1.0").revisions).default;
+        "retry".revision = (((hackage."retry")."0.9.2.0").revisions).default;
         "retry".flags.lib-werror = false;
         "stringsearch".revision = (((hackage."stringsearch")."0.3.6.6").revisions).default;
         "stringsearch".flags.base3 = false;
         "stringsearch".flags.base4 = true;
         "http-client-tls".revision = (((hackage."http-client-tls")."0.3.5.3").revisions).default;
-        "basement".revision = (((hackage."basement")."0.0.12").revisions).default;
+        "basement".revision = (((hackage."basement")."0.0.14").revisions).default;
         "generic-lens".revision = (((hackage."generic-lens")."2.0.0.0").revisions).default;
         "mtl".revision = (((hackage."mtl")."2.2.2").revisions).default;
         "OneTuple".revision = (((hackage."OneTuple")."0.3.1").revisions).default;
@@ -102,7 +107,7 @@
         "reflection".revision = (((hackage."reflection")."2.1.6").revisions).default;
         "reflection".flags.slow = false;
         "reflection".flags.template-haskell = true;
-        "hspec-discover".revision = (((hackage."hspec-discover")."2.7.10").revisions).default;
+        "hspec-discover".revision = (((hackage."hspec-discover")."2.9.4").revisions).default;
         "pem".revision = (((hackage."pem")."0.2.4").revisions).default;
         "lens-aeson".revision = (((hackage."lens-aeson")."1.1.3").revisions).default;
         "aeson".revision = (((hackage."aeson")."1.4.7.1").revisions).default;
@@ -125,13 +130,11 @@
         "tar".flags.old-bytestring = false;
         "tar".flags.old-time = false;
         "th-compat".revision = (((hackage."th-compat")."0.1.3").revisions).default;
-        "memory".revision = (((hackage."memory")."0.16.0").revisions).default;
-        "memory".flags.support_basement = true;
+        "memory".revision = (((hackage."memory")."0.17.0").revisions).default;
         "memory".flags.support_deepseq = true;
         "memory".flags.support_bytestring = true;
-        "memory".flags.support_foundation = true;
         "filepath".revision = (((hackage."filepath")."1.4.2.1").revisions).default;
-        "terminal-size".revision = (((hackage."terminal-size")."0.3.2.1").revisions).default;
+        "terminal-size".revision = (((hackage."terminal-size")."0.3.3").revisions).default;
         "topograph".revision = (((hackage."topograph")."1.0.0.1").revisions).default;
         "unliftio-core".revision = (((hackage."unliftio-core")."0.1.2.0").revisions).default;
         "stm".revision = (((hackage."stm")."2.5.0.1").revisions).default;
@@ -150,8 +153,10 @@
         "semigroups".flags.text = true;
         "semigroups".flags.hashable = true;
         "free".revision = (((hackage."free")."5.1.3").revisions).default;
+        "terminfo".revision = (((hackage."terminfo")."0.4.1.4").revisions).default;
         "connection".revision = (((hackage."connection")."0.3.1").revisions).default;
         "haskell-lexer".revision = (((hackage."haskell-lexer")."1.1").revisions).default;
+        "ghc-heap".revision = (((hackage."ghc-heap")."8.10.7").revisions).default;
         "resourcet".revision = (((hackage."resourcet")."1.2.4.3").revisions).default;
         "wl-pprint-annotated".revision = (((hackage."wl-pprint-annotated")."0.1.0.1").revisions).default;
         "case-insensitive".revision = (((hackage."case-insensitive")."1.2.1.0").revisions).default;
@@ -209,18 +214,19 @@
         "hsc2hs".flags.in-ghc-tree = false;
         "split".revision = (((hackage."split")."0.2.3.4").revisions).default;
         "base-orphans".revision = (((hackage."base-orphans")."0.8.6").revisions).default;
-        "hspec-core".revision = (((hackage."hspec-core")."2.7.10").revisions).default;
+        "hspec-core".revision = (((hackage."hspec-core")."2.9.4").revisions).default;
         "amazonka-core".revision = (((hackage."amazonka-core")."1.6.1").revisions).default;
         "amazonka-core".flags.old-locale = false;
         "time-compat".revision = (((hackage."time-compat")."1.9.6.1").revisions).default;
         "time-compat".flags.old-locale = false;
         "setenv".revision = (((hackage."setenv")."0.1.1.3").revisions).default;
         "typed-process".revision = (((hackage."typed-process")."0.2.8.0").revisions).default;
-        "hspec".revision = (((hackage."hspec")."2.7.10").revisions).default;
+        "hspec".revision = (((hackage."hspec")."2.9.4").revisions).default;
         "primitive".revision = (((hackage."primitive")."0.7.3.0").revisions).default;
         "directory".revision = (((hackage."directory")."1.3.6.0").revisions).default;
         "concurrent-output".revision = (((hackage."concurrent-output")."1.10.15").revisions).default;
         "exceptions".revision = (((hackage."exceptions")."0.10.4").revisions).default;
+        "hpc".revision = (((hackage."hpc")."0.6.1.0").revisions).default;
         "optparse-applicative".revision = (((hackage."optparse-applicative")."0.15.1.0").revisions).default;
         "constraints".revision = (((hackage."constraints")."0.13.3").revisions).default;
         "lifted-base".revision = (((hackage."lifted-base")."0.2.3.12").revisions).default;
@@ -232,6 +238,7 @@
         "transformers".revision = (((hackage."transformers")."0.5.6.2").revisions).default;
         "template-haskell".revision = (((hackage."template-haskell")."2.16.0.0").revisions).default;
         "blaze-markup".revision = (((hackage."blaze-markup")."0.8.2.8").revisions).default;
+        "ghci".revision = (((hackage."ghci")."8.10.7").revisions).default;
         "pretty-show".revision = (((hackage."pretty-show")."1.10").revisions).default;
         "mono-traversable".revision = (((hackage."mono-traversable")."1.0.15.3").revisions).default;
         "selective".revision = (((hackage."selective")."0.1.0").revisions).default;
@@ -245,7 +252,7 @@
         "hedgehog".revision = (((hackage."hedgehog")."1.0.5").revisions).default;
         "blaze-builder".revision = (((hackage."blaze-builder")."0.4.2.2").revisions).default;
         "x509-store".revision = (((hackage."x509-store")."1.6.9").revisions).default;
-        "hw-hedgehog".revision = (((hackage."hw-hedgehog")."0.1.1.0").revisions).default;
+        "hw-hedgehog".revision = (((hackage."hw-hedgehog")."0.1.1.1").revisions).default;
         "hashable".revision = (((hackage."hashable")."1.3.5.0").revisions).default;
         "hashable".flags.random-initial-seed = false;
         "hashable".flags.integer-gmp = true;
@@ -270,7 +277,7 @@
         "QuickCheck".flags.old-random = false;
         "QuickCheck".flags.templatehaskell = true;
         "uuid-types".revision = (((hackage."uuid-types")."1.0.5").revisions).default;
-        "hw-hspec-hedgehog".revision = (((hackage."hw-hspec-hedgehog")."0.1.1.0").revisions).default;
+        "hw-hspec-hedgehog".revision = (((hackage."hw-hspec-hedgehog")."0.1.1.1").revisions).default;
         "monad-loops".revision = (((hackage."monad-loops")."0.4.3").revisions).default;
         "monad-loops".flags.base4 = true;
         "containers".revision = (((hackage."containers")."0.6.5.1").revisions).default;
@@ -281,15 +288,19 @@
         version = "8.10.7";
         nix-name = "ghc8107";
         packages = {
+          "ghc-boot" = "8.10.7";
           "pretty" = "1.1.3.6";
           "text" = "1.2.4.1";
           "array" = "0.5.4.0";
+          "ghc" = "8.10.7";
           "Cabal" = "3.2.1.0";
           "mtl" = "2.2.2";
           "parsec" = "3.1.14.0";
           "bytestring" = "0.10.12.0";
           "filepath" = "1.4.2.1";
           "stm" = "2.5.0.1";
+          "terminfo" = "0.4.1.4";
+          "ghc-heap" = "8.10.7";
           "ghc-prim" = "0.6.1";
           "ghc-boot-th" = "8.10.7";
           "base" = "4.14.3.0";
@@ -297,9 +308,11 @@
           "process" = "1.6.13.2";
           "directory" = "1.3.6.0";
           "exceptions" = "0.10.4";
+          "hpc" = "0.6.1.0";
           "rts" = "1.0.1";
           "transformers" = "0.5.6.2";
           "template-haskell" = "2.16.0.0";
+          "ghci" = "8.10.7";
           "deepseq" = "1.4.4.0";
           "unix" = "2.7.2.2";
           "integer-gmp" = "1.0.3.0";
@@ -343,6 +356,7 @@
           "mono-traversable".components.library.planned = lib.mkOverride 900 true;
           "zlib".components.library.planned = lib.mkOverride 900 true;
           "comonad".components.library.planned = lib.mkOverride 900 true;
+          "mtl-compat".components.library.planned = lib.mkOverride 900 true;
           "unliftio".components.library.planned = lib.mkOverride 900 true;
           "lens".components.setup.planned = lib.mkOverride 900 true;
           "profunctors".components.library.planned = lib.mkOverride 900 true;
@@ -383,6 +397,7 @@
           "xml-types".components.library.planned = lib.mkOverride 900 true;
           "antiope-optparse-applicative".components.library.planned = lib.mkOverride 900 true;
           "case-insensitive".components.library.planned = lib.mkOverride 900 true;
+          "ghc".components.library.planned = lib.mkOverride 900 true;
           "monad-loops".components.library.planned = lib.mkOverride 900 true;
           "indexed-profunctors".components.library.planned = lib.mkOverride 900 true;
           "free".components.library.planned = lib.mkOverride 900 true;
@@ -412,6 +427,7 @@
           "template-haskell".components.library.planned = lib.mkOverride 900 true;
           "blaze-markup".components.library.planned = lib.mkOverride 900 true;
           "stm".components.library.planned = lib.mkOverride 900 true;
+          "ghci".components.library.planned = lib.mkOverride 900 true;
           "retry".components.library.planned = lib.mkOverride 900 true;
           "lens-aeson".components.library.planned = lib.mkOverride 900 true;
           "amazonka-s3".components.library.planned = lib.mkOverride 900 true;
@@ -420,6 +436,7 @@
           "selective".components.library.planned = lib.mkOverride 900 true;
           "http-client".components.library.planned = lib.mkOverride 900 true;
           "async".components.library.planned = lib.mkOverride 900 true;
+          "ghc-boot".components.library.planned = lib.mkOverride 900 true;
           "semigroupoids".components.setup.planned = lib.mkOverride 900 true;
           "http-conduit".components.library.planned = lib.mkOverride 900 true;
           "cabal-doctest".components.library.planned = lib.mkOverride 900 true;
@@ -427,6 +444,7 @@
           "cabal-cache".components.library.planned = lib.mkOverride 900 true;
           "th-compat".components.library.planned = lib.mkOverride 900 true;
           "tls".components.library.planned = lib.mkOverride 900 true;
+          "hpc".components.library.planned = lib.mkOverride 900 true;
           "http-types".components.library.planned = lib.mkOverride 900 true;
           "lens".components.library.planned = lib.mkOverride 900 true;
           "raw-strings-qq".components.library.planned = lib.mkOverride 900 true;
@@ -436,6 +454,7 @@
           "topograph".components.library.planned = lib.mkOverride 900 true;
           "semigroupoids".components.library.planned = lib.mkOverride 900 true;
           "x509-validation".components.library.planned = lib.mkOverride 900 true;
+          "ghc-heap".components.library.planned = lib.mkOverride 900 true;
           "ini".components.library.planned = lib.mkOverride 900 true;
           "attoparsec".components.library.planned = lib.mkOverride 900 true;
           "haskell-lexer".components.library.planned = lib.mkOverride 900 true;
@@ -483,6 +502,7 @@
           "cabal-cache".components.exes."cabal-cache".planned = lib.mkOverride 900 true;
           "semigroups".components.library.planned = lib.mkOverride 900 true;
           "conduit-extra".components.library.planned = lib.mkOverride 900 true;
+          "terminfo".components.library.planned = lib.mkOverride 900 true;
           "connection".components.library.planned = lib.mkOverride 900 true;
           "void".components.library.planned = lib.mkOverride 900 true;
           };
