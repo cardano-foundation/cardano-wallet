@@ -350,6 +350,8 @@ haskell-nix: haskell-nix.stackProject' [
 
           ({ lib, pkgs, ... }: {
             # Use our forked libsodium from iohk-nix crypto overlay.
+            packages.plutus-tx.components.library.pkgconfig = lib.mkForce [ [ pkgs.libsodium-vrf ] ];
+            packages.byron-spec-ledger.components.library.pkgconfig = lib.mkForce [ [ pkgs.libsodium-vrf ] ];
             packages.cardano-crypto-praos.components.library.pkgconfig = lib.mkForce [ [ pkgs.libsodium-vrf ] ];
             packages.cardano-crypto-class.components.library.pkgconfig = lib.mkForce [ [ pkgs.libsodium-vrf ] ];
           })
