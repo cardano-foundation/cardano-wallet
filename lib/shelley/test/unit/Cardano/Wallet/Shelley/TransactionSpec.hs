@@ -412,7 +412,7 @@ spec = do
             "signTransaction adds reward account witness when necessary"
             prop_signTransaction_addsRewardAccountKey
         spec_forAllEras
-            "signTransaction adds extra key witness when necessary"
+            "signTransaction adds extra key witnesses when necessary"
             prop_signTransaction_addsExtraKeyWitnesses
         spec_forAllEras
             "signTransaction adds tx in witnesses when necessary"
