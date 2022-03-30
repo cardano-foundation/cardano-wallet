@@ -323,6 +323,7 @@ import Test.QuickCheck
     , InfiniteList (..)
     , NonEmptyList (..)
     , Property
+    , Testable
     , arbitraryPrintableChar
     , checkCoverage
     , choose
@@ -407,20 +408,36 @@ spec = do
     balanceTransactionSpec
     estimateSignedTxSizeSpec
     describe "Sign transaction" $ do
-        forAllEras (\era -> it ("signTransaction adds reward account witness when necessary (" <> show era <> ")") $
-            property (prop_signTransaction_addsRewardAccountKey era))
-        forAllEras (\era -> it ("signTransaction adds extra key witness when necessary (" <> show era <> ")") $
-            property (prop_signTransaction_addsExtraKeyWitnesses era))
-        forAllEras (\era -> it ("signTransaction adds tx in witnesses when necessary (" <> show era <> ")") $
-            property (prop_signTransaction_addsTxInWitnesses era))
-        forAllEras (\era -> it ("signTransaction adds collateral witnesses when necessary (" <> show era <> ")") $
-            property (prop_signTransaction_addsTxInCollateralWitnesses era))
-        forAllEras (\era -> it ("signTransaction never removes witnesses (" <> show era <> ")") $
-            property (prop_signTransaction_neverRemovesWitnesses era))
-        forAllEras (\era -> it ("signTransaction never changes tx body (" <> show era <> ")") $
-            property (prop_signTransaction_neverChangesTxBody era))
-        forAllEras (\era -> it ("signTransaction preserves script integrity (" <> show era <> ")") $
-            property (prop_signTransaction_preservesScriptIntegrity era))
+        spec_forAllEras
+            "signTransaction adds reward account witness when necessary"
+            prop_signTransaction_addsRewardAccountKey
+        spec_forAllEras
+            "signTransaction adds extra key witness when necessary"
+            prop_signTransaction_addsExtraKeyWitnesses
+        spec_forAllEras
+            "signTransaction adds tx in witnesses when necessary"
+            prop_signTransaction_addsTxInWitnesses
+        spec_forAllEras
+            "signTransaction adds collateral witnesses when necessary"
+            prop_signTransaction_addsTxInCollateralWitnesses
+        spec_forAllEras
+            "signTransaction never removes witnesses"
+            prop_signTransaction_neverRemovesWitnesses
+        spec_forAllEras
+            "signTransaction never changes tx body"
+            prop_signTransaction_neverChangesTxBody
+        spec_forAllEras
+            "signTransaction preserves script integrity"
+            prop_signTransaction_preservesScriptIntegrity
+
+spec_forAllEras
+    :: Testable prop => String -> (AnyCardanoEra -> prop) -> Spec
+spec_forAllEras description p =
+    describe description $
+    forAllEras
+        $ \(AnyCardanoEra era) -> it (show era)
+        $ property
+        $ p (AnyCardanoEra era)
 
 instance Arbitrary SealedTx where
     arbitrary = sealedTxFromCardano <$> genTx
