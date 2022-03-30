@@ -27,7 +27,7 @@ In the second case, please refer to the [[hierarchical-deterministic-wallets]] s
 
 ## Is there a reason why I would have to build from src?
 
-If you intend to contribute to Cardano by making code changes to one of the core components, then yes. We recommend using [stack](https://docs.haskellstack.org/en/stable/README/) for a better developer experience.
+If you intend to contribute to Cardano by making code changes to one of the core components, then yes. We recommend using [cabal](https://www.haskell.org/cabal/) for a better developer experience.
 
 If you only intend to use the services as-is then, using either the pre-compiled release artifacts for your appropriate platform or a pre-packaged docker image is preferable.
 
