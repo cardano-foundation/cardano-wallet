@@ -227,7 +227,6 @@ import qualified Data.Text.Encoding as T
 import qualified Network.HTTP.Types.Status as HTTP
 import qualified Test.Integration.Plutus as PlutusScenario
 
-
 spec :: forall n.
     ( DecodeAddress n
     , DecodeStakeAddress n
@@ -2676,7 +2675,6 @@ spec = describe "NEW_SHELLEY_TRANSACTIONS" $ do
                     }
                 }]
             }|]
-
 
         -- send transaction
         rTx <- request @(ApiConstructTransaction n) ctx
