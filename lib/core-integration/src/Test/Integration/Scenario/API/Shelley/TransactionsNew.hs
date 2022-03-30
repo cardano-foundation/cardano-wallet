@@ -3271,18 +3271,18 @@ spec = describe "NEW_SHELLEY_TRANSACTIONS" $ do
                 "mint_burn": [{
                     "policy_script_template":
                         { "all":
-                           [ "cosigner#0"
-                           ]
+                            [ "cosigner#0"
+                            ]
                         },
                     "asset_name": #{toText tokenName'},
                     "operation":
                         { "mint" :
-                              { "receiving_address": #{destination},
-                                 "amount": {
-                                     "quantity": 50000,
-                                     "unit": "assets"
-                                  }
-                              }
+                            { "receiving_address": #{destination},
+                                "amount": {
+                                    "quantity": 50000,
+                                    "unit": "assets"
+                                }
+                            }
                         }
                 }]
             }|]
@@ -3297,15 +3297,15 @@ spec = describe "NEW_SHELLEY_TRANSACTIONS" $ do
                 "mint_burn": [{
                     "policy_script_template":
                         { "all":
-                           [ "cosigner#0"
-                           ]
+                            [ "cosigner#0"
+                            ]
                         },
                     "asset_name": #{toText tokenName'},
                     "operation":
                         { "burn" :
-                              { "quantity": 50000,
-                                "unit": "assets"
-                              }
+                            { "quantity": 50000
+                            , "unit": "assets"
+                            }
                         }
                 }]
             }|]
@@ -3846,7 +3846,7 @@ spec = describe "NEW_SHELLEY_TRANSACTIONS" $ do
             verify rWa
                 [ expectSuccess
                 , expectField (#assets . #available . #getApiT)
-                        (`shouldBe` TokenMap.empty)
+                    (`shouldBe` TokenMap.empty)
                 , expectField (#assets . #total . #getApiT)
-                        (`shouldBe` TokenMap.empty)
+                    (`shouldBe` TokenMap.empty)
                 ]

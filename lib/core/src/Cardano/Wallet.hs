@@ -2327,11 +2327,12 @@ signTransaction tl era keyLookup (rootKey, rootPwd) utxo =
 
         policyKey :: (KeyHash, XPrv, Passphrase "encryption")
         policyKey =
-            let xprv =
-                    derivePolicyPrivateKey rootPwd (getRawKey rootKey) minBound
-            in (  hashVerificationKey @k CA.Policy $ liftRawKey $ toXPub xprv
-                , xprv
-                , rootPwd)
+            ( hashVerificationKey @k CA.Policy $ liftRawKey $ toXPub xprv
+            , xprv
+            , rootPwd
+            )
+          where
+            xprv = derivePolicyPrivateKey rootPwd (getRawKey rootKey) minBound
 
         inputResolver :: TxIn -> Maybe Address
         inputResolver i = do
