@@ -3265,8 +3265,9 @@ writePolicyPublicKey ctx wid pwd = db & \DBLayer{..} -> do
 
     let (SeqPrologue seqState) = getPrologue $ getState cp
 
-    policyXPub <- withRootKey @ctx @s @ShelleyKey ctx wid pwd ErrWritePolicyPublicKeyWithRootKey
-        $ \rootK scheme -> do
+    policyXPub <- withRootKey
+        @ctx @s @ShelleyKey ctx wid pwd ErrWritePolicyPublicKeyWithRootKey $
+        \rootK scheme -> do
             let encPwd = preparePassphrase scheme pwd
             let xprv = derivePolicyPrivateKey encPwd (getRawKey rootK) minBound
             pure $ liftRawKey $ toXPub xprv

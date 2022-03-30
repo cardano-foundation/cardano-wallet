@@ -426,8 +426,14 @@ signTransaction
     -> (Cardano.TxBody era, [Cardano.KeyWitness era])
     -- ^ The transaction to sign, possibly with already some existing witnesses
     -> Cardano.Tx era
-signTransaction networkId resolveRewardAcct resolvePolicyKey resolveAddress resolveInput (body, wits) =
-    Cardano.makeSignedTransaction wits' body
+signTransaction
+    networkId
+    resolveRewardAcct
+    resolvePolicyKey
+    resolveAddress
+    resolveInput
+    (body, wits) =
+        Cardano.makeSignedTransaction wits' body
  where
     wits' = mconcat
         [ wits
@@ -534,34 +540,38 @@ newTransactionLayer networkId = TransactionLayer
                     mkTx networkId payload ttl stakeCreds keystore wdrl
                         selection delta
 
-    , addVkWitnesses = \_era stakeCreds policyCreds addressResolver inputResolver sealedTx -> do
-        let acctResolver :: RewardAccount -> Maybe (XPrv, Passphrase "encryption")
-            acctResolver acct = do
-                let acct' = toRewardAccountRaw $ toXPub $ fst stakeCreds
-                guard (acct == acct') $> stakeCreds
-        let policyResolver :: KeyHash -> Maybe (XPrv, Passphrase "encryption")
-            policyResolver keyhash = do
-                let (keyhash', xprv, encP) = policyCreds
-                guard (keyhash == keyhash') $> (xprv, encP)
-        case cardanoTx sealedTx of
-            InAnyCardanoEra ByronEra _ ->
-                sealedTx
-            InAnyCardanoEra ShelleyEra (Cardano.Tx body wits) ->
-                signTransaction networkId acctResolver (const Nothing)
-                addressResolver inputResolver (body, wits)
-                & sealedTxFromCardano'
-            InAnyCardanoEra AllegraEra (Cardano.Tx body wits) ->
-                signTransaction networkId acctResolver (const Nothing)
-                addressResolver inputResolver (body, wits)
-                & sealedTxFromCardano'
-            InAnyCardanoEra MaryEra (Cardano.Tx body wits) ->
-                signTransaction networkId acctResolver policyResolver
-                addressResolver inputResolver (body, wits)
-                & sealedTxFromCardano'
-            InAnyCardanoEra AlonzoEra (Cardano.Tx body wits) ->
-                signTransaction networkId acctResolver policyResolver
-                addressResolver inputResolver (body, wits)
-                & sealedTxFromCardano'
+    , addVkWitnesses =
+        \_era stakeCreds policyCreds addressResolver inputResolver sealedTx ->
+        do
+            let acctResolver
+                    :: RewardAccount -> Maybe (XPrv, Passphrase "encryption")
+                acctResolver acct = do
+                    let acct' = toRewardAccountRaw $ toXPub $ fst stakeCreds
+                    guard (acct == acct') $> stakeCreds
+            let policyResolver
+                    :: KeyHash -> Maybe (XPrv, Passphrase "encryption")
+                policyResolver keyhash = do
+                    let (keyhash', xprv, encP) = policyCreds
+                    guard (keyhash == keyhash') $> (xprv, encP)
+            case cardanoTx sealedTx of
+                InAnyCardanoEra ByronEra _ ->
+                    sealedTx
+                InAnyCardanoEra ShelleyEra (Cardano.Tx body wits) ->
+                    signTransaction networkId acctResolver (const Nothing)
+                    addressResolver inputResolver (body, wits)
+                    & sealedTxFromCardano'
+                InAnyCardanoEra AllegraEra (Cardano.Tx body wits) ->
+                    signTransaction networkId acctResolver (const Nothing)
+                    addressResolver inputResolver (body, wits)
+                    & sealedTxFromCardano'
+                InAnyCardanoEra MaryEra (Cardano.Tx body wits) ->
+                    signTransaction networkId acctResolver policyResolver
+                    addressResolver inputResolver (body, wits)
+                    & sealedTxFromCardano'
+                InAnyCardanoEra AlonzoEra (Cardano.Tx body wits) ->
+                    signTransaction networkId acctResolver policyResolver
+                    addressResolver inputResolver (body, wits)
+                    & sealedTxFromCardano'
 
     , mkUnsignedTransaction = \era stakeXPub _pp ctx selection -> do
         let ttl   = txTimeToLive ctx

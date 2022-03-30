@@ -1333,7 +1333,8 @@ spec = describe "NEW_SHELLEY_TRANSACTIONS" $ do
         let apiTokenAsset = ApiTokenAsset
                 { assetName = ApiT tokenName'
                 , amount = Quantity 50_000
-                , fingerprint = ApiT $ mkTokenFingerprint tokenPolicyId' tokenName'
+                , fingerprint =
+                    ApiT $ mkTokenFingerprint tokenPolicyId' tokenName'
                 }
         let apiTokens = ApiTokens
                 { policyId = ApiT tokenPolicyId'
@@ -1344,7 +1345,8 @@ spec = describe "NEW_SHELLEY_TRANSACTIONS" $ do
         let activeAssetsInfo = ApiAssetMintBurn
                 { tokens = [apiTokens]
                 , walletPolicyKeyHash = Just policyKeyHashPayload
-                , walletPolicyKeyIndex = Just $ ApiT (DerivationIndex 2147483648)
+                , walletPolicyKeyIndex =
+                    Just $ ApiT (DerivationIndex 2147483648)
                 }
         let inactiveAssetsInfo = ApiAssetMintBurn
                 { tokens = []
@@ -2341,7 +2343,8 @@ spec = describe "NEW_SHELLEY_TRANSACTIONS" $ do
         let delegatingCert2 =
                 WalletDelegationCertificate $ JoinPool stakeKeyDerPath pool2
 
-        let txCbor2 = getFromResponse #transaction (HTTP.status202, Right signedTx2)
+        let txCbor2 =
+                getFromResponse #transaction (HTTP.status202, Right signedTx2)
         let decodePayload2 = Json (toJSON $ ApiSerialisedTransaction txCbor2)
         rDecodedTx2 <- request @(ApiDecodedTransaction n) ctx
             (Link.decodeTransaction @'Shelley src) Default decodePayload2
@@ -3702,7 +3705,8 @@ spec = describe "NEW_SHELLEY_TRANSACTIONS" $ do
         let apiTokenAsset = ApiTokenAsset
                 { assetName = ApiT tokenName'
                 , amount = Quantity 50_000
-                , fingerprint = ApiT $ mkTokenFingerprint tokenPolicyId' tokenName'
+                , fingerprint =
+                    ApiT $ mkTokenFingerprint tokenPolicyId' tokenName'
                 }
         let apiTokens = ApiTokens
                 { policyId = ApiT tokenPolicyId'
@@ -3713,7 +3717,8 @@ spec = describe "NEW_SHELLEY_TRANSACTIONS" $ do
         let activeAssetsInfo = ApiAssetMintBurn
                 { tokens = [apiTokens]
                 , walletPolicyKeyHash = Just policyKeyHashPayload
-                , walletPolicyKeyIndex = Just $ ApiT (DerivationIndex 2147483648)
+                , walletPolicyKeyIndex =
+                    Just $ ApiT (DerivationIndex 2147483648)
                 }
         let inactiveAssetsInfo = ApiAssetMintBurn
                 { tokens = []
@@ -3731,7 +3736,8 @@ spec = describe "NEW_SHELLEY_TRANSACTIONS" $ do
 
         let apiTx = getFromResponse #transaction rTx
         signedTx <- signTx ctx wa apiTx [ expectResponseCode HTTP.status202 ]
-        let txCbor2 = getFromResponse #transaction (HTTP.status202, Right signedTx)
+        let txCbor2 =
+                getFromResponse #transaction (HTTP.status202, Right signedTx)
         let decodePayload2 = Json (toJSON $ ApiSerialisedTransaction txCbor2)
         rDecodedTx2 <- request @(ApiDecodedTransaction n) ctx
             (Link.decodeTransaction @'Shelley wa) Default decodePayload2
@@ -3749,7 +3755,8 @@ spec = describe "NEW_SHELLEY_TRANSACTIONS" $ do
 
         let initialBalance = wa ^. #balance . #available . #getQuantity
         let expectedFee = getFromResponse (#fee . #getQuantity) rTx
-        eventually "Wallet balance is decreased by fee and holds minted assets" $ do
+        eventually
+            "Wallet balance is decreased by fee and holds minted assets" $ do
             rWa <- request @ApiWallet ctx
                 (Link.getWallet @'Shelley wa) Default Empty
             verify rWa
@@ -3787,7 +3794,8 @@ spec = describe "NEW_SHELLEY_TRANSACTIONS" $ do
         let apiTokenAsset = ApiTokenAsset
                 { assetName = ApiT tokenName'
                 , amount = Quantity 50_000
-                , fingerprint = ApiT $ mkTokenFingerprint tokenPolicyId' tokenName'
+                , fingerprint =
+                    ApiT $ mkTokenFingerprint tokenPolicyId' tokenName'
                 }
         let apiTokens = ApiTokens
                 { policyId = ApiT tokenPolicyId'
@@ -3803,7 +3811,8 @@ spec = describe "NEW_SHELLEY_TRANSACTIONS" $ do
         let inactiveAssetsInfo = ApiAssetMintBurn
                 { tokens = [apiTokens]
                 , walletPolicyKeyHash = Just policyKeyHashPayload
-                , walletPolicyKeyIndex = Just $ ApiT (DerivationIndex 2147483648)
+                , walletPolicyKeyIndex =
+                    Just $ ApiT (DerivationIndex 2147483648)
                 }
 
         rDecodedTx <- request @(ApiDecodedTransaction n) ctx
@@ -3816,7 +3825,8 @@ spec = describe "NEW_SHELLEY_TRANSACTIONS" $ do
 
         let apiTx = getFromResponse #transaction rTx
         signedTx <- signTx ctx wa apiTx [ expectResponseCode HTTP.status202 ]
-        let txCbor2 = getFromResponse #transaction (HTTP.status202, Right signedTx)
+        let txCbor2 =
+                getFromResponse #transaction (HTTP.status202, Right signedTx)
         let decodePayload2 = Json (toJSON $ ApiSerialisedTransaction txCbor2)
         rDecodedTx2 <- request @(ApiDecodedTransaction n) ctx
             (Link.decodeTransaction @'Shelley wa) Default decodePayload2
