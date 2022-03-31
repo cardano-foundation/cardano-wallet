@@ -248,6 +248,7 @@
             "Cardano/Wallet/Shelley/LaunchSpec"
             "Cardano/Wallet/Shelley/Launch/BlockfrostSpec"
             "Cardano/Wallet/Shelley/NetworkSpec"
+            "Cardano/Wallet/Shelley/Network/BlockfrostSpec"
             "Cardano/Wallet/Shelley/TransactionSpec"
             "Spec"
             ];
