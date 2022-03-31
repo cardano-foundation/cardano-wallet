@@ -4,6 +4,7 @@
 {-# LANGUAGE DuplicateRecordFields #-}
 {-# LANGUAGE FlexibleContexts #-}
 {-# LANGUAGE FlexibleInstances #-}
+{-# LANGUAGE GeneralizedNewtypeDeriving #-}
 {-# LANGUAGE LambdaCase #-}
 {-# LANGUAGE NamedFieldPuns #-}
 {-# LANGUAGE NoMonomorphismRestriction #-}
@@ -1946,8 +1947,7 @@ instance Arbitrary (Quantity "percent" Double) where
     shrink _ = [Quantity 0.0]
     arbitrary = Quantity <$> choose (0,100)
 
-instance Arbitrary ApiPostPolicyKeyData where
-    arbitrary = ApiPostPolicyKeyData <$> arbitrary
+deriving instance Arbitrary ApiPostPolicyKeyData
 
 instance Arbitrary ApiPolicyKey where
     arbitrary = do
