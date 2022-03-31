@@ -2351,22 +2351,26 @@ prop_balanceTransactionUnresolvedInputs
     -> ShowBuildable PartialTx
     -> StdGenSeed
     -> Property
-prop_balanceTransactionUnresolvedInputs wallet (ShowBuildable partialTx')
-    seed = checkCoverage $ withMaxSuccess 400 $
-        forAll (dropResolvedInputs partialTx') $ \(partialTx, dropped) -> do
-        not (null dropped) ==> do
+prop_balanceTransactionUnresolvedInputs wallet (ShowBuildable partialTx') seed =
+    checkCoverage
+        $ forAll (dropResolvedInputs partialTx') $ \(partialTx, dropped) -> do
             let res = balanceTransaction' wallet seed partialTx
             cover 1 (isUnresolvedTxInsErr res) "unknown txins" $
                 case res of
                     Right _
-                        -> label "success" $ property True
-                           -- Balancing can succeed if the dropped inputs happen
-                           -- to be apart of the wallet UTxO.
+                        | null dropped
+                            -> label "nothing dropped"
+                                $ property True
+                        | otherwise
+                            -> label "succeeded despite unresolved input"
+                                $ property True
+                            -- Balancing can succeed if the dropped inputs happen
+                            -- to be apart of the wallet UTxO.
                     Left (ErrBalanceTxAssignRedeemers
                         (ErrAssignRedeemersUnresolvedTxIns _))
                         -> property True
                     Left _
-                        -> property True
+                        -> label "other error" $ property True
   where
     isUnresolvedTxInsErr
         (Left (ErrBalanceTxAssignRedeemers
