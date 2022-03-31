@@ -3220,7 +3220,7 @@ spec = describe "NEW_SHELLEY_TRANSACTIONS" $ do
                 [ RequireSignatureOf policyKeyHash
                 ]
 
-        mintAssetCheck ctx wa tokenName' payload scriptUsed
+        mintAssetsCheck ctx wa tokenName' payload scriptUsed
 
     it "TRANS_NEW_CREATE_10e - Minting assets with timelocks" $
         \ctx -> runResourceT $ do
@@ -3258,7 +3258,7 @@ spec = describe "NEW_SHELLEY_TRANSACTIONS" $ do
                 , ActiveFromSlot 120
                 ]
 
-        mintAssetCheck ctx wa tokenName' payload scriptUsed
+        mintAssetsCheck ctx wa tokenName' payload scriptUsed
 
     it "TRANS_NEW_CREATE_10f - Burning assets without timelock" $
         \ctx -> runResourceT $ do
@@ -3292,7 +3292,7 @@ spec = describe "NEW_SHELLEY_TRANSACTIONS" $ do
                 [ RequireSignatureOf policyKeyHash
                 ]
 
-        mintAssetCheck ctx wa tokenName' payloadMint scriptUsed
+        mintAssetsCheck ctx wa tokenName' payloadMint scriptUsed
 
         let payloadBurn = Json [json|{
                 "mint_burn": [{
@@ -3665,7 +3665,7 @@ spec = describe "NEW_SHELLEY_TRANSACTIONS" $ do
 
         in toCborHexTx txBody
 
-    mintAssetCheck
+    mintAssetsCheck
         :: MonadUnliftIO m
         => Context
         -> ApiWallet
@@ -3673,7 +3673,7 @@ spec = describe "NEW_SHELLEY_TRANSACTIONS" $ do
         -> Payload
         -> (KeyHash -> Script KeyHash)
         -> m ()
-    mintAssetCheck ctx wa tokenName' payload scriptUsedF = do
+    mintAssetsCheck ctx wa tokenName' payload scriptUsedF = do
 
         rTx <- request @(ApiConstructTransaction n) ctx
             (Link.createUnsignedTransaction @'Shelley wa) Default payload
