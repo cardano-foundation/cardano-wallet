@@ -192,19 +192,6 @@ task :start_node_and_wallet, [:env] do |task, args|
   end
 end
 
-task :display_versions do
-  puts "\n  >> cardano-node and cardano-wallet versions:"
-
-  bin_dir = BINS == '' ? BINS : "#{BINS}/"
-  if is_win?
-    cmd "#{bin_dir}cardano-wallet.exe version", true
-    cmd "#{bin_dir}cardano-node.exe version", true
-  else
-    cmd "#{bin_dir}cardano-wallet version", true
-    cmd "#{bin_dir}cardano-node version", true
-  end
-end
-
 task :stop_node_and_wallet, [:env] do |task, args|
   puts "\n  >> Stopping cardano-node and cardano-wallet"
 
@@ -219,6 +206,66 @@ task :stop_node_and_wallet, [:env] do |task, args|
     cmd "screen -XS NODE_#{args[:env]} quit"
   end
 
+end
+
+task :start_wallet_lite, [:env] do |task, args|
+  puts "\n  >> Setting up cardano-wallet-lite"
+
+  bin_dir = BINS == '' ? BINS : "#{BINS}/"
+  config_dir = File.join(CONFIGS, args[:env])
+  log_dir = File.join(LOGS, args[:env])
+  wallet_db_dir = File.join(WALLET_DB, args[:env])
+  cd = Dir.pwd
+  mk_dir(STATE)
+  mk_dir(log_dir)
+
+  if is_win?
+    # create cardano-wallet.bat file
+    wallet_cmd = "#{bin_dir}cardano-wallet.exe serve --port #{WALLET_PORT} --light --blockfrost-token-file #{BLOCKFROST_FILE} --testnet #{config_dir}/genesis-byron.json --database #{wallet_db_dir} --token-metadata-server #{TOKEN_METADATA}"
+    File.open("cardano-wallet.bat", "w") do |f|
+      f.write(wallet_cmd)
+    end
+
+    install_wallet = "nssm install cardano-wallet-lite #{cd}/cardano-wallet.bat"
+    log_stdout_wallet = "nssm set cardano-wallet-lite AppStdout #{log_dir}/wallet.log"
+    log_stderr_wallet = "nssm set cardano-wallet-lite AppStderr #{log_dir}/wallet.log"
+    start_wallet = "nssm start cardano-wallet-lite"
+
+    cmd install_wallet
+    cmd log_stdout_wallet
+    cmd log_stderr_wallet
+    cmd start_wallet
+  else
+    start_wallet = "#{bin_dir}cardano-wallet serve --port #{WALLET_PORT} --light --blockfrost-token-file #{BLOCKFROST_FILE} --testnet #{config_dir}/genesis-byron.json --database #{wallet_db_dir} --token-metadata-server #{TOKEN_METADATA}"
+
+    cmd "screen -dmS WALLET_#{args[:env]}_lite -L -Logfile #{log_dir}/wallet.log #{start_wallet}"
+    cmd "screen -ls", true
+  end
+end
+
+task :stop_wallet_lite, [:env] do |task, args|
+  puts "\n  >> Stopping cardano-wallet-lite"
+
+  if is_win?
+    cmd "nssm stop cardano-wallet-lite"
+    cmd "nssm remove cardano-wallet-lite confirm"
+  else
+    cmd "screen -XS WALLET_#{args[:env]}_lite quit"
+  end
+
+end
+
+task :display_versions do
+  puts "\n  >> cardano-node and cardano-wallet versions:"
+
+  bin_dir = BINS == '' ? BINS : "#{BINS}/"
+  if is_win?
+    cmd "#{bin_dir}cardano-wallet.exe version", true
+    cmd "#{bin_dir}cardano-node.exe version", true
+  else
+    cmd "#{bin_dir}cardano-wallet version", true
+    cmd "#{bin_dir}cardano-node version", true
+  end
 end
 
 task :get_latest_bins, [:pr] do |task, args|
