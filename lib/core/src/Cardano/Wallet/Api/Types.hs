@@ -96,8 +96,6 @@ module Cardano.Wallet.Api.Types
     , PostTransactionFeeOldData (..)
     , ApiSerialisedTransaction (..)
     , ApiTransaction (..)
-    , ApiMintBurnTransaction (..)
-    , ApiMintBurnInfo (..)
     , ApiWithdrawalPostData (..)
     , ApiMaintenanceAction (..)
     , ApiMaintenanceActionPostData (..)
@@ -142,6 +140,7 @@ module Cardano.Wallet.Api.Types
     , ApiWalletSignData (..)
     , ApiVerificationKeyShelley (..)
     , ApiPolicyKey (..)
+    , ApiPostPolicyKeyData (..)
     , ApiVerificationKeyShared (..)
     , ApiScriptTemplateEntry (..)
     , XPubOrSelf (..)
@@ -158,7 +157,6 @@ module Cardano.Wallet.Api.Types
     , ApiPaymentDestination (..)
     , ApiValidityInterval (..)
     , ApiValidityBound (..)
-    , PostMintBurnAssetData(..)
     , ApiBalanceTransactionPostData (..)
     , ApiExternalInput (..)
     , ApiRedeemer (..)
@@ -174,7 +172,8 @@ module Cardano.Wallet.Api.Types
     , ApiRegisterPool (..)
     , ApiDeregisterPool (..)
     , ApiAssetMintBurn (..)
-    , ApiPolicyScript (..)
+    , ApiTokenAmountFingerprint (..)
+    , ApiTokens (..)
 
     -- * API Types (Byron)
     , ApiByronWallet (..)
@@ -225,10 +224,8 @@ module Cardano.Wallet.Api.Types
     , ApiConstructTransactionDataT
     , PostTransactionOldDataT
     , PostTransactionFeeOldDataT
-    , ApiMintBurnTransactionT
     , ApiWalletMigrationPlanPostDataT
     , ApiWalletMigrationPostDataT
-    , PostMintBurnAssetDataT
     , ApiBalanceTransactionPostDataT
     , ApiDecodedTransactionT
 
@@ -920,7 +917,6 @@ data ByronWalletPutPassphraseData = ByronWalletPutPassphraseData
 data ApiConstructTransaction (n :: NetworkDiscriminant) = ApiConstructTransaction
     { transaction :: !(ApiT SealedTx)
     , coinSelection :: !(ApiCoinSelection n)
-    , mintBurn :: !(Maybe (NonEmpty (ApiT ApiMintBurnInfo)))
     , fee :: !(Quantity "lovelace" Natural)
     } deriving (Eq, Generic, Show, Typeable)
       deriving anyclass NFData
@@ -1223,17 +1219,32 @@ data ApiAnyCertificate n =
     deriving (Eq, Generic, Show)
     deriving anyclass NFData
 
-data ApiPolicyScript = ApiPolicyScript
+newtype ApiPostPolicyKeyData = ApiPostPolicyKeyData
+    { passphrase :: ApiT (Passphrase "raw")
+    }
+    deriving (Eq, Generic, Show)
+    deriving anyclass NFData
+
+data ApiTokenAmountFingerprint = ApiTokenAmountFingerprint
+    { assetName :: !(ApiT W.TokenName)
+    , amount :: !(Quantity "assets" Natural)
+    , fingerprint :: !(ApiT W.TokenFingerprint)
+    }
+    deriving (Eq, Generic, Show)
+    deriving anyclass NFData
+
+data ApiTokens = ApiTokens
     { policyId :: !(ApiT W.TokenPolicyId)
     , policyScript :: !(ApiT (Script KeyHash))
+    , assets :: !(NonEmpty ApiTokenAmountFingerprint)
     }
     deriving (Eq, Generic, Show)
     deriving anyclass NFData
 
 data ApiAssetMintBurn = ApiAssetMintBurn
-    { tokenMap :: !(ApiT W.TokenMap)
-    , policyScripts :: ![ApiPolicyScript]
+    { tokens :: ![ApiTokens]
     , walletPolicyKeyHash :: !(Maybe ApiPolicyKey)
+    , walletPolicyKeyIndex :: !(Maybe (ApiT DerivationIndex))
     }
     deriving (Eq, Generic, Show)
     deriving anyclass NFData
@@ -1245,8 +1256,8 @@ data ApiDecodedTransaction (n :: NetworkDiscriminant) = ApiDecodedTransaction
     , outputs :: ![ApiTxOutputGeneral n]
     , collateral :: ![ApiTxInputGeneral n]
     , withdrawals :: ![ApiWithdrawalGeneral n]
-    , assetsMinted :: !ApiAssetMintBurn
-    , assetsBurned :: !ApiAssetMintBurn
+    , mint :: !ApiAssetMintBurn
+    , burn :: !ApiAssetMintBurn
     , certificates :: ![ApiAnyCertificate n]
     , depositsTaken :: ![Quantity "lovelace" Natural]
     , depositsReturned :: ![Quantity "lovelace" Natural]
@@ -1254,40 +1265,6 @@ data ApiDecodedTransaction (n :: NetworkDiscriminant) = ApiDecodedTransaction
     , scriptValidity :: !(Maybe (ApiT TxScriptValidity))
     } deriving (Eq, Generic, Show, Typeable)
       deriving anyclass NFData
-
--- | The response cardano-wallet returns upon successful submission of a
--- mint/burn transaction.
-data ApiMintBurnTransaction (n :: NetworkDiscriminant) =
-    ApiMintBurnTransaction
-    { transaction :: !(ApiTransaction n)
-    -- ^ Information about the mint/burn transaction itself.
-    , mintBurn :: !(NonEmpty (ApiT ApiMintBurnInfo))
-    -- ^ Helpful information about each unique asset minted or burned (where the
-    -- identity is the policyId + asset name of the asset).
-    }
-    deriving (Eq, Generic, Show, Typeable)
-    deriving anyclass NFData
-
-data ApiMintBurnInfo = ApiMintBurnInfo
-    { verificationKeyIndex
-        :: !(ApiT DerivationIndex)
-        -- ^ The monetary policy index the asset was minted/burned under.
-    , policyId
-        :: !(ApiT W.TokenPolicyId)
-        -- ^ The policy ID the asset was minted/burned under.
-    , assetName
-        :: !(ApiT W.TokenName)
-        -- ^ The name of the asset minted/burned.
-    , subject
-        :: !(ApiT W.TokenFingerprint)
-        -- ^ The subject of the asset minted/burned. This is useful to users
-        -- wishing to attach metadata to their asset.
-    , policyScript
-        :: !(ApiT (Script KeyHash))
-        -- ^ The script which this asset was minted and/or burned under
-    }
-    deriving (Eq, Generic, Show)
-    deriving anyclass NFData
 
 newtype ApiTxMetadata = ApiTxMetadata
     { getApiTxMetadata :: Maybe (ApiT TxMetadata)
@@ -1704,6 +1681,7 @@ data ApiErrorCode
     | ForeignTransaction
     | MissingWitnessesInTransaction
     | CreatedWrongPolicyScriptTemplate
+    | MissingPolicyPublicKey
     deriving (Eq, Generic, Show, Data, Typeable)
     deriving anyclass NFData
 
@@ -2113,9 +2091,19 @@ instance FromJSON ApiAssetMintBurn where
 instance ToJSON ApiAssetMintBurn where
     toJSON = genericToJSON defaultRecordTypeOptions
 
-instance FromJSON ApiPolicyScript where
+instance FromJSON ApiTokenAmountFingerprint where
     parseJSON = genericParseJSON defaultRecordTypeOptions
-instance ToJSON ApiPolicyScript where
+instance ToJSON ApiTokenAmountFingerprint where
+    toJSON = genericToJSON defaultRecordTypeOptions
+
+instance FromJSON ApiTokens where
+    parseJSON = genericParseJSON defaultRecordTypeOptions
+instance ToJSON ApiTokens where
+    toJSON = genericToJSON defaultRecordTypeOptions
+
+instance FromJSON ApiPostPolicyKeyData where
+    parseJSON = genericParseJSON defaultRecordTypeOptions
+instance ToJSON ApiPostPolicyKeyData where
     toJSON = genericToJSON defaultRecordTypeOptions
 
 parseBech32
@@ -2977,18 +2965,6 @@ instance FromJSON ApiValidityInterval where
 instance (DecodeAddress t, DecodeStakeAddress t) => FromJSON (ApiConstructTransaction t) where
     parseJSON = genericParseJSON defaultRecordTypeOptions
 instance (EncodeAddress t, EncodeStakeAddress t) => ToJSON (ApiConstructTransaction t) where
-    toJSON = genericToJSON defaultRecordTypeOptions
-
-instance
-    ( DecodeAddress n
-    , DecodeStakeAddress n
-    ) => FromJSON (ApiMintBurnTransaction n) where
-    parseJSON = genericParseJSON defaultRecordTypeOptions
-
-instance
-    ( EncodeAddress n
-    , EncodeStakeAddress n
-    ) => ToJSON (ApiMintBurnTransaction n) where
     toJSON = genericToJSON defaultRecordTypeOptions
 
 instance FromJSON ApiWithdrawalPostData where
@@ -3895,8 +3871,6 @@ type family ApiConstructTransactionT (n :: k) :: Type
 type family ApiConstructTransactionDataT (n :: k) :: Type
 type family PostTransactionOldDataT (n :: k) :: Type
 type family PostTransactionFeeOldDataT (n :: k) :: Type
-type family ApiMintBurnTransactionT (n :: k) :: Type
-type family PostMintBurnAssetDataT (n :: k) :: Type
 type family ApiWalletMigrationPlanPostDataT (n :: k) :: Type
 type family ApiWalletMigrationPostDataT (n :: k1) (s :: k2) :: Type
 type family ApiPutAddressesDataT (n :: k) :: Type
@@ -3935,17 +3909,11 @@ type instance PostTransactionOldDataT (n :: NetworkDiscriminant) =
 type instance PostTransactionFeeOldDataT (n :: NetworkDiscriminant) =
     PostTransactionFeeOldData n
 
-type instance PostMintBurnAssetDataT (n :: NetworkDiscriminant) =
-    PostMintBurnAssetData n
-
 type instance ApiWalletMigrationPlanPostDataT (n :: NetworkDiscriminant) =
     ApiWalletMigrationPlanPostData n
 
 type instance ApiWalletMigrationPostDataT (n :: NetworkDiscriminant) (s :: Symbol) =
     ApiWalletMigrationPostData n s
-
-type instance ApiMintBurnTransactionT (n :: NetworkDiscriminant) =
-    ApiMintBurnTransaction n
 
 type instance ApiBalanceTransactionPostDataT (n :: NetworkDiscriminant) =
     ApiBalanceTransactionPostData n
@@ -4000,27 +3968,6 @@ instance ToJSON (ApiT SmashServer) where
 {-------------------------------------------------------------------------------
                          Token minting types
 -------------------------------------------------------------------------------}
-
--- | Data required when submitting a mint/burn transaction. Cardano implements
--- minting and burning using transactions, so some of these fields are shared
--- with @PostTransactionData@.
-data PostMintBurnAssetData (n :: NetworkDiscriminant) = PostMintBurnAssetData
-    { mintBurn
-        :: !(NonEmpty (ApiMintBurnData n))
-        -- ^ Minting and burning requests.
-    , passphrase
-        :: !(ApiT (Passphrase "lenient"))
-        -- ^ Passphrase of the wallet.
-    , metadata
-        :: !(Maybe (ApiT TxMetadata))
-        -- ^ Metadata to attach to the transaction that mints/burns.
-    } deriving (Eq, Generic, Show)
-
-instance DecodeAddress n => FromJSON (PostMintBurnAssetData n) where
-    parseJSON = genericParseJSON defaultRecordTypeOptions
-
-instance EncodeAddress n => ToJSON (PostMintBurnAssetData n) where
-    toJSON = genericToJSON defaultRecordTypeOptions
 
 -- | Core minting and burning request information.
 --
@@ -4110,17 +4057,6 @@ instance DecodeAddress n => FromJSON (ApiMintBurnOperation n) where
             ["burn"] -> ApiBurn <$> o .: "burn"
             [] -> fail "Must include a \"mint\" or \"burn\" property."
             _ -> fail "May be either a \"mint\" or a \"burn\"."
-
-instance FromJSON ApiMintBurnInfo where
-    parseJSON = genericParseJSON defaultRecordTypeOptions
-
-instance ToJSON ApiMintBurnInfo where
-    toJSON = genericToJSON defaultRecordTypeOptions
-
-instance FromJSON (ApiT ApiMintBurnInfo) where
-    parseJSON = fmap ApiT . parseJSON
-instance ToJSON (ApiT ApiMintBurnInfo) where
-    toJSON = toJSON . getApiT
 
 instance FromJSON (ApiT (Script KeyHash)) where
     parseJSON = fmap ApiT . parseJSON

@@ -83,6 +83,7 @@ module Cardano.Wallet
     , readRewardAccount
     , someRewardAccount
     , readPolicyPublicKey
+    , writePolicyPublicKey
     , queryRewardBalance
     , ErrWalletAlreadyExists (..)
     , ErrNoSuchWallet (..)
@@ -93,6 +94,7 @@ module Cardano.Wallet
     , ErrWalletNotResponding (..)
     , ErrReadRewardAccount (..)
     , ErrReadPolicyPublicKey (..)
+    , ErrWritePolicyPublicKey (..)
 
     -- * Shared Wallet
     , updateCosigner
@@ -212,7 +214,7 @@ import Prelude hiding
 import Cardano.Address.Derivation
     ( XPrv, XPub )
 import Cardano.Address.Script
-    ( Cosigner (..) )
+    ( Cosigner (..), KeyHash )
 import Cardano.Api
     ( serialiseToCBOR )
 import Cardano.BM.Data.Severity
@@ -260,7 +262,7 @@ import Cardano.Wallet.DB
 import Cardano.Wallet.DB.Checkpoints
     ( DeltaCheckpoints (..) )
 import Cardano.Wallet.DB.Sqlite.AddressBook
-    ( AddressBookIso, getPrologue )
+    ( AddressBookIso, Prologue (..), getPrologue )
 import Cardano.Wallet.DB.WalletState
     ( DeltaMap (..), DeltaWalletState1 (..), fromWallet, getLatest, getSlot )
 import Cardano.Wallet.Logging
@@ -298,6 +300,7 @@ import Cardano.Wallet.Primitive.AddressDerivation
     , checkPassphrase
     , deriveRewardAccount
     , encryptPassphrase
+    , hashVerificationKey
     , liftIndex
     , preparePassphrase
     , stakeDerivationPath
@@ -307,7 +310,7 @@ import Cardano.Wallet.Primitive.AddressDerivation.Byron
 import Cardano.Wallet.Primitive.AddressDerivation.Icarus
     ( IcarusKey )
 import Cardano.Wallet.Primitive.AddressDerivation.MintBurn
-    ( policyDerivationPath )
+    ( derivePolicyPrivateKey, policyDerivationPath )
 import Cardano.Wallet.Primitive.AddressDerivation.SharedKey
     ( SharedKey (..) )
 import Cardano.Wallet.Primitive.AddressDerivation.Shelley
@@ -517,7 +520,7 @@ import Data.Function
 import Data.Functor
     ( ($>) )
 import Data.Generics.Internal.VL.Lens
-    ( Lens', view, (^.) )
+    ( Lens', view, (.~), (^.) )
 import Data.Generics.Labels
     ()
 import Data.Generics.Product.Typed
@@ -584,6 +587,7 @@ import UnliftIO.Exception
 import UnliftIO.MVar
     ( modifyMVar_, newMVar )
 
+import qualified Cardano.Address.Script as CA
 import qualified Cardano.Api as Cardano
 import qualified Cardano.Api.Shelley as Cardano
 import qualified Cardano.Crypto.Wallet as CC
@@ -2321,12 +2325,21 @@ signTransaction tl era keyLookup (rootKey, rootPwd) utxo =
         rewardAcnt =
             (getRawKey $ deriveRewardAccount @k rootPwd rootKey, rootPwd)
 
+        policyKey :: (KeyHash, XPrv, Passphrase "encryption")
+        policyKey =
+            ( hashVerificationKey @k CA.Policy $ liftRawKey $ toXPub xprv
+            , xprv
+            , rootPwd
+            )
+          where
+            xprv = derivePolicyPrivateKey rootPwd (getRawKey rootKey) minBound
+
         inputResolver :: TxIn -> Maybe Address
         inputResolver i = do
             TxOut addr _ <- UTxO.lookup i utxo
             pure addr
     in
-        addVkWitnesses tl era rewardAcnt keyLookup inputResolver
+        addVkWitnesses tl era rewardAcnt policyKey keyLookup inputResolver
 
 -- | Produce witnesses and construct a transaction from a given selection.
 --
@@ -3236,6 +3249,39 @@ readAccountPublicKey ctx wid = db & \DBLayer{..} -> do
   where
     db = ctx ^. dbLayer @IO @s @k
 
+writePolicyPublicKey
+    :: forall ctx s (n :: NetworkDiscriminant).
+        ( HasDBLayer IO s ShelleyKey ctx
+        , s ~ SeqState n ShelleyKey
+        )
+    => ctx
+    -> WalletId
+    -> Passphrase "raw"
+    -> ExceptT ErrWritePolicyPublicKey IO (ShelleyKey 'PolicyK XPub)
+writePolicyPublicKey ctx wid pwd = db & \DBLayer{..} -> do
+    cp <- mapExceptT atomically
+        $ withExceptT ErrWritePolicyPublicKeyNoSuchWallet
+        $ withNoSuchWallet wid
+        $ readCheckpoint wid
+
+    let (SeqPrologue seqState) = getPrologue $ getState cp
+
+    policyXPub <- withRootKey
+        @ctx @s @ShelleyKey ctx wid pwd ErrWritePolicyPublicKeyWithRootKey $
+        \rootK scheme -> do
+            let encPwd = preparePassphrase scheme pwd
+            let xprv = derivePolicyPrivateKey encPwd (getRawKey rootK) minBound
+            pure $ liftRawKey $ toXPub xprv
+
+    let seqState' = seqState & #policyXPub .~ Just policyXPub
+    ExceptT $ atomically $ modifyDBMaybe walletsDB $
+        adjustNoSuchWallet wid ErrWritePolicyPublicKeyNoSuchWallet $
+        \_ -> Right ( [ReplacePrologue $ SeqPrologue seqState'], () )
+
+    pure policyXPub
+  where
+    db = ctx ^. dbLayer @IO @s @ShelleyKey
+
 -- | Retrieve any public account key of a wallet.
 getAccountPublicKeyAtIndex
     :: forall ctx s k.
@@ -3564,6 +3610,11 @@ data ErrReadPolicyPublicKey
     = ErrReadPolicyPublicKeyNotAShelleyWallet
     | ErrReadPolicyPublicKeyNoSuchWallet ErrNoSuchWallet
     | ErrReadPolicyPublicKeyAbsent
+    deriving (Generic, Eq, Show)
+
+data ErrWritePolicyPublicKey
+    = ErrWritePolicyPublicKeyNoSuchWallet ErrNoSuchWallet
+    | ErrWritePolicyPublicKeyWithRootKey ErrWithRootKey
     deriving (Generic, Eq, Show)
 
 {-------------------------------------------------------------------------------

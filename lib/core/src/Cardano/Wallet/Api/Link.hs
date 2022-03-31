@@ -55,6 +55,7 @@ module Cardano.Wallet.Api.Link
     , postAccountKey
     , getAccountKey
     , getPolicyKey
+    , postPolicyKey
 
       -- * Addresses
     , postRandomAddress
@@ -72,7 +73,6 @@ module Cardano.Wallet.Api.Link
     , getAsset
     , listByronAssets
     , getByronAsset
-    , mintBurnAssets
 
       -- * Transactions
     , createTransactionOld
@@ -407,6 +407,22 @@ getPolicyKey
     -> (Method, Text)
 getPolicyKey w hashed = discriminate @style
     (endpoint @Api.GetPolicyKey (\mk -> mk wid hashed))
+    (notSupported "Byron")
+    (notSupported "Shared")
+  where
+    wid = w ^. typed @(ApiT WalletId)
+
+postPolicyKey
+    :: forall (style :: WalletStyle) w.
+        ( HasCallStack
+        , Discriminate style
+        , HasType (ApiT WalletId) w
+        )
+    => w
+    -> Maybe Bool
+    -> (Method, Text)
+postPolicyKey w hashed = discriminate @style
+    (endpoint @Api.PostPolicyKey (\mk -> mk wid hashed))
     (notSupported "Byron")
     (notSupported "Shared")
   where
@@ -971,13 +987,3 @@ instance HasVerb sub => HasVerb (QueryFlag sym :> sub) where
 
 instance HasVerb sub => HasVerb (Header' opts name ty :> sub) where
     method _ = method (Proxy @sub)
-
-mintBurnAssets
-    :: forall w.
-        ( HasType (ApiT WalletId) w
-        )
-    => w
-    -> (Method, Text)
-mintBurnAssets w = (endpoint @(Api.MintBurnAssets Net) (wid &))
-  where
-    wid = w ^. typed @(ApiT WalletId)

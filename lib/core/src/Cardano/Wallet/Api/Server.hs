@@ -90,11 +90,11 @@ module Cardano.Wallet.Api.Server
     , postSharedWallet
     , patchSharedWallet
     , mkSharedWallet
-    , mintBurnAssets
     , balanceTransaction
     , decodeTransaction
     , submitTransaction
     , getPolicyKey
+    , postPolicyKey
 
     -- * Server error responses
     , IsServerError(..)
@@ -154,7 +154,6 @@ import Cardano.Wallet
     , ErrInvalidDerivationIndex (..)
     , ErrListTransactions (..)
     , ErrListUTxOStatistics (..)
-    , ErrMintBurnAssets (..)
     , ErrMkTransaction (..)
     , ErrNoSuchTransaction (..)
     , ErrNoSuchWallet (..)
@@ -178,6 +177,7 @@ import Cardano.Wallet
     , ErrWithRootKey (..)
     , ErrWithdrawalNotWorth (..)
     , ErrWitnessTx (..)
+    , ErrWritePolicyPublicKey (..)
     , ErrWrongPassphrase (..)
     , FeeEstimation (..)
     , HasNetworkLayer
@@ -234,9 +234,7 @@ import Cardano.Wallet.Api.Types
     , ApiFee (..)
     , ApiForeignStakeKey (..)
     , ApiMintBurnData (..)
-    , ApiMintBurnInfo (..)
     , ApiMintBurnOperation (..)
-    , ApiMintBurnTransaction (..)
     , ApiMintData (..)
     , ApiMnemonicT (..)
     , ApiMultiDelegationAction (..)
@@ -248,9 +246,9 @@ import Cardano.Wallet.Api.Types
     , ApiPaymentDestination (..)
     , ApiPendingSharedWallet (..)
     , ApiPolicyKey (..)
-    , ApiPolicyScript (..)
     , ApiPoolId (..)
     , ApiPostAccountKeyDataWithPurpose (..)
+    , ApiPostPolicyKeyData (..)
     , ApiPostRandomAddressData (..)
     , ApiPutAddressesData (..)
     , ApiRedeemer (..)
@@ -269,6 +267,8 @@ import Cardano.Wallet.Api.Types
     , ApiStakeKeyIndex (..)
     , ApiStakeKeys (..)
     , ApiT (..)
+    , ApiTokenAmountFingerprint (..)
+    , ApiTokens (..)
     , ApiTransaction (..)
     , ApiTxCollateral (..)
     , ApiTxId (..)
@@ -464,6 +464,8 @@ import Cardano.Wallet.Primitive.Types.TokenMap
     ( AssetId (..), fromFlatList, toNestedList )
 import Cardano.Wallet.Primitive.Types.TokenPolicy
     ( TokenName (..), TokenPolicyId (..), mkTokenFingerprint, nullTokenName )
+import Cardano.Wallet.Primitive.Types.TokenQuantity
+    ( TokenQuantity (..) )
 import Cardano.Wallet.Primitive.Types.Tx
     ( TransactionInfo
     , Tx (..)
@@ -488,6 +490,7 @@ import Cardano.Wallet.Transaction
     ( DelegationAction (..)
     , ErrAssignRedeemers (..)
     , ErrSignTx (..)
+    , TokenMapWithScripts (..)
     , TransactionCtx (..)
     , TransactionLayer (..)
     , Withdrawal (..)
@@ -2251,21 +2254,6 @@ constructTransaction ctx genChange knownPools getPoolStatus (ApiT wid) body = do
 
         (utxoAvailable, wallet, pendingTxs) <-
             liftHandler $ W.readWalletUTxOIndex @_ @s @k wrk wid
-        let runSelection outs =
-                W.selectAssets @_ @_ @s @k wrk pp selectAssetsParams transform
-              where
-                selectAssetsParams = W.SelectAssetsParams
-                    { outputs = outs
-                    , pendingTxs
-                    , randomSeed = Nothing
-                    , txContext = txCtx
-                    , utxoAvailableForInputs =
-                        UTxOSelection.fromIndex utxoAvailable
-                    , utxoAvailableForCollateral =
-                        UTxOIndex.toMap utxoAvailable
-                    , wallet
-                    , selectionStrategy = SelectionStrategyOptimal
-                    }
         txCtx' <-
             if isJust mintingBurning then do
                 (policyXPub, _) <-
@@ -2317,6 +2305,22 @@ constructTransaction ctx genChange knownPools getPoolStatus (ApiT wid) body = do
             else
                 pure txCtx
 
+        let runSelection outs =
+                W.selectAssets @_ @_ @s @k wrk pp selectAssetsParams transform
+              where
+                selectAssetsParams = W.SelectAssetsParams
+                    { outputs = outs
+                    , pendingTxs
+                    , randomSeed = Nothing
+                    , txContext = txCtx'
+                    , utxoAvailableForInputs =
+                        UTxOSelection.fromIndex utxoAvailable
+                    , utxoAvailableForCollateral =
+                        UTxOIndex.toMap utxoAvailable
+                    , wallet
+                    , selectionStrategy = SelectionStrategyOptimal
+                    }
+
         (sel, sel', fee) <- do
             outs <- case (body ^. #payments) of
                 Nothing -> pure []
@@ -2335,47 +2339,15 @@ constructTransaction ctx genChange knownPools getPoolStatus (ApiT wid) body = do
         tx <- liftHandler
             $ W.constructTransaction @_ @s @k @n wrk wid txCtx' sel
 
-        let (tokenMap1, scriptMap1) = txAssetsToMint txCtx'
-        let (tokenMap2, scriptMap2) = txAssetsToBurn txCtx'
-
         pure $ ApiConstructTransaction
             { transaction = ApiT tx
             , coinSelection = mkApiCoinSelection
                 (maybeToList deposit) (maybeToList refund) Nothing md sel'
-            , mintBurn =
-                toMintBurnList
-                ( tokenMap1 <> tokenMap2
-                , Map.union scriptMap1 scriptMap2)
             , fee = Quantity $ fromIntegral fee
             }
   where
     ti :: TimeInterpreter (ExceptT PastHorizonException IO)
     ti = timeInterpreter (ctx ^. networkLayer)
-    toMintBurn (policy, name, script) = ApiT $ ApiMintBurnInfo
-        { verificationKeyIndex =
-                ApiT $ DerivationIndex $
-                getIndex (minBound :: Index 'Hardened 'PolicyK)
-        , policyId = ApiT policy
-        , assetName = ApiT name
-        , subject = ApiT $ mkTokenFingerprint policy name
-        , policyScript = ApiT script
-        }
-    askForScript (policy, name) scriptMap =
-        case Map.lookup (AssetId policy name) scriptMap of
-            Just script -> script
-            Nothing -> error "askForScript: no minting/burning without script"
-    toMintBurnTriple scriptmap tokenmap =
-        [ (policy, token, askForScript (policy, token) scriptmap)
-        | (policy, tokenQuantities) <- toNestedList tokenmap
-        , (token, _) <- NE.toList tokenQuantities
-        ]
-    toMintBurnList (tokenMap, scriptMap) =
-        if tokenMap == TokenMap.empty then
-            Nothing
-        else
-           Just $ NE.fromList $
-           map toMintBurn $
-           toMintBurnTriple scriptMap tokenMap
 
 -- TODO: Most of the body of this function should really belong to
 -- Cardano.Wallet to keep the Api.Server module free of business logic!
@@ -2458,8 +2430,8 @@ decodeTransaction ctx (ApiT wid) (ApiSerialisedTransaction (ApiT sealed)) = do
         , outputs = map toOut outsPath
         , collateral = map toInp collsOutsPaths
         , withdrawals = map (toWrdl acct) $ Map.assocs wdrlMap
-        , assetsMinted = toApiAssetMintBurn policyXPubM toMint
-        , assetsBurned = toApiAssetMintBurn policyXPubM toBurn
+        , mint = toApiAssetMintBurn policyXPubM toMint
+        , burn = toApiAssetMintBurn policyXPubM toBurn
         , certificates = map (toApiAnyCert acct acctPath) allCerts
         , depositsTaken =
             (Quantity . fromIntegral . unCoin . W.stakeKeyDeposit $ pp)
@@ -2474,19 +2446,47 @@ decodeTransaction ctx (ApiT wid) (ApiSerialisedTransaction (ApiT sealed)) = do
         }
   where
     tl = ctx ^. W.transactionLayer @k
+    policyIx = ApiT $ DerivationIndex $
+        getIndex (minBound :: Index 'Hardened 'PolicyK)
+
+    askForScript policyId scriptMap =
+        case Map.lookup policyId scriptMap of
+            Just script -> script
+            Nothing -> error "askForScript: no minting/burning without script"
+
+    toIdScriptAssets scriptmap tokenmap =
+        [ (policy, askForScript policy scriptmap, tokenQuantities)
+        | (policy, tokenQuantities) <- toNestedList tokenmap
+        ]
+
+    toTokenAmountFingerprint policy (name, tokenquantity) =
+        ApiTokenAmountFingerprint
+            { assetName = ApiT name
+            , amount = Quantity $ unTokenQuantity tokenquantity
+            , fingerprint = ApiT $ mkTokenFingerprint policy name
+            }
+
+    fromIdScriptAssets (policy, script, tokens) = ApiTokens
+        { policyId = ApiT policy
+        , policyScript = ApiT script
+        , assets = NE.map (toTokenAmountFingerprint policy) tokens
+        }
+
+    toApiTokens (TokenMapWithScripts tokenMap scriptMap) =
+        map fromIdScriptAssets $
+        toIdScriptAssets scriptMap tokenMap
+    includePolicyKeyInfo (TokenMapWithScripts tokenMap _) xpubM =
+        if tokenMap == TokenMap.empty then
+            Nothing
+        else
+            xpubM
     toApiAssetMintBurn xpubM tokenWithScripts = ApiAssetMintBurn
-        { tokenMap = ApiT $ tokenWithScripts ^. #txTokenMap
-        , policyScripts =
-            map (uncurry ApiPolicyScript) $
-            Map.toList $
-            Map.map ApiT $
-            Map.mapKeys ApiT $
-            tokenWithScripts ^. #txScripts
-        , walletPolicyKeyHash = case xpubM of
-            Just xpub ->
-                Just $ uncurry ApiPolicyKey (computeKeyPayload (Just True) xpub)
-            Nothing ->
-                Nothing
+        { tokens = toApiTokens tokenWithScripts
+        , walletPolicyKeyHash =
+            uncurry ApiPolicyKey . computeKeyPayload (Just True) <$>
+            includePolicyKeyInfo tokenWithScripts xpubM
+        , walletPolicyKeyIndex =
+            policyIx <$ includePolicyKeyInfo tokenWithScripts xpubM
         }
     toOut (txoutIncoming, Nothing) =
         ExternalOutput $ toAddressAmount @n txoutIncoming
@@ -3362,15 +3362,22 @@ getPolicyKey ctx (ApiT wid) hashed = do
         (k, _) <- liftHandler $ W.readPolicyPublicKey @_ @s @k @n wrk wid
         pure $ uncurry ApiPolicyKey (computeKeyPayload hashed k)
 
-mintBurnAssets
-    :: forall ctx n
-     . ctx
+postPolicyKey
+    :: forall ctx s (n :: NetworkDiscriminant).
+        ( ctx ~ ApiLayer s ShelleyKey
+        , s ~ SeqState n ShelleyKey
+        )
+    => ctx
     -> ApiT WalletId
-    -> Api.PostMintBurnAssetData n
-    -> Handler (ApiMintBurnTransaction n)
-mintBurnAssets _ctx (ApiT _wid) _body = liftHandler $ throwE $
-    ErrMintBurnNotImplemented
-    "Minting and burning are not supported yet - this is just a stub"
+    -> Maybe Bool
+    -> ApiPostPolicyKeyData
+    -> Handler ApiPolicyKey
+postPolicyKey ctx (ApiT wid) hashed apiPassphrase =
+    withWorkerCtx @_ @s @ShelleyKey ctx wid liftE liftE $ \wrk -> do
+        k <- liftHandler $ W.writePolicyPublicKey @_ @s @n wrk wid pwd
+        pure $ uncurry ApiPolicyKey (computeKeyPayload hashed (getRawKey k))
+  where
+    pwd = getApiT (apiPassphrase ^. #passphrase)
 
 {-------------------------------------------------------------------------------
                                   Helpers
@@ -4216,10 +4223,6 @@ instance IsServerError ErrBalanceTx where
                 ]
 
 
-instance IsServerError ErrMintBurnAssets where
-    toServerError = \case
-        ErrMintBurnNotImplemented msg -> apiError err501 NotImplemented msg
-
 instance IsServerError ErrRemoveTx where
     toServerError = \case
         ErrRemoveTxNoSuchWallet wid -> toServerError wid
@@ -4384,12 +4387,17 @@ instance IsServerError ErrReadPolicyPublicKey where
                 , "Shelley."
                 ]
         ErrReadPolicyPublicKeyAbsent ->
-            apiError err403 InvalidWalletType $ T.unwords
+            apiError err403 MissingPolicyPublicKey $ T.unwords
                 [ "It seems the wallet lacks a policy public key. It's"
                 , "therefore not possible to create a minting or burning"
-                , "transaction. Please restore the wallet from a mnemonic"
-                , "phrase instead of an account public key."
+                , "transaction. Please POST to endpoint"
+                , "/wallets/{walletId}/policy-key to set a policy key."
                 ]
+
+instance IsServerError ErrWritePolicyPublicKey where
+    toServerError = \case
+        ErrWritePolicyPublicKeyNoSuchWallet e -> toServerError e
+        ErrWritePolicyPublicKeyWithRootKey  e -> toServerError e
 
 instance IsServerError ErrCreateRandomAddress where
     toServerError = \case
