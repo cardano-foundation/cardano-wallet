@@ -475,7 +475,11 @@ signTransaction
         mintBurnScripts =
             let (_, toMint, toBurn, _) = fromCardanoTx $
                     Cardano.makeSignedTransaction wits body
-            in L.nub $ getScripts toMint <> getScripts toBurn
+            in
+            -- Note that we use 'nub' here because multiple scripts can share
+            -- the same policyXPub. It's sufficient to have one witness for
+            -- each.
+            L.nub $ getScripts toMint <> getScripts toBurn
 
     getScripts :: TokenMapWithScripts -> [KeyHash]
     getScripts s =
