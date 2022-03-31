@@ -79,6 +79,20 @@ x-absoluteSlot: &absoluteSlot
   minimum: 0
   example: 8086
 
+x-tokenAmount: &tokenAmount
+  type: object
+  required:
+    - quantity
+    - unit
+  properties:
+    quantity:
+      type: integer
+      minimum: 1
+      example: 42000
+    unit:
+      type: string
+      enum: ["assets"]
+
 x-numberOfSlots: &numberOfSlots
   type: object
   required:
@@ -969,19 +983,6 @@ x-assetMint: &assetMint
       description: |
         Positive values mean creation and negative values mean
         destruction.
-
-x-assetMintBurn: &assetMintBurn
-  type: object
-  required:
-    - policy_id
-    - asset_name
-    - quantity
-  properties:
-    policy_id: *assetPolicyId
-    asset_name: *assetName
-    quantity:
-      type: integer
-      minimum: 0
 
 x-walletAssetsBalance: &walletAssetsBalance
   description: |
@@ -2389,6 +2390,13 @@ components:
       format: bech32
       pattern: "^((policy_vk)|(policy_vkh))1[0-9a-z]*$"
 
+    ApiPostPolicyKeyData: &ApiPostPolicyKeyData
+      type: object
+      required:
+        - passphrase
+      properties:
+        passphrase: *walletPassphrase
+
     ApiTxId: &ApiTxId
       type: object
       required:
@@ -2412,22 +2420,42 @@ components:
       properties:
         transaction: *serialisedTransactionEncoded
 
-    ApiMintBurnInfo: &ApiMintBurnInfo
+    ApiTokenAmountFingerprint: &ApiTokenAmountFingerprint
       type: object
       required:
-        - verification_key_index
-        - policy_id
         - asset_name
-        - subject
-        - policy_script
+        - amount
+        - fingerprint
       properties:
-        verification_key_index: *derivationSegment
+       asset_name: *assetName
+       amount: *tokenAmount
+       fingerprint: *assetFingerprint
+
+    ApiTokens: &ApiTokens
+      type: object
+      required:
+        - policy_id
+        - policy_script
+        - assets
+      properties:
         policy_id: *assetPolicyId
-        asset_name: *assetName
-        subject: *assetFingerprint
-        policy_script:
-          <<: *ScriptValue
-          description: The script under which the asset is minted or burned.
+        policy_script: *ScriptValue
+        assets:
+          type: array
+          minItems: 1
+          items: *ApiTokenAmountFingerprint
+
+    ApiAssetMintBurn: &ApiAssetMintBurn
+      type: object
+      required:
+        - tokens
+      properties:
+        tokens:
+          type: array
+          minItems: 0
+          items: *ApiTokens
+        wallet_policy_key_hash: *ApiPolicyKey
+        wallet_policy_key_index: *derivationSegment
 
     ApiConstructTransaction: &ApiConstructTransaction
       type: object
@@ -2439,11 +2467,6 @@ components:
         transaction: *serialisedTransactionBase64
         coin_selection: *ApiCoinSelection
         fee: *amount
-        mint_burn:
-          type: array
-          items: *ApiMintBurnInfo
-          minItems: 1
-          description: An entry for each unique asset minted and/or burned, containing helpful information.
 
     ApiTransaction: &ApiTransaction
       type: object
@@ -2503,31 +2526,6 @@ components:
       <<: *transactionWithdrawalsGeneral
       description: |
         Withdrawals that could be external or belong to the wallet.
-
-    ApiPolicyScript: &ApiPolicyScript
-      type: object
-      required:
-        - policy_id
-        - policy_script
-      properties:
-        policy_id: *assetPolicyId
-        policy_script: *ScriptValue
-
-    ApiAssetMintBurn: &ApiAssetMintBurn
-      type: object
-      required:
-        - token_map
-        - policy_scripts
-      properties:
-        token_map:
-          type: array
-          minItems: 0
-          items: *assetMintBurn
-        policy_scripts:
-          type: array
-          minItems: 0
-          items: *ApiPolicyScript
-        wallet_policy_key_hash: *ApiPolicyKey
 
     ApiStakePoolMetadata: &ApiStakePoolMetadata
       type: object
@@ -2598,8 +2596,8 @@ components:
         - inputs
         - outputs
         - withdrawals
-        - assets_minted
-        - assets_burned
+        - mint
+        - burn
         - certificates
       properties:
         id: *transactionId
@@ -2608,8 +2606,8 @@ components:
         outputs: *ApiOutputsGeneral
         collateral: *ApiInputsGeneral
         withdrawals: *ApiWithdrawalsGeneral
-        assets_minted: *ApiAssetMintBurn
-        assets_burned: *ApiAssetMintBurn
+        mint: *ApiAssetMintBurn
+        burn: *ApiAssetMintBurn
         certificates:
           type: array
           minItems: 0
@@ -3564,36 +3562,6 @@ components:
 
         "none": *ApiNullStakeKey
 
-    ApiMintBurnTransaction: &ApiMintBurnTransaction
-      type: object
-      required:
-        - transaction
-        - mint_burn
-      properties:
-        transaction:
-          <<: *ApiTransaction
-          description: Information about the mint/burn transaction submitted.
-        mint_burn:
-          type: array
-          items: *ApiMintBurnInfo
-          minItems: 1
-          description: An entry for each unique asset minted and/or burned, containing helpful information.
-
-    ApiPostMintBurnAssetData: &ApiPostMintBurnAssetData
-      type: object
-      required:
-        - mint_burn
-        - passphrase
-      properties:
-        mint_burn:
-          type: array
-          items: *ApiMintBurnData
-          minItems: 1
-        passphrase:
-          <<: *lenientPassphrase
-          description: The wallet's master passphrase.
-        metadata: *transactionMetadata
-
     ApiRedeemerSpending: &ApiRedeemerSpending
       type: object
       required:
@@ -4501,6 +4469,17 @@ x-errInvalidWalletType: &errInvalidWalletType
       type: string
       enum: ['invalid_wallet_type']
 
+x-errMissingPolicyPublicKey: &errMissingPolicyPublicKey
+  <<: *responsesErr
+  title: missing_policy_public_key
+  properties:
+    message:
+      type: string
+      description: Occurs when trying to construct with minting/burning on shelley wallet without policy public key.
+    code:
+      type: string
+      enum: ['missing_policy_public_key']
+
 x-errQueryParamMissing: &errQueryParamMissing
   <<: *responsesErr
   title: query_param_missing
@@ -4856,30 +4835,6 @@ x-responsesPostSharedWallet: &responsesPostSharedWallet
     content:
       application/json:
         schema: *ApiSharedWallet
-
-x-responsesMintToken: &responsesMintToken
-  403:
-    description: Forbidden
-    content:
-      application/json:
-        schema:
-          oneOf:
-            - <<: *errInvalidWalletType
-            - <<: *errAlreadyWithdrawing
-            - <<: *errUtxoTooSmall
-            - <<: *errCannotCoverFee
-            - <<: *errNotEnoughMoney
-            - <<: *errTransactionIsTooBig
-            - <<: *errNoRootKey
-            - <<: *errWrongEncryptionPassphrase
-  <<: *responsesErr404WalletNotFound
-  <<: *responsesErr406
-  <<: *responsesErr415UnsupportedMediaType
-  202:
-    description: Accepted
-    content:
-      application/json:
-        schema: *ApiMintBurnTransaction
 
 x-responsesPostByronWallet: &responsesPostByronWallet
   <<: *responsesErr400
@@ -5305,8 +5260,26 @@ x-responsesGetShelleyKey: &responsesGetShelleyKey
       application/json:
         schema: *ApiVerificationKeyShelley
 
+x-responsesPostPolicyKey: &responsesPostPolicyKey
+  <<: *responsesErr400
+  <<: *responsesErr406
+  <<: *responsesErr415
+  202:
+    description: Accepted
+    content:
+      application/json:
+        schema: *ApiPolicyKey
+
 x-responsesGetPolicyKey: &responsesGetPolicyKey
   <<: *responsesErr400
+  403:
+    description: Forbidden
+    content:
+      application/json:
+        schema:
+          oneOf:
+            - <<: *errInvalidWalletType
+            - <<: *errMissingPolicyPublicKey
   <<: *responsesErr404
   <<: *responsesErr406
   200:
@@ -5683,39 +5656,6 @@ paths:
       parameters:
         - *parametersWalletId
       responses: *responsesListAssets
-
-    post:
-      operationId: mintBurnAssets
-      tags: ["Assets"]
-      summary: Mint/Burn
-      description: |
-        <p align="right">status: <strong>under development</strong></p>
-
-        Mint and burn assets from the wallet.
-
-        We only support the simplest of scripts: those which require a signature
-        from a single key (known as the policy key). The policy key is generated
-        from the HD wallet according to to draft CIP-1855
-        (https://github.com/cardano-foundation/CIPs/blob/b2e9d02cb9a71ba9e754a432c78197428abf7e4c/CIP-1855/CIP-1855.md).
-
-        Once the policy key is generated, cardano-wallet creates a script from
-        that key, which we then mint or burn assets under.
-
-        **⚠️ WARNING ⚠️**
-
-        Please note that due to the fact that there is no physical access to
-        policy keys under which assets are minted from the wallet it is
-        currently not possible to add metadata of such assets into [Cardano Token Registry](https://github.com/cardano-foundation/cardano-token-registry).
-
-      parameters:
-        - *parametersWalletId
-      requestBody:
-        required: true
-        content:
-          application/json:
-            schema:
-              <<: *ApiPostMintBurnAssetData
-      responses: *responsesMintToken
 
   /wallets/{walletId}/assets/{policyId}/{assetName}:
     get:
@@ -6096,6 +6036,31 @@ paths:
       responses: *responsesGetShelleyKey
 
   /wallets/{walletId}/policy-key:
+    post:
+      operationId: postPolicyKey
+      tags: ["Keys"]
+      summary: Create Policy Key
+      description: |
+        <p align="right">status: <strong>stable</strong></p>
+
+        Create policy key for the wallet.
+
+        In order to be able to mint/burn assets with `POST Construct` endpoint there needs to be
+        a policy key set for the wallet. Invoking this endpoint would be required for all wallets instantiated
+        before introducing mint/burn feature prior to making a mint/burn transaction from them.
+
+        To get a hash of the policy key instead of the policy key,
+        use query parameter `hash=true`.
+
+      parameters:
+        - *parametersWalletId
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema: *ApiPostPolicyKeyData
+      responses: *responsesPostPolicyKey
+
     get:
       operationId: getPolicyKey
       tags: ["Keys"]
