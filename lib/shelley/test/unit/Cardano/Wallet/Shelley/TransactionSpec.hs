@@ -270,6 +270,8 @@ import Data.Map.Strict
     ( Map )
 import Data.Maybe
     ( fromJust, fromMaybe, isJust )
+import Data.Ord
+    ( comparing )
 import Data.Proxy
     ( Proxy (..) )
 import Data.Quantity
@@ -701,10 +703,23 @@ withBodyContent era modTxBody cont =
             forAll (genWitnesses era txBody) $ \wits -> cont (txBody, wits)
 
 checkSubsetOf :: (Eq a, Show a) => [a] -> [a] -> Property
-checkSubsetOf elems xs =
-    counterexample ("actual set: " <> show xs) $ conjoin
-        [ x `elem` xs & counterexample ("expected elem: " <> show x)
-        | x <- elems ]
+checkSubsetOf as bs = property
+    $ counterexample counterexampleText
+    $ all (`Set.member` ys) (ShowOrd <$> as)
+  where
+    xs = Set.fromList (ShowOrd <$> as)
+    ys = Set.fromList (ShowOrd <$> bs)
+
+    counterexampleText = unlines
+        [ "the following set:"
+        , showSet xs
+        , "is not a subset of:"
+        , showSet ys
+        , "rogue elements:"
+        , showSet (xs `Set.difference` ys)
+        ]
+      where
+        showSet = pretty . fmap (show . unShowOrd) . F.toList
 
 prop_signTransaction_addsTxInWitnesses
     :: AnyCardanoEra
@@ -3365,3 +3380,16 @@ dummyGenesisParameters = GenesisParameters
 
 genesisHash :: Hash "Genesis"
 genesisHash = Hash (B8.replicate 32 '0')
+
+--------------------------------------------------------------------------------
+-- Utilities
+--------------------------------------------------------------------------------
+
+-- | A convenient wrapper type that allows values of any type with a 'Show'
+--   instance to be ordered.
+--
+newtype ShowOrd a = ShowOrd { unShowOrd :: a }
+    deriving (Eq, Show)
+
+instance (Eq a, Show a) => Ord (ShowOrd a) where
+    compare = comparing show
