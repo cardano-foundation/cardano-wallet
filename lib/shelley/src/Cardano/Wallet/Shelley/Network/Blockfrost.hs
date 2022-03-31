@@ -28,6 +28,7 @@ module Cardano.Wallet.Shelley.Network.Blockfrost
 
     -- * Internal
     , getPoolPerformanceEstimate
+    , eraByEpoch
     ) where
 
 import Prelude
@@ -124,7 +125,7 @@ data BlockfrostError
     | InvalidBlockHash BF.BlockHash TextDecodingError
     | InvalidDecentralizationLevelPercentage Double
     | UnknownEraForEpoch EpochNo
-    deriving (Show)
+    deriving (Show, Eq)
 
 newtype BlockfrostException = BlockfrostException BlockfrostError
     deriving stock (Show)
