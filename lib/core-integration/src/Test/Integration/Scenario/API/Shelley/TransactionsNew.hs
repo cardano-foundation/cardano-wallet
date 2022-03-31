@@ -3224,7 +3224,9 @@ spec = describe "NEW_SHELLEY_TRANSACTIONS" $ do
 
     it "TRANS_NEW_CREATE_10e - Minting assets with timelocks" $
         \ctx -> runResourceT $ do
-        liftIO $ pendingWith "Should work when interval validity is addressed"
+        -- TODO: ADP-1193
+        liftIO $ pendingWith
+            "ADP-1193: Should work when interval validity is addressed"
 
         wa <- fixtureWallet ctx
         addrs <- listAddresses @n ctx wa
