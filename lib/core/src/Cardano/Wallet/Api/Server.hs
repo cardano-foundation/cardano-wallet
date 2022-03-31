@@ -2473,11 +2473,8 @@ decodeTransaction ctx (ApiT wid) (ApiSerialisedTransaction (ApiT sealed)) = do
         }
 
     toApiTokens (TokenMapWithScripts tokenMap scriptMap) =
-        if tokenMap == TokenMap.empty then
-            []
-        else
-           map fromIdScriptAssets $
-           toIdScriptAssets scriptMap tokenMap
+        map fromIdScriptAssets $
+        toIdScriptAssets scriptMap tokenMap
     includePolicyKeyInfo (TokenMapWithScripts tokenMap _) xpubM =
         if tokenMap == TokenMap.empty then
             Nothing
