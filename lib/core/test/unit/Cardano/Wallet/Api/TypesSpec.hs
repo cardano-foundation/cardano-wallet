@@ -2222,9 +2222,8 @@ instance Arbitrary ApiTokenAmountFingerprint where
         name <- genTokenName
         policyid <- arbitrary
         let fingerprint = ApiT $ mkTokenFingerprint policyid name
-        ApiTokenAmountFingerprint
-            <$> pure (ApiT name)
-            <*> (Quantity . fromIntegral <$> choose @Int (1, 10000))
+        ApiTokenAmountFingerprint (ApiT name)
+            <$> (Quantity . fromIntegral <$> choose @Int (1, 10000))
             <*> pure fingerprint
 
 instance Arbitrary ApiTokens where
@@ -2245,10 +2244,7 @@ instance Arbitrary ApiTokens where
             ]
         assetNum <- choose (1,4)
         assets <- vectorOf assetNum arbitrary
-        ApiTokens
-            <$> pure (ApiT policyid)
-            <*> pure script
-            <*> pure (NE.fromList assets)
+        pure $ ApiTokens (ApiT policyid) script (NE.fromList assets)
 
 instance Arbitrary ApiAssetMintBurn where
     arbitrary = do
