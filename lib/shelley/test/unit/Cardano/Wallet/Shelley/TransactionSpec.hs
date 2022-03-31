@@ -512,6 +512,7 @@ prop_signTransaction_addsRewardAccountKey
     -> Property
 prop_signTransaction_addsRewardAccountKey
     (AnyCardanoEra era) rootXPrv utxo wdrlAmt =
+    withMaxSuccess 10 $
     whenSupportedInEra Cardano.withdrawalsSupportedInEra era $
     \(supported :: Cardano.WithdrawalsSupportedInEra era) -> do
         let
@@ -562,8 +563,7 @@ prop_signTransaction_addsRewardAccountKey
                         ShelleyBasedEra _ ->
                             [mkShelleyWitness txBody rawRewardK]
 
-            checkCoverage $
-                expectedWits `checkSubsetOf` (getSealedTxWitnesses sealedTx')
+            expectedWits `checkSubsetOf` (getSealedTxWitnesses sealedTx')
 
 instance Arbitrary (ShelleyKey 'RootK XPrv) where
     shrink _ = []
@@ -595,6 +595,7 @@ prop_signTransaction_addsExtraKeyWitnesses
     -> Property
 prop_signTransaction_addsExtraKeyWitnesses
     (AnyCardanoEra era) rootK utxo extraKeys =
+    withMaxSuccess 10 $
     whenSupportedInEra Cardano.extraKeyWitnessesSupportedInEra era $
     \(supported :: Cardano.TxExtraKeyWitnessesSupportedInEra era) -> do
     let
@@ -640,8 +641,7 @@ prop_signTransaction_addsExtraKeyWitnesses
                     ShelleyBasedEra _ ->
                         mkShelleyWitness txBody <$> extraKeys
 
-        checkCoverage $
-            expectedWits `checkSubsetOf` (getSealedTxWitnesses sealedTx')
+        expectedWits `checkSubsetOf` (getSealedTxWitnesses sealedTx')
 
 instance Arbitrary a => Arbitrary (NonEmpty a) where
     arbitrary = genericArbitrary
@@ -730,7 +730,8 @@ prop_signTransaction_addsTxInWitnesses
     -- ^ Keys
     -> Property
 prop_signTransaction_addsTxInWitnesses
-    (AnyCardanoEra era) rootK extraKeysNE = do
+    (AnyCardanoEra era) rootK extraKeysNE =
+    withMaxSuccess 10 $ do
 
     let extraKeys = NE.toList extraKeysNE
 
@@ -772,8 +773,7 @@ prop_signTransaction_addsTxInWitnesses
                         ShelleyBasedEra _ ->
                             mkShelleyWitness txBody <$> extraKeys
 
-            checkCoverage $
-                expectedWits `checkSubsetOf` (getSealedTxWitnesses sealedTx')
+            expectedWits `checkSubsetOf` (getSealedTxWitnesses sealedTx')
 
 prop_signTransaction_addsTxInCollateralWitnesses
     :: AnyCardanoEra
@@ -785,6 +785,7 @@ prop_signTransaction_addsTxInCollateralWitnesses
     -> Property
 prop_signTransaction_addsTxInCollateralWitnesses
     (AnyCardanoEra era) rootK extraKeysNE =
+    withMaxSuccess 10 $
     whenSupportedInEra Cardano.collateralSupportedInEra era $
     \(supported :: Cardano.CollateralSupportedInEra era) -> do
 
@@ -825,9 +826,7 @@ prop_signTransaction_addsTxInCollateralWitnesses
                             ShelleyBasedEra _ ->
                                 mkShelleyWitness txBody <$> extraKeys
 
-                checkCoverage $
-                    expectedWits
-                        `checkSubsetOf` (getSealedTxWitnesses sealedTx')
+                expectedWits `checkSubsetOf` (getSealedTxWitnesses sealedTx')
 
 prop_signTransaction_neverRemovesWitnesses
     :: AnyCardanoEra
@@ -841,6 +840,7 @@ prop_signTransaction_neverRemovesWitnesses
     -> Property
 prop_signTransaction_neverRemovesWitnesses
     (AnyCardanoEra era) rootK utxo extraKeys =
+    withMaxSuccess 10 $
     forAll (genTxInEra era) $ \tx -> do
         let
             tl = testTxLayer
@@ -857,7 +857,7 @@ prop_signTransaction_neverRemovesWitnesses
             witnessesAfter = getSealedTxWitnesses sealedTx'
 
         checkCoverage
-            $ cover 30 (not $ null witnessesBefore) "witnesses non-empty before"
+            $ cover 10 (not $ null witnessesBefore) "witnesses non-empty before"
             $ witnessesBefore `checkSubsetOf` witnessesAfter
 
 prop_signTransaction_neverChangesTxBody
@@ -872,6 +872,7 @@ prop_signTransaction_neverChangesTxBody
     -> Property
 prop_signTransaction_neverChangesTxBody
     (AnyCardanoEra era) rootK utxo extraKeys =
+    withMaxSuccess 10 $
     forAll (genTxInEra era) $ \tx -> do
         let
             tl = testTxLayer
@@ -907,6 +908,7 @@ prop_signTransaction_preservesScriptIntegrity
     -- ^ UTxO of wallet
     -> Property
 prop_signTransaction_preservesScriptIntegrity (AnyCardanoEra era) rootK utxo =
+    withMaxSuccess 10 $
     whenSupportedInEra Cardano.scriptDataSupportedInEra era $ \_supported ->
     forAll (genTxInEra era) $ \tx -> do
         let
