@@ -172,8 +172,8 @@ module Cardano.Wallet.Api.Types
     , ApiRegisterPool (..)
     , ApiDeregisterPool (..)
     , ApiAssetMintBurn (..)
+    , ApiTokenAmountFingerprint (..)
     , ApiTokens (..)
-    , ApiTokenAsset (..)
 
     -- * API Types (Byron)
     , ApiByronWallet (..)
@@ -1225,7 +1225,7 @@ newtype ApiPostPolicyKeyData = ApiPostPolicyKeyData
     deriving (Eq, Generic, Show)
     deriving anyclass NFData
 
-data ApiTokenAsset = ApiTokenAsset
+data ApiTokenAmountFingerprint = ApiTokenAmountFingerprint
     { assetName :: !(ApiT W.TokenName)
     , amount :: !(Quantity "assets" Natural)
     , fingerprint :: !(ApiT W.TokenFingerprint)
@@ -1236,7 +1236,7 @@ data ApiTokenAsset = ApiTokenAsset
 data ApiTokens = ApiTokens
     { policyId :: !(ApiT W.TokenPolicyId)
     , policyScript :: !(ApiT (Script KeyHash))
-    , assets :: !(NonEmpty ApiTokenAsset)
+    , assets :: !(NonEmpty ApiTokenAmountFingerprint)
     }
     deriving (Eq, Generic, Show)
     deriving anyclass NFData
@@ -2091,9 +2091,9 @@ instance FromJSON ApiAssetMintBurn where
 instance ToJSON ApiAssetMintBurn where
     toJSON = genericToJSON defaultRecordTypeOptions
 
-instance FromJSON ApiTokenAsset where
+instance FromJSON ApiTokenAmountFingerprint where
     parseJSON = genericParseJSON defaultRecordTypeOptions
-instance ToJSON ApiTokenAsset where
+instance ToJSON ApiTokenAmountFingerprint where
     toJSON = genericToJSON defaultRecordTypeOptions
 
 instance FromJSON ApiTokens where

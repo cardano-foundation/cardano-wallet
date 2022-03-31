@@ -138,7 +138,7 @@ import Cardano.Wallet.Api.Types
     , ApiStakePoolFlag (..)
     , ApiStakePoolMetrics (..)
     , ApiT (..)
-    , ApiTokenAsset (..)
+    , ApiTokenAmountFingerprint (..)
     , ApiTokens (..)
     , ApiTransaction (..)
     , ApiTxCollateral (..)
@@ -520,7 +520,7 @@ spec = parallel $ do
             jsonRoundtripAndGolden $ Proxy @ApiFee
             jsonRoundtripAndGolden $ Proxy @ApiAssetMintBurn
             jsonRoundtripAndGolden $ Proxy @ApiTokens
-            jsonRoundtripAndGolden $ Proxy @ApiTokenAsset
+            jsonRoundtripAndGolden $ Proxy @ApiTokenAmountFingerprint
             jsonRoundtripAndGolden $ Proxy @ApiStakePoolMetrics
             jsonRoundtripAndGolden $ Proxy @ApiTxId
             jsonRoundtripAndGolden $ Proxy @ApiVerificationKeyShelley
@@ -2217,12 +2217,12 @@ instance Arbitrary StakeAddress where
 instance Arbitrary (ApiConstructTransaction n) where
     arbitrary = applyArbitrary3 ApiConstructTransaction
 
-instance Arbitrary ApiTokenAsset where
+instance Arbitrary ApiTokenAmountFingerprint where
     arbitrary = do
         name <- genTokenName
         policyid <- arbitrary
         let fingerprint = ApiT $ mkTokenFingerprint policyid name
-        ApiTokenAsset
+        ApiTokenAmountFingerprint
             <$> pure (ApiT name)
             <*> (Quantity . fromIntegral <$> choose @Int (1, 10000))
             <*> pure fingerprint
@@ -2968,8 +2968,9 @@ instance Typeable n => ToSchema (ApiForeignStakeKey n) where
 instance ToSchema ApiNullStakeKey where
     declareNamedSchema _ = declareSchemaForDefinition "ApiNullStakeKey"
 
-instance ToSchema ApiTokenAsset  where
-    declareNamedSchema _ = declareSchemaForDefinition "ApiTokenAsset"
+instance ToSchema ApiTokenAmountFingerprint  where
+    declareNamedSchema _ =
+        declareSchemaForDefinition "ApiTokenAmountFingerprint"
 
 instance ToSchema ApiTokens  where
     declareNamedSchema _ = do

@@ -2420,7 +2420,7 @@ components:
       properties:
         transaction: *serialisedTransactionEncoded
 
-    ApiTokenAsset: &ApiTokenAsset
+    ApiTokenAmountFingerprint: &ApiTokenAmountFingerprint
       type: object
       required:
         - asset_name
@@ -2443,7 +2443,7 @@ components:
         assets:
           type: array
           minItems: 1
-          items: *ApiTokenAsset
+          items: *ApiTokenAmountFingerprint
 
     ApiAssetMintBurn: &ApiAssetMintBurn
       type: object

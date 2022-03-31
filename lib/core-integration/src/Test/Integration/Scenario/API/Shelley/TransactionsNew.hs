@@ -51,7 +51,7 @@ import Cardano.Wallet.Api.Types
     , ApiSerialisedTransaction (..)
     , ApiStakePool
     , ApiT (..)
-    , ApiTokenAsset (..)
+    , ApiTokenAmountFingerprint (..)
     , ApiTokens (..)
     , ApiTransaction
     , ApiTxId (..)
@@ -1330,7 +1330,7 @@ spec = describe "NEW_SHELLEY_TRANSACTIONS" $ do
                )
         let scriptUsed = RequireAllOf [RequireSignatureOf externalPolicyKeyHash]
 
-        let apiTokenAsset = ApiTokenAsset
+        let apiTokenAmountFingerprint = ApiTokenAmountFingerprint
                 { assetName = ApiT tokenName'
                 , amount = Quantity 50_000
                 , fingerprint =
@@ -1339,7 +1339,7 @@ spec = describe "NEW_SHELLEY_TRANSACTIONS" $ do
         let apiTokens = ApiTokens
                 { policyId = ApiT tokenPolicyId'
                 , policyScript = ApiT scriptUsed
-                , assets = NE.fromList [apiTokenAsset]
+                , assets = NE.fromList [apiTokenAmountFingerprint]
                 }
 
         let activeAssetsInfo = ApiAssetMintBurn
@@ -3709,7 +3709,7 @@ spec = describe "NEW_SHELLEY_TRANSACTIONS" $ do
                 (AssetId tokenPolicyId' tokenName')
                 (TokenQuantity 50_000)
 
-        let apiTokenAsset = ApiTokenAsset
+        let apiTokenAmountFingerprint = ApiTokenAmountFingerprint
                 { assetName = ApiT tokenName'
                 , amount = Quantity 50_000
                 , fingerprint =
@@ -3718,7 +3718,7 @@ spec = describe "NEW_SHELLEY_TRANSACTIONS" $ do
         let apiTokens = ApiTokens
                 { policyId = ApiT tokenPolicyId'
                 , policyScript = ApiT scriptUsed
-                , assets = NE.fromList [apiTokenAsset]
+                , assets = NE.fromList [apiTokenAmountFingerprint]
                 }
 
         let activeAssetsInfo = ApiAssetMintBurn
@@ -3806,7 +3806,7 @@ spec = describe "NEW_SHELLEY_TRANSACTIONS" $ do
         let tokenPolicyId' =
                 UnsafeTokenPolicyId . Hash $
                 unScriptHash $ toScriptHash scriptUsed
-        let apiTokenAsset = ApiTokenAsset
+        let apiTokenAmountFingerprint = ApiTokenAmountFingerprint
                 { assetName = ApiT tokenName'
                 , amount = Quantity 50_000
                 , fingerprint =
@@ -3815,7 +3815,7 @@ spec = describe "NEW_SHELLEY_TRANSACTIONS" $ do
         let apiTokens = ApiTokens
                 { policyId = ApiT tokenPolicyId'
                 , policyScript = ApiT scriptUsed
-                , assets = NE.fromList [apiTokenAsset]
+                , assets = NE.fromList [apiTokenAmountFingerprint]
                 }
 
         let activeAssetsInfo = ApiAssetMintBurn

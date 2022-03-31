@@ -246,8 +246,6 @@ import Cardano.Wallet.Api.Types
     , ApiPaymentDestination (..)
     , ApiPendingSharedWallet (..)
     , ApiPolicyKey (..)
-    , ApiTokens (..)
-    , ApiTokenAsset (..)
     , ApiPoolId (..)
     , ApiPostAccountKeyDataWithPurpose (..)
     , ApiPostPolicyKeyData (..)
@@ -269,6 +267,8 @@ import Cardano.Wallet.Api.Types
     , ApiStakeKeyIndex (..)
     , ApiStakeKeys (..)
     , ApiT (..)
+    , ApiTokenAmountFingerprint (..)
+    , ApiTokens (..)
     , ApiTransaction (..)
     , ApiTxCollateral (..)
     , ApiTxId (..)
@@ -460,12 +460,12 @@ import Cardano.Wallet.Primitive.Types.Redeemer
     ( Redeemer (..) )
 import Cardano.Wallet.Primitive.Types.TokenBundle
     ( Flat (..), TokenBundle (..) )
-import Cardano.Wallet.Primitive.Types.TokenQuantity
-    ( TokenQuantity (..) )
 import Cardano.Wallet.Primitive.Types.TokenMap
     ( AssetId (..), fromFlatList, toNestedList )
 import Cardano.Wallet.Primitive.Types.TokenPolicy
     ( TokenName (..), TokenPolicyId (..), mkTokenFingerprint, nullTokenName )
+import Cardano.Wallet.Primitive.Types.TokenQuantity
+    ( TokenQuantity (..) )
 import Cardano.Wallet.Primitive.Types.Tx
     ( TransactionInfo
     , Tx (..)
@@ -490,11 +490,11 @@ import Cardano.Wallet.Transaction
     ( DelegationAction (..)
     , ErrAssignRedeemers (..)
     , ErrSignTx (..)
+    , TokenMapWithScripts (..)
     , TransactionCtx (..)
     , TransactionLayer (..)
     , Withdrawal (..)
     , defaultTransactionCtx
-    , TokenMapWithScripts (..)
     )
 import Cardano.Wallet.Unsafe
     ( unsafeRunExceptT )
@@ -2459,16 +2459,17 @@ decodeTransaction ctx (ApiT wid) (ApiSerialisedTransaction (ApiT sealed)) = do
         | (policy, tokenQuantities) <- toNestedList tokenmap
         ]
 
-    toTokenAsset policy (name, tokenquantity) = ApiTokenAsset
-        { assetName = ApiT name
-        , amount = Quantity $ unTokenQuantity tokenquantity
-        , fingerprint = ApiT $ mkTokenFingerprint policy name
-        }
+    toTokenAmountFingerprint policy (name, tokenquantity) =
+        ApiTokenAmountFingerprint
+            { assetName = ApiT name
+            , amount = Quantity $ unTokenQuantity tokenquantity
+            , fingerprint = ApiT $ mkTokenFingerprint policy name
+            }
 
     fromIdScriptAssets (policy, script, tokens) = ApiTokens
         { policyId = ApiT policy
         , policyScript = ApiT script
-        , assets = NE.map (toTokenAsset policy) tokens
+        , assets = NE.map (toTokenAmountFingerprint policy) tokens
         }
 
     toApiTokens (TokenMapWithScripts tokenMap scriptMap) =
