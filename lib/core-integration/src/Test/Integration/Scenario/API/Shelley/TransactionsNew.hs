@@ -22,7 +22,8 @@ import Prelude
 import Cardano.Address.Derivation
     ( XPub, xpubPublicKey )
 import Cardano.Address.Script
-    ( KeyRole (..)
+    ( KeyHash
+    , KeyRole (..)
     , Script (..)
     , ScriptHash (..)
     , keyHashFromBytes
@@ -3664,6 +3665,14 @@ spec = describe "NEW_SHELLEY_TRANSACTIONS" $ do
 
         in toCborHexTx txBody
 
+    mintAssetCheck
+        :: MonadUnliftIO m
+        => Context
+        -> ApiWallet
+        -> TokenName
+        -> Payload
+        -> (KeyHash -> Script KeyHash)
+        -> m ()
     mintAssetCheck ctx wa tokenName' payload scriptUsedF = do
 
         rTx <- request @(ApiConstructTransaction n) ctx
@@ -3768,6 +3777,14 @@ spec = describe "NEW_SHELLEY_TRANSACTIONS" $ do
                         (`shouldBe` tokens')
                 ]
 
+    burnAssetsCheck
+        :: MonadUnliftIO m
+        => Context
+        -> ApiWallet
+        -> TokenName
+        -> Payload
+        -> (KeyHash -> Script KeyHash)
+        -> m ()
     burnAssetsCheck ctx wa tokenName' payload scriptUsedF = do
 
         rTx <- request @(ApiConstructTransaction n) ctx
