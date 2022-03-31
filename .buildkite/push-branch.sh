@@ -55,7 +55,7 @@ git fetch origin "$other_branch" || true
 if [ -n "${GITHUB_SHA:-}" ]; then
   head="$GITHUB_SHA"
 else
-  head=$(git show-ref -s HEAD)
+  head=$(git rev-parse --verify HEAD)
 fi
 
 advance_branch "$this_branch" "$head"
