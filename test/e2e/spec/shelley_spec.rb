@@ -458,6 +458,28 @@ RSpec.describe CardanoWallet::Shelley do
       expect(res).to be_correct_and_respond 200
       expect(res.to_s).to include "acct_xvk"
     end
+
+    it "I can create and get policy key and it's hash" do
+      wid = create_shelley_wallet
+      created = SHELLEY.keys.create_policy_key(wid, PASS, { hash: true })
+      expect(created).to be_correct_and_respond 202
+      expect(created.to_s).to include "policy_vkh"
+
+      get = SHELLEY.keys.get_policy_key(wid, { hash: true })
+      expect(get).to be_correct_and_respond 200
+
+      expect(get.to_s).to eq created.to_s
+
+      created = SHELLEY.keys.create_policy_key(wid, PASS)
+      expect(created).to be_correct_and_respond 202
+      expect(created.to_s).to include "policy_vk"
+      expect(created.to_s).not_to include "policy_vkh"
+
+      get = SHELLEY.keys.get_policy_key(wid)
+      expect(get).to be_correct_and_respond 200
+
+      expect(get.to_s).to eq created.to_s
+    end
   end
 
 end
