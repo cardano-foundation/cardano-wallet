@@ -2489,7 +2489,7 @@ decodeTransaction ctx (ApiT wid) (ApiSerialisedTransaction (ApiT sealed)) = do
             uncurry ApiPolicyKey . computeKeyPayload (Just True) <$>
             includePolicyKeyInfo tokenWithScripts xpubM
         , walletPolicyKeyIndex =
-            (const policyIx) <$> includePolicyKeyInfo tokenWithScripts xpubM
+            policyIx <$ includePolicyKeyInfo tokenWithScripts xpubM
         }
     toOut (txoutIncoming, Nothing) =
         ExternalOutput $ toAddressAmount @n txoutIncoming
