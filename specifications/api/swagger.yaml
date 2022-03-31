@@ -79,7 +79,7 @@ x-absoluteSlot: &absoluteSlot
   minimum: 0
   example: 8086
 
-x-numberOfAssets: &numberOfAssets
+x-tokenAmount: &tokenAmount
   type: object
   required:
     - quantity
@@ -2428,7 +2428,7 @@ components:
         - fingerprint
       properties:
        asset_name: *assetName
-       amount: *numberOfAssets
+       amount: *tokenAmount
        fingerprint: *assetFingerprint
 
     ApiTokens: &ApiTokens
