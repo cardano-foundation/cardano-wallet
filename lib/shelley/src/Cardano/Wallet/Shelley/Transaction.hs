@@ -497,11 +497,11 @@ signTransaction
                 mkByronWitness body networkId addr (getRawKey k, pwd)
 
     mkWdrlCertWitness :: RewardAccount -> Maybe (Cardano.KeyWitness era)
-    mkWdrlCertWitness a = do
+    mkWdrlCertWitness a =
         mkShelleyWitness body <$> resolveRewardAcct a
 
     mkPolicyWitness :: KeyHash -> Maybe (Cardano.KeyWitness era)
-    mkPolicyWitness a = do
+    mkPolicyWitness a =
         mkShelleyWitness body <$> resolvePolicyKey a
 
     mkExtraWitness :: Cardano.Hash Cardano.PaymentKey -> Maybe (Cardano.KeyWitness era)

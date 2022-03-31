@@ -1220,7 +1220,7 @@ data ApiAnyCertificate n =
     deriving anyclass NFData
 
 newtype ApiPostPolicyKeyData = ApiPostPolicyKeyData
-    { passphrase :: (ApiT (Passphrase "raw"))
+    { passphrase :: ApiT (Passphrase "raw")
     }
     deriving (Eq, Generic, Show)
     deriving anyclass NFData
