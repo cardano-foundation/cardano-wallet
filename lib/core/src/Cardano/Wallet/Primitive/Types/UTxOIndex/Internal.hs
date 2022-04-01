@@ -168,7 +168,18 @@ import qualified Data.Set.Strict.NonEmptySet as NonEmptySet
 -- the 'checkInvariant' function.
 --
 data UTxOIndex u = UTxOIndex
-    { assetsAll
+    { indexAll
+        :: !(Map Asset (NonEmptySet u))
+        -- An index of all entries that contain the given asset.
+    , indexSingletons
+        :: !(Map Asset (NonEmptySet u))
+        -- An index of all entries that contain the given asset and no other
+        -- assets.
+    , indexPairs
+        :: !(Map Asset (NonEmptySet u))
+        -- An index of all entries that contain the given asset and exactly
+        -- one other asset.
+    , assetsAll
         :: !(Map AssetId (NonEmptySet u))
         -- An index of all entries that contain at least one non-ada asset.
     , assetsSingleton
@@ -196,7 +207,10 @@ instance NFData u => NFData (UTxOIndex u)
 --
 empty :: UTxOIndex u
 empty = UTxOIndex
-    { assetsAll = Map.empty
+    { indexAll = Map.empty
+    , indexSingletons = Map.empty
+    , indexPairs = Map.empty
+    , assetsAll = Map.empty
     , assetsSingleton = Map.empty
     , coins = Set.empty
     , balance = TokenBundle.empty
