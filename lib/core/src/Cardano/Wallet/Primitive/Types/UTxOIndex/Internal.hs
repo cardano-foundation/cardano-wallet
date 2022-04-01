@@ -920,12 +920,26 @@ indexIsMinimal i = F.and
 --
 -- In particular, the set of assets in the cached 'balance' must be:
 --
---    - equal to the set of assets in 'assetsAll'
---    - a superset of the set of assets in 'assetsSingleton'.
+--    - equal to the set of assets in 'indexAll'
+--    - a superset of the set of assets in 'indexSingletons'.
+--    - a superset of the set of assets in 'indexPairs'.
 --
 assetsConsistent :: UTxOIndex u -> Bool
-assetsConsistent i = (&&)
-    (Map.keysSet (assetsAll i) == balanceAssets)
-    (Map.keysSet (assetsSingleton i) `Set.isSubsetOf` balanceAssets)
+assetsConsistent i = and
+    [ Map.keysSet (assetsAll i) == balanceAssets
+    , Map.keysSet (assetsSingleton i) `Set.isSubsetOf` balanceAssets
+    , Map.keysSet (indexAll i)
+        == balanceAssetsNew
+    , Map.keysSet (indexSingletons i)
+        `Set.isSubsetOf` balanceAssetsNew
+    , Map.keysSet (indexPairs i)
+        `Set.isSubsetOf` balanceAssetsNew
+    ]
   where
     balanceAssets = TokenBundle.getAssets (balance i)
+
+    -- TODO:
+    --
+    -- Rename to 'balanceAssets', once the old 'balanceAssets' has been removed.
+    --
+    balanceAssetsNew = tokenBundleAssets (balance i)
