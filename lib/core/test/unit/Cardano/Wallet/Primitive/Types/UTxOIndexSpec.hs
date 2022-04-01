@@ -533,7 +533,7 @@ prop_selectRandom_one_any i = checkCoverage $ monadicIO $ do
 --
 prop_selectRandom_one_withAdaOnly :: UTxOIndex TestUTxO -> Property
 prop_selectRandom_one_withAdaOnly i = checkCoverage $ monadicIO $ do
-    result <- run $ UTxOIndex.selectRandom i WithAdaOnly
+    result <- run $ UTxOIndex.selectRandomNew i (SelectSingleton AssetLovelace)
     monitor $ cover 50 (isJust result)
         "selected an entry"
     case result of
