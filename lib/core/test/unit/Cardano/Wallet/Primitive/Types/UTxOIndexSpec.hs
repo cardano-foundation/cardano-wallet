@@ -608,13 +608,13 @@ prop_selectRandom_one_withAssetOnly i a = checkCoverage $ monadicIO $ do
 --
 prop_selectRandom_all_any :: UTxOIndex TestUTxO -> Property
 prop_selectRandom_all_any i = checkCoverage $ monadicIO $ do
-    (selectedEntries, i') <- run $ selectAll Any i
+    (selectedEntries, i') <- run $ selectAllNew SelectAny i
     monitor $ cover 90 (not (null selectedEntries))
         "selected at least one entry"
     assert $ (==)
         (L.sort $ show <$> selectedEntries)
         (L.sort $ show <$> UTxOIndex.toList i)
-    assert $ UTxOIndex.assets i' == mempty
+    assert $ UTxOIndex.assetsNew i' == mempty
     assert $ UTxOIndex.balance i' == mempty
     assert $ UTxOIndex.fromSequence selectedEntries == i
     assert $ UTxOIndex.null i'
@@ -789,6 +789,26 @@ selectAll sf = go []
   where
     go !selectedEntries !i = do
         selected <- UTxOIndex.selectRandom i sf
+        case selected of
+            Nothing ->
+                -- There are no more entries available. Terminate here:
+                pure (selectedEntries, i)
+            Just ((u, b), iReduced) ->
+                go ((u, b) : selectedEntries) iReduced
+
+-- TODO:
+--
+-- Rename to 'selectAll' once the old function has been deleted.
+--
+selectAllNew
+    :: (MonadRandom m, u ~ TestUTxO)
+    => SelectionFilterNew Asset
+    -> UTxOIndex u
+    -> m ([(u, TokenBundle)], UTxOIndex u)
+selectAllNew sf = go []
+  where
+    go !selectedEntries !i = do
+        selected <- UTxOIndex.selectRandomNew i sf
         case selected of
             Nothing ->
                 -- There are no more entries available. Terminate here:
