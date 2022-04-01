@@ -520,6 +520,21 @@ selectRandomWithPriority
 selectRandomWithPriority i =
     firstJustM (selectRandom i) . NE.toList
 
+-- TODO:
+--
+-- Rename this to 'selectRandomWithPriority' once the old function has been
+-- removed.
+--
+selectRandomWithPriorityNew
+    :: (MonadRandom m, Ord u)
+    => UTxOIndex u
+    -> NonEmpty (SelectionFilterNew Asset)
+    -- ^ A list of selection filters to be traversed in descending order of
+    -- priority, from left to right.
+    -> m (Maybe ((u, TokenBundle), UTxOIndex u))
+selectRandomWithPriorityNew i =
+    firstJustM (selectRandomNew i) . NE.toList
+
 --------------------------------------------------------------------------------
 -- Internal Interface
 --------------------------------------------------------------------------------
