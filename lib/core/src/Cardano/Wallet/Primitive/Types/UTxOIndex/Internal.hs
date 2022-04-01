@@ -1,5 +1,6 @@
 {-# LANGUAGE DeriveAnyClass #-}
 {-# LANGUAGE DeriveGeneric #-}
+{-# LANGUAGE DeriveTraversable #-}
 {-# LANGUAGE LambdaCase #-}
 {-# LANGUAGE NamedFieldPuns #-}
 {-# LANGUAGE OverloadedLabels #-}
@@ -418,6 +419,20 @@ data SelectionFilter
         -- asset, but no other non-ada assets.
     deriving (Eq, Show)
 
+-- | Specifies a filter for selecting UTxO entries.
+--
+-- TODO:
+--
+-- Rename this to 'SelectionFilter', once the old 'SelectionFilter' has been
+-- removed.
+--
+data SelectionFilterNew asset
+    = SelectSingleton asset
+    | SelectPairWith asset
+    | SelectAnyWith asset
+    | SelectAny
+    deriving (Eq, Foldable, Functor, Show, Traversable)
+
 -- | Selects an entry at random from the index according to the given filter.
 --
 -- Returns the selected entry and an updated index with the entry removed.
@@ -442,6 +457,42 @@ selectRandom i selectionFilter =
         WithAdaOnly -> entriesWithAdaOnly i
         WithAsset a -> entriesWithAsset a i
         WithAssetOnly a -> entriesWithAssetOnly a i
+
+-- | Selects an entry at random from the index according to the given filter.
+--
+-- Returns the selected entry and an updated index with the entry removed.
+--
+-- Returns 'Nothing' if there were no matching entries.
+--
+-- TODO:
+--
+-- Rename to 'selectRandom', once the old 'selectRandom' has been removed.
+--
+selectRandomNew
+    :: forall m u. (MonadRandom m, Ord u)
+    => UTxOIndex u
+    -> SelectionFilterNew Asset
+    -> m (Maybe ((u, TokenBundle), UTxOIndex u))
+selectRandomNew i selectionFilter =
+    (lookupAndRemoveEntry =<<) <$> selectRandomSetMember selectionSet
+  where
+    lookupAndRemoveEntry :: u -> Maybe ((u, TokenBundle), UTxOIndex u)
+    lookupAndRemoveEntry u =
+        (\b -> ((u, b), delete u i)) <$> Map.lookup u (universe i)
+
+    selectionSet :: Set u
+    selectionSet = case selectionFilter of
+        SelectSingleton a ->
+            a `lookupWith` indexSingletons
+        SelectPairWith a ->
+            a `lookupWith` indexPairs
+        SelectAnyWith a ->
+            a `lookupWith` indexAll
+        SelectAny ->
+            Map.keysSet (universe i)
+      where
+        a `lookupWith` index =
+            maybe mempty NonEmptySet.toSet $ Map.lookup a $ index i
 
 -- | Selects an entry at random from the index according to the given filters.
 --
