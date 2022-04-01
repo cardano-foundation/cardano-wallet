@@ -140,7 +140,7 @@ import Cardano.Wallet.Primitive.Types.TokenQuantity.Gen
 import Cardano.Wallet.Primitive.Types.Tx
     ( TokenBundleSizeAssessment (..), TokenBundleSizeAssessor (..) )
 import Cardano.Wallet.Primitive.Types.UTxOIndex
-    ( SelectionFilter (..), UTxOIndex )
+    ( Asset (..), SelectionFilter (..), SelectionFilterNew (..), UTxOIndex )
 import Cardano.Wallet.Primitive.Types.UTxOIndex.Gen
     ( genUTxOIndex, genUTxOIndexLarge, genUTxOIndexLargeN, shrinkUTxOIndex )
 import Cardano.Wallet.Primitive.Types.UTxOSelection
@@ -342,7 +342,7 @@ spec = describe "Cardano.Wallet.CoinSelection.Internal.BalanceSpec" $
 
     parallel $ describe "Behaviour of selection lenses" $ do
 
-        it "prop_assetSelectonLens_givesPriorityToSingletonAssets" $
+        it "prop_assetSelectionLens_givesPriorityToSingletonAssets" $
             property prop_assetSelectionLens_givesPriorityToSingletonAssets
         it "prop_coinSelectonLens_givesPriorityToCoins" $
             property prop_coinSelectionLens_givesPriorityToCoins
@@ -1726,9 +1726,10 @@ prop_assetSelectionLens_givesPriorityToSingletonAssets
     :: Blind (Small (UTxOIndex TestUTxO))
     -> Property
 prop_assetSelectionLens_givesPriorityToSingletonAssets (Blind (Small u)) =
-    assetCount >= 2 ==> monadicIO $ do
+    nonAdaAssetCount >= 2 ==> monadicIO $ do
         hasSingletonAsset <- isJust <$>
-            run (UTxOIndex.selectRandom u $ WithAssetOnly asset)
+            run (UTxOIndex.selectRandomNew u $
+            SelectPairWith (Asset nonAdaAsset))
         monitor $ cover 20 hasSingletonAsset
             "There is at least one singleton entry that matches"
         monitor $ cover 20 (not hasSingletonAsset)
@@ -1746,17 +1747,17 @@ prop_assetSelectionLens_givesPriorityToSingletonAssets (Blind (Small u)) =
                 let bundle = NE.head $ snd <$> UTxOSelection.selectedList result
                 case F.toList $ TokenBundle.getAssets bundle of
                     [a] -> assertWith
-                        "a == asset"
-                        (a == asset)
+                        "a == nonAdaAsset"
+                        (a == nonAdaAsset)
                     _ -> assertWith
                         "not hasSingletonAsset"
                         (not hasSingletonAsset)
   where
-    asset = Set.findMin $ UTxOIndex.assets u
-    assetCount = Set.size $ UTxOIndex.assets u
+    nonAdaAsset = Set.findMin (utxoIndexNonAdaAssets u)
+    nonAdaAssetCount = Set.size (utxoIndexNonAdaAssets u)
     initialState = UTxOSelection.fromIndex u
     lens = assetSelectionLens
-        NoLimit SelectionStrategyOptimal (asset, minimumAssetQuantity)
+        NoLimit SelectionStrategyOptimal (nonAdaAsset, minimumAssetQuantity)
     minimumAssetQuantity = TokenQuantity 1
 
 prop_coinSelectionLens_givesPriorityToCoins
@@ -4404,6 +4405,18 @@ unitTests :: String -> [Expectation] -> SpecWith ()
 unitTests lbl cases =
     forM_ (zip [1..] cases) $ \(i, test) ->
         it (lbl <> " example #" <> show @Int i) test
+
+utxoIndexNonAdaAssets :: UTxOIndex u -> Set AssetId
+utxoIndexNonAdaAssets
+    = Set.fromList
+    . Maybe.mapMaybe toNonAdaAsset
+    . Set.toList
+    . UTxOIndex.assetsNew
+
+toNonAdaAsset :: Asset -> Maybe AssetId
+toNonAdaAsset = \case
+    AssetLovelace -> Nothing
+    Asset assetId -> Just assetId
 
 --------------------------------------------------------------------------------
 -- Selection contexts
