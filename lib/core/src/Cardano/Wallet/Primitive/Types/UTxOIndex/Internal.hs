@@ -6,6 +6,7 @@
 {-# LANGUAGE OverloadedLabels #-}
 {-# LANGUAGE ScopedTypeVariables #-}
 {-# LANGUAGE StandaloneDeriving #-}
+{- HLINT ignore "Use &&" -}
 
 -- |
 -- Copyright: © 2018-2021 IOHK
@@ -812,7 +813,10 @@ checkBalance i
 -- | Checks that every entry in the 'universe' map is properly indexed.
 --
 indexIsComplete :: forall u. Ord u => UTxOIndex u -> Bool
-indexIsComplete i = F.all hasEntry $ Map.toList $ universe i
+indexIsComplete i =
+    F.all (\x -> hasEntry x && hasEntryNew x)
+        $ Map.toList
+        $ universe i
   where
     hasEntry :: (u, TokenBundle) -> Bool
     hasEntry (u, b) = case categorizeTokenBundle b of
@@ -824,10 +828,32 @@ indexIsComplete i = F.all hasEntry $ Map.toList $ universe i
         IsCoinWithMultipleAssets as ->
             F.all (\a -> hasEntryForAsset a u assetsAll) as
 
+    -- TODO:
+    --
+    -- Rename to 'hasEntry' once the old 'hasEntry' has been removed.
+    --
+    hasEntryNew :: (u, TokenBundle) -> Bool
+    hasEntryNew (u, b) = case categorizeTokenBundleNew b of
+        BundleWithNoAssets ->
+            True
+        BundleWithOneAsset a -> and
+            [ hasEntryForAsset a u indexAll
+            , hasEntryForAsset a u indexSingletons
+            ]
+        BundleWithTwoAssets (a1, a2) -> and
+            [ hasEntryForAsset a1 u indexAll
+            , hasEntryForAsset a2 u indexAll
+            , hasEntryForAsset a1 u indexPairs
+            , hasEntryForAsset a2 u indexPairs
+            ]
+        BundleWithMultipleAssets as ->
+            F.all (\a -> hasEntryForAsset a u indexAll) as
+
     hasEntryForAsset
-        :: AssetId
+        :: Ord asset
+        => asset
         -> u
-        -> (UTxOIndex u -> Map AssetId (NonEmptySet u))
+        -> (UTxOIndex u -> Map asset (NonEmptySet u))
         -> Bool
     hasEntryForAsset asset u assetsMap =
         maybe False (NonEmptySet.member u) $ Map.lookup asset $ assetsMap i
