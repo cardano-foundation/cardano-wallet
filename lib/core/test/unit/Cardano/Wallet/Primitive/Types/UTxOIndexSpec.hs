@@ -516,7 +516,7 @@ prop_selectRandom_singleton selectionFilter u b = monadicIO $ do
 --
 prop_selectRandom_one_any :: UTxOIndex TestUTxO -> Property
 prop_selectRandom_one_any i = checkCoverage $ monadicIO $ do
-    result <- run $ UTxOIndex.selectRandom i Any
+    result <- run $ UTxOIndex.selectRandomNew i SelectAny
     monitor $ cover 90 (isJust result)
         "selected an entry"
     case result of
