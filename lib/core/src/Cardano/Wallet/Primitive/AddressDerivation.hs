@@ -5,7 +5,6 @@
 {-# LANGUAGE FlexibleContexts #-}
 {-# LANGUAGE FlexibleInstances #-}
 {-# LANGUAGE GADTs #-}
-{-# LANGUAGE GeneralizedNewtypeDeriving #-}
 {-# LANGUAGE LambdaCase #-}
 {-# LANGUAGE MultiParamTypeClasses #-}
 {-# LANGUAGE PolyKinds #-}
@@ -71,16 +70,6 @@ module Cardano.Wallet.Primitive.AddressDerivation
     , MkKeyFingerprint(..)
     , ErrMkKeyFingerprint(..)
     , KeyFingerprint(..)
-
-    -- * Passphrase
-    , Passphrase(..)
-    , PassphraseMinLength(..)
-    , PassphraseMaxLength(..)
-    , ErrWrongPassphrase(..)
-    , PassphraseScheme(..)
-    , encryptPassphrase
-    , checkPassphrase
-    , preparePassphrase
     ) where
 
 import Prelude
@@ -88,37 +77,29 @@ import Prelude
 import Cardano.Address.Derivation
     ( XPrv, XPub, xpubPublicKey )
 import Cardano.Address.Script
-    ( KeyHash (KeyHash), KeyRole )
+    ( KeyHash (..), KeyRole )
 import Cardano.Mnemonic
     ( SomeMnemonic )
-import Cardano.Wallet.Primitive.Types
-    ( PassphraseScheme (..) )
+import Cardano.Wallet.Primitive.Passphrase.Types
+    ( Passphrase (..), PassphraseHash (..), PassphraseScheme )
 import Cardano.Wallet.Primitive.Types.Address
     ( Address (..) )
-import Cardano.Wallet.Primitive.Types.Hash
-    ( Hash (..) )
 import Cardano.Wallet.Primitive.Types.RewardAccount
     ( RewardAccount (..) )
 import Control.DeepSeq
     ( NFData )
 import Control.Monad
-    ( unless, (>=>) )
+    ( (>=>) )
 import Crypto.Hash
     ( Digest, HashAlgorithm )
 import Crypto.Hash.Utils
-    ( blake2b224, blake2b256 )
-import Crypto.KDF.PBKDF2
-    ( Parameters (..), fastPBKDF2_SHA512 )
-import Crypto.Random.Types
-    ( MonadRandom (..) )
+    ( blake2b224 )
 import Data.ByteArray
-    ( ByteArray, ByteArrayAccess, ScrubbedBytes )
+    ( ByteArray, ByteArrayAccess )
 import Data.ByteArray.Encoding
     ( Base (..), convertFromBase, convertToBase )
 import Data.ByteString
     ( ByteString )
-import Data.Coerce
-    ( coerce )
 import Data.Kind
     ( Type )
 import Data.List.NonEmpty
@@ -154,13 +135,7 @@ import Quiet
 import Safe
     ( readMay, toEnumMay )
 
-import qualified Codec.CBOR.Encoding as CBOR
-import qualified Codec.CBOR.Write as CBOR
-import qualified Crypto.Scrypt as Scrypt
-import qualified Data.ByteArray as BA
-import qualified Data.ByteString as BS
 import qualified Data.Text as T
-import qualified Data.Text.Encoding as T
 
 {-------------------------------------------------------------------------------
                                 HD Hierarchy
@@ -521,144 +496,6 @@ hashVerificationKey keyRole =
     KeyHash keyRole . blake2b224 . xpubPublicKey . getRawKey
 
 {-------------------------------------------------------------------------------
-                                 Passphrases
--------------------------------------------------------------------------------}
-
--- | An encapsulated passphrase. The inner format is free, but the wrapper helps
--- readability in function signatures.
-newtype Passphrase (purpose :: Symbol) = Passphrase ScrubbedBytes
-    deriving stock (Eq, Show)
-    deriving newtype (Semigroup, Monoid, NFData, ByteArrayAccess)
-
-type role Passphrase phantom
-
-class PassphraseMinLength (purpose :: Symbol) where
-    -- | Minimal Length for a passphrase, for lack of better validations
-    passphraseMinLength :: Proxy purpose -> Int
-
-class PassphraseMaxLength (purpose :: Symbol) where
-    -- | Maximum length for a passphrase
-    passphraseMaxLength :: Proxy purpose -> Int
-
-instance PassphraseMinLength "raw" where passphraseMinLength _ = 10
-instance PassphraseMaxLength "raw" where passphraseMaxLength _ = 255
-
-instance PassphraseMinLength "lenient" where passphraseMinLength _ = 0
-instance PassphraseMaxLength "lenient" where passphraseMaxLength _ = 255
-
-instance
-    ( PassphraseMaxLength purpose
-    , PassphraseMinLength purpose
-    ) => FromText (Passphrase purpose) where
-    fromText t
-        | T.length t < minLength =
-            Left $ TextDecodingError $
-                "passphrase is too short: expected at least "
-                <> show minLength <> " characters"
-        | T.length t > maxLength =
-            Left $ TextDecodingError $
-                "passphrase is too long: expected at most "
-                <> show maxLength <> " characters"
-        | otherwise =
-            pure $ Passphrase $ BA.convert $ T.encodeUtf8 t
-      where
-        minLength = passphraseMinLength (Proxy :: Proxy purpose)
-        maxLength = passphraseMaxLength (Proxy :: Proxy purpose)
-
-instance ToText (Passphrase purpose) where
-    toText (Passphrase bytes) = T.decodeUtf8 $ BA.convert bytes
-
--- | Encrypt a 'Passphrase' into a format that is suitable for storing on disk
-encryptPassphrase
-    :: MonadRandom m
-    => Passphrase "encryption"
-    -> m (Hash "encryption")
-encryptPassphrase  (Passphrase bytes) = do
-    salt <- getRandomBytes @_ @ByteString 16
-    let params = Parameters
-            { iterCounts = 20000
-            , outputLength = 64
-            }
-    return $ Hash $ BA.convert $ mempty
-        <> BS.singleton (fromIntegral (BS.length salt))
-        <> salt
-        <> BA.convert @ByteString (fastPBKDF2_SHA512 params bytes salt)
-
--- | Manipulation done on legacy passphrases before getting encrypted.
-preparePassphrase
-    :: PassphraseScheme
-    -> Passphrase "raw"
-    -> Passphrase "encryption"
-preparePassphrase = \case
-    EncryptWithPBKDF2 -> coerce
-    EncryptWithScrypt -> Passphrase . hashMaybe
-  where
-    hashMaybe pw@(Passphrase bytes)
-        | pw == mempty = BA.convert bytes
-        | otherwise = BA.convert $ blake2b256 bytes
-
--- | Check whether a 'Passphrase' matches with a stored 'Hash'
-checkPassphrase
-    :: PassphraseScheme
-    -> Passphrase "raw"
-    -> Hash "encryption"
-    -> Either ErrWrongPassphrase ()
-checkPassphrase scheme received stored = do
-    let prepared = preparePassphrase scheme received
-    case scheme of
-        EncryptWithPBKDF2 -> do
-            salt <- getSalt stored
-            unless (constantTimeEq (encryptPassphrase prepared salt) stored) $
-                Left ErrWrongPassphrase
-        EncryptWithScrypt -> do
-            let msg = Scrypt.Pass
-                    $ CBOR.toStrictByteString
-                    $ CBOR.encodeBytes
-                    $ BA.convert prepared
-            if Scrypt.verifyPass' msg (Scrypt.EncryptedPass (getHash stored))
-                then Right ()
-                else Left ErrWrongPassphrase
-  where
-    getSalt :: Hash purpose -> Either ErrWrongPassphrase (Passphrase "salt")
-    getSalt (Hash bytes) = do
-        len <- case BS.unpack (BS.take 1 bytes) of
-            [len] -> Right $ fromIntegral len
-            _ -> Left ErrWrongPassphrase
-        Right $ Passphrase $ BA.convert $ BS.take len (BS.drop 1 bytes)
-    constantTimeEq :: Hash purpose -> Hash purpose -> Bool
-    constantTimeEq (Hash a) (Hash b) =
-        BA.convert @_ @ScrubbedBytes a == BA.convert @_ @ScrubbedBytes b
-
--- | Indicate a failure when checking for a given 'Passphrase' match
-data ErrWrongPassphrase = ErrWrongPassphrase
-    deriving stock (Show, Eq)
-
--- | Little trick to be able to provide our own "random" salt in order to
--- deterministically re-compute a passphrase hash from a known salt. Note that,
--- this boils down to giving an extra argument to the `encryptPassphrase`
--- function which is the salt, in order to make it behave deterministically.
---
--- @
--- encryptPassphrase
---   :: MonadRandom m
---   => Passphrase purpose
---   -> m (Hash purpose)
---
---  ~
---
--- encryptPassphrase
---   :: Passphrase purpose
---   -> Passphrase "salt"
---   -> m (Hash purpose)
--- @
---
--- >>> encryptPassphrase pwd (Passphrase @"salt" salt)
--- Hash "..."
---
-instance MonadRandom ((->) (Passphrase "salt")) where
-    getRandomBytes _ (Passphrase salt) = BA.convert salt
-
-{-------------------------------------------------------------------------------
                              Network Discrimination
 -------------------------------------------------------------------------------}
 
@@ -707,9 +544,9 @@ class WalletKey (key :: Depth -> Type -> Type) where
     -- expected to have already checked that. Using an incorrect passphrase here
     -- will lead to very bad thing.
     changePassphrase
-        :: Passphrase "encryption"
+        :: (PassphraseScheme, Passphrase "user")
             -- ^ Old passphrase
-        -> Passphrase "encryption"
+        -> (PassphraseScheme, Passphrase "user")
             -- ^ New passphrase
         -> key depth XPrv
         -> key depth XPrv
@@ -795,14 +632,14 @@ class PersistPrivateKey (key :: Type -> Type) where
     -- | Convert a private key and its password hash into hexadecimal strings
     -- suitable for storing in a text file or database column.
     serializeXPrv
-        :: (key XPrv, Hash "encryption")
+        :: (key XPrv, PassphraseHash)
         -> (ByteString, ByteString)
 
     -- | The reverse of 'serializeXPrv'. This may fail if the inputs are not
     -- valid hexadecimal strings, or if the key is of the wrong length.
     unsafeDeserializeXPrv
         :: (ByteString, ByteString)
-        -> (key XPrv, Hash "encryption")
+        -> (key XPrv, PassphraseHash)
 
 -- | Operations for saving a public key into a database, and restoring it from
 -- a database. The keys should be encoded in hexadecimal strings.

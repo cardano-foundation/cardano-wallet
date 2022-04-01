@@ -97,16 +97,11 @@ import Cardano.Wallet.Primitive.AddressDerivation
     , Depth (..)
     , DerivationIndex (..)
     , NetworkDiscriminant (..)
-    , Passphrase (..)
-    , PassphraseMaxLength (..)
-    , PassphraseMinLength (..)
-    , PassphraseScheme (..)
     , deriveRewardAccount
     , getRawKey
     , hex
     , liftRawKey
     , paymentAddress
-    , preparePassphrase
     , publicKey
     )
 import Cardano.Wallet.Primitive.AddressDerivation.Byron
@@ -119,6 +114,13 @@ import Cardano.Wallet.Primitive.AddressDiscovery.Sequential
     ( SeqState, defaultAddressPoolGap, mkSeqStateFromRootXPrv, purposeCIP1852 )
 import Cardano.Wallet.Primitive.Model
     ( Wallet (..), unsafeInitWallet )
+import Cardano.Wallet.Primitive.Passphrase
+    ( Passphrase (..)
+    , PassphraseMaxLength (..)
+    , PassphraseMinLength (..)
+    , PassphraseScheme (..)
+    , preparePassphrase
+    )
 import Cardano.Wallet.Primitive.Slotting
     ( TimeInterpreter, hoistTimeInterpreter, mkSingleEraInterpreter )
 import Cardano.Wallet.Primitive.Types
@@ -1836,12 +1838,12 @@ instance Show XPrv where
 instance Eq XPrv where
     (==) = (==) `on` xprvToBytes
 
-instance Arbitrary (Passphrase "raw") where
+instance Arbitrary (Passphrase "user") where
     arbitrary = do
         n <- choose (passphraseMinLength p, passphraseMaxLength p)
         bytes <- T.encodeUtf8 . T.pack <$> replicateM n arbitraryPrintableChar
         return $ Passphrase $ BA.convert bytes
-      where p = Proxy :: Proxy "raw"
+      where p = Proxy :: Proxy "user"
 
     shrink (Passphrase bytes)
         | BA.length bytes <= passphraseMinLength p = []
@@ -1851,11 +1853,11 @@ instance Arbitrary (Passphrase "raw") where
             $ B8.take (passphraseMinLength p)
             $ BA.convert bytes
             ]
-      where p = Proxy :: Proxy "raw"
+      where p = Proxy :: Proxy "user"
 
 instance Arbitrary (Passphrase "encryption") where
     arbitrary = preparePassphrase EncryptWithPBKDF2
-        <$> arbitrary @(Passphrase "raw")
+        <$> arbitrary @(Passphrase "user")
 
 instance Arbitrary (Quantity "byte" Word16) where
     arbitrary = Quantity <$> choose (128, 2048)

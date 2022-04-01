@@ -35,10 +35,10 @@ in
 pkgs.stdenv.mkDerivation {
   inherit name;
   buildInputs = with pkgs.buildPackages; [
-    binutils
     iohk-nix-utils
     nix
   ]
+  ++ (if pkgs.stdenv.hostPlatform.isDarwin then [ darwin.binutils ] else [ binutils ])
   ++ lib.optionals makeTarball [ gnutar gzip ]
   ++ lib.optionals makeZip [ zip ];
   checkInputs = with pkgs.buildPackages; [
@@ -63,7 +63,9 @@ pkgs.stdenv.mkDerivation {
 
   '' + lib.optionalString isMacOS ''
     # Rewrite library paths to standard non-nix locations
-    ( cd $name; rewrite-libs . `ls -1 | grep -Fv .dylib` )
+    ( cd $name; rewrite-libs . `ls -1 | grep -Fv .dylib`
+      for a in *; do /usr/bin/codesign -f -s - $a; done
+    )
 
   '' + lib.optionalString (isLinux || isMacOS) ''
     mkdir -p $name/auto-completion/{bash,zsh,fish}

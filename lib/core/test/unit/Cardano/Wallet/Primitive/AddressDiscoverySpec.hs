@@ -24,10 +24,7 @@ import Cardano.Wallet.Primitive.AddressDerivation
     , DerivationType (..)
     , Index
     , NetworkDiscriminant (..)
-    , Passphrase (..)
     , PaymentAddress (..)
-    , passphraseMaxLength
-    , passphraseMinLength
     , publicKey
     )
 import Cardano.Wallet.Primitive.AddressDerivation.Byron
@@ -36,6 +33,13 @@ import Cardano.Wallet.Primitive.AddressDiscovery
     ( IsOurs (..), knownAddresses )
 import Cardano.Wallet.Primitive.AddressDiscovery.Random
     ( mkRndState )
+import Cardano.Wallet.Primitive.Passphrase
+    ( Passphrase (..)
+    , PassphraseScheme (EncryptWithPBKDF2)
+    , passphraseMaxLength
+    , passphraseMinLength
+    , preparePassphrase
+    )
 import Control.Monad
     ( replicateM )
 import Data.Maybe
@@ -111,6 +115,10 @@ instance Arbitrary (ByronKey 'RootK XPrv) where
     shrink _ = []
     arbitrary = genRootKeys
 
+instance Arbitrary (Passphrase "encryption") where
+    arbitrary = preparePassphrase EncryptWithPBKDF2
+        <$> arbitrary @(Passphrase "user")
+
 genRootKeys :: Gen (ByronKey 'RootK XPrv)
 genRootKeys = do
     mnemonic <- arbitrary
@@ -126,9 +134,9 @@ genRootKeys = do
 instance Show XPrv where
     show = show . CC.unXPrv
 
-instance {-# OVERLAPS #-} Arbitrary (Passphrase "encryption") where
+instance {-# OVERLAPS #-} Arbitrary (Passphrase "user") where
     arbitrary = do
-        let p = Proxy :: Proxy "raw"
+        let p = Proxy :: Proxy "lenient"
         n <- choose (passphraseMinLength p, passphraseMaxLength p)
         bytes <- T.encodeUtf8 . T.pack <$> replicateM n arbitraryPrintableChar
         return $ Passphrase $ BA.convert bytes

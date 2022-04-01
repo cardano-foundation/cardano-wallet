@@ -45,7 +45,6 @@ import Cardano.Wallet.Primitive.AddressDerivation
     , DerivationIndex (..)
     , DerivationType (..)
     , Index (..)
-    , Passphrase (..)
     , WalletKey
     , getIndex
     , getRawKey
@@ -55,6 +54,8 @@ import Cardano.Wallet.Primitive.AddressDerivation
     )
 import Cardano.Wallet.Primitive.AddressDiscovery
     ( coinTypeAda )
+import Cardano.Wallet.Primitive.Passphrase
+    ( Passphrase (..) )
 import Cardano.Wallet.Primitive.Types.Hash
     ( Hash (..) )
 import Cardano.Wallet.Primitive.Types.TokenMap

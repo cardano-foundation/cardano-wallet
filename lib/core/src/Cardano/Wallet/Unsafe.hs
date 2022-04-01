@@ -20,6 +20,7 @@
 module Cardano.Wallet.Unsafe
     ( unsafeRight
     , unsafeFromHex
+    , unsafeFromHexText
     , unsafeFromBase64
     , unsafeFromHexFile
     , unsafeDecodeAddress
@@ -70,6 +71,8 @@ import Control.Monad.Trans.Except
     ( ExceptT (..), runExceptT )
 import Data.Binary.Get
     ( Get, runGet )
+import Data.ByteArray
+    ( ByteArray )
 import Data.ByteArray.Encoding
     ( Base (..), convertFromBase )
 import Data.ByteString
@@ -104,6 +107,7 @@ import qualified Data.ByteString as BS
 import qualified Data.ByteString.Char8 as B8
 import qualified Data.ByteString.Lazy as BL
 import qualified Data.Text as T
+import qualified Data.Text.Encoding as T
 import qualified Data.Text.IO as TIO
 
 -- | Take the right side of an 'Either' value. Crash badly if it was a left.
@@ -111,8 +115,13 @@ unsafeRight :: (Buildable e, HasCallStack) => Either e a -> a
 unsafeRight = either (internalError . build) id
 
 -- | Decode an hex-encoded 'ByteString' into raw bytes, or fail.
-unsafeFromHex :: HasCallStack => ByteString -> ByteString
-unsafeFromHex = unsafeRight . convertFromBase @ByteString @ByteString Base16
+unsafeFromHex :: forall b. (HasCallStack, ByteArray b) => ByteString -> b
+unsafeFromHex = unsafeRight . convertFromBase @ByteString @b Base16
+
+-- | Decode hex-encoded 'Text' into a 'ByteString', or fail. This variant of
+-- 'unsafeFromHex' may be easier to use because it's not polymorphic.
+unsafeFromHexText :: HasCallStack => Text -> ByteString
+unsafeFromHexText = unsafeFromHex . T.encodeUtf8
 
 -- | Decode a base64-encoded 'ByteString' into raw bytes, or fail.
 unsafeFromBase64 :: HasCallStack => ByteString -> ByteString

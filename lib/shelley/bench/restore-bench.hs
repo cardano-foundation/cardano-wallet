@@ -78,11 +78,11 @@ import Cardano.Wallet.Logging
     ( trMessageText )
 import Cardano.Wallet.Network
     ( ChainFollowLog (..), ChainSyncLog (..), NetworkLayer (..) )
+
 import Cardano.Wallet.Primitive.AddressDerivation
     ( Depth (..)
     , NetworkDiscriminant (..)
     , NetworkDiscriminantVal (..)
-    , Passphrase (..)
     , PaymentAddress
     , PersistPrivateKey
     , WalletKey
@@ -112,6 +112,8 @@ import Cardano.Wallet.Primitive.AddressDiscovery.Sequential
     )
 import Cardano.Wallet.Primitive.Model
     ( Wallet, currentTip, getState, totalUTxO )
+import Cardano.Wallet.Primitive.Passphrase
+    ( Passphrase (..) )
 import Cardano.Wallet.Primitive.Slotting
     ( TimeInterpreter, neverFails )
 import Cardano.Wallet.Primitive.SyncProgress

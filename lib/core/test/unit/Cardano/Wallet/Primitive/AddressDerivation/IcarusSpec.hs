@@ -27,7 +27,6 @@ import Cardano.Wallet.Primitive.AddressDerivation
     , Index
     , MkKeyFingerprint (..)
     , NetworkDiscriminant (..)
-    , Passphrase (..)
     , PaymentAddress (..)
     , Role (..)
     , SoftDerivation (..)
@@ -41,6 +40,8 @@ import Cardano.Wallet.Primitive.AddressDerivation.Icarus
     )
 import Cardano.Wallet.Primitive.AddressDerivationSpec
     ()
+import Cardano.Wallet.Primitive.Passphrase.Types
+    ( Passphrase (..) )
 import Cardano.Wallet.Primitive.Types.Address
     ( Address )
 import Test.Hspec

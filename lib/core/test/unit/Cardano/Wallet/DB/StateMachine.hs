@@ -125,6 +125,8 @@ import Cardano.Wallet.Primitive.AddressDiscovery.Shared
     ( Readiness, SharedState (..) )
 import Cardano.Wallet.Primitive.Model
     ( Wallet )
+import Cardano.Wallet.Primitive.Passphrase.Types
+    ( PassphraseHash (..) )
 import Cardano.Wallet.Primitive.Types
     ( BlockHeader (..)
     , ChainPoint
@@ -314,29 +316,29 @@ class PersistPrivateKey k => MockPrivKey k where
     -- | Stuff a mock private key into the type used by 'DBLayer'.
     fromMockPrivKey
         :: MPrivKey
-        -> (k XPrv, Hash "encryption")
+        -> (k XPrv, PassphraseHash)
 
     -- | Unstuff the DBLayer private key into the mock type.
-    toMockPrivKey
-        :: (k XPrv, Hash "encryption")
-        -> MPrivKey
-    toMockPrivKey (_, Hash h) =
-        B8.unpack h
+    toMockPrivKey :: (k XPrv, PassphraseHash) -> MPrivKey
+    toMockPrivKey (_, h) = B8.unpack (BA.convert h)
 
 zeroes :: ByteString
 zeroes = B8.replicate 256 '0'
 
 instance MockPrivKey (ShelleyKey 'RootK) where
-    fromMockPrivKey s = (k, Hash (B8.pack s))
+    fromMockPrivKey s = (k, unMockPrivKeyHash s)
       where (k, _) = unsafeDeserializeXPrv (zeroes, mempty)
 
 instance MockPrivKey (SharedKey 'RootK) where
-    fromMockPrivKey s = (k, Hash (B8.pack s))
+    fromMockPrivKey s = (k, unMockPrivKeyHash s)
       where (k, _) = unsafeDeserializeXPrv (zeroes, mempty)
 
 instance MockPrivKey (ByronKey 'RootK) where
-    fromMockPrivKey s = (k, Hash (B8.pack s))
+    fromMockPrivKey s = (k, unMockPrivKeyHash s)
       where (k, _) = unsafeDeserializeXPrv (zeroes <> ":", mempty)
+
+unMockPrivKeyHash :: MPrivKey -> PassphraseHash
+unMockPrivKeyHash = PassphraseHash .  BA.convert . B8.pack
 
 unMockTxId :: HasCallStack => Hash "Tx" -> SealedTx
 unMockTxId = mockSealedTx . getHash

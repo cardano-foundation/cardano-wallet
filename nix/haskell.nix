@@ -421,6 +421,11 @@ haskell-nix: haskell-nix.stackProject' [
             packages.cardano-addresses-cli.cabal-generator = lib.mkForce null;
           }
 
+          # Disable scrypt support on ARM64
+          ({ pkgs, ... }: {
+            packages.cardano-wallet-core.flags.scrypt = !pkgs.stdenv.hostPlatform.isAarch64;
+          })
+
           # Allow installation of a newer version of Win32 than what is
           # included with GHC. The packages in this list are all those
           # installed with GHC, except for Win32.

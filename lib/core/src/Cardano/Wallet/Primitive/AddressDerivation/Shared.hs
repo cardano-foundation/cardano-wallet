@@ -34,7 +34,7 @@ import Prelude
 import Cardano.Address.Derivation
     ( xpubPublicKey )
 import Cardano.Crypto.Wallet
-    ( XPrv, XPub, toXPub, unXPrv, unXPub, xPrvChangePass, xprv, xpub )
+    ( XPrv, XPub, toXPub, unXPrv, unXPub, xprv, xpub )
 import Cardano.Mnemonic
     ( SomeMnemonic )
 import Cardano.Wallet.Primitive.AddressDerivation
@@ -44,7 +44,6 @@ import Cardano.Wallet.Primitive.AddressDerivation
     , KeyFingerprint (..)
     , MkKeyFingerprint (..)
     , NetworkDiscriminant (..)
-    , Passphrase (..)
     , PersistPrivateKey (..)
     , PersistPublicKey (..)
     , SoftDerivation (..)
@@ -62,10 +61,10 @@ import Cardano.Wallet.Primitive.AddressDerivation.Shelley
     )
 import Cardano.Wallet.Primitive.AddressDiscovery
     ( GetPurpose (..) )
+import Cardano.Wallet.Primitive.Passphrase
+    ( Passphrase (..), PassphraseHash (..), changePassphraseXPrv )
 import Cardano.Wallet.Primitive.Types.Address
     ( Address (..) )
-import Cardano.Wallet.Primitive.Types.Hash
-    ( Hash (..) )
 import Control.Monad
     ( (<=<) )
 import Crypto.Hash
@@ -126,8 +125,8 @@ instance SoftDerivation SharedKey where
 -------------------------------------------------------------------------------}
 
 instance WalletKey SharedKey where
-    changePassphrase (Passphrase oldPwd) (Passphrase newPwd) (SharedKey prv) =
-        SharedKey $ xPrvChangePass oldPwd newPwd prv
+    changePassphrase oldPwd newPwd (SharedKey prv) =
+        SharedKey $ changePassphraseXPrv oldPwd newPwd prv
 
     publicKey (SharedKey prv) =
         SharedKey (toXPub prv)
@@ -158,12 +157,12 @@ instance GetPurpose SharedKey where
 instance PersistPrivateKey (SharedKey 'RootK) where
     serializeXPrv (k, h) =
         ( hex . unXPrv . getKey $ k
-        , hex . getHash $ h
+        , hex . getPassphraseHash $ h
         )
 
     unsafeDeserializeXPrv (k, h) = either err id $ (,)
         <$> fmap SharedKey (xprvFromText k)
-        <*> fmap Hash (fromHex h)
+        <*> fmap PassphraseHash (fromHex h)
       where
         xprvFromText = xprv <=< fromHex @ByteString
         err _ = error "unsafeDeserializeXPrv: unable to deserialize SharedKey"
@@ -190,5 +189,4 @@ instance MkKeyFingerprint SharedKey (Proxy (n :: NetworkDiscriminant), SharedKey
 -------------------------------------------------------------------------------}
 
 hashSize :: Int
-hashSize =
-    hashDigestSize Blake2b_224
+hashSize = hashDigestSize Blake2b_224

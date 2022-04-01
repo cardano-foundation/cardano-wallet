@@ -33,12 +33,7 @@ import Cardano.Wallet.Api.Types
     , WalletStyle (..)
     )
 import Cardano.Wallet.Primitive.AddressDerivation
-    ( DerivationIndex (..)
-    , PassphraseMaxLength (..)
-    , PassphraseMinLength (..)
-    , PaymentAddress
-    , Role (..)
-    )
+    ( DerivationIndex (..), PaymentAddress, Role (..) )
 import Cardano.Wallet.Primitive.AddressDerivation.Byron
     ( ByronKey )
 import Cardano.Wallet.Primitive.AddressDerivation.Icarus
@@ -47,12 +42,14 @@ import Cardano.Wallet.Primitive.AddressDerivation.Shelley
     ( ShelleyKey )
 import Cardano.Wallet.Primitive.AddressDiscovery.Sequential
     ( AddressPoolGap (..) )
+import Cardano.Wallet.Primitive.Passphrase
+    ( PassphraseMaxLength (..), PassphraseMinLength (..) )
 import Cardano.Wallet.Primitive.SyncProgress
     ( SyncProgress (..) )
 import Cardano.Wallet.Primitive.Types
     ( walletNameMaxLength, walletNameMinLength )
 import Cardano.Wallet.Unsafe
-    ( unsafeFromHex, unsafeXPub )
+    ( unsafeFromHexText, unsafeXPub )
 import Control.Monad
     ( forM, forM_ )
 import Control.Monad.IO.Class
@@ -411,8 +408,8 @@ spec = describe "SHELLEY_WALLETS" $ do
             verify r [ expectResponseCode HTTP.status201 ]
 
     describe "WALLETS_CREATE_07 - Passphrase" $ do
-        let minLength = passphraseMinLength (Proxy @"raw")
-        let maxLength = passphraseMaxLength (Proxy @"raw")
+        let minLength = passphraseMinLength (Proxy @"user")
+        let maxLength = passphraseMaxLength (Proxy @"user")
         let matrix =
                 [ ( show minLength ++ " char long"
                   , T.pack (replicate minLength 'ź') )
@@ -768,8 +765,8 @@ spec = describe "SHELLEY_WALLETS" $ do
         expectField #passphrase (`shouldNotBe` originalPassUpdateDateTime) rg
 
     describe "WALLETS_UPDATE_PASS_02 - New passphrase values" $ do
-        let minLength = passphraseMinLength (Proxy @"raw")
-        let maxLength = passphraseMaxLength (Proxy @"raw")
+        let minLength = passphraseMinLength (Proxy @"user")
+        let maxLength = passphraseMaxLength (Proxy @"user")
         let matrix =
                 [ ( show minLength ++ " char long"
                   , T.pack (replicate minLength 'ź')
@@ -815,8 +812,8 @@ spec = describe "SHELLEY_WALLETS" $ do
 
     describe "WALLETS_UPDATE_PASS_03 - Can update pass from pass that's boundary\
     \ value" $ do
-        let minLength = passphraseMinLength (Proxy @"raw")
-        let maxLength = passphraseMaxLength (Proxy @"raw")
+        let minLength = passphraseMinLength (Proxy @"user")
+        let maxLength = passphraseMaxLength (Proxy @"user")
         let matrix =
                 [ ( show minLength ++ " char long"
                   , T.pack (replicate minLength 'ź') )
@@ -836,7 +833,7 @@ spec = describe "SHELLEY_WALLETS" $ do
                      "passphrase": #{oldPass}
                      } |]
             w <- unsafeResponse <$> postWallet ctx createPayload
-            let len = passphraseMaxLength (Proxy @"raw")
+            let len = passphraseMaxLength (Proxy @"user")
             let newPass = T.pack $ replicate len '💘'
             let payload = updatePassPayload oldPass newPass
             rup <- request @ApiWallet ctx
@@ -1153,7 +1150,7 @@ spec = describe "SHELLEY_WALLETS" $ do
         let sigBytes = BL.toStrict $ getFromResponse id rSig
         let sig = CC.xsignature sigBytes
         let key = unsafeXPub $ fst (getFromResponse #getApiVerificationKey rKey) <> dummyChainCode
-        let msgHash = unsafeFromHex "1228cd0fea46f9a091172829f0c492c0516dceff67de08f585a4e048a28a6c9f"
+        let msgHash = unsafeFromHexText "1228cd0fea46f9a091172829f0c492c0516dceff67de08f585a4e048a28a6c9f"
         liftIO $ CC.verify key msgHash <$> sig `shouldBe` Right True
 
         let goldenSig = "680739414d89eb9f4377192171ce3990c7beea6132a04f327d7c954ae9e7fcfe747dd7b4b9b11acefa1aa75216b837fc81e59c24001b96356ba65598ec159d0c" :: ByteString

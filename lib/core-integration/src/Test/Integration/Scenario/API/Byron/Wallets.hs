@@ -26,11 +26,13 @@ import Cardano.Wallet.Api.Types
     , WalletStyle (..)
     )
 import Cardano.Wallet.Primitive.AddressDerivation
-    ( PassphraseMaxLength (..), PassphraseMinLength (..), PaymentAddress )
+    ( PaymentAddress )
 import Cardano.Wallet.Primitive.AddressDerivation.Byron
     ( ByronKey )
 import Cardano.Wallet.Primitive.AddressDerivation.Icarus
     ( IcarusKey )
+import Cardano.Wallet.Primitive.Passphrase
+    ( PassphraseMaxLength (..), PassphraseMinLength (..) )
 import Cardano.Wallet.Primitive.SyncProgress
     ( SyncProgress (..) )
 import Control.Monad
@@ -287,8 +289,8 @@ spec = describe "BYRON_WALLETS" $ do
             ]
 
     describe "BYRON_RESTORE_06 - Passphrase" $ do
-        let minLength = passphraseMinLength (Proxy @"raw")
-        let maxLength = passphraseMaxLength (Proxy @"raw")
+        let minLength = passphraseMinLength (Proxy @"user")
+        let maxLength = passphraseMaxLength (Proxy @"user")
         let matrix =
                 [ ( show minLength ++ " char long"
                   , T.pack (replicate minLength 'ź')

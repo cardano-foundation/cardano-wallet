@@ -20,7 +20,6 @@ import Cardano.Wallet.Primitive.AddressDerivation
     ( Depth (..)
     , DerivationType (..)
     , Index (..)
-    , Passphrase
     , WalletKey (publicKey)
     , getRawKey
     , hashVerificationKey
@@ -32,6 +31,8 @@ import Cardano.Wallet.Primitive.AddressDerivation.Shelley
     ( ShelleyKey )
 import Cardano.Wallet.Primitive.AddressDerivationSpec
     ()
+import Cardano.Wallet.Primitive.Passphrase
+    ( Passphrase )
 import Cardano.Wallet.Unsafe
     ( unsafeBech32Decode, unsafeFromHex, unsafeMkMnemonic, unsafeXPrv )
 import Data.Function

@@ -104,8 +104,6 @@ module Cardano.Wallet.Primitive.Types
     , WalletDelegation (..)
     , WalletDelegationStatus (..)
     , WalletDelegationNext (..)
-    , WalletPassphraseInfo(..)
-    , PassphraseScheme(..)
     , IsDelegatingTo (..)
 
     -- * Stake Pools
@@ -173,6 +171,8 @@ import Cardano.Slotting.Slot
     ( SlotNo (..), WithOrigin (..) )
 import Cardano.Wallet.Orphans
     ()
+import Cardano.Wallet.Primitive.Passphrase.Types
+    ( WalletPassphraseInfo (..) )
 import Cardano.Wallet.Primitive.Types.Coin
     ( Coin (..) )
 import Cardano.Wallet.Primitive.Types.Hash
@@ -422,23 +422,6 @@ instance IsDelegatingTo WalletDelegationNext where
 instance IsDelegatingTo WalletDelegation where
     isDelegatingTo predicate WalletDelegation{active,next} =
         isDelegatingTo predicate active || any (isDelegatingTo predicate) next
-
-data WalletPassphraseInfo = WalletPassphraseInfo
-    { lastUpdatedAt :: UTCTime
-    , passphraseScheme :: PassphraseScheme
-    } deriving (Generic, Eq, Ord, Show)
-
-instance NFData WalletPassphraseInfo
-
--- | A type to capture which encryption scheme should be used
-data PassphraseScheme
-    = EncryptWithScrypt
-        -- ^ Legacy encryption scheme for passphrases
-    | EncryptWithPBKDF2
-        -- ^ Encryption scheme used since cardano-wallet
-    deriving (Generic, Eq, Ord, Show, Read)
-
-instance NFData PassphraseScheme
 
 {-------------------------------------------------------------------------------
                                    Queries

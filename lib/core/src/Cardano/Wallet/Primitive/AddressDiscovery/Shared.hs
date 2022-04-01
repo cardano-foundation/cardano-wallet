@@ -74,7 +74,6 @@ import Cardano.Wallet.Primitive.AddressDerivation
     , KeyFingerprint (..)
     , MkKeyFingerprint (..)
     , NetworkDiscriminant (..)
-    , Passphrase
     , PersistPublicKey (..)
     , SoftDerivation
     , WalletKey (..)
@@ -97,6 +96,8 @@ import Cardano.Wallet.Primitive.AddressDiscovery
     )
 import Cardano.Wallet.Primitive.AddressDiscovery.Sequential
     ( AddressPoolGap (..), unsafePaymentKeyFingerprint )
+import Cardano.Wallet.Primitive.Passphrase
+    ( Passphrase )
 import Cardano.Wallet.Primitive.Types.Address
     ( Address (..) )
 import Cardano.Wallet.Primitive.Types.RewardAccount
@@ -510,7 +511,7 @@ decoratePath st ix = NE.fromList
     , DerivationIndex $ getIndex accIx
     , DerivationIndex $ getIndex utxoExternal
     , DerivationIndex $ getIndex ix
-    ] 
+    ]
   where
     DerivationPrefix (purpose, coinType, accIx) = derivationPrefix st
 

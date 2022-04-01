@@ -8,7 +8,7 @@
   , config
   , ... }:
   {
-    flags = { release = false; };
+    flags = { release = false; scrypt = true; };
     package = {
       specVersion = "1.10";
       identifier = { name = "cardano-wallet-core"; version = "2022.1.18"; };
@@ -114,7 +114,6 @@
           (hsPkgs."retry" or (errorHandler.buildDepError "retry"))
           (hsPkgs."safe" or (errorHandler.buildDepError "safe"))
           (hsPkgs."scientific" or (errorHandler.buildDepError "scientific"))
-          (hsPkgs."scrypt" or (errorHandler.buildDepError "scrypt"))
           (hsPkgs."servant" or (errorHandler.buildDepError "servant"))
           (hsPkgs."servant-client" or (errorHandler.buildDepError "servant-client"))
           (hsPkgs."servant-server" or (errorHandler.buildDepError "servant-server"))
@@ -148,7 +147,7 @@
           (hsPkgs."Win32-network" or (errorHandler.buildDepError "Win32-network"))
           (hsPkgs."QuickCheck" or (errorHandler.buildDepError "QuickCheck"))
           (hsPkgs."cardano-wallet-test-utils" or (errorHandler.buildDepError "cardano-wallet-test-utils"))
-          ];
+          ] ++ (pkgs.lib).optional (flags.scrypt) (hsPkgs."scrypt" or (errorHandler.buildDepError "scrypt"));
         buildable = true;
         modules = [
           "Paths_cardano_wallet_core"
@@ -217,6 +216,11 @@
           "Cardano/Wallet/Primitive/Model"
           "Cardano/Wallet/Primitive/Slotting"
           "Cardano/Wallet/Primitive/SyncProgress"
+          "Cardano/Wallet/Primitive/Passphrase"
+          "Cardano/Wallet/Primitive/Passphrase/Current"
+          "Cardano/Wallet/Primitive/Passphrase/Gen"
+          "Cardano/Wallet/Primitive/Passphrase/Legacy"
+          "Cardano/Wallet/Primitive/Passphrase/Types"
           "Cardano/Wallet/Primitive/Types"
           "Cardano/Wallet/Primitive/Types/Address"
           "Cardano/Wallet/Primitive/Types/Coin"
@@ -424,6 +428,8 @@
             "Cardano/Wallet/Primitive/Migration/PlanningSpec"
             "Cardano/Wallet/Primitive/Migration/SelectionSpec"
             "Cardano/Wallet/Primitive/ModelSpec"
+            "Cardano/Wallet/Primitive/PassphraseSpec"
+            "Cardano/Wallet/Primitive/Passphrase/LegacySpec"
             "Cardano/Wallet/Primitive/Slotting/Legacy"
             "Cardano/Wallet/Primitive/SlottingSpec"
             "Cardano/Wallet/Primitive/SyncProgressSpec"

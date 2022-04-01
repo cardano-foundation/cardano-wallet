@@ -53,8 +53,11 @@ import Cardano.Wallet.CoinSelection
     , SelectionOf (..)
     , SelectionSkeleton
     )
+
 import Cardano.Wallet.Primitive.AddressDerivation
-    ( Depth (..), DerivationIndex, Passphrase )
+    ( Depth (..), DerivationIndex )
+import Cardano.Wallet.Primitive.Passphrase
+    ( Passphrase )
 import Cardano.Wallet.Primitive.Slotting
     ( PastHorizonException, TimeInterpreter )
 import Cardano.Wallet.Primitive.Types

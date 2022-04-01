@@ -60,12 +60,12 @@ import Cardano.Wallet.DB.Model
     )
 import Cardano.Wallet.Primitive.AddressDerivation
     ( Depth (..) )
+import Cardano.Wallet.Primitive.Passphrase
+    ( PassphraseHash )
 import Cardano.Wallet.Primitive.Slotting
     ( TimeInterpreter )
 import Cardano.Wallet.Primitive.Types
     ( SortOrder (..), WalletId, wholeRange )
-import Cardano.Wallet.Primitive.Types.Hash
-    ( Hash )
 import Cardano.Wallet.Primitive.Types.Tx
     ( TransactionInfo (..) )
 import Control.Monad.IO.Unlift
@@ -89,7 +89,7 @@ newDBLayer
     -> m (DBLayer m s k)
 newDBLayer timeInterpreter = do
     lock <- newMVar ()
-    db <- newMVar (emptyDatabase :: Database WalletId s (k 'RootK XPrv, Hash "encryption"))
+    db <- newMVar (emptyDatabase :: Database WalletId s (k 'RootK XPrv, PassphraseHash))
     return $ DBLayer
 
         {-----------------------------------------------------------------------

@@ -273,14 +273,12 @@ import Cardano.Wallet.Primitive.AddressDerivation
     , HardDerivation (..)
     , Index (..)
     , NetworkDiscriminant (..)
-    , Passphrase (..)
     , PaymentAddress (..)
     , PersistPublicKey (..)
     , Role (..)
     , WalletKey (..)
     , fromHex
     , hex
-    , preparePassphrase
     )
 import Cardano.Wallet.Primitive.AddressDerivation.Byron
     ( ByronKey (..) )
@@ -292,6 +290,10 @@ import Cardano.Wallet.Primitive.AddressDiscovery.Sequential
     ( coinTypeAda )
 import Cardano.Wallet.Primitive.AddressDiscovery.Shared
     ( CredentialType (..) )
+import Cardano.Wallet.Primitive.Passphrase
+    ( Passphrase (..), preparePassphrase )
+import Cardano.Wallet.Primitive.Passphrase.Legacy
+    ( encryptPassphraseTestingOnly )
 import Cardano.Wallet.Primitive.SyncProgress
     ( SyncProgress (..) )
 import Cardano.Wallet.Primitive.Types
@@ -451,15 +453,12 @@ import qualified Cardano.Wallet.Primitive.AddressDerivation.Byron as Byron
 import qualified Cardano.Wallet.Primitive.AddressDerivation.Icarus as Icarus
 import qualified Cardano.Wallet.Primitive.AddressDerivation.Shared as Shared
 import qualified Cardano.Wallet.Primitive.AddressDerivation.Shelley as Shelley
-import qualified Cardano.Wallet.Primitive.Types as W
+import qualified Cardano.Wallet.Primitive.Passphrase.Types as W
 import qualified Cardano.Wallet.Primitive.Types.Coin as Coin
 import qualified Cardano.Wallet.Primitive.Types.TokenBundle as TokenBundle
 import qualified Cardano.Wallet.Primitive.Types.TokenMap as TokenMap
 import qualified Cardano.Wallet.Primitive.Types.TokenQuantity as TokenQuantity
 import qualified Codec.Binary.Bech32 as Bech32
-import qualified Codec.CBOR.Encoding as CBOR
-import qualified Codec.CBOR.Write as CBOR
-import qualified Crypto.Scrypt as Scrypt
 import qualified Data.Aeson as Aeson
 import qualified Data.ByteArray as BA
 import qualified Data.ByteString as BS
@@ -1280,17 +1279,8 @@ emptyRandomWalletWithPasswd ctx rawPwd = do
             $ hex
             $ Byron.getKey
             $ Byron.generateKeyFromSeed seed pwd
-    pwdH <- liftIO $ T.decodeUtf8 . hex <$> encryptPasswordWithScrypt pwd
+    pwdH <- liftIO $ toText <$> encryptPassphraseTestingOnly pwd
     emptyByronWalletFromXPrvWith ctx "random" ("Random Wallet", key, pwdH)
-  where
-    encryptPasswordWithScrypt =
-        fmap Scrypt.getEncryptedPass
-        . Scrypt.encryptPassIO Scrypt.defaultParams
-        . Scrypt.Pass
-        . CBOR.toStrictByteString
-        . CBOR.encodeBytes
-        . BA.convert
-
 
 postWallet'
     :: (MonadIO m, MonadUnliftIO m)

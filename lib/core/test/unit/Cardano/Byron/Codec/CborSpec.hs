@@ -27,9 +27,11 @@ import Cardano.Byron.Codec.Cbor
 import Cardano.Mnemonic
     ( MkSomeMnemonic (..) )
 import Cardano.Wallet.Primitive.AddressDerivation
-    ( Depth (..), DerivationType (..), Index (..), Passphrase (..) )
+    ( Depth (..), DerivationType (..), Index (..) )
 import Cardano.Wallet.Primitive.AddressDerivation.Byron
     ( ByronKey (..), generateKeyFromSeed )
+import Cardano.Wallet.Primitive.Passphrase.Types
+    ( Passphrase (..) )
 import Cardano.Wallet.Primitive.Types.Address
     ( Address (..) )
 import Cardano.Wallet.Primitive.Types.Hash

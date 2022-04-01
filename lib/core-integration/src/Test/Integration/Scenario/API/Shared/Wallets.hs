@@ -39,9 +39,11 @@ import Cardano.Wallet.Api.Types
 import Cardano.Wallet.Compat
     ( (^?) )
 import Cardano.Wallet.Primitive.AddressDerivation
-    ( DerivationIndex (..), Passphrase (..), Role (..) )
+    ( DerivationIndex (..), Role (..) )
 import Cardano.Wallet.Primitive.AddressDiscovery.Shared
     ( CredentialType (..) )
+import Cardano.Wallet.Primitive.Passphrase
+    ( Passphrase (..) )
 import Cardano.Wallet.Primitive.SyncProgress
     ( SyncProgress (..) )
 import Control.Monad

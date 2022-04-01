@@ -1508,7 +1508,7 @@ instance Malformed (BodyParam (ApiWalletMigrationPostData ('Testnet pm) "lenient
             ]
          jsonValid = first (BodyParam . Aeson.encode) <$> migrateDataCases
 
-instance Malformed (BodyParam (ApiWalletMigrationPostData ('Testnet pm) "raw")) where
+instance Malformed (BodyParam (ApiWalletMigrationPostData ('Testnet pm) "user")) where
     malformed = jsonValid ++ jsonInvalid
      where
          jsonInvalid = first BodyParam <$>

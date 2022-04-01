@@ -24,18 +24,11 @@ import Cardano.Wallet.Primitive.AddressDerivation
     ( Depth (..)
     , DerivationIndex (..)
     , DerivationType (..)
-    , ErrWrongPassphrase (..)
     , Index
-    , Passphrase (..)
-    , PassphraseMaxLength (..)
-    , PassphraseMinLength (..)
     , PersistPrivateKey (..)
     , PersistPublicKey (..)
     , WalletKey (..)
-    , checkPassphrase
-    , encryptPassphrase
     , getIndex
-    , preparePassphrase
     )
 import Cardano.Wallet.Primitive.AddressDerivation.Byron
     ( ByronKey (..) )
@@ -43,16 +36,16 @@ import Cardano.Wallet.Primitive.AddressDerivation.Icarus
     ( IcarusKey (..) )
 import Cardano.Wallet.Primitive.AddressDerivation.Shelley
     ( ShelleyKey (..) )
-import Cardano.Wallet.Primitive.Types
-    ( PassphraseScheme (..) )
-import Cardano.Wallet.Primitive.Types.Hash
-    ( Hash (..) )
-import Cardano.Wallet.Unsafe
-    ( unsafeFromHex )
+import Cardano.Wallet.Primitive.Passphrase
+    ( PassphraseHash (..), preparePassphrase )
+import Cardano.Wallet.Primitive.Passphrase.Types
+    ( Passphrase (..)
+    , PassphraseMaxLength (..)
+    , PassphraseMinLength (..)
+    , PassphraseScheme (..)
+    )
 import Control.Monad
     ( replicateM )
-import Control.Monad.IO.Class
-    ( liftIO )
 import Data.Either
     ( isRight )
 import Data.Proxy
@@ -76,12 +69,9 @@ import Test.QuickCheck
     , property
     , (.&&.)
     , (===)
-    , (==>)
     )
 import Test.QuickCheck.Arbitrary.Generic
     ( genericArbitrary )
-import Test.QuickCheck.Monadic
-    ( monadicIO )
 import Test.Text.Roundtrip
     ( textRoundtrip )
 
@@ -89,9 +79,6 @@ import qualified Cardano.Crypto.Wallet as CC
 import qualified Cardano.Wallet.Primitive.AddressDerivation.Byron as Byron
 import qualified Cardano.Wallet.Primitive.AddressDerivation.Icarus as Icarus
 import qualified Cardano.Wallet.Primitive.AddressDerivation.Shelley as Shelley
-import qualified Codec.CBOR.Encoding as CBOR
-import qualified Codec.CBOR.Write as CBOR
-import qualified Crypto.Scrypt as Scrypt
 import qualified Data.ByteArray as BA
 import qualified Data.ByteString as BS
 import qualified Data.ByteString.Char8 as B8
@@ -110,25 +97,12 @@ spec = do
         it "The calls Index.pred minBound should result in a runtime err (soft)"
             prop_predMinBoundSoftIx
 
-    parallel $ describe "Text Roundtrip" $ do
-        textRoundtrip $ Proxy @(Passphrase "raw")
-        textRoundtrip $ Proxy @DerivationIndex
-
     parallel $ describe "Enum Roundtrip" $ do
         it "Index @'Hardened _" (property prop_roundtripEnumIndexHard)
         it "Index @'Soft _" (property prop_roundtripEnumIndexSoft)
 
-    parallel $ describe "Passphrases" $ do
-        it "checkPassphrase p h(p) == Right ()" $
-            property prop_passphraseRoundtrip
-        it "p /= p' => checkPassphrase p' h(p) == Left ErrWrongPassphrase" $
-            property prop_passphraseRoundtripFail
-        it "checkPassphrase fails when hash is malformed" $
-            property prop_passphraseHashMalformed
-        it "checkPassphrase p h(p) == Right () for Scrypt passwords" $
-            property prop_passphraseFromScryptRoundtrip
-        it "p /= p' => checkPassphrase p' h(p) == Left ErrWrongPassphrase for Scrypt passwords" $
-            property prop_passphraseFromScryptRoundtripFail
+    parallel $ describe "Text Roundtrip" $ do
+        textRoundtrip $ Proxy @DerivationIndex
 
     parallel $ describe "MkSomeMnemonic" $ do
         let noInDictErr =
@@ -221,42 +195,6 @@ spec = do
         it "XPub IcarusKey"
             (property $ prop_roundtripXPub @IcarusKey)
 
-    parallel $ describe "golden test legacy passphrase encryption" $ do
-        it "compare new implementation with cardano-sl - short password" $ do
-            let pwd  = Passphrase @"raw" $ BA.convert $ T.encodeUtf8 "patate"
-            let hash = Hash $ unsafeFromHex
-                    "31347c387c317c574342652b796362417576356c2b4258676a344a314c\
-                    \6343675375414c2f5653393661364e576a2b7550766655513d3d7c2f37\
-                    \6738486c59723174734e394f6e4e753253302b6a65515a6b5437316b45\
-                    \414941366a515867386539493d"
-            checkPassphrase EncryptWithScrypt pwd hash `shouldBe` Right ()
-        it "compare new implementation with cardano-sl - normal password" $ do
-            let pwd  = Passphrase @"raw" $ BA.convert $ T.encodeUtf8 "Secure Passphrase"
-            let hash = Hash $ unsafeFromHex
-                    "31347c387c317c714968506842665966555a336f5156434c384449744b\
-                    \677642417a6c584d62314d6d4267695433776a556f3d7c53672b436e30\
-                    \4232766b4475682f704265335569694577633364385845756f55737661\
-                    \42514e62464443353569474f4135736e453144326743346f47564c472b\
-                    \524331385958326c6863552f36687a38432f496172773d3d"
-            checkPassphrase EncryptWithScrypt pwd hash `shouldBe` Right ()
-        it "compare new implementation with cardano-sl - empty password" $ do
-            let pwd  = Passphrase @"raw" $ BA.convert $ T.encodeUtf8 ""
-            let hash = Hash $ unsafeFromHex
-                    "31347c387c317c5743424875746242496c6a66734d764934314a30727a7\
-                    \9663076657375724954796376766a793150554e377452673d3d7c54753\
-                    \434596d6e547957546c5759674a3164494f7974474a7842632b432f786\
-                    \2507657382b5135356a38303d"
-            checkPassphrase EncryptWithScrypt pwd hash `shouldBe` Right ()
-        it "compare new implementation with cardano-sl - cardano-wallet password" $ do
-            let pwd  = Passphrase @"raw" $ BA.convert $ T.encodeUtf8 "cardano-wallet"
-            let hash = Hash $ unsafeFromHex
-                    "31347c387c317c2b6a6f747446495a6a566d586f43374c6c54425a576c\
-                    \597a425834515177666475467578436b4d485569733d7c78324d646738\
-                    \49554a3232507235676531393575445a76583646552b7757395a6a6a2f\
-                    \51303054356c654751794279732f7662753367526d726c316c657a7150\
-                    \43676d364e6758476d4d2f4b6438343265304b4945773d3d"
-            checkPassphrase EncryptWithScrypt pwd hash `shouldBe` Right ()
-
 {-------------------------------------------------------------------------------
                                Properties
 -------------------------------------------------------------------------------}
@@ -287,7 +225,7 @@ prop_roundtripEnumIndexSoft ix =
 
 prop_roundtripXPrv
     :: (PersistPrivateKey (k 'RootK), Eq (k 'RootK XPrv), Show (k 'RootK XPrv))
-    => (k 'RootK XPrv, Hash "encryption")
+    => (k 'RootK XPrv, PassphraseHash)
     -> Property
 prop_roundtripXPrv xpriv = do
     let xpriv' = (unsafeDeserializeXPrv . serializeXPrv) xpriv
@@ -303,47 +241,6 @@ prop_roundtripXPub
 prop_roundtripXPub key = do
     let key' = (unsafeDeserializeXPub . serializeXPub) key
     key' === key
-
-prop_passphraseRoundtrip
-    :: Passphrase "raw"
-    -> Property
-prop_passphraseRoundtrip pwd = monadicIO $ liftIO $ do
-    hpwd <- encryptPassphrase (preparePassphrase EncryptWithPBKDF2 pwd)
-    checkPassphrase EncryptWithPBKDF2 pwd hpwd `shouldBe` Right ()
-
-prop_passphraseRoundtripFail
-    :: Passphrase "raw"
-    -> Passphrase "raw"
-    -> Property
-prop_passphraseRoundtripFail p p' =
-    p /= p' ==> monadicIO $ liftIO $ do
-        hp <- encryptPassphrase (preparePassphrase EncryptWithPBKDF2 p)
-        checkPassphrase EncryptWithPBKDF2 p' hp
-            `shouldBe` Left ErrWrongPassphrase
-
-prop_passphraseHashMalformed
-    :: PassphraseScheme
-    -> Passphrase "raw"
-    -> Property
-prop_passphraseHashMalformed scheme pwd = monadicIO $ liftIO $ do
-    checkPassphrase scheme pwd (Hash mempty) `shouldBe` Left ErrWrongPassphrase
-
-prop_passphraseFromScryptRoundtrip
-    :: Passphrase "raw"
-    -> Property
-prop_passphraseFromScryptRoundtrip p = monadicIO $ liftIO $ do
-    hp <- encryptPasswordWithScrypt p
-    checkPassphrase EncryptWithScrypt p hp `shouldBe` Right ()
-
-prop_passphraseFromScryptRoundtripFail
-    :: Passphrase "raw"
-    -> Passphrase "raw"
-    -> Property
-prop_passphraseFromScryptRoundtripFail p p' =
-    p /= p' ==> monadicIO $ liftIO $ do
-        hp <- encryptPasswordWithScrypt p
-        checkPassphrase EncryptWithScrypt p' hp
-            `shouldBe` Left ErrWrongPassphrase
 
 {-------------------------------------------------------------------------------
                              Arbitrary Instances
@@ -369,12 +266,12 @@ instance Arbitrary (Index 'WholeDomain 'AccountK) where
     shrink _ = []
     arbitrary = arbitraryBoundedEnum
 
-instance Arbitrary (Passphrase "raw") where
+instance Arbitrary (Passphrase "user") where
     arbitrary = do
         n <- choose (passphraseMinLength p, passphraseMaxLength p)
         bytes <- T.encodeUtf8 . T.pack <$> replicateM n arbitraryPrintableChar
         return $ Passphrase $ BA.convert bytes
-      where p = Proxy :: Proxy "raw"
+      where p = Proxy :: Proxy "user"
 
     shrink (Passphrase bytes)
         | BA.length bytes <= passphraseMinLength p = []
@@ -384,11 +281,11 @@ instance Arbitrary (Passphrase "raw") where
             $ B8.take (passphraseMinLength p)
             $ BA.convert bytes
             ]
-      where p = Proxy :: Proxy "raw"
+      where p = Proxy :: Proxy "user"
 
 instance Arbitrary (Passphrase "encryption") where
     arbitrary = preparePassphrase EncryptWithPBKDF2
-        <$> arbitrary @(Passphrase "raw")
+        <$> arbitrary @(Passphrase "user")
 
 instance {-# OVERLAPS #-} Arbitrary (Passphrase "generation") where
     shrink (Passphrase "") = []
@@ -398,11 +295,11 @@ instance {-# OVERLAPS #-} Arbitrary (Passphrase "generation") where
         InfiniteList bytes _ <- arbitrary
         return $ Passphrase $ BA.convert $ BS.pack $ take n bytes
 
-instance Arbitrary (Hash "encryption") where
+instance Arbitrary PassphraseHash where
     shrink _ = []
     arbitrary = do
         InfiniteList bytes _ <- arbitrary
-        return $ Hash $ BS.pack $ take 32 bytes
+        pure $ PassphraseHash $ BA.convert $ BS.pack $ take 32 bytes
 
 instance Arbitrary PassphraseScheme where
     arbitrary = genericArbitrary
@@ -504,21 +401,3 @@ genPassphrase range = do
 
 instance Arbitrary SomeMnemonic where
     arbitrary = SomeMnemonic <$> genMnemonic @12
-
--- | Encrypt password using Scrypt function with the following parameters:
--- logN = 14
--- r = 8
--- p = 1
--- These parameters are in Scrypt.defaultParams
-encryptPasswordWithScrypt
-    :: Passphrase "raw"
-    -> IO (Hash "encryption")
-encryptPasswordWithScrypt p = do
-    hashed <- Scrypt.encryptPassIO Scrypt.defaultParams
-        $ Scrypt.Pass
-        $ CBOR.toStrictByteString
-        $ CBOR.encodeBytes
-        $ BA.convert passwd
-    pure $ Hash $ Scrypt.getEncryptedPass hashed
-  where
-    (Passphrase passwd) = preparePassphrase EncryptWithScrypt p

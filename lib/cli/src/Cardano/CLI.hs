@@ -165,15 +165,11 @@ import Cardano.Wallet.Api.Types
 import Cardano.Wallet.Orphans
     ()
 import Cardano.Wallet.Primitive.AddressDerivation
-    ( Depth (..)
-    , DerivationType (..)
-    , Index (..)
-    , Passphrase (..)
-    , PassphraseMaxLength
-    , PassphraseMinLength
-    )
+    ( Depth (..), DerivationType (..), Index (..) )
 import Cardano.Wallet.Primitive.AddressDiscovery.Sequential
     ( AddressPoolGap, defaultAddressPoolGap )
+import Cardano.Wallet.Primitive.Passphrase
+    ( Passphrase (..), PassphraseMaxLength, PassphraseMinLength )
 import Cardano.Wallet.Primitive.SyncProgress
     ( SyncTolerance (..) )
 import Cardano.Wallet.Primitive.Types
@@ -795,7 +791,7 @@ cmdTransactionCreate isShelley mkTxClient mkWalletClient =
         res <- sendRequest wPort $ getWallet mkWalletClient $ ApiT wId
         case res of
             Right _ -> do
-                wPwd <- getPassphrase @"raw" "Please enter your passphrase: "
+                wPwd <- getPassphrase @"user" "Please enter your passphrase: "
                 runClient wPort Aeson.encodePretty $ postTransaction
                     mkTxClient
                     (ApiT wId)
