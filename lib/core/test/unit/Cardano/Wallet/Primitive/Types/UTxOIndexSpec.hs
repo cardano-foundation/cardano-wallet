@@ -465,9 +465,9 @@ prop_SelectionFilterNew_coverage selectionFilter = checkCoverage $ property
 --
 -- This should always return 'Nothing'.
 --
-prop_selectRandom_empty :: SelectionFilter -> Property
+prop_selectRandom_empty :: SelectionFilterNew Asset -> Property
 prop_selectRandom_empty f = monadicIO $ do
-    result <- run $ UTxOIndex.selectRandom (UTxOIndex.empty @TestUTxO) f
+    result <- run $ UTxOIndex.selectRandomNew (UTxOIndex.empty @TestUTxO) f
     assert $ isNothing result
 
 -- | Attempt to select a random entry from a singleton index with entry 'e'.
