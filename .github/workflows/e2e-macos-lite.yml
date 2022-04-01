@@ -49,13 +49,13 @@ jobs:
       run: rake display_versions
 
     - name: 🚀 Start wallet --light
-      run: rake start_wallet_lite[$NETWORK]
+      run: rake start_wallet_light[$NETWORK]
 
     - name: 🧪 Run all tests
-      run: rake spec SPEC_OPTS="-t lite"
+      run: rake spec SPEC_OPTS="-t light"
 
     - name: 🏁 Stop wallet --light
-      run: rake stop_wallet_lite[$NETWORK]
+      run: rake stop_wallet_light[$NETWORK]
 
     - name: 📎 Upload logs
       uses: actions/upload-artifact@v2

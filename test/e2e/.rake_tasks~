@@ -13,6 +13,6 @@ spec
 setup
 start_node_and_wallet
 stop_node_and_wallet
-start_wallet_lite
-stop_wallet_lite
+start_wallet_light
+stop_wallet_light
 wait_until_node_synced

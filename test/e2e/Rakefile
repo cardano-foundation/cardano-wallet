@@ -208,8 +208,8 @@ task :stop_node_and_wallet, [:env] do |task, args|
 
 end
 
-task :start_wallet_lite, [:env] do |task, args|
-  puts "\n  >> Setting up cardano-wallet-lite"
+task :start_wallet_light, [:env] do |task, args|
+  puts "\n  >> Setting up cardano-wallet-light"
 
   bin_dir = BINS == '' ? BINS : "#{BINS}/"
   config_dir = File.join(CONFIGS, args[:env])
@@ -226,10 +226,10 @@ task :start_wallet_lite, [:env] do |task, args|
       f.write(wallet_cmd)
     end
 
-    install_wallet = "nssm install cardano-wallet-lite #{cd}/cardano-wallet.bat"
-    log_stdout_wallet = "nssm set cardano-wallet-lite AppStdout #{log_dir}/wallet.log"
-    log_stderr_wallet = "nssm set cardano-wallet-lite AppStderr #{log_dir}/wallet.log"
-    start_wallet = "nssm start cardano-wallet-lite"
+    install_wallet = "nssm install cardano-wallet-light #{cd}/cardano-wallet.bat"
+    log_stdout_wallet = "nssm set cardano-wallet-light AppStdout #{log_dir}/wallet.log"
+    log_stderr_wallet = "nssm set cardano-wallet-light AppStderr #{log_dir}/wallet.log"
+    start_wallet = "nssm start cardano-wallet-light"
 
     cmd install_wallet
     cmd log_stdout_wallet
@@ -238,19 +238,19 @@ task :start_wallet_lite, [:env] do |task, args|
   else
     start_wallet = "#{bin_dir}cardano-wallet serve --port #{WALLET_PORT} --light --blockfrost-token-file #{BLOCKFROST_FILE} --testnet #{config_dir}/genesis-byron.json --database #{wallet_db_dir} --token-metadata-server #{TOKEN_METADATA}"
 
-    cmd "screen -dmS WALLET_#{args[:env]}_lite -L -Logfile #{log_dir}/wallet.log #{start_wallet}"
+    cmd "screen -dmS WALLET_#{args[:env]}_light -L -Logfile #{log_dir}/wallet.log #{start_wallet}"
     cmd "screen -ls", true
   end
 end
 
-task :stop_wallet_lite, [:env] do |task, args|
-  puts "\n  >> Stopping cardano-wallet-lite"
+task :stop_wallet_light, [:env] do |task, args|
+  puts "\n  >> Stopping cardano-wallet-light"
 
   if is_win?
-    cmd "nssm stop cardano-wallet-lite"
-    cmd "nssm remove cardano-wallet-lite confirm"
+    cmd "nssm stop cardano-wallet-light"
+    cmd "nssm remove cardano-wallet-light confirm"
   else
-    cmd "screen -XS WALLET_#{args[:env]}_lite quit"
+    cmd "screen -XS WALLET_#{args[:env]}_light quit"
   end
 
 end
