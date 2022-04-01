@@ -38,7 +38,7 @@ import Cardano.Wallet.Api.Types
 import Cardano.Wallet.Primitive.Types.Hash
     ( Hash (..) )
 import Cardano.Wallet.Unsafe
-    ( unsafeFromHex, unsafeRight )
+    ( unsafeFromHexText, unsafeRight )
 import Codec.Binary.Bech32.TH
     ( humanReadablePart )
 import Codec.Serialise
@@ -100,7 +100,7 @@ alwaysTrueValidator =
 
 hashScript :: Text -> ApiT (Hash "TokenPolicy")
 hashScript =
-    ApiT . Hash . blake2b224 . unsafeFromHex . ("01" <>) . T.encodeUtf8
+    ApiT . Hash . blake2b224 . unsafeFromHexText . ("01" <>)
 
 --
 -- Ping Pong
@@ -365,7 +365,7 @@ currencyTx input = Aeson.object
         , CBOR.TBool True, CBOR.TNull
         ]
     transaction_witness_set = CBOR.TMap
-        [ (c_plutus_script, CBOR.TList [ CBOR.TBytes (fromHex policy) ])
+        [ (c_plutus_script, CBOR.TList [CBOR.TBytes (unsafeFromHexText policy)])
         , (c_plutus_data, CBOR.TList [])      -- leave empty
         ]
     [c_plutus_script, c_plutus_data] = map CBOR.TInt [3,4]
@@ -394,9 +394,6 @@ currencyTx input = Aeson.object
 
 toHex :: BS.ByteString -> Text
 toHex = T.decodeUtf8 . Base16.encode
-
-fromHex :: Text -> BS.ByteString
-fromHex = Base16.decodeLenient . T.encodeUtf8
 
 -- | Minting policy that mints 1_000 units of "apfel" and 1 unit of "banana"
 -- when a specific UTxO is spent (which can be done only once).

@@ -37,7 +37,7 @@ import Crypto.Random.Types
 import Data.Bifunctor
     ( first )
 import Data.ByteArray
-    ( ByteArrayAccess, ScrubbedBytes )
+    ( ByteArray, ByteArrayAccess, ScrubbedBytes )
 import Data.ByteArray.Encoding
     ( Base (..), convertToBase )
 import Data.Proxy
@@ -169,7 +169,7 @@ instance ToText PassphraseScheme where
 
 newtype PassphraseHash = PassphraseHash { getPassphraseHash :: ScrubbedBytes }
     deriving stock (Show)
-    deriving newtype (Eq, NFData, ByteArrayAccess)
+    deriving newtype (Eq, Ord, Semigroup, Monoid, NFData, ByteArrayAccess, ByteArray)
 
 instance ToText PassphraseHash where
     toText = T.decodeUtf8 . convertToBase Base16 . getPassphraseHash

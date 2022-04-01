@@ -49,7 +49,7 @@ import Cardano.Wallet.Primitive.SyncProgress
 import Cardano.Wallet.Primitive.Types
     ( walletNameMaxLength, walletNameMinLength )
 import Cardano.Wallet.Unsafe
-    ( unsafeFromHex, unsafeXPub )
+    ( unsafeFromHexText, unsafeXPub )
 import Control.Monad
     ( forM, forM_ )
 import Control.Monad.IO.Class
@@ -1150,7 +1150,7 @@ spec = describe "SHELLEY_WALLETS" $ do
         let sigBytes = BL.toStrict $ getFromResponse id rSig
         let sig = CC.xsignature sigBytes
         let key = unsafeXPub $ fst (getFromResponse #getApiVerificationKey rKey) <> dummyChainCode
-        let msgHash = unsafeFromHex "1228cd0fea46f9a091172829f0c492c0516dceff67de08f585a4e048a28a6c9f"
+        let msgHash = unsafeFromHexText "1228cd0fea46f9a091172829f0c492c0516dceff67de08f585a4e048a28a6c9f"
         liftIO $ CC.verify key msgHash <$> sig `shouldBe` Right True
 
         let goldenSig = "680739414d89eb9f4377192171ce3990c7beea6132a04f327d7c954ae9e7fcfe747dd7b4b9b11acefa1aa75216b837fc81e59c24001b96356ba65598ec159d0c" :: ByteString

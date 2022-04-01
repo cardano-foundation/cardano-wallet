@@ -31,6 +31,8 @@ import Cardano.Wallet.Primitive.Passphrase.Gen
     )
 import Cardano.Wallet.Primitive.Passphrase.Legacy
     ( haveScrypt )
+import Cardano.Wallet.Unsafe
+    ( unsafeFromHex )
 import Control.Monad.IO.Class
     ( liftIO )
 import Data.ByteString
@@ -51,11 +53,11 @@ import Test.Text.Roundtrip
 import qualified Data.ByteArray as BA
 
 spec :: Spec
-spec = do
-    parallel $ describe "Text Roundtrip" $ do
+spec = parallel $ do
+    describe "Text Roundtrip" $ do
         textRoundtrip $ Proxy @(Passphrase "user")
 
-    parallel $ describe "Passphrases" $ do
+    describe "Passphrases" $ do
         it "checkPassphrase p h(p) == Right ()" $
             property prop_passphraseRoundtrip
         it "p /= p' => checkPassphrase p' h(p) == Left ErrWrongPassphrase" $
@@ -156,20 +158,18 @@ passphraseGolden1 :: Golden
 passphraseGolden1 = Golden
     { passphrase = Passphrase "passphrase"
     , prepared = Passphrase "passphrase"
-    , hash = PassphraseHash
-        "\SI\133\128\ESC#\211\232\218\ESC\134>\216\216H\235\206\206\211\134'\
-        \\135\253\237\244\226\143\SYN\239!}\247\172\168\CAN\212\DC1\SI\255\235\
-        \\215\241\DC4\181\133\177\232=\190\154\249\ETB\EOTd\176\149\249\216\133\
-        \\141\188P\188s\159q\250\159^dj\STX\ACK$O@\208\138\236wp"
+    , hash = unsafeFromHex
+        "0f85801b23d3e8da1b863ed8d848ebceced3862787fdedf4e28f16ef217df7ac\
+        \a818d4110fffebd7f114b585b1e83dbe9af9170464b095f9d8858dbc50bc739f\
+        \71fa9f5e646a0206244f40d08aec7770"
     }
 
 passphraseGolden2 :: Golden
 passphraseGolden2 = Golden
     { passphrase = Passphrase ""
     , prepared = Passphrase ""
-    , hash = PassphraseHash
-        "\SI\133\128\ESC#\211\232\218\ESC\134>\216\216H\235\206\130\173|\250\
-        \\215\130\227^\155\216\176\NUL\145p\190P\CAN\254\155\190\140\DLE\208\
-        \\194\207)X\171p*Y\170\192eiZ\243\\\222Mr\174\av\NAK\238\183\DC2\156\
-        \\203\196\156,,\245X\161\242\160\148\217k\EM\234"
+    , hash = unsafeFromHex
+        "0f85801b23d3e8da1b863ed8d848ebce82ad7cfad782e35e9bd8b0009170be50\
+        \18fe9bbe8c10d0c2cf2958ab702a59aac065695af35cde4d72ae077615eeb712\
+        \9ccbc49c2c2cf558a1f2a094d96b19ea"
     }
