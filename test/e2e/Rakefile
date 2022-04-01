@@ -34,7 +34,7 @@ task :secrets_encode do
   puts `gpg --pinentry-mode loopback --passphrase=#{FIXTURES_SECRET} --symmetric --output=#{FIXTURES_FILE}.gpg #{FIXTURES_FILE}`
 
   puts "\n  >> Encoding #{BLOCKFROST_FILE}..."
-  puts `gpg --pinentry-mode loopback --passphrase=#{BLOCKFROST_FILE} --symmetric --output=#{BLOCKFROST_FILE}.gpg #{BLOCKFROST_FILE}`
+  puts `gpg --pinentry-mode loopback --passphrase=#{FIXTURES_SECRET} --symmetric --output=#{BLOCKFROST_FILE}.gpg #{BLOCKFROST_FILE}`
 
 end
 
