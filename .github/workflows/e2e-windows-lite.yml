@@ -1,4 +1,4 @@
-name: E2E Windows Light
+name: E2E Windows --light
 
 on:
   schedule:
@@ -51,13 +51,13 @@ jobs:
     - name: 🔍 Display versions
       run: rake display_versions
 
-    - name: 🚀 Start node and wallet
+    - name: 🚀 Start wallet --light
       run: rake start_wallet_lite[%NETWORK%]
 
     - name: 🧪 Run all tests
-      run: rake spec
+      run: rake spec SPEC_OPTS="-t lite"
 
-    - name: 🏁 Stop node and wallet
+    - name: 🏁 Stop wallet --light
       run: rake stop_wallet_lite[%NETWORK%]
 
     - name: 📎 Upload logs
