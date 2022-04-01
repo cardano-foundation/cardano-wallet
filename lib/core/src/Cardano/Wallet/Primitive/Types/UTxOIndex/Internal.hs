@@ -703,11 +703,24 @@ insertUnsafe u b i = i
             . over #assetsAll (`insertEntry` a)
         IsCoinWithMultipleAssets as ->
             over #assetsAll (flip (F.foldl' insertEntry) as)
+    & case categorizeTokenBundleNew b of
+        BundleWithNoAssets -> id
+        BundleWithOneAsset a -> id
+            . over #indexAll (`insertEntry` a)
+            . over #indexSingletons (`insertEntry` a)
+        BundleWithTwoAssets (a1, a2) -> id
+            . over #indexAll (`insertEntry` a1)
+            . over #indexAll (`insertEntry` a2)
+            . over #indexPairs (`insertEntry` a1)
+            . over #indexPairs (`insertEntry` a2)
+        BundleWithMultipleAssets as -> id
+            . over #indexAll (flip (F.foldl' insertEntry) as)
   where
     insertEntry
-        :: Map AssetId (NonEmptySet u)
-        -> AssetId
-        -> Map AssetId (NonEmptySet u)
+        :: Ord asset
+        => Map asset (NonEmptySet u)
+        -> asset
+        -> Map asset (NonEmptySet u)
     insertEntry m a =
         Map.alter (maybe (Just createNew) (Just . updateOld)) a m
       where
