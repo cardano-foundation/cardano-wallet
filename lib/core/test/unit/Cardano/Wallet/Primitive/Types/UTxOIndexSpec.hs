@@ -29,7 +29,6 @@ import Cardano.Wallet.Primitive.Types.UTxOIndex.Gen
 import Cardano.Wallet.Primitive.Types.UTxOIndex.Internal
     ( Asset (..)
     , InvariantStatus (..)
-    , SelectionFilter (..)
     , SelectionFilterNew (..)
     , UTxOIndex
     , checkInvariant
@@ -153,8 +152,6 @@ spec =
 
     parallel $ describe "Index Selection" $ do
 
-        it "prop_SelectionFilter_coverage" $
-            property prop_SelectionFilter_coverage
         it "prop_SelectionFilterNew_coverage" $
             property prop_SelectionFilterNew_coverage
         it "prop_selectRandom_empty" $
@@ -417,29 +414,6 @@ data SelectionFilterCategory
     | MatchWithAsset
     | MatchWithAssetOnly
     deriving (Eq, Show)
-
--- | Categorizes a 'SelectionFilter', removing its arguments.
---
-categorizeSelectionFilter :: SelectionFilter -> SelectionFilterCategory
-categorizeSelectionFilter = \case
-    Any             -> MatchAny
-    WithAdaOnly     -> MatchWithAdaOnly
-    WithAsset     _ -> MatchWithAsset
-    WithAssetOnly _ -> MatchWithAssetOnly
-
-prop_SelectionFilter_coverage :: SelectionFilter -> Property
-prop_SelectionFilter_coverage selectionFilter = checkCoverage $ property
-    $ cover 20 (category == MatchAny)
-        "Any"
-    $ cover 20 (category == MatchWithAdaOnly)
-        "WithAdaOnly"
-    $ cover 20 (category == MatchWithAsset)
-        "WithAsset"
-    $ cover 20 (category == MatchWithAssetOnly)
-        "WithAssetOnly"
-    True
-  where
-    category = categorizeSelectionFilter selectionFilter
 
 -- TODO:
 --
@@ -780,22 +754,6 @@ prop_selectRandomSetMember_coversRangeUniformly i j =
 -- Returns a list of all the entries that matched, and an updated index with
 -- the selected entries removed.
 --
-selectAll
-    :: (MonadRandom m, u ~ TestUTxO)
-    => SelectionFilter
-    -> UTxOIndex u
-    -> m ([(u, TokenBundle)], UTxOIndex u)
-selectAll sf = go []
-  where
-    go !selectedEntries !i = do
-        selected <- UTxOIndex.selectRandom i sf
-        case selected of
-            Nothing ->
-                -- There are no more entries available. Terminate here:
-                pure (selectedEntries, i)
-            Just ((u, b), iReduced) ->
-                go ((u, b) : selectedEntries) iReduced
-
 -- TODO:
 --
 -- Rename to 'selectAll' once the old function has been deleted.
@@ -815,12 +773,6 @@ selectAllNew sf = go []
                 pure (selectedEntries, i)
             Just ((u, b), iReduced) ->
                 go ((u, b) : selectedEntries) iReduced
-
--- | Returns 'True' if (and only if) the given token bundle has a non-zero
---   quantity of the given asset.
---
-tokenBundleHasAsset :: TokenBundle -> AssetId -> Bool
-tokenBundleHasAsset = TokenBundle.hasQuantity
 
 -- | Returns 'True' if (and only if) the given token bundle has a non-zero
 --   quantity of the given asset and no other non-ada assets.
@@ -858,31 +810,6 @@ instance (Arbitrary u, Ord u) => Arbitrary (UTxOIndex u) where
 instance Arbitrary TokenBundle where
     arbitrary = genTokenBundleSmallRangePositive
     shrink = shrinkTokenBundleSmallRangePositive
-
-instance Arbitrary SelectionFilter where
-    arbitrary = genSelectionFilterSmallRange
-    shrink = shrinkSelectionFilterSmallRange
-
-genSelectionFilterSmallRange :: Gen SelectionFilter
-genSelectionFilterSmallRange = oneof
-    [ pure Any
-    , pure WithAdaOnly
-    , WithAsset <$> genAssetId
-    , WithAssetOnly <$> genAssetId
-    ]
-
-shrinkSelectionFilterSmallRange :: SelectionFilter -> [SelectionFilter]
-shrinkSelectionFilterSmallRange = \case
-    Any -> []
-    WithAdaOnly -> [Any]
-    WithAsset a ->
-        case WithAsset <$> shrinkAssetId a of
-            [] -> [WithAdaOnly]
-            xs -> xs
-    WithAssetOnly a ->
-        case WithAssetOnly <$> shrinkAssetId a of
-            [] -> [WithAsset a]
-            xs -> xs
 
 instance Arbitrary (SelectionFilterNew Asset) where
     arbitrary = genSelectionFilterNew
