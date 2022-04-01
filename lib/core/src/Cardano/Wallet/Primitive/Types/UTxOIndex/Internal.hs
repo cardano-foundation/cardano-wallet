@@ -1,7 +1,10 @@
+{-# LANGUAGE DeriveAnyClass #-}
 {-# LANGUAGE DeriveGeneric #-}
+{-# LANGUAGE LambdaCase #-}
 {-# LANGUAGE NamedFieldPuns #-}
 {-# LANGUAGE OverloadedLabels #-}
 {-# LANGUAGE ScopedTypeVariables #-}
+{-# LANGUAGE StandaloneDeriving #-}
 
 -- |
 -- Copyright: © 2018-2021 IOHK
@@ -79,6 +82,12 @@ module Cardano.Wallet.Primitive.Types.UTxOIndex.Internal
     -- Internal Interface
     ----------------------------------------------------------------------------
 
+    -- * Assets
+    , Asset (..)
+    , tokenBundleAssets
+    , tokenBundleAssetCount
+    , tokenBundleHasAsset
+
     -- * Utilities
     , selectRandomSetMember
 
@@ -123,6 +132,7 @@ import GHC.Generics
     ( Generic )
 
 import qualified Cardano.Wallet.Primitive.Types.TokenBundle as TokenBundle
+import qualified Cardano.Wallet.Primitive.Types.TokenMap as TokenMap
 import qualified Data.Foldable as F
 import qualified Data.List as L
 import qualified Data.List.NonEmpty as NE
@@ -440,6 +450,63 @@ selectRandomWithPriority i =
 --------------------------------------------------------------------------------
 -- Internal Interface
 --------------------------------------------------------------------------------
+
+--------------------------------------------------------------------------------
+-- Assets
+--------------------------------------------------------------------------------
+
+-- | A type capable of representing any asset, including both ada and non-ada
+--   assets.
+--
+-- TODO: ADP-1449
+-- Move this type away from the 'UTxOIndex' module and replace all usages of it
+-- with a type parameter.
+--
+data Asset
+    = AssetLovelace
+    | Asset AssetId
+    deriving (Eq, Generic, Ord, Read, Show)
+
+deriving instance NFData Asset
+
+-- | Returns the set of assets associated with a given 'TokenBundle'.
+--
+-- Both ada and non-ada assets are included in the set returned.
+--
+-- TODO: ADP-1449
+-- Move this function away from the 'UTxOIndex' module once the type of assets
+-- has been generalized.
+--
+tokenBundleAssets :: TokenBundle -> Set Asset
+tokenBundleAssets b = Set.union
+    (Set.fromList [AssetLovelace | TokenBundle.coin b /= mempty])
+    (Set.map Asset (TokenBundle.getAssets b))
+
+-- | Returns the number of assets associated with a given 'TokenBundle'.
+--
+-- Both ada and non-ada assets are included in the total count returned.
+--
+-- TODO: ADP-1449
+-- Move this function away from the 'UTxOIndex' module once the type of assets
+-- has been generalized.
+--
+tokenBundleAssetCount :: TokenBundle -> Int
+tokenBundleAssetCount b = (+)
+    (if TokenBundle.coin b /= mempty then 1 else 0)
+    (TokenMap.size (TokenBundle.tokens b))
+
+-- | Indicates whether or not a given bundle includes a given asset.
+--
+-- Both ada and non-ada assets can be queried.
+--
+-- TODO: ADP-1449
+-- Move this function away from the 'UTxOIndex' module once the type of assets
+-- has been generalized.
+--
+tokenBundleHasAsset :: TokenBundle -> Asset -> Bool
+tokenBundleHasAsset b = \case
+    AssetLovelace -> TokenBundle.coin b /= mempty
+    Asset assetId -> TokenBundle.hasQuantity b assetId
 
 --------------------------------------------------------------------------------
 -- Utilities
