@@ -7,6 +7,7 @@
 {-# LANGUAGE LambdaCase #-}
 {-# LANGUAGE NamedFieldPuns #-}
 {-# LANGUAGE OverloadedLabels #-}
+{-# LANGUAGE OverloadedLists #-}
 {-# LANGUAGE RecordWildCards #-}
 {-# LANGUAGE ScopedTypeVariables #-}
 {-# LANGUAGE StandaloneDeriving #-}
@@ -141,7 +142,7 @@ import Cardano.Wallet.Primitive.Types.TokenQuantity
 import Cardano.Wallet.Primitive.Types.Tx
     ( TokenBundleSizeAssessment (..), TokenBundleSizeAssessor (..) )
 import Cardano.Wallet.Primitive.Types.UTxOIndex
-    ( SelectionFilter (..), UTxOIndex (..) )
+    ( Asset (..), SelectionFilterNew (..), UTxOIndex (..) )
 import Cardano.Wallet.Primitive.Types.UTxOSelection
     ( IsUTxOSelection, UTxOSelection, UTxOSelectionNonEmpty )
 import Control.Monad.Extra
@@ -757,7 +758,7 @@ deriving instance SelectionContext ctx =>
 
 instance SelectionContext ctx => Buildable (InsufficientMinCoinValueError ctx)
   where
-    build (InsufficientMinCoinValueError (a, b) c) = unlinesF
+    build (InsufficientMinCoinValueError (a, b) c) = unlinesF @[]
         [ nameF "Expected min coin value" (build c)
         , nameF "Address" (build a)
         , nameF "Token bundle" (build (Flat b))
@@ -1232,7 +1233,11 @@ selectAssetQuantity
     -> utxoSelection u
     -> m (Maybe (UTxOSelectionNonEmpty u))
 selectAssetQuantity asset =
-    selectMatchingQuantity (WithAssetOnly asset :| [WithAsset asset])
+    selectMatchingQuantity
+        [ SelectSingleton (Asset asset)
+        , SelectPairWith (Asset asset)
+        , SelectAnyWith (Asset asset)
+        ]
 
 -- | Specializes 'selectMatchingQuantity' to ada.
 --
@@ -1243,7 +1248,11 @@ selectCoinQuantity
     -> utxoSelection u
     -> m (Maybe (UTxOSelectionNonEmpty u))
 selectCoinQuantity =
-    selectMatchingQuantity (WithAdaOnly :| [Any])
+    selectMatchingQuantity
+        [ SelectSingleton AssetLovelace
+        , SelectPairWith AssetLovelace
+        , SelectAnyWith AssetLovelace
+        ]
 
 -- | Selects a UTxO entry that matches one of the specified filters.
 --
@@ -1264,7 +1273,7 @@ selectCoinQuantity =
 selectMatchingQuantity
     :: forall m utxoSelection u. (MonadRandom m, Ord u)
     => IsUTxOSelection utxoSelection u
-    => NonEmpty SelectionFilter
+    => NonEmpty (SelectionFilterNew Asset)
         -- ^ A list of selection filters to be traversed from left-to-right,
         -- in descending order of priority.
     -> SelectionLimit
@@ -1278,7 +1287,7 @@ selectMatchingQuantity filters limit s
     | limitReached =
         pure Nothing
     | otherwise =
-        (updateState =<<) <$> UTxOIndex.selectRandomWithPriority
+        (updateState =<<) <$> UTxOIndex.selectRandomWithPriorityNew
             (UTxOSelection.leftoverIndex s) filters
   where
     limitReached = case limit of

@@ -78,8 +78,11 @@ module Cardano.Wallet.Primitive.Types.UTxOIndex.Internal
 
     -- * Selection
     , SelectionFilter (..)
+    , SelectionFilterNew (..)
     , selectRandom
+    , selectRandomNew
     , selectRandomWithPriority
+    , selectRandomWithPriorityNew
 
     ----------------------------------------------------------------------------
     -- Internal Interface
