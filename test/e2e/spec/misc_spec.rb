@@ -7,7 +7,7 @@ RSpec.describe CardanoWallet::Misc do
       expect(res).to be_correct_and_respond 200
     end
 
-    it "Can check network clock offset" do
+    it "Can check network clock offset", :lite do
       res = NETWORK.clock
       expect(res).to be_correct_and_respond 200
     end
@@ -34,7 +34,7 @@ RSpec.describe CardanoWallet::Misc do
     end
   end
 
-  describe CardanoWallet::Misc::Utils do
+  describe CardanoWallet::Misc::Utils, :lite do
 
     describe "SMASH health" do
       it "SMASH health - unreachable" do
@@ -266,7 +266,7 @@ RSpec.describe CardanoWallet::Misc do
     end
   end
 
-  describe CardanoWallet::Misc::Proxy do
+  describe CardanoWallet::Misc::Proxy, :lite do
     it "Malformed payload when tx is not binary" do
       pending "ADP-1145 - DecoderErrorDeserialiseFailure error message from the API /proxy/transactions"
       no_binary_blob = "test"
@@ -276,7 +276,7 @@ RSpec.describe CardanoWallet::Misc do
     end
   end
 
-  describe CardanoWallet::Misc::Settings do
+  describe CardanoWallet::Misc::Settings, :lite do
 
     after(:all) do
       SETTINGS.update({ :pool_metadata_source => "none" })

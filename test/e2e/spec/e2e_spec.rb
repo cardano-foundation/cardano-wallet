@@ -1,4 +1,4 @@
-RSpec.describe "Cardano Wallet E2E tests", :e2e => true do
+RSpec.describe "Cardano Wallet E2E tests", :e2e do
 
   before(:all) do
     # shelley wallets
