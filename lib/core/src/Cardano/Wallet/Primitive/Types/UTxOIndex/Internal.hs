@@ -319,11 +319,24 @@ delete u i =
                 . over #assetsAll (`deleteEntry` a)
             IsCoinWithMultipleAssets as ->
                 over #assetsAll (flip (F.foldl' deleteEntry) as)
+        & case categorizeTokenBundleNew b of
+            BundleWithNoAssets -> id
+            BundleWithOneAsset a -> id
+                . over #indexAll (`deleteEntry` a)
+                . over #indexSingletons (`deleteEntry` a)
+            BundleWithTwoAssets (a1, a2) -> id
+                . over #indexAll (`deleteEntry` a1)
+                . over #indexAll (`deleteEntry` a2)
+                . over #indexPairs (`deleteEntry` a1)
+                . over #indexPairs (`deleteEntry` a2)
+            BundleWithMultipleAssets as -> id
+                . over #indexAll (flip (F.foldl' deleteEntry) as)
 
     deleteEntry
-        :: Map AssetId (NonEmptySet u)
-        -> AssetId
-        -> Map AssetId (NonEmptySet u)
+        :: Ord asset
+        => Map asset (NonEmptySet u)
+        -> asset
+        -> Map asset (NonEmptySet u)
     deleteEntry m a = Map.update (NonEmptySet.delete u) a m
 
 -- | Deletes multiple entries from an index.
