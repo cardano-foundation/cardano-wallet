@@ -64,7 +64,6 @@ module Cardano.Wallet.Primitive.Types.UTxOIndex.Internal
     , partition
 
     -- * Queries
-    , assets
     , assetsNew
     , balance
     , lookup
@@ -77,11 +76,8 @@ module Cardano.Wallet.Primitive.Types.UTxOIndex.Internal
     , disjoint
 
     -- * Selection
-    , SelectionFilter (..)
     , SelectionFilterNew (..)
-    , selectRandom
     , selectRandomNew
-    , selectRandomWithPriority
     , selectRandomWithPriorityNew
 
     ----------------------------------------------------------------------------
@@ -185,15 +181,6 @@ data UTxOIndex u = UTxOIndex
         :: !(Map Asset (NonEmptySet u))
         -- An index of all entries that contain the given asset and exactly
         -- one other asset.
-    , assetsAll
-        :: !(Map AssetId (NonEmptySet u))
-        -- An index of all entries that contain at least one non-ada asset.
-    , assetsSingleton
-        :: !(Map AssetId (NonEmptySet u))
-        -- An index of all entries that contain exactly one non-ada asset.
-    , coins
-        :: !(Set u)
-        -- An index of all entries that contain no non-ada assets.
     , balance
         :: !TokenBundle
         -- The total balance of all entries.
@@ -216,9 +203,6 @@ empty = UTxOIndex
     { indexAll = Map.empty
     , indexSingletons = Map.empty
     , indexPairs = Map.empty
-    , assetsAll = Map.empty
-    , assetsSingleton = Map.empty
-    , coins = Set.empty
     , balance = TokenBundle.empty
     , universe = Map.empty
     }
@@ -315,14 +299,6 @@ delete u i =
         -- greater than or equal to the value of this output:
         & over #balance (`TokenBundle.unsafeSubtract` b)
         & over #universe (Map.delete u)
-        & case categorizeTokenBundle b of
-            IsCoin ->
-                over #coins (Set.delete u)
-            IsCoinWithSingletonAsset a -> id
-                . over #assetsSingleton (`deleteEntry` a)
-                . over #assetsAll (`deleteEntry` a)
-            IsCoinWithMultipleAssets as ->
-                over #assetsAll (flip (F.foldl' deleteEntry) as)
         & case categorizeTokenBundleNew b of
             BundleWithNoAssets -> id
             BundleWithOneAsset a -> id
@@ -370,9 +346,6 @@ partition f = bimap fromSequence fromSequence . L.partition (f . fst) . toList
 
 -- | Returns the complete set of all assets contained in an index.
 --
-assets :: UTxOIndex u -> Set AssetId
-assets = Map.keysSet . assetsAll
-
 -- TODO:
 --
 -- Rename this function to 'assets' once the old function has been removed.
@@ -423,57 +396,12 @@ disjoint i1 i2 = universe i1 `Map.disjoint` universe i2
 
 -- | Specifies a filter for selecting UTxO entries.
 --
-data SelectionFilter
-    = Any
-        -- ^ Select any UTxO entry from the entire set.
-    | WithAdaOnly
-        -- ^ Select any UTxO entry that only has ada and no other assets.
-    | WithAsset AssetId
-        -- ^ Select any UTxO entry that has a non-zero quantity of the specified
-        -- asset.
-    | WithAssetOnly AssetId
-        -- ^ Select any UTxO entry that has a non-zero quantity of the specified
-        -- asset, but no other non-ada assets.
-    deriving (Eq, Show)
-
--- | Specifies a filter for selecting UTxO entries.
---
--- TODO:
---
--- Rename this to 'SelectionFilter', once the old 'SelectionFilter' has been
--- removed.
---
 data SelectionFilterNew asset
     = SelectSingleton asset
     | SelectPairWith asset
     | SelectAnyWith asset
     | SelectAny
     deriving (Eq, Foldable, Functor, Show, Traversable)
-
--- | Selects an entry at random from the index according to the given filter.
---
--- Returns the selected entry and an updated index with the entry removed.
---
--- Returns 'Nothing' if there were no matching entries.
---
-selectRandom
-    :: forall m u. (MonadRandom m, Ord u)
-    => UTxOIndex u
-    -> SelectionFilter
-    -> m (Maybe ((u, TokenBundle), UTxOIndex u))
-selectRandom i selectionFilter =
-    (lookupAndRemoveEntry =<<) <$> selectRandomSetMember selectionSet
-  where
-    lookupAndRemoveEntry :: u -> Maybe ((u, TokenBundle), UTxOIndex u)
-    lookupAndRemoveEntry u =
-        (\b -> ((u, b), delete u i)) <$> Map.lookup u (universe i)
-
-    selectionSet :: Set u
-    selectionSet = case selectionFilter of
-        Any -> Map.keysSet $ universe i
-        WithAdaOnly -> entriesWithAdaOnly i
-        WithAsset a -> entriesWithAsset a i
-        WithAssetOnly a -> entriesWithAssetOnly a i
 
 -- | Selects an entry at random from the index according to the given filter.
 --
@@ -527,16 +455,6 @@ selectRandomNew i selectionFilter =
 -- This function returns 'Nothing' if (and only if) it traverses the entire
 -- list of filters without successfully selecting a UTxO entry.
 --
-selectRandomWithPriority
-    :: (MonadRandom m, Ord u)
-    => UTxOIndex u
-    -> NonEmpty SelectionFilter
-    -- ^ A list of selection filters to be traversed in descending order of
-    -- priority, from left to right.
-    -> m (Maybe ((u, TokenBundle), UTxOIndex u))
-selectRandomWithPriority i =
-    firstJustM (selectRandom i) . NE.toList
-
 -- TODO:
 --
 -- Rename this to 'selectRandomWithPriority' once the old function has been
@@ -619,14 +537,6 @@ tokenBundleHasAsset b = \case
 
 -- | Represents different categories of token bundles.
 --
-data BundleCategory
-    = IsCoin
-    | IsCoinWithSingletonAsset AssetId
-    | IsCoinWithMultipleAssets (Set AssetId)
-    deriving (Eq, Show)
-
--- | Represents different categories of token bundles.
---
 -- TODO:
 --
 -- Rename this to 'BundleCategory', once the old 'BundleCategory' has been
@@ -638,16 +548,6 @@ data BundleCategoryNew asset
     | BundleWithTwoAssets (asset, asset)
     | BundleWithMultipleAssets (Set asset)
     deriving (Eq, Show)
-
--- | Categorizes a token bundle by what kind of assets it contains.
---
-categorizeTokenBundle :: TokenBundle -> BundleCategory
-categorizeTokenBundle b = case F.toList bundleAssets of
-    []  -> IsCoin
-    [a] -> IsCoinWithSingletonAsset a
-    _   -> IsCoinWithMultipleAssets bundleAssets
-  where
-    bundleAssets = TokenBundle.getAssets b
 
 -- | Categorizes a token bundle by how many assets it contains.
 --
@@ -665,25 +565,6 @@ categorizeTokenBundleNew b = case F.toList bundleAssets of
   where
     bundleAssets = tokenBundleAssets b
 
--- | Returns the set of keys for entries that have no assets other than ada.
---
-entriesWithAdaOnly :: UTxOIndex u -> Set u
-entriesWithAdaOnly = coins
-
--- | Returns the set of keys for entries that have non-zero quantities of the
---   given asset.
---
-entriesWithAsset :: Ord u => AssetId -> UTxOIndex u -> Set u
-entriesWithAsset a =
-    maybe mempty NonEmptySet.toSet . Map.lookup a . assetsAll
-
--- | Returns the set of keys for entries that have no non-ada assets other than
---   the given asset.
---
-entriesWithAssetOnly :: Ord u => AssetId -> UTxOIndex u -> Set u
-entriesWithAssetOnly a =
-    maybe mempty NonEmptySet.toSet . Map.lookup a . assetsSingleton
-
 -- Inserts an entry, but without checking the following pre-condition:
 --
 -- Pre-condition: there is no existing entry for the specified UTxO identifier.
@@ -699,14 +580,6 @@ insertUnsafe
 insertUnsafe u b i = i
     & over #balance (`TokenBundle.add` b)
     & over #universe (Map.insert u b)
-    & case categorizeTokenBundle b of
-        IsCoin ->
-            over #coins (Set.insert u)
-        IsCoinWithSingletonAsset a -> id
-            . over #assetsSingleton (`insertEntry` a)
-            . over #assetsAll (`insertEntry` a)
-        IsCoinWithMultipleAssets as ->
-            over #assetsAll (flip (F.foldl' insertEntry) as)
     & case categorizeTokenBundleNew b of
         BundleWithNoAssets -> id
         BundleWithOneAsset a -> id
@@ -817,20 +690,10 @@ checkBalance i
 --
 indexIsComplete :: forall u. Ord u => UTxOIndex u -> Bool
 indexIsComplete i =
-    F.all (\x -> hasEntry x && hasEntryNew x)
+    F.all hasEntryNew
         $ Map.toList
         $ universe i
   where
-    hasEntry :: (u, TokenBundle) -> Bool
-    hasEntry (u, b) = case categorizeTokenBundle b of
-        IsCoin ->
-            u `Set.member` coins i
-        IsCoinWithSingletonAsset a -> (&&)
-            (hasEntryForAsset a u assetsAll)
-            (hasEntryForAsset a u assetsSingleton)
-        IsCoinWithMultipleAssets as ->
-            F.all (\a -> hasEntryForAsset a u assetsAll) as
-
     -- TODO:
     --
     -- Rename to 'hasEntry' once the old 'hasEntry' has been removed.
@@ -866,15 +729,7 @@ indexIsComplete i =
 --
 indexIsMinimal :: forall u. Ord u => UTxOIndex u -> Bool
 indexIsMinimal i = F.and
-    [ assetsAll i
-        & Map.toList
-        & F.all (\(a, u) -> F.all (entryHasAsset a) u)
-    , assetsSingleton i
-        & Map.toList
-        & F.all (\(a, u) -> F.all (entryHasSingletonAsset a) u)
-    , coins i
-        & F.all entryIsCoin
-    , indexAll i
+    [ indexAll i
         & Map.toList
         & F.all (\(a, u) -> F.all (entryHasAssetNew a) u)
     , indexSingletons i
@@ -885,9 +740,6 @@ indexIsMinimal i = F.and
         & F.all (\(a, u) -> F.all (entryHasTwoAssetsWith a) u)
     ]
   where
-    entryHasAsset :: AssetId -> u -> Bool
-    entryHasAsset a = entryMatches (`TokenBundle.hasQuantity` a)
-
     -- TODO:
     --
     -- Rename this to 'entryHasAsset', once the old 'entryHasAsset' has been
@@ -908,14 +760,6 @@ indexIsMinimal i = F.and
         , tokenBundleAssetCount b == 2
         ]
 
-    entryHasSingletonAsset :: AssetId -> u -> Bool
-    entryHasSingletonAsset a = entryMatches $
-        (== IsCoinWithSingletonAsset a) . categorizeTokenBundle
-
-    entryIsCoin :: u -> Bool
-    entryIsCoin = entryMatches $
-        (== IsCoin) . categorizeTokenBundle
-
     entryMatches :: (TokenBundle -> Bool) -> u -> Bool
     entryMatches test u = maybe False test $ Map.lookup u $ universe i
 
@@ -929,9 +773,7 @@ indexIsMinimal i = F.and
 --
 assetsConsistent :: UTxOIndex u -> Bool
 assetsConsistent i = and
-    [ Map.keysSet (assetsAll i) == balanceAssets
-    , Map.keysSet (assetsSingleton i) `Set.isSubsetOf` balanceAssets
-    , Map.keysSet (indexAll i)
+    [ Map.keysSet (indexAll i)
         == balanceAssetsNew
     , Map.keysSet (indexSingletons i)
         `Set.isSubsetOf` balanceAssetsNew
@@ -939,8 +781,6 @@ assetsConsistent i = and
         `Set.isSubsetOf` balanceAssetsNew
     ]
   where
-    balanceAssets = TokenBundle.getAssets (balance i)
-
     -- TODO:
     --
     -- Rename to 'balanceAssets', once the old 'balanceAssets' has been removed.
