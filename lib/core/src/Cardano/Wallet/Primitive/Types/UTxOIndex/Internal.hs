@@ -871,10 +871,39 @@ indexIsMinimal i = F.and
         & F.all (\(a, u) -> F.all (entryHasSingletonAsset a) u)
     , coins i
         & F.all entryIsCoin
+    , indexAll i
+        & Map.toList
+        & F.all (\(a, u) -> F.all (entryHasAssetNew a) u)
+    , indexSingletons i
+        & Map.toList
+        & F.all (\(a, u) -> F.all (entryHasOneAsset a) u)
+    , indexPairs i
+        & Map.toList
+        & F.all (\(a, u) -> F.all (entryHasTwoAssetsWith a) u)
     ]
   where
     entryHasAsset :: AssetId -> u -> Bool
     entryHasAsset a = entryMatches (`TokenBundle.hasQuantity` a)
+
+    -- TODO:
+    --
+    -- Rename this to 'entryHasAsset', once the old 'entryHasAsset' has been
+    -- removed.
+    --
+    entryHasAssetNew :: Asset -> u -> Bool
+    entryHasAssetNew a = entryMatches (`tokenBundleHasAsset` a)
+
+    entryHasOneAsset :: Asset -> u -> Bool
+    entryHasOneAsset a = entryMatches $ \b -> and
+        [ b `tokenBundleHasAsset` a
+        , tokenBundleAssetCount b == 1
+        ]
+
+    entryHasTwoAssetsWith :: Asset -> u -> Bool
+    entryHasTwoAssetsWith a = entryMatches $ \b -> and
+        [ b `tokenBundleHasAsset` a
+        , tokenBundleAssetCount b == 2
+        ]
 
     entryHasSingletonAsset :: AssetId -> u -> Bool
     entryHasSingletonAsset a = entryMatches $
