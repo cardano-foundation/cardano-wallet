@@ -140,7 +140,7 @@ import Cardano.Wallet.Primitive.Types.TokenQuantity.Gen
 import Cardano.Wallet.Primitive.Types.Tx
     ( TokenBundleSizeAssessment (..), TokenBundleSizeAssessor (..) )
 import Cardano.Wallet.Primitive.Types.UTxOIndex
-    ( Asset (..), SelectionFilter (..), SelectionFilterNew (..), UTxOIndex )
+    ( Asset (..), SelectionFilterNew (..), UTxOIndex )
 import Cardano.Wallet.Primitive.Types.UTxOIndex.Gen
     ( genUTxOIndex, genUTxOIndexLarge, genUTxOIndexLargeN, shrinkUTxOIndex )
 import Cardano.Wallet.Primitive.Types.UTxOSelection
@@ -344,7 +344,7 @@ spec = describe "Cardano.Wallet.CoinSelection.Internal.BalanceSpec" $
 
         it "prop_assetSelectionLens_givesPriorityToSingletonAssets" $
             property prop_assetSelectionLens_givesPriorityToSingletonAssets
-        it "prop_coinSelectonLens_givesPriorityToCoins" $
+        it "prop_coinSelectionLens_givesPriorityToCoins" $
             property prop_coinSelectionLens_givesPriorityToCoins
 
     parallel $ describe "Boundary tests" $ do
@@ -1765,7 +1765,8 @@ prop_coinSelectionLens_givesPriorityToCoins
     -> Property
 prop_coinSelectionLens_givesPriorityToCoins (Blind (Small u)) =
     entryCount > 0 ==> monadicIO $ do
-        hasCoin <- isJust <$> run (UTxOIndex.selectRandom u WithAdaOnly)
+        hasCoin <- isJust <$>
+            run (UTxOIndex.selectRandomNew u (SelectSingleton AssetLovelace))
         monitor $ cover 20 hasCoin
             "There is at least one coin"
         monitor $ cover 1 (not hasCoin)
