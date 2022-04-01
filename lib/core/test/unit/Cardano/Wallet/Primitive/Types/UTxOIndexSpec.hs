@@ -148,6 +148,8 @@ spec =
 
         it "prop_SelectionFilter_coverage" $
             property prop_SelectionFilter_coverage
+        it "prop_SelectionFilterNew_coverage" $
+            property prop_SelectionFilterNew_coverage
         it "prop_selectRandom_empty" $
             property prop_selectRandom_empty
         it "prop_selectRandom_singleton" $
@@ -420,6 +422,25 @@ prop_SelectionFilter_coverage selectionFilter = checkCoverage $ property
     True
   where
     category = categorizeSelectionFilter selectionFilter
+
+-- TODO:
+--
+-- Rename this to 'prop_SelectionFilterNew_coverage' once the old property
+-- has been deleted.
+--
+prop_SelectionFilterNew_coverage :: SelectionFilterNew Asset -> Property
+prop_SelectionFilterNew_coverage selectionFilter = checkCoverage $ property
+    $ cover 20 (category == SelectSingleton ())
+        "SelectSingleton"
+    $ cover 20 (category == SelectPairWith ())
+        "SelectPairWith"
+    $ cover 20 (category == SelectAnyWith ())
+        "SelectAnyWith"
+    $ cover 20 (category == SelectAny)
+        "SelectAny"
+    True
+  where
+    category = () <$ selectionFilter
 
 -- | Attempt to select a random entry from an empty index.
 --
