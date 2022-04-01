@@ -657,12 +657,12 @@ prop_selectRandom_all_withAsset i a = checkCoverage $ monadicIO $ do
 -- | Attempt to select all entries with only the given asset from the index.
 --
 prop_selectRandom_all_withAssetOnly
-    :: UTxOIndex TestUTxO -> AssetId -> Property
+    :: UTxOIndex TestUTxO -> Asset -> Property
 prop_selectRandom_all_withAssetOnly i a = checkCoverage $ monadicIO $ do
-    (selectedEntries, i') <- run $ selectAll (WithAssetOnly a) i
-    monitor $ cover 50 (a `Set.member` UTxOIndex.assets i)
+    (selectedEntries, i') <- run $ selectAllNew (SelectSingleton a) i
+    monitor $ cover 50 (a `Set.member` UTxOIndex.assetsNew i)
         "index has the specified asset"
-    monitor $ cover 50 (Set.size (UTxOIndex.assets i) > 1)
+    monitor $ cover 50 (Set.size (UTxOIndex.assetsNew i) > 1)
         "index has more than one asset"
     monitor $ cover 10 (not (null selectedEntries))
         "selected at least one entry"
@@ -826,9 +826,9 @@ tokenBundleHasAsset = TokenBundle.hasQuantity
 -- | Returns 'True' if (and only if) the given token bundle has a non-zero
 --   quantity of the given asset and no other non-ada assets.
 --
-tokenBundleHasAssetOnly :: TokenBundle -> AssetId -> Bool
+tokenBundleHasAssetOnly :: TokenBundle -> Asset -> Bool
 tokenBundleHasAssetOnly b a = (== [a])
-    $ Set.toList $ TokenBundle.getAssets b
+    $ Set.toList $ UTxOIndex.tokenBundleAssets b
 
 -- | Returns 'True' if (and only if) the given token bundle contains no
 --   assets other than ada.
