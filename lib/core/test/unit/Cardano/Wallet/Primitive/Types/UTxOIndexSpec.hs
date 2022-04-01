@@ -475,29 +475,39 @@ prop_selectRandom_empty f = monadicIO $ do
 -- This should always return 'Just e'.
 --
 prop_selectRandom_singleton
-    :: SelectionFilter
+    :: SelectionFilterNew Asset
     -> TestUTxO
     -> TokenBundle
     -> Property
 prop_selectRandom_singleton selectionFilter u b = monadicIO $ do
-    actual <- run $ UTxOIndex.selectRandom index selectionFilter
-    assert $ actual == expected
+    actual <- run $ UTxOIndex.selectRandomNew index selectionFilter
+    pure $ prop_inner actual
+
   where
+    prop_inner actual =
+        checkCoverage $
+        cover 10 (isJust actual)
+            "selected something" $
+        cover 10 (isNothing actual)
+            "selected nothing" $
+        actual === expected
+
     index = UTxOIndex.singleton u b
     expected = case selectionFilter of
-        Any ->
-            Just ((u, b), UTxOIndex.empty)
-        WithAdaOnly | tokenBundleIsAdaOnly b ->
-            Just ((u, b), UTxOIndex.empty)
-        WithAdaOnly ->
-            Nothing
-        WithAsset a | tokenBundleHasAsset b a ->
-            Just ((u, b), UTxOIndex.empty)
-        WithAsset _ ->
-            Nothing
-        WithAssetOnly a | tokenBundleHasAssetOnly b a ->
-            Just ((u, b), UTxOIndex.empty)
-        WithAssetOnly _ ->
+        SelectSingleton a
+            | a `Set.member` UTxOIndex.tokenBundleAssets b
+            , UTxOIndex.tokenBundleAssetCount b == 1 ->
+                Just ((u, b), UTxOIndex.empty)
+        SelectPairWith a
+            | a `Set.member` UTxOIndex.tokenBundleAssets b
+            , UTxOIndex.tokenBundleAssetCount b == 2 ->
+                Just ((u, b), UTxOIndex.empty)
+        SelectAnyWith a
+            | a `Set.member` UTxOIndex.tokenBundleAssets b ->
+                Just ((u, b), UTxOIndex.empty)
+        SelectAny ->
+                Just ((u, b), UTxOIndex.empty)
+        _ ->
             Nothing
 
 -- | Attempt to select a random entry with any combination of assets.
