@@ -2364,8 +2364,8 @@ prop_balanceTransactionUnresolvedInputs wallet (ShowBuildable partialTx') seed =
                         | otherwise
                             -> label "succeeded despite unresolved input"
                                 $ property True
-                            -- Balancing can succeed if the dropped inputs happen
-                            -- to be apart of the wallet UTxO.
+                            -- Balancing can succeed if the dropped inputs
+                            -- happen to be a part of the wallet UTxO.
                     Left (ErrBalanceTxAssignRedeemers
                         (ErrAssignRedeemersUnresolvedTxIns _))
                         -> property True
