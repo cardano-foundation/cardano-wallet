@@ -45,6 +45,7 @@ module Cardano.Wallet.Primitive.Types.UTxOIndex
 
     -- * Queries
     , assets
+    , assetsNew
     , balance
     , lookup
     , member

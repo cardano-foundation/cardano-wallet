@@ -63,6 +63,7 @@ module Cardano.Wallet.Primitive.Types.UTxOIndex.Internal
 
     -- * Queries
     , assets
+    , assetsNew
     , balance
     , lookup
     , member
@@ -353,6 +354,13 @@ partition f = bimap fromSequence fromSequence . L.partition (f . fst) . toList
 --
 assets :: UTxOIndex u -> Set AssetId
 assets = Map.keysSet . assetsAll
+
+-- TODO:
+--
+-- Rename this function to 'assets' once the old function has been removed.
+--
+assetsNew :: UTxOIndex u -> Set Asset
+assetsNew = Map.keysSet . indexAll
 
 -- | Returns the value corresponding to the given UTxO identifier.
 --
