@@ -266,7 +266,7 @@ RSpec.describe CardanoWallet::Misc do
     end
   end
 
-  describe CardanoWallet::Misc::Proxy, :light do
+  describe CardanoWallet::Misc::Proxy do
     it "Malformed payload when tx is not binary" do
       pending "ADP-1145 - DecoderErrorDeserialiseFailure error message from the API /proxy/transactions"
       no_binary_blob = "test"
