@@ -36,6 +36,9 @@ import Prelude
 import qualified Blockfrost.Client as BF
 import qualified Cardano.Api.Shelley as Node
 import qualified Data.Sequence as Seq
+import qualified Ouroboros.Consensus.HardFork.History.EraParams as HF
+import qualified Ouroboros.Consensus.HardFork.History.Qry as HF
+import qualified Ouroboros.Consensus.HardFork.History.Summary as HF
 
 import Cardano.Api
     ( AnyCardanoEra (..)
@@ -59,6 +62,12 @@ import Cardano.Wallet.Logging
     ( BracketLog, bracketTracer )
 import Cardano.Wallet.Network
     ( NetworkLayer (..) )
+import Cardano.Wallet.Primitive.Slotting
+    ( PastHorizonException
+    , TimeInterpreter
+    , TimeInterpreterLog
+    , mkTimeInterpreter
+    )
 import Cardano.Wallet.Primitive.Types
     ( BlockHeader (..)
     , DecentralizationLevel (..)
@@ -66,16 +75,21 @@ import Cardano.Wallet.Primitive.Types
     , ExecutionUnitPrices (..)
     , ExecutionUnits (..)
     , FeePolicy (LinearFee)
+    , GenesisParameters (GenesisParameters)
     , LinearFunction (..)
     , MinimumUTxOValue (..)
+    , NetworkParameters (NetworkParameters)
     , ProtocolParameters (..)
     , SlotNo (..)
     , SlottingParameters (..)
+    , StartTime
     , TokenBundleMaxSize (..)
     , TxParameters (..)
     , emptyEraInfo
     , executionMemory
     , executionSteps
+    , genesisParameters
+    , getGenesisBlockDate
     )
 import Cardano.Wallet.Primitive.Types.Coin
     ( Coin (Coin, unCoin) )
@@ -137,25 +151,31 @@ newtype BlockfrostException = BlockfrostException BlockfrostError
     deriving stock (Show)
     deriving anyclass (Exception)
 
-data Log = MsgWatcherUpdate BlockHeader BracketLog
+data Log
+    = MsgWatcherUpdate BlockHeader BracketLog
+    | MsgTimeInterpreterLog TimeInterpreterLog
 
 instance ToText Log where
     toText = \case
         MsgWatcherUpdate blockHeader bracketLog ->
             "Update watcher with tip: " <> pretty blockHeader <>
             ". Callback " <> toText bracketLog <> ". "
+        MsgTimeInterpreterLog til ->
+            toText til
 
 instance HasSeverityAnnotation Log where
     getSeverityAnnotation = \case
       MsgWatcherUpdate _ _ -> Info
+      MsgTimeInterpreterLog _ -> Info
 
 withNetworkLayer
     :: Tracer IO Log
     -> NetworkId
     -> BF.Project
+    -> NetworkParameters
     -> (NetworkLayer IO (CardanoBlock StandardCrypto) -> IO a)
     -> IO a
-withNetworkLayer tr net project k = k NetworkLayer
+withNetworkLayer tr net project np k = k NetworkLayer
     { chainSync = \_tr _chainFollower -> pure ()
     , lightSync = Nothing
     , currentNodeTip
@@ -167,10 +187,13 @@ withNetworkLayer tr net project k = k NetworkLayer
     , stakeDistribution = undefined
     , getCachedRewardAccountBalance = undefined
     , fetchRewardAccountBalances = undefined
-    , timeInterpreter = undefined
+    , timeInterpreter = timeInterpreter getGenesisBlockDate
     , syncProgress = undefined
     }
   where
+    NetworkParameters
+        { genesisParameters = GenesisParameters { getGenesisBlockDate } } = np
+
     currentNodeTip :: IO BlockHeader
     currentNodeTip = runBlockfrost BF.getLatestBlock
     -- ^ TODO: use cached value while retrying
@@ -192,6 +215,13 @@ withNetworkLayer tr net project k = k NetworkLayer
         BF.EpochInfo {_epochInfoEpoch} <- liftBlockfrost BF.getLatestEpoch
         epoch <- fromBlockfrostM _epochInfoEpoch
         liftEither $ eraByEpoch net epoch
+
+    timeInterpreter ::
+        StartTime -> TimeInterpreter (ExceptT PastHorizonException IO)
+    timeInterpreter startTime =
+        mkTimeInterpreter (MsgTimeInterpreterLog >$< tr) startTime $ do
+            let summary = undefined -- TODO
+            pure $ HF.mkInterpreter summary
 
     handleBlockfrostError :: ExceptT BlockfrostError IO a -> IO a
     handleBlockfrostError =

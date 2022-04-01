@@ -521,8 +521,7 @@ withNodeNetworkLayerBase tr net np conn versionData tol action = do
         let readInterpreter = liftIO $ atomically $ readTMVar var
         mkTimeInterpreter tr' getGenesisBlockDate readInterpreter
 
-    _syncProgress
-        :: TMVar IO (CardanoInterpreter sc)
+    _syncProgress :: TMVar IO (CardanoInterpreter sc)
         -> SlotNo
         -> IO SyncProgress
     _syncProgress var slot = do
