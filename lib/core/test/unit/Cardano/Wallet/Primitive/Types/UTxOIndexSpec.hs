@@ -554,24 +554,24 @@ prop_selectRandom_one_withAdaOnly i = checkCoverage $ monadicIO $ do
 -- This should only succeed if there is at least one element with a non-zero
 -- quantity of the asset.
 --
-prop_selectRandom_one_withAsset :: UTxOIndex TestUTxO -> AssetId -> Property
+prop_selectRandom_one_withAsset :: UTxOIndex TestUTxO -> Asset -> Property
 prop_selectRandom_one_withAsset i a = checkCoverage $ monadicIO $ do
-    result <- run $ UTxOIndex.selectRandom i (WithAsset a)
-    monitor $ cover 50 (a `Set.member` UTxOIndex.assets i)
+    result <- run $ UTxOIndex.selectRandomNew i (SelectAnyWith a)
+    monitor $ cover 50 (a `Set.member` UTxOIndex.assetsNew i)
         "index has the specified asset"
-    monitor $ cover 50 (Set.size (UTxOIndex.assets i) > 1)
+    monitor $ cover 50 (Set.size (UTxOIndex.assetsNew i) > 1)
         "index has more than one asset"
     monitor $ cover 50 (isJust result)
         "selected an entry"
     case result of
         Nothing ->
-            assert $ a `Set.notMember` UTxOIndex.assets i
+            assert $ a `Set.notMember` UTxOIndex.assetsNew i
         Just ((u, b), i') -> do
             assert $ UTxOIndex.delete u i == i'
             assert $ UTxOIndex.insert u b i' == i
             assert $ UTxOIndex.member u i
             assert $ not $ UTxOIndex.member u i'
-            assert $ tokenBundleHasAsset b a
+            assert $ UTxOIndex.tokenBundleHasAsset b a
             assert $ i /= i'
 
 -- | Attempt to select a random element with a specific asset and no other
