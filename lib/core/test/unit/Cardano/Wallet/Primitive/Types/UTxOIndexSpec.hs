@@ -26,9 +26,17 @@ import Cardano.Wallet.Primitive.Types.TokenMap.Gen
 import Cardano.Wallet.Primitive.Types.UTxOIndex.Gen
     ( genUTxOIndex, shrinkUTxOIndex )
 import Cardano.Wallet.Primitive.Types.UTxOIndex.Internal
-    ( InvariantStatus (..), SelectionFilter (..), UTxOIndex, checkInvariant )
+    ( Asset (..)
+    , InvariantStatus (..)
+    , SelectionFilter (..)
+    , SelectionFilterNew (..)
+    , UTxOIndex
+    , checkInvariant
+    )
 import Control.Monad.Random.Class
     ( MonadRandom (..) )
+import Data.Function
+    ( (&) )
 import Data.List.NonEmpty
     ( NonEmpty (..) )
 import Data.Maybe
@@ -213,14 +221,25 @@ prop_delete_invariant
 prop_delete_invariant u i = invariantHolds $ UTxOIndex.delete u i
 
 prop_selectRandom_invariant
-    :: UTxOIndex TestUTxO -> SelectionFilter -> Property
-prop_selectRandom_invariant i f = monadicIO $ do
-    result <- run $ UTxOIndex.selectRandom i f
-    assert $ case result of
-        Nothing ->
-            True
-        Just (_, i') ->
-            checkInvariant i' == InvariantHolds
+    :: UTxOIndex TestUTxO -> SelectionFilterNew Asset -> Property
+prop_selectRandom_invariant i f =
+    monadicIO $ do
+        run $ do
+            result <- UTxOIndex.selectRandomNew i f
+            pure $ prop_inner result
+  where
+    prop_inner :: Maybe (a, UTxOIndex TestUTxO) -> Property
+    prop_inner result =
+        checkCoverage $
+        cover 10 (isNothing result)
+            "selected nothing" $
+        cover 10 (isJust result)
+            "selected something" $
+        case result of
+            Nothing ->
+                property True
+            Just (_, i') ->
+                checkInvariant i' === InvariantHolds
 
 --------------------------------------------------------------------------------
 -- Construction and deconstruction properties
@@ -793,6 +812,10 @@ newtype TestUTxO = TestUTxO (Hexadecimal Quid)
     deriving (Arbitrary, CoArbitrary) via Quid
     deriving stock (Eq, Ord, Read, Show)
 
+instance Arbitrary Asset where
+    arbitrary = genAsset
+    shrink = shrinkAsset
+
 instance Arbitrary AssetId where
     arbitrary = genAssetId
     shrink = shrinkAssetId
@@ -829,6 +852,33 @@ shrinkSelectionFilterSmallRange = \case
         case WithAssetOnly <$> shrinkAssetId a of
             [] -> [WithAsset a]
             xs -> xs
+
+instance Arbitrary (SelectionFilterNew Asset) where
+    arbitrary = genSelectionFilterNew
+    shrink = shrinkSelectionFilterNew
+
+genAsset :: Gen Asset
+genAsset = oneof
+    [ AssetLovelace & pure
+    , Asset <$> genAssetId
+    ]
+
+shrinkAsset :: Asset -> [Asset]
+shrinkAsset = \case
+    AssetLovelace -> []
+    Asset assetId -> AssetLovelace : (Asset <$> shrink assetId)
+
+genSelectionFilterNew :: Gen (SelectionFilterNew Asset)
+genSelectionFilterNew = oneof
+    [ SelectSingleton <$> genAsset
+    , SelectPairWith <$> genAsset
+    , SelectAnyWith <$> genAsset
+    , SelectAny & pure
+    ]
+
+shrinkSelectionFilterNew
+    :: SelectionFilterNew Asset -> [SelectionFilterNew Asset]
+shrinkSelectionFilterNew = traverse shrinkAsset
 
 --------------------------------------------------------------------------------
 -- Show instances
