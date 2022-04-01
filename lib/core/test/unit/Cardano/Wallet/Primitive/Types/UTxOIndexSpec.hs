@@ -637,22 +637,22 @@ prop_selectRandom_all_withAdaOnly i = checkCoverage $ monadicIO $ do
 
 -- | Attempt to select all entries with the given asset from the index.
 --
-prop_selectRandom_all_withAsset :: UTxOIndex TestUTxO -> AssetId -> Property
+prop_selectRandom_all_withAsset :: UTxOIndex TestUTxO -> Asset -> Property
 prop_selectRandom_all_withAsset i a = checkCoverage $ monadicIO $ do
-    (selectedEntries, i') <- run $ selectAll (WithAsset a) i
-    monitor $ cover 50 (a `Set.member` UTxOIndex.assets i)
+    (selectedEntries, i') <- run $ selectAllNew (SelectAnyWith a) i
+    monitor $ cover 50 (a `Set.member` UTxOIndex.assetsNew i)
         "index has the specified asset"
-    monitor $ cover 50 (Set.size (UTxOIndex.assets i) > 1)
+    monitor $ cover 50 (Set.size (UTxOIndex.assetsNew i) > 1)
         "index has more than one asset"
     monitor $ cover 50 (not (null selectedEntries))
         "selected at least one entry"
     assert $ L.all (\(_, b) ->
-        not (tokenBundleHasAsset b a)) (UTxOIndex.toList i')
+        not (UTxOIndex.tokenBundleHasAsset b a)) (UTxOIndex.toList i')
     assert $ L.all (\(_, b) ->
-        tokenBundleHasAsset b a) selectedEntries
+        UTxOIndex.tokenBundleHasAsset b a) selectedEntries
     assert $ UTxOIndex.deleteMany (fst <$> selectedEntries) i == i'
     assert $ UTxOIndex.insertMany selectedEntries i' == i
-    assert $ a `Set.notMember` UTxOIndex.assets i'
+    assert $ a `Set.notMember` UTxOIndex.assetsNew i'
 
 -- | Attempt to select all entries with only the given asset from the index.
 --
