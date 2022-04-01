@@ -624,7 +624,8 @@ prop_selectRandom_all_any i = checkCoverage $ monadicIO $ do
 --
 prop_selectRandom_all_withAdaOnly :: UTxOIndex TestUTxO -> Property
 prop_selectRandom_all_withAdaOnly i = checkCoverage $ monadicIO $ do
-    (selectedEntries, i') <- run $ selectAll WithAdaOnly i
+    (selectedEntries, i') <- run $
+        selectAllNew (SelectSingleton AssetLovelace) i
     monitor $ cover 70 (not (null selectedEntries))
         "selected at least one entry"
     assert $ L.all (\(_, b) ->
