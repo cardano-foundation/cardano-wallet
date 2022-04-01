@@ -534,6 +534,20 @@ data BundleCategory
     | IsCoinWithMultipleAssets (Set AssetId)
     deriving (Eq, Show)
 
+-- | Represents different categories of token bundles.
+--
+-- TODO:
+--
+-- Rename this to 'BundleCategory', once the old 'BundleCategory' has been
+-- removed.
+--
+data BundleCategoryNew asset
+    = BundleWithNoAssets
+    | BundleWithOneAsset asset
+    | BundleWithTwoAssets (asset, asset)
+    | BundleWithMultipleAssets (Set asset)
+    deriving (Eq, Show)
+
 -- | Categorizes a token bundle by what kind of assets it contains.
 --
 categorizeTokenBundle :: TokenBundle -> BundleCategory
@@ -543,6 +557,22 @@ categorizeTokenBundle b = case F.toList bundleAssets of
     _   -> IsCoinWithMultipleAssets bundleAssets
   where
     bundleAssets = TokenBundle.getAssets b
+
+-- | Categorizes a token bundle by how many assets it contains.
+--
+-- TODO:
+--
+-- Rename this to 'categorizeTokenBundle', once the old 'categorizeTokenBundle'
+-- has been removed.
+--
+categorizeTokenBundleNew :: TokenBundle -> BundleCategoryNew Asset
+categorizeTokenBundleNew b = case F.toList bundleAssets of
+    [      ] -> BundleWithNoAssets
+    [a     ] -> BundleWithOneAsset a
+    [a1, a2] -> BundleWithTwoAssets (a1, a2)
+    _        -> BundleWithMultipleAssets bundleAssets
+  where
+    bundleAssets = tokenBundleAssets b
 
 -- | Returns the set of keys for entries that have no assets other than ada.
 --
