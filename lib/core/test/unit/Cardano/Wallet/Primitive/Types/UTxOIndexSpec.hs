@@ -4,6 +4,7 @@
 {-# LANGUAGE FlexibleInstances #-}
 {-# LANGUAGE LambdaCase #-}
 {-# LANGUAGE NumericUnderscores #-}
+{-# LANGUAGE OverloadedLists #-}
 {-# LANGUAGE TypeApplications #-}
 {-# LANGUAGE TypeFamilies #-}
 {-# OPTIONS_GHC -fno-warn-orphans #-}
@@ -37,8 +38,6 @@ import Control.Monad.Random.Class
     ( MonadRandom (..) )
 import Data.Function
     ( (&) )
-import Data.List.NonEmpty
-    ( NonEmpty (..) )
 import Data.Maybe
     ( isJust, isNothing )
 import Data.Ratio
@@ -678,27 +677,27 @@ prop_selectRandom_all_withAssetOnly i a = checkCoverage $ monadicIO $ do
 --
 prop_selectRandomWithPriority :: UTxOIndex TestUTxO -> Property
 prop_selectRandomWithPriority i =
-    forAll (genAssetId) $ \a1 ->
-    forAll (genAssetId `suchThat` (/= a1)) $ \a2 ->
+    forAll (genAsset) $ \a1 ->
+    forAll (genAsset `suchThat` (/= a1)) $ \a2 ->
     checkCoverage $ monadicIO $ do
         haveMatchForAsset1 <- isJust <$>
-            run (UTxOIndex.selectRandom i $ WithAssetOnly a1)
+            run (UTxOIndex.selectRandomNew i $ SelectPairWith a1)
         haveMatchForAsset2 <- isJust <$>
-            run (UTxOIndex.selectRandom i $ WithAssetOnly a2)
+            run (UTxOIndex.selectRandomNew i $ SelectPairWith a2)
         monitor $ cover 4 (haveMatchForAsset1 && not haveMatchForAsset2)
             "have match for asset 1 but not for asset 2"
         monitor $ cover 4 (not haveMatchForAsset1 && haveMatchForAsset2)
             "have match for asset 2 but not for asset 1"
-        monitor $ cover 1 (haveMatchForAsset1 && haveMatchForAsset2)
+        monitor $ cover 4 (haveMatchForAsset1 && haveMatchForAsset2)
             "have match for both asset 1 and asset 2"
         monitor $ cover 4 (not haveMatchForAsset1 && not haveMatchForAsset2)
             "have match for neither asset 1 nor asset 2"
-        result <- run $ UTxOIndex.selectRandomWithPriority i $
-            WithAssetOnly a1 :| [WithAssetOnly a2]
+        result <- run $ UTxOIndex.selectRandomWithPriorityNew i
+            [SelectPairWith a1, SelectPairWith a2]
         case result of
-            Just ((_, b), _) | b `tokenBundleHasAsset` a1 -> do
+            Just ((_, b), _) | b `UTxOIndex.tokenBundleHasAsset` a1 -> do
                 assert haveMatchForAsset1
-            Just ((_, b), _) | b `tokenBundleHasAsset` a2 -> do
+            Just ((_, b), _) | b `UTxOIndex.tokenBundleHasAsset` a2 -> do
                 assert (not haveMatchForAsset1)
                 assert haveMatchForAsset2
             _ -> do
