@@ -581,12 +581,12 @@ prop_selectRandom_one_withAsset i a = checkCoverage $ monadicIO $ do
 -- quantity of the asset and no other assets.
 --
 prop_selectRandom_one_withAssetOnly
-    :: UTxOIndex TestUTxO -> AssetId -> Property
+    :: UTxOIndex TestUTxO -> Asset -> Property
 prop_selectRandom_one_withAssetOnly i a = checkCoverage $ monadicIO $ do
-    result <- run $ UTxOIndex.selectRandom i (WithAssetOnly a)
-    monitor $ cover 50 (a `Set.member` UTxOIndex.assets i)
+    result <- run $ UTxOIndex.selectRandomNew i (SelectSingleton a)
+    monitor $ cover 50 (a `Set.member` UTxOIndex.assetsNew i)
         "index has the specified asset"
-    monitor $ cover 50 (Set.size (UTxOIndex.assets i) > 1)
+    monitor $ cover 50 (Set.size (UTxOIndex.assetsNew i) > 1)
         "index has more than one asset"
     monitor $ cover 10 (isJust result)
         "selected an entry"
@@ -598,7 +598,8 @@ prop_selectRandom_one_withAssetOnly i a = checkCoverage $ monadicIO $ do
             assert $ UTxOIndex.insert u b i' == i
             assert $ UTxOIndex.member u i
             assert $ not $ UTxOIndex.member u i'
-            assert $ tokenBundleHasAssetOnly b a
+            assert $ UTxOIndex.tokenBundleHasAsset b a
+            assert $ UTxOIndex.tokenBundleAssetCount b == 1
             assert $ i /= i'
 
 -- | Attempt to select all entries from the index.
