@@ -303,10 +303,10 @@ prop_insert_assets
     :: u ~ Size 4 TestUTxO => u -> TokenBundle -> UTxOIndex u -> Property
 prop_insert_assets u b i =
     checkCoverage_modify u i $
-    UTxOIndex.assets (UTxOIndex.insert u b i)
+    UTxOIndex.assetsNew (UTxOIndex.insert u b i)
         `Set.intersection` insertedAssets === insertedAssets
   where
-    insertedAssets = TokenBundle.getAssets b
+    insertedAssets = UTxOIndex.tokenBundleAssets b
 
 prop_insert_balance
     :: u ~ Size 4 TestUTxO => u -> TokenBundle -> UTxOIndex u -> Property
