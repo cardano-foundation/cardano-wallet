@@ -526,7 +526,7 @@ prop_Small_UTxOIndex_coverage (Small index) =
             "UTxO set size > 32 entries"
         True
   where
-    assetCount = Set.size $ UTxOIndex.assets index
+    assetCount = Set.size $ UTxOIndex.assetsNew index
     entryCount = UTxOIndex.size index
 
 prop_Large_UTxOIndex_coverage :: Large (UTxOIndex TestUTxO) -> Property
