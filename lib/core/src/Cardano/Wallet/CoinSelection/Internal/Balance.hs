@@ -142,7 +142,7 @@ import Cardano.Wallet.Primitive.Types.TokenQuantity
 import Cardano.Wallet.Primitive.Types.Tx
     ( TokenBundleSizeAssessment (..), TokenBundleSizeAssessor (..) )
 import Cardano.Wallet.Primitive.Types.UTxOIndex
-    ( Asset (..), SelectionFilterNew (..), UTxOIndex (..) )
+    ( Asset (..), SelectionFilter (..), UTxOIndex (..) )
 import Cardano.Wallet.Primitive.Types.UTxOSelection
     ( IsUTxOSelection, UTxOSelection, UTxOSelectionNonEmpty )
 import Control.Monad.Extra
@@ -1273,7 +1273,7 @@ selectCoinQuantity =
 selectMatchingQuantity
     :: forall m utxoSelection u. (MonadRandom m, Ord u)
     => IsUTxOSelection utxoSelection u
-    => NonEmpty (SelectionFilterNew Asset)
+    => NonEmpty (SelectionFilter Asset)
         -- ^ A list of selection filters to be traversed from left-to-right,
         -- in descending order of priority.
     -> SelectionLimit
@@ -1287,7 +1287,7 @@ selectMatchingQuantity filters limit s
     | limitReached =
         pure Nothing
     | otherwise =
-        (updateState =<<) <$> UTxOIndex.selectRandomWithPriorityNew
+        (updateState =<<) <$> UTxOIndex.selectRandomWithPriority
             (UTxOSelection.leftoverIndex s) filters
   where
     limitReached = case limit of

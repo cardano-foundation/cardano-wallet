@@ -64,7 +64,7 @@ module Cardano.Wallet.Primitive.Types.UTxOIndex.Internal
     , partition
 
     -- * Queries
-    , assetsNew
+    , assets
     , balance
     , lookup
     , member
@@ -76,9 +76,9 @@ module Cardano.Wallet.Primitive.Types.UTxOIndex.Internal
     , disjoint
 
     -- * Selection
-    , SelectionFilterNew (..)
-    , selectRandomNew
-    , selectRandomWithPriorityNew
+    , SelectionFilter (..)
+    , selectRandom
+    , selectRandomWithPriority
 
     ----------------------------------------------------------------------------
     -- Internal Interface
@@ -299,7 +299,7 @@ delete u i =
         -- greater than or equal to the value of this output:
         & over #balance (`TokenBundle.unsafeSubtract` b)
         & over #universe (Map.delete u)
-        & case categorizeTokenBundleNew b of
+        & case categorizeTokenBundle b of
             BundleWithNoAssets -> id
             BundleWithOneAsset a -> id
                 . over #indexAll (`deleteEntry` a)
@@ -346,12 +346,8 @@ partition f = bimap fromSequence fromSequence . L.partition (f . fst) . toList
 
 -- | Returns the complete set of all assets contained in an index.
 --
--- TODO:
---
--- Rename this function to 'assets' once the old function has been removed.
---
-assetsNew :: UTxOIndex u -> Set Asset
-assetsNew = Map.keysSet . indexAll
+assets :: UTxOIndex u -> Set Asset
+assets = Map.keysSet . indexAll
 
 -- | Returns the value corresponding to the given UTxO identifier.
 --
@@ -396,7 +392,7 @@ disjoint i1 i2 = universe i1 `Map.disjoint` universe i2
 
 -- | Specifies a filter for selecting UTxO entries.
 --
-data SelectionFilterNew asset
+data SelectionFilter asset
     = SelectSingleton asset
     | SelectPairWith asset
     | SelectAnyWith asset
@@ -409,16 +405,12 @@ data SelectionFilterNew asset
 --
 -- Returns 'Nothing' if there were no matching entries.
 --
--- TODO:
---
--- Rename to 'selectRandom', once the old 'selectRandom' has been removed.
---
-selectRandomNew
+selectRandom
     :: forall m u. (MonadRandom m, Ord u)
     => UTxOIndex u
-    -> SelectionFilterNew Asset
+    -> SelectionFilter Asset
     -> m (Maybe ((u, TokenBundle), UTxOIndex u))
-selectRandomNew i selectionFilter =
+selectRandom i selectionFilter =
     (lookupAndRemoveEntry =<<) <$> selectRandomSetMember selectionSet
   where
     lookupAndRemoveEntry :: u -> Maybe ((u, TokenBundle), UTxOIndex u)
@@ -455,20 +447,15 @@ selectRandomNew i selectionFilter =
 -- This function returns 'Nothing' if (and only if) it traverses the entire
 -- list of filters without successfully selecting a UTxO entry.
 --
--- TODO:
---
--- Rename this to 'selectRandomWithPriority' once the old function has been
--- removed.
---
-selectRandomWithPriorityNew
+selectRandomWithPriority
     :: (MonadRandom m, Ord u)
     => UTxOIndex u
-    -> NonEmpty (SelectionFilterNew Asset)
+    -> NonEmpty (SelectionFilter Asset)
     -- ^ A list of selection filters to be traversed in descending order of
     -- priority, from left to right.
     -> m (Maybe ((u, TokenBundle), UTxOIndex u))
-selectRandomWithPriorityNew i =
-    firstJustM (selectRandomNew i) . NE.toList
+selectRandomWithPriority i =
+    firstJustM (selectRandom i) . NE.toList
 
 --------------------------------------------------------------------------------
 -- Internal Interface
@@ -537,12 +524,7 @@ tokenBundleHasAsset b = \case
 
 -- | Represents different categories of token bundles.
 --
--- TODO:
---
--- Rename this to 'BundleCategory', once the old 'BundleCategory' has been
--- removed.
---
-data BundleCategoryNew asset
+data BundleCategory asset
     = BundleWithNoAssets
     | BundleWithOneAsset asset
     | BundleWithTwoAssets (asset, asset)
@@ -551,13 +533,8 @@ data BundleCategoryNew asset
 
 -- | Categorizes a token bundle by how many assets it contains.
 --
--- TODO:
---
--- Rename this to 'categorizeTokenBundle', once the old 'categorizeTokenBundle'
--- has been removed.
---
-categorizeTokenBundleNew :: TokenBundle -> BundleCategoryNew Asset
-categorizeTokenBundleNew b = case F.toList bundleAssets of
+categorizeTokenBundle :: TokenBundle -> BundleCategory Asset
+categorizeTokenBundle b = case F.toList bundleAssets of
     [      ] -> BundleWithNoAssets
     [a     ] -> BundleWithOneAsset a
     [a1, a2] -> BundleWithTwoAssets (a1, a2)
@@ -580,7 +557,7 @@ insertUnsafe
 insertUnsafe u b i = i
     & over #balance (`TokenBundle.add` b)
     & over #universe (Map.insert u b)
-    & case categorizeTokenBundleNew b of
+    & case categorizeTokenBundle b of
         BundleWithNoAssets -> id
         BundleWithOneAsset a -> id
             . over #indexAll (`insertEntry` a)
@@ -690,16 +667,10 @@ checkBalance i
 --
 indexIsComplete :: forall u. Ord u => UTxOIndex u -> Bool
 indexIsComplete i =
-    F.all hasEntryNew
-        $ Map.toList
-        $ universe i
+    F.all hasEntry $ Map.toList $ universe i
   where
-    -- TODO:
-    --
-    -- Rename to 'hasEntry' once the old 'hasEntry' has been removed.
-    --
-    hasEntryNew :: (u, TokenBundle) -> Bool
-    hasEntryNew (u, b) = case categorizeTokenBundleNew b of
+    hasEntry :: (u, TokenBundle) -> Bool
+    hasEntry (u, b) = case categorizeTokenBundle b of
         BundleWithNoAssets ->
             True
         BundleWithOneAsset a -> and
@@ -731,7 +702,7 @@ indexIsMinimal :: forall u. Ord u => UTxOIndex u -> Bool
 indexIsMinimal i = F.and
     [ indexAll i
         & Map.toList
-        & F.all (\(a, u) -> F.all (entryHasAssetNew a) u)
+        & F.all (\(a, u) -> F.all (entryHasAsset a) u)
     , indexSingletons i
         & Map.toList
         & F.all (\(a, u) -> F.all (entryHasOneAsset a) u)
@@ -740,13 +711,8 @@ indexIsMinimal i = F.and
         & F.all (\(a, u) -> F.all (entryHasTwoAssetsWith a) u)
     ]
   where
-    -- TODO:
-    --
-    -- Rename this to 'entryHasAsset', once the old 'entryHasAsset' has been
-    -- removed.
-    --
-    entryHasAssetNew :: Asset -> u -> Bool
-    entryHasAssetNew a = entryMatches (`tokenBundleHasAsset` a)
+    entryHasAsset :: Asset -> u -> Bool
+    entryHasAsset a = entryMatches (`tokenBundleHasAsset` a)
 
     entryHasOneAsset :: Asset -> u -> Bool
     entryHasOneAsset a = entryMatches $ \b -> and
@@ -774,15 +740,11 @@ indexIsMinimal i = F.and
 assetsConsistent :: UTxOIndex u -> Bool
 assetsConsistent i = and
     [ Map.keysSet (indexAll i)
-        == balanceAssetsNew
+        == balanceAssets
     , Map.keysSet (indexSingletons i)
-        `Set.isSubsetOf` balanceAssetsNew
+        `Set.isSubsetOf` balanceAssets
     , Map.keysSet (indexPairs i)
-        `Set.isSubsetOf` balanceAssetsNew
+        `Set.isSubsetOf` balanceAssets
     ]
   where
-    -- TODO:
-    --
-    -- Rename to 'balanceAssets', once the old 'balanceAssets' has been removed.
-    --
-    balanceAssetsNew = tokenBundleAssets (balance i)
+    balanceAssets = tokenBundleAssets (balance i)

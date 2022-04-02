@@ -29,7 +29,7 @@ import Cardano.Wallet.Primitive.Types.UTxOIndex.Gen
 import Cardano.Wallet.Primitive.Types.UTxOIndex.Internal
     ( Asset (..)
     , InvariantStatus (..)
-    , SelectionFilterNew (..)
+    , SelectionFilter (..)
     , UTxOIndex
     , checkInvariant
     )
@@ -152,8 +152,8 @@ spec =
 
     parallel $ describe "Index Selection" $ do
 
-        it "prop_SelectionFilterNew_coverage" $
-            property prop_SelectionFilterNew_coverage
+        it "prop_SelectionFilter_coverage" $
+            property prop_SelectionFilter_coverage
         it "prop_selectRandom_empty" $
             property prop_selectRandom_empty
         it "prop_selectRandom_singleton" $
@@ -217,11 +217,11 @@ prop_delete_invariant
 prop_delete_invariant u i = invariantHolds $ UTxOIndex.delete u i
 
 prop_selectRandom_invariant
-    :: UTxOIndex TestUTxO -> SelectionFilterNew Asset -> Property
+    :: UTxOIndex TestUTxO -> SelectionFilter Asset -> Property
 prop_selectRandom_invariant i f =
     monadicIO $ do
         run $ do
-            result <- UTxOIndex.selectRandomNew i f
+            result <- UTxOIndex.selectRandom i f
             pure $ prop_inner result
   where
     prop_inner :: Maybe (a, UTxOIndex TestUTxO) -> Property
@@ -300,7 +300,7 @@ prop_insert_assets
     :: u ~ Size 4 TestUTxO => u -> TokenBundle -> UTxOIndex u -> Property
 prop_insert_assets u b i =
     checkCoverage_modify u i $
-    UTxOIndex.assetsNew (UTxOIndex.insert u b i)
+    UTxOIndex.assets (UTxOIndex.insert u b i)
         `Set.intersection` insertedAssets === insertedAssets
   where
     insertedAssets = UTxOIndex.tokenBundleAssets b
@@ -415,13 +415,8 @@ data SelectionFilterCategory
     | MatchWithAssetOnly
     deriving (Eq, Show)
 
--- TODO:
---
--- Rename this to 'prop_SelectionFilterNew_coverage' once the old property
--- has been deleted.
---
-prop_SelectionFilterNew_coverage :: SelectionFilterNew Asset -> Property
-prop_SelectionFilterNew_coverage selectionFilter = checkCoverage $ property
+prop_SelectionFilter_coverage :: SelectionFilter Asset -> Property
+prop_SelectionFilter_coverage selectionFilter = checkCoverage $ property
     $ cover 20 (category == SelectSingleton ())
         "SelectSingleton"
     $ cover 20 (category == SelectPairWith ())
@@ -438,9 +433,9 @@ prop_SelectionFilterNew_coverage selectionFilter = checkCoverage $ property
 --
 -- This should always return 'Nothing'.
 --
-prop_selectRandom_empty :: SelectionFilterNew Asset -> Property
+prop_selectRandom_empty :: SelectionFilter Asset -> Property
 prop_selectRandom_empty f = monadicIO $ do
-    result <- run $ UTxOIndex.selectRandomNew (UTxOIndex.empty @TestUTxO) f
+    result <- run $ UTxOIndex.selectRandom (UTxOIndex.empty @TestUTxO) f
     assert $ isNothing result
 
 -- | Attempt to select a random entry from a singleton index with entry 'e'.
@@ -448,12 +443,12 @@ prop_selectRandom_empty f = monadicIO $ do
 -- This should always return 'Just e'.
 --
 prop_selectRandom_singleton
-    :: SelectionFilterNew Asset
+    :: SelectionFilter Asset
     -> TestUTxO
     -> TokenBundle
     -> Property
 prop_selectRandom_singleton selectionFilter u b = monadicIO $ do
-    actual <- run $ UTxOIndex.selectRandomNew index selectionFilter
+    actual <- run $ UTxOIndex.selectRandom index selectionFilter
     pure $ prop_inner actual
 
   where
@@ -489,7 +484,7 @@ prop_selectRandom_singleton selectionFilter u b = monadicIO $ do
 --
 prop_selectRandom_one_any :: UTxOIndex TestUTxO -> Property
 prop_selectRandom_one_any i = checkCoverage $ monadicIO $ do
-    result <- run $ UTxOIndex.selectRandomNew i SelectAny
+    result <- run $ UTxOIndex.selectRandom i SelectAny
     monitor $ cover 90 (isJust result)
         "selected an entry"
     case result of
@@ -506,7 +501,7 @@ prop_selectRandom_one_any i = checkCoverage $ monadicIO $ do
 --
 prop_selectRandom_one_withAdaOnly :: UTxOIndex TestUTxO -> Property
 prop_selectRandom_one_withAdaOnly i = checkCoverage $ monadicIO $ do
-    result <- run $ UTxOIndex.selectRandomNew i (SelectSingleton AssetLovelace)
+    result <- run $ UTxOIndex.selectRandom i (SelectSingleton AssetLovelace)
     monitor $ cover 50 (isJust result)
         "selected an entry"
     case result of
@@ -529,16 +524,16 @@ prop_selectRandom_one_withAdaOnly i = checkCoverage $ monadicIO $ do
 --
 prop_selectRandom_one_withAsset :: UTxOIndex TestUTxO -> Asset -> Property
 prop_selectRandom_one_withAsset i a = checkCoverage $ monadicIO $ do
-    result <- run $ UTxOIndex.selectRandomNew i (SelectAnyWith a)
-    monitor $ cover 50 (a `Set.member` UTxOIndex.assetsNew i)
+    result <- run $ UTxOIndex.selectRandom i (SelectAnyWith a)
+    monitor $ cover 50 (a `Set.member` UTxOIndex.assets i)
         "index has the specified asset"
-    monitor $ cover 50 (Set.size (UTxOIndex.assetsNew i) > 1)
+    monitor $ cover 50 (Set.size (UTxOIndex.assets i) > 1)
         "index has more than one asset"
     monitor $ cover 50 (isJust result)
         "selected an entry"
     case result of
         Nothing ->
-            assert $ a `Set.notMember` UTxOIndex.assetsNew i
+            assert $ a `Set.notMember` UTxOIndex.assets i
         Just ((u, b), i') -> do
             assert $ UTxOIndex.delete u i == i'
             assert $ UTxOIndex.insert u b i' == i
@@ -556,10 +551,10 @@ prop_selectRandom_one_withAsset i a = checkCoverage $ monadicIO $ do
 prop_selectRandom_one_withAssetOnly
     :: UTxOIndex TestUTxO -> Asset -> Property
 prop_selectRandom_one_withAssetOnly i a = checkCoverage $ monadicIO $ do
-    result <- run $ UTxOIndex.selectRandomNew i (SelectSingleton a)
-    monitor $ cover 50 (a `Set.member` UTxOIndex.assetsNew i)
+    result <- run $ UTxOIndex.selectRandom i (SelectSingleton a)
+    monitor $ cover 50 (a `Set.member` UTxOIndex.assets i)
         "index has the specified asset"
-    monitor $ cover 50 (Set.size (UTxOIndex.assetsNew i) > 1)
+    monitor $ cover 50 (Set.size (UTxOIndex.assets i) > 1)
         "index has more than one asset"
     monitor $ cover 10 (isJust result)
         "selected an entry"
@@ -581,13 +576,13 @@ prop_selectRandom_one_withAssetOnly i a = checkCoverage $ monadicIO $ do
 --
 prop_selectRandom_all_any :: UTxOIndex TestUTxO -> Property
 prop_selectRandom_all_any i = checkCoverage $ monadicIO $ do
-    (selectedEntries, i') <- run $ selectAllNew SelectAny i
+    (selectedEntries, i') <- run $ selectAll SelectAny i
     monitor $ cover 90 (not (null selectedEntries))
         "selected at least one entry"
     assert $ (==)
         (L.sort $ show <$> selectedEntries)
         (L.sort $ show <$> UTxOIndex.toList i)
-    assert $ UTxOIndex.assetsNew i' == mempty
+    assert $ UTxOIndex.assets i' == mempty
     assert $ UTxOIndex.balance i' == mempty
     assert $ UTxOIndex.fromSequence selectedEntries == i
     assert $ UTxOIndex.null i'
@@ -598,7 +593,7 @@ prop_selectRandom_all_any i = checkCoverage $ monadicIO $ do
 prop_selectRandom_all_withAdaOnly :: UTxOIndex TestUTxO -> Property
 prop_selectRandom_all_withAdaOnly i = checkCoverage $ monadicIO $ do
     (selectedEntries, i') <- run $
-        selectAllNew (SelectSingleton AssetLovelace) i
+        selectAll (SelectSingleton AssetLovelace) i
     monitor $ cover 70 (not (null selectedEntries))
         "selected at least one entry"
     assert $ L.all (\(_, b) ->
@@ -612,10 +607,10 @@ prop_selectRandom_all_withAdaOnly i = checkCoverage $ monadicIO $ do
 --
 prop_selectRandom_all_withAsset :: UTxOIndex TestUTxO -> Asset -> Property
 prop_selectRandom_all_withAsset i a = checkCoverage $ monadicIO $ do
-    (selectedEntries, i') <- run $ selectAllNew (SelectAnyWith a) i
-    monitor $ cover 50 (a `Set.member` UTxOIndex.assetsNew i)
+    (selectedEntries, i') <- run $ selectAll (SelectAnyWith a) i
+    monitor $ cover 50 (a `Set.member` UTxOIndex.assets i)
         "index has the specified asset"
-    monitor $ cover 50 (Set.size (UTxOIndex.assetsNew i) > 1)
+    monitor $ cover 50 (Set.size (UTxOIndex.assets i) > 1)
         "index has more than one asset"
     monitor $ cover 50 (not (null selectedEntries))
         "selected at least one entry"
@@ -625,17 +620,17 @@ prop_selectRandom_all_withAsset i a = checkCoverage $ monadicIO $ do
         UTxOIndex.tokenBundleHasAsset b a) selectedEntries
     assert $ UTxOIndex.deleteMany (fst <$> selectedEntries) i == i'
     assert $ UTxOIndex.insertMany selectedEntries i' == i
-    assert $ a `Set.notMember` UTxOIndex.assetsNew i'
+    assert $ a `Set.notMember` UTxOIndex.assets i'
 
 -- | Attempt to select all entries with only the given asset from the index.
 --
 prop_selectRandom_all_withAssetOnly
     :: UTxOIndex TestUTxO -> Asset -> Property
 prop_selectRandom_all_withAssetOnly i a = checkCoverage $ monadicIO $ do
-    (selectedEntries, i') <- run $ selectAllNew (SelectSingleton a) i
-    monitor $ cover 50 (a `Set.member` UTxOIndex.assetsNew i)
+    (selectedEntries, i') <- run $ selectAll (SelectSingleton a) i
+    monitor $ cover 50 (a `Set.member` UTxOIndex.assets i)
         "index has the specified asset"
-    monitor $ cover 50 (Set.size (UTxOIndex.assetsNew i) > 1)
+    monitor $ cover 50 (Set.size (UTxOIndex.assets i) > 1)
         "index has more than one asset"
     monitor $ cover 10 (not (null selectedEntries))
         "selected at least one entry"
@@ -655,9 +650,9 @@ prop_selectRandomWithPriority i =
     forAll (genAsset `suchThat` (/= a1)) $ \a2 ->
     checkCoverage $ monadicIO $ do
         haveMatchForAsset1 <- isJust <$>
-            run (UTxOIndex.selectRandomNew i $ SelectPairWith a1)
+            run (UTxOIndex.selectRandom i $ SelectPairWith a1)
         haveMatchForAsset2 <- isJust <$>
-            run (UTxOIndex.selectRandomNew i $ SelectPairWith a2)
+            run (UTxOIndex.selectRandom i $ SelectPairWith a2)
         monitor $ cover 4 (haveMatchForAsset1 && not haveMatchForAsset2)
             "have match for asset 1 but not for asset 2"
         monitor $ cover 4 (not haveMatchForAsset1 && haveMatchForAsset2)
@@ -666,7 +661,7 @@ prop_selectRandomWithPriority i =
             "have match for both asset 1 and asset 2"
         monitor $ cover 4 (not haveMatchForAsset1 && not haveMatchForAsset2)
             "have match for neither asset 1 nor asset 2"
-        result <- run $ UTxOIndex.selectRandomWithPriorityNew i
+        result <- run $ UTxOIndex.selectRandomWithPriority i
             [SelectPairWith a1, SelectPairWith a2]
         case result of
             Just ((_, b), _) | b `UTxOIndex.tokenBundleHasAsset` a1 -> do
@@ -754,19 +749,15 @@ prop_selectRandomSetMember_coversRangeUniformly i j =
 -- Returns a list of all the entries that matched, and an updated index with
 -- the selected entries removed.
 --
--- TODO:
---
--- Rename to 'selectAll' once the old function has been deleted.
---
-selectAllNew
+selectAll
     :: (MonadRandom m, u ~ TestUTxO)
-    => SelectionFilterNew Asset
+    => SelectionFilter Asset
     -> UTxOIndex u
     -> m ([(u, TokenBundle)], UTxOIndex u)
-selectAllNew sf = go []
+selectAll sf = go []
   where
     go !selectedEntries !i = do
-        selected <- UTxOIndex.selectRandomNew i sf
+        selected <- UTxOIndex.selectRandom i sf
         case selected of
             Nothing ->
                 -- There are no more entries available. Terminate here:
@@ -811,9 +802,9 @@ instance Arbitrary TokenBundle where
     arbitrary = genTokenBundleSmallRangePositive
     shrink = shrinkTokenBundleSmallRangePositive
 
-instance Arbitrary (SelectionFilterNew Asset) where
-    arbitrary = genSelectionFilterNew
-    shrink = shrinkSelectionFilterNew
+instance Arbitrary (SelectionFilter Asset) where
+    arbitrary = genSelectionFilter
+    shrink = shrinkSelectionFilter
 
 genAsset :: Gen Asset
 genAsset = oneof
@@ -826,17 +817,16 @@ shrinkAsset = \case
     AssetLovelace -> []
     Asset assetId -> AssetLovelace : (Asset <$> shrink assetId)
 
-genSelectionFilterNew :: Gen (SelectionFilterNew Asset)
-genSelectionFilterNew = oneof
+genSelectionFilter :: Gen (SelectionFilter Asset)
+genSelectionFilter = oneof
     [ SelectSingleton <$> genAsset
     , SelectPairWith <$> genAsset
     , SelectAnyWith <$> genAsset
     , SelectAny & pure
     ]
 
-shrinkSelectionFilterNew
-    :: SelectionFilterNew Asset -> [SelectionFilterNew Asset]
-shrinkSelectionFilterNew = traverse shrinkAsset
+shrinkSelectionFilter :: SelectionFilter Asset -> [SelectionFilter Asset]
+shrinkSelectionFilter = traverse shrinkAsset
 
 --------------------------------------------------------------------------------
 -- Show instances
