@@ -1103,7 +1103,7 @@ performSelectionNonEmpty constraints params
             , assetsToBurn
             }
 
-        selectOneEntry = selectCoinQuantity selectionLimit
+        selectOneEntry = selectQuantityOf AssetLovelace selectionLimit
 
         requiredCost = computeMinimumCost SelectionSkeleton
             { skeletonInputCount = UTxOSelection.selectedSize s
@@ -1150,7 +1150,9 @@ runSelectionNonEmpty
     => RunSelectionParams u
     -> m (Maybe (UTxOSelectionNonEmpty u))
 runSelectionNonEmpty = (=<<)
-    <$> runSelectionNonEmptyWith . selectCoinQuantity . view #selectionLimit
+    <$> runSelectionNonEmptyWith
+        . selectQuantityOf AssetLovelace
+        . view #selectionLimit
     <*> runSelection
 
 runSelectionNonEmptyWith
@@ -1204,7 +1206,7 @@ assetSelectionLens limit strategy (asset, minimumAssetQuantity) = SelectionLens
     { currentQuantity = selectedAssetQuantity asset
     , updatedQuantity = selectedAssetQuantity asset
     , minimumQuantity = unTokenQuantity minimumAssetQuantity
-    , selectQuantity = selectAssetQuantity asset limit
+    , selectQuantity = selectQuantityOf (Asset asset) limit
     , selectionStrategy = strategy
     }
 
@@ -1219,40 +1221,22 @@ coinSelectionLens limit strategy minimumCoinQuantity = SelectionLens
     { currentQuantity = selectedCoinQuantity
     , updatedQuantity = selectedCoinQuantity
     , minimumQuantity = intCast $ unCoin minimumCoinQuantity
-    , selectQuantity  = selectCoinQuantity limit
+    , selectQuantity  = selectQuantityOf AssetLovelace limit
     , selectionStrategy = strategy
     }
 
--- | Specializes 'selectMatchingQuantity' to a particular asset.
---
-selectAssetQuantity
+selectQuantityOf
     :: (MonadRandom m, Ord u)
     => IsUTxOSelection utxoSelection u
-    => AssetId
+    => Asset
     -> SelectionLimit
     -> utxoSelection u
     -> m (Maybe (UTxOSelectionNonEmpty u))
-selectAssetQuantity asset =
-    selectMatchingQuantity
-        [ SelectSingleton (Asset asset)
-        , SelectPairWith (Asset asset)
-        , SelectAnyWith (Asset asset)
-        ]
-
--- | Specializes 'selectMatchingQuantity' to ada.
---
-selectCoinQuantity
-    :: (MonadRandom m, Ord u)
-    => IsUTxOSelection utxoSelection u
-    => SelectionLimit
-    -> utxoSelection u
-    -> m (Maybe (UTxOSelectionNonEmpty u))
-selectCoinQuantity =
-    selectMatchingQuantity
-        [ SelectSingleton AssetLovelace
-        , SelectPairWith AssetLovelace
-        , SelectAnyWith AssetLovelace
-        ]
+selectQuantityOf a = selectMatchingQuantity
+    [ SelectSingleton a
+    , SelectPairWith a
+    , SelectAnyWith a
+    ]
 
 -- | Selects a UTxO entry that matches one of the specified filters.
 --
