@@ -44,7 +44,7 @@ module Cardano.Wallet.Primitive.Types.UTxOIndex
     , partition
 
     -- * Queries
-    , assetsNew
+    , assets
     , balance
     , lookup
     , member
@@ -57,9 +57,9 @@ module Cardano.Wallet.Primitive.Types.UTxOIndex
 
     -- * Selection
     , Asset (..)
-    , SelectionFilterNew (..)
-    , selectRandomNew
-    , selectRandomWithPriorityNew
+    , SelectionFilter (..)
+    , selectRandom
+    , selectRandomWithPriority
 
     ) where
 

@@ -140,7 +140,7 @@ import Cardano.Wallet.Primitive.Types.TokenQuantity.Gen
 import Cardano.Wallet.Primitive.Types.Tx
     ( TokenBundleSizeAssessment (..), TokenBundleSizeAssessor (..) )
 import Cardano.Wallet.Primitive.Types.UTxOIndex
-    ( Asset (..), SelectionFilterNew (..), UTxOIndex )
+    ( Asset (..), SelectionFilter (..), UTxOIndex )
 import Cardano.Wallet.Primitive.Types.UTxOIndex.Gen
     ( genUTxOIndex, genUTxOIndexLarge, genUTxOIndexLargeN, shrinkUTxOIndex )
 import Cardano.Wallet.Primitive.Types.UTxOSelection
@@ -526,7 +526,7 @@ prop_Small_UTxOIndex_coverage (Small index) =
             "UTxO set size > 32 entries"
         True
   where
-    assetCount = Set.size $ UTxOIndex.assetsNew index
+    assetCount = Set.size $ UTxOIndex.assets index
     entryCount = UTxOIndex.size index
 
 prop_Large_UTxOIndex_coverage :: Large (UTxOIndex TestUTxO) -> Property
@@ -545,7 +545,7 @@ prop_Large_UTxOIndex_coverage (Large index) =
             "UTxO set size >= 3072 entries"
         True
   where
-    assetCount = Set.size $ UTxOIndex.assetsNew index
+    assetCount = Set.size $ UTxOIndex.assets index
     entryCount = UTxOIndex.size index
 
 --------------------------------------------------------------------------------
@@ -1728,7 +1728,7 @@ prop_assetSelectionLens_givesPriorityToSingletonAssets
 prop_assetSelectionLens_givesPriorityToSingletonAssets (Blind (Small u)) =
     nonAdaAssetCount >= 2 ==> monadicIO $ do
         hasSingletonAsset <- isJust <$>
-            run (UTxOIndex.selectRandomNew u $
+            run (UTxOIndex.selectRandom u $
             SelectPairWith (Asset nonAdaAsset))
         monitor $ cover 20 hasSingletonAsset
             "There is at least one singleton entry that matches"
@@ -1766,7 +1766,7 @@ prop_coinSelectionLens_givesPriorityToCoins
 prop_coinSelectionLens_givesPriorityToCoins (Blind (Small u)) =
     entryCount > 0 ==> monadicIO $ do
         hasCoin <- isJust <$>
-            run (UTxOIndex.selectRandomNew u (SelectSingleton AssetLovelace))
+            run (UTxOIndex.selectRandom u (SelectSingleton AssetLovelace))
         monitor $ cover 20 hasCoin
             "There is at least one coin"
         monitor $ cover 1 (not hasCoin)
@@ -4412,7 +4412,7 @@ utxoIndexNonAdaAssets
     = Set.fromList
     . Maybe.mapMaybe toNonAdaAsset
     . Set.toList
-    . UTxOIndex.assetsNew
+    . UTxOIndex.assets
 
 toNonAdaAsset :: Asset -> Maybe AssetId
 toNonAdaAsset = \case
