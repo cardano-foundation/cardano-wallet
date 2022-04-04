@@ -34,6 +34,7 @@ module Cardano.Wallet.Transaction
     , AnyScript (..)
     , PlutusScriptInfo (..)
     , PlutusVersion (..)
+    , TxFeeAndChange (..)
 
     -- * Errors
     , ErrSignTx (..)
@@ -42,6 +43,7 @@ module Cardano.Wallet.Transaction
     , ErrCannotQuit (..)
     , ErrUpdateSealedTx (..)
     , ErrAssignRedeemers(..)
+    , ErrMoreSurplusNeeded (..)
     ) where
 
 import Prelude
@@ -66,6 +68,7 @@ import Cardano.Wallet.Primitive.Slotting
     ( PastHorizonException, TimeInterpreter )
 import Cardano.Wallet.Primitive.Types
     ( Certificate
+    , FeePolicy
     , PoolId
     , ProtocolParameters
     , SlotNo (..)
@@ -251,6 +254,35 @@ data TransactionLayer k tx = TransactionLayer
         -- boundary will soon hopefully go away, however)
         --
         -- Returns `Nothing` for ByronEra transactions.
+
+    , distributeSurplus
+        :: FeePolicy
+        -> Coin -- Surplus to distribute
+        -> TxFeeAndChange -- Fee and value of relevant change output (if any)
+        -> Either ErrMoreSurplusNeeded TxFeeAndChange
+        -- ^ Distribute a surplus transaction balance between a given change
+        -- output (if one exists present) and the transaction fee. The function
+        -- is aware of the fact that any increase of 'Coin' values could
+        -- increase the size and fee-requirement of the transaction.
+        --
+        -- This helper is used from 'balanceTransaction'.
+        --
+        -- >>> distributeSurplus feePolicy (Coin 100) (TxFeeAndChange (Coin 200) (Coin 200))
+        -- TxFeeAndChange
+        --    { fee = Coin 1
+        --    , change = Coin 99
+        --    }
+        --
+        -- >>> distributeSurplus feePolicy (Coin 100) (TxFeeAndChange (Coin 255) (Coin 200))
+        -- TxFeeAndChange
+        --    { fee = Coin 2
+        --    , change = Coin 98
+        --    }
+        --
+        -- Important note: the return value is a delta. In particular a returned
+        -- change value of @Nothing@ or @Just (Coin 0)@ does **not** mean the
+        -- change should be set to @Coin 0@, but rather that the change should
+        -- not be increased!
 
     , computeSelectionLimit
         :: ProtocolParameters
@@ -477,3 +509,16 @@ data ErrUpdateSealedTx
     -- key-witnesses would have been rendered invalid.
     | ErrByronTxNotSupported
     deriving (Generic, Eq, Show)
+
+-- | Error for when its impossible for 'distributeSurplus' to distribute the
+-- surplus. As long as the surplus is larger than 'costOfIncreasingCoin', this
+-- should never happen.
+newtype ErrMoreSurplusNeeded = ErrMoreSurplusNeeded Coin
+    deriving (Generic, Eq, Show)
+
+-- | Small helper record to disambiguate between a fee and change Coin values.
+-- Used by 'distributeSurplus'.
+data TxFeeAndChange = TxFeeAndChange
+    { fee :: Coin
+    , change :: Maybe Coin
+    } deriving (Show, Eq)
