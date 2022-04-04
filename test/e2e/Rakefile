@@ -316,7 +316,7 @@ task :get_latest_node_db, [:env] do |task, args|
 
   log ">> Getting latest node db from #{url}"
   log "Start downloading into #{node_db_file}..."
-  wget(url, node_db_file)
+  cmd "wget #{url} -O #{node_db_file}"
 
   log "Start extracting archive into #{NODE_DB}..."
   cmd "tar -xvf #{node_db_file} -C #{NODE_DB}"
