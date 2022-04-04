@@ -3,7 +3,7 @@ module Cardano.Wallet.Shelley.Network.BlockfrostSpec (spec) where
 import Prelude
 
 import Cardano.Api
-    ( AnyCardanoEra (..), CardanoEra (..) )
+    ( AnyCardanoEra (..), CardanoEra (..), NetworkId (Mainnet) )
 import Cardano.Wallet.Primitive.Types
     ( EpochNo )
 import Cardano.Wallet.Shelley.Network.Blockfrost
@@ -17,7 +17,7 @@ spec :: Spec
 spec = describe "Blockfrost Network" $ do
     it "determines era by epoch" $ do
         for_ epochEras $ \(epoch, era) ->
-            eraByEpoch epoch `shouldBe` Right era
+            eraByEpoch Mainnet epoch `shouldBe` Right era
   where
     epochEras :: [(EpochNo, AnyCardanoEra)]
     epochEras =

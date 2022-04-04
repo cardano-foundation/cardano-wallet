@@ -38,7 +38,7 @@ import qualified Cardano.Api.Shelley as Node
 import qualified Data.Sequence as Seq
 
 import Cardano.Api
-    ( AnyCardanoEra )
+    ( AnyCardanoEra, NetworkId (Mainnet, Testnet) )
 import Cardano.BM.Data.Severity
     ( Severity (..) )
 import Cardano.BM.Tracer
@@ -145,10 +145,11 @@ instance HasSeverityAnnotation Log where
 
 withNetworkLayer
     :: Tracer IO Log
+    -> NetworkId
     -> BF.Project
     -> (NetworkLayer IO (CardanoBlock StandardCrypto) -> IO a)
     -> IO a
-withNetworkLayer tr project k = k NetworkLayer
+withNetworkLayer tr net project k = k NetworkLayer
     { chainSync = \_tr _chainFollower -> pure ()
     , lightSync = Nothing
     , currentNodeTip
@@ -184,7 +185,7 @@ withNetworkLayer tr project k = k NetworkLayer
     currentNodeEra = handleBlockfrostError $ do
         BF.EpochInfo {_epochInfoEpoch} <- liftBlockfrost BF.getLatestEpoch
         epoch <- fromBlockfrostM _epochInfoEpoch
-        eraByEpoch epoch
+        liftEither $ eraByEpoch net epoch
 
     handleBlockfrostError :: ExceptT BlockfrostError IO a -> IO a
     handleBlockfrostError =
@@ -384,7 +385,11 @@ instance FromBlockfrost BF.Epoch EpochNo where
     fromBlockfrost = pure . fromIntegral
 
 
-{-
+{- Epoch-to-Era translation is not available in the Blockfrost API.
+
+For the Mainnet we're hardcoding the following history
+in order to work around this limiation:
+
 ┌───────┬───────┬─────────┐
 │ Epoch │ Major │   Era   │
 ├───────┼───────┼─────────┤
@@ -411,11 +416,16 @@ instance FromBlockfrost BF.Epoch EpochNo where
 │  ...  │   1   │  Byron  │
 └───────┴───────┴─────────┘
 -}
-eraByEpoch :: MonadError BlockfrostError m => EpochNo -> m AnyCardanoEra
-eraByEpoch epoch =
-    case dropWhile ((> epoch) . snd) (reverse eraBoundaries) of
-        (era, _) : _ -> pure era
-        _ -> throwError $ UnknownEraForEpoch epoch
+eraByEpoch :: NetworkId -> EpochNo -> Either BlockfrostError AnyCardanoEra
+eraByEpoch = \case
+    Mainnet -> \epoch ->
+        case dropWhile ((> epoch) . snd) (reverse eraBoundaries) of
+            (era, _) : _ -> Right era
+            _ -> Left $ UnknownEraForEpoch epoch
+    Testnet _ -> \_ -> error
+        "In light-mode era to epoch conversions are only available for the \
+        \mainnet (translation uses a hard-coded history of hard forks). \
+        \It doesn't seem viable to hardcode eras for other networks yet."
 
 eraBoundaries :: [(Node.AnyCardanoEra, EpochNo)]
 eraBoundaries = [minBound .. maxBound] <&> \era -> (era, epochEraStartsAt era)
