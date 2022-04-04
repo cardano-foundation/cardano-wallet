@@ -211,6 +211,7 @@
             (hsPkgs."cardano-wallet-test-utils" or (errorHandler.buildDepError "cardano-wallet-test-utils"))
             (hsPkgs."cardano-ledger-shelley-ma" or (errorHandler.buildDepError "cardano-ledger-shelley-ma"))
             (hsPkgs."cardano-ledger-alonzo" or (errorHandler.buildDepError "cardano-ledger-alonzo"))
+            (hsPkgs."cborg" or (errorHandler.buildDepError "cborg"))
             (hsPkgs."pretty-simple" or (errorHandler.buildDepError "pretty-simple"))
             (hsPkgs."strict-containers" or (errorHandler.buildDepError "strict-containers"))
             (hsPkgs."containers" or (errorHandler.buildDepError "containers"))

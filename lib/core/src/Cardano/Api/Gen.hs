@@ -14,6 +14,7 @@ module Cardano.Api.Gen
   , genTxInsCollateral
   , genSlotNo
   , genLovelace
+  , genEncodingBoundaryLovelace
   , genTxFee
   , genTtl
   , genTxValidityLowerBound
@@ -238,38 +239,40 @@ genSlotNo :: Gen SlotNo
 genSlotNo = SlotNo <$> arbitrary
 
 genLovelace :: Gen Lovelace
-genLovelace = Lovelace <$> frequency
-    [ (10, fromIntegral . getNonNegative <$> arbitrary @(NonNegative Int) )
-    , (50, choose (1_000_000, 1_000_000_000))
-    , (10, choose (0, 45_000_000_000_000_000))
+genLovelace = frequency
+    [ (10, Lovelace
+        . fromIntegral
+        . getNonNegative <$> arbitrary @(NonNegative Int) )
+    , (50, Lovelace <$> choose (1_000_000, 1_000_000_000))
+    , (10, Lovelace <$> choose (0, 45_000_000_000_000_000))
     , (30, genEncodingBoundaryLovelace)
     ]
-  where
-    genEncodingBoundaryLovelace :: Gen Integer
-    genEncodingBoundaryLovelace = do
-        -- https://json.nlohmann.me/features/binary_formats/cbor/
-        -- Generate a point near a boundary
-        -- However, the three first ones are below the minimum utxo value on
-        -- mainnet, and are less useful to generate (in that context).
-        boundary <- frequency
-            [ (1, pure 24)
-            , (1, pure 256)
-            , (8, pure 65536)
-            , (90, pure 4294967296)
-            ]
 
-        offset <- frequency
-            [ (1, choose (-10, 10))
+genEncodingBoundaryLovelace :: Gen Lovelace
+genEncodingBoundaryLovelace = do
+    -- https://json.nlohmann.me/features/binary_formats/cbor/
+    -- Generate a point near a boundary
+    -- However, the three first ones are below the minimum utxo value on
+    -- mainnet, and are less useful to generate (in that context).
+    boundary <- frequency
+        [ (1, pure 24)
+        , (1, pure 256)
+        , (8, pure 65536)
+        , (90, pure 4294967296)
+        ]
 
-            -- Offset by values close to common fee values, in both the positive
-            -- and negative direction, with the hope that this helps find
-            -- corner-cases.
-            , (1, choose (-220_000, -150_000))
-            , (1, choose (150_000, 220_000))
+    offset <- frequency
+        [ (1, choose (-10, 10))
 
-            , (1, choose (-1_000_000, 1_000_000))
-            ]
-        pure $ max 0 $ boundary + offset
+        -- Offset by values close to common fee values, in both the positive
+        -- and negative direction, with the hope that this helps find
+        -- corner-cases.
+        , (1, choose (-220_000, -150_000))
+        , (1, choose (150_000, 220_000))
+
+        , (1, choose (-1_000_000, 1_000_000))
+        ]
+    pure $ Lovelace <$> max 0 $ boundary + offset
 
 
 genTxFee :: CardanoEra era -> Gen (TxFee era)

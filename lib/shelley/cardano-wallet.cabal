@@ -236,6 +236,7 @@ test-suite unit
     , cardano-wallet-test-utils
     , cardano-ledger-shelley-ma
     , cardano-ledger-alonzo
+    , cborg
     , pretty-simple
     , strict-containers
     , containers

@@ -52,6 +52,7 @@ module Cardano.Wallet.Shelley.Transaction
     , mkTxSkeleton
     , mkUnsignedTx
     , txConstraints
+    , sizeOfCoin
     ) where
 
 import Prelude
@@ -1435,6 +1436,15 @@ estimateTxCost pp skeleton =
     computeFee (TxSize size) =
         let LinearFee LinearFunction {..} = getFeePolicy $ txParameters pp
         in Coin $ ceiling $ intercept + slope * fromIntegral size
+
+-- | Calculate the size of a coin when encoded as CBOR.
+sizeOfCoin :: Coin -> TxSize
+sizeOfCoin (Coin c)
+    | c >= 4294967296 = TxSize 9
+    | c >= 65536      = TxSize 5
+    | c >= 256        = TxSize 3
+    | c >= 24         = TxSize 2
+    | otherwise       = TxSize 1
 
 -- | Estimates the final size of a transaction based on its skeleton.
 --
