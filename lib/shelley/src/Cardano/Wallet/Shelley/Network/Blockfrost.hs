@@ -36,9 +36,7 @@ import Prelude
 import qualified Blockfrost.Client as BF
 import qualified Cardano.Api.Shelley as Node
 import qualified Data.Sequence as Seq
-import qualified Ouroboros.Consensus.HardFork.History.EraParams as HF
 import qualified Ouroboros.Consensus.HardFork.History.Qry as HF
-import qualified Ouroboros.Consensus.HardFork.History.Summary as HF
 
 import Cardano.Api
     ( AnyCardanoEra (..)
@@ -423,7 +421,7 @@ instance FromBlockfrost BF.Epoch EpochNo where
 
 {- Epoch-to-Era translation is not available in the Blockfrost API.
 
-The following histories are hardcoded in order to work around this limiation:
+The following histories are hardcoded in order to work around this limitation:
 
 For the Mainnet:      For the Testnet:
 ┌───────┬─────────┐   ┌───────┬─────────┐
