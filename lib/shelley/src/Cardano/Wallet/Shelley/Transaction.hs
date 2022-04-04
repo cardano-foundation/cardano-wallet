@@ -52,6 +52,7 @@ module Cardano.Wallet.Shelley.Transaction
     , mkTxSkeleton
     , mkUnsignedTx
     , txConstraints
+    , costOfIncreasingCoin
     , sizeOfCoin
     ) where
 
@@ -1436,6 +1437,29 @@ estimateTxCost pp skeleton =
     computeFee (TxSize size) =
         let LinearFee LinearFunction {..} = getFeePolicy $ txParameters pp
         in Coin $ ceiling $ intercept + slope * fromIntegral size
+
+-- | Calculate the cost of increasing a CBOR-encoded Coin-value by another Coin
+-- with the lovelace/byte cost given by the 'FeePolicy'.
+--
+-- Outputs values in the range of [0, 8 * perByteFee]
+--
+-- >>> let p = FeePolicy (Quantity 0) (Quantity 44)
+--
+-- >>> costOfIncreasingCoin p 4294967295 1
+-- Coin 176 -- (9 bytes - 5 bytes) * 44 lovelace/byte
+--
+-- >>> costOfIncreasingCoin p 0 4294967296
+-- Coin 352 -- 8 bytes * 44 lovelace/byte
+costOfIncreasingCoin
+    :: FeePolicy
+    -> Coin -- ^ Original coin
+    -> Coin -- ^ Increment
+    -> Coin
+costOfIncreasingCoin (LinearFee fee) from delta =
+    costOfCoin (from <> delta) `Coin.difference` costOfCoin from
+  where
+    perByte = round $ slope fee
+    costOfCoin = Coin . (perByte *) . unTxSize . sizeOfCoin
 
 -- | Calculate the size of a coin when encoded as CBOR.
 sizeOfCoin :: Coin -> TxSize
