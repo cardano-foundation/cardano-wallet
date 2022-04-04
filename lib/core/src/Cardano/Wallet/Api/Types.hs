@@ -174,6 +174,9 @@ module Cardano.Wallet.Api.Types
     , ApiAssetMintBurn (..)
     , ApiTokenAmountFingerprint (..)
     , ApiTokens (..)
+    , AnyScript (..)
+    , ApiPlutusScript (..)
+    , PlutusVersion (..)
 
     -- * API Types (Byron)
     , ApiByronWallet (..)
@@ -1233,6 +1236,36 @@ data ApiTokenAmountFingerprint = ApiTokenAmountFingerprint
     , amount :: !(Quantity "assets" Natural)
     , fingerprint :: !(ApiT W.TokenFingerprint)
     }
+    deriving (Eq, Generic, Show)
+    deriving anyclass NFData
+
+data PlutusVersion =
+    PlutusVersionV1 | PlutusVersionV2
+    deriving (Eq, Generic, Show)
+    deriving anyclass NFData
+
+instance ToText PlutusVersion where
+    toText PlutusVersionV1 = "v1"
+    toText PlutusVersionV2 = "v2"
+
+instance FromText PlutusVersion where
+    fromText txt = case txt of
+        "v1" -> Right PlutusVersionV1
+        "v2" -> Right PlutusVersionV2
+        _ -> Left $ TextDecodingError $ unwords
+            [ "I couldn't parse the given plutus version."
+            , "I am expecting one of the words 'v1' or"
+            , "'v2'."]
+
+newtype ApiPlutusScript = ApiPlutusScript
+    { languageVersion :: PlutusVersion
+    }
+    deriving (Eq, Generic, Show)
+    deriving anyclass NFData
+
+data AnyScript =
+      TimelockScript !(ApiT (Script KeyHash))
+    | PlutusScript ApiPlutusScript
     deriving (Eq, Generic, Show)
     deriving anyclass NFData
 
@@ -2368,6 +2401,29 @@ instance FromJSON ApiMultiDelegationAction where
             (Nothing, Just o) ->
                 Leaving <$> o .: "stake_key_index"
             _ -> fail "ApiMultiDelegationAction needs either 'join' or 'quit', but not both"
+
+instance FromJSON ApiPlutusScript where
+    parseJSON = parseJSON >=> eitherToParser . bimap ShowFmt ApiPlutusScript . fromText
+instance ToJSON ApiPlutusScript where
+    toJSON (ApiPlutusScript v) = toJSON $ toText v
+
+instance FromJSON AnyScript where
+    parseJSON = withObject "AnyScript" $ \o -> do
+        scriptType <- o .:? "script_type"
+        case (scriptType :: Maybe String) of
+            Just "timelock" ->
+                PlutusScript <$> o .: "language_version"
+            Just "plutus" ->
+                TimelockScript <$> o .: "script"
+            _ -> fail "AnyScript needs either 'timelock' or 'plutus' in 'script_type'"
+
+instance ToJSON AnyScript where
+    toJSON (TimelockScript s) =
+        object [ "script_type" .= String "timelock"
+               , "script" .= toJSON s]
+    toJSON (PlutusScript v) =
+        object [ "script_type" .= String "plutus"
+               , "language_version" .= toJSON v]
 
 instance DecodeAddress n => FromJSON (ApiCoinSelectionChange n) where
     parseJSON = genericParseJSON defaultRecordTypeOptions

@@ -2431,6 +2431,29 @@ components:
        amount: *tokenAmount
        fingerprint: *assetFingerprint
 
+    AnyScript: &AnyScript
+      oneOf:
+        - type: object
+          required:
+            - script_type
+            - script
+          properties:
+            script_type:
+              type: string
+              enum: ["timelock"]
+            script: *ScriptValue
+        - type: object
+          required:
+            - script_type
+            - language_version
+          properties:
+            script_type:
+              type: string
+              enum: ["plutus"]
+            language_version:
+              type: string
+              enum: ["v1", "v2"]
+
     ApiTokens: &ApiTokens
       type: object
       required:
