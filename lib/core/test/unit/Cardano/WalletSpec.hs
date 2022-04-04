@@ -1359,6 +1359,8 @@ dummyTransactionLayer = TransactionLayer
         error "dummyTransactionLayer: assignScriptRedeemers not implemented"
     , evaluateMinimumFee =
         error "dummyTransactionLayer: evaluateMinimumFee not implemented"
+    , distributeSurplus =
+        error "dummyTransactionLayer: distributeSurplus not implemented"
     , estimateSignedTxSize =
         error "dummyTransactionLayer: \
               \estimateSignedTxSize not implemented"
