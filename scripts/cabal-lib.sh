@@ -23,8 +23,11 @@ get_cabal_version() {
 }
 
 list_sources() {
+  # Exclude lib/core-integration/extra. Those files are Plutus scripts intended
+  # to be serialised for use in the tests. They are not intended to be built
+  # with the project.
   # Exclude prototypes dir because it's a different project.
-  git ls-files 'lib/**/*.hs' | grep -v Main.hs | grep -v prototypes/
+  git ls-files 'lib/**/*.hs' | grep -v Main.hs | grep -v prototypes/ | grep -v lib/core-integration/extra
 }
 
 # usage: query_plan_json PACKAGE COMP:NAME KEY
