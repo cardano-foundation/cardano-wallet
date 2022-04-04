@@ -214,7 +214,7 @@ import Cardano.Wallet.Primitive.Types
     , TxParameters (getTokenBundleMaxSize)
     )
 import Cardano.Wallet.Primitive.Types.TokenMap
-    ( TokenMap )
+    ( TokenMap, toNestedList )
 import Cardano.Wallet.Primitive.Types.TokenPolicy
     ( TokenPolicyId )
 import Cardano.Wallet.Shelley.Compatibility.Ledger
@@ -268,7 +268,7 @@ import Data.List
 import Data.Map.Strict
     ( Map )
 import Data.Maybe
-    ( fromMaybe, isJust, mapMaybe )
+    ( fromMaybe, isJust, mapMaybe)
 import Data.Proxy
     ( Proxy (..) )
 import Data.Quantity
@@ -1465,12 +1465,9 @@ fromMaryTx tx =
     MA.TxBody ins outs certs wdrls fee _valid _upd _adh mint = bod
     (assetsToMint, assetsToBurn) = fromLedgerMintValue mint
     scriptMap = fromMaryScriptMap $ Shelley.scriptWits wits
-    (mintScriptMap, burnScriptMap)
-        | (assetsToMint == TokenMap.empty && assetsToBurn /= TokenMap.empty)
-        = (Map.empty, scriptMap)
-        | (assetsToMint /= TokenMap.empty && assetsToBurn == TokenMap.empty)
-        = (scriptMap, Map.empty)
-        | otherwise = (Map.empty, Map.empty)
+
+    mintScriptMap = getScriptMap scriptMap assetsToMint
+    burnScriptMap = getScriptMap scriptMap assetsToBurn
 
     -- fixme: [ADP-525] It is fine for now since we do not look at script
     -- pre-images. But this is precisely what we want as part of the
@@ -1492,6 +1489,17 @@ fromMaryTx tx =
     fromMaryScriptMap =
         Map.map (toWalletScript Policy) .
         Map.mapKeys (toWalletTokenPolicyId . SL.PolicyID)
+
+getScriptMap
+    :: Map TokenPolicyId (Script KeyHash)
+    -> TokenMap
+    -> Map TokenPolicyId (Script KeyHash)
+getScriptMap scriptMap =
+    Map.fromList .
+    map (\(policyid, (Just script)) -> (policyid, script)) .
+    filter (isJust . snd) .
+    map (\(policyid, _) -> (policyid, Map.lookup policyid scriptMap) ) .
+    toNestedList
 
 getScriptIntegrityHash
     :: Cardano.Tx era
@@ -1561,12 +1569,8 @@ fromAlonzoTxBodyAndAux bod mad wits =
         = bod
     (assetsToMint, assetsToBurn) = fromLedgerMintValue mint
     scriptMap = fromAlonzoScriptMap $ Alonzo.txscripts' wits
-    (mintScriptMap, burnScriptMap)
-        | (assetsToMint == TokenMap.empty && assetsToBurn /= TokenMap.empty)
-        = (Map.empty, scriptMap)
-        | (assetsToMint /= TokenMap.empty && assetsToBurn == TokenMap.empty)
-        = (scriptMap, Map.empty)
-        | otherwise = (Map.empty, Map.empty)
+    mintScriptMap = getScriptMap scriptMap assetsToMint
+    burnScriptMap = getScriptMap scriptMap assetsToBurn
 
     fromAlonzoScriptMap
         :: Map
