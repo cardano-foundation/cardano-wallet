@@ -297,6 +297,18 @@ task :get_latest_bins, [:pr] do |task, args|
   end
 end
 
+task :get_latest_node_db, [:env] do |task, args|
+  puts "\n  >> Getting latest node db"
+  env = args[:env]
+  file = "db-#{env}.tar.gz"
+  node_db_dir = File.join(NODE_DB, env)
+  mk_dir(node_db_dir)
+  wget(get_latest_node_db_url(env))
+
+  cmd "tar -xvf #{file}"
+
+end
+
 task :get_latest_configs, [:env] do |task, args|
   env = args[:env]
   out = File.join(CONFIGS, env)
