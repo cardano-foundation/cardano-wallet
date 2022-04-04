@@ -212,6 +212,7 @@ import Cardano.Wallet.Shelley.Transaction
     , TxUpdate (..)
     , TxWitnessTag (..)
     , TxWitnessTagFor
+    , costOfIncreasingCoin
     , estimateTxCost
     , estimateTxSize
     , mkDelegationCertificates
@@ -2275,6 +2276,20 @@ balanceTransactionSpec = do
             it "5 byte to 9 byte boundary" $ do
                 sizeOfCoin (Coin 4294967295) `shouldBe` TxSize 5
                 sizeOfCoin (Coin 4294967296) `shouldBe` TxSize 9
+
+    describe "costOfIncreasingCoin" $ do
+        it "costs 176 lovelace to increase 4294967295 by one on mainnet" $ do
+            let feePolicy = LinearFee $ LinearFunction
+                    { intercept = 150_000, slope = 44 }
+            costOfIncreasingCoin feePolicy (Coin 4294967295) (Coin 1)
+                `shouldBe` (Coin 176)
+
+        it "produces results in the range [0, 8 * feePerByte]" $
+            property $ \c increase -> do
+                let feePolicy = LinearFee $ LinearFunction 1 0
+                let res = costOfIncreasingCoin feePolicy c increase
+                counterexample (show res <> "out of bounds") $
+                    res >= (Coin 0) && res <= (Coin 8)
 
 -- https://mail.haskell.org/pipermail/haskell-cafe/2016-August/124742.html
 mkGen :: (QCGen -> a) -> Gen a
