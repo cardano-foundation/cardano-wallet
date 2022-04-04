@@ -217,6 +217,7 @@ import Cardano.Wallet.Shelley.Transaction
     , costOfIncreasingCoin
     , estimateTxCost
     , estimateTxSize
+    , maximumCostOfIncreasingCoin
     , mkDelegationCertificates
     , mkShelleyWitness
     , mkTxSkeleton
@@ -227,14 +228,17 @@ import Cardano.Wallet.Shelley.Transaction
     , txConstraints
     , updateSealedTx
     , _decodeSealedTx
+    , _distributeSurplus
     , _estimateMaxNumberOfInputs
     , _maxScriptExecutionCost
     )
 import Cardano.Wallet.Transaction
     ( DelegationAction (RegisterKeyAndJoin)
     , ErrAssignRedeemers (..)
+    , ErrMoreSurplusNeeded (..)
     , TransactionCtx (..)
     , TransactionLayer (..)
+    , TxFeeAndChange (TxFeeAndChange)
     , TxFeeUpdate (..)
     , Withdrawal (..)
     , defaultTransactionCtx
@@ -2294,6 +2298,94 @@ balanceTransactionSpec = do
                 let res = costOfIncreasingCoin feePolicy c increase
                 counterexample (show res <> "out of bounds") $
                     res >= Coin 0 && res <= Coin 8
+
+    describe "distributeSurplus" $ do
+        let simplestFeePolicy = LinearFee $ LinearFunction
+                { intercept = 0, slope = 1 }
+        let mainnetFeePolicy = LinearFee $ LinearFunction
+                { intercept = 150_000, slope = 44 }
+
+        -- NOTE: The test values below make use of 255 being encoded as 2 bytes,
+        -- and 256 as 3 bytes.
+
+        describe "when increasing change increases fee" $
+            it "will increase fee (99 lovelace for change, 1 for fee)" $
+                _distributeSurplus
+                    simplestFeePolicy
+                    (Coin 100)
+                    (TxFeeAndChange (Coin 200) (Just $ Coin 200))
+                    `shouldBe`
+                    Right (TxFeeAndChange (Coin 1) (Just $ Coin 99))
+
+        describe "when increasing fee increases fee" $
+            it "will increase fee (98 lovelace for change, 2 for fee)" $ do
+                _distributeSurplus
+                    simplestFeePolicy
+                    (Coin 100)
+                    (TxFeeAndChange (Coin 255) (Just $ Coin 200))
+                    `shouldBe`
+                    Right (TxFeeAndChange (Coin 2) (Just $ Coin 98))
+
+        describe "when increasing the change costs more in fees than the \
+                 \increase itself" $ do
+            it "will try burning the surplus as fees" $ do
+                _distributeSurplus
+                    mainnetFeePolicy
+                    (Coin 10)
+                    (TxFeeAndChange (Coin 200) (Just $ Coin 255))
+                    `shouldBe`
+                    Right (TxFeeAndChange (Coin 10) Nothing)
+
+            it "will fail if neither the fee can be increased" $ do
+                _distributeSurplus
+                    mainnetFeePolicy
+                    (Coin 10)
+                    (TxFeeAndChange (Coin 255) (Just $ Coin 255))
+                    `shouldBe`
+                    Left (ErrMoreSurplusNeeded $ Coin 34)
+
+        describe "when no change output is present" $ do
+            it "will burn surplus as excess fees" $
+                property $ \surplus fee0 -> do
+                    _distributeSurplus
+                        simplestFeePolicy
+                        surplus
+                        (TxFeeAndChange fee0 Nothing)
+                        `shouldBe` Right (TxFeeAndChange surplus Nothing)
+
+        it "extraFee + extraChange == surplus .&&. \
+           \extraFee covers increase to fee requirement" $
+            property $ withMaxSuccess 10000 $ \surplus fee0 mchange0 -> do
+                let feePolicy = LinearFee $ LinearFunction
+                        { intercept = 0, slope = 44 }
+                let mres = _distributeSurplus
+                        feePolicy
+                        surplus
+                        (TxFeeAndChange fee0 mchange0)
+
+                let maxCoinCost = maximumCostOfIncreasingCoin feePolicy
+
+                counterexample (show mres) $ case mres of
+                    Left _ ->
+                        label "unable to distribute surplus" $
+                            property (surplus < (maxCoinCost <> maxCoinCost))
+                    Right (TxFeeAndChange extraFee extraChange) -> do
+                        let feeRequirementIncrease = mconcat
+                                [ costOfIncreasingCoin feePolicy fee0 extraFee
+                                , costOfIncreasingCoin feePolicy
+                                    (fromMaybe mempty mchange0)
+                                    (fromMaybe mempty extraChange)
+                                ]
+                        conjoin
+                            [ property $ extraFee >= feeRequirementIncrease
+                                & counterexample ("fee requirement increased by "
+                                    <> show feeRequirementIncrease
+                                    <> " but the extra fee was just "
+                                    <> show extraFee
+                                    )
+                            , fromMaybe mempty extraChange <> extraFee
+                                === surplus
+                            ]
 
 -- https://mail.haskell.org/pipermail/haskell-cafe/2016-August/124742.html
 mkGen :: (QCGen -> a) -> Gen a

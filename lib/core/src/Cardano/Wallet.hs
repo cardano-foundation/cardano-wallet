@@ -9,7 +9,6 @@
 {-# LANGUAGE LambdaCase #-}
 {-# LANGUAGE MultiParamTypeClasses #-}
 {-# LANGUAGE NamedFieldPuns #-}
-{-# LANGUAGE NumericUnderscores #-}
 {-# LANGUAGE OverloadedLabels #-}
 {-# LANGUAGE RankNTypes #-}
 {-# LANGUAGE RecordWildCards #-}
@@ -450,10 +449,12 @@ import Cardano.Wallet.Transaction
     , ErrCannotJoin (..)
     , ErrCannotQuit (..)
     , ErrMkTransaction (..)
+    , ErrMoreSurplusNeeded (ErrMoreSurplusNeeded)
     , ErrSignTx (..)
     , ErrUpdateSealedTx (..)
     , TransactionCtx (..)
     , TransactionLayer (..)
+    , TxFeeAndChange (TxFeeAndChange)
     , TxFeeUpdate (..)
     , TxUpdate (..)
     , Withdrawal (..)
@@ -538,7 +539,7 @@ import Data.List.NonEmpty
 import Data.Map.Strict
     ( Map )
 import Data.Maybe
-    ( fromMaybe, isJust, mapMaybe )
+    ( fromMaybe, isJust, listToMaybe, mapMaybe )
 import Data.Proxy
     ( Proxy )
 import Data.Quantity
@@ -1687,12 +1688,8 @@ balanceTransactionWithSelectionStrategy
         , extraCollateral
         , extraOutputs
         , feeUpdate = UseNewTxFee $ unsafeFromLovelace minfee0
-         -- TODO [ADP-1514] Ensure the choice of fee here doesn't cause the fee
-         -- minimization to fail.
-         --
-         -- Assuming fees are between 0.065536 and 4.294967296 ada, it
-         -- shouldn't, but it would be better not to rely on this.
         }
+
 
     (balance, candidateMinFee) <- balanceAfterSettingMinFee candidateTx
     surplus <- case Cardano.selectLovelace balance of
@@ -1703,31 +1700,28 @@ balanceTransactionWithSelectionStrategy
                 throwE . ErrBalanceTxNotYetSupported $
                 UnderestimatedFee (Coin.unsafeFromIntegral (-c)) candidateTx
 
-    -- If there are no change outputs, "burn" the surplus as extra fee.
-    --
-    -- This should only happen when coin-selection cannot afford to construct a
-    -- change output with the appropriate minUTxOValue.
-    let extraFeeToBurn = case extraOutputs of
-            [] | surplus > Coin 20_000_000 ->
-                error $ unwords
-                    [ "final redundant safety check in balanceTransaction:"
-                    , "burning more than 20 ada in fees is unreasonable"
-                    ]
-            [] ->
-                surplus
-            _ ->
-                Coin 0
+    let feeAndChange = TxFeeAndChange
+            (unsafeFromLovelace candidateMinFee)
+            (txOutCoin <$> listToMaybe extraOutputs)
+    let feePolicy = view (#txParameters . #getFeePolicy) pp
+
+    -- @distributeSurplus@ should never fail becase we have provided enough
+    -- padding in @selectAssets'@.
+    TxFeeAndChange extraFee extraChange <-
+        withExceptT
+            (\(ErrMoreSurplusNeeded c) ->
+                ErrBalanceTxNotYetSupported $ UnderestimatedFee c candidateTx)
+            (ExceptT . pure $
+                distributeSurplus tl feePolicy surplus feeAndChange)
 
     guardTxSize =<< guardTxBalanced =<< (assembleTransaction $ TxUpdate
         { extraInputs
         , extraCollateral
-        , extraOutputs =
-            -- NOTE: Can cause the size of the Coin value to increase. See todo
-            -- and workaround in 'balanceAfterSettingMinFee' below.
-            mapFirst (txOutAddCoin surplus) extraOutputs
-        , feeUpdate = UseNewTxFee $
-            (unsafeFromLovelace candidateMinFee)
-            <> extraFeeToBurn
+        , extraOutputs = mapFirst
+            (txOutAddCoin $ fromMaybe (Coin 0) extraChange)
+            extraOutputs
+        , feeUpdate = UseNewTxFee
+            (unsafeFromLovelace candidateMinFee <> extraFee)
         })
   where
     tl = ctx ^. transactionLayer @k
@@ -1765,32 +1759,9 @@ balanceTransactionWithSelectionStrategy
         :: SealedTx
         -> ExceptT ErrBalanceTx m (Cardano.Value, Cardano.Lovelace)
     balanceAfterSettingMinFee tx = ExceptT . pure $ do
-        -- This fee padding works around the problem of the size of a change
-        -- output increasing when minimizing the fee.
-        --
-        -- For this quick workaround, we assume all change outputs will contain
-        -- 0.065536 ada or more. This is certainly the case on mainnet with a
-        -- minUTxOValue of ≈1 ada. Then we only need to care about the following
-        -- two sizes of CBOR lovelace values:
-        -- - [0.065536 ada, 4.294967296 ada) is encoded as 5 bytes
-        -- - 4.294967296 ada and more is encoded as 9 bytes
-        --
-        -- To avoid fee minimization unknowingly increasing the size by 4 bytes,
-        -- we preemptively add an extra 4 bytes here.
-        --
-        -- https://json.nlohmann.me/features/binary_formats/cbor/
-        --
-        -- This fixes a 'prop_balanceTransactionBalanced' failure with seed
-        -- 1567390257.
-        --
-        -- TODO [ADP-1514] Improve fee minimization
-        let perByteFee = view #protocolParamTxFeePerByte nodePParams
-        let feePadding = Coin (4 * fromIntegral perByteFee)
-
         -- NOTE: evaluateMinimumFee relies on correctly estimating the required
         -- number of witnesses.
-        minfee <- (Coin.add feePadding)
-            <$> nothingAsByronErr (evaluateMinimumFee tl nodePParams tx)
+        minfee <-  nothingAsByronErr (evaluateMinimumFee tl nodePParams tx)
         let update = TxUpdate [] [] [] (UseNewTxFee minfee)
         tx' <- left ErrBalanceTxUpdateError $ updateTx tl tx update
         balance <-
@@ -1933,17 +1904,21 @@ balanceTransactionWithSelectionStrategy
                         defaultTransactionCtx
                         boringSkeleton
 
-            -- Workaround for a corner case failure in
-            -- prop_balanceTransactionBalanced where.
-            --
-            -- Seems to be related with the wallet selecting a change output
-            -- with a coin value just about the 9 byte limit (4294967296). I.e.
-            -- seems like a problem of coin selection.
             feePadding =
                 let LinearFee LinearFunction {slope = perByte} =
                         view (#txParameters . #getFeePolicy) pp
                     scriptIntegrityHashBytes = 32 + 2
-                    extraBytes = 4
+
+                    -- Add padding to allow the fee value to increase.
+                    -- Out of caution, assume it can increase by the theoretical
+                    -- maximum of 8 bytes ('maximumCostOfIncreasingCoin').
+                    --
+                    -- NOTE: It's not convenient to import the constant at the
+                    -- moment because of the package split.
+                    --
+                    -- Any overestimation will be reduced by 'distributeSurplus'
+                    -- in the final stage of 'balanceTransaction'.
+                    extraBytes = 8
                 in
                 Coin $ (round perByte) * (extraBytes + scriptIntegrityHashBytes)
 
