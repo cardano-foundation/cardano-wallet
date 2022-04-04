@@ -10,7 +10,8 @@ cabal_opts=("--builddir=$builddir")
 plan_json=$builddir/cache/plan.json
 
 list_cabal_files() {
-  git ls-files '*.cabal'
+  # Exclude prototypes dir because it's a different project.
+  git ls-files '*.cabal' | grep -v prototypes/
 }
 
 list_packages() {
@@ -22,7 +23,8 @@ get_cabal_version() {
 }
 
 list_sources() {
-  git ls-files 'lib/**/*.hs' | grep -v Main.hs
+  # Exclude prototypes dir because it's a different project.
+  git ls-files 'lib/**/*.hs' | grep -v Main.hs | grep -v prototypes/
 }
 
 # usage: query_plan_json PACKAGE COMP:NAME KEY
