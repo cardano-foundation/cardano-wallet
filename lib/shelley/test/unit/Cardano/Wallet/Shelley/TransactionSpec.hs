@@ -47,7 +47,8 @@ import Cardano.Api
     , cardanoEraStyle
     )
 import Cardano.Api.Gen
-    ( genSignedValue
+    ( genEncodingBoundaryLovelace
+    , genSignedValue
     , genTx
     , genTxBodyContent
     , genTxForBalancing
@@ -192,6 +193,7 @@ import Cardano.Wallet.Primitive.Types.UTxOIndex
 import Cardano.Wallet.Shelley.Compatibility
     ( AnyShelleyBasedEra (..)
     , computeTokenBundleSerializedLengthBytes
+    , fromCardanoLovelace
     , fromCardanoTxIn
     , fromCardanoTxOut
     , getScriptIntegrityHash
@@ -218,6 +220,7 @@ import Cardano.Wallet.Shelley.Transaction
     , mkUnsignedTx
     , newTransactionLayer
     , noTxUpdate
+    , sizeOfCoin
     , txConstraints
     , updateSealedTx
     , _decodeSealedTx
@@ -387,6 +390,8 @@ import qualified Cardano.Wallet.Primitive.Types.TokenBundle as TokenBundle
 import qualified Cardano.Wallet.Primitive.Types.TokenMap as TokenMap
 import qualified Cardano.Wallet.Primitive.Types.UTxO as UTxO
 import qualified Cardano.Wallet.Primitive.Types.UTxOIndex as UTxOIndex
+import qualified Codec.CBOR.Encoding as CBOR
+import qualified Codec.CBOR.Write as CBOR
 import qualified Data.ByteArray as BA
 import qualified Data.ByteString as BS
 import qualified Data.ByteString.Char8 as B8
@@ -2226,6 +2231,50 @@ balanceTransactionSpec = do
         describe "when passed unresolved inputs" $ do
             it "may fail"
                 $ property prop_balanceTransactionUnresolvedInputs
+
+    describe "sizeOfCoin" $ do
+        let coinToWord64Clamped = fromMaybe maxBound . Coin.toWord64
+        let cborSizeOfCoin =
+                TxSize
+                . fromIntegral
+                . BS.length
+                . CBOR.toStrictByteString
+                . CBOR.encodeWord64 . coinToWord64Clamped
+
+        let isBoundary c =
+                sizeOfCoin c /= sizeOfCoin (c `Coin.difference` (Coin 1))
+                || sizeOfCoin c /= sizeOfCoin (c `Coin.add` (Coin 1))
+
+        it "matches the size of the Word64 CBOR encoding" $
+            property $ checkCoverage $
+                forAll genEncodingBoundaryLovelace $ \l -> do
+                    let c = fromCardanoLovelace l
+                    let expected = cborSizeOfCoin c
+
+                    -- Use a low coverage requirement of 0.01% just to
+                    -- ensure we see /some/ amount of every size.
+                    let coverSize s = cover 0.01 (s == expected) (show s)
+                    sizeOfCoin c === expected
+                        & coverSize (TxSize 1)
+                        & coverSize (TxSize 2)
+                        & coverSize (TxSize 3)
+                        & coverSize (TxSize 5)
+                        & coverSize (TxSize 9)
+                        & cover 0.5 (isBoundary c) "boundary case"
+
+        describe "boundary case goldens" $ do
+            it "1 byte to 2 byte boundary" $ do
+                sizeOfCoin (Coin 23) `shouldBe` TxSize 1
+                sizeOfCoin (Coin 24) `shouldBe` TxSize 2
+            it "2 byte to 3 byte boundary" $ do
+                sizeOfCoin (Coin 255) `shouldBe` TxSize 2
+                sizeOfCoin (Coin 256) `shouldBe` TxSize 3
+            it "3 byte to 5 byte boundary" $ do
+                sizeOfCoin (Coin 65535) `shouldBe` TxSize 3
+                sizeOfCoin (Coin 65536) `shouldBe` TxSize 5
+            it "5 byte to 9 byte boundary" $ do
+                sizeOfCoin (Coin 4294967295) `shouldBe` TxSize 5
+                sizeOfCoin (Coin 4294967296) `shouldBe` TxSize 9
 
 -- https://mail.haskell.org/pipermail/haskell-cafe/2016-August/124742.html
 mkGen :: (QCGen -> a) -> Gen a
