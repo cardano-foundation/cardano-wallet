@@ -7,7 +7,7 @@ RSpec.describe CardanoWallet::Misc do
       expect(res).to be_correct_and_respond 200
     end
 
-    it "Can check network clock offset" do
+    it "Can check network clock offset", :light do
       res = NETWORK.clock
       expect(res).to be_correct_and_respond 200
     end
@@ -34,7 +34,7 @@ RSpec.describe CardanoWallet::Misc do
     end
   end
 
-  describe CardanoWallet::Misc::Utils do
+  describe CardanoWallet::Misc::Utils, :light do
 
     describe "SMASH health" do
       it "SMASH health - unreachable" do
@@ -276,7 +276,7 @@ RSpec.describe CardanoWallet::Misc do
     end
   end
 
-  describe CardanoWallet::Misc::Settings do
+  describe CardanoWallet::Misc::Settings, :light do
 
     after(:all) do
       SETTINGS.update({ :pool_metadata_source => "none" })

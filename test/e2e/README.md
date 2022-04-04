@@ -1,13 +1,10 @@
-
-
-
-
-
-
 # E2E testing
-[![E2E Docker](https://github.com/input-output-hk/cardano-wallet/actions/workflows/e2e-docker.yml/badge.svg)](https://github.com/input-output-hk/cardano-wallet/actions/workflows/e2e-docker.yml) [![E2E Linux](https://github.com/input-output-hk/cardano-wallet/actions/workflows/e2e-linux.yml/badge.svg)](https://github.com/input-output-hk/cardano-wallet/actions/workflows/e2e-linux.yml) [![E2E MacOS](https://github.com/input-output-hk/cardano-wallet/actions/workflows/e2e-macos.yml/badge.svg)](https://github.com/input-output-hk/cardano-wallet/actions/workflows/e2e-macos.yml) [![E2E Windows](https://github.com/input-output-hk/cardano-wallet/actions/workflows/e2e-windows.yml/badge.svg)](https://github.com/input-output-hk/cardano-wallet/actions/workflows/e2e-windows.yml)
-
-[![Docker-compose Linux](https://github.com/input-output-hk/cardano-wallet/actions/workflows/docker_linux.yml/badge.svg)](https://github.com/input-output-hk/cardano-wallet/actions/workflows/docker_linux.yml) [![Docker-compose MacOS](https://github.com/input-output-hk/cardano-wallet/actions/workflows/docker_macos.yml/badge.svg)](https://github.com/input-output-hk/cardano-wallet/actions/workflows/docker_macos.yml)
+|  |  |
+|--|--|
+|**Full mode** |[![E2E Docker](https://github.com/input-output-hk/cardano-wallet/actions/workflows/e2e-docker.yml/badge.svg)](https://github.com/input-output-hk/cardano-wallet/actions/workflows/e2e-docker.yml) [![E2E Linux](https://github.com/input-output-hk/cardano-wallet/actions/workflows/e2e-linux.yml/badge.svg)](https://github.com/input-output-hk/cardano-wallet/actions/workflows/e2e-linux.yml) [![E2E MacOS](https://github.com/input-output-hk/cardano-wallet/actions/workflows/e2e-macos.yml/badge.svg)](https://github.com/input-output-hk/cardano-wallet/actions/workflows/e2e-macos.yml) [![E2E Windows](https://github.com/input-output-hk/cardano-wallet/actions/workflows/e2e-windows.yml/badge.svg)](https://github.com/input-output-hk/cardano-wallet/actions/workflows/e2e-windows.yml)  |
+|**Light mode** | [![E2E Linux --light](https://github.com/input-output-hk/cardano-wallet/actions/workflows/e2e-linux-lite.yml/badge.svg)](https://github.com/input-output-hk/cardano-wallet/actions/workflows/e2e-linux-lite.yml) [![E2E MacOS --light](https://github.com/input-output-hk/cardano-wallet/actions/workflows/e2e-macos-lite.yml/badge.svg)](https://github.com/input-output-hk/cardano-wallet/actions/workflows/e2e-macos-lite.yml) [![E2E Windows --light](https://github.com/input-output-hk/cardano-wallet/actions/workflows/e2e-windows-lite.yml/badge.svg)](https://github.com/input-output-hk/cardano-wallet/actions/workflows/e2e-windows-lite.yml) |
+|**Docker compose** | [![Docker-compose Linux](https://github.com/input-output-hk/cardano-wallet/actions/workflows/docker_linux.yml/badge.svg)](https://github.com/input-output-hk/cardano-wallet/actions/workflows/docker_linux.yml) [![Docker-compose MacOS](https://github.com/input-output-hk/cardano-wallet/actions/workflows/docker_macos.yml/badge.svg)](https://github.com/input-output-hk/cardano-wallet/actions/workflows/docker_macos.yml)
+|
 
 E2E functional tests of cardano-wallet are running nightly on [cardano testnet](https://testnets.cardano.org/en/cardano/overview/). Running tests against public testnet allows to exercise cardano-wallet on environment close to production (mainnet) utilizing and integrating maximally all components of the Cardano ecosystem like Stake pools, SMASH, metadata token server etc.
 
@@ -22,11 +19,13 @@ In order to run tests one needs to [have ruby](https://www.ruby-lang.org/en/docu
 cd test/e2e
 bundle install
 ```
-2. Decrypt `fixture_wallets.json.gpg` containing mnemonics of testnet fixture wallets using `$TESTS_E2E_FIXTURES` secret.
+2. Decrypt secret files using `$TESTS_E2E_FIXTURES` secret:
+  - `fixture_wallets.json.gpg` containing mnemonics of testnet fixture wallets
+  - `blockfrost.api.key.gpg` containing Blockfrost API key for `testnet`
 
 ```bash
 export TESTS_E2E_FIXTURES=*******
-rake fixture_wallets_decode
+rake secrets_decode
 ```
 > :information_source:  **_TESTS_E2E_FIXTURES_** secret  is defined on https://github.com/input-output-hk/cardano-wallet/settings/secrets and also used by GH actions. Note that this step is also executed on very first test run.
 >
@@ -38,7 +37,7 @@ $ rake run_on[testnet]
 This master task is performing also all the necessary configuration steps (i.e. getting latest testnet configs and wallet/node binaries from [Hydra](https://hydra.iohk.io/jobset/Cardano/cardano-wallet#tabs-jobs), starting everything up). All steps can also be executed as separate tasks , i.e.:
 
 ```bash
-$ rake fixture_wallets_decode
+$ rake secrets_decode
 $ rake get_latest_bins
 $ rake get_latest_configs[testnet]
 $ rake start_node_and_wallet[testnet]
@@ -79,8 +78,20 @@ One can also run tests against `cardano-wallet` and `cardano-node` which are spe
 ```bash
 $ TESTS_E2E_BINDIR="" rake run_on[testnet]
 ```
-
 Running tests as such skips downloading latest binaries from Hydra.
+
+#### Running tests against wallet started in `--light` mode
+
+One can also run some tests against wallet started in `--light` mode. Similar rake workflow can be applied except there is no need to start `cardano-node` and wait for it to be synced with the network:
+```bash
+$ rake secrets_decode
+$ rake get_latest_bins
+$ rake get_latest_configs[testnet]
+$ rake start_wallet_light[testnet]
+$ rake spec SPEC_OPTS="-t light"
+$ rake stop_wallet_light[testnet]
+```
+All tests that are suitable for `--light` mode are tagged with `:light` tag.
 
 ### Test artifacts
 

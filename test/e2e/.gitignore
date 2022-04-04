@@ -4,6 +4,7 @@
 
 # secrets
 /fixtures/fixture_wallets.json
+/fixtures/blockfrost.api.key
 
 # local environment variables
 /.envrc-local

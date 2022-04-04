@@ -16,6 +16,7 @@ WALLET_DB = absolute_path ENV['TESTS_WALLET_DB']
 BINS = absolute_path ENV['TESTS_E2E_BINDIR']
 
 FIXTURES_FILE = absolute_path ENV['TESTS_E2E_FIXTURES_FILE']
+BLOCKFROST_FILE = absolute_path ENV['TESTS_E2E_BLOCKFROST_FILE']
 FIXTURES_SECRET = absolute_path ENV['TESTS_E2E_FIXTURES']
 
 TOKEN_METADATA = ENV['TESTS_E2E_TOKEN_METADATA']
@@ -26,22 +27,32 @@ ENV['PATH'] = "#{BINS}#{path_separator}#{ENV['PATH']}"
 
 task :default => :spec
 
-task :fixture_wallets_encode do
-  desc "Encode fixture wallets from #{FIXTURES_FILE} using $TESTS_E2E_FIXTURES phrase"
-  puts "\n  >> Encoding #{FIXTURES_FILE}..."
+task :secrets_encode do
+  desc "Encode secrets using $TESTS_E2E_FIXTURES phrase"
 
+  puts "\n  >> Encoding #{FIXTURES_FILE}..."
   puts `gpg --pinentry-mode loopback --passphrase=#{FIXTURES_SECRET} --symmetric --output=#{FIXTURES_FILE}.gpg #{FIXTURES_FILE}`
+
+  puts "\n  >> Encoding #{BLOCKFROST_FILE}..."
+  puts `gpg --pinentry-mode loopback --passphrase=#{FIXTURES_SECRET} --symmetric --output=#{BLOCKFROST_FILE}.gpg #{BLOCKFROST_FILE}`
+
 end
 
-task :fixture_wallets_decode do
-  desc "Decode fixture wallets from #{FIXTURES_FILE}.gpg using $TESTS_E2E_FIXTURES phrase"
-  encoded_file = "#{FIXTURES_FILE}.gpg"
-  decoded_file = FIXTURES_FILE
-  if File.exists?(decoded_file)
-    puts "\n  >> Skipping decoding #{encoded_file}... #{decoded_file} already exists!"
+task :secrets_decode do
+  desc "Decode secrets using $TESTS_E2E_FIXTURES phrase"
+
+  if File.exists?(FIXTURES_FILE)
+    puts "\n  >> Skipping decoding #{FIXTURES_FILE}.gpg... #{FIXTURES_FILE} already exists!"
   else
     puts "\n  >> Decoding #{FIXTURES_FILE}.gpg..."
-    puts `gpg --pinentry-mode loopback --yes --passphrase=#{FIXTURES_SECRET} --output #{decoded_file} --decrypt #{encoded_file}`
+    puts `gpg --pinentry-mode loopback --yes --passphrase=#{FIXTURES_SECRET} --output #{FIXTURES_FILE} --decrypt #{FIXTURES_FILE}.gpg`
+  end
+
+  if File.exists?(BLOCKFROST_FILE)
+    puts "\n  >> Skipping decoding #{BLOCKFROST_FILE}.gpg... #{BLOCKFROST_FILE} already exists!"
+  else
+    puts "\n  >> Decoding #{BLOCKFROST_FILE}.gpg..."
+    puts `gpg --pinentry-mode loopback --yes --passphrase=#{FIXTURES_SECRET} --output #{BLOCKFROST_FILE} --decrypt #{BLOCKFROST_FILE}.gpg`
   end
 end
 
@@ -181,19 +192,6 @@ task :start_node_and_wallet, [:env] do |task, args|
   end
 end
 
-task :display_versions do
-  puts "\n  >> cardano-node and cardano-wallet versions:"
-
-  bin_dir = BINS == '' ? BINS : "#{BINS}/"
-  if is_win?
-    cmd "#{bin_dir}cardano-wallet.exe version", true
-    cmd "#{bin_dir}cardano-node.exe version", true
-  else
-    cmd "#{bin_dir}cardano-wallet version", true
-    cmd "#{bin_dir}cardano-node version", true
-  end
-end
-
 task :stop_node_and_wallet, [:env] do |task, args|
   puts "\n  >> Stopping cardano-node and cardano-wallet"
 
@@ -208,6 +206,66 @@ task :stop_node_and_wallet, [:env] do |task, args|
     cmd "screen -XS NODE_#{args[:env]} quit"
   end
 
+end
+
+task :start_wallet_light, [:env] do |task, args|
+  puts "\n  >> Setting up cardano-wallet-light"
+
+  bin_dir = BINS == '' ? BINS : "#{BINS}/"
+  config_dir = File.join(CONFIGS, args[:env])
+  log_dir = File.join(LOGS, args[:env])
+  wallet_db_dir = File.join(WALLET_DB, args[:env])
+  cd = Dir.pwd
+  mk_dir(STATE)
+  mk_dir(log_dir)
+
+  if is_win?
+    # create cardano-wallet.bat file
+    wallet_cmd = "#{bin_dir}cardano-wallet.exe serve --port #{WALLET_PORT} --light --blockfrost-token-file #{BLOCKFROST_FILE} --testnet #{config_dir}/genesis-byron.json --database #{wallet_db_dir} --token-metadata-server #{TOKEN_METADATA}"
+    File.open("cardano-wallet.bat", "w") do |f|
+      f.write(wallet_cmd)
+    end
+
+    install_wallet = "nssm install cardano-wallet-light #{cd}/cardano-wallet.bat"
+    log_stdout_wallet = "nssm set cardano-wallet-light AppStdout #{log_dir}/wallet.log"
+    log_stderr_wallet = "nssm set cardano-wallet-light AppStderr #{log_dir}/wallet.log"
+    start_wallet = "nssm start cardano-wallet-light"
+
+    cmd install_wallet
+    cmd log_stdout_wallet
+    cmd log_stderr_wallet
+    cmd start_wallet
+  else
+    start_wallet = "#{bin_dir}cardano-wallet serve --port #{WALLET_PORT} --light --blockfrost-token-file #{BLOCKFROST_FILE} --testnet #{config_dir}/genesis-byron.json --database #{wallet_db_dir} --token-metadata-server #{TOKEN_METADATA}"
+
+    cmd "screen -dmS WALLET_#{args[:env]}_light -L -Logfile #{log_dir}/wallet.log #{start_wallet}"
+    cmd "screen -ls", true
+  end
+end
+
+task :stop_wallet_light, [:env] do |task, args|
+  puts "\n  >> Stopping cardano-wallet-light"
+
+  if is_win?
+    cmd "nssm stop cardano-wallet-light"
+    cmd "nssm remove cardano-wallet-light confirm"
+  else
+    cmd "screen -XS WALLET_#{args[:env]}_light quit"
+  end
+
+end
+
+task :display_versions do
+  puts "\n  >> cardano-node and cardano-wallet versions:"
+
+  bin_dir = BINS == '' ? BINS : "#{BINS}/"
+  if is_win?
+    cmd "#{bin_dir}cardano-wallet.exe version", true
+    cmd "#{bin_dir}cardano-node.exe version", true
+  else
+    cmd "#{bin_dir}cardano-wallet version", true
+    cmd "#{bin_dir}cardano-node version", true
+  end
 end
 
 task :get_latest_bins, [:pr] do |task, args|
@@ -296,7 +354,7 @@ task :setup, [:env, :pr, :skip_configs] do |task, args|
     Rake::Task[:get_latest_bins].invoke(pr)
   end
   Rake::Task[:get_latest_configs].invoke(env) unless skip_configs
-  Rake::Task[:fixture_wallets_decode].invoke
+  Rake::Task[:secrets_decode].invoke
 end
 
 task :run_on, [:env, :sync_strategy, :skip_configs, :pr] do |task, args|

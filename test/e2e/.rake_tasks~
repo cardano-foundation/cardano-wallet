@@ -2,8 +2,8 @@ clean_bins
 clean_logs
 datetime
 display_versions
-fixture_wallets_decode
-fixture_wallets_encode
+secrets_decode
+secrets_encode
 fixture_wallets_template
 get_docker_logs
 get_latest_bins
@@ -13,4 +13,6 @@ spec
 setup
 start_node_and_wallet
 stop_node_and_wallet
+start_wallet_light
+stop_wallet_light
 wait_until_node_synced
