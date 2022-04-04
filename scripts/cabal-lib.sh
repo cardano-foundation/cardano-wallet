@@ -72,6 +72,7 @@ ghci_flags() {
 -fwarn-unused-binds
 -fwarn-unused-imports
 -fwarn-orphans
+-fprint-potential-instances
 -Wno-missing-home-modules
 EOF
 
