@@ -45,15 +45,8 @@ jobs:
       run: |
         echo "::set-output name=value::$(rake datetime)"
 
-    - name: 💾 Cache node db
-      id: cache
-      uses: actions/cache@v2.1.7
-      with:
-        path: test/e2e/state/node_db/${{ env.NETWORK }}
-        key: node-db-${{ runner.os }}-${{ env.NETWORK }}-${{ steps.date-time.outputs.value }}
-        restore-keys: |
-          node-db-${{ runner.os }}-${{ env.NETWORK }}-
-          node-db-Linux-${{ env.NETWORK }}-
+    - name: 💽 Get latest node db
+      run: rake get_latest_node_db[%NETWORK%]
 
     - name: 💾 Cache wallet db
       id: cache-wallet
