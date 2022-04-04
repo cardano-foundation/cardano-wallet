@@ -30,11 +30,11 @@ task :default => :spec
 task :secrets_encode do
   desc "Encode secrets using $TESTS_E2E_FIXTURES phrase"
 
-  puts "\n  >> Encoding #{FIXTURES_FILE}..."
-  puts `gpg --pinentry-mode loopback --passphrase=#{FIXTURES_SECRET} --symmetric --output=#{FIXTURES_FILE}.gpg #{FIXTURES_FILE}`
+  log ">> Encoding #{FIXTURES_FILE}..."
+  log `gpg --pinentry-mode loopback --passphrase=#{FIXTURES_SECRET} --symmetric --output=#{FIXTURES_FILE}.gpg #{FIXTURES_FILE}`
 
-  puts "\n  >> Encoding #{BLOCKFROST_FILE}..."
-  puts `gpg --pinentry-mode loopback --passphrase=#{FIXTURES_SECRET} --symmetric --output=#{BLOCKFROST_FILE}.gpg #{BLOCKFROST_FILE}`
+  log ">> Encoding #{BLOCKFROST_FILE}..."
+  log `gpg --pinentry-mode loopback --passphrase=#{FIXTURES_SECRET} --symmetric --output=#{BLOCKFROST_FILE}.gpg #{BLOCKFROST_FILE}`
 
 end
 
@@ -42,22 +42,22 @@ task :secrets_decode do
   desc "Decode secrets using $TESTS_E2E_FIXTURES phrase"
 
   if File.exists?(FIXTURES_FILE)
-    puts "\n  >> Skipping decoding #{FIXTURES_FILE}.gpg... #{FIXTURES_FILE} already exists!"
+    log ">> Skipping decoding #{FIXTURES_FILE}.gpg... #{FIXTURES_FILE} already exists!"
   else
-    puts "\n  >> Decoding #{FIXTURES_FILE}.gpg..."
-    puts `gpg --pinentry-mode loopback --yes --passphrase=#{FIXTURES_SECRET} --output #{FIXTURES_FILE} --decrypt #{FIXTURES_FILE}.gpg`
+    log ">> Decoding #{FIXTURES_FILE}.gpg..."
+    log `gpg --pinentry-mode loopback --yes --passphrase=#{FIXTURES_SECRET} --output #{FIXTURES_FILE} --decrypt #{FIXTURES_FILE}.gpg`
   end
 
   if File.exists?(BLOCKFROST_FILE)
-    puts "\n  >> Skipping decoding #{BLOCKFROST_FILE}.gpg... #{BLOCKFROST_FILE} already exists!"
+    log ">> Skipping decoding #{BLOCKFROST_FILE}.gpg... #{BLOCKFROST_FILE} already exists!"
   else
-    puts "\n  >> Decoding #{BLOCKFROST_FILE}.gpg..."
-    puts `gpg --pinentry-mode loopback --yes --passphrase=#{FIXTURES_SECRET} --output #{BLOCKFROST_FILE} --decrypt #{BLOCKFROST_FILE}.gpg`
+    log ">> Decoding #{BLOCKFROST_FILE}.gpg..."
+    log `gpg --pinentry-mode loopback --yes --passphrase=#{FIXTURES_SECRET} --output #{BLOCKFROST_FILE} --decrypt #{BLOCKFROST_FILE}.gpg`
   end
 end
 
 task :fixture_wallets_template do
-  puts "\n  >> Creating #{FIXTURES_FILE}"
+  log ">> Creating #{FIXTURES_FILE}"
 
   fixture_wallets = { :linux => {
                           :fixture => { :shelley => mnemonic_sentence(24),
@@ -102,32 +102,38 @@ task :fixture_wallets_template do
 end
 
 task :clean_logs, [:env] do |task, args|
-  puts "\n  >> Removing logs"
+  log ">> Removing logs"
   log_dir = File.join(LOGS, args[:env])
   rm_files(log_dir)
 end
 
+task :clean_node_db, [:env] do |task, args|
+  log ">> Removing node_db"
+  rm_files(File.join(NODE_DB, args[:env]))
+  rm_files(File.join(NODE_DB, "db-#{args[:env]}.tar.gz"))
+end
+
 task :clean_bins do
-  puts "\n  >> Removing old bins"
+  log ">> Removing old bins"
   rm_files(BINS)
 end
 
 task :wait_until_node_synced do
-  puts "\n  >> Waiting for node to be synced"
+  log ">> Waiting for node to be synced"
 
   network = CardanoWallet.new.misc.network
   # allow 180 mins for connecting to the node in case it needs to replay ledger
   timeout = 10800
   current_time = Time.now
   timeout_treshold = current_time + timeout
-  puts "Timeout: #{timeout}s"
-  puts "Current time: #{current_time}"
-  puts "Threshold: #{timeout_treshold}"
-  puts "[#{Time.now}] Waiting for node to start..."
+  log "Timeout: #{timeout}s"
+  log "Current time: #{current_time}"
+  log "Threshold: #{timeout_treshold}"
+  log "Waiting for node to start..."
   begin
     current_time = Time.now
     while network.information["sync_progress"]["status"] == "syncing" do
-      puts "[#{Time.now}] Syncing node... #{network.information["sync_progress"]["progress"]["quantity"]}%"
+      log "Syncing node... #{network.information["sync_progress"]["progress"]["quantity"]}%"
       sleep 15
     end
   rescue
@@ -135,13 +141,13 @@ task :wait_until_node_synced do
     raise("[#{Time.now}] Could not connect to wallet within #{timeout} seconds...")
   end
 
-  puts "\n>> Cardano-node and cardano-wallet are synced! <<"
+  log ">> Cardano-node and cardano-wallet are synced! <<"
 end
 
 ##
 # `rake start_node_and_wallet[testnet]' assumes cardano-node and cardano-wallet in $TESTS_E2E_BINDIR
 task :start_node_and_wallet, [:env] do |task, args|
-  puts "\n  >> Setting up cardano-node and cardano-wallet"
+  log ">> Setting up cardano-node and cardano-wallet"
 
   bin_dir = BINS == '' ? BINS : "#{BINS}/"
   config_dir = File.join(CONFIGS, args[:env])
@@ -193,7 +199,7 @@ task :start_node_and_wallet, [:env] do |task, args|
 end
 
 task :stop_node_and_wallet, [:env] do |task, args|
-  puts "\n  >> Stopping cardano-node and cardano-wallet"
+  log ">> Stopping cardano-node and cardano-wallet"
 
   if is_win?
     cmd "nssm stop cardano-wallet"
@@ -269,25 +275,26 @@ task :display_versions do
 end
 
 task :get_latest_bins, [:pr] do |task, args|
-  puts "\n  >> Getting latest node and wallet binaries from Hydra into #{BINS}"
+  log ">> Getting latest node and wallet binaries from Hydra into #{BINS}"
 
   pr = args[:pr] || 'master'
   if (pr.empty? || pr == 'master')
-    puts "From master branch 👇"
+    log "From master branch 👇"
     pr_num = nil
   else
-    puts "From PR: ##{pr} 👇"
+    log "From PR: ##{pr} 👇"
     pr_num = pr.to_i
   end
   wget(get_latest_binary_url(pr_num))
 
-  mk_dir(BINS)
   if is_win?
+    mk_dir(BINS)
     cmd "unzip -o binary-dist -d #{BINS}"
     cmd "#{BINS}/cardano-node.exe version"
     cmd "#{BINS}/cardano-wallet.exe version"
   else
     Rake::Task[:clean_bins].invoke
+    mk_dir(BINS)
     cmd "rm -rf cardano-wallet-*/"
     cmd "tar -xvf binary-dist"
     cmd "cp -r cardano-wallet-*/* #{BINS}"
@@ -298,15 +305,26 @@ task :get_latest_bins, [:pr] do |task, args|
 end
 
 task :get_latest_node_db, [:env] do |task, args|
-  puts "\n  >> Getting latest node db"
   env = args[:env]
+  url = get_latest_node_db_url(env)
   file = "db-#{env}.tar.gz"
+  node_db_file = File.join(NODE_DB, file)
   node_db_dir = File.join(NODE_DB, env)
-  mk_dir(node_db_dir)
-  wget(get_latest_node_db_url(env))
+  node_db_extracted_dir = File.join(NODE_DB, "db-#{env}")
+  Rake::Task[:clean_node_db].invoke(env)
+  mk_dir(NODE_DB)
 
-  cmd "tar -xvf #{file}"
+  log ">> Getting latest node db from #{url}"
+  log "Start downloading into #{node_db_file}..."
+  wget(url, node_db_file)
 
+  log "Start extracting archive into #{NODE_DB}..."
+  cmd "tar -xvf #{node_db_file} -C #{NODE_DB}"
+
+  log "Start moving from #{node_db_extracted_dir} into #{node_db_dir}..."
+  mv(node_db_extracted_dir, node_db_dir)
+
+  log "Done."
 end
 
 task :get_latest_configs, [:env] do |task, args|
@@ -315,9 +333,9 @@ task :get_latest_configs, [:env] do |task, args|
 
   if (File.exist?(out) && (not File.writable?(out)))
     # The config directory is probably a /nix/store path
-    puts "\n  >> Using config directory '#{out}'"
+    log ">> Using config directory '#{out}'"
   else
-    puts "\n  >> Getting latest configs for '#{env}' into #{CONFIGS}"
+    log ">> Getting latest configs for '#{env}' into #{CONFIGS}"
 
     base_url = get_latest_configs_base_url
     mk_dir(STATE)
@@ -337,7 +355,7 @@ task :get_latest_configs, [:env] do |task, args|
 end
 
 task :get_docker_logs do
-  puts "\n  >> Getting docker logs into #{LOGS}"
+  log ">> Getting docker logs into #{LOGS}"
 
   mk_dir(LOGS)
   node_logfile = `docker inspect --format='{{.LogPath}}' cardano-node`.gsub("\n", '')
@@ -355,13 +373,13 @@ end
 # Setup utility task getting node and wallet binaries, configs and decoding fixtures
 # so it is ready to start
 task :setup, [:env, :pr, :skip_configs] do |task, args|
-  puts "\n  >> Getting latest binaries and configs and decoding fixtures..."
+  log ">> Getting latest binaries and configs and decoding fixtures..."
   env = args[:env]
   pr = args[:pr] || nil
   skip_configs = args[:skip_configs] || nil
 
   if BINS == ''
-    puts "\n  >> Skipping getting latest binaries. Will test wallet and node from $PATH."
+    log ">> Skipping getting latest binaries. Will test wallet and node from $PATH."
   else
     Rake::Task[:get_latest_bins].invoke(pr)
   end
@@ -370,8 +388,8 @@ task :setup, [:env, :pr, :skip_configs] do |task, args|
 end
 
 task :run_on, [:env, :sync_strategy, :skip_configs, :pr] do |task, args|
-  puts "\n>> Setting up env and running tests..."
-  puts "TESTS_E2E_STATEDIR=#{STATE}"
+  log ">> Setting up env and running tests..."
+  log "TESTS_E2E_STATEDIR=#{STATE}"
   env = args[:env]
   skip_configs = args[:skip_configs]
   sync_strategy = args[:sync_strategy] || :sync
@@ -382,7 +400,7 @@ task :run_on, [:env, :sync_strategy, :skip_configs, :pr] do |task, args|
   Rake::Task[:start_node_and_wallet].invoke(env)
 
   if sync_strategy == "no-sync"
-    puts "\n  >> Skipping waiting for node to be synced..."
+    log ">> Skipping waiting for node to be synced..."
   else
     Rake::Task[:wait_until_node_synced].invoke
   end

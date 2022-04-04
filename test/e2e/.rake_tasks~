@@ -1,5 +1,6 @@
 clean_bins
 clean_logs
+clean_node_db
 datetime
 display_versions
 secrets_decode
