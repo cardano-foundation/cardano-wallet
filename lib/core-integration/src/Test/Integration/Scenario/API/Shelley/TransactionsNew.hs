@@ -2165,6 +2165,7 @@ spec = describe "NEW_SHELLEY_TRANSACTIONS" $ do
                       ( PlutusScenario.pingPong_1
                       , [ PlutusScenario.pingPong_2 ]
                       )
+                  , [ expectResponseCode HTTP.status202 ]
                   )
                 , ( "game state-machine"
                   , \_ _ -> pure
@@ -2173,6 +2174,7 @@ spec = describe "NEW_SHELLEY_TRANSACTIONS" $ do
                         , PlutusScenario.game_3
                         ]
                       )
+                  , [ expectResponseCode HTTP.status202 ]
                   )
                 , ( "mint-burn"
                   , \ctx w -> do
@@ -2192,6 +2194,7 @@ spec = describe "NEW_SHELLEY_TRANSACTIONS" $ do
                                 "vkHash": #{vkHash}
                             }|]
                         pure (mint, [burn])
+                  , [ expectResponseCode HTTP.status202 ]
                   )
                 , ( "withdrawal"
                   , \ctx _w -> do
@@ -2203,6 +2206,7 @@ spec = describe "NEW_SHELLEY_TRANSACTIONS" $ do
                         waitForNextEpoch ctx
                         withdrawal <- PlutusScenario.withdrawScript_1
                         pure (withdrawal, [])
+                  , [ expectResponseCode HTTP.status202 ]
                   )
                 , ( "currency", \ctx w -> do
                     (addr,proxy) <- view #id . head <$> listAddresses @n ctx w
@@ -2221,10 +2225,11 @@ spec = describe "NEW_SHELLEY_TRANSACTIONS" $ do
                     txOutRef <- fromEither =<< getFreshUTxO
                     let mint = PlutusScenario.currencyTx txOutRef
                     pure (mint, [])
+                  , [ expectResponseCode HTTP.status202 ]
                   )
                 ]
 
-        forM_ scenarios $ \(title, setupContract) -> it title $ \ctx -> runResourceT $ do
+        forM_ scenarios $ \(title, setupContract, decodeExp) -> it title $ \ctx -> runResourceT $ do
             w <- fixtureWallet ctx
             let balanceEndpoint = Link.balanceTransaction @'Shelley w
             let signEndpoint = Link.signTransaction @'Shelley w
@@ -2235,6 +2240,11 @@ spec = describe "NEW_SHELLEY_TRANSACTIONS" $ do
             let toBalance = Json setup
             (_, sealedTx) <- second (view #transaction) <$>
                 unsafeRequest @ApiSerialisedTransaction ctx balanceEndpoint toBalance
+
+            let decodePayload = Json (toJSON $ ApiSerialisedTransaction sealedTx)
+            rDecodedTx <- request @(ApiDecodedTransaction n) ctx
+                (Link.decodeTransaction @'Shelley w) Default decodePayload
+            verify rDecodedTx decodeExp
 
             -- Sign
             let toSign = Json [json|
