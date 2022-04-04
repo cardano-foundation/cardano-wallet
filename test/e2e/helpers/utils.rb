@@ -4,10 +4,14 @@ require 'fileutils'
 
 module Helpers
   module Utils
+    def log(message)
+      puts "[#{Time.now}] #{message}"
+    end
+
     def cmd(cmd, display_result = false)
       cmd.gsub(/\s+/, ' ')
       res = `#{cmd}`
-      puts res if display_result
+      log res if display_result
       res
     end
 
@@ -112,7 +116,7 @@ module Helpers
       file ||= File.basename(url)
       resp = HTTParty.get(url)
       File.binwrite(file, resp.body)
-      puts "#{url} -> #{resp.code}"
+      log "#{url} -> #{resp.code}"
     end
 
     def mk_dir(path)
@@ -120,7 +124,11 @@ module Helpers
     end
 
     def rm_files(path)
-      FileUtils.rm_rf("#{path}/.", secure: true)
+      FileUtils.rm_rf(path, secure: true)
+    end
+
+    def mv(src, dst)
+      FileUtils.mv(src, dst, force: true)
     end
 
     def is_win?
