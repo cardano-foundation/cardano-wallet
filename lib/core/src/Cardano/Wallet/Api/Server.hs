@@ -663,6 +663,8 @@ import qualified Data.Text.Encoding as T
 import qualified Network.Wai.Handler.Warp as Warp
 import qualified Network.Wai.Handler.WarpTLS as Warp
 
+import qualified Debug.Trace as TR
+
 -- | How the server should listen for incoming requests.
 data Listen
     = ListenOnPort Port
@@ -2436,7 +2438,7 @@ decodeTransaction ctx (ApiT wid) (ApiSerialisedTransaction (ApiT sealed)) = do
             , pp
             , policyXPubM
             )
-    pure $ ApiDecodedTransaction
+    TR.trace ("decodeTx:"<> show (decodeTx tl sealed)) $ pure $ ApiDecodedTransaction
         { id = ApiT txid
         , fee = maybe (Quantity 0) (Quantity . fromIntegral . unCoin) feeM
         , inputs = map toInp txinsOutsPaths

@@ -390,6 +390,8 @@ import qualified Ouroboros.Consensus.Shelley.Ledger as O
 import qualified Ouroboros.Network.Block as O
 import qualified Ouroboros.Network.Point as Point
 
+import qualified Debug.Trace as TR
+
 --------------------------------------------------------------------------------
 --
 -- Chain Parameters
@@ -1345,7 +1347,7 @@ fromCardanoTx = \case
         Cardano.ShelleyBasedEraMary ->
             extract $ fromMaryTx tx
         Cardano.ShelleyBasedEraAlonzo ->
-            extract $ fromAlonzoTx tx
+            TR.trace ("tx:"<> show tx) $ extract $ fromAlonzoTx tx
     Cardano.ByronTx tx ->
         ( fromTxAux tx
         , emptyTokenMapWithScripts
