@@ -113,9 +113,13 @@ RSpec.describe "Cardano Wallet E2E tests", :e2e do
       policy_id = get_policy_id(policy)
       mint_script = "mintBurn_1.json"
       burn_script = "mintBurn_2.json"
-      assets = [{ "asset_name" => asset_name("mint-burn"),
-                 "quantity" => 1,
-                 "policy_id" => policy_id }]
+      assets = [ {"policy_script" => {"language_version" => "v1", "script_type" => "plutus"},
+                  "policy_id" => policy_id,
+                  "assets" => [ {"fingerprint" => "asset1q78ea9ds0rc3tfwu2damsjehjup2xuzddtg6xh",
+                                 "amount" => {"quantity" => 1, "unit" => "assets"},
+                                 "asset_name" => asset_name("mint-burn") } ]
+                  }
+                ]
 
       payload_mint = get_templated_plutus_tx(mint_script, { vkHash: vkHash,
                                                           policyId: policy_id,
@@ -133,16 +137,16 @@ RSpec.describe "Cardano Wallet E2E tests", :e2e do
       expect(burn[:tx_balanced].parsed_response).to eq burn[:tx_signed].parsed_response
 
       # verify decoded unbalanced transaction includes assets minted and burned
-      expect(mint[:tx_unbalanced]['assets_minted']['token_map']).to eq assets
-      expect(mint[:tx_unbalanced]['assets_burned']['token_map']).to eq []
-      expect(burn[:tx_unbalanced]['assets_minted']['token_map']).to eq []
-      expect(burn[:tx_unbalanced]['assets_burned']['token_map']).to eq assets
+      expect(mint[:tx_unbalanced]['mint']['tokens']).to eq assets
+      expect(mint[:tx_unbalanced]['burn']['tokens']).to eq []
+      expect(burn[:tx_unbalanced]['mint']['tokens']).to eq []
+      expect(burn[:tx_unbalanced]['burn']['tokens']).to eq assets
 
       # verify decoded balanced transaction includes assets minted and burned
-      expect(mint[:tx_balanced]['assets_minted']['token_map']).to eq assets
-      expect(mint[:tx_balanced]['assets_burned']['token_map']).to eq []
-      expect(burn[:tx_balanced]['assets_minted']['token_map']).to eq []
-      expect(burn[:tx_balanced]['assets_burned']['token_map']).to eq assets
+      expect(mint[:tx_balanced]['mint']['tokens']).to eq assets
+      expect(mint[:tx_balanced]['burn']['tokens']).to eq []
+      expect(burn[:tx_balanced]['mint']['tokens']).to eq []
+      expect(burn[:tx_balanced]['burn']['tokens']).to eq assets
     end
 
     it "withdrawal" do
@@ -234,15 +238,19 @@ RSpec.describe "Cardano Wallet E2E tests", :e2e do
 
       # expected minted currency
       apfel = { "policy_id" => policy_id,
-               "asset_name" => asset_name("apfel"),
-               "quantity" => 1000 }
+                "asset_name" => asset_name("apfel"),
+                "quantity" => 1000 }
       banana = { "policy_id" => policy_id,
-                "asset_name" => asset_name("banana"),
-                "quantity" => 1 }
+                 "asset_name" => asset_name("banana"),
+                 "quantity" => 1 }
 
       # verify decoded transactions show that currency will be minted
-      expect(r[:tx_unbalanced]['assets_minted']['token_map']).to eq [apfel, banana]
-      expect(r[:tx_balanced]['assets_minted']['token_map']).to eq [apfel, banana]
+      expect(r[:tx_unbalanced]['mint']['tokens'].to_s).to include policy_id
+      expect(r[:tx_unbalanced]['mint']['tokens'].to_s).to include asset_name("apfel")
+      expect(r[:tx_unbalanced]['mint']['tokens'].to_s).to include asset_name("banana")
+      expect(r[:tx_balanced]['mint']['tokens'].to_s).to include policy_id
+      expect(r[:tx_balanced]['mint']['tokens'].to_s).to include asset_name("apfel")
+      expect(r[:tx_balanced]['mint']['tokens'].to_s).to include asset_name("banana")
 
       # make sure currency is minted as expected
       src_balance = get_shelley_balances(@wid)
