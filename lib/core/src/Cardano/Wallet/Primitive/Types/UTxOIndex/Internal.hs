@@ -394,9 +394,15 @@ disjoint i1 i2 = universe i1 `Map.disjoint` universe i2
 --
 data SelectionFilter asset
     = SelectSingleton asset
+      -- ^ Matches UTxOs that contain only the given asset and no other assets.
     | SelectPairWith asset
+      -- ^ Matches UTxOs that contain the given asset and exactly one other
+      -- asset.
     | SelectAnyWith asset
+      -- ^ Matches UTxOs that contain the given asset and any number of other
+      -- assets.
     | SelectAny
+      -- ^ Matches all UTxOs regardless of what assets they contain.
     deriving (Eq, Foldable, Functor, Show, Traversable)
 
 -- | Selects an entry at random from the index according to the given filter.
