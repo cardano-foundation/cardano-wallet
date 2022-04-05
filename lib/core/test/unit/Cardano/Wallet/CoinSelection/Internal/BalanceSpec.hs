@@ -1727,6 +1727,24 @@ prop_assetSelectionLens_givesPriorityToSingletonAssets
     -> Property
 prop_assetSelectionLens_givesPriorityToSingletonAssets (Blind (Small u)) =
     nonAdaAssetCount >= 2 ==> monadicIO $ do
+
+        -- TODO: ADP-1449
+        -- Use 'SelectSingleton' rather than 'SelectPairWith'.
+        --
+        -- Ideally, this function would test using 'SelectSingleton', rather
+        -- than 'SelectPairWith'.
+        --
+        -- However, our 'TokenBundle' generators currently have a distribution
+        -- that is skewed toward token bundles with *non-zero* ada quantities.
+        --
+        -- This means that only a *very small* proportion of generated token
+        -- bundles will have a single non-ada asset and no ada, and only very
+        -- few token bundles will be matched by 'SelectSingleton'.
+        --
+        -- Therefore, to ensure that we get sufficient coverage, we use the
+        -- 'SelectPairWith' filter condition, which will not match bundles with
+        -- more than two assets.
+        --
         hasSingletonAsset <- isJust <$>
             run (UTxOIndex.selectRandom u $
             SelectPairWith (Asset nonAdaAsset))
