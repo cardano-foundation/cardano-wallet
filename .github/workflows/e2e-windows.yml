@@ -22,7 +22,11 @@ jobs:
       run: Get-PSDrive
 
     - name: Checkout
-      run: git clone https://github.com/input-output-hk/cardano-wallet.git C:/cardano-wallet --depth 1
+      shell: bash
+      run: |
+        git clone https://github.com/input-output-hk/cardano-wallet.git C:/cardano-wallet --depth 1 --no-single-branch
+        cd /c/cardano-wallet
+        git checkout ${GITHUB_REF#refs/heads/}
 
     - name: Set up Ruby
       uses: ruby/setup-ruby@v1
