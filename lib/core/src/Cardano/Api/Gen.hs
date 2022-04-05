@@ -264,6 +264,9 @@ genEncodingBoundaryLovelace = do
     offset <- frequency
         [ (1, choose (-10, 10))
 
+        -- Either offset by -1 (just below boundary), or 0 (just above boundary)
+        , (1, choose (-1, 0))
+
         -- Offset by values close to common fee values, in both the positive
         -- and negative direction, with the hope that this helps find
         -- corner-cases.
