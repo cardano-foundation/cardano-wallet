@@ -174,9 +174,6 @@ module Cardano.Wallet.Api.Types
     , ApiAssetMintBurn (..)
     , ApiTokenAmountFingerprint (..)
     , ApiTokens (..)
-    , AnyScript (..)
-    , ApiPlutusScript (..)
-    , PlutusVersion (..)
 
     -- * API Types (Byron)
     , ApiByronWallet (..)
@@ -457,6 +454,9 @@ import Servant.API
     ( MimeRender (..), MimeUnrender (..), OctetStream )
 import Web.HttpApiData
     ( FromHttpApiData (..), ToHttpApiData (..) )
+import Cardano.Wallet.Transaction
+    ( AnyScript (..)
+    )
 
 import qualified Cardano.Crypto.Wallet as CC
 import qualified Cardano.Wallet.Primitive.AddressDerivation as AD
@@ -1240,39 +1240,9 @@ data ApiTokenAmountFingerprint = ApiTokenAmountFingerprint
     deriving (Eq, Generic, Show)
     deriving anyclass NFData
 
-data PlutusVersion =
-    PlutusVersionV1 | PlutusVersionV2
-    deriving (Eq, Generic, Show)
-    deriving anyclass NFData
-
-instance ToText PlutusVersion where
-    toText PlutusVersionV1 = "v1"
-    toText PlutusVersionV2 = "v2"
-
-instance FromText PlutusVersion where
-    fromText txt = case txt of
-        "v1" -> Right PlutusVersionV1
-        "v2" -> Right PlutusVersionV2
-        _ -> Left $ TextDecodingError $ unwords
-            [ "I couldn't parse the given plutus version."
-            , "I am expecting one of the words 'v1' or"
-            , "'v2'."]
-
-newtype ApiPlutusScript = ApiPlutusScript
-    { languageVersion :: PlutusVersion
-    }
-    deriving (Eq, Generic, Show)
-    deriving anyclass NFData
-
-data AnyScript =
-      TimelockScript !(ApiT (Script KeyHash))
-    | PlutusScript ApiPlutusScript
-    deriving (Eq, Generic, Show)
-    deriving anyclass NFData
-
 data ApiTokens = ApiTokens
     { policyId :: !(ApiT W.TokenPolicyId)
-    , policyScript :: !(ApiT (Script KeyHash))
+    , policyScript :: !(ApiT AnyScript)
     , assets :: !(NonEmpty ApiTokenAmountFingerprint)
     }
     deriving (Eq, Generic, Show)
@@ -2403,26 +2373,21 @@ instance FromJSON ApiMultiDelegationAction where
                 Leaving <$> o .: "stake_key_index"
             _ -> fail "ApiMultiDelegationAction needs either 'join' or 'quit', but not both"
 
-instance FromJSON ApiPlutusScript where
-    parseJSON = parseJSON >=> eitherToParser . bimap ShowFmt ApiPlutusScript . fromText
-instance ToJSON ApiPlutusScript where
-    toJSON (ApiPlutusScript v) = toJSON $ toText v
-
-instance FromJSON AnyScript where
-    parseJSON = withObject "AnyScript" $ \o -> do
-        scriptType <- o .:? "script_type"
+instance FromJSON (ApiT AnyScript) where
+    parseJSON = withObject "ApiT AnyScript" $ \obj -> do
+        scriptType <- obj .:? "script_type"
         case (scriptType :: Maybe String) of
-            Just "timelock" ->
-                PlutusScript <$> o .: "language_version"
-            Just "plutus" ->
-                TimelockScript <$> o .: "script"
+            Just t | t == "plutus"  ->
+                ApiT . PlutusScript <$> obj .: "language_version"
+            Just t | t == "timelock" ->
+                ApiT . TimelockScript <$> obj .: "script"
             _ -> fail "AnyScript needs either 'timelock' or 'plutus' in 'script_type'"
 
-instance ToJSON AnyScript where
-    toJSON (TimelockScript s) =
+instance ToJSON (ApiT AnyScript) where
+    toJSON (ApiT (TimelockScript s)) =
         object [ "script_type" .= String "timelock"
                , "script" .= toJSON s]
-    toJSON (PlutusScript v) =
+    toJSON (ApiT (PlutusScript v)) =
         object [ "script_type" .= String "plutus"
                , "language_version" .= toJSON v]
 

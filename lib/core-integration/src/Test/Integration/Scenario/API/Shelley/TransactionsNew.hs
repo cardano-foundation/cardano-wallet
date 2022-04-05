@@ -114,6 +114,8 @@ import Cardano.Wallet.Primitive.Types.Tx
     , getSealedTxBody
     , sealedTxFromCardanoBody
     )
+import Cardano.Wallet.Transaction
+    ( AnyScript (..) )
 import Cardano.Wallet.Unsafe
     ( unsafeFromHex, unsafeMkMnemonic )
 import Control.Arrow
@@ -1398,7 +1400,7 @@ spec = describe "NEW_SHELLEY_TRANSACTIONS" $ do
                 }
         let apiTokens = ApiTokens
                 { policyId = ApiT tokenPolicyId'
-                , policyScript = ApiT scriptUsed
+                , policyScript = ApiT (TimelockScript scriptUsed)
                 , assets = NE.fromList [apiTokenAmountFingerprint]
                 }
 
@@ -3789,7 +3791,7 @@ spec = describe "NEW_SHELLEY_TRANSACTIONS" $ do
                 }
         let apiTokens = ApiTokens
                 { policyId = ApiT tokenPolicyId'
-                , policyScript = ApiT scriptUsed
+                , policyScript = ApiT (TimelockScript scriptUsed)
                 , assets = NE.fromList [apiTokenAmountFingerprint]
                 }
 
@@ -3886,7 +3888,7 @@ spec = describe "NEW_SHELLEY_TRANSACTIONS" $ do
                 }
         let apiTokens = ApiTokens
                 { policyId = ApiT tokenPolicyId'
-                , policyScript = ApiT scriptUsed
+                , policyScript = ApiT (TimelockScript scriptUsed)
                 , assets = NE.fromList [apiTokenAmountFingerprint]
                 }
 

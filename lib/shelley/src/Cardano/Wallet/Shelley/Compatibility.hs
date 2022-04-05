@@ -224,7 +224,7 @@ import Cardano.Wallet.Shelley.Compatibility.Ledger
     , toWalletTokenQuantity
     )
 import Cardano.Wallet.Transaction
-    ( TokenMapWithScripts (..), emptyTokenMapWithScripts )
+    ( TokenMapWithScripts (..), emptyTokenMapWithScripts, AnyScript (..), PlutusVersion (..), PlutusScriptInfo (..) )
 import Cardano.Wallet.Unsafe
     ( unsafeIntToWord, unsafeMkPercentage )
 import Cardano.Wallet.Util
@@ -390,7 +390,6 @@ import qualified Ouroboros.Consensus.Shelley.Ledger as O
 import qualified Ouroboros.Network.Block as O
 import qualified Ouroboros.Network.Point as Point
 
-import qualified Debug.Trace as TR
 
 --------------------------------------------------------------------------------
 --
@@ -1347,7 +1346,7 @@ fromCardanoTx = \case
         Cardano.ShelleyBasedEraMary ->
             extract $ fromMaryTx tx
         Cardano.ShelleyBasedEraAlonzo ->
-            TR.trace ("tx:"<> show tx) $ extract $ fromAlonzoTx tx
+            extract $ fromAlonzoTx tx
     Cardano.ByronTx tx ->
         ( fromTxAux tx
         , emptyTokenMapWithScripts
@@ -1485,15 +1484,15 @@ fromMaryTx tx =
         :: Map
             (SL.ScriptHash (Crypto (MA.ShelleyMAEra 'MA.Mary StandardCrypto)))
             (SL.Core.Script (MA.ShelleyMAEra 'MA.Mary StandardCrypto))
-        -> Map TokenPolicyId (Script KeyHash)
+        -> Map TokenPolicyId AnyScript
     fromMaryScriptMap =
-        Map.map (toWalletScript Policy) .
+        Map.map (TimelockScript . toWalletScript Policy) .
         Map.mapKeys (toWalletTokenPolicyId . SL.PolicyID)
 
 getScriptMap
-    :: Map TokenPolicyId (Script KeyHash)
+    :: Map TokenPolicyId AnyScript
     -> TokenMap
-    -> Map TokenPolicyId (Script KeyHash)
+    -> Map TokenPolicyId AnyScript
 getScriptMap scriptMap =
     Map.fromList .
     map (\(policyid, (Just script)) -> (policyid, script)) .
@@ -1576,20 +1575,18 @@ fromAlonzoTxBodyAndAux bod mad wits =
         :: Map
             (SL.ScriptHash (Crypto StandardAlonzo))
             (SL.Core.Script StandardAlonzo)
-        -> Map TokenPolicyId (Script KeyHash)
-    fromAlonzoScriptMap anyScript =
-        if Map.filter isPlutusScript anyScript == Map.empty then
-            Map.map (toWalletScript Policy . unsafeGetTimelockScript) $
-            Map.mapKeys (toWalletTokenPolicyId . SL.PolicyID) anyScript
-        else
-            Map.empty
+        -> Map TokenPolicyId AnyScript
+    fromAlonzoScriptMap =
+        Map.map toAnyScript .
+        Map.mapKeys (toWalletTokenPolicyId . SL.PolicyID)
       where
-        isPlutusScript (Alonzo.PlutusScript _ _) = True
-        isPlutusScript _ = False
+        toAnyScript (Alonzo.TimelockScript script) =
+            TimelockScript $ toWalletScript Policy script
+        toAnyScript (Alonzo.PlutusScript ver _) =
+            PlutusScript (PlutusScriptInfo (toPlutusVer ver))
 
-        unsafeGetTimelockScript (Alonzo.TimelockScript script) = script
-        unsafeGetTimelockScript _ =
-            internalError "only timelock scripts should be attempted here"
+        toPlutusVer Alonzo.PlutusV1 = PlutusVersionV1
+        toPlutusVer Alonzo.PlutusV2 = PlutusVersionV2
 
     fromAlonzoTxOut
         :: Alonzo.TxOut (Cardano.ShelleyLedgerEra AlonzoEra)

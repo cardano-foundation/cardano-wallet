@@ -665,8 +665,6 @@ import qualified Network.Wai.Handler.Warp as Warp
 import qualified Network.Wai.Handler.WarpTLS as Warp
 import Cardano.Wallet.Api.Types.SchemaMetadata (TxMetadataWithSchema(TxMetadataWithSchema), TxMetadataSchema (TxMetadataDetailedSchema, TxMetadataNoSchema))
 
-import qualified Debug.Trace as TR
-
 -- | How the server should listen for incoming requests.
 data Listen
     = ListenOnPort Port
@@ -2456,7 +2454,7 @@ decodeTransaction ctx (ApiT wid) (ApiSerialisedTransaction (ApiT sealed)) = do
             , pp
             , policyXPubM
             )
-    TR.trace ("decodeTx:"<> show (decodeTx tl sealed)) $ pure $ ApiDecodedTransaction
+    pure $ ApiDecodedTransaction
         { id = ApiT txid
         , fee = maybe (Quantity 0) (Quantity . fromIntegral . unCoin) feeM
         , inputs = map toInp txinsOutsPaths
@@ -2485,7 +2483,8 @@ decodeTransaction ctx (ApiT wid) (ApiSerialisedTransaction (ApiT sealed)) = do
     askForScript policyId scriptMap =
         case Map.lookup policyId scriptMap of
             Just script -> script
-            Nothing -> error "askForScript: no minting/burning without script"
+            Nothing -> error "askForScript: no minting/burning without either\
+                             \ timelock or plutus script"
 
     toIdScriptAssets scriptmap tokenmap =
         [ (policy, askForScript policy scriptmap, tokenQuantities)
