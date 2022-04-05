@@ -610,6 +610,8 @@ data InvariantStatus
       -- ^ Indicates that the 'index' is missing one or more entries.
     | InvariantIndexNonMinimal
       -- ^ Indicates that the 'index' has one or more unnecessary entries.
+    | InvariantIndexInconsistent
+      -- ^ Indicates that the index sets are not consistent.
     | InvariantAssetsInconsistent
       -- ^ Indicates that the 'index' and the cached 'balance' value disagree
       --   about which assets are included.
@@ -625,6 +627,8 @@ checkInvariant i
         InvariantIndexIncomplete
     | not (indexIsMinimal i) =
         InvariantIndexNonMinimal
+    | not (indexIsConsistent i) =
+        InvariantIndexInconsistent
     | not (assetsConsistent i) =
         InvariantAssetsInconsistent
     | otherwise =
@@ -728,6 +732,38 @@ indexIsMinimal i = F.and
 
     entryMatches :: (TokenBundle -> Bool) -> u -> Bool
     entryMatches test u = maybe False test $ Map.lookup u $ universe i
+
+-- | Checks that index set relationships are correct.
+--
+indexIsConsistent :: Ord u => UTxOIndex u -> Bool
+indexIsConsistent i = F.and
+    [ indexSingletons i
+        `isDisjointTo` indexPairs i
+    , indexSingletons i
+        `isSubmapOf` indexAll i
+    , indexPairs i
+        `isSubmapOf` indexAll i
+    ]
+  where
+    isDisjointTo
+        :: Ord u
+        => Map a (NonEmptySet u)
+        -> Map a (NonEmptySet u)
+        -> Bool
+    isDisjointTo m1 m2 = s1 `Set.disjoint` s2
+      where
+        s1 = F.foldMap NonEmptySet.toSet m1
+        s2 = F.foldMap NonEmptySet.toSet m2
+
+    isSubmapOf
+        :: (Ord a, Ord u)
+        => Map a (NonEmptySet u)
+        -> Map a (NonEmptySet u)
+        -> Bool
+    isSubmapOf m1 m2 = Map.isSubmapOfBy isNonEmptySubsetOf m1 m2
+      where
+        isNonEmptySubsetOf s1 s2 =
+            NonEmptySet.toSet s1 `Set.isSubsetOf` NonEmptySet.toSet s2
 
 -- | Checks that the asset sets are consistent.
 --
