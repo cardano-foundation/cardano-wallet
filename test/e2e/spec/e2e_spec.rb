@@ -847,9 +847,6 @@ RSpec.describe "Cardano Wallet E2E tests", :e2e do
       # Tx2: Mints 500 more of A1 and burns 500 of A2
       # Tx3: Burns remaining 1000 of A2
       it "Can mint and burn in the same tx" do
-
-        skip "TODO MINT: Mint and burn fails in single tx"
-
         src_before = get_shelley_balances(@wid)
         address = SHELLEY.addresses.list(@wid).first['id']
         policy_script1 = { "some" => {"at_least" => 1, "from" => [ "cosigner#0" ]} }
@@ -922,7 +919,7 @@ RSpec.describe "Cardano Wallet E2E tests", :e2e do
         expect(assets_burned).to eq({}.to_set)
 
         # Burn all the rest:
-        burn = [burn(asset_name('Asset1'), 500, policy_script1)]
+        burn = [burn(asset_name('Asset1'), 1000, policy_script1)]
         tx_constructed, tx_signed, tx_submitted = construct_sign_submit(@wid,
                                                                         payments = nil,
                                                                         withdrawal = nil,
@@ -941,8 +938,8 @@ RSpec.describe "Cardano Wallet E2E tests", :e2e do
         src_after_burning = get_shelley_balances(@wid)
 
         # verify ADA balance is correct (fee is deducted)
-        expect(src_after_minting_burning['available']).to eq (src_after_minting['available'] - expected_fee)
-        expect(src_after_minting_burning['total']).to eq (src_after_minting['total'] - expected_fee)
+        expect(src_after_burning['available']).to eq (src_after_minting_burning['available'] - expected_fee)
+        expect(src_after_burning['total']).to eq (src_after_minting_burning['total'] - expected_fee)
 
         # verify Asset1 has been burned
         assets_burned_to_check = get_assets_from_decode(tx_decoded['burn'])
