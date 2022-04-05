@@ -160,10 +160,14 @@ module Helpers
       end
     end
 
+    ##
+    # Latest Cardano configs
     def get_latest_configs_base_url
       "https://hydra.iohk.io/job/Cardano/iohk-nix/cardano-deployment/latest/download/1"
     end
 
+    ##
+    # Latest node-db snapshot updated at the end of every epoch
     def get_latest_node_db_url(env)
       raise "Unsupported env, supported are: 'mainnet' or 'testnet'" if (env != 'testnet') && (env != 'mainnet')
       case env
