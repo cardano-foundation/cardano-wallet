@@ -24,10 +24,6 @@ jobs:
     - name: Checkout
       run: git clone https://github.com/input-output-hk/cardano-wallet.git C:/cardano-wallet --depth 1
 
-    - name: Working directory update
-      working-directory: C:/cardano-wallet/test/e2e
-      run: cd C:/cardano-wallet/test/e2e
-
     - name: Set up Ruby
       uses: ruby/setup-ruby@v1
       with:
@@ -35,6 +31,7 @@ jobs:
         bundler-cache: true
 
     - name: Install dependencies
+      working-directory: C:/cardano-wallet/test/e2e
       run: bundle install
 
     - name: Prepare Windows
@@ -44,12 +41,14 @@ jobs:
         choco install nssm
 
     - name: 🕒 Get Date/Time
+      working-directory: C:/cardano-wallet/test/e2e
       id: date-time
       shell: bash
       run: |
         echo "::set-output name=value::$(rake datetime)"
 
     - name: 💽 Get latest node db
+      working-directory: C:/cardano-wallet/test/e2e
       run: rake get_latest_node_db[%NETWORK%]
 
     - name: 💾 Cache wallet db
@@ -62,21 +61,27 @@ jobs:
           wallet-db-${{ runner.os }}-${{ env.NETWORK }}-
 
     - name: ⚙️ Setup (get latest bins and configs and decode fixtures)
+      working-directory: C:/cardano-wallet/test/e2e
       run: rake setup[%NETWORK%,%PR%]
 
     - name: 🔍 Display versions
+      working-directory: C:/cardano-wallet/test/e2e
       run: rake display_versions
 
     - name: 🚀 Start node and wallet
+      working-directory: C:/cardano-wallet/test/e2e
       run: rake start_node_and_wallet[%NETWORK%]
 
     - name: ⏳ Wait until node is synced
+      working-directory: C:/cardano-wallet/test/e2e
       run: rake wait_until_node_synced
 
     - name: 🧪 Run all tests
+      working-directory: C:/cardano-wallet/test/e2e
       run: rake spec
 
     - name: 🏁 Stop node and wallet
+      working-directory: C:/cardano-wallet/test/e2e
       run: rake stop_node_and_wallet[%NETWORK%]
 
     - name: 📎 Upload logs
@@ -84,7 +89,7 @@ jobs:
       if: always()
       with:
         name: ${{ runner.os }}-logs
-        path: test/e2e/state/logs
+        path: C:/cardano-wallet/test/e2e/state/logs
 
     env:
       NETWORK: ${{ github.event.inputs.network || 'testnet' }}
