@@ -179,6 +179,7 @@ import Cardano.Wallet.Transaction
     , TxFeeUpdate (..)
     , TxUpdate (..)
     , withdrawalToCoin
+    , AnyScript (..)
     )
 import Cardano.Wallet.Util
     ( internalError, modifyM )
@@ -484,9 +485,14 @@ signTransaction
             L.nub $ getScripts toMint <> getScripts toBurn
 
     getScripts :: TokenMapWithScripts -> [KeyHash]
-    getScripts s =
-        let retrieveAllKeyHashes = foldScript (:) []
-        in concatMap retrieveAllKeyHashes $ Map.elems $ s ^. #txScripts
+    getScripts scripts =
+        let retrieveAllKeyHashes (TimelockScript s) = foldScript (:) [] s
+            retrieveAllKeyHashes _ = []
+            isTimelock (TimelockScript _) = True
+            isTimelock _ = False
+        in concatMap retrieveAllKeyHashes $
+           filter isTimelock $
+           Map.elems $ scripts ^. #txScripts
 
     mkTxInWitness :: TxIn -> Maybe (Cardano.KeyWitness era)
     mkTxInWitness i = do
