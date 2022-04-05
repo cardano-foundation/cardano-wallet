@@ -7,6 +7,7 @@
 {-# LANGUAGE LambdaCase #-}
 {-# LANGUAGE NamedFieldPuns #-}
 {-# LANGUAGE OverloadedLabels #-}
+{-# LANGUAGE OverloadedLists #-}
 {-# LANGUAGE RecordWildCards #-}
 {-# LANGUAGE ScopedTypeVariables #-}
 {-# LANGUAGE StandaloneDeriving #-}
@@ -141,7 +142,7 @@ import Cardano.Wallet.Primitive.Types.TokenQuantity
 import Cardano.Wallet.Primitive.Types.Tx
     ( TokenBundleSizeAssessment (..), TokenBundleSizeAssessor (..) )
 import Cardano.Wallet.Primitive.Types.UTxOIndex
-    ( SelectionFilter (..), UTxOIndex (..) )
+    ( Asset (..), SelectionFilter (..), UTxOIndex (..) )
 import Cardano.Wallet.Primitive.Types.UTxOSelection
     ( IsUTxOSelection, UTxOSelection, UTxOSelectionNonEmpty )
 import Control.Monad.Extra
@@ -757,7 +758,7 @@ deriving instance SelectionContext ctx =>
 
 instance SelectionContext ctx => Buildable (InsufficientMinCoinValueError ctx)
   where
-    build (InsufficientMinCoinValueError (a, b) c) = unlinesF
+    build (InsufficientMinCoinValueError (a, b) c) = unlinesF @[]
         [ nameF "Expected min coin value" (build c)
         , nameF "Address" (build a)
         , nameF "Token bundle" (build (Flat b))
@@ -1102,7 +1103,7 @@ performSelectionNonEmpty constraints params
             , assetsToBurn
             }
 
-        selectOneEntry = selectCoinQuantity selectionLimit
+        selectOneEntry = selectQuantityOf AssetLovelace selectionLimit
 
         requiredCost = computeMinimumCost SelectionSkeleton
             { skeletonInputCount = UTxOSelection.selectedSize s
@@ -1149,7 +1150,9 @@ runSelectionNonEmpty
     => RunSelectionParams u
     -> m (Maybe (UTxOSelectionNonEmpty u))
 runSelectionNonEmpty = (=<<)
-    <$> runSelectionNonEmptyWith . selectCoinQuantity . view #selectionLimit
+    <$> runSelectionNonEmptyWith
+        . selectQuantityOf AssetLovelace
+        . view #selectionLimit
     <*> runSelection
 
 runSelectionNonEmptyWith
@@ -1203,7 +1206,7 @@ assetSelectionLens limit strategy (asset, minimumAssetQuantity) = SelectionLens
     { currentQuantity = selectedAssetQuantity asset
     , updatedQuantity = selectedAssetQuantity asset
     , minimumQuantity = unTokenQuantity minimumAssetQuantity
-    , selectQuantity = selectAssetQuantity asset limit
+    , selectQuantity = selectQuantityOf (Asset asset) limit
     , selectionStrategy = strategy
     }
 
@@ -1218,32 +1221,22 @@ coinSelectionLens limit strategy minimumCoinQuantity = SelectionLens
     { currentQuantity = selectedCoinQuantity
     , updatedQuantity = selectedCoinQuantity
     , minimumQuantity = intCast $ unCoin minimumCoinQuantity
-    , selectQuantity  = selectCoinQuantity limit
+    , selectQuantity  = selectQuantityOf AssetLovelace limit
     , selectionStrategy = strategy
     }
 
--- | Specializes 'selectMatchingQuantity' to a particular asset.
---
-selectAssetQuantity
+selectQuantityOf
     :: (MonadRandom m, Ord u)
     => IsUTxOSelection utxoSelection u
-    => AssetId
+    => Asset
     -> SelectionLimit
     -> utxoSelection u
     -> m (Maybe (UTxOSelectionNonEmpty u))
-selectAssetQuantity asset =
-    selectMatchingQuantity (WithAssetOnly asset :| [WithAsset asset])
-
--- | Specializes 'selectMatchingQuantity' to ada.
---
-selectCoinQuantity
-    :: (MonadRandom m, Ord u)
-    => IsUTxOSelection utxoSelection u
-    => SelectionLimit
-    -> utxoSelection u
-    -> m (Maybe (UTxOSelectionNonEmpty u))
-selectCoinQuantity =
-    selectMatchingQuantity (WithAdaOnly :| [Any])
+selectQuantityOf a = selectMatchingQuantity
+    [ SelectSingleton a
+    , SelectPairWith a
+    , SelectAnyWith a
+    ]
 
 -- | Selects a UTxO entry that matches one of the specified filters.
 --
@@ -1264,7 +1257,7 @@ selectCoinQuantity =
 selectMatchingQuantity
     :: forall m utxoSelection u. (MonadRandom m, Ord u)
     => IsUTxOSelection utxoSelection u
-    => NonEmpty SelectionFilter
+    => NonEmpty (SelectionFilter Asset)
         -- ^ A list of selection filters to be traversed from left-to-right,
         -- in descending order of priority.
     -> SelectionLimit

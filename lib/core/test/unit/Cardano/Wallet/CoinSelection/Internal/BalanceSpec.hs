@@ -140,7 +140,7 @@ import Cardano.Wallet.Primitive.Types.TokenQuantity.Gen
 import Cardano.Wallet.Primitive.Types.Tx
     ( TokenBundleSizeAssessment (..), TokenBundleSizeAssessor (..) )
 import Cardano.Wallet.Primitive.Types.UTxOIndex
-    ( SelectionFilter (..), UTxOIndex )
+    ( Asset (..), SelectionFilter (..), UTxOIndex )
 import Cardano.Wallet.Primitive.Types.UTxOIndex.Gen
     ( genUTxOIndex, genUTxOIndexLarge, genUTxOIndexLargeN, shrinkUTxOIndex )
 import Cardano.Wallet.Primitive.Types.UTxOSelection
@@ -342,9 +342,9 @@ spec = describe "Cardano.Wallet.CoinSelection.Internal.BalanceSpec" $
 
     parallel $ describe "Behaviour of selection lenses" $ do
 
-        it "prop_assetSelectonLens_givesPriorityToSingletonAssets" $
+        it "prop_assetSelectionLens_givesPriorityToSingletonAssets" $
             property prop_assetSelectionLens_givesPriorityToSingletonAssets
-        it "prop_coinSelectonLens_givesPriorityToCoins" $
+        it "prop_coinSelectionLens_givesPriorityToCoins" $
             property prop_coinSelectionLens_givesPriorityToCoins
 
     parallel $ describe "Boundary tests" $ do
@@ -1726,9 +1726,28 @@ prop_assetSelectionLens_givesPriorityToSingletonAssets
     :: Blind (Small (UTxOIndex TestUTxO))
     -> Property
 prop_assetSelectionLens_givesPriorityToSingletonAssets (Blind (Small u)) =
-    assetCount >= 2 ==> monadicIO $ do
+    nonAdaAssetCount >= 2 ==> monadicIO $ do
+
+        -- TODO: ADP-1449
+        -- Use 'SelectSingleton' rather than 'SelectPairWith'.
+        --
+        -- Ideally, this function would test using 'SelectSingleton', rather
+        -- than 'SelectPairWith'.
+        --
+        -- However, our 'TokenBundle' generators currently have a distribution
+        -- that is skewed toward token bundles with *non-zero* ada quantities.
+        --
+        -- This means that only a *very small* proportion of generated token
+        -- bundles will have a single non-ada asset and no ada, and only very
+        -- few token bundles will be matched by 'SelectSingleton'.
+        --
+        -- Therefore, to ensure that we get sufficient coverage, we use the
+        -- 'SelectPairWith' filter condition, which will not match bundles with
+        -- more than two assets.
+        --
         hasSingletonAsset <- isJust <$>
-            run (UTxOIndex.selectRandom u $ WithAssetOnly asset)
+            run (UTxOIndex.selectRandom u $
+            SelectPairWith (Asset nonAdaAsset))
         monitor $ cover 20 hasSingletonAsset
             "There is at least one singleton entry that matches"
         monitor $ cover 20 (not hasSingletonAsset)
@@ -1746,17 +1765,17 @@ prop_assetSelectionLens_givesPriorityToSingletonAssets (Blind (Small u)) =
                 let bundle = NE.head $ snd <$> UTxOSelection.selectedList result
                 case F.toList $ TokenBundle.getAssets bundle of
                     [a] -> assertWith
-                        "a == asset"
-                        (a == asset)
+                        "a == nonAdaAsset"
+                        (a == nonAdaAsset)
                     _ -> assertWith
                         "not hasSingletonAsset"
                         (not hasSingletonAsset)
   where
-    asset = Set.findMin $ UTxOIndex.assets u
-    assetCount = Set.size $ UTxOIndex.assets u
+    nonAdaAsset = Set.findMin (utxoIndexNonAdaAssets u)
+    nonAdaAssetCount = Set.size (utxoIndexNonAdaAssets u)
     initialState = UTxOSelection.fromIndex u
     lens = assetSelectionLens
-        NoLimit SelectionStrategyOptimal (asset, minimumAssetQuantity)
+        NoLimit SelectionStrategyOptimal (nonAdaAsset, minimumAssetQuantity)
     minimumAssetQuantity = TokenQuantity 1
 
 prop_coinSelectionLens_givesPriorityToCoins
@@ -1764,7 +1783,8 @@ prop_coinSelectionLens_givesPriorityToCoins
     -> Property
 prop_coinSelectionLens_givesPriorityToCoins (Blind (Small u)) =
     entryCount > 0 ==> monadicIO $ do
-        hasCoin <- isJust <$> run (UTxOIndex.selectRandom u WithAdaOnly)
+        hasCoin <- isJust <$>
+            run (UTxOIndex.selectRandom u (SelectSingleton AssetLovelace))
         monitor $ cover 20 hasCoin
             "There is at least one coin"
         monitor $ cover 1 (not hasCoin)
@@ -4404,6 +4424,18 @@ unitTests :: String -> [Expectation] -> SpecWith ()
 unitTests lbl cases =
     forM_ (zip [1..] cases) $ \(i, test) ->
         it (lbl <> " example #" <> show @Int i) test
+
+utxoIndexNonAdaAssets :: UTxOIndex u -> Set AssetId
+utxoIndexNonAdaAssets
+    = Set.fromList
+    . Maybe.mapMaybe toNonAdaAsset
+    . Set.toList
+    . UTxOIndex.assets
+
+toNonAdaAsset :: Asset -> Maybe AssetId
+toNonAdaAsset = \case
+    AssetLovelace -> Nothing
+    Asset assetId -> Just assetId
 
 --------------------------------------------------------------------------------
 -- Selection contexts
