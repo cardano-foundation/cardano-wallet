@@ -2243,8 +2243,8 @@ balanceTransactionSpec = do
                 . CBOR.encodeWord64 . coinToWord64Clamped
 
         let isBoundary c =
-                sizeOfCoin c /= sizeOfCoin (c `Coin.difference` (Coin 1))
-                || sizeOfCoin c /= sizeOfCoin (c `Coin.add` (Coin 1))
+                sizeOfCoin c /= sizeOfCoin (c `Coin.difference` Coin 1)
+                || sizeOfCoin c /= sizeOfCoin (c `Coin.add` Coin 1)
 
         it "matches the size of the Word64 CBOR encoding" $
             property $ checkCoverage $
@@ -2289,7 +2289,7 @@ balanceTransactionSpec = do
                 let feePolicy = LinearFee $ LinearFunction 1 0
                 let res = costOfIncreasingCoin feePolicy c increase
                 counterexample (show res <> "out of bounds") $
-                    res >= (Coin 0) && res <= (Coin 8)
+                    res >= Coin 0 && res <= Coin 8
 
 -- https://mail.haskell.org/pipermail/haskell-cafe/2016-August/124742.html
 mkGen :: (QCGen -> a) -> Gen a
