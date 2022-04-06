@@ -396,15 +396,6 @@ checkCoverage_filter_partition f i
 -- Index selection properties
 --------------------------------------------------------------------------------
 
--- | The set of possible 'SelectionFilter' categories.
---
-data SelectionFilterCategory
-    = MatchAny
-    | MatchWithAdaOnly
-    | MatchWithAsset
-    | MatchWithAssetOnly
-    deriving (Eq, Show)
-
 prop_SelectionFilter_coverage :: SelectionFilter Asset -> Property
 prop_SelectionFilter_coverage selectionFilter = checkCoverage $ property
     $ cover 20 (category == SelectSingleton ())
