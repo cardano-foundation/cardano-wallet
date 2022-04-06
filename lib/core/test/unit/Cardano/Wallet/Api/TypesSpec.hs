@@ -2242,12 +2242,12 @@ instance Arbitrary ApiTokens where
         policyid <- arbitrary
         let keyhash = KeyHash Policy $ getHash $ unTokenPolicyId policyid
         script <- elements
-            [ ApiT $ TimelockScript $ RequireSignatureOf keyhash
-            , ApiT $ TimelockScript $ RequireAllOf
+            [ ApiT $ NativeScript $ RequireSignatureOf keyhash
+            , ApiT $ NativeScript $ RequireAllOf
                 [ RequireSignatureOf keyhash
                 , ActiveFromSlot 100
                 ]
-            , ApiT $ TimelockScript $ RequireAllOf
+            , ApiT $ NativeScript $ RequireAllOf
                 [ RequireSignatureOf keyhash
                 , ActiveFromSlot 100
                 , ActiveUntilSlot 150

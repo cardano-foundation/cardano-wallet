@@ -342,6 +342,8 @@ import Cardano.Wallet.Primitive.Types.UTxO
     ( BoundType, HistogramBar (..), UTxOStatistics (..) )
 import Cardano.Wallet.TokenMetadata
     ( TokenMetadataError (..) )
+import Cardano.Wallet.Transaction
+    ( AnyScript (..) )
 import Cardano.Wallet.Util
     ( ShowFmt (..) )
 import Codec.Binary.Bech32
@@ -454,9 +456,6 @@ import Servant.API
     ( MimeRender (..), MimeUnrender (..), OctetStream )
 import Web.HttpApiData
     ( FromHttpApiData (..), ToHttpApiData (..) )
-import Cardano.Wallet.Transaction
-    ( AnyScript (..)
-    )
 
 import qualified Cardano.Crypto.Wallet as CC
 import qualified Cardano.Wallet.Primitive.AddressDerivation as AD
@@ -2379,13 +2378,13 @@ instance FromJSON (ApiT AnyScript) where
         case (scriptType :: Maybe String) of
             Just t | t == "plutus"  ->
                 ApiT . PlutusScript <$> obj .: "language_version"
-            Just t | t == "timelock" ->
-                ApiT . TimelockScript <$> obj .: "script"
-            _ -> fail "AnyScript needs either 'timelock' or 'plutus' in 'script_type'"
+            Just t | t == "native" ->
+                ApiT . NativeScript <$> obj .: "script"
+            _ -> fail "AnyScript needs either 'native' or 'plutus' in 'script_type'"
 
 instance ToJSON (ApiT AnyScript) where
-    toJSON (ApiT (TimelockScript s)) =
-        object [ "script_type" .= String "timelock"
+    toJSON (ApiT (NativeScript s)) =
+        object [ "script_type" .= String "native"
                , "script" .= toJSON s]
     toJSON (ApiT (PlutusScript v)) =
         object [ "script_type" .= String "plutus"

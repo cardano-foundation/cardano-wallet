@@ -224,7 +224,12 @@ import Cardano.Wallet.Shelley.Compatibility.Ledger
     , toWalletTokenQuantity
     )
 import Cardano.Wallet.Transaction
-    ( TokenMapWithScripts (..), emptyTokenMapWithScripts, AnyScript (..), PlutusVersion (..), PlutusScriptInfo (..) )
+    ( AnyScript (..)
+    , PlutusScriptInfo (..)
+    , PlutusVersion (..)
+    , TokenMapWithScripts (..)
+    , emptyTokenMapWithScripts
+    )
 import Cardano.Wallet.Unsafe
     ( unsafeIntToWord, unsafeMkPercentage )
 import Cardano.Wallet.Util
@@ -268,7 +273,7 @@ import Data.List
 import Data.Map.Strict
     ( Map )
 import Data.Maybe
-    ( fromMaybe, isJust, mapMaybe)
+    ( fromMaybe, isJust, mapMaybe )
 import Data.Proxy
     ( Proxy (..) )
 import Data.Quantity
@@ -1486,7 +1491,7 @@ fromMaryTx tx =
             (SL.Core.Script (MA.ShelleyMAEra 'MA.Mary StandardCrypto))
         -> Map TokenPolicyId AnyScript
     fromMaryScriptMap =
-        Map.map (TimelockScript . toWalletScript Policy) .
+        Map.map (NativeScript . toWalletScript Policy) .
         Map.mapKeys (toWalletTokenPolicyId . SL.PolicyID)
 
 getScriptMap
@@ -1581,7 +1586,7 @@ fromAlonzoTxBodyAndAux bod mad wits =
         Map.mapKeys (toWalletTokenPolicyId . SL.PolicyID)
       where
         toAnyScript (Alonzo.TimelockScript script) =
-            TimelockScript $ toWalletScript Policy script
+            NativeScript $ toWalletScript Policy script
         toAnyScript (Alonzo.PlutusScript ver _) =
             PlutusScript (PlutusScriptInfo (toPlutusVer ver))
 

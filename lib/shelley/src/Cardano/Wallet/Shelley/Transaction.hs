@@ -169,7 +169,8 @@ import Cardano.Wallet.Shelley.Compatibility
 import Cardano.Wallet.Shelley.Compatibility.Ledger
     ( computeMinimumAdaQuantity, toAlonzoTxOut )
 import Cardano.Wallet.Transaction
-    ( DelegationAction (..)
+    ( AnyScript (..)
+    , DelegationAction (..)
     , ErrAssignRedeemers (..)
     , ErrMkTransaction (..)
     , ErrUpdateSealedTx (..)
@@ -179,7 +180,6 @@ import Cardano.Wallet.Transaction
     , TxFeeUpdate (..)
     , TxUpdate (..)
     , withdrawalToCoin
-    , AnyScript (..)
     )
 import Cardano.Wallet.Util
     ( internalError, modifyM )
@@ -486,9 +486,9 @@ signTransaction
 
     getScripts :: TokenMapWithScripts -> [KeyHash]
     getScripts scripts =
-        let retrieveAllKeyHashes (TimelockScript s) = foldScript (:) [] s
+        let retrieveAllKeyHashes (NativeScript s) = foldScript (:) [] s
             retrieveAllKeyHashes _ = []
-            isTimelock (TimelockScript _) = True
+            isTimelock (NativeScript _) = True
             isTimelock _ = False
         in concatMap retrieveAllKeyHashes $
            filter isTimelock $

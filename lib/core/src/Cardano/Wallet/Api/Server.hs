@@ -2484,7 +2484,7 @@ decodeTransaction ctx (ApiT wid) (ApiSerialisedTransaction (ApiT sealed)) = do
         case Map.lookup policyId scriptMap of
             Just script -> script
             Nothing -> error "askForScript: no minting/burning without either\
-                             \ timelock or plutus script"
+                             \ native or plutus script"
 
     toIdScriptAssets scriptmap tokenmap =
         [ (policy, askForScript policy scriptmap, tokenQuantities)
