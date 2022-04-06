@@ -66,5 +66,5 @@ withNetworkLayer tr blockchainSrc net netParams tol =
             in Node.withNetworkLayer tr' net netParams nodeConn ver tol
         BlockfrostSource project ->
             let tr' = BlockfrostNetworkLog >$< tr
-            in Blockfrost.withNetworkLayer tr' net project netParams
+            in Blockfrost.withNetworkLayer tr' net netParams project
 

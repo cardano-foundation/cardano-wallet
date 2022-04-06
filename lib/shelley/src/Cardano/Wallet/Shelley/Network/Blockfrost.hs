@@ -185,11 +185,11 @@ instance HasSeverityAnnotation Log where
 withNetworkLayer
     :: Tracer IO Log
     -> NetworkId
-    -> BF.Project
     -> NetworkParameters
+    -> BF.Project
     -> (NetworkLayer IO (CardanoBlock StandardCrypto) -> IO a)
     -> IO a
-withNetworkLayer tr net project np k = k NetworkLayer
+withNetworkLayer tr net np project k = k NetworkLayer
     { chainSync = \_tr _chainFollower -> pure ()
     , lightSync = Nothing
     , currentNodeTip
