@@ -2494,7 +2494,7 @@ decodeTransaction ctx (ApiT wid) (ApiSerialisedTransaction (ApiT sealed)) = do
     toTokenAmountFingerprint policy (name, tokenquantity) =
         ApiTokenAmountFingerprint
             { assetName = ApiT name
-            , amount = Quantity $ unTokenQuantity tokenquantity
+            , quantity = unTokenQuantity tokenquantity
             , fingerprint = ApiT $ mkTokenFingerprint policy name
             }
 

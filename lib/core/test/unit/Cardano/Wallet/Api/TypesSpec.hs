@@ -2234,7 +2234,7 @@ instance Arbitrary ApiTokenAmountFingerprint where
         policyid <- arbitrary
         let fingerprint = ApiT $ mkTokenFingerprint policyid name
         ApiTokenAmountFingerprint (ApiT name)
-            <$> (Quantity . fromIntegral <$> choose @Int (1, 10000))
+            <$> (fromIntegral <$> choose @Int (1, 10000))
             <*> pure fingerprint
 
 instance Arbitrary ApiTokens where

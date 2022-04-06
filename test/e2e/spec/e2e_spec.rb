@@ -1,3 +1,4 @@
+# coding: utf-8
 RSpec.describe "Cardano Wallet E2E tests", :e2e do
 
   before(:all) do
@@ -116,7 +117,7 @@ RSpec.describe "Cardano Wallet E2E tests", :e2e do
       assets = [ {"policy_script" => {"language_version" => "v1", "script_type" => "plutus"},
                   "policy_id" => policy_id,
                   "assets" => [ {"fingerprint" => "asset1q78ea9ds0rc3tfwu2damsjehjup2xuzddtg6xh",
-                                 "amount" => {"quantity" => 1, "unit" => "assets"},
+                                 "quantity" => 1,
                                  "asset_name" => asset_name("mint-burn") } ]
                   }
                 ]

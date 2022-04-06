@@ -1394,7 +1394,7 @@ spec = describe "NEW_SHELLEY_TRANSACTIONS" $ do
 
         let apiTokenAmountFingerprint = ApiTokenAmountFingerprint
                 { assetName = ApiT tokenName'
-                , amount = Quantity 50_000
+                , quantity = 50_000
                 , fingerprint =
                     ApiT $ mkTokenFingerprint tokenPolicyId' tokenName'
                 }
@@ -3785,7 +3785,7 @@ spec = describe "NEW_SHELLEY_TRANSACTIONS" $ do
 
         let apiTokenAmountFingerprint = ApiTokenAmountFingerprint
                 { assetName = ApiT tokenName'
-                , amount = Quantity 50_000
+                , quantity = 50_000
                 , fingerprint =
                     ApiT $ mkTokenFingerprint tokenPolicyId' tokenName'
                 }
@@ -3882,7 +3882,7 @@ spec = describe "NEW_SHELLEY_TRANSACTIONS" $ do
                 unScriptHash $ toScriptHash scriptUsed
         let apiTokenAmountFingerprint = ApiTokenAmountFingerprint
                 { assetName = ApiT tokenName'
-                , amount = Quantity 50_000
+                , quantity = 50_000
                 , fingerprint =
                     ApiT $ mkTokenFingerprint tokenPolicyId' tokenName'
                 }
