@@ -28,9 +28,11 @@ import Cardano.Wallet.Primitive.Types.UTxOIndex.Gen
     ( genUTxOIndex, shrinkUTxOIndex )
 import Cardano.Wallet.Primitive.Types.UTxOIndex.Internal
     ( Asset (..)
+    , BundleCategory (..)
     , InvariantStatus (..)
     , SelectionFilter (..)
     , UTxOIndex
+    , categorizeTokenBundle
     , checkInvariant
     )
 import Control.Monad.Random.Class
@@ -743,6 +745,49 @@ prop_selectRandomSetMember_coversRangeUniformly i j =
 --------------------------------------------------------------------------------
 -- Utilities
 --------------------------------------------------------------------------------
+
+-- | Indicates whether or not a token bundle of the given category should be
+--   matched by the given selection filter.
+--
+selectionFilterMatchesBundleCategory
+    :: Ord asset
+    => SelectionFilter asset
+    -> BundleCategory asset
+    -> Bool
+selectionFilterMatchesBundleCategory selectionFilter category =
+    case selectionFilter of
+        SelectSingleton asset ->
+            case category of
+                BundleWithNoAssets ->
+                    False
+                BundleWithOneAsset asset1 ->
+                    asset1 == asset
+                BundleWithTwoAssets _ ->
+                    False
+                BundleWithMultipleAssets _ ->
+                    False
+        SelectPairWith asset ->
+            case category of
+                BundleWithNoAssets ->
+                    False
+                BundleWithOneAsset _ ->
+                    False
+                BundleWithTwoAssets (asset1, asset2) ->
+                    asset1 == asset || asset2 == asset
+                BundleWithMultipleAssets _ ->
+                    False
+        SelectAnyWith asset ->
+            case category of
+                BundleWithNoAssets ->
+                    False
+                BundleWithOneAsset asset1 ->
+                    asset1 == asset
+                BundleWithTwoAssets (asset1, asset2) ->
+                    asset1 == asset || asset2 == asset
+                BundleWithMultipleAssets assets ->
+                    Set.member asset assets
+        SelectAny ->
+            True
 
 -- | Selects all UTxO entries matching a particular filter.
 --
