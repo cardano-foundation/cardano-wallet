@@ -79,20 +79,6 @@ x-absoluteSlot: &absoluteSlot
   minimum: 0
   example: 8086
 
-x-tokenAmount: &tokenAmount
-  type: object
-  required:
-    - quantity
-    - unit
-  properties:
-    quantity:
-      type: integer
-      minimum: 1
-      example: 42000
-    unit:
-      type: string
-      enum: ["assets"]
-
 x-numberOfSlots: &numberOfSlots
   type: object
   required:
@@ -2424,11 +2410,11 @@ components:
       type: object
       required:
         - asset_name
-        - amount
+        - quantity
         - fingerprint
       properties:
        asset_name: *assetName
-       amount: *tokenAmount
+       quantity: *assetQuantity
        fingerprint: *assetFingerprint
 
     AnyScript: &AnyScript

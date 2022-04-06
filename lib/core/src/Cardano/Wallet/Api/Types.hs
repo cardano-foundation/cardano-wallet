@@ -1232,7 +1232,7 @@ newtype ApiPostPolicyKeyData = ApiPostPolicyKeyData
 
 data ApiTokenAmountFingerprint = ApiTokenAmountFingerprint
     { assetName :: !(ApiT W.TokenName)
-    , amount :: !(Quantity "assets" Natural)
+    , quantity :: !Natural
     , fingerprint :: !(ApiT W.TokenFingerprint)
     }
     deriving (Eq, Generic, Show)
