@@ -1340,7 +1340,7 @@ spec = describe "NEW_SHELLEY_TRANSACTIONS" $ do
                 }
         let apiTokens = ApiTokens
                 { policyId = ApiT tokenPolicyId'
-                , policyScript = ApiT (TimelockScript scriptUsed)
+                , policyScript = ApiT (NativeScript scriptUsed)
                 , assets = NE.fromList [apiTokenAmountFingerprint]
                 }
 
@@ -3731,7 +3731,7 @@ spec = describe "NEW_SHELLEY_TRANSACTIONS" $ do
                 }
         let apiTokens = ApiTokens
                 { policyId = ApiT tokenPolicyId'
-                , policyScript = ApiT (TimelockScript scriptUsed)
+                , policyScript = ApiT (NativeScript scriptUsed)
                 , assets = NE.fromList [apiTokenAmountFingerprint]
                 }
 
@@ -3828,7 +3828,7 @@ spec = describe "NEW_SHELLEY_TRANSACTIONS" $ do
                 }
         let apiTokens = ApiTokens
                 { policyId = ApiT tokenPolicyId'
-                , policyScript = ApiT (TimelockScript scriptUsed)
+                , policyScript = ApiT (NativeScript scriptUsed)
                 , assets = NE.fromList [apiTokenAmountFingerprint]
                 }
 

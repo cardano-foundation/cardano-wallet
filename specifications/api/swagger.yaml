@@ -2440,7 +2440,7 @@ components:
           properties:
             script_type:
               type: string
-              enum: ["timelock"]
+              enum: ["native"]
             script: *ScriptValue
         - type: object
           required:

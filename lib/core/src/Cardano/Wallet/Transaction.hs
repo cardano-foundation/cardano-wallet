@@ -408,7 +408,7 @@ instance ToJSON PlutusScriptInfo where
     toJSON (PlutusScriptInfo v) = toJSON $ toText v
 
 data AnyScript =
-      TimelockScript !(Script KeyHash)
+      NativeScript !(Script KeyHash)
     | PlutusScript !PlutusScriptInfo
     deriving (Eq, Generic, Show)
     deriving anyclass NFData
