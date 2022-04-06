@@ -164,14 +164,6 @@ spec =
             property prop_selectRandom_empty
         it "prop_selectRandom_all" $
             property prop_selectRandom_all
-        it "prop_selectRandom_all_any" $
-            property prop_selectRandom_all_any
-        it "prop_selectRandom_all_withAdaOnly" $
-            property prop_selectRandom_all_withAdaOnly
-        it "prop_selectRandom_all_withAsset" $
-            property prop_selectRandom_all_withAsset
-        it "prop_selectRandom_all_withAssetOnly" $
-            property prop_selectRandom_all_withAssetOnly
         it "prop_selectRandomWithPriority" $
             property prop_selectRandomWithPriority
 
@@ -548,77 +540,6 @@ prop_selectRandom_all index f = monadicIO $
                 $ all (not . selectionFilterMatchesBundleCategory f)
                 $ categorizeTokenBundle . snd <$> UTxOIndex.toList indexReduced
             ]
-
--- | Attempt to select all entries from the index.
---
--- This should always succeed.
---
-prop_selectRandom_all_any :: UTxOIndex TestUTxO -> Property
-prop_selectRandom_all_any i = checkCoverage $ monadicIO $ do
-    (selectedEntries, i') <- run $ selectAll SelectAny i
-    monitor $ cover 90 (not (null selectedEntries))
-        "selected at least one entry"
-    assert $ (==)
-        (L.sort $ show <$> selectedEntries)
-        (L.sort $ show <$> UTxOIndex.toList i)
-    assert $ UTxOIndex.assets i' == mempty
-    assert $ UTxOIndex.balance i' == mempty
-    assert $ UTxOIndex.fromSequence selectedEntries == i
-    assert $ UTxOIndex.null i'
-    assert $ length selectedEntries == UTxOIndex.size i
-
--- | Attempt to select all entries with only ada from the index.
---
-prop_selectRandom_all_withAdaOnly :: UTxOIndex TestUTxO -> Property
-prop_selectRandom_all_withAdaOnly i = checkCoverage $ monadicIO $ do
-    (selectedEntries, i') <- run $
-        selectAll (SelectSingleton AssetLovelace) i
-    monitor $ cover 70 (not (null selectedEntries))
-        "selected at least one entry"
-    assert $ L.all (\(_, b) ->
-        not (tokenBundleIsAdaOnly b)) (UTxOIndex.toList i')
-    assert $ L.all (\(_, b) ->
-        tokenBundleIsAdaOnly b) selectedEntries
-    assert $ UTxOIndex.deleteMany (fst <$> selectedEntries) i == i'
-    assert $ UTxOIndex.insertMany selectedEntries i' == i
-
--- | Attempt to select all entries with the given asset from the index.
---
-prop_selectRandom_all_withAsset :: UTxOIndex TestUTxO -> Asset -> Property
-prop_selectRandom_all_withAsset i a = checkCoverage $ monadicIO $ do
-    (selectedEntries, i') <- run $ selectAll (SelectAnyWith a) i
-    monitor $ cover 50 (a `Set.member` UTxOIndex.assets i)
-        "index has the specified asset"
-    monitor $ cover 50 (Set.size (UTxOIndex.assets i) > 1)
-        "index has more than one asset"
-    monitor $ cover 50 (not (null selectedEntries))
-        "selected at least one entry"
-    assert $ L.all (\(_, b) ->
-        not (UTxOIndex.tokenBundleHasAsset b a)) (UTxOIndex.toList i')
-    assert $ L.all (\(_, b) ->
-        UTxOIndex.tokenBundleHasAsset b a) selectedEntries
-    assert $ UTxOIndex.deleteMany (fst <$> selectedEntries) i == i'
-    assert $ UTxOIndex.insertMany selectedEntries i' == i
-    assert $ a `Set.notMember` UTxOIndex.assets i'
-
--- | Attempt to select all entries with only the given asset from the index.
---
-prop_selectRandom_all_withAssetOnly
-    :: UTxOIndex TestUTxO -> Asset -> Property
-prop_selectRandom_all_withAssetOnly i a = checkCoverage $ monadicIO $ do
-    (selectedEntries, i') <- run $ selectAll (SelectSingleton a) i
-    monitor $ cover 50 (a `Set.member` UTxOIndex.assets i)
-        "index has the specified asset"
-    monitor $ cover 50 (Set.size (UTxOIndex.assets i) > 1)
-        "index has more than one asset"
-    monitor $ cover 10 (not (null selectedEntries))
-        "selected at least one entry"
-    assert $ all (\(_, b) ->
-        not (tokenBundleHasAssetOnly b a)) (UTxOIndex.toList i')
-    assert $ all (\(_, b) ->
-        tokenBundleHasAssetOnly b a) selectedEntries
-    assert $ UTxOIndex.deleteMany (fst <$> selectedEntries) i == i'
-    assert $ UTxOIndex.insertMany selectedEntries i' == i
 
 -- | Verify that priority order is respected when selecting with more than
 --   one filter.
