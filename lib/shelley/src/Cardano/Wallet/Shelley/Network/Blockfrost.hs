@@ -550,17 +550,12 @@ getRewardParams = do
         rationalToCoinViaFloor :: Rational -> Coin
         rationalToCoinViaFloor = Coin . floor
         rPot = fromLovelaces _epochInfoFees <> deltaR1
-        rp = RewardParams
-            { nOpt =
-                fromIntegral _protocolParamsNOpt
-            , a0 =
-                realToFrac _protocolParamsA0
-            , r =
-                rPot
-            , totalStake =
-                fromLovelaces _supplyTotal
-            }
-    pure rp
+    pure RewardParams
+        { nOpt = fromIntegral _protocolParamsNOpt
+        , a0 = realToFrac _protocolParamsA0
+        , r = rPot
+        , totalStake = fromLovelaces _supplyTotal
+        }
 
 fromPoolInfo :: RewardParams -> BF.PoolInfo -> RewardInfoPool
 fromPoolInfo rp BF.PoolInfo{..} = RewardInfoPool
