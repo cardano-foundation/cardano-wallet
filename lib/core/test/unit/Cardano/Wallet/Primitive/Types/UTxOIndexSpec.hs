@@ -80,6 +80,7 @@ import Test.Utils.Laws
 
 import qualified Cardano.Wallet.Primitive.Types.TokenBundle as TokenBundle
 import qualified Cardano.Wallet.Primitive.Types.UTxOIndex.Internal as UTxOIndex
+import qualified Data.Foldable as F
 import qualified Data.List as L
 import qualified Data.Map.Strict as Map
 import qualified Data.Set as Set
@@ -156,6 +157,8 @@ spec =
 
         it "prop_SelectionFilter_coverage" $
             property prop_SelectionFilter_coverage
+        it "prop_selectRandom" $
+            property prop_selectRandom
         it "prop_selectRandom_empty" $
             property prop_selectRandom_empty
         it "prop_selectRandom_singleton" $
@@ -439,6 +442,85 @@ prop_selectRandom_empty :: SelectionFilter Asset -> Property
 prop_selectRandom_empty f = monadicIO $ do
     result <- run $ UTxOIndex.selectRandom (UTxOIndex.empty @TestUTxO) f
     assert $ isNothing result
+
+prop_selectRandom
+    :: UTxOIndex TestUTxO
+    -> SelectionFilter Asset
+    -> Property
+prop_selectRandom index selectionFilter = monadicIO $
+    prop_inner <$> run (UTxOIndex.selectRandom index selectionFilter)
+  where
+    prop_inner maybeSelected
+        = checkCoverage
+        -- We need to cover all possible selection filters, and for each
+        -- selection filter we need to cover both the case where we /do/
+        -- have a match /and/ the case where we /don't/ have a match.
+        $ cover 4
+            (matchPositive && category == SelectSingleton ())
+            "matchPositive && category == SelectSingleton ()"
+        $ cover 4
+            (matchPositive && category == SelectPairWith ())
+            "matchPositive && category == SelectPairWith ()"
+        $ cover 4
+            (matchPositive && category == SelectAnyWith ())
+            "matchPositive && category == SelectAnyWith ()"
+        $ cover 4
+            (matchPositive && category == SelectAny)
+            "matchPositive && category == SelectAny"
+        $ cover 4
+            (matchNegative && category == SelectSingleton ())
+            "matchNegative && category == SelectSingleton ()"
+        $ cover 4
+            (matchNegative && category == SelectPairWith ())
+            "matchNegative && category == SelectPairWith ()"
+        $ cover 1
+            (matchNegative && category == SelectAnyWith ())
+            "matchNegative && category == SelectAnyWith ()"
+        $ cover 0.5
+            -- This case should only match if the index is completely empty,
+            -- so we can't expect to match this case very often.
+            (matchNegative && category == SelectAny)
+            "matchNegative && category == SelectAny"
+        $ maybe prop_inner_Nothing prop_inner_Just maybeSelected
+      where
+        category = () <$ selectionFilter
+        matchPositive = maybeSelected & isJust
+        matchNegative = maybeSelected & isNothing
+
+    prop_inner_Nothing =
+        -- Given that nothing has been selected, demonstrate that nothing
+        -- /could/ have been selected, by manually filtering the list of all
+        -- entries in the index to check that nothing matches.
+        L.filter (selectionFilterMatchesBundleCategory selectionFilter)
+            bundleCategories
+            === []
+      where
+        bundleCategories =
+            categorizeTokenBundle <$> F.toList (UTxOIndex.toMap index)
+
+    prop_inner_Just ((utxo, bundle), indexReduced) =
+        -- Given that something has been selected, demonstrate that the
+        -- selected token bundle is of a matching category, and that the
+        -- selected UTxO entry was correctly removed from the index.
+        conjoin
+            [ UTxOIndex.lookup utxo index
+                === Just bundle
+            , UTxOIndex.lookup utxo indexReduced
+                === Nothing
+            , UTxOIndex.balance index
+                === UTxOIndex.balance indexReduced <> bundle
+            , UTxOIndex.delete utxo index
+                === indexReduced
+            , UTxOIndex.insert utxo bundle indexReduced
+                === index
+            , property
+                $ UTxOIndex.member utxo index
+            , property
+                $ not (UTxOIndex.member utxo indexReduced)
+            , property
+                $ selectionFilterMatchesBundleCategory selectionFilter
+                $ categorizeTokenBundle bundle
+            ]
 
 -- | Attempt to select a random entry from a singleton index with entry 'e'.
 --
