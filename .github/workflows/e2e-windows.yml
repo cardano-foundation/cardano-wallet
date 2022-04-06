@@ -9,6 +9,14 @@ on:
         description: 'Network'
         required: true
         default: 'testnet'
+      node_db_cache:
+        description: 'Node DB Cache'
+        required: true
+        default: 'AWS'
+        type: choice
+        options:
+        - AWS
+        - GH
       pr:
         description: 'PR number or "master"'
         default: 'master'
@@ -51,9 +59,21 @@ jobs:
       run: |
         echo "::set-output name=value::$(rake datetime)"
 
-    - name: 💽 Get latest node db
+    - name: 💽 AWS Cache node db
+      if: ${{ env.NODE_DB_CACHE == 'AWS' }}
       working-directory: C:/cardano-wallet/test/e2e
       run: rake get_latest_node_db[%NETWORK%]
+
+    - name: 💾 GH Cache node db
+      if: ${{ env.NODE_DB_CACHE == 'GH' }}
+      id: cache
+      uses: actions/cache@v2.1.7
+      with:
+        path: C:/cardano-wallet/test/e2e/state/node_db/${{ env.NETWORK }}
+        key: node-db-${{ runner.os }}-${{ env.NETWORK }}-${{ steps.date-time.outputs.value }}
+        restore-keys: |
+          node-db-${{ runner.os }}-${{ env.NETWORK }}-
+          node-db-Linux-${{ env.NETWORK }}-
 
     - name: 💾 Cache wallet db
       id: cache-wallet
@@ -99,3 +119,4 @@ jobs:
       NETWORK: ${{ github.event.inputs.network || 'testnet' }}
       TESTS_E2E_FIXTURES: ${{ secrets.TESTS_E2E_FIXTURES }}
       PR: ${{ github.event.inputs.pr || 'master' }}
+      NODE_DB_CACHE: ${{ github.event.inputs.node_db_cache || 'AWS' }}
