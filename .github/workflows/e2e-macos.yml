@@ -9,6 +9,14 @@ on:
         description: 'Network'
         required: true
         default: 'testnet'
+      node_db_cache:
+        description: 'Node DB Cache'
+        required: true
+        default: 'GH'
+        type: choice
+        options:
+        - AWS
+        - GH
       pr:
         description: 'PR number or "master"'
         default: 'master'
@@ -42,7 +50,12 @@ jobs:
       run: |
         echo "::set-output name=value::$(rake datetime)"
 
-    - name: 💾 Cache node db
+    - name: 💽 AWS Cache node db
+      if: ${{ env.NODE_DB_CACHE == 'AWS' }}
+      run: rake get_latest_node_db[$NETWORK]
+
+    - name: 💾 GH Cache node db
+      if: ${{ env.NODE_DB_CACHE == 'GH' }}
       id: cache
       uses: actions/cache@v2.1.7
       with:
@@ -90,3 +103,4 @@ jobs:
       TESTS_E2E_FIXTURES: ${{ secrets.TESTS_E2E_FIXTURES }}
       NETWORK: ${{ github.event.inputs.network || 'testnet' }}
       PR: ${{ github.event.inputs.pr || '' }}
+      NODE_DB_CACHE: ${{ github.event.inputs.node_db_cache || 'GH' }}
