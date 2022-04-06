@@ -90,6 +90,10 @@ module Cardano.Wallet.Primitive.Types.UTxOIndex.Internal
     , tokenBundleAssetCount
     , tokenBundleHasAsset
 
+    -- * Token bundle categorization
+    , BundleCategory (..)
+    , categorizeTokenBundle
+
     -- * Utilities
     , selectRandomSetMember
 
