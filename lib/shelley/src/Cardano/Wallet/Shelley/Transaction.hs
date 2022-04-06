@@ -9,6 +9,7 @@
 {-# LANGUAGE LambdaCase #-}
 {-# LANGUAGE MultiParamTypeClasses #-}
 {-# LANGUAGE NamedFieldPuns #-}
+{-# LANGUAGE NumericUnderscores #-}
 {-# LANGUAGE OverloadedLabels #-}
 {-# LANGUAGE Rank2Types #-}
 {-# LANGUAGE RecordWildCards #-}
@@ -1470,11 +1471,11 @@ costOfIncreasingCoin (LinearFee fee) from delta =
 -- | Calculate the size of a coin when encoded as CBOR.
 sizeOfCoin :: Coin -> TxSize
 sizeOfCoin (Coin c)
-    | c >= 4294967296 = TxSize 9
-    | c >= 65536      = TxSize 5
-    | c >= 256        = TxSize 3
-    | c >= 24         = TxSize 2
-    | otherwise       = TxSize 1
+    | c >= 4_294_967_296 = TxSize 9
+    | c >=        65_536 = TxSize 5
+    | c >=           256 = TxSize 3
+    | c >=            24 = TxSize 2
+    | otherwise          = TxSize 1
 
 -- | Estimates the final size of a transaction based on its skeleton.
 --
