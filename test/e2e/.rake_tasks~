@@ -1,5 +1,6 @@
 clean_bins
 clean_logs
+clean_node_db
 datetime
 display_versions
 secrets_decode
@@ -8,6 +9,7 @@ fixture_wallets_template
 get_docker_logs
 get_latest_bins
 get_latest_configs
+get_latest_node_db
 run_on
 spec
 setup

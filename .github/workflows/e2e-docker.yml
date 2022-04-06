@@ -8,7 +8,7 @@ on:
       nodeTag:
         description: 'Node tag (docker)'
         required: true
-        default: '1.30.1'
+        default: '1.34.1'
       walletTag:
         description: 'Wallet tag (docker)'
         required: true
@@ -17,6 +17,14 @@ on:
         description: 'Network'
         required: true
         default: 'testnet'
+      node_db_cache:
+        description: 'Node DB Cache'
+        required: true
+        default: 'GH'
+        type: choice
+        options:
+        - AWS
+        - GH
 
 defaults:
   run:
@@ -60,7 +68,12 @@ jobs:
       run: |
         echo "::set-output name=value::$(rake datetime)"
 
+    - name: 💽 AWS Cache node db
+      if: ${{ env.NODE_DB_CACHE == 'AWS' }}
+      run: rake get_latest_node_db[$NETWORK]
+
     - name: 💾 Cache node db
+      if: ${{ env.NODE_DB_CACHE == 'GH' }}
       id: cache
       uses: actions/cache@v2.1.7
       with:
@@ -120,3 +133,4 @@ jobs:
       NETWORK: ${{ github.event.inputs.network || 'testnet' }}
       WALLET: ${{ github.event.inputs.walletTag || 'dev-master' }}
       TESTS_E2E_TOKEN_METADATA: https://metadata.cardano-testnet.iohkdev.io/
+      NODE_DB_CACHE: ${{ github.event.inputs.node_db_cache || 'GH' }}

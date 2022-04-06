@@ -1,5 +1,5 @@
 # E2E testing
-|  |  |
+| Flavor | Results |
 |--|--|
 |**Full mode** |[![E2E Docker](https://github.com/input-output-hk/cardano-wallet/actions/workflows/e2e-docker.yml/badge.svg)](https://github.com/input-output-hk/cardano-wallet/actions/workflows/e2e-docker.yml) [![E2E Linux](https://github.com/input-output-hk/cardano-wallet/actions/workflows/e2e-linux.yml/badge.svg)](https://github.com/input-output-hk/cardano-wallet/actions/workflows/e2e-linux.yml) [![E2E MacOS](https://github.com/input-output-hk/cardano-wallet/actions/workflows/e2e-macos.yml/badge.svg)](https://github.com/input-output-hk/cardano-wallet/actions/workflows/e2e-macos.yml) [![E2E Windows](https://github.com/input-output-hk/cardano-wallet/actions/workflows/e2e-windows.yml/badge.svg)](https://github.com/input-output-hk/cardano-wallet/actions/workflows/e2e-windows.yml)  |
 |**Light mode** | [![E2E Linux --light](https://github.com/input-output-hk/cardano-wallet/actions/workflows/e2e-linux-lite.yml/badge.svg)](https://github.com/input-output-hk/cardano-wallet/actions/workflows/e2e-linux-lite.yml) [![E2E MacOS --light](https://github.com/input-output-hk/cardano-wallet/actions/workflows/e2e-macos-lite.yml/badge.svg)](https://github.com/input-output-hk/cardano-wallet/actions/workflows/e2e-macos-lite.yml) [![E2E Windows --light](https://github.com/input-output-hk/cardano-wallet/actions/workflows/e2e-windows-lite.yml/badge.svg)](https://github.com/input-output-hk/cardano-wallet/actions/workflows/e2e-windows-lite.yml) |
@@ -158,10 +158,29 @@ end
 ```
 
 ### Running tests from GH actions workflow
+
+There are several e2e workflows in GH actions for testing against different platforms (Docker, Linux, MacOS, Windows) and against different wallet modes (full, light).
+
+#### Node DB cache
+
+For speeding up execution in wallet's full mode we use cardano-node DB from cache. Thanks to this we don't have to wait for hours on each execution until cardano-node is synced with the chain. There are two ways of acquiring node DB:
+ - GH actions cache - node db is cached on every execution and reused on subsequent run
+ - AWS cache - node db is downloaded from https://updates-cardano-testnet.s3.amazonaws.com/cardano-node-state/index.html (the snapshot there is updated on every epoch)
+
+While GH actions cache is realized by [actions/cache](https://github.com/actions/cache) for AWS one we have a dedicated rake step:
+
+```ruby
+$ rake get_latest_node_db[testnet]
+```
+
+#### Test schedule
+
 All tests are scheduled to be executed on nightly basis against latest `master` version
 of cardano-wallet.
 
-It is also possible to trigger each workflow manually from [GH actions](https://github.com/input-output-hk/cardano-wallet/actions). In particular workflows can be executed against the binaries of particular PR.
+It is also possible to trigger each workflow manually from [GH actions](https://github.com/input-output-hk/cardano-wallet/actions). In particular:
+ - workflows can be executed against the binaries of particular PR,
+ - for full wallet mode one can choose whether to use Node DB cached from GH cache or AWS
 
 <img src="../../.github/images/e2e-workflow-form.png"/>
 

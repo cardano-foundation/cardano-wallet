@@ -4,10 +4,14 @@ require 'fileutils'
 
 module Helpers
   module Utils
+    def log(message)
+      puts "[#{Time.now}] #{message}"
+    end
+
     def cmd(cmd, display_result = false)
       cmd.gsub(/\s+/, ' ')
       res = `#{cmd}`
-      puts res if display_result
+      log res if display_result
       res
     end
 
@@ -112,7 +116,7 @@ module Helpers
       file ||= File.basename(url)
       resp = HTTParty.get(url)
       File.binwrite(file, resp.body)
-      puts "#{url} -> #{resp.code}"
+      log "#{url} -> #{resp.code}"
     end
 
     def mk_dir(path)
@@ -120,7 +124,11 @@ module Helpers
     end
 
     def rm_files(path)
-      FileUtils.rm_rf("#{path}/.", secure: true)
+      FileUtils.rm_rf(path, secure: true)
+    end
+
+    def mv(src, dst)
+      FileUtils.mv(src, dst, force: true)
     end
 
     def is_win?
@@ -152,8 +160,22 @@ module Helpers
       end
     end
 
+    ##
+    # Latest Cardano configs
     def get_latest_configs_base_url
       "https://hydra.iohk.io/job/Cardano/iohk-nix/cardano-deployment/latest/download/1"
+    end
+
+    ##
+    # Latest node-db snapshot updated at the end of every epoch
+    def get_latest_node_db_url(env)
+      raise "Unsupported env, supported are: 'mainnet' or 'testnet'" if (env != 'testnet') && (env != 'mainnet')
+      case env
+      when 'testnet'
+        "https://updates-cardano-testnet.s3.amazonaws.com/cardano-node-state/db-testnet.tar.gz"
+      when 'mainnet'
+        "https://update-cardano-mainnet.iohk.io/cardano-node-state/db-mainnet.tar.gz"
+      end
     end
   end
 end

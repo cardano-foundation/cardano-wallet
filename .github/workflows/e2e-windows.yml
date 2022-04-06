@@ -9,20 +9,32 @@ on:
         description: 'Network'
         required: true
         default: 'testnet'
+      node_db_cache:
+        description: 'Node DB Cache'
+        required: true
+        default: 'AWS'
+        type: choice
+        options:
+        - AWS
+        - GH
       pr:
         description: 'PR number or "master"'
         default: 'master'
-
-defaults:
-  run:
-    working-directory: ./test/e2e
 
 jobs:
   test:
     runs-on: windows-latest
 
     steps:
-    - uses: actions/checkout@v2
+    - name: Check space
+      run: Get-PSDrive
+
+    - name: Checkout
+      shell: bash
+      run: |
+        git clone https://github.com/input-output-hk/cardano-wallet.git C:/cardano-wallet --depth 1 --no-single-branch
+        cd /c/cardano-wallet
+        git checkout ${GITHUB_REF#refs/heads/}
 
     - name: Set up Ruby
       uses: ruby/setup-ruby@v1
@@ -31,6 +43,7 @@ jobs:
         bundler-cache: true
 
     - name: Install dependencies
+      working-directory: C:/cardano-wallet/test/e2e
       run: bundle install
 
     - name: Prepare Windows
@@ -40,16 +53,23 @@ jobs:
         choco install nssm
 
     - name: 🕒 Get Date/Time
+      working-directory: C:/cardano-wallet/test/e2e
       id: date-time
       shell: bash
       run: |
         echo "::set-output name=value::$(rake datetime)"
 
-    - name: 💾 Cache node db
+    - name: 💽 AWS Cache node db
+      if: ${{ env.NODE_DB_CACHE == 'AWS' }}
+      working-directory: C:/cardano-wallet/test/e2e
+      run: rake get_latest_node_db[%NETWORK%]
+
+    - name: 💾 GH Cache node db
+      if: ${{ env.NODE_DB_CACHE == 'GH' }}
       id: cache
       uses: actions/cache@v2.1.7
       with:
-        path: test/e2e/state/node_db/${{ env.NETWORK }}
+        path: C:/cardano-wallet/test/e2e/state/node_db/${{ env.NETWORK }}
         key: node-db-${{ runner.os }}-${{ env.NETWORK }}-${{ steps.date-time.outputs.value }}
         restore-keys: |
           node-db-${{ runner.os }}-${{ env.NETWORK }}-
@@ -59,27 +79,33 @@ jobs:
       id: cache-wallet
       uses: actions/cache@v2.1.7
       with:
-        path: test/e2e/state/wallet_db/${{ env.NETWORK }}
+        path: C:/cardano-wallet/test/e2e/state/wallet_db/${{ env.NETWORK }}
         key: wallet-db-${{ runner.os }}-${{ env.NETWORK }}-${{ steps.date-time.outputs.value }}
         restore-keys: |
           wallet-db-${{ runner.os }}-${{ env.NETWORK }}-
 
     - name: ⚙️ Setup (get latest bins and configs and decode fixtures)
+      working-directory: C:/cardano-wallet/test/e2e
       run: rake setup[%NETWORK%,%PR%]
 
     - name: 🔍 Display versions
+      working-directory: C:/cardano-wallet/test/e2e
       run: rake display_versions
 
     - name: 🚀 Start node and wallet
+      working-directory: C:/cardano-wallet/test/e2e
       run: rake start_node_and_wallet[%NETWORK%]
 
     - name: ⏳ Wait until node is synced
+      working-directory: C:/cardano-wallet/test/e2e
       run: rake wait_until_node_synced
 
     - name: 🧪 Run all tests
+      working-directory: C:/cardano-wallet/test/e2e
       run: rake spec
 
     - name: 🏁 Stop node and wallet
+      working-directory: C:/cardano-wallet/test/e2e
       run: rake stop_node_and_wallet[%NETWORK%]
 
     - name: 📎 Upload logs
@@ -87,9 +113,10 @@ jobs:
       if: always()
       with:
         name: ${{ runner.os }}-logs
-        path: test/e2e/state/logs
+        path: C:/cardano-wallet/test/e2e/state/logs
 
     env:
       NETWORK: ${{ github.event.inputs.network || 'testnet' }}
       TESTS_E2E_FIXTURES: ${{ secrets.TESTS_E2E_FIXTURES }}
       PR: ${{ github.event.inputs.pr || 'master' }}
+      NODE_DB_CACHE: ${{ github.event.inputs.node_db_cache || 'AWS' }}
