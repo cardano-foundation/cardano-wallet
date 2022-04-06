@@ -1458,7 +1458,7 @@ costOfIncreasingCoin
 costOfIncreasingCoin (LinearFee fee) from delta =
     costOfCoin (from <> delta) `Coin.difference` costOfCoin from
   where
-    perByte = round $ slope fee
+    perByte = ceiling $ slope fee
     costOfCoin = Coin . (perByte *) . unTxSize . sizeOfCoin
 
 -- | Calculate the size of a coin when encoded as CBOR.
