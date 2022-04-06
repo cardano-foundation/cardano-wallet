@@ -2278,7 +2278,8 @@ balanceTransactionSpec = do
                 sizeOfCoin (Coin 4294967296) `shouldBe` TxSize 9
 
     describe "costOfIncreasingCoin" $ do
-        it "costs 176 lovelace to increase 4294967295 by one on mainnet" $ do
+        it "costs 176 lovelace to increase 4.294967295 ada by 1 lovelace \
+           \on mainnet" $ do
             let feePolicy = LinearFee $ LinearFunction
                     { intercept = 150_000, slope = 44 }
             costOfIncreasingCoin feePolicy (Coin 4294967295) (Coin 1)
