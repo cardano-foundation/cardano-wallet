@@ -319,7 +319,8 @@ task :get_latest_node_db, [:env] do |task, args|
   cmd "wget #{url} -O #{node_db_file}"
 
   log "Start extracting archive into #{NODE_DB}..."
-  cmd "tar --force-local -xvf #{node_db_file} -C #{NODE_DB}"
+  fs_switch = is_win? ? '--force-local' : ''
+  cmd "tar #{fs_switch} -xvf #{node_db_file} -C #{NODE_DB}"
 
   log "Start moving from #{node_db_extracted_dir} into #{node_db_dir}..."
   mv(node_db_extracted_dir, node_db_dir)
