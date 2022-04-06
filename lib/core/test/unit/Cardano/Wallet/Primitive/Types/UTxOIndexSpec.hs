@@ -708,19 +708,6 @@ selectAll sf = go []
             Just ((u, b), iReduced) ->
                 go ((u, b) : selectedEntries) iReduced
 
--- | Returns 'True' if (and only if) the given token bundle has a non-zero
---   quantity of the given asset and no other non-ada assets.
---
-tokenBundleHasAssetOnly :: TokenBundle -> Asset -> Bool
-tokenBundleHasAssetOnly b a = (== [a])
-    $ Set.toList $ UTxOIndex.tokenBundleAssets b
-
--- | Returns 'True' if (and only if) the given token bundle contains no
---   assets other than ada.
---
-tokenBundleIsAdaOnly :: TokenBundle -> Bool
-tokenBundleIsAdaOnly = TokenBundle.isCoin
-
 --------------------------------------------------------------------------------
 -- Arbitrary instances
 --------------------------------------------------------------------------------
