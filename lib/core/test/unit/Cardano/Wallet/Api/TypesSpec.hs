@@ -314,6 +314,8 @@ import Cardano.Wallet.Primitive.Types.UTxO
     )
 import Cardano.Wallet.TokenMetadata
     ( TokenMetadataError (..) )
+import Cardano.Wallet.Transaction
+    ( AnyScript (..), PlutusScriptInfo (..), PlutusVersion (..) )
 import Cardano.Wallet.Unsafe
     ( unsafeFromText, unsafeXPrv )
 import Control.Lens
@@ -2226,7 +2228,7 @@ instance Arbitrary ApiTokenAmountFingerprint where
         policyid <- arbitrary
         let fingerprint = ApiT $ mkTokenFingerprint policyid name
         ApiTokenAmountFingerprint (ApiT name)
-            <$> (Quantity . fromIntegral <$> choose @Int (1, 10000))
+            <$> (fromIntegral <$> choose @Int (1, 10000))
             <*> pure fingerprint
 
 instance Arbitrary ApiTokens where
@@ -2234,16 +2236,18 @@ instance Arbitrary ApiTokens where
         policyid <- arbitrary
         let keyhash = KeyHash Policy $ getHash $ unTokenPolicyId policyid
         script <- elements
-            [ ApiT $ RequireSignatureOf keyhash
-            , ApiT $ RequireAllOf
+            [ ApiT $ NativeScript $ RequireSignatureOf keyhash
+            , ApiT $ NativeScript $ RequireAllOf
                 [ RequireSignatureOf keyhash
                 , ActiveFromSlot 100
                 ]
-            , ApiT $ RequireAllOf
+            , ApiT $ NativeScript $ RequireAllOf
                 [ RequireSignatureOf keyhash
                 , ActiveFromSlot 100
                 , ActiveUntilSlot 150
                 ]
+            , ApiT $ PlutusScript $ PlutusScriptInfo PlutusVersionV1
+            , ApiT $ PlutusScript $ PlutusScriptInfo PlutusVersionV2
             ]
         assetNum <- choose (1,4)
         assets <- vectorOf assetNum arbitrary

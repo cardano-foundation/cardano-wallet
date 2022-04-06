@@ -1,6 +1,8 @@
 {-# LANGUAGE AllowAmbiguousTypes #-}
 {-# LANGUAGE DataKinds #-}
+{-# LANGUAGE DeriveAnyClass #-}
 {-# LANGUAGE DeriveGeneric #-}
+{-# LANGUAGE DerivingStrategies #-}
 {-# LANGUAGE DuplicateRecordFields #-}
 {-# LANGUAGE FlexibleContexts #-}
 {-# LANGUAGE LambdaCase #-}
@@ -29,6 +31,9 @@ module Cardano.Wallet.Transaction
     , TxFeeUpdate(..)
     , TokenMapWithScripts (..)
     , emptyTokenMapWithScripts
+    , AnyScript (..)
+    , PlutusScriptInfo (..)
+    , PlutusVersion (..)
 
     -- * Errors
     , ErrSignTx (..)
@@ -53,7 +58,6 @@ import Cardano.Wallet.CoinSelection
     , SelectionOf (..)
     , SelectionSkeleton
     )
-
 import Cardano.Wallet.Primitive.AddressDerivation
     ( Depth (..), DerivationIndex )
 import Cardano.Wallet.Primitive.Passphrase
@@ -94,12 +98,24 @@ import Cardano.Wallet.Primitive.Types.Tx
     )
 import Cardano.Wallet.Primitive.Types.UTxO
     ( UTxO )
+import Cardano.Wallet.Util
+    ( ShowFmt (..) )
+import Control.DeepSeq
+    ( NFData (..) )
+import Control.Monad
+    ( (>=>) )
+import Data.Aeson.Types
+    ( FromJSON (..), Parser, ToJSON (..) )
+import Data.Bifunctor
+    ( bimap )
 import Data.List.NonEmpty
     ( NonEmpty )
 import Data.Map.Strict
     ( Map )
 import Data.Text
     ( Text )
+import Data.Text.Class
+    ( FromText (..), TextDecodingError (..), ToText (..) )
 import Fmt
     ( Buildable (..), genericF )
 import GHC.Generics
@@ -358,9 +374,48 @@ data DelegationAction = RegisterKeyAndJoin PoolId | Join PoolId | Quit
 instance Buildable DelegationAction where
     build = genericF
 
+data PlutusVersion =
+    PlutusVersionV1 | PlutusVersionV2
+    deriving (Eq, Generic, Show)
+    deriving anyclass NFData
+
+instance ToText PlutusVersion where
+    toText PlutusVersionV1 = "v1"
+    toText PlutusVersionV2 = "v2"
+
+instance FromText PlutusVersion where
+    fromText txt = case txt of
+        "v1" -> Right PlutusVersionV1
+        "v2" -> Right PlutusVersionV2
+        _ -> Left $ TextDecodingError $ unwords
+            [ "I couldn't parse the given plutus version."
+            , "I am expecting one of the words 'v1' or"
+            , "'v2'."]
+
+newtype PlutusScriptInfo = PlutusScriptInfo
+    { languageVersion :: PlutusVersion
+    }
+    deriving (Eq, Generic, Show)
+    deriving anyclass NFData
+
+instance FromJSON PlutusScriptInfo where
+    parseJSON = parseJSON >=>
+        eitherToParser . bimap ShowFmt PlutusScriptInfo . fromText
+      where
+          eitherToParser :: Show s => Either s a -> Parser a
+          eitherToParser = either (fail . show) pure
+instance ToJSON PlutusScriptInfo where
+    toJSON (PlutusScriptInfo v) = toJSON $ toText v
+
+data AnyScript =
+      NativeScript !(Script KeyHash)
+    | PlutusScript !PlutusScriptInfo
+    deriving (Eq, Generic, Show)
+    deriving anyclass NFData
+
 data TokenMapWithScripts = TokenMapWithScripts
     { txTokenMap :: !TokenMap
-    , txScripts :: !(Map TokenPolicyId (Script KeyHash))
+    , txScripts :: !(Map TokenPolicyId AnyScript)
     } deriving (Show, Generic, Eq)
 
 emptyTokenMapWithScripts :: TokenMapWithScripts

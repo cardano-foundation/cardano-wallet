@@ -214,7 +214,7 @@ import Cardano.Wallet.Primitive.Types
     , TxParameters (getTokenBundleMaxSize)
     )
 import Cardano.Wallet.Primitive.Types.TokenMap
-    ( TokenMap )
+    ( TokenMap, toNestedList )
 import Cardano.Wallet.Primitive.Types.TokenPolicy
     ( TokenPolicyId )
 import Cardano.Wallet.Shelley.Compatibility.Ledger
@@ -224,7 +224,12 @@ import Cardano.Wallet.Shelley.Compatibility.Ledger
     , toWalletTokenQuantity
     )
 import Cardano.Wallet.Transaction
-    ( TokenMapWithScripts (..), emptyTokenMapWithScripts )
+    ( AnyScript (..)
+    , PlutusScriptInfo (..)
+    , PlutusVersion (..)
+    , TokenMapWithScripts (..)
+    , emptyTokenMapWithScripts
+    )
 import Cardano.Wallet.Unsafe
     ( unsafeIntToWord, unsafeMkPercentage )
 import Cardano.Wallet.Util
@@ -389,6 +394,7 @@ import qualified Data.Text.Encoding as T
 import qualified Ouroboros.Consensus.Shelley.Ledger as O
 import qualified Ouroboros.Network.Block as O
 import qualified Ouroboros.Network.Point as Point
+
 
 --------------------------------------------------------------------------------
 --
@@ -1463,12 +1469,9 @@ fromMaryTx tx =
     MA.TxBody ins outs certs wdrls fee _valid _upd _adh mint = bod
     (assetsToMint, assetsToBurn) = fromLedgerMintValue mint
     scriptMap = fromMaryScriptMap $ Shelley.scriptWits wits
-    (mintScriptMap, burnScriptMap)
-        | (assetsToMint == TokenMap.empty && assetsToBurn /= TokenMap.empty)
-        = (Map.empty, scriptMap)
-        | (assetsToMint /= TokenMap.empty && assetsToBurn == TokenMap.empty)
-        = (scriptMap, Map.empty)
-        | otherwise = (Map.empty, Map.empty)
+
+    mintScriptMap = getScriptMap scriptMap assetsToMint
+    burnScriptMap = getScriptMap scriptMap assetsToBurn
 
     -- fixme: [ADP-525] It is fine for now since we do not look at script
     -- pre-images. But this is precisely what we want as part of the
@@ -1486,10 +1489,21 @@ fromMaryTx tx =
         :: Map
             (SL.ScriptHash (Crypto (MA.ShelleyMAEra 'MA.Mary StandardCrypto)))
             (SL.Core.Script (MA.ShelleyMAEra 'MA.Mary StandardCrypto))
-        -> Map TokenPolicyId (Script KeyHash)
+        -> Map TokenPolicyId AnyScript
     fromMaryScriptMap =
-        Map.map (toWalletScript Policy) .
+        Map.map (NativeScript . toWalletScript Policy) .
         Map.mapKeys (toWalletTokenPolicyId . SL.PolicyID)
+
+getScriptMap
+    :: Map TokenPolicyId AnyScript
+    -> TokenMap
+    -> Map TokenPolicyId AnyScript
+getScriptMap scriptMap =
+    Map.fromList .
+    map (\(policyid, (Just script)) -> (policyid, script)) .
+    filter (isJust . snd) .
+    map (\(policyid, _) -> (policyid, Map.lookup policyid scriptMap) ) .
+    toNestedList
 
 getScriptIntegrityHash
     :: Cardano.Tx era
@@ -1559,31 +1573,25 @@ fromAlonzoTxBodyAndAux bod mad wits =
         = bod
     (assetsToMint, assetsToBurn) = fromLedgerMintValue mint
     scriptMap = fromAlonzoScriptMap $ Alonzo.txscripts' wits
-    (mintScriptMap, burnScriptMap)
-        | (assetsToMint == TokenMap.empty && assetsToBurn /= TokenMap.empty)
-        = (Map.empty, scriptMap)
-        | (assetsToMint /= TokenMap.empty && assetsToBurn == TokenMap.empty)
-        = (scriptMap, Map.empty)
-        | otherwise = (Map.empty, Map.empty)
+    mintScriptMap = getScriptMap scriptMap assetsToMint
+    burnScriptMap = getScriptMap scriptMap assetsToBurn
 
     fromAlonzoScriptMap
         :: Map
             (SL.ScriptHash (Crypto StandardAlonzo))
             (SL.Core.Script StandardAlonzo)
-        -> Map TokenPolicyId (Script KeyHash)
-    fromAlonzoScriptMap anyScript =
-        if Map.filter isPlutusScript anyScript == Map.empty then
-            Map.map (toWalletScript Policy . unsafeGetTimelockScript) $
-            Map.mapKeys (toWalletTokenPolicyId . SL.PolicyID) anyScript
-        else
-            Map.empty
+        -> Map TokenPolicyId AnyScript
+    fromAlonzoScriptMap =
+        Map.map toAnyScript .
+        Map.mapKeys (toWalletTokenPolicyId . SL.PolicyID)
       where
-        isPlutusScript (Alonzo.PlutusScript _ _) = True
-        isPlutusScript _ = False
+        toAnyScript (Alonzo.TimelockScript script) =
+            NativeScript $ toWalletScript Policy script
+        toAnyScript (Alonzo.PlutusScript ver _) =
+            PlutusScript (PlutusScriptInfo (toPlutusVer ver))
 
-        unsafeGetTimelockScript (Alonzo.TimelockScript script) = script
-        unsafeGetTimelockScript _ =
-            internalError "only timelock scripts should be attempted here"
+        toPlutusVer Alonzo.PlutusV1 = PlutusVersionV1
+        toPlutusVer Alonzo.PlutusV2 = PlutusVersionV2
 
     fromAlonzoTxOut
         :: Alonzo.TxOut (Cardano.ShelleyLedgerEra AlonzoEra)

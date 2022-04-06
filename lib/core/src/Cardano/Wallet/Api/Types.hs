@@ -342,6 +342,8 @@ import Cardano.Wallet.Primitive.Types.UTxO
     ( BoundType, HistogramBar (..), UTxOStatistics (..) )
 import Cardano.Wallet.TokenMetadata
     ( TokenMetadataError (..) )
+import Cardano.Wallet.Transaction
+    ( AnyScript (..) )
 import Cardano.Wallet.Util
     ( ShowFmt (..) )
 import Codec.Binary.Bech32
@@ -1230,7 +1232,7 @@ newtype ApiPostPolicyKeyData = ApiPostPolicyKeyData
 
 data ApiTokenAmountFingerprint = ApiTokenAmountFingerprint
     { assetName :: !(ApiT W.TokenName)
-    , amount :: !(Quantity "assets" Natural)
+    , quantity :: !Natural
     , fingerprint :: !(ApiT W.TokenFingerprint)
     }
     deriving (Eq, Generic, Show)
@@ -1238,7 +1240,7 @@ data ApiTokenAmountFingerprint = ApiTokenAmountFingerprint
 
 data ApiTokens = ApiTokens
     { policyId :: !(ApiT W.TokenPolicyId)
-    , policyScript :: !(ApiT (Script KeyHash))
+    , policyScript :: !(ApiT AnyScript)
     , assets :: !(NonEmpty ApiTokenAmountFingerprint)
     }
     deriving (Eq, Generic, Show)
@@ -2368,6 +2370,24 @@ instance FromJSON ApiMultiDelegationAction where
             (Nothing, Just o) ->
                 Leaving <$> o .: "stake_key_index"
             _ -> fail "ApiMultiDelegationAction needs either 'join' or 'quit', but not both"
+
+instance FromJSON (ApiT AnyScript) where
+    parseJSON = withObject "ApiT AnyScript" $ \obj -> do
+        scriptType <- obj .:? "script_type"
+        case (scriptType :: Maybe String) of
+            Just t | t == "plutus"  ->
+                ApiT . PlutusScript <$> obj .: "language_version"
+            Just t | t == "native" ->
+                ApiT . NativeScript <$> obj .: "script"
+            _ -> fail "AnyScript needs either 'native' or 'plutus' in 'script_type'"
+
+instance ToJSON (ApiT AnyScript) where
+    toJSON (ApiT (NativeScript s)) =
+        object [ "script_type" .= String "native"
+               , "script" .= toJSON s]
+    toJSON (ApiT (PlutusScript v)) =
+        object [ "script_type" .= String "plutus"
+               , "language_version" .= toJSON v]
 
 instance DecodeAddress n => FromJSON (ApiCoinSelectionChange n) where
     parseJSON = genericParseJSON defaultRecordTypeOptions

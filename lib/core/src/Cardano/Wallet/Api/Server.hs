@@ -2465,7 +2465,8 @@ decodeTransaction ctx (ApiT wid) (ApiSerialisedTransaction (ApiT sealed)) = do
     askForScript policyId scriptMap =
         case Map.lookup policyId scriptMap of
             Just script -> script
-            Nothing -> error "askForScript: no minting/burning without script"
+            Nothing -> error "askForScript: no minting/burning without either\
+                             \ native or plutus script"
 
     toIdScriptAssets scriptmap tokenmap =
         [ (policy, askForScript policy scriptmap, tokenQuantities)
@@ -2475,7 +2476,7 @@ decodeTransaction ctx (ApiT wid) (ApiSerialisedTransaction (ApiT sealed)) = do
     toTokenAmountFingerprint policy (name, tokenquantity) =
         ApiTokenAmountFingerprint
             { assetName = ApiT name
-            , amount = Quantity $ unTokenQuantity tokenquantity
+            , quantity = unTokenQuantity tokenquantity
             , fingerprint = ApiT $ mkTokenFingerprint policy name
             }
 
