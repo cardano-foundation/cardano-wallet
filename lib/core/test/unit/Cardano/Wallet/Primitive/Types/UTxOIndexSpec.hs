@@ -9,6 +9,7 @@
 {-# LANGUAGE TypeFamilies #-}
 {-# OPTIONS_GHC -fno-warn-orphans #-}
 {- HLINT ignore "Use camelCase" -}
+{- HLINT ignore "Hoist not" -}
 
 module Cardano.Wallet.Primitive.Types.UTxOIndexSpec
     ( spec
@@ -161,6 +162,8 @@ spec =
             property prop_selectRandom
         it "prop_selectRandom_empty" $
             property prop_selectRandom_empty
+        it "prop_selectRandom_all" $
+            property prop_selectRandom_all
         it "prop_selectRandom_all_any" $
             property prop_selectRandom_all_any
         it "prop_selectRandom_all_withAdaOnly" $
@@ -510,6 +513,40 @@ prop_selectRandom index selectionFilter = monadicIO $
             , property
                 $ selectionFilterMatchesBundleCategory selectionFilter
                 $ categorizeTokenBundle bundle
+            ]
+
+prop_selectRandom_all :: UTxOIndex TestUTxO -> SelectionFilter Asset -> Property
+prop_selectRandom_all index f = monadicIO $
+    prop_inner <$> run (selectAll f index)
+  where
+    prop_inner :: ([(TestUTxO, TokenBundle)], UTxOIndex TestUTxO) -> Property
+    prop_inner (selected, indexReduced)
+        = checkCoverage
+        $ cover 10
+            (F.length selected > 0 && F.length selected < UTxOIndex.size index)
+            "F.length selected > 0 && F.length selected < UTxOIndex.size index"
+        $ cover 1
+            (F.length selected > 0 && F.length selected == UTxOIndex.size index)
+            "F.length selected > 0 && F.length selected == UTxOIndex.size index"
+        $ conjoin
+            [ UTxOIndex.balance index
+                === UTxOIndex.balance indexReduced <> F.fold (snd <$> selected)
+            , F.foldl' (flip UTxOIndex.delete) index (fst <$> selected)
+                === indexReduced
+            , F.foldl' (flip (uncurry UTxOIndex.insert)) indexReduced selected
+                === index
+            , property
+                $ all (`UTxOIndex.member` index)
+                $ fst <$> selected
+            , property
+                $ all (not . (`UTxOIndex.member` indexReduced))
+                $ fst <$> selected
+            , property
+                $ all (selectionFilterMatchesBundleCategory f)
+                $ categorizeTokenBundle . snd <$> selected
+            , property
+                $ all (not . selectionFilterMatchesBundleCategory f)
+                $ categorizeTokenBundle . snd <$> UTxOIndex.toList indexReduced
             ]
 
 -- | Attempt to select all entries from the index.
