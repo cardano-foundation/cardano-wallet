@@ -1471,12 +1471,6 @@ costOfIncreasingCoin (LinearFee fee) from delta =
 -- | Calculate the size of a coin when encoded as CBOR.
 sizeOfCoin :: Coin -> TxSize
 sizeOfCoin (Coin c)
-    -- The encoded size of a coin grows as we cross the following boundaries:
-    --
-    --    from (2^ 8 - 1) to (2^ 8)
-    --    from (2^16 - 1) to (2^16)
-    --    from (2^32 - 1) to (2^32)
-    --
     | c >= 4_294_967_296 = TxSize 9 -- c >= 2^32
     | c >=        65_536 = TxSize 5 -- c >= 2^16
     | c >=           256 = TxSize 3 -- c >= 2^ 8
