@@ -163,7 +163,7 @@ import Test.Cardano.Crypto.Gen
 import Test.QuickCheck
     ( Gen
     , Large (..)
-    , NonNegative
+    , NonNegative (..)
     , Positive (..)
     , arbitrary
     , choose
@@ -171,7 +171,6 @@ import Test.QuickCheck
     , chooseInteger
     , elements
     , frequency
-    , getNonNegative
     , infiniteListOf
     , liftArbitrary
     , listOf
@@ -271,9 +270,7 @@ genSlotNo = SlotNo <$> arbitrary
 
 genLovelace :: Gen Lovelace
 genLovelace = frequency
-    [ (10, Lovelace
-        . intCast
-        . getNonNegative <$> arbitrary @(NonNegative Int) )
+    [ (10, Lovelace . intCast . getNonNegative @Int <$> arbitrary)
     , (50, choose (1_000_000, 1_000_000_000))
     , (10, choose (txOutMinLovelace, txOutMaxLovelace))
     , (30, genEncodingBoundaryLovelace)
