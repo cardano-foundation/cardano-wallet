@@ -1687,6 +1687,7 @@ data ApiErrorCode
     | MissingWitnessesInTransaction
     | CreatedWrongPolicyScriptTemplate
     | MissingPolicyPublicKey
+    | CreatedTransactionWithTooLongAssetName
     deriving (Eq, Generic, Show, Data, Typeable)
     deriving anyclass NFData
 

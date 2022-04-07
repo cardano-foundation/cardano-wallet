@@ -106,6 +106,7 @@ module Test.Integration.Framework.TestData
     , errMsg403MultidelegationTransaction
     , errMsg403MultiaccountTransaction
     , errMsg403CreatedWrongPolicyScriptTemplate
+    , errMsg403CreatedTransactionWithTooLongAssetName
     ) where
 
 import Prelude
@@ -675,6 +676,13 @@ errMsg403CreatedWrongPolicyScriptTemplate = mconcat
     [ "It looks like I've created a transaction with a minting/burning "
     , "policy script that either does not pass validation, contains more "
     , "than one cosigner, or has a cosigner that is different from cosigner#0."
+    ]
+
+errMsg403CreatedTransactionWithTooLongAssetName :: String
+errMsg403CreatedTransactionWithTooLongAssetName = mconcat
+    [ "It looks like I've created a transaction with a minting/burning "
+    , "that has too long asset name. The upper limit is 32-byte "
+    , "(16-character) length name."
     ]
 
 --------------------------------------------------------------------------------
