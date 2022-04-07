@@ -283,10 +283,10 @@ genEncodingBoundaryLovelace = do
     -- However, the three first ones are below the minimum utxo value on
     -- mainnet, and are less useful to generate (in that context).
     boundary <- frequency
-        [ (1, pure 24)
-        , (1, pure 256)
-        , (8, pure 65536)
-        , (90, pure 4294967296)
+        [ ( 1, pure            24)
+        , ( 1, pure           256) -- 2^ 8
+        , ( 8, pure        65_536) -- 2^16
+        , (90, pure 4_294_967_296) -- 2^32
         ]
 
     offset <- frequency
