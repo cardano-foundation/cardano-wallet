@@ -112,11 +112,20 @@ RSpec.describe "Cardano Wallet E2E tests", :e2e do
       vkHash = bech32_to_base16(vk)
       policy = read_mustached_file("mintBurn_policy", { vkHash: vkHash })
       policy_id = get_policy_id(policy)
+      def fingerprint
+        if is_linux?
+          "asset1q78ea9ds0rc3tfwu2damsjehjup2xuzddtg6xh"
+        elsif is_macos?
+          "asset1kjxaamf0p2p2z9g3k4xu0ne0g6h5j70st6z4pz"
+        elsif is_windows?
+          "asset1arj5nz8zxjuxvut5wqt5q0xw7905hllugahvu7"
+        end
+      end
       mint_script = "mintBurn_1.json"
       burn_script = "mintBurn_2.json"
       assets = [ {"policy_script" => {"language_version" => "v1", "script_type" => "plutus"},
                   "policy_id" => policy_id,
-                  "assets" => [ {"fingerprint" => "asset1q78ea9ds0rc3tfwu2damsjehjup2xuzddtg6xh",
+                  "assets" => [ {"fingerprint" => fingerprint,
                                  "quantity" => 1,
                                  "asset_name" => asset_name("mint-burn") } ]
                   }
@@ -129,7 +138,6 @@ RSpec.describe "Cardano Wallet E2E tests", :e2e do
       payload_burn = get_templated_plutus_tx(burn_script, { vkHash: vkHash,
                                                           policyId: policy_id,
                                                           policy: policy })
-
       mint = run_script(mint_script, payload_mint)
       burn = run_script(burn_script, payload_burn)
 
