@@ -66,6 +66,8 @@ import Cardano.Ledger.ShelleyMA.Timelocks
     ( ValidityInterval (ValidityInterval) )
 import Cardano.Mnemonic
     ( SomeMnemonic (SomeMnemonic), entropyToMnemonic, mkEntropy )
+import Cardano.Numeric.Util
+    ( power )
 import Cardano.Wallet
     ( BalanceTxNotSupportedReason (..)
     , ErrBalanceTx (..)
@@ -2268,14 +2270,14 @@ balanceTransactionSpec = do
                 sizeOfCoin (Coin 23) `shouldBe` TxSize 1
                 sizeOfCoin (Coin 24) `shouldBe` TxSize 2
             it "2 byte to 3 byte boundary" $ do
-                sizeOfCoin (Coin 255) `shouldBe` TxSize 2
-                sizeOfCoin (Coin 256) `shouldBe` TxSize 3
+                sizeOfCoin (Coin $ 2 `power` 8 - 1) `shouldBe` TxSize 2
+                sizeOfCoin (Coin $ 2 `power` 8    ) `shouldBe` TxSize 3
             it "3 byte to 5 byte boundary" $ do
-                sizeOfCoin (Coin 65535) `shouldBe` TxSize 3
-                sizeOfCoin (Coin 65536) `shouldBe` TxSize 5
+                sizeOfCoin (Coin $ 2 `power` 16 - 1) `shouldBe` TxSize 3
+                sizeOfCoin (Coin $ 2 `power` 16    ) `shouldBe` TxSize 5
             it "5 byte to 9 byte boundary" $ do
-                sizeOfCoin (Coin 4294967295) `shouldBe` TxSize 5
-                sizeOfCoin (Coin 4294967296) `shouldBe` TxSize 9
+                sizeOfCoin (Coin $ 2 `power` 32 - 1) `shouldBe` TxSize 5
+                sizeOfCoin (Coin $ 2 `power` 32    ) `shouldBe` TxSize 9
 
     describe "costOfIncreasingCoin" $ do
         it "costs 176 lovelace to increase 4.294967295 ada by 1 lovelace \
