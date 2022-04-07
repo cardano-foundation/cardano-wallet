@@ -201,7 +201,7 @@ withNetworkLayer tr net np project k = k NetworkLayer
     , stakeDistribution = undefined
     , getCachedRewardAccountBalance = undefined
     , fetchRewardAccountBalances = undefined
-    , timeInterpreter = timeInterpreter getGenesisBlockDate
+    , timeInterpreter = timeInterpreterFromStartTime getGenesisBlockDate
     , syncProgress = undefined
     }
   where
@@ -230,9 +230,9 @@ withNetworkLayer tr net np project k = k NetworkLayer
         epoch <- fromBlockfrostM _epochInfoEpoch
         liftEither $ eraByEpoch net epoch
 
-    timeInterpreter ::
+    timeInterpreterFromStartTime ::
         StartTime -> TimeInterpreter (ExceptT PastHorizonException IO)
-    timeInterpreter startTime =
+    timeInterpreterFromStartTime startTime =
         mkTimeInterpreter (MsgTimeInterpreterLog >$< tr) startTime $
             pure $ HF.mkInterpreter $ networkSummary net
 
