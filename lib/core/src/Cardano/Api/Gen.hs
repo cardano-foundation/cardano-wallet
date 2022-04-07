@@ -132,6 +132,8 @@ import Data.Coerce
     ( coerce )
 import Data.Int
     ( Int64 )
+import Data.IntCast
+    ( intCast )
 import Data.Map
     ( Map )
 import Data.Maybe
@@ -270,7 +272,7 @@ genSlotNo = SlotNo <$> arbitrary
 genLovelace :: Gen Lovelace
 genLovelace = frequency
     [ (10, Lovelace
-        . fromIntegral
+        . intCast
         . getNonNegative <$> arbitrary @(NonNegative Int) )
     , (50, choose (1_000_000, 1_000_000_000))
     , (10, choose (txOutMinLovelace, txOutMaxLovelace))
