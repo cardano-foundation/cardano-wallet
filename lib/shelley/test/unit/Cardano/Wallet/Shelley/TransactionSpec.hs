@@ -2280,12 +2280,13 @@ balanceTransactionSpec = do
                 sizeOfCoin (Coin $ 2 `power` 32    ) `shouldBe` TxSize 9
 
     describe "costOfIncreasingCoin" $ do
-        it "costs 176 lovelace to increase 4.294967295 ada by 1 lovelace \
-           \on mainnet" $ do
+        it "increasing (2^32 - 1) lovelace by 1 lovelace results in a cost \
+           \increase on mainnet" $ do
             let feePolicy = LinearFee $ LinearFunction
                     { intercept = 150_000, slope = 44 }
-            costOfIncreasingCoin feePolicy (Coin 4294967295) (Coin 1)
-                `shouldBe` (Coin 176)
+            let expectedCostIncrease = Coin 176
+            costOfIncreasingCoin feePolicy (Coin $ 2 `power` 32 - 1) (Coin 1)
+                `shouldBe` expectedCostIncrease
 
         it "produces results in the range [0, 8 * feePerByte]" $
             property $ \c increase -> do
