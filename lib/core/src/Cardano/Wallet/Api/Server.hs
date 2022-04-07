@@ -468,7 +468,7 @@ import Cardano.Wallet.Primitive.Types.TokenBundle
 import Cardano.Wallet.Primitive.Types.TokenMap
     ( AssetId (..), fromFlatList, toNestedList )
 import Cardano.Wallet.Primitive.Types.TokenPolicy
-    ( TokenName (..), TokenPolicyId (..), mkTokenFingerprint, nullTokenName )
+    ( TokenName (..), TokenPolicyId (..), mkTokenFingerprint, nullTokenName, maxLengthTokenName )
 import Cardano.Wallet.Primitive.Types.TokenQuantity
     ( TokenQuantity (..) )
 import Cardano.Wallet.Primitive.Types.Tx
@@ -2221,6 +2221,13 @@ constructTransaction ctx genChange knownPools getPoolStatus (ApiT wid) body = do
         ( isJust mintingBurning &&
           L.any wrongMintingTemplate (NE.toList $ fromJust mintingBurning)
         ) $ liftHandler $ throwE ErrConstructTxWrongMintingBurningTemplate
+
+    let assetNameTooLong (ApiMintBurnData _ (ApiT (UnsafeTokenName bs)) _) =
+            BS.length bs > maxLengthTokenName
+    when
+        ( isJust mintingBurning &&
+          L.any assetNameTooLong (NE.toList $ fromJust mintingBurning)
+        ) $ liftHandler $ throwE ErrConstructTxTooLongAssetName
 
     let checkIx (ApiStakeKeyIndex (ApiT derIndex)) =
             derIndex == DerivationIndex (getIndex @'Hardened minBound)
@@ -4206,6 +4213,12 @@ instance IsServerError ErrConstructTx where
             , "policy script that either does not pass validation, contains "
             , "more than one cosigner, or has a cosigner that is different "
             , "from cosigner#0."
+            ]
+        ErrConstructTxTooLongAssetName ->
+            apiError err403 CreatedTransactionWithTooLongAssetName $ mconcat
+            [ "It looks like I've created a transaction with a minting/burning "
+            , "that has too long asset name. The upper limit is 32-byte "
+            , "(16-character) length name."
             ]
         ErrConstructTxNotImplemented _ ->
             apiError err501 NotImplemented

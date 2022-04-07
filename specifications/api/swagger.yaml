@@ -4104,6 +4104,19 @@ x-errCreatedWrongPolicyScriptTemplate: &errCreatedWrongPolicyScriptTemplate
       type: string
       enum: ['created_wrong_policy_script_template']
 
+x-errCreatedTransactionWithTooLongAssetName: &errCreatedTransactionWithTooLongAssetName
+  <<: *responsesErr
+  title: created_transaction_with_too_long_asset_name
+  properties:
+    message:
+      type: string
+      description:
+          Occurs when asset's name to be minted or burned has exceeds
+          32-byte lenght.
+    code:
+      type: string
+      enum: ['created_transaction_with_too_long_asset_name']
+
 x-errInputsDepleted: &errInputsDepleted
   <<: *responsesErr
   title: inputs_depleted
@@ -5151,6 +5164,7 @@ x-responsesConstructTransaction: &responsesConstructTransaction
             - <<: *errCreatedMultidelegationTransaction
             - <<: *errCreatedMultiaccountTransaction
             - <<: *errCreatedWrongPolicyScriptTemplate
+            - <<: *errCreatedTransactionWithTooLongAssetName
   <<: *responsesErr404WalletNotFound
   <<: *responsesErr406
   <<: *responsesErr415UnsupportedMediaType

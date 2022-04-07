@@ -194,6 +194,7 @@ import Test.Integration.Framework.DSL
     )
 import Test.Integration.Framework.TestData
     ( errMsg403Collateral
+    , errMsg403CreatedTransactionWithTooLongAssetName
     , errMsg403CreatedWrongPolicyScriptTemplate
     , errMsg403Fee
     , errMsg403ForeignTransaction
@@ -3161,12 +3162,6 @@ spec = describe "NEW_SHELLEY_TRANSACTIONS" $ do
 
     it "TRANS_NEW_CREATE_10l - Minting when assetName too long" $
         \ctx -> runResourceT $ do
-        liftIO $ pendingWith "Returns 500 - Something went wrong"
-        -- L ERROR: toCardanoValue: unable to deserialise TokenName
-        -- CallStack (from HasCallStack):
-        --   error, called at src/Cardano/Wallet/Util.hs:78:21 in cardano-wallet-core-2022.1.18-JtZoOG9AeSJ1z9Aw4Sok3f:Cardano.Wallet.Util
-        --   internalError, called at src/Cardano/Wallet/Util.hs:86:23 in cardano-wallet-core-2022.1.18-JtZoOG9AeSJ1z9Aw4Sok3f:Cardano.Wallet.Util
-        --   tina, called at src/Cardano/Wallet/Shelley/Compatibility.hs:1919:14 in cardano-wallet-2022.1.18-8A5EC3ZC9uxJp2wMrOQ62o:Cardano.Wallet.Shelley.Compatibilit
 
         wa <- fixtureWallet ctx
         addrs <- listAddresses @n ctx wa
@@ -3192,6 +3187,7 @@ spec = describe "NEW_SHELLEY_TRANSACTIONS" $ do
             (Link.createUnsignedTransaction @'Shelley wa) Default payload
         verify rTx
             [ expectResponseCode HTTP.status403
+            , expectErrorMessage errMsg403CreatedTransactionWithTooLongAssetName
             ]
 
     it "TRANS_NEW_CREATE_10m1 - Minting amount too big" $
