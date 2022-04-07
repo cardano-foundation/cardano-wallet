@@ -272,7 +272,7 @@ genLovelace = frequency
     [ (10, Lovelace
         . fromIntegral
         . getNonNegative <$> arbitrary @(NonNegative Int) )
-    , (50, Lovelace <$> choose (1_000_000, 1_000_000_000))
+    , (50, choose (1_000_000, 1_000_000_000))
     , (10, choose (txOutMinLovelace, txOutMaxLovelace))
     , (30, genEncodingBoundaryLovelace)
     ]
