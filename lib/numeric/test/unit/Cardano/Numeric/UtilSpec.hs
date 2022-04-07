@@ -8,7 +8,7 @@ module Cardano.Numeric.UtilSpec
 import Prelude
 
 import Cardano.Numeric.Util
-    ( equipartitionNatural, padCoalesce, partitionNatural )
+    ( equipartitionNatural, padCoalesce, partitionNatural, power )
 import Data.List.NonEmpty
     ( NonEmpty (..) )
 import Data.Maybe
@@ -20,7 +20,7 @@ import Data.Ratio
 import Numeric.Natural
     ( Natural )
 import Test.Hspec
-    ( Spec, describe, it )
+    ( Spec, describe, it, shouldBe )
 import Test.QuickCheck
     ( Arbitrary (..)
     , Property
@@ -69,6 +69,16 @@ spec = do
             property prop_partitionNatural_sum
         it "prop_partitionNatural_fair" $
             withMaxSuccess 1000 $ checkCoverage prop_partitionNatural_fair
+
+    describe "power" $ do
+
+        it "equivalent to (^)" $ do
+            2 `power` 8
+                `shouldBe` (256 :: Int)
+            2 `power` 8 - 1
+                `shouldBe` (255 :: Int)
+            2 `power` 8 + 1
+                `shouldBe` (257 :: Int)
 
 --------------------------------------------------------------------------------
 -- Coalescing values
