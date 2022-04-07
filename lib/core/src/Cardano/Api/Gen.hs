@@ -1,8 +1,10 @@
+{-# LANGUAGE DerivingVia #-}
 {-# LANGUAGE GADTs #-}
 {-# LANGUAGE LambdaCase #-}
 {-# LANGUAGE NamedFieldPuns #-}
 {-# LANGUAGE NumericUnderscores #-}
 {-# LANGUAGE ScopedTypeVariables #-}
+{-# LANGUAGE StandaloneDeriving #-}
 {-# LANGUAGE TypeApplications #-}
 {-# OPTIONS_GHC -fno-warn-orphans #-}
 
@@ -150,6 +152,8 @@ import Network.Socket
     ( PortNumber )
 import Numeric.Natural
     ( Natural )
+import System.Random
+    ( Random )
 import Test.Cardano.Chain.UTxO.Gen
     ( genVKWitness )
 import Test.Cardano.Crypto.Gen
@@ -203,6 +207,31 @@ import qualified Plutus.V1.Ledger.Api as Plutus
 import qualified Test.Cardano.Ledger.Shelley.Serialisation.Generators.Genesis as Ledger
     ( genStakePoolRelay )
 
+--------------------------------------------------------------------------------
+-- Constants
+--------------------------------------------------------------------------------
+
+-- | The smallest quantity of lovelace that can appear in a transaction output's
+--   value map.
+--
+-- In practice, the protocol parameters may require this value to be higher, so
+-- this is an absolute minimum.
+--
+txOutMinLovelace :: Lovelace
+txOutMinLovelace = 0
+
+-- | The greatest quantity of lovelace that can appear in a transaction output's
+--   value map.
+--
+-- In practice, this is limited by the total available supply of lovelace.
+--
+txOutMaxLovelace :: Lovelace
+txOutMaxLovelace = 45_000_000_000_000_000
+
+--------------------------------------------------------------------------------
+-- Generators
+--------------------------------------------------------------------------------
+
 genShelleyHash
     :: Gen (Crypto.Hash Crypto.Blake2b_256 Ledger.EraIndependentTxBody)
 genShelleyHash = return . Crypto.castHash $ Crypto.hashWith CBOR.serialize' ()
@@ -244,7 +273,7 @@ genLovelace = frequency
         . fromIntegral
         . getNonNegative <$> arbitrary @(NonNegative Int) )
     , (50, Lovelace <$> choose (1_000_000, 1_000_000_000))
-    , (10, Lovelace <$> choose (0, 45_000_000_000_000_000))
+    , (10, choose (txOutMinLovelace, txOutMaxLovelace))
     , (30, genEncodingBoundaryLovelace)
     ]
 
@@ -1395,3 +1424,12 @@ genTx =
 -- TODO: Generate txs with no outputs
 genTxForBalancing :: forall era. IsCardanoEra era => CardanoEra era -> Gen (Tx era)
 genTxForBalancing era = makeSignedTransaction [] <$> genTxBodyForBalancing era
+
+--------------------------------------------------------------------------------
+-- Orphan instances
+--------------------------------------------------------------------------------
+
+-- This definition makes it possible to avoid unwrapping and wrapping
+-- 'Lovelace' values when using 'choose'.
+--
+deriving via Integer instance Random Lovelace
