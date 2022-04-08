@@ -467,9 +467,13 @@ import Cardano.Wallet.Primitive.Types.TokenBundle
 import Cardano.Wallet.Primitive.Types.TokenMap
     ( AssetId (..), fromFlatList, toNestedList )
 import Cardano.Wallet.Primitive.Types.TokenPolicy
-    ( TokenName (..), TokenPolicyId (..), mkTokenFingerprint, nullTokenName, maxLengthTokenName )
+    ( TokenName (..)
+    , TokenPolicyId (..)
+    , mkTokenFingerprint
+    , nullTokenName
+    , maxLengthTokenName )
 import Cardano.Wallet.Primitive.Types.TokenQuantity
-    ( TokenQuantity (..) )
+    ( TokenQuantity (..), maxTokenQuantity )
 import Cardano.Wallet.Primitive.Types.Tx
     ( TransactionInfo
     , Tx (..)
@@ -2210,6 +2214,17 @@ constructTransaction ctx genChange knownPools getPoolStatus (ApiT wid) body = do
         ( isJust mintingBurning &&
           L.any assetNameTooLong (NE.toList $ fromJust mintingBurning)
         ) $ liftHandler $ throwE ErrConstructTxTooLongAssetName
+
+    let assetQuantityTooBig
+            (ApiMintBurnData _ _ (ApiMint (ApiMintData _ (Quantity amt)))) =
+            amt <= 0 || amt > maxTokenQuantity
+        assetQuantityTooBig
+            (ApiMintBurnData _ _ (ApiBurn (ApiBurnData (Quantity amt)))) =
+            amt <= 0 || amt > maxTokenQuantity
+    when
+        ( isJust mintingBurning &&
+          L.any assetQuantityTooBig (NE.toList $ fromJust mintingBurning)
+        ) $ liftHandler $ throwE ErrConstructTxIncorrectAssetQuantity
 
     let checkIx (ApiStakeKeyIndex (ApiT derIndex)) =
             derIndex == DerivationIndex (getIndex @'Hardened minBound)
@@ -4197,6 +4212,12 @@ instance IsServerError ErrConstructTx where
             [ "It looks like I've created a transaction with a minting/burning "
             , "that has too long asset name. The upper limit is 32-byte "
             , "(16-character) length name."
+            ]
+        ErrConstructTxIncorrectAssetQuantity->
+            apiError err403 CreatedTransactionWithIncorrectAssetQuantity $ mconcat
+            [ "It looks like I've created a transaction with a minting/burning "
+            , "that has incorrect asset quantity. It must be positive and cannot "
+            , "exceed 9223372036854775807."
             ]
         ErrConstructTxNotImplemented _ ->
             apiError err501 NotImplemented
