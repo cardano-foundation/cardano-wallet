@@ -34,8 +34,8 @@ spec = describe "Blockfrost Network" $ do
         , (236, AnyCardanoEra AllegraEra)
         , (235, AnyCardanoEra ShelleyEra)
         , (220, AnyCardanoEra ShelleyEra)
-        , (202, AnyCardanoEra ShelleyEra)
-        , (201, AnyCardanoEra ByronEra)
+        , (208, AnyCardanoEra ShelleyEra)
+        , (207, AnyCardanoEra ByronEra)
         , (001, AnyCardanoEra ByronEra)
         , (000, AnyCardanoEra ByronEra)
         ]
