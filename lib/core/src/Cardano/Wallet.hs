@@ -918,7 +918,7 @@ getWalletUtxoSnapshot ctx wid = do
       where
         computeMinAdaQuantity :: TokenMap -> Coin
         computeMinAdaQuantity =
-            view #txOutputMinimumAdaQuantity (view #constraints tl pp)
+            view #txOutputMinimumAdaQuantity (constraints tl pp)
 
 -- | List the wallet's UTxO statistics.
 listUtxoStatistics
@@ -2194,7 +2194,8 @@ selectAssets ctx pp params transform = do
             , computeMinimumCost =
                 calcMinimumCost tl pp $ params ^. #txContext
             , computeSelectionLimit =
-                view #computeSelectionLimit tl pp $ params ^. #txContext
+                Cardano.Wallet.Transaction.computeSelectionLimit
+                    tl pp $ params ^. #txContext
             , maximumCollateralInputCount =
                 intCast @Word16 @Int $ view #maximumCollateralInputCount pp
             , minimumCollateralPercentage =
@@ -2774,7 +2775,7 @@ createMigrationPlan ctx wid rewardWithdrawal = do
     (wallet, _, pending) <- withExceptT ErrCreateMigrationPlanNoSuchWallet $
         readWallet @ctx @s @k ctx wid
     pp <- liftIO $ currentProtocolParameters nl
-    let txConstraints = view #constraints tl pp
+    let txConstraints = constraints tl pp
     let utxo = availableUTxO @s pending wallet
     pure
         $ Migration.createPlan txConstraints utxo

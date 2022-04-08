@@ -3325,7 +3325,7 @@ getNetworkParameters (_block0, genesisNp, _st) nl tl = do
     pp <- liftIO $ NW.currentProtocolParameters nl
     sp <- liftIO $ NW.currentSlottingParameters nl
     let np = genesisNp { protocolParameters = pp, slottingParameters = sp }
-    let txConstraints = (view #constraints tl) pp
+    let txConstraints = constraints tl pp
     liftIO $ toApiNetworkParameters np txConstraints (interpretQuery ti . toApiEpochInfo)
   where
     ti :: TimeInterpreter IO

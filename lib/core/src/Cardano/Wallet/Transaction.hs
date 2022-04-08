@@ -336,7 +336,6 @@ data TransactionLayer k tx = TransactionLayer
             -- Transaction containing scripts
         -> (Either ErrAssignRedeemers tx)
     }
-    deriving Generic
 
 -- | Method to use when updating the fee of a transaction.
 data TxFeeUpdate = UseOldTxFee
