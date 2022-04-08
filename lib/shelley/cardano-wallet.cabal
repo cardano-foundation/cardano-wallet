@@ -230,12 +230,14 @@ test-suite unit
     , cardano-ledger-alonzo
     , cardano-ledger-byron
     , cardano-ledger-core
+    , cardano-numeric
     , cardano-wallet
     , cardano-wallet-core
     , cardano-wallet-launcher
     , cardano-wallet-test-utils
     , cardano-ledger-shelley-ma
     , cardano-ledger-alonzo
+    , cborg
     , pretty-simple
     , strict-containers
     , containers

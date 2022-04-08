@@ -1,102 +1,105 @@
+{-# LANGUAGE DerivingVia #-}
 {-# LANGUAGE GADTs #-}
 {-# LANGUAGE LambdaCase #-}
 {-# LANGUAGE NamedFieldPuns #-}
 {-# LANGUAGE NumericUnderscores #-}
 {-# LANGUAGE ScopedTypeVariables #-}
+{-# LANGUAGE StandaloneDeriving #-}
 {-# LANGUAGE TypeApplications #-}
 {-# OPTIONS_GHC -fno-warn-orphans #-}
 
 module Cardano.Api.Gen
-  ( genTxIn
-  , genTxId
-  , genTxIndex
-  , genShelleyHash
-  , genTxInsCollateral
-  , genSlotNo
-  , genLovelace
-  , genTxFee
-  , genTtl
-  , genTxValidityLowerBound
-  , genTxValidityUpperBound
-  , genTxValidityRange
-  , genTxScriptValidity
-  , genScriptValidity
-  , genSeed
-  , genSigningKey
-  , genVerificationKey
-  , genVerificationKeyHash
-  , genExtraKeyWitnesses
-  , genSimpleScript
-  , genPlutusScript
-  , genScript
-  , genScriptInAnyLang
-  , genScriptInEra
-  , genScriptHash
-  , genAssetName
-  , genAlphaNum
-  , genPolicyId
-  , genAssetIdNoAda
-  , genValueForMinting
-  , genSignedQuantity
-  , genTxMintValue
-  , genSignedValue
-  , genNetworkMagic
-  , genNetworkId
-  , genStakeCredential
-  , genStakeAddress
-  , genScriptData
-  , genExecutionUnits
-  , genTxWithdrawals
-  , genWithdrawalInfo
-  , genWitnessStake
-  , genScriptWitnessStake
-  , genTxAuxScripts
-  , genTxMetadataInEra
-  , genTxMetadata
-  , genTxMetadataValue
-  , genIx
-  , genPtr
-  , genStakeAddressReference
-  , genPaymentCredential
-  , genAddressByron
-  , genAddressShelley
-  , genAddressInEra
-  , genUnsignedQuantity
-  , genValueForTxOut
-  , genTxOutValue
-  , genTxOut
-  , genTxOutDatum
-  , genWitnessNetworkIdOrByronAddress
-  , genByronKeyWitness
-  , genShelleyWitnessSigningKey
-  , genWitnesses
-  , genTxBody
-  , genTxBodyContent
-  , genTxBodyForBalancing
-  , genTxForBalancing
-  , genTx
-  , genTxInEra
-  , genNat
-  , genRational
-  , genRationalInt64
-  , genEpochNo
-  , genCostModel
-  , genCostModels
-  , genExecutionUnitPrices
-  , genProtocolParameters
-  , genPoolId
-  , genMIRPot
-  , genMIRTarget
-  , genTxCertificate
-  , genTxCertificates
-  , genStakePoolMetadata
-  , genStakePoolMetadataReference
-  , genStakePoolRelay
-  , genStakePoolParameters
-  , genProtocolParametersUpdate
-  , genUpdateProposal
-  , genWitness
-  ) where
+    ( genAddressByron
+    , genAddressInEra
+    , genAddressShelley
+    , genAlphaNum
+    , genAssetIdNoAda
+    , genAssetName
+    , genByronKeyWitness
+    , genCostModel
+    , genCostModels
+    , genEncodingBoundaryLovelace
+    , genEpochNo
+    , genExecutionUnitPrices
+    , genExecutionUnits
+    , genExtraKeyWitnesses
+    , genIx
+    , genLovelace
+    , genMIRPot
+    , genMIRTarget
+    , genNat
+    , genNetworkId
+    , genNetworkMagic
+    , genPaymentCredential
+    , genPlutusScript
+    , genPolicyId
+    , genPoolId
+    , genProtocolParameters
+    , genProtocolParametersUpdate
+    , genPtr
+    , genRational
+    , genRationalInt64
+    , genScript
+    , genScriptData
+    , genScriptHash
+    , genScriptInAnyLang
+    , genScriptInEra
+    , genScriptValidity
+    , genScriptWitnessStake
+    , genSeed
+    , genShelleyHash
+    , genShelleyWitnessSigningKey
+    , genSignedQuantity
+    , genSignedValue
+    , genSigningKey
+    , genSimpleScript
+    , genSlotNo
+    , genStakeAddress
+    , genStakeAddressReference
+    , genStakeCredential
+    , genStakePoolMetadata
+    , genStakePoolMetadataReference
+    , genStakePoolParameters
+    , genStakePoolRelay
+    , genTtl
+    , genTx
+    , genTxAuxScripts
+    , genTxBody
+    , genTxBodyContent
+    , genTxBodyForBalancing
+    , genTxCertificate
+    , genTxCertificates
+    , genTxFee
+    , genTxForBalancing
+    , genTxId
+    , genTxIn
+    , genTxInEra
+    , genTxIndex
+    , genTxInsCollateral
+    , genTxMetadata
+    , genTxMetadataInEra
+    , genTxMetadataValue
+    , genTxMintValue
+    , genTxOut
+    , genTxOutDatum
+    , genTxOutValue
+    , genTxScriptValidity
+    , genTxValidityLowerBound
+    , genTxValidityRange
+    , genTxValidityUpperBound
+    , genTxWithdrawals
+    , genUnsignedQuantity
+    , genUpdateProposal
+    , genValueForMinting
+    , genValueForTxOut
+    , genVerificationKey
+    , genVerificationKeyHash
+    , genWithdrawalInfo
+    , genWitness
+    , genWitnessNetworkIdOrByronAddress
+    , genWitnessStake
+    , genWitnesses
+    ) where
 
 import Prelude
 
@@ -129,6 +132,8 @@ import Data.Coerce
     ( coerce )
 import Data.Int
     ( Int64 )
+import Data.IntCast
+    ( intCast )
 import Data.Map
     ( Map )
 import Data.Maybe
@@ -149,6 +154,8 @@ import Network.Socket
     ( PortNumber )
 import Numeric.Natural
     ( Natural )
+import System.Random
+    ( Random )
 import Test.Cardano.Chain.UTxO.Gen
     ( genVKWitness )
 import Test.Cardano.Crypto.Gen
@@ -156,7 +163,7 @@ import Test.Cardano.Crypto.Gen
 import Test.QuickCheck
     ( Gen
     , Large (..)
-    , NonNegative
+    , NonNegative (..)
     , Positive (..)
     , arbitrary
     , choose
@@ -164,7 +171,6 @@ import Test.QuickCheck
     , chooseInteger
     , elements
     , frequency
-    , getNonNegative
     , infiniteListOf
     , liftArbitrary
     , listOf
@@ -202,6 +208,31 @@ import qualified Plutus.V1.Ledger.Api as Plutus
 import qualified Test.Cardano.Ledger.Shelley.Serialisation.Generators.Genesis as Ledger
     ( genStakePoolRelay )
 
+--------------------------------------------------------------------------------
+-- Constants
+--------------------------------------------------------------------------------
+
+-- | The smallest quantity of lovelace that can appear in a transaction output's
+--   value map.
+--
+-- In practice, the protocol parameters may require this value to be higher, so
+-- this is an absolute minimum.
+--
+txOutMinLovelace :: Lovelace
+txOutMinLovelace = 0
+
+-- | The greatest quantity of lovelace that can appear in a transaction output's
+--   value map.
+--
+-- In practice, this is limited by the total available supply of lovelace.
+--
+txOutMaxLovelace :: Lovelace
+txOutMaxLovelace = 45_000_000_000_000_000
+
+--------------------------------------------------------------------------------
+-- Generators
+--------------------------------------------------------------------------------
+
 genShelleyHash
     :: Gen (Crypto.Hash Crypto.Blake2b_256 Ledger.EraIndependentTxBody)
 genShelleyHash = return . Crypto.castHash $ Crypto.hashWith CBOR.serialize' ()
@@ -238,38 +269,41 @@ genSlotNo :: Gen SlotNo
 genSlotNo = SlotNo <$> arbitrary
 
 genLovelace :: Gen Lovelace
-genLovelace = Lovelace <$> frequency
-    [ (10, fromIntegral . getNonNegative <$> arbitrary @(NonNegative Int) )
+genLovelace = frequency
+    [ (10, Lovelace . intCast . getNonNegative @Int <$> arbitrary)
     , (50, choose (1_000_000, 1_000_000_000))
-    , (10, choose (0, 45_000_000_000_000_000))
+    , (10, choose (txOutMinLovelace, txOutMaxLovelace))
     , (30, genEncodingBoundaryLovelace)
     ]
-  where
-    genEncodingBoundaryLovelace :: Gen Integer
-    genEncodingBoundaryLovelace = do
-        -- https://json.nlohmann.me/features/binary_formats/cbor/
-        -- Generate a point near a boundary
-        -- However, the three first ones are below the minimum utxo value on
-        -- mainnet, and are less useful to generate (in that context).
-        boundary <- frequency
-            [ (1, pure 24)
-            , (1, pure 256)
-            , (8, pure 65536)
-            , (90, pure 4294967296)
-            ]
 
-        offset <- frequency
-            [ (1, choose (-10, 10))
+genEncodingBoundaryLovelace :: Gen Lovelace
+genEncodingBoundaryLovelace = do
+    -- https://json.nlohmann.me/features/binary_formats/cbor/
+    -- Generate a point near a boundary
+    -- However, the three first ones are below the minimum utxo value on
+    -- mainnet, and are less useful to generate (in that context).
+    boundary <- frequency
+        [ ( 1, pure            24)
+        , ( 1, pure           256) -- 2^ 8
+        , ( 8, pure        65_536) -- 2^16
+        , (90, pure 4_294_967_296) -- 2^32
+        ]
 
-            -- Offset by values close to common fee values, in both the positive
-            -- and negative direction, with the hope that this helps find
-            -- corner-cases.
-            , (1, choose (-220_000, -150_000))
-            , (1, choose (150_000, 220_000))
+    offset <- frequency
+        [ (1, choose (-10, 10))
 
-            , (1, choose (-1_000_000, 1_000_000))
-            ]
-        pure $ max 0 $ boundary + offset
+        -- Either offset by -1 (just below boundary), or 0 (just above boundary)
+        , (1, choose (-1, 0))
+
+        -- Offset by values close to common fee values, in both the positive
+        -- and negative direction, with the hope that this helps find
+        -- corner-cases.
+        , (1, choose (-220_000, -150_000))
+        , (1, choose (150_000, 220_000))
+
+        , (1, choose (-1_000_000, 1_000_000))
+        ]
+    pure $ Lovelace <$> max 0 $ boundary + offset
 
 
 genTxFee :: CardanoEra era -> Gen (TxFee era)
@@ -1389,3 +1423,12 @@ genTx =
 -- TODO: Generate txs with no outputs
 genTxForBalancing :: forall era. IsCardanoEra era => CardanoEra era -> Gen (Tx era)
 genTxForBalancing era = makeSignedTransaction [] <$> genTxBodyForBalancing era
+
+--------------------------------------------------------------------------------
+-- Orphan instances
+--------------------------------------------------------------------------------
+
+-- This definition makes it possible to avoid unwrapping and wrapping
+-- 'Lovelace' values when using 'choose'.
+--
+deriving via Integer instance Random Lovelace
