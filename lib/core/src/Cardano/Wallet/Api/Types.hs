@@ -479,6 +479,7 @@ import qualified Data.Map as Map
 import qualified Data.Text as T
 import qualified Data.Text.Encoding as T
 import qualified Data.Text.Read as T
+import Cardano.Wallet.Api.Types.SchemaMetadata
 
 {-------------------------------------------------------------------------------
                                Styles of Wallets
@@ -955,7 +956,7 @@ data ApiMultiDelegationAction
 data ApiConstructTransactionData (n :: NetworkDiscriminant) = ApiConstructTransactionData
     { payments :: !(Maybe (ApiPaymentDestination n))
     , withdrawal :: !(Maybe ApiWithdrawalPostData)
-    , metadata :: !(Maybe (ApiT TxMetadata))
+    , metadata :: !(Maybe TxMetadataWithSchema)
     , mintBurn :: !(Maybe (NonEmpty (ApiMintBurnData n)))
     , delegations :: !(Maybe (NonEmpty ApiMultiDelegationAction))
     , validityInterval :: !(Maybe ApiValidityInterval)
@@ -1000,7 +1001,7 @@ data PostTransactionOldData (n :: NetworkDiscriminant) = PostTransactionOldData
     { payments :: !(NonEmpty (AddressAmount (ApiT Address, Proxy n)))
     , passphrase :: !(ApiT (Passphrase "lenient"))
     , withdrawal :: !(Maybe ApiWithdrawalPostData)
-    , metadata :: !(Maybe (ApiT TxMetadata))
+    , metadata :: !(Maybe TxMetadataWithSchema)
     , timeToLive :: !(Maybe (Quantity "second" NominalDiffTime))
     } deriving (Eq, Generic, Show, Typeable)
 
@@ -1008,7 +1009,7 @@ data PostTransactionOldData (n :: NetworkDiscriminant) = PostTransactionOldData
 data PostTransactionFeeOldData (n :: NetworkDiscriminant) = PostTransactionFeeOldData
     { payments :: (NonEmpty (AddressAmount (ApiT Address, Proxy n)))
     , withdrawal :: !(Maybe ApiWithdrawalPostData)
-    , metadata :: !(Maybe (ApiT TxMetadata))
+    , metadata :: !(Maybe TxMetadataWithSchema )
     , timeToLive :: !(Maybe (Quantity "second" NominalDiffTime))
     } deriving (Eq, Generic, Show, Typeable)
 

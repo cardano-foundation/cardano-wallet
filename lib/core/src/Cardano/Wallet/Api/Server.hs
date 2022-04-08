@@ -1988,7 +1988,7 @@ postTransactionOld
 postTransactionOld ctx genChange (ApiT wid) body = do
     let pwd = coerce $ body ^. #passphrase . #getApiT
     let outs = addressAmountToTxOut <$> body ^. #payments
-    let md = body ^? #metadata . traverse . #getApiT
+    let md = body ^? #metadata . traverse . #txMetadataWithSchema_metadata 
     let mTTL = body ^? #timeToLive . traverse . #getQuantity
 
     (wdrl, mkRwdAcct) <-
@@ -2151,7 +2151,7 @@ postTransactionFeeOld ctx (ApiT wid) body = do
     (wdrl, _) <- mkRewardAccountBuilder @_ @s @_ @n ctx wid (body ^. #withdrawal)
     let txCtx = defaultTransactionCtx
             { txWithdrawal = wdrl
-            , txMetadata = getApiT <$> body ^. #metadata
+            , txMetadata =  body ^? #metadata . traverse . #txMetadataWithSchema_metadata 
             }
     withWorkerCtx ctx wid liftE liftE $ \wrk -> do
         (utxoAvailable, wallet, pendingTxs) <-
@@ -2252,7 +2252,7 @@ constructTransaction ctx genChange knownPools getPoolStatus (ApiT wid) body = do
     when notall0Haccount $
         liftHandler $ throwE ErrConstructTxMultiaccountNotSupported
 
-    let md = body ^? #metadata . traverse . #getApiT
+    let md  = body ^? #metadata . traverse . #txMetadataWithSchema_metadata 
     let mTTL = Nothing --TODO: ADP-1189
 
     (wdrl, _) <-

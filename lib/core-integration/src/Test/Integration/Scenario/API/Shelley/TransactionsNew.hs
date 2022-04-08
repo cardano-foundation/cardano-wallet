@@ -284,9 +284,71 @@ spec = describe "NEW_SHELLEY_TRANSACTIONS" $ do
             [ expectResponseCode HTTP.status400
             ]
 
-    it "TRANS_NEW_CREATE_02 - Only metadata" $ \ctx -> runResourceT $ do
+    it "TRANS_NEW_CREATE_02a - Only metadata" $ \ctx -> runResourceT $ do
         wa <- fixtureWallet ctx
         let metadata = Json [json|{ "metadata": { "1": { "string": "hello" } } }|]
+
+        rTx <- request @(ApiConstructTransaction n) ctx
+            (Link.createUnsignedTransaction @'Shelley wa) Default metadata
+        verify rTx
+            [ expectResponseCode HTTP.status202
+            , expectField (#coinSelection . #metadata) (`shouldSatisfy` isJust)
+            , expectField (#fee . #getQuantity) (`shouldSatisfy` (>0))
+            ]
+
+        let expectedFee = getFromResponse (#fee . #getQuantity) rTx
+        let apiTx = getFromResponse #transaction rTx
+        signedTx <- signTx ctx wa apiTx [ expectResponseCode HTTP.status202 ]
+
+        -- Check for the presence of metadata on signed transaction
+        let
+            getMetadata (InAnyCardanoEra _ tx) = Cardano.getTxBody tx
+                        & (\(Cardano.TxBody bodyContent) ->
+                               Cardano.txMetadata bodyContent
+                               & \case Cardano.TxMetadataNone ->
+                                           Nothing
+                                       Cardano.TxMetadataInEra _ (Cardano.TxMetadata m) ->
+                                           Just m
+                          )
+
+        case getMetadata (cardanoTx $ getApiT (signedTx ^. #transaction)) of
+            Nothing -> error "Tx doesn't include metadata"
+            Just m  -> case Map.lookup 1 m of
+                Nothing -> error "Tx doesn't include metadata"
+                Just (Cardano.TxMetaText "hello") -> pure ()
+                Just _ -> error "Tx metadata incorrect"
+
+        let txCbor = getFromResponse #transaction (HTTP.status202, Right signedTx)
+        let decodePayload = Json (toJSON $ ApiSerialisedTransaction txCbor)
+        let expMetadata = ApiT (TxMetadata (Map.fromList [(1,TxMetaText "hello")]))
+        rDecodedTx <- request @(ApiDecodedTransaction n) ctx
+            (Link.decodeTransaction @'Shelley wa) Default decodePayload
+        verify rDecodedTx
+            [ expectResponseCode HTTP.status202
+            , expectField #metadata (`shouldBe` (ApiTxMetadata (Just expMetadata)))
+            ]
+
+        -- Submit tx
+        submittedTx <- submitTxWithWid ctx wa signedTx
+        verify submittedTx
+            [ expectSuccess
+            , expectResponseCode HTTP.status202
+            ]
+
+        -- Make sure only fee is deducted from fixtureWallet
+        eventually "Wallet balance is as expected" $ do
+            rWa <- request @ApiWallet ctx
+                (Link.getWallet @'Shelley wa) Default Empty
+            verify rWa
+                [ expectSuccess
+                , expectField
+                        (#balance . #available . #getQuantity)
+                        (`shouldBe` (fromIntegral oneMillionAda - expectedFee))
+                ]
+
+    it "TRANS_NEW_CREATE_02b - Only metadata, untyped" $ \ctx -> runResourceT $ do
+        wa <- fixtureWallet ctx
+        let metadata = Json [json|{ "metadata": { "1": "hello"  } }|]
 
         rTx <- request @(ApiConstructTransaction n) ctx
             (Link.createUnsignedTransaction @'Shelley wa) Default metadata
