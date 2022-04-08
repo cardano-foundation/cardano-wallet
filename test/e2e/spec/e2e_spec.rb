@@ -115,9 +115,9 @@ RSpec.describe "Cardano Wallet E2E tests", :e2e do
       def fingerprint
         if is_linux?
           "asset1q78ea9ds0rc3tfwu2damsjehjup2xuzddtg6xh"
-        elsif is_macos?
+        elsif is_mac?
           "asset1kjxaamf0p2p2z9g3k4xu0ne0g6h5j70st6z4pz"
-        elsif is_windows?
+        elsif is_win?
           "asset1arj5nz8zxjuxvut5wqt5q0xw7905hllugahvu7"
         end
       end
