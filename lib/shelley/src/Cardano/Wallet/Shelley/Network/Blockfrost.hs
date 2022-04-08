@@ -526,10 +526,94 @@ networkSummary = \case
                     }
                 }
             }
-    Testnet _ -> error
-        "In light-mode time interpreter is only available for the \
-        \mainnet (interpreter uses a hard-coded history of hard forks). \
-        \It doesn't seem viable to hardcode it for other networks yet."
+    Testnet (NetworkMagic 1097911063) -> -- Magic of the current public testnet
+        Summary
+            { getSummary
+                = NonEmptyCons EraSummary
+                    { eraStart = Bound
+                        { boundTime = RelativeTime 0
+                        , boundSlot = SlotNo 0
+                        , boundEpoch = Node.EpochNo 0
+                        }
+                    , eraEnd = EraEnd Bound
+                        { boundTime = RelativeTime 31968000
+                        , boundSlot = SlotNo 1598400
+                        , boundEpoch = Node.EpochNo 74
+                        }
+                    , eraParams = EraParams
+                        { eraEpochSize = EpochSize 21600
+                        , eraSlotLength = mkSlotLength 20
+                        , eraSafeZone = StandardSafeZone 4320
+                        }
+                    }
+                $ NonEmptyCons EraSummary
+                    { eraStart = Bound
+                        { boundTime = RelativeTime 31968000
+                        , boundSlot = SlotNo 1598400
+                        , boundEpoch = Node.EpochNo 74
+                        }
+                    , eraEnd = EraEnd Bound
+                        { boundTime = RelativeTime 44064000
+                        , boundSlot = SlotNo 13694400
+                        , boundEpoch = Node.EpochNo 102
+                        }
+                    , eraParams = EraParams
+                        { eraEpochSize = EpochSize 432000
+                        , eraSlotLength = mkSlotLength 1
+                        , eraSafeZone = StandardSafeZone 129600
+                        }
+                    }
+                $ NonEmptyCons EraSummary
+                    { eraStart = Bound
+                        { boundTime = RelativeTime 44064000
+                        , boundSlot = SlotNo 13694400
+                        , boundEpoch = Node.EpochNo 102
+                        }
+                    , eraEnd = EraEnd Bound
+                        { boundTime = RelativeTime 48384000
+                        , boundSlot = SlotNo 18014400
+                        , boundEpoch = Node.EpochNo 112
+                        }
+                    , eraParams = EraParams
+                        { eraEpochSize = EpochSize 432000
+                        , eraSlotLength = mkSlotLength 1
+                        , eraSafeZone = StandardSafeZone 129600
+                        }
+                    }
+                $ NonEmptyCons EraSummary
+                    { eraStart = Bound
+                        { boundTime = RelativeTime 48384000
+                        , boundSlot = SlotNo 18014400
+                        , boundEpoch = Node.EpochNo 112
+                        }
+                    , eraEnd = EraEnd Bound
+                        { boundTime = RelativeTime 66528000
+                        , boundSlot = SlotNo 36158400
+                        , boundEpoch = Node.EpochNo 154
+                        }
+                    , eraParams = EraParams
+                        { eraEpochSize = EpochSize 432000
+                        , eraSlotLength = mkSlotLength 1
+                        , eraSafeZone = StandardSafeZone 129600
+                        }
+                    }
+                $ NonEmptyOne EraSummary
+                    { eraStart = Bound
+                        { boundTime = RelativeTime 66528000
+                        , boundSlot = SlotNo 36158400
+                        , boundEpoch = Node.EpochNo 154
+                        }
+                    , eraEnd = EraUnbounded
+                    , eraParams = EraParams
+                        { eraEpochSize = EpochSize 432000
+                        , eraSlotLength = mkSlotLength 1
+                        , eraSafeZone = StandardSafeZone 129600
+                        }
+                    }
+            }
+    Testnet magic ->
+        error $ "Epoch/Era conversion isn't provided for the Testnet "
+            <> show magic
 
 {- Epoch-to-Era translation is not available in the Blockfrost API.
 
