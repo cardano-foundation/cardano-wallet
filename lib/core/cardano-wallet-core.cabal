@@ -183,6 +183,7 @@ library
       Cardano.Wallet.Api.Server
       Cardano.Wallet.Api.Server.Tls
       Cardano.Wallet.Api.Types
+      Cardano.Wallet.Api.Types.SchemaMetadata
       Cardano.Wallet.CoinSelection
       Cardano.Wallet.CoinSelection.Internal
       Cardano.Wallet.CoinSelection.Internal.Balance

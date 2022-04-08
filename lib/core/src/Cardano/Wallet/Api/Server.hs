@@ -2215,7 +2215,7 @@ constructTransaction ctx genChange knownPools getPoolStatus (ApiT wid) body = do
     when notall0Haccount $
         liftHandler $ throwE ErrConstructTxMultiaccountNotSupported
 
-    let md = body ^? #metadata . traverse . #getApiT
+    let md  = body ^? #metadata . traverse . #txMetadataWithSchema_metadata 
     let mTTL = Nothing --TODO: ADP-1189
 
     (wdrl, _) <-
