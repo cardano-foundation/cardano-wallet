@@ -3374,6 +3374,56 @@ spec = describe "NEW_SHELLEY_TRANSACTIONS" $ do
 
         burnAssetsCheck ctx wa tokenName' payloadBurn scriptUsed
 
+    it "TRANS_NEW_CREATE_10g - Burning assets without timelock and token name" $
+        \ctx -> runResourceT $ do
+
+        wa <- fixtureWallet ctx
+        addrs <- listAddresses @n ctx wa
+        let destination = (addrs !! 1) ^. #id
+
+        let (Right tokenName') = mkTokenName ""
+        let payloadMint = Json [json|{
+                "mint_burn": [{
+                    "policy_script_template":
+                        { "all":
+                            [ "cosigner#0"
+                            ]
+                        },
+                    "operation":
+                        { "mint" :
+                            { "receiving_address": #{destination},
+                                "amount": {
+                                    "quantity": 50000,
+                                    "unit": "assets"
+                                }
+                            }
+                        }
+                }]
+            }|]
+
+        let scriptUsed policyKeyHash = RequireAllOf
+                [ RequireSignatureOf policyKeyHash
+                ]
+
+        mintAssetsCheck ctx wa tokenName' payloadMint scriptUsed
+
+        let payloadBurn = Json [json|{
+                "mint_burn": [{
+                    "policy_script_template":
+                        { "all":
+                            [ "cosigner#0"
+                            ]
+                        },
+                    "operation":
+                        { "burn" :
+                            { "quantity": 50000
+                            , "unit": "assets"
+                            }
+                        }
+                }]
+            }|]
+
+        burnAssetsCheck ctx wa tokenName' payloadBurn scriptUsed
   where
 
     -- | Just one million Ada, in Lovelace.

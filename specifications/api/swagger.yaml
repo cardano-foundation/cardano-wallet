@@ -3416,7 +3416,6 @@ components:
     ApiMintBurnData: &ApiMintBurnData
       type: object
       required:
-        - asset_name
         - operation
         - policy_script_template
       properties:
