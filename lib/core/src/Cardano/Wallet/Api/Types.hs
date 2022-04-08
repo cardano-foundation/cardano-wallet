@@ -4014,7 +4014,7 @@ data ApiMintBurnData (n :: NetworkDiscriminant) = ApiMintBurnData
         -- ^ A script regulating minting/burning policy. 'self' is expected
         -- in place of verification key.
     , assetName
-        :: !(ApiT W.TokenName)
+        :: !(Maybe (ApiT W.TokenName))
         -- ^ The name of the asset to mint/burn.
     , operation
         :: !(ApiMintBurnOperation n)

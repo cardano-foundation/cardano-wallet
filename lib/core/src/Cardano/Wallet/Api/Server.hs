@@ -2198,21 +2198,27 @@ constructTransaction ctx genChange knownPools getPoolStatus (ApiT wid) body = do
         liftHandler $ throwE ErrConstructTxWrongPayload
 
     let mintingBurning = body ^. #mintBurn
+    let handleMissingAssetName :: ApiMintBurnData n -> ApiMintBurnData n
+        handleMissingAssetName mb = case mb ^. #assetName of
+            Nothing -> mb {assetName = Just $ ApiT nullTokenName}
+            Just _ -> mb
+    let mintingBurning' = fmap handleMissingAssetName <$> mintingBurning
     let retrieveAllCosigners = foldScript (:) []
     let wrongMintingTemplate (ApiMintBurnData (ApiT scriptTempl) _ _) =
             isLeft (validateScriptOfTemplate RecommendedValidation scriptTempl)
             || length (retrieveAllCosigners scriptTempl) > 1
             || (L.any (/= Cosigner 0)) (retrieveAllCosigners scriptTempl)
     when
-        ( isJust mintingBurning &&
-          L.any wrongMintingTemplate (NE.toList $ fromJust mintingBurning)
+        ( isJust mintingBurning' &&
+          L.any wrongMintingTemplate (NE.toList $ fromJust mintingBurning')
         ) $ liftHandler $ throwE ErrConstructTxWrongMintingBurningTemplate
 
-    let assetNameTooLong (ApiMintBurnData _ (ApiT (UnsafeTokenName bs)) _) =
+    let assetNameTooLong (ApiMintBurnData _ (Just (ApiT (UnsafeTokenName bs))) _) =
             BS.length bs > maxLengthTokenName
+        assetNameTooLong _ = error "tokenName should be nonempty at this step"
     when
-        ( isJust mintingBurning &&
-          L.any assetNameTooLong (NE.toList $ fromJust mintingBurning)
+        ( isJust mintingBurning' &&
+          L.any assetNameTooLong (NE.toList $ fromJust mintingBurning')
         ) $ liftHandler $ throwE ErrConstructTxTooLongAssetName
 
     let assetQuantityTooBig
@@ -2222,8 +2228,8 @@ constructTransaction ctx genChange knownPools getPoolStatus (ApiT wid) body = do
             (ApiMintBurnData _ _ (ApiBurn (ApiBurnData (Quantity amt)))) =
             amt <= 0 || amt > maxTokenQuantity
     when
-        ( isJust mintingBurning &&
-          L.any assetQuantityTooBig (NE.toList $ fromJust mintingBurning)
+        ( isJust mintingBurning' &&
+          L.any assetQuantityTooBig (NE.toList $ fromJust mintingBurning')
         ) $ liftHandler $ throwE ErrConstructTxIncorrectAssetQuantity
 
     let checkIx (ApiStakeKeyIndex (ApiT derIndex)) =
@@ -2290,7 +2296,7 @@ constructTransaction ctx genChange knownPools getPoolStatus (ApiT wid) body = do
         (utxoAvailable, wallet, pendingTxs) <-
             liftHandler $ W.readWalletUTxOIndex @_ @s @k wrk wid
         txCtx' <-
-            if isJust mintingBurning then do
+            if isJust mintingBurning' then do
                 (policyXPub, _) <-
                     liftHandler $ W.readPolicyPublicKey @_ @s @k @n wrk wid
                 let isMinting (ApiMintBurnData _ _ (ApiMint _)) = True
@@ -2298,7 +2304,7 @@ constructTransaction ctx genChange knownPools getPoolStatus (ApiT wid) body = do
                 let getMinting = \case
                         ApiMintBurnData
                             (ApiT scriptT)
-                            (ApiT tName)
+                            (Just (ApiT tName))
                             (ApiMint (ApiMintData _ (Quantity amt))) ->
                             toTokenMapAndScript @k
                                 scriptT
@@ -2309,7 +2315,7 @@ constructTransaction ctx genChange knownPools getPoolStatus (ApiT wid) body = do
                 let getBurning = \case
                         ApiMintBurnData
                             (ApiT scriptT)
-                            (ApiT tName)
+                            (Just (ApiT tName))
                             (ApiBurn (ApiBurnData (Quantity amt))) ->
                             toTokenMapAndScript @k
                                 scriptT
@@ -2327,12 +2333,12 @@ constructTransaction ctx genChange knownPools getPoolStatus (ApiT wid) body = do
                         toTokenMap &&& toScriptTemplateMap $
                         map getMinting $
                         filter isMinting $
-                        NE.toList $ fromJust mintingBurning
+                        NE.toList $ fromJust mintingBurning'
                 let burningData =
                         toTokenMap &&& toScriptTemplateMap $
                         map getBurning $
                         filter (not . isMinting) $
-                        NE.toList $ fromJust mintingBurning
+                        NE.toList $ fromJust mintingBurning'
                 pure $ txCtx
                     { txAssetsToMint = mintingData
                     , txAssetsToBurn = burningData
