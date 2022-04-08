@@ -17,7 +17,6 @@
 {-# LANGUAGE TypeApplications #-}
 {-# LANGUAGE TypeFamilies #-}
 {-# LANGUAGE TypeOperators #-}
-{-# LANGUAGE ViewPatterns #-}
 
 -- |
 -- Copyright: © 2018-2020 IOHK
@@ -511,8 +510,6 @@ import Data.DBVar
     ( modifyDBMaybe )
 import Data.Either
     ( partitionEithers )
-import Data.Either.Combinators
-    ( maybeToRight )
 import Data.Either.Extra
     ( eitherToMaybe )
 import Data.Foldable
@@ -1586,10 +1583,10 @@ balanceTransactionWithSelectionStrategy
     ti
     (internalUtxoAvailable, wallet, _pendingTxs)
     selectionStrategy
-    ptx@(PartialTx partialTx' externalInputs redeemers)
+    ptx@(PartialTx partialTx externalInputs redeemers)
     = do
     guardExistingCollateral partialTx
-    guardZeroAdaOutputs (extractOutputsFromTx partialTx)
+    guardZeroAdaOutputs (extractOutputsFromTx $ toSealed partialTx)
     guardConflictingWithdrawalNetworks partialTx
 
     (balance0, minfee0) <- balanceAfterSettingMinFee partialTx
@@ -1646,7 +1643,7 @@ balanceTransactionWithSelectionStrategy
             (BuildableInAnyEra Cardano.cardanoEra ptx)
 
         let mSel = selectAssets'
-                partialTx
+                (extractOutputsFromTx $ toSealed partialTx)
                 (UTxOSelection.fromIndexPair
                     (internalUtxoAvailable, externalSelectedUtxo))
                 balance0
@@ -1700,7 +1697,9 @@ balanceTransactionWithSelectionStrategy
                 pure $ Coin.unsafeFromIntegral c
             | otherwise ->
                 throwE . ErrBalanceTxInternalError $
-                ErrUnderestimatedFee (Coin.unsafeFromIntegral (-c)) candidateTx
+                ErrUnderestimatedFee
+                    (Coin.unsafeFromIntegral (-c))
+                    (toSealed candidateTx)
 
     let feeAndChange = TxFeeAndChange
             (unsafeFromLovelace candidateMinFee)
@@ -1711,80 +1710,64 @@ balanceTransactionWithSelectionStrategy
     -- padding in @selectAssets'@.
     TxFeeAndChange updatedFee updatedChange <- withExceptT
         (\(ErrMoreSurplusNeeded c) ->
-            ErrBalanceTxInternalError $ ErrUnderestimatedFee c candidateTx)
+            ErrBalanceTxInternalError
+                $ ErrUnderestimatedFee c (toSealed candidateTx))
         (ExceptT . pure $ distributeSurplus tl feePolicy surplus feeAndChange)
 
-    fromSealed <$> (guardTxSize =<< guardTxBalanced =<< (assembleTransaction $ TxUpdate
+    guardTxSize =<< guardTxBalanced =<< (assembleTransaction $ TxUpdate
         { extraInputs
         , extraCollateral
         , extraOutputs = updatedChange
         , feeUpdate = UseNewTxFee updatedFee
-        }))
+        })
   where
     tl = ctx ^. transactionLayer @k
     tr = contramap MsgWallet $ ctx ^. logger @m
 
-    toSealed = sealedTxFromCardano . Cardano.InAnyCardanoEra era
-    partialTx = toSealed partialTx'
-    era = Cardano.cardanoEra @era
+    toSealed = sealedTxFromCardano . Cardano.InAnyCardanoEra Cardano.cardanoEra
 
-    fromSealed :: SealedTx -> Cardano.Tx era
-    fromSealed (cardanoTx -> Cardano.InAnyCardanoEra resultEra tx) =
-        case testEquality resultEra era of
-            Just Refl -> tx
-            Nothing ->
-                error "impossible: balanceTransaction didn't preserve the era"
+    guardTxSize :: Cardano.Tx era -> ExceptT ErrBalanceTx m (Cardano.Tx era)
+    guardTxSize tx = do
+        let size = estimateSignedTxSize tl nodePParams tx
+        let maxSize = TxSize
+                . intCast
+                . getQuantity
+                $ view (#txParameters . #getTxMaxSize) pp
+        when (size > maxSize) $
+            throwE ErrBalanceTxMaxSizeLimitExceeded
+        return tx
 
-    guardTxSize :: SealedTx -> ExceptT ErrBalanceTx m SealedTx
-    guardTxSize tx =
-        case estimateSignedTxSize tl nodePParams tx of
-            Nothing -> throwE $ ErrBalanceTxUpdateError ErrByronTxNotSupported
-            Just size -> do
-                let maxSize = TxSize
-                        . intCast
-                        . getQuantity
-                        $ view (#txParameters . #getTxMaxSize) pp
-                when (size > maxSize) $
-                    throwE ErrBalanceTxMaxSizeLimitExceeded
-                return tx
-
-    guardTxBalanced :: SealedTx -> ExceptT ErrBalanceTx m SealedTx
+    guardTxBalanced :: Cardano.Tx era -> ExceptT ErrBalanceTx m (Cardano.Tx era)
     guardTxBalanced tx = do
-        bal <- txBalance tx
+        let bal = txBalance tx
         if bal == mempty
         then pure tx
         else throwE $ ErrBalanceTxInternalError $ ErrFailedBalancing bal
 
-    txBalance :: SealedTx -> ExceptT ErrBalanceTx m Cardano.Value
+    txBalance :: Cardano.Tx era -> Cardano.Value
     txBalance tx =
-        case evaluateTransactionBalance tl tx nodePParams utxo externalInputs of
-            Just x -> pure x
-            Nothing -> throwE $ ErrBalanceTxUpdateError ErrByronTxNotSupported
+        evaluateTransactionBalance tl tx nodePParams utxo externalInputs
       where
         utxo = CS.toExternalUTxOMap $ UTxOIndex.toMap internalUtxoAvailable
 
     balanceAfterSettingMinFee
-        :: SealedTx
+        :: Cardano.Tx era
         -> ExceptT ErrBalanceTx m (Cardano.Value, Cardano.Lovelace)
     balanceAfterSettingMinFee tx = ExceptT . pure $ do
         -- NOTE: evaluateMinimumFee relies on correctly estimating the required
         -- number of witnesses.
-        minfee <-  nothingAsByronErr (evaluateMinimumFee tl nodePParams tx)
+        let minfee = evaluateMinimumFee tl nodePParams tx
         let update = TxUpdate [] [] [] (UseNewTxFee minfee)
         tx' <- left ErrBalanceTxUpdateError $ updateTx tl tx update
-        balance <-
-            nothingAsByronErr $ evaluateTransactionBalance tl tx' nodePParams
+        let balance = evaluateTransactionBalance tl tx' nodePParams
                 (CS.toExternalUTxOMap $ UTxOIndex.toMap internalUtxoAvailable)
                 (view #inputs ptx)
         let minfee' = Cardano.Lovelace $ fromIntegral $ unCoin minfee
         return (balance, minfee')
-      where
-        nothingAsByronErr
-            = maybeToRight (ErrBalanceTxUpdateError ErrByronTxNotSupported)
 
     assembleTransaction
         :: TxUpdate
-        -> ExceptT ErrBalanceTx m SealedTx
+        -> ExceptT ErrBalanceTx m (Cardano.Tx era)
     assembleTransaction update = ExceptT . pure $ do
         tx' <- left ErrBalanceTxUpdateError $ updateTx tl partialTx update
         left ErrBalanceTxAssignRedeemers $ assignScriptRedeemers
@@ -1828,8 +1811,8 @@ balanceTransactionWithSelectionStrategy
         let (Tx {outputs}, _, _, _) = decodeTx tl tx
         in outputs
 
-    guardConflictingWithdrawalNetworks (cardanoTx ->
-        (Cardano.InAnyCardanoEra _ (Cardano.Tx (Cardano.TxBody body) _))) = do
+    guardConflictingWithdrawalNetworks
+        (Cardano.Tx (Cardano.TxBody body) _) = do
         -- Use of withdrawals with different networks breaks balancing.
         --
         -- For instance the partial tx might contain two withdrawals with the
@@ -1850,8 +1833,7 @@ balanceTransactionWithSelectionStrategy
         when conflictingWdrlNetworks $
             throwE ErrBalanceTxConflictingNetworks
 
-    guardExistingCollateral (cardanoTx ->
-        (Cardano.InAnyCardanoEra _ (Cardano.Tx (Cardano.TxBody body) _))) = do
+    guardExistingCollateral (Cardano.Tx (Cardano.TxBody body) _) = do
         -- Coin selection does not support pre-defining collateral. In Sep 2021
         -- consensus was that we /could/ allow for it with just a day's work or
         -- so, but that the need for it was unclear enough that it was not in
@@ -1869,7 +1851,7 @@ balanceTransactionWithSelectionStrategy
     -- transaction. For this, and other reasons, the selection may include too
     -- much ada.
     selectAssets'
-        :: SealedTx
+        :: [TxOut]
         -> UTxOSelection WalletUTxO
         -- ^ Describes which utxos are pre-selected, and which can be used as
         -- inputs or collateral.
@@ -1877,7 +1859,7 @@ balanceTransactionWithSelectionStrategy
         -> Cardano.Lovelace -- Current minfee (before selecting assets)
         -> StdGenSeed
         -> Either (SelectionError WalletSelectionContext) Selection
-    selectAssets' tx utxoSelection balance fee0 seed =
+    selectAssets' outs utxoSelection balance fee0 seed =
         let
             txPlutusScriptExecutionCost = maxScriptExecutionCost tl pp redeemers
             colReq =
@@ -1890,7 +1872,6 @@ balanceTransactionWithSelectionStrategy
             (TokenBundle positiveAda positiveTokens) = positiveBundle
             (TokenBundle negativeAda negativeTokens) = negativeBundle
 
-            outs = extractOutputsFromTx tx
             adaInOutputs = F.foldMap (TokenBundle.getCoin . view #tokens) outs
             tokensInOutputs = F.foldMap (TokenBundle.tokens . view #tokens) outs
             tokensInInputs = TokenBundle.tokens
@@ -3452,6 +3433,7 @@ data ErrBalanceTx
     | ErrBalanceTxAssignRedeemers ErrAssignRedeemers
     | ErrBalanceTxInternalError ErrBalanceTxInternalError
     | ErrBalanceTxZeroAdaOutput
+    | ErrByronTxNotSupported
     deriving (Show, Eq)
 
 data ErrBalanceTxInternalError

@@ -4390,7 +4390,7 @@ instance IsServerError ErrDecodeTx where
 
 instance IsServerError ErrBalanceTx where
     toServerError = \case
-        ErrBalanceTxUpdateError ErrByronTxNotSupported ->
+        ErrByronTxNotSupported ->
             apiError err403 CreatedInvalidTransaction
                 "Balancing Byron transactions is not supported."
         ErrBalanceTxUpdateError (ErrExistingKeyWitnesses n) ->
@@ -4889,12 +4889,6 @@ instance IsServerError ErrUpdateSealedTx where
                 , "witnesses defined in the input transaction and, adjusting"
                 , "the transaction body will render witnesses invalid!"
                 , "Please make sure to remove all key witnesses from the request."
-                ]
-        ErrByronTxNotSupported{} ->
-            apiError err501 NotImplemented  $ T.unwords
-                [ "You just tried to submit a transaction in the Byron format,"
-                , "but this is not something I support on this particular"
-                , "endpoint. It's time to upgrade!"
                 ]
 
 instance IsServerError ErrAssignRedeemers where

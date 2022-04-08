@@ -18,7 +18,6 @@
 {-# LANGUAGE TypeApplications #-}
 {-# LANGUAGE TypeFamilies #-}
 {-# LANGUAGE UndecidableInstances #-}
-{-# LANGUAGE ViewPatterns #-}
 {- HLINT ignore "Use null" -}
 
 {-# OPTIONS_GHC -fno-warn-orphans #-}
@@ -2215,7 +2214,8 @@ balanceTransactionSpec = do
 
             let balance = balanceTransaction' wallet testStdGenSeed
             let totalOutput tx =
-                    let (wtx, _, _, _) = decodeTx testTxLayer (sealedTxFromCardano' tx)
+                    let (wtx, _, _, _) =
+                            decodeTx testTxLayer (sealedTxFromCardano' tx)
                     in
                         F.foldMap (view (#tokens . #coin)) (view #outputs wtx)
                         <> fromMaybe (Coin 0) (view #fee wtx)
@@ -3196,15 +3196,11 @@ balanceTransactionGoldenSpec = describe "balance goldens" $ do
 
     txMinFee :: Cardano.Tx Cardano.AlonzoEra -> Cardano.Lovelace
     txMinFee = toCardanoLovelace
-        . fromMaybe (error "evaluateMinimumFee returned Nothing!")
         . evaluateMinimumFee testTxLayer (snd mockProtocolParametersForBalancing)
-        . toSealed
 
     deserializeAlonzoTx :: ByteString -> Cardano.Tx Cardano.AlonzoEra
     deserializeAlonzoTx = either (error . show) id
         . Cardano.deserialiseFromCBOR (Cardano.AsTx Cardano.AsAlonzoEra)
-
-    toSealed = sealedTxFromCardano . Cardano.InAnyCardanoEra Cardano.cardanoEra
 
 -- NOTE: 'balanceTransaction' relies on estimating the number of witnesses that
 -- will be needed. The correctness of this estimation is not tested here.
@@ -3290,7 +3286,7 @@ prop_balanceTransactionValid wallet (ShowBuildable partialTx') seed
                         [ "underestimated fee by "
                         , pretty delta
                         , "\n candidate tx: "
-                        , pretty tx
+                        , pretty candidateTx
                         ]
                 in
                     counterexample counterexampleText $ property False
@@ -3344,11 +3340,11 @@ prop_balanceTransactionValid wallet (ShowBuildable partialTx') seed
 
     prop_validSize :: Cardano.Tx Cardano.AlonzoEra -> Property
     prop_validSize tx = do
-        let Just (TxSize size) =
+        let (TxSize size) =
                 estimateSignedTxSize
                     testTxLayer
                     (snd mockProtocolParametersForBalancing)
-                    (toSealed tx)
+                    tx
         let limit = fromIntegral $ getQuantity $
                 view (#txParameters . #getTxMaxSize) mockProtocolParameters
         let msg = unwords
@@ -3376,8 +3372,6 @@ prop_balanceTransactionValid wallet (ShowBuildable partialTx') seed
                 Just o' -> (i,o',Nothing)
                 Nothing -> (i,o,dh)
 
-    toSealed = sealedTxFromCardano . Cardano.InAnyCardanoEra Cardano.cardanoEra
-
     walletUTxO :: UTxO
     walletUTxO =
         let Wallet' _ w _ = wallet
@@ -3398,9 +3392,7 @@ prop_balanceTransactionValid wallet (ShowBuildable partialTx') seed
 
     txMinFee :: Cardano.Tx Cardano.AlonzoEra -> Cardano.Lovelace
     txMinFee = toCardanoLovelace
-        . fromMaybe (error "evaluateMinimumFee returned nothing!")
         . evaluateMinimumFee testTxLayer nodePParams
-        . toSealed
 
     txBalance
         :: Cardano.Tx Cardano.AlonzoEra
@@ -3651,31 +3643,28 @@ updateSealedTxSpec = do
     describe "updateSealedTx" $ do
         describe "no existing key witnesses" $ do
             txs <- readTestTransactions
-            forM_ txs $ \(filepath, tx) -> do
+            forM_ txs $ \(filepath, sealedTx) -> do
+                let anyShelleyEraTx
+                        = fromJust $ asAnyShelleyBasedEra $ cardanoTx sealedTx
                 it ("without TxUpdate: " <> filepath) $ do
-                    case updateSealedTx tx noTxUpdate of
-                        Left e ->
-                            expectationFailure $
-                            "expected update to succeed but failed: " <> show e
-                        Right tx' -> do
-                            sealedInputs tx
-                                `shouldBe` sealedInputs tx'
-                            sealedCollateralInputs tx
-                                `shouldBe` sealedCollateralInputs tx'
-                            sealedOutputs tx
-                                `shouldBe` sealedOutputs tx'
-                            sealedFee tx
-                                `shouldBe` sealedFee tx'
+                    withShelleyBasedTx anyShelleyEraTx $ \tx ->
+                        case updateSealedTx tx noTxUpdate of
+                            Left e ->
+                                expectationFailure $
+                                "expected update to succeed but failed: "
+                                    <> show e
+                            Right tx' -> do
+                                tx `shouldBe` tx'
 
                 prop ("with TxUpdate: " <> filepath) $
-                    prop_updateSealedTx tx
+                    prop_updateSealedTx anyShelleyEraTx
 
         describe "existing key witnesses" $ do
             it "returns `Left err` with noTxUpdate" $ do
                 -- Could be argued that it should instead return `Right tx`.
-                case sealedTxFromBytes $ unsafeFromHex txWithInputsOutputsAndWits of
-                    Left e -> expectationFailure $ show e
-                    Right tx -> do
+                let anyShelleyTx = shelleyBasedTxFromBytes
+                        $ unsafeFromHex txWithInputsOutputsAndWits
+                withShelleyBasedTx anyShelleyTx $ \tx ->
                         updateSealedTx tx noTxUpdate
                             `shouldBe` Left (ErrExistingKeyWitnesses 2)
 
@@ -3692,23 +3681,35 @@ unsafeSealedTxFromHex =
     isNewlineChar c = c `elem` [10,13]
 
 prop_updateSealedTx
-    :: SealedTx -> [(TxIn, TxOut)] -> [TxIn] -> [TxOut] -> Coin -> Property
-prop_updateSealedTx tx extraIns extraCol extraOuts newFee = do
-    let extra = TxUpdate extraIns extraCol extraOuts (UseNewTxFee newFee)
-    let tx' = either (error . show) id
-            $ updateSealedTx tx extra
-    conjoin
-        [ sealedInputs tx' === sealedInputs tx <> Set.fromList (fst <$> extraIns)
-        , sealedCollateralInputs tx' ===
-            if isAlonzo tx
-            then sealedCollateralInputs tx <> Set.fromList extraCol
-            else mempty
-        , sealedOutputs tx' === sealedOutputs tx <> Set.fromList extraOuts
-        , sealedFee tx' === Just newFee
-        ]
+    :: Cardano.InAnyShelleyBasedEra Cardano.Tx
+    -> [(TxIn, TxOut)]
+    -> [TxIn]
+    -> [TxOut]
+    -> Coin
+    -> Property
+prop_updateSealedTx
+    (Cardano.InAnyShelleyBasedEra era tx)
+    extraIns extraCol extraOuts newFee =
+    do
+        let extra = TxUpdate extraIns extraCol extraOuts (UseNewTxFee newFee)
+        let tx' = either (error . show) id
+                $ updateSealedTx tx extra
+        conjoin
+            [ inputs tx' === inputs tx <> Set.fromList (fst <$> extraIns)
+            , outputs tx' === outputs tx <> Set.fromList extraOuts
+            , sealedFee tx' === Just newFee
+            , collateralIns tx' ===
+                if isAlonzo era
+                then collateralIns tx <> Set.fromList extraCol
+                else mempty
+            ]
   where
-    isAlonzo (cardanoTx -> InAnyCardanoEra Cardano.AlonzoEra _) = True
-    isAlonzo (cardanoTx -> InAnyCardanoEra _ _) = False
+    isAlonzo Cardano.ShelleyBasedEraAlonzo = True
+    isAlonzo _                             = False
+
+    inputs = sealedInputs . sealedTxFromCardano'
+    outputs = sealedOutputs . sealedTxFromCardano'
+    collateralIns = sealedCollateralInputs . sealedTxFromCardano'
 
 estimateSignedTxSizeSpec :: Spec
 estimateSignedTxSizeSpec =
@@ -3716,15 +3717,16 @@ estimateSignedTxSizeSpec =
         it "equals the binary size of signed txs" $ property $ do
             forAllGoldens signedTxGoldens $ \hexTx -> do
                 let bs = unsafeFromHex hexTx
-                let tx = either (error . show) id $ sealedTxFromBytes bs
+                let tx = shelleyBasedTxFromBytes bs
                 -- 'mockProtocolParametersForBalancing' is not valid for
                 -- 'ShelleyEra'.
                 let pparams = (snd mockProtocolParametersForBalancing)
                         { Cardano.protocolParamMinUTxOValue = Just 1_000_000
                         }
-                estimateSignedTxSize testTxLayer pparams tx
+                withShelleyBasedTx tx
+                    (estimateSignedTxSize testTxLayer pparams)
                     `shouldBe`
-                    Just (TxSize $ fromIntegral $ BS.length bs)
+                    TxSize (fromIntegral $ BS.length bs)
   where
     forAllGoldens goldens f = forM_ goldens $ \x ->
         Hspec.counterexample (show x) $ f x
@@ -3736,15 +3738,17 @@ sealedInputs :: SealedTx -> Set TxIn
 sealedInputs =
     Set.fromList . map fst . view #resolvedInputs . fst4 . _decodeSealedTx
 
-sealedCollateralInputs :: SealedTx -> Set TxIn
 sealedCollateralInputs
-    = Set.fromList
+    :: SealedTx -> Set TxIn
+sealedCollateralInputs =
+    Set.fromList
     . map fst
     . view #resolvedCollateralInputs
     . fst4
     . _decodeSealedTx
 
-sealedOutputs :: SealedTx -> Set TxOut
+sealedOutputs
+    :: SealedTx -> Set TxOut
 sealedOutputs =
     Set.fromList . view #outputs . fst4 . _decodeSealedTx
 
@@ -3765,9 +3769,10 @@ sealedNumberOfRedeemers sealedTx =
                     Cardano.TxBodyScriptData _ _ (Alonzo.Redeemers rdmrs) ->
                         Map.size rdmrs
 
-sealedFee :: SealedTx -> Maybe Coin
+sealedFee
+    :: forall era. Cardano.IsCardanoEra era => Cardano.Tx era -> Maybe Coin
 sealedFee =
-    view #fee . fst4 . _decodeSealedTx
+    view #fee . fst4 . _decodeSealedTx . sealedTxFromCardano'
 
 paymentPartialTx :: [TxOut] -> PartialTx Cardano.AlonzoEra
 paymentPartialTx txouts = PartialTx (Cardano.Tx body []) [] []
@@ -3888,3 +3893,38 @@ newtype ShowOrd a = ShowOrd { unShowOrd :: a }
 
 instance (Eq a, Show a) => Ord (ShowOrd a) where
     compare = comparing show
+
+shelleyBasedTxFromBytes :: ByteString -> Cardano.InAnyShelleyBasedEra Cardano.Tx
+shelleyBasedTxFromBytes bytes =
+    let
+        anyEraTx
+            = cardanoTx
+            $ either (error . show) id
+            $ sealedTxFromBytes bytes
+    in
+        case asAnyShelleyBasedEra anyEraTx of
+            Just shelleyTx -> shelleyTx
+            Nothing -> error "shelleyBasedTxFromBytes: ByronTx not supported"
+
+asAnyShelleyBasedEra
+    :: Cardano.InAnyCardanoEra a
+    -> Maybe (Cardano.InAnyShelleyBasedEra a)
+asAnyShelleyBasedEra = \case
+    Cardano.InAnyCardanoEra Cardano.ByronEra _ ->
+        Nothing
+    Cardano.InAnyCardanoEra Cardano.ShelleyEra a ->
+        Just $ Cardano.InAnyShelleyBasedEra Cardano.ShelleyBasedEraShelley a
+    Cardano.InAnyCardanoEra Cardano.AllegraEra a ->
+        Just $ Cardano.InAnyShelleyBasedEra Cardano.ShelleyBasedEraAllegra a
+    Cardano.InAnyCardanoEra Cardano.MaryEra a ->
+        Just $ Cardano.InAnyShelleyBasedEra Cardano.ShelleyBasedEraMary a
+    Cardano.InAnyCardanoEra Cardano.AlonzoEra a ->
+        Just $ Cardano.InAnyShelleyBasedEra Cardano.ShelleyBasedEraAlonzo a
+
+withShelleyBasedTx
+    :: Cardano.InAnyShelleyBasedEra Cardano.Tx
+    -> (forall era. Cardano.IsShelleyBasedEra era
+        => Cardano.Tx era -> a)
+    -> a
+withShelleyBasedTx (Cardano.InAnyShelleyBasedEra _era tx) f
+    = f tx
