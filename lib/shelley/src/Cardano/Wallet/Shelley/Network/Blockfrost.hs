@@ -38,7 +38,13 @@ import qualified Cardano.Api.Shelley as Node
 import qualified Data.Sequence as Seq
 
 import Cardano.Api
-    ( AnyCardanoEra, NetworkId (Mainnet, Testnet) )
+    ( AnyCardanoEra (..)
+    , CardanoEra (AllegraEra, AlonzoEra, ByronEra, MaryEra, ShelleyEra)
+    , ExecutionUnitPrices (priceExecutionMemory, priceExecutionSteps)
+    , ExecutionUnits (executionMemory, executionSteps)
+    , NetworkId (..)
+    , NetworkMagic (..)
+    )
 import Cardano.BM.Data.Severity
     ( Severity (..) )
 import Cardano.BM.Tracer
@@ -387,58 +393,65 @@ instance FromBlockfrost BF.Epoch EpochNo where
 
 {- Epoch-to-Era translation is not available in the Blockfrost API.
 
-For the Mainnet we're hardcoding the following history
-in order to work around this limiation:
+The following histories are hardcoded in order to work around this limiation:
 
-┌───────┬───────┬─────────┐
-│ Epoch │ Major │   Era   │
-├───────┼───────┼─────────┤
-│  ...  │   6   │ Alonzo  │
-│  298  │   6   │ Alonzo  │
-├───────┼───────┼─────────┤
-│  297  │   5   │ Alonzo  │
-│  ...  │   5   │ Alonzo  │
-│  290  │   5   │ Alonzo  │
-├───────┼───────┼─────────┤
-│  289  │   4   │  Mary   │
-│  ...  │   4   │  Mary   │
-│  251  │   4   │  Mary   │
-├───────┼───────┼─────────┤
-│  250  │   3   │ Allegra │
-│  ...  │   3   │ Allegra │
-│  236  │   3   │ Allegra │
-├───────┼───────┼─────────┤
-│  235  │   2   │ Shelley │
-│  ...  │   2   │ Shelley │
-│  202  │   2   │ Shelley │
-├───────┼───────┼─────────┤
-│  201  │   1   │  Byron  │
-│  ...  │   1   │  Byron  │
-└───────┴───────┴─────────┘
+For the Mainnet:      For the Testnet:
+┌───────┬─────────┐   ┌───────┬─────────┐
+│ Epoch │   Era   │   │ Epoch │   Era   │
+├───────┼─────────┤   ├───────┼─────────┤
+│  ...  │ Alonzo  │   │  ...  │ Alonzo  │
+│  290  │ Alonzo  │   │  154  │ Alonzo  │
+├───────┼─────────┤   ├───────┼─────────┤
+│  289  │  Mary   │   │  153  │  Mary   │
+│  ...  │  Mary   │   │  ...  │  Mary   │
+│  251  │  Mary   │   │  112  │  Mary   │
+├───────┼─────────┤   ├───────┼─────────┤
+│  250  │ Allegra │   │  111  │ Allegra │
+│  ...  │ Allegra │   │  ...  │ Allegra │
+│  236  │ Allegra │   │  102  │ Allegra │
+├───────┼─────────┤   ├───────┼─────────┤
+│  235  │ Shelley │   │  101  │ Shelley │
+│  ...  │ Shelley │   │  ...  │ Shelley │
+│  208  │ Shelley │   │   74  │ Shelley │
+├───────┼─────────┤   ├───────┼─────────┤
+│  207  │  Byron  │   │   73  │  Byron  │
+│  ...  │  Byron  │   │  ...  │  Byron  │
+│    0  │  Byron  │   │    0  │  Byron  │
+└───────┴─────────┘   └───────┴─────────┘
+
 -}
 eraByEpoch :: NetworkId -> EpochNo -> Either BlockfrostError AnyCardanoEra
-eraByEpoch = \case
-    Mainnet -> \epoch ->
-        case dropWhile ((> epoch) . snd) (reverse eraBoundaries) of
-            (era, _) : _ -> Right era
-            _ -> Left $ UnknownEraForEpoch epoch
-    Testnet _ -> \_ -> error
-        "In light-mode era to epoch conversions are only available for the \
-        \mainnet (translation uses a hard-coded history of hard forks). \
-        \It doesn't seem viable to hardcode eras for other networks yet."
-
-eraBoundaries :: [(Node.AnyCardanoEra, EpochNo)]
-eraBoundaries = [minBound .. maxBound] <&> \era -> (era, epochEraStartsAt era)
+eraByEpoch net epoch =
+    case dropWhile ((> epoch) . snd) (reverse eraBoundaries) of
+        (era, _) : _ -> Right era
+        _ -> Left $ UnknownEraForEpoch epoch
   where
-    -- When new era is added this function reminds to update itself:
-    -- "Pattern match(es) are non-exhaustive"
-    epochEraStartsAt :: Node.AnyCardanoEra -> EpochNo
-    epochEraStartsAt = EpochNo . \case
-        Node.AnyCardanoEra Node.AlonzoEra  -> 290
-        Node.AnyCardanoEra Node.MaryEra    -> 251
-        Node.AnyCardanoEra Node.AllegraEra -> 236
-        Node.AnyCardanoEra Node.ShelleyEra -> 202
-        Node.AnyCardanoEra Node.ByronEra   -> 0
+    eraBoundaries :: [(Node.AnyCardanoEra, EpochNo)]
+    eraBoundaries =
+        [minBound .. maxBound] <&> \era -> (era, epochEraStartsAt era)
+      where
+        -- When new era is added this function reminds to update itself:
+        -- "Pattern match(es) are non-exhaustive"
+        epochEraStartsAt :: Node.AnyCardanoEra -> EpochNo
+        epochEraStartsAt era = EpochNo $ case net of
+            Mainnet ->
+                case era of
+                    AnyCardanoEra AlonzoEra  -> 290
+                    AnyCardanoEra MaryEra    -> 251
+                    AnyCardanoEra AllegraEra -> 236
+                    AnyCardanoEra ShelleyEra -> 208
+                    AnyCardanoEra ByronEra   -> 0
+            Testnet (NetworkMagic 1097911063) ->
+                case era of
+                    AnyCardanoEra AlonzoEra  -> 154
+                    AnyCardanoEra MaryEra    -> 112
+                    AnyCardanoEra AllegraEra -> 102
+                    AnyCardanoEra ShelleyEra -> 74
+                    AnyCardanoEra ByronEra   -> 0
+            Testnet magic ->
+                error $ "Epoch/Era conversion isn't provided for the Testnet "
+                    <> show magic <> " in light mode."
+
 
 -- | Raises an error in case of an absent value
 (<?>) :: MonadError e m => Maybe a -> e -> m a
