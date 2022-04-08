@@ -48,3 +48,4 @@ lib/shelley/test/data/balanceTx/**/actual
 
 ### Docs build
 /_build/
+.vscode/settings.json
