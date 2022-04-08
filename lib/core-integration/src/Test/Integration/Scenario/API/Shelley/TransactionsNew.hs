@@ -194,6 +194,7 @@ import Test.Integration.Framework.DSL
     )
 import Test.Integration.Framework.TestData
     ( errMsg403Collateral
+    , errMsg403CreatedTransactionWithIncorrectAssetQuantity
     , errMsg403CreatedTransactionWithTooLongAssetName
     , errMsg403CreatedWrongPolicyScriptTemplate
     , errMsg403Fee
@@ -3192,18 +3193,9 @@ spec = describe "NEW_SHELLEY_TRANSACTIONS" $ do
 
     it "TRANS_NEW_CREATE_10m1 - Minting amount too big" $
         \ctx -> runResourceT $ do
-        liftIO $ pendingWith "Should fail with 403"
-        -- Node accepts range for minging/burning:
-        -- min value: -9223372036854775808 max value: 9223372036854775807
-        -- Any amount outside will result in error on decoding:
-        --   "Error in $.transaction: Deserialisation failure while decoding Shelley Tx.
-        --   CBOR failed with error: DeserialiseFailure 167 'overflow when decoding mint field.
-        --   min value: -9223372036854775808 max value: 9223372036854775807 got: 9223372036854775808'"
         wa <- fixtureWallet ctx
         addrs <- listAddresses @n ctx wa
         let destination = (addrs !! 1) ^. #id
-        -- Node accepts:
-        -- min value: -9223372036854775808 max value: 9223372036854775807
         let payload = Json [json|{
                 "mint_burn": [{
                     "policy_script_template": "cosigner#0",
@@ -3224,13 +3216,11 @@ spec = describe "NEW_SHELLEY_TRANSACTIONS" $ do
             (Link.createUnsignedTransaction @'Shelley wa) Default payload
         verify rTx
             [ expectResponseCode HTTP.status403
+            , expectErrorMessage errMsg403CreatedTransactionWithIncorrectAssetQuantity
             ]
 
     it "TRANS_NEW_CREATE_10m2 - Minting amount = 0" $
         \ctx -> runResourceT $ do
-        liftIO $ pendingWith "Should fail with 403"
-        -- Probably it should not be allowed to have 0 as amount for mint/burn
-        -- It results in invalid transaction via cardano-cli
         wa <- fixtureWallet ctx
         addrs <- listAddresses @n ctx wa
         let destination = (addrs !! 1) ^. #id
@@ -3254,6 +3244,7 @@ spec = describe "NEW_SHELLEY_TRANSACTIONS" $ do
             (Link.createUnsignedTransaction @'Shelley wa) Default payload
         verify rTx
             [ expectResponseCode HTTP.status403
+            , expectErrorMessage errMsg403CreatedTransactionWithIncorrectAssetQuantity
             ]
 
     it "TRANS_NEW_CREATE_10d - Minting assets without timelock" $

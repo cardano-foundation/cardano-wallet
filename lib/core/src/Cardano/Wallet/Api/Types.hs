@@ -1689,6 +1689,7 @@ data ApiErrorCode
     | CreatedWrongPolicyScriptTemplate
     | MissingPolicyPublicKey
     | CreatedTransactionWithTooLongAssetName
+    | CreatedTransactionWithIncorrectAssetQuantity
     deriving (Eq, Generic, Show, Data, Typeable)
     deriving anyclass NFData
 

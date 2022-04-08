@@ -10,6 +10,7 @@ module Cardano.Wallet.Primitive.Types.TokenQuantity
 
       -- * Values
     , zero
+    , maxTokenQuantity
 
       -- * Arithmetic operations
     , add
@@ -111,6 +112,9 @@ instance ToJSON TokenQuantity where
 
 zero :: TokenQuantity
 zero = TokenQuantity 0
+
+maxTokenQuantity :: Natural
+maxTokenQuantity = fromIntegral $ maxBound @Int
 
 --------------------------------------------------------------------------------
 -- Arithmetic operations

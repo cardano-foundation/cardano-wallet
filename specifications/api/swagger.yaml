@@ -4111,11 +4111,24 @@ x-errCreatedTransactionWithTooLongAssetName: &errCreatedTransactionWithTooLongAs
     message:
       type: string
       description:
-          Occurs when asset's name to be minted or burned has exceeds
+          Occurs when asset name to be minted or burned exceeds
           32-byte lenght.
     code:
       type: string
       enum: ['created_transaction_with_too_long_asset_name']
+
+x-errCreatedTransactionWithIncorrectAssetQuantity: &errCreatedTransactionWithIncorrectAssetQuantity
+  <<: *responsesErr
+  title: created_transaction_with_incorrect_asset_quantity
+  properties:
+    message:
+      type: string
+      description:
+          Occurs when asset quantity to be minted or burned is not positive or exceeds
+          9223372036854775807.
+    code:
+      type: string
+      enum: ['created_transaction_with_incorrect_asset_quantity']
 
 x-errInputsDepleted: &errInputsDepleted
   <<: *responsesErr
@@ -5165,6 +5178,7 @@ x-responsesConstructTransaction: &responsesConstructTransaction
             - <<: *errCreatedMultiaccountTransaction
             - <<: *errCreatedWrongPolicyScriptTemplate
             - <<: *errCreatedTransactionWithTooLongAssetName
+            - <<: *errCreatedTransactionWithIncorrectAssetQuantity
   <<: *responsesErr404WalletNotFound
   <<: *responsesErr406
   <<: *responsesErr415UnsupportedMediaType
