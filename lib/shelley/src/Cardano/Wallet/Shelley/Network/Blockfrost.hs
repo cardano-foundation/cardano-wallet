@@ -35,7 +35,9 @@ import Prelude
 
 import qualified Blockfrost.Client as BF
 import qualified Cardano.Api.Shelley as Node
+import qualified Data.Map.Strict as Map
 import qualified Data.Sequence as Seq
+import qualified Data.Set as Set
 import qualified Ouroboros.Consensus.HardFork.History.Qry as HF
 
 import Cardano.Api
@@ -93,6 +95,7 @@ import Cardano.Wallet.Primitive.Types.Coin
     ( Coin (Coin, unCoin) )
 import Cardano.Wallet.Primitive.Types.Hash
     ( Hash )
+import Cardano.Wallet.Primitive.Types.RewardAccount
 import Cardano.Wallet.Primitive.Types.Tx
     ( TxSize (..) )
 import Control.Concurrent
@@ -111,11 +114,17 @@ import Data.Functor.Contravariant
     ( (>$<) )
 import Data.IntCast
     ( intCast, intCastMaybe )
+import Data.Map
+    ( Map )
+import Data.Maybe
+    ( fromMaybe )
 import Data.Quantity
     ( MkPercentageError (PercentageOutOfBoundsError)
     , Quantity (..)
     , mkPercentage
     )
+import Data.Set
+    ( Set )
 import Data.Text.Class
     ( FromText (fromText), TextDecodingError (..), ToText (..) )
 import Data.Traversable
@@ -199,8 +208,8 @@ withNetworkLayer tr net np project k = k NetworkLayer
     , watchNodeTip
     , postTx = undefined
     , stakeDistribution = undefined
-    , getCachedRewardAccountBalance = undefined
-    , fetchRewardAccountBalances = undefined
+    , getCachedRewardAccountBalance
+    , fetchRewardAccountBalances
     , timeInterpreter = timeInterpreterFromStartTime getGenesisBlockDate
     , syncProgress = undefined
     }
@@ -235,6 +244,22 @@ withNetworkLayer tr net np project k = k NetworkLayer
     timeInterpreterFromStartTime startTime =
         mkTimeInterpreter (MsgTimeInterpreterLog >$< tr) startTime $
             pure $ HF.mkInterpreter $ networkSummary net
+
+    fetchRewardAccountBalances ::
+        Set RewardAccount -> IO (Map RewardAccount Coin)
+    fetchRewardAccountBalances accounts =
+        handleBlockfrostError . fmap Map.fromList $
+            for (Set.toList accounts) $ \rewardAccount -> do
+                BF.AccountInfo {..} <- liftBlockfrost $ BF.getAccount $
+                    BF.mkAddress $ toText rewardAccount
+                coin <- fromIntegral @_ @Integer _accountInfoRewardsSum <?#>
+                    "AccountInfoRewardsSum"
+                pure (rewardAccount, Coin coin)
+
+    getCachedRewardAccountBalance :: RewardAccount -> IO Coin
+    getCachedRewardAccountBalance account =
+        fromMaybe (Coin 0) . Map.lookup account <$>
+            fetchRewardAccountBalances (Set.singleton account)
 
     handleBlockfrostError :: ExceptT BlockfrostError IO a -> IO a
     handleBlockfrostError =
