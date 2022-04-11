@@ -40,8 +40,6 @@ import Cardano.Wallet.Api.Client
     , transactionClient
     , walletClient
     )
-import Cardano.Wallet.Api.Types
-    ( ApiT (..), ApiTxMetadata (..) )
 import Cardano.Wallet.Primitive.Types
     ( PoolMetadataSource )
 import Cardano.Wallet.Primitive.Types.Tx
@@ -103,6 +101,10 @@ import UnliftIO.Temporary
 import qualified Data.Map as Map
 import qualified Data.Text as T
 import qualified Data.Text.IO as TIO
+import Cardano.Wallet.Api.Types.SchemaMetadata
+    ( TxMetadataWithSchema(TxMetadataWithSchema)
+    , TxMetadataSchema (TxMetadataDetailedSchema, TxMetadataNoSchema)
+    )
 
 spec :: Spec
 spec = do
@@ -255,21 +257,41 @@ spec = do
     describe "Tx Metadata JSON option" $ do
         let parse arg = execParserPure defaultPrefs
                 (info metadataOption mempty) ["--metadata", arg]
-        let md = ApiT (TxMetadata (Map.singleton 42 (TxMetaText "hi")))
-        let ok ex (Success res) = ex == getApiTxMetadata res
-            ok _ _ = False
+        let md = TxMetadataWithSchema TxMetadataDetailedSchema (TxMetadata (Map.singleton 42 (TxMetaText "hi")))
+        let ok ex (Success res) = ex == res
+            ok _ _ = False 
         let err (Failure _) = True
             err _ = False
         mapM_
             (\(desc, arg, tst) -> it desc (parse arg `shouldSatisfy` tst))
-            [ ("valid", "{ \"42\": { \"string\": \"hi\" } }", ok (Just md))
+            [ ("valid", "{ \"42\": { \"string\": \"hi\" } }", ok $ Just md)
             , ("malformed", "testing", err)
             , ("malformed trailing", "{ \"0\": { \"string\": \"\" } } arstneio", err)
             , ("invalid", "{ \"json\": true }", err)
             , ("null 1", "{ \"0\": null }", err)
             , ("null 2", "null", ok Nothing)
-            , ("null 3", "{ }", ok (Just (ApiT mempty)))
+            , ("null 3", "{ }", ok $ Just $ TxMetadataWithSchema TxMetadataDetailedSchema mempty)
             ]
+
+    describe "Tx No-Schema Metadata JSON option" $ do
+        let parse arg = execParserPure defaultPrefs
+                (info metadataOption mempty) ["--metadata", arg]
+        let md = TxMetadataWithSchema TxMetadataNoSchema (TxMetadata (Map.singleton 42 (TxMetaText "hi")))
+        let ok ex (Success res) = ex == res
+            ok _ _ = False 
+        let err (Failure _) = True
+            err _ = False
+        mapM_
+            (\(desc, arg, tst) -> it desc (parse arg `shouldSatisfy` tst))
+            [ ("valid", "{ \"42\": \"hi\"  }", ok $ Just md)
+            , ("malformed", "testing", err)
+            , ("malformed trailing", "{ \"0\": \"\"  } arstneio", err)
+            , ("invalid", "{ \"json\": true }", err)
+            , ("null 1", "{ \"0\": null }", err)
+            , ("null 2", "null", ok Nothing)
+            , ("null 3", "{ }", ok $ Just $ TxMetadataWithSchema TxMetadataDetailedSchema mempty) -- this is the default parsing success
+            ]
+
 
     describe "Tx TTL option" $ do
         let parse arg = execParserPure defaultPrefs

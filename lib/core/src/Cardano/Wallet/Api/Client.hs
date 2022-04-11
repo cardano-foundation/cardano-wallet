@@ -122,6 +122,7 @@ import UnliftIO.Exception
     ( throwString )
 
 import qualified Data.Aeson as Aeson
+import Cardano.Wallet.Api.Types.SchemaMetadata (TxMetadataSchema)
 
 {-------------------------------------------------------------------------------
                               Server Interaction
@@ -185,6 +186,7 @@ data TransactionClient = TransactionClient
         -> ClientM NoContent
     , getTransaction
         :: ApiT WalletId
+        -> Maybe TxMetadataSchema -- a hack to support
         -> ApiTxId
         -> ClientM (ApiTransactionT Aeson.Value)
     , constructTransaction
@@ -367,7 +369,7 @@ byronTransactionClient =
         , postTransactionFee = _postTransactionFee
         , postExternalTransaction = _postExternalTransaction . fromSerialisedTx
         , deleteTransaction = _deleteTransaction
-        , getTransaction = _getTransaction
+        , getTransaction = \wid _ txid  -> _getTransaction wid txid
         , constructTransaction = _constructTransaction
         , balanceTransaction = error "balance transaction endpoint not supported for byron"
         , decodeTransaction = error "decode transaction endpoint not supported for byron"

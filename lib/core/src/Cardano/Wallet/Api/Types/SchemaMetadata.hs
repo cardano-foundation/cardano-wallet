@@ -7,6 +7,7 @@
 {-# LANGUAGE KindSignatures #-}
 {-# LANGUAGE StrictData #-}
 {-# LANGUAGE NoMonomorphismRestriction #-}
+{-# LANGUAGE LambdaCase #-}
 
 -- |
 -- Copyright: © 2018-2022 IOHK
@@ -29,6 +30,9 @@ import Control.DeepSeq (NFData)
 import Data.Aeson (FromJSON (parseJSON), ToJSON (toJSON))
 import GHC.Generics (Generic)
 import Prelude
+import Servant (ToHttpApiData)
+import Web.Internal.HttpApiData (toQueryParam, FromHttpApiData, parseQueryParam)
+import Data.Function ((&))
 
 -- | a tag to select the json codec
 data TxMetadataSchema = TxMetadataNoSchema | TxMetadataDetailedSchema
@@ -48,7 +52,7 @@ instance ToJSON TxMetadataWithSchema where
   toJSON (TxMetadataWithSchema TxMetadataNoSchema x) = metadataToJson TxMetadataJsonNoSchema x
 
 instance FromJSON TxMetadataWithSchema where
-  parseJSON = liftA2
+  parseJSON v = v & liftA2
     do (<|>)
     do
       fmap (TxMetadataWithSchema TxMetadataDetailedSchema)
@@ -58,3 +62,18 @@ instance FromJSON TxMetadataWithSchema where
       fmap (TxMetadataWithSchema TxMetadataNoSchema)
         . either (fail . displayError) pure
         . metadataFromJson TxMetadataJsonNoSchema
+
+-- txMetadataSchemaParam :: TxMetadataSchema -> Maybe ()
+-- txMetadataSchemaParam TxMetadataDetailedSchema  = Nothing 
+-- txMetadataSchemaParam TxMetadataNoSchema  = Just ()
+
+instance ToHttpApiData TxMetadataSchema where 
+  toQueryParam = \case     
+    TxMetadataNoSchema -> "implicit-types"
+    TxMetadataDetailedSchema -> "explicit-types"
+
+instance FromHttpApiData TxMetadataSchema where 
+  parseQueryParam = \case 
+    "implicit" -> pure TxMetadataNoSchema
+    "explicit" -> pure TxMetadataDetailedSchema
+    _ -> Left "cannot read metadata schema parameter"

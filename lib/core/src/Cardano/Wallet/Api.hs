@@ -299,6 +299,7 @@ import Servant.API.Verbs
     )
 
 import qualified Cardano.Wallet.Primitive.Types as W
+import Cardano.Wallet.Api.Types.SchemaMetadata (TxMetadataSchema)
 
 type ApiV2 n apiPool = "v2" :> Api n apiPool
 
@@ -579,6 +580,7 @@ type ListTransactions n = "wallets"
 type GetTransaction n = "wallets"
     :> Capture "walletId" (ApiT WalletId)
     :> "transactions"
+    :> QueryParam "json-schema" TxMetadataSchema
     :> Capture "transactionId" ApiTxId
     :> Get '[JSON] (ApiTransactionT n)
 

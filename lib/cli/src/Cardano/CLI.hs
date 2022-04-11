@@ -17,6 +17,7 @@
 {-# LANGUAGE TypeApplications #-}
 {-# LANGUAGE TypeFamilies #-}
 {-# LANGUAGE UndecidableInstances #-}
+{-# LANGUAGE BlockArguments #-}
 
 -- |
 -- Copyright: © 2018-2020 IOHK
@@ -336,7 +337,7 @@ import qualified Data.Text as T
 import qualified Data.Text.Encoding as T
 import qualified Data.Text.IO as TIO
 import qualified UnliftIO.Async as Async
-import Cardano.Wallet.Api.Types.SchemaMetadata (TxMetadataWithSchema)
+import Cardano.Wallet.Api.Types.SchemaMetadata (TxMetadataWithSchema, TxMetadataSchema (TxMetadataDetailedSchema, TxMetadataNoSchema))
 
 {-------------------------------------------------------------------------------
                                    CLI
@@ -914,6 +915,7 @@ cmdTransactionForget mkClient =
 -- | Arguments for 'transaction get' command
 data TransactionGetArgs = TransactionGetArgs
     { _port :: Port "Wallet"
+    , _schema :: TxMetadataSchema 
     , _wid :: WalletId
     , _txid :: TxId
     }
@@ -927,12 +929,22 @@ cmdTransactionGet mkClient =
   where
     cmd = fmap exec $ TransactionGetArgs
         <$> portOption
+        <*> jsonSchemaOption 
         <*> walletIdArgument
-        <*> transactionIdArgument
-    exec (TransactionGetArgs wPort wId txId) = do
+        <*> transactionIdArgument 
+    exec (TransactionGetArgs wPort jSchema wId txId ) = do
         runClient wPort Aeson.encodePretty $ getTransaction mkClient
             (ApiT wId)
+            (Just jSchema)
             (ApiTxId $ ApiT $ getTxId txId)
+
+jsonSchemaOption :: Parser TxMetadataSchema
+jsonSchemaOption = flag 
+    do TxMetadataDetailedSchema 
+    do TxMetadataNoSchema 
+    do long "no-schema-metadata"
+        <> help "output metadata json in implicit types format" 
+
 
 {-------------------------------------------------------------------------------
                             Commands - 'address'
@@ -1436,7 +1448,7 @@ transactionSubmitPayloadArgument = argumentT $ mempty
 --
 -- Note: we decode the JSON just so that we can validate more client-side.
 metadataOption :: Parser (Maybe TxMetadataWithSchema)
-metadataOption = option (Just <$> txMetadataReader) $ mempty
+metadataOption = option txMetadataReader $ mempty
     <> long "metadata"
     <> metavar "JSON"
     <> value Nothing 
@@ -1444,7 +1456,7 @@ metadataOption = option (Just <$> txMetadataReader) $ mempty
              <> "The value must match the schema defined in the "
              <> "cardano-wallet OpenAPI specification.")
 
-txMetadataReader :: ReadM TxMetadataWithSchema
+txMetadataReader :: ReadM (Maybe TxMetadataWithSchema)
 txMetadataReader = eitherReader (Aeson.eitherDecode' . BL8.pack)
 
 -- | [--ttl=DURATION]

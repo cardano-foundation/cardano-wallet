@@ -115,6 +115,10 @@ import UnliftIO.Exception
 
 import qualified Data.Map as Map
 import qualified Data.Text as T
+import Cardano.Wallet.Api.Types.SchemaMetadata
+    ( TxMetadataWithSchema(TxMetadataWithSchema)
+    , TxMetadataSchema (TxMetadataDetailedSchema, TxMetadataNoSchema)
+    )
 
 spec :: forall n.
     ( DecodeAddress n
@@ -127,18 +131,18 @@ spec = describe "SHELLEY_CLI_TRANSACTIONS" $ do
         wDest <- emptyWallet ctx
 
         let amt = fromIntegral . minUTxOValue . _mainEra $ ctx
-        args <- postTxArgs ctx wSrc wDest amt Nothing Nothing
+        args <- postTxArgs ctx wSrc wDest amt Nothing Nothing False
         Stdout feeOut <- postTransactionFeeViaCLI ctx args
         ApiFee (Quantity feeMin) (Quantity feeMax) _ (Quantity 0) <-
             expectValidJSON Proxy feeOut
 
-        txJson <- postTxViaCLI ctx wSrc wDest amt Nothing Nothing
+        txJson <- postTxViaCLI ctx wSrc wDest amt Nothing Nothing False
         verify txJson
             [ expectCliField (#amount . #getQuantity)
                 (between (feeMin + amt, feeMax + amt))
             , expectCliField (#direction . #getApiT) (`shouldBe` Outgoing)
             , expectCliField (#status . #getApiT) (`shouldBe` Pending)
-            , expectCliField (#metadata . #getApiTxMetadata) (`shouldBe` Nothing)
+            , expectCliField #metadata  (`shouldBe` Nothing)
             ]
 
         -- verify balance on src wallet
@@ -321,20 +325,20 @@ spec = describe "SHELLEY_CLI_TRANSACTIONS" $ do
         (wSrc, wDest) <- (,) <$> fixtureWallet ctx <*> emptyWallet ctx
         let amt = 10_000_000
         let md = Just "{ \"1\": { \"string\": \"hello\" } }"
-        let expected = Just $ ApiT $ TxMetadata $
+        let expected = Just $ TxMetadataWithSchema TxMetadataDetailedSchema  $ TxMetadata $
                 Map.singleton 1 (TxMetaText "hello")
 
-        args <- postTxArgs ctx wSrc wDest amt md Nothing
+        args <- postTxArgs ctx wSrc wDest amt md Nothing False
         Stdout feeOut <- postTransactionFeeViaCLI ctx args
         ApiFee (Quantity feeMin) (Quantity feeMax) _ _ <- expectValidJSON Proxy feeOut
 
-        txJson <- postTxViaCLI ctx wSrc wDest amt md Nothing
+        txJson <- postTxViaCLI ctx wSrc wDest amt md Nothing False
         verify txJson
             [ expectCliField (#amount . #getQuantity)
                 (between (feeMin + amt, feeMax + amt))
             , expectCliField (#direction . #getApiT) (`shouldBe` Outgoing)
             , expectCliField (#status . #getApiT) (`shouldBe` Pending)
-            , expectCliField (#metadata . #getApiTxMetadata) (`shouldBe` expected)
+            , expectCliField #metadata  (`shouldBe` expected)
             ]
 
         eventually "metadata is confirmed in transaction list" $ do
@@ -344,7 +348,7 @@ spec = describe "SHELLEY_CLI_TRANSACTIONS" $ do
             code `shouldBe` ExitSuccess
             outJson <- expectValidJSON (Proxy @([ApiTransaction n])) out
             verify outJson
-                [ expectCliListField 0 (#metadata . #getApiTxMetadata) (`shouldBe` expected)
+                [ expectCliListField 0 #metadata (`shouldBe` expected)
                 , expectCliListField 0 (#status . #getApiT) (`shouldBe` InLedger)
                 ]
 
@@ -352,20 +356,20 @@ spec = describe "SHELLEY_CLI_TRANSACTIONS" $ do
         (wSrc, wDest) <- (,) <$> fixtureWallet ctx <*> emptyWallet ctx
         let amt = 10_000_000
         let md = Just "{ \"1\": \"hello\"  }"
-        let expected = Just $ ApiT $ TxMetadata $
+        let expected = Just $ TxMetadataWithSchema TxMetadataNoSchema $ TxMetadata $
                 Map.singleton 1 (TxMetaText "hello")
 
-        args <- postTxArgs ctx wSrc wDest amt md Nothing
+        args <- postTxArgs ctx wSrc wDest amt md Nothing False
         Stdout feeOut <- postTransactionFeeViaCLI ctx args
         ApiFee (Quantity feeMin) (Quantity feeMax) _ _ <- expectValidJSON Proxy feeOut
 
-        txJson <- postTxViaCLI ctx wSrc wDest amt md Nothing
+        txJson <- postTxViaCLI ctx wSrc wDest amt md Nothing True 
         verify txJson
             [ expectCliField (#amount . #getQuantity)
                 (between (feeMin + amt, feeMax + amt))
             , expectCliField (#direction . #getApiT) (`shouldBe` Outgoing)
             , expectCliField (#status . #getApiT) (`shouldBe` Pending)
-            , expectCliField (#metadata . #getApiTxMetadata) (`shouldBe` expected)
+            , expectCliField #metadata (`shouldBe` expected)
             ]
 
         eventually "metadata is confirmed in transaction list" $ do
@@ -375,7 +379,7 @@ spec = describe "SHELLEY_CLI_TRANSACTIONS" $ do
             code `shouldBe` ExitSuccess
             outJson <- expectValidJSON (Proxy @([ApiTransaction n])) out
             verify outJson
-                [ expectCliListField 0 (#metadata . #getApiTxMetadata) (`shouldBe` expected)
+                [ expectCliListField 0 #metadata (`shouldBe` expected)
                 , expectCliListField 0 (#status . #getApiT) (`shouldBe` InLedger)
                 ]
     it "TRANSTTL_CREATE_01 - Transaction with TTL via CLI" $ \ctx -> runResourceT $ do
@@ -383,11 +387,11 @@ spec = describe "SHELLEY_CLI_TRANSACTIONS" $ do
       let amt = 10_000_000
       let ttl = Just "30s"
 
-      args <- postTxArgs ctx wSrc wDest amt Nothing ttl
+      args <- postTxArgs ctx wSrc wDest amt Nothing ttl False
       Stdout feeOut <- postTransactionFeeViaCLI ctx args
       ApiFee (Quantity feeMin) (Quantity feeMax) _ _ <- expectValidJSON Proxy feeOut
 
-      txJson <- postTxViaCLI ctx wSrc wDest amt Nothing ttl
+      txJson <- postTxViaCLI ctx wSrc wDest amt Nothing ttl False
       verify txJson
           [ expectCliField (#amount . #getQuantity)
               (between (feeMin + amt, feeMax + amt))
@@ -789,7 +793,7 @@ spec = describe "SHELLEY_CLI_TRANSACTIONS" $ do
         let wSrcId = T.unpack (wSrc ^. walletId)
 
         -- post transaction
-        txJson <- postTxViaCLI ctx wSrc wDest (minUTxOValue (_mainEra ctx)) Nothing Nothing
+        txJson <- postTxViaCLI ctx wSrc wDest (minUTxOValue (_mainEra ctx)) Nothing Nothing False
         verify txJson
             [ expectCliField (#direction . #getApiT) (`shouldBe` Outgoing)
             , expectCliField (#status . #getApiT) (`shouldBe` Pending)
@@ -844,7 +848,7 @@ spec = describe "SHELLEY_CLI_TRANSACTIONS" $ do
             -- post tx
             wSrc <- fixtureWallet ctx
             wDest <- emptyWallet ctx
-            txJson <- postTxViaCLI ctx wSrc wDest (minUTxOValue (_mainEra ctx)) Nothing Nothing
+            txJson <- postTxViaCLI ctx wSrc wDest (minUTxOValue (_mainEra ctx)) Nothing Nothing False
 
             -- try to forget from different wallet
             widDiff <- emptyWallet' ctx
@@ -914,9 +918,10 @@ spec = describe "SHELLEY_CLI_TRANSACTIONS" $ do
           -> Natural
           -> Maybe Text
           -> Maybe Text
+          -> Bool -- if to use no-schema json in metadata output
           -> m (ApiTransaction n)
-      postTxViaCLI ctx wSrc wDest amt md ttl = do
-          args <- postTxArgs ctx wSrc wDest amt md ttl
+      postTxViaCLI ctx wSrc wDest amt md ttl noSchema = do
+          args <- postTxArgs ctx wSrc wDest amt md ttl noSchema
 
           -- post transaction
           (c, out, err) <- postTransactionViaCLI ctx "cardano-wallet" args
@@ -932,8 +937,9 @@ spec = describe "SHELLEY_CLI_TRANSACTIONS" $ do
         -> Natural
         -> Maybe Text
         -> Maybe Text
+        -> Bool
         -> m [String]
-      postTxArgs ctx wSrc wDest amt md ttl = do
+      postTxArgs ctx wSrc wDest amt md ttl noSchema = do
           addr <- headMayIO =<< listAddresses @n ctx wDest
           let addrStr = encodeAddress @n (getApiT $ fst $ addr ^. #id)
           return $ T.unpack <$>
@@ -941,6 +947,7 @@ spec = describe "SHELLEY_CLI_TRANSACTIONS" $ do
               , "--payment", T.pack (show amt) <> "@" <> addrStr
               ] ++ maybe [] (\json -> ["--metadata", json]) md
               ++ maybe [] (\s -> ["--ttl", s]) ttl
+              ++ ["--no-schema-metadata" | noSchema]
 
       fixtureWallet' :: Context -> ResourceT IO String
       fixtureWallet' = fmap (T.unpack . view walletId) . fixtureWallet
