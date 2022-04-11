@@ -837,6 +837,91 @@ RSpec.describe "Cardano Wallet E2E tests", :e2e do
       end
 
       ##
+      # Mint NFT with CIP-25 metadata
+      it "Can mint NFT attaching CIP-25 metadata" do
+        src_before = get_shelley_balances(@wid)
+        address = SHELLEY.addresses.list(@wid).first['id']
+        policy_script = 'cosigner#0'
+        assets_quantity = 1
+        nft_name = 'MyAmazingNFT'
+        nft_name_hex = asset_name(nft_name)
+        mint = [mint(nft_name_hex, assets_quantity, policy_script, address)]
+
+        create_policy_key_if_not_exists(@wid)
+
+        # Get policy_id:
+        tx_const_mint = SHELLEY.transactions.construct(@wid, nil, nil, nil, nil, mint)
+        tx_decode_mint = SHELLEY.transactions.decode(@wid, tx_const_mint['transaction'])
+        policy_id = get_policy_id_from_decode(tx_decode_mint['mint'])
+
+        # Build CIP-25 metadata
+        cip25_metadata = { "721" => {
+                              "#{policy_id}" => {
+                                    "#{nft_name}" => {
+                                        "name" => "NFT FTW: #{nft_name}",
+                                        "image" => "ipfs://XXXXYYYYZZZZ"
+                                      }
+                                    }
+                                  }
+                          }
+
+        # Minting:
+        tx_constructed, tx_signed, tx_submitted = construct_sign_submit(@wid,
+                                                                        payments = nil,
+                                                                        withdrawal = nil,
+                                                                        cip25_metadata,
+                                                                        delegations = nil,
+                                                                        mint)
+        tx_decoded = SHELLEY.transactions.decode(@wid, tx_constructed["transaction"])
+        expect(tx_constructed).to be_correct_and_respond 202
+        expected_fee = tx_constructed['fee']['quantity']
+
+        tx_id = tx_submitted['id']
+        wait_for_tx_in_ledger(@wid, tx_id)
+        src_after_minting = get_shelley_balances(@wid)
+
+        # verify tx has metadata
+        tx = SHELLEY.transactions.get(@wid, tx_id)
+        # TODO: wait for ability to check non-schema metadata
+        # expect(tx['metadata']).to eq cip25_metadata
+
+        # verify ADA balance is correct (fee is deducted)
+        expect(src_after_minting['available']).to eq (src_before['available'] - expected_fee)
+        expect(src_after_minting['total']).to eq (src_before['total'] - expected_fee)
+
+        # verify assets have been minted and on wallet's balance
+        assets_to_check = get_assets_from_decode(tx_decoded['mint'])
+        assets = assets_balance(src_after_minting['assets_total'], { assets_to_check: assets_to_check })
+        expect(assets).to eq(assets_to_check.map{|z| {z => assets_quantity}}.to_set)
+
+        # Burn:
+        burn = [burn(nft_name_hex, assets_quantity, policy_script)]
+
+        tx_constructed, tx_signed, tx_submitted = construct_sign_submit(@wid,
+                                                                        payments = nil,
+                                                                        withdrawal = nil,
+                                                                        metadata = nil,
+                                                                        delegations = nil,
+                                                                        burn)
+        tx_decoded = SHELLEY.transactions.decode(@wid, tx_constructed["transaction"])
+        expect(tx_constructed).to be_correct_and_respond 202
+        expected_fee = tx_constructed['fee']['quantity']
+
+        tx_id = tx_submitted['id']
+        wait_for_tx_in_ledger(@wid, tx_id)
+        src_after_burning = get_shelley_balances(@wid)
+
+        # verify ADA balance is correct (fee is deducted)
+        expect(src_after_burning['available']).to eq (src_after_minting['available'] - expected_fee)
+        expect(src_after_burning['total']).to eq (src_after_minting['total'] - expected_fee)
+
+        # verify all assets have been burned and no longer on wallet's balance
+        assets = assets_balance(src_after_burning['assets_total'],
+                               { assets_to_check: assets_to_check })
+        expect(assets).to eq({}.to_set)
+      end
+
+      ##
       # Tx1: Mints 2 x 500 assets, each guarded by different policy script => A1 = 500, A2 = 500
       # Tx2: Mints 500 more of A1 and burns 500 of A2 => A1 = 1000, A2 = 0
       # Tx3: Burns remaining 1000 of A1 => A1 = 0, A2 = 0
