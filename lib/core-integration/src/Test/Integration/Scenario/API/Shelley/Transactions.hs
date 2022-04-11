@@ -1079,13 +1079,28 @@ spec = describe "SHELLEY_TRANSACTIONS" $ do
                 }
             ]
 
-    it "TRANSMETA_CREATE_02 - Transaction with invalid metadata" $ \ctx -> runResourceT $ do
+    it "TRANSMETA_CREATE_02a - Transaction with invalid metadata" $ \ctx -> runResourceT $ do
         (wa, wb) <- (,) <$> fixtureWallet ctx <*> fixtureWallet ctx
         let amt = minUTxOValue (_mainEra ctx) :: Natural
 
         basePayload <- mkTxPayload ctx wb amt fixturePassphrase
 
         let txMeta = [json|{ "1": { "string": #{T.replicate 65 "a"} } }|]
+        let payload = addTxMetadata txMeta basePayload
+
+        r <- request @(ApiTransaction n) ctx
+            (Link.createTransactionOld @'Shelley wa) Default payload
+
+        expectResponseCode HTTP.status400 r
+        expectErrorMessage errMsg400TxMetadataStringTooLong r
+
+    it "TRANSMETA_CREATE_02b - Transaction with invalid no-schema metadata" $ \ctx -> runResourceT $ do
+        (wa, wb) <- (,) <$> fixtureWallet ctx <*> fixtureWallet ctx
+        let amt = minUTxOValue (_mainEra ctx) :: Natural
+
+        basePayload <- mkTxPayload ctx wb amt fixturePassphrase
+
+        let txMeta = [json|{ "1": #{T.replicate 65 "a"}  }|]
         let payload = addTxMetadata txMeta basePayload
 
         r <- request @(ApiTransaction n) ctx
@@ -1113,8 +1128,8 @@ spec = describe "SHELLEY_TRANSACTIONS" $ do
 
         expectResponseCode HTTP.status403 r
         expectErrorMessage errMsg403TxTooBig r
-
-    it "TRANSMETA_ESTIMATE_01 - fee estimation includes metadata" $ \ctx -> runResourceT $ do
+    
+    it "TRANSMETA_ESTIMATE_01a - fee estimation includes metadata" $ \ctx -> runResourceT $ do
         (wa, wb) <- (,) <$> fixtureWallet ctx <*> emptyWallet ctx
         let amt = minUTxOValue (_mainEra ctx) :: Natural
 
@@ -1142,13 +1157,57 @@ spec = describe "SHELLEY_TRANSACTIONS" $ do
             , expectField (#estimatedMax . #getQuantity) (.< feeEstMax)
             ]
 
-    it "TRANSMETA_ESTIMATE_02 - fee estimation with invalid metadata" $ \ctx -> runResourceT $ do
+    it "TRANSMETA_ESTIMATE_01b - fee estimation includes no-schema metadata" $ \ctx -> runResourceT $ do
+        (wa, wb) <- (,) <$> fixtureWallet ctx <*> emptyWallet ctx
+        let amt = minUTxOValue (_mainEra ctx) :: Natural
+
+        payload <- mkTxPayload ctx wb amt fixturePassphrase
+
+        let txMeta = [json|{ "1": "hello"  }|]
+        let payloadWithMetadata = addTxMetadata txMeta payload
+
+        ra <- request @ApiFee ctx
+            (Link.getTransactionFeeOld @'Shelley wa) Default payloadWithMetadata
+        verify ra
+            [ expectSuccess
+            , expectResponseCode HTTP.status202
+            ]
+        let (Quantity feeEstMin) = getFromResponse #estimatedMin ra
+        let (Quantity feeEstMax) = getFromResponse #estimatedMax ra
+
+        -- check that it's estimated to have less fees for transactions without
+        -- metadata.
+        rb <- request @ApiFee ctx
+            (Link.getTransactionFeeOld @'Shelley wa) Default payload
+        verify rb
+            [ expectResponseCode HTTP.status202
+            , expectField (#estimatedMin . #getQuantity) (.< feeEstMin)
+            , expectField (#estimatedMax . #getQuantity) (.< feeEstMax)
+            ]
+
+
+    it "TRANSMETA_ESTIMATE_02a - fee estimation with invalid metadata" $ \ctx -> runResourceT $ do
         (wa, wb) <- (,) <$> fixtureWallet ctx <*> emptyWallet ctx
         let amt = minUTxOValue (_mainEra ctx) :: Natural
 
         basePayload <- mkTxPayload ctx wb amt fixturePassphrase
 
         let txMeta = [json|{ "1": { "string": #{T.replicate 65 "a"} } }|]
+        let payload = addTxMetadata txMeta basePayload
+
+        r <- request @ApiFee ctx
+            (Link.getTransactionFeeOld @'Shelley wa) Default payload
+
+        expectResponseCode HTTP.status400 r
+        expectErrorMessage errMsg400TxMetadataStringTooLong r
+
+    it "TRANSMETA_ESTIMATE_02b - fee estimation with invalid no-schema metadata" $ \ctx -> runResourceT $ do
+        (wa, wb) <- (,) <$> fixtureWallet ctx <*> emptyWallet ctx
+        let amt = minUTxOValue (_mainEra ctx) :: Natural
+
+        basePayload <- mkTxPayload ctx wb amt fixturePassphrase
+
+        let txMeta = [json|{ "1":  #{T.replicate 65 "a" } }|]
         let payload = addTxMetadata txMeta basePayload
 
         r <- request @ApiFee ctx
