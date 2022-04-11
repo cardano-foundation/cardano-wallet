@@ -317,7 +317,7 @@ spec = describe "SHELLEY_CLI_TRANSACTIONS" $ do
         out `shouldBe` ""
         c `shouldBe` ExitFailure 1
 
-    it "TRANSMETA_CREATE_01 - Transaction with metadata via CLI" $ \ctx -> runResourceT $ do
+    it "TRANSMETA_CREATE_01a - Transaction with metadata via CLI" $ \ctx -> runResourceT $ do
         (wSrc, wDest) <- (,) <$> fixtureWallet ctx <*> emptyWallet ctx
         let amt = 10_000_000
         let md = Just "{ \"1\": { \"string\": \"hello\" } }"
@@ -348,6 +348,36 @@ spec = describe "SHELLEY_CLI_TRANSACTIONS" $ do
                 , expectCliListField 0 (#status . #getApiT) (`shouldBe` InLedger)
                 ]
 
+    it "TRANSMETA_CREATE_01b - Transaction with no-schema metadata via CLI" $ \ctx -> runResourceT $ do
+        (wSrc, wDest) <- (,) <$> fixtureWallet ctx <*> emptyWallet ctx
+        let amt = 10_000_000
+        let md = Just "{ \"1\": \"hello\"  }"
+        let expected = Just $ ApiT $ TxMetadata $
+                Map.singleton 1 (TxMetaText "hello")
+
+        args <- postTxArgs ctx wSrc wDest amt md Nothing
+        Stdout feeOut <- postTransactionFeeViaCLI ctx args
+        ApiFee (Quantity feeMin) (Quantity feeMax) _ _ <- expectValidJSON Proxy feeOut
+
+        txJson <- postTxViaCLI ctx wSrc wDest amt md Nothing
+        verify txJson
+            [ expectCliField (#amount . #getQuantity)
+                (between (feeMin + amt, feeMax + amt))
+            , expectCliField (#direction . #getApiT) (`shouldBe` Outgoing)
+            , expectCliField (#status . #getApiT) (`shouldBe` Pending)
+            , expectCliField (#metadata . #getApiTxMetadata) (`shouldBe` expected)
+            ]
+
+        eventually "metadata is confirmed in transaction list" $ do
+            (Exit code, Stdout out, Stderr err) <-
+                listTransactionsViaCLI ctx [T.unpack $ wSrc ^. walletId]
+            err `shouldBe` "Ok.\n"
+            code `shouldBe` ExitSuccess
+            outJson <- expectValidJSON (Proxy @([ApiTransaction n])) out
+            verify outJson
+                [ expectCliListField 0 (#metadata . #getApiTxMetadata) (`shouldBe` expected)
+                , expectCliListField 0 (#status . #getApiT) (`shouldBe` InLedger)
+                ]
     it "TRANSTTL_CREATE_01 - Transaction with TTL via CLI" $ \ctx -> runResourceT $ do
       (wSrc, wDest) <- (,) <$> fixtureWallet ctx <*> emptyWallet ctx
       let amt = 10_000_000
