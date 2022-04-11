@@ -1148,7 +1148,7 @@ data ApiTransaction (n :: NetworkDiscriminant) = ApiTransaction
     , withdrawals :: ![ApiWithdrawal n]
     , mint :: !(ApiT W.TokenMap)
     , status :: !(ApiT TxStatus)
-    , metadata :: !ApiTxMetadata
+    , metadata :: !(Maybe TxMetadataWithSchema)
     , scriptValidity :: !(Maybe (ApiT TxScriptValidity))
     } deriving (Eq, Generic, Show, Typeable)
       deriving anyclass NFData
