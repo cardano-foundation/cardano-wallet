@@ -40,6 +40,7 @@
           (hsPkgs."bech32" or (errorHandler.buildDepError "bech32"))
           (hsPkgs."bech32-th" or (errorHandler.buildDepError "bech32-th"))
           (hsPkgs."binary" or (errorHandler.buildDepError "binary"))
+          (hsPkgs."blockfrost-api" or (errorHandler.buildDepError "blockfrost-api"))
           (hsPkgs."blockfrost-client" or (errorHandler.buildDepError "blockfrost-client"))
           (hsPkgs."blockfrost-client-core" or (errorHandler.buildDepError "blockfrost-client-core"))
           (hsPkgs."bytestring" or (errorHandler.buildDepError "bytestring"))
