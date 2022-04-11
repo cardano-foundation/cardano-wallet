@@ -5,9 +5,9 @@
 {-# LANGUAGE DerivingStrategies #-}
 {-# LANGUAGE FlexibleInstances #-}
 {-# LANGUAGE KindSignatures #-}
+{-# LANGUAGE LambdaCase #-}
 {-# LANGUAGE StrictData #-}
 {-# LANGUAGE NoMonomorphismRestriction #-}
-{-# LANGUAGE LambdaCase #-}
 
 -- |
 -- Copyright: © 2018-2022 IOHK
@@ -15,7 +15,6 @@
 --
 -- A wrapper around TxMetadata to allow different JSON codecs. (ADP-1596)
 -- see https://github.com/input-output-hk/cardano-node/blob/master/cardano-api/src/Cardano/Api/TxMetadata.hs
-
 module Cardano.Wallet.Api.Types.SchemaMetadata where
 
 import Cardano.Api
@@ -29,10 +28,9 @@ import Control.Applicative (liftA2, (<|>))
 import Control.DeepSeq (NFData)
 import Data.Aeson (FromJSON (parseJSON), ToJSON (toJSON))
 import GHC.Generics (Generic)
-import Prelude
 import Servant (ToHttpApiData)
-import Web.Internal.HttpApiData (toQueryParam, FromHttpApiData, parseQueryParam)
-import Data.Function ((&))
+import Web.Internal.HttpApiData (FromHttpApiData, parseQueryParam, toQueryParam)
+import Prelude
 
 -- | a tag to select the json codec
 data TxMetadataSchema = TxMetadataNoSchema | TxMetadataDetailedSchema
@@ -51,29 +49,32 @@ instance ToJSON TxMetadataWithSchema where
   toJSON (TxMetadataWithSchema TxMetadataDetailedSchema x) = metadataToJson TxMetadataJsonDetailedSchema x
   toJSON (TxMetadataWithSchema TxMetadataNoSchema x) = metadataToJson TxMetadataJsonNoSchema x
 
+
+detailedMetadata :: TxMetadata -> TxMetadataWithSchema
+detailedMetadata = TxMetadataWithSchema TxMetadataDetailedSchema
+
+noSchemaMetadata :: TxMetadata -> TxMetadataWithSchema
+noSchemaMetadata = TxMetadataWithSchema TxMetadataNoSchema
+
 instance FromJSON TxMetadataWithSchema where
-  parseJSON v = v & liftA2
+  parseJSON = liftA2
     do (<|>)
     do
-      fmap (TxMetadataWithSchema TxMetadataDetailedSchema)
+      fmap detailedMetadata
         . either (fail . displayError) pure
         . metadataFromJson TxMetadataJsonDetailedSchema
     do
-      fmap (TxMetadataWithSchema TxMetadataNoSchema)
+      fmap noSchemaMetadata
         . either (fail . displayError) pure
         . metadataFromJson TxMetadataJsonNoSchema
 
--- txMetadataSchemaParam :: TxMetadataSchema -> Maybe ()
--- txMetadataSchemaParam TxMetadataDetailedSchema  = Nothing 
--- txMetadataSchemaParam TxMetadataNoSchema  = Just ()
+instance ToHttpApiData TxMetadataSchema where
+  toQueryParam = \case
+    TxMetadataNoSchema -> "no-schema"
+    TxMetadataDetailedSchema -> "detailed-schema"
 
-instance ToHttpApiData TxMetadataSchema where 
-  toQueryParam = \case     
-    TxMetadataNoSchema -> "implicit-types"
-    TxMetadataDetailedSchema -> "explicit-types"
-
-instance FromHttpApiData TxMetadataSchema where 
-  parseQueryParam = \case 
-    "implicit" -> pure TxMetadataNoSchema
-    "explicit" -> pure TxMetadataDetailedSchema
+instance FromHttpApiData TxMetadataSchema where
+  parseQueryParam = \case
+    "no-schema" -> pure TxMetadataNoSchema
+    "detailed-schema" -> pure TxMetadataDetailedSchema
     _ -> Left "cannot read metadata schema parameter"

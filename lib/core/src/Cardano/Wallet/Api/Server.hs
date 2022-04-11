@@ -663,7 +663,7 @@ import qualified Data.Text as T
 import qualified Data.Text.Encoding as T
 import qualified Network.Wai.Handler.Warp as Warp
 import qualified Network.Wai.Handler.WarpTLS as Warp
-import Cardano.Wallet.Api.Types.SchemaMetadata (TxMetadataWithSchema(TxMetadataWithSchema), TxMetadataSchema (TxMetadataDetailedSchema))
+import Cardano.Wallet.Api.Types.SchemaMetadata (TxMetadataWithSchema(TxMetadataWithSchema), TxMetadataSchema (TxMetadataDetailedSchema, TxMetadataNoSchema))
 
 -- | How the server should listen for incoming requests.
 data Listen
@@ -2089,7 +2089,7 @@ getTransaction
     :: forall ctx s k n. (ctx ~ ApiLayer s k)
     => ctx
     -> ApiT WalletId
-    -> Maybe TxMetadataSchema
+    -> Bool
     -> ApiTxId
     -> Handler (ApiTransaction n)
 getTransaction ctx (ApiT wid) mMetadataSchema (ApiTxId (ApiT (tid))) = do
@@ -2098,7 +2098,7 @@ getTransaction ctx (ApiT wid) mMetadataSchema (ApiTxId (ApiT (tid))) = do
         depo <- liftIO $ W.stakeKeyDeposit <$> NW.currentProtocolParameters (wrk ^. networkLayer)
         pure (tx, depo)
     liftIO $ mkApiTransactionFromInfo (timeInterpreter (ctx ^. networkLayer)) depo tx 
-        $ fromMaybe TxMetadataDetailedSchema mMetadataSchema
+        $ if mMetadataSchema then TxMetadataNoSchema else TxMetadataDetailedSchema 
 
 -- Populate an API transaction record with 'TransactionInfo' from the wallet
 -- layer.

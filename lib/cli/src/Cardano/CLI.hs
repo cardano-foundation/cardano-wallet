@@ -337,7 +337,7 @@ import qualified Data.Text as T
 import qualified Data.Text.Encoding as T
 import qualified Data.Text.IO as TIO
 import qualified UnliftIO.Async as Async
-import Cardano.Wallet.Api.Types.SchemaMetadata (TxMetadataWithSchema, TxMetadataSchema (TxMetadataDetailedSchema, TxMetadataNoSchema))
+import Cardano.Wallet.Api.Types.SchemaMetadata (TxMetadataWithSchema)
 
 {-------------------------------------------------------------------------------
                                    CLI
@@ -915,7 +915,7 @@ cmdTransactionForget mkClient =
 -- | Arguments for 'transaction get' command
 data TransactionGetArgs = TransactionGetArgs
     { _port :: Port "Wallet"
-    , _schema :: TxMetadataSchema 
+    , _schema :: Bool
     , _wid :: WalletId
     , _txid :: TxId
     }
@@ -932,17 +932,15 @@ cmdTransactionGet mkClient =
         <*> jsonSchemaOption 
         <*> walletIdArgument
         <*> transactionIdArgument 
-    exec (TransactionGetArgs wPort jSchema wId txId ) = do
+    exec (TransactionGetArgs wPort jschema wId txId ) = do
         runClient wPort Aeson.encodePretty $ getTransaction mkClient
             (ApiT wId)
-            (Just jSchema)
+            jschema 
             (ApiTxId $ ApiT $ getTxId txId)
 
-jsonSchemaOption :: Parser TxMetadataSchema
-jsonSchemaOption = flag 
-    do TxMetadataDetailedSchema 
-    do TxMetadataNoSchema 
-    do long "no-schema-metadata"
+jsonSchemaOption :: Parser Bool
+jsonSchemaOption = switch 
+    do long "simple-metadata"
         <> help "output metadata json in implicit types format" 
 
 

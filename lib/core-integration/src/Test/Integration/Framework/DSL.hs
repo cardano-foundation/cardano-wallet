@@ -2849,10 +2849,12 @@ getTransactionViaCLI
     => s
     -> String
     -> String
+    -> Bool 
     -> m r
-getTransactionViaCLI ctx wid tid = cardanoWalletCLI $ join
+getTransactionViaCLI ctx wid tid jschema = cardanoWalletCLI $ join
     [ ["transaction", "get"]
     , ["--port", show (ctx ^. typed @(Port "wallet")), wid, tid]
+    , ["--simple-metadata" | jschema]
     ]
 
 proc' :: FilePath -> [String] -> CreateProcess

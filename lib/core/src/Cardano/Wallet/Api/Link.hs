@@ -182,7 +182,6 @@ import Web.HttpApiData
     ( ToHttpApiData (..) )
 
 import qualified Cardano.Wallet.Api as Api
-import Cardano.Wallet.Api.Types.SchemaMetadata (TxMetadataSchema)
 
 --
 -- Wallets
@@ -661,7 +660,7 @@ getTransaction
         )
     => w
     -> t
-    -> Maybe TxMetadataSchema
+    -> Bool
     -> (Method, Text)
 getTransaction w t s = discriminate @style
     (endpoint @(Api.GetTransaction Net) mkShelleyURL)
@@ -672,7 +671,7 @@ getTransaction w t s = discriminate @style
     tid = ApiTxId (t ^. typed @(ApiT (Hash "Tx")))
     mkByronURL mk = mk wid tid
 
-    mkShelleyURL :: (ApiT WalletId -> Maybe TxMetadataSchema  -> ApiTxId -> Text) -> Text
+    mkShelleyURL :: (ApiT WalletId -> Bool  -> ApiTxId -> Text) -> Text
     mkShelleyURL mk = mk wid s tid 
 
 

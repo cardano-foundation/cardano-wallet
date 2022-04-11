@@ -122,7 +122,6 @@ import UnliftIO.Exception
     ( throwString )
 
 import qualified Data.Aeson as Aeson
-import Cardano.Wallet.Api.Types.SchemaMetadata (TxMetadataSchema)
 
 {-------------------------------------------------------------------------------
                               Server Interaction
@@ -186,7 +185,7 @@ data TransactionClient = TransactionClient
         -> ClientM NoContent
     , getTransaction
         :: ApiT WalletId
-        -> Maybe TxMetadataSchema -- a hack to support
+        -> Bool
         -> ApiTxId
         -> ClientM (ApiTransactionT Aeson.Value)
     , constructTransaction

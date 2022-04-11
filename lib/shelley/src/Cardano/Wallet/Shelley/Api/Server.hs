@@ -470,8 +470,8 @@ server byron icarus shelley multisig spl ntp =
                 (icarus, listTransactions icarus wid Nothing r0 r1 s)
              )
         :<|> (\wid txid -> withLegacyLayer wid
-                (byron , getTransaction byron wid Nothing txid)
-                (icarus, getTransaction icarus wid Nothing txid)
+                (byron , getTransaction byron wid False txid)
+                (icarus, getTransaction icarus wid False txid)
              )
         :<|> (\wid txid -> withLegacyLayer wid
                 (byron , deleteTransaction byron wid txid)
