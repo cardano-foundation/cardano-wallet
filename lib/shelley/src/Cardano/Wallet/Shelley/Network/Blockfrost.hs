@@ -36,6 +36,7 @@ import Prelude
 import qualified Blockfrost.Client as BF
 import qualified Cardano.Api.Shelley as Node
 import qualified Data.Sequence as Seq
+import qualified Ouroboros.Consensus.HardFork.History.Qry as HF
 
 import Cardano.Api
     ( AnyCardanoEra (..)
@@ -59,6 +60,12 @@ import Cardano.Wallet.Logging
     ( BracketLog, bracketTracer )
 import Cardano.Wallet.Network
     ( NetworkLayer (..) )
+import Cardano.Wallet.Primitive.Slotting
+    ( PastHorizonException
+    , TimeInterpreter
+    , TimeInterpreterLog
+    , mkTimeInterpreter
+    )
 import Cardano.Wallet.Primitive.Types
     ( BlockHeader (..)
     , DecentralizationLevel (..)
@@ -66,16 +73,21 @@ import Cardano.Wallet.Primitive.Types
     , ExecutionUnitPrices (..)
     , ExecutionUnits (..)
     , FeePolicy (LinearFee)
+    , GenesisParameters (GenesisParameters)
     , LinearFunction (..)
     , MinimumUTxOValue (..)
+    , NetworkParameters (NetworkParameters)
     , ProtocolParameters (..)
     , SlotNo (..)
     , SlottingParameters (..)
+    , StartTime
     , TokenBundleMaxSize (..)
     , TxParameters (..)
     , emptyEraInfo
     , executionMemory
     , executionSteps
+    , genesisParameters
+    , getGenesisBlockDate
     )
 import Cardano.Wallet.Primitive.Types.Coin
     ( Coin (Coin, unCoin) )
@@ -110,8 +122,24 @@ import Data.Traversable
     ( for )
 import Fmt
     ( pretty )
+import Ouroboros.Consensus.Block.Abstract
+    ( EpochSize (EpochSize) )
+import Ouroboros.Consensus.BlockchainTime.WallClock.Types
+    ( RelativeTime (..), mkSlotLength )
 import Ouroboros.Consensus.Cardano.Block
-    ( CardanoBlock, StandardCrypto )
+    ( CardanoBlock, CardanoEras, StandardCrypto )
+import Ouroboros.Consensus.HardFork.History.EraParams
+    ( EraParams (EraParams, eraEpochSize, eraSafeZone, eraSlotLength)
+    , SafeZone (..)
+    )
+import Ouroboros.Consensus.HardFork.History.Summary
+    ( Bound (Bound, boundEpoch, boundSlot, boundTime)
+    , EraEnd (EraEnd, EraUnbounded)
+    , EraSummary (EraSummary, eraEnd, eraParams, eraStart)
+    , Summary (..)
+    )
+import Ouroboros.Consensus.Util.Counting
+    ( NonEmpty (NonEmptyCons, NonEmptyOne) )
 import UnliftIO
     ( throwIO )
 import UnliftIO.Async
@@ -137,25 +165,31 @@ newtype BlockfrostException = BlockfrostException BlockfrostError
     deriving stock (Show)
     deriving anyclass (Exception)
 
-data Log = MsgWatcherUpdate BlockHeader BracketLog
+data Log
+    = MsgWatcherUpdate BlockHeader BracketLog
+    | MsgTimeInterpreterLog TimeInterpreterLog
 
 instance ToText Log where
     toText = \case
         MsgWatcherUpdate blockHeader bracketLog ->
             "Update watcher with tip: " <> pretty blockHeader <>
             ". Callback " <> toText bracketLog <> ". "
+        MsgTimeInterpreterLog til ->
+            toText til
 
 instance HasSeverityAnnotation Log where
     getSeverityAnnotation = \case
       MsgWatcherUpdate _ _ -> Info
+      MsgTimeInterpreterLog _ -> Info
 
 withNetworkLayer
     :: Tracer IO Log
     -> NetworkId
+    -> NetworkParameters
     -> BF.Project
     -> (NetworkLayer IO (CardanoBlock StandardCrypto) -> IO a)
     -> IO a
-withNetworkLayer tr net project k = k NetworkLayer
+withNetworkLayer tr net np project k = k NetworkLayer
     { chainSync = \_tr _chainFollower -> pure ()
     , lightSync = Nothing
     , currentNodeTip
@@ -167,10 +201,13 @@ withNetworkLayer tr net project k = k NetworkLayer
     , stakeDistribution = undefined
     , getCachedRewardAccountBalance = undefined
     , fetchRewardAccountBalances = undefined
-    , timeInterpreter = undefined
+    , timeInterpreter = timeInterpreterFromStartTime getGenesisBlockDate
     , syncProgress = undefined
     }
   where
+    NetworkParameters
+        { genesisParameters = GenesisParameters { getGenesisBlockDate } } = np
+
     currentNodeTip :: IO BlockHeader
     currentNodeTip = runBlockfrost BF.getLatestBlock
     -- ^ TODO: use cached value while retrying
@@ -192,6 +229,12 @@ withNetworkLayer tr net project k = k NetworkLayer
         BF.EpochInfo {_epochInfoEpoch} <- liftBlockfrost BF.getLatestEpoch
         epoch <- fromBlockfrostM _epochInfoEpoch
         liftEither $ eraByEpoch net epoch
+
+    timeInterpreterFromStartTime ::
+        StartTime -> TimeInterpreter (ExceptT PastHorizonException IO)
+    timeInterpreterFromStartTime startTime =
+        mkTimeInterpreter (MsgTimeInterpreterLog >$< tr) startTime $
+            pure $ HF.mkInterpreter $ networkSummary net
 
     handleBlockfrostError :: ExceptT BlockfrostError IO a -> IO a
     handleBlockfrostError =
@@ -391,9 +434,190 @@ instance FromBlockfrost BF.Epoch EpochNo where
     fromBlockfrost = pure . fromIntegral
 
 
+networkSummary :: NetworkId -> Summary (CardanoEras StandardCrypto)
+networkSummary = \case
+    Mainnet ->
+        Summary
+            { getSummary =
+            -- Byron
+            NonEmptyCons EraSummary
+                { eraStart = Bound
+                    { boundTime = RelativeTime 0
+                    , boundSlot = 0
+                    , boundEpoch = 0
+                    }
+                , eraEnd = EraEnd Bound
+                    { boundTime = RelativeTime 89856000
+                    , boundSlot = 4492800
+                    , boundEpoch = Node.EpochNo 208
+                    }
+                , eraParams = EraParams
+                    { eraEpochSize = EpochSize 21600
+                    , eraSlotLength = mkSlotLength 20
+                    , eraSafeZone = StandardSafeZone 4320
+                    }
+                }
+            -- Shelley
+            $ NonEmptyCons EraSummary
+                { eraStart = Bound
+                    { boundTime = RelativeTime 89856000
+                    , boundSlot = 4492800
+                    , boundEpoch = Node.EpochNo 208
+                    }
+                , eraEnd = EraEnd Bound
+                    { boundTime = RelativeTime 101952000
+                    , boundSlot = 16588800
+                    , boundEpoch = Node.EpochNo 236
+                    }
+                , eraParams = EraParams
+                    { eraEpochSize = EpochSize 432000
+                    , eraSlotLength = mkSlotLength 1
+                    , eraSafeZone = StandardSafeZone 129600
+                    }
+                }
+            -- Allegra
+            $ NonEmptyCons EraSummary
+                { eraStart = Bound
+                    { boundTime = RelativeTime 101952000
+                    , boundSlot = 16588800
+                    , boundEpoch = Node.EpochNo 236
+                    }
+                , eraEnd = EraEnd Bound
+                    { boundTime = RelativeTime 108432000
+                    , boundSlot = 23068800
+                    , boundEpoch = Node.EpochNo 251
+                    }
+                , eraParams = EraParams
+                    { eraEpochSize = EpochSize 432000
+                    , eraSlotLength = mkSlotLength 1
+                    , eraSafeZone = StandardSafeZone 129600
+                    }
+                }
+            -- Mary
+            $ NonEmptyCons EraSummary
+                { eraStart = Bound
+                    { boundTime = RelativeTime 108432000
+                    , boundSlot = 23068800
+                    , boundEpoch = Node.EpochNo 251
+                    }
+                , eraEnd = EraEnd Bound
+                    { boundTime = RelativeTime 125280000
+                    , boundSlot = 39916800
+                    , boundEpoch = Node.EpochNo 290
+                    }
+                , eraParams = EraParams
+                    { eraEpochSize = EpochSize 432000
+                    , eraSlotLength = mkSlotLength 1
+                    , eraSafeZone = StandardSafeZone 129600
+                    }
+                }
+            -- Alonzo
+            $ NonEmptyOne EraSummary
+                { eraStart = Bound
+                    { boundTime = RelativeTime 125280000
+                    , boundSlot = 39916800
+                    , boundEpoch = Node.EpochNo 290
+                    }
+                , eraEnd = EraUnbounded
+                , eraParams = EraParams
+                    { eraEpochSize = EpochSize 432000
+                    , eraSlotLength = mkSlotLength 1
+                    , eraSafeZone = StandardSafeZone 129600
+                    }
+                }
+            }
+    Testnet (NetworkMagic 1097911063) -> -- Magic of the current public testnet
+        Summary
+            { getSummary
+                = NonEmptyCons EraSummary
+                    { eraStart = Bound
+                        { boundTime = RelativeTime 0
+                        , boundSlot = SlotNo 0
+                        , boundEpoch = Node.EpochNo 0
+                        }
+                    , eraEnd = EraEnd Bound
+                        { boundTime = RelativeTime 31968000
+                        , boundSlot = SlotNo 1598400
+                        , boundEpoch = Node.EpochNo 74
+                        }
+                    , eraParams = EraParams
+                        { eraEpochSize = EpochSize 21600
+                        , eraSlotLength = mkSlotLength 20
+                        , eraSafeZone = StandardSafeZone 4320
+                        }
+                    }
+                $ NonEmptyCons EraSummary
+                    { eraStart = Bound
+                        { boundTime = RelativeTime 31968000
+                        , boundSlot = SlotNo 1598400
+                        , boundEpoch = Node.EpochNo 74
+                        }
+                    , eraEnd = EraEnd Bound
+                        { boundTime = RelativeTime 44064000
+                        , boundSlot = SlotNo 13694400
+                        , boundEpoch = Node.EpochNo 102
+                        }
+                    , eraParams = EraParams
+                        { eraEpochSize = EpochSize 432000
+                        , eraSlotLength = mkSlotLength 1
+                        , eraSafeZone = StandardSafeZone 129600
+                        }
+                    }
+                $ NonEmptyCons EraSummary
+                    { eraStart = Bound
+                        { boundTime = RelativeTime 44064000
+                        , boundSlot = SlotNo 13694400
+                        , boundEpoch = Node.EpochNo 102
+                        }
+                    , eraEnd = EraEnd Bound
+                        { boundTime = RelativeTime 48384000
+                        , boundSlot = SlotNo 18014400
+                        , boundEpoch = Node.EpochNo 112
+                        }
+                    , eraParams = EraParams
+                        { eraEpochSize = EpochSize 432000
+                        , eraSlotLength = mkSlotLength 1
+                        , eraSafeZone = StandardSafeZone 129600
+                        }
+                    }
+                $ NonEmptyCons EraSummary
+                    { eraStart = Bound
+                        { boundTime = RelativeTime 48384000
+                        , boundSlot = SlotNo 18014400
+                        , boundEpoch = Node.EpochNo 112
+                        }
+                    , eraEnd = EraEnd Bound
+                        { boundTime = RelativeTime 66528000
+                        , boundSlot = SlotNo 36158400
+                        , boundEpoch = Node.EpochNo 154
+                        }
+                    , eraParams = EraParams
+                        { eraEpochSize = EpochSize 432000
+                        , eraSlotLength = mkSlotLength 1
+                        , eraSafeZone = StandardSafeZone 129600
+                        }
+                    }
+                $ NonEmptyOne EraSummary
+                    { eraStart = Bound
+                        { boundTime = RelativeTime 66528000
+                        , boundSlot = SlotNo 36158400
+                        , boundEpoch = Node.EpochNo 154
+                        }
+                    , eraEnd = EraUnbounded
+                    , eraParams = EraParams
+                        { eraEpochSize = EpochSize 432000
+                        , eraSlotLength = mkSlotLength 1
+                        , eraSafeZone = StandardSafeZone 129600
+                        }
+                    }
+            }
+    Testnet magic ->
+        error $ "Epoch/Era conversion isn't provided for the Testnet "
+            <> show magic
+
 {- Epoch-to-Era translation is not available in the Blockfrost API.
 
-The following histories are hardcoded in order to work around this limiation:
+The following histories are hardcoded in order to work around this limitation:
 
 For the Mainnet:      For the Testnet:
 ┌───────┬─────────┐   ┌───────┬─────────┐
