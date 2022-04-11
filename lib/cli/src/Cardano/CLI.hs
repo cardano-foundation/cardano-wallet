@@ -17,6 +17,7 @@
 {-# LANGUAGE TypeApplications #-}
 {-# LANGUAGE TypeFamilies #-}
 {-# LANGUAGE UndecidableInstances #-}
+{-# LANGUAGE BlockArguments #-}
 
 -- |
 -- Copyright: © 2018-2020 IOHK
@@ -914,6 +915,7 @@ cmdTransactionForget mkClient =
 -- | Arguments for 'transaction get' command
 data TransactionGetArgs = TransactionGetArgs
     { _port :: Port "Wallet"
+    , _schema :: Bool
     , _wid :: WalletId
     , _txid :: TxId
     }
@@ -927,12 +929,20 @@ cmdTransactionGet mkClient =
   where
     cmd = fmap exec $ TransactionGetArgs
         <$> portOption
+        <*> jsonSchemaOption 
         <*> walletIdArgument
-        <*> transactionIdArgument
-    exec (TransactionGetArgs wPort wId txId) = do
+        <*> transactionIdArgument 
+    exec (TransactionGetArgs wPort jschema wId txId ) = do
         runClient wPort Aeson.encodePretty $ getTransaction mkClient
             (ApiT wId)
+            jschema 
             (ApiTxId $ ApiT $ getTxId txId)
+
+jsonSchemaOption :: Parser Bool
+jsonSchemaOption = switch 
+    do long "simple-metadata"
+        <> help "output metadata json in implicit types format" 
+
 
 {-------------------------------------------------------------------------------
                             Commands - 'address'
@@ -1436,7 +1446,7 @@ transactionSubmitPayloadArgument = argumentT $ mempty
 --
 -- Note: we decode the JSON just so that we can validate more client-side.
 metadataOption :: Parser (Maybe TxMetadataWithSchema)
-metadataOption = option (Just <$> txMetadataReader) $ mempty
+metadataOption = option txMetadataReader $ mempty
     <> long "metadata"
     <> metavar "JSON"
     <> value Nothing 
@@ -1444,7 +1454,7 @@ metadataOption = option (Just <$> txMetadataReader) $ mempty
              <> "The value must match the schema defined in the "
              <> "cardano-wallet OpenAPI specification.")
 
-txMetadataReader :: ReadM TxMetadataWithSchema
+txMetadataReader :: ReadM (Maybe TxMetadataWithSchema)
 txMetadataReader = eitherReader (Aeson.eitherDecode' . BL8.pack)
 
 -- | [--ttl=DURATION]

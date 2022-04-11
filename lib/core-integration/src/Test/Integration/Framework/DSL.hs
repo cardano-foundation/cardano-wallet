@@ -30,6 +30,7 @@ module Test.Integration.Framework.DSL
     , expectError
     , expectErrorMessage
     , expectField
+    , expectPresentField
     , expectListField
     , expectListSize
     , expectListSizeSatisfy
@@ -518,6 +519,16 @@ expectResponseCode expected (actual, a) =
     if actual == expected
         then pure ()
         else actual `shouldBe` expected
+
+expectPresentField
+    :: (HasCallStack, MonadIO m, Show a)
+    => Lens' s a
+    -> (a -> Expectation)
+    -> (HTTP.Status, Either RequestException s)
+    -> m ()
+expectPresentField getter predicate (_, res) = case res of
+    Left e  -> wantedSuccessButError e
+    Right s -> liftIO $ predicate (s ^. getter) 
 
 expectField
     :: (HasCallStack, MonadIO m, Show a)
@@ -2838,10 +2849,12 @@ getTransactionViaCLI
     => s
     -> String
     -> String
+    -> Bool 
     -> m r
-getTransactionViaCLI ctx wid tid = cardanoWalletCLI $ join
+getTransactionViaCLI ctx wid tid jschema = cardanoWalletCLI $ join
     [ ["transaction", "get"]
     , ["--port", show (ctx ^. typed @(Port "wallet")), wid, tid]
+    , ["--simple-metadata" | jschema]
     ]
 
 proc' :: FilePath -> [String] -> CreateProcess

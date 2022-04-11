@@ -329,10 +329,10 @@ spec = describe "SHELLEY_ADDRESSES" $ do
         -- 4. Wait for transaction from A -> B to no longer be pending
         eventually "Transaction from A -> B is discovered on B" $ do
             request @(ApiTransaction n) ctx
-                (Link.getTransaction @'Shelley wA rtx) Default Empty
+                (Link.getTransaction @'Shelley wA rtx False) Default Empty
                 >>= expectField #status (`shouldBe` ApiT InLedger)
             request @(ApiTransaction n) ctx
-                (Link.getTransaction @'Shelley wB rtx) Default Empty
+                (Link.getTransaction @'Shelley wB rtx False) Default Empty
                 >>= expectField #status (`shouldBe` ApiT InLedger)
 
         -- 5. Check that there's one more used and total addresses on the wallets

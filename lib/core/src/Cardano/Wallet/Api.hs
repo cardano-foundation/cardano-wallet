@@ -590,6 +590,7 @@ type ListTransactions n = "wallets"
 type GetTransaction n = "wallets"
     :> Capture "walletId" (ApiT WalletId)
     :> "transactions"
+    :> QueryFlag "simple-metadata" 
     :> Capture "transactionId" ApiTxId
     :> Get '[JSON] (ApiTransactionT n)
 
