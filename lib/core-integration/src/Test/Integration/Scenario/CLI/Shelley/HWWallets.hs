@@ -307,10 +307,8 @@ spec = describe "SHELLEY_CLI_HW_WALLETS" $ do
 
         it "Can list transactions" $ \ctx -> runResourceT $ do
             w <- emptyWalletFromPubKeyViaCLI ctx restoredWalletName
-
             (Exit code, Stdout out, Stderr err) <-
-                listTransactionsViaCLI ctx [T.unpack $ w ^. walletId]
-
+                listTransactionsViaCLI ctx False [T.unpack $ w ^. walletId]
             err `shouldBe` cmdOk
             out `shouldBe` "[]\n"
             code `shouldBe` ExitSuccess

@@ -42,6 +42,8 @@ hie.yaml
 *.faulty.json
 *.faulty.json
 lib/shelley/test/data/balanceTx/**/actual
+lib/core/test/data/Cardano/Wallet/Api/ApiTransactionTestnet0.faulty.reencoded.json
+lib/core/test/data/Cardano/Wallet/Api/ApiWalletMigrationPostDataTestnet0user.json
 
 ### Release scripts output
 /GENERATED_*.md
@@ -49,3 +51,6 @@ lib/shelley/test/data/balanceTx/**/actual
 ### Docs build
 /_build/
 .vscode/settings.json
+
+
+

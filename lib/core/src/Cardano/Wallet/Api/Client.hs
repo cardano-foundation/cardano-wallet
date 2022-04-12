@@ -163,6 +163,7 @@ data TransactionClient = TransactionClient
         -> Maybe Iso8601Time
         -> Maybe Iso8601Time
         -> Maybe (ApiT SortOrder)
+        -> Bool 
         -> ClientM [ApiTransactionT Aeson.Value]
     , signTransaction
         :: ApiT WalletId
@@ -362,7 +363,7 @@ byronTransactionClient =
             = client (Proxy @("v2" :> Proxy_))
 
     in TransactionClient
-        { listTransactions = _listTransactions
+        { listTransactions = \wid start end order _ -> _listTransactions wid start end order
         , signTransaction = _signTransaction
         , postTransaction = _postTransaction
         , postTransactionFee = _postTransactionFee
