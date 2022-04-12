@@ -5,9 +5,8 @@
 {-# LANGUAGE DerivingStrategies #-}
 {-# LANGUAGE FlexibleInstances #-}
 {-# LANGUAGE KindSignatures #-}
-{-# LANGUAGE LambdaCase #-}
-{-# LANGUAGE StrictData #-}
 {-# LANGUAGE NoMonomorphismRestriction #-}
+{-# LANGUAGE StrictData #-}
 
 -- |
 -- Copyright: © 2018-2022 IOHK
@@ -18,18 +17,20 @@
 module Cardano.Wallet.Api.Types.SchemaMetadata where
 
 import Cardano.Api
-  ( Error (displayError)
-  , TxMetadataJsonSchema (TxMetadataJsonDetailedSchema, TxMetadataJsonNoSchema)
-  , metadataFromJson
-  , metadataToJson
-  )
+    ( Error (displayError)
+    , TxMetadataJsonSchema (TxMetadataJsonDetailedSchema, TxMetadataJsonNoSchema)
+    , metadataFromJson
+    , metadataToJson
+    )
 import Cardano.Wallet.Primitive.Types.Tx
-import Control.Applicative (liftA2, (<|>))
-import Control.DeepSeq (NFData)
-import Data.Aeson (FromJSON (parseJSON), ToJSON (toJSON))
-import GHC.Generics (Generic)
-import Servant (ToHttpApiData)
-import Web.Internal.HttpApiData (FromHttpApiData, parseQueryParam, toQueryParam)
+import Control.Applicative
+    ( liftA2, (<|>) )
+import Control.DeepSeq
+    ( NFData )
+import Data.Aeson
+    ( FromJSON (parseJSON), ToJSON (toJSON) )
+import GHC.Generics
+    ( Generic )
 import Prelude
 
 -- | a tag to select the json codec
@@ -49,7 +50,6 @@ instance ToJSON TxMetadataWithSchema where
   toJSON (TxMetadataWithSchema TxMetadataDetailedSchema x) = metadataToJson TxMetadataJsonDetailedSchema x
   toJSON (TxMetadataWithSchema TxMetadataNoSchema x) = metadataToJson TxMetadataJsonNoSchema x
 
-
 detailedMetadata :: TxMetadata -> TxMetadataWithSchema
 detailedMetadata = TxMetadataWithSchema TxMetadataDetailedSchema
 
@@ -67,14 +67,3 @@ instance FromJSON TxMetadataWithSchema where
       fmap noSchemaMetadata
         . either (fail . displayError) pure
         . metadataFromJson TxMetadataJsonNoSchema
-
-instance ToHttpApiData TxMetadataSchema where
-  toQueryParam = \case
-    TxMetadataNoSchema -> "no-schema"
-    TxMetadataDetailedSchema -> "detailed-schema"
-
-instance FromHttpApiData TxMetadataSchema where
-  parseQueryParam = \case
-    "no-schema" -> pure TxMetadataNoSchema
-    "detailed-schema" -> pure TxMetadataDetailedSchema
-    _ -> Left "cannot read metadata schema parameter"

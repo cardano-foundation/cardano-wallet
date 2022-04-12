@@ -384,8 +384,8 @@ server byron icarus shelley multisig spl ntp =
                 )
              )
         :<|> liftA2 (\xs ys -> fmap fst $ sortOn snd $ xs ++ ys)
-            (listWallets byron  mkLegacyWallet)
-            (listWallets icarus mkLegacyWallet)
+                (listWallets byron  mkLegacyWallet)
+                (listWallets icarus mkLegacyWallet)
         :<|> (\wid name -> withLegacyLayer wid
                 (byron , putWallet byron mkLegacyWallet wid name)
                 (icarus, putWallet icarus mkLegacyWallet wid name)
@@ -468,8 +468,8 @@ server byron icarus shelley multisig spl ntp =
                  (icarus, signTransaction icarus wid tx)
              )
         :<|> (\wid r0 r1 s -> withLegacyLayer wid
-                (byron , listTransactions byron wid Nothing r0 r1 s)
-                (icarus, listTransactions icarus wid Nothing r0 r1 s)
+                (byron , listTransactions byron wid Nothing r0 r1 s False)
+                (icarus, listTransactions icarus wid Nothing r0 r1 s False)
              )
         :<|> (\wid txid -> withLegacyLayer wid
                 (byron , getTransaction byron wid False txid)
