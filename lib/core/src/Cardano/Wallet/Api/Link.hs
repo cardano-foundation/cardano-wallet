@@ -610,7 +610,15 @@ listTransactions'
     -> (Method, Text)
 listTransactions' w minWithdrawal inf sup order = discriminate @style
     (endpoint @(Api.ListTransactions Net)
-        (\mk -> mk wid (MinWithdrawal <$> minWithdrawal) inf sup (ApiT <$> order)))
+        (\mk -> mk
+            wid 
+            (MinWithdrawal <$> minWithdrawal) 
+            inf 
+            sup 
+            (ApiT <$> order)
+            False
+        ) 
+    )
     (endpoint @(Api.ListByronTransactions Net)
         (\mk -> mk wid inf sup (ApiT <$> order)))
     (notSupported "Shared")

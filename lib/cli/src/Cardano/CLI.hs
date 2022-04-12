@@ -149,7 +149,7 @@ import Cardano.Wallet.Api.Types
     , ApiMnemonicT (..)
     , ApiPostRandomAddressData (..)
     , ApiT (..)
-    , ApiTxId (ApiTxId) 
+    , ApiTxId (ApiTxId)
     , ApiWallet
     , Base (Base16)
     , ByronWalletPostData (..)
@@ -160,7 +160,7 @@ import Cardano.Wallet.Api.Types
     , WalletPostData (..)
     , WalletPutData (..)
     , WalletPutPassphraseData (..)
-    , fmtAllowedWords
+    , fmtAllowedWords, ApiAsset (metadata)
     )
 import Cardano.Wallet.Orphans
     ()
@@ -730,6 +730,12 @@ cmdWalletGetUtxoStatistics mkClient =
 data TransactionFeatures = NoShelleyFeatures | ShelleyFeatures
     deriving (Show, Eq)
 
+-- | which json schema to use for output, True is simple
+metadataSchemaOption :: Parser Bool
+metadataSchemaOption = switch 
+    do long "simple-metadata"
+        <> help "output metadata json in no-schema encoding" 
+
 -- | cardano-wallet transaction
 cmdTransaction
     :: ToJSON wallet
@@ -846,6 +852,7 @@ data TransactionListArgs = TransactionListArgs
     , _timeRangeStart :: Maybe Iso8601Time
     , _timeRangeEnd :: Maybe Iso8601Time
     , _sortOrder :: Maybe SortOrder
+    , _schema :: Bool
     }
 
 cmdTransactionList
@@ -861,13 +868,15 @@ cmdTransactionList mkTxClient =
         <*> optional timeRangeStartOption
         <*> optional timeRangeEndOption
         <*> optional sortOrderOption
-    exec (TransactionListArgs wPort wId mTimeRangeStart mTimeRangeEnd mOrder) =
+        <*> metadataSchemaOption 
+    exec (TransactionListArgs wPort wId mTimeRangeStart mTimeRangeEnd mOrder metadataSchema) =
         runClient wPort Aeson.encodePretty $ listTransactions
             mkTxClient
             (ApiT wId)
             mTimeRangeStart
             mTimeRangeEnd
             (ApiT <$> mOrder)
+            metadataSchema
 
 -- | Arguments for 'transaction submit' command
 data TransactionSubmitArgs = TransactionSubmitArgs
@@ -915,9 +924,9 @@ cmdTransactionForget mkClient =
 -- | Arguments for 'transaction get' command
 data TransactionGetArgs = TransactionGetArgs
     { _port :: Port "Wallet"
-    , _schema :: Bool
     , _wid :: WalletId
     , _txid :: TxId
+    , _schema :: Bool
     }
 
 cmdTransactionGet
@@ -929,19 +938,15 @@ cmdTransactionGet mkClient =
   where
     cmd = fmap exec $ TransactionGetArgs
         <$> portOption
-        <*> jsonSchemaOption 
         <*> walletIdArgument
         <*> transactionIdArgument 
-    exec (TransactionGetArgs wPort jschema wId txId ) = do
+        <*> metadataSchemaOption 
+    exec (TransactionGetArgs wPort wId txId metadataSchema ) = do
         runClient wPort Aeson.encodePretty $ getTransaction mkClient
             (ApiT wId)
-            jschema 
+            metadataSchema 
             (ApiTxId $ ApiT $ getTxId txId)
 
-jsonSchemaOption :: Parser Bool
-jsonSchemaOption = switch 
-    do long "simple-metadata"
-        <> help "output metadata json in implicit types format" 
 
 
 {-------------------------------------------------------------------------------

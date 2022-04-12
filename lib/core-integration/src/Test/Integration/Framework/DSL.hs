@@ -2814,11 +2814,13 @@ postTransactionFeeViaCLI ctx args = cardanoWalletCLI $ join
 listTransactionsViaCLI
     :: forall r s m. (CmdResult r, HasType (Port "wallet") s, MonadIO m)
     => s
+    -> Bool    
     -> [String]
     -> m r
-listTransactionsViaCLI ctx args = cardanoWalletCLI $ join
+listTransactionsViaCLI ctx jschema args = cardanoWalletCLI $ join
     [ ["transaction", "list"]
     , ["--port", show (ctx ^. typed @(Port "wallet"))]
+    , ["--simple-metadata" | jschema]
     , args
     ]
 
