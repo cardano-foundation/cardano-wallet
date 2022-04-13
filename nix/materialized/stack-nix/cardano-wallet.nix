@@ -115,6 +115,7 @@
           "Cardano/Wallet/Shelley/Compatibility/Ledger"
           "Cardano/Wallet/Shelley/Network"
           "Cardano/Wallet/Shelley/Network/Blockfrost"
+          "Cardano/Wallet/Shelley/Network/Discriminant"
           "Cardano/Wallet/Shelley/Network/Node"
           "Cardano/Wallet/Shelley/Transaction"
           "Cardano/Wallet/Shelley/Launch"

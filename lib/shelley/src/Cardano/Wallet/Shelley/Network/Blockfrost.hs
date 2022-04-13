@@ -58,6 +58,8 @@ import Cardano.Pool.Rank
     ( RewardParams (..) )
 import Cardano.Pool.Rank.Likelihood
     ( BlockProduction (..), PerformanceEstimate (..), estimatePoolPerformance )
+import Cardano.Wallet.Api.Types
+    ( encodeStakeAddress )
 import Cardano.Wallet.Logging
     ( BracketLog, bracketTracer )
 import Cardano.Wallet.Network
@@ -96,8 +98,11 @@ import Cardano.Wallet.Primitive.Types.Coin
 import Cardano.Wallet.Primitive.Types.Hash
     ( Hash )
 import Cardano.Wallet.Primitive.Types.RewardAccount
+    ( RewardAccount )
 import Cardano.Wallet.Primitive.Types.Tx
     ( TxSize (..) )
+import Cardano.Wallet.Shelley.Network.Discriminant
+    ( SomeNetworkDiscriminant (..), networkDiscriminantToId )
 import Control.Concurrent
     ( threadDelay )
 import Control.Monad
@@ -118,6 +123,8 @@ import Data.Map
     ( Map )
 import Data.Maybe
     ( fromMaybe )
+import Data.Proxy
+    ( Proxy (..) )
 import Data.Quantity
     ( MkPercentageError (PercentageOutOfBoundsError)
     , Quantity (..)
@@ -193,29 +200,32 @@ instance HasSeverityAnnotation Log where
 
 withNetworkLayer
     :: Tracer IO Log
-    -> NetworkId
+    -> SomeNetworkDiscriminant
     -> NetworkParameters
     -> BF.Project
     -> (NetworkLayer IO (CardanoBlock StandardCrypto) -> IO a)
     -> IO a
-withNetworkLayer tr net np project k = k NetworkLayer
-    { chainSync = \_tr _chainFollower -> pure ()
-    , lightSync = Nothing
-    , currentNodeTip
-    , currentNodeEra
-    , currentProtocolParameters
-    , currentSlottingParameters = undefined
-    , watchNodeTip
-    , postTx = undefined
-    , stakeDistribution = undefined
-    , getCachedRewardAccountBalance
-    , fetchRewardAccountBalances
-    , timeInterpreter = timeInterpreterFromStartTime getGenesisBlockDate
-    , syncProgress = undefined
-    }
+withNetworkLayer tr network np project k =
+    k NetworkLayer
+        { chainSync = \_tr _chainFollower -> pure ()
+        , lightSync = Nothing
+        , currentNodeTip
+        , currentNodeEra
+        , currentProtocolParameters
+        , currentSlottingParameters = undefined
+        , watchNodeTip
+        , postTx = undefined
+        , stakeDistribution = undefined
+        , getCachedRewardAccountBalance
+        , fetchRewardAccountBalances = fetchNetworkRewardAccountBalances network
+        , timeInterpreter = timeInterpreterFromStartTime getGenesisBlockDate
+        , syncProgress = undefined
+        }
   where
     NetworkParameters
         { genesisParameters = GenesisParameters { getGenesisBlockDate } } = np
+
+    networkId = networkDiscriminantToId network
 
     currentNodeTip :: IO BlockHeader
     currentNodeTip = runBlockfrost BF.getLatestBlock
@@ -237,21 +247,24 @@ withNetworkLayer tr net np project k = k NetworkLayer
     currentNodeEra = handleBlockfrostError $ do
         BF.EpochInfo {_epochInfoEpoch} <- liftBlockfrost BF.getLatestEpoch
         epoch <- fromBlockfrostM _epochInfoEpoch
-        liftEither $ eraByEpoch net epoch
+        liftEither $ eraByEpoch networkId epoch
 
     timeInterpreterFromStartTime ::
         StartTime -> TimeInterpreter (ExceptT PastHorizonException IO)
     timeInterpreterFromStartTime startTime =
         mkTimeInterpreter (MsgTimeInterpreterLog >$< tr) startTime $
-            pure $ HF.mkInterpreter $ networkSummary net
+            pure $ HF.mkInterpreter $ networkSummary networkId
 
-    fetchRewardAccountBalances ::
-        Set RewardAccount -> IO (Map RewardAccount Coin)
-    fetchRewardAccountBalances accounts =
+    fetchNetworkRewardAccountBalances  ::
+        SomeNetworkDiscriminant ->
+        Set RewardAccount ->
+        IO (Map RewardAccount Coin)
+    fetchNetworkRewardAccountBalances
+        (SomeNetworkDiscriminant (Proxy :: Proxy nd)) accounts =
         handleBlockfrostError . fmap Map.fromList $
             for (Set.toList accounts) $ \rewardAccount -> do
                 BF.AccountInfo {..} <- liftBlockfrost $ BF.getAccount $
-                    BF.mkAddress $ toText rewardAccount
+                    BF.mkAddress $ encodeStakeAddress @nd rewardAccount
                 coin <- fromIntegral @_ @Integer _accountInfoRewardsSum <?#>
                     "AccountInfoRewardsSum"
                 pure (rewardAccount, Coin coin)
@@ -259,7 +272,7 @@ withNetworkLayer tr net np project k = k NetworkLayer
     getCachedRewardAccountBalance :: RewardAccount -> IO Coin
     getCachedRewardAccountBalance account =
         fromMaybe (Coin 0) . Map.lookup account <$>
-            fetchRewardAccountBalances (Set.singleton account)
+            fetchNetworkRewardAccountBalances network (Set.singleton account)
 
     handleBlockfrostError :: ExceptT BlockfrostError IO a -> IO a
     handleBlockfrostError =
@@ -670,7 +683,7 @@ For the Mainnet:      For the Testnet:
 
 -}
 eraByEpoch :: NetworkId -> EpochNo -> Either BlockfrostError AnyCardanoEra
-eraByEpoch net epoch =
+eraByEpoch networkId epoch =
     case dropWhile ((> epoch) . snd) (reverse eraBoundaries) of
         (era, _) : _ -> Right era
         _ -> Left $ UnknownEraForEpoch epoch
@@ -682,7 +695,7 @@ eraByEpoch net epoch =
         -- When new era is added this function reminds to update itself:
         -- "Pattern match(es) are non-exhaustive"
         epochEraStartsAt :: Node.AnyCardanoEra -> EpochNo
-        epochEraStartsAt era = EpochNo $ case net of
+        epochEraStartsAt era = EpochNo $ case networkId of
             Mainnet ->
                 case era of
                     AnyCardanoEra AlonzoEra  -> 290
