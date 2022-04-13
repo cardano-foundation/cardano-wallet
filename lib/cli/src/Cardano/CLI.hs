@@ -1,5 +1,6 @@
 {-# LANGUAGE AllowAmbiguousTypes #-}
 {-# LANGUAGE ApplicativeDo #-}
+{-# LANGUAGE BlockArguments #-}
 {-# LANGUAGE DataKinds #-}
 {-# LANGUAGE DeriveGeneric #-}
 {-# LANGUAGE DerivingStrategies #-}
@@ -17,7 +18,6 @@
 {-# LANGUAGE TypeApplications #-}
 {-# LANGUAGE TypeFamilies #-}
 {-# LANGUAGE UndecidableInstances #-}
-{-# LANGUAGE BlockArguments #-}
 
 -- |
 -- Copyright: © 2018-2020 IOHK
@@ -160,7 +160,7 @@ import Cardano.Wallet.Api.Types
     , WalletPostData (..)
     , WalletPutData (..)
     , WalletPutPassphraseData (..)
-    , fmtAllowedWords, ApiAsset (metadata)
+    , fmtAllowedWords
     )
 import Cardano.Wallet.Orphans
     ()
@@ -324,6 +324,8 @@ import UnliftIO.Exception
 import qualified Cardano.BM.Configuration.Model as CM
 import qualified Cardano.BM.Data.BackendKind as CM
 import qualified Cardano.BM.Data.Observable as Obs
+import Cardano.Wallet.Api.Types.SchemaMetadata
+    ( TxMetadataWithSchema )
 import qualified Command.Key as Key
 import qualified Command.RecoveryPhrase as RecoveryPhrase
 import qualified Data.Aeson as Aeson
@@ -337,7 +339,6 @@ import qualified Data.Text as T
 import qualified Data.Text.Encoding as T
 import qualified Data.Text.IO as TIO
 import qualified UnliftIO.Async as Async
-import Cardano.Wallet.Api.Types.SchemaMetadata (TxMetadataWithSchema)
 
 {-------------------------------------------------------------------------------
                                    CLI
