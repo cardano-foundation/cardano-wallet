@@ -382,8 +382,8 @@ server byron icarus shelley multisig spl ntp =
                 )
              )
         :<|> liftA2 (\xs ys -> fmap fst $ sortOn snd $ xs ++ ys)
-            (listWallets byron  mkLegacyWallet)
-            (listWallets icarus mkLegacyWallet)
+                (listWallets byron  mkLegacyWallet)
+                (listWallets icarus mkLegacyWallet)
         :<|> (\wid name -> withLegacyLayer wid
                 (byron , putWallet byron mkLegacyWallet wid name)
                 (icarus, putWallet icarus mkLegacyWallet wid name)
