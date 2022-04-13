@@ -1,7 +1,9 @@
 {-# LANGUAGE DataKinds #-}
 {-# LANGUAGE DeriveGeneric #-}
+{-# LANGUAGE DerivingStrategies #-}
 {-# LANGUAGE DuplicateRecordFields #-}
 {-# LANGUAGE NamedFieldPuns #-}
+{-# LANGUAGE TupleSections #-}
 
 -- |
 -- Copyright: © 2022 IOHK
@@ -37,8 +39,6 @@ module Cardano.Wallet.Primitive.BlockSummary
 
 import Prelude
 
-import Cardano.Wallet.Primitive.AddressDerivation
-    ( RewardAccount )
 import Cardano.Wallet.Primitive.Types
     ( Block (..)
     , BlockHeader (..)
@@ -50,6 +50,8 @@ import Cardano.Wallet.Primitive.Types
     )
 import Cardano.Wallet.Primitive.Types.Address
     ( Address )
+import Cardano.Wallet.Primitive.Types.RewardAccount
+    ( RewardAccount )
 import Cardano.Wallet.Primitive.Types.Tx
     ( Tx (..), TxOut (..) )
 import Data.Foldable
@@ -66,6 +68,8 @@ import Data.Word
     ( Word32 )
 import GHC.Generics
     ( Generic )
+import Numeric.Natural
+    ( Natural )
 
 import qualified Cardano.Wallet.Primitive.Types as Block
 import qualified Data.List.NonEmpty as NE
@@ -140,15 +144,23 @@ data BlockEvents = BlockEvents
         -- INVARIANT: The list is ordered by ascending index.
     } deriving (Eq, Ord, Generic, Show)
 
+type Index1 = Natural
+type Index2 = Natural
+
 -- | A data type representing a sublist of a total list.
 -- Such a sublist typically arises by filtering and keeps
 -- track of the indices of the filtered list elements.
+--
+-- In order to represent sublists of 'DelegationCertificate',
+-- we do not use a single 'Int', but a pair @(Index1,Index2)@
+-- as index internally.
+-- This internal index is not part of the (safe) API of 'Sublist'.
 --
 -- The main purpose of this data type is optimization:
 -- When processing whole 'Block', we want to avoid copying
 -- and redecorating the entire list of transactions in that 'Block';
 -- instead, we want to copy a pointer to this list.
-data Sublist a = All [a] | Some [(Int, a)]
+data Sublist a = All [a] | Some (Map (Index1, Index2) a)
     deriving (Eq, Ord, Show)
 
 -- | Construct a 'Sublist' representing the whole list.
@@ -156,23 +168,24 @@ wholeList :: [a] -> Sublist a
 wholeList = All
 
 -- | Construct a 'Sublist' from a list of indexed items.
-unsafeMkSublist :: [(Int,a)] -> Sublist a
-unsafeMkSublist = Some
+unsafeMkSublist :: [((Index1, Index2), a)] -> Sublist a
+unsafeMkSublist = Some . Map.fromList
 
 -- | Filter a 'Sublist' by a predicate.
 filterSublist :: (a -> Bool) -> Sublist a -> Sublist a
-filterSublist p (All xs) = filterSublist p $ Some $ zip [0..] xs
-filterSublist p (Some ixs) = Some [ ix | ix <- ixs, p (snd ix) ]
+filterSublist p (All xs) =
+    filterSublist p $ unsafeMkSublist $ zip (map (,0) [0..]) xs
+filterSublist p (Some ixs) = Some $ Map.filter p ixs
 
 instance Functor Sublist where
     fmap f (All xs) = All (map f xs)
-    fmap f (Some ixs) = Some [ (i, f x) | (i,x) <- ixs ]
+    fmap f (Some ixs) = Some $ f <$> ixs
 
 instance Foldable Sublist where
     foldr f b = foldr f b . toList
     null = null . toList
     toList (All as) = as
-    toList (Some ixs) = map snd ixs
+    toList (Some ixs) = Map.elems ixs
 
 -- | Returns 'True' if the 'BlockEvents' contains empty
 -- 'transactions' and 'delegations'.
@@ -184,7 +197,7 @@ nullBlockEvents BlockEvents{transactions,delegations}
 mergeSublist :: Sublist a -> Sublist a -> Sublist a
 mergeSublist (All xs) _ = All xs -- result cannot be larger
 mergeSublist _ (All ys) = All ys
-mergeSublist (Some xs) (Some ys) = Some $ mergeOn fst const xs ys
+mergeSublist (Some xs) (Some ys) = Some $ Map.union xs ys
 
 -- | Merge block events that belong to the same block.
 mergeSameBlock :: BlockEvents -> BlockEvents -> BlockEvents
@@ -197,30 +210,6 @@ mergeSameBlock
     , transactions = mergeSublist txs1 txs2
     , delegations = mergeSublist dlg1 dlg2
     }
-
--- | Merge two lists in sorted order. Remove duplicate items.
---
--- The first argument of 'mergeOn' is a function that returns the
--- keys according to which the items should be sorted in ascending order.
--- The third and fourth arguments are assumed to be sorted by
--- these keys.
---
--- Items with equal keys are considered duplicates.
--- The second argument of 'mergeOn' is function that merges two
--- duplicate items.
--- 
--- Example:
---
--- > mergeOn fst const [(0,"h"),(1,"a"),(4,"ell")] [(1,"λ"),(3,"sk")]
---   = [(0,"h"),(1,"a"),(3,"sk"),(4,"ell")]
---
-mergeOn :: Ord key => (a -> key) -> (a -> a -> a) -> [a] -> [a] -> [a]
-mergeOn _ _ [] ys = ys
-mergeOn _ _ xs [] = xs
-mergeOn f g (x:xs) (y:ys) = case compare (f x) (f y) of
-    LT -> x : mergeOn f g xs (y:ys)
-    EQ -> mergeOn f g (g x y:xs) ys
-    GT -> y : mergeOn f g (x:xs) ys
 
 -- | Get the 'BlockEvents' corresponding to an entire 'Block'.
 fromEntireBlock :: Block -> BlockEvents
@@ -253,9 +242,9 @@ filterBlock question block = case fromEntireBlock block of
         , blockHeight
         , transactions = case question of
             Left addr -> filterSublist (isRelevantTx addr) transactions
-            Right _   -> Some []
+            Right _   -> Some mempty
         , delegations = case question of
-            Left _     -> Some []
+            Left _     -> Some mempty
             Right racc -> filterSublist (isRelevantDelegation racc) delegations
         }
   where

@@ -50,7 +50,8 @@ import Cardano.Wallet.Primitive.Slotting
 import Cardano.Wallet.Primitive.SyncProgress
     ( SyncProgress (..) )
 import Cardano.Wallet.Primitive.Types
-    ( BlockHeader (..)
+    ( Block
+    , BlockHeader (..)
     , ChainPoint (..)
     , ProtocolParameters
     , SlotNo (..)
@@ -71,8 +72,6 @@ import Control.Monad.Trans.Except
     ( ExceptT (..) )
 import Control.Tracer
     ( Tracer, contramapM, traceWith )
-import Data.Bifunctor
-    ( first )
 import Data.List.NonEmpty
     ( NonEmpty (..) )
 import Data.Map
@@ -118,7 +117,7 @@ data NetworkLayer m block = NetworkLayer
 
     , lightSync
         :: Maybe (
-            ChainFollower m ChainPoint BlockHeader (LightBlocks m block)
+            ChainFollower m ChainPoint BlockHeader (LightBlocks m Block)
             -> m ()
           )
         -- ^ Connect to a data source that offers an efficient
@@ -193,9 +192,6 @@ instance Functor m => Functor (NetworkLayer m) where
     fmap f nl = nl
         { chainSync = \tr follower ->
             chainSync nl tr $ mapChainFollower id id id (fmap f) follower
-        , lightSync =
-            (\sync -> sync . mapChainFollower id id id (first $ fmap f))
-            <$> lightSync nl
         }
 
 -- | A collection of callbacks to use with the 'chainSync' function.
