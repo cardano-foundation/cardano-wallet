@@ -4043,8 +4043,9 @@ data ApiMintBurnOperation (n :: NetworkDiscriminant)
 -- "address".
 data ApiMintData (n :: NetworkDiscriminant) = ApiMintData
     { receivingAddress
-        :: (ApiT Address, Proxy n)
-        -- ^ Address that receives the minted assets.
+        :: Maybe (ApiT Address, Proxy n)
+        -- ^ Address that receives the minted assets. If not specified then
+        -- change address will be coin selected.
     , amount
         :: Quantity "assets" Natural
         -- ^ Amount of assets to mint.
