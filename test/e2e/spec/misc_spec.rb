@@ -2,7 +2,7 @@ RSpec.describe CardanoWallet::Misc do
 
   describe CardanoWallet::Misc::Network do
 
-    it "Can get network information" do
+    it "Can get network information", :light do
       res = NETWORK.information
       expect(res).to be_correct_and_respond 200
     end
