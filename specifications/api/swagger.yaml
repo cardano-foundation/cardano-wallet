@@ -1623,7 +1623,12 @@ x-transactionMetadata: &transactionMetadata
   type: object
   nullable: true
   additionalProperties:
-    $ref: "#/components/schemas/TransactionMetadataValue"
+      anyOf:
+          - title: detailed 
+            $ref: "#/components/schemas/TransactionMetadataValueDetailed"
+          - title: no-schema
+            $ref: "#/components/schemas/TransactionMetadataValueNoSchema"
+    # $ref: "#/components/schemas/TransactionMetadataValue"
   # Note: propertyNames pattern not supported in current OpenAPI version.
   # propertyNames:
   #   pattern: '^[0-9]+$'
@@ -1633,10 +1638,6 @@ x-transactionMetadata: &transactionMetadata
     2: { "bytes": "2512a00e9653fe49a44a5886202e24d77eeb998f" }
     3: { "list": [ { "int": 14 }, { "int": 42 }, { "string": "1337" } ] }
     4: { "map": [{ "k": { "string": "key" }, "v": { "string": "value" }}, { "k": { "int": 14 }, "v": { "int": 42 } }] }   
-
-
-
-
 
 x-transactionTTL: &transactionTTL
   description: |
@@ -3492,6 +3493,7 @@ components:
               type: array
               items:
                 type: object
+                nullable: true
                 properties:
                   k:
                     $ref: "#/components/schemas/TransactionMetadataValueDetailed"
@@ -3500,30 +3502,22 @@ components:
 
     TransactionMetadataValueNoSchema: &TransactionMetadataValueNoSchema
       oneOf:
-        - title: String
+        - title: String NS
           type: string
           maxLength: 64
         
-        - title: Int
+        - title: Int NS
           type: integer
 
-        - title: List
+        - title: List NS
           type: array
           items:
             $ref: "#/components/schemas/TransactionMetadataValueNoSchema"
 
-        - title: Map
+        - title: Map NS
           type: object
-          items:
-            $ref: "#/components/schemas/TransactionMetadataValueNoSchema"
-          additionalProperties: true
-
-    TransactionMetadataValue: &TransactionMetadataValue
-      oneOf:
-          - title: detailed schema
-            <<: *TransactionMetadataValueDetailed
-          - title: no schema
-            <<: *TransactionMetadataValueNoSchema
+          additionalProperties:
+              $ref: "#/components/schemas/TransactionMetadataValueNoSchema"
 
     ApiGetSettings: &ApiGetSettings
       type: object
