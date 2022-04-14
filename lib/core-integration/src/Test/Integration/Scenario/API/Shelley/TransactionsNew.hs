@@ -230,6 +230,7 @@ import qualified Data.Text.Encoding as T
 import qualified Network.HTTP.Types.Status as HTTP
 import qualified Test.Integration.Plutus as PlutusScenario
 
+
 spec :: forall n.
     ( DecodeAddress n
     , DecodeStakeAddress n
@@ -3424,6 +3425,54 @@ spec = describe "NEW_SHELLEY_TRANSACTIONS" $ do
             }|]
 
         burnAssetsCheck ctx wa tokenName' payloadBurn scriptUsed
+
+    it "TRANS_NEW_CREATE_10h - Minting assets without timelock to foreign address" $
+        \ctx -> runResourceT $ do
+        wa <- fixtureWallet ctx
+        wForeign <- emptyWallet ctx
+        addrs <- listAddresses @n ctx wForeign
+        let destination = (addrs !! 1) ^. #id
+
+        let (Right tokenName') = mkTokenName "ab12"
+
+        let payload = Json [json|{
+                "mint_burn": [{
+                    "policy_script_template":
+                        { "all":
+                           [ "cosigner#0"
+                           ]
+                        },
+                    "asset_name": #{toText tokenName'},
+                    "operation":
+                        { "mint" :
+                              { "receiving_address": #{destination},
+                                 "amount": {
+                                     "quantity": 50000,
+                                     "unit": "assets"
+                                  }
+                              }
+                        }
+                }]
+            }|]
+
+        let scriptUsed policyKeyHash = RequireAllOf
+                [ RequireSignatureOf policyKeyHash
+                ]
+
+        mintAssetsCheck ctx wa tokenName' payload scriptUsed
+
+        rWa <- request @ApiWallet ctx
+             (Link.getWallet @'Shelley wa) Default Empty
+        verify rWa
+            [ expectSuccess
+            ]
+
+        rForeign <- request @ApiWallet ctx
+             (Link.getWallet @'Shelley wForeign) Default Empty
+        verify rForeign
+            [ expectSuccess
+            ]
+
   where
 
     -- | Just one million Ada, in Lovelace.
