@@ -3488,6 +3488,8 @@ spec = describe "NEW_SHELLEY_TRANSACTIONS" $ do
                 --, expectField
                 --        (#balance . #available . #getQuantity)
                 --        (`shouldBe` minutxo)
+                -- expected: 999978 (minutxo)
+                -- but got: 1344798
                 , expectField (#assets . #available . #getApiT)
                         (`shouldBe` tokens')
                 , expectField (#assets . #total . #getApiT)
