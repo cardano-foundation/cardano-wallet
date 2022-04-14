@@ -2295,10 +2295,10 @@ constructTransaction ctx genChange knownPools getPoolStatus (ApiT wid) body = do
 
         (utxoAvailable, wallet, pendingTxs) <-
             liftHandler $ W.readWalletUTxOIndex @_ @s @k wrk wid
+        (policyXPub, _) <-
+            liftHandler $ W.readPolicyPublicKey @_ @s @k @n wrk wid
         txCtx' <-
             if isJust mintingBurning' then do
-                (policyXPub, _) <-
-                    liftHandler $ W.readPolicyPublicKey @_ @s @k @n wrk wid
                 let isMinting (ApiMintBurnData _ _ (ApiMint _)) = True
                     isMinting _ = False
                 let getMinting = \case
@@ -2371,7 +2371,18 @@ constructTransaction ctx genChange knownPools getPoolStatus (ApiT wid) body = do
                     liftHandler $
                         throwE $ ErrConstructTxNotImplemented "ADP-1189"
 
-            (sel', utx, fee') <- liftHandler $ runSelection outs
+            let mintWithAddress
+                    (ApiMintBurnData _ _ (ApiMint (ApiMintData (Just _) _)))
+                    = True
+                mintWithAddress _ = False
+            let mintingOuts = case mintingBurning' of
+                    Just mintBurns ->
+                        map (toMintTxOut policyXPub) $
+                        filter mintWithAddress $
+                        NE.toList mintBurns
+                    Nothing -> []
+
+            (sel', utx, fee') <- liftHandler $ runSelection (outs ++ mintingOuts)
             sel <- liftHandler $
                    W.assignChangeAddressesWithoutDbUpdate wrk wid genChange utx
             (FeeEstimation estMin _) <- liftHandler $ W.estimateFee (pure fee')
@@ -2389,6 +2400,18 @@ constructTransaction ctx genChange knownPools getPoolStatus (ApiT wid) body = do
   where
     ti :: TimeInterpreter (ExceptT PastHorizonException IO)
     ti = timeInterpreter (ctx ^. networkLayer)
+
+    toMintTxOut policyXPub
+        (ApiMintBurnData (ApiT scriptT) (Just (ApiT tName))
+         (ApiMint (ApiMintData (Just addr) (Quantity amt)))) =
+        let (assetId, tokenQuantity, _) =
+                toTokenMapAndScript @k
+                    scriptT (Map.singleton (Cosigner 0) policyXPub)
+                    tName amt
+            assets = fromFlatList [(assetId, tokenQuantity)]
+        in addressAmountToTxOut (AddressAmount addr (Quantity 0) (ApiT assets))
+    toMintTxOut _ _ =
+        error "toMintTxOut can only be used in the minting context with addr specified"
 
 -- TODO: Most of the body of this function should really belong to
 -- Cardano.Wallet to keep the Api.Server module free of business logic!

@@ -3383,7 +3383,6 @@ components:
     ApiMintData: &ApiMintData
       type: object
       required:
-        - receiving_address
         - amount
       properties:
         receiving_address: *addressId
