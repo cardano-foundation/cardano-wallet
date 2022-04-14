@@ -2377,6 +2377,7 @@ constructTransaction ctx genChange knownPools getPoolStatus (ApiT wid) body = do
                 mintWithAddress _ = False
             let mintingOuts = case mintingBurning' of
                     Just mintBurns ->
+                        coalesceTokensPerAddr $
                         map (toMintTxOut policyXPub) $
                         filter mintWithAddress $
                         NE.toList mintBurns
@@ -2409,9 +2410,16 @@ constructTransaction ctx genChange knownPools getPoolStatus (ApiT wid) body = do
                     scriptT (Map.singleton (Cosigner 0) policyXPub)
                     tName amt
             assets = fromFlatList [(assetId, tokenQuantity)]
-        in addressAmountToTxOut (AddressAmount addr (Quantity 0) (ApiT assets))
+        in (addr, assets)
     toMintTxOut _ _ =
         error "toMintTxOut can only be used in the minting context with addr specified"
+
+    coalesceTokensPerAddr =
+        let toTxOut (addr, assets) =
+                addressAmountToTxOut (AddressAmount addr (Quantity 0) (ApiT assets))
+        in  map toTxOut .
+            Map.toList .
+            foldr (\(addr, assets) -> Map.insertWith (<>) addr assets) Map.empty
 
 -- TODO: Most of the body of this function should really belong to
 -- Cardano.Wallet to keep the Api.Server module free of business logic!
