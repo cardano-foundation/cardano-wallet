@@ -1623,7 +1623,7 @@ x-transactionMetadata: &transactionMetadata
   type: object
   nullable: true
   additionalProperties:
-    $ref: "#/components/schemas/TransactionMetadataValueDetailed"
+    $ref: "#/components/schemas/TransactionMetadataValue"
   # Note: propertyNames pattern not supported in current OpenAPI version.
   # propertyNames:
   #   pattern: '^[0-9]+$'
@@ -3516,13 +3516,14 @@ components:
           type: object
           items:
             $ref: "#/components/schemas/TransactionMetadataValueNoSchema"
+          additionalProperties: true
 
     TransactionMetadataValue: &TransactionMetadataValue
-      oneOf: 
-        - title: detailed 
-          $ref: "#/components/schemas/TransactionMetadataValueDetailed"
-        - title: no-schema  
-          $ref: "#/components/schemas/TransactionMetadataValueNoSchema"
+      oneOf:
+          - title: detailed schema
+            <<: *TransactionMetadataValueDetailed
+          - title: no schema
+            <<: *TransactionMetadataValueNoSchema
 
     ApiGetSettings: &ApiGetSettings
       type: object
