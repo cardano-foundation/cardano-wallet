@@ -3399,20 +3399,40 @@ spec = describe "NEW_SHELLEY_TRANSACTIONS" $ do
                 [ RequireSignatureOf policyKeyHash
                 ]
 
-        mintAssetsCheck ctx wa tokenName' payload scriptUsed
+        (_initialBalance, _expectedFee, tokens') <-
+            mintAssetsCheckWithoutBalanceCheck ctx wa tokenName' payload scriptUsed
 
-        rWa <- request @ApiWallet ctx
-             (Link.getWallet @'Shelley wa) Default Empty
-        verify rWa
-            [ expectSuccess
-            ]
+        let _minutxo = (minUTxOValue (_mainEra ctx) :: Natural)
 
-        rForeign <- request @ApiWallet ctx
-             (Link.getWallet @'Shelley wForeign) Default Empty
-        verify rForeign
-            [ expectSuccess
-            ]
+        eventually
+            "Wallet balance is decreased by fee and does not hold minted assets" $ do
+            rWa <- request @ApiWallet ctx
+                (Link.getWallet @'Shelley wa) Default Empty
+            verify rWa
+                [ expectSuccess
+                --, expectField
+                --        (#balance . #available . #getQuantity)
+                --        (`shouldBe` initialBalance - fromIntegral expectedFee - minutxo)
+                , expectField (#assets . #available . #getApiT)
+                        (`shouldBe` TokenMap.empty)
+                , expectField (#assets . #total . #getApiT)
+                        (`shouldBe` TokenMap.empty)
+                ]
 
+        eventually
+            "Foreign Wallet is initial and holds minted assets" $ do
+            rForeign <- request @ApiWallet ctx
+                (Link.getWallet @'Shelley wForeign) Default Empty
+            verify rForeign
+                [ expectSuccess
+                --, expectField
+                --        (#balance . #available . #getQuantity)
+                --        (`shouldBe` minutxo)
+                , expectField (#assets . #available . #getApiT)
+                        (`shouldBe` tokens')
+                , expectField (#assets . #total . #getApiT)
+                        (`shouldBe` tokens')
+                ]
   where
 
     -- | Just one million Ada, in Lovelace.
@@ -3765,15 +3785,15 @@ spec = describe "NEW_SHELLEY_TRANSACTIONS" $ do
 
         in toCborHexTx txBody
 
-    mintAssetsCheck
+    mintAssetsCheckWithoutBalanceCheck
         :: MonadUnliftIO m
         => Context
         -> ApiWallet
         -> TokenName
         -> Payload
         -> (KeyHash -> Script KeyHash)
-        -> m ()
-    mintAssetsCheck ctx wa tokenName' payload scriptUsedF = do
+        -> m (Natural, Natural, TokenMap.TokenMap)
+    mintAssetsCheckWithoutBalanceCheck ctx wa tokenName' payload scriptUsedF = do
 
         rTx <- request @(ApiConstructTransaction n) ctx
             (Link.createUnsignedTransaction @'Shelley wa) Default payload
@@ -3862,6 +3882,22 @@ spec = describe "NEW_SHELLEY_TRANSACTIONS" $ do
 
         let initialBalance = wa ^. #balance . #available . #getQuantity
         let expectedFee = getFromResponse (#fee . #getQuantity) rTx
+
+        pure (initialBalance, expectedFee, tokens')
+
+    mintAssetsCheck
+        :: MonadUnliftIO m
+        => Context
+        -> ApiWallet
+        -> TokenName
+        -> Payload
+        -> (KeyHash -> Script KeyHash)
+        -> m ()
+    mintAssetsCheck ctx wa tokenName' payload scriptUsedF = do
+
+        (initialBalance, expectedFee, tokens') <-
+            mintAssetsCheckWithoutBalanceCheck ctx wa tokenName' payload scriptUsedF
+
         eventually
             "Wallet balance is decreased by fee and holds minted assets" $ do
             rWa <- request @ApiWallet ctx
