@@ -469,9 +469,10 @@ import Cardano.Wallet.Primitive.Types.TokenMap
 import Cardano.Wallet.Primitive.Types.TokenPolicy
     ( TokenName (..)
     , TokenPolicyId (..)
+    , maxLengthTokenName
     , mkTokenFingerprint
     , nullTokenName
-    , maxLengthTokenName )
+    )
 import Cardano.Wallet.Primitive.Types.TokenQuantity
     ( TokenQuantity (..), maxTokenQuantity )
 import Cardano.Wallet.Primitive.Types.Tx
@@ -2419,7 +2420,7 @@ constructTransaction ctx genChange knownPools getPoolStatus (ApiT wid) body = do
                 addressAmountToTxOut (AddressAmount addr (Quantity 0) (ApiT assets))
         in  map toTxOut .
             Map.toList .
-            foldr (\(addr, assets) -> Map.insertWith (<>) addr assets) Map.empty
+            foldr (uncurry (Map.insertWith (<>))) Map.empty
 
 -- TODO: Most of the body of this function should really belong to
 -- Cardano.Wallet to keep the Api.Server module free of business logic!
