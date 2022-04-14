@@ -3459,20 +3459,26 @@ spec = describe "NEW_SHELLEY_TRANSACTIONS" $ do
                 [ RequireSignatureOf policyKeyHash
                 ]
 
-        (_initialBalance, _expectedFee, tokens') <-
+        (initialBalance, expectedFee, tokens') <-
             mintAssetsCheckWithoutBalanceCheck ctx wa tokenName' payload scriptUsed
 
-        let _minutxo = (minUTxOValue (_mainEra ctx) :: Natural)
+        let minutxo = (minUTxOValue (_mainEra ctx) :: Natural)
+        -- we are sending to external address and it must be more than minimum
+        -- UTxO plus additional adjusting of assets in output. Here, we are
+        -- having 80-byte (10-word) asset's additional burden
+        let lovelacePerUtxoWord = 34482
+        let minUtxoWithAsset = minutxo + 10*lovelacePerUtxoWord
 
         eventually
-            "Wallet balance is decreased by fee and does not hold minted assets" $ do
+            "Wallet balance is decreased by fee and adjusted minimum UTxO and \
+            \does not hold minted assets" $ do
             rWa <- request @ApiWallet ctx
                 (Link.getWallet @'Shelley wa) Default Empty
             verify rWa
                 [ expectSuccess
-                --, expectField
-                --        (#balance . #available . #getQuantity)
-                --        (`shouldBe` initialBalance - fromIntegral expectedFee - minutxo)
+                , expectField
+                        (#balance . #available . #getQuantity)
+                        (`shouldBe` initialBalance - fromIntegral expectedFee - minUtxoWithAsset)
                 , expectField (#assets . #available . #getApiT)
                         (`shouldBe` TokenMap.empty)
                 , expectField (#assets . #total . #getApiT)
@@ -3480,16 +3486,15 @@ spec = describe "NEW_SHELLEY_TRANSACTIONS" $ do
                 ]
 
         eventually
-            "Foreign Wallet is initial and holds minted assets" $ do
+            "Foreign Wallet balance is adjusted minimum UTxO and \
+            \holds minted assets" $ do
             rForeign <- request @ApiWallet ctx
                 (Link.getWallet @'Shelley wForeign) Default Empty
             verify rForeign
                 [ expectSuccess
-                --, expectField
-                --        (#balance . #available . #getQuantity)
-                --        (`shouldBe` minutxo)
-                -- expected: 999978 (minutxo)
-                -- but got: 1344798
+                , expectField
+                        (#balance . #available . #getQuantity)
+                        (`shouldBe` minUtxoWithAsset)
                 , expectField (#assets . #available . #getApiT)
                         (`shouldBe` tokens')
                 , expectField (#assets . #total . #getApiT)
