@@ -1619,74 +1619,76 @@ data ApiSharedWalletPatchData = ApiSharedWalletPatchData
 
 -- | Error codes returned by the API, in the form of snake_cased strings
 data ApiErrorCode
-    = NoSuchWallet
-    | NoSuchTransaction
-    | TransactionAlreadyInLedger
-    | WalletAlreadyExists
-    | NoRootKey
-    | WrongEncryptionPassphrase
-    | MalformedTxPayload
-    | KeyNotFoundForAddress
-    | NotEnoughMoney
-    | InsufficientCollateral
-    | TransactionIsTooBig
-    | InputsDepleted
-    | CannotCoverFee
-    | InvalidCoinSelection
-    | NetworkUnreachable
-    | NetworkMisconfigured
-    | NetworkQueryFailed
-    | CreatedInvalidTransaction
-    | CreatedMultidelegationTransaction
-    | CreatedMultiaccountTransaction
-    | RejectedByCoreNode
-    | BadRequest
-    | NotFound
-    | MethodNotAllowed
-    | NotAcceptable
-    | UnsupportedMediaType
-    | UnexpectedError
-    | StartTimeLaterThanEndTime
-    | UnableToDetermineCurrentEpoch
-    | NotSynced
-    | NothingToMigrate
-    | NoSuchPool
-    | PoolAlreadyJoined
-    | NotDelegatingTo
-    | NotImplemented
-    | WalletNotResponding
-    | AddressAlreadyExists
-    | InvalidWalletType
-    | QueryParamMissing
-    | NonNullRewards
-    | UtxoTooSmall
-    | MinWithdrawalWrong
+    = AddressAlreadyExists
     | AlreadyWithdrawing
-    | WithdrawalNotWorth
-    | PastHorizon
-    | UnableToAssignInputOutput
-    | SoftDerivationRequired
-    | HardenedDerivationRequired
+    | AssetNameTooLong
     | AssetNotPresent
-    | OutputTokenBundleSizeExceedsLimit
-    | OutputTokenQuantityExceedsLimit
-    | SharedWalletNotPending
-    | SharedWalletNoDelegationTemplate
-    | SharedWalletKeyAlreadyExists
-    | SharedWalletNoSuchCosigner
-    | SharedWalletCannotUpdateKey
-    | SharedWalletScriptTemplateInvalid
-    | TokensMintedButNotSpentOrBurned
-    | TransactionAlreadyBalanced
-    | RedeemerScriptFailure
-    | RedeemerTargetNotFound
-    | UnresolvedInputs
-    | RedeemerInvalidData
+    | BadRequest
+    | CannotCoverFee
+    | CreatedInvalidTransaction
+    | CreatedMultiaccountTransaction
+    | CreatedMultidelegationTransaction
+    | CreatedWrongPolicyScriptTemplate
     | ExistingKeyWitnesses
     | ForeignTransaction
-    | MissingWitnessesInTransaction
-    | CreatedWrongPolicyScriptTemplate
+    | HardenedDerivationRequired
+    | InputsDepleted
+    | InsufficientCollateral
+    | InvalidCoinSelection
+    | InvalidWalletType
+    | KeyNotFoundForAddress
+    | MalformedTxPayload
+    | MethodNotAllowed
+    | MinWithdrawalWrong
+    | MintOrBurnAssetQuantityOutOfBounds
     | MissingPolicyPublicKey
+    | MissingWitnessesInTransaction
+    | NetworkMisconfigured
+    | NetworkQueryFailed
+    | NetworkUnreachable
+    | NoRootKey
+    | NoSuchPool
+    | NoSuchTransaction
+    | NoSuchWallet
+    | NonNullRewards
+    | NotAcceptable
+    | NotDelegatingTo
+    | NotEnoughMoney
+    | NotFound
+    | NotImplemented
+    | NotSynced
+    | NothingToMigrate
+    | OutputTokenBundleSizeExceedsLimit
+    | OutputTokenQuantityExceedsLimit
+    | PastHorizon
+    | PoolAlreadyJoined
+    | QueryParamMissing
+    | RedeemerInvalidData
+    | RedeemerScriptFailure
+    | RedeemerTargetNotFound
+    | RejectedByCoreNode
+    | SharedWalletCannotUpdateKey
+    | SharedWalletKeyAlreadyExists
+    | SharedWalletNoDelegationTemplate
+    | SharedWalletNoSuchCosigner
+    | SharedWalletNotPending
+    | SharedWalletScriptTemplateInvalid
+    | SoftDerivationRequired
+    | StartTimeLaterThanEndTime
+    | TokensMintedButNotSpentOrBurned
+    | TransactionAlreadyBalanced
+    | TransactionAlreadyInLedger
+    | TransactionIsTooBig
+    | UnableToAssignInputOutput
+    | UnableToDetermineCurrentEpoch
+    | UnexpectedError
+    | UnresolvedInputs
+    | UnsupportedMediaType
+    | UtxoTooSmall
+    | WalletAlreadyExists
+    | WalletNotResponding
+    | WithdrawalNotWorth
+    | WrongEncryptionPassphrase
     deriving (Eq, Generic, Show, Data, Typeable)
     deriving anyclass NFData
 
@@ -4012,7 +4014,7 @@ data ApiMintBurnData (n :: NetworkDiscriminant) = ApiMintBurnData
         -- ^ A script regulating minting/burning policy. 'self' is expected
         -- in place of verification key.
     , assetName
-        :: !(ApiT W.TokenName)
+        :: !(Maybe (ApiT W.TokenName))
         -- ^ The name of the asset to mint/burn.
     , operation
         :: !(ApiMintBurnOperation n)
@@ -4040,8 +4042,12 @@ data ApiMintBurnOperation (n :: NetworkDiscriminant)
 -- "address".
 data ApiMintData (n :: NetworkDiscriminant) = ApiMintData
     { receivingAddress
-        :: (ApiT Address, Proxy n)
-        -- ^ Address that receives the minted assets.
+        :: Maybe (ApiT Address, Proxy n)
+        -- ^ An optional address to which minted assets should be paid.
+        --
+        -- If no address is specified, then minted assets will be returned to
+        -- the wallet as change, and change output addresses will be assigned
+        -- automatically.
     , amount
         :: Quantity "assets" Natural
         -- ^ Amount of assets to mint.

@@ -467,7 +467,12 @@ import Cardano.Wallet.Primitive.Types.TokenBundle
 import Cardano.Wallet.Primitive.Types.TokenMap
     ( AssetId (..), fromFlatList, toNestedList )
 import Cardano.Wallet.Primitive.Types.TokenPolicy
-    ( TokenName (..), TokenPolicyId (..), mkTokenFingerprint, nullTokenName )
+    ( TokenName (..)
+    , TokenPolicyId (..)
+    , mkTokenFingerprint
+    , nullTokenName
+    , tokenNameMaxLength
+    )
 import Cardano.Wallet.Primitive.Types.TokenQuantity
     ( TokenQuantity (..) )
 import Cardano.Wallet.Primitive.Types.Tx
@@ -479,6 +484,7 @@ import Cardano.Wallet.Primitive.Types.Tx
     , TxStatus (..)
     , UnsignedTx (..)
     , getSealedTxWitnesses
+    , txMintBurnMaxTokenQuantity
     , txOutCoin
     )
 import Cardano.Wallet.Registry
@@ -2194,15 +2200,42 @@ constructTransaction ctx genChange knownPools getPoolStatus (ApiT wid) body = do
         liftHandler $ throwE ErrConstructTxWrongPayload
 
     let mintingBurning = body ^. #mintBurn
+    let handleMissingAssetName :: ApiMintBurnData n -> ApiMintBurnData n
+        handleMissingAssetName mb = case mb ^. #assetName of
+            Nothing -> mb {assetName = Just $ ApiT nullTokenName}
+            Just _ -> mb
+    let mintingBurning' = fmap handleMissingAssetName <$> mintingBurning
     let retrieveAllCosigners = foldScript (:) []
     let wrongMintingTemplate (ApiMintBurnData (ApiT scriptTempl) _ _) =
             isLeft (validateScriptOfTemplate RecommendedValidation scriptTempl)
             || length (retrieveAllCosigners scriptTempl) > 1
             || (L.any (/= Cosigner 0)) (retrieveAllCosigners scriptTempl)
     when
-        ( isJust mintingBurning &&
-          L.any wrongMintingTemplate (NE.toList $ fromJust mintingBurning)
+        ( isJust mintingBurning' &&
+          L.any wrongMintingTemplate (NE.toList $ fromJust mintingBurning')
         ) $ liftHandler $ throwE ErrConstructTxWrongMintingBurningTemplate
+
+    let assetNameTooLong = \case
+            (ApiMintBurnData _ (Just (ApiT (UnsafeTokenName bs))) _) ->
+                BS.length bs > tokenNameMaxLength
+            _ ->
+                error "tokenName should be nonempty at this step"
+    when
+        ( isJust mintingBurning' &&
+          L.any assetNameTooLong (NE.toList $ fromJust mintingBurning')
+        ) $ liftHandler $ throwE ErrConstructTxAssetNameTooLong
+
+    let assetQuantityOutOfBounds
+            (ApiMintBurnData _ _ (ApiMint (ApiMintData _ (Quantity amt)))) =
+            amt <= 0 || amt > unTokenQuantity txMintBurnMaxTokenQuantity
+        assetQuantityOutOfBounds
+            (ApiMintBurnData _ _ (ApiBurn (ApiBurnData (Quantity amt)))) =
+            amt <= 0 || amt > unTokenQuantity txMintBurnMaxTokenQuantity
+    when
+        ( isJust mintingBurning' &&
+          L.any assetQuantityOutOfBounds (NE.toList $ fromJust mintingBurning')
+        ) $ liftHandler $
+            throwE ErrConstructTxMintOrBurnAssetQuantityOutOfBounds
 
     let checkIx (ApiStakeKeyIndex (ApiT derIndex)) =
             derIndex == DerivationIndex (getIndex @'Hardened minBound)
@@ -2267,8 +2300,8 @@ constructTransaction ctx genChange knownPools getPoolStatus (ApiT wid) body = do
 
         (utxoAvailable, wallet, pendingTxs) <-
             liftHandler $ W.readWalletUTxOIndex @_ @s @k wrk wid
-        txCtx' <-
-            if isJust mintingBurning then do
+        (txCtx', policyXPubM) <-
+            if isJust mintingBurning' then do
                 (policyXPub, _) <-
                     liftHandler $ W.readPolicyPublicKey @_ @s @k @n wrk wid
                 let isMinting (ApiMintBurnData _ _ (ApiMint _)) = True
@@ -2276,7 +2309,7 @@ constructTransaction ctx genChange knownPools getPoolStatus (ApiT wid) body = do
                 let getMinting = \case
                         ApiMintBurnData
                             (ApiT scriptT)
-                            (ApiT tName)
+                            (Just (ApiT tName))
                             (ApiMint (ApiMintData _ (Quantity amt))) ->
                             toTokenMapAndScript @k
                                 scriptT
@@ -2287,7 +2320,7 @@ constructTransaction ctx genChange knownPools getPoolStatus (ApiT wid) body = do
                 let getBurning = \case
                         ApiMintBurnData
                             (ApiT scriptT)
-                            (ApiT tName)
+                            (Just (ApiT tName))
                             (ApiBurn (ApiBurnData (Quantity amt))) ->
                             toTokenMapAndScript @k
                                 scriptT
@@ -2305,18 +2338,19 @@ constructTransaction ctx genChange knownPools getPoolStatus (ApiT wid) body = do
                         toTokenMap &&& toScriptTemplateMap $
                         map getMinting $
                         filter isMinting $
-                        NE.toList $ fromJust mintingBurning
+                        NE.toList $ fromJust mintingBurning'
                 let burningData =
                         toTokenMap &&& toScriptTemplateMap $
                         map getBurning $
                         filter (not . isMinting) $
-                        NE.toList $ fromJust mintingBurning
-                pure $ txCtx
-                    { txAssetsToMint = mintingData
-                    , txAssetsToBurn = burningData
-                    }
+                        NE.toList $ fromJust mintingBurning'
+                pure ( txCtx
+                      { txAssetsToMint = mintingData
+                      , txAssetsToBurn = burningData
+                      }
+                     , Just policyXPub)
             else
-                pure txCtx
+                pure (txCtx, Nothing)
 
         let runSelection outs =
                 W.selectAssets @_ @_ @s @k wrk pp selectAssetsParams transform
@@ -2343,9 +2377,22 @@ constructTransaction ctx genChange knownPools getPoolStatus (ApiT wid) body = do
                     liftHandler $
                         throwE $ ErrConstructTxNotImplemented "ADP-1189"
 
-            (sel', utx, fee') <- liftHandler $ runSelection outs
+            let mintWithAddress
+                    (ApiMintBurnData _ _ (ApiMint (ApiMintData (Just _) _)))
+                    = True
+                mintWithAddress _ = False
+            let mintingOuts = case mintingBurning' of
+                    Just mintBurns ->
+                        coalesceTokensPerAddr $
+                        map (toMintTxOut (fromJust policyXPubM)) $
+                        filter mintWithAddress $
+                        NE.toList mintBurns
+                    Nothing -> []
+
+            (sel', utx, fee') <- liftHandler $
+                runSelection (outs ++ mintingOuts)
             sel <- liftHandler $
-                   W.assignChangeAddressesWithoutDbUpdate wrk wid genChange utx
+                W.assignChangeAddressesWithoutDbUpdate wrk wid genChange utx
             (FeeEstimation estMin _) <- liftHandler $ W.estimateFee (pure fee')
             pure (sel, sel', estMin)
 
@@ -2361,6 +2408,29 @@ constructTransaction ctx genChange knownPools getPoolStatus (ApiT wid) body = do
   where
     ti :: TimeInterpreter (ExceptT PastHorizonException IO)
     ti = timeInterpreter (ctx ^. networkLayer)
+
+    toMintTxOut policyXPub
+        (ApiMintBurnData (ApiT scriptT) (Just (ApiT tName))
+            (ApiMint (ApiMintData (Just addr) (Quantity amt)))) =
+                let (assetId, tokenQuantity, _) =
+                        toTokenMapAndScript @k
+                            scriptT (Map.singleton (Cosigner 0) policyXPub)
+                            tName amt
+                    assets = fromFlatList [(assetId, tokenQuantity)]
+                in
+                (addr, assets)
+    toMintTxOut _ _ = error
+        "toMintTxOut can only be used in the minting context with addr \
+        \specified"
+
+    coalesceTokensPerAddr =
+        let toTxOut (addr, assets) =
+                addressAmountToTxOut $
+                AddressAmount addr (Quantity 0) (ApiT assets)
+        in
+        map toTxOut
+            . Map.toList
+            . foldr (uncurry (Map.insertWith (<>))) Map.empty
 
 -- TODO: Most of the body of this function should really belong to
 -- Cardano.Wallet to keep the Api.Server module free of business logic!
@@ -4184,6 +4254,17 @@ instance IsServerError ErrConstructTx where
             , "policy script that either does not pass validation, contains "
             , "more than one cosigner, or has a cosigner that is different "
             , "from cosigner#0."
+            ]
+        ErrConstructTxAssetNameTooLong ->
+            apiError err403 AssetNameTooLong $ mconcat
+            [ "Attempted to create a transaction with an asset name that is "
+            , "too long. The maximum length is 32 bytes."
+            ]
+        ErrConstructTxMintOrBurnAssetQuantityOutOfBounds ->
+            apiError err403 MintOrBurnAssetQuantityOutOfBounds $ mconcat
+            [ "Attempted to mint or burn an asset quantity that is out of "
+            , "bounds. The asset quantity must be greater than zero and must "
+            , "not exceed 9223372036854775807 (2^63 - 1)."
             ]
         ErrConstructTxNotImplemented _ ->
             apiError err501 NotImplemented

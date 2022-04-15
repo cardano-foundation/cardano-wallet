@@ -195,12 +195,14 @@ import Test.Integration.Framework.DSL
     , (.>)
     )
 import Test.Integration.Framework.TestData
-    ( errMsg403Collateral
+    ( errMsg403AssetNameTooLong
+    , errMsg403Collateral
     , errMsg403CreatedWrongPolicyScriptTemplate
     , errMsg403Fee
     , errMsg403ForeignTransaction
     , errMsg403InvalidConstructTx
     , errMsg403MinUTxOValue
+    , errMsg403MintOrBurnAssetQuantityOutOfBounds
     , errMsg403MissingWitsInTransaction
     , errMsg403MultiaccountTransaction
     , errMsg403MultidelegationTransaction
@@ -3101,12 +3103,6 @@ spec = describe "NEW_SHELLEY_TRANSACTIONS" $ do
 
     it "TRANS_NEW_CREATE_10l - Minting when assetName too long" $
         \ctx -> runResourceT $ do
-        liftIO $ pendingWith "Returns 500 - Something went wrong"
-        -- L ERROR: toCardanoValue: unable to deserialise TokenName
-        -- CallStack (from HasCallStack):
-        --   error, called at src/Cardano/Wallet/Util.hs:78:21 in cardano-wallet-core-2022.1.18-JtZoOG9AeSJ1z9Aw4Sok3f:Cardano.Wallet.Util
-        --   internalError, called at src/Cardano/Wallet/Util.hs:86:23 in cardano-wallet-core-2022.1.18-JtZoOG9AeSJ1z9Aw4Sok3f:Cardano.Wallet.Util
-        --   tina, called at src/Cardano/Wallet/Shelley/Compatibility.hs:1919:14 in cardano-wallet-2022.1.18-8A5EC3ZC9uxJp2wMrOQ62o:Cardano.Wallet.Shelley.Compatibilit
 
         wa <- fixtureWallet ctx
         addrs <- listAddresses @n ctx wa
@@ -3132,22 +3128,14 @@ spec = describe "NEW_SHELLEY_TRANSACTIONS" $ do
             (Link.createUnsignedTransaction @'Shelley wa) Default payload
         verify rTx
             [ expectResponseCode HTTP.status403
+            , expectErrorMessage errMsg403AssetNameTooLong
             ]
 
     it "TRANS_NEW_CREATE_10m1 - Minting amount too big" $
         \ctx -> runResourceT $ do
-        liftIO $ pendingWith "Should fail with 403"
-        -- Node accepts range for minging/burning:
-        -- min value: -9223372036854775808 max value: 9223372036854775807
-        -- Any amount outside will result in error on decoding:
-        --   "Error in $.transaction: Deserialisation failure while decoding Shelley Tx.
-        --   CBOR failed with error: DeserialiseFailure 167 'overflow when decoding mint field.
-        --   min value: -9223372036854775808 max value: 9223372036854775807 got: 9223372036854775808'"
         wa <- fixtureWallet ctx
         addrs <- listAddresses @n ctx wa
         let destination = (addrs !! 1) ^. #id
-        -- Node accepts:
-        -- min value: -9223372036854775808 max value: 9223372036854775807
         let payload = Json [json|{
                 "mint_burn": [{
                     "policy_script_template": "cosigner#0",
@@ -3168,13 +3156,12 @@ spec = describe "NEW_SHELLEY_TRANSACTIONS" $ do
             (Link.createUnsignedTransaction @'Shelley wa) Default payload
         verify rTx
             [ expectResponseCode HTTP.status403
+            , expectErrorMessage
+                errMsg403MintOrBurnAssetQuantityOutOfBounds
             ]
 
     it "TRANS_NEW_CREATE_10m2 - Minting amount = 0" $
         \ctx -> runResourceT $ do
-        liftIO $ pendingWith "Should fail with 403"
-        -- Probably it should not be allowed to have 0 as amount for mint/burn
-        -- It results in invalid transaction via cardano-cli
         wa <- fixtureWallet ctx
         addrs <- listAddresses @n ctx wa
         let destination = (addrs !! 1) ^. #id
@@ -3198,6 +3185,7 @@ spec = describe "NEW_SHELLEY_TRANSACTIONS" $ do
             (Link.createUnsignedTransaction @'Shelley wa) Default payload
         verify rTx
             [ expectResponseCode HTTP.status403
+            , expectErrorMessage errMsg403MintOrBurnAssetQuantityOutOfBounds
             ]
 
     it "TRANS_NEW_CREATE_10d - Minting assets without timelock" $
@@ -3327,6 +3315,138 @@ spec = describe "NEW_SHELLEY_TRANSACTIONS" $ do
 
         burnAssetsCheck ctx wa tokenName' payloadBurn scriptUsed
 
+    it "TRANS_NEW_CREATE_10g - Burning assets without timelock and token name" $
+        \ctx -> runResourceT $ do
+
+        wa <- fixtureWallet ctx
+        addrs <- listAddresses @n ctx wa
+        let destination = (addrs !! 1) ^. #id
+
+        let (Right tokenName') = mkTokenName ""
+        let payloadMint = Json [json|{
+                "mint_burn": [
+                    { "policy_script_template":
+                        { "all":
+                            [ "cosigner#0"
+                            ]
+                        }
+                    , "operation":
+                        { "mint":
+                            { "receiving_address": #{destination}
+                            , "amount":
+                                { "quantity": 50000
+                                , "unit": "assets"
+                                }
+                            }
+                        }
+                    }
+                ]
+            }|]
+
+        let scriptUsed policyKeyHash = RequireAllOf
+                [ RequireSignatureOf policyKeyHash
+                ]
+
+        mintAssetsCheck ctx wa tokenName' payloadMint scriptUsed
+
+        let payloadBurn = Json [json|{
+                "mint_burn": [{
+                    "policy_script_template":
+                        { "all":
+                            [ "cosigner#0"
+                            ]
+                        },
+                    "operation":
+                        { "burn" :
+                            { "quantity": 50000
+                            , "unit": "assets"
+                            }
+                        }
+                }]
+            }|]
+
+        burnAssetsCheck ctx wa tokenName' payloadBurn scriptUsed
+
+    it "TRANS_NEW_CREATE_10h - \
+        \Minting assets without timelock to foreign address" $
+        \ctx -> runResourceT $ do
+        wa <- fixtureWallet ctx
+        wForeign <- emptyWallet ctx
+        addrs <- listAddresses @n ctx wForeign
+        let destination = (addrs !! 1) ^. #id
+
+        let (Right tokenName') = mkTokenName "ab12"
+
+        let payload = Json [json|{
+                "mint_burn": [
+                    { "policy_script_template":
+                        { "all":
+                           [ "cosigner#0"
+                           ]
+                        }
+                    , "asset_name": #{toText tokenName'}
+                    , "operation":
+                        { "mint":
+                            { "receiving_address": #{destination}
+                            , "amount":
+                                { "quantity": 50000
+                                , "unit": "assets"
+                                }
+                            }
+                        }
+                    }
+                ]
+            }|]
+
+        let scriptUsed policyKeyHash = RequireAllOf
+                [ RequireSignatureOf policyKeyHash
+                ]
+
+        (initialBalance, expectedFee, tokens') <-
+            mintAssetsCheckWithoutBalanceCheck
+                ctx wa tokenName' payload scriptUsed
+
+        let minutxo = (minUTxOValue (_mainEra ctx) :: Natural)
+        -- we are sending to external address and it must be more than minimum
+        -- UTxO plus additional adjusting of assets in output. Here, we are
+        -- having 80-byte (10-word) asset's additional burden
+        let lovelacePerUtxoWord = 34482
+        let minUtxoWithAsset = minutxo + 10*lovelacePerUtxoWord
+
+        eventually
+            "Wallet balance is decreased by fee and adjusted minimum UTxO and \
+            \does not hold minted assets" $ do
+            rWa <- request @ApiWallet ctx
+                (Link.getWallet @'Shelley wa) Default Empty
+            verify rWa
+                [ expectSuccess
+                , expectField
+                    (#balance . #available . #getQuantity)
+                    (`shouldBe` initialBalance
+                        - fromIntegral expectedFee
+                        - minUtxoWithAsset
+                    )
+                , expectField (#assets . #available . #getApiT)
+                    (`shouldBe` TokenMap.empty)
+                , expectField (#assets . #total . #getApiT)
+                    (`shouldBe` TokenMap.empty)
+                ]
+
+        eventually
+            "Foreign Wallet balance is adjusted minimum UTxO and \
+            \holds minted assets" $ do
+            rForeign <- request @ApiWallet ctx
+                (Link.getWallet @'Shelley wForeign) Default Empty
+            verify rForeign
+                [ expectSuccess
+                , expectField
+                    (#balance . #available . #getQuantity)
+                    (`shouldBe` minUtxoWithAsset)
+                , expectField (#assets . #available . #getApiT)
+                    (`shouldBe` tokens')
+                , expectField (#assets . #total . #getApiT)
+                    (`shouldBe` tokens')
+                ]
   where
 
     -- | Just one million Ada, in Lovelace.
@@ -3679,15 +3799,16 @@ spec = describe "NEW_SHELLEY_TRANSACTIONS" $ do
 
         in toCborHexTx txBody
 
-    mintAssetsCheck
+    mintAssetsCheckWithoutBalanceCheck
         :: MonadUnliftIO m
         => Context
         -> ApiWallet
         -> TokenName
         -> Payload
         -> (KeyHash -> Script KeyHash)
-        -> m ()
-    mintAssetsCheck ctx wa tokenName' payload scriptUsedF = do
+        -> m (Natural, Natural, TokenMap.TokenMap)
+    mintAssetsCheckWithoutBalanceCheck
+        ctx wa tokenName' payload scriptUsedF = do
 
         rTx <- request @(ApiConstructTransaction n) ctx
             (Link.createUnsignedTransaction @'Shelley wa) Default payload
@@ -3776,6 +3897,23 @@ spec = describe "NEW_SHELLEY_TRANSACTIONS" $ do
 
         let initialBalance = wa ^. #balance . #available . #getQuantity
         let expectedFee = getFromResponse (#fee . #getQuantity) rTx
+
+        pure (initialBalance, expectedFee, tokens')
+
+    mintAssetsCheck
+        :: MonadUnliftIO m
+        => Context
+        -> ApiWallet
+        -> TokenName
+        -> Payload
+        -> (KeyHash -> Script KeyHash)
+        -> m ()
+    mintAssetsCheck ctx wa tokenName' payload scriptUsedF = do
+
+        (initialBalance, expectedFee, tokens') <-
+            mintAssetsCheckWithoutBalanceCheck
+                ctx wa tokenName' payload scriptUsedF
+
         eventually
             "Wallet balance is decreased by fee and holds minted assets" $ do
             rWa <- request @ApiWallet ctx
