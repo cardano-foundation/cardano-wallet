@@ -4109,8 +4109,7 @@ x-errAssetNameTooLong: &errAssetNameTooLong
     message:
       type: string
       description:
-          Occurs when asset name to be minted or burned exceeds
-          32-byte lenght.
+          Occurs when an asset name exceeds 32 bytes in length.
     code:
       type: string
       enum: ['asset_name_too_long']
