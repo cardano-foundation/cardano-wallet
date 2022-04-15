@@ -1,4 +1,4 @@
-openapi: 3.0.0
+openapi: 3.0.3
 info:
   title: Cardano Wallet Backend API
   version: v2022-01-18
@@ -1619,13 +1619,15 @@ x-transactionMetadata: &transactionMetadata
     requirements. Likewise for `null` or `bool` values. When reading
     metadata from chain, be aware that integers may exceed the
     javascript numeric range, and may need special "bigint" parsing.
-
+  
+  # with oneOf we get errors about the 2 schema being both valid
+  # anyOf seems broken trying to find properties 
   anyOf:
     - type: object
       title: detailed 
       nullable: true
       additionalProperties:
-            $ref: "#/components/schemas/TransactionMetadataValueDetailed"
+            $ref: "#/components/schemas/TransactionMetadataValue"
       example:
         0: { "string": "cardano" }
         1: { "int": 14 }
@@ -3448,7 +3450,7 @@ components:
 
 
     # https://github.com/input-output-hk/cardano-ledger/blob/8d836e61bb88bda4a6a5c00694735928390067a1/shelley/chain-and-ledger/executable-spec/src/Shelley/Spec/Ledger/MetaData.hs#L48-L65
-    TransactionMetadataValueDetailed: &TransactionMetadataValueDetailed
+    TransactionMetadataValue: &TransactionMetadataValue
       oneOf:
         - title: String
           type: object
@@ -3485,7 +3487,7 @@ components:
             list:
               type: array
               items:
-                $ref: "#/components/schemas/TransactionMetadataValueDetailed"
+                $ref: "#/components/schemas/TransactionMetadataValue"
 
         - title: Map
           type: object
@@ -3499,16 +3501,15 @@ components:
                 nullable: true
                 properties:
                   k:
-                    $ref: "#/components/schemas/TransactionMetadataValueDetailed"
+                    $ref: "#/components/schemas/TransactionMetadataValue"
                   v:
-                    $ref: "#/components/schemas/TransactionMetadataValueDetailed"
+                    $ref: "#/components/schemas/TransactionMetadataValue"
 
     TransactionMetadataValueNoSchema: &TransactionMetadataValueNoSchema
       oneOf:
         - title: String NS
           type: string
-          maxLength: 64
-        
+           
         - title: Int NS
           type: integer
 
