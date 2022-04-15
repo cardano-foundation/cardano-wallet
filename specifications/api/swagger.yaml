@@ -1,4 +1,4 @@
-openapi: 3.0.0
+openapi: 3.0.3
 info:
   title: Cardano Wallet Backend API
   version: v2022-01-18
@@ -1619,19 +1619,21 @@ x-transactionMetadata: &transactionMetadata
     requirements. Likewise for `null` or `bool` values. When reading
     metadata from chain, be aware that integers may exceed the
     javascript numeric range, and may need special "bigint" parsing.
-
+  
+  # with oneOf we get errors about the 2 schema being both valid
+  # anyOf seems broken trying to find properties 
   anyOf:
     - type: object
       title: detailed 
       nullable: true
       additionalProperties:
-          $ref: "#/components/schemas/TransactionMetadataValue"
-          example:
-            0: { "string": "cardano" }
-            1: { "int": 14 }
-            2: { "bytes": "2512a00e9653fe49a44a5886202e24d77eeb998f" }
-            3: { "list": [ { "int": 14 }, { "int": 42 }, { "string": "1337" } ] }
-            4: { "map": [{ "k": { "string": "key" }, "v": { "string": "value" }}, { "k": { "int": 14 }, "v": { "int": 42 } }] }   
+            $ref: "#/components/schemas/TransactionMetadataValue"
+      example:
+        0: { "string": "cardano" }
+        1: { "int": 14 }
+        2: { "bytes": "2512a00e9653fe49a44a5886202e24d77eeb998f" }
+        3: { "list": [ { "int": 14 }, { "int": 42 }, { "string": "1337" } ] }
+        4: { "map": [{ "k": { "string": "key" }, "v": { "string": "value" }}, { "k": { "int": 14 }, "v": { "int": 42 } }] }   
     - type: object
       title: no-schema
       nullable: true
@@ -3516,14 +3518,13 @@ components:
                   k:
                     $ref: "#/components/schemas/TransactionMetadataValue"
                   v:
-                    $ref: "#/components/schemas/TransactionMetadataValueDetailed"
+                    $ref: "#/components/schemas/TransactionMetadataValue"
 
     TransactionMetadataValueNoSchema: &TransactionMetadataValueNoSchema
       oneOf:
         - title: String NS
           type: string
-          maxLength: 64
-        
+           
         - title: Int NS
           type: integer
 
