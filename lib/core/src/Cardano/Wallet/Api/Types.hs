@@ -1621,6 +1621,7 @@ data ApiSharedWalletPatchData = ApiSharedWalletPatchData
 data ApiErrorCode
     = AddressAlreadyExists
     | AlreadyWithdrawing
+    | AssetNameTooLong
     | AssetNotPresent
     | BadRequest
     | CannotCoverFee
@@ -1628,7 +1629,6 @@ data ApiErrorCode
     | CreatedMultiaccountTransaction
     | CreatedMultidelegationTransaction
     | CreatedTransactionWithIncorrectAssetQuantity
-    | CreatedTransactionWithTooLongAssetName
     | CreatedWrongPolicyScriptTemplate
     | ExistingKeyWitnesses
     | ForeignTransaction
