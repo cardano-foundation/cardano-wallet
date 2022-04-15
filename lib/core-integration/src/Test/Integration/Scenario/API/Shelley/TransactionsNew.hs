@@ -193,9 +193,9 @@ import Test.Integration.Framework.DSL
     , (.>)
     )
 import Test.Integration.Framework.TestData
-    ( errMsg403Collateral
+    ( errMsg403AssetNameTooLong
+    , errMsg403Collateral
     , errMsg403CreatedTransactionWithIncorrectAssetQuantity
-    , errMsg403CreatedTransactionWithTooLongAssetName
     , errMsg403CreatedWrongPolicyScriptTemplate
     , errMsg403Fee
     , errMsg403ForeignTransaction
@@ -3188,7 +3188,7 @@ spec = describe "NEW_SHELLEY_TRANSACTIONS" $ do
             (Link.createUnsignedTransaction @'Shelley wa) Default payload
         verify rTx
             [ expectResponseCode HTTP.status403
-            , expectErrorMessage errMsg403CreatedTransactionWithTooLongAssetName
+            , expectErrorMessage errMsg403AssetNameTooLong
             ]
 
     it "TRANS_NEW_CREATE_10m1 - Minting amount too big" $

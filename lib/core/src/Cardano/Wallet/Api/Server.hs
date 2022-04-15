@@ -2240,7 +2240,7 @@ constructTransaction ctx genChange knownPools getPoolStatus (ApiT wid) body = do
     when
         ( isJust mintingBurning' &&
           L.any assetNameTooLong (NE.toList $ fromJust mintingBurning')
-        ) $ liftHandler $ throwE ErrConstructTxTooLongAssetName
+        ) $ liftHandler $ throwE ErrConstructTxAssetNameTooLong
 
     let assetQuantityTooBig
             (ApiMintBurnData _ _ (ApiMint (ApiMintData _ (Quantity amt)))) =
@@ -4274,8 +4274,8 @@ instance IsServerError ErrConstructTx where
             , "more than one cosigner, or has a cosigner that is different "
             , "from cosigner#0."
             ]
-        ErrConstructTxTooLongAssetName ->
-            apiError err403 CreatedTransactionWithTooLongAssetName $ mconcat
+        ErrConstructTxAssetNameTooLong ->
+            apiError err403 AssetNameTooLong $ mconcat
             [ "It looks like I've created a transaction with a minting/burning "
             , "that has too long asset name. The upper limit is 32-byte "
             , "(16-character) length name."

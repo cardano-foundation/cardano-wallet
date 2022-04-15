@@ -4102,9 +4102,9 @@ x-errCreatedWrongPolicyScriptTemplate: &errCreatedWrongPolicyScriptTemplate
       type: string
       enum: ['created_wrong_policy_script_template']
 
-x-errCreatedTransactionWithTooLongAssetName: &errCreatedTransactionWithTooLongAssetName
+x-errAssetNameTooLong: &errAssetNameTooLong
   <<: *responsesErr
-  title: created_transaction_with_too_long_asset_name
+  title: asset_name_too_long
   properties:
     message:
       type: string
@@ -4113,7 +4113,7 @@ x-errCreatedTransactionWithTooLongAssetName: &errCreatedTransactionWithTooLongAs
           32-byte lenght.
     code:
       type: string
-      enum: ['created_transaction_with_too_long_asset_name']
+      enum: ['asset_name_too_long']
 
 x-errCreatedTransactionWithIncorrectAssetQuantity: &errCreatedTransactionWithIncorrectAssetQuantity
   <<: *responsesErr
@@ -5175,7 +5175,7 @@ x-responsesConstructTransaction: &responsesConstructTransaction
             - <<: *errCreatedMultidelegationTransaction
             - <<: *errCreatedMultiaccountTransaction
             - <<: *errCreatedWrongPolicyScriptTemplate
-            - <<: *errCreatedTransactionWithTooLongAssetName
+            - <<: *errAssetNameTooLong
             - <<: *errCreatedTransactionWithIncorrectAssetQuantity
   <<: *responsesErr404WalletNotFound
   <<: *responsesErr406
