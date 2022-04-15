@@ -681,9 +681,8 @@ errMsg403CreatedWrongPolicyScriptTemplate = mconcat
 
 errMsg403AssetNameTooLong :: String
 errMsg403AssetNameTooLong = mconcat
-    [ "It looks like I've created a transaction with a minting/burning "
-    , "that has too long asset name. The upper limit is 32-byte "
-    , "(16-character) length name."
+    [ "Attempted to create a transaction with an asset name that is "
+    , "too long. The maximum length is 32 bytes."
     ]
 
 errMsg403AssetQuantityOutOfBounds :: String
