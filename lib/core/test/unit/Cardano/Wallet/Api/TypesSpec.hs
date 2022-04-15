@@ -2276,7 +2276,10 @@ instance Arbitrary (ApiMintBurnData n) where
                 , ActiveUntilSlot 150
                 ]
             ]
-        <*> oneof [ Just . ApiT <$> genTokenName, pure Nothing ]
+        <*> oneof
+            [ Just . ApiT <$> genTokenName
+            , pure Nothing
+            ]
         <*> arbitrary
 
 instance Arbitrary ApiStakeKeyIndex where
