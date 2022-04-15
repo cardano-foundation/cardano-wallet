@@ -2232,9 +2232,11 @@ constructTransaction ctx genChange knownPools getPoolStatus (ApiT wid) body = do
           L.any wrongMintingTemplate (NE.toList $ fromJust mintingBurning')
         ) $ liftHandler $ throwE ErrConstructTxWrongMintingBurningTemplate
 
-    let assetNameTooLong (ApiMintBurnData _ (Just (ApiT (UnsafeTokenName bs))) _) =
-            BS.length bs > maxLengthTokenName
-        assetNameTooLong _ = error "tokenName should be nonempty at this step"
+    let assetNameTooLong = \case
+            (ApiMintBurnData _ (Just (ApiT (UnsafeTokenName bs))) _) ->
+                BS.length bs > maxLengthTokenName
+            _ ->
+                error "tokenName should be nonempty at this step"
     when
         ( isJust mintingBurning' &&
           L.any assetNameTooLong (NE.toList $ fromJust mintingBurning')
@@ -2402,9 +2404,10 @@ constructTransaction ctx genChange knownPools getPoolStatus (ApiT wid) body = do
                         NE.toList mintBurns
                     Nothing -> []
 
-            (sel', utx, fee') <- liftHandler $ runSelection (outs ++ mintingOuts)
+            (sel', utx, fee') <- liftHandler $
+                runSelection (outs ++ mintingOuts)
             sel <- liftHandler $
-                   W.assignChangeAddressesWithoutDbUpdate wrk wid genChange utx
+                W.assignChangeAddressesWithoutDbUpdate wrk wid genChange utx
             (FeeEstimation estMin _) <- liftHandler $ W.estimateFee (pure fee')
             pure (sel, sel', estMin)
 
@@ -2423,22 +2426,26 @@ constructTransaction ctx genChange knownPools getPoolStatus (ApiT wid) body = do
 
     toMintTxOut policyXPub
         (ApiMintBurnData (ApiT scriptT) (Just (ApiT tName))
-         (ApiMint (ApiMintData (Just addr) (Quantity amt)))) =
-        let (assetId, tokenQuantity, _) =
-                toTokenMapAndScript @k
-                    scriptT (Map.singleton (Cosigner 0) policyXPub)
-                    tName amt
-            assets = fromFlatList [(assetId, tokenQuantity)]
-        in (addr, assets)
-    toMintTxOut _ _ =
-        error "toMintTxOut can only be used in the minting context with addr specified"
+            (ApiMint (ApiMintData (Just addr) (Quantity amt)))) =
+                let (assetId, tokenQuantity, _) =
+                        toTokenMapAndScript @k
+                            scriptT (Map.singleton (Cosigner 0) policyXPub)
+                            tName amt
+                    assets = fromFlatList [(assetId, tokenQuantity)]
+                in
+                (addr, assets)
+    toMintTxOut _ _ = error
+        "toMintTxOut can only be used in the minting context with addr \
+        \specified"
 
     coalesceTokensPerAddr =
         let toTxOut (addr, assets) =
-                addressAmountToTxOut (AddressAmount addr (Quantity 0) (ApiT assets))
-        in  map toTxOut .
-            Map.toList .
-            foldr (uncurry (Map.insertWith (<>))) Map.empty
+                addressAmountToTxOut $
+                AddressAmount addr (Quantity 0) (ApiT assets)
+        in
+        map toTxOut
+            . Map.toList
+            . foldr (uncurry (Map.insertWith (<>))) Map.empty
 
 -- TODO: Most of the body of this function should really belong to
 -- Cardano.Wallet to keep the Api.Server module free of business logic!
@@ -4274,11 +4281,12 @@ instance IsServerError ErrConstructTx where
             , "(16-character) length name."
             ]
         ErrConstructTxIncorrectAssetQuantity->
-            apiError err403 CreatedTransactionWithIncorrectAssetQuantity $ mconcat
-            [ "It looks like I've created a transaction with a minting/burning "
-            , "that has incorrect asset quantity. It must be positive and cannot "
-            , "exceed 9223372036854775807."
-            ]
+            apiError err403 CreatedTransactionWithIncorrectAssetQuantity $
+                mconcat
+                    [ "It looks like I've created a transaction with a "
+                    , "minting/burning that has incorrect asset quantity. It "
+                    , "must be positive and cannot exceed 9223372036854775807."
+                    ]
         ErrConstructTxNotImplemented _ ->
             apiError err501 NotImplemented
                 "This feature is not yet implemented."

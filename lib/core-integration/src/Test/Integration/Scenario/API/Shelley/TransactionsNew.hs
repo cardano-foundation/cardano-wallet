@@ -230,7 +230,6 @@ import qualified Data.Text.Encoding as T
 import qualified Network.HTTP.Types.Status as HTTP
 import qualified Test.Integration.Plutus as PlutusScenario
 
-
 spec :: forall n.
     ( DecodeAddress n
     , DecodeStakeAddress n
@@ -3217,7 +3216,8 @@ spec = describe "NEW_SHELLEY_TRANSACTIONS" $ do
             (Link.createUnsignedTransaction @'Shelley wa) Default payload
         verify rTx
             [ expectResponseCode HTTP.status403
-            , expectErrorMessage errMsg403CreatedTransactionWithIncorrectAssetQuantity
+            , expectErrorMessage
+                errMsg403CreatedTransactionWithIncorrectAssetQuantity
             ]
 
     it "TRANS_NEW_CREATE_10m2 - Minting amount = 0" $
@@ -3245,7 +3245,8 @@ spec = describe "NEW_SHELLEY_TRANSACTIONS" $ do
             (Link.createUnsignedTransaction @'Shelley wa) Default payload
         verify rTx
             [ expectResponseCode HTTP.status403
-            , expectErrorMessage errMsg403CreatedTransactionWithIncorrectAssetQuantity
+            , expectErrorMessage
+                errMsg403CreatedTransactionWithIncorrectAssetQuantity
             ]
 
     it "TRANS_NEW_CREATE_10d - Minting assets without timelock" $
@@ -3384,22 +3385,23 @@ spec = describe "NEW_SHELLEY_TRANSACTIONS" $ do
 
         let (Right tokenName') = mkTokenName ""
         let payloadMint = Json [json|{
-                "mint_burn": [{
-                    "policy_script_template":
+                "mint_burn": [
+                    { "policy_script_template":
                         { "all":
                             [ "cosigner#0"
                             ]
-                        },
-                    "operation":
-                        { "mint" :
-                            { "receiving_address": #{destination},
-                                "amount": {
-                                    "quantity": 50000,
-                                    "unit": "assets"
+                        }
+                    , "operation":
+                        { "mint":
+                            { "receiving_address": #{destination}
+                            , "amount":
+                                { "quantity": 50000
+                                , "unit": "assets"
                                 }
                             }
                         }
-                }]
+                    }
+                ]
             }|]
 
         let scriptUsed policyKeyHash = RequireAllOf
@@ -3426,7 +3428,8 @@ spec = describe "NEW_SHELLEY_TRANSACTIONS" $ do
 
         burnAssetsCheck ctx wa tokenName' payloadBurn scriptUsed
 
-    it "TRANS_NEW_CREATE_10h - Minting assets without timelock to foreign address" $
+    it "TRANS_NEW_CREATE_10h - \
+        \Minting assets without timelock to foreign address" $
         \ctx -> runResourceT $ do
         wa <- fixtureWallet ctx
         wForeign <- emptyWallet ctx
@@ -3436,23 +3439,24 @@ spec = describe "NEW_SHELLEY_TRANSACTIONS" $ do
         let (Right tokenName') = mkTokenName "ab12"
 
         let payload = Json [json|{
-                "mint_burn": [{
-                    "policy_script_template":
+                "mint_burn": [
+                    { "policy_script_template":
                         { "all":
                            [ "cosigner#0"
                            ]
-                        },
-                    "asset_name": #{toText tokenName'},
-                    "operation":
-                        { "mint" :
-                              { "receiving_address": #{destination},
-                                 "amount": {
-                                     "quantity": 50000,
-                                     "unit": "assets"
-                                  }
-                              }
                         }
-                }]
+                    , "asset_name": #{toText tokenName'}
+                    , "operation":
+                        { "mint":
+                            { "receiving_address": #{destination}
+                            , "amount":
+                                { "quantity": 50000
+                                , "unit": "assets"
+                                }
+                            }
+                        }
+                    }
+                ]
             }|]
 
         let scriptUsed policyKeyHash = RequireAllOf
@@ -3460,7 +3464,8 @@ spec = describe "NEW_SHELLEY_TRANSACTIONS" $ do
                 ]
 
         (initialBalance, expectedFee, tokens') <-
-            mintAssetsCheckWithoutBalanceCheck ctx wa tokenName' payload scriptUsed
+            mintAssetsCheckWithoutBalanceCheck
+                ctx wa tokenName' payload scriptUsed
 
         let minutxo = (minUTxOValue (_mainEra ctx) :: Natural)
         -- we are sending to external address and it must be more than minimum
@@ -3477,12 +3482,15 @@ spec = describe "NEW_SHELLEY_TRANSACTIONS" $ do
             verify rWa
                 [ expectSuccess
                 , expectField
-                        (#balance . #available . #getQuantity)
-                        (`shouldBe` initialBalance - fromIntegral expectedFee - minUtxoWithAsset)
+                    (#balance . #available . #getQuantity)
+                    (`shouldBe` initialBalance
+                        - fromIntegral expectedFee
+                        - minUtxoWithAsset
+                    )
                 , expectField (#assets . #available . #getApiT)
-                        (`shouldBe` TokenMap.empty)
+                    (`shouldBe` TokenMap.empty)
                 , expectField (#assets . #total . #getApiT)
-                        (`shouldBe` TokenMap.empty)
+                    (`shouldBe` TokenMap.empty)
                 ]
 
         eventually
@@ -3493,12 +3501,12 @@ spec = describe "NEW_SHELLEY_TRANSACTIONS" $ do
             verify rForeign
                 [ expectSuccess
                 , expectField
-                        (#balance . #available . #getQuantity)
-                        (`shouldBe` minUtxoWithAsset)
+                    (#balance . #available . #getQuantity)
+                    (`shouldBe` minUtxoWithAsset)
                 , expectField (#assets . #available . #getApiT)
-                        (`shouldBe` tokens')
+                    (`shouldBe` tokens')
                 , expectField (#assets . #total . #getApiT)
-                        (`shouldBe` tokens')
+                    (`shouldBe` tokens')
                 ]
   where
 
@@ -3860,7 +3868,8 @@ spec = describe "NEW_SHELLEY_TRANSACTIONS" $ do
         -> Payload
         -> (KeyHash -> Script KeyHash)
         -> m (Natural, Natural, TokenMap.TokenMap)
-    mintAssetsCheckWithoutBalanceCheck ctx wa tokenName' payload scriptUsedF = do
+    mintAssetsCheckWithoutBalanceCheck
+        ctx wa tokenName' payload scriptUsedF = do
 
         rTx <- request @(ApiConstructTransaction n) ctx
             (Link.createUnsignedTransaction @'Shelley wa) Default payload
@@ -3963,7 +3972,8 @@ spec = describe "NEW_SHELLEY_TRANSACTIONS" $ do
     mintAssetsCheck ctx wa tokenName' payload scriptUsedF = do
 
         (initialBalance, expectedFee, tokens') <-
-            mintAssetsCheckWithoutBalanceCheck ctx wa tokenName' payload scriptUsedF
+            mintAssetsCheckWithoutBalanceCheck
+                ctx wa tokenName' payload scriptUsedF
 
         eventually
             "Wallet balance is decreased by fee and holds minted assets" $ do
