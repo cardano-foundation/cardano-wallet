@@ -107,7 +107,7 @@ module Test.Integration.Framework.TestData
     , errMsg403MultiaccountTransaction
     , errMsg403CreatedWrongPolicyScriptTemplate
     , errMsg403AssetNameTooLong
-    , errMsg403CreatedTransactionWithIncorrectAssetQuantity
+    , errMsg403AssetQuantityOutOfBounds
     ) where
 
 import Prelude
@@ -686,8 +686,8 @@ errMsg403AssetNameTooLong = mconcat
     , "(16-character) length name."
     ]
 
-errMsg403CreatedTransactionWithIncorrectAssetQuantity :: String
-errMsg403CreatedTransactionWithIncorrectAssetQuantity = mconcat
+errMsg403AssetQuantityOutOfBounds :: String
+errMsg403AssetQuantityOutOfBounds = mconcat
     [ "It looks like I've created a transaction with a minting/burning "
     , "that has incorrect asset quantity. It must be positive and cannot "
     , "exceed 9223372036854775807."

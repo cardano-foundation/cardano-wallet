@@ -4115,9 +4115,9 @@ x-errAssetNameTooLong: &errAssetNameTooLong
       type: string
       enum: ['asset_name_too_long']
 
-x-errCreatedTransactionWithIncorrectAssetQuantity: &errCreatedTransactionWithIncorrectAssetQuantity
+x-errAssetQuantityOutOfBounds: &errAssetQuantityOutOfBounds
   <<: *responsesErr
-  title: created_transaction_with_incorrect_asset_quantity
+  title: asset_quantity_out_of_bounds
   properties:
     message:
       type: string
@@ -4126,7 +4126,7 @@ x-errCreatedTransactionWithIncorrectAssetQuantity: &errCreatedTransactionWithInc
           9223372036854775807.
     code:
       type: string
-      enum: ['created_transaction_with_incorrect_asset_quantity']
+      enum: ['asset_quantity_out_of_bounds']
 
 x-errInputsDepleted: &errInputsDepleted
   <<: *responsesErr
@@ -5176,7 +5176,7 @@ x-responsesConstructTransaction: &responsesConstructTransaction
             - <<: *errCreatedMultiaccountTransaction
             - <<: *errCreatedWrongPolicyScriptTemplate
             - <<: *errAssetNameTooLong
-            - <<: *errCreatedTransactionWithIncorrectAssetQuantity
+            - <<: *errAssetQuantityOutOfBounds
   <<: *responsesErr404WalletNotFound
   <<: *responsesErr406
   <<: *responsesErr415UnsupportedMediaType
