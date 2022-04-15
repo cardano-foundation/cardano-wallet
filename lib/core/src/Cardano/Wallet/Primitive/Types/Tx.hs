@@ -858,8 +858,8 @@ txOutMaxTokenQuantity = TokenQuantity $ fromIntegral $ maxBound @Word64
 -- | The greatest quantity of any given token that can be minted or burned in a
 --   transaction.
 --
-txMintBurnMaxTokenQuantity :: Natural
-txMintBurnMaxTokenQuantity = fromIntegral $ maxBound @Int64
+txMintBurnMaxTokenQuantity :: TokenQuantity
+txMintBurnMaxTokenQuantity = TokenQuantity $ fromIntegral $ maxBound @Int64
 
 --------------------------------------------------------------------------------
 -- Constraints
