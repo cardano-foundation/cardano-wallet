@@ -1623,7 +1623,6 @@ data ApiErrorCode
     | AlreadyWithdrawing
     | AssetNameTooLong
     | AssetNotPresent
-    | AssetQuantityOutOfBounds
     | BadRequest
     | CannotCoverFee
     | CreatedInvalidTransaction
@@ -1641,6 +1640,7 @@ data ApiErrorCode
     | MalformedTxPayload
     | MethodNotAllowed
     | MinWithdrawalWrong
+    | MintOrBurnAssetQuantityOutOfBounds
     | MissingPolicyPublicKey
     | MissingWitnessesInTransaction
     | NetworkMisconfigured

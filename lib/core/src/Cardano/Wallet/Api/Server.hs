@@ -2234,7 +2234,8 @@ constructTransaction ctx genChange knownPools getPoolStatus (ApiT wid) body = do
     when
         ( isJust mintingBurning' &&
           L.any assetQuantityOutOfBounds (NE.toList $ fromJust mintingBurning')
-        ) $ liftHandler $ throwE ErrConstructTxAssetQuantityOutOfBounds
+        ) $ liftHandler $
+            throwE ErrConstructTxMintOrBurnAssetQuantityOutOfBounds
 
     let checkIx (ApiStakeKeyIndex (ApiT derIndex)) =
             derIndex == DerivationIndex (getIndex @'Hardened minBound)
@@ -4258,11 +4259,11 @@ instance IsServerError ErrConstructTx where
             [ "Attempted to create a transaction with an asset name that is "
             , "too long. The maximum length is 32 bytes."
             ]
-        ErrConstructTxAssetQuantityOutOfBounds->
-            apiError err403 AssetQuantityOutOfBounds $ mconcat
-            [ "Attempted to create a transaction with an asset quantity that "
-            , "is out of bounds. An asset quantity must be greater than zero "
-            , "and must not exceed 9223372036854775807 (2^63 - 1)."
+        ErrConstructTxMintOrBurnAssetQuantityOutOfBounds ->
+            apiError err403 MintOrBurnAssetQuantityOutOfBounds $ mconcat
+            [ "Attempted to mint or burn an asset quantity that is out of "
+            , "bounds. The asset quantity must be greater than zero and must "
+            , "not exceed 9223372036854775807 (2^63 - 1)."
             ]
         ErrConstructTxNotImplemented _ ->
             apiError err501 NotImplemented

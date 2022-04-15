@@ -3495,7 +3495,7 @@ data ErrConstructTx
     | ErrConstructTxMultiaccountNotSupported
     | ErrConstructTxWrongMintingBurningTemplate
     | ErrConstructTxAssetNameTooLong
-    | ErrConstructTxAssetQuantityOutOfBounds
+    | ErrConstructTxMintOrBurnAssetQuantityOutOfBounds
     | ErrConstructTxNotImplemented String
     -- ^ Temporary error constructor.
     deriving (Show, Eq)
