@@ -2318,10 +2318,10 @@ constructTransaction ctx genChange knownPools getPoolStatus (ApiT wid) body = do
 
         (utxoAvailable, wallet, pendingTxs) <-
             liftHandler $ W.readWalletUTxOIndex @_ @s @k wrk wid
-        (policyXPub, _) <-
-            liftHandler $ W.readPolicyPublicKey @_ @s @k @n wrk wid
-        txCtx' <-
+        (txCtx', policyXPubM) <-
             if isJust mintingBurning' then do
+                (policyXPub, _) <-
+                    liftHandler $ W.readPolicyPublicKey @_ @s @k @n wrk wid
                 let isMinting (ApiMintBurnData _ _ (ApiMint _)) = True
                     isMinting _ = False
                 let getMinting = \case
@@ -2362,12 +2362,13 @@ constructTransaction ctx genChange knownPools getPoolStatus (ApiT wid) body = do
                         map getBurning $
                         filter (not . isMinting) $
                         NE.toList $ fromJust mintingBurning'
-                pure $ txCtx
-                    { txAssetsToMint = mintingData
-                    , txAssetsToBurn = burningData
-                    }
+                pure ( txCtx
+                      { txAssetsToMint = mintingData
+                      , txAssetsToBurn = burningData
+                      }
+                     , Just policyXPub)
             else
-                pure txCtx
+                pure (txCtx, Nothing)
 
         let runSelection outs =
                 W.selectAssets @_ @_ @s @k wrk pp selectAssetsParams transform
@@ -2401,7 +2402,7 @@ constructTransaction ctx genChange knownPools getPoolStatus (ApiT wid) body = do
             let mintingOuts = case mintingBurning' of
                     Just mintBurns ->
                         coalesceTokensPerAddr $
-                        map (toMintTxOut policyXPub) $
+                        map (toMintTxOut (fromJust policyXPubM)) $
                         filter mintWithAddress $
                         NE.toList mintBurns
                     Nothing -> []
