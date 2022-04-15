@@ -4090,8 +4090,8 @@ x-errAssetQuantityOutOfBounds: &errAssetQuantityOutOfBounds
     message:
       type: string
       description:
-          Occurs when asset quantity to be minted or burned is not positive or exceeds
-          9223372036854775807.
+          Occurs when an asset quantity is not greater than zero or exceeds
+          9223372036854775807 (2^63 - 1).
     code:
       type: string
       enum: ['asset_quantity_out_of_bounds']

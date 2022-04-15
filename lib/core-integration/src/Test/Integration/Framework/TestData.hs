@@ -687,9 +687,9 @@ errMsg403AssetNameTooLong = mconcat
 
 errMsg403AssetQuantityOutOfBounds :: String
 errMsg403AssetQuantityOutOfBounds = mconcat
-    [ "It looks like I've created a transaction with a minting/burning "
-    , "that has incorrect asset quantity. It must be positive and cannot "
-    , "exceed 9223372036854775807."
+    [ "Attempted to create a transaction with an asset quantity that "
+    , "is out of bounds. An asset quantity must be greater than zero "
+    , "and must not exceed 9223372036854775807 (2^63 - 1)."
     ]
 
 --------------------------------------------------------------------------------
