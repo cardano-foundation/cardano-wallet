@@ -470,7 +470,7 @@ import Cardano.Wallet.Primitive.Types.TokenMap
 import Cardano.Wallet.Primitive.Types.TokenPolicy
     ( TokenName (..)
     , TokenPolicyId (..)
-    , maxLengthTokenName
+    , tokenNameMaxLength
     , mkTokenFingerprint
     , nullTokenName
     )
@@ -2235,7 +2235,7 @@ constructTransaction ctx genChange knownPools getPoolStatus (ApiT wid) body = do
 
     let assetNameTooLong = \case
             (ApiMintBurnData _ (Just (ApiT (UnsafeTokenName bs))) _) ->
-                BS.length bs > maxLengthTokenName
+                BS.length bs > tokenNameMaxLength
             _ ->
                 error "tokenName should be nonempty at this step"
     when
