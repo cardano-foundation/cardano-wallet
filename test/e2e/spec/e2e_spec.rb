@@ -625,7 +625,6 @@ RSpec.describe "Cardano Wallet E2E tests", :e2e do
             'operation' => {
               'mint' =>
                 {
-                  'receiving_address' => address,
                   'amount' => { 'quantity' => quantity,
                                 'unit' => 'assets'
                                }
@@ -633,6 +632,7 @@ RSpec.describe "Cardano Wallet E2E tests", :e2e do
             },
             'policy_script_template' => policy_script
          }
+         mint['operation']['mint']['receiving_address'] = address unless address == nil
          mint['asset_name'] = asset_name unless asset_name == nil
          mint
       end
@@ -740,7 +740,7 @@ RSpec.describe "Cardano Wallet E2E tests", :e2e do
         # Burn all the rest:
         burn = [burn(asset_name('Token1'), 500, policy_script1),
                 burn(asset_name('Token2'), 500, policy_script2),
-                burn('', 500, policy_script3)
+                burn(nil, 500, policy_script3)
                ]
         tx_constructed, tx_signed, tx_submitted = construct_sign_submit(@wid,
                                                                         payments = nil,
@@ -1205,8 +1205,9 @@ RSpec.describe "Cardano Wallet E2E tests", :e2e do
         expect(assets).to eq(assets_to_check.map{|z| {z => assets_quantity}}.to_set)
 
         # Try to burn on target wallet and fail:
+        create_policy_key_if_not_exists(@target_id)
         burn = [burn(assets_name, assets_quantity, policy_script)]
-        tx_constructed = SHELLEY.transactions.construct(@wid,
+        tx_constructed = SHELLEY.transactions.construct(@target_id,
                                                         payments = nil,
                                                         withdrawal = nil,
                                                         metadata = nil,
@@ -1397,7 +1398,6 @@ RSpec.describe "Cardano Wallet E2E tests", :e2e do
         expect(tx_constructed['code']).to eq 'output_token_bundle_size_exceeds_limit'
       end
     end
-
   end
 
   describe "E2E Shared" do
