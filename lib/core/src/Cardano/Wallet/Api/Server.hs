@@ -4280,12 +4280,11 @@ instance IsServerError ErrConstructTx where
             , "too long. The maximum length is 32 bytes."
             ]
         ErrConstructTxAssetQuantityOutOfBounds->
-            apiError err403 AssetQuantityOutOfBounds $
-                mconcat
-                    [ "It looks like I've created a transaction with a "
-                    , "minting/burning that has incorrect asset quantity. It "
-                    , "must be positive and cannot exceed 9223372036854775807."
-                    ]
+            apiError err403 AssetQuantityOutOfBounds $ mconcat
+            [ "Attempted to create a transaction with an asset quantity that "
+            , "is out of bounds. An asset quantity must be greater than zero "
+            , "and must not exceed 9223372036854775807 (2^63 - 1)."
+            ]
         ErrConstructTxNotImplemented _ ->
             apiError err501 NotImplemented
                 "This feature is not yet implemented."
