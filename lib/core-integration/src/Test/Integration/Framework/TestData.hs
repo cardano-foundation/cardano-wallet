@@ -107,7 +107,7 @@ module Test.Integration.Framework.TestData
     , errMsg403MultiaccountTransaction
     , errMsg403CreatedWrongPolicyScriptTemplate
     , errMsg403AssetNameTooLong
-    , errMsg403AssetQuantityOutOfBounds
+    , errMsg403MintOrBurnAssetQuantityOutOfBounds
     ) where
 
 import Prelude
@@ -685,11 +685,11 @@ errMsg403AssetNameTooLong = mconcat
     , "too long. The maximum length is 32 bytes."
     ]
 
-errMsg403AssetQuantityOutOfBounds :: String
-errMsg403AssetQuantityOutOfBounds = mconcat
-    [ "Attempted to create a transaction with an asset quantity that "
-    , "is out of bounds. An asset quantity must be greater than zero "
-    , "and must not exceed 9223372036854775807 (2^63 - 1)."
+errMsg403MintOrBurnAssetQuantityOutOfBounds :: String
+errMsg403MintOrBurnAssetQuantityOutOfBounds = mconcat
+    [ "Attempted to mint or burn an asset quantity that is out of "
+    , "bounds. The asset quantity must be greater than zero and must "
+    , "not exceed 9223372036854775807 (2^63 - 1)."
     ]
 
 --------------------------------------------------------------------------------

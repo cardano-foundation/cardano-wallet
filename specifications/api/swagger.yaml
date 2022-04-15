@@ -4114,18 +4114,18 @@ x-errAssetNameTooLong: &errAssetNameTooLong
       type: string
       enum: ['asset_name_too_long']
 
-x-errAssetQuantityOutOfBounds: &errAssetQuantityOutOfBounds
+x-errMintOrBurnAssetQuantityOutOfBounds: &errMintOrBurnAssetQuantityOutOfBounds
   <<: *responsesErr
-  title: asset_quantity_out_of_bounds
+  title: mint_or_burn_asset_quantity_out_of_bounds
   properties:
     message:
       type: string
       description:
-          Occurs when an asset quantity is not greater than zero or exceeds
-          9223372036854775807 (2^63 - 1).
+          Occurs when attempting to mint or burn an asset quantity that is not
+          greater than zero or exceeds 9223372036854775807 (2^63 - 1).
     code:
       type: string
-      enum: ['asset_quantity_out_of_bounds']
+      enum: ['mint_or_burn_asset_quantity_out_of_bounds']
 
 x-errInputsDepleted: &errInputsDepleted
   <<: *responsesErr
@@ -5175,7 +5175,7 @@ x-responsesConstructTransaction: &responsesConstructTransaction
             - <<: *errCreatedMultiaccountTransaction
             - <<: *errCreatedWrongPolicyScriptTemplate
             - <<: *errAssetNameTooLong
-            - <<: *errAssetQuantityOutOfBounds
+            - <<: *errMintOrBurnAssetQuantityOutOfBounds
   <<: *responsesErr404WalletNotFound
   <<: *responsesErr406
   <<: *responsesErr415UnsupportedMediaType
