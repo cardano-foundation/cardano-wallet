@@ -74,6 +74,7 @@ module Cardano.Wallet.Primitive.Types.Tx
     , txOutMaxCoin
     , txOutMinTokenQuantity
     , txOutMaxTokenQuantity
+    , txMintBurnMaxTokenQuantity
 
     -- * Constraints
     , TxConstraints (..)
@@ -146,6 +147,8 @@ import Data.Generics.Internal.VL.Lens
     ( view )
 import Data.Generics.Labels
     ()
+import Data.Int
+    ( Int64 )
 import Data.List.NonEmpty
     ( NonEmpty (..) )
 import Data.Map.Strict
@@ -851,6 +854,12 @@ txOutMinTokenQuantity = TokenQuantity 1
 --
 txOutMaxTokenQuantity :: TokenQuantity
 txOutMaxTokenQuantity = TokenQuantity $ fromIntegral $ maxBound @Word64
+
+-- | The greatest quantity of any given token that can be minted or burned in a
+--   transaction.
+--
+txMintBurnMaxTokenQuantity :: Natural
+txMintBurnMaxTokenQuantity = fromIntegral $ maxBound @Int64
 
 --------------------------------------------------------------------------------
 -- Constraints

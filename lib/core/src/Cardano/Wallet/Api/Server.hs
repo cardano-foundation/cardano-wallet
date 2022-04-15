@@ -475,7 +475,7 @@ import Cardano.Wallet.Primitive.Types.TokenPolicy
     , nullTokenName
     )
 import Cardano.Wallet.Primitive.Types.TokenQuantity
-    ( TokenQuantity (..), maxTokenQuantity )
+    ( TokenQuantity (..) )
 import Cardano.Wallet.Primitive.Types.Tx
     ( TransactionInfo
     , Tx (..)
@@ -485,6 +485,7 @@ import Cardano.Wallet.Primitive.Types.Tx
     , TxStatus (..)
     , UnsignedTx (..)
     , getSealedTxWitnesses
+    , txMintBurnMaxTokenQuantity
     , txOutCoin
     )
 import Cardano.Wallet.Registry
@@ -2244,10 +2245,10 @@ constructTransaction ctx genChange knownPools getPoolStatus (ApiT wid) body = do
 
     let assetQuantityOutOfBounds
             (ApiMintBurnData _ _ (ApiMint (ApiMintData _ (Quantity amt)))) =
-            amt <= 0 || amt > maxTokenQuantity
+            amt <= 0 || amt > txMintBurnMaxTokenQuantity
         assetQuantityOutOfBounds
             (ApiMintBurnData _ _ (ApiBurn (ApiBurnData (Quantity amt)))) =
-            amt <= 0 || amt > maxTokenQuantity
+            amt <= 0 || amt > txMintBurnMaxTokenQuantity
     when
         ( isJust mintingBurning' &&
           L.any assetQuantityOutOfBounds (NE.toList $ fromJust mintingBurning')
