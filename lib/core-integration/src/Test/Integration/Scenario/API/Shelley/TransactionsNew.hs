@@ -196,8 +196,8 @@ import Test.Integration.Framework.DSL
     )
 import Test.Integration.Framework.TestData
     ( errMsg403AssetNameTooLong
+    , errMsg403AssetQuantityOutOfBounds
     , errMsg403Collateral
-    , errMsg403CreatedTransactionWithIncorrectAssetQuantity
     , errMsg403CreatedWrongPolicyScriptTemplate
     , errMsg403Fee
     , errMsg403ForeignTransaction
@@ -3157,7 +3157,7 @@ spec = describe "NEW_SHELLEY_TRANSACTIONS" $ do
         verify rTx
             [ expectResponseCode HTTP.status403
             , expectErrorMessage
-                errMsg403CreatedTransactionWithIncorrectAssetQuantity
+                errMsg403AssetQuantityOutOfBounds
             ]
 
     it "TRANS_NEW_CREATE_10m2 - Minting amount = 0" $
@@ -3185,8 +3185,7 @@ spec = describe "NEW_SHELLEY_TRANSACTIONS" $ do
             (Link.createUnsignedTransaction @'Shelley wa) Default payload
         verify rTx
             [ expectResponseCode HTTP.status403
-            , expectErrorMessage
-                errMsg403CreatedTransactionWithIncorrectAssetQuantity
+            , expectErrorMessage errMsg403AssetQuantityOutOfBounds
             ]
 
     it "TRANS_NEW_CREATE_10d - Minting assets without timelock" $

@@ -2224,16 +2224,16 @@ constructTransaction ctx genChange knownPools getPoolStatus (ApiT wid) body = do
           L.any assetNameTooLong (NE.toList $ fromJust mintingBurning')
         ) $ liftHandler $ throwE ErrConstructTxAssetNameTooLong
 
-    let assetQuantityTooBig
+    let assetQuantityOutOfBounds
             (ApiMintBurnData _ _ (ApiMint (ApiMintData _ (Quantity amt)))) =
             amt <= 0 || amt > maxTokenQuantity
-        assetQuantityTooBig
+        assetQuantityOutOfBounds
             (ApiMintBurnData _ _ (ApiBurn (ApiBurnData (Quantity amt)))) =
             amt <= 0 || amt > maxTokenQuantity
     when
         ( isJust mintingBurning' &&
-          L.any assetQuantityTooBig (NE.toList $ fromJust mintingBurning')
-        ) $ liftHandler $ throwE ErrConstructTxIncorrectAssetQuantity
+          L.any assetQuantityOutOfBounds (NE.toList $ fromJust mintingBurning')
+        ) $ liftHandler $ throwE ErrConstructTxAssetQuantityOutOfBounds
 
     let checkIx (ApiStakeKeyIndex (ApiT derIndex)) =
             derIndex == DerivationIndex (getIndex @'Hardened minBound)
@@ -4258,8 +4258,8 @@ instance IsServerError ErrConstructTx where
             , "that has too long asset name. The upper limit is 32-byte "
             , "(16-character) length name."
             ]
-        ErrConstructTxIncorrectAssetQuantity->
-            apiError err403 CreatedTransactionWithIncorrectAssetQuantity $
+        ErrConstructTxAssetQuantityOutOfBounds->
+            apiError err403 AssetQuantityOutOfBounds $
                 mconcat
                     [ "It looks like I've created a transaction with a "
                     , "minting/burning that has incorrect asset quantity. It "

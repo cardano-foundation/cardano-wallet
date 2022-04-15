@@ -1623,12 +1623,12 @@ data ApiErrorCode
     | AlreadyWithdrawing
     | AssetNameTooLong
     | AssetNotPresent
+    | AssetQuantityOutOfBounds
     | BadRequest
     | CannotCoverFee
     | CreatedInvalidTransaction
     | CreatedMultiaccountTransaction
     | CreatedMultidelegationTransaction
-    | CreatedTransactionWithIncorrectAssetQuantity
     | CreatedWrongPolicyScriptTemplate
     | ExistingKeyWitnesses
     | ForeignTransaction
