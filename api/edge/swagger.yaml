@@ -3383,7 +3383,6 @@ components:
     ApiMintData: &ApiMintData
       type: object
       required:
-        - receiving_address
         - amount
       properties:
         receiving_address: *addressId
@@ -3406,7 +3405,6 @@ components:
     ApiMintBurnData: &ApiMintBurnData
       type: object
       required:
-        - asset_name
         - operation
         - policy_script_template
       properties:
@@ -4072,6 +4070,31 @@ x-errCreatedWrongPolicyScriptTemplate: &errCreatedWrongPolicyScriptTemplate
     code:
       type: string
       enum: ['created_wrong_policy_script_template']
+
+x-errAssetNameTooLong: &errAssetNameTooLong
+  <<: *responsesErr
+  title: asset_name_too_long
+  properties:
+    message:
+      type: string
+      description:
+          Occurs when an asset name exceeds 32 bytes in length.
+    code:
+      type: string
+      enum: ['asset_name_too_long']
+
+x-errMintOrBurnAssetQuantityOutOfBounds: &errMintOrBurnAssetQuantityOutOfBounds
+  <<: *responsesErr
+  title: mint_or_burn_asset_quantity_out_of_bounds
+  properties:
+    message:
+      type: string
+      description:
+          Occurs when attempting to mint or burn an asset quantity that is not
+          greater than zero or exceeds 9223372036854775807 (2^63 - 1).
+    code:
+      type: string
+      enum: ['mint_or_burn_asset_quantity_out_of_bounds']
 
 x-errInputsDepleted: &errInputsDepleted
   <<: *responsesErr
@@ -5120,6 +5143,8 @@ x-responsesConstructTransaction: &responsesConstructTransaction
             - <<: *errCreatedMultidelegationTransaction
             - <<: *errCreatedMultiaccountTransaction
             - <<: *errCreatedWrongPolicyScriptTemplate
+            - <<: *errAssetNameTooLong
+            - <<: *errMintOrBurnAssetQuantityOutOfBounds
   <<: *responsesErr404WalletNotFound
   <<: *responsesErr406
   <<: *responsesErr415UnsupportedMediaType
