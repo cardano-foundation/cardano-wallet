@@ -423,10 +423,9 @@ RSpec.describe "Cardano Wallet E2E tests", :e2e do
                            target_after, target_before,
                            amt)
 
-      # Target wallet only lists my associated assets
+      # Target wallet lists my associated assets
       assets = SHELLEY.assets.get(@target_id)
       expect(assets).to be_correct_and_respond 200
-      expect(assets.size).to eq 2
       expect(assets.to_s).to include ASSETS[0]["policy_id"]
       expect(assets.to_s).to include ASSETS[0]["asset_name"]
       expect(assets.to_s).to include ASSETS[0]["metadata"]["name"]
@@ -621,12 +620,11 @@ RSpec.describe "Cardano Wallet E2E tests", :e2e do
     end
 
     describe "Minting and Burning" do
-      def mint(asset_name, quantity, policy_script, address)
+      def mint(asset_name, quantity, policy_script, address = nil)
         mint = {
             'operation' => {
               'mint' =>
                 {
-                  'receiving_address' => address,
                   'amount' => { 'quantity' => quantity,
                                 'unit' => 'assets'
                                }
@@ -634,6 +632,7 @@ RSpec.describe "Cardano Wallet E2E tests", :e2e do
             },
             'policy_script_template' => policy_script
          }
+         mint['operation']['mint']['receiving_address'] = address unless address == nil
          mint['asset_name'] = asset_name unless asset_name == nil
          mint
       end
@@ -679,8 +678,8 @@ RSpec.describe "Cardano Wallet E2E tests", :e2e do
 
         # Minting:
         mint = [mint(asset_name('Token1'), 1000, policy_script1, address),
-                mint(asset_name('Token2'), 1000, policy_script2, address),
-                mint('', 1000, policy_script3, address)
+                mint(asset_name('Token2'), 1000, policy_script2),
+                mint('', 1000, policy_script3)
                ]
         create_policy_key_if_not_exists(@wid)
         tx_constructed, tx_signed, tx_submitted = construct_sign_submit(@wid,
@@ -741,7 +740,7 @@ RSpec.describe "Cardano Wallet E2E tests", :e2e do
         # Burn all the rest:
         burn = [burn(asset_name('Token1'), 500, policy_script1),
                 burn(asset_name('Token2'), 500, policy_script2),
-                burn('', 500, policy_script3)
+                burn(nil, 500, policy_script3)
                ]
         tx_constructed, tx_signed, tx_submitted = construct_sign_submit(@wid,
                                                                         payments = nil,
@@ -783,8 +782,8 @@ RSpec.describe "Cardano Wallet E2E tests", :e2e do
 
         # Minting:
         mint = [mint(asset_name('TokenMetadata1'), assets_quantity, policy_script1, address),
-                mint(asset_name('TokenMetadata2'), assets_quantity, policy_script2, address),
-                mint(asset_name('TokenMetadata3'), assets_quantity, policy_script3, address)
+                mint(asset_name('TokenMetadata2'), assets_quantity, policy_script2),
+                mint(asset_name('TokenMetadata3'), assets_quantity, policy_script3)
                ]
         create_policy_key_if_not_exists(@wid)
         tx_constructed, tx_signed, tx_submitted = construct_sign_submit(@wid,
@@ -863,7 +862,7 @@ RSpec.describe "Cardano Wallet E2E tests", :e2e do
 
         # Minting:
         mint = [mint(asset_name('Asset1'), 500, policy_script1, address),
-                mint(asset_name('Asset2'), 500, policy_script2, address)]
+                mint(asset_name('Asset2'), 500, policy_script2)]
 
         create_policy_key_if_not_exists(@wid)
         tx_constructed, tx_signed, tx_submitted = construct_sign_submit(@wid,
@@ -892,7 +891,7 @@ RSpec.describe "Cardano Wallet E2E tests", :e2e do
         expect(assets).to eq(assets_to_check.map{|z| {z => 500}}.to_set)
 
         # Minting and burning:
-        mint_burn = [mint(asset_name('Asset1'), 500, policy_script1, address),
+        mint_burn = [mint(asset_name('Asset1'), 500, policy_script1),
                      burn(asset_name('Asset2'), 500, policy_script2)]
 
         # p JSON.parse(mint_burn.to_json)
@@ -1030,7 +1029,6 @@ RSpec.describe "Cardano Wallet E2E tests", :e2e do
                                        { assets_to_check: assets_burned_to_check })
 
         expect(assets_minted).to eq(assets_minted_to_check.map{|z| {z => 1}}.to_set)
-        p assets_burned_to_check
 
         # Burn all the rest:
         burn = [burn(assets_name, 1, policy_script)]
@@ -1162,8 +1160,6 @@ RSpec.describe "Cardano Wallet E2E tests", :e2e do
       # Tx4: Burns them
       it "Mint to foreign wallet / Cannot burn if I don't have keys" do
 
-        skip "TODO MINT: It doesn't mint to foreign wallet!"
-
         src_before = get_shelley_balances(@wid)
         target_before = get_shelley_balances(@target_id)
         address = SHELLEY.addresses.list(@target_id).first['id']
@@ -1192,9 +1188,16 @@ RSpec.describe "Cardano Wallet E2E tests", :e2e do
         src_after_minting = get_shelley_balances(@wid)
         target_after_minting = get_shelley_balances(@target_id)
 
-        # verify ADA balance is correct (fee is deducted)
-        expect(src_after_minting['available']).to eq (src_before['available'] - expected_fee)
-        expect(src_after_minting['total']).to eq (src_before['total'] - expected_fee)
+        # verify ADA balance is correct on src wallet:
+        # we are minting and sending to external address
+        # therefore the cost is fee + mintUTxOValue of ADA that is required
+        # for transfering the assets over the network
+        # in this the total `cost` is pure ADA minUTxOValue + 11 'utxo words' + fee
+        min_utxo_value = NETWORK.parameters['minimum_utxo_value']['quantity'].to_i
+        lovelace_per_utxo_word = 34482
+        min_utxo_value_tokens = min_utxo_value + 11 * lovelace_per_utxo_word
+        expect(src_after_minting['available']).to eq (src_before['available'] - expected_fee - min_utxo_value_tokens)
+        expect(src_after_minting['total']).to eq (src_before['total'] - expected_fee - min_utxo_value_tokens)
 
         # verify assets have been minted and on target wallet's balance
         assets_to_check = get_assets_from_decode(tx_decoded['mint'])
@@ -1202,8 +1205,9 @@ RSpec.describe "Cardano Wallet E2E tests", :e2e do
         expect(assets).to eq(assets_to_check.map{|z| {z => assets_quantity}}.to_set)
 
         # Try to burn on target wallet and fail:
+        create_policy_key_if_not_exists(@target_id)
         burn = [burn(assets_name, assets_quantity, policy_script)]
-        tx_constructed = SHELLEY.transactions.construct(@wid,
+        tx_constructed = SHELLEY.transactions.construct(@target_id,
                                                         payments = nil,
                                                         withdrawal = nil,
                                                         metadata = nil,
@@ -1254,7 +1258,7 @@ RSpec.describe "Cardano Wallet E2E tests", :e2e do
         # make sure it was burned
         src_after_burning = get_shelley_balances(@wid)
         assets_to_check = get_assets_from_decode(tx_decoded['burn'])
-        assets = assets_balance(src_after_sending['assets_total'], { assets_to_check: assets_to_check })
+        assets = assets_balance(src_after_burning['assets_total'], { assets_to_check: assets_to_check })
         expect(assets).to eq({}.to_set)
 
       end
@@ -1265,15 +1269,14 @@ RSpec.describe "Cardano Wallet E2E tests", :e2e do
         matrix = [
                   [-9223372036854775808, 400, "bad_request"],
                   [-1, 400, "bad_request"],
-                  [0, 403, "bad_request"],
-                  [9223372036854775808, 403, "bad_request"]
+                  [0, 403, "mint_or_burn_asset_quantity_out_of_bounds"],
+                  [9223372036854775808, 403, "mint_or_burn_asset_quantity_out_of_bounds"]
                  ]
         matrix.each do |m|
           quantity = m[0]
           code = m[1]
           message = m[2]
           it "Cannot mint #{quantity} assets" do
-            skip "TODO MINT: Mint burn quantities edge cases"
             policy_script = 'cosigner#0'
             assets_name = asset_name('AmazingNFTIdontHave')
             assets_quantity = quantity
@@ -1293,7 +1296,6 @@ RSpec.describe "Cardano Wallet E2E tests", :e2e do
           end
 
           it "Cannot burn #{quantity} assets" do
-            skip "TODO MINT: Mint burn quantities edge cases"
             policy_script = 'cosigner#0'
             assets_name = asset_name('AmazingNFTIdontHave')
             assets_quantity = quantity
@@ -1315,7 +1317,7 @@ RSpec.describe "Cardano Wallet E2E tests", :e2e do
       # Make sure minting above boundary asset_name values returns proper error
       describe "Mint/Burn asset_name" do
         matrix = [
-                  ['too long', '1' * 66, 400, "bad_request"],
+                  ['too long', '1' * 66, 403, "asset_name_too_long"],
                   ['invalid hex', '1', 400, "bad_request"]
                  ]
         matrix.each do |m|
@@ -1324,9 +1326,6 @@ RSpec.describe "Cardano Wallet E2E tests", :e2e do
           code = m[2]
           message = m[3]
           it "Cannot mint if my asset name is #{test}" do
-
-            skip "TODO MINT: asset name too long throws 'Something went wrong' on construct"
-
             address = SHELLEY.addresses.list(@wid).first['id']
             policy_script = 'cosigner#0'
             assets_quantity = 1500
@@ -1396,10 +1395,9 @@ RSpec.describe "Cardano Wallet E2E tests", :e2e do
                                                         mint)
 
         expect(tx_constructed).to be_correct_and_respond 403
-        expect(tx_constructed['code']).to eq 'transaction_is_too_big'
+        expect(tx_constructed['code']).to eq 'output_token_bundle_size_exceeds_limit'
       end
     end
-
   end
 
   describe "E2E Shared" do
@@ -1936,10 +1934,9 @@ RSpec.describe "Cardano Wallet E2E tests", :e2e do
                            target_after, target_before,
                            amt)
 
-      # Target wallet only lists my associated assets
+      # Target wallet lists my associated assets
       assets = SHELLEY.assets.get(target_id)
       expect(assets).to be_correct_and_respond 200
-      expect(assets.size).to eq 2
       expect(assets.to_s).to include ASSETS[0]["policy_id"]
       expect(assets.to_s).to include ASSETS[0]["asset_name"]
       expect(assets.to_s).to include ASSETS[0]["metadata"]["name"]
