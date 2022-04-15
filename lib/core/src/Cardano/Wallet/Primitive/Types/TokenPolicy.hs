@@ -17,7 +17,7 @@ module Cardano.Wallet.Primitive.Types.TokenPolicy
     , TokenName (..)
     , mkTokenName
     , nullTokenName
-    , maxLengthTokenName
+    , tokenNameMaxLength
 
       -- * Token Fingerprints
     , TokenFingerprint (..)
@@ -117,23 +117,27 @@ newtype TokenName =
     deriving anyclass Hashable
 
 -- | Construct a 'TokenName', validating that the length does not exceed
--- 'maxLengthTokenName'.
+--   'tokenNameMaxLength'.
+--
 mkTokenName :: ByteString -> Either String TokenName
 mkTokenName bs
-    | BS.length bs <= maxLengthTokenName = Right $ UnsafeTokenName bs
+    | BS.length bs <= tokenNameMaxLength = Right $ UnsafeTokenName bs
     | otherwise = Left $ "TokenName length " ++ show (BS.length bs)
-        ++ " exceeds maximum of " ++ show maxLengthTokenName
+        ++ " exceeds maximum of " ++ show tokenNameMaxLength
 
 -- | The empty asset name.
 --
 -- Asset names may be empty, where a monetary policy script only mints a single
 -- asset, or where one asset should be considered as the "default" token for the
 -- policy.
+--
 nullTokenName :: TokenName
 nullTokenName = UnsafeTokenName ""
 
-maxLengthTokenName :: Int
-maxLengthTokenName = 32
+-- | The maximum length of a valid token name.
+--
+tokenNameMaxLength :: Int
+tokenNameMaxLength = 32
 
 instance NFData TokenName
 
