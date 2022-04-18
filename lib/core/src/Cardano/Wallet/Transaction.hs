@@ -6,6 +6,7 @@
 {-# LANGUAGE DuplicateRecordFields #-}
 {-# LANGUAGE FlexibleContexts #-}
 {-# LANGUAGE LambdaCase #-}
+{-# LANGUAGE NamedFieldPuns #-}
 {-# LANGUAGE RankNTypes #-}
 {-# LANGUAGE ScopedTypeVariables #-}
 {-# LANGUAGE StandaloneDeriving #-}
@@ -37,6 +38,7 @@ module Cardano.Wallet.Transaction
     , PlutusScriptInfo (..)
     , PlutusVersion (..)
     , TxFeeAndChange (..)
+    , mapTxFeeAndChange
 
     -- * Errors
     , ErrSignTx (..)
@@ -532,3 +534,17 @@ data TxFeeAndChange f = TxFeeAndChange
 
 deriving instance Eq (f Coin) => Eq (TxFeeAndChange f)
 deriving instance Show (f Coin) => Show (TxFeeAndChange f)
+
+-- | Manipulates a 'TxFeeAndChange' value.
+--
+mapTxFeeAndChange
+    :: (Coin -> Coin)
+    -- ^ A function to transform the fee
+    -> (f1 Coin -> f2 Coin)
+    -- ^ A function to transform the change
+    -> TxFeeAndChange f1
+    -- ^ The original fee and change
+    -> TxFeeAndChange f2
+    -- ^ The transformed fee and change
+mapTxFeeAndChange mapFee mapChange TxFeeAndChange {fee, change} =
+    TxFeeAndChange (mapFee fee) (mapChange change)
