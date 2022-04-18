@@ -2355,37 +2355,43 @@ balanceTransactionSpec = do
 
         it "extraFee + extraChange == surplus .&&. \
            \extraFee covers increase to fee requirement" $
-            property $ withMaxSuccess 10000 $ \surplus fee0 mchange0 -> do
-                let feePolicy = LinearFee $ LinearFunction
-                        { intercept = 0, slope = 44 }
-                let mres = _distributeSurplus
-                        feePolicy
-                        surplus
-                        (TxFeeAndChange fee0 mchange0)
+            property $
+                withMaxSuccess 10000
+                prop_extraFee_coversIncreaseToFeeRequirement
 
-                let maxCoinCost = maximumCostOfIncreasingCoin feePolicy
+prop_extraFee_coversIncreaseToFeeRequirement
+    :: Coin -> Coin -> Maybe Coin -> Property
+prop_extraFee_coversIncreaseToFeeRequirement surplus fee0 mchange0 = do
+    let feePolicy = LinearFee $ LinearFunction
+            { intercept = 0, slope = 44 }
+    let mres = _distributeSurplus
+            feePolicy
+            surplus
+            (TxFeeAndChange fee0 mchange0)
 
-                counterexample (show mres) $ case mres of
-                    Left _ ->
-                        label "unable to distribute surplus" $
-                            property (surplus < (maxCoinCost <> maxCoinCost))
-                    Right (TxFeeAndChange extraFee extraChange) -> do
-                        let feeRequirementIncrease = mconcat
-                                [ costOfIncreasingCoin feePolicy fee0 extraFee
-                                , costOfIncreasingCoin feePolicy
-                                    (fromMaybe mempty mchange0)
-                                    (fromMaybe mempty extraChange)
-                                ]
-                        conjoin
-                            [ property $ extraFee >= feeRequirementIncrease
-                                & counterexample ("fee requirement increased by "
-                                    <> show feeRequirementIncrease
-                                    <> " but the extra fee was just "
-                                    <> show extraFee
-                                    )
-                            , fromMaybe mempty extraChange <> extraFee
-                                === surplus
-                            ]
+    let maxCoinCost = maximumCostOfIncreasingCoin feePolicy
+
+    counterexample (show mres) $ case mres of
+        Left _ ->
+            label "unable to distribute surplus" $
+                property (surplus < (maxCoinCost <> maxCoinCost))
+        Right (TxFeeAndChange extraFee extraChange) -> do
+            let feeRequirementIncrease = mconcat
+                    [ costOfIncreasingCoin feePolicy fee0 extraFee
+                    , costOfIncreasingCoin feePolicy
+                        (fromMaybe mempty mchange0)
+                        (fromMaybe mempty extraChange)
+                    ]
+            conjoin
+                [ property $ extraFee >= feeRequirementIncrease
+                    & counterexample ("fee requirement increased by "
+                        <> show feeRequirementIncrease
+                        <> " but the extra fee was just "
+                        <> show extraFee
+                        )
+                , fromMaybe mempty extraChange <> extraFee
+                    === surplus
+                ]
 
 -- https://mail.haskell.org/pipermail/haskell-cafe/2016-August/124742.html
 mkGen :: (QCGen -> a) -> Gen a
