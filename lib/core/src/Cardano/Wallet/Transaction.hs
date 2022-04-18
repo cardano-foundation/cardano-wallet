@@ -9,9 +9,7 @@
 {-# LANGUAGE NamedFieldPuns #-}
 {-# LANGUAGE RankNTypes #-}
 {-# LANGUAGE ScopedTypeVariables #-}
-{-# LANGUAGE StandaloneDeriving #-}
 {-# LANGUAGE TypeFamilies #-}
-{-# LANGUAGE UndecidableInstances #-}
 
 -- |
 -- Copyright: © 2018-2020 IOHK
@@ -262,9 +260,9 @@ data TransactionLayer k tx = TransactionLayer
     , distributeSurplus
         :: FeePolicy
         -> Coin -- Surplus to distribute
-        -> TxFeeAndChange Maybe
+        -> TxFeeAndChange (Maybe Coin)
         -- ^ Fee and value of relevant change output (if any)
-        -> Either ErrMoreSurplusNeeded (TxFeeAndChange Maybe)
+        -> Either ErrMoreSurplusNeeded (TxFeeAndChange (Maybe Coin))
         -- ^ Distribute a surplus transaction balance between a given change
         -- output (if one exists present) and the transaction fee. The function
         -- is aware of the fact that any increase of 'Coin' values could
@@ -527,24 +525,22 @@ newtype ErrMoreSurplusNeeded = ErrMoreSurplusNeeded Coin
 
 -- | Small helper record to disambiguate between a fee and change Coin values.
 -- Used by 'distributeSurplus'.
-data TxFeeAndChange f = TxFeeAndChange
+data TxFeeAndChange change = TxFeeAndChange
     { fee :: Coin
-    , change :: f Coin
+    , change :: change
     }
-
-deriving instance Eq (f Coin) => Eq (TxFeeAndChange f)
-deriving instance Show (f Coin) => Show (TxFeeAndChange f)
+    deriving (Eq, Show)
 
 -- | Manipulates a 'TxFeeAndChange' value.
 --
 mapTxFeeAndChange
     :: (Coin -> Coin)
     -- ^ A function to transform the fee
-    -> (f1 Coin -> f2 Coin)
+    -> (change1 -> change2)
     -- ^ A function to transform the change
-    -> TxFeeAndChange f1
+    -> TxFeeAndChange change1
     -- ^ The original fee and change
-    -> TxFeeAndChange f2
+    -> TxFeeAndChange change2
     -- ^ The transformed fee and change
 mapTxFeeAndChange mapFee mapChange TxFeeAndChange {fee, change} =
     TxFeeAndChange (mapFee fee) (mapChange change)
