@@ -186,10 +186,11 @@ import Cardano.Wallet.Transaction
     , TxFeeAndChange (..)
     , TxFeeUpdate (..)
     , TxUpdate (..)
+    , mapTxFeeAndChange
     , withdrawalToCoin
     )
 import Cardano.Wallet.Util
-    ( internalError, modifyM )
+    ( Empty (..), internalError, modifyM )
 import Codec.Serialise
     ( deserialiseOrFail )
 import Control.Arrow
@@ -207,7 +208,7 @@ import Data.Bifunctor
 import Data.Function
     ( (&) )
 import Data.Functor
-    ( ($>) )
+    ( ($>), (<&>) )
 import Data.Functor.Identity
     ( runIdentity )
 import Data.Generics.Internal.VL.Lens
@@ -1498,7 +1499,9 @@ _distributeSurplus
     -> TxFeeAndChange Maybe
     -> Either ErrMoreSurplusNeeded (TxFeeAndChange Maybe)
 _distributeSurplus feePolicy surplus fc@(TxFeeAndChange _fee0 Nothing) =
-    burnSurplusAsFees feePolicy surplus fc
+    burnSurplusAsFees feePolicy surplus
+        (mapTxFeeAndChange id (const Empty) fc)
+            <&> mapTxFeeAndChange id (\Empty -> Nothing)
 _distributeSurplus feePolicy surplus fc@(TxFeeAndChange fee0 (Just change0)) =
     let
         -- We calculate the maximum possible fee increase, by assuming the
@@ -1517,7 +1520,9 @@ _distributeSurplus feePolicy surplus fc@(TxFeeAndChange fee0 (Just change0)) =
                 -- The fee increase from adding the surplus to the change was
                 -- greater than the surplus itself. This could happen if the
                 -- surplus is small.
-                burnSurplusAsFees feePolicy surplus fc
+                burnSurplusAsFees feePolicy surplus
+                    (mapTxFeeAndChange id (const Empty) fc)
+                        <&> mapTxFeeAndChange id (\Empty -> Nothing)
   where
     -- Increasing the fee may itself increase the fee. If that is the case, this
     -- function will increase the fee further. The process repeats until the fee
@@ -1567,13 +1572,13 @@ _distributeSurplus feePolicy surplus fc@(TxFeeAndChange fee0 (Just change0)) =
 burnSurplusAsFees
     :: FeePolicy
     -> Coin -- Surplus
-    -> TxFeeAndChange Maybe
-    -> Either ErrMoreSurplusNeeded (TxFeeAndChange Maybe)
+    -> TxFeeAndChange Empty
+    -> Either ErrMoreSurplusNeeded (TxFeeAndChange Empty)
 burnSurplusAsFees feePolicy surplus (TxFeeAndChange fee0 _) =
     case costOfBurningSurplus `Coin.subtract` surplus of
         Just shortfall -> Left $ ErrMoreSurplusNeeded shortfall
         Nothing ->
-            Right $ TxFeeAndChange surplus Nothing
+            Right $ TxFeeAndChange surplus Empty
   where
     costOfBurningSurplus = costOfIncreasingCoin feePolicy fee0 surplus
 
