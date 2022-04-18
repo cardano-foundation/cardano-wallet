@@ -8,7 +8,9 @@
 {-# LANGUAGE LambdaCase #-}
 {-# LANGUAGE RankNTypes #-}
 {-# LANGUAGE ScopedTypeVariables #-}
+{-# LANGUAGE StandaloneDeriving #-}
 {-# LANGUAGE TypeFamilies #-}
+{-# LANGUAGE UndecidableInstances #-}
 
 -- |
 -- Copyright: © 2018-2020 IOHK
@@ -258,8 +260,9 @@ data TransactionLayer k tx = TransactionLayer
     , distributeSurplus
         :: FeePolicy
         -> Coin -- Surplus to distribute
-        -> TxFeeAndChange -- Fee and value of relevant change output (if any)
-        -> Either ErrMoreSurplusNeeded TxFeeAndChange
+        -> TxFeeAndChange Maybe
+        -- ^ Fee and value of relevant change output (if any)
+        -> Either ErrMoreSurplusNeeded (TxFeeAndChange Maybe)
         -- ^ Distribute a surplus transaction balance between a given change
         -- output (if one exists present) and the transaction fee. The function
         -- is aware of the fact that any increase of 'Coin' values could
@@ -522,7 +525,10 @@ newtype ErrMoreSurplusNeeded = ErrMoreSurplusNeeded Coin
 
 -- | Small helper record to disambiguate between a fee and change Coin values.
 -- Used by 'distributeSurplus'.
-data TxFeeAndChange = TxFeeAndChange
+data TxFeeAndChange f = TxFeeAndChange
     { fee :: Coin
-    , change :: Maybe Coin
-    } deriving (Show, Eq)
+    , change :: f Coin
+    }
+
+deriving instance Eq (f Coin) => Eq (TxFeeAndChange f)
+deriving instance Show (f Coin) => Show (TxFeeAndChange f)

@@ -1495,8 +1495,8 @@ sizeOfCoin (Coin c)
 _distributeSurplus
     :: FeePolicy
     -> Coin -- ^ Surplus to distribute
-    -> TxFeeAndChange
-    -> Either ErrMoreSurplusNeeded TxFeeAndChange
+    -> TxFeeAndChange Maybe
+    -> Either ErrMoreSurplusNeeded (TxFeeAndChange Maybe)
 _distributeSurplus feePolicy surplus fc@(TxFeeAndChange _fee0 Nothing) =
     burnSurplusAsFees feePolicy surplus fc
 _distributeSurplus feePolicy surplus fc@(TxFeeAndChange fee0 (Just change0)) =
@@ -1567,8 +1567,8 @@ _distributeSurplus feePolicy surplus fc@(TxFeeAndChange fee0 (Just change0)) =
 burnSurplusAsFees
     :: FeePolicy
     -> Coin -- Surplus
-    -> TxFeeAndChange
-    -> Either ErrMoreSurplusNeeded TxFeeAndChange
+    -> TxFeeAndChange Maybe
+    -> Either ErrMoreSurplusNeeded (TxFeeAndChange Maybe)
 burnSurplusAsFees feePolicy surplus (TxFeeAndChange fee0 _) =
     case costOfBurningSurplus `Coin.subtract` surplus of
         Just shortfall -> Left $ ErrMoreSurplusNeeded shortfall
