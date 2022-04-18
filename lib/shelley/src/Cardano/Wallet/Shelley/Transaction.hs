@@ -229,6 +229,8 @@ import Data.Set
     ( Set )
 import Data.Type.Equality
     ( type (==) )
+import Data.Void
+    ( Void )
 import Data.Word
     ( Word16, Word64, Word8 )
 import GHC.Generics
@@ -1496,8 +1498,8 @@ sizeOfCoin (Coin c)
 _distributeSurplus
     :: FeePolicy
     -> Coin -- ^ Surplus to distribute
-    -> TxFeeAndChange Maybe
-    -> Either ErrMoreSurplusNeeded (TxFeeAndChange Maybe)
+    -> TxFeeAndChange (Maybe Coin)
+    -> Either ErrMoreSurplusNeeded (TxFeeAndChange (Maybe Coin))
 _distributeSurplus feePolicy surplus (TxFeeAndChange fee mChange) =
     case mChange of
         Just change ->
@@ -1512,8 +1514,8 @@ _distributeSurplus feePolicy surplus (TxFeeAndChange fee mChange) =
 distributeSurplusDeltaWithOneChangeCoin
     :: FeePolicy
     -> Coin -- ^ Surplus to distribute
-    -> TxFeeAndChange Solo
-    -> Either ErrMoreSurplusNeeded (TxFeeAndChange Solo)
+    -> TxFeeAndChange (Solo Coin)
+    -> Either ErrMoreSurplusNeeded (TxFeeAndChange (Solo Coin))
 distributeSurplusDeltaWithOneChangeCoin
     feePolicy surplus fc@(TxFeeAndChange fee0 (Solo change0)) =
     let
@@ -1584,8 +1586,8 @@ distributeSurplusDeltaWithOneChangeCoin
 burnSurplusAsFees
     :: FeePolicy
     -> Coin -- Surplus
-    -> TxFeeAndChange Empty
-    -> Either ErrMoreSurplusNeeded (TxFeeAndChange Empty)
+    -> TxFeeAndChange (Empty Void)
+    -> Either ErrMoreSurplusNeeded (TxFeeAndChange (Empty Void))
 burnSurplusAsFees feePolicy surplus (TxFeeAndChange fee0 _) =
     case costOfBurningSurplus `Coin.subtract` surplus of
         Just shortfall -> Left $ ErrMoreSurplusNeeded shortfall
