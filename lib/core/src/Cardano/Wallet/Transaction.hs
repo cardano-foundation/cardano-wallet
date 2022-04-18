@@ -267,16 +267,20 @@ data TransactionLayer k tx = TransactionLayer
         --
         -- This helper is used from 'balanceTransaction'.
         --
-        -- >>> distributeSurplus feePolicy (Coin 100) (TxFeeAndChange (Coin 200) (Coin 200))
+        -- >>> let surplus = Coin 100
+        -- >>> let feeAndChange = TxFeeAndChange (Coin 200) (Just (Coin 200))
+        -- >>> distributeSurplus feePolicy surplus feeAndChange
         -- TxFeeAndChange
         --    { fee = Coin 1
-        --    , change = Coin 99
+        --    , change = Just (Coin 99)
         --    }
         --
-        -- >>> distributeSurplus feePolicy (Coin 100) (TxFeeAndChange (Coin 255) (Coin 200))
+        -- >>> let surplus = Coin 100
+        -- >>> let feeAndChange = TxFeeAndChange (Coin 255) (Just (Coin 200))
+        -- >>> distributeSurplus feePolicy surplus feeAndChange
         -- TxFeeAndChange
         --    { fee = Coin 2
-        --    , change = Coin 98
+        --    , change = Just (Coin 98)
         --    }
         --
         -- Important note: the return value is a delta. In particular a returned
