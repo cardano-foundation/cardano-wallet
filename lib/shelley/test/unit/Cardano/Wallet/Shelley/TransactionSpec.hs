@@ -2334,7 +2334,7 @@ balanceTransactionSpec = do
                     (Coin 10)
                     (TxFeeAndChange (Coin 200) (Just $ Coin 255))
                     `shouldBe`
-                    Right (TxFeeAndChange (Coin 10) Nothing)
+                    Right (TxFeeAndChange (Coin 10) (Just $ Coin 0))
 
             it "will fail if neither the fee can be increased" $ do
                 _distributeSurplus
