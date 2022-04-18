@@ -190,7 +190,7 @@ import Cardano.Wallet.Transaction
     , withdrawalToCoin
     )
 import Cardano.Wallet.Util
-    ( Empty (..), internalError, modifyM )
+    ( Empty (..), Solo (..), internalError, modifyM )
 import Codec.Serialise
     ( deserialiseOrFail )
 import Control.Arrow
@@ -1498,23 +1498,35 @@ _distributeSurplus
     -> Coin -- ^ Surplus to distribute
     -> TxFeeAndChange Maybe
     -> Either ErrMoreSurplusNeeded (TxFeeAndChange Maybe)
-_distributeSurplus feePolicy surplus fc@(TxFeeAndChange _fee0 Nothing) =
-    burnSurplusAsFees feePolicy surplus
-        (mapTxFeeAndChange id (const Empty) fc)
-            <&> mapTxFeeAndChange id (\Empty -> Nothing)
-_distributeSurplus feePolicy surplus fc@(TxFeeAndChange fee0 (Just change0)) =
+_distributeSurplus feePolicy surplus (TxFeeAndChange fee mChange) =
+    case mChange of
+        Just change ->
+            distributeSurplusDeltaWithOneChangeCoin feePolicy surplus
+                (TxFeeAndChange fee (Solo change))
+                    <&> mapTxFeeAndChange id (Just . unSolo)
+        Nothing ->
+            burnSurplusAsFees feePolicy surplus
+                (TxFeeAndChange fee Empty)
+                    <&> mapTxFeeAndChange id (\Empty -> Nothing)
+
+distributeSurplusDeltaWithOneChangeCoin
+    :: FeePolicy
+    -> Coin -- ^ Surplus to distribute
+    -> TxFeeAndChange Solo
+    -> Either ErrMoreSurplusNeeded (TxFeeAndChange Solo)
+distributeSurplusDeltaWithOneChangeCoin
+    feePolicy surplus fc@(TxFeeAndChange fee0 (Solo change0)) =
     let
         -- We calculate the maximum possible fee increase, by assuming the
         -- **entire** surplus is added to the change.
         extraFee = findFixpointIncreasingFeeBy $
             costOfIncreasingCoin feePolicy change0 surplus
-
     in
         case surplus `Coin.subtract` extraFee of
             Just extraChange ->
                 Right $ TxFeeAndChange
                     { fee = extraFee
-                    , change = Just extraChange
+                    , change = Solo extraChange
                     }
             Nothing ->
                 -- The fee increase from adding the surplus to the change was
@@ -1522,7 +1534,7 @@ _distributeSurplus feePolicy surplus fc@(TxFeeAndChange fee0 (Just change0)) =
                 -- surplus is small.
                 burnSurplusAsFees feePolicy surplus
                     (mapTxFeeAndChange id (const Empty) fc)
-                        <&> mapTxFeeAndChange id (\Empty -> Just (Coin 0))
+                        <&> mapTxFeeAndChange id (\Empty -> Solo (Coin 0))
   where
     -- Increasing the fee may itself increase the fee. If that is the case, this
     -- function will increase the fee further. The process repeats until the fee
