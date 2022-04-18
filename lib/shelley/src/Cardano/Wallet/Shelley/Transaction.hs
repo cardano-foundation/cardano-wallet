@@ -54,6 +54,8 @@ module Cardano.Wallet.Shelley.Transaction
     , mkUnsignedTx
     , txConstraints
     , costOfIncreasingCoin
+    , distributeSurplusNew
+    , distributeSurplusDeltaNew
     , _distributeSurplus
     , sizeOfCoin
     , maximumCostOfIncreasingCoin
@@ -143,6 +145,7 @@ import Cardano.Wallet.Primitive.Types.Tx
     , TxSize (..)
     , sealedTxFromCardano'
     , sealedTxFromCardanoBody
+    , txOutAddCoin
     , txOutCoin
     , txSizeDistance
     )
@@ -222,7 +225,7 @@ import Data.Kind
 import Data.Map.Strict
     ( Map, (!) )
 import Data.Maybe
-    ( fromMaybe, mapMaybe )
+    ( fromMaybe, listToMaybe, mapMaybe )
 import Data.Quantity
     ( Quantity (..) )
 import Data.Set
@@ -1493,6 +1496,38 @@ sizeOfCoin (Coin c)
     | c >=           256 = TxSize 3 -- c >= 2^ 8
     | c >=            24 = TxSize 2
     | otherwise          = TxSize 1
+
+distributeSurplusNew
+    :: FeePolicy
+    -> Coin
+    -- ^ Surplus to distribute
+    -> TxFeeAndChange [TxOut]
+    -> Either ErrMoreSurplusNeeded (TxFeeAndChange [TxOut])
+distributeSurplusNew feePolicy surplus fc@(TxFeeAndChange fee change) =
+    distributeSurplusDeltaNew feePolicy surplus
+        (mapTxFeeAndChange id (fmap txOutCoin) fc)
+    <&> mapTxFeeAndChange
+        (fee <>)
+        (zipWith (flip txOutAddCoin) change)
+
+distributeSurplusDeltaNew
+    :: FeePolicy
+    -> Coin
+    -- ^ Surplus to distribute
+    -> TxFeeAndChange [Coin]
+    -> Either ErrMoreSurplusNeeded (TxFeeAndChange [Coin])
+distributeSurplusDeltaNew feePolicy surplus (TxFeeAndChange fee change) =
+    case listToMaybe change of
+        Just firstChange ->
+            distributeSurplusDeltaWithOneChangeCoin feePolicy surplus
+                (TxFeeAndChange fee (Solo firstChange))
+            <&> mapTxFeeAndChange id
+                ((: replicate (length change - 1) (Coin 0)) . unSolo)
+        Nothing ->
+            burnSurplusAsFees feePolicy surplus
+                (TxFeeAndChange fee Empty)
+            <&> mapTxFeeAndChange id
+                (\Empty -> [])
 
 -- | Actual implementation for 'distributeSurplus'.
 _distributeSurplus
