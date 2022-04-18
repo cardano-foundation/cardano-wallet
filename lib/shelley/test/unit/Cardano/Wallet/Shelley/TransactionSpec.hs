@@ -2361,16 +2361,7 @@ balanceTransactionSpec = do
 
 prop_extraFee_coversIncreaseToFeeRequirement
     :: Coin -> Coin -> Maybe Coin -> Property
-prop_extraFee_coversIncreaseToFeeRequirement surplus fee0 mchange0 = do
-    let feePolicy = LinearFee $ LinearFunction
-            { intercept = 0, slope = 44 }
-    let mres = _distributeSurplus
-            feePolicy
-            surplus
-            (TxFeeAndChange fee0 mchange0)
-
-    let maxCoinCost = maximumCostOfIncreasingCoin feePolicy
-
+prop_extraFee_coversIncreaseToFeeRequirement surplus fee0 mchange0 =
     counterexample (show mres) $ case mres of
         Left _ ->
             label "unable to distribute surplus" $
@@ -2392,6 +2383,10 @@ prop_extraFee_coversIncreaseToFeeRequirement surplus fee0 mchange0 = do
                 , fromMaybe mempty extraChange <> extraFee
                     === surplus
                 ]
+  where
+    feePolicy = LinearFee LinearFunction { intercept = 0, slope = 44 }
+    mres = _distributeSurplus feePolicy surplus (TxFeeAndChange fee0 mchange0)
+    maxCoinCost = maximumCostOfIncreasingCoin feePolicy
 
 -- https://mail.haskell.org/pipermail/haskell-cafe/2016-August/124742.html
 mkGen :: (QCGen -> a) -> Gen a
