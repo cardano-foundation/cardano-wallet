@@ -1522,7 +1522,7 @@ _distributeSurplus feePolicy surplus fc@(TxFeeAndChange fee0 (Just change0)) =
                 -- surplus is small.
                 burnSurplusAsFees feePolicy surplus
                     (mapTxFeeAndChange id (const Empty) fc)
-                        <&> mapTxFeeAndChange id (\Empty -> Nothing)
+                        <&> mapTxFeeAndChange id (\Empty -> Just (Coin 0))
   where
     -- Increasing the fee may itself increase the fee. If that is the case, this
     -- function will increase the fee further. The process repeats until the fee
