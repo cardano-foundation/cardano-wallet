@@ -257,6 +257,14 @@ data TransactionLayer k tx = TransactionLayer
         --
         -- Returns `Nothing` for ByronEra transactions.
 
+    , distributeSurplusNew
+        :: FeePolicy
+        -> Coin
+        -- ^ Surplus to distribute
+        -> TxFeeAndChange [TxOut]
+        -- ^ Fee and change outputs
+        -> Either ErrMoreSurplusNeeded (TxFeeAndChange [TxOut])
+
     , distributeSurplus
         :: FeePolicy
         -> Coin -- Surplus to distribute
