@@ -2383,6 +2383,14 @@ components:
       properties:
         passphrase: *walletPassphrase
 
+    ApiPostPolicyIdData: &ApiPostPolicyIdData
+      type: object
+      required:
+        - policy_script_template
+      properties:
+        policy_script_template: *ScriptTemplateValue
+        asset_name: *assetName
+
     ApiTxId: &ApiTxId
       type: object
       required:
@@ -5304,6 +5312,24 @@ x-responsesPostPolicyKey: &responsesPostPolicyKey
       application/json:
         schema: *ApiPolicyKey
 
+x-responsesPostPolicyId: &responsesPostPolicyId
+  <<: *responsesErr400
+  403:
+    description: Forbidden
+    content:
+      application/json:
+        schema:
+          oneOf:
+            - <<: *errInvalidWalletType
+            - <<: *errMissingPolicyPublicKey
+  <<: *responsesErr406
+  <<: *responsesErr415
+  202:
+    description: Accepted
+    content:
+      application/json:
+        schema: *ApiPolicyId
+
 x-responsesGetPolicyKey: &responsesGetPolicyKey
   <<: *responsesErr400
   403:
@@ -6068,6 +6094,25 @@ paths:
         - *parametersRole
         - *parametersDerivationSegment
       responses: *responsesGetShelleyKey
+
+  /wallets/{walletId}/policy-id:
+    post:
+      operationId: postPolicyId
+      tags: ["Keys"]
+      summary: Create Policy Id
+      description: |
+        <p align="right">status: <strong>stable</strong></p>
+
+        Create policy id for the wallet given a mint/burn script.
+
+      parameters:
+        - *parametersWalletId
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema: *ApiPostPolicyIdData
+      responses: *responsesPostPolicyId
 
   /wallets/{walletId}/policy-key:
     post:
