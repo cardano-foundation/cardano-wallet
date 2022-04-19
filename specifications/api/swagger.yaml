@@ -5360,6 +5360,8 @@ x-responsesPostPolicyId: &responsesPostPolicyId
           oneOf:
             - <<: *errInvalidWalletType
             - <<: *errMissingPolicyPublicKey
+            - <<: *errCreatedWrongPolicyScriptTemplate
+            - <<: *errAssetNameTooLong
   <<: *responsesErr406
   <<: *responsesErr415
   202:

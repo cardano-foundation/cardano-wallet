@@ -46,6 +46,7 @@ import Cardano.Wallet.Api.Types
     , ApiDecodedTransaction
     , ApiDeregisterPool (..)
     , ApiExternalCertificate (..)
+    , ApiPolicyId
     , ApiPolicyKey (..)
     , ApiRegisterPool (..)
     , ApiSerialisedTransaction (..)
@@ -195,7 +196,8 @@ import Test.Integration.Framework.DSL
 import Test.Integration.Framework.TestData
     ( errMsg403AssetNameTooLong
     , errMsg403Collateral
-    , errMsg403CreatedWrongPolicyScriptTemplate
+    , errMsg403CreatedWrongPolicyScriptTemplatePolicyId
+    , errMsg403CreatedWrongPolicyScriptTemplateTx
     , errMsg403Fee
     , errMsg403ForeignTransaction
     , errMsg403InvalidConstructTx
@@ -3090,7 +3092,7 @@ spec = describe "NEW_SHELLEY_TRANSACTIONS" $ do
             (Link.createUnsignedTransaction @'Shelley wa) Default payload
         verify rTx
             [ expectResponseCode HTTP.status403
-            , expectErrorMessage errMsg403CreatedWrongPolicyScriptTemplate
+            , expectErrorMessage errMsg403CreatedWrongPolicyScriptTemplateTx
             ]
 
     it "TRANS_NEW_CREATE_10b - Minting/burning assets - incorrect template \
@@ -3123,7 +3125,7 @@ spec = describe "NEW_SHELLEY_TRANSACTIONS" $ do
             (Link.createUnsignedTransaction @'Shelley wa) Default payload
         verify rTx
             [ expectResponseCode HTTP.status403
-            , expectErrorMessage errMsg403CreatedWrongPolicyScriptTemplate
+            , expectErrorMessage errMsg403CreatedWrongPolicyScriptTemplateTx
             ]
 
     it "TRANS_NEW_CREATE_10c - Minting/burning assets - \
@@ -3158,7 +3160,7 @@ spec = describe "NEW_SHELLEY_TRANSACTIONS" $ do
             (Link.createUnsignedTransaction @'Shelley wa) Default payload
         verify rTx
             [ expectResponseCode HTTP.status403
-            , expectErrorMessage errMsg403CreatedWrongPolicyScriptTemplate
+            , expectErrorMessage errMsg403CreatedWrongPolicyScriptTemplateTx
             ]
 
     it "TRANS_NEW_CREATE_10l - Minting when assetName too long" $
@@ -3507,6 +3509,26 @@ spec = describe "NEW_SHELLEY_TRANSACTIONS" $ do
                 , expectField (#assets . #total . #getApiT)
                     (`shouldBe` tokens')
                 ]
+
+    it "TRANS_NEW_CREATE_11 - Get policy id - incorrect template \
+        \" $ \ctx -> runResourceT $ do
+        wa <- fixtureWallet ctx
+        let payload = Json [json|{
+                "policy_script_template":
+                    { "all":
+                       [ { "active_from": 120 }
+                       ]
+                    },
+                "asset_name": "ab12"
+                }|]
+
+        let postPolicyId = Link.postPolicyId @'Shelley wa
+        rGet <- request @ApiPolicyId ctx postPolicyId Default payload
+        verify rGet
+            [ expectResponseCode HTTP.status403
+            , expectErrorMessage errMsg403CreatedWrongPolicyScriptTemplatePolicyId
+            ]
+
   where
 
     -- | Just one million Ada, in Lovelace.
