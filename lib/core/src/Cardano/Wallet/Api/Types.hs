@@ -140,6 +140,7 @@ module Cardano.Wallet.Api.Types
     , ApiWalletSignData (..)
     , ApiVerificationKeyShelley (..)
     , ApiPolicyKey (..)
+    , ApiPolicyId (..)
     , ApiPostPolicyKeyData (..)
     , ApiVerificationKeyShared (..)
     , ApiScriptTemplateEntry (..)
@@ -566,6 +567,11 @@ newtype ApiMaintenanceAction = ApiMaintenanceAction
     }
     deriving (Eq, Generic)
     deriving Show via (Quiet ApiMaintenanceAction)
+
+newtype ApiPolicyId = ApiPolicyId
+    { getPolicyId :: ApiT W.TokenPolicyId
+    }
+    deriving (Eq, Generic, Show)
 
 data ApiAsset = ApiAsset
     { policyId :: ApiT W.TokenPolicyId
