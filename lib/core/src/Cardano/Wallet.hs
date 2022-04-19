@@ -433,7 +433,6 @@ import Cardano.Wallet.Primitive.Types.Tx
     , TxStatus (..)
     , UnsignedTx (..)
     , fromTransactionInfo
-    , txOutAddCoin
     , txOutCoin
     , withdrawals
     )
@@ -461,8 +460,6 @@ import Cardano.Wallet.Transaction
     , defaultTransactionCtx
     , withdrawalToCoin
     )
-import Cardano.Wallet.Util
-    ( mapFirst )
 import Control.Applicative
     ( (<|>) )
 import Control.Arrow
@@ -539,7 +536,7 @@ import Data.List.NonEmpty
 import Data.Map.Strict
     ( Map )
 import Data.Maybe
-    ( fromMaybe, isJust, listToMaybe, mapMaybe )
+    ( fromMaybe, isJust, mapMaybe )
 import Data.Proxy
     ( Proxy )
 import Data.Quantity
@@ -1702,26 +1699,22 @@ balanceTransactionWithSelectionStrategy
 
     let feeAndChange = TxFeeAndChange
             (unsafeFromLovelace candidateMinFee)
-            (txOutCoin <$> listToMaybe extraOutputs)
+            (extraOutputs)
     let feePolicy = view (#txParameters . #getFeePolicy) pp
 
     -- @distributeSurplus@ should never fail becase we have provided enough
     -- padding in @selectAssets'@.
-    TxFeeAndChange extraFee extraChange <-
-        withExceptT
-            (\(ErrMoreSurplusNeeded c) ->
-                ErrBalanceTxNotYetSupported $ UnderestimatedFee c candidateTx)
-            (ExceptT . pure $
-                distributeSurplus tl feePolicy surplus feeAndChange)
+    TxFeeAndChange updatedFee updatedChange <- withExceptT
+        (\(ErrMoreSurplusNeeded c) ->
+            ErrBalanceTxNotYetSupported $ UnderestimatedFee c candidateTx)
+        (ExceptT . pure $
+            distributeSurplusNew tl feePolicy surplus feeAndChange)
 
     guardTxSize =<< guardTxBalanced =<< (assembleTransaction $ TxUpdate
         { extraInputs
         , extraCollateral
-        , extraOutputs = mapFirst
-            (txOutAddCoin $ fromMaybe (Coin 0) extraChange)
-            extraOutputs
-        , feeUpdate = UseNewTxFee
-            (unsafeFromLovelace candidateMinFee <> extraFee)
+        , extraOutputs = updatedChange
+        , feeUpdate = UseNewTxFee updatedFee
         })
   where
     tl = ctx ^. transactionLayer @k
