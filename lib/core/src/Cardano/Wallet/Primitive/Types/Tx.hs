@@ -67,6 +67,7 @@ module Cardano.Wallet.Primitive.Types.Tx
     , txMetadataIsNull
     , txOutCoin
     , txOutAddCoin
+    , txOutSubtractCoin
     , failedScriptValidation
 
     -- * Constants
@@ -144,7 +145,7 @@ import Data.Either
 import Data.Function
     ( on, (&) )
 import Data.Generics.Internal.VL.Lens
-    ( view )
+    ( over, view )
 import Data.Generics.Labels
     ()
 import Data.Int
@@ -330,10 +331,28 @@ data TxOut = TxOut
 txOutCoin :: TxOut -> Coin
 txOutCoin = TokenBundle.getCoin . view #tokens
 
--- Add a fixed coin value to an existing output.
+-- | Increments the 'Coin' value of a 'TxOut'.
+--
+-- Satisfies the following property for all values of 'c':
+--
+-- >>> txOutSubtractCoin c . txOutAddCoin c == id
+--
 txOutAddCoin :: Coin -> TxOut -> TxOut
 txOutAddCoin val (TxOut addr tokens) =
     TxOut addr (tokens <> TokenBundle.fromCoin val)
+
+-- | Decrements the 'Coin' value of a 'TxOut'.
+--
+-- Satisfies the following property for all values of 'c':
+--
+-- >>> txOutSubtractCoin c . txOutAddCoin c == id
+--
+-- If the given 'Coin' is greater than the 'Coin' value of the given 'TxOut',
+-- the resulting 'TxOut' will have a 'Coin' value of zero.
+--
+txOutSubtractCoin :: Coin -> TxOut -> TxOut
+txOutSubtractCoin toSubtract =
+    over (#tokens . #coin) (`Coin.difference` toSubtract)
 
 -- Since the 'TokenBundle' type deliberately does not provide an 'Ord' instance
 -- (as that would lead to arithmetically invalid orderings), this means we can't
