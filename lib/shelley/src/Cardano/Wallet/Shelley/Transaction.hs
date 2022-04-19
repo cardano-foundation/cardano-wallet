@@ -1495,12 +1495,19 @@ sizeOfCoin (Coin c)
     | c >=            24 = TxSize 2
     | otherwise          = TxSize 1
 
+-- | Distributes a surplus transaction balance between the given change outputs
+--   and the given fee.
+--
+-- See documentation for 'TransactionLayer.distributeSurplus' for more details.
+--
 _distributeSurplus
     :: FeePolicy
     -> Coin
-    -- ^ Surplus to distribute
+    -- ^ Surplus transaction balance to distribute.
     -> TxFeeAndChange [TxOut]
+    -- ^ Original fee and change outputs.
     -> Either ErrMoreSurplusNeeded (TxFeeAndChange [TxOut])
+    -- ^ Adjusted fee and change outputs.
 _distributeSurplus feePolicy surplus fc@(TxFeeAndChange fee change) =
     distributeSurplusDelta feePolicy surplus
         (mapTxFeeAndChange id (fmap txOutCoin) fc)
