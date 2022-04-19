@@ -54,7 +54,7 @@ module Cardano.Wallet.Shelley.Transaction
     , mkUnsignedTx
     , txConstraints
     , costOfIncreasingCoin
-    , distributeSurplusNew
+    , _distributeSurplusNew
     , distributeSurplusDeltaNew
     , _distributeSurplus
     , sizeOfCoin
@@ -632,6 +632,7 @@ newTransactionLayer networkId = TransactionLayer
     , maxScriptExecutionCost =
         _maxScriptExecutionCost
 
+    , distributeSurplusNew = _distributeSurplusNew
 
     , distributeSurplus = _distributeSurplus
 
@@ -1497,13 +1498,13 @@ sizeOfCoin (Coin c)
     | c >=            24 = TxSize 2
     | otherwise          = TxSize 1
 
-distributeSurplusNew
+_distributeSurplusNew
     :: FeePolicy
     -> Coin
     -- ^ Surplus to distribute
     -> TxFeeAndChange [TxOut]
     -> Either ErrMoreSurplusNeeded (TxFeeAndChange [TxOut])
-distributeSurplusNew feePolicy surplus fc@(TxFeeAndChange fee change) =
+_distributeSurplusNew feePolicy surplus fc@(TxFeeAndChange fee change) =
     distributeSurplusDeltaNew feePolicy surplus
         (mapTxFeeAndChange id (fmap txOutCoin) fc)
     <&> mapTxFeeAndChange
