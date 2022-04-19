@@ -1361,8 +1361,6 @@ dummyTransactionLayer = TransactionLayer
         error "dummyTransactionLayer: evaluateMinimumFee not implemented"
     , distributeSurplusNew =
         error "dummyTransactionLayer: distributeSurplusNew not implemented"
-    , distributeSurplus =
-        error "dummyTransactionLayer: distributeSurplus not implemented"
     , estimateSignedTxSize =
         error "dummyTransactionLayer: \
               \estimateSignedTxSize not implemented"
