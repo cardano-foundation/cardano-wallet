@@ -56,7 +56,6 @@ module Cardano.Wallet.Shelley.Transaction
     , costOfIncreasingCoin
     , _distributeSurplusNew
     , distributeSurplusDeltaNew
-    , _distributeSurplus
     , sizeOfCoin
     , maximumCostOfIncreasingCoin
     ) where
@@ -633,8 +632,6 @@ newTransactionLayer networkId = TransactionLayer
         _maxScriptExecutionCost
 
     , distributeSurplusNew = _distributeSurplusNew
-
-    , distributeSurplus = _distributeSurplus
 
     , assignScriptRedeemers =
         _assignScriptRedeemers
@@ -1529,23 +1526,6 @@ distributeSurplusDeltaNew feePolicy surplus (TxFeeAndChange fee change) =
                 (TxFeeAndChange fee Empty)
             <&> mapTxFeeAndChange id
                 (\Empty -> [])
-
--- | Actual implementation for 'distributeSurplus'.
-_distributeSurplus
-    :: FeePolicy
-    -> Coin -- ^ Surplus to distribute
-    -> TxFeeAndChange (Maybe Coin)
-    -> Either ErrMoreSurplusNeeded (TxFeeAndChange (Maybe Coin))
-_distributeSurplus feePolicy surplus (TxFeeAndChange fee mChange) =
-    case mChange of
-        Just change ->
-            distributeSurplusDeltaWithOneChangeCoin feePolicy surplus
-                (TxFeeAndChange fee (Solo change))
-                    <&> mapTxFeeAndChange id (Just . unSolo)
-        Nothing ->
-            burnSurplusAsFees feePolicy surplus
-                (TxFeeAndChange fee Empty)
-                    <&> mapTxFeeAndChange id (\Empty -> Nothing)
 
 distributeSurplusDeltaWithOneChangeCoin
     :: FeePolicy
