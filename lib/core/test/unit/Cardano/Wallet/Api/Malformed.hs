@@ -59,6 +59,7 @@ import Cardano.Wallet.Api.Types
     , ApiPoolId
     , ApiPostAccountKeyData
     , ApiPostAccountKeyDataWithPurpose
+    , ApiPostPolicyIdData
     , ApiPostPolicyKeyData
     , ApiPostRandomAddressData
     , ApiPutAddressesData
@@ -1596,6 +1597,26 @@ instance Malformed (BodyParam ApiPostRandomAddressData) where
           )
         , ( [aesonQQ|
             { "address_index": 0
+            }|]
+          , "Error in $: parsing Cardano.Wallet.Api.Types.ApiPostRandomAddressData(ApiPostRandomAddressData) failed, key 'passphrase' not found"
+          )
+        ]
+
+instance Malformed (BodyParam ApiPostPolicyIdData) where
+    malformed = first (BodyParam . Aeson.encode) <$>
+        [ ( [aesonQQ|
+            { "passphrase": "Secure Passphrase"
+            }|]
+          , "Error in $['address_index']: parsing Int failed, expected Number, but encountered String"
+          )
+        , ( [aesonQQ|
+            { "asset_name": "aaaaaa"
+            , "policy_script_template": ""
+            }|]
+          , "Error in $: parsing Cardano.Wallet.Api.Types.ApiPostRandomAddressData(ApiPostRandomAddressData) failed, key 'passphrase' not found"
+          )
+        , ( [aesonQQ|
+            { "asset_name": 0
             }|]
           , "Error in $: parsing Cardano.Wallet.Api.Types.ApiPostRandomAddressData(ApiPostRandomAddressData) failed, key 'passphrase' not found"
           )

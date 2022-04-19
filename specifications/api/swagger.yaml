@@ -2383,6 +2383,13 @@ components:
       properties:
         passphrase: *walletPassphrase
 
+    ApiPolicyId: &ApiPolicyId
+      type: object
+      required:
+        - policy_id
+      properties:
+        policy_id: *assetPolicyId
+
     ApiPostPolicyIdData: &ApiPostPolicyIdData
       type: object
       required:
@@ -6103,7 +6110,7 @@ paths:
       description: |
         <p align="right">status: <strong>stable</strong></p>
 
-        Create policy id for the wallet given a mint/burn script.
+        Create policy id for the wallet and a given mint/burn script.
 
       parameters:
         - *parametersWalletId

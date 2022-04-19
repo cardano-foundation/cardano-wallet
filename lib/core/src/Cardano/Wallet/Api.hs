@@ -39,6 +39,7 @@ module Cardano.Wallet.Api
         , GetAccountKey
         , GetPolicyKey
         , PostPolicyKey
+        , PostPolicyId
 
     , Assets
         , ListAssets
@@ -188,10 +189,12 @@ import Cardano.Wallet.Api.Types
     , ApiNetworkClock
     , ApiNetworkInformation
     , ApiNetworkParameters
+    , ApiPolicyId
     , ApiPolicyKey
     , ApiPoolId
     , ApiPostAccountKeyData
     , ApiPostAccountKeyDataWithPurpose
+    , ApiPostPolicyIdData
     , ApiPostPolicyKeyData
     , ApiPostRandomAddressData
     , ApiPutAddressesDataT
@@ -399,6 +402,7 @@ type WalletKeys =
     :<|> GetAccountKey
     :<|> GetPolicyKey
     :<|> PostPolicyKey
+    :<|> PostPolicyId
 
 -- | https://input-output-hk.github.io/cardano-wallet/api/#operation/getWalletKey
 type GetWalletKey = "wallets"
@@ -447,6 +451,13 @@ type PostPolicyKey = "wallets"
     :> QueryParam "hash" Bool
     :> ReqBody '[JSON] ApiPostPolicyKeyData
     :> PostAccepted '[JSON] ApiPolicyKey
+
+-- | https://input-output-hk.github.io/cardano-wallet/api/#operation/postPolicyId
+type PostPolicyId = "wallets"
+    :> Capture "walletId" (ApiT WalletId)
+    :> "policy-id"
+    :> ReqBody '[JSON] ApiPostPolicyIdData
+    :> PostAccepted '[JSON] ApiPolicyId
 
 {-------------------------------------------------------------------------------
                                   Assets
