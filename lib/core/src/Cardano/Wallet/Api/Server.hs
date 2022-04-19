@@ -96,6 +96,7 @@ module Cardano.Wallet.Api.Server
     , submitTransaction
     , getPolicyKey
     , postPolicyKey
+    , postPolicyId
 
     -- * Server error responses
     , IsServerError(..)
@@ -207,6 +208,8 @@ import Cardano.Wallet.Api.Types
     , ApiAccountPublicKey (..)
     , ApiActiveSharedWallet (..)
     , ApiAddress (..)
+    , ApiPostPolicyIdData
+    , ApiPolicyId
     , ApiAnyCertificate (..)
     , ApiAsset (..)
     , ApiAssetMintBurn (..)
@@ -3483,6 +3486,13 @@ postPolicyKey ctx (ApiT wid) hashed apiPassphrase =
         pure $ uncurry ApiPolicyKey (computeKeyPayload hashed (getRawKey k))
   where
     pwd = getApiT (apiPassphrase ^. #passphrase)
+
+postPolicyId
+    :: forall ctx. ctx
+    -> ApiT WalletId
+    -> ApiPostPolicyIdData
+    -> Handler ApiPolicyId
+postPolicyId _ctx (ApiT _wid) _payload = undefined
 
 {-------------------------------------------------------------------------------
                                   Helpers
