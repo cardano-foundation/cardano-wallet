@@ -149,6 +149,7 @@ import Cardano.Wallet
     , ErrDecodeTx (..)
     , ErrDerivePublicKey (..)
     , ErrFetchRewards (..)
+    , ErrGetPolicyId (..)
     , ErrGetTransaction (..)
     , ErrImportAddress (..)
     , ErrImportRandomAddress (..)
@@ -3471,7 +3472,15 @@ postPolicyId
     -> ApiT WalletId
     -> ApiPostPolicyIdData
     -> Handler ApiPolicyId
-postPolicyId _ctx (ApiT _wid) _payload = undefined
+postPolicyId _ctx (ApiT _wid) payload = do
+    let retrieveAllCosigners = foldScript (:) []
+    let wrongMintingTemplate (ApiT scriptTempl) =
+            isLeft (validateScriptOfTemplate RecommendedValidation scriptTempl)
+            || length (retrieveAllCosigners scriptTempl) > 1
+            || (L.any (/= Cosigner 0)) (retrieveAllCosigners scriptTempl)
+    when ( wrongMintingTemplate (payload ^. #policyScriptTemplate) ) $
+        liftHandler $ throwE ErrGetPolicyIdWrongMintingBurningTemplate
+    undefined
 
 {-------------------------------------------------------------------------------
                                   Helpers
@@ -4279,6 +4288,22 @@ instance IsServerError ErrConstructTx where
         ErrConstructTxNotImplemented _ ->
             apiError err501 NotImplemented
                 "This feature is not yet implemented."
+
+instance IsServerError ErrGetPolicyId where
+    toServerError = \case
+        ErrGetPolicyIdReadPolicyPubliKey e -> toServerError e
+        ErrGetPolicyIdWrongMintingBurningTemplate ->
+            apiError err403 CreatedWrongPolicyScriptTemplate $ mconcat
+            [ "It looks like policy id is requested for a "
+            , "policy script that either does not pass validation, contains "
+            , "more than one cosigner, or has a cosigner that is different "
+            , "from cosigner#0."
+            ]
+        ErrGetPolicyIdAssetNameTooLong ->
+            apiError err403 AssetNameTooLong $ mconcat
+            [ "It looks like policy id is requested for "
+            , "an asset name that is too long. The maximum length is 32 bytes."
+            ]
 
 instance IsServerError ErrDecodeTx where
     toServerError = \case

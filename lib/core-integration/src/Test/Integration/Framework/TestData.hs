@@ -105,7 +105,8 @@ module Test.Integration.Framework.TestData
     , errMsg403MissingWitsInTransaction
     , errMsg403MultidelegationTransaction
     , errMsg403MultiaccountTransaction
-    , errMsg403CreatedWrongPolicyScriptTemplate
+    , errMsg403CreatedWrongPolicyScriptTemplateTx
+    , errMsg403CreatedWrongPolicyScriptTemplatePolicyId
     , errMsg403AssetNameTooLong
     , errMsg403MintOrBurnAssetQuantityOutOfBounds
     ) where
@@ -172,7 +173,7 @@ specMnemonicSecondFactor = ["squirrel", "material", "silly", "twice",
     "direct", "slush", "pistol", "razor", "become"]
 
 japaneseMnemonics12 :: [Text]
-japaneseMnemonics12 = ["そうだん",　"ひよう",　"にもつ",　"やさしい",　"きふく",　
+japaneseMnemonics12 = ["そうだん",　"ひよう",　"にもつ",　"やさしい",　"きふく",
     "ねつい",　"だったい",　"けんてい",　"けいろ",　"ざつがく",　"ほうもん",　"すこし"]
 
 japaneseMnemonics15 :: [Text]
@@ -672,9 +673,16 @@ errMsg403MultiaccountTransaction = mconcat
     , "Please use delegation action engaging '0H' account."
     ]
 
-errMsg403CreatedWrongPolicyScriptTemplate :: String
-errMsg403CreatedWrongPolicyScriptTemplate = mconcat
+errMsg403CreatedWrongPolicyScriptTemplateTx :: String
+errMsg403CreatedWrongPolicyScriptTemplateTx = mconcat
     [ "It looks like I've created a transaction with a minting/burning "
+    , "policy script that either does not pass validation, contains more "
+    , "than one cosigner, or has a cosigner that is different from cosigner#0."
+    ]
+
+errMsg403CreatedWrongPolicyScriptTemplatePolicyId :: String
+errMsg403CreatedWrongPolicyScriptTemplatePolicyId = mconcat
+    [ "It looks like policy id is requested for a "
     , "policy script that either does not pass validation, contains more "
     , "than one cosigner, or has a cosigner that is different from cosigner#0."
     ]
