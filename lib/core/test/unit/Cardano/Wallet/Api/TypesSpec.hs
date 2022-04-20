@@ -2292,7 +2292,6 @@ instance Arbitrary ApiPostPolicyIdData where
                 , ActiveUntilSlot 150
                 ]
             ]
-        <*> arbitrary
 
 instance ToSchema ApiPostPolicyIdData where
     declareNamedSchema _ = declareSchemaForDefinition "ApiPostPolicyIdData"

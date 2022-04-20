@@ -571,14 +571,11 @@ newtype ApiMaintenanceAction = ApiMaintenanceAction
 
 newtype ApiPolicyId = ApiPolicyId
     {  policyId :: ApiT W.TokenPolicyId
-    }
-    deriving (Eq, Generic, Show)
-
-data ApiPostPolicyIdData = ApiPostPolicyIdData
-    { policyScriptTemplate :: !(ApiT (Script Cosigner))
-    , assetName :: !(Maybe (ApiT W.TokenName))
     } deriving (Eq, Generic, Show)
-      deriving anyclass NFData
+
+newtype ApiPostPolicyIdData = ApiPostPolicyIdData
+    { policyScriptTemplate :: (ApiT (Script Cosigner))
+    } deriving (Eq, Generic, Show)
 
 data ApiAsset = ApiAsset
     { policyId :: ApiT W.TokenPolicyId
