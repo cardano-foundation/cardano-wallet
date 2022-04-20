@@ -2434,16 +2434,27 @@ prop_distributeSurplusDelta_coversCostIncreaseAndConservesSurplus
 --------------------------------------------------------------------------------
 
 instance Arbitrary FeePolicy where
-    arbitrary = do
-        intercept <- frequency
-            [ (1, pure 0.0)
-            , (3, getPositive <$> arbitrary)
-            ]
-        slope <- frequency
-            [ (1, pure 0.0)
-            , (3, getPositive <$> arbitrary)
-            ]
-        pure $ LinearFee LinearFunction {intercept, slope}
+    arbitrary = frequency
+        [ (1, feePolicyMainnet)
+        , (7, feePolicyGeneral)
+        ]
+      where
+        feePolicyMainnet :: Gen FeePolicy
+        feePolicyMainnet = pure $ LinearFee $ LinearFunction
+            {intercept = 150_000, slope = 44}
+
+        feePolicyGeneral :: Gen FeePolicy
+        feePolicyGeneral = do
+            intercept <- frequency
+                [ (1, pure 0.0)
+                , (3, getPositive <$> arbitrary)
+                ]
+            slope <- frequency
+                [ (1, pure 0.0)
+                , (3, getPositive <$> arbitrary)
+                ]
+            pure $ LinearFee LinearFunction {intercept, slope}
+
     shrink (LinearFee LinearFunction {intercept, slope}) =
         LinearFee . uncurry LinearFunction
             <$> shrink (intercept, slope)
