@@ -112,9 +112,11 @@ import Cardano.Wallet.Api.Types
     , ApiOurStakeKey
     , ApiPaymentDestination (..)
     , ApiPendingSharedWallet (..)
+    , ApiPolicyId (..)
     , ApiPolicyKey (..)
     , ApiPostAccountKeyData (..)
     , ApiPostAccountKeyDataWithPurpose
+    , ApiPostPolicyIdData (..)
     , ApiPostPolicyKeyData (..)
     , ApiPostRandomAddressData
     , ApiPutAddressesData (..)
@@ -476,6 +478,7 @@ spec = parallel $ do
             jsonRoundtripAndGolden $ Proxy @ApiPostAccountKeyDataWithPurpose
             jsonRoundtripAndGolden $ Proxy @ApiAccountKey
             jsonRoundtripAndGolden $ Proxy @ApiPolicyKey
+            jsonRoundtripAndGolden $ Proxy @ApiPolicyId
             jsonRoundtripAndGolden $ Proxy @ApiAccountKeyShared
             jsonRoundtripAndGolden $ Proxy @ApiEpochInfo
             jsonRoundtripAndGolden $ Proxy @(ApiSelectCoinsData ('Testnet 0))
@@ -492,6 +495,7 @@ spec = parallel $ do
             jsonRoundtripAndGolden $ Proxy @ApiNetworkParameters
             jsonRoundtripAndGolden $ Proxy @ApiEraInfo
             jsonRoundtripAndGolden $ Proxy @ApiEra
+            jsonRoundtripAndGolden $ Proxy @ApiPostPolicyIdData
             jsonRoundtripAndGolden $ Proxy @ApiNetworkClock
             jsonRoundtripAndGolden $ Proxy @ApiWalletDelegation
             jsonRoundtripAndGolden $ Proxy @ApiHealthCheck
@@ -1966,6 +1970,12 @@ instance Arbitrary ApiPolicyKey where
 instance ToSchema ApiPolicyKey where
     declareNamedSchema _ = declareSchemaForDefinition "ApiPolicyKey"
 
+instance Arbitrary ApiPolicyId where
+    arbitrary = ApiPolicyId <$> arbitrary
+
+instance ToSchema ApiPolicyId where
+    declareNamedSchema _ = declareSchemaForDefinition "ApiPolicyId"
+
 instance Arbitrary ApiVerificationKeyShelley where
     arbitrary = do
         hashing <- elements [WithHashing, WithoutHashing]
@@ -2261,6 +2271,26 @@ instance Arbitrary ApiAssetMintBurn where
             <$> arbitrary
             <*> arbitrary
             <*> pure (Just keyix)
+
+instance Arbitrary ApiPostPolicyIdData where
+    arbitrary = ApiPostPolicyIdData
+        <$> elements
+            [ ApiT $ RequireSignatureOf (Cosigner 0)
+            , ApiT $ RequireAllOf
+                [ RequireSignatureOf (Cosigner 0)
+                , ActiveFromSlot 100
+                ]
+            , ApiT $ RequireAllOf
+                [ RequireSignatureOf (Cosigner 0)
+                , ActiveFromSlot 100
+                , ActiveUntilSlot 150
+                ]
+            ]
+
+instance ToSchema ApiPostPolicyIdData where
+    declareNamedSchema _ = do
+        addDefinition =<< declareSchemaForDefinition "ScriptTemplateValue"
+        declareSchemaForDefinition "ApiPostPolicyIdData"
 
 instance Arbitrary (ApiMintBurnData n) where
     arbitrary = ApiMintBurnData

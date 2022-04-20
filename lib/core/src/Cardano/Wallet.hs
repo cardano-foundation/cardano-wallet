@@ -94,6 +94,7 @@ module Cardano.Wallet
     , ErrReadRewardAccount (..)
     , ErrReadPolicyPublicKey (..)
     , ErrWritePolicyPublicKey (..)
+    , ErrGetPolicyId (..)
 
     -- * Shared Wallet
     , updateCosigner
@@ -3465,6 +3466,12 @@ data ErrConstructTx
     | ErrConstructTxMintOrBurnAssetQuantityOutOfBounds
     | ErrConstructTxNotImplemented String
     -- ^ Temporary error constructor.
+    deriving (Show, Eq)
+
+-- | Errors that can occur when getting policy id.
+data ErrGetPolicyId
+    = ErrGetPolicyIdReadPolicyPubliKey ErrReadPolicyPublicKey
+    | ErrGetPolicyIdWrongMintingBurningTemplate
     deriving (Show, Eq)
 
 newtype ErrMintBurnAssets

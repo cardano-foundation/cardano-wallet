@@ -56,6 +56,7 @@ module Cardano.Wallet.Api.Link
     , getAccountKey
     , getPolicyKey
     , postPolicyKey
+    , postPolicyId
 
       -- * Addresses
     , postRandomAddress
@@ -423,6 +424,21 @@ postPolicyKey
     -> (Method, Text)
 postPolicyKey w hashed = discriminate @style
     (endpoint @Api.PostPolicyKey (\mk -> mk wid hashed))
+    (notSupported "Byron")
+    (notSupported "Shared")
+  where
+    wid = w ^. typed @(ApiT WalletId)
+
+postPolicyId
+    :: forall (style :: WalletStyle) w.
+        ( HasCallStack
+        , Discriminate style
+        , HasType (ApiT WalletId) w
+        )
+    => w
+    -> (Method, Text)
+postPolicyId w = discriminate @style
+    (endpoint @Api.PostPolicyId (wid &))
     (notSupported "Byron")
     (notSupported "Shared")
   where

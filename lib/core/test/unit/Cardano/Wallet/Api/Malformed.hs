@@ -59,6 +59,7 @@ import Cardano.Wallet.Api.Types
     , ApiPoolId
     , ApiPostAccountKeyData
     , ApiPostAccountKeyDataWithPurpose
+    , ApiPostPolicyIdData
     , ApiPostPolicyKeyData
     , ApiPostRandomAddressData
     , ApiPutAddressesData
@@ -1598,6 +1599,25 @@ instance Malformed (BodyParam ApiPostRandomAddressData) where
             { "address_index": 0
             }|]
           , "Error in $: parsing Cardano.Wallet.Api.Types.ApiPostRandomAddressData(ApiPostRandomAddressData) failed, key 'passphrase' not found"
+          )
+        ]
+
+instance Malformed (BodyParam ApiPostPolicyIdData) where
+    malformed = first (BodyParam . Aeson.encode) <$>
+        [ ( [aesonQQ|
+            { "passphrase": "Secure Passphrase"
+            }|]
+          , "Error in $: parsing Cardano.Wallet.Api.Types.ApiPostPolicyIdData(ApiPostPolicyIdData) failed, key 'policy_script_template' not found"
+          )
+        , ( [aesonQQ|
+            { "policy_script_template": ""
+            }|]
+          , "Error in $['policy_script_template']: expected Object only, but encountered String"
+          )
+        , ( [aesonQQ|
+            { "policy_script_template": 1
+            }|]
+          , "Error in $['policy_script_template']: expected Object only, but encountered Number"
           )
         ]
 

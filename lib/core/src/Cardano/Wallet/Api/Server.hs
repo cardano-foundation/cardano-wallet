@@ -95,6 +95,7 @@ module Cardano.Wallet.Api.Server
     , submitTransaction
     , getPolicyKey
     , postPolicyKey
+    , postPolicyId
 
     -- * Server error responses
     , IsServerError(..)
@@ -148,6 +149,7 @@ import Cardano.Wallet
     , ErrDecodeTx (..)
     , ErrDerivePublicKey (..)
     , ErrFetchRewards (..)
+    , ErrGetPolicyId (..)
     , ErrGetTransaction (..)
     , ErrImportAddress (..)
     , ErrImportRandomAddress (..)
@@ -245,9 +247,11 @@ import Cardano.Wallet.Api.Types
     , ApiOurStakeKey (..)
     , ApiPaymentDestination (..)
     , ApiPendingSharedWallet (..)
+    , ApiPolicyId (..)
     , ApiPolicyKey (..)
     , ApiPoolId (..)
     , ApiPostAccountKeyDataWithPurpose (..)
+    , ApiPostPolicyIdData
     , ApiPostPolicyKeyData (..)
     , ApiPostRandomAddressData (..)
     , ApiPutAddressesData (..)
@@ -366,7 +370,7 @@ import Cardano.Wallet.Primitive.AddressDerivation.Byron
 import Cardano.Wallet.Primitive.AddressDerivation.Icarus
     ( IcarusKey )
 import Cardano.Wallet.Primitive.AddressDerivation.MintBurn
-    ( toTokenMapAndScript )
+    ( toTokenMapAndScript, toTokenPolicyId )
 import Cardano.Wallet.Primitive.AddressDerivation.SharedKey
     ( SharedKey (..) )
 import Cardano.Wallet.Primitive.AddressDerivation.Shelley
@@ -3463,6 +3467,33 @@ postPolicyKey ctx (ApiT wid) hashed apiPassphrase =
   where
     pwd = getApiT (apiPassphrase ^. #passphrase)
 
+postPolicyId
+    :: forall ctx s k (n :: NetworkDiscriminant).
+        ( ctx ~ ApiLayer s k
+        , WalletKey k
+        , Typeable s
+        , Typeable n
+        )
+    => ctx
+    -> ApiT WalletId
+    -> ApiPostPolicyIdData
+    -> Handler ApiPolicyId
+postPolicyId ctx (ApiT wid) payload = do
+    let retrieveAllCosigners = foldScript (:) []
+    let wrongMintingTemplate templ =
+            isLeft (validateScriptOfTemplate RecommendedValidation templ)
+            || length (retrieveAllCosigners templ) > 1
+            || (L.any (/= Cosigner 0)) (retrieveAllCosigners templ)
+    when ( wrongMintingTemplate scriptTempl ) $
+        liftHandler $ throwE ErrGetPolicyIdWrongMintingBurningTemplate
+
+    withWorkerCtx @_ @s @k ctx wid liftE liftE $ \wrk -> do
+        (xpub, _) <- liftHandler $ W.readPolicyPublicKey @_ @s @k @n wrk wid
+        pure $ ApiPolicyId $ ApiT $
+            toTokenPolicyId @k scriptTempl (Map.singleton (Cosigner 0) xpub)
+  where
+    scriptTempl = getApiT (payload ^. #policyScriptTemplate)
+
 {-------------------------------------------------------------------------------
                                   Helpers
 -------------------------------------------------------------------------------}
@@ -4270,6 +4301,17 @@ instance IsServerError ErrConstructTx where
             apiError err501 NotImplemented
                 "This feature is not yet implemented."
 
+instance IsServerError ErrGetPolicyId where
+    toServerError = \case
+        ErrGetPolicyIdReadPolicyPubliKey e -> toServerError e
+        ErrGetPolicyIdWrongMintingBurningTemplate ->
+            apiError err403 CreatedWrongPolicyScriptTemplate $ mconcat
+            [ "It looks like policy id is requested for a "
+            , "policy script that either does not pass validation, contains "
+            , "more than one cosigner, or has a cosigner that is different "
+            , "from cosigner#0."
+            ]
+
 instance IsServerError ErrDecodeTx where
     toServerError = \case
         ErrDecodeTxNoSuchWallet e -> (toServerError e)
@@ -4489,9 +4531,9 @@ instance IsServerError ErrReadPolicyPublicKey where
                 ]
         ErrReadPolicyPublicKeyAbsent ->
             apiError err403 MissingPolicyPublicKey $ T.unwords
-                [ "It seems the wallet lacks a policy public key. It's"
-                , "therefore not possible to create a minting or burning"
-                , "transaction. Please POST to endpoint"
+                [ "It seems the wallet lacks a policy public key. Therefore"
+                , "it's not possible to create a minting/burning"
+                , "transaction or get a policy id. Please first POST to endpoint"
                 , "/wallets/{walletId}/policy-key to set a policy key."
                 ]
 

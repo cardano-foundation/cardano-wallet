@@ -28,6 +28,7 @@ module Cardano.Wallet.Primitive.AddressDerivation.MintBurn
     , derivePolicyPrivateKey
     , policyDerivationPath
     , toTokenMapAndScript
+    , toTokenPolicyId
     ) where
 
 import Prelude
@@ -138,6 +139,18 @@ policyDerivationPath =  NE.fromList
     policyIx :: Index 'Hardened 'PolicyK
     policyIx = minBound
 
+toTokenPolicyId
+    :: forall key. WalletKey key
+    => Script Cosigner
+    -> Map Cosigner XPub
+    -> TokenPolicyId
+toTokenPolicyId scriptTempl cosignerMap =
+      UnsafeTokenPolicyId
+    . Hash
+    . unScriptHash
+    . toScriptHash
+    $ replaceCosigner @key cosignerMap scriptTempl
+
 toTokenMapAndScript
     :: forall key. WalletKey key
     => Script Cosigner
@@ -146,31 +159,30 @@ toTokenMapAndScript
     -> Natural
     -> (AssetId, TokenQuantity, Script KeyHash)
 toTokenMapAndScript scriptTempl cosignerMap tName val =
-    ( AssetId
-        ( UnsafeTokenPolicyId
-        $ Hash
-        $ unScriptHash
-        $ toScriptHash
-        $ replaceCosigner scriptTempl
-        ) tName
+    ( AssetId (toTokenPolicyId @key scriptTempl cosignerMap) tName
     , TokenQuantity val
-    , replaceCosigner scriptTempl
+    , replaceCosigner @key cosignerMap scriptTempl
     )
+
+replaceCosigner
+    :: forall key. WalletKey key
+    => Map Cosigner XPub
+    -> Script Cosigner
+    -> Script KeyHash
+replaceCosigner cosignerMap = \case
+    RequireSignatureOf c ->
+        RequireSignatureOf $ toKeyHash c
+    RequireAllOf xs ->
+        RequireAllOf (map (replaceCosigner @key cosignerMap) xs)
+    RequireAnyOf xs ->
+        RequireAnyOf (map (replaceCosigner @key cosignerMap) xs)
+    RequireSomeOf m xs ->
+        RequireSomeOf m (map (replaceCosigner @key cosignerMap) xs)
+    ActiveFromSlot s ->
+        ActiveFromSlot s
+    ActiveUntilSlot s ->
+        ActiveUntilSlot s
   where
-    replaceCosigner :: Script Cosigner -> Script KeyHash
-    replaceCosigner = \case
-        RequireSignatureOf c ->
-            RequireSignatureOf $ toKeyHash c
-        RequireAllOf xs ->
-            RequireAllOf (map replaceCosigner xs)
-        RequireAnyOf xs ->
-            RequireAnyOf (map replaceCosigner xs)
-        RequireSomeOf m xs ->
-            RequireSomeOf m (map replaceCosigner xs)
-        ActiveFromSlot s ->
-            ActiveFromSlot s
-        ActiveUntilSlot s ->
-            ActiveUntilSlot s
     toKeyHash :: Cosigner -> KeyHash
     toKeyHash c =
         let Just xpub =

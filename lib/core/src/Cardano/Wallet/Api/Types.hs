@@ -140,6 +140,8 @@ module Cardano.Wallet.Api.Types
     , ApiWalletSignData (..)
     , ApiVerificationKeyShelley (..)
     , ApiPolicyKey (..)
+    , ApiPolicyId (..)
+    , ApiPostPolicyIdData (..)
     , ApiPostPolicyKeyData (..)
     , ApiVerificationKeyShared (..)
     , ApiScriptTemplateEntry (..)
@@ -565,6 +567,14 @@ newtype ApiMaintenanceAction = ApiMaintenanceAction
     }
     deriving (Eq, Generic)
     deriving Show via (Quiet ApiMaintenanceAction)
+
+newtype ApiPolicyId = ApiPolicyId
+    {  policyId :: ApiT W.TokenPolicyId
+    } deriving (Eq, Generic, Show)
+
+newtype ApiPostPolicyIdData = ApiPostPolicyIdData
+    { policyScriptTemplate :: (ApiT (Script Cosigner))
+    } deriving (Eq, Generic, Show)
 
 data ApiAsset = ApiAsset
     { policyId :: ApiT W.TokenPolicyId
@@ -1987,6 +1997,16 @@ instance ToJSON ApiNullStakeKey where
 instance DecodeStakeAddress n => FromJSON (ApiStakeKeys n) where
     parseJSON = genericParseJSON defaultRecordTypeOptions
 instance EncodeStakeAddress n => ToJSON (ApiStakeKeys n) where
+    toJSON = genericToJSON defaultRecordTypeOptions
+
+instance FromJSON ApiPostPolicyIdData where
+    parseJSON = genericParseJSON defaultRecordTypeOptions
+instance ToJSON ApiPostPolicyIdData where
+    toJSON = genericToJSON defaultRecordTypeOptions
+
+instance FromJSON ApiPolicyId where
+    parseJSON = genericParseJSON defaultRecordTypeOptions
+instance ToJSON ApiPolicyId where
     toJSON = genericToJSON defaultRecordTypeOptions
 
 instance FromJSON (ApiT W.TokenPolicyId) where
