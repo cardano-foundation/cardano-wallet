@@ -480,6 +480,27 @@ RSpec.describe CardanoWallet::Shelley do
 
       expect(get.to_s).to eq created.to_s
     end
+
+    describe "Policy Id" do
+      matrix = [
+        ["cosigner#0", 202],
+        [{ "all": [ "cosigner#0" ] }, 202],
+        [{ "any": [ "cosigner#0" ] }, 202],
+        [{ "some": {"at_least": 1, "from": [ "cosigner#0" ]} }, 202],
+        [{ "all": [ "cosigner#0", { "active_from": 120 } ] }, 202],
+        ["cosigner#1", 403],
+        [{ "all": [ "cosigner#0", "cosigner#1" ] }, 403]
+      ]
+      matrix.each do |m|
+        template = m[0]
+        code = m[1]
+        it "Script template = #{template} gives #{code}" do
+          wid = create_shelley_wallet
+          created = SHELLEY.keys.create_policy_id(wid, template)
+          expect(created).to be_correct_and_respond code
+        end
+      end
+    end
   end
 
 end
