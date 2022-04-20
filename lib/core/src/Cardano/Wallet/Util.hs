@@ -1,9 +1,7 @@
 {-# LANGUAGE DeriveGeneric #-}
-{-# LANGUAGE DeriveTraversable #-}
 {-# LANGUAGE NamedFieldPuns #-}
 {-# LANGUAGE ScopedTypeVariables #-}
 {-# LANGUAGE ViewPatterns #-}
-{- HLINT ignore "Use newtype instead of data" -}
 
 -- |
 -- Copyright: © 2020-2021 IOHK
@@ -32,10 +30,6 @@ module Cardano.Wallet.Util
     -- * HTTP(S) URIs
     , uriToText
     , parseURI
-
-    -- * Containers
-    , Empty (..)
-    , Solo (..)
     ) where
 
 import Prelude
@@ -173,21 +167,3 @@ parseURI (T.unpack -> uri) = runIdentity $ runExceptT $ do
                     Left "URI must not contain a path/query/fragment."
             _ -> Right uri'
     either (throwE . TextDecodingError) pure res
-
---------------------------------------------------------------------------------
--- Containers
---------------------------------------------------------------------------------
-
--- | A container that always has no elements.
---
--- This type is the conceptual opposite of 'NonEmpty'.
---
-data Empty a = Empty
-    deriving (Eq, Foldable, Functor, Ord, Show, Traversable)
-
--- | A container that always has exactly one element.
---
--- This type is equivalent to the singleton tuple.
---
-data Solo a = Solo {unSolo :: a}
-    deriving (Eq, Foldable, Functor, Ord, Show, Traversable)
