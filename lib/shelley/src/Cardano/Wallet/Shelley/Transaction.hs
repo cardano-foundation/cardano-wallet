@@ -224,7 +224,7 @@ import Data.Kind
 import Data.Map.Strict
     ( Map, (!) )
 import Data.Maybe
-    ( fromMaybe, listToMaybe, mapMaybe )
+    ( fromMaybe, mapMaybe )
 import Data.Quantity
     ( Quantity (..) )
 import Data.Set
@@ -1520,13 +1520,13 @@ distributeSurplusDelta
     -> TxFeeAndChange [Coin]
     -> Either ErrMoreSurplusNeeded (TxFeeAndChange [Coin])
 distributeSurplusDelta feePolicy surplus (TxFeeAndChange fee change) =
-    case listToMaybe change of
-        Just firstChange ->
+    case change of
+        changeHead : changeTail ->
             distributeSurplusDeltaWithOneChangeCoin feePolicy surplus
-                (TxFeeAndChange fee firstChange)
+                (TxFeeAndChange fee changeHead)
             <&> mapTxFeeAndChange id
-                ((: replicate (length change - 1) (Coin 0)))
-        Nothing ->
+                (: (Coin 0 <$ changeTail))
+        [] ->
             burnSurplusAsFees feePolicy surplus
                 (TxFeeAndChange fee ())
             <&> mapTxFeeAndChange id
