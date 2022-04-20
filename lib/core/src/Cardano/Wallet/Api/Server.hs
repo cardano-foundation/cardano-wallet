@@ -4531,9 +4531,9 @@ instance IsServerError ErrReadPolicyPublicKey where
                 ]
         ErrReadPolicyPublicKeyAbsent ->
             apiError err403 MissingPolicyPublicKey $ T.unwords
-                [ "It seems the wallet lacks a policy public key. It's"
-                , "therefore not possible to create a minting or burning"
-                , "transaction. Please POST to endpoint"
+                [ "It seems the wallet lacks a policy public key. Therefore"
+                , "it's not possible to create a minting/burning"
+                , "transaction or get a policy id. Please first POST to endpoint"
                 , "/wallets/{walletId}/policy-key to set a policy key."
                 ]
 
