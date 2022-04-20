@@ -1,4 +1,8 @@
+{-# LANGUAGE FlexibleContexts #-}
+{-# LANGUAGE GADTs #-}
+{-# LANGUAGE KindSignatures #-}
 {-# LANGUAGE LambdaCase #-}
+{-# LANGUAGE RankNTypes #-}
 
 module Cardano.Wallet.Shelley.Network
     ( -- * Top-Level Interface
@@ -10,7 +14,6 @@ module Cardano.Wallet.Shelley.Network
 
 import Prelude
 
-import qualified Cardano.Api as Cardano
 import qualified Cardano.Wallet.Shelley.Network.Blockfrost as Blockfrost
 import qualified Cardano.Wallet.Shelley.Network.Node as Node
 
@@ -24,6 +27,10 @@ import Cardano.Wallet.Primitive.Types
     ( NetworkParameters )
 import Cardano.Wallet.Shelley.BlockchainSource
     ( BlockchainSource (..) )
+import Cardano.Wallet.Shelley.Compatibility
+    ( CardanoBlock, StandardCrypto )
+import Cardano.Wallet.Shelley.Network.Discriminant
+    ( SomeNetworkDiscriminant, networkDiscriminantToId )
 import Control.Monad.Trans.Cont
     ( ContT (ContT) )
 import Data.Functor.Contravariant
@@ -32,8 +39,6 @@ import Data.Text.Class
     ( ToText (toText) )
 import GHC.Stack
     ( HasCallStack )
-import Ouroboros.Consensus.Cardano.Block
-    ( CardanoBlock, StandardCrypto )
 
 data NetworkLayerLog
     = NodeNetworkLog Node.Log
@@ -55,7 +60,7 @@ withNetworkLayer
     :: HasCallStack
     => Tracer IO NetworkLayerLog
     -> BlockchainSource
-    -> Cardano.NetworkId
+    -> SomeNetworkDiscriminant
     -> NetworkParameters
     -> SyncTolerance
     -> ContT r IO (NetworkLayer IO (CardanoBlock StandardCrypto))
@@ -63,8 +68,8 @@ withNetworkLayer tr blockchainSrc net netParams tol =
     ContT $ case blockchainSrc of
         NodeSource nodeConn ver ->
             let tr' = NodeNetworkLog >$< tr
-            in Node.withNetworkLayer tr' net netParams nodeConn ver tol
+                netId = networkDiscriminantToId net
+            in Node.withNetworkLayer tr' netId netParams nodeConn ver tol
         BlockfrostSource project ->
             let tr' = BlockfrostNetworkLog >$< tr
             in Blockfrost.withNetworkLayer tr' net netParams project
-

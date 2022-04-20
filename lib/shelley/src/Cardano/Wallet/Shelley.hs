@@ -1,16 +1,11 @@
-{-# LANGUAGE AllowAmbiguousTypes #-}
 {-# LANGUAGE DataKinds #-}
 {-# LANGUAGE FlexibleContexts #-}
-{-# LANGUAGE FlexibleInstances #-}
-{-# LANGUAGE GADTs #-}
 {-# LANGUAGE LambdaCase #-}
 {-# LANGUAGE NamedFieldPuns #-}
 {-# LANGUAGE NumericUnderscores #-}
 {-# LANGUAGE RecordWildCards #-}
 {-# LANGUAGE ScopedTypeVariables #-}
-{-# LANGUAGE StandaloneDeriving #-}
 {-# LANGUAGE TypeApplications #-}
-{-# LANGUAGE TypeFamilies #-}
 
 -- |
 -- Copyright: © 2020 IOHK
@@ -57,7 +52,6 @@ import Cardano.Wallet.Network
 import Cardano.Wallet.Primitive.AddressDerivation
     ( DelegationAddress (..)
     , Depth (..)
-    , NetworkDiscriminant (..)
     , NetworkDiscriminantVal
     , PaymentAddress
     , PersistPrivateKey
@@ -110,11 +104,18 @@ import Cardano.Wallet.Shelley.Api.Server
 import Cardano.Wallet.Shelley.BlockchainSource
     ( BlockchainSource (..) )
 import Cardano.Wallet.Shelley.Compatibility
-    ( CardanoBlock, HasNetworkId (..), StandardCrypto, fromCardanoBlock )
+    ( CardanoBlock
+    , HasNetworkId (..)
+    , NetworkId
+    , StandardCrypto
+    , fromCardanoBlock
+    )
 import Cardano.Wallet.Shelley.Logging as Logging
     ( ApplicationLog (..) )
 import Cardano.Wallet.Shelley.Network
     ( withNetworkLayer )
+import Cardano.Wallet.Shelley.Network.Discriminant
+    ( SomeNetworkDiscriminant (..), networkDiscriminantToId )
 import Cardano.Wallet.Shelley.Pools
     ( StakePoolLayer (..)
     , StakePoolLog (..)
@@ -175,34 +176,11 @@ import UnliftIO.MVar
 import UnliftIO.STM
     ( newTVarIO )
 
-import qualified Cardano.Api.Shelley as Cardano
 import qualified Cardano.Pool.DB as PoolDb
 import qualified Cardano.Pool.DB.Sqlite as Pool
 import qualified Cardano.Wallet.Api.Server as Server
 import qualified Cardano.Wallet.DB.Sqlite as Sqlite
 import qualified Network.Wai.Handler.Warp as Warp
-
--- | Encapsulate a network discriminant and the necessary constraints it should
--- satisfy.
-data SomeNetworkDiscriminant where
-    SomeNetworkDiscriminant
-        :: forall (n :: NetworkDiscriminant).
-            ( NetworkDiscriminantVal n
-            , PaymentAddress n IcarusKey
-            , PaymentAddress n ByronKey
-            , PaymentAddress n ShelleyKey
-            , DelegationAddress n ShelleyKey
-            , HasNetworkId n
-            , DecodeAddress n
-            , EncodeAddress n
-            , DecodeStakeAddress n
-            , EncodeStakeAddress n
-            , Typeable n
-            )
-        => Proxy n
-        -> SomeNetworkDiscriminant
-
-deriving instance Show SomeNetworkDiscriminant
 
 -- | The @cardano-wallet@ main function. It takes the configuration
 -- which was passed from the CLI and environment and starts all components of
@@ -245,7 +223,7 @@ serveWallet
     , genesisParameters
     , slottingParameters
     }
-  (SomeNetworkDiscriminant proxyNetwork)
+  network@(SomeNetworkDiscriminant proxyNetwork)
   Tracers{..}
   sTolerance
   databaseDir
@@ -264,7 +242,7 @@ serveWallet
     netLayer <- withNetworkLayer
         networkTracer
         blockchainSource
-        net
+        network
         netParams
         sTolerance
     stakePoolDbLayer <- withStakePoolDbLayer
@@ -303,20 +281,20 @@ serveWallet
     trace :: ApplicationLog -> IO ()
     trace = traceWith applicationTracer
 
-    net :: Cardano.NetworkId
-    net = networkIdVal proxyNetwork
+    netId :: NetworkId
+    netId = networkDiscriminantToId network
 
     bindSocket :: ContT r IO (Either ListenError (Warp.Port, Socket))
     bindSocket = ContT $ Server.withListeningSocket hostPref listen
 
     withRandomApi netLayer =
-        lift $ apiLayer (newTransactionLayer net) netLayer Server.idleWorker
+        lift $ apiLayer (newTransactionLayer netId) netLayer Server.idleWorker
 
     withIcarusApi netLayer =
-        lift $ apiLayer (newTransactionLayer net) netLayer Server.idleWorker
+        lift $ apiLayer (newTransactionLayer netId) netLayer Server.idleWorker
 
     withShelleyApi netLayer =
-        lift $ apiLayer (newTransactionLayer net) netLayer
+        lift $ apiLayer (newTransactionLayer netId) netLayer
             (Server.manageRewardBalance proxyNetwork)
 
     withMultisigApi netLayer =
