@@ -2385,15 +2385,23 @@ balanceTransactionSpec = do
                         `shouldBe`
                         Right (TxFeeAndChange surplus [])
 
-        it "feeDelta + changeDeltas == surplus .&&. \
-           \feeDelta covers increase to fee requirement" $
-            property $
-                withMaxSuccess 10000
-                prop_distributeSurplusDelta_coversIncreaseToFeeRequirement
+        it "prop_distributeSurplusDelta_coversCostIncreaseAndConservesSurplus" $
+            prop_distributeSurplusDelta_coversCostIncreaseAndConservesSurplus
+                & withMaxSuccess 10000
+                & property
 
-prop_distributeSurplusDelta_coversIncreaseToFeeRequirement
+-- Verify that 'distributeSurplusDelta':
+--
+--    - covers the increase to the fee requirement incurred as a result of
+--      increasing the fee value and change values.
+--
+--    - conserves the surplus:
+--        - feeDelta + sum changeDeltas == surplus
+--
+prop_distributeSurplusDelta_coversCostIncreaseAndConservesSurplus
     :: Coin -> Coin -> [Coin] -> Property
-prop_distributeSurplusDelta_coversIncreaseToFeeRequirement surplus fee0 change0 =
+prop_distributeSurplusDelta_coversCostIncreaseAndConservesSurplus
+    surplus fee0 change0 =
     counterexample (show mres) $ case mres of
         Left _ ->
             label "unable to distribute surplus" $
