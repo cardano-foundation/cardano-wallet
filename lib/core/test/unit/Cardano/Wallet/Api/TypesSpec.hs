@@ -1971,7 +1971,7 @@ instance ToSchema ApiPolicyKey where
     declareNamedSchema _ = declareSchemaForDefinition "ApiPolicyKey"
 
 instance Arbitrary ApiPolicyId where
-    arbitrary = arbitrary
+    arbitrary = ApiPolicyId <$> arbitrary
 
 instance ToSchema ApiPolicyId where
     declareNamedSchema _ = declareSchemaForDefinition "ApiPolicyId"
@@ -2288,7 +2288,9 @@ instance Arbitrary ApiPostPolicyIdData where
             ]
 
 instance ToSchema ApiPostPolicyIdData where
-    declareNamedSchema _ = declareSchemaForDefinition "ApiPostPolicyIdData"
+    declareNamedSchema _ = do
+        addDefinition =<< declareSchemaForDefinition "ScriptTemplateValue"
+        declareSchemaForDefinition "ApiPostPolicyIdData"
 
 instance Arbitrary (ApiMintBurnData n) where
     arbitrary = ApiMintBurnData
