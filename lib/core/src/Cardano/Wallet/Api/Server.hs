@@ -210,7 +210,7 @@ import Cardano.Wallet.Api.Types
     , ApiActiveSharedWallet (..)
     , ApiAddress (..)
     , ApiPostPolicyIdData
-    , ApiPolicyId
+    , ApiPolicyId (..)
     , ApiAnyCertificate (..)
     , ApiAsset (..)
     , ApiAssetMintBurn (..)
@@ -371,7 +371,7 @@ import Cardano.Wallet.Primitive.AddressDerivation.Byron
 import Cardano.Wallet.Primitive.AddressDerivation.Icarus
     ( IcarusKey )
 import Cardano.Wallet.Primitive.AddressDerivation.MintBurn
-    ( toTokenMapAndScript )
+    ( toTokenMapAndScript, toTokenPolicyId )
 import Cardano.Wallet.Primitive.AddressDerivation.SharedKey
     ( SharedKey (..) )
 import Cardano.Wallet.Primitive.AddressDerivation.Shelley
@@ -3491,6 +3491,7 @@ postPolicyKey ctx (ApiT wid) hashed apiPassphrase =
 postPolicyId
     :: forall ctx s k (n :: NetworkDiscriminant).
         ( ctx ~ ApiLayer s k
+        , WalletKey k
         , Typeable s
         , Typeable n
         )
@@ -3500,16 +3501,19 @@ postPolicyId
     -> Handler ApiPolicyId
 postPolicyId ctx (ApiT wid) payload = do
     let retrieveAllCosigners = foldScript (:) []
-    let wrongMintingTemplate (ApiT scriptTempl) =
-            isLeft (validateScriptOfTemplate RecommendedValidation scriptTempl)
-            || length (retrieveAllCosigners scriptTempl) > 1
-            || (L.any (/= Cosigner 0)) (retrieveAllCosigners scriptTempl)
-    when ( wrongMintingTemplate (payload ^. #policyScriptTemplate) ) $
+    let wrongMintingTemplate templ =
+            isLeft (validateScriptOfTemplate RecommendedValidation templ)
+            || length (retrieveAllCosigners templ) > 1
+            || (L.any (/= Cosigner 0)) (retrieveAllCosigners templ)
+    when ( wrongMintingTemplate scriptTempl ) $
         liftHandler $ throwE ErrGetPolicyIdWrongMintingBurningTemplate
 
     withWorkerCtx @_ @s @k ctx wid liftE liftE $ \wrk -> do
-        (k, _) <- liftHandler $ W.readPolicyPublicKey @_ @s @k @n wrk wid
-        undefined
+        (xpub, _) <- liftHandler $ W.readPolicyPublicKey @_ @s @k @n wrk wid
+        pure $ ApiPolicyId $ ApiT $
+            toTokenPolicyId @k scriptTempl (Map.singleton (Cosigner 0) xpub)
+  where
+    scriptTempl = getApiT (payload ^. #policyScriptTemplate)
 
 {-------------------------------------------------------------------------------
                                   Helpers
@@ -4328,11 +4332,6 @@ instance IsServerError ErrGetPolicyId where
             , "policy script that either does not pass validation, contains "
             , "more than one cosigner, or has a cosigner that is different "
             , "from cosigner#0."
-            ]
-        ErrGetPolicyIdAssetNameTooLong ->
-            apiError err403 AssetNameTooLong $ mconcat
-            [ "It looks like policy id is requested for "
-            , "an asset name that is too long. The maximum length is 32 bytes."
             ]
 
 instance IsServerError ErrDecodeTx where

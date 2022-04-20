@@ -3472,7 +3472,6 @@ data ErrConstructTx
 data ErrGetPolicyId
     = ErrGetPolicyIdReadPolicyPubliKey ErrReadPolicyPublicKey
     | ErrGetPolicyIdWrongMintingBurningTemplate
-    | ErrGetPolicyIdAssetNameTooLong
     deriving (Show, Eq)
 
 newtype ErrMintBurnAssets
