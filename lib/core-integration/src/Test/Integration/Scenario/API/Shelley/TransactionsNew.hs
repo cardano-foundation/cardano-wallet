@@ -3458,8 +3458,7 @@ spec = describe "NEW_SHELLEY_TRANSACTIONS" $ do
                     { "all":
                        [ { "active_from": 120 }
                        ]
-                    },
-                "asset_name": "ab12"
+                    }
                 }|]
 
         let postPolicyId = Link.postPolicyId @'Shelley wa
@@ -3467,6 +3466,35 @@ spec = describe "NEW_SHELLEY_TRANSACTIONS" $ do
         verify rGet
             [ expectResponseCode HTTP.status403
             , expectErrorMessage errMsg403CreatedWrongPolicyScriptTemplatePolicyId
+            ]
+
+    it "TRANS_NEW_CREATE_11 - Get policy id \
+        \" $ \ctx -> runResourceT $ do
+        wa <- fixtureWallet ctx
+        let payload = Json [json|{
+                "policy_script_template":
+                    { "all":
+                       [ "cosigner#0"
+                       ]
+                    }
+                }|]
+
+        let policyWithHash = Link.getPolicyKey @'Shelley wa (Just True)
+        (_, policyKeyHashPayload) <-
+            unsafeRequest @ApiPolicyKey ctx policyWithHash Empty
+        let (Just policyKeyHash) =
+                keyHashFromBytes (Policy, getApiPolicyKey policyKeyHashPayload)
+        let scriptUsed = RequireAllOf [RequireSignatureOf policyKeyHash]
+        let tokenPolicyId' =
+                UnsafeTokenPolicyId . Hash $
+                unScriptHash $
+                toScriptHash scriptUsed
+
+        let postPolicyId = Link.postPolicyId @'Shelley wa
+        rGet <- request @ApiPolicyId ctx postPolicyId Default payload
+        verify rGet
+            [ expectSuccess
+            , expectField #policyId (`shouldBe` (ApiT tokenPolicyId'))
             ]
 
   where
