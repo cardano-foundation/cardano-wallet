@@ -215,7 +215,7 @@ import Cardano.Wallet.Shelley.Transaction
     , TxWitnessTag (..)
     , TxWitnessTagFor
     , costOfIncreasingCoin
-    , distributeSurplusDeltaNew
+    , distributeSurplusDelta
     , estimateTxCost
     , estimateTxSize
     , maximumCostOfIncreasingCoin
@@ -2299,7 +2299,7 @@ balanceTransactionSpec = do
                 counterexample (show res <> "out of bounds") $
                     res >= Coin 0 && res <= Coin 8
 
-    describe "distributeSurplusDeltaNew" $ do
+    describe "distributeSurplusDelta" $ do
         let simplestFeePolicy = LinearFee $ LinearFunction
                 { intercept = 0, slope = 1 }
         let mainnetFeePolicy = LinearFee $ LinearFunction
@@ -2310,7 +2310,7 @@ balanceTransactionSpec = do
 
         describe "when increasing change increases fee" $
             it "will increase fee (99 lovelace for change, 1 for fee)" $
-                distributeSurplusDeltaNew
+                distributeSurplusDelta
                     simplestFeePolicy
                     (Coin 100)
                     (TxFeeAndChange (Coin 200) [Coin 200])
@@ -2319,7 +2319,7 @@ balanceTransactionSpec = do
 
         describe "when increasing fee increases fee" $
             it "will increase fee (98 lovelace for change, 2 for fee)" $ do
-                distributeSurplusDeltaNew
+                distributeSurplusDelta
                     simplestFeePolicy
                     (Coin 100)
                     (TxFeeAndChange (Coin 255) [Coin 200])
@@ -2329,7 +2329,7 @@ balanceTransactionSpec = do
         describe "when increasing the change costs more in fees than the \
                  \increase itself" $ do
             it "will try burning the surplus as fees" $ do
-                distributeSurplusDeltaNew
+                distributeSurplusDelta
                     mainnetFeePolicy
                     (Coin 10)
                     (TxFeeAndChange (Coin 200) [Coin 255])
@@ -2337,7 +2337,7 @@ balanceTransactionSpec = do
                     Right (TxFeeAndChange (Coin 10) [Coin 0])
 
             it "will fail if neither the fee can be increased" $ do
-                distributeSurplusDeltaNew
+                distributeSurplusDelta
                     mainnetFeePolicy
                     (Coin 10)
                     (TxFeeAndChange (Coin 255) [Coin 255])
@@ -2347,7 +2347,7 @@ balanceTransactionSpec = do
         describe "when no change output is present" $ do
             it "will burn surplus as excess fees" $
                 property $ \surplus fee0 -> do
-                    distributeSurplusDeltaNew
+                    distributeSurplusDelta
                         simplestFeePolicy
                         surplus
                         (TxFeeAndChange fee0 [])
@@ -2358,11 +2358,11 @@ balanceTransactionSpec = do
            \feeDelta covers increase to fee requirement" $
             property $
                 withMaxSuccess 10000
-                prop_distributeSurplusDeltaNew_coversIncreaseToFeeRequirement
+                prop_distributeSurplusDelta_coversIncreaseToFeeRequirement
 
-prop_distributeSurplusDeltaNew_coversIncreaseToFeeRequirement
+prop_distributeSurplusDelta_coversIncreaseToFeeRequirement
     :: Coin -> Coin -> [Coin] -> Property
-prop_distributeSurplusDeltaNew_coversIncreaseToFeeRequirement surplus fee0 change0 =
+prop_distributeSurplusDelta_coversIncreaseToFeeRequirement surplus fee0 change0 =
     counterexample (show mres) $ case mres of
         Left _ ->
             label "unable to distribute surplus" $
@@ -2386,7 +2386,7 @@ prop_distributeSurplusDeltaNew_coversIncreaseToFeeRequirement surplus fee0 chang
                 ]
   where
     feePolicy = LinearFee LinearFunction { intercept = 0, slope = 44 }
-    mres = distributeSurplusDeltaNew
+    mres = distributeSurplusDelta
         feePolicy surplus (TxFeeAndChange fee0 change0)
     maxCoinCost = maximumCostOfIncreasingCoin feePolicy
 
