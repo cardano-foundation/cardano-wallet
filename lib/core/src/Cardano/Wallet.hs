@@ -1707,8 +1707,7 @@ balanceTransactionWithSelectionStrategy
     TxFeeAndChange updatedFee updatedChange <- withExceptT
         (\(ErrMoreSurplusNeeded c) ->
             ErrBalanceTxNotYetSupported $ UnderestimatedFee c candidateTx)
-        (ExceptT . pure $
-            distributeSurplusNew tl feePolicy surplus feeAndChange)
+        (ExceptT . pure $ distributeSurplus tl feePolicy surplus feeAndChange)
 
     guardTxSize =<< guardTxBalanced =<< (assembleTransaction $ TxUpdate
         { extraInputs
