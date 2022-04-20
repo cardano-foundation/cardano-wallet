@@ -2399,9 +2399,9 @@ balanceTransactionSpec = do
 --        - feeDelta + sum changeDeltas == surplus
 --
 prop_distributeSurplusDelta_coversCostIncreaseAndConservesSurplus
-    :: Coin -> Coin -> [Coin] -> Property
+    :: FeePolicy -> Coin -> Coin -> [Coin] -> Property
 prop_distributeSurplusDelta_coversCostIncreaseAndConservesSurplus
-    surplus fee0 change0 =
+    feePolicy surplus fee0 change0 =
     counterexample (show mres) $ case mres of
         Left _ ->
             label "unable to distribute surplus" $
@@ -2424,7 +2424,6 @@ prop_distributeSurplusDelta_coversCostIncreaseAndConservesSurplus
                     === surplus
                 ]
   where
-    feePolicy = LinearFee LinearFunction { intercept = 0, slope = 44 }
     mres = distributeSurplusDelta
         feePolicy surplus (TxFeeAndChange fee0 change0)
     maxCoinCost = maximumCostOfIncreasingCoin feePolicy
