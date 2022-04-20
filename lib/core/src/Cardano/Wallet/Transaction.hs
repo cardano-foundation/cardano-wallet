@@ -6,6 +6,7 @@
 {-# LANGUAGE DuplicateRecordFields #-}
 {-# LANGUAGE FlexibleContexts #-}
 {-# LANGUAGE LambdaCase #-}
+{-# LANGUAGE NamedFieldPuns #-}
 {-# LANGUAGE RankNTypes #-}
 {-# LANGUAGE ScopedTypeVariables #-}
 {-# LANGUAGE TypeFamilies #-}
@@ -35,6 +36,7 @@ module Cardano.Wallet.Transaction
     , PlutusScriptInfo (..)
     , PlutusVersion (..)
     , TxFeeAndChange (..)
+    , mapTxFeeAndChange
 
     -- * Errors
     , ErrSignTx (..)
@@ -257,32 +259,26 @@ data TransactionLayer k tx = TransactionLayer
 
     , distributeSurplus
         :: FeePolicy
-        -> Coin -- Surplus to distribute
-        -> TxFeeAndChange -- Fee and value of relevant change output (if any)
-        -> Either ErrMoreSurplusNeeded TxFeeAndChange
-        -- ^ Distribute a surplus transaction balance between a given change
-        -- output (if one exists present) and the transaction fee. The function
-        -- is aware of the fact that any increase of 'Coin' values could
-        -- increase the size and fee-requirement of the transaction.
+        -> Coin
+        -- ^ Surplus transaction balance to distribute.
+        -> TxFeeAndChange [TxOut]
+        -- ^ Original fee and change outputs.
+        -> Either ErrMoreSurplusNeeded (TxFeeAndChange [TxOut])
+        -- ^ Adjusted fee and change outputs.
         --
-        -- This helper is used from 'balanceTransaction'.
+        -- Distributes a surplus transaction balance between the given change
+        -- outputs and the given fee. This function is aware of the fact that
+        -- any increase in a 'Coin' value could increase the size and fee
+        -- requirement of a transaction.
         --
-        -- >>> distributeSurplus feePolicy (Coin 100) (TxFeeAndChange (Coin 200) (Coin 200))
-        -- TxFeeAndChange
-        --    { fee = Coin 1
-        --    , change = Coin 99
-        --    }
+        -- When comparing the original fee and change outputs to the adjusted
+        -- fee and change outputs, this function guarantees that:
         --
-        -- >>> distributeSurplus feePolicy (Coin 100) (TxFeeAndChange (Coin 255) (Coin 200))
-        -- TxFeeAndChange
-        --    { fee = Coin 2
-        --    , change = Coin 98
-        --    }
-        --
-        -- Important note: the return value is a delta. In particular a returned
-        -- change value of @Nothing@ or @Just (Coin 0)@ does **not** mean the
-        -- change should be set to @Coin 0@, but rather that the change should
-        -- not be increased!
+        --  - The number of the change outputs remains constant;
+        --  - The fee quantity either remains the same or increases.
+        --  - For each change output:
+        --      - the ada quantity either remains constant or increases.
+        --      - non-ada quantities remain the same.
 
     , computeSelectionLimit
         :: ProtocolParameters
@@ -518,7 +514,22 @@ newtype ErrMoreSurplusNeeded = ErrMoreSurplusNeeded Coin
 
 -- | Small helper record to disambiguate between a fee and change Coin values.
 -- Used by 'distributeSurplus'.
-data TxFeeAndChange = TxFeeAndChange
+data TxFeeAndChange change = TxFeeAndChange
     { fee :: Coin
-    , change :: Maybe Coin
-    } deriving (Show, Eq)
+    , change :: change
+    }
+    deriving (Eq, Show)
+
+-- | Manipulates a 'TxFeeAndChange' value.
+--
+mapTxFeeAndChange
+    :: (Coin -> Coin)
+    -- ^ A function to transform the fee
+    -> (change1 -> change2)
+    -- ^ A function to transform the change
+    -> TxFeeAndChange change1
+    -- ^ The original fee and change
+    -> TxFeeAndChange change2
+    -- ^ The transformed fee and change
+mapTxFeeAndChange mapFee mapChange TxFeeAndChange {fee, change} =
+    TxFeeAndChange (mapFee fee) (mapChange change)
