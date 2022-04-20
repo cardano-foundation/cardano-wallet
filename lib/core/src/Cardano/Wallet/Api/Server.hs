@@ -3468,11 +3468,16 @@ postPolicyKey ctx (ApiT wid) hashed apiPassphrase =
     pwd = getApiT (apiPassphrase ^. #passphrase)
 
 postPolicyId
-    :: forall ctx. ctx
+    :: forall ctx s k (n :: NetworkDiscriminant).
+        ( ctx ~ ApiLayer s k
+        , Typeable s
+        , Typeable n
+        )
+    => ctx
     -> ApiT WalletId
     -> ApiPostPolicyIdData
     -> Handler ApiPolicyId
-postPolicyId _ctx (ApiT _wid) payload = do
+postPolicyId ctx (ApiT wid) payload = do
     let retrieveAllCosigners = foldScript (:) []
     let wrongMintingTemplate (ApiT scriptTempl) =
             isLeft (validateScriptOfTemplate RecommendedValidation scriptTempl)
@@ -3480,7 +3485,10 @@ postPolicyId _ctx (ApiT _wid) payload = do
             || (L.any (/= Cosigner 0)) (retrieveAllCosigners scriptTempl)
     when ( wrongMintingTemplate (payload ^. #policyScriptTemplate) ) $
         liftHandler $ throwE ErrGetPolicyIdWrongMintingBurningTemplate
-    undefined
+
+    withWorkerCtx @_ @s @k ctx wid liftE liftE $ \wrk -> do
+        (k, _) <- liftHandler $ W.readPolicyPublicKey @_ @s @k @n wrk wid
+        undefined
 
 {-------------------------------------------------------------------------------
                                   Helpers

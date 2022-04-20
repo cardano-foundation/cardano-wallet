@@ -271,7 +271,7 @@ server byron icarus shelley multisig spl ntp =
         :<|> getAccountPublicKey shelley ApiAccountKey
         :<|> getPolicyKey @_ @_ @_ @n shelley
         :<|> postPolicyKey shelley
-        :<|> postPolicyId shelley
+        :<|> postPolicyId @_ @_ @_ @n shelley
 
     assets :: Server Assets
     assets =
