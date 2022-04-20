@@ -208,8 +208,6 @@ import Cardano.Wallet.Api.Types
     , ApiAccountPublicKey (..)
     , ApiActiveSharedWallet (..)
     , ApiAddress (..)
-    , ApiPostPolicyIdData
-    , ApiPolicyId (..)
     , ApiAnyCertificate (..)
     , ApiAsset (..)
     , ApiAssetMintBurn (..)
@@ -249,9 +247,11 @@ import Cardano.Wallet.Api.Types
     , ApiOurStakeKey (..)
     , ApiPaymentDestination (..)
     , ApiPendingSharedWallet (..)
+    , ApiPolicyId (..)
     , ApiPolicyKey (..)
     , ApiPoolId (..)
     , ApiPostAccountKeyDataWithPurpose (..)
+    , ApiPostPolicyIdData
     , ApiPostPolicyKeyData (..)
     , ApiPostRandomAddressData (..)
     , ApiPutAddressesData (..)
