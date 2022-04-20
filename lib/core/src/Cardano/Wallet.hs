@@ -434,6 +434,7 @@ import Cardano.Wallet.Primitive.Types.Tx
     , TxStatus (..)
     , UnsignedTx (..)
     , fromTransactionInfo
+    , sealedTxFromCardano
     , txOutCoin
     , withdrawals
     )
@@ -1517,42 +1518,44 @@ normalizeDelegationAddress s addr = do
 --
 -- The 'inputs' and 'redeemers' must match the binary transaction contained in
 -- the 'sealedTx'.
-data PartialTx = PartialTx
-    { sealedTx :: SealedTx
+data PartialTx era = PartialTx
+    { tx :: Cardano.Tx era
     , inputs :: [(TxIn, TxOut, Maybe (Hash "Datum"))]
     , redeemers :: [Redeemer]
     } deriving (Show, Generic, Eq)
 
-instance Buildable PartialTx where
+instance Buildable (PartialTx era) where
     build (PartialTx tx ins redeemers) = nameF "PartialTx" $ mconcat
         [ nameF "inputs" (listF' inF ins)
         , nameF "redeemers" (pretty redeemers)
-        , nameF "tx" (cardanoTxF (cardanoTx tx))
+        , nameF "tx" (cardanoTxF tx)
         ]
       where
         inF :: (TxIn, TxOut, Maybe (Hash "Datum")) -> Builder
         inF (i,o,d) = ""+|i|+" "+|o|+" "+|d|+""
 
-        cardanoTxF :: Cardano.InAnyCardanoEra Cardano.Tx -> Builder
-        cardanoTxF (Cardano.InAnyCardanoEra _ tx') = pretty $ pShow tx'
+        cardanoTxF :: Cardano.Tx era -> Builder
+        cardanoTxF tx' = pretty $ pShow tx'
 
 balanceTransaction
-    :: forall m s k ctx.
+    :: forall era m s k ctx.
         ( HasTransactionLayer k ctx
         , GenChange s
         , MonadRandom m
         , HasLogger m WalletWorkerLog ctx
+        , Cardano.IsShelleyBasedEra era
         )
     => ctx
     -> ArgGenChange s
     -> (W.ProtocolParameters, Cardano.ProtocolParameters)
     -> TimeInterpreter (Either PastHorizonException)
     -> (UTxOIndex WalletUTxO, Wallet s, Set Tx)
-    -> PartialTx
-    -> ExceptT ErrBalanceTx m SealedTx
+    -> PartialTx era
+    -> ExceptT ErrBalanceTx m (Cardano.Tx era)
 balanceTransaction ctx change pp ti wallet ptx = do
-    let balanceWith strategy = balanceTransactionWithSelectionStrategy @m @s @k
-            ctx change pp ti wallet strategy ptx
+    let balanceWith strategy =
+            balanceTransactionWithSelectionStrategy @era @m @s @k
+                ctx change pp ti wallet strategy ptx
     balanceWith SelectionStrategyOptimal
         `catchE` \case
             ErrBalanceTxMaxSizeLimitExceeded
@@ -1561,11 +1564,12 @@ balanceTransaction ctx change pp ti wallet ptx = do
                 -> throwE otherErr
 
 balanceTransactionWithSelectionStrategy
-    :: forall m s k ctx.
+    :: forall era m s k ctx.
         ( HasTransactionLayer k ctx
         , GenChange s
         , MonadRandom m
         , HasLogger m WalletWorkerLog ctx
+        , Cardano.IsShelleyBasedEra era
         )
     => ctx
     -> ArgGenChange s
@@ -1573,8 +1577,8 @@ balanceTransactionWithSelectionStrategy
     -> TimeInterpreter (Either PastHorizonException)
     -> (UTxOIndex WalletUTxO, Wallet s, Set Tx)
     -> SelectionStrategy
-    -> PartialTx
-    -> ExceptT ErrBalanceTx m SealedTx
+    -> PartialTx era
+    -> ExceptT ErrBalanceTx m (Cardano.Tx era)
 balanceTransactionWithSelectionStrategy
     ctx
     generateChange
@@ -1582,7 +1586,7 @@ balanceTransactionWithSelectionStrategy
     ti
     (internalUtxoAvailable, wallet, _pendingTxs)
     selectionStrategy
-    ptx@(PartialTx partialTx externalInputs redeemers)
+    ptx@(PartialTx partialTx' externalInputs redeemers)
     = do
     guardExistingCollateral partialTx
     guardZeroAdaOutputs (extractOutputsFromTx partialTx)
@@ -1639,7 +1643,7 @@ balanceTransactionWithSelectionStrategy
 
         lift $ traceWith tr $ MsgSelectionForBalancingStart
             (UTxOIndex.size internalUtxoAvailable)
-            ptx
+            (BuildableInAnyEra Cardano.cardanoEra ptx)
 
         let mSel = selectAssets'
                 partialTx
@@ -1710,15 +1714,26 @@ balanceTransactionWithSelectionStrategy
             ErrBalanceTxInternalError $ ErrUnderestimatedFee c candidateTx)
         (ExceptT . pure $ distributeSurplus tl feePolicy surplus feeAndChange)
 
-    guardTxSize =<< guardTxBalanced =<< (assembleTransaction $ TxUpdate
+    fromSealed <$> (guardTxSize =<< guardTxBalanced =<< (assembleTransaction $ TxUpdate
         { extraInputs
         , extraCollateral
         , extraOutputs = updatedChange
         , feeUpdate = UseNewTxFee updatedFee
-        })
+        }))
   where
     tl = ctx ^. transactionLayer @k
     tr = contramap MsgWallet $ ctx ^. logger @m
+
+    toSealed = sealedTxFromCardano . Cardano.InAnyCardanoEra era
+    partialTx = toSealed partialTx'
+    era = Cardano.cardanoEra @era
+
+    fromSealed :: SealedTx -> Cardano.Tx era
+    fromSealed (cardanoTx -> Cardano.InAnyCardanoEra resultEra tx) =
+        case testEquality resultEra era of
+            Just Refl -> tx
+            Nothing ->
+                error "impossible: balanceTransaction didn't preserve the era"
 
     guardTxSize :: SealedTx -> ExceptT ErrBalanceTx m SealedTx
     guardTxSize tx =
@@ -3701,10 +3716,29 @@ data WalletFollowLog
     | MsgDiscoveredTxsContent [(Tx, TxMeta)]
     deriving (Show, Eq)
 
+-- | Helper wrapper type for the sake of logging.
+data BuildableInAnyEra tx = forall era.
+    ( Eq (tx era)
+    , Show (tx era)
+    , Buildable (tx era)
+    ) => BuildableInAnyEra (Cardano.CardanoEra era) (tx era)
+
+instance Show (BuildableInAnyEra a) where
+    show (BuildableInAnyEra _ a) = show a
+
+instance Eq (BuildableInAnyEra a) where
+    BuildableInAnyEra era1 thing1 == BuildableInAnyEra era2 thing2 =
+        case testEquality era1 era2 of
+            Just Refl -> thing1 == thing2
+            Nothing -> False
+
+instance Buildable (BuildableInAnyEra a) where
+    build (BuildableInAnyEra _ x) = build x
+
 -- | Log messages from API server actions running in a wallet worker context.
 data WalletLog
     = MsgSelectionStart Int [TxOut]
-    | MsgSelectionForBalancingStart Int PartialTx
+    | MsgSelectionForBalancingStart Int (BuildableInAnyEra PartialTx)
     | MsgSelectionError (SelectionError WalletSelectionContext)
     | MsgSelectionReportSummarized SelectionReportSummarized
     | MsgSelectionReportDetailed SelectionReportDetailed

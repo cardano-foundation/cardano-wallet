@@ -488,6 +488,7 @@ import Cardano.Wallet.Primitive.Types.Tx
     , TxOut (..)
     , TxStatus (..)
     , UnsignedTx (..)
+    , cardanoTx
     , getSealedTxWitnesses
     , txMintBurnMaxTokenQuantity
     , txOutCoin
@@ -644,6 +645,7 @@ import UnliftIO.Concurrent
 import UnliftIO.Exception
     ( IOException, bracket, throwIO, tryAnyDeep, tryJust )
 
+import qualified Cardano.Api as Cardano
 import qualified Cardano.Wallet as W
 import qualified Cardano.Wallet.Api.Types as Api
 import qualified Cardano.Wallet.DB as W
@@ -2456,23 +2458,72 @@ balanceTransaction ctx genChange (ApiT wid) body = do
     pp <- liftIO $ NW.currentProtocolParameters nl
     -- TODO: This throws when still in the Byron era.
     let nodePParams = fromJust $ W.currentNodeProtocolParameters pp
-    let partialTx = W.PartialTx
-            (getApiT $ body ^. #transaction)
-            (fromExternalInput <$> body ^. #inputs)
-            (fromApiRedeemer <$> body ^. #redeemers)
     withWorkerCtx ctx wid liftE liftE $ \wrk -> do
         wallet <- liftHandler $ W.readWalletUTxOIndex @_ @s @k wrk wid
         ti <- liftIO $ snapshot $ timeInterpreter $ ctx ^. networkLayer
-        transaction <- liftHandler $ ApiT <$> W.balanceTransaction @IO @s @k
-            wrk
-            genChange
-            (pp, nodePParams)
-            ti
-            wallet
-            partialTx
-        return $ ApiSerialisedTransaction { transaction }
+
+        let mkPartialTx
+                :: forall era. Cardano.Tx era
+                -> W.PartialTx era
+            mkPartialTx tx = W.PartialTx
+                    tx
+                    (fromExternalInput <$> body ^. #inputs)
+                    (fromApiRedeemer <$> body ^. #redeemers)
+
+        let balanceTx
+                :: forall era. Cardano.IsShelleyBasedEra era
+                => W.PartialTx era
+                -> Handler (Cardano.Tx era)
+            balanceTx partialTx =
+                liftHandler $ W.balanceTransaction @_ @IO @s @k
+                    wrk
+                    genChange
+                    (pp, nodePParams)
+                    ti
+                    wallet
+                    partialTx
+
+        anyShelleyTx <- maybeToHandler ErrByronTxNotSupported
+            . inAnyShelleyBasedEra
+            . cardanoTx
+            . getApiT $ body ^. #transaction
+
+        res <- withShelleyBasedTx anyShelleyTx (fmap toAny . balanceTx . mkPartialTx)
+
+        pure $ ApiSerialisedTransaction $ ApiT $ W.sealedTxFromCardano res
   where
     nl = ctx ^. networkLayer
+
+    maybeToHandler :: IsServerError e => e -> Maybe a -> Handler a
+    maybeToHandler _ (Just a) = pure a
+    maybeToHandler e Nothing  = liftHandler $ throwE e
+
+    withShelleyBasedTx
+        :: Cardano.InAnyShelleyBasedEra Cardano.Tx
+        -> (forall era. Cardano.IsShelleyBasedEra era
+            => Cardano.Tx era -> a)
+        -> a
+    withShelleyBasedTx (Cardano.InAnyShelleyBasedEra _era tx) f
+        = f tx
+
+    toAny :: forall era. Cardano.IsShelleyBasedEra era => Cardano.Tx era -> Cardano.InAnyCardanoEra Cardano.Tx
+    toAny tx = Cardano.InAnyCardanoEra Cardano.cardanoEra tx
+
+    inAnyShelleyBasedEra
+        :: Cardano.InAnyCardanoEra a
+        -> Maybe (Cardano.InAnyShelleyBasedEra a)
+    inAnyShelleyBasedEra = \case
+        Cardano.InAnyCardanoEra Cardano.ByronEra _ ->
+            Nothing
+        Cardano.InAnyCardanoEra Cardano.ShelleyEra a ->
+            Just $ Cardano.InAnyShelleyBasedEra Cardano.ShelleyBasedEraShelley a
+        Cardano.InAnyCardanoEra Cardano.AllegraEra a ->
+            Just $ Cardano.InAnyShelleyBasedEra Cardano.ShelleyBasedEraAllegra a
+        Cardano.InAnyCardanoEra Cardano.MaryEra a ->
+            Just $ Cardano.InAnyShelleyBasedEra Cardano.ShelleyBasedEraMary a
+        Cardano.InAnyCardanoEra Cardano.AlonzoEra a ->
+            Just $ Cardano.InAnyShelleyBasedEra Cardano.ShelleyBasedEraAlonzo a
+
 
 decodeTransaction
     :: forall ctx s k n.
