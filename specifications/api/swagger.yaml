@@ -5329,7 +5329,6 @@ x-responsesPostPolicyId: &responsesPostPolicyId
             - <<: *errInvalidWalletType
             - <<: *errMissingPolicyPublicKey
             - <<: *errCreatedWrongPolicyScriptTemplate
-            - <<: *errAssetNameTooLong
   <<: *responsesErr406
   <<: *responsesErr415
   202:
