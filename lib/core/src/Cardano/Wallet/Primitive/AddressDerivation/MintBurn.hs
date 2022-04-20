@@ -163,7 +163,6 @@ toTokenMapAndScript scriptTempl cosignerMap tName val =
     , TokenQuantity val
     , replaceCosigner @key cosignerMap scriptTempl
     )
-  where
 
 replaceCosigner
     :: forall key. WalletKey key
