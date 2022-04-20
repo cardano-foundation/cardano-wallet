@@ -2396,7 +2396,6 @@ components:
         - policy_script_template
       properties:
         policy_script_template: *ScriptTemplateValue
-        asset_name: *assetName
 
     ApiTxId: &ApiTxId
       type: object

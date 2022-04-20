@@ -1607,18 +1607,17 @@ instance Malformed (BodyParam ApiPostPolicyIdData) where
         [ ( [aesonQQ|
             { "passphrase": "Secure Passphrase"
             }|]
-          , "Error in $['address_index']: parsing Int failed, expected Number, but encountered String"
+          , "Error in $: parsing Cardano.Wallet.Api.Types.ApiPostPolicyIdData(ApiPostPolicyIdData) failed, key 'policy_script_template' not found"
           )
         , ( [aesonQQ|
-            { "asset_name": "aaaaaa"
-            , "policy_script_template": ""
+            { "policy_script_template": ""
             }|]
-          , "Error in $: parsing Cardano.Wallet.Api.Types.ApiPostRandomAddressData(ApiPostRandomAddressData) failed, key 'passphrase' not found"
+          , "Error in $['policy_script_template']: expected Object only, but encountered String"
           )
         , ( [aesonQQ|
-            { "asset_name": 0
+            { "policy_script_template": 1
             }|]
-          , "Error in $: parsing Cardano.Wallet.Api.Types.ApiPostRandomAddressData(ApiPostRandomAddressData) failed, key 'passphrase' not found"
+          , "Error in $['policy_script_template']: expected Object only, but encountered Number"
           )
         ]
 
