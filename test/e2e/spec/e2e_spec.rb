@@ -850,9 +850,7 @@ RSpec.describe "Cardano Wallet E2E tests", :e2e do
         create_policy_key_if_not_exists(@wid)
 
         # Get policy_id:
-        tx_const_mint = SHELLEY.transactions.construct(@wid, nil, nil, nil, nil, mint)
-        tx_decode_mint = SHELLEY.transactions.decode(@wid, tx_const_mint['transaction'])
-        policy_id = get_policy_id_from_decode(tx_decode_mint['mint'])
+        policy_id = SHELLEY.keys.create_policy_id(@wid, policy_script)['policy_id']
 
         # Build CIP-25 metadata
         cip25_metadata = { "721" => {
