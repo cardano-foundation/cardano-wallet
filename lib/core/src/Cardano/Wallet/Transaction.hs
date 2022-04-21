@@ -274,11 +274,21 @@ data TransactionLayer k tx = TransactionLayer
         -- When comparing the original fee and change outputs to the adjusted
         -- fee and change outputs, this function guarantees that:
         --
-        --  - The number of the change outputs remains constant;
-        --  - The fee quantity either remains the same or increases.
-        --  - For each change output:
-        --      - the ada quantity either remains constant or increases.
-        --      - non-ada quantities remain the same.
+        --    - The number of the change outputs remains constant;
+        --
+        --    - The fee quantity either remains the same or increases.
+        --
+        --    - For each change output:
+        --        - the ada quantity either remains constant or increases.
+        --        - non-ada quantities remain the same.
+        --
+        --    - The surplus is conserved:
+        --        The total increase in the fee and change ada quantities is
+        --        exactly equal to the surplus.
+        --
+        --    - Any increase in cost is covered:
+        --        If the total cost has increased by 𝛿c, then the fee value
+        --        will have increased by at least 𝛿c.
 
     , computeSelectionLimit
         :: ProtocolParameters
