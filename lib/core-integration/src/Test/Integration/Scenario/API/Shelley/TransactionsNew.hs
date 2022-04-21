@@ -1184,8 +1184,6 @@ spec = describe "NEW_SHELLEY_TRANSACTIONS" $ do
 
     it "TRANS_NEW_VALIDITY_INTERVAL_02 - Validity interval second should be >= 0" $ \ctx -> runResourceT $ do
 
-        liftIO $ pendingWith "Returns 400, I think it should be 403 - to be fixed in ADP-1189"
-
         wa <- fixtureWallet ctx
 
         let payload = Json [json|{
@@ -1206,6 +1204,7 @@ spec = describe "NEW_SHELLEY_TRANSACTIONS" $ do
             (Link.createUnsignedTransaction @'Shelley wa) Default payload
         verify rTx
             [ expectResponseCode HTTP.status403
+            , expectErrorMessage errMsg403InvalidValidityBounds
             ]
 
     it "TRANS_NEW_VALIDITY_INTERVAL_02 - Validity interval slot should be >= 0" $ \ctx -> runResourceT $ do

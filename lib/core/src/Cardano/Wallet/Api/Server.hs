@@ -2263,6 +2263,15 @@ constructTransaction ctx genChange knownPools getPoolStatus (ApiT wid) body = do
 
     let md = body ^? #metadata . traverse . #getApiT
 
+    let isValidityBoundTimeNegative (ApiValidityBoundAsTimeFromNow (Quantity sec)) =
+            sec < 0
+        isValidityBoundTimeNegative _ = False
+
+    let isThereNegativeTime = case body ^. #validityInterval of
+            Nothing -> False
+            Just (ApiValidityInterval before' hereafter') ->
+                isValidityBoundTimeNegative before' ||
+                isValidityBoundTimeNegative hereafter'
 
     let fromValidityBound (Left ApiValidityBoundUnspecified) =
             liftIO $ pure $ SlotNo 0
@@ -2287,7 +2296,7 @@ constructTransaction ctx genChange knownPools getPoolStatus (ApiT wid) body = do
             hereafter'' <-  fromValidityBound (Right hereafter')
             pure (before'', hereafter'')
 
-    when (hereafter < before) $
+    when (hereafter < before || isThereNegativeTime) $
         liftHandler $ throwE ErrConstructTxWrongValidityBounds
 
     let ttl = hereafter
