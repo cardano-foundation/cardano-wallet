@@ -375,7 +375,7 @@ import Test.QuickCheck
 import Test.QuickCheck.Arbitrary.Generic
     ( genericArbitrary, genericShrink )
 import Test.QuickCheck.Extra
-    ( chooseNatural )
+    ( chooseNatural, report )
 import Test.QuickCheck.Gen
     ( Gen (..), listOf1 )
 import Test.QuickCheck.Random
@@ -2311,6 +2311,9 @@ balanceTransactionSpec = do
       it "prop_distributeSurplus_onSuccess_conservesSurplus" $
           prop_distributeSurplus_onSuccess_conservesSurplus
               & property
+      it "prop_distributeSurplus_onSuccess_coversCostIncrease" $
+          prop_distributeSurplus_onSuccess_coversCostIncrease
+              & property
       it "prop_distributeSurplus_onSuccess_doesNotReduceChangeCoinValues" $
           prop_distributeSurplus_onSuccess_doesNotReduceChangeCoinValues
               & property
@@ -2561,6 +2564,29 @@ prop_distributeSurplus_onSuccess_conservesSurplus =
         surplus === Coin.difference
             (feeModified <> F.foldMap txOutCoin changeModified)
             (feeOriginal <> F.foldMap txOutCoin changeOriginal)
+
+-- The 'distributeSurplus' function should cover the cost of any increases in
+-- 'Coin' values.
+--
+-- If the total cost of encoding ada quantities has increased by 𝛿c, then the
+-- fee value should have increased by at least 𝛿c.
+--
+prop_distributeSurplus_onSuccess_coversCostIncrease
+    :: FeePolicy -> TxBalanceSurplus Coin -> TxFeeAndChange [TxOut] -> Property
+prop_distributeSurplus_onSuccess_coversCostIncrease =
+    prop_distributeSurplus_onSuccess $ \policy _surplus
+        (TxFeeAndChange feeOriginal changeOriginal)
+        (TxFeeAndChange feeModified changeModified) -> do
+        let coinsOriginal = feeOriginal : (txOutCoin <$> changeOriginal)
+        let coinsModified = feeModified : (txOutCoin <$> changeModified)
+        let coinDeltas = zipWith Coin.difference coinsModified coinsOriginal
+        let costIncrease = F.foldMap
+                (uncurry $ costOfIncreasingCoin policy)
+                (coinsOriginal `zip` coinDeltas)
+        Coin.difference feeModified feeOriginal >= costIncrease
+            & report feeModified "feeModified"
+            & report feeOriginal "feeOriginal"
+            & report costIncrease "costIncrease"
 
 -- Since the 'distributeSurplus' function is not aware of the minimum ada
 -- quantity or how to calculate it, it should never allow change ada values to
