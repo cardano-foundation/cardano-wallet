@@ -270,7 +270,7 @@ import Crypto.Hash.Utils
 import Data.ByteString
     ( ByteString )
 import Data.Either
-    ( isRight )
+    ( isLeft, isRight )
 import Data.Function
     ( on, (&) )
 import Data.Functor.Identity
@@ -360,6 +360,7 @@ import Test.QuickCheck
     , property
     , scale
     , shrinkList
+    , shrinkMapBy
     , suchThat
     , suchThatMap
     , vector
@@ -374,7 +375,7 @@ import Test.QuickCheck
 import Test.QuickCheck.Arbitrary.Generic
     ( genericArbitrary, genericShrink )
 import Test.QuickCheck.Extra
-    ( chooseNatural )
+    ( chooseNatural, report )
 import Test.QuickCheck.Gen
     ( Gen (..), listOf1 )
 import Test.QuickCheck.Random
@@ -2307,6 +2308,12 @@ balanceTransactionSpec = do
 
     describe "distributeSurplus" $ do
 
+      it "prop_distributeSurplus_onSuccess_conservesSurplus" $
+          prop_distributeSurplus_onSuccess_conservesSurplus
+              & property
+      it "prop_distributeSurplus_onSuccess_coversCostIncrease" $
+          prop_distributeSurplus_onSuccess_coversCostIncrease
+              & property
       it "prop_distributeSurplus_onSuccess_doesNotReduceChangeCoinValues" $
           prop_distributeSurplus_onSuccess_doesNotReduceChangeCoinValues
               & property
@@ -2402,10 +2409,18 @@ prop_distributeSurplusDelta_coversCostIncreaseAndConservesSurplus
     :: FeePolicy -> Coin -> Coin -> [Coin] -> Property
 prop_distributeSurplusDelta_coversCostIncreaseAndConservesSurplus
     feePolicy surplus fee0 change0 =
+    checkCoverage $
+    cover 2  (isLeft  mres) "Failure" $
+    cover 50 (isRight mres) "Success" $
+    report mres "Result" $
     counterexample (show mres) $ case mres of
-        Left _ ->
-            label "unable to distribute surplus" $
-                property (surplus < (maxCoinCost <> maxCoinCost))
+        Left (ErrMoreSurplusNeeded shortfall) ->
+            conjoin
+                [ property $ surplus < (maxCoinCost <> maxCoinCost)
+                , property $ shortfall > Coin 0
+                , costOfIncreasingCoin feePolicy fee0 surplus
+                    === surplus <> shortfall
+                ]
         Right (TxFeeAndChange feeDelta changeDeltas) -> do
             let feeRequirementIncrease = mconcat
                     [ costOfIncreasingCoin feePolicy fee0 feeDelta
@@ -2458,6 +2473,20 @@ instance Arbitrary FeePolicy where
         LinearFee . uncurry LinearFunction
             <$> shrink (intercept, slope)
 
+newtype TxBalanceSurplus a = TxBalanceSurplus {unTxBalanceSurplus :: a}
+    deriving (Eq, Show)
+
+instance Arbitrary (TxBalanceSurplus Coin) where
+    -- We want to test cases where the surplus is zero. So it's important that
+    -- we do not restrict ourselves to positive coins here.
+    arbitrary = TxBalanceSurplus <$> frequency
+        [ (8, genCoin)
+        , (4, genCoin & scale (* (2 `power`  4)))
+        , (2, genCoin & scale (* (2 `power`  8)))
+        , (1, genCoin & scale (* (2 `power` 16)))
+        ]
+    shrink = shrinkMapBy TxBalanceSurplus unTxBalanceSurplus shrinkCoin
+
 instance Arbitrary (TxFeeAndChange [TxOut]) where
     arbitrary = do
         fee <- genCoin
@@ -2484,10 +2513,10 @@ prop_distributeSurplus_onSuccess
         -> TxFeeAndChange [TxOut]
         -> prop)
     -> FeePolicy
-    -> Coin
+    -> TxBalanceSurplus Coin
     -> TxFeeAndChange [TxOut]
     -> Property
-prop_distributeSurplus_onSuccess propertyToTest policy surplus fc =
+prop_distributeSurplus_onSuccess propertyToTest policy txSurplus fc =
     checkCoverage $
     cover 50
         (isRight mResult)
@@ -2504,25 +2533,75 @@ prop_distributeSurplus_onSuccess propertyToTest policy surplus fc =
     cover 2
         (feeOriginal == Coin 0)
         "feeOriginal == Coin 0" $
+    cover 2
+        (feeOriginal == Coin 1)
+        "feeOriginal == Coin 1" $
     cover 50
-        (feeOriginal >= Coin 1)
-        "feeOriginal >= Coin 1" $
+        (feeOriginal >= Coin 2)
+        "feeOriginal >= Coin 2" $
+    cover 1
+        (surplus == Coin 0)
+        "surplus == Coin 0" $
+    cover 1
+        (surplus == Coin 1)
+        "surplus == Coin 1" $
+    cover 50
+        (surplus >= Coin 2)
+        "surplus >= Coin 2" $
     either
         (const $ property True)
         (property . propertyToTest policy surplus fc)
         mResult
   where
+    TxBalanceSurplus surplus = txSurplus
     TxFeeAndChange feeOriginal changeOriginal = fc
 
     mResult :: Either ErrMoreSurplusNeeded (TxFeeAndChange [TxOut])
     mResult = _distributeSurplus policy surplus fc
+
+-- Verifies that the 'distributeSurplus' function conserves the surplus: the
+-- total increase in the fee and change ada quantities should be exactly equal
+-- to the given surplus.
+--
+prop_distributeSurplus_onSuccess_conservesSurplus
+    :: FeePolicy -> TxBalanceSurplus Coin -> TxFeeAndChange [TxOut] -> Property
+prop_distributeSurplus_onSuccess_conservesSurplus =
+    prop_distributeSurplus_onSuccess $ \_policy surplus
+        (TxFeeAndChange feeOriginal changeOriginal)
+        (TxFeeAndChange feeModified changeModified) ->
+        surplus === Coin.difference
+            (feeModified <> F.foldMap txOutCoin changeModified)
+            (feeOriginal <> F.foldMap txOutCoin changeOriginal)
+
+-- The 'distributeSurplus' function should cover the cost of any increases in
+-- 'Coin' values.
+--
+-- If the total cost of encoding ada quantities has increased by 𝛿c, then the
+-- fee value should have increased by at least 𝛿c.
+--
+prop_distributeSurplus_onSuccess_coversCostIncrease
+    :: FeePolicy -> TxBalanceSurplus Coin -> TxFeeAndChange [TxOut] -> Property
+prop_distributeSurplus_onSuccess_coversCostIncrease =
+    prop_distributeSurplus_onSuccess $ \policy _surplus
+        (TxFeeAndChange feeOriginal changeOriginal)
+        (TxFeeAndChange feeModified changeModified) -> do
+        let coinsOriginal = feeOriginal : (txOutCoin <$> changeOriginal)
+        let coinsModified = feeModified : (txOutCoin <$> changeModified)
+        let coinDeltas = zipWith Coin.difference coinsModified coinsOriginal
+        let costIncrease = F.foldMap
+                (uncurry $ costOfIncreasingCoin policy)
+                (coinsOriginal `zip` coinDeltas)
+        Coin.difference feeModified feeOriginal >= costIncrease
+            & report feeModified "feeModified"
+            & report feeOriginal "feeOriginal"
+            & report costIncrease "costIncrease"
 
 -- Since the 'distributeSurplus' function is not aware of the minimum ada
 -- quantity or how to calculate it, it should never allow change ada values to
 -- decrease.
 --
 prop_distributeSurplus_onSuccess_doesNotReduceChangeCoinValues
-    :: FeePolicy -> Coin -> TxFeeAndChange [TxOut] -> Property
+    :: FeePolicy -> TxBalanceSurplus Coin -> TxFeeAndChange [TxOut] -> Property
 prop_distributeSurplus_onSuccess_doesNotReduceChangeCoinValues =
     prop_distributeSurplus_onSuccess $ \_policy _surplus
         (TxFeeAndChange _feeOriginal changeOriginal)
@@ -2535,7 +2614,7 @@ prop_distributeSurplus_onSuccess_doesNotReduceChangeCoinValues =
 -- less than the original value.
 --
 prop_distributeSurplus_onSuccess_doesNotReduceFeeValue
-    :: FeePolicy -> Coin -> TxFeeAndChange [TxOut] -> Property
+    :: FeePolicy -> TxBalanceSurplus Coin -> TxFeeAndChange [TxOut] -> Property
 prop_distributeSurplus_onSuccess_doesNotReduceFeeValue =
     prop_distributeSurplus_onSuccess $ \_policy _surplus
         (TxFeeAndChange feeOriginal _changeOriginal)
@@ -2547,7 +2626,7 @@ prop_distributeSurplus_onSuccess_doesNotReduceFeeValue =
 -- destroy change outputs.
 --
 prop_distributeSurplus_onSuccess_preservesChangeLength
-    :: FeePolicy -> Coin -> TxFeeAndChange [TxOut] -> Property
+    :: FeePolicy -> TxBalanceSurplus Coin -> TxFeeAndChange [TxOut] -> Property
 prop_distributeSurplus_onSuccess_preservesChangeLength =
     prop_distributeSurplus_onSuccess $ \_policy _surplus
         (TxFeeAndChange _feeOriginal changeOriginal)
@@ -2558,7 +2637,7 @@ prop_distributeSurplus_onSuccess_preservesChangeLength =
 -- outputs.
 --
 prop_distributeSurplus_onSuccess_preservesChangeAddresses
-    :: FeePolicy -> Coin -> TxFeeAndChange [TxOut] -> Property
+    :: FeePolicy -> TxBalanceSurplus Coin -> TxFeeAndChange [TxOut] -> Property
 prop_distributeSurplus_onSuccess_preservesChangeAddresses =
     prop_distributeSurplus_onSuccess $ \_policy _surplus
         (TxFeeAndChange _feeOriginal changeOriginal)
@@ -2570,7 +2649,7 @@ prop_distributeSurplus_onSuccess_preservesChangeAddresses =
 -- assets.
 --
 prop_distributeSurplus_onSuccess_preservesChangeNonAdaAssets
-    :: FeePolicy -> Coin -> TxFeeAndChange [TxOut] -> Property
+    :: FeePolicy -> TxBalanceSurplus Coin -> TxFeeAndChange [TxOut] -> Property
 prop_distributeSurplus_onSuccess_preservesChangeNonAdaAssets =
     prop_distributeSurplus_onSuccess $ \_policy _surplus
         (TxFeeAndChange _feeOriginal changeOriginal)
@@ -2591,7 +2670,7 @@ prop_distributeSurplus_onSuccess_preservesChangeNonAdaAssets =
 -- value, as expected.
 --
 prop_distributeSurplus_onSuccess_onlyAdjustsFirstChangeValue
-    :: FeePolicy -> Coin -> TxFeeAndChange [TxOut] -> Property
+    :: FeePolicy -> TxBalanceSurplus Coin -> TxFeeAndChange [TxOut] -> Property
 prop_distributeSurplus_onSuccess_onlyAdjustsFirstChangeValue =
     prop_distributeSurplus_onSuccess $ \_policy _surplus
         (TxFeeAndChange _feeOriginal changeOriginal)
@@ -2609,7 +2688,7 @@ prop_distributeSurplus_onSuccess_onlyAdjustsFirstChangeValue =
 -- original fee and change values.
 --
 prop_distributeSurplus_onSuccess_increasesValuesByDelta
-    :: FeePolicy -> Coin -> TxFeeAndChange [TxOut] -> Property
+    :: FeePolicy -> TxBalanceSurplus Coin -> TxFeeAndChange [TxOut] -> Property
 prop_distributeSurplus_onSuccess_increasesValuesByDelta =
     prop_distributeSurplus_onSuccess $ \policy surplus
         (TxFeeAndChange feeOriginal changeOriginal)

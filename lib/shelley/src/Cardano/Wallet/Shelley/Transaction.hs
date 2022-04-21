@@ -1609,13 +1609,14 @@ burnSurplusAsFees
     -> Coin -- Surplus
     -> TxFeeAndChange ()
     -> Either ErrMoreSurplusNeeded (TxFeeAndChange ())
-burnSurplusAsFees feePolicy surplus (TxFeeAndChange fee0 ()) =
-    case costOfBurningSurplus `Coin.subtract` surplus of
-        Just shortfall -> Left $ ErrMoreSurplusNeeded shortfall
-        Nothing ->
-            Right $ TxFeeAndChange surplus ()
+burnSurplusAsFees feePolicy surplus (TxFeeAndChange fee0 ())
+    | shortfall > Coin 0 =
+        Left $ ErrMoreSurplusNeeded shortfall
+    | otherwise =
+        Right $ TxFeeAndChange surplus ()
   where
     costOfBurningSurplus = costOfIncreasingCoin feePolicy fee0 surplus
+    shortfall = costOfBurningSurplus `Coin.difference` surplus
 
 -- | Estimates the final size of a transaction based on its skeleton.
 --
