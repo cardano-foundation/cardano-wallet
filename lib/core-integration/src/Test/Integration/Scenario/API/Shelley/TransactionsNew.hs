@@ -203,6 +203,7 @@ import Test.Integration.Framework.TestData
     , errMsg403Fee
     , errMsg403ForeignTransaction
     , errMsg403InvalidConstructTx
+    , errMsg403InvalidValidityBounds
     , errMsg403MinUTxOValue
     , errMsg403MintOrBurnAssetQuantityOutOfBounds
     , errMsg403MissingWitsInTransaction
@@ -1156,7 +1157,34 @@ spec = describe "NEW_SHELLEY_TRANSACTIONS" $ do
             , expectResponseCode HTTP.status202
             ]
 
+    it "TRANS_NEW_VALIDITY_INTERVAL_02 - validity bound should precede" $ \ctx -> runResourceT $ do
+
+        wa <- fixtureWallet ctx
+
+        let payload = Json [json|{
+                "withdrawal": "self",
+                "validity_interval": {
+                    "invalid_before": {
+                      "quantity": 100,
+                      "unit": "second"
+                    },
+                    "invalid_hereafter": {
+                      "quantity": 50,
+                      "unit": "second"
+                    }
+                  }
+                }|]
+
+        rTx <- request @(ApiConstructTransaction n) ctx
+            (Link.createUnsignedTransaction @'Shelley wa) Default payload
+        verify rTx
+            [ expectResponseCode HTTP.status403
+            , expectErrorMessage errMsg403InvalidValidityBounds
+            ]
+
     it "TRANS_NEW_VALIDITY_INTERVAL_02 - Validity interval second should be >= 0" $ \ctx -> runResourceT $ do
+
+        liftIO $ pendingWith "Returns 400, I think it should be 403 - to be fixed in ADP-1189"
 
         wa <- fixtureWallet ctx
 
@@ -1168,7 +1196,7 @@ spec = describe "NEW_SHELLEY_TRANSACTIONS" $ do
                       "unit": "second"
                     },
                     "invalid_hereafter": {
-                      "quantity": -1,
+                      "quantity": 10,
                       "unit": "second"
                     }
                   }

@@ -4143,6 +4143,19 @@ x-errMintOrBurnAssetQuantityOutOfBounds: &errMintOrBurnAssetQuantityOutOfBounds
       type: string
       enum: ['mint_or_burn_asset_quantity_out_of_bounds']
 
+x-errInvalidValidityBounds: &errInvalidValidityBounds
+  <<: *responsesErr
+  title: invalid_validity_bounds
+  properties:
+    message:
+      type: string
+      description:
+          Occurs when upon transaction construction before validity bound does
+          not precede hereafter valdity bound or negative time is used.
+    code:
+      type: string
+      enum: ['invalid_validity_bounds']
+
 x-errInputsDepleted: &errInputsDepleted
   <<: *responsesErr
   title: inputs_depleted
@@ -5192,6 +5205,7 @@ x-responsesConstructTransaction: &responsesConstructTransaction
             - <<: *errCreatedWrongPolicyScriptTemplate
             - <<: *errAssetNameTooLong
             - <<: *errMintOrBurnAssetQuantityOutOfBounds
+            - <<: *errInvalidValidityBounds
   <<: *responsesErr404WalletNotFound
   <<: *responsesErr406
   <<: *responsesErr415UnsupportedMediaType

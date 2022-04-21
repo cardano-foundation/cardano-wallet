@@ -1658,6 +1658,7 @@ data ApiErrorCode
     | InsufficientCollateral
     | InvalidCoinSelection
     | InvalidWalletType
+    | InvalidValidityBounds
     | KeyNotFoundForAddress
     | MalformedTxPayload
     | MethodNotAllowed

@@ -138,8 +138,6 @@ import Cardano.BM.Tracing
     ( HasPrivacyAnnotation (..), HasSeverityAnnotation (..) )
 import Cardano.Mnemonic
     ( SomeMnemonic )
-import Cardano.Slotting.Slot
-    ( SlotNo (..) )
 import Cardano.Wallet
     ( ErrAddCosignerKey (..)
     , ErrBalanceTx (..)
@@ -460,7 +458,7 @@ import Cardano.Wallet.Primitive.Types
     , PoolLifeCycleStatus (..)
     , Signature (..)
     , SlotId
-    , SlotNo
+    , SlotNo (..)
     , SortOrder (..)
     , WalletId (..)
     , WalletMetadata (..)
@@ -2285,9 +2283,12 @@ constructTransaction ctx genChange knownPools getPoolStatus (ApiT wid) body = do
             hereafter' <- fromValidityBound (Right ApiValidityBoundUnspecified)
             pure (before', hereafter')
         Just (ApiValidityInterval before' hereafter') -> do
-            before' <-  fromValidityBound (Left before')
-            hereafter' <-  fromValidityBound (Right hereafter')
-            pure (before', hereafter')
+            before'' <-  fromValidityBound (Left before')
+            hereafter'' <-  fromValidityBound (Right hereafter')
+            pure (before'', hereafter'')
+
+    when (hereafter < before) $
+        liftHandler $ throwE ErrConstructTxWrongValidityBounds
 
     let ttl = hereafter
 
@@ -4368,6 +4369,12 @@ instance IsServerError ErrConstructTx where
             [ "Attempted to mint or burn an asset quantity that is out of "
             , "bounds. The asset quantity must be greater than zero and must "
             , "not exceed 9223372036854775807 (2^63 - 1)."
+            ]
+        ErrConstructTxWrongValidityBounds ->
+            apiError err403 InvalidValidityBounds $ mconcat
+            [ "It looks like I've created a transaction "
+            , "with wrong validity bounds. Please make sure before validity bound "
+            , "is preceding hereafter validity bound, and nonnegative times are used."
             ]
         ErrConstructTxNotImplemented _ ->
             apiError err501 NotImplemented

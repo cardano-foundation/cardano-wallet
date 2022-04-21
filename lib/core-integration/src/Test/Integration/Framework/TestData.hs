@@ -109,6 +109,7 @@ module Test.Integration.Framework.TestData
     , errMsg403CreatedWrongPolicyScriptTemplatePolicyId
     , errMsg403AssetNameTooLong
     , errMsg403MintOrBurnAssetQuantityOutOfBounds
+    , errMsg403InvalidValidityBounds
     ) where
 
 import Prelude
@@ -698,6 +699,13 @@ errMsg403MintOrBurnAssetQuantityOutOfBounds = mconcat
     [ "Attempted to mint or burn an asset quantity that is out of "
     , "bounds. The asset quantity must be greater than zero and must "
     , "not exceed 9223372036854775807 (2^63 - 1)."
+    ]
+
+errMsg403InvalidValidityBounds :: String
+errMsg403InvalidValidityBounds = mconcat
+    [ "It looks like I've created a transaction "
+    , "with wrong validity bounds. Please make sure before validity bound "
+    , "is preceding hereafter validity bound, and nonnegative times are used."
     ]
 
 --------------------------------------------------------------------------------
