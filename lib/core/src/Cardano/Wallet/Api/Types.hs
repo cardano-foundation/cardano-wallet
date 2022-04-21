@@ -1146,6 +1146,8 @@ data ApiTransaction (n :: NetworkDiscriminant) = ApiTransaction
     , inputs :: ![ApiTxInput n]
     , outputs :: ![AddressAmount (ApiT Address, Proxy n)]
     , collateral :: ![ApiTxCollateral n]
+    , collateralOutputs
+        :: !(ApiAsArray (Maybe (AddressAmount (ApiT Address, Proxy n))))
     , withdrawals :: ![ApiWithdrawal n]
     , mint :: !(ApiT W.TokenMap)
     , status :: !(ApiT TxStatus)

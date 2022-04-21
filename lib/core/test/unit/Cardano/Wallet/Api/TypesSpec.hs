@@ -357,7 +357,7 @@ import Data.List
 import Data.List.NonEmpty
     ( NonEmpty (..) )
 import Data.Maybe
-    ( fromJust, fromMaybe )
+    ( fromJust, fromMaybe, maybeToList )
 import Data.OpenApi
     ( Definitions, NamedSchema (..), Schema, ToSchema (..) )
 import Data.OpenApi.Declare
@@ -1168,6 +1168,8 @@ spec = parallel $ do
                     , outputs = outputs
                         (x :: ApiTransaction ('Testnet 0))
                     , collateral = collateral
+                        (x :: ApiTransaction ('Testnet 0))
+                    , collateralOutputs = collateralOutputs
                         (x :: ApiTransaction ('Testnet 0))
                     , status = status
                         (x :: ApiTransaction ('Testnet 0))
@@ -2527,6 +2529,7 @@ instance Arbitrary (ApiTransaction n) where
             <*> genInputs
             <*> genOutputs
             <*> genCollateral
+            <*> genCollateralOutputs
             <*> genWithdrawals
             <*> arbitrary
             <*> pure txStatus
@@ -2540,6 +2543,8 @@ instance Arbitrary (ApiTransaction n) where
         genWithdrawals =
             Test.QuickCheck.scale (`mod` 3) arbitrary
         genCollateral =
+            Test.QuickCheck.scale (`mod` 3) arbitrary
+        genCollateralOutputs =
             Test.QuickCheck.scale (`mod` 3) arbitrary
 
 instance Arbitrary TxScriptValidity where

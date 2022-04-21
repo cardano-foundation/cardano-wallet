@@ -1146,6 +1146,21 @@ x-transactionOutputs: &transactionOutputs
       amount: *amount
       assets: *walletAssets
 
+x-transactionCollateralOutputs: &transactionCollateralOutputs
+  description: A list of collateral return outputs with amounts specified.
+  type: array
+  minItems: 0
+  maxItems: 1
+  items:
+    type: object
+    required:
+      - address
+      - amount
+    properties:
+      address: *addressId
+      amount: *amount
+      assets: *walletAssets
+
 x-transactionNoAmountOutputs: &transactionNoAmountOutputs
   description: A list of target outputs without amounts specified
   type: array
@@ -2529,6 +2544,7 @@ components:
         inputs: *transactionInputs
         outputs: *transactionOutputs
         collateral: *transactionCollateral
+        collateral_outputs: *transactionCollateralOutputs
         withdrawals: *transactionWithdrawals
         mint: *transactionMint
         status: *transactionStatus

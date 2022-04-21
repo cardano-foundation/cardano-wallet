@@ -209,6 +209,7 @@ import Cardano.Wallet.Api.Types
     , ApiActiveSharedWallet (..)
     , ApiAddress (..)
     , ApiAnyCertificate (..)
+    , ApiAsArray (..)
     , ApiAsset (..)
     , ApiAssetMintBurn (..)
     , ApiBalanceTransactionPostData
@@ -3727,6 +3728,8 @@ mkApiTransaction timeInterpreter setTimeReference tx = do
             | (i, o) <- tx ^. #txCollateral
             ]
         , outputs = toAddressAmount @n <$> tx ^. #txOutputs
+        -- TODO: [ADP-1670]
+        , collateralOutputs = ApiAsArray Nothing
         , withdrawals = mkApiWithdrawal @n <$> Map.toList (tx ^. #txWithdrawals)
         , mint = mempty  -- TODO: ADP-xxx
         , status = ApiT (tx ^. (#txMeta . #status))
