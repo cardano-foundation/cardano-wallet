@@ -2519,9 +2519,21 @@ prop_distributeSurplus_onSuccess propertyToTest policy txSurplus fc =
     cover 2
         (feeOriginal == Coin 0)
         "feeOriginal == Coin 0" $
+    cover 2
+        (feeOriginal == Coin 1)
+        "feeOriginal == Coin 1" $
     cover 50
-        (feeOriginal >= Coin 1)
-        "feeOriginal >= Coin 1" $
+        (feeOriginal >= Coin 2)
+        "feeOriginal >= Coin 2" $
+    cover 1
+        (surplus == Coin 0)
+        "surplus == Coin 0" $
+    cover 1
+        (surplus == Coin 1)
+        "surplus == Coin 1" $
+    cover 50
+        (surplus >= Coin 2)
+        "surplus >= Coin 2" $
     either
         (const $ property True)
         (property . propertyToTest policy surplus fc)
