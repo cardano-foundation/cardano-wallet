@@ -1290,6 +1290,8 @@ RSpec.describe "Cardano Wallet E2E tests", :e2e do
         # Send them back to src wallet:
         src_address = SHELLEY.addresses.list(@wid).first['id']
         policy_id = get_policy_id_from_decode(tx_decoded['mint'])
+        # Make sure decoded policy id correct
+        expect(policy_id).to eq SHELLEY.keys.create_policy_id(@wid, policy_script)['policy_id']
         payment = [{ "address" => src_address,
                     "amount" => { "quantity" => 0, "unit" => "lovelace" },
                     "assets" => [ { "policy_id" => policy_id,
