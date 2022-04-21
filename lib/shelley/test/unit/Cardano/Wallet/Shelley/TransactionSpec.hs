@@ -2308,6 +2308,9 @@ balanceTransactionSpec = do
 
     describe "distributeSurplus" $ do
 
+      it "prop_distributeSurplus_onSuccess_conservesSurplus" $
+          prop_distributeSurplus_onSuccess_conservesSurplus
+              & property
       it "prop_distributeSurplus_onSuccess_doesNotReduceChangeCoinValues" $
           prop_distributeSurplus_onSuccess_doesNotReduceChangeCoinValues
               & property
@@ -2544,6 +2547,20 @@ prop_distributeSurplus_onSuccess propertyToTest policy txSurplus fc =
 
     mResult :: Either ErrMoreSurplusNeeded (TxFeeAndChange [TxOut])
     mResult = _distributeSurplus policy surplus fc
+
+-- Verifies that the 'distributeSurplus' function conserves the surplus: the
+-- total increase in the fee and change ada quantities should be exactly equal
+-- to the given surplus.
+--
+prop_distributeSurplus_onSuccess_conservesSurplus
+    :: FeePolicy -> TxBalanceSurplus Coin -> TxFeeAndChange [TxOut] -> Property
+prop_distributeSurplus_onSuccess_conservesSurplus =
+    prop_distributeSurplus_onSuccess $ \_policy surplus
+        (TxFeeAndChange feeOriginal changeOriginal)
+        (TxFeeAndChange feeModified changeModified) ->
+        surplus === Coin.difference
+            (feeModified <> F.foldMap txOutCoin changeModified)
+            (feeOriginal <> F.foldMap txOutCoin changeOriginal)
 
 -- Since the 'distributeSurplus' function is not aware of the minimum ada
 -- quantity or how to calculate it, it should never allow change ada values to
