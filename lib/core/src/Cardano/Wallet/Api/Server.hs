@@ -138,6 +138,8 @@ import Cardano.BM.Tracing
     ( HasPrivacyAnnotation (..), HasSeverityAnnotation (..) )
 import Cardano.Mnemonic
     ( SomeMnemonic )
+import Cardano.Slotting.Slot
+    ( SlotNo (..) )
 import Cardano.Wallet
     ( ErrAddCosignerKey (..)
     , ErrBalanceTx (..)
@@ -284,6 +286,8 @@ import Cardano.Wallet.Api.Types
     , ApiTxMetadata (..)
     , ApiTxOutputGeneral (..)
     , ApiUtxoStatistics (..)
+    , ApiValidityBound (..)
+    , ApiValidityInterval (..)
     , ApiWallet (..)
     , ApiWalletAssetsBalance (..)
     , ApiWalletBalance (..)
@@ -2260,12 +2264,35 @@ constructTransaction ctx genChange knownPools getPoolStatus (ApiT wid) body = do
         liftHandler $ throwE ErrConstructTxMultiaccountNotSupported
 
     let md = body ^? #metadata . traverse . #getApiT
-    let mTTL = Nothing --TODO: ADP-1189
+
+
+    let fromValidityBound (Left ApiValidityBoundUnspecified) =
+            liftIO $ pure $ SlotNo 0
+        fromValidityBound (Right ApiValidityBoundUnspecified) =
+            liftIO $ W.getTxExpiry ti Nothing
+        fromValidityBound (Right (ApiValidityBoundAsTimeFromNow (Quantity sec))) =
+            liftIO $ W.getTxExpiry ti (Just sec)
+        fromValidityBound (Left (ApiValidityBoundAsTimeFromNow (Quantity sec))) =
+            liftIO $ W.getTxExpiry ti (Just sec)
+        fromValidityBound (Right (ApiValidityBoundAsSlot (Quantity slot))) =
+            liftIO $ pure $ SlotNo slot
+        fromValidityBound (Left (ApiValidityBoundAsSlot (Quantity slot))) =
+            liftIO $ pure $ SlotNo slot
+
+    (before, hereafter) <- case body ^. #validityInterval of
+        Nothing -> do
+            before' <- fromValidityBound (Left ApiValidityBoundUnspecified)
+            hereafter' <- fromValidityBound (Right ApiValidityBoundUnspecified)
+            pure (before', hereafter')
+        Just (ApiValidityInterval before' hereafter') -> do
+            before' <-  fromValidityBound (Left before')
+            hereafter' <-  fromValidityBound (Right hereafter')
+            pure (before', hereafter')
+
+    let ttl = hereafter
 
     (wdrl, _) <-
         mkRewardAccountBuilder @_ @s @_ @n ctx wid (body ^. #withdrawal)
-
-    ttl <- liftIO $ W.getTxExpiry ti mTTL
 
     withWorkerCtx ctx wid liftE liftE $ \wrk -> do
         pp <- liftIO $ NW.currentProtocolParameters (wrk ^. networkLayer)

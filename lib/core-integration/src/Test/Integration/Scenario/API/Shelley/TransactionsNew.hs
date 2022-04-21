@@ -1158,8 +1158,6 @@ spec = describe "NEW_SHELLEY_TRANSACTIONS" $ do
 
     it "TRANS_NEW_VALIDITY_INTERVAL_02 - Validity interval second should be >= 0" $ \ctx -> runResourceT $ do
 
-        liftIO $ pendingWith "Accepted but should be 403 - to be fixed in ADP-1189"
-
         wa <- fixtureWallet ctx
 
         let payload = Json [json|{
