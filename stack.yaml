@@ -133,7 +133,16 @@ extra-deps:
 - binary-0.8.8.0
 - parsec-3.1.14.0
 
-  # Using a fork until our patches can be merged upstream
+# Using a fork until our patches can be merged upstream
+
+# TODO: ADP-1713
+- git: https://github.com/biocad/servant-openapi3
+  commit: 4165b837d3a71debd1059c3735460075840000b5
+
+# TODO: ADP-1713
+- git: https://github.com/paolino/openapi3
+  commit: c30d0de6875d75edd64d1aac2272886528bc492d
+
 - git: https://github.com/input-output-hk/optparse-applicative
   commit: 7497a29cb998721a9068d5725d49461f2bba0e7a
 

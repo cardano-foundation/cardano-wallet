@@ -8,57 +8,61 @@
   , config
   , ... }:
   {
-    flags = { development = false; };
+    flags = {};
     package = {
       specVersion = "1.10";
-      identifier = { name = "goblins"; version = "0.2.0.0"; };
-      license = "BSD-3-Clause";
-      copyright = "";
-      maintainer = "nick@topos.org.uk";
-      author = "Nicholas Clarke";
-      homepage = "https://github.com/input-output-hk/goblins";
+      identifier = { name = "cardano-sl-x509"; version = "3.0.0"; };
+      license = "MIT";
+      copyright = "2018 IOHK";
+      maintainer = "operations@iohk.io";
+      author = "IOHK Engineering Team";
+      homepage = "https://github.com/input-output-hk/cardano-sl/x509/README.md";
       url = "";
-      synopsis = "Genetic algorithm based randomised testing";
-      description = "";
+      synopsis = "Tool-suite for generating x509 certificates specialized for RSA with SHA-256";
+      description = "See README";
       buildType = "Simple";
       };
     components = {
       "library" = {
         depends = [
           (hsPkgs."base" or (errorHandler.buildDepError "base"))
-          (hsPkgs."bimap" or (errorHandler.buildDepError "bimap"))
-          (hsPkgs."binary" or (errorHandler.buildDepError "binary"))
+          (hsPkgs."aeson" or (errorHandler.buildDepError "aeson"))
+          (hsPkgs."asn1-encoding" or (errorHandler.buildDepError "asn1-encoding"))
+          (hsPkgs."asn1-types" or (errorHandler.buildDepError "asn1-types"))
+          (hsPkgs."base64-bytestring" or (errorHandler.buildDepError "base64-bytestring"))
           (hsPkgs."bytestring" or (errorHandler.buildDepError "bytestring"))
-          (hsPkgs."containers" or (errorHandler.buildDepError "containers"))
-          (hsPkgs."extra" or (errorHandler.buildDepError "extra"))
-          (hsPkgs."hedgehog" or (errorHandler.buildDepError "hedgehog"))
-          (hsPkgs."microlens" or (errorHandler.buildDepError "microlens"))
-          (hsPkgs."microlens-mtl" or (errorHandler.buildDepError "microlens-mtl"))
-          (hsPkgs."microlens-th" or (errorHandler.buildDepError "microlens-th"))
-          (hsPkgs."mmorph" or (errorHandler.buildDepError "mmorph"))
-          (hsPkgs."monad-control" or (errorHandler.buildDepError "monad-control"))
-          (hsPkgs."moo" or (errorHandler.buildDepError "moo"))
-          (hsPkgs."random" or (errorHandler.buildDepError "random"))
-          (hsPkgs."template-haskell" or (errorHandler.buildDepError "template-haskell"))
-          (hsPkgs."th-utilities" or (errorHandler.buildDepError "th-utilities"))
-          (hsPkgs."transformers" or (errorHandler.buildDepError "transformers"))
-          (hsPkgs."tree-diff" or (errorHandler.buildDepError "tree-diff"))
-          (hsPkgs."typerep-map" or (errorHandler.buildDepError "typerep-map"))
+          (hsPkgs."cardano-prelude" or (errorHandler.buildDepError "cardano-prelude"))
+          (hsPkgs."cryptonite" or (errorHandler.buildDepError "cryptonite"))
+          (hsPkgs."data-default-class" or (errorHandler.buildDepError "data-default-class"))
+          (hsPkgs."directory" or (errorHandler.buildDepError "directory"))
+          (hsPkgs."exceptions" or (errorHandler.buildDepError "exceptions"))
+          (hsPkgs."filepath" or (errorHandler.buildDepError "filepath"))
+          (hsPkgs."hourglass" or (errorHandler.buildDepError "hourglass"))
+          (hsPkgs."ip" or (errorHandler.buildDepError "ip"))
+          (hsPkgs."text" or (errorHandler.buildDepError "text"))
+          (hsPkgs."unordered-containers" or (errorHandler.buildDepError "unordered-containers"))
+          (hsPkgs."wide-word" or (errorHandler.buildDepError "wide-word"))
+          (hsPkgs."x509" or (errorHandler.buildDepError "x509"))
+          (hsPkgs."x509-store" or (errorHandler.buildDepError "x509-store"))
+          (hsPkgs."x509-validation" or (errorHandler.buildDepError "x509-validation"))
+          (hsPkgs."yaml" or (errorHandler.buildDepError "yaml"))
           ];
         buildable = true;
         };
       tests = {
-        "goblin-test" = {
+        "cardano-sl-x509-test" = {
           depends = [
             (hsPkgs."base" or (errorHandler.buildDepError "base"))
+            (hsPkgs."QuickCheck" or (errorHandler.buildDepError "QuickCheck"))
+            (hsPkgs."cardano-prelude" or (errorHandler.buildDepError "cardano-prelude"))
+            (hsPkgs."cardano-sl-x509" or (errorHandler.buildDepError "cardano-sl-x509"))
+            (hsPkgs."exceptions" or (errorHandler.buildDepError "exceptions"))
             (hsPkgs."hedgehog" or (errorHandler.buildDepError "hedgehog"))
-            (hsPkgs."goblins" or (errorHandler.buildDepError "goblins"))
-            (hsPkgs."temporary" or (errorHandler.buildDepError "temporary"))
             ];
           buildable = true;
           };
         };
       };
     } // rec {
-    src = (pkgs.lib).mkDefault /nix/store/4hpdshkfiqw93mp84jsnws4p3826iv4r-goblins-cde90a2;
+    src = (pkgs.lib).mkDefault /nix/store/5lcpx8q17x275vgy3b5700vy3c9ga12w-cardano-sl-x509-1292593;
     }

@@ -8,20 +8,20 @@
   , config
   , ... }:
   {
-    flags = { asserts = false; };
+    flags = {};
     package = {
-      specVersion = "3.0";
+      specVersion = "1.10";
       identifier = {
-        name = "ouroboros-consensus-protocol";
+        name = "ouroboros-consensus-byronspec";
         version = "0.1.0.0";
         };
-      license = "NONE";
-      copyright = "";
-      maintainer = "nick@topos.org.uk";
-      author = "IOHK Formal methods team";
+      license = "Apache-2.0";
+      copyright = "2019 Input Output (Hong Kong) Ltd.";
+      maintainer = "operations@iohk.io";
+      author = "IOHK Engineering Team";
       homepage = "";
       url = "";
-      synopsis = "Cardano consensus protocols.";
+      synopsis = "ByronSpec ledger integration in the Ouroboros consensus layer";
       description = "";
       buildType = "Simple";
       };
@@ -29,23 +29,25 @@
       "library" = {
         depends = [
           (hsPkgs."base" or (errorHandler.buildDepError "base"))
+          (hsPkgs."bimap" or (errorHandler.buildDepError "bimap"))
           (hsPkgs."cardano-binary" or (errorHandler.buildDepError "cardano-binary"))
-          (hsPkgs."cardano-crypto-class" or (errorHandler.buildDepError "cardano-crypto-class"))
-          (hsPkgs."cardano-ledger-core" or (errorHandler.buildDepError "cardano-ledger-core"))
-          (hsPkgs."cardano-ledger-shelley" or (errorHandler.buildDepError "cardano-ledger-shelley"))
-          (hsPkgs."cardano-protocol-tpraos" or (errorHandler.buildDepError "cardano-protocol-tpraos"))
+          (hsPkgs."cardano-ledger-byron-test" or (errorHandler.buildDepError "cardano-ledger-byron-test"))
           (hsPkgs."cardano-slotting" or (errorHandler.buildDepError "cardano-slotting"))
           (hsPkgs."cborg" or (errorHandler.buildDepError "cborg"))
           (hsPkgs."containers" or (errorHandler.buildDepError "containers"))
+          (hsPkgs."byron-spec-chain" or (errorHandler.buildDepError "byron-spec-chain"))
+          (hsPkgs."byron-spec-ledger" or (errorHandler.buildDepError "byron-spec-ledger"))
           (hsPkgs."mtl" or (errorHandler.buildDepError "mtl"))
           (hsPkgs."nothunks" or (errorHandler.buildDepError "nothunks"))
-          (hsPkgs."ouroboros-consensus" or (errorHandler.buildDepError "ouroboros-consensus"))
           (hsPkgs."serialise" or (errorHandler.buildDepError "serialise"))
-          (hsPkgs."text" or (errorHandler.buildDepError "text"))
+          (hsPkgs."small-steps" or (errorHandler.buildDepError "small-steps"))
+          (hsPkgs."transformers" or (errorHandler.buildDepError "transformers"))
+          (hsPkgs."ouroboros-network" or (errorHandler.buildDepError "ouroboros-network"))
+          (hsPkgs."ouroboros-consensus" or (errorHandler.buildDepError "ouroboros-consensus"))
           ];
         buildable = true;
         };
       };
     } // rec {
-    src = (pkgs.lib).mkDefault /nix/store/fy9im0ipvv2jsysk65jphamr63h2y23w-ouroboros-network-4fac197/ouroboros-consensus-protocol;
+    src = (pkgs.lib).mkDefault /nix/store/fy9im0ipvv2jsysk65jphamr63h2y23w-ouroboros-network-4fac197/ouroboros-consensus-byronspec;
     }

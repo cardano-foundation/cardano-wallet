@@ -8,17 +8,17 @@
   , config
   , ... }:
   {
-    flags = { asserts = false; };
+    flags = {};
     package = {
       specVersion = "1.10";
-      identifier = { name = "io-sim"; version = "0.2.0.0"; };
-      license = "Apache-2.0";
-      copyright = "2019-2020 Input Output (Hong Kong) Ltd.";
-      maintainer = "";
-      author = "Duncan Coutts, Marcin Szamotulski, Alexander Vieth";
+      identifier = { name = "purescript-bridge"; version = "0.13.1.0"; };
+      license = "BSD-3-Clause";
+      copyright = "";
+      maintainer = "robert . klotzner A T gmx . at";
+      author = "Robert Klotzner";
       homepage = "";
       url = "";
-      synopsis = "A pure simlator for monadic concurrency with STM";
+      synopsis = "Generate PureScript data types from Haskell data types";
       description = "";
       buildType = "Simple";
       };
@@ -26,33 +26,33 @@
       "library" = {
         depends = [
           (hsPkgs."base" or (errorHandler.buildDepError "base"))
-          (hsPkgs."io-classes" or (errorHandler.buildDepError "io-classes"))
-          (hsPkgs."exceptions" or (errorHandler.buildDepError "exceptions"))
           (hsPkgs."containers" or (errorHandler.buildDepError "containers"))
-          (hsPkgs."psqueues" or (errorHandler.buildDepError "psqueues"))
-          (hsPkgs."time" or (errorHandler.buildDepError "time"))
-          (hsPkgs."quiet" or (errorHandler.buildDepError "quiet"))
+          (hsPkgs."directory" or (errorHandler.buildDepError "directory"))
+          (hsPkgs."filepath" or (errorHandler.buildDepError "filepath"))
+          (hsPkgs."mtl" or (errorHandler.buildDepError "mtl"))
+          (hsPkgs."lens" or (errorHandler.buildDepError "lens"))
+          (hsPkgs."text" or (errorHandler.buildDepError "text"))
+          (hsPkgs."transformers" or (errorHandler.buildDepError "transformers"))
+          (hsPkgs."wl-pprint-text" or (errorHandler.buildDepError "wl-pprint-text"))
+          (hsPkgs."generic-deriving" or (errorHandler.buildDepError "generic-deriving"))
           ];
         buildable = true;
         };
       tests = {
-        "test" = {
+        "tests" = {
           depends = [
             (hsPkgs."base" or (errorHandler.buildDepError "base"))
-            (hsPkgs."array" or (errorHandler.buildDepError "array"))
             (hsPkgs."containers" or (errorHandler.buildDepError "containers"))
-            (hsPkgs."io-classes" or (errorHandler.buildDepError "io-classes"))
-            (hsPkgs."io-sim" or (errorHandler.buildDepError "io-sim"))
-            (hsPkgs."QuickCheck" or (errorHandler.buildDepError "QuickCheck"))
-            (hsPkgs."strict-stm" or (errorHandler.buildDepError "strict-stm"))
-            (hsPkgs."tasty" or (errorHandler.buildDepError "tasty"))
-            (hsPkgs."tasty-quickcheck" or (errorHandler.buildDepError "tasty-quickcheck"))
-            (hsPkgs."time" or (errorHandler.buildDepError "time"))
+            (hsPkgs."purescript-bridge" or (errorHandler.buildDepError "purescript-bridge"))
+            (hsPkgs."text" or (errorHandler.buildDepError "text"))
+            (hsPkgs."wl-pprint-text" or (errorHandler.buildDepError "wl-pprint-text"))
+            (hsPkgs."hspec" or (errorHandler.buildDepError "hspec"))
+            (hsPkgs."hspec-expectations-pretty-diff" or (errorHandler.buildDepError "hspec-expectations-pretty-diff"))
             ];
           buildable = true;
           };
         };
       };
     } // rec {
-    src = (pkgs.lib).mkDefault /nix/store/fy9im0ipvv2jsysk65jphamr63h2y23w-ouroboros-network-4fac197/io-sim;
+    src = (pkgs.lib).mkDefault /nix/store/zvdx2gdavxs4rs5b1lnhhrk63ps5nxdq-purescript-bridge-6a92d78;
     }
