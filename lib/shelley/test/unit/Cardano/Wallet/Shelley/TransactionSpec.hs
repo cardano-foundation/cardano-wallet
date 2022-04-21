@@ -270,7 +270,7 @@ import Crypto.Hash.Utils
 import Data.ByteString
     ( ByteString )
 import Data.Either
-    ( isRight )
+    ( isLeft, isRight )
 import Data.Function
     ( on, (&) )
 import Data.Functor.Identity
@@ -2409,10 +2409,18 @@ prop_distributeSurplusDelta_coversCostIncreaseAndConservesSurplus
     :: FeePolicy -> Coin -> Coin -> [Coin] -> Property
 prop_distributeSurplusDelta_coversCostIncreaseAndConservesSurplus
     feePolicy surplus fee0 change0 =
+    checkCoverage $
+    cover 2  (isLeft  mres) "Failure" $
+    cover 50 (isRight mres) "Success" $
+    report mres "Result" $
     counterexample (show mres) $ case mres of
-        Left _ ->
-            label "unable to distribute surplus" $
-                property (surplus < (maxCoinCost <> maxCoinCost))
+        Left (ErrMoreSurplusNeeded shortfall) ->
+            conjoin
+                [ property $ surplus < (maxCoinCost <> maxCoinCost)
+                , property $ shortfall > Coin 0
+                , costOfIncreasingCoin feePolicy fee0 surplus
+                    === surplus <> shortfall
+                ]
         Right (TxFeeAndChange feeDelta changeDeltas) -> do
             let feeRequirementIncrease = mconcat
                     [ costOfIncreasingCoin feePolicy fee0 feeDelta
