@@ -20,6 +20,7 @@ import Test.Aeson.GenericSpecs
     , Settings
     , defaultSettings
     , goldenDirectoryOption
+    , randomMismatchOption
     , sampleSize
     , useModuleNameAsSubDirectory
     )
@@ -28,7 +29,11 @@ import Test.Aeson.Internal.GoldenSpecs
 import Test.Aeson.Internal.RoundtripSpecs
     ( roundtripSpecs )
 import Test.Aeson.Internal.Utils
-    ( TypeName (..), TypeNameInfo (..), mkTypeNameInfo )
+    ( RandomMismatchOption (RandomMismatchError)
+    , TypeName (..)
+    , TypeNameInfo (..)
+    , mkTypeNameInfo
+    )
 import Test.Hspec
     ( Spec, it, runIO, shouldBe )
 import Test.QuickCheck
@@ -81,6 +86,11 @@ jsonRoundtripAndGolden dir proxy = do
         , useModuleNameAsSubDirectory =
             False
         , sampleSize = 10
+        -- Note that we fail the test if the random seed does not produce the
+        -- same values as those within the golden file. It's important that
+        -- we do fail, because otherwise we may inadvertently fail to cover
+        -- new additions to types and their associated generators.
+        , randomMismatchOption = RandomMismatchError
         }
 
 -- Perform roundtrip tests for FromHttpApiData & ToHttpApiData instances
