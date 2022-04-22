@@ -1172,19 +1172,32 @@ spec = parallel $ do
         it "ApiDecodedTransaction" $ property $ \x ->
             let
                 x' = ApiDecodedTransaction
-                    { id = id (x :: ApiDecodedTransaction ('Testnet 0))
-                    , fee = fee (x :: ApiDecodedTransaction ('Testnet 0))
-                    , inputs = inputs (x :: ApiDecodedTransaction ('Testnet 0))
-                    , outputs = outputs (x :: ApiDecodedTransaction ('Testnet 0))
-                    , collateral = collateral (x :: ApiDecodedTransaction ('Testnet 0))
-                    , withdrawals = withdrawals (x :: ApiDecodedTransaction ('Testnet 0))
-                    , metadata = metadata (x :: ApiDecodedTransaction ('Testnet 0))
-                    , mint = mint (x :: ApiDecodedTransaction ('Testnet 0))
-                    , burn = burn (x :: ApiDecodedTransaction ('Testnet 0))
-                    , certificates = certificates (x :: ApiDecodedTransaction ('Testnet 0))
-                    , depositsTaken = depositsTaken (x :: ApiDecodedTransaction ('Testnet 0))
-                    , depositsReturned = depositsReturned (x :: ApiDecodedTransaction ('Testnet 0))
-                    , scriptValidity = scriptValidity (x :: ApiDecodedTransaction ('Testnet 0))
+                    { id = id
+                        (x :: ApiDecodedTransaction ('Testnet 0))
+                    , fee = fee
+                        (x :: ApiDecodedTransaction ('Testnet 0))
+                    , inputs = inputs
+                        (x :: ApiDecodedTransaction ('Testnet 0))
+                    , outputs = outputs
+                        (x :: ApiDecodedTransaction ('Testnet 0))
+                    , collateral = collateral
+                        (x :: ApiDecodedTransaction ('Testnet 0))
+                    , withdrawals = withdrawals
+                        (x :: ApiDecodedTransaction ('Testnet 0))
+                    , metadata = metadata
+                        (x :: ApiDecodedTransaction ('Testnet 0))
+                    , mint = mint
+                        (x :: ApiDecodedTransaction ('Testnet 0))
+                    , burn = burn
+                        (x :: ApiDecodedTransaction ('Testnet 0))
+                    , certificates = certificates
+                        (x :: ApiDecodedTransaction ('Testnet 0))
+                    , depositsTaken = depositsTaken
+                        (x :: ApiDecodedTransaction ('Testnet 0))
+                    , depositsReturned = depositsReturned
+                        (x :: ApiDecodedTransaction ('Testnet 0))
+                    , scriptValidity = scriptValidity
+                        (x :: ApiDecodedTransaction ('Testnet 0))
                     }
             in
                 x' === x .&&. show x' === show x

@@ -1122,7 +1122,6 @@ toApiNetworkParameters (NetworkParameters gp sp pp) txConstraints toEpochInfo = 
   where
     toApiCoin = Quantity . fromIntegral . unCoin
 
-
 newtype ApiTxId = ApiTxId
     { id :: ApiT (Hash "Tx")
     }
@@ -1149,8 +1148,9 @@ data ApiTransaction (n :: NetworkDiscriminant) = ApiTransaction
     , status :: !(ApiT TxStatus)
     , metadata :: !ApiTxMetadata
     , scriptValidity :: !(Maybe (ApiT TxScriptValidity))
-    } deriving (Eq, Generic, Show, Typeable)
-      deriving anyclass NFData
+    }
+    deriving (Eq, Generic, Show, Typeable)
+    deriving anyclass NFData
 
 data ApiWalletInput (n :: NetworkDiscriminant) = ApiWalletInput
     { id :: !(ApiT (Hash "Tx"))
@@ -1278,8 +1278,9 @@ data ApiDecodedTransaction (n :: NetworkDiscriminant) = ApiDecodedTransaction
     , depositsReturned :: ![Quantity "lovelace" Natural]
     , metadata :: !ApiTxMetadata
     , scriptValidity :: !(Maybe (ApiT TxScriptValidity))
-    } deriving (Eq, Generic, Show, Typeable)
-      deriving anyclass NFData
+    }
+    deriving (Eq, Generic, Show, Typeable)
+    deriving anyclass NFData
 
 newtype ApiTxMetadata = ApiTxMetadata
     { getApiTxMetadata :: Maybe (ApiT TxMetadata)
@@ -3254,13 +3255,16 @@ instance
     parseJSON obj = do
         derPathM <-
             (withObject "ApiTxOutputGeneral" $
-             \o -> o .:? "derivation_path" :: Aeson.Parser (Maybe (NonEmpty (ApiT DerivationIndex)))) obj
+             \o -> o .:? "derivation_path"
+                :: Aeson.Parser (Maybe (NonEmpty (ApiT DerivationIndex)))) obj
         case derPathM of
             Nothing -> do
-                xs <- parseJSON obj :: Aeson.Parser (AddressAmount (ApiT Address, Proxy n))
+                xs <- parseJSON obj
+                    :: Aeson.Parser (AddressAmount (ApiT Address, Proxy n))
                 pure $ ExternalOutput xs
             Just _ -> do
-                xs <- parseJSON obj :: Aeson.Parser (ApiWalletOutput n)
+                xs <- parseJSON obj
+                    :: Aeson.Parser (ApiWalletOutput n)
                 pure $ WalletOutput xs
 instance
     ( EncodeAddress n
@@ -3278,7 +3282,8 @@ instance
     parseJSON obj = do
         derPathM <-
             (withObject "ApiTxInputGeneral" $
-             \o -> o .:? "derivation_path" :: Aeson.Parser (Maybe (NonEmpty (ApiT DerivationIndex)))) obj
+             \o -> o .:? "derivation_path"
+                :: Aeson.Parser (Maybe (NonEmpty (ApiT DerivationIndex)))) obj
         case derPathM of
             Nothing -> do
                 xs <- parseJSON obj :: Aeson.Parser (ApiT TxIn)

@@ -297,7 +297,7 @@ applyBlock block =
     fromFiltered [] = FilteredBlock
         { slot = toSlot $ chainPointFromBlockHeader (block ^. #header)
         , transactions = []
-        , delegations = [] 
+        , delegations = []
         }
     fromFiltered (fblock:_) = fblock
 
@@ -311,7 +311,7 @@ applyBlock block =
 --
 -- More specifically, for an initial wallet state @w0@ and a 'List' of
 -- of blocks
--- 
+--
 -- > bs = [b1, b2, …, bn]@
 --
 -- , the function returns
@@ -367,7 +367,7 @@ applyBlockData blocks (Wallet !u0 _ s0) = do
     pure (filteredBlocks, (dw, Wallet u1 tip1 s1))
 
 -- | Strict variant of 'mapAccumL'.
-mapAccumL' :: (s -> a -> (o,s)) -> s -> [a] -> ([o],s) 
+mapAccumL' :: (s -> a -> (o,s)) -> s -> [a] -> ([o],s)
 mapAccumL' f = go []
   where
     go os !s0 []     = (reverse os, s0)

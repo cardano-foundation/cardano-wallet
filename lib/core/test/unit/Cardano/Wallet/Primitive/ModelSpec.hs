@@ -293,7 +293,7 @@ spec = do
     parallel $ describe "Address discovery" $ do
         it "discoverAddressesBlock ~ isOurTx" $
             property prop_discoverAddressesBlock
-    
+
     parallel $ describe "Light-mode" $ do
         it "discovery on blocks = discovery on summary" $
             property prop_discoverFromBlockData
@@ -1785,26 +1785,26 @@ blockchain =
                 , metadata = Nothing
                 , scriptValidity = Nothing
                 }
-              , Tx
-                  { txId = Hash "7726526b5cc003f71d9629c611397285004b5438eac9a118c2b20e2810e0783e"
-                  , fee = Nothing
-                  , resolvedInputs =
-                      [ ( TxIn
-                          { inputId = Hash "\249\DC2\146\&0\GSK\177\182\224@\206\205\255@0\149\155I\201^}\174\bw\130\221U\139\235\182f\138"
-                          , inputIx = 0
-                          }, Coin 0)
-                      ]
-                  , resolvedCollateral = []
-                  , outputs =
-                      [ TxOut
-                          { address = Address "\130\216\CANXB\131X\FSe$;\SO\178g\161\226>1w\159M\NAK\141d\173\210\202\192Bn\250\176C(\DC2\ENQ\161\SOHX\RSX\FS\202>U<\156c\197\SUB\225\157\&1C\209\253\183\USuz\163\193\209\196\217:\155!\167!\NUL\SUB\137\240\187\159"
-                          , tokens = coinToBundle 3841254542346
-                          }
-                      , TxOut
-                          { address = Address "\130\216\CANXB\131X\FS\161\243^\nQ`\DLE\151\147n\153j\STX\215]\SOr7\136\211\222y\US*\157%\DEL\ETB\161\SOHX\RSX\FS\201\SUB\170\156Oe\155)D\US\143\CAN\237\193\244vKM\160\SOH\166&\161\213\188KD\142\NUL\SUB\144\192\240\146"
-                          , tokens = coinToBundle 2700667457
-                          }
-                      ]
+            , Tx
+                { txId = Hash "7726526b5cc003f71d9629c611397285004b5438eac9a118c2b20e2810e0783e"
+                , fee = Nothing
+                , resolvedInputs =
+                    [ ( TxIn
+                        { inputId = Hash "\249\DC2\146\&0\GSK\177\182\224@\206\205\255@0\149\155I\201^}\174\bw\130\221U\139\235\182f\138"
+                        , inputIx = 0
+                        }, Coin 0)
+                    ]
+                , resolvedCollateral = []
+                , outputs =
+                    [ TxOut
+                        { address = Address "\130\216\CANXB\131X\FSe$;\SO\178g\161\226>1w\159M\NAK\141d\173\210\202\192Bn\250\176C(\DC2\ENQ\161\SOHX\RSX\FS\202>U<\156c\197\SUB\225\157\&1C\209\253\183\USuz\163\193\209\196\217:\155!\167!\NUL\SUB\137\240\187\159"
+                        , tokens = coinToBundle 3841254542346
+                        }
+                    , TxOut
+                        { address = Address "\130\216\CANXB\131X\FS\161\243^\nQ`\DLE\151\147n\153j\STX\215]\SOr7\136\211\222y\US*\157%\DEL\ETB\161\SOHX\RSX\FS\201\SUB\170\156Oe\155)D\US\143\CAN\237\193\244vKM\160\SOH\166&\161\213\188KD\142\NUL\SUB\144\192\240\146"
+                        , tokens = coinToBundle 2700667457
+                        }
+                    ]
                 , withdrawals = mempty
                 , metadata = Nothing
                 , scriptValidity = Nothing
