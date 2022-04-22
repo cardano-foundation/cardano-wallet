@@ -3397,11 +3397,8 @@ components:
 
     ApiValidityInterval: &ApiValidityInterval
       description: |
-        <p>status: <strong>⚠ under development</strong></p>
+        Specify only invalid_before or invalid_hereafter or both
       type: object
-      required:
-        - invalid_before
-        - invalid_hereafter
       properties:
         invalid_before: *validityBound
         invalid_hereafter: *validityBound

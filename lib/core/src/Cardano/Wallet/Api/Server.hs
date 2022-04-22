@@ -2268,10 +2268,14 @@ constructTransaction ctx genChange knownPools getPoolStatus (ApiT wid) body = do
         isValidityBoundTimeNegative _ = False
 
     let isThereNegativeTime = case body ^. #validityInterval of
-            Nothing -> False
-            Just (ApiValidityInterval before' hereafter') ->
+            Just (ApiValidityInterval (Just before') Nothing) ->
+                isValidityBoundTimeNegative before'
+            Just (ApiValidityInterval Nothing (Just hereafter')) ->
+                isValidityBoundTimeNegative hereafter'
+            Just (ApiValidityInterval (Just before') (Just hereafter')) ->
                 isValidityBoundTimeNegative before' ||
                 isValidityBoundTimeNegative hereafter'
+            _ -> False
 
     let fromValidityBound (Left ApiValidityBoundUnspecified) =
             liftIO $ pure $ SlotNo 0
@@ -2292,8 +2296,12 @@ constructTransaction ctx genChange knownPools getPoolStatus (ApiT wid) body = do
             hereafter' <- fromValidityBound (Right ApiValidityBoundUnspecified)
             pure (before', hereafter')
         Just (ApiValidityInterval before' hereafter') -> do
-            before'' <-  fromValidityBound (Left before')
-            hereafter'' <-  fromValidityBound (Right hereafter')
+            before'' <-  case before' of
+                Nothing -> fromValidityBound (Left ApiValidityBoundUnspecified)
+                Just val -> fromValidityBound (Left val)
+            hereafter'' <-  case hereafter' of
+                Nothing -> fromValidityBound (Right ApiValidityBoundUnspecified)
+                Just val -> fromValidityBound (Right val)
             pure (before'', hereafter'')
 
     when (hereafter < before || isThereNegativeTime) $

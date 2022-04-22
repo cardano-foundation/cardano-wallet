@@ -975,9 +975,9 @@ data ApiPaymentDestination (n :: NetworkDiscriminant)
 
 -- | Times where transactions are valid.
 data ApiValidityInterval = ApiValidityInterval
-    { invalidBefore :: !ApiValidityBound
+    { invalidBefore :: !(Maybe ApiValidityBound)
     -- ^ Tx is not valid before this time. Defaults to genesis.
-    , invalidHereafter :: !ApiValidityBound
+    , invalidHereafter :: !(Maybe ApiValidityBound)
     -- ^ Tx is not valid at this time and after. Defaults to now + 2 hours.
     } deriving (Eq, Generic, Show)
     deriving anyclass NFData

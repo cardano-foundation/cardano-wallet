@@ -1182,6 +1182,48 @@ spec = describe "NEW_SHELLEY_TRANSACTIONS" $ do
             , expectErrorMessage errMsg403InvalidValidityBounds
             ]
 
+    it "TRANS_NEW_VALIDITY_INTERVAL_02 - Missing lower validity interval is \
+       \acceptable" $ \ctx -> runResourceT $ do
+
+        wa <- fixtureWallet ctx
+
+        let payload = Json [json|{
+                "withdrawal": "self",
+                "validity_interval": {
+                    "invalid_hereafter": {
+                      "quantity": 10,
+                      "unit": "second"
+                    }
+                  }
+                }|]
+
+        rTx <- request @(ApiConstructTransaction n) ctx
+            (Link.createUnsignedTransaction @'Shelley wa) Default payload
+        verify rTx
+            [ expectResponseCode HTTP.status202
+            ]
+
+    it "TRANS_NEW_VALIDITY_INTERVAL_02 - Missing upper validity interval is \
+       \acceptable" $ \ctx -> runResourceT $ do
+
+        wa <- fixtureWallet ctx
+
+        let payload = Json [json|{
+                "withdrawal": "self",
+                "validity_interval": {
+                    "invalid_before": {
+                      "quantity": 10,
+                      "unit": "second"
+                    }
+                  }
+                }|]
+
+        rTx <- request @(ApiConstructTransaction n) ctx
+            (Link.createUnsignedTransaction @'Shelley wa) Default payload
+        verify rTx
+            [ expectResponseCode HTTP.status202
+            ]
+
     it "TRANS_NEW_VALIDITY_INTERVAL_02 - Validity interval slot should be >= 0" $ \ctx -> runResourceT $ do
 
         wa <- fixtureWallet ctx
