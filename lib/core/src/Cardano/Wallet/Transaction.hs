@@ -126,7 +126,7 @@ import GHC.Generics
     ( Generic )
 
 import qualified Cardano.Api as Cardano
-import qualified Cardano.Api.Shelley as Node
+import qualified Cardano.Api.Shelley as Cardano
 import qualified Cardano.Wallet.Primitive.Types.TokenMap as TokenMap
 import qualified Data.Map.Strict as Map
 
@@ -214,7 +214,7 @@ data TransactionLayer k tx = TransactionLayer
 
     , evaluateMinimumFee
         :: forall era. Cardano.IsShelleyBasedEra era
-        => Node.ProtocolParameters
+        => Cardano.ProtocolParameters
             -- Current protocol parameters
         -> Cardano.Tx era
             -- The sealed transaction
@@ -227,7 +227,7 @@ data TransactionLayer k tx = TransactionLayer
 
     , estimateSignedTxSize
         :: forall era. Cardano.IsShelleyBasedEra era
-        => Node.ProtocolParameters
+        => Cardano.ProtocolParameters
         -> Cardano.Tx era
         -> TxSize
         -- ^ Estimate the size of the transaction when fully signed.
@@ -235,10 +235,10 @@ data TransactionLayer k tx = TransactionLayer
     , evaluateTransactionBalance
         :: forall era. Cardano.IsShelleyBasedEra era
         => Cardano.Tx era
-        -> Node.ProtocolParameters
+        -> Cardano.ProtocolParameters
         -> UTxO
         -> [(TxIn, TxOut, Maybe (Hash "Datum"))] -- Extra UTxO
-        -> Node.Value
+        -> Cardano.Value
         -- ^ Evaluate the balance of a transaction using the ledger. The balance
         -- is defined as @(value consumed by transaction) - (value produced by
         -- transaction)@. For a transaction to be valid, it must have a balance
@@ -323,7 +323,7 @@ data TransactionLayer k tx = TransactionLayer
 
     , assignScriptRedeemers
         :: forall era. Cardano.IsShelleyBasedEra era
-        => Node.ProtocolParameters
+        => Cardano.ProtocolParameters
             -- Current protocol parameters
         -> TimeInterpreter (Either PastHorizonException)
             -- Time interpreter in the Monad m
