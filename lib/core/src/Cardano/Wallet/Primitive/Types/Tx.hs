@@ -732,6 +732,8 @@ data TransactionInfo = TransactionInfo
     -- source. Source information can only be provided for outgoing payments.
     , txInfoOutputs :: ![TxOut]
     -- ^ Payment destination.
+    , txInfoCollateralOutput :: !(Maybe TxOut)
+    -- ^ An output that is only created if a transaction script fails.
     , txInfoWithdrawals :: !(Map RewardAccount Coin)
     -- ^ Withdrawals on this transaction.
     , txInfoMeta :: !TxMeta

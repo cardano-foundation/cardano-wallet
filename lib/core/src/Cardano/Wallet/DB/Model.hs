@@ -484,6 +484,9 @@ mReadTxHistory ti wid minWithdrawal order range mstatus db@(Database wallets txs
                 <$> resolvedInputs tx
         , txInfoOutputs =
             outputs tx
+        , txInfoCollateralOutput =
+            -- TODO: [ADP-1670]
+            Nothing
         , txInfoWithdrawals =
             withdrawals tx
         , txInfoMeta =

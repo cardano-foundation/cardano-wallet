@@ -1115,6 +1115,9 @@ txHistoryFromEntity ti tip metas ins cins outs ws =
                 map mkTxIn $ filter ((== txid) . txInputTxId . fst) ins
             , W.txInfoOutputs =
                 map mkTxOut $ filter ((== txid) . txOutputTxId . fst) outs
+            , W.txInfoCollateralOutput =
+              -- TODO: [ADP-1670]
+                Nothing
             , W.txInfoWithdrawals =
                 Map.fromList
                     $ map mkTxWithdrawal
