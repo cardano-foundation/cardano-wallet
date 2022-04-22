@@ -1485,6 +1485,17 @@ x-transactionOutputsGeneral: &transactionOutputsGeneral
       - <<: *transactionOutputsInsideWallet
         title: tx outputs belonging to a given wallet
 
+x-transactionCollateralOutputsGeneral: &transactionCollateralOutputsGeneral
+  type: array
+  minItems: 0
+  maxItems: 1
+  items:
+    oneOf:
+      - <<: *transactionOutputsOutsideWallet
+        title: tx outputs not belonging to a given wallet
+      - <<: *transactionOutputsInsideWallet
+        title: tx outputs belonging to a given wallet
+
 x-transactionResolvedCollateral: &transactionResolvedCollateral
   description: A list of transaction inputs used for collateral
   type: array
@@ -2561,6 +2572,11 @@ components:
       description: |
         Outputs that could be external or belong to the wallet.
 
+    ApiCollateralOutputsGeneral: &ApiCollateralOutputsGeneral
+      <<: *transactionCollateralOutputsGeneral
+      description: |
+        Outputs that could be external or belong to the wallet.
+
     ApiWithdrawalsGeneral: &ApiWithdrawalsGeneral
       <<: *transactionWithdrawalsGeneral
       description: |
@@ -2644,6 +2660,7 @@ components:
         inputs: *ApiInputsGeneral
         outputs: *ApiOutputsGeneral
         collateral: *ApiInputsGeneral
+        collateral_outputs: *ApiCollateralOutputsGeneral
         withdrawals: *ApiWithdrawalsGeneral
         mint: *ApiAssetMintBurn
         burn: *ApiAssetMintBurn

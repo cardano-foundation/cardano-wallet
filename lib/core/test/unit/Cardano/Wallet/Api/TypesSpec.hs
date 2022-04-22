@@ -357,7 +357,7 @@ import Data.List
 import Data.List.NonEmpty
     ( NonEmpty (..) )
 import Data.Maybe
-    ( fromJust, fromMaybe, maybeToList )
+    ( fromJust, fromMaybe )
 import Data.OpenApi
     ( Definitions, NamedSchema (..), Schema, ToSchema (..) )
 import Data.OpenApi.Declare
@@ -1214,6 +1214,8 @@ spec = parallel $ do
                     , outputs = outputs
                         (x :: ApiDecodedTransaction ('Testnet 0))
                     , collateral = collateral
+                        (x :: ApiDecodedTransaction ('Testnet 0))
+                    , collateralOutputs = collateralOutputs
                         (x :: ApiDecodedTransaction ('Testnet 0))
                     , withdrawals = withdrawals
                         (x :: ApiDecodedTransaction ('Testnet 0))
@@ -2254,6 +2256,7 @@ instance Arbitrary (ApiAnyCertificate n) where
 instance Arbitrary (ApiDecodedTransaction n) where
     arbitrary = ApiDecodedTransaction
         <$> arbitrary
+        <*> arbitrary
         <*> arbitrary
         <*> arbitrary
         <*> arbitrary

@@ -1275,6 +1275,7 @@ data ApiDecodedTransaction (n :: NetworkDiscriminant) = ApiDecodedTransaction
     , inputs :: ![ApiTxInputGeneral n]
     , outputs :: ![ApiTxOutputGeneral n]
     , collateral :: ![ApiTxInputGeneral n]
+    , collateralOutputs :: !(ApiAsArray (Maybe (ApiTxOutputGeneral n)))
     , withdrawals :: ![ApiWithdrawalGeneral n]
     , mint :: !ApiAssetMintBurn
     , burn :: !ApiAssetMintBurn

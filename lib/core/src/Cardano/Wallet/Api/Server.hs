@@ -2517,6 +2517,8 @@ decodeTransaction ctx (ApiT wid) (ApiSerialisedTransaction (ApiT sealed)) = do
         , inputs = map toInp txinsOutsPaths
         , outputs = map toOut outsPath
         , collateral = map toInp collsOutsPaths
+        -- TODO: [ADP-1670]
+        , collateralOutputs = ApiAsArray Nothing
         , withdrawals = map (toWrdl acct) $ Map.assocs wdrlMap
         , mint = toApiAssetMintBurn policyXPubM toMint
         , burn = toApiAssetMintBurn policyXPubM toBurn
