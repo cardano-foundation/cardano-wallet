@@ -217,6 +217,7 @@ genesisBlockFromTxOuts gp outs = W.Block
         , resolvedCollateral = []
         , resolvedInputs = []
         , outputs = [out]
+        , collateralOutput = Nothing
         , withdrawals = mempty
         , metadata = Nothing
         , scriptValidity = Nothing
@@ -279,6 +280,9 @@ fromTxAux txAux = case taTx txAux of
 
         , outputs =
             fromTxOut <$> NE.toList outputs
+
+        , collateralOutput =
+            Nothing
 
         , withdrawals =
             mempty

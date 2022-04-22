@@ -2484,7 +2484,7 @@ decodeTransaction
     -> ApiSerialisedTransaction
     -> Handler (ApiDecodedTransaction n)
 decodeTransaction ctx (ApiT wid) (ApiSerialisedTransaction (ApiT sealed)) = do
-    let (Tx txid feeM colls inps outs wdrlMap meta vldt
+    let (Tx txid feeM colls inps outs _couts wdrlMap meta vldt
             , toMint
             , toBurn
             , allCerts

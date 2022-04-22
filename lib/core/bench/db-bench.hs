@@ -579,6 +579,9 @@ mkTxHistory numTx numInputs numOutputs numAssets range =
                 []
             , resolvedInputs
             , outputs
+            , collateralOutput =
+                -- TODO: [ADP-1670]
+                Nothing
             , withdrawals = mempty
             , metadata = Nothing
             , scriptValidity = Nothing

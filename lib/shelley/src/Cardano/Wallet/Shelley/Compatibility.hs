@@ -1213,6 +1213,8 @@ fromGenesisData g initialFunds =
                     (fromShelleyAddress addr)
                     (TokenBundle.fromCoin $ fromShelleyCoin c)
                 ]
+            -- Collateral outputs were not supported at the time of genesis:
+            , collateralOutput = Nothing
             , withdrawals = mempty
             , metadata = Nothing
             , scriptValidity = Nothing
@@ -1381,6 +1383,9 @@ fromShelleyTx tx =
             map ((,W.Coin 0) . fromShelleyTxIn) (toList ins)
         , outputs =
             map fromShelleyTxOut (toList outs)
+        , collateralOutput =
+            -- Collateral outputs are not supported in Shelley.
+            Nothing
         , withdrawals =
             fromShelleyWdrl wdrls
         , metadata =
@@ -1415,6 +1420,9 @@ fromAllegraTx tx =
             map ((,W.Coin 0) . fromShelleyTxIn) (toList ins)
         , outputs =
             map fromShelleyTxOut (toList outs)
+        , collateralOutput =
+            -- Collateral outputs are not supported in Allegra.
+            Nothing
         , withdrawals =
             fromShelleyWdrl wdrls
         , metadata =
@@ -1453,6 +1461,9 @@ fromMaryTx tx =
             map ((,W.Coin 0) . fromShelleyTxIn) (toList ins)
         , outputs =
             map fromMaryTxOut (toList outs)
+        , collateralOutput =
+            -- Collateral outputs are not supported in Mary.
+            Nothing
         , withdrawals =
             fromShelleyWdrl wdrls
         , metadata =
@@ -1544,6 +1555,9 @@ fromAlonzoTxBodyAndAux bod mad wits =
             map ((,W.Coin 0) . fromShelleyTxIn) (toList ins)
         , outputs =
             map fromAlonzoTxOut (toList outs)
+        , collateralOutput =
+            -- Collateral outputs are not supported in Alonzo.
+            Nothing
         , withdrawals =
             fromShelleyWdrl wdrls
         , metadata =

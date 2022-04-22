@@ -246,6 +246,9 @@ data Tx = Tx
         -- Outputs are used as inputs for next transactions which refer to them
         -- using their indexes. It matters also for serialization.
 
+    , collateralOutput :: !(Maybe TxOut)
+        -- ^ An output that is only created if a transaction script fails.
+
     , withdrawals
         :: !(Map RewardAccount Coin)
         -- ^ Withdrawals (of funds from a registered reward account) embedded in
@@ -779,6 +782,7 @@ fromTransactionInfo info = Tx
     , resolvedCollateral = drop3rd <$> txInfoCollateral info
     , resolvedInputs = drop3rd <$> txInfoInputs info
     , outputs = txInfoOutputs info
+    , collateralOutput = txInfoCollateralOutput info
     , withdrawals = txInfoWithdrawals info
     , metadata = txInfoMetadata info
     , scriptValidity = txInfoScriptValidity info

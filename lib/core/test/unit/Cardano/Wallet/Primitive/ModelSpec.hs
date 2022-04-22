@@ -1122,6 +1122,8 @@ instance Arbitrary (WithPending WalletState) where
                         , resolvedInputs = [(inp, txOutCoin out)]
                         -- TODO: (ADP-957)
                         , resolvedCollateral = []
+                        -- TODO: [ADP-1670]
+                        , collateralOutput = Nothing
                         , outputs = [out {tokens}]
                         , withdrawals = mempty
                         , metadata = Nothing
@@ -1212,6 +1214,7 @@ blockchain =
                         , tokens = coinToBundle 3844423800000
                         }
                     ]
+                , collateralOutput = Nothing
                 , withdrawals = mempty
                 , metadata = Nothing
                 , scriptValidity = Nothing
@@ -1247,6 +1250,7 @@ blockchain =
                         , tokens = coinToBundle 3351830178
                         }
                     ]
+                , collateralOutput = Nothing
                 , withdrawals = mempty
                 , metadata = Nothing
                 , scriptValidity = Nothing
@@ -1271,6 +1275,7 @@ blockchain =
                         , tokens = coinToBundle 19999800000
                         }
                     ]
+                , collateralOutput = Nothing
                 , withdrawals = mempty
                 , metadata = Nothing
                 , scriptValidity = Nothing
@@ -1306,6 +1311,7 @@ blockchain =
                         , tokens = coinToBundle 3495800000
                         }
                     ]
+                , collateralOutput = Nothing
                 , withdrawals = mempty
                 , metadata = Nothing
                 , scriptValidity = Nothing
@@ -1330,6 +1336,7 @@ blockchain =
                         , tokens = coinToBundle 29999800000
                         }
                     ]
+                , collateralOutput = Nothing
                 , withdrawals = mempty
                 , metadata = Nothing
                 , scriptValidity = Nothing
@@ -1365,6 +1372,7 @@ blockchain =
                         , tokens = coinToBundle 500000000
                         }
                     ]
+                , collateralOutput = Nothing
                 , withdrawals = mempty
                 , metadata = Nothing
                 , scriptValidity = Nothing
@@ -1410,6 +1418,7 @@ blockchain =
                       , tokens = coinToBundle 9999800000
                       }
                     ]
+                , collateralOutput = Nothing
                 , withdrawals = mempty
                 , metadata = Nothing
                 , scriptValidity = Nothing
@@ -1444,6 +1453,7 @@ blockchain =
                         , tokens = coinToBundle 3273721339
                         }
                     ]
+                , collateralOutput = Nothing
                 , withdrawals = mempty
                 , metadata = Nothing
                 , scriptValidity = Nothing
@@ -1479,6 +1489,7 @@ blockchain =
                         , tokens = coinToBundle 19999800000
                         }
                     ]
+                , collateralOutput = Nothing
                 , withdrawals = mempty
                 , metadata = Nothing
                 , scriptValidity = Nothing
@@ -1528,6 +1539,7 @@ blockchain =
                         , tokens = coinToBundle 12999433909
                         }
                     ]
+                , collateralOutput = Nothing
                 , withdrawals = mempty
                 , metadata = Nothing
                 , scriptValidity = Nothing
@@ -1603,6 +1615,7 @@ blockchain =
                         , tokens = coinToBundle 16837395907
                         }
                     ]
+                , collateralOutput = Nothing
                 , withdrawals = mempty
                 , metadata = Nothing
                 , scriptValidity = Nothing
@@ -1627,6 +1640,7 @@ blockchain =
                         , tokens = coinToBundle 748331810
                         }
                     ]
+                , collateralOutput = Nothing
                 , withdrawals = mempty
                 , metadata = Nothing
                 , scriptValidity = Nothing
@@ -1662,6 +1676,7 @@ blockchain =
                         , tokens = coinToBundle 1499800000
                         }
                     ]
+                , collateralOutput = Nothing
                 , withdrawals = mempty
                 , metadata = Nothing
                 , scriptValidity = Nothing
@@ -1686,6 +1701,7 @@ blockchain =
                         , tokens = coinToBundle 1345293520
                         }
                     ]
+                , collateralOutput = Nothing
                 , withdrawals = mempty
                 , metadata = Nothing
                 , scriptValidity = Nothing
@@ -1781,6 +1797,7 @@ blockchain =
                         , tokens = coinToBundle 11823271860
                         }
                     ]
+                , collateralOutput = Nothing
                 , withdrawals = mempty
                 , metadata = Nothing
                 , scriptValidity = Nothing
@@ -1805,6 +1822,7 @@ blockchain =
                         , tokens = coinToBundle 2700667457
                         }
                     ]
+                , collateralOutput = Nothing
                 , withdrawals = mempty
                 , metadata = Nothing
                 , scriptValidity = Nothing
@@ -1840,6 +1858,7 @@ blockchain =
                         , tokens = coinToBundle 19999800000
                         }
                     ]
+                , collateralOutput = Nothing
                 , withdrawals = mempty
                 , metadata = Nothing
                 , scriptValidity = Nothing

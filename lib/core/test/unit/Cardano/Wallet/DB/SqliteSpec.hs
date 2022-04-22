@@ -592,6 +592,7 @@ fileModeSpec =  do
                                     , TxOut (fst $ head $ tail ourAddrs)
                                             (coinToBundle 8)
                                     ]
+                                , collateralOutput = Nothing
                                 , withdrawals = mempty
                                 , metadata = Nothing
                                 , scriptValidity = Just TxScriptValid
@@ -617,6 +618,7 @@ fileModeSpec =  do
                                 , TxOut
                                     (fst $ ourAddrs !! 1) (coinToBundle 2)
                                 ]
+                            , collateralOutput = Nothing
                             , withdrawals = mempty
                             , metadata = Nothing
                             , scriptValidity = Just TxScriptInvalid
@@ -654,6 +656,7 @@ fileModeSpec =  do
                             , resolvedCollateral = []
                             , outputs =
                                 [TxOut (fst $ head ourAddrs) (coinToBundle 4)]
+                            , collateralOutput = Nothing
                             , withdrawals = mempty
                             , metadata = Nothing
                             , scriptValidity = Nothing
@@ -676,6 +679,7 @@ fileModeSpec =  do
                             [ TxOut (dummyAddr "faucetAddr2") (coinToBundle 2)
                             , TxOut (fst $ ourAddrs !! 1) (coinToBundle 2)
                             ]
+                        , collateralOutput = Nothing
                         , withdrawals = mempty
                         , metadata = Nothing
                         , scriptValidity = Nothing
@@ -1333,6 +1337,7 @@ testTxs = [(tx, txMeta)]
             []
         , resolvedInputs = [(TxIn (mockHash @String "tx1") 0, Coin 1)]
         , outputs = [TxOut (Address "addr") (coinToBundle 1)]
+        , collateralOutput = Nothing
         , withdrawals = mempty
         , metadata = Nothing
         , scriptValidity = Nothing
