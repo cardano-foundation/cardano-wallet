@@ -3413,31 +3413,20 @@ components:
         - title: outputs without amounts
           <<: *transactionNoAmountOutputs
 
-    ApiAssetQuantity: &ApiAssetQuantity
-      type: object
-      required:
-        - quantity
-        - unit
-      properties:
-        quantity:
-          type: integer
-          example: 14
-        unit:
-          type: string
-          enum:
-            - assets
-
     ApiMintData: &ApiMintData
       type: object
       required:
-        - amount
+        - quantity
       properties:
         receiving_address: *addressId
-        amount: *ApiAssetQuantity
+        quantity: *assetQuantity
 
     ApiBurnData: &ApiBurnData
-      allOf:
-        - *ApiAssetQuantity
+      type: object
+      required:
+        - quantity
+      properties:
+        quantity: *assetQuantity
 
     ApiMintBurnOperation: &ApiMintBurnOperation
       type: object

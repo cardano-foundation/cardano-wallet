@@ -2239,10 +2239,10 @@ constructTransaction ctx genChange knownPools getPoolStatus (ApiT wid) body = do
         ) $ liftHandler $ throwE ErrConstructTxAssetNameTooLong
 
     let assetQuantityOutOfBounds
-            (ApiMintBurnData _ _ (ApiMint (ApiMintData _ (Quantity amt)))) =
+            (ApiMintBurnData _ _ (ApiMint (ApiMintData _ amt))) =
             amt <= 0 || amt > unTokenQuantity txMintBurnMaxTokenQuantity
         assetQuantityOutOfBounds
-            (ApiMintBurnData _ _ (ApiBurn (ApiBurnData (Quantity amt)))) =
+            (ApiMintBurnData _ _ (ApiBurn (ApiBurnData amt))) =
             amt <= 0 || amt > unTokenQuantity txMintBurnMaxTokenQuantity
     when
         ( isJust mintingBurning' &&
@@ -2358,7 +2358,7 @@ constructTransaction ctx genChange knownPools getPoolStatus (ApiT wid) body = do
                         ApiMintBurnData
                             (ApiT scriptT)
                             (Just (ApiT tName))
-                            (ApiMint (ApiMintData _ (Quantity amt))) ->
+                            (ApiMint (ApiMintData _ amt)) ->
                             toTokenMapAndScript @k
                                 scriptT
                                 (Map.singleton (Cosigner 0) policyXPub)
@@ -2369,7 +2369,7 @@ constructTransaction ctx genChange knownPools getPoolStatus (ApiT wid) body = do
                         ApiMintBurnData
                             (ApiT scriptT)
                             (Just (ApiT tName))
-                            (ApiBurn (ApiBurnData (Quantity amt))) ->
+                            (ApiBurn (ApiBurnData amt)) ->
                             toTokenMapAndScript @k
                                 scriptT
                                 (Map.singleton (Cosigner 0) policyXPub)
@@ -2459,7 +2459,7 @@ constructTransaction ctx genChange knownPools getPoolStatus (ApiT wid) body = do
 
     toMintTxOut policyXPub
         (ApiMintBurnData (ApiT scriptT) (Just (ApiT tName))
-            (ApiMint (ApiMintData (Just addr) (Quantity amt)))) =
+            (ApiMint (ApiMintData (Just addr) amt))) =
                 let (assetId, tokenQuantity, _) =
                         toTokenMapAndScript @k
                             scriptT (Map.singleton (Cosigner 0) policyXPub)

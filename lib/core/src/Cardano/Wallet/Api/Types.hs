@@ -4085,8 +4085,8 @@ data ApiMintData (n :: NetworkDiscriminant) = ApiMintData
         -- If no address is specified, then minted assets will be returned to
         -- the wallet as change, and change output addresses will be assigned
         -- automatically.
-    , amount
-        :: Quantity "assets" Natural
+    , quantity
+        :: Natural
         -- ^ Amount of assets to mint.
     }
     deriving (Eq, Generic, Show)
@@ -4101,8 +4101,9 @@ instance EncodeAddress n => ToJSON (ApiMintData n) where
 -- | The format of a burn request: burn "amount". The user can only specify the
 -- type of tokens to burn (policyId, assetName), and the amount, the exact
 -- tokens selected are up to the implementation.
-newtype ApiBurnData = ApiBurnData (Quantity "assets" Natural)
-    deriving (Eq, Generic, Show)
+newtype ApiBurnData = ApiBurnData
+    { quantity :: Natural
+    } deriving (Eq, Generic, Show)
     deriving anyclass NFData
 
 instance FromJSON ApiBurnData where
