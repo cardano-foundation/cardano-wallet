@@ -1,8 +1,8 @@
 {
-    "seed": 7366747724838226215,
+    "seed": 788746785595420015,
     "samples": [
         {
-            "health": "no_smash_configured"
+            "health": "unreachable"
         },
         {
             "health": "unreachable"
@@ -14,22 +14,22 @@
             "health": "unreachable"
         },
         {
-            "health": "available"
-        },
-        {
-            "health": "available"
-        },
-        {
             "health": "unreachable"
-        },
-        {
-            "health": "available"
         },
         {
             "health": "unavailable"
         },
         {
-            "health": "unavailable"
+            "health": "available"
+        },
+        {
+            "health": "available"
+        },
+        {
+            "health": "unreachable"
+        },
+        {
+            "health": "unreachable"
         }
     ]
 }

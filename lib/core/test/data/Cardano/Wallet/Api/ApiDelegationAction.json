@@ -1,26 +1,18 @@
 {
-    "seed": -5960734323645434439,
+    "seed": 5532717529160974446,
     "samples": [
         {
             "action": "quit"
         },
         {
+            "action": "join",
+            "pool": "pool1juqclhek4s9lkhef5t70e2yh2ntuxgqhxmahgd65s93r564yjjk"
+        },
+        {
             "action": "quit"
         },
         {
-            "action": "join",
-            "pool": "pool1fucm9hu542ghx69c4qm9ufnkrtu5yrjtg0a8eyu3vyxpk9dc2p5"
-        },
-        {
             "action": "quit"
-        },
-        {
-            "action": "join",
-            "pool": "pool1g6n0udghqyx8fy6q5qxf6kjaq8hn7vrrkjt8c2q6mf5vg9vecwe"
-        },
-        {
-            "action": "join",
-            "pool": "pool162lkaca0jcn3ur0as7dd5p7d2ggnguw5msfjhlvzk7xdqsvj99m"
         },
         {
             "action": "quit"
@@ -30,11 +22,18 @@
         },
         {
             "action": "join",
-            "pool": "pool10j2hj96e9cttt2urf3gys9tmq47rj6u5ndx94pyvdt7665hhfkj"
+            "pool": "pool1fdy9czwy4t73naq235t4mw9efr5qn5z8t9z5afacsfd6ykfk8sx"
         },
         {
             "action": "join",
-            "pool": "pool1n6ynw8rrnm5h7fhqtwzqftwhnvwjpwugg80763qw05gxx9hqg8z"
+            "pool": "pool1v3j6lac75yynff9jgel0xrdvzcrayr3605ghykcvxxwjqph6wch"
+        },
+        {
+            "action": "join",
+            "pool": "pool1ys3lf2p67hguhw5xuvhfx0mketrmfq4y8uu5mfaykqqrql4wfuq"
+        },
+        {
+            "action": "quit"
         }
     ]
 }

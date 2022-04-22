@@ -1,9 +1,9 @@
 {
-    "seed": 4980686044093433468,
+    "seed": -5361789725986382093,
     "samples": [
         {
             "settings": {
-                "pool_metadata_source": "direct"
+                "pool_metadata_source": "none"
             }
         },
         {
@@ -13,22 +13,27 @@
         },
         {
             "settings": {
-                "pool_metadata_source": "direct"
+                "pool_metadata_source": "http://its-friday.com:8000"
             }
         },
         {
             "settings": {
-                "pool_metadata_source": "direct"
+                "pool_metadata_source": "http://its-friday.com:8000"
             }
         },
         {
             "settings": {
-                "pool_metadata_source": "direct"
+                "pool_metadata_source": "none"
             }
         },
         {
             "settings": {
-                "pool_metadata_source": "https://my.little.friend"
+                "pool_metadata_source": "http://its-friday.com:8000"
+            }
+        },
+        {
+            "settings": {
+                "pool_metadata_source": "http://its-friday.com:8000"
             }
         },
         {
@@ -39,11 +44,6 @@
         {
             "settings": {
                 "pool_metadata_source": "none"
-            }
-        },
-        {
-            "settings": {
-                "pool_metadata_source": "direct"
             }
         },
         {

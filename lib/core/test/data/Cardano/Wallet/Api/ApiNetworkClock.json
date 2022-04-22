@@ -1,35 +1,33 @@
 {
-    "seed": 6670456706260129863,
+    "seed": 5254172405322478001,
     "samples": [
         {
-            "status": "available",
-            "offset": {
-                "quantity": -14,
-                "unit": "microsecond"
-            }
+            "status": "unavailable"
         },
         {
-            "status": "available",
-            "offset": {
-                "quantity": -28,
-                "unit": "microsecond"
-            }
+            "status": "pending"
+        },
+        {
+            "status": "pending"
+        },
+        {
+            "status": "pending"
         },
         {
             "status": "unavailable"
         },
         {
+            "status": "pending"
+        },
+        {
+            "status": "pending"
+        },
+        {
             "status": "available",
             "offset": {
-                "quantity": 5,
+                "quantity": -27,
                 "unit": "microsecond"
             }
-        },
-        {
-            "status": "unavailable"
-        },
-        {
-            "status": "unavailable"
         },
         {
             "status": "available",
@@ -39,17 +37,7 @@
             }
         },
         {
-            "status": "available",
-            "offset": {
-                "quantity": 30,
-                "unit": "microsecond"
-            }
-        },
-        {
             "status": "pending"
-        },
-        {
-            "status": "unavailable"
         }
     ]
 }
