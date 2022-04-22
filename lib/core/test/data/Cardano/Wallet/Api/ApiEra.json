@@ -1,15 +1,15 @@
 {
-    "seed": 2325223022312251275,
+    "seed": 3650623946664727762,
     "samples": [
+        "byron",
+        "mary",
+        "shelley",
         "allegra",
-        "byron",
-        "byron",
         "mary",
-        "mary",
+        "alonzo",
+        "alonzo",
         "allegra",
         "shelley",
-        "byron",
-        "allegra",
-        "allegra"
+        "byron"
     ]
 }

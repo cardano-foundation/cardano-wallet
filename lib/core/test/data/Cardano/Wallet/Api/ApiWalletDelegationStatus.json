@@ -1,15 +1,15 @@
 {
-    "seed": -7699383203914663892,
+    "seed": 4269658557439808531,
     "samples": [
-        "not_delegating",
         "delegating",
         "not_delegating",
         "not_delegating",
-        "delegating",
-        "delegating",
         "not_delegating",
         "delegating",
-        "not_delegating",
+        "delegating",
+        "delegating",
+        "delegating",
+        "delegating",
         "delegating"
     ]
 }
