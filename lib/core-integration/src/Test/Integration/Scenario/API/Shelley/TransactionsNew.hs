@@ -86,6 +86,7 @@ import Cardano.Wallet.Primitive.Types
     , NonWalletCertificate (..)
     , PoolId (..)
     , PoolOwner (..)
+    , SlotNo (..)
     , StakePoolMetadataHash (..)
     , StakePoolMetadataUrl (..)
     , decodePoolIdBech32
@@ -3247,11 +3248,16 @@ spec = describe "NEW_SHELLEY_TRANSACTIONS" $ do
 
         mintAssetsCheck ctx wa tokenName' payload scriptUsed
 
-    it "TRANS_NEW_CREATE_10e - Minting assets with timelocks" $
+    it "TRANS_NEW_CREATE_10e - Minting assets with timelocks \
+       \successful as validity interval is included in time interval \
+       \of a script" $
         \ctx -> runResourceT $ do
-        -- TODO: ADP-1193
-        liftIO $ pendingWith
-            "ADP-1193: Should work when interval validity is addressed"
+
+       --      slot 0       sl+10
+       --         |----------->       validity interval
+       --
+       --         |-------------->      script's timelock interval
+       --                       sl+11
 
         wa <- fixtureWallet ctx
         addrs <- listAddresses @n ctx wa
@@ -3259,12 +3265,26 @@ spec = describe "NEW_SHELLEY_TRANSACTIONS" $ do
 
         let (Right tokenName') = mkTokenName "ab12"
 
+        rSlot <- request @ApiNetworkInformation ctx
+                 Link.getNetworkInfo Default Empty
+        verify rSlot
+            [ expectSuccess
+            ]
+        let (SlotNo sl) =
+                getFromResponse (#nodeTip . #absoluteSlotNumber . #getApiT) rSlot
+
         let payload = Json [json|{
+                "validity_interval": {
+                    "invalid_hereafter": {
+                      "quantity": #{sl + 10},
+                      "unit": "slot"
+                    }
+                  },
                 "mint_burn": [{
                     "policy_script_template":
                         { "all":
                            [ "cosigner#0",
-                             { "active_from": 120 }
+                             { "active_until": #{sl + 11} }
                            ]
                         },
                     "asset_name": #{toText tokenName'},
@@ -3279,7 +3299,7 @@ spec = describe "NEW_SHELLEY_TRANSACTIONS" $ do
 
         let scriptUsed policyKeyHash = RequireAllOf
                 [ RequireSignatureOf policyKeyHash
-                , ActiveFromSlot 120
+                , ActiveUntilSlot (fromIntegral $ sl + 11)
                 ]
 
         mintAssetsCheck ctx wa tokenName' payload scriptUsed
