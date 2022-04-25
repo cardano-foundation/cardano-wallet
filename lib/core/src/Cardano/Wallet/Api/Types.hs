@@ -241,6 +241,7 @@ module Cardano.Wallet.Api.Types
     , HealthStatusSMASH (..)
     , HealthCheckSMASH (..)
     , ApiHealthCheck (..)
+    , ApiAsArray (..)
 
     -- * Re-exports
     , Base (Base16, Base64)
@@ -414,6 +415,8 @@ import Data.List.NonEmpty
     ( NonEmpty (..) )
 import Data.Map.Strict
     ( Map )
+import Data.Maybe
+    ( maybeToList )
 import Data.Proxy
     ( Proxy (..) )
 import Data.Quantity
@@ -4129,3 +4132,28 @@ instance FromJSON (ApiT TxScriptValidity) where
 instance ToJSON (ApiT TxScriptValidity) where
     toJSON = genericToJSON Aeson.defaultOptions
         { constructorTagModifier = camelTo2 '_' . drop 8 } . getApiT
+
+--------------------------------------------------------------------------------
+-- Utility types
+--------------------------------------------------------------------------------
+
+-- | A wrapper that allows any type to be serialized as a JSON array.
+--
+-- The number of items permitted in the array is dependent on the wrapped type.
+--
+newtype ApiAsArray a = ApiAsArray a
+    deriving (Eq, Generic, Show, Typeable)
+    deriving newtype (Monoid, Semigroup)
+    deriving anyclass NFData
+
+instance FromJSON a => FromJSON (ApiAsArray (Maybe a)) where
+    parseJSON json = parseJSON @[a] json >>= \case
+        [a] ->
+            pure $ ApiAsArray $ Just a
+        [] ->
+            pure $ ApiAsArray Nothing
+        _  ->
+            fail "Expected at most one item."
+
+instance ToJSON a => ToJSON (ApiAsArray (Maybe a)) where
+    toJSON (ApiAsArray m) = toJSON (maybeToList m)
