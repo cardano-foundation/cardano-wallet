@@ -163,6 +163,7 @@ library
   hs-source-dirs:
       src
   exposed-modules:
+      Cardano.Api.Extra
       Cardano.Byron.Codec.Cbor
       Cardano.DB.Sqlite
       Cardano.DB.Sqlite.Delete

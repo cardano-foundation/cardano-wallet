@@ -46,6 +46,8 @@ import Cardano.Api
     , TxOutValue (TxOutAdaOnly, TxOutValue)
     , cardanoEraStyle
     )
+import Cardano.Api.Extra
+    ( asAnyShelleyBasedEra, withShelleyBasedTx )
 import Cardano.Api.Gen
     ( genEncodingBoundaryLovelace
     , genSignedValue
@@ -3905,26 +3907,3 @@ shelleyBasedTxFromBytes bytes =
         case asAnyShelleyBasedEra anyEraTx of
             Just shelleyTx -> shelleyTx
             Nothing -> error "shelleyBasedTxFromBytes: ByronTx not supported"
-
-asAnyShelleyBasedEra
-    :: Cardano.InAnyCardanoEra a
-    -> Maybe (Cardano.InAnyShelleyBasedEra a)
-asAnyShelleyBasedEra = \case
-    Cardano.InAnyCardanoEra Cardano.ByronEra _ ->
-        Nothing
-    Cardano.InAnyCardanoEra Cardano.ShelleyEra a ->
-        Just $ Cardano.InAnyShelleyBasedEra Cardano.ShelleyBasedEraShelley a
-    Cardano.InAnyCardanoEra Cardano.AllegraEra a ->
-        Just $ Cardano.InAnyShelleyBasedEra Cardano.ShelleyBasedEraAllegra a
-    Cardano.InAnyCardanoEra Cardano.MaryEra a ->
-        Just $ Cardano.InAnyShelleyBasedEra Cardano.ShelleyBasedEraMary a
-    Cardano.InAnyCardanoEra Cardano.AlonzoEra a ->
-        Just $ Cardano.InAnyShelleyBasedEra Cardano.ShelleyBasedEraAlonzo a
-
-withShelleyBasedTx
-    :: Cardano.InAnyShelleyBasedEra Cardano.Tx
-    -> (forall era. Cardano.IsShelleyBasedEra era
-        => Cardano.Tx era -> a)
-    -> a
-withShelleyBasedTx (Cardano.InAnyShelleyBasedEra _era tx) f
-    = f tx

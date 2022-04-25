@@ -132,6 +132,8 @@ import Cardano.Address.Script
     )
 import Cardano.Api
     ( AnyCardanoEra (..), CardanoEra (..), SerialiseAsCBOR (..) )
+import Cardano.Api.Extra
+    ( asAnyShelleyBasedEra, inAnyCardanoEra, withShelleyBasedTx )
 import Cardano.BM.Tracing
     ( HasPrivacyAnnotation (..), HasSeverityAnnotation (..) )
 import Cardano.Mnemonic
@@ -2484,11 +2486,12 @@ balanceTransaction ctx genChange (ApiT wid) body = do
                     partialTx
 
         anyShelleyTx <- maybeToHandler ErrByronTxNotSupported
-            . inAnyShelleyBasedEra
+            . asAnyShelleyBasedEra
             . cardanoTx
             . getApiT $ body ^. #transaction
 
-        res <- withShelleyBasedTx anyShelleyTx (fmap toAny . balanceTx . mkPartialTx)
+        res <- withShelleyBasedTx anyShelleyTx
+            (fmap inAnyCardanoEra . balanceTx . mkPartialTx)
 
         pure $ ApiSerialisedTransaction $ ApiT $ W.sealedTxFromCardano res
   where
@@ -2497,33 +2500,6 @@ balanceTransaction ctx genChange (ApiT wid) body = do
     maybeToHandler :: IsServerError e => e -> Maybe a -> Handler a
     maybeToHandler _ (Just a) = pure a
     maybeToHandler e Nothing  = liftHandler $ throwE e
-
-    withShelleyBasedTx
-        :: Cardano.InAnyShelleyBasedEra Cardano.Tx
-        -> (forall era. Cardano.IsShelleyBasedEra era
-            => Cardano.Tx era -> a)
-        -> a
-    withShelleyBasedTx (Cardano.InAnyShelleyBasedEra _era tx) f
-        = f tx
-
-    toAny :: forall era. Cardano.IsShelleyBasedEra era => Cardano.Tx era -> Cardano.InAnyCardanoEra Cardano.Tx
-    toAny tx = Cardano.InAnyCardanoEra Cardano.cardanoEra tx
-
-    inAnyShelleyBasedEra
-        :: Cardano.InAnyCardanoEra a
-        -> Maybe (Cardano.InAnyShelleyBasedEra a)
-    inAnyShelleyBasedEra = \case
-        Cardano.InAnyCardanoEra Cardano.ByronEra _ ->
-            Nothing
-        Cardano.InAnyCardanoEra Cardano.ShelleyEra a ->
-            Just $ Cardano.InAnyShelleyBasedEra Cardano.ShelleyBasedEraShelley a
-        Cardano.InAnyCardanoEra Cardano.AllegraEra a ->
-            Just $ Cardano.InAnyShelleyBasedEra Cardano.ShelleyBasedEraAllegra a
-        Cardano.InAnyCardanoEra Cardano.MaryEra a ->
-            Just $ Cardano.InAnyShelleyBasedEra Cardano.ShelleyBasedEraMary a
-        Cardano.InAnyCardanoEra Cardano.AlonzoEra a ->
-            Just $ Cardano.InAnyShelleyBasedEra Cardano.ShelleyBasedEraAlonzo a
-
 
 decodeTransaction
     :: forall ctx s k n.
