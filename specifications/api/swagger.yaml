@@ -1133,7 +1133,7 @@ x-derivationPath: &derivationPath
   items: *derivationSegment
 
 x-transactionOutputs: &transactionOutputs
-  description: A list of target outputs with amount specified
+  description: A list of target outputs with amounts specified.
   type: array
   minItems: 0
   items:
