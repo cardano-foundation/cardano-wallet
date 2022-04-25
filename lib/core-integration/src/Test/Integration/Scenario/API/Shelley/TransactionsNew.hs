@@ -46,6 +46,7 @@ import Cardano.Wallet.Api.Types
     , ApiDecodedTransaction
     , ApiDeregisterPool (..)
     , ApiExternalCertificate (..)
+    , ApiNetworkInformation
     , ApiPolicyId
     , ApiPolicyKey (..)
     , ApiRegisterPool (..)
@@ -1127,6 +1128,13 @@ spec = describe "NEW_SHELLEY_TRANSACTIONS" $ do
     it "TRANS_NEW_VALIDITY_INTERVAL_01b - Validity interval with slot" $ \ctx -> runResourceT $ do
         wa <- fixtureWallet ctx
 
+        rSlot <- request @ApiNetworkInformation ctx
+                 Link.getNetworkInfo Default Empty
+        verify rSlot
+            [ expectSuccess
+            ]
+        let sl = getFromResponse (#nodeTip . #absoluteSlotNumber . #getApiT) rSlot
+
         let payload = Json [json|{
                 "withdrawal": "self",
                 "validity_interval": {
@@ -1135,7 +1143,7 @@ spec = describe "NEW_SHELLEY_TRANSACTIONS" $ do
                       "unit": "slot"
                     },
                     "invalid_hereafter": {
-                      "quantity": 500,
+                      "quantity": #{sl + 10},
                       "unit": "slot"
                     }
                   }
@@ -1251,12 +1259,6 @@ spec = describe "NEW_SHELLEY_TRANSACTIONS" $ do
 
     it "TRANS_NEW_VALIDITY_INTERVAL_02 - Validity interval 'unspecified'" $ \ctx -> runResourceT $ do
 
-        liftIO $ pendingWith
-          "Currently throws: \
-          \parsing ApiValidityBound object failed, \
-          \expected Object, but encountered String \
-          \- to be fixed in ADP-1189"
-
         wa <- fixtureWallet ctx
 
         let payload = Json [json|{
@@ -1270,7 +1272,8 @@ spec = describe "NEW_SHELLEY_TRANSACTIONS" $ do
         rTx <- request @(ApiConstructTransaction n) ctx
             (Link.createUnsignedTransaction @'Shelley wa) Default payload
         verify rTx
-            [ expectResponseCode HTTP.status202
+            [ expectResponseCode HTTP.status400
+            , expectErrorMessage "parsing ApiValidityBound object failed, expected Object, but encountered String"
             ]
 
     it "TRANS_NEW_DECODE_01a - \
@@ -3060,10 +3063,7 @@ spec = describe "NEW_SHELLEY_TRANSACTIONS" $ do
                     "operation":
                         { "mint" :
                               { "receiving_address": #{destination},
-                                 "amount": {
-                                     "quantity": 10000,
-                                     "unit": "assets"
-                                  }
+                                 "quantity": 10000
                               }
                         }
                 }]
@@ -3093,10 +3093,7 @@ spec = describe "NEW_SHELLEY_TRANSACTIONS" $ do
                     "operation":
                         { "mint" :
                               { "receiving_address": #{destination},
-                                 "amount": {
-                                     "quantity": 10000,
-                                     "unit": "assets"
-                                  }
+                                 "quantity": 10000
                               }
                         }
                 }]
@@ -3128,10 +3125,7 @@ spec = describe "NEW_SHELLEY_TRANSACTIONS" $ do
                     "operation":
                         { "mint" :
                               { "receiving_address": #{destination},
-                                 "amount": {
-                                     "quantity": 10000,
-                                     "unit": "assets"
-                                  }
+                                 "quantity": 10000
                               }
                         }
                 }]
@@ -3158,10 +3152,7 @@ spec = describe "NEW_SHELLEY_TRANSACTIONS" $ do
                     "operation":
                         { "mint" :
                               { "receiving_address": #{destination},
-                                 "amount": {
-                                     "quantity": 10000,
-                                     "unit": "assets"
-                                  }
+                                 "quantity": 10000
                               }
                         }
                 }]
@@ -3186,10 +3177,7 @@ spec = describe "NEW_SHELLEY_TRANSACTIONS" $ do
                     "operation":
                         { "mint" :
                               { "receiving_address": #{destination},
-                                 "amount": {
-                                     "quantity": 9223372036854775808,
-                                     "unit": "assets"
-                                  }
+                                 "quantity": 9223372036854775808
                               }
                         }
                 }]
@@ -3215,10 +3203,7 @@ spec = describe "NEW_SHELLEY_TRANSACTIONS" $ do
                     "operation":
                         { "mint" :
                               { "receiving_address": #{destination},
-                                 "amount": {
-                                     "quantity": 0,
-                                     "unit": "assets"
-                                  }
+                                 "quantity": 0
                               }
                         }
                 }]
@@ -3250,10 +3235,7 @@ spec = describe "NEW_SHELLEY_TRANSACTIONS" $ do
                     "operation":
                         { "mint" :
                               { "receiving_address": #{destination},
-                                 "amount": {
-                                     "quantity": 50000,
-                                     "unit": "assets"
-                                  }
+                                 "quantity": 50000
                               }
                         }
                 }]
@@ -3289,10 +3271,7 @@ spec = describe "NEW_SHELLEY_TRANSACTIONS" $ do
                     "operation":
                         { "mint" :
                               { "receiving_address": #{destination},
-                                 "amount": {
-                                     "quantity": 50000,
-                                     "unit": "assets"
-                                  }
+                                 "quantity": 50000
                               }
                         }
                 }]
@@ -3324,10 +3303,7 @@ spec = describe "NEW_SHELLEY_TRANSACTIONS" $ do
                     "operation":
                         { "mint" :
                             { "receiving_address": #{destination},
-                                "amount": {
-                                    "quantity": 50000,
-                                    "unit": "assets"
-                                }
+                              "quantity": 50000
                             }
                         }
                 }]
@@ -3350,7 +3326,6 @@ spec = describe "NEW_SHELLEY_TRANSACTIONS" $ do
                     "operation":
                         { "burn" :
                             { "quantity": 50000
-                            , "unit": "assets"
                             }
                         }
                 }]
@@ -3376,10 +3351,7 @@ spec = describe "NEW_SHELLEY_TRANSACTIONS" $ do
                     , "operation":
                         { "mint":
                             { "receiving_address": #{destination}
-                            , "amount":
-                                { "quantity": 50000
-                                , "unit": "assets"
-                                }
+                            , "quantity": 50000
                             }
                         }
                     }
@@ -3402,7 +3374,6 @@ spec = describe "NEW_SHELLEY_TRANSACTIONS" $ do
                     "operation":
                         { "burn" :
                             { "quantity": 50000
-                            , "unit": "assets"
                             }
                         }
                 }]
@@ -3431,10 +3402,7 @@ spec = describe "NEW_SHELLEY_TRANSACTIONS" $ do
                     , "operation":
                         { "mint":
                             { "receiving_address": #{destination}
-                            , "amount":
-                                { "quantity": 50000
-                                , "unit": "assets"
-                                }
+                            , "quantity": 50000
                             }
                         }
                     }
