@@ -47,7 +47,16 @@
             },
             "metadata": {
                 "13": {
-                    "int": 0
+                    "map": [
+                        {
+                            "k": {
+                                "string": "󵒁Ꭿ"
+                            },
+                            "v": {
+                                "list": []
+                            }
+                        }
+                    ]
                 }
             },
             "collateral": [],
@@ -82,8 +91,8 @@
                 "unit": "lovelace"
             },
             "metadata": {
-                "27": {
-                    "bytes": "3403476e67dd39321ceb03136e3c6888514a7523601737332b5a3244101b4b494b23654d6518275a3a04"
+                "6": {
+                    "string": "轸𬉨"
                 }
             },
             "collateral": [],
@@ -123,7 +132,6 @@
                 "quantity": 133,
                 "unit": "lovelace"
             },
-            "metadata": null,
             "collateral": [],
             "mint": []
         },
@@ -170,7 +178,6 @@
                 "quantity": 207,
                 "unit": "lovelace"
             },
-            "metadata": null,
             "collateral": [],
             "mint": [
                 {
@@ -224,7 +231,6 @@
                 "quantity": 8,
                 "unit": "lovelace"
             },
-            "metadata": null,
             "collateral": [],
             "mint": []
         },
@@ -266,8 +272,25 @@
                 "unit": "lovelace"
             },
             "metadata": {
-                "1": {
-                    "int": 0
+                "21": {
+                    "map": [
+                        {
+                            "k": {
+                                "string": "􀖗侀󵈷"
+                            },
+                            "v": {
+                                "map": []
+                            }
+                        },
+                        {
+                            "k": {
+                                "string": "􀬤"
+                            },
+                            "v": {
+                                "string": "󶸝陹󶫓𣑊"
+                            }
+                        }
+                    ]
                 }
             },
             "collateral": [],
@@ -370,8 +393,8 @@
                 "unit": "lovelace"
             },
             "metadata": {
-                "14": {
-                    "bytes": "fa7d737625213e2a6539e437873b16307d0c57476b7b1d4e5127796e55712bb25a3c103b7251555770ae5a2aa85adf680f3f2b3825076d139ae30c79196046"
+                "19": {
+                    "bytes": "7049"
                 }
             },
             "collateral": [],
@@ -421,7 +444,6 @@
                 "quantity": 71,
                 "unit": "lovelace"
             },
-            "metadata": null,
             "collateral": [],
             "mint": [
                 {
@@ -500,15 +522,8 @@
                 "unit": "lovelace"
             },
             "metadata": {
-                "25": {
-                    "list": [
-                        {
-                            "string": "ㅞ㑿"
-                        },
-                        {
-                            "int": 1
-                        }
-                    ]
+                "14": {
+                    "map": []
                 }
             },
             "collateral": [],
@@ -559,9 +574,7 @@
                 "unit": "lovelace"
             },
             "metadata": {
-                "6": {
-                    "bytes": "94700065189bf64536603a67b61717157c160b0b3758476975da522e6e693260336b22eca871143f6907db075a110a4454537043151f02375a50ea067785ce52"
-                }
+                "5": "𗛮󱓕"
             },
             "collateral": [],
             "mint": [
