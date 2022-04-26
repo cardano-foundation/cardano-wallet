@@ -2,6 +2,13 @@
 
 ## Preparing the release
 
+- Fetch the tip of `master`:
+
+  ```shell
+  $ git checkout master
+  $ git pull
+  ```
+
 - Make sure `cardano-wallet` points to correct revisions of dependencies in
   [`stack.yaml`](https://github.com/input-output-hk/cardano-wallet/blob/master/stack.yaml) and
   [`cabal.project`](https://github.com/input-output-hk/cardano-wallet/blob/master/cabal.project).
@@ -9,13 +16,6 @@
   Verify that the content of [`stack.yaml`][] and [`cabal.project`][] correspond to the `cardano-node` version.
 
   Verify that target repositories point to appropriate revisions for `persistent`, `cardano-addresses`, `bech32`, ...)
-
-- Fetch the tip of `master`:
-
-  ```shell
-  $ git checkout master
-  $ git pull
-  ```
 
 - Create a new branch for the release:
 
