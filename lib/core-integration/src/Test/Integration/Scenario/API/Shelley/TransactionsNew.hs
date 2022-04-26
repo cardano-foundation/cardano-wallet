@@ -1083,19 +1083,12 @@ spec = describe "NEW_SHELLEY_TRANSACTIONS" $ do
             , expectErrorMessage errMsg403NotEnoughMoney
             ]
 
-    it "TRANS_NEW_VALIDITY_INTERVAL_01a - Validity interval with both second and slot" $ \ctx -> runResourceT $ do
+    it "TRANS_NEW_VALIDITY_INTERVAL_01a - Validity interval with second" $ \ctx -> runResourceT $ do
         wa <- fixtureWallet ctx
         wb <- emptyWallet ctx
         addrs <- listAddresses @n ctx wb
         let destination = (addrs !! 1) ^. #id
         let amt = minUTxOValue (_mainEra ctx)
-
-        rSlot <- request @ApiNetworkInformation ctx
-                 Link.getNetworkInfo Default Empty
-        verify rSlot
-            [ expectSuccess
-            ]
-        let sl = getFromResponse (#nodeTip . #absoluteSlotNumber . #getApiT) rSlot
 
         let payload = Json [json|{
                 "payments": [{
@@ -1106,10 +1099,6 @@ spec = describe "NEW_SHELLEY_TRANSACTIONS" $ do
                     }
                 }],
                 "validity_interval": {
-                    "invalid_before": {
-                      "quantity": #{sl - 10},
-                      "unit": "slot"
-                    },
                     "invalid_hereafter": {
                       "quantity": 50,
                       "unit": "second"
