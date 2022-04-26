@@ -329,7 +329,14 @@ import Control.Monad.IO.Class
 import Crypto.Hash
     ( hash )
 import Data.Aeson
-    ( FromJSON (..), Result (..), fromJSON, withObject, (.:?), (.=) )
+    ( FromJSON (..)
+    , Result (..)
+    , ToJSON (..)
+    , fromJSON
+    , withObject
+    , (.:?)
+    , (.=)
+    )
 import Data.Aeson.QQ
     ( aesonQQ )
 import Data.ByteString
@@ -466,123 +473,128 @@ import qualified Test.Utils.Roundtrip as Utils
 
 spec :: Spec
 spec = parallel $ do
-    let jsonRoundtripAndGolden = Utils.jsonRoundtripAndGolden
-            ($(getTestData) </> "Cardano" </> "Wallet" </> "Api")
+
+    let jsonTestDataPath :: FilePath
+        jsonTestDataPath = ($(getTestData) </> "Cardano" </> "Wallet" </> "Api")
+
+    let jsonTest
+            :: forall a. (Arbitrary a, Typeable a, ToJSON a, FromJSON a)
+            => Spec
+        jsonTest = Utils.jsonRoundtripAndGolden jsonTestDataPath (Proxy @a)
 
     describe "JSON golden roundtrip" $ do
-            jsonRoundtripAndGolden $ Proxy @AnyAddress
-            jsonRoundtripAndGolden $ Proxy @ApiCredential
-            jsonRoundtripAndGolden $ Proxy @ApiAddressData
-            jsonRoundtripAndGolden $ Proxy @(ApiT DerivationIndex)
-            jsonRoundtripAndGolden $ Proxy @ApiPostAccountKeyData
-            jsonRoundtripAndGolden $ Proxy @ApiPostAccountKeyDataWithPurpose
-            jsonRoundtripAndGolden $ Proxy @ApiAccountKey
-            jsonRoundtripAndGolden $ Proxy @ApiPolicyKey
-            jsonRoundtripAndGolden $ Proxy @ApiPolicyId
-            jsonRoundtripAndGolden $ Proxy @ApiAccountKeyShared
-            jsonRoundtripAndGolden $ Proxy @ApiEpochInfo
-            jsonRoundtripAndGolden $ Proxy @(ApiSelectCoinsData ('Testnet 0))
-            jsonRoundtripAndGolden $ Proxy @(ApiCoinSelection ('Testnet 0))
-            jsonRoundtripAndGolden $ Proxy @(ApiCoinSelectionChange ('Testnet 0))
-            jsonRoundtripAndGolden $ Proxy @(ApiCoinSelectionCollateral ('Testnet 0))
-            jsonRoundtripAndGolden $ Proxy @(ApiCoinSelectionOutput ('Testnet 0))
-            jsonRoundtripAndGolden $ Proxy @(ApiCoinSelectionWithdrawal ('Testnet 0))
-            jsonRoundtripAndGolden $ Proxy @ApiBase64
-            jsonRoundtripAndGolden $ Proxy @ApiBlockReference
-            jsonRoundtripAndGolden $ Proxy @ApiSlotReference
-            jsonRoundtripAndGolden $ Proxy @ApiDelegationAction
-            jsonRoundtripAndGolden $ Proxy @ApiNetworkInformation
-            jsonRoundtripAndGolden $ Proxy @ApiNetworkParameters
-            jsonRoundtripAndGolden $ Proxy @ApiEraInfo
-            jsonRoundtripAndGolden $ Proxy @ApiEra
-            jsonRoundtripAndGolden $ Proxy @ApiPostPolicyIdData
-            jsonRoundtripAndGolden $ Proxy @ApiNetworkClock
-            jsonRoundtripAndGolden $ Proxy @ApiWalletDelegation
-            jsonRoundtripAndGolden $ Proxy @ApiHealthCheck
-            jsonRoundtripAndGolden $ Proxy @ApiWalletDelegationStatus
-            jsonRoundtripAndGolden $ Proxy @ApiWalletDelegationNext
-            jsonRoundtripAndGolden $ Proxy @(ApiT (Hash "Genesis"))
-            jsonRoundtripAndGolden $ Proxy @ApiStakePool
-            jsonRoundtripAndGolden $ Proxy @ApiStakePoolMetrics
-            jsonRoundtripAndGolden $ Proxy @(AddressAmount (ApiT Address, Proxy ('Testnet 0)))
-            jsonRoundtripAndGolden $ Proxy @(AddressAmountNoAssets (ApiT Address, Proxy ('Testnet 0)))
-            jsonRoundtripAndGolden $ Proxy @(ApiTransaction ('Testnet 0))
-            jsonRoundtripAndGolden $ Proxy @(ApiPutAddressesData ('Testnet 0))
-            jsonRoundtripAndGolden $ Proxy @ApiWallet
-            jsonRoundtripAndGolden $ Proxy @ApiSharedWalletPostData
-            jsonRoundtripAndGolden $ Proxy @ApiScriptTemplateEntry
-            jsonRoundtripAndGolden $ Proxy @ApiSharedWalletPostDataFromMnemonics
-            jsonRoundtripAndGolden $ Proxy @ApiSharedWalletPostDataFromAccountPubX
-            jsonRoundtripAndGolden $ Proxy @ApiSharedWallet
-            jsonRoundtripAndGolden $ Proxy @ApiActiveSharedWallet
-            jsonRoundtripAndGolden $ Proxy @ApiPendingSharedWallet
-            jsonRoundtripAndGolden $ Proxy @ApiSharedWalletPatchData
-            jsonRoundtripAndGolden $ Proxy @ApiByronWallet
-            jsonRoundtripAndGolden $ Proxy @ApiByronWalletBalance
-            jsonRoundtripAndGolden $ Proxy @(ApiWalletMigrationPlan ('Testnet 0))
-            jsonRoundtripAndGolden $ Proxy @ApiWalletMigrationBalance
-            jsonRoundtripAndGolden $ Proxy @(ApiWalletMigrationPlanPostData ('Testnet 0))
-            jsonRoundtripAndGolden $ Proxy @(ApiWalletMigrationPostData ('Testnet 0) "lenient")
-            jsonRoundtripAndGolden $ Proxy @(ApiWalletMigrationPostData ('Testnet 0) "user")
-            jsonRoundtripAndGolden $ Proxy @ApiWalletPassphrase
-            jsonRoundtripAndGolden $ Proxy @ApiWalletUtxoSnapshot
-            jsonRoundtripAndGolden $ Proxy @ApiUtxoStatistics
-            jsonRoundtripAndGolden $ Proxy @ApiFee
-            jsonRoundtripAndGolden $ Proxy @ApiAssetMintBurn
-            jsonRoundtripAndGolden $ Proxy @ApiTokens
-            jsonRoundtripAndGolden $ Proxy @ApiTokenAmountFingerprint
-            jsonRoundtripAndGolden $ Proxy @ApiStakePoolMetrics
-            jsonRoundtripAndGolden $ Proxy @ApiTxId
-            jsonRoundtripAndGolden $ Proxy @ApiVerificationKeyShelley
-            jsonRoundtripAndGolden $ Proxy @ApiVerificationKeyShared
-            jsonRoundtripAndGolden $ Proxy @(ApiPaymentDestination ('Testnet 0))
-            jsonRoundtripAndGolden $ Proxy @(ApiConstructTransactionData ('Testnet 0))
-            jsonRoundtripAndGolden $ Proxy @(ApiConstructTransaction ('Testnet 0))
-            jsonRoundtripAndGolden $ Proxy @ApiMultiDelegationAction
-            jsonRoundtripAndGolden $ Proxy @ApiSignTransactionPostData
-            jsonRoundtripAndGolden $ Proxy @ApiSerialisedTransaction
-            jsonRoundtripAndGolden $ Proxy @(ApiBalanceTransactionPostData ('Testnet 0))
-            jsonRoundtripAndGolden $ Proxy @(ApiExternalInput ('Testnet 0))
-            jsonRoundtripAndGolden $ Proxy @(PostTransactionOldData ('Testnet 0))
-            jsonRoundtripAndGolden $ Proxy @(PostTransactionFeeOldData ('Testnet 0))
-            jsonRoundtripAndGolden $ Proxy @WalletPostData
-            jsonRoundtripAndGolden $ Proxy @AccountPostData
-            jsonRoundtripAndGolden $ Proxy @WalletOrAccountPostData
-            jsonRoundtripAndGolden $ Proxy @SomeByronWalletPostData
-            jsonRoundtripAndGolden $ Proxy @ByronWalletFromXPrvPostData
-            jsonRoundtripAndGolden $ Proxy @WalletPutData
-            jsonRoundtripAndGolden $ Proxy @SettingsPutData
-            jsonRoundtripAndGolden $ Proxy @WalletPutPassphraseData
-            jsonRoundtripAndGolden $ Proxy @ByronWalletPutPassphraseData
-            jsonRoundtripAndGolden $ Proxy @(ApiT (Hash "Tx"))
-            jsonRoundtripAndGolden $ Proxy @(ApiT (Passphrase "user"))
-            jsonRoundtripAndGolden $ Proxy @(ApiT (Passphrase "lenient"))
-            jsonRoundtripAndGolden $ Proxy @(ApiT Address, Proxy ('Testnet 0))
-            jsonRoundtripAndGolden $ Proxy @(ApiT AddressPoolGap)
-            jsonRoundtripAndGolden $ Proxy @(ApiT Direction)
-            jsonRoundtripAndGolden $ Proxy @(ApiT TxMetadata)
-            jsonRoundtripAndGolden $ Proxy @(ApiT TxStatus)
-            jsonRoundtripAndGolden $ Proxy @(ApiT TxScriptValidity)
-            jsonRoundtripAndGolden $ Proxy @(ApiWalletBalance)
-            jsonRoundtripAndGolden $ Proxy @(ApiT WalletId)
-            jsonRoundtripAndGolden $ Proxy @(ApiT WalletName)
-            jsonRoundtripAndGolden $ Proxy @ApiWalletPassphraseInfo
-            jsonRoundtripAndGolden $ Proxy @(ApiT SyncProgress)
-            jsonRoundtripAndGolden $ Proxy @(ApiT StakePoolMetadata)
-            jsonRoundtripAndGolden $ Proxy @ApiPostRandomAddressData
-            jsonRoundtripAndGolden $ Proxy @ApiTxMetadata
-            jsonRoundtripAndGolden $ Proxy @(ApiDecodedTransaction ('Testnet 0))
-            jsonRoundtripAndGolden $ Proxy @(ApiTxInputGeneral ('Testnet 0))
-            jsonRoundtripAndGolden $ Proxy @(ApiTxOutputGeneral ('Testnet 0))
-            jsonRoundtripAndGolden $ Proxy @(ApiWithdrawalGeneral ('Testnet 0))
-
-            jsonRoundtripAndGolden $ Proxy @ApiMaintenanceAction
-            jsonRoundtripAndGolden $ Proxy @ApiMaintenanceActionPostData
-            jsonRoundtripAndGolden $ Proxy @ApiAsset
-            jsonRoundtripAndGolden $ Proxy @(ApiStakeKeys ('Testnet 0))
-            jsonRoundtripAndGolden $ Proxy @(ApiOurStakeKey ('Testnet 0))
-            jsonRoundtripAndGolden $ Proxy @(ApiForeignStakeKey ('Testnet 0))
-            jsonRoundtripAndGolden $ Proxy @ApiNullStakeKey
+        jsonTest @(AddressAmount (ApiT Address, Proxy ('Testnet 0)))
+        jsonTest @(AddressAmountNoAssets (ApiT Address, Proxy ('Testnet 0)))
+        jsonTest @(ApiBalanceTransactionPostData ('Testnet 0))
+        jsonTest @(ApiCoinSelection ('Testnet 0))
+        jsonTest @(ApiCoinSelectionChange ('Testnet 0))
+        jsonTest @(ApiCoinSelectionCollateral ('Testnet 0))
+        jsonTest @(ApiCoinSelectionOutput ('Testnet 0))
+        jsonTest @(ApiCoinSelectionWithdrawal ('Testnet 0))
+        jsonTest @(ApiConstructTransaction ('Testnet 0))
+        jsonTest @(ApiConstructTransactionData ('Testnet 0))
+        jsonTest @(ApiDecodedTransaction ('Testnet 0))
+        jsonTest @(ApiExternalInput ('Testnet 0))
+        jsonTest @(ApiForeignStakeKey ('Testnet 0))
+        jsonTest @(ApiOurStakeKey ('Testnet 0))
+        jsonTest @(ApiPaymentDestination ('Testnet 0))
+        jsonTest @(ApiPutAddressesData ('Testnet 0))
+        jsonTest @(ApiSelectCoinsData ('Testnet 0))
+        jsonTest @(ApiStakeKeys ('Testnet 0))
+        jsonTest @(ApiT (Hash "Genesis"))
+        jsonTest @(ApiT (Hash "Tx"))
+        jsonTest @(ApiT (Passphrase "lenient"))
+        jsonTest @(ApiT (Passphrase "user"))
+        jsonTest @(ApiT Address, Proxy ('Testnet 0))
+        jsonTest @(ApiT AddressPoolGap)
+        jsonTest @(ApiT DerivationIndex)
+        jsonTest @(ApiT Direction)
+        jsonTest @(ApiT StakePoolMetadata)
+        jsonTest @(ApiT SyncProgress)
+        jsonTest @(ApiT TxMetadata)
+        jsonTest @(ApiT TxScriptValidity)
+        jsonTest @(ApiT TxStatus)
+        jsonTest @(ApiT WalletId)
+        jsonTest @(ApiT WalletName)
+        jsonTest @(ApiTransaction ('Testnet 0))
+        jsonTest @(ApiTxInputGeneral ('Testnet 0))
+        jsonTest @(ApiTxOutputGeneral ('Testnet 0))
+        jsonTest @(ApiWalletBalance)
+        jsonTest @(ApiWalletMigrationPlan ('Testnet 0))
+        jsonTest @(ApiWalletMigrationPlanPostData ('Testnet 0))
+        jsonTest @(ApiWalletMigrationPostData ('Testnet 0) "lenient")
+        jsonTest @(ApiWalletMigrationPostData ('Testnet 0) "user")
+        jsonTest @(ApiWithdrawalGeneral ('Testnet 0))
+        jsonTest @(PostTransactionFeeOldData ('Testnet 0))
+        jsonTest @(PostTransactionOldData ('Testnet 0))
+        jsonTest @AccountPostData
+        jsonTest @AnyAddress
+        jsonTest @ApiAccountKey
+        jsonTest @ApiAccountKeyShared
+        jsonTest @ApiActiveSharedWallet
+        jsonTest @ApiAddressData
+        jsonTest @ApiAsset
+        jsonTest @ApiAssetMintBurn
+        jsonTest @ApiBase64
+        jsonTest @ApiBlockReference
+        jsonTest @ApiByronWallet
+        jsonTest @ApiByronWalletBalance
+        jsonTest @ApiCredential
+        jsonTest @ApiDelegationAction
+        jsonTest @ApiEpochInfo
+        jsonTest @ApiEra
+        jsonTest @ApiEraInfo
+        jsonTest @ApiFee
+        jsonTest @ApiHealthCheck
+        jsonTest @ApiMaintenanceAction
+        jsonTest @ApiMaintenanceActionPostData
+        jsonTest @ApiMultiDelegationAction
+        jsonTest @ApiNetworkClock
+        jsonTest @ApiNetworkInformation
+        jsonTest @ApiNetworkParameters
+        jsonTest @ApiNullStakeKey
+        jsonTest @ApiPendingSharedWallet
+        jsonTest @ApiPolicyId
+        jsonTest @ApiPolicyKey
+        jsonTest @ApiPostAccountKeyData
+        jsonTest @ApiPostAccountKeyDataWithPurpose
+        jsonTest @ApiPostPolicyIdData
+        jsonTest @ApiPostRandomAddressData
+        jsonTest @ApiScriptTemplateEntry
+        jsonTest @ApiSerialisedTransaction
+        jsonTest @ApiSharedWallet
+        jsonTest @ApiSharedWalletPatchData
+        jsonTest @ApiSharedWalletPostData
+        jsonTest @ApiSharedWalletPostDataFromAccountPubX
+        jsonTest @ApiSharedWalletPostDataFromMnemonics
+        jsonTest @ApiSignTransactionPostData
+        jsonTest @ApiSlotReference
+        jsonTest @ApiStakePool
+        jsonTest @ApiStakePoolMetrics
+        jsonTest @ApiStakePoolMetrics
+        jsonTest @ApiTokenAmountFingerprint
+        jsonTest @ApiTokens
+        jsonTest @ApiTxId
+        jsonTest @ApiTxMetadata
+        jsonTest @ApiUtxoStatistics
+        jsonTest @ApiVerificationKeyShared
+        jsonTest @ApiVerificationKeyShelley
+        jsonTest @ApiWallet
+        jsonTest @ApiWalletDelegation
+        jsonTest @ApiWalletDelegationNext
+        jsonTest @ApiWalletDelegationStatus
+        jsonTest @ApiWalletMigrationBalance
+        jsonTest @ApiWalletPassphrase
+        jsonTest @ApiWalletPassphraseInfo
+        jsonTest @ApiWalletUtxoSnapshot
+        jsonTest @ByronWalletFromXPrvPostData
+        jsonTest @ByronWalletPutPassphraseData
+        jsonTest @SettingsPutData
+        jsonTest @SomeByronWalletPostData
+        jsonTest @WalletOrAccountPostData
+        jsonTest @WalletPostData
+        jsonTest @WalletPutData
+        jsonTest @WalletPutPassphraseData
 
     describe "ToText-FromText Roundtrip" $ do
             textRoundtrip $ Proxy @Iso8601Time
