@@ -659,6 +659,23 @@ spec = parallel $ do
         validateEveryPath (Proxy :: Proxy (Api ('Testnet 0) ApiStakePool))
 
     describe "verify JSON parsing failures too" $ do
+
+        describe "ApiAsArray (Maybe t)" $ do
+            let parseApiAsArray = Aeson.parseEither $
+                    parseJSON @(ApiAsArray (Maybe Word64))
+            it "element count = 0 (should succeed)" $
+                parseApiAsArray [aesonQQ|[]|]
+                    `shouldBe` Right (ApiAsArray Nothing)
+            it "element count = 1 (should succeed)" $
+                parseApiAsArray [aesonQQ|[0]|]
+                    `shouldBe` Right (ApiAsArray (Just 0))
+            it "element count = 2 (should fail)" $
+                parseApiAsArray [aesonQQ|[0, 1]|]
+                    `shouldBe` Left "Error in $: Expected at most one item."
+            it "element count = 3 (should fail)" $
+                parseApiAsArray [aesonQQ|[0, 1, 2]|]
+                    `shouldBe` Left "Error in $: Expected at most one item."
+
         it "ApiT (Passphrase \"user\") (too short)" $ do
             let minLength = passphraseMinLength (Proxy :: Proxy "user")
             let msg = "Error in $: passphrase is too short: \
