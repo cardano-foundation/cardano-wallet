@@ -137,9 +137,9 @@ import Cardano.BM.Tracing
 import Cardano.Mnemonic
     ( SomeMnemonic )
 import Cardano.Wallet
-    ( BalanceTxNotSupportedReason (..)
-    , ErrAddCosignerKey (..)
+    ( ErrAddCosignerKey (..)
     , ErrBalanceTx (..)
+    , ErrBalanceTxInternalError (..)
     , ErrCannotJoin (..)
     , ErrCannotQuit (..)
     , ErrConstructSharedWallet (..)
@@ -4334,7 +4334,7 @@ instance IsServerError ErrBalanceTx where
                 ]
         ErrBalanceTxSelectAssets err -> toServerError err
         ErrBalanceTxAssignRedeemers err -> toServerError err
-        ErrBalanceTxNotYetSupported ConflictingNetworks ->
+        ErrBalanceTxConflictingNetworks ->
             apiError err403 CreatedInvalidTransaction $ mconcat
                 [ "There are withdrawals for multiple networks (e.g. both "
                 , "mainnet and testnet) in the provided transaction. This "
@@ -4344,16 +4344,18 @@ instance IsServerError ErrBalanceTx where
             apiError err403 CreatedInvalidTransaction $ mconcat
                 [ "I cannot balance transactions with pre-defined collateral."
                 ]
-        ErrBalanceTxNotYetSupported ZeroAdaOutput ->
-            apiError err500 CreatedInvalidTransaction $ mconcat
-                [ "The transaction contains one or more zero ada outputs."
+        ErrBalanceTxZeroAdaOutput ->
+            apiError err501 CreatedInvalidTransaction $ mconcat
+                [ "I don't currently support balancing transactions containing "
+                , "one or more zero ada outputs. In the future I might be able "
+                , "to increase the values to the minimum allowed ada value."
                 ]
-        ErrBalanceTxFailedBalancing v ->
+        ErrBalanceTxInternalError (ErrFailedBalancing v) ->
             apiError err500 CreatedInvalidTransaction $ mconcat
                 [ "I have somehow failed to balance the transaction. The balance"
                 , " is " <> T.pack (show v)
                 ]
-        ErrBalanceTxNotYetSupported (UnderestimatedFee c _) ->
+        ErrBalanceTxInternalError (ErrUnderestimatedFee c _) ->
             apiError err500 CreatedInvalidTransaction $ mconcat
                 [ "I have somehow underestimated the fee of the transaction "
                 , " by " <> pretty c
