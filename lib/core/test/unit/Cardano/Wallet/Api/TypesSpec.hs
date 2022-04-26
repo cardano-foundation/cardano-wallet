@@ -486,6 +486,7 @@ spec = parallel $ do
     describe "JSON golden roundtrip" $ do
         jsonTest @(AddressAmount (ApiT Address, Proxy ('Testnet 0)))
         jsonTest @(AddressAmountNoAssets (ApiT Address, Proxy ('Testnet 0)))
+        jsonTest @(ApiAsArray (Maybe Word64))
         jsonTest @(ApiBalanceTransactionPostData ('Testnet 0))
         jsonTest @(ApiCoinSelection ('Testnet 0))
         jsonTest @(ApiCoinSelectionChange ('Testnet 0))
