@@ -2006,7 +2006,7 @@ postTransactionOld ctx genChange (ApiT wid) body = do
     let txCtx = defaultTransactionCtx
             { txWithdrawal = wdrl
             , txMetadata = md
-            , txTimeToLive = ttl
+            , txValidityInterval = (Nothing, ttl)
             }
 
     (sel, tx, txMeta, txTime, pp) <- withWorkerCtx ctx wid liftE liftE $ \wrk ->
@@ -2308,8 +2308,6 @@ constructTransaction ctx genChange knownPools getPoolStatus (ApiT wid) body = do
     when (hereafter < before || isThereNegativeTime) $
         liftHandler $ throwE ErrConstructTxWrongValidityBounds
 
-    let ttl = hereafter
-
     (wdrl, _) <-
         mkRewardAccountBuilder @_ @s @_ @n ctx wid (body ^. #withdrawal)
 
@@ -2319,7 +2317,7 @@ constructTransaction ctx genChange knownPools getPoolStatus (ApiT wid) body = do
             Nothing -> pure (Nothing, Nothing, defaultTransactionCtx
                  { txWithdrawal = wdrl
                  , txMetadata = md
-                 , txTimeToLive = ttl
+                 , txValidityInterval = (Just before, hereafter)
                  })
             Just delegs -> do
                 -- TODO: Current limitation:
@@ -2345,7 +2343,7 @@ constructTransaction ctx genChange knownPools getPoolStatus (ApiT wid) body = do
                 pure (deposit, refund, defaultTransactionCtx
                     { txWithdrawal = wdrl
                     , txMetadata = md
-                    , txTimeToLive = ttl
+                    , txValidityInterval = (Just before, hereafter)
                     , txDelegationAction = Just action
                     })
         let transform s sel =
@@ -2788,7 +2786,7 @@ submitTransaction ctx apiw@(ApiT wid) apitx@(ApiSerialisedTransaction (ApiT seal
         (acct, _, path) <- liftHandler $ W.readRewardAccount @_ @s @k @n wrk wid
         let wdrl = getOurWdrl acct path apiDecoded
         let txCtx = defaultTransactionCtx
-                { txTimeToLive = ttl
+                { txValidityInterval = (Nothing, ttl)  -- ADP-1193 get it from decodeTx
                 , txWithdrawal = wdrl
                 , txDelegationAction = delAction
                 }
@@ -2895,7 +2893,7 @@ joinStakePool ctx knownPools getPoolStatus apiPoolId (ApiT wid) body = do
         ttl <- liftIO $ W.getTxExpiry ti Nothing
         let txCtx = defaultTransactionCtx
                 { txWithdrawal = wdrl
-                , txTimeToLive = ttl
+                , txValidityInterval = (Nothing, ttl)
                 , txDelegationAction = Just action
                 }
         (utxoAvailable, wallet, pendingTxs) <-
@@ -3011,7 +3009,7 @@ quitStakePool ctx (ApiT wid) body = do
         ttl <- liftIO $ W.getTxExpiry ti Nothing
         let txCtx = defaultTransactionCtx
                 { txWithdrawal = wdrl
-                , txTimeToLive = ttl
+                , txValidityInterval = (Nothing, ttl)
                 , txDelegationAction = Just action
                 }
 
@@ -3279,7 +3277,7 @@ migrateWallet ctx withdrawalType (ApiT wid) postData = do
         mkRewardAccountBuilder @_ @s @_ @n ctx wid withdrawalType
     withWorkerCtx ctx wid liftE liftE $ \wrk -> do
         plan <- liftHandler $ W.createMigrationPlan wrk wid rewardWithdrawal
-        txTimeToLive <- liftIO $ W.getTxExpiry ti Nothing
+        ttl <- liftIO $ W.getTxExpiry ti Nothing
         pp <- liftIO $ NW.currentProtocolParameters (wrk ^. networkLayer)
         selectionWithdrawals <- liftHandler
             $ failWith ErrCreateMigrationPlanEmpty
@@ -3288,7 +3286,7 @@ migrateWallet ctx withdrawalType (ApiT wid) postData = do
         forM selectionWithdrawals $ \(selection, txWithdrawal) -> do
             let txContext = defaultTransactionCtx
                     { txWithdrawal
-                    , txTimeToLive
+                    , txValidityInterval = (Nothing, ttl)
                     , txDelegationAction = Nothing
                     }
             (tx, txMeta, txTime, sealedTx) <- liftHandler $

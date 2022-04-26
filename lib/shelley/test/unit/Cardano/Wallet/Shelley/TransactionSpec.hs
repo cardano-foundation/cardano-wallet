@@ -1566,7 +1566,7 @@ binaryCalculationsSpec' era = describe ("calculateBinary - "+||era||+"") $ do
           addrWits = zipWith (mkByronWitness' unsigned) inps pairs
           fee = toCardanoLovelace $ selectionDelta txOutCoin cs
           Right unsigned =
-              mkUnsignedTx era slotNo cs md mempty [] fee
+              mkUnsignedTx era (Nothing, slotNo) cs md mempty [] fee
               TokenMap.empty TokenMap.empty Map.empty
           cs = Selection
             { inputs = NE.fromList inps
@@ -1657,7 +1657,7 @@ makeShelleyTx era testCase = Cardano.makeSignedTransaction addrWits unsigned
     inps = Map.toList $ unUTxO utxo
     fee = toCardanoLovelace $ selectionDelta txOutCoin cs
     Right unsigned =
-        mkUnsignedTx era slotNo cs md mempty [] fee
+        mkUnsignedTx era (Nothing, slotNo) cs md mempty [] fee
         TokenMap.empty TokenMap.empty Map.empty
     addrWits = map (mkShelleyWitness unsigned) pairs
     cs = Selection
@@ -1700,7 +1700,7 @@ makeByronTx era testCase = Cardano.makeSignedTransaction byronWits unsigned
     inps = Map.toList $ unUTxO utxo
     fee = toCardanoLovelace $ selectionDelta txOutCoin cs
     Right unsigned =
-        mkUnsignedTx era slotNo cs Nothing mempty [] fee
+        mkUnsignedTx era (Nothing, slotNo) cs Nothing mempty [] fee
         TokenMap.empty TokenMap.empty Map.empty
     -- byronWits = map (mkByronWitness unsigned ntwrk Nothing) pairs
     byronWits = map (error "makeByronTx: broken") pairs  -- TODO: [ADP-919]

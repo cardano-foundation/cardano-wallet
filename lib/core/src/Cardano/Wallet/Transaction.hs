@@ -363,8 +363,9 @@ data TransactionCtx = TransactionCtx
     -- ^ Withdrawal amount from a reward account, can be zero.
     , txMetadata :: Maybe TxMetadata
     -- ^ User or application-defined metadata to embed in the transaction.
-    , txTimeToLive :: SlotNo
-    -- ^ Transaction expiry (TTL) slot.
+    , txValidityInterval :: (Maybe SlotNo, SlotNo)
+    -- ^ Transaction optional starting slot and expiry (TTL) slot for which the
+    -- transaction is valid.
     , txDelegationAction :: Maybe DelegationAction
     -- ^ An additional delegation to take.
     , txPlutusScriptExecutionCost :: Coin
@@ -400,7 +401,7 @@ defaultTransactionCtx :: TransactionCtx
 defaultTransactionCtx = TransactionCtx
     { txWithdrawal = NoWithdrawal
     , txMetadata = Nothing
-    , txTimeToLive = maxBound
+    , txValidityInterval = (Nothing, maxBound)
     , txDelegationAction = Nothing
     , txPlutusScriptExecutionCost = Coin 0
     , txAssetsToMint = (TokenMap.empty, Map.empty)

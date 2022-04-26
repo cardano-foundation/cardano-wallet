@@ -337,8 +337,8 @@ constructUnsignedTx
         )
     => Cardano.NetworkId
     -> (Maybe Cardano.TxMetadata, [Cardano.Certificate])
-    -> SlotNo
-    -- ^ Slot at which the transaction will expire.
+    -> (Maybe SlotNo, SlotNo)
+    -- ^ Slot at which the transaction will optionally start and expire.
     -> RewardAccount
     -- ^ Reward account
     -> Coin
@@ -370,8 +370,8 @@ mkTx
         )
     => Cardano.NetworkId
     -> TxPayload era
-    -> SlotNo
-    -- ^ Slot at which the transaction will expire.
+    -> (Maybe SlotNo, SlotNo)
+    -- ^ Slot at which the transaction will start and expire.
     -> (XPrv, Passphrase "encryption")
     -- ^ Reward account
     -> (Address -> Maybe (k 'AddressK XPrv, Passphrase "encryption"))
@@ -545,7 +545,7 @@ newTransactionLayer
     -> TransactionLayer k SealedTx
 newTransactionLayer networkId = TransactionLayer
     { mkTransaction = \era stakeCreds keystore _pp ctx selection -> do
-        let ttl   = txTimeToLive ctx
+        let ttl   = txValidityInterval ctx
         let wdrl  = withdrawalToCoin $ view #txWithdrawal ctx
         let delta = selectionDelta txOutCoin selection
         case view #txDelegationAction ctx of
@@ -597,7 +597,7 @@ newTransactionLayer networkId = TransactionLayer
                     & sealedTxFromCardano'
 
     , mkUnsignedTransaction = \era stakeXPub _pp ctx selection -> do
-        let ttl   = txTimeToLive ctx
+        let ttl   = txValidityInterval ctx
         let wdrl  = withdrawalToCoin $ view #txWithdrawal ctx
         let delta = selectionDelta txOutCoin selection
         let rewardAcct = toRewardAccountRaw stakeXPub
@@ -2061,7 +2061,7 @@ withShelleyBasedEra era fn = case era of
 mkUnsignedTx
     :: forall era.  Cardano.IsCardanoEra era
     => ShelleyBasedEra era
-    -> Cardano.SlotNo
+    -> (Maybe SlotNo, SlotNo)
     -> SelectionOf TxOut
     -> Maybe Cardano.TxMetadata
     -> [(Cardano.StakeAddress, Cardano.Lovelace)]
@@ -2114,9 +2114,13 @@ mkUnsignedTx era ttl cs md wdrls certs fees mintData burnData allScripts =
     , Cardano.txFee = explicitFees era fees
 
     , Cardano.txValidityRange =
-        ( Cardano.TxValidityNoLowerBound
-        , Cardano.TxValidityUpperBound txValidityUpperBoundSupported ttl
-        )
+        let toLowerBound from = case txValidityLowerBoundSupported of
+                Just lowerBoundSupported ->
+                    Cardano.TxValidityLowerBound lowerBoundSupported from
+                Nothing -> Cardano.TxValidityNoLowerBound
+        in ( maybe Cardano.TxValidityNoLowerBound toLowerBound (fst ttl)
+           , Cardano.TxValidityUpperBound txValidityUpperBoundSupported $ snd ttl
+           )
 
     , Cardano.txMetadata =
         maybe
@@ -2179,6 +2183,13 @@ mkUnsignedTx era ttl cs md wdrls certs fees mintData burnData allScripts =
         ShelleyBasedEraAllegra -> Cardano.ValidityUpperBoundInAllegraEra
         ShelleyBasedEraMary -> Cardano.ValidityUpperBoundInMaryEra
         ShelleyBasedEraAlonzo -> Cardano.ValidityUpperBoundInAlonzoEra
+
+    txValidityLowerBoundSupported :: Maybe (Cardano.ValidityLowerBoundSupportedInEra era)
+    txValidityLowerBoundSupported = case era of
+        ShelleyBasedEraShelley -> Nothing
+        ShelleyBasedEraAllegra -> Just Cardano.ValidityLowerBoundInAllegraEra
+        ShelleyBasedEraMary -> Just Cardano.ValidityLowerBoundInMaryEra
+        ShelleyBasedEraAlonzo -> Just Cardano.ValidityLowerBoundInAlonzoEra
 
     txMintingSupported :: Maybe (Cardano.MultiAssetSupportedInEra era)
     txMintingSupported = case era of
