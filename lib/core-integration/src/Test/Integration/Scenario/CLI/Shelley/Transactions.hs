@@ -408,9 +408,6 @@ spec = describe "SHELLEY_CLI_TRANSACTIONS" $ do
                 , expectCliListField 0 (#status . #getApiT) (`shouldBe` InLedger)
                 ]
 
-
-
-
     it "TRANSTTL_CREATE_01 - Transaction with TTL via CLI" $ \ctx -> runResourceT $ do
       (wSrc, wDest) <- (,) <$> fixtureWallet ctx <*> emptyWallet ctx
       let amt = 10_000_000

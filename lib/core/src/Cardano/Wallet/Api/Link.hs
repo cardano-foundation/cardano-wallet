@@ -698,8 +698,6 @@ getTransaction w t s = discriminate @style
     mkShelleyURL :: (ApiT WalletId -> Bool  -> ApiTxId -> Text) -> Text
     mkShelleyURL mk = mk wid s tid
 
-
-
 createUnsignedTransaction
     :: forall style w.
         ( HasCallStack

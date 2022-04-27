@@ -1111,7 +1111,6 @@ spec = describe "SHELLEY_TRANSACTIONS" $ do
                 Default
                 payload
 
-
         expectResponseCode HTTP.status400 r
         expectErrorMessage errMsg400TxMetadataStringTooLong r
 
