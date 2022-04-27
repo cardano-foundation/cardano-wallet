@@ -2041,6 +2041,7 @@ postTransactionOld ctx genChange (ApiT wid) body = do
             , txCollateral = []
             , txInputs = NE.toList $ second Just <$> sel ^. #inputs
             , txOutputs = tx ^. #outputs
+            , txCollateralOutput = tx ^. #collateralOutput
             , txWithdrawals = tx ^. #withdrawals
             , txMeta
             , txMetadata = tx ^. #metadata
@@ -2116,6 +2117,7 @@ mkApiTransactionFromInfo ti deposit info = do
             , txCollateral = info ^. #txInfoCollateral <&> drop2nd
             , txInputs = info ^. #txInfoInputs <&> drop2nd
             , txOutputs = info ^. #txInfoOutputs
+            , txCollateralOutput = info ^. #txInfoCollateralOutput
             , txWithdrawals = info ^. #txInfoWithdrawals
             , txMeta = info ^. #txInfoMeta
             , txMetadata = info ^. #txInfoMetadata
@@ -2851,6 +2853,7 @@ joinStakePool ctx knownPools getPoolStatus apiPoolId (ApiT wid) body = do
             , txCollateral = []
             , txInputs = NE.toList $ second Just <$> sel ^. #inputs
             , txOutputs = tx ^. #outputs
+            , txCollateralOutput = tx ^. #collateralOutput
             , txWithdrawals = tx ^. #withdrawals
             , txMeta
             , txMetadata = Nothing
@@ -2967,6 +2970,7 @@ quitStakePool ctx (ApiT wid) body = do
             , txCollateral = []
             , txInputs = NE.toList $ second Just <$> sel ^. #inputs
             , txOutputs = tx ^. #outputs
+            , txCollateralOutput = tx ^. #collateralOutput
             , txWithdrawals = tx ^. #withdrawals
             , txMeta
             , txMetadata = Nothing
@@ -3223,6 +3227,7 @@ migrateWallet ctx withdrawalType (ApiT wid) postData = do
                     , txInputs =
                         NE.toList $ second Just <$> selection ^. #inputs
                     , txOutputs = tx ^. #outputs
+                    , txCollateralOutput = tx ^. #collateralOutput
                     , txWithdrawals = tx ^. #withdrawals
                     , txMeta
                     , txMetadata = Nothing
@@ -3678,6 +3683,7 @@ data MkApiTransactionParams = MkApiTransactionParams
     , txCollateral :: [(TxIn, Maybe TxOut)]
     , txInputs :: [(TxIn, Maybe TxOut)]
     , txOutputs :: [TxOut]
+    , txCollateralOutput :: Maybe TxOut
     , txWithdrawals :: Map RewardAccount Coin
     , txMeta :: W.TxMeta
     , txMetadata :: Maybe W.TxMetadata
@@ -3730,8 +3736,8 @@ mkApiTransaction timeInterpreter setTimeReference tx = do
             | (i, o) <- tx ^. #txCollateral
             ]
         , outputs = toAddressAmount @n <$> tx ^. #txOutputs
-        -- TODO: [ADP-1670]
-        , collateralOutputs = ApiAsArray Nothing
+        , collateralOutputs = ApiAsArray $
+            toAddressAmount @n <$> tx ^. #txCollateralOutput
         , withdrawals = mkApiWithdrawal @n <$> Map.toList (tx ^. #txWithdrawals)
         , mint = mempty  -- TODO: ADP-xxx
         , status = ApiT (tx ^. (#txMeta . #status))
