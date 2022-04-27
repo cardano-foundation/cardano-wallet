@@ -452,7 +452,7 @@ import Fmt
 import GHC.Generics
     ( Generic, Rep )
 import GHC.TypeLits
-    ( Nat, Symbol )
+    ( KnownSymbol, Nat, Symbol, symbolVal )
 import Numeric.Natural
     ( Natural )
 import Quiet
@@ -1146,8 +1146,9 @@ data ApiTransaction (n :: NetworkDiscriminant) = ApiTransaction
     , inputs :: ![ApiTxInput n]
     , outputs :: ![AddressAmount (ApiT Address, Proxy n)]
     , collateral :: ![ApiTxCollateral n]
-    , collateralOutputs
-        :: !(ApiAsArray (Maybe (AddressAmount (ApiT Address, Proxy n))))
+    , collateralOutputs ::
+        !(ApiAsArray "collateral_outputs"
+            (Maybe (AddressAmount (ApiT Address, Proxy n))))
     , withdrawals :: ![ApiWithdrawal n]
     , mint :: !(ApiT W.TokenMap)
     , status :: !(ApiT TxStatus)
@@ -1275,7 +1276,8 @@ data ApiDecodedTransaction (n :: NetworkDiscriminant) = ApiDecodedTransaction
     , inputs :: ![ApiTxInputGeneral n]
     , outputs :: ![ApiTxOutputGeneral n]
     , collateral :: ![ApiTxInputGeneral n]
-    , collateralOutputs :: !(ApiAsArray (Maybe (ApiTxOutputGeneral n)))
+    , collateralOutputs ::
+        !(ApiAsArray "collateral_outputs" (Maybe (ApiTxOutputGeneral n)))
     , withdrawals :: ![ApiWithdrawalGeneral n]
     , mint :: !ApiAssetMintBurn
     , burn :: !ApiAssetMintBurn
@@ -4144,19 +4146,23 @@ instance ToJSON (ApiT TxScriptValidity) where
 --
 -- The number of items permitted in the array is dependent on the wrapped type.
 --
-newtype ApiAsArray a = ApiAsArray a
+newtype ApiAsArray (s :: Symbol) a = ApiAsArray a
     deriving (Eq, Generic, Show, Typeable)
     deriving newtype (Monoid, Semigroup)
     deriving anyclass NFData
 
-instance FromJSON a => FromJSON (ApiAsArray (Maybe a)) where
+instance (KnownSymbol s, FromJSON a) => FromJSON (ApiAsArray s (Maybe a)) where
     parseJSON json = parseJSON @[a] json >>= \case
         [a] ->
             pure $ ApiAsArray $ Just a
         [] ->
             pure $ ApiAsArray Nothing
         _  ->
-            fail "Expected at most one item."
+            fail $ mconcat
+                [ "Expected at most one item for "
+                , show $ symbolVal $ Proxy @s
+                , "."
+                ]
 
-instance ToJSON a => ToJSON (ApiAsArray (Maybe a)) where
+instance ToJSON a => ToJSON (ApiAsArray s (Maybe a)) where
     toJSON (ApiAsArray m) = toJSON (maybeToList m)

@@ -486,7 +486,7 @@ spec = parallel $ do
     describe "JSON golden roundtrip" $ do
         jsonTest @(AddressAmount (ApiT Address, Proxy ('Testnet 0)))
         jsonTest @(AddressAmountNoAssets (ApiT Address, Proxy ('Testnet 0)))
-        jsonTest @(ApiAsArray (Maybe Word64))
+        jsonTest @(ApiAsArray "Test" (Maybe Word64))
         jsonTest @(ApiBalanceTransactionPostData ('Testnet 0))
         jsonTest @(ApiCoinSelection ('Testnet 0))
         jsonTest @(ApiCoinSelectionChange ('Testnet 0))
@@ -662,7 +662,9 @@ spec = parallel $ do
 
         describe "ApiAsArray (Maybe t)" $ do
             let parseApiAsArray = Aeson.parseEither $
-                    parseJSON @(ApiAsArray (Maybe Word64))
+                    parseJSON @(ApiAsArray "test_field" (Maybe Word64))
+            let expectedFailureMessage =
+                    "Error in $: Expected at most one item for \"test_field\"."
             it "element count = 0 (should succeed)" $
                 parseApiAsArray [aesonQQ|[]|]
                     `shouldBe` Right (ApiAsArray Nothing)
@@ -671,10 +673,10 @@ spec = parallel $ do
                     `shouldBe` Right (ApiAsArray (Just 0))
             it "element count = 2 (should fail)" $
                 parseApiAsArray [aesonQQ|[0, 1]|]
-                    `shouldBe` Left "Error in $: Expected at most one item."
+                    `shouldBe` Left expectedFailureMessage
             it "element count = 3 (should fail)" $
                 parseApiAsArray [aesonQQ|[0, 1, 2]|]
-                    `shouldBe` Left "Error in $: Expected at most one item."
+                    `shouldBe` Left expectedFailureMessage
 
         it "ApiT (Passphrase \"user\") (too short)" $ do
             let minLength = passphraseMinLength (Proxy :: Proxy "user")
@@ -2470,7 +2472,7 @@ selectFromPreparedBinaries = elements $ toByteString <$>
 genWits :: Gen ByteString
 genWits = BS.pack <$> Test.QuickCheck.scale (min 32) (listOf arbitrary)
 
-deriving instance Arbitrary a => Arbitrary (ApiAsArray a)
+deriving instance Arbitrary a => Arbitrary (ApiAsArray s a)
 
 instance Arbitrary (ApiBytesT base ByteString) where
     arbitrary = ApiBytesT <$> selectFromPreparedBinaries
