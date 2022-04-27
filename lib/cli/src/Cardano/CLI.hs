@@ -162,6 +162,8 @@ import Cardano.Wallet.Api.Types
     , WalletPutPassphraseData (..)
     , fmtAllowedWords
     )
+import Cardano.Wallet.Api.Types.SchemaMetadata
+    ( TxMetadataWithSchema )
 import Cardano.Wallet.Orphans
     ()
 import Cardano.Wallet.Primitive.AddressDerivation
@@ -324,8 +326,6 @@ import UnliftIO.Exception
 import qualified Cardano.BM.Configuration.Model as CM
 import qualified Cardano.BM.Data.BackendKind as CM
 import qualified Cardano.BM.Data.Observable as Obs
-import Cardano.Wallet.Api.Types.SchemaMetadata
-    ( TxMetadataWithSchema )
 import qualified Command.Key as Key
 import qualified Command.RecoveryPhrase as RecoveryPhrase
 import qualified Data.Aeson as Aeson

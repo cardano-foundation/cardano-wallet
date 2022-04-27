@@ -25,12 +25,12 @@ import Cardano.Wallet.Api.Types
     , EncodeAddress (..)
     , getApiT
     )
+import Cardano.Wallet.Api.Types.SchemaMetadata
+    ( detailedMetadata, noSchemaMetadata )
 import Cardano.Wallet.Primitive.Types
     ( SortOrder (..) )
 import Cardano.Wallet.Primitive.Types.Tx
     ( Direction (..), TxMetadata (..), TxMetadataValue (..), TxStatus (..) )
-import Cardano.Wallet.Api.Types.SchemaMetadata
-    ( detailedMetadata, noSchemaMetadata )
 import Control.Monad
     ( forM_, join )
 import Control.Monad.IO.Class
@@ -114,6 +114,7 @@ import Test.Integration.Framework.TestData
     )
 import UnliftIO.Exception
     ( throwString )
+
 import qualified Data.Map as Map
 import qualified Data.Text as T
 

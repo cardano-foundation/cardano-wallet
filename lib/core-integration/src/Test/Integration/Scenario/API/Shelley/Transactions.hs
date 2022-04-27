@@ -40,6 +40,8 @@ import Cardano.Wallet.Api.Types
     , insertedAt
     , pendingSince
     )
+import Cardano.Wallet.Api.Types.SchemaMetadata
+    ( detailedMetadata )
 import Cardano.Wallet.Primitive.AddressDerivation
     ( PaymentAddress )
 import Cardano.Wallet.Primitive.AddressDerivation.Icarus
@@ -184,7 +186,6 @@ import qualified Data.List.NonEmpty as NE
 import qualified Data.Map as Map
 import qualified Data.Text as T
 import qualified Network.HTTP.Types.Status as HTTP
-import Cardano.Wallet.Api.Types.SchemaMetadata (detailedMetadata)
 
 data TestCase a = TestCase
     { query :: T.Text

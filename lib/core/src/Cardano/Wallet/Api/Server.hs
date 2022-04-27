@@ -1,4 +1,5 @@
 {-# LANGUAGE AllowAmbiguousTypes #-}
+{-# LANGUAGE BlockArguments #-}
 {-# LANGUAGE ConstraintKinds #-}
 {-# LANGUAGE DataKinds #-}
 {-# LANGUAGE DeriveGeneric #-}
@@ -15,7 +16,6 @@
 {-# LANGUAGE TypeApplications #-}
 {-# LANGUAGE TypeFamilies #-}
 {-# LANGUAGE TypeOperators #-}
-{-# LANGUAGE BlockArguments #-}
 
 -- |
 -- Copyright: © 2018-2020 IOHK
@@ -325,6 +325,10 @@ import Cardano.Wallet.Api.Types
     , toApiEpochInfo
     , toApiNetworkParameters
     , toApiUtxoStatistics
+    )
+import Cardano.Wallet.Api.Types.SchemaMetadata
+    ( TxMetadataSchema (TxMetadataDetailedSchema, TxMetadataNoSchema)
+    , TxMetadataWithSchema (TxMetadataWithSchema)
     )
 import Cardano.Wallet.CoinSelection
     ( SelectionBalanceError (..)
@@ -673,7 +677,6 @@ import qualified Data.Text as T
 import qualified Data.Text.Encoding as T
 import qualified Network.Wai.Handler.Warp as Warp
 import qualified Network.Wai.Handler.WarpTLS as Warp
-import Cardano.Wallet.Api.Types.SchemaMetadata (TxMetadataWithSchema(TxMetadataWithSchema), TxMetadataSchema (TxMetadataDetailedSchema, TxMetadataNoSchema))
 
 -- | How the server should listen for incoming requests.
 data Listen

@@ -23,6 +23,7 @@ import Cardano.Api
     , metadataToJson
     )
 import Cardano.Wallet.Primitive.Types.Tx
+    ( TxMetadata )
 import Control.Applicative
     ( liftA2, (<|>) )
 import Control.DeepSeq

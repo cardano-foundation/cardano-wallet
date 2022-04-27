@@ -40,6 +40,8 @@ import Cardano.Wallet.Api.Client
     , transactionClient
     , walletClient
     )
+import Cardano.Wallet.Api.Types.SchemaMetadata
+    ( detailedMetadata, noSchemaMetadata )
 import Cardano.Wallet.Primitive.Types
     ( PoolMetadataSource )
 import Cardano.Wallet.Primitive.Types.Tx
@@ -98,8 +100,6 @@ import UnliftIO.MVar
 import UnliftIO.Temporary
     ( withSystemTempDirectory )
 
-import Cardano.Wallet.Api.Types.SchemaMetadata
-    ( detailedMetadata, noSchemaMetadata )
 import qualified Data.Map as Map
 import qualified Data.Text as T
 import qualified Data.Text.IO as TIO

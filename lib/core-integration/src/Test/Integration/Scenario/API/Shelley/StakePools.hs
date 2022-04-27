@@ -83,6 +83,8 @@ import Data.Text
     ( Text )
 import Data.Text.Class
     ( showT, toText )
+import Data.Tuple.Extra
+    ( both )
 import Numeric.Natural
     ( Natural )
 import Test.Hspec
@@ -154,8 +156,6 @@ import qualified Cardano.Wallet.Api.Link as Link
 import qualified Data.ByteString as BS
 import qualified Data.Set as Set
 import qualified Data.Text as T
-import Data.Tuple.Extra
-    ( both )
 import qualified Network.HTTP.Types.Status as HTTP
 
 spec :: forall n.
