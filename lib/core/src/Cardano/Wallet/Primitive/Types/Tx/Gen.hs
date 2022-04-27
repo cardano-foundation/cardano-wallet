@@ -129,8 +129,8 @@ shrinkTx = shrinkMapBy txWithoutIdToTx txToTxWithoutId shrinkTxWithoutId
 
 data TxWithoutId = TxWithoutId
     { fee :: !(Maybe Coin)
-    , resolvedCollateral :: ![(TxIn, Coin)]
     , resolvedInputs :: ![(TxIn, Coin)]
+    , resolvedCollateralInputs :: ![(TxIn, Coin)]
     , outputs :: ![TxOut]
     , collateralOutput :: !(Maybe TxOut)
     , metadata :: !(Maybe TxMetadata)

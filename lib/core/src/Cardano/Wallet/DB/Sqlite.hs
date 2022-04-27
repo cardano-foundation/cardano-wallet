@@ -1044,7 +1044,7 @@ mkTxInputsOutputs ::
     )
 mkTxInputsOutputs tx =
     ( (dist mkTxIn . ordered W.resolvedInputs) tx
-    , (dist mkTxCollateral . ordered W.resolvedCollateral) tx
+    , (dist mkTxCollateral . ordered W.resolvedCollateralInputs) tx
     , (dist mkTxOut . ordered W.outputs) tx
     , (dist mkTxCollateralOut . fmap (maybeToList . W.collateralOutput)) tx
     )
@@ -1171,11 +1171,11 @@ txHistoryFromEntity ti tip metas ins cins outs couts ws =
                 getTxId txid
             , W.txInfoFee =
                 W.Coin . fromIntegral <$> mfee
-            , W.txInfoCollateral =
-                map mkTxCollateral $
-                filter ((== txid) . txCollateralTxId . fst) cins
             , W.txInfoInputs =
                 map mkTxIn $ filter ((== txid) . txInputTxId . fst) ins
+            , W.txInfoCollateralInputs =
+                map mkTxCollateral $
+                filter ((== txid) . txCollateralTxId . fst) cins
             , W.txInfoOutputs =
                 map mkTxOut $ filter ((== txid) . txOutputTxId . fst) outs
             , W.txInfoCollateralOutput =

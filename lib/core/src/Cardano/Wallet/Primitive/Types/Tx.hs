@@ -227,18 +227,18 @@ data Tx = Tx
         -- explicitly in Shelley, but not in Byron although in Byron they can
         -- easily be re-computed from the delta between outputs and inputs.
 
-    , resolvedCollateral
-        :: ![(TxIn, Coin)]
-        -- ^ NOTE: The order of collateral inputs matters in the transaction
-        -- representation.  The transaction id is computed from the binary
-        -- representation of a tx, for which collateral inputs are serialized
-        -- in a specific order.
-
     , resolvedInputs
         :: ![(TxIn, Coin)]
         -- ^ NOTE: Order of inputs matters in the transaction representation.
         -- The transaction id is computed from the binary representation of a
         -- tx, for which inputs are serialized in a specific order.
+
+    , resolvedCollateralInputs
+        :: ![(TxIn, Coin)]
+        -- ^ NOTE: The order of collateral inputs matters in the transaction
+        -- representation.  The transaction id is computed from the binary
+        -- representation of a tx, for which collateral inputs are serialized
+        -- in a specific order.
 
     , outputs
         :: ![TxOut]
@@ -279,10 +279,10 @@ instance Buildable Tx where
     build t = mconcat
         [ build (view #txId t)
         , build ("\n" :: String)
-        , blockListF' "collateral"
-            build (fst <$> view #resolvedCollateral t)
         , blockListF' "inputs"
             build (fst <$> view #resolvedInputs t)
+        , blockListF' "collateral inputs"
+            build (fst <$> view #resolvedCollateralInputs t)
         , blockListF' "outputs"
             build (view #outputs t)
         , blockListF' "collateral outputs"
@@ -305,7 +305,7 @@ inputs :: Tx -> [TxIn]
 inputs = map fst . resolvedInputs
 
 collateralInputs :: Tx -> [TxIn]
-collateralInputs = map fst . resolvedCollateral
+collateralInputs = map fst . resolvedCollateralInputs
 
 data TxIn = TxIn
     { inputId
@@ -730,11 +730,11 @@ data TransactionInfo = TransactionInfo
     -- ^ Transaction ID of this transaction
     , txInfoFee :: !(Maybe Coin)
     -- ^ Explicit transaction fee
-    , txInfoCollateral :: ![(TxIn, Coin, Maybe TxOut)]
-    -- ^ Collateral inputs and (maybe) corresponding outputs.
     , txInfoInputs :: ![(TxIn, Coin, Maybe TxOut)]
     -- ^ Transaction inputs and (maybe) corresponding outputs of the
     -- source. Source information can only be provided for outgoing payments.
+    , txInfoCollateralInputs :: ![(TxIn, Coin, Maybe TxOut)]
+    -- ^ Collateral inputs and (maybe) corresponding outputs.
     , txInfoOutputs :: ![TxOut]
     -- ^ Payment destination.
     , txInfoCollateralOutput :: !(Maybe TxOut)
@@ -781,8 +781,8 @@ fromTransactionInfo :: TransactionInfo -> Tx
 fromTransactionInfo info = Tx
     { txId = txInfoId info
     , fee = txInfoFee info
-    , resolvedCollateral = drop3rd <$> txInfoCollateral info
     , resolvedInputs = drop3rd <$> txInfoInputs info
+    , resolvedCollateralInputs = drop3rd <$> txInfoCollateralInputs info
     , outputs = txInfoOutputs info
     , collateralOutput = txInfoCollateralOutput info
     , withdrawals = txInfoWithdrawals info

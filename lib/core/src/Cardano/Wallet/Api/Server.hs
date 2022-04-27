@@ -2037,9 +2037,9 @@ postTransactionOld ctx genChange (ApiT wid) body = do
         MkApiTransactionParams
             { txId = tx ^. #txId
             , txFee = tx ^. #fee
-              -- TODO: ADP-957:
-            , txCollateral = []
             , txInputs = NE.toList $ second Just <$> sel ^. #inputs
+              -- TODO: ADP-957:
+            , txCollateralInputs = []
             , txOutputs = tx ^. #outputs
             , txCollateralOutput = tx ^. #collateralOutput
             , txWithdrawals = tx ^. #withdrawals
@@ -2114,8 +2114,8 @@ mkApiTransactionFromInfo ti deposit info = do
         MkApiTransactionParams
             { txId = info ^. #txInfoId
             , txFee = info ^. #txInfoFee
-            , txCollateral = info ^. #txInfoCollateral <&> drop2nd
             , txInputs = info ^. #txInfoInputs <&> drop2nd
+            , txCollateralInputs = info ^. #txInfoCollateralInputs <&> drop2nd
             , txOutputs = info ^. #txInfoOutputs
             , txCollateralOutput = info ^. #txInfoCollateralOutput
             , txWithdrawals = info ^. #txInfoWithdrawals
@@ -2486,42 +2486,49 @@ decodeTransaction
     -> ApiSerialisedTransaction
     -> Handler (ApiDecodedTransaction n)
 decodeTransaction ctx (ApiT wid) (ApiSerialisedTransaction (ApiT sealed)) = do
-    let (Tx txid feeM colls inps outs _couts wdrlMap meta vldt
-            , toMint
-            , toBurn
-            , allCerts
-            ) = decodeTx tl sealed
+    let (decodedTx, toMint, toBurn, allCerts) = decodeTx tl sealed
+    let (Tx { txId
+            , fee
+            , resolvedInputs
+            , resolvedCollateralInputs
+            , outputs
+            , withdrawals
+            , metadata
+            , scriptValidity
+            }) = decodedTx
     (txinsOutsPaths, collsOutsPaths, outsPath, acct, acctPath, pp, policyXPubM)
         <- withWorkerCtx ctx wid liftE liftE $ \wrk -> do
         (acct, _, acctPath) <-
             liftHandler $ W.readRewardAccount @_ @s @k @n wrk wid
-        txinsOutsPaths <-
-            liftHandler $ W.lookupTxIns @_ @s @k wrk wid (fst <$> inps)
-        collsOutsPaths <-
-            liftHandler $ W.lookupTxIns @_ @s @k wrk wid (fst <$> colls)
-        outsPath <-
-            liftHandler $ W.lookupTxOuts @_ @s @k wrk wid outs
+        inputPaths <-
+            liftHandler $ W.lookupTxIns @_ @s @k wrk wid $
+            fst <$> resolvedInputs
+        collateralInputPaths <-
+            liftHandler $ W.lookupTxIns @_ @s @k wrk wid $
+            fst <$> resolvedCollateralInputs
+        outputPaths <-
+            liftHandler $ W.lookupTxOuts @_ @s @k wrk wid outputs
         pp <- liftIO $ NW.currentProtocolParameters (wrk ^. networkLayer)
         policyXPubM <- fmap (fmap fst . eitherToMaybe)
             <$> liftIO . runExceptT $ W.readPolicyPublicKey @_ @s @k @n wrk wid
         pure
-            ( txinsOutsPaths
-            , collsOutsPaths
-            , outsPath
+            ( inputPaths
+            , collateralInputPaths
+            , outputPaths
             , acct
             , acctPath
             , pp
             , policyXPubM
             )
     pure $ ApiDecodedTransaction
-        { id = ApiT txid
-        , fee = maybe (Quantity 0) (Quantity . fromIntegral . unCoin) feeM
+        { id = ApiT txId
+        , fee = maybe (Quantity 0) (Quantity . fromIntegral . unCoin) fee
         , inputs = map toInp txinsOutsPaths
         , outputs = map toOut outsPath
         , collateral = map toInp collsOutsPaths
         -- TODO: [ADP-1670]
         , collateralOutputs = ApiAsArray Nothing
-        , withdrawals = map (toWrdl acct) $ Map.assocs wdrlMap
+        , withdrawals = map (toWrdl acct) $ Map.assocs withdrawals
         , mint = toApiAssetMintBurn policyXPubM toMint
         , burn = toApiAssetMintBurn policyXPubM toBurn
         , certificates = map (toApiAnyCert acct acctPath) allCerts
@@ -2533,8 +2540,8 @@ decodeTransaction ctx (ApiT wid) (ApiSerialisedTransaction (ApiT sealed)) = do
             (Quantity . fromIntegral . unCoin . W.stakeKeyDeposit $ pp)
                 <$ filter ourRewardAccountDeregistration
                     (toApiAnyCert acct acctPath <$> allCerts)
-        , metadata = ApiTxMetadata $ ApiT <$> meta
-        , scriptValidity = ApiT <$> vldt
+        , metadata = ApiTxMetadata $ ApiT <$> metadata
+        , scriptValidity = ApiT <$> scriptValidity
         }
   where
     tl = ctx ^. W.transactionLayer @k
@@ -2849,9 +2856,9 @@ joinStakePool ctx knownPools getPoolStatus apiPoolId (ApiT wid) body = do
         MkApiTransactionParams
             { txId = tx ^. #txId
             , txFee = tx ^. #fee
-              -- Joining a stake pool does not require collateral:
-            , txCollateral = []
             , txInputs = NE.toList $ second Just <$> sel ^. #inputs
+              -- Joining a stake pool does not require collateral:
+            , txCollateralInputs = []
             , txOutputs = tx ^. #outputs
             , txCollateralOutput = tx ^. #collateralOutput
             , txWithdrawals = tx ^. #withdrawals
@@ -2966,9 +2973,9 @@ quitStakePool ctx (ApiT wid) body = do
         MkApiTransactionParams
             { txId = tx ^. #txId
             , txFee = tx ^. #fee
-              -- Quitting a stake pool does not require collateral:
-            , txCollateral = []
             , txInputs = NE.toList $ second Just <$> sel ^. #inputs
+              -- Quitting a stake pool does not require collateral:
+            , txCollateralInputs = []
             , txOutputs = tx ^. #outputs
             , txCollateralOutput = tx ^. #collateralOutput
             , txWithdrawals = tx ^. #withdrawals
@@ -3222,10 +3229,10 @@ migrateWallet ctx withdrawalType (ApiT wid) postData = do
                 MkApiTransactionParams
                     { txId = tx ^. #txId
                     , txFee = tx ^. #fee
-                      -- Migrations never require collateral:
-                    , txCollateral = []
                     , txInputs =
                         NE.toList $ second Just <$> selection ^. #inputs
+                      -- Migrations never require collateral:
+                    , txCollateralInputs = []
                     , txOutputs = tx ^. #outputs
                     , txCollateralOutput = tx ^. #collateralOutput
                     , txWithdrawals = tx ^. #withdrawals
@@ -3680,8 +3687,8 @@ mkApiCoinSelection deps refunds mcerts metadata unsignedTx =
 data MkApiTransactionParams = MkApiTransactionParams
     { txId :: Hash "Tx"
     , txFee :: Maybe Coin
-    , txCollateral :: [(TxIn, Maybe TxOut)]
     , txInputs :: [(TxIn, Maybe TxOut)]
+    , txCollateralInputs :: [(TxIn, Maybe TxOut)]
     , txOutputs :: [TxOut]
     , txCollateralOutput :: Maybe TxOut
     , txWithdrawals :: Map RewardAccount Coin
@@ -3733,7 +3740,7 @@ mkApiTransaction timeInterpreter setTimeReference tx = do
             ]
         , collateral =
             [ ApiTxCollateral (fmap toAddressAmountNoAssets o) (ApiT i)
-            | (i, o) <- tx ^. #txCollateral
+            | (i, o) <- tx ^. #txCollateralInputs
             ]
         , outputs = toAddressAmount @n <$> tx ^. #txOutputs
         , collateralOutputs = ApiAsArray $

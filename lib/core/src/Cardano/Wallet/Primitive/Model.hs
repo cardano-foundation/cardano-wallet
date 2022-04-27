@@ -430,7 +430,7 @@ availableUTxO pending (Wallet u _ _) = u `excluding` used
     getUsedTxIn :: Tx -> Set TxIn
     getUsedTxIn tx = Set.fromList $ fst <$> mconcat
         [ tx ^. #resolvedInputs
-        , tx ^. #resolvedCollateral
+        , tx ^. #resolvedCollateralInputs
         ]
 
 -- | Computes the total 'UTxO' set of a wallet.

@@ -1206,8 +1206,8 @@ fromGenesisData g initialFunds =
         mkTx (addr, c) = W.Tx
             { txId = pseudoHash
             , fee = Nothing
-            , resolvedCollateral = []
             , resolvedInputs = []
+            , resolvedCollateralInputs = []
             , outputs =
                 [W.TxOut
                     (fromShelleyAddress addr)
@@ -1377,10 +1377,10 @@ fromShelleyTx tx =
             fromShelleyTxId $ TxIn.txid @(Cardano.ShelleyLedgerEra ShelleyEra) bod
         , fee =
             Just $ fromShelleyCoin fee
-        , resolvedCollateral =
-            []
         , resolvedInputs =
             map ((,W.Coin 0) . fromShelleyTxIn) (toList ins)
+        , resolvedCollateralInputs =
+            []
         , outputs =
             map fromShelleyTxOut (toList outs)
         , collateralOutput =
@@ -1413,11 +1413,11 @@ fromAllegraTx tx =
             fromShelleyTxId $ TxIn.txid @(Cardano.ShelleyLedgerEra AllegraEra) bod
         , fee =
             Just $ fromShelleyCoin fee
-        , resolvedCollateral =
-            -- TODO: (ADP-957)
-            []
         , resolvedInputs =
             map ((,W.Coin 0) . fromShelleyTxIn) (toList ins)
+        , resolvedCollateralInputs =
+            -- TODO: (ADP-957)
+            []
         , outputs =
             map fromShelleyTxOut (toList outs)
         , collateralOutput =
@@ -1455,10 +1455,10 @@ fromMaryTx tx =
             = fromShelleyTxId $ TxIn.txid @(Cardano.ShelleyLedgerEra MaryEra) bod
         , fee =
             Just $ fromShelleyCoin fee
-        , resolvedCollateral =
-            []
         , resolvedInputs =
             map ((,W.Coin 0) . fromShelleyTxIn) (toList ins)
+        , resolvedCollateralInputs =
+            []
         , outputs =
             map fromMaryTxOut (toList outs)
         , collateralOutput =
@@ -1549,10 +1549,10 @@ fromAlonzoTxBodyAndAux bod mad wits =
             fromShelleyTxId $ TxIn.txid @(Cardano.ShelleyLedgerEra AlonzoEra) bod
         , fee =
             Just $ fromShelleyCoin fee
-        , resolvedCollateral =
-            map ((,W.Coin 0) . fromShelleyTxIn) (toList collateral)
         , resolvedInputs =
             map ((,W.Coin 0) . fromShelleyTxIn) (toList ins)
+        , resolvedCollateralInputs =
+            map ((,W.Coin 0) . fromShelleyTxIn) (toList collateral)
         , outputs =
             map fromAlonzoTxOut (toList outs)
         , collateralOutput =

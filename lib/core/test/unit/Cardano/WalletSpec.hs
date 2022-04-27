@@ -676,8 +676,8 @@ walletListsOnlyRelatedAssets txId txMeta =
                 liftIO . unsafeRunExceptT $ W.listAssets wl wid
         let tx = Tx { txId
                     , fee = Nothing
-                    , resolvedCollateral = mempty
                     , resolvedInputs = mempty
+                    , resolvedCollateralInputs = mempty
                     , outputs = [out1, out2]
                     , collateralOutput = Nothing
                     , metadata = mempty
@@ -795,8 +795,8 @@ instance Arbitrary GenTxHistory where
         mkTx txId = Tx
             { txId
             , fee = Nothing
-            , resolvedCollateral = []
             , resolvedInputs = []
+            , resolvedCollateralInputs = []
             , outputs = []
             , collateralOutput = Nothing
             , withdrawals = mempty
@@ -1342,7 +1342,7 @@ dummyTransactionLayer = TransactionLayer
                  { txId
                  , fee = Nothing
                  , resolvedInputs = inps'
-                 , resolvedCollateral = cinps'
+                 , resolvedCollateralInputs = cinps'
                  , outputs = view #outputs cs
                  , collateralOutput = Nothing
                  , withdrawals = mempty
@@ -1388,8 +1388,8 @@ dummyTransactionLayer = TransactionLayer
         ( Tx
             { txId = Hash ""
             , fee = mempty
-            , resolvedCollateral = mempty
             , resolvedInputs = mempty
+            , resolvedCollateralInputs = mempty
             , outputs = mempty
             , collateralOutput = Nothing
             , withdrawals = mempty

@@ -147,8 +147,8 @@ mkTx fees ins cins outs cout wdrls md validity =
     Tx
       { txId = (mkTxId ins outs wdrls md)
       , fee = fees
-      , resolvedCollateral = cins
       , resolvedInputs = ins
+      , resolvedCollateralInputs = cins
       , outputs = outs
       , collateralOutput = cout
       , withdrawals = wdrls
