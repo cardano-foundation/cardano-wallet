@@ -1405,10 +1405,10 @@ fromShelleyTx tx =
     , map fromShelleyCert (toList certs)
     , emptyTokenMapWithScripts
     , emptyTokenMapWithScripts
-    , Nothing
+    , Just (ValidityIntervalExplicit (Quantity 0) (Quantity ttl))
     )
   where
-    SL.Tx bod@(SL.TxBody ins outs certs wdrls fee _ _ _) _ mmd = tx
+    SL.Tx bod@(SL.TxBody ins outs certs wdrls fee (O.SlotNo ttl) _ _) _ mmd = tx
 
 fromAllegraTx
     :: SLAPI.Tx (Cardano.ShelleyLedgerEra AllegraEra)
@@ -1444,15 +1444,29 @@ fromAllegraTx tx =
     , map fromShelleyCert (toList certs)
     , emptyTokenMapWithScripts
     , emptyTokenMapWithScripts
-    , Nothing
+    , Just (fromLedgerTxValidity ttl)
     )
   where
-    SL.Tx bod@(MA.TxBody ins outs certs wdrls fee _ _ _ _) _ mmd = tx
+    SL.Tx bod@(MA.TxBody ins outs certs wdrls fee ttl _ _ _) _ mmd = tx
 
     -- fixme: [ADP-525] It is fine for now since we do not look at script
     -- pre-images. But this is precisely what we want as part of the
     -- multisig/script balance reporting.
     toSLMetadata (MA.AuxiliaryData blob _scripts) = SL.Metadata blob
+
+fromLedgerTxValidity
+    :: MA.ValidityInterval
+    -> ValidityIntervalExplicit
+fromLedgerTxValidity (MA.ValidityInterval from to) =
+    case (from, to) of
+        (MA.SNothing, MA.SJust (O.SlotNo s)) ->
+            ValidityIntervalExplicit (Quantity 0) (Quantity s)
+        (MA.SNothing, MA.SNothing) ->
+            ValidityIntervalExplicit (Quantity 0) (Quantity maxBound)
+        (MA.SJust (O.SlotNo s1), MA.SJust (O.SlotNo s2)) ->
+            ValidityIntervalExplicit (Quantity s1) (Quantity s2)
+        (MA.SJust (O.SlotNo s1), MA.SNothing) ->
+            ValidityIntervalExplicit (Quantity s1) (Quantity maxBound)
 
 fromMaryTx
     :: SLAPI.Tx (Cardano.ShelleyLedgerEra MaryEra)
@@ -1487,11 +1501,11 @@ fromMaryTx tx =
     , map fromShelleyCert (toList certs)
     , TokenMapWithScripts assetsToMint mintScriptMap
     , TokenMapWithScripts assetsToBurn burnScriptMap
-    , Nothing
+    , Just (fromLedgerTxValidity ttl)
     )
   where
     SL.Tx bod wits mad = tx
-    MA.TxBody ins outs certs wdrls fee _valid _upd _adh mint = bod
+    MA.TxBody ins outs certs wdrls fee ttl _upd _adh mint = bod
     (assetsToMint, assetsToBurn) = fromLedgerMintValue mint
     scriptMap = fromMaryScriptMap $ Shelley.scriptWits wits
 
@@ -1583,7 +1597,7 @@ fromAlonzoTxBodyAndAux bod mad wits =
     , map fromShelleyCert (toList certs)
     , TokenMapWithScripts assetsToMint mintScriptMap
     , TokenMapWithScripts assetsToBurn burnScriptMap
-    , Nothing
+    , Just (fromLedgerTxValidity ttl)
     )
   where
     Alonzo.TxBody
@@ -1593,7 +1607,7 @@ fromAlonzoTxBodyAndAux bod mad wits =
         certs
         wdrls
         fee
-        _valid
+        ttl
         _upd
         _reqSignerHashes
         mint

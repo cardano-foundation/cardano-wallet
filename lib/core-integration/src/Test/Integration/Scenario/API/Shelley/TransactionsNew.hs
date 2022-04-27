@@ -118,7 +118,7 @@ import Cardano.Wallet.Primitive.Types.Tx
     , sealedTxFromCardanoBody
     )
 import Cardano.Wallet.Transaction
-    ( AnyScript (..) )
+    ( AnyScript (..), ValidityIntervalExplicit (..) )
 import Cardano.Wallet.Unsafe
     ( unsafeFromHex, unsafeMkMnemonic )
 import Control.Arrow
@@ -1152,9 +1152,30 @@ spec = describe "NEW_SHELLEY_TRANSACTIONS" $ do
             [ expectResponseCode HTTP.status202
             ]
 
+        let (SlotNo toSlot) = sl
+        let validityInterval =
+                ValidityIntervalExplicit (Quantity 0) (Quantity $ toSlot + 10)
+
+        let rTxCBOR = getFromResponse #transaction rTx
+        let decodePayload1 = Json (toJSON $ ApiSerialisedTransaction rTxCBOR)
+        rDecodedTx1 <- request @(ApiDecodedTransaction n) ctx
+            (Link.decodeTransaction @'Shelley wa) Default decodePayload1
+        verify rDecodedTx1
+            [ expectResponseCode HTTP.status202
+            , expectField #validityInterval (`shouldBe` Just validityInterval)
+            ]
+
         let apiTx = getFromResponse #transaction rTx
 
         signedTx <- signTx ctx wa apiTx [ expectResponseCode HTTP.status202 ]
+
+        let decodePayload2 = Json (toJSON signedTx)
+        rDecodedTx2 <- request @(ApiDecodedTransaction n) ctx
+            (Link.decodeTransaction @'Shelley wa) Default decodePayload2
+        verify rDecodedTx2
+            [ expectResponseCode HTTP.status202
+            , expectField #validityInterval (`shouldBe` Just validityInterval)
+            ]
 
         submittedTx <- submitTxWithWid ctx wa signedTx
         verify submittedTx

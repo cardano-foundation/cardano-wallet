@@ -63,6 +63,7 @@ library
     , contra-tracer
     , cryptonite
     , data-default
+    , data-interval
     , dbvar
     , deepseq
     , digest
@@ -394,7 +395,7 @@ test-suite unit
     , should-not-typecheck
     , splitmix
     , strict-non-empty-containers
-    , openapi3 == 3.2.2 
+    , openapi3 == 3.2.2
     , servant-openapi3
     , string-qq
     , temporary
