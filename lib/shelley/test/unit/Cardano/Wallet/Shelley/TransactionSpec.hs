@@ -2416,7 +2416,7 @@ prop_distributeSurplusDelta_coversCostIncreaseAndConservesSurplus
     counterexample (show mres) $ case mres of
         Left (ErrMoreSurplusNeeded shortfall) ->
             conjoin
-                [ property $ surplus < (maxCoinCost <> maxCoinCost)
+                [ property $ surplus < maxCoinCostIncrease
                 , property $ shortfall > Coin 0
                 , costOfIncreasingCoin feePolicy fee0 surplus
                     === surplus <> shortfall
@@ -2441,7 +2441,7 @@ prop_distributeSurplusDelta_coversCostIncreaseAndConservesSurplus
   where
     mres = distributeSurplusDelta
         feePolicy surplus (TxFeeAndChange fee0 change0)
-    maxCoinCost = maximumCostOfIncreasingCoin feePolicy
+    maxCoinCostIncrease = maximumCostOfIncreasingCoin feePolicy
 
 --------------------------------------------------------------------------------
 -- Properties for 'distributeSurplus'

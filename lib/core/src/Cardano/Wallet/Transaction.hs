@@ -289,6 +289,12 @@ data TransactionLayer k tx = TransactionLayer
         --    - Any increase in cost is covered:
         --        If the total cost has increased by 𝛿c, then the fee value
         --        will have increased by at least 𝛿c.
+        --
+        -- If the cost of distributing the provided surplus is greater than the
+        -- surplus itself, the function will return 'ErrMoreSurplusNeeded'. If
+        -- the provided surplus is greater or equal to
+        -- @maximumCostOfIncreasingCoin feePolicy@, the function will always
+        -- return 'Right'.
 
     , computeSelectionLimit
         :: ProtocolParameters
