@@ -255,7 +255,8 @@ spec = do
     describe "Tx Metadata JSON option" $ do
         let parse arg = execParserPure defaultPrefs
                 (info metadataOption mempty) ["--metadata", arg]
-        let md = detailedMetadata (TxMetadata (Map.singleton 42 (TxMetaText "hi")))
+        let md = detailedMetadata
+                (TxMetadata (Map.singleton 42 (TxMetaText "hi")))
         let ok ex (Success res) = ex ==  res
             ok _ _ = False
         let err (Failure _) = True
@@ -271,8 +272,10 @@ spec = do
             , ("null 3", "{ }", ok (Just (detailedMetadata mempty)))
             ]
     describe "Tx No-Schema Metadata JSON option" $ do
-        let parse arg = execParserPure defaultPrefs (info metadataOption mempty) ["--metadata", arg]
-        let md = noSchemaMetadata (TxMetadata (Map.singleton 42 (TxMetaText "hi")))
+        let parse arg = execParserPure
+                defaultPrefs (info metadataOption mempty) ["--metadata", arg]
+        let md = noSchemaMetadata
+                (TxMetadata (Map.singleton 42 (TxMetaText "hi")))
         let ok ex (Success res) = ex == res
             ok _ _ = False
         let err (Failure _) = True
@@ -285,7 +288,9 @@ spec = do
             , ("invalid", "{ \"json\": true }", err)
             , ("null 1", "{ \"0\": null }", err)
             , ("null 2", "null", ok Nothing)
-            , ("null 3", "{ }", ok $ Just $ detailedMetadata mempty) -- this is the default parsing success
+            -- this is the default parsing success:
+            , ("null 3", "{ }", ok $ Just $ detailedMetadata mempty)
+
             ]
 
     describe "Tx TTL option" $ do

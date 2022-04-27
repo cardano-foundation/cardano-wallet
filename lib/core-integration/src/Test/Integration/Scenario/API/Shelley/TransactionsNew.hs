@@ -316,14 +316,17 @@ spec = describe "NEW_SHELLEY_TRANSACTIONS" $ do
                 Just (Cardano.TxMetaText "hello") -> pure ()
                 Just _ -> error "Tx metadata incorrect"
 
-        let txCbor = getFromResponse #transaction (HTTP.status202, Right signedTx)
+        let txCbor =
+                getFromResponse #transaction (HTTP.status202, Right signedTx)
         let decodePayload = Json (toJSON $ ApiSerialisedTransaction txCbor)
-        let expMetadata = ApiT (TxMetadata (Map.fromList [(1,TxMetaText "hello")]))
+        let expMetadata =
+                ApiT (TxMetadata (Map.fromList [(1,TxMetaText "hello")]))
         rDecodedTx <- request @(ApiDecodedTransaction n) ctx
             (Link.decodeTransaction @'Shelley wa) Default decodePayload
         verify rDecodedTx
             [ expectResponseCode HTTP.status202
-            , expectField #metadata (`shouldBe` (ApiTxMetadata (Just expMetadata)))
+            , expectField #metadata
+                (`shouldBe` (ApiTxMetadata (Just expMetadata)))
             ]
 
         -- Submit tx
@@ -344,7 +347,9 @@ spec = describe "NEW_SHELLEY_TRANSACTIONS" $ do
                         (`shouldBe` (fromIntegral oneMillionAda - expectedFee))
                 ]
 
-    it "TRANS_NEW_CREATE_02b - Only metadata, untyped" $ \ctx -> runResourceT $ do
+    it "TRANS_NEW_CREATE_02b - Only metadata, untyped" $
+        \ctx -> runResourceT $ do
+
         wa <- fixtureWallet ctx
         let metadata = Json [json|{ "metadata": { "1": "hello"  } }|]
 
@@ -378,7 +383,8 @@ spec = describe "NEW_SHELLEY_TRANSACTIONS" $ do
                 Just (Cardano.TxMetaText "hello") -> pure ()
                 Just _ -> error "Tx metadata incorrect"
 
-        let txCbor = getFromResponse #transaction (HTTP.status202, Right signedTx)
+        let txCbor =
+                getFromResponse #transaction (HTTP.status202, Right signedTx)
         let decodePayload = Json (toJSON $ ApiSerialisedTransaction txCbor)
         let expMetadata = ApiT (TxMetadata (Map.fromList [(1,TxMetaText "hello")]))
         rDecodedTx <- request @(ApiDecodedTransaction n) ctx

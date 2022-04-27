@@ -47,8 +47,10 @@ data TxMetadataWithSchema = TxMetadataWithSchema
   deriving (Show, Eq, Generic, NFData)
 
 instance ToJSON TxMetadataWithSchema where
-  toJSON (TxMetadataWithSchema TxMetadataDetailedSchema x) = metadataToJson TxMetadataJsonDetailedSchema x
-  toJSON (TxMetadataWithSchema TxMetadataNoSchema x) = metadataToJson TxMetadataJsonNoSchema x
+    toJSON (TxMetadataWithSchema TxMetadataDetailedSchema x) =
+        metadataToJson TxMetadataJsonDetailedSchema x
+    toJSON (TxMetadataWithSchema TxMetadataNoSchema x) =
+        metadataToJson TxMetadataJsonNoSchema x
 
 detailedMetadata :: TxMetadata -> TxMetadataWithSchema
 detailedMetadata = TxMetadataWithSchema TxMetadataDetailedSchema

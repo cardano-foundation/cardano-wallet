@@ -870,7 +870,9 @@ cmdTransactionList mkTxClient =
         <*> optional timeRangeEndOption
         <*> optional sortOrderOption
         <*> metadataSchemaOption
-    exec (TransactionListArgs wPort wId mTimeRangeStart mTimeRangeEnd mOrder metadataSchema) =
+    exec
+        (TransactionListArgs
+            wPort wId mTimeRangeStart mTimeRangeEnd mOrder metadataSchema) =
         runClient wPort Aeson.encodePretty $ listTransactions
             mkTxClient
             (ApiT wId)

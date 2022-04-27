@@ -2110,8 +2110,12 @@ getTransaction ctx (ApiT wid) mMetadataSchema (ApiTxId (ApiT (tid))) = do
         tx <- liftHandler $ W.getTransaction wrk wid tid
         depo <- liftIO $ W.stakeKeyDeposit <$> NW.currentProtocolParameters (wrk ^. networkLayer)
         pure (tx, depo)
-    liftIO $ mkApiTransactionFromInfo (timeInterpreter (ctx ^. networkLayer)) depo tx
-        $ if mMetadataSchema then TxMetadataNoSchema else TxMetadataDetailedSchema
+    liftIO
+        $ mkApiTransactionFromInfo
+            (timeInterpreter (ctx ^. networkLayer)) depo tx
+        $ if mMetadataSchema
+            then TxMetadataNoSchema
+            else TxMetadataDetailedSchema
 
 -- Populate an API transaction record with 'TransactionInfo' from the wallet
 -- layer.
@@ -2169,7 +2173,10 @@ postTransactionFeeOld ctx (ApiT wid) body = do
     (wdrl, _) <- mkRewardAccountBuilder @_ @s @_ @n ctx wid (body ^. #withdrawal)
     let txCtx = defaultTransactionCtx
             { txWithdrawal = wdrl
-            , txMetadata =  body ^? #metadata . traverse . #txMetadataWithSchema_metadata
+            , txMetadata
+                = body ^? #metadata
+                . traverse
+                . #txMetadataWithSchema_metadata
             }
     withWorkerCtx ctx wid liftE liftE $ \wrk -> do
         (utxoAvailable, wallet, pendingTxs) <-
@@ -3752,7 +3759,8 @@ mkApiTransaction timeInterpreter setTimeReference tx = do
         , withdrawals = mkApiWithdrawal @n <$> Map.toList (tx ^. #txWithdrawals)
         , mint = mempty  -- TODO: ADP-xxx
         , status = ApiT (tx ^. (#txMeta . #status))
-        , metadata = TxMetadataWithSchema (tx ^. #txMetadataSchema) <$> tx ^. #txMetadata
+        , metadata = TxMetadataWithSchema (tx ^. #txMetadataSchema)
+            <$> tx ^. #txMetadata
         , scriptValidity = ApiT <$> tx ^. #txScriptValidity
         }
 
