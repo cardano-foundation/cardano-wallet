@@ -2803,7 +2803,7 @@ postTransactionFeeViaCLI ctx args = cardanoWalletCLI $ join
 listTransactionsViaCLI
     :: forall r s m. (CmdResult r, HasType (Port "wallet") s, MonadIO m)
     => s
-    -> Bool    
+    -> Bool
     -> [String]
     -> m r
 listTransactionsViaCLI ctx metadataSchema args = cardanoWalletCLI $ join
@@ -2840,7 +2840,7 @@ getTransactionViaCLI
     => s
     -> String
     -> String
-    -> Bool 
+    -> Bool
     -> m r
 getTransactionViaCLI ctx wid tid metadataSchema = cardanoWalletCLI $ join
     [ ["transaction", "get"]

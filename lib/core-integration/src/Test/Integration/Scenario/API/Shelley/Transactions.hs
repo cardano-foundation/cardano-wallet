@@ -1094,7 +1094,7 @@ spec = describe "SHELLEY_TRANSACTIONS" $ do
 
         expectResponseCode HTTP.status400 r
         expectErrorMessage errMsg400TxMetadataStringTooLong r
-    
+
     it "TRANSMETA_CREATE_02b - Transaction with invalid no-schema metadata" $ \ctx -> runResourceT $ do
         (wa, wb) <- (,) <$> fixtureWallet ctx <*> fixtureWallet ctx
         let amt = minUTxOValue (_mainEra ctx) :: Natural
@@ -1215,7 +1215,7 @@ spec = describe "SHELLEY_TRANSACTIONS" $ do
 
         expectResponseCode HTTP.status400 r
         expectErrorMessage errMsg400TxMetadataStringTooLong r
-        
+
     it "TRANSMETA_ESTIMATE_02b - fee estimation with invalid no-schema metadata" $ \ctx -> runResourceT $ do
         (wa, wb) <- (,) <$> fixtureWallet ctx <*> emptyWallet ctx
         let amt = minUTxOValue (_mainEra ctx) :: Natural

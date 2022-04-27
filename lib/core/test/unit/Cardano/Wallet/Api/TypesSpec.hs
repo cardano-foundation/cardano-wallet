@@ -2103,8 +2103,8 @@ instance Arbitrary (PostTransactionOldData n) where
         <*> arbitrary
         <*> arbitrary
 
-instance Arbitrary TxMetadataWithSchema where 
-  arbitrary = TxMetadataWithSchema 
+instance Arbitrary TxMetadataWithSchema where
+  arbitrary = TxMetadataWithSchema
     <$> elements [TxMetadataNoSchema, TxMetadataDetailedSchema]
     <*> arbitrary
 

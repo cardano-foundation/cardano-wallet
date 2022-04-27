@@ -163,7 +163,7 @@ data TransactionClient = TransactionClient
         -> Maybe Iso8601Time
         -> Maybe Iso8601Time
         -> Maybe (ApiT SortOrder)
-        -> Bool 
+        -> Bool
         -> ClientM [ApiTransactionT Aeson.Value]
     , signTransaction
         :: ApiT WalletId

@@ -677,13 +677,13 @@ spec = describe "SHELLEY_CLI_TRANSACTIONS" $ do
                         [ "--start", utcIso8601ToText t1
                         , "--end", utcIso8601ToText t2
                         ]
-              Stdout o1  <- listTransactionsViaCLI ctx False 
+              Stdout o1  <- listTransactionsViaCLI ctx False
                     ( T.unpack <$> walId : (query t t) )
-              Stdout o2 <- listTransactionsViaCLI ctx False 
+              Stdout o2 <- listTransactionsViaCLI ctx False
                     ( T.unpack <$> walId : (query te t) )
-              Stdout o3 <- listTransactionsViaCLI ctx False 
+              Stdout o3 <- listTransactionsViaCLI ctx False
                     ( T.unpack <$> walId : (query t tl) )
-              Stdout o4 <- listTransactionsViaCLI ctx False 
+              Stdout o4 <- listTransactionsViaCLI ctx False
                     ( T.unpack <$> walId : (query te tl) )
               oJson1 <- expectValidJSON (Proxy @([ApiTransaction n])) o1
               oJson2 <- expectValidJSON (Proxy @([ApiTransaction n])) o2
@@ -698,9 +698,9 @@ spec = describe "SHELLEY_CLI_TRANSACTIONS" $ do
               let walId = w ^. walletId
               t <- unsafeGetTransactionTime =<< listAllTransactions @n ctx w
               let tl = utcIso8601ToText $ utcTimeSucc t
-              Stdout o1  <- listTransactionsViaCLI ctx False 
+              Stdout o1  <- listTransactionsViaCLI ctx False
                     ( T.unpack <$> [walId, "--start", tl] )
-              Stdout o2 <- listTransactionsViaCLI ctx False 
+              Stdout o2 <- listTransactionsViaCLI ctx False
                     ( T.unpack <$> [walId, "--start", tl, "--end", tl] )
               oJson1 <- expectValidJSON (Proxy @([ApiTransaction n])) o1
               oJson2 <- expectValidJSON (Proxy @([ApiTransaction n])) o2
@@ -713,9 +713,9 @@ spec = describe "SHELLEY_CLI_TRANSACTIONS" $ do
               let walId = w ^. walletId
               t <- unsafeGetTransactionTime =<< listAllTransactions @n ctx w
               let te = utcIso8601ToText $ utcTimePred t
-              Stdout o1  <- listTransactionsViaCLI ctx False 
+              Stdout o1  <- listTransactionsViaCLI ctx False
                       ( T.unpack <$> [walId, "--end", te] )
-              Stdout o2 <- listTransactionsViaCLI ctx False 
+              Stdout o2 <- listTransactionsViaCLI ctx False
                       ( T.unpack <$> [walId, "--start", te, "--end", te] )
               oJson1 <- expectValidJSON (Proxy @([ApiTransaction n])) o1
               oJson2 <- expectValidJSON (Proxy @([ApiTransaction n])) o2
@@ -757,7 +757,7 @@ spec = describe "SHELLEY_CLI_TRANSACTIONS" $ do
 
             -- Verify Tx in source wallet is Outgoing and InLedger
             (Exit code1, Stdout out1, Stderr err1) <-
-                getTransactionViaCLI ctx wSrcId txId False 
+                getTransactionViaCLI ctx wSrcId txId False
             err1 `shouldBe` "Ok.\n"
             code1 `shouldBe` ExitSuccess
             outJson1 <- expectValidJSON (Proxy @(ApiTransaction n)) out1
@@ -769,7 +769,7 @@ spec = describe "SHELLEY_CLI_TRANSACTIONS" $ do
             let wDestId = T.unpack (wDest ^. walletId)
             -- Verify Tx in destination wallet is Incoming and InLedger
             (Exit code2, Stdout out2, Stderr err2) <-
-                getTransactionViaCLI ctx wDestId txId False 
+                getTransactionViaCLI ctx wDestId txId False
             err2 `shouldBe` "Ok.\n"
             code2 `shouldBe` ExitSuccess
             outJson2 <- expectValidJSON (Proxy @(ApiTransaction n)) out2

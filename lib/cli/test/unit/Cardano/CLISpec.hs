@@ -288,7 +288,7 @@ spec = do
             , ("null 3", "{ }", ok $ Just $ detailedMetadata mempty) -- this is the default parsing success
             ]
 
-            
+
 
     describe "Tx TTL option" $ do
         let parse arg = execParserPure defaultPrefs

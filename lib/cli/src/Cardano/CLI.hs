@@ -733,9 +733,9 @@ data TransactionFeatures = NoShelleyFeatures | ShelleyFeatures
 
 -- | which json schema to use for output, True is simple
 metadataSchemaOption :: Parser Bool
-metadataSchemaOption = switch 
+metadataSchemaOption = switch
     do long "simple-metadata"
-        <> help "output metadata json in no-schema encoding" 
+        <> help "output metadata json in no-schema encoding"
 
 -- | cardano-wallet transaction
 cmdTransaction
@@ -869,7 +869,7 @@ cmdTransactionList mkTxClient =
         <*> optional timeRangeStartOption
         <*> optional timeRangeEndOption
         <*> optional sortOrderOption
-        <*> metadataSchemaOption 
+        <*> metadataSchemaOption
     exec (TransactionListArgs wPort wId mTimeRangeStart mTimeRangeEnd mOrder metadataSchema) =
         runClient wPort Aeson.encodePretty $ listTransactions
             mkTxClient
@@ -940,12 +940,12 @@ cmdTransactionGet mkClient =
     cmd = fmap exec $ TransactionGetArgs
         <$> portOption
         <*> walletIdArgument
-        <*> transactionIdArgument 
-        <*> metadataSchemaOption 
+        <*> transactionIdArgument
+        <*> metadataSchemaOption
     exec (TransactionGetArgs wPort wId txId metadataSchema ) = do
         runClient wPort Aeson.encodePretty $ getTransaction mkClient
             (ApiT wId)
-            metadataSchema 
+            metadataSchema
             (ApiTxId $ ApiT $ getTxId txId)
 
 
@@ -1455,7 +1455,7 @@ metadataOption :: Parser (Maybe TxMetadataWithSchema)
 metadataOption = option txMetadataReader $ mempty
     <> long "metadata"
     <> metavar "JSON"
-    <> value Nothing 
+    <> value Nothing
     <> help ("Application-specific transaction metadata as a JSON object. "
              <> "The value must match the schema defined in the "
              <> "cardano-wallet OpenAPI specification.")
