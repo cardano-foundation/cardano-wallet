@@ -574,11 +574,14 @@ mkTxHistory numTx numInputs numOutputs numAssets range =
         ( Tx
             { txId = mkTxId resolvedInputs outputs mempty Nothing
             , fee = Nothing
-            , resolvedCollateral =
+            , resolvedInputs
+            , resolvedCollateralInputs =
                 -- TODO: (ADP-957)
                 []
-            , resolvedInputs
             , outputs
+            , collateralOutput =
+                -- TODO: [ADP-1670]
+                Nothing
             , withdrawals = mempty
             , metadata = Nothing
             , scriptValidity = Nothing

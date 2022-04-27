@@ -129,9 +129,10 @@ shrinkTx = shrinkMapBy txWithoutIdToTx txToTxWithoutId shrinkTxWithoutId
 
 data TxWithoutId = TxWithoutId
     { fee :: !(Maybe Coin)
-    , resolvedCollateral :: ![(TxIn, Coin)]
     , resolvedInputs :: ![(TxIn, Coin)]
+    , resolvedCollateralInputs :: ![(TxIn, Coin)]
     , outputs :: ![TxOut]
+    , collateralOutput :: !(Maybe TxOut)
     , metadata :: !(Maybe TxMetadata)
     , withdrawals :: !(Map RewardAccount Coin)
     , scriptValidity :: !(Maybe TxScriptValidity)
@@ -144,6 +145,7 @@ genTxWithoutId = TxWithoutId
     <*> listOf1 (liftArbitrary2 genTxIn genCoinPositive)
     <*> listOf1 (liftArbitrary2 genTxIn genCoinPositive)
     <*> listOf genTxOut
+    <*> liftArbitrary genTxOut
     <*> liftArbitrary genNestedTxMetadata
     <*> genMapWith genRewardAccount genCoinPositive
     <*> liftArbitrary genTxScriptValidity
@@ -154,6 +156,7 @@ shrinkTxWithoutId = genericRoundRobinShrink
     <:> shrinkList (liftShrink2 shrinkTxIn shrinkCoinPositive)
     <:> shrinkList (liftShrink2 shrinkTxIn shrinkCoinPositive)
     <:> shrinkList shrinkTxOut
+    <:> liftShrink shrinkTxOut
     <:> liftShrink shrinkTxMetadata
     <:> shrinkMapWith shrinkRewardAccount shrinkCoinPositive
     <:> liftShrink shrinkTxScriptValidity

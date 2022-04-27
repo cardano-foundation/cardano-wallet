@@ -101,6 +101,8 @@ import Cardano.Wallet.DB.Sqlite.TH
     , PrivateKey (..)
     , StakeKeyCertificate (..)
     , TxCollateral (..)
+    , TxCollateralOut (..)
+    , TxCollateralOutToken (..)
     , TxIn (..)
     , TxMeta (..)
     , TxOut (..)
@@ -139,6 +141,8 @@ import Control.Monad
     ( forM, unless, void, when, (<=<) )
 import Control.Monad.Extra
     ( concatMapM )
+import Control.Monad.Identity
+    ( Identity (..) )
 import Control.Monad.IO.Class
     ( MonadIO (..) )
 import Control.Monad.Trans.Except
@@ -156,13 +160,13 @@ import Data.Functor
 import Data.Generics.Internal.VL.Lens
     ( view, (^.) )
 import Data.List
-    ( nub, sortOn, unzip4 )
+    ( nub, sortOn, unzip5 )
 import Data.List.Split
     ( chunksOf )
 import Data.Map.Strict
     ( Map )
 import Data.Maybe
-    ( catMaybes )
+    ( catMaybes, listToMaybe, maybeToList )
 import Data.Ord
     ( Down (..) )
 import Data.Proxy
@@ -575,9 +579,25 @@ newDBLayerWith _cacheBehavior _tr ti SqliteContext{runQuery} = do
                 insert_ (mkWalletEntity wid meta gp)
             when (isRight res) $ do
                 insertCheckpointGenesis wid cp
-                let (metas, txins, txcins, txouts, txoutTokens, ws) =
-                        mkTxHistory wid txs
-                putTxs metas txins txcins txouts txoutTokens ws
+                let Identity
+                        ( txMetas
+                        , txIns
+                        , txCollateralIns
+                        , txOuts
+                        , txOutTokens
+                        , txCollateralOuts
+                        , txCollateralOutTokens
+                        , txWithdrawals
+                        ) = Identity $ mkTxHistory wid txs
+                putTxs
+                    txMetas
+                    txIns
+                    txCollateralIns
+                    txOuts
+                    txOutTokens
+                    txCollateralOuts
+                    txCollateralOutTokens
+                    txWithdrawals
             pure res
 
         , removeWallet = \wid -> ExceptT $ do
@@ -728,9 +748,25 @@ newDBLayerWith _cacheBehavior _tr ti SqliteContext{runQuery} = do
             selectWallet wid >>= \case
                 Nothing -> pure $ Left $ ErrNoSuchWallet wid
                 Just _ -> do
-                    let (metas, txins, txcins, txouts, txoutTokens, ws) =
-                            mkTxHistory wid txs
-                    putTxs metas txins txcins txouts txoutTokens ws
+                    let Identity
+                            ( txMetas
+                            , txIns
+                            , txCollateralIns
+                            , txOuts
+                            , txOutTokens
+                            , txCollateralOuts
+                            , txCollateralOutTokens
+                            , txWithdrawals
+                            ) = Identity $ mkTxHistory wid txs
+                    putTxs
+                        txMetas
+                        txIns
+                        txCollateralIns
+                        txOuts
+                        txOutTokens
+                        txCollateralOuts
+                        txCollateralOutTokens
+                        txWithdrawals
                     pure $ Right ()
 
         , readTxHistory = \wid minWithdrawal order range status -> do
@@ -954,6 +990,8 @@ mkTxHistory
         , [TxCollateral]
         , [TxOut]
         , [TxOutToken]
+        , [TxCollateralOut]
+        , [TxCollateralOutToken]
         , [TxWithdrawal]
         )
 mkTxHistory wid txs = flatTxHistory
@@ -972,6 +1010,7 @@ mkTxHistory wid txs = flatTxHistory
           , ( [TxIn]
             , [TxCollateral]
             , [(TxOut, [TxOutToken])]
+            , [(TxCollateralOut, [TxCollateralOutToken])]
             )
           , [TxWithdrawal]
           )
@@ -981,15 +1020,19 @@ mkTxHistory wid txs = flatTxHistory
         , [TxCollateral]
         , [TxOut]
         , [TxOutToken]
+        , [TxCollateralOut]
+        , [TxCollateralOutToken]
         , [TxWithdrawal]
         )
-    flatTxHistory entities =
-        ( map (\(a,_,_) -> a) entities
-        , concatMap ((\(a, _, _) -> a) . (\(_,b,_) -> b)) entities
-        , concatMap ((\(_, b, _) -> b) . (\(_,b,_) -> b)) entities
-        , fst <$> concatMap ((\(_, _, c) -> c) . (\(_,b,_) -> b)) entities
-        , snd =<< concatMap ((\(_, _, c) -> c) . (\(_,b,_) -> b)) entities
-        , concatMap (\(_,_,c) -> c) entities
+    flatTxHistory es =
+        (               map (                       (\(a, _, _) -> a)) es
+        ,         concatMap ((\(a, _, _, _) -> a) . (\(_, b, _) -> b)) es
+        ,         concatMap ((\(_, b, _, _) -> b) . (\(_, b, _) -> b)) es
+        , fst <$> concatMap ((\(_, _, c, _) -> c) . (\(_, b, _) -> b)) es
+        , snd =<< concatMap ((\(_, _, c, _) -> c) . (\(_, b, _) -> b)) es
+        , fst <$> concatMap ((\(_, _, _, d) -> d) . (\(_, b, _) -> b)) es
+        , snd =<< concatMap ((\(_, _, _, d) -> d) . (\(_, b, _) -> b)) es
+        ,         concatMap (                       (\(_, _, c) -> c)) es
         )
 
 mkTxInputsOutputs ::
@@ -997,11 +1040,14 @@ mkTxInputsOutputs ::
     ( [TxIn]
     , [TxCollateral]
     , [(TxOut, [TxOutToken])]
+    , [(TxCollateralOut, [TxCollateralOutToken])]
     )
 mkTxInputsOutputs tx =
     ( (dist mkTxIn . ordered W.resolvedInputs) tx
-    , (dist mkTxCollateral . ordered W.resolvedCollateral) tx
-    , (dist mkTxOut . ordered W.outputs) tx )
+    , (dist mkTxCollateral . ordered W.resolvedCollateralInputs) tx
+    , (dist mkTxOut . ordered W.outputs) tx
+    , (dist mkTxCollateralOut . fmap (maybeToList . W.collateralOutput)) tx
+    )
   where
     mkTxIn tid (ix, (txIn, amt)) = TxIn
         { txInputTxId = TxId tid
@@ -1033,6 +1079,22 @@ mkTxInputsOutputs tx =
         , txOutTokenPolicyId = policy
         , txOutTokenName = token
         , txOutTokenQuantity = quantity
+        }
+    mkTxCollateralOut tid txCollateralOut = (out, tokens)
+      where
+        out = TxCollateralOut
+            { txCollateralOutTxId = TxId tid
+            , txCollateralOutAddress = view #address txCollateralOut
+            , txCollateralOutAmount = W.txOutCoin txCollateralOut
+            }
+        tokens = mkTxCollateralOutToken tid <$>
+            snd (TokenBundle.toFlatList $ view #tokens txCollateralOut)
+    mkTxCollateralOutToken tid (AssetId policy token, quantity) =
+        TxCollateralOutToken
+        { txCollateralOutTokenTxId = TxId tid
+        , txCollateralOutTokenPolicyId = policy
+        , txCollateralOutTokenName = token
+        , txCollateralOutTokenQuantity = quantity
         }
     ordered f = fmap (zip [0..] . f)
     -- | Distribute `a` across many `b`s using the given function.
@@ -1089,9 +1151,10 @@ txHistoryFromEntity
     -> [(TxIn, Maybe (TxOut, [TxOutToken]))]
     -> [(TxCollateral, Maybe (TxOut, [TxOutToken]))]
     -> [(TxOut, [TxOutToken])]
+    -> [(TxCollateralOut, [TxCollateralOutToken])]
     -> [TxWithdrawal]
     -> m [W.TransactionInfo]
-txHistoryFromEntity ti tip metas ins cins outs ws =
+txHistoryFromEntity ti tip metas ins cins outs couts ws =
     mapM mkItem metas
   where
     startTime' = interpretQuery ti . slotToUTCTime
@@ -1108,13 +1171,20 @@ txHistoryFromEntity ti tip metas ins cins outs ws =
                 getTxId txid
             , W.txInfoFee =
                 W.Coin . fromIntegral <$> mfee
-            , W.txInfoCollateral =
-                map mkTxCollateral $
-                filter ((== txid) . txCollateralTxId . fst) cins
             , W.txInfoInputs =
                 map mkTxIn $ filter ((== txid) . txInputTxId . fst) ins
+            , W.txInfoCollateralInputs =
+                map mkTxCollateral $
+                filter ((== txid) . txCollateralTxId . fst) cins
             , W.txInfoOutputs =
                 map mkTxOut $ filter ((== txid) . txOutputTxId . fst) outs
+            , W.txInfoCollateralOutput =
+                -- This conversion from a list is correct, as the primary key
+                -- for the TxCollateralOut table guarantees that there can be
+                -- at most one collateral output for a given transaction.
+                listToMaybe $
+                map mkTxCollateralOut $
+                filter ((== txid) . txCollateralOutTxId . fst) couts
             , W.txInfoWithdrawals =
                 Map.fromList
                     $ map mkTxWithdrawal
@@ -1159,6 +1229,18 @@ txHistoryFromEntity ti tip metas ins cins outs ws =
     mkTxOutToken token =
         ( AssetId (txOutTokenPolicyId token) (txOutTokenName token)
         , txOutTokenQuantity token
+        )
+    mkTxCollateralOut (out, tokens) = W.TxOut
+        { W.address = txCollateralOutAddress out
+        , W.tokens = TokenBundle.fromFlatList
+            (txCollateralOutAmount out)
+            (mkTxCollateralOutToken <$> tokens)
+        }
+    mkTxCollateralOutToken token =
+        ( AssetId
+            (txCollateralOutTokenPolicyId token)
+            (txCollateralOutTokenName token)
+        , txCollateralOutTokenQuantity token
         )
     mkTxWithdrawal w =
         ( txWithdrawalAccount w
@@ -1221,38 +1303,59 @@ putTxs
     -> [TxCollateral]
     -> [TxOut]
     -> [TxOutToken]
+    -> [TxCollateralOut]
+    -> [TxCollateralOutToken]
     -> [TxWithdrawal]
     -> SqlPersistT IO ()
-putTxs metas txins txcins txouts txoutTokens ws = do
-    dbChunked' repsertMany
-        [ (TxMetaKey txMetaTxId txMetaWalletId, m)
-        | m@TxMeta{..} <- metas]
-    dbChunked' repsertMany
-        [ (TxInKey txInputTxId txInputSourceTxId txInputSourceIndex, i)
-        | i@TxIn{..} <- txins ]
-    dbChunked' repsertMany
-        [ ( TxCollateralKey
-            txCollateralTxId
-            txCollateralSourceTxId
-            txCollateralSourceIndex
-          , i
-          )
-        | i@TxCollateral{..} <- txcins ]
-    dbChunked' repsertMany
-        [ (TxOutKey txOutputTxId txOutputIndex, o)
-        | o@TxOut{..} <- txouts ]
-    dbChunked' repsertMany
-        [ ( TxOutTokenKey
-            txOutTokenTxId
-            txOutTokenTxIndex
-            txOutTokenPolicyId
-            txOutTokenName
-          , o
-          )
-        | o@TxOutToken{..} <- txoutTokens ]
-    dbChunked' repsertMany
-        [ (TxWithdrawalKey txWithdrawalTxId txWithdrawalAccount, w)
-        | w@TxWithdrawal{..} <- ws ]
+putTxs
+    txMetas
+    txIns
+    txCollateralIns
+    txOuts
+    txOutTokens
+    txCollateralOuts
+    txCollateralOutTokens
+    txWithdrawals = do
+        dbChunked' repsertMany
+            [ (TxMetaKey txMetaTxId txMetaWalletId, m)
+            | m@TxMeta{..} <- txMetas]
+        dbChunked' repsertMany
+            [ (TxInKey txInputTxId txInputSourceTxId txInputSourceIndex, i)
+            | i@TxIn{..} <- txIns ]
+        dbChunked' repsertMany
+            [ ( TxCollateralKey
+                txCollateralTxId
+                txCollateralSourceTxId
+                txCollateralSourceIndex
+              , i
+              )
+            | i@TxCollateral{..} <- txCollateralIns ]
+        dbChunked' repsertMany
+            [ (TxOutKey txOutputTxId txOutputIndex, o)
+            | o@TxOut{..} <- txOuts ]
+        dbChunked' repsertMany
+            [ ( TxOutTokenKey
+                txOutTokenTxId
+                txOutTokenTxIndex
+                txOutTokenPolicyId
+                txOutTokenName
+              , o
+              )
+            | o@TxOutToken{..} <- txOutTokens ]
+        dbChunked' repsertMany
+            [ (TxCollateralOutKey txCollateralOutTxId, o)
+            | o@TxCollateralOut{..} <- txCollateralOuts ]
+        dbChunked' repsertMany
+            [ ( TxCollateralOutTokenKey
+                txCollateralOutTokenTxId
+                txCollateralOutTokenPolicyId
+                txCollateralOutTokenName
+              , o
+              )
+            | o@TxCollateralOutToken{..} <- txCollateralOutTokens ]
+        dbChunked' repsertMany
+            [ (TxWithdrawalKey txWithdrawalTxId txWithdrawalAccount, w)
+            | w@TxWithdrawal{..} <- txWithdrawals ]
 
 -- | Delete transactions that aren't referred to by TxMeta of any wallet.
 deleteLooseTransactions :: SqlPersistT IO ()
@@ -1296,6 +1399,7 @@ selectTxs
         ( [(TxIn, Maybe (TxOut, [TxOutToken]))]
         , [(TxCollateral, Maybe (TxOut, [TxOutToken]))]
         , [(TxOut, [TxOutToken])]
+        , [(TxCollateralOut, [TxCollateralOutToken])]
         , [TxWithdrawal]
         )
 selectTxs = fmap concatUnzip . mapM select . chunksOf chunkSize
@@ -1328,6 +1432,12 @@ selectTxs = fmap concatUnzip . mapM select . chunksOf chunkSize
                 [TxOutputTxId <-. txids]
                 [Asc TxOutputTxId, Asc TxOutputIndex]
 
+        collateralOutputs <-
+            traverse readTxCollateralOutTokens . fmap entityVal =<<
+            selectList
+                [TxCollateralOutTxId <-. txids]
+                [Asc TxCollateralOutTxId]
+
         withdrawals <- fmap entityVal <$> selectList
             [TxWithdrawalTxId <-. txids]
             []
@@ -1338,6 +1448,7 @@ selectTxs = fmap concatUnzip . mapM select . chunksOf chunkSize
             , collateral
                 `resolveCollateralWith` resolvedCollateral
             , outputs
+            , collateralOutputs
             , withdrawals
             )
 
@@ -1348,6 +1459,15 @@ selectTxs = fmap concatUnzip . mapM select . chunksOf chunkSize
         [ TxOutTokenTxId ==. txOutputTxId out
         , TxOutTokenTxIndex ==. txOutputIndex out
         ]
+        []
+
+    -- Fetch the complete set of tokens associated with a TxCollateralOut.
+    --
+    readTxCollateralOutTokens
+        :: TxCollateralOut
+        -> SqlPersistT IO (TxCollateralOut, [TxCollateralOutToken])
+    readTxCollateralOutTokens out = (out,) . fmap entityVal <$> selectList
+        [TxCollateralOutTokenTxId ==. txCollateralOutTxId out]
         []
 
     toOutputMap
@@ -1380,10 +1500,16 @@ selectTxs = fmap concatUnzip . mapM select . chunksOf chunkSize
                 )
         ]
 
-    concatUnzip :: [([a], [b], [c], [d])] -> ([a], [b], [c], [d])
+    concatUnzip :: [([a], [b], [c], [d], [e])] -> ([a], [b], [c], [d], [e])
     concatUnzip =
-        (\(a, b, c, d) -> (concat a, concat b, concat c, concat d))
-        . unzip4
+        (\(a, b, c, d, e) ->
+            ( concat a
+            , concat b
+            , concat c
+            , concat d
+            , concat e
+            )
+        ) . unzip5
 
 -- | Split a query's input values into chunks, run multiple smaller queries,
 -- and then concatenate the results afterwards. Used to avoid "too many SQL
@@ -1417,11 +1543,11 @@ selectTxHistory cp ti wid minWithdrawal order conditions = do
             pure $ sortSlot $ sortTxId $ fmap entityVal ms
 
     let txids = map txMetaTxId metas
-    (ins, cins, outs, ws) <- selectTxs txids
+    (ins, cins, outs, couts, ws) <- selectTxs txids
 
     let tip = W.currentTip cp
 
-    liftIO $ txHistoryFromEntity ti tip metas ins cins outs ws
+    liftIO $ txHistoryFromEntity ti tip metas ins cins outs couts ws
   where
     -- Note: there are sorted indices on these columns.
     -- The secondary sort by TxId is to make the ordering stable

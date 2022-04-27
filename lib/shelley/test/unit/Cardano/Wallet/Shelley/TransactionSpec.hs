@@ -3659,10 +3659,14 @@ updateSealedTxSpec = do
                             expectationFailure $
                             "expected update to succeed but failed: " <> show e
                         Right tx' -> do
-                            sealedInputs tx `shouldBe` sealedInputs tx'
-                            sealedOutputs tx `shouldBe` sealedOutputs tx'
-                            sealedFee tx `shouldBe` sealedFee tx'
-                            sealedCollateral tx `shouldBe` sealedCollateral tx'
+                            sealedInputs tx
+                                `shouldBe` sealedInputs tx'
+                            sealedCollateralInputs tx
+                                `shouldBe` sealedCollateralInputs tx'
+                            sealedOutputs tx
+                                `shouldBe` sealedOutputs tx'
+                            sealedFee tx
+                                `shouldBe` sealedFee tx'
 
                 prop ("with TxUpdate: " <> filepath) $
                     prop_updateSealedTx tx
@@ -3696,12 +3700,12 @@ prop_updateSealedTx tx extraIns extraCol extraOuts newFee = do
             $ updateSealedTx tx extra
     conjoin
         [ sealedInputs tx' === sealedInputs tx <> Set.fromList (fst <$> extraIns)
+        , sealedCollateralInputs tx' ===
+            if isAlonzo tx
+            then sealedCollateralInputs tx <> Set.fromList extraCol
+            else mempty
         , sealedOutputs tx' === sealedOutputs tx <> Set.fromList extraOuts
         , sealedFee tx' === Just newFee
-        , sealedCollateral tx' ===
-            if isAlonzo tx
-            then sealedCollateral tx <> Set.fromList extraCol
-            else mempty
         ]
   where
     isAlonzo (cardanoTx -> InAnyCardanoEra Cardano.AlonzoEra _) = True
@@ -3733,9 +3737,13 @@ sealedInputs :: SealedTx -> Set TxIn
 sealedInputs =
     Set.fromList . map fst . view #resolvedInputs . fst4 . _decodeSealedTx
 
-sealedCollateral :: SealedTx -> Set TxIn
-sealedCollateral =
-    Set.fromList . map fst . view #resolvedCollateral . fst4 . _decodeSealedTx
+sealedCollateralInputs :: SealedTx -> Set TxIn
+sealedCollateralInputs
+    = Set.fromList
+    . map fst
+    . view #resolvedCollateralInputs
+    . fst4
+    . _decodeSealedTx
 
 sealedOutputs :: SealedTx -> Set TxOut
 sealedOutputs =

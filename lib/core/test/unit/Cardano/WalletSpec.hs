@@ -676,9 +676,10 @@ walletListsOnlyRelatedAssets txId txMeta =
                 liftIO . unsafeRunExceptT $ W.listAssets wl wid
         let tx = Tx { txId
                     , fee = Nothing
-                    , resolvedCollateral = mempty
                     , resolvedInputs = mempty
+                    , resolvedCollateralInputs = mempty
                     , outputs = [out1, out2]
+                    , collateralOutput = Nothing
                     , metadata = mempty
                     , withdrawals = mempty
                     , scriptValidity = Nothing
@@ -791,7 +792,17 @@ instance Arbitrary GenTxHistory where
         genTx' = mkTx <$> genTid
         hasPending = any ((== Pending) . view #status . snd)
         genTid = Hash . B8.pack <$> listOf1 (elements ['A'..'Z'])
-        mkTx tid = Tx tid Nothing [] [] [] mempty Nothing Nothing
+        mkTx txId = Tx
+            { txId
+            , fee = Nothing
+            , resolvedInputs = []
+            , resolvedCollateralInputs = []
+            , outputs = []
+            , collateralOutput = Nothing
+            , withdrawals = mempty
+            , metadata = Nothing
+            , scriptValidity = Nothing
+            }
         genTxMeta = do
             sl <- genSmallSlot
             let bh = Quantity $ fromIntegral $ unSlotNo sl
@@ -1326,13 +1337,14 @@ dummyTransactionLayer = TransactionLayer
         let inps' = NE.toList $ second txOutCoin <$> view #inputs cs
         -- TODO: (ADP-957)
         let cinps' = []
-        let tid = mkTxId inps' (view #outputs cs) mempty Nothing
+        let txId = mkTxId inps' (view #outputs cs) mempty Nothing
         let tx = Tx
-                 { txId = tid
+                 { txId
                  , fee = Nothing
                  , resolvedInputs = inps'
-                 , resolvedCollateral = cinps'
+                 , resolvedCollateralInputs = cinps'
                  , outputs = view #outputs cs
+                 , collateralOutput = Nothing
                  , withdrawals = mempty
                  , metadata = Nothing
                  , scriptValidity = Nothing
@@ -1373,7 +1385,17 @@ dummyTransactionLayer = TransactionLayer
     , constraints =
         error "dummyTransactionLayer: constraints not implemented"
     , decodeTx = \_sealed ->
-        ( Tx (Hash "") Nothing mempty mempty mempty mempty mempty Nothing
+        ( Tx
+            { txId = Hash ""
+            , fee = mempty
+            , resolvedInputs = mempty
+            , resolvedCollateralInputs = mempty
+            , outputs = mempty
+            , collateralOutput = Nothing
+            , withdrawals = mempty
+            , metadata = mempty
+            , scriptValidity = Nothing
+            }
         , emptyTokenMapWithScripts
         , emptyTokenMapWithScripts
         , []

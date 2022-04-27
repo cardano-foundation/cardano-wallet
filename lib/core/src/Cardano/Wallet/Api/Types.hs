@@ -241,6 +241,7 @@ module Cardano.Wallet.Api.Types
     , HealthStatusSMASH (..)
     , HealthCheckSMASH (..)
     , ApiHealthCheck (..)
+    , ApiAsArray (..)
 
     -- * Re-exports
     , Base (Base16, Base64)
@@ -414,6 +415,8 @@ import Data.List.NonEmpty
     ( NonEmpty (..) )
 import Data.Map.Strict
     ( Map )
+import Data.Maybe
+    ( maybeToList )
 import Data.Proxy
     ( Proxy (..) )
 import Data.Quantity
@@ -449,7 +452,7 @@ import Fmt
 import GHC.Generics
     ( Generic, Rep )
 import GHC.TypeLits
-    ( Nat, Symbol )
+    ( KnownSymbol, Nat, Symbol, symbolVal )
 import Numeric.Natural
     ( Natural )
 import Quiet
@@ -670,7 +673,7 @@ data ApiSelectCoinsData (n :: NetworkDiscriminant)
     deriving (Eq, Generic, Show, Typeable)
 
 data ApiSelectCoinsPayments (n :: NetworkDiscriminant) = ApiSelectCoinsPayments
-    { payments :: NonEmpty (AddressAmount (ApiT Address, Proxy n))
+    { payments :: NonEmpty (ApiTxOutput n)
     , withdrawal :: !(Maybe ApiWithdrawalPostData)
     , metadata :: !(Maybe (ApiT TxMetadata))
     } deriving (Eq, Generic, Show, Typeable)
@@ -997,7 +1000,7 @@ data ApiSignTransactionPostData = ApiSignTransactionPostData
 
 -- | Legacy transaction API.
 data PostTransactionOldData (n :: NetworkDiscriminant) = PostTransactionOldData
-    { payments :: !(NonEmpty (AddressAmount (ApiT Address, Proxy n)))
+    { payments :: !(NonEmpty (ApiTxOutput n))
     , passphrase :: !(ApiT (Passphrase "lenient"))
     , withdrawal :: !(Maybe ApiWithdrawalPostData)
     , metadata :: !(Maybe (ApiT TxMetadata))
@@ -1006,7 +1009,7 @@ data PostTransactionOldData (n :: NetworkDiscriminant) = PostTransactionOldData
 
 -- | Legacy transaction API.
 data PostTransactionFeeOldData (n :: NetworkDiscriminant) = PostTransactionFeeOldData
-    { payments :: (NonEmpty (AddressAmount (ApiT Address, Proxy n)))
+    { payments :: !(NonEmpty (ApiTxOutput n))
     , withdrawal :: !(Maybe ApiWithdrawalPostData)
     , metadata :: !(Maybe (ApiT TxMetadata))
     , timeToLive :: !(Maybe (Quantity "second" NominalDiffTime))
@@ -1122,13 +1125,16 @@ toApiNetworkParameters (NetworkParameters gp sp pp) txConstraints toEpochInfo = 
   where
     toApiCoin = Quantity . fromIntegral . unCoin
 
-
 newtype ApiTxId = ApiTxId
     { id :: ApiT (Hash "Tx")
     }
     deriving (Eq, Generic)
     deriving anyclass NFData
     deriving Show via (Quiet ApiTxId)
+
+-- | A helper type to reduce the amount of repetition.
+--
+type ApiTxOutput n = AddressAmount (ApiT Address, Proxy n)
 
 data ApiTransaction (n :: NetworkDiscriminant) = ApiTransaction
     { id :: !(ApiT (Hash "Tx"))
@@ -1142,15 +1148,18 @@ data ApiTransaction (n :: NetworkDiscriminant) = ApiTransaction
     , depth :: !(Maybe (Quantity "block" Natural))
     , direction :: !(ApiT Direction)
     , inputs :: ![ApiTxInput n]
-    , outputs :: ![AddressAmount (ApiT Address, Proxy n)]
+    , outputs :: ![ApiTxOutput n]
     , collateral :: ![ApiTxCollateral n]
+    , collateralOutputs ::
+        !(ApiAsArray "collateral_outputs" (Maybe (ApiTxOutput n)))
     , withdrawals :: ![ApiWithdrawal n]
     , mint :: !(ApiT W.TokenMap)
     , status :: !(ApiT TxStatus)
     , metadata :: !ApiTxMetadata
     , scriptValidity :: !(Maybe (ApiT TxScriptValidity))
-    } deriving (Eq, Generic, Show, Typeable)
-      deriving anyclass NFData
+    }
+    deriving (Eq, Generic, Show, Typeable)
+    deriving anyclass NFData
 
 data ApiWalletInput (n :: NetworkDiscriminant) = ApiWalletInput
     { id :: !(ApiT (Hash "Tx"))
@@ -1188,7 +1197,7 @@ data ApiWalletOutput (n :: NetworkDiscriminant) = ApiWalletOutput
       deriving anyclass NFData
 
 data ApiTxOutputGeneral (n :: NetworkDiscriminant) =
-      ExternalOutput (AddressAmount (ApiT Address, Proxy n))
+      ExternalOutput (ApiTxOutput n)
     | WalletOutput (ApiWalletOutput n)
       deriving (Eq, Generic, Show, Typeable)
       deriving anyclass NFData
@@ -1270,6 +1279,8 @@ data ApiDecodedTransaction (n :: NetworkDiscriminant) = ApiDecodedTransaction
     , inputs :: ![ApiTxInputGeneral n]
     , outputs :: ![ApiTxOutputGeneral n]
     , collateral :: ![ApiTxInputGeneral n]
+    , collateralOutputs ::
+        !(ApiAsArray "collateral_outputs" (Maybe (ApiTxOutputGeneral n)))
     , withdrawals :: ![ApiWithdrawalGeneral n]
     , mint :: !ApiAssetMintBurn
     , burn :: !ApiAssetMintBurn
@@ -1278,8 +1289,9 @@ data ApiDecodedTransaction (n :: NetworkDiscriminant) = ApiDecodedTransaction
     , depositsReturned :: ![Quantity "lovelace" Natural]
     , metadata :: !ApiTxMetadata
     , scriptValidity :: !(Maybe (ApiT TxScriptValidity))
-    } deriving (Eq, Generic, Show, Typeable)
-      deriving anyclass NFData
+    }
+    deriving (Eq, Generic, Show, Typeable)
+    deriving anyclass NFData
 
 newtype ApiTxMetadata = ApiTxMetadata
     { getApiTxMetadata :: Maybe (ApiT TxMetadata)
@@ -1308,7 +1320,7 @@ data ApiWithdrawalPostData
     deriving anyclass NFData
 
 data ApiTxInput (n :: NetworkDiscriminant) = ApiTxInput
-    { source :: !(Maybe (AddressAmount (ApiT Address, Proxy n)))
+    { source :: !(Maybe (ApiTxOutput n))
     , input :: !(ApiT TxIn)
     } deriving (Eq, Generic, Show, Typeable)
       deriving anyclass NFData
@@ -3254,13 +3266,16 @@ instance
     parseJSON obj = do
         derPathM <-
             (withObject "ApiTxOutputGeneral" $
-             \o -> o .:? "derivation_path" :: Aeson.Parser (Maybe (NonEmpty (ApiT DerivationIndex)))) obj
+             \o -> o .:? "derivation_path"
+                :: Aeson.Parser (Maybe (NonEmpty (ApiT DerivationIndex)))) obj
         case derPathM of
             Nothing -> do
-                xs <- parseJSON obj :: Aeson.Parser (AddressAmount (ApiT Address, Proxy n))
+                xs <- parseJSON obj
+                    :: Aeson.Parser (ApiTxOutput n)
                 pure $ ExternalOutput xs
             Just _ -> do
-                xs <- parseJSON obj :: Aeson.Parser (ApiWalletOutput n)
+                xs <- parseJSON obj
+                    :: Aeson.Parser (ApiWalletOutput n)
                 pure $ WalletOutput xs
 instance
     ( EncodeAddress n
@@ -3278,7 +3293,8 @@ instance
     parseJSON obj = do
         derPathM <-
             (withObject "ApiTxInputGeneral" $
-             \o -> o .:? "derivation_path" :: Aeson.Parser (Maybe (NonEmpty (ApiT DerivationIndex)))) obj
+             \o -> o .:? "derivation_path"
+                :: Aeson.Parser (Maybe (NonEmpty (ApiT DerivationIndex)))) obj
         case derPathM of
             Nothing -> do
                 xs <- parseJSON obj :: Aeson.Parser (ApiT TxIn)
@@ -4124,3 +4140,32 @@ instance FromJSON (ApiT TxScriptValidity) where
 instance ToJSON (ApiT TxScriptValidity) where
     toJSON = genericToJSON Aeson.defaultOptions
         { constructorTagModifier = camelTo2 '_' . drop 8 } . getApiT
+
+--------------------------------------------------------------------------------
+-- Utility types
+--------------------------------------------------------------------------------
+
+-- | A wrapper that allows any type to be serialized as a JSON array.
+--
+-- The number of items permitted in the array is dependent on the wrapped type.
+--
+newtype ApiAsArray (s :: Symbol) a = ApiAsArray a
+    deriving (Eq, Generic, Show, Typeable)
+    deriving newtype (Monoid, Semigroup)
+    deriving anyclass NFData
+
+instance (KnownSymbol s, FromJSON a) => FromJSON (ApiAsArray s (Maybe a)) where
+    parseJSON json = parseJSON @[a] json >>= \case
+        [a] ->
+            pure $ ApiAsArray $ Just a
+        [] ->
+            pure $ ApiAsArray Nothing
+        _  ->
+            fail $ mconcat
+                [ "Expected at most one item for "
+                , show $ symbolVal $ Proxy @s
+                , "."
+                ]
+
+instance ToJSON a => ToJSON (ApiAsArray s (Maybe a)) where
+    toJSON (ApiAsArray m) = toJSON (maybeToList m)
