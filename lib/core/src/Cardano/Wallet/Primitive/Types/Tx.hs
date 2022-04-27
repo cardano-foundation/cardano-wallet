@@ -285,6 +285,8 @@ instance Buildable Tx where
             build (fst <$> view #resolvedInputs t)
         , blockListF' "outputs"
             build (view #outputs t)
+        , blockListF' "collateral outputs"
+            build (view #collateralOutput t)
         , blockListF' "withdrawals"
             tupleF (Map.toList $ view #withdrawals t)
         , nameF "metadata"
