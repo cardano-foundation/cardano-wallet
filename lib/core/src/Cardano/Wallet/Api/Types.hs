@@ -673,7 +673,7 @@ data ApiSelectCoinsData (n :: NetworkDiscriminant)
     deriving (Eq, Generic, Show, Typeable)
 
 data ApiSelectCoinsPayments (n :: NetworkDiscriminant) = ApiSelectCoinsPayments
-    { payments :: NonEmpty (AddressAmount (ApiT Address, Proxy n))
+    { payments :: NonEmpty (ApiTxOutput n)
     , withdrawal :: !(Maybe ApiWithdrawalPostData)
     , metadata :: !(Maybe (ApiT TxMetadata))
     } deriving (Eq, Generic, Show, Typeable)
@@ -1000,7 +1000,7 @@ data ApiSignTransactionPostData = ApiSignTransactionPostData
 
 -- | Legacy transaction API.
 data PostTransactionOldData (n :: NetworkDiscriminant) = PostTransactionOldData
-    { payments :: !(NonEmpty (AddressAmount (ApiT Address, Proxy n)))
+    { payments :: !(NonEmpty (ApiTxOutput n))
     , passphrase :: !(ApiT (Passphrase "lenient"))
     , withdrawal :: !(Maybe ApiWithdrawalPostData)
     , metadata :: !(Maybe (ApiT TxMetadata))
@@ -1009,7 +1009,7 @@ data PostTransactionOldData (n :: NetworkDiscriminant) = PostTransactionOldData
 
 -- | Legacy transaction API.
 data PostTransactionFeeOldData (n :: NetworkDiscriminant) = PostTransactionFeeOldData
-    { payments :: (NonEmpty (AddressAmount (ApiT Address, Proxy n)))
+    { payments :: !(NonEmpty (ApiTxOutput n))
     , withdrawal :: !(Maybe ApiWithdrawalPostData)
     , metadata :: !(Maybe (ApiT TxMetadata))
     , timeToLive :: !(Maybe (Quantity "second" NominalDiffTime))
@@ -1132,6 +1132,10 @@ newtype ApiTxId = ApiTxId
     deriving anyclass NFData
     deriving Show via (Quiet ApiTxId)
 
+-- | A helper type to reduce the amount of repetition.
+--
+type ApiTxOutput n = AddressAmount (ApiT Address, Proxy n)
+
 data ApiTransaction (n :: NetworkDiscriminant) = ApiTransaction
     { id :: !(ApiT (Hash "Tx"))
     , amount :: !(Quantity "lovelace" Natural)
@@ -1144,11 +1148,10 @@ data ApiTransaction (n :: NetworkDiscriminant) = ApiTransaction
     , depth :: !(Maybe (Quantity "block" Natural))
     , direction :: !(ApiT Direction)
     , inputs :: ![ApiTxInput n]
-    , outputs :: ![AddressAmount (ApiT Address, Proxy n)]
+    , outputs :: ![ApiTxOutput n]
     , collateral :: ![ApiTxCollateral n]
     , collateralOutputs ::
-        !(ApiAsArray "collateral_outputs"
-            (Maybe (AddressAmount (ApiT Address, Proxy n))))
+        !(ApiAsArray "collateral_outputs" (Maybe (ApiTxOutput n)))
     , withdrawals :: ![ApiWithdrawal n]
     , mint :: !(ApiT W.TokenMap)
     , status :: !(ApiT TxStatus)
@@ -1194,7 +1197,7 @@ data ApiWalletOutput (n :: NetworkDiscriminant) = ApiWalletOutput
       deriving anyclass NFData
 
 data ApiTxOutputGeneral (n :: NetworkDiscriminant) =
-      ExternalOutput (AddressAmount (ApiT Address, Proxy n))
+      ExternalOutput (ApiTxOutput n)
     | WalletOutput (ApiWalletOutput n)
       deriving (Eq, Generic, Show, Typeable)
       deriving anyclass NFData
@@ -1317,7 +1320,7 @@ data ApiWithdrawalPostData
     deriving anyclass NFData
 
 data ApiTxInput (n :: NetworkDiscriminant) = ApiTxInput
-    { source :: !(Maybe (AddressAmount (ApiT Address, Proxy n)))
+    { source :: !(Maybe (ApiTxOutput n))
     , input :: !(ApiT TxIn)
     } deriving (Eq, Generic, Show, Typeable)
       deriving anyclass NFData
@@ -3268,7 +3271,7 @@ instance
         case derPathM of
             Nothing -> do
                 xs <- parseJSON obj
-                    :: Aeson.Parser (AddressAmount (ApiT Address, Proxy n))
+                    :: Aeson.Parser (ApiTxOutput n)
                 pure $ ExternalOutput xs
             Just _ -> do
                 xs <- parseJSON obj
