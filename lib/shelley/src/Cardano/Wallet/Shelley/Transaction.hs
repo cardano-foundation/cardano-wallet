@@ -189,6 +189,7 @@ import Cardano.Wallet.Transaction
     , TxFeeAndChange (..)
     , TxFeeUpdate (..)
     , TxUpdate (..)
+    , ValidityIntervalExplicit
     , mapTxFeeAndChange
     , withdrawalToCoin
     )
@@ -396,7 +397,7 @@ mkTx networkId payload ttl (rewardAcnt, pwdAcnt) addrResolver wdrl cs fees era =
     let signed = signTransaction networkId acctResolver (const Nothing)
             addrResolver inputResolver (unsigned, mkExtraWits unsigned)
 
-    let withResolvedInputs (tx, _, _, _) = tx
+    let withResolvedInputs (tx, _, _, _, _) = tx
             { resolvedInputs = second txOutCoin <$> F.toList (view #inputs cs)
             }
     Right ( withResolvedInputs (fromCardanoTx signed)
@@ -487,7 +488,7 @@ signTransaction
         certs = cardanoCertKeysForWitnesses $ Cardano.txCertificates bodyContent
 
         mintBurnScripts =
-            let (_, toMint, toBurn, _) = fromCardanoTx $
+            let (_, toMint, toBurn, _, _) = fromCardanoTx $
                     Cardano.makeSignedTransaction wits body
             in
             -- Note that we use 'nub' here because multiple scripts can share
@@ -655,7 +656,12 @@ newTransactionLayer networkId = TransactionLayer
 
 _decodeSealedTx
     :: SealedTx
-    -> (Tx, TokenMapWithScripts, TokenMapWithScripts, [Certificate])
+    -> ( Tx
+       , TokenMapWithScripts
+       , TokenMapWithScripts
+       , [Certificate]
+       , Maybe ValidityIntervalExplicit
+       )
 _decodeSealedTx (cardanoTx -> InAnyCardanoEra _era tx) = fromCardanoTx tx
 
 _evaluateTransactionBalance

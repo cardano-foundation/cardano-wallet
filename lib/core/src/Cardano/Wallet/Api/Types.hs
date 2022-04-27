@@ -346,7 +346,7 @@ import Cardano.Wallet.Primitive.Types.UTxO
 import Cardano.Wallet.TokenMetadata
     ( TokenMetadataError (..) )
 import Cardano.Wallet.Transaction
-    ( AnyScript (..) )
+    ( AnyScript (..), ValidityIntervalExplicit )
 import Cardano.Wallet.Util
     ( ShowFmt (..) )
 import Codec.Binary.Bech32
@@ -1289,6 +1289,7 @@ data ApiDecodedTransaction (n :: NetworkDiscriminant) = ApiDecodedTransaction
     , depositsReturned :: ![Quantity "lovelace" Natural]
     , metadata :: !ApiTxMetadata
     , scriptValidity :: !(Maybe (ApiT TxScriptValidity))
+    , validityInterval :: !(Maybe ValidityIntervalExplicit)
     }
     deriving (Eq, Generic, Show, Typeable)
     deriving anyclass NFData

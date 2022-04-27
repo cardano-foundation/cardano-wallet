@@ -2216,7 +2216,7 @@ balanceTransactionSpec = do
 
             let balance = balanceTransaction' wallet testStdGenSeed
             let totalOutput tx =
-                    let (wtx, _, _, _) =
+                    let (wtx, _, _, _, _) =
                             decodeTx testTxLayer (sealedTxFromCardano' tx)
                     in
                         F.foldMap (view (#tokens . #coin)) (view #outputs wtx)
@@ -3733,12 +3733,12 @@ estimateSignedTxSizeSpec =
     forAllGoldens goldens f = forM_ goldens $ \x ->
         Hspec.counterexample (show x) $ f x
 
-fst4 :: (a, b, c, d) -> a
-fst4 (a,_,_,_) = a
+fst5 :: (a, b, c, d, e) -> a
+fst5 (a,_,_,_, _) = a
 
 sealedInputs :: SealedTx -> Set TxIn
 sealedInputs =
-    Set.fromList . map fst . view #resolvedInputs . fst4 . _decodeSealedTx
+    Set.fromList . map fst . view #resolvedInputs . fst5 . _decodeSealedTx
 
 sealedCollateralInputs
     :: SealedTx -> Set TxIn
@@ -3746,13 +3746,13 @@ sealedCollateralInputs =
     Set.fromList
     . map fst
     . view #resolvedCollateralInputs
-    . fst4
+    . fst5
     . _decodeSealedTx
 
 sealedOutputs
     :: SealedTx -> Set TxOut
 sealedOutputs =
-    Set.fromList . view #outputs . fst4 . _decodeSealedTx
+    Set.fromList . view #outputs . fst5 . _decodeSealedTx
 
 sealedNumberOfRedeemers :: SealedTx -> Int
 sealedNumberOfRedeemers sealedTx =
@@ -3774,7 +3774,7 @@ sealedNumberOfRedeemers sealedTx =
 sealedFee
     :: forall era. Cardano.IsCardanoEra era => Cardano.Tx era -> Maybe Coin
 sealedFee =
-    view #fee . fst4 . _decodeSealedTx . sealedTxFromCardano'
+    view #fee . fst5 . _decodeSealedTx . sealedTxFromCardano'
 
 paymentPartialTx :: [TxOut] -> PartialTx Cardano.AlonzoEra
 paymentPartialTx txouts = PartialTx (Cardano.Tx body []) [] []

@@ -37,6 +37,7 @@ module Cardano.Wallet.Transaction
     , PlutusVersion (..)
     , TxFeeAndChange (..)
     , mapTxFeeAndChange
+    , ValidityIntervalExplicit (..)
 
     -- * Errors
     , ErrSignTx (..)
@@ -109,17 +110,27 @@ import Control.DeepSeq
 import Control.Monad
     ( (>=>) )
 import Data.Aeson.Types
-    ( FromJSON (..), Parser, ToJSON (..) )
+    ( FromJSON (..)
+    , Parser
+    , ToJSON (..)
+    , camelTo2
+    , genericParseJSON
+    , genericToJSON
+    )
 import Data.Bifunctor
     ( bimap )
 import Data.List.NonEmpty
     ( NonEmpty )
 import Data.Map.Strict
     ( Map )
+import Data.Quantity
+    ( Quantity (..) )
 import Data.Text
     ( Text )
 import Data.Text.Class
     ( FromText (..), TextDecodingError (..), ToText (..) )
+import Data.Word
+    ( Word64 )
 import Fmt
     ( Buildable (..), genericF )
 import GHC.Generics
@@ -128,6 +139,7 @@ import GHC.Generics
 import qualified Cardano.Api as Cardano
 import qualified Cardano.Api.Shelley as Cardano
 import qualified Cardano.Wallet.Primitive.Types.TokenMap as TokenMap
+import qualified Data.Aeson.Types as Aeson
 import qualified Data.Map.Strict as Map
 
 data TransactionLayer k tx = TransactionLayer
@@ -311,7 +323,12 @@ data TransactionLayer k tx = TransactionLayer
 
     , decodeTx
         :: tx
-        -> (Tx, TokenMapWithScripts, TokenMapWithScripts, [Certificate])
+        -> ( Tx
+           , TokenMapWithScripts
+           , TokenMapWithScripts
+           , [Certificate]
+           , Maybe ValidityIntervalExplicit
+           )
     -- ^ Decode an externally-created transaction.
 
     , updateTx
@@ -547,3 +564,21 @@ mapTxFeeAndChange
     -- ^ The transformed fee and change
 mapTxFeeAndChange mapFee mapChange TxFeeAndChange {fee, change} =
     TxFeeAndChange (mapFee fee) (mapChange change)
+
+data ValidityIntervalExplicit = ValidityIntervalExplicit
+    { invalidBefore :: !(Quantity "slot" Word64)
+    , invalidHereafter :: !(Quantity "slot" Word64)
+    }
+    deriving (Generic, Eq, Show)
+    deriving anyclass NFData
+
+instance ToJSON ValidityIntervalExplicit where
+    toJSON = genericToJSON defaultRecordTypeOptions
+instance FromJSON ValidityIntervalExplicit where
+    parseJSON = genericParseJSON defaultRecordTypeOptions
+
+defaultRecordTypeOptions :: Aeson.Options
+defaultRecordTypeOptions = Aeson.defaultOptions
+    { Aeson.fieldLabelModifier = camelTo2 '_' . dropWhile (== '_')
+    , Aeson.omitNothingFields = True
+    }

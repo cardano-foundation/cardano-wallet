@@ -228,6 +228,7 @@ import Cardano.Wallet.Transaction
     , PlutusScriptInfo (..)
     , PlutusVersion (..)
     , TokenMapWithScripts (..)
+    , ValidityIntervalExplicit (..)
     , emptyTokenMapWithScripts
     )
 import Cardano.Wallet.Unsafe
@@ -269,7 +270,7 @@ import Data.Function
 import Data.IntCast
     ( intCast )
 import Data.List
-    ( unzip4 )
+    ( unzip5 )
 import Data.Map.Strict
     ( Map )
 import Data.Maybe
@@ -522,7 +523,7 @@ fromShelleyBlock
     -> (W.Block, [W.PoolCertificate])
 fromShelleyBlock gp blk@(ShelleyBlock (SL.Block _ (SL.TxSeq txs')) _) =
     let
-       (txs, certs, _, _) = unzip4 $ map fromShelleyTx $ toList txs'
+       (txs, certs, _, _, _) = unzip5 $ map fromShelleyTx $ toList txs'
        certs' = mconcat certs
     in
         ( W.Block
@@ -539,7 +540,7 @@ fromAllegraBlock
     -> (W.Block, [W.PoolCertificate])
 fromAllegraBlock gp blk@(ShelleyBlock (SL.Block _ (SL.TxSeq txs')) _) =
     let
-       (txs, certs, _, _) = unzip4 $ map fromAllegraTx $ toList txs'
+       (txs, certs, _, _, _) = unzip5 $ map fromAllegraTx $ toList txs'
        certs' = mconcat certs
     in
         ( W.Block
@@ -556,7 +557,7 @@ fromMaryBlock
     -> (W.Block, [W.PoolCertificate])
 fromMaryBlock gp blk@(ShelleyBlock (SL.Block _ (SL.TxSeq txs')) _) =
     let
-       (txs, certs, _, _) = unzip4 $ map fromMaryTx $ toList txs'
+       (txs, certs, _, _, _) = unzip5 $ map fromMaryTx $ toList txs'
        certs' = mconcat certs
     in
         ( W.Block
@@ -581,7 +582,7 @@ fromAlonzoBlock
 fromAlonzoBlock gp blk@(ShelleyBlock (SL.Block _ txSeq) _) =
     let
         Alonzo.TxSeq txs' = txSeq
-        (txs, certs, _, _) = unzip4 $ map fromAlonzoValidatedTx $ toList txs'
+        (txs, certs, _, _, _) = unzip5 $ map fromAlonzoValidatedTx $ toList txs'
         certs' = mconcat certs
     in
         ( W.Block
@@ -1343,7 +1344,12 @@ toShelleyCoin (W.Coin c) = SL.Coin $ intCast c
 
 fromCardanoTx
     :: Cardano.Tx era
-    -> (W.Tx, TokenMapWithScripts, TokenMapWithScripts, [Certificate])
+    -> ( W.Tx
+       , TokenMapWithScripts
+       , TokenMapWithScripts
+       , [Certificate]
+       , Maybe ValidityIntervalExplicit
+       )
 fromCardanoTx = \case
     Cardano.ShelleyTx era tx -> case era of
         Cardano.ShelleyBasedEraShelley ->
@@ -1359,9 +1365,11 @@ fromCardanoTx = \case
         , emptyTokenMapWithScripts
         , emptyTokenMapWithScripts
         , []
+        , Nothing
         )
   where
-    extract (tx, certs, mint, burn) = (tx, mint, burn, certs)
+    extract (tx, certs, mint, burn, validity) =
+        (tx, mint, burn, certs, validity)
 
 -- NOTE: For resolved inputs we have to pass in a dummy value of 0.
 fromShelleyTx
@@ -1370,6 +1378,7 @@ fromShelleyTx
        , [W.Certificate]
        , TokenMapWithScripts
        , TokenMapWithScripts
+       , Maybe ValidityIntervalExplicit
        )
 fromShelleyTx tx =
     ( W.Tx
@@ -1396,6 +1405,7 @@ fromShelleyTx tx =
     , map fromShelleyCert (toList certs)
     , emptyTokenMapWithScripts
     , emptyTokenMapWithScripts
+    , Nothing
     )
   where
     SL.Tx bod@(SL.TxBody ins outs certs wdrls fee _ _ _) _ mmd = tx
@@ -1406,6 +1416,7 @@ fromAllegraTx
        , [W.Certificate]
        , TokenMapWithScripts
        , TokenMapWithScripts
+       , Maybe ValidityIntervalExplicit
        )
 fromAllegraTx tx =
     ( W.Tx
@@ -1433,6 +1444,7 @@ fromAllegraTx tx =
     , map fromShelleyCert (toList certs)
     , emptyTokenMapWithScripts
     , emptyTokenMapWithScripts
+    , Nothing
     )
   where
     SL.Tx bod@(MA.TxBody ins outs certs wdrls fee _ _ _ _) _ mmd = tx
@@ -1448,6 +1460,7 @@ fromMaryTx
        , [W.Certificate]
        , TokenMapWithScripts
        , TokenMapWithScripts
+       , Maybe ValidityIntervalExplicit
        )
 fromMaryTx tx =
     ( W.Tx
@@ -1474,6 +1487,7 @@ fromMaryTx tx =
     , map fromShelleyCert (toList certs)
     , TokenMapWithScripts assetsToMint mintScriptMap
     , TokenMapWithScripts assetsToBurn burnScriptMap
+    , Nothing
     )
   where
     SL.Tx bod wits mad = tx
@@ -1542,6 +1556,7 @@ fromAlonzoTxBodyAndAux
        , [W.Certificate]
        , TokenMapWithScripts
        , TokenMapWithScripts
+       , Maybe ValidityIntervalExplicit
        )
 fromAlonzoTxBodyAndAux bod mad wits =
     ( W.Tx
@@ -1568,6 +1583,7 @@ fromAlonzoTxBodyAndAux bod mad wits =
     , map fromShelleyCert (toList certs)
     , TokenMapWithScripts assetsToMint mintScriptMap
     , TokenMapWithScripts assetsToBurn burnScriptMap
+    , Nothing
     )
   where
     Alonzo.TxBody
@@ -1622,6 +1638,7 @@ fromAlonzoValidatedTx
        , [W.Certificate]
        , TokenMapWithScripts
        , TokenMapWithScripts
+       , Maybe ValidityIntervalExplicit
        )
 fromAlonzoValidatedTx (Alonzo.ValidatedTx bod wits _isValidating aux) =
     fromAlonzoTxBodyAndAux bod aux wits
@@ -1632,9 +1649,10 @@ fromAlonzoTx
        , [W.Certificate]
        , TokenMapWithScripts
        , TokenMapWithScripts
+       , Maybe ValidityIntervalExplicit
        )
 fromAlonzoTx (Alonzo.ValidatedTx bod wits (Alonzo.IsValid isValid) aux) =
-    (\(tx, c, m, b) -> (tx { W.scriptValidity = validity }, c, m, b))
+    (\(tx, c, m, b, i) -> (tx { W.scriptValidity = validity }, c, m, b, i))
     $ fromAlonzoTxBodyAndAux bod aux wits
     where
         validity =

@@ -2643,6 +2643,15 @@ components:
         - <<: *otherCertificate
           title: genesis or MIR certificate
 
+    ApiValidityIntervalExplicit: &ApiValidityIntervalExplicit
+      type: object
+      required:
+        - invalid_before
+        - invalid_hereafter
+      properties:
+        invalid_before: *numberOfSlots
+        invalid_hereafter: *numberOfSlots
+
     ApiDecodedTransaction: &ApiDecodedTransaction
       type: object
       required:
@@ -2672,6 +2681,7 @@ components:
         deposits_taken: *deposits
         deposits_returned: *deposits
         script_validity: *txScriptValidity
+        validity_interval: *ApiValidityIntervalExplicit
 
     x-txBody: &txBody
       oneOf:
