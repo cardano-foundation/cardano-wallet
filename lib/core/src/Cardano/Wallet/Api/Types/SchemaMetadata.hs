@@ -35,16 +35,16 @@ import Prelude
 
 -- | a tag to select the json codec
 data TxMetadataSchema = TxMetadataNoSchema | TxMetadataDetailedSchema
-  deriving (Show, Eq, Generic, NFData)
+    deriving (Show, Eq, Generic, NFData)
 
 -- | a wrapper to drive the json codec of metadata
 data TxMetadataWithSchema = TxMetadataWithSchema
-  { -- | how to codec the metadata into json
-    txMetadataWithSchema_schema :: TxMetadataSchema
-  , -- | the metadata
-    txMetadataWithSchema_metadata :: TxMetadata
-  }
-  deriving (Show, Eq, Generic, NFData)
+    { -- | how to codec the metadata into json
+        txMetadataWithSchema_schema :: TxMetadataSchema
+    , -- | the metadata
+        txMetadataWithSchema_metadata :: TxMetadata
+    }
+    deriving (Show, Eq, Generic, NFData)
 
 instance ToJSON TxMetadataWithSchema where
     toJSON (TxMetadataWithSchema TxMetadataDetailedSchema x) =
@@ -59,13 +59,13 @@ noSchemaMetadata :: TxMetadata -> TxMetadataWithSchema
 noSchemaMetadata = TxMetadataWithSchema TxMetadataNoSchema
 
 instance FromJSON TxMetadataWithSchema where
-  parseJSON = liftA2
-    do (<|>)
-    do
-      fmap detailedMetadata
-        . either (fail . displayError) pure
-        . metadataFromJson TxMetadataJsonDetailedSchema
-    do
-      fmap noSchemaMetadata
-        . either (fail . displayError) pure
-        . metadataFromJson TxMetadataJsonNoSchema
+    parseJSON = liftA2
+        do (<|>)
+        do
+            fmap detailedMetadata
+                . either (fail . displayError) pure
+                . metadataFromJson TxMetadataJsonDetailedSchema
+        do
+            fmap noSchemaMetadata
+                . either (fail . displayError) pure
+                . metadataFromJson TxMetadataJsonNoSchema

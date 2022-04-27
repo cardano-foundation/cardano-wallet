@@ -299,15 +299,13 @@ spec = describe "NEW_SHELLEY_TRANSACTIONS" $ do
         signedTx <- signTx ctx wa apiTx [ expectResponseCode HTTP.status202 ]
 
         -- Check for the presence of metadata on signed transaction
-        let
-            getMetadata (InAnyCardanoEra _ tx) = Cardano.getTxBody tx
-                        & (\(Cardano.TxBody bodyContent) ->
-                               Cardano.txMetadata bodyContent
-                               & \case Cardano.TxMetadataNone ->
-                                           Nothing
-                                       Cardano.TxMetadataInEra _ (Cardano.TxMetadata m) ->
-                                           Just m
-                          )
+        let getMetadata (InAnyCardanoEra _ tx) = Cardano.getTxBody tx &
+                \(Cardano.TxBody bodyContent) ->
+                    Cardano.txMetadata bodyContent & \case
+                        Cardano.TxMetadataNone ->
+                            Nothing
+                        Cardano.TxMetadataInEra _ (Cardano.TxMetadata m) ->
+                            Just m
 
         case getMetadata (cardanoTx $ getApiT (signedTx ^. #transaction)) of
             Nothing -> error "Tx doesn't include metadata"
@@ -366,15 +364,13 @@ spec = describe "NEW_SHELLEY_TRANSACTIONS" $ do
         signedTx <- signTx ctx wa apiTx [ expectResponseCode HTTP.status202 ]
 
         -- Check for the presence of metadata on signed transaction
-        let
-            getMetadata (InAnyCardanoEra _ tx) = Cardano.getTxBody tx
-                        & (\(Cardano.TxBody bodyContent) ->
-                               Cardano.txMetadata bodyContent
-                               & \case Cardano.TxMetadataNone ->
-                                           Nothing
-                                       Cardano.TxMetadataInEra _ (Cardano.TxMetadata m) ->
-                                           Just m
-                          )
+        let getMetadata (InAnyCardanoEra _ tx) = Cardano.getTxBody tx &
+                \(Cardano.TxBody bodyContent) ->
+                    Cardano.txMetadata bodyContent & \case
+                        Cardano.TxMetadataNone ->
+                            Nothing
+                        Cardano.TxMetadataInEra _ (Cardano.TxMetadata m) ->
+                            Just m
 
         case getMetadata (cardanoTx $ getApiT (signedTx ^. #transaction)) of
             Nothing -> error "Tx doesn't include metadata"
@@ -408,8 +404,8 @@ spec = describe "NEW_SHELLEY_TRANSACTIONS" $ do
             verify rWa
                 [ expectSuccess
                 , expectField
-                        (#balance . #available . #getQuantity)
-                        (`shouldBe` (fromIntegral oneMillionAda - expectedFee))
+                    (#balance . #available . #getQuantity)
+                    (`shouldBe` (fromIntegral oneMillionAda - expectedFee))
                 ]
 
     it "TRANS_NEW_CREATE_03a - Withdrawal from self, 0 rewards" $ \ctx -> runResourceT $ do
