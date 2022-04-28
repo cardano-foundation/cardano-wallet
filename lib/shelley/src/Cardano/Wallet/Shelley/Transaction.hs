@@ -822,7 +822,11 @@ adjustBodyShelley
 adjustBodyShelley txUpdate era ledgerBody = case era of
     ShelleyBasedEraAlonzo -> ledgerBody
         { Alonzo.outputs = Alonzo.outputs ledgerBody
-            <> StrictSeq.fromList (Cardano.toShelleyTxOut era . Cardano.toCtxUTxOTxOut . toCardanoTxOut era <$> extraOutputs)
+            <> StrictSeq.fromList
+                ( Cardano.toShelleyTxOut era
+                . Cardano.toCtxUTxOTxOut
+                . toCardanoTxOut era <$> extraOutputs
+                )
         , Alonzo.inputs = Alonzo.inputs ledgerBody
             <> Set.fromList (Cardano.toShelleyTxIn <$> extraInputs')
         , Alonzo.collateral = Alonzo.collateral ledgerBody
@@ -832,14 +836,17 @@ adjustBodyShelley txUpdate era ledgerBody = case era of
         }
     ShelleyBasedEraMary ->
         let
-            ShelleyMA.TxBody inputs outputs certs wdrls txfee vldt update adHash mint = ledgerBody
-            toTxOut = Cardano.toShelleyTxOut era . Cardano.toCtxUTxOTxOut . toCardanoTxOut era
+            ShelleyMA.TxBody
+                inputs outputs certs wdrls txfee vldt update adHash mint
+                    = ledgerBody
+            toTxOut
+                = Cardano.toShelleyTxOut era
+                . Cardano.toCtxUTxOTxOut
+                . toCardanoTxOut era
         in
         ShelleyMA.TxBody
-            (inputs
-                <> Set.fromList (Cardano.toShelleyTxIn <$> extraInputs'))
-            (outputs
-                <> StrictSeq.fromList (toTxOut <$> extraOutputs))
+            (inputs <> Set.fromList (Cardano.toShelleyTxIn <$> extraInputs'))
+            (outputs <> StrictSeq.fromList (toTxOut <$> extraOutputs))
             certs
             wdrls
             (modifyFee txfee)
@@ -849,14 +856,17 @@ adjustBodyShelley txUpdate era ledgerBody = case era of
             mint
     ShelleyBasedEraAllegra ->
         let
-            ShelleyMA.TxBody inputs outputs certs wdrls txfee vldt update adHash mint = ledgerBody
-            toTxOut = Cardano.toShelleyTxOut era . Cardano.toCtxUTxOTxOut . toCardanoTxOut era
+            ShelleyMA.TxBody
+                inputs outputs certs wdrls txfee vldt update adHash mint
+                    = ledgerBody
+            toTxOut
+                = Cardano.toShelleyTxOut era
+                . Cardano.toCtxUTxOTxOut
+                . toCardanoTxOut era
         in
         ShelleyMA.TxBody
-            (inputs
-                <> Set.fromList (Cardano.toShelleyTxIn <$> extraInputs'))
-            (outputs
-                <> StrictSeq.fromList (toTxOut <$> extraOutputs))
+            (inputs <> Set.fromList (Cardano.toShelleyTxIn <$> extraInputs'))
+            (outputs <> StrictSeq.fromList (toTxOut <$> extraOutputs))
             certs
             wdrls
             (modifyFee txfee)
@@ -866,14 +876,16 @@ adjustBodyShelley txUpdate era ledgerBody = case era of
             mint
     ShelleyBasedEraShelley ->
         let
-            Shelley.TxBody inputs outputs certs wdrls txfee ttl txUpdate' mdHash = ledgerBody
-            toTxOut = Cardano.toShelleyTxOut era . Cardano.toCtxUTxOTxOut . toCardanoTxOut era
+            Shelley.TxBody inputs outputs certs wdrls txfee ttl txUpdate' mdHash
+                = ledgerBody
+            toTxOut
+                = Cardano.toShelleyTxOut era
+                . Cardano.toCtxUTxOTxOut
+                . toCardanoTxOut era
         in
         Shelley.TxBody
-            (inputs
-                <> Set.fromList (Cardano.toShelleyTxIn <$> extraInputs'))
-            (outputs
-                <> StrictSeq.fromList (toTxOut <$> extraOutputs))
+            (inputs <> Set.fromList (Cardano.toShelleyTxIn <$> extraInputs'))
+            (outputs <> StrictSeq.fromList (toTxOut <$> extraOutputs))
             certs
             wdrls
             (modifyFee txfee)
