@@ -29,6 +29,8 @@ module Cardano.Wallet.Primitive.AddressDerivation.MintBurn
     , policyDerivationPath
     , toTokenMapAndScript
     , toTokenPolicyId
+    , toSlotInterval
+    , withinSlotInterval
     ) where
 
 import Prelude
@@ -67,16 +69,24 @@ import Cardano.Wallet.Primitive.Types.TokenQuantity
     ( TokenQuantity (..) )
 import Cardano.Wallet.Util
     ( invariant )
+import Data.ExtendedReal
+    ( Extended (..) )
+import Data.Interval
+    ( Interval, (<=..<=) )
 import Data.List.NonEmpty
     ( NonEmpty )
 import Data.Map.Strict
     ( Map )
 import Data.Maybe
     ( isJust )
+import Data.Word
+    ( Word64 )
 import Numeric.Natural
     ( Natural )
 
 import qualified Cardano.Address.Script as CA
+import qualified Data.Interval as I
+import qualified Data.List as L
 import qualified Data.List.NonEmpty as NE
 import qualified Data.Map.Strict as Map
 
@@ -190,3 +200,37 @@ replaceCosigner cosignerMap = \case
                 (Map.lookup c cosignerMap)
                 isJust
         in hashVerificationKey @key CA.Policy (liftRawKey xpub)
+
+toSlotInterval
+    :: Script a
+    -> [Interval Natural]
+toSlotInterval = \case
+    RequireSignatureOf _ ->
+        [allSlots]
+    RequireAllOf xs ->
+        [I.intersections (concatMap toSlotInterval xs)]
+    RequireAnyOf xs ->
+        concatMap toSlotInterval xs
+    RequireSomeOf _ xs ->
+        concatMap toSlotInterval xs
+    ActiveFromSlot s ->
+        [Finite s <=..<= maxSlot]
+    ActiveUntilSlot s ->
+        [minSlot <=..<= Finite s]
+  where
+    minSlot = fromIntegral $ minBound @Word64
+    maxSlot = fromIntegral $ maxBound @Word64
+    allSlots = minSlot <=..<= maxSlot
+
+-- tx validity interval must be subset of interval from timelock
+-- tx validity interval is defined by specifying (from,to) slot interval
+withinSlotInterval
+    :: Natural
+    -> Natural
+    -> [Interval Natural]
+    -> Bool
+withinSlotInterval from to =
+    L.any (txValidityInterval `I.isSubsetOf`)
+  where
+    txValidityInterval =
+        Finite from <=..<= Finite to
