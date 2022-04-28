@@ -95,7 +95,7 @@ import Test.Hspec
 import Test.Hspec.Expectations.Lifted
     ( expectationFailure, shouldBe, shouldNotBe, shouldSatisfy )
 import Test.Hspec.Extra
-    ( flakyBecauseOf, it )
+    ( it )
 import Test.Integration.Faucet
     ( seaHorsePolicyId, seaHorseTokenName )
 import Test.Integration.Framework.DSL
@@ -897,123 +897,6 @@ spec = describe "SHELLEY_TRANSACTIONS" $ do
         r <- request @(ApiAsset) ctx ep Default Empty
         expectResponseCode HTTP.status404 r
         expectErrorMessage errMsg404NoAsset r
-
-    let absSlotB = view (#absoluteSlotNumber . #getApiT)
-    let absSlotS = view (#absoluteSlotNumber . #getApiT)
-    let slotDiff a b = if a > b then a - b else b - a
-
-    it "TRANS_TTL_01 - Pending transaction expiry" $ \ctx -> runResourceT $ do
-        liftIO $ flakyBecauseOf "#2295"
-        (wa, wb) <- (,) <$> fixtureWallet ctx <*> emptyWallet ctx
-        let amt = minUTxOValue (_mainEra ctx) :: Natural
-
-        payload <- mkTxPayload ctx wb amt fixturePassphrase
-
-        r <- request @(ApiTransaction n) ctx
-            (Link.createTransactionOld @'Shelley wa) Default payload
-
-        verify r
-            [ expectSuccess
-            , expectField (#status . #getApiT) (`shouldBe` Pending)
-            , expectField #expiresAt (`shouldSatisfy` isJust)
-            ]
-
-        -- This stuff would be easier with Control.Lens...
-
-        -- Get insertion slot and out of response.
-        let (_, Right apiTx) = r
-        let Just sl = absSlotB <$> apiTx ^. #pendingSince
-
-        -- The expected expiry slot (adds the hardcoded default ttl)
-        ttl <- liftIO $ getTTLSlots ctx defaultTxTTL
-        let txExpectedExp = sl + ttl
-
-        -- The actual expiry slot
-        let Just txActualExp = absSlotS <$> apiTx ^. #expiresAt
-
-        -- Expected and actual are fairly close
-        (slotDiff txExpectedExp txActualExp `shouldSatisfy` (< 50))
-            & counterexample ("expected expiry: " <> show txExpectedExp)
-            & counterexample ("actual expiry: " <> show txActualExp)
-
-    it "TRANS_TTL_02 - Custom transaction expiry" $ \ctx -> runResourceT $ do
-        liftIO $ flakyBecauseOf "#2295"
-        (wa, wb) <- (,) <$> fixtureWallet ctx <*> emptyWallet ctx
-        let amt = minUTxOValue (_mainEra ctx) :: Natural
-        let testTTL = 42 :: NominalDiffTime
-
-        basePayload <- mkTxPayload ctx wb amt fixturePassphrase
-        let payload = addTxTTL (realToFrac testTTL) basePayload
-
-        r <- request @(ApiTransaction n) ctx
-            (Link.createTransactionOld @'Shelley wa) Default payload
-
-        verify r
-            [ expectSuccess
-            , expectField (#status . #getApiT) (`shouldBe` Pending)
-            , expectField #expiresAt (`shouldSatisfy` isJust)
-            ]
-
-        -- Get insertion slot and out of response.
-        let (_, Right apiTx) = r
-        let Just sl = absSlotB <$> apiTx ^. #pendingSince
-
-        -- The expected expiry slot (adds the hardcoded default ttl)
-        ttl <- liftIO $ getTTLSlots ctx testTTL
-        let txExpectedExp = sl + ttl
-
-        -- The actual expiry slot
-        let Just txActualExp = absSlotS <$> apiTx ^. #expiresAt
-
-        -- Expected and actual are fairly close. Any difference should only be
-        -- due to slot rounding.
-        (slotDiff txExpectedExp txActualExp `shouldSatisfy` (< 50))
-            & counterexample ("expected expiry: " <> show txExpectedExp)
-            & counterexample ("actual expiry: " <> show txActualExp)
-
-    it "TRANS_TTL_03 - Expired transactions" $ \ctx -> runResourceT $ do
-        liftIO $ flakyBecauseOf "#1840 -- need a better approach"
-
-        (wa, wb) <- (,) <$> fixtureWallet ctx <*> emptyWallet ctx
-        let amt = minUTxOValue (_mainEra ctx) :: Natural
-
-        basePayload <- mkTxPayload ctx wb amt fixturePassphrase
-        -- Set a transaction TTL that is going to expire really soon.
-        --
-        -- The TTL wants to be small enough that it expires before it can get
-        -- into a block, but large enough that the node allows it into its
-        -- mempool.
-        --
-        -- This is probably impossible to do reliably, so this test is pending.
-        --
-        -- Perhaps we could disconnect the test cluster relay node from its
-        -- peers temporarily while letting the tx expire.
-        let payload = addTxTTL 0.1 basePayload
-
-        ra <- request @(ApiTransaction n) ctx
-            (Link.createTransactionOld @'Shelley wa) Default payload
-
-        verify ra
-            [ expectSuccess
-            , expectField (#status . #getApiT) (`shouldBe` Pending)
-            , expectField #expiresAt (`shouldSatisfy` isJust)
-            ]
-
-        let txid = getFromResponse #id ra
-        let linkSrc = Link.getTransaction @'Shelley wa (ApiTxId txid)
-
-        rb <- eventually "transaction is no longer pending" $ do
-            rr <- request @(ApiTransaction n) ctx linkSrc Default Empty
-            verify rr
-                [ expectSuccess
-                , expectField (#status . #getApiT) (`shouldNotBe` Pending)
-                ]
-            pure rr
-
-        verify rb
-            [ expectField (#status . #getApiT) (`shouldBe` Expired)
-            , expectField #expiresAt (`shouldSatisfy` isJust)
-            ]
 
     it "TRANS_TTL_04 - Large TTL" $ \ctx -> runResourceT $ do
         (wa, wb) <- (,) <$> fixtureWallet ctx <*> emptyWallet ctx
@@ -1876,46 +1759,6 @@ spec = describe "SHELLEY_TRANSACTIONS" $ do
         \ Cannot forget tx that is performed from different wallet" $ do
         txDeleteFromDifferentWalletTest emptyWallet "wallets"
         txDeleteFromDifferentWalletTest emptyRandomWallet "byron-wallets"
-
-    it "TRANS_TTL_DELETE_01 - Shelley: can remove expired tx" $ \ctx -> runResourceT $ do
-        liftIO $ flakyBecauseOf "#1840 -- need a better approach"
-        (wa, wb) <- (,) <$> fixtureWallet ctx <*> emptyWallet ctx
-        let amt = minUTxOValue (_mainEra ctx) :: Natural
-
-        -- this transaction is going to expire really soon.
-        basePayload <- mkTxPayload ctx wb amt fixturePassphrase
-        let payload = addTxTTL 0.1 basePayload
-
-        ra <- request @(ApiTransaction n) ctx
-            (Link.createTransactionOld @'Shelley wa) Default payload
-
-        expectSuccess ra
-
-        let txid = ApiTxId (getFromResponse #id ra)
-        let linkSrc = Link.getTransaction @'Shelley wa txid
-
-        rb <- eventually "transaction is no longer pending" $ do
-            rr <- request @(ApiTransaction n) ctx linkSrc Default Empty
-            verify rr
-                [ expectSuccess
-                , expectField (#status . #getApiT) (`shouldNotBe` Pending)
-                ]
-            pure rr
-
-        -- it should be expired
-        expectField (#status . #getApiT) (`shouldBe` Expired) rb
-
-        -- remove it
-        let linkDel = Link.deleteTransaction @'Shelley wa txid
-        request @(ApiTransaction n) ctx linkDel Default Empty
-            >>= expectResponseCode HTTP.status204
-
-        -- it should be gone
-        request @(ApiTransaction n) ctx linkSrc Default Empty
-            >>= expectResponseCode HTTP.status404
-        -- yes, gone
-        request @(ApiTransaction n) ctx linkDel Default Empty
-            >>= expectResponseCode HTTP.status404
 
     it "SHELLEY_TX_REDEEM_01 - Can redeem rewards from self" $ \ctx -> runResourceT $ do
         (wSrc,_) <- rewardWallet ctx
