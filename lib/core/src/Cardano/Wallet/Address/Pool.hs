@@ -263,8 +263,9 @@ discover query pool0 =
         -- TODO: Maybe cache the `generator` in the Pool using lazy evaluation.
         let addr = generator pool0 old
         newtxs <- query addr
-        let pool2 = if mempty == newtxs then pool1 else update addr pool1
-            txs2  = if mempty == newtxs then txs1 else txs1 <> newtxs
+        let (pool2, txs2) = if mempty == newtxs
+                then (pool1, txs1)
+                else (update addr pool1, txs1 <> newtxs)
         case successor pool2 old of
             Nothing    -> pure (txs2, pool2)
             Just next  -> go txs2 pool2 next

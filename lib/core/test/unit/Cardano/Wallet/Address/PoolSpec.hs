@@ -174,10 +174,12 @@ genAddresses pool = sized $ go 0
     gap = AddressPool.gap pool
     go _    0 = pure []
     go maxi n = do
-        i <- frequency 
-            [ (2, choose (0,maxi))
-            , (2, choose (maxi,maxi+gap-1))
-            , (1, pure (maxi+gap-1)) ]
+        i <- frequency
+            [ (1, choose (0,min maxi 3)) -- generate duplicates
+            , (3, choose (0,maxi))
+            , (3, choose (maxi,maxi+gap-1))
+            , (2, pure (maxi+gap-1))     -- generate at edge of the pool
+            ]
         let addr = AddressPool.generator pool $ toEnum i
         (addr:) <$> go (max i maxi) (n-1)
 
