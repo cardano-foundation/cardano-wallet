@@ -793,101 +793,101 @@ updateSealedTx (Cardano.Tx body existingKeyWits) extraContent = do
        then Right $ Cardano.Tx body' mempty
        else Left $ ErrExistingKeyWitnesses $ length existingKeyWits
 
+modifyLedgerTx
+    :: forall era. Cardano.IsShelleyBasedEra era
+    => TxUpdate
+    -> Cardano.TxBody era
+    -> Either ErrUpdateSealedTx (Cardano.TxBody era)
+modifyLedgerTx ebc (Cardano.ShelleyTxBody shelleyEra bod scripts scriptData aux val) =
+    Right $ Cardano.ShelleyTxBody shelleyEra
+        (adjustBody ebc shelleyEra bod)
+        scripts
+        scriptData
+        aux
+        val
   where
-    modifyLedgerTx
+    -- NOTE: If the ShelleyMA MAClass were exposed, the Allegra and Mary
+    -- cases could perhaps be joined. It is not however. And we still need
+    -- to treat Alonzo and Shelley differently.
+    adjustBody
         :: TxUpdate
-        -> Cardano.TxBody era
-        -> Either ErrUpdateSealedTx (Cardano.TxBody era)
-    modifyLedgerTx ebc (Cardano.ShelleyTxBody shelleyEra bod scripts scriptData aux val) =
-        Right $ Cardano.ShelleyTxBody shelleyEra
-            (adjustBody ebc shelleyEra bod)
-            scripts
-            scriptData
-            aux
-            val
+        -> ShelleyBasedEra era
+        -> Ledger.TxBody (Cardano.ShelleyLedgerEra era)
+        -> Ledger.TxBody (Cardano.ShelleyLedgerEra era)
+    adjustBody (TxUpdate extraInputs extraCollateral extraOutputs feeUpdate) era ledgerBody = case era of
+        ShelleyBasedEraAlonzo -> ledgerBody
+                { Alonzo.outputs = Alonzo.outputs ledgerBody
+                    <> StrictSeq.fromList (Cardano.toShelleyTxOut era . Cardano.toCtxUTxOTxOut . toCardanoTxOut era <$> extraOutputs)
+                , Alonzo.inputs = Alonzo.inputs ledgerBody
+                    <> Set.fromList (Cardano.toShelleyTxIn <$> extraInputs')
+                , Alonzo.collateral = Alonzo.collateral ledgerBody
+                    <> Set.fromList (Cardano.toShelleyTxIn <$> extraCollateral')
+                , Alonzo.txfee =
+                    modifyFee $ Alonzo.txfee ledgerBody
+                }
+        ShelleyBasedEraMary ->
+            let
+                ShelleyMA.TxBody inputs outputs certs wdrls txfee vldt update adHash mint = ledgerBody
+                toTxOut = Cardano.toShelleyTxOut era . Cardano.toCtxUTxOTxOut . toCardanoTxOut era
+            in
+                ShelleyMA.TxBody
+                    (inputs
+                        <> Set.fromList (Cardano.toShelleyTxIn <$> extraInputs'))
+                    (outputs
+                        <> StrictSeq.fromList (toTxOut <$> extraOutputs))
+                    certs
+                    wdrls
+                    (modifyFee txfee)
+                    vldt
+                    update
+                    adHash
+                    mint
+        ShelleyBasedEraAllegra ->
+            let
+                ShelleyMA.TxBody inputs outputs certs wdrls txfee vldt update adHash mint = ledgerBody
+                toTxOut = Cardano.toShelleyTxOut era . Cardano.toCtxUTxOTxOut . toCardanoTxOut era
+            in
+                ShelleyMA.TxBody
+                    (inputs
+                        <> Set.fromList (Cardano.toShelleyTxIn <$> extraInputs'))
+                    (outputs
+                        <> StrictSeq.fromList (toTxOut <$> extraOutputs))
+                    certs
+                    wdrls
+                    (modifyFee txfee)
+                    vldt
+                    update
+                    adHash
+                    mint
+        ShelleyBasedEraShelley ->
+            let
+                Shelley.TxBody inputs outputs certs wdrls txfee ttl txUpdate mdHash = ledgerBody
+                toTxOut = Cardano.toShelleyTxOut era . Cardano.toCtxUTxOTxOut . toCardanoTxOut era
+            in
+                Shelley.TxBody
+                    (inputs
+                        <> Set.fromList (Cardano.toShelleyTxIn <$> extraInputs'))
+                    (outputs
+                        <> StrictSeq.fromList (toTxOut <$> extraOutputs))
+                    certs
+                    wdrls
+                    (modifyFee txfee)
+                    ttl
+                    txUpdate
+                    mdHash
       where
-        -- NOTE: If the ShelleyMA MAClass were exposed, the Allegra and Mary
-        -- cases could perhaps be joined. It is not however. And we still need
-        -- to treat Alonzo and Shelley differently.
-        adjustBody
-            :: TxUpdate
-            -> ShelleyBasedEra era
-            -> Ledger.TxBody (Cardano.ShelleyLedgerEra era)
-            -> Ledger.TxBody (Cardano.ShelleyLedgerEra era)
-        adjustBody (TxUpdate extraInputs extraCollateral extraOutputs feeUpdate) era ledgerBody = case era of
-            ShelleyBasedEraAlonzo -> ledgerBody
-                    { Alonzo.outputs = Alonzo.outputs ledgerBody
-                        <> StrictSeq.fromList (Cardano.toShelleyTxOut era . Cardano.toCtxUTxOTxOut . toCardanoTxOut era <$> extraOutputs)
-                    , Alonzo.inputs = Alonzo.inputs ledgerBody
-                        <> Set.fromList (Cardano.toShelleyTxIn <$> extraInputs')
-                    , Alonzo.collateral = Alonzo.collateral ledgerBody
-                        <> Set.fromList (Cardano.toShelleyTxIn <$> extraCollateral')
-                    , Alonzo.txfee =
-                        modifyFee $ Alonzo.txfee ledgerBody
-                    }
-            ShelleyBasedEraMary ->
-                let
-                    ShelleyMA.TxBody inputs outputs certs wdrls txfee vldt update adHash mint = ledgerBody
-                    toTxOut = Cardano.toShelleyTxOut era . Cardano.toCtxUTxOTxOut . toCardanoTxOut era
-                in
-                    ShelleyMA.TxBody
-                        (inputs
-                            <> Set.fromList (Cardano.toShelleyTxIn <$> extraInputs'))
-                        (outputs
-                            <> StrictSeq.fromList (toTxOut <$> extraOutputs))
-                        certs
-                        wdrls
-                        (modifyFee txfee)
-                        vldt
-                        update
-                        adHash
-                        mint
-            ShelleyBasedEraAllegra ->
-                let
-                    ShelleyMA.TxBody inputs outputs certs wdrls txfee vldt update adHash mint = ledgerBody
-                    toTxOut = Cardano.toShelleyTxOut era . Cardano.toCtxUTxOTxOut . toCardanoTxOut era
-                in
-                    ShelleyMA.TxBody
-                        (inputs
-                            <> Set.fromList (Cardano.toShelleyTxIn <$> extraInputs'))
-                        (outputs
-                            <> StrictSeq.fromList (toTxOut <$> extraOutputs))
-                        certs
-                        wdrls
-                        (modifyFee txfee)
-                        vldt
-                        update
-                        adHash
-                        mint
-            ShelleyBasedEraShelley ->
-                let
-                    Shelley.TxBody inputs outputs certs wdrls txfee ttl txUpdate mdHash = ledgerBody
-                    toTxOut = Cardano.toShelleyTxOut era . Cardano.toCtxUTxOTxOut . toCardanoTxOut era
-                in
-                    Shelley.TxBody
-                        (inputs
-                            <> Set.fromList (Cardano.toShelleyTxIn <$> extraInputs'))
-                        (outputs
-                            <> StrictSeq.fromList (toTxOut <$> extraOutputs))
-                        certs
-                        wdrls
-                        (modifyFee txfee)
-                        ttl
-                        txUpdate
-                        mdHash
+        extraInputs' = toCardanoTxIn . fst <$> extraInputs
+        extraCollateral' = toCardanoTxIn <$> extraCollateral
+
+        modifyFee old = case feeUpdate of
+            UseNewTxFee new -> toLedgerCoin new
+            UseOldTxFee -> old
           where
-            extraInputs' = toCardanoTxIn . fst <$> extraInputs
-            extraCollateral' = toCardanoTxIn <$> extraCollateral
+            toLedgerCoin :: Coin -> Ledger.Coin
+            toLedgerCoin (Coin c) = Ledger.Coin (intCast c)
 
-            modifyFee old = case feeUpdate of
-                UseNewTxFee new -> toLedgerCoin new
-                UseOldTxFee -> old
-              where
-                toLedgerCoin :: Coin -> Ledger.Coin
-                toLedgerCoin (Coin c) = Ledger.Coin (intCast c)
-
-    modifyLedgerTx _ (Byron.ByronTxBody _) =
-        case Cardano.shelleyBasedEra @era of {}
+modifyLedgerTx _ (Byron.ByronTxBody _) =
+    case Cardano.shelleyBasedEra @era of {}
 
 -- NOTE / FIXME: This is an 'estimation' because it is actually quite hard to
 -- estimate what would be the cost of a selecting a particular input. Indeed, an
