@@ -3432,7 +3432,7 @@ mockProtocolParametersForBalancing = (mockProtocolParameters, nodePParams)
             Just $ Cardano.ExecutionUnits 10000000000 14000000
         , Cardano.protocolParamMaxValueSize = Just 4000
         , Cardano.protocolParamProtocolVersion = (6, 0)
-        , Cardano.protocolParamDecentralization = 0
+        , Cardano.protocolParamDecentralization = Just 0
         , Cardano.protocolParamExtraPraosEntropy = Nothing
         , Cardano.protocolParamMaxBlockHeaderSize = 100000 -- Dummy value
         , Cardano.protocolParamMaxBlockBodySize = 100000
