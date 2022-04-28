@@ -23,7 +23,8 @@ module Cardano.Api.Gen
     , genExecutionUnitPrices
     , genExecutionUnits
     , genExtraKeyWitnesses
-    , genIx
+    , genTxIx
+    , genCertIx
     , genLovelace
     , genMIRPot
     , genMIRTarget
@@ -117,9 +118,11 @@ import Cardano.Api.Shelley
     , StakePoolMetadataReference (..)
     , StakePoolParameters (..)
     , StakePoolRelay (..)
+    , ReferenceScript(..)
+    , refInsScriptsAndInlineDatsSupportedInEra
     )
 import Cardano.Ledger.Credential
-    ( Ix, Ptr (..) )
+    ( Ptr (..) )
 import Cardano.Ledger.SafeHash
     ( unsafeMakeSafeHash )
 import Cardano.Ledger.Shelley.API
@@ -163,6 +166,7 @@ import Test.Cardano.Crypto.Gen
 import Test.QuickCheck
     ( Gen
     , Large (..)
+    , Small (..)
     , NonNegative (..)
     , Positive (..)
     , arbitrary
@@ -189,7 +193,7 @@ import qualified Cardano.Binary as CBOR
 import qualified Cardano.Crypto.Hash as Crypto
 import qualified Cardano.Crypto.Seed as Crypto
 import qualified Cardano.Ledger.BaseTypes as Ledger
-    ( Port, dnsToText )
+    ( Port, dnsToText, TxIx (..), CertIx (..) )
 import qualified Cardano.Ledger.Shelley.API as Ledger
     ( StakePoolRelay (..), portToWord16 )
 import qualified Cardano.Ledger.Shelley.TxBody as Ledger
@@ -204,7 +208,7 @@ import qualified Data.Map as Map
 import qualified Data.Set as Set
 import qualified Data.Text as T
 import qualified Data.Text.Encoding as T
-import qualified Plutus.V1.Ledger.Api as Plutus
+import qualified PlutusCore as Plutus
 import qualified Test.Cardano.Ledger.Shelley.Serialisation.Generators.Genesis as Ledger
     ( genStakePoolRelay )
 
@@ -765,12 +769,17 @@ genTxMetadataValue =
                 ((,) <$> genTxMetadataValue <*> genTxMetadataValue)
 
 genPtr :: Gen Ptr
-genPtr = Ptr <$> genSlotNo <*> genIx <*> genIx
+genPtr = Ptr <$> genSlotNo <*> genTxIx <*> genCertIx
 
-genIx :: Gen Ix
-genIx = do
-    (Large (n :: Word64)) <- arbitrary
-    pure n
+genTxIx :: Gen Ledger.TxIx
+genTxIx = do
+    (Positive (Small (n :: Word16))) <- arbitrary
+    pure $ Ledger.TxIx n
+
+genCertIx :: Gen Ledger.CertIx
+genCertIx = do
+    (Positive (Small (n :: Word16))) <- arbitrary
+    pure $ Ledger.CertIx n
 
 genStakeAddressReference :: Gen StakeAddressReference
 genStakeAddressReference =
@@ -836,6 +845,7 @@ genTxOut era =
   TxOut <$> genAddressInEra era
         <*> genTxOutValue era
         <*> genTxOutDatum era
+        <*> genReferenceScript era
 
 genTxOutDatum :: CardanoEra era -> Gen (TxOutDatum ctx era)
 genTxOutDatum era = case scriptDataSupportedInEra era of
@@ -843,6 +853,14 @@ genTxOutDatum era = case scriptDataSupportedInEra era of
     Just supported -> oneof
         [ pure TxOutDatumNone
         , TxOutDatumHash supported <$> genHashScriptData
+        ]
+
+genReferenceScript :: CardanoEra era -> Gen (ReferenceScript era)
+genReferenceScript era = case refInsScriptsAndInlineDatsSupportedInEra era of
+    Nothing -> pure ReferenceScriptNone
+    Just supported -> oneof
+        [ pure ReferenceScriptNone
+        , ReferenceScript supported <$> genScriptInAnyLang
         ]
 
 mkDummyHash :: forall h a. Crypto.HashAlgorithm h => Int -> Crypto.Hash h a
@@ -915,7 +933,7 @@ genProtocolParameters :: Gen ProtocolParameters
 genProtocolParameters =
   ProtocolParameters
     <$> ((,) <$> genNat <*> genNat)
-    <*> genRational
+    <*> (Just <$> genRational)
     <*> liftArbitrary genPraosNonce
     <*> genNat
     <*> genNat
@@ -944,7 +962,7 @@ genProtocolParametersWithAlonzoScripts :: Gen ProtocolParameters
 genProtocolParametersWithAlonzoScripts =
   ProtocolParameters
     <$> ((,) <$> genNat <*> genNat)
-    <*> genRational
+    <*> (Just <$> genRational)
     <*> liftArbitrary genPraosNonce
     <*> genNat
     <*> genNat
@@ -1284,7 +1302,10 @@ genTxBodyContent era = do
         txBody = TxBodyContent
             { Api.txIns
             , Api.txInsCollateral = TxInsCollateralNone
+            , Api.txInsReference = TxInsReferenceNone
             , Api.txOuts
+            , Api.txTotalCollateral = TxTotalCollateralNone
+            , Api.txReturnCollateral = TxReturnCollateralNone
             , Api.txFee
             , Api.txValidityRange
             , Api.txMetadata

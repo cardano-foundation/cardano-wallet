@@ -711,10 +711,11 @@ _evaluateTransactionBalance tx pp utxo extraUTxO = do
         -> Cardano.TxOut ctx era
         -> Cardano.TxOut ctx era
     setDatumHash _era Nothing o = o
-    setDatumHash era (Just (Hash datumHash)) (Cardano.TxOut addr val _) =
-        Cardano.TxOut addr val (Cardano.TxOutDatumHash scriptDataSupported hash)
+    setDatumHash era (Just (Hash datumHash)) (Cardano.TxOut addr val _ refScript) =
+        Cardano.TxOut addr val (Cardano.TxOutDatumHash scriptDataSupported hash) refScript
       where
         scriptDataSupported = case era of
+            ShelleyBasedEraBabbage -> Cardano.ScriptDataInBabbageEra
             ShelleyBasedEraAlonzo -> Cardano.ScriptDataInAlonzoEra
             ShelleyBasedEraMary -> errBadEra
             ShelleyBasedEraAllegra -> errBadEra
@@ -1202,7 +1203,7 @@ _assignScriptRedeemers (toAlonzoPParams -> pparams) ti resolveInput redeemers tx
             (Map Alonzo.RdmrPtr (Either ErrAssignRedeemers Alonzo.ExUnits))
     evaluateExecutionUnits indexedRedeemers alonzoTx = do
         let utxo = utxoFromAlonzoTx alonzoTx
-        let costs = toCostModelsAsArray (Alonzo._costmdls pparams)
+        let costs = toCostModelsAsArray (Alonzo.unCostModels $ Alonzo._costmdls pparams)
         let systemStart = getSystemStart ti
 
         epochInfo <- hoistEpochInfo (left ErrAssignRedeemersPastHorizon . runIdentity . runExceptT)

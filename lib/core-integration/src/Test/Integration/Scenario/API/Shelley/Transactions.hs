@@ -177,6 +177,7 @@ import qualified Cardano.Wallet.Api.Link as Link
 import qualified Cardano.Wallet.Primitive.Types.TokenMap as TokenMap
 import qualified Cardano.Wallet.Primitive.Types.TokenPolicy as TokenPolicy
 import qualified Data.Aeson as Aeson
+import qualified Data.Aeson.Key as Aeson
 import qualified Data.ByteString as BS
 import qualified Data.ByteString.Char8 as B8
 import qualified Data.HashSet as Set
@@ -1103,7 +1104,7 @@ spec = describe "SHELLEY_TRANSACTIONS" $ do
         -- This will encode to at least 32k of CBOR. The max tx size for the
         -- integration tests cluster is 16k.
         let txMeta = Aeson.object
-                [ (toText @Int i, bytes)
+                [ (Aeson.fromText $ toText @Int i, bytes)
                 | i <- [0..511] ]
             bytes = [json|{ "bytes": #{T.replicate 64 "a"} }|]
         let payload = addTxMetadata txMeta basePayload
@@ -1166,7 +1167,7 @@ spec = describe "SHELLEY_TRANSACTIONS" $ do
         -- This will encode to at least 32k of CBOR. The max tx size for the
         -- integration tests cluster is 16k.
         let txMeta = Aeson.object
-                [ (toText @Int i, bytes)
+                [ (Aeson.fromText $ toText @Int i, bytes)
                 | i <- [0..511] ]
             bytes = [json|{ "bytes": #{T.replicate 64 "a"} }|]
         let payload = addTxMetadata txMeta basePayload

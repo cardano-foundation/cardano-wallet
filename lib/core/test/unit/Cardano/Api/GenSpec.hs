@@ -84,11 +84,13 @@ import Cardano.Api.Byron
     ( KeyWitness (ByronKeyWitness), WitnessNetworkIdOrByronAddress (..) )
 import Cardano.Api.Gen
 import Cardano.Api.Shelley
-    ( Certificate (..), StakeCredential (..) )
+    ( Certificate (..), StakeCredential (..), ReferenceScript (..), refInsScriptsAndInlineDatsSupportedInEra )
 import Cardano.Chain.UTxO
     ( TxInWitness (..) )
 import Cardano.Ledger.Credential
-    ( Ix, Ptr (..) )
+    ( Ptr (..) )
+import qualified Cardano.Ledger.BaseTypes as Ledger
+    ( TxIx (..), CertIx (..) )
 import Cardano.Ledger.Shelley.API
     ( MIRPot (..) )
 import Data.Char
@@ -128,7 +130,7 @@ import qualified Data.ByteString.Char8 as B8
 import Data.List
     ( (\\) )
 import qualified Data.Map.Strict as Map
-import qualified Plutus.V1.Ledger.Api as Plutus
+import qualified PlutusCore as Plutus
 
 spec :: Spec
 spec =
@@ -245,9 +247,9 @@ spec =
                         property
                         $ forAll (genTxMetadataInEra era)
                         $ genTxMetadataInEraCoverage era
-            it "genIx" $
+            it "genTxIx" $
                 -- NOTE: can't use Arbitrary here because Ix is a type synonym
-                property (forAll genIx genIxCoverage)
+                property (forAll genTxIx genTxIxCoverage')
             it "genPtr" $
                 property genPtrCoverage
             it "genStakeAddressReference" $
@@ -378,6 +380,18 @@ genTxIxCoverage (TxIx ix) = unsignedCoverage (maxBound @Word16) "txIx" ix
 
 instance Arbitrary TxIx where
     arbitrary = genTxIndex
+
+genTxIxCoverage' :: Ledger.TxIx -> Property
+genTxIxCoverage' (Ledger.TxIx ix) = unsignedCoverage (maxBound @Word16) "txIx" ix
+
+instance Arbitrary Ledger.TxIx where
+    arbitrary = genTxIx
+
+genCertIxCoverage :: Ledger.CertIx -> Property
+genCertIxCoverage (Ledger.CertIx ix) = unsignedCoverage (maxBound @Word16) "certIx" ix
+
+instance Arbitrary Ledger.CertIx where
+    arbitrary = genCertIx
 
 genTxInCoverage :: TxIn -> Property
 genTxInCoverage (TxIn _id ix) =
@@ -1052,14 +1066,11 @@ genTxMetadataInEraCoverage era meta =
                 TxMetadataNone -> cover 10 True "no metadata" True
                 TxMetadataInEra _ _ -> cover 40 True "some metadata" True
 
-genIxCoverage :: Ix -> Property
-genIxCoverage = unsignedCoverage (maxBound @Word32) "ix"
-
 genPtrCoverage :: Ptr -> Property
-genPtrCoverage (Ptr slotNo ix1 ix2) = checkCoverage $ conjoin
+genPtrCoverage (Ptr slotNo txIx certIx) = checkCoverage $ conjoin
     [ genSlotNoCoverage slotNo
-    , genIxCoverage ix1
-    , genIxCoverage ix2
+    , genTxIxCoverage' txIx
+    , genCertIxCoverage certIx
     ]
 
 instance Arbitrary Ptr where
@@ -1184,6 +1195,28 @@ genTxOutDatumCoverage era datum =
             TxOutDatumHash _ _ -> True
             _ -> False
 
+genTxOutReferenceScriptCoverage :: CardanoEra era -> ReferenceScript era -> Property
+genTxOutReferenceScriptCoverage era refScript =
+    case refInsScriptsAndInlineDatsSupportedInEra era of
+        Nothing ->
+            (refScript == ReferenceScriptNone)
+            & label "reference scripts not generated in unsupported era"
+            & counterexample ( "reference scripts were generated in unsupported "
+                               <> show era
+                             )
+        Just _ -> checkCoverage
+            $ cover 30 (hasNoRefScript refScript)
+                "no reference script"
+            $ cover 30 (hasRefScript refScript)
+                "reference script present"
+                True
+    where
+        hasNoRefScript = (== ReferenceScriptNone)
+
+        hasRefScript = \case
+            ReferenceScript _ _ -> True
+            _ -> False
+
 genTxOutValueCoverage :: CardanoEra era -> TxOutValue era -> Property
 genTxOutValueCoverage era val =
     case multiAssetSupportedInEra era of
@@ -1205,10 +1238,11 @@ genTxOutValueCoverage era val =
                     & counterexample (show era <> " should support multi-asset")
 
 genTxOutCoverage :: CardanoEra era -> TxOut ctx era -> Property
-genTxOutCoverage era (TxOut addr val datum) = checkCoverage $ conjoin
+genTxOutCoverage era (TxOut addr val datum refScript) = checkCoverage $ conjoin
     [ genAddressInEraCoverage era addr
     , genTxOutValueCoverage era val
     , genTxOutDatumCoverage era datum
+    , genTxOutReferenceScriptCoverage era refScript
     ]
 
 genWitnessNetworkIdOrByronAddressCoverage

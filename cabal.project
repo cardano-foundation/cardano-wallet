@@ -39,7 +39,7 @@
 --------------------------------------------------------------------------------
 
 index-state: 2022-03-30T00:00:00Z
-with-compiler: ghc-8.10.7
+-- with-compiler: ghc-8.10.7
 
 packages:
     lib/dbvar/
@@ -67,7 +67,7 @@ source-repository-package
 source-repository-package
     type: git
     location: https://github.com/input-output-hk/cardano-addresses
-    tag: 8bf98905b903455196495e231b23613ad2264cb0
+    tag: 56746f558d57a6b1d66d20eaac8a83dc4455cb4f
     subdir: command-line
             core
 
@@ -81,7 +81,7 @@ source-repository-package
 source-repository-package
     type: git
     location: https://github.com/input-output-hk/cardano-base
-    tag: 41545ba3ac6b3095966316a99883d678b5ab8da8
+    tag: 1587462ac8b2e50af2691f5ad93d3c2aa4674ed1
     subdir:
             base-deriving-via
             binary
@@ -102,7 +102,7 @@ source-repository-package
 source-repository-package
   type: git
   location: https://github.com/input-output-hk/plutus
-  tag: fc5fe94d3d9525d032bcbc79ff0e1ebcfd8ef143
+  tag: ccf5bcb99ffe054dc8cd5626723f64e02708dbae
   subdir:
     plutus-core
     plutus-ledger-api
@@ -125,10 +125,11 @@ source-repository-package
 source-repository-package
     type: git
     location: https://github.com/input-output-hk/cardano-ledger
-    tag: 1a9ec4ae9e0b09d54e49b2a40c4ead37edadcce5
+    tag: 1db68a3ec0a2dcb5751004beb22b906162474f23
     subdir:
       eras/alonzo/impl
       eras/alonzo/test-suite
+      eras/babbage/impl
       eras/byron/chain/executable-spec
       eras/byron/crypto
       eras/byron/crypto/test
@@ -152,7 +153,7 @@ source-repository-package
 source-repository-package
     type: git
     location: https://github.com/input-output-hk/cardano-node
-    tag: 73f9a746362695dc2cb63ba757fbcabb81733d23
+    tag: 65422ff373f2f88a563afa746a9a16d211ffdc7c
     subdir:
       cardano-api
       cardano-git-rev
@@ -170,20 +171,26 @@ source-repository-package
     subdir: cardano-prelude
             cardano-prelude-test
 
+-- In particular we rely on the code from this PR:
+--  * <https://github.com/input-output-hk/cardano-sl-x509/pull/6>
+-- being merged.
 source-repository-package
     type: git
-    location: https://github.com/input-output-hk/cardano-sl-x509
-    tag: 12925934c533b3a6e009b61ede555f8f26bac037
+    location: https://github.com/MELD-labs/cardano-sl-x509
+    tag: 819997049b9cc675b28059d3d6f511d08f934d10
 
 source-repository-package
     type: git
     location: https://github.com/input-output-hk/goblins
     tag: cde90a2b27f79187ca8310b6549331e59595e7ba
 
+-- In particular we rely on the code from this PR:
+--  * <https://github.com/input-output-hk/iohk-monitoring-framework/pull/622>
+-- being merged.
 source-repository-package
     type: git
     location: https://github.com/input-output-hk/iohk-monitoring-framework
-    tag: 808724ff8a19a33d0ed06f9ef59fbd900b08553c
+    tag: eb7854d1337637b8672af1227b276aa33a658f47
     subdir: contra-tracer
             iohk-monitoring
             plugins/backend-aggregation
@@ -228,6 +235,23 @@ source-repository-package
     tag: ee59880f47ab835dbd73bea0847dab7869fc20d8
     --sha256: 1lrzknw765pz2j97nvv9ip3l1mcpf2zr4n56hwlz0rk7wq7ls4cm
 
+-- Until https://github.com/tibbe/ekg-json/pull/12 gets merged with aeson2 support
+source-repository-package
+  type: git
+  location: https://github.com/vshabanov/ekg-json
+  tag: 00ebe7211c981686e65730b7144fbf5350462608
+
+-- TODO This is a compatibility shim to make it easier for our library dependencies to
+-- be compatible with both aeson 1 & 2.  Once downstream projects are all upgraded to
+-- work with aeson-2, library dependencies will need to be updated to no longer use
+-- this compatibility shim and have bounds to indicate they work with aeson-2 only.
+-- After this, the dependency to hw-aeson can be dropped.
+source-repository-package
+    type: git
+    location: https://github.com/haskell-works/hw-aeson
+    tag: d99d2f3e39a287607418ae605b132a3deb2b753f
+    --sha256: 1vxqcwjg9q37wbwi27y9ba5163lzfz51f1swbi0rp681yg63zvn4
+
 -- -------------------------------------------------------------------------
 -- Constraints tweaking
 
@@ -239,18 +263,19 @@ allow-newer:
     hjsonschema:*
   , hjsonpointer:*
   , cardano-sl-x509:ip
-  , cardano-addresses:aeson
+  , *:aeson
   , size-based:template-haskell
 
 constraints:
-    hedgehog >= 1.0.2
+    hedgehog >= 1.1
   -- QUICK FIX: hedgehog >= 1.1 defines Rec constructor, PlutusIR also defines
   -- Rec constructor, and imports Hedgehog unqualified, leading to ambiguous
   -- reference to Rec.
   -- FIXME: https://input-output.atlassian.net/browse/ADP-1545
-  , hedgehog < 1.1
+  , aeson >= 2
   , hashable < 1.4
   , bimap >= 0.4.0
+  , openapi3 >= 3.2.0
   , libsystemd-journal >= 1.4.4
   , systemd >= 2.3.0
   -- dependency of systemd-2.3.0

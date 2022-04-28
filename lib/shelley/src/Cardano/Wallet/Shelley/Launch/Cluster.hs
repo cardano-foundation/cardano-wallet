@@ -227,6 +227,8 @@ import qualified Codec.Binary.Bech32 as Bech32
 import qualified Codec.CBOR.Encoding as CBOR
 import qualified Codec.CBOR.Write as CBOR
 import qualified Data.Aeson as Aeson
+import qualified Data.Aeson.Key as Aeson
+import qualified Data.Aeson.KeyMap as Aeson
 import qualified Data.Aeson.Types as Aeson
 import qualified Data.ByteString as BS
 import qualified Data.ByteString.Char8 as B8
@@ -1012,11 +1014,11 @@ genConfig dir systemStart clusterEra logCfg = do
             (map (\s -> [toJSON $ scKind s, toJSON $ scName s]) scribes)
 
     -- we need to specify genesis file location every run in tmp
-    withAddedKey k v = withObject (pure . HM.insert k (toJSON v))
-    withHardForks era = withObject (pure . HM.union (HM.fromList hardForks))
+    withAddedKey k v = withObject (pure . Aeson.insert k (toJSON v))
+    withHardForks era = withObject (pure . Aeson.union (Aeson.fromList hardForks))
       where
         hardForks =
-            [ ("Test" <> T.pack (show hardFork) <> "AtEpoch", Yaml.Number 0)
+            [ (Aeson.fromText $ "Test" <> T.pack (show hardFork) <> "AtEpoch", Yaml.Number 0)
             | hardFork <- [ShelleyHardFork .. era] ]
 
 
@@ -1797,7 +1799,7 @@ updateSystemStart
     -> Aeson.Object
     -> Aeson.Object
 updateSystemStart systemStart =
-    HM.insert "systemStart" (toJSON systemStart)
+    Aeson.insert "systemStart" (toJSON systemStart)
 
 -- | Add a @setupScribes[1].scMinSev@ field in a given config object.
 -- The full lens library would be quite helpful here.
@@ -1806,16 +1808,16 @@ addMinSeverityStdout
     => Severity
     -> Aeson.Object
     -> m Aeson.Object
-addMinSeverityStdout severity ob = case HM.lookup "setupScribes" ob of
+addMinSeverityStdout severity ob = case Aeson.lookup "setupScribes" ob of
     Just (Aeson.Array scribes) -> do
         let scribes' = Aeson.Array $ fmap setMinSev scribes
-        pure $ HM.insert "setupScribes" scribes' ob
+        pure $ Aeson.insert "setupScribes" scribes' ob
     _ -> fail "setupScribes logging config is missing or the wrong type"
   where
     sev = toJSON $ show severity
     setMinSev (Aeson.Object scribe)
-        | HM.lookup "scKind" scribe == Just (Aeson.String "StdoutSK")
-            = Aeson.Object (HM.insert "scMinSev" sev scribe)
+        | Aeson.lookup "scKind" scribe == Just (Aeson.String "StdoutSK")
+            = Aeson.Object (Aeson.insert "scMinSev" sev scribe)
         | otherwise = Aeson.Object scribe
     setMinSev a = a
 
@@ -1824,16 +1826,18 @@ addMinSeverityStdout severity ob = case HM.lookup "setupScribes" ob of
 transformInitialFunds
     :: Aeson.Object
     -> IO Aeson.Object
-transformInitialFunds = pure . HM.update toObject "nonAvvmBalances"
+transformInitialFunds o = do
+    let res = HM.update toObject "nonAvvmBalances" $ (Aeson.toHashMap o)
+    pure $ Aeson.fromHashMap res
   where
     toObject = \case
         Aeson.Array xs ->
-            pure $ Aeson.Object $ HM.fromList (singleton <$> V.toList xs)
+            pure $ Aeson.Object $ Aeson.fromList (singleton <$> V.toList xs)
         _ ->
             error "transformInitialFunds: expected initialFunds to be an array."
     singleton = \case
         Aeson.Object obj ->
-            head $ HM.toList obj
+            head $ Aeson.toList obj
         _ ->
             error "transformInitialFunds: expected initialFunds to be many singletons"
 

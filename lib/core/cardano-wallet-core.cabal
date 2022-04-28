@@ -109,6 +109,7 @@ library
     , persistent-sqlite >=2.13 && <2.14
     , persistent-template >=2.12 && <2.13
     , plutus-ledger-api
+    , plutus-core
     , pretty-simple
     , profunctors
     , quiet
@@ -374,6 +375,7 @@ test-suite unit
     , nothunks
     , persistent >=2.13 && <2.14
     , persistent-sqlite >=2.13 && <2.14
+    , plutus-core
     , plutus-ledger-api
     , pretty-simple
     , regex-pcre-builtin
@@ -393,7 +395,7 @@ test-suite unit
     , should-not-typecheck
     , splitmix
     , strict-non-empty-containers
-    , openapi3 >= 3.0.0.1 && < 3.2.0
+    , openapi3 >= 3.2.0
     , servant-openapi3
     , string-qq
     , temporary
