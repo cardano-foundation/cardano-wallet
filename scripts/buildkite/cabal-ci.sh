@@ -70,8 +70,6 @@ if [ "$job" = build ]; then
 
   echo "+++ haskell-language-server"
   ln -sf hie-direnv.yaml hie.yaml
-  # hie-bios occasionally segfaults. Re-running is usually enough to overcome the
-  # segfault.
 
   nix develop --command "$(dirname "$0")/hls-ci.sh"
 fi
