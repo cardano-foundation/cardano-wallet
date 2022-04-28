@@ -375,7 +375,7 @@ import Cardano.Wallet.Primitive.AddressDerivation.Byron
 import Cardano.Wallet.Primitive.AddressDerivation.Icarus
     ( IcarusKey )
 import Cardano.Wallet.Primitive.AddressDerivation.MintBurn
-    ( toTokenMapAndScript, toTokenPolicyId )
+    ( toTokenMapAndScript, toTokenPolicyId, withinSlotInterval, toSlotInterval )
 import Cardano.Wallet.Primitive.AddressDerivation.SharedKey
     ( SharedKey (..) )
 import Cardano.Wallet.Primitive.AddressDerivation.Shelley
@@ -2307,6 +2307,14 @@ constructTransaction ctx genChange knownPools getPoolStatus (ApiT wid) body = do
 
     when (hereafter < before || isThereNegativeTime) $
         liftHandler $ throwE ErrConstructTxWrongValidityBounds
+
+    let notWithinValidityInterval (ApiMintBurnData (ApiT scriptTempl) _ _) =
+            not $ withinSlotInterval before hereafter $
+            toSlotInterval scriptTempl
+    when
+        ( isJust mintingBurning' &&
+          L.any notWithinValidityInterval (NE.toList $ fromJust mintingBurning')
+        ) $ liftHandler $ throwE ErrConstructTxValidityIntervalNotWithinScriptTimelock
 
     (wdrl, _) <-
         mkRewardAccountBuilder @_ @s @_ @n ctx wid (body ^. #withdrawal)
@@ -4392,6 +4400,12 @@ instance IsServerError ErrConstructTx where
             [ "It looks like I've created a transaction "
             , "with wrong validity bounds. Please make sure before validity bound "
             , "is preceding hereafter validity bound, and nonnegative times are used."
+            ]
+        ErrConstructTxValidityIntervalNotWithinScriptTimelock ->
+            apiError err403 ValidityIntervalNotInsideScriptTimelock $ mconcat
+            [ "It looks like I've created a transaction "
+            , "with validity interval that is not inside script's timelock interval."
+            , "Please make sure validity interval is subset of script's timelock interval."
             ]
         ErrConstructTxNotImplemented _ ->
             apiError err501 NotImplemented

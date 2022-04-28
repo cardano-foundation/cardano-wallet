@@ -1713,6 +1713,7 @@ data ApiErrorCode
     | WalletNotResponding
     | WithdrawalNotWorth
     | WrongEncryptionPassphrase
+    | ValidityIntervalNotInsideScriptTimelock
     deriving (Eq, Generic, Show, Data, Typeable)
     deriving anyclass NFData
 

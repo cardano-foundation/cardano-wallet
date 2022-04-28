@@ -59,6 +59,8 @@ import Cardano.Wallet.Primitive.AddressDiscovery
     ( coinTypeAda )
 import Cardano.Wallet.Primitive.Passphrase
     ( Passphrase (..) )
+import Cardano.Wallet.Primitive.Types
+    ( SlotNo (..) )
 import Cardano.Wallet.Primitive.Types.Hash
     ( Hash (..) )
 import Cardano.Wallet.Primitive.Types.TokenMap
@@ -225,12 +227,12 @@ toSlotInterval = \case
 -- tx validity interval must be subset of interval from timelock
 -- tx validity interval is defined by specifying (from,to) slot interval
 withinSlotInterval
-    :: Natural
-    -> Natural
+    :: SlotNo
+    -> SlotNo
     -> [Interval Natural]
     -> Bool
-withinSlotInterval from to =
+withinSlotInterval (SlotNo from) (SlotNo to) =
     L.any (txValidityInterval `I.isSubsetOf`)
   where
     txValidityInterval =
-        Finite from <=..<= Finite to
+        Finite (fromIntegral from) <=..<= Finite (fromIntegral to)

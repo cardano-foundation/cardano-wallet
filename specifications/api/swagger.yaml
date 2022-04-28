@@ -4152,6 +4152,19 @@ x-errInvalidValidityBounds: &errInvalidValidityBounds
       type: string
       enum: ['invalid_validity_bounds']
 
+x-errValidityIntervalNotInsideScriptTimelock: &errValidityIntervalNotInsideScriptTimelock
+  <<: *responsesErr
+  title: validity_interval_not_inside_script_timelock
+  properties:
+    message:
+      type: string
+      description:
+          Occurs when upon transaction construction the transaction's validity
+          interval is not inside the native script's timelock interval.
+    code:
+      type: string
+      enum: ['validity_interval_not_inside_script_timelock']
+
 x-errInputsDepleted: &errInputsDepleted
   <<: *responsesErr
   title: inputs_depleted
@@ -5202,6 +5215,7 @@ x-responsesConstructTransaction: &responsesConstructTransaction
             - <<: *errAssetNameTooLong
             - <<: *errMintOrBurnAssetQuantityOutOfBounds
             - <<: *errInvalidValidityBounds
+            - <<: *errValidityIntervalNotInsideScriptTimelock
   <<: *responsesErr404WalletNotFound
   <<: *responsesErr406
   <<: *responsesErr415UnsupportedMediaType
