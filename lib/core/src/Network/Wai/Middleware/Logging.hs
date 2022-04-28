@@ -65,6 +65,8 @@ import UnliftIO.MVar
     ( MVar, modifyMVar, newMVar )
 
 import qualified Data.Aeson as Aeson
+import qualified Data.Aeson.Key as Aeson
+import qualified Data.Aeson.KeyMap as Aeson
 import qualified Data.ByteString as BS
 import qualified Data.ByteString.Builder as B
 import qualified Data.ByteString.Lazy as BL
@@ -277,7 +279,7 @@ instance ToJSON HandlerLog where
 sanitize :: [Text] -> ByteString -> Text
 sanitize keys bytes = encode' $ case decode' bytes of
     Just (Object o) ->
-        Object (foldr (HM.adjust obfuscate) o keys)
+        Object (Aeson.fromHashMap (foldr (HM.adjust obfuscate) (Aeson.toHashMap o) (map Aeson.fromText keys)))
     Just v ->
         v
     Nothing ->

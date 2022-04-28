@@ -297,7 +297,7 @@ fromTxAux txAux = case taTx txAux of
 fromTxIn :: TxIn -> W.TxIn
 fromTxIn (TxInUtxo id_ ix) = W.TxIn
     { inputId = W.Hash $ CC.hashToBytes id_
-    , inputIx = ix
+    , inputIx = fromIntegral ix
     }
 
 fromTxOut :: TxOut -> W.TxOut
