@@ -787,39 +787,38 @@ updateSealedTx
 updateSealedTx (Cardano.Tx body existingKeyWits) extraContent = do
     -- NOTE: The script witnesses are carried along with the cardano-api
     -- `anyEraBody`.
-    body' <- modifyLedgerTx extraContent body
+    body' <- modifyTxBody extraContent body
 
     if (null existingKeyWits)
        then Right $ Cardano.Tx body' mempty
        else Left $ ErrExistingKeyWitnesses $ length existingKeyWits
-
-modifyLedgerTx
-    :: forall era. Cardano.IsShelleyBasedEra era
-    => TxUpdate
-    -> Cardano.TxBody era
-    -> Either ErrUpdateSealedTx (Cardano.TxBody era)
-modifyLedgerTx ebc txBody@(Cardano.ShelleyTxBody {}) =
-    let Cardano.ShelleyTxBody shelleyEra bod scripts scriptData aux val
-            = txBody
-    in
-    Right $ Cardano.ShelleyTxBody shelleyEra
-        (adjustBodyShelley ebc shelleyEra bod)
-        scripts
-        scriptData
-        aux
-        val
-modifyLedgerTx _ (Byron.ByronTxBody _) =
-    case Cardano.shelleyBasedEra @era of {}
+  where
+    modifyTxBody
+        :: TxUpdate
+        -> Cardano.TxBody era
+        -> Either ErrUpdateSealedTx (Cardano.TxBody era)
+    modifyTxBody ebc txBody@(Cardano.ShelleyTxBody {}) =
+        let Cardano.ShelleyTxBody shelleyEra bod scripts scriptData aux val
+                = txBody
+        in
+        Right $ Cardano.ShelleyTxBody shelleyEra
+            (modifyShelleyTxBody ebc shelleyEra bod)
+            scripts
+            scriptData
+            aux
+            val
+    modifyTxBody _ (Byron.ByronTxBody _) =
+        case Cardano.shelleyBasedEra @era of {}
 
 -- NOTE: If the ShelleyMA MAClass were exposed, the Allegra and Mary
 -- cases could perhaps be joined. It is not however. And we still need
 -- to treat Alonzo and Shelley differently.
-adjustBodyShelley
+modifyShelleyTxBody
     :: TxUpdate
     -> ShelleyBasedEra era
     -> Ledger.TxBody (Cardano.ShelleyLedgerEra era)
     -> Ledger.TxBody (Cardano.ShelleyLedgerEra era)
-adjustBodyShelley txUpdate era ledgerBody = case era of
+modifyShelleyTxBody txUpdate era ledgerBody = case era of
     ShelleyBasedEraAlonzo -> ledgerBody
         { Alonzo.outputs = Alonzo.outputs ledgerBody
             <> StrictSeq.fromList
