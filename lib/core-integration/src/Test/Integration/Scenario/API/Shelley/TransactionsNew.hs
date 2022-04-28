@@ -214,6 +214,7 @@ import Test.Integration.Framework.TestData
     , errMsg403NonNullReward
     , errMsg403NotDelegating
     , errMsg403NotEnoughMoney
+    , errMsg403ValidityIntervalNotInsideScriptTimelock
     , errMsg404NoSuchPool
     , errMsg404NoWallet
     )
@@ -3273,7 +3274,7 @@ spec = describe "NEW_SHELLEY_TRANSACTIONS" $ do
         mintAssetsCheck ctx wa tokenName' payload scriptUsed
 
     it "TRANS_NEW_CREATE_10e - Minting assets with timelocks \
-       \successful as validity interval is included in time interval \
+       \successful as validity interval is inside time interval \
        \of a script" $
         \ctx -> runResourceT $ do
 
@@ -3327,6 +3328,64 @@ spec = describe "NEW_SHELLEY_TRANSACTIONS" $ do
                 ]
 
         mintAssetsCheck ctx wa tokenName' payload scriptUsed
+
+    it "TRANS_NEW_CREATE_10e - Minting assets with timelocks \
+       \not successful as validity interval is not inside time interval \
+       \of a script" $
+        \ctx -> runResourceT $ do
+
+       --      slot 0       sl+10
+       --         |----------->       validity interval
+       --
+       --               |-------------->      script's timelock interval
+       --               slot 5        sl+11
+
+        wa <- fixtureWallet ctx
+        addrs <- listAddresses @n ctx wa
+        let destination = (addrs !! 1) ^. #id
+
+        let (Right tokenName') = mkTokenName "ab12"
+
+        rSlot <- request @ApiNetworkInformation ctx
+                 Link.getNetworkInfo Default Empty
+        verify rSlot
+            [ expectSuccess
+            ]
+        let (SlotNo sl) =
+                getFromResponse (#nodeTip . #absoluteSlotNumber . #getApiT) rSlot
+
+        let payload = Json [json|{
+                "validity_interval": {
+                    "invalid_hereafter": {
+                      "quantity": #{sl + 10},
+                      "unit": "slot"
+                    }
+                  },
+                "mint_burn": [{
+                    "policy_script_template":
+                        { "all":
+                           [ "cosigner#0",
+                             { "active_until": #{sl + 11} },
+                             { "active_from": 5 }
+                           ]
+                        },
+                    "asset_name": #{toText tokenName'},
+                    "operation":
+                        { "mint" :
+                              { "receiving_address": #{destination},
+                                 "quantity": 50000
+                              }
+                        }
+                }]
+            }|]
+
+        rTx <- request @(ApiConstructTransaction n) ctx
+            (Link.createUnsignedTransaction @'Shelley wa) Default payload
+        verify rTx
+            [ expectResponseCode HTTP.status403
+            , expectErrorMessage
+                errMsg403ValidityIntervalNotInsideScriptTimelock
+            ]
 
     it "TRANS_NEW_CREATE_10f - Burning assets without timelock" $
         \ctx -> runResourceT $ do

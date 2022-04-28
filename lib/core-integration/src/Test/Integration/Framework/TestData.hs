@@ -110,6 +110,7 @@ module Test.Integration.Framework.TestData
     , errMsg403AssetNameTooLong
     , errMsg403MintOrBurnAssetQuantityOutOfBounds
     , errMsg403InvalidValidityBounds
+    , errMsg403ValidityIntervalNotInsideScriptTimelock
     ) where
 
 import Prelude
@@ -706,6 +707,13 @@ errMsg403InvalidValidityBounds = mconcat
     [ "It looks like I've created a transaction "
     , "with wrong validity bounds. Please make sure before validity bound "
     , "is preceding hereafter validity bound, and nonnegative times are used."
+    ]
+
+errMsg403ValidityIntervalNotInsideScriptTimelock :: String
+errMsg403ValidityIntervalNotInsideScriptTimelock = mconcat
+    [ "It looks like I've created a transaction "
+    , "with validity interval that is not inside script's timelock interval."
+    , "Please make sure validity interval is subset of script's timelock interval."
     ]
 
 --------------------------------------------------------------------------------
