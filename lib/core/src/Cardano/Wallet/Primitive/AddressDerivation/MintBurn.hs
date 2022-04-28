@@ -71,8 +71,6 @@ import Cardano.Wallet.Primitive.Types.TokenQuantity
     ( TokenQuantity (..) )
 import Cardano.Wallet.Util
     ( invariant )
-import Data.ExtendedReal
-    ( Extended (..) )
 import Data.Interval
     ( Interval, (<=..<=) )
 import Data.List.NonEmpty
@@ -91,6 +89,7 @@ import qualified Data.Interval as I
 import qualified Data.List as L
 import qualified Data.List.NonEmpty as NE
 import qualified Data.Map.Strict as Map
+
 
 -- | Purpose for forged policy keys is a constant set to 1855' (or 0x8000073F)
 -- following the original CIP-1855: "Forging policy keys for HD Wallets".
@@ -210,32 +209,44 @@ toSlotInterval = \case
     RequireSignatureOf _ ->
         [allSlots]
     RequireAllOf xs ->
-        [I.intersections (concatMap toSlotInterval xs)]
+        let (timelocks, rest) = L.partition isTimelockOrSig xs
+        in trimAllSlots $
+        [ I.intersections (concatMap toSlotInterval timelocks) ] ++ concatMap toSlotInterval rest
     RequireAnyOf xs ->
         concatMap toSlotInterval (filterOutSig xs)
     RequireSomeOf _ xs ->
         concatMap toSlotInterval (filterOutSig xs)
     ActiveFromSlot s ->
-        [Finite s <=..<= maxSlot]
+        [fromIntegral s <=..<= maxSlot]
     ActiveUntilSlot s ->
-        [minSlot <=..<= Finite s]
+        [minSlot <=..<= fromIntegral s]
   where
     minSlot = fromIntegral $ minBound @Word64
     maxSlot = fromIntegral $ maxBound @Word64
     allSlots = minSlot <=..<= maxSlot
     isNotSig (RequireSignatureOf _) = False
     isNotSig _ = True
+    isTimelockOrSig (ActiveFromSlot _) = True
+    isTimelockOrSig (ActiveUntilSlot _) = True
+    isTimelockOrSig (RequireSignatureOf _) = True
+    isTimelockOrSig _ = False
+    trimAllSlots interval =
+        let notAllSlots = filter (/= allSlots) interval
+        in if L.null notAllSlots then
+               interval
+           else
+               notAllSlots
     filterOutSig = filter isNotSig
 
--- tx validity interval must be subset of interval from timelock
+-- tx validity interval must be a subset of a interval from script's timelock
 -- tx validity interval is defined by specifying (from,to) slot interval
 withinSlotInterval
     :: SlotNo
     -> SlotNo
     -> [Interval Natural]
     -> Bool
-withinSlotInterval (SlotNo from) (SlotNo to) =
-    L.any (txValidityInterval `I.isSubsetOf`)
+withinSlotInterval (SlotNo from) (SlotNo to) interval =
+    L.any (txValidityInterval `I.isSubsetOf`) interval
   where
     txValidityInterval =
-        Finite (fromIntegral from) <=..<= Finite (fromIntegral to)
+        fromIntegral from <=..<= fromIntegral to

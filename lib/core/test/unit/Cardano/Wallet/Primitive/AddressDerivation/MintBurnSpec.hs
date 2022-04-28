@@ -26,13 +26,19 @@ import Cardano.Wallet.Primitive.AddressDerivation
     , liftRawKey
     )
 import Cardano.Wallet.Primitive.AddressDerivation.MintBurn
-    ( derivePolicyKeyAndHash, derivePolicyPrivateKey, toSlotInterval )
+    ( derivePolicyKeyAndHash
+    , derivePolicyPrivateKey
+    , toSlotInterval
+    , withinSlotInterval
+    )
 import Cardano.Wallet.Primitive.AddressDerivation.Shelley
     ( ShelleyKey )
 import Cardano.Wallet.Primitive.AddressDerivationSpec
     ()
 import Cardano.Wallet.Primitive.Passphrase
     ( Passphrase )
+import Cardano.Wallet.Primitive.Types
+    ( SlotNo (..) )
 import Cardano.Wallet.Unsafe
     ( unsafeBech32Decode, unsafeFromHex, unsafeMkMnemonic, unsafeXPrv )
 import Codec.Binary.Encoding
@@ -150,6 +156,123 @@ spec = do
                 , minSlot <=..<= fromIntegral @Natural 100
                 ]
 
+        it "Unit tests for withinSlotInterval" $ do
+            unit_withinSlotInterval
+                hashKey
+                (SlotNo 10, SlotNo 100)
+                True
+
+            unit_withinSlotInterval
+                (RequireAllOf [hashKey, ActiveFromSlot 120])
+                (SlotNo 10, SlotNo 100)
+                False
+
+            unit_withinSlotInterval
+                (RequireAllOf [hashKey, ActiveFromSlot 120])
+                (SlotNo 10, SlotNo 130)
+                False
+
+            unit_withinSlotInterval
+                (RequireAllOf [hashKey, ActiveUntilSlot 120])
+                (SlotNo 10, SlotNo 100)
+                True
+
+            unit_withinSlotInterval
+                (RequireAllOf [hashKey, ActiveUntilSlot 120])
+                (SlotNo 10, SlotNo 130)
+                False
+
+            unit_withinSlotInterval
+                (RequireAllOf
+                    [ hashKey
+                    , ActiveFromSlot 100
+                    , ActiveUntilSlot 120])
+                (SlotNo 100, SlotNo 120)
+                True
+
+            unit_withinSlotInterval
+                (RequireAllOf
+                    [ hashKey
+                    , ActiveFromSlot 100
+                    , ActiveUntilSlot 120])
+                (SlotNo 90, SlotNo 100)
+                False
+
+            unit_withinSlotInterval
+                (RequireAllOf
+                    [ hashKey
+                    , ActiveFromSlot 100
+                    , ActiveUntilSlot 120])
+                (SlotNo 110, SlotNo 130)
+                False
+
+            unit_withinSlotInterval
+                (RequireAnyOf
+                    [ hashKey
+                    , ActiveFromSlot 120
+                    , ActiveUntilSlot 100])
+                (SlotNo 90, SlotNo 110)
+                False
+
+            unit_withinSlotInterval
+                (RequireAnyOf
+                    [ hashKey
+                    , ActiveFromSlot 120
+                    , ActiveUntilSlot 100])
+                (SlotNo 110, SlotNo 150)
+                False
+
+            unit_withinSlotInterval
+                (RequireAnyOf
+                    [ hashKey
+                    , ActiveFromSlot 120
+                    , ActiveUntilSlot 100])
+                (SlotNo 120, SlotNo 150)
+                True
+
+            unit_withinSlotInterval
+                (RequireAllOf
+                    [ hashKey
+                    , RequireAnyOf
+                        [ RequireAllOf [ActiveFromSlot 50, ActiveUntilSlot 100]
+                        , RequireAllOf [ActiveFromSlot 150, ActiveUntilSlot 200]
+                        ]
+                    ])
+                (SlotNo 60, SlotNo 90)
+                True
+
+            unit_withinSlotInterval
+                (RequireAllOf
+                    [ hashKey
+                    , RequireAnyOf
+                        [ RequireAllOf [ActiveFromSlot 50, ActiveUntilSlot 100]
+                        , RequireAllOf [ActiveFromSlot 150, ActiveUntilSlot 200]
+                        ]
+                    ])
+                (SlotNo 155, SlotNo 190)
+                True
+
+            unit_withinSlotInterval
+                (RequireAllOf
+                    [ hashKey
+                    , RequireAnyOf
+                        [ RequireAllOf [ActiveFromSlot 50, ActiveUntilSlot 100]
+                        , RequireAllOf [ActiveFromSlot 150, ActiveUntilSlot 200]
+                        ]
+                    ])
+                (SlotNo 155, SlotNo 210)
+                False
+
+            unit_withinSlotInterval
+                (RequireAllOf
+                    [ hashKey
+                    , RequireAnyOf
+                        [ RequireAllOf [ActiveFromSlot 50, ActiveUntilSlot 100]
+                        , RequireAllOf [ActiveFromSlot 150, ActiveUntilSlot 200]
+                        ]
+                    ])
+                (SlotNo 110, SlotNo 120)
+                False
 
 toKeyHash :: Text -> Script KeyHash
 toKeyHash txt = case fromBase16 (T.encodeUtf8 txt) of
@@ -297,6 +420,15 @@ unit_toSlotInterval
     -> Expectation
 unit_toSlotInterval script interval =
     toSlotInterval @KeyHash script `shouldBe` interval
+
+unit_withinSlotInterval
+    :: Script KeyHash
+    -> (SlotNo, SlotNo)
+    -> Bool
+    -> Expectation
+unit_withinSlotInterval script (from,to) expectation =
+    withinSlotInterval from to (toSlotInterval @KeyHash script)
+    `shouldBe` expectation
 
 goldenTestMnemonic :: Mnemonic 24
 goldenTestMnemonic = unsafeMkMnemonic @24

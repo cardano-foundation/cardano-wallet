@@ -72,7 +72,6 @@ library
     , errors
     , exact-combinatorics
     , exceptions
-    , extended-reals
     , extra
     , fast-logger
     , file-embed
