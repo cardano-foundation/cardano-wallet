@@ -375,7 +375,11 @@ import Cardano.Wallet.Primitive.AddressDerivation.Byron
 import Cardano.Wallet.Primitive.AddressDerivation.Icarus
     ( IcarusKey )
 import Cardano.Wallet.Primitive.AddressDerivation.MintBurn
-    ( toTokenMapAndScript, toTokenPolicyId, withinSlotInterval, toSlotInterval )
+    ( toSlotInterval
+    , toTokenMapAndScript
+    , toTokenPolicyId
+    , withinSlotInterval
+    )
 import Cardano.Wallet.Primitive.AddressDerivation.SharedKey
     ( SharedKey (..) )
 import Cardano.Wallet.Primitive.AddressDerivation.Shelley

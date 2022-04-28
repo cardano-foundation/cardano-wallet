@@ -2124,9 +2124,10 @@ mkUnsignedTx era ttl cs md wdrls certs fees mintData burnData allScripts =
                 Just lowerBoundSupported ->
                     Cardano.TxValidityLowerBound lowerBoundSupported from
                 Nothing -> Cardano.TxValidityNoLowerBound
-        in ( maybe Cardano.TxValidityNoLowerBound toLowerBound (fst ttl)
-           , Cardano.TxValidityUpperBound txValidityUpperBoundSupported $ snd ttl
-           )
+        in bimap
+           (maybe Cardano.TxValidityNoLowerBound toLowerBound)
+           (Cardano.TxValidityUpperBound txValidityUpperBoundSupported)
+           ttl
 
     , Cardano.txMetadata =
         maybe

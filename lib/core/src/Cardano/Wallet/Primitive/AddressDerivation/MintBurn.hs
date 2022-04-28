@@ -212,9 +212,9 @@ toSlotInterval = \case
     RequireAllOf xs ->
         [I.intersections (concatMap toSlotInterval xs)]
     RequireAnyOf xs ->
-        concatMap toSlotInterval xs
+        concatMap toSlotInterval (filterOutSig xs)
     RequireSomeOf _ xs ->
-        concatMap toSlotInterval xs
+        concatMap toSlotInterval (filterOutSig xs)
     ActiveFromSlot s ->
         [Finite s <=..<= maxSlot]
     ActiveUntilSlot s ->
@@ -223,6 +223,9 @@ toSlotInterval = \case
     minSlot = fromIntegral $ minBound @Word64
     maxSlot = fromIntegral $ maxBound @Word64
     allSlots = minSlot <=..<= maxSlot
+    isNotSig (RequireSignatureOf _) = False
+    isNotSig _ = True
+    filterOutSig = filter isNotSig
 
 -- tx validity interval must be subset of interval from timelock
 -- tx validity interval is defined by specifying (from,to) slot interval
