@@ -52,6 +52,16 @@ steps:
       queue: benchmark
     if: 'build.env("step") == null || build.env("step") =~ /bench-latency/'
 
+  - label: 'Full cabal build'
+    command:
+      - "mkdir -p config && echo '{  outputs = _: { withCabalCache = true; }; }'  > config/flake.nix"
+      - "nix develop --override-input customConfig path:./config .#cabal --command scripts/buildkite/cabal-ci.sh build"
+    env:
+      IS_NIGHTLY: "true"
+    agents:
+      system: x86_64-linux
+    if: 'build.env("step") == null || build.env("step") =~ /cabal/'
+
   # TODO: ADP-549 Port migrations test to shelley
   # - label: 'Database Migrations Test'
   #   commands:
