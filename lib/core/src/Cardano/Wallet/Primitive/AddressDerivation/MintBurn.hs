@@ -216,9 +216,9 @@ scriptSlotIntervals = \case
             $ I.intersections (concatMap scriptSlotIntervals timelocks)
             : concatMap scriptSlotIntervals rest
     RequireAnyOf xs ->
-        concatMap scriptSlotIntervals (filterOutSig xs)
+        trimAllSlots $ concatMap scriptSlotIntervals (filterOutSig xs)
     RequireSomeOf _ xs ->
-        concatMap scriptSlotIntervals (filterOutSig xs)
+        trimAllSlots $ concatMap scriptSlotIntervals (filterOutSig xs)
     ActiveFromSlot s ->
         [I.Finite s <=..<= maxSlot]
     ActiveUntilSlot s ->
