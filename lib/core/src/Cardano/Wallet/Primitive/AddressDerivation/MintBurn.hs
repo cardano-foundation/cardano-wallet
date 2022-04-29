@@ -71,6 +71,8 @@ import Cardano.Wallet.Primitive.Types.TokenQuantity
     ( TokenQuantity (..) )
 import Cardano.Wallet.Util
     ( invariant )
+import Data.IntCast
+    ( intCast )
 import Data.Interval
     ( Interval, (<=..<=) )
 import Data.List.NonEmpty
@@ -218,12 +220,12 @@ toSlotInterval = \case
     RequireSomeOf _ xs ->
         concatMap toSlotInterval (filterOutSig xs)
     ActiveFromSlot s ->
-        [fromIntegral s <=..<= maxSlot]
+        [I.Finite s <=..<= maxSlot]
     ActiveUntilSlot s ->
-        [minSlot <=..<= fromIntegral s]
+        [minSlot <=..<= I.Finite s]
   where
-    minSlot = fromIntegral $ minBound @Word64
-    maxSlot = fromIntegral $ maxBound @Word64
+    minSlot = I.Finite $ intCast $ minBound @Word64
+    maxSlot = I.Finite $ intCast $ maxBound @Word64
     allSlots = minSlot <=..<= maxSlot
 
     isNotSig = \case
@@ -256,4 +258,4 @@ withinSlotInterval (SlotNo from) (SlotNo to) =
     L.any (txValidityInterval `I.isSubsetOf`)
   where
     txValidityInterval =
-        fromIntegral from <=..<= fromIntegral to
+        I.Finite (intCast from) <=..<= I.Finite (intCast to)

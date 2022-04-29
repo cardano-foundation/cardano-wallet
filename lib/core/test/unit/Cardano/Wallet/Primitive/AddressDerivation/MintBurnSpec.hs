@@ -45,6 +45,8 @@ import Codec.Binary.Encoding
     ( fromBase16 )
 import Data.Function
     ( (&) )
+import Data.IntCast
+    ( intCast )
 import Data.Interval
     ( Interval, empty, (<=..<=) )
 import Data.Text
@@ -68,13 +70,14 @@ import qualified Cardano.Address.Script as CA
 import qualified Cardano.Wallet.Primitive.AddressDerivation.Shelley as Shelley
 import qualified Data.ByteString as BS
 import qualified Data.ByteString.Lazy as BL
+import qualified Data.Interval as I
 import qualified Data.Text.Encoding as T
 
 spec :: Spec
 spec = do
     parallel $ describe "Mint/Burn Policy key Address Derivation Properties" $ do
-        let minSlot = fromIntegral $ minBound @Word64
-        let maxSlot = fromIntegral $ maxBound @Word64
+        let minSlot = I.Finite $ intCast $ minBound @Word64
+        let maxSlot = I.Finite $ intCast $ maxBound @Word64
         let hashKeyTxt :: Text
             hashKeyTxt =
                 "deeae4e895d8d57378125ed4fd540f9bf245d59f7936a504379cfc1e"
@@ -109,25 +112,25 @@ spec = do
                 -- cardano-address CLI from test mnemonic
         it "Unit tests for toSlotInterval" $ do
             unit_toSlotInterval hashKey
-                [fromIntegral @Natural 0 <=..<= maxSlot]
+                [I.Finite @Natural 0 <=..<= maxSlot]
 
             unit_toSlotInterval (RequireAllOf [hashKey, ActiveFromSlot 120])
-                [fromIntegral @Natural 120 <=..<= maxSlot]
+                [I.Finite @Natural 120 <=..<= maxSlot]
 
             unit_toSlotInterval (RequireAllOf [hashKey, ActiveUntilSlot 120])
-                [minSlot <=..<= fromIntegral @Natural 120]
+                [minSlot <=..<= I.Finite @Natural 120]
 
             unit_toSlotInterval (RequireAnyOf [hashKey, ActiveFromSlot 120])
-                [fromIntegral @Natural 120 <=..<= maxSlot]
+                [I.Finite @Natural 120 <=..<= maxSlot]
 
             unit_toSlotInterval (RequireAnyOf [hashKey, ActiveUntilSlot 120])
-                [minSlot <=..<= fromIntegral @Natural 120]
+                [minSlot <=..<= I.Finite @Natural 120]
 
             unit_toSlotInterval (RequireSomeOf 1 [hashKey, ActiveFromSlot 120])
-                [fromIntegral @Natural 120 <=..<= maxSlot]
+                [I.Finite @Natural 120 <=..<= maxSlot]
 
             unit_toSlotInterval (RequireSomeOf 1 [hashKey, ActiveUntilSlot 120])
-                [minSlot <=..<= fromIntegral @Natural 120]
+                [minSlot <=..<= I.Finite @Natural 120]
 
             unit_toSlotInterval
                 (RequireAllOf
@@ -136,7 +139,7 @@ spec = do
                     , ActiveUntilSlot 120
                     ]
                 )
-                [fromIntegral @Natural 100 <=..<= fromIntegral @Natural 120]
+                [I.Finite @Natural 100 <=..<= I.Finite @Natural 120]
 
             unit_toSlotInterval
                 (RequireAllOf
@@ -154,8 +157,8 @@ spec = do
                     , ActiveUntilSlot 100
                     ]
                 )
-                [ fromIntegral @Natural 120 <=..<= maxSlot
-                , minSlot <=..<= fromIntegral @Natural 100
+                [ I.Finite @Natural 120 <=..<= maxSlot
+                , minSlot <=..<= I.Finite @Natural 100
                 ]
 
             unit_toSlotInterval
@@ -165,8 +168,8 @@ spec = do
                     , ActiveUntilSlot 100
                     ]
                 )
-                [ fromIntegral @Natural 120 <=..<= maxSlot
-                , minSlot <=..<= fromIntegral @Natural 100
+                [ I.Finite @Natural 120 <=..<= maxSlot
+                , minSlot <=..<= I.Finite @Natural 100
                 ]
 
         it "Unit tests for withinSlotInterval" $ do
