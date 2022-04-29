@@ -29,7 +29,7 @@ module Cardano.Wallet.Primitive.AddressDerivation.MintBurn
     , policyDerivationPath
     , toTokenMapAndScript
     , toTokenPolicyId
-    , toSlotInterval
+    , scriptSlotIntervals
     , withinSlotInterval
     ) where
 
@@ -203,22 +203,22 @@ replaceCosigner cosignerMap = \case
                 isJust
         in hashVerificationKey @key CA.Policy (liftRawKey xpub)
 
-toSlotInterval
+scriptSlotIntervals
     :: Script a
     -> [Interval Natural]
-toSlotInterval = \case
+scriptSlotIntervals = \case
     RequireSignatureOf _ ->
         [allSlots]
     RequireAllOf xs ->
         let (timelocks, rest) = L.partition isTimelockOrSig xs
         in
         trimAllSlots
-            $ I.intersections (concatMap toSlotInterval timelocks)
-            : concatMap toSlotInterval rest
+            $ I.intersections (concatMap scriptSlotIntervals timelocks)
+            : concatMap scriptSlotIntervals rest
     RequireAnyOf xs ->
-        concatMap toSlotInterval (filterOutSig xs)
+        concatMap scriptSlotIntervals (filterOutSig xs)
     RequireSomeOf _ xs ->
-        concatMap toSlotInterval (filterOutSig xs)
+        concatMap scriptSlotIntervals (filterOutSig xs)
     ActiveFromSlot s ->
         [I.Finite s <=..<= maxSlot]
     ActiveUntilSlot s ->

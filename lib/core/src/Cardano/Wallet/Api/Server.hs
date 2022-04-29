@@ -375,7 +375,7 @@ import Cardano.Wallet.Primitive.AddressDerivation.Byron
 import Cardano.Wallet.Primitive.AddressDerivation.Icarus
     ( IcarusKey )
 import Cardano.Wallet.Primitive.AddressDerivation.MintBurn
-    ( toSlotInterval
+    ( scriptSlotIntervals
     , toTokenMapAndScript
     , toTokenPolicyId
     , withinSlotInterval
@@ -2320,7 +2320,7 @@ constructTransaction ctx genChange knownPools getPoolStatus (ApiT wid) body = do
 
     let notWithinValidityInterval (ApiMintBurnData (ApiT scriptTempl) _ _) =
             not $ withinSlotInterval before hereafter $
-            toSlotInterval scriptTempl
+            scriptSlotIntervals scriptTempl
     when
         ( isJust mintingBurning' &&
           L.any notWithinValidityInterval (NE.toList $ fromJust mintingBurning')
