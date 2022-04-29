@@ -1,5 +1,5 @@
+{-# LANGUAGE BangPatterns #-}
 {-# LANGUAGE DeriveGeneric #-}
-{-# LANGUAGE GADTs #-}
 {-# LANGUAGE NamedFieldPuns #-}
 {-# LANGUAGE RankNTypes #-}
 {-# LANGUAGE ScopedTypeVariables #-}
@@ -14,8 +14,9 @@
 -- address discovery with an address gap.
 module Cardano.Wallet.Address.Pool
     ( Pool
-    , generator
+    , addressFromIx
     , addresses
+    , usedAddresses
     , gap
     , lookup
     , size
@@ -25,12 +26,15 @@ module Cardano.Wallet.Address.Pool
     , update
     , clear
 
+    -- * Address Discovery
+    , discover
+
     -- * Internal
     , loadUnsafe
     , prop_sequence
     , prop_gap
     , prop_fresh
-    , prop_generator
+    , prop_fromIx
     , prop_consistent
     )
   where
@@ -61,7 +65,7 @@ import qualified Data.Map.Strict as Map
 -- | An address pool caches a collection of addresses (type @addr@)
 -- which are derived from a numeric index (type @ix@).
 data Pool addr ix = Pool
-    { generator :: ix -> addr
+    { addressFromIx :: ix -> addr
     -- ^ Mapping from a numeric index to its corresponding address.
     --
     -- This mapping is supposed to be (practically) a one-way function:
@@ -73,13 +77,13 @@ data Pool addr ix = Pool
     -- indices; specifically, only less than 'gap' many addresses in sequence
     -- may be 'Unused' before the next 'Used' address.
     -- This usage scheme restricts the search space considerably
-    -- and allows us to practically invert the 'generator' function.
+    -- and allows us to practically invert the 'addressFromIx' function.
     , gap :: Int
     -- ^ The pool gap determines how 'Used' and 'Unused'
     -- have to be distributed.
     -- See 'prop_gap' and 'prop_fresh'.
     , addresses :: Map addr (ix, AddressState)
-    -- ^ Partial, cached inverse of the 'generator'.
+    -- ^ Partial, cached inverse of the 'addressFromIx'.
     -- This map contains all cached addresses @addr@,
     -- their corresponding indices @ix@,
     -- and whether they are 'Used' or 'Unused'.
@@ -125,17 +129,17 @@ prop_fresh Pool{gap,addresses} =
 
 -- | Internal invariant:
 -- All 'addresses' in the pool have been generated from their index
--- via the pool 'generator'.
-prop_generator :: Eq addr => Pool addr ix -> Bool
-prop_generator Pool{generator,addresses} =
+-- via the pool 'addressFromIx'.
+prop_fromIx :: Eq addr => Pool addr ix -> Bool
+prop_fromIx Pool{addressFromIx,addresses} =
     and $ Map.mapWithKey isGenerated addresses
   where
-    isGenerated addr (ix,_) = generator ix == addr
+    isGenerated addr (ix,_) = addressFromIx ix == addr
 
 -- | Internal invariant: The pool satisfies all invariants above.
 prop_consistent :: (Ord ix, Enum ix, Eq addr) => Pool addr ix -> Bool
 prop_consistent p =
-    all ($ p) [prop_sequence, prop_gap, prop_fresh, prop_generator]
+    all ($ p) [prop_sequence, prop_gap, prop_fresh, prop_fromIx]
 
 {-------------------------------------------------------------------------------
     Pretty printing
@@ -148,7 +152,7 @@ instance Buildable (Pool addr ix) where
 
 instance (Show addr, Show ix) => Show (Pool addr ix) where
     show pool = "AddressPool"
-        <> "{ generator = <<function>>"
+        <> "{ addressFromIx = <<function>>"
         <> ", gap = " <> show (gap pool)
         <> ", addresses = " <> show (addresses pool)
         <> "}"
@@ -158,8 +162,8 @@ instance (Show addr, Show ix) => Show (Pool addr ix) where
 -------------------------------------------------------------------------------}
 -- | Create a new address pool.
 new :: (Ord addr, Enum ix) => (ix -> addr) -> Int -> Pool addr ix
-new generator gap
-    = ensureFresh (toEnum 0) $ Pool{ generator, gap, addresses = Map.empty }
+new addressFromIx gap
+    = ensureFresh (toEnum 0) $ Pool{ addressFromIx, gap, addresses = Map.empty }
 
 -- | Replace the collection of addresses in a pool,
 -- but only if this collection satisfies the necessary invariants
@@ -176,13 +180,18 @@ loadUnsafe :: Pool addr ix -> Map addr (ix,AddressState) -> Pool addr ix
 loadUnsafe pool addrs = pool{ addresses = addrs }
 
 -- | Remove all previously discovered addresses,
--- i.e. create a new pool with the same 'generator' and 'gap' as the old pool.
+-- i.e. create a new pool with the same 'addressFromIx' and 'gap' as the old pool.
 clear :: (Ord addr, Enum ix) => Pool addr ix -> Pool addr ix
-clear Pool{generator,gap} = new generator gap
+clear Pool{addressFromIx,gap} = new addressFromIx gap
 
 -- | Look up an address in the pool.
 lookup :: Ord addr => addr -> Pool addr ix -> Maybe ix
 lookup addr Pool{addresses} = fst <$> Map.lookup addr addresses
+
+-- | Sorted list of all addresses that are marked 'Used' in the pool.
+usedAddresses :: Pool addr ix -> [addr]
+usedAddresses pool =
+    [ addr | (addr,(_,Used)) <- Map.toList $ addresses pool ]
 
 -- | Number of addresses cached in the pool.
 size :: Pool addr ix -> Int
@@ -228,13 +237,35 @@ update addr pool@Pool{addresses} =
 --
 -- * All addresses with index @ix@ or larger are 'Unused'.
 ensureFresh :: (Ord addr, Enum ix) => ix -> Pool addr ix -> Pool addr ix
-ensureFresh ix pool@Pool{generator,gap,addresses}
+ensureFresh ix pool@Pool{addressFromIx,gap,addresses}
     = pool { addresses = Map.union addresses nexts }
   where
     fresh = toEnum $ Map.size addresses -- first index that is not in the pool
     nexts = Map.fromList
-        [ (generator i, (i, Unused)) | i <- [fresh .. to] ]
+        [ (addressFromIx i, (i, Unused)) | i <- [fresh .. to] ]
       where
         to = toEnum $ fromEnum ix + fromIntegral gap - 1
         -- example:
         --  ix = 0 && fresh = 0 && gap = 20 `implies` [fresh .. to] = [0..19]
+
+{-------------------------------------------------------------------------------
+    Address discovery using an address pool
+-------------------------------------------------------------------------------}
+-- | Discover transactions and addresses by
+-- using an efficient query @addr -> m txs@ and an address pool.
+discover
+    :: (Enum ix, Ord addr, Monad m, Monoid txs, Eq txs)
+    => (addr -> m txs) -> Pool addr ix -> m (txs, Pool addr ix)
+discover query pool0 =
+    go mempty pool0 $ toEnum 0
+  where
+    go !txs1 !pool1 old = do
+        -- TODO: Maybe cache the `addressFromIx` in the Pool using lazy evaluation.
+        let addr = addressFromIx pool0 old
+        newtxs <- query addr
+        let (pool2, txs2) = if mempty == newtxs
+                then (pool1, txs1)
+                else (update addr pool1, txs1 <> newtxs)
+        case successor pool2 old of
+            Nothing    -> pure (txs2, pool2)
+            Just next  -> go txs2 pool2 next

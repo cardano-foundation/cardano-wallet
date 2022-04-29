@@ -815,6 +815,7 @@ postWallet
         , Typeable n
         , (k == SharedKey) ~ 'False
         , AddressBookIso s
+        , MaybeLight s
         )
     => ctx
     -> ((SomeMnemonic, Maybe SomeMnemonic) -> Passphrase "encryption" -> k 'RootK XPrv)
@@ -839,6 +840,7 @@ postShelleyWallet
         , HasDBFactory s k ctx
         , HasWorkerRegistry s k ctx
         , IsOurs s RewardAccount
+        , MaybeLight s
         , Typeable s
         , Typeable n
         , (k == SharedKey) ~ 'False
@@ -876,6 +878,7 @@ postAccountWallet
         , WalletKey k
         , HasWorkerRegistry s k ctx
         , IsOurs s RewardAccount
+        , MaybeLight s
         , (k == SharedKey) ~ 'False
         , Typeable n
         , AddressBookIso s
