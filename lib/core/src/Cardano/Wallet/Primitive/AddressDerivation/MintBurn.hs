@@ -209,9 +209,10 @@ toSlotInterval = \case
         [allSlots]
     RequireAllOf xs ->
         let (timelocks, rest) = L.partition isTimelockOrSig xs
-        in trimAllSlots $
-        [ I.intersections (concatMap toSlotInterval timelocks) ]
-        ++ concatMap toSlotInterval rest
+        in
+        trimAllSlots
+            $ I.intersections (concatMap toSlotInterval timelocks)
+            : concatMap toSlotInterval rest
     RequireAnyOf xs ->
         concatMap toSlotInterval (filterOutSig xs)
     RequireSomeOf _ xs ->
