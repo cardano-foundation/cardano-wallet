@@ -1399,6 +1399,7 @@ dummyTransactionLayer = TransactionLayer
         , emptyTokenMapWithScripts
         , emptyTokenMapWithScripts
         , []
+        , Nothing
         )
     , updateTx = \sealed _update ->
         pure sealed

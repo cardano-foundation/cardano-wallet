@@ -284,6 +284,8 @@ import Cardano.Wallet.Api.Types
     , ApiTxMetadata (..)
     , ApiTxOutputGeneral (..)
     , ApiUtxoStatistics (..)
+    , ApiValidityBound (..)
+    , ApiValidityInterval (..)
     , ApiWallet (..)
     , ApiWalletAssetsBalance (..)
     , ApiWalletBalance (..)
@@ -373,7 +375,11 @@ import Cardano.Wallet.Primitive.AddressDerivation.Byron
 import Cardano.Wallet.Primitive.AddressDerivation.Icarus
     ( IcarusKey )
 import Cardano.Wallet.Primitive.AddressDerivation.MintBurn
-    ( toTokenMapAndScript, toTokenPolicyId )
+    ( scriptSlotIntervals
+    , toTokenMapAndScript
+    , toTokenPolicyId
+    , withinSlotInterval
+    )
 import Cardano.Wallet.Primitive.AddressDerivation.SharedKey
     ( SharedKey (..) )
 import Cardano.Wallet.Primitive.AddressDerivation.Shelley
@@ -456,7 +462,7 @@ import Cardano.Wallet.Primitive.Types
     , PoolLifeCycleStatus (..)
     , Signature (..)
     , SlotId
-    , SlotNo
+    , SlotNo (..)
     , SortOrder (..)
     , WalletId (..)
     , WalletMetadata (..)
@@ -2003,7 +2009,7 @@ postTransactionOld ctx genChange (ApiT wid) body = do
     let txCtx = defaultTransactionCtx
             { txWithdrawal = wdrl
             , txMetadata = md
-            , txTimeToLive = ttl
+            , txValidityInterval = (Nothing, ttl)
             }
 
     (sel, tx, txMeta, txTime, pp) <- withWorkerCtx ctx wid liftE liftE $ \wrk ->
@@ -2237,10 +2243,10 @@ constructTransaction ctx genChange knownPools getPoolStatus (ApiT wid) body = do
         ) $ liftHandler $ throwE ErrConstructTxAssetNameTooLong
 
     let assetQuantityOutOfBounds
-            (ApiMintBurnData _ _ (ApiMint (ApiMintData _ (Quantity amt)))) =
+            (ApiMintBurnData _ _ (ApiMint (ApiMintData _ amt))) =
             amt <= 0 || amt > unTokenQuantity txMintBurnMaxTokenQuantity
         assetQuantityOutOfBounds
-            (ApiMintBurnData _ _ (ApiBurn (ApiBurnData (Quantity amt)))) =
+            (ApiMintBurnData _ _ (ApiBurn (ApiBurnData amt))) =
             amt <= 0 || amt > unTokenQuantity txMintBurnMaxTokenQuantity
     when
         ( isJust mintingBurning' &&
@@ -2260,12 +2266,70 @@ constructTransaction ctx genChange knownPools getPoolStatus (ApiT wid) body = do
         liftHandler $ throwE ErrConstructTxMultiaccountNotSupported
 
     let md = body ^? #metadata . traverse . #getApiT
-    let mTTL = Nothing --TODO: ADP-1189
+
+    let isValidityBoundTimeNegative
+            (ApiValidityBoundAsTimeFromNow (Quantity sec)) = sec < 0
+        isValidityBoundTimeNegative _ = False
+
+    let isThereNegativeTime = case body ^. #validityInterval of
+            Just (ApiValidityInterval (Just before') Nothing) ->
+                isValidityBoundTimeNegative before'
+            Just (ApiValidityInterval Nothing (Just hereafter')) ->
+                isValidityBoundTimeNegative hereafter'
+            Just (ApiValidityInterval (Just before') (Just hereafter')) ->
+                isValidityBoundTimeNegative before' ||
+                isValidityBoundTimeNegative hereafter'
+            _ -> False
+
+    let fromValidityBound = liftIO . \case
+            Left ApiValidityBoundUnspecified ->
+                pure $ SlotNo 0
+            Right ApiValidityBoundUnspecified ->
+                W.getTxExpiry ti Nothing
+            Right (ApiValidityBoundAsTimeFromNow (Quantity sec)) ->
+                W.getTxExpiry ti (Just sec)
+            Left (ApiValidityBoundAsTimeFromNow (Quantity sec)) ->
+                W.getTxExpiry ti (Just sec)
+            Right (ApiValidityBoundAsSlot (Quantity slot)) ->
+                pure $ SlotNo slot
+            Left (ApiValidityBoundAsSlot (Quantity slot)) ->
+                pure $ SlotNo slot
+
+    (before, hereafter) <- case body ^. #validityInterval of
+        Nothing -> do
+            before' <-
+                fromValidityBound (Left ApiValidityBoundUnspecified)
+            hereafter' <-
+                fromValidityBound (Right ApiValidityBoundUnspecified)
+            pure (before', hereafter')
+        Just (ApiValidityInterval before' hereafter') -> do
+            before'' <- case before' of
+                Nothing ->
+                    fromValidityBound (Left ApiValidityBoundUnspecified)
+                Just val ->
+                    fromValidityBound (Left val)
+            hereafter'' <- case hereafter' of
+                Nothing ->
+                    fromValidityBound (Right ApiValidityBoundUnspecified)
+                Just val ->
+                    fromValidityBound (Right val)
+            pure (before'', hereafter'')
+
+    when (hereafter < before || isThereNegativeTime) $
+        liftHandler $ throwE ErrConstructTxWrongValidityBounds
+
+    let notWithinValidityInterval (ApiMintBurnData (ApiT scriptTempl) _ _) =
+            not $ withinSlotInterval before hereafter $
+            scriptSlotIntervals scriptTempl
+    when
+        ( isJust mintingBurning' &&
+          L.any notWithinValidityInterval (NE.toList $ fromJust mintingBurning')
+        )
+        $ liftHandler
+        $ throwE ErrConstructTxValidityIntervalNotWithinScriptTimelock
 
     (wdrl, _) <-
         mkRewardAccountBuilder @_ @s @_ @n ctx wid (body ^. #withdrawal)
-
-    ttl <- liftIO $ W.getTxExpiry ti mTTL
 
     withWorkerCtx ctx wid liftE liftE $ \wrk -> do
         pp <- liftIO $ NW.currentProtocolParameters (wrk ^. networkLayer)
@@ -2273,7 +2337,7 @@ constructTransaction ctx genChange knownPools getPoolStatus (ApiT wid) body = do
             Nothing -> pure (Nothing, Nothing, defaultTransactionCtx
                  { txWithdrawal = wdrl
                  , txMetadata = md
-                 , txTimeToLive = ttl
+                 , txValidityInterval = (Just before, hereafter)
                  })
             Just delegs -> do
                 -- TODO: Current limitation:
@@ -2299,7 +2363,7 @@ constructTransaction ctx genChange knownPools getPoolStatus (ApiT wid) body = do
                 pure (deposit, refund, defaultTransactionCtx
                     { txWithdrawal = wdrl
                     , txMetadata = md
-                    , txTimeToLive = ttl
+                    , txValidityInterval = (Just before, hereafter)
                     , txDelegationAction = Just action
                     })
         let transform s sel =
@@ -2321,7 +2385,7 @@ constructTransaction ctx genChange knownPools getPoolStatus (ApiT wid) body = do
                         ApiMintBurnData
                             (ApiT scriptT)
                             (Just (ApiT tName))
-                            (ApiMint (ApiMintData _ (Quantity amt))) ->
+                            (ApiMint (ApiMintData _ amt)) ->
                             toTokenMapAndScript @k
                                 scriptT
                                 (Map.singleton (Cosigner 0) policyXPub)
@@ -2332,7 +2396,7 @@ constructTransaction ctx genChange knownPools getPoolStatus (ApiT wid) body = do
                         ApiMintBurnData
                             (ApiT scriptT)
                             (Just (ApiT tName))
-                            (ApiBurn (ApiBurnData (Quantity amt))) ->
+                            (ApiBurn (ApiBurnData amt)) ->
                             toTokenMapAndScript @k
                                 scriptT
                                 (Map.singleton (Cosigner 0) policyXPub)
@@ -2422,7 +2486,7 @@ constructTransaction ctx genChange knownPools getPoolStatus (ApiT wid) body = do
 
     toMintTxOut policyXPub
         (ApiMintBurnData (ApiT scriptT) (Just (ApiT tName))
-            (ApiMint (ApiMintData (Just addr) (Quantity amt)))) =
+            (ApiMint (ApiMintData (Just addr) amt))) =
                 let (assetId, tokenQuantity, _) =
                         toTokenMapAndScript @k
                             scriptT (Map.singleton (Cosigner 0) policyXPub)
@@ -2513,7 +2577,7 @@ decodeTransaction
     -> ApiSerialisedTransaction
     -> Handler (ApiDecodedTransaction n)
 decodeTransaction ctx (ApiT wid) (ApiSerialisedTransaction (ApiT sealed)) = do
-    let (decodedTx, toMint, toBurn, allCerts) = decodeTx tl sealed
+    let (decodedTx, toMint, toBurn, allCerts, interval) = decodeTx tl sealed
     let (Tx { txId
             , fee
             , resolvedInputs
@@ -2569,6 +2633,7 @@ decodeTransaction ctx (ApiT wid) (ApiSerialisedTransaction (ApiT sealed)) = do
                     (toApiAnyCert acct acctPath <$> allCerts)
         , metadata = ApiTxMetadata $ ApiT <$> metadata
         , scriptValidity = ApiT <$> scriptValidity
+        , validityInterval = interval
         }
   where
     tl = ctx ^. W.transactionLayer @k
@@ -2742,7 +2807,9 @@ submitTransaction ctx apiw@(ApiT wid) apitx@(ApiSerialisedTransaction (ApiT seal
         (acct, _, path) <- liftHandler $ W.readRewardAccount @_ @s @k @n wrk wid
         let wdrl = getOurWdrl acct path apiDecoded
         let txCtx = defaultTransactionCtx
-                { txTimeToLive = ttl
+                { -- TODO: [ADP-1193]
+                  -- Get this from decodeTx:
+                  txValidityInterval = (Nothing, ttl)
                 , txWithdrawal = wdrl
                 , txDelegationAction = delAction
                 }
@@ -2751,7 +2818,7 @@ submitTransaction ctx apiw@(ApiT wid) apitx@(ApiSerialisedTransaction (ApiT seal
             $ W.submitTx @_ @s @k wrk wid (tx, txMeta, sealedTx)
     return $ ApiTxId (apiDecoded ^. #id)
   where
-    (tx,_,_,_) = decodeTx tl sealedTx
+    (tx,_,_,_,_) = decodeTx tl sealedTx
     tl = ctx ^. W.transactionLayer @k
     ti :: TimeInterpreter (ExceptT PastHorizonException IO)
     nl = ctx ^. networkLayer
@@ -2849,7 +2916,7 @@ joinStakePool ctx knownPools getPoolStatus apiPoolId (ApiT wid) body = do
         ttl <- liftIO $ W.getTxExpiry ti Nothing
         let txCtx = defaultTransactionCtx
                 { txWithdrawal = wdrl
-                , txTimeToLive = ttl
+                , txValidityInterval = (Nothing, ttl)
                 , txDelegationAction = Just action
                 }
         (utxoAvailable, wallet, pendingTxs) <-
@@ -2965,7 +3032,7 @@ quitStakePool ctx (ApiT wid) body = do
         ttl <- liftIO $ W.getTxExpiry ti Nothing
         let txCtx = defaultTransactionCtx
                 { txWithdrawal = wdrl
-                , txTimeToLive = ttl
+                , txValidityInterval = (Nothing, ttl)
                 , txDelegationAction = Just action
                 }
 
@@ -3233,7 +3300,7 @@ migrateWallet ctx withdrawalType (ApiT wid) postData = do
         mkRewardAccountBuilder @_ @s @_ @n ctx wid withdrawalType
     withWorkerCtx ctx wid liftE liftE $ \wrk -> do
         plan <- liftHandler $ W.createMigrationPlan wrk wid rewardWithdrawal
-        txTimeToLive <- liftIO $ W.getTxExpiry ti Nothing
+        ttl <- liftIO $ W.getTxExpiry ti Nothing
         pp <- liftIO $ NW.currentProtocolParameters (wrk ^. networkLayer)
         selectionWithdrawals <- liftHandler
             $ failWith ErrCreateMigrationPlanEmpty
@@ -3242,7 +3309,7 @@ migrateWallet ctx withdrawalType (ApiT wid) postData = do
         forM selectionWithdrawals $ \(selection, txWithdrawal) -> do
             let txContext = defaultTransactionCtx
                     { txWithdrawal
-                    , txTimeToLive
+                    , txValidityInterval = (Nothing, ttl)
                     , txDelegationAction = Nothing
                     }
             (tx, txMeta, txTime, sealedTx) <- liftHandler $
@@ -4341,6 +4408,19 @@ instance IsServerError ErrConstructTx where
             [ "Attempted to mint or burn an asset quantity that is out of "
             , "bounds. The asset quantity must be greater than zero and must "
             , "not exceed 9223372036854775807 (2^63 - 1)."
+            ]
+        ErrConstructTxWrongValidityBounds ->
+            apiError err403 InvalidValidityBounds $ T.unwords
+            [ "Attempted to create a transaction with invalid validity bounds."
+            , "Please make sure that the 'invalid_before' bound precedes the"
+            , "'invalid_hereafter' bound, and that you have not used negative"
+            , "time values."
+            ]
+        ErrConstructTxValidityIntervalNotWithinScriptTimelock ->
+            apiError err403 ValidityIntervalNotInsideScriptTimelock $ T.unwords
+            [ "Attempted to create a transaction with a validity interval"
+            , "that is not a subinterval of an associated script's timelock"
+            , "interval."
             ]
         ErrConstructTxNotImplemented _ ->
             apiError err501 NotImplemented

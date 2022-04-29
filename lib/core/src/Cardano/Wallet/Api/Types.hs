@@ -346,7 +346,7 @@ import Cardano.Wallet.Primitive.Types.UTxO
 import Cardano.Wallet.TokenMetadata
     ( TokenMetadataError (..) )
 import Cardano.Wallet.Transaction
-    ( AnyScript (..) )
+    ( AnyScript (..), ValidityIntervalExplicit )
 import Cardano.Wallet.Util
     ( ShowFmt (..) )
 import Codec.Binary.Bech32
@@ -975,9 +975,9 @@ data ApiPaymentDestination (n :: NetworkDiscriminant)
 
 -- | Times where transactions are valid.
 data ApiValidityInterval = ApiValidityInterval
-    { invalidBefore :: !ApiValidityBound
+    { invalidBefore :: !(Maybe ApiValidityBound)
     -- ^ Tx is not valid before this time. Defaults to genesis.
-    , invalidHereafter :: !ApiValidityBound
+    , invalidHereafter :: !(Maybe ApiValidityBound)
     -- ^ Tx is not valid at this time and after. Defaults to now + 2 hours.
     } deriving (Eq, Generic, Show)
     deriving anyclass NFData
@@ -1289,6 +1289,7 @@ data ApiDecodedTransaction (n :: NetworkDiscriminant) = ApiDecodedTransaction
     , depositsReturned :: ![Quantity "lovelace" Natural]
     , metadata :: !ApiTxMetadata
     , scriptValidity :: !(Maybe (ApiT TxScriptValidity))
+    , validityInterval :: !(Maybe ValidityIntervalExplicit)
     }
     deriving (Eq, Generic, Show, Typeable)
     deriving anyclass NFData
@@ -1658,6 +1659,7 @@ data ApiErrorCode
     | InsufficientCollateral
     | InvalidCoinSelection
     | InvalidWalletType
+    | InvalidValidityBounds
     | KeyNotFoundForAddress
     | MalformedTxPayload
     | MethodNotAllowed
@@ -1711,6 +1713,7 @@ data ApiErrorCode
     | WalletNotResponding
     | WithdrawalNotWorth
     | WrongEncryptionPassphrase
+    | ValidityIntervalNotInsideScriptTimelock
     deriving (Eq, Generic, Show, Data, Typeable)
     deriving anyclass NFData
 
@@ -4084,8 +4087,8 @@ data ApiMintData (n :: NetworkDiscriminant) = ApiMintData
         -- If no address is specified, then minted assets will be returned to
         -- the wallet as change, and change output addresses will be assigned
         -- automatically.
-    , amount
-        :: Quantity "assets" Natural
+    , quantity
+        :: Natural
         -- ^ Amount of assets to mint.
     }
     deriving (Eq, Generic, Show)
@@ -4100,7 +4103,9 @@ instance EncodeAddress n => ToJSON (ApiMintData n) where
 -- | The format of a burn request: burn "amount". The user can only specify the
 -- type of tokens to burn (policyId, assetName), and the amount, the exact
 -- tokens selected are up to the implementation.
-newtype ApiBurnData = ApiBurnData (Quantity "assets" Natural)
+newtype ApiBurnData = ApiBurnData
+    { quantity :: Natural
+    }
     deriving (Eq, Generic, Show)
     deriving anyclass NFData
 

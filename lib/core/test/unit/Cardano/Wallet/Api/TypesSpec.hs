@@ -318,7 +318,11 @@ import Cardano.Wallet.Primitive.Types.UTxO
 import Cardano.Wallet.TokenMetadata
     ( TokenMetadataError (..) )
 import Cardano.Wallet.Transaction
-    ( AnyScript (..), PlutusScriptInfo (..), PlutusVersion (..) )
+    ( AnyScript (..)
+    , PlutusScriptInfo (..)
+    , PlutusVersion (..)
+    , ValidityIntervalExplicit (..)
+    )
 import Cardano.Wallet.Unsafe
     ( unsafeFromText, unsafeXPrv )
 import Control.Lens
@@ -433,6 +437,7 @@ import Test.QuickCheck
     , scale
     , shrinkIntegral
     , sized
+    , suchThat
     , vector
     , vectorOf
     , (.&&.)
@@ -1234,6 +1239,8 @@ spec = parallel $ do
                     , depositsReturned = depositsReturned
                         (x :: ApiDecodedTransaction ('Testnet 0))
                     , scriptValidity = scriptValidity
+                        (x :: ApiDecodedTransaction ('Testnet 0))
+                    , validityInterval = validityInterval
                         (x :: ApiDecodedTransaction ('Testnet 0))
                     }
             in
@@ -2255,9 +2262,16 @@ instance Arbitrary (ApiAnyCertificate n) where
         , OtherCertificate <$> arbitrary
         ]
 
+instance Arbitrary ValidityIntervalExplicit where
+    arbitrary = do
+        slot1 <- arbitrary
+        slot2 <- arbitrary `suchThat` (> slot1)
+        pure $ ValidityIntervalExplicit (Quantity slot1) (Quantity slot2)
+
 instance Arbitrary (ApiDecodedTransaction n) where
     arbitrary = ApiDecodedTransaction
         <$> arbitrary
+        <*> arbitrary
         <*> arbitrary
         <*> arbitrary
         <*> arbitrary
