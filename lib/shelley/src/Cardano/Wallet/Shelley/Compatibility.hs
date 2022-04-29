@@ -1344,12 +1344,12 @@ toShelleyCoin (W.Coin c) = SL.Coin $ intCast c
 
 fromCardanoTx
     :: Cardano.Tx era
-    -> ( W.Tx
-       , TokenMapWithScripts
-       , TokenMapWithScripts
-       , [Certificate]
-       , Maybe ValidityIntervalExplicit
-       )
+    ->  ( W.Tx
+        , TokenMapWithScripts
+        , TokenMapWithScripts
+        , [Certificate]
+        , Maybe ValidityIntervalExplicit
+        )
 fromCardanoTx = \case
     Cardano.ShelleyTx era tx -> case era of
         Cardano.ShelleyBasedEraShelley ->

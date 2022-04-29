@@ -322,13 +322,13 @@ data TransactionLayer k tx = TransactionLayer
         -- The set of constraints that apply to all transactions.
 
     , decodeTx
-        :: tx
-        -> ( Tx
-           , TokenMapWithScripts
-           , TokenMapWithScripts
-           , [Certificate]
-           , Maybe ValidityIntervalExplicit
-           )
+        :: tx ->
+            ( Tx
+            , TokenMapWithScripts
+            , TokenMapWithScripts
+            , [Certificate]
+            , Maybe ValidityIntervalExplicit
+            )
     -- ^ Decode an externally-created transaction.
 
     , updateTx

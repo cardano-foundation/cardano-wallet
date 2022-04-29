@@ -655,13 +655,13 @@ newTransactionLayer networkId = TransactionLayer
     }
 
 _decodeSealedTx
-    :: SealedTx
-    -> ( Tx
-       , TokenMapWithScripts
-       , TokenMapWithScripts
-       , [Certificate]
-       , Maybe ValidityIntervalExplicit
-       )
+    :: SealedTx ->
+        ( Tx
+        , TokenMapWithScripts
+        , TokenMapWithScripts
+        , [Certificate]
+        , Maybe ValidityIntervalExplicit
+        )
 _decodeSealedTx (cardanoTx -> InAnyCardanoEra _era tx) = fromCardanoTx tx
 
 _evaluateTransactionBalance
@@ -2124,10 +2124,11 @@ mkUnsignedTx era ttl cs md wdrls certs fees mintData burnData allScripts =
                 Just lowerBoundSupported ->
                     Cardano.TxValidityLowerBound lowerBoundSupported from
                 Nothing -> Cardano.TxValidityNoLowerBound
-        in bimap
-           (maybe Cardano.TxValidityNoLowerBound toLowerBound)
-           (Cardano.TxValidityUpperBound txValidityUpperBoundSupported)
-           ttl
+        in
+        bimap
+            (maybe Cardano.TxValidityNoLowerBound toLowerBound)
+            (Cardano.TxValidityUpperBound txValidityUpperBoundSupported)
+            ttl
 
     , Cardano.txMetadata =
         maybe
@@ -2191,7 +2192,8 @@ mkUnsignedTx era ttl cs md wdrls certs fees mintData burnData allScripts =
         ShelleyBasedEraMary -> Cardano.ValidityUpperBoundInMaryEra
         ShelleyBasedEraAlonzo -> Cardano.ValidityUpperBoundInAlonzoEra
 
-    txValidityLowerBoundSupported :: Maybe (Cardano.ValidityLowerBoundSupportedInEra era)
+    txValidityLowerBoundSupported
+        :: Maybe (Cardano.ValidityLowerBoundSupportedInEra era)
     txValidityLowerBoundSupported = case era of
         ShelleyBasedEraShelley -> Nothing
         ShelleyBasedEraAllegra -> Just Cardano.ValidityLowerBoundInAllegraEra

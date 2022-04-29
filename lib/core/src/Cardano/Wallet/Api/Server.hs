@@ -684,7 +684,6 @@ import qualified Data.Text.Encoding as T
 import qualified Network.Wai.Handler.Warp as Warp
 import qualified Network.Wai.Handler.WarpTLS as Warp
 
-
 -- | How the server should listen for incoming requests.
 data Listen
     = ListenOnPort Port
@@ -2268,8 +2267,8 @@ constructTransaction ctx genChange knownPools getPoolStatus (ApiT wid) body = do
 
     let md = body ^? #metadata . traverse . #getApiT
 
-    let isValidityBoundTimeNegative (ApiValidityBoundAsTimeFromNow (Quantity sec)) =
-            sec < 0
+    let isValidityBoundTimeNegative
+            (ApiValidityBoundAsTimeFromNow (Quantity sec)) = sec < 0
         isValidityBoundTimeNegative _ = False
 
     let isThereNegativeTime = case body ^. #validityInterval of
@@ -2297,16 +2296,22 @@ constructTransaction ctx genChange knownPools getPoolStatus (ApiT wid) body = do
 
     (before, hereafter) <- case body ^. #validityInterval of
         Nothing -> do
-            before' <- fromValidityBound (Left ApiValidityBoundUnspecified)
-            hereafter' <- fromValidityBound (Right ApiValidityBoundUnspecified)
+            before' <-
+                fromValidityBound (Left ApiValidityBoundUnspecified)
+            hereafter' <-
+                fromValidityBound (Right ApiValidityBoundUnspecified)
             pure (before', hereafter')
         Just (ApiValidityInterval before' hereafter') -> do
-            before'' <-  case before' of
-                Nothing -> fromValidityBound (Left ApiValidityBoundUnspecified)
-                Just val -> fromValidityBound (Left val)
-            hereafter'' <-  case hereafter' of
-                Nothing -> fromValidityBound (Right ApiValidityBoundUnspecified)
-                Just val -> fromValidityBound (Right val)
+            before'' <- case before' of
+                Nothing ->
+                    fromValidityBound (Left ApiValidityBoundUnspecified)
+                Just val ->
+                    fromValidityBound (Left val)
+            hereafter'' <- case hereafter' of
+                Nothing ->
+                    fromValidityBound (Right ApiValidityBoundUnspecified)
+                Just val ->
+                    fromValidityBound (Right val)
             pure (before'', hereafter'')
 
     when (hereafter < before || isThereNegativeTime) $
@@ -2318,7 +2323,9 @@ constructTransaction ctx genChange knownPools getPoolStatus (ApiT wid) body = do
     when
         ( isJust mintingBurning' &&
           L.any notWithinValidityInterval (NE.toList $ fromJust mintingBurning')
-        ) $ liftHandler $ throwE ErrConstructTxValidityIntervalNotWithinScriptTimelock
+        )
+        $ liftHandler
+        $ throwE ErrConstructTxValidityIntervalNotWithinScriptTimelock
 
     (wdrl, _) <-
         mkRewardAccountBuilder @_ @s @_ @n ctx wid (body ^. #withdrawal)
@@ -2799,7 +2806,9 @@ submitTransaction ctx apiw@(ApiT wid) apitx@(ApiSerialisedTransaction (ApiT seal
         (acct, _, path) <- liftHandler $ W.readRewardAccount @_ @s @k @n wrk wid
         let wdrl = getOurWdrl acct path apiDecoded
         let txCtx = defaultTransactionCtx
-                { txValidityInterval = (Nothing, ttl)  -- ADP-1193 get it from decodeTx
+                { -- TODO: [ADP-1193]
+                  -- Get this from decodeTx:
+                  txValidityInterval = (Nothing, ttl)
                 , txWithdrawal = wdrl
                 , txDelegationAction = delAction
                 }

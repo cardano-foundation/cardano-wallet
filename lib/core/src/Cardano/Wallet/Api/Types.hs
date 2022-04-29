@@ -4105,7 +4105,8 @@ instance EncodeAddress n => ToJSON (ApiMintData n) where
 -- tokens selected are up to the implementation.
 newtype ApiBurnData = ApiBurnData
     { quantity :: Natural
-    } deriving (Eq, Generic, Show)
+    }
+    deriving (Eq, Generic, Show)
     deriving anyclass NFData
 
 instance FromJSON ApiBurnData where

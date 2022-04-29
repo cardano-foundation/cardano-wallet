@@ -76,7 +76,8 @@ spec = do
         let minSlot = fromIntegral $ minBound @Word64
         let maxSlot = fromIntegral $ maxBound @Word64
         let hashKeyTxt :: Text
-            hashKeyTxt = "deeae4e895d8d57378125ed4fd540f9bf245d59f7936a504379cfc1e"
+            hashKeyTxt =
+                "deeae4e895d8d57378125ed4fd540f9bf245d59f7936a504379cfc1e"
         let hashKey = toKeyHash hashKeyTxt
 
         it "Policy key derivation from master key works for various indexes" $
@@ -128,30 +129,42 @@ spec = do
             unit_toSlotInterval (RequireSomeOf 1 [hashKey, ActiveUntilSlot 120])
                 [minSlot <=..<= fromIntegral @Natural 120]
 
-            unit_toSlotInterval (RequireAllOf
-                                 [ hashKey
-                                 , ActiveFromSlot 100
-                                 , ActiveUntilSlot 120])
+            unit_toSlotInterval
+                (RequireAllOf
+                    [ hashKey
+                    , ActiveFromSlot 100
+                    , ActiveUntilSlot 120
+                    ]
+                )
                 [fromIntegral @Natural 100 <=..<= fromIntegral @Natural 120]
 
-            unit_toSlotInterval (RequireAllOf
-                                 [ hashKey
-                                 , ActiveFromSlot 120
-                                 , ActiveUntilSlot 100])
+            unit_toSlotInterval
+                (RequireAllOf
+                    [ hashKey
+                    , ActiveFromSlot 120
+                    , ActiveUntilSlot 100
+                    ]
+                )
                 [ empty ]
 
-            unit_toSlotInterval (RequireAnyOf
-                                 [ hashKey
-                                 , ActiveFromSlot 120
-                                 , ActiveUntilSlot 100])
+            unit_toSlotInterval
+                (RequireAnyOf
+                    [ hashKey
+                    , ActiveFromSlot 120
+                    , ActiveUntilSlot 100
+                    ]
+                )
                 [ fromIntegral @Natural 120 <=..<= maxSlot
                 , minSlot <=..<= fromIntegral @Natural 100
                 ]
 
-            unit_toSlotInterval (RequireSomeOf 1
-                                 [ hashKey
-                                 , ActiveFromSlot 120
-                                 , ActiveUntilSlot 100])
+            unit_toSlotInterval
+                (RequireSomeOf 1
+                    [ hashKey
+                    , ActiveFromSlot 120
+                    , ActiveUntilSlot 100
+                    ]
+                )
                 [ fromIntegral @Natural 120 <=..<= maxSlot
                 , minSlot <=..<= fromIntegral @Natural 100
                 ]
