@@ -1683,19 +1683,12 @@ x-transactionTTL: &transactionTTL
 
   <<: *numberOfSeconds
 
-x-unspecified: &unspecified
-  type: string
-  enum:
-    - unspecified
-
 x-validityBound: &validityBound
   oneOf:
     - <<: *numberOfSeconds
       title: number of seconds
     - <<: *numberOfSlots
       title: number of slots
-    - <<: *unspecified
-      title: unspecified
 
 x-stakePoolApparentPerformance: &stakePoolApparentPerformance
   description: |
