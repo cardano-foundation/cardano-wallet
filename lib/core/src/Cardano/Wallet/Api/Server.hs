@@ -4410,16 +4410,17 @@ instance IsServerError ErrConstructTx where
             , "not exceed 9223372036854775807 (2^63 - 1)."
             ]
         ErrConstructTxWrongValidityBounds ->
-            apiError err403 InvalidValidityBounds $ mconcat
-            [ "It looks like I've created a transaction "
-            , "with wrong validity bounds. Please make sure before validity bound "
-            , "is preceding hereafter validity bound, and nonnegative times are used."
+            apiError err403 InvalidValidityBounds $ T.unwords
+            [ "Attempted to create a transaction with invalid validity bounds."
+            , "Please make sure that the 'invalid_before' bound precedes the"
+            , "'invalid_hereafter' bound, and that you have not used negative"
+            , "time values."
             ]
         ErrConstructTxValidityIntervalNotWithinScriptTimelock ->
-            apiError err403 ValidityIntervalNotInsideScriptTimelock $ mconcat
-            [ "It looks like I've created a transaction "
-            , "with validity interval that is not inside script's timelock interval."
-            , "Please make sure validity interval is subset of script's timelock interval."
+            apiError err403 ValidityIntervalNotInsideScriptTimelock $ T.unwords
+            [ "Attempted to create a transaction with a validity interval"
+            , "that is not a subinterval of an associated script's timelock"
+            , "interval."
             ]
         ErrConstructTxNotImplemented _ ->
             apiError err501 NotImplemented

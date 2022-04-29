@@ -1193,7 +1193,7 @@ spec = describe "NEW_SHELLEY_TRANSACTIONS" $ do
             ]
 
     it "TRANS_NEW_VALIDITY_INTERVAL_02 - \
-        \Validity bound should precede" $
+        \Validity bounds should be ordered correctly" $
         \ctx -> runResourceT $ do
 
         wa <- fixtureWallet ctx
@@ -1220,7 +1220,7 @@ spec = describe "NEW_SHELLEY_TRANSACTIONS" $ do
             ]
 
     it "TRANS_NEW_VALIDITY_INTERVAL_02 - \
-        \Missing lower validity interval is acceptable" $
+        \Missing lower validity bound is acceptable" $
         \ctx -> runResourceT $ do
 
         wa <- fixtureWallet ctx
@@ -1242,7 +1242,7 @@ spec = describe "NEW_SHELLEY_TRANSACTIONS" $ do
             ]
 
     it "TRANS_NEW_VALIDITY_INTERVAL_02 - \
-        \Missing upper validity interval is acceptable" $
+        \Missing upper validity bound is acceptable" $
         \ctx -> runResourceT $ do
 
         wa <- fixtureWallet ctx

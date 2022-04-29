@@ -4146,8 +4146,9 @@ x-errInvalidValidityBounds: &errInvalidValidityBounds
     message:
       type: string
       description:
-          Occurs when upon transaction construction before validity bound does
-          not precede hereafter valdity bound or negative time is used.
+        Occurs when attempting to create a transaction with invalid validity
+        bounds. The 'invalid_before' bound must precede the 'invalid_hereafter'
+        bound, and the given time values must not be negative.
     code:
       type: string
       enum: ['invalid_validity_bounds']
@@ -4159,8 +4160,8 @@ x-errValidityIntervalNotInsideScriptTimelock: &errValidityIntervalNotInsideScrip
     message:
       type: string
       description:
-          Occurs when upon transaction construction the transaction's validity
-          interval is not inside the native script's timelock interval.
+        Occurs when attempting to create a transaction with a validity interval
+        that is not a subinterval of an associated script's timelock interval.
     code:
       type: string
       enum: ['validity_interval_not_inside_script_timelock']
