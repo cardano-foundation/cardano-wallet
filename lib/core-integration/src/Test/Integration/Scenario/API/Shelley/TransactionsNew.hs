@@ -1192,129 +1192,6 @@ spec = describe "NEW_SHELLEY_TRANSACTIONS" $ do
             , expectResponseCode HTTP.status202
             ]
 
-    it "TRANS_NEW_VALIDITY_INTERVAL_02 - \
-        \Validity bounds should be ordered correctly" $
-        \ctx -> runResourceT $ do
-
-        wa <- fixtureWallet ctx
-
-        let payload = Json [json|
-                { "withdrawal": "self"
-                , "validity_interval":
-                    { "invalid_before":
-                        { "quantity": 100
-                        , "unit": "second"
-                        }
-                    , "invalid_hereafter":
-                        { "quantity": 50
-                        , "unit": "second"
-                        }
-                    }
-                }|]
-
-        rTx <- request @(ApiConstructTransaction n) ctx
-            (Link.createUnsignedTransaction @'Shelley wa) Default payload
-        verify rTx
-            [ expectResponseCode HTTP.status403
-            , expectErrorMessage errMsg403InvalidValidityBounds
-            ]
-
-    it "TRANS_NEW_VALIDITY_INTERVAL_02 - \
-        \Missing lower validity bound is acceptable" $
-        \ctx -> runResourceT $ do
-
-        wa <- fixtureWallet ctx
-
-        let payload = Json [json|
-                { "withdrawal": "self"
-                , "validity_interval":
-                    { "invalid_hereafter":
-                        { "quantity": 10
-                        , "unit": "second"
-                        }
-                    }
-                }|]
-
-        rTx <- request @(ApiConstructTransaction n) ctx
-            (Link.createUnsignedTransaction @'Shelley wa) Default payload
-        verify rTx
-            [ expectResponseCode HTTP.status202
-            ]
-
-    it "TRANS_NEW_VALIDITY_INTERVAL_02 - \
-        \Missing upper validity bound is acceptable" $
-        \ctx -> runResourceT $ do
-
-        wa <- fixtureWallet ctx
-
-        let payload = Json [json|
-                { "withdrawal": "self"
-                , "validity_interval":
-                    { "invalid_before":
-                        { "quantity": 10
-                        , "unit": "second"
-                        }
-                      }
-                }|]
-
-        rTx <- request @(ApiConstructTransaction n) ctx
-            (Link.createUnsignedTransaction @'Shelley wa) Default payload
-        verify rTx
-            [ expectResponseCode HTTP.status202
-            ]
-
-    it "TRANS_NEW_VALIDITY_INTERVAL_02 - \
-        \Validity interval slot should be >= 0" $
-        \ctx -> runResourceT $ do
-
-        wa <- fixtureWallet ctx
-
-        let payload = Json [json|
-                { "withdrawal": "self"
-                , "validity_interval":
-                    { "invalid_before":
-                        { "quantity": -1
-                        , "unit": "slot"
-                        }
-                    , "invalid_hereafter":
-                        { "quantity": -1
-                        , "unit": "slot"
-                        }
-                    }
-                }|]
-
-        rTx <- request @(ApiConstructTransaction n) ctx
-            (Link.createUnsignedTransaction @'Shelley wa) Default payload
-        verify rTx
-            [ expectResponseCode HTTP.status400
-            , expectErrorMessage
-                "parsing Word64 failed, \
-                \value is either floating or will cause over or underflow"
-            ]
-
-    it "TRANS_NEW_VALIDITY_INTERVAL_02 - \
-        \Validity interval 'unspecified'" $
-        \ctx -> runResourceT $ do
-
-        wa <- fixtureWallet ctx
-
-        let payload = Json [json|
-                { "withdrawal": "self"
-                , "validity_interval":
-                    { "invalid_before": "unspecified"
-                    , "invalid_hereafter": "unspecified"
-                    }
-                }|]
-
-        rTx <- request @(ApiConstructTransaction n) ctx
-            (Link.createUnsignedTransaction @'Shelley wa) Default payload
-        verify rTx
-            [ expectResponseCode HTTP.status400
-            , expectErrorMessage
-                "parsing ApiValidityBound object failed, \
-                \expected Object, but encountered String"
-            ]
-
     it "TRANS_NEW_DECODE_01a - \
         \multiple-output transaction with all covering inputs" $
         \ctx -> runResourceT $ do
@@ -3628,6 +3505,128 @@ spec = describe "NEW_SHELLEY_TRANSACTIONS" $ do
             , expectField #policyId (`shouldBe` (ApiT tokenPolicyId'))
             ]
 
+    it "TRANS_NEW_VALIDITY_INTERVAL_02 - \
+        \Validity bounds should be ordered correctly" $
+        \ctx -> runResourceT $ do
+
+        wa <- fixtureWallet ctx
+
+        let payload = Json [json|
+                { "withdrawal": "self"
+                , "validity_interval":
+                    { "invalid_before":
+                        { "quantity": 100
+                        , "unit": "second"
+                        }
+                    , "invalid_hereafter":
+                        { "quantity": 50
+                        , "unit": "second"
+                        }
+                    }
+                }|]
+
+        rTx <- request @(ApiConstructTransaction n) ctx
+            (Link.createUnsignedTransaction @'Shelley wa) Default payload
+        verify rTx
+            [ expectResponseCode HTTP.status403
+            , expectErrorMessage errMsg403InvalidValidityBounds
+            ]
+
+    it "TRANS_NEW_VALIDITY_INTERVAL_02 - \
+        \Missing lower validity bound is acceptable" $
+        \ctx -> runResourceT $ do
+
+        wa <- fixtureWallet ctx
+
+        let payload = Json [json|
+                { "withdrawal": "self"
+                , "validity_interval":
+                    { "invalid_hereafter":
+                        { "quantity": 10
+                        , "unit": "second"
+                        }
+                    }
+                }|]
+
+        rTx <- request @(ApiConstructTransaction n) ctx
+            (Link.createUnsignedTransaction @'Shelley wa) Default payload
+        verify rTx
+            [ expectResponseCode HTTP.status202
+            ]
+
+    it "TRANS_NEW_VALIDITY_INTERVAL_02 - \
+        \Missing upper validity bound is acceptable" $
+        \ctx -> runResourceT $ do
+
+        wa <- fixtureWallet ctx
+
+        let payload = Json [json|
+                { "withdrawal": "self"
+                , "validity_interval":
+                    { "invalid_before":
+                        { "quantity": 10
+                        , "unit": "second"
+                        }
+                      }
+                }|]
+
+        rTx <- request @(ApiConstructTransaction n) ctx
+            (Link.createUnsignedTransaction @'Shelley wa) Default payload
+        verify rTx
+            [ expectResponseCode HTTP.status202
+            ]
+
+    it "TRANS_NEW_VALIDITY_INTERVAL_02 - \
+        \Validity interval slot should be >= 0" $
+        \ctx -> runResourceT $ do
+
+        wa <- fixtureWallet ctx
+
+        let payload = Json [json|
+                { "withdrawal": "self"
+                , "validity_interval":
+                    { "invalid_before":
+                        { "quantity": -1
+                        , "unit": "slot"
+                        }
+                    , "invalid_hereafter":
+                        { "quantity": -1
+                        , "unit": "slot"
+                        }
+                    }
+                }|]
+
+        rTx <- request @(ApiConstructTransaction n) ctx
+            (Link.createUnsignedTransaction @'Shelley wa) Default payload
+        verify rTx
+            [ expectResponseCode HTTP.status400
+            , expectErrorMessage
+                "parsing Word64 failed, \
+                \value is either floating or will cause over or underflow"
+            ]
+
+    it "TRANS_NEW_VALIDITY_INTERVAL_02 - \
+        \Validity interval 'unspecified'" $
+        \ctx -> runResourceT $ do
+
+        wa <- fixtureWallet ctx
+
+        let payload = Json [json|
+                { "withdrawal": "self"
+                , "validity_interval":
+                    { "invalid_before": "unspecified"
+                    , "invalid_hereafter": "unspecified"
+                    }
+                }|]
+
+        rTx <- request @(ApiConstructTransaction n) ctx
+            (Link.createUnsignedTransaction @'Shelley wa) Default payload
+        verify rTx
+            [ expectResponseCode HTTP.status400
+            , expectErrorMessage
+                "parsing ApiValidityBound object failed, \
+                \expected Object, but encountered String"
+            ]
   where
 
     -- | Just one million Ada, in Lovelace.
