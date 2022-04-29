@@ -2281,18 +2281,19 @@ constructTransaction ctx genChange knownPools getPoolStatus (ApiT wid) body = do
                 isValidityBoundTimeNegative hereafter'
             _ -> False
 
-    let fromValidityBound (Left ApiValidityBoundUnspecified) =
-            liftIO $ pure $ SlotNo 0
-        fromValidityBound (Right ApiValidityBoundUnspecified) =
-            liftIO $ W.getTxExpiry ti Nothing
-        fromValidityBound (Right (ApiValidityBoundAsTimeFromNow (Quantity sec))) =
-            liftIO $ W.getTxExpiry ti (Just sec)
-        fromValidityBound (Left (ApiValidityBoundAsTimeFromNow (Quantity sec))) =
-            liftIO $ W.getTxExpiry ti (Just sec)
-        fromValidityBound (Right (ApiValidityBoundAsSlot (Quantity slot))) =
-            liftIO $ pure $ SlotNo slot
-        fromValidityBound (Left (ApiValidityBoundAsSlot (Quantity slot))) =
-            liftIO $ pure $ SlotNo slot
+    let fromValidityBound = liftIO . \case
+            Left ApiValidityBoundUnspecified ->
+                pure $ SlotNo 0
+            Right ApiValidityBoundUnspecified ->
+                W.getTxExpiry ti Nothing
+            Right (ApiValidityBoundAsTimeFromNow (Quantity sec)) ->
+                W.getTxExpiry ti (Just sec)
+            Left (ApiValidityBoundAsTimeFromNow (Quantity sec)) ->
+                W.getTxExpiry ti (Just sec)
+            Right (ApiValidityBoundAsSlot (Quantity slot)) ->
+                pure $ SlotNo slot
+            Left (ApiValidityBoundAsSlot (Quantity slot)) ->
+                pure $ SlotNo slot
 
     (before, hereafter) <- case body ^. #validityInterval of
         Nothing -> do
