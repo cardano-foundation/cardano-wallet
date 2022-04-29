@@ -246,8 +246,8 @@ withinSlotInterval
     -> SlotNo
     -> [Interval Natural]
     -> Bool
-withinSlotInterval (SlotNo from) (SlotNo to) interval =
-    L.any (txValidityInterval `I.isSubsetOf`) interval
+withinSlotInterval (SlotNo from) (SlotNo to) =
+    L.any (txValidityInterval `I.isSubsetOf`)
   where
     txValidityInterval =
         fromIntegral from <=..<= fromIntegral to
