@@ -3400,7 +3400,13 @@ components:
 
     ApiValidityInterval: &ApiValidityInterval
       description: |
-        Specify only invalid_before or invalid_hereafter or both
+        Specify only invalid_before or invalid_hereafter or both.
+
+        Please note that, if not set, the default values are:
+          - `"invalid_before": {"quantity":0, "unit":"slot"}`
+          - `"invalid_hereafter":{"quantity":7200, "unit":"second"}`
+
+        Which translates to 2h transaction TTL.
       type: object
       properties:
         invalid_before: *validityBound
