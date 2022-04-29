@@ -138,7 +138,7 @@ prop_addressDiscoveryMakesAddressUsed (CatalystSharedState accXPub' accIx' pTemp
     fromIntegral (Map.size ourAddrs) === (fromIntegral (fromEnum ix + 1) + getAddressPoolGap g)
   where
     sharedState = mkSharedStateFromAccountXPub @n accXPub' accIx' g pTemplate' dTemplate'
-    addr = AddressPool.generator (getPool sharedState) keyIx
+    addr = AddressPool.addressFromIx (getPool sharedState) keyIx
     (Just ix, sharedState') = isShared @n (liftPaymentAddress @n addr) sharedState
     getPool st = case ready st of
         Active pool -> pool
@@ -221,7 +221,7 @@ prop_addressDiscoveryDoesNotChangeGapInvariance (CatalystSharedState accXPub' ac
     fromIntegral (L.length mapOfConsecutiveUnused) === getAddressPoolGap g
   where
     sharedState = mkSharedStateFromAccountXPub @n accXPub' accIx' g pTemplate' dTemplate'
-    addr = AddressPool.generator (getPool sharedState) keyIx
+    addr = AddressPool.addressFromIx (getPool sharedState) keyIx
     (_, sharedState') = isShared @n (liftPaymentAddress @n addr) sharedState
     getPool st = case ready st of
         Active pool -> pool

@@ -278,10 +278,11 @@ newSeqAddressPool
     => key 'AccountK XPub
     -> AddressPoolGap
     -> SeqAddressPool c key
-newSeqAddressPool account g = SeqAddressPool $ AddressPool.new generator gap
+newSeqAddressPool account g =
+    SeqAddressPool $ AddressPool.new addressFromIx gap
   where
     gap = fromIntegral $ getAddressPoolGap g
-    generator ix =
+    addressFromIx ix =
         unsafePaymentKeyFingerprint @key
             ( Proxy @n
             , deriveAddressPublicKey @key account (role @c) ix
@@ -832,7 +833,7 @@ instance KnownNat p => IsOurs (SeqAnyState n k p) Address where
             let
                 pool = getPool $ externalPool inner
                 ix = toEnum $ AddressPool.size pool - AddressPool.gap pool
-                addr = AddressPool.generator pool ix
+                addr = AddressPool.addressFromIx pool ix
                 pool' = AddressPool.update addr pool
                 path = DerivationIndex (getIndex ix) :| []
             in

@@ -162,10 +162,10 @@ newSharedAddressPool
     -> Maybe ScriptTemplate
     -> SharedAddressPool key
 newSharedAddressPool g payment delegation =
-    AddressPool.new generator gap
+    AddressPool.new addressFromIx gap
   where
     gap = fromIntegral $ getAddressPoolGap g
-    generator
+    addressFromIx
         = unsafePaymentKeyFingerprint @key
         . constructAddressFromIx @n payment delegation
 
