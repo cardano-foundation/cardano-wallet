@@ -1683,19 +1683,12 @@ x-transactionTTL: &transactionTTL
 
   <<: *numberOfSeconds
 
-x-unspecified: &unspecified
-  type: string
-  enum:
-    - unspecified
-
 x-validityBound: &validityBound
   oneOf:
     - <<: *numberOfSeconds
       title: number of seconds
     - <<: *numberOfSlots
       title: number of slots
-    - <<: *unspecified
-      title: unspecified
 
 x-stakePoolApparentPerformance: &stakePoolApparentPerformance
   description: |
@@ -2643,6 +2636,15 @@ components:
         - <<: *otherCertificate
           title: genesis or MIR certificate
 
+    ApiValidityIntervalExplicit: &ApiValidityIntervalExplicit
+      type: object
+      required:
+        - invalid_before
+        - invalid_hereafter
+      properties:
+        invalid_before: *numberOfSlots
+        invalid_hereafter: *numberOfSlots
+
     ApiDecodedTransaction: &ApiDecodedTransaction
       type: object
       required:
@@ -2672,6 +2674,7 @@ components:
         deposits_taken: *deposits
         deposits_returned: *deposits
         script_validity: *txScriptValidity
+        validity_interval: *ApiValidityIntervalExplicit
 
     x-txBody: &txBody
       oneOf:
@@ -3397,11 +3400,14 @@ components:
 
     ApiValidityInterval: &ApiValidityInterval
       description: |
-        <p>status: <strong>⚠ under development</strong></p>
+        Specify only invalid_before or invalid_hereafter or both.
+
+        Please note that, if not set, the default values are:
+          - `"invalid_before": {"quantity":0, "unit":"slot"}`
+          - `"invalid_hereafter":{"quantity":7200, "unit":"second"}`
+
+        Which translates to 2h transaction TTL.
       type: object
-      required:
-        - invalid_before
-        - invalid_hereafter
       properties:
         invalid_before: *validityBound
         invalid_hereafter: *validityBound
@@ -3413,31 +3419,20 @@ components:
         - title: outputs without amounts
           <<: *transactionNoAmountOutputs
 
-    ApiAssetQuantity: &ApiAssetQuantity
-      type: object
-      required:
-        - quantity
-        - unit
-      properties:
-        quantity:
-          type: integer
-          example: 14
-        unit:
-          type: string
-          enum:
-            - assets
-
     ApiMintData: &ApiMintData
       type: object
       required:
-        - amount
+        - quantity
       properties:
         receiving_address: *addressId
-        amount: *ApiAssetQuantity
+        quantity: *assetQuantity
 
     ApiBurnData: &ApiBurnData
-      allOf:
-        - *ApiAssetQuantity
+      type: object
+      required:
+        - quantity
+      properties:
+        quantity: *assetQuantity
 
     ApiMintBurnOperation: &ApiMintBurnOperation
       type: object
@@ -4142,6 +4137,33 @@ x-errMintOrBurnAssetQuantityOutOfBounds: &errMintOrBurnAssetQuantityOutOfBounds
     code:
       type: string
       enum: ['mint_or_burn_asset_quantity_out_of_bounds']
+
+x-errInvalidValidityBounds: &errInvalidValidityBounds
+  <<: *responsesErr
+  title: invalid_validity_bounds
+  properties:
+    message:
+      type: string
+      description:
+        Occurs when attempting to create a transaction with invalid validity
+        bounds. The 'invalid_before' bound must precede the 'invalid_hereafter'
+        bound, and the given time values must not be negative.
+    code:
+      type: string
+      enum: ['invalid_validity_bounds']
+
+x-errValidityIntervalNotInsideScriptTimelock: &errValidityIntervalNotInsideScriptTimelock
+  <<: *responsesErr
+  title: validity_interval_not_inside_script_timelock
+  properties:
+    message:
+      type: string
+      description:
+        Occurs when attempting to create a transaction with a validity interval
+        that is not a subinterval of an associated script's timelock interval.
+    code:
+      type: string
+      enum: ['validity_interval_not_inside_script_timelock']
 
 x-errInputsDepleted: &errInputsDepleted
   <<: *responsesErr
@@ -5192,6 +5214,8 @@ x-responsesConstructTransaction: &responsesConstructTransaction
             - <<: *errCreatedWrongPolicyScriptTemplate
             - <<: *errAssetNameTooLong
             - <<: *errMintOrBurnAssetQuantityOutOfBounds
+            - <<: *errInvalidValidityBounds
+            - <<: *errValidityIntervalNotInsideScriptTimelock
   <<: *responsesErr404WalletNotFound
   <<: *responsesErr406
   <<: *responsesErr415UnsupportedMediaType
