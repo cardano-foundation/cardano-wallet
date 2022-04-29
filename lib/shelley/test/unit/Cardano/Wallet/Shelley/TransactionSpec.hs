@@ -18,7 +18,6 @@
 {-# LANGUAGE TypeApplications #-}
 {-# LANGUAGE TypeFamilies #-}
 {-# LANGUAGE UndecidableInstances #-}
-{-# LANGUAGE ViewPatterns #-}
 {- HLINT ignore "Use null" -}
 
 {-# OPTIONS_GHC -fno-warn-orphans #-}
@@ -47,6 +46,8 @@ import Cardano.Api
     , TxOutValue (TxOutAdaOnly, TxOutValue)
     , cardanoEraStyle
     )
+import Cardano.Api.Extra
+    ( asAnyShelleyBasedEra, withShelleyBasedTx )
 import Cardano.Api.Gen
     ( genEncodingBoundaryLovelace
     , genSignedValue
@@ -182,7 +183,6 @@ import Cardano.Wallet.Primitive.Types.Tx
     , sealedTxFromBytes'
     , sealedTxFromCardano
     , sealedTxFromCardano'
-    , sealedTxFromCardanoBody
     , serialisedTx
     , txMetadataIsNull
     , txOutCoin
@@ -2216,7 +2216,8 @@ balanceTransactionSpec = do
 
             let balance = balanceTransaction' wallet testStdGenSeed
             let totalOutput tx =
-                    let (wtx, _, _, _) = decodeTx testTxLayer tx
+                    let (wtx, _, _, _) =
+                            decodeTx testTxLayer (sealedTxFromCardano' tx)
                     in
                         F.foldMap (view (#tokens . #coin)) (view #outputs wtx)
                         <> fromMaybe (Coin 0) (view #fee wtx)
@@ -2794,7 +2795,7 @@ instance Buildable a => Show (ShowBuildable a) where
 instance Arbitrary (Hash "Datum") where
     arbitrary = pure $ Hash $ BS.pack $ replicate 28 0
 
-instance Arbitrary PartialTx where
+instance Arbitrary (PartialTx Cardano.AlonzoEra) where
     arbitrary = do
         let era = AlonzoEra
         tx <- genTxForBalancing era
@@ -2809,7 +2810,7 @@ instance Arbitrary PartialTx where
             return (fromCardanoTxIn $ fst i, o, Nothing)
         let redeemers = []
         return $ PartialTx
-            (sealedTxFromCardano $ InAnyCardanoEra era tx)
+            tx
             resolvedInputs
             redeemers
     shrink (PartialTx tx inputs redeemers) =
@@ -2817,17 +2818,12 @@ instance Arbitrary PartialTx where
         | inputs' <- shrinkInputs inputs
         ] ++
         [ restrictResolution $ PartialTx
-            (sealedTxFromCardano $ InAnyCardanoEra Cardano.AlonzoEra tx')
+            tx'
             inputs
             redeemers
-        | tx' <- shrinkTx (alonzoCardanoTx tx)
+        | tx' <- shrinkTx tx
         ]
       where
-        alonzoCardanoTx :: SealedTx -> Cardano.Tx Cardano.AlonzoEra
-        alonzoCardanoTx (cardanoTx -> InAnyCardanoEra Cardano.AlonzoEra atx) =
-            atx
-        alonzoCardanoTx _ = error "alonzoCardanoTx: todo handle other eras"
-
         shrinkInputs (i:ins) =
             map (:ins) (shrink i) ++ map (i:) (shrinkInputs ins)
         shrinkInputs [] =
@@ -2835,7 +2831,7 @@ instance Arbitrary PartialTx where
 
 resolvedInputsUTxO
     :: ShelleyBasedEra era
-    -> PartialTx
+    -> PartialTx era
     -> Cardano.UTxO era
 resolvedInputsUTxO era (PartialTx _ resolvedInputs _) =
     Cardano.UTxO $ Map.fromList $ map convertUTxO resolvedInputs
@@ -2863,15 +2859,15 @@ shrinkTx (Cardano.Tx bod wits) =
 -- shrinking the CBOR.
 --
 -- NOTE: Perhaps ideally 'PartialTx' would handle this automatically.
-restrictResolution :: PartialTx -> PartialTx
+restrictResolution :: PartialTx era -> PartialTx era
 restrictResolution (PartialTx tx inputs redeemers) =
     let
         inputs' = flip filter inputs $  \(i, _, _) ->
-            i `Set.member` inputsInTx (cardanoTx tx)
+            i `Set.member` inputsInTx tx
     in
         PartialTx tx inputs' redeemers
   where
-    inputsInTx (InAnyCardanoEra _era (Cardano.Tx (Cardano.TxBody bod) _)) =
+    inputsInTx (Cardano.Tx (Cardano.TxBody bod) _) =
         Set.fromList $ map (fromCardanoTxIn . fst) $ Cardano.txIns bod
 
 shrinkTxBody
@@ -2967,13 +2963,14 @@ shrinkTxBody (Cardano.ShelleyTxBody e bod scripts scriptData aux val) = tail
     shrinkUpdates (SJust _) = [SNothing]
 
 balanceTransaction'
-    :: Wallet'
+    :: IsShelleyBasedEra era
+    => Wallet'
     -> StdGenSeed
-    -> PartialTx
-    -> Either ErrBalanceTx SealedTx
+    -> PartialTx era
+    -> Either ErrBalanceTx (Cardano.Tx era)
 balanceTransaction' (Wallet' utxo wal pending) seed tx  =
     flip evalRand (stdGenFromSeed seed) $ runExceptT $
-        balanceTransaction @(Rand StdGen)
+        balanceTransaction @_ @(Rand StdGen)
             (Ctx @(Rand StdGen) nullTracer testTxLayer)
             (delegationAddress @'Mainnet)
             mockProtocolParametersForBalancing
@@ -2985,7 +2982,7 @@ balanceTransaction' (Wallet' utxo wal pending) seed tx  =
 -- 'balanceTransaction'.
 prop_balanceTransactionUnresolvedInputs
     :: Wallet'
-    -> ShowBuildable PartialTx
+    -> ShowBuildable (PartialTx Cardano.AlonzoEra)
     -> StdGenSeed
     -> Property
 prop_balanceTransactionUnresolvedInputs wallet (ShowBuildable partialTx') seed =
@@ -3069,7 +3066,7 @@ balanceTransactionGoldenSpec = describe "balance goldens" $ do
         test "delegate" delegate
         test "1ada-payment" payment
   where
-    test :: String -> PartialTx -> Spec
+    test :: String -> PartialTx Cardano.AlonzoEra -> Spec
     test name partialTx = it name $ do
         goldenText name
             (map (mkGolden partialTx . Coin) defaultWalletBalanceRange)
@@ -3090,7 +3087,7 @@ balanceTransactionGoldenSpec = describe "balance goldens" $ do
           where
             dir = $(getTestData) </> "balanceTx"
 
-        mkGolden :: PartialTx -> Coin -> BalanceTxGolden
+        mkGolden :: PartialTx Cardano.AlonzoEra -> Coin -> BalanceTxGolden
         mkGolden ptx c =
             let
                 res = balanceTransaction'
@@ -3116,7 +3113,7 @@ balanceTransactionGoldenSpec = describe "balance goldens" $ do
         addr = Address $ unsafeFromHex
             "60b1e5e0fb74c86c801f646841e07cdb42df8b82ef3ce4e57cb5412e77"
 
-    payment :: PartialTx
+    payment :: PartialTx Cardano.AlonzoEra
     payment = paymentPartialTx
         [ TxOut addr (TokenBundle.fromCoin (Coin 1_000_000))
         ]
@@ -3124,8 +3121,8 @@ balanceTransactionGoldenSpec = describe "balance goldens" $ do
         addr = Address $ unsafeFromHex
             "60b1e5e0fb74c86c801f646841e07cdb42df8b82ef3ce4e57cb5412e77"
 
-    delegate :: PartialTx
-    delegate = PartialTx (sealedTxFromCardanoBody body) [] []
+    delegate :: PartialTx Cardano.AlonzoEra
+    delegate = PartialTx (Cardano.Tx body []) [] []
       where
         body = Cardano.ShelleyTxBody
             Cardano.ShelleyBasedEraAlonzo
@@ -3160,17 +3157,17 @@ balanceTransactionGoldenSpec = describe "balance goldens" $ do
           , Alonzo.txnetworkid = SNothing
           }
 
-    pingPong_1 :: PartialTx
+    pingPong_1 :: PartialTx Cardano.AlonzoEra
     pingPong_1 = PartialTx tx [] []
       where
-        Right tx = sealedTxFromBytes $ unsafeFromHex
+        tx = deserializeAlonzoTx $ unsafeFromHex
             "84a500800d80018183581d714d72cf569a339a18a7d9302313983f56e0d96cd4\
             \5bdcb1d6512dca6a1a001e84805820923918e403bf43c34b4ef6b48eb2ee04ba\
             \bed17320d8d1b9ff9ad086e86f44ec02000e80a10481d87980f5f6"
 
-    pingPong_2 :: PartialTx
+    pingPong_2 :: PartialTx Cardano.AlonzoEra
     pingPong_2 = PartialTx
-        { sealedTx = either (error . show) id $ sealedTxFromBytes $ mconcat
+        { tx = deserializeAlonzoTx $ mconcat
             [ unsafeFromHex "84a50081825820"
             , bytes tid
             , unsafeFromHex "000d80018183581d714d72cf569a339a18a7d9302313983f56e0d96cd45bdcb1d6512dca6a1a001e848058208392f0c940435c06888f9bdb8c74a95dc69f156367d6a089cf008ae05caae01e02000e80a20381591b72591b6f01000033233332222333322223322332232323332223233322232333333332222222232333222323333222232323322323332223233322232323322332232323333322222332233223322332233223322223223223232533530333330083333573466e1d40192004204f23333573466e1d401d2002205123333573466e1d40212000205323504b35304c3357389201035054310004d49926499263333573466e1d40112004205323333573466e1d40152002205523333573466e1d40192000205723504b35304c3357389201035054310004d49926499263333573466e1cd55cea8012400046601664646464646464646464646666ae68cdc39aab9d500a480008cccccccccc064cd409c8c8c8cccd5cd19b8735573aa004900011980f981d1aba15002302c357426ae8940088d4164d4c168cd5ce2481035054310005b49926135573ca00226ea8004d5d0a80519a8138141aba150093335502e75ca05a6ae854020ccd540b9d728169aba1500733502704335742a00c66a04e66aa0a8098eb4d5d0a8029919191999ab9a3370e6aae754009200023350213232323333573466e1cd55cea80124000466a05266a084eb4d5d0a80118239aba135744a00446a0ba6a60bc66ae712401035054310005f49926135573ca00226ea8004d5d0a8011919191999ab9a3370e6aae7540092000233502733504275a6ae854008c11cd5d09aba2500223505d35305e3357389201035054310005f49926135573ca00226ea8004d5d09aba2500223505935305a3357389201035054310005b49926135573ca00226ea8004d5d0a80219a813bae35742a00666a04e66aa0a8eb88004d5d0a801181c9aba135744a00446a0aa6a60ac66ae71241035054310005749926135744a00226ae8940044d5d1280089aba25001135744a00226ae8940044d5d1280089aba25001135573ca00226ea8004d5d0a8011919191999ab9a3370ea00290031180f181d9aba135573ca00646666ae68cdc3a801240084603a608a6ae84d55cf280211999ab9a3370ea00690011180e98181aba135573ca00a46666ae68cdc3a80224000460406eb8d5d09aab9e50062350503530513357389201035054310005249926499264984d55cea80089baa001357426ae8940088d4124d4c128cd5ce249035054310004b49926104a1350483530493357389201035054350004a4984d55cf280089baa001135573a6ea80044d55ce9baa0012212330010030022001222222222212333333333300100b00a00900800700600500400300220012212330010030022001122123300100300212001122123300100300212001122123300100300212001212222300400521222230030052122223002005212222300100520011232230023758002640026aa078446666aae7c004940388cd4034c010d5d080118019aba200203323232323333573466e1cd55cea801a4000466600e6464646666ae68cdc39aab9d5002480008cc034c0c4d5d0a80119a8098169aba135744a00446a06c6a606e66ae71241035054310003849926135573ca00226ea8004d5d0a801999aa805bae500a35742a00466a01eeb8d5d09aba25002235032353033335738921035054310003449926135744a00226aae7940044dd50009110919980080200180110009109198008018011000899aa800bae75a224464460046eac004c8004d540d888c8cccd55cf80112804919a80419aa81898031aab9d5002300535573ca00460086ae8800c0b84d5d08008891001091091198008020018900089119191999ab9a3370ea002900011a80418029aba135573ca00646666ae68cdc3a801240044a01046a0526a605466ae712401035054310002b499264984d55cea80089baa001121223002003112200112001232323333573466e1cd55cea8012400046600c600e6ae854008dd69aba135744a00446a0466a604866ae71241035054310002549926135573ca00226ea80048848cc00400c00880048c8cccd5cd19b8735573aa002900011bae357426aae7940088d407cd4c080cd5ce24810350543100021499261375400224464646666ae68cdc3a800a40084a00e46666ae68cdc3a8012400446a014600c6ae84d55cf280211999ab9a3370ea00690001280511a8111a981199ab9c490103505431000244992649926135573aa00226ea8004484888c00c0104488800844888004480048c8cccd5cd19b8750014800880188cccd5cd19b8750024800080188d4068d4c06ccd5ce249035054310001c499264984d55ce9baa0011220021220012001232323232323333573466e1d4005200c200b23333573466e1d4009200a200d23333573466e1d400d200823300b375c6ae854014dd69aba135744a00a46666ae68cdc3a8022400c46601a6eb8d5d0a8039bae357426ae89401c8cccd5cd19b875005480108cc048c050d5d0a8049bae357426ae8940248cccd5cd19b875006480088c050c054d5d09aab9e500b23333573466e1d401d2000230133016357426aae7940308d407cd4c080cd5ce2481035054310002149926499264992649926135573aa00826aae79400c4d55cf280109aab9e500113754002424444444600e01044244444446600c012010424444444600a010244444440082444444400644244444446600401201044244444446600201201040024646464646666ae68cdc3a800a400446660106eb4d5d0a8021bad35742a0066eb4d5d09aba2500323333573466e1d400920002300a300b357426aae7940188d4040d4c044cd5ce2490350543100012499264984d55cea80189aba25001135573ca00226ea80048488c00800c888488ccc00401401000c80048c8c8cccd5cd19b875001480088c018dd71aba135573ca00646666ae68cdc3a80124000460106eb8d5d09aab9e500423500a35300b3357389201035054310000c499264984d55cea80089baa001212230020032122300100320011122232323333573466e1cd55cea80124000466aa016600c6ae854008c014d5d09aba25002235007353008335738921035054310000949926135573ca00226ea8004498480048004448848cc00400c008448004488800c488800848880048004488800c488800848880048004448c8c00400488cc00cc008008004c8c8cc88cc88c8ccc888c8c8c8c8c8ccc888ccc888ccc888c8cccc8888c8cc88c8cccc8888c8cc88c8cc88c8ccc888c8c8cc88c8c8cc88c8c8c8cccc8888c8c8c8c8c8cc88c8cc88cc88ccccccccccccc8888888888888c8c8c8c8c8cccccccc88888888cc88cc88cc88cc88c8ccccc88888c8cc88cc88cc88c8cc88cc88cc88c8cc88c8c8c8cccc8888cccc8888c8888d4d540400108888c8c8c94cd4c24004ccc0140280240205400454cd4c24004cd5ce249025331000910115001109101153353508101003215335309001333573466e1cccc109400cd4c07800488004c0580212002092010910115002153353090013357389201025332000910115002109101150011533535080013300533501b00833303e03f5001323355306012001235355096010012233550990100233553063120012353550990100122335509c0100233704900080080080099a809801180a003003909a9aa84a8080091911a9a80f00091299a984a0098050010a99a984a00999aa9837090009a835283491a9aa84d8080091199aa9838890009a836a83611a9aa84f0080091199ab9a3370e900000084e0084d808008008a8020a99a984a0099ab9c49102533300095011500410950113535501e00522253353097013333355027253335301400113374a90001bb14984cdd2a40046ec52613374a90021bb149800c008c8cd400541d141d4488cc008cd40ac01cccc124128018cd4078034c07c04400403c4264044cd5ce249025335000980113535501a0012225335309301333335502325301d00100300200100b109501133573892010253340009401133573892010253360008f0113530220052235302d002222222222253353508b013303000a00b2135303a0012235303e0012220021350a10135309d0133573892010253300009e01498cccd5403488d4d404c008894ccd4c02400c54ccd4c01400854ccd4c02400c541f04d41f4cd542400554034cd405801c004541f054ccd4c02400c4d41f4cd542400554034cd4058020004541f0541f0541f054ccd4c01400854ccd4c02400c541f04d41f4cd542400554034cd405801c004541f054ccd4c02400c4d41f4cd542400554034cd4058020004541f0541f0541f04d41f4cd542400554034cd4058019419894ccd4c008004421c04421c044220048882280541e0488800c488800848880048004488800c48880084888004800444ccd5401d416541654164494cd4d41b8004848cd4168cd5421404d4c03000888004cd4168cd54214040052002505b505b12505a235355081013530100012235301b00222222222225335350793301e00a00b213530280012235302c00122235303100322335308701002230930116253353508201004213355098010020011309301161308a01162200211222212333300100500400300211200120011122212333001004003002112001122123300100300212001221233001003002200111222225335307533355304f120013504b504a235300b002223301500200300415335307533355304f120013504b504a235300b002223530160022222222222353501500d22533530840133355305e120013505450562353025001223304b00200400c10860113357389201024c30000850100315335307533355304f120013504b504a235300b002223530160022222222222353501300d22533530840133355305e12001350545056235302700122253353507a00121533530890133305108501003006153353507b330623019007009213308501001002108a01108a011089015335350763301b00c00d2135302500122353029001222333553055120012235302e00222235303300822353035005225335309301333308401004003002001133506f0090081008506701113508c01353088013357389201024c6600089014984218044cd5ce2481024c3100085010021077150741507415074122123300100300212001122123300100300212001221233001003002200122533335300300121505f21505f21505f2133355304612001504a235300d001225335306f3303300200413506300315062003212222300400521222230030052122223002005212222300100520013200135506c22233333333333353019001235300500322222222225335307153353506333355304b12001504f253353072333573466e3c0300041d01cc4d41980045419400c841d041c841cc4cd5ce249024c340007222353006004222222222253353506453353506433355304c1200150502353550790012253353075333573466e3c00803c1dc1d84d41a400c541a000884d419cd4d541e40048800454194854cd4c1ccccd5cd19baf00100c0750741075150701506f235300500322222222225335307133355304b120013504150432333573466ebc0300041d01cccd54c108480048d4d541e00048800400841cc4cd5ce249024c320007222225335306a333573466e1cd4c0200188888888888ccc09801c0380300041b01ac41b04cd5ce2481024c390006b22235300700522222222225335307333355304d1200135043504523530160012225335350690012153353078333040074003010153353506a35301601422222222223305b01b0022153353079333573466e3c0040081ec1e84d4c07401488cccc1b0008004c1d005541b841e841e441e441e002441d44cd5ce249024c6200074225335306833303002f0013335530331200150175045353006004222222222233355303d120012235301600222235301b00322335307100225335307a333573466e3c0500041f01ec4cd415801401c401c801d413c02441a84cd5ce2481024c610006925335306733302f02e001353005003222222222233355304b12001501f235301400122200200910691335738921024c36000682533530673335530411200135037503923300500400100110691335738921024c640006825335306733302f02e001353005003222222222233355304b12001501f23530120012235301600122200200a106913357389201024c35000682353005003222222222253353506333355304b12001504f235301200122533530743303800200e1350680031506700a213530120012235301600122253353506900121507610791506f22353006004222222222253353506433355304c120015050235301300122533530753303900200f1350690031506800a2107513357389201024c380007323530050032222222222353503100b22353503500222353503500822353503900222533530793333333222222253335306d33350640070060031533530800100215335308001005133350610070010041081011333506100700100410810113335061007001004333333335064075225335307b333573466e1c0080041f41f041ac54cd4c1ecccd5cd19b8900200107d07c1069106a22333573466e200080041f41f010088ccd5cd19b8900200107c07d22333573466e200080041f01f4894cd4c1ecccd5cd19b8900200107d07c10011002225335307b333573466e240080041f41f04008400401801401c00800400c41ec4cd5ce249024c330007a222222222212333333333300100b00a009008007006005004003002200122123300100300220012221233300100400300220012212330010030022001212222222300700822122222223300600900821222222230050081222222200412222222003221222222233002009008221222222233001009008200113350325001502f13001002222335530241200123535505a00122335505d002335530271200123535505d001223355060002333535502500123300a4800000488cc02c0080048cc02800520000013301c00200122337000040024446464600200a640026aa0b64466a6a05e0029000111a9aa82e00111299a982c199ab9a3371e0040120b40b22600e0022600c006640026aa0b44466a6a05c0029000111a9aa82d80111299a982b999ab9a3371e00400e0b20b020022600c00642444444444444601801a4424444444444446601601c01a42444444444444601401a44442444444444444666601202001e01c01a444244444444444466601001e01c01a4424444444444446600e01c01a42444444444444600c01a42444444444444600a01a42444444444444600801a42444444444444600601a4424444444444446600401c01a42444444444444600201a400224424660020060042400224424660020060042400244a66a607c666ae68cdc79a9801801110011a98018009100102001f8999ab9a3370e6a6006004440026a60060024400208007e207e442466002006004400244666ae68cdc480100081e81e111199aa980a890009a808a80811a9aa82100091199aa980c090009a80a280991a9aa82280091199a9aa8068009198052400000244660160040024660140029000000998020010009119aa98050900091a9aa8200009119aa821801199a9aa804000919aa98070900091a9aa8220009119aa8238011aa80780080091199aaa80401c801000919aa98070900091a9aa8220009119aa8238011aa806800800999aaa80181a001000888911199aa980209000a80a99aa98050900091a9aa8200009119aa8218011aa805800999aa980209000911a9aa82080111299a981e999aa980b890009a806a80791a9aa82200091198050010028030801899a80c802001a80b00099aa98050900091a9aa820000911919aa8220019800802990009aa82291299a9a80c80089aa8058019109a9aa82300111299a982119806001004099aa80800380089803001801190009aa81f1108911299a9a80a800880111099802801199aa980389000802802000889091118018020891091119801002802089091118008020890008919a80891199a9a803001910010010009a9a80200091000990009aa81c110891299a9a8070008a80811099a808980200119aa980309000802000899a80111299a981800108190800817891091980080180109000899a80191299a9816801080088170168919a80591199a9a802001910010010009a9a8010009100089109198008018010900091299a9a80d999aa980189000a80391a9aa81800091299a9816199ab9a3375e00200a05c05a26a0400062a03e002426a03c6a6aa060002440042a038640026aa05e4422444a66a6a00c00226a6a01400644002442666a6a01800a440046008004666aa600e2400200a00800222440042442446600200800624002266a00444a66a6a02c004420062002a02a24424660020060042400224446a6a008004446a6a00c00644a666a6026666a01400e0080042a66a604c00620022050204e2050244246600200600424002244464646464a666a6a01000c42a666a6a01200c42a666a6a0140104260082c260062c2a666a6a01400e4260082c260062c202a20262a666a6a01200e4260082c260062c2a666a6a01200c4260082c260062c20282a666a6a01000a42024202620222a666a6a01000a42a666a6a01200e42600a2c260082c2a666a6a01200c42600a2c260082c202820242a666a6a01000c42600a2c260082c2a666a6a01000a42600a2c260082c20264a666a6a01000a42a666a6a01200e42a666a6a01400e42666a01e014004002260222c260222c260202c20262a666a6a01000c42a666a6a01200c42666a01c012004002260202c260202c2601e2c202420224a666a6a00e00842a666a6a01000c42a666a6a01200c42666a01c012004002260202c260202c2601e2c20242a666a6a00e00a42a666a6a01000a42666a01a0100040022601e2c2601e2c2601c2c202220204a666a6a00c00642a666a6a00e00a42a666a6a01000a42666a01a0100040022601e2c2601e2c2601c2c20222a666a6a00c00842a666a6a00e00842666a01800e0040022601c2c2601c2c2601a2c2020201e4a666a6a00a00442a666a6a00c00842a666a6a00e00842666a01800e0040022601c2c2601c2c2601a2c20202a666a6a00a00642a666a6a00c00642666a01600c0040022601a2c2601a2c260182c201e201c2424446006008224440042244400224002246a6a0040024444444400e244444444246666666600201201000e00c00a008006004240024c244400624440042444002400244446466a601800a466a601a0084a66a602c666ae68cdc780100080c00b8a801880b900b919a9806802100b9299a980b199ab9a3371e00400203002e2a006202e2a66a6a00a00642a66a6a00c0044266a6014004466a6016004466a601e004466a60200044660280040024034466a6020004403446602800400244403444466a601a0084034444a66a6036666ae68cdc380300180e80e0a99a980d999ab9a3370e00a00403a03826602e00800220382038202a2a66a6a00a0024202a202a2424460040062244002240024244600400644424466600200a00800640024244600400642446002006400244666ae68cdc780100080480411199ab9a3370e00400201000e266ae712401024c630000413357389201024c370000313357389201024c64000021220021220012001235006353002335738921024c6700003498480048004448848cc00400c008448004498448c8c00400488cc00cc0080080050482d87a80d87980f5f6"
@@ -3193,16 +3190,19 @@ balanceTransactionGoldenSpec = describe "balance goldens" $ do
         bytes (Hash x) = x
         tid = Hash $ B8.replicate 32 '1'
 
-    txFee :: SealedTx -> Cardano.Lovelace
-    txFee tx = withAlonzoBody tx $ \(Cardano.TxBody content) ->
+    txFee :: Cardano.Tx Cardano.AlonzoEra -> Cardano.Lovelace
+    txFee (Cardano.Tx (Cardano.TxBody content) _) =
         case Cardano.txFee content of
             Cardano.TxFeeExplicit _ c -> c
             Cardano.TxFeeImplicit _ -> error "implicit fee"
 
-    txMinFee :: SealedTx -> Cardano.Lovelace
+    txMinFee :: Cardano.Tx Cardano.AlonzoEra -> Cardano.Lovelace
     txMinFee = toCardanoLovelace
-        . fromMaybe (error "evaluateMinimumFee returned nothing!")
         . evaluateMinimumFee testTxLayer (snd mockProtocolParametersForBalancing)
+
+    deserializeAlonzoTx :: ByteString -> Cardano.Tx Cardano.AlonzoEra
+    deserializeAlonzoTx = either (error . show) id
+        . Cardano.deserialiseFromCBOR (Cardano.AsTx Cardano.AsAlonzoEra)
 
 -- NOTE: 'balanceTransaction' relies on estimating the number of witnesses that
 -- will be needed. The correctness of this estimation is not tested here.
@@ -3213,7 +3213,7 @@ balanceTransactionGoldenSpec = describe "balance goldens" $ do
 -- TODO: Generate data for other eras than Alonzo
 prop_balanceTransactionValid
     :: Wallet'
-    -> ShowBuildable PartialTx
+    -> ShowBuildable (PartialTx Cardano.AlonzoEra)
     -> StdGenSeed
     -> Property
 prop_balanceTransactionValid wallet (ShowBuildable partialTx') seed
@@ -3222,24 +3222,24 @@ prop_balanceTransactionValid wallet (ShowBuildable partialTx') seed
                 [ resolvedInputsUTxO Cardano.ShelleyBasedEraAlonzo partialTx
                 , toCardanoUTxO Cardano.ShelleyBasedEraAlonzo walletUTxO
                 ]
-        let originalBalance = txBalance (sealedTx partialTx) combinedUTxO
+        let originalBalance = txBalance (view #tx partialTx) combinedUTxO
         let res = balanceTransaction'
                 wallet
                 seed
                 partialTx
         case res of
-            Right sealedTx -> counterexample ("\nResult: " <> pretty sealedTx) $ do
+            Right tx -> counterexample ("\nResult: " <> show (Pretty tx)) $ do
                 label "success"
                     $ classify (originalBalance == mempty)
                         "already balanced"
-                    $ classify (txFee sealedTx > Cardano.Lovelace 1_000_000)
+                    $ classify (txFee tx > Cardano.Lovelace 1_000_000)
                         "fee above 1 ada"
-                    $ classify (hasCollateral sealedTx)
+                    $ classify (hasCollateral tx)
                         "balanced tx has collateral"
                     $ conjoin
-                        [ txBalance sealedTx combinedUTxO === mempty
-                        , prop_validSize sealedTx
-                        , prop_minfeeIsCovered sealedTx
+                        [ txBalance tx combinedUTxO === mempty
+                        , prop_validSize tx
+                        , prop_minfeeIsCovered tx
                         , let
                               minUTxOValue = Cardano.Lovelace 999_978
                               upperBoundCostOfOutput = Cardano.Lovelace 1000
@@ -3249,7 +3249,7 @@ prop_balanceTransactionValid wallet (ShowBuildable partialTx') seed
                               -- change output with the minimumUTxOValue.
                               prop_expectFeeExcessSmallerThan
                                   (minUTxOValue <> upperBoundCostOfOutput)
-                                  sealedTx
+                                  tx
                         ]
             Left
                 (ErrBalanceTxSelectAssets
@@ -3307,7 +3307,8 @@ prop_balanceTransactionValid wallet (ShowBuildable partialTx') seed
             Left err -> label "other error" $
                 counterexample ("balanceTransaction failed: " <> show err) False
   where
-    prop_expectFeeExcessSmallerThan :: Cardano.Lovelace -> SealedTx -> Property
+    prop_expectFeeExcessSmallerThan
+        :: Cardano.Lovelace -> Cardano.Tx Cardano.AlonzoEra -> Property
     prop_expectFeeExcessSmallerThan lim tx = do
         let fee = txFee tx
         let minfee = txMinFee tx
@@ -3323,7 +3324,7 @@ prop_balanceTransactionValid wallet (ShowBuildable partialTx') seed
       where
         showInParens x = "(" <> show x <> ")"
 
-    prop_minfeeIsCovered :: SealedTx -> Property
+    prop_minfeeIsCovered :: Cardano.Tx Cardano.AlonzoEra -> Property
     prop_minfeeIsCovered tx = do
         let fee = txFee tx
         let minfee = txMinFee tx
@@ -3339,9 +3340,9 @@ prop_balanceTransactionValid wallet (ShowBuildable partialTx') seed
                 ]
         counterexample msg $ property $ fee >= minfee
 
-    prop_validSize :: SealedTx -> Property
+    prop_validSize :: Cardano.Tx Cardano.AlonzoEra -> Property
     prop_validSize tx = do
-        let Just (TxSize size) =
+        let (TxSize size) =
                 estimateSignedTxSize
                     testTxLayer
                     (snd mockProtocolParametersForBalancing)
@@ -3354,7 +3355,7 @@ prop_balanceTransactionValid wallet (ShowBuildable partialTx') seed
                 , "must be lower than the maximum size "
                 , show limit
                 , ", tx:"
-                , show (decodeTx testTxLayer tx)
+                , show tx
                 ]
         counterexample msg $ property (size <= limit)
 
@@ -3378,26 +3379,28 @@ prop_balanceTransactionValid wallet (ShowBuildable partialTx') seed
         let Wallet' _ w _ = wallet
         in view #utxo w
 
-    hasCollateral :: SealedTx -> Bool
-    hasCollateral tx = withAlonzoBody tx $ \(Cardano.TxBody content) ->
+    hasCollateral :: Cardano.Tx era -> Bool
+    hasCollateral (Cardano.Tx (Cardano.TxBody content) _) =
         case Cardano.txInsCollateral content of
             Cardano.TxInsCollateralNone -> False
             Cardano.TxInsCollateral _ [] -> False
             Cardano.TxInsCollateral _ (_:_) -> True
 
-    txFee :: SealedTx -> Cardano.Lovelace
-    txFee tx = withAlonzoBody tx $ \(Cardano.TxBody content) ->
+    txFee :: Cardano.Tx Cardano.AlonzoEra -> Cardano.Lovelace
+    txFee (Cardano.Tx (Cardano.TxBody content) _) =
         case Cardano.txFee content of
             Cardano.TxFeeExplicit _ c -> c
             Cardano.TxFeeImplicit _ -> error "implicit fee"
 
-    txMinFee :: SealedTx -> Cardano.Lovelace
+    txMinFee :: Cardano.Tx Cardano.AlonzoEra -> Cardano.Lovelace
     txMinFee = toCardanoLovelace
-        . fromMaybe (error "evaluateMinimumFee returned nothing!")
         . evaluateMinimumFee testTxLayer nodePParams
 
-    txBalance :: SealedTx -> Cardano.UTxO Cardano.AlonzoEra -> Cardano.Value
-    txBalance tx u = withAlonzoBody tx $ \bod ->
+    txBalance
+        :: Cardano.Tx Cardano.AlonzoEra
+        -> Cardano.UTxO Cardano.AlonzoEra
+        -> Cardano.Value
+    txBalance (Cardano.Tx bod _) u =
         valueFromCardanoTxOutValue
         $ Cardano.evaluateTransactionBalance nodePParams mempty u bod
 
@@ -3408,16 +3411,6 @@ prop_balanceTransactionValid wallet (ShowBuildable partialTx') seed
         TxOutValue _ val -> val
 
     (_, nodePParams) = mockProtocolParametersForBalancing
-
-withAlonzoBody
-    :: SealedTx
-    -> (Cardano.TxBody Cardano.AlonzoEra -> a)
-    -> a
-withAlonzoBody (cardanoTx -> Cardano.InAnyCardanoEra Cardano.AlonzoEra tx) f =
-    let Cardano.Tx bod _ = tx
-    in f bod
-withAlonzoBody _ _ = error "withAlonzoBody: other eras are not handled yet"
-
 
 -- | Consistent pair of ProtocolParameters of both wallet and cardano-api types.
 --
@@ -3652,31 +3645,28 @@ updateSealedTxSpec = do
     describe "updateSealedTx" $ do
         describe "no existing key witnesses" $ do
             txs <- readTestTransactions
-            forM_ txs $ \(filepath, tx) -> do
+            forM_ txs $ \(filepath, sealedTx) -> do
+                let anyShelleyEraTx
+                        = fromJust $ asAnyShelleyBasedEra $ cardanoTx sealedTx
                 it ("without TxUpdate: " <> filepath) $ do
-                    case updateSealedTx tx noTxUpdate of
-                        Left e ->
-                            expectationFailure $
-                            "expected update to succeed but failed: " <> show e
-                        Right tx' -> do
-                            sealedInputs tx
-                                `shouldBe` sealedInputs tx'
-                            sealedCollateralInputs tx
-                                `shouldBe` sealedCollateralInputs tx'
-                            sealedOutputs tx
-                                `shouldBe` sealedOutputs tx'
-                            sealedFee tx
-                                `shouldBe` sealedFee tx'
+                    withShelleyBasedTx anyShelleyEraTx $ \tx ->
+                        case updateSealedTx tx noTxUpdate of
+                            Left e ->
+                                expectationFailure $
+                                "expected update to succeed but failed: "
+                                    <> show e
+                            Right tx' -> do
+                                tx `shouldBe` tx'
 
                 prop ("with TxUpdate: " <> filepath) $
-                    prop_updateSealedTx tx
+                    prop_updateSealedTx anyShelleyEraTx
 
         describe "existing key witnesses" $ do
             it "returns `Left err` with noTxUpdate" $ do
                 -- Could be argued that it should instead return `Right tx`.
-                case sealedTxFromBytes $ unsafeFromHex txWithInputsOutputsAndWits of
-                    Left e -> expectationFailure $ show e
-                    Right tx -> do
+                let anyShelleyTx = shelleyBasedTxFromBytes
+                        $ unsafeFromHex txWithInputsOutputsAndWits
+                withShelleyBasedTx anyShelleyTx $ \tx ->
                         updateSealedTx tx noTxUpdate
                             `shouldBe` Left (ErrExistingKeyWitnesses 2)
 
@@ -3693,23 +3683,35 @@ unsafeSealedTxFromHex =
     isNewlineChar c = c `elem` [10,13]
 
 prop_updateSealedTx
-    :: SealedTx -> [(TxIn, TxOut)] -> [TxIn] -> [TxOut] -> Coin -> Property
-prop_updateSealedTx tx extraIns extraCol extraOuts newFee = do
-    let extra = TxUpdate extraIns extraCol extraOuts (UseNewTxFee newFee)
-    let tx' = either (error . show) id
-            $ updateSealedTx tx extra
-    conjoin
-        [ sealedInputs tx' === sealedInputs tx <> Set.fromList (fst <$> extraIns)
-        , sealedCollateralInputs tx' ===
-            if isAlonzo tx
-            then sealedCollateralInputs tx <> Set.fromList extraCol
-            else mempty
-        , sealedOutputs tx' === sealedOutputs tx <> Set.fromList extraOuts
-        , sealedFee tx' === Just newFee
-        ]
+    :: Cardano.InAnyShelleyBasedEra Cardano.Tx
+    -> [(TxIn, TxOut)]
+    -> [TxIn]
+    -> [TxOut]
+    -> Coin
+    -> Property
+prop_updateSealedTx
+    (Cardano.InAnyShelleyBasedEra era tx)
+    extraIns extraCol extraOuts newFee =
+    do
+        let extra = TxUpdate extraIns extraCol extraOuts (UseNewTxFee newFee)
+        let tx' = either (error . show) id
+                $ updateSealedTx tx extra
+        conjoin
+            [ inputs tx' === inputs tx <> Set.fromList (fst <$> extraIns)
+            , outputs tx' === outputs tx <> Set.fromList extraOuts
+            , sealedFee tx' === Just newFee
+            , collateralIns tx' ===
+                if isAlonzo era
+                then collateralIns tx <> Set.fromList extraCol
+                else mempty
+            ]
   where
-    isAlonzo (cardanoTx -> InAnyCardanoEra Cardano.AlonzoEra _) = True
-    isAlonzo (cardanoTx -> InAnyCardanoEra _ _) = False
+    isAlonzo Cardano.ShelleyBasedEraAlonzo = True
+    isAlonzo _                             = False
+
+    inputs = sealedInputs . sealedTxFromCardano'
+    outputs = sealedOutputs . sealedTxFromCardano'
+    collateralIns = sealedCollateralInputs . sealedTxFromCardano'
 
 estimateSignedTxSizeSpec :: Spec
 estimateSignedTxSizeSpec =
@@ -3717,15 +3719,16 @@ estimateSignedTxSizeSpec =
         it "equals the binary size of signed txs" $ property $ do
             forAllGoldens signedTxGoldens $ \hexTx -> do
                 let bs = unsafeFromHex hexTx
-                let tx = either (error . show) id $ sealedTxFromBytes bs
+                let tx = shelleyBasedTxFromBytes bs
                 -- 'mockProtocolParametersForBalancing' is not valid for
                 -- 'ShelleyEra'.
                 let pparams = (snd mockProtocolParametersForBalancing)
                         { Cardano.protocolParamMinUTxOValue = Just 1_000_000
                         }
-                estimateSignedTxSize testTxLayer pparams tx
+                withShelleyBasedTx tx
+                    (estimateSignedTxSize testTxLayer pparams)
                     `shouldBe`
-                    Just (TxSize $ fromIntegral $ BS.length bs)
+                    TxSize (fromIntegral $ BS.length bs)
   where
     forAllGoldens goldens f = forM_ goldens $ \x ->
         Hspec.counterexample (show x) $ f x
@@ -3737,15 +3740,17 @@ sealedInputs :: SealedTx -> Set TxIn
 sealedInputs =
     Set.fromList . map fst . view #resolvedInputs . fst4 . _decodeSealedTx
 
-sealedCollateralInputs :: SealedTx -> Set TxIn
 sealedCollateralInputs
-    = Set.fromList
+    :: SealedTx -> Set TxIn
+sealedCollateralInputs =
+    Set.fromList
     . map fst
     . view #resolvedCollateralInputs
     . fst4
     . _decodeSealedTx
 
-sealedOutputs :: SealedTx -> Set TxOut
+sealedOutputs
+    :: SealedTx -> Set TxOut
 sealedOutputs =
     Set.fromList . view #outputs . fst4 . _decodeSealedTx
 
@@ -3766,12 +3771,13 @@ sealedNumberOfRedeemers sealedTx =
                     Cardano.TxBodyScriptData _ _ (Alonzo.Redeemers rdmrs) ->
                         Map.size rdmrs
 
-sealedFee :: SealedTx -> Maybe Coin
+sealedFee
+    :: forall era. Cardano.IsCardanoEra era => Cardano.Tx era -> Maybe Coin
 sealedFee =
-    view #fee . fst4 . _decodeSealedTx
+    view #fee . fst4 . _decodeSealedTx . sealedTxFromCardano'
 
-paymentPartialTx :: [TxOut] -> PartialTx
-paymentPartialTx txouts = PartialTx (sealedTxFromCardanoBody body) [] []
+paymentPartialTx :: [TxOut] -> PartialTx Cardano.AlonzoEra
+paymentPartialTx txouts = PartialTx (Cardano.Tx body []) [] []
   where
     body = Cardano.ShelleyTxBody
         Cardano.ShelleyBasedEraAlonzo
@@ -3889,3 +3895,15 @@ newtype ShowOrd a = ShowOrd { unShowOrd :: a }
 
 instance (Eq a, Show a) => Ord (ShowOrd a) where
     compare = comparing show
+
+shelleyBasedTxFromBytes :: ByteString -> Cardano.InAnyShelleyBasedEra Cardano.Tx
+shelleyBasedTxFromBytes bytes =
+    let
+        anyEraTx
+            = cardanoTx
+            $ either (error . show) id
+            $ sealedTxFromBytes bytes
+    in
+        case asAnyShelleyBasedEra anyEraTx of
+            Just shelleyTx -> shelleyTx
+            Nothing -> error "shelleyBasedTxFromBytes: ByronTx not supported"

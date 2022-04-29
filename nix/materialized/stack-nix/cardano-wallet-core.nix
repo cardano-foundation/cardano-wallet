@@ -151,6 +151,7 @@
         buildable = true;
         modules = [
           "Paths_cardano_wallet_core"
+          "Cardano/Api/Extra"
           "Cardano/Byron/Codec/Cbor"
           "Cardano/DB/Sqlite"
           "Cardano/DB/Sqlite/Delete"

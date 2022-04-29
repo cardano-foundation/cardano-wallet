@@ -132,6 +132,8 @@ import Cardano.Address.Script
     )
 import Cardano.Api
     ( AnyCardanoEra (..), CardanoEra (..), SerialiseAsCBOR (..) )
+import Cardano.Api.Extra
+    ( asAnyShelleyBasedEra, inAnyCardanoEra, withShelleyBasedTx )
 import Cardano.BM.Tracing
     ( HasPrivacyAnnotation (..), HasSeverityAnnotation (..) )
 import Cardano.Mnemonic
@@ -488,6 +490,7 @@ import Cardano.Wallet.Primitive.Types.Tx
     , TxOut (..)
     , TxStatus (..)
     , UnsignedTx (..)
+    , cardanoTx
     , getSealedTxWitnesses
     , txMintBurnMaxTokenQuantity
     , txOutCoin
@@ -644,6 +647,7 @@ import UnliftIO.Concurrent
 import UnliftIO.Exception
     ( IOException, bracket, throwIO, tryAnyDeep, tryJust )
 
+import qualified Cardano.Api as Cardano
 import qualified Cardano.Wallet as W
 import qualified Cardano.Wallet.Api.Types as Api
 import qualified Cardano.Wallet.DB as W
@@ -2456,23 +2460,46 @@ balanceTransaction ctx genChange (ApiT wid) body = do
     pp <- liftIO $ NW.currentProtocolParameters nl
     -- TODO: This throws when still in the Byron era.
     let nodePParams = fromJust $ W.currentNodeProtocolParameters pp
-    let partialTx = W.PartialTx
-            (getApiT $ body ^. #transaction)
-            (fromExternalInput <$> body ^. #inputs)
-            (fromApiRedeemer <$> body ^. #redeemers)
     withWorkerCtx ctx wid liftE liftE $ \wrk -> do
         wallet <- liftHandler $ W.readWalletUTxOIndex @_ @s @k wrk wid
         ti <- liftIO $ snapshot $ timeInterpreter $ ctx ^. networkLayer
-        transaction <- liftHandler $ ApiT <$> W.balanceTransaction @IO @s @k
-            wrk
-            genChange
-            (pp, nodePParams)
-            ti
-            wallet
-            partialTx
-        return $ ApiSerialisedTransaction { transaction }
+
+        let mkPartialTx
+                :: forall era. Cardano.Tx era
+                -> W.PartialTx era
+            mkPartialTx tx = W.PartialTx
+                    tx
+                    (fromExternalInput <$> body ^. #inputs)
+                    (fromApiRedeemer <$> body ^. #redeemers)
+
+        let balanceTx
+                :: forall era. Cardano.IsShelleyBasedEra era
+                => W.PartialTx era
+                -> Handler (Cardano.Tx era)
+            balanceTx partialTx =
+                liftHandler $ W.balanceTransaction @_ @IO @s @k
+                    wrk
+                    genChange
+                    (pp, nodePParams)
+                    ti
+                    wallet
+                    partialTx
+
+        anyShelleyTx <- maybeToHandler ErrByronTxNotSupported
+            . asAnyShelleyBasedEra
+            . cardanoTx
+            . getApiT $ body ^. #transaction
+
+        res <- withShelleyBasedTx anyShelleyTx
+            (fmap inAnyCardanoEra . balanceTx . mkPartialTx)
+
+        pure $ ApiSerialisedTransaction $ ApiT $ W.sealedTxFromCardano res
   where
     nl = ctx ^. networkLayer
+
+    maybeToHandler :: IsServerError e => e -> Maybe a -> Handler a
+    maybeToHandler _ (Just a) = pure a
+    maybeToHandler e Nothing  = liftHandler $ throwE e
 
 decodeTransaction
     :: forall ctx s k n.
@@ -3325,7 +3352,7 @@ getNetworkParameters (_block0, genesisNp, _st) nl tl = do
     pp <- liftIO $ NW.currentProtocolParameters nl
     sp <- liftIO $ NW.currentSlottingParameters nl
     let np = genesisNp { protocolParameters = pp, slottingParameters = sp }
-    let txConstraints = (view #constraints tl) pp
+    let txConstraints = constraints tl pp
     liftIO $ toApiNetworkParameters np txConstraints (interpretQuery ti . toApiEpochInfo)
   where
     ti :: TimeInterpreter IO
@@ -4339,7 +4366,7 @@ instance IsServerError ErrDecodeTx where
 
 instance IsServerError ErrBalanceTx where
     toServerError = \case
-        ErrBalanceTxUpdateError ErrByronTxNotSupported ->
+        ErrByronTxNotSupported ->
             apiError err403 CreatedInvalidTransaction
                 "Balancing Byron transactions is not supported."
         ErrBalanceTxUpdateError (ErrExistingKeyWitnesses n) ->
@@ -4838,12 +4865,6 @@ instance IsServerError ErrUpdateSealedTx where
                 , "witnesses defined in the input transaction and, adjusting"
                 , "the transaction body will render witnesses invalid!"
                 , "Please make sure to remove all key witnesses from the request."
-                ]
-        ErrByronTxNotSupported{} ->
-            apiError err501 NotImplemented  $ T.unwords
-                [ "You just tried to submit a transaction in the Byron format,"
-                , "but this is not something I support on this particular"
-                , "endpoint. It's time to upgrade!"
                 ]
 
 instance IsServerError ErrAssignRedeemers where
