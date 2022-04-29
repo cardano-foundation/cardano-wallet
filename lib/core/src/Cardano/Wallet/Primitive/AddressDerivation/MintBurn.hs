@@ -225,12 +225,17 @@ toSlotInterval = \case
     minSlot = fromIntegral $ minBound @Word64
     maxSlot = fromIntegral $ maxBound @Word64
     allSlots = minSlot <=..<= maxSlot
-    isNotSig (RequireSignatureOf _) = False
-    isNotSig _ = True
-    isTimelockOrSig (ActiveFromSlot _) = True
-    isTimelockOrSig (ActiveUntilSlot _) = True
-    isTimelockOrSig (RequireSignatureOf _) = True
-    isTimelockOrSig _ = False
+
+    isNotSig = \case
+        RequireSignatureOf _ -> False
+        _ -> True
+
+    isTimelockOrSig = \case
+        ActiveFromSlot _ -> True
+        ActiveUntilSlot _ -> True
+        RequireSignatureOf _ -> True
+        _ -> False
+
     trimAllSlots interval =
         let notAllSlots = filter (/= allSlots) interval
         in
