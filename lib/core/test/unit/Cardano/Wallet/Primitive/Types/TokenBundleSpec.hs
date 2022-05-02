@@ -1,3 +1,6 @@
+{-# LANGUAGE FlexibleInstances #-}
+{-# LANGUAGE GeneralizedNewtypeDeriving #-}
+{-# LANGUAGE StandaloneDeriving #-}
 {-# LANGUAGE TypeApplications #-}
 {-# OPTIONS_GHC -fno-warn-orphans #-}
 {- HLINT ignore "Use camelCase" -}
@@ -14,7 +17,14 @@ import Algebra.PartialOrd
 import Cardano.Numeric.Util
     ( inAscendingPartialOrder )
 import Cardano.Wallet.Primitive.Types.TokenBundle
-    ( TokenBundle (..), add, difference, isCoin, subtract, unsafeSubtract )
+    ( Lexicographic (..)
+    , TokenBundle (..)
+    , add
+    , difference
+    , isCoin
+    , subtract
+    , unsafeSubtract
+    )
 import Cardano.Wallet.Primitive.Types.TokenBundle.Gen
     ( genTokenBundleSmallRange, shrinkTokenBundleSmallRange )
 import Cardano.Wallet.Primitive.Types.TokenQuantity
@@ -38,7 +48,7 @@ import Test.QuickCheck
     , (==>)
     )
 import Test.QuickCheck.Classes
-    ( eqLaws, monoidLaws, semigroupLaws, semigroupMonoidLaws )
+    ( eqLaws, monoidLaws, ordLaws, semigroupLaws, semigroupMonoidLaws )
 import Test.Utils.Laws
     ( testLawsMany )
 import Test.Utils.Laws.PartialOrd
@@ -61,6 +71,10 @@ spec =
             , partialOrdLaws
             , semigroupLaws
             , semigroupMonoidLaws
+            ]
+        testLawsMany @(Lexicographic TokenBundle)
+            [ eqLaws
+            , ordLaws
             ]
 
     describe "Arithmetic" $ do
@@ -206,3 +220,5 @@ instance Arbitrary TokenBundle where
 instance Arbitrary TokenQuantity where
     arbitrary = genTokenQuantityPositive
     shrink = shrinkTokenQuantityPositive
+
+deriving instance Arbitrary (Lexicographic TokenBundle)
