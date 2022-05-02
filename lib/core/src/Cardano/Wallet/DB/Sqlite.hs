@@ -1003,6 +1003,7 @@ mkTxHistory wid txs = flatTxHistory
     [ ( mkTxMetaEntity
           wid txid (W.fee tx) (W.metadata tx) derived (W.scriptValidity tx)
       , mkTxInputsOutputs (txid, tx)
+      , (mkTxMints (txid, tx), mkTxBurns (txid, tx))
       , mkTxWithdrawals (txid, tx)
       )
     | (tx, derived) <- txs
@@ -1017,6 +1018,7 @@ mkTxHistory wid txs = flatTxHistory
             , [(TxOut, [TxOutToken])]
             , [(TxCollateralOut, [TxCollateralOutToken])]
             )
+          , ([TxMint], [TxBurn])
           , [TxWithdrawal]
           )
         ] ->
@@ -1030,14 +1032,14 @@ mkTxHistory wid txs = flatTxHistory
         , [TxWithdrawal]
         )
     flatTxHistory es =
-        (               map (                       (\(a, _, _) -> a)) es
-        ,         concatMap ((\(a, _, _, _) -> a) . (\(_, b, _) -> b)) es
-        ,         concatMap ((\(_, b, _, _) -> b) . (\(_, b, _) -> b)) es
-        , fst <$> concatMap ((\(_, _, c, _) -> c) . (\(_, b, _) -> b)) es
-        , snd =<< concatMap ((\(_, _, c, _) -> c) . (\(_, b, _) -> b)) es
-        , fst <$> concatMap ((\(_, _, _, d) -> d) . (\(_, b, _) -> b)) es
-        , snd =<< concatMap ((\(_, _, _, d) -> d) . (\(_, b, _) -> b)) es
-        ,         concatMap (                       (\(_, _, c) -> c)) es
+        (               map (                       (\(a, _, _, _) -> a)) es
+        ,         concatMap ((\(a, _, _, _) -> a) . (\(_, b, _, _) -> b)) es
+        ,         concatMap ((\(_, b, _, _) -> b) . (\(_, b, _, _) -> b)) es
+        , fst <$> concatMap ((\(_, _, c, _) -> c) . (\(_, b, _, _) -> b)) es
+        , snd =<< concatMap ((\(_, _, c, _) -> c) . (\(_, b, _, _) -> b)) es
+        , fst <$> concatMap ((\(_, _, _, d) -> d) . (\(_, b, _, _) -> b)) es
+        , snd =<< concatMap ((\(_, _, _, d) -> d) . (\(_, b, _, _) -> b)) es
+        ,         concatMap (                       (\(_, _, _, d) -> d)) es
         )
 
 mkTxInputsOutputs ::
