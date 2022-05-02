@@ -248,6 +248,14 @@ data Tx = Tx
     , collateralOutput :: !(Maybe TxOut)
         -- ^ An output that is only created if a transaction script fails.
 
+    , mint
+        :: !TxMint
+        -- ^ Tokens that are minted by this transaction.
+
+    , burn
+        :: !TxBurn
+        -- ^ Tokens that are burned by this transaction.
+
     , withdrawals
         :: !(Map RewardAccount Coin)
         -- ^ Withdrawals (of funds from a registered reward account) embedded in
@@ -729,6 +737,10 @@ data TransactionInfo = TransactionInfo
     -- ^ Payment destination.
     , txInfoCollateralOutput :: !(Maybe TxOut)
     -- ^ An output that is only created if a transaction script fails.
+    , txInfoMint :: !TxMint
+    -- ^ Tokens that are minted by this transaction.
+    , txInfoBurn :: !TxBurn
+    -- ^ Tokens that are burned by this transaction.
     , txInfoWithdrawals :: !(Map RewardAccount Coin)
     -- ^ Withdrawals on this transaction.
     , txInfoMeta :: !TxMeta
@@ -775,6 +787,8 @@ fromTransactionInfo info = Tx
     , resolvedCollateralInputs = drop3rd <$> txInfoCollateralInputs info
     , outputs = txInfoOutputs info
     , collateralOutput = txInfoCollateralOutput info
+    , mint = txInfoMint info
+    , burn = txInfoBurn info
     , withdrawals = txInfoWithdrawals info
     , metadata = txInfoMetadata info
     , scriptValidity = txInfoScriptValidity info

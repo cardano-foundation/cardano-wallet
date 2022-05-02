@@ -139,6 +139,8 @@ data TxWithoutId = TxWithoutId
     , resolvedCollateralInputs :: ![(TxIn, Coin)]
     , outputs :: ![TxOut]
     , collateralOutput :: !(Maybe TxOut)
+    , mint :: !TxMint
+    , burn :: !TxBurn
     , metadata :: !(Maybe TxMetadata)
     , withdrawals :: !(Map RewardAccount Coin)
     , scriptValidity :: !(Maybe TxScriptValidity)
@@ -152,6 +154,10 @@ genTxWithoutId = TxWithoutId
     <*> listOf1 (liftArbitrary2 genTxIn genCoinPositive)
     <*> listOf genTxOut
     <*> liftArbitrary genTxOut
+    -- TODO: [ADP-1654]
+    <*> pure (TxMint mempty)
+    -- TODO: [ADP-1654]
+    <*> pure (TxBurn mempty)
     <*> liftArbitrary genNestedTxMetadata
     <*> genMapWith genRewardAccount genCoinPositive
     <*> liftArbitrary genTxScriptValidity
@@ -163,6 +169,8 @@ shrinkTxWithoutId = genericRoundRobinShrink
     <:> shrinkList (liftShrink2 shrinkTxIn shrinkCoinPositive)
     <:> shrinkList shrinkTxOut
     <:> liftShrink shrinkTxOut
+    <:> shrinkTxMint
+    <:> shrinkTxBurn
     <:> liftShrink shrinkTxMetadata
     <:> shrinkMapWith shrinkRewardAccount shrinkCoinPositive
     <:> liftShrink shrinkTxScriptValidity

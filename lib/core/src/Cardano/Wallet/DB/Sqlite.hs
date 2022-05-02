@@ -1185,6 +1185,12 @@ txHistoryFromEntity ti tip metas ins cins outs couts ws =
                 listToMaybe $
                 map mkTxCollateralOut $
                 filter ((== txid) . txCollateralOutTxId . fst) couts
+            , W.txInfoMint =
+                -- TODO: [ADP-1654]
+                W.TxMint mempty
+            , W.txInfoBurn =
+                -- TODO: [ADP-1654]
+                W.TxBurn mempty
             , W.txInfoWithdrawals =
                 Map.fromList
                     $ map mkTxWithdrawal

@@ -406,7 +406,8 @@ arbitraryChainLength = 10
 -------------------------------------------------------------------------------}
 
 instance Arbitrary Tx where
-    shrink (Tx _tid fees ins cins outs cout wdrls md validity) =
+    -- TODO: [ADP-1654]
+    shrink (Tx _tid fees ins cins outs cout _mint _burn wdrls md validity) =
         [ mkTx fees ins' cins' outs' cout' wdrls' md' validity'
         | (ins', cins', outs', cout', wdrls', md', validity') <-
             shrink (ins, cins, outs, cout, wdrls, md, validity)

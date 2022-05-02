@@ -170,9 +170,11 @@ import Cardano.Wallet.Primitive.Types.Tx
     , SealedTx (..)
     , TransactionInfo (..)
     , Tx (..)
+    , TxBurn (..)
     , TxIn (..)
     , TxMeta
     , TxMetadata
+    , TxMint (..)
     , TxOut (..)
     , TxScriptValidity
     , TxSize (..)
@@ -1000,6 +1002,12 @@ instance ToExpr WalletMetadata where
     toExpr = defaultExprViaShow
 
 instance ToExpr Tx where
+    toExpr = genericToExpr
+
+instance ToExpr TxMint where
+    toExpr = genericToExpr
+
+instance ToExpr TxBurn where
     toExpr = genericToExpr
 
 instance ToExpr TxScriptValidity where

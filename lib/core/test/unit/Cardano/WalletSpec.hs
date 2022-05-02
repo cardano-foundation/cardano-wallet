@@ -131,9 +131,11 @@ import Cardano.Wallet.Primitive.Types.Tx
     , SealedTx (..)
     , TransactionInfo (..)
     , Tx (..)
+    , TxBurn (..)
     , TxIn (..)
     , TxMeta (..)
     , TxMetadata
+    , TxMint (..)
     , TxOut (..)
     , TxStatus (..)
     , isPending
@@ -681,6 +683,8 @@ walletListsOnlyRelatedAssets txId txMeta =
                 , resolvedCollateralInputs = mempty
                 , outputs = [out1, out2]
                 , collateralOutput = Nothing
+                , mint = TxMint mempty
+                , burn = TxBurn mempty
                 , metadata = mempty
                 , withdrawals = mempty
                 , scriptValidity = Nothing
@@ -800,6 +804,8 @@ instance Arbitrary GenTxHistory where
             , resolvedCollateralInputs = []
             , outputs = []
             , collateralOutput = Nothing
+            , mint = TxMint mempty
+            , burn = TxBurn mempty
             , withdrawals = mempty
             , metadata = Nothing
             , scriptValidity = Nothing
@@ -1346,6 +1352,8 @@ dummyTransactionLayer = TransactionLayer
                 , resolvedCollateralInputs = cinps'
                 , outputs = view #outputs cs
                 , collateralOutput = Nothing
+                , mint = TxMint mempty
+                , burn = TxBurn mempty
                 , withdrawals = mempty
                 , metadata = Nothing
                 , scriptValidity = Nothing
@@ -1393,6 +1401,8 @@ dummyTransactionLayer = TransactionLayer
             , resolvedCollateralInputs = mempty
             , outputs = mempty
             , collateralOutput = Nothing
+            , mint = TxMint mempty
+            , burn = TxBurn mempty
             , withdrawals = mempty
             , metadata = mempty
             , scriptValidity = Nothing

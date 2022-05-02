@@ -141,8 +141,10 @@ import Cardano.Wallet.Primitive.Types.Tx
     ( Direction (..)
     , TransactionInfo
     , Tx (..)
+    , TxBurn (..)
     , TxIn (..)
     , TxMeta (..)
+    , TxMint (..)
     , TxOut (..)
     , TxStatus (..)
     )
@@ -582,6 +584,10 @@ mkTxHistory numTx numInputs numOutputs numAssets range =
             , collateralOutput =
                 -- TODO: [ADP-1670]
                 Nothing
+            -- TODO: [ADP-1654]
+            , mint = TxMint mempty
+            -- TODO: [ADP-1654]
+            , burn = TxBurn mempty
             , withdrawals = mempty
             , metadata = Nothing
             , scriptValidity = Nothing

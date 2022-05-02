@@ -51,8 +51,10 @@ import Cardano.Wallet.Primitive.Types.RewardAccount
     ( RewardAccount (..) )
 import Cardano.Wallet.Primitive.Types.Tx
     ( Tx (..)
+    , TxBurn (..)
     , TxIn (..)
     , TxMetadata (..)
+    , TxMint (..)
     , TxOut (..)
     , TxScriptValidity (..)
     , TxSize (..)
@@ -151,6 +153,10 @@ mkTx fees ins cins outs cout wdrls md validity =
       , resolvedCollateralInputs = cins
       , outputs = outs
       , collateralOutput = cout
+      -- TODO: [ADP-1654]
+      , mint = TxMint mempty
+      -- TODO: [ADP-1654]
+      , burn = TxBurn mempty
       , withdrawals = wdrls
       , metadata = md
       , scriptValidity = validity
