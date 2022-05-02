@@ -154,10 +154,8 @@ genTxWithoutId = TxWithoutId
     <*> listOf1 (liftArbitrary2 genTxIn genCoinPositive)
     <*> listOf genTxOut
     <*> liftArbitrary genTxOut
-    -- TODO: [ADP-1654]
-    <*> pure (TxMint mempty)
-    -- TODO: [ADP-1654]
-    <*> pure (TxBurn mempty)
+    <*> genTxMint
+    <*> genTxBurn
     <*> liftArbitrary genNestedTxMetadata
     <*> genMapWith genRewardAccount genCoinPositive
     <*> liftArbitrary genTxScriptValidity
