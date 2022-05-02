@@ -18,6 +18,8 @@
 
 {- HLINT ignore "Redundant flip" -}
 {- HLINT ignore "Redundant ^." -}
+{- HLINT ignore "Use fst" -}
+{- HLINT ignore "Use snd" -}
 
 -- |
 -- Copyright: © 2018-2020 IOHK
@@ -592,6 +594,8 @@ newDBLayerWith _cacheBehavior _tr ti SqliteContext{runQuery} = do
                         , txOutTokens
                         , txCollateralOuts
                         , txCollateralOutTokens
+                        , txMints
+                        , txBurns
                         , txWithdrawals
                         ) = Identity $ mkTxHistory wid txs
                 putTxs
@@ -761,6 +765,8 @@ newDBLayerWith _cacheBehavior _tr ti SqliteContext{runQuery} = do
                             , txOutTokens
                             , txCollateralOuts
                             , txCollateralOutTokens
+                            , txMints
+                            , txBurns
                             , txWithdrawals
                             ) = Identity $ mkTxHistory wid txs
                     putTxs
@@ -997,6 +1003,8 @@ mkTxHistory
         , [TxOutToken]
         , [TxCollateralOut]
         , [TxCollateralOutToken]
+        , [TxMint]
+        , [TxBurn]
         , [TxWithdrawal]
         )
 mkTxHistory wid txs = flatTxHistory
@@ -1029,6 +1037,8 @@ mkTxHistory wid txs = flatTxHistory
         , [TxOutToken]
         , [TxCollateralOut]
         , [TxCollateralOutToken]
+        , [TxMint]
+        , [TxBurn]
         , [TxWithdrawal]
         )
     flatTxHistory es =
@@ -1039,6 +1049,8 @@ mkTxHistory wid txs = flatTxHistory
         , snd =<< concatMap ((\(_, _, c, _) -> c) . (\(_, b, _, _) -> b)) es
         , fst <$> concatMap ((\(_, _, _, d) -> d) . (\(_, b, _, _) -> b)) es
         , snd =<< concatMap ((\(_, _, _, d) -> d) . (\(_, b, _, _) -> b)) es
+        ,         concatMap ((\(a, _      ) -> a) . (\(_, _, c, _) -> c)) es
+        ,         concatMap ((\(_, b      ) -> b) . (\(_, _, c, _) -> c)) es
         ,         concatMap (                       (\(_, _, _, d) -> d)) es
         )
 
