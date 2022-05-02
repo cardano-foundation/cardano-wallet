@@ -16,6 +16,8 @@ module Cardano.Wallet.Primitive.Types.Tx.Gen
     , genTxOut
     , genTxOutCoin
     , genTxOutTokenBundle
+    , genTxMint
+    , genTxBurn
     , genTxScriptValidity
     , shrinkTx
     , shrinkTxHash
@@ -23,6 +25,8 @@ module Cardano.Wallet.Primitive.Types.Tx.Gen
     , shrinkTxIn
     , shrinkTxOut
     , shrinkTxOutCoin
+    , shrinkTxMint
+    , shrinkTxBurn
     , shrinkTxScriptValidity
     )
     where
@@ -48,13 +52,15 @@ import Cardano.Wallet.Primitive.Types.TokenBundle
 import Cardano.Wallet.Primitive.Types.TokenBundle.Gen
     ( genTokenBundleSmallRange, shrinkTokenBundleSmallRange )
 import Cardano.Wallet.Primitive.Types.TokenMap.Gen
-    ( genAssetIdLargeRange )
+    ( genAssetIdLargeRange, genTokenMap, shrinkTokenMap )
 import Cardano.Wallet.Primitive.Types.TokenQuantity
     ( TokenQuantity (..) )
 import Cardano.Wallet.Primitive.Types.Tx
     ( Tx (..)
+    , TxBurn (..)
     , TxIn (..)
     , TxMetadata (..)
+    , TxMint (..)
     , TxOut (..)
     , TxScriptValidity (..)
     , coinIsValidForTxOut
@@ -322,6 +328,22 @@ genTxOutTokenBundle fixedAssetCount
 
         integerToTokenQuantity :: Integer -> TokenQuantity
         integerToTokenQuantity = TokenQuantity . fromIntegral
+
+--------------------------------------------------------------------------------
+-- Minting and burning
+--------------------------------------------------------------------------------
+
+genTxMint :: Gen TxMint
+genTxMint = TxMint <$> genTokenMap
+
+genTxBurn :: Gen TxBurn
+genTxBurn = TxBurn <$> genTokenMap
+
+shrinkTxMint :: TxMint -> [TxMint]
+shrinkTxMint = shrinkMapBy TxMint unTxMint shrinkTokenMap
+
+shrinkTxBurn :: TxBurn -> [TxBurn]
+shrinkTxBurn = shrinkMapBy TxBurn unTxBurn shrinkTokenMap
 
 --------------------------------------------------------------------------------
 -- Internal utilities

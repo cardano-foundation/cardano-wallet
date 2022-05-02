@@ -1,4 +1,5 @@
 {-# LANGUAGE DataKinds #-}
+{-# LANGUAGE DeriveAnyClass #-}
 {-# LANGUAGE DeriveFunctor #-}
 {-# LANGUAGE DeriveGeneric #-}
 {-# LANGUAGE DerivingVia #-}
@@ -28,6 +29,8 @@ module Cardano.Wallet.Primitive.Types.Tx
     , TxMeta (..)
     , TxMetadata (..)
     , TxMetadataValue (..)
+    , TxMint (..)
+    , TxBurn (..)
     , TxStatus (..)
     , UnsignedTx (..)
     , TransactionInfo (..)
@@ -1019,3 +1022,17 @@ unsafeCoinToTxOutCoinValue c
             ]
     | otherwise =
         Coin.unsafeToWord64 c
+
+--------------------------------------------------------------------------------
+-- Minting and burning
+--------------------------------------------------------------------------------
+
+newtype TxMint = TxMint {unTxMint :: TokenMap}
+    deriving stock (Eq, Generic, Show)
+    deriving Ord via (Lexicographic TokenMap)
+    deriving anyclass NFData
+
+newtype TxBurn = TxBurn {unTxBurn :: TokenMap}
+    deriving stock (Eq, Generic, Show)
+    deriving Ord via (Lexicographic TokenMap)
+    deriving anyclass NFData
