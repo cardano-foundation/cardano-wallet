@@ -67,4 +67,9 @@ if [ "$job" = build ]; then
 
   echo "+++ Building cardano-wallet"
   cabal "${cabal_args[@]}" build all
+
+  echo "+++ haskell-language-server"
+  ln -sf hie-direnv.yaml hie.yaml
+
+  nix develop --command "$(dirname "$0")/hls-ci.sh"
 fi
