@@ -51,6 +51,9 @@ module Cardano.Wallet.Primitive.Types.TokenBundle
     , equipartitionAssets
     , equipartitionQuantitiesWithUpperBound
 
+    -- * Ordering
+    , Lexicographic (..)
+
     -- * Serialization
     , Flat (..)
     , Nested (..)
@@ -71,7 +74,7 @@ import Algebra.PartialOrd
 import Cardano.Wallet.Primitive.Types.Coin
     ( Coin (..) )
 import Cardano.Wallet.Primitive.Types.TokenMap
-    ( AssetId (..), Flat (..), Nested (..), TokenMap )
+    ( AssetId (..), Flat (..), Lexicographic (..), Nested (..), TokenMap )
 import Cardano.Wallet.Primitive.Types.TokenPolicy
     ( TokenName, TokenPolicyId )
 import Cardano.Wallet.Primitive.Types.TokenQuantity
@@ -92,6 +95,8 @@ import Data.Map.Strict
     ( Map )
 import Data.Map.Strict.NonEmptyMap
     ( NonEmptyMap )
+import Data.Ord
+    ( comparing )
 import Data.Set
     ( Set )
 import Fmt
@@ -121,6 +126,16 @@ data TokenBundle = TokenBundle
     deriving stock (Eq, Generic, Read, Show)
     deriving anyclass (NFData, Hashable)
 
+instance Semigroup TokenBundle where
+    (<>) = add
+
+instance Monoid TokenBundle where
+    mempty = empty
+
+--------------------------------------------------------------------------------
+-- Ordering
+--------------------------------------------------------------------------------
+
 -- | Token bundles can be partially ordered, but there is no total ordering of
 --   token bundles that's consistent with their arithmetic properties.
 --
@@ -140,11 +155,10 @@ instance PartialOrd TokenBundle where
         (coin b1 <= coin b2)
         (tokens b1 `leq` tokens b2)
 
-instance Semigroup TokenBundle where
-    (<>) = add
-
-instance Monoid TokenBundle where
-    mempty = empty
+instance Ord (Lexicographic TokenBundle) where
+    compare = comparing projection
+      where
+        projection (Lexicographic (TokenBundle c m)) = (c, Lexicographic m)
 
 --------------------------------------------------------------------------------
 -- Text serialization

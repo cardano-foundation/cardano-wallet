@@ -125,9 +125,7 @@ import Cardano.Wallet.Primitive.Types.RewardAccount
 import Cardano.Wallet.Primitive.Types.TokenBundle
     ( TokenBundle (..) )
 import Cardano.Wallet.Primitive.Types.TokenMap
-    ( TokenMap )
-import Cardano.Wallet.Primitive.Types.TokenPolicy
-    ( TokenName, TokenPolicyId )
+    ( Lexicographic (..), TokenMap )
 import Cardano.Wallet.Primitive.Types.TokenQuantity
     ( TokenQuantity (..) )
 import Cardano.Wallet.Util
@@ -143,15 +141,13 @@ import Data.ByteString
 import Data.Either
     ( partitionEithers )
 import Data.Function
-    ( on, (&) )
+    ( on )
 import Data.Generics.Internal.VL.Lens
     ( over, view )
 import Data.Generics.Labels
     ()
 import Data.Int
     ( Int64 )
-import Data.List.NonEmpty
-    ( NonEmpty (..) )
 import Data.Map.Strict
     ( Map )
 import Data.Ord
@@ -363,22 +359,13 @@ txOutSubtractCoin toSubtract =
 -- (as that would lead to arithmetically invalid orderings), this means we can't
 -- automatically derive an 'Ord' instance for the 'TxOut' type.
 --
--- Instead, we define an 'Ord' instance that makes comparisons based on the list
--- representation of a 'TokenBundle'.
+-- Instead, we define an 'Ord' instance that makes comparisons based on
+-- lexicographic ordering of 'TokenBundle' values.
 --
 instance Ord TxOut where
     compare = comparing projection
       where
-        projection :: TxOut ->
-            ( Address
-            , Coin
-            , [(TokenPolicyId, NonEmpty (TokenName, TokenQuantity))]
-            )
-        projection out =
-            ( out & view #address
-            , out & view (#tokens . #coin)
-            , out & view (#tokens . #tokens) & TokenMap.toNestedList
-            )
+        projection (TxOut address bundle) = (address, Lexicographic bundle)
 
 data TxChange derivationPath = TxChange
     { address

@@ -136,7 +136,7 @@ import Cardano.Wallet.Primitive.Types.Coin
 import Cardano.Wallet.Primitive.Types.TokenBundle
     ( TokenBundle (..) )
 import Cardano.Wallet.Primitive.Types.TokenMap
-    ( AssetId, Flat (..), TokenMap )
+    ( AssetId, Flat (..), Lexicographic (..), TokenMap )
 import Cardano.Wallet.Primitive.Types.TokenQuantity
     ( TokenQuantity (..) )
 import Cardano.Wallet.Primitive.Types.Tx
@@ -2229,13 +2229,9 @@ selectedCoinQuantity
 -- lexicographic ordering as a tie-breaker.
 --
 instance Ord (AssetCount TokenMap) where
-    compare (AssetCount m1) (AssetCount m2) =
-        case compare (assetCount m1) (assetCount m2) of
-            LT -> LT
-            GT -> GT
-            EQ -> comparing TokenMap.toNestedList m1 m2
+    compare = comparing projection
       where
-        assetCount = TokenMap.size
+        projection (AssetCount m) = (TokenMap.size m, Lexicographic m)
 
 newtype AssetCount a = AssetCount
     { unAssetCount :: a }
