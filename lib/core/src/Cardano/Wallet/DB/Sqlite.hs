@@ -606,6 +606,8 @@ newDBLayerWith _cacheBehavior _tr ti SqliteContext{runQuery} = do
                     txOutTokens
                     txCollateralOuts
                     txCollateralOutTokens
+                    txMints
+                    txBurns
                     txWithdrawals
             pure res
 
@@ -777,6 +779,8 @@ newDBLayerWith _cacheBehavior _tr ti SqliteContext{runQuery} = do
                         txOutTokens
                         txCollateralOuts
                         txCollateralOutTokens
+                        txMints
+                        txBurns
                         txWithdrawals
                     pure $ Right ()
 
@@ -1354,6 +1358,8 @@ putTxs
     -> [TxOutToken]
     -> [TxCollateralOut]
     -> [TxCollateralOutToken]
+    -> [TxMint]
+    -> [TxBurn]
     -> [TxWithdrawal]
     -> SqlPersistT IO ()
 putTxs
@@ -1364,6 +1370,8 @@ putTxs
     txOutTokens
     txCollateralOuts
     txCollateralOutTokens
+    txMints
+    txBurns
     txWithdrawals = do
         dbChunked' repsertMany
             [ (TxMetaKey txMetaTxId txMetaWalletId, m)
