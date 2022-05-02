@@ -166,7 +166,7 @@ import Data.Functor
 import Data.Generics.Internal.VL.Lens
     ( view, (^.) )
 import Data.List
-    ( nub, sortOn, unzip5 )
+    ( nub, sortOn, unzip7 )
 import Data.List.Split
     ( chunksOf )
 import Data.Map.Strict
@@ -1473,6 +1473,8 @@ selectTxs
         , [(TxCollateral, Maybe (TxOut, [TxOutToken]))]
         , [(TxOut, [TxOutToken])]
         , [(TxCollateralOut, [TxCollateralOutToken])]
+        , [TxMint]
+        , [TxBurn]
         , [TxWithdrawal]
         )
 selectTxs = fmap concatUnzip . mapM select . chunksOf chunkSize
@@ -1511,6 +1513,14 @@ selectTxs = fmap concatUnzip . mapM select . chunksOf chunkSize
                 [TxCollateralOutTxId <-. txids]
                 [Asc TxCollateralOutTxId]
 
+        mints <- fmap entityVal <$> selectList
+            [TxMintTxId <-. txids]
+            []
+
+        burns <- fmap entityVal <$> selectList
+            [TxBurnTxId <-. txids]
+            []
+
         withdrawals <- fmap entityVal <$> selectList
             [TxWithdrawalTxId <-. txids]
             []
@@ -1522,6 +1532,8 @@ selectTxs = fmap concatUnzip . mapM select . chunksOf chunkSize
                 `resolveCollateralWith` resolvedCollateral
             , outputs
             , collateralOutputs
+            , mints
+            , burns
             , withdrawals
             )
 
@@ -1573,16 +1585,20 @@ selectTxs = fmap concatUnzip . mapM select . chunksOf chunkSize
                 )
         ]
 
-    concatUnzip :: [([a], [b], [c], [d], [e])] -> ([a], [b], [c], [d], [e])
+    concatUnzip
+        :: [([a], [b], [c], [d], [e], [f], [g])]
+        -> (([a], [b], [c], [d], [e], [f], [g]))
     concatUnzip =
-        (\(a, b, c, d, e) ->
+        (\(a, b, c, d, e, f, g) ->
             ( concat a
             , concat b
             , concat c
             , concat d
             , concat e
+            , concat f
+            , concat g
             )
-        ) . unzip5
+        ) . unzip7
 
 -- | Split a query's input values into chunks, run multiple smaller queries,
 -- and then concatenate the results afterwards. Used to avoid "too many SQL
@@ -1616,7 +1632,7 @@ selectTxHistory cp ti wid minWithdrawal order conditions = do
             pure $ sortSlot $ sortTxId $ fmap entityVal ms
 
     let txids = map txMetaTxId metas
-    (ins, cins, outs, couts, ws) <- selectTxs txids
+    (ins, cins, outs, couts, mints, burns, ws) <- selectTxs txids
 
     let tip = W.currentTip cp
 
