@@ -100,11 +100,13 @@ import Cardano.Wallet.DB.Sqlite.TH
     , LocalTxSubmission (..)
     , PrivateKey (..)
     , StakeKeyCertificate (..)
+    , TxBurn (..)
     , TxCollateral (..)
     , TxCollateralOut (..)
     , TxCollateralOutToken (..)
     , TxIn (..)
     , TxMeta (..)
+    , TxMint (..)
     , TxOut (..)
     , TxOutToken (..)
     , TxWithdrawal (..)
@@ -137,6 +139,8 @@ import Cardano.Wallet.Primitive.Slotting
     )
 import Cardano.Wallet.Primitive.Types.TokenMap
     ( AssetId (..) )
+import Cardano.Wallet.Primitive.Types.TokenQuantity
+    ( TokenQuantity )
 import Control.Monad
     ( forM, unless, void, when, (<=<) )
 import Control.Monad.Extra
@@ -229,6 +233,7 @@ import qualified Cardano.Wallet.Primitive.Types.Coin as Coin
 import qualified Cardano.Wallet.Primitive.Types.Coin as W
 import qualified Cardano.Wallet.Primitive.Types.Hash as W
 import qualified Cardano.Wallet.Primitive.Types.TokenBundle as TokenBundle
+import qualified Cardano.Wallet.Primitive.Types.TokenMap as TokenMap
 import qualified Cardano.Wallet.Primitive.Types.Tx as W
 import qualified Data.Map.Strict as Map
 import qualified Data.Set as Set
@@ -1102,6 +1107,30 @@ mkTxInputsOutputs tx =
     -- [TxOut addr (Coin 1), TxOut addr (Coin 42), TxOut addr (Coin 14)]
     dist :: (a -> b -> c) -> (a, [b]) -> [c]
     dist f (a, bs) = [f a b | b <- bs]
+
+mkTxMints :: (W.Hash "Tx", W.Tx) -> [TxMint]
+mkTxMints (txId, tx) =
+    mkTxMint <$> TokenMap.toFlatList (W.unTxMint (tx ^. #mint))
+  where
+    mkTxMint :: (AssetId, TokenQuantity) -> TxMint
+    mkTxMint (AssetId policy name, quantity) = TxMint
+        { txMintTxId = TxId txId
+        , txMintTokenPolicyId = policy
+        , txMintTokenName = name
+        , txMintTokenQuantity = quantity
+        }
+
+mkTxBurns :: (W.Hash "Tx", W.Tx) -> [TxBurn]
+mkTxBurns (txId, tx) =
+    mkTxBurn <$> TokenMap.toFlatList (W.unTxBurn (tx ^. #burn))
+  where
+    mkTxBurn :: (AssetId, TokenQuantity) -> TxBurn
+    mkTxBurn (AssetId policy name, quantity) = TxBurn
+        { txBurnTxId = TxId txId
+        , txBurnTokenPolicyId = policy
+        , txBurnTokenName = name
+        , txBurnTokenQuantity = quantity
+        }
 
 mkTxWithdrawals
     :: (W.Hash "Tx", W.Tx)
