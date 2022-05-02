@@ -1199,9 +1199,11 @@ txHistoryFromEntity
     -> [(TxCollateral, Maybe (TxOut, [TxOutToken]))]
     -> [(TxOut, [TxOutToken])]
     -> [(TxCollateralOut, [TxCollateralOutToken])]
+    -> [TxMint]
+    -> [TxBurn]
     -> [TxWithdrawal]
     -> m [W.TransactionInfo]
-txHistoryFromEntity ti tip metas ins cins outs couts ws =
+txHistoryFromEntity ti tip metas ins cins outs couts mints burns ws =
     mapM mkItem metas
   where
     startTime' = interpretQuery ti . slotToUTCTime
@@ -1636,7 +1638,8 @@ selectTxHistory cp ti wid minWithdrawal order conditions = do
 
     let tip = W.currentTip cp
 
-    liftIO $ txHistoryFromEntity ti tip metas ins cins outs couts ws
+    liftIO $ txHistoryFromEntity
+        ti tip metas ins cins outs couts mints burns ws
   where
     -- Note: there are sorted indices on these columns.
     -- The secondary sort by TxId is to make the ordering stable
