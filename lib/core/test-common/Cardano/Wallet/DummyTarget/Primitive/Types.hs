@@ -1,6 +1,7 @@
 {-# LANGUAGE DataKinds #-}
 {-# LANGUAGE FlexibleInstances #-}
 {-# LANGUAGE MultiParamTypeClasses #-}
+{-# LANGUAGE NamedFieldPuns #-}
 
 module Cardano.Wallet.DummyTarget.Primitive.Types
     ( -- * Dummy values
@@ -141,11 +142,13 @@ mkTx
     -> [(TxIn, Coin)]
     -> [TxOut]
     -> Maybe TxOut
+    -> TxMint
+    -> TxBurn
     -> Map RewardAccount Coin
     -> Maybe TxMetadata
     -> Maybe TxScriptValidity
     -> Tx
-mkTx fees ins cins outs cout wdrls md validity =
+mkTx fees ins cins outs cout mint burn wdrls md validity =
     Tx
       { txId = (mkTxId ins outs wdrls md)
       , fee = fees
@@ -153,10 +156,8 @@ mkTx fees ins cins outs cout wdrls md validity =
       , resolvedCollateralInputs = cins
       , outputs = outs
       , collateralOutput = cout
-      -- TODO: [ADP-1654]
-      , mint = TxMint mempty
-      -- TODO: [ADP-1654]
-      , burn = TxBurn mempty
+      , mint
+      , burn
       , withdrawals = wdrls
       , metadata = md
       , scriptValidity = validity
