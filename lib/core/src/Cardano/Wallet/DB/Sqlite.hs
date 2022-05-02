@@ -1235,11 +1235,9 @@ txHistoryFromEntity ti tip metas ins cins outs couts mints burns ws =
                 map mkTxCollateralOut $
                 filter ((== txid) . txCollateralOutTxId . fst) couts
             , W.txInfoMint =
-                -- TODO: [ADP-1654]
-                W.TxMint mempty
+                mkTxMint $ filter ((== txid) . txMintTxId) mints
             , W.txInfoBurn =
-                -- TODO: [ADP-1654]
-                W.TxBurn mempty
+                mkTxBurn $ filter ((== txid) . txBurnTxId) burns
             , W.txInfoWithdrawals =
                 Map.fromList
                     $ map mkTxWithdrawal
@@ -1296,6 +1294,22 @@ txHistoryFromEntity ti tip metas ins cins outs couts mints burns ws =
             (txCollateralOutTokenPolicyId token)
             (txCollateralOutTokenName token)
         , txCollateralOutTokenQuantity token
+        )
+    mkTxMint tokens =
+        W.TxMint $ TokenMap.fromFlatList $ mkTxMintToken <$> tokens
+    mkTxBurn tokens =
+        W.TxBurn $ TokenMap.fromFlatList $ mkTxBurnToken <$> tokens
+    mkTxMintToken token =
+        ( AssetId
+            (txMintTokenPolicyId token)
+            (txMintTokenName token)
+        , txMintTokenQuantity token
+        )
+    mkTxBurnToken token =
+        ( AssetId
+            (txBurnTokenPolicyId token)
+            (txBurnTokenName token)
+        , txBurnTokenQuantity token
         )
     mkTxWithdrawal w =
         ( txWithdrawalAccount w
