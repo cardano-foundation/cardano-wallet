@@ -1411,6 +1411,22 @@ putTxs
               )
             | o@TxCollateralOutToken{..} <- txCollateralOutTokens ]
         dbChunked' repsertMany
+            [ ( TxMintKey
+                txMintTxId
+                txMintTokenPolicyId
+                txMintTokenName
+              , m
+              )
+            | m@TxMint{..} <- txMints ]
+        dbChunked' repsertMany
+            [ ( TxBurnKey
+                txBurnTxId
+                txBurnTokenPolicyId
+                txBurnTokenName
+              , m
+              )
+            | m@TxBurn{..} <- txBurns ]
+        dbChunked' repsertMany
             [ (TxWithdrawalKey txWithdrawalTxId txWithdrawalAccount, w)
             | w@TxWithdrawal{..} <- txWithdrawals ]
 
