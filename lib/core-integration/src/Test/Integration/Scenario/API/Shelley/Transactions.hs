@@ -68,8 +68,6 @@ import Data.Aeson
     ( (.=) )
 import Data.Bifunctor
     ( bimap )
-import Data.Function
-    ( (&) )
 import Data.Generics.Internal.VL.Lens
     ( view, (^.) )
 import Data.Generics.Product.Typed
@@ -104,8 +102,6 @@ import Test.Integration.Framework.DSL
     , Payload (..)
     , between
     , computeApiCoinSelectionFee
-    , counterexample
-    , defaultTxTTL
     , emptyRandomWallet
     , emptyWallet
     , eventually
@@ -124,7 +120,6 @@ import Test.Integration.Framework.DSL
     , fixtureWallet
     , fixtureWalletWith
     , getFromResponse
-    , getTTLSlots
     , getWallet
     , json
     , listAddresses
