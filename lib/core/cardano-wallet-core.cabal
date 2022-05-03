@@ -1,5 +1,5 @@
 name:                cardano-wallet-core
-version:             2022.1.18
+version:             2022.4.27
 synopsis:            The Wallet Backend for a Cardano node.
 description:         Please see README.md
 homepage:            https://github.com/input-output-hk/cardano-wallet
@@ -63,6 +63,7 @@ library
     , contra-tracer
     , cryptonite
     , data-default
+    , data-interval
     , dbvar
     , deepseq
     , digest
@@ -164,6 +165,7 @@ library
   hs-source-dirs:
       src
   exposed-modules:
+      Cardano.Api.Extra
       Cardano.Byron.Codec.Cbor
       Cardano.DB.Sqlite
       Cardano.DB.Sqlite.Delete
@@ -341,6 +343,7 @@ test-suite unit
     , contra-tracer
     , cryptonite
     , data-default
+    , data-interval
     , dbvar
     , directory
     , deepseq
@@ -395,7 +398,7 @@ test-suite unit
     , should-not-typecheck
     , splitmix
     , strict-non-empty-containers
-    , openapi3 >= 3.2.0
+    , openapi3 == 3.2.2
     , servant-openapi3
     , string-qq
     , temporary

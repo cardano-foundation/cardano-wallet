@@ -8,17 +8,17 @@
   , config
   , ... }:
   {
-    flags = { demo = false; };
+    flags = { systemd = true; };
     package = {
       specVersion = "2.4";
-      identifier = { name = "Win32-network"; version = "0.1.0.0"; };
+      identifier = { name = "cardano-config"; version = "0.1.0.0"; };
       license = "Apache-2.0";
-      copyright = "2019 Input Output (Hong Kong) Ltd.";
-      maintainer = "duncan@well-typed.com, marcin.szamotulski@iohk.io";
-      author = "Duncan Coutts, Marcin Szamotulski";
+      copyright = "";
+      maintainer = "operations@iohk.io";
+      author = "IOHK";
       homepage = "";
       url = "";
-      synopsis = "Win32 network API";
+      synopsis = "";
       description = "";
       buildType = "Simple";
       };
@@ -26,49 +26,15 @@
       "library" = {
         depends = [
           (hsPkgs."base" or (errorHandler.buildDepError "base"))
-          ] ++ (pkgs.lib).optionals (system.isWindows) [
-          (hsPkgs."bytestring" or (errorHandler.buildDepError "bytestring"))
-          (hsPkgs."network" or (errorHandler.buildDepError "network"))
-          (hsPkgs."Win32" or (errorHandler.buildDepError "Win32"))
+          (hsPkgs."cardano-prelude" or (errorHandler.buildDepError "cardano-prelude"))
+          (hsPkgs."file-embed" or (errorHandler.buildDepError "file-embed"))
+          (hsPkgs."process" or (errorHandler.buildDepError "process"))
+          (hsPkgs."template-haskell" or (errorHandler.buildDepError "template-haskell"))
+          (hsPkgs."text" or (errorHandler.buildDepError "text"))
           ];
-        libs = (pkgs.lib).optional (system.isWindows) (pkgs."ws2_32" or (errorHandler.sysDepError "ws2_32"));
         buildable = true;
-        };
-      exes = {
-        "named-pipe-demo" = {
-          depends = [
-            (hsPkgs."base" or (errorHandler.buildDepError "base"))
-            ] ++ (pkgs.lib).optionals (system.isWindows) [
-            (hsPkgs."binary" or (errorHandler.buildDepError "binary"))
-            (hsPkgs."bytestring" or (errorHandler.buildDepError "bytestring"))
-            (hsPkgs."Win32" or (errorHandler.buildDepError "Win32"))
-            (hsPkgs."Win32-network" or (errorHandler.buildDepError "Win32-network"))
-            ];
-          buildable = true;
-          };
-        };
-      tests = {
-        "test" = {
-          depends = [
-            (hsPkgs."base" or (errorHandler.buildDepError "base"))
-            ] ++ (pkgs.lib).optionals (system.isWindows) [
-            (hsPkgs."async" or (errorHandler.buildDepError "async"))
-            (hsPkgs."binary" or (errorHandler.buildDepError "binary"))
-            (hsPkgs."bytestring" or (errorHandler.buildDepError "bytestring"))
-            (hsPkgs."network" or (errorHandler.buildDepError "network"))
-            (hsPkgs."stm" or (errorHandler.buildDepError "stm"))
-            (hsPkgs."tasty" or (errorHandler.buildDepError "tasty"))
-            (hsPkgs."tasty-hunit" or (errorHandler.buildDepError "tasty-hunit"))
-            (hsPkgs."tasty-quickcheck" or (errorHandler.buildDepError "tasty-quickcheck"))
-            (hsPkgs."QuickCheck" or (errorHandler.buildDepError "QuickCheck"))
-            (hsPkgs."quickcheck-instances" or (errorHandler.buildDepError "quickcheck-instances"))
-            (hsPkgs."Win32" or (errorHandler.buildDepError "Win32"))
-            (hsPkgs."Win32-network" or (errorHandler.buildDepError "Win32-network"))
-            ];
-          buildable = true;
-          };
         };
       };
     } // rec {
-    src = (pkgs.lib).mkDefault /nix/store/jlbg3d6rcixbbvhpnh8383yv26l041gp-Win32-network-3825d3a;
+    src = (pkgs.lib).mkDefault /nix/store/w7a7rywf0b49v4y3cp9zhgb8p1hc5hss-cardano-config-1646e91;
     }

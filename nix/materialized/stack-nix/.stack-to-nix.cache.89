@@ -10,54 +10,29 @@
   {
     flags = {};
     package = {
-      specVersion = "2.4";
-      identifier = { name = "word-array"; version = "0.1.0.0"; };
-      license = "Apache-2.0";
+      specVersion = "1.10";
+      identifier = { name = "plutus-ghc-stub"; version = "8.6.5"; };
+      license = "BSD-3-Clause";
       copyright = "";
-      maintainer = "michael.peyton-jones@iohk.io";
-      author = "Zachary Churchill, Michael Peyton Jones";
-      homepage = "https://github.com/plutus";
+      maintainer = "glasgow-haskell-users@haskell.org";
+      author = "The GHC Team";
+      homepage = "http://www.haskell.org/ghc/";
       url = "";
-      synopsis = "";
-      description = "Treat integral types as arrays of smaller integral types";
+      synopsis = "The GHC API";
+      description = "Stub functionality for the Plutus plugin, for cross compilers that\ndon't have a GHC library installed, like GHCJS\nThis should contain all the types and functions that the Plutus\ncompiler uses.\nFor technical reasons (Cabal), we need to be able to compile the plutus-tx\ncompiler for the host platform, even if we are going to load the plugin\nfrom the build platform libraries.";
       buildType = "Simple";
       };
     components = {
       "library" = {
         depends = [
           (hsPkgs."base" or (errorHandler.buildDepError "base"))
-          (hsPkgs."mono-traversable" or (errorHandler.buildDepError "mono-traversable"))
-          (hsPkgs."primitive" or (errorHandler.buildDepError "primitive"))
-          (hsPkgs."deepseq" or (errorHandler.buildDepError "deepseq"))
+          (hsPkgs."ghc-boot" or (errorHandler.buildDepError "ghc-boot"))
+          (hsPkgs."bytestring" or (errorHandler.buildDepError "bytestring"))
+          (hsPkgs."template-haskell" or (errorHandler.buildDepError "template-haskell"))
           ];
         buildable = true;
         };
-      tests = {
-        "test" = {
-          depends = [
-            (hsPkgs."base" or (errorHandler.buildDepError "base"))
-            (hsPkgs."tasty" or (errorHandler.buildDepError "tasty"))
-            (hsPkgs."tasty-quickcheck" or (errorHandler.buildDepError "tasty-quickcheck"))
-            (hsPkgs."QuickCheck" or (errorHandler.buildDepError "QuickCheck"))
-            (hsPkgs."vector" or (errorHandler.buildDepError "vector"))
-            (hsPkgs."word-array" or (errorHandler.buildDepError "word-array"))
-            (hsPkgs."mono-traversable" or (errorHandler.buildDepError "mono-traversable"))
-            ];
-          buildable = true;
-          };
-        };
-      benchmarks = {
-        "bench" = {
-          depends = [
-            (hsPkgs."base" or (errorHandler.buildDepError "base"))
-            (hsPkgs."tasty-bench" or (errorHandler.buildDepError "tasty-bench"))
-            (hsPkgs."word-array" or (errorHandler.buildDepError "word-array"))
-            (hsPkgs."primitive" or (errorHandler.buildDepError "primitive"))
-            ];
-          buildable = true;
-          };
-        };
       };
     } // rec {
-    src = (pkgs.lib).mkDefault /nix/store/fngr9a0n2d9cx6ywm2abhhx0g5acbci8-plutus-fc5fe94/word-array;
+    src = (pkgs.lib).mkDefault /nix/store/fngr9a0n2d9cx6ywm2abhhx0g5acbci8-plutus-fc5fe94/stubs/plutus-ghc-stub;
     }

@@ -125,9 +125,7 @@ import Cardano.Wallet.Primitive.Types.RewardAccount
 import Cardano.Wallet.Primitive.Types.TokenBundle
     ( TokenBundle (..) )
 import Cardano.Wallet.Primitive.Types.TokenMap
-    ( TokenMap )
-import Cardano.Wallet.Primitive.Types.TokenPolicy
-    ( TokenName, TokenPolicyId )
+    ( Lexicographic (..), TokenMap )
 import Cardano.Wallet.Primitive.Types.TokenQuantity
     ( TokenQuantity (..) )
 import Cardano.Wallet.Util
@@ -143,15 +141,13 @@ import Data.ByteString
 import Data.Either
     ( partitionEithers )
 import Data.Function
-    ( on, (&) )
+    ( on )
 import Data.Generics.Internal.VL.Lens
     ( over, view )
 import Data.Generics.Labels
     ()
 import Data.Int
     ( Int64 )
-import Data.List.NonEmpty
-    ( NonEmpty (..) )
 import Data.Map.Strict
     ( Map )
 import Data.Ord
@@ -227,24 +223,27 @@ data Tx = Tx
         -- explicitly in Shelley, but not in Byron although in Byron they can
         -- easily be re-computed from the delta between outputs and inputs.
 
-    , resolvedCollateral
-        :: ![(TxIn, Coin)]
-        -- ^ NOTE: The order of collateral inputs matters in the transaction
-        -- representation.  The transaction id is computed from the binary
-        -- representation of a tx, for which collateral inputs are serialized
-        -- in a specific order.
-
     , resolvedInputs
         :: ![(TxIn, Coin)]
         -- ^ NOTE: Order of inputs matters in the transaction representation.
         -- The transaction id is computed from the binary representation of a
         -- tx, for which inputs are serialized in a specific order.
 
+    , resolvedCollateralInputs
+        :: ![(TxIn, Coin)]
+        -- ^ NOTE: The order of collateral inputs matters in the transaction
+        -- representation.  The transaction id is computed from the binary
+        -- representation of a tx, for which collateral inputs are serialized
+        -- in a specific order.
+
     , outputs
         :: ![TxOut]
         -- ^ NOTE: Order of outputs matters in the transaction representations.
         -- Outputs are used as inputs for next transactions which refer to them
         -- using their indexes. It matters also for serialization.
+
+    , collateralOutput :: !(Maybe TxOut)
+        -- ^ An output that is only created if a transaction script fails.
 
     , withdrawals
         :: !(Map RewardAccount Coin)
@@ -276,12 +275,14 @@ instance Buildable Tx where
     build t = mconcat
         [ build (view #txId t)
         , build ("\n" :: String)
-        , blockListF' "collateral"
-            build (fst <$> view #resolvedCollateral t)
         , blockListF' "inputs"
             build (fst <$> view #resolvedInputs t)
+        , blockListF' "collateral inputs"
+            build (fst <$> view #resolvedCollateralInputs t)
         , blockListF' "outputs"
             build (view #outputs t)
+        , blockListF' "collateral outputs"
+            build (view #collateralOutput t)
         , blockListF' "withdrawals"
             tupleF (Map.toList $ view #withdrawals t)
         , nameF "metadata"
@@ -300,7 +301,7 @@ inputs :: Tx -> [TxIn]
 inputs = map fst . resolvedInputs
 
 collateralInputs :: Tx -> [TxIn]
-collateralInputs = map fst . resolvedCollateral
+collateralInputs = map fst . resolvedCollateralInputs
 
 data TxIn = TxIn
     { inputId
@@ -358,22 +359,13 @@ txOutSubtractCoin toSubtract =
 -- (as that would lead to arithmetically invalid orderings), this means we can't
 -- automatically derive an 'Ord' instance for the 'TxOut' type.
 --
--- Instead, we define an 'Ord' instance that makes comparisons based on the list
--- representation of a 'TokenBundle'.
+-- Instead, we define an 'Ord' instance that makes comparisons based on
+-- lexicographic ordering of 'TokenBundle' values.
 --
 instance Ord TxOut where
     compare = comparing projection
       where
-        projection :: TxOut ->
-            ( Address
-            , Coin
-            , [(TokenPolicyId, NonEmpty (TokenName, TokenQuantity))]
-            )
-        projection out =
-            ( out & view #address
-            , out & view (#tokens . #coin)
-            , out & view (#tokens . #tokens) & TokenMap.toNestedList
-            )
+        projection (TxOut address bundle) = (address, Lexicographic bundle)
 
 data TxChange derivationPath = TxChange
     { address
@@ -726,13 +718,15 @@ data TransactionInfo = TransactionInfo
     -- ^ Transaction ID of this transaction
     , txInfoFee :: !(Maybe Coin)
     -- ^ Explicit transaction fee
-    , txInfoCollateral :: ![(TxIn, Coin, Maybe TxOut)]
-    -- ^ Collateral inputs and (maybe) corresponding outputs.
     , txInfoInputs :: ![(TxIn, Coin, Maybe TxOut)]
     -- ^ Transaction inputs and (maybe) corresponding outputs of the
     -- source. Source information can only be provided for outgoing payments.
+    , txInfoCollateralInputs :: ![(TxIn, Coin, Maybe TxOut)]
+    -- ^ Collateral inputs and (maybe) corresponding outputs.
     , txInfoOutputs :: ![TxOut]
     -- ^ Payment destination.
+    , txInfoCollateralOutput :: !(Maybe TxOut)
+    -- ^ An output that is only created if a transaction script fails.
     , txInfoWithdrawals :: !(Map RewardAccount Coin)
     -- ^ Withdrawals on this transaction.
     , txInfoMeta :: !TxMeta
@@ -775,9 +769,10 @@ fromTransactionInfo :: TransactionInfo -> Tx
 fromTransactionInfo info = Tx
     { txId = txInfoId info
     , fee = txInfoFee info
-    , resolvedCollateral = drop3rd <$> txInfoCollateral info
     , resolvedInputs = drop3rd <$> txInfoInputs info
+    , resolvedCollateralInputs = drop3rd <$> txInfoCollateralInputs info
     , outputs = txInfoOutputs info
+    , collateralOutput = txInfoCollateralOutput info
     , withdrawals = txInfoWithdrawals info
     , metadata = txInfoMetadata info
     , scriptValidity = txInfoScriptValidity info

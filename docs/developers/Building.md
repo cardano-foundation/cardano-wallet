@@ -204,3 +204,146 @@ $ nix develop .#profiled
     --enable-profiling \
     all
 ```
+
+## Haskell-Language-Server
+
+The [haskell-language-server](https://haskell-language-server.readthedocs.io/en/latest/) provides an IDE for developers with some typical features:
+  - Jump to definition.
+  - Find references.
+  - Documentation on hover.
+  - etc.
+
+### Prerequisites
+
+The following must be installed:
+
+- [direnv](https://direnv.net/)
+- [nix-direnv](https://github.com/nix-community/nix-direnv)
+
+We do not require a special version per-project so these executables can be installed system-wide.
+
+Additionally, the following tools are provided by the cardano-wallet nix development shell:
+
+- [hie-bios](https://github.com/haskell/hie-bios)
+- [haskell-language-server](https://haskell-language-server.readthedocs.io/en/latest/)
+
+We require a particular version of each per-project, so it's recommended to use the nix development environment to ensure you have the correct version.
+
+In these instructions we enter a nix development environment using `direnv allow` rather than `nix develop` or `nix-shell` (see [Editor Setup](#editor-setup)).
+
+### Setup
+
+**haskell-language-server** requires some priming to work with *cardano-wallet*:
+
+```
+# Symlink hie.yaml to hie-direnv.yaml, which is the project configuration for haskell-language-server
+ln -sf hie-direnv.yaml hie.yaml
+
+# Build and cache the nix development environment
+direnv allow
+
+# Generate a build plan
+cabal configure --enable-tests --enable-benchmarks -O0
+
+# Build entire project
+cabal build all
+```
+
+This will prime **haskell-language-server** to work with all modules of the project (tests, benchmarks, etc.) and be fully featured. Without these steps, **haskell-language-server** may fail to:
+  - Find auto-generated modules (such as Paths_* modules).
+  - Navigate across projects (jump-to-definition).
+  - Provide documentation on hover.
+
+### Testing
+
+To test the **haskell-language-server**, use the following commands (these should be in your $PATH because you executed `direnv allow` previously, or have entered a nix development environment):
+
+```
+hie-bios check lib/core/src/Cardano/Wallet.hs
+haskell-language-server lib/shelley/exe/cardano-wallet.hs
+```
+
+Occasionally `hie-bios` will fail with a `Segmentation Fault`. In these cases just run `hie-bios` again.
+
+Note that these commands will only test a couple of files. To test the whole project, see [Troubleshooting](#troubleshooting).
+
+### Editor Setup
+
+With a working installation of **haskell-language-server**, we can integrate with our IDE of choice. See [Configuring Your Editor](https://haskell-language-server.readthedocs.io/en/latest/configuration.html#configuring-your-editor).
+
+IMPORTANT: you need to ensure that your editor invokes the same version of **haskell-language-server** that we have configured above. A simple way to do that is to launch your editor from within a nix development environment (e.g. `nix develop --command 'vim'`), or, more practically, to configure your editor with `direnv` support. Here are some examples:
+  - [direnv.vim](https://github.com/direnv/direnv.vim)
+  - [emacs-direnv](https://github.com/wbolster/emacs-direnv)
+
+### Troubleshooting
+
+Helpful resources:
+  - [Configuring haskell-language-server](https://haskell-language-server.readthedocs.io/en/latest/configuration.html#configuring-haskell-language-server)
+  - [hie-bios BIOS Configuration](https://github.com/haskell/hie-bios#bios)
+  - [Troubleshooting haskell-language-server](https://haskell-language-server.readthedocs.io/en/latest/troubleshooting.html)
+
+The [Testing](#testing) commands only tested a subset of the files in the project. To troubleshoot configuration issues, it's important to determine the source of the error.
+
+If you know the source of the error, you can reproduce it on the command line with `haskell-language-server <the file>`. There are debug flags which might be useful (see `--help`).
+
+If you do not know the source of the error, you can test every file in the project with:
+
+```
+# Provide list_sources function.
+source "$(dirname "$0")/../cabal-lib.sh"
+
+# Get every file in the project.
+mapfile -t srcs < <(list_sources)
+
+# Execute haskell-language-server on every file in the project.
+# Note that this command can take upwards of an hour.
+haskell-language-server "${srcs[@]}"
+```
+
+Once you can reproduce the error, look through the [Worked Examples](#worked-examples) below and see if you can resolve the issue. If you cannot, raise a [GitHub issue](https://github.com/input-output-hk/cardano-wallet/issues/new?assignees=&labels=BUG&template=bug_report.yml) (external) or a JIRA issue (internal) with reproduction steps and tag @sevanspowell or @rvl.
+
+#### Worked Examples
+
+NOTE: [hie-bios BIOS Configuration](https://github.com/haskell/hie-bios#bios) is helpful background reading.
+
+##### Source Filtering
+
+In the past **haskell-language-server** failed when processing the `lib/core-integration/extra/Plutus/FlatInteger.hs` file, as it was technically a Haskell file in the repository, but wasn't intended to be compiled with the project.
+
+To fix this issue, we excluded the `lib/core-integration/extra` folder from the project sources.
+
+The bash function `list_sources` in `scripts/cabal-lib.sh` is responsible for determining the source files **haskell-language-server** sees. Modify this function to further remove any other files you wish to exclude:
+
+```
+list_sources() {
+  # Exclude lib/core-integration/extra. Those files are Plutus scripts intended
+  # to be serialised for use in the tests. They are not intended to be built
+  # with the project.
+  # Exclude prototypes dir because it's a different project.
+  git ls-files 'lib/**/*.hs' | grep -v Main.hs | grep -v prototypes/ | grep -v lib/core-integration/extra
+}
+```
+
+##### GHCI Flags
+
+There were previously issues debugging overlapping/ambiguous instances as the error message printed by **haskell-language-server** did not contain enough information. We rectified this by adding `-fprint-potential-instances` to the GHCI flags of the **haskell-language-server** BIOS.
+
+The bash function `ghci_flags` in `scripts/cabal-lib.sh` is responsible for providing the GHCI flags **haskell-language-server** uses. Modify this file with any other GHC flags you may require:
+
+```
+ghci_flags() {
+  cat <<EOF
+-XOverloadedStrings
+-XNoImplicitPrelude
+-XTypeApplications
+-XDataKinds
+-fwarn-unused-binds
+-fwarn-unused-imports
+-fwarn-orphans
+-fprint-potential-instances
+-Wno-missing-home-modules
+EOF
+
+...
+}
+```

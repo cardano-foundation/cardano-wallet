@@ -8,69 +8,46 @@
   , config
   , ... }:
   {
-    flags = { development = false; };
+    flags = { release = false; };
     package = {
-      specVersion = "2.2";
-      identifier = { name = "cardano-binary"; version = "1.5.0"; };
+      specVersion = "1.10";
+      identifier = { name = "bech32-th"; version = "1.1.1"; };
       license = "Apache-2.0";
-      copyright = "2019-2021 IOHK";
-      maintainer = "operations@iohk.io";
-      author = "IOHK";
-      homepage = "";
+      copyright = "2020 IOHK";
+      maintainer = "operations@iohk.io, erikd@mega-nerd.com, jonathan.knowles@iohk.io";
+      author = "IOHK Engineering Team";
+      homepage = "https://github.com/input-output-hk/bech32";
       url = "";
-      synopsis = "Binary serialization for Cardano";
-      description = "This package includes the binary serialization format for Cardano";
+      synopsis = "Template Haskell extensions to the Bech32 library.";
+      description = "Template Haskell extensions to the Bech32 library, including\nquasi-quoters for compile-time checking of Bech32 string\nliterals.";
       buildType = "Simple";
       };
     components = {
       "library" = {
         depends = [
           (hsPkgs."base" or (errorHandler.buildDepError "base"))
-          (hsPkgs."base" or (errorHandler.buildDepError "base"))
-          (hsPkgs."aeson" or (errorHandler.buildDepError "aeson"))
-          (hsPkgs."bytestring" or (errorHandler.buildDepError "bytestring"))
-          (hsPkgs."cardano-prelude" or (errorHandler.buildDepError "cardano-prelude"))
-          (hsPkgs."cborg" or (errorHandler.buildDepError "cborg"))
-          (hsPkgs."containers" or (errorHandler.buildDepError "containers"))
-          (hsPkgs."data-fix" or (errorHandler.buildDepError "data-fix"))
-          (hsPkgs."formatting" or (errorHandler.buildDepError "formatting"))
-          (hsPkgs."nothunks" or (errorHandler.buildDepError "nothunks"))
-          (hsPkgs."primitive" or (errorHandler.buildDepError "primitive"))
-          (hsPkgs."recursion-schemes" or (errorHandler.buildDepError "recursion-schemes"))
-          (hsPkgs."safe-exceptions" or (errorHandler.buildDepError "safe-exceptions"))
-          (hsPkgs."tagged" or (errorHandler.buildDepError "tagged"))
+          (hsPkgs."bech32" or (errorHandler.buildDepError "bech32"))
+          (hsPkgs."template-haskell" or (errorHandler.buildDepError "template-haskell"))
           (hsPkgs."text" or (errorHandler.buildDepError "text"))
-          (hsPkgs."time" or (errorHandler.buildDepError "time"))
-          (hsPkgs."vector" or (errorHandler.buildDepError "vector"))
           ];
         buildable = true;
         };
       tests = {
-        "test" = {
+        "bech32-th-test" = {
           depends = [
             (hsPkgs."base" or (errorHandler.buildDepError "base"))
-            (hsPkgs."base" or (errorHandler.buildDepError "base"))
-            (hsPkgs."bytestring" or (errorHandler.buildDepError "bytestring"))
-            (hsPkgs."cardano-binary" or (errorHandler.buildDepError "cardano-binary"))
-            (hsPkgs."cardano-prelude" or (errorHandler.buildDepError "cardano-prelude"))
-            (hsPkgs."cardano-prelude-test" or (errorHandler.buildDepError "cardano-prelude-test"))
-            (hsPkgs."cborg" or (errorHandler.buildDepError "cborg"))
-            (hsPkgs."containers" or (errorHandler.buildDepError "containers"))
-            (hsPkgs."formatting" or (errorHandler.buildDepError "formatting"))
-            (hsPkgs."hedgehog" or (errorHandler.buildDepError "hedgehog"))
+            (hsPkgs."bech32" or (errorHandler.buildDepError "bech32"))
+            (hsPkgs."bech32-th" or (errorHandler.buildDepError "bech32-th"))
             (hsPkgs."hspec" or (errorHandler.buildDepError "hspec"))
-            (hsPkgs."pretty-show" or (errorHandler.buildDepError "pretty-show"))
-            (hsPkgs."QuickCheck" or (errorHandler.buildDepError "QuickCheck"))
-            (hsPkgs."quickcheck-instances" or (errorHandler.buildDepError "quickcheck-instances"))
-            (hsPkgs."tagged" or (errorHandler.buildDepError "tagged"))
-            (hsPkgs."text" or (errorHandler.buildDepError "text"))
-            (hsPkgs."time" or (errorHandler.buildDepError "time"))
-            (hsPkgs."vector" or (errorHandler.buildDepError "vector"))
+            (hsPkgs."template-haskell" or (errorHandler.buildDepError "template-haskell"))
+            ];
+          build-tools = [
+            (hsPkgs.buildPackages.hspec-discover.components.exes.hspec-discover or (pkgs.buildPackages.hspec-discover or (errorHandler.buildToolDepError "hspec-discover:hspec-discover")))
             ];
           buildable = true;
           };
         };
       };
     } // rec {
-    src = (pkgs.lib).mkDefault /nix/store/bvppc469jii0bcz5y6mbv9svfi0nf7wi-cardano-base-41545ba/binary;
+    src = (pkgs.lib).mkDefault /nix/store/0dv7g23bmbdx55i5rxz18lk55pkw6kv4-bech32-ab61914/bech32-th;
     }

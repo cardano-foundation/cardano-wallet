@@ -67,6 +67,8 @@ module Cardano.Wallet.Primitive.AddressDiscovery.Sequential
     , coinTypeAda
     , mkSeqStateFromRootXPrv
     , mkSeqStateFromAccountXPub
+    , discoverSeq
+    , discoverSeqWithRewards
 
     -- ** Benchmarking
     , SeqAnyState (..)
@@ -82,7 +84,8 @@ import Cardano.Address.Script
 import Cardano.Crypto.Wallet
     ( XPrv, XPub )
 import Cardano.Wallet.Primitive.AddressDerivation
-    ( Depth (..)
+    ( DelegationAddress (..)
+    , Depth (..)
     , DerivationIndex (..)
     , DerivationPrefix (..)
     , DerivationType (..)
@@ -95,6 +98,7 @@ import Cardano.Wallet.Primitive.AddressDerivation
     , PersistPublicKey (..)
     , Role (..)
     , SoftDerivation (..)
+    , ToRewardAccount (..)
     , WalletKey (..)
     )
 import Cardano.Wallet.Primitive.AddressDerivation.MintBurn
@@ -111,6 +115,8 @@ import Cardano.Wallet.Primitive.AddressDiscovery
     , MaybeLight (..)
     , coinTypeAda
     )
+import Cardano.Wallet.Primitive.BlockSummary
+    ( ChainEvents )
 import Cardano.Wallet.Primitive.Passphrase
     ( Passphrase )
 import Cardano.Wallet.Primitive.Types.Address
@@ -128,7 +134,7 @@ import Control.DeepSeq
 import Control.Monad
     ( unless )
 import Data.Bifunctor
-    ( first )
+    ( first, second )
 import Data.Digest.CRC32
     ( crc32 )
 import Data.Kind
@@ -272,10 +278,11 @@ newSeqAddressPool
     => key 'AccountK XPub
     -> AddressPoolGap
     -> SeqAddressPool c key
-newSeqAddressPool account g = SeqAddressPool $ AddressPool.new generator gap
+newSeqAddressPool account g =
+    SeqAddressPool $ AddressPool.new addressFromIx gap
   where
     gap = fromIntegral $ getAddressPoolGap g
-    generator ix =
+    addressFromIx ix =
         unsafePaymentKeyFingerprint @key
             ( Proxy @n
             , deriveAddressPublicKey @key account (role @c) ix
@@ -718,8 +725,54 @@ instance
 instance GetAccount (SeqState n k) k where
     getAccount = accountXPub
 
-instance MaybeLight (SeqState n k) where
-    maybeDiscover = Nothing
+-- | Discover addresses and transactions using an
+-- efficient query @addr -> m txs@.
+-- Does /not/ take 'RewardAccount' into account.
+discoverSeq
+    :: forall n k m. (PaymentAddress n k, Monad m)
+    => (Either Address RewardAccount -> m ChainEvents)
+    -> SeqState n k -> m (ChainEvents, SeqState n k)
+discoverSeq query s@SeqState{internalPool,externalPool} = do
+    (blocks1,int) <- discover internalPool
+    (blocks2,ext) <- discover externalPool
+    pure
+        ( blocks1 <> blocks2
+        , s{internalPool=int,externalPool=ext}
+        )
+  where
+    -- Only enterprise address (for legacy Icarus keys)
+    fromPayment hash = liftPaymentAddress @n hash
+    discover :: SeqAddressPool r k -> m (ChainEvents, SeqAddressPool r k)
+    discover = fmap (second SeqAddressPool)
+        . AddressPool.discover (query . Left . fromPayment) . getPool
+
+-- | Discover addresses and transactions using an
+-- efficient query @addr -> m txs@.
+-- Does take 'RewardAccount' into account.
+discoverSeqWithRewards
+    :: forall n k m. (DelegationAddress n k, ToRewardAccount k, Monad m)
+    => (Either Address RewardAccount -> m ChainEvents)
+    -> SeqState n k -> m (ChainEvents, SeqState n k)
+discoverSeqWithRewards query s@SeqState{internalPool,externalPool,rewardAccountKey} = do
+    blocks0 <- query . Right $ toRewardAccount rewardAccountKey
+    (blocks1,int) <- discover internalPool
+    (blocks2,ext) <- discover externalPool
+    pure
+        ( blocks0 <> blocks1 <> blocks2
+        , s{internalPool=int,externalPool=ext}
+        )
+  where
+    -- Every 'Address' is composed of a payment part and a staking part.
+    -- Ideally, we would want 'query' to give us all transactions
+    -- belonging to a given payment part, regardless of the staking parts
+    -- that are paired with that payment part. 
+    -- Unfortunately, this is not possible at the moment.
+    -- However, fortunately, the staking part is always the same,
+    -- so we supply it here in order to obtain an 'Address' that we can query.
+    fromPayment hash = liftDelegationAddress @n hash rewardAccountKey
+    discover :: SeqAddressPool r k -> m (ChainEvents, SeqAddressPool r k)
+    discover = fmap (second SeqAddressPool)
+        . AddressPool.discover (query . Left . fromPayment) . getPool
 
 {-------------------------------------------------------------------------------
     SeqAnyState
@@ -780,7 +833,7 @@ instance KnownNat p => IsOurs (SeqAnyState n k p) Address where
             let
                 pool = getPool $ externalPool inner
                 ix = toEnum $ AddressPool.size pool - AddressPool.gap pool
-                addr = AddressPool.generator pool ix
+                addr = AddressPool.addressFromIx pool ix
                 pool' = AddressPool.update addr pool
                 path = DerivationIndex (getIndex ix) :| []
             in

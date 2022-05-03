@@ -4,6 +4,7 @@
 {-# LANGUAGE DeriveGeneric #-}
 {-# LANGUAGE DerivingStrategies #-}
 {-# LANGUAGE DuplicateRecordFields #-}
+{-# LANGUAGE EmptyCase #-}
 {-# LANGUAGE FlexibleContexts #-}
 {-# LANGUAGE FlexibleInstances #-}
 {-# LANGUAGE LambdaCase #-}
@@ -188,6 +189,7 @@ import Cardano.Wallet.Transaction
     , TxFeeAndChange (..)
     , TxFeeUpdate (..)
     , TxUpdate (..)
+    , ValidityIntervalExplicit
     , mapTxFeeAndChange
     , withdrawalToCoin
     )
@@ -336,8 +338,8 @@ constructUnsignedTx
         )
     => Cardano.NetworkId
     -> (Maybe Cardano.TxMetadata, [Cardano.Certificate])
-    -> SlotNo
-    -- ^ Slot at which the transaction will expire.
+    -> (Maybe SlotNo, SlotNo)
+    -- ^ Slot at which the transaction will optionally start and expire.
     -> RewardAccount
     -- ^ Reward account
     -> Coin
@@ -369,8 +371,8 @@ mkTx
         )
     => Cardano.NetworkId
     -> TxPayload era
-    -> SlotNo
-    -- ^ Slot at which the transaction will expire.
+    -> (Maybe SlotNo, SlotNo)
+    -- ^ Slot at which the transaction will start and expire.
     -> (XPrv, Passphrase "encryption")
     -- ^ Reward account
     -> (Address -> Maybe (k 'AddressK XPrv, Passphrase "encryption"))
@@ -395,7 +397,7 @@ mkTx networkId payload ttl (rewardAcnt, pwdAcnt) addrResolver wdrl cs fees era =
     let signed = signTransaction networkId acctResolver (const Nothing)
             addrResolver inputResolver (unsigned, mkExtraWits unsigned)
 
-    let withResolvedInputs (tx, _, _, _) = tx
+    let withResolvedInputs (tx, _, _, _, _) = tx
             { resolvedInputs = second txOutCoin <$> F.toList (view #inputs cs)
             }
     Right ( withResolvedInputs (fromCardanoTx signed)
@@ -486,7 +488,7 @@ signTransaction
         certs = cardanoCertKeysForWitnesses $ Cardano.txCertificates bodyContent
 
         mintBurnScripts =
-            let (_, toMint, toBurn, _) = fromCardanoTx $
+            let (_, toMint, toBurn, _, _) = fromCardanoTx $
                     Cardano.makeSignedTransaction wits body
             in
             -- Note that we use 'nub' here because multiple scripts can share
@@ -544,7 +546,7 @@ newTransactionLayer
     -> TransactionLayer k SealedTx
 newTransactionLayer networkId = TransactionLayer
     { mkTransaction = \era stakeCreds keystore _pp ctx selection -> do
-        let ttl   = txTimeToLive ctx
+        let ttl   = txValidityInterval ctx
         let wdrl  = withdrawalToCoin $ view #txWithdrawal ctx
         let delta = selectionDelta txOutCoin selection
         case view #txDelegationAction ctx of
@@ -596,7 +598,7 @@ newTransactionLayer networkId = TransactionLayer
                     & sealedTxFromCardano'
 
     , mkUnsignedTransaction = \era stakeXPub _pp ctx selection -> do
-        let ttl   = txTimeToLive ctx
+        let ttl   = txValidityInterval ctx
         let wdrl  = withdrawalToCoin $ view #txWithdrawal ctx
         let delta = selectionDelta txOutCoin selection
         let rewardAcct = toRewardAccountRaw stakeXPub
@@ -616,10 +618,8 @@ newTransactionLayer networkId = TransactionLayer
                     constructUnsignedTx networkId payload ttl rewardAcct wdrl
                         selection delta assetsToBeMinted assetsToBeBurned
 
-    , estimateSignedTxSize = \pp tx -> do
-        anyShelleyTx <- inAnyShelleyBasedEra (cardanoTx tx)
-        pure $ withShelleyBasedBody anyShelleyTx $ \_era body ->
-            _estimateSignedTxSize pp body
+    , estimateSignedTxSize = \pp (Cardano.Tx body _) -> do
+        _estimateSignedTxSize pp body
 
     , calcMinimumCost = \pp ctx skeleton ->
         estimateTxCost pp (mkTxSkeleton (txWitnessTagFor @k) ctx skeleton)
@@ -655,19 +655,23 @@ newTransactionLayer networkId = TransactionLayer
     }
 
 _decodeSealedTx
-    :: SealedTx
-    -> (Tx, TokenMapWithScripts, TokenMapWithScripts, [Certificate])
+    :: SealedTx ->
+        ( Tx
+        , TokenMapWithScripts
+        , TokenMapWithScripts
+        , [Certificate]
+        , Maybe ValidityIntervalExplicit
+        )
 _decodeSealedTx (cardanoTx -> InAnyCardanoEra _era tx) = fromCardanoTx tx
 
 _evaluateTransactionBalance
-    :: SealedTx
+    :: forall era. IsShelleyBasedEra era
+    => Cardano.Tx era
     -> Cardano.ProtocolParameters
     -> UTxO
     -> [(TxIn, TxOut, Maybe (Hash "Datum"))]
-    -> Maybe Cardano.Value
-_evaluateTransactionBalance tx pp utxo extraUTxO = do
-    shelleyTx <- inAnyShelleyBasedEra $ cardanoTx tx
-    pure $ withShelleyBasedBody shelleyTx $ \era bod ->
+    -> Cardano.Value
+_evaluateTransactionBalance (Cardano.Tx body _) pp utxo extraUTxO =
         let
             utxo' = Map.fromList
                 . map (bimap toCardanoTxIn (toCardanoTxOut era))
@@ -703,16 +707,18 @@ _evaluateTransactionBalance tx pp utxo extraUTxO = do
                     --
                     -- NOTE: There is a similar case in the 'resolveInput' of
                     -- 'balanceTransaction'.
-                    bod
+                    body
   where
+    era = Cardano.shelleyBasedEra @era
+
     setDatumHash
         :: ShelleyBasedEra era
         -> Maybe (Hash "Datum")
         -> Cardano.TxOut ctx era
         -> Cardano.TxOut ctx era
     setDatumHash _era Nothing o = o
-    setDatumHash era (Just (Hash datumHash)) (Cardano.TxOut addr val _ refScript) =
-        Cardano.TxOut addr val (Cardano.TxOutDatumHash scriptDataSupported hash) refScript
+    setDatumHash _era (Just (Hash datumHash)) (Cardano.TxOut addr val _) =
+        Cardano.TxOut addr val (Cardano.TxOutDatumHash scriptDataSupported hash)
       where
         scriptDataSupported = case era of
             ShelleyBasedEraBabbage -> Cardano.ScriptDataInBabbageEra
@@ -738,33 +744,10 @@ _evaluateTransactionBalance tx pp utxo extraUTxO = do
                 ]
 
     lovelaceFromCardanoTxOutValue
-        :: forall era. Cardano.TxOutValue era -> Cardano.Value
+        :: Cardano.TxOutValue era -> Cardano.Value
     lovelaceFromCardanoTxOutValue = \case
         Cardano.TxOutAdaOnly _ ada -> Cardano.lovelaceToValue ada
         Cardano.TxOutValue _ val   -> val
-
-withShelleyBasedBody
-    :: Cardano.InAnyShelleyBasedEra Cardano.Tx
-    -> (forall era. IsShelleyBasedEra era
-        => ShelleyBasedEra era -> Cardano.TxBody era -> a)
-    -> a
-withShelleyBasedBody (Cardano.InAnyShelleyBasedEra era (Cardano.Tx body _)) f
-    = f era body
-
-inAnyShelleyBasedEra
-    :: InAnyCardanoEra a
-    -> Maybe (Cardano.InAnyShelleyBasedEra a)
-inAnyShelleyBasedEra = \case
-    InAnyCardanoEra Cardano.ByronEra _ ->
-        Nothing
-    InAnyCardanoEra Cardano.ShelleyEra a ->
-        Just $ Cardano.InAnyShelleyBasedEra Cardano.ShelleyBasedEraShelley a
-    InAnyCardanoEra Cardano.AllegraEra a ->
-        Just $ Cardano.InAnyShelleyBasedEra Cardano.ShelleyBasedEraAllegra a
-    InAnyCardanoEra Cardano.MaryEra a ->
-        Just $ Cardano.InAnyShelleyBasedEra Cardano.ShelleyBasedEraMary a
-    InAnyCardanoEra Cardano.AlonzoEra a ->
-        Just $ Cardano.InAnyShelleyBasedEra Cardano.ShelleyBasedEraAlonzo a
 
 mkDelegationCertificates
     :: DelegationAction
@@ -804,116 +787,130 @@ noTxUpdate = TxUpdate [] [] [] UseOldTxFee
 -- To avoid the need for `ledger -> wallet` conversions, this function can only
 -- be used to *add* tx body content.
 updateSealedTx
-    :: SealedTx
+    :: forall era. Cardano.IsShelleyBasedEra era
+    => Cardano.Tx era
     -> TxUpdate
-    -> Either ErrUpdateSealedTx SealedTx
-updateSealedTx (cardanoTx -> InAnyCardanoEra _era tx) extraContent = do
+    -> Either ErrUpdateSealedTx (Cardano.Tx era)
+updateSealedTx (Cardano.Tx body existingKeyWits) extraContent = do
     -- NOTE: The script witnesses are carried along with the cardano-api
     -- `anyEraBody`.
-    body' <- modifyLedgerTx extraContent anyEraBody
+    body' <- modifyTxBody extraContent body
 
     if (null existingKeyWits)
-       then Right $ sealedTxFromCardanoBody body'
+       then Right $ Cardano.Tx body' mempty
        else Left $ ErrExistingKeyWitnesses $ length existingKeyWits
-
   where
-    Cardano.Tx anyEraBody existingKeyWits = tx
-
-    modifyLedgerTx
-        :: forall era crypto. (crypto ~ Crypto (Cardano.ShelleyLedgerEra era))
-        => TxUpdate
+    modifyTxBody
+        :: TxUpdate
         -> Cardano.TxBody era
         -> Either ErrUpdateSealedTx (Cardano.TxBody era)
-    modifyLedgerTx ebc (Cardano.ShelleyTxBody shelleyEra bod scripts scriptData aux val) =
+    modifyTxBody ebc txBody@(Cardano.ShelleyTxBody {}) =
+        let Cardano.ShelleyTxBody shelleyEra bod scripts scriptData aux val
+                = txBody
+        in
         Right $ Cardano.ShelleyTxBody shelleyEra
-            (adjustBody ebc shelleyEra bod)
+            (modifyShelleyTxBody ebc shelleyEra bod)
             scripts
             scriptData
             aux
             val
+    modifyTxBody _ (Byron.ByronTxBody _) =
+        case Cardano.shelleyBasedEra @era of {}
+
+-- NOTE: If the ShelleyMA MAClass were exposed, the Allegra and Mary
+-- cases could perhaps be joined. It is not however. And we still need
+-- to treat Alonzo and Shelley differently.
+modifyShelleyTxBody
+    :: TxUpdate
+    -> ShelleyBasedEra era
+    -> Ledger.TxBody (Cardano.ShelleyLedgerEra era)
+    -> Ledger.TxBody (Cardano.ShelleyLedgerEra era)
+modifyShelleyTxBody txUpdate era ledgerBody = case era of
+    ShelleyBasedEraAlonzo -> ledgerBody
+        { Alonzo.outputs = Alonzo.outputs ledgerBody
+            <> StrictSeq.fromList
+                ( Cardano.toShelleyTxOut era
+                . Cardano.toCtxUTxOTxOut
+                . toCardanoTxOut era <$> extraOutputs
+                )
+        , Alonzo.inputs = Alonzo.inputs ledgerBody
+            <> Set.fromList (Cardano.toShelleyTxIn <$> extraInputs')
+        , Alonzo.collateral = Alonzo.collateral ledgerBody
+            <> Set.fromList (Cardano.toShelleyTxIn <$> extraCollateral')
+        , Alonzo.txfee =
+            modifyFee $ Alonzo.txfee ledgerBody
+        }
+    ShelleyBasedEraMary ->
+        let
+            ShelleyMA.TxBody
+                inputs outputs certs wdrls txfee vldt update adHash mint
+                    = ledgerBody
+            toTxOut
+                = Cardano.toShelleyTxOut era
+                . Cardano.toCtxUTxOTxOut
+                . toCardanoTxOut era
+        in
+        ShelleyMA.TxBody
+            (inputs <> Set.fromList (Cardano.toShelleyTxIn <$> extraInputs'))
+            (outputs <> StrictSeq.fromList (toTxOut <$> extraOutputs))
+            certs
+            wdrls
+            (modifyFee txfee)
+            vldt
+            update
+            adHash
+            mint
+    ShelleyBasedEraAllegra ->
+        let
+            ShelleyMA.TxBody
+                inputs outputs certs wdrls txfee vldt update adHash mint
+                    = ledgerBody
+            toTxOut
+                = Cardano.toShelleyTxOut era
+                . Cardano.toCtxUTxOTxOut
+                . toCardanoTxOut era
+        in
+        ShelleyMA.TxBody
+            (inputs <> Set.fromList (Cardano.toShelleyTxIn <$> extraInputs'))
+            (outputs <> StrictSeq.fromList (toTxOut <$> extraOutputs))
+            certs
+            wdrls
+            (modifyFee txfee)
+            vldt
+            update
+            adHash
+            mint
+    ShelleyBasedEraShelley ->
+        let
+            Shelley.TxBody inputs outputs certs wdrls txfee ttl txUpdate' mdHash
+                = ledgerBody
+            toTxOut
+                = Cardano.toShelleyTxOut era
+                . Cardano.toCtxUTxOTxOut
+                . toCardanoTxOut era
+        in
+        Shelley.TxBody
+            (inputs <> Set.fromList (Cardano.toShelleyTxIn <$> extraInputs'))
+            (outputs <> StrictSeq.fromList (toTxOut <$> extraOutputs))
+            certs
+            wdrls
+            (modifyFee txfee)
+            ttl
+            txUpdate'
+            mdHash
+  where
+    TxUpdate extraInputs extraCollateral extraOutputs feeUpdate
+        = txUpdate
+
+    extraInputs' = toCardanoTxIn . fst <$> extraInputs
+    extraCollateral' = toCardanoTxIn <$> extraCollateral
+
+    modifyFee old = case feeUpdate of
+        UseNewTxFee new -> toLedgerCoin new
+        UseOldTxFee -> old
       where
-        -- NOTE: If the ShelleyMA MAClass were exposed, the Allegra and Mary
-        -- cases could perhaps be joined. It is not however. And we still need
-        -- to treat Alonzo and Shelley differently.
-        adjustBody
-            :: TxUpdate
-            -> ShelleyBasedEra era
-            -> Ledger.TxBody (Cardano.ShelleyLedgerEra era)
-            -> Ledger.TxBody (Cardano.ShelleyLedgerEra era)
-        adjustBody (TxUpdate extraInputs extraCollateral extraOutputs feeUpdate) era body = case era of
-            ShelleyBasedEraAlonzo -> body
-                    { Alonzo.outputs = Alonzo.outputs body
-                        <> StrictSeq.fromList (Cardano.toShelleyTxOut era . Cardano.toCtxUTxOTxOut . toCardanoTxOut era <$> extraOutputs)
-                    , Alonzo.inputs = Alonzo.inputs body
-                        <> Set.fromList (Cardano.toShelleyTxIn <$> extraInputs')
-                    , Alonzo.collateral = Alonzo.collateral body
-                        <> Set.fromList (Cardano.toShelleyTxIn <$> extraCollateral')
-                    , Alonzo.txfee =
-                        modifyFee $ Alonzo.txfee body
-                    }
-            ShelleyBasedEraMary ->
-                let
-                    ShelleyMA.TxBody inputs outputs certs wdrls txfee vldt update adHash mint = body
-                    toTxOut = Cardano.toShelleyTxOut era . Cardano.toCtxUTxOTxOut . toCardanoTxOut era
-                in
-                    ShelleyMA.TxBody
-                        (inputs
-                            <> Set.fromList (Cardano.toShelleyTxIn <$> extraInputs'))
-                        (outputs
-                            <> StrictSeq.fromList (toTxOut <$> extraOutputs))
-                        certs
-                        wdrls
-                        (modifyFee txfee)
-                        vldt
-                        update
-                        adHash
-                        mint
-            ShelleyBasedEraAllegra ->
-                let
-                    ShelleyMA.TxBody inputs outputs certs wdrls txfee vldt update adHash mint = body
-                    toTxOut = Cardano.toShelleyTxOut era . Cardano.toCtxUTxOTxOut . toCardanoTxOut era
-                in
-                    ShelleyMA.TxBody
-                        (inputs
-                            <> Set.fromList (Cardano.toShelleyTxIn <$> extraInputs'))
-                        (outputs
-                            <> StrictSeq.fromList (toTxOut <$> extraOutputs))
-                        certs
-                        wdrls
-                        (modifyFee txfee)
-                        vldt
-                        update
-                        adHash
-                        mint
-            ShelleyBasedEraShelley ->
-                let
-                    Shelley.TxBody inputs outputs certs wdrls txfee ttl txUpdate mdHash = body
-                    toTxOut = Cardano.toShelleyTxOut era . Cardano.toCtxUTxOTxOut . toCardanoTxOut era
-                in
-                    Shelley.TxBody
-                        (inputs
-                            <> Set.fromList (Cardano.toShelleyTxIn <$> extraInputs'))
-                        (outputs
-                            <> StrictSeq.fromList (toTxOut <$> extraOutputs))
-                        certs
-                        wdrls
-                        (modifyFee txfee)
-                        ttl
-                        txUpdate
-                        mdHash
-          where
-            extraInputs' = toCardanoTxIn . fst <$> extraInputs
-            extraCollateral' = toCardanoTxIn <$> extraCollateral
-
-            modifyFee old = case feeUpdate of
-                UseNewTxFee new -> toLedgerCoin new
-                UseOldTxFee -> old
-              where
-                toLedgerCoin :: Coin -> Ledger.Coin
-                toLedgerCoin (Coin c) = Ledger.Coin (intCast c)
-
-    modifyLedgerTx _ (Byron.ByronTxBody _)
-        = Left ErrByronTxNotSupported
+        toLedgerCoin :: Coin -> Ledger.Coin
+        toLedgerCoin (Coin c) = Ledger.Coin (intCast c)
 
 -- NOTE / FIXME: This is an 'estimation' because it is actually quite hard to
 -- estimate what would be the cost of a selecting a particular input. Indeed, an
@@ -975,21 +972,15 @@ dummySkeleton inputCount outputs = SelectionSkeleton
 --
 -- Will estimate how many witnesses there /should be/, so it works even
 -- for unsigned transactions.
---
--- Returns `Nothing` for ByronEra transactions.
 _evaluateMinimumFee
-    :: Cardano.ProtocolParameters
-    -> SealedTx
-    -> Maybe Coin
-_evaluateMinimumFee pp tx = do
-    anyShelleyTx <- inAnyShelleyBasedEra (cardanoTx tx)
-    pure $ withShelleyBasedBody anyShelleyTx $ \_era body ->
-        fromCardanoLovelace $
-            Cardano.evaluateTransactionFee
-                pp
-                body
-                (estimateNumberOfWitnesses body)
-                0
+    :: Cardano.IsShelleyBasedEra era
+    => Cardano.ProtocolParameters
+    -> Cardano.Tx era
+    -> Coin
+_evaluateMinimumFee pp (Cardano.Tx body _) = fromCardanoLovelace $
+    Cardano.evaluateTransactionFee pp body nWits 0
+  where
+    nWits = (estimateNumberOfWitnesses body)
 
 -- | Estimate the size of the transaction (body) when fully signed.
 _estimateSignedTxSize
@@ -1121,29 +1112,30 @@ type AlonzoTx =
     Ledger.Tx (Cardano.ShelleyLedgerEra Cardano.AlonzoEra)
 
 _assignScriptRedeemers
-    :: Cardano.ProtocolParameters
+    :: forall era. Cardano.IsShelleyBasedEra era
+    => Cardano.ProtocolParameters
     -> TimeInterpreter (Either PastHorizonException)
     -> (TxIn -> Maybe (TxOut, Maybe (Hash "Datum")))
     -> [Redeemer]
-    -> SealedTx
-    -> Either ErrAssignRedeemers SealedTx
+    -> Cardano.Tx era
+    -> Either ErrAssignRedeemers (Cardano.Tx era )
 _assignScriptRedeemers (toAlonzoPParams -> pparams) ti resolveInput redeemers tx =
-    case cardanoTx tx of
-        InAnyCardanoEra ByronEra _ ->
+    case Cardano.shelleyBasedEra @era of
+        Cardano.ShelleyBasedEraShelley ->
             pure tx
-        InAnyCardanoEra ShelleyEra _ ->
+        Cardano.ShelleyBasedEraAllegra ->
             pure tx
-        InAnyCardanoEra AllegraEra _ ->
+        Cardano.ShelleyBasedEraMary->
             pure tx
-        InAnyCardanoEra MaryEra _ ->
-            pure tx
-        InAnyCardanoEra AlonzoEra (Cardano.ShelleyTx shelleyEra alonzoTx) -> do
+        Cardano.ShelleyBasedEraAlonzo -> do
+            let Cardano.ShelleyTx _ alonzoTx = tx
             alonzoTx' <- flip execStateT alonzoTx $ do
                 indexedRedeemers <- StateT assignNullRedeemers
-                executionUnits <- get >>= lift . evaluateExecutionUnits indexedRedeemers
+                executionUnits <- get
+                    >>= lift . evaluateExecutionUnits indexedRedeemers
                 modifyM (assignExecutionUnits executionUnits)
                 modify' addScriptIntegrityHash
-            pure $ sealedTxFromCardano' (Cardano.ShelleyTx shelleyEra alonzoTx')
+            pure $ Cardano.ShelleyTx ShelleyBasedEraAlonzo alonzoTx'
   where
     -- | Assign redeemers with null execution units to the input transaction.
     --
@@ -1260,7 +1252,7 @@ _assignScriptRedeemers (toAlonzoPParams -> pparams) ti resolveInput redeemers tx
     -- | Finally, calculate and add the script integrity hash with the new
     -- final redeemers, if any.
     addScriptIntegrityHash
-        :: forall era. (era ~ Cardano.ShelleyLedgerEra Cardano.AlonzoEra)
+        :: forall e. (e ~ Cardano.ShelleyLedgerEra Cardano.AlonzoEra)
         => AlonzoTx
         -> AlonzoTx
     addScriptIntegrityHash alonzoTx =
@@ -1269,7 +1261,7 @@ _assignScriptRedeemers (toAlonzoPParams -> pparams) ti resolveInput redeemers tx
             langs =
                 [ l
                 | (_hash, script) <- Map.toList (Alonzo.txscripts wits)
-                , (not . isNativeScript @era) script
+                , (not . isNativeScript @e) script
                 , Just l <- [Alonzo.language script]
                 ]
          in
@@ -2076,7 +2068,7 @@ withShelleyBasedEra era fn = case era of
 mkUnsignedTx
     :: forall era.  Cardano.IsCardanoEra era
     => ShelleyBasedEra era
-    -> Cardano.SlotNo
+    -> (Maybe SlotNo, SlotNo)
     -> SelectionOf TxOut
     -> Maybe Cardano.TxMetadata
     -> [(Cardano.StakeAddress, Cardano.Lovelace)]
@@ -2129,9 +2121,15 @@ mkUnsignedTx era ttl cs md wdrls certs fees mintData burnData allScripts =
     , Cardano.txFee = explicitFees era fees
 
     , Cardano.txValidityRange =
-        ( Cardano.TxValidityNoLowerBound
-        , Cardano.TxValidityUpperBound txValidityUpperBoundSupported ttl
-        )
+        let toLowerBound from = case txValidityLowerBoundSupported of
+                Just lowerBoundSupported ->
+                    Cardano.TxValidityLowerBound lowerBoundSupported from
+                Nothing -> Cardano.TxValidityNoLowerBound
+        in
+        bimap
+            (maybe Cardano.TxValidityNoLowerBound toLowerBound)
+            (Cardano.TxValidityUpperBound txValidityUpperBoundSupported)
+            ttl
 
     , Cardano.txMetadata =
         maybe
@@ -2194,6 +2192,14 @@ mkUnsignedTx era ttl cs md wdrls certs fees mintData burnData allScripts =
         ShelleyBasedEraAllegra -> Cardano.ValidityUpperBoundInAllegraEra
         ShelleyBasedEraMary -> Cardano.ValidityUpperBoundInMaryEra
         ShelleyBasedEraAlonzo -> Cardano.ValidityUpperBoundInAlonzoEra
+
+    txValidityLowerBoundSupported
+        :: Maybe (Cardano.ValidityLowerBoundSupportedInEra era)
+    txValidityLowerBoundSupported = case era of
+        ShelleyBasedEraShelley -> Nothing
+        ShelleyBasedEraAllegra -> Just Cardano.ValidityLowerBoundInAllegraEra
+        ShelleyBasedEraMary -> Just Cardano.ValidityLowerBoundInMaryEra
+        ShelleyBasedEraAlonzo -> Just Cardano.ValidityLowerBoundInAlonzoEra
 
     txMintingSupported :: Maybe (Cardano.MultiAssetSupportedInEra era)
     txMintingSupported = case era of

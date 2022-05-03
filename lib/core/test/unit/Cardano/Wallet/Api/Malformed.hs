@@ -1408,30 +1408,6 @@ instance Malformed (BodyParam (ApiConstructTransactionData ('Testnet pm))) where
                , "Error in $.delegations[0]: key 'pool' not found"
               )
             , ( [aesonQQ|
-                {
-                    "metadata": { "1": { "string": "hello" } },
-                    "validity_interval": {
-                        "invalid_before": {
-                          "quantity": 500,
-                          "unit": "second"
-                        }
-                      }
-                    }|]
-               , "Error in $['validity_interval']: parsing Cardano.Wallet.Api.Types.ApiValidityInterval(ApiValidityInterval) failed, key 'invalid_hereafter' not found"
-              )
-            , ( [aesonQQ|
-                {
-                    "metadata": { "1": { "string": "hello" } },
-                    "validity_interval": {
-                        "invalid_hereafter": {
-                          "quantity": 500,
-                          "unit": "second"
-                        }
-                      }
-                    }|]
-               , "Error in $['validity_interval']: parsing Cardano.Wallet.Api.Types.ApiValidityInterval(ApiValidityInterval) failed, key 'invalid_before' not found"
-              )
-            , ( [aesonQQ|
                   {
                     "payments": [{
                         "address": #{addrPlaceholder},

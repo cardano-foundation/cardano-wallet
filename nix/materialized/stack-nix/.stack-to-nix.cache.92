@@ -10,58 +10,82 @@
   {
     flags = {};
     package = {
-      specVersion = "1.10";
-      identifier = { name = "servant-purescript"; version = "0.9.0.2"; };
-      license = "BSD-3-Clause";
-      copyright = "Copyright: (c) 2016 Robert Klotzner";
-      maintainer = "robert Dot klotzner A T gmx Dot at";
-      author = "Robert Klotzner";
-      homepage = "https://github.com/eskimor/servant-purescript#readme";
+      specVersion = "2.4";
+      identifier = { name = "ekg-forward"; version = "0.1.0"; };
+      license = "Apache-2.0";
+      copyright = "2021 Input Output (Hong Kong) Ltd.";
+      maintainer = "Denis Shevchenko <denis.shevchenko@iohk.io>";
+      author = "Denis Shevchenko";
+      homepage = "https://github.com/input-output-hk/ekg-forward";
       url = "";
-      synopsis = "Generate PureScript accessor functions for you servant API";
-      description = "Please see README.md";
+      synopsis = "See README for more info";
+      description = "See README for more info";
       buildType = "Simple";
       };
     components = {
       "library" = {
         depends = [
           (hsPkgs."base" or (errorHandler.buildDepError "base"))
-          (hsPkgs."aeson" or (errorHandler.buildDepError "aeson"))
+          (hsPkgs."async" or (errorHandler.buildDepError "async"))
           (hsPkgs."bytestring" or (errorHandler.buildDepError "bytestring"))
-          (hsPkgs."containers" or (errorHandler.buildDepError "containers"))
-          (hsPkgs."directory" or (errorHandler.buildDepError "directory"))
-          (hsPkgs."filepath" or (errorHandler.buildDepError "filepath"))
-          (hsPkgs."http-types" or (errorHandler.buildDepError "http-types"))
-          (hsPkgs."lens" or (errorHandler.buildDepError "lens"))
-          (hsPkgs."mainland-pretty" or (errorHandler.buildDepError "mainland-pretty"))
-          (hsPkgs."purescript-bridge" or (errorHandler.buildDepError "purescript-bridge"))
-          (hsPkgs."servant" or (errorHandler.buildDepError "servant"))
-          (hsPkgs."servant-foreign" or (errorHandler.buildDepError "servant-foreign"))
-          (hsPkgs."servant-server" or (errorHandler.buildDepError "servant-server"))
-          (hsPkgs."servant-subscriber" or (errorHandler.buildDepError "servant-subscriber"))
+          (hsPkgs."cborg" or (errorHandler.buildDepError "cborg"))
+          (hsPkgs."contra-tracer" or (errorHandler.buildDepError "contra-tracer"))
+          (hsPkgs."ekg-core" or (errorHandler.buildDepError "ekg-core"))
+          (hsPkgs."io-classes" or (errorHandler.buildDepError "io-classes"))
+          (hsPkgs."network" or (errorHandler.buildDepError "network"))
+          (hsPkgs."ouroboros-network-framework" or (errorHandler.buildDepError "ouroboros-network-framework"))
+          (hsPkgs."serialise" or (errorHandler.buildDepError "serialise"))
+          (hsPkgs."stm" or (errorHandler.buildDepError "stm"))
           (hsPkgs."text" or (errorHandler.buildDepError "text"))
+          (hsPkgs."time" or (errorHandler.buildDepError "time"))
+          (hsPkgs."typed-protocols" or (errorHandler.buildDepError "typed-protocols"))
+          (hsPkgs."typed-protocols-cborg" or (errorHandler.buildDepError "typed-protocols-cborg"))
+          (hsPkgs."unordered-containers" or (errorHandler.buildDepError "unordered-containers"))
           ];
         buildable = true;
         };
-      tests = {
-        "servant-purescript-test" = {
+      exes = {
+        "demo-forwarder" = {
           depends = [
             (hsPkgs."base" or (errorHandler.buildDepError "base"))
-            (hsPkgs."aeson" or (errorHandler.buildDepError "aeson"))
-            (hsPkgs."containers" or (errorHandler.buildDepError "containers"))
-            (hsPkgs."mainland-pretty" or (errorHandler.buildDepError "mainland-pretty"))
-            (hsPkgs."lens" or (errorHandler.buildDepError "lens"))
-            (hsPkgs."purescript-bridge" or (errorHandler.buildDepError "purescript-bridge"))
-            (hsPkgs."servant" or (errorHandler.buildDepError "servant"))
-            (hsPkgs."servant-foreign" or (errorHandler.buildDepError "servant-foreign"))
-            (hsPkgs."servant-purescript" or (errorHandler.buildDepError "servant-purescript"))
-            (hsPkgs."servant-subscriber" or (errorHandler.buildDepError "servant-subscriber"))
+            (hsPkgs."contra-tracer" or (errorHandler.buildDepError "contra-tracer"))
+            (hsPkgs."ekg-core" or (errorHandler.buildDepError "ekg-core"))
+            (hsPkgs."ekg-forward" or (errorHandler.buildDepError "ekg-forward"))
             (hsPkgs."text" or (errorHandler.buildDepError "text"))
+            (hsPkgs."time" or (errorHandler.buildDepError "time"))
+            ];
+          buildable = true;
+          };
+        "demo-acceptor" = {
+          depends = [
+            (hsPkgs."base" or (errorHandler.buildDepError "base"))
+            (hsPkgs."contra-tracer" or (errorHandler.buildDepError "contra-tracer"))
+            (hsPkgs."ekg-core" or (errorHandler.buildDepError "ekg-core"))
+            (hsPkgs."ekg-forward" or (errorHandler.buildDepError "ekg-forward"))
+            (hsPkgs."stm" or (errorHandler.buildDepError "stm"))
+            (hsPkgs."text" or (errorHandler.buildDepError "text"))
+            (hsPkgs."time" or (errorHandler.buildDepError "time"))
+            ];
+          buildable = true;
+          };
+        };
+      tests = {
+        "ekg-forward-test" = {
+          depends = [
+            (hsPkgs."base" or (errorHandler.buildDepError "base"))
+            (hsPkgs."base" or (errorHandler.buildDepError "base"))
+            (hsPkgs."contra-tracer" or (errorHandler.buildDepError "contra-tracer"))
+            (hsPkgs."ekg-core" or (errorHandler.buildDepError "ekg-core"))
+            (hsPkgs."ekg-forward" or (errorHandler.buildDepError "ekg-forward"))
+            (hsPkgs."hspec" or (errorHandler.buildDepError "hspec"))
+            (hsPkgs."stm" or (errorHandler.buildDepError "stm"))
+            (hsPkgs."time" or (errorHandler.buildDepError "time"))
+            (hsPkgs."unordered-containers" or (errorHandler.buildDepError "unordered-containers"))
             ];
           buildable = true;
           };
         };
       };
     } // rec {
-    src = (pkgs.lib).mkDefault /nix/store/wpxma8w4lhg0kpmasqp1iq19br4xzirp-servant-purescript-a761044;
+    src = (pkgs.lib).mkDefault /nix/store/jjas7k78m81qin4ypzmk6j1myw3l5ir8-ekg-forward-297cd9d;
     }

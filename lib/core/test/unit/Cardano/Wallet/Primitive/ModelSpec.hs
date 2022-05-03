@@ -279,8 +279,8 @@ spec = do
     parallel $ describe "Total UTxO" $ do
         it "prop_totalUTxO_pendingChangeIncluded" $
             property prop_totalUTxO_pendingChangeIncluded
-        it "prop_totalUTxO_pendingCollateralIncluded" $
-            property prop_totalUTxO_pendingCollateralIncluded
+        it "prop_totalUTxO_pendingCollateralInputsIncluded" $
+            property prop_totalUTxO_pendingCollateralInputsIncluded
         it "prop_totalUTxO_pendingInputsExcluded" $
             property prop_totalUTxO_pendingInputsExcluded
 
@@ -293,7 +293,7 @@ spec = do
     parallel $ describe "Address discovery" $ do
         it "discoverAddressesBlock ~ isOurTx" $
             property prop_discoverAddressesBlock
-    
+
     parallel $ describe "Light-mode" $ do
         it "discovery on blocks = discovery on summary" $
             property prop_discoverFromBlockData
@@ -447,7 +447,7 @@ allInputsOfTxs = F.foldMap allInputsOfTx
     allInputsOfTx :: Tx -> Set TxIn
     allInputsOfTx tx = Set.fromList $ fst <$> mconcat
         [ tx & resolvedInputs
-        , tx & resolvedCollateral
+        , tx & resolvedCollateralInputs
         ]
 
 prop_availableUTxO_isSubmap :: Property
@@ -670,29 +670,29 @@ prop_totalUTxO_pendingChangeIncluded =
         pendingChange :: UTxO
         pendingChange = changeUTxO pendingTxs (getState wallet)
 
-prop_totalUTxO_pendingCollateralIncluded :: Property
-prop_totalUTxO_pendingCollateralIncluded =
+prop_totalUTxO_pendingCollateralInputsIncluded :: Property
+prop_totalUTxO_pendingCollateralInputsIncluded =
     prop_totalUTxO prop
   where
     prop pendingTxs _wallet result =
         cover 1
-            (not (Set.null pendingCollateral))
-            "not (Set.null pendingCollateral)" $
-        all (`Map.member` unUTxO result) pendingCollateral
+            (not (Set.null pendingCollateralInputs))
+            "not (Set.null pendingCollateralInputs)" $
+        all (`Map.member` unUTxO result) pendingCollateralInputs
       where
+        pendingInputs :: Set TxIn
+        pendingInputs = pendingTxs
+            & F.foldMap (fmap fst . view #resolvedInputs)
+            & Set.fromList
+
         -- In any given transaction, the sets of ordinary inputs and collateral
         -- inputs can intersect. Since ordinary inputs of pending transactions
         -- must be excluded from the result, we only consider collateral inputs
         -- that are not also used as ordinary inputs:
-        pendingCollateral :: Set TxIn
-        pendingCollateral = pendingTxs
-            & F.foldMap (fmap fst . view #resolvedCollateral)
+        pendingCollateralInputs :: Set TxIn
+        pendingCollateralInputs = pendingTxs
+            & F.foldMap (fmap fst . view #resolvedCollateralInputs)
             & L.filter (`Set.notMember` pendingInputs)
-            & Set.fromList
-
-        pendingInputs :: Set TxIn
-        pendingInputs = pendingTxs
-            & F.foldMap (fmap fst . view #resolvedInputs)
             & Set.fromList
 
 prop_totalUTxO_pendingInputsExcluded :: Property
@@ -734,9 +734,9 @@ prop_totalUTxO makeProperty =
     --
     restrictTxInputs :: UTxO -> Tx -> Tx
     restrictTxInputs utxo
-        = over #resolvedCollateral
+        = over #resolvedInputs
             (filter ((`Set.member` utxoInputs) . fst))
-        . over #resolvedInputs
+        . over #resolvedCollateralInputs
             (filter ((`Set.member` utxoInputs) . fst))
       where
         utxoInputs = Map.keysSet (unUTxO utxo)
@@ -863,7 +863,7 @@ isOurTx tx u
     -- one more collateral inputs that belong to the wallet.
     --
     | failedScriptValidation tx =
-        txHasRelevantCollateral
+        txHasRelevantCollateralInput
     | otherwise =
         F.or <$> sequence
             [ txHasRelevantInput
@@ -871,12 +871,14 @@ isOurTx tx u
             , txHasRelevantWithdrawal
             ]
   where
-    txHasRelevantCollateral =
-        pure . not . UTxO.null $
-        u `UTxO.restrictedBy` Set.fromList (fst <$> tx ^. #resolvedCollateral)
     txHasRelevantInput =
         pure . not . UTxO.null $
-        u `UTxO.restrictedBy` Set.fromList (fst <$> tx ^. #resolvedInputs)
+        u `UTxO.restrictedBy` Set.fromList
+            (fst <$> tx ^. #resolvedInputs)
+    txHasRelevantCollateralInput =
+        pure . not . UTxO.null $
+        u `UTxO.restrictedBy` Set.fromList
+            (fst <$> tx ^. #resolvedCollateralInputs)
     txHasRelevantOutput =
         F.or <$> sequence (isOursState . (view #address) <$> tx ^. #outputs)
     txHasRelevantWithdrawal =
@@ -1121,7 +1123,9 @@ instance Arbitrary (WithPending WalletState) where
                         , fee = Nothing
                         , resolvedInputs = [(inp, txOutCoin out)]
                         -- TODO: (ADP-957)
-                        , resolvedCollateral = []
+                        , resolvedCollateralInputs = []
+                        -- TODO: [ADP-1670]
+                        , collateralOutput = Nothing
                         , outputs = [out {tokens}]
                         , withdrawals = mempty
                         , metadata = Nothing
@@ -1201,7 +1205,7 @@ blockchain =
                         , inputIx = 0
                         }, Coin 0)
                     ]
-                , resolvedCollateral = []
+                , resolvedCollateralInputs = []
                 , outputs =
                     [ TxOut
                         { address = Address "\130\216\CANXB\131X\FS\251\STX\v\235\129\179\243k\185\131Eq\190\239\137\143\ETB\167\&7\GS\131\&1\215R\202!\US\205\161\SOHX\RSX\FSq=\137+\197\151g\151-\158\222\RS\246\190\155\EOTz\242\202H\SUB\237\227\167)\fo\198\NUL\SUBw\218X/"
@@ -1212,6 +1216,7 @@ blockchain =
                         , tokens = coinToBundle 3844423800000
                         }
                     ]
+                , collateralOutput = Nothing
                 , withdrawals = mempty
                 , metadata = Nothing
                 , scriptValidity = Nothing
@@ -1236,7 +1241,7 @@ blockchain =
                         , inputIx = 0
                         }, Coin 0)
                     ]
-                , resolvedCollateral = []
+                , resolvedCollateralInputs = []
                 , outputs =
                     [ TxOut
                         { address = Address "\130\216\CANXB\131X\FS\211Yn9s*R\243\193x\166T\178\189%i\182X\179!\ESC\tf\t;\CAN8\GS\161\SOHX\RSX\FS\202>U<\156c\197M\234W\ETBC\f\177\235\163\254\194\RS\225\ESC\\\244\b\255\164\CAN\201\NUL\SUB\166\230\137["
@@ -1247,6 +1252,7 @@ blockchain =
                         , tokens = coinToBundle 3351830178
                         }
                     ]
+                , collateralOutput = Nothing
                 , withdrawals = mempty
                 , metadata = Nothing
                 , scriptValidity = Nothing
@@ -1260,7 +1266,7 @@ blockchain =
                         , inputIx = 0
                         }, Coin 0)
                     ]
-                , resolvedCollateral = []
+                , resolvedCollateralInputs = []
                 , outputs =
                      [ TxOut
                         { address = Address "\130\216\CANXB\131X\FS)/\216\137\&7\187\235\136\159m[g\DC2\156\193v\EM\169^\GS\176\128\rh\186\234\EM\NUL\161\SOHX\RSX\FS\202>U<\156c\197\SYN!\161_C\135\ACK\210/\193|\STX\158f\138C\234\221\RS\134\231\NUL\SUB\190\&2?C"
@@ -1271,6 +1277,7 @@ blockchain =
                         , tokens = coinToBundle 19999800000
                         }
                     ]
+                , collateralOutput = Nothing
                 , withdrawals = mempty
                 , metadata = Nothing
                 , scriptValidity = Nothing
@@ -1295,7 +1302,7 @@ blockchain =
                         , inputIx = 0
                         }, Coin 0)
                     ]
-                , resolvedCollateral = []
+                , resolvedCollateralInputs = []
                 , outputs =
                     [ TxOut
                         { address = Address "\130\216\CANXB\131X\FS\ACK\142\129o\164[teM\222\&2`\153\STX'\DC4\190\n\194\156:6\DC3\223\184\150[\249\161\SOHX\RSX\FS\202>U<\156c\197\f\132y\163C>\252]w\f\STXb\GS\150\130\255\215`\140\212\CAN\NUL\SUB\135\214\245\224"
@@ -1306,6 +1313,7 @@ blockchain =
                         , tokens = coinToBundle 3495800000
                         }
                     ]
+                , collateralOutput = Nothing
                 , withdrawals = mempty
                 , metadata = Nothing
                 , scriptValidity = Nothing
@@ -1319,7 +1327,7 @@ blockchain =
                         , inputIx = 0
                         }, Coin 0)
                     ]
-                , resolvedCollateral = []
+                , resolvedCollateralInputs = []
                 , outputs =
                     [ TxOut
                         { address = Address "\130\216\CANXB\131X\FSY\128\ETX4\191\170\EOT\144\195#\f]\ESCy\nSe\216+f\132\210\232x\168\160''\161\SOHX\RSX\FS\202>U<\156c\197E\160\162\181C\f|\SO\223\170\DC4\253.R\248R+'\162\172\166\NUL\SUB\220\192\171)"
@@ -1330,6 +1338,7 @@ blockchain =
                         , tokens = coinToBundle 29999800000
                         }
                     ]
+                , collateralOutput = Nothing
                 , withdrawals = mempty
                 , metadata = Nothing
                 , scriptValidity = Nothing
@@ -1354,7 +1363,7 @@ blockchain =
                         , inputIx = 0
                         }, Coin 0)
                     ]
-                , resolvedCollateral = []
+                , resolvedCollateralInputs = []
                 , outputs =
                     [ TxOut
                         { address = Address "\130\216\CANXB\131X\FSJ:Kh-\227hW$\139\165\194\192\249\251f\250\NAKf\207\146\131\193\248\242%\153\180\161\SOHX\RSX\FS\202>U<\156c\197\US\196\DC3\208C*1\176\172\138(\EOTd\b\179\157\135e\171#\136\NUL\SUB)\228M*"
@@ -1365,6 +1374,7 @@ blockchain =
                         , tokens = coinToBundle 500000000
                         }
                     ]
+                , collateralOutput = Nothing
                 , withdrawals = mempty
                 , metadata = Nothing
                 , scriptValidity = Nothing
@@ -1399,7 +1409,7 @@ blockchain =
                         , inputIx = 0
                         }, Coin 0)
                     ]
-                , resolvedCollateral = []
+                , resolvedCollateralInputs = []
                 , outputs =
                     [ TxOut
                       { address = Address "\130\216\CANXB\131X\FSUh\206'\198\237\161R3\214L\145\245P'\197\230\&6\206\152\173\EOTI:\152\vX&\161\SOHX\RSX\FS\202>U<\156c\197|\227M\202Cv\136\\\253\176\130\185b9G\188_\179\&4\253Y\NUL\SUB\176\EOT\165s"
@@ -1410,6 +1420,7 @@ blockchain =
                       , tokens = coinToBundle 9999800000
                       }
                     ]
+                , collateralOutput = Nothing
                 , withdrawals = mempty
                 , metadata = Nothing
                 , scriptValidity = Nothing
@@ -1433,7 +1444,7 @@ blockchain =
                         { inputId = Hash "s\165\210\a@\213\DC1\224\DLE\144$\DEL\138\202\144\225\229PVBD\ETB25\161\164u\137\NUL{\158v"
                         , inputIx = 0
                         }, Coin 0) ]
-                , resolvedCollateral = []
+                , resolvedCollateralInputs = []
                 , outputs =
                     [ TxOut
                         { address = Address "\130\216\CANXB\131X\FS\255-+\179k\202\194\212\206\224\248\243\158\b\188 \212\141$\189\194&\252\162\166\162jq\161\SOHX\RSX\FS\202>U<\156c\197QM\140\ACKCk=\238\239\134^w\CAN$\253\FSqL\198\128\200\NUL\SUB\f\219\163/"
@@ -1444,6 +1455,7 @@ blockchain =
                         , tokens = coinToBundle 3273721339
                         }
                     ]
+                , collateralOutput = Nothing
                 , withdrawals = mempty
                 , metadata = Nothing
                 , scriptValidity = Nothing
@@ -1468,7 +1480,7 @@ blockchain =
                         , inputIx = 0
                         }, Coin 0)
                     ]
-                , resolvedCollateral = []
+                , resolvedCollateralInputs = []
                 , outputs =
                     [ TxOut
                         { address = Address { unAddress = "\130\216\CANXB\131X\FS!\148\NULDcB\r\237\202\255)\DLEe`\159\a\\-IG\"P\218\136\219i\244\134\161\SOHX\RSX\FS\202>U<\156c\197;\236\EOT\STXC\209\173\138\205B\EOT.\ENQ\ACKG@\174\206\185\ESC\206\NUL\SUB\230\150\192\165" }
@@ -1479,6 +1491,7 @@ blockchain =
                         , tokens = coinToBundle 19999800000
                         }
                     ]
+                , collateralOutput = Nothing
                 , withdrawals = mempty
                 , metadata = Nothing
                 , scriptValidity = Nothing
@@ -1517,7 +1530,7 @@ blockchain =
                         , inputIx = 1
                         }, Coin 0)
                     ]
-                , resolvedCollateral = []
+                , resolvedCollateralInputs = []
                 , outputs =
                     [ TxOut
                         { address = Address "\130\216\CANXB\131X\FS%\ENQ\163x'\DC3\DC1\222\157\197 4*\200v\219\f\201\215\197\136\188\128\243\216\NAKe\214\161\SOHX\RSX\FS\197\217I\176.##LD\224\179i\142\&3\220\162\250\221:F\227\NAK$\156|\EOTY\228\NUL\SUBr\a\134\146"
@@ -1528,6 +1541,7 @@ blockchain =
                         , tokens = coinToBundle 12999433909
                         }
                     ]
+                , collateralOutput = Nothing
                 , withdrawals = mempty
                 , metadata = Nothing
                 , scriptValidity = Nothing
@@ -1592,7 +1606,7 @@ blockchain =
                         , inputIx = 1
                         }, Coin 0)
                     ]
-                , resolvedCollateral = []
+                , resolvedCollateralInputs = []
                 , outputs =
                     [ TxOut
                         { address = Address "\130\216\CANXB\131X\FS\DC3\136\135t\199V\160\217\173\r\235\229\193\&03q{\178'\f\DLE\137k\222P\180\DC3\224\161\SOHX\RSX\FS\202>U<\156c\197<\211\197>C_\207\225?\146\134\160\ETB\207!X\139\250N\220\ESC\NUL\SUB\186\217]\175"
@@ -1603,6 +1617,7 @@ blockchain =
                         , tokens = coinToBundle 16837395907
                         }
                     ]
+                , collateralOutput = Nothing
                 , withdrawals = mempty
                 , metadata = Nothing
                 , scriptValidity = Nothing
@@ -1616,7 +1631,7 @@ blockchain =
                         , inputIx = 1
                         }, Coin 0)
                     ]
-                , resolvedCollateral = []
+                , resolvedCollateralInputs = []
                 , outputs =
                     [ TxOut
                         { address = Address "\130\216\CANXB\131X\FS!f\151\SYN\189\218\167\236\206\253\&9UW%\CAN\238\139\205<\246\132\&1\SOH\164\SUBR\237\DC4\161\SOHX\RSX\FS\202>U<\156c\197T\188\198\219C5_\246\194@\227\217\151\235\139\216(2p\173\236\NUL\SUB0\147sX"
@@ -1627,6 +1642,7 @@ blockchain =
                         , tokens = coinToBundle 748331810
                         }
                     ]
+                , collateralOutput = Nothing
                 , withdrawals = mempty
                 , metadata = Nothing
                 , scriptValidity = Nothing
@@ -1651,7 +1667,7 @@ blockchain =
                         , inputIx = 0
                         }, Coin 0)
                     ]
-                , resolvedCollateral = []
+                , resolvedCollateralInputs = []
                 , outputs =
                     [ TxOut
                         { address = Address "\130\216\CANXB\131X\FS\233\219\220^Zp\135\EOT\205&#\226S\232\&0\160\252\164\&9\224\&2\152\RS\197F\191\193\223\161\SOHX\RSX\FS\202>U<\156c\197\&5\201\210\140C\v\216\253\150\235\177\189*\211E\241\201;L;t\NUL\SUB||\158\&1"
@@ -1662,6 +1678,7 @@ blockchain =
                         , tokens = coinToBundle 1499800000
                         }
                     ]
+                , collateralOutput = Nothing
                 , withdrawals = mempty
                 , metadata = Nothing
                 , scriptValidity = Nothing
@@ -1675,7 +1692,7 @@ blockchain =
                         , inputIx = 0
                         }, Coin 0)
                     ]
-                , resolvedCollateral = []
+                , resolvedCollateralInputs = []
                 , outputs =
                     [ TxOut
                         { address = Address "\130\216\CANXB\131X\FS\203\242{\247\221*[\182a\171/`\151,\130\&4\246\219\245I\t\240\&6\ACK\159wg\186\161\SOHX\RSX\FS\202>U<\156c\197\CAN\250\154\238C \170\214\202\244y\140!\189\SYN]\157\132\ETXt\245\NUL\SUB\155\210\\\173"
@@ -1686,6 +1703,7 @@ blockchain =
                         , tokens = coinToBundle 1345293520
                         }
                     ]
+                , collateralOutput = Nothing
                 , withdrawals = mempty
                 , metadata = Nothing
                 , scriptValidity = Nothing
@@ -1770,7 +1788,7 @@ blockchain =
                         , inputIx = 0
                         }, Coin 0)
                     ]
-                , resolvedCollateral = []
+                , resolvedCollateralInputs = []
                 , outputs =
                     [ TxOut
                         { address = Address "\130\216\CANXB\131X\FS\197\CAN\DELP\160W\144\&8\GSW\189\&7m\b\233Y\216I\176\159\250\144\EM\155|\219\n\231\161\SOHX\RSX\FS\202>U<\156c\197\&6\149=XC\217L\SOH\255\166\228\138\221\157\&0\ACK&]`z\DC2\NUL\SUB\149\157\191\162"
@@ -1781,30 +1799,32 @@ blockchain =
                         , tokens = coinToBundle 11823271860
                         }
                     ]
+                , collateralOutput = Nothing
                 , withdrawals = mempty
                 , metadata = Nothing
                 , scriptValidity = Nothing
                 }
-              , Tx
-                  { txId = Hash "7726526b5cc003f71d9629c611397285004b5438eac9a118c2b20e2810e0783e"
-                  , fee = Nothing
-                  , resolvedInputs =
-                      [ ( TxIn
-                          { inputId = Hash "\249\DC2\146\&0\GSK\177\182\224@\206\205\255@0\149\155I\201^}\174\bw\130\221U\139\235\182f\138"
-                          , inputIx = 0
-                          }, Coin 0)
-                      ]
-                  , resolvedCollateral = []
-                  , outputs =
-                      [ TxOut
-                          { address = Address "\130\216\CANXB\131X\FSe$;\SO\178g\161\226>1w\159M\NAK\141d\173\210\202\192Bn\250\176C(\DC2\ENQ\161\SOHX\RSX\FS\202>U<\156c\197\SUB\225\157\&1C\209\253\183\USuz\163\193\209\196\217:\155!\167!\NUL\SUB\137\240\187\159"
-                          , tokens = coinToBundle 3841254542346
-                          }
-                      , TxOut
-                          { address = Address "\130\216\CANXB\131X\FS\161\243^\nQ`\DLE\151\147n\153j\STX\215]\SOr7\136\211\222y\US*\157%\DEL\ETB\161\SOHX\RSX\FS\201\SUB\170\156Oe\155)D\US\143\CAN\237\193\244vKM\160\SOH\166&\161\213\188KD\142\NUL\SUB\144\192\240\146"
-                          , tokens = coinToBundle 2700667457
-                          }
-                      ]
+            , Tx
+                { txId = Hash "7726526b5cc003f71d9629c611397285004b5438eac9a118c2b20e2810e0783e"
+                , fee = Nothing
+                , resolvedInputs =
+                    [ ( TxIn
+                        { inputId = Hash "\249\DC2\146\&0\GSK\177\182\224@\206\205\255@0\149\155I\201^}\174\bw\130\221U\139\235\182f\138"
+                        , inputIx = 0
+                        }, Coin 0)
+                    ]
+                , resolvedCollateralInputs = []
+                , outputs =
+                    [ TxOut
+                        { address = Address "\130\216\CANXB\131X\FSe$;\SO\178g\161\226>1w\159M\NAK\141d\173\210\202\192Bn\250\176C(\DC2\ENQ\161\SOHX\RSX\FS\202>U<\156c\197\SUB\225\157\&1C\209\253\183\USuz\163\193\209\196\217:\155!\167!\NUL\SUB\137\240\187\159"
+                        , tokens = coinToBundle 3841254542346
+                        }
+                    , TxOut
+                        { address = Address "\130\216\CANXB\131X\FS\161\243^\nQ`\DLE\151\147n\153j\STX\215]\SOr7\136\211\222y\US*\157%\DEL\ETB\161\SOHX\RSX\FS\201\SUB\170\156Oe\155)D\US\143\CAN\237\193\244vKM\160\SOH\166&\161\213\188KD\142\NUL\SUB\144\192\240\146"
+                        , tokens = coinToBundle 2700667457
+                        }
+                    ]
+                , collateralOutput = Nothing
                 , withdrawals = mempty
                 , metadata = Nothing
                 , scriptValidity = Nothing
@@ -1829,7 +1849,7 @@ blockchain =
                         , inputIx = 0
                         }, Coin 0)
                     ]
-                , resolvedCollateral = []
+                , resolvedCollateralInputs = []
                 , outputs =
                     [ TxOut
                         { address = Address "\130\216\CANXB\131X\FS\147\ACKn\246.n\DLE\233Y\166)\207c\v\248\183\235\212\EOTV\243h\192\190T\150'\196\161\SOHX\RSX\FS\202>U<\156c\197&\DC3S\235C\198\245\163\204=\214fa\201\t\205\248\204\226r%\NUL\SUB\174\187\&7\t"
@@ -1840,6 +1860,7 @@ blockchain =
                         , tokens = coinToBundle 19999800000
                         }
                     ]
+                , collateralOutput = Nothing
                 , withdrawals = mempty
                 , metadata = Nothing
                 , scriptValidity = Nothing
@@ -1976,7 +1997,7 @@ unit_applyTxToUTxO_loses_collateral :: Tx -> TxIn -> TxOut -> Coin -> Property
 unit_applyTxToUTxO_loses_collateral tx txin txout coin =
     let
         tx' = tx
-            { resolvedCollateral = [(txin, coin)]
+            { resolvedCollateralInputs = [(txin, coin)]
             , scriptValidity = Just TxScriptInvalid
             }
     in

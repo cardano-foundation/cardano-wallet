@@ -80,6 +80,9 @@ module Cardano.Wallet.Primitive.Types.TokenMap
     , equipartitionQuantities
     , equipartitionQuantitiesWithUpperBound
 
+    -- * Ordering
+    , Lexicographic (..)
+
     -- * Serialization
     , Flat (..)
     , Nested (..)
@@ -125,6 +128,8 @@ import Data.Map.Strict.NonEmptyMap
     ( NonEmptyMap )
 import Data.Maybe
     ( fromMaybe, isJust )
+import Data.Ord
+    ( comparing )
 import Data.Ratio
     ( (%) )
 import Data.Set
@@ -179,6 +184,33 @@ newtype TokenMap = TokenMap
     deriving stock (Eq, Generic)
     deriving (Read, Show) via (Quiet TokenMap)
 
+instance NFData TokenMap
+instance Hashable TokenMap where
+    hashWithSalt = hashUsing (Map.toList . unTokenMap)
+
+instance Semigroup TokenMap where
+    (<>) = add
+
+instance Monoid TokenMap where
+    mempty = empty
+
+-- | A combination of a token policy identifier and a token name that can be
+--   used as a compound identifier.
+--
+data AssetId = AssetId
+    { tokenPolicyId
+        :: !TokenPolicyId
+    , tokenName
+        :: !TokenName
+    }
+    deriving stock (Eq, Generic, Ord, Read, Show)
+
+instance NFData AssetId
+
+--------------------------------------------------------------------------------
+-- Ordering
+--------------------------------------------------------------------------------
+
 -- | Token maps can be partially ordered, but there is no total ordering of
 --   token maps that's consistent with their arithmetic properties.
 --
@@ -227,28 +259,13 @@ instance PartialOrd TokenMap where
         (\a -> getQuantity m1 a <= getQuantity m2 a)
         (getAssets m1 `Set.union` getAssets m2)
 
-instance NFData TokenMap
-instance Hashable TokenMap where
-    hashWithSalt = hashUsing (Map.toList . unTokenMap)
-
-instance Semigroup TokenMap where
-    (<>) = add
-
-instance Monoid TokenMap where
-    mempty = empty
-
--- | A combination of a token policy identifier and a token name that can be
---   used as a compound identifier.
+-- | Defines a lexicographic ordering.
 --
-data AssetId = AssetId
-    { tokenPolicyId
-        :: !TokenPolicyId
-    , tokenName
-        :: !TokenName
-    }
-    deriving stock (Eq, Generic, Ord, Read, Show)
+newtype Lexicographic a = Lexicographic {unLexicographic :: a}
+    deriving (Eq, Show)
 
-instance NFData AssetId
+instance Ord (Lexicographic TokenMap) where
+    compare = comparing (toNestedList . unLexicographic)
 
 --------------------------------------------------------------------------------
 -- Serialization

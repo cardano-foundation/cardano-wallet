@@ -46,6 +46,7 @@ import Cardano.Wallet.Api.Types
     , ApiDecodedTransaction
     , ApiDeregisterPool (..)
     , ApiExternalCertificate (..)
+    , ApiNetworkInformation
     , ApiPolicyId
     , ApiPolicyKey (..)
     , ApiRegisterPool (..)
@@ -85,6 +86,7 @@ import Cardano.Wallet.Primitive.Types
     , NonWalletCertificate (..)
     , PoolId (..)
     , PoolOwner (..)
+    , SlotNo (..)
     , StakePoolMetadataHash (..)
     , StakePoolMetadataUrl (..)
     , decodePoolIdBech32
@@ -116,7 +118,7 @@ import Cardano.Wallet.Primitive.Types.Tx
     , sealedTxFromCardanoBody
     )
 import Cardano.Wallet.Transaction
-    ( AnyScript (..) )
+    ( AnyScript (..), ValidityIntervalExplicit (..) )
 import Cardano.Wallet.Unsafe
     ( unsafeFromHex, unsafeMkMnemonic )
 import Control.Arrow
@@ -203,6 +205,7 @@ import Test.Integration.Framework.TestData
     , errMsg403Fee
     , errMsg403ForeignTransaction
     , errMsg403InvalidConstructTx
+    , errMsg403InvalidValidityBounds
     , errMsg403MinUTxOValue
     , errMsg403MintOrBurnAssetQuantityOutOfBounds
     , errMsg403MissingWitsInTransaction
@@ -211,6 +214,7 @@ import Test.Integration.Framework.TestData
     , errMsg403NonNullReward
     , errMsg403NotDelegating
     , errMsg403NotEnoughMoney
+    , errMsg403ValidityIntervalNotInsideScriptTimelock
     , errMsg404NoSuchPool
     , errMsg404NoWallet
     )
@@ -253,19 +257,22 @@ spec = describe "NEW_SHELLEY_TRANSACTIONS" $ do
             , expectErrorMessage errMsg403InvalidConstructTx
             ]
 
-    it "TRANS_NEW_CREATE_01b - Validity interval only is not allowed" $ \ctx -> runResourceT $ do
+    it "TRANS_NEW_CREATE_01b - \
+        \Validity interval only is not allowed" $
+        \ctx -> runResourceT $ do
+
         wa <- fixtureWallet ctx
-        let validityInterval = Json [json|{
-                "validity_interval": {
-                    "invalid_before": {
-                      "quantity": 10,
-                      "unit": "second"
-                    },
-                    "invalid_hereafter": {
-                      "quantity": 50,
-                      "unit": "second"
+        let validityInterval = Json [json|
+                { "validity_interval":
+                    { "invalid_before":
+                        { "quantity": 10
+                        , "unit": "second"
+                        }
+                    , "invalid_hereafter":
+                        { "quantity": 50
+                        , "unit": "second"
+                        }
                     }
-                  }
                 }|]
 
         rTx <- request @(ApiConstructTransaction n) ctx
@@ -1080,7 +1087,10 @@ spec = describe "NEW_SHELLEY_TRANSACTIONS" $ do
             , expectErrorMessage errMsg403NotEnoughMoney
             ]
 
-    it "TRANS_NEW_VALIDITY_INTERVAL_01a - Validity interval with second" $ \ctx -> runResourceT $ do
+    it "TRANS_NEW_VALIDITY_INTERVAL_01a - \
+        \Validity interval with second" $
+        \ctx -> runResourceT $ do
+
         wa <- fixtureWallet ctx
         wb <- emptyWallet ctx
         addrs <- listAddresses @n ctx wb
@@ -1096,13 +1106,9 @@ spec = describe "NEW_SHELLEY_TRANSACTIONS" $ do
                     }
                 }],
                 "validity_interval": {
-                    "invalid_before": {
-                      "quantity": 0,
-                      "unit": "second"
-                    },
                     "invalid_hereafter": {
-                      "quantity": 500,
-                      "unit": "second"
+                        "quantity": 50,
+                        "unit": "second"
                     }
                   }
                 }|]
@@ -1123,113 +1129,67 @@ spec = describe "NEW_SHELLEY_TRANSACTIONS" $ do
             , expectResponseCode HTTP.status202
             ]
 
-    it "TRANS_NEW_VALIDITY_INTERVAL_01b - Validity interval with slot" $ \ctx -> runResourceT $ do
+    it "TRANS_NEW_VALIDITY_INTERVAL_01b - \
+        \Validity interval with slot" $
+        \ctx -> runResourceT $ do
+
         wa <- fixtureWallet ctx
 
-        let payload = Json [json|{
-                "withdrawal": "self",
-                "validity_interval": {
-                    "invalid_before": {
-                      "quantity": 0,
-                      "unit": "slot"
-                    },
-                    "invalid_hereafter": {
-                      "quantity": 500,
-                      "unit": "slot"
+        rSlot <- request @ApiNetworkInformation ctx
+            Link.getNetworkInfo Default Empty
+        verify rSlot [expectSuccess]
+        let sl = getFromResponse
+                (#nodeTip . #absoluteSlotNumber . #getApiT) rSlot
+
+        let payload = Json [json|
+                { "withdrawal": "self"
+                , "validity_interval":
+                    { "invalid_before":
+                        { "quantity": 0
+                        , "unit": "slot"
+                        }
+                    , "invalid_hereafter":
+                        { "quantity": #{sl + 10}
+                        , "unit": "slot"
+                        }
                     }
-                  }
                 }|]
 
         rTx <- request @(ApiConstructTransaction n) ctx
             (Link.createUnsignedTransaction @'Shelley wa) Default payload
         verify rTx
             [ expectResponseCode HTTP.status202
+            ]
+
+        let (SlotNo toSlot) = sl
+        let validityInterval =
+                ValidityIntervalExplicit (Quantity 0) (Quantity $ toSlot + 10)
+
+        let rTxCBOR = getFromResponse #transaction rTx
+        let decodePayload1 = Json (toJSON $ ApiSerialisedTransaction rTxCBOR)
+        rDecodedTx1 <- request @(ApiDecodedTransaction n) ctx
+            (Link.decodeTransaction @'Shelley wa) Default decodePayload1
+        verify rDecodedTx1
+            [ expectResponseCode HTTP.status202
+            , expectField #validityInterval (`shouldBe` Just validityInterval)
             ]
 
         let apiTx = getFromResponse #transaction rTx
 
         signedTx <- signTx ctx wa apiTx [ expectResponseCode HTTP.status202 ]
 
+        let decodePayload2 = Json (toJSON signedTx)
+        rDecodedTx2 <- request @(ApiDecodedTransaction n) ctx
+            (Link.decodeTransaction @'Shelley wa) Default decodePayload2
+        verify rDecodedTx2
+            [ expectResponseCode HTTP.status202
+            , expectField #validityInterval (`shouldBe` Just validityInterval)
+            ]
+
         submittedTx <- submitTxWithWid ctx wa signedTx
         verify submittedTx
             [ expectSuccess
             , expectResponseCode HTTP.status202
-            ]
-
-    it "TRANS_NEW_VALIDITY_INTERVAL_02 - Validity interval second should be >= 0" $ \ctx -> runResourceT $ do
-
-        liftIO $ pendingWith "Accepted but should be 403 - to be fixed in ADP-1189"
-
-        wa <- fixtureWallet ctx
-
-        let payload = Json [json|{
-                "withdrawal": "self",
-                "validity_interval": {
-                    "invalid_before": {
-                      "quantity": -1,
-                      "unit": "second"
-                    },
-                    "invalid_hereafter": {
-                      "quantity": -1,
-                      "unit": "second"
-                    }
-                  }
-                }|]
-
-        rTx <- request @(ApiConstructTransaction n) ctx
-            (Link.createUnsignedTransaction @'Shelley wa) Default payload
-        verify rTx
-            [ expectResponseCode HTTP.status403
-            ]
-
-    it "TRANS_NEW_VALIDITY_INTERVAL_02 - Validity interval slot should be >= 0" $ \ctx -> runResourceT $ do
-
-        liftIO $ pendingWith "Returns 400, I think it should be 403 - to be fixed in ADP-1189"
-
-        wa <- fixtureWallet ctx
-
-        let payload = Json [json|{
-                "withdrawal": "self",
-                "validity_interval": {
-                    "invalid_before": {
-                      "quantity": -1,
-                      "unit": "slot"
-                    },
-                    "invalid_hereafter": {
-                      "quantity": -1,
-                      "unit": "slot"
-                    }
-                  }
-                }|]
-
-        rTx <- request @(ApiConstructTransaction n) ctx
-            (Link.createUnsignedTransaction @'Shelley wa) Default payload
-        verify rTx
-            [ expectResponseCode HTTP.status403
-            ]
-
-    it "TRANS_NEW_VALIDITY_INTERVAL_02 - Validity interval 'unspecified'" $ \ctx -> runResourceT $ do
-
-        liftIO $ pendingWith
-          "Currently throws: \
-          \parsing ApiValidityBound object failed, \
-          \expected Object, but encountered String \
-          \- to be fixed in ADP-1189"
-
-        wa <- fixtureWallet ctx
-
-        let payload = Json [json|{
-                "withdrawal": "self",
-                "validity_interval": {
-                    "invalid_before": "unspecified",
-                    "invalid_hereafter": "unspecified"
-                  }
-                }|]
-
-        rTx <- request @(ApiConstructTransaction n) ctx
-            (Link.createUnsignedTransaction @'Shelley wa) Default payload
-        verify rTx
-            [ expectResponseCode HTTP.status202
             ]
 
     it "TRANS_NEW_DECODE_01a - \
@@ -2882,7 +2842,10 @@ spec = describe "NEW_SHELLEY_TRANSACTIONS" $ do
             , expectResponseCode HTTP.status202
             ]
 
-    it "TRANS_NEW_CREATE_MULTI_TX - Tx including payments, delegation, metadata, withdrawals, validity_interval" $ \ctx -> runResourceT $ do
+    it "TRANS_NEW_CREATE_MULTI_TX - Tx including \
+        \payments, delegation, metadata, withdrawals, validity_interval" $
+        \ctx -> runResourceT $ do
+
         wa <- fixtureWallet ctx
         wb <- emptyWallet ctx
         addrs <- listAddresses @n ctx wb
@@ -2894,6 +2857,12 @@ spec = describe "NEW_SHELLEY_TRANSACTIONS" $ do
         pool':_ <- map (view #id) . snd <$> unsafeRequest
             @[ApiStakePool]
             ctx (Link.listStakePools arbitraryStake) Empty
+
+        rSlot <- request @ApiNetworkInformation ctx
+            Link.getNetworkInfo Default Empty
+        verify rSlot [expectSuccess]
+        let sl = getFromResponse
+                (#nodeTip . #absoluteSlotNumber . #getApiT) rSlot
 
         let payload = Json [json|{
                 "payments": [{
@@ -2920,14 +2889,14 @@ spec = describe "NEW_SHELLEY_TRANSACTIONS" $ do
                 "metadata": { "1": { "string": "hello" } },
                 "validity_interval": {
                     "invalid_before": {
-                      "quantity": 0,
-                      "unit": "second"
+                        "quantity": #{sl - 1},
+                        "unit": "slot"
                     },
                     "invalid_hereafter": {
-                      "quantity": 1000,
-                      "unit": "second"
+                        "quantity": 30,
+                        "unit": "second"
                     }
-                  }
+                }
             }|]
 
         rTx <- request @(ApiConstructTransaction n) ctx
@@ -3019,10 +2988,7 @@ spec = describe "NEW_SHELLEY_TRANSACTIONS" $ do
                     "operation":
                         { "mint" :
                               { "receiving_address": #{destination},
-                                 "amount": {
-                                     "quantity": 10000,
-                                     "unit": "assets"
-                                  }
+                                 "quantity": 10000
                               }
                         }
                 }]
@@ -3052,10 +3018,7 @@ spec = describe "NEW_SHELLEY_TRANSACTIONS" $ do
                     "operation":
                         { "mint" :
                               { "receiving_address": #{destination},
-                                 "amount": {
-                                     "quantity": 10000,
-                                     "unit": "assets"
-                                  }
+                                 "quantity": 10000
                               }
                         }
                 }]
@@ -3087,10 +3050,7 @@ spec = describe "NEW_SHELLEY_TRANSACTIONS" $ do
                     "operation":
                         { "mint" :
                               { "receiving_address": #{destination},
-                                 "amount": {
-                                     "quantity": 10000,
-                                     "unit": "assets"
-                                  }
+                                 "quantity": 10000
                               }
                         }
                 }]
@@ -3117,10 +3077,7 @@ spec = describe "NEW_SHELLEY_TRANSACTIONS" $ do
                     "operation":
                         { "mint" :
                               { "receiving_address": #{destination},
-                                 "amount": {
-                                     "quantity": 10000,
-                                     "unit": "assets"
-                                  }
+                                 "quantity": 10000
                               }
                         }
                 }]
@@ -3145,10 +3102,7 @@ spec = describe "NEW_SHELLEY_TRANSACTIONS" $ do
                     "operation":
                         { "mint" :
                               { "receiving_address": #{destination},
-                                 "amount": {
-                                     "quantity": 9223372036854775808,
-                                     "unit": "assets"
-                                  }
+                                 "quantity": 9223372036854775808
                               }
                         }
                 }]
@@ -3174,10 +3128,7 @@ spec = describe "NEW_SHELLEY_TRANSACTIONS" $ do
                     "operation":
                         { "mint" :
                               { "receiving_address": #{destination},
-                                 "amount": {
-                                     "quantity": 0,
-                                     "unit": "assets"
-                                  }
+                                 "quantity": 0
                               }
                         }
                 }]
@@ -3209,10 +3160,7 @@ spec = describe "NEW_SHELLEY_TRANSACTIONS" $ do
                     "operation":
                         { "mint" :
                               { "receiving_address": #{destination},
-                                 "amount": {
-                                     "quantity": 50000,
-                                     "unit": "assets"
-                                  }
+                                 "quantity": 50000
                               }
                         }
                 }]
@@ -3224,11 +3172,16 @@ spec = describe "NEW_SHELLEY_TRANSACTIONS" $ do
 
         mintAssetsCheck ctx wa tokenName' payload scriptUsed
 
-    it "TRANS_NEW_CREATE_10e - Minting assets with timelocks" $
+    it "TRANS_NEW_CREATE_10e - Minting assets with timelocks \
+       \successful as validity interval is inside time interval \
+       \of a script" $
         \ctx -> runResourceT $ do
-        -- TODO: ADP-1193
-        liftIO $ pendingWith
-            "ADP-1193: Should work when interval validity is addressed"
+
+       --      slot 0       sl+10
+       --         |----------->       validity interval
+       --
+       --         |-------------->      script's timelock interval
+       --                       sl+11
 
         wa <- fixtureWallet ctx
         addrs <- listAddresses @n ctx wa
@@ -3236,22 +3189,31 @@ spec = describe "NEW_SHELLEY_TRANSACTIONS" $ do
 
         let (Right tokenName') = mkTokenName "ab12"
 
+        rSlot <- request @ApiNetworkInformation ctx
+            Link.getNetworkInfo Default Empty
+        verify rSlot [expectSuccess]
+        let SlotNo sl = getFromResponse
+                (#nodeTip . #absoluteSlotNumber . #getApiT) rSlot
+
         let payload = Json [json|{
+                "validity_interval": {
+                    "invalid_hereafter": {
+                        "quantity": #{sl + 10},
+                        "unit": "slot"
+                    }
+                },
                 "mint_burn": [{
                     "policy_script_template":
                         { "all":
                            [ "cosigner#0",
-                             { "active_from": 120 }
+                             { "active_until": #{sl + 11} }
                            ]
                         },
                     "asset_name": #{toText tokenName'},
                     "operation":
                         { "mint" :
                               { "receiving_address": #{destination},
-                                 "amount": {
-                                     "quantity": 50000,
-                                     "unit": "assets"
-                                  }
+                                 "quantity": 50000
                               }
                         }
                 }]
@@ -3259,10 +3221,67 @@ spec = describe "NEW_SHELLEY_TRANSACTIONS" $ do
 
         let scriptUsed policyKeyHash = RequireAllOf
                 [ RequireSignatureOf policyKeyHash
-                , ActiveFromSlot 120
+                , ActiveUntilSlot (fromIntegral $ sl + 11)
                 ]
 
         mintAssetsCheck ctx wa tokenName' payload scriptUsed
+
+    it "TRANS_NEW_CREATE_10e - \
+        \Minting assets with timelocks not successful as validity interval \
+        \is not inside time interval of a script" $
+        \ctx -> runResourceT $ do
+
+       --      slot 0       sl+10
+       --         |----------->       validity interval
+       --
+       --               |-------------->      script's timelock interval
+       --               slot 5        sl+11
+
+        wa <- fixtureWallet ctx
+        addrs <- listAddresses @n ctx wa
+        let destination = (addrs !! 1) ^. #id
+
+        let (Right tokenName') = mkTokenName "ab12"
+
+        rSlot <- request @ApiNetworkInformation ctx
+            Link.getNetworkInfo Default Empty
+        verify rSlot [expectSuccess]
+        let SlotNo sl = getFromResponse
+                (#nodeTip . #absoluteSlotNumber . #getApiT) rSlot
+
+        let payload = Json [json|
+                { "validity_interval":
+                    { "invalid_hereafter":
+                        { "quantity": #{sl + 10}
+                        , "unit": "slot"
+                        }
+                    }
+                , "mint_burn":
+                    [   { "policy_script_template":
+                            { "all":
+                                [ "cosigner#0"
+                                , { "active_until": #{sl + 11} }
+                                , { "active_from": 5 }
+                                ]
+                            }
+                        , "asset_name": #{toText tokenName'}
+                        , "operation":
+                            { "mint":
+                                { "receiving_address": #{destination}
+                                , "quantity": 50000
+                                }
+                            }
+                        }
+                    ]
+                }|]
+
+        rTx <- request @(ApiConstructTransaction n) ctx
+            (Link.createUnsignedTransaction @'Shelley wa) Default payload
+        verify rTx
+            [ expectResponseCode HTTP.status403
+            , expectErrorMessage
+                errMsg403ValidityIntervalNotInsideScriptTimelock
+            ]
 
     it "TRANS_NEW_CREATE_10f - Burning assets without timelock" $
         \ctx -> runResourceT $ do
@@ -3283,10 +3302,7 @@ spec = describe "NEW_SHELLEY_TRANSACTIONS" $ do
                     "operation":
                         { "mint" :
                             { "receiving_address": #{destination},
-                                "amount": {
-                                    "quantity": 50000,
-                                    "unit": "assets"
-                                }
+                              "quantity": 50000
                             }
                         }
                 }]
@@ -3309,7 +3325,6 @@ spec = describe "NEW_SHELLEY_TRANSACTIONS" $ do
                     "operation":
                         { "burn" :
                             { "quantity": 50000
-                            , "unit": "assets"
                             }
                         }
                 }]
@@ -3335,10 +3350,7 @@ spec = describe "NEW_SHELLEY_TRANSACTIONS" $ do
                     , "operation":
                         { "mint":
                             { "receiving_address": #{destination}
-                            , "amount":
-                                { "quantity": 50000
-                                , "unit": "assets"
-                                }
+                            , "quantity": 50000
                             }
                         }
                     }
@@ -3361,7 +3373,6 @@ spec = describe "NEW_SHELLEY_TRANSACTIONS" $ do
                     "operation":
                         { "burn" :
                             { "quantity": 50000
-                            , "unit": "assets"
                             }
                         }
                 }]
@@ -3390,10 +3401,7 @@ spec = describe "NEW_SHELLEY_TRANSACTIONS" $ do
                     , "operation":
                         { "mint":
                             { "receiving_address": #{destination}
-                            , "amount":
-                                { "quantity": 50000
-                                , "unit": "assets"
-                                }
+                            , "quantity": 50000
                             }
                         }
                     }
@@ -3497,6 +3505,128 @@ spec = describe "NEW_SHELLEY_TRANSACTIONS" $ do
             , expectField #policyId (`shouldBe` (ApiT tokenPolicyId'))
             ]
 
+    it "TRANS_NEW_VALIDITY_INTERVAL_02 - \
+        \Validity bounds should be ordered correctly" $
+        \ctx -> runResourceT $ do
+
+        wa <- fixtureWallet ctx
+
+        let payload = Json [json|
+                { "withdrawal": "self"
+                , "validity_interval":
+                    { "invalid_before":
+                        { "quantity": 100
+                        , "unit": "second"
+                        }
+                    , "invalid_hereafter":
+                        { "quantity": 50
+                        , "unit": "second"
+                        }
+                    }
+                }|]
+
+        rTx <- request @(ApiConstructTransaction n) ctx
+            (Link.createUnsignedTransaction @'Shelley wa) Default payload
+        verify rTx
+            [ expectResponseCode HTTP.status403
+            , expectErrorMessage errMsg403InvalidValidityBounds
+            ]
+
+    it "TRANS_NEW_VALIDITY_INTERVAL_02 - \
+        \Missing lower validity bound is acceptable" $
+        \ctx -> runResourceT $ do
+
+        wa <- fixtureWallet ctx
+
+        let payload = Json [json|
+                { "withdrawal": "self"
+                , "validity_interval":
+                    { "invalid_hereafter":
+                        { "quantity": 10
+                        , "unit": "second"
+                        }
+                    }
+                }|]
+
+        rTx <- request @(ApiConstructTransaction n) ctx
+            (Link.createUnsignedTransaction @'Shelley wa) Default payload
+        verify rTx
+            [ expectResponseCode HTTP.status202
+            ]
+
+    it "TRANS_NEW_VALIDITY_INTERVAL_02 - \
+        \Missing upper validity bound is acceptable" $
+        \ctx -> runResourceT $ do
+
+        wa <- fixtureWallet ctx
+
+        let payload = Json [json|
+                { "withdrawal": "self"
+                , "validity_interval":
+                    { "invalid_before":
+                        { "quantity": 10
+                        , "unit": "second"
+                        }
+                      }
+                }|]
+
+        rTx <- request @(ApiConstructTransaction n) ctx
+            (Link.createUnsignedTransaction @'Shelley wa) Default payload
+        verify rTx
+            [ expectResponseCode HTTP.status202
+            ]
+
+    it "TRANS_NEW_VALIDITY_INTERVAL_02 - \
+        \Validity interval slot should be >= 0" $
+        \ctx -> runResourceT $ do
+
+        wa <- fixtureWallet ctx
+
+        let payload = Json [json|
+                { "withdrawal": "self"
+                , "validity_interval":
+                    { "invalid_before":
+                        { "quantity": -1
+                        , "unit": "slot"
+                        }
+                    , "invalid_hereafter":
+                        { "quantity": -1
+                        , "unit": "slot"
+                        }
+                    }
+                }|]
+
+        rTx <- request @(ApiConstructTransaction n) ctx
+            (Link.createUnsignedTransaction @'Shelley wa) Default payload
+        verify rTx
+            [ expectResponseCode HTTP.status400
+            , expectErrorMessage
+                "parsing Word64 failed, \
+                \value is either floating or will cause over or underflow"
+            ]
+
+    it "TRANS_NEW_VALIDITY_INTERVAL_02 - \
+        \Validity interval 'unspecified'" $
+        \ctx -> runResourceT $ do
+
+        wa <- fixtureWallet ctx
+
+        let payload = Json [json|
+                { "withdrawal": "self"
+                , "validity_interval":
+                    { "invalid_before": "unspecified"
+                    , "invalid_hereafter": "unspecified"
+                    }
+                }|]
+
+        rTx <- request @(ApiConstructTransaction n) ctx
+            (Link.createUnsignedTransaction @'Shelley wa) Default payload
+        verify rTx
+            [ expectResponseCode HTTP.status400
+            , expectErrorMessage
+                "parsing ApiValidityBound object failed, \
+                \expected Object, but encountered String"
+            ]
   where
 
     -- | Just one million Ada, in Lovelace.

@@ -8,65 +8,84 @@
   , config
   , ... }:
   {
-    flags = {};
+    flags = { use-ghc-stub = false; };
     package = {
-      specVersion = "2.4";
-      identifier = {
-        name = "prettyprinter-configurable";
-        version = "0.1.0.0";
-        };
-      license = "NONE";
+      specVersion = "3.0";
+      identifier = { name = "plutus-tx-plugin"; version = "0.1.0.0"; };
+      license = "Apache-2.0";
       copyright = "";
-      maintainer = "plutus@iohk.io";
-      author = "David Luposchainsky, effectfully";
+      maintainer = "michael.peyton-jones@iohk.io";
+      author = "Michael Peyton Jones";
       homepage = "";
       url = "";
-      synopsis = "";
-      description = "";
-      buildType = "Custom";
-      setup-depends = [
-        (hsPkgs.buildPackages.base or (pkgs.buildPackages.base or (errorHandler.setupDepError "base")))
-        (hsPkgs.buildPackages.Cabal or (pkgs.buildPackages.Cabal or (errorHandler.setupDepError "Cabal")))
-        (hsPkgs.buildPackages.cabal-doctest or (pkgs.buildPackages.cabal-doctest or (errorHandler.setupDepError "cabal-doctest")))
-        ];
+      synopsis = "The Plutus Tx compiler and GHC plugin";
+      description = "The Plutus Tx compiler and GHC plugin.";
+      buildType = "Simple";
       };
     components = {
       "library" = {
         depends = [
           (hsPkgs."base" or (errorHandler.buildDepError "base"))
-          (hsPkgs."prettyprinter" or (errorHandler.buildDepError "prettyprinter"))
+          (hsPkgs."bytestring" or (errorHandler.buildDepError "bytestring"))
+          (hsPkgs."containers" or (errorHandler.buildDepError "containers"))
+          (hsPkgs."extra" or (errorHandler.buildDepError "extra"))
+          (hsPkgs."flat" or (errorHandler.buildDepError "flat"))
+          (hsPkgs."ghc-prim" or (errorHandler.buildDepError "ghc-prim"))
+          (hsPkgs."plutus-core" or (errorHandler.buildDepError "plutus-core"))
+          (hsPkgs."lens" or (errorHandler.buildDepError "lens"))
           (hsPkgs."mtl" or (errorHandler.buildDepError "mtl"))
+          (hsPkgs."prettyprinter" or (errorHandler.buildDepError "prettyprinter"))
+          (hsPkgs."template-haskell" or (errorHandler.buildDepError "template-haskell"))
           (hsPkgs."text" or (errorHandler.buildDepError "text"))
-          (hsPkgs."microlens" or (errorHandler.buildDepError "microlens"))
-          ];
+          (hsPkgs."transformers" or (errorHandler.buildDepError "transformers"))
+          (hsPkgs."plutus-tx" or (errorHandler.buildDepError "plutus-tx"))
+          (hsPkgs."array" or (errorHandler.buildDepError "array"))
+          ] ++ (if flags.use-ghc-stub
+          then [
+            (hsPkgs."plutus-ghc-stub" or (errorHandler.buildDepError "plutus-ghc-stub"))
+            ]
+          else [ (hsPkgs."ghc" or (errorHandler.buildDepError "ghc")) ]);
         buildable = true;
         };
       tests = {
-        "prettyprinter-configurable-test" = {
+        "plutus-tx-tests" = {
           depends = [
-            (hsPkgs."prettyprinter-configurable" or (errorHandler.buildDepError "prettyprinter-configurable"))
             (hsPkgs."base" or (errorHandler.buildDepError "base"))
+            (hsPkgs."flat" or (errorHandler.buildDepError "flat"))
+            (hsPkgs."deepseq" or (errorHandler.buildDepError "deepseq"))
+            (hsPkgs."integer-gmp" or (errorHandler.buildDepError "integer-gmp"))
+            (hsPkgs."plutus-core" or (errorHandler.buildDepError "plutus-core"))
+            (hsPkgs."plutus-core".components.sublibs.plutus-core-testlib or (errorHandler.buildDepError "plutus-core:plutus-core-testlib"))
+            (hsPkgs."plutus-tx" or (errorHandler.buildDepError "plutus-tx"))
+            (hsPkgs."plutus-tx".components.sublibs.plutus-tx-testlib or (errorHandler.buildDepError "plutus-tx:plutus-tx-testlib"))
+            (hsPkgs."plutus-tx-plugin" or (errorHandler.buildDepError "plutus-tx-plugin"))
             (hsPkgs."prettyprinter" or (errorHandler.buildDepError "prettyprinter"))
-            (hsPkgs."text" or (errorHandler.buildDepError "text"))
-            (hsPkgs."megaparsec" or (errorHandler.buildDepError "megaparsec"))
-            (hsPkgs."parser-combinators" or (errorHandler.buildDepError "parser-combinators"))
-            (hsPkgs."QuickCheck" or (errorHandler.buildDepError "QuickCheck"))
-            (hsPkgs."quickcheck-text" or (errorHandler.buildDepError "quickcheck-text"))
+            (hsPkgs."mtl" or (errorHandler.buildDepError "mtl"))
+            (hsPkgs."template-haskell" or (errorHandler.buildDepError "template-haskell"))
             (hsPkgs."tasty" or (errorHandler.buildDepError "tasty"))
+            (hsPkgs."tasty-hedgehog" or (errorHandler.buildDepError "tasty-hedgehog"))
             (hsPkgs."tasty-hunit" or (errorHandler.buildDepError "tasty-hunit"))
-            (hsPkgs."tasty-quickcheck" or (errorHandler.buildDepError "tasty-quickcheck"))
+            (hsPkgs."text" or (errorHandler.buildDepError "text"))
+            (hsPkgs."hedgehog" or (errorHandler.buildDepError "hedgehog"))
+            (hsPkgs."lens" or (errorHandler.buildDepError "lens"))
+            (hsPkgs."ghc-prim" or (errorHandler.buildDepError "ghc-prim"))
+            (hsPkgs."containers" or (errorHandler.buildDepError "containers"))
             ];
-          buildable = true;
+          buildable = if flags.use-ghc-stub then false else true;
           };
-        "prettyprinter-configurable-doctest" = {
+        "size" = {
           depends = [
             (hsPkgs."base" or (errorHandler.buildDepError "base"))
-            (hsPkgs."doctest" or (errorHandler.buildDepError "doctest"))
+            (hsPkgs."plutus-tx".components.sublibs.plutus-tx-testlib or (errorHandler.buildDepError "plutus-tx:plutus-tx-testlib"))
+            (hsPkgs."plutus-tx" or (errorHandler.buildDepError "plutus-tx"))
+            (hsPkgs."plutus-tx-plugin" or (errorHandler.buildDepError "plutus-tx-plugin"))
+            (hsPkgs."tagged" or (errorHandler.buildDepError "tagged"))
+            (hsPkgs."tasty" or (errorHandler.buildDepError "tasty"))
             ];
           buildable = true;
           };
         };
       };
     } // rec {
-    src = (pkgs.lib).mkDefault /nix/store/fngr9a0n2d9cx6ywm2abhhx0g5acbci8-plutus-fc5fe94/prettyprinter-configurable;
+    src = (pkgs.lib).mkDefault /nix/store/fngr9a0n2d9cx6ywm2abhhx0g5acbci8-plutus-fc5fe94/plutus-tx-plugin;
     }

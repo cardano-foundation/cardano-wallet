@@ -557,7 +557,8 @@ fileModeSpec =  do
                             })
                             mockTxs
                             mempty
-                    let (FilteredBlock{transactions=txs}, (_,cpB)) = applyBlock fakeBlock cpA
+                    let (FilteredBlock{transactions=txs}, (_,cpB)) =
+                            applyBlock fakeBlock cpA
                     print $ utxo cpB
                     atomically $ do
                         unsafeRunExceptT $ putCheckpoint testWid cpB
@@ -584,13 +585,14 @@ fileModeSpec =  do
                                     [ (TxIn (dummyHash "faucet") 0, Coin 4)
                                     , (TxIn (dummyHash "faucet") 1, Coin 8)
                                     ]
-                                , resolvedCollateral = []
+                                , resolvedCollateralInputs = []
                                 , outputs =
                                     [ TxOut (fst $ head ourAddrs)
                                             (coinToBundle 4)
                                     , TxOut (fst $ head $ tail ourAddrs)
                                             (coinToBundle 8)
                                     ]
+                                , collateralOutput = Nothing
                                 , withdrawals = mempty
                                 , metadata = Nothing
                                 , scriptValidity = Just TxScriptValid
@@ -608,7 +610,7 @@ fileModeSpec =  do
                             , fee = Nothing
                             , resolvedInputs =
                                 [(TxIn (dummyHash "tx1") 0, Coin 4)]
-                            , resolvedCollateral =
+                            , resolvedCollateralInputs =
                                 [(TxIn (dummyHash "tx1") 1, Coin 8)]
                             , outputs =
                                 [ TxOut
@@ -616,6 +618,7 @@ fileModeSpec =  do
                                 , TxOut
                                     (fst $ ourAddrs !! 1) (coinToBundle 2)
                                 ]
+                            , collateralOutput = Nothing
                             , withdrawals = mempty
                             , metadata = Nothing
                             , scriptValidity = Just TxScriptInvalid
@@ -650,9 +653,10 @@ fileModeSpec =  do
                             , resolvedInputs =
                                 [(TxIn (dummyHash "faucet") 0, Coin 4)]
                             -- TODO: (ADP-957)
-                            , resolvedCollateral = []
+                            , resolvedCollateralInputs = []
                             , outputs =
                                 [TxOut (fst $ head ourAddrs) (coinToBundle 4)]
+                            , collateralOutput = Nothing
                             , withdrawals = mempty
                             , metadata = Nothing
                             , scriptValidity = Nothing
@@ -670,11 +674,12 @@ fileModeSpec =  do
                         , fee = Nothing
                         , resolvedInputs = [(TxIn (dummyHash "tx1") 0, Coin 4)]
                         -- TODO: (ADP-957)
-                        , resolvedCollateral = []
+                        , resolvedCollateralInputs = []
                         , outputs =
                             [ TxOut (dummyAddr "faucetAddr2") (coinToBundle 2)
                             , TxOut (fst $ ourAddrs !! 1) (coinToBundle 2)
                             ]
+                        , collateralOutput = Nothing
                         , withdrawals = mempty
                         , metadata = Nothing
                         , scriptValidity = Nothing
@@ -1327,11 +1332,12 @@ testTxs = [(tx, txMeta)]
     tx = Tx
         { txId = mockHash @String "tx2"
         , fee = Nothing
-        , resolvedCollateral =
+        , resolvedInputs = [(TxIn (mockHash @String "tx1") 0, Coin 1)]
+        , resolvedCollateralInputs =
             -- TODO: (ADP-957)
             []
-        , resolvedInputs = [(TxIn (mockHash @String "tx1") 0, Coin 1)]
         , outputs = [TxOut (Address "addr") (coinToBundle 1)]
+        , collateralOutput = Nothing
         , withdrawals = mempty
         , metadata = Nothing
         , scriptValidity = Nothing

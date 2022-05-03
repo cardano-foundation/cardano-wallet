@@ -109,6 +109,8 @@ module Test.Integration.Framework.TestData
     , errMsg403CreatedWrongPolicyScriptTemplatePolicyId
     , errMsg403AssetNameTooLong
     , errMsg403MintOrBurnAssetQuantityOutOfBounds
+    , errMsg403InvalidValidityBounds
+    , errMsg403ValidityIntervalNotInsideScriptTimelock
     ) where
 
 import Prelude
@@ -698,6 +700,21 @@ errMsg403MintOrBurnAssetQuantityOutOfBounds = mconcat
     [ "Attempted to mint or burn an asset quantity that is out of "
     , "bounds. The asset quantity must be greater than zero and must "
     , "not exceed 9223372036854775807 (2^63 - 1)."
+    ]
+
+errMsg403InvalidValidityBounds :: String
+errMsg403InvalidValidityBounds = unwords
+    [ "Attempted to create a transaction with invalid validity bounds."
+    , "Please make sure that the 'invalid_before' bound precedes the"
+    , "'invalid_hereafter' bound, and that you have not used negative"
+    , "time values."
+    ]
+
+errMsg403ValidityIntervalNotInsideScriptTimelock :: String
+errMsg403ValidityIntervalNotInsideScriptTimelock = unwords
+    [ "Attempted to create a transaction with a validity interval"
+    , "that is not a subinterval of an associated script's timelock"
+    , "interval."
     ]
 
 --------------------------------------------------------------------------------

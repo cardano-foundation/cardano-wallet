@@ -175,6 +175,43 @@ TxOutToken
     Foreign TxOut OnDeleteCascade txOut txOutTokenTxId txOutTokenTxIndex
     deriving Show Generic
 
+-- A transaction collateral return output associated with a TxMeta.
+--
+-- There is no wallet ID because these values depend only on the transaction,
+-- not the wallet. A txCollateralOutTxId is referred to by a TxMeta.
+--
+-- Unlike ordinary outputs, a given transaction may have at most one collateral
+-- return output. Therefore there is no index field.
+--
+TxCollateralOut
+    txCollateralOutTxId    TxId      sql=tx_id
+    txCollateralOutAddress W.Address sql=address
+    txCollateralOutAmount  W.Coin    sql=amount
+
+    Primary txCollateralOutTxId
+    deriving Show Generic
+
+-- A token quantity associated with a TxCollateralOut.
+--
+-- Each row within TxCollateralOut can have many associated rows within
+-- TxCollateralOutToken.
+--
+-- Each row within TxCollateralOutToken refers to just a single row
+-- within TxCollateralOut.
+--
+-- Unlike ordinary outputs, a given transaction may have at most one collateral
+-- return output. Therefore there is no index field.
+--
+TxCollateralOutToken
+    txCollateralOutTokenTxId     TxId            sql=tx_id
+    txCollateralOutTokenPolicyId W.TokenPolicyId sql=token_policy_id
+    txCollateralOutTokenName     W.TokenName     sql=token_name
+    txCollateralOutTokenQuantity W.TokenQuantity sql=token_quantity
+
+    Primary txCollateralOutTokenTxId txCollateralOutTokenPolicyId txCollateralOutTokenName
+    Foreign TxCollateralOut OnDeleteCascade txCollateralOut txCollateralOutTokenTxId
+    deriving Show Generic
+
 -- | A transaction withdrawal associated with TxMeta.
 --
 -- There is no wallet ID because these values depend only on the transaction,
