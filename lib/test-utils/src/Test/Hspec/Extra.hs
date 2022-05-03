@@ -13,7 +13,6 @@ module Test.Hspec.Extra
     ( aroundAll
     , it
     , itWithCustomTimeout
-    , flakyBecauseOf
     , parallel
     , counterexample
     , appendFailureReason
@@ -61,14 +60,12 @@ import System.Environment
     ( lookupEnv, withArgs )
 import Test.Hspec
     ( ActionWith
-    , Expectation
     , HasCallStack
     , Spec
     , SpecWith
     , afterAll
     , beforeAll
     , beforeWith
-    , pendingWith
     , specify
     )
 import Test.Hspec.Core.Runner
@@ -173,14 +170,6 @@ itWithCustomTimeout sec title action = specify title $ \ctx -> do
               report "Test failed again; will report the first error."
 
     report = mapM_ (sayString . ("retry: " ++)) . lines
-
--- | Mark a test pending because of flakiness, with given reason. Unless the
--- RUN_FLAKY_TESTS environment variable is set.
-flakyBecauseOf :: String -> Expectation
-flakyBecauseOf ticketOrReason =
-    lookupEnv "RUN_FLAKY_TESTS" >>= \case
-        Just _ -> return ()
-        Nothing -> pendingWith $ "Flaky: " <> ticketOrReason
 
 -- | Like Hspec's parallel, except on Windows.
 parallel :: SpecWith a -> SpecWith a
