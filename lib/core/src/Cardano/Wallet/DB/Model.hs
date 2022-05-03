@@ -486,6 +486,10 @@ mReadTxHistory ti wid minWithdrawal order range mstatus db@(Database wallets txs
             outputs tx
         , txInfoCollateralOutput =
             collateralOutput tx
+        , txInfoMint =
+            mint tx
+        , txInfoBurn =
+            burn tx
         , txInfoWithdrawals =
             withdrawals tx
         , txInfoMeta =

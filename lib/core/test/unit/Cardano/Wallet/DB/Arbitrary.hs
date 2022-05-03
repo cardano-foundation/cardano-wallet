@@ -123,19 +123,30 @@ import Cardano.Wallet.Primitive.Types.RewardAccount
     ( RewardAccount (..) )
 import Cardano.Wallet.Primitive.Types.TokenBundle.Gen
     ( genTokenBundleSmallRange )
+import Cardano.Wallet.Primitive.Types.TokenMap
+    ( TokenMap )
+import Cardano.Wallet.Primitive.Types.TokenMap.Gen
+    ( genTokenMap, shrinkTokenMap )
 import Cardano.Wallet.Primitive.Types.Tx
     ( Direction (..)
     , Tx (..)
+    , TxBurn (..)
     , TxIn (..)
     , TxMeta (..)
     , TxMetadata
+    , TxMint (..)
     , TxOut (..)
     , TxScriptValidity (..)
     , TxStatus (..)
     , isPending
     )
 import Cardano.Wallet.Primitive.Types.Tx.Gen
-    ( genTxOutCoin, genTxScriptValidity, shrinkTxScriptValidity )
+    ( genTxBurn
+    , genTxMint
+    , genTxOutCoin
+    , genTxScriptValidity
+    , shrinkTxScriptValidity
+    )
 import Cardano.Wallet.Primitive.Types.UTxO
     ( UTxO (..) )
 import Cardano.Wallet.Unsafe
@@ -406,10 +417,11 @@ arbitraryChainLength = 10
 -------------------------------------------------------------------------------}
 
 instance Arbitrary Tx where
-    shrink (Tx _tid fees ins cins outs cout wdrls md validity) =
-        [ mkTx fees ins' cins' outs' cout' wdrls' md' validity'
-        | (ins', cins', outs', cout', wdrls', md', validity') <-
-            shrink (ins, cins, outs, cout, wdrls, md, validity)
+    shrink (Tx _tid fees ins cins outs cout tmint tburn wdrls md validity) =
+        [ mkTx fees ins' cins' outs' cout' tmint' tburn' wdrls' md' validity'
+        | (ins', cins', outs', cout', tmint', tburn', wdrls', md', validity')
+            <- shrink
+                (ins, cins, outs, cout, tmint, tburn, wdrls, md, validity)
         ]
 
     arbitrary = do
@@ -417,10 +429,19 @@ instance Arbitrary Tx where
         cins <- fmap (L.nub . L.take 5 . getNonEmpty) arbitrary
         outs <- fmap (L.take 5 . getNonEmpty) arbitrary
         cout <- arbitrary
+        tmint <- scale (`div` 4) genTxMint
+        tburn <- scale (`div` 4) genTxBurn
         wdrls <- fmap (Map.fromList . L.take 5) arbitrary
         fees <- arbitrary
-        mkTx fees ins cins outs cout wdrls
+        mkTx fees ins cins outs cout tmint tburn wdrls
             <$> arbitrary <*> liftArbitrary genTxScriptValidity
+
+instance Arbitrary TokenMap where
+    arbitrary = genTokenMap
+    shrink = shrinkTokenMap
+
+deriving instance (Arbitrary TxMint)
+deriving instance (Arbitrary TxBurn)
 
 instance Arbitrary TxIn where
     arbitrary = TxIn

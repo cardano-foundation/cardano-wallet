@@ -131,9 +131,11 @@ import Cardano.Wallet.Primitive.Types.Tx
     , SealedTx (..)
     , TransactionInfo (..)
     , Tx (..)
+    , TxBurn (..)
     , TxIn (..)
     , TxMeta (..)
     , TxMetadata
+    , TxMint (..)
     , TxOut (..)
     , TxStatus (..)
     , isPending
@@ -674,16 +676,19 @@ walletListsOnlyRelatedAssets txId txMeta =
         let listHistoricalAssets hry = do
                 liftIO . atomically . unsafeRunExceptT $ putTxHistory wid hry
                 liftIO . unsafeRunExceptT $ W.listAssets wl wid
-        let tx = Tx { txId
-                    , fee = Nothing
-                    , resolvedInputs = mempty
-                    , resolvedCollateralInputs = mempty
-                    , outputs = [out1, out2]
-                    , collateralOutput = Nothing
-                    , metadata = mempty
-                    , withdrawals = mempty
-                    , scriptValidity = Nothing
-                    }
+        let tx = Tx
+                { txId
+                , fee = Nothing
+                , resolvedInputs = mempty
+                , resolvedCollateralInputs = mempty
+                , outputs = [out1, out2]
+                , collateralOutput = Nothing
+                , mint = TxMint mempty
+                , burn = TxBurn mempty
+                , metadata = mempty
+                , withdrawals = mempty
+                , scriptValidity = Nothing
+                }
         assets <- listHistoricalAssets [ (tx, txMeta) ]
         monitor $ report out1 "Output with related address"
         monitor $ report out2 "Output with unrelated address"
@@ -799,6 +804,8 @@ instance Arbitrary GenTxHistory where
             , resolvedCollateralInputs = []
             , outputs = []
             , collateralOutput = Nothing
+            , mint = TxMint mempty
+            , burn = TxBurn mempty
             , withdrawals = mempty
             , metadata = Nothing
             , scriptValidity = Nothing
@@ -1339,16 +1346,18 @@ dummyTransactionLayer = TransactionLayer
         let cinps' = []
         let txId = mkTxId inps' (view #outputs cs) mempty Nothing
         let tx = Tx
-                 { txId
-                 , fee = Nothing
-                 , resolvedInputs = inps'
-                 , resolvedCollateralInputs = cinps'
-                 , outputs = view #outputs cs
-                 , collateralOutput = Nothing
-                 , withdrawals = mempty
-                 , metadata = Nothing
-                 , scriptValidity = Nothing
-                 }
+                { txId
+                , fee = Nothing
+                , resolvedInputs = inps'
+                , resolvedCollateralInputs = cinps'
+                , outputs = view #outputs cs
+                , collateralOutput = Nothing
+                , mint = TxMint mempty
+                , burn = TxBurn mempty
+                , withdrawals = mempty
+                , metadata = Nothing
+                , scriptValidity = Nothing
+                }
         let wit = forMaybe (NE.toList $ view #inputs cs) $ \(_, TxOut addr _) -> do
                 (xprv, Passphrase pwd) <- keystore addr
                 let sigData = tx ^. #txId . #getHash
@@ -1392,6 +1401,8 @@ dummyTransactionLayer = TransactionLayer
             , resolvedCollateralInputs = mempty
             , outputs = mempty
             , collateralOutput = Nothing
+            , mint = TxMint mempty
+            , burn = TxBurn mempty
             , withdrawals = mempty
             , metadata = mempty
             , scriptValidity = Nothing

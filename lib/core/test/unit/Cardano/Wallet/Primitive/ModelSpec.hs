@@ -84,8 +84,10 @@ import Cardano.Wallet.Primitive.Types.TokenBundle
 import Cardano.Wallet.Primitive.Types.Tx
     ( Direction (..)
     , Tx (..)
+    , TxBurn (..)
     , TxIn (..)
     , TxMeta (direction)
+    , TxMint (..)
     , TxOut (..)
     , TxScriptValidity (..)
     , collateralInputs
@@ -1126,6 +1128,10 @@ instance Arbitrary (WithPending WalletState) where
                         , resolvedCollateralInputs = []
                         -- TODO: [ADP-1670]
                         , collateralOutput = Nothing
+                        -- TODO: [ADP-1654]
+                        , mint = TxMint mempty
+                        -- TODO: [ADP-1654]
+                        , burn = TxBurn mempty
                         , outputs = [out {tokens}]
                         , withdrawals = mempty
                         , metadata = Nothing
@@ -1217,6 +1223,8 @@ blockchain =
                         }
                     ]
                 , collateralOutput = Nothing
+                , mint = TxMint mempty
+                , burn = TxBurn mempty
                 , withdrawals = mempty
                 , metadata = Nothing
                 , scriptValidity = Nothing
@@ -1253,6 +1261,8 @@ blockchain =
                         }
                     ]
                 , collateralOutput = Nothing
+                , mint = TxMint mempty
+                , burn = TxBurn mempty
                 , withdrawals = mempty
                 , metadata = Nothing
                 , scriptValidity = Nothing
@@ -1278,6 +1288,8 @@ blockchain =
                         }
                     ]
                 , collateralOutput = Nothing
+                , mint = TxMint mempty
+                , burn = TxBurn mempty
                 , withdrawals = mempty
                 , metadata = Nothing
                 , scriptValidity = Nothing
@@ -1314,6 +1326,8 @@ blockchain =
                         }
                     ]
                 , collateralOutput = Nothing
+                , mint = TxMint mempty
+                , burn = TxBurn mempty
                 , withdrawals = mempty
                 , metadata = Nothing
                 , scriptValidity = Nothing
@@ -1339,6 +1353,8 @@ blockchain =
                         }
                     ]
                 , collateralOutput = Nothing
+                , mint = TxMint mempty
+                , burn = TxBurn mempty
                 , withdrawals = mempty
                 , metadata = Nothing
                 , scriptValidity = Nothing
@@ -1375,6 +1391,8 @@ blockchain =
                         }
                     ]
                 , collateralOutput = Nothing
+                , mint = TxMint mempty
+                , burn = TxBurn mempty
                 , withdrawals = mempty
                 , metadata = Nothing
                 , scriptValidity = Nothing
@@ -1421,6 +1439,8 @@ blockchain =
                       }
                     ]
                 , collateralOutput = Nothing
+                , mint = TxMint mempty
+                , burn = TxBurn mempty
                 , withdrawals = mempty
                 , metadata = Nothing
                 , scriptValidity = Nothing
@@ -1456,6 +1476,8 @@ blockchain =
                         }
                     ]
                 , collateralOutput = Nothing
+                , mint = TxMint mempty
+                , burn = TxBurn mempty
                 , withdrawals = mempty
                 , metadata = Nothing
                 , scriptValidity = Nothing
@@ -1492,6 +1514,8 @@ blockchain =
                         }
                     ]
                 , collateralOutput = Nothing
+                , mint = TxMint mempty
+                , burn = TxBurn mempty
                 , withdrawals = mempty
                 , metadata = Nothing
                 , scriptValidity = Nothing
@@ -1542,6 +1566,8 @@ blockchain =
                         }
                     ]
                 , collateralOutput = Nothing
+                , mint = TxMint mempty
+                , burn = TxBurn mempty
                 , withdrawals = mempty
                 , metadata = Nothing
                 , scriptValidity = Nothing
@@ -1618,6 +1644,8 @@ blockchain =
                         }
                     ]
                 , collateralOutput = Nothing
+                , mint = TxMint mempty
+                , burn = TxBurn mempty
                 , withdrawals = mempty
                 , metadata = Nothing
                 , scriptValidity = Nothing
@@ -1643,6 +1671,8 @@ blockchain =
                         }
                     ]
                 , collateralOutput = Nothing
+                , mint = TxMint mempty
+                , burn = TxBurn mempty
                 , withdrawals = mempty
                 , metadata = Nothing
                 , scriptValidity = Nothing
@@ -1679,6 +1709,8 @@ blockchain =
                         }
                     ]
                 , collateralOutput = Nothing
+                , mint = TxMint mempty
+                , burn = TxBurn mempty
                 , withdrawals = mempty
                 , metadata = Nothing
                 , scriptValidity = Nothing
@@ -1704,6 +1736,8 @@ blockchain =
                         }
                     ]
                 , collateralOutput = Nothing
+                , mint = TxMint mempty
+                , burn = TxBurn mempty
                 , withdrawals = mempty
                 , metadata = Nothing
                 , scriptValidity = Nothing
@@ -1800,6 +1834,8 @@ blockchain =
                         }
                     ]
                 , collateralOutput = Nothing
+                , mint = TxMint mempty
+                , burn = TxBurn mempty
                 , withdrawals = mempty
                 , metadata = Nothing
                 , scriptValidity = Nothing
@@ -1825,6 +1861,8 @@ blockchain =
                         }
                     ]
                 , collateralOutput = Nothing
+                , mint = TxMint mempty
+                , burn = TxBurn mempty
                 , withdrawals = mempty
                 , metadata = Nothing
                 , scriptValidity = Nothing
@@ -1861,6 +1899,8 @@ blockchain =
                         }
                     ]
                 , collateralOutput = Nothing
+                , mint = TxMint mempty
+                , burn = TxBurn mempty
                 , withdrawals = mempty
                 , metadata = Nothing
                 , scriptValidity = Nothing

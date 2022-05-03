@@ -218,6 +218,10 @@ genesisBlockFromTxOuts gp outs = W.Block
         , resolvedCollateralInputs = []
         , outputs = [out]
         , collateralOutput = Nothing
+        -- Minting was not supported at the time of genesis:
+        , mint = W.TxMint mempty
+        -- Burning was not supported at the time of genesis:
+        , burn = W.TxBurn mempty
         , withdrawals = mempty
         , metadata = Nothing
         , scriptValidity = Nothing
@@ -283,6 +287,11 @@ fromTxAux txAux = case taTx txAux of
 
         , collateralOutput =
             Nothing
+
+        -- Minting was not supported in the Byron era:
+        , mint = W.TxMint mempty
+        -- Burning was not supported in the Byron era:
+        , burn = W.TxBurn mempty
 
         , withdrawals =
             mempty
