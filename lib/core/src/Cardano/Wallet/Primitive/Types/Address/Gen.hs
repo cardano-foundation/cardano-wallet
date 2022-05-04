@@ -1,3 +1,4 @@
+{-# LANGUAGE BinaryLiterals #-}
 module Cardano.Wallet.Primitive.Types.Address.Gen
     (
       -- * Generators and shrinkers
@@ -84,4 +85,12 @@ data Parity = Even | Odd
 --------------------------------------------------------------------------------
 
 mkAddress :: Char -> Address
-mkAddress c = Address $ "ADDR" `B8.snoc` c
+mkAddress c = Address $
+    BS.pack [mainnetEnterpriseAddrTag] <> B8.pack dummyPaymentKeyHash
+    where
+      mainnetEnterpriseAddrTag = 0b01100001
+      -- https://cips.cardano.org/cips/cip19
+
+      dummyPaymentKeyHash = replicate (hashLength - 1) '\NUL' <> [c]
+        where
+          hashLength = 28
