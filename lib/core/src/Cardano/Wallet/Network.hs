@@ -48,7 +48,7 @@ import Cardano.Wallet.Checkpoints.Policy
 import Cardano.Wallet.Primitive.BlockSummary
     ( LightSummary )
 import Cardano.Wallet.Primitive.Slotting
-    ( PastHorizonException, TimeInterpreter )
+    ( PastHorizonException, SystemStart, TimeInterpreter )
 import Cardano.Wallet.Primitive.SyncProgress
     ( SyncProgress (..) )
 import Cardano.Wallet.Primitive.Types
@@ -101,6 +101,7 @@ import UnliftIO.Async
 import UnliftIO.Concurrent
     ( threadDelay )
 
+import qualified Cardano.Api as Cardano
 import qualified Data.List.NonEmpty as NE
 
 {-------------------------------------------------------------------------------
@@ -175,6 +176,17 @@ data NetworkLayer m block = NetworkLayer
 
     , timeInterpreter
         :: TimeInterpreter (ExceptT PastHorizonException m)
+        -- ^ Used for translating between @UTCTime@, @SlotNo@, @EpochNo@ and
+        -- similar using queries like 'currentEpoch' and 'ceilingSlotAt'.
+
+    , eraHistory
+        :: m (Cardano.EraHistory Cardano.CardanoMode, SystemStart)
+        -- ^ Does the same thing as a 'timeInterpreter', but more suited for use
+        -- with cardano-api.
+        --
+        -- Unification with 'timeInterpreter' would be possible if desired, but
+        -- may require other inconveniences like not being able to construct
+        -- a 'TimeInterpreter' from /any/ @EraSummary xs@.
 
     , syncProgress
         :: SlotNo -> m (SyncProgress)

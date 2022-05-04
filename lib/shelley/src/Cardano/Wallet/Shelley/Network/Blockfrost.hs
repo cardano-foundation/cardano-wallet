@@ -58,6 +58,8 @@ import Cardano.Pool.Rank.Likelihood
     ( BlockProduction (..), PerformanceEstimate (..), estimatePoolPerformance )
 import Cardano.Slotting.Slot
     ( unEpochSize )
+import Cardano.Slotting.Time
+    ( SystemStart (..) )
 import Cardano.Wallet.Api.Types
     ( decodeStakeAddress, encodeAddress, encodeStakeAddress )
 import Cardano.Wallet.Logging
@@ -104,7 +106,7 @@ import Cardano.Wallet.Primitive.Types
     , SlotNo (..)
     , SlottingParameters (..)
     , StakePoolsSummary (..)
-    , StartTime
+    , StartTime (..)
     , TokenBundleMaxSize (..)
     , TxParameters (..)
     , WithOrigin (At)
@@ -238,6 +240,7 @@ import UnliftIO.STM
     )
 
 import qualified Blockfrost.Client as BF
+import qualified Cardano.Api as Cardano
 import qualified Cardano.Api.Shelley as Node
 import qualified Cardano.Ledger.Alonzo.PParams as Alonzo
 import qualified Cardano.Ledger.Coin as Ledger
@@ -293,6 +296,7 @@ withNetworkLayer tr network np project k = do
         , timeInterpreter =
             timeInterpreterFromStartTime getGenesisBlockDate
         , syncProgress = syncProgress bfLayer
+        , eraHistory = eraHistoryFromStartTime getGenesisBlockDate
         }
   where
     NetworkParameters
@@ -368,6 +372,13 @@ withNetworkLayer tr network np project k = do
     timeInterpreterFromStartTime startTime =
         mkTimeInterpreter (MsgTimeInterpreterLog >$< tr) startTime $
             pure $ HF.mkInterpreter $ Fixture.networkSummary networkId
+
+    eraHistoryFromStartTime
+        :: StartTime
+        -> IO (Cardano.EraHistory Cardano.CardanoMode, SystemStart)
+    eraHistoryFromStartTime (StartTime t0) = do
+        let i = HF.mkInterpreter $ Fixture.networkSummary networkId
+        pure (Cardano.EraHistory Cardano.CardanoMode i, SystemStart t0)
 
     fetchNetworkRewardAccountBalances
         :: SomeNetworkDiscriminant

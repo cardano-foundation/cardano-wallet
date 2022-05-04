@@ -50,6 +50,8 @@ import Cardano.BM.Data.Tracer
     ( HasPrivacyAnnotation (..), HasSeverityAnnotation (..) )
 import Cardano.Launcher.Node
     ( CardanoNodeConn, nodeSocketFile )
+import Cardano.Slotting.Time
+    ( SystemStart (..) )
 import Cardano.Wallet.Byron.Compatibility
     ( byronCodecConfig, protocolParametersFromUpdateState )
 import Cardano.Wallet.Logging
@@ -391,6 +393,10 @@ withNodeNetworkLayerBase
             fetchRewardAccounts tr queryRewardQ
         , timeInterpreter =
             _timeInterpreter (contramap MsgInterpreterLog tr) interpreterVar
+        , eraHistory = do
+            i <- atomically (readTMVar interpreterVar)
+            let W.StartTime t0 = getGenesisBlockDate
+            pure (Cardano.EraHistory Cardano.CardanoMode i, SystemStart t0)
         , syncProgress = _syncProgress interpreterVar
         }
   where
