@@ -67,6 +67,7 @@ module Cardano.Wallet.Primitive.Slotting
 
      -- * Dummy values for testing
     , dummyForkInterpreter
+    , dummyEraHistory
     ) where
 
 import Prelude
@@ -77,6 +78,10 @@ import Cardano.BM.Data.Tracer
     ( HasSeverityAnnotation (..) )
 import Cardano.Slotting.EpochInfo.API
     ( EpochInfo )
+import Cardano.Slotting.Slot
+    ( EpochSize (EpochSize) )
+import Cardano.Slotting.Time
+    ( mkSlotLength )
 import Cardano.Wallet.Orphans
     ()
 import Cardano.Wallet.Primitive.Types
@@ -125,9 +130,16 @@ import Fmt
 import GHC.Stack
     ( CallStack, HasCallStack, getCallStack, prettySrcLoc )
 import Ouroboros.Consensus.BlockchainTime.WallClock.Types
-    ( RelativeTime (..), SystemStart (SystemStart), addRelTime, mkSlotLength )
+    ( RelativeTime (..), SystemStart (SystemStart), addRelTime )
 import Ouroboros.Consensus.Config
     ( SecurityParam (..) )
+import Ouroboros.Consensus.HardFork.History
+    ( Bound (..)
+    , EraEnd (..)
+    , EraParams (..)
+    , EraSummary (..)
+    , SafeZone (StandardSafeZone)
+    )
 import Ouroboros.Consensus.HardFork.History.EpochInfo
     ( interpreterToEpochInfo )
 import Ouroboros.Consensus.HardFork.History.Qry
@@ -142,12 +154,13 @@ import Ouroboros.Consensus.HardFork.History.Qry
     , wallclockToSlot
     )
 import Ouroboros.Consensus.HardFork.History.Summary
-    ( neverForksSummary )
+    ( Summary (..), neverForksSummary )
 import Ouroboros.Consensus.Util.Counting
-    ( exactlyTwo )
+    ( NonEmpty (NonEmptyCons, NonEmptyOne), exactlyTwo )
 import UnliftIO.Exception
     ( throwIO )
 
+import qualified Cardano.Api as Cardano
 import qualified Cardano.Slotting.Slot as Cardano
 import qualified Data.Text as T
 import qualified Ouroboros.Consensus.BlockchainTime.WallClock.Types as Cardano
@@ -395,6 +408,8 @@ currentEpoch ti = do
 -- with a system start time as context.
 data TimeInterpreter m = forall eras. TimeInterpreter
     { interpreter :: m (Interpreter eras)
+     -- ^ NOTE:  interpreter ti cannot throw PastHorizonException, but
+     -- this way we don't have to carry around yet another type parameter.
     , blockchainStartTime :: StartTime
     , tracer :: Tracer m TimeInterpreterLog
     , handleResult :: forall a. Either PastHorizonException a -> m a
@@ -648,3 +663,49 @@ dummyForkInterpreter =
                 nullTracer
                 (StartTime $ posixSecondsToUTCTime 0)
                 (pure $ HF.mkInterpreter summary)
+
+-- | For testing only.
+dummyEraHistory :: (Cardano.EraHistory Cardano.CardanoMode, SystemStart)
+dummyEraHistory =
+    ( Cardano.EraHistory Cardano.CardanoMode int
+    , SystemStart $ posixSecondsToUTCTime 0
+    )
+  where
+    int = mkInterpreter summary
+
+    eraParams = EraParams
+        { eraEpochSize = EpochSize 432000
+        , eraSlotLength = mkSlotLength 1
+        , eraSafeZone = StandardSafeZone 129600
+        }
+
+    emptyEra = EraSummary
+        { eraStart = Bound
+            { boundTime = RelativeTime 0
+            , boundSlot = 0
+            , boundEpoch = Cardano.EpochNo 0
+            }
+        , eraEnd = EraEnd Bound
+            { boundTime = RelativeTime 0
+            , boundSlot = 0
+            , boundEpoch = Cardano.EpochNo 0
+            }
+        , eraParams = eraParams
+        }
+
+    summary = Summary
+        { getSummary =
+            NonEmptyCons emptyEra -- Byron
+            $ NonEmptyCons emptyEra -- Shelley
+            $ NonEmptyCons emptyEra -- Allegra
+            $ NonEmptyCons emptyEra -- Mary
+            $ NonEmptyOne EraSummary -- Alonzo
+                { eraStart = Bound
+                    { boundTime = RelativeTime 0
+                    , boundSlot = 0
+                    , boundEpoch = Cardano.EpochNo 0
+                    }
+                , eraEnd = EraUnbounded
+                , eraParams = eraParams
+                }
+        }
