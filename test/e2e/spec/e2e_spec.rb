@@ -621,32 +621,18 @@ RSpec.describe "Cardano Wallet E2E tests", :e2e do
 
     describe "Minting and Burning" do
       def mint(asset_name, quantity, policy_script, address = nil)
-        mint = {
-            'operation' => {
-              'mint' =>
-                {
-                  'amount' => { 'quantity' => quantity,
-                                'unit' => 'assets'
-                               }
-                }
-            },
-            'policy_script_template' => policy_script
-         }
+        mint = { 'operation' => { 'mint' => { 'quantity' => quantity } },
+                 'policy_script_template' => policy_script
+               }
          mint['operation']['mint']['receiving_address'] = address unless address == nil
          mint['asset_name'] = asset_name unless asset_name == nil
          mint
       end
 
       def burn(asset_name, quantity, policy_script)
-        burn = {
-            'operation' => {
-              'burn' => { 'quantity' => quantity,
-                          'unit' => 'assets'
-                         }
-
-             },
-            'policy_script_template' => policy_script
-        }
+        burn = { 'operation' => { 'burn' => { 'quantity' => quantity } },
+                 'policy_script_template' => policy_script
+               }
         burn['asset_name'] = asset_name unless asset_name == nil
         burn
       end
@@ -670,6 +656,7 @@ RSpec.describe "Cardano Wallet E2E tests", :e2e do
       # Tx2: Burns 3 x 500 of each and verifies 500 of each remain on wallet
       # Tx3: Burns remaining 3 x 500 and verifies they're no longer on balance
       it "Can mint and then burn" do
+        pending "ADP-1738"
         src_before = get_shelley_balances(@wid)
         address = SHELLEY.addresses.list(@wid).first['id']
         policy_script1 = 'cosigner#0'
@@ -772,6 +759,7 @@ RSpec.describe "Cardano Wallet E2E tests", :e2e do
       # Tx1: Mints 3 x 1 assets with metadata
       # Tx2: Burns 3 x 1 assets and also assign metadata to tx
       it "Can mint and burn with metadata" do
+        pending "ADP-1738"
         src_before = get_shelley_balances(@wid)
         address = SHELLEY.addresses.list(@wid).first['id']
         policy_script1 = 'cosigner#0'
@@ -855,6 +843,7 @@ RSpec.describe "Cardano Wallet E2E tests", :e2e do
       # Tx2: Mints 500 more of A1 and burns 500 of A2 => A1 = 1000, A2 = 0
       # Tx3: Burns remaining 1000 of A1 => A1 = 0, A2 = 0
       it "Can mint and burn in the same tx" do
+        pending "ADP-1738"
         src_before = get_shelley_balances(@wid)
         address = SHELLEY.addresses.list(@wid).first['id']
         policy_script1 = { "some" => {"at_least" => 1, "from" => [ "cosigner#0" ]} }
