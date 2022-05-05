@@ -348,7 +348,6 @@ cardanoRestoreBench tr c socketFile = do
 
     runBenchmarks
         [ 
-        -- benchRestoreSeqWithOwnership (Proxy @0) ,
         benchRestoreBaseline
           -- We restore /to/ a percentage that is low enough to be fast,
           -- but high enough to give an accurate enough indication of the
