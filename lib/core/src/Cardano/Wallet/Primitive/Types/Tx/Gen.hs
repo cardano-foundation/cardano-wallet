@@ -16,8 +16,6 @@ module Cardano.Wallet.Primitive.Types.Tx.Gen
     , genTxOut
     , genTxOutCoin
     , genTxOutTokenBundle
-    , genTxMint
-    , genTxBurn
     , genTxScriptValidity
     , shrinkTx
     , shrinkTxHash
@@ -25,8 +23,6 @@ module Cardano.Wallet.Primitive.Types.Tx.Gen
     , shrinkTxIn
     , shrinkTxOut
     , shrinkTxOutCoin
-    , shrinkTxMint
-    , shrinkTxBurn
     , shrinkTxScriptValidity
     )
     where
@@ -52,15 +48,13 @@ import Cardano.Wallet.Primitive.Types.TokenBundle
 import Cardano.Wallet.Primitive.Types.TokenBundle.Gen
     ( genTokenBundleSmallRange, shrinkTokenBundleSmallRange )
 import Cardano.Wallet.Primitive.Types.TokenMap.Gen
-    ( genAssetIdLargeRange, genTokenMap, shrinkTokenMap )
+    ( genAssetIdLargeRange )
 import Cardano.Wallet.Primitive.Types.TokenQuantity
     ( TokenQuantity (..) )
 import Cardano.Wallet.Primitive.Types.Tx
     ( Tx (..)
-    , TxBurn (..)
     , TxIn (..)
     , TxMetadata (..)
-    , TxMint (..)
     , TxOut (..)
     , TxScriptValidity (..)
     , coinIsValidForTxOut
@@ -139,8 +133,6 @@ data TxWithoutId = TxWithoutId
     , resolvedCollateralInputs :: ![(TxIn, Coin)]
     , outputs :: ![TxOut]
     , collateralOutput :: !(Maybe TxOut)
-    , mint :: !TxMint
-    , burn :: !TxBurn
     , metadata :: !(Maybe TxMetadata)
     , withdrawals :: !(Map RewardAccount Coin)
     , scriptValidity :: !(Maybe TxScriptValidity)
@@ -154,8 +146,6 @@ genTxWithoutId = TxWithoutId
     <*> listOf1 (liftArbitrary2 genTxIn genCoinPositive)
     <*> listOf genTxOut
     <*> liftArbitrary genTxOut
-    <*> genTxMint
-    <*> genTxBurn
     <*> liftArbitrary genNestedTxMetadata
     <*> genMapWith genRewardAccount genCoinPositive
     <*> liftArbitrary genTxScriptValidity
@@ -167,8 +157,6 @@ shrinkTxWithoutId = genericRoundRobinShrink
     <:> shrinkList (liftShrink2 shrinkTxIn shrinkCoinPositive)
     <:> shrinkList shrinkTxOut
     <:> liftShrink shrinkTxOut
-    <:> shrinkTxMint
-    <:> shrinkTxBurn
     <:> liftShrink shrinkTxMetadata
     <:> shrinkMapWith shrinkRewardAccount shrinkCoinPositive
     <:> liftShrink shrinkTxScriptValidity
@@ -334,22 +322,6 @@ genTxOutTokenBundle fixedAssetCount
 
         integerToTokenQuantity :: Integer -> TokenQuantity
         integerToTokenQuantity = TokenQuantity . fromIntegral
-
---------------------------------------------------------------------------------
--- Minting and burning
---------------------------------------------------------------------------------
-
-genTxMint :: Gen TxMint
-genTxMint = TxMint <$> genTokenMap
-
-genTxBurn :: Gen TxBurn
-genTxBurn = TxBurn <$> genTokenMap
-
-shrinkTxMint :: TxMint -> [TxMint]
-shrinkTxMint = shrinkMapBy TxMint unTxMint shrinkTokenMap
-
-shrinkTxBurn :: TxBurn -> [TxBurn]
-shrinkTxBurn = shrinkMapBy TxBurn unTxBurn shrinkTokenMap
 
 --------------------------------------------------------------------------------
 -- Internal utilities

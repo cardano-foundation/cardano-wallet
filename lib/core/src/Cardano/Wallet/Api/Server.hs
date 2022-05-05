@@ -3843,7 +3843,6 @@ mkApiTransaction timeInterpreter setTimeReference tx = do
         , collateralOutputs = ApiAsArray $
             toAddressAmount @n <$> tx ^. #txCollateralOutput
         , withdrawals = mkApiWithdrawal @n <$> Map.toList (tx ^. #txWithdrawals)
-        , mint = mempty  -- TODO: ADP-xxx
         , status = ApiT (tx ^. (#txMeta . #status))
         , metadata = ApiTxMetadata $ ApiT <$> (tx ^. #txMetadata)
         , scriptValidity = ApiT <$> tx ^. #txScriptValidity

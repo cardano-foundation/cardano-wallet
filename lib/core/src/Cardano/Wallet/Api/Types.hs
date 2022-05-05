@@ -1153,7 +1153,6 @@ data ApiTransaction (n :: NetworkDiscriminant) = ApiTransaction
     , collateralOutputs ::
         !(ApiAsArray "collateral_outputs" (Maybe (ApiTxOutput n)))
     , withdrawals :: ![ApiWithdrawal n]
-    , mint :: !(ApiT W.TokenMap)
     , status :: !(ApiT TxStatus)
     , metadata :: !ApiTxMetadata
     , scriptValidity :: !(Maybe (ApiT TxScriptValidity))
