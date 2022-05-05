@@ -954,22 +954,6 @@ x-walletAssets: &walletAssets
   type: array
   items: *walletAsset
 
-x-assetMint: &assetMint
-  type: object
-  required:
-    - policy_id
-    - asset_name
-    - quantity
-  properties:
-    policy_id: *assetPolicyId
-    asset_name: *assetName
-    fingerprint: *assetFingerprint
-    quantity:
-      type: integer
-      description: |
-        Positive values mean creation and negative values mean
-        destruction.
-
 x-walletAssetsBalance: &walletAssetsBalance
   description: |
     Current non-Ada asset holdings of the wallet.
@@ -1352,22 +1336,6 @@ x-transactionDelegations: &transactionDelegations
   minItems: 0
   items:
     <<: *multiDelegationAction
-
-x-transactionMint: &transactionMint
-  description: |
-    <p>status: <strong>⚠ under development</strong></p>
-
-    _This field is not implemented yet, and will always be empty._
-
-    Assets minted (created) or unminted (destroyed)
-
-    This amount contributes to the total transaction value.
-
-    Positive values denote creation of assets and negative values
-    denote the reverse.
-  type: array
-  minItems: 0
-  items: *assetMint
 
 x-transactionChange: &transactionChange
   description: A list of transaction change outputs.
@@ -2522,7 +2490,6 @@ components:
         - inputs
         - outputs
         - withdrawals
-        - mint
         - status
       properties:
         id: *transactionId
@@ -2550,7 +2517,6 @@ components:
         collateral: *transactionCollateral
         collateral_outputs: *transactionCollateralOutputs
         withdrawals: *transactionWithdrawals
-        mint: *transactionMint
         status: *transactionStatus
         metadata: *transactionMetadata
         script_validity: *txScriptValidity
