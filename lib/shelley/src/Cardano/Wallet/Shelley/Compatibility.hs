@@ -142,6 +142,7 @@ module Cardano.Wallet.Shelley.Compatibility
     , interval0
     , interval1
     , getScriptIntegrityHash
+    , numberOfTransactionsInBlock
     ) where
 
 import Prelude
@@ -179,6 +180,10 @@ import Cardano.Api.Shelley
     , ShelleyGenesis (..)
     , fromShelleyMetadata
     )
+import Cardano.Chain.Block
+    ( ABlockOrBoundary (ABOBBlock, ABOBBoundary), blockTxPayload )
+import Cardano.Chain.UTxO
+    ( unTxPayload )
 import Cardano.Crypto.Hash.Class
     ( Hash (UnsafeHash), hashToBytes )
 import Cardano.Launcher.Node
@@ -297,6 +302,8 @@ import GHC.TypeLits
     ( KnownNat, natVal )
 import Numeric.Natural
     ( Natural )
+import Ouroboros.Consensus.Byron.Ledger
+    ( byronBlockRaw )
 import Ouroboros.Consensus.Cardano.Block
     ( CardanoBlock
     , CardanoEras
@@ -395,8 +402,6 @@ import qualified Data.Text.Encoding as T
 import qualified Ouroboros.Consensus.Shelley.Ledger as O
 import qualified Ouroboros.Network.Block as O
 import qualified Ouroboros.Network.Point as Point
-
-
 --------------------------------------------------------------------------------
 --
 -- Chain Parameters
@@ -508,6 +513,33 @@ fromCardanoBlock gp = \case
         fst $ fromMaryBlock gp blk
     BlockAlonzo blk ->
         fst $ fromAlonzoBlock gp blk
+
+numberOfTransactionsInBlock
+    :: CardanoBlock StandardCrypto -> (Int, (Quantity "block" Word32, O.SlotNo))
+numberOfTransactionsInBlock = \case
+    BlockShelley shb -> transactions shb
+    BlockAllegra shb -> transactions shb
+    BlockMary shb -> transactions shb
+    BlockAlonzo shb -> transactionsAlonzo shb
+    BlockByron byb -> transactionsByron byb
+  where
+    transactions
+        (ShelleyBlock (SL.Block (SL.BHeader header _) (SL.TxSeq txs')) _) =
+            ( length txs'
+            , (fromBlockNo $ SL.bheaderBlockNo header, SL.bheaderSlotNo header)
+            )
+    transactionsAlonzo
+        (ShelleyBlock (SL.Block (SL.BHeader header _) (Alonzo.TxSeq txs')) _) =
+            ( length txs'
+            , (fromBlockNo $ SL.bheaderBlockNo header, SL.bheaderSlotNo header)
+            )
+    transactionsByron blk =
+        (, (fromBlockNo $ O.blockNo blk, O.blockSlot blk)) $
+            case byronBlockRaw blk of
+            ABOBBlock blk' ->
+                length $ fromTxAux <$> unTxPayload (blockTxPayload blk')
+            ABOBBoundary _ ->
+                0
 
 toCardanoEra :: CardanoBlock c -> AnyCardanoEra
 toCardanoEra = \case

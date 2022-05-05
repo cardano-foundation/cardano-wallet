@@ -176,6 +176,13 @@ data NetworkLayer m block = NetworkLayer
         :: TimeInterpreter (ExceptT PastHorizonException m)
     , syncProgress
         :: SlotNo -> m (SyncProgress)
+        -- ^ Compute the ratio between the provided 'SlotNo' and the slot
+        -- corresponding to the current wall-clock time.
+        --
+        -- Unlike using 'Cardano.Wallet.Primitive.SyncProgress.syncProgress'
+        -- after retrieving a 'timeInterpreter', this function will return
+        -- 'NotResponding' rather than block in the edge case when the era
+        -- history has not yet been fetched from the node on startup.
     }
 
 -- | In light-mode, we receive either a list of blocks as usual,
