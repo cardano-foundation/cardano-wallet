@@ -1,5 +1,4 @@
 {-# LANGUAGE DataKinds #-}
-{-# LANGUAGE DeriveAnyClass #-}
 {-# LANGUAGE DeriveFunctor #-}
 {-# LANGUAGE DeriveGeneric #-}
 {-# LANGUAGE DerivingVia #-}
@@ -29,8 +28,6 @@ module Cardano.Wallet.Primitive.Types.Tx
     , TxMeta (..)
     , TxMetadata (..)
     , TxMetadataValue (..)
-    , TxMint (..)
-    , TxBurn (..)
     , TxStatus (..)
     , UnsignedTx (..)
     , TransactionInfo (..)
@@ -247,14 +244,6 @@ data Tx = Tx
 
     , collateralOutput :: !(Maybe TxOut)
         -- ^ An output that is only created if a transaction script fails.
-
-    , mint
-        :: !TxMint
-        -- ^ Tokens that are minted by this transaction.
-
-    , burn
-        :: !TxBurn
-        -- ^ Tokens that are burned by this transaction.
 
     , withdrawals
         :: !(Map RewardAccount Coin)
@@ -737,10 +726,6 @@ data TransactionInfo = TransactionInfo
     -- ^ Payment destination.
     , txInfoCollateralOutput :: !(Maybe TxOut)
     -- ^ An output that is only created if a transaction script fails.
-    , txInfoMint :: !TxMint
-    -- ^ Tokens that are minted by this transaction.
-    , txInfoBurn :: !TxBurn
-    -- ^ Tokens that are burned by this transaction.
     , txInfoWithdrawals :: !(Map RewardAccount Coin)
     -- ^ Withdrawals on this transaction.
     , txInfoMeta :: !TxMeta
@@ -787,8 +772,6 @@ fromTransactionInfo info = Tx
     , resolvedCollateralInputs = drop3rd <$> txInfoCollateralInputs info
     , outputs = txInfoOutputs info
     , collateralOutput = txInfoCollateralOutput info
-    , mint = txInfoMint info
-    , burn = txInfoBurn info
     , withdrawals = txInfoWithdrawals info
     , metadata = txInfoMetadata info
     , scriptValidity = txInfoScriptValidity info
@@ -1036,17 +1019,3 @@ unsafeCoinToTxOutCoinValue c
             ]
     | otherwise =
         Coin.unsafeToWord64 c
-
---------------------------------------------------------------------------------
--- Minting and burning
---------------------------------------------------------------------------------
-
-newtype TxMint = TxMint {unTxMint :: TokenMap}
-    deriving stock (Eq, Generic, Show)
-    deriving Ord via (Lexicographic TokenMap)
-    deriving anyclass NFData
-
-newtype TxBurn = TxBurn {unTxBurn :: TokenMap}
-    deriving stock (Eq, Generic, Show)
-    deriving Ord via (Lexicographic TokenMap)
-    deriving anyclass NFData

@@ -1248,10 +1248,6 @@ fromGenesisData g initialFunds =
                 ]
             -- Collateral outputs were not supported at the time of genesis:
             , collateralOutput = Nothing
-            -- Minting was not supported at the time of genesis:
-            , mint = W.TxMint mempty
-            -- Burning was not supported at the time of genesis:
-            , burn = W.TxBurn mempty
             , withdrawals = mempty
             , metadata = Nothing
             , scriptValidity = Nothing
@@ -1431,10 +1427,6 @@ fromShelleyTx tx =
         , collateralOutput =
             -- Collateral outputs are not supported in Shelley.
             Nothing
-        -- TODO: [ADP-1654]
-        , mint = W.TxMint mempty
-        -- TODO: [ADP-1654]
-        , burn = W.TxBurn mempty
         , withdrawals =
             fromShelleyWdrl wdrls
         , metadata =
@@ -1474,10 +1466,6 @@ fromAllegraTx tx =
         , collateralOutput =
             -- Collateral outputs are not supported in Allegra.
             Nothing
-        -- Minting was not supporetd in Allegra.
-        , mint = W.TxMint mempty
-        -- Burning was not supported in Allegra.
-        , burn = W.TxBurn mempty
         , withdrawals =
             fromShelleyWdrl wdrls
         , metadata =
@@ -1535,10 +1523,6 @@ fromMaryTx tx =
         , collateralOutput =
             -- Collateral outputs are not supported in Mary.
             Nothing
-        -- TODO: [ADP-1654]
-        , mint = W.TxMint mempty
-        -- TODO: [ADP-1654]
-        , burn = W.TxBurn mempty
         , withdrawals =
             fromShelleyWdrl wdrls
         , metadata =
@@ -1635,10 +1619,6 @@ fromAlonzoTxBodyAndAux bod mad wits =
         , collateralOutput =
             -- Collateral outputs are not supported in Alonzo.
             Nothing
-        -- TODO: [ADP-1654]
-        , mint = W.TxMint mempty
-        -- TODO: [ADP-1654]
-        , burn = W.TxBurn mempty
         , withdrawals =
             fromShelleyWdrl wdrls
         , metadata =

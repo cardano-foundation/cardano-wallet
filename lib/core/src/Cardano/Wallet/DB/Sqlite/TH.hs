@@ -212,24 +212,6 @@ TxCollateralOutToken
     Foreign TxCollateralOut OnDeleteCascade txCollateralOut txCollateralOutTokenTxId
     deriving Show Generic
 
-TxMint
-    txMintTxId           TxId              sql=tx_id
-    txMintTokenPolicyId  W.TokenPolicyId   sql=token_policy_id
-    txMintTokenName      W.TokenName       sql=token_name
-    txMintTokenQuantity  W.TokenQuantity   sql=token_quantity
-
-    Primary txMintTxId txMintTokenPolicyId txMintTokenName
-    deriving Show Generic
-
-TxBurn
-    txBurnTxId           TxId              sql=tx_id
-    txBurnTokenPolicyId  W.TokenPolicyId   sql=token_policy_id
-    txBurnTokenName      W.TokenName       sql=token_name
-    txBurnTokenQuantity  W.TokenQuantity   sql=token_quantity
-
-    Primary txBurnTxId txBurnTokenPolicyId txBurnTokenName
-    deriving Show Generic
-
 -- | A transaction withdrawal associated with TxMeta.
 --
 -- There is no wallet ID because these values depend only on the transaction,

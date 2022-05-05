@@ -1182,8 +1182,6 @@ spec = parallel $ do
                         (x :: ApiTransaction ('Testnet 0))
                     , withdrawals = withdrawals
                         (x :: ApiTransaction ('Testnet 0))
-                    , mint = mint
-                        (x :: ApiTransaction ('Testnet 0))
                     , metadata = metadata
                         (x :: ApiTransaction ('Testnet 0))
                     , scriptValidity = scriptValidity
@@ -2550,7 +2548,6 @@ instance Arbitrary (ApiTransaction n) where
             <*> genCollateral
             <*> genCollateralOutputs
             <*> genWithdrawals
-            <*> arbitrary
             <*> pure txStatus
             <*> arbitrary
             <*> liftArbitrary (ApiT <$> genTxScriptValidity)

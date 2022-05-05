@@ -160,10 +160,8 @@ import Cardano.Wallet.Primitive.Types.Tx
     ( Direction (..)
     , TransactionInfo (..)
     , Tx (..)
-    , TxBurn (..)
     , TxIn (..)
     , TxMeta (..)
-    , TxMint (..)
     , TxOut (..)
     , TxScriptValidity (..)
     , TxStatus (..)
@@ -595,8 +593,6 @@ fileModeSpec =  do
                                             (coinToBundle 8)
                                     ]
                                 , collateralOutput = Nothing
-                                , mint = TxMint mempty
-                                , burn = TxBurn mempty
                                 , withdrawals = mempty
                                 , metadata = Nothing
                                 , scriptValidity = Just TxScriptValid
@@ -623,8 +619,6 @@ fileModeSpec =  do
                                     (fst $ ourAddrs !! 1) (coinToBundle 2)
                                 ]
                             , collateralOutput = Nothing
-                            , mint = TxMint mempty
-                            , burn = TxBurn mempty
                             , withdrawals = mempty
                             , metadata = Nothing
                             , scriptValidity = Just TxScriptInvalid
@@ -663,8 +657,6 @@ fileModeSpec =  do
                             , outputs =
                                 [TxOut (fst $ head ourAddrs) (coinToBundle 4)]
                             , collateralOutput = Nothing
-                            , mint = TxMint mempty
-                            , burn = TxBurn mempty
                             , withdrawals = mempty
                             , metadata = Nothing
                             , scriptValidity = Nothing
@@ -688,8 +680,6 @@ fileModeSpec =  do
                             , TxOut (fst $ ourAddrs !! 1) (coinToBundle 2)
                             ]
                         , collateralOutput = Nothing
-                        , mint = TxMint mempty
-                        , burn = TxBurn mempty
                         , withdrawals = mempty
                         , metadata = Nothing
                         , scriptValidity = Nothing
@@ -1348,8 +1338,6 @@ testTxs = [(tx, txMeta)]
             []
         , outputs = [TxOut (Address "addr") (coinToBundle 1)]
         , collateralOutput = Nothing
-        , mint = TxMint mempty
-        , burn = TxBurn mempty
         , withdrawals = mempty
         , metadata = Nothing
         , scriptValidity = Nothing
