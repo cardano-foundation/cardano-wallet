@@ -12,16 +12,16 @@
     package = {
       specVersion = "1.10";
       identifier = {
-        name = "ouroboros-network-framework";
+        name = "ouroboros-consensus-cardano-test";
         version = "0.1.0.0";
         };
       license = "Apache-2.0";
-      copyright = "2019 Input Output (Hong Kong) Ltd.";
-      maintainer = "alex@well-typed.com, duncan@well-typed.com, marcin.szamotulski@iohk.io";
-      author = "Alexander Vieth, Duncan Coutts, Marcin Szamotulski";
+      copyright = "2020 Input Output (Hong Kong) Ltd.";
+      maintainer = "operations@iohk.io";
+      author = "IOHK Engineering Team";
       homepage = "";
       url = "";
-      synopsis = "";
+      synopsis = "Test of the instantation of the Ouroboros consensus layer used by Cardano";
       description = "";
       buildType = "Simple";
       };
@@ -29,114 +29,66 @@
       "library" = {
         depends = [
           (hsPkgs."base" or (errorHandler.buildDepError "base"))
-          (hsPkgs."async" or (errorHandler.buildDepError "async"))
-          (hsPkgs."bytestring" or (errorHandler.buildDepError "bytestring"))
-          (hsPkgs."cborg" or (errorHandler.buildDepError "cborg"))
+          (hsPkgs."cardano-crypto-class" or (errorHandler.buildDepError "cardano-crypto-class"))
+          (hsPkgs."cardano-crypto-wrapper" or (errorHandler.buildDepError "cardano-crypto-wrapper"))
+          (hsPkgs."cardano-slotting" or (errorHandler.buildDepError "cardano-slotting"))
           (hsPkgs."containers" or (errorHandler.buildDepError "containers"))
-          (hsPkgs."dns" or (errorHandler.buildDepError "dns"))
-          (hsPkgs."iproute" or (errorHandler.buildDepError "iproute"))
-          (hsPkgs."hashable" or (errorHandler.buildDepError "hashable"))
           (hsPkgs."mtl" or (errorHandler.buildDepError "mtl"))
-          (hsPkgs."nothunks" or (errorHandler.buildDepError "nothunks"))
-          (hsPkgs."random" or (errorHandler.buildDepError "random"))
-          (hsPkgs."stm" or (errorHandler.buildDepError "stm"))
-          (hsPkgs."text" or (errorHandler.buildDepError "text"))
-          (hsPkgs."time" or (errorHandler.buildDepError "time"))
-          (hsPkgs."quiet" or (errorHandler.buildDepError "quiet"))
-          (hsPkgs."cardano-prelude" or (errorHandler.buildDepError "cardano-prelude"))
-          (hsPkgs."contra-tracer" or (errorHandler.buildDepError "contra-tracer"))
-          (hsPkgs."io-classes" or (errorHandler.buildDepError "io-classes"))
-          (hsPkgs."monoidal-synchronisation" or (errorHandler.buildDepError "monoidal-synchronisation"))
-          (hsPkgs."network" or (errorHandler.buildDepError "network"))
-          (hsPkgs."network-mux" or (errorHandler.buildDepError "network-mux"))
-          (hsPkgs."ouroboros-network-testing" or (errorHandler.buildDepError "ouroboros-network-testing"))
-          (hsPkgs."strict-stm" or (errorHandler.buildDepError "strict-stm"))
-          (hsPkgs."typed-protocols" or (errorHandler.buildDepError "typed-protocols"))
-          (hsPkgs."typed-protocols-cborg" or (errorHandler.buildDepError "typed-protocols-cborg"))
-          (hsPkgs."Win32-network" or (errorHandler.buildDepError "Win32-network"))
-          ] ++ (pkgs.lib).optional (system.isWindows) (hsPkgs."Win32" or (errorHandler.buildDepError "Win32"));
+          (hsPkgs."QuickCheck" or (errorHandler.buildDepError "QuickCheck"))
+          (hsPkgs."sop-core" or (errorHandler.buildDepError "sop-core"))
+          (hsPkgs."strict-containers" or (errorHandler.buildDepError "strict-containers"))
+          (hsPkgs."cardano-ledger-alonzo" or (errorHandler.buildDepError "cardano-ledger-alonzo"))
+          (hsPkgs."cardano-ledger-alonzo-test" or (errorHandler.buildDepError "cardano-ledger-alonzo-test"))
+          (hsPkgs."cardano-ledger-byron" or (errorHandler.buildDepError "cardano-ledger-byron"))
+          (hsPkgs."cardano-ledger-core" or (errorHandler.buildDepError "cardano-ledger-core"))
+          (hsPkgs."cardano-ledger-shelley" or (errorHandler.buildDepError "cardano-ledger-shelley"))
+          (hsPkgs."cardano-ledger-shelley-test" or (errorHandler.buildDepError "cardano-ledger-shelley-test"))
+          (hsPkgs."cardano-protocol-tpraos" or (errorHandler.buildDepError "cardano-protocol-tpraos"))
+          (hsPkgs."ouroboros-network" or (errorHandler.buildDepError "ouroboros-network"))
+          (hsPkgs."ouroboros-consensus" or (errorHandler.buildDepError "ouroboros-consensus"))
+          (hsPkgs."ouroboros-consensus-test" or (errorHandler.buildDepError "ouroboros-consensus-test"))
+          (hsPkgs."ouroboros-consensus-byron" or (errorHandler.buildDepError "ouroboros-consensus-byron"))
+          (hsPkgs."ouroboros-consensus-byron-test" or (errorHandler.buildDepError "ouroboros-consensus-byron-test"))
+          (hsPkgs."ouroboros-consensus-shelley" or (errorHandler.buildDepError "ouroboros-consensus-shelley"))
+          (hsPkgs."ouroboros-consensus-shelley-test" or (errorHandler.buildDepError "ouroboros-consensus-shelley-test"))
+          (hsPkgs."ouroboros-consensus-cardano" or (errorHandler.buildDepError "ouroboros-consensus-cardano"))
+          (hsPkgs."ouroboros-consensus-protocol" or (errorHandler.buildDepError "ouroboros-consensus-protocol"))
+          ];
         buildable = true;
-        };
-      exes = {
-        "demo-ping-pong" = {
-          depends = [
-            (hsPkgs."base" or (errorHandler.buildDepError "base"))
-            (hsPkgs."async" or (errorHandler.buildDepError "async"))
-            (hsPkgs."bytestring" or (errorHandler.buildDepError "bytestring"))
-            (hsPkgs."cborg" or (errorHandler.buildDepError "cborg"))
-            (hsPkgs."directory" or (errorHandler.buildDepError "directory"))
-            (hsPkgs."contra-tracer" or (errorHandler.buildDepError "contra-tracer"))
-            (hsPkgs."io-classes" or (errorHandler.buildDepError "io-classes"))
-            (hsPkgs."network-mux" or (errorHandler.buildDepError "network-mux"))
-            (hsPkgs."ouroboros-network-framework" or (errorHandler.buildDepError "ouroboros-network-framework"))
-            (hsPkgs."typed-protocols" or (errorHandler.buildDepError "typed-protocols"))
-            (hsPkgs."typed-protocols-examples" or (errorHandler.buildDepError "typed-protocols-examples"))
-            ] ++ (pkgs.lib).optionals (system.isWindows) [
-            (hsPkgs."Win32-network" or (errorHandler.buildDepError "Win32-network"))
-            (hsPkgs."Win32" or (errorHandler.buildDepError "Win32"))
-            ];
-          buildable = true;
-          };
-        "demo-connection-manager" = {
-          depends = [
-            (hsPkgs."base" or (errorHandler.buildDepError "base"))
-            (hsPkgs."bytestring" or (errorHandler.buildDepError "bytestring"))
-            (hsPkgs."cborg" or (errorHandler.buildDepError "cborg"))
-            (hsPkgs."network" or (errorHandler.buildDepError "network"))
-            (hsPkgs."optparse-applicative" or (errorHandler.buildDepError "optparse-applicative"))
-            (hsPkgs."random" or (errorHandler.buildDepError "random"))
-            (hsPkgs."serialise" or (errorHandler.buildDepError "serialise"))
-            (hsPkgs."contra-tracer" or (errorHandler.buildDepError "contra-tracer"))
-            (hsPkgs."io-classes" or (errorHandler.buildDepError "io-classes"))
-            (hsPkgs."network-mux" or (errorHandler.buildDepError "network-mux"))
-            (hsPkgs."ouroboros-network-framework" or (errorHandler.buildDepError "ouroboros-network-framework"))
-            (hsPkgs."strict-stm" or (errorHandler.buildDepError "strict-stm"))
-            (hsPkgs."typed-protocols" or (errorHandler.buildDepError "typed-protocols"))
-            (hsPkgs."typed-protocols-examples" or (errorHandler.buildDepError "typed-protocols-examples"))
-            ];
-          buildable = true;
-          };
         };
       tests = {
         "test" = {
           depends = [
             (hsPkgs."base" or (errorHandler.buildDepError "base"))
             (hsPkgs."bytestring" or (errorHandler.buildDepError "bytestring"))
+            (hsPkgs."cardano-crypto-class" or (errorHandler.buildDepError "cardano-crypto-class"))
+            (hsPkgs."cardano-slotting" or (errorHandler.buildDepError "cardano-slotting"))
             (hsPkgs."cborg" or (errorHandler.buildDepError "cborg"))
             (hsPkgs."containers" or (errorHandler.buildDepError "containers"))
-            (hsPkgs."directory" or (errorHandler.buildDepError "directory"))
-            (hsPkgs."dns" or (errorHandler.buildDepError "dns"))
-            (hsPkgs."iproute" or (errorHandler.buildDepError "iproute"))
-            (hsPkgs."network" or (errorHandler.buildDepError "network"))
-            (hsPkgs."pretty-simple" or (errorHandler.buildDepError "pretty-simple"))
-            (hsPkgs."serialise" or (errorHandler.buildDepError "serialise"))
-            (hsPkgs."text" or (errorHandler.buildDepError "text"))
-            (hsPkgs."time" or (errorHandler.buildDepError "time"))
-            (hsPkgs."quiet" or (errorHandler.buildDepError "quiet"))
+            (hsPkgs."filepath" or (errorHandler.buildDepError "filepath"))
             (hsPkgs."QuickCheck" or (errorHandler.buildDepError "QuickCheck"))
-            (hsPkgs."quickcheck-instances" or (errorHandler.buildDepError "quickcheck-instances"))
+            (hsPkgs."sop-core" or (errorHandler.buildDepError "sop-core"))
             (hsPkgs."tasty" or (errorHandler.buildDepError "tasty"))
             (hsPkgs."tasty-quickcheck" or (errorHandler.buildDepError "tasty-quickcheck"))
-            (hsPkgs."cardano-prelude" or (errorHandler.buildDepError "cardano-prelude"))
-            (hsPkgs."contra-tracer" or (errorHandler.buildDepError "contra-tracer"))
-            (hsPkgs."io-sim" or (errorHandler.buildDepError "io-sim"))
-            (hsPkgs."io-classes" or (errorHandler.buildDepError "io-classes"))
-            (hsPkgs."strict-stm" or (errorHandler.buildDepError "strict-stm"))
-            (hsPkgs."network-mux" or (errorHandler.buildDepError "network-mux"))
-            (hsPkgs."monoidal-synchronisation" or (errorHandler.buildDepError "monoidal-synchronisation"))
-            (hsPkgs."ouroboros-network-framework" or (errorHandler.buildDepError "ouroboros-network-framework"))
-            (hsPkgs."ouroboros-network-testing" or (errorHandler.buildDepError "ouroboros-network-testing"))
-            (hsPkgs."typed-protocols" or (errorHandler.buildDepError "typed-protocols"))
-            (hsPkgs."typed-protocols-cborg" or (errorHandler.buildDepError "typed-protocols-cborg"))
-            (hsPkgs."typed-protocols-examples" or (errorHandler.buildDepError "typed-protocols-examples"))
-            ] ++ (pkgs.lib).optionals (system.isWindows) [
-            (hsPkgs."Win32-network" or (errorHandler.buildDepError "Win32-network"))
-            (hsPkgs."Win32" or (errorHandler.buildDepError "Win32"))
+            (hsPkgs."cardano-ledger-alonzo" or (errorHandler.buildDepError "cardano-ledger-alonzo"))
+            (hsPkgs."cardano-ledger-byron" or (errorHandler.buildDepError "cardano-ledger-byron"))
+            (hsPkgs."cardano-ledger-core" or (errorHandler.buildDepError "cardano-ledger-core"))
+            (hsPkgs."cardano-ledger-shelley" or (errorHandler.buildDepError "cardano-ledger-shelley"))
+            (hsPkgs."cardano-protocol-tpraos" or (errorHandler.buildDepError "cardano-protocol-tpraos"))
+            (hsPkgs."ouroboros-network" or (errorHandler.buildDepError "ouroboros-network"))
+            (hsPkgs."ouroboros-consensus" or (errorHandler.buildDepError "ouroboros-consensus"))
+            (hsPkgs."ouroboros-consensus-test" or (errorHandler.buildDepError "ouroboros-consensus-test"))
+            (hsPkgs."ouroboros-consensus-byron" or (errorHandler.buildDepError "ouroboros-consensus-byron"))
+            (hsPkgs."ouroboros-consensus-byron-test" or (errorHandler.buildDepError "ouroboros-consensus-byron-test"))
+            (hsPkgs."ouroboros-consensus-shelley" or (errorHandler.buildDepError "ouroboros-consensus-shelley"))
+            (hsPkgs."ouroboros-consensus-shelley-test" or (errorHandler.buildDepError "ouroboros-consensus-shelley-test"))
+            (hsPkgs."ouroboros-consensus-cardano" or (errorHandler.buildDepError "ouroboros-consensus-cardano"))
+            (hsPkgs."ouroboros-consensus-cardano-test" or (errorHandler.buildDepError "ouroboros-consensus-cardano-test"))
             ];
           buildable = true;
           };
         };
       };
     } // rec {
-    src = (pkgs.lib).mkDefault /nix/store/fy9im0ipvv2jsysk65jphamr63h2y23w-ouroboros-network-4fac197/ouroboros-network-framework;
+    src = (pkgs.lib).mkDefault /nix/store/fy9im0ipvv2jsysk65jphamr63h2y23w-ouroboros-network-4fac197/ouroboros-consensus-cardano-test;
     }

@@ -233,6 +233,7 @@ import Cardano.Wallet.Transaction
     , PlutusScriptInfo (..)
     , PlutusVersion (..)
     , TokenMapWithScripts (..)
+    , ValidityIntervalExplicit (..)
     , emptyTokenMapWithScripts
     )
 import Cardano.Wallet.Unsafe
@@ -274,7 +275,7 @@ import Data.Function
 import Data.IntCast
     ( intCast )
 import Data.List
-    ( unzip4 )
+    ( unzip5 )
 import Data.Map.Strict
     ( Map )
 import Data.Maybe
@@ -532,7 +533,7 @@ fromShelleyBlock
     -> (W.Block, [W.PoolCertificate])
 fromShelleyBlock gp blk@(ShelleyBlock (SL.Block _ (SL.TxSeq txs')) _) =
     let
-       (txs, certs, _, _) = unzip4 $ map fromShelleyTx $ toList txs'
+       (txs, certs, _, _, _) = unzip5 $ map fromShelleyTx $ toList txs'
        certs' = mconcat certs
     in
         ( W.Block
@@ -549,7 +550,7 @@ fromAllegraBlock
     -> (W.Block, [W.PoolCertificate])
 fromAllegraBlock gp blk@(ShelleyBlock (SL.Block _ (SL.TxSeq txs')) _) =
     let
-       (txs, certs, _, _) = unzip4 $ map fromAllegraTx $ toList txs'
+       (txs, certs, _, _, _) = unzip5 $ map fromAllegraTx $ toList txs'
        certs' = mconcat certs
     in
         ( W.Block
@@ -566,7 +567,7 @@ fromMaryBlock
     -> (W.Block, [W.PoolCertificate])
 fromMaryBlock gp blk@(ShelleyBlock (SL.Block _ (SL.TxSeq txs')) _) =
     let
-       (txs, certs, _, _) = unzip4 $ map fromMaryTx $ toList txs'
+       (txs, certs, _, _, _) = unzip5 $ map fromMaryTx $ toList txs'
        certs' = mconcat certs
     in
         ( W.Block
@@ -591,7 +592,7 @@ fromAlonzoBlock
 fromAlonzoBlock gp blk@(ShelleyBlock (SL.Block _ txSeq) _) =
     let
         Alonzo.TxSeq txs' = txSeq
-        (txs, certs, _, _) = unzip4 $ map fromAlonzoValidatedTx $ toList txs'
+        (txs, certs, _, _, _) = unzip5 $ map fromAlonzoValidatedTx $ toList txs'
         certs' = mconcat certs
     in
         ( W.Block
@@ -1228,13 +1229,15 @@ fromGenesisData g initialFunds =
         mkTx (addr, c) = W.Tx
             { txId = pseudoHash
             , fee = Nothing
-            , resolvedCollateral = []
             , resolvedInputs = []
+            , resolvedCollateralInputs = []
             , outputs =
                 [W.TxOut
                     (fromShelleyAddress addr)
                     (TokenBundle.fromCoin $ fromShelleyCoin c)
                 ]
+            -- Collateral outputs were not supported at the time of genesis:
+            , collateralOutput = Nothing
             , withdrawals = mempty
             , metadata = Nothing
             , scriptValidity = Nothing
@@ -1363,7 +1366,12 @@ toShelleyCoin (W.Coin c) = SL.Coin $ intCast c
 
 fromCardanoTx
     :: Cardano.Tx era
-    -> (W.Tx, TokenMapWithScripts, TokenMapWithScripts, [Certificate])
+    ->  ( W.Tx
+        , TokenMapWithScripts
+        , TokenMapWithScripts
+        , [Certificate]
+        , Maybe ValidityIntervalExplicit
+        )
 fromCardanoTx = \case
     Cardano.ShelleyTx era tx -> case era of
         Cardano.ShelleyBasedEraShelley ->
@@ -1381,9 +1389,11 @@ fromCardanoTx = \case
         , emptyTokenMapWithScripts
         , emptyTokenMapWithScripts
         , []
+        , Nothing
         )
   where
-    extract (tx, certs, mint, burn) = (tx, mint, burn, certs)
+    extract (tx, certs, mint, burn, validity) =
+        (tx, mint, burn, certs, validity)
 
 -- NOTE: For resolved inputs we have to pass in a dummy value of 0.
 fromShelleyTx
@@ -1392,6 +1402,7 @@ fromShelleyTx
        , [W.Certificate]
        , TokenMapWithScripts
        , TokenMapWithScripts
+       , Maybe ValidityIntervalExplicit
        )
 fromShelleyTx tx =
     ( W.Tx
@@ -1399,12 +1410,15 @@ fromShelleyTx tx =
             fromShelleyTxId $ TxIn.txid @(Cardano.ShelleyLedgerEra ShelleyEra) bod
         , fee =
             Just $ fromShelleyCoin fee
-        , resolvedCollateral =
-            []
         , resolvedInputs =
             map ((,W.Coin 0) . fromShelleyTxIn) (toList ins)
+        , resolvedCollateralInputs =
+            []
         , outputs =
             map fromShelleyTxOut (toList outs)
+        , collateralOutput =
+            -- Collateral outputs are not supported in Shelley.
+            Nothing
         , withdrawals =
             fromShelleyWdrl wdrls
         , metadata =
@@ -1415,9 +1429,10 @@ fromShelleyTx tx =
     , map fromShelleyCert (toList certs)
     , emptyTokenMapWithScripts
     , emptyTokenMapWithScripts
+    , Just (ValidityIntervalExplicit (Quantity 0) (Quantity ttl))
     )
   where
-    SL.Tx bod@(SL.TxBody ins outs certs wdrls fee _ _ _) _ mmd = tx
+    SL.Tx bod@(SL.TxBody ins outs certs wdrls fee (O.SlotNo ttl) _ _) _ mmd = tx
 
 fromAllegraTx
     :: SLAPI.Tx (Cardano.ShelleyLedgerEra AllegraEra)
@@ -1425,6 +1440,7 @@ fromAllegraTx
        , [W.Certificate]
        , TokenMapWithScripts
        , TokenMapWithScripts
+       , Maybe ValidityIntervalExplicit
        )
 fromAllegraTx tx =
     ( W.Tx
@@ -1432,13 +1448,16 @@ fromAllegraTx tx =
             fromShelleyTxId $ TxIn.txid @(Cardano.ShelleyLedgerEra AllegraEra) bod
         , fee =
             Just $ fromShelleyCoin fee
-        , resolvedCollateral =
-            -- TODO: (ADP-957)
-            []
         , resolvedInputs =
             map ((,W.Coin 0) . fromShelleyTxIn) (toList ins)
+        , resolvedCollateralInputs =
+            -- TODO: (ADP-957)
+            []
         , outputs =
             map fromShelleyTxOut (toList outs)
+        , collateralOutput =
+            -- Collateral outputs are not supported in Allegra.
+            Nothing
         , withdrawals =
             fromShelleyWdrl wdrls
         , metadata =
@@ -1449,14 +1468,29 @@ fromAllegraTx tx =
     , map fromShelleyCert (toList certs)
     , emptyTokenMapWithScripts
     , emptyTokenMapWithScripts
+    , Just (fromLedgerTxValidity ttl)
     )
   where
-    SL.Tx bod@(MA.TxBody ins outs certs wdrls fee _ _ _ _) _ mmd = tx
+    SL.Tx bod@(MA.TxBody ins outs certs wdrls fee ttl _ _ _) _ mmd = tx
 
     -- fixme: [ADP-525] It is fine for now since we do not look at script
     -- pre-images. But this is precisely what we want as part of the
     -- multisig/script balance reporting.
     toSLMetadata (MA.AuxiliaryData blob _scripts) = SL.Metadata blob
+
+fromLedgerTxValidity
+    :: MA.ValidityInterval
+    -> ValidityIntervalExplicit
+fromLedgerTxValidity (MA.ValidityInterval from to) =
+    case (from, to) of
+        (MA.SNothing, MA.SJust (O.SlotNo s)) ->
+            ValidityIntervalExplicit (Quantity 0) (Quantity s)
+        (MA.SNothing, MA.SNothing) ->
+            ValidityIntervalExplicit (Quantity 0) (Quantity maxBound)
+        (MA.SJust (O.SlotNo s1), MA.SJust (O.SlotNo s2)) ->
+            ValidityIntervalExplicit (Quantity s1) (Quantity s2)
+        (MA.SJust (O.SlotNo s1), MA.SNothing) ->
+            ValidityIntervalExplicit (Quantity s1) (Quantity maxBound)
 
 fromMaryTx
     :: SLAPI.Tx (Cardano.ShelleyLedgerEra MaryEra)
@@ -1464,6 +1498,7 @@ fromMaryTx
        , [W.Certificate]
        , TokenMapWithScripts
        , TokenMapWithScripts
+       , Maybe ValidityIntervalExplicit
        )
 fromMaryTx tx =
     ( W.Tx
@@ -1471,12 +1506,15 @@ fromMaryTx tx =
             = fromShelleyTxId $ TxIn.txid @(Cardano.ShelleyLedgerEra MaryEra) bod
         , fee =
             Just $ fromShelleyCoin fee
-        , resolvedCollateral =
-            []
         , resolvedInputs =
             map ((,W.Coin 0) . fromShelleyTxIn) (toList ins)
+        , resolvedCollateralInputs =
+            []
         , outputs =
             map fromMaryTxOut (toList outs)
+        , collateralOutput =
+            -- Collateral outputs are not supported in Mary.
+            Nothing
         , withdrawals =
             fromShelleyWdrl wdrls
         , metadata =
@@ -1487,10 +1525,11 @@ fromMaryTx tx =
     , map fromShelleyCert (toList certs)
     , TokenMapWithScripts assetsToMint mintScriptMap
     , TokenMapWithScripts assetsToBurn burnScriptMap
+    , Just (fromLedgerTxValidity ttl)
     )
   where
     SL.Tx bod wits mad = tx
-    MA.TxBody ins outs certs wdrls fee _valid _upd _adh mint = bod
+    MA.TxBody ins outs certs wdrls fee ttl _upd _adh mint = bod
     (assetsToMint, assetsToBurn) = fromLedgerMintValue mint
     scriptMap = fromMaryScriptMap $ Shelley.scriptWits wits
 
@@ -1562,6 +1601,7 @@ fromAlonzoTxBodyAndAux
        , [W.Certificate]
        , TokenMapWithScripts
        , TokenMapWithScripts
+       , Maybe ValidityIntervalExplicit
        )
 fromAlonzoTxBodyAndAux bod mad wits =
     ( W.Tx
@@ -1569,12 +1609,15 @@ fromAlonzoTxBodyAndAux bod mad wits =
             fromShelleyTxId $ TxIn.txid @(Cardano.ShelleyLedgerEra AlonzoEra) bod
         , fee =
             Just $ fromShelleyCoin fee
-        , resolvedCollateral =
-            map ((,W.Coin 0) . fromShelleyTxIn) (toList collateral)
         , resolvedInputs =
             map ((,W.Coin 0) . fromShelleyTxIn) (toList ins)
+        , resolvedCollateralInputs =
+            map ((,W.Coin 0) . fromShelleyTxIn) (toList collateral)
         , outputs =
             map fromAlonzoTxOut (toList outs)
+        , collateralOutput =
+            -- Collateral outputs are not supported in Alonzo.
+            Nothing
         , withdrawals =
             fromShelleyWdrl wdrls
         , metadata =
@@ -1585,6 +1628,7 @@ fromAlonzoTxBodyAndAux bod mad wits =
     , map fromShelleyCert (toList certs)
     , TokenMapWithScripts assetsToMint mintScriptMap
     , TokenMapWithScripts assetsToBurn burnScriptMap
+    , Just (fromLedgerTxValidity ttl)
     )
   where
     Alonzo.TxBody
@@ -1594,7 +1638,7 @@ fromAlonzoTxBodyAndAux bod mad wits =
         certs
         wdrls
         fee
-        _valid
+        ttl
         _upd
         _reqSignerHashes
         mint
@@ -1639,6 +1683,7 @@ fromAlonzoValidatedTx
        , [W.Certificate]
        , TokenMapWithScripts
        , TokenMapWithScripts
+       , Maybe ValidityIntervalExplicit
        )
 fromAlonzoValidatedTx (Alonzo.ValidatedTx bod wits _isValidating aux) =
     fromAlonzoTxBodyAndAux bod aux wits
@@ -1649,9 +1694,10 @@ fromAlonzoTx
        , [W.Certificate]
        , TokenMapWithScripts
        , TokenMapWithScripts
+       , Maybe ValidityIntervalExplicit
        )
 fromAlonzoTx (Alonzo.ValidatedTx bod wits (Alonzo.IsValid isValid) aux) =
-    (\(tx, c, m, b) -> (tx { W.scriptValidity = validity }, c, m, b))
+    (\(tx, c, m, b, i) -> (tx { W.scriptValidity = validity }, c, m, b, i))
     $ fromAlonzoTxBodyAndAux bod aux wits
     where
         validity =

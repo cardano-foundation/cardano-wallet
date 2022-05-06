@@ -8,45 +8,48 @@
   , config
   , ... }:
   {
-    flags = { development = false; };
+    flags = {};
     package = {
-      specVersion = "2.2";
-      identifier = { name = "cardano-prelude"; version = "0.1.0.0"; };
-      license = "MIT";
-      copyright = "2018-2021 IOHK";
+      specVersion = "2.4";
+      identifier = { name = "trace-resources"; version = "0.1.0.0"; };
+      license = "NONE";
+      copyright = "2021 IOHK";
       maintainer = "operations@iohk.io";
-      author = "IOHK";
+      author = "Juergen Nicklisch-Franken";
       homepage = "";
       url = "";
-      synopsis = "A Prelude replacement for the Cardano project";
-      description = "A Prelude replacement for the Cardano project";
+      synopsis = "Package for tracing resources for linux, mac and windows";
+      description = "";
       buildType = "Simple";
       };
     components = {
       "library" = {
         depends = [
           (hsPkgs."base" or (errorHandler.buildDepError "base"))
-          (hsPkgs."aeson" or (errorHandler.buildDepError "aeson"))
-          (hsPkgs."array" or (errorHandler.buildDepError "array"))
-          (hsPkgs."base16-bytestring" or (errorHandler.buildDepError "base16-bytestring"))
-          (hsPkgs."bytestring" or (errorHandler.buildDepError "bytestring"))
-          (hsPkgs."canonical-json" or (errorHandler.buildDepError "canonical-json"))
-          (hsPkgs."cborg" or (errorHandler.buildDepError "cborg"))
-          (hsPkgs."containers" or (errorHandler.buildDepError "containers"))
-          (hsPkgs."formatting" or (errorHandler.buildDepError "formatting"))
-          (hsPkgs."ghc-heap" or (errorHandler.buildDepError "ghc-heap"))
-          (hsPkgs."ghc-prim" or (errorHandler.buildDepError "ghc-prim"))
-          (hsPkgs."integer-gmp" or (errorHandler.buildDepError "integer-gmp"))
-          (hsPkgs."mtl" or (errorHandler.buildDepError "mtl"))
-          (hsPkgs."protolude" or (errorHandler.buildDepError "protolude"))
-          (hsPkgs."tagged" or (errorHandler.buildDepError "tagged"))
+          (hsPkgs."trace-dispatcher" or (errorHandler.buildDepError "trace-dispatcher"))
           (hsPkgs."text" or (errorHandler.buildDepError "text"))
-          (hsPkgs."time" or (errorHandler.buildDepError "time"))
-          (hsPkgs."vector" or (errorHandler.buildDepError "vector"))
-          ];
+          (hsPkgs."aeson" or (errorHandler.buildDepError "aeson"))
+          ] ++ (if system.isWindows
+          then [ (hsPkgs."Win32" or (errorHandler.buildDepError "Win32")) ]
+          else [ (hsPkgs."unix" or (errorHandler.buildDepError "unix")) ]);
         buildable = true;
+        };
+      tests = {
+        "trace-resources-test" = {
+          depends = [
+            (hsPkgs."base" or (errorHandler.buildDepError "base"))
+            (hsPkgs."trace-dispatcher" or (errorHandler.buildDepError "trace-dispatcher"))
+            (hsPkgs."text" or (errorHandler.buildDepError "text"))
+            (hsPkgs."aeson" or (errorHandler.buildDepError "aeson"))
+            (hsPkgs."QuickCheck" or (errorHandler.buildDepError "QuickCheck"))
+            (hsPkgs."tasty" or (errorHandler.buildDepError "tasty"))
+            (hsPkgs."tasty-quickcheck" or (errorHandler.buildDepError "tasty-quickcheck"))
+            (hsPkgs."trace-resources" or (errorHandler.buildDepError "trace-resources"))
+            ];
+          buildable = true;
+          };
         };
       };
     } // rec {
-    src = (pkgs.lib).mkDefault /nix/store/5hpda20xfxbq4wz60zblgfinyabkkal6-cardano-prelude-bb4ed71/cardano-prelude;
+    src = (pkgs.lib).mkDefault /nix/store/7a63xbyzp6sr6kdddsa9aaaz00yvkljq-cardano-node-73f9a74/trace-resources;
     }

@@ -132,14 +132,16 @@ import Cardano.Address.Script
     )
 import Cardano.Api
     ( AnyCardanoEra (..), CardanoEra (..), SerialiseAsCBOR (..) )
+import Cardano.Api.Extra
+    ( asAnyShelleyBasedEra, inAnyCardanoEra, withShelleyBasedTx )
 import Cardano.BM.Tracing
     ( HasPrivacyAnnotation (..), HasSeverityAnnotation (..) )
 import Cardano.Mnemonic
     ( SomeMnemonic )
 import Cardano.Wallet
-    ( BalanceTxNotSupportedReason (..)
-    , ErrAddCosignerKey (..)
+    ( ErrAddCosignerKey (..)
     , ErrBalanceTx (..)
+    , ErrBalanceTxInternalError (..)
     , ErrCannotJoin (..)
     , ErrCannotQuit (..)
     , ErrConstructSharedWallet (..)
@@ -209,6 +211,7 @@ import Cardano.Wallet.Api.Types
     , ApiActiveSharedWallet (..)
     , ApiAddress (..)
     , ApiAnyCertificate (..)
+    , ApiAsArray (..)
     , ApiAsset (..)
     , ApiAssetMintBurn (..)
     , ApiBalanceTransactionPostData
@@ -281,6 +284,8 @@ import Cardano.Wallet.Api.Types
     , ApiTxMetadata (..)
     , ApiTxOutputGeneral (..)
     , ApiUtxoStatistics (..)
+    , ApiValidityBound (..)
+    , ApiValidityInterval (..)
     , ApiWallet (..)
     , ApiWalletAssetsBalance (..)
     , ApiWalletBalance (..)
@@ -370,7 +375,11 @@ import Cardano.Wallet.Primitive.AddressDerivation.Byron
 import Cardano.Wallet.Primitive.AddressDerivation.Icarus
     ( IcarusKey )
 import Cardano.Wallet.Primitive.AddressDerivation.MintBurn
-    ( toTokenMapAndScript, toTokenPolicyId )
+    ( scriptSlotIntervals
+    , toTokenMapAndScript
+    , toTokenPolicyId
+    , withinSlotInterval
+    )
 import Cardano.Wallet.Primitive.AddressDerivation.SharedKey
     ( SharedKey (..) )
 import Cardano.Wallet.Primitive.AddressDerivation.Shelley
@@ -453,7 +462,7 @@ import Cardano.Wallet.Primitive.Types
     , PoolLifeCycleStatus (..)
     , Signature (..)
     , SlotId
-    , SlotNo
+    , SlotNo (..)
     , SortOrder (..)
     , WalletId (..)
     , WalletMetadata (..)
@@ -487,6 +496,7 @@ import Cardano.Wallet.Primitive.Types.Tx
     , TxOut (..)
     , TxStatus (..)
     , UnsignedTx (..)
+    , cardanoTx
     , getSealedTxWitnesses
     , txMintBurnMaxTokenQuantity
     , txOutCoin
@@ -643,6 +653,7 @@ import UnliftIO.Concurrent
 import UnliftIO.Exception
     ( IOException, bracket, throwIO, tryAnyDeep, tryJust )
 
+import qualified Cardano.Api as Cardano
 import qualified Cardano.Wallet as W
 import qualified Cardano.Wallet.Api.Types as Api
 import qualified Cardano.Wallet.DB as W
@@ -804,6 +815,7 @@ postWallet
         , Typeable n
         , (k == SharedKey) ~ 'False
         , AddressBookIso s
+        , MaybeLight s
         )
     => ctx
     -> ((SomeMnemonic, Maybe SomeMnemonic) -> Passphrase "encryption" -> k 'RootK XPrv)
@@ -828,6 +840,7 @@ postShelleyWallet
         , HasDBFactory s k ctx
         , HasWorkerRegistry s k ctx
         , IsOurs s RewardAccount
+        , MaybeLight s
         , Typeable s
         , Typeable n
         , (k == SharedKey) ~ 'False
@@ -865,6 +878,7 @@ postAccountWallet
         , WalletKey k
         , HasWorkerRegistry s k ctx
         , IsOurs s RewardAccount
+        , MaybeLight s
         , (k == SharedKey) ~ 'False
         , Typeable n
         , AddressBookIso s
@@ -1998,7 +2012,7 @@ postTransactionOld ctx genChange (ApiT wid) body = do
     let txCtx = defaultTransactionCtx
             { txWithdrawal = wdrl
             , txMetadata = md
-            , txTimeToLive = ttl
+            , txValidityInterval = (Nothing, ttl)
             }
 
     (sel, tx, txMeta, txTime, pp) <- withWorkerCtx ctx wid liftE liftE $ \wrk ->
@@ -2036,10 +2050,11 @@ postTransactionOld ctx genChange (ApiT wid) body = do
         MkApiTransactionParams
             { txId = tx ^. #txId
             , txFee = tx ^. #fee
-              -- TODO: ADP-957:
-            , txCollateral = []
             , txInputs = NE.toList $ second Just <$> sel ^. #inputs
+              -- TODO: ADP-957:
+            , txCollateralInputs = []
             , txOutputs = tx ^. #outputs
+            , txCollateralOutput = tx ^. #collateralOutput
             , txWithdrawals = tx ^. #withdrawals
             , txMeta
             , txMetadata = tx ^. #metadata
@@ -2112,9 +2127,10 @@ mkApiTransactionFromInfo ti deposit info = do
         MkApiTransactionParams
             { txId = info ^. #txInfoId
             , txFee = info ^. #txInfoFee
-            , txCollateral = info ^. #txInfoCollateral <&> drop2nd
             , txInputs = info ^. #txInfoInputs <&> drop2nd
+            , txCollateralInputs = info ^. #txInfoCollateralInputs <&> drop2nd
             , txOutputs = info ^. #txInfoOutputs
+            , txCollateralOutput = info ^. #txInfoCollateralOutput
             , txWithdrawals = info ^. #txInfoWithdrawals
             , txMeta = info ^. #txInfoMeta
             , txMetadata = info ^. #txInfoMetadata
@@ -2230,10 +2246,10 @@ constructTransaction ctx genChange knownPools getPoolStatus (ApiT wid) body = do
         ) $ liftHandler $ throwE ErrConstructTxAssetNameTooLong
 
     let assetQuantityOutOfBounds
-            (ApiMintBurnData _ _ (ApiMint (ApiMintData _ (Quantity amt)))) =
+            (ApiMintBurnData _ _ (ApiMint (ApiMintData _ amt))) =
             amt <= 0 || amt > unTokenQuantity txMintBurnMaxTokenQuantity
         assetQuantityOutOfBounds
-            (ApiMintBurnData _ _ (ApiBurn (ApiBurnData (Quantity amt)))) =
+            (ApiMintBurnData _ _ (ApiBurn (ApiBurnData amt))) =
             amt <= 0 || amt > unTokenQuantity txMintBurnMaxTokenQuantity
     when
         ( isJust mintingBurning' &&
@@ -2253,12 +2269,70 @@ constructTransaction ctx genChange knownPools getPoolStatus (ApiT wid) body = do
         liftHandler $ throwE ErrConstructTxMultiaccountNotSupported
 
     let md = body ^? #metadata . traverse . #getApiT
-    let mTTL = Nothing --TODO: ADP-1189
+
+    let isValidityBoundTimeNegative
+            (ApiValidityBoundAsTimeFromNow (Quantity sec)) = sec < 0
+        isValidityBoundTimeNegative _ = False
+
+    let isThereNegativeTime = case body ^. #validityInterval of
+            Just (ApiValidityInterval (Just before') Nothing) ->
+                isValidityBoundTimeNegative before'
+            Just (ApiValidityInterval Nothing (Just hereafter')) ->
+                isValidityBoundTimeNegative hereafter'
+            Just (ApiValidityInterval (Just before') (Just hereafter')) ->
+                isValidityBoundTimeNegative before' ||
+                isValidityBoundTimeNegative hereafter'
+            _ -> False
+
+    let fromValidityBound = liftIO . \case
+            Left ApiValidityBoundUnspecified ->
+                pure $ SlotNo 0
+            Right ApiValidityBoundUnspecified ->
+                W.getTxExpiry ti Nothing
+            Right (ApiValidityBoundAsTimeFromNow (Quantity sec)) ->
+                W.getTxExpiry ti (Just sec)
+            Left (ApiValidityBoundAsTimeFromNow (Quantity sec)) ->
+                W.getTxExpiry ti (Just sec)
+            Right (ApiValidityBoundAsSlot (Quantity slot)) ->
+                pure $ SlotNo slot
+            Left (ApiValidityBoundAsSlot (Quantity slot)) ->
+                pure $ SlotNo slot
+
+    (before, hereafter) <- case body ^. #validityInterval of
+        Nothing -> do
+            before' <-
+                fromValidityBound (Left ApiValidityBoundUnspecified)
+            hereafter' <-
+                fromValidityBound (Right ApiValidityBoundUnspecified)
+            pure (before', hereafter')
+        Just (ApiValidityInterval before' hereafter') -> do
+            before'' <- case before' of
+                Nothing ->
+                    fromValidityBound (Left ApiValidityBoundUnspecified)
+                Just val ->
+                    fromValidityBound (Left val)
+            hereafter'' <- case hereafter' of
+                Nothing ->
+                    fromValidityBound (Right ApiValidityBoundUnspecified)
+                Just val ->
+                    fromValidityBound (Right val)
+            pure (before'', hereafter'')
+
+    when (hereafter < before || isThereNegativeTime) $
+        liftHandler $ throwE ErrConstructTxWrongValidityBounds
+
+    let notWithinValidityInterval (ApiMintBurnData (ApiT scriptTempl) _ _) =
+            not $ withinSlotInterval before hereafter $
+            scriptSlotIntervals scriptTempl
+    when
+        ( isJust mintingBurning' &&
+          L.any notWithinValidityInterval (NE.toList $ fromJust mintingBurning')
+        )
+        $ liftHandler
+        $ throwE ErrConstructTxValidityIntervalNotWithinScriptTimelock
 
     (wdrl, _) <-
         mkRewardAccountBuilder @_ @s @_ @n ctx wid (body ^. #withdrawal)
-
-    ttl <- liftIO $ W.getTxExpiry ti mTTL
 
     withWorkerCtx ctx wid liftE liftE $ \wrk -> do
         pp <- liftIO $ NW.currentProtocolParameters (wrk ^. networkLayer)
@@ -2266,7 +2340,7 @@ constructTransaction ctx genChange knownPools getPoolStatus (ApiT wid) body = do
             Nothing -> pure (Nothing, Nothing, defaultTransactionCtx
                  { txWithdrawal = wdrl
                  , txMetadata = md
-                 , txTimeToLive = ttl
+                 , txValidityInterval = (Just before, hereafter)
                  })
             Just delegs -> do
                 -- TODO: Current limitation:
@@ -2292,7 +2366,7 @@ constructTransaction ctx genChange knownPools getPoolStatus (ApiT wid) body = do
                 pure (deposit, refund, defaultTransactionCtx
                     { txWithdrawal = wdrl
                     , txMetadata = md
-                    , txTimeToLive = ttl
+                    , txValidityInterval = (Just before, hereafter)
                     , txDelegationAction = Just action
                     })
         let transform s sel =
@@ -2314,7 +2388,7 @@ constructTransaction ctx genChange knownPools getPoolStatus (ApiT wid) body = do
                         ApiMintBurnData
                             (ApiT scriptT)
                             (Just (ApiT tName))
-                            (ApiMint (ApiMintData _ (Quantity amt))) ->
+                            (ApiMint (ApiMintData _ amt)) ->
                             toTokenMapAndScript @k
                                 scriptT
                                 (Map.singleton (Cosigner 0) policyXPub)
@@ -2325,7 +2399,7 @@ constructTransaction ctx genChange knownPools getPoolStatus (ApiT wid) body = do
                         ApiMintBurnData
                             (ApiT scriptT)
                             (Just (ApiT tName))
-                            (ApiBurn (ApiBurnData (Quantity amt))) ->
+                            (ApiBurn (ApiBurnData amt)) ->
                             toTokenMapAndScript @k
                                 scriptT
                                 (Map.singleton (Cosigner 0) policyXPub)
@@ -2415,7 +2489,7 @@ constructTransaction ctx genChange knownPools getPoolStatus (ApiT wid) body = do
 
     toMintTxOut policyXPub
         (ApiMintBurnData (ApiT scriptT) (Just (ApiT tName))
-            (ApiMint (ApiMintData (Just addr) (Quantity amt)))) =
+            (ApiMint (ApiMintData (Just addr) amt))) =
                 let (assetId, tokenQuantity, _) =
                         toTokenMapAndScript @k
                             scriptT (Map.singleton (Cosigner 0) policyXPub)
@@ -2453,23 +2527,46 @@ balanceTransaction ctx genChange (ApiT wid) body = do
     pp <- liftIO $ NW.currentProtocolParameters nl
     -- TODO: This throws when still in the Byron era.
     let nodePParams = fromJust $ W.currentNodeProtocolParameters pp
-    let partialTx = W.PartialTx
-            (getApiT $ body ^. #transaction)
-            (fromExternalInput <$> body ^. #inputs)
-            (fromApiRedeemer <$> body ^. #redeemers)
     withWorkerCtx ctx wid liftE liftE $ \wrk -> do
         wallet <- liftHandler $ W.readWalletUTxOIndex @_ @s @k wrk wid
         ti <- liftIO $ snapshot $ timeInterpreter $ ctx ^. networkLayer
-        transaction <- liftHandler $ ApiT <$> W.balanceTransaction @IO @s @k
-            wrk
-            genChange
-            (pp, nodePParams)
-            ti
-            wallet
-            partialTx
-        return $ ApiSerialisedTransaction { transaction }
+
+        let mkPartialTx
+                :: forall era. Cardano.Tx era
+                -> W.PartialTx era
+            mkPartialTx tx = W.PartialTx
+                    tx
+                    (fromExternalInput <$> body ^. #inputs)
+                    (fromApiRedeemer <$> body ^. #redeemers)
+
+        let balanceTx
+                :: forall era. Cardano.IsShelleyBasedEra era
+                => W.PartialTx era
+                -> Handler (Cardano.Tx era)
+            balanceTx partialTx =
+                liftHandler $ W.balanceTransaction @_ @IO @s @k
+                    wrk
+                    genChange
+                    (pp, nodePParams)
+                    ti
+                    wallet
+                    partialTx
+
+        anyShelleyTx <- maybeToHandler ErrByronTxNotSupported
+            . asAnyShelleyBasedEra
+            . cardanoTx
+            . getApiT $ body ^. #transaction
+
+        res <- withShelleyBasedTx anyShelleyTx
+            (fmap inAnyCardanoEra . balanceTx . mkPartialTx)
+
+        pure $ ApiSerialisedTransaction $ ApiT $ W.sealedTxFromCardano res
   where
     nl = ctx ^. networkLayer
+
+    maybeToHandler :: IsServerError e => e -> Maybe a -> Handler a
+    maybeToHandler _ (Just a) = pure a
+    maybeToHandler e Nothing  = liftHandler $ throwE e
 
 decodeTransaction
     :: forall ctx s k n.
@@ -2483,40 +2580,49 @@ decodeTransaction
     -> ApiSerialisedTransaction
     -> Handler (ApiDecodedTransaction n)
 decodeTransaction ctx (ApiT wid) (ApiSerialisedTransaction (ApiT sealed)) = do
-    let (Tx txid feeM colls inps outs wdrlMap meta vldt
-            , toMint
-            , toBurn
-            , allCerts
-            ) = decodeTx tl sealed
+    let (decodedTx, toMint, toBurn, allCerts, interval) = decodeTx tl sealed
+    let (Tx { txId
+            , fee
+            , resolvedInputs
+            , resolvedCollateralInputs
+            , outputs
+            , withdrawals
+            , metadata
+            , scriptValidity
+            }) = decodedTx
     (txinsOutsPaths, collsOutsPaths, outsPath, acct, acctPath, pp, policyXPubM)
         <- withWorkerCtx ctx wid liftE liftE $ \wrk -> do
         (acct, _, acctPath) <-
             liftHandler $ W.readRewardAccount @_ @s @k @n wrk wid
-        txinsOutsPaths <-
-            liftHandler $ W.lookupTxIns @_ @s @k wrk wid (fst <$> inps)
-        collsOutsPaths <-
-            liftHandler $ W.lookupTxIns @_ @s @k wrk wid (fst <$> colls)
-        outsPath <-
-            liftHandler $ W.lookupTxOuts @_ @s @k wrk wid outs
+        inputPaths <-
+            liftHandler $ W.lookupTxIns @_ @s @k wrk wid $
+            fst <$> resolvedInputs
+        collateralInputPaths <-
+            liftHandler $ W.lookupTxIns @_ @s @k wrk wid $
+            fst <$> resolvedCollateralInputs
+        outputPaths <-
+            liftHandler $ W.lookupTxOuts @_ @s @k wrk wid outputs
         pp <- liftIO $ NW.currentProtocolParameters (wrk ^. networkLayer)
         policyXPubM <- fmap (fmap fst . eitherToMaybe)
             <$> liftIO . runExceptT $ W.readPolicyPublicKey @_ @s @k @n wrk wid
         pure
-            ( txinsOutsPaths
-            , collsOutsPaths
-            , outsPath
+            ( inputPaths
+            , collateralInputPaths
+            , outputPaths
             , acct
             , acctPath
             , pp
             , policyXPubM
             )
     pure $ ApiDecodedTransaction
-        { id = ApiT txid
-        , fee = maybe (Quantity 0) (Quantity . fromIntegral . unCoin) feeM
+        { id = ApiT txId
+        , fee = maybe (Quantity 0) (Quantity . fromIntegral . unCoin) fee
         , inputs = map toInp txinsOutsPaths
         , outputs = map toOut outsPath
         , collateral = map toInp collsOutsPaths
-        , withdrawals = map (toWrdl acct) $ Map.assocs wdrlMap
+        -- TODO: [ADP-1670]
+        , collateralOutputs = ApiAsArray Nothing
+        , withdrawals = map (toWrdl acct) $ Map.assocs withdrawals
         , mint = toApiAssetMintBurn policyXPubM toMint
         , burn = toApiAssetMintBurn policyXPubM toBurn
         , certificates = map (toApiAnyCert acct acctPath) allCerts
@@ -2528,8 +2634,9 @@ decodeTransaction ctx (ApiT wid) (ApiSerialisedTransaction (ApiT sealed)) = do
             (Quantity . fromIntegral . unCoin . W.stakeKeyDeposit $ pp)
                 <$ filter ourRewardAccountDeregistration
                     (toApiAnyCert acct acctPath <$> allCerts)
-        , metadata = ApiTxMetadata $ ApiT <$> meta
-        , scriptValidity = ApiT <$> vldt
+        , metadata = ApiTxMetadata $ ApiT <$> metadata
+        , scriptValidity = ApiT <$> scriptValidity
+        , validityInterval = interval
         }
   where
     tl = ctx ^. W.transactionLayer @k
@@ -2703,7 +2810,9 @@ submitTransaction ctx apiw@(ApiT wid) apitx@(ApiSerialisedTransaction (ApiT seal
         (acct, _, path) <- liftHandler $ W.readRewardAccount @_ @s @k @n wrk wid
         let wdrl = getOurWdrl acct path apiDecoded
         let txCtx = defaultTransactionCtx
-                { txTimeToLive = ttl
+                { -- TODO: [ADP-1193]
+                  -- Get this from decodeTx:
+                  txValidityInterval = (Nothing, ttl)
                 , txWithdrawal = wdrl
                 , txDelegationAction = delAction
                 }
@@ -2712,7 +2821,7 @@ submitTransaction ctx apiw@(ApiT wid) apitx@(ApiSerialisedTransaction (ApiT seal
             $ W.submitTx @_ @s @k wrk wid (tx, txMeta, sealedTx)
     return $ ApiTxId (apiDecoded ^. #id)
   where
-    (tx,_,_,_) = decodeTx tl sealedTx
+    (tx,_,_,_,_) = decodeTx tl sealedTx
     tl = ctx ^. W.transactionLayer @k
     ti :: TimeInterpreter (ExceptT PastHorizonException IO)
     nl = ctx ^. networkLayer
@@ -2810,7 +2919,7 @@ joinStakePool ctx knownPools getPoolStatus apiPoolId (ApiT wid) body = do
         ttl <- liftIO $ W.getTxExpiry ti Nothing
         let txCtx = defaultTransactionCtx
                 { txWithdrawal = wdrl
-                , txTimeToLive = ttl
+                , txValidityInterval = (Nothing, ttl)
                 , txDelegationAction = Just action
                 }
         (utxoAvailable, wallet, pendingTxs) <-
@@ -2844,10 +2953,11 @@ joinStakePool ctx knownPools getPoolStatus apiPoolId (ApiT wid) body = do
         MkApiTransactionParams
             { txId = tx ^. #txId
             , txFee = tx ^. #fee
-              -- Joining a stake pool does not require collateral:
-            , txCollateral = []
             , txInputs = NE.toList $ second Just <$> sel ^. #inputs
+              -- Joining a stake pool does not require collateral:
+            , txCollateralInputs = []
             , txOutputs = tx ^. #outputs
+            , txCollateralOutput = tx ^. #collateralOutput
             , txWithdrawals = tx ^. #withdrawals
             , txMeta
             , txMetadata = Nothing
@@ -2925,7 +3035,7 @@ quitStakePool ctx (ApiT wid) body = do
         ttl <- liftIO $ W.getTxExpiry ti Nothing
         let txCtx = defaultTransactionCtx
                 { txWithdrawal = wdrl
-                , txTimeToLive = ttl
+                , txValidityInterval = (Nothing, ttl)
                 , txDelegationAction = Just action
                 }
 
@@ -2960,10 +3070,11 @@ quitStakePool ctx (ApiT wid) body = do
         MkApiTransactionParams
             { txId = tx ^. #txId
             , txFee = tx ^. #fee
-              -- Quitting a stake pool does not require collateral:
-            , txCollateral = []
             , txInputs = NE.toList $ second Just <$> sel ^. #inputs
+              -- Quitting a stake pool does not require collateral:
+            , txCollateralInputs = []
             , txOutputs = tx ^. #outputs
+            , txCollateralOutput = tx ^. #collateralOutput
             , txWithdrawals = tx ^. #withdrawals
             , txMeta
             , txMetadata = Nothing
@@ -3192,7 +3303,7 @@ migrateWallet ctx withdrawalType (ApiT wid) postData = do
         mkRewardAccountBuilder @_ @s @_ @n ctx wid withdrawalType
     withWorkerCtx ctx wid liftE liftE $ \wrk -> do
         plan <- liftHandler $ W.createMigrationPlan wrk wid rewardWithdrawal
-        txTimeToLive <- liftIO $ W.getTxExpiry ti Nothing
+        ttl <- liftIO $ W.getTxExpiry ti Nothing
         pp <- liftIO $ NW.currentProtocolParameters (wrk ^. networkLayer)
         selectionWithdrawals <- liftHandler
             $ failWith ErrCreateMigrationPlanEmpty
@@ -3201,7 +3312,7 @@ migrateWallet ctx withdrawalType (ApiT wid) postData = do
         forM selectionWithdrawals $ \(selection, txWithdrawal) -> do
             let txContext = defaultTransactionCtx
                     { txWithdrawal
-                    , txTimeToLive
+                    , txValidityInterval = (Nothing, ttl)
                     , txDelegationAction = Nothing
                     }
             (tx, txMeta, txTime, sealedTx) <- liftHandler $
@@ -3215,11 +3326,12 @@ migrateWallet ctx withdrawalType (ApiT wid) postData = do
                 MkApiTransactionParams
                     { txId = tx ^. #txId
                     , txFee = tx ^. #fee
-                      -- Migrations never require collateral:
-                    , txCollateral = []
                     , txInputs =
                         NE.toList $ second Just <$> selection ^. #inputs
+                      -- Migrations never require collateral:
+                    , txCollateralInputs = []
                     , txOutputs = tx ^. #outputs
+                    , txCollateralOutput = tx ^. #collateralOutput
                     , txWithdrawals = tx ^. #withdrawals
                     , txMeta
                     , txMetadata = Nothing
@@ -3311,7 +3423,7 @@ getNetworkParameters (_block0, genesisNp, _st) nl tl = do
     pp <- liftIO $ NW.currentProtocolParameters nl
     sp <- liftIO $ NW.currentSlottingParameters nl
     let np = genesisNp { protocolParameters = pp, slottingParameters = sp }
-    let txConstraints = (view #constraints tl) pp
+    let txConstraints = constraints tl pp
     liftIO $ toApiNetworkParameters np txConstraints (interpretQuery ti . toApiEpochInfo)
   where
     ti :: TimeInterpreter IO
@@ -3673,9 +3785,10 @@ mkApiCoinSelection deps refunds mcerts metadata unsignedTx =
 data MkApiTransactionParams = MkApiTransactionParams
     { txId :: Hash "Tx"
     , txFee :: Maybe Coin
-    , txCollateral :: [(TxIn, Maybe TxOut)]
     , txInputs :: [(TxIn, Maybe TxOut)]
+    , txCollateralInputs :: [(TxIn, Maybe TxOut)]
     , txOutputs :: [TxOut]
+    , txCollateralOutput :: Maybe TxOut
     , txWithdrawals :: Map RewardAccount Coin
     , txMeta :: W.TxMeta
     , txMetadata :: Maybe W.TxMetadata
@@ -3725,9 +3838,11 @@ mkApiTransaction timeInterpreter setTimeReference tx = do
             ]
         , collateral =
             [ ApiTxCollateral (fmap toAddressAmountNoAssets o) (ApiT i)
-            | (i, o) <- tx ^. #txCollateral
+            | (i, o) <- tx ^. #txCollateralInputs
             ]
         , outputs = toAddressAmount @n <$> tx ^. #txOutputs
+        , collateralOutputs = ApiAsArray $
+            toAddressAmount @n <$> tx ^. #txCollateralOutput
         , withdrawals = mkApiWithdrawal @n <$> Map.toList (tx ^. #txWithdrawals)
         , mint = mempty  -- TODO: ADP-xxx
         , status = ApiT (tx ^. (#txMeta . #status))
@@ -4298,6 +4413,19 @@ instance IsServerError ErrConstructTx where
             , "bounds. The asset quantity must be greater than zero and must "
             , "not exceed 9223372036854775807 (2^63 - 1)."
             ]
+        ErrConstructTxWrongValidityBounds ->
+            apiError err403 InvalidValidityBounds $ T.unwords
+            [ "Attempted to create a transaction with invalid validity bounds."
+            , "Please make sure that the 'invalid_before' bound precedes the"
+            , "'invalid_hereafter' bound, and that you have not used negative"
+            , "time values."
+            ]
+        ErrConstructTxValidityIntervalNotWithinScriptTimelock ->
+            apiError err403 ValidityIntervalNotInsideScriptTimelock $ T.unwords
+            [ "Attempted to create a transaction with a validity interval"
+            , "that is not a subinterval of an associated script's timelock"
+            , "interval."
+            ]
         ErrConstructTxNotImplemented _ ->
             apiError err501 NotImplemented
                 "This feature is not yet implemented."
@@ -4322,7 +4450,7 @@ instance IsServerError ErrDecodeTx where
 
 instance IsServerError ErrBalanceTx where
     toServerError = \case
-        ErrBalanceTxUpdateError ErrByronTxNotSupported ->
+        ErrByronTxNotSupported ->
             apiError err403 CreatedInvalidTransaction
                 "Balancing Byron transactions is not supported."
         ErrBalanceTxUpdateError (ErrExistingKeyWitnesses n) ->
@@ -4335,7 +4463,7 @@ instance IsServerError ErrBalanceTx where
                 ]
         ErrBalanceTxSelectAssets err -> toServerError err
         ErrBalanceTxAssignRedeemers err -> toServerError err
-        ErrBalanceTxNotYetSupported ConflictingNetworks ->
+        ErrBalanceTxConflictingNetworks ->
             apiError err403 CreatedInvalidTransaction $ mconcat
                 [ "There are withdrawals for multiple networks (e.g. both "
                 , "mainnet and testnet) in the provided transaction. This "
@@ -4345,16 +4473,18 @@ instance IsServerError ErrBalanceTx where
             apiError err403 CreatedInvalidTransaction $ mconcat
                 [ "I cannot balance transactions with pre-defined collateral."
                 ]
-        ErrBalanceTxNotYetSupported ZeroAdaOutput ->
-            apiError err500 CreatedInvalidTransaction $ mconcat
-                [ "The transaction contains one or more zero ada outputs."
+        ErrBalanceTxZeroAdaOutput ->
+            apiError err501 CreatedInvalidTransaction $ mconcat
+                [ "I don't currently support balancing transactions containing "
+                , "one or more zero ada outputs. In the future I might be able "
+                , "to increase the values to the minimum allowed ada value."
                 ]
-        ErrBalanceTxFailedBalancing v ->
+        ErrBalanceTxInternalError (ErrFailedBalancing v) ->
             apiError err500 CreatedInvalidTransaction $ mconcat
                 [ "I have somehow failed to balance the transaction. The balance"
                 , " is " <> T.pack (show v)
                 ]
-        ErrBalanceTxNotYetSupported (UnderestimatedFee c _) ->
+        ErrBalanceTxInternalError (ErrUnderestimatedFee c _) ->
             apiError err500 CreatedInvalidTransaction $ mconcat
                 [ "I have somehow underestimated the fee of the transaction "
                 , " by " <> pretty c
@@ -4819,12 +4949,6 @@ instance IsServerError ErrUpdateSealedTx where
                 , "witnesses defined in the input transaction and, adjusting"
                 , "the transaction body will render witnesses invalid!"
                 , "Please make sure to remove all key witnesses from the request."
-                ]
-        ErrByronTxNotSupported{} ->
-            apiError err501 NotImplemented  $ T.unwords
-                [ "You just tried to submit a transaction in the Byron format,"
-                , "but this is not something I support on this particular"
-                , "endpoint. It's time to upgrade!"
                 ]
 
 instance IsServerError ErrAssignRedeemers where

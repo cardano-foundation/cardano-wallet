@@ -8,31 +8,37 @@
   , config
   , ... }:
   {
-    flags = { development = false; };
+    flags = { development = false; external-libsodium-vrf = true; };
     package = {
-      specVersion = "1.10";
-      identifier = { name = "orphans-deriving-via"; version = "0.1.0.0"; };
+      specVersion = "2.2";
+      identifier = { name = "cardano-crypto-praos"; version = "2.0.0"; };
       license = "Apache-2.0";
-      copyright = "IOHK";
+      copyright = "2019-2021 IOHK";
       maintainer = "operations@iohk.io";
       author = "IOHK";
       homepage = "";
       url = "";
-      synopsis = "Orphan instances for the base-deriving-via hooks";
-      description = "";
+      synopsis = "Crypto primitives from libsodium";
+      description = "VRF (and KES, tba) primitives from libsodium.";
       buildType = "Simple";
       };
     components = {
       "library" = {
         depends = [
           (hsPkgs."base" or (errorHandler.buildDepError "base"))
-          (hsPkgs."base-deriving-via" or (errorHandler.buildDepError "base-deriving-via"))
-          (hsPkgs."deepseq" or (errorHandler.buildDepError "deepseq"))
+          (hsPkgs."base" or (errorHandler.buildDepError "base"))
+          (hsPkgs."bytestring" or (errorHandler.buildDepError "bytestring"))
+          (hsPkgs."cardano-binary" or (errorHandler.buildDepError "cardano-binary"))
+          (hsPkgs."cardano-crypto-class" or (errorHandler.buildDepError "cardano-crypto-class"))
+          (hsPkgs."cardano-prelude" or (errorHandler.buildDepError "cardano-prelude"))
           (hsPkgs."nothunks" or (errorHandler.buildDepError "nothunks"))
+          ];
+        pkgconfig = [
+          (pkgconfPkgs."libsodium" or (errorHandler.pkgConfDepError "libsodium"))
           ];
         buildable = true;
         };
       };
     } // rec {
-    src = (pkgs.lib).mkDefault /nix/store/bvppc469jii0bcz5y6mbv9svfi0nf7wi-cardano-base-41545ba/orphans-deriving-via;
+    src = (pkgs.lib).mkDefault /nix/store/bvppc469jii0bcz5y6mbv9svfi0nf7wi-cardano-base-41545ba/cardano-crypto-praos;
     }

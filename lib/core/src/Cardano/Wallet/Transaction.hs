@@ -37,6 +37,7 @@ module Cardano.Wallet.Transaction
     , PlutusVersion (..)
     , TxFeeAndChange (..)
     , mapTxFeeAndChange
+    , ValidityIntervalExplicit (..)
 
     -- * Errors
     , ErrSignTx (..)
@@ -92,8 +93,7 @@ import Cardano.Wallet.Primitive.Types.TokenMap
 import Cardano.Wallet.Primitive.Types.TokenPolicy
     ( TokenPolicyId )
 import Cardano.Wallet.Primitive.Types.Tx
-    ( SealedTx
-    , TokenBundleSizeAssessor
+    ( TokenBundleSizeAssessor
     , Tx (..)
     , TxConstraints
     , TxIn
@@ -110,24 +110,36 @@ import Control.DeepSeq
 import Control.Monad
     ( (>=>) )
 import Data.Aeson.Types
-    ( FromJSON (..), Parser, ToJSON (..) )
+    ( FromJSON (..)
+    , Parser
+    , ToJSON (..)
+    , camelTo2
+    , genericParseJSON
+    , genericToJSON
+    )
 import Data.Bifunctor
     ( bimap )
 import Data.List.NonEmpty
     ( NonEmpty )
 import Data.Map.Strict
     ( Map )
+import Data.Quantity
+    ( Quantity (..) )
 import Data.Text
     ( Text )
 import Data.Text.Class
     ( FromText (..), TextDecodingError (..), ToText (..) )
+import Data.Word
+    ( Word64 )
 import Fmt
     ( Buildable (..), genericF )
 import GHC.Generics
     ( Generic )
 
-import qualified Cardano.Api.Shelley as Node
+import qualified Cardano.Api as Cardano
+import qualified Cardano.Api.Shelley as Cardano
 import qualified Cardano.Wallet.Primitive.Types.TokenMap as TokenMap
+import qualified Data.Aeson.Types as Aeson
 import qualified Data.Map.Strict as Map
 
 data TransactionLayer k tx = TransactionLayer
@@ -213,33 +225,32 @@ data TransactionLayer k tx = TransactionLayer
         -- ^ Compute the maximum execution cost of scripts in a given transaction.
 
     , evaluateMinimumFee
-        :: Node.ProtocolParameters
+        :: forall era. Cardano.IsShelleyBasedEra era
+        => Cardano.ProtocolParameters
             -- Current protocol parameters
-        -> tx
+        -> Cardano.Tx era
             -- The sealed transaction
-        -> Maybe Coin
+        -> Coin
         -- ^ Evaluate a minimal fee amount necessary to pay for a given tx
         -- using ledger's functionality
         --
         -- Will estimate how many witnesses there /should be/, so it works even
         -- for unsigned transactions.
-        --
-        -- Returns `Nothing` for ByronEra transactions.
 
     , estimateSignedTxSize
-        :: Node.ProtocolParameters
-        -> tx
-        -> Maybe TxSize
+        :: forall era. Cardano.IsShelleyBasedEra era
+        => Cardano.ProtocolParameters
+        -> Cardano.Tx era
+        -> TxSize
         -- ^ Estimate the size of the transaction when fully signed.
-        --
-        -- Returns `Nothing` for ByronEra transactions.
 
     , evaluateTransactionBalance
-        :: SealedTx
-        -> Node.ProtocolParameters
+        :: forall era. Cardano.IsShelleyBasedEra era
+        => Cardano.Tx era
+        -> Cardano.ProtocolParameters
         -> UTxO
         -> [(TxIn, TxOut, Maybe (Hash "Datum"))] -- Extra UTxO
-        -> Maybe Node.Value
+        -> Cardano.Value
         -- ^ Evaluate the balance of a transaction using the ledger. The balance
         -- is defined as @(value consumed by transaction) - (value produced by
         -- transaction)@. For a transaction to be valid, it must have a balance
@@ -254,8 +265,6 @@ data TransactionLayer k tx = TransactionLayer
         -- 2. A 'UTxO -> Cardano.UTxO' conversion function is not available in
         -- the cardano-wallet-core package, only cardano-wallet. (This package
         -- boundary will soon hopefully go away, however)
-        --
-        -- Returns `Nothing` for ByronEra transactions.
 
     , distributeSurplus
         :: FeePolicy
@@ -289,6 +298,12 @@ data TransactionLayer k tx = TransactionLayer
         --    - Any increase in cost is covered:
         --        If the total cost has increased by 𝛿c, then the fee value
         --        will have increased by at least 𝛿c.
+        --
+        -- If the cost of distributing the provided surplus is greater than the
+        -- surplus itself, the function will return 'ErrMoreSurplusNeeded'. If
+        -- the provided surplus is greater or equal to
+        -- @maximumCostOfIncreasingCoin feePolicy@, the function will always
+        -- return 'Right'.
 
     , computeSelectionLimit
         :: ProtocolParameters
@@ -307,18 +322,25 @@ data TransactionLayer k tx = TransactionLayer
         -- The set of constraints that apply to all transactions.
 
     , decodeTx
-        :: tx
-        -> (Tx, TokenMapWithScripts, TokenMapWithScripts, [Certificate])
+        :: tx ->
+            ( Tx
+            , TokenMapWithScripts
+            , TokenMapWithScripts
+            , [Certificate]
+            , Maybe ValidityIntervalExplicit
+            )
     -- ^ Decode an externally-created transaction.
 
     , updateTx
-        :: tx
+        :: forall era. Cardano.IsShelleyBasedEra era
+        => Cardano.Tx era
         -> TxUpdate
-        -> Either ErrUpdateSealedTx tx
+        -> Either ErrUpdateSealedTx (Cardano.Tx era)
         -- ^ Update tx by adding additional inputs and outputs
 
     , assignScriptRedeemers
-        :: Node.ProtocolParameters
+        :: forall era. Cardano.IsShelleyBasedEra era
+        => Cardano.ProtocolParameters
             -- Current protocol parameters
         -> TimeInterpreter (Either PastHorizonException)
             -- Time interpreter in the Monad m
@@ -326,11 +348,10 @@ data TransactionLayer k tx = TransactionLayer
             -- A input resolver for transactions' inputs containing scripts.
         -> [Redeemer]
             -- A list of redeemers to set on the transaction.
-        -> tx
+        -> (Cardano.Tx era)
             -- Transaction containing scripts
-        -> (Either ErrAssignRedeemers tx)
+        -> (Either ErrAssignRedeemers (Cardano.Tx era))
     }
-    deriving Generic
 
 -- | Method to use when updating the fee of a transaction.
 data TxFeeUpdate = UseOldTxFee
@@ -359,8 +380,9 @@ data TransactionCtx = TransactionCtx
     -- ^ Withdrawal amount from a reward account, can be zero.
     , txMetadata :: Maybe TxMetadata
     -- ^ User or application-defined metadata to embed in the transaction.
-    , txTimeToLive :: SlotNo
-    -- ^ Transaction expiry (TTL) slot.
+    , txValidityInterval :: (Maybe SlotNo, SlotNo)
+    -- ^ Transaction optional starting slot and expiry (TTL) slot for which the
+    -- transaction is valid.
     , txDelegationAction :: Maybe DelegationAction
     -- ^ An additional delegation to take.
     , txPlutusScriptExecutionCost :: Coin
@@ -396,7 +418,7 @@ defaultTransactionCtx :: TransactionCtx
 defaultTransactionCtx = TransactionCtx
     { txWithdrawal = NoWithdrawal
     , txMetadata = Nothing
-    , txTimeToLive = maxBound
+    , txValidityInterval = (Nothing, maxBound)
     , txDelegationAction = Nothing
     , txPlutusScriptExecutionCost = Coin 0
     , txAssetsToMint = (TokenMap.empty, Map.empty)
@@ -509,11 +531,10 @@ data ErrCannotQuit
     | ErrNonNullRewards Coin
     deriving (Eq, Show)
 
-data ErrUpdateSealedTx
+newtype ErrUpdateSealedTx
     = ErrExistingKeyWitnesses Int
     -- ^ The `SealedTx` couldn't not be updated because the *n* existing
     -- key-witnesses would have been rendered invalid.
-    | ErrByronTxNotSupported
     deriving (Generic, Eq, Show)
 
 -- | Error for when its impossible for 'distributeSurplus' to distribute the
@@ -543,3 +564,21 @@ mapTxFeeAndChange
     -- ^ The transformed fee and change
 mapTxFeeAndChange mapFee mapChange TxFeeAndChange {fee, change} =
     TxFeeAndChange (mapFee fee) (mapChange change)
+
+data ValidityIntervalExplicit = ValidityIntervalExplicit
+    { invalidBefore :: !(Quantity "slot" Word64)
+    , invalidHereafter :: !(Quantity "slot" Word64)
+    }
+    deriving (Generic, Eq, Show)
+    deriving anyclass NFData
+
+instance ToJSON ValidityIntervalExplicit where
+    toJSON = genericToJSON defaultRecordTypeOptions
+instance FromJSON ValidityIntervalExplicit where
+    parseJSON = genericParseJSON defaultRecordTypeOptions
+
+defaultRecordTypeOptions :: Aeson.Options
+defaultRecordTypeOptions = Aeson.defaultOptions
+    { Aeson.fieldLabelModifier = camelTo2 '_' . dropWhile (== '_')
+    , Aeson.omitNothingFields = True
+    }

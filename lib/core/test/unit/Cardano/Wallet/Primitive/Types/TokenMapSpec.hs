@@ -1,6 +1,8 @@
 {-# LANGUAGE FlexibleInstances #-}
+{-# LANGUAGE GeneralizedNewtypeDeriving #-}
 {-# LANGUAGE NoMonomorphismRestriction #-}
 {-# LANGUAGE QuasiQuotes #-}
+{-# LANGUAGE StandaloneDeriving #-}
 {-# LANGUAGE TemplateHaskell #-}
 {-# LANGUAGE TypeApplications #-}
 {-# OPTIONS_GHC -fno-warn-orphans #-}
@@ -18,7 +20,13 @@ import Algebra.PartialOrd
 import Cardano.Numeric.Util
     ( inAscendingPartialOrder )
 import Cardano.Wallet.Primitive.Types.TokenMap
-    ( AssetId (..), Flat (..), Nested (..), TokenMap, difference )
+    ( AssetId (..)
+    , Flat (..)
+    , Lexicographic (..)
+    , Nested (..)
+    , TokenMap
+    , difference
+    )
 import Cardano.Wallet.Primitive.Types.TokenMap.Gen
     ( AssetIdF (..)
     , genAssetId
@@ -103,7 +111,7 @@ import Test.QuickCheck
     , (==>)
     )
 import Test.QuickCheck.Classes
-    ( eqLaws, monoidLaws, semigroupLaws, semigroupMonoidLaws )
+    ( eqLaws, monoidLaws, ordLaws, semigroupLaws, semigroupMonoidLaws )
 import Test.Utils.Laws
     ( testLawsMany )
 import Test.Utils.Laws.PartialOrd
@@ -133,6 +141,10 @@ spec =
             , partialOrdLaws
             , semigroupLaws
             , semigroupMonoidLaws
+            ]
+        testLawsMany @(Lexicographic TokenMap)
+            [ eqLaws
+            , ordLaws
             ]
 
     parallel $ describe
@@ -1018,6 +1030,8 @@ newtype Large a = Large
 newtype Positive a = Positive
     { getPositive :: a }
     deriving (Eq, Show)
+
+deriving instance Arbitrary (Lexicographic TokenMap)
 
 instance Arbitrary a => Arbitrary (Flat a) where
     arbitrary = Flat <$> arbitrary

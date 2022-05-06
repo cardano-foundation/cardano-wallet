@@ -406,19 +406,20 @@ arbitraryChainLength = 10
 -------------------------------------------------------------------------------}
 
 instance Arbitrary Tx where
-    shrink (Tx _tid fees ins cins outs wdrls md validity) =
-        [ mkTx fees ins' cins' outs' wdrls' md' validity'
-        | (ins', cins', outs', wdrls', md', validity') <-
-            shrink (ins, cins, outs, wdrls, md, validity)
+    shrink (Tx _tid fees ins cins outs cout wdrls md validity) =
+        [ mkTx fees ins' cins' outs' cout' wdrls' md' validity'
+        | (ins', cins', outs', cout', wdrls', md', validity') <-
+            shrink (ins, cins, outs, cout, wdrls, md, validity)
         ]
 
     arbitrary = do
         ins <- fmap (L.nub . L.take 5 . getNonEmpty) arbitrary
         cins <- fmap (L.nub . L.take 5 . getNonEmpty) arbitrary
         outs <- fmap (L.take 5 . getNonEmpty) arbitrary
+        cout <- arbitrary
         wdrls <- fmap (Map.fromList . L.take 5) arbitrary
         fees <- arbitrary
-        mkTx fees ins cins outs wdrls
+        mkTx fees ins cins outs cout wdrls
             <$> arbitrary <*> liftArbitrary genTxScriptValidity
 
 instance Arbitrary TxIn where

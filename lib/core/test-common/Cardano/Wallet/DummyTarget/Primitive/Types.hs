@@ -138,17 +138,19 @@ mkTx
     -> [(TxIn, Coin)]
     -> [(TxIn, Coin)]
     -> [TxOut]
+    -> Maybe TxOut
     -> Map RewardAccount Coin
     -> Maybe TxMetadata
     -> Maybe TxScriptValidity
     -> Tx
-mkTx fees ins cins outs wdrls md validity =
+mkTx fees ins cins outs cout wdrls md validity =
     Tx
       { txId = (mkTxId ins outs wdrls md)
       , fee = fees
-      , resolvedCollateral = cins
       , resolvedInputs = ins
+      , resolvedCollateralInputs = cins
       , outputs = outs
+      , collateralOutput = cout
       , withdrawals = wdrls
       , metadata = md
       , scriptValidity = validity

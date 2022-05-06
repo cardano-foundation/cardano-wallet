@@ -379,7 +379,7 @@ mkSeqState numAddrs _ = s
     fillPool (SeqAddressPool pool0) = SeqAddressPool $
         foldl' (\p ix -> AddressPool.update (gen ix) p) pool0 [0 .. numAddrs-1]
       where
-        gen ix = AddressPool.generator pool0 $ toEnum ix
+        gen ix = AddressPool.addressFromIx pool0 $ toEnum ix
 
 ----------------------------------------------------------------------------
 -- Wallet State (Random Scheme) Benchmarks
@@ -574,11 +574,14 @@ mkTxHistory numTx numInputs numOutputs numAssets range =
         ( Tx
             { txId = mkTxId resolvedInputs outputs mempty Nothing
             , fee = Nothing
-            , resolvedCollateral =
+            , resolvedInputs
+            , resolvedCollateralInputs =
                 -- TODO: (ADP-957)
                 []
-            , resolvedInputs
             , outputs
+            , collateralOutput =
+                -- TODO: [ADP-1670]
+                Nothing
             , withdrawals = mempty
             , metadata = Nothing
             , scriptValidity = Nothing

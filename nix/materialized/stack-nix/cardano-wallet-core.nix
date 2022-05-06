@@ -11,7 +11,7 @@
     flags = { release = false; scrypt = true; };
     package = {
       specVersion = "1.10";
-      identifier = { name = "cardano-wallet-core"; version = "2022.1.18"; };
+      identifier = { name = "cardano-wallet-core"; version = "2022.4.27"; };
       license = "Apache-2.0";
       copyright = "2018-2020 IOHK";
       maintainer = "operations@iohk.io";
@@ -59,6 +59,7 @@
           (hsPkgs."contra-tracer" or (errorHandler.buildDepError "contra-tracer"))
           (hsPkgs."cryptonite" or (errorHandler.buildDepError "cryptonite"))
           (hsPkgs."data-default" or (errorHandler.buildDepError "data-default"))
+          (hsPkgs."data-interval" or (errorHandler.buildDepError "data-interval"))
           (hsPkgs."dbvar" or (errorHandler.buildDepError "dbvar"))
           (hsPkgs."deepseq" or (errorHandler.buildDepError "deepseq"))
           (hsPkgs."digest" or (errorHandler.buildDepError "digest"))
@@ -151,6 +152,7 @@
         buildable = true;
         modules = [
           "Paths_cardano_wallet_core"
+          "Cardano/Api/Extra"
           "Cardano/Byron/Codec/Cbor"
           "Cardano/DB/Sqlite"
           "Cardano/DB/Sqlite/Delete"
@@ -306,6 +308,7 @@
             (hsPkgs."contra-tracer" or (errorHandler.buildDepError "contra-tracer"))
             (hsPkgs."cryptonite" or (errorHandler.buildDepError "cryptonite"))
             (hsPkgs."data-default" or (errorHandler.buildDepError "data-default"))
+            (hsPkgs."data-interval" or (errorHandler.buildDepError "data-interval"))
             (hsPkgs."dbvar" or (errorHandler.buildDepError "dbvar"))
             (hsPkgs."directory" or (errorHandler.buildDepError "directory"))
             (hsPkgs."deepseq" or (errorHandler.buildDepError "deepseq"))
