@@ -50,7 +50,6 @@ import Cardano.Mnemonic
     , entropyToMnemonic
     , mkEntropy
     )
-import Cardano.Wallet.Api.Types.SchemaMetadata
 import Cardano.Wallet.Api
     ( Api )
 import Cardano.Wallet.Api.Types
@@ -200,6 +199,8 @@ import Cardano.Wallet.Api.Types
     , WalletPutPassphraseData (..)
     , toApiAsset
     )
+import Cardano.Wallet.Api.Types.SchemaMetadata
+    ( TxMetadataSchema (..), TxMetadataWithSchema (..) )
 import Cardano.Wallet.Gen
     ( genMnemonic
     , genNatural
@@ -2158,8 +2159,8 @@ instance Arbitrary (PostTransactionOldData n) where
         <*> arbitrary
         <*> arbitrary
 
-instance Arbitrary TxMetadataWithSchema where 
-  arbitrary = TxMetadataWithSchema 
+instance Arbitrary TxMetadataWithSchema where
+  arbitrary = TxMetadataWithSchema
     <$> elements [TxMetadataNoSchema, TxMetadataDetailedSchema]
     <*> arbitrary
 

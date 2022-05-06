@@ -311,8 +311,11 @@ walletApiBench capture ctx = do
 
         (_, txs) <- unsafeRequest @[ApiTransaction n] ctx (Link.listTransactions @'Shelley wal1) Empty
         let txid = (head txs) ^. #id
-        t5a <- measureApiLogs capture
-            (request @[ApiTransaction n] ctx (Link.getTransaction @'Shelley wal1 (ApiTxId txid)) Default Empty)
+        t5a <- measureApiLogs capture $
+            request @[ApiTransaction n]
+                ctx (Link.getTransaction @'Shelley wal1 (ApiTxId txid) False)
+                Default
+                Empty
         fmtResult "getTransaction     " t5a
 
         (_, addrs) <- unsafeRequest @[ApiAddress n] ctx (Link.listAddresses @'Shelley wal2) Empty

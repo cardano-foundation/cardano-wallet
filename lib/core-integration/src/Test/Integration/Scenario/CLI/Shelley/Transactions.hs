@@ -25,12 +25,12 @@ import Cardano.Wallet.Api.Types
     , EncodeAddress (..)
     , getApiT
     )
+import Cardano.Wallet.Api.Types.SchemaMetadata
+    ( detailedMetadata, noSchemaMetadata )
 import Cardano.Wallet.Primitive.Types
     ( SortOrder (..) )
 import Cardano.Wallet.Primitive.Types.Tx
     ( Direction (..), TxMetadata (..), TxMetadataValue (..), TxStatus (..) )
-import Cardano.Wallet.Api.Types.SchemaMetadata
-    ( detailedMetadata, noSchemaMetadata )
 import Control.Monad
     ( forM_, join )
 import Control.Monad.IO.Class
@@ -114,6 +114,7 @@ import Test.Integration.Framework.TestData
     )
 import UnliftIO.Exception
     ( throwString )
+
 import qualified Data.Map as Map
 import qualified Data.Text as T
 
@@ -318,7 +319,10 @@ spec = describe "SHELLEY_CLI_TRANSACTIONS" $ do
         out `shouldBe` ""
         c `shouldBe` ExitFailure 1
 
-    it "TRANSMETA_CREATE_01a - Transaction with metadata via CLI" $ \ctx -> runResourceT $ do
+    it "TRANSMETA_CREATE_01a - \
+        \Transaction with metadata via CLI" $
+        \ctx -> runResourceT $ do
+
         (wSrc, wDest) <- (,) <$> fixtureWallet ctx <*> emptyWallet ctx
         let amt = 10_000_000
         let md = Just "{ \"1\": { \"string\": \"hello\" } }"
@@ -351,10 +355,15 @@ spec = describe "SHELLEY_CLI_TRANSACTIONS" $ do
             verify
                 outJson
                 [ expectCliListField 0 #metadata (`shouldBe` expected)
-                , expectCliListField 0 (#status . #getApiT) (`shouldBe` InLedger)
+                , expectCliListField 0
+                    (#status . #getApiT)
+                    (`shouldBe` InLedger)
                 ]
 
-    it "TRANSMETA_CREATE_01b - Transaction with metadata via CLI with simple metadata" $ \ctx -> runResourceT $ do
+    it "TRANSMETA_CREATE_01b - \
+        \Transaction with metadata via CLI with simple metadata" $
+        \ctx -> runResourceT $ do
+
         (wSrc, wDest) <- (,) <$> fixtureWallet ctx <*> emptyWallet ctx
         let amt = 10_000_000
         let md = Just "{ \"1\": { \"string\": \"hello\" } }"
@@ -365,7 +374,8 @@ spec = describe "SHELLEY_CLI_TRANSACTIONS" $ do
 
         args <- postTxArgs ctx wSrc wDest amt md Nothing
         Stdout feeOut <- postTransactionFeeViaCLI ctx args
-        ApiFee (Quantity feeMin) (Quantity feeMax) _ _ <- expectValidJSON Proxy feeOut
+        ApiFee (Quantity feeMin) (Quantity feeMax) _ _ <-
+            expectValidJSON Proxy feeOut
 
         txJson <- postTxViaCLI ctx wSrc wDest amt md Nothing
         verify txJson
@@ -380,7 +390,8 @@ spec = describe "SHELLEY_CLI_TRANSACTIONS" $ do
         let wSrcId = T.unpack (wSrc ^. walletId)
         let txId = getTxId txJson
 
-        (Exit code, Stdout out, Stderr err) <- getTransactionViaCLI ctx wSrcId txId True
+        (Exit code, Stdout out, Stderr err) <-
+            getTransactionViaCLI ctx wSrcId txId True
         err `shouldBe` "Ok.\n"
         code `shouldBe` ExitSuccess
         outJson <- expectValidJSON (Proxy @(ApiTransaction n)) out
@@ -407,9 +418,6 @@ spec = describe "SHELLEY_CLI_TRANSACTIONS" $ do
                 [ expectCliListField 0 #metadata (`shouldBe` expectedNoSchema)
                 , expectCliListField 0 (#status . #getApiT) (`shouldBe` InLedger)
                 ]
-
-
-
 
     it "TRANSTTL_CREATE_01 - Transaction with TTL via CLI" $ \ctx -> runResourceT $ do
       (wSrc, wDest) <- (,) <$> fixtureWallet ctx <*> emptyWallet ctx
@@ -656,7 +664,8 @@ spec = describe "SHELLEY_CLI_TRANSACTIONS" $ do
 
     describe "TRANS_LIST_04 - False wallet ids" $ do
         forM_ falseWalletIds $ \(title, walId) -> it title $ \ctx -> runResourceT $ do
-            (Exit c, Stdout o, Stderr e) <- listTransactionsViaCLI ctx False [walId]
+            (Exit c, Stdout o, Stderr e) <-
+                listTransactionsViaCLI ctx False [walId]
             o `shouldBe` ""
             c `shouldBe` ExitFailure 1
             if (title == "40 chars hex") then
@@ -677,13 +686,13 @@ spec = describe "SHELLEY_CLI_TRANSACTIONS" $ do
                         [ "--start", utcIso8601ToText t1
                         , "--end", utcIso8601ToText t2
                         ]
-              Stdout o1  <- listTransactionsViaCLI ctx False 
+              Stdout o1  <- listTransactionsViaCLI ctx False
                     ( T.unpack <$> walId : (query t t) )
-              Stdout o2 <- listTransactionsViaCLI ctx False 
+              Stdout o2 <- listTransactionsViaCLI ctx False
                     ( T.unpack <$> walId : (query te t) )
-              Stdout o3 <- listTransactionsViaCLI ctx False 
+              Stdout o3 <- listTransactionsViaCLI ctx False
                     ( T.unpack <$> walId : (query t tl) )
-              Stdout o4 <- listTransactionsViaCLI ctx False 
+              Stdout o4 <- listTransactionsViaCLI ctx False
                     ( T.unpack <$> walId : (query te tl) )
               oJson1 <- expectValidJSON (Proxy @([ApiTransaction n])) o1
               oJson2 <- expectValidJSON (Proxy @([ApiTransaction n])) o2
@@ -698,9 +707,9 @@ spec = describe "SHELLEY_CLI_TRANSACTIONS" $ do
               let walId = w ^. walletId
               t <- unsafeGetTransactionTime =<< listAllTransactions @n ctx w
               let tl = utcIso8601ToText $ utcTimeSucc t
-              Stdout o1  <- listTransactionsViaCLI ctx False 
+              Stdout o1  <- listTransactionsViaCLI ctx False
                     ( T.unpack <$> [walId, "--start", tl] )
-              Stdout o2 <- listTransactionsViaCLI ctx False 
+              Stdout o2 <- listTransactionsViaCLI ctx False
                     ( T.unpack <$> [walId, "--start", tl, "--end", tl] )
               oJson1 <- expectValidJSON (Proxy @([ApiTransaction n])) o1
               oJson2 <- expectValidJSON (Proxy @([ApiTransaction n])) o2
@@ -713,9 +722,9 @@ spec = describe "SHELLEY_CLI_TRANSACTIONS" $ do
               let walId = w ^. walletId
               t <- unsafeGetTransactionTime =<< listAllTransactions @n ctx w
               let te = utcIso8601ToText $ utcTimePred t
-              Stdout o1  <- listTransactionsViaCLI ctx False 
+              Stdout o1  <- listTransactionsViaCLI ctx False
                       ( T.unpack <$> [walId, "--end", te] )
-              Stdout o2 <- listTransactionsViaCLI ctx False 
+              Stdout o2 <- listTransactionsViaCLI ctx False
                       ( T.unpack <$> [walId, "--start", te, "--end", te] )
               oJson1 <- expectValidJSON (Proxy @([ApiTransaction n])) o1
               oJson2 <- expectValidJSON (Proxy @([ApiTransaction n])) o2
@@ -757,7 +766,7 @@ spec = describe "SHELLEY_CLI_TRANSACTIONS" $ do
 
             -- Verify Tx in source wallet is Outgoing and InLedger
             (Exit code1, Stdout out1, Stderr err1) <-
-                getTransactionViaCLI ctx wSrcId txId False 
+                getTransactionViaCLI ctx wSrcId txId False
             err1 `shouldBe` "Ok.\n"
             code1 `shouldBe` ExitSuccess
             outJson1 <- expectValidJSON (Proxy @(ApiTransaction n)) out1
@@ -769,7 +778,7 @@ spec = describe "SHELLEY_CLI_TRANSACTIONS" $ do
             let wDestId = T.unpack (wDest ^. walletId)
             -- Verify Tx in destination wallet is Incoming and InLedger
             (Exit code2, Stdout out2, Stderr err2) <-
-                getTransactionViaCLI ctx wDestId txId False 
+                getTransactionViaCLI ctx wDestId txId False
             err2 `shouldBe` "Ok.\n"
             code2 `shouldBe` ExitSuccess
             outJson2 <- expectValidJSON (Proxy @(ApiTransaction n)) out2
@@ -810,7 +819,8 @@ spec = describe "SHELLEY_CLI_TRANSACTIONS" $ do
 
         let wid = T.unpack (wSrc ^. walletId)
         let txId = "3e6ec12da4414aa0781ff8afa9717ae53ee8cb4aa55d622f65bc62619a4f7b12"
-        (Exit c2, Stdout o2, Stderr e2) <- getTransactionViaCLI ctx wid txId False
+        (Exit c2, Stdout o2, Stderr e2) <-
+            getTransactionViaCLI ctx wid txId False
         e2 `shouldContain` errMsg404CannotFindTx (T.pack txId)
         o2 `shouldBe` mempty
         c2 `shouldBe` ExitFailure 1

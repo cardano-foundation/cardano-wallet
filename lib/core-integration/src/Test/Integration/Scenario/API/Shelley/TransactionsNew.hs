@@ -306,15 +306,13 @@ spec = describe "NEW_SHELLEY_TRANSACTIONS" $ do
         signedTx <- signTx ctx wa apiTx [ expectResponseCode HTTP.status202 ]
 
         -- Check for the presence of metadata on signed transaction
-        let
-            getMetadata (InAnyCardanoEra _ tx) = Cardano.getTxBody tx
-                        & (\(Cardano.TxBody bodyContent) ->
-                               Cardano.txMetadata bodyContent
-                               & \case Cardano.TxMetadataNone ->
-                                           Nothing
-                                       Cardano.TxMetadataInEra _ (Cardano.TxMetadata m) ->
-                                           Just m
-                          )
+        let getMetadata (InAnyCardanoEra _ tx) = Cardano.getTxBody tx &
+                \(Cardano.TxBody bodyContent) ->
+                    Cardano.txMetadata bodyContent & \case
+                        Cardano.TxMetadataNone ->
+                            Nothing
+                        Cardano.TxMetadataInEra _ (Cardano.TxMetadata m) ->
+                            Just m
 
         case getMetadata (cardanoTx $ getApiT (signedTx ^. #transaction)) of
             Nothing -> error "Tx doesn't include metadata"
@@ -323,14 +321,17 @@ spec = describe "NEW_SHELLEY_TRANSACTIONS" $ do
                 Just (Cardano.TxMetaText "hello") -> pure ()
                 Just _ -> error "Tx metadata incorrect"
 
-        let txCbor = getFromResponse #transaction (HTTP.status202, Right signedTx)
+        let txCbor =
+                getFromResponse #transaction (HTTP.status202, Right signedTx)
         let decodePayload = Json (toJSON $ ApiSerialisedTransaction txCbor)
-        let expMetadata = ApiT (TxMetadata (Map.fromList [(1,TxMetaText "hello")]))
+        let expMetadata =
+                ApiT (TxMetadata (Map.fromList [(1,TxMetaText "hello")]))
         rDecodedTx <- request @(ApiDecodedTransaction n) ctx
             (Link.decodeTransaction @'Shelley wa) Default decodePayload
         verify rDecodedTx
             [ expectResponseCode HTTP.status202
-            , expectField #metadata (`shouldBe` (ApiTxMetadata (Just expMetadata)))
+            , expectField #metadata
+                (`shouldBe` (ApiTxMetadata (Just expMetadata)))
             ]
 
         -- Submit tx
@@ -351,7 +352,9 @@ spec = describe "NEW_SHELLEY_TRANSACTIONS" $ do
                         (`shouldBe` (fromIntegral oneMillionAda - expectedFee))
                 ]
 
-    it "TRANS_NEW_CREATE_02b - Only metadata, untyped" $ \ctx -> runResourceT $ do
+    it "TRANS_NEW_CREATE_02b - Only metadata, untyped" $
+        \ctx -> runResourceT $ do
+
         wa <- fixtureWallet ctx
         let metadata = Json [json|{ "metadata": { "1": "hello"  } }|]
 
@@ -368,15 +371,13 @@ spec = describe "NEW_SHELLEY_TRANSACTIONS" $ do
         signedTx <- signTx ctx wa apiTx [ expectResponseCode HTTP.status202 ]
 
         -- Check for the presence of metadata on signed transaction
-        let
-            getMetadata (InAnyCardanoEra _ tx) = Cardano.getTxBody tx
-                        & (\(Cardano.TxBody bodyContent) ->
-                               Cardano.txMetadata bodyContent
-                               & \case Cardano.TxMetadataNone ->
-                                           Nothing
-                                       Cardano.TxMetadataInEra _ (Cardano.TxMetadata m) ->
-                                           Just m
-                          )
+        let getMetadata (InAnyCardanoEra _ tx) = Cardano.getTxBody tx &
+                \(Cardano.TxBody bodyContent) ->
+                    Cardano.txMetadata bodyContent & \case
+                        Cardano.TxMetadataNone ->
+                            Nothing
+                        Cardano.TxMetadataInEra _ (Cardano.TxMetadata m) ->
+                            Just m
 
         case getMetadata (cardanoTx $ getApiT (signedTx ^. #transaction)) of
             Nothing -> error "Tx doesn't include metadata"
@@ -385,7 +386,8 @@ spec = describe "NEW_SHELLEY_TRANSACTIONS" $ do
                 Just (Cardano.TxMetaText "hello") -> pure ()
                 Just _ -> error "Tx metadata incorrect"
 
-        let txCbor = getFromResponse #transaction (HTTP.status202, Right signedTx)
+        let txCbor =
+                getFromResponse #transaction (HTTP.status202, Right signedTx)
         let decodePayload = Json (toJSON $ ApiSerialisedTransaction txCbor)
         let expMetadata = ApiT (TxMetadata (Map.fromList [(1,TxMetaText "hello")]))
         rDecodedTx <- request @(ApiDecodedTransaction n) ctx
@@ -409,8 +411,8 @@ spec = describe "NEW_SHELLEY_TRANSACTIONS" $ do
             verify rWa
                 [ expectSuccess
                 , expectField
-                        (#balance . #available . #getQuantity)
-                        (`shouldBe` (fromIntegral oneMillionAda - expectedFee))
+                    (#balance . #available . #getQuantity)
+                    (`shouldBe` (fromIntegral oneMillionAda - expectedFee))
                 ]
 
     it "TRANS_NEW_CREATE_03a - Withdrawal from self, 0 rewards" $ \ctx -> runResourceT $ do

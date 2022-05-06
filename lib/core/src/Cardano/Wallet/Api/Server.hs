@@ -1,4 +1,5 @@
 {-# LANGUAGE AllowAmbiguousTypes #-}
+{-# LANGUAGE BlockArguments #-}
 {-# LANGUAGE ConstraintKinds #-}
 {-# LANGUAGE DataKinds #-}
 {-# LANGUAGE DeriveGeneric #-}
@@ -15,7 +16,6 @@
 {-# LANGUAGE TypeApplications #-}
 {-# LANGUAGE TypeFamilies #-}
 {-# LANGUAGE TypeOperators #-}
-{-# LANGUAGE BlockArguments #-}
 
 -- |
 -- Copyright: © 2018-2020 IOHK
@@ -330,6 +330,10 @@ import Cardano.Wallet.Api.Types
     , toApiEpochInfo
     , toApiNetworkParameters
     , toApiUtxoStatistics
+    )
+import Cardano.Wallet.Api.Types.SchemaMetadata
+    ( TxMetadataSchema (TxMetadataDetailedSchema, TxMetadataNoSchema)
+    , TxMetadataWithSchema (TxMetadataWithSchema)
     )
 import Cardano.Wallet.CoinSelection
     ( SelectionBalanceError (..)
@@ -684,7 +688,6 @@ import qualified Data.Text as T
 import qualified Data.Text.Encoding as T
 import qualified Network.Wai.Handler.Warp as Warp
 import qualified Network.Wai.Handler.WarpTLS as Warp
-import Cardano.Wallet.Api.Types.SchemaMetadata (TxMetadataWithSchema(TxMetadataWithSchema), TxMetadataSchema (TxMetadataDetailedSchema, TxMetadataNoSchema))
 
 -- | How the server should listen for incoming requests.
 data Listen
@@ -2004,7 +2007,7 @@ postTransactionOld
 postTransactionOld ctx genChange (ApiT wid) body = do
     let pwd = coerce $ body ^. #passphrase . #getApiT
     let outs = addressAmountToTxOut <$> body ^. #payments
-    let md = body ^? #metadata . traverse . #txMetadataWithSchema_metadata 
+    let md = body ^? #metadata . traverse . #txMetadataWithSchema_metadata
     let mTTL = body ^? #timeToLive . traverse . #getQuantity
 
     (wdrl, mkRwdAcct) <-
@@ -2082,12 +2085,12 @@ deleteTransaction ctx (ApiT wid) (ApiTxId (ApiT (tid))) = do
 
 listTransactions
     :: forall ctx s k n. (ctx ~ ApiLayer s k)
-    => ctx -- ^ 
-    -> ApiT WalletId -- ^ 
-    -> Maybe MinWithdrawal -- ^ 
-    -> Maybe Iso8601Time -- ^ 
-    -> Maybe Iso8601Time -- ^ 
-    -> Maybe (ApiT SortOrder) -- ^ 
+    => ctx -- ^
+    -> ApiT WalletId -- ^
+    -> Maybe MinWithdrawal -- ^
+    -> Maybe Iso8601Time -- ^
+    -> Maybe Iso8601Time -- ^
+    -> Maybe (ApiT SortOrder) -- ^
     -> Bool -- ^ metadata json schema
     -> Handler [ApiTransaction n]
 listTransactions ctx (ApiT wid) mMinWithdrawal mStart mEnd mOrder metadataSchema = do
@@ -2100,15 +2103,15 @@ listTransactions ctx (ApiT wid) mMinWithdrawal mStart mEnd mOrder metadataSchema
             (maybe defaultSortOrder getApiT mOrder)
         depo <- liftIO $ W.stakeKeyDeposit <$> NW.currentProtocolParameters (wrk ^. networkLayer)
         pure (txs, depo)
-    liftIO $ forM  txs $ \tx -> 
-        mkApiTransactionFromInfo 
-            (timeInterpreter (ctx ^. networkLayer)) 
-            depo 
-            tx 
-            if metadataSchema 
-                then TxMetadataNoSchema 
+    liftIO $ forM  txs $ \tx ->
+        mkApiTransactionFromInfo
+            (timeInterpreter (ctx ^. networkLayer))
+            depo
+            tx
+            if metadataSchema
+                then TxMetadataNoSchema
                 else TxMetadataDetailedSchema
-    
+
   where
     defaultSortOrder :: SortOrder
     defaultSortOrder = Descending
@@ -2125,8 +2128,12 @@ getTransaction ctx (ApiT wid) mMetadataSchema (ApiTxId (ApiT (tid))) = do
         tx <- liftHandler $ W.getTransaction wrk wid tid
         depo <- liftIO $ W.stakeKeyDeposit <$> NW.currentProtocolParameters (wrk ^. networkLayer)
         pure (tx, depo)
-    liftIO $ mkApiTransactionFromInfo (timeInterpreter (ctx ^. networkLayer)) depo tx 
-        $ if mMetadataSchema then TxMetadataNoSchema else TxMetadataDetailedSchema 
+    liftIO
+        $ mkApiTransactionFromInfo
+            (timeInterpreter (ctx ^. networkLayer)) depo tx
+        $ if mMetadataSchema
+            then TxMetadataNoSchema
+            else TxMetadataDetailedSchema
 
 -- Populate an API transaction record with 'TransactionInfo' from the wallet
 -- layer.
@@ -2135,11 +2142,11 @@ mkApiTransactionFromInfo
     => TimeInterpreter (ExceptT PastHorizonException IO)
     -> Coin
     -> TransactionInfo
-    -> TxMetadataSchema 
+    -> TxMetadataSchema
     -> m (ApiTransaction n)
 mkApiTransactionFromInfo ti deposit info metadataSchema = do
-    apiTx <- liftIO $ mkApiTransaction 
-        ti 
+    apiTx <- liftIO $ mkApiTransaction
+        ti
         status
         MkApiTransactionParams
             { txId = info ^. #txInfoId
@@ -2154,7 +2161,7 @@ mkApiTransactionFromInfo ti deposit info metadataSchema = do
             , txTime = info ^. #txInfoTime
             , txScriptValidity = info ^. #txInfoScriptValidity
             , txDeposit = deposit
-            , txMetadataSchema = metadataSchema 
+            , txMetadataSchema = metadataSchema
             }
     return $ case info ^. (#txInfoMeta . #status) of
         Pending  -> apiTx
@@ -2185,7 +2192,10 @@ postTransactionFeeOld ctx (ApiT wid) body = do
     (wdrl, _) <- mkRewardAccountBuilder @_ @s @_ @n ctx wid (body ^. #withdrawal)
     let txCtx = defaultTransactionCtx
             { txWithdrawal = wdrl
-            , txMetadata =  body ^? #metadata . traverse . #txMetadataWithSchema_metadata 
+            , txMetadata
+                = body ^? #metadata
+                . traverse
+                . #txMetadataWithSchema_metadata
             }
     withWorkerCtx ctx wid liftE liftE $ \wrk -> do
         (utxoAvailable, wallet, pendingTxs) <-
@@ -2982,7 +2992,7 @@ joinStakePool ctx knownPools getPoolStatus apiPoolId (ApiT wid) body = do
             , txTime
             , txScriptValidity = tx ^. #scriptValidity
             , txDeposit = W.stakeKeyDeposit pp
-            , txMetadataSchema = TxMetadataDetailedSchema 
+            , txMetadataSchema = TxMetadataDetailedSchema
             }
   where
     ti :: TimeInterpreter (ExceptT PastHorizonException IO)
@@ -3100,8 +3110,8 @@ quitStakePool ctx (ApiT wid) body = do
             , txTime
             , txScriptValidity = tx ^. #scriptValidity
             , txDeposit = W.stakeKeyDeposit pp
-            , txMetadataSchema = TxMetadataDetailedSchema 
-            } 
+            , txMetadataSchema = TxMetadataDetailedSchema
+            }
   where
     ti :: TimeInterpreter (ExceptT PastHorizonException IO)
     ti = timeInterpreter (ctx ^. networkLayer)
@@ -3358,7 +3368,7 @@ migrateWallet ctx withdrawalType (ApiT wid) postData = do
                     , txTime
                     , txScriptValidity = tx ^. #scriptValidity
                     , txDeposit = W.stakeKeyDeposit pp
-                    , txMetadataSchema = TxMetadataDetailedSchema 
+                    , txMetadataSchema = TxMetadataDetailedSchema
                     }
   where
     addresses = getApiT . fst <$> view #addresses postData
@@ -3815,7 +3825,7 @@ data MkApiTransactionParams = MkApiTransactionParams
     , txTime :: UTCTime
     , txScriptValidity :: Maybe W.TxScriptValidity
     , txDeposit :: Coin
-    , txMetadataSchema :: TxMetadataSchema 
+    , txMetadataSchema :: TxMetadataSchema
     }
     deriving (Eq, Generic, Show)
 
@@ -3866,7 +3876,8 @@ mkApiTransaction timeInterpreter setTimeReference tx = do
             toAddressAmount @n <$> tx ^. #txCollateralOutput
         , withdrawals = mkApiWithdrawal @n <$> Map.toList (tx ^. #txWithdrawals)
         , status = ApiT (tx ^. (#txMeta . #status))
-        , metadata = TxMetadataWithSchema (tx ^. #txMetadataSchema) <$> tx ^. #txMetadata
+        , metadata = TxMetadataWithSchema (tx ^. #txMetadataSchema)
+            <$> tx ^. #txMetadata
         , scriptValidity = ApiT <$> tx ^. #txScriptValidity
         }
 

@@ -627,13 +627,13 @@ listTransactions'
 listTransactions' w minWithdrawal inf sup order = discriminate @style
     (endpoint @(Api.ListTransactions Net)
         (\mk -> mk
-            wid 
-            (MinWithdrawal <$> minWithdrawal) 
-            inf 
-            sup 
+            wid
+            (MinWithdrawal <$> minWithdrawal)
+            inf
+            sup
             (ApiT <$> order)
             False
-        ) 
+        )
     )
     (endpoint @(Api.ListByronTransactions Net)
         (\mk -> mk wid inf sup (ApiT <$> order)))
@@ -696,9 +696,7 @@ getTransaction w t s = discriminate @style
     mkByronURL mk = mk wid tid
 
     mkShelleyURL :: (ApiT WalletId -> Bool  -> ApiTxId -> Text) -> Text
-    mkShelleyURL mk = mk wid s tid 
-
-
+    mkShelleyURL mk = mk wid s tid
 
 createUnsignedTransaction
     :: forall style w.

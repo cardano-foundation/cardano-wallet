@@ -270,6 +270,8 @@ import Cardano.Mnemonic
     , mnemonicToText
     , natVals
     )
+import Cardano.Wallet.Api.Types.SchemaMetadata
+    ( TxMetadataWithSchema )
 import Cardano.Wallet.Primitive.AddressDerivation
     ( Depth (..)
     , DerivationIndex (..)
@@ -482,7 +484,6 @@ import qualified Data.Map as Map
 import qualified Data.Text as T
 import qualified Data.Text.Encoding as T
 import qualified Data.Text.Read as T
-import Cardano.Wallet.Api.Types.SchemaMetadata
 
 {-------------------------------------------------------------------------------
                                Styles of Wallets

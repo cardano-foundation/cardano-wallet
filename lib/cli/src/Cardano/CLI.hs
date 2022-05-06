@@ -162,6 +162,8 @@ import Cardano.Wallet.Api.Types
     , WalletPutPassphraseData (..)
     , fmtAllowedWords
     )
+import Cardano.Wallet.Api.Types.SchemaMetadata
+    ( TxMetadataWithSchema )
 import Cardano.Wallet.Orphans
     ()
 import Cardano.Wallet.Primitive.AddressDerivation
@@ -324,8 +326,6 @@ import UnliftIO.Exception
 import qualified Cardano.BM.Configuration.Model as CM
 import qualified Cardano.BM.Data.BackendKind as CM
 import qualified Cardano.BM.Data.Observable as Obs
-import Cardano.Wallet.Api.Types.SchemaMetadata
-    ( TxMetadataWithSchema )
 import qualified Command.Key as Key
 import qualified Command.RecoveryPhrase as RecoveryPhrase
 import qualified Data.Aeson as Aeson
@@ -733,9 +733,9 @@ data TransactionFeatures = NoShelleyFeatures | ShelleyFeatures
 
 -- | which json schema to use for output, True is simple
 metadataSchemaOption :: Parser Bool
-metadataSchemaOption = switch 
+metadataSchemaOption = switch
     do long "simple-metadata"
-        <> help "output metadata json in no-schema encoding" 
+        <> help "output metadata json in no-schema encoding"
 
 -- | cardano-wallet transaction
 cmdTransaction
@@ -869,8 +869,10 @@ cmdTransactionList mkTxClient =
         <*> optional timeRangeStartOption
         <*> optional timeRangeEndOption
         <*> optional sortOrderOption
-        <*> metadataSchemaOption 
-    exec (TransactionListArgs wPort wId mTimeRangeStart mTimeRangeEnd mOrder metadataSchema) =
+        <*> metadataSchemaOption
+    exec
+        (TransactionListArgs
+            wPort wId mTimeRangeStart mTimeRangeEnd mOrder metadataSchema) =
         runClient wPort Aeson.encodePretty $ listTransactions
             mkTxClient
             (ApiT wId)
@@ -940,15 +942,13 @@ cmdTransactionGet mkClient =
     cmd = fmap exec $ TransactionGetArgs
         <$> portOption
         <*> walletIdArgument
-        <*> transactionIdArgument 
-        <*> metadataSchemaOption 
+        <*> transactionIdArgument
+        <*> metadataSchemaOption
     exec (TransactionGetArgs wPort wId txId metadataSchema ) = do
         runClient wPort Aeson.encodePretty $ getTransaction mkClient
             (ApiT wId)
-            metadataSchema 
+            metadataSchema
             (ApiTxId $ ApiT $ getTxId txId)
-
-
 
 {-------------------------------------------------------------------------------
                             Commands - 'address'
@@ -1455,7 +1455,7 @@ metadataOption :: Parser (Maybe TxMetadataWithSchema)
 metadataOption = option txMetadataReader $ mempty
     <> long "metadata"
     <> metavar "JSON"
-    <> value Nothing 
+    <> value Nothing
     <> help ("Application-specific transaction metadata as a JSON object. "
              <> "The value must match the schema defined in the "
              <> "cardano-wallet OpenAPI specification.")
