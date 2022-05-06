@@ -1,5 +1,4 @@
 {-# LANGUAGE AllowAmbiguousTypes #-}
-{-# LANGUAGE BlockArguments #-}
 {-# LANGUAGE ConstraintKinds #-}
 {-# LANGUAGE DataKinds #-}
 {-# LANGUAGE DeriveGeneric #-}
@@ -2050,9 +2049,9 @@ postTransactionOld ctx genChange (ApiT wid) body = do
             pure (sel, tx, txMeta, txTime, pp)
 
     liftIO $ mkApiTransaction
-        do timeInterpreter $ ctx ^. networkLayer
-        do #pendingSince
-        do MkApiTransactionParams
+        (timeInterpreter $ ctx ^. networkLayer)
+        #pendingSince
+        $ MkApiTransactionParams
             { txId = tx ^. #txId
             , txFee = tx ^. #fee
             , txInputs = NE.toList $ second Just <$> sel ^. #inputs
@@ -2108,7 +2107,7 @@ listTransactions ctx (ApiT wid) mMinWithdrawal mStart mEnd mOrder metadataSchema
             (timeInterpreter (ctx ^. networkLayer))
             depo
             tx
-            if metadataSchema
+            $ if metadataSchema
                 then TxMetadataNoSchema
                 else TxMetadataDetailedSchema
 

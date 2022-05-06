@@ -1,4 +1,3 @@
-{-# LANGUAGE BlockArguments #-}
 {-# LANGUAGE DataKinds #-}
 {-# LANGUAGE DeriveAnyClass #-}
 {-# LANGUAGE DeriveGeneric #-}
@@ -61,12 +60,12 @@ noSchemaMetadata = TxMetadataWithSchema TxMetadataNoSchema
 
 instance FromJSON TxMetadataWithSchema where
     parseJSON = liftA2
-        do (<|>)
-        do
-            fmap detailedMetadata
+        (<|>)
+        ( fmap detailedMetadata
                 . either (fail . displayError) pure
                 . metadataFromJson TxMetadataJsonDetailedSchema
-        do
-            fmap noSchemaMetadata
+        )
+        ( fmap noSchemaMetadata
                 . either (fail . displayError) pure
                 . metadataFromJson TxMetadataJsonNoSchema
+        )

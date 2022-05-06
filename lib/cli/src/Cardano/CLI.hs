@@ -1,6 +1,5 @@
 {-# LANGUAGE AllowAmbiguousTypes #-}
 {-# LANGUAGE ApplicativeDo #-}
-{-# LANGUAGE BlockArguments #-}
 {-# LANGUAGE DataKinds #-}
 {-# LANGUAGE DeriveGeneric #-}
 {-# LANGUAGE DerivingStrategies #-}
@@ -734,7 +733,7 @@ data TransactionFeatures = NoShelleyFeatures | ShelleyFeatures
 -- | which json schema to use for output, True is simple
 metadataSchemaOption :: Parser Bool
 metadataSchemaOption = switch
-    do long "simple-metadata"
+    $ long "simple-metadata"
         <> help "output metadata json in no-schema encoding"
 
 -- | cardano-wallet transaction
