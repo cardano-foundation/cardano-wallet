@@ -2177,6 +2177,7 @@ spec = describe "NEW_SHELLEY_TRANSACTIONS" $ do
                   , [ expectResponseCode HTTP.status202 ]
                   )
                 , ( "currency", \ctx w -> do
+                    liftIO $ pendingWith "flaky #3124"
                     (addr,proxy) <- view #id . head <$> listAddresses @n ctx w
                     let getFreshUTxO = do
                             -- To obtain a fresh UTxO, we perform
