@@ -135,8 +135,6 @@ import Data.Function
     ( (&) )
 import Data.Generics.Internal.VL.Lens
     ( view, (^.) )
-import Data.Generics.Sum
-    ( _Ctor )
 import Data.Maybe
     ( fromJust, isJust )
 import Data.Proxy
@@ -291,9 +289,71 @@ spec = describe "NEW_SHELLEY_TRANSACTIONS" $ do
             [ expectResponseCode HTTP.status400
             ]
 
-    it "TRANS_NEW_CREATE_02 - Only metadata" $ \ctx -> runResourceT $ do
+    it "TRANS_NEW_CREATE_02a - Only metadata" $ \ctx -> runResourceT $ do
         wa <- fixtureWallet ctx
         let metadata = Json [json|{ "metadata": { "1": { "string": "hello" } } }|]
+
+        rTx <- request @(ApiConstructTransaction n) ctx
+            (Link.createUnsignedTransaction @'Shelley wa) Default metadata
+        verify rTx
+            [ expectResponseCode HTTP.status202
+            , expectField (#coinSelection . #metadata) (`shouldSatisfy` isJust)
+            , expectField (#fee . #getQuantity) (`shouldSatisfy` (>0))
+            ]
+
+        let expectedFee = getFromResponse (#fee . #getQuantity) rTx
+        let apiTx = getFromResponse #transaction rTx
+        signedTx <- signTx ctx wa apiTx [ expectResponseCode HTTP.status202 ]
+
+        -- Check for the presence of metadata on signed transaction
+        let
+            getMetadata (InAnyCardanoEra _ tx) = Cardano.getTxBody tx
+                        & (\(Cardano.TxBody bodyContent) ->
+                               Cardano.txMetadata bodyContent
+                               & \case Cardano.TxMetadataNone ->
+                                           Nothing
+                                       Cardano.TxMetadataInEra _ (Cardano.TxMetadata m) ->
+                                           Just m
+                          )
+
+        case getMetadata (cardanoTx $ getApiT (signedTx ^. #transaction)) of
+            Nothing -> error "Tx doesn't include metadata"
+            Just m  -> case Map.lookup 1 m of
+                Nothing -> error "Tx doesn't include metadata"
+                Just (Cardano.TxMetaText "hello") -> pure ()
+                Just _ -> error "Tx metadata incorrect"
+
+        let txCbor = getFromResponse #transaction (HTTP.status202, Right signedTx)
+        let decodePayload = Json (toJSON $ ApiSerialisedTransaction txCbor)
+        let expMetadata = ApiT (TxMetadata (Map.fromList [(1,TxMetaText "hello")]))
+        rDecodedTx <- request @(ApiDecodedTransaction n) ctx
+            (Link.decodeTransaction @'Shelley wa) Default decodePayload
+        verify rDecodedTx
+            [ expectResponseCode HTTP.status202
+            , expectField #metadata (`shouldBe` (ApiTxMetadata (Just expMetadata)))
+            ]
+
+        -- Submit tx
+        submittedTx <- submitTxWithWid ctx wa signedTx
+        verify submittedTx
+            [ expectSuccess
+            , expectResponseCode HTTP.status202
+            ]
+
+        -- Make sure only fee is deducted from fixtureWallet
+        eventually "Wallet balance is as expected" $ do
+            rWa <- request @ApiWallet ctx
+                (Link.getWallet @'Shelley wa) Default Empty
+            verify rWa
+                [ expectSuccess
+                , expectField
+                        (#balance . #available . #getQuantity)
+                        (`shouldBe` (fromIntegral oneMillionAda - expectedFee))
+                ]
+
+    it "TRANS_NEW_CREATE_02b - Only metadata, untyped" $ \ctx -> runResourceT $ do
+        wa <- fixtureWallet ctx
+        let metadata = Json [json|{ "metadata": { "1": "hello"  } }|]
 
         rTx <- request @(ApiConstructTransaction n) ctx
             (Link.createUnsignedTransaction @'Shelley wa) Default metadata
@@ -864,7 +924,7 @@ spec = describe "NEW_SHELLEY_TRANSACTIONS" $ do
             ]
         let txid = getFromResponse (#id) submittedTx
 
-        let queryTx = Link.getTransaction @'Shelley wa (ApiTxId txid)
+        let queryTx = Link.getTransaction @'Shelley wa (ApiTxId txid) False
         rGetTx <- request @(ApiTransaction n) ctx queryTx Default Empty
         verify rGetTx
             [ expectResponseCode HTTP.status200
@@ -882,7 +942,7 @@ spec = describe "NEW_SHELLEY_TRANSACTIONS" $ do
                 ]
 
         eventually "transaction is eventually in ledger after submitting" $ do
-            let queryTx' = Link.getTransaction @'Shelley wa (ApiTxId txid)
+            let queryTx' = Link.getTransaction @'Shelley wa (ApiTxId txid) False
             rSrc <- request @(ApiTransaction n) ctx queryTx' Default Empty
             verify rSrc
                 [ expectResponseCode HTTP.status200
@@ -1028,7 +1088,7 @@ spec = describe "NEW_SHELLEY_TRANSACTIONS" $ do
         let txId = getFromResponse (#id) submittedTx
 
         outTxAmt <- eventually "Transactions is in ledger" $ do
-            let linkSrc = Link.getTransaction @'Shelley wa txId
+            let linkSrc = Link.getTransaction @'Shelley wa txId False
             r1 <- request @(ApiTransaction n) ctx linkSrc Default Empty
             verify r1
                 [ expectResponseCode HTTP.status200
@@ -2259,7 +2319,7 @@ spec = describe "NEW_SHELLEY_TRANSACTIONS" $ do
         eventually "Wallet has joined pool and deposit info persists" $ do
             rJoin' <- request @(ApiTransaction n) ctx
                 (Link.getTransaction @'Shelley src
-                    (getFromResponse Prelude.id submittedTx1))
+                    (getFromResponse Prelude.id submittedTx1) False)
                 Default Empty
             verify rJoin'
                 [ expectResponseCode HTTP.status200
@@ -2270,14 +2330,14 @@ spec = describe "NEW_SHELLEY_TRANSACTIONS" $ do
                 ]
 
         let txId1 = getFromResponse #id submittedTx1
-        let link = Link.getTransaction @'Shelley src (ApiTxId txId1)
+        let link = Link.getTransaction @'Shelley src (ApiTxId txId1) False
         eventually "delegation transaction is in ledger" $ do
             rSrc <- request @(ApiTransaction n) ctx link Default Empty
             verify rSrc
                 [ expectResponseCode HTTP.status200
                 , expectField (#direction . #getApiT) (`shouldBe` Outgoing)
                 , expectField (#status . #getApiT) (`shouldBe` InLedger)
-                , expectField (#metadata . #getApiTxMetadata) (`shouldBe` Nothing)
+                , expectField #metadata  (`shouldBe` Nothing)
                 , expectField #inputs $ \inputs' -> do
                     inputs' `shouldSatisfy` all (isJust . source)
                 ]
@@ -2337,7 +2397,7 @@ spec = describe "NEW_SHELLEY_TRANSACTIONS" $ do
             ]
 
         let txid2 = getFromResponse (#id) submittedTx2
-        let queryTx2 = Link.getTransaction @'Shelley src (ApiTxId txid2)
+        let queryTx2 = Link.getTransaction @'Shelley src (ApiTxId txid2) False
         rGetTx2 <- request @(ApiTransaction n) ctx queryTx2 Default Empty
         verify rGetTx2
             [ expectResponseCode HTTP.status200
@@ -2446,7 +2506,7 @@ spec = describe "NEW_SHELLEY_TRANSACTIONS" $ do
             ]
 
         let txid3 = getFromResponse (#id) submittedTx4
-        let queryTx3 = Link.getTransaction @'Shelley src (ApiTxId txid3)
+        let queryTx3 = Link.getTransaction @'Shelley src (ApiTxId txid3) False
         rGetTx3 <- request @(ApiTransaction n) ctx queryTx3 Default Empty
         verify rGetTx3
             [ expectResponseCode HTTP.status200
@@ -2582,7 +2642,7 @@ spec = describe "NEW_SHELLEY_TRANSACTIONS" $ do
         eventually "Wallet has joined pool and deposit info persists" $ do
             rJoin' <- request @(ApiTransaction n) ctx
                 (Link.getTransaction @'Shelley src
-                    (getFromResponse Prelude.id submittedTx1))
+                    (getFromResponse Prelude.id submittedTx1) False)
                 Default Empty
             verify rJoin'
                 [ expectResponseCode HTTP.status200
@@ -2592,14 +2652,14 @@ spec = describe "NEW_SHELLEY_TRANSACTIONS" $ do
                 ]
 
         let txId1 = getFromResponse #id submittedTx1
-        let link = Link.getTransaction @'Shelley src (ApiTxId txId1)
+        let link = Link.getTransaction @'Shelley src (ApiTxId txId1) False
         eventually "delegation transaction is in ledger" $ do
             rSrc <- request @(ApiTransaction n) ctx link Default Empty
             verify rSrc
                 [ expectResponseCode HTTP.status200
                 , expectField (#direction . #getApiT) (`shouldBe` Outgoing)
                 , expectField (#status . #getApiT) (`shouldBe` InLedger)
-                , expectField (#metadata . #getApiTxMetadata) (`shouldBe` Nothing)
+                , expectField #metadata (`shouldBe` Nothing)
                 , expectField #inputs $ \inputs' -> do
                     inputs' `shouldSatisfy` all (isJust . source)
                 ]
@@ -2718,7 +2778,7 @@ spec = describe "NEW_SHELLEY_TRANSACTIONS" $ do
         eventually "Wallet has joined pool and deposit info persists" $ do
             rJoin' <- request @(ApiTransaction n) ctx
                 (Link.getTransaction @'Shelley src
-                    (getFromResponse Prelude.id submittedTx1))
+                    (getFromResponse Prelude.id submittedTx1) False)
                 Default Empty
             verify rJoin'
                 [ expectResponseCode HTTP.status200
@@ -2927,14 +2987,14 @@ spec = describe "NEW_SHELLEY_TRANSACTIONS" $ do
 
         eventually "Metadata is on-chain" $ do
             rWa <- request @(ApiTransaction n) ctx
-                (Link.getTransaction @'Shelley wa txId) Default Empty
+                (Link.getTransaction @'Shelley wa txId False) Default Empty
             verify rWa
                 [ expectSuccess
                 , expectField
                         (#status . #getApiT)
                         (`shouldBe` InLedger)
                 , expectField
-                        (#metadata . #getApiTxMetadata . _Ctor @"Just" . #getApiT)
+                        (#metadata . traverse . #txMetadataWithSchema_metadata)
                         (`shouldBe` Cardano.TxMetadata (Map.fromList [(1, Cardano.TxMetaText "hello")]))
                 ]
 

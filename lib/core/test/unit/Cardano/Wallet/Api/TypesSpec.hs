@@ -50,6 +50,7 @@ import Cardano.Mnemonic
     , entropyToMnemonic
     , mkEntropy
     )
+import Cardano.Wallet.Api.Types.SchemaMetadata
 import Cardano.Wallet.Api
     ( Api )
 import Cardano.Wallet.Api.Types
@@ -2156,6 +2157,11 @@ instance Arbitrary (PostTransactionOldData n) where
         <*> elements [Just SelfWithdrawal, Nothing]
         <*> arbitrary
         <*> arbitrary
+
+instance Arbitrary TxMetadataWithSchema where 
+  arbitrary = TxMetadataWithSchema 
+    <$> elements [TxMetadataNoSchema, TxMetadataDetailedSchema]
+    <*> arbitrary
 
 instance Arbitrary (ApiConstructTransactionData n) where
     arbitrary = ApiConstructTransactionData

@@ -163,6 +163,7 @@ data TransactionClient = TransactionClient
         -> Maybe Iso8601Time
         -> Maybe Iso8601Time
         -> Maybe (ApiT SortOrder)
+        -> Bool 
         -> ClientM [ApiTransactionT Aeson.Value]
     , signTransaction
         :: ApiT WalletId
@@ -185,6 +186,7 @@ data TransactionClient = TransactionClient
         -> ClientM NoContent
     , getTransaction
         :: ApiT WalletId
+        -> Bool
         -> ApiTxId
         -> ClientM (ApiTransactionT Aeson.Value)
     , constructTransaction
@@ -361,13 +363,13 @@ byronTransactionClient =
             = client (Proxy @("v2" :> Proxy_))
 
     in TransactionClient
-        { listTransactions = _listTransactions
+        { listTransactions = \wid start end order _ -> _listTransactions wid start end order
         , signTransaction = _signTransaction
         , postTransaction = _postTransaction
         , postTransactionFee = _postTransactionFee
         , postExternalTransaction = _postExternalTransaction . fromSerialisedTx
         , deleteTransaction = _deleteTransaction
-        , getTransaction = _getTransaction
+        , getTransaction = \wid _ txid  -> _getTransaction wid txid
         , constructTransaction = _constructTransaction
         , balanceTransaction = error "balance transaction endpoint not supported for byron"
         , decodeTransaction = error "decode transaction endpoint not supported for byron"

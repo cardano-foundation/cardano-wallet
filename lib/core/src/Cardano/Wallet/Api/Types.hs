@@ -482,6 +482,7 @@ import qualified Data.Map as Map
 import qualified Data.Text as T
 import qualified Data.Text.Encoding as T
 import qualified Data.Text.Read as T
+import Cardano.Wallet.Api.Types.SchemaMetadata
 
 {-------------------------------------------------------------------------------
                                Styles of Wallets
@@ -958,7 +959,7 @@ data ApiMultiDelegationAction
 data ApiConstructTransactionData (n :: NetworkDiscriminant) = ApiConstructTransactionData
     { payments :: !(Maybe (ApiPaymentDestination n))
     , withdrawal :: !(Maybe ApiWithdrawalPostData)
-    , metadata :: !(Maybe (ApiT TxMetadata))
+    , metadata :: !(Maybe TxMetadataWithSchema)
     , mintBurn :: !(Maybe (NonEmpty (ApiMintBurnData n)))
     , delegations :: !(Maybe (NonEmpty ApiMultiDelegationAction))
     , validityInterval :: !(Maybe ApiValidityInterval)
@@ -1003,7 +1004,7 @@ data PostTransactionOldData (n :: NetworkDiscriminant) = PostTransactionOldData
     { payments :: !(NonEmpty (ApiTxOutput n))
     , passphrase :: !(ApiT (Passphrase "lenient"))
     , withdrawal :: !(Maybe ApiWithdrawalPostData)
-    , metadata :: !(Maybe (ApiT TxMetadata))
+    , metadata :: !(Maybe TxMetadataWithSchema)
     , timeToLive :: !(Maybe (Quantity "second" NominalDiffTime))
     } deriving (Eq, Generic, Show, Typeable)
 
@@ -1011,7 +1012,7 @@ data PostTransactionOldData (n :: NetworkDiscriminant) = PostTransactionOldData
 data PostTransactionFeeOldData (n :: NetworkDiscriminant) = PostTransactionFeeOldData
     { payments :: !(NonEmpty (ApiTxOutput n))
     , withdrawal :: !(Maybe ApiWithdrawalPostData)
-    , metadata :: !(Maybe (ApiT TxMetadata))
+    , metadata :: !(Maybe TxMetadataWithSchema )
     , timeToLive :: !(Maybe (Quantity "second" NominalDiffTime))
     } deriving (Eq, Generic, Show, Typeable)
 
@@ -1154,7 +1155,7 @@ data ApiTransaction (n :: NetworkDiscriminant) = ApiTransaction
         !(ApiAsArray "collateral_outputs" (Maybe (ApiTxOutput n)))
     , withdrawals :: ![ApiWithdrawal n]
     , status :: !(ApiT TxStatus)
-    , metadata :: !ApiTxMetadata
+    , metadata :: !(Maybe TxMetadataWithSchema)
     , scriptValidity :: !(Maybe (ApiT TxScriptValidity))
     }
     deriving (Eq, Generic, Show, Typeable)
