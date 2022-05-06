@@ -961,6 +961,10 @@ seqMnemonics = unsafeMkMnemonic <$>
       , "drive", "grant", "tumble", "catalog", "plastic"
       , "hello", "stomach", "utility", "safe", "cradle"
       ]
+    , [ "garage" , "warm" , "blouse" , "peanut" , "pair"
+      , "trend" , "fine" , "hybrid" , "risk" , "mail"
+      , "fan" , "damage" , "push" , "shrug" , "boost"
+      ]
     ]
 
 maMnemonics :: [Mnemonic 24]
