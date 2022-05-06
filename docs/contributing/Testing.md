@@ -175,6 +175,26 @@ The default log level for log files is Info.
 Only Error level logs are shown on stdout during test execution. To
 change this, set the `*_MIN_SEVERITY` variables shown above.
 
+#### Common Failures and Resolution
+
+##### No More Wallets
+
+If your test fails with something like:
+
+```
+user error (No more faucet wallet available in MVar!)
+```
+
+Generate more wallet mnemonics and populate the appropriate list in `lib/core-integration/src/Test/Integration/Faucet.hs`.
+
+Generate new mnemonics with:
+
+```
+nix build .#cardano-wallet
+# Size may vary depending on which array you need to add to.
+./result/bin/cardano-wallet recovery-phrase generate --size 15
+```
+
 ## Mock servers
 
 Use the `cardano-wallet:mock-token-metadata-server` executable as a
