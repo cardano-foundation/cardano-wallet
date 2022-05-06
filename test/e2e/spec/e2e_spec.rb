@@ -879,9 +879,8 @@ RSpec.describe "Cardano Wallet E2E tests", :e2e do
         src_after_minting = get_shelley_balances(@wid)
 
         # verify tx has metadata
-        tx = SHELLEY.transactions.get(@wid, tx_id)
-        # TODO: wait for ability to check non-schema metadata
-        # expect(tx['metadata']).to eq cip25_metadata
+        tx = SHELLEY.transactions.get(@wid, tx_id, "simple-metadata" => true)
+        expect(tx['metadata']).to eq cip25_metadata
 
         # verify ADA balance is correct (fee is deducted)
         expect(src_after_minting['available']).to eq (src_before['available'] - expected_fee)
