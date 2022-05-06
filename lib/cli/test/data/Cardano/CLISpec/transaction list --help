@@ -1,5 +1,6 @@
 Usage:  transaction list [--port INT] WALLET_ID [--start TIME] 
-                         [--end TIME] [--order ORDER]
+                         [--end TIME] [--order ORDER] 
+                         [--simple-metadata]
   List the transactions associated with a wallet.
 
 Available options:
@@ -14,3 +15,5 @@ Available options:
                            2016-11-21T10:15:00Z).
   --order ORDER            specifies a sort order, either
                            'ascending' or 'descending'.
+  --simple-metadata        output metadata json in no-schema
+                           encoding
