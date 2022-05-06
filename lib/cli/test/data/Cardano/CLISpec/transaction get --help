@@ -1,4 +1,4 @@
-Usage:  transaction get [--port INT] WALLET_ID TRANSACTION_ID
+Usage:  transaction get [--port INT] WALLET_ID TRANSACTION_ID 
                         [--simple-metadata]
   Get a transaction with specified id.
 
