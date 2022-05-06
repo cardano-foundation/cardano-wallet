@@ -730,9 +730,12 @@ cmdWalletGetUtxoStatistics mkClient =
 data TransactionFeatures = NoShelleyFeatures | ShelleyFeatures
     deriving (Show, Eq)
 
+data MetadataSchema  = SimpleSchema | FullSchema
+    deriving (Show, Eq)
+
 -- | which json schema to use for output, True is simple
-metadataSchemaOption :: Parser Bool
-metadataSchemaOption = switch
+metadataSchemaOption :: Parser MetadataSchema
+metadataSchemaOption = flag FullSchema SimpleSchema
     $ long "simple-metadata"
         <> help "output metadata json in no-schema encoding"
 
@@ -852,7 +855,7 @@ data TransactionListArgs = TransactionListArgs
     , _timeRangeStart :: Maybe Iso8601Time
     , _timeRangeEnd :: Maybe Iso8601Time
     , _sortOrder :: Maybe SortOrder
-    , _schema :: Bool
+    , _schema :: MetadataSchema
     }
 
 cmdTransactionList
@@ -878,7 +881,7 @@ cmdTransactionList mkTxClient =
             mTimeRangeStart
             mTimeRangeEnd
             (ApiT <$> mOrder)
-            metadataSchema
+            (metadataSchema == SimpleSchema)
 
 -- | Arguments for 'transaction submit' command
 data TransactionSubmitArgs = TransactionSubmitArgs
@@ -928,7 +931,7 @@ data TransactionGetArgs = TransactionGetArgs
     { _port :: Port "Wallet"
     , _wid :: WalletId
     , _txid :: TxId
-    , _schema :: Bool
+    , _schema :: MetadataSchema
     }
 
 cmdTransactionGet
@@ -946,7 +949,7 @@ cmdTransactionGet mkClient =
     exec (TransactionGetArgs wPort wId txId metadataSchema ) = do
         runClient wPort Aeson.encodePretty $ getTransaction mkClient
             (ApiT wId)
-            metadataSchema
+            (metadataSchema == SimpleSchema)
             (ApiTxId $ ApiT $ getTxId txId)
 
 {-------------------------------------------------------------------------------
