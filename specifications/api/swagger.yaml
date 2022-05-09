@@ -3862,8 +3862,9 @@ x-parametersMetadataFormat: &parametersMetadataFormat
     type: boolean
   allowEmptyValue: true
   description: |
-    When present (or equal to true) in the query, the metadata format for the transaction(s) in the output will be untyped plain json
-    as specified in [CIP 25](https://cips.cardano.org/cips/cip25/)
+    When present (or equal to true) in the query, the metadata format for the
+    transaction(s) in the output will be untyped plain json as specified in
+    [CIP 25](https://cips.cardano.org/cips/cip25/)
 
 x-parametersMinWithdrawal: &parametersMinWithdrawal
   in: query

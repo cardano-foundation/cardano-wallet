@@ -61,11 +61,11 @@ noSchemaMetadata = TxMetadataWithSchema TxMetadataNoSchema
 instance FromJSON TxMetadataWithSchema where
     parseJSON = liftA2
         (<|>)
-        ( fmap detailedMetadata
-                . either (fail . displayError) pure
-                . metadataFromJson TxMetadataJsonDetailedSchema
+        (fmap detailedMetadata
+            . either (fail . displayError) pure
+            . metadataFromJson TxMetadataJsonDetailedSchema
         )
-        ( fmap noSchemaMetadata
-                . either (fail . displayError) pure
-                . metadataFromJson TxMetadataJsonNoSchema
+        (fmap noSchemaMetadata
+            . either (fail . displayError) pure
+            . metadataFromJson TxMetadataJsonNoSchema
         )

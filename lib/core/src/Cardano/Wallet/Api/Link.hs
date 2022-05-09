@@ -695,7 +695,7 @@ getTransaction w t s = discriminate @style
     tid = ApiTxId (t ^. typed @(ApiT (Hash "Tx")))
     mkByronURL mk = mk wid tid
 
-    mkShelleyURL :: (ApiT WalletId -> Bool  -> ApiTxId -> Text) -> Text
+    mkShelleyURL :: (ApiT WalletId -> Bool -> ApiTxId -> Text) -> Text
     mkShelleyURL mk = mk wid s tid
 
 createUnsignedTransaction

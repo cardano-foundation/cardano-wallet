@@ -2084,33 +2084,35 @@ deleteTransaction ctx (ApiT wid) (ApiTxId (ApiT (tid))) = do
 
 listTransactions
     :: forall ctx s k n. (ctx ~ ApiLayer s k)
-    => ctx -- ^
-    -> ApiT WalletId -- ^
-    -> Maybe MinWithdrawal -- ^
-    -> Maybe Iso8601Time -- ^
-    -> Maybe Iso8601Time -- ^
-    -> Maybe (ApiT SortOrder) -- ^
-    -> Bool -- ^ metadata json schema
+    => ctx
+    -> ApiT WalletId
+    -> Maybe MinWithdrawal
+    -> Maybe Iso8601Time
+    -> Maybe Iso8601Time
+    -> Maybe (ApiT SortOrder)
+    -> Bool
+    -- ^ metadata json schema
     -> Handler [ApiTransaction n]
-listTransactions ctx (ApiT wid) mMinWithdrawal mStart mEnd mOrder metadataSchema = do
-    (txs, depo) <- withWorkerCtx ctx wid liftE liftE $ \wrk -> do
-        txs <- liftHandler $
-            W.listTransactions @_ @_ @_ wrk wid
-            (Coin . fromIntegral . getMinWithdrawal <$> mMinWithdrawal)
-            (getIso8601Time <$> mStart)
-            (getIso8601Time <$> mEnd)
-            (maybe defaultSortOrder getApiT mOrder)
-        depo <- liftIO $ W.stakeKeyDeposit <$> NW.currentProtocolParameters (wrk ^. networkLayer)
-        pure (txs, depo)
-    liftIO $ forM  txs $ \tx ->
-        mkApiTransactionFromInfo
-            (timeInterpreter (ctx ^. networkLayer))
-            depo
-            tx
-            $ if metadataSchema
-                then TxMetadataNoSchema
-                else TxMetadataDetailedSchema
-
+listTransactions
+    ctx (ApiT wid) mMinWithdrawal mStart mEnd mOrder metadataSchema = do
+        (txs, depo) <- withWorkerCtx ctx wid liftE liftE $ \wrk -> do
+            txs <- liftHandler $
+                W.listTransactions @_ @_ @_ wrk wid
+                (Coin . fromIntegral . getMinWithdrawal <$> mMinWithdrawal)
+                (getIso8601Time <$> mStart)
+                (getIso8601Time <$> mEnd)
+                (maybe defaultSortOrder getApiT mOrder)
+            depo <- liftIO $ W.stakeKeyDeposit <$>
+                NW.currentProtocolParameters (wrk ^. networkLayer)
+            pure (txs, depo)
+        liftIO $ forM txs $ \tx ->
+            mkApiTransactionFromInfo
+                (timeInterpreter (ctx ^. networkLayer))
+                depo
+                tx
+                $ if metadataSchema
+                    then TxMetadataNoSchema
+                    else TxMetadataDetailedSchema
   where
     defaultSortOrder :: SortOrder
     defaultSortOrder = Descending
@@ -2125,7 +2127,8 @@ getTransaction
 getTransaction ctx (ApiT wid) mMetadataSchema (ApiTxId (ApiT (tid))) = do
     (tx, depo) <- withWorkerCtx ctx wid liftE liftE $ \wrk -> do
         tx <- liftHandler $ W.getTransaction wrk wid tid
-        depo <- liftIO $ W.stakeKeyDeposit <$> NW.currentProtocolParameters (wrk ^. networkLayer)
+        depo <- liftIO $ W.stakeKeyDeposit <$>
+            NW.currentProtocolParameters (wrk ^. networkLayer)
         pure (tx, depo)
     liftIO
         $ mkApiTransactionFromInfo
@@ -2295,7 +2298,7 @@ constructTransaction ctx genChange knownPools getPoolStatus (ApiT wid) body = do
     when notall0Haccount $
         liftHandler $ throwE ErrConstructTxMultiaccountNotSupported
 
-    let md = body ^? #metadata . traverse . #txMetadataWithSchema_metadata 
+    let md = body ^? #metadata . traverse . #txMetadataWithSchema_metadata
 
     let isValidityBoundTimeNegative
             (ApiValidityBoundAsTimeFromNow (Quantity sec)) = sec < 0

@@ -986,7 +986,7 @@ spec = describe "SHELLEY_TRANSACTIONS" $ do
 
         basePayload <- mkTxPayload ctx wb amt fixturePassphrase
 
-        let txMeta = [json|{ "1": #{T.replicate 65 "a"}    }|]
+        let txMeta = [json|{ "1": #{T.replicate 65 "a"} }|]
         let payload = addTxMetadata txMeta basePayload
 
         r <-
@@ -1059,7 +1059,7 @@ spec = describe "SHELLEY_TRANSACTIONS" $ do
 
         payload <- mkTxPayload ctx wb amt fixturePassphrase
 
-        let txMeta = [json|{ "1": "hello"    }|]
+        let txMeta = [json|{ "1": "hello" }|]
         let payloadWithMetadata = addTxMetadata txMeta payload
 
         ra <-
@@ -1118,7 +1118,7 @@ spec = describe "SHELLEY_TRANSACTIONS" $ do
 
         basePayload <- mkTxPayload ctx wb amt fixturePassphrase
 
-        let txMeta = [json|{ "1":    #{T.replicate 65 "a" } }|]
+        let txMeta = [json|{ "1": #{T.replicate 65 "a" } }|]
         let payload = addTxMetadata txMeta basePayload
 
         r <-
