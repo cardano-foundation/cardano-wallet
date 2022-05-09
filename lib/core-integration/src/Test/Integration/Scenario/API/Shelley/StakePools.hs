@@ -1208,7 +1208,7 @@ spec = describe "SHELLEY_STAKE_POOLS" $ do
     it "STAKE_POOLS_SMASH_01 - fetching metadata from SMASH works with delisted pools" $
         \ctx -> runResourceT $ bracketSettings ctx $ do
             updateMetadataSource ctx (_smashUrl ctx)
-            -- This can be slow; let's retry more seldom but with a longer
+            -- This can be slow; let's retry less frequently and with a longer
             -- timeout.
             let s = 1_000_000
             eventuallyUsingDelay (10 * s) 300 "metadata is fetched" $ do
