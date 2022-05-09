@@ -3474,7 +3474,7 @@ spec = describe "NEW_SHELLEY_TRANSACTIONS" $ do
                   , ( "some, active_from 10, active_until 57297561", [json|{ "some": {"at_least": 1, "from": [ "cosigner#0", { "active_from": 10 }, { "active_until": 57297561 } ]} }|] )
                   ]
         forM_ scenarios $ \(title, policyScriptTemplate) -> it title $ \ctx -> runResourceT $ do
-            liftIO $ pendingWith "ADP-1738"
+            --liftIO $ pendingWith "ADP-1738"
             w <- fixtureWallet ctx
 
             -- Mint it!
