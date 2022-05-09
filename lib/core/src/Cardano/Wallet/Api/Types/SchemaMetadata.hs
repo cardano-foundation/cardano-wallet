@@ -46,6 +46,14 @@ data TxMetadataWithSchema = TxMetadataWithSchema
     }
     deriving (Show, Eq, Generic, NFData)
 
+-- | Parses a Boolean "simple-metadata" API flag.
+--
+parseSimpleMetadataFlag :: Bool -> TxMetadataSchema
+parseSimpleMetadataFlag flag =
+    if flag
+    then TxMetadataNoSchema
+    else TxMetadataDetailedSchema
+
 instance ToJSON TxMetadataWithSchema where
     toJSON (TxMetadataWithSchema TxMetadataDetailedSchema x) =
         metadataToJson TxMetadataJsonDetailedSchema x

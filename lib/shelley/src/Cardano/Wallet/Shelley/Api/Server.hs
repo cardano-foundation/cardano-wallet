@@ -154,6 +154,8 @@ import Cardano.Wallet.Api.Types
     , SettingsPutData (..)
     , SomeByronWalletPostData (..)
     )
+import Cardano.Wallet.Api.Types.SchemaMetadata
+    ( TxMetadataSchema (..), parseSimpleMetadataFlag )
 import Cardano.Wallet.Primitive.AddressDerivation
     ( DelegationAddress (..), PaymentAddress (..) )
 import Cardano.Wallet.Primitive.AddressDerivation.Byron
@@ -315,8 +317,16 @@ server byron icarus shelley multisig spl ntp =
     shelleyTransactions =
              constructTransaction shelley (delegationAddress @n) (knownPools spl) (getPoolLifeCycleStatus spl)
         :<|> signTransaction shelley
-        :<|> listTransactions shelley
-        :<|> getTransaction shelley
+        :<|>
+            (\wid mMinWithdrawal mStart mEnd mOrder simpleMetadataFlag ->
+                listTransactions shelley wid mMinWithdrawal mStart mEnd mOrder
+                    (parseSimpleMetadataFlag simpleMetadataFlag)
+            )
+        :<|>
+            (\wid simpleMetadataFlag txId ->
+                getTransaction shelley wid txId
+                    (parseSimpleMetadataFlag simpleMetadataFlag)
+            )
         :<|> deleteTransaction shelley
         :<|> postTransactionOld shelley (delegationAddress @n)
         :<|> postTransactionFeeOld shelley
@@ -467,13 +477,25 @@ server byron icarus shelley multisig spl ntp =
                  (byron, signTransaction byron wid tx)
                  (icarus, signTransaction icarus wid tx)
              )
-        :<|> (\wid r0 r1 s -> withLegacyLayer wid
-                (byron , listTransactions byron wid Nothing r0 r1 s False)
-                (icarus, listTransactions icarus wid Nothing r0 r1 s False)
+        :<|>
+            (\wid r0 r1 s -> withLegacyLayer wid
+                ( byron
+                , listTransactions
+                    byron wid Nothing r0 r1 s TxMetadataDetailedSchema
+                )
+                ( icarus
+                , listTransactions
+                    icarus wid Nothing r0 r1 s TxMetadataDetailedSchema
+                )
              )
-        :<|> (\wid txid -> withLegacyLayer wid
-                (byron , getTransaction byron wid False txid)
-                (icarus, getTransaction icarus wid False txid)
+        :<|>
+            (\wid txid -> withLegacyLayer wid
+                ( byron
+                , getTransaction byron wid txid TxMetadataDetailedSchema
+                )
+                ( icarus
+                , getTransaction icarus wid txid TxMetadataDetailedSchema
+                )
              )
         :<|> (\wid txid -> withLegacyLayer wid
                 (byron , deleteTransaction byron wid txid)
