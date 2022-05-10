@@ -313,7 +313,7 @@ walletApiBench capture ctx = do
         let txid = (head txs) ^. #id
         t5a <- measureApiLogs capture $
             request @[ApiTransaction n]
-                ctx (Link.getTransaction @'Shelley wal1 (ApiTxId txid) False)
+                ctx (Link.getTransaction @'Shelley wal1 (ApiTxId txid))
                 Default
                 Empty
         fmtResult "getTransaction     " t5a

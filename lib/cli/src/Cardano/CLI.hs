@@ -162,7 +162,7 @@ import Cardano.Wallet.Api.Types
     , fmtAllowedWords
     )
 import Cardano.Wallet.Api.Types.SchemaMetadata
-    ( TxMetadataWithSchema )
+    ( TxMetadataSchema (..), TxMetadataWithSchema )
 import Cardano.Wallet.Orphans
     ()
 import Cardano.Wallet.Primitive.AddressDerivation
@@ -949,8 +949,13 @@ cmdTransactionGet mkClient =
     exec (TransactionGetArgs wPort wId txId metadataSchema ) = do
         runClient wPort Aeson.encodePretty $ getTransaction mkClient
             (ApiT wId)
-            (metadataSchema == SimpleSchema)
             (ApiTxId $ ApiT $ getTxId txId)
+            (metadataSchemaToTxMetadataSchema metadataSchema)
+
+metadataSchemaToTxMetadataSchema :: MetadataSchema -> TxMetadataSchema
+metadataSchemaToTxMetadataSchema = \case
+    SimpleSchema -> TxMetadataNoSchema
+    FullSchema -> TxMetadataDetailedSchema
 
 {-------------------------------------------------------------------------------
                             Commands - 'address'

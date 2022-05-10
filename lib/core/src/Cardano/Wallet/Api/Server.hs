@@ -331,9 +331,7 @@ import Cardano.Wallet.Api.Types
     , toApiUtxoStatistics
     )
 import Cardano.Wallet.Api.Types.SchemaMetadata
-    ( TxMetadataSchema (TxMetadataDetailedSchema, TxMetadataNoSchema)
-    , TxMetadataWithSchema (TxMetadataWithSchema)
-    )
+    ( TxMetadataSchema (..), TxMetadataWithSchema (TxMetadataWithSchema) )
 import Cardano.Wallet.CoinSelection
     ( SelectionBalanceError (..)
     , SelectionCollateralError
@@ -2090,8 +2088,7 @@ listTransactions
     -> Maybe Iso8601Time
     -> Maybe Iso8601Time
     -> Maybe (ApiT SortOrder)
-    -> Bool
-    -- ^ metadata json schema
+    -> TxMetadataSchema
     -> Handler [ApiTransaction n]
 listTransactions
     ctx (ApiT wid) mMinWithdrawal mStart mEnd mOrder metadataSchema = do
@@ -2110,9 +2107,7 @@ listTransactions
                 (timeInterpreter (ctx ^. networkLayer))
                 depo
                 tx
-                $ if metadataSchema
-                    then TxMetadataNoSchema
-                    else TxMetadataDetailedSchema
+                metadataSchema
   where
     defaultSortOrder :: SortOrder
     defaultSortOrder = Descending
@@ -2121,10 +2116,10 @@ getTransaction
     :: forall ctx s k n. (ctx ~ ApiLayer s k)
     => ctx
     -> ApiT WalletId
-    -> Bool
     -> ApiTxId
+    -> TxMetadataSchema
     -> Handler (ApiTransaction n)
-getTransaction ctx (ApiT wid) mMetadataSchema (ApiTxId (ApiT (tid))) = do
+getTransaction ctx (ApiT wid) (ApiTxId (ApiT (tid))) metadataSchema = do
     (tx, depo) <- withWorkerCtx ctx wid liftE liftE $ \wrk -> do
         tx <- liftHandler $ W.getTransaction wrk wid tid
         depo <- liftIO $ W.stakeKeyDeposit <$>
@@ -2133,9 +2128,7 @@ getTransaction ctx (ApiT wid) mMetadataSchema (ApiTxId (ApiT (tid))) = do
     liftIO
         $ mkApiTransactionFromInfo
             (timeInterpreter (ctx ^. networkLayer)) depo tx
-        $ if mMetadataSchema
-            then TxMetadataNoSchema
-            else TxMetadataDetailedSchema
+            metadataSchema
 
 -- Populate an API transaction record with 'TransactionInfo' from the wallet
 -- layer.

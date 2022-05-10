@@ -133,6 +133,8 @@ import Cardano.Wallet.Api.Types
     , MinWithdrawal (..)
     , WalletStyle (..)
     )
+import Cardano.Wallet.Api.Types.SchemaMetadata
+    ( TxMetadataSchema (..), toSimpleMetadataFlag )
 import Cardano.Wallet.Primitive.AddressDerivation
     ( DerivationIndex, NetworkDiscriminant (..), Role )
 import Cardano.Wallet.Primitive.AddressDiscovery.Shared
@@ -632,7 +634,7 @@ listTransactions' w minWithdrawal inf sup order = discriminate @style
             inf
             sup
             (ApiT <$> order)
-            False
+            (toSimpleMetadataFlag TxMetadataDetailedSchema)
         )
     )
     (endpoint @(Api.ListByronTransactions Net)
@@ -684,9 +686,8 @@ getTransaction
         )
     => w
     -> t
-    -> Bool
     -> (Method, Text)
-getTransaction w t s = discriminate @style
+getTransaction w t = discriminate @style
     (endpoint @(Api.GetTransaction Net) mkShelleyURL)
     (endpoint @(Api.GetByronTransaction Net) mkByronURL)
     (notSupported "Shared")
@@ -695,8 +696,9 @@ getTransaction w t s = discriminate @style
     tid = ApiTxId (t ^. typed @(ApiT (Hash "Tx")))
     mkByronURL mk = mk wid tid
 
-    mkShelleyURL :: (ApiT WalletId -> Bool -> ApiTxId -> Text) -> Text
-    mkShelleyURL mk = mk wid s tid
+    mkShelleyURL :: (ApiT WalletId -> ApiTxId -> Bool -> Text) -> Text
+    mkShelleyURL mk =
+        mk wid tid (toSimpleMetadataFlag TxMetadataDetailedSchema)
 
 createUnsignedTransaction
     :: forall style w.

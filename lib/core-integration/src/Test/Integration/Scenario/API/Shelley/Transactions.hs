@@ -343,7 +343,7 @@ spec = describe "SHELLEY_TRANSACTIONS" $ do
             ]
 
         let txid = getFromResponse #id rTx
-        let linkSrc = Link.getTransaction @'Shelley wa (ApiTxId txid) False
+        let linkSrc = Link.getTransaction @'Shelley wa (ApiTxId txid)
         eventually "transaction is no longer pending on source wallet" $ do
             rSrc <- request @(ApiTransaction n) ctx linkSrc Default Empty
             verify rSrc
@@ -357,7 +357,7 @@ spec = describe "SHELLEY_TRANSACTIONS" $ do
                 , expectField (#metadata) (`shouldBe` Nothing)
                 ]
 
-        let linkDest = Link.getTransaction @'Shelley wb (ApiTxId txid) False
+        let linkDest = Link.getTransaction @'Shelley wb (ApiTxId txid)
         eventually "transaction is discovered by destination wallet" $ do
             rDst <- request @(ApiTransaction n) ctx linkDest Default Empty
             verify rDst
@@ -1704,7 +1704,7 @@ spec = describe "SHELLEY_TRANSACTIONS" $ do
         eventually "Transactions are available and in ledger" $ do
             -- Verify Tx in source wallet is Outgoing and InLedger
             let linkSrc = Link.getTransaction @'Shelley
-                    wSrc (ApiTxId txid) False
+                    wSrc (ApiTxId txid)
             r1 <- request @(ApiTransaction n) ctx linkSrc Default Empty
             verify r1
                 [ expectResponseCode HTTP.status200
@@ -1714,7 +1714,7 @@ spec = describe "SHELLEY_TRANSACTIONS" $ do
 
             -- Verify Tx in destination wallet is Incoming and InLedger
             let linkDest = Link.getTransaction
-                    @'Shelley wDest (ApiTxId txid) False
+                    @'Shelley wDest (ApiTxId txid)
             r2 <- request @(ApiTransaction n) ctx linkDest Default Empty
             verify r2
                 [ expectResponseCode HTTP.status200
@@ -1726,7 +1726,7 @@ spec = describe "SHELLEY_TRANSACTIONS" $ do
         w <- emptyWallet ctx
         _ <- request @ApiWallet ctx (Link.deleteWallet @'Shelley w) Default Empty
         let txid = ApiT $ Hash $ BS.pack $ replicate 32 1
-        let link = Link.getTransaction @'Shelley w (ApiTxId txid) False
+        let link = Link.getTransaction @'Shelley w (ApiTxId txid)
         r <- request @(ApiTransaction n) ctx link Default Empty
         expectResponseCode HTTP.status404 r
         expectErrorMessage (errMsg404NoWallet $ w ^. walletId) r
@@ -1748,7 +1748,7 @@ spec = describe "SHELLEY_TRANSACTIONS" $ do
 
         let txid =  Hash $ BS.pack $ replicate 32 1
         let link = Link.getTransaction @'Shelley
-                wSrc (ApiTxId $ ApiT txid) False
+                wSrc (ApiTxId $ ApiT txid)
         r <- request @(ApiTransaction n) ctx link Default Empty
         expectResponseCode HTTP.status404 r
         expectErrorMessage (errMsg404CannotFindTx $ toText txid) r
@@ -1929,7 +1929,7 @@ spec = describe "SHELLEY_TRANSACTIONS" $ do
 
         eventually "withdrawal transaction is listed on other" $ do
             rTxOther <- request @(ApiTransaction n) ctx
-                (Link.getTransaction @'Shelley wOther tid False) Default payload
+                (Link.getTransaction @'Shelley wOther tid) Default payload
             verify rTxOther
                 [ expectResponseCode
                     HTTP.status200
@@ -1951,7 +1951,7 @@ spec = describe "SHELLEY_TRANSACTIONS" $ do
 
         eventually "withdrawal transaction is listed on self" $ do
             rTxSelf <- request @(ApiTransaction n) ctx
-                (Link.getTransaction  @'Shelley wSelf tid False) Default payload
+                (Link.getTransaction  @'Shelley wSelf tid) Default payload
             verify rTxSelf
                 [ expectResponseCode
                     HTTP.status200
@@ -2288,7 +2288,7 @@ spec = describe "SHELLEY_TRANSACTIONS" $ do
         let txid = getFromResponse #id ra
         eventually "metadata is confirmed in transaction get" $ do
           -- on src wallet
-            let linkSrc = Link.getTransaction @'Shelley wa (ApiTxId txid) False
+            let linkSrc = Link.getTransaction @'Shelley wa (ApiTxId txid)
             rg1 <- request @(ApiTransaction n) ctx linkSrc Default Empty
             verify rg1
                 [ expectResponseCode HTTP.status200
@@ -2301,7 +2301,7 @@ spec = describe "SHELLEY_TRANSACTIONS" $ do
                     (`shouldBe` detailedMetadata <$> txMetadata)
                 ]
           -- on dst wallet
-            let linkDst = Link.getTransaction @'Shelley wb (ApiTxId txid) False
+            let linkDst = Link.getTransaction @'Shelley wb (ApiTxId txid)
             rg2 <- request @(ApiTransaction n) ctx linkDst Default Empty
             verify rg2
                 [ expectResponseCode HTTP.status200

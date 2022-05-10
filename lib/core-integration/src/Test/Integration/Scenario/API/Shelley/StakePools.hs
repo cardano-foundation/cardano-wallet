@@ -238,7 +238,7 @@ spec = describe "SHELLEY_STAKE_POOLS" $ do
         eventually "Wallet has joined pool and deposit info persists" $ do
             rJoin' <- request @(ApiTransaction n) ctx
                 (Link.getTransaction @'Shelley src
-                    (getFromResponse Prelude.id rJoin) False)
+                    (getFromResponse Prelude.id rJoin))
                 Default Empty
             verify rJoin'
                 [ expectResponseCode HTTP.status200
@@ -249,7 +249,7 @@ spec = describe "SHELLEY_STAKE_POOLS" $ do
                 ]
 
         let txId = getFromResponse #id rJoin
-        let link = Link.getTransaction @'Shelley src (ApiTxId txId) False
+        let link = Link.getTransaction @'Shelley src (ApiTxId txId)
         eventually "delegation transaction is in ledger" $ do
             rSrc <- request @(ApiTransaction n) ctx link Default Empty
             verify rSrc
@@ -302,7 +302,7 @@ spec = describe "SHELLEY_STAKE_POOLS" $ do
         expectResponseCode HTTP.status202 r1
         eventually "Wallet has not consumed rewards" $ do
           let linkSrc = Link.getTransaction @'Shelley
-                  src (getFromResponse Prelude.id r1) False
+                  src (getFromResponse Prelude.id r1)
           request @(ApiTransaction n) ctx linkSrc Default Empty
               >>= flip verify
                   [ expectField
@@ -377,7 +377,7 @@ spec = describe "SHELLEY_STAKE_POOLS" $ do
         eventually "There's at least one outgoing transaction with a withdrawal" $ do
             rWithdrawal <- request @(ApiTransaction n) ctx
                 (Link.getTransaction @'Shelley src
-                    (getFromResponse Prelude.id rTx) False)
+                    (getFromResponse Prelude.id rTx))
                 Default Empty
             verify rWithdrawal
                 [ expectResponseCode HTTP.status200
@@ -413,7 +413,7 @@ spec = describe "SHELLEY_STAKE_POOLS" $ do
         let quitFeeAmt = getFromResponse #amount rq
 
         eventually "Certificates are inserted after quitting a pool" $ do
-            let epg = Link.getTransaction @'Shelley src txid False
+            let epg = Link.getTransaction @'Shelley src txid
             rlg <- request @(ApiTransaction n) ctx epg Default Empty
             verify rlg
                 [ expectField
@@ -934,7 +934,7 @@ spec = describe "SHELLEY_STAKE_POOLS" $ do
                 ]
 
             let txId = getFromResponse #id rQuit
-            let link = Link.getTransaction @'Shelley w (ApiTxId txId) False
+            let link = Link.getTransaction @'Shelley w (ApiTxId txId)
             eventually "quit transaction is in ledger" $ do
                 rSrc <- request @(ApiTransaction n) ctx link Default Empty
                 verify rSrc
