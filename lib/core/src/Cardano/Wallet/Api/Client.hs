@@ -94,6 +94,8 @@ import Cardano.Wallet.Api.Types
     , WalletPutData (..)
     , WalletPutPassphraseData (..)
     )
+import Cardano.Wallet.Api.Types.SchemaMetadata
+    ( TxMetadataSchema, toSimpleMetadataFlag )
 import Cardano.Wallet.Primitive.Types
     ( SortOrder, WalletId )
 import Cardano.Wallet.Primitive.Types.Address
@@ -187,7 +189,7 @@ data TransactionClient = TransactionClient
     , getTransaction
         :: ApiT WalletId
         -> ApiTxId
-        -> Bool
+        -> TxMetadataSchema
         -> ClientM (ApiTransactionT Aeson.Value)
     , constructTransaction
         :: ApiT WalletId
@@ -335,7 +337,9 @@ transactionClient =
             , postTransactionFee = _postTransactionFee
             , postExternalTransaction = _postExternalTransaction . fromSerialisedTx
             , deleteTransaction = _deleteTransaction
-            , getTransaction = _getTransaction
+            , getTransaction =
+                \wid txid metadataSchema ->
+                _getTransaction wid txid (toSimpleMetadataFlag metadataSchema)
             , constructTransaction = _constructTransaction
             , balanceTransaction = _balanceTransaction
             , decodeTransaction = _decodeTransaction
