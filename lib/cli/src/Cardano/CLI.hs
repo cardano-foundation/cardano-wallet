@@ -162,7 +162,7 @@ import Cardano.Wallet.Api.Types
     , fmtAllowedWords
     )
 import Cardano.Wallet.Api.Types.SchemaMetadata
-    ( TxMetadataWithSchema, TxMetadataSchema (..) )
+    ( TxMetadataSchema (..), TxMetadataWithSchema )
 import Cardano.Wallet.Orphans
     ()
 import Cardano.Wallet.Primitive.AddressDerivation
