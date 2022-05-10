@@ -124,40 +124,43 @@ class NextWallet (scheme :: Symbol) where
     type MnemonicSize scheme :: Nat
     nextWallet :: Faucet -> IO (Mnemonic (MnemonicSize scheme))
 
-takeNext :: MVar [a] -> IO a
-takeNext mvar = do
+takeNext :: String -> MVar [a] -> IO a
+takeNext description mvar = do
     result <- modifyMVar mvar $ \case
         [] -> pure ([], Nothing)
         (h:q) -> pure (q, Just h)
     case result of
-        Nothing -> fail "No more faucet wallet available in MVar!"
+        Nothing -> fail
+            $ "No more faucet wallets of type " <> description <> "! "
+            <> "You may need to manually add entries to the relevant list in "
+            <> "lib/core-integration/src/Test/Integration/Faucet.hs"
         Just a  -> pure a
 
 instance NextWallet "shelley" where
     type MnemonicSize "shelley" = 15
-    nextWallet (Faucet mvar _ _ _ _ _) = takeNext mvar
+    nextWallet (Faucet mvar _ _ _ _ _) = takeNext "shelley" mvar
 
 instance NextWallet "icarus" where
     type MnemonicSize "icarus" = 15
-    nextWallet (Faucet _ mvar _ _ _ _) = takeNext mvar
+    nextWallet (Faucet _ mvar _ _ _ _) = takeNext "icarus" mvar
 
 instance NextWallet "random" where
     type MnemonicSize "random" = 12
-    nextWallet (Faucet _ _ mvar _ _ _) = takeNext mvar
+    nextWallet (Faucet _ _ mvar _ _ _) = takeNext "random" mvar
 
 instance NextWallet "reward" where
     type MnemonicSize "reward" = 24
-    nextWallet (Faucet _ _ _ mvar _ _) = takeNext mvar
+    nextWallet (Faucet _ _ _ mvar _ _) = takeNext "reward" mvar
 
 instance NextWallet "ma" where
     type MnemonicSize "ma" = 24
-    nextWallet = takeNext . ma
+    nextWallet = takeNext "ma" . ma
 
 -- | Get a raw transaction builder. It constructs and sign a transaction via an
 -- private key that is owned "externally". Returns a bytes string ready to be
 -- sent to a node.
 nextTxBuilder :: Faucet -> IO ((Address, Coin) -> IO ByteString)
-nextTxBuilder (Faucet _ _ _ _ _ mvar) = takeNext mvar
+nextTxBuilder (Faucet _ _ _ _ _ mvar) = takeNext "txBuilder" mvar
 
 seqMnemonics :: [Mnemonic 15]
 seqMnemonics = unsafeMkMnemonic <$>
