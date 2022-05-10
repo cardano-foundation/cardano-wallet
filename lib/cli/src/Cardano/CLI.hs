@@ -730,12 +730,9 @@ cmdWalletGetUtxoStatistics mkClient =
 data TransactionFeatures = NoShelleyFeatures | ShelleyFeatures
     deriving (Show, Eq)
 
-data MetadataSchema  = SimpleSchema | FullSchema
-    deriving (Show, Eq)
-
 -- | which json schema to use for output, True is simple
-metadataSchemaOption :: Parser MetadataSchema
-metadataSchemaOption = flag FullSchema SimpleSchema
+metadataSchemaOption :: Parser TxMetadataSchema
+metadataSchemaOption = flag TxMetadataDetailedSchema TxMetadataNoSchema
     $ long "simple-metadata"
         <> help "output metadata json in no-schema encoding"
 
@@ -855,7 +852,7 @@ data TransactionListArgs = TransactionListArgs
     , _timeRangeStart :: Maybe Iso8601Time
     , _timeRangeEnd :: Maybe Iso8601Time
     , _sortOrder :: Maybe SortOrder
-    , _schema :: MetadataSchema
+    , _schema :: TxMetadataSchema
     }
 
 cmdTransactionList
@@ -881,7 +878,7 @@ cmdTransactionList mkTxClient =
             mTimeRangeStart
             mTimeRangeEnd
             (ApiT <$> mOrder)
-            (metadataSchema == SimpleSchema)
+            (metadataSchema == TxMetadataNoSchema)
 
 -- | Arguments for 'transaction submit' command
 data TransactionSubmitArgs = TransactionSubmitArgs
@@ -931,7 +928,7 @@ data TransactionGetArgs = TransactionGetArgs
     { _port :: Port "Wallet"
     , _wid :: WalletId
     , _txid :: TxId
-    , _schema :: MetadataSchema
+    , _schema :: TxMetadataSchema
     }
 
 cmdTransactionGet
@@ -950,12 +947,7 @@ cmdTransactionGet mkClient =
         runClient wPort Aeson.encodePretty $ getTransaction mkClient
             (ApiT wId)
             (ApiTxId $ ApiT $ getTxId txId)
-            (metadataSchemaToTxMetadataSchema metadataSchema)
-
-metadataSchemaToTxMetadataSchema :: MetadataSchema -> TxMetadataSchema
-metadataSchemaToTxMetadataSchema = \case
-    SimpleSchema -> TxMetadataNoSchema
-    FullSchema -> TxMetadataDetailedSchema
+            metadataSchema
 
 {-------------------------------------------------------------------------------
                             Commands - 'address'
