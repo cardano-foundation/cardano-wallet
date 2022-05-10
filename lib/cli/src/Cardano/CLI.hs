@@ -730,7 +730,7 @@ cmdWalletGetUtxoStatistics mkClient =
 data TransactionFeatures = NoShelleyFeatures | ShelleyFeatures
     deriving (Show, Eq)
 
--- | which json schema to use for output, True is simple
+-- | Which json schema to use for output
 metadataSchemaOption :: Parser TxMetadataSchema
 metadataSchemaOption = flag TxMetadataDetailedSchema TxMetadataNoSchema
     $ long "simple-metadata"

@@ -494,12 +494,12 @@ spec = describe "SHELLEY_CLI_TRANSACTIONS" $ do
                     wallet <- emptyWallet ctx
                     (Exit code, Stdout out, Stderr err) <-
                         listTransactionsViaCLI ctx TxMetadataDetailedSchema $
-                        join
-                            [ [T.unpack $ wallet ^. walletId]
-                            , maybe [] (\t -> ["--start", t]) mStart
-                            , maybe [] (\t -> ["--end"  , t]) mEnd
-                            , maybe [] (\o -> ["--order", showT o]) mOrder
-                            ]
+                            join
+                                [ [T.unpack $ wallet ^. walletId]
+                                , maybe [] (\t -> ["--start", t]) mStart
+                                , maybe [] (\t -> ["--end"  , t]) mEnd
+                                , maybe [] (\o -> ["--order", showT o]) mOrder
+                                ]
                     err `shouldBe` "Ok.\n"
                     out `shouldBe` "[]\n"
                     code `shouldBe` ExitSuccess

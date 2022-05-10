@@ -339,7 +339,7 @@ transactionClient =
             , deleteTransaction = _deleteTransaction
             , getTransaction =
                 \wid txid metadataSchema ->
-                _getTransaction wid txid (toSimpleMetadataFlag metadataSchema)
+                    _getTransaction wid txid (toSimpleMetadataFlag metadataSchema)
             , constructTransaction = _constructTransaction
             , balanceTransaction = _balanceTransaction
             , decodeTransaction = _decodeTransaction
