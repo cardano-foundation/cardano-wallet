@@ -1574,8 +1574,40 @@ balanceTransaction
     => ctx
     -> ArgGenChange s
     -> (W.ProtocolParameters, Cardano.ProtocolParameters)
+    -- ^ 'Cardano.ProtocolParameters' can be retrived via a Local State Query to
+    -- a local node.
+    --
+    -- Providing incorrect values will result in phase 1 script integrity
+    -- hash failures instead of phase 2 failures if script redeemers are
+    -- present in the transaction, ensuring collateral is never forfeited.
+    --
+    -- TODO: Remove 'W.ProtocolParameters' argument.
     -> TimeInterpreter (Either PastHorizonException)
+    -- ^ TODO: Replace with 'Cardano.EraHistory' and 'SystemStart'. The rest of
+    -- the comment will read as if this already had been done:
+    --
+    -- The 'Cardano.EraHistory' and 'SystemStart' is needed to convert
+    -- is needed to convert validity intervals from 'UTCTime' to 'SlotNo' when
+    -- executing Plutus scripts.
+    --
+    -- 'SystemStart' is defined in the genesis file.
+    --
+    -- 'Cardano.EraHistory' can be retrieved via a Local State Query to a local
+    -- node.
+    --
+    -- Both values can be hard-coded for a given network configuration. Just be
+    -- cautious that the 'Cardano.EraHistory' will occasionally change as new
+    -- eras are introduced to Cardano. Incorrect 'Cardano.EraHistory' values
+    -- _may_ result in a loss of collateral.
+    --
+    -- TODO [ADP-1544] or similar ticket: Clarify and/or test whether it's
+    -- actually possible to lose collateral by providing incorrect
+    -- 'Cardano.EraHistory' values.
+    --
+    -- Relevant ledger code: https://github.com/input-output-hk/cardano-ledger/blob/fdec04e8c071060a003263cdcb37e7319fb4dbf3/eras/alonzo/impl/src/Cardano/Ledger/Alonzo/TxInfo.hs#L428-L440
     -> (UTxOIndex WalletUTxO, Wallet s, Set Tx)
+    -- ^ TODO [ADP-1789] Replace with @Cardano.UTxO@ and something simpler than
+    -- @Wallet s@ for change address generation.
     -> PartialTx era
     -> ExceptT ErrBalanceTx m (Cardano.Tx era)
 balanceTransaction ctx change pp ti wallet ptx = do
