@@ -686,9 +686,8 @@ getTransaction
         )
     => w
     -> t
-    -> Bool
     -> (Method, Text)
-getTransaction w t s = discriminate @style
+getTransaction w t = discriminate @style
     (endpoint @(Api.GetTransaction Net) mkShelleyURL)
     (endpoint @(Api.GetByronTransaction Net) mkByronURL)
     (notSupported "Shared")
@@ -698,7 +697,8 @@ getTransaction w t s = discriminate @style
     mkByronURL mk = mk wid tid
 
     mkShelleyURL :: (ApiT WalletId -> Bool -> ApiTxId -> Text) -> Text
-    mkShelleyURL mk = mk wid s tid
+    mkShelleyURL mk =
+        mk wid (toSimpleMetadataFlag TxMetadataDetailedSchema) tid
 
 createUnsignedTransaction
     :: forall style w.
