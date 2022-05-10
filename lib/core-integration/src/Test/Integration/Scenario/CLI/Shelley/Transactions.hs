@@ -392,7 +392,7 @@ spec = describe "SHELLEY_CLI_TRANSACTIONS" $ do
         let txId = getTxId txJson
 
         (Exit code, Stdout out, Stderr err) <-
-            getTransactionViaCLI ctx wSrcId txId True
+            getTransactionViaCLI ctx wSrcId txId TxMetadataNoSchema
         err `shouldBe` "Ok.\n"
         code `shouldBe` ExitSuccess
         outJson <- expectValidJSON (Proxy @(ApiTransaction n)) out
@@ -772,7 +772,7 @@ spec = describe "SHELLEY_CLI_TRANSACTIONS" $ do
 
             -- Verify Tx in source wallet is Outgoing and InLedger
             (Exit code1, Stdout out1, Stderr err1) <-
-                getTransactionViaCLI ctx wSrcId txId False
+                getTransactionViaCLI ctx wSrcId txId TxMetadataDetailedSchema
             err1 `shouldBe` "Ok.\n"
             code1 `shouldBe` ExitSuccess
             outJson1 <- expectValidJSON (Proxy @(ApiTransaction n)) out1
@@ -784,7 +784,7 @@ spec = describe "SHELLEY_CLI_TRANSACTIONS" $ do
             let wDestId = T.unpack (wDest ^. walletId)
             -- Verify Tx in destination wallet is Incoming and InLedger
             (Exit code2, Stdout out2, Stderr err2) <-
-                getTransactionViaCLI ctx wDestId txId False
+                getTransactionViaCLI ctx wDestId txId TxMetadataDetailedSchema
             err2 `shouldBe` "Ok.\n"
             code2 `shouldBe` ExitSuccess
             outJson2 <- expectValidJSON (Proxy @(ApiTransaction n)) out2
@@ -799,7 +799,8 @@ spec = describe "SHELLEY_CLI_TRANSACTIONS" $ do
         d `shouldBe` ExitSuccess
         let txId = "3e6ec12da4414aa0781ff8afa9717ae53ee8cb4aa55d622f65bc62619a4f7b12"
 
-        (Exit c, Stdout o, Stderr e) <- getTransactionViaCLI ctx wid txId False
+        (Exit c, Stdout o, Stderr e) <-
+            getTransactionViaCLI ctx wid txId TxMetadataDetailedSchema
         e `shouldContain` errMsg404NoWallet (T.pack wid)
         o `shouldBe` mempty
         c `shouldBe` ExitFailure 1
@@ -826,7 +827,7 @@ spec = describe "SHELLEY_CLI_TRANSACTIONS" $ do
         let wid = T.unpack (wSrc ^. walletId)
         let txId = "3e6ec12da4414aa0781ff8afa9717ae53ee8cb4aa55d622f65bc62619a4f7b12"
         (Exit c2, Stdout o2, Stderr e2) <-
-            getTransactionViaCLI ctx wid txId False
+            getTransactionViaCLI ctx wid txId TxMetadataDetailedSchema
         e2 `shouldContain` errMsg404CannotFindTx (T.pack txId)
         o2 `shouldBe` mempty
         c2 `shouldBe` ExitFailure 1

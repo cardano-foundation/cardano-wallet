@@ -2842,12 +2842,12 @@ getTransactionViaCLI
     => s
     -> String
     -> String
-    -> Bool
+    -> TxMetadataSchema
     -> m r
 getTransactionViaCLI ctx wid tid metadataSchema = cardanoWalletCLI $ join
     [ ["transaction", "get"]
     , ["--port", show (ctx ^. typed @(Port "wallet")), wid, tid]
-    , ["--simple-metadata" | metadataSchema]
+    , ["--simple-metadata" | toSimpleMetadataFlag metadataSchema]
     ]
 
 proc' :: FilePath -> [String] -> CreateProcess
