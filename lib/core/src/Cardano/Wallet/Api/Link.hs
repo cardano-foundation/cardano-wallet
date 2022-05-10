@@ -133,6 +133,8 @@ import Cardano.Wallet.Api.Types
     , MinWithdrawal (..)
     , WalletStyle (..)
     )
+import Cardano.Wallet.Api.Types.SchemaMetadata
+    ( TxMetadataSchema (..), toSimpleMetadataFlag )
 import Cardano.Wallet.Primitive.AddressDerivation
     ( DerivationIndex, NetworkDiscriminant (..), Role )
 import Cardano.Wallet.Primitive.AddressDiscovery.Shared
@@ -632,7 +634,7 @@ listTransactions' w minWithdrawal inf sup order = discriminate @style
             inf
             sup
             (ApiT <$> order)
-            False
+            (toSimpleMetadataFlag TxMetadataDetailedSchema)
         )
     )
     (endpoint @(Api.ListByronTransactions Net)

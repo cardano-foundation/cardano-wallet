@@ -4,6 +4,7 @@
 {-# LANGUAGE DerivingStrategies #-}
 {-# LANGUAGE FlexibleInstances #-}
 {-# LANGUAGE KindSignatures #-}
+{-# LANGUAGE LambdaCase #-}
 {-# LANGUAGE NoMonomorphismRestriction #-}
 {-# LANGUAGE StrictData #-}
 
@@ -17,7 +18,7 @@ module Cardano.Wallet.Api.Types.SchemaMetadata where
 
 import Cardano.Api
     ( Error (displayError)
-    , TxMetadataJsonSchema (TxMetadataJsonDetailedSchema, TxMetadataJsonNoSchema)
+    , TxMetadataJsonSchema (..)
     , metadataFromJson
     , metadataToJson
     )
@@ -48,11 +49,24 @@ data TxMetadataWithSchema = TxMetadataWithSchema
 
 -- | Parses a Boolean "simple-metadata" API flag.
 --
+-- prop> toSimpleMetadataFlag . parseSimpleMetadataFlag == id
+-- prop> parseSimpleMetadataFlag . toSimpleMetadataFlag == id
+--
 parseSimpleMetadataFlag :: Bool -> TxMetadataSchema
 parseSimpleMetadataFlag flag =
     if flag
     then TxMetadataNoSchema
     else TxMetadataDetailedSchema
+
+-- | Produces a Boolean "simple-metadata" API flag.
+--
+-- prop> toSimpleMetadataFlag . parseSimpleMetadataFlag == id
+-- prop> parseSimpleMetadataFlag . toSimpleMetadataFlag == id
+--
+toSimpleMetadataFlag :: TxMetadataSchema -> Bool
+toSimpleMetadataFlag = \case
+    TxMetadataNoSchema -> True
+    TxMetadataDetailedSchema -> False
 
 instance ToJSON TxMetadataWithSchema where
     toJSON (TxMetadataWithSchema TxMetadataDetailedSchema x) =
