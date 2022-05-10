@@ -843,11 +843,11 @@ traceBlockHeadersProgressForPlotting
     :: Tracer IO Text
     -> Tracer IO (Maybe (Quantity "block" Word32))
 traceBlockHeadersProgressForPlotting tr = Tracer $ \bs -> do
-    let tip = pretty . getQuantity <$> bs
+    let mtip = pretty . getQuantity <$> bs
     time <- pretty . utcTimeToPOSIXSeconds <$> getCurrentTime
-    traceWith tr $ maybe "no tip" ((time <> " ") <>) tip
-
-
+    case mtip of 
+        Just tip -> traceWith tr $ time <> " " <> tip
+        Nothing -> pure ()
 
 withBenchDBLayer
     :: forall s k a.
