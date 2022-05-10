@@ -600,6 +600,7 @@ spec = parallel $ do
         jsonTest @ByronWalletPutPassphraseData
         jsonTest @SettingsPutData
         jsonTest @SomeByronWalletPostData
+        jsonTest @TxMetadataWithSchema
         jsonTest @WalletOrAccountPostData
         jsonTest @WalletPostData
         jsonTest @WalletPutData
