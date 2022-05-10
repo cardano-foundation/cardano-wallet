@@ -365,7 +365,8 @@ spec = describe "SHELLEY_CLI_TRANSACTIONS" $ do
         \Transaction with metadata via CLI with simple metadata" $
         \ctx -> runResourceT $ do
 
-        (wSrc, wDest) <- (,) <$> fixtureWallet ctx <*> emptyWallet ctx
+        wSrc <- fixtureWallet ctx
+        wDest <- emptyWallet ctx
         let amt = 10_000_000
         let md = Just "{ \"1\": { \"string\": \"hello\" } }"
         let expected = Just $
