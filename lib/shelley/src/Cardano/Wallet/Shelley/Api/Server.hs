@@ -323,7 +323,7 @@ server byron icarus shelley multisig spl ntp =
                     (parseSimpleMetadataFlag simpleMetadataFlag)
             )
         :<|>
-            (\wid simpleMetadataFlag txId ->
+            (\wid txId simpleMetadataFlag ->
                 getTransaction shelley wid txId
                     (parseSimpleMetadataFlag simpleMetadataFlag)
             )

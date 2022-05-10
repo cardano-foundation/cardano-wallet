@@ -949,8 +949,8 @@ cmdTransactionGet mkClient =
     exec (TransactionGetArgs wPort wId txId metadataSchema ) = do
         runClient wPort Aeson.encodePretty $ getTransaction mkClient
             (ApiT wId)
-            (metadataSchema == SimpleSchema)
             (ApiTxId $ ApiT $ getTxId txId)
+            (metadataSchema == SimpleSchema)
 
 {-------------------------------------------------------------------------------
                             Commands - 'address'

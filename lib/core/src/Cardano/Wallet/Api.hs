@@ -591,8 +591,8 @@ type ListTransactions n = "wallets"
 type GetTransaction n = "wallets"
     :> Capture "walletId" (ApiT WalletId)
     :> "transactions"
-    :> QueryFlag "simple-metadata"
     :> Capture "transactionId" ApiTxId
+    :> QueryFlag "simple-metadata"
     :> Get '[JSON] (ApiTransactionT n)
 
 -- | https://input-output-hk.github.io/cardano-wallet/api/#operation/postTransactionFee

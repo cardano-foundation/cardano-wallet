@@ -186,8 +186,8 @@ data TransactionClient = TransactionClient
         -> ClientM NoContent
     , getTransaction
         :: ApiT WalletId
-        -> Bool
         -> ApiTxId
+        -> Bool
         -> ClientM (ApiTransactionT Aeson.Value)
     , constructTransaction
         :: ApiT WalletId
@@ -370,7 +370,7 @@ byronTransactionClient =
         , postTransactionFee = _postTransactionFee
         , postExternalTransaction = _postExternalTransaction . fromSerialisedTx
         , deleteTransaction = _deleteTransaction
-        , getTransaction = \wid _ txid  -> _getTransaction wid txid
+        , getTransaction = \wid txid _  -> _getTransaction wid txid
         , constructTransaction = _constructTransaction
         , balanceTransaction = error "balance transaction endpoint not supported for byron"
         , decodeTransaction = error "decode transaction endpoint not supported for byron"
