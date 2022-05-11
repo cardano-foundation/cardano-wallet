@@ -264,6 +264,8 @@ import Cardano.Wallet.Api.Types
     , WalletStyle (..)
     , insertedAt
     )
+import Cardano.Wallet.Api.Types.SchemaMetadata
+    ( TxMetadataSchema, toSimpleMetadataFlag )
 import Cardano.Wallet.Compat
     ( (^?) )
 import Cardano.Wallet.Primitive.AddressDerivation
@@ -2803,11 +2805,13 @@ postTransactionFeeViaCLI ctx args = cardanoWalletCLI $ join
 listTransactionsViaCLI
     :: forall r s m. (CmdResult r, HasType (Port "wallet") s, MonadIO m)
     => s
+    -> TxMetadataSchema
     -> [String]
     -> m r
-listTransactionsViaCLI ctx args = cardanoWalletCLI $ join
+listTransactionsViaCLI ctx metadataSchema args = cardanoWalletCLI $ join
     [ ["transaction", "list"]
     , ["--port", show (ctx ^. typed @(Port "wallet"))]
+    , ["--simple-metadata" | toSimpleMetadataFlag metadataSchema]
     , args
     ]
 
@@ -2838,10 +2842,12 @@ getTransactionViaCLI
     => s
     -> String
     -> String
+    -> TxMetadataSchema
     -> m r
-getTransactionViaCLI ctx wid tid = cardanoWalletCLI $ join
+getTransactionViaCLI ctx wid tid metadataSchema = cardanoWalletCLI $ join
     [ ["transaction", "get"]
     , ["--port", show (ctx ^. typed @(Port "wallet")), wid, tid]
+    , ["--simple-metadata" | toSimpleMetadataFlag metadataSchema]
     ]
 
 proc' :: FilePath -> [String] -> CreateProcess

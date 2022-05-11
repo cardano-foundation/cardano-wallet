@@ -94,6 +94,8 @@ import Cardano.Wallet.Api.Types
     , WalletPutData (..)
     , WalletPutPassphraseData (..)
     )
+import Cardano.Wallet.Api.Types.SchemaMetadata
+    ( TxMetadataSchema, toSimpleMetadataFlag )
 import Cardano.Wallet.Primitive.Types
     ( SortOrder, WalletId )
 import Cardano.Wallet.Primitive.Types.Address
@@ -163,6 +165,7 @@ data TransactionClient = TransactionClient
         -> Maybe Iso8601Time
         -> Maybe Iso8601Time
         -> Maybe (ApiT SortOrder)
+        -> Bool
         -> ClientM [ApiTransactionT Aeson.Value]
     , signTransaction
         :: ApiT WalletId
@@ -186,6 +189,7 @@ data TransactionClient = TransactionClient
     , getTransaction
         :: ApiT WalletId
         -> ApiTxId
+        -> TxMetadataSchema
         -> ClientM (ApiTransactionT Aeson.Value)
     , constructTransaction
         :: ApiT WalletId
@@ -333,7 +337,9 @@ transactionClient =
             , postTransactionFee = _postTransactionFee
             , postExternalTransaction = _postExternalTransaction . fromSerialisedTx
             , deleteTransaction = _deleteTransaction
-            , getTransaction = _getTransaction
+            , getTransaction =
+                \wid txid metadataSchema ->
+                    _getTransaction wid txid (toSimpleMetadataFlag metadataSchema)
             , constructTransaction = _constructTransaction
             , balanceTransaction = _balanceTransaction
             , decodeTransaction = _decodeTransaction
@@ -361,13 +367,14 @@ byronTransactionClient =
             = client (Proxy @("v2" :> Proxy_))
 
     in TransactionClient
-        { listTransactions = _listTransactions
+        { listTransactions = \wid start end order _ ->
+            _listTransactions wid start end order
         , signTransaction = _signTransaction
         , postTransaction = _postTransaction
         , postTransactionFee = _postTransactionFee
         , postExternalTransaction = _postExternalTransaction . fromSerialisedTx
         , deleteTransaction = _deleteTransaction
-        , getTransaction = _getTransaction
+        , getTransaction = \wid txid _  -> _getTransaction wid txid
         , constructTransaction = _constructTransaction
         , balanceTransaction = error "balance transaction endpoint not supported for byron"
         , decodeTransaction = error "decode transaction endpoint not supported for byron"

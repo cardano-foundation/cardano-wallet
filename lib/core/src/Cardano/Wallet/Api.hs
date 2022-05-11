@@ -584,6 +584,7 @@ type ListTransactions n = "wallets"
     :> QueryParam "start" Iso8601Time
     :> QueryParam "end" Iso8601Time
     :> QueryParam "order" (ApiT SortOrder)
+    :> QueryFlag "simple-metadata"
     :> Get '[JSON] [ApiTransactionT n]
 
 -- | https://input-output-hk.github.io/cardano-wallet/api/#operation/getTransaction
@@ -591,6 +592,7 @@ type GetTransaction n = "wallets"
     :> Capture "walletId" (ApiT WalletId)
     :> "transactions"
     :> Capture "transactionId" ApiTxId
+    :> QueryFlag "simple-metadata"
     :> Get '[JSON] (ApiTransactionT n)
 
 -- | https://input-output-hk.github.io/cardano-wallet/api/#operation/postTransactionFee

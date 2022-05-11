@@ -199,6 +199,8 @@ import Cardano.Wallet.Api.Types
     , WalletPutPassphraseData (..)
     , toApiAsset
     )
+import Cardano.Wallet.Api.Types.SchemaMetadata
+    ( TxMetadataSchema (..), TxMetadataWithSchema (..) )
 import Cardano.Wallet.Gen
     ( genMnemonic
     , genNatural
@@ -598,6 +600,7 @@ spec = parallel $ do
         jsonTest @ByronWalletPutPassphraseData
         jsonTest @SettingsPutData
         jsonTest @SomeByronWalletPostData
+        jsonTest @TxMetadataWithSchema
         jsonTest @WalletOrAccountPostData
         jsonTest @WalletPostData
         jsonTest @WalletPutData
@@ -2157,6 +2160,11 @@ instance Arbitrary (PostTransactionOldData n) where
         <*> arbitrary
         <*> arbitrary
 
+instance Arbitrary TxMetadataWithSchema where
+  arbitrary = TxMetadataWithSchema
+    <$> elements [TxMetadataNoSchema, TxMetadataDetailedSchema]
+    <*> arbitrary
+
 instance Arbitrary (ApiConstructTransactionData n) where
     arbitrary = ApiConstructTransactionData
         <$> arbitrary
@@ -2810,6 +2818,7 @@ instance Typeable n => ToSchema (ApiPutAddressesData n) where
 instance Typeable n => ToSchema (ApiSelectCoinsData n) where
     declareNamedSchema _ = do
         addDefinition =<< declareSchemaForDefinition "TransactionMetadataValue"
+        addDefinition =<< declareSchemaForDefinition "TransactionMetadataValueNoSchema"
         declareSchemaForDefinition "ApiSelectCoinsData"
 
 instance ToSchema (ApiT SmashServer) where
@@ -2928,11 +2937,13 @@ instance ToSchema (ApiBytesT 'Base64 SerialisedTx) where
 instance Typeable n => ToSchema (PostTransactionOldData n) where
     declareNamedSchema _ = do
         addDefinition =<< declareSchemaForDefinition "TransactionMetadataValue"
+        addDefinition =<< declareSchemaForDefinition "TransactionMetadataValueNoSchema"
         declareSchemaForDefinition "ApiPostTransactionData"
 
 instance Typeable n => ToSchema (PostTransactionFeeOldData n) where
     declareNamedSchema _ = do
         addDefinition =<< declareSchemaForDefinition "TransactionMetadataValue"
+        addDefinition =<< declareSchemaForDefinition "TransactionMetadataValueNoSchema"
         declareSchemaForDefinition "ApiPostTransactionFeeData"
 
 instance Typeable n => ToSchema (ApiExternalInput n) where
@@ -2944,6 +2955,7 @@ instance Typeable n => ToSchema (ApiBalanceTransactionPostData n) where
 instance Typeable n => ToSchema (ApiTransaction n) where
     declareNamedSchema _ = do
         addDefinition =<< declareSchemaForDefinition "TransactionMetadataValue"
+        addDefinition =<< declareSchemaForDefinition "TransactionMetadataValueNoSchema"
         declareSchemaForDefinition "ApiTransaction"
 
 instance ToSchema ApiUtxoStatistics where
@@ -3042,6 +3054,7 @@ instance ToSchema ApiPostRandomAddressData where
 instance ToSchema ApiWalletSignData where
     declareNamedSchema _ = do
         addDefinition =<< declareSchemaForDefinition "TransactionMetadataValue"
+        addDefinition =<< declareSchemaForDefinition "TransactionMetadataValueNoSchema"
         declareSchemaForDefinition "ApiWalletSignData"
 
 instance ToSchema ApiPostAccountKeyData where
@@ -3088,6 +3101,7 @@ instance ToSchema ApiAssetMintBurn  where
 instance Typeable n => ToSchema (ApiConstructTransactionData n) where
     declareNamedSchema _ = do
         addDefinition =<< declareSchemaForDefinition "TransactionMetadataValue"
+        addDefinition =<< declareSchemaForDefinition "TransactionMetadataValueNoSchema"
         addDefinition =<< declareSchemaForDefinition "ScriptTemplateValue"
         declareSchemaForDefinition "ApiConstructTransactionData"
 
@@ -3115,6 +3129,7 @@ instance Typeable n => ToSchema (ApiWithdrawalsGeneral n) where
 instance Typeable n => ToSchema (ApiDecodedTransaction n) where
     declareNamedSchema _ = do
         addDefinition =<< declareSchemaForDefinition "TransactionMetadataValue"
+        addDefinition =<< declareSchemaForDefinition "TransactionMetadataValueNoSchema"
         addDefinition =<< declareSchemaForDefinition "ScriptValue"
         declareSchemaForDefinition "ApiDecodedTransaction"
 

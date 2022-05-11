@@ -83,6 +83,8 @@ import Data.Text
     ( Text )
 import Data.Text.Class
     ( showT, toText )
+import Data.Tuple.Extra
+    ( both )
 import Numeric.Natural
     ( Natural )
 import Test.Hspec
@@ -154,8 +156,6 @@ import qualified Cardano.Wallet.Api.Link as Link
 import qualified Data.ByteString as BS
 import qualified Data.Set as Set
 import qualified Data.Text as T
-import Data.Tuple.Extra
-    ( both )
 import qualified Network.HTTP.Types.Status as HTTP
 
 spec :: forall n.
@@ -256,7 +256,7 @@ spec = describe "SHELLEY_STAKE_POOLS" $ do
                 [ expectResponseCode HTTP.status200
                 , expectField (#direction . #getApiT) (`shouldBe` Outgoing)
                 , expectField (#status . #getApiT) (`shouldBe` InLedger)
-                , expectField (#metadata . #getApiTxMetadata) (`shouldBe` Nothing)
+                , expectField #metadata (`shouldBe` Nothing)
                 , expectField #inputs $ \inputs' -> do
                     inputs' `shouldSatisfy` all (isJust . source)
                 ]
@@ -941,7 +941,7 @@ spec = describe "SHELLEY_STAKE_POOLS" $ do
                     [ expectResponseCode HTTP.status200
                     , expectField (#direction . #getApiT) (`shouldBe` Incoming)
                     , expectField (#status . #getApiT) (`shouldBe` InLedger)
-                    , expectField (#metadata . #getApiTxMetadata) (`shouldBe` Nothing)
+                    , expectField #metadata  (`shouldBe` Nothing)
                     , expectField #inputs $ \inputs' -> do
                         inputs' `shouldSatisfy` all (isJust . source)
                     ]
@@ -1208,7 +1208,10 @@ spec = describe "SHELLEY_STAKE_POOLS" $ do
     it "STAKE_POOLS_SMASH_01 - fetching metadata from SMASH works with delisted pools" $
         \ctx -> runResourceT $ bracketSettings ctx $ do
             updateMetadataSource ctx (_smashUrl ctx)
-            eventually "metadata is fetched" $ do
+            -- This can be slow; let's retry less frequently and with a longer
+            -- timeout.
+            let s = 1_000_000
+            eventuallyUsingDelay (10 * s) 300 "metadata is fetched" $ do
                 r <- listPools ctx arbitraryStake
                 verify r
                     [ expectListSize 3

@@ -23,6 +23,8 @@ import Cardano.Wallet.Api.Types
     , encodeAddress
     , getApiT
     )
+import Cardano.Wallet.Api.Types.SchemaMetadata
+    ( TxMetadataSchema (..) )
 import Cardano.Wallet.Primitive.AddressDiscovery.Sequential
     ( defaultAddressPoolGap, getAddressPoolGap )
 import Cardano.Wallet.Primitive.Types.Address
@@ -307,10 +309,9 @@ spec = describe "SHELLEY_CLI_HW_WALLETS" $ do
 
         it "Can list transactions" $ \ctx -> runResourceT $ do
             w <- emptyWalletFromPubKeyViaCLI ctx restoredWalletName
-
             (Exit code, Stdout out, Stderr err) <-
-                listTransactionsViaCLI ctx [T.unpack $ w ^. walletId]
-
+                listTransactionsViaCLI ctx TxMetadataDetailedSchema
+                    [T.unpack $ w ^. walletId]
             err `shouldBe` cmdOk
             out `shouldBe` "[]\n"
             code `shouldBe` ExitSuccess

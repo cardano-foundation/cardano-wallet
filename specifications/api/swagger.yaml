@@ -1,4 +1,4 @@
-openapi: 3.0.0
+openapi: 3.0.3
 info:
   title: Cardano Wallet Backend API
   version: v2022-04-27
@@ -1614,19 +1614,34 @@ x-transactionMetadata: &transactionMetadata
     metadata from chain, be aware that integers may exceed the
     javascript numeric range, and may need special "bigint" parsing.
 
-  type: object
-  nullable: true
-  additionalProperties:
-    $ref: "#/components/schemas/TransactionMetadataValue"
+  # with oneOf we get errors about the 2 schema being both valid
+  # anyOf seems broken trying to find properties
+  anyOf:
+    - type: object
+      title: full
+      nullable: true
+      additionalProperties:
+            $ref: "#/components/schemas/TransactionMetadataValue"
+      example:
+        0: { "string": "cardano" }
+        1: { "int": 14 }
+        2: { "bytes": "2512a00e9653fe49a44a5886202e24d77eeb998f" }
+        3: { "list": [ { "int": 14 }, { "int": 42 }, { "string": "1337" } ] }
+        4: { "map": [{ "k": { "string": "key" }, "v": { "string": "value" }}, { "k": { "int": 14 }, "v": { "int": 42 } }] }
+    - type: object
+      title: simple
+      nullable: true
+      additionalProperties:
+            $ref: "#/components/schemas/TransactionMetadataValueNoSchema"
+            example:
+              0: "cardano"
+              1: 14
+              3: [14, 42 , "1337" ]
+              4: {"key1": "value" , "key2": 42 }
+
   # Note: propertyNames pattern not supported in current OpenAPI version.
   # propertyNames:
   #   pattern: '^[0-9]+$'
-  example:
-    0: { "string": "cardano" }
-    1: { "int": 14 }
-    2: { "bytes": "2512a00e9653fe49a44a5886202e24d77eeb998f" }
-    3: { "list": [ { "int": 14 }, { "int": 42 }, { "string": "1337" } ] }
-    4: { "map": [{ "k": { "string": "key" }, "v": { "string": "value" }}, { "k": { "int": 14 }, "v": { "int": 42 } }] }
 
 x-transactionTTL: &transactionTTL
   description: |
@@ -3492,11 +3507,30 @@ components:
               type: array
               items:
                 type: object
+                nullable: true
                 properties:
                   k:
                     $ref: "#/components/schemas/TransactionMetadataValue"
                   v:
                     $ref: "#/components/schemas/TransactionMetadataValue"
+
+    TransactionMetadataValueNoSchema: &TransactionMetadataValueNoSchema
+      oneOf:
+        - title: String
+          type: string
+
+        - title: Int
+          type: integer
+
+        - title: List
+          type: array
+          items:
+            $ref: "#/components/schemas/TransactionMetadataValueNoSchema"
+
+        - title: Map
+          type: object
+          additionalProperties:
+              $ref: "#/components/schemas/TransactionMetadataValueNoSchema"
 
     ApiGetSettings: &ApiGetSettings
       type: object
@@ -3820,6 +3854,17 @@ x-parametersForceNtpCheck: &parametersForceNtpCheck
     When this flag is set, the request **will block** until NTP server responds or will timeout after a while without any answer from the NTP server.
   schema:
     type: boolean
+
+x-parametersMetadataFormat: &parametersMetadataFormat
+  in: query
+  name: simple-metadata
+  schema:
+    type: boolean
+  allowEmptyValue: true
+  description: |
+    When present (or equal to true) in the query, the metadata format for the
+    transaction(s) in the output will be untyped plain json as specified in
+    [CIP 25](https://cips.cardano.org/cips/cip25/)
 
 x-parametersMinWithdrawal: &parametersMinWithdrawal
   in: query
@@ -5939,6 +5984,7 @@ paths:
         - *parametersEndDate
         - *parametersSortOrder
         - *parametersMinWithdrawal
+        - *parametersMetadataFormat
       responses: *responsesListTransactions
 
   /wallets/{walletId}/transactions/{transactionId}:
@@ -5953,6 +5999,7 @@ paths:
       parameters:
         - *parametersWalletId
         - *parametersTransactionId
+        - *parametersMetadataFormat
       responses: *responsesGetTransaction
 
     delete:
