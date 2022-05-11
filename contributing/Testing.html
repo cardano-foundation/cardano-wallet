@@ -25,7 +25,7 @@
 
 
   
-  <link href='tailwind.css?instanceId=7a56775a-402d-40a9-991d-f192604327ee' rel='stylesheet' type='text/css' />
+  <link href='tailwind.css?instanceId=dac0c207-4f7c-457b-88d0-9137c09d83ff' rel='stylesheet' type='text/css' />
 
   <!-- Heist error element -->
   <style type='text/css'>
@@ -2462,7 +2462,21 @@ $ cabal test cardano-wallet:unit</code></pre></div>
     <p class='mb-3'>
       Only Error level logs are shown on stdout during test execution. To change this, set the <code class='py-0.5 px-1 rounded bg-gray-700 text-sm text-white'>*_MIN_SEVERITY</code> variables shown above.
     </p>
-  <h2 id='mock-servers' class='inline-block mt-6 mb-4 text-4xl font-bold text-gray-700 border-b-2'>Mock servers</h2>
+  <h4 id='common-failures-and-resolution' class='mt-6 mb-2 text-2xl font-bold text-gray-700'>Common Failures and Resolution</h4><h5 id='no-more-wallets' class='mt-6 mb-2 text-xl font-bold text-gray-700'>No More Wallets</h5>
+    <p class='mb-3'>
+      If your test fails with something like:
+    </p>
+  <div class='py-0.5 mb-3 text-sm'><pre><code class='language-none'>user error (No more faucet wallet available in MVar!)</code></pre></div>
+    <p class='mb-3'>
+      Generate more wallet mnemonics and populate the appropriate list in <code class='py-0.5 px-1 rounded bg-gray-700 text-sm text-white'>lib/core-integration/src/Test/Integration/Faucet.hs</code>.
+    </p>
+  
+    <p class='mb-3'>
+      Generate new mnemonics with:
+    </p>
+  <div class='py-0.5 mb-3 text-sm'><pre><code class='language-none'>nix build .#cardano-wallet
+# Size may vary depending on which array you need to add to.
+./result/bin/cardano-wallet recovery-phrase generate --size 15</code></pre></div><h2 id='mock-servers' class='inline-block mt-6 mb-4 text-4xl font-bold text-gray-700 border-b-2'>Mock servers</h2>
     <p class='mb-3'>
       Use the <code class='py-0.5 px-1 rounded bg-gray-700 text-sm text-white'>cardano-wallet:mock-token-metadata-server</code> executable as a mock server for asset metadata. See the <code class='py-0.5 px-1 rounded bg-gray-700 text-sm text-white'>--help</code> output for full instructions.
     </p>
