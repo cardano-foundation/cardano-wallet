@@ -92,6 +92,7 @@ import qualified Data.List as L
 import qualified Data.List.NonEmpty as NE
 import qualified Data.Map.Strict as Map
 
+
 -- | Purpose for forged policy keys is a constant set to 1855' (or 0x8000073F)
 -- following the original CIP-1855: "Forging policy keys for HD Wallets".
 --
@@ -216,9 +217,9 @@ scriptSlotIntervals = \case
             $ I.intersections (concatMap scriptSlotIntervals timelocks)
             : concatMap scriptSlotIntervals rest
     RequireAnyOf xs ->
-        trimAllSlots $ concatMap scriptSlotIntervals (filterOutSig xs)
+        trimAllSlots $ concatMap scriptSlotIntervals xs
     RequireSomeOf _ xs ->
-        trimAllSlots $ concatMap scriptSlotIntervals (filterOutSig xs)
+        trimAllSlots $ concatMap scriptSlotIntervals xs
     ActiveFromSlot s ->
         [I.Finite s <=..<= maxSlot]
     ActiveUntilSlot s ->
@@ -227,10 +228,6 @@ scriptSlotIntervals = \case
     minSlot = I.Finite $ intCast $ minBound @Word64
     maxSlot = I.Finite $ intCast $ maxBound @Word64
     allSlots = minSlot <=..<= maxSlot
-
-    isNotSig = \case
-        RequireSignatureOf _ -> False
-        _ -> True
 
     isTimelockOrSig = \case
         ActiveFromSlot _ -> True
@@ -244,8 +241,6 @@ scriptSlotIntervals = \case
         if L.null notAllSlots
         then interval
         else notAllSlots
-
-    filterOutSig = filter isNotSig
 
 -- tx validity interval must be a subset of a interval from script's timelock
 -- tx validity interval is defined by specifying (from,to) slot interval

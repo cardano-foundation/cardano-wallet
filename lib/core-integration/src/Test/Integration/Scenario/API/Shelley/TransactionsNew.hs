@@ -3032,68 +3032,6 @@ spec = describe "NEW_SHELLEY_TRANSACTIONS" $ do
                         (`shouldBe` balance)
                 ]
 
-    it "TRANS_NEW_CREATE_10a - Minting/burning assets - more than one cosigner \
-        \in template" $ \ctx -> runResourceT $ do
-        wa <- fixtureWallet ctx
-        addrs <- listAddresses @n ctx wa
-        let destination = (addrs !! 1) ^. #id
-
-        let payload = Json [json|{
-                "mint_burn": [{
-                    "policy_script_template":
-                        { "all":
-                           [ "cosigner#0",
-                             "cosigner#1",
-                             { "active_from": 120 }
-                           ]
-                        },
-                    "asset_name": "ab12",
-                    "operation":
-                        { "mint" :
-                              { "receiving_address": #{destination},
-                                 "quantity": 10000
-                              }
-                        }
-                }]
-            }|]
-
-        rTx <- request @(ApiConstructTransaction n) ctx
-            (Link.createUnsignedTransaction @'Shelley wa) Default payload
-        verify rTx
-            [ expectResponseCode HTTP.status403
-            , expectErrorMessage errMsg403CreatedWrongPolicyScriptTemplateTx
-            ]
-
-    it "TRANS_NEW_CREATE_10b - Minting/burning assets - incorrect template \
-        \" $ \ctx -> runResourceT $ do
-        wa <- fixtureWallet ctx
-        addrs <- listAddresses @n ctx wa
-        let destination = (addrs !! 1) ^. #id
-
-        let payload = Json [json|{
-                "mint_burn": [{
-                    "policy_script_template":
-                        { "all":
-                           [ { "active_from": 120 }
-                           ]
-                        },
-                    "asset_name": "ab12",
-                    "operation":
-                        { "mint" :
-                              { "receiving_address": #{destination},
-                                 "quantity": 10000
-                              }
-                        }
-                }]
-            }|]
-
-        rTx <- request @(ApiConstructTransaction n) ctx
-            (Link.createUnsignedTransaction @'Shelley wa) Default payload
-        verify rTx
-            [ expectResponseCode HTTP.status403
-            , expectErrorMessage errMsg403CreatedWrongPolicyScriptTemplateTx
-            ]
-
     it "TRANS_NEW_CREATE_10c - Minting/burning assets - \
         \one cosigner in template other than cosigner#0" $
         \ctx -> runResourceT $ do
@@ -3521,27 +3459,77 @@ spec = describe "NEW_SHELLEY_TRANSACTIONS" $ do
                     (`shouldBe` tokens')
                 ]
 
-    describe "TRANS_NEW_CREATE_MINT_SCRIPTS - I can mint and burn with different policy scripts" $ do
+    describe "TRANS_NEW_CREATE_MINT_SCRIPTS_WRONG - I cannot mint with incorrect policy scripts" $ do
         let scenarios =
-                  [ ( "all", [json|{ "all": [ "cosigner#0" ] }|] )
-                  , ( "any", [json|{ "any": [ "cosigner#0" ] }|] )
-                  , ( "some", [json|{ "some": {"at_least": 1, "from": [ "cosigner#0" ]} }|] )
-                  , ( "all, active_until 57297561", [json|{ "all": [ "cosigner#0",  { "active_until": 57297561 } ] }|] )
-                  , ( "any, active_until 57297561", [json|{ "any": [ "cosigner#0",  { "active_until": 57297561 } ] }|] )
-                  , ( "some, active_until 57297561", [json|{ "some": {"at_least": 1, "from": [ "cosigner#0", { "active_until": 57297561 } ]} }|] )
-                  , ( "all, active_from 10", [json|{ "all": [ "cosigner#0",  { "active_from": 10 } ] }|] )
-                  , ( "any, active_from 10", [json|{ "any": [ "cosigner#0",  { "active_from": 10 } ] }|] )
-                  , ( "some, active_from 10", [json|{ "some": {"at_least": 1, "from": [ "cosigner#0", { "active_from": 10 } ]} }|] )
-                  , ( "all, active_from 10, active_until 57297561", [json|{ "all": [ "cosigner#0",  { "active_from": 10 }, { "active_until": 57297561 } ] }|] )
-                  , ( "any, active_from 10, active_until 57297561", [json|{ "any": [ "cosigner#0",  { "active_from": 10 }, { "active_until": 57297561 } ] }|] )
-                  , ( "some, active_from 10, active_until 57297561", [json|{ "some": {"at_least": 1, "from": [ "cosigner#0", { "active_from": 10 }, { "active_until": 57297561 } ]} }|] )
+                  [ ( "no cosigner", [json|{ "active_from": 0 }|] )
+                  , ( "all, no cosigner", [json|{ "all": [ { "active_from": 120 } ] }|] )
+                  , ( "any, no cosigner", [json|{ "any": [ { "active_until": 120 } ] }|] )
+                  , ( "some, no cosigner", [json|{ "some": { "at_least": 1, "from": [ { "active_from": 120 } ]} }|] )
+                  , ( "some, at least 2", [json|{ "some": { "at_least": 2, "from": [ "cosigner#0", { "active_from": 120 } ]} }|] )
+                  , ( "all, many cosigners", [json|{ "all": [ "cosigner#0", "cosigner#1", { "active_from": 120 } ] }|] )
+                  , ( "any, many cosigners", [json|{ "any": [ "cosigner#0", "cosigner#1" ] }|] )
+                  , ( "all, cosigner#1", [json|{ "all": [ "cosigner#1" ] }|] )
                   ]
         forM_ scenarios $ \(title, policyScriptTemplate) -> it title $ \ctx -> runResourceT $ do
-            liftIO $ pendingWith "ADP-1738"
+            wa <- emptyWallet ctx
+            addrs <- listAddresses @n ctx wa
+            let destination = (addrs !! 1) ^. #id
+
+            let payload = Json [json|{
+                    "mint_burn": [{
+                        "policy_script_template": #{policyScriptTemplate},
+                        "asset_name": "ab12",
+                        "operation":
+                            { "mint" :
+                                  { "receiving_address": #{destination},
+                                     "quantity": 10000
+                                  }
+                            }
+                    }]
+                }|]
+
+            rTx <- request @(ApiConstructTransaction n) ctx
+                (Link.createUnsignedTransaction @'Shelley wa) Default payload
+            verify rTx
+                [ expectResponseCode HTTP.status403
+                , expectErrorMessage errMsg403CreatedWrongPolicyScriptTemplateTx
+                ]
+
+    describe "TRANS_NEW_CREATE_MINT_SCRIPTS - I can mint and burn with correct policy scripts" $ do
+        let scenarios =
+                  [ ( "all", [json|{ "all": [ "cosigner#0" ] }|], False )
+                  , ( "any", [json|{ "any": [ "cosigner#0" ] }|], False )
+                  , ( "some", [json|{ "some": {"at_least": 1, "from": [ "cosigner#0" ]} }|], False )
+                  , ( "all, active_until 57297561", [json|{ "all": [ "cosigner#0",  { "active_until": 57297561 } ] }|], False )
+                  , ( "any, active_until 57297561", [json|{ "any": [ "cosigner#0",  { "active_until": 57297561 } ] }|], False )
+                  , ( "some, active_until 57297561", [json|{ "some": {"at_least": 1, "from": [ "cosigner#0", { "active_until": 57297561 } ]} }|], False )
+                  , ( "all, active_from 10", [json|{ "all": [ "cosigner#0",  { "active_from": 10 } ] }|], True )
+                  , ( "any, active_from 10", [json|{ "any": [ "cosigner#0",  { "active_from": 10 } ] }|], True )
+                  , ( "some, active_from 10", [json|{ "some": {"at_least": 1, "from": [ "cosigner#0", { "active_from": 10 } ]} }|], True )
+                  , ( "all, active_from 10, active_until 57297561", [json|{ "all": [ "cosigner#0",  { "active_from": 10 }, { "active_until": 57297561 } ] }|] , True)
+                  , ( "any, active_until 57297561, active_from 58297561", [json|{ "any": [ "cosigner#0",  { "active_until": 57297561 }, { "active_from": 58297561 } ] }|] , False)
+                  , ( "some, active_from 10, active_until 57297561", [json|{ "some": {"at_least": 1, "from": [ "cosigner#0", { "active_from": 10 }, { "active_until": 57297561 } ]} }|], False )
+                  ]
+        forM_ scenarios $ \(title, policyScriptTemplate, addInvalidBefore ) -> it title $ \ctx -> runResourceT $ do
             w <- fixtureWallet ctx
 
             -- Mint it!
-            let payloadMint = Json [json|{
+            let payloadMint =
+                    if addInvalidBefore then Json [json|{
+                    "mint_burn": [
+                        { "policy_script_template": #{policyScriptTemplate}
+                        , "asset_name": "1111"
+                        , "operation": { "mint": { "quantity": 50000 } }
+                        }
+                    ],
+                    "validity_interval":
+                      { "invalid_before":
+                          { "quantity": 11
+                          , "unit": "slot"
+                          }
+                      }
+                }|]
+                else Json [json|{
                     "mint_burn": [
                         { "policy_script_template": #{policyScriptTemplate}
                         , "asset_name": "1111"
@@ -3576,7 +3564,22 @@ spec = describe "NEW_SHELLEY_TRANSACTIONS" $ do
                     ]
 
             -- Burn it!
-            let payloadBurn = Json [json|{
+            let payloadBurn =
+                    if addInvalidBefore then Json [json|{
+                    "mint_burn": [
+                        { "policy_script_template": #{policyScriptTemplate}
+                        , "asset_name": "1111"
+                        , "operation": { "burn": { "quantity": 50000 } }
+                        }
+                    ],
+                    "validity_interval":
+                      { "invalid_before":
+                          { "quantity": 11
+                          , "unit": "slot"
+                          }
+                      }
+                }|]
+                else Json [json|{
                     "mint_burn": [
                         { "policy_script_template": #{policyScriptTemplate}
                         , "asset_name": "1111"

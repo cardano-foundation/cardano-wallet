@@ -2251,7 +2251,7 @@ constructTransaction ctx genChange knownPools getPoolStatus (ApiT wid) body = do
     let retrieveAllCosigners = foldScript (:) []
     let wrongMintingTemplate (ApiMintBurnData (ApiT scriptTempl) _ _) =
             isLeft (validateScriptOfTemplate RecommendedValidation scriptTempl)
-            || length (retrieveAllCosigners scriptTempl) > 1
+            || length (retrieveAllCosigners scriptTempl) /= 1
             || (L.any (/= Cosigner 0)) (retrieveAllCosigners scriptTempl)
     when
         ( isJust mintingBurning' &&
