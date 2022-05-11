@@ -25,6 +25,7 @@ import Cardano.Mnemonic
     ( MkSomeMnemonic (..) )
 import Cardano.Wallet.Api.Types
     ( ApiAccountKeyShared (..)
+    , ApiActiveSharedWallet
     , ApiAddress
     , ApiFee (..)
     , ApiSharedWallet (..)
@@ -213,6 +214,59 @@ spec = describe "SHARED_WALLETS" $ do
             ]
         let ApiAccountKeyShared bytes' _ _ = getFromResponse id aKey
         hexText bytes' `shouldBe` accXPubDerived
+
+        let (ApiSharedWallet (Right walActive)) = wal
+
+        rDel <- request @ApiActiveSharedWallet ctx
+                (Link.deleteWallet @'Shared walActive) Default Empty
+        expectResponseCode HTTP.status204 rDel
+
+        (_, accXPubTxt):_ <- liftIO $ genXPubs 1
+        let payloadAcctOther = Json [json| {
+                "name": "Shared Wallet",
+                "account_public_key": #{accXPubTxt},
+                "account_index": "30H",
+                "payment_script_template":
+                    { "cosigners":
+                        { "cosigner#0": #{accXPubTxt} },
+                      "template":
+                          { "all":
+                             [ "cosigner#0",
+                               { "active_from": 120 }
+                             ]
+                          }
+                    }
+                } |]
+        rPostAcctOther <- postSharedWallet ctx Default payloadAcctOther
+        verify (fmap (view #wallet) <$> rPostAcctOther)
+            [ expectResponseCode HTTP.status201 ]
+        let walAcctOther = getFromResponse id rPostAcctOther
+        let (ApiSharedWallet (Right walAcctOtherActive)) = walAcctOther
+
+        (walAcctOtherActive ^. #id)  `shouldNotBe` (walActive ^. #id)
+
+        let payloadAcctSame = Json [json| {
+                "name": "Shared Wallet",
+                "account_public_key": #{accXPubDerived},
+                "account_index": "30H",
+                "payment_script_template":
+                    { "cosigners":
+                        { "cosigner#0": #{accXPubDerived} },
+                      "template":
+                          { "all":
+                             [ "cosigner#0",
+                               { "active_from": 120 }
+                             ]
+                          }
+                    }
+                } |]
+        rPostAcctSame <- postSharedWallet ctx Default payloadAcctSame
+        verify (fmap (view #wallet) <$> rPostAcctSame)
+            [ expectResponseCode HTTP.status201 ]
+        let walAcctSame = getFromResponse id rPostAcctSame
+        let (ApiSharedWallet (Right walAcctSameActive)) = walAcctSame
+
+        (walAcctSameActive ^. #id)  `shouldBe` (walActive ^. #id)
 
     it "SHARED_WALLETS_CREATE_02 - Create a pending shared wallet from root xprv" $ \ctx -> runResourceT $ do
         m15txt <- liftIO $ genMnemonics M15
