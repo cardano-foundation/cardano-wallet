@@ -1054,11 +1054,11 @@ postSharedWalletFromRootXPrv ctx generateKey body = do
     rootXPrv = generateKey (seed, secondFactor) pwdP
     g = defaultAddressPoolGap
     ix = getApiT (body ^. #accountIndex)
-    wid = WalletId $ digest $ publicKey rootXPrv
     pTemplate = scriptTemplateFromSelf (getRawKey accXPub) $ body ^. #paymentScriptTemplate
     dTemplateM = scriptTemplateFromSelf (getRawKey accXPub) <$> body ^. #delegationScriptTemplate
     wName = getApiT (body ^. #name)
     accXPub = publicKey $ deriveAccountPrivateKey pwdP rootXPrv (Index $ getDerivationIndex ix)
+    wid = WalletId $ digest accXPub
     scriptValidation = maybe RecommendedValidation getApiT (body ^. #scriptValidation)
 
 postSharedWalletFromAccountXPub
