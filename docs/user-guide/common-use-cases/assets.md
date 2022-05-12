@@ -107,9 +107,13 @@ Minting and burning of assets is available in the `cardano-wallet` in new transa
 
 > :information_source: See: https://input-output-hk.github.io/cardano-wallet/api/edge/#operation/constructTransaction
 
+As an **example** on how to mint and burn assets we will try to mint (and then burn) an NFT with [CIP-25](https://cips.cardano.org/cips/cip25/) metadata using `cardano-wallet`.  
+
+Please note that you would mint and burn other assets pretty much the same way. In our example we will be additionally adding on-chain metadata to our minting transaction as we want our NFT to be CIP-25 compliant. However this step is not required for minting. For instance, you could mint some assets and add off-chain metadata for them ([CIP26](https://cips.cardano.org/cips/cip26)) in the [Cardano Token Registry](https://developers.cardano.org/docs/native-tokens/token-registry/cardano-token-registry).
+
 ### Minting an NFT
 
-As an example we will see how can we mint an NFT with [CIP-25](https://cips.cardano.org/cips/cip25/) metadata using `cardano-wallet`.
+Let's see how can we mint an NFT with [CIP-25](https://cips.cardano.org/cips/cip25/) metadata using `cardano-wallet`.
 
 #### Policy key
 
@@ -223,7 +227,7 @@ Now we can put together complete CIP-25 metadata JSON which we will use in the m
 #### Minting transaction
 
 We have already:
- -  verified that our wallet is equipped with policy key
+ - verified that our wallet is equipped with policy key
  - created CIP-25 metadata JSON.
 
 We are now ready to mint!
@@ -270,6 +274,29 @@ I can now **sign** and **submit** such transaction just like in [[how-to-make-a-
 Once submitted my freshly minted NFT should be added to my wallet balance!
 
 ### Burning an NFT
+
+Let's now burn our NFT. We have it already in our wallet balance and our wallet's policy key is "guarding" that asset so it shouldn't be any problem.
+
+We can easily **construct** burning transaction with [`POST /wallets/{walletId}/transactions-construct`](https://input-output-hk.github.io/cardano-wallet/api/edge/#operation/constructTransaction):
+
+```
+$ curl -X POST http://localhost:8090/v2/wallets/73d38c71e4b8b5d71769622ab4f5bfdedbb7c39d/transactions-construct \
+-d '{
+   "mint_burn":[
+      {
+         "operation":{
+            "burn":{
+               "quantity":1
+            }
+         },
+         "policy_script_template":"cosigner#0",
+         "asset_name":"416d617a696e674e4654"
+      }
+   ]
+}' \
+-H "Content-Type: application/json"
+```
+That's it. I can now **sign** and **submit** such transaction just like in [[how-to-make-a-transaction]] and as a result my NFT will just disappear.
 
 
 ## Sending assets in a transaction
