@@ -123,7 +123,7 @@ $ curl -X GET http://localhost:8090/v2/wallets/73d38c71e4b8b5d71769622ab4f5bfded
 "policy_vk12d0gdel9u6px8wf3uv4z6m4h447n9qsad24gztaku8dzzdqfajzqfm3rr0"
 ```
 Looks good.
-In case we get `missing_policy_public_key` error:
+Otherwise we get `missing_policy_public_key` error:
 ```
 $ curl -X GET http://localhost:8090/v2/wallets/73d38c71e4b8b5d71769622ab4f5bfdedbb7c39d/policy-key
 {
@@ -132,7 +132,7 @@ $ curl -X GET http://localhost:8090/v2/wallets/73d38c71e4b8b5d71769622ab4f5bfded
 }
 
 ```
-We just need to make a `POST` request to [`POST /wallets/{walletId}/policy-key`](https://input-output-hk.github.io/cardano-wallet/api/edge/#operation/postPolicyKey) as suggested in the error message.
+In such a case we just need to make a `POST` request to [`POST /wallets/{walletId}/policy-key`](https://input-output-hk.github.io/cardano-wallet/api/edge/#operation/postPolicyKey) as suggested in the error message.
 
 ```
 $ curl -X POST http://localhost:8091/v2/wallets/73d38c71e4b8b5d71769622ab4f5bfdedbb7c39d/policy-key \  
@@ -165,7 +165,7 @@ As we can see we need to figure out `<POLICY_ID>`, `<ASSET_NAME>` and `<IPFS_ID>
 
 ##### Policy ID
 
-Policy id is basically a hash of the native script that guards minting operation. In case of Shelley wallets we can only sign with one key, a wallet spending key, but because of the fact that we can embed it into a native script we can practically have unlimited amount of policy ids from one wallet.
+Policy id is basically a hash of the native script that guards minting operation. In case of Shelley wallets we can only sign with one key, a wallet policy key, but because of the fact that we can embed it into a native script we can practically have unlimited amount of policy ids from one wallet.
 These are examples of native scripts templates and each of them will produce different policy id.
 
 ```
@@ -189,7 +189,7 @@ cosigner#0
      ]
 }
 ```
-> :information_source: `cosigner#0` stands for our wallet's spending key. In case of Shelley wallet we have only one. In the future, in the Shared wallets, we'll be able to have many spending keys shared between different users and they will be identified as `cosigner#1`, `cosigner#2`...
+> :information_source: `cosigner#0` stands for our wallet's policy key. In case of Shelley wallet we have only one. In the future, in the Shared wallets, we'll be able to construct a minting/burning script with many policy keys shared between different users and they will be identified as `cosigner#1`, `cosigner#2`...
 
 Let's create most basic policy id using [`POST /wallets/{walletId}/policy-id`](https://input-output-hk.github.io/cardano-wallet/api/edge/#operation/postPolicyId) endpoint:
 ```
@@ -232,7 +232,7 @@ We have already:
 
 We are now ready to mint!
 
-We will **construct**  transaction that mints 1 `AmazingNFT` with policy id derived from simple native script template = `cosigner#0` and posts related CIP-25 metadata to blockchain.
+We will **construct**  transaction that mints 1 `AmazingNFT` with policy id derived from simple native script template = `cosigner#0` and post the related CIP-25 metadata to blockchain.
 
 Note that the wallet expects asset name to be hex-encoded string so let's hex encode our `AmazingNFT` first:
 ```
@@ -270,7 +270,7 @@ $ curl -X POST http://localhost:8090/v2/wallets/73d38c71e4b8b5d71769622ab4f5bfde
 -H "Content-Type: application/json"
 ```
 That's it! I should now receive CBOR-encoded `transaction`, `fee` and `coin_selection` details in response.
-I can now **sign** and **submit** such transaction just like in [[how-to-make-a-transaction]].
+I can now **sign** and **submit** such a transaction just like in [[how-to-make-a-transaction]].
 Once submitted my freshly minted NFT should be added to my wallet balance!
 
 ### Burning an NFT
@@ -357,4 +357,4 @@ $ curl -X POST http://localhost:8090/v2/wallets/2269611a3c10b219b0d38d74b004c298
 -H "Content-Type: application/json"
 ```
 I should receive CBOR-encoded `transaction`, `fee` and `coin_selection` details in response.
-I can now **sign** and **submit** such transaction just like in [[how-to-make-a-transaction]].
+I can now **sign** and **submit** such a transaction just like in [[how-to-make-a-transaction]].
