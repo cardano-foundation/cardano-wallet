@@ -25,7 +25,7 @@
 
 
   
-  <link href='tailwind.css?instanceId=efabfe72-2c77-44d7-8075-0627b4f11b12' rel='stylesheet' type='text/css' />
+  <link href='tailwind.css?instanceId=05f78dcf-237f-4d5b-81c5-0d48cccda6d6' rel='stylesheet' type='text/css' />
 
   <!-- Heist error element -->
   <style type='text/css'>
@@ -2466,12 +2466,227 @@
     "description": "Coin with asset name - and everyone is happy!!!"
   }
 }</code></pre></div><h2 id='minting-and-burning-assets' class='inline-block mt-6 mb-4 text-4xl font-bold text-gray-700 border-b-2'>Minting and burning assets</h2>
+    <blockquote class='py-0.5 px-4 mb-3 italic border-l-4 bg-gray-50 text-gray-600 border-gray-400 quote'>
+      
     <p class='mb-3'>
-      Minting and burning assets is available using <code class='py-0.5 px-1 rounded bg-gray-700 text-sm text-white'>cardano-cli</code>. See more in <a href='https://developers.cardano.org/docs/native-tokens/minting' class='text-blue-600 hover:underline' target='_blank' rel='noopener'>https://developers.cardano.org/docs/native-tokens/minting</a>.
+      <span class='emoji' data-emoji='information_source' style='font-family: emoji'>ℹ️</span> Minting and burning assets is also available using <code class='py-0.5 px-1 rounded bg-gray-700 text-sm text-white'>cardano-cli</code>. See more in <a href='https://developers.cardano.org/docs/native-tokens/minting' class='text-blue-600 hover:underline' target='_blank' rel='noopener'>https://developers.cardano.org/docs/native-tokens/minting</a>.
+    </p>
+  
+    </blockquote>
+  
+    <p class='mb-3'>
+      Minting and burning of assets is available in the <code class='py-0.5 px-1 rounded bg-gray-700 text-sm text-white'>cardano-wallet</code> in new transaction workflow. One can use wallet’s key to mint any tokens that are guarded by native policy script. In practice it is just as simple as constructing a transaction that has a <code class='py-0.5 px-1 rounded bg-gray-700 text-sm text-white'>mint_burn</code> field, then signing and submitting it to the network.
+    </p>
+  
+    <blockquote class='py-0.5 px-4 mb-3 italic border-l-4 bg-gray-50 text-gray-600 border-gray-400 quote'>
+      
+    <p class='mb-3'>
+      <span class='emoji' data-emoji='information_source' style='font-family: emoji'>ℹ️</span> See: <a href='https://input-output-hk.github.io/cardano-wallet/api/edge/#operation/constructTransaction' class='text-blue-600 hover:underline' target='_blank' rel='noopener'>https://input-output-hk.github.io/cardano-wallet/api/edge/#operation/constructTransaction</a>
+    </p>
+  
+    </blockquote>
+  
+    <p class='mb-3'>
+      As an <strong>example</strong> on how to mint and burn assets we will try to mint (and then burn) an NFT with <a href='https://cips.cardano.org/cips/cip25/' class='text-blue-600 hover:underline' target='_blank' rel='noopener'>CIP-25</a> metadata using <code class='py-0.5 px-1 rounded bg-gray-700 text-sm text-white'>cardano-wallet</code>.
     </p>
   
     <p class='mb-3'>
-      This feature will be available in the <code class='py-0.5 px-1 rounded bg-gray-700 text-sm text-white'>cardano-wallet</code> soon.
+      Please note that you would mint and burn other assets pretty much the same way. In our example we will be additionally adding on-chain metadata to our minting transaction as we want our NFT to be CIP-25 compliant. However this step is not required for minting. For instance, you could mint some assets and add off-chain metadata for them (<a href='https://cips.cardano.org/cips/cip26' class='text-blue-600 hover:underline' target='_blank' rel='noopener'>CIP26</a>) in the <a href='https://developers.cardano.org/docs/native-tokens/token-registry/cardano-token-registry' class='text-blue-600 hover:underline' target='_blank' rel='noopener'>Cardano Token Registry</a>.
+    </p>
+  <h3 id='minting-an-nft' class='mt-6 mb-2 text-3xl font-bold text-gray-700'>Minting an NFT</h3>
+    <p class='mb-3'>
+      Let’s see how can we mint an NFT with <a href='https://cips.cardano.org/cips/cip25/' class='text-blue-600 hover:underline' target='_blank' rel='noopener'>CIP-25</a> metadata using <code class='py-0.5 px-1 rounded bg-gray-700 text-sm text-white'>cardano-wallet</code>.
+    </p>
+  <h4 id='policy-key' class='mt-6 mb-2 text-2xl font-bold text-gray-700'>Policy key</h4>
+    <p class='mb-3'>
+      Before we attempt any minting/burning transaction we need to make sure our wallet is set up with a policy key. We can check it using <a href='https://input-output-hk.github.io/cardano-wallet/api/edge/#operation/getPolicyKey' class='text-blue-600 hover:underline' target='_blank' rel='noopener'><code class='py-0.5 px-1 rounded bg-gray-700 text-sm text-white'>GET /wallets/{walletId}/policy-key</code></a>:
+    </p>
+  <div class='py-0.5 mb-3 text-sm'><pre><code class='language-none'>$ curl -X GET http://localhost:8090/v2/wallets/73d38c71e4b8b5d71769622ab4f5bfdedbb7c39d/policy-key
+"policy_vk12d0gdel9u6px8wf3uv4z6m4h447n9qsad24gztaku8dzzdqfajzqfm3rr0"</code></pre></div>
+    <p class='mb-3'>
+      Looks good. Otherwise we get <code class='py-0.5 px-1 rounded bg-gray-700 text-sm text-white'>missing_policy_public_key</code> error:
+    </p>
+  <div class='py-0.5 mb-3 text-sm'><pre><code class='language-none'>$ curl -X GET http://localhost:8090/v2/wallets/73d38c71e4b8b5d71769622ab4f5bfdedbb7c39d/policy-key
+{
+  "code": "missing_policy_public_key",
+  "message": "It seems the wallet lacks a policy public key. Therefore it's not possible to create a minting/burning transaction or get a policy id. Please first POST to endpoint /wallets/{walletId}/policy-key to set a policy key."
+}
+</code></pre></div>
+    <p class='mb-3'>
+      In such a case we just need to make a <code class='py-0.5 px-1 rounded bg-gray-700 text-sm text-white'>POST</code> request to <a href='https://input-output-hk.github.io/cardano-wallet/api/edge/#operation/postPolicyKey' class='text-blue-600 hover:underline' target='_blank' rel='noopener'><code class='py-0.5 px-1 rounded bg-gray-700 text-sm text-white'>POST /wallets/{walletId}/policy-key</code></a> as suggested in the error message.
+    </p>
+  <div class='py-0.5 mb-3 text-sm'><pre><code class='language-none'>$ curl -X POST http://localhost:8091/v2/wallets/73d38c71e4b8b5d71769622ab4f5bfdedbb7c39d/policy-key \  
+-d '{"passphrase":"Secure Passphrase"}' \  
+-H "Content-Type: application/json"
+
+"policy_vk12d0gdel9u6px8wf3uv4z6m4h447n9qsad24gztaku8dzzdqfajzqfm3rr0"</code></pre></div>
+    <p class='mb-3'>
+      Once we sort it out we are all set and we can proceed into minting an NFT from our wallet!
+    </p>
+  <h4 id='cip-25-metadata' class='mt-6 mb-2 text-2xl font-bold text-gray-700'>CIP-25 metadata</h4>
+    <p class='mb-3'>
+      We will be attaching CIP-25 metadata to our minting transaction, so there are few things that need to be sorted out. Most basic metadata can look as follows:
+    </p>
+  <div class='py-0.5 mb-3 text-sm'><pre><code class='language-none'>{
+      "721": {
+        "&lt;POLICY_ID&gt;": {
+          "&lt;ASSET_NAME&gt;": {
+            "name": "My amazing NFT",
+            "image": "ipfs://&lt;IPFS_ID&gt;"
+          }
+        }
+      }
+}</code></pre></div>
+    <p class='mb-3'>
+      As we can see we need to figure out <code class='py-0.5 px-1 rounded bg-gray-700 text-sm text-white'>&lt;POLICY_ID&gt;</code>, <code class='py-0.5 px-1 rounded bg-gray-700 text-sm text-white'>&lt;ASSET_NAME&gt;</code> and <code class='py-0.5 px-1 rounded bg-gray-700 text-sm text-white'>&lt;IPFS_ID&gt;</code>.
+    </p>
+  <h5 id='policy-id' class='mt-6 mb-2 text-xl font-bold text-gray-700'>Policy ID</h5>
+    <p class='mb-3'>
+      Policy id is basically a hash of the native script that guards minting operation. In case of Shelley wallets we can only sign with one key, a wallet policy key, but because of the fact that we can embed it into a native script we can practically have unlimited amount of policy ids from one wallet. These are examples of native scripts templates and each of them will produce different policy id.
+    </p>
+  <div class='py-0.5 mb-3 text-sm'><pre><code class='language-none'>cosigner#0
+
+{ "all": [ "cosigner#0" ] }
+
+{ "any": [ "cosigner#0" ] }
+
+{ "some": {"at_least": 1, "from": [ "cosigner#0" ]} }
+
+{ "all":
+     [ "cosigner#0",
+       { "active_from": 120 }
+     ]
+}
+
+{ "all":
+     [ "cosigner#0",
+       { "active_until": 1200000 }
+     ]
+}</code></pre></div>
+    <blockquote class='py-0.5 px-4 mb-3 italic border-l-4 bg-gray-50 text-gray-600 border-gray-400 quote'>
+      
+    <p class='mb-3'>
+      <span class='emoji' data-emoji='information_source' style='font-family: emoji'>ℹ️</span> <code class='py-0.5 px-1 rounded bg-gray-700 text-sm text-white'>cosigner#0</code> stands for our wallet’s policy key. In case of Shelley wallet we have only one. In the future, in the Shared wallets, we’ll be able to construct a minting/burning script with many policy keys shared between different users and they will be identified as <code class='py-0.5 px-1 rounded bg-gray-700 text-sm text-white'>cosigner#1</code>, <code class='py-0.5 px-1 rounded bg-gray-700 text-sm text-white'>cosigner#2</code>…
+    </p>
+  
+    </blockquote>
+  
+    <p class='mb-3'>
+      Let’s create most basic policy id using <a href='https://input-output-hk.github.io/cardano-wallet/api/edge/#operation/postPolicyId' class='text-blue-600 hover:underline' target='_blank' rel='noopener'><code class='py-0.5 px-1 rounded bg-gray-700 text-sm text-white'>POST /wallets/{walletId}/policy-id</code></a> endpoint:
+    </p>
+  <div class='py-0.5 mb-3 text-sm'><pre><code class='language-none'>curl -X POST http://localhost:8090/v2/wallets/73d38c71e4b8b5d71769622ab4f5bfdedbb7c39d/policy-id \
+-d '{"policy_script_template":"cosigner#0"}' \
+-H "Content-Type: application/json" | jq
+
+{
+  "policy_id": "6d5052088183db1ef06439a9f501b52721c2645532a50254a69d5390"
+}</code></pre></div><h5 id='asset-name' class='mt-6 mb-2 text-xl font-bold text-gray-700'>Asset name</h5>
+    <p class='mb-3'>
+      The asset name acts as a sub-identifier within a given policy. Although we call it “asset name”, the value needn’t be text, and it could even be empty. In case of CIP-25 however we can use a plain text. Let our asset name be… <code class='py-0.5 px-1 rounded bg-gray-700 text-sm text-white'>AmazingNFT</code>.
+    </p>
+  <h5 id='ipfs-id' class='mt-6 mb-2 text-xl font-bold text-gray-700'>IPFS id</h5>
+    <p class='mb-3'>
+      Let’s assume that our NFT will point to a simple image, which we have already uploaded to IPFS. It is available at: <a href='https://ipfs.io/ipfs/QmRhTTbUrPYEw3mJGGhQqQST9k86v1DPBiTTWJGKDJsVFw' class='text-blue-600 hover:underline' target='_blank' rel='noopener'>https://ipfs.io/ipfs/QmRhTTbUrPYEw3mJGGhQqQST9k86v1DPBiTTWJGKDJsVFw</a>. As we can see the IPFS id of the image is <code class='py-0.5 px-1 rounded bg-gray-700 text-sm text-white'>QmRhTTbUrPYEw3mJGGhQqQST9k86v1DPBiTTWJGKDJsVFw</code>.
+    </p>
+  
+    <p class='mb-3'>
+      Now we can put together complete CIP-25 metadata JSON which we will use in the minting transaction:
+    </p>
+  <div class='py-0.5 mb-3 text-sm'><pre><code class='language-none'>{
+      "721": {
+        "6d5052088183db1ef06439a9f501b52721c2645532a50254a69d5390": {
+          "AmazingNFT": {
+            "name": "My amazing NFT",
+            "image": "ipfs://QmRhTTbUrPYEw3mJGGhQqQST9k86v1DPBiTTWJGKDJsVFw"
+          }
+        }
+      }
+}</code></pre></div><h4 id='minting-transaction' class='mt-6 mb-2 text-2xl font-bold text-gray-700'>Minting transaction</h4>
+    <p class='mb-3'>
+      We have already:
+    </p>
+  
+    <ul class='my-3 ml-6 space-y-1 list-disc'>
+      
+        <li>
+          verified that our wallet is equipped with policy key
+        </li>
+      
+        <li>
+          created CIP-25 metadata JSON.
+        </li>
+      
+    </ul>
+  
+    <p class='mb-3'>
+      We are now ready to mint!
+    </p>
+  
+    <p class='mb-3'>
+      We will <strong>construct</strong> transaction that mints 1 <code class='py-0.5 px-1 rounded bg-gray-700 text-sm text-white'>AmazingNFT</code> with policy id derived from simple native script template = <code class='py-0.5 px-1 rounded bg-gray-700 text-sm text-white'>cosigner#0</code> and post the related CIP-25 metadata to blockchain.
+    </p>
+  
+    <p class='mb-3'>
+      Note that the wallet expects asset name to be hex-encoded string so let’s hex encode our <code class='py-0.5 px-1 rounded bg-gray-700 text-sm text-white'>AmazingNFT</code> first:
+    </p>
+  <div class='py-0.5 mb-3 text-sm'><pre><code class='language-none'>$ echo -n "AmazingNFT" | xxd -p
+416d617a696e674e4654</code></pre></div>
+    <p class='mb-3'>
+      Let’s now <a href='https://input-output-hk.github.io/cardano-wallet/api/edge/#operation/constructTransaction' class='text-blue-600 hover:underline' target='_blank' rel='noopener'><code class='py-0.5 px-1 rounded bg-gray-700 text-sm text-white'>POST /wallets/{walletId}/transactions-construct</code></a>:
+    </p>
+  <div class='py-0.5 mb-3 text-sm'><pre><code class='language-none'>$ curl -X POST http://localhost:8090/v2/wallets/73d38c71e4b8b5d71769622ab4f5bfdedbb7c39d/transactions-construct \
+-d '{
+   "metadata":{
+      "721":{
+         "6d5052088183db1ef06439a9f501b52721c2645532a50254a69d5390":{
+            "AmazingNFT":{
+               "name":"My amazing NFT",
+               "image":"ipfs://QmRhTTbUrPYEw3mJGGhQqQST9k86v1DPBiTTWJGKDJsVFw"
+            }
+         }
+      }
+   },
+   "mint_burn":[
+      {
+         "operation":{
+            "mint":{
+               "quantity":1
+            }
+         },
+         "policy_script_template":"cosigner#0",
+         "asset_name":"416d617a696e674e4654"
+      }
+   ]
+}' \
+-H "Content-Type: application/json"</code></pre></div>
+    <p class='mb-3'>
+      That’s it! I should now receive CBOR-encoded <code class='py-0.5 px-1 rounded bg-gray-700 text-sm text-white'>transaction</code>, <code class='py-0.5 px-1 rounded bg-gray-700 text-sm text-white'>fee</code> and <code class='py-0.5 px-1 rounded bg-gray-700 text-sm text-white'>coin_selection</code> details in response. I can now <strong>sign</strong> and <strong>submit</strong> such a transaction just like in <a href='user-guide/common-use-cases/how-to-make-a-transaction' class='text-blue-600 mavenLinkBold hover:underline' data-wikilink-type='WikiLinkNormal'>How to make a transaction</a>. Once submitted my freshly minted NFT should be added to my wallet balance!
+    </p>
+  <h3 id='burning-an-nft' class='mt-6 mb-2 text-3xl font-bold text-gray-700'>Burning an NFT</h3>
+    <p class='mb-3'>
+      Let’s now burn our NFT. We have it already in our wallet balance and our wallet’s policy key is “guarding” that asset so it shouldn’t be any problem.
+    </p>
+  
+    <p class='mb-3'>
+      We can easily <strong>construct</strong> burning transaction with <a href='https://input-output-hk.github.io/cardano-wallet/api/edge/#operation/constructTransaction' class='text-blue-600 hover:underline' target='_blank' rel='noopener'><code class='py-0.5 px-1 rounded bg-gray-700 text-sm text-white'>POST /wallets/{walletId}/transactions-construct</code></a>:
+    </p>
+  <div class='py-0.5 mb-3 text-sm'><pre><code class='language-none'>$ curl -X POST http://localhost:8090/v2/wallets/73d38c71e4b8b5d71769622ab4f5bfdedbb7c39d/transactions-construct \
+-d '{
+   "mint_burn":[
+      {
+         "operation":{
+            "burn":{
+               "quantity":1
+            }
+         },
+         "policy_script_template":"cosigner#0",
+         "asset_name":"416d617a696e674e4654"
+      }
+   ]
+}' \
+-H "Content-Type: application/json"</code></pre></div>
+    <p class='mb-3'>
+      That’s it. I can now <strong>sign</strong> and <strong>submit</strong> such transaction just like in <a href='user-guide/common-use-cases/how-to-make-a-transaction' class='text-blue-600 mavenLinkBold hover:underline' data-wikilink-type='WikiLinkNormal'>How to make a transaction</a> and as a result my NFT will just disappear.
     </p>
   <h2 id='sending-assets-in-a-transaction' class='inline-block mt-6 mb-4 text-4xl font-bold text-gray-700 border-b-2'>Sending assets in a transaction</h2>
     <p class='mb-3'>
@@ -2534,7 +2749,7 @@
 }' \  
 -H "Content-Type: application/json"</code></pre></div>
     <p class='mb-3'>
-      I should receive CBOR-encoded <code class='py-0.5 px-1 rounded bg-gray-700 text-sm text-white'>transaction</code>, <code class='py-0.5 px-1 rounded bg-gray-700 text-sm text-white'>fee</code> and <code class='py-0.5 px-1 rounded bg-gray-700 text-sm text-white'>coin_selection</code> details in response. I can now <strong>sign</strong> and <strong>submit</strong> such transaction just like in <a href='user-guide/common-use-cases/how-to-make-a-transaction' class='text-blue-600 mavenLinkBold hover:underline' data-wikilink-type='WikiLinkNormal'>How to make a transaction</a>.
+      I should receive CBOR-encoded <code class='py-0.5 px-1 rounded bg-gray-700 text-sm text-white'>transaction</code>, <code class='py-0.5 px-1 rounded bg-gray-700 text-sm text-white'>fee</code> and <code class='py-0.5 px-1 rounded bg-gray-700 text-sm text-white'>coin_selection</code> details in response. I can now <strong>sign</strong> and <strong>submit</strong> such a transaction just like in <a href='user-guide/common-use-cases/how-to-make-a-transaction' class='text-blue-600 mavenLinkBold hover:underline' data-wikilink-type='WikiLinkNormal'>How to make a transaction</a>.
     </p>
   
   <!-- What goes in this file will appear below the note body-->
