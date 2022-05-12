@@ -117,6 +117,7 @@
             (hsPkgs."quickcheck-instances" or (errorHandler.buildDepError "quickcheck-instances"))
             (hsPkgs."tasty" or (errorHandler.buildDepError "tasty"))
             (hsPkgs."tasty-quickcheck" or (errorHandler.buildDepError "tasty-quickcheck"))
+            (hsPkgs."these" or (errorHandler.buildDepError "these"))
             (hsPkgs."cardano-prelude" or (errorHandler.buildDepError "cardano-prelude"))
             (hsPkgs."contra-tracer" or (errorHandler.buildDepError "contra-tracer"))
             (hsPkgs."io-sim" or (errorHandler.buildDepError "io-sim"))
@@ -138,5 +139,5 @@
         };
       };
     } // rec {
-    src = (pkgs.lib).mkDefault /nix/store/fy9im0ipvv2jsysk65jphamr63h2y23w-ouroboros-network-4fac197/ouroboros-network-framework;
+    src = (pkgs.lib).mkDefault /nix/store/h420hgw0479441hcg08pv9npyjrb9nl1-ouroboros-network-ad47441/ouroboros-network-framework;
     }

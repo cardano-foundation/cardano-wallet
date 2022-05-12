@@ -41,5 +41,5 @@
         };
       };
     } // rec {
-    src = (pkgs.lib).mkDefault /nix/store/x9qblgvxkw01bvlg0i6w2hyznkfli6jf-cardano-ledger-1a9ec4a/eras/byron/crypto/test;
+    src = (pkgs.lib).mkDefault /nix/store/y5zp7ycn9ypz1z2xak67wkdw5s6isc2h-cardano-ledger-1db68a3/eras/byron/crypto/test;
     }

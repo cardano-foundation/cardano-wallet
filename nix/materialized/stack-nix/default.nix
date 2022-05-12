@@ -161,6 +161,8 @@
         cardano-config = ./.stack-to-nix.cache.93;
         servant-purescript = ./.stack-to-nix.cache.94;
         Win32-network = ./.stack-to-nix.cache.95;
+        ekg-json = ./.stack-to-nix.cache.96;
+        hw-aeson = ./.stack-to-nix.cache.97;
         };
       compiler.version = "8.10.7";
       compiler.nix-name = "ghc8107";

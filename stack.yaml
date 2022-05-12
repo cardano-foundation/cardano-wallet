@@ -77,7 +77,7 @@ extra-deps:
 
 # cardano-addresses-3.9.0
 - git: https://github.com/input-output-hk/cardano-addresses
-  commit: 8bf98905b903455196495e231b23613ad2264cb0
+  commit: 56746f558d57a6b1d66d20eaac8a83dc4455cb4f
   subdirs:
     - command-line
     - core
@@ -154,7 +154,7 @@ extra-deps:
   - bech32-th
 
 - git: https://github.com/input-output-hk/cardano-base
-  commit: 41545ba3ac6b3095966316a99883d678b5ab8da8
+  commit: 1587462ac8b2e50af2691f5ad93d3c2aa4674ed1
   subdirs:
   - base-deriving-via
   - binary
@@ -171,7 +171,7 @@ extra-deps:
   commit: f73079303f663e028288f9f4a9e08bcca39a923e
 
 - git: https://github.com/input-output-hk/cardano-ledger
-  commit: 1a9ec4ae9e0b09d54e49b2a40c4ead37edadcce5
+  commit: 1db68a3ec0a2dcb5751004beb22b906162474f23
   subdirs:
   - eras/alonzo/impl
   - eras/alonzo/test-suite
@@ -196,7 +196,7 @@ extra-deps:
   - libs/non-integral
 
 - git: https://github.com/input-output-hk/cardano-node
-  commit: 73f9a746362695dc2cb63ba757fbcabb81733d23
+  commit: 65422ff373f2f88a563afa746a9a16d211ffdc7c
   subdirs:
   - cardano-api
   - cardano-cli
@@ -213,8 +213,13 @@ extra-deps:
   - cardano-prelude
   - cardano-prelude-test
 
-- git: https://github.com/input-output-hk/cardano-sl-x509
-  commit: 12925934c533b3a6e009b61ede555f8f26bac037
+    # In particular we rely on the code from this PR:
+    # <https://github.com/input-output-hk/iohk-monitoring-framework/pull/622>
+    # being merged.
+    #
+    # NOTE: Also see equivalent comment in cabal.project
+- git: https://github.com/MELD-labs/cardano-sl-x509
+  commit: 819997049b9cc675b28059d3d6f511d08f934d10
 
 - git: https://github.com/input-output-hk/flat
   commit: ee59880f47ab835dbd73bea0847dab7869fc20d8
@@ -225,8 +230,13 @@ extra-deps:
 - git: https://github.com/input-output-hk/hedgehog-extras
   commit: edf6945007177a638fbeb8802397f3a6f4e47c14
 
+    # In particular we rely on the code from this PR:
+    #  * <https://github.com/input-output-hk/cardano-sl-x509/pull/6>
+    # being merged.
+    #
+    # NOTE: Also see equivalent comment in cabal.project
 - git: https://github.com/input-output-hk/iohk-monitoring-framework
-  commit: 808724ff8a19a33d0ed06f9ef59fbd900b08553c
+  commit: eb7854d1337637b8672af1227b276aa33a658f47
   subdirs:
   - contra-tracer
   - iohk-monitoring
@@ -241,7 +251,7 @@ extra-deps:
   commit: 6a92d7853ea514be8b70bab5e72077bf5a510596
 
 - git: https://github.com/input-output-hk/ouroboros-network
-  commit: 4fac197b6f0d2ff60dc3486c593b68dc00969fbf
+  commit: ad47441e9e399495579d7dd05ccaf96b46a487b2
   subdirs:
   - io-classes
   - io-sim
@@ -270,7 +280,7 @@ extra-deps:
   - ouroboros-consensus-mock
 
 - git: https://github.com/input-output-hk/plutus
-  commit: fc5fe94d3d9525d032bcbc79ff0e1ebcfd8ef143
+  commit: ccf5bcb99ffe054dc8cd5626723f64e02708dbae
   subdirs:
     - plutus-core
     - plutus-ledger-api
@@ -291,3 +301,14 @@ extra-deps:
 
 - git: https://github.com/input-output-hk/Win32-network
   commit: 3825d3abf75f83f406c1f7161883c438dac7277d
+
+# Until https://github.com/tibbe/ekg-json/pull/12 gets merged with aeson2 support
+- git: https://github.com/vshabanov/ekg-json
+  commit: 00ebe7211c981686e65730b7144fbf5350462608
+# TODO This is a compatibility shim to make it easier for our library dependencies to
+# be compatible with both aeson 1 & 2.  Once downstream projects are all upgraded to
+# work with aeson-2, library dependencies will need to be updated to no longer use
+# this compatibility shim and have bounds to indicate they work with aeson-2 only.
+# After this, the dependency to hw-aeson can be dropped.
+- git: https://github.com/haskell-works/hw-aeson
+  commit: d99d2f3e39a287607418ae605b132a3deb2b753f

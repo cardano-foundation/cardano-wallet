@@ -8,7 +8,7 @@
   , config
   , ... }:
   {
-    flags = {};
+    flags = { nightly = false; };
     package = {
       specVersion = "1.10";
       identifier = { name = "ouroboros-network-testing"; version = "0.1.0.0"; };
@@ -32,6 +32,8 @@
           (hsPkgs."io-classes" or (errorHandler.buildDepError "io-classes"))
           (hsPkgs."io-sim" or (errorHandler.buildDepError "io-sim"))
           (hsPkgs."psqueues" or (errorHandler.buildDepError "psqueues"))
+          (hsPkgs."tasty" or (errorHandler.buildDepError "tasty"))
+          (hsPkgs."tasty-expected-failure" or (errorHandler.buildDepError "tasty-expected-failure"))
           (hsPkgs."cborg" or (errorHandler.buildDepError "cborg"))
           (hsPkgs."serialise" or (errorHandler.buildDepError "serialise"))
           (hsPkgs."network-mux" or (errorHandler.buildDepError "network-mux"))
@@ -53,5 +55,5 @@
         };
       };
     } // rec {
-    src = (pkgs.lib).mkDefault /nix/store/fy9im0ipvv2jsysk65jphamr63h2y23w-ouroboros-network-4fac197/ouroboros-network-testing;
+    src = (pkgs.lib).mkDefault /nix/store/h420hgw0479441hcg08pv9npyjrb9nl1-ouroboros-network-ad47441/ouroboros-network-testing;
     }

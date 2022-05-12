@@ -38,5 +38,5 @@
         };
       };
     } // rec {
-    src = (pkgs.lib).mkDefault /nix/store/fy9im0ipvv2jsysk65jphamr63h2y23w-ouroboros-network-4fac197/cardano-client;
+    src = (pkgs.lib).mkDefault /nix/store/h420hgw0479441hcg08pv9npyjrb9nl1-ouroboros-network-ad47441/cardano-client;
     }

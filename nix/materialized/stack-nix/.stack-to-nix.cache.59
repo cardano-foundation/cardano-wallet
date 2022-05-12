@@ -54,5 +54,5 @@
         };
       };
     } // rec {
-    src = (pkgs.lib).mkDefault /nix/store/dp15xfc309h2xx301937iacq5wym27gy-iohk-monitoring-framework-808724f/tracer-transformers;
+    src = (pkgs.lib).mkDefault /nix/store/bs2ksihq3ig9rph1dildq6mci4ax8w0g-iohk-monitoring-framework-eb7854d/tracer-transformers;
     }

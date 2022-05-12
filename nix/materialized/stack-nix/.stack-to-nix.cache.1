@@ -44,6 +44,7 @@
           (hsPkgs."extra" or (errorHandler.buildDepError "extra"))
           (hsPkgs."fmt" or (errorHandler.buildDepError "fmt"))
           (hsPkgs."hashable" or (errorHandler.buildDepError "hashable"))
+          (hsPkgs."hw-aeson" or (errorHandler.buildDepError "hw-aeson"))
           (hsPkgs."memory" or (errorHandler.buildDepError "memory"))
           (hsPkgs."text" or (errorHandler.buildDepError "text"))
           (hsPkgs."unordered-containers" or (errorHandler.buildDepError "unordered-containers"))
@@ -77,5 +78,5 @@
         };
       };
     } // rec {
-    src = (pkgs.lib).mkDefault /nix/store/ygizp24vac8mm3j4dq59sajld3l4v991-cardano-addresses-8bf9890/core;
+    src = (pkgs.lib).mkDefault /nix/store/wais8nmhlzkgfpp7pslaspq0padfsgr7-cardano-addresses-56746f5/core;
     }

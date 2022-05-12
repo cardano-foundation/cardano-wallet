@@ -8,7 +8,7 @@
   , config
   , ... }:
   {
-    flags = { asserts = false; ipv6 = false; };
+    flags = { asserts = false; ipv6 = false; tracetcpinfo = false; };
     package = {
       specVersion = "2.2";
       identifier = { name = "network-mux"; version = "0.1.0.0"; };
@@ -113,5 +113,5 @@
         };
       };
     } // rec {
-    src = (pkgs.lib).mkDefault /nix/store/fy9im0ipvv2jsysk65jphamr63h2y23w-ouroboros-network-4fac197/network-mux;
+    src = (pkgs.lib).mkDefault /nix/store/h420hgw0479441hcg08pv9npyjrb9nl1-ouroboros-network-ad47441/network-mux;
     }
