@@ -86,7 +86,11 @@
 
       mkRequiredJob = hydraJobs:
         let
-          nonRequiredPaths = map lib.hasPrefix [ ];
+          nonRequiredPaths = map lib.hasPrefix [
+            # Temporarily disable macos builds until regular timeouts are fixed
+            # (ADP-1737).
+            "macos"
+          ];
         in
         self.legacyPackages.${lib.head supportedSystems}.pkgs.releaseTools.aggregate {
           name = "github-required";
