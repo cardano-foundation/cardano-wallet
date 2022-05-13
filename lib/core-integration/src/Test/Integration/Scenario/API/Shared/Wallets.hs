@@ -268,6 +268,30 @@ spec = describe "SHARED_WALLETS" $ do
 
         (walAcctSameActive ^. #id)  `shouldBe` (walActive ^. #id)
 
+        let payloadAcctSameOtherScript = Json [json| {
+                "name": "Shared Wallet",
+                "account_public_key": #{accXPubDerived},
+                "account_index": "30H",
+                "payment_script_template":
+                    { "cosigners":
+                        { "cosigner#0": #{accXPubDerived} },
+                      "template":
+                          { "all":
+                             [ "cosigner#0",
+                               { "active_from": 100 }
+                             ]
+                          }
+                    }
+                } |]
+        rPostAcctSameOtherScript <- postSharedWallet ctx Default payloadAcctSameOtherScript
+        verify (fmap (view #wallet) <$> rPostAcctSameOtherScript)
+            [ expectResponseCode HTTP.status201 ]
+        let walAcctSameOtherScript = getFromResponse id rPostAcctSameOtherScript
+        let (ApiSharedWallet (Right walAcctSameOtherScriptActive)) = walAcctSameOtherScript
+
+        (walAcctSameOtherScriptActive ^. #id)  `shouldNotBe` (walActive ^. #id)
+
+
     it "SHARED_WALLETS_CREATE_02 - Create a pending shared wallet from root xprv" $ \ctx -> runResourceT $ do
         m15txt <- liftIO $ genMnemonics M15
         m12txt <- liftIO $ genMnemonics M12
