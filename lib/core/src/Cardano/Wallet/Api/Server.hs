@@ -416,6 +416,7 @@ import Cardano.Wallet.Primitive.AddressDiscovery.Shared
     , mkSharedStateFromAccountXPub
     , mkSharedStateFromRootXPrv
     , validateScriptTemplates
+    , toSharedWalletId
     )
 import Cardano.Wallet.Primitive.Delegation.UTxO
     ( stakeKeyCoinDistr )
@@ -1058,7 +1059,7 @@ postSharedWalletFromRootXPrv ctx generateKey body = do
     dTemplateM = scriptTemplateFromSelf (getRawKey accXPub) <$> body ^. #delegationScriptTemplate
     wName = getApiT (body ^. #name)
     accXPub = publicKey $ deriveAccountPrivateKey pwdP rootXPrv (Index $ getDerivationIndex ix)
-    wid = WalletId $ digest accXPub
+    wid = WalletId $ toSharedWalletId accXPub pTemplate dTemplateM
     scriptValidation = maybe RecommendedValidation getApiT (body ^. #scriptValidation)
 
 postSharedWalletFromAccountXPub
@@ -1098,7 +1099,7 @@ postSharedWalletFromAccountXPub ctx liftKey body = do
     wName = getApiT (body ^. #name)
     (ApiAccountPublicKey accXPubApiT) =  body ^. #accountPublicKey
     accXPub = getApiT accXPubApiT
-    wid = WalletId $ digest (liftKey accXPub)
+    wid = WalletId $ toSharedWalletId (liftKey accXPub) pTemplate dTemplateM
     scriptValidation = maybe RecommendedValidation getApiT (body ^. #scriptValidation)
 
 scriptTemplateFromSelf :: XPub -> ApiScriptTemplateEntry -> ScriptTemplate

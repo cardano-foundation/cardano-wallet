@@ -40,6 +40,7 @@ module Cardano.Wallet.Primitive.AddressDiscovery.Shared
     , isShared
     , retrieveAllCosigners
     , validateScriptTemplates
+    , toSharedWalletId
 
     , CredentialType (..)
     , liftPaymentAddress
@@ -63,7 +64,7 @@ import Cardano.Address.Script
 import Cardano.Address.Style.Shelley
     ( Credential (..), delegationAddress, paymentAddress )
 import Cardano.Crypto.Wallet
-    ( XPrv, XPub )
+    ( XPrv, XPub, unXPub )
 import Cardano.Wallet.Primitive.AddressDerivation
     ( Depth (..)
     , DerivationIndex (..)
@@ -108,6 +109,8 @@ import Control.DeepSeq
     ( NFData )
 import Control.Monad
     ( unless )
+import Crypto.Hash
+    ( Blake2b_160, Digest, hash )
 import Data.Either
     ( isRight )
 import Data.Either.Combinators
@@ -134,6 +137,7 @@ import qualified Data.Foldable as F
 import qualified Data.List.NonEmpty as NE
 import qualified Data.Map.Strict as Map
 import qualified Data.Text as T
+import qualified Data.Text.Encoding as T
 
 -- | Convenient alias for commonly used class contexts on keys.
 type SupportsDiscovery (n :: NetworkDiscriminant) k =
@@ -597,3 +601,18 @@ liftDelegationAddress ix dTemplate (KeyFingerprint fingerprint) =
     delegationCredential = DelegationFromScript . toScriptHash
     dScript =
         replaceCosignersWithVerKeys CA.Stake dTemplate ix
+
+toSharedWalletId
+    :: (WalletKey k, k ~ SharedKey)
+    => k 'AccountK XPub
+    -> ScriptTemplate
+    -> Maybe ScriptTemplate
+    -> Digest Blake2b_160
+toSharedWalletId accXPub pTemplate dTemplateM =
+    hash $
+    (unXPub . getRawKey $ accXPub) <>
+    toByteString pTemplate <>
+    maybe mempty toByteString dTemplateM
+  where
+    toByteString (ScriptTemplate _ script) =
+        T.encodeUtf8 $ T.pack $ show $ script
