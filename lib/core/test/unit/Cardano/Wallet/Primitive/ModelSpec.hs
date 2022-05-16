@@ -54,6 +54,7 @@ import Cardano.Wallet.Primitive.Model
     , updateOurs
     , utxo
     , utxoFromTx
+    , utxoFromTxCollateralOutputs
     )
 import Cardano.Wallet.Primitive.Slotting.Legacy
     ( flatSlot )
@@ -2022,7 +2023,7 @@ unit_applyTxToUTxO_loses_collateral tx txin txout coin =
             }
     in
         applyTxToUTxO tx' (UTxO $ Map.fromList [(txin, txout)])
-        === mempty
+        === utxoFromTxCollateralOutputs tx
 
 prop_utxoFromTx_balance :: Tx -> Property
 prop_utxoFromTx_balance tx =
