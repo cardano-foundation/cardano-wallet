@@ -553,16 +553,11 @@ prop_changeUTxO_inner pendingTxs =
     cover 50 (not (UTxO.null utxoEven) && not (UTxO.null utxoOdd))
         "UTxO sets not null" $
     conjoin
-        [ -- All addresses in the even-parity UTxO set have even parity:
-          F.all ((== Even) . txOutParity) (unUTxO utxoEven)
-          -- All addresses in the odd-parity UTxO set have odd parity:
-        , F.all ((== Odd) . txOutParity) (unUTxO utxoOdd)
-          -- The even-parity and odd-parity UTxO sets are disjoint:
-        , Map.null $ Map.intersection (unUTxO utxoEven) (unUTxO utxoOdd)
-          -- The even-parity and odd-parity UTxO sets are complete:
-        , Map.union (unUTxO utxoEven) (unUTxO utxoOdd) == unUTxO utxoAll
-          -- No outputs are omitted when we select everything:
-        , UTxO.size utxoAll == F.sum (F.length . view #outputs <$> pendingTxs)
+        [ prop_parityEven
+        , prop_parityOdd
+        , prop_disjoint
+        , prop_complete
+        , prop_everything
         ]
     & report
         (UTxO.size utxoAll)
@@ -571,6 +566,26 @@ prop_changeUTxO_inner pendingTxs =
         (F.sum (F.length . view #outputs <$> pendingTxs))
         "F.sum (F.length . view #outputs <$> pendingTxs)"
   where
+    -- Verify that all addresses in the even-parity UTxO set have even parity.
+    prop_parityEven = counterexample "prop_parityEven" $
+        F.all ((== Even) . txOutParity) (unUTxO utxoEven)
+
+    -- Verify that all addresses in the odd-parity UTxO set have odd parity.
+    prop_parityOdd = counterexample "prop_parityOdd" $
+        F.all ((== Odd) . txOutParity) (unUTxO utxoOdd)
+
+    -- Verify that the even-parity and odd-parity UTxO sets are disjoint.
+    prop_disjoint = counterexample "prop_disjoint" $
+        Map.null $ Map.intersection (unUTxO utxoEven) (unUTxO utxoOdd)
+
+    -- Verify that the even-parity and odd-parity UTxO sets are complete.
+    prop_complete = counterexample "prop_complete" $
+        Map.union (unUTxO utxoEven) (unUTxO utxoOdd) == unUTxO utxoAll
+
+    -- Verify that no outputs are omitted when we select everything.
+    prop_everything = counterexample "prop_everything" $
+        UTxO.size utxoAll == F.sum (F.length . view #outputs <$> pendingTxs)
+
     -- Computes the parity of an output based on its address parity.
     txOutParity :: TxOut -> Parity
     txOutParity = addressParity . view #address
