@@ -484,7 +484,7 @@ changeUTxO
     -> UTxO
 changeUTxO pending = evalState $
     mconcat <$> mapM
-        (UTxO.filterByAddressM isOursState . utxoFromUnvalidatedTx)
+        (UTxO.filterByAddressM isOursState . utxoFromTxOutputs)
         (Set.toList pending)
 
 {-------------------------------------------------------------------------------
@@ -551,12 +551,14 @@ utxoFromTx :: Tx -> UTxO
 utxoFromTx tx =
     if txScriptInvalid tx
     then mempty
-    else utxoFromUnvalidatedTx tx
+    else utxoFromTxOutputs tx
 
--- | Similar to 'utxoFromTx', but does not check the validation status.
+-- | Generates a UTxO set from the ordinary outputs of a transaction.
 --
-utxoFromUnvalidatedTx :: Tx -> UTxO
-utxoFromUnvalidatedTx Tx {txId, outputs} =
+-- This function ignores the transaction's script validity.
+--
+utxoFromTxOutputs :: Tx -> UTxO
+utxoFromTxOutputs Tx {txId, outputs} =
     UTxO $ Map.fromList $ zip (TxIn txId <$> [0..]) outputs
 
 {-------------------------------------------------------------------------------
