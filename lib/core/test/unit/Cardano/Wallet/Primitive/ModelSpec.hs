@@ -1933,13 +1933,10 @@ prop_applyTxToUTxO_balance tx u =
         "not $ txScriptInvalid tx" $
     balance (applyTxToUTxO tx u) === expectedBalance
   where
-    expectedBalance =
+    expectedBalance = balance (utxoFromTx tx) <>
         if txScriptInvalid tx
-        then
-            balance (u `excluding` Set.fromList (collateralInputs tx))
-        else
-            balance (u `excluding` Set.fromList (inputs tx))
-                `TokenBundle.add` balance (utxoFromTx tx)
+        then balance (u `excluding` Set.fromList (collateralInputs tx))
+        else balance (u `excluding` Set.fromList (inputs tx))
 
 prop_applyTxToUTxO_entries :: Tx -> UTxO -> Property
 prop_applyTxToUTxO_entries tx u =
