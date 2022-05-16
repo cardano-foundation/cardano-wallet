@@ -549,11 +549,20 @@ prop_changeUTxO =
         prop_changeUTxO_inner
 
 prop_changeUTxO_inner :: [Tx] -> Property
-prop_changeUTxO_inner pendingTxs =
-    checkCoverage $
-    cover 50 (not (UTxO.null utxoEven) && not (UTxO.null utxoOdd))
-        "UTxO sets not null" $
-    conjoin
+prop_changeUTxO_inner pendingTxs
+    = checkCoverage
+    $ cover 50 (not (UTxO.null utxoEven) && not (UTxO.null utxoOdd))
+        "UTxO sets not null"
+    $ cover 10
+        (all txScriptInvalid pendingTxs)
+        "all txScriptInvalid pendingTxs"
+    $ cover 10
+        (not (any txScriptInvalid pendingTxs))
+        "not (any txScriptInvalid pendingTxs)"
+    $ cover 10
+        (any txScriptInvalid pendingTxs && not (all txScriptInvalid pendingTxs))
+        "any txScriptInvalid pendingTxs && not (all txScriptInvalid pendingTxs)"
+    $ conjoin
         [ prop_parityEven
         , prop_parityOdd
         , prop_disjoint
@@ -2073,6 +2082,12 @@ prop_spendTx_balance tx u =
     cover 10
         (lhs /= mempty && rhs /= mempty)
         "lhs /= mempty && rhs /= mempty" $
+    cover 10
+        (txScriptInvalid tx)
+        "txScriptInvalid tx" $
+    cover 10
+        (not $ txScriptInvalid tx)
+        "not $ txScriptInvalid tx" $
     lhs === rhs
   where
     lhs = balance (spendTx tx u)
@@ -2091,6 +2106,12 @@ prop_spendTx tx u =
     cover 10
         (spendTx tx u /= mempty)
         "spendTx tx u /= mempty" $
+    cover 10
+        (txScriptInvalid tx)
+        "txScriptInvalid tx" $
+    cover 10
+        (not $ txScriptInvalid tx)
+        "not $ txScriptInvalid tx" $
     spendTx tx u === u `excluding` toExclude
   where
     toExclude =
