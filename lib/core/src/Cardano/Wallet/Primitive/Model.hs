@@ -542,18 +542,28 @@ spendTxD tx !u =
         then collateralInputs tx
         else inputs tx
 
--- | Construct a 'UTxO' corresponding to a given transaction.
+-- | Generates a UTxO set from a transaction.
 --
--- It is important for the transaction outputs to be ordered correctly,
--- as their index within this ordering determines how
--- they are referenced as transaction inputs in subsequent blocks.
+-- The generated UTxO set corresponds to the value provided by the transaction.
 --
--- > balance (utxoFromTx tx) = foldMap tokens (outputs tx)
--- > utxoFromTx tx `excluding` Set.fromList (inputs tx) = utxoFrom tx
+-- It is important for transaction outputs to be ordered correctly, as their
+-- indices within this ordering will determine how they are referenced as
+-- transaction inputs in subsequent blocks.
+--
+-- Assuming the transaction is not marked as having an invalid script, the
+-- following property should hold:
+--
+-- prop> balance (utxoFromTx tx) = foldMap tokens (outputs tx)
+--
+-- However, if the transaction is marked as having an invalid script, then the
+-- following property should hold:
+--
+-- prop> balance (utxoFromTx tx) = foldMap tokens (collateralOutput tx)
+--
 utxoFromTx :: Tx -> UTxO
 utxoFromTx tx =
     if txScriptInvalid tx
-    then mempty
+    then utxoFromTxCollateralOutputs tx
     else utxoFromTxOutputs tx
 
 -- | Generates a UTxO set from the ordinary outputs of a transaction.
