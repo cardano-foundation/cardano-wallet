@@ -487,7 +487,7 @@ changeUTxO
     -> UTxO
 changeUTxO pending = evalState $
     mconcat <$> mapM
-        (UTxO.filterByAddressM isOursState . utxoFromTxOutputs)
+        (UTxO.filterByAddressM isOursState . utxoFromTx)
         (Set.toList pending)
 
 {-------------------------------------------------------------------------------
