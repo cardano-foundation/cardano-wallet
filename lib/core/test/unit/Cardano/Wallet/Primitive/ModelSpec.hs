@@ -878,7 +878,10 @@ isOurTx tx u
     -- one more collateral inputs that belong to the wallet.
     --
     | txScriptInvalid tx =
-        txHasRelevantCollateralInput
+        F.or <$> sequence
+            [ txHasRelevantCollateralInput
+            , txHasRelevantCollateralOutput
+            ]
     | otherwise =
         F.or <$> sequence
             [ txHasRelevantInput
@@ -895,9 +898,14 @@ isOurTx tx u
         u `UTxO.restrictedBy` Set.fromList
             (fst <$> tx ^. #resolvedCollateralInputs)
     txHasRelevantOutput =
-        F.or <$> sequence (isOursState . (view #address) <$> tx ^. #outputs)
+        F.or <$> sequence
+            (isOursState . (view #address) <$> tx ^. #outputs)
+    txHasRelevantCollateralOutput =
+        F.or <$> sequence
+            (isOursState . (view #address) <$> tx ^. #collateralOutput)
     txHasRelevantWithdrawal =
-        F.or <$> sequence (isOursState . fst <$> Map.toList (tx ^. #withdrawals))
+        F.or <$> sequence
+            (isOursState . fst <$> Map.toList (tx ^. #withdrawals))
 
     isOursState :: IsOurs s addr => addr -> State s Bool
     isOursState = fmap isJust . state . isOurs
