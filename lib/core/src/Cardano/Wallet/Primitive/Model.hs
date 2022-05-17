@@ -5,6 +5,7 @@
 {-# LANGUAGE FlexibleContexts #-}
 {-# LANGUAGE NamedFieldPuns #-}
 {-# LANGUAGE OverloadedLabels #-}
+{-# LANGUAGE TupleSections #-}
 {-# LANGUAGE TypeFamilies #-}
 
 -- |
@@ -58,6 +59,8 @@ module Cardano.Wallet.Primitive.Model
     -- ** Exported for testing
     , spendTx
     , utxoFromTx
+    , utxoFromTxOutputs
+    , utxoFromTxCollateralOutputs
     , applyTxToUTxO
     , applyOurTxToUTxO
     , changeUTxO
@@ -103,9 +106,9 @@ import Cardano.Wallet.Primitive.Types.Tx
     , TxMeta (..)
     , TxStatus (..)
     , collateralInputs
-    , failedScriptValidation
     , inputs
     , txOutCoin
+    , txScriptInvalid
     )
 import Cardano.Wallet.Primitive.Types.UTxO
     ( DeltaUTxO, UTxO (..), balance, excluding, excludingD, receiveD )
@@ -484,7 +487,7 @@ changeUTxO
     -> UTxO
 changeUTxO pending = evalState $
     mconcat <$> mapM
-        (UTxO.filterByAddressM isOursState . utxoFromUnvalidatedTx)
+        (UTxO.filterByAddressM isOursState . utxoFromTx)
         (Set.toList pending)
 
 {-------------------------------------------------------------------------------
@@ -535,29 +538,49 @@ spendTxD tx !u =
     u `excludingD` Set.fromList inputsToExclude
   where
     inputsToExclude =
-        if failedScriptValidation tx
+        if txScriptInvalid tx
         then collateralInputs tx
         else inputs tx
 
--- | Construct a 'UTxO' corresponding to a given transaction.
+-- | Generates a UTxO set from a transaction.
 --
--- It is important for the transaction outputs to be ordered correctly,
--- as their index within this ordering determines how
--- they are referenced as transaction inputs in subsequent blocks.
+-- The generated UTxO set corresponds to the value provided by the transaction.
 --
--- > balance (utxoFromTx tx) = foldMap tokens (outputs tx)
--- > utxoFromTx tx `excluding` Set.fromList (inputs tx) = utxoFrom tx
+-- It is important for transaction outputs to be ordered correctly, as their
+-- indices within this ordering will determine how they are referenced as
+-- transaction inputs in subsequent blocks.
+--
+-- Assuming the transaction is not marked as having an invalid script, the
+-- following property should hold:
+--
+-- prop> balance (utxoFromTx tx) = foldMap tokens (outputs tx)
+--
+-- However, if the transaction is marked as having an invalid script, then the
+-- following property should hold:
+--
+-- prop> balance (utxoFromTx tx) = foldMap tokens (collateralOutput tx)
+--
 utxoFromTx :: Tx -> UTxO
 utxoFromTx tx =
-    if failedScriptValidation tx
-    then mempty
-    else utxoFromUnvalidatedTx tx
+    if txScriptInvalid tx
+    then utxoFromTxCollateralOutputs tx
+    else utxoFromTxOutputs tx
 
--- | Similar to 'utxoFromTx', but does not check the validation status.
+-- | Generates a UTxO set from the ordinary outputs of a transaction.
 --
-utxoFromUnvalidatedTx :: Tx -> UTxO
-utxoFromUnvalidatedTx Tx {txId, outputs} =
+-- This function ignores the transaction's script validity.
+--
+utxoFromTxOutputs :: Tx -> UTxO
+utxoFromTxOutputs Tx {txId, outputs} =
     UTxO $ Map.fromList $ zip (TxIn txId <$> [0..]) outputs
+
+-- | Generates a UTxO set from the collateral outputs of a transaction.
+--
+-- This function ignores the transaction's script validity.
+--
+utxoFromTxCollateralOutputs :: Tx -> UTxO
+utxoFromTxCollateralOutputs Tx {txId, collateralOutput} =
+    UTxO $ Map.fromList $ F.toList $ (TxIn txId 0,) <$> collateralOutput
 
 {-------------------------------------------------------------------------------
                         Address ownership and discovery
@@ -773,7 +796,7 @@ ourWithdrawalSumFromTx s tx
     -- Therefore, any reward withdrawals included in such a transaction should
     -- also have no effect.
     --
-    | failedScriptValidation tx = Coin 0
+    | txScriptInvalid tx = Coin 0
     | otherwise = Map.foldlWithKey' add (Coin 0) (tx ^. #withdrawals)
   where
     add total account coin

@@ -68,7 +68,7 @@ module Cardano.Wallet.Primitive.Types.Tx
     , txOutCoin
     , txOutAddCoin
     , txOutSubtractCoin
-    , failedScriptValidation
+    , txScriptInvalid
 
     -- * Constants
     , txOutMinCoin
@@ -744,24 +744,32 @@ data TransactionInfo = TransactionInfo
 
 instance NFData TransactionInfo
 
--- | Indicates whether the script associated with a transaction has passed or
--- failed validation. Pre-Alonzo era, scripts were not supported.
+-- | Indicates whether or not a transaction is marked as having an invalid
+--   script.
+--
+-- Pre-Alonzo era, scripts were not supported.
+--
 data TxScriptValidity
     = TxScriptValid
-    -- ^ Indicates that the script passed validation.
+    -- ^ The transaction is not marked as having an invalid script.
     | TxScriptInvalid
-    -- ^ Indicates that the script failed validation.
+    -- ^ The transaction is marked as having an invalid script.
   deriving (Generic, Show, Eq, Ord)
 
 instance NFData TxScriptValidity
 
--- | Returns 'True' if and only if a transaction has failed script validation.
-failedScriptValidation :: Tx -> Bool
-failedScriptValidation Tx {scriptValidity} = case scriptValidity of
-    Just TxScriptInvalid -> True
-    Just TxScriptValid -> False
-    -- Script validation always passes in eras that don't support scripts
-    Nothing -> False
+-- | Returns 'True' if (and only if) the given transaction is marked as having
+--   an invalid script.
+--
+-- This function does not actually verify the validity of scripts; it merely
+-- checks for the presence or absence of the 'TxScriptInvalid' marker.
+--
+txScriptInvalid :: Tx -> Bool
+txScriptInvalid Tx {scriptValidity} = case scriptValidity of
+  Just TxScriptInvalid -> True
+  Just TxScriptValid -> False
+  -- Script validation always passes in eras that don't support scripts
+  Nothing -> False
 
 -- | Reconstruct a transaction info from a transaction.
 fromTransactionInfo :: TransactionInfo -> Tx

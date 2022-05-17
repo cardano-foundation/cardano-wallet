@@ -54,6 +54,8 @@ import Cardano.Wallet.Primitive.Model
     , updateOurs
     , utxo
     , utxoFromTx
+    , utxoFromTxCollateralOutputs
+    , utxoFromTxOutputs
     )
 import Cardano.Wallet.Primitive.Slotting.Legacy
     ( flatSlot )
@@ -89,10 +91,10 @@ import Cardano.Wallet.Primitive.Types.Tx
     , TxOut (..)
     , TxScriptValidity (..)
     , collateralInputs
-    , failedScriptValidation
     , inputs
     , txIns
     , txOutCoin
+    , txScriptInvalid
     )
 import Cardano.Wallet.Primitive.Types.Tx.Gen
     ( genTx, genTxIn, genTxOut, shrinkTx, shrinkTxIn, shrinkTxOut )
@@ -231,8 +233,12 @@ spec = do
                 (property prop_applyTxToUTxO_entries)
             it "consumes inputs"
                 (property unit_applyTxToUTxO_spends_input)
-            it "loses collateral"
-                (property unit_applyTxToUTxO_loses_collateral)
+            it "produces expected UTxO set when script validity is valid"
+                (property unit_applyTxToUTxO_scriptValidity_Valid)
+            it "produces expected UTxO set when script validity is invalid"
+                (property unit_applyTxToUTxO_scriptValidity_Invalid)
+            it "produces expected UTxO set when script validity is unknown"
+                (property unit_applyTxToUTxO_scriptValidity_Unknown)
             it "applyTxToUTxO then filterByAddress"
                 (property prop_filterByAddress_balance_applyTxToUTxO)
             it "spendTx/applyTxToUTxO/utxoFromTx"
@@ -548,21 +554,25 @@ prop_changeUTxO =
         prop_changeUTxO_inner
 
 prop_changeUTxO_inner :: [Tx] -> Property
-prop_changeUTxO_inner pendingTxs =
-    checkCoverage $
-    cover 50 (not (UTxO.null utxoEven) && not (UTxO.null utxoOdd))
-        "UTxO sets not null" $
-    conjoin
-        [ -- All addresses in the even-parity UTxO set have even parity:
-          F.all ((== Even) . txOutParity) (unUTxO utxoEven)
-          -- All addresses in the odd-parity UTxO set have odd parity:
-        , F.all ((== Odd) . txOutParity) (unUTxO utxoOdd)
-          -- The even-parity and odd-parity UTxO sets are disjoint:
-        , Map.null $ Map.intersection (unUTxO utxoEven) (unUTxO utxoOdd)
-          -- The even-parity and odd-parity UTxO sets are complete:
-        , Map.union (unUTxO utxoEven) (unUTxO utxoOdd) == unUTxO utxoAll
-          -- No outputs are omitted when we select everything:
-        , UTxO.size utxoAll == F.sum (F.length . view #outputs <$> pendingTxs)
+prop_changeUTxO_inner pendingTxs
+    = checkCoverage
+    $ cover 50 (not (UTxO.null utxoEven) && not (UTxO.null utxoOdd))
+        "UTxO sets not null"
+    $ cover 10
+        (all txScriptInvalid pendingTxs)
+        "all txScriptInvalid pendingTxs"
+    $ cover 10
+        (not (any txScriptInvalid pendingTxs))
+        "not (any txScriptInvalid pendingTxs)"
+    $ cover 10
+        (any txScriptInvalid pendingTxs && not (all txScriptInvalid pendingTxs))
+        "any txScriptInvalid pendingTxs && not (all txScriptInvalid pendingTxs)"
+    $ conjoin
+        [ prop_parityEven
+        , prop_parityOdd
+        , prop_disjoint
+        , prop_complete
+        , prop_everything
         ]
     & report
         (UTxO.size utxoAll)
@@ -571,6 +581,26 @@ prop_changeUTxO_inner pendingTxs =
         (F.sum (F.length . view #outputs <$> pendingTxs))
         "F.sum (F.length . view #outputs <$> pendingTxs)"
   where
+    -- Verify that all addresses in the even-parity UTxO set have even parity.
+    prop_parityEven = counterexample "prop_parityEven" $
+        F.all ((== Even) . txOutParity) (unUTxO utxoEven)
+
+    -- Verify that all addresses in the odd-parity UTxO set have odd parity.
+    prop_parityOdd = counterexample "prop_parityOdd" $
+        F.all ((== Odd) . txOutParity) (unUTxO utxoOdd)
+
+    -- Verify that the even-parity and odd-parity UTxO sets are disjoint.
+    prop_disjoint = counterexample "prop_disjoint" $
+        Map.null $ Map.intersection (unUTxO utxoEven) (unUTxO utxoOdd)
+
+    -- Verify that the even-parity and odd-parity UTxO sets are complete.
+    prop_complete = counterexample "prop_complete" $
+        Map.union (unUTxO utxoEven) (unUTxO utxoOdd) == unUTxO utxoAll
+
+    -- Verify that no outputs are omitted when we select everything.
+    prop_everything = counterexample "prop_everything" $
+        utxoAll == F.foldMap utxoFromTx pendingTxs
+
     -- Computes the parity of an output based on its address parity.
     txOutParity :: TxOut -> Parity
     txOutParity = addressParity . view #address
@@ -862,8 +892,11 @@ isOurTx tx u
     -- Therefore, such a transaction is only relevant to the wallet if it has
     -- one more collateral inputs that belong to the wallet.
     --
-    | failedScriptValidation tx =
-        txHasRelevantCollateralInput
+    | txScriptInvalid tx =
+        F.or <$> sequence
+            [ txHasRelevantCollateralInput
+            , txHasRelevantCollateralOutput
+            ]
     | otherwise =
         F.or <$> sequence
             [ txHasRelevantInput
@@ -880,9 +913,14 @@ isOurTx tx u
         u `UTxO.restrictedBy` Set.fromList
             (fst <$> tx ^. #resolvedCollateralInputs)
     txHasRelevantOutput =
-        F.or <$> sequence (isOursState . (view #address) <$> tx ^. #outputs)
+        F.or <$> sequence
+            (isOursState . (view #address) <$> tx ^. #outputs)
+    txHasRelevantCollateralOutput =
+        F.or <$> sequence
+            (isOursState . (view #address) <$> tx ^. #collateralOutput)
     txHasRelevantWithdrawal =
-        F.or <$> sequence (isOursState . fst <$> Map.toList (tx ^. #withdrawals))
+        F.or <$> sequence
+            (isOursState . fst <$> Map.toList (tx ^. #withdrawals))
 
     isOursState :: IsOurs s addr => addr -> State s Bool
     isOursState = fmap isJust . state . isOurs
@@ -1903,20 +1941,17 @@ prop_applyTxToUTxO_balance tx u =
         (applyTxToUTxO tx u /= u)
         "applyTxToUTxO tx u /= u" $
     cover 10
-        (failedScriptValidation tx)
-        "failedScriptValidation tx" $
+        (txScriptInvalid tx)
+        "txScriptInvalid tx" $
     cover 10
-        (not $ failedScriptValidation tx)
-        "not $ failedScriptValidation tx" $
+        (not $ txScriptInvalid tx)
+        "not $ txScriptInvalid tx" $
     balance (applyTxToUTxO tx u) === expectedBalance
   where
-    expectedBalance =
-        if failedScriptValidation tx
-        then
-            balance (u `excluding` Set.fromList (collateralInputs tx))
-        else
-            balance (u `excluding` Set.fromList (inputs tx))
-                `TokenBundle.add` balance (utxoFromTx tx)
+    expectedBalance = balance (utxoFromTx tx) <>
+        if txScriptInvalid tx
+        then balance (u `excluding` Set.fromList (collateralInputs tx))
+        else balance (u `excluding` Set.fromList (inputs tx))
 
 prop_applyTxToUTxO_entries :: Tx -> UTxO -> Property
 prop_applyTxToUTxO_entries tx u =
@@ -1928,17 +1963,17 @@ prop_applyTxToUTxO_entries tx u =
         (applyTxToUTxO tx u /= u)
         "applyTxToUTxO tx u /= u" $
     cover 10
-        (failedScriptValidation tx)
-        "failedScriptValidation tx" $
+        (txScriptInvalid tx)
+        "txScriptInvalid tx" $
     cover 10
-        (not $ failedScriptValidation tx)
-        "not $ failedScriptValidation tx" $
+        (not $ txScriptInvalid tx)
+        "not $ txScriptInvalid tx" $
     applyTxToUTxO tx u === expectedResult
   where
-    expectedResult =
-        if failedScriptValidation tx
+    expectedResult = (<> utxoFromTx tx) $
+        if txScriptInvalid tx
         then u `excluding` Set.fromList (collateralInputs tx)
-        else u `excluding` Set.fromList (inputs tx) <> utxoFromTx tx
+        else u `excluding` Set.fromList (inputs tx)
 
 prop_filterByAddress_balance_applyTxToUTxO
     :: (Address -> Bool) -> Tx -> Property
@@ -1951,18 +1986,18 @@ prop_filterByAddress_balance_applyTxToUTxO f tx =
         (filterByAddress f (applyTxToUTxO tx mempty) /= mempty)
         "filterByAddress f (applyTxToUTxO tx mempty) /= mempty" $
     cover 10
-        (failedScriptValidation tx)
-        "failedScriptValidation tx" $
+        (txScriptInvalid tx)
+        "txScriptInvalid tx" $
     cover 10
-        (not $ failedScriptValidation tx)
-        "not $ failedScriptValidation tx" $
+        (not $ txScriptInvalid tx)
+        "not $ txScriptInvalid tx" $
     balance (filterByAddress f (applyTxToUTxO tx mempty))
     ===
     expectedResult
   where
     expectedResult =
-        if failedScriptValidation tx
-        then mempty
+        if txScriptInvalid tx
+        then foldMap m (collateralOutput tx)
         else foldMap m (outputs tx)
       where
         m output =
@@ -1993,16 +2028,47 @@ unit_applyTxToUTxO_spends_input tx txin txout coin =
         applyTxToUTxO tx' (UTxO $ Map.fromList [(txin, txout)])
         === utxoFromTx tx' `excluding` Set.singleton txin
 
-unit_applyTxToUTxO_loses_collateral :: Tx -> TxIn -> TxOut -> Coin -> Property
-unit_applyTxToUTxO_loses_collateral tx txin txout coin =
-    let
-        tx' = tx
-            { resolvedCollateralInputs = [(txin, coin)]
+unit_applyTxToUTxO_scriptValidity_Valid
+    :: Tx -> (TxIn, TxOut) -> (TxIn, TxOut) -> Coin -> Property
+unit_applyTxToUTxO_scriptValidity_Valid tx' (sIn, sOut) (cIn, cOut) coin =
+    let tx = tx'
+            { resolvedCollateralInputs = [(cIn, coin)]
+            , resolvedInputs = [(sIn, coin)]
+            , scriptValidity = Just TxScriptValid
+            }
+        utxo = UTxO $ Map.fromList [(sIn, sOut), (cIn, cOut)]
+    in
+    applyTxToUTxO tx utxo
+        ===
+        (utxo `excluding` Set.singleton sIn) <> utxoFromTxOutputs tx
+
+unit_applyTxToUTxO_scriptValidity_Invalid
+    :: Tx -> (TxIn, TxOut) -> (TxIn, TxOut) -> Coin -> Property
+unit_applyTxToUTxO_scriptValidity_Invalid tx' (sIn, sOut) (cIn, cOut) coin =
+    let tx = tx'
+            { resolvedCollateralInputs = [(cIn, coin)]
+            , resolvedInputs = [(sIn, coin)]
             , scriptValidity = Just TxScriptInvalid
             }
+        utxo = UTxO $ Map.fromList [(sIn, sOut), (cIn, cOut)]
     in
-        applyTxToUTxO tx' (UTxO $ Map.fromList [(txin, txout)])
-        === mempty
+    applyTxToUTxO tx utxo
+        ===
+        (utxo `excluding` Set.singleton cIn) <> utxoFromTxCollateralOutputs tx
+
+unit_applyTxToUTxO_scriptValidity_Unknown
+    :: Tx -> (TxIn, TxOut) -> (TxIn, TxOut) -> Coin -> Property
+unit_applyTxToUTxO_scriptValidity_Unknown tx' (sIn, sOut) (cIn, cOut) coin =
+    let tx = tx'
+            { resolvedCollateralInputs = [(cIn, coin)]
+            , resolvedInputs = [(sIn, coin)]
+            , scriptValidity = Nothing
+            }
+        utxo = UTxO $ Map.fromList [(sIn, sOut), (cIn, cOut)]
+    in
+    applyTxToUTxO tx utxo
+        ===
+        (utxo `excluding` Set.singleton sIn) <> utxoFromTxOutputs tx
 
 prop_utxoFromTx_balance :: Tx -> Property
 prop_utxoFromTx_balance tx =
@@ -2011,17 +2077,15 @@ prop_utxoFromTx_balance tx =
         (outputs tx /= mempty)
         "outputs tx /= mempty" $
     cover 10
-        (failedScriptValidation tx)
-        "failedScriptValidation tx)" $
+        (txScriptInvalid tx)
+        "txScriptInvalid tx)" $
     cover 10
-        (not $ failedScriptValidation tx)
-        "not $ failedScriptValidation tx)" $
-    balance (utxoFromTx tx) === foldMap f (outputs tx)
-  where
-    f output =
-        if failedScriptValidation tx
-        then mempty
-        else tokens output
+        (not $ txScriptInvalid tx)
+        "not $ txScriptInvalid tx)" $
+    balance (utxoFromTx tx) ===
+        if txScriptInvalid tx
+        then foldMap tokens (collateralOutput tx)
+        else foldMap tokens (outputs tx)
 
 -- spendTx tx u `isSubsetOf` u
 prop_spendTx_isSubset :: Tx -> UTxO -> Property
@@ -2054,13 +2118,19 @@ prop_spendTx_balance tx u =
     cover 10
         (lhs /= mempty && rhs /= mempty)
         "lhs /= mempty && rhs /= mempty" $
+    cover 10
+        (txScriptInvalid tx)
+        "txScriptInvalid tx" $
+    cover 10
+        (not $ txScriptInvalid tx)
+        "not $ txScriptInvalid tx" $
     lhs === rhs
   where
     lhs = balance (spendTx tx u)
     rhs = TokenBundle.unsafeSubtract (balance u) toSubtract
       where
         toSubtract =
-            if failedScriptValidation tx
+            if txScriptInvalid tx
             then balance
                 (u `UTxO.restrictedBy` Set.fromList (collateralInputs tx))
             else balance
@@ -2072,10 +2142,16 @@ prop_spendTx tx u =
     cover 10
         (spendTx tx u /= mempty)
         "spendTx tx u /= mempty" $
+    cover 10
+        (txScriptInvalid tx)
+        "txScriptInvalid tx" $
+    cover 10
+        (not $ txScriptInvalid tx)
+        "not $ txScriptInvalid tx" $
     spendTx tx u === u `excluding` toExclude
   where
     toExclude =
-        if failedScriptValidation tx
+        if txScriptInvalid tx
         then Set.fromList (collateralInputs tx)
         else Set.fromList (inputs tx)
 
