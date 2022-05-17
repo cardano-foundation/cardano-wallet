@@ -615,4 +615,4 @@ toSharedWalletId accXPub pTemplate dTemplateM =
     maybe mempty toByteString dTemplateM
   where
     toByteString (ScriptTemplate _ script) =
-        T.encodeUtf8 $ T.pack $ show $ script
+        T.encodeUtf8 $ T.pack $ show script
