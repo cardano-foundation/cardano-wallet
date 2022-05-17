@@ -103,9 +103,9 @@ import Cardano.Wallet.Primitive.Types.Tx
     , TxMeta (..)
     , TxStatus (..)
     , collateralInputs
-    , failedScriptValidation
     , inputs
     , txOutCoin
+    , txScriptInvalid
     )
 import Cardano.Wallet.Primitive.Types.UTxO
     ( DeltaUTxO, UTxO (..), balance, excluding, excludingD, receiveD )
@@ -535,7 +535,7 @@ spendTxD tx !u =
     u `excludingD` Set.fromList inputsToExclude
   where
     inputsToExclude =
-        if failedScriptValidation tx
+        if txScriptInvalid tx
         then collateralInputs tx
         else inputs tx
 
@@ -549,7 +549,7 @@ spendTxD tx !u =
 -- > utxoFromTx tx `excluding` Set.fromList (inputs tx) = utxoFrom tx
 utxoFromTx :: Tx -> UTxO
 utxoFromTx tx =
-    if failedScriptValidation tx
+    if txScriptInvalid tx
     then mempty
     else utxoFromUnvalidatedTx tx
 
@@ -773,7 +773,7 @@ ourWithdrawalSumFromTx s tx
     -- Therefore, any reward withdrawals included in such a transaction should
     -- also have no effect.
     --
-    | failedScriptValidation tx = Coin 0
+    | txScriptInvalid tx = Coin 0
     | otherwise = Map.foldlWithKey' add (Coin 0) (tx ^. #withdrawals)
   where
     add total account coin

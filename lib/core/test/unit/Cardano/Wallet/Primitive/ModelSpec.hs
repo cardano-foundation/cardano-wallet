@@ -89,10 +89,10 @@ import Cardano.Wallet.Primitive.Types.Tx
     , TxOut (..)
     , TxScriptValidity (..)
     , collateralInputs
-    , failedScriptValidation
     , inputs
     , txIns
     , txOutCoin
+    , txScriptInvalid
     )
 import Cardano.Wallet.Primitive.Types.Tx.Gen
     ( genTx, genTxIn, genTxOut, shrinkTx, shrinkTxIn, shrinkTxOut )
@@ -862,7 +862,7 @@ isOurTx tx u
     -- Therefore, such a transaction is only relevant to the wallet if it has
     -- one more collateral inputs that belong to the wallet.
     --
-    | failedScriptValidation tx =
+    | txScriptInvalid tx =
         txHasRelevantCollateralInput
     | otherwise =
         F.or <$> sequence
@@ -1903,15 +1903,15 @@ prop_applyTxToUTxO_balance tx u =
         (applyTxToUTxO tx u /= u)
         "applyTxToUTxO tx u /= u" $
     cover 10
-        (failedScriptValidation tx)
-        "failedScriptValidation tx" $
+        (txScriptInvalid tx)
+        "txScriptInvalid tx" $
     cover 10
-        (not $ failedScriptValidation tx)
-        "not $ failedScriptValidation tx" $
+        (not $ txScriptInvalid tx)
+        "not $ txScriptInvalid tx" $
     balance (applyTxToUTxO tx u) === expectedBalance
   where
     expectedBalance =
-        if failedScriptValidation tx
+        if txScriptInvalid tx
         then
             balance (u `excluding` Set.fromList (collateralInputs tx))
         else
@@ -1928,15 +1928,15 @@ prop_applyTxToUTxO_entries tx u =
         (applyTxToUTxO tx u /= u)
         "applyTxToUTxO tx u /= u" $
     cover 10
-        (failedScriptValidation tx)
-        "failedScriptValidation tx" $
+        (txScriptInvalid tx)
+        "txScriptInvalid tx" $
     cover 10
-        (not $ failedScriptValidation tx)
-        "not $ failedScriptValidation tx" $
+        (not $ txScriptInvalid tx)
+        "not $ txScriptInvalid tx" $
     applyTxToUTxO tx u === expectedResult
   where
     expectedResult =
-        if failedScriptValidation tx
+        if txScriptInvalid tx
         then u `excluding` Set.fromList (collateralInputs tx)
         else u `excluding` Set.fromList (inputs tx) <> utxoFromTx tx
 
@@ -1951,17 +1951,17 @@ prop_filterByAddress_balance_applyTxToUTxO f tx =
         (filterByAddress f (applyTxToUTxO tx mempty) /= mempty)
         "filterByAddress f (applyTxToUTxO tx mempty) /= mempty" $
     cover 10
-        (failedScriptValidation tx)
-        "failedScriptValidation tx" $
+        (txScriptInvalid tx)
+        "txScriptInvalid tx" $
     cover 10
-        (not $ failedScriptValidation tx)
-        "not $ failedScriptValidation tx" $
+        (not $ txScriptInvalid tx)
+        "not $ txScriptInvalid tx" $
     balance (filterByAddress f (applyTxToUTxO tx mempty))
     ===
     expectedResult
   where
     expectedResult =
-        if failedScriptValidation tx
+        if txScriptInvalid tx
         then mempty
         else foldMap m (outputs tx)
       where
@@ -2011,15 +2011,15 @@ prop_utxoFromTx_balance tx =
         (outputs tx /= mempty)
         "outputs tx /= mempty" $
     cover 10
-        (failedScriptValidation tx)
-        "failedScriptValidation tx)" $
+        (txScriptInvalid tx)
+        "txScriptInvalid tx)" $
     cover 10
-        (not $ failedScriptValidation tx)
-        "not $ failedScriptValidation tx)" $
+        (not $ txScriptInvalid tx)
+        "not $ txScriptInvalid tx)" $
     balance (utxoFromTx tx) === foldMap f (outputs tx)
   where
     f output =
-        if failedScriptValidation tx
+        if txScriptInvalid tx
         then mempty
         else tokens output
 
@@ -2060,7 +2060,7 @@ prop_spendTx_balance tx u =
     rhs = TokenBundle.unsafeSubtract (balance u) toSubtract
       where
         toSubtract =
-            if failedScriptValidation tx
+            if txScriptInvalid tx
             then balance
                 (u `UTxO.restrictedBy` Set.fromList (collateralInputs tx))
             else balance
@@ -2075,7 +2075,7 @@ prop_spendTx tx u =
     spendTx tx u === u `excluding` toExclude
   where
     toExclude =
-        if failedScriptValidation tx
+        if txScriptInvalid tx
         then Set.fromList (collateralInputs tx)
         else Set.fromList (inputs tx)
 
