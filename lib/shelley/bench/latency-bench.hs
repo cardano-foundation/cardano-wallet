@@ -102,6 +102,8 @@ import Network.Wai.Middleware.Logging
     ( ApiLog (..) )
 import Numeric.Natural
     ( Natural )
+import Ouroboros.Network.Client.Wallet
+    ( tunedForMainnetPipeliningStrategy )
 import System.Directory
     ( createDirectory )
 import System.FilePath
@@ -474,6 +476,7 @@ withShelleyServer tracers action = do
         serveWallet
             (NodeSource conn vData)
             np
+            tunedForMainnetPipeliningStrategy
             (SomeNetworkDiscriminant $ Proxy @'Mainnet)
             tracers
             (SyncTolerance 10)

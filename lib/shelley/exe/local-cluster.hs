@@ -74,6 +74,8 @@ import Data.Text
     ( Text )
 import Data.Text.Class
     ( ToText (..) )
+import Ouroboros.Network.Client.Wallet
+    ( tunedForMainnetPipeliningStrategy )
 import System.Directory
     ( createDirectory )
 import System.FilePath
@@ -225,13 +227,13 @@ main = withLocalClusterSetup $ \dir clusterLogs walletLogs ->
         let trCluster' = contramap MsgCluster trCluster
         let encodeAddresses = map (first (T.unpack . encodeAddress @'Mainnet))
         let accts = KeyCredential <$> concatMap genRewardAccounts mirMnemonics
-        let rewards = (, Coin $ fromIntegral oneMillionAda) <$> accts
+        let rewards' = (, Coin $ fromIntegral oneMillionAda) <$> accts
 
         sendFaucetFundsTo trCluster' socketPath dir $
             encodeAddresses shelleyIntegrationTestFunds
         sendFaucetAssetsTo trCluster' socketPath dir 20 $ encodeAddresses $
             maryIntegrationTestAssets (Coin 1_000_000_000)
-        moveInstantaneousRewardsTo trCluster' socketPath dir rewards
+        moveInstantaneousRewardsTo trCluster' socketPath dir rewards'
 
     whenReady dir trCluster logs (RunningNode socketPath block0 (gp, vData)) =
         withLoggingNamed "cardano-wallet" logs $ \(sb, (cfg, tr)) -> do
@@ -256,6 +258,7 @@ main = withLocalClusterSetup $ \dir clusterLogs walletLogs ->
             void $ serveWallet
                 (NodeSource socketPath vData)
                 gp
+                tunedForMainnetPipeliningStrategy
                 (SomeNetworkDiscriminant $ Proxy @'Mainnet)
                 tracers
                 (SyncTolerance 10)

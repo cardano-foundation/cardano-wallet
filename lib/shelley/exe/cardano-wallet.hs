@@ -138,6 +138,8 @@ import Options.Applicative
     , progDesc
     , value
     )
+import Ouroboros.Network.Client.Wallet
+    ( tunedForMainnetPipeliningStrategy )
 import System.Environment
     ( getArgs, getExecutablePath )
 import System.Exit
@@ -252,6 +254,7 @@ cmdServe = command "serve" $ info (helper <*> helper' <*> cmd) $
             exitWith =<< serveWallet
                 blockchainSource
                 netParams
+                tunedForMainnetPipeliningStrategy
                 discriminant
                 tracers
                 sTolerance

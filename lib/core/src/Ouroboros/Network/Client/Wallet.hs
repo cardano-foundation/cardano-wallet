@@ -4,10 +4,14 @@
 {-# LANGUAGE FlexibleContexts #-}
 {-# LANGUAGE GADTs #-}
 {-# LANGUAGE LambdaCase #-}
+{-# LANGUAGE NamedFieldPuns #-}
+{-# LANGUAGE NumericUnderscores #-}
 {-# LANGUAGE Rank2Types #-}
+{-# LANGUAGE RecordWildCards #-}
 {-# LANGUAGE ScopedTypeVariables #-}
 {-# LANGUAGE TypeApplications #-}
 {-# LANGUAGE TypeFamilies #-}
+{-# LANGUAGE ViewPatterns #-}
 
 -- |
 -- Copyright: © 2020 IOHK
@@ -24,6 +28,9 @@ module Ouroboros.Network.Client.Wallet
 
       -- * ChainSyncWithBlocks
     , chainSyncWithBlocks
+    , PipeliningStrategy(..)
+    , thousandPipeliningStrategy
+    , tunedForMainnetPipeliningStrategy
 
       -- * LocalTxSubmission
     , LocalTxSubmissionCmd (..)
@@ -74,6 +81,8 @@ import Data.List.NonEmpty
     ( NonEmpty (..) )
 import Data.Ord
     ( comparing )
+import Data.Text
+    ( Text )
 import Data.Void
     ( Void )
 import Network.TypedProtocol.Pipelined
@@ -114,6 +123,7 @@ import Ouroboros.Network.Protocol.LocalTxSubmission.Type
     ( SubmitResult (..) )
 
 import qualified Data.List.NonEmpty as NE
+import qualified Data.Text as T
 import qualified Ouroboros.Network.Protocol.ChainSync.ClientPipelined as P
 import qualified Ouroboros.Network.Protocol.LocalStateQuery.Client as LSQ
 
@@ -225,6 +235,32 @@ chainSyncFollowTip toCardanoEra onTipUpdate =
 type RequestNextStrategy m n block
     = P.ClientPipelinedStIdle n block (Point block) (Tip block) m Void
 
+-- | How to drive pipelining size from the block height
+data PipeliningStrategy block = PipeliningStrategy
+    { getPipeliningSize :: block -> Natural
+    , pipeliningStrategyName :: Text
+    }
+
+instance Show  (PipeliningStrategy block) where 
+    show PipeliningStrategy{pipeliningStrategyName} 
+        = T.unpack pipeliningStrategyName 
+
+thousandPipeliningStrategy :: PipeliningStrategy block
+thousandPipeliningStrategy = PipeliningStrategy {..}
+    where 
+        getPipeliningSize _ = 1_000
+        pipeliningStrategyName = "Constant pipelining of 1000 blocks"
+
+tunedForMainnetPipeliningStrategy :: HasHeader block => PipeliningStrategy block 
+tunedForMainnetPipeliningStrategy =  PipeliningStrategy {..}
+    where 
+        getPipeliningSize (blockNo -> n) 
+            | n <= 5_200_000 = 1000
+            | n <= 6_100_000 = 200
+            | n <= 6_500_000 = 125
+            | otherwise      = 100
+        pipeliningStrategyName = "Variable pipelining suited for mainnet blockchain"
+
 -- | Helper type for the different ways we handle rollbacks.
 --
 -- Helps remove some boilerplate.
@@ -278,9 +314,10 @@ data LocalRollbackResult block
 chainSyncWithBlocks
     :: forall m block. (Monad m, MonadSTM m, MonadThrow m, HasHeader block)
     => Tracer m (ChainSyncLog block (Point block))
+    -> PipeliningStrategy block 
     -> ChainFollower m (Point block) (Tip block) (NonEmpty block)
     -> ChainSyncClientPipelined block (Point block) (Tip block) m Void
-chainSyncWithBlocks tr chainFollower =
+chainSyncWithBlocks tr pipeliningStrategy chainFollower =
     ChainSyncClientPipelined clientStNegotiateIntersection
   where
     -- Return the _number of slots between two tips.
@@ -381,12 +418,17 @@ chainSyncWithBlocks tr chainFollower =
             let blocks' = NE.reverse (block :| blocks)
             traceWith tr $ MsgChainRollForward blocks' (getTipPoint tip)
             handleRollforward blocks' tip
-
             let distance = tipDistance (blockNo block) tip
             traceWith tr $ MsgTipDistance distance
             let strategy = if distance <= 1
                     then oneByOne
-                    else pipeline (fromIntegral $ min distance 1000) Zero
+                    else pipeline 
+                        (fromIntegral 
+                            . min distance 
+                            . getPipeliningSize pipeliningStrategy 
+                            $ block
+                        ) 
+                        Zero
             clientStIdle strategy
 
         , P.recvMsgRollBackward = \point tip -> do

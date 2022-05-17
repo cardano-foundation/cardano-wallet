@@ -39,6 +39,8 @@ import Data.Text.Class
     ( ToText (toText) )
 import GHC.Stack
     ( HasCallStack )
+import Ouroboros.Network.Client.Wallet
+    ( PipeliningStrategy )
 
 data NetworkLayerLog
     = NodeNetworkLog Node.Log
@@ -59,17 +61,19 @@ instance HasSeverityAnnotation NetworkLayerLog where
 withNetworkLayer
     :: HasCallStack
     => Tracer IO NetworkLayerLog
+    -> PipeliningStrategy (CardanoBlock StandardCrypto)
     -> BlockchainSource
     -> SomeNetworkDiscriminant
     -> NetworkParameters
     -> SyncTolerance
     -> ContT r IO (NetworkLayer IO (CardanoBlock StandardCrypto))
-withNetworkLayer tr blockchainSrc net netParams tol =
+withNetworkLayer tr pipeliningStrategy blockchainSrc net netParams tol =
     ContT $ case blockchainSrc of
         NodeSource nodeConn ver ->
             let tr' = NodeNetworkLog >$< tr
                 netId = networkDiscriminantToId net
-            in Node.withNetworkLayer tr' netId netParams nodeConn ver tol
+            in Node.withNetworkLayer 
+                tr' pipeliningStrategy netId netParams nodeConn ver tol
         BlockfrostSource project ->
             let tr' = BlockfrostNetworkLog >$< tr
             in Blockfrost.withNetworkLayer tr' net netParams project
