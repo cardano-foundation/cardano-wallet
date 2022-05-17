@@ -584,7 +584,7 @@ prop_changeUTxO_inner pendingTxs =
 
     -- Verify that no outputs are omitted when we select everything.
     prop_everything = counterexample "prop_everything" $
-        UTxO.size utxoAll == F.sum (F.length . view #outputs <$> pendingTxs)
+        utxoAll == F.foldMap utxoFromTx pendingTxs
 
     -- Computes the parity of an output based on its address parity.
     txOutParity :: TxOut -> Parity
