@@ -55,6 +55,7 @@ import Cardano.Wallet.Primitive.Model
     , utxo
     , utxoFromTx
     , utxoFromTxCollateralOutputs
+    , utxoFromTxOutputs
     )
 import Cardano.Wallet.Primitive.Slotting.Legacy
     ( flatSlot )
@@ -232,8 +233,12 @@ spec = do
                 (property prop_applyTxToUTxO_entries)
             it "consumes inputs"
                 (property unit_applyTxToUTxO_spends_input)
-            it "loses collateral"
-                (property unit_applyTxToUTxO_loses_collateral)
+            it "produces expected UTxO set when script validity is valid"
+                (property unit_applyTxToUTxO_scriptValidity_Valid)
+            it "produces expected UTxO set when script validity is invalid"
+                (property unit_applyTxToUTxO_scriptValidity_Invalid)
+            it "produces expected UTxO set when script validity is unknown"
+                (property unit_applyTxToUTxO_scriptValidity_Unknown)
             it "applyTxToUTxO then filterByAddress"
                 (property prop_filterByAddress_balance_applyTxToUTxO)
             it "spendTx/applyTxToUTxO/utxoFromTx"
@@ -2023,16 +2028,47 @@ unit_applyTxToUTxO_spends_input tx txin txout coin =
         applyTxToUTxO tx' (UTxO $ Map.fromList [(txin, txout)])
         === utxoFromTx tx' `excluding` Set.singleton txin
 
-unit_applyTxToUTxO_loses_collateral :: Tx -> TxIn -> TxOut -> Coin -> Property
-unit_applyTxToUTxO_loses_collateral tx txin txout coin =
-    let
-        tx' = tx
-            { resolvedCollateralInputs = [(txin, coin)]
+unit_applyTxToUTxO_scriptValidity_Valid
+    :: Tx -> (TxIn, TxOut) -> (TxIn, TxOut) -> Coin -> Property
+unit_applyTxToUTxO_scriptValidity_Valid tx' (sIn, sOut) (cIn, cOut) coin =
+    let tx = tx'
+            { resolvedCollateralInputs = [(cIn, coin)]
+            , resolvedInputs = [(sIn, coin)]
+            , scriptValidity = Just TxScriptValid
+            }
+        utxo = UTxO $ Map.fromList [(sIn, sOut), (cIn, cOut)]
+    in
+    applyTxToUTxO tx utxo
+        ===
+        (utxo `excluding` Set.singleton sIn) <> utxoFromTxOutputs tx
+
+unit_applyTxToUTxO_scriptValidity_Invalid
+    :: Tx -> (TxIn, TxOut) -> (TxIn, TxOut) -> Coin -> Property
+unit_applyTxToUTxO_scriptValidity_Invalid tx' (sIn, sOut) (cIn, cOut) coin =
+    let tx = tx'
+            { resolvedCollateralInputs = [(cIn, coin)]
+            , resolvedInputs = [(sIn, coin)]
             , scriptValidity = Just TxScriptInvalid
             }
+        utxo = UTxO $ Map.fromList [(sIn, sOut), (cIn, cOut)]
     in
-        applyTxToUTxO tx' (UTxO $ Map.fromList [(txin, txout)])
-        === utxoFromTxCollateralOutputs tx
+    applyTxToUTxO tx utxo
+        ===
+        (utxo `excluding` Set.singleton cIn) <> utxoFromTxCollateralOutputs tx
+
+unit_applyTxToUTxO_scriptValidity_Unknown
+    :: Tx -> (TxIn, TxOut) -> (TxIn, TxOut) -> Coin -> Property
+unit_applyTxToUTxO_scriptValidity_Unknown tx' (sIn, sOut) (cIn, cOut) coin =
+    let tx = tx'
+            { resolvedCollateralInputs = [(cIn, coin)]
+            , resolvedInputs = [(sIn, coin)]
+            , scriptValidity = Nothing
+            }
+        utxo = UTxO $ Map.fromList [(sIn, sOut), (cIn, cOut)]
+    in
+    applyTxToUTxO tx utxo
+        ===
+        (utxo `excluding` Set.singleton sIn) <> utxoFromTxOutputs tx
 
 prop_utxoFromTx_balance :: Tx -> Property
 prop_utxoFromTx_balance tx =
