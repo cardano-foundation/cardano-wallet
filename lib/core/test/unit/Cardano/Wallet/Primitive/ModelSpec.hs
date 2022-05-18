@@ -338,7 +338,6 @@ prop_3_2 (ApplyBlock s utxo block) =
         return $ utxo' `excluding` txIns txs
     updateUTxO' b u = evalState (updateUTxO b u) s
 
-
 prop_applyBlockBasic
     :: WalletState
     -> Property
@@ -1212,7 +1211,6 @@ instance Arbitrary ApplyBlock where
     arbitrary = headBlock <$> arbitrary
       where
         headBlock (ApplyBlocks s u (b :| _)) = ApplyBlock s u b
-
 
 addresses :: [Address]
 addresses = map address
