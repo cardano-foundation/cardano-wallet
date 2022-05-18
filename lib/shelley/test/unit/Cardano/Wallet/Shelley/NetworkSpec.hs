@@ -36,6 +36,8 @@ import Data.Set
     ( Set )
 import Fmt
     ( build, fmt, indentF )
+import Ouroboros.Network.Client.Wallet
+    ( tunedForMainnetPipeliningStrategy )
 import Ouroboros.Network.Magic
     ( NetworkMagic (..) )
 import Ouroboros.Network.NodeToClient
@@ -73,10 +75,14 @@ concurrentConnectionSpec = describe "NetworkLayer regression test #1708" $ do
         withTestNode nullTracer $ \np sock vData -> do
             let sTol = SyncTolerance 60
             tasks <- replicateM 10 $ async $
-                withNetworkLayer tr testnet np sock vData sTol $ \nl -> do
-                    -- Wait for the first tip result from the node
-                    waiter <- newEmptyMVar
-                    race_ (watchNodeTip nl (putMVar waiter)) (takeMVar waiter)
+                withNetworkLayer tr
+                    tunedForMainnetPipeliningStrategy
+                    testnet np sock vData sTol $ \nl -> do
+                        -- Wait for the first tip result from the node
+                        waiter <- newEmptyMVar
+                        race_ 
+                            (watchNodeTip nl (putMVar waiter)) 
+                            (takeMVar waiter)
             void $ waitAnyCancel tasks
 
 observerSpec :: Spec

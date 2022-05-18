@@ -41,6 +41,7 @@ module Cardano.Wallet.Primitive.Model
 
     , BlockData (..)
     , firstHeader
+    , lastHeader
 
     -- * Accessors
     , currentTip
@@ -388,6 +389,8 @@ firstHeader :: BlockData m addr txs s -> BlockHeader
 firstHeader (List xs) = header $ NE.head xs
 firstHeader (Summary _ BlockSummary{from}) = from
 
+-- | Last 'BlockHeader' of the blocks represented
+-- by 'BlockData'.
 lastHeader :: BlockData m addr txs s -> BlockHeader
 lastHeader (List xs) = header $ NE.last xs
 lastHeader (Summary _ BlockSummary{to}) = to

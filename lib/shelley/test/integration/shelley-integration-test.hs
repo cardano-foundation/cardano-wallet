@@ -113,6 +113,8 @@ import Network.HTTP.Client
     )
 import Network.URI
     ( URI )
+import Ouroboros.Network.Client.Wallet
+    ( tunedForMainnetPipeliningStrategy )
 import System.Directory
     ( createDirectory )
 import System.Environment
@@ -341,6 +343,7 @@ specWithServer testDir (tr, tracers) = aroundAll withContext
             serveWallet
                 (NodeSource conn vData)
                 gp
+                tunedForMainnetPipeliningStrategy
                 (SomeNetworkDiscriminant $ Proxy @'Mainnet)
                 tracers
                 (SyncTolerance 10)

@@ -212,6 +212,7 @@ import Ouroboros.Network.Client.Wallet
     ( LSQ (..)
     , LocalStateQueryCmd (..)
     , LocalTxSubmissionCmd (..)
+    , PipeliningStrategy
     , chainSyncFollowTip
     , chainSyncWithBlocks
     , localStateQuery
@@ -288,6 +289,8 @@ withNetworkLayer
     :: HasCallStack
     => Tracer IO Log
         -- ^ Logging of network layer startup
+    -> PipeliningStrategy (CardanoBlock StandardCrypto)
+        -- ^ pipelining value by the block heigh
     -> Cardano.NetworkId
        -- ^ NetworkId for local node connection
     -> W.NetworkParameters
@@ -300,13 +303,15 @@ withNetworkLayer
     -> (NetworkLayer IO (CardanoBlock StandardCrypto) -> IO a)
         -- ^ Callback function with the network layer
     -> IO a
-withNetworkLayer tr net np conn ver tol action = do
+withNetworkLayer tr pipeliningStrategy net np conn ver tol action = do
     trTimings <- traceQueryTimings tr
-    withNodeNetworkLayerBase (tr <> trTimings) net np conn ver tol action
+    withNodeNetworkLayerBase
+        (tr <> trTimings) pipeliningStrategy net np conn ver tol action
 
 withNodeNetworkLayerBase
     :: HasCallStack
     => Tracer IO Log
+    -> PipeliningStrategy (CardanoBlock StandardCrypto)
     -> Cardano.NetworkId
     -> W.NetworkParameters
     -> CardanoNodeConn
@@ -314,7 +319,8 @@ withNodeNetworkLayerBase
     -> SyncTolerance
     -> (NetworkLayer IO (CardanoBlock StandardCrypto) -> IO a)
     -> IO a
-withNodeNetworkLayerBase tr net np conn versionData tol action = do
+withNodeNetworkLayerBase
+        tr pipeliningStrategy net np conn versionData tol action = do
     -- NOTE: We keep client connections running for accessing the node tip,
     -- submitting transactions, querying parameters and delegations/rewards.
     --
@@ -347,6 +353,7 @@ withNodeNetworkLayerBase tr net np conn versionData tol action = do
                 let blockHeader = fromTip' gp
                 let client = mkWalletClient
                         (mapChainSyncLog mapB mapP >$< trChainSyncLog)
+                        pipeliningStrategy
                         (mapChainFollower toPoint mapP blockHeader id follower)
                         cfg
                 traceWith trFollowLog MsgStartFollowing
@@ -583,17 +590,17 @@ mkWalletClient
     . ( block ~ CardanoBlock (StandardCrypto)
       , MonadThrow m, MonadST m, MonadTimer m, MonadAsync m)
     => Tracer m (ChainSyncLog block (Point block))
+    -> PipeliningStrategy block
     -> ChainFollower m (Point block) (Tip block) (NonEmpty block)
     -> CodecConfig block
     -> NetworkClient m
-mkWalletClient tr follower cfg v =
+mkWalletClient tr pipeliningStrategy follower cfg v =
     nodeToClientProtocols (const $ return $ NodeToClientProtocols
         { localChainSyncProtocol =
             InitiatorProtocolOnly $ MuxPeerRaw $ \channel ->
                 runPipelinedPeer nullTracer (cChainSyncCodec $ codecs v cfg) channel
                 $ chainSyncClientPeerPipelined
-                $ chainSyncWithBlocks tr follower
-
+                $ chainSyncWithBlocks tr pipeliningStrategy follower
         , localTxSubmissionProtocol =
             doNothingProtocol
         , localStateQueryProtocol =

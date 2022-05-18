@@ -163,6 +163,8 @@ import Network.URI
     ( URI (..), parseURI )
 import Network.Wai.Handler.Warp
     ( setBeforeMainLoop )
+import Ouroboros.Network.Client.Wallet
+    ( PipeliningStrategy )
 import System.Exit
     ( ExitCode (..) )
 import System.IOManager
@@ -191,6 +193,8 @@ serveWallet
     -> NetworkParameters
     -- ^ Records the complete set of parameters
     -- currently in use by the network that are relevant to the wallet.
+    -> PipeliningStrategy (CardanoBlock StandardCrypto)
+    -- ^ pipelining value depending  on block height
     -> SomeNetworkDiscriminant
     -- ^ Proxy for the network discriminant
     -> Tracers IO
@@ -223,6 +227,7 @@ serveWallet
     , genesisParameters
     , slottingParameters
     }
+  pipeliningStrategy
   network@(SomeNetworkDiscriminant proxyNetwork)
   Tracers{..}
   sTolerance
@@ -241,6 +246,7 @@ serveWallet
     lift . trace $ MsgNetworkName $ networkName proxyNetwork
     netLayer <- withNetworkLayer
         networkTracer
+        pipeliningStrategy
         blockchainSource
         network
         netParams
