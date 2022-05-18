@@ -1123,11 +1123,11 @@ instance Arbitrary (WithPending WalletState) where
         subChain <- flip take blockchain <$> choose (1, length blockchain)
         let wallet = foldl (\cp b -> snd . snd $ applyBlock b cp) cp0 subChain
         rewards <- Coin <$> oneof [pure 0, chooseNatural (1, 10000)]
-        pending <- genPendingTx (totalUTxO Set.empty wallet) rewards
+        pending <- genPendingTxs (totalUTxO Set.empty wallet) rewards
         pure $ WithPending wallet pending rewards
       where
-        genPendingTx :: UTxO -> Coin -> Gen (Set Tx)
-        genPendingTx (UTxO u) rewards
+        genPendingTxs :: UTxO -> Coin -> Gen (Set Tx)
+        genPendingTxs (UTxO u) rewards
             | Map.null u = pure Set.empty
             | otherwise  = do
                 (inp, out) <-
