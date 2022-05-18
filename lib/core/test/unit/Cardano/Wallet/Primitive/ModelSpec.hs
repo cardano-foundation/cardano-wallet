@@ -97,7 +97,14 @@ import Cardano.Wallet.Primitive.Types.Tx
     , txScriptInvalid
     )
 import Cardano.Wallet.Primitive.Types.Tx.Gen
-    ( genTx, genTxIn, genTxOut, shrinkTx, shrinkTxIn, shrinkTxOut )
+    ( genTx
+    , genTxIn
+    , genTxOut
+    , genTxScriptValidity
+    , shrinkTx
+    , shrinkTxIn
+    , shrinkTxOut
+    )
 import Cardano.Wallet.Primitive.Types.UTxO
     ( UTxO (..), balance, dom, excluding, filterByAddress, restrictedTo )
 import Cardano.Wallet.Primitive.Types.UTxO.Gen
@@ -165,6 +172,7 @@ import Test.QuickCheck
     , frequency
     , genericShrink
     , label
+    , liftArbitrary
     , listOf
     , oneof
     , property
@@ -1161,6 +1169,7 @@ instance Arbitrary (WithPending WalletState) where
                 --   change output and an explicit withdrawal in the
                 --   transaction.
                 let tokens = TokenBundle.fromCoin $ simulateFee $ txOutCoin out
+                scriptValidity <- liftArbitrary genTxScriptValidity
                 let pending = withWithdrawal $ Tx
                         { txId = arbitraryHash
                         , fee = Nothing
@@ -1172,7 +1181,7 @@ instance Arbitrary (WithPending WalletState) where
                         , outputs = [out {tokens}]
                         , withdrawals = mempty
                         , metadata = Nothing
-                        , scriptValidity = Nothing
+                        , scriptValidity
                         }
 
                 elements [Set.singleton pending, Set.empty]
