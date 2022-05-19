@@ -61,6 +61,8 @@ import Cardano.Address.Script
     , toScriptHash
     , validateScriptTemplate
     )
+import Cardano.Address.Script.Parser
+    ( scriptToText )
 import Cardano.Address.Style.Shelley
     ( Credential (..), delegationAddress, paymentAddress )
 import Cardano.Crypto.Wallet
@@ -611,8 +613,8 @@ toSharedWalletId
 toSharedWalletId accXPub pTemplate dTemplateM =
     hash $
     (unXPub . getRawKey $ accXPub) <>
-    toByteString pTemplate <>
-    maybe mempty toByteString dTemplateM
+    serializeScriptTemplate pTemplate <>
+    maybe mempty serializeScriptTemplate dTemplateM
   where
-    toByteString (ScriptTemplate _ script) =
-        T.encodeUtf8 $ T.pack $ show script
+    serializeScriptTemplate (ScriptTemplate _ script) =
+        T.encodeUtf8 $ scriptToText script
