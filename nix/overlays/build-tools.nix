@@ -33,12 +33,13 @@ pkgs: super: let
     cabal-install.exe               = "cabal";
     cabal-install.version           = "3.4.0.0";
     haskell-language-server = {
-      version = "1.5.0.0";
+      version = "1.7.0.0";
       modules = [{ reinstallableLibGhc = false; }];
     };
     hie-bios = {
       modules = [{ reinstallableLibGhc = false; }];
     };
+    hie-bios = {};
     hoogle.version                  = "5.0.18.1";
     hlint.version                   = "3.3.1";
     lentil.version                  = "1.5.2.0";
