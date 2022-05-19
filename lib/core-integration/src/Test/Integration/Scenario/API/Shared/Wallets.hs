@@ -25,9 +25,11 @@ import Cardano.Mnemonic
     ( MkSomeMnemonic (..) )
 import Cardano.Wallet.Api.Types
     ( ApiAccountKeyShared (..)
+    , ApiActiveSharedWallet
     , ApiAddress
     , ApiFee (..)
     , ApiSharedWallet (..)
+    , ApiT (..)
     , ApiTransaction
     , ApiWallet
     , DecodeAddress
@@ -135,6 +137,7 @@ spec :: forall n.
     , EncodeAddress n
     ) => SpecWith Context
 spec = describe "SHARED_WALLETS" $ do
+
     it "SHARED_WALLETS_CREATE_01 - Create an active shared wallet from root xprv" $ \ctx -> runResourceT $ do
         m15txt <- liftIO $ genMnemonics M15
         m12txt <- liftIO $ genMnemonics M12
@@ -189,6 +192,36 @@ spec = describe "SHARED_WALLETS" $ do
                 (`shouldBe` DerivationIndex 2147483678)
             ]
 
+    it "SHARED_WALLETS_CREATE_01 - Compare wallet ids" $ \ctx -> runResourceT $ do
+        m15txt <- liftIO $ genMnemonics M15
+        m12txt <- liftIO $ genMnemonics M12
+        let (Right m15) = mkSomeMnemonic @'[ 15 ] m15txt
+        let (Right m12) = mkSomeMnemonic @'[ 12 ] m12txt
+        let passphrase = Passphrase $ BA.convert $ T.encodeUtf8 fixturePassphrase
+        let index = 30
+        let accXPubDerived = accPubKeyFromMnemonics m15 (Just m12) index passphrase
+        let payloadPost = Json [json| {
+                "name": "Shared Wallet",
+                "mnemonic_sentence": #{m15txt},
+                "mnemonic_second_factor": #{m12txt},
+                "passphrase": #{fixturePassphrase},
+                "account_index": "30H",
+                "payment_script_template":
+                    { "cosigners":
+                        { "cosigner#0": #{accXPubDerived} },
+                      "template":
+                          { "all":
+                             [ "cosigner#0",
+                               { "active_from": 120 }
+                             ]
+                          }
+                    }
+                } |]
+        rPost <- postSharedWallet ctx Default payloadPost
+        verify (fmap (view #wallet) <$> rPost)
+            [ expectResponseCode HTTP.status201
+            ]
+
         let wal = getFromResponse id rPost
 
         let payloadKey = Json [json|{
@@ -213,6 +246,118 @@ spec = describe "SHARED_WALLETS" $ do
             ]
         let ApiAccountKeyShared bytes' _ _ = getFromResponse id aKey
         hexText bytes' `shouldBe` accXPubDerived
+
+        let (ApiSharedWallet (Right walActive)) = wal
+
+        rDel <- request @ApiActiveSharedWallet ctx
+                (Link.deleteWallet @'Shared walActive) Default Empty
+        expectResponseCode HTTP.status204 rDel
+
+        (_, accXPubTxt):_ <- liftIO $ genXPubs 1
+        let payloadAcctOther = Json [json| {
+                "name": "Shared Wallet",
+                "account_public_key": #{accXPubTxt},
+                "account_index": "30H",
+                "payment_script_template":
+                    { "cosigners":
+                        { "cosigner#0": #{accXPubTxt} },
+                      "template":
+                          { "all":
+                             [ "cosigner#0",
+                               { "active_from": 120 }
+                             ]
+                          }
+                    }
+                } |]
+        rPostAcctOther <- postSharedWallet ctx Default payloadAcctOther
+        verify (fmap (view #wallet) <$> rPostAcctOther)
+            [ expectResponseCode HTTP.status201 ]
+        let walAcctOther = getFromResponse id rPostAcctOther
+        let (ApiSharedWallet (Right walAcctOtherActive)) = walAcctOther
+
+        (walAcctOtherActive ^. #id)  `shouldNotBe` (walActive ^. #id)
+
+        let payloadAcctSame = Json [json| {
+                "name": "Shared Wallet",
+                "account_public_key": #{accXPubDerived},
+                "account_index": "30H",
+                "payment_script_template":
+                    { "cosigners":
+                        { "cosigner#0": #{accXPubDerived} },
+                      "template":
+                          { "all":
+                             [ "cosigner#0",
+                               { "active_from": 120 }
+                             ]
+                          }
+                    }
+                } |]
+        rPostAcctSame <- postSharedWallet ctx Default payloadAcctSame
+        verify (fmap (view #wallet) <$> rPostAcctSame)
+            [ expectResponseCode HTTP.status201 ]
+        let walAcctSame = getFromResponse id rPostAcctSame
+        let (ApiSharedWallet (Right walAcctSameActive)) = walAcctSame
+
+        (walAcctSameActive ^. #id)  `shouldBe` (walActive ^. #id)
+
+        let payloadAcctSameOtherScript = Json [json| {
+                "name": "Shared Wallet",
+                "account_public_key": #{accXPubDerived},
+                "account_index": "30H",
+                "payment_script_template":
+                    { "cosigners":
+                        { "cosigner#0": #{accXPubDerived} },
+                      "template":
+                          { "all":
+                             [ "cosigner#0",
+                               { "active_from": 100 }
+                             ]
+                          }
+                    }
+                } |]
+        rPostAcctSameOtherScript <- postSharedWallet ctx Default payloadAcctSameOtherScript
+        verify (fmap (view #wallet) <$> rPostAcctSameOtherScript)
+            [ expectResponseCode HTTP.status201 ]
+        let walAcctSameOtherScript = getFromResponse id rPostAcctSameOtherScript
+        let (ApiSharedWallet (Right walAcctSameOtherScriptActive)) = walAcctSameOtherScript
+
+        (walAcctSameOtherScriptActive ^. #id)  `shouldNotBe` (walActive ^. #id)
+
+       -- In cardano-addresses
+       -- $ cat phrase.prv
+       -- rib kiwi begin other second pool raise prosper inspire forum keep stereo option ride region
+       --
+       -- $ cardano-address key from-recovery-phrase Shared < phrase.prv > root.shared_xsk
+       --
+       -- $ cardano-address key child 1854H/1815H/0H < root.shared_xsk > acct.shared_xsk
+       --
+       -- $ cardano-address key walletid --spending "all [cosigner#0]" < acct.shared_xsk
+       -- 654a69cd246ab08aeb4d44837ff5d5ceddfbce20
+    it "SHARED_WALLETS_CREATE_01 - golden test comparing wallet id" $ \ctx -> runResourceT $ do
+        let payloadPost = Json [json| {
+                "name": "Shared Wallet",
+                "mnemonic_sentence": ["rib","kiwi","begin","other","second","pool","raise","prosper","inspire","forum","keep","stereo","option","ride","region"],
+                "passphrase": #{fixturePassphrase},
+                "account_index": "0H",
+                "payment_script_template":
+                    { "cosigners":
+                        { "cosigner#0": "self" },
+                      "template":
+                          { "all": ["cosigner#0"]
+                          }
+                    }
+                } |]
+        rPost <- postSharedWallet ctx Default payloadPost
+        verify (fmap (view #wallet) <$> rPost)
+            [ expectResponseCode HTTP.status201
+            ]
+
+        let wal = getFromResponse id rPost
+        let (ApiSharedWallet (Right walActive)) = wal
+
+        toText (getApiT $ walActive ^. #id)  `shouldBe`
+            "654a69cd246ab08aeb4d44837ff5d5ceddfbce20"
+
 
     it "SHARED_WALLETS_CREATE_02 - Create a pending shared wallet from root xprv" $ \ctx -> runResourceT $ do
         m15txt <- liftIO $ genMnemonics M15

@@ -60,7 +60,7 @@ source-repository-package
   type: git
   location: https://github.com/biocad/servant-openapi3
   tag: 4165b837d3a71debd1059c3735460075840000b5
-  
+
 -- TODO: ADP-1713
 source-repository-package
   type: git
@@ -80,7 +80,7 @@ source-repository-package
 source-repository-package
     type: git
     location: https://github.com/input-output-hk/cardano-addresses
-    tag: 8bf98905b903455196495e231b23613ad2264cb0
+    tag: b33e0f365550bd9d329bdbb0a0d2dfe2b23a3dcf
     subdir: command-line
             core
 
