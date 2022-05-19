@@ -1,5 +1,5 @@
 {
-  "https://github.com/input-output-hk/cardano-addresses"."8bf98905b903455196495e231b23613ad2264cb0" = "0jzlm1gnlbvz9kify2z74v9iydy6vf39nk954r73yaddknhxrq2r";
+  "https://github.com/input-output-hk/cardano-addresses"."b33e0f365550bd9d329bdbb0a0d2dfe2b23a3dcf" = "05vj2fc6n8rmn3ch6115pc6l5vw6pqbv2kwbzxf3y41sa40k50vc";
   "https://github.com/biocad/servant-openapi3"."4165b837d3a71debd1059c3735460075840000b5" = "1dngrr353kjhmwhn0b289jzqz5rf32llwcv79zcyq15ldpqpbib9";
   "https://github.com/paolino/openapi3"."c30d0de6875d75edd64d1aac2272886528bc492d" = "0b0fzj5vrnfrc8qikabxhsnp4p8lrjpssblbh2rb7aji5hzzfli9";
   "https://github.com/input-output-hk/optparse-applicative"."7497a29cb998721a9068d5725d49461f2bba0e7a" = "1gvsrg925vynwgqwplgjmp53vj953qyh3wbdf34pw21c8r47w35r";
