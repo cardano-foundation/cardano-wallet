@@ -415,8 +415,8 @@ import Cardano.Wallet.Primitive.AddressDiscovery.Shared
     , SharedState (..)
     , mkSharedStateFromAccountXPub
     , mkSharedStateFromRootXPrv
-    , validateScriptTemplates
     , toSharedWalletId
+    , validateScriptTemplates
     )
 import Cardano.Wallet.Primitive.Delegation.UTxO
     ( stakeKeyCoinDistr )

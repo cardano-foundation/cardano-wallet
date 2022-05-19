@@ -136,6 +136,7 @@ spec :: forall n.
     , EncodeAddress n
     ) => SpecWith Context
 spec = describe "SHARED_WALLETS" $ do
+
     it "SHARED_WALLETS_CREATE_01 - Create an active shared wallet from root xprv" $ \ctx -> runResourceT $ do
         m15txt <- liftIO $ genMnemonics M15
         m12txt <- liftIO $ genMnemonics M12
@@ -188,6 +189,36 @@ spec = describe "SHARED_WALLETS" $ do
                 (`shouldBe` Nothing)
             , expectField (traverse . #accountIndex . #getApiT)
                 (`shouldBe` DerivationIndex 2147483678)
+            ]
+
+    it "SHARED_WALLETS_CREATE_01 - Compare wallet ids" $ \ctx -> runResourceT $ do
+        m15txt <- liftIO $ genMnemonics M15
+        m12txt <- liftIO $ genMnemonics M12
+        let (Right m15) = mkSomeMnemonic @'[ 15 ] m15txt
+        let (Right m12) = mkSomeMnemonic @'[ 12 ] m12txt
+        let passphrase = Passphrase $ BA.convert $ T.encodeUtf8 fixturePassphrase
+        let index = 30
+        let accXPubDerived = accPubKeyFromMnemonics m15 (Just m12) index passphrase
+        let payloadPost = Json [json| {
+                "name": "Shared Wallet",
+                "mnemonic_sentence": #{m15txt},
+                "mnemonic_second_factor": #{m12txt},
+                "passphrase": #{fixturePassphrase},
+                "account_index": "30H",
+                "payment_script_template":
+                    { "cosigners":
+                        { "cosigner#0": #{accXPubDerived} },
+                      "template":
+                          { "all":
+                             [ "cosigner#0",
+                               { "active_from": 120 }
+                             ]
+                          }
+                    }
+                } |]
+        rPost <- postSharedWallet ctx Default payloadPost
+        verify (fmap (view #wallet) <$> rPost)
+            [ expectResponseCode HTTP.status201
             ]
 
         let wal = getFromResponse id rPost
