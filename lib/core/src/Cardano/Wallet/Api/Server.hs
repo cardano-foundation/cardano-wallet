@@ -2787,8 +2787,6 @@ decodeSharedTransaction ctx (ApiT wid) (ApiSerialisedTransaction (ApiT sealed)) 
         , walletPolicyKeyIndex = Nothing
         }
 
--- TODO: Most of the body of this function should really belong to
--- Cardano.Wallet to keep the Api.Server module free of business logic!
 balanceTransaction
     :: forall ctx s k (n :: NetworkDiscriminant).
         ( ctx ~ ApiLayer s k
