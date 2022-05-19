@@ -49,7 +49,7 @@
         "regex-tdfa".flags.force-o2 = false;
         "base".revision = (((hackage."base")."4.14.3.0").revisions).default;
         "time".revision = (((hackage."time")."1.9.3").revisions).default;
-        "random".revision = (((hackage."random")."1.2.1").revisions).default;
+        "random".revision = (((hackage."random")."1.2.1.1").revisions).default;
         "process".revision = (((hackage."process")."1.6.13.2").revisions).default;
         "megaparsec".revision = (((hackage."megaparsec")."9.0.1").revisions).default;
         "megaparsec".flags.dev = false;
@@ -73,7 +73,7 @@
         "filemanip".revision = (((hackage."filemanip")."0.3.6.3").revisions).default;
         "deepseq".revision = (((hackage."deepseq")."1.4.4.0").revisions).default;
         "unix".revision = (((hackage."unix")."2.7.2.2").revisions).default;
-        "ansi-terminal".revision = (((hackage."ansi-terminal")."0.11.1").revisions).default;
+        "ansi-terminal".revision = (((hackage."ansi-terminal")."0.11.3").revisions).default;
         "ansi-terminal".flags.example = false;
         "hashable".revision = (((hackage."hashable")."1.4.0.2").revisions).default;
         "hashable".flags.containers = true;

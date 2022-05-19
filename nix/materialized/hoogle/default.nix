@@ -13,7 +13,7 @@
         "pretty".revision = (((hackage."pretty")."1.1.3.6").revisions).default;
         "haskell-src-exts".revision = (((hackage."haskell-src-exts")."1.23.1").revisions).default;
         "network-uri".revision = (((hackage."network-uri")."2.6.4.1").revisions).default;
-        "unordered-containers".revision = (((hackage."unordered-containers")."0.2.17.0").revisions).default;
+        "unordered-containers".revision = (((hackage."unordered-containers")."0.2.19.1").revisions).default;
         "unordered-containers".flags.debug = false;
         "integer-logarithms".revision = (((hackage."integer-logarithms")."1.0.3.1").revisions).default;
         "integer-logarithms".flags.check-bounds = false;
@@ -59,7 +59,7 @@
         "base-compat-batteries".revision = (((hackage."base-compat-batteries")."0.12.1").revisions).default;
         "Cabal".revision = (((hackage."Cabal")."3.2.1.0").revisions).default;
         "assoc".revision = (((hackage."assoc")."1.0.2").revisions).default;
-        "unliftio".revision = (((hackage."unliftio")."0.2.21.0").revisions).default;
+        "unliftio".revision = (((hackage."unliftio")."0.2.22.0").revisions).default;
         "data-fix".revision = (((hackage."data-fix")."0.3.2").revisions).default;
         "tls".revision = (((hackage."tls")."1.5.7").revisions).default;
         "tls".flags.network = true;
@@ -84,7 +84,7 @@
         "aeson".flags.bytestring-builder = false;
         "aeson".flags.developer = false;
         "aeson".flags.cffi = false;
-        "zlib".revision = (((hackage."zlib")."0.6.2.3").revisions).default;
+        "zlib".revision = (((hackage."zlib")."0.6.3.0").revisions).default;
         "zlib".flags.non-blocking-ffi = false;
         "zlib".flags.bundled-c-zlib = false;
         "zlib".flags.pkg-config = false;
@@ -122,7 +122,7 @@
         "js-flot".revision = (((hackage."js-flot")."0.8.3").revisions).default;
         "mmap".revision = (((hackage."mmap")."0.5.9").revisions).default;
         "mmap".flags.mmaptest = false;
-        "resourcet".revision = (((hackage."resourcet")."1.2.4.3").revisions).default;
+        "resourcet".revision = (((hackage."resourcet")."1.2.5").revisions).default;
         "vault".revision = (((hackage."vault")."0.3.1.5").revisions).default;
         "vault".flags.useghc = true;
         "data-default-instances-old-locale".revision = (((hackage."data-default-instances-old-locale")."0.0.1").revisions).default;
@@ -146,7 +146,7 @@
         "distributive".flags.tagged = true;
         "distributive".flags.semigroups = true;
         "bsb-http-chunked".revision = (((hackage."bsb-http-chunked")."0.0.0.4").revisions).default;
-        "bifunctors".revision = (((hackage."bifunctors")."5.5.11").revisions).default;
+        "bifunctors".revision = (((hackage."bifunctors")."5.5.12").revisions).default;
         "bifunctors".flags.tagged = true;
         "bifunctors".flags.semigroups = true;
         "base".revision = (((hackage."base")."4.14.3.0").revisions).default;
@@ -156,7 +156,7 @@
         "async".flags.bench = false;
         "word8".revision = (((hackage."word8")."0.1.3").revisions).default;
         "cabal-doctest".revision = (((hackage."cabal-doctest")."1.0.9").revisions).default;
-        "random".revision = (((hackage."random")."1.2.1").revisions).default;
+        "random".revision = (((hackage."random")."1.2.1.1").revisions).default;
         "unix-time".revision = (((hackage."unix-time")."0.4.7").revisions).default;
         "wai".revision = (((hackage."wai")."3.2.3").revisions).default;
         "cookie".revision = (((hackage."cookie")."0.4.5").revisions).default;
@@ -210,7 +210,7 @@
         "blaze-markup".revision = (((hackage."blaze-markup")."0.8.2.8").revisions).default;
         "mono-traversable".revision = (((hackage."mono-traversable")."1.0.15.3").revisions).default;
         "syb".revision = (((hackage."syb")."0.7.2.1").revisions).default;
-        "conduit-extra".revision = (((hackage."conduit-extra")."1.3.5").revisions).default;
+        "conduit-extra".revision = (((hackage."conduit-extra")."1.3.6").revisions).default;
         "uniplate".revision = (((hackage."uniplate")."1.6.13").revisions).default;
         "blaze-html".revision = (((hackage."blaze-html")."0.9.1.2").revisions).default;
         "data-default-instances-dlist".revision = (((hackage."data-default-instances-dlist")."0.0.1").revisions).default;
