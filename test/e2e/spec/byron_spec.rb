@@ -114,12 +114,12 @@ RSpec.describe CardanoWallet::Byron do
           ca_wid_pub_key = CA.key_walletid(pub_key)
 
           # wallet id from cardano-wallet is not the same
-          expect(ca_wid_acct_key).to eq ca_wid_acct_key
+          expect(ca_wid_acct_key).to eq ca_wid_pub_key
           expect(wid).not_to eq ca_wid_acct_key
         end
       end
     end
-    
+
   end
 
   describe CardanoWallet::Byron::Addresses do
