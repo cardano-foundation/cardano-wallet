@@ -247,6 +247,8 @@ spec = do
         describe "utxoFromTx" $ do
             it "has expected balance"
                 (property prop_utxoFromTx_balance)
+            it "has expected size"
+                (property prop_utxoFromTx_size)
             it "prop_utxoFromTx_disjoint"
                 (property prop_utxoFromTx_disjoint)
             it "prop_utxoFromTx_union"
@@ -2080,6 +2082,23 @@ prop_utxoFromTx_balance tx =
         if txScriptInvalid tx
         then foldMap tokens (collateralOutput tx)
         else foldMap tokens (outputs tx)
+
+prop_utxoFromTx_size :: Tx -> Property
+prop_utxoFromTx_size tx =
+    checkCoverage $
+    cover 10
+        (txHasOutputsAndCollateralOutputs tx)
+        "txHasOutputsAndCollateralOutputs tx" $
+    cover 10
+        (txScriptInvalid tx)
+        "txScriptInvalid tx)" $
+    cover 10
+        (not $ txScriptInvalid tx)
+        "not $ txScriptInvalid tx)" $
+    UTxO.size (utxoFromTx tx) ===
+        if txScriptInvalid tx
+        then F.length (collateralOutput tx)
+        else F.length (outputs tx)
 
 prop_utxoFromTx_disjoint :: Tx -> Property
 prop_utxoFromTx_disjoint tx =

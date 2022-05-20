@@ -554,14 +554,16 @@ spendTxD tx !u =
 -- transaction inputs in subsequent blocks.
 --
 -- Assuming the transaction is not marked as having an invalid script, the
--- following property should hold:
+-- following properties should hold:
 --
--- prop> balance (utxoFromTx tx) = foldMap tokens (outputs tx)
+-- prop> balance (utxoFromTx tx) == foldMap tokens (outputs tx)
+-- prop> size    (utxoFromTx tx) == length         (outputs tx)
 --
 -- However, if the transaction is marked as having an invalid script, then the
--- following property should hold:
+-- following properties should hold:
 --
--- prop> balance (utxoFromTx tx) = foldMap tokens (collateralOutput tx)
+-- prop> balance (utxoFromTx tx) == foldMap tokens (collateralOutput tx)
+-- prop> size    (utxoFromTx tx) == length         (collateralOutput tx)
 --
 utxoFromTx :: Tx -> UTxO
 utxoFromTx tx =
