@@ -582,8 +582,19 @@ utxoFromTxOutputs Tx {txId, outputs} =
 -- This function ignores the transaction's script validity.
 --
 utxoFromTxCollateralOutputs :: Tx -> UTxO
-utxoFromTxCollateralOutputs Tx {txId, collateralOutput} =
-    UTxO $ Map.fromList $ F.toList $ (TxIn txId 0,) <$> collateralOutput
+utxoFromTxCollateralOutputs Tx {txId, outputs, collateralOutput} =
+    UTxO $ Map.fromList $ F.toList $ (TxIn txId index,) <$> collateralOutput
+  where
+    -- To reference a collateral output within transaction t, we specify an
+    -- output index that is equal to the number of ordinary outputs within t.
+    --
+    -- See definition of function "collOuts" within "Formal Specification of
+    -- the Cardano Ledger for the Babbage era".
+    --
+    -- https://hydra.iohk.io/build/14336206/download/1/babbage-changes.pdf
+    --
+    index :: Word32
+    index = fromIntegral (length outputs)
 
 {-------------------------------------------------------------------------------
                         Address ownership and discovery
