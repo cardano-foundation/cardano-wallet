@@ -554,14 +554,18 @@ spendTxD tx !u =
 -- transaction inputs in subsequent blocks.
 --
 -- Assuming the transaction is not marked as having an invalid script, the
--- following property should hold:
+-- following properties should hold:
 --
--- prop> balance (utxoFromTx tx) = foldMap tokens (outputs tx)
+-- prop> balance (utxoFromTx tx) == foldMap tokens (outputs tx)
+-- prop> size    (utxoFromTx tx) == length         (outputs tx)
+-- prop> toList  (utxoFromTx tx) == toList         (outputs tx)
 --
 -- However, if the transaction is marked as having an invalid script, then the
--- following property should hold:
+-- following properties should hold:
 --
--- prop> balance (utxoFromTx tx) = foldMap tokens (collateralOutput tx)
+-- prop> balance (utxoFromTx tx) == foldMap tokens (collateralOutput tx)
+-- prop> size    (utxoFromTx tx) == length         (collateralOutput tx)
+-- prop> toList  (utxoFromTx tx) == toList         (collateralOutput tx)
 --
 utxoFromTx :: Tx -> UTxO
 utxoFromTx tx =
@@ -582,8 +586,19 @@ utxoFromTxOutputs Tx {txId, outputs} =
 -- This function ignores the transaction's script validity.
 --
 utxoFromTxCollateralOutputs :: Tx -> UTxO
-utxoFromTxCollateralOutputs Tx {txId, collateralOutput} =
-    UTxO $ Map.fromList $ F.toList $ (TxIn txId 0,) <$> collateralOutput
+utxoFromTxCollateralOutputs Tx {txId, outputs, collateralOutput} =
+    UTxO $ Map.fromList $ F.toList $ (TxIn txId index,) <$> collateralOutput
+  where
+    -- To reference a collateral output within transaction t, we specify an
+    -- output index that is equal to the number of ordinary outputs within t.
+    --
+    -- See definition of function "collOuts" within "Formal Specification of
+    -- the Cardano Ledger for the Babbage era".
+    --
+    -- https://hydra.iohk.io/build/14336206/download/1/babbage-changes.pdf
+    --
+    index :: Word32
+    index = fromIntegral (length outputs)
 
 {-------------------------------------------------------------------------------
                         Address ownership and discovery

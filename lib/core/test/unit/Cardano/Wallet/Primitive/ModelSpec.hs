@@ -247,8 +247,14 @@ spec = do
         describe "utxoFromTx" $ do
             it "has expected balance"
                 (property prop_utxoFromTx_balance)
-            it "is unspent"
-                (property prop_utxoFromTx_is_unspent)
+            it "has expected size"
+                (property prop_utxoFromTx_size)
+            it "has expected values"
+                (property prop_utxoFromTx_values)
+            it "prop_utxoFromTx_disjoint"
+                (property prop_utxoFromTx_disjoint)
+            it "prop_utxoFromTx_union"
+                (property prop_utxoFromTx_union)
 
         describe "spendTx" $ do
             it "is subset of UTxO"
@@ -2005,18 +2011,6 @@ prop_filterByAddress_balance_applyTxToUTxO f tx =
             then tokens output
             else mempty
 
-prop_utxoFromTx_is_unspent :: Tx -> Property
-prop_utxoFromTx_is_unspent tx =
-    checkCoverage $
-    cover 10
-        (utxoFromTx tx /= mempty)
-        "utxoFromTx tx /= mempty" $
-    cover 10
-        (Set.fromList (inputs tx) /= mempty)
-        "Set.fromList (inputs tx) /= mempty" $
-    utxoFromTx tx `excluding` Set.fromList (inputs tx)
-    === utxoFromTx tx
-
 unit_applyTxToUTxO_spends_input :: Tx -> TxIn -> TxOut -> Coin -> Property
 unit_applyTxToUTxO_spends_input tx txin txout coin =
     let
@@ -2070,12 +2064,16 @@ unit_applyTxToUTxO_scriptValidity_Unknown tx' (sIn, sOut) (cIn, cOut) coin =
         ===
         (utxo `excluding` Set.singleton sIn) <> utxoFromTxOutputs tx
 
+--------------------------------------------------------------------------------
+-- utxoFromTx
+--------------------------------------------------------------------------------
+
 prop_utxoFromTx_balance :: Tx -> Property
 prop_utxoFromTx_balance tx =
     checkCoverage $
     cover 10
-        (outputs tx /= mempty)
-        "outputs tx /= mempty" $
+        (txHasOutputsAndCollateralOutputs tx)
+        "txHasOutputsAndCollateralOutputs tx" $
     cover 10
         (txScriptInvalid tx)
         "txScriptInvalid tx)" $
@@ -2086,6 +2084,82 @@ prop_utxoFromTx_balance tx =
         if txScriptInvalid tx
         then foldMap tokens (collateralOutput tx)
         else foldMap tokens (outputs tx)
+
+prop_utxoFromTx_size :: Tx -> Property
+prop_utxoFromTx_size tx =
+    checkCoverage $
+    cover 10
+        (txHasOutputsAndCollateralOutputs tx)
+        "txHasOutputsAndCollateralOutputs tx" $
+    cover 10
+        (txScriptInvalid tx)
+        "txScriptInvalid tx)" $
+    cover 10
+        (not $ txScriptInvalid tx)
+        "not $ txScriptInvalid tx)" $
+    UTxO.size (utxoFromTx tx) ===
+        if txScriptInvalid tx
+        then F.length (collateralOutput tx)
+        else F.length (outputs tx)
+
+prop_utxoFromTx_values :: Tx -> Property
+prop_utxoFromTx_values tx =
+    checkCoverage $
+    cover 10
+        (txHasOutputsAndCollateralOutputs tx)
+        "txHasOutputsAndCollateralOutputs tx" $
+    cover 10
+        (txScriptInvalid tx)
+        "txScriptInvalid tx)" $
+    cover 10
+        (not $ txScriptInvalid tx)
+        "not $ txScriptInvalid tx)" $
+    F.toList (unUTxO (utxoFromTx tx)) ===
+        if txScriptInvalid tx
+        then F.toList (collateralOutput tx)
+        else F.toList (outputs tx)
+
+prop_utxoFromTx_disjoint :: Tx -> Property
+prop_utxoFromTx_disjoint tx =
+    checkCoverage $
+    cover 10
+        (txHasOutputsAndCollateralOutputs tx)
+        "txHasOutputsAndCollateralOutputs tx" $
+    UTxO.disjoint
+        (utxoFromTxOutputs tx)
+        (utxoFromTxCollateralOutputs tx)
+
+prop_utxoFromTx_union :: Tx -> Property
+prop_utxoFromTx_union tx =
+    checkCoverage $
+    cover 10
+        (txHasOutputsAndCollateralOutputs tx)
+        "txHasOutputsAndCollateralOutputs tx" $
+    mappend
+        (utxoFromTxOutputs tx)
+        (utxoFromTxCollateralOutputs tx)
+        ===
+        (utxoFromTxOutputsAndCollateralOutputs tx)
+
+txHasOutputs :: Tx -> Bool
+txHasOutputs = not . null . outputs
+
+txHasCollateralOutputs :: Tx -> Bool
+txHasCollateralOutputs = not . null . collateralOutput
+
+txHasOutputsAndCollateralOutputs :: Tx -> Bool
+txHasOutputsAndCollateralOutputs tx =
+    txHasOutputs tx && txHasCollateralOutputs tx
+
+utxoFromTxOutputsAndCollateralOutputs :: Tx -> UTxO
+utxoFromTxOutputsAndCollateralOutputs Tx {txId, outputs, collateralOutput} =
+    UTxO $ Map.fromList $ zip
+        (TxIn txId <$> [0..])
+        (outputs <> F.toList collateralOutput)
+
+--------------------------------------------------------------------------------
+-- spendTx
+--------------------------------------------------------------------------------
 
 -- spendTx tx u `isSubsetOf` u
 prop_spendTx_isSubset :: Tx -> UTxO -> Property
