@@ -558,12 +558,14 @@ spendTxD tx !u =
 --
 -- prop> balance (utxoFromTx tx) == foldMap tokens (outputs tx)
 -- prop> size    (utxoFromTx tx) == length         (outputs tx)
+-- prop> toList  (utxoFromTx tx) == toList         (outputs tx)
 --
 -- However, if the transaction is marked as having an invalid script, then the
 -- following properties should hold:
 --
 -- prop> balance (utxoFromTx tx) == foldMap tokens (collateralOutput tx)
 -- prop> size    (utxoFromTx tx) == length         (collateralOutput tx)
+-- prop> toList  (utxoFromTx tx) == toList         (collateralOutput tx)
 --
 utxoFromTx :: Tx -> UTxO
 utxoFromTx tx =

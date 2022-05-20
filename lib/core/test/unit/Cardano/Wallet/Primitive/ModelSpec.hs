@@ -249,6 +249,8 @@ spec = do
                 (property prop_utxoFromTx_balance)
             it "has expected size"
                 (property prop_utxoFromTx_size)
+            it "has expected values"
+                (property prop_utxoFromTx_values)
             it "prop_utxoFromTx_disjoint"
                 (property prop_utxoFromTx_disjoint)
             it "prop_utxoFromTx_union"
@@ -2099,6 +2101,23 @@ prop_utxoFromTx_size tx =
         if txScriptInvalid tx
         then F.length (collateralOutput tx)
         else F.length (outputs tx)
+
+prop_utxoFromTx_values :: Tx -> Property
+prop_utxoFromTx_values tx =
+    checkCoverage $
+    cover 10
+        (txHasOutputsAndCollateralOutputs tx)
+        "txHasOutputsAndCollateralOutputs tx" $
+    cover 10
+        (txScriptInvalid tx)
+        "txScriptInvalid tx)" $
+    cover 10
+        (not $ txScriptInvalid tx)
+        "not $ txScriptInvalid tx)" $
+    F.toList (unUTxO (utxoFromTx tx)) ===
+        if txScriptInvalid tx
+        then F.toList (collateralOutput tx)
+        else F.toList (outputs tx)
 
 prop_utxoFromTx_disjoint :: Tx -> Property
 prop_utxoFromTx_disjoint tx =
