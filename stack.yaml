@@ -154,7 +154,7 @@ extra-deps:
   - bech32-th
 
 - git: https://github.com/input-output-hk/cardano-base
-  commit: 41545ba3ac6b3095966316a99883d678b5ab8da8
+  commit: 1587462ac8b2e50af2691f5ad93d3c2aa4674ed1
   subdirs:
   - base-deriving-via
   - binary
@@ -171,8 +171,9 @@ extra-deps:
   commit: f73079303f663e028288f9f4a9e08bcca39a923e
 
 - git: https://github.com/input-output-hk/cardano-ledger
-  commit: 1a9ec4ae9e0b09d54e49b2a40c4ead37edadcce5
+  commit: 1db68a3ec0a2dcb5751004beb22b906162474f23
   subdirs:
+  - eras/babbage/impl
   - eras/alonzo/impl
   - eras/alonzo/test-suite
   - eras/byron/chain/executable-spec
@@ -196,7 +197,7 @@ extra-deps:
   - libs/non-integral
 
 - git: https://github.com/input-output-hk/cardano-node
-  commit: 73f9a746362695dc2cb63ba757fbcabb81733d23
+  commit: 65422ff373f2f88a563afa746a9a16d211ffdc7c
   subdirs:
   - cardano-api
   - cardano-cli
@@ -226,7 +227,7 @@ extra-deps:
   commit: edf6945007177a638fbeb8802397f3a6f4e47c14
 
 - git: https://github.com/input-output-hk/iohk-monitoring-framework
-  commit: 808724ff8a19a33d0ed06f9ef59fbd900b08553c
+  commit: eb7854d1337637b8672af1227b276aa33a658f47
   subdirs:
   - contra-tracer
   - iohk-monitoring
@@ -241,7 +242,7 @@ extra-deps:
   commit: 6a92d7853ea514be8b70bab5e72077bf5a510596
 
 - git: https://github.com/input-output-hk/ouroboros-network
-  commit: 4fac197b6f0d2ff60dc3486c593b68dc00969fbf
+  commit: ad47441e9e399495579d7dd05ccaf96b46a487b2
   subdirs:
   - io-classes
   - io-sim
@@ -270,7 +271,7 @@ extra-deps:
   - ouroboros-consensus-mock
 
 - git: https://github.com/input-output-hk/plutus
-  commit: fc5fe94d3d9525d032bcbc79ff0e1ebcfd8ef143
+  commit: ccf5bcb99ffe054dc8cd5626723f64e02708dbae
   subdirs:
     - plutus-core
     - plutus-ledger-api
