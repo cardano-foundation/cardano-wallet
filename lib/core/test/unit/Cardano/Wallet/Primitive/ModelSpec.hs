@@ -249,6 +249,8 @@ spec = do
                 (property prop_utxoFromTx_balance)
             it "prop_utxoFromTx_disjoint"
                 (property prop_utxoFromTx_disjoint)
+            it "prop_utxoFromTx_union"
+                (property prop_utxoFromTx_union)
 
         describe "spendTx" $ do
             it "is subset of UTxO"
@@ -2089,6 +2091,18 @@ prop_utxoFromTx_disjoint tx =
         (utxoFromTxOutputs tx)
         (utxoFromTxCollateralOutputs tx)
 
+prop_utxoFromTx_union :: Tx -> Property
+prop_utxoFromTx_union tx =
+    checkCoverage $
+    cover 10
+        (txHasOutputsAndCollateralOutputs tx)
+        "txHasOutputsAndCollateralOutputs tx" $
+    mappend
+        (utxoFromTxOutputs tx)
+        (utxoFromTxCollateralOutputs tx)
+        ===
+        (utxoFromTxOutputsAndCollateralOutputs tx)
+
 txHasOutputs :: Tx -> Bool
 txHasOutputs = not . null . outputs
 
@@ -2098,6 +2112,12 @@ txHasCollateralOutputs = not . null . collateralOutput
 txHasOutputsAndCollateralOutputs :: Tx -> Bool
 txHasOutputsAndCollateralOutputs tx =
     txHasOutputs tx && txHasCollateralOutputs tx
+
+utxoFromTxOutputsAndCollateralOutputs :: Tx -> UTxO
+utxoFromTxOutputsAndCollateralOutputs Tx {txId, outputs, collateralOutput} =
+    UTxO $ Map.fromList $ zip
+        (TxIn txId <$> [0..])
+        (outputs <> F.toList collateralOutput)
 
 --------------------------------------------------------------------------------
 -- spendTx
