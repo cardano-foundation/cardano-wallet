@@ -2056,12 +2056,16 @@ unit_applyTxToUTxO_scriptValidity_Unknown tx' (sIn, sOut) (cIn, cOut) coin =
         ===
         (utxo `excluding` Set.singleton sIn) <> utxoFromTxOutputs tx
 
+--------------------------------------------------------------------------------
+-- utxoFromTx
+--------------------------------------------------------------------------------
+
 prop_utxoFromTx_balance :: Tx -> Property
 prop_utxoFromTx_balance tx =
     checkCoverage $
     cover 10
-        (outputs tx /= mempty)
-        "outputs tx /= mempty" $
+        (txHasOutputsAndCollateralOutputs tx)
+        "txHasOutputsAndCollateralOutputs tx" $
     cover 10
         (txScriptInvalid tx)
         "txScriptInvalid tx)" $
@@ -2072,6 +2076,20 @@ prop_utxoFromTx_balance tx =
         if txScriptInvalid tx
         then foldMap tokens (collateralOutput tx)
         else foldMap tokens (outputs tx)
+
+txHasOutputs :: Tx -> Bool
+txHasOutputs = not . null . outputs
+
+txHasCollateralOutputs :: Tx -> Bool
+txHasCollateralOutputs = not . null . collateralOutput
+
+txHasOutputsAndCollateralOutputs :: Tx -> Bool
+txHasOutputsAndCollateralOutputs tx =
+    txHasOutputs tx && txHasCollateralOutputs tx
+
+--------------------------------------------------------------------------------
+-- spendTx
+--------------------------------------------------------------------------------
 
 -- spendTx tx u `isSubsetOf` u
 prop_spendTx_isSubset :: Tx -> UTxO -> Property
