@@ -247,8 +247,6 @@ spec = do
         describe "utxoFromTx" $ do
             it "has expected balance"
                 (property prop_utxoFromTx_balance)
-            it "is unspent"
-                (property prop_utxoFromTx_is_unspent)
 
         describe "spendTx" $ do
             it "is subset of UTxO"
@@ -2004,18 +2002,6 @@ prop_filterByAddress_balance_applyTxToUTxO f tx =
             if f (address output)
             then tokens output
             else mempty
-
-prop_utxoFromTx_is_unspent :: Tx -> Property
-prop_utxoFromTx_is_unspent tx =
-    checkCoverage $
-    cover 10
-        (utxoFromTx tx /= mempty)
-        "utxoFromTx tx /= mempty" $
-    cover 10
-        (Set.fromList (inputs tx) /= mempty)
-        "Set.fromList (inputs tx) /= mempty" $
-    utxoFromTx tx `excluding` Set.fromList (inputs tx)
-    === utxoFromTx tx
 
 unit_applyTxToUTxO_spends_input :: Tx -> TxIn -> TxOut -> Coin -> Property
 unit_applyTxToUTxO_spends_input tx txin txout coin =
