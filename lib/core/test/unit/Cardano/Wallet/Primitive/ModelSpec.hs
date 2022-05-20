@@ -247,6 +247,8 @@ spec = do
         describe "utxoFromTx" $ do
             it "has expected balance"
                 (property prop_utxoFromTx_balance)
+            it "prop_utxoFromTx_disjoint"
+                (property prop_utxoFromTx_disjoint)
 
         describe "spendTx" $ do
             it "is subset of UTxO"
@@ -2076,6 +2078,16 @@ prop_utxoFromTx_balance tx =
         if txScriptInvalid tx
         then foldMap tokens (collateralOutput tx)
         else foldMap tokens (outputs tx)
+
+prop_utxoFromTx_disjoint :: Tx -> Property
+prop_utxoFromTx_disjoint tx =
+    checkCoverage $
+    cover 10
+        (txHasOutputsAndCollateralOutputs tx)
+        "txHasOutputsAndCollateralOutputs tx" $
+    UTxO.disjoint
+        (utxoFromTxOutputs tx)
+        (utxoFromTxCollateralOutputs tx)
 
 txHasOutputs :: Tx -> Bool
 txHasOutputs = not . null . outputs
