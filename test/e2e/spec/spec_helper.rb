@@ -9,6 +9,7 @@ require_relative "../helpers/utils"
 require_relative "../helpers/matchers"
 require_relative "../helpers/context"
 require_relative "../helpers/wallet_factory"
+require_relative "../helpers/cardano_addresses"
 
 include Helpers::Utils
 
@@ -41,6 +42,7 @@ SETTINGS = CW.misc.settings
 UTILS = CW.misc.utils
 NETWORK = CW.misc.network
 PROXY = CW.misc.proxy
+CA = CardanoAddresses.new
 
 CONTEXT = Context.new
 
