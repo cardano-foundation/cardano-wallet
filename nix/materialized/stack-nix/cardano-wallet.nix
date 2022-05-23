@@ -342,4 +342,6 @@
           };
         };
       };
-    } // rec { src = (pkgs.lib).mkDefault ./lib/shelley; }
+    } // rec {
+    src = (pkgs.lib).mkDefault ./lib/shelley;
+    }

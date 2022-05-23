@@ -8,17 +8,17 @@
   , config
   , ... }:
   {
-    flags = { sts_assert = false; };
+    flags = {};
     package = {
       specVersion = "2.2";
-      identifier = { name = "small-steps"; version = "0.1.0.0"; };
+      identifier = { name = "set-algebra"; version = "0.1.0.0"; };
       license = "Apache-2.0";
       copyright = "";
       maintainer = "formal.methods@iohk.io";
       author = "IOHK Formal Methods Team";
       homepage = "https://github.com/input-output-hk/cardano-legder-specs";
       url = "";
-      synopsis = "Small step semantics";
+      synopsis = "Set Algebra";
       description = "";
       buildType = "Simple";
       };
@@ -26,20 +26,28 @@
       "library" = {
         depends = [
           (hsPkgs."base" or (errorHandler.buildDepError "base"))
-          (hsPkgs."aeson" or (errorHandler.buildDepError "aeson"))
+          (hsPkgs."ansi-wl-pprint" or (errorHandler.buildDepError "ansi-wl-pprint"))
           (hsPkgs."base" or (errorHandler.buildDepError "base"))
+          (hsPkgs."cardano-data" or (errorHandler.buildDepError "cardano-data"))
           (hsPkgs."containers" or (errorHandler.buildDepError "containers"))
-          (hsPkgs."data-default-class" or (errorHandler.buildDepError "data-default-class"))
-          (hsPkgs."free" or (errorHandler.buildDepError "free"))
-          (hsPkgs."mtl" or (errorHandler.buildDepError "mtl"))
-          (hsPkgs."nothunks" or (errorHandler.buildDepError "nothunks"))
-          (hsPkgs."strict-containers" or (errorHandler.buildDepError "strict-containers"))
-          (hsPkgs."text" or (errorHandler.buildDepError "text"))
-          (hsPkgs."transformers" or (errorHandler.buildDepError "transformers"))
           ];
         buildable = true;
         };
+      tests = {
+        "tests" = {
+          depends = [
+            (hsPkgs."base" or (errorHandler.buildDepError "base"))
+            (hsPkgs."containers" or (errorHandler.buildDepError "containers"))
+            (hsPkgs."set-algebra" or (errorHandler.buildDepError "set-algebra"))
+            (hsPkgs."tasty" or (errorHandler.buildDepError "tasty"))
+            (hsPkgs."tasty-hunit" or (errorHandler.buildDepError "tasty-hunit"))
+            (hsPkgs."tasty-quickcheck" or (errorHandler.buildDepError "tasty-quickcheck"))
+            (hsPkgs."cardano-data" or (errorHandler.buildDepError "cardano-data"))
+            ];
+          buildable = true;
+          };
+        };
       };
     } // rec {
-    src = (pkgs.lib).mkDefault /nix/store/x9qblgvxkw01bvlg0i6w2hyznkfli6jf-cardano-ledger-1a9ec4a/libs/small-steps;
+    src = (pkgs.lib).mkDefault /nix/store/y5zp7ycn9ypz1z2xak67wkdw5s6isc2h-cardano-ledger-1db68a3/libs/set-algebra;
     }
