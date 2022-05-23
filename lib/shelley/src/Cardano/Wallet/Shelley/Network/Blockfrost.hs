@@ -753,10 +753,8 @@ getPoolPerformanceEstimate
     -> m PerformanceEstimate
 getPoolPerformanceEstimate sp dl rp pid = do
     hist <- BF.getPoolHistory' pid get50 BF.Descending
-    pure
-        . estimatePoolPerformance sp dl
-        . Seq.fromList . map toBlockProduction
-        $ hist
+    pure . estimatePoolPerformance sp dl .  Seq.fromList $
+        map toBlockProduction hist
   where
     get50 = BF.Paged { BF.countPerPage = 50, BF.pageNumber = 1 }
     toBlockProduction p = BlockProduction
