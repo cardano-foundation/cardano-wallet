@@ -64,7 +64,7 @@ steps:
     agents:
       system: x86_64-linux
     if: 'build.env("step") == null || build.env("step") =~ /cabal/'
-    depend_on: "cabal-configure-haskell-nix"
+    depends_on: "cabal-configure-haskell-nix"
 
   - label: 'Validate OpenAPI Specification'
     depends_on: nix
