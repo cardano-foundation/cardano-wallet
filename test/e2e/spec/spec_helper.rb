@@ -176,11 +176,14 @@ def wait_for_all_shared_wallets(wids)
   end
 end
 
-def create_shelley_wallet(name = "Wallet from mnemonic_sentence", mnemonic_sentence = mnemonic_sentence(24))
+def create_shelley_wallet(name = "Wallet from mnemonic_sentence",
+                          mnemonic_sentence = mnemonic_sentence(24),
+                          mnemonic_second_factor = nil)
   payload = { name: name,
               passphrase: PASS,
               mnemonic_sentence: mnemonic_sentence
              }
+  payload[:mnemonic_second_factor] = mnemonic_second_factor if mnemonic_second_factor
   WalletFactory.create(:shelley, payload)['id']
 end
 
