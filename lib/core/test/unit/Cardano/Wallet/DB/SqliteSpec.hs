@@ -565,8 +565,8 @@ fileModeSpec =  do
                         unsafeRunExceptT $ putTxHistory testWid txs
                         unsafeRunExceptT $ prune testWid (Quantity 2160)
 
-            it "Should remove collateral inputs from the UTxO set if \
-                \validation fails" $
+            it "Should spend collateral inputs and create spendable collateral \
+                \outputs if validation fails" $
                 \f -> withShelleyFileDBLayer f $ \db@DBLayer{..} -> do
 
                     let ourAddrs =
@@ -576,37 +576,48 @@ fileModeSpec =  do
                     atomically $ unsafeRunExceptT $ initializeWallet
                         testWid testCp testMetadata mempty gp
 
-                    -- Provide funds for us to transfer AND use as collateral
-                    let mockApplyBlock1 = mockApply db (dummyHash "block1")
-                            [ Tx
-                                { txId = dummyHash "tx1"
-                                , fee = Nothing
-                                , resolvedInputs =
-                                    [ (TxIn (dummyHash "faucet") 0, Coin 4)
-                                    , (TxIn (dummyHash "faucet") 1, Coin 8)
-                                    ]
-                                , resolvedCollateralInputs = []
-                                , outputs =
-                                    [ TxOut (fst $ head ourAddrs)
-                                            (coinToBundle 4)
-                                    , TxOut (fst $ head $ tail ourAddrs)
-                                            (coinToBundle 8)
-                                    ]
-                                , collateralOutput = Nothing
-                                , withdrawals = mempty
-                                , metadata = Nothing
-                                , scriptValidity = Just TxScriptValid
-                                }
-                            ]
+                    ------------------------------------------------------------
+                    -- Transaction 1
+                    --
+                    -- This transaction provides initial funding for the wallet.
+                    ------------------------------------------------------------
 
-                    -- Slot 1 0
-                    mockApplyBlock1
-                    getAvailableBalance db `shouldReturn` 12
-
-                    -- Slot 200
-                    mockApply db (dummyHash "block2a")
+                    mockApply db (dummyHash "block1")
                         [ Tx
-                            { txId = dummyHash "tx2a"
+                            { txId = dummyHash "tx1"
+                            , fee = Nothing
+                            , resolvedInputs =
+                                [ (TxIn (dummyHash "faucet") 0, Coin 4)
+                                , (TxIn (dummyHash "faucet") 1, Coin 8)
+                                ]
+                            , resolvedCollateralInputs = []
+                            , outputs =
+                                [ TxOut
+                                    (fst $ head ourAddrs)
+                                    (coinToBundle 4)
+                                , TxOut
+                                    (fst $ head $ tail ourAddrs)
+                                    (coinToBundle 8)
+                                ]
+                            , collateralOutput = Nothing
+                            , withdrawals = mempty
+                            , metadata = Nothing
+                            , scriptValidity = Just TxScriptValid
+                            }
+                        ]
+                    getAvailableBalance db `shouldReturn` 12 -- == (4 + 8)
+
+                    ------------------------------------------------------------
+                    -- Transaction 2
+                    --
+                    -- This transaction has a script that fails validation.
+                    -- Therefore, we should forfeit value from the collateral
+                    -- inputs, but recover value from the collateral outputs.
+                    ------------------------------------------------------------
+
+                    mockApply db (dummyHash "block2")
+                        [ Tx
+                            { txId = dummyHash "tx2"
                             , fee = Nothing
                             , resolvedInputs =
                                 [(TxIn (dummyHash "tx1") 0, Coin 4)]
@@ -618,22 +629,61 @@ fileModeSpec =  do
                                 , TxOut
                                     (fst $ ourAddrs !! 1) (coinToBundle 2)
                                 ]
-                            , collateralOutput = Nothing
+                            , collateralOutput =
+                                Just $ TxOut
+                                    (fst $ ourAddrs !! 1) (coinToBundle 7)
                             , withdrawals = mempty
                             , metadata = Nothing
                             , scriptValidity = Just TxScriptInvalid
                             }
                         ]
-
-                    -- Slot 300
-                    mockApply db (dummyHash "block3a") []
+                    mockApply db (dummyHash "block2a") []
                     getTxsInLedger db `shouldReturn`
-                        -- We lost 8 to collateral
-                        [ (Outgoing, 8)
+                        -- We:
+                        -- - forfeited 8 from collateral inputs;
+                        -- - recovered 7 from collateral ouputs.
+                        -- Therefore we lost a net collateral value of (8 - 7):
+                        [ (Outgoing, 1)
                         -- We got 12 from the faucet
                         , (Incoming, 12)
                         ]
-                    getAvailableBalance db `shouldReturn` 4
+                    getAvailableBalance db `shouldReturn` 11 -- = 12 - 1
+
+                    ------------------------------------------------------------
+                    -- Transaction 3
+                    --
+                    -- This transaction uses a collateral output created in the
+                    -- previous transaction to make a payment.
+                    ------------------------------------------------------------
+
+                    mockApply db (dummyHash "block3")
+                        [ Tx
+                            { txId = dummyHash "tx3"
+                            , fee = Nothing
+                            , resolvedInputs =
+                                -- Here we refer to a collateral output from
+                                -- the previous transaction.
+                                --
+                                -- Note that we refer to the sole collateral
+                                -- output by using a special index value that
+                                -- is equal to the number of ordinary outputs
+                                -- in that transaction:
+                                --
+                                [(TxIn (dummyHash "tx2") 2, Coin 7)]
+                            , resolvedCollateralInputs =
+                                []
+                            , outputs =
+                                [ TxOut
+                                    (dummyAddr "faucetAddr2") (coinToBundle 8)
+                                ]
+                            , collateralOutput = Nothing
+                            , withdrawals = mempty
+                            , metadata = Nothing
+                            , scriptValidity = Just TxScriptValid
+                            }
+                        ]
+                    mockApply db (dummyHash "block3a") []
+                    getAvailableBalance db `shouldReturn` 4 -- = 11 - 7
 
             it "(Regression test #1575) - TxMetas and checkpoints should \
                \rollback to the same place" $ \f -> do

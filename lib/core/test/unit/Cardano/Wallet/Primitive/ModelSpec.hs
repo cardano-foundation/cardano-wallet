@@ -97,7 +97,14 @@ import Cardano.Wallet.Primitive.Types.Tx
     , txScriptInvalid
     )
 import Cardano.Wallet.Primitive.Types.Tx.Gen
-    ( genTx, genTxIn, genTxOut, shrinkTx, shrinkTxIn, shrinkTxOut )
+    ( genTx
+    , genTxIn
+    , genTxOut
+    , genTxScriptValidity
+    , shrinkTx
+    , shrinkTxIn
+    , shrinkTxOut
+    )
 import Cardano.Wallet.Primitive.Types.UTxO
     ( UTxO (..), balance, dom, excluding, filterByAddress, restrictedTo )
 import Cardano.Wallet.Primitive.Types.UTxO.Gen
@@ -165,6 +172,7 @@ import Test.QuickCheck
     , frequency
     , genericShrink
     , label
+    , liftArbitrary
     , listOf
     , oneof
     , property
@@ -337,7 +345,6 @@ prop_3_2 (ApplyBlock s utxo block) =
             <$> state (txOutsOurs txs)
         return $ utxo' `excluding` txIns txs
     updateUTxO' b u = evalState (updateUTxO b u) s
-
 
 prop_applyBlockBasic
     :: WalletState
@@ -1124,11 +1131,11 @@ instance Arbitrary (WithPending WalletState) where
         subChain <- flip take blockchain <$> choose (1, length blockchain)
         let wallet = foldl (\cp b -> snd . snd $ applyBlock b cp) cp0 subChain
         rewards <- Coin <$> oneof [pure 0, chooseNatural (1, 10000)]
-        pending <- genPendingTx (totalUTxO Set.empty wallet) rewards
+        pending <- genPendingTxs (totalUTxO Set.empty wallet) rewards
         pure $ WithPending wallet pending rewards
       where
-        genPendingTx :: UTxO -> Coin -> Gen (Set Tx)
-        genPendingTx (UTxO u) rewards
+        genPendingTxs :: UTxO -> Coin -> Gen (Set Tx)
+        genPendingTxs (UTxO u) rewards
             | Map.null u = pure Set.empty
             | otherwise  = do
                 (inp, out) <-
@@ -1162,6 +1169,7 @@ instance Arbitrary (WithPending WalletState) where
                 --   change output and an explicit withdrawal in the
                 --   transaction.
                 let tokens = TokenBundle.fromCoin $ simulateFee $ txOutCoin out
+                scriptValidity <- liftArbitrary genTxScriptValidity
                 let pending = withWithdrawal $ Tx
                         { txId = arbitraryHash
                         , fee = Nothing
@@ -1173,7 +1181,7 @@ instance Arbitrary (WithPending WalletState) where
                         , outputs = [out {tokens}]
                         , withdrawals = mempty
                         , metadata = Nothing
-                        , scriptValidity = Nothing
+                        , scriptValidity
                         }
 
                 elements [Set.singleton pending, Set.empty]
@@ -1212,7 +1220,6 @@ instance Arbitrary ApplyBlock where
     arbitrary = headBlock <$> arbitrary
       where
         headBlock (ApplyBlocks s u (b :| _)) = ApplyBlock s u b
-
 
 addresses :: [Address]
 addresses = map address
