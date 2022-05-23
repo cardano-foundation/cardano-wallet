@@ -2,7 +2,7 @@ RSpec.describe CardanoWallet::Shared do
   after(:each) do
     teardown
   end
-  
+
   describe CardanoWallet::Shared::Wallets do
 
     describe "Create wallets" do
@@ -333,6 +333,96 @@ RSpec.describe CardanoWallet::Shared do
 
         expect(WalletFactory.delete(:shared, wid)).to be_correct_and_respond 204
       end
+
+      describe "Wallet id" do
+        it "Shared walletid with only spending template from cardano-addresses" do
+          mnemonics = mnemonic_sentence(24)
+          acc_ix = '0H'
+          script_template = { "cosigners" => { "cosigner#0" => "self" },
+                              "template" =>
+                                  { "all" =>
+                                     [ "cosigner#0",
+                                       { "active_from" => 120 }
+                                     ]
+                                  }
+                              }
+
+          payload = { mnemonic_sentence: mnemonics,
+                      passphrase: PASS,
+                      name: "Shared wallet",
+                      account_index: acc_ix,
+                      payment_script_template: script_template,
+                      }
+
+          wallet = WalletFactory.create(:shared, payload)
+          expect(wallet).to be_correct_and_respond 201
+          wid = wallet["id"]
+
+          # based on acct prv key
+          template = '--spending "all [cosigner#0, active_from 120]"'
+          root_xsk = CA.prv_key_from_recovery_phrase(mnemonics, "Shared")
+          acct_key = CA.key_child(root_xsk, "1854H/1815H/#{acc_ix}")
+          ca_wid_acct_key = CA.key_walletid(acct_key, template)
+
+          # based on pub key from acct prv key
+          pub_key = CA.key_public(acct_key, with_chain_code = true)
+          ca_wid_pub_key = CA.key_walletid(pub_key, template)
+
+          # wallet id from cardano-wallet is the same
+          expect(ca_wid_acct_key).to eq ca_wid_acct_key
+          expect(wid).to eq ca_wid_acct_key
+        end
+
+        it "Shared walletid with spending and delegation template from cardano-addresses" do
+          mnemonics = mnemonic_sentence(24)
+          acc_ix = '0H'
+          script_template = { "cosigners" => { "cosigner#0" => "self" },
+                              "template" =>
+                                  { "all" =>
+                                     [ "cosigner#0",
+                                       { "active_from" => 120 }
+                                     ]
+                                  }
+                              }
+
+          delegation_template = { "cosigners" => { "cosigner#1" => 'self' },
+                                  "template" =>
+                                      { "any" =>
+                                         [ "cosigner#0",
+                                           "cosigner#1"
+                                         ]
+                                      }
+                                }
+
+          payload = { mnemonic_sentence: mnemonics,
+                      passphrase: PASS,
+                      name: "Shared wallet",
+                      account_index: acc_ix,
+                      payment_script_template: script_template,
+                      delegation_script_template: delegation_template
+                      }
+
+          wallet = WalletFactory.create(:shared, payload)
+          expect(wallet).to be_correct_and_respond 201
+          wid = wallet["id"]
+
+          # based on acct prv key
+          template = '--spending "all [cosigner#0, active_from 120]" --staking "any [cosigner#0, cosigner#1]"'
+          root_xsk = CA.prv_key_from_recovery_phrase(mnemonics, "Shared")
+          acct_key = CA.key_child(root_xsk, "1854H/1815H/#{acc_ix}")
+          ca_wid_acct_key = CA.key_walletid(acct_key, template)
+
+          # based on pub key from acct prv key
+          pub_key = CA.key_public(acct_key, with_chain_code = true)
+          ca_wid_pub_key = CA.key_walletid(pub_key, template)
+
+          # wallet id from cardano-wallet is the same
+          expect(ca_wid_acct_key).to eq ca_wid_acct_key
+          expect(wid).to eq ca_wid_acct_key
+        end
+
+      end
+
     end
 
     describe "Addresses" do
