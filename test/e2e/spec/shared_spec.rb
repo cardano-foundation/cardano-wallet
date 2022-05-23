@@ -359,7 +359,7 @@ RSpec.describe CardanoWallet::Shared do
           wid = wallet["id"]
 
           # based on acct prv key
-          template = "--spending 'all [cosigner#0, active_from 120]'"
+          template = '--spending "all [cosigner#0, active_from 120]"'
           root_xsk = CA.prv_key_from_recovery_phrase(mnemonics, "Shared")
           acct_key = CA.key_child(root_xsk, "1854H/1815H/#{acc_ix}")
           ca_wid_acct_key = CA.key_walletid(acct_key, template)
@@ -407,7 +407,7 @@ RSpec.describe CardanoWallet::Shared do
           wid = wallet["id"]
 
           # based on acct prv key
-          template = "--spending 'all [cosigner#0, active_from 120]' --staking 'any [cosigner#0, cosigner#1]'"
+          template = '--spending "all [cosigner#0, active_from 120]" --staking "any [cosigner#0, cosigner#1]"'
           root_xsk = CA.prv_key_from_recovery_phrase(mnemonics, "Shared")
           acct_key = CA.key_child(root_xsk, "1854H/1815H/#{acc_ix}")
           ca_wid_acct_key = CA.key_walletid(acct_key, template)
