@@ -57,7 +57,6 @@ echo "--- Updating Hackage index"
     ( cd "$HOME" && cabal "${cabal_args[@]}" update )
 } || {
     echo "---- Failed to update Hackage index, trying again"
-    rm -r "${HOME}/.cabal/packages/hackage.haskell.org/"
     ( cd "$HOME" && cabal "${cabal_args[@]}" update )
 }
 
