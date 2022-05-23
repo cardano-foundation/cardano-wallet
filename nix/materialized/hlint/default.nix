@@ -7,7 +7,7 @@
         "happy".revision = (((hackage."happy")."1.20.0").revisions).default;
         "filepattern".revision = (((hackage."filepattern")."0.1.2").revisions).default;
         "pretty".revision = (((hackage."pretty")."1.1.3.6").revisions).default;
-        "unordered-containers".revision = (((hackage."unordered-containers")."0.2.17.0").revisions).default;
+        "unordered-containers".revision = (((hackage."unordered-containers")."0.2.19.1").revisions).default;
         "unordered-containers".flags.debug = false;
         "integer-logarithms".revision = (((hackage."integer-logarithms")."1.0.3.1").revisions).default;
         "integer-logarithms".flags.check-bounds = false;
@@ -62,7 +62,7 @@
         "unliftio-core".revision = (((hackage."unliftio-core")."0.2.0.1").revisions).default;
         "stm".revision = (((hackage."stm")."2.5.0.1").revisions).default;
         "refact".revision = (((hackage."refact")."0.3.0.2").revisions).default;
-        "resourcet".revision = (((hackage."resourcet")."1.2.4.3").revisions).default;
+        "resourcet".revision = (((hackage."resourcet")."1.2.5").revisions).default;
         "data-default-instances-old-locale".revision = (((hackage."data-default-instances-old-locale")."0.0.1").revisions).default;
         "data-default".revision = (((hackage."data-default")."0.7.1.1").revisions).default;
         "ghc-prim".revision = (((hackage."ghc-prim")."0.6.1").revisions).default;
@@ -72,12 +72,12 @@
         "distributive".flags.tagged = true;
         "distributive".flags.semigroups = true;
         "polyparse".revision = (((hackage."polyparse")."1.13").revisions).default;
-        "bifunctors".revision = (((hackage."bifunctors")."5.5.11").revisions).default;
+        "bifunctors".revision = (((hackage."bifunctors")."5.5.12").revisions).default;
         "bifunctors".flags.tagged = true;
         "bifunctors".flags.semigroups = true;
         "base".revision = (((hackage."base")."4.14.3.0").revisions).default;
         "time".revision = (((hackage."time")."1.9.3").revisions).default;
-        "random".revision = (((hackage."random")."1.2.1").revisions).default;
+        "random".revision = (((hackage."random")."1.2.1.1").revisions).default;
         "process".revision = (((hackage."process")."1.6.13.2").revisions).default;
         "utf8-string".revision = (((hackage."utf8-string")."1.0.2").revisions).default;
         "conduit".revision = (((hackage."conduit")."1.3.4.2").revisions).default;
@@ -115,7 +115,7 @@
         "data-default-instances-dlist".revision = (((hackage."data-default-instances-dlist")."0.0.1").revisions).default;
         "deepseq".revision = (((hackage."deepseq")."1.4.4.0").revisions).default;
         "unix".revision = (((hackage."unix")."2.7.2.2").revisions).default;
-        "ansi-terminal".revision = (((hackage."ansi-terminal")."0.11.1").revisions).default;
+        "ansi-terminal".revision = (((hackage."ansi-terminal")."0.11.3").revisions).default;
         "ansi-terminal".flags.example = false;
         "hashable".revision = (((hackage."hashable")."1.3.5.0").revisions).default;
         "hashable".flags.random-initial-seed = false;

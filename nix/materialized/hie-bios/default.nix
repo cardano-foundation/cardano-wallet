@@ -10,7 +10,7 @@
         "streaming-commons".revision = (((hackage."streaming-commons")."0.2.2.4").revisions).default;
         "streaming-commons".flags.use-bytestring-builder = false;
         "pretty".revision = (((hackage."pretty")."1.1.3.6").revisions).default;
-        "unordered-containers".revision = (((hackage."unordered-containers")."0.2.17.0").revisions).default;
+        "unordered-containers".revision = (((hackage."unordered-containers")."0.2.19.1").revisions).default;
         "unordered-containers".flags.debug = false;
         "integer-logarithms".revision = (((hackage."integer-logarithms")."1.0.3.1").revisions).default;
         "integer-logarithms".flags.check-bounds = false;
@@ -46,7 +46,7 @@
         "data-fix".revision = (((hackage."data-fix")."0.3.2").revisions).default;
         "tasty-expected-failure".revision = (((hackage."tasty-expected-failure")."0.12.3").revisions).default;
         "old-locale".revision = (((hackage."old-locale")."1.0.0.7").revisions).default;
-        "tasty".revision = (((hackage."tasty")."1.4.2.1").revisions).default;
+        "tasty".revision = (((hackage."tasty")."1.4.2.3").revisions).default;
         "tasty".flags.clock = true;
         "tasty".flags.unix = true;
         "mtl".revision = (((hackage."mtl")."2.2.2").revisions).default;
@@ -57,7 +57,7 @@
         "aeson".revision = (((hackage."aeson")."2.0.3.0").revisions).default;
         "aeson".flags.ordered-keymap = true;
         "aeson".flags.cffi = false;
-        "zlib".revision = (((hackage."zlib")."0.6.2.3").revisions).default;
+        "zlib".revision = (((hackage."zlib")."0.6.3.0").revisions).default;
         "zlib".flags.non-blocking-ffi = false;
         "zlib".flags.bundled-c-zlib = false;
         "zlib".flags.pkg-config = false;
@@ -77,7 +77,7 @@
         "stm".revision = (((hackage."stm")."2.5.0.1").revisions).default;
         "terminfo".revision = (((hackage."terminfo")."0.4.1.4").revisions).default;
         "ghc-heap".revision = (((hackage."ghc-heap")."8.10.7").revisions).default;
-        "resourcet".revision = (((hackage."resourcet")."1.2.4.3").revisions).default;
+        "resourcet".revision = (((hackage."resourcet")."1.2.5").revisions).default;
         "unix-compat".revision = (((hackage."unix-compat")."0.5.4").revisions).default;
         "unix-compat".flags.old-time = false;
         "cryptohash-sha1".revision = (((hackage."cryptohash-sha1")."0.11.101.0").revisions).default;
@@ -92,14 +92,14 @@
         "distributive".flags.semigroups = true;
         "text-short".revision = (((hackage."text-short")."0.1.5").revisions).default;
         "text-short".flags.asserts = false;
-        "bifunctors".revision = (((hackage."bifunctors")."5.5.11").revisions).default;
+        "bifunctors".revision = (((hackage."bifunctors")."5.5.12").revisions).default;
         "bifunctors".flags.tagged = true;
         "bifunctors".flags.semigroups = true;
         "base".revision = (((hackage."base")."4.14.3.0").revisions).default;
         "time".revision = (((hackage."time")."1.9.3").revisions).default;
         "async".revision = (((hackage."async")."2.2.4").revisions).default;
         "async".flags.bench = false;
-        "random".revision = (((hackage."random")."1.2.1").revisions).default;
+        "random".revision = (((hackage."random")."1.2.1.1").revisions).default;
         "process".revision = (((hackage."process")."1.6.13.2").revisions).default;
         "base16-bytestring".revision = (((hackage."base16-bytestring")."1.0.2.0").revisions).default;
         "conduit".revision = (((hackage."conduit")."1.3.4.2").revisions).default;
@@ -145,10 +145,10 @@
         "mono-traversable".revision = (((hackage."mono-traversable")."1.0.15.3").revisions).default;
         "witherable".revision = (((hackage."witherable")."0.4.2").revisions).default;
         "tasty-hunit".revision = (((hackage."tasty-hunit")."0.10.0.3").revisions).default;
-        "conduit-extra".revision = (((hackage."conduit-extra")."1.3.5").revisions).default;
+        "conduit-extra".revision = (((hackage."conduit-extra")."1.3.6").revisions).default;
         "deepseq".revision = (((hackage."deepseq")."1.4.4.0").revisions).default;
         "unix".revision = (((hackage."unix")."2.7.2.2").revisions).default;
-        "ansi-terminal".revision = (((hackage."ansi-terminal")."0.11.1").revisions).default;
+        "ansi-terminal".revision = (((hackage."ansi-terminal")."0.11.3").revisions).default;
         "ansi-terminal".flags.example = false;
         "hashable".revision = (((hackage."hashable")."1.4.0.2").revisions).default;
         "hashable".flags.containers = true;
