@@ -50,7 +50,16 @@ save_cache() {
 
 echo "--- Updating Hackage index"
 
-( cd "$HOME" && cabal "${cabal_args[@]}" update )
+# ADP-1796
+# Sometimes cabal fails to download the Hackage archive. In this case we remove
+# the hackage archive and try again.
+{
+    ( cd "$HOME" && cabal "${cabal_args[@]}" update )
+} || {
+    echo "---- Failed to update Hackage index, trying again"
+    rm -r "${HOME}/.cabal/packages/hackage.haskell.org/"
+    ( cd "$HOME" && cabal "${cabal_args[@]}" update )
+}
 
 configure_args=(--enable-tests --enable-benchmarks)
 
