@@ -41,6 +41,7 @@ steps:
     command: 'nix develop --command scripts/buildkite/check-haskell-nix-cabal.sh'
     agents:
       system: x86_64-linux
+    needs: 'Check Cabal Configure'
 
   - label: 'Check Stylish Haskell'
     depends_on: nix
@@ -61,6 +62,7 @@ steps:
     agents:
       system: x86_64-linux
     if: 'build.env("step") == null || build.env("step") =~ /cabal/'
+    needs: 'Check Cabal Configure (Haskell.nix shellFor)'
 
   - label: 'Validate OpenAPI Specification'
     depends_on: nix
