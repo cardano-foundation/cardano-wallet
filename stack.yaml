@@ -75,6 +75,7 @@ extra-deps:
 - quickcheck-quid-0.0.1
 - servant-multipart-client-0.12.1
 - protolude-0.3.0
+- ekg-core-0.1.1.7
 
 # cardano-addresses-3.9.0
 - git: https://github.com/input-output-hk/cardano-addresses
