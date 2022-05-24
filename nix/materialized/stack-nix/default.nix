@@ -12,7 +12,9 @@
         "blockfrost-client-core" = (((hackage.blockfrost-client-core)."0.2.0.0").revisions).default;
         "quickcheck-quid" = (((hackage.quickcheck-quid)."0.0.1").revisions).default;
         "servant-multipart-client" = (((hackage.servant-multipart-client)."0.12.1").revisions).default;
-        "aeson" = (((hackage.aeson)."2.0.1.0").revisions).default;
+        "protolude" = (((hackage.protolude)."0.3.0").revisions).default;
+        "ekg-core" = (((hackage.ekg-core)."0.1.1.7").revisions).default;
+        "validation-selective" = (((hackage.validation-selective)."0.1.0.1").revisions).default;
         "cryptonite" = (((hackage.cryptonite)."0.27").revisions).default;
         "Cabal" = (((hackage.Cabal)."3.4.0.0").revisions).default;
         "containers" = (((hackage.containers)."0.6.4.1").revisions).default;
@@ -167,7 +169,7 @@
       compiler.version = "8.10.7";
       compiler.nix-name = "ghc8107";
       };
-  resolver = "lts-18.21";
+  resolver = "lts-19.7";
   modules = [
     ({ lib, ... }:
       {
