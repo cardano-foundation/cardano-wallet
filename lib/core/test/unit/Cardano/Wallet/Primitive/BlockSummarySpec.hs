@@ -1,5 +1,6 @@
 {-# LANGUAGE FlexibleInstances #-}
 {-# OPTIONS_GHC -fno-warn-orphans #-}
+{-# LANGUAGE TupleSections #-}
 {- HLINT ignore "Use camelCase" -}
 module Cardano.Wallet.Primitive.BlockSummarySpec
     ( spec
@@ -104,7 +105,7 @@ prop_idempotentChainEvents cs = cs <> cs === cs
     Generators
 -------------------------------------------------------------------------------}
 genSublist :: [a] -> Gen (Sublist a)
-genSublist xs = unsafeMkSublist <$> sublistOf (zip [0..] xs)
+genSublist xs = unsafeMkSublist <$> sublistOf (zip (map (,0) [0..]) xs)
 
 instance Arbitrary Slot where
     arbitrary = genSlot
