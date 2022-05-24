@@ -74,6 +74,7 @@ extra-deps:
 - blockfrost-client-core-0.2.0.0
 - quickcheck-quid-0.0.1
 - servant-multipart-client-0.12.1
+- protolude-0.3.0
 
 # cardano-addresses-3.9.0
 - git: https://github.com/input-output-hk/cardano-addresses
