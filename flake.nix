@@ -33,8 +33,8 @@
   ############################################################################
 
   inputs = {
-    nixpkgs.follows = "haskellNix/nixpkgs-2111";
-    hostNixpkgs.follows = "nixpkgs-unstable";
+    nixpkgs.follows = "haskellNix/nixpkgs-unstable";
+    hostNixpkgs.follows = "nixpkgs";
     haskellNix = {
       url = "github:input-output-hk/haskell.nix";
       inputs.nixpkgs.follows = "nixpkgs";
@@ -57,7 +57,7 @@
     };
   };
 
-  outputs = { self, nixpkgs, hostNixpkgs, nixpkgs-unstable, flake-utils, haskellNix, iohkNix, customConfig, emanote, ... }:
+  outputs = { self, nixpkgs, hostNixpkgs, flake-utils, haskellNix, iohkNix, customConfig, emanote, ... }:
     let
       inherit (nixpkgs) lib;
       config = import ./nix/config.nix lib customConfig;
