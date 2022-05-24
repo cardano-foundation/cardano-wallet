@@ -43,12 +43,13 @@ import Prelude
 
 import Cardano.Api
     ( AnyCardanoEra (..)
-    , CardanoEra (AllegraEra, AlonzoEra, ByronEra, MaryEra, ShelleyEra)
+    , AnyPlutusScriptVersion (AnyPlutusScriptVersion)
     , CardanoEraStyle (LegacyByronEra, ShelleyBasedEra)
     , ExecutionUnitPrices (priceExecutionMemory, priceExecutionSteps)
     , ExecutionUnits (executionMemory, executionSteps)
     , NetworkId (..)
     , NetworkMagic (..)
+    , PlutusScriptVersion (PlutusScriptV1)
     , TxMetadata (TxMetadata)
     , TxMetadataValue (..)
     , cardanoEraStyle
@@ -198,22 +199,8 @@ import GHC.OldList
     ( sortOn )
 import Money
     ( Discrete' )
-import Ouroboros.Consensus.Block.Abstract
-    ( EpochSize (..) )
-import Ouroboros.Consensus.BlockchainTime.WallClock.Types
-    ( RelativeTime (..), mkSlotLength )
 import Ouroboros.Consensus.Cardano.Block
     ( CardanoBlock, StandardCrypto )
-import Ouroboros.Consensus.HardFork.History.EraParams
-    ( EraParams (EraParams, eraEpochSize, eraSafeZone, eraSlotLength)
-    , SafeZone (..)
-    )
-import Ouroboros.Consensus.HardFork.History.Summary
-    ( Bound (Bound, boundEpoch, boundSlot, boundTime)
-    , EraEnd (EraEnd, EraUnbounded)
-    , EraSummary (EraSummary, eraEnd, eraParams, eraStart)
-    , Summary (..)
-    )
 import Servant.Client
     ( runClientM )
 import Text.Read
@@ -228,16 +215,17 @@ import UnliftIO.Exception
 import qualified Blockfrost.Client as BF
 import qualified Cardano.Api.Shelley as Node
 import qualified Cardano.Wallet.Network.Light as LN
+import qualified Cardano.Wallet.Shelley.Network.Blockfrost.Fixture as Fixture
 import qualified Data.Aeson as Aeson
+import Data.Function
+    ( (&) )
 import qualified Data.HashMap.Strict as HashMap
 import qualified Data.Map.Strict as Map
 import qualified Data.Sequence as Seq
 import qualified Data.Set as Set
 import qualified Data.Text as T
 import qualified Data.Vector as V
-import qualified Ouroboros.Consensus.Cardano.Block as OC
 import qualified Ouroboros.Consensus.HardFork.History.Qry as HF
-import qualified Ouroboros.Consensus.Util.Counting as OCC
 
 {-------------------------------------------------------------------------------
     NetworkLayer
@@ -335,7 +323,8 @@ withNetworkLayer tr network np project k = do
 
     currentProtocolParameters :: BF.ClientConfig -> IO ProtocolParameters
     currentProtocolParameters bfConfig =
-        runBFM bfConfig $ fromBlockfrostM =<< BF.getLatestEpochProtocolParams
+        runBFM bfConfig $ liftEither . fromBlockfrostPP networkId
+            =<< BF.getLatestEpochProtocolParams
 
     currentNodeEra :: BF.ClientConfig -> IO AnyCardanoEra
     currentNodeEra bfConfig = runBFM bfConfig do
@@ -347,7 +336,7 @@ withNetworkLayer tr network np project k = do
         StartTime -> TimeInterpreter (ExceptT PastHorizonException IO)
     timeInterpreterFromStartTime startTime =
         mkTimeInterpreter (MsgTimeInterpreterLog >$< tr) startTime $
-            pure $ HF.mkInterpreter $ networkSummary networkId
+            pure $ HF.mkInterpreter $ Fixture.networkSummary networkId
 
     fetchNetworkRewardAccountBalances
         :: SomeNetworkDiscriminant
@@ -601,10 +590,9 @@ fetchTxHashes blockHash = fmap concat . traverse fetchPage . pages
       where
         countPerPage :: Int = 100
         pageNumbers = [1 .. lastPage]
-        lastPage :: Int =
-            fromIntegral $
-                let (numWholePages, numLast) = quotRem count (intCast countPerPage)
-                 in if numLast == 0 then numWholePages else succ numWholePages
+        lastPage :: Int = fromIntegral $
+            let (numWholePages, numLast) = quotRem count (intCast countPerPage)
+                in if numLast == 0 then numWholePages else succ numWholePages
 
 fetchDelegation
     :: forall m
@@ -786,155 +774,155 @@ instance FromBlockfrost BF.Block BlockHeader where
                 Right hash -> pure hash
                 Left tde -> throwError $ InvalidBlockHash blockHash tde
 
-instance FromBlockfrost BF.ProtocolParams ProtocolParameters where
-    fromBlockfrost BF.ProtocolParams{..} = do
-        decentralizationLevel <-
-            let percentage =
-                    mkPercentage $
-                        toRational _protocolParamsDecentralisationParam
-             in case percentage of
-                    Left PercentageOutOfBoundsError ->
-                        throwError $
-                            InvalidDecentralizationLevelPercentage
-                                _protocolParamsDecentralisationParam
-                    Right level -> pure $ DecentralizationLevel level
-        minFeeA <-
-            _protocolParamsMinFeeA <?#> "MinFeeA"
-        minFeeB <-
-            _protocolParamsMinFeeB <?#> "MinFeeB"
-        maxTxSize <-
-            _protocolParamsMaxTxSize <?#> "MaxTxSize"
-        maxValSize <-
-            BF.unQuantity _protocolParamsMaxValSize <?#> "MaxValSize"
-        maxTxExSteps <-
-            BF.unQuantity _protocolParamsMaxTxExSteps <?#> "MaxTxExSteps"
-        maxBlockExSteps <-
-            BF.unQuantity _protocolParamsMaxBlockExSteps <?#> "MaxBlockExSteps"
-        maxBlockExMem <-
-            BF.unQuantity _protocolParamsMaxBlockExMem <?#> "MaxBlockExMem"
-        maxTxExMem <-
-            BF.unQuantity _protocolParamsMaxTxExMem <?#> "MaxTxExMem"
-        desiredNumberOfStakePools <-
-            _protocolParamsNOpt <?#> "NOpt"
-        minimumUTxOvalue <-
-            MinimumUTxOValueCostPerWord . Coin
-                <$> intCast @_ @Integer _protocolParamsCoinsPerUtxoWord
-                <?#> "CoinsPerUtxoWord"
-        stakeKeyDeposit <-
-            Coin
-                <$> intCast @_ @Integer _protocolParamsKeyDeposit <?#> "KeyDeposit"
-        maxCollateralInputs <-
-            _protocolParamsMaxCollateralInputs <?#> "MaxCollateralInputs"
-        collateralPercent <-
-            _protocolParamsCollateralPercent <?#> "CollateralPercent"
-        protoMajorVer <-
-            _protocolParamsProtocolMajorVer <?#> "ProtocolMajorVer"
-        protoMinorVer <-
-            _protocolParamsProtocolMinorVer <?#> "ProtocolMinorVer"
-        maxBlockHeaderSize <-
-            _protocolParamsMaxBlockHeaderSize <?#> "MaxBlockHeaderSize"
-        maxBlockBodySize <-
-            _protocolParamsMaxBlockSize <?#> "MaxBlockBodySize"
-        eMax <-
-            _protocolParamsEMax <?#> "EMax"
-        nOpt <-
-            _protocolParamsNOpt <?#> "NOpt"
+fromBlockfrostPP
+    :: NetworkId
+    -> BF.ProtocolParams
+    -> Either BlockfrostError ProtocolParameters
+fromBlockfrostPP network BF.ProtocolParams{..} = do
+    decentralizationLevel <-
+        let percentage =
+                mkPercentage $
+                    toRational _protocolParamsDecentralisationParam
+            in case percentage of
+                Left PercentageOutOfBoundsError ->
+                    throwError $
+                        InvalidDecentralizationLevelPercentage
+                            _protocolParamsDecentralisationParam
+                Right level -> pure $ DecentralizationLevel level
+    minFeeA <-
+        _protocolParamsMinFeeA <?#> "MinFeeA"
+    minFeeB <-
+        _protocolParamsMinFeeB <?#> "MinFeeB"
+    maxTxSize <-
+        _protocolParamsMaxTxSize <?#> "MaxTxSize"
+    maxValSize <-
+        BF.unQuantity _protocolParamsMaxValSize <?#> "MaxValSize"
+    maxTxExSteps <-
+        BF.unQuantity _protocolParamsMaxTxExSteps <?#> "MaxTxExSteps"
+    maxBlockExSteps <-
+        BF.unQuantity _protocolParamsMaxBlockExSteps <?#> "MaxBlockExSteps"
+    maxBlockExMem <-
+        BF.unQuantity _protocolParamsMaxBlockExMem <?#> "MaxBlockExMem"
+    maxTxExMem <-
+        BF.unQuantity _protocolParamsMaxTxExMem <?#> "MaxTxExMem"
+    desiredNumberOfStakePools <-
+        _protocolParamsNOpt <?#> "NOpt"
+    minimumUTxOvalue <-
+        MinimumUTxOValueCostPerWord . Coin
+            <$> intCast @_ @Integer _protocolParamsCoinsPerUtxoWord
+            <?#> "CoinsPerUtxoWord"
+    stakeKeyDeposit <-
+        Coin
+            <$> intCast @_ @Integer _protocolParamsKeyDeposit <?#> "KeyDeposit"
+    maxCollateralInputs <-
+        _protocolParamsMaxCollateralInputs <?#> "MaxCollateralInputs"
+    collateralPercent <-
+        _protocolParamsCollateralPercent <?#> "CollateralPercent"
+    protoMajorVer <-
+        _protocolParamsProtocolMajorVer <?#> "ProtocolMajorVer"
+    protoMinorVer <-
+        _protocolParamsProtocolMinorVer <?#> "ProtocolMinorVer"
+    maxBlockHeaderSize <-
+        _protocolParamsMaxBlockHeaderSize <?#> "MaxBlockHeaderSize"
+    maxBlockBodySize <-
+        _protocolParamsMaxBlockSize <?#> "MaxBlockBodySize"
+    eMax <-
+        _protocolParamsEMax <?#> "EMax"
+    nOpt <-
+        _protocolParamsNOpt <?#> "NOpt"
 
-        pure
-            ProtocolParameters
-                { eras = emptyEraInfo
-                , txParameters =
-                    TxParameters
-                        { getFeePolicy =
-                            LinearFee $
-                                LinearFunction
-                                    { intercept = fromIntegral minFeeB
-                                    , slope = fromIntegral minFeeA
-                                    }
-                        , getTxMaxSize =
-                            Quantity maxTxSize
-                        , getTokenBundleMaxSize =
-                            TokenBundleMaxSize $ TxSize maxValSize
-                        , getMaxExecutionUnits =
-                            ExecutionUnits
+    pure ProtocolParameters
+        { eras = emptyEraInfo
+        , txParameters =
+            TxParameters
+                { getFeePolicy =
+                    LinearFee $
+                        LinearFunction
+                            { intercept = fromIntegral minFeeB
+                            , slope = fromIntegral minFeeA
+                            }
+                , getTxMaxSize =
+                    Quantity maxTxSize
+                , getTokenBundleMaxSize =
+                    TokenBundleMaxSize $ TxSize maxValSize
+                , getMaxExecutionUnits =
+                    ExecutionUnits
+                        { executionSteps = maxTxExSteps
+                        , executionMemory = maxTxExMem
+                        }
+                }
+        , executionUnitPrices =
+            Just $
+                ExecutionUnitPrices
+                    { pricePerStep = toRational _protocolParamsPriceStep
+                    , pricePerMemoryUnit = toRational _protocolParamsPriceMem
+                    }
+        , maximumCollateralInputCount = maxCollateralInputs
+        , minimumCollateralPercentage = collateralPercent
+        , currentNodeProtocolParameters =
+            Just
+                Node.ProtocolParameters
+                    { protocolParamProtocolVersion =
+                        (protoMajorVer, protoMinorVer)
+                    , protocolParamDecentralization =
+                        toRational _protocolParamsDecentralisationParam
+                    , protocolParamExtraPraosEntropy = Nothing
+                    , protocolParamMaxBlockHeaderSize = maxBlockHeaderSize
+                    , protocolParamMaxBlockBodySize = maxBlockBodySize
+                    , protocolParamMaxTxSize = intCast maxTxSize
+                    , protocolParamTxFeeFixed = minFeeB
+                    , protocolParamTxFeePerByte = minFeeA
+                    , protocolParamMinUTxOValue =
+                        Just $ Node.Lovelace $ intCast _protocolParamsMinUtxo
+                    , protocolParamStakeAddressDeposit =
+                        Node.Lovelace $
+                            intCast @_ @Integer _protocolParamsKeyDeposit
+                    , protocolParamStakePoolDeposit =
+                        Node.Lovelace $
+                            intCast @_ @Integer _protocolParamsPoolDeposit
+                    , protocolParamMinPoolCost =
+                        Node.Lovelace $
+                            intCast @_ @Integer _protocolParamsMinPoolCost
+                    , protocolParamPoolRetireMaxEpoch = Node.EpochNo eMax
+                    , protocolParamStakePoolTargetNum = nOpt
+                    , protocolParamPoolPledgeInfluence =
+                        toRational _protocolParamsA0
+                    , protocolParamMonetaryExpansion = toRational _protocolParamsRho
+                    , protocolParamTreasuryCut = toRational _protocolParamsTau
+                    , protocolParamUTxOCostPerWord =
+                        Just $
+                            Node.Lovelace $
+                                intCast _protocolParamsCoinsPerUtxoWord
+                    , protocolParamCostModels =
+                        Map.singleton
+                            (AnyPlutusScriptVersion PlutusScriptV1)
+                            (Fixture.costModels network)
+                    , protocolParamPrices =
+                        Just $
+                            Node.ExecutionUnitPrices
+                                { priceExecutionSteps =
+                                    toRational _protocolParamsPriceStep
+                                , priceExecutionMemory =
+                                    toRational _protocolParamsPriceMem
+                                }
+                    , protocolParamMaxTxExUnits =
+                        Just $
+                            Node.ExecutionUnits
                                 { executionSteps = maxTxExSteps
                                 , executionMemory = maxTxExMem
                                 }
-                        }
-                , executionUnitPrices =
-                    Just $
-                        ExecutionUnitPrices
-                            { pricePerStep = toRational _protocolParamsPriceStep
-                            , pricePerMemoryUnit = toRational _protocolParamsPriceMem
-                            }
-                , maximumCollateralInputCount = maxCollateralInputs
-                , minimumCollateralPercentage = collateralPercent
-                , currentNodeProtocolParameters =
-                    Just
-                        Node.ProtocolParameters
-                            { protocolParamProtocolVersion =
-                                (protoMajorVer, protoMinorVer)
-                            , protocolParamDecentralization =
-                                toRational _protocolParamsDecentralisationParam
-                            , protocolParamExtraPraosEntropy = Nothing
-                            , protocolParamMaxBlockHeaderSize = maxBlockHeaderSize
-                            , protocolParamMaxBlockBodySize = maxBlockBodySize
-                            , protocolParamMaxTxSize = intCast maxTxSize
-                            , protocolParamTxFeeFixed = minFeeB
-                            , protocolParamTxFeePerByte = minFeeA
-                            , protocolParamMinUTxOValue =
-                                Just $ Node.Lovelace $ intCast _protocolParamsMinUtxo
-                            , protocolParamStakeAddressDeposit =
-                                Node.Lovelace $
-                                    intCast @_ @Integer _protocolParamsKeyDeposit
-                            , protocolParamStakePoolDeposit =
-                                Node.Lovelace $
-                                    intCast @_ @Integer _protocolParamsPoolDeposit
-                            , protocolParamMinPoolCost =
-                                Node.Lovelace $
-                                    intCast @_ @Integer _protocolParamsMinPoolCost
-                            , protocolParamPoolRetireMaxEpoch = Node.EpochNo eMax
-                            , protocolParamStakePoolTargetNum = nOpt
-                            , protocolParamPoolPledgeInfluence =
-                                toRational _protocolParamsA0
-                            , protocolParamMonetaryExpansion = toRational _protocolParamsRho
-                            , protocolParamTreasuryCut = toRational _protocolParamsTau
-                            , protocolParamUTxOCostPerWord =
-                                Just $
-                                    Node.Lovelace $
-                                        intCast _protocolParamsCoinsPerUtxoWord
-                            , protocolParamCostModels =
-                                mempty
-                            , -- Cost models aren't available via BF
-                              -- TODO: Hardcode or retrieve from elswhere.
-                              -- https://input-output.atlassian.net/browse/ADP-1572
-                              protocolParamPrices =
-                                Just $
-                                    Node.ExecutionUnitPrices
-                                        { priceExecutionSteps =
-                                            toRational _protocolParamsPriceStep
-                                        , priceExecutionMemory =
-                                            toRational _protocolParamsPriceMem
-                                        }
-                            , protocolParamMaxTxExUnits =
-                                Just $
-                                    Node.ExecutionUnits
-                                        { executionSteps = maxTxExSteps
-                                        , executionMemory = maxTxExMem
-                                        }
-                            , protocolParamMaxBlockExUnits =
-                                Just $
-                                    Node.ExecutionUnits
-                                        { executionSteps = maxBlockExSteps
-                                        , executionMemory = maxBlockExMem
-                                        }
-                            , protocolParamMaxValueSize = Just maxValSize
-                            , protocolParamCollateralPercent = Just collateralPercent
-                            , protocolParamMaxCollateralInputs =
-                                Just $ intCast maxCollateralInputs
-                            }
-                , ..
-                }
+                    , protocolParamMaxBlockExUnits =
+                        Just $
+                            Node.ExecutionUnits
+                                { executionSteps = maxBlockExSteps
+                                , executionMemory = maxBlockExMem
+                                }
+                    , protocolParamMaxValueSize = Just maxValSize
+                    , protocolParamCollateralPercent = Just collateralPercent
+                    , protocolParamMaxCollateralInputs =
+                        Just $ intCast maxCollateralInputs
+                    }
+        , .. }
 
 instance FromBlockfrost BF.TxHash (Hash "Tx") where
     fromBlockfrost txHash = first (InvalidTxHash hash) $ fromText hash
@@ -957,289 +945,12 @@ instance FromBlockfrost (Discrete' "ADA" '(1000000, 1)) Coin where
     fromBlockfrost lovelaces =
         Coin <$> (intCast @_ @Integer lovelaces <?#> "Lovelaces")
 
-networkSummary :: NetworkId -> Summary (OC.CardanoEras OC.StandardCrypto)
-networkSummary = \case
-    Mainnet ->
-        Summary
-        { getSummary =
-            -- Byron
-            OCC.NonEmptyCons
-                EraSummary
-                { eraStart =
-                    Bound
-                    { boundTime = RelativeTime 0
-                    , boundSlot = 0
-                    , boundEpoch = 0
-                    }
-                , eraEnd =
-                    EraEnd Bound
-                    { boundTime = RelativeTime 89856000
-                    , boundSlot = 4492800
-                    , boundEpoch = Node.EpochNo 208
-                    }
-                , eraParams =
-                    EraParams
-                    { eraEpochSize = EpochSize 21600
-                    , eraSlotLength = mkSlotLength 20
-                    , eraSafeZone = StandardSafeZone 4320
-                    }
-                }
-                -- Shelley
-                $ OCC.NonEmptyCons
-                    EraSummary
-                    { eraStart =
-                        Bound
-                        { boundTime = RelativeTime 89856000
-                        , boundSlot = 4492800
-                        , boundEpoch = Node.EpochNo 208
-                        }
-                    , eraEnd =
-                        EraEnd Bound
-                        { boundTime = RelativeTime 101952000
-                        , boundSlot = 16588800
-                        , boundEpoch = Node.EpochNo 236
-                        }
-                    , eraParams =
-                        EraParams
-                        { eraEpochSize = EpochSize 432000
-                        , eraSlotLength = mkSlotLength 1
-                        , eraSafeZone = StandardSafeZone 129600
-                        }
-                    }
-                    -- Allegra
-                    $ OCC.NonEmptyCons
-                        EraSummary
-                        { eraStart =
-                            Bound
-                            { boundTime = RelativeTime 101952000
-                            , boundSlot = 16588800
-                            , boundEpoch = Node.EpochNo 236
-                            }
-                        , eraEnd =
-                            EraEnd Bound
-                            { boundTime = RelativeTime 108432000
-                            , boundSlot = 23068800
-                            , boundEpoch = Node.EpochNo 251
-                            }
-                        , eraParams =
-                            EraParams
-                            { eraEpochSize = EpochSize 432000
-                            , eraSlotLength = mkSlotLength 1
-                            , eraSafeZone = StandardSafeZone 129600
-                            }
-                        }
-                        -- Mary
-                        $ OCC.NonEmptyCons
-                            EraSummary
-                            { eraStart =
-                                Bound
-                                { boundTime = RelativeTime 108432000
-                                , boundSlot = 23068800
-                                , boundEpoch = Node.EpochNo 251
-                                }
-                            , eraEnd =
-                                EraEnd Bound
-                                { boundTime = RelativeTime 125280000
-                                , boundSlot = 39916800
-                                , boundEpoch = Node.EpochNo 290
-                                }
-                            , eraParams =
-                                EraParams
-                                { eraEpochSize = EpochSize 432000
-                                , eraSlotLength = mkSlotLength 1
-                                , eraSafeZone = StandardSafeZone 129600
-                                }
-                            }
-                            -- Alonzo
-                            $ OCC.NonEmptyOne
-                                EraSummary
-                                { eraStart =
-                                    Bound
-                                    { boundTime = RelativeTime 125280000
-                                    , boundSlot = 39916800
-                                    , boundEpoch = Node.EpochNo 290
-                                    }
-                                , eraEnd = EraUnbounded
-                                , eraParams =
-                                    EraParams
-                                    { eraEpochSize = EpochSize 432000
-                                    , eraSlotLength = mkSlotLength 1
-                                    , eraSafeZone = StandardSafeZone 129600
-                                    }
-                                }
-        }
-    Testnet (NetworkMagic 1097911063) ->
-        -- Magic of the current public testnet
-        Summary
-        { getSummary =
-            OCC.NonEmptyCons
-                EraSummary
-                { eraStart =
-                    Bound
-                    { boundTime = RelativeTime 0
-                    , boundSlot = SlotNo 0
-                    , boundEpoch = Node.EpochNo 0
-                    }
-                , eraEnd =
-                    EraEnd Bound
-                    { boundTime = RelativeTime 31968000
-                    , boundSlot = SlotNo 1598400
-                    , boundEpoch = Node.EpochNo 74
-                    }
-                , eraParams =
-                    EraParams
-                    { eraEpochSize = EpochSize 21600
-                    , eraSlotLength = mkSlotLength 20
-                    , eraSafeZone = StandardSafeZone 4320
-                    }
-                }
-                $ OCC.NonEmptyCons
-                    EraSummary
-                    { eraStart =
-                        Bound
-                        { boundTime = RelativeTime 31968000
-                        , boundSlot = SlotNo 1598400
-                        , boundEpoch = Node.EpochNo 74
-                        }
-                    , eraEnd =
-                        EraEnd Bound
-                        { boundTime = RelativeTime 44064000
-                        , boundSlot = SlotNo 13694400
-                        , boundEpoch = Node.EpochNo 102
-                        }
-                    , eraParams =
-                        EraParams
-                        { eraEpochSize = EpochSize 432000
-                        , eraSlotLength = mkSlotLength 1
-                        , eraSafeZone = StandardSafeZone 129600
-                        }
-                    }
-                    $ OCC.NonEmptyCons
-                        EraSummary
-                        { eraStart =
-                            Bound
-                            { boundTime = RelativeTime 44064000
-                            , boundSlot = SlotNo 13694400
-                            , boundEpoch = Node.EpochNo 102
-                            }
-                        , eraEnd =
-                            EraEnd Bound
-                            { boundTime = RelativeTime 48384000
-                            , boundSlot = SlotNo 18014400
-                            , boundEpoch = Node.EpochNo 112
-                            }
-                        , eraParams =
-                            EraParams
-                            { eraEpochSize = EpochSize 432000
-                            , eraSlotLength = mkSlotLength 1
-                            , eraSafeZone = StandardSafeZone 129600
-                            }
-                        }
-                        $ OCC.NonEmptyCons
-                            EraSummary
-                            { eraStart =
-                                Bound
-                                { boundTime = RelativeTime 48384000
-                                , boundSlot = SlotNo 18014400
-                                , boundEpoch = Node.EpochNo 112
-                                }
-                            , eraEnd =
-                                EraEnd Bound
-                                    { boundTime = RelativeTime 66528000
-                                    , boundSlot = SlotNo 36158400
-                                    , boundEpoch = Node.EpochNo 154
-                                    }
-                            , eraParams =
-                                EraParams
-                                { eraEpochSize = EpochSize 432000
-                                , eraSlotLength = mkSlotLength 1
-                                , eraSafeZone = StandardSafeZone 129600
-                                }
-                            }
-                            $ OCC.NonEmptyOne
-                                EraSummary
-                                { eraStart =
-                                    Bound
-                                    { boundTime = RelativeTime 66528000
-                                    , boundSlot = SlotNo 36158400
-                                    , boundEpoch = Node.EpochNo 154
-                                    }
-                                , eraEnd = EraUnbounded
-                                , eraParams =
-                                    EraParams
-                                    { eraEpochSize = EpochSize 432000
-                                    , eraSlotLength = mkSlotLength 1
-                                    , eraSafeZone = StandardSafeZone 129600
-                                    }
-                                }
-            }
-    Testnet magic ->
-        error $
-            "Epoch/Era conversion isn't provided for the Testnet "
-                <> show magic
-
-{- Epoch-to-Era translation is not available in the Blockfrost API.
-
-The following histories are hardcoded in order to work around this limitation:
-
-For the Mainnet:      For the Testnet:
-┌───────┬─────────┐   ┌───────┬─────────┐
-│ Epoch │   Era   │   │ Epoch │   Era   │
-├───────┼─────────┤   ├───────┼─────────┤
-│  ...  │ Alonzo  │   │  ...  │ Alonzo  │
-│  290  │ Alonzo  │   │  154  │ Alonzo  │
-├───────┼─────────┤   ├───────┼─────────┤
-│  289  │  Mary   │   │  153  │  Mary   │
-│  ...  │  Mary   │   │  ...  │  Mary   │
-│  251  │  Mary   │   │  112  │  Mary   │
-├───────┼─────────┤   ├───────┼─────────┤
-│  250  │ Allegra │   │  111  │ Allegra │
-│  ...  │ Allegra │   │  ...  │ Allegra │
-│  236  │ Allegra │   │  102  │ Allegra │
-├───────┼─────────┤   ├───────┼─────────┤
-│  235  │ Shelley │   │  101  │ Shelley │
-│  ...  │ Shelley │   │  ...  │ Shelley │
-│  208  │ Shelley │   │   74  │ Shelley │
-├───────┼─────────┤   ├───────┼─────────┤
-│  207  │  Byron  │   │   73  │  Byron  │
-│  ...  │  Byron  │   │  ...  │  Byron  │
-│    0  │  Byron  │   │    0  │  Byron  │
-└───────┴─────────┘   └───────┴─────────┘
-
--}
 eraByEpoch :: NetworkId -> EpochNo -> Either BlockfrostError AnyCardanoEra
 eraByEpoch networkId epoch =
-    case dropWhile ((> epoch) . snd) (reverse eraBoundaries) of
-        (era, _) : _ -> Right era
-        _ -> Left $ UnknownEraForEpoch epoch
-  where
-    eraBoundaries :: [(Node.AnyCardanoEra, EpochNo)]
-    eraBoundaries =
-        [minBound .. maxBound] <&> \era -> (era, epochEraStartsAt era)
-      where
-        -- When new era is added this function reminds to update itself:
-        -- "Pattern match(es) are non-exhaustive"
-        epochEraStartsAt :: Node.AnyCardanoEra -> EpochNo
-        epochEraStartsAt era = EpochNo $ case networkId of
-            Mainnet ->
-                case era of
-                    AnyCardanoEra AlonzoEra -> 290
-                    AnyCardanoEra MaryEra -> 251
-                    AnyCardanoEra AllegraEra -> 236
-                    AnyCardanoEra ShelleyEra -> 208
-                    AnyCardanoEra ByronEra -> 0
-            Testnet (NetworkMagic 1097911063) ->
-                case era of
-                    AnyCardanoEra AlonzoEra -> 154
-                    AnyCardanoEra MaryEra -> 112
-                    AnyCardanoEra AllegraEra -> 102
-                    AnyCardanoEra ShelleyEra -> 74
-                    AnyCardanoEra ByronEra -> 0
-            Testnet magic ->
-                error $
-                    "Epoch/Era conversion isn't provided for the Testnet "
-                        <> show magic
-                        <> " in light mode."
+    dropWhile ((> epoch) . snd) (reverse (Fixture.eraBoundaries networkId)) &
+        \case
+            (era, _) : _ -> Right era
+            _ -> Left $ UnknownEraForEpoch epoch
 
 -- | Raises an error in case of an absent value
 (<?>) :: MonadError e m => Maybe a -> e -> m a
