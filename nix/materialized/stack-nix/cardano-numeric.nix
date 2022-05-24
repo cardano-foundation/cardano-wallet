@@ -59,6 +59,4 @@
           };
         };
       };
-    } // rec {
-    src = (pkgs.lib).mkDefault ./lib/numeric;
-    }
+    } // rec { src = (pkgs.lib).mkDefault ./lib/numeric; }
