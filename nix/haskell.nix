@@ -59,15 +59,6 @@ haskell-nix: haskell-nix.stackProject' [
 
       noCacheTestFailuresCookie = lib.optionalString (!config.cacheTestFailures) noCacheCookie;
 
-      # Make sure that the libsodium DLL is available beside the EXEs of
-      # the windows build.
-      libSodiumPostInstall = lib.optionalString stdenv.hostPlatform.isWindows ''
-        ln -s ${pkgs.libsodium-vrf}/bin/libsodium-23.dll $out/bin
-        ln -s ${pkgs.buildPackages.gcc.cc}/x86_64-w64-mingw32/lib/libstdc++-6.dll $out/bin
-        ln -s ${pkgs.buildPackages.gcc.cc}/x86_64-w64-mingw32/lib/libgcc_s_seh-1.dll $out/bin
-        ln -s ${pkgs.windows.mcfgthreads}/bin/mcfgthread-12.dll $out/bin
-      '';
-
       # setGitRev is a postInstall script to stamp executables with
       # version info. It uses the "gitrev" option.
       setGitRevPostInstall = setGitRevPostInstall' config.gitrev;
@@ -263,7 +254,6 @@ haskell-nix: haskell-nix.stackProject' [
                 # provide cardano-node & cardano-cli to tests
                 unit.build-tools = cardanoNodeExes;
                 integration.build-tools = cardanoNodeExes;
-                unit.postInstall = libSodiumPostInstall;
               };
 
               # Add node backend to the PATH of the latency benchmarks, and
@@ -300,7 +290,7 @@ haskell-nix: haskell-nix.stackProject' [
                   postInstall = ''
                     mkdir -p $out/bin/test/data
                     cp -Rv ${testData} $out/bin/test/data
-                  '' + libSodiumPostInstall;
+                  '';
                 } else {
                   build-tools = [ pkgs.buildPackages.makeWrapper ];
                   postInstall = ''
@@ -310,13 +300,8 @@ haskell-nix: haskell-nix.stackProject' [
                   '';
                 };
 
-              # Make sure that libsodium DLLs for all windows executables,
-              # and add shell completions for main executables.
-              packages.cardano-wallet.components.exes.cardano-wallet.postInstall = optparseCompletionPostInstall + libSodiumPostInstall + setGitRevPostInstall + rewriteLibsPostInstall + stripBinariesPostInstall;
-              packages.cardano-wallet-core.components.tests.unit.postInstall = libSodiumPostInstall;
-              packages.cardano-wallet-cli.components.tests.unit.postInstall = libSodiumPostInstall;
-              packages.cardano-wallet-launcher.components.tests.unit.postInstall = libSodiumPostInstall;
-              packages.cardano-wallet-test-utils.components.tests.unit.postInstall = libSodiumPostInstall;
+              # Add shell completions for main executables.
+              packages.cardano-wallet.components.exes.cardano-wallet.postInstall = optparseCompletionPostInstall + setGitRevPostInstall + rewriteLibsPostInstall + stripBinariesPostInstall;
             })
 
           ({ config, ... }:
@@ -325,8 +310,8 @@ haskell-nix: haskell-nix.stackProject' [
             in
             {
               # Add shell completions for tools.
-              packages.cardano-cli.components.exes.cardano-cli.postInstall = optparseCompletionPostInstall + libSodiumPostInstall + setGitRevPostInstall;
-              packages.cardano-node.components.exes.cardano-node.postInstall = optparseCompletionPostInstall + libSodiumPostInstall + setGitRevPostInstall;
+              packages.cardano-cli.components.exes.cardano-cli.postInstall = optparseCompletionPostInstall + setGitRevPostInstall;
+              packages.cardano-node.components.exes.cardano-node.postInstall = optparseCompletionPostInstall + setGitRevPostInstall;
               packages.cardano-addresses-cli.components.exes.cardano-address.postInstall = optparseCompletionPostInstall;
               packages.bech32.components.exes.bech32.postInstall = optparseCompletionPostInstall;
             })
