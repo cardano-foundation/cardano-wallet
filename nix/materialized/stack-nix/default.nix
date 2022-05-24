@@ -12,6 +12,7 @@
         "blockfrost-client-core" = (((hackage.blockfrost-client-core)."0.2.0.0").revisions).default;
         "quickcheck-quid" = (((hackage.quickcheck-quid)."0.0.1").revisions).default;
         "servant-multipart-client" = (((hackage.servant-multipart-client)."0.12.1").revisions).default;
+        "aeson" = (((hackage.aeson)."2.0.1.0").revisions).default;
         "cryptonite" = (((hackage.cryptonite)."0.27").revisions).default;
         "Cabal" = (((hackage.Cabal)."3.4.0.0").revisions).default;
         "containers" = (((hackage.containers)."0.6.4.1").revisions).default;
