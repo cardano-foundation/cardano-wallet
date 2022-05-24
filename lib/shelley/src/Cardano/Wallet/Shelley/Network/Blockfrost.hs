@@ -961,117 +961,113 @@ networkSummary :: NetworkId -> Summary (OC.CardanoEras OC.StandardCrypto)
 networkSummary = \case
     Mainnet ->
         Summary
-            { getSummary =
-                -- Byron
-                OCC.NonEmptyCons
+        { getSummary =
+            -- Byron
+            OCC.NonEmptyCons
+                EraSummary
+                { eraStart =
+                    Bound
+                    { boundTime = RelativeTime 0
+                    , boundSlot = 0
+                    , boundEpoch = 0
+                    }
+                , eraEnd =
+                    EraEnd Bound
+                    { boundTime = RelativeTime 89856000
+                    , boundSlot = 4492800
+                    , boundEpoch = Node.EpochNo 208
+                    }
+                , eraParams =
+                    EraParams
+                    { eraEpochSize = EpochSize 21600
+                    , eraSlotLength = mkSlotLength 20
+                    , eraSafeZone = StandardSafeZone 4320
+                    }
+                }
+                -- Shelley
+                $ OCC.NonEmptyCons
                     EraSummary
-                        { eraStart =
-                            Bound
-                                { boundTime = RelativeTime 0
-                                , boundSlot = 0
-                                , boundEpoch = 0
-                                }
-                        , eraEnd =
-                            EraEnd
-                                Bound
-                                    { boundTime = RelativeTime 89856000
-                                    , boundSlot = 4492800
-                                    , boundEpoch = Node.EpochNo 208
-                                    }
-                        , eraParams =
-                            EraParams
-                                { eraEpochSize = EpochSize 21600
-                                , eraSlotLength = mkSlotLength 20
-                                , eraSafeZone = StandardSafeZone 4320
-                                }
+                    { eraStart =
+                        Bound
+                        { boundTime = RelativeTime 89856000
+                        , boundSlot = 4492800
+                        , boundEpoch = Node.EpochNo 208
                         }
-                    -- Shelley
+                    , eraEnd =
+                        EraEnd Bound
+                        { boundTime = RelativeTime 101952000
+                        , boundSlot = 16588800
+                        , boundEpoch = Node.EpochNo 236
+                        }
+                    , eraParams =
+                        EraParams
+                        { eraEpochSize = EpochSize 432000
+                        , eraSlotLength = mkSlotLength 1
+                        , eraSafeZone = StandardSafeZone 129600
+                        }
+                    }
+                    -- Allegra
                     $ OCC.NonEmptyCons
                         EraSummary
+                        { eraStart =
+                            Bound
+                            { boundTime = RelativeTime 101952000
+                            , boundSlot = 16588800
+                            , boundEpoch = Node.EpochNo 236
+                            }
+                        , eraEnd =
+                            EraEnd Bound
+                            { boundTime = RelativeTime 108432000
+                            , boundSlot = 23068800
+                            , boundEpoch = Node.EpochNo 251
+                            }
+                        , eraParams =
+                            EraParams
+                            { eraEpochSize = EpochSize 432000
+                            , eraSlotLength = mkSlotLength 1
+                            , eraSafeZone = StandardSafeZone 129600
+                            }
+                        }
+                        -- Mary
+                        $ OCC.NonEmptyCons
+                            EraSummary
                             { eraStart =
                                 Bound
-                                    { boundTime = RelativeTime 89856000
-                                    , boundSlot = 4492800
-                                    , boundEpoch = Node.EpochNo 208
-                                    }
+                                { boundTime = RelativeTime 108432000
+                                , boundSlot = 23068800
+                                , boundEpoch = Node.EpochNo 251
+                                }
                             , eraEnd =
-                                EraEnd
-                                    Bound
-                                        { boundTime = RelativeTime 101952000
-                                        , boundSlot = 16588800
-                                        , boundEpoch = Node.EpochNo 236
-                                        }
+                                EraEnd Bound
+                                { boundTime = RelativeTime 125280000
+                                , boundSlot = 39916800
+                                , boundEpoch = Node.EpochNo 290
+                                }
                             , eraParams =
                                 EraParams
+                                { eraEpochSize = EpochSize 432000
+                                , eraSlotLength = mkSlotLength 1
+                                , eraSafeZone = StandardSafeZone 129600
+                                }
+                            }
+                            -- Alonzo
+                            $ OCC.NonEmptyOne
+                                EraSummary
+                                { eraStart =
+                                    Bound
+                                    { boundTime = RelativeTime 125280000
+                                    , boundSlot = 39916800
+                                    , boundEpoch = Node.EpochNo 290
+                                    }
+                                , eraEnd = EraUnbounded
+                                , eraParams =
+                                    EraParams
                                     { eraEpochSize = EpochSize 432000
                                     , eraSlotLength = mkSlotLength 1
                                     , eraSafeZone = StandardSafeZone 129600
                                     }
-                            }
-                        -- Allegra
-                        $ OCC.NonEmptyCons
-                            EraSummary
-                                { eraStart =
-                                    Bound
-                                        { boundTime = RelativeTime 101952000
-                                        , boundSlot = 16588800
-                                        , boundEpoch = Node.EpochNo 236
-                                        }
-                                , eraEnd =
-                                    EraEnd
-                                        Bound
-                                            { boundTime = RelativeTime 108432000
-                                            , boundSlot = 23068800
-                                            , boundEpoch = Node.EpochNo 251
-                                            }
-                                , eraParams =
-                                    EraParams
-                                        { eraEpochSize = EpochSize 432000
-                                        , eraSlotLength = mkSlotLength 1
-                                        , eraSafeZone = StandardSafeZone 129600
-                                        }
                                 }
-                            -- Mary
-                            $ OCC.NonEmptyCons
-                                EraSummary
-                                    { eraStart =
-                                        Bound
-                                            { boundTime = RelativeTime 108432000
-                                            , boundSlot = 23068800
-                                            , boundEpoch = Node.EpochNo 251
-                                            }
-                                    , eraEnd =
-                                        EraEnd
-                                            Bound
-                                                { boundTime = RelativeTime 125280000
-                                                , boundSlot = 39916800
-                                                , boundEpoch = Node.EpochNo 290
-                                                }
-                                    , eraParams =
-                                        EraParams
-                                            { eraEpochSize = EpochSize 432000
-                                            , eraSlotLength = mkSlotLength 1
-                                            , eraSafeZone = StandardSafeZone 129600
-                                            }
-                                    }
-                                -- Alonzo
-                                $ OCC.NonEmptyOne
-                                    EraSummary
-                                        { eraStart =
-                                            Bound
-                                                { boundTime = RelativeTime 125280000
-                                                , boundSlot = 39916800
-                                                , boundEpoch = Node.EpochNo 290
-                                                }
-                                        , eraEnd = EraUnbounded
-                                        , eraParams =
-                                            EraParams
-                                                { eraEpochSize = EpochSize 432000
-                                                , eraSlotLength = mkSlotLength 1
-                                                , eraSafeZone = StandardSafeZone 129600
-                                                }
-                                        }
-            }
+        }
     Testnet (NetworkMagic 1097911063) ->
         -- Magic of the current public testnet
         Summary
