@@ -76,6 +76,7 @@ extra-deps:
 - servant-multipart-client-0.12.1
 - protolude-0.3.0
 - ekg-core-0.1.1.7
+- validation-selective-0.1.0.1
 
 # cardano-addresses-3.9.0
 - git: https://github.com/input-output-hk/cardano-addresses
