@@ -111,6 +111,7 @@ haskell-nix: haskell-nix.stackProject' [
 
     in {
       name = "cardano-wallet";
+      compiler-nix-name = "ghc8107";
 
       src = haskellLib.cleanSourceWith {
         name = "cardano-wallet-src";
