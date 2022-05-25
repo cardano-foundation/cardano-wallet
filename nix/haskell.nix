@@ -350,11 +350,11 @@ haskell-nix: haskell-nix.stackProject' [
 
           ({ lib, pkgs, ... }: {
             # Use our forked libsodium from iohk-nix crypto overlay.
-            packages.plutus-tx.components.library.pkgconfig = lib.mkForce [ [ pkgs.libsodium-vrf ] ];
-            packages.byron-spec-ledger.components.library.pkgconfig = lib.mkForce [ [ pkgs.libsodium-vrf ] ];
-            packages.cardano-wallet-cli.components.library.pkgconfig = lib.mkForce [ [ pkgs.libsodium-vrf ] ];
-            packages.cardano-crypto-praos.components.library.pkgconfig = lib.mkForce [ [ pkgs.libsodium-vrf ] ];
-            packages.cardano-crypto-class.components.library.pkgconfig = lib.mkForce [ [ pkgs.libsodium-vrf ] ];
+            packages.plutus-tx.components.library.pkgconfig = lib.mkForce [ [ pkgs.libsodium-vrf pkgs.secp256k1 ] ];
+            packages.byron-spec-ledger.components.library.pkgconfig = lib.mkForce [ [ pkgs.libsodium-vrf pkgs.secp256k1 ] ];
+            packages.cardano-wallet-cli.components.library.pkgconfig = lib.mkForce [ [ pkgs.libsodium-vrf pkgs.secp256k1 ] ];
+            packages.cardano-crypto-praos.components.library.pkgconfig = lib.mkForce [ [ pkgs.libsodium-vrf pkgs.secp256k1 ] ];
+            packages.cardano-crypto-class.components.library.pkgconfig = lib.mkForce [ [ pkgs.libsodium-vrf pkgs.secp256k1 ] ];
           })
 
           # Build fixes for library dependencies
@@ -385,7 +385,7 @@ haskell-nix: haskell-nix.stackProject' [
           # Musl libc fully static build
           (lib.optionalAttrs stdenv.hostPlatform.isMusl (
             let
-              staticLibs = with pkgs; [ zlib openssl libffi gmp6 libsodium-vrf ];
+              staticLibs = with pkgs; [ zlib openssl libffi gmp6 libsodium-vrf pkgs.secp256k1 ];
 
               # Module options which add GHC flags and libraries for a fully static build
               fullyStaticOptions = {
