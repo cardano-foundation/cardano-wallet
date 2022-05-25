@@ -38,6 +38,7 @@ module Test.Integration.Framework.TestData
     , simplePayload
     , updateNamePayload
     , updatePassPayload
+    , updatePassPayloadMnemonic
     , updateEmptyPassPayload
     , txMetadata_ADP_1005
 
@@ -51,6 +52,7 @@ module Test.Integration.Framework.TestData
     , errMsg403NotEnoughMoney
     , errMsg403EmptyUTxO
     , errMsg403WrongPass
+    , errMsg403WrongMnemonic
     , errMsg403AlreadyInLedger
     , errMsg404NoSuchPool
     , errMsg403PoolAlreadyJoined
@@ -280,6 +282,12 @@ updatePassPayload oldPass newPass = Json [json| {
     "new_passphrase": #{newPass}
       } |]
 
+updatePassPayloadMnemonic :: [Text] -> Text -> Payload
+updatePassPayloadMnemonic mnemonic newPass = Json [json| {
+    "mnemonic_sentence": #{mnemonic},
+    "new_passphrase": #{newPass}
+      } |]
+
 updateEmptyPassPayload :: Text -> Payload
 updateEmptyPassPayload newPass = Json [json| {
     "new_passphrase": #{newPass}
@@ -395,6 +403,9 @@ _errMsg403InpsOrOutsExceeded (maxNumInps, maxNumOuts) =
 errMsg403WrongPass :: String
 errMsg403WrongPass = "The given encryption passphrase doesn't match the one\
     \ I use to encrypt the root private key of the given wallet"
+
+errMsg403WrongMnemonic :: String
+errMsg403WrongMnemonic = "The given mnemonic doesn't match the one this wallet was created with"
 
 errMsg400MinWithdrawalWrong :: String
 errMsg400MinWithdrawalWrong = "The minimum withdrawal value must be at least \

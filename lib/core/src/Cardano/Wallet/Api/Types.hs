@@ -1734,6 +1734,7 @@ data ApiErrorCode
     | WalletNotResponding
     | WithdrawalNotWorth
     | WrongEncryptionPassphrase
+    | WrongMnemonic
     | ValidityIntervalNotInsideScriptTimelock
     deriving (Eq, Generic, Show, Data, Typeable)
     deriving anyclass NFData
@@ -2643,15 +2644,15 @@ instance ToJSON  WalletPutPassphraseOldPassphraseData where
     toJSON = genericToJSON defaultRecordTypeOptions
 
 instance FromJSON WalletPutPassphraseData where
-    parseJSON  = 
-        fmap WalletPutPassphraseData . variants "PutPassphrase data" 
+    parseJSON  =
+        fmap WalletPutPassphraseData . variants "PutPassphrase data"
             [ variant "OldPassphrase"
                     (HM.member "old_passphrase")
-                    $ fmap Left <$> parseJSON 
+                    $ fmap Left <$> parseJSON
             , variant "Mnemonic"
                     (HM.member "mnemonic_sentence")
-                    $ fmap Right <$> parseJSON 
-            ] 
+                    $ fmap Right <$> parseJSON
+            ]
 
 instance ToJSON  WalletPutPassphraseData where
     toJSON (WalletPutPassphraseData x) = either

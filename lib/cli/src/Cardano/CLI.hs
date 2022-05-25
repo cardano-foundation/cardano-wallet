@@ -195,7 +195,7 @@ import Cardano.Wallet.Version
 import Control.Applicative
     ( optional, some, (<|>) )
 import Control.Arrow
-    ( first, left, (***) )
+    ( first, left )
 import Control.Monad
     ( forM_, forever, join, unless, void, when )
 import Control.Monad.IO.Class

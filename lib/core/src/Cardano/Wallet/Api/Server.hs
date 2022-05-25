@@ -1560,22 +1560,48 @@ putWalletPassphrase
     :: forall ctx s k.
         ( WalletKey k
         , ctx ~ ApiLayer s k
-        )
+        , GetAccount s k
+        , HardDerivation k)
     => ctx
+    -> ((SomeMnemonic, Maybe SomeMnemonic)
+            -> Passphrase "encryption"
+            -> k 'RootK XPrv
+        )
+    -> (k 'AccountK XPub -> XPub)
     -> ApiT WalletId
     -> WalletPutPassphraseData
     -> Handler NoContent
-putWalletPassphrase ctx (ApiT wid) body = do
-    let (WalletPutPassphraseData 
-            (Left 
-                (Api.WalletPutPassphraseOldPassphraseData 
-                    (ApiT old) (ApiT new)
-                )
-            )
-         ) = body
-    withWorkerCtx ctx wid liftE liftE $ \wrk -> liftHandler $
-        W.updateWalletPassphraseWithOldPassphrase wrk wid (old, new)
-    return NoContent
+putWalletPassphrase ctx createKey getKey (ApiT wid)
+    (WalletPutPassphraseData method) = withWrk $ \wrk ->
+        NoContent <$ case method of
+        Left
+            (Api.WalletPutPassphraseOldPassphraseData
+                (ApiT old)
+                (ApiT new)
+            ) -> liftHandler
+                $ W.updateWalletPassphraseWithOldPassphrase wrk wid (old, new)
+        Right
+            (Api.WalletPutPassphraseMnemonicData
+                    (ApiMnemonicT mnemonic) sndFactor (ApiT new)
+            ) -> do
+            let encrPass = preparePassphrase currentPassphraseScheme new
+                challengeKey = createKey
+                    (mnemonic, getApiMnemonicT <$> sndFactor) encrPass
+                challengPubKey = publicKey
+                    $ deriveAccountPrivateKey encrPass challengeKey minBound
+            storedPubKey <- liftHandler
+                $ W.readAccountPublicKey wrk wid
+            if getKey challengPubKey == getKey storedPubKey
+                then liftHandler
+                    $ W.updateWalletPassphraseWithMnemonic
+                        wrk wid (challengeKey, new)
+                else liftHandler
+                    $ throwE
+                    $ ErrUpdatePassphraseWithRootKey
+                    $ ErrWithRootKeyWrongMnemonic wid
+    where
+        withWrk :: (WorkerCtx (ApiLayer s k) -> Handler a) -> Handler a
+        withWrk = withWorkerCtx ctx wid liftE liftE
 
 putByronWalletPassphrase
     :: forall ctx s k.
@@ -4322,6 +4348,12 @@ instance IsServerError ErrWithRootKey where
                 , "to encrypt the root private key of the given wallet: "
                 , toText wid
                 ]
+        ErrWithRootKeyWrongMnemonic wid ->
+            apiError err403 WrongMnemonic $ mconcat
+                [ "The given mnemonic doesn't match the one this wallet was created with "
+                , ": "
+                , toText wid
+                ]
         ErrWithRootKeyWrongPassphrase wid (ErrPassphraseSchemeUnsupported s) ->
             apiError err501 WrongEncryptionPassphrase $ mconcat
                 [ "This build is not compiled with support for the "
@@ -4357,6 +4389,7 @@ instance IsServerError ErrSignPayment where
             , errReasonPhrase = errReasonPhrase err403
             }
         ErrSignPaymentWithRootKey e@ErrWithRootKeyWrongPassphrase{} -> toServerError e
+        ErrSignPaymentWithRootKey e@ErrWithRootKeyWrongMnemonic{} -> toServerError e
         ErrSignPaymentIncorrectTTL e -> toServerError e
 
 instance IsServerError ErrWitnessTx where
@@ -4371,6 +4404,7 @@ instance IsServerError ErrWitnessTx where
             , errReasonPhrase = errReasonPhrase err403
             }
         ErrWitnessTxWithRootKey e@ErrWithRootKeyWrongPassphrase{} -> toServerError e
+        ErrWitnessTxWithRootKey e@ErrWithRootKeyWrongMnemonic{} -> toServerError e
         ErrWitnessTxIncorrectTTL e -> toServerError e
 
 instance IsServerError ErrSignTx where
