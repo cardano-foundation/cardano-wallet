@@ -109,7 +109,7 @@ import Control.Monad
 import Data.Coerce
     ( coerce )
 import Data.Generics.Internal.VL.Lens
-    ( view, (^.)  )
+    ( view, (^.) )
 import Data.Generics.Labels
     ()
 import Data.Proxy

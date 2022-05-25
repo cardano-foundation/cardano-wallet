@@ -39,6 +39,7 @@ module Test.Integration.Framework.TestData
     , updateNamePayload
     , updatePassPayload
     , updatePassPayloadMnemonic
+    , updatePassPayloadMnemonicAndSndFactor
     , updateEmptyPassPayload
     , txMetadata_ADP_1005
 
@@ -283,8 +284,15 @@ updatePassPayload oldPass newPass = Json [json| {
       } |]
 
 updatePassPayloadMnemonic :: [Text] -> Text -> Payload
-updatePassPayloadMnemonic mnemonic newPass = Json [json| {
+updatePassPayloadMnemonic mnemonic  newPass = Json [json| {
     "mnemonic_sentence": #{mnemonic},
+    "new_passphrase": #{newPass}
+      } |]
+
+updatePassPayloadMnemonicAndSndFactor :: [Text] -> [Text] -> Text -> Payload
+updatePassPayloadMnemonicAndSndFactor mnemonic sndFactor newPass = Json [json| {
+    "mnemonic_sentence": #{mnemonic},
+    "mnemonic_second_factor": #{sndFactor},
     "new_passphrase": #{newPass}
       } |]
 

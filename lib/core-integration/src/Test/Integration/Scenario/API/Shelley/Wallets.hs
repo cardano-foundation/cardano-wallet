@@ -91,6 +91,7 @@ import Test.Integration.Framework.DSL
     , emptyRandomWallet
     , emptyWallet
     , emptyWalletAndMnemonic
+    , emptyWalletAndMnemonicAndSndFactor
     , emptyWalletWith
     , eventually
     , expectErrorMessage
@@ -136,6 +137,7 @@ import Test.Integration.Framework.TestData
     , updateNamePayload
     , updatePassPayload
     , updatePassPayloadMnemonic
+    , updatePassPayloadMnemonicAndSndFactor
     , wildcardsWalletName
     )
 
@@ -755,7 +757,7 @@ spec = describe "SHELLEY_WALLETS" $ do
             ru <- request @ApiWallet ctx ("PUT", endpoint) headers newName
             verify ru expectations
 
-    it "WALLETS_UPDATE_PASS_01 - passphraseLastUpdate gets updated"
+    it "WALLETS_UPDATE_PASS_01a - passphraseLastUpdate gets updated"
       $ \ctx -> runResourceT $ do
         w <- emptyWallet ctx
         let payload = updatePassPayload fixturePassphrase "New passphrase"
@@ -768,10 +770,25 @@ spec = describe "SHELLEY_WALLETS" $ do
         rg <- request @ApiWallet ctx ("GET", getEndpoint) Default Empty
         expectField #passphrase (`shouldNotBe` originalPassUpdateDateTime) rg
 
-    it "WALLETS_UPDATE_PASS_01a - passphraseLastUpdate gets updated, mnemonic"
+    it "WALLETS_UPDATE_PASS_01b - passphraseLastUpdate gets updated, mnemonic"
       $ \ctx -> runResourceT $ do
         (w,mnemonic) <- emptyWalletAndMnemonic ctx
         let payload = updatePassPayloadMnemonic mnemonic "New passphrase"
+        let endpoint = "v2/wallets" </> (w ^. walletId)
+                </> ("passphrase" :: Text)
+        rup <- request @ApiWallet ctx ("PUT", endpoint) Default payload
+        expectResponseCode HTTP.status204 rup
+        let getEndpoint = "v2/wallets" </> (w ^. walletId)
+        let originalPassUpdateDateTime = w ^. #passphrase
+        rg <- request @ApiWallet ctx ("GET", getEndpoint) Default Empty
+        expectField #passphrase (`shouldNotBe` originalPassUpdateDateTime) rg
+
+    it "WALLETS_UPDATE_PASS_01c - passphraseLastUpdate gets updated, mnemonic \
+          \using second factor"
+      $ \ctx -> runResourceT $ do
+        (w,mnemonic, sndFactor) <- emptyWalletAndMnemonicAndSndFactor ctx
+        let payload = updatePassPayloadMnemonicAndSndFactor
+              mnemonic sndFactor "New passphrase"
         let endpoint = "v2/wallets" </> (w ^. walletId)
                 </> ("passphrase" :: Text)
         rup <- request @ApiWallet ctx ("PUT", endpoint) Default payload
@@ -872,10 +889,10 @@ spec = describe "SHELLEY_WALLETS" $ do
             rup <- request @ApiWallet ctx
                 (Link.putWalletPassphrase @'Shelley w) Default payload
             expectResponseCode HTTP.status204 rup
-            let payload = updatePassPayloadMnemonic m24 newPass
-            rup <- request @ApiWallet ctx
-                (Link.putWalletPassphrase @'Shelley w) Default payload
-            expectResponseCode HTTP.status204 rup
+            let payloadMnemonic = updatePassPayloadMnemonic m24 newPass
+            rupMnemonic <- request @ApiWallet ctx
+                (Link.putWalletPassphrase @'Shelley w) Default payloadMnemonic
+            expectResponseCode HTTP.status204 rupMnemonic
 
     it "WALLETS_UPDATE_PASS_04 - Deleted wallet is not available"
       $ \ctx -> runResourceT $ do
