@@ -4040,6 +4040,17 @@ x-errWrongEncryptionPassphrase: &errWrongEncryptionPassphrase
       type: string
       enum: ['wrong_encryption_passphrase']
 
+x-errWrongMnemonic: &errWrongMnemonic
+  <<: *responsesErr
+  title: wrong_mnemonics
+  properties:
+    message:
+      type: string
+      description: May occur when the given mnemonic is wrong.
+    code:
+      type: string
+      enum: ['wrong_mnemonic']
+
 x-errMalformedTxPayload: &errMalformedTxPayload
   <<: *responsesErr
   title: malformed_tx_payload
@@ -5104,6 +5115,7 @@ x-responsesPutWalletPassphrase: &responsesPutWalletPassphrase
           oneOf:
             - <<: *errNoRootKey
             - <<: *errWrongEncryptionPassphrase
+            - <<: *errWrongMnemonic
   <<: *responsesErr404WalletNotFound
   <<: *responsesErr406
   <<: *responsesErr415UnsupportedMediaType
