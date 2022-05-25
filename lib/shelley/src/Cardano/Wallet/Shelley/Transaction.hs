@@ -256,6 +256,7 @@ import qualified Cardano.Ledger.Alonzo.PParams as Alonzo
 import qualified Cardano.Ledger.Alonzo.Scripts as Alonzo
 import qualified Cardano.Ledger.Alonzo.Tx as Alonzo
 import qualified Cardano.Ledger.Alonzo.TxWitness as Alonzo
+import qualified Cardano.Ledger.Babbage.Tx as Babbage
 import qualified Cardano.Ledger.Coin as Ledger
 import qualified Cardano.Ledger.Core as Ledger
 import qualified Cardano.Ledger.Shelley.Address.Bootstrap as SL
@@ -596,6 +597,11 @@ newTransactionLayer networkId = TransactionLayer
                     signTransaction networkId acctResolver policyResolver
                     addressResolver inputResolver (body, wits)
                     & sealedTxFromCardano'
+                InAnyCardanoEra BabbageEra (Cardano.Tx body wits) ->
+                    signTransaction networkId acctResolver policyResolver
+                    addressResolver inputResolver (body, wits)
+                    & sealedTxFromCardano'
+
 
     , mkUnsignedTransaction = \era stakeXPub _pp ctx selection -> do
         let ttl   = txValidityInterval ctx
@@ -826,6 +832,20 @@ modifyShelleyTxBody
     -> Ledger.TxBody (Cardano.ShelleyLedgerEra era)
     -> Ledger.TxBody (Cardano.ShelleyLedgerEra era)
 modifyShelleyTxBody txUpdate era ledgerBody = case era of
+    ShelleyBasedEraBabbage -> ledgerBody
+        { Babbage.outputs = Babbage.outputs ledgerBody
+            <> StrictSeq.fromList
+                ( Cardano.toShelleyTxOut era
+                . Cardano.toCtxUTxOTxOut
+                . toCardanoTxOut era <$> extraOutputs
+                )
+        , Babbage.inputs = Babbage.inputs ledgerBody
+            <> Set.fromList (Cardano.toShelleyTxIn <$> extraInputs')
+        , Babbage.collateral = Babbage.collateral ledgerBody
+            <> Set.fromList (Cardano.toShelleyTxIn <$> extraCollateral')
+        , Babbage.txfee =
+            modifyFee $ Babbage.txfee ledgerBody
+        }
     ShelleyBasedEraAlonzo -> ledgerBody
         { Alonzo.outputs = Alonzo.outputs ledgerBody
             <> StrictSeq.fromList
@@ -1136,6 +1156,9 @@ _assignScriptRedeemers (toAlonzoPParams -> pparams) ti resolveInput redeemers tx
                 modifyM (assignExecutionUnits executionUnits)
                 modify' addScriptIntegrityHash
             pure $ Cardano.ShelleyTx ShelleyBasedEraAlonzo alonzoTx'
+        Cardano.ShelleyBasedEraBabbage -> do
+            let todo_assignScriptRedeemersForBabbage = ()
+            error "todo: assignScriptRedeemers for babbage"
   where
     -- | Assign redeemers with null execution units to the input transaction.
     --
@@ -1211,6 +1234,10 @@ _assignScriptRedeemers (toAlonzoPParams -> pparams) ti resolveInput redeemers tx
         case res of
             Left (UnknownTxIns ins) ->
                 Left $ ErrAssignRedeemersUnresolvedTxIns $ map fromShelleyTxIn (F.toList ins)
+            Left (BadTranslation _) -> do
+                let todo_renderBadTranslationError = ()
+                error "todo"
+
             Right report ->
                 Right $ hoistScriptFailure report
       where
@@ -2055,6 +2082,7 @@ withShelleyBasedEra era fn = case era of
     AnyCardanoEra AllegraEra  -> fn ShelleyBasedEraAllegra
     AnyCardanoEra MaryEra     -> fn ShelleyBasedEraMary
     AnyCardanoEra AlonzoEra   -> fn ShelleyBasedEraAlonzo
+    AnyCardanoEra BabbageEra  -> fn ShelleyBasedEraBabbage
 
 -- FIXME: Make this a Allegra or Shelley transaction depending on the era we're
 -- in. However, quoting Duncan:
@@ -2085,6 +2113,8 @@ mkUnsignedTx era ttl cs md wdrls certs fees mintData burnData allScripts =
         . toCardanoTxIn
         . fst <$> F.toList (view #inputs cs)
 
+    , txInsReference = Cardano.TxInsReferenceNone
+
     , Cardano.txOuts =
         toCardanoTxOut era <$> view #outputs cs ++ F.toList (view #change cs)
 
@@ -2096,14 +2126,17 @@ mkUnsignedTx era ttl cs md wdrls certs fees mintData burnData allScripts =
             Cardano.TxWithdrawals wdrlsSupported
                 (map (\(key, coin) -> (key, coin, wit)) wdrls)
 
-    , txInsCollateral =
-        -- TODO: [ADP-957] Support collateral.
-        Cardano.TxInsCollateralNone
 
-    , txProtocolParams =
-        -- TODO: [ADP-1058] We presumably need to provide the protocol params if
-        -- our tx uses scripts?
-        Cardano.BuildTxWith Nothing
+    -- @mkUnsignedTx@ is never used with Plutus scripts, and so we never have to
+    -- care about collateral or PParams (for script integrity hash) here.
+    --
+    -- If constructTransaction because of multisig in the future ever needs to
+    -- run/redeem Plutus scripts, we should re-use balanceTransaction and remove
+    -- this @mkUnsignedTx@. (We should do this regardless.)
+    , txInsCollateral = Cardano.TxInsCollateralNone
+    , txTotalCollateral = Cardano.TxTotalCollateralNone
+    , txReturnCollateral = Cardano.TxReturnCollateralNone
+    , txProtocolParams = Cardano.BuildTxWith Nothing
 
     , txScriptValidity =
         Cardano.TxScriptValidityNone
@@ -2171,6 +2204,7 @@ mkUnsignedTx era ttl cs md wdrls certs fees mintData burnData allScripts =
         ShelleyBasedEraAllegra -> Cardano.TxMetadataInAllegraEra
         ShelleyBasedEraMary -> Cardano.TxMetadataInMaryEra
         ShelleyBasedEraAlonzo -> Cardano.TxMetadataInAlonzoEra
+        ShelleyBasedEraBabbage -> Cardano.TxMetadataInBabbageEra
 
     certSupported :: Cardano.CertificatesSupportedInEra era
     certSupported = case era of
@@ -2178,6 +2212,7 @@ mkUnsignedTx era ttl cs md wdrls certs fees mintData burnData allScripts =
         ShelleyBasedEraAllegra -> Cardano.CertificatesInAllegraEra
         ShelleyBasedEraMary    -> Cardano.CertificatesInMaryEra
         ShelleyBasedEraAlonzo -> Cardano.CertificatesInAlonzoEra
+        ShelleyBasedEraBabbage -> Cardano.CertificatesInBabbageEra
 
     wdrlsSupported :: Cardano.WithdrawalsSupportedInEra era
     wdrlsSupported = case era of
@@ -2185,6 +2220,7 @@ mkUnsignedTx era ttl cs md wdrls certs fees mintData burnData allScripts =
         ShelleyBasedEraAllegra -> Cardano.WithdrawalsInAllegraEra
         ShelleyBasedEraMary    -> Cardano.WithdrawalsInMaryEra
         ShelleyBasedEraAlonzo -> Cardano.WithdrawalsInAlonzoEra
+        ShelleyBasedEraBabbage -> Cardano.WithdrawalsInBabbageEra
 
     txValidityUpperBoundSupported :: Cardano.ValidityUpperBoundSupportedInEra era
     txValidityUpperBoundSupported = case era of
@@ -2192,6 +2228,7 @@ mkUnsignedTx era ttl cs md wdrls certs fees mintData burnData allScripts =
         ShelleyBasedEraAllegra -> Cardano.ValidityUpperBoundInAllegraEra
         ShelleyBasedEraMary -> Cardano.ValidityUpperBoundInMaryEra
         ShelleyBasedEraAlonzo -> Cardano.ValidityUpperBoundInAlonzoEra
+        ShelleyBasedEraBabbage -> Cardano.ValidityUpperBoundInBabbageEra
 
     txValidityLowerBoundSupported
         :: Maybe (Cardano.ValidityLowerBoundSupportedInEra era)
@@ -2200,6 +2237,7 @@ mkUnsignedTx era ttl cs md wdrls certs fees mintData burnData allScripts =
         ShelleyBasedEraAllegra -> Just Cardano.ValidityLowerBoundInAllegraEra
         ShelleyBasedEraMary -> Just Cardano.ValidityLowerBoundInMaryEra
         ShelleyBasedEraAlonzo -> Just Cardano.ValidityLowerBoundInAlonzoEra
+        ShelleyBasedEraBabbage -> Just Cardano.ValidityLowerBoundInBabbageEra
 
     txMintingSupported :: Maybe (Cardano.MultiAssetSupportedInEra era)
     txMintingSupported = case era of
@@ -2207,6 +2245,7 @@ mkUnsignedTx era ttl cs md wdrls certs fees mintData burnData allScripts =
         ShelleyBasedEraAllegra -> Nothing
         ShelleyBasedEraMary -> Just Cardano.MultiAssetInMaryEra
         ShelleyBasedEraAlonzo -> Just Cardano.MultiAssetInAlonzoEra
+        ShelleyBasedEraBabbage -> Just Cardano.MultiAssetInBabbageEra
 
     scriptWitsSupported
         :: Cardano.ScriptLanguageInEra Cardano.SimpleScriptV2 era
@@ -2217,6 +2256,7 @@ mkUnsignedTx era ttl cs md wdrls certs fees mintData burnData allScripts =
             "scriptWitsSupported: we should be at least in Mary"
         ShelleyBasedEraMary -> Cardano.SimpleScriptV2InMary
         ShelleyBasedEraAlonzo -> Cardano.SimpleScriptV2InAlonzo
+        ShelleyBasedEraBabbage -> Cardano.SimpleScriptV2InBabbage
 
 mkWithdrawals
     :: NetworkId
@@ -2272,3 +2312,4 @@ explicitFees era = case era of
     ShelleyBasedEraAllegra -> Cardano.TxFeeExplicit Cardano.TxFeesExplicitInAllegraEra
     ShelleyBasedEraMary    -> Cardano.TxFeeExplicit Cardano.TxFeesExplicitInMaryEra
     ShelleyBasedEraAlonzo -> Cardano.TxFeeExplicit Cardano.TxFeesExplicitInAlonzoEra
+    ShelleyBasedEraBabbage -> Cardano.TxFeeExplicit Cardano.TxFeesExplicitInBabbageEra
