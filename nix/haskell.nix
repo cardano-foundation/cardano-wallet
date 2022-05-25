@@ -1,7 +1,7 @@
 ############################################################################
 # Builds Haskell packages with Haskell.nix
 ############################################################################
-haskell-nix: haskell-nix.stackProject' [
+haskell-nix: haskell-nix.cabalProject' [
   ({ lib, pkgs, buildProject, ... }: {
     options = {
       gitrev = lib.mkOption {
@@ -119,7 +119,7 @@ haskell-nix: haskell-nix.stackProject' [
         filter = haskell-nix.haskellSourceFilter;
       };
 
-      materialized = ./materialized/stack-nix;
+      # materialized = ./materialized/plan-nix;
 
       sha256map = import ./sha256map.nix;
 
@@ -205,6 +205,7 @@ haskell-nix: haskell-nix.stackProject' [
                 ];
             in
             {
+              reinstallableLibGhc = true;
               packages.cardano-wallet-core.components.tests = {
                 unit.preCheck = noCacheTestFailuresCookie;
                 # Attempt to ensure visible progress in the macOS hydra job.
@@ -426,47 +427,6 @@ haskell-nix: haskell-nix.stackProject' [
           ({ pkgs, ... }: {
             packages.cardano-wallet-core.flags.scrypt = !pkgs.stdenv.hostPlatform.isAarch64;
           })
-
-          # Allow installation of a newer version of Win32 than what is
-          # included with GHC. The packages in this list are all those
-          # installed with GHC, except for Win32.
-          {
-            nonReinstallablePkgs =
-              [
-                "rts"
-                "ghc-heap"
-                "ghc-prim"
-                "integer-gmp"
-                "integer-simple"
-                "base"
-                "deepseq"
-                "array"
-                "ghc-boot-th"
-                "pretty"
-                "template-haskell"
-                # ghcjs custom packages
-                "ghcjs-prim"
-                "ghcjs-th"
-                "ghc-boot"
-                "ghc"
-                "array"
-                "binary"
-                "bytestring"
-                "containers"
-                "filepath"
-                "ghc-boot"
-                "ghc-compact"
-                "ghc-prim"
-                # "ghci" "haskeline"
-                "hpc"
-                "mtl"
-                "parsec"
-                "text"
-                "transformers"
-                "xhtml"
-                # "stm" "terminfo"
-              ];
-          }
         ];
     })
 ]

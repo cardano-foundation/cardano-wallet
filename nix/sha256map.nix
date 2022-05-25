@@ -1,5 +1,5 @@
 {
-  "https://github.com/input-output-hk/cardano-addresses"."b33e0f365550bd9d329bdbb0a0d2dfe2b23a3dcf" = "05vj2fc6n8rmn3ch6115pc6l5vw6pqbv2kwbzxf3y41sa40k50vc";
+  "https://github.com/input-output-hk/cardano-addresses"."56746f558d57a6b1d66d20eaac8a83dc4455cb4f" = "sha256-zo+XJJsIiSkUlcxuPhRQRCxcWYOkDXnAApBF9Pj5Tls=";
   "https://github.com/biocad/servant-openapi3"."4165b837d3a71debd1059c3735460075840000b5" = "1dngrr353kjhmwhn0b289jzqz5rf32llwcv79zcyq15ldpqpbib9";
   "https://github.com/paolino/openapi3"."c30d0de6875d75edd64d1aac2272886528bc492d" = "0b0fzj5vrnfrc8qikabxhsnp4p8lrjpssblbh2rb7aji5hzzfli9";
   "https://github.com/input-output-hk/optparse-applicative"."7497a29cb998721a9068d5725d49461f2bba0e7a" = "1gvsrg925vynwgqwplgjmp53vj953qyh3wbdf34pw21c8r47w35r";
@@ -16,7 +16,7 @@
   "https://github.com/input-output-hk/iohk-monitoring-framework"."eb7854d1337637b8672af1227b276aa33a658f47" = "1ll81hlhkhj96f5v6lswjkq2h8f7zcmdrj2azqhi4ylzafn026r3";
   "https://github.com/shmish111/purescript-bridge.git"."6a92d7853ea514be8b70bab5e72077bf5a510596" = "13j64vv116in3c204qsl1v0ajphac9fqvsjp7x3zzfr7n7g61drb";
   "https://github.com/input-output-hk/ouroboros-network"."ad47441e9e399495579d7dd05ccaf96b46a487b2" = "1a54yfc4m9n5j699cn8ln524h28043dyrlzn34wmnhsgqnxhavr4";
-  "https://github.com/input-output-hk/plutus"."ccf5bcb99ffe054dc8cd5626723f64e02708dbae" = "18569bgywilibz7r5jyxj9bid8g4fwr80cc0hd9rcm3jhasbgq8i";
+  "https://github.com/input-output-hk/plutus"."ccf5bcb99ffe054dc8cd5626723f64e02708dbae" = "sha256-EeG3tIJyVJZTg4AxgDJ35KEWV5Ldy5LPX5FG7t9KpqA=";
   "https://github.com/input-output-hk/ekg-forward"."297cd9db5074339a2fb2e5ae7d0780debb670c63" = "1zcwry3y5rmd9lgxy89wsb3k4kpffqji35dc7ghzbz603y1gy24g";
   "https://github.com/input-output-hk/cardano-config"."1646e9167fab36c0bff82317743b96efa2d3adaa" = "11kf65x38laqhwspsl28j2x5a4rky8mfr6356w0li5g53sfykmjc";
   "https://github.com/shmish111/servant-purescript.git"."a76104490499aa72d40c2790d10e9383e0dbde63" = "11nxxmi5bw66va7psvrgrw7b7n85fvqgfp58yva99w3v9q3a50v9";

@@ -80,7 +80,7 @@ source-repository-package
 source-repository-package
     type: git
     location: https://github.com/input-output-hk/cardano-addresses
-    tag: b33e0f365550bd9d329bdbb0a0d2dfe2b23a3dcf
+    tag: 56746f558d57a6b1d66d20eaac8a83dc4455cb4f
     subdir: command-line
             core
 
@@ -94,7 +94,7 @@ source-repository-package
 source-repository-package
     type: git
     location: https://github.com/input-output-hk/cardano-base
-    tag: 41545ba3ac6b3095966316a99883d678b5ab8da8
+    tag: 1587462ac8b2e50af2691f5ad93d3c2aa4674ed1
     subdir:
             base-deriving-via
             binary
@@ -115,7 +115,7 @@ source-repository-package
 source-repository-package
   type: git
   location: https://github.com/input-output-hk/plutus
-  tag: fc5fe94d3d9525d032bcbc79ff0e1ebcfd8ef143
+  tag: ccf5bcb99ffe054dc8cd5626723f64e02708dbae
   subdir:
     plutus-core
     plutus-ledger-api
@@ -138,10 +138,12 @@ source-repository-package
 source-repository-package
     type: git
     location: https://github.com/input-output-hk/cardano-ledger
-    tag: 1a9ec4ae9e0b09d54e49b2a40c4ead37edadcce5
+    tag: 1db68a3ec0a2dcb5751004beb22b906162474f23
     subdir:
       eras/alonzo/impl
       eras/alonzo/test-suite
+      eras/babbage/impl
+      eras/babbage/test-suite
       eras/byron/chain/executable-spec
       eras/byron/crypto
       eras/byron/crypto/test
@@ -165,7 +167,7 @@ source-repository-package
 source-repository-package
     type: git
     location: https://github.com/input-output-hk/cardano-node
-    tag: 73f9a746362695dc2cb63ba757fbcabb81733d23
+    tag: 65422ff373f2f88a563afa746a9a16d211ffdc7c
     subdir:
       cardano-api
       cardano-git-rev
@@ -196,7 +198,7 @@ source-repository-package
 source-repository-package
     type: git
     location: https://github.com/input-output-hk/iohk-monitoring-framework
-    tag: 808724ff8a19a33d0ed06f9ef59fbd900b08553c
+    tag: eb7854d1337637b8672af1227b276aa33a658f47
     subdir: contra-tracer
             iohk-monitoring
             plugins/backend-aggregation
@@ -208,7 +210,7 @@ source-repository-package
 source-repository-package
     type: git
     location: https://github.com/input-output-hk/ouroboros-network
-    tag: 4fac197b6f0d2ff60dc3486c593b68dc00969fbf
+    tag: ad47441e9e399495579d7dd05ccaf96b46a487b2
     subdir:
       io-sim
       io-classes
@@ -228,18 +230,38 @@ source-repository-package
       typed-protocols-examples
       ntp-client
 
-source-repository-package
-    type: git
-    location: https://github.com/snoyberg/http-client.git
-    tag: 1a75bdfca014723dd5d40760fad854b3f0f37156
-    subdir: http-client
-
 -- Drops an instance breaking cardano-node.
 source-repository-package
     type: git
     location: https://github.com/input-output-hk/flat.git
     tag: ee59880f47ab835dbd73bea0847dab7869fc20d8
     --sha256: 1lrzknw765pz2j97nvv9ip3l1mcpf2zr4n56hwlz0rk7wq7ls4cm
+
+-- Using a fork until our patches can be merged upstream (copied from cardano-node/cabal.project)
+source-repository-package
+  type: git
+  location: https://github.com/input-output-hk/optparse-applicative
+  tag: 7497a29cb998721a9068d5725d49461f2bba0e7a
+  --sha256: 1gvsrg925vynwgqwplgjmp53vj953qyh3wbdf34pw21c8r47w35r
+
+source-repository-package
+  type: git
+  location: https://github.com/vshabanov/ekg-json
+  tag: 00ebe7211c981686e65730b7144fbf5350462608
+  --sha256: 1zvjm3pb38w0ijig5wk5mdkzcszpmlp5d4zxvks2jk1rkypi8gsm
+
+source-repository-package
+  type: git
+  location: https://github.com/input-output-hk/hedgehog-extras
+  tag: 967d79533c21e33387d0227a5f6cc185203fe658
+  --sha256: 0rbqb7a64aya1qizlr3im06hdydg9zr6sl3i8bvqqlf7kpa647sd
+
+-- Needed for cardano-addresses
+source-repository-package
+     type: git
+     location: https://github.com/haskell-works/hw-aeson
+     tag: d99d2f3e39a287607418ae605b132a3deb2b753f
+     --sha256: 1vxqcwjg9q37wbwi27y9ba5163lzfz51f1swbi0rp681yg63zvn4
 
 -- -------------------------------------------------------------------------
 -- Constraints tweaking
@@ -255,14 +277,14 @@ allow-newer:
   , cardano-addresses:aeson
   , size-based:template-haskell
 
+-- Copied from (copied from cardano-node/cabal.project)
+allow-newer:
+  *:aeson,
+  monoidal-containers:aeson,
+  size-based:template-haskell
+
 constraints:
-    hedgehog >= 1.0.2
-  -- QUICK FIX: hedgehog >= 1.1 defines Rec constructor, PlutusIR also defines
-  -- Rec constructor, and imports Hedgehog unqualified, leading to ambiguous
-  -- reference to Rec.
-  -- FIXME: https://input-output.atlassian.net/browse/ADP-1545
-  , hedgehog < 1.1
-  , hashable < 1.4
+    hashable < 1.4
   , bimap >= 0.4.0
   , libsystemd-journal >= 1.4.4
   , systemd >= 2.3.0
