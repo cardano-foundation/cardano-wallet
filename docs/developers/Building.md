@@ -81,7 +81,7 @@ See [`nix/overlays/build-tools.nix`](https://github.com/input-output-hk/cardano-
 
    ```console
    $ cabal configure --disable-tests --disable-benchmarks -f-scrypt -O2
-   $ cabal build cardano-wallet:exe:cardano-wallet --ghc-options -O2
+   $ cabal build cardano-wallet:exe:cardano-wallet
    ```
 
 #### Syncing `stack` and `cabal` dependencies
