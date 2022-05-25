@@ -13,7 +13,7 @@
 #
 ########################################################################
 
-resolver: lts-19.7
+resolver: lts-18.21
 compiler: ghc-8.10.7
 
 packages:
@@ -74,13 +74,16 @@ extra-deps:
 - blockfrost-client-core-0.2.0.0
 - quickcheck-quid-0.0.1
 - servant-multipart-client-0.12.1
-- protolude-0.3.0
-- ekg-core-0.1.1.7
-- validation-selective-0.1.0.1
+- aeson-2.0.1.0
+- semialign-1.2
+- tuples-0.1.0.0
+- contiguous-0.6.2.0
+- primitive-offset-0.2.0.0
+- zigzag-0.0.1.0
 
 # cardano-addresses-3.9.0
 - git: https://github.com/input-output-hk/cardano-addresses
-  commit: b33e0f365550bd9d329bdbb0a0d2dfe2b23a3dcf
+  commit: f73f8e18aadcfc70682799ec60069f9843f1f16e
   subdirs:
     - command-line
     - core
@@ -106,7 +109,14 @@ extra-deps:
 - canonical-json-0.6.0.0
 - composition-prelude-3.0.0.2
 - constraints-extras-0.3.1.0
-- ip-1.5.1
+
+- ip-1.7.4 # For cardano-sl-x509
+- byteslice-0.2.7.0 # For ip
+- bytesmith-0.3.8.0
+- bytebuild-0.3.11.0
+- natural-arithmetic-0.1.2.0
+- run-st-0.1.1.0
+
 - gray-code-0.3.1
 - lazy-search-0.1.2.1
 - lazysmallcheck-0.6
@@ -131,6 +141,7 @@ extra-deps:
 - hspec-golden-0.2.0.0
 - transformers-except-0.1.1
 - Unique-0.4.7.6
+
 
 # Explicitly put back packages which were pruned by Stack.
 - binary-0.8.8.0
@@ -217,8 +228,11 @@ extra-deps:
   - cardano-prelude
   - cardano-prelude-test
 
-- git: https://github.com/input-output-hk/cardano-sl-x509
-  commit: 12925934c533b3a6e009b61ede555f8f26bac037
+  # In particular we rely on the code from this PR:
+  # <https://github.com/input-output-hk/cardano-sl-x509/pull/6>
+  # being merged.
+- git: https://github.com/MELD-labs/cardano-sl-x509
+  commit: 819997049b9cc675b28059d3d6f511d08f934d10
 
 - git: https://github.com/input-output-hk/flat
   commit: ee59880f47ab835dbd73bea0847dab7869fc20d8
@@ -295,3 +309,7 @@ extra-deps:
 
 - git: https://github.com/input-output-hk/Win32-network
   commit: 3825d3abf75f83f406c1f7161883c438dac7277d
+
+  # Until https://github.com/tibbe/ekg-json/pull/12 gets merged with aeson2 support
+- git: https://github.com/vshabanov/ekg-json
+  commit: 00ebe7211c981686e65730b7144fbf5350462608

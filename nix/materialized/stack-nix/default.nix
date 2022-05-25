@@ -12,9 +12,8 @@
         "blockfrost-client-core" = (((hackage.blockfrost-client-core)."0.2.0.0").revisions).default;
         "quickcheck-quid" = (((hackage.quickcheck-quid)."0.0.1").revisions).default;
         "servant-multipart-client" = (((hackage.servant-multipart-client)."0.12.1").revisions).default;
-        "protolude" = (((hackage.protolude)."0.3.0").revisions).default;
-        "ekg-core" = (((hackage.ekg-core)."0.1.1.7").revisions).default;
-        "validation-selective" = (((hackage.validation-selective)."0.1.0.1").revisions).default;
+        "aeson" = (((hackage.aeson)."2.0.1.0").revisions).default;
+        "semialign" = (((hackage.semialign)."1.2").revisions).default;
         "cryptonite" = (((hackage.cryptonite)."0.27").revisions).default;
         "Cabal" = (((hackage.Cabal)."3.4.0.0").revisions).default;
         "containers" = (((hackage.containers)."0.6.4.1").revisions).default;
@@ -31,7 +30,16 @@
         "canonical-json" = (((hackage.canonical-json)."0.6.0.0").revisions).default;
         "composition-prelude" = (((hackage.composition-prelude)."3.0.0.2").revisions).default;
         "constraints-extras" = (((hackage.constraints-extras)."0.3.1.0").revisions).default;
-        "ip" = (((hackage.ip)."1.5.1").revisions).default;
+        "ip" = (((hackage.ip)."1.7.4").revisions).default;
+        "byteslice" = (((hackage.byteslice)."0.2.7.0").revisions).default;
+        "bytesmith" = (((hackage.bytesmith)."0.3.8.0").revisions).default;
+        "bytebuild" = (((hackage.bytebuild)."0.3.11.0").revisions).default;
+        "run-st" = (((hackage.run-st)."0.1.1.0").revisions).default;
+        "tuples" = (((hackage.tuples)."0.1.0.0").revisions).default;
+        "contiguous" = (((hackage.contiguous)."0.6.2.0").revisions).default;
+        "primitive-offset" = (((hackage.primitive-offset)."0.2.0.0").revisions).default;
+        "zigzag" = (((hackage.zigzag)."0.0.1.0").revisions).default;
+        "natural-arithmetic" = (((hackage.natural-arithmetic)."0.1.2.0").revisions).default;
         "gray-code" = (((hackage.gray-code)."0.3.1").revisions).default;
         "lazy-search" = (((hackage.lazy-search)."0.1.2.1").revisions).default;
         "lazysmallcheck" = (((hackage.lazysmallcheck)."0.6").revisions).default;
@@ -165,11 +173,12 @@
         cardano-config = ./.stack-to-nix.cache.94;
         servant-purescript = ./.stack-to-nix.cache.95;
         Win32-network = ./.stack-to-nix.cache.96;
+        ekg-json = ./.stack-to-nix.cache.97;
         };
       compiler.version = "8.10.7";
       compiler.nix-name = "ghc8107";
       };
-  resolver = "lts-19.7";
+  resolver = "lts-18.21";
   modules = [
     ({ lib, ... }:
       {
