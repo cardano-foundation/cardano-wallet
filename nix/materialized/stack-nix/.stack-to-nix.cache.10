@@ -32,13 +32,15 @@
           (hsPkgs."bytestring" or (errorHandler.buildDepError "bytestring"))
           (hsPkgs."cardano-binary" or (errorHandler.buildDepError "cardano-binary"))
           (hsPkgs."cardano-prelude" or (errorHandler.buildDepError "cardano-prelude"))
+          (hsPkgs."cereal" or (errorHandler.buildDepError "cereal"))
           (hsPkgs."cryptonite" or (errorHandler.buildDepError "cryptonite"))
           (hsPkgs."deepseq" or (errorHandler.buildDepError "deepseq"))
-          (hsPkgs."integer-gmp" or (errorHandler.buildDepError "integer-gmp"))
           (hsPkgs."ghc-prim" or (errorHandler.buildDepError "ghc-prim"))
+          (hsPkgs."integer-gmp" or (errorHandler.buildDepError "integer-gmp"))
           (hsPkgs."memory" or (errorHandler.buildDepError "memory"))
           (hsPkgs."nothunks" or (errorHandler.buildDepError "nothunks"))
           (hsPkgs."primitive" or (errorHandler.buildDepError "primitive"))
+          (hsPkgs."secp256k1-haskell" or (errorHandler.buildDepError "secp256k1-haskell"))
           (hsPkgs."serialise" or (errorHandler.buildDepError "serialise"))
           (hsPkgs."text" or (errorHandler.buildDepError "text"))
           (hsPkgs."transformers" or (errorHandler.buildDepError "transformers"))
@@ -46,6 +48,7 @@
           ];
         pkgconfig = [
           (pkgconfPkgs."libsodium" or (errorHandler.pkgConfDepError "libsodium"))
+          (pkgconfPkgs."libsecp256k1" or (errorHandler.pkgConfDepError "libsecp256k1"))
           ];
         buildable = true;
         };
@@ -62,5 +65,5 @@
         };
       };
     } // rec {
-    src = (pkgs.lib).mkDefault /nix/store/bvppc469jii0bcz5y6mbv9svfi0nf7wi-cardano-base-41545ba/cardano-crypto-class;
+    src = (pkgs.lib).mkDefault /nix/store/v4vm78w4axmq9b2k89rkjfl8zy4bg3na-cardano-base-1587462/cardano-crypto-class;
     }

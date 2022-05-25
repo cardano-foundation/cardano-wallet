@@ -41,5 +41,5 @@
         };
       };
     } // rec {
-    src = (pkgs.lib).mkDefault /nix/store/bvppc469jii0bcz5y6mbv9svfi0nf7wi-cardano-base-41545ba/slotting;
+    src = (pkgs.lib).mkDefault /nix/store/v4vm78w4axmq9b2k89rkjfl8zy4bg3na-cardano-base-1587462/slotting;
     }

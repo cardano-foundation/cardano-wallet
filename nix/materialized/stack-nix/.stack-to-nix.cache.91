@@ -11,53 +11,62 @@
     flags = {};
     package = {
       specVersion = "2.4";
-      identifier = { name = "word-array"; version = "0.1.0.0"; };
-      license = "Apache-2.0";
+      identifier = {
+        name = "prettyprinter-configurable";
+        version = "0.1.0.0";
+        };
+      license = "NONE";
       copyright = "";
-      maintainer = "michael.peyton-jones@iohk.io";
-      author = "Zachary Churchill, Michael Peyton Jones";
-      homepage = "https://github.com/plutus";
+      maintainer = "plutus@iohk.io";
+      author = "David Luposchainsky, effectfully";
+      homepage = "";
       url = "";
       synopsis = "";
-      description = "Treat integral types as arrays of smaller integral types";
-      buildType = "Simple";
+      description = "";
+      buildType = "Custom";
+      setup-depends = [
+        (hsPkgs.buildPackages.base or (pkgs.buildPackages.base or (errorHandler.setupDepError "base")))
+        (hsPkgs.buildPackages.Cabal or (pkgs.buildPackages.Cabal or (errorHandler.setupDepError "Cabal")))
+        (hsPkgs.buildPackages.cabal-doctest or (pkgs.buildPackages.cabal-doctest or (errorHandler.setupDepError "cabal-doctest")))
+        ];
       };
     components = {
       "library" = {
         depends = [
           (hsPkgs."base" or (errorHandler.buildDepError "base"))
-          (hsPkgs."mono-traversable" or (errorHandler.buildDepError "mono-traversable"))
-          (hsPkgs."primitive" or (errorHandler.buildDepError "primitive"))
-          (hsPkgs."deepseq" or (errorHandler.buildDepError "deepseq"))
+          (hsPkgs."prettyprinter" or (errorHandler.buildDepError "prettyprinter"))
+          (hsPkgs."mtl" or (errorHandler.buildDepError "mtl"))
+          (hsPkgs."text" or (errorHandler.buildDepError "text"))
+          (hsPkgs."microlens" or (errorHandler.buildDepError "microlens"))
           ];
         buildable = true;
         };
       tests = {
-        "test" = {
+        "prettyprinter-configurable-test" = {
           depends = [
+            (hsPkgs."prettyprinter-configurable" or (errorHandler.buildDepError "prettyprinter-configurable"))
             (hsPkgs."base" or (errorHandler.buildDepError "base"))
-            (hsPkgs."tasty" or (errorHandler.buildDepError "tasty"))
-            (hsPkgs."tasty-quickcheck" or (errorHandler.buildDepError "tasty-quickcheck"))
+            (hsPkgs."prettyprinter" or (errorHandler.buildDepError "prettyprinter"))
+            (hsPkgs."text" or (errorHandler.buildDepError "text"))
+            (hsPkgs."megaparsec" or (errorHandler.buildDepError "megaparsec"))
+            (hsPkgs."parser-combinators" or (errorHandler.buildDepError "parser-combinators"))
             (hsPkgs."QuickCheck" or (errorHandler.buildDepError "QuickCheck"))
-            (hsPkgs."vector" or (errorHandler.buildDepError "vector"))
-            (hsPkgs."word-array" or (errorHandler.buildDepError "word-array"))
-            (hsPkgs."mono-traversable" or (errorHandler.buildDepError "mono-traversable"))
+            (hsPkgs."quickcheck-text" or (errorHandler.buildDepError "quickcheck-text"))
+            (hsPkgs."tasty" or (errorHandler.buildDepError "tasty"))
+            (hsPkgs."tasty-hunit" or (errorHandler.buildDepError "tasty-hunit"))
+            (hsPkgs."tasty-quickcheck" or (errorHandler.buildDepError "tasty-quickcheck"))
             ];
           buildable = true;
           };
-        };
-      benchmarks = {
-        "bench" = {
+        "prettyprinter-configurable-doctest" = {
           depends = [
             (hsPkgs."base" or (errorHandler.buildDepError "base"))
-            (hsPkgs."tasty-bench" or (errorHandler.buildDepError "tasty-bench"))
-            (hsPkgs."word-array" or (errorHandler.buildDepError "word-array"))
-            (hsPkgs."primitive" or (errorHandler.buildDepError "primitive"))
+            (hsPkgs."doctest" or (errorHandler.buildDepError "doctest"))
             ];
           buildable = true;
           };
         };
       };
     } // rec {
-    src = (pkgs.lib).mkDefault /nix/store/fngr9a0n2d9cx6ywm2abhhx0g5acbci8-plutus-fc5fe94/word-array;
+    src = (pkgs.lib).mkDefault /nix/store/akfq9m8mhsv813dl9f6nj4ld172gah0y-plutus-ccf5bcb/prettyprinter-configurable;
     }

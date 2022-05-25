@@ -94,7 +94,7 @@ source-repository-package
 source-repository-package
     type: git
     location: https://github.com/input-output-hk/cardano-base
-    tag: 41545ba3ac6b3095966316a99883d678b5ab8da8
+    tag: 1587462ac8b2e50af2691f5ad93d3c2aa4674ed1
     subdir:
             base-deriving-via
             binary
@@ -115,7 +115,7 @@ source-repository-package
 source-repository-package
   type: git
   location: https://github.com/input-output-hk/plutus
-  tag: fc5fe94d3d9525d032bcbc79ff0e1ebcfd8ef143
+  tag: ccf5bcb99ffe054dc8cd5626723f64e02708dbae
   subdir:
     plutus-core
     plutus-ledger-api
@@ -138,8 +138,9 @@ source-repository-package
 source-repository-package
     type: git
     location: https://github.com/input-output-hk/cardano-ledger
-    tag: 1a9ec4ae9e0b09d54e49b2a40c4ead37edadcce5
+    tag: 1db68a3ec0a2dcb5751004beb22b906162474f23
     subdir:
+      eras/babbage/impl
       eras/alonzo/impl
       eras/alonzo/test-suite
       eras/byron/chain/executable-spec
@@ -165,7 +166,7 @@ source-repository-package
 source-repository-package
     type: git
     location: https://github.com/input-output-hk/cardano-node
-    tag: 73f9a746362695dc2cb63ba757fbcabb81733d23
+    tag: 65422ff373f2f88a563afa746a9a16d211ffdc7c
     subdir:
       cardano-api
       cardano-git-rev
@@ -196,7 +197,7 @@ source-repository-package
 source-repository-package
     type: git
     location: https://github.com/input-output-hk/iohk-monitoring-framework
-    tag: 808724ff8a19a33d0ed06f9ef59fbd900b08553c
+    tag: eb7854d1337637b8672af1227b276aa33a658f47
     subdir: contra-tracer
             iohk-monitoring
             plugins/backend-aggregation
@@ -208,7 +209,7 @@ source-repository-package
 source-repository-package
     type: git
     location: https://github.com/input-output-hk/ouroboros-network
-    tag: 4fac197b6f0d2ff60dc3486c593b68dc00969fbf
+    tag: ad47441e9e399495579d7dd05ccaf96b46a487b2
     subdir:
       io-sim
       io-classes

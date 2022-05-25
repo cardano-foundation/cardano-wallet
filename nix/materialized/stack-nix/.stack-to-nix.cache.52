@@ -10,26 +10,48 @@
   {
     flags = {};
     package = {
-      specVersion = "1.10";
-      identifier = { name = "contra-tracer"; version = "0.1.0.0"; };
+      specVersion = "2.4";
+      identifier = { name = "hedgehog-extras"; version = "0.1.0.0"; };
       license = "Apache-2.0";
-      copyright = "2019 IOHK";
+      copyright = "";
       maintainer = "operations@iohk.io";
-      author = "Neil Davies, Alexander Diemand, Andreas Triantafyllos";
+      author = "IOHK";
       homepage = "";
       url = "";
-      synopsis = "A simple interface for logging, tracing or monitoring.";
-      description = "";
+      synopsis = "Supplemental library for hedgehog";
+      description = "Supplemental library for hedgehog.";
       buildType = "Simple";
       };
     components = {
       "library" = {
         depends = [
           (hsPkgs."base" or (errorHandler.buildDepError "base"))
-          ] ++ (pkgs.lib).optional (compiler.isGhc && (compiler.version).lt "8.5") (hsPkgs."contravariant" or (errorHandler.buildDepError "contravariant"));
+          (hsPkgs."aeson" or (errorHandler.buildDepError "aeson"))
+          (hsPkgs."aeson-pretty" or (errorHandler.buildDepError "aeson-pretty"))
+          (hsPkgs."async" or (errorHandler.buildDepError "async"))
+          (hsPkgs."bytestring" or (errorHandler.buildDepError "bytestring"))
+          (hsPkgs."deepseq" or (errorHandler.buildDepError "deepseq"))
+          (hsPkgs."directory" or (errorHandler.buildDepError "directory"))
+          (hsPkgs."exceptions" or (errorHandler.buildDepError "exceptions"))
+          (hsPkgs."filepath" or (errorHandler.buildDepError "filepath"))
+          (hsPkgs."hedgehog" or (errorHandler.buildDepError "hedgehog"))
+          (hsPkgs."mmorph" or (errorHandler.buildDepError "mmorph"))
+          (hsPkgs."mtl" or (errorHandler.buildDepError "mtl"))
+          (hsPkgs."network" or (errorHandler.buildDepError "network"))
+          (hsPkgs."process" or (errorHandler.buildDepError "process"))
+          (hsPkgs."resourcet" or (errorHandler.buildDepError "resourcet"))
+          (hsPkgs."stm" or (errorHandler.buildDepError "stm"))
+          (hsPkgs."temporary" or (errorHandler.buildDepError "temporary"))
+          (hsPkgs."text" or (errorHandler.buildDepError "text"))
+          (hsPkgs."time" or (errorHandler.buildDepError "time"))
+          (hsPkgs."transformers" or (errorHandler.buildDepError "transformers"))
+          (hsPkgs."unliftio" or (errorHandler.buildDepError "unliftio"))
+          (hsPkgs."unordered-containers" or (errorHandler.buildDepError "unordered-containers"))
+          (hsPkgs."yaml" or (errorHandler.buildDepError "yaml"))
+          ] ++ (pkgs.lib).optional (system.isWindows) (hsPkgs."Win32-network" or (errorHandler.buildDepError "Win32-network"));
         buildable = true;
         };
       };
     } // rec {
-    src = (pkgs.lib).mkDefault /nix/store/dp15xfc309h2xx301937iacq5wym27gy-iohk-monitoring-framework-808724f/contra-tracer;
+    src = (pkgs.lib).mkDefault /nix/store/v5ky06bax11582i8x13f1sl27mbnylc1-hedgehog-extras-edf6945;
     }

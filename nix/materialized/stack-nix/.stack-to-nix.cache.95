@@ -8,67 +8,60 @@
   , config
   , ... }:
   {
-    flags = { demo = false; };
+    flags = {};
     package = {
-      specVersion = "2.4";
-      identifier = { name = "Win32-network"; version = "0.1.0.0"; };
-      license = "Apache-2.0";
-      copyright = "2019 Input Output (Hong Kong) Ltd.";
-      maintainer = "duncan@well-typed.com, marcin.szamotulski@iohk.io";
-      author = "Duncan Coutts, Marcin Szamotulski";
-      homepage = "";
+      specVersion = "1.10";
+      identifier = { name = "servant-purescript"; version = "0.9.0.2"; };
+      license = "BSD-3-Clause";
+      copyright = "Copyright: (c) 2016 Robert Klotzner";
+      maintainer = "robert Dot klotzner A T gmx Dot at";
+      author = "Robert Klotzner";
+      homepage = "https://github.com/eskimor/servant-purescript#readme";
       url = "";
-      synopsis = "Win32 network API";
-      description = "";
+      synopsis = "Generate PureScript accessor functions for you servant API";
+      description = "Please see README.md";
       buildType = "Simple";
       };
     components = {
       "library" = {
         depends = [
           (hsPkgs."base" or (errorHandler.buildDepError "base"))
-          ] ++ (pkgs.lib).optionals (system.isWindows) [
+          (hsPkgs."aeson" or (errorHandler.buildDepError "aeson"))
           (hsPkgs."bytestring" or (errorHandler.buildDepError "bytestring"))
-          (hsPkgs."network" or (errorHandler.buildDepError "network"))
-          (hsPkgs."Win32" or (errorHandler.buildDepError "Win32"))
+          (hsPkgs."containers" or (errorHandler.buildDepError "containers"))
+          (hsPkgs."directory" or (errorHandler.buildDepError "directory"))
+          (hsPkgs."filepath" or (errorHandler.buildDepError "filepath"))
+          (hsPkgs."http-types" or (errorHandler.buildDepError "http-types"))
+          (hsPkgs."lens" or (errorHandler.buildDepError "lens"))
+          (hsPkgs."mainland-pretty" or (errorHandler.buildDepError "mainland-pretty"))
+          (hsPkgs."purescript-bridge" or (errorHandler.buildDepError "purescript-bridge"))
+          (hsPkgs."servant" or (errorHandler.buildDepError "servant"))
+          (hsPkgs."servant-foreign" or (errorHandler.buildDepError "servant-foreign"))
+          (hsPkgs."servant-server" or (errorHandler.buildDepError "servant-server"))
+          (hsPkgs."servant-subscriber" or (errorHandler.buildDepError "servant-subscriber"))
+          (hsPkgs."text" or (errorHandler.buildDepError "text"))
           ];
-        libs = (pkgs.lib).optional (system.isWindows) (pkgs."ws2_32" or (errorHandler.sysDepError "ws2_32"));
         buildable = true;
         };
-      exes = {
-        "named-pipe-demo" = {
-          depends = [
-            (hsPkgs."base" or (errorHandler.buildDepError "base"))
-            ] ++ (pkgs.lib).optionals (system.isWindows) [
-            (hsPkgs."binary" or (errorHandler.buildDepError "binary"))
-            (hsPkgs."bytestring" or (errorHandler.buildDepError "bytestring"))
-            (hsPkgs."Win32" or (errorHandler.buildDepError "Win32"))
-            (hsPkgs."Win32-network" or (errorHandler.buildDepError "Win32-network"))
-            ];
-          buildable = true;
-          };
-        };
       tests = {
-        "test" = {
+        "servant-purescript-test" = {
           depends = [
             (hsPkgs."base" or (errorHandler.buildDepError "base"))
-            ] ++ (pkgs.lib).optionals (system.isWindows) [
-            (hsPkgs."async" or (errorHandler.buildDepError "async"))
-            (hsPkgs."binary" or (errorHandler.buildDepError "binary"))
-            (hsPkgs."bytestring" or (errorHandler.buildDepError "bytestring"))
-            (hsPkgs."network" or (errorHandler.buildDepError "network"))
-            (hsPkgs."stm" or (errorHandler.buildDepError "stm"))
-            (hsPkgs."tasty" or (errorHandler.buildDepError "tasty"))
-            (hsPkgs."tasty-hunit" or (errorHandler.buildDepError "tasty-hunit"))
-            (hsPkgs."tasty-quickcheck" or (errorHandler.buildDepError "tasty-quickcheck"))
-            (hsPkgs."QuickCheck" or (errorHandler.buildDepError "QuickCheck"))
-            (hsPkgs."quickcheck-instances" or (errorHandler.buildDepError "quickcheck-instances"))
-            (hsPkgs."Win32" or (errorHandler.buildDepError "Win32"))
-            (hsPkgs."Win32-network" or (errorHandler.buildDepError "Win32-network"))
+            (hsPkgs."aeson" or (errorHandler.buildDepError "aeson"))
+            (hsPkgs."containers" or (errorHandler.buildDepError "containers"))
+            (hsPkgs."mainland-pretty" or (errorHandler.buildDepError "mainland-pretty"))
+            (hsPkgs."lens" or (errorHandler.buildDepError "lens"))
+            (hsPkgs."purescript-bridge" or (errorHandler.buildDepError "purescript-bridge"))
+            (hsPkgs."servant" or (errorHandler.buildDepError "servant"))
+            (hsPkgs."servant-foreign" or (errorHandler.buildDepError "servant-foreign"))
+            (hsPkgs."servant-purescript" or (errorHandler.buildDepError "servant-purescript"))
+            (hsPkgs."servant-subscriber" or (errorHandler.buildDepError "servant-subscriber"))
+            (hsPkgs."text" or (errorHandler.buildDepError "text"))
             ];
           buildable = true;
           };
         };
       };
     } // rec {
-    src = (pkgs.lib).mkDefault /nix/store/jlbg3d6rcixbbvhpnh8383yv26l041gp-Win32-network-3825d3a;
+    src = (pkgs.lib).mkDefault /nix/store/wpxma8w4lhg0kpmasqp1iq19br4xzirp-servant-purescript-a761044;
     }

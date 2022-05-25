@@ -11,81 +11,53 @@
     flags = {};
     package = {
       specVersion = "2.4";
-      identifier = { name = "ekg-forward"; version = "0.1.0"; };
+      identifier = { name = "word-array"; version = "0.1.0.0"; };
       license = "Apache-2.0";
-      copyright = "2021 Input Output (Hong Kong) Ltd.";
-      maintainer = "Denis Shevchenko <denis.shevchenko@iohk.io>";
-      author = "Denis Shevchenko";
-      homepage = "https://github.com/input-output-hk/ekg-forward";
+      copyright = "";
+      maintainer = "michael.peyton-jones@iohk.io";
+      author = "Zachary Churchill, Michael Peyton Jones";
+      homepage = "https://github.com/plutus";
       url = "";
-      synopsis = "See README for more info";
-      description = "See README for more info";
+      synopsis = "";
+      description = "Treat integral types as arrays of smaller integral types";
       buildType = "Simple";
       };
     components = {
       "library" = {
         depends = [
           (hsPkgs."base" or (errorHandler.buildDepError "base"))
-          (hsPkgs."async" or (errorHandler.buildDepError "async"))
-          (hsPkgs."bytestring" or (errorHandler.buildDepError "bytestring"))
-          (hsPkgs."cborg" or (errorHandler.buildDepError "cborg"))
-          (hsPkgs."contra-tracer" or (errorHandler.buildDepError "contra-tracer"))
-          (hsPkgs."ekg-core" or (errorHandler.buildDepError "ekg-core"))
-          (hsPkgs."io-classes" or (errorHandler.buildDepError "io-classes"))
-          (hsPkgs."network" or (errorHandler.buildDepError "network"))
-          (hsPkgs."ouroboros-network-framework" or (errorHandler.buildDepError "ouroboros-network-framework"))
-          (hsPkgs."serialise" or (errorHandler.buildDepError "serialise"))
-          (hsPkgs."stm" or (errorHandler.buildDepError "stm"))
-          (hsPkgs."text" or (errorHandler.buildDepError "text"))
-          (hsPkgs."time" or (errorHandler.buildDepError "time"))
-          (hsPkgs."typed-protocols" or (errorHandler.buildDepError "typed-protocols"))
-          (hsPkgs."typed-protocols-cborg" or (errorHandler.buildDepError "typed-protocols-cborg"))
-          (hsPkgs."unordered-containers" or (errorHandler.buildDepError "unordered-containers"))
+          (hsPkgs."mono-traversable" or (errorHandler.buildDepError "mono-traversable"))
+          (hsPkgs."primitive" or (errorHandler.buildDepError "primitive"))
+          (hsPkgs."deepseq" or (errorHandler.buildDepError "deepseq"))
           ];
         buildable = true;
         };
-      exes = {
-        "demo-forwarder" = {
+      tests = {
+        "test" = {
           depends = [
             (hsPkgs."base" or (errorHandler.buildDepError "base"))
-            (hsPkgs."contra-tracer" or (errorHandler.buildDepError "contra-tracer"))
-            (hsPkgs."ekg-core" or (errorHandler.buildDepError "ekg-core"))
-            (hsPkgs."ekg-forward" or (errorHandler.buildDepError "ekg-forward"))
-            (hsPkgs."text" or (errorHandler.buildDepError "text"))
-            (hsPkgs."time" or (errorHandler.buildDepError "time"))
-            ];
-          buildable = true;
-          };
-        "demo-acceptor" = {
-          depends = [
-            (hsPkgs."base" or (errorHandler.buildDepError "base"))
-            (hsPkgs."contra-tracer" or (errorHandler.buildDepError "contra-tracer"))
-            (hsPkgs."ekg-core" or (errorHandler.buildDepError "ekg-core"))
-            (hsPkgs."ekg-forward" or (errorHandler.buildDepError "ekg-forward"))
-            (hsPkgs."stm" or (errorHandler.buildDepError "stm"))
-            (hsPkgs."text" or (errorHandler.buildDepError "text"))
-            (hsPkgs."time" or (errorHandler.buildDepError "time"))
+            (hsPkgs."tasty" or (errorHandler.buildDepError "tasty"))
+            (hsPkgs."tasty-quickcheck" or (errorHandler.buildDepError "tasty-quickcheck"))
+            (hsPkgs."QuickCheck" or (errorHandler.buildDepError "QuickCheck"))
+            (hsPkgs."vector" or (errorHandler.buildDepError "vector"))
+            (hsPkgs."word-array" or (errorHandler.buildDepError "word-array"))
+            (hsPkgs."mono-traversable" or (errorHandler.buildDepError "mono-traversable"))
             ];
           buildable = true;
           };
         };
-      tests = {
-        "ekg-forward-test" = {
+      benchmarks = {
+        "bench" = {
           depends = [
             (hsPkgs."base" or (errorHandler.buildDepError "base"))
-            (hsPkgs."base" or (errorHandler.buildDepError "base"))
-            (hsPkgs."contra-tracer" or (errorHandler.buildDepError "contra-tracer"))
-            (hsPkgs."ekg-core" or (errorHandler.buildDepError "ekg-core"))
-            (hsPkgs."ekg-forward" or (errorHandler.buildDepError "ekg-forward"))
-            (hsPkgs."hspec" or (errorHandler.buildDepError "hspec"))
-            (hsPkgs."stm" or (errorHandler.buildDepError "stm"))
-            (hsPkgs."time" or (errorHandler.buildDepError "time"))
-            (hsPkgs."unordered-containers" or (errorHandler.buildDepError "unordered-containers"))
+            (hsPkgs."tasty-bench" or (errorHandler.buildDepError "tasty-bench"))
+            (hsPkgs."word-array" or (errorHandler.buildDepError "word-array"))
+            (hsPkgs."primitive" or (errorHandler.buildDepError "primitive"))
             ];
           buildable = true;
           };
         };
       };
     } // rec {
-    src = (pkgs.lib).mkDefault /nix/store/jjas7k78m81qin4ypzmk6j1myw3l5ir8-ekg-forward-297cd9d;
+    src = (pkgs.lib).mkDefault /nix/store/akfq9m8mhsv813dl9f6nj4ld172gah0y-plutus-ccf5bcb/word-array;
     }

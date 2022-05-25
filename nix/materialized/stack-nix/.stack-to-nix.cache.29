@@ -11,10 +11,7 @@
     flags = {};
     package = {
       specVersion = "2.2";
-      identifier = {
-        name = "cardano-ledger-shelley-ma-test";
-        version = "0.1.0.0";
-        };
+      identifier = { name = "cardano-ledger-shelley-ma"; version = "0.1.0.0"; };
       license = "Apache-2.0";
       copyright = "2020 Input Output (Hong Kong) Ltd.";
       maintainer = "formal.methods@iohk.io";
@@ -29,62 +26,33 @@
       "library" = {
         depends = [
           (hsPkgs."base" or (errorHandler.buildDepError "base"))
-          (hsPkgs."base" or (errorHandler.buildDepError "base"))
-          (hsPkgs."base16-bytestring" or (errorHandler.buildDepError "base16-bytestring"))
           (hsPkgs."bytestring" or (errorHandler.buildDepError "bytestring"))
+          (hsPkgs."base16-bytestring" or (errorHandler.buildDepError "base16-bytestring"))
           (hsPkgs."cardano-binary" or (errorHandler.buildDepError "cardano-binary"))
-          (hsPkgs."cardano-data" or (errorHandler.buildDepError "cardano-data"))
           (hsPkgs."cardano-crypto-class" or (errorHandler.buildDepError "cardano-crypto-class"))
+          (hsPkgs."cardano-data" or (errorHandler.buildDepError "cardano-data"))
           (hsPkgs."cardano-ledger-core" or (errorHandler.buildDepError "cardano-ledger-core"))
-          (hsPkgs."cardano-ledger-pretty" or (errorHandler.buildDepError "cardano-ledger-pretty"))
-          (hsPkgs."cardano-ledger-shelley-ma" or (errorHandler.buildDepError "cardano-ledger-shelley-ma"))
+          (hsPkgs."cardano-prelude" or (errorHandler.buildDepError "cardano-prelude"))
           (hsPkgs."cardano-slotting" or (errorHandler.buildDepError "cardano-slotting"))
           (hsPkgs."cborg" or (errorHandler.buildDepError "cborg"))
           (hsPkgs."containers" or (errorHandler.buildDepError "containers"))
-          (hsPkgs."generic-random" or (errorHandler.buildDepError "generic-random"))
-          (hsPkgs."hashable" or (errorHandler.buildDepError "hashable"))
+          (hsPkgs."compact-map" or (errorHandler.buildDepError "compact-map"))
+          (hsPkgs."data-default-class" or (errorHandler.buildDepError "data-default-class"))
+          (hsPkgs."deepseq" or (errorHandler.buildDepError "deepseq"))
+          (hsPkgs."groups" or (errorHandler.buildDepError "groups"))
           (hsPkgs."mtl" or (errorHandler.buildDepError "mtl"))
-          (hsPkgs."QuickCheck" or (errorHandler.buildDepError "QuickCheck"))
-          (hsPkgs."cardano-ledger-shelley-test" or (errorHandler.buildDepError "cardano-ledger-shelley-test"))
+          (hsPkgs."nothunks" or (errorHandler.buildDepError "nothunks"))
+          (hsPkgs."primitive" or (errorHandler.buildDepError "primitive"))
           (hsPkgs."cardano-ledger-shelley" or (errorHandler.buildDepError "cardano-ledger-shelley"))
+          (hsPkgs."small-steps" or (errorHandler.buildDepError "small-steps"))
           (hsPkgs."strict-containers" or (errorHandler.buildDepError "strict-containers"))
-          (hsPkgs."tasty-hunit" or (errorHandler.buildDepError "tasty-hunit"))
-          (hsPkgs."tasty-quickcheck" or (errorHandler.buildDepError "tasty-quickcheck"))
-          (hsPkgs."tasty" or (errorHandler.buildDepError "tasty"))
           (hsPkgs."text" or (errorHandler.buildDepError "text"))
+          (hsPkgs."transformers" or (errorHandler.buildDepError "transformers"))
+          (hsPkgs."validation-selective" or (errorHandler.buildDepError "validation-selective"))
           ];
         buildable = true;
         };
-      tests = {
-        "cardano-ledger-shelley-ma-test" = {
-          depends = [
-            (hsPkgs."base" or (errorHandler.buildDepError "base"))
-            (hsPkgs."base" or (errorHandler.buildDepError "base"))
-            (hsPkgs."bytestring" or (errorHandler.buildDepError "bytestring"))
-            (hsPkgs."cardano-binary" or (errorHandler.buildDepError "cardano-binary"))
-            (hsPkgs."cardano-data" or (errorHandler.buildDepError "cardano-data"))
-            (hsPkgs."cardano-ledger-core" or (errorHandler.buildDepError "cardano-ledger-core"))
-            (hsPkgs."cardano-ledger-shelley-ma-test" or (errorHandler.buildDepError "cardano-ledger-shelley-ma-test"))
-            (hsPkgs."cardano-ledger-shelley-ma" or (errorHandler.buildDepError "cardano-ledger-shelley-ma"))
-            (hsPkgs."cardano-slotting" or (errorHandler.buildDepError "cardano-slotting"))
-            (hsPkgs."cborg" or (errorHandler.buildDepError "cborg"))
-            (hsPkgs."containers" or (errorHandler.buildDepError "containers"))
-            (hsPkgs."data-default-class" or (errorHandler.buildDepError "data-default-class"))
-            (hsPkgs."mtl" or (errorHandler.buildDepError "mtl"))
-            (hsPkgs."QuickCheck" or (errorHandler.buildDepError "QuickCheck"))
-            (hsPkgs."cardano-ledger-shelley-test" or (errorHandler.buildDepError "cardano-ledger-shelley-test"))
-            (hsPkgs."cardano-ledger-shelley" or (errorHandler.buildDepError "cardano-ledger-shelley"))
-            (hsPkgs."small-steps-test" or (errorHandler.buildDepError "small-steps-test"))
-            (hsPkgs."small-steps" or (errorHandler.buildDepError "small-steps"))
-            (hsPkgs."strict-containers" or (errorHandler.buildDepError "strict-containers"))
-            (hsPkgs."tasty-hunit" or (errorHandler.buildDepError "tasty-hunit"))
-            (hsPkgs."tasty-quickcheck" or (errorHandler.buildDepError "tasty-quickcheck"))
-            (hsPkgs."tasty" or (errorHandler.buildDepError "tasty"))
-            ];
-          buildable = true;
-          };
-        };
       };
     } // rec {
-    src = (pkgs.lib).mkDefault /nix/store/x9qblgvxkw01bvlg0i6w2hyznkfli6jf-cardano-ledger-1a9ec4a/eras/shelley-ma/test-suite;
+    src = (pkgs.lib).mkDefault /nix/store/y5zp7ycn9ypz1z2xak67wkdw5s6isc2h-cardano-ledger-1db68a3/eras/shelley-ma/impl;
     }

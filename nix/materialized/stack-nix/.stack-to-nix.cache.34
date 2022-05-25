@@ -11,14 +11,14 @@
     flags = {};
     package = {
       specVersion = "2.2";
-      identifier = { name = "compact-map"; version = "0.1.0.0"; };
+      identifier = { name = "cardano-data"; version = "0.1.0.0"; };
       license = "Apache-2.0";
       copyright = "";
       maintainer = "formal.methods@iohk.io";
       author = "IOHK Formal Methods Team";
       homepage = "https://github.com/input-output-hk/cardano-legder-specs";
       url = "";
-      synopsis = "A KeyMap that is based on collisionless HashMap implementation";
+      synopsis = "Specialized data for Cardano project";
       description = "";
       buildType = "Simple";
       };
@@ -26,51 +26,46 @@
       "library" = {
         depends = [
           (hsPkgs."base" or (errorHandler.buildDepError "base"))
-          (hsPkgs."cardano-binary" or (errorHandler.buildDepError "cardano-binary"))
-          (hsPkgs."cardano-prelude" or (errorHandler.buildDepError "cardano-prelude"))
+          (hsPkgs."base" or (errorHandler.buildDepError "base"))
+          (hsPkgs."bytestring" or (errorHandler.buildDepError "bytestring"))
+          (hsPkgs."cborg" or (errorHandler.buildDepError "cborg"))
           (hsPkgs."containers" or (errorHandler.buildDepError "containers"))
-          (hsPkgs."cardano-crypto-class" or (errorHandler.buildDepError "cardano-crypto-class"))
+          (hsPkgs."compact-map" or (errorHandler.buildDepError "compact-map"))
+          (hsPkgs."cryptonite" or (errorHandler.buildDepError "cryptonite"))
           (hsPkgs."deepseq" or (errorHandler.buildDepError "deepseq"))
-          (hsPkgs."prettyprinter" or (errorHandler.buildDepError "prettyprinter"))
-          (hsPkgs."primitive" or (errorHandler.buildDepError "primitive"))
-          (hsPkgs."random" or (errorHandler.buildDepError "random"))
-          (hsPkgs."text" or (errorHandler.buildDepError "text"))
+          (hsPkgs."formatting" or (errorHandler.buildDepError "formatting"))
+          (hsPkgs."mtl" or (errorHandler.buildDepError "mtl"))
+          (hsPkgs."microlens" or (errorHandler.buildDepError "microlens"))
           (hsPkgs."nothunks" or (errorHandler.buildDepError "nothunks"))
-          (hsPkgs."vector" or (errorHandler.buildDepError "vector"))
-          (hsPkgs."vector-algorithms" or (errorHandler.buildDepError "vector-algorithms"))
+          (hsPkgs."primitive" or (errorHandler.buildDepError "primitive"))
+          (hsPkgs."strict-containers" or (errorHandler.buildDepError "strict-containers"))
+          (hsPkgs."text" or (errorHandler.buildDepError "text"))
+          (hsPkgs."transformers" or (errorHandler.buildDepError "transformers"))
+          (hsPkgs."cardano-crypto-class" or (errorHandler.buildDepError "cardano-crypto-class"))
+          (hsPkgs."cardano-binary" or (errorHandler.buildDepError "cardano-binary"))
           ];
         buildable = true;
         };
       tests = {
-        "tests" = {
+        "cardano-data-tests" = {
           depends = [
             (hsPkgs."base" or (errorHandler.buildDepError "base"))
-            (hsPkgs."cardano-prelude" or (errorHandler.buildDepError "cardano-prelude"))
+            (hsPkgs."bytestring" or (errorHandler.buildDepError "bytestring"))
+            (hsPkgs."cardano-binary" or (errorHandler.buildDepError "cardano-binary"))
+            (hsPkgs."cborg" or (errorHandler.buildDepError "cborg"))
             (hsPkgs."containers" or (errorHandler.buildDepError "containers"))
+            (hsPkgs."strict-containers" or (errorHandler.buildDepError "strict-containers"))
             (hsPkgs."tasty" or (errorHandler.buildDepError "tasty"))
             (hsPkgs."tasty-quickcheck" or (errorHandler.buildDepError "tasty-quickcheck"))
             (hsPkgs."tasty-hunit" or (errorHandler.buildDepError "tasty-hunit"))
-            (hsPkgs."compact-map" or (errorHandler.buildDepError "compact-map"))
+            (hsPkgs."text" or (errorHandler.buildDepError "text"))
+            (hsPkgs."cardano-data" or (errorHandler.buildDepError "cardano-data"))
             (hsPkgs."QuickCheck" or (errorHandler.buildDepError "QuickCheck"))
-            (hsPkgs."quickcheck-classes-base" or (errorHandler.buildDepError "quickcheck-classes-base"))
-            (hsPkgs."random" or (errorHandler.buildDepError "random"))
-            ];
-          buildable = true;
-          };
-        };
-      benchmarks = {
-        "bench" = {
-          depends = [
-            (hsPkgs."base" or (errorHandler.buildDepError "base"))
-            (hsPkgs."criterion" or (errorHandler.buildDepError "criterion"))
-            (hsPkgs."compact-map" or (errorHandler.buildDepError "compact-map"))
-            (hsPkgs."containers" or (errorHandler.buildDepError "containers"))
-            (hsPkgs."random" or (errorHandler.buildDepError "random"))
             ];
           buildable = true;
           };
         };
       };
     } // rec {
-    src = (pkgs.lib).mkDefault /nix/store/x9qblgvxkw01bvlg0i6w2hyznkfli6jf-cardano-ledger-1a9ec4a/libs/compact-map;
+    src = (pkgs.lib).mkDefault /nix/store/y5zp7ycn9ypz1z2xak67wkdw5s6isc2h-cardano-ledger-1db68a3/libs/cardano-data;
     }
