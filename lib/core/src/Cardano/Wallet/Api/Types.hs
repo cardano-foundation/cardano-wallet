@@ -268,8 +268,6 @@ import Cardano.Api
     , proxyToAsType
     , serialiseToBech32
     )
-import Cardano.Api.Aeson.Variant
-    ( variant, variants )
 import Cardano.Mnemonic
     ( MkSomeMnemonic (..)
     , MkSomeMnemonicError (..)
@@ -277,6 +275,8 @@ import Cardano.Mnemonic
     , mnemonicToText
     , natVals
     )
+import Cardano.Wallet.Api.Aeson.Variant
+    ( variant, variants )
 import Cardano.Wallet.Api.Types.SchemaMetadata
     ( TxMetadataWithSchema )
 import Cardano.Wallet.Primitive.AddressDerivation
@@ -2643,13 +2643,15 @@ instance ToJSON  WalletPutPassphraseOldPassphraseData where
     toJSON = genericToJSON defaultRecordTypeOptions
 
 instance FromJSON WalletPutPassphraseData where
-    parseJSON = variants "PutPassphrase data" $ do
-        variant "OldPassphrase"
-                (HM.member "old_passphrase")
-                $ WalletPutPassphraseData . Left
-        variant "Mnemonic"
-                (HM.member "mnemonic_sentence")
-                $ WalletPutPassphraseData . Right
+    parseJSON  = 
+        fmap WalletPutPassphraseData . variants "PutPassphrase data" 
+            [ variant "OldPassphrase"
+                    (HM.member "old_passphrase")
+                    $ fmap Left <$> parseJSON 
+            , variant "Mnemonic"
+                    (HM.member "mnemonic_sentence")
+                    $ fmap Right <$> parseJSON 
+            ] 
 
 instance ToJSON  WalletPutPassphraseData where
     toJSON (WalletPutPassphraseData x) = either

@@ -75,6 +75,7 @@ module Test.Integration.Framework.DSL
     , postByronWallet
     , emptyWallet
     , emptyWalletWith
+    , emptyWalletWithMnemonic
     , emptyByronWalletFromXPrvWith
     , rewardWallet
     , postSharedWallet
@@ -1354,6 +1355,22 @@ emptyByronWalletFromXPrvWith ctx style (name, key, passHash) = do
     r <- postByronWallet ctx payload
     expectResponseCode HTTP.status201 r
     return (getFromResponse id r)
+
+
+emptyWalletWithMnemonic 
+    :: MonadUnliftIO m 
+    => Context 
+    -> ResourceT m (ApiWallet, [Text])
+emptyWalletWithMnemonic ctx = do
+    mnemonic <- liftIO $ (mnemonicToText . entropyToMnemonic) <$> genEntropy @160
+    let payload = Json [aesonQQ| {
+            "name": "Empty Wallet",
+            "mnemonic_sentence": #{mnemonic},
+            "passphrase": #{fixturePassphrase}
+        }|]
+    r <- postWallet ctx payload
+    expectResponseCode HTTP.status201 r
+    return (getFromResponse id r, mnemonic)
 
 -- | Create an empty wallet
 emptyWallet

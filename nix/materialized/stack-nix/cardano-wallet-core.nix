@@ -154,7 +154,6 @@
         buildable = true;
         modules = [
           "Paths_cardano_wallet_core"
-          "Cardano/Api/Aeson/Variant"
           "Cardano/Api/Extra"
           "Cardano/Byron/Codec/Cbor"
           "Cardano/DB/Sqlite"
@@ -171,6 +170,7 @@
           "Cardano/Wallet"
           "Cardano/Wallet/Address/Pool"
           "Cardano/Wallet/Api"
+          "Cardano/Wallet/Api/Aeson/Variant"
           "Cardano/Wallet/Api/Client"
           "Cardano/Wallet/Api/Link"
           "Cardano/Wallet/Api/Server"

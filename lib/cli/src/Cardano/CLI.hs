@@ -639,6 +639,7 @@ cmdWalletUpdateName mkClient =
 
 data UpdatePassphraseCredential = MnemonicCredentials | OldPasswordCredentials
     deriving Eq
+
 -- | Which json schema to use for output
 useMnemonicOption :: Parser UpdatePassphraseCredential
 useMnemonicOption = flag OldPasswordCredentials MnemonicCredentials
@@ -668,26 +669,26 @@ cmdWalletUpdatePassphrase mkClient =
         res <- sendRequest wPort $ getWallet mkClient $ ApiT wId
         case res of
             Right _ -> do
-                wCredentials <- if credentialOption == OldPasswordCredentials
-                    then Left <$> getPassphrase "Please enter your current passphrase: "
+                wCredentials <-
+                    if credentialOption == OldPasswordCredentials
+                    then Left <$> getPassphrase
+                            "Please enter your current passphrase: "
                     else Right <$> getMnemonics
                 wPassphraseNew <- getPassphraseWithConfirm
                     "Please enter a new passphrase: "
                 runClient wPort (const mempty) $
                     putWalletPassphrase mkClient (ApiT wId) $
-                        WalletPutPassphraseData $ either
-                            (\wPassphraseOld -> Left
-                                $ WalletPutPassphraseOldPassphraseData
+                        WalletPutPassphraseData $
+                        let oldPassA wPassphraseOld =
+                                WalletPutPassphraseOldPassphraseData
                                     (ApiT wPassphraseOld)
                                     (ApiT wPassphraseNew)
-                            )
-                            (\(wMnemonic, wSndFactor) -> Right
-                                $ WalletPutPassphraseMnemonicData
+                            mnemonicA (wMnemonic, wSndFactor) =
+                                WalletPutPassphraseMnemonicData
                                     (ApiMnemonicT wMnemonic)
                                     (ApiMnemonicT <$> wSndFactor)
                                     (ApiT wPassphraseNew)
-                            )
-                            wCredentials
+                        in bimap oldPassA mnemonicA wCredentials
             Left _ ->
                 handleResponse Aeson.encodePretty res
 

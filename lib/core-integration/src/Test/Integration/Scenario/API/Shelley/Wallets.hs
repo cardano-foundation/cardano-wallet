@@ -751,7 +751,8 @@ spec = describe "SHELLEY_WALLETS" $ do
             ru <- request @ApiWallet ctx ("PUT", endpoint) headers newName
             verify ru expectations
 
-    it "WALLETS_UPDATE_PASS_01 - passphaseLastUpdate gets updated" $ \ctx -> runResourceT $ do
+    it "WALLETS_UPDATE_PASS_01 - passphraseLastUpdate gets updated" 
+      $ \ctx -> runResourceT $ do
         w <- emptyWallet ctx
         let payload = updatePassPayload fixturePassphrase "New passphrase"
         let endpoint = "v2/wallets" </> (w ^. walletId)
