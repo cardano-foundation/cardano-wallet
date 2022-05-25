@@ -33,7 +33,7 @@
   ############################################################################
 
   inputs = {
-    nixpkgs.follows = "haskellNix/nixpkgs-2111";
+    nixpkgs.follows = "haskellNix/nixpkgs-unstable";
     hostNixpkgs.follows = "nixpkgs";
     haskellNix = {
       url = "github:input-output-hk/haskell.nix";

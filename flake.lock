@@ -863,7 +863,7 @@
         "iohkNix": "iohkNix",
         "nixpkgs": [
           "haskellNix",
-          "nixpkgs-2111"
+          "nixpkgs-unstable"
         ]
       }
     },
