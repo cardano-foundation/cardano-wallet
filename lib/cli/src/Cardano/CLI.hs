@@ -152,6 +152,7 @@ import Cardano.Wallet.Api.Types
     , ApiWallet
     , Base (Base16)
     , ByronWalletPostData (..)
+    , ByronWalletPutPassphraseData (ByronWalletPutPassphraseData)
     , ByronWalletStyle (..)
     , Iso8601Time (..)
     , SomeByronWalletPostData (..)
@@ -386,7 +387,7 @@ cmdMnemonic = RecoveryPhrase.mod RecoveryPhrase.run
 type CmdWalletCreate wallet = WalletClient wallet -> Mod CommandFields (IO ())
 
 cmdWallet
-    :: ToJSON wallet
+    :: (ToJSON wallet, CmdWalletUpdatePassphrase wallet)
     => CmdWalletCreate wallet
     -> WalletClient wallet
     -> Mod CommandFields (IO ())
@@ -602,7 +603,7 @@ cmdWalletGet mkClient =
             ApiT wId
 
 cmdWalletUpdate
-    :: ToJSON wallet
+    :: (ToJSON wallet, CmdWalletUpdatePassphrase wallet)
     => WalletClient wallet
     -> Mod CommandFields (IO ())
 cmdWalletUpdate mkClient =
@@ -653,44 +654,77 @@ data WalletUpdatePassphraseArgs = WalletUpdatePassphraseArgs
     , _mnemonic :: UpdatePassphraseCredential
     }
 
-cmdWalletUpdatePassphrase
-    :: ToJSON wallet
-    => WalletClient wallet
-    -> Mod CommandFields (IO ())
-cmdWalletUpdatePassphrase mkClient =
-    command "passphrase" $ info (helper <*> cmd) $ mempty
-        <> progDesc "Update a wallet's passphrase."
-  where
-    cmd = fmap exec $ WalletUpdatePassphraseArgs
-        <$> portOption
-        <*> walletIdArgument
-        <*> useMnemonicOption
-    exec (WalletUpdatePassphraseArgs wPort wId credentialOption) = do
-        res <- sendRequest wPort $ getWallet mkClient $ ApiT wId
-        case res of
-            Right _ -> do
-                wCredentials <-
-                    if credentialOption == OldPasswordCredentials
-                    then Left <$> getPassphrase
+class CmdWalletUpdatePassphrase wallet where
+    cmdWalletUpdatePassphrase
+        :: ToJSON wallet
+        => WalletClient wallet
+        -> Mod CommandFields (IO ())
+
+instance CmdWalletUpdatePassphrase ApiWallet where
+    cmdWalletUpdatePassphrase mkClient =
+        command "passphrase" $ info (helper <*> cmd) $ mempty
+            <> progDesc "Update a wallet's passphrase."
+        where
+            cmd = fmap exec $ WalletUpdatePassphraseArgs
+                <$> portOption
+                <*> walletIdArgument
+                <*> useMnemonicOption
+            exec (WalletUpdatePassphraseArgs wPort wId credentialOption) = do
+                res <- sendRequest wPort $ getWallet mkClient $ ApiT wId
+                case res of
+                    Right _ -> do
+                        wCredentials <-
+                            if credentialOption == OldPasswordCredentials
+                            then Left <$> getPassphrase
+                                    "Please enter your current passphrase: "
+                            else Right <$> getMnemonics
+                        wPassphraseNew <- getPassphraseWithConfirm
+                            "Please enter a new passphrase: "
+                        runClient wPort (const mempty) $
+                            putWalletPassphrase mkClient (ApiT wId) $
+                                WalletPutPassphraseData $
+                                let oldPassA wPassphraseOld =
+                                        WalletPutPassphraseOldPassphraseData
+                                            (ApiT wPassphraseOld)
+                                            (ApiT wPassphraseNew)
+                                    mnemonicA (wMnemonic, wSndFactor) =
+                                        WalletPutPassphraseMnemonicData
+                                            (ApiMnemonicT wMnemonic)
+                                            (ApiMnemonicT <$> wSndFactor)
+                                            (ApiT wPassphraseNew)
+                                in bimap oldPassA mnemonicA wCredentials
+                    Left _ ->
+                        handleResponse Aeson.encodePretty res
+
+data ByronWalletUpdatePassphraseArgs = ByronWalletUpdatePassphraseArgs
+    { _port :: Port "Wallet"
+    , _id :: WalletId
+    }
+
+instance CmdWalletUpdatePassphrase ApiByronWallet where
+    cmdWalletUpdatePassphrase mkClient =
+        command "passphrase" $ info (helper <*> cmd) $ mempty
+            <> progDesc "Update a wallet's passphrase."
+        where
+            cmd = fmap exec $ ByronWalletUpdatePassphraseArgs
+                <$> portOption
+                <*> walletIdArgument
+            exec (ByronWalletUpdatePassphraseArgs wPort wId) = do
+                res <- sendRequest wPort $ getWallet mkClient $ ApiT wId
+                case res of
+                    Right _ -> do
+                        wPassphraseOld <- getPassphrase
                             "Please enter your current passphrase: "
-                    else Right <$> getMnemonics
-                wPassphraseNew <- getPassphraseWithConfirm
-                    "Please enter a new passphrase: "
-                runClient wPort (const mempty) $
-                    putWalletPassphrase mkClient (ApiT wId) $
-                        WalletPutPassphraseData $
-                        let oldPassA wPassphraseOld =
-                                WalletPutPassphraseOldPassphraseData
-                                    (ApiT wPassphraseOld)
+                        wPassphraseNew <- getPassphraseWithConfirm
+                            "Please enter a new passphrase: "
+                        runClient wPort (const mempty) $
+                            putWalletPassphrase mkClient (ApiT wId) $
+                                ByronWalletPutPassphraseData
+                                    (Just $ ApiT wPassphraseOld)
                                     (ApiT wPassphraseNew)
-                            mnemonicA (wMnemonic, wSndFactor) =
-                                WalletPutPassphraseMnemonicData
-                                    (ApiMnemonicT wMnemonic)
-                                    (ApiMnemonicT <$> wSndFactor)
-                                    (ApiT wPassphraseNew)
-                        in bimap oldPassA mnemonicA wCredentials
-            Left _ ->
-                handleResponse Aeson.encodePretty res
+
+                    Left _ ->
+                        handleResponse Aeson.encodePretty res
 
 -- | Arguments for 'wallet delete' command
 data WalletDeleteArgs = WalletDeleteArgs

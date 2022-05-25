@@ -106,10 +106,8 @@ import Cardano.Wallet.Primitive.Types.Tx
     ( SealedTx, SerialisedTx (..), unsafeSealedTxFromBytes )
 import Control.Monad
     ( void )
-import Data.Coerce
-    ( coerce )
 import Data.Generics.Internal.VL.Lens
-    ( view, (^.) )
+    ( view )
 import Data.Generics.Labels
     ()
 import Data.Proxy
@@ -128,6 +126,9 @@ import qualified Data.Aeson as Aeson
 {-------------------------------------------------------------------------------
                               Server Interaction
 -------------------------------------------------------------------------------}
+type family  WalletPutPassphraseFormat wallet where 
+    WalletPutPassphraseFormat ApiWallet = WalletPutPassphraseData
+    WalletPutPassphraseFormat ApiByronWallet = ByronWalletPutPassphraseData
 
 -- | This data type encapsulates the client functions for all endpoints of the
 -- cardano-wallet V2 API.
@@ -155,7 +156,7 @@ data WalletClient wallet = WalletClient
         -> ClientM wallet
     , putWalletPassphrase
         :: ApiT WalletId
-        -> WalletPutPassphraseData
+        -> WalletPutPassphraseFormat wallet
         -> ClientM NoContent
     }
 
@@ -301,11 +302,7 @@ byronWalletClient =
             , listWallets = _listWallets
             , postWallet = _postWallet
             , putWallet = _putWallet
-            , putWalletPassphrase = \wid (WalletPutPassphraseData (Left req)) ->
-                _putWalletPassphrase wid $ ByronWalletPutPassphraseData
-                    { oldPassphrase = Just $ coerce <$> req ^. #oldPassphrase
-                    , newPassphrase = req ^. #newPassphrase
-                    }
+            , putWalletPassphrase = _putWalletPassphrase
             , getWalletUtxoSnapshot = _getWalletUtxoSnapshot
             , getWalletUtxoStatistics = _getWalletUtxoStatistics
             }
