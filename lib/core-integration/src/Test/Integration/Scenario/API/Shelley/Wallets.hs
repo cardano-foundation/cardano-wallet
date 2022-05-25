@@ -90,8 +90,8 @@ import Test.Integration.Framework.DSL
     , emptyByronWalletWith
     , emptyRandomWallet
     , emptyWallet
+    , emptyWalletAndMnemonic
     , emptyWalletWith
-    , emptyWalletWithMnemonic
     , eventually
     , expectErrorMessage
     , expectField
@@ -102,6 +102,7 @@ import Test.Integration.Framework.DSL
     , fixtureMultiAssetWallet
     , fixturePassphrase
     , fixtureWallet
+    , fixtureWalletWithMnemonics
     , genMnemonics
     , getFromResponse
     , json
@@ -117,10 +118,11 @@ import Test.Integration.Framework.DSL
     , unsafeResponse
     , verify
     , walletId
-    , (</>), fixtureWalletWithMnemonics
+    , (</>)
     )
 import Test.Integration.Framework.TestData
     ( arabicWalletName
+    , errMsg403WrongMnemonic
     , errMsg403WrongPass
     , errMsg404NoWallet
     , errMsg406
@@ -134,7 +136,7 @@ import Test.Integration.Framework.TestData
     , updateNamePayload
     , updatePassPayload
     , updatePassPayloadMnemonic
-    , wildcardsWalletName, errMsg403WrongMnemonic
+    , wildcardsWalletName
     )
 
 -- FIXME:
@@ -766,9 +768,9 @@ spec = describe "SHELLEY_WALLETS" $ do
         rg <- request @ApiWallet ctx ("GET", getEndpoint) Default Empty
         expectField #passphrase (`shouldNotBe` originalPassUpdateDateTime) rg
 
-    it "WALLETS_UPDATE_PASS_01 - passphraseLastUpdate gets updated, mnemonic"
+    it "WALLETS_UPDATE_PASS_01a - passphraseLastUpdate gets updated, mnemonic"
       $ \ctx -> runResourceT $ do
-        (w,mnemonic) <- emptyWalletWithMnemonic ctx
+        (w,mnemonic) <- emptyWalletAndMnemonic ctx
         let payload = updatePassPayloadMnemonic mnemonic "New passphrase"
         let endpoint = "v2/wallets" </> (w ^. walletId)
                 </> ("passphrase" :: Text)
@@ -816,7 +818,7 @@ spec = describe "SHELLEY_WALLETS" $ do
             rup <- request @ApiWallet ctx ("PUT", endpoint) Default payload
             verify rup expectations
         forM_ matrix $ \(title, passphrase, expectations) -> it title $ \ctx -> runResourceT $ do
-            (w,mnemonic) <- emptyWalletWithMnemonic ctx
+            (w,mnemonic) <- emptyWalletAndMnemonic ctx
             let payload = updatePassPayloadMnemonic mnemonic passphrase
             let endpoint = "v2/wallets" </> (w ^. walletId)
                     </> ("passphrase" :: Text)
@@ -833,7 +835,7 @@ spec = describe "SHELLEY_WALLETS" $ do
         expectErrorMessage errMsg403WrongPass rup
 
     it "WALLETS_UPDATE_PASS_03 - Mnemonic incorrect" $ \ctx -> runResourceT $ do
-        (w,_mnemonic) <- emptyWalletWithMnemonic ctx
+        (w,_mnemonic) <- emptyWalletAndMnemonic ctx
         otherMnemonic <- liftIO $ genMnemonics M24
         let payload = updatePassPayloadMnemonic otherMnemonic "whatever-pass"
         rup <- request @ApiWallet ctx
@@ -889,7 +891,7 @@ spec = describe "SHELLEY_WALLETS" $ do
 
     it "WALLETS_UPDATE_PASS_04 - Deleted wallet is not available, mnemonic"
       $ \ctx -> runResourceT $ do
-        (w,mnemonic) <- emptyWalletWithMnemonic ctx
+        (w,mnemonic) <- emptyWalletAndMnemonic ctx
         let payload = updatePassPayloadMnemonic mnemonic "Secure passphrase2"
         let walId = w ^. walletId
         let delEndp = "v2/wallets" </> walId
@@ -940,7 +942,7 @@ spec = describe "SHELLEY_WALLETS" $ do
             verify r expectations
         forM_ matrix $ \(title, pass, expectations) -> it title
           $ \ctx -> runResourceT $ do
-            (wSrc, mnemonic) <- 
+            (wSrc, mnemonic) <-
               fixtureWalletWithMnemonics (Proxy @"shelley") ctx
             wDest <- emptyWallet ctx
             let payloadUpdate = updatePassPayloadMnemonic mnemonic newPass

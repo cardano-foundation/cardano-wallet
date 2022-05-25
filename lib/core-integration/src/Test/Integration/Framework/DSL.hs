@@ -75,7 +75,8 @@ module Test.Integration.Framework.DSL
     , postByronWallet
     , emptyWallet
     , emptyWalletWith
-    , emptyWalletWithMnemonic
+    , emptyWalletAndMnemonic
+    , emptyWalletAndMnemonicWith
     , emptyByronWalletFromXPrvWith
     , rewardWallet
     , postSharedWallet
@@ -198,6 +199,7 @@ module Test.Integration.Framework.DSL
     , listWalletsViaCLI
     , updateWalletNameViaCLI
     , updateWalletPassphraseViaCLI
+    , updateWalletPassphraseWithMnemonicViaCLI
     , postTransactionViaCLI
     , postTransactionFeeViaCLI
     , listTransactionsViaCLI
@@ -1357,11 +1359,11 @@ emptyByronWalletFromXPrvWith ctx style (name, key, passHash) = do
     return (getFromResponse id r)
 
 
-emptyWalletWithMnemonic 
-    :: MonadUnliftIO m 
-    => Context 
+emptyWalletAndMnemonic
+    :: MonadUnliftIO m
+    => Context
     -> ResourceT m (ApiWallet, [Text])
-emptyWalletWithMnemonic ctx = do
+emptyWalletAndMnemonic ctx = do
     mnemonic <- liftIO $ (mnemonicToText . entropyToMnemonic) <$> genEntropy @160
     let payload = Json [aesonQQ| {
             "name": "Empty Wallet",
@@ -1405,6 +1407,23 @@ emptyWalletWith ctx (name, passphrase, addrPoolGap) = do
     r <- postWallet ctx payload
     expectResponseCode HTTP.status201 r
     return (getFromResponse id r)
+
+emptyWalletAndMnemonicWith
+    :: (MonadIO m, MonadUnliftIO m)
+    => Context
+    -> (Text, Text, Int)
+    -> ResourceT m (ApiWallet, [Text])
+emptyWalletAndMnemonicWith ctx (name, passphrase, addrPoolGap) = do
+    mnemonic <- liftIO $ (mnemonicToText . entropyToMnemonic) <$> genEntropy @160
+    let payload = Json [aesonQQ| {
+            "name": #{name},
+            "mnemonic_sentence": #{mnemonic},
+            "passphrase": #{passphrase},
+            "address_pool_gap" : #{addrPoolGap}
+        }|]
+    r <- postWallet ctx payload
+    expectResponseCode HTTP.status201 r
+    return (getFromResponse id r, mnemonic)
 
 rewardWallet
     :: (MonadIO m, MonadUnliftIO m)
@@ -2771,6 +2790,37 @@ updateWalletPassphraseViaCLI ctx wid ppOld ppNew ppNewConfirm = do
     liftIO $ withCreateProcess process $
         \(Just stdin) (Just stdout) (Just stderr) h -> do
             hPutStr stdin (ppOld <> "\n")
+            hPutStr stdin (ppNew <> "\n")
+            hPutStr stdin (ppNewConfirm <> "\n")
+            hFlush stdin
+            hClose stdin
+            c <- waitForProcess h
+            out <- TIO.hGetContents stdout
+            err <- TIO.hGetContents stderr
+            pure (c, out, err)
+
+updateWalletPassphraseWithMnemonicViaCLI
+    :: forall s m. (HasType (Port "wallet") s, MonadIO m)
+    => s
+    -> String
+        -- ^ Wallet id
+    -> [Text]
+        -- ^ Mnemonic
+    -> String
+        -- ^ New passphrase
+    -> String
+        -- ^ New passphrase (repeated for confirmation)
+    -> m (ExitCode, Text, Text)
+updateWalletPassphraseWithMnemonicViaCLI ctx wid mnemonic ppNew ppNewConfirm = do
+    let process = proc' commandName
+            [ "wallet", "update", "passphrase"
+            , "--port", show (ctx ^. typed @(Port "wallet"))
+            , "--mnemonic"
+            , wid
+            ]
+    liftIO $ withCreateProcess process $
+        \(Just stdin) (Just stdout) (Just stderr) h -> do
+            hPutStr stdin (T.unpack (T.unwords mnemonic) <> "\n\n")
             hPutStr stdin (ppNew <> "\n")
             hPutStr stdin (ppNewConfirm <> "\n")
             hFlush stdin
