@@ -91,6 +91,8 @@ module Cardano.Wallet.Api.Types
     , WalletPutData (..)
     , SettingsPutData (..)
     , WalletPutPassphraseData (..)
+    , WalletPutPassphraseOldPassphraseData (..)
+    , WalletPutPassphraseMnemonicData (..)
     , ApiSignTransactionPostData (..)
     , PostTransactionOldData (..)
     , PostTransactionFeeOldData (..)
@@ -270,6 +272,8 @@ import Cardano.Mnemonic
     , mnemonicToText
     , natVals
     )
+import Cardano.Wallet.Api.Aeson.Variant
+    ( variant, variants )
 import Cardano.Wallet.Api.Types.SchemaMetadata
     ( TxMetadataWithSchema )
 import Cardano.Wallet.Primitive.AddressDerivation
@@ -924,10 +928,23 @@ newtype SettingsPutData = SettingsPutData
     deriving (Eq, Generic)
     deriving Show via (Quiet SettingsPutData)
 
-data WalletPutPassphraseData = WalletPutPassphraseData
+data WalletPutPassphraseMnemonicData = WalletPutPassphraseMnemonicData
+    { mnemonicSentence :: !(ApiMnemonicT (AllowedMnemonics 'Shelley))
+    , mnemonicSecondFactor :: !(Maybe (ApiMnemonicT (AllowedMnemonics 'SndFactor)))
+    , newPassphrase :: !(ApiT (Passphrase "user"))
+    } deriving (Eq, Generic, Show)
+
+data WalletPutPassphraseOldPassphraseData = WalletPutPassphraseOldPassphraseData
     { oldPassphrase :: !(ApiT (Passphrase "user"))
     , newPassphrase :: !(ApiT (Passphrase "user"))
     } deriving (Eq, Generic, Show)
+
+newtype WalletPutPassphraseData = WalletPutPassphraseData
+    (  Either
+            WalletPutPassphraseOldPassphraseData
+            WalletPutPassphraseMnemonicData
+    )
+    deriving (Eq, Generic, Show)
 
 data ByronWalletPutPassphraseData = ByronWalletPutPassphraseData
     { oldPassphrase :: !(Maybe (ApiT (Passphrase "lenient")))
@@ -1714,6 +1731,7 @@ data ApiErrorCode
     | WalletNotResponding
     | WithdrawalNotWorth
     | WrongEncryptionPassphrase
+    | WrongMnemonic
     | ValidityIntervalNotInsideScriptTimelock
     deriving (Eq, Generic, Show, Data, Typeable)
     deriving anyclass NFData
@@ -1936,7 +1954,7 @@ newtype ApiMnemonicT (sizes :: [Nat]) =
 
 -- | A stake key belonging to the current wallet.
 data ApiOurStakeKey (n :: NetworkDiscriminant) = ApiOurStakeKey
-     { _index :: !Natural
+     { _index :: !Natural
     , _key :: !(ApiT W.RewardAccount, Proxy n)
     , _stake :: !(Quantity "lovelace" Natural)
       -- ^ The total ada this stake key controls / is associated with. This
@@ -1952,7 +1970,7 @@ data ApiOurStakeKey (n :: NetworkDiscriminant) = ApiOurStakeKey
 -- We /could/ provide the current delegation status for foreign stake
 -- keys.
 data ApiForeignStakeKey (n :: NetworkDiscriminant) = ApiForeignStakeKey
-    { _key :: !(ApiT W.RewardAccount, Proxy n)
+    { _key :: !(ApiT W.RewardAccount, Proxy n)
     , _stake :: !(Quantity "lovelace" Natural)
       -- ^ The total ada this stake key controls / is associated with. This
       -- also includes the reward balance.
@@ -2612,10 +2630,32 @@ instance FromJSON SettingsPutData where
 instance ToJSON  SettingsPutData where
     toJSON = genericToJSON defaultRecordTypeOptions
 
-instance FromJSON WalletPutPassphraseData where
+instance FromJSON WalletPutPassphraseMnemonicData where
     parseJSON = genericParseJSON defaultRecordTypeOptions
-instance ToJSON  WalletPutPassphraseData where
+instance ToJSON WalletPutPassphraseMnemonicData where
     toJSON = genericToJSON defaultRecordTypeOptions
+
+instance FromJSON WalletPutPassphraseOldPassphraseData where
+    parseJSON = genericParseJSON defaultRecordTypeOptions
+instance ToJSON  WalletPutPassphraseOldPassphraseData where
+    toJSON = genericToJSON defaultRecordTypeOptions
+
+instance FromJSON WalletPutPassphraseData where
+    parseJSON  =
+        fmap WalletPutPassphraseData . variants "PutPassphrase data"
+            [ variant "old passphrase"
+                    (HM.member "old_passphrase")
+                    $ fmap Left <$> parseJSON
+            , variant "mnemonic"
+                    (HM.member "mnemonic_sentence")
+                    $ fmap Right <$> parseJSON
+            ]
+
+instance ToJSON  WalletPutPassphraseData where
+    toJSON (WalletPutPassphraseData x) = either
+        (genericToJSON defaultRecordTypeOptions)
+        (genericToJSON defaultRecordTypeOptions)
+        x
 
 instance FromJSON (ApiT PoolMetadataGCStatus) where
     parseJSON = withObject "PoolMetadataGCStatus" $ \o -> do

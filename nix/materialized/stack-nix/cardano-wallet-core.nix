@@ -74,6 +74,7 @@
           (hsPkgs."filepath" or (errorHandler.buildDepError "filepath"))
           (hsPkgs."fmt" or (errorHandler.buildDepError "fmt"))
           (hsPkgs."foldl" or (errorHandler.buildDepError "foldl"))
+          (hsPkgs."free" or (errorHandler.buildDepError "free"))
           (hsPkgs."generic-lens" or (errorHandler.buildDepError "generic-lens"))
           (hsPkgs."generic-arbitrary" or (errorHandler.buildDepError "generic-arbitrary"))
           (hsPkgs."generics-sop" or (errorHandler.buildDepError "generics-sop"))
@@ -168,6 +169,7 @@
           "Cardano/Wallet"
           "Cardano/Wallet/Address/Pool"
           "Cardano/Wallet/Api"
+          "Cardano/Wallet/Api/Aeson/Variant"
           "Cardano/Wallet/Api/Client"
           "Cardano/Wallet/Api/Link"
           "Cardano/Wallet/Api/Server"

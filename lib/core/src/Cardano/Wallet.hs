@@ -71,7 +71,8 @@ module Cardano.Wallet
     , deleteWallet
     , restoreWallet
     , updateWallet
-    , updateWalletPassphrase
+    , updateWalletPassphraseWithOldPassphrase
+    , updateWalletPassphraseWithMnemonic
     , walletSyncProgress
     , fetchRewardBalance
     , manageRewardBalance
@@ -868,7 +869,7 @@ updateWallet ctx wid modify = db & \DBLayer{..} -> mapExceptT atomically $ do
     db = ctx ^. dbLayer @IO @s @k
 
 -- | Change a wallet's passphrase to the given passphrase.
-updateWalletPassphrase
+updateWalletPassphraseWithOldPassphrase
     :: forall ctx s k.
         ( HasDBLayer IO s k ctx
         , WalletKey k
@@ -877,7 +878,7 @@ updateWalletPassphrase
     -> WalletId
     -> (Passphrase "user", Passphrase "user")
     -> ExceptT ErrUpdatePassphrase IO ()
-updateWalletPassphrase ctx wid (old, new) =
+updateWalletPassphraseWithOldPassphrase ctx wid (old, new) =
     withRootKey @ctx @s @k ctx wid old ErrUpdatePassphraseWithRootKey
         $ \xprv scheme -> withExceptT ErrUpdatePassphraseNoSuchWallet $ do
             -- IMPORTANT NOTE:
@@ -887,6 +888,19 @@ updateWalletPassphrase ctx wid (old, new) =
             let new' = (currentPassphraseScheme, new)
             let xprv' = changePassphrase (scheme, old) new' xprv
             attachPrivateKeyFromPwdScheme @ctx @s @k ctx wid (xprv', new')
+
+updateWalletPassphraseWithMnemonic
+    :: forall ctx s k.
+        ( HasDBLayer IO s k ctx
+        )
+    => ctx
+    -> WalletId
+    -> (k 'RootK XPrv, Passphrase "user")
+    -> ExceptT ErrUpdatePassphrase IO ()
+updateWalletPassphraseWithMnemonic ctx wid (xprv, new) =
+    withExceptT ErrUpdatePassphraseNoSuchWallet $ do
+        attachPrivateKeyFromPwdScheme @ctx @s @k ctx wid 
+            (xprv, (currentPassphraseScheme , new))
 
 getWalletUtxoSnapshot
     :: forall ctx s k.
@@ -3509,6 +3523,7 @@ data ErrUpdatePassphrase
 data ErrWithRootKey
     = ErrWithRootKeyNoRootKey WalletId
     | ErrWithRootKeyWrongPassphrase WalletId ErrWrongPassphrase
+    | ErrWithRootKeyWrongMnemonic WalletId
     deriving (Show, Eq)
 
 -- | Errors that can occur when trying to list transactions.

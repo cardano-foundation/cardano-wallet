@@ -73,6 +73,7 @@ import Test.Integration.Framework.DSL
     , deleteWalletViaCLI
     , emptyRandomWallet
     , emptyWallet
+    , emptyWalletAndMnemonicWith
     , emptyWalletWith
     , eventually
     , expectCliField
@@ -91,6 +92,7 @@ import Test.Integration.Framework.DSL
     , postTransactionViaCLI
     , updateWalletNameViaCLI
     , updateWalletPassphraseViaCLI
+    , updateWalletPassphraseWithMnemonicViaCLI
     , verify
     , walletId
     )
@@ -530,6 +532,30 @@ spec = describe "SHELLEY_CLI_WALLETS" $ do
             --update pass
             (exitCode, out, err) <-
                 updateWalletPassphraseViaCLI ctx wid ppOld ppNew ppNew
+            out `shouldBe` "\n"
+            T.unpack err `shouldContain` cmdOk
+            exitCode `shouldBe` ExitSuccess
+
+            --verify passphraseLastUpdate was updated
+            Stdout o <- getWalletViaCLI ctx wid
+            j <- expectValidJSON (Proxy @ApiWallet) o
+            expectCliField #passphrase (`shouldNotBe` initPassUpdateTime) j
+
+    it "WALLETS_UPDATE_PASS_01 - Can update passphrase normally, mnemonic"
+        $ \ctx -> runResourceT $ do
+            let name = "name"
+            let ppOld = "old secure passphrase"
+            let ppNew = "new secure passphrase"
+            let addrPoolMin = fromIntegral @_ @Int $ getAddressPoolGap minBound
+            (w, mnemonic) <- emptyWalletAndMnemonicWith
+                ctx (name, T.pack ppOld, addrPoolMin)
+            let initPassUpdateTime = w ^. #passphrase
+            let wid = T.unpack $ w ^. walletId
+
+            --update pass
+            (exitCode, out, err) <-
+                updateWalletPassphraseWithMnemonicViaCLI
+                    ctx wid mnemonic ppNew ppNew
             out `shouldBe` "\n"
             T.unpack err `shouldContain` cmdOk
             exitCode `shouldBe` ExitSuccess

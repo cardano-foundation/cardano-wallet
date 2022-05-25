@@ -324,14 +324,14 @@ spec = describe "SHARED_WALLETS" $ do
         (walAcctSameOtherScriptActive ^. #id)  `shouldNotBe` (walActive ^. #id)
 
        -- In cardano-addresses
-       -- $ cat phrase.prv
+       -- \$ cat phrase.prv
        -- rib kiwi begin other second pool raise prosper inspire forum keep stereo option ride region
        --
-       -- $ cardano-address key from-recovery-phrase Shared < phrase.prv > root.shared_xsk
+       -- \$ cardano-address key from-recovery-phrase Shared < phrase.prv > root.shared_xsk
        --
-       -- $ cardano-address key child 1854H/1815H/0H < root.shared_xsk > acct.shared_xsk
+       -- \$ cardano-address key child 1854H/1815H/0H < root.shared_xsk > acct.shared_xsk
        --
-       -- $ cardano-address key walletid --spending "all [cosigner#0]" < acct.shared_xsk
+       -- \$ cardano-address key walletid --spending "all [cosigner#0]" < acct.shared_xsk
        -- 654a69cd246ab08aeb4d44837ff5d5ceddfbce20
     it "SHARED_WALLETS_CREATE_01 - golden test comparing wallet id" $ \ctx -> runResourceT $ do
         let payloadPost = Json [json| {

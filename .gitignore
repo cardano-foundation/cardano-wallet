@@ -37,8 +37,7 @@ hie.yaml
 ### Direnv ###
 .envrc-local
 .envrc-override
-.direnv/flake-profile
-.direnv/flake-profile-1-link
+.direnv/flake-profile*
 
 ### auto-generated faulty JSON golden tests ###
 *.faulty.json
@@ -54,5 +53,3 @@ lib/shelley/test/data/balanceTx/**/actual
 
 ## local ignored space
 ignore-me
-
-

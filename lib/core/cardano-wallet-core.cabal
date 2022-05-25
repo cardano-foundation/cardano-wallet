@@ -78,6 +78,7 @@ library
     , filepath
     , fmt
     , foldl
+    , free
     , generic-lens
     , generic-arbitrary
     , generics-sop
@@ -180,6 +181,7 @@ library
       Cardano.Wallet
       Cardano.Wallet.Address.Pool
       Cardano.Wallet.Api
+      Cardano.Wallet.Api.Aeson.Variant
       Cardano.Wallet.Api.Client
       Cardano.Wallet.Api.Link
       Cardano.Wallet.Api.Server

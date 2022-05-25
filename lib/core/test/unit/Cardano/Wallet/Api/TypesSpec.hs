@@ -197,6 +197,8 @@ import Cardano.Wallet.Api.Types
     , WalletPostData (..)
     , WalletPutData (..)
     , WalletPutPassphraseData (..)
+    , WalletPutPassphraseMnemonicData (..)
+    , WalletPutPassphraseOldPassphraseData (..)
     , toApiAsset
     )
 import Cardano.Wallet.Api.Types.SchemaMetadata
@@ -1096,14 +1098,29 @@ spec = parallel $ do
                     }
             in
                 x' === x .&&. show x' === show x
-        it "WalletPutPassphraseData" $ property $ \x ->
-            let
-                x' = WalletPutPassphraseData
-                    { oldPassphrase = oldPassphrase (x :: WalletPutPassphraseData)
-                    , newPassphrase = newPassphrase (x :: WalletPutPassphraseData)
-                    }
-            in
-                x' === x .&&. show x' === show x
+        it "WalletPutPassphraseData" $ property $ \case 
+                WalletPutPassphraseData  (Left x) -> 
+                    let
+                        x' = WalletPutPassphraseOldPassphraseData
+                            { oldPassphrase = oldPassphrase 
+                                (x :: WalletPutPassphraseOldPassphraseData)
+                            , newPassphrase = newPassphrase 
+                                (x :: WalletPutPassphraseOldPassphraseData)
+                            }
+                    in
+                        x' === x .&&. show x' === show x
+                WalletPutPassphraseData  (Right x) -> 
+                    let
+                        x' = Api.WalletPutPassphraseMnemonicData
+                            { mnemonicSentence = mnemonicSentence
+                                (x :: WalletPutPassphraseMnemonicData)
+                            ,  mnemonicSecondFactor  = mnemonicSecondFactor
+                                (x :: WalletPutPassphraseMnemonicData)
+                            , newPassphrase = newPassphrase 
+                                (x :: WalletPutPassphraseMnemonicData)
+                            }
+                    in
+                        x' === x .&&. show x' === show x
         it "ByronWalletPutPassphraseData" $ property $ \x ->
             let
                 x' = ByronWalletPutPassphraseData
@@ -1752,6 +1769,12 @@ instance Arbitrary WalletPutPassphraseData where
     arbitrary = genericArbitrary
     shrink = genericShrink
 
+instance Arbitrary WalletPutPassphraseOldPassphraseData where
+    arbitrary = genericArbitrary
+    shrink = genericShrink
+instance Arbitrary WalletPutPassphraseMnemonicData where
+    arbitrary = genericArbitrary
+    shrink = genericShrink
 instance Arbitrary ByronWalletPutPassphraseData where
     arbitrary = genericArbitrary
     shrink = genericShrink

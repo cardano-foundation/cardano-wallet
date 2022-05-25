@@ -90,6 +90,8 @@ import Test.Integration.Framework.DSL
     , emptyByronWalletWith
     , emptyRandomWallet
     , emptyWallet
+    , emptyWalletAndMnemonic
+    , emptyWalletAndMnemonicAndSndFactor
     , emptyWalletWith
     , eventually
     , expectErrorMessage
@@ -101,6 +103,7 @@ import Test.Integration.Framework.DSL
     , fixtureMultiAssetWallet
     , fixturePassphrase
     , fixtureWallet
+    , fixtureWalletWithMnemonics
     , genMnemonics
     , getFromResponse
     , json
@@ -120,6 +123,7 @@ import Test.Integration.Framework.DSL
     )
 import Test.Integration.Framework.TestData
     ( arabicWalletName
+    , errMsg403WrongMnemonic
     , errMsg403WrongPass
     , errMsg404NoWallet
     , errMsg406
@@ -132,6 +136,8 @@ import Test.Integration.Framework.TestData
     , simplePayload
     , updateNamePayload
     , updatePassPayload
+    , updatePassPayloadMnemonic
+    , updatePassPayloadMnemonicAndSndFactor
     , wildcardsWalletName
     )
 
@@ -751,14 +757,42 @@ spec = describe "SHELLEY_WALLETS" $ do
             ru <- request @ApiWallet ctx ("PUT", endpoint) headers newName
             verify ru expectations
 
-    it "WALLETS_UPDATE_PASS_01 - passphaseLastUpdate gets updated" $ \ctx -> runResourceT $ do
+    it "WALLETS_UPDATE_PASS_01a - passphraseLastUpdate gets updated"
+      $ \ctx -> runResourceT $ do
         w <- emptyWallet ctx
         let payload = updatePassPayload fixturePassphrase "New passphrase"
         let endpoint = "v2/wallets" </> (w ^. walletId)
                 </> ("passphrase" :: Text)
         rup <- request @ApiWallet ctx ("PUT", endpoint) Default payload
         expectResponseCode HTTP.status204 rup
+        let getEndpoint = "v2/wallets" </> (w ^. walletId)
+        let originalPassUpdateDateTime = w ^. #passphrase
+        rg <- request @ApiWallet ctx ("GET", getEndpoint) Default Empty
+        expectField #passphrase (`shouldNotBe` originalPassUpdateDateTime) rg
 
+    it "WALLETS_UPDATE_PASS_01b - passphraseLastUpdate gets updated, mnemonic"
+      $ \ctx -> runResourceT $ do
+        (w, mnemonic) <- emptyWalletAndMnemonic ctx
+        let payload = updatePassPayloadMnemonic mnemonic "New passphrase"
+        let endpoint = "v2/wallets" </> (w ^. walletId)
+                </> ("passphrase" :: Text)
+        rup <- request @ApiWallet ctx ("PUT", endpoint) Default payload
+        expectResponseCode HTTP.status204 rup
+        let getEndpoint = "v2/wallets" </> (w ^. walletId)
+        let originalPassUpdateDateTime = w ^. #passphrase
+        rg <- request @ApiWallet ctx ("GET", getEndpoint) Default Empty
+        expectField #passphrase (`shouldNotBe` originalPassUpdateDateTime) rg
+
+    it "WALLETS_UPDATE_PASS_01c - passphraseLastUpdate gets updated, mnemonic \
+          \using second factor"
+      $ \ctx -> runResourceT $ do
+        (w, mnemonic, sndFactor) <- emptyWalletAndMnemonicAndSndFactor ctx
+        let payload = updatePassPayloadMnemonicAndSndFactor
+              mnemonic sndFactor "New passphrase"
+        let endpoint = "v2/wallets" </> (w ^. walletId)
+                </> ("passphrase" :: Text)
+        rup <- request @ApiWallet ctx ("PUT", endpoint) Default payload
+        expectResponseCode HTTP.status204 rup
         let getEndpoint = "v2/wallets" </> (w ^. walletId)
         let originalPassUpdateDateTime = w ^. #passphrase
         rg <- request @ApiWallet ctx ("GET", getEndpoint) Default Empty
@@ -800,6 +834,13 @@ spec = describe "SHELLEY_WALLETS" $ do
                     </> ("passphrase" :: Text)
             rup <- request @ApiWallet ctx ("PUT", endpoint) Default payload
             verify rup expectations
+        forM_ matrix $ \(title, passphrase, expectations) -> it title $ \ctx -> runResourceT $ do
+            (w, mnemonic) <- emptyWalletAndMnemonic ctx
+            let payload = updatePassPayloadMnemonic mnemonic passphrase
+            let endpoint = "v2/wallets" </> (w ^. walletId)
+                    </> ("passphrase" :: Text)
+            rup <- request @ApiWallet ctx ("PUT", endpoint) Default payload
+            verify rup expectations
 
     it "WALLETS_UPDATE_PASS_03 - Old passphrase incorrect" $ \ctx -> runResourceT $ do
         w <- emptyWalletWith ctx
@@ -809,6 +850,15 @@ spec = describe "SHELLEY_WALLETS" $ do
             (Link.putWalletPassphrase @'Shelley w) Default payload
         expectResponseCode HTTP.status403 rup
         expectErrorMessage errMsg403WrongPass rup
+
+    it "WALLETS_UPDATE_PASS_03 - Mnemonic incorrect" $ \ctx -> runResourceT $ do
+        (w,_mnemonic) <- emptyWalletAndMnemonic ctx
+        otherMnemonic <- liftIO $ genMnemonics M24
+        let payload = updatePassPayloadMnemonic otherMnemonic "whatever-pass"
+        rup <- request @ApiWallet ctx
+            (Link.putWalletPassphrase @'Shelley w) Default payload
+        expectResponseCode HTTP.status403 rup
+        expectErrorMessage errMsg403WrongMnemonic rup
 
     describe "WALLETS_UPDATE_PASS_03 - Can update pass from pass that's boundary\
     \ value" $ do
@@ -839,8 +889,13 @@ spec = describe "SHELLEY_WALLETS" $ do
             rup <- request @ApiWallet ctx
                 (Link.putWalletPassphrase @'Shelley w) Default payload
             expectResponseCode HTTP.status204 rup
+            let payloadMnemonic = updatePassPayloadMnemonic m24 newPass
+            rupMnemonic <- request @ApiWallet ctx
+                (Link.putWalletPassphrase @'Shelley w) Default payloadMnemonic
+            expectResponseCode HTTP.status204 rupMnemonic
 
-    it "WALLETS_UPDATE_PASS_04 - Deleted wallet is not available" $ \ctx -> runResourceT $ do
+    it "WALLETS_UPDATE_PASS_04 - Deleted wallet is not available"
+      $ \ctx -> runResourceT $ do
         w <- emptyWallet ctx
         let payload = updatePassPayload fixturePassphrase "Secure passphrase2"
         let walId = w ^. walletId
@@ -851,24 +906,69 @@ spec = describe "SHELLEY_WALLETS" $ do
         expectResponseCode HTTP.status404 rup
         expectErrorMessage (errMsg404NoWallet walId) rup
 
-    describe "WALLETS_UPDATE_PASS_05,06 - Transaction after updating passphrase" $ do
+    it "WALLETS_UPDATE_PASS_04 - Deleted wallet is not available, mnemonic"
+      $ \ctx -> runResourceT $ do
+        (w, mnemonic) <- emptyWalletAndMnemonic ctx
+        let payload = updatePassPayloadMnemonic mnemonic "Secure passphrase2"
+        let walId = w ^. walletId
+        let delEndp = "v2/wallets" </> walId
+        _ <- request @ApiWallet ctx ("DELETE", delEndp) Default Empty
+        let updEndp = delEndp </> ("passphrase" :: Text)
+        rup <- request @ApiWallet ctx ("PUT", updEndp) Default payload
+        expectResponseCode HTTP.status404 rup
+        expectErrorMessage (errMsg404NoWallet walId) rup
+
+    describe "WALLETS_UPDATE_PASS_05,06 - Transaction after updating passphrase"
+      $ do
         let oldPass = "cardano-wallet"
         let newPass = "cardano-wallet2"
-        let matrix = [ ("Old passphrase -> fail", oldPass
-                       , [ expectResponseCode HTTP.status403
-                         , expectErrorMessage errMsg403WrongPass ] )
-                     , ("New passphrase -> OK", newPass
-                       , [ expectResponseCode HTTP.status202 ] )
-                     ]
-
-        forM_ matrix $ \(title, pass, expectations) -> it title $ \ctx -> runResourceT $ do
+        let matrix =  [ ("Old passphrase -> fail", oldPass
+                        , [ expectResponseCode HTTP.status403
+                          , expectErrorMessage errMsg403WrongPass
+                          ]
+                        )
+                      , ("New passphrase -> OK", newPass
+                        , [ expectResponseCode HTTP.status202 ]
+                        )
+                      ]
+        forM_ matrix $ \(title, pass, expectations) -> it title
+          $ \ctx -> runResourceT $ do
             wSrc <- fixtureWallet ctx
             wDest <- emptyWallet ctx
             let payloadUpdate = updatePassPayload oldPass newPass
-            rup <- request @ApiWallet ctx
-                   (Link.putWalletPassphrase @'Shelley wSrc) Default payloadUpdate
+            rup <- request @ApiWallet
+                    ctx
+                    (Link.putWalletPassphrase @'Shelley wSrc)
+                    Default
+                    payloadUpdate
             expectResponseCode HTTP.status204 rup
-
+            addrs <- listAddresses @n ctx wDest
+            let destination = (addrs !! 1) ^. #id
+            let payloadTrans = Json [json|{
+                    "payments": [{
+                        "address": #{destination},
+                        "amount": {
+                            "quantity": #{minUTxOValue (_mainEra ctx)},
+                            "unit": "lovelace"
+                        }
+                    }],
+                    "passphrase": #{pass}
+                    }|]
+            r <- request @(ApiTransaction n) ctx
+                (Link.createTransactionOld @'Shelley wSrc) Default payloadTrans
+            verify r expectations
+        forM_ matrix $ \(title, pass, expectations) -> it title
+          $ \ctx -> runResourceT $ do
+            (wSrc, mnemonic) <-
+              fixtureWalletWithMnemonics (Proxy @"shelley") ctx
+            wDest <- emptyWallet ctx
+            let payloadUpdate = updatePassPayloadMnemonic mnemonic newPass
+            rup <- request @ApiWallet
+                    ctx
+                    (Link.putWalletPassphrase @'Shelley wSrc)
+                    Default
+                    payloadUpdate
+            expectResponseCode HTTP.status204 rup
             addrs <- listAddresses @n ctx wDest
             let destination = (addrs !! 1) ^. #id
             let payloadTrans = Json [json|{
