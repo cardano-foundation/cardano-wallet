@@ -75,56 +75,7 @@ RSpec.describe CardanoWallet::Byron do
           expect(upd).to be_correct_and_respond 403
           expect(upd.to_s).to include 'wrong_encryption_passphrase'
         end
-
-        it "Can update_passphrase using mnemonics of #{wallet_style} wallet" do
-          w = BYRON.wallets
-          mnemonics = mnemonic_sentence(24)
-          id = create_byron_wallet(wallet_style, "Wallet", mnemonics)
-          upd = w.update_passphrase(id, { mnemonics: mnemonics,
-                                          new_passphrase: "Securer Passphrase" })
-          expect(upd).to be_correct_and_respond 204
-        end
-
-        it "Cannot update_passphrase using wrong mnemonics of #{wallet_style} wallet" do
-          w = BYRON.wallets
-          mnemonics = mnemonic_sentence(24)
-          wrong_mnemonics = mnemonic_sentence(24)
-          id = create_byron_wallet(wallet_style, "Wallet", mnemonics)
-          upd = w.update_passphrase(id, { mnemonics: wrong_mnemonics,
-                                          new_passphrase: "Securer Passphrase" })
-          expect(upd).to be_correct_and_respond 403
-          expect(upd.to_s).to include 'wrong_mnemonic'
-        end
       end
-
-      it "Can update_passphrase of icarus wallet from pub key using mnemonics from which pub key is derived" do
-        mnemonics = mnemonic_sentence(24)
-        root_xsk = CA.prv_key_from_recovery_phrase(mnemonics, "Icarus")
-        acct_key = CA.key_child(root_xsk, "44H/1815H/0H")
-        pub_key = CA.key_public(acct_key, with_chain_code = true)
-        acc_pub_key_base16 = bech32_to_base16(pub_key)
-
-        payload = { name: "Wallet from pub key",
-                    account_public_key: acc_pub_key_base16,
-                    address_pool_gap: 20
-                  }
-        wallet = WalletFactory.create(:byron, payload)
-        expect(wallet).to be_correct_and_respond 201
-
-        wid = wallet['id']
-
-        # I can update passphrase using mnemonics
-        upd = BYRON.wallets.update_passphrase(wid, { mnemonic_sentence: mnemonics,
-                                                     new_passphrase: "Secure Passphrase" })
-        expect(upd).to be_correct_and_respond 204
-
-        # Once password is set I can perform passphrase-protected operations,
-        # like update passphrase using old passprase
-        upd2 = BYRON.wallets.update_passphrase(wid, { old_passphrase: "Secure Passphrase",
-                                                      new_passphrase: "Securer Passphrase" })
-        expect(upd2).to be_correct_and_respond 204
-      end
-
     end
 
     it "Can see utxo" do
