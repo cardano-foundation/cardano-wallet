@@ -2643,10 +2643,10 @@ instance ToJSON  WalletPutPassphraseOldPassphraseData where
 instance FromJSON WalletPutPassphraseData where
     parseJSON  =
         fmap WalletPutPassphraseData . variants "PutPassphrase data"
-            [ variant "OldPassphrase"
+            [ variant "old passphrase"
                     (HM.member "old_passphrase")
                     $ fmap Left <$> parseJSON
-            , variant "Mnemonic"
+            , variant "mnemonic"
                     (HM.member "mnemonic_sentence")
                     $ fmap Right <$> parseJSON
             ]

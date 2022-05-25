@@ -772,7 +772,7 @@ spec = describe "SHELLEY_WALLETS" $ do
 
     it "WALLETS_UPDATE_PASS_01b - passphraseLastUpdate gets updated, mnemonic"
       $ \ctx -> runResourceT $ do
-        (w,mnemonic) <- emptyWalletAndMnemonic ctx
+        (w, mnemonic) <- emptyWalletAndMnemonic ctx
         let payload = updatePassPayloadMnemonic mnemonic "New passphrase"
         let endpoint = "v2/wallets" </> (w ^. walletId)
                 </> ("passphrase" :: Text)
@@ -786,7 +786,7 @@ spec = describe "SHELLEY_WALLETS" $ do
     it "WALLETS_UPDATE_PASS_01c - passphraseLastUpdate gets updated, mnemonic \
           \using second factor"
       $ \ctx -> runResourceT $ do
-        (w,mnemonic, sndFactor) <- emptyWalletAndMnemonicAndSndFactor ctx
+        (w, mnemonic, sndFactor) <- emptyWalletAndMnemonicAndSndFactor ctx
         let payload = updatePassPayloadMnemonicAndSndFactor
               mnemonic sndFactor "New passphrase"
         let endpoint = "v2/wallets" </> (w ^. walletId)
@@ -835,7 +835,7 @@ spec = describe "SHELLEY_WALLETS" $ do
             rup <- request @ApiWallet ctx ("PUT", endpoint) Default payload
             verify rup expectations
         forM_ matrix $ \(title, passphrase, expectations) -> it title $ \ctx -> runResourceT $ do
-            (w,mnemonic) <- emptyWalletAndMnemonic ctx
+            (w, mnemonic) <- emptyWalletAndMnemonic ctx
             let payload = updatePassPayloadMnemonic mnemonic passphrase
             let endpoint = "v2/wallets" </> (w ^. walletId)
                     </> ("passphrase" :: Text)
@@ -908,7 +908,7 @@ spec = describe "SHELLEY_WALLETS" $ do
 
     it "WALLETS_UPDATE_PASS_04 - Deleted wallet is not available, mnemonic"
       $ \ctx -> runResourceT $ do
-        (w,mnemonic) <- emptyWalletAndMnemonic ctx
+        (w, mnemonic) <- emptyWalletAndMnemonic ctx
         let payload = updatePassPayloadMnemonic mnemonic "Secure passphrase2"
         let walId = w ^. walletId
         let delEndp = "v2/wallets" </> walId

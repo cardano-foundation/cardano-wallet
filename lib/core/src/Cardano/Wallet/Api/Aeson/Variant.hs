@@ -56,9 +56,9 @@ variants
 variants ctx xs v = withObject ctx run v
   where
     run obj = case xs >>= mkParser obj of
-        [] -> fail "not enough fields to select a variant"
+        [] -> fail "no variant selection criteria matching"
         [p] -> p
-        _ -> fail "multiple variants are possible"
+        _ -> fail "multiple variant selection criteria matching"
     mkParser :: Object -> Variant a -> [Parser a]
     mkParser obj (Variant v_ctx s p)
         | s obj =

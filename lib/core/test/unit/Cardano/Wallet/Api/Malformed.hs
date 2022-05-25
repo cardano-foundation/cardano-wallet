@@ -912,61 +912,162 @@ instance Malformed (BodyParam WalletPutPassphraseData) where
                 { "old_passphrase": #{wPassphrase}
                 , "new_passphrase" : 100
                 }|]
-              , "Error in $['new_passphrase']: parsing Passphrase failed, expected String, but encountered Number, OldPassphrase variant"
+              , "Error in $['new_passphrase']: parsing Passphrase failed, expected String, but encountered Number, old passphrase variant"
               )
             , ( [aesonQQ|
                 { "old_passphrase": []
                 , "new_passphrase" : #{wPassphrase}
                 }|]
-              , "Error in $['old_passphrase']: parsing Passphrase failed, expected String, but encountered Array, OldPassphrase variant"
+              , "Error in $['old_passphrase']: parsing Passphrase failed, expected String, but encountered Array, old passphrase variant"
               )
             , ( [aesonQQ|
                 { "old_passphrase": ""
                 , "new_passphrase" : #{wPassphrase}
                 }|]
-              , "Error in $['old_passphrase']: passphrase is too short: expected at least 10 characters, OldPassphrase variant"
+              , "Error in $['old_passphrase']: passphrase is too short: expected at least 10 characters, old passphrase variant"
               )
             , ( [aesonQQ|
                 { "old_passphrase": #{wPassphrase}
                 , "new_passphrase" : "123456789"
                 }|]
-              , "Error in $['new_passphrase']: passphrase is too short: expected at least 10 characters, OldPassphrase variant"
+              , "Error in $['new_passphrase']: passphrase is too short: expected at least 10 characters, old passphrase variant"
               )
             , ( [aesonQQ|
                 { "old_passphrase": #{wPassphrase}
                 , "new_passphrase" : #{nameTooLong}
                 }|]
-              , "Error in $['new_passphrase']: passphrase is too long: expected at most 255 characters, OldPassphrase variant"
+              , "Error in $['new_passphrase']: passphrase is too long: expected at most 255 characters, old passphrase variant"
               )
             , ( [aesonQQ|
                 { "old_passphrase": #{nameTooLong}
                 , "new_passphrase" : #{wPassphrase}
                 }|]
-              , "Error in $['old_passphrase']: passphrase is too long: expected at most 255 characters, OldPassphrase variant"
+              , "Error in $['old_passphrase']: passphrase is too long: expected at most 255 characters, old passphrase variant"
               )
             , ( [aesonQQ|
                 { "old_passphrase": #{wPassphrase}
                 }|]
-              , "Error in $: parsing Cardano.Wallet.Api.Types.WalletPutPassphraseOldPassphraseData(WalletPutPassphraseOldPassphraseData) failed, key 'new_passphrase' not found, OldPassphrase variant"
+              , "Error in $: parsing Cardano.Wallet.Api.Types.WalletPutPassphraseOldPassphraseData(WalletPutPassphraseOldPassphraseData) failed, key 'new_passphrase' not found, old passphrase variant"
               )
             , ( [aesonQQ|
                 { "new_passphrase": #{wPassphrase}
                 }|]
-              , "Error in $: not enough fields to select a variant"
+              , "Error in $: no variant selection criteria matching"
               )
             , ( [aesonQQ|
                 { "mnemonic_sentence": #{mnemonics15}
                 }|]
-              , "Error in $: parsing Cardano.Wallet.Api.Types.WalletPutPassphraseMnemonicData(WalletPutPassphraseMnemonicData) failed, key 'new_passphrase' not found, Mnemonic variant"
+              , "Error in $: parsing Cardano.Wallet.Api.Types.WalletPutPassphraseMnemonicData(WalletPutPassphraseMnemonicData) failed, key 'new_passphrase' not found, mnemonic variant"
               )
             , ( [aesonQQ|
                 { "mnemonic_sentence": #{mnemonics15}
                 , "old_passphrase": #{wPassphrase}
                 }|]
-              , "Error in $: multiple variants are possible"
-
+              , "Error in $: multiple variant selection criteria matching"
+            )
+            , ( [aesonQQ|
+                { "mnemonic_sentence": []
+                , "new_passphrase": #{wPassphrase}
+                }|]
+              , "Error in $['mnemonic_sentence']: Invalid number of words: 15, 18, 21 or 24 words are expected., mnemonic variant"
               )
-
+            , ( [aesonQQ|
+                { "mnemonic_sentence": #{mnemonics3}
+                , "new_passphrase": #{wPassphrase}
+                }|]
+              , "Error in $['mnemonic_sentence']: Invalid number of words: 15, 18, 21 or 24 words are expected., mnemonic variant"
+              )
+            , ( [aesonQQ|
+                { "mnemonic_sentence": #{mnemonics6}
+                , "new_passphrase": #{wPassphrase}
+                }|]
+              , "Error in $['mnemonic_sentence']: Invalid number of words: 15, 18, 21 or 24 words are expected., mnemonic variant"
+              )
+            , ( [aesonQQ|
+                { "mnemonic_sentence": #{mnemonics9}
+                , "new_passphrase": #{wPassphrase}
+                }|]
+              , "Error in $['mnemonic_sentence']: Invalid number of words: 15, 18, 21 or 24 words are expected., mnemonic variant"
+              )
+            , ( [aesonQQ|
+                { "mnemonic_sentence": #{mnemonics12}
+                , "new_passphrase": #{wPassphrase}
+                }|]
+              , "Error in $['mnemonic_sentence']: Invalid number of words: 15, 18, 21 or 24 words are expected., mnemonic variant"
+              )
+            , ( [aesonQQ|
+                { "mnemonic_sentence": #{invalidMnemonics15}
+                , "new_passphrase": #{wPassphrase}
+                }|]
+              , "Error in $['mnemonic_sentence']: Invalid entropy checksum: please double-check the last word of your mnemonic sentence., mnemonic variant"
+              )
+            , ( [aesonQQ|
+                { "mnemonic_sentence": #{notInDictMnemonics15}
+                , "new_passphrase": #{wPassphrase}
+                }|]
+              , "Error in $['mnemonic_sentence']: Found an unknown word not present in the pre-defined dictionary. The full dictionary is available here: \
+                  \https://github.com/input-output-hk/cardano-wallet/tree/master/specifications/mnemonic/english.txt, mnemonic variant"
+              )
+            , ( [aesonQQ|
+                { "mnemonic_sentence": #{specMnemonicSentence}
+                , "new_passphrase": #{wPassphrase}
+                }|]
+              , "Error in $['mnemonic_sentence']: Invalid entropy checksum: please double-check the last word of your mnemonic sentence., mnemonic variant"
+              )
+            , ( [aesonQQ|
+                { "mnemonic_sentence": #{japaneseMnemonics12}
+                , "new_passphrase": #{wPassphrase}
+                }|]
+              , "Error in $['mnemonic_sentence']: Invalid number of words: 15, 18, 21 or 24 words are expected., mnemonic variant"
+              )
+            , ( [aesonQQ|
+                { "mnemonic_sentence": #{japaneseMnemonics15}
+                , "new_passphrase": #{wPassphrase}
+                }|]
+              , "Error in $['mnemonic_sentence']: Found an unknown word not present in the pre-defined dictionary. The full dictionary is available here: \
+                  \https://github.com/input-output-hk/cardano-wallet/tree/master/specifications/mnemonic/english.txt, mnemonic variant"
+              )
+            , ( [aesonQQ|
+                { "mnemonic_sentence": #{chineseMnemonics9}
+                , "new_passphrase": #{wPassphrase}
+                }|]
+              , "Error in $['mnemonic_sentence']: Invalid number of words: 15, 18, 21 or 24 words are expected., mnemonic variant"
+              )
+            , ( [aesonQQ|
+                { "mnemonic_sentence": #{chineseMnemonics18}
+                , "new_passphrase": #{wPassphrase}
+                }|]
+              , "Error in $['mnemonic_sentence']: Found an unknown word not present in the pre-defined dictionary. The full dictionary is available here: \
+                  \https://github.com/input-output-hk/cardano-wallet/tree/master/specifications/mnemonic/english.txt, mnemonic variant"
+              )
+            , ( [aesonQQ|
+                { "mnemonic_sentence": #{frenchMnemonics12}
+                , "new_passphrase": #{wPassphrase}
+                }|]
+              , "Error in $['mnemonic_sentence']: Invalid number of words: 15, 18, 21 or 24 words are expected., mnemonic variant"
+              )
+            , ( [aesonQQ|
+                { "mnemonic_sentence": #{frenchMnemonics21}
+                , "new_passphrase": #{wPassphrase}
+                }|]
+              , "Error in $['mnemonic_sentence']: Found an unknown word not present in the pre-defined dictionary. The full dictionary is available here: \
+                  \https://github.com/input-output-hk/cardano-wallet/tree/master/specifications/mnemonic/english.txt, mnemonic variant"
+              )
+            , ( [aesonQQ|
+                { "mnemonic_sentence": #{mnemonics15}
+                , "mnemonic_second_factor": []
+                , "new_passphrase": #{wPassphrase}
+                }|]
+              , "Error in $['mnemonic_second_factor']: Invalid number of words: 9 or 12 words are expected., mnemonic variant"
+              )
+            , ( [aesonQQ|
+                { "mnemonic_sentence": #{mnemonics15}
+                , "mnemonic_second_factor": #{specMnemonicSecondFactor}
+                , "new_passphrase": #{wPassphrase}
+                }|]
+              , "Error in $['mnemonic_second_factor']: Invalid entropy checksum: please double-check the last word of your mnemonic sentence., mnemonic variant"
+              )
+            
             ]
 
 instance Malformed (BodyParam ByronWalletPutPassphraseData) where

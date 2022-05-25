@@ -57,7 +57,6 @@ library
     , cardano-ledger-shelley-test
     , cardano-ledger-shelley
     , cardano-ledger-alonzo
-    , cardano-prelude
     , cardano-slotting
     , cborg
     , containers

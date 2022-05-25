@@ -2843,7 +2843,6 @@ updateWalletPassphraseWithMnemonicViaCLI ctx wid mnemonic ppNew ppNewConfirm = d
             hPutStr stdin (T.unpack (T.unwords mnemonic) <> "\n\n")
             hPutStr stdin (ppNew <> "\n")
             hPutStr stdin (ppNewConfirm <> "\n")
-            hFlush stdin
             hClose stdin
             c <- waitForProcess h
             out <- TIO.hGetContents stdout
