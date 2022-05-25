@@ -159,6 +159,8 @@ import Cardano.Wallet.Api.Types
     , WalletPostData (..)
     , WalletPutData (..)
     , WalletPutPassphraseData (..)
+    , WalletPutPassphraseMnemonicData (WalletPutPassphraseMnemonicData)
+    , WalletPutPassphraseOldPassphraseData (WalletPutPassphraseOldPassphraseData)
     , fmtAllowedWords
     )
 import Cardano.Wallet.Api.Types.SchemaMetadata
@@ -193,7 +195,7 @@ import Cardano.Wallet.Version
 import Control.Applicative
     ( optional, some, (<|>) )
 import Control.Arrow
-    ( first, left )
+    ( first, left, (***) )
 import Control.Monad
     ( forM_, forever, join, unless, void, when )
 import Control.Monad.IO.Class
@@ -506,6 +508,22 @@ cmdByronWalletCreateFromMnemonic mkClient =
                     (ApiT wName)
                     (ApiT wPwd)
 
+getMnemonics :: IO (SomeMnemonic, Maybe SomeMnemonic)
+getMnemonics  = do
+    wSeed <- do
+        let prompt = "Please enter the 15–24 word recovery phrase: "
+        let parser = mkSomeMnemonic @'[15,18,21,24] . T.words
+        fst <$> getLine @SomeMnemonic prompt (left show . parser)
+    wSndFactor <- do
+        let prompt =
+                "(Enter a blank line if you do not wish to use a second " <>
+                "factor.)\n" <>
+                "Please enter a 9–12 word second factor: "
+        let parser =
+                optionalE (mkSomeMnemonic @'[9,12]) . T.words
+        fst <$> getLine @(Maybe SomeMnemonic) prompt (left show . parser)
+    pure (wSeed, wSndFactor)
+
 -- | Arguments for 'wallet create' command
 data WalletCreateArgs = WalletCreateArgs
     { _port :: Port "Wallet"
@@ -525,18 +543,7 @@ cmdWalletCreateFromMnemonic mkClient =
         <*> walletNameArgument
         <*> poolGapOption
     exec (WalletCreateArgs wPort wName wGap) = do
-        wSeed <- do
-            let prompt = "Please enter a 15–24 word recovery phrase: "
-            let parser = mkSomeMnemonic @'[15,18,21,24] . T.words
-            fst <$> getLine @SomeMnemonic prompt (left show . parser)
-        wSndFactor <- do
-            let prompt =
-                    "(Enter a blank line if you do not wish to use a second " <>
-                    "factor.)\n" <>
-                    "Please enter a 9–12 word second factor: "
-            let parser =
-                    optionalE (mkSomeMnemonic @'[9,12]) . T.words
-            fst <$> getLine @(Maybe SomeMnemonic) prompt (left show . parser)
+        (wSeed, wSndFactor) <- getMnemonics
         wPwd <- getPassphraseWithConfirm "Please enter a passphrase: "
         runClient wPort Aeson.encodePretty $ postWallet mkClient $
             WalletOrAccountPostData $ Left $ WalletPostData
@@ -630,10 +637,19 @@ cmdWalletUpdateName mkClient =
             (ApiT wId)
             (WalletPutData $ Just (ApiT wName))
 
+data UpdatePassphraseCredential = MnemonicCredentials | OldPasswordCredentials
+    deriving Eq
+-- | Which json schema to use for output
+useMnemonicOption :: Parser UpdatePassphraseCredential
+useMnemonicOption = flag OldPasswordCredentials MnemonicCredentials
+    $ long "mnemonic"
+        <> help "use mnemonic to authorize the passphrase change"
+
 -- | Arguments for 'wallet update passphrase' command
 data WalletUpdatePassphraseArgs = WalletUpdatePassphraseArgs
     { _port :: Port "Wallet"
     , _id :: WalletId
+    , _mnemonic :: UpdatePassphraseCredential
     }
 
 cmdWalletUpdatePassphrase
@@ -647,19 +663,31 @@ cmdWalletUpdatePassphrase mkClient =
     cmd = fmap exec $ WalletUpdatePassphraseArgs
         <$> portOption
         <*> walletIdArgument
-    exec (WalletUpdatePassphraseArgs wPort wId) = do
+        <*> useMnemonicOption
+    exec (WalletUpdatePassphraseArgs wPort wId credentialOption) = do
         res <- sendRequest wPort $ getWallet mkClient $ ApiT wId
         case res of
             Right _ -> do
-                wPassphraseOld <- getPassphrase
-                    "Please enter your current passphrase: "
+                wCredentials <- if credentialOption == OldPasswordCredentials
+                    then Left <$> getPassphrase "Please enter your current passphrase: "
+                    else Right <$> getMnemonics
                 wPassphraseNew <- getPassphraseWithConfirm
                     "Please enter a new passphrase: "
                 runClient wPort (const mempty) $
                     putWalletPassphrase mkClient (ApiT wId) $
-                        WalletPutPassphraseData
-                            (ApiT wPassphraseOld)
-                            (ApiT wPassphraseNew)
+                        WalletPutPassphraseData $ either
+                            (\wPassphraseOld -> Left
+                                $ WalletPutPassphraseOldPassphraseData
+                                    (ApiT wPassphraseOld)
+                                    (ApiT wPassphraseNew)
+                            )
+                            (\(wMnemonic, wSndFactor) -> Right
+                                $ WalletPutPassphraseMnemonicData
+                                    (ApiMnemonicT wMnemonic)
+                                    (ApiMnemonicT <$> wSndFactor)
+                                    (ApiT wPassphraseNew)
+                            )
+                            wCredentials
             Left _ ->
                 handleResponse Aeson.encodePretty res
 

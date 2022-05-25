@@ -57,6 +57,7 @@ library
     , cardano-ledger-shelley-test
     , cardano-ledger-shelley
     , cardano-ledger-alonzo
+    , cardano-prelude
     , cardano-slotting
     , cborg
     , containers
@@ -78,6 +79,7 @@ library
     , filepath
     , fmt
     , foldl
+    , free
     , generic-lens
     , generic-arbitrary
     , generics-sop
@@ -164,6 +166,7 @@ library
   hs-source-dirs:
       src
   exposed-modules:
+      Cardano.Api.Aeson.Variant
       Cardano.Api.Extra
       Cardano.Byron.Codec.Cbor
       Cardano.DB.Sqlite

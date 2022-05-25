@@ -3265,7 +3265,7 @@ components:
         `"unreachable"`         | server could not be reached or didn't return a health status
         `"no_smash_configured"` | SMASH is currently not configured, adjust the Settings first
 
-    ApiWalletPutPassphraseData: &ApiWalletPutPassphraseData
+    ApiWalletPutPassphraseOldPassphraseData: &ApiWalletPutPassphraseOldPassphraseData
       type: object
       required:
         - old_passphrase
@@ -3273,10 +3273,32 @@ components:
       properties:
         old_passphrase:
           <<: *walletPassphrase
-          description: The current passphrase.
+          description: The current master passphrase.
         new_passphrase:
           <<: *walletPassphrase
           description: A master passphrase to lock and protect the wallet for sensitive operation (e.g. sending funds).
+
+    ApiWalletPutPassphraseMnemonicData: &ApiWalletPutPassphraseMnemonicData
+      type: object
+      required:
+        - mnemonic_sentence
+        - new_passphrase
+      properties:
+        mnemonic_second_factor: *walletSecondFactor
+        mnemonic_sentence: 
+          <<: *walletMnemonicSentence
+          description: The mnemonic list of words to restore the wallet
+        new_passphrase:
+          <<: *walletPassphrase
+          description: The new master passphrase to lock and protect the wallet for sensitive operation (e.g. sending funds)
+
+    ApiWalletPutPassphraseData: &ApiWalletPutPassphraseData
+      type: object
+      oneOf:
+        - <<: *ApiWalletPutPassphraseOldPassphraseData
+          title: "providing old passphrase"
+        - <<: *ApiWalletPutPassphraseMnemonicData
+          title: "providing mnemonic"
 
     ApiByronWalletPutPassphraseData: &ApiByronWalletPutPassphraseData
       type: object

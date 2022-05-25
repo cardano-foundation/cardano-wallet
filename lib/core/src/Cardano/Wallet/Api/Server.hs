@@ -1566,9 +1566,15 @@ putWalletPassphrase
     -> WalletPutPassphraseData
     -> Handler NoContent
 putWalletPassphrase ctx (ApiT wid) body = do
-    let (WalletPutPassphraseData (ApiT old) (ApiT new)) = body
+    let (WalletPutPassphraseData 
+            (Left 
+                (Api.WalletPutPassphraseOldPassphraseData 
+                    (ApiT old) (ApiT new)
+                )
+            )
+         ) = body
     withWorkerCtx ctx wid liftE liftE $ \wrk -> liftHandler $
-        W.updateWalletPassphrase wrk wid (old, new)
+        W.updateWalletPassphraseWithOldPassphrase wrk wid (old, new)
     return NoContent
 
 putByronWalletPassphrase
@@ -1584,7 +1590,7 @@ putByronWalletPassphrase ctx (ApiT wid) body = do
     let (ByronWalletPutPassphraseData oldM (ApiT new)) = body
     withWorkerCtx ctx wid liftE liftE $ \wrk -> liftHandler $ do
         let old = maybe mempty (coerce . getApiT) oldM
-        W.updateWalletPassphrase wrk wid (old, new)
+        W.updateWalletPassphraseWithOldPassphrase wrk wid (old, new)
     return NoContent
 
 getUTxOsStatistics

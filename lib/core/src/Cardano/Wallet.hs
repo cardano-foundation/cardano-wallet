@@ -71,7 +71,7 @@ module Cardano.Wallet
     , deleteWallet
     , restoreWallet
     , updateWallet
-    , updateWalletPassphrase
+    , updateWalletPassphraseWithOldPassphrase
     , walletSyncProgress
     , fetchRewardBalance
     , manageRewardBalance
@@ -868,7 +868,7 @@ updateWallet ctx wid modify = db & \DBLayer{..} -> mapExceptT atomically $ do
     db = ctx ^. dbLayer @IO @s @k
 
 -- | Change a wallet's passphrase to the given passphrase.
-updateWalletPassphrase
+updateWalletPassphraseWithOldPassphrase
     :: forall ctx s k.
         ( HasDBLayer IO s k ctx
         , WalletKey k
@@ -877,7 +877,7 @@ updateWalletPassphrase
     -> WalletId
     -> (Passphrase "user", Passphrase "user")
     -> ExceptT ErrUpdatePassphrase IO ()
-updateWalletPassphrase ctx wid (old, new) =
+updateWalletPassphraseWithOldPassphrase ctx wid (old, new) =
     withRootKey @ctx @s @k ctx wid old ErrUpdatePassphraseWithRootKey
         $ \xprv scheme -> withExceptT ErrUpdatePassphraseNoSuchWallet $ do
             -- IMPORTANT NOTE:

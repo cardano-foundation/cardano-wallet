@@ -109,7 +109,7 @@ import Control.Monad
 import Data.Coerce
     ( coerce )
 import Data.Generics.Internal.VL.Lens
-    ( view, (^.) )
+    ( view, (^.)  )
 import Data.Generics.Labels
     ()
 import Data.Proxy
@@ -301,7 +301,7 @@ byronWalletClient =
             , listWallets = _listWallets
             , postWallet = _postWallet
             , putWallet = _putWallet
-            , putWalletPassphrase = \wid req ->
+            , putWalletPassphrase = \wid (WalletPutPassphraseData (Left req)) ->
                 _putWalletPassphrase wid $ ByronWalletPutPassphraseData
                     { oldPassphrase = Just $ coerce <$> req ^. #oldPassphrase
                     , newPassphrase = req ^. #newPassphrase

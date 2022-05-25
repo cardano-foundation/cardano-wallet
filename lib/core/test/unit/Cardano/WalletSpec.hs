@@ -568,13 +568,15 @@ walletUpdatePassphrase wallet new mxprv = monadicIO $ do
         Just (xprv, pwd) -> prop_withPrivateKey wl wid (xprv, pwd)
   where
     prop_withoutPrivateKey wl wid = do
-        attempt <- run $ runExceptT $ W.updateWalletPassphrase wl wid (new, new)
+        attempt <- run $ runExceptT 
+            $ W.updateWalletPassphraseWithOldPassphrase wl wid (new, new)
         let err = ErrUpdatePassphraseWithRootKey $ ErrWithRootKeyNoRootKey wid
         assert (attempt == Left err)
 
     prop_withPrivateKey wl wid (xprv, pwd) = do
         run $ unsafeRunExceptT $ W.attachPrivateKeyFromPwd wl wid (xprv, pwd)
-        attempt <- run $ runExceptT $ W.updateWalletPassphrase wl wid (coerce pwd, new)
+        attempt <- run $ runExceptT 
+            $ W.updateWalletPassphraseWithOldPassphrase wl wid (coerce pwd, new)
         assert (attempt == Right ())
 
 walletUpdatePassphraseWrong
@@ -587,7 +589,8 @@ walletUpdatePassphraseWrong wallet (xprv, pwd) (old, new) =
         WalletLayerFixture _ wl [wid] _ <- run $ setupFixture wallet
         attempt <- run $ do
             unsafeRunExceptT $ W.attachPrivateKeyFromPwd wl wid (xprv, pwd)
-            runExceptT $ W.updateWalletPassphrase wl wid (old, new)
+            runExceptT 
+                $ W.updateWalletPassphraseWithOldPassphrase wl wid (old, new)
         let err = ErrUpdatePassphraseWithRootKey
                 $ ErrWithRootKeyWrongPassphrase wid
                 ErrWrongPassphrase
@@ -601,7 +604,8 @@ walletUpdatePassphraseNoSuchWallet
 walletUpdatePassphraseNoSuchWallet wallet@(wid', _, _) wid (old, new) =
     wid /= wid' ==> monadicIO $ do
         WalletLayerFixture _ wl _ _ <- run $ setupFixture wallet
-        attempt <- run $ runExceptT $ W.updateWalletPassphrase wl wid (old, new)
+        attempt <- run $ runExceptT 
+            $ W.updateWalletPassphraseWithOldPassphrase wl wid (old, new)
         let err = ErrUpdatePassphraseWithRootKey $ ErrWithRootKeyNoRootKey wid
         assert (attempt == Left err)
 
@@ -621,7 +625,9 @@ walletUpdatePassphraseDate wallet (xprv, pwd) = monadicIO $ liftIO $ do
     unsafeRunExceptT $ W.attachPrivateKeyFromPwd wl wid (xprv, pwd)
     info <- infoShouldSatisfy isJust
     pause
-    unsafeRunExceptT $ W.updateWalletPassphrase wl wid (coerce pwd, coerce pwd)
+    unsafeRunExceptT 
+        $ W.updateWalletPassphraseWithOldPassphrase wl wid 
+            (coerce pwd, coerce pwd)
     void $ infoShouldSatisfy (\info' -> isJust info' && info' > info)
   where
     pause = threadDelay 500

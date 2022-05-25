@@ -902,8 +902,8 @@ instance Malformed (BodyParam WalletPutPassphraseData) where
     malformed = jsonValid ++ jsonInvalid
      where
          jsonInvalid = first BodyParam <$>
-            [ ("1020344", "Error in $: parsing Cardano.Wallet.Api.Types.WalletPutPassphraseData(WalletPutPassphraseData) failed, expected Object, but encountered Number")
-            , ("\"1020344\"", "Error in $: parsing Cardano.Wallet.Api.Types.WalletPutPassphraseData(WalletPutPassphraseData) failed, expected Object, but encountered String")
+            [ ("1020344", "Error in $: parsing PutPassphrase data failed, expected Object, but encountered Number")
+            , ("\"1020344\"", "Error in $: parsing PutPassphrase data failed, expected Object, but encountered String")
             , ("\"slot_number : \"random\"}", "trailing junk after valid JSON: endOfInput")
             , ("{old_passphrase = \"random\"}", msgJsonInvalid)
             ]
@@ -912,48 +912,61 @@ instance Malformed (BodyParam WalletPutPassphraseData) where
                 { "old_passphrase": #{wPassphrase}
                 , "new_passphrase" : 100
                 }|]
-              , "Error in $['new_passphrase']: parsing Passphrase failed, expected String, but encountered Number"
+              , "Error in $['new_passphrase']: parsing Passphrase failed, expected String, but encountered Number, OldPassphrase variant"
               )
             , ( [aesonQQ|
                 { "old_passphrase": []
                 , "new_passphrase" : #{wPassphrase}
                 }|]
-              , "Error in $['old_passphrase']: parsing Passphrase failed, expected String, but encountered Array"
+              , "Error in $['old_passphrase']: parsing Passphrase failed, expected String, but encountered Array, OldPassphrase variant"
               )
             , ( [aesonQQ|
                 { "old_passphrase": ""
                 , "new_passphrase" : #{wPassphrase}
                 }|]
-              , "Error in $['old_passphrase']: passphrase is too short: expected at least 10 characters"
+              , "Error in $['old_passphrase']: passphrase is too short: expected at least 10 characters, OldPassphrase variant"
               )
             , ( [aesonQQ|
                 { "old_passphrase": #{wPassphrase}
                 , "new_passphrase" : "123456789"
                 }|]
-              , "Error in $['new_passphrase']: passphrase is too short: expected at least 10 characters"
+              , "Error in $['new_passphrase']: passphrase is too short: expected at least 10 characters, OldPassphrase variant"
               )
             , ( [aesonQQ|
                 { "old_passphrase": #{wPassphrase}
                 , "new_passphrase" : #{nameTooLong}
                 }|]
-              , "Error in $['new_passphrase']: passphrase is too long: expected at most 255 characters"
+              , "Error in $['new_passphrase']: passphrase is too long: expected at most 255 characters, OldPassphrase variant"
               )
             , ( [aesonQQ|
                 { "old_passphrase": #{nameTooLong}
                 , "new_passphrase" : #{wPassphrase}
                 }|]
-              , "Error in $['old_passphrase']: passphrase is too long: expected at most 255 characters"
+              , "Error in $['old_passphrase']: passphrase is too long: expected at most 255 characters, OldPassphrase variant"
               )
             , ( [aesonQQ|
                 { "old_passphrase": #{wPassphrase}
                 }|]
-              , "Error in $: parsing Cardano.Wallet.Api.Types.WalletPutPassphraseData(WalletPutPassphraseData) failed, key 'new_passphrase' not found"
+              , "Error in $: parsing Cardano.Wallet.Api.Types.WalletPutPassphraseOldPassphraseData(WalletPutPassphraseOldPassphraseData) failed, key 'new_passphrase' not found, OldPassphrase variant"
               )
             , ( [aesonQQ|
                 { "new_passphrase": #{wPassphrase}
                 }|]
-              , "Error in $: parsing Cardano.Wallet.Api.Types.WalletPutPassphraseData(WalletPutPassphraseData) failed, key 'old_passphrase' not found"
+              , "Error in $: not enough fields to select a variant"
               )
+            , ( [aesonQQ|
+                { "mnemonic_sentence": #{mnemonics15}
+                }|]
+              , "Error in $: parsing Cardano.Wallet.Api.Types.WalletPutPassphraseMnemonicData(WalletPutPassphraseMnemonicData) failed, key 'new_passphrase' not found, Mnemonic variant"
+              )
+            , ( [aesonQQ|
+                { "mnemonic_sentence": #{mnemonics15}
+                , "old_passphrase": #{wPassphrase}
+                }|]
+              , "Error in $: multiple variants are possible"
+
+              )
+
             ]
 
 instance Malformed (BodyParam ByronWalletPutPassphraseData) where

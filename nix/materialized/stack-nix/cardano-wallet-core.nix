@@ -53,6 +53,7 @@
           (hsPkgs."cardano-ledger-shelley-test" or (errorHandler.buildDepError "cardano-ledger-shelley-test"))
           (hsPkgs."cardano-ledger-shelley" or (errorHandler.buildDepError "cardano-ledger-shelley"))
           (hsPkgs."cardano-ledger-alonzo" or (errorHandler.buildDepError "cardano-ledger-alonzo"))
+          (hsPkgs."cardano-prelude" or (errorHandler.buildDepError "cardano-prelude"))
           (hsPkgs."cardano-slotting" or (errorHandler.buildDepError "cardano-slotting"))
           (hsPkgs."cborg" or (errorHandler.buildDepError "cborg"))
           (hsPkgs."containers" or (errorHandler.buildDepError "containers"))
@@ -74,6 +75,7 @@
           (hsPkgs."filepath" or (errorHandler.buildDepError "filepath"))
           (hsPkgs."fmt" or (errorHandler.buildDepError "fmt"))
           (hsPkgs."foldl" or (errorHandler.buildDepError "foldl"))
+          (hsPkgs."free" or (errorHandler.buildDepError "free"))
           (hsPkgs."generic-lens" or (errorHandler.buildDepError "generic-lens"))
           (hsPkgs."generic-arbitrary" or (errorHandler.buildDepError "generic-arbitrary"))
           (hsPkgs."generics-sop" or (errorHandler.buildDepError "generics-sop"))
@@ -152,6 +154,7 @@
         buildable = true;
         modules = [
           "Paths_cardano_wallet_core"
+          "Cardano/Api/Aeson/Variant"
           "Cardano/Api/Extra"
           "Cardano/Byron/Codec/Cbor"
           "Cardano/DB/Sqlite"
