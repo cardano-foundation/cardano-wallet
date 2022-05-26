@@ -35,6 +35,9 @@ module Test.QuickCheck.Extra
       -- * Partitioning lists
     , partitionList
 
+      -- * Selecting entries from maps
+    , mapEntry
+
       -- * Generating and shrinking natural numbers
     , chooseNatural
     , shrinkNatural
@@ -248,6 +251,27 @@ partitionList (x, y) =
 
     x' = max 0 x
     y' = max 1 (max y x')
+
+--------------------------------------------------------------------------------
+-- Selecting random map entries
+--------------------------------------------------------------------------------
+
+-- | Selects an entry at random from the given map.
+--
+-- Returns the selected entry and the remaining map with the entry removed.
+--
+-- Returns 'Nothing' if (and only if) the given map is empty.
+--
+mapEntry :: forall k v. Ord k => Map k v -> Gen (Maybe ((k, v), Map k v))
+mapEntry m
+    | Map.null m =
+        pure Nothing
+    | otherwise =
+        Just . selectAndRemoveElemAt <$> chooseInt (0, Map.size m - 1)
+  where
+    selectAndRemoveElemAt :: Int -> ((k, v), Map k v)
+    selectAndRemoveElemAt =
+        (\(k, v) -> ((k, v), Map.delete k m)) . flip Map.elemAt m
 
 --------------------------------------------------------------------------------
 -- Generating and shrinking natural numbers

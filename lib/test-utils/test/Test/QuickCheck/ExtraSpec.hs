@@ -24,6 +24,10 @@ import Data.Generics.Labels
     ()
 import Data.List.Extra
     ( dropEnd )
+import Data.Map.Strict
+    ( Map )
+import Data.Maybe
+    ( isJust, isNothing )
 import Data.Set
     ( Set )
 import Generics.SOP
@@ -57,6 +61,7 @@ import Test.QuickCheck.Extra
     ( Pretty (..)
     , genericRoundRobinShrink
     , interleaveRoundRobin
+    , mapEntry
     , partitionList
     , (<:>)
     , (<@>)
@@ -65,6 +70,7 @@ import Test.QuickCheck.Extra
 import qualified Data.Foldable as F
 import qualified Data.List as L
 import qualified Data.List.Extra as L
+import qualified Data.Map.Strict as Map
 import qualified Data.Set as Set
 
 spec :: Spec
@@ -103,6 +109,25 @@ spec = describe "Test.QuickCheck.ExtraSpec" $ do
         it "prop_partitionList_LT" $
             prop_partitionList_LT
                 @Int & property
+
+    describe "Selecting random map entries" $ do
+
+        describe "mapEntry" $ do
+            it "prop_mapEntry_empty" $
+                prop_mapEntry_empty
+                    @Int @Int & property
+            it "prop_mapEntry_singleton" $
+                prop_mapEntry_singleton
+                    @Int @Int & property
+            it "prop_mapEntry_insert" $
+                prop_mapEntry_insert
+                    @Int @Int & property
+            it "prop_mapEntry_lookup_Just" $
+                prop_mapEntry_lookup_Just
+                    @Int @Int & property
+            it "prop_mapEntry_lookup_Nothing" $
+                prop_mapEntry_lookup_Nothing
+                    @Int @Int & property
 
 --------------------------------------------------------------------------------
 -- Generic shrinking
@@ -405,6 +430,65 @@ prop_partitionList_LT (PartitionListData (x, y) as) =
   where
     x' = max 0 x
     y' = max 1 (max y x')
+
+--------------------------------------------------------------------------------
+-- Selecting map entries (one at a time)
+--------------------------------------------------------------------------------
+
+prop_mapEntry_empty
+    :: forall k v. (Ord k, Show k, Eq v, Show v) => Property
+prop_mapEntry_empty =
+    forAll (mapEntry (Map.empty @k @v)) (=== Nothing)
+
+prop_mapEntry_singleton
+    :: (Ord k, Show k, Eq v, Show v) => k -> v -> Property
+prop_mapEntry_singleton k v =
+    forAll (mapEntry (Map.singleton k v)) (=== Just ((k, v), mempty))
+
+prop_mapEntry_insert
+    :: (Ord k, Show k, Eq v, Show v) => Map k v -> Property
+prop_mapEntry_insert m0 =
+    forAll (mapEntry m0) $ \mr ->
+        checkCoverage $
+        cover 20 (isJust mr)
+            "number of selected entries = 1" $
+        cover 1 (isNothing mr)
+            "number of selected entries = 0" $
+        case mr of
+            Nothing ->
+                m0 === mempty
+            Just ((k, v), m1) ->
+                m0 === Map.insert k v m1
+
+prop_mapEntry_lookup_Just
+    :: (Ord k, Show k, Eq v, Show v) => Map k v -> Property
+prop_mapEntry_lookup_Just m0 =
+    forAll (mapEntry m0) $ \mr ->
+        checkCoverage $
+        cover 20 (isJust mr)
+            "number of selected entries = 1" $
+        cover 1 (isNothing mr)
+            "number of selected entries = 0" $
+        case mr of
+            Nothing ->
+                m0 === mempty
+            Just ((k, v), _) ->
+                Map.lookup k m0 === Just v
+
+prop_mapEntry_lookup_Nothing
+    :: (Ord k, Show k, Eq v, Show v) => Map k v -> Property
+prop_mapEntry_lookup_Nothing m0 =
+    forAll (mapEntry m0) $ \mr ->
+        checkCoverage $
+        cover 20 (isJust mr)
+            "number of selected entries = 1" $
+        cover 1 (isNothing mr)
+            "number of selected entries = 0" $
+        case mr of
+            Nothing ->
+                m0 === mempty
+            Just ((k, _), m1) ->
+                Map.lookup k m1 === Nothing
 
 --------------------------------------------------------------------------------
 -- Unit test support
