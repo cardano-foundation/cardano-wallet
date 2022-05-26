@@ -1,6 +1,7 @@
 {-# LANGUAGE DataKinds #-}
 {-# LANGUAGE FlexibleContexts #-}
 {-# LANGUAGE GADTs #-}
+{-# LANGUAGE ScopedTypeVariables #-}
 {-# LANGUAGE TypeApplications #-}
 {-# LANGUAGE TypeOperators #-}
 
@@ -30,6 +31,9 @@ module Test.QuickCheck.Extra
     , genericRoundRobinShrink'
     , (<@>)
     , (<:>)
+
+      -- * Partitioning lists
+    , partitionList
 
       -- * Generating and shrinking natural numbers
     , chooseNatural
@@ -74,6 +78,7 @@ import Test.QuickCheck
     , Gen
     , Property
     , Testable
+    , chooseInt
     , chooseInteger
     , counterexample
     , liftArbitrary2
@@ -187,6 +192,62 @@ shrinkInterleaved (a, shrinkA) (b, shrinkB) = interleave
     interleave (x : xs) (y : ys) = x : y : interleave xs ys
     interleave xs [] = xs
     interleave [] ys = ys
+
+--------------------------------------------------------------------------------
+-- Generating list partitions
+--------------------------------------------------------------------------------
+
+-- | Partitions a list into a list of sublists.
+--
+-- Each sublist in the result has a randomly-chosen length that is bounded by
+-- the given minimum and maximum length parameters, with the exception of the
+-- last sublist, which may be shorter than the minimum length.
+--
+-- Examples:
+--
+-- >>> generate (partitionList (0, 1) [1 .. 4])
+-- [[], [1], [2], [], [3], [4]]
+--
+-- >>> generate (partitionList (1, 4) [1 .. 10])
+-- [[1, 2], [3, 4, 5, 6], [7], [8, 9, 10]]
+--
+-- >>> generate (partitionList (4, 8) "Books are the liberated spirits of men.")
+-- ["Books ar", "e the l", "iberat", "ed spir", "its of", " men."]
+--
+-- Assuming the following definitions of checked minimum and maximum lengths:
+--
+-- >>> x' = max 0 x
+-- >>> y' = max 1 (max y x')
+--
+-- This function satisfies the following properties:
+--
+-- prop> forAll (partitionList (x, y) as) $ (== as) . mconcat
+-- prop> forAll (partitionList (x, y) as) $ all ((>= x') . length) . dropEnd 1
+-- prop> forAll (partitionList (x, y) as) $ all ((<= y') . length)
+--
+partitionList
+    :: (Int, Int)
+    -- ^ The minimum and maximum length parameters.
+    -> [a]
+    -- ^ The list to be partitioned.
+    -> Gen [[a]]
+    -- ^ The partitioned list.
+partitionList (x, y) =
+    fmap reverse . loop []
+  where
+    loop :: [[a]] -> [a] -> Gen [[a]]
+    loop cs [] = pure cs
+    loop cs rs = do
+        (c, ss) <- genChunk rs
+        loop (c : cs) ss
+
+    genChunk :: [a] -> Gen ([a], [a])
+    genChunk available = do
+        chunkLength <- chooseInt (x', y')
+        pure $ splitAt chunkLength available
+
+    x' = max 0 x
+    y' = max 1 (max y x')
 
 --------------------------------------------------------------------------------
 -- Generating and shrinking natural numbers

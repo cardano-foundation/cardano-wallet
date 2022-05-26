@@ -1,8 +1,11 @@
+{-# LANGUAGE AllowAmbiguousTypes #-}
 {-# LANGUAGE DeriveGeneric #-}
 {-# LANGUAGE DuplicateRecordFields #-}
 {-# LANGUAGE NumericUnderscores #-}
 {-# LANGUAGE OverloadedLabels #-}
 {-# LANGUAGE ScopedTypeVariables #-}
+{-# LANGUAGE TypeApplications #-}
+{- HLINT ignore "Use null" -}
 
 module Test.QuickCheck.ExtraSpec
     where
@@ -13,10 +16,14 @@ import Algebra.PartialOrd
     ( PartialOrd (..) )
 import Control.Monad
     ( forM_ )
+import Data.Function
+    ( (&) )
 import Data.Generics.Internal.VL.Lens
     ( view )
 import Data.Generics.Labels
     ()
+import Data.List.Extra
+    ( dropEnd )
 import Data.Set
     ( Set )
 import Generics.SOP
@@ -26,15 +33,23 @@ import GHC.Generics
 import Test.Hspec
     ( Spec, describe, it )
 import Test.QuickCheck
-    ( Gen
+    ( Arbitrary (..)
+    , Gen
+    , NonNegative (..)
+    , Positive (..)
     , Property
+    , Small (..)
     , Testable
     , checkCoverage
     , chooseInteger
     , cover
     , forAll
+    , frequency
+    , genericShrink
+    , listOf
     , oneof
     , property
+    , scale
     , shrinkIntegral
     , (===)
     )
@@ -42,6 +57,7 @@ import Test.QuickCheck.Extra
     ( Pretty (..)
     , genericRoundRobinShrink
     , interleaveRoundRobin
+    , partitionList
     , (<:>)
     , (<@>)
     )
@@ -70,6 +86,23 @@ spec = describe "Test.QuickCheck.ExtraSpec" $ do
         it "prop_interleaveRoundRobin_sort" $
             property prop_interleaveRoundRobin_sort
         unit_interleaveRoundRobin
+
+    describe "partitionList" $ do
+        it "prop_partitionList_coverage" $
+            prop_partitionList_coverage
+                @Int & property
+        it "prop_partitionList_identity" $
+            prop_partitionList_identity
+                @Int & property
+        it "prop_partitionList_mconcat" $
+            prop_partitionList_mconcat
+                @Int & property
+        it "prop_partitionList_GE" $
+            prop_partitionList_GE
+                @Int & property
+        it "prop_partitionList_LT" $
+            prop_partitionList_LT
+                @Int & property
 
 --------------------------------------------------------------------------------
 -- Generic shrinking
@@ -257,6 +290,121 @@ unit_interleaveRoundRobin = unitTests
             , result = [1, 2, 4, 3, 5, 6]
             }
         ]
+
+--------------------------------------------------------------------------------
+-- Generating list partitions
+--------------------------------------------------------------------------------
+
+data PartitionListData a = PartitionListData (Int, Int) [a]
+    deriving (Eq, Generic, Show)
+
+instance Arbitrary a => Arbitrary (PartitionListData a) where
+    arbitrary = genPartitionListData
+    shrink = shrinkPartitionListData
+
+genPartitionListData :: forall a. Arbitrary a => Gen (PartitionListData a)
+genPartitionListData =
+    PartitionListData <$> genBounds <*> genList
+  where
+    genBounds :: Gen (Int, Int)
+    genBounds = frequency
+        [ (1, genBoundsAny)
+        , (2, genBoundsValidAndDifferent)
+        , (2, genBoundsValidAndIdentical)
+        ]
+      where
+        genBoundsAny :: Gen (Int, Int)
+        genBoundsAny = arbitrary
+
+        genBoundsValidAndDifferent :: Gen (Int, Int)
+        genBoundsValidAndDifferent = do
+            x <- getSmall . getNonNegative <$> arbitrary
+            d <- getSmall . getPositive <$> arbitrary
+            pure (x, x + d)
+
+        genBoundsValidAndIdentical :: Gen (Int, Int)
+        genBoundsValidAndIdentical = do
+            x <- getSmall . getPositive <$> arbitrary
+            pure (x, x)
+
+    genList :: Gen [a]
+    genList = frequency
+        [ (1, pure [])
+        , (4, listOf arbitrary)
+        , (4, listOf arbitrary & scale (* 8))
+        ]
+
+shrinkPartitionListData
+    :: Arbitrary a => PartitionListData a -> [PartitionListData a]
+shrinkPartitionListData = genericShrink
+
+prop_partitionList_coverage
+    :: (Arbitrary a, Eq a, Show a) => PartitionListData a -> Property
+prop_partitionList_coverage (PartitionListData (x, y) as) =
+    forAll (partitionList (x, y) as) $ \rs ->
+        checkCoverage $
+        cover 10
+            (x < 0 || y < x)
+            "bounds are invalid" $
+        cover 10
+            (x >= 1 && y == x)
+            "bounds are valid and identical" $
+        cover 10
+            (x >= 0 && y > x)
+            "bounds are valid and different" $
+        cover 10
+            (length rs == 0)
+            "partitioned list length == 0" $
+        cover 10
+            (length rs == 1)
+            "partitioned list length == 1" $
+        cover 10
+            (length rs >= 10)
+            "partitioned list length >= 10" $
+        property True
+
+prop_partitionList_identity
+    :: (Arbitrary a, Eq a, Show a) => [a] -> Property
+prop_partitionList_identity as =
+    forAll (partitionList (length as, length as) as)
+        (=== [as | length as > 0])
+
+prop_partitionList_mconcat
+    :: (Arbitrary a, Eq a, Show a) => PartitionListData a -> Property
+prop_partitionList_mconcat (PartitionListData (x, y) as) =
+    forAll (partitionList (x, y) as)
+        ((=== as) . mconcat)
+
+prop_partitionList_GE
+    :: (Arbitrary a, Eq a, Show a) => PartitionListData a -> Property
+prop_partitionList_GE (PartitionListData (x, y) as) =
+    forAll (partitionList (x, y) as) $ \rs ->
+        checkCoverage $
+        cover 10
+            (any ((> x') . length) rs)
+            "at least one generated sublist has length > minimum" $
+        cover 10
+            (any ((== x') . length) rs)
+            "at least one generated sublist has length = minimum" $
+        all ((>= x') . length) $ dropEnd 1 rs
+  where
+    x' = max 0 x
+
+prop_partitionList_LT
+    :: (Arbitrary a, Eq a, Show a) => PartitionListData a -> Property
+prop_partitionList_LT (PartitionListData (x, y) as) =
+    forAll (partitionList (x, y) as) $ \rs ->
+        checkCoverage $
+        cover 10
+            (any ((< y') . length) rs)
+            "at least one generated sublist has length < maximum" $
+        cover 10
+            (any ((== y') . length) rs)
+            "at least one generated sublist has length = maximum" $
+        all ((<= y') . length) rs
+  where
+    x' = max 0 x
+    y' = max 1 (max y x')
 
 --------------------------------------------------------------------------------
 -- Unit test support
