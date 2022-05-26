@@ -176,11 +176,14 @@ def wait_for_all_shared_wallets(wids)
   end
 end
 
-def create_shelley_wallet(name = "Wallet from mnemonic_sentence", mnemonic_sentence = mnemonic_sentence(24))
+def create_shelley_wallet(name = "Wallet from mnemonic_sentence",
+                          mnemonic_sentence = mnemonic_sentence(24),
+                          mnemonic_second_factor = nil)
   payload = { name: name,
               passphrase: PASS,
               mnemonic_sentence: mnemonic_sentence
              }
+  payload[:mnemonic_second_factor] = mnemonic_second_factor if mnemonic_second_factor
   WalletFactory.create(:shelley, payload)['id']
 end
 
@@ -208,21 +211,13 @@ def wait_for_all_shelley_wallets(wids)
   end
 end
 
-def create_byron_wallet_with(mnem, style = "random", name = "Wallet from mnemonic_sentence")
+def create_byron_wallet(style = "random",
+                        name = "Wallet from mnemonic_sentence",
+                        mnemonics = mnemonic_sentence(24))
   payload = { style: style,
               name: name,
               passphrase: PASS,
-              mnemonic_sentence: mnem
-             }
-  WalletFactory.create(:byron, payload)['id']
-end
-
-def create_byron_wallet(style = "random", name = "Wallet from mnemonic_sentence")
-  style == "random" ? mnem = mnemonic_sentence(12) : mnem = mnemonic_sentence(15)
-  payload = { style: style,
-              name: name,
-              passphrase: PASS,
-              mnemonic_sentence: mnem
+              mnemonic_sentence: mnemonics
              }
   WalletFactory.create(:byron, payload)['id']
 end

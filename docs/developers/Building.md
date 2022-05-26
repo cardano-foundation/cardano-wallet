@@ -77,6 +77,13 @@ See [`nix/overlays/build-tools.nix`](https://github.com/input-output-hk/cardano-
    $ cabal install --install-method=copy --installdir=/usr/local/bin
    ```
 
+7. Build without `scrypt` (for compatibility with Apple M1 chip)
+
+   ```console
+   $ cabal configure --disable-tests --disable-benchmarks -f-scrypt -O2
+   $ cabal build cardano-wallet:exe:cardano-wallet
+   ```
+
 #### Syncing `stack` and `cabal` dependencies
 
 1. Install [stack2cabal](https://hackage.haskell.org/package/stack2cabal)

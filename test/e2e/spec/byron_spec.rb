@@ -49,20 +49,33 @@ RSpec.describe CardanoWallet::Byron do
       expect(WalletFactory.delete(:byron, wid)).to be_correct_and_respond 204
     end
 
-    it "Can update_metadata" do
-      w = BYRON.wallets
-      id = create_byron_wallet
-      u = w.update_metadata(id, { name: "New wallet name" })
-      expect(u).to be_correct_and_respond 200
+    describe "Update wallet" do
+      matrix = ["random", "icarus"]
+      matrix.each do |wallet_style|
+        it "Can update_metadata of #{wallet_style} wallet" do
+          w = BYRON.wallets
+          id = create_byron_wallet(wallet_style)
+          u = w.update_metadata(id, { name: "New wallet name" })
+          expect(u).to be_correct_and_respond 200
+        end
 
-    end
+        it "Can update_passphrase of #{wallet_style} wallet" do
+          w = BYRON.wallets
+          id = create_byron_wallet(wallet_style)
+          upd = w.update_passphrase(id, { old_passphrase: "Secure Passphrase",
+                                          new_passphrase: "Securer Passphrase" })
+          expect(upd).to be_correct_and_respond 204
+        end
 
-    it "Can update_passphrase" do
-      w = BYRON.wallets
-      id = create_byron_wallet
-      upd = w.update_passphrase(id, { old_passphrase: "Secure Passphrase",
-                                    new_passphrase: "Securer Passphrase" })
-      expect(upd).to be_correct_and_respond 204
+        it "Cannot update_passphrase of #{wallet_style} wallet not knowing old pass" do
+          w = BYRON.wallets
+          id = create_byron_wallet(wallet_style)
+          upd = w.update_passphrase(id, { old_passphrase: "wrong-passphrase",
+                                          new_passphrase: "Securer Passphrase" })
+          expect(upd).to be_correct_and_respond 403
+          expect(upd.to_s).to include 'wrong_encryption_passphrase'
+        end
+      end
     end
 
     it "Can see utxo" do
@@ -87,7 +100,7 @@ RSpec.describe CardanoWallet::Byron do
         wallet_style = m[1]
         it "I can get #{wallet_type} #{wallet_style} walletid using cardano-addresses" do
           mnemonics = mnemonic_sentence(24)
-          wid = create_byron_wallet_with(mnemonics, style = wallet_style)
+          wid = create_byron_wallet(style = wallet_style, "Wallet - ID", mnemonics)
 
           # based on root prv key
           root_xsk = CA.prv_key_from_recovery_phrase(mnemonics, wallet_type)
@@ -102,7 +115,7 @@ RSpec.describe CardanoWallet::Byron do
 
         it "#{wallet_type} walletid is not based on acct key" do
           mnemonics = mnemonic_sentence(24)
-          wid = create_byron_wallet_with(mnemonics, style = wallet_style)
+          wid = create_byron_wallet(style = wallet_style, "Wallet - ID", mnemonics)
 
           # based on acct prv key
           root_xsk = CA.prv_key_from_recovery_phrase(mnemonics, wallet_type)
@@ -189,7 +202,8 @@ RSpec.describe CardanoWallet::Byron do
     it "I can import address - random" do
       mnemonics = mnemonic_sentence(15)
       derivation_path = '14H/42H'
-      id = create_byron_wallet_with(mnemonics)
+      id = create_byron_wallet("random", "Wallet - import", mnemonics)
+
       addr = cardano_address_get_byron_addr(mnemonics, derivation_path)
 
       addr_import = BYRON.addresses.import(id, addr)

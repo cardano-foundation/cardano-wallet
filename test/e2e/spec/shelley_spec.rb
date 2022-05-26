@@ -136,8 +136,126 @@ RSpec.describe CardanoWallet::Shelley do
         w = SHELLEY.wallets
         id = create_shelley_wallet
         upd = w.update_passphrase(id, { old_passphrase: "Secure Passphrase",
-                                      new_passphrase: "Securer Passphrase" })
+                                        new_passphrase: "Securer Passphrase" })
         expect(upd).to be_correct_and_respond 204
+      end
+
+      it "Cannot update_passphrase not knowing old pass" do
+        w = SHELLEY.wallets
+        id = create_shelley_wallet
+        upd = w.update_passphrase(id, { old_passphrase: "wrong-passphrase",
+                                        new_passphrase: "Securer Passphrase" })
+        expect(upd).to be_correct_and_respond 403
+        expect(upd.to_s).to include 'wrong_encryption_passphrase'
+      end
+
+      it "Can update_passphrase, mnemonics" do
+        w = SHELLEY.wallets
+        mnemonics = mnemonic_sentence(24)
+        id = create_shelley_wallet('Wallet', mnemonics)
+        upd = w.update_passphrase(id, { mnemonic_sentence: mnemonics,
+                                        new_passphrase: "Securer Passphrase" })
+        expect(upd).to be_correct_and_respond 204
+      end
+
+      it "Can update_passphrase, mnemonics, mnemonic_second_factor" do
+        w = SHELLEY.wallets
+        mnemonics = mnemonic_sentence(24)
+        mnemonic_second_factor = mnemonic_sentence(12)
+        id = create_shelley_wallet('Wallet', mnemonics, mnemonic_second_factor)
+        upd = w.update_passphrase(id, { mnemonic_sentence: mnemonics,
+                                        mnemonic_second_factor: mnemonic_second_factor,
+                                        new_passphrase: "Securer Passphrase" })
+        expect(upd).to be_correct_and_respond 204
+      end
+
+      it "Cannot update_passphrase with wrong mnemonics" do
+        w = SHELLEY.wallets
+        mnemonics = mnemonic_sentence(24)
+        wrong_mnemonics = mnemonic_sentence(24)
+        id = create_shelley_wallet('Wallet', mnemonics)
+        upd = w.update_passphrase(id, { mnemonic_sentence: wrong_mnemonics,
+                                        new_passphrase: "Securer Passphrase" })
+        expect(upd).to be_correct_and_respond 403
+        expect(upd.to_s).to include 'wrong_mnemonic'
+      end
+
+      it "Cannot update_passphrase with wrong mnemonic_second_factor" do
+        w = SHELLEY.wallets
+        mnemonics = mnemonic_sentence(24)
+        mnemonic_second_factor = mnemonic_sentence(12)
+        wrong_mnemonic_second_factor = mnemonic_sentence(12)
+        id = create_shelley_wallet('Wallet', mnemonics, mnemonic_second_factor)
+        upd = w.update_passphrase(id, { mnemonic_sentence: mnemonics,
+                                        mnemonic_second_factor: wrong_mnemonic_second_factor,
+                                        new_passphrase: "Securer Passphrase" })
+        expect(upd).to be_correct_and_respond 403
+        expect(upd.to_s).to include 'wrong_mnemonic'
+      end
+
+      it "Cannot update_passphrase of wallet from pub key" do
+        payload = { name: "Wallet from pub key",
+                    account_public_key: "b47546e661b6c1791452d003d375756dde6cac2250093ce4630f16b9b9c0ac87411337bda4d5bc0216462480b809824ffb48f17e08d95ab9f1b91d391e48e66b",
+                    address_pool_gap: 20
+                  }
+        wallet = WalletFactory.create(:shelley, payload)
+        expect(wallet).to be_correct_and_respond 201
+
+        wid = wallet['id']
+        upd = SHELLEY.wallets.update_passphrase(wid, { old_passphrase: "Secure Passphrase",
+                                                       new_passphrase: "Securer Passphrase" })
+        expect(upd).to be_correct_and_respond 403
+        expect(upd.to_s).to include 'no_root_key'
+      end
+
+      it "Can update_passphrase of wallet from pub key using mnemonics from which pub key is derived" do
+        mnemonics = mnemonic_sentence(24)
+        root_xsk = CA.prv_key_from_recovery_phrase(mnemonics, "Shelley")
+        acct_key = CA.key_child(root_xsk, "1852H/1815H/0H")
+        pub_key = CA.key_public(acct_key, with_chain_code = true)
+        acc_pub_key_base16 = bech32_to_base16(pub_key)
+
+        payload = { name: "Wallet from pub key",
+                    account_public_key: acc_pub_key_base16,
+                    address_pool_gap: 20
+                  }
+        wallet = WalletFactory.create(:shelley, payload)
+        expect(wallet).to be_correct_and_respond 201
+
+        wid = wallet['id']
+
+        # I can update passphrase using mnemonics
+        upd = SHELLEY.wallets.update_passphrase(wid, { mnemonic_sentence: mnemonics,
+                                                       new_passphrase: "Secure Passphrase" })
+        expect(upd).to be_correct_and_respond 204
+
+        # Once password is set I can perform passphrase-protected operations,
+        # like update passphrase using old passprase
+        upd2 = SHELLEY.wallets.update_passphrase(wid, { old_passphrase: "Secure Passphrase",
+                                                        new_passphrase: "Securer Passphrase" })
+        expect(upd2).to be_correct_and_respond 204
+      end
+
+      it "Cannot update_passphrase of wallet from pub key using wrong mnemonics" do
+        mnemonics = mnemonic_sentence(24)
+        root_xsk = CA.prv_key_from_recovery_phrase(mnemonics, "Shelley")
+        acct_key = CA.key_child(root_xsk, "1852H/1815H/0H")
+        pub_key = CA.key_public(acct_key, with_chain_code = true)
+        acc_pub_key_base16 = bech32_to_base16(pub_key)
+
+        payload = { name: "Wallet from pub key",
+                    account_public_key: acc_pub_key_base16,
+                    address_pool_gap: 20
+                  }
+        wallet = WalletFactory.create(:shelley, payload)
+        expect(wallet).to be_correct_and_respond 201
+
+        wid = wallet['id']
+        wrong_mnemonics = mnemonic_sentence(24)
+        upd = SHELLEY.wallets.update_passphrase(wid, { mnemonic_sentence: wrong_mnemonics,
+                                                       new_passphrase: "Securer Passphrase" })
+        expect(upd).to be_correct_and_respond 403
+        expect(upd.to_s).to include 'wrong_mnemonic'
       end
     end
 
