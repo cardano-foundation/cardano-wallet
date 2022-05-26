@@ -1,5 +1,5 @@
-https://github.com/input-output-hk/cardano-addresses b33e0f365550bd9d329bdbb0a0d2dfe2b23a3dcf command-line 05vj2fc6n8rmn3ch6115pc6l5vw6pqbv2kwbzxf3y41sa40k50vc cardano-addresses-cli .stack-to-nix.cache.0
-https://github.com/input-output-hk/cardano-addresses b33e0f365550bd9d329bdbb0a0d2dfe2b23a3dcf core 05vj2fc6n8rmn3ch6115pc6l5vw6pqbv2kwbzxf3y41sa40k50vc cardano-addresses .stack-to-nix.cache.1
+https://github.com/input-output-hk/cardano-addresses ba8390504b6613957b73bf8d0d2aab1a989f104d command-line 0d4kkd9a3rbs9dva2f71qj711s96734qkf55lj29iblziznnf796 cardano-addresses-cli .stack-to-nix.cache.0
+https://github.com/input-output-hk/cardano-addresses ba8390504b6613957b73bf8d0d2aab1a989f104d core 0d4kkd9a3rbs9dva2f71qj711s96734qkf55lj29iblziznnf796 cardano-addresses .stack-to-nix.cache.1
 https://github.com/biocad/servant-openapi3 4165b837d3a71debd1059c3735460075840000b5 . 1dngrr353kjhmwhn0b289jzqz5rf32llwcv79zcyq15ldpqpbib9 servant-openapi3 .stack-to-nix.cache.2
 https://github.com/paolino/openapi3 c30d0de6875d75edd64d1aac2272886528bc492d . 0b0fzj5vrnfrc8qikabxhsnp4p8lrjpssblbh2rb7aji5hzzfli9 openapi3 .stack-to-nix.cache.3
 https://github.com/input-output-hk/optparse-applicative 7497a29cb998721a9068d5725d49461f2bba0e7a . 1gvsrg925vynwgqwplgjmp53vj953qyh3wbdf34pw21c8r47w35r optparse-applicative-fork .stack-to-nix.cache.4
