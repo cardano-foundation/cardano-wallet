@@ -25,7 +25,7 @@
 
 
   
-  <link href='tailwind.css?instanceId=f72f33c6-1483-4826-b9b8-ef5d47307a1e' rel='stylesheet' type='text/css' />
+  <link href='tailwind.css?instanceId=14055744-fff0-473a-b557-4cf7c0a7ec33' rel='stylesheet' type='text/css' />
 
   <!-- Heist error element -->
   <style type='text/css'>
@@ -2413,6 +2413,15 @@
       Install binaries from <code class='py-0.5 px-1 rounded bg-gray-700 text-sm text-white'>./dist-newstyle/</code> into a system location:
     </p>
   <div class='py-0.5 mb-3 text-sm'><pre><code class='console language-console'>$ cabal install --install-method=copy --installdir=/usr/local/bin</code></pre></div>
+        </li>
+      
+        <li>
+          
+    <p class='mb-3'>
+      Build without <code class='py-0.5 px-1 rounded bg-gray-700 text-sm text-white'>scrypt</code> (for compatibility with Apple M1 chip)
+    </p>
+  <div class='py-0.5 mb-3 text-sm'><pre><code class='console language-console'>$ cabal configure --disable-tests --disable-benchmarks -f-scrypt -O2
+$ cabal build cardano-wallet:exe:cardano-wallet</code></pre></div>
         </li>
       
     </ul>
