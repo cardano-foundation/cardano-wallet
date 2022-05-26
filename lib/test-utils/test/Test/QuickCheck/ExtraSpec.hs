@@ -16,6 +16,8 @@ import Algebra.PartialOrd
     ( PartialOrd (..) )
 import Control.Monad
     ( forM_ )
+import Data.Bifunctor
+    ( first )
 import Data.Function
     ( (&) )
 import Data.Generics.Internal.VL.Lens
@@ -40,6 +42,7 @@ import Test.QuickCheck
     ( Arbitrary (..)
     , Gen
     , NonNegative (..)
+    , NonPositive (..)
     , Positive (..)
     , Property
     , Small (..)
@@ -61,6 +64,7 @@ import Test.QuickCheck.Extra
     ( Pretty (..)
     , genericRoundRobinShrink
     , interleaveRoundRobin
+    , mapEntries
     , mapEntry
     , partitionList
     , (<:>)
@@ -127,6 +131,23 @@ spec = describe "Test.QuickCheck.ExtraSpec" $ do
                     @Int @Int & property
             it "prop_mapEntry_lookup_Nothing" $
                 prop_mapEntry_lookup_Nothing
+                    @Int @Int & property
+
+        describe "mapEntries" $ do
+            it "prop_mapEntries_empty" $
+                prop_mapEntries_empty
+                    @Int @Int & property
+            it "prop_mapEntries_fromList" $
+                prop_mapEntries_fromList
+                    @Int @Int & property
+            it "prop_mapEntries_nonPositive" $
+                prop_mapEntries_nonPositive
+                    @Int @Int & property
+            it "prop_mapEntries_disjoint" $
+                prop_mapEntries_disjoint
+                    @Int @Int & property
+            it "prop_mapEntries_union" $
+                prop_mapEntries_union
                     @Int @Int & property
 
 --------------------------------------------------------------------------------
@@ -489,6 +510,65 @@ prop_mapEntry_lookup_Nothing m0 =
                 m0 === mempty
             Just ((k, _), m1) ->
                 Map.lookup k m1 === Nothing
+
+--------------------------------------------------------------------------------
+-- Selecting map entries (many at a time)
+--------------------------------------------------------------------------------
+
+prop_mapEntries_empty
+    :: forall k v. (Ord k, Show k, Eq v, Show v) => Int -> Property
+prop_mapEntries_empty i =
+    forAll (mapEntries i (Map.empty @k @v)) (=== ([], Map.empty))
+
+prop_mapEntries_fromList
+    :: (Ord k, Show k, Eq v, Show v) => Map k v -> Property
+prop_mapEntries_fromList m =
+    checkCoverage $
+    cover 10 (Map.size m > 0)
+        "number of available entries > 0" $
+    cover 1 (Map.size m == 0)
+        "number of available entries = 0" $
+    forAll (mapEntries (length m) m) $ (=== (m, mempty)) . first Map.fromList
+
+prop_mapEntries_nonPositive
+    :: (Ord k, Show k, Eq v, Show v)
+    => NonPositive (Small Int)
+    -> Map k v
+    -> Property
+prop_mapEntries_nonPositive (NonPositive (Small i)) m =
+    forAll (mapEntries i m) (== ([], m))
+
+prop_mapEntries_disjoint
+    :: (Ord k, Show k, Eq v, Show v)
+    => Positive (Small Int)
+    -> Map k v
+    -> Property
+prop_mapEntries_disjoint (Positive (Small i)) m0 =
+    forAll (mapEntries i m0) $ \(kvs, m1) ->
+        checkCoverage $
+        cover 10 (length kvs == i && i >= 1)
+            "number of selected entries = requested number" $
+        cover 10 (length kvs >= 1 && length kvs < i)
+            "number of selected entries < requested number" $
+        cover 1 (length kvs == 0)
+            "number of selected entries = 0" $
+        Map.fromList kvs `Map.disjoint` m1
+
+prop_mapEntries_union
+    :: (Ord k, Show k, Eq v, Show v)
+    => Positive (Small Int)
+    -> Map k v
+    -> Property
+prop_mapEntries_union (Positive (Small i)) m0 =
+    forAll (mapEntries i m0) $ \(kvs, m1) ->
+        checkCoverage $
+        cover 10 (length kvs == i && i >= 1)
+            "number of selected entries = requested number" $
+        cover 10 (length kvs >= 1 && length kvs < i)
+            "number of selected entries < requested number" $
+        cover 1 (length kvs == 0)
+            "number of selected entries = 0" $
+        Map.fromList kvs `Map.union` m1 === m0
 
 --------------------------------------------------------------------------------
 -- Unit test support

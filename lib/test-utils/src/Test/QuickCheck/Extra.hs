@@ -1,6 +1,7 @@
 {-# LANGUAGE DataKinds #-}
 {-# LANGUAGE FlexibleContexts #-}
 {-# LANGUAGE GADTs #-}
+{-# LANGUAGE LambdaCase #-}
 {-# LANGUAGE ScopedTypeVariables #-}
 {-# LANGUAGE TypeApplications #-}
 {-# LANGUAGE TypeOperators #-}
@@ -37,6 +38,7 @@ module Test.QuickCheck.Extra
 
       -- * Selecting entries from maps
     , mapEntry
+    , mapEntries
 
       -- * Generating and shrinking natural numbers
     , chooseNatural
@@ -63,6 +65,8 @@ module Test.QuickCheck.Extra
 
 import Prelude
 
+import Control.Monad
+    ( foldM )
 import Data.IntCast
     ( intCast, intCastMaybe )
 import Data.List.NonEmpty
@@ -272,6 +276,19 @@ mapEntry m
     selectAndRemoveElemAt :: Int -> ((k, v), Map k v)
     selectAndRemoveElemAt =
         (\(k, v) -> ((k, v), Map.delete k m)) . flip Map.elemAt m
+
+-- | Selects up to a given number of entries at random from the given map.
+--
+-- Returns the selected entries and the remaining map with the entries removed.
+--
+mapEntries :: forall k v. Ord k => Int -> Map k v -> Gen ([(k, v)], Map k v)
+mapEntries i m0 =
+    foldM (const . selectOne) ([], m0) (replicate i ())
+  where
+    selectOne :: ([(k, v)], Map k v) -> Gen ([(k, v)], Map k v)
+    selectOne (es, m) = mapEntry m >>= \case
+        Nothing -> pure (es, m)
+        Just (e, m') -> pure (e : es, m')
 
 --------------------------------------------------------------------------------
 -- Generating and shrinking natural numbers
