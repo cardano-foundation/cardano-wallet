@@ -11,7 +11,7 @@
     flags = { release = false; scrypt = true; };
     package = {
       specVersion = "1.10";
-      identifier = { name = "cardano-wallet-core"; version = "2022.4.27"; };
+      identifier = { name = "cardano-wallet-core"; version = "2022.5.27"; };
       license = "Apache-2.0";
       copyright = "2018-2020 IOHK";
       maintainer = "operations@iohk.io";
