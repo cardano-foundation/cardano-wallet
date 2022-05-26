@@ -75,9 +75,9 @@ extra-deps:
   - quickcheck-quid-0.0.1
   - servant-multipart-client-0.12.1
 
-  # cardano-addresses-3.9.0
+  # cardano-addresses-3.10.0
   - git: https://github.com/input-output-hk/cardano-addresses
-    commit: b33e0f365550bd9d329bdbb0a0d2dfe2b23a3dcf
+    commit: ba8390504b6613957b73bf8d0d2aab1a989f104d
     subdirs:
       - command-line
       - core
