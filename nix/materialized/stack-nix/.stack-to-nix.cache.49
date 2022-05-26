@@ -64,5 +64,5 @@
         };
       };
     } // rec {
-    src = (pkgs.lib).mkDefault /nix/store/5lcpx8q17x275vgy3b5700vy3c9ga12w-cardano-sl-x509-1292593;
+    src = (pkgs.lib).mkDefault /nix/store/afm7jm0jq6kyv4j762c8asdzwl4kmb9n-cardano-sl-x509-8199970;
     }
