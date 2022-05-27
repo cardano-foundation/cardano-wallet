@@ -239,6 +239,7 @@ A 'Store' is characterized by the following properties:
     functions receives an asynchronous exception and needs to abort
     normal operation.
 -}
+
 data Store m da = Store
     { loadS   :: m (Either SomeException (Base da))
     , writeS  :: Base da -> m ()

@@ -1,5 +1,6 @@
 {-# LANGUAGE DeriveGeneric #-}
 {-# LANGUAGE OverloadedLabels #-}
+{-# LANGUAGE StandaloneDeriving #-}
 {-# LANGUAGE TypeFamilies #-}
 
 -- |
@@ -9,38 +10,55 @@
 -- Data type that represents a collection of checkpoints.
 -- Each checkpoints is associated with a 'Slot'.
 
-module Cardano.Wallet.DB.Checkpoints
-    ( -- * Checkpoints  
+module Cardano.Wallet.DB.Stores.Checkpoints.Model
+    ( -- * Checkpoints
       Checkpoints
     , checkpoints
     , loadCheckpoints
     , fromGenesis
     , getLatest
     , findNearestPoint
-    
+
     -- * Delta types
     , DeltaCheckpoints (..)
+
+    -- * Wallet state component
+    , getBlockHeight
+    , getSlot
+    , toWallet
+    , fromWallet
+    , WalletCheckpoint (..)
     ) where
 
 import Prelude
 
+import Cardano.Wallet.DB.Sqlite.AddressBook
+    ( AddressBookIso (Discoveries, Prologue), addressIso )
+import Cardano.Wallet.Primitive.Types
+    ( BlockHeader )
+import Cardano.Wallet.Primitive.Types.UTxO
+    ( UTxO )
 import Data.Delta
     ( Delta (..) )
+import Data.Generics.Internal.VL
+    ( withIso )
 import Data.Generics.Internal.VL.Lens
-    ( over, view )
+    ( over, view, (^.) )
 import Data.Map.Strict
     ( Map )
 import Data.Maybe
     ( fromMaybe )
+import Data.Word
+    ( Word32 )
 import Fmt
     ( Buildable (..), listF )
 import GHC.Generics
     ( Generic )
 
+import qualified Cardano.Wallet.Primitive.Model as W
 import qualified Cardano.Wallet.Primitive.Types as W
 import qualified Data.Map.Strict as Map
 import qualified Data.Set as Set
-
 {- NOTE [PointSlotNo]
 
 'SlotNo' cannot represent the genesis point.
@@ -100,7 +118,7 @@ fromGenesis a = Checkpoints $ Map.singleton W.Origin a
 
 -- | Get the checkpoint with the largest 'SlotNo'.
 getLatest :: Checkpoints a -> (W.Slot, a)
-getLatest = from . Map.lookupMax . view #checkpoints 
+getLatest = from . Map.lookupMax . view #checkpoints
   where
     from = fromMaybe (error "getLatest: there should always be at least a genesis checkpoint")
 
@@ -132,3 +150,37 @@ instance Buildable (DeltaCheckpoints a) where
     build (PutCheckpoint slot _) = "PutCheckpoint " <> build slot
     build (RollbackTo slot) = "RollbackTo " <> build slot
     build (RestrictTo slots) = "RestrictTo " <> listF slots
+
+{-------------------------------------------------------------------------------
+    Wallet Checkpoint
+-------------------------------------------------------------------------------}
+-- | Data stored in a single checkpoint.
+-- Only includes the 'UTxO' and the 'Discoveries', but not the 'Prologue'.
+data WalletCheckpoint s = WalletCheckpoint
+    { currentTip :: BlockHeader
+    , utxo :: UTxO
+    , discoveries :: (Discoveries s)
+    } deriving (Generic)
+
+deriving instance AddressBookIso s => Eq (WalletCheckpoint s)
+
+-- | Helper function: Get the block height of a wallet checkpoint.
+getBlockHeight :: WalletCheckpoint s -> Word32
+getBlockHeight (WalletCheckpoint currentTip' _ _) =
+    currentTip' ^. (#blockHeight . #getQuantity)
+
+-- | Helper function: Get the 'Slot' of a wallet checkpoint.
+getSlot :: WalletCheckpoint s -> W.Slot
+getSlot (WalletCheckpoint currentTip' _ _) =
+    W.toSlot . W.chainPointFromBlockHeader $ currentTip'
+
+-- | Convert a stored 'WalletCheckpoint' to the legacy 'W.Wallet' state.
+toWallet :: AddressBookIso s => Prologue s -> WalletCheckpoint s -> W.Wallet s
+toWallet pro (WalletCheckpoint pt utxo' dis) =
+    W.unsafeInitWallet utxo' pt $ withIso addressIso $ \_ from -> from (pro,dis)
+
+-- | Convert a legacy 'W.Wallet' state to a 'Prologue' and a 'WalletCheckpoint'
+fromWallet :: AddressBookIso s => W.Wallet s -> (Prologue s, WalletCheckpoint s)
+fromWallet w = (pro, WalletCheckpoint (W.currentTip w) (W.utxo w) dis)
+  where
+    (pro, dis) = withIso addressIso $ \to _ -> to (w ^. #getState)

@@ -2,6 +2,7 @@
 {-# LANGUAGE NamedFieldPuns #-}
 {-# LANGUAGE OverloadedLabels #-}
 {-# LANGUAGE StandaloneDeriving #-}
+{-# LANGUAGE StrictData #-}
 {-# LANGUAGE TypeFamilies #-}
 
 -- |
@@ -21,12 +22,6 @@ module Cardano.Wallet.DB.WalletState
     , getLatest
     , findNearestPoint
 
-    -- * WalletCheckpoint (internal use mostly)
-    , WalletCheckpoint (..)
-    , toWallet
-    , fromWallet
-    , getBlockHeight
-    , getSlot
 
     -- * Delta types
     , DeltaWalletState1 (..)
@@ -36,67 +31,29 @@ module Cardano.Wallet.DB.WalletState
 
 import Prelude
 
-import Cardano.Wallet.DB.Checkpoints
-    ( Checkpoints )
+import Cardano.Wallet.DB.Stores.Checkpoints.Model
+    ( Checkpoints, WalletCheckpoint, fromWallet, toWallet, DeltaCheckpoints )
 import Cardano.Wallet.DB.Sqlite.AddressBook
-    ( AddressBookIso (..), Discoveries, Prologue )
-import Cardano.Wallet.Primitive.Types
-    ( BlockHeader )
-import Cardano.Wallet.Primitive.Types.UTxO
-    ( UTxO )
+    ( AddressBookIso (..), Prologue )
 import Data.Delta
     ( Delta (..) )
-import Data.Generics.Internal.VL
-    ( withIso )
+import Data.DeltaMap
+    ( DeltaMap (..) )
 import Data.Generics.Internal.VL.Lens
     ( over, view, (^.) )
-import Data.Map.Strict
-    ( Map )
-import Data.Word
-    ( Word32 )
 import Fmt
     ( Buildable (..), pretty )
 import GHC.Generics
     ( Generic )
 
-import qualified Cardano.Wallet.DB.Checkpoints as CPS
+import qualified Cardano.Wallet.DB.Stores.Checkpoints.Model as CPS
+
+import qualified Cardano.Wallet.DB.Model as Model
+import Cardano.Wallet.DB.Stores.TxHistory.Model
+    ( DeltaTxHistory, TxHistory (TxHistory) )
 import qualified Cardano.Wallet.Primitive.Model as W
 import qualified Cardano.Wallet.Primitive.Types as W
-import qualified Data.Map.Strict as Map
 
-{-------------------------------------------------------------------------------
-    Wallet Checkpoint
--------------------------------------------------------------------------------}
--- | Data stored in a single checkpoint.
--- Only includes the 'UTxO' and the 'Discoveries', but not the 'Prologue'.
-data WalletCheckpoint s = WalletCheckpoint
-    { currentTip :: !BlockHeader
-    , utxo :: !UTxO
-    , discoveries :: !(Discoveries s)
-    } deriving (Generic)
-
-deriving instance AddressBookIso s => Eq (WalletCheckpoint s)
-
--- | Helper function: Get the block height of a wallet checkpoint.
-getBlockHeight :: WalletCheckpoint s -> Word32
-getBlockHeight (WalletCheckpoint currentTip _ _) =
-    currentTip ^. (#blockHeight . #getQuantity)
-
--- | Helper function: Get the 'Slot' of a wallet checkpoint.
-getSlot :: WalletCheckpoint s -> W.Slot
-getSlot (WalletCheckpoint currentTip _ _) =
-    W.toSlot . W.chainPointFromBlockHeader $ currentTip
-
--- | Convert a stored 'WalletCheckpoint' to the legacy 'W.Wallet' state.
-toWallet :: AddressBookIso s => Prologue s -> WalletCheckpoint s -> W.Wallet s
-toWallet pro (WalletCheckpoint pt utxo dis) =
-    W.unsafeInitWallet utxo pt $ withIso addressIso $ \_ from -> from (pro,dis)
-
--- | Convert a legacy 'W.Wallet' state to a 'Prologue' and a 'WalletCheckpoint'
-fromWallet :: AddressBookIso s => W.Wallet s -> (Prologue s, WalletCheckpoint s)
-fromWallet w = (pro, WalletCheckpoint (W.currentTip w) (W.utxo w) dis)
-  where
-    (pro, dis) = withIso addressIso $ \to _ -> to (w ^. #getState)
 
 {-------------------------------------------------------------------------------
     Wallet State
@@ -109,17 +66,25 @@ fromWallet w = (pro, WalletCheckpoint (W.currentTip w) (W.utxo w) dis)
 -- FIXME during ADP-1043: Include also TxHistory, pending transactions, …,
 -- everything.
 data WalletState s = WalletState
-    { prologue    :: !(Prologue s)
-    , checkpoints :: !(Checkpoints (WalletCheckpoint s))
+    { prologue    :: Prologue s
+    , checkpoints :: Checkpoints (WalletCheckpoint s)
+    , transactions :: TxHistory
     } deriving (Generic)
 
 deriving instance AddressBookIso s => Eq (WalletState s)
 
 -- | Create a wallet from the genesis block.
-fromGenesis :: AddressBookIso s => W.Wallet s -> Maybe (WalletState s)
-fromGenesis cp
+fromGenesis
+    :: AddressBookIso s
+    => W.Wallet s
+    -> Model.TxHistory
+    -> Maybe (WalletState s)
+fromGenesis cp txs
     | W.isGenesisBlockHeader header = Just $
-        WalletState{ prologue, checkpoints = CPS.fromGenesis checkpoint }
+        WalletState{ prologue
+            , checkpoints = CPS.fromGenesis checkpoint
+            , transactions = TxHistory txs
+            }
     | otherwise = Nothing
   where
     header = cp ^. #currentTip
@@ -142,33 +107,20 @@ type DeltaWalletState s = [DeltaWalletState1 s]
 data DeltaWalletState1 s
     = ReplacePrologue (Prologue s)
     -- ^ Replace the prologue of the address discovery state
-    | UpdateCheckpoints (CPS.DeltaCheckpoints (WalletCheckpoint s))
+    | UpdateCheckpoints (DeltaCheckpoints (WalletCheckpoint s))
     -- ^ Update the wallet checkpoints.
+    | UpdateTransactions DeltaTxHistory
 
 instance Delta (DeltaWalletState1 s) where
     type Base (DeltaWalletState1 s) = WalletState s
     apply (ReplacePrologue p) = over #prologue $ const p
     apply (UpdateCheckpoints d) = over #checkpoints $ apply d
+    apply (UpdateTransactions d) = over #transactions $ apply d
 
 instance Buildable (DeltaWalletState1 s) where
     build (ReplacePrologue _) = "ReplacePrologue …"
     build (UpdateCheckpoints d) = "UpdateCheckpoints (" <> build d <> ")"
+    build (UpdateTransactions d) = "UpdateTransactions (" <> build d <> ")"
 
 instance Show (DeltaWalletState1 s) where
     show = pretty
-
-{-------------------------------------------------------------------------------
-    A Delta type for Maps,
-    useful for handling multiple wallets.
--------------------------------------------------------------------------------}
--- | Delta type for 'Map'.
-data DeltaMap key da
-    = Insert key (Base da)
-    | Delete key
-    | Adjust key da
-
-instance (Ord key, Delta da) => Delta (DeltaMap key da) where
-    type Base (DeltaMap key da) = Map key (Base da)
-    apply (Insert key a) = Map.insert key a
-    apply (Delete key) = Map.delete key
-    apply (Adjust key da) = Map.adjust (apply da) key

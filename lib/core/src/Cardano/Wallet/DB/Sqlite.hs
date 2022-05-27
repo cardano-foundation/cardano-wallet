@@ -7,9 +7,9 @@
 {-# LANGUAGE NamedFieldPuns #-}
 {-# LANGUAGE OverloadedLabels #-}
 {-# LANGUAGE RankNTypes #-}
-{-# LANGUAGE RecordWildCards #-}
+
 {-# LANGUAGE ScopedTypeVariables #-}
-{-# LANGUAGE TupleSections #-}
+
 {-# LANGUAGE TypeApplications #-}
 {-# LANGUAGE TypeFamilies #-}
 {-# LANGUAGE UndecidableInstances #-}
@@ -53,8 +53,6 @@ module Cardano.Wallet.DB.Sqlite
 
 import Prelude
 
-import Cardano.Address.Derivation
-    ( XPrv )
 import Cardano.BM.Data.Severity
     ( Severity (..) )
 import Cardano.BM.Data.Tracer
@@ -62,9 +60,6 @@ import Cardano.BM.Data.Tracer
 import Cardano.DB.Sqlite
     ( DBLog (..)
     , SqliteContext (..)
-    , chunkSize
-    , dbChunked'
-    , dbChunkedFor
     , handleConstraint
     , newInMemorySqliteContext
     , newSqliteContext
@@ -88,121 +83,81 @@ import Cardano.Wallet.DB
     , defaultSparseCheckpointsConfig
     , sparseCheckpoints
     )
-import Cardano.Wallet.DB.Checkpoints
-    ( DeltaCheckpoints (..) )
-import Cardano.Wallet.DB.Sqlite.CheckpointsOld
-    ( PersistAddressBook (..), blockHeaderFromEntity, mkStoreWallets )
+import Cardano.Wallet.DB.Sqlite.Lib (ErrInitializeGenesisAbsent (ErrInitializeGenesisAbsent), mkWalletEntity, selectWallet, deleteLooseTransactions, deleteDelegationCertificates, updateTxMetas, deleteTxMetas, deleteStakeKeyCerts, pruneLocalTxSubmission, localTxSubmissionFromEntity, listPendingLocalTxSubmissionQuery, updatePendingTxForExpiryQuery, selectTxMeta, deletePendingOrExpiredTx, selectTxHistory, mkPrivateKeyEntity, selectPrivateKey, selectGenesisParameters, ErrRollbackTo (ErrNoOlderCheckpoint), mkWalletMetadataUpdate, readWalletDelegation, readWalletMetadata)
 import Cardano.Wallet.DB.Sqlite.Migration
     ( DefaultFieldValues (..), migrateManually )
+import Cardano.Wallet.DB.Sqlite.Stores
+    ( PersistAddressBook (..), blockHeaderFromEntity, mkStoreWallets )
 import Cardano.Wallet.DB.Sqlite.TH
     ( DelegationCertificate (..)
     , DelegationReward (..)
     , EntityField (..)
     , Key (..)
     , LocalTxSubmission (..)
-    , PrivateKey (..)
     , StakeKeyCertificate (..)
-    , TxCollateral (..)
-    , TxCollateralOut (..)
-    , TxCollateralOutToken (..)
-    , TxIn (..)
-    , TxMeta (..)
-    , TxOut (..)
-    , TxOutToken (..)
-    , TxWithdrawal (..)
-    , Wallet (..)
     , migrateAll
     , unWalletKey
     )
 import Cardano.Wallet.DB.Sqlite.Types
-    ( BlockId (..), TxId (..) )
+    ( TxId (..) )
+import Cardano.Wallet.DB.Stores.Checkpoints.Model
+    ( DeltaCheckpoints (..), fromWallet, getBlockHeight, getSlot )
+import Cardano.Wallet.DB.Stores.TxHistory.Model
 import Cardano.Wallet.DB.WalletState
     ( DeltaMap (..)
     , DeltaWalletState1 (..)
     , findNearestPoint
     , fromGenesis
-    , fromWallet
-    , getBlockHeight
     , getLatest
-    , getSlot
     )
 import Cardano.Wallet.Primitive.AddressDerivation
     ( Depth (..), PersistPrivateKey (..), WalletKey (..) )
-import Cardano.Wallet.Primitive.Passphrase
-    ( PassphraseHash )
+import qualified Cardano.Wallet.Primitive.Model as W
 import Cardano.Wallet.Primitive.Slotting
-    ( TimeInterpreter
-    , epochOf
-    , firstSlotInEpoch
-    , interpretQuery
-    , slotToUTCTime
-    )
-import Cardano.Wallet.Primitive.Types.TokenMap
-    ( AssetId (..) )
+    ( TimeInterpreter, epochOf, interpretQuery )
+import qualified Cardano.Wallet.Primitive.Types as W
+import qualified Cardano.Wallet.Primitive.Types.Coin as Coin
+import qualified Cardano.Wallet.Primitive.Types.Tx as W
 import Control.Monad
     ( forM, unless, void, when, (<=<) )
-import Control.Monad.Extra
-    ( concatMapM )
-import Control.Monad.Identity
-    ( Identity (..) )
 import Control.Monad.IO.Class
     ( MonadIO (..) )
 import Control.Monad.Trans.Except
     ( ExceptT (..) )
 import Control.Tracer
     ( Tracer, contramap, traceWith )
-import Data.Coerce
-    ( coerce )
 import Data.DBVar
     ( loadDBVar, modifyDBMaybe, readDBVar, updateDBVar )
 import Data.Either
     ( isRight )
-import Data.Functor
-    ( (<&>) )
 import Data.Generics.Internal.VL.Lens
     ( view, (^.) )
-import Data.List
-    ( nub, sortOn, unzip5 )
-import Data.List.Split
-    ( chunksOf )
-import Data.Map.Strict
-    ( Map )
+import qualified Data.Map.Strict as Map
 import Data.Maybe
-    ( catMaybes, listToMaybe, maybeToList )
-import Data.Ord
-    ( Down (..) )
+    ( catMaybes )
 import Data.Proxy
     ( Proxy (..) )
 import Data.Quantity
     ( Quantity (..) )
+import qualified Data.Set as Set
 import Data.Text
     ( Text )
+import qualified Data.Text as T
 import Data.Text.Class
     ( ToText (..), fromText )
 import Data.Word
     ( Word32 )
-import Database.Persist.Class
-    ( toPersistValue )
 import Database.Persist.Sql
     ( Entity (..)
-    , Filter
     , SelectOpt (..)
-    , Single (..)
-    , Update (..)
     , deleteWhere
-    , deleteWhereCount
     , insert_
-    , rawExecute
-    , rawSql
     , repsert
-    , repsertMany
     , selectFirst
     , selectKeysList
     , selectList
     , updateWhere
     , upsert
-    , (<-.)
-    , (<.)
     , (<=.)
     , (=.)
     , (==.)
@@ -220,21 +175,9 @@ import System.Directory
 import System.FilePath
     ( (</>) )
 import UnliftIO.Exception
-    ( Exception, bracket, throwIO )
+    ( bracket, throwIO )
 import UnliftIO.MVar
     ( modifyMVar, modifyMVar_, newMVar, readMVar, withMVar )
-
-import qualified Cardano.Wallet.Primitive.Model as W
-import qualified Cardano.Wallet.Primitive.Passphrase as W
-import qualified Cardano.Wallet.Primitive.Types as W
-import qualified Cardano.Wallet.Primitive.Types.Coin as Coin
-import qualified Cardano.Wallet.Primitive.Types.Coin as W
-import qualified Cardano.Wallet.Primitive.Types.Hash as W
-import qualified Cardano.Wallet.Primitive.Types.TokenBundle as TokenBundle
-import qualified Cardano.Wallet.Primitive.Types.Tx as W
-import qualified Data.Map.Strict as Map
-import qualified Data.Set as Set
-import qualified Data.Text as T
 
 {-------------------------------------------------------------------------------
                                Database "factory"
@@ -533,8 +476,8 @@ newDBLayerWith _cacheBehavior _tr ti SqliteContext{runQuery} = do
 
     -- Insert genesis checkpoint into the DBVar.
     -- Throws an internal error if the checkpoint is not actually at genesis.
-    let insertCheckpointGenesis wid cp =
-            case fromGenesis cp of
+    let insertGenesis wid cp txs =
+            case fromGenesis cp txs of
                 Nothing -> throwIO $ ErrInitializeGenesisAbsent wid header
                 Just wallet ->
                     updateDBVar walletsDB_ $ Insert wid wallet
@@ -560,10 +503,15 @@ newDBLayerWith _cacheBehavior _tr ti SqliteContext{runQuery} = do
                 case Map.lookup wid ws of
                     Nothing  -> (Nothing, ())
                     Just wal ->
-                        let willKeep cp = getBlockHeight cp `Set.member` heights
-                            slots = Map.filter willKeep (wal ^. #checkpoints ^. #checkpoints)
+                        let willKeep cp
+                                = getBlockHeight cp `Set.member` heights
+                            slots = Map.filter willKeep
+                                        $ wal ^. (#checkpoints . #checkpoints)
                             delta = Adjust wid
-                                [ UpdateCheckpoints $ RestrictTo $ Map.keys slots ]
+                                [ UpdateCheckpoints
+                                    $ RestrictTo
+                                    $ Map.keys slots
+                                ]
                         in  (Just delta, ())
 
     -- Delete the a wallet from the checkpoint DBVar
@@ -580,35 +528,16 @@ newDBLayerWith _cacheBehavior _tr ti SqliteContext{runQuery} = do
             res <- handleConstraint (ErrWalletAlreadyExists wid) $
                 insert_ (mkWalletEntity wid meta gp)
             when (isRight res) $ do
-                insertCheckpointGenesis wid cp
-                let Identity
-                        ( txMetas
-                        , txIns
-                        , txCollateralIns
-                        , txOuts
-                        , txOutTokens
-                        , txCollateralOuts
-                        , txCollateralOutTokens
-                        , txWithdrawals
-                        ) = Identity $ mkTxHistory wid txs
-                putTxs
-                    txMetas
-                    txIns
-                    txCollateralIns
-                    txOuts
-                    txOutTokens
-                    txCollateralOuts
-                    txCollateralOutTokens
-                    txWithdrawals
+                insertGenesis wid cp txs
             pure res
 
-        , removeWallet = \wid -> ExceptT $ do
+        , removeWallet = \wid -> ExceptT $
             selectWallet wid >>= \case
-                Nothing -> pure $ Left $ ErrNoSuchWallet wid
-                Just _  -> Right <$> do
-                    deleteWhere [WalId ==. wid]
-                    deleteLooseTransactions
-                    deleteCheckpoints wid
+        Nothing -> pure $ Left $ ErrNoSuchWallet wid
+        Just _  -> Right <$> do
+            deleteWhere [WalId ==. wid]
+            deleteLooseTransactions
+            deleteCheckpoints wid
 
         , listWallets = map unWalletKey <$> selectKeysList [] [Asc WalId]
 
@@ -617,18 +546,18 @@ newDBLayerWith _cacheBehavior _tr ti SqliteContext{runQuery} = do
         -----------------------------------------------------------------------}
         , walletsDB = walletsDB_
 
-        , putCheckpoint = \wid cp -> ExceptT $ do
+        , putCheckpoint = \wid cp -> ExceptT $
             modifyDBMaybe walletsDB_ $ \ws ->
-                case Map.lookup wid ws of
-                    Nothing -> (Nothing, Left $ ErrNoSuchWallet wid)
-                    Just _  ->
-                        let (prologue, wcp) = fromWallet cp
-                            slot = getSlot wcp
-                            delta = Just $ Adjust wid
-                                [ UpdateCheckpoints $ PutCheckpoint slot wcp
-                                , ReplacePrologue prologue
-                                ]
-                        in  (delta, Right ())
+        case Map.lookup wid ws of
+            Nothing -> (Nothing, Left $ ErrNoSuchWallet wid)
+            Just _  ->
+                let (prologue, wcp) = fromWallet cp
+                    slot = getSlot wcp
+                    delta = Just $ Adjust wid
+                        [ UpdateCheckpoints $ PutCheckpoint slot wcp
+                        , ReplacePrologue prologue
+                        ]
+                in  (delta, Right ())
 
         , readCheckpoint = readCheckpoint_
 
@@ -658,7 +587,7 @@ newDBLayerWith _cacheBehavior _tr ti SqliteContext{runQuery} = do
             case mNearestCheckpoint of
                 Nothing  -> pure $ Left $ ErrNoSuchWallet wid
                 Just wcp -> do
-                    let nearestPoint = wcp ^. #currentTip ^. #slotNo
+                    let nearestPoint = wcp ^. (#currentTip . #slotNo)
                     deleteDelegationCertificates wid
                         [ CertSlot >. nearestPoint
                         ]
@@ -680,106 +609,93 @@ newDBLayerWith _cacheBehavior _tr ti SqliteContext{runQuery} = do
                         $ W.chainPointFromBlockHeader
                         $ view #currentTip wcp
 
-        , prune = \wid epochStability -> ExceptT $ do
+        , prune = \wid epochStability -> ExceptT $
             readCheckpoint_ wid >>= \case
-                Nothing -> pure $ Left $ ErrNoSuchWallet wid
-                Just cp -> Right <$> do
-                    let tip = cp ^. #currentTip
-                    pruneCheckpoints wid epochStability tip
-                    pruneLocalTxSubmission wid epochStability tip
-                    deleteLooseTransactions
+        Nothing -> pure $ Left $ ErrNoSuchWallet wid
+        Just cp -> Right <$> do
+            let tip = cp ^. #currentTip
+            pruneCheckpoints wid epochStability tip
+            pruneLocalTxSubmission wid epochStability tip
+            deleteLooseTransactions
 
         {-----------------------------------------------------------------------
                                    Wallet Metadata
         -----------------------------------------------------------------------}
 
-        , putWalletMeta = \wid meta -> ExceptT $ do
+        , putWalletMeta = \wid meta -> ExceptT $
             selectWallet wid >>= \case
-                Nothing -> pure $ Left $ ErrNoSuchWallet wid
-                Just _ -> do
-                    updateWhere [WalId ==. wid]
-                        (mkWalletMetadataUpdate meta)
-                    pure $ Right ()
+        Nothing -> pure $ Left $ ErrNoSuchWallet wid
+        Just _ -> do
+            updateWhere [WalId ==. wid]
+                (mkWalletMetadataUpdate meta)
+            pure $ Right ()
 
-        , readWalletMeta = \wid -> do
+        , readWalletMeta = \wid ->
             readCheckpoint_ wid >>= \case
-                Nothing -> pure Nothing
-                Just cp -> do
-                    currentEpoch <- liftIO $
-                        interpretQuery ti (epochOf $ cp ^. #currentTip . #slotNo)
-                    readWalletDelegation ti wid currentEpoch
-                        >>= readWalletMetadata wid
+        Nothing -> pure Nothing
+        Just cp -> do
+            currentEpoch <- liftIO $
+                interpretQuery ti (epochOf $ cp ^. #currentTip . #slotNo)
+            readWalletDelegation ti wid currentEpoch
+                >>= readWalletMetadata wid
 
-        , putDelegationCertificate = \wid cert sl -> ExceptT $ do
+        , putDelegationCertificate = \wid cert sl -> ExceptT $
             selectWallet wid >>= \case
-                Nothing -> pure $ Left $ ErrNoSuchWallet wid
-                Just _  -> case cert of
-                    W.CertDelegateNone _ -> do
-                        repsert
-                            (DelegationCertificateKey wid sl)
-                            (DelegationCertificate wid sl Nothing)
-                        pure <$> repsert
-                            (StakeKeyCertificateKey wid sl)
-                            (StakeKeyCertificate wid sl W.StakeKeyDeregistration)
-                    W.CertDelegateFull _ pool ->
-                        pure <$> repsert
-                            (DelegationCertificateKey wid sl)
-                            (DelegationCertificate wid sl (Just pool))
-                    W.CertRegisterKey _ ->
-                        pure <$> repsert
-                            (StakeKeyCertificateKey wid sl)
-                            (StakeKeyCertificate wid sl W.StakeKeyRegistration)
+        Nothing -> pure $ Left $ ErrNoSuchWallet wid
+        Just _  -> case cert of
+            W.CertDelegateNone _ -> do
+                repsert
+                    (DelegationCertificateKey wid sl)
+                    (DelegationCertificate wid sl Nothing)
+                pure <$> repsert
+                    (StakeKeyCertificateKey wid sl)
+                    (StakeKeyCertificate wid sl W.StakeKeyDeregistration)
+            W.CertDelegateFull _ pool ->
+                pure <$> repsert
+                    (DelegationCertificateKey wid sl)
+                    (DelegationCertificate wid sl (Just pool))
+            W.CertRegisterKey _ ->
+                pure <$> repsert
+                    (StakeKeyCertificateKey wid sl)
+                    (StakeKeyCertificate wid sl W.StakeKeyRegistration)
 
-        , isStakeKeyRegistered = \wid -> ExceptT $ do
+        , isStakeKeyRegistered = \wid -> ExceptT $
               selectWallet wid >>= \case
-                Nothing -> pure $ Left $ ErrNoSuchWallet wid
-                Just{} -> do
-                    val <- fmap entityVal <$> selectFirst
-                        [StakeKeyCertWalletId ==. wid]
-                        [Desc StakeKeyCertSlot]
-                    return $ case val of
-                        Nothing -> Right False
-                        Just (StakeKeyCertificate _ _ status) ->
-                            Right (status == W.StakeKeyRegistration)
+      Nothing -> pure $ Left $ ErrNoSuchWallet wid
+      Just{} -> do
+          val <- fmap entityVal <$> selectFirst
+              [StakeKeyCertWalletId ==. wid]
+              [Desc StakeKeyCertSlot]
+          return $ case val of
+              Nothing -> Right False
+              Just (StakeKeyCertificate _ _ status) ->
+                  Right (status == W.StakeKeyRegistration)
 
         {-----------------------------------------------------------------------
                                      Tx History
         -----------------------------------------------------------------------}
 
-        , putTxHistory = \wid txs -> ExceptT $ do
-            selectWallet wid >>= \case
-                Nothing -> pure $ Left $ ErrNoSuchWallet wid
-                Just _ -> do
-                    let Identity
-                            ( txMetas
-                            , txIns
-                            , txCollateralIns
-                            , txOuts
-                            , txOutTokens
-                            , txCollateralOuts
-                            , txCollateralOutTokens
-                            , txWithdrawals
-                            ) = Identity $ mkTxHistory wid txs
-                    putTxs
-                        txMetas
-                        txIns
-                        txCollateralIns
-                        txOuts
-                        txOutTokens
-                        txCollateralOuts
-                        txCollateralOutTokens
-                        txWithdrawals
-                    pure $ Right ()
+        , putTxHistory = \wid txs -> ExceptT $
+            modifyDBMaybe walletsDB_ $ \ws ->
+        case Map.lookup wid ws of
+            Nothing -> (Nothing, Left $ ErrNoSuchWallet wid)
+            Just _  ->
+                let delta = Just $ Adjust wid
+                        [ UpdateTransactions
+                            $ DeltaTxHistory
+                            $ TxHistory txs
+                        ]
+                in  (delta, Right ())
 
-        , readTxHistory = \wid minWithdrawal order range status -> do
+        , readTxHistory = \wid minWithdrawal order range status ->
             readCheckpoint_ wid >>= \case
-                Nothing -> pure []
-                Just cp -> selectTxHistory cp
-                    ti wid minWithdrawal order $ catMaybes
-                    [ (TxMetaSlot >=.) <$> W.inclusiveLowerBound range
-                    , (TxMetaSlot <=.) <$> W.inclusiveUpperBound range
-                    , (TxMetaStatus ==.) <$> status
-                    ]
+        Nothing -> pure []
+        Just cp -> selectTxHistory cp
+            ti wid minWithdrawal order $ catMaybes
+            [ (TxMetaSlot >=.) <$> W.inclusiveLowerBound range
+            , (TxMetaSlot <=.) <$> W.inclusiveUpperBound range
+            , (TxMetaStatus ==.) <$> status
+            ]
 
         , putLocalTxSubmission = \wid txid tx sl -> ExceptT $ do
             let errNoSuchWallet = ErrPutLocalTxSubmissionNoSuchWallet $
@@ -797,10 +713,10 @@ newDBLayerWith _cacheBehavior _tr ti SqliteContext{runQuery} = do
             fmap (map localTxSubmissionFromEntity)
             . listPendingLocalTxSubmissionQuery
 
-        , updatePendingTxForExpiry = \wid tip -> ExceptT $ do
+        , updatePendingTxForExpiry = \wid tip -> ExceptT $
             selectWallet wid >>= \case
-                Nothing -> pure $ Left $ ErrNoSuchWallet wid
-                Just _ -> Right <$> updatePendingTxForExpiryQuery wid tip
+        Nothing -> pure $ Left $ ErrNoSuchWallet wid
+        Just _ -> Right <$> updatePendingTxForExpiryQuery wid tip
 
         , removePendingOrExpiredTx = \wid tid -> ExceptT $ do
             let errNoSuchWallet =
@@ -820,27 +736,27 @@ newDBLayerWith _cacheBehavior _tr ti SqliteContext{runQuery} = do
                             then errNoMorePending
                             else Right ()
 
-        , getTx = \wid tid -> ExceptT $ do
+        , getTx = \wid tid -> ExceptT $
             readCheckpoint_ wid >>= \case
-                Nothing -> pure $ Left $ ErrNoSuchWallet wid
-                Just cp -> do
-                    metas <- selectTxHistory cp
-                        ti wid Nothing W.Descending
-                            [ TxMetaTxId ==. TxId tid ]
-                    case metas of
-                        [] -> pure (Right Nothing)
-                        meta:_ -> pure (Right $ Just meta)
+        Nothing -> pure $ Left $ ErrNoSuchWallet wid
+        Just cp -> do
+            metas <- selectTxHistory cp
+                ti wid Nothing W.Descending
+                    [ TxMetaTxId ==. TxId tid ]
+            case metas of
+                [] -> pure (Right Nothing)
+                meta:_ -> pure (Right $ Just meta)
 
         {-----------------------------------------------------------------------
                                        Keystore
         -----------------------------------------------------------------------}
 
-        , putPrivateKey = \wid key -> ExceptT $ do
+        , putPrivateKey = \wid key -> ExceptT $
             selectWallet wid >>= \case
-                Nothing -> pure $ Left $ ErrNoSuchWallet wid
-                Just _ -> Right <$> do
-                    deleteWhere [PrivateKeyWalletId ==. wid]
-                    insert_ (mkPrivateKeyEntity wid key)
+        Nothing -> pure $ Left $ ErrNoSuchWallet wid
+        Just _ -> Right <$> do
+            deleteWhere [PrivateKeyWalletId ==. wid]
+            insert_ (mkPrivateKeyEntity wid key)
 
         , readPrivateKey = selectPrivateKey
 
@@ -855,12 +771,12 @@ newDBLayerWith _cacheBehavior _tr ti SqliteContext{runQuery} = do
         -----------------------------------------------------------------------}
 
         , putDelegationRewardBalance =
-            \wid amt -> ExceptT $ do
+            \wid amt -> ExceptT $
             selectWallet wid >>= \case
-                Nothing -> pure $ Left $ ErrNoSuchWallet wid
-                Just _  -> Right <$> repsert
-                    (DelegationRewardKey wid)
-                    (DelegationReward wid (Coin.unsafeToWord64 amt))
+        Nothing -> pure $ Left $ ErrNoSuchWallet wid
+        Just _  -> Right <$> repsert
+            (DelegationRewardKey wid)
+            (DelegationReward wid (Coin.unsafeToWord64 amt))
 
         , readDelegationRewardBalance =
             \wid ->
@@ -873,811 +789,3 @@ newDBLayerWith _cacheBehavior _tr ti SqliteContext{runQuery} = do
 
         , atomically = withMVar queryLock . const . runQuery
         }
-
-readWalletMetadata
-    :: W.WalletId
-    -> W.WalletDelegation
-    -> SqlPersistT IO (Maybe W.WalletMetadata)
-readWalletMetadata wid walDel =
-     fmap (metadataFromEntity walDel . entityVal)
-        <$> selectFirst [WalId ==. wid] []
-
-readWalletDelegation
-    :: TimeInterpreter IO
-    -> W.WalletId
-    -> W.EpochNo
-    -> SqlPersistT IO W.WalletDelegation
-readWalletDelegation ti wid epoch
-    | epoch == 0 = pure $ W.WalletDelegation W.NotDelegating []
-    | otherwise = do
-        (eMinus1, e) <- liftIO $ interpretQuery ti $
-            (,) <$> firstSlotInEpoch (epoch - 1) <*> firstSlotInEpoch epoch
-        active <- maybe W.NotDelegating toWalletDelegationStatus
-            <$> readDelegationCertificate wid
-                [ CertSlot <. eMinus1
-                ]
-
-        next <- catMaybes <$> sequence
-            [ fmap (W.WalletDelegationNext (epoch + 1) . toWalletDelegationStatus)
-                <$> readDelegationCertificate wid
-                    [ CertSlot >=. eMinus1
-                    , CertSlot <. e
-                    ]
-            , fmap (W.WalletDelegationNext (epoch + 2) . toWalletDelegationStatus)
-                <$> readDelegationCertificate wid
-                    [ CertSlot >=. e
-                    ]
-            ]
-
-        pure $ W.WalletDelegation active next
-
-readDelegationCertificate
-    :: W.WalletId
-    -> [Filter DelegationCertificate]
-    -> SqlPersistT IO (Maybe DelegationCertificate)
-readDelegationCertificate wid filters = fmap entityVal
-    <$> selectFirst ((CertWalletId ==. wid) : filters) [Desc CertSlot]
-
-{-------------------------------------------------------------------------------
-    Conversion between types
-        from the `persistent` database (Cardano.Wallet.DB.Sqlite.TH)
-        and from the wallet core ( Cardano.Wallet.Primitive.Types.*)
--------------------------------------------------------------------------------}
-
-toWalletDelegationStatus
-    :: DelegationCertificate
-    -> W.WalletDelegationStatus
-toWalletDelegationStatus = \case
-    DelegationCertificate _ _ Nothing ->
-        W.NotDelegating
-    DelegationCertificate _ _ (Just pool) ->
-        W.Delegating pool
-
-mkWalletEntity :: W.WalletId -> W.WalletMetadata -> W.GenesisParameters -> Wallet
-mkWalletEntity wid meta gp = Wallet
-    { walId = wid
-    , walName = meta ^. #name . coerce
-    , walCreationTime = meta ^. #creationTime
-    , walPassphraseLastUpdatedAt = W.lastUpdatedAt <$> meta ^. #passphraseInfo
-    , walPassphraseScheme = W.passphraseScheme <$> meta ^. #passphraseInfo
-    , walGenesisHash = BlockId (coerce (gp ^. #getGenesisBlockHash))
-    , walGenesisStart = coerce (gp ^. #getGenesisBlockDate)
-    }
-
-mkWalletMetadataUpdate :: W.WalletMetadata -> [Update Wallet]
-mkWalletMetadataUpdate meta =
-    [ WalName =. meta ^. #name . coerce
-    , WalCreationTime =. meta ^. #creationTime
-    , WalPassphraseLastUpdatedAt =.
-        W.lastUpdatedAt <$> meta ^. #passphraseInfo
-    , WalPassphraseScheme =.
-        W.passphraseScheme <$> meta ^. #passphraseInfo
-    ]
-
-metadataFromEntity :: W.WalletDelegation -> Wallet -> W.WalletMetadata
-metadataFromEntity walDelegation wal = W.WalletMetadata
-    { name = W.WalletName (walName wal)
-    , creationTime = walCreationTime wal
-    , passphraseInfo = W.WalletPassphraseInfo
-        <$> walPassphraseLastUpdatedAt wal
-        <*> walPassphraseScheme wal
-    , delegation = walDelegation
-    }
-
-mkPrivateKeyEntity
-    :: PersistPrivateKey (k 'RootK)
-    => W.WalletId
-    -> (k 'RootK XPrv, W.PassphraseHash)
-    -> PrivateKey
-mkPrivateKeyEntity wid kh = PrivateKey
-    { privateKeyWalletId = wid
-    , privateKeyRootKey = root
-    , privateKeyHash = hash
-    }
-  where
-    (root, hash) = serializeXPrv kh
-
-privateKeyFromEntity
-    :: PersistPrivateKey (k 'RootK)
-    => PrivateKey
-    -> (k 'RootK XPrv, PassphraseHash)
-privateKeyFromEntity (PrivateKey _ k h) =
-    unsafeDeserializeXPrv (k, h)
-
-mkTxHistory
-    :: W.WalletId
-    -> [(W.Tx, W.TxMeta)]
-    ->  ( [TxMeta]
-        , [TxIn]
-        , [TxCollateral]
-        , [TxOut]
-        , [TxOutToken]
-        , [TxCollateralOut]
-        , [TxCollateralOutToken]
-        , [TxWithdrawal]
-        )
-mkTxHistory wid txs = flatTxHistory
-    [ ( mkTxMetaEntity
-          wid txid (W.fee tx) (W.metadata tx) derived (W.scriptValidity tx)
-      , mkTxInputsOutputs (txid, tx)
-      , mkTxWithdrawals (txid, tx)
-      )
-    | (tx, derived) <- txs
-    , let txid = view #txId tx
-    ]
-  where
-    -- | Make flat lists of entities from the result of 'mkTxHistory'.
-    flatTxHistory ::
-        [ ( TxMeta
-          , ( [TxIn]
-            , [TxCollateral]
-            , [(TxOut, [TxOutToken])]
-            , [(TxCollateralOut, [TxCollateralOutToken])]
-            )
-          , [TxWithdrawal]
-          )
-        ] ->
-        ( [TxMeta]
-        , [TxIn]
-        , [TxCollateral]
-        , [TxOut]
-        , [TxOutToken]
-        , [TxCollateralOut]
-        , [TxCollateralOutToken]
-        , [TxWithdrawal]
-        )
-    flatTxHistory es =
-        (               map (                       (\(a, _, _) -> a)) es
-        ,         concatMap ((\(a, _, _, _) -> a) . (\(_, b, _) -> b)) es
-        ,         concatMap ((\(_, b, _, _) -> b) . (\(_, b, _) -> b)) es
-        , fst <$> concatMap ((\(_, _, c, _) -> c) . (\(_, b, _) -> b)) es
-        , snd =<< concatMap ((\(_, _, c, _) -> c) . (\(_, b, _) -> b)) es
-        , fst <$> concatMap ((\(_, _, _, d) -> d) . (\(_, b, _) -> b)) es
-        , snd =<< concatMap ((\(_, _, _, d) -> d) . (\(_, b, _) -> b)) es
-        ,         concatMap (                       (\(_, _, c) -> c)) es
-        )
-
-mkTxInputsOutputs ::
-    (W.Hash "Tx", W.Tx) ->
-    ( [TxIn]
-    , [TxCollateral]
-    , [(TxOut, [TxOutToken])]
-    , [(TxCollateralOut, [TxCollateralOutToken])]
-    )
-mkTxInputsOutputs tx =
-    ( (dist mkTxIn . ordered W.resolvedInputs) tx
-    , (dist mkTxCollateral . ordered W.resolvedCollateralInputs) tx
-    , (dist mkTxOut . ordered W.outputs) tx
-    , (dist mkTxCollateralOut . fmap (maybeToList . W.collateralOutput)) tx
-    )
-  where
-    mkTxIn tid (ix, (txIn, amt)) = TxIn
-        { txInputTxId = TxId tid
-        , txInputOrder = ix
-        , txInputSourceTxId = TxId (W.inputId txIn)
-        , txInputSourceIndex = W.inputIx txIn
-        , txInputSourceAmount = amt
-        }
-    mkTxCollateral tid (ix, (txCollateral, amt)) = TxCollateral
-        { txCollateralTxId = TxId tid
-        , txCollateralOrder = ix
-        , txCollateralSourceTxId = TxId (W.inputId txCollateral)
-        , txCollateralSourceIndex = W.inputIx txCollateral
-        , txCollateralSourceAmount = amt
-        }
-    mkTxOut tid (ix, txOut) = (out, tokens)
-      where
-        out = TxOut
-            { txOutputTxId = TxId tid
-            , txOutputIndex = ix
-            , txOutputAddress = view #address txOut
-            , txOutputAmount = W.txOutCoin txOut
-            }
-        tokens = mkTxOutToken tid ix <$>
-            snd (TokenBundle.toFlatList $ view #tokens txOut)
-    mkTxOutToken tid ix (AssetId policy token, quantity) = TxOutToken
-        { txOutTokenTxId = TxId tid
-        , txOutTokenTxIndex = ix
-        , txOutTokenPolicyId = policy
-        , txOutTokenName = token
-        , txOutTokenQuantity = quantity
-        }
-    mkTxCollateralOut tid txCollateralOut = (out, tokens)
-      where
-        out = TxCollateralOut
-            { txCollateralOutTxId = TxId tid
-            , txCollateralOutAddress = view #address txCollateralOut
-            , txCollateralOutAmount = W.txOutCoin txCollateralOut
-            }
-        tokens = mkTxCollateralOutToken tid <$>
-            snd (TokenBundle.toFlatList $ view #tokens txCollateralOut)
-    mkTxCollateralOutToken tid (AssetId policy token, quantity) =
-        TxCollateralOutToken
-        { txCollateralOutTokenTxId = TxId tid
-        , txCollateralOutTokenPolicyId = policy
-        , txCollateralOutTokenName = token
-        , txCollateralOutTokenQuantity = quantity
-        }
-    ordered f = fmap (zip [0..] . f)
-    -- | Distribute `a` across many `b`s using the given function.
-    -- >>> dist TxOut (addr, [Coin 1, Coin 42, Coin 14])
-    -- [TxOut addr (Coin 1), TxOut addr (Coin 42), TxOut addr (Coin 14)]
-    dist :: (a -> b -> c) -> (a, [b]) -> [c]
-    dist f (a, bs) = [f a b | b <- bs]
-
-mkTxWithdrawals
-    :: (W.Hash "Tx", W.Tx)
-    -> [TxWithdrawal]
-mkTxWithdrawals (txid, tx) =
-    mkTxWithdrawal <$> Map.toList (tx ^. #withdrawals)
-  where
-    txWithdrawalTxId = TxId txid
-    mkTxWithdrawal (txWithdrawalAccount, txWithdrawalAmount) =
-        TxWithdrawal
-            { txWithdrawalTxId
-            , txWithdrawalAccount
-            , txWithdrawalAmount
-            }
-
-mkTxMetaEntity
-    :: W.WalletId
-    -> W.Hash "Tx"
-    -> Maybe W.Coin
-    -> Maybe W.TxMetadata
-    -> W.TxMeta
-    -> Maybe W.TxScriptValidity
-    -> TxMeta
-mkTxMetaEntity wid txid mfee meta derived scriptValidity = TxMeta
-    { txMetaTxId = TxId txid
-    , txMetaWalletId = wid
-    , txMetaStatus = derived ^. #status
-    , txMetaDirection = derived ^. #direction
-    , txMetaSlot = derived ^. #slotNo
-    , txMetaBlockHeight = getQuantity (derived ^. #blockHeight)
-    , txMetaAmount = derived ^. #amount
-    , txMetaFee = fromIntegral . W.unCoin <$> mfee
-    , txMetaSlotExpires = derived ^. #expiry
-    , txMetadata = meta
-    , txMetaScriptValidity = scriptValidity <&> \case
-          W.TxScriptValid -> True
-          W.TxScriptInvalid -> False
-    }
-
--- note: TxIn records must already be sorted by order
--- and TxOut records must already be sorted by index
-txHistoryFromEntity
-    :: Monad m
-    => TimeInterpreter m
-    -> W.BlockHeader
-    -> [TxMeta]
-    -> [(TxIn, Maybe (TxOut, [TxOutToken]))]
-    -> [(TxCollateral, Maybe (TxOut, [TxOutToken]))]
-    -> [(TxOut, [TxOutToken])]
-    -> [(TxCollateralOut, [TxCollateralOutToken])]
-    -> [TxWithdrawal]
-    -> m [W.TransactionInfo]
-txHistoryFromEntity ti tip metas ins cins outs couts ws =
-    mapM mkItem metas
-  where
-    startTime' = interpretQuery ti . slotToUTCTime
-    mkItem m = mkTxWith
-        (txMetaTxId m)
-        (txMetaFee m)
-        (txMetadata m)
-        (mkTxDerived m)
-        (txMetaScriptValidity m)
-    mkTxWith txid mfee meta derived isValid = do
-        t <- startTime' (derived ^. #slotNo)
-        return $ W.TransactionInfo
-            { W.txInfoId =
-                getTxId txid
-            , W.txInfoFee =
-                W.Coin . fromIntegral <$> mfee
-            , W.txInfoInputs =
-                map mkTxIn $ filter ((== txid) . txInputTxId . fst) ins
-            , W.txInfoCollateralInputs =
-                map mkTxCollateral $
-                filter ((== txid) . txCollateralTxId . fst) cins
-            , W.txInfoOutputs =
-                map mkTxOut $ filter ((== txid) . txOutputTxId . fst) outs
-            , W.txInfoCollateralOutput =
-                -- This conversion from a list is correct, as the primary key
-                -- for the TxCollateralOut table guarantees that there can be
-                -- at most one collateral output for a given transaction.
-                listToMaybe $
-                map mkTxCollateralOut $
-                filter ((== txid) . txCollateralOutTxId . fst) couts
-            , W.txInfoWithdrawals =
-                Map.fromList
-                    $ map mkTxWithdrawal
-                    $ filter ((== txid) . txWithdrawalTxId) ws
-            , W.txInfoMeta =
-                derived
-            , W.txInfoMetadata =
-                meta
-            , W.txInfoDepth =
-                Quantity $ fromIntegral $ if tipH > txH then tipH - txH else 0
-            , W.txInfoTime =
-                t
-            , W.txInfoScriptValidity = isValid <&> \case
-                  False -> W.TxScriptInvalid
-                  True -> W.TxScriptValid
-            }
-      where
-        txH  = getQuantity (derived ^. #blockHeight)
-        tipH = getQuantity (tip ^. #blockHeight)
-    mkTxIn (tx, out) =
-        ( W.TxIn
-            { W.inputId = getTxId (txInputSourceTxId tx)
-            , W.inputIx = txInputSourceIndex tx
-            }
-        , txInputSourceAmount tx
-        , mkTxOut <$> out
-        )
-    mkTxCollateral (tx, out) =
-        ( W.TxIn
-            { W.inputId = getTxId (txCollateralSourceTxId tx)
-            , W.inputIx = txCollateralSourceIndex tx
-            }
-        , txCollateralSourceAmount tx
-        , mkTxOut <$> out
-        )
-    mkTxOut (out, tokens) = W.TxOut
-        { W.address = txOutputAddress out
-        , W.tokens = TokenBundle.fromFlatList
-            (txOutputAmount out)
-            (mkTxOutToken <$> tokens)
-        }
-    mkTxOutToken token =
-        ( AssetId (txOutTokenPolicyId token) (txOutTokenName token)
-        , txOutTokenQuantity token
-        )
-    mkTxCollateralOut (out, tokens) = W.TxOut
-        { W.address = txCollateralOutAddress out
-        , W.tokens = TokenBundle.fromFlatList
-            (txCollateralOutAmount out)
-            (mkTxCollateralOutToken <$> tokens)
-        }
-    mkTxCollateralOutToken token =
-        ( AssetId
-            (txCollateralOutTokenPolicyId token)
-            (txCollateralOutTokenName token)
-        , txCollateralOutTokenQuantity token
-        )
-    mkTxWithdrawal w =
-        ( txWithdrawalAccount w
-        , txWithdrawalAmount w
-        )
-    mkTxDerived m = W.TxMeta
-        { W.status = txMetaStatus m
-        , W.direction = txMetaDirection m
-        , W.slotNo = txMetaSlot m
-        , W.blockHeight = Quantity (txMetaBlockHeight m)
-        , W.amount = txMetaAmount m
-        , W.expiry = txMetaSlotExpires m
-        }
-
-genesisParametersFromEntity
-    :: Wallet
-    -> W.GenesisParameters
-genesisParametersFromEntity (Wallet _ _ _ _ _ hash startTime) =
-    W.GenesisParameters
-        { W.getGenesisBlockHash = coerce (getBlockId hash)
-        , W.getGenesisBlockDate = W.StartTime startTime
-        }
-
-{-------------------------------------------------------------------------------
-    SQLite database operations
--------------------------------------------------------------------------------}
-
-selectWallet :: MonadIO m => W.WalletId -> SqlPersistT m (Maybe Wallet)
-selectWallet wid =
-    fmap entityVal <$> selectFirst [WalId ==. wid] []
-
--- | Delete TxMeta values for a wallet.
-deleteTxMetas
-    :: W.WalletId
-    -> [Filter TxMeta]
-    -> SqlPersistT IO ()
-deleteTxMetas wid filters =
-    deleteWhere ((TxMetaWalletId ==. wid) : filters)
-
--- | Delete stake key certificates for a wallet.
-deleteStakeKeyCerts
-    :: W.WalletId
-    -> [Filter StakeKeyCertificate]
-    -> SqlPersistT IO ()
-deleteStakeKeyCerts wid filters =
-    deleteWhere ((StakeKeyCertWalletId ==. wid) : filters)
-
-updateTxMetas
-    :: W.WalletId
-    -> [Filter TxMeta]
-    -> [Update TxMeta]
-    -> SqlPersistT IO ()
-updateTxMetas wid filters =
-    updateWhere ((TxMetaWalletId ==. wid) : filters)
-
--- | Insert multiple transactions, removing old instances first.
-putTxs
-    :: [TxMeta]
-    -> [TxIn]
-    -> [TxCollateral]
-    -> [TxOut]
-    -> [TxOutToken]
-    -> [TxCollateralOut]
-    -> [TxCollateralOutToken]
-    -> [TxWithdrawal]
-    -> SqlPersistT IO ()
-putTxs
-    txMetas
-    txIns
-    txCollateralIns
-    txOuts
-    txOutTokens
-    txCollateralOuts
-    txCollateralOutTokens
-    txWithdrawals = do
-        dbChunked' repsertMany
-            [ (TxMetaKey txMetaTxId txMetaWalletId, m)
-            | m@TxMeta{..} <- txMetas]
-        dbChunked' repsertMany
-            [ (TxInKey txInputTxId txInputSourceTxId txInputSourceIndex, i)
-            | i@TxIn{..} <- txIns ]
-        dbChunked' repsertMany
-            [ ( TxCollateralKey
-                txCollateralTxId
-                txCollateralSourceTxId
-                txCollateralSourceIndex
-              , i
-              )
-            | i@TxCollateral{..} <- txCollateralIns ]
-        dbChunked' repsertMany
-            [ (TxOutKey txOutputTxId txOutputIndex, o)
-            | o@TxOut{..} <- txOuts ]
-        dbChunked' repsertMany
-            [ ( TxOutTokenKey
-                txOutTokenTxId
-                txOutTokenTxIndex
-                txOutTokenPolicyId
-                txOutTokenName
-              , o
-              )
-            | o@TxOutToken{..} <- txOutTokens ]
-        dbChunked' repsertMany
-            [ (TxCollateralOutKey txCollateralOutTxId, o)
-            | o@TxCollateralOut{..} <- txCollateralOuts ]
-        dbChunked' repsertMany
-            [ ( TxCollateralOutTokenKey
-                txCollateralOutTokenTxId
-                txCollateralOutTokenPolicyId
-                txCollateralOutTokenName
-              , o
-              )
-            | o@TxCollateralOutToken{..} <- txCollateralOutTokens ]
-        dbChunked' repsertMany
-            [ (TxWithdrawalKey txWithdrawalTxId txWithdrawalAccount, w)
-            | w@TxWithdrawal{..} <- txWithdrawals ]
-
--- | Delete transactions that aren't referred to by TxMeta of any wallet.
-deleteLooseTransactions :: SqlPersistT IO ()
-deleteLooseTransactions = do
-    deleteLoose "tx_in"
-    deleteLoose "tx_out"
-    deleteLoose "tx_withdrawal"
-  where
-    -- Deletes all TxIn/TxOuts/TxWithdrawal returned by the sub-select.
-    -- The sub-select outer joins TxMeta with TxIn/TxOut/TxWithdrawal.
-    -- All rows of the join table TxMeta as NULL are loose (unreferenced)
-    -- transactions.
-    deleteLoose t = flip rawExecute [] $
-        "DELETE FROM "<> t <>" WHERE tx_id IN (" <>
-            "SELECT "<> t <>".tx_id FROM "<> t <>" " <>
-            "LEFT OUTER JOIN tx_meta ON tx_meta.tx_id = "<> t <>".tx_id " <>
-            "WHERE (tx_meta.tx_id IS NULL))"
-
--- | Delete all delegation certificates matching the given filter
-deleteDelegationCertificates
-    :: W.WalletId
-    -> [Filter DelegationCertificate]
-    -> SqlPersistT IO ()
-deleteDelegationCertificates wid filters = do
-    deleteWhere ((CertWalletId ==. wid) : filters)
-
-
--- This relies on available information from the database to reconstruct coin
--- selection information for __outgoing__ payments. We can't however guarantee
--- that we have such information for __incoming__ payments (we usually don't
--- have it).
---
--- To reliably provide this information for incoming payments, it should be
--- looked up when applying blocks from the global ledger, but that is future
--- work.
---
--- See also: issue #573.
-selectTxs
-    :: [TxId]
-    -> SqlPersistT IO
-        ( [(TxIn, Maybe (TxOut, [TxOutToken]))]
-        , [(TxCollateral, Maybe (TxOut, [TxOutToken]))]
-        , [(TxOut, [TxOutToken])]
-        , [(TxCollateralOut, [TxCollateralOutToken])]
-        , [TxWithdrawal]
-        )
-selectTxs = fmap concatUnzip . mapM select . chunksOf chunkSize
-  where
-    select txids = do
-        inputs <- fmap entityVal <$> selectList
-            [TxInputTxId <-. txids]
-            [Asc TxInputTxId, Asc TxInputOrder]
-
-        collateral <- fmap entityVal <$> selectList
-            [TxCollateralTxId <-. txids]
-            [Asc TxCollateralTxId, Asc TxCollateralOrder]
-
-        resolvedInputs <- fmap toOutputMap $
-            combineChunked inputs $ \inputsChunk ->
-                traverse readTxOutTokens . fmap entityVal =<<
-                    selectList
-                        [TxOutputTxId <-. (txInputSourceTxId <$> inputsChunk)]
-                        [Asc TxOutputTxId, Asc TxOutputIndex]
-
-        resolvedCollateral <- fmap toOutputMap $
-            combineChunked collateral $ \collateralChunk ->
-                traverse readTxOutTokens . fmap entityVal =<< selectList
-                    [TxOutputTxId <-.
-                        (txCollateralSourceTxId <$> collateralChunk)]
-                    [Asc TxOutputTxId, Asc TxOutputIndex]
-
-        outputs <- traverse readTxOutTokens . fmap entityVal =<<
-            selectList
-                [TxOutputTxId <-. txids]
-                [Asc TxOutputTxId, Asc TxOutputIndex]
-
-        collateralOutputs <-
-            traverse readTxCollateralOutTokens . fmap entityVal =<<
-            selectList
-                [TxCollateralOutTxId <-. txids]
-                [Asc TxCollateralOutTxId]
-
-        withdrawals <- fmap entityVal <$> selectList
-            [TxWithdrawalTxId <-. txids]
-            []
-
-        pure
-            ( inputs
-                `resolveInputWith` resolvedInputs
-            , collateral
-                `resolveCollateralWith` resolvedCollateral
-            , outputs
-            , collateralOutputs
-            , withdrawals
-            )
-
-    -- Fetch the complete set of tokens associated with a TxOut.
-    --
-    readTxOutTokens :: TxOut -> SqlPersistT IO (TxOut, [TxOutToken])
-    readTxOutTokens out = (out,) . fmap entityVal <$> selectList
-        [ TxOutTokenTxId ==. txOutputTxId out
-        , TxOutTokenTxIndex ==. txOutputIndex out
-        ]
-        []
-
-    -- Fetch the complete set of tokens associated with a TxCollateralOut.
-    --
-    readTxCollateralOutTokens
-        :: TxCollateralOut
-        -> SqlPersistT IO (TxCollateralOut, [TxCollateralOutToken])
-    readTxCollateralOutTokens out = (out,) . fmap entityVal <$> selectList
-        [TxCollateralOutTokenTxId ==. txCollateralOutTxId out]
-        []
-
-    toOutputMap
-        :: [(TxOut, [TxOutToken])]
-        -> Map (TxId, Word32) (TxOut, [TxOutToken])
-    toOutputMap = Map.fromList . fmap toEntry
-      where
-        toEntry (out, tokens) = (key, (out, tokens))
-          where
-            key = (txOutputTxId out, txOutputIndex out)
-
-    resolveInputWith
-        :: [TxIn] -> Map (TxId, Word32) txOut -> [(TxIn, Maybe txOut)]
-    resolveInputWith inputs resolvedInputs =
-        [ (i, Map.lookup key resolvedInputs)
-        | i <- inputs
-        , let key = (txInputSourceTxId i, txInputSourceIndex i)
-        ]
-
-    resolveCollateralWith
-        :: [TxCollateral]
-        -> Map (TxId, Word32) txOut
-        -> [(TxCollateral, Maybe txOut)]
-    resolveCollateralWith collateral resolvedCollateral =
-        [ (i, Map.lookup key resolvedCollateral)
-        | i <- collateral
-        , let key =
-                ( txCollateralSourceTxId i
-                , txCollateralSourceIndex i
-                )
-        ]
-
-    concatUnzip
-        :: [([a], [b], [c], [d], [e])]
-        -> (([a], [b], [c], [d], [e]))
-    concatUnzip =
-        (\(a, b, c, d, e) ->
-            ( concat a
-            , concat b
-            , concat c
-            , concat d
-            , concat e
-            )
-        ) . unzip5
-
--- | Split a query's input values into chunks, run multiple smaller queries,
--- and then concatenate the results afterwards. Used to avoid "too many SQL
--- variables" errors for "SELECT IN" queries.
-combineChunked :: [a] -> ([a] -> SqlPersistT IO [b]) -> SqlPersistT IO [b]
-combineChunked xs f = concatMapM f $ chunksOf chunkSize xs
-
-selectTxHistory
-    :: W.Wallet s
-    -> TimeInterpreter IO
-    -> W.WalletId
-    -> Maybe W.Coin
-    -> W.SortOrder
-    -> [Filter TxMeta]
-    -> SqlPersistT IO [W.TransactionInfo]
-selectTxHistory cp ti wid minWithdrawal order conditions = do
-    let txMetaFilter = (TxMetaWalletId ==. wid):conditions
-    metas <- case minWithdrawal of
-        Nothing -> fmap entityVal <$> selectList txMetaFilter sortOpt
-        Just coin -> do
-            txids <- fmap (txWithdrawalTxId . entityVal)
-                <$> selectList [ TxWithdrawalAmount >=. coin ] []
-            ms <- combineChunked (nub txids) (\chunk -> selectList
-              ((TxMetaTxId <-. chunk):txMetaFilter) [])
-            let sortTxId = case order of
-                    W.Ascending -> sortOn (Down . txMetaTxId)
-                    W.Descending -> sortOn txMetaTxId
-            let sortSlot = case order of
-                    W.Ascending -> sortOn txMetaSlot
-                    W.Descending -> sortOn (Down . txMetaSlot)
-            pure $ sortSlot $ sortTxId $ fmap entityVal ms
-
-    let txids = map txMetaTxId metas
-    (ins, cins, outs, couts, ws) <- selectTxs txids
-
-    let tip = W.currentTip cp
-
-    liftIO $ txHistoryFromEntity
-        ti tip metas ins cins outs couts ws
-  where
-    -- Note: there are sorted indices on these columns.
-    -- The secondary sort by TxId is to make the ordering stable
-    -- so that testing with random data always works.
-    sortOpt = case order of
-        W.Ascending -> [Asc TxMetaSlot, Desc TxMetaTxId]
-        W.Descending -> [Desc TxMetaSlot, Asc TxMetaTxId]
-
-selectTxMeta
-    :: W.WalletId
-    -> W.Hash "Tx"
-    -> SqlPersistT IO (Maybe TxMeta)
-selectTxMeta wid tid =
-    fmap entityVal <$> selectFirst
-        [ TxMetaWalletId ==. wid, TxMetaTxId ==. (TxId tid)]
-        [ Desc TxMetaSlot ]
-
--- | Delete the transaction, but only if it's not in ledger.
--- Returns non-zero if this was a success.
-deletePendingOrExpiredTx
-    :: W.WalletId
-    -> W.Hash "Tx"
-    -> SqlPersistT IO Int
-deletePendingOrExpiredTx wid tid = do
-    let filt = [ TxMetaWalletId ==. wid, TxMetaTxId ==. (TxId tid) ]
-    selectFirst ((TxMetaStatus ==. W.InLedger):filt) [] >>= \case
-        Just _ -> pure 0  -- marked in ledger - refuse to delete
-        Nothing -> fromIntegral <$> deleteWhereCount
-            ((TxMetaStatus <-. [W.Pending, W.Expired]):filt)
-
--- | Returns the initial submission slot and submission record for all pending
--- transactions in the wallet.
-listPendingLocalTxSubmissionQuery
-    :: W.WalletId
-    -> SqlPersistT IO [(W.SlotNo, LocalTxSubmission)]
-listPendingLocalTxSubmissionQuery wid = fmap unRaw <$> rawSql query params
-  where
-    -- fixme: sort results
-    query =
-        "SELECT tx_meta.slot,?? " <>
-        "FROM tx_meta INNER JOIN local_tx_submission " <>
-        "ON tx_meta.wallet_id=local_tx_submission.wallet_id " <>
-        "    AND tx_meta.tx_id=local_tx_submission.tx_id " <>
-        "WHERE tx_meta.wallet_id=? AND tx_meta.status=? " <>
-        "ORDER BY local_tx_submission.wallet_id, local_tx_submission.tx_id"
-    params = [toPersistValue wid, toPersistValue W.Pending]
-    unRaw (Single sl, Entity _ tx) = (sl, tx)
-
-localTxSubmissionFromEntity
-    :: (W.SlotNo, LocalTxSubmission)
-    -> W.LocalTxSubmissionStatus W.SealedTx
-localTxSubmissionFromEntity (sl0, LocalTxSubmission (TxId txid) _ sl tx) =
-    W.LocalTxSubmissionStatus txid tx sl0 sl
-
--- | Remove transactions from the local submission pool once they can no longer
--- be rolled back.
-pruneLocalTxSubmission
-    :: W.WalletId
-    -> Quantity "block" Word32
-    -> W.BlockHeader
-    -> SqlPersistT IO ()
-pruneLocalTxSubmission wid (Quantity epochStability) tip =
-    rawExecute query params
-  where
-    query =
-        "DELETE FROM local_tx_submission " <>
-        "WHERE wallet_id=? AND tx_id IN " <>
-        "( SELECT tx_id FROM tx_meta WHERE tx_meta.block_height < ? )"
-    params = [toPersistValue wid, toPersistValue stableHeight]
-    stableHeight = getQuantity (tip ^. #blockHeight) - epochStability
-
--- | Mutates all pending transaction entries which have exceeded their TTL so
--- that their status becomes expired. Then it removes these transactions from
--- the local tx submission pool.
---
--- Transaction expiry is not something which can be rolled back.
-updatePendingTxForExpiryQuery
-    :: W.WalletId
-    -> W.SlotNo
-    -> SqlPersistT IO ()
-updatePendingTxForExpiryQuery wid tip = do
-    txIds <- fmap (txMetaTxId . entityVal) <$> selectList isExpired []
-    updateWhere isExpired [TxMetaStatus =. W.Expired]
-    -- Remove these transactions from the wallet's local submission pool.
-    dbChunkedFor @LocalTxSubmission (\batch -> deleteWhere
-        [ LocalTxSubmissionWalletId ==. wid
-        , LocalTxSubmissionTxId <-. batch
-        ]) txIds
-  where
-    isExpired =
-        [ TxMetaWalletId ==. wid
-        , TxMetaStatus ==. W.Pending
-        , TxMetaSlotExpires <=. Just tip ]
-
-selectPrivateKey
-    :: (MonadIO m, PersistPrivateKey (k 'RootK))
-    => W.WalletId
-    -> SqlPersistT m (Maybe (k 'RootK XPrv, PassphraseHash))
-selectPrivateKey wid = do
-    keys <- selectFirst [PrivateKeyWalletId ==. wid] []
-    pure $ (privateKeyFromEntity . entityVal) <$> keys
-
-selectGenesisParameters
-    :: MonadIO m
-    => W.WalletId
-    -> SqlPersistT m (Maybe W.GenesisParameters)
-selectGenesisParameters wid = do
-    gp <- selectFirst [WalId ==. wid] []
-    pure $ (genesisParametersFromEntity . entityVal) <$> gp
-
-{-------------------------------------------------------------------------------
-    Internal errors
--------------------------------------------------------------------------------}
--- | A fatal exception thrown when trying to rollback but, there's no checkpoint
--- to rollback to. The database maintain the invariant that there's always at
--- least one checkpoint (the first one made for genesis) present in the
--- database.
---
--- If we don't find any checkpoint, it means that this invariant has been
--- violated.
-data ErrRollbackTo = ErrNoOlderCheckpoint W.WalletId W.Slot deriving (Show)
-instance Exception ErrRollbackTo
-
--- | Can't initialize a wallet because the given 'BlockHeader' is not genesis.
-data ErrInitializeGenesisAbsent
-    = ErrInitializeGenesisAbsent W.WalletId W.BlockHeader deriving (Eq, Show)
-
-instance Exception ErrInitializeGenesisAbsent
