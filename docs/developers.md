@@ -33,4 +33,4 @@ order: 3
 ## Maintainer Guides
 
 - [[Code-Review-Guidelines](https://input-output-hk.github.io/adrestia/process/Code-Review-Guidelines) (part of [Adrestia][])
-- [[Release-Checklist]]
+- [[Release-Process]]
