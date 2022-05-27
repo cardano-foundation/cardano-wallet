@@ -196,7 +196,7 @@ haskell-nix: haskell-nix.cabalProject' [
           })
 
           # Provide configuration and dependencies to cardano-wallet components
-          ({ config, ... }:
+          ({ config, pkgs, ... }:
             let
               cardanoNodeExes = with config.hsPkgs;
                 [
@@ -205,7 +205,18 @@ haskell-nix: haskell-nix.cabalProject' [
                 ];
             in
             {
-              reinstallableLibGhc = true;
+              reinstallableLibGhc = !pkgs.stdenv.hostPlatform.isMusl;
+
+              # These are here to make `stackProject` vs `cabalProject` `nix-diff` cleaner
+              # TODO remove
+              packages.entropy.components.setup.doExactConfig = true;
+              packages.prettyprinter-configurable.components.setup.doExactConfig = true;
+              packages.pretty-simple.components.setup.doExactConfig = true;
+              packages.wai-logger.components.setup.doExactConfig = true;
+              packages.openapi3.components.setup.doExactConfig = true;
+              packages.servant-openapi3.components.setup.doExactConfig = true;
+              packages.system-filepath.components.setup.doExactConfig = true;
+
               packages.cardano-wallet-core.components.tests = {
                 unit.preCheck = noCacheTestFailuresCookie;
                 # Attempt to ensure visible progress in the macOS hydra job.

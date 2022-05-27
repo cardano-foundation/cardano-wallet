@@ -1,5 +1,5 @@
 {
-  "https://github.com/input-output-hk/cardano-addresses"."56746f558d57a6b1d66d20eaac8a83dc4455cb4f" = "sha256-zo+XJJsIiSkUlcxuPhRQRCxcWYOkDXnAApBF9Pj5Tls=";
+  "https://github.com/input-output-hk/cardano-addresses"."56746f558d57a6b1d66d20eaac8a83dc4455cb4f" = "0nsfz7wg8ich0b07j3d4hdcmqb24a0a3wvncjla2k288kcj9g3yf";
   "https://github.com/biocad/servant-openapi3"."4165b837d3a71debd1059c3735460075840000b5" = "1dngrr353kjhmwhn0b289jzqz5rf32llwcv79zcyq15ldpqpbib9";
   "https://github.com/paolino/openapi3"."c30d0de6875d75edd64d1aac2272886528bc492d" = "0b0fzj5vrnfrc8qikabxhsnp4p8lrjpssblbh2rb7aji5hzzfli9";
   "https://github.com/input-output-hk/optparse-applicative"."7497a29cb998721a9068d5725d49461f2bba0e7a" = "1gvsrg925vynwgqwplgjmp53vj953qyh3wbdf34pw21c8r47w35r";
@@ -22,4 +22,5 @@
   "https://github.com/shmish111/servant-purescript.git"."a76104490499aa72d40c2790d10e9383e0dbde63" = "11nxxmi5bw66va7psvrgrw7b7n85fvqgfp58yva99w3v9q3a50v9";
   "https://github.com/input-output-hk/Win32-network"."3825d3abf75f83f406c1f7161883c438dac7277d" = "19wahfv726fa3mqajpqdqhnl9ica3xmf68i254q45iyjcpj1psqx";
   "https://github.com/vshabanov/ekg-json"."00ebe7211c981686e65730b7144fbf5350462608" = "1zvjm3pb38w0ijig5wk5mdkzcszpmlp5d4zxvks2jk1rkypi8gsm";
+  "https://github.com/haskell-works/hw-aeson"."d99d2f3e39a287607418ae605b132a3deb2b753f" = "1vxqcwjg9q37wbwi27y9ba5163lzfz51f1swbi0rp681yg63zvn4";
 }

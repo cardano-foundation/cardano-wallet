@@ -53,6 +53,16 @@ packages:
   , lib/shelley/
   , lib/strict-non-empty-containers/
 
+-- Bundle VRF crypto in libsodium and do not rely on an external fork to have it.
+-- This still requires the host system to have the 'standard' libsodium installed.
+package cardano-crypto-praos
+  flags: -external-libsodium-vrf
+
+-- Using RDRAND instead of /dev/urandom as an entropy source for key
+-- generation is dubious. Set the flag so we use /dev/urandom by default.
+package cryptonite
+  flags: -support_rdrand
+
 -- Using a fork until our patches can be merged upstream
 
 -- TODO: ADP-1713
@@ -205,6 +215,7 @@ source-repository-package
             plugins/backend-ekg
             plugins/backend-monitoring
             plugins/backend-trace-forwarder
+            plugins/scribe-systemd
             tracer-transformers
 
 source-repository-package
@@ -233,7 +244,7 @@ source-repository-package
 -- Drops an instance breaking cardano-node.
 source-repository-package
     type: git
-    location: https://github.com/input-output-hk/flat.git
+    location: https://github.com/input-output-hk/flat
     tag: ee59880f47ab835dbd73bea0847dab7869fc20d8
     --sha256: 1lrzknw765pz2j97nvv9ip3l1mcpf2zr4n56hwlz0rk7wq7ls4cm
 
@@ -282,6 +293,9 @@ allow-newer:
   monoidal-containers:aeson,
   size-based:template-haskell
 
+allow-newer:
+  async-timer:unliftio-core
+
 constraints:
     hashable < 1.4
   , bimap >= 0.4.0
@@ -292,14 +306,21 @@ constraints:
   -- choose versions that work with base >= 4.12
   , hjsonpointer >= 1.5.0
   , hjsonschema >= 1.10.0
+  , Cabal >= 3.4.0.0
+  , async-timer >= 0.2.0.0
+  , unliftio-core >= 0.2.0.1
+
+  -- This pin is just here to make cabalProejct == stackProject.
+  -- Remove it if you are happy for a newer version to be picked when possible.
+  , semigroups == 0.19.2
 
 -- ----------------------------------------------------------------
 -- Flags for dependencies
 
 package cardano-config
-  flags: -systemd
+  flags: +systemd
 package cardano-node
-  flags: -systemd
+  flags: +systemd
 
 -- -------------------------------------------------------------------------
 -- Enable specific tests in this repo

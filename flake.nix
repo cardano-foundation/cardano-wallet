@@ -45,7 +45,7 @@
       inputs.nixpkgs.follows = "nixpkgs";
     };
     flake-compat = {
-      url = "github:input-output-hk/flake-compat/fixes";
+      url = "github:input-output-hk/flake-compat";
       flake = false;
     };
     customConfig.url = "github:input-output-hk/empty-flake";
