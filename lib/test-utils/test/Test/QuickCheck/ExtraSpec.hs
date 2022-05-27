@@ -1,8 +1,11 @@
+{-# LANGUAGE AllowAmbiguousTypes #-}
 {-# LANGUAGE DeriveGeneric #-}
 {-# LANGUAGE DuplicateRecordFields #-}
 {-# LANGUAGE NumericUnderscores #-}
 {-# LANGUAGE OverloadedLabels #-}
 {-# LANGUAGE ScopedTypeVariables #-}
+{-# LANGUAGE TypeApplications #-}
+{- HLINT ignore "Use null" -}
 
 module Test.QuickCheck.ExtraSpec
     where
@@ -13,10 +16,20 @@ import Algebra.PartialOrd
     ( PartialOrd (..) )
 import Control.Monad
     ( forM_ )
+import Data.Bifunctor
+    ( first )
+import Data.Function
+    ( (&) )
 import Data.Generics.Internal.VL.Lens
     ( view )
 import Data.Generics.Labels
     ()
+import Data.List.Extra
+    ( dropEnd )
+import Data.Map.Strict
+    ( Map )
+import Data.Maybe
+    ( isJust, isNothing )
 import Data.Set
     ( Set )
 import Generics.SOP
@@ -26,15 +39,24 @@ import GHC.Generics
 import Test.Hspec
     ( Spec, describe, it )
 import Test.QuickCheck
-    ( Gen
+    ( Arbitrary (..)
+    , Gen
+    , NonNegative (..)
+    , NonPositive (..)
+    , Positive (..)
     , Property
+    , Small (..)
     , Testable
     , checkCoverage
     , chooseInteger
     , cover
     , forAll
+    , frequency
+    , genericShrink
+    , listOf
     , oneof
     , property
+    , scale
     , shrinkIntegral
     , (===)
     )
@@ -42,6 +64,9 @@ import Test.QuickCheck.Extra
     ( Pretty (..)
     , genericRoundRobinShrink
     , interleaveRoundRobin
+    , partitionList
+    , selectMapEntries
+    , selectMapEntry
     , (<:>)
     , (<@>)
     )
@@ -49,6 +74,7 @@ import Test.QuickCheck.Extra
 import qualified Data.Foldable as F
 import qualified Data.List as L
 import qualified Data.List.Extra as L
+import qualified Data.Map.Strict as Map
 import qualified Data.Set as Set
 
 spec :: Spec
@@ -70,6 +96,59 @@ spec = describe "Test.QuickCheck.ExtraSpec" $ do
         it "prop_interleaveRoundRobin_sort" $
             property prop_interleaveRoundRobin_sort
         unit_interleaveRoundRobin
+
+    describe "partitionList" $ do
+        it "prop_partitionList_coverage" $
+            prop_partitionList_coverage
+                @Int & property
+        it "prop_partitionList_identity" $
+            prop_partitionList_identity
+                @Int & property
+        it "prop_partitionList_mconcat" $
+            prop_partitionList_mconcat
+                @Int & property
+        it "prop_partitionList_GE" $
+            prop_partitionList_GE
+                @Int & property
+        it "prop_partitionList_LT" $
+            prop_partitionList_LT
+                @Int & property
+
+    describe "Selecting random map entries" $ do
+
+        describe "selectMapEntry" $ do
+            it "prop_selectMapEntry_empty" $
+                prop_selectMapEntry_empty
+                    @Int @Int & property
+            it "prop_selectMapEntry_singleton" $
+                prop_selectMapEntry_singleton
+                    @Int @Int & property
+            it "prop_selectMapEntry_insert" $
+                prop_selectMapEntry_insert
+                    @Int @Int & property
+            it "prop_selectMapEntry_lookup_Just" $
+                prop_selectMapEntry_lookup_Just
+                    @Int @Int & property
+            it "prop_selectMapEntry_lookup_Nothing" $
+                prop_selectMapEntry_lookup_Nothing
+                    @Int @Int & property
+
+        describe "selectMapEntries" $ do
+            it "prop_selectMapEntries_empty" $
+                prop_selectMapEntries_empty
+                    @Int @Int & property
+            it "prop_selectMapEntries_fromList" $
+                prop_selectMapEntries_fromList
+                    @Int @Int & property
+            it "prop_selectMapEntries_nonPositive" $
+                prop_selectMapEntries_nonPositive
+                    @Int @Int & property
+            it "prop_selectMapEntries_disjoint" $
+                prop_selectMapEntries_disjoint
+                    @Int @Int & property
+            it "prop_selectMapEntries_union" $
+                prop_selectMapEntries_union
+                    @Int @Int & property
 
 --------------------------------------------------------------------------------
 -- Generic shrinking
@@ -257,6 +336,240 @@ unit_interleaveRoundRobin = unitTests
             , result = [1, 2, 4, 3, 5, 6]
             }
         ]
+
+--------------------------------------------------------------------------------
+-- Generating list partitions
+--------------------------------------------------------------------------------
+
+data PartitionListData a = PartitionListData (Int, Int) [a]
+    deriving (Eq, Generic, Show)
+
+instance Arbitrary a => Arbitrary (PartitionListData a) where
+    arbitrary = genPartitionListData
+    shrink = shrinkPartitionListData
+
+genPartitionListData :: forall a. Arbitrary a => Gen (PartitionListData a)
+genPartitionListData =
+    PartitionListData <$> genBounds <*> genList
+  where
+    genBounds :: Gen (Int, Int)
+    genBounds = frequency
+        [ (1, genBoundsAny)
+        , (2, genBoundsValidAndDifferent)
+        , (2, genBoundsValidAndIdentical)
+        ]
+      where
+        genBoundsAny :: Gen (Int, Int)
+        genBoundsAny = arbitrary
+
+        genBoundsValidAndDifferent :: Gen (Int, Int)
+        genBoundsValidAndDifferent = do
+            x <- getSmall . getNonNegative <$> arbitrary
+            d <- getSmall . getPositive <$> arbitrary
+            pure (x, x + d)
+
+        genBoundsValidAndIdentical :: Gen (Int, Int)
+        genBoundsValidAndIdentical = do
+            x <- getSmall . getPositive <$> arbitrary
+            pure (x, x)
+
+    genList :: Gen [a]
+    genList = frequency
+        [ (1, pure [])
+        , (4, listOf arbitrary)
+        , (4, listOf arbitrary & scale (* 8))
+        ]
+
+shrinkPartitionListData
+    :: Arbitrary a => PartitionListData a -> [PartitionListData a]
+shrinkPartitionListData = genericShrink
+
+prop_partitionList_coverage
+    :: (Arbitrary a, Eq a, Show a) => PartitionListData a -> Property
+prop_partitionList_coverage (PartitionListData (x, y) as) =
+    forAll (partitionList (x, y) as) $ \rs ->
+        checkCoverage $
+        cover 10
+            (x < 0 || y < x)
+            "bounds are invalid" $
+        cover 10
+            (x >= 1 && y == x)
+            "bounds are valid and identical" $
+        cover 10
+            (x >= 0 && y > x)
+            "bounds are valid and different" $
+        cover 10
+            (length rs == 0)
+            "partitioned list length == 0" $
+        cover 10
+            (length rs == 1)
+            "partitioned list length == 1" $
+        cover 10
+            (length rs >= 10)
+            "partitioned list length >= 10" $
+        property True
+
+prop_partitionList_identity
+    :: (Arbitrary a, Eq a, Show a) => [a] -> Property
+prop_partitionList_identity as =
+    forAll (partitionList (length as, length as) as)
+        (=== [as | length as > 0])
+
+prop_partitionList_mconcat
+    :: (Arbitrary a, Eq a, Show a) => PartitionListData a -> Property
+prop_partitionList_mconcat (PartitionListData (x, y) as) =
+    forAll (partitionList (x, y) as)
+        ((=== as) . mconcat)
+
+prop_partitionList_GE
+    :: (Arbitrary a, Eq a, Show a) => PartitionListData a -> Property
+prop_partitionList_GE (PartitionListData (x, y) as) =
+    forAll (partitionList (x, y) as) $ \rs ->
+        checkCoverage $
+        cover 10
+            (any ((> x') . length) rs)
+            "at least one generated sublist has length > minimum" $
+        cover 10
+            (any ((== x') . length) rs)
+            "at least one generated sublist has length = minimum" $
+        all ((>= x') . length) $ dropEnd 1 rs
+  where
+    x' = max 0 x
+
+prop_partitionList_LT
+    :: (Arbitrary a, Eq a, Show a) => PartitionListData a -> Property
+prop_partitionList_LT (PartitionListData (x, y) as) =
+    forAll (partitionList (x, y) as) $ \rs ->
+        checkCoverage $
+        cover 10
+            (any ((< y') . length) rs)
+            "at least one generated sublist has length < maximum" $
+        cover 10
+            (any ((== y') . length) rs)
+            "at least one generated sublist has length = maximum" $
+        all ((<= y') . length) rs
+  where
+    x' = max 0 x
+    y' = max 1 (max y x')
+
+--------------------------------------------------------------------------------
+-- Selecting map entries (one at a time)
+--------------------------------------------------------------------------------
+
+prop_selectMapEntry_empty
+    :: forall k v. (Ord k, Show k, Eq v, Show v) => Property
+prop_selectMapEntry_empty =
+    forAll (selectMapEntry (Map.empty @k @v)) (=== Nothing)
+
+prop_selectMapEntry_singleton
+    :: (Ord k, Show k, Eq v, Show v) => k -> v -> Property
+prop_selectMapEntry_singleton k v =
+    forAll (selectMapEntry (Map.singleton k v)) (=== Just ((k, v), mempty))
+
+prop_selectMapEntry_insert
+    :: (Ord k, Show k, Eq v, Show v) => Map k v -> Property
+prop_selectMapEntry_insert m0 =
+    forAll (selectMapEntry m0) $ \mr ->
+        checkCoverage $
+        cover 20 (isJust mr)
+            "number of selected entries = 1" $
+        cover 1 (isNothing mr)
+            "number of selected entries = 0" $
+        case mr of
+            Nothing ->
+                m0 === mempty
+            Just ((k, v), m1) ->
+                m0 === Map.insert k v m1
+
+prop_selectMapEntry_lookup_Just
+    :: (Ord k, Show k, Eq v, Show v) => Map k v -> Property
+prop_selectMapEntry_lookup_Just m0 =
+    forAll (selectMapEntry m0) $ \mr ->
+        checkCoverage $
+        cover 20 (isJust mr)
+            "number of selected entries = 1" $
+        cover 1 (isNothing mr)
+            "number of selected entries = 0" $
+        case mr of
+            Nothing ->
+                m0 === mempty
+            Just ((k, v), _) ->
+                Map.lookup k m0 === Just v
+
+prop_selectMapEntry_lookup_Nothing
+    :: (Ord k, Show k, Eq v, Show v) => Map k v -> Property
+prop_selectMapEntry_lookup_Nothing m0 =
+    forAll (selectMapEntry m0) $ \mr ->
+        checkCoverage $
+        cover 20 (isJust mr)
+            "number of selected entries = 1" $
+        cover 1 (isNothing mr)
+            "number of selected entries = 0" $
+        case mr of
+            Nothing ->
+                m0 === mempty
+            Just ((k, _), m1) ->
+                Map.lookup k m1 === Nothing
+
+--------------------------------------------------------------------------------
+-- Selecting map entries (many at a time)
+--------------------------------------------------------------------------------
+
+prop_selectMapEntries_empty
+    :: forall k v. (Ord k, Show k, Eq v, Show v) => Int -> Property
+prop_selectMapEntries_empty i =
+    forAll (selectMapEntries i (Map.empty @k @v)) (=== ([], Map.empty))
+
+prop_selectMapEntries_fromList
+    :: (Ord k, Show k, Eq v, Show v) => Map k v -> Property
+prop_selectMapEntries_fromList m =
+    checkCoverage $
+    cover 10 (Map.size m > 0)
+        "number of available entries > 0" $
+    cover 1 (Map.size m == 0)
+        "number of available entries = 0" $
+    forAll (selectMapEntries (length m) m) $
+        (=== (m, mempty)) . first Map.fromList
+
+prop_selectMapEntries_nonPositive
+    :: (Ord k, Show k, Eq v, Show v)
+    => NonPositive (Small Int)
+    -> Map k v
+    -> Property
+prop_selectMapEntries_nonPositive (NonPositive (Small i)) m =
+    forAll (selectMapEntries i m) (== ([], m))
+
+prop_selectMapEntries_disjoint
+    :: (Ord k, Show k, Eq v, Show v)
+    => Positive (Small Int)
+    -> Map k v
+    -> Property
+prop_selectMapEntries_disjoint (Positive (Small i)) m0 =
+    forAll (selectMapEntries i m0) $ \(kvs, m1) ->
+        checkCoverage $
+        cover 10 (length kvs == i && i >= 1)
+            "number of selected entries = requested number" $
+        cover 10 (length kvs >= 1 && length kvs < i)
+            "number of selected entries < requested number" $
+        cover 1 (length kvs == 0)
+            "number of selected entries = 0" $
+        Map.fromList kvs `Map.disjoint` m1
+
+prop_selectMapEntries_union
+    :: (Ord k, Show k, Eq v, Show v)
+    => Positive (Small Int)
+    -> Map k v
+    -> Property
+prop_selectMapEntries_union (Positive (Small i)) m0 =
+    forAll (selectMapEntries i m0) $ \(kvs, m1) ->
+        checkCoverage $
+        cover 10 (length kvs == i && i >= 1)
+            "number of selected entries = requested number" $
+        cover 10 (length kvs >= 1 && length kvs < i)
+            "number of selected entries < requested number" $
+        cover 1 (length kvs == 0)
+            "number of selected entries = 0" $
+        Map.fromList kvs `Map.union` m1 === m0
 
 --------------------------------------------------------------------------------
 -- Unit test support
