@@ -64,9 +64,9 @@ import Test.QuickCheck.Extra
     ( Pretty (..)
     , genericRoundRobinShrink
     , interleaveRoundRobin
-    , mapEntries
-    , mapEntry
     , partitionList
+    , selectMapEntries
+    , selectMapEntry
     , (<:>)
     , (<@>)
     )
@@ -116,38 +116,38 @@ spec = describe "Test.QuickCheck.ExtraSpec" $ do
 
     describe "Selecting random map entries" $ do
 
-        describe "mapEntry" $ do
-            it "prop_mapEntry_empty" $
-                prop_mapEntry_empty
+        describe "selectMapEntry" $ do
+            it "prop_selectMapEntry_empty" $
+                prop_selectMapEntry_empty
                     @Int @Int & property
-            it "prop_mapEntry_singleton" $
-                prop_mapEntry_singleton
+            it "prop_selectMapEntry_singleton" $
+                prop_selectMapEntry_singleton
                     @Int @Int & property
-            it "prop_mapEntry_insert" $
-                prop_mapEntry_insert
+            it "prop_selectMapEntry_insert" $
+                prop_selectMapEntry_insert
                     @Int @Int & property
-            it "prop_mapEntry_lookup_Just" $
-                prop_mapEntry_lookup_Just
+            it "prop_selectMapEntry_lookup_Just" $
+                prop_selectMapEntry_lookup_Just
                     @Int @Int & property
-            it "prop_mapEntry_lookup_Nothing" $
-                prop_mapEntry_lookup_Nothing
+            it "prop_selectMapEntry_lookup_Nothing" $
+                prop_selectMapEntry_lookup_Nothing
                     @Int @Int & property
 
-        describe "mapEntries" $ do
-            it "prop_mapEntries_empty" $
-                prop_mapEntries_empty
+        describe "selectMapEntries" $ do
+            it "prop_selectMapEntries_empty" $
+                prop_selectMapEntries_empty
                     @Int @Int & property
-            it "prop_mapEntries_fromList" $
-                prop_mapEntries_fromList
+            it "prop_selectMapEntries_fromList" $
+                prop_selectMapEntries_fromList
                     @Int @Int & property
-            it "prop_mapEntries_nonPositive" $
-                prop_mapEntries_nonPositive
+            it "prop_selectMapEntries_nonPositive" $
+                prop_selectMapEntries_nonPositive
                     @Int @Int & property
-            it "prop_mapEntries_disjoint" $
-                prop_mapEntries_disjoint
+            it "prop_selectMapEntries_disjoint" $
+                prop_selectMapEntries_disjoint
                     @Int @Int & property
-            it "prop_mapEntries_union" $
-                prop_mapEntries_union
+            it "prop_selectMapEntries_union" $
+                prop_selectMapEntries_union
                     @Int @Int & property
 
 --------------------------------------------------------------------------------
@@ -456,20 +456,20 @@ prop_partitionList_LT (PartitionListData (x, y) as) =
 -- Selecting map entries (one at a time)
 --------------------------------------------------------------------------------
 
-prop_mapEntry_empty
+prop_selectMapEntry_empty
     :: forall k v. (Ord k, Show k, Eq v, Show v) => Property
-prop_mapEntry_empty =
-    forAll (mapEntry (Map.empty @k @v)) (=== Nothing)
+prop_selectMapEntry_empty =
+    forAll (selectMapEntry (Map.empty @k @v)) (=== Nothing)
 
-prop_mapEntry_singleton
+prop_selectMapEntry_singleton
     :: (Ord k, Show k, Eq v, Show v) => k -> v -> Property
-prop_mapEntry_singleton k v =
-    forAll (mapEntry (Map.singleton k v)) (=== Just ((k, v), mempty))
+prop_selectMapEntry_singleton k v =
+    forAll (selectMapEntry (Map.singleton k v)) (=== Just ((k, v), mempty))
 
-prop_mapEntry_insert
+prop_selectMapEntry_insert
     :: (Ord k, Show k, Eq v, Show v) => Map k v -> Property
-prop_mapEntry_insert m0 =
-    forAll (mapEntry m0) $ \mr ->
+prop_selectMapEntry_insert m0 =
+    forAll (selectMapEntry m0) $ \mr ->
         checkCoverage $
         cover 20 (isJust mr)
             "number of selected entries = 1" $
@@ -481,10 +481,10 @@ prop_mapEntry_insert m0 =
             Just ((k, v), m1) ->
                 m0 === Map.insert k v m1
 
-prop_mapEntry_lookup_Just
+prop_selectMapEntry_lookup_Just
     :: (Ord k, Show k, Eq v, Show v) => Map k v -> Property
-prop_mapEntry_lookup_Just m0 =
-    forAll (mapEntry m0) $ \mr ->
+prop_selectMapEntry_lookup_Just m0 =
+    forAll (selectMapEntry m0) $ \mr ->
         checkCoverage $
         cover 20 (isJust mr)
             "number of selected entries = 1" $
@@ -496,10 +496,10 @@ prop_mapEntry_lookup_Just m0 =
             Just ((k, v), _) ->
                 Map.lookup k m0 === Just v
 
-prop_mapEntry_lookup_Nothing
+prop_selectMapEntry_lookup_Nothing
     :: (Ord k, Show k, Eq v, Show v) => Map k v -> Property
-prop_mapEntry_lookup_Nothing m0 =
-    forAll (mapEntry m0) $ \mr ->
+prop_selectMapEntry_lookup_Nothing m0 =
+    forAll (selectMapEntry m0) $ \mr ->
         checkCoverage $
         cover 20 (isJust mr)
             "number of selected entries = 1" $
@@ -515,36 +515,37 @@ prop_mapEntry_lookup_Nothing m0 =
 -- Selecting map entries (many at a time)
 --------------------------------------------------------------------------------
 
-prop_mapEntries_empty
+prop_selectMapEntries_empty
     :: forall k v. (Ord k, Show k, Eq v, Show v) => Int -> Property
-prop_mapEntries_empty i =
-    forAll (mapEntries i (Map.empty @k @v)) (=== ([], Map.empty))
+prop_selectMapEntries_empty i =
+    forAll (selectMapEntries i (Map.empty @k @v)) (=== ([], Map.empty))
 
-prop_mapEntries_fromList
+prop_selectMapEntries_fromList
     :: (Ord k, Show k, Eq v, Show v) => Map k v -> Property
-prop_mapEntries_fromList m =
+prop_selectMapEntries_fromList m =
     checkCoverage $
     cover 10 (Map.size m > 0)
         "number of available entries > 0" $
     cover 1 (Map.size m == 0)
         "number of available entries = 0" $
-    forAll (mapEntries (length m) m) $ (=== (m, mempty)) . first Map.fromList
+    forAll (selectMapEntries (length m) m) $
+        (=== (m, mempty)) . first Map.fromList
 
-prop_mapEntries_nonPositive
+prop_selectMapEntries_nonPositive
     :: (Ord k, Show k, Eq v, Show v)
     => NonPositive (Small Int)
     -> Map k v
     -> Property
-prop_mapEntries_nonPositive (NonPositive (Small i)) m =
-    forAll (mapEntries i m) (== ([], m))
+prop_selectMapEntries_nonPositive (NonPositive (Small i)) m =
+    forAll (selectMapEntries i m) (== ([], m))
 
-prop_mapEntries_disjoint
+prop_selectMapEntries_disjoint
     :: (Ord k, Show k, Eq v, Show v)
     => Positive (Small Int)
     -> Map k v
     -> Property
-prop_mapEntries_disjoint (Positive (Small i)) m0 =
-    forAll (mapEntries i m0) $ \(kvs, m1) ->
+prop_selectMapEntries_disjoint (Positive (Small i)) m0 =
+    forAll (selectMapEntries i m0) $ \(kvs, m1) ->
         checkCoverage $
         cover 10 (length kvs == i && i >= 1)
             "number of selected entries = requested number" $
@@ -554,13 +555,13 @@ prop_mapEntries_disjoint (Positive (Small i)) m0 =
             "number of selected entries = 0" $
         Map.fromList kvs `Map.disjoint` m1
 
-prop_mapEntries_union
+prop_selectMapEntries_union
     :: (Ord k, Show k, Eq v, Show v)
     => Positive (Small Int)
     -> Map k v
     -> Property
-prop_mapEntries_union (Positive (Small i)) m0 =
-    forAll (mapEntries i m0) $ \(kvs, m1) ->
+prop_selectMapEntries_union (Positive (Small i)) m0 =
+    forAll (selectMapEntries i m0) $ \(kvs, m1) ->
         checkCoverage $
         cover 10 (length kvs == i && i >= 1)
             "number of selected entries = requested number" $

@@ -37,8 +37,8 @@ module Test.QuickCheck.Extra
     , partitionList
 
       -- * Selecting entries from maps
-    , mapEntry
-    , mapEntries
+    , selectMapEntry
+    , selectMapEntries
 
       -- * Generating and shrinking natural numbers
     , chooseNatural
@@ -266,8 +266,9 @@ partitionList (x, y) =
 --
 -- Returns 'Nothing' if (and only if) the given map is empty.
 --
-mapEntry :: forall k v. Ord k => Map k v -> Gen (Maybe ((k, v), Map k v))
-mapEntry m
+selectMapEntry
+    :: forall k v. Ord k => Map k v -> Gen (Maybe ((k, v), Map k v))
+selectMapEntry m
     | Map.null m =
         pure Nothing
     | otherwise =
@@ -281,12 +282,13 @@ mapEntry m
 --
 -- Returns the selected entries and the remaining map with the entries removed.
 --
-mapEntries :: forall k v. Ord k => Int -> Map k v -> Gen ([(k, v)], Map k v)
-mapEntries i m0 =
+selectMapEntries
+    :: forall k v. Ord k => Int -> Map k v -> Gen ([(k, v)], Map k v)
+selectMapEntries i m0 =
     foldM (const . selectOne) ([], m0) (replicate i ())
   where
     selectOne :: ([(k, v)], Map k v) -> Gen ([(k, v)], Map k v)
-    selectOne (es, m) = mapEntry m >>= \case
+    selectOne (es, m) = selectMapEntry m >>= \case
         Nothing -> pure (es, m)
         Just (e, m') -> pure (e : es, m')
 
