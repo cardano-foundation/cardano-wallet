@@ -37,7 +37,11 @@ hie.yaml
 ### Direnv ###
 .envrc-local
 .envrc-override
+<<<<<<< HEAD
 .direnv/flake-profile*
+=======
+.direnv
+>>>>>>> 2f2b7ad09 (fix Store docs)
 
 ### auto-generated faulty JSON golden tests ###
 *.faulty.json

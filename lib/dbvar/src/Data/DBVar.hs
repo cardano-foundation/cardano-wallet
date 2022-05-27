@@ -214,12 +214,12 @@ A 'Store' is characterized by the following properties:
     may describe the same JSON value.
     In general, we have
 
-        > loadS s >>= writeS s  ≠  pure ()
+        > loadS s >>= either (const $ pure ()) (writeS s) ≠  pure ()
 
 * Updating a store __commutes with 'apply'__:
     We have
 
-        > updateS s a da >> loadS s  =  pure $ Just $ apply a da
+        > updateS s a da >> loadS s  =  pure $ Right $ apply a da
 
     However, since the store is redundant, we often have
 
@@ -228,7 +228,7 @@ A 'Store' is characterized by the following properties:
 * __Exceptions__:
     It is expected that the functions 'loadS', 'updateS', 'writeS'
     do not throw synchronous exceptions. In the worst case,
-    'loadS' should return 'Nothing' after reading or writing
+    'loadS' should return 'Left' after reading or writing
     to the store was unsuccessful.
 
 * __Concurrency__:
