@@ -87,6 +87,8 @@ import Cardano.Wallet.Primitive.Slotting
     , TimeInterpreterLog
     , mkTimeInterpreter
     )
+import Cardano.Wallet.Primitive.SyncProgress
+    ( SyncProgress (Syncing) )
 import Cardano.Wallet.Primitive.Types
     ( Block (..)
     , BlockHeader (..)
@@ -160,6 +162,8 @@ import Data.Bitraversable
     ( bitraverse )
 import Data.Bits
     ( Bits )
+import Data.Function
+    ( (&) )
 import Data.Functor
     ( void, (<&>) )
 import Data.Functor.Contravariant
@@ -179,8 +183,11 @@ import Data.Proxy
 import Data.Quantity
     ( MkPercentageError (PercentageOutOfBoundsError)
     , Quantity (..)
+    , clipToPercentage
     , mkPercentage
     )
+import Data.Ratio
+    ( (%) )
 import Data.Scientific
     ( isInteger )
 import Data.Set
@@ -217,8 +224,6 @@ import qualified Cardano.Api.Shelley as Node
 import qualified Cardano.Wallet.Network.Light as LN
 import qualified Cardano.Wallet.Shelley.Network.Blockfrost.Fixture as Fixture
 import qualified Data.Aeson as Aeson
-import Data.Function
-    ( (&) )
 import qualified Data.HashMap.Strict as HashMap
 import qualified Data.Map.Strict as Map
 import qualified Data.Sequence as Seq
@@ -299,7 +304,7 @@ withNetworkLayer tr network np project k = do
             fetchNetworkRewardAccountBalances network bfConfig
         , timeInterpreter =
             timeInterpreterFromStartTime getGenesisBlockDate
-        , syncProgress = undefined
+        , syncProgress = syncProgress bfConfig
         }
   where
     NetworkParameters
@@ -520,6 +525,14 @@ withNetworkLayer tr network np project k = do
                         , getAddressTxs
                         }
             void $ LN.lightSync (MsgLightLayerLog >$< tr) lightSyncSource follower
+
+    syncProgress :: BF.ClientConfig -> SlotNo -> IO SyncProgress
+    syncProgress bfConfig s = runBFM bfConfig do
+        BF.Block {_blockSlot} <- BF.getLatestBlock
+        let latestSlot = maybe 0 BF.unSlot _blockSlot
+            currentSlot = fromIntegral (unSlotNo s)
+            percentage = (currentSlot * 100) % latestSlot
+        pure $ Syncing $ Quantity $ clipToPercentage percentage
 
 genesisBlockHash :: SomeNetworkDiscriminant -> BF.BlockHash
 genesisBlockHash nd = case networkDiscriminantToId nd of
