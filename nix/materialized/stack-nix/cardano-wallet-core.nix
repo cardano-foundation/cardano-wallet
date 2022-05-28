@@ -190,7 +190,7 @@
           "Cardano/Wallet/DB/Store/Checkpoints/AddressBook"
           "Cardano/Wallet/DB/Store/Checkpoints/Model"
           "Cardano/Wallet/DB/Store/Checkpoints/Persist"
-          "Cardano/Wallet/DB/Store/TxHistory/Model"
+          "Cardano/Wallet/DB/Store/TxHistory/Types"
           "Cardano/Wallet/DB/Store/TxHistory/Persist"
           "Cardano/Wallet/DB/Store/TxHistory/Update"
           "Cardano/Wallet/DB/Store/Wallets"
