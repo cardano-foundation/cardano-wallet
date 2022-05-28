@@ -244,6 +244,7 @@ data Tx = Tx
 
     , collateralOutput :: !(Maybe TxOut)
         -- ^ An output that is only created if a transaction script fails.
+            -- Q: created means spent here ? Isn't this either the 'outputs' ?
 
     , withdrawals
         :: !(Map RewardAccount Coin)

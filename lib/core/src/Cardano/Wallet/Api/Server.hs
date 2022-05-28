@@ -350,7 +350,7 @@ import Cardano.Wallet.Compat
     ( (^?) )
 import Cardano.Wallet.DB
     ( DBFactory (..) )
-import Cardano.Wallet.DB.Sqlite.AddressBook
+import Cardano.Wallet.DB.Store.Checkpoints.AddressBook
     ( AddressBookIso )
 import Cardano.Wallet.Network
     ( NetworkLayer, fetchRewardAccountBalances, timeInterpreter )

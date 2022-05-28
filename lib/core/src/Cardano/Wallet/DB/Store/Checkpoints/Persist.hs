@@ -3,13 +3,11 @@
 {-# LANGUAGE DuplicateRecordFields #-}
 {-# LANGUAGE FlexibleContexts #-}
 {-# LANGUAGE FlexibleInstances #-}
-{-# LANGUAGE GeneralizedNewtypeDeriving #-}
 {-# LANGUAGE LambdaCase #-}
 {-# LANGUAGE NamedFieldPuns #-}
 {-# LANGUAGE OverloadedLabels #-}
 {-# LANGUAGE RankNTypes #-}
 {-# LANGUAGE ScopedTypeVariables #-}
-{-# LANGUAGE StandaloneDeriving #-}
 {-# LANGUAGE TypeApplications #-}
 {-# LANGUAGE TypeFamilies #-}
 {-# LANGUAGE TypeOperators #-}
@@ -29,13 +27,10 @@
 -- * Inline the contents of this module into its new name
 --   "Cardano.Wallet.DB.Sqlite.Stores"
 
-module Cardano.Wallet.DB.Sqlite.CheckpointsOld
-    ( mkStoreWallets
+module Cardano.Wallet.DB.Store.Checkpoints.Persist
+    ( mkStoreCheckpoints
     , PersistAddressBook (..)
     , blockHeaderFromEntity
-
-    -- * Testing
-    , mkStoreWallet
     )
     where
 
@@ -49,15 +44,7 @@ import Cardano.DB.Sqlite
     ( dbChunked )
 import Cardano.Wallet.DB
     ( ErrBadFormat (..) )
-import Cardano.Wallet.DB.Checkpoints
-    ( DeltaCheckpoints (..), loadCheckpoints )
-import Cardano.Wallet.DB.Sqlite.AddressBook
-    ( AddressBookIso (..)
-    , Discoveries (..)
-    , Prologue (..)
-    , SeqAddressMap (..)
-    )
-import Cardano.Wallet.DB.Sqlite.TH
+import Cardano.Wallet.DB.Sqlite.Schema
     ( Checkpoint (..)
     , CosignerKey (..)
     , EntityField (..)
@@ -71,7 +58,6 @@ import Cardano.Wallet.DB.Sqlite.TH
     , SharedState (..)
     , UTxO (..)
     , UTxOToken (..)
-    , Wallet (..)
     )
 import Cardano.Wallet.DB.Sqlite.Types
     ( BlockId (..)
@@ -81,14 +67,14 @@ import Cardano.Wallet.DB.Sqlite.Types
     , hashOfNoParent
     , toMaybeHash
     )
-import Cardano.Wallet.DB.WalletState
-    ( DeltaMap (..)
-    , DeltaWalletState
-    , DeltaWalletState1 (..)
-    , WalletCheckpoint (..)
-    , WalletState (..)
-    , getSlot
+import Cardano.Wallet.DB.Store.Checkpoints.AddressBook
+    ( AddressBookIso (..)
+    , Discoveries (..)
+    , Prologue (..)
+    , SeqAddressMap (..)
     )
+import Cardano.Wallet.DB.Store.Checkpoints.Model
+    ( DeltaCheckpoints (..), WalletCheckpoint (..), getSlot, loadCheckpoints )
 import Cardano.Wallet.Primitive.AddressDerivation
     ( Depth (..)
     , MkKeyFingerprint (..)
@@ -106,22 +92,12 @@ import Cardano.Wallet.Primitive.Types.TokenBundle
     ( TokenBundle )
 import Cardano.Wallet.Primitive.Types.TokenMap
     ( AssetId (..) )
-import Control.Applicative
-    ( Alternative )
 import Control.Monad
-    ( MonadPlus, forM, forM_, unless, void, when )
-import Control.Monad.Class.MonadSTM
-    ( MonadSTM (..) )
-import Control.Monad.IO.Class
-    ( MonadIO (..) )
+    ( forM, forM_, unless, void, when )
 import Control.Monad.Trans.Class
     ( lift )
-import Control.Monad.Trans.Except
-    ( ExceptT (..), runExceptT )
 import Control.Monad.Trans.Maybe
     ( MaybeT (..) )
-import Control.Monad.Trans.Reader
-    ( ReaderT (..) )
 import Data.Bifunctor
     ( bimap, second )
 import Data.DBVar
@@ -129,7 +105,7 @@ import Data.DBVar
 import Data.Functor
     ( (<&>) )
 import Data.Generics.Internal.VL.Lens
-    ( view, (^.) )
+    ( (^.) )
 import Data.Map.Strict
     ( Map )
 import Data.Maybe
@@ -145,7 +121,6 @@ import Data.Typeable
 import Database.Persist.Sql
     ( Entity (..)
     , SelectOpt (..)
-    , SqlBackend
     , deleteWhere
     , insertMany_
     , insert_
@@ -156,9 +131,8 @@ import Database.Persist.Sql
     , (/<-.)
     , (==.)
     , (>.)
+    , SqlPersistT
     )
-import Database.Persist.Sqlite
-    ( SqlPersistT )
 import UnliftIO.Exception
     ( toException )
 
@@ -172,78 +146,9 @@ import qualified Cardano.Wallet.Primitive.Types.Coin as W
 import qualified Cardano.Wallet.Primitive.Types.TokenBundle as TokenBundle
 import qualified Cardano.Wallet.Primitive.Types.Tx as W
 import qualified Cardano.Wallet.Primitive.Types.UTxO as W
-import qualified Control.Concurrent.STM.TBQueue as STM
-import qualified Control.Concurrent.STM.TMVar as STM
-import qualified Control.Concurrent.STM.TQueue as STM
-import qualified Control.Concurrent.STM.TVar as STM
-import qualified Control.Monad.STM as STM
 import qualified Data.Map.Merge.Strict as Map
 import qualified Data.Map.Strict as Map
 
-{-------------------------------------------------------------------------------
-    WalletState Store
--------------------------------------------------------------------------------}
--- | Store for 'WalletState' of multiple different wallets.
-mkStoreWallets
-    :: forall s key. (PersistAddressBook s, key ~ W.WalletId)
-    => Store (SqlPersistT IO)
-        (DeltaMap key (DeltaWalletState s))
-mkStoreWallets = Store{loadS=load,writeS=write,updateS=update}
-  where
-    write = error "mkStoreWalletsCheckpoints: not implemented"
-
-    update _ (Insert wid a) =
-        writeS (mkStoreWallet wid) a
-    update _ (Delete wid) = do
-        -- FIXME LATER during ADP-1043:
-        --  Deleting an entry in the Checkpoint table
-        --  will trigger a delete cascade. We want this cascade
-        --  to be explicit in our code.
-        deleteWhere [CheckpointWalletId ==. wid]
-    update _ (Adjust wid da) =
-        updateS (mkStoreWallet wid) undefined da
-        -- FIXME LATER during ADP-1043:
-        --   Remove 'undefined'.
-        --   Probably needs a change to 'Data.DBVar.updateS'
-        --   to take a 'Maybe a' as parameter instead of an 'a'.
-
-    load = do
-        wids <- fmap (view #walId . entityVal) <$> selectAll
-        runExceptT $ do
-            xs <- forM wids $ ExceptT . loadS . mkStoreWallet
-            pure $ Map.fromList (zip wids xs)
-      where
-        selectAll :: SqlPersistT IO [Entity Wallet]
-        selectAll = selectList [] []
-
--- | Store for 'WalletState' of a single wallet.
-mkStoreWallet
-    :: forall s. PersistAddressBook s
-    => W.WalletId
-    -> Store (SqlPersistT IO) (DeltaWalletState s)
-mkStoreWallet wid =
-    Store{ loadS = load, writeS = write, updateS = \_ -> update }
-  where
-    storeCheckpoints = mkStoreCheckpoints wid
-
-    load = do
-        eprologue <- maybe (Left $ toException ErrBadFormatAddressPrologue) Right
-            <$> loadPrologue wid
-        echeckpoints <- loadS storeCheckpoints
-        pure $ WalletState <$> eprologue <*> echeckpoints
-
-    write wallet = do
-        insertPrologue wid (wallet ^. #prologue)
-        writeS storeCheckpoints (wallet ^. #checkpoints)
-
-    update =
-         -- first update in list is last to be applied!
-        mapM_ update1 . reverse
-    update1 (ReplacePrologue prologue) =
-        insertPrologue wid prologue
-    update1 (UpdateCheckpoints delta) =
-        -- FIXME LATER during ADP-1043: remove 'undefined'
-        updateS storeCheckpoints undefined delta
 
 -- | Store for the 'Checkpoints' belonging to a 'WalletState'.
 mkStoreCheckpoints
@@ -718,68 +623,3 @@ selectRndStatePending wid = do
   where
     assocFromEntity (RndStatePendingAddress _ accIx addrIx addr) =
         ((W.Index accIx, W.Index addrIx), addr)
-
-{-------------------------------------------------------------------------------
-                     Provide ReaderT instance for MonadSTM
--------------------------------------------------------------------------------}
-
-instance MonadSTM (ReaderT SqlBackend IO) where
-    type STM (ReaderT SqlBackend IO) = WrapSTM
-    atomically = liftIO . STM.atomically . unWrapSTM
-
-    type TVar (ReaderT SqlBackend IO) = TVar IO
-    type TMVar (ReaderT SqlBackend IO) = TMVar IO
-    type TBQueue (ReaderT SqlBackend IO) = TBQueue IO
-    type TQueue (ReaderT SqlBackend IO) = TQueue IO
-
-    newTVar        =       WrapSTM . STM.newTVar
-    readTVar       =       WrapSTM . STM.readTVar
-    writeTVar      = \v -> WrapSTM . STM.writeTVar v
-    retry          = WrapSTM STM.retry
-    orElse         = \(WrapSTM a) (WrapSTM b) -> WrapSTM (STM.orElse a b)
-    modifyTVar     = \v -> WrapSTM . STM.modifyTVar v
-    modifyTVar'    = \v -> WrapSTM . STM.modifyTVar' v
-    stateTVar      = \v -> WrapSTM . STM.stateTVar v
-    swapTVar       = \v -> WrapSTM . STM.swapTVar v
-    check          =       WrapSTM . STM.check
-    newTMVar       =       WrapSTM . STM.newTMVar
-    newEmptyTMVar  =       WrapSTM STM.newEmptyTMVar
-    takeTMVar      =       WrapSTM . STM.takeTMVar
-    tryTakeTMVar   =       WrapSTM . STM.tryTakeTMVar
-    putTMVar       = \v -> WrapSTM . STM.putTMVar v
-    tryPutTMVar    = \v -> WrapSTM . STM.tryPutTMVar v
-    readTMVar      =       WrapSTM . STM.readTMVar
-    tryReadTMVar   =       WrapSTM . STM.tryReadTMVar
-    swapTMVar      = \v -> WrapSTM . STM.swapTMVar v
-    isEmptyTMVar   =       WrapSTM . STM.isEmptyTMVar
-    newTQueue      =       WrapSTM STM.newTQueue
-    readTQueue     =       WrapSTM . STM.readTQueue
-    tryReadTQueue  =       WrapSTM . STM.tryReadTQueue
-    peekTQueue     =       WrapSTM . STM.peekTQueue
-    tryPeekTQueue  =       WrapSTM . STM.tryPeekTQueue
-    flushTBQueue   =       WrapSTM . STM.flushTBQueue
-    writeTQueue    = \q -> WrapSTM . STM.writeTQueue q
-    isEmptyTQueue  =       WrapSTM . STM.isEmptyTQueue
-    newTBQueue     =       WrapSTM . STM.newTBQueue
-    readTBQueue    =       WrapSTM . STM.readTBQueue
-    tryReadTBQueue =       WrapSTM . STM.tryReadTBQueue
-    peekTBQueue    =       WrapSTM . STM.peekTBQueue
-    tryPeekTBQueue =       WrapSTM . STM.tryPeekTBQueue
-    writeTBQueue   = \q -> WrapSTM . STM.writeTBQueue q
-    lengthTBQueue  =       WrapSTM . STM.lengthTBQueue
-    isEmptyTBQueue =       WrapSTM . STM.isEmptyTBQueue
-    isFullTBQueue  =       WrapSTM . STM.isFullTBQueue
-
-    newTVarIO       = liftIO . STM.newTVarIO
-    readTVarIO      = liftIO . STM.readTVarIO
-    newTMVarIO      = liftIO . STM.newTMVarIO
-    newEmptyTMVarIO = liftIO STM.newEmptyTMVarIO
-    newTQueueIO     = liftIO STM.newTQueueIO
-    newTBQueueIO    = liftIO . STM.newTBQueueIO
-
--- | MonadSTM is an injective typeclass, so we need a unique newtype to target.
-newtype WrapSTM a = WrapSTM { unWrapSTM :: STM.STM a }
-    deriving (Applicative, Functor, Monad)
-
-deriving instance MonadPlus WrapSTM
-deriving instance Alternative WrapSTM

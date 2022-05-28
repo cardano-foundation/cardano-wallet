@@ -14,23 +14,21 @@ import Cardano.DB.Sqlite
     ( SqliteContext (runQuery), newInMemorySqliteContext )
 import Cardano.Wallet.DB.Arbitrary
     ( GenState, InitialCheckpoint (..) )
-import Cardano.Wallet.DB.Checkpoints
-    ( DeltaCheckpoints (..) )
-import Cardano.Wallet.DB.Sqlite.AddressBook
+import Cardano.Wallet.DB.Store.Checkpoints.Model
+    ( DeltaCheckpoints (..), getSlot, fromWallet )
+import Cardano.Wallet.DB.Store.Checkpoints.AddressBook
     ( AddressBookIso (..), Prologue, getPrologue )
-import Cardano.Wallet.DB.Sqlite.Stores
+import Cardano.Wallet.DB.Store.Wallets
     ( PersistAddressBook (..), mkStoreWallet )
-import Cardano.Wallet.DB.Sqlite.TH
+import Cardano.Wallet.DB.Sqlite.Schema
     ( Wallet (..), migrateAll )
 import Cardano.Wallet.DB.Sqlite.Types
     ( BlockId (..) )
-import Cardano.Wallet.DB.WalletState
+import Cardano.Wallet.DB.State
     ( DeltaWalletState
     , DeltaWalletState1 (..)
     , fromGenesis
-    , fromWallet
     , getLatest
-    , getSlot
     )
 import Cardano.Wallet.Primitive.AddressDerivation
     ( NetworkDiscriminant (Mainnet) )
@@ -91,7 +89,7 @@ import Test.QuickCheck.Monadic
 import UnliftIO.Exception
     ( bracket, impureThrow )
 
-import qualified Cardano.Wallet.DB.Sqlite.TH as TH
+import qualified Cardano.Wallet.DB.Sqlite.Schema as TH
 import qualified Data.Map.Strict as Map
 
 spec :: Spec
@@ -168,7 +166,7 @@ prop_StoreWallet db (wid, InitialCheckpoint cp0) =
     toIO = runQuery db
     setup = run . toIO $ initializeWallet wid
     prop = do
-        let Just w0 = fromGenesis cp0
+        let Just w0 = fromGenesis cp0 -- mempty
         prop_StoreUpdates toIO (mkStoreWallet wid) (pure w0) genDeltaWalletState
 
 genDeltaWalletState

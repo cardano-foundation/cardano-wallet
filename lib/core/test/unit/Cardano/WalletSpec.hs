@@ -278,8 +278,8 @@ import UnliftIO.Concurrent
 import qualified Cardano.Crypto.Wallet as CC
 import qualified Cardano.Wallet as W
 import qualified Cardano.Wallet.DB.MVar as MVar
-import qualified Cardano.Wallet.DB.Sqlite as Sqlite
-import qualified Cardano.Wallet.DB.Sqlite.AddressBook as Sqlite
+import qualified Cardano.Wallet.DB.Layer as Sqlite
+import qualified Cardano.Wallet.DB.Store.Checkpoints.AddressBook as Sqlite
 import qualified Cardano.Wallet.Primitive.Migration as Migration
 import qualified Cardano.Wallet.Primitive.Types.Coin as Coin
 import qualified Cardano.Wallet.Primitive.Types.TokenBundle as TokenBundle

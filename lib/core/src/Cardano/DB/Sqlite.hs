@@ -110,11 +110,12 @@ import Database.Persist.Sql
     , fieldSqlType
     , runMigrationUnsafeQuiet
     , runSqlConn
+    , SqlPersistT
     )
 import Database.Persist.Sqlite
-    ( SqlBackend, SqlPersistT, wrapConnection )
+    ( SqlBackend, wrapConnection )
 import Database.Sqlite
-    ( Error (ErrorConstraint), SqliteException (SqliteException) )
+    ( Error (ErrorConstraint), SqliteException (SqliteException))
 import Fmt
     ( fmt, ordinalF, (+|), (+||), (|+), (||+) )
 import GHC.Generics

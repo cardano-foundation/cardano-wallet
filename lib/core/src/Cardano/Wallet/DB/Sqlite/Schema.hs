@@ -23,7 +23,7 @@
 -- result, we're going to ignore code-coverage on the following module and, no
 -- hand-written functions should be written in this module!
 
-module Cardano.Wallet.DB.Sqlite.TH where
+module Cardano.Wallet.DB.Sqlite.Schema where
 
 import Prelude
 

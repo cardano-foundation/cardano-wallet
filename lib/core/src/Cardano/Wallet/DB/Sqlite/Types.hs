@@ -121,7 +121,7 @@ import Data.Word
     ( Word32, Word64 )
 import Data.Word.Odd
     ( Word31 )
-import Database.Persist.Sqlite
+import Database.Persist.Sql
     ( PersistField (..), PersistFieldSql (..), PersistValue (..) )
 import Database.Persist.TH
     ( MkPersistSettings (..), sqlSettings )

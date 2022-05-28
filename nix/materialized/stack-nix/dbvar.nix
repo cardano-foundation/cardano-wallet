@@ -55,6 +55,7 @@
           "Data/Chain"
           "Data/DBVar"
           "Data/Delta"
+          "Data/DeltaMap"
           "Data/Table"
           "Database/Persist/Delta"
           "Database/Schema"
