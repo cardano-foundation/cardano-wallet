@@ -113,12 +113,12 @@ import Cardano.Api.Shelley
     , PlutusScript (..)
     , PoolId
     , ProtocolParameters (..)
+    , ReferenceScript (..)
     , StakeCredential (..)
     , StakePoolMetadata (..)
     , StakePoolMetadataReference (..)
     , StakePoolParameters (..)
     , StakePoolRelay (..)
-    , ReferenceScript(..)
     , refInsScriptsAndInlineDatsSupportedInEra
     )
 import Cardano.Ledger.Credential
@@ -166,9 +166,9 @@ import Test.Cardano.Crypto.Gen
 import Test.QuickCheck
     ( Gen
     , Large (..)
-    , Small (..)
     , NonNegative (..)
     , Positive (..)
+    , Small (..)
     , arbitrary
     , choose
     , chooseInt
@@ -193,7 +193,7 @@ import qualified Cardano.Binary as CBOR
 import qualified Cardano.Crypto.Hash as Crypto
 import qualified Cardano.Crypto.Seed as Crypto
 import qualified Cardano.Ledger.BaseTypes as Ledger
-    ( Port, dnsToText, TxIx (..), CertIx (..) )
+    ( CertIx (..), Port, TxIx (..), dnsToText )
 import qualified Cardano.Ledger.Shelley.API as Ledger
     ( StakePoolRelay (..), portToWord16 )
 import qualified Cardano.Ledger.Shelley.TxBody as Ledger
@@ -248,15 +248,13 @@ genTxId :: Gen TxId
 genTxId = TxId <$> genShelleyHash
 
 genTxIndex :: Gen TxIx
-genTxIndex = frequency
-    [ ( 45, do
-          -- 2 ^ 32 - 1 is the upper limit on TxIxs in the Byron era
-          n <- chooseInteger (0, fromIntegral $ ((2 :: Word32) ^ (32 :: Word32)) - 1)
-          pure $ TxIx $ fromIntegral n
-      )
-    -- Make sure to choose some small values too
-    , ( 45, (TxIx . fromIntegral) <$> chooseInteger (0, fromIntegral (maxBound :: Word16)) )
-    , ( 10, pure $ TxIx 0 )
+genTxIndex = oneof
+    [ (TxIx . intCast) <$> (arbitrary @Word16)
+      -- FIXME: cardano-api uses a full Word here, yet the ledger uses Word16
+      -- and we'll fail to construct a tx unless we constrain ourselves to
+      -- Word16 here.
+    , TxIx . fromIntegral . getNonNegative <$> (arbitrary @(NonNegative Int))
+    -- For some bias towards small values
     ]
 
 genTxInsCollateral :: CardanoEra era -> Gen (TxInsCollateral era)
@@ -772,14 +770,10 @@ genPtr :: Gen Ptr
 genPtr = Ptr <$> genSlotNo <*> genTxIx <*> genCertIx
 
 genTxIx :: Gen Ledger.TxIx
-genTxIx = do
-    (Positive (Small (n :: Word16))) <- arbitrary
-    pure $ Ledger.TxIx n
+genTxIx = Ledger.TxIx <$> arbitrary
 
 genCertIx :: Gen Ledger.CertIx
-genCertIx = do
-    (Positive (Small (n :: Word16))) <- arbitrary
-    pure $ Ledger.CertIx n
+genCertIx = Ledger.CertIx <$> arbitrary
 
 genStakeAddressReference :: Gen StakeAddressReference
 genStakeAddressReference =
