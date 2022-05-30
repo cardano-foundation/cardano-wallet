@@ -9,7 +9,12 @@ import Prelude
 import Cardano.Wallet.Primitive.Types.Coin
     ( Coin (..) )
 import Cardano.Wallet.Primitive.Types.Coin.Gen
-    ( genCoin, genCoinPositive, shrinkCoin, shrinkCoinPositive )
+    ( genCoin
+    , genCoinPartition
+    , genCoinPositive
+    , shrinkCoin
+    , shrinkCoinPositive
+    )
 import Data.Function
     ( (&) )
 import Data.List.NonEmpty
@@ -34,6 +39,7 @@ import Test.QuickCheck.Extra
 
 import qualified Cardano.Wallet.Primitive.Types.Coin as Coin
 import qualified Data.Foldable as F
+import qualified Test.QuickCheck as QC
 
 spec :: Spec
 spec = describe "Cardano.Wallet.Primitive.Types.CoinSpec" $ do
@@ -75,6 +81,15 @@ spec = describe "Cardano.Wallet.Primitive.Types.CoinSpec" $ do
                 property prop_genCoinPositive
             it "shrinkCoinPositive" $
                 property prop_shrinkCoinPositive
+
+    parallel $ describe "Generating partitions" $ do
+
+        it "prop_genCoinPartition_fold" $
+            prop_genCoinPartition_fold & property
+        it "prop_genCoinPartition_length" $
+            prop_genCoinPartition_length & property
+        it "prop_genCoinPartition_nonPositive" $
+            prop_genCoinPartition_nonPositive & property
 
 --------------------------------------------------------------------------------
 -- Arithmetic operations
@@ -184,6 +199,25 @@ prop_shrinkCoinPositive = forAll genCoinPositive $ \c ->
 
 isValidCoinPositive :: Coin -> Bool
 isValidCoinPositive c = c > Coin 0
+
+--------------------------------------------------------------------------------
+-- Generating partitions
+--------------------------------------------------------------------------------
+
+prop_genCoinPartition_fold
+    :: Coin -> QC.Positive (QC.Small Int) -> Property
+prop_genCoinPartition_fold m (QC.Positive (QC.Small i)) =
+    forAll (genCoinPartition m i) $ (=== m) . F.fold
+
+prop_genCoinPartition_length
+    :: Coin -> QC.Positive (QC.Small Int) -> Property
+prop_genCoinPartition_length m (QC.Positive (QC.Small i)) =
+    forAll (genCoinPartition m i) $ (=== i) . F.length
+
+prop_genCoinPartition_nonPositive
+    :: Coin -> QC.NonPositive (QC.Small Int) -> Property
+prop_genCoinPartition_nonPositive m (QC.NonPositive (QC.Small i)) =
+    forAll (genCoinPartition m i) (=== pure m)
 
 --------------------------------------------------------------------------------
 -- Arbitrary instances
