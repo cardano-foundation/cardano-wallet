@@ -178,8 +178,9 @@ equipartition q =
     fmap TokenQuantity . equipartitionNatural (unTokenQuantity q)
 
 -- | Partitions a token quantity into a number of parts, where the size of each
---   part is proportional to the size of its corresponding element in the given
---   list of weights, and the number of parts is equal to the number of weights.
+--   part is proportional (modulo rounding) to the size of its corresponding
+--   element in the given list of weights, and the number of parts is equal to
+--   the number of weights.
 --
 -- Returns 'Nothing' if the sum of weights is equal to zero.
 --
