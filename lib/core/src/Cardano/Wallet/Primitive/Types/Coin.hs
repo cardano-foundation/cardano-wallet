@@ -37,6 +37,7 @@ module Cardano.Wallet.Primitive.Types.Coin
       -- * Partitioning
     , equipartition
     , partition
+    , partitionDefault
     , unsafePartition
 
     ) where
@@ -287,6 +288,30 @@ partition c
     = fmap (fmap fromNatural)
     . partitionNatural (toNatural c)
     . fmap toNatural
+
+-- | Partitions a coin into a number of parts, where the size of each part is
+--   proportional (modulo rounding) to the size of its corresponding element in
+--   the given list of weights, and the number of parts is equal to the number
+--   of weights.
+--
+-- This function always satisfies the following properties:
+--
+-- prop> fold   (partitionDefault c ws) == c
+-- prop> length (partitionDefault c ws) == length ws
+--
+-- If the sum of weights is equal to zero, then this function returns an
+-- 'equipartition' satisfying the following property:
+--
+-- prop> partitionDefault c ws == equipartition c ws
+--
+partitionDefault
+    :: Coin
+    -- ^ The token quantity to be partitioned.
+    -> NonEmpty Coin
+    -- ^ The list of weights.
+    -> NonEmpty Coin
+    -- ^ The partitioned token quantities.
+partitionDefault c ws = fromMaybe (equipartition c ws) (partition c ws)
 
 -- | Partitions a coin into a number of parts, where the size of each part is
 --   proportional (modulo rounding) to the size of its corresponding element in

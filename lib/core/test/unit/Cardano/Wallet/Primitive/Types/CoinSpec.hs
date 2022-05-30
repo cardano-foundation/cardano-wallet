@@ -10,6 +10,10 @@ import Cardano.Wallet.Primitive.Types.Coin
     ( Coin (..) )
 import Cardano.Wallet.Primitive.Types.Coin.Gen
     ( genCoin, genCoinPositive, shrinkCoin, shrinkCoinPositive )
+import Data.Function
+    ( (&) )
+import Data.List.NonEmpty
+    ( NonEmpty )
 import Test.Hspec
     ( Spec, describe, it )
 import Test.Hspec.Extra
@@ -25,8 +29,11 @@ import Test.QuickCheck
     , property
     , (===)
     )
+import Test.QuickCheck.Extra
+    ( genNonEmpty, shrinkNonEmpty )
 
 import qualified Cardano.Wallet.Primitive.Types.Coin as Coin
+import qualified Data.Foldable as F
 
 spec :: Spec
 spec = describe "Cardano.Wallet.Primitive.Types.CoinSpec" $ do
@@ -45,6 +52,15 @@ spec = describe "Cardano.Wallet.Primitive.Types.CoinSpec" $ do
             property prop_distance_commutative
         it "prop_subtract_toNatural" $ do
             property prop_subtract_toNatural
+
+    parallel $ describe "Partitioning" $ do
+
+        it "prop_partitionDefault_fold" $
+            prop_partitionDefault_fold & property
+        it "prop_partitionDefault_length" $
+            prop_partitionDefault_length & property
+        it "prop_partitionDefault_zeroWeightSum" $
+            prop_partitionDefault_zeroWeightSum & property
 
     parallel $ describe "Generators and shrinkers" $ do
 
@@ -112,6 +128,22 @@ prop_subtract_toNatural a b =
         (Just (Coin.toNatural b - Coin.toNatural a))
 
 --------------------------------------------------------------------------------
+-- Partitioning
+--------------------------------------------------------------------------------
+
+prop_partitionDefault_fold :: Coin -> NonEmpty Coin -> Property
+prop_partitionDefault_fold c cs =
+    F.fold (Coin.partitionDefault c cs) === c
+
+prop_partitionDefault_length :: Coin -> NonEmpty Coin -> Property
+prop_partitionDefault_length c cs =
+    length (Coin.partitionDefault c cs) === length cs
+
+prop_partitionDefault_zeroWeightSum :: Coin -> NonEmpty () -> Property
+prop_partitionDefault_zeroWeightSum c cs =
+    Coin.partitionDefault c (Coin 0 <$ cs) === Coin.equipartition c cs
+
+--------------------------------------------------------------------------------
 -- Coins that can be zero
 --------------------------------------------------------------------------------
 
@@ -160,3 +192,7 @@ isValidCoinPositive c = c > Coin 0
 instance Arbitrary Coin where
     arbitrary = genCoin
     shrink = shrinkCoin
+
+instance Arbitrary a => Arbitrary (NonEmpty a) where
+    arbitrary = genNonEmpty arbitrary
+    shrink = shrinkNonEmpty shrink
