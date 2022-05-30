@@ -531,7 +531,7 @@ withNetworkLayer tr network np project k = do
         BF.Block {_blockSlot} <- BF.getLatestBlock
         let latestSlot = maybe 0 BF.unSlot _blockSlot
             currentSlot = fromIntegral (unSlotNo s)
-            percentage = (currentSlot * 100) % latestSlot
+            percentage = currentSlot % latestSlot
         pure $ Syncing $ Quantity $ clipToPercentage percentage
 
 genesisBlockHash :: SomeNetworkDiscriminant -> BF.BlockHash
