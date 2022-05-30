@@ -32,6 +32,7 @@ import Cardano.Wallet.Primitive.Types.TokenMap.Gen
     , genAssetId
     , genAssetIdLargeRange
     , genTokenMap
+    , genTokenMapPartition
     , genTokenMapSmallRange
     , shrinkAssetId
     , shrinkTokenMap
@@ -102,6 +103,7 @@ import Test.QuickCheck
     , conjoin
     , counterexample
     , cover
+    , forAll
     , forAllBlind
     , frequency
     , property
@@ -127,6 +129,7 @@ import qualified Data.List.NonEmpty as NE
 import qualified Data.Map.Strict as Map
 import qualified Data.Set as Set
 import qualified Data.Text as T
+import qualified Test.QuickCheck as QC
 import qualified Test.Utils.Roundtrip as Roundtrip
 
 spec :: Spec
@@ -293,6 +296,15 @@ spec =
             property prop_equipartitionQuantitiesWithUpperBound_order
         it "prop_equipartitionQuantitiesWithUpperBound_sum" $
             property prop_equipartitionQuantitiesWithUpperBound_sum
+
+    parallel $ describe "Generating partitions" $ do
+
+        it "prop_genTokenMapPartition_fold" $
+            prop_genTokenMapPartition_fold & property
+        it "prop_genTokenMapPartition_length" $
+            prop_genTokenMapPartition_length & property
+        it "prop_genTokenMapPartition_nonPositive" $
+            prop_genTokenMapPartition_nonPositive & property
 
     parallel $ describe "JSON serialization" $ do
 
@@ -853,6 +865,25 @@ prop_equipartitionQuantitiesWithUpperBound_sum
     :: TokenMap -> Positive TokenQuantity -> Property
 prop_equipartitionQuantitiesWithUpperBound_sum m (Positive maxQuantity) =
     F.fold (TokenMap.equipartitionQuantitiesWithUpperBound m maxQuantity) === m
+
+--------------------------------------------------------------------------------
+-- Generating partitions
+--------------------------------------------------------------------------------
+
+prop_genTokenMapPartition_fold
+    :: TokenMap -> QC.Positive (QC.Small Int) -> Property
+prop_genTokenMapPartition_fold m (QC.Positive (QC.Small i)) =
+    forAll (genTokenMapPartition m i) $ (=== m) . F.fold
+
+prop_genTokenMapPartition_length
+    :: TokenMap -> QC.Positive (QC.Small Int) -> Property
+prop_genTokenMapPartition_length m (QC.Positive (QC.Small i)) =
+    forAll (genTokenMapPartition m i) $ (=== i) . F.length
+
+prop_genTokenMapPartition_nonPositive
+    :: TokenMap -> QC.NonPositive (QC.Small Int) -> Property
+prop_genTokenMapPartition_nonPositive m (QC.NonPositive (QC.Small i)) =
+    forAll (genTokenMapPartition m i) (=== pure m)
 
 --------------------------------------------------------------------------------
 -- JSON serialization tests
