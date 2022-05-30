@@ -26,11 +26,16 @@ import Cardano.Wallet.Primitive.Types.TokenBundle
     , unsafeSubtract
     )
 import Cardano.Wallet.Primitive.Types.TokenBundle.Gen
-    ( genTokenBundleSmallRange, shrinkTokenBundleSmallRange )
+    ( genTokenBundlePartition
+    , genTokenBundleSmallRange
+    , shrinkTokenBundleSmallRange
+    )
 import Cardano.Wallet.Primitive.Types.TokenQuantity
     ( TokenQuantity (..) )
 import Cardano.Wallet.Primitive.Types.TokenQuantity.Gen
     ( genTokenQuantityPositive, shrinkTokenQuantityPositive )
+import Data.Function
+    ( (&) )
 import Data.Ratio
     ( (%) )
 import Test.Hspec
@@ -43,6 +48,7 @@ import Test.QuickCheck
     , checkCoverage
     , counterexample
     , cover
+    , forAll
     , property
     , (===)
     , (==>)
@@ -58,6 +64,7 @@ import qualified Cardano.Wallet.Primitive.Types.TokenBundle as TokenBundle
 import qualified Cardano.Wallet.Primitive.Types.TokenMap as TokenMap
 import qualified Cardano.Wallet.Primitive.Types.TokenQuantity as TokenQuantity
 import qualified Data.Foldable as F
+import qualified Test.QuickCheck as QC
 
 spec :: Spec
 spec =
@@ -100,6 +107,15 @@ spec =
             property prop_equipartitionQuantitiesWithUpperBound_order
         it "prop_equipartitionQuantitiesWithUpperBound_sum" $
             property prop_equipartitionQuantitiesWithUpperBound_sum
+
+    describe "Generating partitions" $ do
+
+        it "prop_genTokenBundlePartition_fold" $
+            prop_genTokenBundlePartition_fold & property
+        it "prop_genTokenBundlePartition_length" $
+            prop_genTokenBundlePartition_length & property
+        it "prop_genTokenBundlePartition_nonPositive" $
+            prop_genTokenBundlePartition_nonPositive & property
 
     describe "Behaviour" $
         it "toCoin only returns when token bundle has only ADA" $
@@ -190,6 +206,25 @@ prop_equipartitionQuantitiesWithUpperBound_sum m maxQuantity =
     maxQuantity > TokenQuantity.zero ==>
         F.fold (TokenBundle.equipartitionQuantitiesWithUpperBound m maxQuantity)
             === m
+
+--------------------------------------------------------------------------------
+-- Generating partitions
+--------------------------------------------------------------------------------
+
+prop_genTokenBundlePartition_fold
+    :: TokenBundle -> QC.Positive (QC.Small Int) -> Property
+prop_genTokenBundlePartition_fold m (QC.Positive (QC.Small i)) =
+    forAll (genTokenBundlePartition m i) $ (=== m) . F.fold
+
+prop_genTokenBundlePartition_length
+    :: TokenBundle -> QC.Positive (QC.Small Int) -> Property
+prop_genTokenBundlePartition_length m (QC.Positive (QC.Small i)) =
+    forAll (genTokenBundlePartition m i) $ (=== i) . F.length
+
+prop_genTokenBundlePartition_nonPositive
+    :: TokenBundle -> QC.NonPositive (QC.Small Int) -> Property
+prop_genTokenBundlePartition_nonPositive m (QC.NonPositive (QC.Small i)) =
+    forAll (genTokenBundlePartition m i) (=== pure m)
 
 --------------------------------------------------------------------------------
 -- Behavioural properties

@@ -5,20 +5,36 @@ module Cardano.Wallet.Primitive.Types.TokenBundle.Gen
     , shrinkTokenBundle
     , shrinkTokenBundleSmallRange
     , shrinkTokenBundleSmallRangePositive
+    , genTokenBundlePartition
+    , genTokenBundlePartitionNonNull
     ) where
 
 import Prelude
 
 import Cardano.Wallet.Primitive.Types.Coin.Gen
-    ( genCoin, genCoinPositive, shrinkCoin, shrinkCoinPositive )
+    ( genCoin
+    , genCoinPartition
+    , genCoinPositive
+    , shrinkCoin
+    , shrinkCoinPositive
+    )
 import Cardano.Wallet.Primitive.Types.TokenBundle
     ( TokenBundle (..) )
 import Cardano.Wallet.Primitive.Types.TokenMap.Gen
-    ( genTokenMap, genTokenMapSmallRange, shrinkTokenMap )
+    ( genTokenMap
+    , genTokenMapPartition
+    , genTokenMapSmallRange
+    , shrinkTokenMap
+    )
+import Data.List.NonEmpty
+    ( NonEmpty )
 import Test.QuickCheck
     ( Gen )
 import Test.QuickCheck.Extra
     ( shrinkInterleaved )
+
+import qualified Data.Foldable as F
+import qualified Data.List.NonEmpty as NE
 
 --------------------------------------------------------------------------------
 -- Token bundles with variable numbers of assets, the upper bound being
@@ -60,3 +76,27 @@ shrinkTokenBundleSmallRangePositive (TokenBundle c m) =
     uncurry TokenBundle <$> shrinkInterleaved
         (c, shrinkCoinPositive)
         (m, shrinkTokenMap)
+
+--------------------------------------------------------------------------------
+-- Partitioning token bundles
+--------------------------------------------------------------------------------
+
+-- | Partitions a token bundle randomly into a given number of parts.
+--
+-- Satisfies the following properties:
+--
+-- prop> forAll (genTokenBundlePartition b i) $ (==       b) . fold
+-- prop> forAll (genTokenBundlePartition b i) $ (== max 1 i) . length
+--
+genTokenBundlePartition :: TokenBundle -> Int -> Gen (NonEmpty TokenBundle)
+genTokenBundlePartition (TokenBundle c m) i =
+    NE.zipWith TokenBundle
+        <$> genCoinPartition     c i
+        <*> genTokenMapPartition m i
+
+-- | Like 'genTokenBundlePartition', but with empty values removed from the
+--   result.
+--
+genTokenBundlePartitionNonNull :: TokenBundle -> Int -> Gen [TokenBundle]
+genTokenBundlePartitionNonNull m i =
+    filter (/= mempty) . F.toList <$> genTokenBundlePartition m i
