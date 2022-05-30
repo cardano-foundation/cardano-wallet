@@ -64,6 +64,8 @@ import Cardano.Pool.Rank
     ( RewardParams (..) )
 import Cardano.Pool.Rank.Likelihood
     ( BlockProduction (..), PerformanceEstimate (..), estimatePoolPerformance )
+import Cardano.Slotting.Slot
+    ( unEpochSize )
 import Cardano.Wallet.Api.Types
     ( decodeAddress, decodeStakeAddress, encodeAddress, encodeStakeAddress )
 import Cardano.Wallet.Logging
@@ -88,11 +90,13 @@ import Cardano.Wallet.Primitive.Slotting
     , mkTimeInterpreter
     )
 import Cardano.Wallet.Primitive.Types
-    ( Block (..)
+    ( ActiveSlotCoefficient (ActiveSlotCoefficient)
+    , Block (..)
     , BlockHeader (..)
     , ChainPoint (..)
     , DecentralizationLevel (..)
     , DelegationCertificate (..)
+    , EpochLength (EpochLength)
     , EpochNo (..)
     , ExecutionUnitPrices (..)
     , ExecutionUnits (..)
@@ -103,6 +107,7 @@ import Cardano.Wallet.Primitive.Types
     , NetworkParameters (..)
     , PoolId
     , ProtocolParameters (..)
+    , SlotLength (SlotLength)
     , SlotNo (..)
     , SlottingParameters (..)
     , StartTime
@@ -160,6 +165,8 @@ import Data.Bitraversable
     ( bitraverse )
 import Data.Bits
     ( Bits )
+import Data.Function
+    ( (&) )
 import Data.Functor
     ( void, (<&>) )
 import Data.Functor.Contravariant
@@ -201,6 +208,10 @@ import Money
     ( Discrete' )
 import Ouroboros.Consensus.Cardano.Block
     ( CardanoBlock, StandardCrypto )
+import Ouroboros.Consensus.HardFork.History.EraParams
+    ( EraParams (..), SafeZone (StandardSafeZone, UnsafeIndefiniteSafeZone) )
+import Ouroboros.Consensus.HardFork.History.Summary
+    ( Bound (..), EraEnd (..), EraSummary (..), Summary (..) )
 import Servant.Client
     ( runClientM )
 import Text.Read
@@ -214,11 +225,10 @@ import UnliftIO.Exception
 
 import qualified Blockfrost.Client as BF
 import qualified Cardano.Api.Shelley as Node
+import qualified Cardano.Slotting.Time as ST
 import qualified Cardano.Wallet.Network.Light as LN
 import qualified Cardano.Wallet.Shelley.Network.Blockfrost.Fixture as Fixture
 import qualified Data.Aeson as Aeson
-import Data.Function
-    ( (&) )
 import qualified Data.HashMap.Strict as HashMap
 import qualified Data.Map.Strict as Map
 import qualified Data.Sequence as Seq
@@ -226,6 +236,7 @@ import qualified Data.Set as Set
 import qualified Data.Text as T
 import qualified Data.Vector as V
 import qualified Ouroboros.Consensus.HardFork.History.Qry as HF
+import qualified Ouroboros.Consensus.Util.Counting as UC
 
 {-------------------------------------------------------------------------------
     NetworkLayer
@@ -289,7 +300,7 @@ withNetworkLayer tr network np project k = do
         , currentNodeTip = currentNodeTip bfConfig
         , currentNodeEra = currentNodeEra bfConfig
         , currentProtocolParameters = currentProtocolParameters bfConfig
-        , currentSlottingParameters = undefined
+        , currentSlottingParameters = currentSlottingParameters bfConfig
         , watchNodeTip = watchNodeTip bfConfig
         , postTx = undefined
         , stakeDistribution = undefined
@@ -325,6 +336,25 @@ withNetworkLayer tr network np project k = do
     currentProtocolParameters bfConfig =
         runBFM bfConfig $ liftEither . fromBlockfrostPP networkId
             =<< BF.getLatestEpochProtocolParams
+
+    currentSlottingParameters :: BF.ClientConfig -> IO SlottingParameters
+    currentSlottingParameters bfConfig = runBFM bfConfig do
+        BF.EpochInfo{_epochInfoEpoch} <- BF.getLatestEpoch
+        epochNo <- fromBlockfrostM _epochInfoEpoch
+        let EraParams{..} = eraParams $ epochEraSummary networkId epochNo
+        epochLen <- unEpochSize eraEpochSize <?#> "EpochSize"
+        getSecurityParameter <- case eraSafeZone of
+            StandardSafeZone wo -> Quantity <$> wo <?#> "StandardSafeZone"
+            UnsafeIndefiniteSafeZone -> error "UnsafeIndefiniteSafeZone"
+        getActiveSlotCoefficient <-
+            ActiveSlotCoefficient . BF._genesisActiveSlotsCoefficient <$>
+                BF.getLedgerGenesis
+        pure SlottingParameters
+            { getSlotLength = SlotLength $ ST.getSlotLength eraSlotLength
+            , getEpochLength = EpochLength epochLen
+            , getActiveSlotCoefficient
+            , getSecurityParameter
+            }
 
     currentNodeEra :: BF.ClientConfig -> IO AnyCardanoEra
     currentNodeEra bfConfig = runBFM bfConfig do
@@ -951,6 +981,17 @@ eraByEpoch networkId epoch =
         \case
             (era, _) : _ -> Right era
             _ -> Left $ UnknownEraForEpoch epoch
+
+epochEraSummary :: NetworkId -> EpochNo -> EraSummary
+epochEraSummary networkId (EpochNo epoch) =
+    go $ getSummary $ Fixture.networkSummary networkId
+  where
+    go :: UC.NonEmpty xs EraSummary -> EraSummary
+    go = \case
+        UC.NonEmptyOne era -> era
+        UC.NonEmptyCons era@EraSummary{eraEnd=EraUnbounded} _eras -> era
+        UC.NonEmptyCons era@EraSummary{eraEnd=EraEnd Bound{boundEpoch}} eras ->
+            if boundEpoch > fromIntegral epoch then era else go eras
 
 -- | Raises an error in case of an absent value
 (<?>) :: MonadError e m => Maybe a -> e -> m a
