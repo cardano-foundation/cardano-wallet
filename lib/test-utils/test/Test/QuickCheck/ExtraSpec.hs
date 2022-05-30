@@ -140,6 +140,9 @@ spec = describe "Test.QuickCheck.ExtraSpec" $ do
             it "prop_selectMapEntries_fromList" $
                 prop_selectMapEntries_fromList
                     @Int @Int & property
+            it "prop_selectMapEntries_length" $
+                prop_selectMapEntries_length
+                    @Int @Int & property
             it "prop_selectMapEntries_nonPositive" $
                 prop_selectMapEntries_nonPositive
                     @Int @Int & property
@@ -530,6 +533,22 @@ prop_selectMapEntries_fromList m =
         "number of available entries = 0" $
     forAll (selectMapEntries m (length m)) $
         (=== (m, mempty)) . first Map.fromList
+
+prop_selectMapEntries_length
+    :: forall k v. (Ord k, Show k, Eq v, Show v)
+    => Map k v
+    -> Positive (Small Int)
+    -> Property
+prop_selectMapEntries_length m (Positive (Small i)) =
+    forAll (selectMapEntries m i) $ \(kvs, _) ->
+        checkCoverage $
+        cover 10 (i < Map.size m)
+            "number of requested entries < size of map" $
+        cover 10 (i > Map.size m)
+            "number of requested entries > size of map" $
+        cover 1 (i == Map.size m)
+            "number of requested entries = size of map" $
+        length kvs === min i (Map.size m)
 
 prop_selectMapEntries_nonPositive
     :: (Ord k, Show k, Eq v, Show v)
