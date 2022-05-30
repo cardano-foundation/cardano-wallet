@@ -289,8 +289,9 @@ partition c
     . fmap toNatural
 
 -- | Partitions a coin into a number of parts, where the size of each part is
---   proportional to the size of its corresponding element in the given list
---   of weights, and the number of parts is equal to the number of weights.
+--   proportional (modulo rounding) to the size of its corresponding element in
+--   the given list of weights, and the number of parts is equal to the number
+--   of weights.
 --
 -- Throws a run-time error if the sum of weights is equal to zero.
 --
