@@ -89,6 +89,8 @@ import Cardano.Wallet.Primitive.Slotting
     , TimeInterpreterLog
     , mkTimeInterpreter
     )
+import Cardano.Wallet.Primitive.SyncProgress
+    ( SyncProgress (Syncing) )
 import Cardano.Wallet.Primitive.Types
     ( ActiveSlotCoefficient (ActiveSlotCoefficient)
     , Block (..)
@@ -186,8 +188,11 @@ import Data.Proxy
 import Data.Quantity
     ( MkPercentageError (PercentageOutOfBoundsError)
     , Quantity (..)
+    , clipToPercentage
     , mkPercentage
     )
+import Data.Ratio
+    ( (%) )
 import Data.Scientific
     ( isInteger )
 import Data.Set
@@ -310,7 +315,7 @@ withNetworkLayer tr network np project k = do
             fetchNetworkRewardAccountBalances network bfConfig
         , timeInterpreter =
             timeInterpreterFromStartTime getGenesisBlockDate
-        , syncProgress = undefined
+        , syncProgress = syncProgress bfConfig
         }
   where
     NetworkParameters
@@ -550,6 +555,14 @@ withNetworkLayer tr network np project k = do
                         , getAddressTxs
                         }
             void $ LN.lightSync (MsgLightLayerLog >$< tr) lightSyncSource follower
+
+    syncProgress :: BF.ClientConfig -> SlotNo -> IO SyncProgress
+    syncProgress bfConfig s = runBFM bfConfig do
+        BF.Block {_blockSlot} <- BF.getLatestBlock
+        let latestSlot = maybe 0 BF.unSlot _blockSlot
+            currentSlot = fromIntegral (unSlotNo s)
+            percentage = currentSlot % latestSlot
+        pure $ Syncing $ Quantity $ clipToPercentage percentage
 
 genesisBlockHash :: SomeNetworkDiscriminant -> BF.BlockHash
 genesisBlockHash nd = case networkDiscriminantToId nd of
