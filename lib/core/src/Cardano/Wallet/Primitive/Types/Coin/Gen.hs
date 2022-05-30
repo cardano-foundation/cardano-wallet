@@ -1,5 +1,6 @@
 module Cardano.Wallet.Primitive.Types.Coin.Gen
-    ( genCoin
+    ( chooseCoin
+    , genCoin
     , genCoinPositive
     , shrinkCoin
     , shrinkCoinPositive
@@ -9,10 +10,19 @@ import Prelude
 
 import Cardano.Wallet.Primitive.Types.Coin
     ( Coin (..) )
+import Data.Coerce
+    ( coerce )
 import Test.QuickCheck
     ( Gen, choose, sized )
 import Test.QuickCheck.Extra
-    ( shrinkNatural )
+    ( chooseNatural, shrinkNatural )
+
+--------------------------------------------------------------------------------
+-- Choosing coins from a range.
+--------------------------------------------------------------------------------
+
+chooseCoin :: (Coin, Coin) -> Gen Coin
+chooseCoin = coerce chooseNatural
 
 --------------------------------------------------------------------------------
 -- Coins chosen according to the size parameter.
