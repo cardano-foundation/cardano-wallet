@@ -59,7 +59,7 @@ import Data.Word
 import Database.Persist.Delta
     ( newEntityStore, newSqlStore )
 import Database.Persist.Sql
-    ( SqlPersistM, SqlPersistT )
+    ( SqlPersistM )
 import Database.Persist.TH
     ( mkMigrate
     , mkPersist

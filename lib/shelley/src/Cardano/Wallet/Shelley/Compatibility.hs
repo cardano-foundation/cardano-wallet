@@ -8,6 +8,7 @@
 {-# LANGUAGE LambdaCase #-}
 {-# LANGUAGE NamedFieldPuns #-}
 {-# LANGUAGE NumericUnderscores #-}
+{-# LANGUAGE PartialTypeSignatures #-}
 {-# LANGUAGE PatternSynonyms #-}
 {-# LANGUAGE QuantifiedConstraints #-}
 {-# LANGUAGE QuasiQuotes #-}
@@ -19,7 +20,6 @@
 {-# LANGUAGE TypeFamilies #-}
 {-# LANGUAGE TypeOperators #-}
 {-# LANGUAGE UndecidableInstances #-}
-{-# LANGUAGE PartialTypeSignatures #-}
 
 
 -- Orphan instances for {Encode,Decode}Address until we get rid of the
@@ -252,7 +252,7 @@ import Control.Applicative
 import Control.Arrow
     ( left )
 import Control.Monad
-    ( when, (>=>), join )
+    ( join, when, (>=>) )
 import Crypto.Hash.Utils
     ( blake2b224 )
 import Data.Array
@@ -323,7 +323,7 @@ import Ouroboros.Consensus.HardFork.History.Summary
 import Ouroboros.Consensus.Shelley.Eras
     ( StandardCrypto )
 import Ouroboros.Consensus.Shelley.Ledger
-    ( ShelleyHash (..) )
+    ( ShelleyCompatible, ShelleyHash (..) )
 import Ouroboros.Consensus.Shelley.Ledger.Block
     ( ShelleyBlock (..) )
 import Ouroboros.Network.Block
@@ -339,6 +339,8 @@ import Ouroboros.Network.Point
 
 import qualified Cardano.Address as CA
 import qualified Cardano.Address.Style.Shelley as CA
+import Cardano.Api
+    ( ToCBOR )
 import qualified Cardano.Api as Cardano
 import qualified Cardano.Api.Byron as Cardano
     ( Tx (ByronTx) )
@@ -348,10 +350,6 @@ import qualified Cardano.Byron.Codec.Cbor as CBOR
 import qualified Cardano.Chain.Common as Byron
 import qualified Cardano.Crypto.Hash as Crypto
 import qualified Cardano.Ledger.Address as SL
-import qualified Cardano.Ledger.Babbage as Babbage
-import qualified Cardano.Ledger.Babbage.PParams as Babbage
-import qualified Cardano.Ledger.Babbage.TxBody as Babbage
-import qualified Cardano.Ledger.Babbage.Tx as Babbage hiding (ScriptIntegrityHash, TxBody)
 import qualified Cardano.Ledger.Alonzo as Alonzo
 import qualified Cardano.Ledger.Alonzo.Data as Alonzo
 import qualified Cardano.Ledger.Alonzo.Language as Alonzo
@@ -361,6 +359,11 @@ import qualified Cardano.Ledger.Alonzo.Tx as Alonzo
 import qualified Cardano.Ledger.Alonzo.TxBody as Alonzo
 import qualified Cardano.Ledger.Alonzo.TxSeq as Alonzo
 import qualified Cardano.Ledger.Alonzo.TxWitness as Alonzo
+import qualified Cardano.Ledger.Babbage as Babbage
+import qualified Cardano.Ledger.Babbage.PParams as Babbage
+import qualified Cardano.Ledger.Babbage.Tx as Babbage hiding
+    ( ScriptIntegrityHash, TxBody )
+import qualified Cardano.Ledger.Babbage.TxBody as Babbage
 import qualified Cardano.Ledger.BaseTypes as BT
 import qualified Cardano.Ledger.BaseTypes as Ledger
 import qualified Cardano.Ledger.BaseTypes as SL
@@ -368,6 +371,7 @@ import qualified Cardano.Ledger.Coin as Ledger
 import qualified Cardano.Ledger.Core as Ledger
 import qualified Cardano.Ledger.Core as SL.Core
 import qualified Cardano.Ledger.Credential as SL
+import qualified Cardano.Ledger.Crypto as CC
 import qualified Cardano.Ledger.Crypto as SL
 import qualified Cardano.Ledger.Era as Ledger.Era
 import qualified Cardano.Ledger.Mary.Value as SL
@@ -377,13 +381,13 @@ import qualified Cardano.Ledger.Shelley as SL hiding
 import qualified Cardano.Ledger.Shelley.API as SL
 import qualified Cardano.Ledger.Shelley.API as SLAPI
 import qualified Cardano.Ledger.Shelley.BlockChain as SL
-import qualified Cardano.Protocol.TPraos.BHeader as SL
 import qualified Cardano.Ledger.Shelley.PParams as Shelley
 import qualified Cardano.Ledger.Shelley.Tx as Shelley
 import qualified Cardano.Ledger.ShelleyMA as MA
 import qualified Cardano.Ledger.ShelleyMA.AuxiliaryData as MA
 import qualified Cardano.Ledger.ShelleyMA.TxBody as MA
 import qualified Cardano.Ledger.TxIn as TxIn
+import qualified Cardano.Protocol.TPraos.BHeader as SL
 import qualified Cardano.Wallet.Primitive.Types as W
 import qualified Cardano.Wallet.Primitive.Types.Address as W
 import qualified Cardano.Wallet.Primitive.Types.Coin as Coin
@@ -409,7 +413,9 @@ import qualified Data.Map.Strict as Map
 import qualified Data.Map.Strict.NonEmptyMap as NonEmptyMap
 import qualified Data.Set as Set
 import qualified Data.Text.Encoding as T
+import qualified Ouroboros.Consensus.Protocol.TPraos as Consensus
 import qualified Ouroboros.Consensus.Shelley.Ledger as O
+import qualified Ouroboros.Consensus.Shelley.Protocol.Abstract as Consensus
 import qualified Ouroboros.Network.Block as O
 import qualified Ouroboros.Network.Point as Point
 --------------------------------------------------------------------------------
@@ -446,7 +452,7 @@ emptyGenesis gp = W.Block
 
 -- | The protocol client version. Distinct from the codecs version.
 nodeToClientVersions :: [NodeToClientVersion]
-nodeToClientVersions = [NodeToClientV_8, NodeToClientV_9]
+nodeToClientVersions = [NodeToClientV_9]
 
 --------------------------------------------------------------------------------
 --
@@ -480,32 +486,34 @@ toCardanoBlockHeader gp = \case
         toShelleyBlockHeader (W.getGenesisBlockHash gp) blk
     BlockAlonzo blk ->
         toShelleyBlockHeader (W.getGenesisBlockHash gp) blk
+    BlockBabbage _blk ->
+        error "todo: Babbage toCardanoBlockHeader"
 
 toShelleyBlockHeader
-    :: (Era e, ToCBORGroup (Ledger.Era.TxSeq e))
+    :: (Era era, ToCBORGroup (Ledger.Era.TxSeq era), ShelleyCompatible protocol era)
     => W.Hash "Genesis"
-    -> ShelleyBlock e
+    -> ShelleyBlock protocol era
     -> W.BlockHeader
 toShelleyBlockHeader genesisHash blk =
     let
-        ShelleyBlock (SL.Block (SL.BHeader header _) _) headerHash = blk
+        ShelleyBlock (SL.Block header _txSeq) _headerHash = blk
     in
         W.BlockHeader
             { slotNo =
-                SL.bheaderSlotNo header
+                Consensus.pHeaderSlot header
             , blockHeight =
-                fromBlockNo $ SL.bheaderBlockNo header
+                fromBlockNo $ Consensus.pHeaderBlock header
             , headerHash =
-                fromShelleyHash headerHash
+                fromShelleyHash $ Consensus.pHeaderHash header
             , parentHeaderHash = Just $
                 fromPrevHash (coerce genesisHash) $
-                    SL.bheaderPrev header
+                    Consensus.pHeaderPrevHash header
             }
 
 getProducer
-    :: (Era e, ToCBORGroup (Ledger.Era.TxSeq e))
-    => ShelleyBlock e -> W.PoolId
-getProducer (ShelleyBlock (SL.Block (SL.BHeader header _) _) _) =
+    :: (Era era, ToCBORGroup (Ledger.Era.TxSeq era))
+    => ShelleyBlock (Consensus.TPraos StandardCrypto) era -> W.PoolId
+getProducer (ShelleyBlock (SL.Block header _) _) =
     fromPoolKeyHash $ SL.hashKey (SL.bheaderVk header)
 
 fromCardanoBlock
@@ -523,15 +531,18 @@ fromCardanoBlock gp = \case
         fst $ fromMaryBlock gp blk
     BlockAlonzo blk ->
         fst $ fromAlonzoBlock gp blk
+    BlockBabbage _blk ->
+        error "todo: Babbage fromCardanoBlock"
 
 numberOfTransactionsInBlock
     :: CardanoBlock StandardCrypto -> (Int, (Quantity "block" Word32, O.SlotNo))
 numberOfTransactionsInBlock = \case
+    BlockByron byb -> transactionsByron byb
     BlockShelley shb -> transactions shb
     BlockAllegra shb -> transactions shb
     BlockMary shb -> transactions shb
     BlockAlonzo shb -> transactionsAlonzo shb
-    BlockByron byb -> transactionsByron byb
+    BlockBabbage shb -> error "todo: Babbage numberOfTransactionsInBlock"
   where
     transactions
         (ShelleyBlock (SL.Block (SL.BHeader header _) (SL.TxSeq txs')) _) =
@@ -558,10 +569,11 @@ toCardanoEra = \case
     BlockAllegra{} -> AnyCardanoEra AllegraEra
     BlockMary{}    -> AnyCardanoEra MaryEra
     BlockAlonzo{}  -> AnyCardanoEra AlonzoEra
+    BlockBabbage{} -> AnyCardanoEra BabbageEra
 
 fromShelleyBlock
     :: W.GenesisParameters
-    -> ShelleyBlock (SL.ShelleyEra StandardCrypto)
+    -> ShelleyBlock protocol (SL.ShelleyEra StandardCrypto)
     -> (W.Block, [W.PoolCertificate])
 fromShelleyBlock gp blk@(ShelleyBlock (SL.Block _ (SL.TxSeq txs')) _) =
     let
@@ -578,7 +590,7 @@ fromShelleyBlock gp blk@(ShelleyBlock (SL.Block _ (SL.TxSeq txs')) _) =
 
 fromAllegraBlock
     :: W.GenesisParameters
-    -> ShelleyBlock (MA.ShelleyMAEra 'MA.Allegra StandardCrypto)
+    -> ShelleyBlock protocol (MA.ShelleyMAEra 'MA.Allegra StandardCrypto)
     -> (W.Block, [W.PoolCertificate])
 fromAllegraBlock gp blk@(ShelleyBlock (SL.Block _ (SL.TxSeq txs')) _) =
     let
@@ -595,7 +607,7 @@ fromAllegraBlock gp blk@(ShelleyBlock (SL.Block _ (SL.TxSeq txs')) _) =
 
 fromMaryBlock
     :: W.GenesisParameters
-    -> ShelleyBlock (MA.ShelleyMAEra 'MA.Mary StandardCrypto)
+    -> ShelleyBlock protocol (MA.ShelleyMAEra 'MA.Mary StandardCrypto)
     -> (W.Block, [W.PoolCertificate])
 fromMaryBlock gp blk@(ShelleyBlock (SL.Block _ (SL.TxSeq txs')) _) =
     let
@@ -618,8 +630,9 @@ fromMaryBlock gp blk@(ShelleyBlock (SL.Block _ (SL.TxSeq txs')) _) =
 -- would need to be cleaned up too. We probably will need to use `Point block`,
 -- in all chain followers (including the DBLayer).
 fromAlonzoBlock
-    :: W.GenesisParameters
-    -> ShelleyBlock (Alonzo.AlonzoEra StandardCrypto)
+    :: ShelleyCompatible protocol (Alonzo.AlonzoEra StandardCrypto)
+    => W.GenesisParameters
+    -> ShelleyBlock protocol (Alonzo.AlonzoEra StandardCrypto)
     -> (W.Block, [W.PoolCertificate])
 fromAlonzoBlock gp blk@(ShelleyBlock (SL.Block _ txSeq) _) =
     let
@@ -635,19 +648,19 @@ fromAlonzoBlock gp blk@(ShelleyBlock (SL.Block _ txSeq) _) =
         , toPoolCertificates certs'
         )
 
-fromShelleyHash :: ShelleyHash c -> W.Hash "BlockHeader"
-fromShelleyHash (ShelleyHash (SL.HashHeader h)) = W.Hash (hashToBytes h)
+fromShelleyHash :: ShelleyHash crypto -> W.Hash "BlockHeader"
+fromShelleyHash (ShelleyHash h) = W.Hash (hashToBytes h)
 
 fromCardanoHash :: O.HeaderHash (CardanoBlock sc) -> W.Hash "BlockHeader"
 fromCardanoHash = W.Hash . fromShort . getOneEraHash
 
 fromPrevHash
     :: W.Hash "BlockHeader"
-    -> SL.PrevHash sc
+    -> SL.PrevHash crypto
     -> W.Hash "BlockHeader"
 fromPrevHash genesisHash = \case
     SL.GenesisHash -> genesisHash
-    SL.BlockHash h -> fromShelleyHash (ShelleyHash h)
+    SL.BlockHash (SL.HashHeader h) -> W.Hash (hashToBytes h)
 
 fromChainHash
     :: W.Hash "Genesis"

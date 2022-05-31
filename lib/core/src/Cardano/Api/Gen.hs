@@ -152,7 +152,7 @@ import Data.String
 import Data.Text
     ( Text )
 import Data.Word
-    ( Word16, Word32, Word64 )
+    ( Word16, Word64 )
 import Network.Socket
     ( PortNumber )
 import Numeric.Natural
@@ -168,7 +168,6 @@ import Test.QuickCheck
     , Large (..)
     , NonNegative (..)
     , Positive (..)
-    , Small (..)
     , arbitrary
     , choose
     , chooseInt

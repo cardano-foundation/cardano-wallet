@@ -275,7 +275,7 @@ extra-deps:
   - bech32-th
 
 - git: https://github.com/input-output-hk/cardano-base
-  commit: 1587462ac8b2e50af2691f5ad93d3c2aa4674ed1
+  commit: 631cb6cf1fa01ab346233b610a38b3b4cba6e6ab
   subdirs:
   - base-deriving-via
   - binary
@@ -292,7 +292,7 @@ extra-deps:
   commit: f73079303f663e028288f9f4a9e08bcca39a923e
 
 - git: https://github.com/input-output-hk/cardano-ledger
-  commit: 1db68a3ec0a2dcb5751004beb22b906162474f23
+  commit: c415253fff9a5ce9d7575230fc9098bcfee97653
   subdirs:
   - eras/babbage/impl
   - eras/alonzo/impl
@@ -311,14 +311,14 @@ extra-deps:
   - libs/cardano-ledger-pretty
   - libs/cardano-protocol-tpraos
   - libs/cardano-data
-  - libs/compact-map
+  - libs/vector-map
   - libs/set-algebra
   - libs/small-steps
   - libs/small-steps-test
   - libs/non-integral
 
 - git: https://github.com/input-output-hk/cardano-node
-  commit: 65422ff373f2f88a563afa746a9a16d211ffdc7c
+  commit: 759b6d4fe7d49b92175f29fdb908b7cd880a274a
   subdirs:
   - cardano-api
   - cardano-cli
@@ -365,11 +365,23 @@ extra-deps:
 - git: https://github.com/shmish111/purescript-bridge.git
   commit: 6a92d7853ea514be8b70bab5e72077bf5a510596
 
-- git: https://github.com/input-output-hk/ouroboros-network
-  commit: ad47441e9e399495579d7dd05ccaf96b46a487b2
+- git: https://github.com/input-output-hk/io-sim
+  commit: 606de33fa2f467d108fb1efb86daeb3348bf34e3
   subdirs:
-  - io-classes
-  - io-sim
+    io-classes
+    io-sim
+    strict-stm
+
+- git: https://github.com/input-output-hk/typed-protocols
+  commit: 91c3fba44d68439df207796171cd6f867354b76b
+  subdirs:
+  - typed-protocols
+  - typed-protocols-cborg
+  - typed-protocols-examples
+
+- git: https://github.com/input-output-hk/ouroboros-network
+  commit: ea202b7b21983140d1944ccfde8750b891b59699
+  subdirs:
   - monoidal-synchronisation
   - network-mux
   - ouroboros-consensus
@@ -385,17 +397,13 @@ extra-deps:
   - ouroboros-network
   - ouroboros-network-framework
   - ouroboros-network-testing
-  - strict-stm
-  - typed-protocols
-  - typed-protocols-cborg
-  - typed-protocols-examples
   # Extra packages not used by cardano-node but used by cardano-wallet
   - cardano-client
   - ntp-client
   - ouroboros-consensus-mock
 
 - git: https://github.com/input-output-hk/plutus
-  commit: ccf5bcb99ffe054dc8cd5626723f64e02708dbae
+  commit: fec94223a985e34d3b270460c8f150002f41b85b
   subdirs:
     - plutus-core
     - plutus-ledger-api

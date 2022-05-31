@@ -104,7 +104,7 @@ source-repository-package
 source-repository-package
     type: git
     location: https://github.com/input-output-hk/cardano-base
-    tag: 1587462ac8b2e50af2691f5ad93d3c2aa4674ed1
+    tag: 631cb6cf1fa01ab346233b610a38b3b4cba6e6ab
     subdir:
             base-deriving-via
             binary
@@ -125,7 +125,7 @@ source-repository-package
 source-repository-package
   type: git
   location: https://github.com/input-output-hk/plutus
-  tag: ccf5bcb99ffe054dc8cd5626723f64e02708dbae
+  tag: fec94223a985e34d3b270460c8f150002f41b85b
   subdir:
     plutus-core
     plutus-ledger-api
@@ -148,7 +148,7 @@ source-repository-package
 source-repository-package
     type: git
     location: https://github.com/input-output-hk/cardano-ledger
-    tag: 1db68a3ec0a2dcb5751004beb22b906162474f23
+    tag: c415253fff9a5ce9d7575230fc9098bcfee97653
     subdir:
       eras/alonzo/impl
       eras/alonzo/test-suite
@@ -168,7 +168,7 @@ source-repository-package
       libs/cardano-ledger-pretty
       libs/cardano-protocol-tpraos
       libs/cardano-data
-      libs/compact-map
+      libs/vector-map
       libs/set-algebra
       libs/small-steps
       libs/small-steps-test
@@ -177,7 +177,7 @@ source-repository-package
 source-repository-package
     type: git
     location: https://github.com/input-output-hk/cardano-node
-    tag: 65422ff373f2f88a563afa746a9a16d211ffdc7c
+    tag: 759b6d4fe7d49b92175f29fdb908b7cd880a274a
     subdir:
       cardano-api
       cardano-git-rev
@@ -227,10 +227,8 @@ source-repository-package
 source-repository-package
     type: git
     location: https://github.com/input-output-hk/ouroboros-network
-    tag: ad47441e9e399495579d7dd05ccaf96b46a487b2
+    tag: ea202b7b21983140d1944ccfde8750b891b59699
     subdir:
-      io-sim
-      io-classes
       monoidal-synchronisation
       network-mux
       ouroboros-consensus
@@ -241,11 +239,27 @@ source-repository-package
       ouroboros-network
       ouroboros-network-framework
       ouroboros-network-testing
-      strict-stm
-      typed-protocols
-      typed-protocols-cborg
-      typed-protocols-examples
       ntp-client
+
+source-repository-package
+  type: git
+  location: https://github.com/input-output-hk/io-sim
+  tag: 606de33fa2f467d108fb1efb86daeb3348bf34e3
+  --sha256: 048djqfdkzrbmdz670knbkjy12wddpvsmhm4x5yldg3w9lwqi1yx
+  subdir:
+    io-classes
+    io-sim
+    strict-stm
+
+source-repository-package
+  type: git
+  location: https://github.com/input-output-hk/typed-protocols
+  tag: 91c3fba44d68439df207796171cd6f867354b76b
+  --sha256: 1h1nh10859kd7j8bb55y577jfdp42aqpppx8fn0pm6fra5748a50
+  subdir:
+    typed-protocols
+    typed-protocols-cborg
+    typed-protocols-examples
 
 -- Drops an instance breaking cardano-node.
 source-repository-package
