@@ -157,11 +157,11 @@ task :start_node_and_wallet, [:env] do |task, args|
   cd = Dir.pwd
   mk_dir(STATE)
   mk_dir(log_dir)
-  network =  (args[:env] == 'mainnet') ? '--mainnet' : "--testnet #{config_dir}/genesis-byron.json"
+  network =  (args[:env] == 'mainnet') ? '--mainnet' : "--testnet #{config_dir}/byron-genesis.json"
 
   if is_win?
     # create cardano-node.bat file
-    node_cmd = "#{bin_dir}cardano-node.exe run --config #{config_dir}/configuration.json --topology #{config_dir}/topology.json --database-path #{node_db_dir} --socket-path \\\\.\\pipe\\cardano-node-testnet"
+    node_cmd = "#{bin_dir}cardano-node.exe run --config #{config_dir}/config.json --topology #{config_dir}/topology.json --database-path #{node_db_dir} --socket-path \\\\.\\pipe\\cardano-node-testnet"
     File.open("cardano-node.bat", "w") do |f|
       f.write(node_cmd)
     end
@@ -190,7 +190,7 @@ task :start_node_and_wallet, [:env] do |task, args|
     cmd start_node
     cmd start_wallet
   else
-    start_node = "#{bin_dir}cardano-node run --config #{config_dir}/configuration.json --topology #{config_dir}/topology.json --database-path #{node_db_dir} --socket-path #{node_db_dir}/node.socket"
+    start_node = "#{bin_dir}cardano-node run --config #{config_dir}/config.json --topology #{config_dir}/topology.json --database-path #{node_db_dir} --socket-path #{node_db_dir}/node.socket"
     start_wallet = "#{bin_dir}cardano-wallet serve --port #{WALLET_PORT} --node-socket #{node_db_dir}/node.socket #{network} --database #{wallet_db_dir} --token-metadata-server #{TOKEN_METADATA}"
 
     cmd "screen -dmS NODE_#{args[:env]} -L -Logfile #{log_dir}/node.log #{start_node}"
@@ -225,7 +225,7 @@ task :start_wallet_light, [:env] do |task, args|
   cd = Dir.pwd
   mk_dir(STATE)
   mk_dir(log_dir)
-  network =  (args[:env] == 'mainnet') ? '--mainnet' : "--testnet #{config_dir}/genesis-byron.json"
+  network =  (args[:env] == 'mainnet') ? '--mainnet' : "--testnet #{config_dir}/byron-genesis.json"
 
   if is_win?
     # create cardano-wallet.bat file
@@ -340,19 +340,19 @@ task :get_latest_configs, [:env] do |task, args|
   else
     log ">> Getting latest configs for '#{env}' into #{CONFIGS}"
 
-    base_url = get_latest_configs_base_url
+    base_url = get_latest_configs_base_url(env)
     mk_dir(STATE)
     mk_dir(CONFIGS)
     mk_dir(out)
-    config_file = File.join(out, "configuration.json")
-    wget("#{base_url}/#{env}-config.json", config_file)
-    wget("#{base_url}/#{env}-byron-genesis.json", "#{out}/genesis-byron.json")
-    wget("#{base_url}/#{env}-shelley-genesis.json", "#{out}/genesis-shelley.json")
-    wget("#{base_url}/#{env}-alonzo-genesis.json", "#{out}/genesis-alonzo.json")
-    wget("#{base_url}/#{env}-topology.json", "#{out}/topology.json")
+    config_file = File.join(out, "config.json")
+    wget("#{base_url}config.json", config_file)
+    wget("#{base_url}byron-genesis.json", "#{out}/byron-genesis.json")
+    wget("#{base_url}shelley-genesis.json", "#{out}/shelley-genesis.json")
+    wget("#{base_url}alonzo-genesis.json", "#{out}/alonzo-genesis.json")
+    wget("#{base_url}topology.json", "#{out}/topology.json")
     # remove environment names from genesis files
     config = File.read(config_file)
-    config_edited = config.gsub(/#{env}-([^-]+)-genesis.json/, 'genesis-\1.json')
+    config_edited = config.gsub(/#{env}-/, '')
     File.open(config_file, "w") { |file| file.puts config_edited }
   end
 end
