@@ -486,6 +486,7 @@ withNodeNetworkLayerBase
             (Just . optimumNumberOfPools <$> LSQry Shelley.GetCurrentPParams)
             (Just . optimumNumberOfPools <$> LSQry Shelley.GetCurrentPParams)
             (Just . fromIntegral . Alonzo._nOpt <$> LSQry Shelley.GetCurrentPParams)
+            (Just . fromIntegral . Alonzo._nOpt <$> LSQry Shelley.GetCurrentPParams)
 
         queryNonMyopicMemberRewards
             :: LSQ (CardanoBlock StandardCrypto) IO
@@ -696,6 +697,8 @@ mkTipSyncClient tr np onPParamsUpdate onInterpreterUpdate onEraUpdate = do
                     <$> LSQry Shelley.GetCurrentPParams)
                 (Just . fromLedgerPParams Cardano.ShelleyBasedEraAlonzo
                     <$> LSQry Shelley.GetCurrentPParams)
+                (Just . fromLedgerPParams Cardano.ShelleyBasedEraAlonzo
+                    <$> LSQry Shelley.GetCurrentPParams)
 
             pp <- onAnyEra
                 (protocolParametersFromUpdateState eraBounds ppNode
@@ -705,6 +708,8 @@ mkTipSyncClient tr np onPParamsUpdate onInterpreterUpdate onEraUpdate = do
                 (fromShelleyPParams eraBounds ppNode
                     <$> LSQry Shelley.GetCurrentPParams)
                 (fromShelleyPParams eraBounds ppNode
+                    <$> LSQry Shelley.GetCurrentPParams)
+                (fromAlonzoPParams eraBounds ppNode
                     <$> LSQry Shelley.GetCurrentPParams)
                 (fromAlonzoPParams eraBounds ppNode
                     <$> LSQry Shelley.GetCurrentPParams)
@@ -767,6 +772,7 @@ mkLocalTxSubmissionClient _tr localTxSubmissionQ = LocalNodeClientProtocols
     { localChainSyncClient = NoLocalChainSyncClient
     , localTxSubmissionClient = Just $ localTxSubmission localTxSubmissionQ
     , localStateQueryClient = Nothing
+    , localTxMonitoringClient = Nothing
     }
     -- FIXME: Put back logging for local Tx Submission.
     -- tr' = contramap MsgTxSubmission tr
@@ -808,6 +814,7 @@ fetchRewardAccounts tr queryRewardQ accounts = do
 
         let qry = onAnyEra
                 (pure (byronValue, []))
+                shelleyQry
                 shelleyQry
                 shelleyQry
                 shelleyQry
@@ -1355,6 +1362,7 @@ byronOrShelleyBased onByron onShelleyBased = onAnyEra
     onShelleyBased
     onShelleyBased
     onShelleyBased
+    onShelleyBased
 
 -- | Create a local state query specific to the each era.
 --
@@ -1371,13 +1379,15 @@ onAnyEra
     -> LSQ (Shelley.ShelleyBlock StandardAllegra) m a
     -> LSQ (Shelley.ShelleyBlock StandardMary) m a
     -> LSQ (Shelley.ShelleyBlock StandardAlonzo) m a
+    -> LSQ (Shelley.ShelleyBlock StandardAlonzo) m a
     -> LSQ (CardanoBlock StandardCrypto) m a
-onAnyEra onByron onShelley onAllegra onMary onAlonzo = currentEra >>= \case
+onAnyEra onByron onShelley onAllegra onMary onAlonzo _onBabbage = currentEra >>= \case
     AnyCardanoEra ByronEra -> mapQuery QueryIfCurrentByron onByron
     AnyCardanoEra ShelleyEra -> mapQuery QueryIfCurrentShelley onShelley
     AnyCardanoEra AllegraEra -> mapQuery QueryIfCurrentAllegra onAllegra
     AnyCardanoEra MaryEra -> mapQuery QueryIfCurrentMary onMary
     AnyCardanoEra AlonzoEra -> mapQuery QueryIfCurrentAlonzo onAlonzo
+    AnyCardanoEra BabbageEra -> error "TODO: Babbage QueryIfCurrentBabbage"
   where
     mapQuery
         :: (forall r. BlockQuery block1 r

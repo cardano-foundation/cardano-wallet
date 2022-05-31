@@ -1157,8 +1157,7 @@ _assignScriptRedeemers (toAlonzoPParams -> pparams) ti resolveInput redeemers tx
                 modify' addScriptIntegrityHash
             pure $ Cardano.ShelleyTx ShelleyBasedEraAlonzo alonzoTx'
         Cardano.ShelleyBasedEraBabbage -> do
-            let todo_assignScriptRedeemersForBabbage = ()
-            error "todo: assignScriptRedeemers for babbage"
+            error "TODO: Babbage _assignScriptRedeemers"
   where
     -- | Assign redeemers with null execution units to the input transaction.
     --
@@ -1235,8 +1234,7 @@ _assignScriptRedeemers (toAlonzoPParams -> pparams) ti resolveInput redeemers tx
             Left (UnknownTxIns ins) ->
                 Left $ ErrAssignRedeemersUnresolvedTxIns $ map fromShelleyTxIn (F.toList ins)
             Left (BadTranslation _) -> do
-                let todo_renderBadTranslationError = ()
-                error "todo"
+                error "TODO: Babbage evaluateExecutionUnits"
 
             Right report ->
                 Right $ hoistScriptFailure report
