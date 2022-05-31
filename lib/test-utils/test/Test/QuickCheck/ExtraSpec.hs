@@ -140,6 +140,9 @@ spec = describe "Test.QuickCheck.ExtraSpec" $ do
             it "prop_selectMapEntries_fromList" $
                 prop_selectMapEntries_fromList
                     @Int @Int & property
+            it "prop_selectMapEntries_length" $
+                prop_selectMapEntries_length
+                    @Int @Int & property
             it "prop_selectMapEntries_nonPositive" $
                 prop_selectMapEntries_nonPositive
                     @Int @Int & property
@@ -518,7 +521,7 @@ prop_selectMapEntry_lookup_Nothing m0 =
 prop_selectMapEntries_empty
     :: forall k v. (Ord k, Show k, Eq v, Show v) => Int -> Property
 prop_selectMapEntries_empty i =
-    forAll (selectMapEntries i (Map.empty @k @v)) (=== ([], Map.empty))
+    forAll (selectMapEntries (Map.empty @k @v) i) (=== ([], Map.empty))
 
 prop_selectMapEntries_fromList
     :: (Ord k, Show k, Eq v, Show v) => Map k v -> Property
@@ -528,24 +531,40 @@ prop_selectMapEntries_fromList m =
         "number of available entries > 0" $
     cover 1 (Map.size m == 0)
         "number of available entries = 0" $
-    forAll (selectMapEntries (length m) m) $
+    forAll (selectMapEntries m (length m)) $
         (=== (m, mempty)) . first Map.fromList
+
+prop_selectMapEntries_length
+    :: forall k v. (Ord k, Show k, Eq v, Show v)
+    => Map k v
+    -> Positive (Small Int)
+    -> Property
+prop_selectMapEntries_length m (Positive (Small i)) =
+    forAll (selectMapEntries m i) $ \(kvs, _) ->
+        checkCoverage $
+        cover 10 (i < Map.size m)
+            "number of requested entries < size of map" $
+        cover 10 (i > Map.size m)
+            "number of requested entries > size of map" $
+        cover 1 (i == Map.size m)
+            "number of requested entries = size of map" $
+        length kvs === min i (Map.size m)
 
 prop_selectMapEntries_nonPositive
     :: (Ord k, Show k, Eq v, Show v)
-    => NonPositive (Small Int)
-    -> Map k v
+    => Map k v
+    -> NonPositive (Small Int)
     -> Property
-prop_selectMapEntries_nonPositive (NonPositive (Small i)) m =
-    forAll (selectMapEntries i m) (== ([], m))
+prop_selectMapEntries_nonPositive m (NonPositive (Small i)) =
+    forAll (selectMapEntries m i) (== ([], m))
 
 prop_selectMapEntries_disjoint
     :: (Ord k, Show k, Eq v, Show v)
-    => Positive (Small Int)
-    -> Map k v
+    => Map k v
+    -> Positive (Small Int)
     -> Property
-prop_selectMapEntries_disjoint (Positive (Small i)) m0 =
-    forAll (selectMapEntries i m0) $ \(kvs, m1) ->
+prop_selectMapEntries_disjoint m0 (Positive (Small i)) =
+    forAll (selectMapEntries m0 i) $ \(kvs, m1) ->
         checkCoverage $
         cover 10 (length kvs == i && i >= 1)
             "number of selected entries = requested number" $
@@ -557,11 +576,11 @@ prop_selectMapEntries_disjoint (Positive (Small i)) m0 =
 
 prop_selectMapEntries_union
     :: (Ord k, Show k, Eq v, Show v)
-    => Positive (Small Int)
-    -> Map k v
+    => Map k v
+    -> Positive (Small Int)
     -> Property
-prop_selectMapEntries_union (Positive (Small i)) m0 =
-    forAll (selectMapEntries i m0) $ \(kvs, m1) ->
+prop_selectMapEntries_union m0 (Positive (Small i)) =
+    forAll (selectMapEntries m0 i) $ \(kvs, m1) ->
         checkCoverage $
         cover 10 (length kvs == i && i >= 1)
             "number of selected entries = requested number" $

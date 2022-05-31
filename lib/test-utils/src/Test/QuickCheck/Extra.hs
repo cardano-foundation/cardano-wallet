@@ -283,8 +283,8 @@ selectMapEntry m
 -- Returns the selected entries and the remaining map with the entries removed.
 --
 selectMapEntries
-    :: forall k v. Ord k => Int -> Map k v -> Gen ([(k, v)], Map k v)
-selectMapEntries i m0 =
+    :: forall k v. Ord k => Map k v -> Int -> Gen ([(k, v)], Map k v)
+selectMapEntries m0 i =
     foldM (const . selectOne) ([], m0) (replicate i ())
   where
     selectOne :: ([(k, v)], Map k v) -> Gen ([(k, v)], Map k v)

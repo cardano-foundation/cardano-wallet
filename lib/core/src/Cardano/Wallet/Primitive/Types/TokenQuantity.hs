@@ -22,6 +22,7 @@ module Cardano.Wallet.Primitive.Types.TokenQuantity
       -- * Partitioning
     , equipartition
     , partition
+    , partitionDefault
 
       -- * Tests
     , isNonZero
@@ -178,8 +179,9 @@ equipartition q =
     fmap TokenQuantity . equipartitionNatural (unTokenQuantity q)
 
 -- | Partitions a token quantity into a number of parts, where the size of each
---   part is proportional to the size of its corresponding element in the given
---   list of weights, and the number of parts is equal to the number of weights.
+--   part is proportional (modulo rounding) to the size of its corresponding
+--   element in the given list of weights, and the number of parts is equal to
+--   the number of weights.
 --
 -- Returns 'Nothing' if the sum of weights is equal to zero.
 --
@@ -194,6 +196,30 @@ partition c
     = fmap (fmap TokenQuantity)
     . partitionNatural (unTokenQuantity c)
     . fmap unTokenQuantity
+
+-- | Partitions a token quantity into a number of parts, where the size of each
+--   part is proportional (modulo rounding) to the size of its corresponding
+--   element in the given list of weights, and the number of parts is equal to
+--   the number of weights.
+--
+-- This function always satisfies the following properties:
+--
+-- prop> fold   (partitionDefault q ws) == c
+-- prop> length (partitionDefault q ws) == length ws
+--
+-- If the sum of weights is equal to zero, then this function returns an
+-- 'equipartition' satisfying the following property:
+--
+-- prop> partitionDefault q ws == equipartition q ws
+--
+partitionDefault
+    :: TokenQuantity
+    -- ^ The token quantity to be partitioned.
+    -> NonEmpty TokenQuantity
+    -- ^ The list of weights.
+    -> NonEmpty TokenQuantity
+    -- ^ The partitioned token quantities.
+partitionDefault q ws = fromMaybe (equipartition q ws) (partition q ws)
 
 --------------------------------------------------------------------------------
 -- Tests

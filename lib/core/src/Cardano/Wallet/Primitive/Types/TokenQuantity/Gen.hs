@@ -1,22 +1,42 @@
 {-# LANGUAGE TypeApplications #-}
 
 module Cardano.Wallet.Primitive.Types.TokenQuantity.Gen
-    ( genTokenQuantity
+    ( chooseTokenQuantity
+    , genTokenQuantity
     , genTokenQuantityPositive
     , genTokenQuantityFullRange
     , shrinkTokenQuantity
     , shrinkTokenQuantityPositive
     , shrinkTokenQuantityFullRange
+    , genTokenQuantityPartition
     ) where
 
 import Prelude
 
 import Cardano.Wallet.Primitive.Types.TokenQuantity
     ( TokenQuantity (..) )
+import Control.Monad
+    ( replicateM )
+import Data.Coerce
+    ( coerce )
+import Data.List.NonEmpty
+    ( NonEmpty )
 import Data.Word
     ( Word64 )
 import Test.QuickCheck
     ( Gen, choose, frequency, shrink, sized )
+import Test.QuickCheck.Extra
+    ( chooseNatural )
+
+import qualified Cardano.Wallet.Primitive.Types.TokenQuantity as TokenQuantity
+import qualified Data.List.NonEmpty as NE
+
+--------------------------------------------------------------------------------
+-- Choosing token quantities from a range.
+--------------------------------------------------------------------------------
+
+chooseTokenQuantity :: (TokenQuantity, TokenQuantity) -> Gen TokenQuantity
+chooseTokenQuantity = coerce chooseNatural
 
 --------------------------------------------------------------------------------
 -- Token quantities chosen according to the size parameter.
@@ -76,6 +96,26 @@ shrinkTokenQuantityFullRange =
     -- Given that we may have a large value, we limit the number of results
     -- returned in order to avoid processing long lists of shrunken values.
     take 8 . shrinkTokenQuantity
+
+--------------------------------------------------------------------------------
+-- Partitioning token quantities
+--------------------------------------------------------------------------------
+
+-- | Partitions a token quantity randomly into a given number of parts.
+--
+-- Satisfies the following properties:
+--
+-- prop> forAll (genTokenQuantityPartition q i) $ (==       q) . fold
+-- prop> forAll (genTokenQuantityPartition q i) $ (== max 1 i) . length
+--
+genTokenQuantityPartition
+    :: TokenQuantity -> Int -> Gen (NonEmpty TokenQuantity)
+genTokenQuantityPartition c i =
+    TokenQuantity.partitionDefault c <$> genWeights
+  where
+    genWeights :: Gen (NonEmpty TokenQuantity)
+    genWeights = NE.fromList <$> replicateM (max 1 i)
+        (chooseTokenQuantity (TokenQuantity 1, max (TokenQuantity 1) c))
 
 --------------------------------------------------------------------------------
 -- Internal functions

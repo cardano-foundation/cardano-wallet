@@ -2,6 +2,7 @@ module Cardano.Wallet.Primitive.Types.UTxO.Gen
     ( genUTxO
     , genUTxOLarge
     , genUTxOLargeN
+    , selectUTxOEntries
     , shrinkUTxO
     ) where
 
@@ -18,7 +19,7 @@ import Control.Monad
 import Test.QuickCheck
     ( Gen, choose, shrinkList, sized )
 import Test.QuickCheck.Extra
-    ( shrinkInterleaved )
+    ( selectMapEntries, shrinkInterleaved )
 
 import qualified Data.Map.Strict as Map
 
@@ -66,3 +67,15 @@ genEntryLargeRange = (,)
     -- Note that we don't need to choose outputs from a large range, as inputs
     -- are already chosen from a large range:
     <*> genTxOut
+
+--------------------------------------------------------------------------------
+-- Selecting random UTxO entries
+--------------------------------------------------------------------------------
+
+-- | Selects up to a given number of entries at random from the given UTxO set.
+--
+-- Returns the selected entries and the remaining UTxO set with the entries
+-- removed.
+--
+selectUTxOEntries :: UTxO -> Int -> Gen ([(TxIn, TxOut)], UTxO)
+selectUTxOEntries = (fmap (fmap UTxO) .) . selectMapEntries . unUTxO

@@ -9,7 +9,16 @@ import Prelude
 import Cardano.Wallet.Primitive.Types.Coin
     ( Coin (..) )
 import Cardano.Wallet.Primitive.Types.Coin.Gen
-    ( genCoin, genCoinPositive, shrinkCoin, shrinkCoinPositive )
+    ( genCoin
+    , genCoinPartition
+    , genCoinPositive
+    , shrinkCoin
+    , shrinkCoinPositive
+    )
+import Data.Function
+    ( (&) )
+import Data.List.NonEmpty
+    ( NonEmpty )
 import Test.Hspec
     ( Spec, describe, it )
 import Test.Hspec.Extra
@@ -25,8 +34,12 @@ import Test.QuickCheck
     , property
     , (===)
     )
+import Test.QuickCheck.Extra
+    ( genNonEmpty, shrinkNonEmpty )
 
 import qualified Cardano.Wallet.Primitive.Types.Coin as Coin
+import qualified Data.Foldable as F
+import qualified Test.QuickCheck as QC
 
 spec :: Spec
 spec = describe "Cardano.Wallet.Primitive.Types.CoinSpec" $ do
@@ -46,6 +59,15 @@ spec = describe "Cardano.Wallet.Primitive.Types.CoinSpec" $ do
         it "prop_subtract_toNatural" $ do
             property prop_subtract_toNatural
 
+    parallel $ describe "Partitioning" $ do
+
+        it "prop_partitionDefault_fold" $
+            prop_partitionDefault_fold & property
+        it "prop_partitionDefault_length" $
+            prop_partitionDefault_length & property
+        it "prop_partitionDefault_zeroWeightSum" $
+            prop_partitionDefault_zeroWeightSum & property
+
     parallel $ describe "Generators and shrinkers" $ do
 
         describe "Coins that can be zero" $ do
@@ -59,6 +81,15 @@ spec = describe "Cardano.Wallet.Primitive.Types.CoinSpec" $ do
                 property prop_genCoinPositive
             it "shrinkCoinPositive" $
                 property prop_shrinkCoinPositive
+
+    parallel $ describe "Generating partitions" $ do
+
+        it "prop_genCoinPartition_fold" $
+            prop_genCoinPartition_fold & property
+        it "prop_genCoinPartition_length" $
+            prop_genCoinPartition_length & property
+        it "prop_genCoinPartition_nonPositive" $
+            prop_genCoinPartition_nonPositive & property
 
 --------------------------------------------------------------------------------
 -- Arithmetic operations
@@ -112,6 +143,22 @@ prop_subtract_toNatural a b =
         (Just (Coin.toNatural b - Coin.toNatural a))
 
 --------------------------------------------------------------------------------
+-- Partitioning
+--------------------------------------------------------------------------------
+
+prop_partitionDefault_fold :: Coin -> NonEmpty Coin -> Property
+prop_partitionDefault_fold c cs =
+    F.fold (Coin.partitionDefault c cs) === c
+
+prop_partitionDefault_length :: Coin -> NonEmpty Coin -> Property
+prop_partitionDefault_length c cs =
+    length (Coin.partitionDefault c cs) === length cs
+
+prop_partitionDefault_zeroWeightSum :: Coin -> NonEmpty () -> Property
+prop_partitionDefault_zeroWeightSum c cs =
+    Coin.partitionDefault c (Coin 0 <$ cs) === Coin.equipartition c cs
+
+--------------------------------------------------------------------------------
 -- Coins that can be zero
 --------------------------------------------------------------------------------
 
@@ -154,9 +201,32 @@ isValidCoinPositive :: Coin -> Bool
 isValidCoinPositive c = c > Coin 0
 
 --------------------------------------------------------------------------------
+-- Generating partitions
+--------------------------------------------------------------------------------
+
+prop_genCoinPartition_fold
+    :: Coin -> QC.Positive (QC.Small Int) -> Property
+prop_genCoinPartition_fold m (QC.Positive (QC.Small i)) =
+    forAll (genCoinPartition m i) $ (=== m) . F.fold
+
+prop_genCoinPartition_length
+    :: Coin -> QC.Positive (QC.Small Int) -> Property
+prop_genCoinPartition_length m (QC.Positive (QC.Small i)) =
+    forAll (genCoinPartition m i) $ (=== i) . F.length
+
+prop_genCoinPartition_nonPositive
+    :: Coin -> QC.NonPositive (QC.Small Int) -> Property
+prop_genCoinPartition_nonPositive m (QC.NonPositive (QC.Small i)) =
+    forAll (genCoinPartition m i) (=== pure m)
+
+--------------------------------------------------------------------------------
 -- Arbitrary instances
 --------------------------------------------------------------------------------
 
 instance Arbitrary Coin where
     arbitrary = genCoin
     shrink = shrinkCoin
+
+instance Arbitrary a => Arbitrary (NonEmpty a) where
+    arbitrary = genNonEmpty arbitrary
+    shrink = shrinkNonEmpty shrink

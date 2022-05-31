@@ -15,9 +15,16 @@ import Prelude
 import Cardano.Wallet.Primitive.Types.TokenQuantity
     ( TokenQuantity (..) )
 import Cardano.Wallet.Primitive.Types.TokenQuantity.Gen
-    ( genTokenQuantityFullRange, shrinkTokenQuantityFullRange )
+    ( genTokenQuantityFullRange
+    , genTokenQuantityPartition
+    , shrinkTokenQuantityFullRange
+    )
 import Data.Aeson
     ( FromJSON (..), ToJSON (..) )
+import Data.Function
+    ( (&) )
+import Data.List.NonEmpty
+    ( NonEmpty )
 import Data.Proxy
     ( Proxy (..) )
 import Data.Text.Class
@@ -39,6 +46,7 @@ import Test.QuickCheck
     , conjoin
     , counterexample
     , cover
+    , forAll
     , property
     , (===)
     , (==>)
@@ -51,6 +59,8 @@ import Test.QuickCheck.Classes
     , semigroupMonoidLaws
     , showReadLaws
     )
+import Test.QuickCheck.Extra
+    ( genNonEmpty, shrinkNonEmpty )
 import Test.Text.Roundtrip
     ( textRoundtrip )
 import Test.Utils.Laws
@@ -62,6 +72,7 @@ import qualified Cardano.Wallet.Primitive.Types.TokenQuantity as TokenQuantity
 import qualified Data.Char as Char
 import qualified Data.Foldable as F
 import qualified Data.Text as T
+import qualified Test.QuickCheck as QC
 import qualified Test.Utils.Roundtrip as JsonRoundtrip
 
 spec :: Spec
@@ -103,6 +114,24 @@ spec =
             property prop_difference_add
         it "prop_add_difference ((x + y) - y = x)" $
             property prop_add_difference
+
+    parallel $ describe "Partitioning" $ do
+
+        it "prop_partitionDefault_fold" $
+            prop_partitionDefault_fold & property
+        it "prop_partitionDefault_length" $
+            prop_partitionDefault_length & property
+        it "prop_partitionDefault_zeroWeightSum" $
+            prop_partitionDefault_zeroWeightSum & property
+
+    parallel $ describe "Generating partitions" $ do
+
+        it "prop_genTokenQuantityPartition_fold" $
+            prop_genTokenQuantityPartition_fold & property
+        it "prop_genTokenQuantityPartition_length" $
+            prop_genTokenQuantityPartition_length & property
+        it "prop_genTokenQuantityPartition_nonPositive" $
+            prop_genTokenQuantityPartition_nonPositive & property
 
     parallel $ describe "JSON serialization" $ do
 
@@ -190,6 +219,45 @@ prop_add_difference x y =
         ]
 
 --------------------------------------------------------------------------------
+-- Partitioning
+--------------------------------------------------------------------------------
+
+prop_partitionDefault_fold
+    :: TokenQuantity -> NonEmpty TokenQuantity -> Property
+prop_partitionDefault_fold c cs =
+    F.fold (TokenQuantity.partitionDefault c cs) === c
+
+prop_partitionDefault_length
+    :: TokenQuantity -> NonEmpty TokenQuantity -> Property
+prop_partitionDefault_length c cs =
+    length (TokenQuantity.partitionDefault c cs) === length cs
+
+prop_partitionDefault_zeroWeightSum
+    :: TokenQuantity -> NonEmpty () -> Property
+prop_partitionDefault_zeroWeightSum c cs =
+    TokenQuantity.partitionDefault c (TokenQuantity 0 <$ cs)
+        === TokenQuantity.equipartition c cs
+
+--------------------------------------------------------------------------------
+-- Generating partitions
+--------------------------------------------------------------------------------
+
+prop_genTokenQuantityPartition_fold
+    :: TokenQuantity -> QC.Positive (QC.Small Int) -> Property
+prop_genTokenQuantityPartition_fold m (QC.Positive (QC.Small i)) =
+    forAll (genTokenQuantityPartition m i) $ (=== m) . F.fold
+
+prop_genTokenQuantityPartition_length
+    :: TokenQuantity -> QC.Positive (QC.Small Int) -> Property
+prop_genTokenQuantityPartition_length m (QC.Positive (QC.Small i)) =
+    forAll (genTokenQuantityPartition m i) $ (=== i) . F.length
+
+prop_genTokenQuantityPartition_nonPositive
+    :: TokenQuantity -> QC.NonPositive (QC.Small Int) -> Property
+prop_genTokenQuantityPartition_nonPositive m (QC.NonPositive (QC.Small i)) =
+    forAll (genTokenQuantityPartition m i) (=== pure m)
+
+--------------------------------------------------------------------------------
 -- JSON serialization
 --------------------------------------------------------------------------------
 
@@ -217,6 +285,10 @@ prop_toText_noQuotes q = property $ case text of
 --------------------------------------------------------------------------------
 -- Arbitrary instances
 --------------------------------------------------------------------------------
+
+instance Arbitrary a => Arbitrary (NonEmpty a) where
+    arbitrary = genNonEmpty arbitrary
+    shrink = shrinkNonEmpty shrink
 
 instance Arbitrary TokenQuantity where
     -- We test with token quantities of a variety of magnitudes to ensure that
