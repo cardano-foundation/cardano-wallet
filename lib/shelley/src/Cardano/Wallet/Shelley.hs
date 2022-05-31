@@ -298,8 +298,7 @@ serveWallet
             (Server.manageRewardBalance proxyNetwork)
 
     withMultisigApi netLayer =
-        let txLayerUdefined = error "TO-DO in ADP-686"
-        in lift $ apiLayer txLayerUdefined netLayer Server.idleWorker
+        lift $ apiLayer (newTransactionLayer netId) netLayer Server.idleWorker
 
     startServer
         :: forall n.

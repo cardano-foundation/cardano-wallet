@@ -91,6 +91,7 @@ import Cardano.Wallet.Primitive.AddressDerivation.SharedKey
     )
 import Cardano.Wallet.Primitive.AddressDiscovery
     ( CompareDiscovery (..)
+    , GenChange (..)
     , GetAccount (..)
     , IsOurs (..)
     , KnownAddresses (..)
@@ -554,6 +555,12 @@ instance Typeable n => KnownAddresses (SharedState n k) where
 
 instance MaybeLight (SharedState n k) where
     maybeDiscover = Nothing
+
+instance GenChange (SharedState n k) where
+    type ArgGenChange (SharedState n k) =
+        (k 'AddressK XPub -> k 'AddressK XPub -> Address)
+
+    genChange mkAddress st = undefined
 
 {-------------------------------------------------------------------------------
     Address utilities
