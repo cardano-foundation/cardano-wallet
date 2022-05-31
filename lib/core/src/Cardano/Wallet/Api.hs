@@ -147,6 +147,9 @@ module Cardano.Wallet.Api
     , SharedAddresses
         , ListSharedAddresses
 
+    , SharedTransactions
+        , ConstructSharedTransaction
+
     , Proxy_
         , PostExternalTransaction
 
@@ -328,6 +331,7 @@ type Api n apiPool =
     :<|> SharedWallets
     :<|> SharedWalletKeys
     :<|> SharedAddresses n
+    :<|> SharedTransactions n
 
 {-------------------------------------------------------------------------------
                                   Wallets
@@ -1101,6 +1105,23 @@ type ListSharedAddresses n = "shared-wallets"
     :> "addresses"
     :> QueryParam "state" (ApiT AddressState)
     :> Get '[JSON] [ApiAddressT n]
+
+{-------------------------------------------------------------------------------
+                                  Shared Transactions
+
+  See also: https://input-output-hk.github.io/cardano-wallet/api/#tag/Shared-Transactions
+-------------------------------------------------------------------------------}
+
+type SharedTransactions n =
+         ConstructSharedTransaction n
+
+-- | https://input-output-hk.github.io/cardano-wallet/api/#operation/constructSharedTransaction
+type ConstructSharedTransaction n = "shared-wallets"
+    :> Capture "walletId" (ApiT WalletId)
+    :> "transactions-construct"
+    :> ReqBody '[JSON] (ApiConstructTransactionDataT n)
+    :> PostAccepted '[JSON] (ApiConstructTransactionT n)
+
 
 {-------------------------------------------------------------------------------
                                    Proxy_
