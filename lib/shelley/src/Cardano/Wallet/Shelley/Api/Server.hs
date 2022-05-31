@@ -225,6 +225,7 @@ server
         ( PaymentAddress n IcarusKey
         , PaymentAddress n ByronKey
         , DelegationAddress n ShelleyKey
+        , DelegationAddress n SharedKey
         , Typeable n
         , HasNetworkId n
         )
@@ -265,7 +266,7 @@ server byron icarus shelley multisig spl ntp =
         :<|> (fmap fst <$> listWallets shelley mkShelleyWallet)
         :<|> postWallet shelley Shelley.generateKeyFromSeed ShelleyKey
         :<|> putWallet shelley mkShelleyWallet
-        :<|> putWalletPassphrase 
+        :<|> putWalletPassphrase
                 shelley Shelley.generateKeyFromSeed Shelley.getKey
         :<|> getWalletUtxoSnapshot shelley
         :<|> getUTxOsStatistics shelley
@@ -597,13 +598,13 @@ server byron icarus shelley multisig spl ntp =
         :: ApiLayer (SharedState n SharedKey) SharedKey
         -> Server (SharedAddresses n)
     sharedAddresses apilayer =
-             listAddresses apilayer normalizeSharedAddress
+        listAddresses apilayer normalizeSharedAddress
 
     sharedTransactions
         :: ApiLayer (SharedState n SharedKey) SharedKey
         -> Server (SharedTransactions n)
     sharedTransactions apilayer =
-             constructSharedTransaction apilayer (knownPools spl) (getPoolLifeCycleStatus spl)
+        constructSharedTransaction apilayer (delegationAddress @n) (knownPools spl) (getPoolLifeCycleStatus spl)
 
 postAnyAddress
     :: NetworkId

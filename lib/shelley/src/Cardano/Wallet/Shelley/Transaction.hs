@@ -107,6 +107,8 @@ import Cardano.Wallet.Primitive.AddressDerivation.Byron
     ( ByronKey )
 import Cardano.Wallet.Primitive.AddressDerivation.Icarus
     ( IcarusKey )
+import Cardano.Wallet.Primitive.AddressDerivation.Shared
+    ( SharedKey )
 import Cardano.Wallet.Primitive.AddressDerivation.Shelley
     ( ShelleyKey, toRewardAccountRaw )
 import Cardano.Wallet.Primitive.Passphrase
@@ -334,6 +336,9 @@ class TxWitnessTagFor (k :: Depth -> Type -> Type) where
     txWitnessTagFor :: TxWitnessTag
 
 instance TxWitnessTagFor ShelleyKey where
+    txWitnessTagFor = TxWitnessShelleyUTxO
+
+instance TxWitnessTagFor SharedKey where
     txWitnessTagFor = TxWitnessShelleyUTxO
 
 instance TxWitnessTagFor IcarusKey where

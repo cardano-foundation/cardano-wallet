@@ -2604,10 +2604,13 @@ handleValidityInterval ti validityInterval = do
 
     pure $ (before, hereafter, isThereNegativeTime)
 
+-- TO-DO delegations
+-- TO-DO minting
 constructSharedTransaction
     :: forall ctx s k n.
         ( ctx ~ ApiLayer s k
         , Bounded (Index (AddressIndexDerivationType k) 'AddressK)
+        , GenChange s
         , HardDerivation k
         , HasNetworkLayer IO ctx
         , IsOurs s Address
@@ -2616,22 +2619,91 @@ constructSharedTransaction
         , WalletKey k
         )
     => ctx
+    -> ArgGenChange s
     -> IO (Set PoolId)
     -> (PoolId -> IO PoolLifeCycleStatus)
     -> ApiT WalletId
     -> ApiConstructTransactionData n
     -> Handler (ApiConstructTransaction n)
-constructSharedTransaction ctx _knownPools _getPoolStatus (ApiT wid) body = do
+constructSharedTransaction ctx genChange _knownPools _getPoolStatus (ApiT wid) body = do
+    let isNoPayload =
+            isNothing (body ^. #payments) &&
+            isNothing (body ^. #withdrawal) &&
+            isNothing (body ^. #metadata) &&
+            isNothing (body ^. #mintBurn) &&
+            isNothing (body ^. #delegations)
+    when isNoPayload $
+        liftHandler $ throwE ErrConstructTxWrongPayload
+
+    let md = body ^? #metadata . traverse . #txMetadataWithSchema_metadata
+
+    (wdrl, _) <-
+        mkRewardAccountBuilder @_ @s @_ @n ctx wid (body ^. #withdrawal)
+
     (before, hereafter, isThereNegativeTime) <-
         handleValidityInterval ti (body ^. #validityInterval)
 
     when (hereafter < before || isThereNegativeTime) $
         liftHandler $ throwE ErrConstructTxWrongValidityBounds
 
+    let txCtx = defaultTransactionCtx
+            { txWithdrawal = wdrl
+            , txMetadata = md
+            , txValidityInterval = (Just before, hereafter)
+            , txDelegationAction = Nothing
+            }
+
+    let transform s sel =
+            ( W.assignChangeAddresses genChange sel s
+                & uncurry (W.selectionToUnsignedTx (txWithdrawal txCtx))
+            , sel
+            , selectionDelta TokenBundle.getCoin sel
+            )
+
     withWorkerCtx ctx wid liftE liftE $ \wrk -> do
+        pp <- liftIO $ NW.currentProtocolParameters (wrk ^. networkLayer)
+
         (utxoAvailable, wallet, pendingTxs) <-
             liftHandler $ W.readWalletUTxOIndex @_ @s @k wrk wid
-        undefined
+
+        let runSelection outs =
+                W.selectAssets @_ @_ @s @k wrk pp selectAssetsParams transform
+              where
+                selectAssetsParams = W.SelectAssetsParams
+                    { outputs = outs
+                    , pendingTxs
+                    , randomSeed = Nothing
+                    , txContext = txCtx
+                    , utxoAvailableForInputs =
+                        UTxOSelection.fromIndex utxoAvailable
+                    , utxoAvailableForCollateral =
+                        UTxOIndex.toMap utxoAvailable
+                    , wallet
+                    , selectionStrategy = SelectionStrategyOptimal
+                    }
+        (sel, sel', fee) <- do
+            outs <- case (body ^. #payments) of
+                Nothing -> pure []
+                Just (ApiPaymentAddresses content) ->
+                    pure $ F.toList (addressAmountToTxOut <$> content)
+                Just (ApiPaymentAll _) -> do
+                    liftHandler $
+                        throwE $ ErrConstructTxNotImplemented "ADP-1189"
+
+            (sel', utx, fee') <- liftHandler $ runSelection outs
+            sel <- liftHandler $
+                W.assignChangeAddressesWithoutDbUpdate wrk wid genChange utx
+            (FeeEstimation estMin _) <- liftHandler $ W.estimateFee (pure fee')
+            pure (sel, sel', estMin)
+
+        tx <- liftHandler
+            $ W.constructTransaction @_ @s @k @n wrk wid txCtx sel
+
+        pure $ ApiConstructTransaction
+            { transaction = ApiT tx
+            , coinSelection = mkApiCoinSelection [] [] Nothing md sel'
+            , fee = Quantity $ fromIntegral fee
+            }
   where
     ti :: TimeInterpreter (ExceptT PastHorizonException IO)
     ti = timeInterpreter (ctx ^. networkLayer)
