@@ -471,9 +471,8 @@ fromPoint O.GenesisPoint = ChainPointAtGenesis
 fromPoint (O.BlockPoint slot h) = ChainPoint slot (fromCardanoHash h)
 
 toCardanoBlockHeader
-    :: forall c. Era (SL.ShelleyEra c)
-    => W.GenesisParameters
-    -> CardanoBlock c
+    :: W.GenesisParameters
+    -> CardanoBlock StandardCrypto
     -> W.BlockHeader
 toCardanoBlockHeader gp = \case
     BlockByron blk ->
@@ -490,9 +489,9 @@ toCardanoBlockHeader gp = \case
         error "todo: Babbage toCardanoBlockHeader"
 
 toShelleyBlockHeader
-    :: (Era era, ToCBORGroup (Ledger.Era.TxSeq era), ShelleyCompatible protocol era)
+    :: (Era era, ToCBORGroup (Ledger.Era.TxSeq era), ShelleyCompatible (Consensus.TPraos StandardCrypto) era)
     => W.Hash "Genesis"
-    -> ShelleyBlock protocol era
+    -> ShelleyBlock (Consensus.TPraos StandardCrypto) era
     -> W.BlockHeader
 toShelleyBlockHeader genesisHash blk =
     let
@@ -513,7 +512,7 @@ toShelleyBlockHeader genesisHash blk =
 getProducer
     :: (Era era, ToCBORGroup (Ledger.Era.TxSeq era))
     => ShelleyBlock (Consensus.TPraos StandardCrypto) era -> W.PoolId
-getProducer (ShelleyBlock (SL.Block header _) _) =
+getProducer (ShelleyBlock (SL.Block (SL.BHeader header _) _) _) =
     fromPoolKeyHash $ SL.hashKey (SL.bheaderVk header)
 
 fromCardanoBlock
@@ -573,7 +572,7 @@ toCardanoEra = \case
 
 fromShelleyBlock
     :: W.GenesisParameters
-    -> ShelleyBlock protocol (SL.ShelleyEra StandardCrypto)
+    -> ShelleyBlock (Consensus.TPraos StandardCrypto) (SL.ShelleyEra StandardCrypto)
     -> (W.Block, [W.PoolCertificate])
 fromShelleyBlock gp blk@(ShelleyBlock (SL.Block _ (SL.TxSeq txs')) _) =
     let
@@ -590,7 +589,7 @@ fromShelleyBlock gp blk@(ShelleyBlock (SL.Block _ (SL.TxSeq txs')) _) =
 
 fromAllegraBlock
     :: W.GenesisParameters
-    -> ShelleyBlock protocol (MA.ShelleyMAEra 'MA.Allegra StandardCrypto)
+    -> ShelleyBlock (Consensus.TPraos StandardCrypto) (MA.ShelleyMAEra 'MA.Allegra StandardCrypto)
     -> (W.Block, [W.PoolCertificate])
 fromAllegraBlock gp blk@(ShelleyBlock (SL.Block _ (SL.TxSeq txs')) _) =
     let
@@ -607,7 +606,7 @@ fromAllegraBlock gp blk@(ShelleyBlock (SL.Block _ (SL.TxSeq txs')) _) =
 
 fromMaryBlock
     :: W.GenesisParameters
-    -> ShelleyBlock protocol (MA.ShelleyMAEra 'MA.Mary StandardCrypto)
+    -> ShelleyBlock (Consensus.TPraos StandardCrypto) (MA.ShelleyMAEra 'MA.Mary StandardCrypto)
     -> (W.Block, [W.PoolCertificate])
 fromMaryBlock gp blk@(ShelleyBlock (SL.Block _ (SL.TxSeq txs')) _) =
     let
@@ -630,9 +629,9 @@ fromMaryBlock gp blk@(ShelleyBlock (SL.Block _ (SL.TxSeq txs')) _) =
 -- would need to be cleaned up too. We probably will need to use `Point block`,
 -- in all chain followers (including the DBLayer).
 fromAlonzoBlock
-    :: ShelleyCompatible protocol (Alonzo.AlonzoEra StandardCrypto)
+    :: ShelleyCompatible (Consensus.TPraos StandardCrypto) (Alonzo.AlonzoEra StandardCrypto)
     => W.GenesisParameters
-    -> ShelleyBlock protocol (Alonzo.AlonzoEra StandardCrypto)
+    -> ShelleyBlock (Consensus.TPraos StandardCrypto) (Alonzo.AlonzoEra StandardCrypto)
     -> (W.Block, [W.PoolCertificate])
 fromAlonzoBlock gp blk@(ShelleyBlock (SL.Block _ txSeq) _) =
     let

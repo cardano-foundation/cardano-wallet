@@ -278,6 +278,8 @@ import qualified Data.Map as Map
 import qualified Data.Set as Set
 import qualified Data.Text as T
 import qualified Ouroboros.Consensus.Byron.Ledger as Byron
+import Ouroboros.Consensus.Protocol.TPraos
+    ( TPraos )
 import qualified Ouroboros.Consensus.Shelley.Ledger as Shelley
 
 {- HLINT ignore "Use readTVarIO" -}
@@ -830,7 +832,7 @@ fetchRewardAccounts tr queryRewardQ accounts = do
     shelleyQry
         :: (Crypto.HashAlgorithm (SL.ADDRHASH (EraCrypto shelleyEra)))
         => LSQ
-            (Shelley.ShelleyBlock shelleyEra)
+            (Shelley.ShelleyBlock protocol shelleyEra)
             IO
             (Map W.RewardAccount W.Coin, [Log])
     shelleyQry =
@@ -937,6 +939,7 @@ codecVersion version = verMap ! version
 codecConfig :: W.SlottingParameters -> CodecConfig (CardanoBlock c)
 codecConfig sp = CardanoCodecConfig
     (byronCodecConfig sp)
+    ShelleyCodecConfig
     ShelleyCodecConfig
     ShelleyCodecConfig
     ShelleyCodecConfig
@@ -1354,7 +1357,7 @@ instance (Ord key, Buildable key, Buildable value)
 
 byronOrShelleyBased
     :: LSQ Byron.ByronBlock m a
-    -> (forall shelleyEra. LSQ (Shelley.ShelleyBlock (shelleyEra StandardCrypto)) m a)
+    -> (forall shelleyEra. LSQ (Shelley.ShelleyBlock (TPraos StandardCrypto) (shelleyEra StandardCrypto)) m a)
     -> LSQ (CardanoBlock StandardCrypto) m a
 byronOrShelleyBased onByron onShelleyBased = onAnyEra
     onByron
@@ -1375,11 +1378,11 @@ byronOrShelleyBased onByron onShelleyBased = onAnyEra
 -- @PParams@ in alonzo.
 onAnyEra
     :: LSQ Byron.ByronBlock m a
-    -> LSQ (Shelley.ShelleyBlock StandardShelley) m a
-    -> LSQ (Shelley.ShelleyBlock StandardAllegra) m a
-    -> LSQ (Shelley.ShelleyBlock StandardMary) m a
-    -> LSQ (Shelley.ShelleyBlock StandardAlonzo) m a
-    -> LSQ (Shelley.ShelleyBlock StandardAlonzo) m a
+    -> LSQ (Shelley.ShelleyBlock (TPraos StandardCrypto) StandardShelley) m a
+    -> LSQ (Shelley.ShelleyBlock (TPraos StandardCrypto) StandardAllegra) m a
+    -> LSQ (Shelley.ShelleyBlock (TPraos StandardCrypto) StandardMary) m a
+    -> LSQ (Shelley.ShelleyBlock (TPraos StandardCrypto) StandardAlonzo) m a
+    -> LSQ (Shelley.ShelleyBlock (TPraos StandardCrypto) StandardAlonzo) m a
     -> LSQ (CardanoBlock StandardCrypto) m a
 onAnyEra onByron onShelley onAllegra onMary onAlonzo _onBabbage = currentEra >>= \case
     AnyCardanoEra ByronEra -> mapQuery QueryIfCurrentByron onByron
@@ -1405,7 +1408,7 @@ onAnyEra onByron onShelley onAllegra onMary onAlonzo _onBabbage = currentEra >>=
 
 -- | Return Nothings in Byron, or @Just result@ in Shelley.
 shelleyBased
-    :: (forall shelleyEra. LSQ (Shelley.ShelleyBlock (shelleyEra StandardCrypto)) m a)
+    :: (forall shelleyEra. LSQ (Shelley.ShelleyBlock protocol (shelleyEra StandardCrypto)) m a)
     -> LSQ (CardanoBlock StandardCrypto) m (Maybe a)
 shelleyBased onShelleyBased = byronOrShelleyBased
     (pure Nothing) -- on byron
