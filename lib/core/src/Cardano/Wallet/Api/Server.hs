@@ -96,6 +96,7 @@ module Cardano.Wallet.Api.Server
     , getPolicyKey
     , postPolicyKey
     , postPolicyId
+    , constructSharedTransaction
 
     -- * Server error responses
     , IsServerError(..)
@@ -2592,6 +2593,26 @@ constructTransaction ctx genChange knownPools getPoolStatus (ApiT wid) body = do
         map toTxOut
             . Map.toList
             . foldr (uncurry (Map.insertWith (<>))) Map.empty
+
+constructSharedTransaction
+    :: forall ctx s k n.
+        ( ctx ~ ApiLayer s k
+        , Bounded (Index (AddressIndexDerivationType k) 'AddressK)
+        , HardDerivation k
+        , HasNetworkLayer IO ctx
+        , IsOurs s Address
+        , Typeable n
+        , Typeable s
+        , WalletKey k
+        )
+    => ctx
+    -> IO (Set PoolId)
+    -> (PoolId -> IO PoolLifeCycleStatus)
+    -> ApiT WalletId
+    -> ApiConstructTransactionData n
+    -> Handler (ApiConstructTransaction n)
+constructSharedTransaction _ctx _knownPools _getPoolStatus (ApiT _wid) _body = undefined
+
 
 -- TODO: Most of the body of this function should really belong to
 -- Cardano.Wallet to keep the Api.Server module free of business logic!

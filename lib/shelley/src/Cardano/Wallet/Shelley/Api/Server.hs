@@ -51,6 +51,7 @@ import Cardano.Wallet.Api
     , SMASH
     , Settings
     , SharedAddresses
+    , SharedTransactions
     , SharedWalletKeys
     , SharedWallets
     , ShelleyMigrations
@@ -62,6 +63,7 @@ import Cardano.Wallet.Api
 import Cardano.Wallet.Api.Server
     ( apiError
     , balanceTransaction
+    , constructSharedTransaction
     , constructTransaction
     , createMigrationPlan
     , decodeTransaction
@@ -255,6 +257,7 @@ server byron icarus shelley multisig spl ntp =
     :<|> sharedWallets multisig
     :<|> sharedWalletKeys multisig
     :<|> sharedAddresses multisig
+    :<|> sharedTransactions multisig
   where
     wallets :: Server Wallets
     wallets = deleteWallet shelley
@@ -595,6 +598,12 @@ server byron icarus shelley multisig spl ntp =
         -> Server (SharedAddresses n)
     sharedAddresses apilayer =
              listAddresses apilayer normalizeSharedAddress
+
+    sharedTransactions
+        :: ApiLayer (SharedState n SharedKey) SharedKey
+        -> Server (SharedTransactions n)
+    sharedTransactions apilayer =
+             constructSharedTransaction apilayer (knownPools spl) (getPoolLifeCycleStatus spl)
 
 postAnyAddress
     :: NetworkId
