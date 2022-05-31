@@ -2349,53 +2349,8 @@ constructTransaction ctx genChange knownPools getPoolStatus (ApiT wid) body = do
 
     let md = body ^? #metadata . traverse . #txMetadataWithSchema_metadata
 
-    let isValidityBoundTimeNegative
-            (ApiValidityBoundAsTimeFromNow (Quantity sec)) = sec < 0
-        isValidityBoundTimeNegative _ = False
-
-    let isThereNegativeTime = case body ^. #validityInterval of
-            Just (ApiValidityInterval (Just before') Nothing) ->
-                isValidityBoundTimeNegative before'
-            Just (ApiValidityInterval Nothing (Just hereafter')) ->
-                isValidityBoundTimeNegative hereafter'
-            Just (ApiValidityInterval (Just before') (Just hereafter')) ->
-                isValidityBoundTimeNegative before' ||
-                isValidityBoundTimeNegative hereafter'
-            _ -> False
-
-    let fromValidityBound = liftIO . \case
-            Left ApiValidityBoundUnspecified ->
-                pure $ SlotNo 0
-            Right ApiValidityBoundUnspecified ->
-                W.getTxExpiry ti Nothing
-            Right (ApiValidityBoundAsTimeFromNow (Quantity sec)) ->
-                W.getTxExpiry ti (Just sec)
-            Left (ApiValidityBoundAsTimeFromNow (Quantity sec)) ->
-                W.getTxExpiry ti (Just sec)
-            Right (ApiValidityBoundAsSlot (Quantity slot)) ->
-                pure $ SlotNo slot
-            Left (ApiValidityBoundAsSlot (Quantity slot)) ->
-                pure $ SlotNo slot
-
-    (before, hereafter) <- case body ^. #validityInterval of
-        Nothing -> do
-            before' <-
-                fromValidityBound (Left ApiValidityBoundUnspecified)
-            hereafter' <-
-                fromValidityBound (Right ApiValidityBoundUnspecified)
-            pure (before', hereafter')
-        Just (ApiValidityInterval before' hereafter') -> do
-            before'' <- case before' of
-                Nothing ->
-                    fromValidityBound (Left ApiValidityBoundUnspecified)
-                Just val ->
-                    fromValidityBound (Left val)
-            hereafter'' <- case hereafter' of
-                Nothing ->
-                    fromValidityBound (Right ApiValidityBoundUnspecified)
-                Just val ->
-                    fromValidityBound (Right val)
-            pure (before'', hereafter'')
+    (before, hereafter, isThereNegativeTime) <-
+        handleValidityInterval ti (body ^. #validityInterval)
 
     when (hereafter < before || isThereNegativeTime) $
         liftHandler $ throwE ErrConstructTxWrongValidityBounds
@@ -2594,6 +2549,61 @@ constructTransaction ctx genChange knownPools getPoolStatus (ApiT wid) body = do
             . Map.toList
             . foldr (uncurry (Map.insertWith (<>))) Map.empty
 
+handleValidityInterval
+    :: TimeInterpreter (ExceptT PastHorizonException IO)
+    -> Maybe ApiValidityInterval
+    -> Handler (SlotNo, SlotNo, Bool)
+handleValidityInterval ti validityInterval = do
+    let isValidityBoundTimeNegative
+            (ApiValidityBoundAsTimeFromNow (Quantity sec)) = sec < 0
+        isValidityBoundTimeNegative _ = False
+
+    let isThereNegativeTime = case validityInterval of
+            Just (ApiValidityInterval (Just before') Nothing) ->
+                isValidityBoundTimeNegative before'
+            Just (ApiValidityInterval Nothing (Just hereafter')) ->
+                isValidityBoundTimeNegative hereafter'
+            Just (ApiValidityInterval (Just before') (Just hereafter')) ->
+                isValidityBoundTimeNegative before' ||
+                isValidityBoundTimeNegative hereafter'
+            _ -> False
+
+    let fromValidityBound = liftIO . \case
+            Left ApiValidityBoundUnspecified ->
+                pure $ SlotNo 0
+            Right ApiValidityBoundUnspecified ->
+                W.getTxExpiry ti Nothing
+            Right (ApiValidityBoundAsTimeFromNow (Quantity sec)) ->
+                W.getTxExpiry ti (Just sec)
+            Left (ApiValidityBoundAsTimeFromNow (Quantity sec)) ->
+                W.getTxExpiry ti (Just sec)
+            Right (ApiValidityBoundAsSlot (Quantity slot)) ->
+                pure $ SlotNo slot
+            Left (ApiValidityBoundAsSlot (Quantity slot)) ->
+                pure $ SlotNo slot
+
+    (before, hereafter) <- case validityInterval of
+        Nothing -> do
+            before' <-
+                fromValidityBound (Left ApiValidityBoundUnspecified)
+            hereafter' <-
+                fromValidityBound (Right ApiValidityBoundUnspecified)
+            pure (before', hereafter')
+        Just (ApiValidityInterval before' hereafter') -> do
+            before'' <- case before' of
+                Nothing ->
+                    fromValidityBound (Left ApiValidityBoundUnspecified)
+                Just val ->
+                    fromValidityBound (Left val)
+            hereafter'' <- case hereafter' of
+                Nothing ->
+                    fromValidityBound (Right ApiValidityBoundUnspecified)
+                Just val ->
+                    fromValidityBound (Right val)
+            pure (before'', hereafter'')
+
+    pure $ (before, hereafter, isThereNegativeTime)
+
 constructSharedTransaction
     :: forall ctx s k n.
         ( ctx ~ ApiLayer s k
@@ -2611,7 +2621,20 @@ constructSharedTransaction
     -> ApiT WalletId
     -> ApiConstructTransactionData n
     -> Handler (ApiConstructTransaction n)
-constructSharedTransaction _ctx _knownPools _getPoolStatus (ApiT _wid) _body = undefined
+constructSharedTransaction ctx _knownPools _getPoolStatus (ApiT wid) body = do
+    (before, hereafter, isThereNegativeTime) <-
+        handleValidityInterval ti (body ^. #validityInterval)
+
+    when (hereafter < before || isThereNegativeTime) $
+        liftHandler $ throwE ErrConstructTxWrongValidityBounds
+
+    withWorkerCtx ctx wid liftE liftE $ \wrk -> do
+        (utxoAvailable, wallet, pendingTxs) <-
+            liftHandler $ W.readWalletUTxOIndex @_ @s @k wrk wid
+        undefined
+  where
+    ti :: TimeInterpreter (ExceptT PastHorizonException IO)
+    ti = timeInterpreter (ctx ^. networkLayer)
 
 
 -- TODO: Most of the body of this function should really belong to
