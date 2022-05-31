@@ -15,7 +15,10 @@ import Prelude
 import Cardano.Wallet.Primitive.Types.TokenQuantity
     ( TokenQuantity (..) )
 import Cardano.Wallet.Primitive.Types.TokenQuantity.Gen
-    ( genTokenQuantityFullRange, shrinkTokenQuantityFullRange )
+    ( genTokenQuantityFullRange
+    , genTokenQuantityPartition
+    , shrinkTokenQuantityFullRange
+    )
 import Data.Aeson
     ( FromJSON (..), ToJSON (..) )
 import Data.Function
@@ -43,6 +46,7 @@ import Test.QuickCheck
     , conjoin
     , counterexample
     , cover
+    , forAll
     , property
     , (===)
     , (==>)
@@ -68,6 +72,7 @@ import qualified Cardano.Wallet.Primitive.Types.TokenQuantity as TokenQuantity
 import qualified Data.Char as Char
 import qualified Data.Foldable as F
 import qualified Data.Text as T
+import qualified Test.QuickCheck as QC
 import qualified Test.Utils.Roundtrip as JsonRoundtrip
 
 spec :: Spec
@@ -118,6 +123,15 @@ spec =
             prop_partitionDefault_length & property
         it "prop_partitionDefault_zeroWeightSum" $
             prop_partitionDefault_zeroWeightSum & property
+
+    parallel $ describe "Generating partitions" $ do
+
+        it "prop_genTokenQuantityPartition_fold" $
+            prop_genTokenQuantityPartition_fold & property
+        it "prop_genTokenQuantityPartition_length" $
+            prop_genTokenQuantityPartition_length & property
+        it "prop_genTokenQuantityPartition_nonPositive" $
+            prop_genTokenQuantityPartition_nonPositive & property
 
     parallel $ describe "JSON serialization" $ do
 
@@ -223,6 +237,25 @@ prop_partitionDefault_zeroWeightSum
 prop_partitionDefault_zeroWeightSum c cs =
     TokenQuantity.partitionDefault c (TokenQuantity 0 <$ cs)
         === TokenQuantity.equipartition c cs
+
+--------------------------------------------------------------------------------
+-- Generating partitions
+--------------------------------------------------------------------------------
+
+prop_genTokenQuantityPartition_fold
+    :: TokenQuantity -> QC.Positive (QC.Small Int) -> Property
+prop_genTokenQuantityPartition_fold m (QC.Positive (QC.Small i)) =
+    forAll (genTokenQuantityPartition m i) $ (=== m) . F.fold
+
+prop_genTokenQuantityPartition_length
+    :: TokenQuantity -> QC.Positive (QC.Small Int) -> Property
+prop_genTokenQuantityPartition_length m (QC.Positive (QC.Small i)) =
+    forAll (genTokenQuantityPartition m i) $ (=== i) . F.length
+
+prop_genTokenQuantityPartition_nonPositive
+    :: TokenQuantity -> QC.NonPositive (QC.Small Int) -> Property
+prop_genTokenQuantityPartition_nonPositive m (QC.NonPositive (QC.Small i)) =
+    forAll (genTokenQuantityPartition m i) (=== pure m)
 
 --------------------------------------------------------------------------------
 -- JSON serialization
