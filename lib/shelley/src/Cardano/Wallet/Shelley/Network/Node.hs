@@ -1408,7 +1408,7 @@ onAnyEra onByron onShelley onAllegra onMary onAlonzo _onBabbage = currentEra >>=
 
 -- | Return Nothings in Byron, or @Just result@ in Shelley.
 shelleyBased
-    :: (forall shelleyEra. LSQ (Shelley.ShelleyBlock protocol (shelleyEra StandardCrypto)) m a)
+    :: (forall shelleyEra. LSQ (Shelley.ShelleyBlock (TPraos StandardCrypto) (shelleyEra StandardCrypto)) m a)
     -> LSQ (CardanoBlock StandardCrypto) m (Maybe a)
 shelleyBased onShelleyBased = byronOrShelleyBased
     (pure Nothing) -- on byron
