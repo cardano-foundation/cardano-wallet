@@ -16,8 +16,6 @@ import Cardano.Wallet.Primitive.Types.UTxO
     ( UTxO (..) )
 import Control.Monad
     ( replicateM )
-import Data.Coerce
-    ( coerce )
 import Test.QuickCheck
     ( Gen, choose, shrinkList, sized )
 import Test.QuickCheck.Extra
@@ -80,4 +78,4 @@ genEntryLargeRange = (,)
 -- removed.
 --
 selectUTxOEntries :: UTxO -> Int -> Gen ([(TxIn, TxOut)], UTxO)
-selectUTxOEntries = (coerce .) . selectMapEntries . unUTxO
+selectUTxOEntries = (fmap (fmap UTxO) .) . selectMapEntries . unUTxO
