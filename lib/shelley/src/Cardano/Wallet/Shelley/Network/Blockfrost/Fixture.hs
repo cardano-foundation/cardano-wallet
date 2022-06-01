@@ -1,3 +1,4 @@
+{-# LANGUAGE DataKinds #-}
 {-# LANGUAGE GADTs #-}
 {-# LANGUAGE LambdaCase #-}
 
@@ -5,6 +6,8 @@ module Cardano.Wallet.Shelley.Network.Blockfrost.Fixture where
 
 import Prelude
 
+import Cardano.Address.Style.Shelley
+    ( unsafeFromRight )
 import Cardano.Api
     ( AnyCardanoEra (..)
     , CardanoEra (AllegraEra, AlonzoEra, ByronEra, MaryEra, ShelleyEra)
@@ -17,8 +20,14 @@ import Cardano.Slotting.Slot
     ( EpochSize (..), SlotNo (..) )
 import Cardano.Slotting.Time
     ( RelativeTime (..), mkSlotLength )
+import Cardano.Wallet.Primitive.Types
+    ( BlockHeader (..) )
 import Data.Functor
     ( (<&>) )
+import Data.Quantity
+    ( Quantity (..) )
+import Data.Text.Class
+    ( fromText )
 import Ouroboros.Consensus.HardFork.History
     ( Bound (Bound, boundEpoch, boundSlot, boundTime)
     , EraEnd (EraEnd, EraUnbounded)
@@ -29,6 +38,8 @@ import Ouroboros.Consensus.HardFork.History
     )
 
 import qualified Cardano.Wallet.Primitive.Types as W
+import Cardano.Wallet.Primitive.Types.Hash
+    ( Hash )
 import qualified Data.Map as Map
 import qualified Ouroboros.Consensus.Cardano.Block as OC
 import qualified Ouroboros.Consensus.Util.Counting as OCC
@@ -372,9 +383,25 @@ costModels = \case
         , ("sliceByteString-cpu-arguments-intercept", 150000)
         ]
     Testnet magic ->
-        error $
-            "CostModel isn't provided for the Testnet "
-                <> show magic
+        error $ "CostModel isn't provided for the Testnet " <> show magic
+
+genesisBlockHeaderHash :: NetworkId -> Hash "BlockHeader"
+genesisBlockHeaderHash = \case
+    Mainnet -> unsafeFromRight $ fromText
+        "5f20df933584822601f9e3f8c024eb5eb252fe8cefb24d1317dc3d432e940ebb"
+    Testnet (NetworkMagic 1097911063) -> unsafeFromRight $ fromText
+        "96fceff972c2c06bd3bb5243c39215333be6d56aaf4823073dca31afe5038471"
+    Testnet m -> error $
+        "Genesis block header hash isn't provided for the Testnet " <> show m
+
+genesisBlockHeader :: NetworkId -> BlockHeader
+genesisBlockHeader network =
+    BlockHeader
+        { slotNo = 0
+        , blockHeight = Quantity 0
+        , headerHash = genesisBlockHeaderHash network
+        , parentHeaderHash = Nothing
+        }
 
 networkSummary :: NetworkId -> Summary (OC.CardanoEras OC.StandardCrypto)
 networkSummary = \case
