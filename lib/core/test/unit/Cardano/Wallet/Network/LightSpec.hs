@@ -293,9 +293,15 @@ mkFollower
         (LightBlocks m Block addr txs)
 mkFollower lift = ChainFollower
     { readLocalTip = lift $ map chainPointFromBlockHeader . NE.toList <$> get
-    , rollForward = \blocks _tip -> lift $ modify $ case blocks of
-        Left bs -> (NE.reverse bs <>)
-        Right BlockSummary{to} -> (to NE.<|)
+    , rollForward = \blocks _tip -> lift $ modify $ \s -> case blocks of
+        Left bs ->
+            if latest s `isParentOf` NE.head bs
+                then NE.reverse bs <> s
+                else error "lightSync: Nonempty Block out of order"
+        Right BlockSummary{from,to} ->
+            if latest s `isParentOf` from
+                then to NE.<| s
+                else error "lightSync: BlockSummary out of order"
     , rollBackward = \target -> lift $ do
         modify $ NE.fromList . NE.dropWhile (`after` target)
         chainPointFromBlockHeader . NE.head <$> get
@@ -303,3 +309,6 @@ mkFollower lift = ChainFollower
   where
     bh `after` ChainPointAtGenesis = not (isGenesisBlockHeader bh)
     bh `after` (ChainPoint slot _) = slotNo bh > slot
+
+    isParentOf :: BlockHeader -> BlockHeader -> Bool
+    isParentOf parent = (== Just (headerHash parent)) . parentHeaderHash
