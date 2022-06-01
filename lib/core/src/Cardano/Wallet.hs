@@ -899,7 +899,7 @@ updateWalletPassphraseWithMnemonic
     -> ExceptT ErrUpdatePassphrase IO ()
 updateWalletPassphraseWithMnemonic ctx wid (xprv, new) =
     withExceptT ErrUpdatePassphraseNoSuchWallet $ do
-        attachPrivateKeyFromPwdScheme @ctx @s @k ctx wid 
+        attachPrivateKeyFromPwdScheme @ctx @s @k ctx wid
             (xprv, (currentPassphraseScheme , new))
 
 getWalletUtxoSnapshot
@@ -964,7 +964,7 @@ restoreWallet
     -> WalletId
     -> ExceptT ErrNoSuchWallet IO ()
 restoreWallet ctx wid = db & \DBLayer{..} ->
-    let readLocalTip = liftIO $ atomically $ listCheckpoints wid
+    let readChainPoints = liftIO $ atomically $ listCheckpoints wid
         rollBackward =
             throwInIO . rollbackBlocks @_ @s @k ctx wid . toSlot
         rollForward' = \blockdata tip -> throwInIO $
@@ -974,13 +974,13 @@ restoreWallet ctx wid = db & \DBLayer{..} ->
       catchFromIO $ case (maybeDiscover, lightSync nw) of
         (Just discover, Just sync) ->
             sync $ ChainFollower
-                { readLocalTip
+                { readChainPoints
                 , rollForward = rollForward' . either List (Summary discover)
                 , rollBackward
                 }
         (_,_) -> -- light-mode not available
             chainSync nw (contramap MsgChainFollow tr) $ ChainFollower
-                { readLocalTip
+                { readChainPoints
                 , rollForward = rollForward' . List
                 , rollBackward
                 }

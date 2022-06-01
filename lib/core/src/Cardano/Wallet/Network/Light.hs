@@ -82,7 +82,7 @@ data LightSyncSource m block addr txs = LightSyncSource
 hoistLightSyncSource
     :: (forall a. m a -> n a)
     -> LightSyncSource m block addr txs
-    -> LightSyncSource n block addr txs 
+    -> LightSyncSource n block addr txs
 hoistLightSyncSource f x = LightSyncSource
     { stabilityWindow = stabilityWindow x
     , getHeader = getHeader x
@@ -117,7 +117,7 @@ lightSync
     -> ChainFollower m ChainPoint BlockHeader (LightBlocks m block addr txs)
     -> m Void
 lightSync tr light follower = do
-    pts <- readLocalTip follower
+    pts <- readChainPoints follower
     syncFrom $ latest pts
   where
     idle = threadDelay secondsPerSlot
@@ -125,8 +125,8 @@ lightSync tr light follower = do
         move <- proceedToNextPoint light pt
         syncFrom =<< case move of
             Rollback -> do
-                prev <- secondLatest <$> readLocalTip follower
-                -- NOTE: Rolling back to a result of 'readLocalTip'
+                prev <- secondLatest <$> readChainPoints follower
+                -- NOTE: Rolling back to a result of 'readChainPoints'
                 -- should always be possible,
                 -- but the code here does not need this assumption.
                 traceWith tr $ MsgLightRollBackward pt prev
@@ -196,7 +196,7 @@ isUnstable stabilityWindow_ old tip =
 secondsPerSlot :: DiffTime
 secondsPerSlot = 2
 
--- | Create a 'BlockSummary' 
+-- | Create a 'BlockSummary'
 mkBlockSummary
     :: LightSyncSource m block addr txs
     -> BlockHeader

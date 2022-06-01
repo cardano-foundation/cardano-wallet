@@ -58,7 +58,7 @@ discover n addr =
     lightSync follower
   where
     follower = ChainFollower
-        { readLocalTip = pure [Origin]
+        { readChainPoints = pure [Origin]
         , rollForward  = \summary _ -> do
             (txs, pool) <- discoverTransactions (cheatNAddresses n) (query summary) (mkPool addr)
             liftIO $ forM_ txs $ \tx ->
