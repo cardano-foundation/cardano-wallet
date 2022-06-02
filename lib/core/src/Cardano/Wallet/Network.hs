@@ -202,8 +202,6 @@ data ChainFollower m point tip blocks = ChainFollower
         --
         -- A response of [] is interpreted as `Origin` -- i.e. the chain will be
         -- served from genesis.
-        --
-        -- TODO: Could be named readCheckpoints?
     , rollForward :: blocks -> tip -> m ()
         -- ^ Callback for rolling forward.
         --

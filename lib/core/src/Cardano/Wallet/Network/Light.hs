@@ -116,32 +116,28 @@ lightSync
     -> LightSyncSource m block addr txs
     -> ChainFollower m ChainPoint BlockHeader (LightBlocks m block addr txs)
     -> m Void
-lightSync tr light follower = do
-    pts <- readChainPoints follower
-    syncFrom $ latest pts
+lightSync tr light follower = readChainPoints follower >>= syncFrom . latest
   where
-    idle = threadDelay secondsPerSlot
-    syncFrom pt = do
-        move <- proceedToNextPoint light pt
+    syncFrom chainPoint = do
+        move <- proceedToNextPoint light chainPoint
         syncFrom =<< case move of
             Rollback -> do
                 prev <- secondLatest <$> readChainPoints follower
                 -- NOTE: Rolling back to a result of 'readChainPoints'
                 -- should always be possible,
                 -- but the code here does not need this assumption.
-                traceWith tr $ MsgLightRollBackward pt prev
+                traceWith tr $ MsgLightRollBackward chainPoint prev
                 rollBackward follower prev
             Stable old new tip -> do
-                let summary = mkBlockSummary light old new
                 traceWith tr $
-                    MsgLightRollForward pt new tip
-                rollForward follower (Right summary) tip
+                    MsgLightRollForward chainPoint new tip
+                rollForward follower (Right $ mkBlockSummary light old new) tip
                 pure $ chainPointFromBlockHeader new
             Unstable blocks new tip -> do
                 case blocks of
-                    []     -> idle
-                    (b:bs) -> do
-                        traceWith tr $ MsgLightRollForward pt new tip
+                    [] -> threadDelay secondsPerSlot
+                    b : bs -> do
+                        traceWith tr $ MsgLightRollForward chainPoint new tip
                         rollForward follower (Left $ b :| bs) tip
                 pure $ chainPointFromBlockHeader new
 
@@ -160,16 +156,16 @@ proceedToNextPoint
     => LightSyncSource m block addr txs
     -> ChainPoint
     -> m (NextPointMove block)
-proceedToNextPoint light pt = do
+proceedToNextPoint light chainPoint = do
     tip <- getTip light
-    mhere <- getBlockHeaderAt light pt
+    mhere <- getBlockHeaderAt light chainPoint
     maybeRollback mhere $ \here ->
         if isUnstable (stabilityWindow light) here tip
         then do
-            mblocks <- getNextBlocks light pt
+            mblocks <- getNextBlocks light chainPoint
             maybeRollback mblocks $ \case
                 [] -> pure $ Unstable [] here tip
-                (b:bs) -> do
+                b : bs -> do
                     let new = getHeader light $ NE.last (b :| bs)
                     continue <- isConsensus light $ chainPointFromBlockHeader new
                     pure $ if continue

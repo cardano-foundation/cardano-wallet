@@ -65,6 +65,7 @@ library
     , filepath
     , fmt
     , generic-lens
+    , http-types
     , int-cast
     , io-classes
     , iohk-monitoring
