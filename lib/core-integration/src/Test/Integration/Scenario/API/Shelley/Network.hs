@@ -68,6 +68,7 @@ spec = describe "SHELLEY_NETWORK" $ do
                     ApiAllegra -> expectField (#eras . #allegra) toBe
                     ApiMary -> expectField (#eras . #mary) toBe
                     ApiAlonzo -> expectField (#eras . #alonzo) toBe
+                    ApiBabbage -> expectField (#eras . #babbage) toBe
 
         let knownEras = [minBound .. _mainEra ctx]
         let unknownEras = [minBound .. maxBound] \\ knownEras

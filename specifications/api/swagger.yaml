@@ -2112,6 +2112,7 @@ components:
         - allegra
         - mary
         - alonzo
+        - babbage
 
     ApiNetworkInformation: &ApiNetworkInformation
       type: object

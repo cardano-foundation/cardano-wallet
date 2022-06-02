@@ -1096,6 +1096,7 @@ data ApiEraInfo = ApiEraInfo
     , allegra :: !(Maybe ApiEpochInfo)
     , mary :: !(Maybe ApiEpochInfo)
     , alonzo :: !(Maybe ApiEpochInfo)
+    , babbage :: !(Maybe ApiEpochInfo)
     } deriving (Eq, Generic, Show)
 
 toApiNetworkParameters
@@ -1110,8 +1111,9 @@ toApiNetworkParameters (NetworkParameters gp sp pp) txConstraints toEpochInfo = 
     allegra <- traverse toEpochInfo (pp ^. #eras . #allegra)
     mary <- traverse toEpochInfo (pp ^. #eras . #mary)
     alonzo <- traverse toEpochInfo (pp ^. #eras . #alonzo)
+    babbage <- traverse toEpochInfo (pp ^. #eras . #babbage)
 
-    let apiEras = ApiEraInfo { byron, shelley, allegra, mary, alonzo }
+    let apiEras = ApiEraInfo { byron, shelley, allegra, mary, alonzo, babbage }
 
     return $ ApiNetworkParameters
         { genesisBlockHash = ApiT $ getGenesisBlockHash gp
