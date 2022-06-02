@@ -1730,6 +1730,17 @@ fromAlonzoTx (Alonzo.ValidatedTx bod wits (Alonzo.IsValid isValid) aux) =
             then Just W.TxScriptValid
             else Just W.TxScriptInvalid
 
+fromBabbageValidatedTx
+    :: Alonzo.ValidatedTx (Cardano.ShelleyLedgerEra BabbageEra)
+    -> ( W.Tx
+       , [W.Certificate]
+       , TokenMapWithScripts
+       , TokenMapWithScripts
+       , Maybe ValidityIntervalExplicit
+       )
+fromBabbageValidatedTx (Alonzo.ValidatedTx bod wits _isValidating aux) =
+    fromBabbageTxBodyAndAux bod aux wits
+
 fromBabbageTxBodyAndAux
     :: Babbage.TxBody (Cardano.ShelleyLedgerEra BabbageEra)
     -> SLAPI.StrictMaybe (Babbage.AuxiliaryData (Cardano.ShelleyLedgerEra BabbageEra))
@@ -1753,7 +1764,7 @@ fromBabbageTxBodyAndAux bod mad wits =
         , outputs =
             map fromBabbageTxOut (toList outs)
         , collateralOutput =
-            undefined -- TODO
+            error "TODO: ADP-1675"
         , withdrawals =
             fromShelleyWdrl wdrls
         , metadata =
