@@ -163,6 +163,7 @@ import Cardano.Api
     , AlonzoEra
     , AnyCardanoEra (..)
     , AsType (..)
+    , BabbageEra
     , CardanoEra (..)
     , CardanoEraStyle (..)
     , CardanoMode
@@ -314,6 +315,7 @@ import Ouroboros.Consensus.Cardano.Block
     , CardanoEras
     , HardForkBlock (..)
     , StandardAlonzo
+    , StandardBabbage
     , StandardShelley
     )
 import Ouroboros.Consensus.HardFork.Combinator.AcrossEras
@@ -1727,6 +1729,93 @@ fromAlonzoTx (Alonzo.ValidatedTx bod wits (Alonzo.IsValid isValid) aux) =
             if isValid
             then Just W.TxScriptValid
             else Just W.TxScriptInvalid
+
+fromBabbageTxBodyAndAux
+    :: Babbage.TxBody (Cardano.ShelleyLedgerEra BabbageEra)
+    -> SLAPI.StrictMaybe (Babbage.AuxiliaryData (Cardano.ShelleyLedgerEra BabbageEra))
+    -> Alonzo.TxWitness StandardBabbage
+    -> ( W.Tx
+       , [W.Certificate]
+       , TokenMapWithScripts
+       , TokenMapWithScripts
+       , Maybe ValidityIntervalExplicit
+       )
+fromBabbageTxBodyAndAux bod mad wits =
+    ( W.Tx
+        { txId =
+            fromShelleyTxId $ TxIn.txid @(Cardano.ShelleyLedgerEra BabbageEra) bod
+        , fee =
+            Just $ fromShelleyCoin fee
+        , resolvedInputs =
+            map ((,W.Coin 0) . fromShelleyTxIn) (toList inps)
+        , resolvedCollateralInputs =
+            map ((,W.Coin 0) . fromShelleyTxIn) (toList collateralInps)
+        , outputs =
+            map fromBabbageTxOut (toList outs)
+        , collateralOutput =
+            undefined -- TODO
+        , withdrawals =
+            fromShelleyWdrl wdrls
+        , metadata =
+            fromShelleyMD . toSLMetadata <$> SL.strictMaybeToMaybe mad
+        , scriptValidity =
+            Nothing
+        }
+    , map fromShelleyCert (toList certs)
+    , TokenMapWithScripts assetsToMint mintScriptMap
+    , TokenMapWithScripts assetsToBurn burnScriptMap
+    , Just (fromLedgerTxValidity ttl)
+    )
+  where
+    Babbage.TxBody
+        inps
+        collateralInps
+        _refInps
+        outs
+        _collateralReturn
+        _collateralTotal
+        certs
+        wdrls
+        fee
+        ttl
+        _upd
+        _reqSignerHashes
+        mint
+        _wwpHash
+        _adHash
+        _network
+        = bod
+    (assetsToMint, assetsToBurn) = fromLedgerMintValue mint
+    scriptMap = fromBabbageScriptMap $ Alonzo.txscripts' wits
+    mintScriptMap = getScriptMap scriptMap assetsToMint
+    burnScriptMap = getScriptMap scriptMap assetsToBurn
+
+    fromBabbageScriptMap
+        :: Map
+            (SL.ScriptHash (Crypto StandardBabbage))
+            (SL.Core.Script StandardBabbage)
+        -> Map TokenPolicyId AnyScript
+    fromBabbageScriptMap =
+        Map.map toAnyScript .
+        Map.mapKeys (toWalletTokenPolicyId . SL.PolicyID)
+      where
+        toAnyScript (Alonzo.TimelockScript script) =
+            NativeScript $ toWalletScript Policy script
+        toAnyScript (Alonzo.PlutusScript ver _) =
+            PlutusScript (PlutusScriptInfo (toPlutusVer ver))
+
+        toPlutusVer Alonzo.PlutusV1 = PlutusVersionV1
+        toPlutusVer Alonzo.PlutusV2 = PlutusVersionV2
+
+    fromBabbageTxOut
+        :: Babbage.TxOut (Cardano.ShelleyLedgerEra BabbageEra)
+        -> W.TxOut
+    fromBabbageTxOut (Babbage.TxOut addr value _datum _refScript) =
+        W.TxOut (fromShelleyAddress addr) $
+        fromCardanoValue $ Cardano.fromMaryValue value
+
+    toSLMetadata (Alonzo.AuxiliaryData blob _scripts) = SL.Metadata blob
+
 
 -- Lovelace to coin. Quantities from ledger should always fit in Word64.
 fromCardanoLovelace :: HasCallStack => Cardano.Lovelace -> W.Coin
