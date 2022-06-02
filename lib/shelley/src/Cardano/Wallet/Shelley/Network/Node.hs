@@ -683,6 +683,7 @@ mkTipSyncClient tr np onPParamsUpdate onInterpreterUpdate onEraUpdate = do
                 <*> LSQry (QueryAnytimeAllegra GetEraStart)
                 <*> LSQry (QueryAnytimeMary GetEraStart)
                 <*> LSQry (QueryAnytimeAlonzo GetEraStart)
+                <*> LSQry (QueryAnytimeBabbage GetEraStart)
 
             sp <- byronOrShelleyBased
                 (pure $ W.slottingParameters np)
