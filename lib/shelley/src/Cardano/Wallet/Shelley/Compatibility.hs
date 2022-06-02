@@ -340,6 +340,7 @@ import Ouroboros.Network.NodeToClient
 import Ouroboros.Network.Point
     ( WithOrigin (..) )
 
+import qualified Ouroboros.Consensus.Protocol.Praos.Header as Praos
 import qualified Cardano.Address as CA
 import qualified Cardano.Address.Style.Shelley as CA
 import qualified Cardano.Api as Cardano
@@ -563,7 +564,7 @@ numberOfTransactionsInBlock = \case
     BlockAllegra shb -> transactions shb
     BlockMary shb -> transactions shb
     BlockAlonzo shb -> transactionsAlonzo shb
-    BlockBabbage shb -> error "todo: Babbage numberOfTransactionsInBlock"
+    BlockBabbage shb -> transactionsBabbage shb
   where
     transactions
         (ShelleyBlock (SL.Block (SL.BHeader header _) (SL.TxSeq txs')) _) =
@@ -574,6 +575,14 @@ numberOfTransactionsInBlock = \case
         (ShelleyBlock (SL.Block (SL.BHeader header _) (Alonzo.TxSeq txs')) _) =
             ( length txs'
             , (fromBlockNo $ SL.bheaderBlockNo header, SL.bheaderSlotNo header)
+            )
+    transactionsBabbage
+        :: ShelleyBlock (Consensus.Praos StandardCrypto) (Babbage.BabbageEra StandardCrypto)
+        -> (Int, (Quantity "block" Word32, O.SlotNo))
+    transactionsBabbage
+        (ShelleyBlock (SL.Block (Praos.Header header _) (Alonzo.TxSeq txs')) _) =
+            ( length txs'
+            , (fromBlockNo $ Praos.hbBlockNo header, Praos.hbSlotNo header)
             )
     transactionsByron blk =
         (, (fromBlockNo $ O.blockNo blk, O.blockSlot blk)) $
@@ -1201,13 +1210,13 @@ toAlonzoPParams
         Nothing -> Ledger.NeutralNonce
         Just nonce -> Ledger.Nonce (unsafeHashFromBytes (Cardano.serialiseToRawBytes nonce))
 toAlonzoPParams Cardano.ProtocolParameters { protocolParamUTxOCostPerWord = Nothing } =
-  error "toAlonzoPParams: must specify protocolParamUTxOCostPerWord"
+    error "toAlonzoPParams: must specify protocolParamUTxOCostPerWord"
 toAlonzoPParams Cardano.ProtocolParameters { protocolParamPrices = Nothing } =
-  error "toAlonzoPParams: must specify protocolParamPrices"
+    error "toAlonzoPParams: must specify protocolParamPrices"
 toAlonzoPParams Cardano.ProtocolParameters { protocolParamMaxTxExUnits = Nothing } =
-  error "toAlonzoPParams: must specify protocolParamMaxTxExUnits"
+    error "toAlonzoPParams: must specify protocolParamMaxTxExUnits"
 toAlonzoPParams Cardano.ProtocolParameters { protocolParamMaxBlockExUnits = Nothing } =
-  error "toAlonzoPParams: must specify protocolParamMaxBlockExUnits"
+    error "toAlonzoPParams: must specify protocolParamMaxBlockExUnits"
 toAlonzoPParams Cardano.ProtocolParameters { protocolParamMaxValueSize = Nothing } =
     error "toAlonzoPParams: must specify protocolParamMaxValueSize"
 toAlonzoPParams Cardano.ProtocolParameters { protocolParamCollateralPercent = Nothing } =
