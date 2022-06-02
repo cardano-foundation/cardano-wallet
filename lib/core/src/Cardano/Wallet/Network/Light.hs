@@ -166,7 +166,7 @@ proceedToNextPoint light pt = do
     maybeRollback mhere $ \here ->
         if isUnstable (stabilityWindow light) here tip
         then do
-            mblocks <- getNextBlocks light $ chainPointFromBlockHeader here
+            mblocks <- getNextBlocks light pt
             maybeRollback mblocks $ \case
                 [] -> pure $ Unstable [] here tip
                 (b:bs) -> do
