@@ -42,7 +42,7 @@ import qualified Ouroboros.Consensus.HardFork.History.Qry as HF
 
 import Cardano.Api
     ( AnyCardanoEra (..)
-    , CardanoEra (AllegraEra, AlonzoEra, ByronEra, MaryEra, ShelleyEra)
+    , CardanoEra (AllegraEra, AlonzoEra, BabbageEra, ByronEra, MaryEra, ShelleyEra)
     , ExecutionUnitPrices (priceExecutionMemory, priceExecutionSteps)
     , ExecutionUnits (executionMemory, executionSteps)
     , NetworkId (..)
@@ -661,6 +661,9 @@ For the Mainnet:      For the Testnet:
 ┌───────┬─────────┐   ┌───────┬─────────┐
 │ Epoch │   Era   │   │ Epoch │   Era   │
 ├───────┼─────────┤   ├───────┼─────────┤
+│  ...  │ Babbage │   │  ...  │ Babbage │
+│  ...  │ Babbage │   │  ...  │ Babbage │
+├───────┼─────────┤   ├───────┼─────────┤
 │  ...  │ Alonzo  │   │  ...  │ Alonzo  │
 │  290  │ Alonzo  │   │  154  │ Alonzo  │
 ├───────┼─────────┤   ├───────┼─────────┤
@@ -698,6 +701,7 @@ eraByEpoch networkId epoch =
         epochEraStartsAt era = EpochNo $ case networkId of
             Mainnet ->
                 case era of
+                    AnyCardanoEra BabbageEra -> 390  -- TODO when known correct
                     AnyCardanoEra AlonzoEra  -> 290
                     AnyCardanoEra MaryEra    -> 251
                     AnyCardanoEra AllegraEra -> 236
@@ -705,6 +709,7 @@ eraByEpoch networkId epoch =
                     AnyCardanoEra ByronEra   -> 0
             Testnet (NetworkMagic 1097911063) ->
                 case era of
+                    AnyCardanoEra BabbageEra -> 390  -- TODO when known correct
                     AnyCardanoEra AlonzoEra  -> 154
                     AnyCardanoEra MaryEra    -> 112
                     AnyCardanoEra AllegraEra -> 102
