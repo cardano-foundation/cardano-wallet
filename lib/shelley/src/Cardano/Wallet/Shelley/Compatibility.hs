@@ -342,8 +342,6 @@ import Ouroboros.Network.Point
 
 import qualified Cardano.Address as CA
 import qualified Cardano.Address.Style.Shelley as CA
-import Cardano.Api
-    ( ToCBOR )
 import qualified Cardano.Api as Cardano
 import qualified Cardano.Api.Byron as Cardano
     ( Tx (ByronTx) )
@@ -374,7 +372,6 @@ import qualified Cardano.Ledger.Coin as Ledger
 import qualified Cardano.Ledger.Core as Ledger
 import qualified Cardano.Ledger.Core as SL.Core
 import qualified Cardano.Ledger.Credential as SL
-import qualified Cardano.Ledger.Crypto as CC
 import qualified Cardano.Ledger.Crypto as SL
 import qualified Cardano.Ledger.Era as Ledger.Era
 import qualified Cardano.Ledger.Mary.Value as SL
@@ -417,6 +414,7 @@ import qualified Data.Map.Strict.NonEmptyMap as NonEmptyMap
 import qualified Data.Set as Set
 import qualified Data.Text.Encoding as T
 import qualified Ouroboros.Consensus.Protocol.TPraos as Consensus
+import qualified Ouroboros.Consensus.Protocol.Praos as Consensus
 import qualified Ouroboros.Consensus.Shelley.Ledger as O
 import qualified Ouroboros.Consensus.Shelley.Protocol.Abstract as Consensus
 import qualified Ouroboros.Network.Block as O
@@ -488,15 +486,36 @@ toCardanoBlockHeader gp = \case
         toShelleyBlockHeader (W.getGenesisBlockHash gp) blk
     BlockAlonzo blk ->
         toShelleyBlockHeader (W.getGenesisBlockHash gp) blk
-    BlockBabbage _blk ->
-        error "todo: Babbage toCardanoBlockHeader"
+    BlockBabbage blk ->
+        toBabbageBlockHeader (W.getGenesisBlockHash gp) blk
 
 toShelleyBlockHeader
-    :: (Era era, ToCBORGroup (Ledger.Era.TxSeq era), ShelleyCompatible (Consensus.TPraos StandardCrypto) era)
+    :: (ShelleyCompatible (Consensus.TPraos StandardCrypto) era)
     => W.Hash "Genesis"
     -> ShelleyBlock (Consensus.TPraos StandardCrypto) era
     -> W.BlockHeader
 toShelleyBlockHeader genesisHash blk =
+    let
+        ShelleyBlock (SL.Block header _txSeq) _headerHash = blk
+    in
+        W.BlockHeader
+            { slotNo =
+                Consensus.pHeaderSlot header
+            , blockHeight =
+                fromBlockNo $ Consensus.pHeaderBlock header
+            , headerHash =
+                fromShelleyHash $ Consensus.pHeaderHash header
+            , parentHeaderHash = Just $
+                fromPrevHash (coerce genesisHash) $
+                    Consensus.pHeaderPrevHash header
+            }
+
+toBabbageBlockHeader
+    :: (ShelleyCompatible (Consensus.Praos StandardCrypto) era)
+    => W.Hash "Genesis"
+    -> ShelleyBlock (Consensus.Praos StandardCrypto) era
+    -> W.BlockHeader
+toBabbageBlockHeader genesisHash blk =
     let
         ShelleyBlock (SL.Block header _txSeq) _headerHash = blk
     in
@@ -533,8 +552,8 @@ fromCardanoBlock gp = \case
         fst $ fromMaryBlock gp blk
     BlockAlonzo blk ->
         fst $ fromAlonzoBlock gp blk
-    BlockBabbage _blk ->
-        error "todo: Babbage fromCardanoBlock"
+    BlockBabbage blk ->
+        fst $ fromBabbageBlock gp blk
 
 numberOfTransactionsInBlock
     :: CardanoBlock StandardCrypto -> (Int, (Quantity "block" Word32, O.SlotNo))
@@ -644,6 +663,24 @@ fromAlonzoBlock gp blk@(ShelleyBlock (SL.Block _ txSeq) _) =
     in
         ( W.Block
             { header = toShelleyBlockHeader (W.getGenesisBlockHash gp) blk
+            , transactions = txs
+            , delegations  = toDelegationCertificates certs'
+            }
+        , toPoolCertificates certs'
+        )
+
+fromBabbageBlock
+    :: W.GenesisParameters
+    -> ShelleyBlock (Consensus.Praos StandardCrypto) (Babbage.BabbageEra StandardCrypto)
+    -> (W.Block, [W.PoolCertificate])
+fromBabbageBlock gp blk@(ShelleyBlock (SL.Block _ txSeq) _) =
+    let
+        Alonzo.TxSeq txs' = txSeq
+        (txs, certs, _, _, _) = unzip5 $ map fromBabbageValidatedTx $ toList txs'
+        certs' = mconcat certs
+    in
+        ( W.Block
+            { header = toBabbageBlockHeader (W.getGenesisBlockHash gp) blk
             , transactions = txs
             , delegations  = toDelegationCertificates certs'
             }
