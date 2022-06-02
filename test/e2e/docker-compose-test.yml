@@ -8,7 +8,7 @@ services:
       - ${DATA}:/data
       - node-ipc:/ipc
       - ${NODE_CONFIG_PATH}:/config
-    command: run --socket-path /ipc/node.socket --config /config/configuration.json --topology /config/topology.json --database-path /data
+    command: run --socket-path /ipc/node.socket --config /config/config.json --topology /config/topology.json --database-path /data
     restart: on-failure
 
   cardano-wallet:
@@ -20,7 +20,7 @@ services:
       - ${NODE_CONFIG_PATH}:/config
     ports:
       - 8090:8090
-    command: serve --testnet /config/genesis-byron.json --node-socket /ipc/node.socket --database /wallet-db --listen-address 0.0.0.0 --token-metadata-server $TESTS_E2E_TOKEN_METADATA
+    command: serve --testnet /config/byron-genesis.json --node-socket /ipc/node.socket --database /wallet-db --listen-address 0.0.0.0 --token-metadata-server $TESTS_E2E_TOKEN_METADATA
     restart: on-failure
 
 volumes:
