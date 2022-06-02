@@ -73,8 +73,8 @@ data LightSyncSource m block addr txs = LightSyncSource
         -- ^ Get the full 'BlockHeader' belonging to a given 'ChainPoint'.
         -- Return 'Nothing' if the point is not consensus anymore.
     , getNextBlocks :: ChainPoint -> m (Maybe [block])
-        -- ^ The the next blocks starting at the given 'Chainpoint'.
-        -- Return 'Nothing' if hte point is not consensus anymore.
+        -- ^ Get several blocks immediately following the given 'Chainpoint'.
+        -- Return 'Nothing' if the point is not consensus anymore.
     , getAddressTxs :: BlockHeader -> BlockHeader -> addr -> m txs
         -- ^ Transactions for a given address and point range.
     }
@@ -134,7 +134,7 @@ lightSync tr light follower = do
             Stable old new tip -> do
                 let summary = mkBlockSummary light old new
                 traceWith tr $
-                    MsgLightRollForward (chainPointFromBlockHeader old) new tip
+                    MsgLightRollForward pt new tip
                 rollForward follower (Right summary) tip
                 pure $ chainPointFromBlockHeader new
             Unstable blocks new tip -> do
@@ -162,13 +162,13 @@ proceedToNextPoint
     -> m (NextPointMove block)
 proceedToNextPoint light pt = do
     tip <- getTip light
-    mold <- getBlockHeaderAt light pt
-    maybeRollback mold $ \old ->
-        if isUnstable (stabilityWindow light) old tip
+    mhere <- getBlockHeaderAt light pt
+    maybeRollback mhere $ \here ->
+        if isUnstable (stabilityWindow light) here tip
         then do
-            mblocks <- getNextBlocks light $ chainPointFromBlockHeader old
+            mblocks <- getNextBlocks light pt
             maybeRollback mblocks $ \case
-                [] -> pure $ Unstable [] old tip
+                [] -> pure $ Unstable [] here tip
                 (b:bs) -> do
                     let new = getHeader light $ NE.last (b :| bs)
                     continue <- isConsensus light $ chainPointFromBlockHeader new
@@ -176,9 +176,13 @@ proceedToNextPoint light pt = do
                         then Unstable (b:bs) new tip
                         else Rollback
         else do
+            mold <- getBlockHeaderAtHeight light $
+                blockHeightToInteger (blockHeight here) + 1
             mnew <- getBlockHeaderAtHeight light $
                 blockHeightToInteger (blockHeight tip) - stabilityWindow light
-            maybeRollback mnew $ \new -> pure $ Stable old new tip
+            maybeRollback mold $ \old ->
+                maybeRollback mnew $ \new ->
+                    pure $ Stable old new tip
   where
     maybeRollback m f = maybe (pure Rollback) f m
 
