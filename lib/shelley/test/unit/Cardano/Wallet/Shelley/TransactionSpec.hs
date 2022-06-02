@@ -3770,7 +3770,15 @@ sealedNumberOfRedeemers sealedTx =
                         0
                     Cardano.TxBodyScriptData _ _ (Alonzo.Redeemers rdmrs) ->
                         Map.size rdmrs
-        InAnyCardanoEra BabbageEra _ -> error "TODO: Babbage"
+        InAnyCardanoEra BabbageEra (Cardano.Tx body _) ->
+            let dats =
+                    case body of
+                        Cardano.ShelleyTxBody _ _ _ d _ _ -> d
+             in case dats of
+                    Cardano.TxBodyNoScriptData ->
+                        0
+                    Cardano.TxBodyScriptData _ _ (Alonzo.Redeemers rdmrs) ->
+                        Map.size rdmrs
 
 sealedFee
     :: forall era. Cardano.IsCardanoEra era => Cardano.Tx era -> Maybe Coin
