@@ -137,6 +137,7 @@ module Cardano.Wallet.Shelley.Compatibility
     , fromMaryTx
     , fromAlonzoTx
     , fromAlonzoBlock
+    , fromBabbageTx
 
       -- * Internal Conversions
     , decentralizationLevelFromPParams
@@ -1408,7 +1409,7 @@ fromCardanoTx = \case
         Cardano.ShelleyBasedEraAlonzo ->
             extract $ fromAlonzoTx tx
         Cardano.ShelleyBasedEraBabbage ->
-            extract $ undefined
+            extract $ fromBabbageTx tx
     Cardano.ByronTx tx ->
         ( fromTxAux tx
         , emptyTokenMapWithScripts
@@ -1724,6 +1725,23 @@ fromAlonzoTx
 fromAlonzoTx (Alonzo.ValidatedTx bod wits (Alonzo.IsValid isValid) aux) =
     (\(tx, c, m, b, i) -> (tx { W.scriptValidity = validity }, c, m, b, i))
     $ fromAlonzoTxBodyAndAux bod aux wits
+    where
+        validity =
+            if isValid
+            then Just W.TxScriptValid
+            else Just W.TxScriptInvalid
+
+fromBabbageTx
+    :: Alonzo.ValidatedTx (Cardano.ShelleyLedgerEra BabbageEra)
+    -> ( W.Tx
+       , [W.Certificate]
+       , TokenMapWithScripts
+       , TokenMapWithScripts
+       , Maybe ValidityIntervalExplicit
+       )
+fromBabbageTx (Alonzo.ValidatedTx bod wits (Alonzo.IsValid isValid) aux) =
+    (\(tx, c, m, b, i) -> (tx { W.scriptValidity = validity }, c, m, b, i))
+    $ fromBabbageTxBodyAndAux bod aux wits
     where
         validity =
             if isValid
