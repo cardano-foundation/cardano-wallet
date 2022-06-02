@@ -201,6 +201,8 @@ import Cardano.Ledger.Era
     ( Era (..) )
 import Cardano.Ledger.Serialization
     ( ToCBORGroup )
+import Cardano.Ledger.Shelley.API
+    ( StrictMaybe (SJust, SNothing) )
 import Cardano.Slotting.Slot
     ( EpochNo (..), EpochSize (..) )
 import Cardano.Slotting.Time
@@ -340,7 +342,6 @@ import Ouroboros.Network.NodeToClient
 import Ouroboros.Network.Point
     ( WithOrigin (..) )
 
-import qualified Ouroboros.Consensus.Protocol.Praos.Header as Praos
 import qualified Cardano.Address as CA
 import qualified Cardano.Address.Style.Shelley as CA
 import qualified Cardano.Api as Cardano
@@ -416,6 +417,7 @@ import qualified Data.Set as Set
 import qualified Data.Text.Encoding as T
 import qualified Ouroboros.Consensus.Protocol.TPraos as Consensus
 import qualified Ouroboros.Consensus.Protocol.Praos as Consensus
+import qualified Ouroboros.Consensus.Protocol.Praos.Header as Consensus
 import qualified Ouroboros.Consensus.Shelley.Ledger as O
 import qualified Ouroboros.Consensus.Shelley.Protocol.Abstract as Consensus
 import qualified Ouroboros.Network.Block as O
@@ -580,9 +582,9 @@ numberOfTransactionsInBlock = \case
         :: ShelleyBlock (Consensus.Praos StandardCrypto) (Babbage.BabbageEra StandardCrypto)
         -> (Int, (Quantity "block" Word32, O.SlotNo))
     transactionsBabbage
-        (ShelleyBlock (SL.Block (Praos.Header header _) (Alonzo.TxSeq txs')) _) =
+        (ShelleyBlock (SL.Block (Consensus.Header header _) (Alonzo.TxSeq txs')) _) =
             ( length txs'
-            , (fromBlockNo $ Praos.hbBlockNo header, Praos.hbSlotNo header)
+            , (fromBlockNo $ Consensus.hbBlockNo header, Consensus.hbSlotNo header)
             )
     transactionsByron blk =
         (, (fromBlockNo $ O.blockNo blk, O.blockSlot blk)) $
@@ -1848,8 +1850,9 @@ fromBabbageTxBodyAndAux bod mad wits =
             map ((,W.Coin 0) . fromShelleyTxIn) (toList collateralInps)
         , outputs =
             map fromBabbageTxOut (toList outs)
-        , collateralOutput =
-            error "TODO: ADP-1675"
+        , collateralOutput = case fmap fromBabbageTxOut collateralReturn of
+                SNothing -> Nothing
+                SJust txout -> Just txout
         , withdrawals =
             fromShelleyWdrl wdrls
         , metadata =
@@ -1868,7 +1871,7 @@ fromBabbageTxBodyAndAux bod mad wits =
         collateralInps
         _refInps
         outs
-        _collateralReturn
+        collateralReturn
         _collateralTotal
         certs
         wdrls
