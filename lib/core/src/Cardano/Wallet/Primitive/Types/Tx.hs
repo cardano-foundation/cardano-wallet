@@ -619,7 +619,8 @@ cardanoTxFromBytes
     -> ByteString -- ^ Serialised transaction
     -> Either DecoderError (InAnyCardanoEra Cardano.Tx)
 cardanoTxFromBytes maxEra bs = asum $ map snd $ filter (withinEra maxEra . fst)
-    [ deserialise AlonzoEra  Cardano.AsAlonzoEra
+    [ deserialise BabbageEra  Cardano.AsBabbageEra
+    , deserialise AlonzoEra  Cardano.AsAlonzoEra
     , deserialise MaryEra    Cardano.AsMaryEra
     , deserialise AllegraEra Cardano.AsAllegraEra
     , deserialise ShelleyEra Cardano.AsShelleyEra
@@ -660,7 +661,7 @@ withinEra = (>=) `on` numberEra
 
 -- | Deserialise a transaction to construct a 'SealedTx'.
 sealedTxFromBytes :: ByteString -> Either DecoderError SealedTx
-sealedTxFromBytes = sealedTxFromBytes' (anyCardanoEra AlonzoEra)
+sealedTxFromBytes = sealedTxFromBytes' (anyCardanoEra BabbageEra)
 
 -- | Deserialise a transaction to construct a 'SealedTx'.
 sealedTxFromBytes'
