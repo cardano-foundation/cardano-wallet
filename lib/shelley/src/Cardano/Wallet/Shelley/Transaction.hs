@@ -256,6 +256,7 @@ import qualified Cardano.Ledger.Alonzo.Scripts as Alonzo
 import qualified Cardano.Ledger.Alonzo.Tx as Alonzo
 import qualified Cardano.Ledger.Alonzo.TxWitness as Alonzo
 import qualified Cardano.Ledger.Babbage.Tx as Babbage
+import qualified Cardano.Ledger.Babbage.PParams as Babbage
 import qualified Cardano.Ledger.Coin as Ledger
 import qualified Cardano.Ledger.Core as Ledger
 import qualified Cardano.Ledger.Shelley.Address.Bootstrap as SL
@@ -1130,6 +1131,9 @@ _maxScriptExecutionCost pp redeemers
 type AlonzoTx =
     Ledger.Tx (Cardano.ShelleyLedgerEra Cardano.AlonzoEra)
 
+type BabbageTx =
+    Ledger.Tx (Cardano.ShelleyLedgerEra Cardano.BabbageEra)
+
 _assignScriptRedeemers
     :: forall era. Cardano.IsShelleyBasedEra era
     => Cardano.ProtocolParameters
@@ -1153,7 +1157,7 @@ _assignScriptRedeemers pparams ti resolveInput redeemers tx =
                 executionUnits <- get
                     >>= lift . evaluateExecutionUnits indexedRedeemers
                 modifyM (assignExecutionUnits executionUnits)
-                modify' addScriptIntegrityHash
+                modify' addScriptIntegrityHashAlonzo
             pure $ Cardano.ShelleyTx ShelleyBasedEraAlonzo alonzoTx'
         Cardano.ShelleyBasedEraBabbage -> undefined
   where
@@ -1276,11 +1280,11 @@ _assignScriptRedeemers pparams ti resolveInput redeemers tx =
 
     -- | Finally, calculate and add the script integrity hash with the new
     -- final redeemers, if any.
-    addScriptIntegrityHash
+    addScriptIntegrityHashAlonzo
         :: forall e. (e ~ Cardano.ShelleyLedgerEra Cardano.AlonzoEra)
         => AlonzoTx
         -> AlonzoTx
-    addScriptIntegrityHash alonzoTx =
+    addScriptIntegrityHashAlonzo alonzoTx =
         let
             wits  = Alonzo.wits alonzoTx
             langs =
@@ -1294,6 +1298,32 @@ _assignScriptRedeemers pparams ti resolveInput redeemers tx =
                 { Alonzo.body = (Alonzo.body alonzoTx)
                     { Alonzo.scriptIntegrityHash = Alonzo.hashScriptIntegrity
                         (Cardano.toLedgerPParams Cardano.ShelleyBasedEraAlonzo pparams)
+                        (Set.fromList langs)
+                        (Alonzo.txrdmrs wits)
+                        (Alonzo.txdats wits)
+                    }
+                }
+
+    addScriptIntegrityHashBabbage
+        :: forall e.
+        ( e ~ Cardano.ShelleyLedgerEra Cardano.BabbageEra )
+     --   , HasField "_costmdls" (Babbage.PParams (Babbage.BabbageEra Compatibility.StandardCrypto) Alonzo.CostModels) )
+        => BabbageTx
+        -> BabbageTx
+    addScriptIntegrityHashBabbage babbageTx =
+        let
+            wits  = Alonzo.wits babbageTx
+            langs =
+                [ l
+                | (_hash, script) <- Map.toList (Alonzo.txscripts wits)
+                , (not . isNativeScript @e) script
+                , Just l <- [Alonzo.language script]
+                ]
+         in
+            babbageTx
+                { Babbage.body = (Babbage.body babbageTx)
+                    { Babbage.scriptIntegrityHash = Alonzo.hashScriptIntegrity
+                        (Cardano.toLedgerPParams Cardano.ShelleyBasedEraBabbage pparams)
                         (Set.fromList langs)
                         (Alonzo.txrdmrs wits)
                         (Alonzo.txdats wits)
