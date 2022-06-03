@@ -5,8 +5,6 @@ module Cardano.Wallet.DB.Transactions.Store where
 
 import Cardano.Wallet.DB
     ( ErrNoSuchWallet (ErrNoSuchWallet) )
-import Cardano.Wallet.DB.Transactions.Model
-    ( dropTxRelationContext )
 import Cardano.Wallet.DB.Transactions.Select
     ( selectWalletTxRelation )
 import Cardano.Wallet.DB.Transactions.Types
@@ -45,8 +43,7 @@ write :: WalletId -> TxHistory -> SqlPersistT IO ()
 write = error "write tx history not implemented"
 
 load :: WalletId -> SqlPersistT IO (Either StoreException  TxHistory)
-load wid = Right . TxHistory . dropTxRelationContext 
-    <$> selectWalletTxRelation wid
+load wid = Right . TxHistory <$> selectWalletTxRelation wid
 
 
 

@@ -11,7 +11,6 @@
 {-# LANGUAGE TypeFamilies #-}
 {-# LANGUAGE UndecidableInstances #-}
 {-# OPTIONS_GHC -fno-warn-orphans #-}
-{-# LANGUAGE RecordWildCards #-}
 
 {- |
  Copyright: © 2018-2020 IOHK
@@ -46,7 +45,7 @@ import Data.Quantity
 import Prelude
 
 import Cardano.Wallet.DB.Transactions.Types
-    ( TxRelation, TxRelationA, TxRelationF (..), WithTxOut (withTxOut_value) )
+    ( TxRelation, TxRelationF (..) )
 import qualified Cardano.Wallet.Primitive.Types as W
 import qualified Cardano.Wallet.Primitive.Types.Coin as W
 import Cardano.Wallet.Primitive.Types.RewardAccount
@@ -214,12 +213,4 @@ mkTxHistory wid txs = fold $ do
     (tx, meta) <- txs
     pure $ mkTxCore wid tx meta
 
-dropTxRelationContext :: TxRelationA -> TxRelation
-dropTxRelationContext TxRelationF {..} = TxRelationF
-  (txRelation_metas)
-  (Identity .  withTxOut_value <$> txRelation_ins)
-  (Identity .  withTxOut_value <$> txRelation_colls)
-  txRelation_outs
-  txRelation_collouts
-  txRelation_withdraws
 

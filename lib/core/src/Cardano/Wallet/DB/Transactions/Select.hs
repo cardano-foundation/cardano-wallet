@@ -4,6 +4,7 @@
 {-# LANGUAGE LambdaCase #-}
 
 {-# LANGUAGE OverloadedLabels #-}
+{-# LANGUAGE RecordWildCards #-}
 {-# LANGUAGE TupleSections #-}
 {-# LANGUAGE TypeFamilies #-}
 
@@ -64,17 +65,19 @@ import UnliftIO
 import Cardano.Wallet.DB.Transactions.Types
     ( TxRelation
     , TxRelationA
-    , TxRelationF (TxRelationF)
+    , TxRelationF (..)
     , WithTxOut (WithTxOut, withTxOut_value)
     )
+import Data.Functor.Identity
+    ( Identity (Identity), runIdentity )
+      
 import qualified Cardano.Wallet.Primitive.Model as W
 import qualified Cardano.Wallet.Primitive.Types as W
 import qualified Cardano.Wallet.Primitive.Types.Coin as W
 import qualified Cardano.Wallet.Primitive.Types.Hash as W
 import qualified Cardano.Wallet.Primitive.Types.TokenBundle as TokenBundle
 import qualified Cardano.Wallet.Primitive.Types.Tx as W
-import Data.Functor.Identity
-    ( Identity (Identity), runIdentity )
+
 
 -- This relies on available information from the database to reconstruct coin
 -- selection information for __outgoing__ payments. We can't however guarantee
@@ -86,60 +89,6 @@ import Data.Functor.Identity
 -- work.
 --
 -- See also: issue #573.
-
-selectTxs ::
-    [TxMeta] ->
-    SqlPersistT IO TxRelationA
-selectTxs metas = do
-    TxRelationF _metas inputs collateral outputs collateralOutputs withdrawals <-
-        selectTxs' metas
-    resolvedInputs <- fmap toOutputMap $
-        combineChunked inputs $ \inputsChunk ->
-            traverse readTxOutTokens . fmap entityVal
-                =<< selectList
-                    [ TxOutputTxId
-                        <-. (txInputSourceTxId . runIdentity <$> inputsChunk)
-                    ]
-                    [Asc TxOutputTxId, Asc TxOutputIndex]
-
-    resolvedCollateral <- fmap toOutputMap $
-        combineChunked collateral $ \collateralChunk ->
-            traverse readTxOutTokens . fmap entityVal
-                =<< selectList
-                    [ TxOutputTxId
-                        <-. ( txCollateralSourceTxId . runIdentity
-                                <$> collateralChunk
-                            )
-                    ]
-                    [Asc TxOutputTxId, Asc TxOutputIndex]
-    let inputs' = inputs `resolveInputWith` resolvedInputs
-        collateral' = collateral `resolveCollateralWith` resolvedCollateral
-    pure $
-        TxRelationF
-            metas
-            inputs'
-            collateral'
-            outputs
-            collateralOutputs
-            withdrawals
-
-readTxOutTokens :: TxOut -> SqlPersistT IO (TxOut, [TxOutToken])
-readTxOutTokens out =
-    (out,) . fmap entityVal
-        <$> selectList
-            [ TxOutTokenTxId ==. txOutputTxId out,
-              TxOutTokenTxIndex ==. txOutputIndex out
-            ]
-            []
-
-toOutputMap ::
-    [(TxOut, [TxOutToken])] ->
-    Map (TxId, Word32) (TxOut, [TxOutToken])
-toOutputMap = Map.fromList . fmap toEntry
-  where
-    toEntry (out, tokens) = (key, (out, tokens))
-      where
-        key = (txOutputTxId out, txOutputIndex out)
 
 resolveInputWith ::
     [Identity TxIn] ->
@@ -164,10 +113,63 @@ resolveCollateralWith collateral resolvedCollateral =
                 )
     ]
 
-selectTxs' ::
+selectTxRelationA ::
+    TxRelation  ->
+    SqlPersistT IO TxRelationA
+selectTxRelationA TxRelationF {..} = do
+    resolvedInputs <- fmap toOutputMap $
+        combineChunked txRelation_ins $ \inputsChunk ->
+            traverse readTxOutTokens . fmap entityVal
+                =<< selectList
+                    [ TxOutputTxId
+                        <-. (txInputSourceTxId . runIdentity <$> inputsChunk)
+                    ]
+                    [Asc TxOutputTxId, Asc TxOutputIndex]
+
+    resolvedCollateral <- fmap toOutputMap $
+        combineChunked txRelation_colls $ \collateralChunk ->
+            traverse readTxOutTokens . fmap entityVal
+                =<< selectList
+                    [ TxOutputTxId
+                        <-. ( txCollateralSourceTxId . runIdentity
+                                <$> collateralChunk
+                            )
+                    ]
+                    [Asc TxOutputTxId, Asc TxOutputIndex]
+    let inputs' = txRelation_ins  `resolveInputWith` resolvedInputs
+        collateral' = txRelation_colls `resolveCollateralWith` resolvedCollateral
+    pure $
+        TxRelationF
+            txRelation_metas 
+            inputs'
+            collateral'
+            txRelation_outs
+            txRelation_collouts
+            txRelation_withdraws
+
+readTxOutTokens :: TxOut -> SqlPersistT IO (TxOut, [TxOutToken])
+readTxOutTokens out =
+    (out,) . fmap entityVal
+        <$> selectList
+            [ TxOutTokenTxId ==. txOutputTxId out,
+              TxOutTokenTxIndex ==. txOutputIndex out
+            ]
+            []
+
+toOutputMap ::
+    [(TxOut, [TxOutToken])] ->
+    Map (TxId, Word32) (TxOut, [TxOutToken])
+toOutputMap = Map.fromList . fmap toEntry
+  where
+    toEntry (out, tokens) = (key, (out, tokens))
+      where
+        key = (txOutputTxId out, txOutputIndex out)
+
+
+selectTxRelation ::
     [TxMeta] ->
     SqlPersistT IO TxRelation
-selectTxs' = fmap fold . mapM select . chunksOf chunkSize
+selectTxRelation = fmap fold . mapM select . chunksOf chunkSize
   where
     select txmetas = do
         inputs <- select'
@@ -245,7 +247,7 @@ selectTxHistory cp ti wid minWithdrawal order conditions = do
                     W.Descending -> sortOn (Down . txMetaSlot)
             pure $ sortSlot $ sortTxId $ fmap entityVal ms
 
-    relation <- selectTxs metas
+    relation <- selectTxRelation metas >>= selectTxRelationA
     liftIO $ txHistoryFromEntity ti (W.currentTip cp) relation
   where
     -- Note: there are sorted indices on these columns.
@@ -262,8 +264,8 @@ selectWalletMetas wid = do
     let txMetaFilter = [TxMetaWalletId ==. wid]
     fmap entityVal <$> selectList txMetaFilter []
 
-selectWalletTxRelation :: W.WalletId -> SqlPersistT IO TxRelationA 
-selectWalletTxRelation wid = selectWalletMetas wid >>= selectTxs
+selectWalletTxRelation :: W.WalletId -> SqlPersistT IO TxRelation
+selectWalletTxRelation wid = selectWalletMetas wid >>= selectTxRelation
 
 selectTxMeta ::
     W.WalletId ->
