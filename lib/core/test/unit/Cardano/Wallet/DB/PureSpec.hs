@@ -9,7 +9,7 @@
 
 {-# OPTIONS_GHC -fno-warn-orphans #-}
 
-module Cardano.Wallet.DB.MVarSpec
+module Cardano.Wallet.DB.PureSpec
     ( spec
     ) where
 
