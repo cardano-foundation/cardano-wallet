@@ -269,11 +269,11 @@ data TransactionLayer k tx = TransactionLayer
     , distributeSurplus
         :: FeePolicy
         -> Coin
-        -- ^ Surplus transaction balance to distribute.
+        --  Surplus transaction balance to distribute.
         -> TxFeeAndChange [TxOut]
-        -- ^ Original fee and change outputs.
+        --  Original fee and change outputs.
         -> Either ErrMoreSurplusNeeded (TxFeeAndChange [TxOut])
-        -- ^ Adjusted fee and change outputs.
+        --  Adjusted fee and change outputs.
         --
         -- Distributes a surplus transaction balance between the given change
         -- outputs and the given fee. This function is aware of the fact that

@@ -120,9 +120,10 @@ fromGenesis a = Checkpoints $ Map.singleton W.Origin a
 
 -- | Get the checkpoint with the largest 'SlotNo'.
 getLatest :: Checkpoints a -> (W.Slot, a)
-getLatest = from . Map.lookupMax . view #checkpoints
-    where
-        from = fromMaybe (error "getLatest: there should always be at least a genesis checkpoint")
+getLatest = fromMaybe err . Map.lookupMax . view #checkpoints
+  where
+    err = error
+        "getLatest: there should always be at least a genesis checkpoint"
 
 -- | Find the nearest 'Checkpoint' that is either at the given point or before.
 findNearestPoint :: Checkpoints a -> W.Slot -> Maybe W.Slot
@@ -133,13 +134,12 @@ findNearestPoint m key = fst <$> Map.lookupLE key (view #checkpoints m)
 -------------------------------------------------------------------------------}
 data DeltaCheckpoints a
     = PutCheckpoint W.Slot a
+    -- | Rolls back to the latest checkpoint at or before this slot.
     | RollbackTo W.Slot
-    | -- Rolls back to the latest checkpoint at or before this slot.
-
-        -- | Restrict to the intersection of this list with
-        -- the checkpoints that are already present.
-        -- The genesis checkpoint will always be present.
-        RestrictTo [W.Slot]
+    -- | Restrict to the intersection of this list with
+    -- the checkpoints that are already present.
+    -- The genesis checkpoint will always be present.
+    |    RestrictTo [W.Slot]
 
 instance Delta (DeltaCheckpoints a) where
     type Base (DeltaCheckpoints a) = Checkpoints a
@@ -162,9 +162,9 @@ instance Buildable (DeltaCheckpoints a) where
 -- | Data stored in a single checkpoint.
 -- Only includes the 'UTxO' and the 'Discoveries', but not the 'Prologue'.
 data WalletCheckpoint s = WalletCheckpoint
-    { currentTip :: BlockHeader,
-        utxo :: UTxO,
-        discoveries :: (Discoveries s)
+    {   currentTip :: BlockHeader
+    ,   utxo :: UTxO
+    ,   discoveries :: (Discoveries s)
     }
     deriving (Generic)
 
@@ -183,10 +183,11 @@ getSlot (WalletCheckpoint currentTip' _ _) =
 -- | Convert a stored 'WalletCheckpoint' to the legacy 'W.Wallet' state.
 toWallet :: AddressBookIso s => Prologue s -> WalletCheckpoint s -> W.Wallet s
 toWallet pro (WalletCheckpoint pt utxo' dis) =
-    W.unsafeInitWallet utxo' pt $ withIso addressIso $ \_ from -> from (pro, dis)
+    W.unsafeInitWallet utxo' pt $ withIso addressIso
+        $ \_ from -> from (pro, dis)
 
 -- | Convert a legacy 'W.Wallet' state to a 'Prologue' and a 'WalletCheckpoint'
 fromWallet :: AddressBookIso s => W.Wallet s -> (Prologue s, WalletCheckpoint s)
 fromWallet w = (pro, WalletCheckpoint (W.currentTip w) (W.utxo w) dis)
-    where
-        (pro, dis) = withIso addressIso $ \to _ -> to (w ^. #getState)
+  where
+    (pro, dis) = withIso addressIso $ \to _ -> to (w ^. #getState)
