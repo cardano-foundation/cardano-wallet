@@ -21,8 +21,6 @@
 module Cardano.Wallet.DB.Unstored
   ( ErrInitializeGenesisAbsent (..)
   , ErrRollbackTo (..)
-  , deleteTxMetas
-  , updateTxMetas
   , deleteLooseTransactions
   , selectWallet
   , deleteDelegationCertificates
@@ -255,13 +253,6 @@ selectWallet :: MonadIO m => W.WalletId -> SqlPersistT m (Maybe Wallet)
 selectWallet wid =
     fmap entityVal <$> selectFirst [WalId ==. wid] []
 
--- | Delete TxMeta values for a wallet.
-deleteTxMetas
-    :: W.WalletId
-    -> [Filter TxMeta]
-    -> SqlPersistT IO ()
-deleteTxMetas wid filters =
-    deleteWhere ((TxMetaWalletId ==. wid) : filters)
 
 -- | Delete stake key certificates for a wallet.
 deleteStakeKeyCerts
@@ -271,13 +262,6 @@ deleteStakeKeyCerts
 deleteStakeKeyCerts wid filters =
     deleteWhere ((StakeKeyCertWalletId ==. wid) : filters)
 
-updateTxMetas
-    :: W.WalletId
-    -> [Filter TxMeta]
-    -> [Update TxMeta]
-    -> SqlPersistT IO ()
-updateTxMetas wid filters =
-    updateWhere ((TxMetaWalletId ==. wid) : filters)
 
 
 -- | Delete transactions that aren't referred to by TxMeta of any wallet.

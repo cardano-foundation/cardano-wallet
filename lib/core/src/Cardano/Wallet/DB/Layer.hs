@@ -104,14 +104,10 @@ import Cardano.Wallet.DB.Sqlite.Types
 import Cardano.Wallet.DB.Sqlite.WrapSTM
     ()
 import Cardano.Wallet.DB.Transactions.Delta
-import Cardano.Wallet.DB.Transactions.Model
-    ( mkTxHistory )
 import Cardano.Wallet.DB.Transactions.Select
     ( selectWalletTransactionInfo, selectWalletTransactionInfoStore )
 import Cardano.Wallet.DB.Transactions.Types
     ( TxHistoryF (TxHistoryF) )
-import Cardano.Wallet.DB.Transactions.Update
-    ( updateTxHistory )
 import Cardano.Wallet.DB.Unstored
     ( ErrInitializeGenesisAbsent (ErrInitializeGenesisAbsent)
     , ErrRollbackTo (ErrNoOlderCheckpoint)
@@ -119,7 +115,6 @@ import Cardano.Wallet.DB.Unstored
     , deleteLooseTransactions
     , deleteStakeKeyCerts
     , deleteTxLocal
-    , deleteTxMetas
     , listPendingLocalTxSubmissionQuery
     , localTxSubmissionFromEntity
     , mkPrivateKeyEntity
@@ -131,7 +126,6 @@ import Cardano.Wallet.DB.Unstored
     , selectGenesisParameters
     , selectPrivateKey
     , selectWallet
-    , updateTxMetas
     )
 import Cardano.Wallet.DB.Wallets.State
     ( DeltaMap (..)
@@ -149,13 +143,13 @@ import Cardano.Wallet.Primitive.AddressDerivation
 import Cardano.Wallet.Primitive.Slotting
     ( TimeInterpreter, epochOf, interpretQuery )
 import Control.Monad
-    ( forM, unless, void, when, (<=<) )
+    ( forM, unless, void, (<=<) )
 import Control.Monad.IO.Class
     ( MonadIO (..) )
 import Control.Monad.Trans
     ( lift )
 import Control.Monad.Trans.Except
-    ( ExceptT (..) )
+    ( ExceptT (..), throwE )
 import Control.Monad.Trans.Maybe
     ( MaybeT (MaybeT), runMaybeT )
 import Control.Tracer
@@ -164,8 +158,6 @@ import Data.Bifunctor
     ( first )
 import Data.DBVar
     ( loadDBVar, modifyDBMaybe, readDBVar, updateDBVar )
-import Data.Either
-    ( isRight )
 import Data.Generics.Internal.VL.Lens
     ( view, (^.) )
 import qualified Data.Map.Strict as Map
@@ -217,7 +209,6 @@ import UnliftIO.MVar
 
 import qualified Cardano.Wallet.Primitive.Types as W
 import qualified Cardano.Wallet.Primitive.Types.Coin as Coin
-import qualified Cardano.Wallet.Primitive.Types.Tx as W
 import qualified Data.Map.Strict as M
 {-------------------------------------------------------------------------------
                                Database "factory"
@@ -581,10 +572,10 @@ newDBLayerWith _cacheBehavior _tr ti SqliteContext{runQuery} = do
         { initializeWallet = \wid cp meta txs gp -> ExceptT $ do
             res <- handleConstraint (ErrWalletAlreadyExists wid) $
                 insert_ (mkWalletEntity wid meta gp)
-            when (isRight res) $ do
-                insertGenesis wid cp txs
-                updateTxHistory wid txs
+            insertGenesis wid cp txs
             pure res
+
+
 
         , removeWallet = \wid -> ExceptT $
             selectWallet wid >>= \case
@@ -617,8 +608,8 @@ newDBLayerWith _cacheBehavior _tr ti SqliteContext{runQuery} = do
                 [ CheckpointWalletId ==. wid ]
                 [ Asc CheckpointSlot ]
 
-        , rollbackTo = \wid requestedPoint -> ExceptT $ do
-            iomNearestCheckpoint <- modifyDBMaybe walletsDB_ $ \ws ->
+        , rollbackTo = \wid requestedPoint -> do
+            iomNearestCheckpoint <- lift $ modifyDBMaybe walletsDB_ $ \ws ->
                 case Map.lookup wid ws of
                     Nothing  -> (Nothing, pure Nothing)
                     Just wal -> case findNearestPoint wal requestedPoint of
@@ -635,27 +626,20 @@ newDBLayerWith _cacheBehavior _tr ti SqliteContext{runQuery} = do
             mNearestCheckpoint <- liftIO iomNearestCheckpoint
 
             case mNearestCheckpoint of
-                Nothing  -> pure $ Left $ ErrNoSuchWallet wid
+                Nothing  -> throwE $ ErrNoSuchWallet wid
                 Just wcp -> do
                     let nearestPoint = wcp ^. (#currentTip . #slotNo)
-                    deleteDelegationCertificates wid
-                        [ CertSlot >. nearestPoint
-                        ]
-                    updateTxMetas wid
-                        [ TxMetaDirection ==. W.Outgoing
-                        , TxMetaSlot >. nearestPoint
-                        ]
-                        [ TxMetaStatus =. W.Pending
-                        , TxMetaSlot =. nearestPoint
-                        ]
-                    deleteTxMetas wid
-                        [ TxMetaDirection ==. W.Incoming
-                        , TxMetaSlot >. nearestPoint
-                        ]
-                    deleteStakeKeyCerts wid
-                        [ StakeKeyCertSlot >. nearestPoint
-                        ]
-                    pure $ Right
+                    ExceptT $ modifyDBWallet' wid $ \_
+                      -> Just $ Adjust wid
+                        [UpdateTransactions $ RollBackTxHistory nearestPoint]
+                    lift $ do
+                        deleteDelegationCertificates wid
+                            [ CertSlot >. nearestPoint
+                            ]
+                        deleteStakeKeyCerts wid
+                            [ StakeKeyCertSlot >. nearestPoint
+                            ]
+                    pure
                         $ W.chainPointFromBlockHeader
                         $ view #currentTip wcp
 
@@ -736,8 +720,7 @@ newDBLayerWith _cacheBehavior _tr ti SqliteContext{runQuery} = do
             modifyDBWallet' wid
                 $ \_  -> Just $ Adjust wid
                     [UpdateTransactions
-                        $ ExpandTxHistory
-                        $ mkTxHistory wid deltaTxHistory
+                        $ ExpandTxHistory wid deltaTxHistory
                     ]
         , readTxHistory =
             \wid minWithdrawal sortOrder range status ->
