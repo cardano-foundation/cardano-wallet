@@ -56,6 +56,7 @@ import Database.Persist.Sql
 
 import qualified Cardano.Wallet.Primitive.Types as W
 import qualified Data.Map.Strict as Map
+import Cardano.Wallet.DB.Transactions.Store (mkStoreTransactions)
 
 {-------------------------------------------------------------------------------
     WalletState Store
@@ -102,13 +103,18 @@ mkStoreWallet wid =
     Store{ loadS = load, writeS = write, updateS = \_ -> update }
   where
     storeCheckpoints = mkStoreCheckpoints wid
+    storeTransactions = mkStoreTransactions wid
 
     load = do
         eprologue <- maybe
             (Left $ toException ErrBadFormatAddressPrologue) Right
                 <$> loadPrologue wid
         echeckpoints <- loadS storeCheckpoints
-        pure $ WalletState <$> eprologue <*> echeckpoints -- <*> etransactions
+        etransactions <- loadS storeTransactions
+        pure $ WalletState
+            <$> eprologue
+            <*> echeckpoints
+            <*> etransactions
 
     write wallet = do
         insertPrologue wid (wallet ^. #prologue)

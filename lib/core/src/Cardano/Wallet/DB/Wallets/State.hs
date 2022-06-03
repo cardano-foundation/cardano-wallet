@@ -51,6 +51,8 @@ import GHC.Generics
 import qualified Cardano.Wallet.DB.Checkpoints.Model as CPS
 import qualified Cardano.Wallet.Primitive.Model as W
 import qualified Cardano.Wallet.Primitive.Types as W
+import Cardano.Wallet.DB.Transactions.Types (TxHistory (TxHistory))
+import qualified Cardano.Wallet.DB.Model as Model
 
 
 {-------------------------------------------------------------------------------
@@ -66,6 +68,7 @@ import qualified Cardano.Wallet.Primitive.Types as W
 data WalletState s = WalletState
     { prologue    :: Prologue s
     , checkpoints :: Checkpoints (WalletCheckpoint s)
+    , transactions :: TxHistory
     } deriving (Generic)
 
 deriving instance (Eq (WalletCheckpoint s), AddressBookIso s)
@@ -75,12 +78,14 @@ deriving instance (Eq (WalletCheckpoint s), AddressBookIso s)
 fromGenesis
     :: AddressBookIso s
     => W.Wallet s
+    -> Model.TxHistory
     -> Maybe (WalletState s)
-fromGenesis cp -- txs
+fromGenesis cp txs
     | W.isGenesisBlockHeader header = Just $
         WalletState
             { prologue
             , checkpoints = CPS.fromGenesis checkpoint
+            , transactions = TxHistory txs
             }
     | otherwise = Nothing
   where

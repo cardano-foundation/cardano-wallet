@@ -501,8 +501,8 @@ newDBLayerWith _cacheBehavior _tr ti SqliteContext{runQuery} = do
 
     -- Insert genesis checkpoint into the DBVar.
     -- Throws an internal error if the checkpoint is not actually at genesis.
-    let insertGenesis wid cp _txs =
-            case fromGenesis cp of -- txs of
+    let insertGenesis wid cp txs =
+            case fromGenesis cp txs of -- txs of
                 Nothing -> throwIO $ ErrInitializeGenesisAbsent wid header
                 Just wallet ->
                     updateDBVar walletsDB_ $ Insert wid wallet
