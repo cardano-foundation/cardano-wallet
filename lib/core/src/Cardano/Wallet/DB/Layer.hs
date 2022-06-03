@@ -102,7 +102,7 @@ import Cardano.Wallet.DB.Sqlite.WrapSTM
 import Cardano.Wallet.DB.Transactions.Delete
     ( deletePendingOrExpiredTx )
 import Cardano.Wallet.DB.Transactions.Select
-    ( selectTxHistory, selectTxMeta )
+    ( selectWalletTransactionInfo, selectTxMeta )
 import Cardano.Wallet.DB.Transactions.Update
     ( updateTxHistory )
 import Cardano.Wallet.DB.Unstored
@@ -710,7 +710,7 @@ newDBLayerWith _cacheBehavior _tr ti SqliteContext{runQuery} = do
         , readTxHistory = \wid minWithdrawal order range status ->
             readCheckpoint_ wid >>= \case
         Nothing -> pure []
-        Just cp -> selectTxHistory cp
+        Just cp -> selectWalletTransactionInfo cp
             ti wid minWithdrawal order $ catMaybes
             [ (TxMetaSlot >=.) <$> W.inclusiveLowerBound range
             , (TxMetaSlot <=.) <$> W.inclusiveUpperBound range
@@ -760,7 +760,7 @@ newDBLayerWith _cacheBehavior _tr ti SqliteContext{runQuery} = do
             readCheckpoint_ wid >>= \case
         Nothing -> pure $ Left $ ErrNoSuchWallet wid
         Just cp -> do
-            metas <- selectTxHistory cp
+            metas <- selectWalletTransactionInfo cp
                 ti wid Nothing W.Descending
                     [ TxMetaTxId ==. TxId tid ]
             case metas of

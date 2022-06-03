@@ -11,6 +11,7 @@
 {-# LANGUAGE TypeFamilies #-}
 {-# LANGUAGE UndecidableInstances #-}
 {-# OPTIONS_GHC -fno-warn-orphans #-}
+{-# LANGUAGE TupleSections #-}
 
 {- |
  Copyright: © 2018-2020 IOHK
@@ -45,7 +46,7 @@ import Data.Quantity
 import Prelude
 
 import Cardano.Wallet.DB.Transactions.Types
-    ( TxRelation, TxRelationF (..) )
+    ( TxMetaRelation, TxRelationF (..), TxMetaRelationF (TxMetaRelationF) )
 import qualified Cardano.Wallet.Primitive.Types as W
 import qualified Cardano.Wallet.Primitive.Types.Coin as W
 import Cardano.Wallet.Primitive.Types.RewardAccount
@@ -181,9 +182,8 @@ mkTxWithdrawal tid (txWithdrawalAccount, txWithdrawalAmount) =
     txWithdrawalTxId = tid
 
 mkTxCore ::
-    W.WalletId -> W.Tx -> W.TxMeta -> TxRelation
-mkTxCore wid tx txmeta = TxRelationF
-    do [meta]
+    W.WalletId -> W.Tx -> W.TxMeta -> TxMetaRelation
+mkTxCore wid tx txmeta = TxMetaRelationF $ pure $ (meta,) $ TxRelationF
     do fmap (Identity . mkTxIn tid) . ordered . W.resolvedInputs $ tx
     do
         fmap (Identity . mkTxCollateral tid)
@@ -208,9 +208,10 @@ mkTxCore wid tx txmeta = TxRelationF
 mkTxHistory ::
     W.WalletId ->
     [(W.Tx, W.TxMeta)] ->
-    TxRelation
+    TxMetaRelation
 mkTxHistory wid txs = fold $ do
     (tx, meta) <- txs
     pure $ mkTxCore wid tx meta
 
-
+filterMeta :: (TxMeta -> Bool) -> TxMetaRelationF f -> TxMetaRelationF f 
+filterMeta f (TxMetaRelationF rs) = TxMetaRelationF $ filter (f . fst) rs 

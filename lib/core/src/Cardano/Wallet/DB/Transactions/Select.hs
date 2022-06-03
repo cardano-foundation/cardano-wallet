@@ -4,7 +4,7 @@
 {-# LANGUAGE LambdaCase #-}
 
 {-# LANGUAGE OverloadedLabels #-}
-{-# LANGUAGE RecordWildCards #-}
+
 {-# LANGUAGE TupleSections #-}
 {-# LANGUAGE TypeFamilies #-}
 
@@ -30,14 +30,13 @@ import Data.Foldable
 import Data.Functor
     ( (<&>) )
 import Data.Generics.Internal.VL
-    ( (^.) )
+    ( view, (^.) )
 import Data.List
     ( nub, sortOn )
 import Data.List.Split
     ( chunksOf )
 import Data.Map.Strict
     ( Map )
-import qualified Data.Map.Strict as Map
 import Data.Maybe
     ( listToMaybe )
 import Data.Ord
@@ -48,8 +47,10 @@ import Data.Word
     ( Word32 )
 import Database.Persist
     ( Filter
+    , PersistEntity (PersistEntityBackend)
     , SelectOpt (Asc, Desc)
     , entityVal
+    , fieldLens
     , selectFirst
     , selectList
     , (<-.)
@@ -57,26 +58,25 @@ import Database.Persist
     , (>=.)
     )
 import Database.Persist.Sql
-    ( SqlPersistT )
+    ( SqlBackend, SqlPersistT )
 import Prelude
 import UnliftIO
     ( liftIO )
 
 import Cardano.Wallet.DB.Transactions.Types
-    ( TxRelation
-    , TxRelationA
-    , TxRelationF (..)
-    , WithTxOut (WithTxOut, withTxOut_value)
-    )
+
+import Control.Arrow
+    ( (&&&) )
 import Data.Functor.Identity
     ( Identity (Identity), runIdentity )
-      
+
 import qualified Cardano.Wallet.Primitive.Model as W
 import qualified Cardano.Wallet.Primitive.Types as W
 import qualified Cardano.Wallet.Primitive.Types.Coin as W
 import qualified Cardano.Wallet.Primitive.Types.Hash as W
 import qualified Cardano.Wallet.Primitive.Types.TokenBundle as TokenBundle
 import qualified Cardano.Wallet.Primitive.Types.Tx as W
+import qualified Data.Map.Strict as Map
 
 
 -- This relies on available information from the database to reconstruct coin
@@ -90,63 +90,68 @@ import qualified Cardano.Wallet.Primitive.Types.Tx as W
 --
 -- See also: issue #573.
 
-resolveInputWith ::
-    [Identity TxIn] ->
-    Map (TxId, Word32) (TxOut, [TxOutToken]) ->
-    [WithTxOut TxIn]
+resolveInputWith
+    :: [Identity TxIn]
+    -> Map (TxId, Word32) (TxOut, [TxOutToken])
+    -> [WithTxOut TxIn]
 resolveInputWith inputs resolvedInputs =
     [ (WithTxOut i $ Map.lookup key resolvedInputs)
-      | Identity i <- inputs,
-        let key = (txInputSourceTxId i, txInputSourceIndex i)
+    | Identity i <- inputs
+    , let key = (txInputSourceTxId i, txInputSourceIndex i)
     ]
 
-resolveCollateralWith ::
-    [Identity TxCollateral] ->
-    Map (TxId, Word32) (TxOut, [TxOutToken]) ->
-    [WithTxOut TxCollateral]
+resolveCollateralWith
+    :: [Identity TxCollateral]
+    -> Map (TxId, Word32) (TxOut, [TxOutToken])
+    -> [WithTxOut TxCollateral]
 resolveCollateralWith collateral resolvedCollateral =
     [ (WithTxOut i $ Map.lookup key resolvedCollateral)
-      | Identity i <- collateral,
-        let key =
-                ( txCollateralSourceTxId i,
-                  txCollateralSourceIndex i
-                )
+    | Identity i <- collateral
+    , let key =
+                    ( txCollateralSourceTxId i
+                    , txCollateralSourceIndex i
+                    )
     ]
 
-selectTxRelationA ::
-    TxRelation  ->
-    SqlPersistT IO TxRelationA
-selectTxRelationA TxRelationF {..} = do
+selectTxRelationA
+    :: TxMetaRelation
+    -> SqlPersistT IO TxMetaRelationA
+selectTxRelationA (TxMetaRelationF rs) = do
+    let ins = rs >>= txRelation_ins . snd
     resolvedInputs <- fmap toOutputMap $
-        combineChunked txRelation_ins $ \inputsChunk ->
+        combineChunked ins $ \inputsChunk ->
             traverse readTxOutTokens . fmap entityVal
                 =<< selectList
                     [ TxOutputTxId
-                        <-. (txInputSourceTxId . runIdentity <$> inputsChunk)
+                            <-. (txInputSourceTxId . runIdentity <$> inputsChunk)
                     ]
                     [Asc TxOutputTxId, Asc TxOutputIndex]
-
+    let colls = rs >>= txRelation_colls . snd
     resolvedCollateral <- fmap toOutputMap $
-        combineChunked txRelation_colls $ \collateralChunk ->
+        combineChunked colls $ \collateralChunk ->
             traverse readTxOutTokens . fmap entityVal
                 =<< selectList
                     [ TxOutputTxId
-                        <-. ( txCollateralSourceTxId . runIdentity
-                                <$> collateralChunk
-                            )
+                            <-. (txCollateralSourceTxId . runIdentity
+                                         <$> collateralChunk)
                     ]
                     [Asc TxOutputTxId, Asc TxOutputIndex]
-    let inputs' = txRelation_ins  `resolveInputWith` resolvedInputs
-        collateral' = txRelation_colls `resolveCollateralWith` resolvedCollateral
+    let inputs' ins = ins `resolveInputWith` resolvedInputs
+        collateral' colls = colls `resolveCollateralWith` resolvedCollateral
     pure $
-        TxRelationF
-            txRelation_metas 
-            inputs'
-            collateral'
-            txRelation_outs
-            txRelation_collouts
-            txRelation_withdraws
+        TxMetaRelationF $ do
+            (m, r) <- rs
+            pure $
+                (m,) $
+                    TxRelationF
+                        do inputs' $ txRelation_ins r
+                        do collateral' $ txRelation_colls r
+                        do txRelation_outs r
+                        do txRelation_collouts r
+                        do txRelation_withdraws r
 
+
+-- Fetch the complete set of tokens associated with a TxOut.
 readTxOutTokens :: TxOut -> SqlPersistT IO (TxOut, [TxOutToken])
 readTxOutTokens out =
     (out,) . fmap entityVal
@@ -154,6 +159,15 @@ readTxOutTokens out =
             [ TxOutTokenTxId ==. txOutputTxId out,
               TxOutTokenTxIndex ==. txOutputIndex out
             ]
+            []
+-- Fetch the complete set of tokens associated with a TxCollateralOut.
+readTxCollateralOutTokens ::
+    TxCollateralOut ->
+    SqlPersistT IO (TxCollateralOut, [TxCollateralOutToken])
+readTxCollateralOutTokens out =
+    (out,) . fmap entityVal
+        <$> selectList
+            [TxCollateralOutTokenTxId ==. txCollateralOutTxId out]
             []
 
 toOutputMap ::
@@ -168,45 +182,46 @@ toOutputMap = Map.fromList . fmap toEntry
 
 selectTxRelation ::
     [TxMeta] ->
-    SqlPersistT IO TxRelation
+    SqlPersistT IO TxMetaRelation
 selectTxRelation = fmap fold . mapM select . chunksOf chunkSize
   where
     select txmetas = do
-        inputs <- select'
-            [TxInputTxId <-. txids]
+        inputs <- select' TxInputTxId
             [Asc TxInputTxId, Asc TxInputOrder]
-        collateral <- select'
-            [TxCollateralTxId <-. txids]
+        collateral <- select' TxCollateralTxId
             [Asc TxCollateralTxId, Asc TxCollateralOrder]
-        outputs <- traverse readTxOutTokens =<< select'
-            [TxOutputTxId <-. txids]
+        -- TODO: use join
+        outputs <- traverse (traverse readTxOutTokens) =<< select'
+            TxOutputTxId
             [Asc TxOutputTxId, Asc TxOutputIndex]
-        collateralOutputs <- traverse readTxCollateralOutTokens =<< select'
-            [TxCollateralOutTxId <-. txids]
-            [Asc TxCollateralOutTxId]
-        withdrawals <- select' [TxWithdrawalTxId <-. txids] []
+        -- TODO: use join
+        collateralOutputs <-
+            traverse (traverse readTxCollateralOutTokens) =<< select'
+                TxCollateralOutTxId
+                [Asc TxCollateralOutTxId]
+        withdrawals <- select' TxWithdrawalTxId []
         pure $
-            TxRelationF
-                txmetas
-                do Identity <$> inputs
-                do Identity <$> collateral
-                outputs
-                collateralOutputs
-                withdrawals
+            TxMetaRelationF $ do
+                m <- txmetas
+                let ofMeta :: Map TxId [a] -> [a]
+                    ofMeta = Map.findWithDefault [] (m ^. #txMetaTxId)
+                pure $ (m,) $ TxRelationF
+                    do Identity <$> ofMeta inputs
+                    do Identity <$> ofMeta collateral
+                    do ofMeta outputs
+                    do ofMeta collateralOutputs
+                    do ofMeta withdrawals
       where
-        txids = txMetaTxId <$> txmetas
-    select' f q = fmap entityVal <$> selectList f q
-    -- Fetch the complete set of tokens associated with a TxOut.
-    -- Fetch the complete set of tokens associated with a TxCollateralOut.
-    --
-    readTxCollateralOutTokens ::
-        TxCollateralOut ->
-        SqlPersistT IO (TxCollateralOut, [TxCollateralOutToken])
-    readTxCollateralOutTokens out =
-        (out,) . fmap entityVal
-            <$> selectList
-                [TxCollateralOutTokenTxId ==. txCollateralOutTxId out]
-                []
+        select' ::
+            ( PersistEntity b, PersistEntityBackend b ~ SqlBackend)
+            => EntityField b TxId
+            -> [SelectOpt b]
+            -> SqlPersistT IO (Map TxId [b])
+        select' k q
+            = Map.fromListWith (flip (<>))
+                . fmap (view (fieldLens k) &&& pure . entityVal)
+                <$> selectList [k <-. (txMetaTxId <$> txmetas)] q
+
 
 {- | Split a query's input values into chunks, run multiple smaller queries,
  and then concatenate the results afterwards. Used to avoid "too many SQL
@@ -215,7 +230,7 @@ selectTxRelation = fmap fold . mapM select . chunksOf chunkSize
 combineChunked :: [a] -> ([a] -> SqlPersistT IO [b]) -> SqlPersistT IO [b]
 combineChunked xs f = concatMapM f $ chunksOf chunkSize xs
 
-selectTxHistory ::
+selectWalletTransactionInfo ::
     W.Wallet s ->
     TimeInterpreter IO ->
     W.WalletId ->
@@ -223,7 +238,7 @@ selectTxHistory ::
     W.SortOrder ->
     [Filter TxMeta] ->
     SqlPersistT IO [W.TransactionInfo]
-selectTxHistory cp ti wid minWithdrawal order conditions = do
+selectWalletTransactionInfo cp ti wid minWithdrawal order conditions = do
     let txMetaFilter = (TxMetaWalletId ==. wid) : conditions
     metas <- case minWithdrawal of
         Nothing -> fmap entityVal <$> selectList txMetaFilter sortOpt
@@ -257,6 +272,7 @@ selectTxHistory cp ti wid minWithdrawal order conditions = do
         W.Ascending -> [Asc TxMetaSlot, Desc TxMetaTxId]
         W.Descending -> [Desc TxMetaSlot, Asc TxMetaTxId]
 
+
 selectWalletMetas ::
     W.WalletId ->
     SqlPersistT IO [TxMeta]
@@ -264,7 +280,7 @@ selectWalletMetas wid = do
     let txMetaFilter = [TxMetaWalletId ==. wid]
     fmap entityVal <$> selectList txMetaFilter []
 
-selectWalletTxRelation :: W.WalletId -> SqlPersistT IO TxRelation
+selectWalletTxRelation :: W.WalletId -> SqlPersistT IO TxMetaRelation
 selectWalletTxRelation wid = selectWalletMetas wid >>= selectTxRelation
 
 selectTxMeta ::
@@ -281,20 +297,21 @@ txHistoryFromEntity ::
     Monad m =>
     TimeInterpreter m ->
     W.BlockHeader ->
-    TxRelationA ->
+    TxMetaRelationA ->
     m [W.TransactionInfo]
-txHistoryFromEntity ti tip (TxRelationF metas ins cins outs couts ws) =
-    mapM mkItem metas
+txHistoryFromEntity ti tip (TxMetaRelationF rs) =
+    mapM mkItem rs
   where
     startTime' = interpretQuery ti . slotToUTCTime
-    mkItem m =
-        mkTxWith
+    mkItem (m, r) = 
+        mkTxWith r
             (txMetaTxId m)
             (txMetaFee m)
             (txMetadata m)
             (mkTxDerived m)
             (txMetaScriptValidity m)
-    mkTxWith txid mfee meta derived isValid = do
+    mkTxWith (TxRelationF ins cins outs couts ws)
+            txid mfee meta derived isValid = do
         t <- startTime' (derived ^. #slotNo)
         return $
             W.TransactionInfo

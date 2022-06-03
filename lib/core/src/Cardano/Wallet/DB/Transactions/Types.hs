@@ -28,10 +28,12 @@ import GHC.Generics
     ( Generic )
 import Prelude
 
+
+
+
 data TxRelationF f
     = TxRelationF {
-        txRelation_metas :: [TxMeta]
-        , txRelation_ins :: [f TxIn]
+          txRelation_ins :: [f TxIn]
         , txRelation_colls :: [f TxCollateral]
         , txRelation_outs :: [(TxOut, [TxOutToken])]
         , txRelation_collouts :: [(TxCollateralOut, [TxCollateralOutToken])]
@@ -44,26 +46,40 @@ deriving instance (Eq (f TxIn), Eq (f TxCollateral))
 deriving instance (Show (f TxIn), Show (f TxCollateral))
      => Show (TxRelationF f)
 
+newtype TxMetaRelationF f = TxMetaRelationF 
+    {txMetaRelation_relations ::[(TxMeta,TxRelationF f)]} deriving (Generic)
+
+deriving instance (Eq (f TxIn), Eq (f TxCollateral))
+     => Eq (TxMetaRelationF f)
+deriving instance (Show (f TxIn), Show (f TxCollateral))
+     => Show (TxMetaRelationF f)
 instance Monoid (TxRelationF f) where
     mempty = memptydefault
 
 instance Semigroup (TxRelationF f) where
     (<>) = mappenddefault
 
-type TxRelation = TxRelationF Identity
+instance Monoid (TxMetaRelationF f) where
+    mempty = memptydefault
+
+instance Semigroup (TxMetaRelationF f) where
+    (<>) = mappenddefault
+
+
+type TxMetaRelation = TxMetaRelationF Identity
 
 data WithTxOut a = WithTxOut
     { withTxOut_value :: a,
       withTxOut_context :: Maybe (TxOut, [TxOutToken])
     }
 
-type TxRelationA = TxRelationF WithTxOut
+type TxMetaRelationA = TxMetaRelationF WithTxOut
 
-newtype TxHistory = TxHistory TxRelation  deriving (Show, Eq)
+newtype TxHistory = TxHistory TxMetaRelation  deriving (Show, Eq)
 
 instance Buildable TxHistory where
     build (TxHistory txs) = "TxHistory "
-        <> build (length $ txRelation_metas txs)
+        <> build (length $ txMetaRelation_relations txs)
 
 instance Semigroup TxHistory where
     TxHistory xs <> TxHistory ys = TxHistory zs
@@ -77,7 +93,7 @@ newtype DeltaTxHistory = DeltaTxHistory TxHistory
 
 instance Buildable DeltaTxHistory where
     build (DeltaTxHistory (TxHistory txs)) =
-        "DeltaTxHistory " <> build (length $ txRelation_metas txs)
+        "DeltaTxHistory " <> build (length $ txMetaRelation_relations txs)
 
 instance Delta DeltaTxHistory where
     type Base DeltaTxHistory = TxHistory

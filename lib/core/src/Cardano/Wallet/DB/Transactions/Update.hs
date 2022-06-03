@@ -10,6 +10,7 @@
 {-# LANGUAGE UndecidableInstances #-}
 
 {-# OPTIONS_GHC -fno-warn-orphans #-}
+{-# LANGUAGE ViewPatterns #-}
 
 {- |
  Copyright: © 2018-2020 IOHK
@@ -43,19 +44,21 @@ import Database.Persist.Sql
 import Prelude
 
 import Cardano.Wallet.DB.Transactions.Types
-    ( TxRelation, TxRelationF (..) )
+    ( TxMetaRelationF (..), TxRelationF (..), TxMetaRelation )
 import qualified Cardano.Wallet.Primitive.Types as W
 import qualified Cardano.Wallet.Primitive.Types.Tx as W
+import Data.Foldable (fold)
 
 
 updateTxHistory :: W.WalletId -> [(W.Tx, W.TxMeta)] -> SqlPersistT IO ()
 updateTxHistory wid = putTxs . mkTxHistory wid
 
 -- | Insert multiple transactions, removing old instances first.
-putTxs :: TxRelation -> SqlPersistT IO ()
-putTxs TxRelationF {..} = do
+putTxs :: TxMetaRelation -> SqlPersistT IO ()
+putTxs (TxMetaRelationF mrs) = do
+    let (metas,fold -> TxRelationF {..}) = unzip mrs
     repsertX
-        do txRelation_metas
+        do metas
         do \TxMeta {..} -> TxMetaKey txMetaTxId txMetaWalletId
     repsertX
         do runIdentity <$> txRelation_ins
