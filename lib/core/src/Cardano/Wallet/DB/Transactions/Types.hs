@@ -28,7 +28,33 @@ import Data.Functor.Identity
 import GHC.Generics
     ( Generic )
 
-newtype TxHistory = TxHistory [(W.Tx, W.TxMeta)] deriving (Eq)
+data TxRelationF f
+    = TxRelationF
+        [TxMeta]
+        [f TxIn]
+        [f TxCollateral]
+        [(TxOut, [TxOutToken])]
+        [(TxCollateralOut, [TxCollateralOutToken])]
+        [TxWithdrawal]
+    deriving (Generic, Eq)
+
+
+instance Monoid (TxRelationF f) where
+    mempty = memptydefault
+
+instance Semigroup (TxRelationF f) where
+    (<>) = mappenddefault
+
+type TxRelation = TxRelationF Identity
+
+data WithTxOut a = WithTxOut
+    { withTxOut_value :: a,
+      withTxOut_context :: Maybe (TxOut, [TxOutToken])
+    }
+
+type TxRelationA = TxRelationF WithTxOut
+
+newtype TxHistory = TxHistory TxRelation deriving (Eq)
 
 instance Buildable TxHistory where
     build (TxHistory txs) = "TxHistory " <> build (length txs)
@@ -51,24 +77,3 @@ instance Delta DeltaTxHistory where
     type Base DeltaTxHistory = TxHistory
     apply (DeltaTxHistory txs) h = h <> txs
 
-data TxRelationF f
-    = TxRelationF
-        [TxMeta]
-        [f TxIn]
-        [f TxCollateral]
-        [(TxOut, [TxOutToken])]
-        [(TxCollateralOut, [TxCollateralOutToken])]
-        [TxWithdrawal]
-    deriving (Generic)
-
-type TxRelation = TxRelationF Identity
-
-data WithTxOut a = WithTxOut
-    { withTxOut_value :: a,
-      withTxOut_context :: Maybe (TxOut, [TxOutToken])
-    }
-type TxRelationA = TxRelationF WithTxOut
-instance Monoid (TxRelationF f) where
-    mempty = memptydefault
-instance Semigroup (TxRelationF f) where
-    (<>) = mappenddefault

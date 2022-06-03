@@ -81,7 +81,7 @@ library
     , free
     , generic-lens
     , generic-arbitrary
-    , generics-deriving
+    , generic-deriving
     , generics-sop
     , hashable
     , hedgehog
