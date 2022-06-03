@@ -195,17 +195,22 @@ library
       Cardano.Wallet.CoinSelection.Internal.Context
       Cardano.Wallet.Compat
       Cardano.Wallet.DB
-      Cardano.Wallet.DB.Checkpoints
       Cardano.Wallet.DB.MVar
       Cardano.Wallet.DB.Model
-      Cardano.Wallet.DB.Sqlite
-      Cardano.Wallet.DB.Sqlite.AddressBook
-      Cardano.Wallet.DB.Sqlite.CheckpointsOld
+      Cardano.Wallet.DB.Layer
+      Cardano.Wallet.DB.Unstored
+      Cardano.Wallet.DB.Checkpoints.AddressBook
+      Cardano.Wallet.DB.Checkpoints.Model
+      Cardano.Wallet.DB.Checkpoints.Store
+      Cardano.Wallet.DB.Transactions.Update
+      Cardano.Wallet.DB.Transactions.Select
+      Cardano.Wallet.DB.Transactions.Delete
+      Cardano.Wallet.DB.Wallets.State
+      Cardano.Wallet.DB.Wallets.Store
       Cardano.Wallet.DB.Sqlite.Migration
-      Cardano.Wallet.DB.Sqlite.Stores
-      Cardano.Wallet.DB.Sqlite.TH
+      Cardano.Wallet.DB.Sqlite.Schema
       Cardano.Wallet.DB.Sqlite.Types
-      Cardano.Wallet.DB.WalletState
+      Cardano.Wallet.DB.Sqlite.WrapSTM
       Cardano.Wallet.Logging
       Cardano.Wallet.Network
       Cardano.Wallet.Network.Light

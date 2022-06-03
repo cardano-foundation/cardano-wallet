@@ -37,10 +37,10 @@ import Cardano.Crypto.Wallet
     ( unXPrv )
 import Cardano.Mnemonic
     ( SomeMnemonic (..) )
+import Cardano.Wallet.DB.Checkpoints.AddressBook
+    ( AddressBookIso (..) )
 import Cardano.Wallet.DB.Model
     ( TxHistory, filterTxHistory )
-import Cardano.Wallet.DB.Sqlite.AddressBook
-    ( AddressBookIso (..) )
 import Cardano.Wallet.DummyTarget.Primitive.Types as DummyTarget
     ( block0, mkTx )
 import Cardano.Wallet.Gen

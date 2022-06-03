@@ -67,13 +67,13 @@ import Cardano.Startup
     ( withUtf8Encoding )
 import Cardano.Wallet.DB
     ( DBLayer (..), cleanDB )
-import Cardano.Wallet.DB.Sqlite
+import Cardano.Wallet.DB.Layer
     ( CacheBehavior (..)
     , PersistAddressBook
     , WalletDBLog (..)
     , newDBLayerWith
     )
-import Cardano.Wallet.DB.Sqlite.TH
+import Cardano.Wallet.DB.Sqlite.Schema
     ( migrateAll )
 import Cardano.Wallet.DummyTarget.Primitive.Types
     ( block0, dummyGenesisParameters, mkTxId )

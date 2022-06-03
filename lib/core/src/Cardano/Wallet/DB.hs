@@ -38,7 +38,7 @@ import Prelude
 
 import Cardano.Address.Derivation
     ( XPrv )
-import Cardano.Wallet.DB.WalletState
+import Cardano.Wallet.DB.Wallets.State
     ( DeltaMap, DeltaWalletState )
 import Cardano.Wallet.Primitive.AddressDerivation
     ( Depth (..) )
@@ -157,7 +157,7 @@ data DBLayer m s k = forall stm. (MonadIO stm, MonadFail stm) => DBLayer
         -- ^ 'DBVar' containing the 'WalletState' of each wallet in the database.
         -- Currently contains all 'Checkpoints' of the 'UTxO' and the
         -- 'Discoveries', as well as the 'Prologue' of the address discovery state.
-        -- 
+        --
         -- Intended to replace 'putCheckpoint' and 'readCheckpoint' in the short-term,
         -- and all other functions in the long-term.
 
@@ -244,7 +244,8 @@ data DBLayer m s k = forall stm. (MonadIO stm, MonadFail stm) => DBLayer
         --
         -- If an entry for a particular transaction already exists it is not
         -- altered nor merged (just ignored).
-        --
+        -- Q: entry here means hash of the transaction ?
+        -- Q: is there an isomorphism between ((Tx, TxMeta), querytimeinfo) and TransactionInfo
         -- If the wallet doesn't exist, this operation returns an error.
 
     , readTxHistory
@@ -265,7 +266,7 @@ data DBLayer m s k = forall stm. (MonadIO stm, MonadFail stm) => DBLayer
         -> ExceptT ErrNoSuchWallet stm (Maybe TransactionInfo)
         -- ^ Fetch the latest transaction by id, returns Nothing when the
         -- transaction isn't found.
-        --
+        -- Q: what is the "latest" ? Isn't the id unique ?
         -- If the wallet doesn't exist, this operation returns an error.
 
     , putLocalTxSubmission
