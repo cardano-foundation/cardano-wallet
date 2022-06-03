@@ -6,7 +6,7 @@ module Cardano.Wallet.DB.Transactions.Store where
 import Cardano.Wallet.DB.Transactions.Delete
     ( deletePendingOrExpiredTx, taintExpiredTx )
 import Cardano.Wallet.DB.Transactions.Delta
-    ( DeltaTxHistory (AgeTxHistory, DeltaTxHistory, PruneTxHistory) )
+    ( DeltaTxHistory (AgeTxHistory, ExpandTxHistory, PruneTxHistory) )
 import Cardano.Wallet.DB.Transactions.Select
     ( selectWalletTxRelation )
 import Cardano.Wallet.DB.Transactions.Types
@@ -37,7 +37,7 @@ mkStoreTransactions wid =
 
 update :: WalletId -> TxHistory -> DeltaTxHistory -> SqlPersistT IO ()
 update wid _ change = overWallet wid $ \_wallet -> case change of
-    DeltaTxHistory txs -> putTxs txs
+    ExpandTxHistory txs -> putTxs txs
     PruneTxHistory tid -> void $ deletePendingOrExpiredTx wid tid
     AgeTxHistory tip -> taintExpiredTx wid tip
 

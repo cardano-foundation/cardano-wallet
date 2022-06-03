@@ -87,6 +87,8 @@ import qualified Cardano.Wallet.Primitive.Types.Hash as W
 import qualified Cardano.Wallet.Primitive.Types.TokenBundle as TokenBundle
 import qualified Cardano.Wallet.Primitive.Types.Tx as W
 import qualified Data.Map.Strict as Map
+import Data.Foldable (toList)
+import qualified Data.Map.Strict as M
 
 -- This relies on available information from the database to reconstruct coin
 -- selection information for __outgoing__ payments. We can't however guarantee
@@ -131,19 +133,18 @@ addTxOuts f g xs = do
 
 -- merge information from utxo on inputs and collaterals
 patchToTxRelationA
-    :: TxHistory
-    -> SqlPersistT IO TxHistoryA
-patchToTxRelationA (TxHistoryF rs) = do
+    :: [(TxMeta, TxRelationF Identity)]
+    -> SqlPersistT IO [(TxMeta, TxRelationF WithTxOut)]
+patchToTxRelationA rs = do
     ins <- addTxOuts
         do txInputSourceTxId
         do txInputSourceIndex
-        do rs >>= txRelation_ins . snd
+        do toList rs >>= txRelation_ins . snd
     colls  <- addTxOuts
         do txCollateralSourceTxId
         do txCollateralSourceIndex
-        do rs >>= txRelation_colls . snd
-    pure $
-        TxHistoryF $ do
+        do toList rs >>= txRelation_colls . snd
+    pure $ do
             (m, r) <- rs
             pure $ (m,) $ TxRelationF
                 do ins
@@ -165,8 +166,9 @@ readTxCollateralOutTokens out =
 selectTxRelation ::
     [TxMeta] ->
     SqlPersistT IO TxHistory
-selectTxRelation = fmap fold . mapM select . chunksOf chunkSize
+selectTxRelation = fmap (TxHistoryF . fold) . mapM select . chunksOf chunkSize
   where
+    select:: [TxMeta] -> SqlPersistT IO (Map TxId (TxMeta, TxRelationF Identity))
     select txmetas = do
         inputs <- select' TxInputTxId
             [Asc TxInputTxId, Asc TxInputOrder]
@@ -182,12 +184,12 @@ selectTxRelation = fmap fold . mapM select . chunksOf chunkSize
                 TxCollateralOutTxId
                 [Asc TxCollateralOutTxId]
         withdrawals <- select' TxWithdrawalTxId []
-        pure $
-            TxHistoryF $ do
+        pure $ fold $ do
                 m <- txmetas
-                let ofMeta :: Map TxId [a] -> [a]
-                    ofMeta = Map.findWithDefault [] (m ^. #txMetaTxId)
-                pure $ (m,) $ TxRelationF
+                let tid = m ^. #txMetaTxId
+                    ofMeta :: Map TxId [a] -> [a]
+                    ofMeta = Map.findWithDefault [] tid
+                pure $ M.singleton tid $ (m,) $ TxRelationF
                     do Identity <$> ofMeta inputs
                     do Identity <$> ofMeta collateral
                     do ofMeta outputs
@@ -210,7 +212,7 @@ filterTxHistory
     -> W.SortOrder
     -> (TxMeta -> Bool)
     -> TxHistoryF f
-    -> TxHistoryF f
+    -> [(TxMeta,TxRelationF f)]
 filterTxHistory minWithdrawal order conditions (TxHistoryF rs) = let
     sortTxId = txMetaTxId . fst  & case order of
         W.Ascending -> sortOn . fmap Down
@@ -225,7 +227,7 @@ filterTxHistory minWithdrawal order conditions (TxHistoryF rs) = let
                     . txRelation_withdraws
                     . snd
     filterMeta = filter (conditions . fst)
-    in TxHistoryF $ sortSlot $ sortTxId $ byCoin $ filterMeta rs
+    in sortSlot $ sortTxId $ byCoin $ filterMeta $ toList rs
 {- | Split a query's input values into chunks, run multiple smaller queries,
  and then concatenate the results afterwards. Used to avoid "too many SQL
  variables" errors for "SELECT IN" queries.
@@ -279,7 +281,9 @@ selectWalletTransactionInfo cp ti wid minWithdrawal order conditions = do
                     W.Descending -> sortOn (Down . txMetaSlot)
             pure $ sortSlot $ sortTxId $ fmap entityVal ms
 
-    relation <- selectTxRelation metas >>= patchToTxRelationA
+    relation <- do
+        TxHistoryF rs <- selectTxRelation metas
+        patchToTxRelationA $ toList rs
     liftIO $ txHistoryFromEntity ti (W.currentTip cp) relation
   where
     -- Note: there are sorted indices on these columns.
@@ -314,10 +318,9 @@ txHistoryFromEntity ::
     Monad m =>
     TimeInterpreter m ->
     W.BlockHeader ->
-    TxHistoryA ->
+    [(TxMeta, TxRelationF WithTxOut )] ->
     m [W.TransactionInfo]
-txHistoryFromEntity ti tip (TxHistoryF rs) =
-    mapM mkItem rs
+txHistoryFromEntity ti tip = mapM mkItem
   where
     startTime' = interpretQuery ti . slotToUTCTime
     mkItem (m, r) =

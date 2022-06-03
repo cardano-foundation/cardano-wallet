@@ -26,6 +26,8 @@ import Generics.Deriving.Monoid
 import GHC.Generics
     ( Generic )
 import Prelude
+import Data.Map.Strict (Map)
+import Cardano.Wallet.DB.Sqlite.Types (TxId)
 
 data TxRelationF f
     = TxRelationF 
@@ -44,7 +46,7 @@ deriving instance (Show (f TxIn), Show (f TxCollateral))
      => Show (TxRelationF f)
 
 newtype TxHistoryF f = TxHistoryF
-    { txHistory_relations ::[(TxMeta,TxRelationF f)] }
+    { txHistory_relations :: Map TxId (TxMeta,TxRelationF f) }
     deriving (Generic)
 
 deriving instance (Eq (f TxIn), Eq (f TxCollateral))

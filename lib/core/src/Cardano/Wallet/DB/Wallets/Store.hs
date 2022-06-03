@@ -131,5 +131,5 @@ mkStoreWallet wid =
         -- FIXME LATER during ADP-1043: remove 'undefined'
         updateS storeCheckpoints undefined delta
     update1 (UpdateTransactions delta) =
-     -- FIXME LATER during ADP-1043: remove 'undefined'
+        -- FIXME LATER during ADP-1043: remove 'undefined'
         updateS storeTransactions undefined delta

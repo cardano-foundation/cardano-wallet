@@ -62,6 +62,7 @@ import Data.Word
 import Prelude
 
 import qualified Data.Map.Strict as Map
+import qualified Data.Map.Strict as M
 
 mkTxMetaEntity ::
     W.WalletId ->
@@ -183,7 +184,7 @@ mkTxWithdrawal tid (txWithdrawalAccount, txWithdrawalAmount) =
 
 mkTxCore ::
     W.WalletId -> W.Tx -> W.TxMeta -> TxHistory
-mkTxCore wid tx txmeta = TxHistoryF $ pure $ (meta,) $ TxRelationF
+mkTxCore wid tx txmeta = TxHistoryF $ M.singleton tid $ (meta,) $ TxRelationF
     do fmap (Identity . mkTxIn tid) . ordered . W.resolvedInputs $ tx
     do
         fmap (Identity . mkTxCollateral tid)
@@ -214,4 +215,4 @@ mkTxHistory wid txs = fold $ do
     pure $ mkTxCore wid tx meta
 
 filterMeta :: (TxMeta -> Bool) -> TxHistoryF f -> TxHistoryF f
-filterMeta f (TxHistoryF rs) = TxHistoryF $ filter (f . fst) rs
+filterMeta f (TxHistoryF rs) = TxHistoryF $ M.filter (f . fst) rs

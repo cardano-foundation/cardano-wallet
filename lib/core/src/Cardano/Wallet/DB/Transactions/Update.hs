@@ -36,7 +36,7 @@ import Cardano.Wallet.DB.Transactions.Model
 import Cardano.Wallet.DB.Transactions.Types
     ( TxHistory, TxHistoryF (..), TxRelationF (..) )
 import Data.Foldable
-    ( fold )
+    ( fold, toList )
 import Data.Functor.Identity
     ( runIdentity )
 import Database.Persist.Sql
@@ -56,7 +56,7 @@ updateTxHistory wid = putTxs . mkTxHistory wid
 -- | Insert multiple transactions, removing old instances first.
 putTxs :: TxHistory -> SqlPersistT IO ()
 putTxs (TxHistoryF mrs) = do
-    let (metas,fold -> TxRelationF {..}) = unzip mrs
+    let (metas,fold -> TxRelationF {..}) = unzip $ toList mrs
     repsertX
         do metas
         do \TxMeta {..} -> TxMetaKey txMetaTxId txMetaWalletId
@@ -86,18 +86,19 @@ putTxs (TxHistoryF mrs) = do
         do \TxCollateralOut{..} ->
             TxCollateralOutKey txCollateralOutTxId
     repsertX
-          do txRelation_collouts >>= snd
-          do \TxCollateralOutToken{..} ->
-              TxCollateralOutTokenKey
-                  txCollateralOutTokenTxId
-                  txCollateralOutTokenPolicyId
-                  txCollateralOutTokenName
+        do txRelation_collouts >>= snd
+        do \TxCollateralOutToken{..} ->
+            TxCollateralOutTokenKey
+                txCollateralOutTokenTxId
+                txCollateralOutTokenPolicyId
+                txCollateralOutTokenName
     repsertX
         do txRelation_withdraws
         do \TxWithdrawal{..} ->
             TxWithdrawalKey txWithdrawalTxId txWithdrawalAccount
 
-repsertX :: (PersistEntity record, PersistEntityBackend record ~ SqlBackend)
+repsertX
+    :: (PersistEntity record, PersistEntityBackend record ~ SqlBackend)
     => [record]
     -> (record -> Key record)
     -> SqlPersistT IO ()

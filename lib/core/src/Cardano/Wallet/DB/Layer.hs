@@ -1,4 +1,5 @@
 {-# LANGUAGE AllowAmbiguousTypes #-}
+{-# LANGUAGE BlockArguments #-}
 {-# LANGUAGE DataKinds #-}
 {-# LANGUAGE DeriveGeneric #-}
 {-# LANGUAGE DuplicateRecordFields #-}
@@ -7,13 +8,12 @@
 {-# LANGUAGE NamedFieldPuns #-}
 {-# LANGUAGE OverloadedLabels #-}
 {-# LANGUAGE RankNTypes #-}
+{-# LANGUAGE RecordWildCards #-}
 {-# LANGUAGE ScopedTypeVariables #-}
+{-# LANGUAGE TupleSections #-}
 {-# LANGUAGE TypeApplications #-}
 {-# LANGUAGE TypeFamilies #-}
 {-# LANGUAGE UndecidableInstances #-}
-{-# LANGUAGE BlockArguments #-}
-{-# LANGUAGE RecordWildCards #-}
-{-# LANGUAGE TupleSections #-}
 
 {- HLINT ignore "Redundant flip" -}
 {- HLINT ignore "Redundant ^." -}
@@ -103,10 +103,13 @@ import Cardano.Wallet.DB.Sqlite.Types
     ( TxId (..) )
 import Cardano.Wallet.DB.Sqlite.WrapSTM
     ()
+import Cardano.Wallet.DB.Transactions.Delta
+import Cardano.Wallet.DB.Transactions.Model
+    ( mkTxHistory )
 import Cardano.Wallet.DB.Transactions.Select
-    ( selectWalletTransactionInfo
-    , selectWalletTransactionInfoStore
-    )
+    ( selectWalletTransactionInfo, selectWalletTransactionInfoStore )
+import Cardano.Wallet.DB.Transactions.Types
+    ( TxHistoryF (TxHistoryF) )
 import Cardano.Wallet.DB.Transactions.Update
     ( updateTxHistory )
 import Cardano.Wallet.DB.Unstored
@@ -115,6 +118,7 @@ import Cardano.Wallet.DB.Unstored
     , deleteDelegationCertificates
     , deleteLooseTransactions
     , deleteStakeKeyCerts
+    , deleteTxLocal
     , deleteTxMetas
     , listPendingLocalTxSubmissionQuery
     , localTxSubmissionFromEntity
@@ -127,16 +131,16 @@ import Cardano.Wallet.DB.Unstored
     , selectGenesisParameters
     , selectPrivateKey
     , selectWallet
-    , deleteTxLocal
     , updateTxMetas
     )
 import Cardano.Wallet.DB.Wallets.State
     ( DeltaMap (..)
+    , DeltaWalletState
     , DeltaWalletState1 (..)
     , WalletState (transactions)
     , findNearestPoint
     , fromGenesis
-    , getLatestCheckpoint, DeltaWalletState
+    , getLatestCheckpoint
     )
 import Cardano.Wallet.DB.Wallets.Store
     ( PersistAddressBook (..), blockHeaderFromEntity, mkStoreWallets )
@@ -148,10 +152,16 @@ import Control.Monad
     ( forM, unless, void, when, (<=<) )
 import Control.Monad.IO.Class
     ( MonadIO (..) )
+import Control.Monad.Trans
+    ( lift )
 import Control.Monad.Trans.Except
     ( ExceptT (..) )
+import Control.Monad.Trans.Maybe
+    ( MaybeT (MaybeT), runMaybeT )
 import Control.Tracer
     ( Tracer, contramap, traceWith )
+import Data.Bifunctor
+    ( first )
 import Data.DBVar
     ( loadDBVar, modifyDBMaybe, readDBVar, updateDBVar )
 import Data.Either
@@ -190,6 +200,8 @@ import Database.Persist.Sql
     )
 import Database.Persist.Sqlite
     ( SqlPersistT )
+import Debug.Trace
+    ( trace )
 import Fmt
     ( pretty, (+|), (|+) )
 import GHC.Generics
@@ -203,21 +215,10 @@ import UnliftIO.Exception
 import UnliftIO.MVar
     ( modifyMVar, modifyMVar_, newMVar, readMVar, withMVar )
 
-import Cardano.Wallet.DB.Transactions.Model
-    ( mkTxHistory )
-
-import Cardano.Wallet.DB.Transactions.Delta
 import qualified Cardano.Wallet.Primitive.Types as W
 import qualified Cardano.Wallet.Primitive.Types.Coin as Coin
 import qualified Cardano.Wallet.Primitive.Types.Tx as W
-import Control.Monad.Trans
-    ( lift )
-import Control.Monad.Trans.Maybe
-    ( MaybeT (MaybeT), runMaybeT )
-import Debug.Trace
-    ( trace )
-import Cardano.Wallet.DB.Transactions.Types (TxHistoryF (TxHistoryF))
-import Data.Bifunctor (first)
+import qualified Data.Map.Strict as M
 {-------------------------------------------------------------------------------
                                Database "factory"
              (a directory containing one database file per wallet)
@@ -735,7 +736,7 @@ newDBLayerWith _cacheBehavior _tr ti SqliteContext{runQuery} = do
             modifyDBWallet' wid
                 $ \_  -> Just $ Adjust wid
                     [UpdateTransactions
-                        $ DeltaTxHistory
+                        $ ExpandTxHistory
                         $ mkTxHistory wid deltaTxHistory
                     ]
         , readTxHistory =
@@ -796,14 +797,14 @@ newDBLayerWith _cacheBehavior _tr ti SqliteContext{runQuery} = do
                     TxHistoryF txs <- ExceptT
                         $ maybe errNoSuchWallet Right
                         <$> readWalletState transactions wid
-                    let expireds = filter (isExpired tip) $ fst <$> txs
+                    let expireds = M.filter (isExpired tip . fst) txs
                     ExceptT $ modifyDBWallet wid $ \_  ->
                                 let delta = Just $ Adjust wid
                                         [UpdateTransactions
                                             $ AgeTxHistory tip
                                         ]
                                 in  (delta, ())
-                    lift $ deleteTxLocal wid $ txMetaTxId <$> expireds
+                    lift $ deleteTxLocal wid $ M.keys expireds
 
         , removePendingOrExpiredTx = \wid tid -> do
 
