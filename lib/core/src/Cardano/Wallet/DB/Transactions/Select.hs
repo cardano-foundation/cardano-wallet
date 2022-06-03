@@ -17,18 +17,39 @@ module Cardano.Wallet.DB.Transactions.Select
 import Cardano.DB.Sqlite
     ( chunkSize )
 import Cardano.Wallet.DB.Sqlite.Schema
+    ( EntityField (..)
+    , TxCollateral (..)
+    , TxCollateralOut (..)
+    , TxCollateralOutToken (..)
+    , TxIn (..)
+    , TxMeta (..)
+    , TxOut (..)
+    , TxOutToken (..)
+    , TxWithdrawal (..)
+    )
 import Cardano.Wallet.DB.Sqlite.Types
     ( TxId (TxId), getTxId )
+import Cardano.Wallet.DB.Transactions.Types
 import Cardano.Wallet.Primitive.Slotting
     ( TimeInterpreter, interpretQuery, slotToUTCTime )
 import Cardano.Wallet.Primitive.Types.TokenMap
     ( AssetId (AssetId) )
+import Control.Arrow
+    ( (&&&) )
+import Control.Monad.Exception.Unchecked
+    ( throwSomeException )
 import Control.Monad.Extra
     ( concatMapM )
+import Data.DBVar
+    ( Store (loadS) )
 import Data.Foldable
     ( fold )
+import Data.Function
+    ( (&) )
 import Data.Functor
     ( (<&>) )
+import Data.Functor.Identity
+    ( Identity (Identity), runIdentity )
 import Data.Generics.Internal.VL
     ( view, (^.) )
 import Data.List
@@ -63,13 +84,6 @@ import Prelude
 import UnliftIO
     ( liftIO )
 
-import Cardano.Wallet.DB.Transactions.Types
-
-import Control.Arrow
-    ( (&&&) )
-import Data.Functor.Identity
-    ( Identity (Identity), runIdentity )
-
 import qualified Cardano.Wallet.Primitive.Model as W
 import qualified Cardano.Wallet.Primitive.Types as W
 import qualified Cardano.Wallet.Primitive.Types.Coin as W
@@ -77,9 +91,6 @@ import qualified Cardano.Wallet.Primitive.Types.Hash as W
 import qualified Cardano.Wallet.Primitive.Types.TokenBundle as TokenBundle
 import qualified Cardano.Wallet.Primitive.Types.Tx as W
 import qualified Data.Map.Strict as Map
-import Data.Function ((&))
-import Data.DBVar (Store (loadS))
-import Control.Monad.Exception.Unchecked (throwSomeException)
 
 -- This relies on available information from the database to reconstruct coin
 -- selection information for __outgoing__ payments. We can't however guarantee
@@ -91,8 +102,8 @@ import Control.Monad.Exception.Unchecked (throwSomeException)
 -- work.
 --
 -- See also: issue #573.
--- Fetch the complete set of tokens associated with a TxOut.
 
+-- Fetch the complete set of tokens associated with a TxOut.
 readTxOutTokens :: TxOut -> SqlPersistT IO (TxOut, [TxOutToken])
 readTxOutTokens out =
     (out,) . fmap entityVal
@@ -102,9 +113,10 @@ readTxOutTokens out =
             ]
             []
 
+-- add txouts to any input2 `t`
 addTxOuts
-    :: (t -> TxId)
-    -> (t -> Word32)
+    :: (t -> TxId) -- transaction of the input
+    -> (t -> Word32) -- index of the input
     -> [Identity t]
     -> SqlPersistT IO [WithTxOut t]
 addTxOuts f g xs = do
@@ -113,14 +125,15 @@ addTxOuts f g xs = do
                 =<< selectList
                     [ TxOutputTxId <-. (f . runIdentity <$> chunk)]
                     [Asc TxOutputTxId, Asc TxOutputIndex]
-    let txOutMap = Map.fromList . fmap toEntry$ txOuts
+    let txOutMap = Map.fromList . fmap toEntry $ txOuts
             where
             toEntry (out, tokens) = (key, (out, tokens))
                 where
                 key = (txOutputTxId out, txOutputIndex out)
     pure $ xs <&> \(Identity i) -> WithTxOut i
         $ Map.lookup (f &&& g $ i) txOutMap
--- merge information from utxoon inputs and collaterals
+
+-- merge information from utxo on inputs and collaterals
 patchToTxRelationA
     :: TxMetaRelation
     -> SqlPersistT IO TxMetaRelationA
@@ -152,7 +165,7 @@ readTxCollateralOutTokens out =
         <$> selectList
             [TxCollateralOutTokenTxId ==. txCollateralOutTxId out]
             []
-
+-- select a txRelation starting from the list of meta
 selectTxRelation ::
     [TxMeta] ->
     SqlPersistT IO TxMetaRelation
@@ -196,11 +209,12 @@ selectTxRelation = fmap fold . mapM select . chunksOf chunkSize
                 <$> selectList [k <-. (txMetaTxId <$> txmetas)] q
 
 
-filterTxMetaRelation ::
-    Maybe W.Coin ->
-    W.SortOrder ->
-    (TxMeta -> Bool) ->
-    TxMetaRelationF f -> TxMetaRelationF f
+filterTxMetaRelation
+    :: Maybe W.Coin
+    -> W.SortOrder
+    -> (TxMeta -> Bool)
+    -> TxMetaRelationF f
+    -> TxMetaRelationF f
 filterTxMetaRelation minWithdrawal order conditions (TxMetaRelationF rs) = let
     sortTxId = txMetaTxId . fst  & case order of
         W.Ascending -> sortOn . fmap Down
