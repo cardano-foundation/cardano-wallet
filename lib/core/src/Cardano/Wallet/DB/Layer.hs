@@ -720,25 +720,25 @@ newDBLayerWith _cacheBehavior _tr ti SqliteContext{runQuery} = do
 
         , putTxHistory  = \wid deltaTxHistory -> ExceptT $
             modifyDBMaybe walletsDB_ $ \ws ->
-        case Map.lookup wid ws of
-            Nothing -> (Nothing, Left $ ErrNoSuchWallet wid)
-            Just _  ->
-                let delta = Just $ Adjust wid
-                        [UpdateTransactions
-                            $ DeltaTxHistory
-                            $ TxHistory
-                            $ mkTxHistory wid deltaTxHistory
-                        ]
-                in  (delta, Right ())
+                case Map.lookup wid ws of
+                    Nothing -> (Nothing, Left $ ErrNoSuchWallet wid)
+                    Just _  ->
+                        let delta = Just $ Adjust wid
+                                [UpdateTransactions
+                                    $ DeltaTxHistory
+                                    $ TxHistory
+                                    $ mkTxHistory wid deltaTxHistory
+                                ]
+                        in  (delta, Right ())
         , readTxHistory = \wid minWithdrawal order range status ->
             readCheckpoint_ wid >>= \case
-        Nothing -> pure []
-        Just cp -> selectWalletTransactionInfo cp
-            ti wid minWithdrawal order $ catMaybes
-            [ (TxMetaSlot >=.) <$> W.inclusiveLowerBound range
-            , (TxMetaSlot <=.) <$> W.inclusiveUpperBound range
-            , (TxMetaStatus ==.) <$> status
-            ]
+                Nothing -> pure []
+                Just cp -> selectWalletTransactionInfo cp
+                    ti wid minWithdrawal order $ catMaybes
+                    [ (TxMetaSlot >=.) <$> W.inclusiveLowerBound range
+                    , (TxMetaSlot <=.) <$> W.inclusiveUpperBound range
+                    , (TxMetaStatus ==.) <$> status
+                    ]
 
         , putLocalTxSubmission = \wid txid tx sl -> ExceptT $ do
             let errNoSuchWallet = ErrPutLocalTxSubmissionNoSuchWallet $
