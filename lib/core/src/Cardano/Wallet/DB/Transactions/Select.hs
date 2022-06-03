@@ -136,16 +136,16 @@ selectTxRelationA (TxMetaRelationF rs) = do
                                          <$> collateralChunk)
                     ]
                     [Asc TxOutputTxId, Asc TxOutputIndex]
-    let inputs' ins = ins `resolveInputWith` resolvedInputs
-        collateral' colls = colls `resolveCollateralWith` resolvedCollateral
+    let inputs' = ins `resolveInputWith` resolvedInputs
+        collateral' = colls `resolveCollateralWith` resolvedCollateral
     pure $
         TxMetaRelationF $ do
             (m, r) <- rs
             pure $
                 (m,) $
                     TxRelationF
-                        do inputs' $ txRelation_ins r
-                        do collateral' $ txRelation_colls r
+                        do inputs'
+                        do collateral'
                         do txRelation_outs r
                         do txRelation_collouts r
                         do txRelation_withdraws r

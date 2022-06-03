@@ -31,10 +31,24 @@ import Cardano.Wallet.DB.Sqlite.Schema
     )
 import Cardano.Wallet.DB.Sqlite.Types
     ( TxId (TxId) )
+import Cardano.Wallet.DB.Transactions.Types
+    ( TxMetaRelation, TxMetaRelationF (TxMetaRelationF), TxRelationF (..) )
+import qualified Cardano.Wallet.Primitive.Types as W
+import qualified Cardano.Wallet.Primitive.Types.Coin as W
+import Cardano.Wallet.Primitive.Types.RewardAccount
+    ( RewardAccount )
 import Cardano.Wallet.Primitive.Types.TokenBundle
     ( AssetId (AssetId) )
+import qualified Cardano.Wallet.Primitive.Types.TokenBundle as TokenBundle
+import Cardano.Wallet.Primitive.Types.TokenQuantity
+    ( TokenQuantity )
+import qualified Cardano.Wallet.Primitive.Types.Tx as W
+import Data.Foldable
+    ( fold )
 import Data.Functor
     ( (<&>) )
+import Data.Functor.Identity
+    ( Identity (Identity) )
 import Data.Generics.Internal.VL
     ( view, (^.) )
 import Data.Maybe
@@ -43,25 +57,11 @@ import Data.Monoid
     ()
 import Data.Quantity
     ( getQuantity )
-import Prelude
-
-import Cardano.Wallet.DB.Transactions.Types
-    ( TxMetaRelation, TxRelationF (..), TxMetaRelationF (TxMetaRelationF) )
-import qualified Cardano.Wallet.Primitive.Types as W
-import qualified Cardano.Wallet.Primitive.Types.Coin as W
-import Cardano.Wallet.Primitive.Types.RewardAccount
-    ( RewardAccount )
-import qualified Cardano.Wallet.Primitive.Types.TokenBundle as TokenBundle
-import Cardano.Wallet.Primitive.Types.TokenQuantity
-    ( TokenQuantity )
-import qualified Cardano.Wallet.Primitive.Types.Tx as W
-import Data.Foldable
-    ( fold )
-import Data.Functor.Identity
-    ( Identity (Identity) )
-import qualified Data.Map.Strict as Map
 import Data.Word
     ( Word32 )
+import Prelude
+
+import qualified Data.Map.Strict as Map
 
 mkTxMetaEntity ::
     W.WalletId ->

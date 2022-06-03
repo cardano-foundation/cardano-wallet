@@ -91,7 +91,7 @@ import Control.Monad.Trans.Maybe
 import Data.Bifunctor
     ( bimap, second )
 import Data.DBVar
-    ( Store (..), StoreException (StoreException) )
+    ( Store (..) )
 import Data.Functor
     ( (<&>) )
 import Data.Generics.Internal.VL.Lens
@@ -138,6 +138,8 @@ import Cardano.Wallet.DB.Sqlite.Types
     , hashOfNoParent
     , toMaybeHash
     )
+import Control.Exception
+    ( toException )
 
 import qualified Cardano.Wallet.Primitive.AddressDerivation as W
 import qualified Cardano.Wallet.Primitive.AddressDiscovery.Random as Rnd
@@ -160,7 +162,7 @@ mkStoreCheckpoints
 mkStoreCheckpoints wid =
     Store{ loadS = load, writeS = write, updateS = \_ -> update }
   where
-    load = bimap StoreException loadCheckpoints <$> selectAllCheckpoints wid
+    load = bimap toException loadCheckpoints <$> selectAllCheckpoints wid
 
     write cps = forM_ (Map.toList $ cps ^. #checkpoints) $ \(pt,cp) ->
             update (PutCheckpoint pt cp)

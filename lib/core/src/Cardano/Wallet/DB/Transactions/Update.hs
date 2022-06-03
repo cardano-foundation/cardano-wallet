@@ -33,6 +33,10 @@ import Cardano.Wallet.DB.Sqlite.Schema
     )
 import Cardano.Wallet.DB.Transactions.Model
     ( mkTxHistory )
+import Cardano.Wallet.DB.Transactions.Types
+    ( TxMetaRelation, TxMetaRelationF (..), TxRelationF (..) )
+import Data.Foldable
+    ( fold )
 import Data.Functor.Identity
     ( runIdentity )
 import Database.Persist.Sql
@@ -43,12 +47,8 @@ import Database.Persist.Sql
     )
 import Prelude
 
-import Cardano.Wallet.DB.Transactions.Types
-    ( TxMetaRelationF (..), TxRelationF (..), TxMetaRelation )
 import qualified Cardano.Wallet.Primitive.Types as W
 import qualified Cardano.Wallet.Primitive.Types.Tx as W
-import Data.Foldable (fold)
-
 
 updateTxHistory :: W.WalletId -> [(W.Tx, W.TxMeta)] -> SqlPersistT IO ()
 updateTxHistory wid = putTxs . mkTxHistory wid

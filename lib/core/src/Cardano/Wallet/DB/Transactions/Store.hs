@@ -16,9 +16,11 @@ import Cardano.Wallet.DB.Unstored
 import Cardano.Wallet.Primitive.Types
     ( WalletId )
 import Control.Exception
-    ( throw )
+    ( Exception (toException), SomeException, throw )
+import Control.Monad.Exception.Unchecked
+    ( Unchecked (Unchecked) )
 import Data.DBVar
-    ( Store (Store, loadS, updateS, writeS), StoreException (StoreException) )
+    ( Store (Store, loadS, updateS, writeS) )
 import Database.Persist.Sql
     ( SqlPersistT )
 import Prelude
@@ -35,14 +37,15 @@ update :: WalletId -> TxHistory -> DeltaTxHistory -> SqlPersistT IO ()
 update wid _ (DeltaTxHistory (TxHistory txs)) =
     selectWallet wid >>= \case
         Nothing -> throw 
-            $ StoreException
+            $ toException
+            $ Unchecked
             $ ErrNoSuchWallet wid
         Just _ -> putTxs txs
 
 write :: WalletId -> TxHistory -> SqlPersistT IO ()
 write = error "write tx history not implemented"
 
-load :: WalletId -> SqlPersistT IO (Either StoreException  TxHistory)
+load :: WalletId -> SqlPersistT IO (Either SomeException TxHistory)
 load wid = Right . TxHistory <$> selectWalletTxRelation wid
 
 

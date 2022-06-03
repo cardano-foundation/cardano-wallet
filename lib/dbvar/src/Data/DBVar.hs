@@ -25,7 +25,6 @@ module Data.DBVar (
 
     -- * Store
     , Store (..)
-    , StoreException (..)
     , newStore
     , NotInitialized (..)
     -- $EitherSomeException
@@ -40,7 +39,7 @@ import Prelude
 import Control.Applicative
     ( liftA2 )
 import Control.Exception
-    ( Exception )
+    ( Exception, SomeException, toException )
 import Control.Monad.Class.MonadSTM
     ( MonadSTM
     , atomically
@@ -54,14 +53,7 @@ import Control.Monad.Class.MonadSTM
 import Control.Monad.Class.MonadThrow
     ( MonadEvaluate, MonadMask, MonadThrow, bracket, evaluate, mask, throwIO )
 import Data.Delta
-    ( Delta (..)
-    , Embedding
-    , Embedding' (..)
-    , Machine (..)
-    , StoreException (StoreException)
-    , inject
-    , project
-    )
+    ( Delta (..), Embedding, Embedding' (..), Machine (..), inject, project )
 
 {-------------------------------------------------------------------------------
     DBVar
@@ -252,7 +244,7 @@ A 'Store' is characterized by the following properties:
 -}
 
 data Store m da = Store
-    { loadS   :: m (Either StoreException (Base da))
+    { loadS   :: m (Either SomeException (Base da))
     , writeS  :: Base da -> m ()
     , updateS
         :: Base da -- old value
@@ -265,7 +257,7 @@ data Store m da = Store
 -- Useful for testing.
 newStore :: (Delta da, MonadSTM m) => m (Store m da)
 newStore = do
-    ref <- newTVarIO $ Left $ StoreException NotInitialized
+    ref <- newTVarIO $ Left $ toException NotInitialized
     pure $ Store
         { loadS   = atomically $ readTVar ref
         , writeS  = atomically . writeTVar ref . Right

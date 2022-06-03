@@ -34,17 +34,21 @@ import Cardano.Wallet.DB.Checkpoints.Store
     ( PersistAddressBook (..), blockHeaderFromEntity, mkStoreCheckpoints )
 import Cardano.Wallet.DB.Sqlite.Schema
     ( EntityField (CheckpointWalletId), Wallet )
+import Cardano.Wallet.DB.Transactions.Store
+    ( mkStoreTransactions )
 import Cardano.Wallet.DB.Wallets.State
     ( DeltaWalletState
     , DeltaWalletState1 (ReplacePrologue, UpdateCheckpoints)
     , WalletState (WalletState)
     )
+import Control.Exception
+    ( toException )
 import Control.Monad
     ( forM )
 import Control.Monad.Except
     ( ExceptT (ExceptT), runExceptT )
 import Data.DBVar
-    ( Store (Store, loadS, updateS, writeS), StoreException (StoreException) )
+    ( Store (Store, loadS, updateS, writeS) )
 import Data.DeltaMap
     ( DeltaMap (Adjust, Delete, Insert) )
 import Data.Generics.Internal.VL
@@ -52,8 +56,6 @@ import Data.Generics.Internal.VL
 import Database.Persist.Sql
     ( Entity, SqlPersistT, deleteWhere, entityVal, selectList, (==.) )
 
-import Cardano.Wallet.DB.Transactions.Store
-    ( mkStoreTransactions )
 import qualified Cardano.Wallet.Primitive.Types as W
 import qualified Data.Map.Strict as Map
 
@@ -106,7 +108,7 @@ mkStoreWallet wid =
 
     load = do
         eprologue <- maybe
-            (Left $ StoreException ErrBadFormatAddressPrologue) Right
+            (Left $ toException ErrBadFormatAddressPrologue) Right
                 <$> loadPrologue wid
         echeckpoints <- loadS storeCheckpoints
         etransactions <- loadS storeTransactions
