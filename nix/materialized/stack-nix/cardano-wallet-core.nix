@@ -77,6 +77,7 @@
           (hsPkgs."free" or (errorHandler.buildDepError "free"))
           (hsPkgs."generic-lens" or (errorHandler.buildDepError "generic-lens"))
           (hsPkgs."generic-arbitrary" or (errorHandler.buildDepError "generic-arbitrary"))
+          (hsPkgs."generic-deriving" or (errorHandler.buildDepError "generic-deriving"))
           (hsPkgs."generics-sop" or (errorHandler.buildDepError "generics-sop"))
           (hsPkgs."hashable" or (errorHandler.buildDepError "hashable"))
           (hsPkgs."hedgehog" or (errorHandler.buildDepError "hedgehog"))
@@ -190,9 +191,11 @@
           "Cardano/Wallet/DB/Checkpoints/AddressBook"
           "Cardano/Wallet/DB/Checkpoints/Model"
           "Cardano/Wallet/DB/Checkpoints/Store"
-          "Cardano/Wallet/DB/Transactions/Update"
+          "Cardano/Wallet/DB/Transactions/Delta"
+          "Cardano/Wallet/DB/Transactions/Model"
           "Cardano/Wallet/DB/Transactions/Select"
-          "Cardano/Wallet/DB/Transactions/Delete"
+          "Cardano/Wallet/DB/Transactions/Types"
+          "Cardano/Wallet/DB/Transactions/Store"
           "Cardano/Wallet/DB/Wallets/State"
           "Cardano/Wallet/DB/Wallets/Store"
           "Cardano/Wallet/DB/Sqlite/Migration"
@@ -254,6 +257,7 @@
           "Cardano/Wallet/Version"
           "Cardano/Wallet/Version/TH"
           "Control/Concurrent/Concierge"
+          "Control/Monad/Exception/Unchecked"
           "Control/Monad/Random/Extra"
           "Crypto/Hash/Utils"
           "Data/Aeson/Extra"
