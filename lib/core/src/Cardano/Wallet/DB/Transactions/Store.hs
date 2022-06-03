@@ -16,12 +16,13 @@ import Cardano.Wallet.DB.Unstored
 import Cardano.Wallet.Primitive.Types
     ( WalletId )
 import Control.Exception
-    ( SomeException, throw )
+    ( SomeException, throw, Exception )
 import Data.DBVar
     ( Store (Store, loadS, updateS, writeS) )
 import Database.Persist.Sql
     ( SqlPersistT )
 import Prelude
+import Data.Typeable (Typeable)
 
 mkStoreTransactions :: WalletId -> Store (SqlPersistT IO) DeltaTxHistory
 mkStoreTransactions wid =
@@ -34,7 +35,9 @@ mkStoreTransactions wid =
 update :: WalletId -> TxHistory -> DeltaTxHistory -> SqlPersistT IO ()
 update wid _ (DeltaTxHistory (TxHistory txs)) =
     selectWallet wid >>= \case
-        Nothing -> throw $ ErrNoSuchWallet wid
+        Nothing -> throw 
+            $ Exceptional 
+            $ ErrNoSuchWallet wid
         Just _ -> updateTxHistory wid txs
 
 write :: WalletId -> TxHistory -> SqlPersistT IO ()
@@ -43,13 +46,9 @@ write = error "write tx history not implemented"
 load :: WalletId -> SqlPersistT IO (Either SomeException TxHistory)
 load = fmap (Right . TxHistory) . undefined
 
--- data Store m da = Store
---     { loadS   :: m (Either SomeException (Base da))
---     , writeS  :: Base da -> m ()
---     , updateS
---         :: Base da -- old value
---         -> da -- delta to new value
---         -> m () -- write new value
---     }
+newtype  Exceptional a = Exceptional a 
+    deriving (Show,Eq)
 
--- | A delta can be optionally applied.
+instance (Typeable a, Show a) 
+    => Exception (Exceptional a)
+
