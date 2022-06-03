@@ -1153,7 +1153,7 @@ _assignScriptRedeemers pparams ti resolveInput redeemers tx =
         Cardano.ShelleyBasedEraAlonzo -> do
             let Cardano.ShelleyTx _ alonzoTx = tx
             alonzoTx' <- flip execStateT alonzoTx $ do
-                indexedRedeemers <- StateT assignNullRedeemers
+                indexedRedeemers <- StateT assignNullRedeemersAlonzo
                 executionUnits <- get
                     >>= lift . evaluateExecutionUnitsAlonzo indexedRedeemers
                 modifyM (assignExecutionUnitsAlonzo executionUnits)
@@ -1165,10 +1165,10 @@ _assignScriptRedeemers pparams ti resolveInput redeemers tx =
     --
     -- Redeemers are determined from the context given to the caller via the
     -- 'Redeemer' type which is mapped to an 'Alonzo.ScriptPurpose'.
-    assignNullRedeemers
+    assignNullRedeemersAlonzo
         :: AlonzoTx
         -> Either ErrAssignRedeemers (Map Alonzo.RdmrPtr Redeemer, AlonzoTx)
-    assignNullRedeemers alonzoTx = do
+    assignNullRedeemersAlonzo alonzoTx = do
         (indexedRedeemers, nullRedeemers) <- fmap unzip $ forM redeemers $ \rd -> do
             ptr <- case Alonzo.rdptr (Alonzo.body alonzoTx) (toScriptPurpose rd) of
                 SNothing ->
@@ -1188,6 +1188,34 @@ _assignScriptRedeemers pparams ti resolveInput redeemers tx =
             ( Map.fromList indexedRedeemers
             , alonzoTx
                 { Alonzo.wits = (Alonzo.wits alonzoTx)
+                    { Alonzo.txrdmrs = Alonzo.Redeemers (Map.fromList nullRedeemers)
+                    }
+                }
+            )
+
+    assignNullRedeemersBabbage
+        :: BabbageTx
+        -> Either ErrAssignRedeemers (Map Alonzo.RdmrPtr Redeemer, BabbageTx)
+    assignNullRedeemersBabbage babbageTx = do
+        (indexedRedeemers, nullRedeemers) <- fmap unzip $ forM redeemers $ \rd -> do
+            ptr <- case Alonzo.rdptr (Alonzo.body babbageTx) (toScriptPurpose rd) of
+                SNothing ->
+                    Left $ ErrAssignRedeemersTargetNotFound rd
+                SJust ptr ->
+                    pure ptr
+
+            rData <- case deserialiseOrFail (BL.fromStrict $ redeemerData rd) of
+                Left e ->
+                    Left $ ErrAssignRedeemersInvalidData rd (show e)
+                Right d ->
+                    pure (Alonzo.Data d)
+
+            pure ((ptr, rd), (ptr, (rData, mempty)))
+
+        pure
+            ( Map.fromList indexedRedeemers
+            , babbageTx
+                { Alonzo.wits = (Alonzo.wits babbageTx)
                     { Alonzo.txrdmrs = Alonzo.Redeemers (Map.fromList nullRedeemers)
                     }
                 }
