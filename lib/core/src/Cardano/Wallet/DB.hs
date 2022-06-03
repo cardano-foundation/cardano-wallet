@@ -244,8 +244,6 @@ data DBLayer m s k = forall stm. (MonadIO stm, MonadFail stm) => DBLayer
         --
         -- If an entry for a particular transaction already exists it is not
         -- altered nor merged (just ignored).
-        -- Q: entry here means hash of the transaction ?
-        -- Q: is there an isomorphism between ((Tx, TxMeta), querytimeinfo) and TransactionInfo
         -- If the wallet doesn't exist, this operation returns an error.
 
     , readTxHistory
@@ -266,7 +264,6 @@ data DBLayer m s k = forall stm. (MonadIO stm, MonadFail stm) => DBLayer
         -> ExceptT ErrNoSuchWallet stm (Maybe TransactionInfo)
         -- ^ Fetch the latest transaction by id, returns Nothing when the
         -- transaction isn't found.
-        -- Q: what is the "latest" ? Isn't the id unique ?
         -- If the wallet doesn't exist, this operation returns an error.
 
     , putLocalTxSubmission

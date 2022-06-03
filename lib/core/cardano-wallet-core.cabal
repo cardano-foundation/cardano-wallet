@@ -195,8 +195,8 @@ library
       Cardano.Wallet.CoinSelection.Internal.Context
       Cardano.Wallet.Compat
       Cardano.Wallet.DB
-      Cardano.Wallet.DB.MVar
-      Cardano.Wallet.DB.Model
+      Cardano.Wallet.DB.Pure.Layer
+      Cardano.Wallet.DB.Pure.Implementation
       Cardano.Wallet.DB.Layer
       Cardano.Wallet.DB.Unstored
       Cardano.Wallet.DB.Checkpoints.AddressBook

@@ -4,12 +4,27 @@
 {-# LANGUAGE OverloadedLabels #-}
 {-# LANGUAGE TupleSections #-}
 
-module Cardano.Wallet.DB.Transactions.Select where
+module Cardano.Wallet.DB.Transactions.Select
+    ( selectTxHistory
+    , selectTxMeta
+    )
+    where
 
+import Prelude
 
 import Cardano.DB.Sqlite
     ( chunkSize )
 import Cardano.Wallet.DB.Sqlite.Schema
+    ( EntityField (..)
+    , TxCollateral (..)
+    , TxCollateralOut (..)
+    , TxCollateralOutToken (..)
+    , TxIn (..)
+    , TxMeta (..)
+    , TxOut (..)
+    , TxOutToken (..)
+    , TxWithdrawal (..)
+    )
 import Cardano.Wallet.DB.Sqlite.Types
     ( TxId (TxId), getTxId )
 import Cardano.Wallet.Primitive.Slotting
@@ -28,7 +43,6 @@ import Data.List.Split
     ( chunksOf )
 import Data.Map.Strict
     ( Map )
-import qualified Data.Map.Strict as Map
 import Data.Maybe
     ( listToMaybe )
 import Data.Ord
@@ -49,7 +63,6 @@ import Database.Persist
     )
 import Database.Persist.Sql
     ( SqlPersistT )
-import Prelude
 import UnliftIO
     ( liftIO )
 
@@ -59,6 +72,7 @@ import qualified Cardano.Wallet.Primitive.Types.Coin as W
 import qualified Cardano.Wallet.Primitive.Types.Hash as W
 import qualified Cardano.Wallet.Primitive.Types.TokenBundle as TokenBundle
 import qualified Cardano.Wallet.Primitive.Types.Tx as W
+import qualified Data.Map.Strict as Map
 -- This relies on available information from the database to reconstruct coin
 -- selection information for __outgoing__ payments. We can't however guarantee
 -- that we have such information for __incoming__ payments (we usually don't
@@ -243,8 +257,6 @@ selectTxMeta wid tid =
     fmap entityVal <$> selectFirst
         [ TxMetaWalletId ==. wid, TxMetaTxId ==. (TxId tid)]
         [ Desc TxMetaSlot ]
-
-
 -- note: TxIn records must already be sorted by order
 -- and TxOut records must already be sorted by index
 txHistoryFromEntity

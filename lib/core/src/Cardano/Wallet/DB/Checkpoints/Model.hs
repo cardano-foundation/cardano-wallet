@@ -9,10 +9,9 @@
 --
 -- Data type that represents a collection of checkpoints.
 -- Each checkpoints is associated with a 'Slot'.
-module Cardano.Wallet.DB.Checkpoints.Model 
-    (
-    -- * Checkpoints
-    Checkpoints
+module Cardano.Wallet.DB.Checkpoints.Model
+    ( -- * Checkpoints
+      Checkpoints
     , checkpoints
     , loadCheckpoints
     , fromGenesis
@@ -30,12 +29,12 @@ module Cardano.Wallet.DB.Checkpoints.Model
     , WalletCheckpoint (..)
     ) where
 
+import Prelude
+
 import Cardano.Wallet.DB.Checkpoints.AddressBook
     ( AddressBookIso (Discoveries, Prologue), addressIso )
-import qualified Cardano.Wallet.Primitive.Model as W
 import Cardano.Wallet.Primitive.Types
     ( BlockHeader )
-import qualified Cardano.Wallet.Primitive.Types as W
 import Cardano.Wallet.Primitive.Types.UTxO
     ( UTxO )
 import Data.Delta
@@ -46,18 +45,19 @@ import Data.Generics.Internal.VL.Lens
     ( over, view, (^.) )
 import Data.Map.Strict
     ( Map )
-import qualified Data.Map.Strict as Map
 import Data.Maybe
     ( fromMaybe )
-import qualified Data.Set as Set
 import Data.Word
     ( Word32 )
 import Fmt
     ( Buildable (..), listF )
 import GHC.Generics
     ( Generic )
-import Prelude
 
+import qualified Cardano.Wallet.Primitive.Model as W
+import qualified Cardano.Wallet.Primitive.Types as W
+import qualified Data.Map.Strict as Map
+import qualified Data.Set as Set
 {- NOTE [PointSlotNo]
 
 'SlotNo' cannot represent the genesis point.
@@ -91,13 +91,13 @@ is clear that the data cannot exist at the genesis point
 -}
 
 {-------------------------------------------------------------------------------
-        Checkpoints
+    Checkpoints
 -------------------------------------------------------------------------------}
 
 -- | Collection of checkpoints indexed by 'Slot'.
 newtype Checkpoints a = Checkpoints
-    { -- | Map of checkpoints. Always contains the genesis checkpoint.
-        checkpoints :: Map W.Slot a
+    { checkpoints :: Map W.Slot a
+    -- ^ Map of checkpoints. Always contains the genesis checkpoint.
     }
     deriving (Eq, Show, Generic)
 
@@ -120,26 +120,26 @@ fromGenesis a = Checkpoints $ Map.singleton W.Origin a
 
 -- | Get the checkpoint with the largest 'SlotNo'.
 getLatest :: Checkpoints a -> (W.Slot, a)
-getLatest = from . Map.lookupMax . view #checkpoints
-    where
-        from = fromMaybe (error "getLatest: there should always be at least a genesis checkpoint")
+getLatest = fromMaybe err . Map.lookupMax . view #checkpoints
+  where
+    err = error
+        "getLatest: there should always be at least a genesis checkpoint"
 
 -- | Find the nearest 'Checkpoint' that is either at the given point or before.
 findNearestPoint :: Checkpoints a -> W.Slot -> Maybe W.Slot
 findNearestPoint m key = fst <$> Map.lookupLE key (view #checkpoints m)
 
 {-------------------------------------------------------------------------------
-        Delta type for Checkpoints
+    Delta type for Checkpoints
 -------------------------------------------------------------------------------}
 data DeltaCheckpoints a
     = PutCheckpoint W.Slot a
+    -- | Rolls back to the latest checkpoint at or before this slot.
     | RollbackTo W.Slot
-    | -- Rolls back to the latest checkpoint at or before this slot.
-
-        -- | Restrict to the intersection of this list with
-        -- the checkpoints that are already present.
-        -- The genesis checkpoint will always be present.
-        RestrictTo [W.Slot]
+    -- | Restrict to the intersection of this list with
+    -- the checkpoints that are already present.
+    -- The genesis checkpoint will always be present.
+    |    RestrictTo [W.Slot]
 
 instance Delta (DeltaCheckpoints a) where
     type Base (DeltaCheckpoints a) = Checkpoints a
@@ -148,7 +148,7 @@ instance Delta (DeltaCheckpoints a) where
         over #checkpoints $
             Map.filterWithKey (\k _ -> k <= pt)
     apply (RestrictTo pts) = over #checkpoints $ \m ->
-        Map.restrictKeys m $ Set.fromList (W.Origin : pts)
+        Map.restrictKeys m $ Set.fromList (W.Origin:pts)
 
 instance Buildable (DeltaCheckpoints a) where
     build (PutCheckpoint slot _) = "PutCheckpoint " <> build slot
@@ -156,15 +156,15 @@ instance Buildable (DeltaCheckpoints a) where
     build (RestrictTo slots) = "RestrictTo " <> listF slots
 
 {-------------------------------------------------------------------------------
-        Wallet Checkpoint
+    Wallet Checkpoint
 -------------------------------------------------------------------------------}
 
 -- | Data stored in a single checkpoint.
 -- Only includes the 'UTxO' and the 'Discoveries', but not the 'Prologue'.
 data WalletCheckpoint s = WalletCheckpoint
-    { currentTip :: BlockHeader,
-        utxo :: UTxO,
-        discoveries :: (Discoveries s)
+    { currentTip :: BlockHeader
+    , utxo :: UTxO
+    , discoveries :: Discoveries s
     }
     deriving (Generic)
 
@@ -183,10 +183,11 @@ getSlot (WalletCheckpoint currentTip' _ _) =
 -- | Convert a stored 'WalletCheckpoint' to the legacy 'W.Wallet' state.
 toWallet :: AddressBookIso s => Prologue s -> WalletCheckpoint s -> W.Wallet s
 toWallet pro (WalletCheckpoint pt utxo' dis) =
-    W.unsafeInitWallet utxo' pt $ withIso addressIso $ \_ from -> from (pro, dis)
+    W.unsafeInitWallet utxo' pt $ withIso addressIso
+        $ \_ from -> from (pro, dis)
 
 -- | Convert a legacy 'W.Wallet' state to a 'Prologue' and a 'WalletCheckpoint'
 fromWallet :: AddressBookIso s => W.Wallet s -> (Prologue s, WalletCheckpoint s)
 fromWallet w = (pro, WalletCheckpoint (W.currentTip w) (W.utxo w) dis)
-    where
-        (pro, dis) = withIso addressIso $ \to _ -> to (w ^. #getState)
+  where
+    (pro, dis) = withIso addressIso $ \to _ -> to (w ^. #getState)
