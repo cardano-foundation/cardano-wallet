@@ -91,7 +91,6 @@ module Cardano.Wallet.Shelley.Compatibility
     , fromAlonzoPParams
     , fromLedgerExUnits
     , toLedgerExUnits
-    , toAlonzoPParams
     , fromCardanoAddress
     , toSystemStart
     , toScriptPurpose
@@ -254,7 +253,7 @@ import Control.Applicative
 import Control.Arrow
     ( left )
 import Control.Monad
-    ( join, when, (>=>) )
+    ( when, (>=>) )
 import Crypto.Hash.Utils
     ( blake2b224 )
 import Data.Array
@@ -364,8 +363,6 @@ import qualified Cardano.Ledger.Babbage as Babbage
 import qualified Cardano.Ledger.Babbage.Tx as Babbage hiding
     ( ScriptIntegrityHash, TxBody )
 import qualified Cardano.Ledger.Babbage.TxBody as Babbage
-import qualified Cardano.Ledger.BaseTypes as BT
-import qualified Cardano.Ledger.BaseTypes as Ledger
 import qualified Cardano.Ledger.BaseTypes as SL
 import qualified Cardano.Ledger.Core as SL.Core
 import qualified Cardano.Ledger.Credential as SL
@@ -857,8 +854,8 @@ executionUnitPricesFromPParams pp =
     prices = getField @"_prices" pp
     fromAlonzoPrices Alonzo.Prices{prMem, prSteps} =
         W.ExecutionUnitPrices
-        { W.pricePerStep = Ledger.unboundRational prSteps
-        , W.pricePerMemoryUnit = Ledger.unboundRational prMem
+        { W.pricePerStep = SL.unboundRational prSteps
+        , W.pricePerMemoryUnit = SL.unboundRational prMem
         }
 
 fromLedgerExUnits
@@ -899,164 +896,6 @@ txParametersFromPParams maxBundleSize getMaxExecutionUnits pp = W.TxParameters
   where
     naturalToDouble :: Natural -> Double
     naturalToDouble = fromIntegral
-
---------------------------------------------------------------------------------
--- Copied from cardano-api
--- To be removed when once again exposed.
---------------------------------------------------------------------------------
-
-toAlonzoPParams
-    :: Cardano.ProtocolParameters
-    -> Alonzo.PParams era
-toAlonzoPParams
-    Cardano.ProtocolParameters
-        { protocolParamProtocolVersion
-        , protocolParamDecentralization
-        , protocolParamExtraPraosEntropy
-        , protocolParamMaxBlockHeaderSize
-        , protocolParamMaxBlockBodySize
-        , protocolParamMaxTxSize
-        , protocolParamTxFeeFixed
-        , protocolParamTxFeePerByte
-        , protocolParamStakeAddressDeposit
-        , protocolParamStakePoolDeposit
-        , protocolParamMinPoolCost
-        , protocolParamPoolRetireMaxEpoch
-        , protocolParamStakePoolTargetNum
-        , protocolParamPoolPledgeInfluence
-        , protocolParamMonetaryExpansion
-        , protocolParamTreasuryCut
-        , protocolParamUTxOCostPerWord = Just utxoCostPerWord
-        , protocolParamCostModels
-        , protocolParamPrices = Just prices
-        , protocolParamMaxTxExUnits = Just maxTxExUnits
-        , protocolParamMaxBlockExUnits = Just maxBlockExUnits
-        , protocolParamMaxValueSize = Just maxValueSize
-        , protocolParamCollateralPercent = Just collateralPercentage
-        , protocolParamMaxCollateralInputs = Just maxCollateralInputs
-        } =
-    Alonzo.PParams
-        { Alonzo._protocolVersion =
-            let (maj, minor) = protocolParamProtocolVersion
-             in BT.ProtVer maj minor
-        , Alonzo._d =
-            fromMaybe
-                (error "toAlonzoPParams: invalid Decentralization value")
-                (join $ Ledger.boundRational <$> protocolParamDecentralization)
-        , Alonzo._extraEntropy =
-            toLedgerNonce protocolParamExtraPraosEntropy
-        , Alonzo._maxBHSize =
-            protocolParamMaxBlockHeaderSize
-        , Alonzo._maxBBSize =
-            protocolParamMaxBlockBodySize
-        , Alonzo._maxTxSize =
-            protocolParamMaxTxSize
-        , Alonzo._minfeeB =
-            protocolParamTxFeeFixed
-        , Alonzo._minfeeA =
-            protocolParamTxFeePerByte
-        , Alonzo._keyDeposit =
-            toShelleyLovelace protocolParamStakeAddressDeposit
-        , Alonzo._poolDeposit =
-            toShelleyLovelace protocolParamStakePoolDeposit
-        , Alonzo._minPoolCost =
-            toShelleyLovelace protocolParamMinPoolCost
-        , Alonzo._eMax =
-            protocolParamPoolRetireMaxEpoch
-        , Alonzo._nOpt =
-            protocolParamStakePoolTargetNum
-        , Alonzo._a0 =
-            fromMaybe
-                (error "toAlonzoPParams: invalid PoolPledgeInfluence value")
-                (Ledger.boundRational protocolParamPoolPledgeInfluence)
-        , Alonzo._rho =
-            fromMaybe
-                (error "toAlonzoPParams: invalid MonetaryExpansion value")
-                (Ledger.boundRational protocolParamMonetaryExpansion)
-        , Alonzo._tau =
-            fromMaybe
-                (error "toAlonzoPParams: invalid TreasuryCut value")
-                (Ledger.boundRational protocolParamTreasuryCut)
-        , Alonzo._coinsPerUTxOWord =
-            toShelleyLovelace utxoCostPerWord
-        , Alonzo._costmdls = either
-                                  (\e -> error $ "toAlonzoPParams: invalid cost models, error: " <> e)
-                                  id
-                                  (toAlonzoCostModels protocolParamCostModels)
-        , Alonzo._prices =
-            fromMaybe
-                (error "toAlonzoPParams: invalid Price values")
-                (toAlonzoPrices prices)
-        , Alonzo._maxTxExUnits =
-            toAlonzoExUnits maxTxExUnits
-        , Alonzo._maxBlockExUnits =
-            toAlonzoExUnits maxBlockExUnits
-        , Alonzo._maxValSize =
-            maxValueSize
-        , Alonzo._collateralPercentage =
-            collateralPercentage
-        , Alonzo._maxCollateralInputs =
-            maxCollateralInputs
-        }
-  where
-    toShelleyLovelace :: Cardano.Lovelace -> SLAPI.Coin
-    toShelleyLovelace (Cardano.Lovelace l) = SLAPI.Coin l
-
-    toAlonzoCostModels
-      :: Map Cardano.AnyPlutusScriptVersion Cardano.CostModel
-      -> Either String Alonzo.CostModels
-    toAlonzoCostModels m = do
-      f <- mapM conv $ Map.toList m
-      Right . Alonzo.CostModels $ Map.fromList f
-     where
-      conv :: (Cardano.AnyPlutusScriptVersion, Cardano.CostModel) -> Either String (Alonzo.Language, Alonzo.CostModel)
-      conv (anySVer, cModel )= do
-        alonzoCostModel <- toAlonzoCostModel cModel (toAlonzoScriptLanguage anySVer)
-        Right (toAlonzoScriptLanguage anySVer, alonzoCostModel)
-
-    toAlonzoCostModel :: Cardano.CostModel -> Alonzo.Language -> Either String Alonzo.CostModel
-    toAlonzoCostModel (Cardano.CostModel m) l = Alonzo.mkCostModel l m
-
-    toAlonzoScriptLanguage :: Cardano.AnyPlutusScriptVersion -> Alonzo.Language
-    toAlonzoScriptLanguage (Cardano.AnyPlutusScriptVersion Cardano.PlutusScriptV1) =
-        Alonzo.PlutusV1
-    toAlonzoScriptLanguage (Cardano.AnyPlutusScriptVersion Cardano.PlutusScriptV2) =
-        Alonzo.PlutusV2
-
-    toAlonzoPrices :: Cardano.ExecutionUnitPrices -> Maybe Alonzo.Prices
-    toAlonzoPrices Cardano.ExecutionUnitPrices
-        { priceExecutionSteps
-        , priceExecutionMemory
-        } = do
-      prSteps <- Ledger.boundRational priceExecutionSteps
-      prMem   <- Ledger.boundRational priceExecutionMemory
-      return Alonzo.Prices { Alonzo.prSteps, Alonzo.prMem }
-
-    toAlonzoExUnits :: Cardano.ExecutionUnits -> Alonzo.ExUnits
-    toAlonzoExUnits Cardano.ExecutionUnits{executionSteps, executionMemory} =
-      Alonzo.ExUnits
-        { Alonzo.exUnitsSteps = executionSteps
-        , Alonzo.exUnitsMem   = executionMemory
-        }
-
-    toLedgerNonce :: Maybe Cardano.PraosNonce -> Ledger.Nonce
-    toLedgerNonce = \case
-        Nothing -> Ledger.NeutralNonce
-        Just nonce -> Ledger.Nonce (unsafeHashFromBytes (Cardano.serialiseToRawBytes nonce))
-toAlonzoPParams Cardano.ProtocolParameters { protocolParamUTxOCostPerWord = Nothing } =
-    error "toAlonzoPParams: must specify protocolParamUTxOCostPerWord"
-toAlonzoPParams Cardano.ProtocolParameters { protocolParamPrices = Nothing } =
-    error "toAlonzoPParams: must specify protocolParamPrices"
-toAlonzoPParams Cardano.ProtocolParameters { protocolParamMaxTxExUnits = Nothing } =
-    error "toAlonzoPParams: must specify protocolParamMaxTxExUnits"
-toAlonzoPParams Cardano.ProtocolParameters { protocolParamMaxBlockExUnits = Nothing } =
-    error "toAlonzoPParams: must specify protocolParamMaxBlockExUnits"
-toAlonzoPParams Cardano.ProtocolParameters { protocolParamMaxValueSize = Nothing } =
-    error "toAlonzoPParams: must specify protocolParamMaxValueSize"
-toAlonzoPParams Cardano.ProtocolParameters { protocolParamCollateralPercent = Nothing } =
-    error "toAlonzoPParams: must specify protocolParamCollateralPercent"
-toAlonzoPParams Cardano.ProtocolParameters { protocolParamMaxCollateralInputs = Nothing } =
-    error "toAlonzoPParams: must specify protocolParamMaxCollateralInputs"
 
 toCostModelsAsArray
     :: Map Alonzo.Language Alonzo.CostModel

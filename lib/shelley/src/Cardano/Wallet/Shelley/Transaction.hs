@@ -159,7 +159,6 @@ import Cardano.Wallet.Shelley.Compatibility
     , fromCardanoTxIn
     , fromCardanoWdrls
     , fromShelleyTxIn
-    , toAlonzoPParams
     , toCardanoLovelace
     , toCardanoPolicyId
     , toCardanoSimpleScript
@@ -1139,7 +1138,7 @@ _assignScriptRedeemers
     -> [Redeemer]
     -> Cardano.Tx era
     -> Either ErrAssignRedeemers (Cardano.Tx era )
-_assignScriptRedeemers (toAlonzoPParams -> pparams) ti resolveInput redeemers tx =
+_assignScriptRedeemers (Cardano.toLedgerPParams Cardano.ShelleyBasedEraAlonzo -> pparams) ti resolveInput redeemers tx =
     case Cardano.shelleyBasedEra @era of
         Cardano.ShelleyBasedEraShelley ->
             pure tx
