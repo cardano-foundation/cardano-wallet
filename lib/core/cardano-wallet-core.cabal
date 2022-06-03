@@ -464,7 +464,7 @@ test-suite unit
       Cardano.Wallet.DB.SqliteSpec
       Cardano.Wallet.DB.Sqlite.TypesSpec
       Cardano.Wallet.DB.StateMachine
-      Cardano.Wallet.DB.StoresSpec
+      Cardano.Wallet.DB.CheckpointsSpec
       Cardano.Wallet.DummyTarget.Primitive.Types
       Cardano.Wallet.Network.LightSpec
       Cardano.Wallet.Network.PortsSpec
