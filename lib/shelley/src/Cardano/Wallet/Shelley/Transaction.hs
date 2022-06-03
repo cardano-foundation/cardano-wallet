@@ -1159,7 +1159,15 @@ _assignScriptRedeemers pparams ti resolveInput redeemers tx =
                 modifyM (assignExecutionUnitsAlonzo executionUnits)
                 modify' addScriptIntegrityHashAlonzo
             pure $ Cardano.ShelleyTx ShelleyBasedEraAlonzo alonzoTx'
-        Cardano.ShelleyBasedEraBabbage -> undefined
+        Cardano.ShelleyBasedEraBabbage -> do
+            let Cardano.ShelleyTx _ babbageTx = tx
+            babbageTx' <- flip execStateT babbageTx $ do
+                indexedRedeemers <- StateT assignNullRedeemersBabbage
+                executionUnits <- get
+                    >>= lift . evaluateExecutionUnitsBabbage indexedRedeemers
+                modifyM (assignExecutionUnitsBabbage executionUnits)
+                modify' addScriptIntegrityHashBabbage
+            pure $ Cardano.ShelleyTx ShelleyBasedEraBabbage babbageTx'
   where
     -- | Assign redeemers with null execution units to the input transaction.
     --
