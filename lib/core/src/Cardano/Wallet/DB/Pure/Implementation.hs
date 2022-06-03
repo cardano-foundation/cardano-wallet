@@ -24,10 +24,10 @@
 -- An implementation of the wallet database using only pure functions.
 --
 -- These functions and types model the behaviour of the SQLite database backend,
--- and are used for QuickCheck state machine testing, and the MVar database
+-- and are used for QuickCheck state machine testing, and the Pure Layer database
 -- backend.
 
-module Cardano.Wallet.DB.Model
+module Cardano.Wallet.DB.Pure.Implementation
     (
     -- * Model Types
       Database (..)

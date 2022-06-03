@@ -39,7 +39,7 @@ import Cardano.Wallet.DB.Arbitrary
     , KeyValPairs (..)
     , MockChain (..)
     )
-import Cardano.Wallet.DB.Model
+import Cardano.Wallet.DB.Pure.Implementation
     ( filterTxHistory )
 import Cardano.Wallet.DummyTarget.Primitive.Types
     ( dummyGenesisParameters )

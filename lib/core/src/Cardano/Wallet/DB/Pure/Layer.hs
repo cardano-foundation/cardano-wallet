@@ -13,7 +13,7 @@
 -- for testing to compare with an implementation on a real data store, or to use
 -- when compiling the wallet for targets which don't have SQLite.
 
-module Cardano.Wallet.DB.MVar
+module Cardano.Wallet.DB.Pure.Layer
     ( newDBLayer
     ) where
 
@@ -29,7 +29,7 @@ import Cardano.Wallet.DB
     , ErrRemoveTx (..)
     , ErrWalletAlreadyExists (..)
     )
-import Cardano.Wallet.DB.Model
+import Cardano.Wallet.DB.Pure.Implementation
     ( Database
     , Err (..)
     , ModelOp
@@ -107,7 +107,7 @@ newDBLayer timeInterpreter = do
         {-----------------------------------------------------------------------
                                     Checkpoints
         -----------------------------------------------------------------------}
-        , walletsDB = error "MVar.walletsDB: not implemented"
+        , walletsDB = error "Pure.Layer.walletsDB: not implemented"
 
         , putCheckpoint = \pk cp -> ExceptT $
             alterDB errNoSuchWallet db $
@@ -121,7 +121,7 @@ newDBLayer timeInterpreter = do
             alterDB errNoSuchWallet db $
             mRollbackTo pk pt
 
-        , prune = \_ _ -> error "MVar.prune: not implemented"
+        , prune = \_ _ -> error "Pure.Layer.prune: not implemented"
 
         {-----------------------------------------------------------------------
                                    Wallet Metadata

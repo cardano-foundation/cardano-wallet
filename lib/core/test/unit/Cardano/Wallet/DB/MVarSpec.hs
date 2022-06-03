@@ -38,13 +38,13 @@ import Test.QuickCheck
 import Test.Utils.Platform
     ( pendingOnMacOS )
 
-import qualified Cardano.Wallet.DB.MVar as MVar
+import qualified Cardano.Wallet.DB.Pure.Layer as Pure
 
 spec :: Spec
 spec =
     before (pendingOnMacOS "#2472: timeouts in hydra mac builds")
-    $ before (MVar.newDBLayer @IO @(SeqState 'Mainnet ShelleyKey) ti)
-    $ describe "MVar" properties
+    $ before (Pure.newDBLayer @IO @(SeqState 'Mainnet ShelleyKey) ti)
+    $ describe "Pure Layer" properties
   where
     ti = dummyTimeInterpreter
 
