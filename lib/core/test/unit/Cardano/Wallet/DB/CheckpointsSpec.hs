@@ -61,7 +61,8 @@ import Database.Persist.Sqlite
     ( SqlPersistT, (==.) )
 import Fmt
     ( Buildable (..), pretty )
-import Test.DBVar (GenDelta, prop_StoreUpdates)
+import Test.DBVar
+    ( GenDelta, prop_StoreUpdates )
 import Test.Hspec
     ( Spec, around, describe, it )
 import Test.QuickCheck
