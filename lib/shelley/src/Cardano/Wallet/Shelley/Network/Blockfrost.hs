@@ -314,7 +314,7 @@ withNetworkLayer
 withNetworkLayer tr network np project k = do
     bfConfig <- newClientConfig project
     tipBroadcast <- newBroadcastTChanIO
-    link =<< async (watchNodeTip bfConfig tipBroadcast)
+    link =<< async (pollNodeTip bfConfig tipBroadcast)
     k NetworkLayer
         { chainSync = \_tr _chainFollower -> pure ()
         , lightSync = Just $ blockfrostLightSync network bfConfig
@@ -344,8 +344,8 @@ withNetworkLayer tr network np project k = do
         traceWith tr $ MsgDiag "currentNodeTip"
         runBFM bfConfig $ fromBlockfrostM =<< BF.getLatestBlock
 
-    watchNodeTip :: BF.ClientConfig -> TChan BlockHeader -> IO ()
-    watchNodeTip bfConfig nodeTip = link =<< async =<< forever do
+    pollNodeTip :: BF.ClientConfig -> TChan BlockHeader -> IO ()
+    pollNodeTip bfConfig nodeTip = link =<< async =<< forever do
         header <- runBFM bfConfig $ fromBlockfrostM =<< BF.getLatestBlock
         atomically $ writeTChan nodeTip header -- TODO: write if changed
         traceWith tr $ MsgTipReceived header
@@ -359,7 +359,7 @@ withNetworkLayer tr network np project k = do
             bracketTracer (MsgTipWatcherNotified >$< tr) (callback header)
 
     currentProtocolParameters :: BF.ClientConfig -> IO ProtocolParameters
-    currentProtocolParameters bfConfig = do
+    currentProtocolParameters bfConfig =
         runBFM bfConfig $ liftEither . fromBlockfrostPP networkId
             =<< BF.getLatestEpochProtocolParams
 
@@ -445,7 +445,7 @@ withNetworkLayer tr network np project k = do
                 isConsensus :: ChainPoint -> IO Bool
                 isConsensus cp = do
                     traceWith tr $ MsgDiag "isConsensus"
-                    cp & runBF . \case
+                    runBF case cp of
                         ChainPointAtGenesis -> pure True
                         ChainPoint (SlotNo slot) blockHeaderHash -> do
                             BF.Block{_blockHash = BF.BlockHash bfHeaderHash} <-
@@ -461,7 +461,7 @@ withNetworkLayer tr network np project k = do
                 getBlockHeaderAt :: ChainPoint -> IO (Maybe BlockHeader)
                 getBlockHeaderAt cp = do
                     traceWith tr $ MsgDiag "getBlockHeaderAt"
-                    cp & runBF . \case
+                    runBF case cp of
                         ChainPointAtGenesis ->
                             pure . Just $ Fixture.genesisBlockHeader networkId
                         ChainPoint (SlotNo slot) blockHeaderHash -> do
@@ -489,7 +489,7 @@ withNetworkLayer tr network np project k = do
                     IO ChainEvents
                 getAddressTxs bhFrom bhTo addrOrAcc = do
                     traceWith tr $ MsgDiag "getAddressTxs"
-                    addrOrAcc & runBF . fmap fromBlockEvents . \case
+                    runBF $ fromBlockEvents <$> case addrOrAcc of
                         Left address -> do
                             txs <- BF.allPages \paged ->
                                 empty404 $ BF.getAddressTransactions'
@@ -520,8 +520,8 @@ withNetworkLayer tr network np project k = do
                                 forConcurrently (regTxHashes <> delTxHashes) \hash -> do
                                     (tx@BF.Transaction{_transactionIndex}, dcerts) <-
                                         concurrently
-                                            do BF.getTx hash
-                                            do fetchDelegation tr network hash
+                                            (BF.getTx hash)
+                                            (fetchDelegation tr network hash)
                                     txIndex <- _transactionIndex <?#> "_transactionIndex"
                                     txBlockEvents
                                         tx

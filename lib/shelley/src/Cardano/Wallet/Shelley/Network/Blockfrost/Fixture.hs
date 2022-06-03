@@ -6,8 +6,6 @@ module Cardano.Wallet.Shelley.Network.Blockfrost.Fixture where
 
 import Prelude
 
-import Cardano.Address.Style.Shelley
-    ( unsafeFromRight )
 import Cardano.Api
     ( AnyCardanoEra (..)
     , CardanoEra (AllegraEra, AlonzoEra, ByronEra, MaryEra, ShelleyEra)
@@ -40,6 +38,8 @@ import Ouroboros.Consensus.HardFork.History
 import qualified Cardano.Wallet.Primitive.Types as W
 import Cardano.Wallet.Primitive.Types.Hash
     ( Hash )
+import Data.Either
+    ( fromRight )
 import qualified Data.Map as Map
 import qualified Ouroboros.Consensus.Cardano.Block as OC
 import qualified Ouroboros.Consensus.Util.Counting as OCC
@@ -387,12 +387,14 @@ costModels = \case
 
 genesisBlockHeaderHash :: NetworkId -> Hash "BlockHeader"
 genesisBlockHeaderHash = \case
-    Mainnet -> unsafeFromRight $ fromText
+    Mainnet -> unsafeHash
         "5f20df933584822601f9e3f8c024eb5eb252fe8cefb24d1317dc3d432e940ebb"
-    Testnet (NetworkMagic 1097911063) -> unsafeFromRight $ fromText
+    Testnet (NetworkMagic 1097911063) -> unsafeHash
         "96fceff972c2c06bd3bb5243c39215333be6d56aaf4823073dca31afe5038471"
     Testnet m -> error $
         "Genesis block header hash isn't provided for the Testnet " <> show m
+  where
+    unsafeHash h = fromRight (error $ "Invalid hash: " <> show h) $ fromText h
 
 genesisBlockHeader :: NetworkId -> BlockHeader
 genesisBlockHeader network =
