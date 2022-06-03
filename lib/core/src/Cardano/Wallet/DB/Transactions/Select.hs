@@ -243,14 +243,13 @@ selectWalletTransactionInfoStore
     -> Maybe W.Coin
     -> W.SortOrder
     -> (TxMeta -> Bool)
-    -> Store (SqlPersistT IO) DeltaTxHistory
+    -> TxHistory
     -> SqlPersistT IO [W.TransactionInfo]
-selectWalletTransactionInfoStore cp ti minWithdrawal order conditions store = do
-    estored <- loadS store
-    throwSomeException estored $ \(TxHistory x) -> do
+selectWalletTransactionInfoStore cp ti minWithdrawal order conditions
+    (TxHistory txs) = do
         x' <-
             patchToTxRelationA $
-                filterTxMetaRelation minWithdrawal order conditions x
+                filterTxMetaRelation minWithdrawal order conditions txs
         liftIO $
             txHistoryFromEntity ti (W.currentTip cp) x'
 

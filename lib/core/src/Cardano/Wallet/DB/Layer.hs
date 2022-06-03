@@ -13,6 +13,8 @@
 {-# LANGUAGE UndecidableInstances #-}
 
 {-# OPTIONS_GHC -fno-warn-orphans #-}
+{-# LANGUAGE BlockArguments #-}
+{-# LANGUAGE RecordWildCards #-}
 
 {- HLINT ignore "Redundant flip" -}
 {- HLINT ignore "Redundant ^." -}
@@ -93,7 +95,7 @@ import Cardano.Wallet.DB.Sqlite.Schema
     , LocalTxSubmission (..)
     , StakeKeyCertificate (..)
     , migrateAll
-    , unWalletKey
+    , unWalletKey, TxMeta (TxMeta), txMetaSlot, txMetaStatus
     )
 import Cardano.Wallet.DB.Sqlite.Types
     ( TxId (..) )
@@ -102,7 +104,7 @@ import Cardano.Wallet.DB.Sqlite.WrapSTM
 import Cardano.Wallet.DB.Transactions.Delete
     ( deletePendingOrExpiredTx )
 import Cardano.Wallet.DB.Transactions.Select
-    ( selectTxMeta, selectWalletTransactionInfo )
+    ( selectTxMeta, selectWalletTransactionInfo, selectWalletTransactionInfoStore )
 import Cardano.Wallet.DB.Transactions.Update
     ( updateTxHistory )
 import Cardano.Wallet.DB.Unstored
@@ -129,7 +131,7 @@ import Cardano.Wallet.DB.Unstored
 import Cardano.Wallet.DB.Wallets.State
     ( DeltaMap (..)
     , DeltaWalletState1 (..)
-    , WalletState
+    , WalletState (transactions)
     , findNearestPoint
     , fromGenesis
     , getLatestCheckpoint
@@ -156,7 +158,7 @@ import Data.Generics.Internal.VL.Lens
     ( view, (^.) )
 import qualified Data.Map.Strict as Map
 import Data.Maybe
-    ( catMaybes )
+    ( catMaybes, fromMaybe )
 import Data.Proxy
     ( Proxy (..) )
 import Data.Quantity
@@ -205,10 +207,12 @@ import Cardano.Wallet.DB.Transactions.Model
     ( mkTxHistory )
 import Cardano.Wallet.DB.Transactions.Types
     ( DeltaTxHistory (DeltaTxHistory), TxHistory (TxHistory) )
-import qualified Cardano.Wallet.Primitive.Model as W
+
 import qualified Cardano.Wallet.Primitive.Types as W
 import qualified Cardano.Wallet.Primitive.Types.Coin as Coin
 import qualified Cardano.Wallet.Primitive.Types.Tx as W
+import Control.Monad.Trans.Maybe (runMaybeT, MaybeT (MaybeT))
+import Control.Monad.Trans (lift)
 {-------------------------------------------------------------------------------
                                Database "factory"
              (a directory containing one database file per wallet)
@@ -515,11 +519,6 @@ newDBLayerWith _cacheBehavior _tr ti SqliteContext{runQuery} = do
             header = cp ^. #currentTip
 
     -- Retrieve the latest checkpoint from the DBVar
-    let readCheckpoint_
-            :: W.WalletId
-            -> SqlPersistT IO (Maybe (W.Wallet s))
-        readCheckpoint_ wid =
-            fmap getLatestCheckpoint  . Map.lookup wid <$> readDBVar walletsDB_
     let readWalletState
             :: (WalletState s -> a)
             -> W.WalletId
@@ -668,7 +667,7 @@ newDBLayerWith _cacheBehavior _tr ti SqliteContext{runQuery} = do
             pure $ Right ()
 
         , readWalletMeta = \wid ->
-            readCheckpoint_ wid >>= \case
+            readWalletState getLatestCheckpoint wid >>= \case
         Nothing -> pure Nothing
         Just cp -> do
             currentEpoch <- liftIO $
@@ -730,15 +729,30 @@ newDBLayerWith _cacheBehavior _tr ti SqliteContext{runQuery} = do
                                     $ mkTxHistory wid deltaTxHistory
                                 ]
                         in  (delta, Right ())
-        , readTxHistory = \wid minWithdrawal order range status ->
-            readCheckpoint_ wid >>= \case
-                Nothing -> pure []
-                Just cp -> selectWalletTransactionInfo cp
-                    ti wid minWithdrawal order $ catMaybes
-                    [ (TxMetaSlot >=.) <$> W.inclusiveLowerBound range
-                    , (TxMetaSlot <=.) <$> W.inclusiveUpperBound range
-                    , (TxMetaStatus ==.) <$> status
-                    ]
+        , readTxHistory =
+            \wid minWithdrawal sortOrder range status ->
+                fromMaybe [] <$> runMaybeT do
+                    walletState <-
+                        MaybeT $ readWalletState getLatestCheckpoint wid
+                    txs <-
+                        MaybeT $ readWalletState transactions wid
+                    lift $ selectWalletTransactionInfoStore
+                        do walletState
+                        do ti
+                        do minWithdrawal
+                        do sortOrder
+                        do \TxMeta {..} -> and $ catMaybes
+                            [ (txMetaSlot >=) <$>  W.inclusiveLowerBound range
+                            , (txMetaSlot <=) <$> W.inclusiveUpperBound range
+                            , (txMetaStatus ==) <$> status
+                            ]
+                        do txs
+                    -- selectWalletTransactionInfo cp
+                    --     ti wid minWithdrawal order $ catMaybes
+                    --     [ (TxMetaSlot >=.) <$> W.inclusiveLowerBound range
+                    --     , (TxMetaSlot <=.) <$> W.inclusiveUpperBound range
+                    --     , (TxMetaStatus ==.) <$> status
+                    --     ]
 
         , putLocalTxSubmission = \wid txid tx sl -> ExceptT $ do
             let errNoSuchWallet = ErrPutLocalTxSubmissionNoSuchWallet $
@@ -780,7 +794,7 @@ newDBLayerWith _cacheBehavior _tr ti SqliteContext{runQuery} = do
                             else Right ()
 
         , getTx = \wid tid -> ExceptT $
-            readCheckpoint_ wid >>= \case
+            readWalletState getLatestCheckpoint wid >>= \case
         Nothing -> pure $ Left $ ErrNoSuchWallet wid
         Just cp -> do
             metas <- selectWalletTransactionInfo cp
