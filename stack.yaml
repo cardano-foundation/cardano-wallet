@@ -366,7 +366,7 @@ extra-deps:
   commit: 6a92d7853ea514be8b70bab5e72077bf5a510596
 
 - git: https://github.com/input-output-hk/io-sim
-  commit: 606de33fa2f467d108fb1efb86daeb3348bf34e3
+  commit: 29249b284e8e9d654b5c973b6ec18e65eb599713
   subdirs:
     io-classes
     io-sim

@@ -15,7 +15,7 @@
   "https://github.com/input-output-hk/hedgehog-extras"."edf6945007177a638fbeb8802397f3a6f4e47c14" = "0wc7qzkc7j4ns2rz562h6qrx2f8xyq7yjcb7zidnj7f6j0pcd0i9";
   "https://github.com/input-output-hk/iohk-monitoring-framework"."eb7854d1337637b8672af1227b276aa33a658f47" = "1ll81hlhkhj96f5v6lswjkq2h8f7zcmdrj2azqhi4ylzafn026r3";
   "https://github.com/shmish111/purescript-bridge.git"."6a92d7853ea514be8b70bab5e72077bf5a510596" = "13j64vv116in3c204qsl1v0ajphac9fqvsjp7x3zzfr7n7g61drb";
-  "https://github.com/input-output-hk/io-sim"."606de33fa2f467d108fb1efb86daeb3348bf34e3" = "048djqfdkzrbmdz670knbkjy12wddpvsmhm4x5yldg3w9lwqi1yx";
+  "https://github.com/input-output-hk/io-sim"."29249b284e8e9d654b5c973b6ec18e65eb599713" = "1kv8lwmrw1c0g03jy3i3fgk3c8d47ihjcslg295djqj442y95y2f";
   "https://github.com/input-output-hk/typed-protocols"."91c3fba44d68439df207796171cd6f867354b76b" = "1h1nh10859kd7j8bb55y577jfdp42aqpppx8fn0pm6fra5748a50";
   "https://github.com/input-output-hk/ouroboros-network"."ea202b7b21983140d1944ccfde8750b891b59699" = "0bixx0b61sjzls7hzwjlgmvl0yk1ckd40cfazda8b3smqvxfrphq";
   "https://github.com/input-output-hk/plutus"."fec94223a985e34d3b270460c8f150002f41b85b" = "1mwknikvbpv9lj43c3ya24v7wpcbpcsrk0fnh6knpi7ds4rmj9j0";
