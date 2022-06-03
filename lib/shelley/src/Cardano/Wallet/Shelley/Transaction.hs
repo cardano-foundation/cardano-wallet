@@ -1138,7 +1138,7 @@ _assignScriptRedeemers
     -> [Redeemer]
     -> Cardano.Tx era
     -> Either ErrAssignRedeemers (Cardano.Tx era )
-_assignScriptRedeemers (Cardano.toLedgerPParams Cardano.ShelleyBasedEraAlonzo -> pparams) ti resolveInput redeemers tx =
+_assignScriptRedeemers pparams ti resolveInput redeemers tx =
     case Cardano.shelleyBasedEra @era of
         Cardano.ShelleyBasedEraShelley ->
             pure tx
@@ -1155,8 +1155,7 @@ _assignScriptRedeemers (Cardano.toLedgerPParams Cardano.ShelleyBasedEraAlonzo ->
                 modifyM (assignExecutionUnits executionUnits)
                 modify' addScriptIntegrityHash
             pure $ Cardano.ShelleyTx ShelleyBasedEraAlonzo alonzoTx'
-        Cardano.ShelleyBasedEraBabbage -> do
-            error "TODO: Babbage _assignScriptRedeemers"
+        Cardano.ShelleyBasedEraBabbage -> undefined
   where
     -- | Assign redeemers with null execution units to the input transaction.
     --
@@ -1217,14 +1216,15 @@ _assignScriptRedeemers (Cardano.toLedgerPParams Cardano.ShelleyBasedEraAlonzo ->
             (Map Alonzo.RdmrPtr (Either ErrAssignRedeemers Alonzo.ExUnits))
     evaluateExecutionUnits indexedRedeemers alonzoTx = do
         let utxo = utxoFromAlonzoTx alonzoTx
-        let costs = toCostModelsAsArray (Alonzo.unCostModels $ Alonzo._costmdls pparams)
+        let pparams' = Cardano.toLedgerPParams Cardano.ShelleyBasedEraAlonzo pparams
+        let costs = toCostModelsAsArray (Alonzo.unCostModels $ Alonzo._costmdls pparams')
         let systemStart = getSystemStart ti
 
         epochInfo <- hoistEpochInfo (left ErrAssignRedeemersPastHorizon . runIdentity . runExceptT)
             <$> left ErrAssignRedeemersPastHorizon (toEpochInfo ti)
 
         res <- evaluateTransactionExecutionUnits
-                pparams
+                pparams'
                 alonzoTx
                 utxo
                 epochInfo
@@ -1293,7 +1293,7 @@ _assignScriptRedeemers (Cardano.toLedgerPParams Cardano.ShelleyBasedEraAlonzo ->
             alonzoTx
                 { Alonzo.body = (Alonzo.body alonzoTx)
                     { Alonzo.scriptIntegrityHash = Alonzo.hashScriptIntegrity
-                        pparams
+                        (Cardano.toLedgerPParams Cardano.ShelleyBasedEraAlonzo pparams)
                         (Set.fromList langs)
                         (Alonzo.txrdmrs wits)
                         (Alonzo.txdats wits)
