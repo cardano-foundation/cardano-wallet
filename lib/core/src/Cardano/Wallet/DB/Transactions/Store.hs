@@ -1,32 +1,31 @@
-{-# LANGUAGE LambdaCase #-}
+
 {-# LANGUAGE RankNTypes #-}
 
 module Cardano.Wallet.DB.Transactions.Store where
 
-import Cardano.Wallet.DB
-    ( ErrNoSuchWallet (ErrNoSuchWallet) )
+import Cardano.Wallet.DB.Transactions.Delete
+    ( deletePendingOrExpiredTx, taintExpiredTx )
+import Cardano.Wallet.DB.Transactions.Delta
+    ( DeltaTxHistory (AgeTxHistory, DeltaTxHistory, PruneTxHistory) )
 import Cardano.Wallet.DB.Transactions.Select
     ( selectWalletTxRelation )
 import Cardano.Wallet.DB.Transactions.Types
-    (  TxHistory )
+    ( TxHistory )
 import Cardano.Wallet.DB.Transactions.Update
     ( putTxs )
 import Cardano.Wallet.DB.Unstored
-    ( selectWallet )
+    ( overWallet )
 import Cardano.Wallet.Primitive.Types
     ( WalletId )
 import Control.Exception
-    ( Exception (toException), SomeException, throw )
-import Control.Monad.Exception.Unchecked
-    ( Unchecked (Unchecked) )
+    ( SomeException )
+import Control.Monad
+    ( void )
 import Data.DBVar
     ( Store (Store, loadS, updateS, writeS) )
 import Database.Persist.Sql
     ( SqlPersistT )
 import Prelude
-import Cardano.Wallet.DB.Transactions.Delete (deletePendingOrExpiredTx)
-import Control.Monad (void)
-import Cardano.Wallet.DB.Transactions.Delta (DeltaTxHistory (DeltaTxHistory, PruneTxHistory, AgeTxHistory))
 
 mkStoreTransactions :: WalletId -> Store (SqlPersistT IO) DeltaTxHistory
 mkStoreTransactions wid =
@@ -37,21 +36,10 @@ mkStoreTransactions wid =
         }
 
 update :: WalletId -> TxHistory -> DeltaTxHistory -> SqlPersistT IO ()
-update wid _ (DeltaTxHistory txs) =
-    selectWallet wid >>= \case
-        Nothing -> throw
-            $ toException
-            $ Unchecked
-            $ ErrNoSuchWallet wid
-        Just _ -> putTxs txs
-update wid _ (PruneTxHistory tid) =
-    selectWallet wid >>= \case
-        Nothing -> throw
-            $ toException
-            $ Unchecked
-            $ ErrNoSuchWallet wid
-        Just _ -> void $ deletePendingOrExpiredTx wid tid
-update _wid _ AgeTxHistory = undefined
+update wid _ change = overWallet wid $ \_ -> case change of
+    DeltaTxHistory txs -> putTxs txs
+    PruneTxHistory tid -> void $ deletePendingOrExpiredTx wid tid
+    AgeTxHistory tip -> taintExpiredTx wid tip
 
 write :: WalletId -> TxHistory -> SqlPersistT IO ()
 write = error "write tx history not implemented"

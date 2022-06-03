@@ -47,6 +47,8 @@ import Cardano.Address.Derivation
     ( XPrv )
 import Cardano.DB.Sqlite
     ( dbChunkedFor )
+import Cardano.Wallet.DB
+    ( ErrNoSuchWallet (ErrNoSuchWallet) )
 import Cardano.Wallet.DB.Sqlite.Schema
     ( DelegationCertificate (..)
     , EntityField (..)
@@ -64,6 +66,13 @@ import Cardano.Wallet.Primitive.Passphrase
     ( PassphraseHash )
 import Cardano.Wallet.Primitive.Slotting
     ( TimeInterpreter, firstSlotInEpoch, interpretQuery )
+import qualified Cardano.Wallet.Primitive.Types as W
+import qualified Cardano.Wallet.Primitive.Types.Hash as W
+import qualified Cardano.Wallet.Primitive.Types.Tx as W
+import Control.Exception
+    ( Exception (toException), throw )
+import Control.Monad.Exception.Unchecked
+    ( Unchecked (Unchecked) )
 import Control.Monad.IO.Class
     ( MonadIO (..) )
 import Data.Coerce
@@ -98,8 +107,6 @@ import Database.Persist.Sql
     , (==.)
     , (>=.)
     )
-import UnliftIO.Exception
-    ( Exception )
 
 import qualified Cardano.Wallet.Primitive.Passphrase as W
 import qualified Cardano.Wallet.Primitive.Types as W
@@ -233,6 +240,18 @@ genesisParametersFromEntity (Wallet _ _ _ _ _ hash startTime) =
 {-------------------------------------------------------------------------------
     SQLite database operations
 -------------------------------------------------------------------------------}
+
+overWallet
+    :: MonadIO m
+    => W.WalletId
+    -> (Wallet -> SqlPersistT m b)
+    -> SqlPersistT m b
+overWallet wid f = selectWallet wid >>= \case
+        Nothing -> throw
+            $ toException
+            $ Unchecked
+            $ ErrNoSuchWallet wid
+        Just x -> f x
 
 selectWallet :: MonadIO m => W.WalletId -> SqlPersistT m (Maybe Wallet)
 selectWallet wid =

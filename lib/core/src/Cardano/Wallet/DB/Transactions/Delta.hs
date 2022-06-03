@@ -2,34 +2,39 @@
 {-# LANGUAGE RecordWildCards #-}
 {-# LANGUAGE TypeFamilies #-}
 module Cardano.Wallet.DB.Transactions.Delta where
-import Cardano.Wallet.DB.Transactions.Types
-    (
-      TxHistoryF(TxHistoryF, txHistory_relations), TxHistory )
-import Cardano.Wallet.Primitive.Types.Hash (Hash)
-import Fmt ( Buildable(..) )
-import Data.Delta ( Delta(..) )
 import Cardano.Wallet.DB.Sqlite.Schema
-    ( TxMeta(TxMeta, txMetaScriptValidity, txMetaFee,
-             txMetaSlotExpires, txMetadata, txMetaAmount, txMetaBlockHeight,
-             txMetaSlot, txMetaDirection, txMetaStatus, txMetaWalletId,
-             txMetaTxId) )
+    ( TxMeta (..) )
+import Cardano.Wallet.DB.Sqlite.Types
+    ( TxId (TxId) )
+import Cardano.Wallet.DB.Transactions.Types
+    ( TxHistory, TxHistoryF (TxHistoryF, txHistory_relations) )
+import Cardano.Wallet.Primitive.Types.Hash
+    ( Hash )
+import Cardano.Wallet.Primitive.Types.Tx
+    ( TxStatus (InLedger) )
+import Control.Monad
+    ( guard )
+import Data.Delta
+    ( Delta (..) )
+import Fmt
+    ( Buildable (..) )
 import Prelude
-import Control.Monad (guard)
-import Cardano.Wallet.DB.Sqlite.Types (TxId(TxId))
-import Cardano.Wallet.Primitive.Types.Tx (TxStatus(InLedger))
+
+import qualified Cardano.Wallet.Primitive.Types as W
+import qualified Cardano.Wallet.Primitive.Types.Tx as W
 
 data DeltaTxHistory =
     DeltaTxHistory TxHistory
     | PruneTxHistory (Hash "Tx")
-    | AgeTxHistory
+    | AgeTxHistory W.SlotNo
 
 instance Buildable DeltaTxHistory where
     build (DeltaTxHistory txs) =
         "DeltaTxHistory " <> build (length $ txHistory_relations txs)
     build (PruneTxHistory h) =
         "PruneTxHistory " <> build (show h)
-    build AgeTxHistory =
-        "AgeTxHistory "
+    build (AgeTxHistory slot) =
+        "AgeTxHistory " <> build slot
 
 instance Delta DeltaTxHistory where
     type Base DeltaTxHistory = TxHistory
@@ -40,4 +45,9 @@ instance Delta DeltaTxHistory where
         guard $
             txMetaTxId == TxId tid && txMetaStatus /= InLedger
         pure tx
-    apply AgeTxHistory _ = undefined
+    apply (AgeTxHistory tip) (TxHistoryF txs) = TxHistoryF $ do
+        (meta@TxMeta {..}, tx) <- txs
+        let newstatus = if txMetaSlotExpires <= Just tip && txMetaStatus == W.Pending
+                then W.Expired else txMetaStatus
+        pure (meta{txMetaStatus = newstatus}, tx)
+

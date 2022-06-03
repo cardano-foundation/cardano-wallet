@@ -4,11 +4,20 @@
 module Cardano.Wallet.DB.Transactions.Delete (deletePendingOrExpiredTx) where
 
 import Cardano.Wallet.DB.Sqlite.Schema
-    ( EntityField (TxMetaStatus, TxMetaTxId, TxMetaWalletId) )
+    ( EntityField (TxMetaSlotExpires, TxMetaStatus, TxMetaTxId, TxMetaWalletId)
+    )
 import Cardano.Wallet.DB.Sqlite.Types
     ( TxId (TxId) )
 import Database.Persist.Sql
-    ( SqlPersistT, deleteWhereCount, selectFirst, (<-.), (==.) )
+    ( SqlPersistT
+    , deleteWhereCount
+    , selectFirst
+    , updateWhere
+    , (<-.)
+    , (<=.)
+    , (=.)
+    , (==.)
+    )
 import Prelude
 
 import qualified Cardano.Wallet.Primitive.Types as W
@@ -28,3 +37,16 @@ deletePendingOrExpiredTx wid tid = do
         Nothing -> fromIntegral <$> deleteWhereCount
             ((TxMetaStatus <-. [W.Pending, W.Expired]):filt)
 
+
+-- Transaction expiry is not something which can be rolled back.
+taintExpiredTx
+    :: W.WalletId
+    -> W.SlotNo
+    -> SqlPersistT IO ()
+taintExpiredTx wid tip = do
+    updateWhere isExpired [TxMetaStatus =. W.Expired]
+  where
+    isExpired =
+        [ TxMetaWalletId ==. wid
+        , TxMetaStatus ==. W.Pending
+        , TxMetaSlotExpires <=. Just tip ]

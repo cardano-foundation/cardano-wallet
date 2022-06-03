@@ -11,8 +11,6 @@
 {-# LANGUAGE TypeApplications #-}
 {-# LANGUAGE TypeFamilies #-}
 {-# LANGUAGE UndecidableInstances #-}
-
-{-# OPTIONS_GHC -fno-warn-orphans #-}
 {-# LANGUAGE BlockArguments #-}
 {-# LANGUAGE RecordWildCards #-}
 
@@ -94,8 +92,11 @@ import Cardano.Wallet.DB.Sqlite.Schema
     , Key (..)
     , LocalTxSubmission (..)
     , StakeKeyCertificate (..)
+    , TxMeta (TxMeta)
     , migrateAll
-    , unWalletKey, TxMeta (TxMeta), txMetaSlot, txMetaStatus
+    , txMetaSlot
+    , txMetaStatus
+    , unWalletKey
     )
 import Cardano.Wallet.DB.Sqlite.Types
     ( TxId (..) )
@@ -104,7 +105,10 @@ import Cardano.Wallet.DB.Sqlite.WrapSTM
 import Cardano.Wallet.DB.Transactions.Delete
     ( deletePendingOrExpiredTx )
 import Cardano.Wallet.DB.Transactions.Select
-    ( selectTxMeta, selectWalletTransactionInfo, selectWalletTransactionInfoStore )
+    ( selectTxMeta
+    , selectWalletTransactionInfo
+    , selectWalletTransactionInfoStore
+    )
 import Cardano.Wallet.DB.Transactions.Update
     ( updateTxHistory )
 import Cardano.Wallet.DB.Unstored
@@ -182,11 +186,9 @@ import Database.Persist.Sql
     , selectList
     , updateWhere
     , upsert
-
     , (=.)
     , (==.)
     , (>.)
-
     )
 import Database.Persist.Sqlite
     ( SqlPersistT )
@@ -206,13 +208,16 @@ import UnliftIO.MVar
 import Cardano.Wallet.DB.Transactions.Model
     ( mkTxHistory )
 
+import Cardano.Wallet.DB.Transactions.Delta
 import qualified Cardano.Wallet.Primitive.Types as W
 import qualified Cardano.Wallet.Primitive.Types.Coin as Coin
 import qualified Cardano.Wallet.Primitive.Types.Tx as W
-import Control.Monad.Trans.Maybe (runMaybeT, MaybeT (MaybeT))
-import Control.Monad.Trans (lift)
-import Debug.Trace (trace)
-import Cardano.Wallet.DB.Transactions.Delta
+import Control.Monad.Trans
+    ( lift )
+import Control.Monad.Trans.Maybe
+    ( MaybeT (MaybeT), runMaybeT )
+import Debug.Trace
+    ( trace )
 {-------------------------------------------------------------------------------
                                Database "factory"
              (a directory containing one database file per wallet)
