@@ -8,7 +8,7 @@ import Cardano.Wallet.DB
 import Cardano.Wallet.DB.Transactions.Select
     ( selectWalletTxRelation )
 import Cardano.Wallet.DB.Transactions.Types
-    ( DeltaTxHistory (DeltaTxHistory), TxHistory (TxHistory) )
+    (  TxHistory )
 import Cardano.Wallet.DB.Transactions.Update
     ( putTxs )
 import Cardano.Wallet.DB.Unstored
@@ -24,6 +24,9 @@ import Data.DBVar
 import Database.Persist.Sql
     ( SqlPersistT )
 import Prelude
+import Cardano.Wallet.DB.Transactions.Delete (deletePendingOrExpiredTx)
+import Control.Monad (void)
+import Cardano.Wallet.DB.Transactions.Delta (DeltaTxHistory (DeltaTxHistory, PruneTxHistory, AgeTxHistory))
 
 mkStoreTransactions :: WalletId -> Store (SqlPersistT IO) DeltaTxHistory
 mkStoreTransactions wid =
@@ -34,19 +37,27 @@ mkStoreTransactions wid =
         }
 
 update :: WalletId -> TxHistory -> DeltaTxHistory -> SqlPersistT IO ()
-update wid _ (DeltaTxHistory (TxHistory txs)) =
+update wid _ (DeltaTxHistory txs) =
     selectWallet wid >>= \case
         Nothing -> throw
             $ toException
             $ Unchecked
             $ ErrNoSuchWallet wid
         Just _ -> putTxs txs
+update wid _ (PruneTxHistory tid) =
+    selectWallet wid >>= \case
+        Nothing -> throw
+            $ toException
+            $ Unchecked
+            $ ErrNoSuchWallet wid
+        Just _ -> void $ deletePendingOrExpiredTx wid tid
+update _wid _ AgeTxHistory = undefined
 
 write :: WalletId -> TxHistory -> SqlPersistT IO ()
 write = error "write tx history not implemented"
 
 load :: WalletId -> SqlPersistT IO (Either SomeException TxHistory)
-load wid = Right . TxHistory <$> selectWalletTxRelation wid
+load wid = Right <$> selectWalletTxRelation wid
 
 
 

@@ -32,7 +32,7 @@ import Cardano.Wallet.DB.Sqlite.Schema
 import Cardano.Wallet.DB.Sqlite.Types
     ( TxId (TxId) )
 import Cardano.Wallet.DB.Transactions.Types
-    ( TxMetaRelation, TxMetaRelationF (TxMetaRelationF), TxRelationF (..) )
+    ( TxHistory, TxHistoryF (TxHistoryF), TxRelationF (..) )
 import qualified Cardano.Wallet.Primitive.Types as W
 import qualified Cardano.Wallet.Primitive.Types.Coin as W
 import Cardano.Wallet.Primitive.Types.RewardAccount
@@ -182,8 +182,8 @@ mkTxWithdrawal tid (txWithdrawalAccount, txWithdrawalAmount) =
     txWithdrawalTxId = tid
 
 mkTxCore ::
-    W.WalletId -> W.Tx -> W.TxMeta -> TxMetaRelation
-mkTxCore wid tx txmeta = TxMetaRelationF $ pure $ (meta,) $ TxRelationF
+    W.WalletId -> W.Tx -> W.TxMeta -> TxHistory
+mkTxCore wid tx txmeta = TxHistoryF $ pure $ (meta,) $ TxRelationF
     do fmap (Identity . mkTxIn tid) . ordered . W.resolvedInputs $ tx
     do
         fmap (Identity . mkTxCollateral tid)
@@ -208,10 +208,10 @@ mkTxCore wid tx txmeta = TxMetaRelationF $ pure $ (meta,) $ TxRelationF
 mkTxHistory ::
     W.WalletId ->
     [(W.Tx, W.TxMeta)] ->
-    TxMetaRelation
+    TxHistory
 mkTxHistory wid txs = fold $ do
     (tx, meta) <- txs
     pure $ mkTxCore wid tx meta
 
-filterMeta :: (TxMeta -> Bool) -> TxMetaRelationF f -> TxMetaRelationF f 
-filterMeta f (TxMetaRelationF rs) = TxMetaRelationF $ filter (f . fst) rs 
+filterMeta :: (TxMeta -> Bool) -> TxHistoryF f -> TxHistoryF f
+filterMeta f (TxHistoryF rs) = TxHistoryF $ filter (f . fst) rs

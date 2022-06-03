@@ -27,3 +27,4 @@ deletePendingOrExpiredTx wid tid = do
         Just _ -> pure 0  -- marked in ledger - refuse to delete
         Nothing -> fromIntegral <$> deleteWhereCount
             ((TxMetaStatus <-. [W.Pending, W.Expired]):filt)
+

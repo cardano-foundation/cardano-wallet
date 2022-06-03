@@ -1,3 +1,4 @@
+{-# LANGUAGE DataKinds #-}
 {-# LANGUAGE DeriveGeneric #-}
 {-# LANGUAGE GADTs #-}
 {-# LANGUAGE RankNTypes #-}
@@ -18,8 +19,6 @@ import Cardano.Wallet.DB.Sqlite.Schema
     , TxOutToken (..)
     , TxWithdrawal (..)
     )
-import Data.Delta
-    ( Delta (..) )
 import Data.Functor.Identity
 import Fmt
     ( Buildable (build) )
@@ -44,15 +43,15 @@ deriving instance (Eq (f TxIn), Eq (f TxCollateral))
 deriving instance (Show (f TxIn), Show (f TxCollateral))
      => Show (TxRelationF f)
 
-newtype TxMetaRelationF f = TxMetaRelationF 
-    { txMetaRelation_relations ::[(TxMeta,TxRelationF f)] } 
+newtype TxHistoryF f = TxHistoryF
+    { txHistory_relations ::[(TxMeta,TxRelationF f)] }
     deriving (Generic)
 
 deriving instance (Eq (f TxIn), Eq (f TxCollateral))
-     => Eq (TxMetaRelationF f)
+     => Eq (TxHistoryF f)
 
 deriving instance (Show (f TxIn), Show (f TxCollateral))
-     => Show (TxMetaRelationF f)
+     => Show (TxHistoryF f)
 
 instance Monoid (TxRelationF f) where
     mempty = memptydefault
@@ -60,43 +59,25 @@ instance Monoid (TxRelationF f) where
 instance Semigroup (TxRelationF f) where
     (<>) = mappenddefault
 
-instance Monoid (TxMetaRelationF f) where
+instance Monoid (TxHistoryF f) where
     mempty = memptydefault
 
-instance Semigroup (TxMetaRelationF f) where
+instance Semigroup (TxHistoryF f) where
     (<>) = mappenddefault
 
 
-type TxMetaRelation = TxMetaRelationF Identity
+type TxHistory = TxHistoryF Identity
 
 data WithTxOut a = WithTxOut
     { withTxOut_value :: a
     , withTxOut_context :: Maybe (TxOut, [TxOutToken])
     }
 
-type TxMetaRelationA = TxMetaRelationF WithTxOut
+type TxHistoryA = TxHistoryF WithTxOut
 
-newtype TxHistory = TxHistory TxMetaRelation  deriving (Show, Eq)
 
-instance Buildable TxHistory where
-    build (TxHistory txs) = "TxHistory "
-        <> build (length $ txMetaRelation_relations txs)
+instance Buildable (TxHistoryF f) where
+    build txs = "TxHistory "
+        <> build (length $ txHistory_relations txs)
 
-instance Semigroup TxHistory where
-    TxHistory xs <> TxHistory ys = TxHistory zs
-      where
-        zs = xs <> ys -- FIXME with invariants
-
-instance Monoid TxHistory where
-    mempty = TxHistory mempty
-
-newtype DeltaTxHistory = DeltaTxHistory TxHistory
-
-instance Buildable DeltaTxHistory where
-    build (DeltaTxHistory (TxHistory txs)) =
-        "DeltaTxHistory " <> build (length $ txMetaRelation_relations txs)
-
-instance Delta DeltaTxHistory where
-    type Base DeltaTxHistory = TxHistory
-    apply (DeltaTxHistory txs) h = h <> txs
 

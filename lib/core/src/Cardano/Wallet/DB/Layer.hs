@@ -182,11 +182,11 @@ import Database.Persist.Sql
     , selectList
     , updateWhere
     , upsert
-    , (<=.)
+
     , (=.)
     , (==.)
     , (>.)
-    , (>=.)
+
     )
 import Database.Persist.Sqlite
     ( SqlPersistT )
@@ -205,14 +205,14 @@ import UnliftIO.MVar
 
 import Cardano.Wallet.DB.Transactions.Model
     ( mkTxHistory )
-import Cardano.Wallet.DB.Transactions.Types
-    ( DeltaTxHistory (DeltaTxHistory), TxHistory (TxHistory) )
 
 import qualified Cardano.Wallet.Primitive.Types as W
 import qualified Cardano.Wallet.Primitive.Types.Coin as Coin
 import qualified Cardano.Wallet.Primitive.Types.Tx as W
 import Control.Monad.Trans.Maybe (runMaybeT, MaybeT (MaybeT))
 import Control.Monad.Trans (lift)
+import Debug.Trace (trace)
+import Cardano.Wallet.DB.Transactions.Delta
 {-------------------------------------------------------------------------------
                                Database "factory"
              (a directory containing one database file per wallet)
@@ -725,7 +725,6 @@ newDBLayerWith _cacheBehavior _tr ti SqliteContext{runQuery} = do
                         let delta = Just $ Adjust wid
                                 [UpdateTransactions
                                     $ DeltaTxHistory
-                                    $ TxHistory
                                     $ mkTxHistory wid deltaTxHistory
                                 ]
                         in  (delta, Right ())
@@ -746,7 +745,7 @@ newDBLayerWith _cacheBehavior _tr ti SqliteContext{runQuery} = do
                             , (txMetaSlot <=) <$> W.inclusiveUpperBound range
                             , (txMetaStatus ==) <$> status
                             ]
-                        do txs
+                        do trace (show txs) txs
                     -- selectWalletTransactionInfo cp
                     --     ti wid minWithdrawal order $ catMaybes
                     --     [ (TxMetaSlot >=.) <$> W.inclusiveLowerBound range
@@ -770,28 +769,49 @@ newDBLayerWith _cacheBehavior _tr ti SqliteContext{runQuery} = do
             fmap (map localTxSubmissionFromEntity)
             . listPendingLocalTxSubmissionQuery
 
-        , updatePendingTxForExpiry = \wid tip -> ExceptT $
-            selectWallet wid >>= \case
-        Nothing -> pure $ Left $ ErrNoSuchWallet wid
-        Just _ -> Right <$> updatePendingTxForExpiryQuery wid tip
+        , updatePendingTxForExpiry = \wid tip -> ExceptT $ do
 
-        , removePendingOrExpiredTx = \wid tid -> ExceptT $ do
-            let errNoSuchWallet =
-                    Left $ ErrRemoveTxNoSuchWallet $ ErrNoSuchWallet wid
-            let errNoMorePending =
-                    Left $ ErrRemoveTxAlreadyInLedger tid
-            let errNoSuchTransaction =
-                    Left $ ErrRemoveTxNoSuchTransaction $
-                    ErrNoSuchTransaction wid tid
+            -- modifyDBMaybe walletsDB_ $ \ws ->
+            --     case Map.lookup wid ws of
+            --         Nothing -> (Nothing, Left $ ErrNoSuchWallet wid)
+            --         Just _  ->
+            --             let delta = Just $ Adjust wid
+            --                     [UpdateTransactions
+            --                         $ PruneTxHistory
+            --                         $ mkTxHistory wid deltaTxHistory
+            --                     ]
+            --             in  (delta, Right ())
             selectWallet wid >>= \case
-                Nothing -> pure errNoSuchWallet
-                Just _  -> selectTxMeta wid tid >>= \case
-                    Nothing -> pure errNoSuchTransaction
-                    Just _ -> do
-                        count <- deletePendingOrExpiredTx wid tid
-                        pure $ if count == 0
-                            then errNoMorePending
-                            else Right ()
+                Nothing -> pure $ Left $ ErrNoSuchWallet wid
+                Just _ -> Right <$> updatePendingTxForExpiryQuery wid tip
+
+            , removePendingOrExpiredTx = \wid tid -> do
+
+                let errNoSuchWallet =
+                        Left $ ErrRemoveTxNoSuchWallet $ ErrNoSuchWallet wid
+                ExceptT $ modifyDBMaybe walletsDB_ $ \ws ->
+                    case Map.lookup wid ws of
+                        Nothing -> (Nothing, errNoSuchWallet)
+                        Just _  ->
+                            let delta = Just $ Adjust wid
+                                    [UpdateTransactions
+                                        $ PruneTxHistory tid
+                                    ]
+                            in  (delta, Right ())
+                let errNoMorePending =
+                        Left $ ErrRemoveTxAlreadyInLedger tid
+                let errNoSuchTransaction =
+                        Left $ ErrRemoveTxNoSuchTransaction $
+                        ErrNoSuchTransaction wid tid
+                ExceptT $ selectWallet wid >>= \case
+                    Nothing -> pure errNoSuchWallet
+                    Just _  -> selectTxMeta wid tid >>= \case
+                        Nothing -> pure errNoSuchTransaction
+                        Just _ -> do
+                            count <- deletePendingOrExpiredTx wid tid
+                            pure $ if count == 0
+                                then errNoMorePending
+                                else Right ()
 
         , getTx = \wid tid -> ExceptT $
             readWalletState getLatestCheckpoint wid >>= \case

@@ -36,12 +36,8 @@ import Cardano.Wallet.Primitive.Types.TokenMap
     ( AssetId (AssetId) )
 import Control.Arrow
     ( (&&&) )
-import Control.Monad.Exception.Unchecked
-    ( throwSomeException )
 import Control.Monad.Extra
     ( concatMapM )
-import Data.DBVar
-    ( Store (loadS) )
 import Data.Foldable
     ( fold )
 import Data.Function
@@ -135,9 +131,9 @@ addTxOuts f g xs = do
 
 -- merge information from utxo on inputs and collaterals
 patchToTxRelationA
-    :: TxMetaRelation
-    -> SqlPersistT IO TxMetaRelationA
-patchToTxRelationA (TxMetaRelationF rs) = do
+    :: TxHistory
+    -> SqlPersistT IO TxHistoryA
+patchToTxRelationA (TxHistoryF rs) = do
     ins <- addTxOuts
         do txInputSourceTxId
         do txInputSourceIndex
@@ -147,7 +143,7 @@ patchToTxRelationA (TxMetaRelationF rs) = do
         do txCollateralSourceIndex
         do rs >>= txRelation_colls . snd
     pure $
-        TxMetaRelationF $ do
+        TxHistoryF $ do
             (m, r) <- rs
             pure $ (m,) $ TxRelationF
                 do ins
@@ -168,7 +164,7 @@ readTxCollateralOutTokens out =
 -- select a txRelation starting from the list of meta
 selectTxRelation ::
     [TxMeta] ->
-    SqlPersistT IO TxMetaRelation
+    SqlPersistT IO TxHistory
 selectTxRelation = fmap fold . mapM select . chunksOf chunkSize
   where
     select txmetas = do
@@ -187,7 +183,7 @@ selectTxRelation = fmap fold . mapM select . chunksOf chunkSize
                 [Asc TxCollateralOutTxId]
         withdrawals <- select' TxWithdrawalTxId []
         pure $
-            TxMetaRelationF $ do
+            TxHistoryF $ do
                 m <- txmetas
                 let ofMeta :: Map TxId [a] -> [a]
                     ofMeta = Map.findWithDefault [] (m ^. #txMetaTxId)
@@ -209,13 +205,13 @@ selectTxRelation = fmap fold . mapM select . chunksOf chunkSize
                 <$> selectList [k <-. (txMetaTxId <$> txmetas)] q
 
 
-filterTxMetaRelation
+filterTxHistory
     :: Maybe W.Coin
     -> W.SortOrder
     -> (TxMeta -> Bool)
-    -> TxMetaRelationF f
-    -> TxMetaRelationF f
-filterTxMetaRelation minWithdrawal order conditions (TxMetaRelationF rs) = let
+    -> TxHistoryF f
+    -> TxHistoryF f
+filterTxHistory minWithdrawal order conditions (TxHistoryF rs) = let
     sortTxId = txMetaTxId . fst  & case order of
         W.Ascending -> sortOn . fmap Down
         W.Descending -> sortOn
@@ -229,7 +225,7 @@ filterTxMetaRelation minWithdrawal order conditions (TxMetaRelationF rs) = let
                     . txRelation_withdraws
                     . snd
     filterMeta = filter (conditions . fst)
-    in TxMetaRelationF $ sortSlot $ sortTxId $ byCoin $ filterMeta rs
+    in TxHistoryF $ sortSlot $ sortTxId $ byCoin $ filterMeta rs
 {- | Split a query's input values into chunks, run multiple smaller queries,
  and then concatenate the results afterwards. Used to avoid "too many SQL
  variables" errors for "SELECT IN" queries.
@@ -245,13 +241,10 @@ selectWalletTransactionInfoStore
     -> (TxMeta -> Bool)
     -> TxHistory
     -> SqlPersistT IO [W.TransactionInfo]
-selectWalletTransactionInfoStore cp ti minWithdrawal order conditions
-    (TxHistory txs) = do
-        x' <-
-            patchToTxRelationA $
-                filterTxMetaRelation minWithdrawal order conditions txs
-        liftIO $
-            txHistoryFromEntity ti (W.currentTip cp) x'
+selectWalletTransactionInfoStore cp ti minWithdrawal order conditions txs = do
+    x' <- patchToTxRelationA $
+            filterTxHistory minWithdrawal order conditions txs
+    liftIO $ txHistoryFromEntity ti (W.currentTip cp) x'
 
 
 selectWalletTransactionInfo ::
@@ -304,7 +297,7 @@ selectWalletMetas wid = do
     let txMetaFilter = [TxMetaWalletId ==. wid]
     fmap entityVal <$> selectList txMetaFilter []
 
-selectWalletTxRelation :: W.WalletId -> SqlPersistT IO TxMetaRelation
+selectWalletTxRelation :: W.WalletId -> SqlPersistT IO TxHistory
 selectWalletTxRelation wid = selectWalletMetas wid >>= selectTxRelation
 
 selectTxMeta ::
@@ -321,9 +314,9 @@ txHistoryFromEntity ::
     Monad m =>
     TimeInterpreter m ->
     W.BlockHeader ->
-    TxMetaRelationA ->
+    TxHistoryA ->
     m [W.TransactionInfo]
-txHistoryFromEntity ti tip (TxMetaRelationF rs) =
+txHistoryFromEntity ti tip (TxHistoryF rs) =
     mapM mkItem rs
   where
     startTime' = interpretQuery ti . slotToUTCTime

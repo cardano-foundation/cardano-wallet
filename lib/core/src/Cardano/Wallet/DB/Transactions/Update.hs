@@ -34,7 +34,7 @@ import Cardano.Wallet.DB.Sqlite.Schema
 import Cardano.Wallet.DB.Transactions.Model
     ( mkTxHistory )
 import Cardano.Wallet.DB.Transactions.Types
-    ( TxMetaRelation, TxMetaRelationF (..), TxRelationF (..) )
+    ( TxHistory, TxHistoryF (..), TxRelationF (..) )
 import Data.Foldable
     ( fold )
 import Data.Functor.Identity
@@ -54,8 +54,8 @@ updateTxHistory :: W.WalletId -> [(W.Tx, W.TxMeta)] -> SqlPersistT IO ()
 updateTxHistory wid = putTxs . mkTxHistory wid
 
 -- | Insert multiple transactions, removing old instances first.
-putTxs :: TxMetaRelation -> SqlPersistT IO ()
-putTxs (TxMetaRelationF mrs) = do
+putTxs :: TxHistory -> SqlPersistT IO ()
+putTxs (TxHistoryF mrs) = do
     let (metas,fold -> TxRelationF {..}) = unzip mrs
     repsertX
         do metas
