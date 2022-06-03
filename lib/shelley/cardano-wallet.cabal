@@ -264,6 +264,7 @@ test-suite unit
     , ouroboros-consensus-shelley
     , ouroboros-network
     , cardano-ledger-shelley
+    , plutus-core
     , text
     , text-class
     , transformers
