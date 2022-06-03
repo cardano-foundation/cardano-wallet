@@ -1156,7 +1156,7 @@ _assignScriptRedeemers pparams ti resolveInput redeemers tx =
                 indexedRedeemers <- StateT assignNullRedeemers
                 executionUnits <- get
                     >>= lift . evaluateExecutionUnits indexedRedeemers
-                modifyM (assignExecutionUnits executionUnits)
+                modifyM (assignExecutionUnitsAlonzo executionUnits)
                 modify' addScriptIntegrityHashAlonzo
             pure $ Cardano.ShelleyTx ShelleyBasedEraAlonzo alonzoTx'
         Cardano.ShelleyBasedEraBabbage -> undefined
@@ -1252,11 +1252,11 @@ _assignScriptRedeemers pparams ti resolveInput redeemers tx =
 
     -- | Change execution units for each redeemers in the transaction to what
     -- they ought to be.
-    assignExecutionUnits
+    assignExecutionUnitsAlonzo
         :: Map Alonzo.RdmrPtr (Either ErrAssignRedeemers Alonzo.ExUnits)
         -> AlonzoTx
         -> Either ErrAssignRedeemers AlonzoTx
-    assignExecutionUnits exUnits alonzoTx = do
+    assignExecutionUnitsAlonzo exUnits alonzoTx = do
         let wits = Alonzo.wits alonzoTx
         let Alonzo.Redeemers rdmrs = Alonzo.txrdmrs wits
         rdmrs' <- Map.mergeA
@@ -1270,13 +1270,32 @@ _assignScriptRedeemers pparams ti resolveInput redeemers tx =
                 { Alonzo.txrdmrs = Alonzo.Redeemers rdmrs'
                 }
             }
-      where
-        assignUnits
-            :: (dat, Alonzo.ExUnits)
-            -> Either err Alonzo.ExUnits
-            -> Either err (dat, Alonzo.ExUnits)
-        assignUnits (dats, _zero) =
-            fmap (dats,)
+
+    assignExecutionUnitsBabbage
+        :: Map Alonzo.RdmrPtr (Either ErrAssignRedeemers Alonzo.ExUnits)
+        -> BabbageTx
+        -> Either ErrAssignRedeemers BabbageTx
+    assignExecutionUnitsBabbage exUnits babbageTx = do
+        let wits = Alonzo.wits babbageTx
+        let Alonzo.Redeemers rdmrs = Alonzo.txrdmrs wits
+        rdmrs' <- Map.mergeA
+            Map.preserveMissing
+            Map.dropMissing
+            (Map.zipWithAMatched (const assignUnits))
+            rdmrs
+            exUnits
+        pure $ babbageTx
+            { Alonzo.wits = wits
+                { Alonzo.txrdmrs = Alonzo.Redeemers rdmrs'
+                }
+            }
+
+    assignUnits
+        :: (dat, Alonzo.ExUnits)
+        -> Either err Alonzo.ExUnits
+        -> Either err (dat, Alonzo.ExUnits)
+    assignUnits (dats, _zero) =
+        fmap (dats,)
 
     -- | Finally, calculate and add the script integrity hash with the new
     -- final redeemers, if any.
