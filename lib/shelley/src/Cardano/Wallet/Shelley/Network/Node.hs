@@ -43,7 +43,6 @@ import Cardano.Api
     , NodeToClientVersion (..)
     , SlotNo (..)
     , connectToLocalNode
-    , fromLedgerPParams
     )
 import Cardano.BM.Data.Severity
     ( Severity (..) )
@@ -692,15 +691,15 @@ mkTipSyncClient tr np onPParamsUpdate onInterpreterUpdate onEraUpdate = do
 
             ppNode <- onAnyEra
                 (pure Nothing)
-                (Just . fromLedgerPParams Cardano.ShelleyBasedEraShelley
+                (Just . Cardano.fromLedgerPParams Cardano.ShelleyBasedEraShelley
                     <$> LSQry Shelley.GetCurrentPParams)
-                (Just . fromLedgerPParams Cardano.ShelleyBasedEraAllegra
+                (Just . Cardano.fromLedgerPParams Cardano.ShelleyBasedEraAllegra
                     <$> LSQry Shelley.GetCurrentPParams)
-                (Just . fromLedgerPParams Cardano.ShelleyBasedEraMary
+                (Just . Cardano.fromLedgerPParams Cardano.ShelleyBasedEraMary
                     <$> LSQry Shelley.GetCurrentPParams)
-                (Just . fromLedgerPParams Cardano.ShelleyBasedEraAlonzo
+                (Just . Cardano.fromLedgerPParams Cardano.ShelleyBasedEraAlonzo
                     <$> LSQry Shelley.GetCurrentPParams)
-                (Just . fromLedgerPParams Cardano.ShelleyBasedEraAlonzo
+                (Just . Cardano.fromLedgerPParams Cardano.ShelleyBasedEraAlonzo
                     <$> LSQry Shelley.GetCurrentPParams)
 
             pp <- onAnyEra

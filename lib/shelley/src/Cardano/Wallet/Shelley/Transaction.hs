@@ -1208,6 +1208,7 @@ _assignScriptRedeemers (toAlonzoPParams -> pparams) ti resolveInput redeemers tx
          in
             Ledger.UTxO (Map.fromList utxo)
 
+
     -- | Evaluate execution units of each script/redeemer in the transaction.
     -- This may fail for each script.
     evaluateExecutionUnits

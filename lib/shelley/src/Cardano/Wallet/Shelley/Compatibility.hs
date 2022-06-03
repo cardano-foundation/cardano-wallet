@@ -91,7 +91,6 @@ module Cardano.Wallet.Shelley.Compatibility
     , fromAlonzoPParams
     , fromLedgerExUnits
     , toLedgerExUnits
-    , fromLedgerPParams
     , fromLedgerAlonzoPParams
     , toAlonzoPParams
     , fromCardanoAddress
@@ -363,7 +362,6 @@ import qualified Cardano.Ledger.Alonzo.TxBody as Alonzo
 import qualified Cardano.Ledger.Alonzo.TxSeq as Alonzo
 import qualified Cardano.Ledger.Alonzo.TxWitness as Alonzo
 import qualified Cardano.Ledger.Babbage as Babbage
-import qualified Cardano.Ledger.Babbage.PParams as Babbage
 import qualified Cardano.Ledger.Babbage.Tx as Babbage hiding
     ( ScriptIntegrityHash, TxBody )
 import qualified Cardano.Ledger.Babbage.TxBody as Babbage
@@ -371,7 +369,6 @@ import qualified Cardano.Ledger.BaseTypes as BT
 import qualified Cardano.Ledger.BaseTypes as Ledger
 import qualified Cardano.Ledger.BaseTypes as SL
 import qualified Cardano.Ledger.Coin as Ledger
-import qualified Cardano.Ledger.Core as Ledger
 import qualified Cardano.Ledger.Core as SL.Core
 import qualified Cardano.Ledger.Credential as SL
 import qualified Cardano.Ledger.Crypto as SL
@@ -383,7 +380,6 @@ import qualified Cardano.Ledger.Shelley as SL hiding
 import qualified Cardano.Ledger.Shelley.API as SL
 import qualified Cardano.Ledger.Shelley.API as SLAPI
 import qualified Cardano.Ledger.Shelley.BlockChain as SL
-import qualified Cardano.Ledger.Shelley.PParams as Shelley
 import qualified Cardano.Ledger.Shelley.Tx as Shelley
 import qualified Cardano.Ledger.ShelleyMA as MA
 import qualified Cardano.Ledger.ShelleyMA.AuxiliaryData as MA
@@ -890,16 +886,6 @@ txParametersFromPParams maxBundleSize getMaxExecutionUnits pp = W.TxParameters
 -- To be removed when once again exposed.
 --------------------------------------------------------------------------------
 
-fromLedgerPParams
-  :: Cardano.ShelleyBasedEra era
-  -> Ledger.PParams (Cardano.ShelleyLedgerEra era)
-  -> Cardano.ProtocolParameters
-fromLedgerPParams Cardano.ShelleyBasedEraShelley = fromLedgerShelleyPParams
-fromLedgerPParams Cardano.ShelleyBasedEraAllegra = fromLedgerShelleyPParams
-fromLedgerPParams Cardano.ShelleyBasedEraMary    = fromLedgerShelleyPParams
-fromLedgerPParams Cardano.ShelleyBasedEraAlonzo  = fromLedgerAlonzoPParams
-fromLedgerPParams Cardano.ShelleyBasedEraBabbage = fromLedgerBabbagePParams
-
 fromShelleyLovelace :: Ledger.Coin -> Cardano.Lovelace
 fromShelleyLovelace (Ledger.Coin c) = Cardano.Lovelace c
 
@@ -908,56 +894,6 @@ fromLedgerNonce Ledger.NeutralNonce = Nothing
 fromLedgerNonce (Ledger.Nonce h) =
     Just (Cardano.makePraosNonce $ Crypto.hashToBytes h)
 
-fromLedgerShelleyPParams
-    :: Shelley.PParams ledgerera
-    -> Cardano.ProtocolParameters
-fromLedgerShelleyPParams
-    Shelley.PParams {
-      Shelley._minfeeA
-    , Shelley._minfeeB
-    , Shelley._maxBBSize
-    , Shelley._maxTxSize
-    , Shelley._maxBHSize
-    , Shelley._keyDeposit
-    , Shelley._poolDeposit
-    , Shelley._eMax
-    , Shelley._nOpt
-    , Shelley._a0
-    , Shelley._rho
-    , Shelley._tau
-    , Shelley._d
-    , Shelley._extraEntropy
-    , Shelley._protocolVersion
-    , Shelley._minUTxOValue
-    , Shelley._minPoolCost
-    } = Cardano.ProtocolParameters {
-      protocolParamProtocolVersion     = (\(BT.ProtVer a b) -> (a,b))
-                                           _protocolVersion
-    , protocolParamDecentralization    = Just $ SL.unboundRational _d
-    , protocolParamExtraPraosEntropy   = fromLedgerNonce _extraEntropy
-    , protocolParamMaxBlockHeaderSize  = _maxBHSize
-    , protocolParamMaxBlockBodySize    = _maxBBSize
-    , protocolParamMaxTxSize           = _maxTxSize
-    , protocolParamTxFeeFixed          = _minfeeB
-    , protocolParamTxFeePerByte        = _minfeeA
-    , protocolParamMinUTxOValue        = Just (fromShelleyLovelace _minUTxOValue)
-    , protocolParamStakeAddressDeposit = fromShelleyLovelace _keyDeposit
-    , protocolParamStakePoolDeposit    = fromShelleyLovelace _poolDeposit
-    , protocolParamMinPoolCost         = fromShelleyLovelace _minPoolCost
-    , protocolParamPoolRetireMaxEpoch  = _eMax
-    , protocolParamStakePoolTargetNum  = _nOpt
-    , protocolParamPoolPledgeInfluence = SL.unboundRational _a0
-    , protocolParamMonetaryExpansion   = SL.unboundRational _rho
-    , protocolParamTreasuryCut         = SL.unboundRational _tau
-    , protocolParamUTxOCostPerWord     = Nothing
-    , protocolParamCostModels          = Map.empty
-    , protocolParamPrices              = Nothing
-    , protocolParamMaxTxExUnits        = Nothing
-    , protocolParamMaxBlockExUnits     = Nothing
-    , protocolParamMaxValueSize        = Nothing
-    , protocolParamCollateralPercent   = Nothing
-    , protocolParamMaxCollateralInputs = Nothing
-    }
 
 fromLedgerAlonzoPParams
     :: Alonzo.PParams ledgerera
@@ -1045,12 +981,6 @@ fromLedgerAlonzoPParams
           Map.fromList
           . map (bimap fromAlonzoScriptLanguage fromAlonzoCostModel)
           . Map.toList
-
-fromLedgerBabbagePParams
-    :: Babbage.PParams ledgerera
-    -> Cardano.ProtocolParameters
-fromLedgerBabbagePParams = undefined
-
 
 toAlonzoPParams
     :: Cardano.ProtocolParameters
