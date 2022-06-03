@@ -36,7 +36,7 @@ mkStoreTransactions wid =
         }
 
 update :: WalletId -> TxHistory -> DeltaTxHistory -> SqlPersistT IO ()
-update wid _ change = overWallet wid $ \_ -> case change of
+update wid _ change = overWallet wid $ \_wallet -> case change of
     DeltaTxHistory txs -> putTxs txs
     PruneTxHistory tid -> void $ deletePendingOrExpiredTx wid tid
     AgeTxHistory tip -> taintExpiredTx wid tip

@@ -374,6 +374,15 @@ updatePendingTxForExpiryQuery wid tip = do
         , TxMetaStatus ==. W.Pending
         , TxMetaSlotExpires <=. Just tip ]
 
+deleteTxLocal
+    :: W.WalletId
+    -> [TxId]
+    -> SqlPersistT IO ()
+deleteTxLocal wid = do
+    dbChunkedFor @LocalTxSubmission (\batch -> deleteWhere
+        [ LocalTxSubmissionWalletId ==. wid
+        , LocalTxSubmissionTxId <-. batch
+        ])
 selectPrivateKey
     :: (MonadIO m, PersistPrivateKey (k 'RootK))
     => W.WalletId

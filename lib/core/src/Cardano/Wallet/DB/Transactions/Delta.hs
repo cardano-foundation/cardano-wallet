@@ -39,15 +39,19 @@ instance Buildable DeltaTxHistory where
 instance Delta DeltaTxHistory where
     type Base DeltaTxHistory = TxHistory
     apply (DeltaTxHistory txs) h = h <> txs
-    apply (PruneTxHistory tid) (TxHistoryF txs)
-        = TxHistoryF $ do
+    apply (PruneTxHistory tid) (TxHistoryF txs) = TxHistoryF $ do
         tx@(TxMeta {..}, _) <- txs
         guard $
             txMetaTxId == TxId tid && txMetaStatus /= InLedger
         pure tx
     apply (AgeTxHistory tip) (TxHistoryF txs) = TxHistoryF $ do
         (meta@TxMeta {..}, tx) <- txs
-        let newstatus = if txMetaSlotExpires <= Just tip && txMetaStatus == W.Pending
-                then W.Expired else txMetaStatus
+        let newstatus =
+                if isExpired tip meta
+                then W.Expired
+                else txMetaStatus
         pure (meta{txMetaStatus = newstatus}, tx)
 
+isExpired :: W.SlotNo -> TxMeta -> Bool
+isExpired tip TxMeta {..}
+    = txMetaSlotExpires <= Just tip && txMetaStatus == W.Pending

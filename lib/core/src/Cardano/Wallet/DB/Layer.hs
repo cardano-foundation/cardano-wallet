@@ -13,6 +13,7 @@
 {-# LANGUAGE UndecidableInstances #-}
 {-# LANGUAGE BlockArguments #-}
 {-# LANGUAGE RecordWildCards #-}
+{-# LANGUAGE TupleSections #-}
 
 {- HLINT ignore "Redundant flip" -}
 {- HLINT ignore "Redundant ^." -}
@@ -92,7 +93,7 @@ import Cardano.Wallet.DB.Sqlite.Schema
     , Key (..)
     , LocalTxSubmission (..)
     , StakeKeyCertificate (..)
-    , TxMeta (TxMeta)
+    , TxMeta (TxMeta, txMetaTxId)
     , migrateAll
     , txMetaSlot
     , txMetaStatus
@@ -102,11 +103,8 @@ import Cardano.Wallet.DB.Sqlite.Types
     ( TxId (..) )
 import Cardano.Wallet.DB.Sqlite.WrapSTM
     ()
-import Cardano.Wallet.DB.Transactions.Delete
-    ( deletePendingOrExpiredTx )
 import Cardano.Wallet.DB.Transactions.Select
-    ( selectTxMeta
-    , selectWalletTransactionInfo
+    ( selectWalletTransactionInfo
     , selectWalletTransactionInfoStore
     )
 import Cardano.Wallet.DB.Transactions.Update
@@ -129,7 +127,7 @@ import Cardano.Wallet.DB.Unstored
     , selectGenesisParameters
     , selectPrivateKey
     , selectWallet
-    , updatePendingTxForExpiryQuery
+    , deleteTxLocal
     , updateTxMetas
     )
 import Cardano.Wallet.DB.Wallets.State
@@ -138,7 +136,7 @@ import Cardano.Wallet.DB.Wallets.State
     , WalletState (transactions)
     , findNearestPoint
     , fromGenesis
-    , getLatestCheckpoint
+    , getLatestCheckpoint, DeltaWalletState
     )
 import Cardano.Wallet.DB.Wallets.Store
     ( PersistAddressBook (..), blockHeaderFromEntity, mkStoreWallets )
@@ -218,6 +216,8 @@ import Control.Monad.Trans.Maybe
     ( MaybeT (MaybeT), runMaybeT )
 import Debug.Trace
     ( trace )
+import Cardano.Wallet.DB.Transactions.Types (TxHistoryF (TxHistoryF))
+import Data.Bifunctor (first)
 {-------------------------------------------------------------------------------
                                Database "factory"
              (a directory containing one database file per wallet)
@@ -508,6 +508,22 @@ newDBLayerWith _cacheBehavior _tr ti SqliteContext{runQuery} = do
     --   Handle the case where loading the database fails.
     walletsDB_ <- runQuery $ loadDBVar mkStoreWallets
 
+    let modifyDBWallet :: W.WalletId
+            ->  (  WalletState s
+                -> (Maybe (DeltaMap W.WalletId (DeltaWalletState s)) , a)
+                )
+            -> SqlPersistT IO (Either ErrNoSuchWallet a)
+        modifyDBWallet wid f = modifyDBMaybe walletsDB_ $ \ws ->
+            maybe
+                (Nothing, Left $ ErrNoSuchWallet wid)
+                (fmap Right <$> f)
+                $ Map.lookup wid ws
+        modifyDBWallet' :: W.WalletId
+            ->  (  WalletState s
+                -> (Maybe (DeltaMap W.WalletId (DeltaWalletState s)))
+                )
+            -> SqlPersistT IO (Either ErrNoSuchWallet ())
+        modifyDBWallet' wid f = modifyDBWallet wid $ (, ()) <$> f
     -- NOTE
     -- The cache will not work properly unless 'atomically' is protected by a
     -- mutex (queryLock), which means no concurrent queries.
@@ -539,20 +555,17 @@ newDBLayerWith _cacheBehavior _tr ti SqliteContext{runQuery} = do
             let heights = Set.fromList $ sparseCheckpoints
                     (defaultSparseCheckpointsConfig epochStability)
                     (tip ^. #blockHeight)
-            modifyDBMaybe walletsDB_ $ \ws ->
-                case Map.lookup wid ws of
-                    Nothing  -> (Nothing, ())
-                    Just wal ->
-                        let willKeep cp
-                                = getBlockHeight cp `Set.member` heights
-                            slots = Map.filter willKeep
-                                        $ wal ^. (#checkpoints . #checkpoints)
-                            delta = Adjust wid
-                                [ UpdateCheckpoints
-                                    $ RestrictTo
-                                    $ Map.keys slots
-                                ]
-                        in  (Just delta, ())
+            -- TODO: handle the no wallet issue ?
+            void $ modifyDBWallet' wid $ \wal ->
+                let willKeep cp
+                        = getBlockHeight cp `Set.member` heights
+                    slots = Map.filter willKeep
+                                $ wal ^. (#checkpoints . #checkpoints)
+                in Just $ Adjust wid
+                    [ UpdateCheckpoints
+                        $ RestrictTo
+                        $ Map.keys slots
+                    ]
 
     -- Delete the a wallet from the checkpoint DBVar
     let deleteCheckpoints :: W.WalletId -> SqlPersistT IO ()
@@ -588,18 +601,13 @@ newDBLayerWith _cacheBehavior _tr ti SqliteContext{runQuery} = do
         , walletsDB = walletsDB_
 
         , putCheckpoint = \wid cp -> ExceptT $
-            modifyDBMaybe walletsDB_ $ \ws ->
-        case Map.lookup wid ws of
-            Nothing -> (Nothing, Left $ ErrNoSuchWallet wid)
-            Just _  ->
+            modifyDBWallet' wid $ \_ ->
                 let (prologue, wcp) = fromWallet cp
                     slot = getSlot wcp
-                    delta = Just $ Adjust wid
-                        [ UpdateCheckpoints $ PutCheckpoint slot wcp
-                        , ReplacePrologue prologue
-                        ]
-                in  (delta, Right ())
-
+                in  Just $ Adjust wid
+                    [ UpdateCheckpoints $ PutCheckpoint slot wcp
+                    , ReplacePrologue prologue
+                    ]
         , readCheckpoint = readWalletState getLatestCheckpoint
 
         , listCheckpoints = \wid -> do
@@ -652,12 +660,12 @@ newDBLayerWith _cacheBehavior _tr ti SqliteContext{runQuery} = do
 
         , prune = \wid epochStability -> ExceptT $
             readWalletState getLatestCheckpoint wid >>= \case
-        Nothing -> pure $ Left $ ErrNoSuchWallet wid
-        Just cp -> Right <$> do
-            let tip = cp ^. #currentTip
-            pruneCheckpoints wid epochStability tip
-            pruneLocalTxSubmission wid epochStability tip
-            deleteLooseTransactions
+                Nothing -> pure $ Left $ ErrNoSuchWallet wid
+                Just cp -> Right <$> do
+                    let tip = cp ^. #currentTip
+                    pruneCheckpoints wid epochStability tip
+                    pruneLocalTxSubmission wid epochStability tip
+                    deleteLooseTransactions
 
         {-----------------------------------------------------------------------
                                    Wallet Metadata
@@ -665,20 +673,21 @@ newDBLayerWith _cacheBehavior _tr ti SqliteContext{runQuery} = do
 
         , putWalletMeta = \wid meta -> ExceptT $
             selectWallet wid >>= \case
-        Nothing -> pure $ Left $ ErrNoSuchWallet wid
-        Just _ -> do
-            updateWhere [WalId ==. wid]
-                (mkWalletMetadataUpdate meta)
-            pure $ Right ()
+                Nothing -> pure $ Left $ ErrNoSuchWallet wid
+                Just _ -> do
+                    updateWhere [WalId ==. wid]
+                        (mkWalletMetadataUpdate meta)
+                    pure $ Right ()
 
         , readWalletMeta = \wid ->
             readWalletState getLatestCheckpoint wid >>= \case
-        Nothing -> pure Nothing
-        Just cp -> do
-            currentEpoch <- liftIO $
-                interpretQuery ti (epochOf $ cp ^. #currentTip . #slotNo)
-            readWalletDelegation ti wid currentEpoch
-                >>= readWalletMetadata wid
+                Nothing -> pure Nothing
+                Just cp -> do
+                    currentEpoch <- liftIO $
+                        interpretQuery ti
+                            (epochOf $ cp ^. #currentTip . #slotNo)
+                    readWalletDelegation ti wid currentEpoch
+                        >>= readWalletMetadata wid
 
         , putDelegationCertificate = \wid cert sl -> ExceptT $
             selectWallet wid >>= \case
@@ -702,15 +711,15 @@ newDBLayerWith _cacheBehavior _tr ti SqliteContext{runQuery} = do
 
         , isStakeKeyRegistered = \wid -> ExceptT $
               selectWallet wid >>= \case
-      Nothing -> pure $ Left $ ErrNoSuchWallet wid
-      Just{} -> do
-          val <- fmap entityVal <$> selectFirst
-              [StakeKeyCertWalletId ==. wid]
-              [Desc StakeKeyCertSlot]
-          return $ case val of
-              Nothing -> Right False
-              Just (StakeKeyCertificate _ _ status) ->
-                  Right (status == W.StakeKeyRegistration)
+                Nothing -> pure $ Left $ ErrNoSuchWallet wid
+                Just{} -> do
+                    val <- fmap entityVal <$> selectFirst
+                        [StakeKeyCertWalletId ==. wid]
+                        [Desc StakeKeyCertSlot]
+                    return $ case val of
+                        Nothing -> Right False
+                        Just (StakeKeyCertificate _ _ status) ->
+                            Right (status == W.StakeKeyRegistration)
 
         {-----------------------------------------------------------------------
                                      Tx History
@@ -723,16 +732,12 @@ newDBLayerWith _cacheBehavior _tr ti SqliteContext{runQuery} = do
         --             pure $ Right ()
 
         , putTxHistory  = \wid deltaTxHistory -> ExceptT $
-            modifyDBMaybe walletsDB_ $ \ws ->
-                case Map.lookup wid ws of
-                    Nothing -> (Nothing, Left $ ErrNoSuchWallet wid)
-                    Just _  ->
-                        let delta = Just $ Adjust wid
-                                [UpdateTransactions
-                                    $ DeltaTxHistory
-                                    $ mkTxHistory wid deltaTxHistory
-                                ]
-                        in  (delta, Right ())
+            modifyDBWallet' wid
+                $ \_  -> Just $ Adjust wid
+                    [UpdateTransactions
+                        $ DeltaTxHistory
+                        $ mkTxHistory wid deltaTxHistory
+                    ]
         , readTxHistory =
             \wid minWithdrawal sortOrder range status ->
                 fromMaybe [] <$> runMaybeT do
@@ -774,7 +779,7 @@ newDBLayerWith _cacheBehavior _tr ti SqliteContext{runQuery} = do
             fmap (map localTxSubmissionFromEntity)
             . listPendingLocalTxSubmissionQuery
 
-        , updatePendingTxForExpiry = \wid tip -> ExceptT $ do
+        , updatePendingTxForExpiry = \wid tip -> do
 
             -- modifyDBMaybe walletsDB_ $ \ws ->
             --     case Map.lookup wid ws of
@@ -786,48 +791,55 @@ newDBLayerWith _cacheBehavior _tr ti SqliteContext{runQuery} = do
             --                         $ mkTxHistory wid deltaTxHistory
             --                     ]
             --             in  (delta, Right ())
-            selectWallet wid >>= \case
-                Nothing -> pure $ Left $ ErrNoSuchWallet wid
-                Just _ -> Right <$> updatePendingTxForExpiryQuery wid tip
+                    let errNoSuchWallet :: Either ErrNoSuchWallet a
+                        errNoSuchWallet = Left $ ErrNoSuchWallet wid
+                    TxHistoryF txs <- ExceptT
+                        $ maybe errNoSuchWallet Right
+                        <$> readWalletState transactions wid
+                    let expireds = filter (isExpired tip) $ fst <$> txs
+                    ExceptT $ modifyDBWallet wid $ \_  ->
+                                let delta = Just $ Adjust wid
+                                        [UpdateTransactions
+                                            $ AgeTxHistory tip
+                                        ]
+                                in  (delta, ())
+                    lift $ deleteTxLocal wid $ txMetaTxId <$> expireds
 
-            , removePendingOrExpiredTx = \wid tid -> do
+        , removePendingOrExpiredTx = \wid tid -> do
 
-                let errNoSuchWallet =
-                        Left $ ErrRemoveTxNoSuchWallet $ ErrNoSuchWallet wid
-                ExceptT $ modifyDBMaybe walletsDB_ $ \ws ->
-                    case Map.lookup wid ws of
-                        Nothing -> (Nothing, errNoSuchWallet)
-                        Just _  ->
-                            let delta = Just $ Adjust wid
+                ExceptT
+                    $ first ErrRemoveTxNoSuchWallet
+                    <$> modifyDBWallet' wid  \_  ->
+                            Just $ Adjust wid
                                     [UpdateTransactions
                                         $ PruneTxHistory tid
                                     ]
-                            in  (delta, Right ())
-                let errNoMorePending =
-                        Left $ ErrRemoveTxAlreadyInLedger tid
-                let errNoSuchTransaction =
-                        Left $ ErrRemoveTxNoSuchTransaction $
-                        ErrNoSuchTransaction wid tid
-                ExceptT $ selectWallet wid >>= \case
-                    Nothing -> pure errNoSuchWallet
-                    Just _  -> selectTxMeta wid tid >>= \case
-                        Nothing -> pure errNoSuchTransaction
-                        Just _ -> do
-                            count <- deletePendingOrExpiredTx wid tid
-                            pure $ if count == 0
-                                then errNoMorePending
-                                else Right ()
+
+                -- let errNoMorePending =
+                --         Left $ ErrRemoveTxAlreadyInLedger tid
+                -- let errNoSuchTransaction =
+                --         Left $ ErrRemoveTxNoSuchTransaction $
+                --         ErrNoSuchTransaction wid tid
+                -- ExceptT $ selectWallet wid >>= \case
+                --     Nothing -> pure errNoSuchWallet
+                --     Just _  -> selectTxMeta wid tid >>= \case
+                --         Nothing -> pure errNoSuchTransaction
+                --         Just _ -> do
+                --             count <- deletePendingOrExpiredTx wid tid
+                --             pure $ if count == 0
+                --                 then errNoMorePending
+                --                 else Right ()
 
         , getTx = \wid tid -> ExceptT $
             readWalletState getLatestCheckpoint wid >>= \case
-        Nothing -> pure $ Left $ ErrNoSuchWallet wid
-        Just cp -> do
-            metas <- selectWalletTransactionInfo cp
-                ti wid Nothing W.Descending
-                    [ TxMetaTxId ==. TxId tid ]
-            case metas of
-                [] -> pure (Right Nothing)
-                meta:_ -> pure (Right $ Just meta)
+                Nothing -> pure $ Left $ ErrNoSuchWallet wid
+                Just cp -> do
+                    metas <- selectWalletTransactionInfo cp
+                        ti wid Nothing W.Descending
+                            [ TxMetaTxId ==. TxId tid ]
+                    case metas of
+                        [] -> pure (Right Nothing)
+                        meta:_ -> pure (Right $ Just meta)
 
         {-----------------------------------------------------------------------
                                        Keystore
