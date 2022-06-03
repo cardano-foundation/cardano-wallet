@@ -36,7 +36,7 @@ mkStoreTransactions wid =
 update :: WalletId -> TxHistory -> DeltaTxHistory -> SqlPersistT IO ()
 update wid _ (DeltaTxHistory (TxHistory txs)) =
     selectWallet wid >>= \case
-        Nothing -> throw 
+        Nothing -> throw
             $ toException
             $ Unchecked
             $ ErrNoSuchWallet wid
