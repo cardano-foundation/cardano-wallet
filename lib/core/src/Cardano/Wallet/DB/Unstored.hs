@@ -38,7 +38,8 @@ module Cardano.Wallet.DB.Unstored
   , mkWalletEntity
   , readWalletDelegation
   , readWalletMetadata
-  )
+  , overWallet
+  ,deleteTxLocal)
 where
 
 import Prelude
@@ -109,9 +110,6 @@ import Database.Persist.Sql
     )
 
 import qualified Cardano.Wallet.Primitive.Passphrase as W
-import qualified Cardano.Wallet.Primitive.Types as W
-import qualified Cardano.Wallet.Primitive.Types.Hash as W
-import qualified Cardano.Wallet.Primitive.Types.Tx as W
 
 readWalletMetadata
     :: W.WalletId
@@ -383,6 +381,7 @@ deleteTxLocal wid = do
         [ LocalTxSubmissionWalletId ==. wid
         , LocalTxSubmissionTxId <-. batch
         ])
+
 selectPrivateKey
     :: (MonadIO m, PersistPrivateKey (k 'RootK))
     => W.WalletId

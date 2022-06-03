@@ -1,7 +1,12 @@
 {-# LANGUAGE DataKinds #-}
 {-# LANGUAGE LambdaCase #-}
 
-module Cardano.Wallet.DB.Transactions.Delete (deletePendingOrExpiredTx) where
+module Cardano.Wallet.DB.Transactions.Delete
+    ( deletePendingOrExpiredTx
+    , taintExpiredTx
+    ) where
+
+import Prelude
 
 import Cardano.Wallet.DB.Sqlite.Schema
     ( EntityField (TxMetaSlotExpires, TxMetaStatus, TxMetaTxId, TxMetaWalletId)
@@ -18,7 +23,6 @@ import Database.Persist.Sql
     , (=.)
     , (==.)
     )
-import Prelude
 
 import qualified Cardano.Wallet.Primitive.Types as W
 import qualified Cardano.Wallet.Primitive.Types.Hash as W

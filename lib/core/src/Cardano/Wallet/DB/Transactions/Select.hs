@@ -8,11 +8,9 @@
 {-# LANGUAGE TupleSections #-}
 {-# LANGUAGE TypeFamilies #-}
 
-module Cardano.Wallet.DB.Transactions.Select
-    ( selectTxHistory
-    , selectTxMeta
-    )
-    where
+module Cardano.Wallet.DB.Transactions.Select where
+
+import Prelude
 
 import Cardano.DB.Sqlite
     ( chunkSize )
@@ -76,7 +74,6 @@ import Database.Persist
     )
 import Database.Persist.Sql
     ( SqlBackend, SqlPersistT )
-import Prelude
 import UnliftIO
     ( liftIO )
 

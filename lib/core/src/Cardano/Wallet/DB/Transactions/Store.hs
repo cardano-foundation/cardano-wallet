@@ -3,6 +3,8 @@
 
 module Cardano.Wallet.DB.Transactions.Store where
 
+import Prelude
+
 import Cardano.Wallet.DB.Transactions.Delete
     ( deletePendingOrExpiredTx, taintExpiredTx )
 import Cardano.Wallet.DB.Transactions.Delta
@@ -25,7 +27,6 @@ import Data.DBVar
     ( Store (Store, loadS, updateS, writeS) )
 import Database.Persist.Sql
     ( SqlPersistT )
-import Prelude
 
 mkStoreTransactions :: WalletId -> Store (SqlPersistT IO) DeltaTxHistory
 mkStoreTransactions wid =
