@@ -77,18 +77,12 @@ import qualified Cardano.Wallet.Primitive.Types.Hash as W
 import qualified Cardano.Wallet.Primitive.Types.TokenBundle as TokenBundle
 import qualified Cardano.Wallet.Primitive.Types.Tx as W
 import qualified Data.Map.Strict as Map
+import Data.Function ((&))
+import Data.DBVar (Store (loadS))
+import Control.Monad.Exception.Unchecked (throwSomeException)
 
 
--- This relies on available information from the database to reconstruct coin
--- selection information for __outgoing__ payments. We can't however guarantee
--- that we have such information for __incoming__ payments (we usually don't
--- have it).
---
--- To reliably provide this information for incoming payments, it should be
--- looked up when applying blocks from the global ledger, but that is future
--- work.
---
--- See also: issue #573.
+
 
 resolveInputWith
     :: [Identity TxIn]
@@ -108,11 +102,21 @@ resolveCollateralWith collateral resolvedCollateral =
     [ (WithTxOut i $ Map.lookup key resolvedCollateral)
     | Identity i <- collateral
     , let key =
-                    ( txCollateralSourceTxId i
-                    , txCollateralSourceIndex i
-                    )
+            ( txCollateralSourceTxId i
+            , txCollateralSourceIndex i
+            )
     ]
 
+-- This relies on available information from the database to reconstruct coin
+-- selection information for __outgoing__ payments. We can't however guarantee
+-- that we have such information for __incoming__ payments (we usually don't
+-- have it).
+--
+-- To reliably provide this information for incoming payments, it should be
+-- looked up when applying blocks from the global ledger, but that is future
+-- work.
+--
+-- See also: issue #573.
 selectTxRelationA
     :: TxMetaRelation
     -> SqlPersistT IO TxMetaRelationA
@@ -150,7 +154,6 @@ selectTxRelationA (TxMetaRelationF rs) = do
                         do txRelation_collouts r
                         do txRelation_withdraws r
 
-
 -- Fetch the complete set of tokens associated with a TxOut.
 readTxOutTokens :: TxOut -> SqlPersistT IO (TxOut, [TxOutToken])
 readTxOutTokens out =
@@ -160,6 +163,7 @@ readTxOutTokens out =
               TxOutTokenTxIndex ==. txOutputIndex out
             ]
             []
+
 -- Fetch the complete set of tokens associated with a TxCollateralOut.
 readTxCollateralOutTokens ::
     TxCollateralOut ->
@@ -223,12 +227,50 @@ selectTxRelation = fmap fold . mapM select . chunksOf chunkSize
                 <$> selectList [k <-. (txMetaTxId <$> txmetas)] q
 
 
+filterTxMetaRelation ::
+    Maybe W.Coin ->
+    W.SortOrder ->
+    (TxMeta -> Bool) ->
+    TxMetaRelationF f -> TxMetaRelationF f
+filterTxMetaRelation minWithdrawal order conditions (TxMetaRelationF rs) = let
+    sortTxId = txMetaTxId . fst  & case order of
+        W.Ascending -> sortOn . fmap Down
+        W.Descending -> sortOn
+    sortSlot = txMetaSlot . fst  & case order of
+        W.Ascending -> sortOn
+        W.Descending -> sortOn . fmap Down
+    byCoin = case minWithdrawal of
+        Nothing -> id
+        Just coin -> filter
+            do any (\c -> txWithdrawalAmount c >= coin)
+                    . txRelation_withdraws
+                    . snd
+    filterMeta = filter (conditions . fst)
+    in TxMetaRelationF $ sortSlot $ sortTxId $ byCoin $ filterMeta rs
 {- | Split a query's input values into chunks, run multiple smaller queries,
  and then concatenate the results afterwards. Used to avoid "too many SQL
  variables" errors for "SELECT IN" queries.
 -}
 combineChunked :: [a] -> ([a] -> SqlPersistT IO [b]) -> SqlPersistT IO [b]
 combineChunked xs f = concatMapM f $ chunksOf chunkSize xs
+
+selectWalletTransactionInfoStore
+    :: W.Wallet s
+    -> TimeInterpreter IO
+    -> Maybe W.Coin
+    -> W.SortOrder
+    -> (TxMeta -> Bool)
+    -> Store (SqlPersistT IO) DeltaTxHistory
+    -> SqlPersistT IO [W.TransactionInfo]
+selectWalletTransactionInfoStore cp ti minWithdrawal order conditions store = do
+    estored <- loadS store
+    throwSomeException estored $ \(TxHistory x) -> do
+        x' <-
+            selectTxRelationA $
+                filterTxMetaRelation minWithdrawal order conditions x
+        liftIO $
+            txHistoryFromEntity ti (W.currentTip cp) x'
+
 
 selectWalletTransactionInfo ::
     W.Wallet s ->
@@ -303,7 +345,7 @@ txHistoryFromEntity ti tip (TxMetaRelationF rs) =
     mapM mkItem rs
   where
     startTime' = interpretQuery ti . slotToUTCTime
-    mkItem (m, r) = 
+    mkItem (m, r) =
         mkTxWith r
             (txMetaTxId m)
             (txMetaFee m)

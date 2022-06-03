@@ -37,6 +37,12 @@ import Cardano.Wallet.DB.Checkpoints.AddressBook
 import Cardano.Wallet.DB.Checkpoints.Model hiding
     ( checkpoints, findNearestPoint, fromGenesis, getLatest )
 
+import Cardano.Wallet.DB.Transactions.Model
+    ( mkTxHistory )
+import Cardano.Wallet.DB.Transactions.Types
+    ( TxHistory (TxHistory) )
+import Cardano.Wallet.Primitive.Types
+    ( WalletId )
 import Data.Delta
     ( Delta (..) )
 import Data.DeltaMap
@@ -49,13 +55,7 @@ import GHC.Generics
     ( Generic )
 
 import qualified Cardano.Wallet.DB.Checkpoints.Model as CPS
-import Cardano.Wallet.DB.Transactions.Model
-    ( mkTxHistory )
-import Cardano.Wallet.DB.Transactions.Types
-    ( TxHistory (TxHistory) )
 import qualified Cardano.Wallet.Primitive.Model as W
-import Cardano.Wallet.Primitive.Types
-    ( WalletId )
 import qualified Cardano.Wallet.Primitive.Types as W
 import qualified Cardano.Wallet.Primitive.Types.Tx as W
 

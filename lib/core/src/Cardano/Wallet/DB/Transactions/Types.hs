@@ -28,12 +28,9 @@ import GHC.Generics
     ( Generic )
 import Prelude
 
-
-
-
 data TxRelationF f
-    = TxRelationF {
-          txRelation_ins :: [f TxIn]
+    = TxRelationF 
+        { txRelation_ins :: [f TxIn]
         , txRelation_colls :: [f TxCollateral]
         , txRelation_outs :: [(TxOut, [TxOutToken])]
         , txRelation_collouts :: [(TxCollateralOut, [TxCollateralOutToken])]
@@ -43,16 +40,20 @@ data TxRelationF f
 
 deriving instance (Eq (f TxIn), Eq (f TxCollateral))
      => Eq (TxRelationF f)
+
 deriving instance (Show (f TxIn), Show (f TxCollateral))
      => Show (TxRelationF f)
 
 newtype TxMetaRelationF f = TxMetaRelationF 
-    {txMetaRelation_relations ::[(TxMeta,TxRelationF f)]} deriving (Generic)
+    { txMetaRelation_relations ::[(TxMeta,TxRelationF f)] } 
+    deriving (Generic)
 
 deriving instance (Eq (f TxIn), Eq (f TxCollateral))
      => Eq (TxMetaRelationF f)
+
 deriving instance (Show (f TxIn), Show (f TxCollateral))
      => Show (TxMetaRelationF f)
+
 instance Monoid (TxRelationF f) where
     mempty = memptydefault
 
@@ -69,8 +70,8 @@ instance Semigroup (TxMetaRelationF f) where
 type TxMetaRelation = TxMetaRelationF Identity
 
 data WithTxOut a = WithTxOut
-    { withTxOut_value :: a,
-      withTxOut_context :: Maybe (TxOut, [TxOutToken])
+    { withTxOut_value :: a
+    , withTxOut_context :: Maybe (TxOut, [TxOutToken])
     }
 
 type TxMetaRelationA = TxMetaRelationF WithTxOut
