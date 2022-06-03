@@ -98,7 +98,7 @@ mkBlockSummaryBlockfrost from to =
 -- that are provided by the wallet and driven by the network code
 -- that follows the blockchain.
 data ChainFollower m point = ChainFollower
-    { readLocalTip :: m [point]
+    { readChainPoints :: m [point]
     -- ^ List the checkpoints from which we can resume following the chain.
     , rollForward :: BlockSummary m -> point -> m ()
     -- ^ Forward the chain follower with a sequence of blocks
@@ -114,7 +114,7 @@ lightSync
     :: ChainFollower BlockfrostClient ChainPoint
     -> BlockfrostClient ()
 lightSync follower = do
-    pts <- readLocalTip follower
+    pts <- readChainPoints follower
     go $ latest pts
   where
     go old = do

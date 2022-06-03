@@ -84,7 +84,7 @@ import Cardano.Wallet.Logging
     ( trMessageText )
 import Cardano.Wallet.Network
     ( ChainFollowLog (..)
-    , ChainFollower (ChainFollower, readLocalTip, rollBackward, rollForward)
+    , ChainFollower (ChainFollower, readChainPoints, rollBackward, rollForward)
     , ChainSyncLog (..)
     , NetworkLayer (..)
     )
@@ -708,7 +708,7 @@ bench_baseline_restoration
         synchronizer <- async
             $ chainSync nw nullTracer
             $ ChainFollower
-            { readLocalTip  = readTVarIO chainPointT
+            { readChainPoints  = readTVarIO chainPointT
             , rollForward = \blocks ntip -> do
                 atomically $ writeTVar chainPointT
                     [chainPointFromBlockHeader ntip]
@@ -784,9 +784,9 @@ bench_restoration
             let nw = convert <$> nw'
             let ti = neverFails "bench db shouldn't forecast into future"
                     $ timeInterpreter nw
-            withBenchDBLayer ti wlTr 
-                $ \db -> withWalletLayerTracer 
-                    benchname pipeliningStrat traceToDisk 
+            withBenchDBLayer ti wlTr
+                $ \db -> withWalletLayerTracer
+                    benchname pipeliningStrat traceToDisk
                 $ \progressTrace -> do
                     let tracer =
                             trMessageText wlTr <>

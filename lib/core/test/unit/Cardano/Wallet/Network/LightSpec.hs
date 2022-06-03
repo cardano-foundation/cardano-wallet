@@ -124,7 +124,7 @@ instance Arbitrary ChainHistory where
     arbitrary = sized genChainHistory
 
 genChainHistory :: Int -> Gen ChainHistory
-genChainHistory n = go 1 chain0 (ChainHistory chain0 []) 
+genChainHistory n = go 1 chain0 (ChainHistory chain0 [])
   where
     chain0 = genesisBlock :| []
     go j c1 (ChainHistory c0 deltas)
@@ -281,7 +281,7 @@ type FollowerState = NonEmpty BlockHeader
 
 initFollowerState :: ChainHistory -> FollowerState
 initFollowerState (ChainHistory chain0 _) = NE.head chain0 :| []
- 
+
 latest :: FollowerState -> BlockHeader
 latest = NE.head
 
@@ -292,7 +292,7 @@ mkFollower
     -> ChainFollower m ChainPoint BlockHeader
         (LightBlocks m Block addr txs)
 mkFollower lift = ChainFollower
-    { readLocalTip = lift $ map chainPointFromBlockHeader . NE.toList <$> get
+    { readChainPoints = lift $ map chainPointFromBlockHeader . NE.toList <$> get
     , rollForward = \blocks _tip -> lift $ modify $ \s -> case blocks of
         Left bs ->
             if latest s `isParentOf` NE.head bs

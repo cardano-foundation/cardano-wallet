@@ -554,7 +554,7 @@ monitorStakePools tr (NetworkParameters gp sp _pp) nl DBLayer{..} =
             toChainPoint (BlockHeader sl _ h _) = ChainPoint sl h
 
         chainSync nl (contramap MsgChainMonitoring tr) $ ChainFollower
-            { readLocalTip = map toChainPoint <$> initCursor
+            { readChainPoints = map toChainPoint <$> initCursor
             , rollForward  = rollForward
             , rollBackward = rollback
             }

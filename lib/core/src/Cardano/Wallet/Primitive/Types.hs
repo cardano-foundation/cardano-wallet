@@ -796,22 +796,20 @@ isGenesisBlockHeader = isNothing . view #parentHeaderHash
 instance NFData BlockHeader
 
 instance Buildable BlockHeader where
-    build (BlockHeader s (Quantity bh) hh ph) =
+    build BlockHeader{..} =
         previous
         <> "["
         <> current
         <> "-"
-        <> build s
-        <> "#" <> build (show bh)
+        <> build slotNo
+        <> "#" <> (build . show . getQuantity) blockHeight
         <> "]"
       where
         toHex = T.decodeUtf8 . convertToBase Base16
-        current  = prefixF 8 $ build $ toHex $ getHash hh
-        previous = case ph of
+        current = prefixF 8 $ build $ toHex $ getHash headerHash
+        previous = case parentHeaderHash of
             Nothing -> ""
-            Just h  ->
-                prefixF 8 (build $ toHex $ getHash h)
-                <> "<-"
+            Just h  -> prefixF 8 (build $ toHex $ getHash h) <> "<-"
 
 -- | A point on the blockchain
 -- is either the genesis block, or a block with a hash that was

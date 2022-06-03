@@ -30,8 +30,6 @@ module Cardano.Wallet.Shelley.Network.Blockfrost
     -- * Internal
     getPoolPerformanceEstimate,
     eraByEpoch,
-    fetchBlock,
-    fetchTransaction,
     newClientConfig,
     BFM (..),
     runBFM,
@@ -48,7 +46,6 @@ import Cardano.Api
     , ExecutionUnitPrices (priceExecutionMemory, priceExecutionSteps)
     , ExecutionUnits (executionMemory, executionSteps)
     , NetworkId (..)
-    , NetworkMagic (..)
     , PlutusScriptVersion (PlutusScriptV1)
     , TxMetadata (TxMetadata)
     , TxMetadataValue (..)
@@ -59,7 +56,7 @@ import Cardano.BM.Data.Severity
 import Cardano.BM.Tracer
     ( Tracer )
 import Cardano.BM.Tracing
-    ( HasSeverityAnnotation (getSeverityAnnotation) )
+    ( HasSeverityAnnotation (getSeverityAnnotation), traceWith )
 import Cardano.Pool.Rank
     ( RewardParams (..) )
 import Cardano.Pool.Rank.Likelihood
@@ -145,12 +142,14 @@ import Control.Concurrent
     ( threadDelay )
 import Control.Concurrent.Async.Lifted
     ( concurrently, forConcurrently, mapConcurrently )
+import Control.Exception
+    ( throwIO )
 import Control.Monad
     ( forever, join, (<=<) )
 import Control.Monad.Base
     ( MonadBase )
 import Control.Monad.Error.Class
-    ( MonadError, liftEither, throwError )
+    ( MonadError (catchError), liftEither, throwError )
 import Control.Monad.IO.Class
     ( MonadIO (liftIO) )
 import Control.Monad.Reader
@@ -211,6 +210,8 @@ import GHC.OldList
     ( sortOn )
 import Money
     ( Discrete' )
+import Network.HTTP.Types
+    ( status404 )
 import Ouroboros.Consensus.Cardano.Block
     ( CardanoBlock, StandardCrypto )
 import Ouroboros.Consensus.HardFork.History.EraParams
@@ -221,12 +222,12 @@ import Servant.Client
     ( runClientM )
 import Text.Read
     ( readEither )
-import UnliftIO
-    ( throwIO )
 import UnliftIO.Async
     ( async, link )
 import UnliftIO.Exception
     ( Exception )
+import UnliftIO.STM
+    ( TChan, atomically, dupTChan, newBroadcastTChanIO, readTChan, writeTChan )
 
 import qualified Blockfrost.Client as BF
 import qualified Cardano.Api.Shelley as Node
@@ -242,13 +243,14 @@ import qualified Data.Text as T
 import qualified Data.Vector as V
 import qualified Ouroboros.Consensus.HardFork.History.Qry as HF
 import qualified Ouroboros.Consensus.Util.Counting as UC
+import qualified Servant.Client as Servant
 
 {-------------------------------------------------------------------------------
     NetworkLayer
 -------------------------------------------------------------------------------}
 
 data BlockfrostError
-    = ClientError BF.BlockfrostError
+    = ClientError Servant.ClientError
     | NoSlotError BF.Block
     | IntegralCastError String
     | InvalidBlockHash BF.BlockHash TextDecodingError
@@ -268,27 +270,39 @@ newtype BlockfrostException = BlockfrostException BlockfrostError
     deriving anyclass (Exception)
 
 data Log
-    = MsgWatcherUpdate BlockHeader BracketLog
+    = MsgTipReceived BlockHeader
+    | MsgTipWatcherRegistered
+    | MsgTipWatcherNotified BracketLog
     | MsgTimeInterpreterLog TimeInterpreterLog
     | MsgLightLayerLog LN.LightLayerLog
+    | MsgAccountNotFound Text
+    | MsgDiag Text
 
 instance ToText Log where
     toText = \case
-        MsgWatcherUpdate blockHeader bracketLog ->
-            "Update watcher with tip: " <> pretty blockHeader
-                <> ". Callback "
-                <> toText bracketLog
-                <> ". "
+        MsgTipReceived blockHeader ->
+            "New tip received " <> pretty blockHeader
+        MsgTipWatcherNotified startFinish ->
+            "Tip watcher callback: " <> pretty startFinish
+        MsgTipWatcherRegistered ->
+            "Tip watcher registered"
         MsgTimeInterpreterLog til ->
             toText til
         MsgLightLayerLog l ->
             toText l
+        MsgAccountNotFound account ->
+            "Reward account not found: " <> pretty account
+        MsgDiag t -> t
 
 instance HasSeverityAnnotation Log where
     getSeverityAnnotation = \case
-        MsgWatcherUpdate _ _ -> Info
+        MsgTipReceived _ -> Info
+        MsgTipWatcherNotified _ -> Debug
+        MsgTipWatcherRegistered -> Debug
         MsgTimeInterpreterLog _ -> Info
         MsgLightLayerLog l -> getSeverityAnnotation l
+        MsgAccountNotFound _ -> Warning
+        MsgDiag _ -> Info
 
 withNetworkLayer
     :: Tracer IO Log
@@ -299,6 +313,8 @@ withNetworkLayer
     -> IO a
 withNetworkLayer tr network np project k = do
     bfConfig <- newClientConfig project
+    tipBroadcast <- newBroadcastTChanIO
+    link =<< async (pollNodeTip bfConfig tipBroadcast)
     k NetworkLayer
         { chainSync = \_tr _chainFollower -> pure ()
         , lightSync = Just $ blockfrostLightSync network bfConfig
@@ -306,7 +322,7 @@ withNetworkLayer tr network np project k = do
         , currentNodeEra = currentNodeEra bfConfig
         , currentProtocolParameters = currentProtocolParameters bfConfig
         , currentSlottingParameters = currentSlottingParameters bfConfig
-        , watchNodeTip = watchNodeTip bfConfig
+        , watchNodeTip = subscribeNodeTip tipBroadcast
         , postTx = undefined
         , stakeDistribution = undefined
         , getCachedRewardAccountBalance =
@@ -319,23 +335,28 @@ withNetworkLayer tr network np project k = do
         }
   where
     NetworkParameters
-        { genesisParameters = GenesisParameters{getGenesisBlockDate}
-        } = np
+        { genesisParameters = GenesisParameters{getGenesisBlockDate} } = np
 
     networkId = networkDiscriminantToId network
 
     currentNodeTip :: BF.ClientConfig -> IO BlockHeader
-    currentNodeTip bfConfig =
+    currentNodeTip bfConfig = do
+        traceWith tr $ MsgDiag "currentNodeTip"
         runBFM bfConfig $ fromBlockfrostM =<< BF.getLatestBlock
 
-    watchNodeTip :: BF.ClientConfig -> (BlockHeader -> IO ()) -> IO ()
-    watchNodeTip bfConfig callback = link =<< async (pollNodeTip callback)
-      where
-        pollNodeTip :: (BlockHeader -> IO ()) -> IO ()
-        pollNodeTip cb = forever $ do
-            header <- runBFM bfConfig $ fromBlockfrostM =<< BF.getLatestBlock
-            bracketTracer (MsgWatcherUpdate header >$< tr) $ cb header
-            threadDelay 2_000_000
+    pollNodeTip :: BF.ClientConfig -> TChan BlockHeader -> IO ()
+    pollNodeTip bfConfig nodeTip = link =<< async =<< forever do
+        header <- runBFM bfConfig $ fromBlockfrostM =<< BF.getLatestBlock
+        atomically $ writeTChan nodeTip header -- TODO: write if changed
+        traceWith tr $ MsgTipReceived header
+        threadDelay 30_000_000 -- 30 seconds
+
+    subscribeNodeTip :: TChan BlockHeader -> (BlockHeader -> IO ()) -> IO ()
+    subscribeNodeTip nodeTipChan callback = do
+        traceWith tr MsgTipWatcherRegistered
+        atomically (dupTChan nodeTipChan) >>= \chan -> forever do
+            header <- atomically $ readTChan chan
+            bracketTracer (MsgTipWatcherNotified >$< tr) (callback header)
 
     currentProtocolParameters :: BF.ClientConfig -> IO ProtocolParameters
     currentProtocolParameters bfConfig =
@@ -344,6 +365,7 @@ withNetworkLayer tr network np project k = do
 
     currentSlottingParameters :: BF.ClientConfig -> IO SlottingParameters
     currentSlottingParameters bfConfig = runBFM bfConfig do
+        liftIO $ traceWith tr $ MsgDiag "currentSlottingParameters"
         BF.EpochInfo{_epochInfoEpoch} <- BF.getLatestEpoch
         epochNo <- fromBlockfrostM _epochInfoEpoch
         let EraParams{..} = eraParams $ epochEraSummary networkId epochNo
@@ -362,10 +384,12 @@ withNetworkLayer tr network np project k = do
             }
 
     currentNodeEra :: BF.ClientConfig -> IO AnyCardanoEra
-    currentNodeEra bfConfig = runBFM bfConfig do
-        BF.EpochInfo{_epochInfoEpoch} <- BF.getLatestEpoch
-        epoch <- fromBlockfrostM _epochInfoEpoch
-        liftEither $ eraByEpoch networkId epoch
+    currentNodeEra bfConfig = do
+        traceWith tr $ MsgDiag "currentNodeEra"
+        runBFM bfConfig do
+            BF.EpochInfo{_epochInfoEpoch} <- BF.getLatestEpoch
+            epoch <- fromBlockfrostM _epochInfoEpoch
+            liftEither $ eraByEpoch networkId epoch
 
     timeInterpreterFromStartTime ::
         StartTime -> TimeInterpreter (ExceptT PastHorizonException IO)
@@ -379,18 +403,18 @@ withNetworkLayer tr network np project k = do
         -> Set RewardAccount
         -> IO (Map RewardAccount Coin)
     fetchNetworkRewardAccountBalances
-        (SomeNetworkDiscriminant (Proxy :: Proxy nd)) bfConfig accounts =
-            runBFM bfConfig $ Map.fromList <$>
+        (SomeNetworkDiscriminant (Proxy :: Proxy nd)) bfConfig accounts = do
+            traceWith tr $ MsgDiag "fetchNetworkRewardAccountBalances"
+            runBFM bfConfig $ Map.fromList . catMaybes <$>
                 for (Set.toList accounts) \rewardAccount -> do
-                    BF.AccountInfo{..} <-
-                        BF.getAccount $
-                            BF.mkAddress $ encodeStakeAddress @nd rewardAccount
-                    coin <-
-                        fromIntegral @_ @Integer _accountInfoRewardsSum
-                            <?#> "AccountInfoRewardsSum"
-                    pure (rewardAccount, Coin coin)
+                    let addr = BF.mkAddress $ encodeStakeAddress @nd rewardAccount
+                    maybe404 (BF.getAccount addr)
+                        >>= traverse \BF.AccountInfo{..} ->
+                            (rewardAccount,) . Coin <$>
+                                fromIntegral @_ @Integer _accountInfoRewardsSum
+                                    <?#> "AccountInfoRewardsSum"
 
-    getCachedRewardAccountBalance :: BF.ClientConfig ->RewardAccount -> IO Coin
+    getCachedRewardAccountBalance :: BF.ClientConfig -> RewardAccount -> IO Coin
     getCachedRewardAccountBalance bfConfig account =
         fromMaybe (Coin 0) . Map.lookup account
             <$> fetchNetworkRewardAccountBalances network bfConfig
@@ -412,16 +436,16 @@ withNetworkLayer tr network np project k = do
             let runBF :: forall a. BFM a -> IO a
                 runBF = runBFM bfConfig
             AnyCardanoEra era <- currentNodeEra bfConfig
+            let sp = slottingParameters np
             let stabilityWindow =
-                    fromIntegral . getQuantity $ case cardanoEraStyle era of
-                        LegacyByronEra ->
-                            stabilityWindowByron $ slottingParameters np
-                        ShelleyBasedEra _ ->
-                            stabilityWindowShelley $ slottingParameters np
+                    fromIntegral $ getQuantity case cardanoEraStyle era of
+                        LegacyByronEra -> stabilityWindowByron sp
+                        ShelleyBasedEra _ -> stabilityWindowShelley sp
 
                 isConsensus :: ChainPoint -> IO Bool
-                isConsensus =
-                    runBF . \case
+                isConsensus cp = do
+                    traceWith tr $ MsgDiag "isConsensus"
+                    runBF case cp of
                         ChainPointAtGenesis -> pure True
                         ChainPoint (SlotNo slot) blockHeaderHash -> do
                             BF.Block{_blockHash = BF.BlockHash bfHeaderHash} <-
@@ -429,92 +453,94 @@ withNetworkLayer tr network np project k = do
                             pure $ bfHeaderHash == toText blockHeaderHash
 
                 getBlockHeaderAtHeight :: Integer -> IO (Maybe BlockHeader)
-                getBlockHeaderAtHeight height =
+                getBlockHeaderAtHeight height = do
+                    traceWith tr $ MsgDiag "getBlockHeaderAtHeight"
                     either (error . show) Just . fromBlockfrost
                         <$> (runBF . BF.getBlock) (Left height)
 
                 getBlockHeaderAt :: ChainPoint -> IO (Maybe BlockHeader)
-                getBlockHeaderAt = runBF . \case
-                    ChainPointAtGenesis -> do
-                        block <-
-                            BF.getBlock $ Right $ genesisBlockHash network
-                        pure . either (error . show) Just $
-                            fromBlockfrost block
-                    ChainPoint (SlotNo slot) blockHeaderHash -> do
-                        b@BF.Block{_blockHash = BF.BlockHash bfHeaderHash} <-
-                            BF.getBlockSlot (BF.Slot (toInteger slot))
-                        pure $
-                            if bfHeaderHash == toText blockHeaderHash
-                                then either (error . show) Just $
-                                        fromBlockfrost b
-                                else Nothing
+                getBlockHeaderAt cp = do
+                    traceWith tr $ MsgDiag "getBlockHeaderAt"
+                    runBF case cp of
+                        ChainPointAtGenesis ->
+                            pure . Just $ Fixture.genesisBlockHeader networkId
+                        ChainPoint (SlotNo slot) blockHeaderHash -> do
+                            b@BF.Block{_blockHash = BF.BlockHash bfHeaderHash} <-
+                                BF.getBlockSlot (BF.Slot (toInteger slot))
+                            pure $
+                                if bfHeaderHash == toText blockHeaderHash
+                                    then either (error . show) Just $
+                                            fromBlockfrost b
+                                    else Nothing
 
                 getNextBlocks :: ChainPoint -> IO (Maybe [Block])
-                getNextBlocks = runBF . \case
-                    ChainPointAtGenesis ->
-                        Just . pure <$> fetchGenesisBlock network
-                    ChainPoint _slotNo hash ->
-                        -- Only one block is fetched for now,
-                        -- even though the type allows for a list of blocks
-                        Just . pure <$> fetchBlock network hash
+                getNextBlocks cp = runBF do
+                    liftIO $ traceWith tr $ MsgDiag "getNextBlocks"
+                    (\case [] -> Nothing; x -> Just x) <$>
+                        fetchNextBlocks tr network case cp of
+                            ChainPoint _slotNo hash -> hash
+                            ChainPointAtGenesis -> headerHash $
+                                Fixture.genesisBlockHeader networkId
 
                 getAddressTxs ::
                     BlockHeader ->
                     BlockHeader ->
                     Either Address RewardAccount ->
                     IO ChainEvents
-                getAddressTxs bhFrom bhTo = runBF . fmap fromBlockEvents . \case
-                    Left address -> do
-                        txs <- BF.allPages \paged ->
-                            BF.getAddressTransactions'
-                                (BF.Address (encodeAddress @nd address))
-                                paged
-                                BF.Ascending
-                                (Just $ headerToIndex bhFrom)
-                                (Just $ headerToIndex bhTo)
-                        forConcurrently txs \BF.AddressTransaction{..} -> do
-                            (bftx, tx) <-
-                                fetchTransaction network _addressTransactionTxHash
-                            txIndex <-
-                                _addressTransactionTxIndex
-                                    <?#> "_addressTransactionTxIndex"
-                            txBlockEvents
-                                bftx
-                                (unsafeMkSublist [((txIndex, 0), tx)])
-                                (wholeList [])
-                    Right account -> do
-                        let address = BF.Address $ encodeStakeAddress @nd account
-                        regTxHashes <-
-                            fmap BF._accountRegistrationTxHash
-                                <$> BF.getAccountRegistrations address
-                        delTxHashes <-
-                            fmap BF._accountDelegationTxHash
-                                <$> BF.getAccountDelegations address
-                        blockEventsRegDeleg <-
-                            forConcurrently (regTxHashes <> delTxHashes) \hash -> do
-                                (tx@BF.Transaction{_transactionIndex}, dcerts) <-
-                                    concurrently
-                                        do BF.getTx hash
-                                        do fetchDelegation network hash
-                                txIndex <- _transactionIndex <?#> "_transactionIndex"
-                                txBlockEvents
-                                    tx
-                                    (wholeList [])
-                                    ( unsafeMkSublist $
-                                        (\(n, dc) -> ((txIndex, n), dc))
-                                            <$> zip [0 ..] dcerts
-                                    )
-                        ws <- BF.getAccountWithdrawals address
-                        blockEventsWithdraw <-
-                            forConcurrently ws \BF.AccountWithdrawal{..} -> do
-                                (bftx@BF.Transaction{_transactionIndex}, tx) <-
-                                    fetchTransaction network _accountWithdrawalTxHash
-                                txIndex <- _transactionIndex <?#> "_transactionIndex"
+                getAddressTxs bhFrom bhTo addrOrAcc = do
+                    traceWith tr $ MsgDiag "getAddressTxs"
+                    runBF $ fromBlockEvents <$> case addrOrAcc of
+                        Left address -> do
+                            txs <- BF.allPages \paged ->
+                                empty404 $ BF.getAddressTransactions'
+                                    (BF.Address (encodeAddress @nd address))
+                                    paged
+                                    BF.Ascending
+                                    (Just $ headerToIndex bhFrom)
+                                    (Just $ headerToIndex bhTo)
+                            forConcurrently txs \BF.AddressTransaction{..} -> do
+                                (bftx, tx) <-
+                                    fetchTransaction tr network _addressTransactionTxHash
+                                txIndex <-
+                                    _addressTransactionTxIndex
+                                        <?#> "_addressTransactionTxIndex"
                                 txBlockEvents
                                     bftx
                                     (unsafeMkSublist [((txIndex, 0), tx)])
                                     (wholeList [])
-                        pure $ blockEventsRegDeleg <> blockEventsWithdraw
+                        Right account -> do
+                            let address = BF.Address $ encodeStakeAddress @nd account
+                            regTxHashes <-
+                                fmap BF._accountRegistrationTxHash
+                                    <$> empty404 (BF.getAccountRegistrations address)
+                            delTxHashes <-
+                                fmap BF._accountDelegationTxHash
+                                    <$> empty404 (BF.getAccountDelegations address)
+                            blockEventsRegDeleg <-
+                                forConcurrently (regTxHashes <> delTxHashes) \hash -> do
+                                    (tx@BF.Transaction{_transactionIndex}, dcerts) <-
+                                        concurrently
+                                            (BF.getTx hash)
+                                            (fetchDelegation tr network hash)
+                                    txIndex <- _transactionIndex <?#> "_transactionIndex"
+                                    txBlockEvents
+                                        tx
+                                        (wholeList [])
+                                        ( unsafeMkSublist $
+                                            (\(n, dc) -> ((txIndex, n), dc))
+                                                <$> zip [0 ..] dcerts
+                                        )
+                            ws <- empty404 (BF.getAccountWithdrawals address)
+                            blockEventsWithdraw <-
+                                forConcurrently ws \BF.AccountWithdrawal{..} -> do
+                                    (bftx@BF.Transaction{_transactionIndex}, tx) <-
+                                        fetchTransaction tr network _accountWithdrawalTxHash
+                                    txIndex <- _transactionIndex <?#> "_transactionIndex"
+                                    txBlockEvents
+                                        bftx
+                                        (unsafeMkSublist [((txIndex, 0), tx)])
+                                        (wholeList [])
+                            pure $ blockEventsRegDeleg <> blockEventsWithdraw
                   where
                     txBlockEvents ::
                         BF.Transaction ->
@@ -564,57 +590,25 @@ withNetworkLayer tr network np project k = do
             percentage = currentSlot % latestSlot
         pure $ Syncing $ Quantity $ clipToPercentage percentage
 
-genesisBlockHash :: SomeNetworkDiscriminant -> BF.BlockHash
-genesisBlockHash nd = case networkDiscriminantToId nd of
-    Mainnet ->
-        BF.BlockHash
-            "5f20df933584822601f9e3f8c024eb5eb252fe8cefb24d1317dc3d432e940ebb"
-    Testnet (NetworkMagic 1097911063) ->
-        --  Magic of the current public testnet
-        BF.BlockHash
-            "96fceff972c2c06bd3bb5243c3921533\
-            \3be6d56aaf4823073dca31afe5038471"
-    Testnet magic ->
-        error $
-            "Genesis block hash isn't hardcoded for the Testnet " <> show magic
-
-fetchGenesisBlock
+fetchNextBlocks
     :: forall m
      . ( MonadError BlockfrostError m
        , BF.MonadBlockfrost m
        , MonadBaseControl IO m
        )
-    => SomeNetworkDiscriminant
-    -> m Block
-fetchGenesisBlock nd = fetchBlock' nd (genesisBlockHash nd)
-
-fetchBlock
-    :: forall m
-     . ( MonadError BlockfrostError m
-       , BF.MonadBlockfrost m
-       , MonadBaseControl IO m
-       )
-    => SomeNetworkDiscriminant
+    => Tracer IO Log
+    -> SomeNetworkDiscriminant
     -> Hash "BlockHeader"
-    -> m Block
-fetchBlock nd hash = fetchBlock' nd $ BF.BlockHash $ toText hash
-
-fetchBlock'
-    :: forall m
-     . ( MonadError BlockfrostError m
-       , BF.MonadBlockfrost m
-       , MonadBaseControl IO m
-       )
-    => SomeNetworkDiscriminant
-    -> BF.BlockHash
-    -> m Block
-fetchBlock' nd blockHash = do
-    block@BF.Block{..} <- BF.getBlock $ Right blockHash
-    header <- fromBlockfrostM block
-    txHashes <- fetchTxHashes blockHash _blockTxCount
-    transactions <- fmap snd <$> mapConcurrently (fetchTransaction nd) txHashes
-    delegations <- join <$> mapConcurrently (fetchDelegation nd) txHashes
-    pure Block{header, transactions, delegations}
+    -> m [Block]
+fetchNextBlocks tr nd hash = do
+    liftIO $ traceWith tr $ MsgDiag "fetchNextBlocks"
+    let blockHash = BF.BlockHash $ toText hash
+    BF.getNextBlocks (Right blockHash) >>= traverse \block@BF.Block{..} -> do
+        header <- fromBlockfrostM block
+        txhs <- fetchTxHashes blockHash _blockTxCount
+        transactions <- fmap snd <$> mapConcurrently (fetchTransaction tr nd) txhs
+        delegations <- join <$> mapConcurrently (fetchDelegation tr nd) txhs
+        pure Block{header, transactions, delegations}
 
 fetchTxHashes
     :: forall m
@@ -643,10 +637,12 @@ fetchDelegation
        , BF.MonadBlockfrost m
        , MonadBaseControl IO m
        )
-    => SomeNetworkDiscriminant
+    => Tracer IO Log
+    -> SomeNetworkDiscriminant
     -> BF.TxHash
     -> m [DelegationCertificate]
-fetchDelegation (SomeNetworkDiscriminant (Proxy :: Proxy nd)) hash = do
+fetchDelegation tr (SomeNetworkDiscriminant (Proxy :: Proxy nd)) hash = do
+    liftIO $ traceWith tr $ MsgDiag "fetchDelegation"
     delegations <- concurrently (BF.getTxDelegations hash) (BF.getTxStakes hash)
     certs <- liftEither $ for (uncurry align delegations) \case
         This txDelegation -> pure <$> parseTxDelegation txDelegation
@@ -679,10 +675,12 @@ fetchDelegation (SomeNetworkDiscriminant (Proxy :: Proxy nd)) hash = do
 fetchTransaction
     :: forall m
      . (MonadError BlockfrostError m, BF.MonadBlockfrost m)
-    => SomeNetworkDiscriminant
+    => Tracer IO Log
+    -> SomeNetworkDiscriminant
     -> BF.TxHash
     -> m (BF.Transaction, Tx)
-fetchTransaction nd hash = do
+fetchTransaction tr nd hash = do
+    liftIO $ traceWith tr $ MsgDiag "fetchTransaction"
     transaction <- BF.getTx hash
     utxos <- BF.getTxUtxos hash
     withdrawals <- BF.getTxWithdrawals hash
@@ -1075,8 +1073,7 @@ instance BF.MonadBlockfrost BFM where
     getConf = ask
     liftBlockfrostClient act = BFM do
         env <- asks fst
-        liftIO (runClientM act env)
-            >>= either (throwError . ClientError . BF.fromServantClientError) pure
+        liftIO (runClientM act env) >>= either (throwError . ClientError) pure
 
 newClientConfig :: BF.Project -> IO BF.ClientConfig
 newClientConfig prj = (,prj) <$> BF.newEnvByProject prj
@@ -1087,3 +1084,12 @@ runBFM cfg (BFM c) = handleBlockfrostError (runReaderT c cfg)
 handleBlockfrostError :: ExceptT BlockfrostError IO a -> IO a
 handleBlockfrostError =
     either (throwIO . BlockfrostException) pure <=< runExceptT
+
+maybe404 :: BFM a -> BFM (Maybe a)
+maybe404 bfm = (Just <$> bfm) `catchError` \case
+    ClientError (Servant.FailureResponse _ (Servant.Response s _ _ _))
+        | s == status404 -> pure Nothing
+    e -> throwError e
+
+empty404 :: Monoid a => BFM a -> BFM a
+empty404 = (fromMaybe mempty <$>) . maybe404

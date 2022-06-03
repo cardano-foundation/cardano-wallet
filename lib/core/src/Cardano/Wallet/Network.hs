@@ -196,14 +196,12 @@ instance Functor m => Functor (NetworkLayer m) where
 
 -- | A collection of callbacks to use with the 'chainSync' function.
 data ChainFollower m point tip blocks = ChainFollower
-    { readLocalTip :: m [point]
+    { readChainPoints :: m [point]
         -- ^ Callback for reading the local tip. Used to negotiate the
         -- intersection with the node.
         --
         -- A response of [] is interpreted as `Origin` -- i.e. the chain will be
         -- served from genesis.
-        --
-        -- TODO: Could be named readCheckpoints?
     , rollForward :: blocks -> tip -> m ()
         -- ^ Callback for rolling forward.
         --
@@ -256,7 +254,7 @@ mapChainFollower
     -> ChainFollower m point2 tip2 blocks2
 mapChainFollower fpoint12 fpoint21 ftip fblocks cf =
     ChainFollower
-        { readLocalTip = map fpoint12 <$> readLocalTip cf
+        { readChainPoints = map fpoint12 <$> readChainPoints cf
         , rollForward = \bs tip -> rollForward cf (fblocks bs) (ftip tip)
         , rollBackward = fmap fpoint12 . rollBackward cf . fpoint21
         }

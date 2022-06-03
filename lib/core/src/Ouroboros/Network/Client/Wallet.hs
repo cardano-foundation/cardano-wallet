@@ -241,20 +241,20 @@ data PipeliningStrategy block = PipeliningStrategy
     , pipeliningStrategyName :: Text
     }
 
-instance Show  (PipeliningStrategy block) where 
-    show PipeliningStrategy{pipeliningStrategyName} 
-        = T.unpack pipeliningStrategyName 
+instance Show  (PipeliningStrategy block) where
+    show PipeliningStrategy{pipeliningStrategyName}
+        = T.unpack pipeliningStrategyName
 
 thousandPipeliningStrategy :: PipeliningStrategy block
 thousandPipeliningStrategy = PipeliningStrategy {..}
-    where 
+    where
         getPipeliningSize _ = 1_000
         pipeliningStrategyName = "Constant pipelining of 1000 blocks"
 
-tunedForMainnetPipeliningStrategy :: HasHeader block => PipeliningStrategy block 
+tunedForMainnetPipeliningStrategy :: HasHeader block => PipeliningStrategy block
 tunedForMainnetPipeliningStrategy =  PipeliningStrategy {..}
-    where 
-        getPipeliningSize (blockNo -> n) 
+    where
+        getPipeliningSize (blockNo -> n)
             | n <= 5_200_000 = 1000
             | n <= 6_100_000 = 200
             | n <= 6_500_000 = 125
@@ -314,7 +314,7 @@ data LocalRollbackResult block
 chainSyncWithBlocks
     :: forall m block. (Monad m, MonadSTM m, MonadThrow m, HasHeader block)
     => Tracer m (ChainSyncLog block (Point block))
-    -> PipeliningStrategy block 
+    -> PipeliningStrategy block
     -> ChainFollower m (Point block) (Tip block) (NonEmpty block)
     -> ChainSyncClientPipelined block (Point block) (Tip block) m Void
 chainSyncWithBlocks tr pipeliningStrategy chainFollower =
@@ -335,7 +335,7 @@ chainSyncWithBlocks tr pipeliningStrategy chainFollower =
     clientStNegotiateIntersection
         :: m (P.ClientPipelinedStIdle 'Z block (Point block) (Tip block) m Void)
     clientStNegotiateIntersection = do
-        points <- readLocalTip chainFollower
+        points <- readChainPoints chainFollower
         -- Cave: An empty list is interpreted as requesting the genesis point.
         let points' = if null points
                 then [Point Origin]
@@ -422,12 +422,12 @@ chainSyncWithBlocks tr pipeliningStrategy chainFollower =
             traceWith tr $ MsgTipDistance distance
             let strategy = if distance <= 1
                     then oneByOne
-                    else pipeline 
-                        (fromIntegral 
-                            . min distance 
-                            . getPipeliningSize pipeliningStrategy 
+                    else pipeline
+                        (fromIntegral
+                            . min distance
+                            . getPipeliningSize pipeliningStrategy
                             $ block
-                        ) 
+                        )
                         Zero
             clientStIdle strategy
 
@@ -580,7 +580,7 @@ localStateQuery queue =
         -- each query in the queue. This allows the node to release
         -- resources (such as a stake distribution snapshot) after
         -- each query.
-        -- 
+        --
         -- However, we /could/ read all LocalStateQueryCmds from the TQueue,
         -- and run them against the same tip, if re-acquiring takes a long time.
         -- As of Jan 2021, it seems like queries themselves take significantly
