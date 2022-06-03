@@ -174,7 +174,7 @@ import Cardano.Wallet.Shelley.Compatibility
     , toStakePoolDlgCert
     )
 import Cardano.Wallet.Shelley.Compatibility.Ledger
-    ( computeMinimumAdaQuantity, toAlonzoTxOut )
+    ( computeMinimumAdaQuantity, toAlonzoTxOut, toBabbageTxOut )
 import Cardano.Wallet.Transaction
     ( AnyScript (..)
     , DelegationAction (..)
@@ -1155,7 +1155,7 @@ _assignScriptRedeemers pparams ti resolveInput redeemers tx =
             alonzoTx' <- flip execStateT alonzoTx $ do
                 indexedRedeemers <- StateT assignNullRedeemers
                 executionUnits <- get
-                    >>= lift . evaluateExecutionUnits indexedRedeemers
+                    >>= lift . evaluateExecutionUnitsAlonzo indexedRedeemers
                 modifyM (assignExecutionUnitsAlonzo executionUnits)
                 modify' addScriptIntegrityHashAlonzo
             pure $ Cardano.ShelleyTx ShelleyBasedEraAlonzo alonzoTx'
@@ -1210,15 +1210,32 @@ _assignScriptRedeemers pparams ti resolveInput redeemers tx =
          in
             Ledger.UTxO (Map.fromList utxo)
 
+    utxoFromBabbageTx
+        :: BabbageTx
+        -> Ledger.UTxO (Cardano.ShelleyLedgerEra Cardano.BabbageEra)
+    utxoFromBabbageTx babbageTx =
+        let
+            inputs = Babbage.inputs (Alonzo.body babbageTx)
+            utxo = flip mapMaybe (F.toList inputs) $ \i -> do
+                (o, dt) <- resolveInput (fromShelleyTxIn i)
+                -- NOTE: 'toAlonzoTxOut' only partially represent the information
+                -- because the wallet internal types aren't capturing datum at
+                -- the moment. It is _okay_ in this context because the
+                -- resulting UTxO is only used by 'evaluateTransactionExecutionUnits'
+                -- to lookup addresses corresponding to inputs.
+                pure (i, toBabbageTxOut o dt)
+         in
+            Ledger.UTxO (Map.fromList utxo)
+
 
     -- | Evaluate execution units of each script/redeemer in the transaction.
     -- This may fail for each script.
-    evaluateExecutionUnits
+    evaluateExecutionUnitsAlonzo
         :: Map Alonzo.RdmrPtr Redeemer
         -> AlonzoTx
         -> Either ErrAssignRedeemers
             (Map Alonzo.RdmrPtr (Either ErrAssignRedeemers Alonzo.ExUnits))
-    evaluateExecutionUnits indexedRedeemers alonzoTx = do
+    evaluateExecutionUnitsAlonzo indexedRedeemers alonzoTx = do
         let utxo = utxoFromAlonzoTx alonzoTx
         let pparams' = Cardano.toLedgerPParams Cardano.ShelleyBasedEraAlonzo pparams
         let costs = toCostModelsAsArray (Alonzo.unCostModels $ Alonzo._costmdls pparams')
@@ -1241,14 +1258,45 @@ _assignScriptRedeemers pparams ti resolveInput redeemers tx =
                 error "TODO: Babbage evaluateExecutionUnits"
 
             Right report ->
-                Right $ hoistScriptFailure report
-      where
-        hoistScriptFailure
-            :: Show scriptFailure
-            => Map Alonzo.RdmrPtr (Either scriptFailure a)
-            -> Map Alonzo.RdmrPtr (Either ErrAssignRedeemers a)
-        hoistScriptFailure = Map.mapWithKey $ \ptr -> left $ \e ->
-            ErrAssignRedeemersScriptFailure (indexedRedeemers ! ptr) (show e)
+                Right $ hoistScriptFailure indexedRedeemers report
+
+    evaluateExecutionUnitsBabbage
+        :: Map Alonzo.RdmrPtr Redeemer
+        -> BabbageTx
+        -> Either ErrAssignRedeemers
+            (Map Alonzo.RdmrPtr (Either ErrAssignRedeemers Alonzo.ExUnits))
+    evaluateExecutionUnitsBabbage indexedRedeemers babbageTx = do
+        let utxo = utxoFromBabbageTx babbageTx
+        let pparams' = Cardano.toLedgerPParams Cardano.ShelleyBasedEraBabbage pparams
+        let costs = toCostModelsAsArray (Alonzo.unCostModels $ Babbage._costmdls pparams')
+        let systemStart = getSystemStart ti
+
+        epochInfo <- hoistEpochInfo (left ErrAssignRedeemersPastHorizon . runIdentity . runExceptT)
+            <$> left ErrAssignRedeemersPastHorizon (toEpochInfo ti)
+
+        res <- evaluateTransactionExecutionUnits
+                pparams'
+                babbageTx
+                utxo
+                epochInfo
+                systemStart
+                costs
+        case res of
+            Left (UnknownTxIns ins) ->
+                Left $ ErrAssignRedeemersUnresolvedTxIns $ map fromShelleyTxIn (F.toList ins)
+            Left (BadTranslation _) -> do
+                error "TODO: Babbage evaluateExecutionUnits"
+
+            Right report ->
+                Right $ hoistScriptFailure indexedRedeemers report
+
+    hoistScriptFailure
+        :: Show scriptFailure
+        => Map Alonzo.RdmrPtr Redeemer
+        -> Map Alonzo.RdmrPtr (Either scriptFailure a)
+        -> Map Alonzo.RdmrPtr (Either ErrAssignRedeemers a)
+    hoistScriptFailure indexedRedeemers = Map.mapWithKey $ \ptr -> left $ \e ->
+        ErrAssignRedeemersScriptFailure (indexedRedeemers ! ptr) (show e)
 
     -- | Change execution units for each redeemers in the transaction to what
     -- they ought to be.
