@@ -14,7 +14,7 @@
 --
 -- Address books consist of a 'Prologue'
 -- and discovered addresses ('Discoveries').
-module Cardano.Wallet.DB.Sqlite.AddressBook
+module Cardano.Wallet.DB.Checkpoints.AddressBook
     ( AddressBookIso (..)
     , Prologue (..)
     , Discoveries (..)

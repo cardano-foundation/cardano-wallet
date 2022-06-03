@@ -43,7 +43,7 @@ import Cardano.Wallet.Api.Types
     , EncodeAddress
     , EncodeStakeAddress
     )
-import Cardano.Wallet.DB.Sqlite.CheckpointsOld
+import Cardano.Wallet.DB.Checkpoints.Store
     ( PersistAddressBook )
 import Cardano.Wallet.DB.Sqlite.Migration
     ( DefaultFieldValues (..) )
@@ -181,7 +181,7 @@ import UnliftIO.STM
 import qualified Cardano.Pool.DB as PoolDb
 import qualified Cardano.Pool.DB.Sqlite as Pool
 import qualified Cardano.Wallet.Api.Server as Server
-import qualified Cardano.Wallet.DB.Sqlite as Sqlite
+import qualified Cardano.Wallet.DB.Layer as Sqlite
 import qualified Network.Wai.Handler.Warp as Warp
 
 -- | The @cardano-wallet@ main function. It takes the configuration

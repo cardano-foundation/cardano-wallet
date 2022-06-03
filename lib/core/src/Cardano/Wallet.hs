@@ -259,12 +259,12 @@ import Cardano.Wallet.DB
     , defaultSparseCheckpointsConfig
     , sparseCheckpoints
     )
-import Cardano.Wallet.DB.Checkpoints
-    ( DeltaCheckpoints (..) )
-import Cardano.Wallet.DB.Sqlite.AddressBook
+import Cardano.Wallet.DB.Checkpoints.AddressBook
     ( AddressBookIso, Prologue (..), getPrologue )
-import Cardano.Wallet.DB.WalletState
-    ( DeltaMap (..), DeltaWalletState1 (..), fromWallet, getLatest, getSlot )
+import Cardano.Wallet.DB.Checkpoints.Model
+    ( DeltaCheckpoints (..), fromWallet, getSlot )
+import Cardano.Wallet.DB.Wallets.State
+    ( DeltaMap (..), DeltaWalletState1 (..), getLatest )
 import Cardano.Wallet.Logging
     ( BracketLog
     , BracketLog' (..)
