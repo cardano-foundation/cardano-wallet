@@ -21,9 +21,6 @@ import Test.QuickCheck.Monadic
     ( PropertyM, assert, monitor, pick, run )
 
 
-
-
-
 -- | Given a value, generate a random delta starting from this value.
 type GenDelta da = Base da -> Gen da
 

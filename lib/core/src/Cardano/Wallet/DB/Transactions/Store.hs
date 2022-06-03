@@ -34,8 +34,6 @@ import Cardano.Wallet.DB.Transactions.Select
     ( selectWalletTxRelation )
 import Cardano.Wallet.DB.Transactions.Types
     ( TxHistory, TxHistoryF (TxHistoryF), TxRelationF (..) )
-import Cardano.Wallet.DB.Unstored
-    ( overWallet )
 import Cardano.Wallet.Primitive.Types
     ( WalletId )
 import Control.Exception
@@ -75,7 +73,7 @@ mkStoreTransactions wid =
         }
 
 update :: WalletId -> TxHistory -> DeltaTxHistory -> SqlPersistT IO ()
-update wid _ change = overWallet wid $ \_wallet -> case change of
+update wid _ change = case change of
     ExpandTxHistory _ txs -> putTxs $ mkTxHistory wid txs
     PruneTxHistory tid -> do
         let filt = [ TxMetaWalletId ==. wid, TxMetaTxId ==. (TxId tid) ]
