@@ -4,32 +4,37 @@
 {-# LANGUAGE TypeFamilies #-}
 
 module Cardano.Wallet.DB.Transactions.Delta where
+
+import Prelude
+
 import Cardano.Wallet.DB.Sqlite.Schema
     ( TxMeta (..) )
 import Cardano.Wallet.DB.Sqlite.Types
     ( TxId (TxId) )
+import Cardano.Wallet.DB.Transactions.Model
+    ( mkTxHistory )
 import Cardano.Wallet.DB.Transactions.Types
-    ( TxHistory, TxHistoryF (TxHistoryF))
+    ( TxHistory, TxHistoryF (TxHistoryF) )
 import Cardano.Wallet.Primitive.Types.Hash
     ( Hash )
 import Cardano.Wallet.Primitive.Types.Tx
     ( TxStatus (InLedger) )
+import Control.Monad
+    ( when )
 import Data.Bifunctor
     ( first )
 import Data.Delta
     ( Delta (..) )
+import Data.Function
+    ( (&) )
 import Data.Functor
     ( (<&>) )
 import Fmt
     ( Buildable (..) )
-import Prelude
 
 import qualified Cardano.Wallet.Primitive.Types as W
 import qualified Cardano.Wallet.Primitive.Types.Tx as W
-import qualified Data.Map.Strict as M
-import Control.Monad (when)
-import Data.Function ((&))
-import Cardano.Wallet.DB.Transactions.Model (mkTxHistory)
+import qualified Data.Map.Strict as Map
 
 data DeltaTxHistory
     = ExpandTxHistory W.WalletId [(W.Tx, W.TxMeta)]
@@ -51,7 +56,7 @@ instance Delta DeltaTxHistory where
     type Base DeltaTxHistory = TxHistory
     apply (ExpandTxHistory wid txs) h = h <> mkTxHistory wid txs
     apply (PruneTxHistory tid) (TxHistoryF txs) = TxHistoryF $
-        M.alter f (TxId tid) txs
+        Map.alter f (TxId tid) txs
         where
             f (Just tx@(TxMeta {..}, _)) = if
                 txMetaStatus /= InLedger then Just tx
@@ -66,7 +71,7 @@ instance Delta DeltaTxHistory where
                             else txMetaStatus
                     in meta{txMetaStatus = newstatus}
     apply (RollBackTxHistory point) (TxHistoryF txs) = TxHistoryF
-        $ txs & M.mapMaybe
+        $ txs & Map.mapMaybe
                 (\(meta, tx) ->
                     (,) <$> rescheduleOrForget point meta <*> pure tx
                 )

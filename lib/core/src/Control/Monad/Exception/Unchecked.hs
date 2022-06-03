@@ -2,14 +2,14 @@
 
 module Control.Monad.Exception.Unchecked where 
 
+import Prelude
+
 import Control.Exception
-    ( Exception, catch, SomeException (SomeException), throw )
+    ( Exception, SomeException (SomeException), catch, throw )
 import Control.Monad.Except
     ( ExceptT (..), runExceptT )
 import Data.Typeable
     ( Typeable )
-import Prelude
-
 newtype Unchecked e = Unchecked e
     deriving (Eq, Show)
 

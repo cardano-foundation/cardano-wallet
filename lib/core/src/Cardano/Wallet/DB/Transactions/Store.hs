@@ -27,15 +27,13 @@ import Cardano.Wallet.DB.Sqlite.Schema
 import Cardano.Wallet.DB.Sqlite.Types
     ( TxId (TxId) )
 import Cardano.Wallet.DB.Transactions.Delta
-    ( DeltaTxHistory (..)
-    )
+    ( DeltaTxHistory (..) )
+import Cardano.Wallet.DB.Transactions.Model
+    ( mkTxHistory )
 import Cardano.Wallet.DB.Transactions.Select
     ( selectWalletTxRelation )
 import Cardano.Wallet.DB.Transactions.Types
-    ( TxHistory
-    , TxHistoryF (TxHistoryF)
-    , TxRelationF (..)
-    )
+    ( TxHistory, TxHistoryF (TxHistoryF), TxRelationF (..) )
 import Cardano.Wallet.DB.Unstored
     ( overWallet )
 import Cardano.Wallet.Primitive.Types
@@ -67,7 +65,6 @@ import Database.Persist.Sql
     )
 
 import qualified Cardano.Wallet.Primitive.Types.Tx as W
-import Cardano.Wallet.DB.Transactions.Model (mkTxHistory)
 
 mkStoreTransactions :: WalletId -> Store (SqlPersistT IO) DeltaTxHistory
 mkStoreTransactions wid =

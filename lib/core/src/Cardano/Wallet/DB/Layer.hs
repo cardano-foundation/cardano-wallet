@@ -102,7 +102,7 @@ import Cardano.Wallet.DB.Sqlite.WrapSTM
 import Cardano.Wallet.DB.Transactions.Delete
     ( deletePendingOrExpiredTx )
 import Cardano.Wallet.DB.Transactions.Select
-    ( selectTxMeta, selectTxHistory )
+    ( selectTxHistory, selectTxMeta )
 import Cardano.Wallet.DB.Transactions.Update
     ( updateTxHistory )
 import Cardano.Wallet.DB.Unstored

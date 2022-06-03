@@ -9,6 +9,8 @@
 
 module Cardano.Wallet.DB.Transactions.Types where
 
+import Prelude
+
 import Cardano.Wallet.DB.Sqlite.Schema
     ( TxCollateral (..)
     , TxCollateralOut (..)
@@ -19,15 +21,16 @@ import Cardano.Wallet.DB.Sqlite.Schema
     , TxOutToken (..)
     , TxWithdrawal (..)
     )
+import Cardano.Wallet.DB.Sqlite.Types
+    ( TxId )
 import Data.Functor.Identity
+import Data.Map.Strict
+    ( Map )
 import Fmt
     ( Buildable (build) )
 import Generics.Deriving.Monoid
 import GHC.Generics
     ( Generic )
-import Prelude
-import Data.Map.Strict (Map)
-import Cardano.Wallet.DB.Sqlite.Types (TxId)
 
 data TxRelationF f
     = TxRelationF 
