@@ -39,7 +39,7 @@ import Control.Arrow
 import Control.Monad.Extra
     ( concatMapM )
 import Data.Foldable
-    ( fold )
+    ( fold, toList )
 import Data.Function
     ( (&) )
 import Data.Functor
@@ -87,7 +87,6 @@ import qualified Cardano.Wallet.Primitive.Types.Hash as W
 import qualified Cardano.Wallet.Primitive.Types.TokenBundle as TokenBundle
 import qualified Cardano.Wallet.Primitive.Types.Tx as W
 import qualified Data.Map.Strict as Map
-import Data.Foldable (toList)
 import qualified Data.Map.Strict as M
 
 -- This relies on available information from the database to reconstruct coin
