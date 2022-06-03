@@ -1,7 +1,10 @@
 {-# LANGUAGE DeriveGeneric #-}
 {-# LANGUAGE OverloadedLabels #-}
+
+{-# LANGUAGE FlexibleContexts #-}
 {-# LANGUAGE StandaloneDeriving #-}
 {-# LANGUAGE TypeFamilies #-}
+{-# LANGUAGE UndecidableInstances #-}
 
 -- |
 -- Copyright: © 2021 IOHK
@@ -67,19 +70,6 @@ instead we have mapped it to 'SlotNo 0', which is wrong.
 
 Rolling back to SlotNo 0 instead of Origin is fine for followers starting
 from genesis (which should be the majority of cases). Other, non-trivial
-rollbacks to genesis cannot occur on mainnet (genesis is years within
-stable part, and there were no rollbacks in byron).
-
-Could possibly be problematic in the beginning of a testnet without a
-byron era. /Perhaps/ this is what is happening in the
->>> [cardano-wallet.pools-engine:Error:1293] [2020-11-24 10:02:04.00 UTC]
->>> Couldn't store production for given block before it conflicts with
->>> another block. Conflicting block header is:
->>> 5bde7e7b<-[f1b35b98-4290#2008]
-errors observed in the integration tests.
-
-The issue has been partially fixed in that 'rollbackTo' now takes
-a 'Slot' as argument, which can represent the 'Origin'.
 However, the database itself mostly stores slot numbers.
 
 FIXME LATER during ADP-1043: As we move towards in-memory data,
@@ -139,7 +129,7 @@ data DeltaCheckpoints a
     -- | Restrict to the intersection of this list with
     -- the checkpoints that are already present.
     -- The genesis checkpoint will always be present.
-    |    RestrictTo [W.Slot]
+    |  RestrictTo [W.Slot]
 
 instance Delta (DeltaCheckpoints a) where
     type Base (DeltaCheckpoints a) = Checkpoints a
@@ -168,7 +158,7 @@ data WalletCheckpoint s = WalletCheckpoint
     }
     deriving (Generic)
 
-deriving instance AddressBookIso s => Eq (WalletCheckpoint s)
+deriving instance (Eq (Discoveries s)) => Eq (WalletCheckpoint s)
 
 -- | Helper function: Get the block height of a wallet checkpoint.
 getBlockHeight :: WalletCheckpoint s -> Word32

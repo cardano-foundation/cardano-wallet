@@ -105,6 +105,7 @@ import Database.Persist.Sql
     , PersistEntity (..)
     , PersistException
     , SqlPersistT
+    , SqlPersistT
     , SqlType (..)
     , close'
     , fieldDB

@@ -1,11 +1,9 @@
 {-# LANGUAGE DeriveGeneric #-}
-{-# LANGUAGE FlexibleContexts #-}
 {-# LANGUAGE NamedFieldPuns #-}
 {-# LANGUAGE OverloadedLabels #-}
 {-# LANGUAGE StandaloneDeriving #-}
 {-# LANGUAGE StrictData #-}
 {-# LANGUAGE TypeFamilies #-}
-{-# LANGUAGE UndecidableInstances #-}
 
 -- |
 -- Copyright: © 2022 IOHK
@@ -17,12 +15,13 @@
 -- FIXME during ADP-1043: Actually include everything,
 -- e.g. TxHistory, Pending transactions, …
 
-module Cardano.Wallet.DB.Wallets.State
+module Cardano.Wallet.DB.State
     ( -- * Wallet state
       WalletState (..)
     , fromGenesis
     , getLatest
     , findNearestPoint
+
 
     -- * Delta types
     , DeltaWalletState1 (..)
@@ -32,11 +31,10 @@ module Cardano.Wallet.DB.Wallets.State
 
 import Prelude
 
-import Cardano.Wallet.DB.Checkpoints.AddressBook
+import Cardano.Wallet.DB.Store.Checkpoints.AddressBook
     ( AddressBookIso (..), Prologue )
-import Cardano.Wallet.DB.Checkpoints.Model hiding
-    ( checkpoints, findNearestPoint, fromGenesis, getLatest )
-
+import Cardano.Wallet.DB.Store.Checkpoints.Model
+    ( Checkpoints, DeltaCheckpoints, WalletCheckpoint, fromWallet, toWallet )
 import Data.Delta
     ( Delta (..) )
 import Data.DeltaMap
@@ -48,7 +46,11 @@ import Fmt
 import GHC.Generics
     ( Generic )
 
-import qualified Cardano.Wallet.DB.Checkpoints.Model as CPS
+import qualified Cardano.Wallet.DB.Store.Checkpoints.Model as CPS
+
+-- import qualified Cardano.Wallet.DB.Model as Model
+-- import Cardano.Wallet.DB.Store.TxHistory.Model
+--    ( DeltaTxHistory, TxHistory (TxHistory) )
 import qualified Cardano.Wallet.Primitive.Model as W
 import qualified Cardano.Wallet.Primitive.Types as W
 
@@ -66,21 +68,22 @@ import qualified Cardano.Wallet.Primitive.Types as W
 data WalletState s = WalletState
     { prologue    :: Prologue s
     , checkpoints :: Checkpoints (WalletCheckpoint s)
+    -- , transactions :: TxHistory
     } deriving (Generic)
 
-deriving instance (Eq (WalletCheckpoint s), AddressBookIso s)
-    => Eq (WalletState s)
+deriving instance AddressBookIso s => Eq (WalletState s)
 
 -- | Create a wallet from the genesis block.
 fromGenesis
     :: AddressBookIso s
     => W.Wallet s
+    -- -> Model.TxHistory
     -> Maybe (WalletState s)
 fromGenesis cp -- txs
     | W.isGenesisBlockHeader header = Just $
-        WalletState
-            { prologue
+        WalletState{ prologue
             , checkpoints = CPS.fromGenesis checkpoint
+            -- , transactions = TxHistory txs
             }
     | otherwise = Nothing
   where
@@ -106,6 +109,7 @@ data DeltaWalletState1 s
     -- ^ Replace the prologue of the address discovery state
     | UpdateCheckpoints (DeltaCheckpoints (WalletCheckpoint s))
     -- ^ Update the wallet checkpoints.
+    -- | UpdateTransactions DeltaTxHistory
 
 instance Delta (DeltaWalletState1 s) where
     type Base (DeltaWalletState1 s) = WalletState s

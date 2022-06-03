@@ -47,33 +47,23 @@ import Cardano.Wallet.DB
 import Cardano.Wallet.DB.Checkpoints.AddressBook
     ( AddressBookIso (..)
     , Discoveries (..)
-    , Prologue (..)
-    , SeqAddressMap (..)
+    , Prologue (PR, PS, RndPrologue, SeqPrologue, SharedPrologue)
+    , SeqAddressMap (SeqAddressMap)
     )
-import Cardano.Wallet.DB.Checkpoints.Model
-    ( DeltaCheckpoints (..), WalletCheckpoint (..), getSlot, loadCheckpoints )
 import Cardano.Wallet.DB.Sqlite.Schema
     ( Checkpoint (..)
-    , CosignerKey (..)
+    , CosignerKey (CosignerKey)
     , EntityField (..)
     , Key (..)
-    , RndState (..)
-    , RndStateAddress (..)
+    , RndState (RndState)
+    , RndStateAddress (RndStateAddress)
     , RndStatePendingAddress (..)
     , SeqState (..)
-    , SeqStateAddress (..)
+    , SeqStateAddress (SeqStateAddress, seqStateAddressAddress, seqStateAddressIndex, seqStateAddressStatus)
     , SeqStatePendingIx (..)
     , SharedState (..)
-    , UTxO (..)
+    , UTxO (UTxO)
     , UTxOToken (..)
-    )
-import Cardano.Wallet.DB.Sqlite.Types
-    ( BlockId (..)
-    , HDPassphrase (..)
-    , TxId (..)
-    , fromMaybeHash
-    , hashOfNoParent
-    , toMaybeHash
     )
 import Cardano.Wallet.Primitive.AddressDerivation
     ( Depth (..)
@@ -136,6 +126,21 @@ import Database.Persist.Sql
 import UnliftIO.Exception
     ( toException )
 
+import Cardano.Wallet.DB.Checkpoints.Model
+    ( DeltaCheckpoints (PutCheckpoint, RestrictTo, RollbackTo)
+    , WalletCheckpoint (WalletCheckpoint)
+    , getSlot
+    , loadCheckpoints
+    )
+import Cardano.Wallet.DB.Sqlite.Types
+    ( BlockId (BlockId, getBlockId)
+    , HDPassphrase (HDPassphrase)
+    , TxId (TxId)
+    , fromMaybeHash
+    , hashOfNoParent
+    , toMaybeHash
+    )
+
 import qualified Cardano.Wallet.Primitive.AddressDerivation as W
 import qualified Cardano.Wallet.Primitive.AddressDiscovery.Random as Rnd
 import qualified Cardano.Wallet.Primitive.AddressDiscovery.Sequential as Seq
@@ -150,9 +155,8 @@ import qualified Data.Map.Merge.Strict as Map
 import qualified Data.Map.Strict as Map
 
 
--- | Store for the 'Checkpoints' belonging to a 'WalletState'.
 mkStoreCheckpoints
-    :: forall s. PersistAddressBook s
+    :: PersistAddressBook s
     => W.WalletId
     -> Store (SqlPersistT IO) (DeltaCheckpoints (WalletCheckpoint s))
 mkStoreCheckpoints wid =
