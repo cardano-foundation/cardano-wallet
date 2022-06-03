@@ -13,21 +13,9 @@ module Cardano.Wallet.DB.Transactions.Select
     )
     where
 
-import Prelude
-
 import Cardano.DB.Sqlite
     ( chunkSize )
 import Cardano.Wallet.DB.Sqlite.Schema
-    ( EntityField (..)
-    , TxCollateral (..)
-    , TxCollateralOut (..)
-    , TxCollateralOutToken (..)
-    , TxIn (..)
-    , TxMeta (..)
-    , TxOut (..)
-    , TxOutToken (..)
-    , TxWithdrawal (..)
-    )
 import Cardano.Wallet.DB.Sqlite.Types
     ( TxId (TxId), getTxId )
 import Cardano.Wallet.Primitive.Slotting
@@ -36,16 +24,19 @@ import Cardano.Wallet.Primitive.Types.TokenMap
     ( AssetId (AssetId) )
 import Control.Monad.Extra
     ( concatMapM )
+import Data.Foldable
+    ( fold )
 import Data.Functor
     ( (<&>) )
 import Data.Generics.Internal.VL
     ( (^.) )
 import Data.List
-    ( nub, sortOn, unzip5 )
+    ( nub, sortOn )
 import Data.List.Split
     ( chunksOf )
 import Data.Map.Strict
     ( Map )
+import qualified Data.Map.Strict as Map
 import Data.Maybe
     ( listToMaybe )
 import Data.Ord
@@ -66,22 +57,25 @@ import Database.Persist
     )
 import Database.Persist.Sql
     ( SqlPersistT )
+import Prelude
 import UnliftIO
     ( liftIO )
 
-import Cardano.Wallet.DB.Transactions.Types (
-    TxRelation,
-    TxRelationA,
-    TxRelationF (TxRelationF),
-    WithTxOut (WithTxOut, withTxOut_value),
- )
+import Cardano.Wallet.DB.Transactions.Types
+    ( TxRelation
+    , TxRelationA
+    , TxRelationF (TxRelationF)
+    , WithTxOut (WithTxOut, withTxOut_value)
+    )
 import qualified Cardano.Wallet.Primitive.Model as W
 import qualified Cardano.Wallet.Primitive.Types as W
 import qualified Cardano.Wallet.Primitive.Types.Coin as W
 import qualified Cardano.Wallet.Primitive.Types.Hash as W
 import qualified Cardano.Wallet.Primitive.Types.TokenBundle as TokenBundle
 import qualified Cardano.Wallet.Primitive.Types.Tx as W
-import qualified Data.Map.Strict as Map
+import Data.Functor.Identity
+    ( Identity (Identity), runIdentity )
+
 -- This relies on available information from the database to reconstruct coin
 -- selection information for __outgoing__ payments. We can't however guarantee
 -- that we have such information for __incoming__ payments (we usually don't
@@ -170,40 +164,25 @@ resolveCollateralWith collateral resolvedCollateral =
                 )
     ]
 
-
 selectTxs' ::
     [TxMeta] ->
     SqlPersistT IO TxRelation
 selectTxs' = fmap fold . mapM select . chunksOf chunkSize
   where
     select txmetas = do
-        inputs <-
-            select'
-                [TxInputTxId <-. txids]
-                [Asc TxInputTxId, Asc TxInputOrder]
-
-        collateral <-
-            select'
-                [TxCollateralTxId <-. txids]
-                [Asc TxCollateralTxId, Asc TxCollateralOrder]
-
-        outputs <-
-            traverse readTxOutTokens
-                =<< select'
-                    [TxOutputTxId <-. txids]
-                    [Asc TxOutputTxId, Asc TxOutputIndex]
-
-        collateralOutputs <-
-            traverse readTxCollateralOutTokens
-                =<< select'
-                    [TxCollateralOutTxId <-. txids]
-                    [Asc TxCollateralOutTxId]
-
-        withdrawals <-
-            select'
-                [TxWithdrawalTxId <-. txids]
-                []
-
+        inputs <- select'
+            [TxInputTxId <-. txids]
+            [Asc TxInputTxId, Asc TxInputOrder]
+        collateral <- select'
+            [TxCollateralTxId <-. txids]
+            [Asc TxCollateralTxId, Asc TxCollateralOrder]
+        outputs <- traverse readTxOutTokens =<< select'
+            [TxOutputTxId <-. txids]
+            [Asc TxOutputTxId, Asc TxOutputIndex]
+        collateralOutputs <- traverse readTxCollateralOutTokens =<< select'
+            [TxCollateralOutTxId <-. txids]
+            [Asc TxCollateralOutTxId]
+        withdrawals <- select' [TxWithdrawalTxId <-. txids] []
         pure $
             TxRelationF
                 txmetas
@@ -216,16 +195,6 @@ selectTxs' = fmap fold . mapM select . chunksOf chunkSize
         txids = txMetaTxId <$> txmetas
     select' f q = fmap entityVal <$> selectList f q
     -- Fetch the complete set of tokens associated with a TxOut.
-    --
-    readTxOutTokens :: TxOut -> SqlPersistT IO (TxOut, [TxOutToken])
-    readTxOutTokens out =
-        (out,) . fmap entityVal
-            <$> selectList
-                [ TxOutTokenTxId ==. txOutputTxId out,
-                  TxOutTokenTxIndex ==. txOutputIndex out
-                ]
-                []
-
     -- Fetch the complete set of tokens associated with a TxCollateralOut.
     --
     readTxCollateralOutTokens ::
@@ -286,10 +255,20 @@ selectTxHistory cp ti wid minWithdrawal order conditions = do
         W.Ascending -> [Asc TxMetaSlot, Desc TxMetaTxId]
         W.Descending -> [Desc TxMetaSlot, Asc TxMetaTxId]
 
-selectTxMeta
-    :: W.WalletId
-    -> W.Hash "Tx"
-    -> SqlPersistT IO (Maybe TxMeta)
+selectWalletMetas ::
+    W.WalletId ->
+    SqlPersistT IO [TxMeta]
+selectWalletMetas wid = do
+    let txMetaFilter = [TxMetaWalletId ==. wid]
+    fmap entityVal <$> selectList txMetaFilter []
+
+selectWalletTxRelation :: W.WalletId -> SqlPersistT IO TxRelationA 
+selectWalletTxRelation wid = selectWalletMetas wid >>= selectTxs
+
+selectTxMeta ::
+    W.WalletId ->
+    W.Hash "Tx" ->
+    SqlPersistT IO (Maybe TxMeta)
 selectTxMeta wid tid =
     fmap entityVal <$> selectFirst
         [ TxMetaWalletId ==. wid, TxMetaTxId ==. (TxId tid)]

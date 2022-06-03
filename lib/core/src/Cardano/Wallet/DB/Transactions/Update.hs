@@ -15,117 +15,88 @@
  Copyright: © 2018-2020 IOHK
  License: Apache-2.0
 -}
-module Cardano.Wallet.DB.Transactions.Update (updateTxHistory) where
+module Cardano.Wallet.DB.Transactions.Update (updateTxHistory, putTxs) where
 
-import Cardano.DB.Sqlite (
-    dbChunked',
- )
-import Cardano.Wallet.DB.Sqlite.Schema (
-    Key (..),
-    TxCollateral (..),
-    TxCollateralOut (..),
-    TxCollateralOutToken (..),
-    TxIn (..),
-    TxMeta (..),
-    TxOut (..),
-    TxOutToken (..),
-    TxWithdrawal (..),
- )
-import Cardano.Wallet.DB.Transactions.Model (mkTxHistory)
-import Database.Persist.Sql (
-    SqlPersistT,
-    repsertMany,
- )
+import Cardano.DB.Sqlite
+    ( dbChunked' )
+import Cardano.Wallet.DB.Sqlite.Schema
+    ( Key (..)
+    , TxCollateral (..)
+    , TxCollateralOut (..)
+    , TxCollateralOutToken (..)
+    , TxIn (..)
+    , TxMeta (..)
+    , TxOut (..)
+    , TxOutToken (..)
+    , TxWithdrawal (..)
+    )
+import Cardano.Wallet.DB.Transactions.Model
+    ( mkTxHistory )
+import Data.Functor.Identity
+    ( runIdentity )
+import Database.Persist.Sql
+    ( PersistEntity (PersistEntityBackend)
+    , SqlBackend
+    , SqlPersistT
+    , repsertMany
+    )
 import Prelude
 
-import Cardano.Wallet.DB.Transactions.Types (TxRelation)
+import Cardano.Wallet.DB.Transactions.Types
+    ( TxRelation, TxRelationF (..) )
 import qualified Cardano.Wallet.Primitive.Types as W
 import qualified Cardano.Wallet.Primitive.Types.Tx as W
-import Data.Generics.Product (position)
-import Data.Functor.Identity (runIdentity)
-import Data.Generics.Internal.VL ((^.))
 
-{-------------------------------------------------------------------------------
-    SQLite database operations
--------------------------------------------------------------------------------}
+
 updateTxHistory :: W.WalletId -> [(W.Tx, W.TxMeta)] -> SqlPersistT IO ()
 updateTxHistory wid = putTxs . mkTxHistory wid
 
 -- | Insert multiple transactions, removing old instances first.
 putTxs :: TxRelation -> SqlPersistT IO ()
-putTxs es = do
-    let ( txMetas,
-          txIns,
-          txCollateralIns,
-          txOuts,
-          txOutTokens,
-          txCollateralOuts,
-          txCollateralOutTokens,
-          txWithdrawals
-            ) = flatTxRelation es
-    dbChunked'
-        repsertMany
-        [ (TxMetaKey txMetaTxId txMetaWalletId, m)
-          | m@TxMeta{..} <- txMetas
-        ]
-    dbChunked'
-        repsertMany
-        [ (TxInKey txInputTxId txInputSourceTxId txInputSourceIndex, i)
-          | i@TxIn{..} <- txIns
-        ]
-    dbChunked'
-        repsertMany
-        [ ( TxCollateralKey
-                txCollateralTxId
-                txCollateralSourceTxId
-                txCollateralSourceIndex,
-            i
-          )
-          | i@TxCollateral{..} <- txCollateralIns
-        ]
-    dbChunked'
-        repsertMany
-        [ (TxOutKey txOutputTxId txOutputIndex, o)
-          | o@TxOut{..} <- txOuts
-        ]
-    dbChunked'
-        repsertMany
-        [ ( TxOutTokenKey
-                txOutTokenTxId
-                txOutTokenTxIndex
-                txOutTokenPolicyId
-                txOutTokenName,
-            o
-          )
-          | o@TxOutToken{..} <- txOutTokens
-        ]
-    dbChunked'
-        repsertMany
-        [ (TxCollateralOutKey txCollateralOutTxId, o)
-          | o@TxCollateralOut{..} <- txCollateralOuts
-        ]
-    dbChunked'
-        repsertMany
-        [ ( TxCollateralOutTokenKey
-                txCollateralOutTokenTxId
-                txCollateralOutTokenPolicyId
-                txCollateralOutTokenName,
-            o
-          )
-          | o@TxCollateralOutToken{..} <- txCollateralOutTokens
-        ]
-    dbChunked'
-        repsertMany
-        [ (TxWithdrawalKey txWithdrawalTxId txWithdrawalAccount, w)
-          | w@TxWithdrawal{..} <- txWithdrawals
-        ]
-    where
-    flatTxRelation es = (,,,,,,,)
-        do es ^. position @1
-        do runIdentity <$> es ^. position @2
-        do runIdentity <$> es ^. position @3
-        do fst <$> (es ^. position @4)
-        do snd =<< (es ^. position @4)
-        do fst <$> (es ^. position @5)
-        do snd =<< (es ^. position @5)
-        do es ^. position @6
+putTxs TxRelationF {..} = do
+    repsertX
+        do txRelation_metas
+        do \TxMeta {..} -> TxMetaKey txMetaTxId txMetaWalletId
+    repsertX
+        do runIdentity <$> txRelation_ins
+        do \TxIn{..} -> TxInKey txInputTxId txInputSourceTxId txInputSourceIndex
+    repsertX
+        do runIdentity <$> txRelation_colls
+        do \TxCollateral{..} ->
+              TxCollateralKey
+                  txCollateralTxId
+                  txCollateralSourceTxId
+                  txCollateralSourceIndex
+    repsertX
+        do fst <$> txRelation_outs
+        do \TxOut{..} ->
+            TxOutKey txOutputTxId txOutputIndex
+    repsertX
+        do txRelation_outs >>= snd
+        do \TxOutToken{..} ->  TxOutTokenKey
+                  txOutTokenTxId
+                  txOutTokenTxIndex
+                  txOutTokenPolicyId
+                  txOutTokenName
+    repsertX
+        do fst <$> txRelation_collouts
+        do \TxCollateralOut{..} ->
+            TxCollateralOutKey txCollateralOutTxId
+    repsertX
+          do txRelation_collouts >>= snd
+          do \TxCollateralOutToken{..} ->
+              TxCollateralOutTokenKey
+                  txCollateralOutTokenTxId
+                  txCollateralOutTokenPolicyId
+                  txCollateralOutTokenName
+    repsertX
+        do txRelation_withdraws
+        do \TxWithdrawal{..} ->
+            TxWithdrawalKey txWithdrawalTxId txWithdrawalAccount
+
+repsertX :: (PersistEntity record, PersistEntityBackend record ~ SqlBackend)
+    => [record]
+    -> (record -> Key record)
+    -> SqlPersistT IO ()
+
+repsertX xs f = dbChunked' repsertMany [(f x,x) | x <- xs ]

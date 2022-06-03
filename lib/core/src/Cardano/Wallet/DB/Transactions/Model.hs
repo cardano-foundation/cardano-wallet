@@ -11,6 +11,7 @@
 {-# LANGUAGE TypeFamilies #-}
 {-# LANGUAGE UndecidableInstances #-}
 {-# OPTIONS_GHC -fno-warn-orphans #-}
+{-# LANGUAGE RecordWildCards #-}
 
 {- |
  Copyright: © 2018-2020 IOHK
@@ -18,52 +19,49 @@
 -}
 module Cardano.Wallet.DB.Transactions.Model where
 
-import Cardano.Wallet.DB.Sqlite.Schema (
-    TxCollateral (..),
-    TxCollateralOut (..),
-    TxCollateralOutToken (..),
-    TxIn (..),
-    TxMeta (..),
-    TxOut (..),
-    TxOutToken (..),
-    TxWithdrawal (..),
- )
-import Cardano.Wallet.DB.Sqlite.Types (
-    TxId (TxId),
- )
-import Cardano.Wallet.Primitive.Types.TokenBundle (
-    AssetId (AssetId),
- )
-import Data.Functor (
-    (<&>),
- )
-import Data.Generics.Internal.VL (
-    view,
-    (^.),
- )
-import Data.Maybe (
-    maybeToList,
- )
-import Data.Monoid ()
-import Data.Quantity (
-    getQuantity,
- )
+import Cardano.Wallet.DB.Sqlite.Schema
+    ( TxCollateral (..)
+    , TxCollateralOut (..)
+    , TxCollateralOutToken (..)
+    , TxIn (..)
+    , TxMeta (..)
+    , TxOut (..)
+    , TxOutToken (..)
+    , TxWithdrawal (..)
+    )
+import Cardano.Wallet.DB.Sqlite.Types
+    ( TxId (TxId) )
+import Cardano.Wallet.Primitive.Types.TokenBundle
+    ( AssetId (AssetId) )
+import Data.Functor
+    ( (<&>) )
+import Data.Generics.Internal.VL
+    ( view, (^.) )
+import Data.Maybe
+    ( maybeToList )
+import Data.Monoid
+    ()
+import Data.Quantity
+    ( getQuantity )
 import Prelude
 
-import Cardano.Wallet.DB.Transactions.Types (
-    TxRelation,
-    TxRelationF (TxRelationF),
- )
+import Cardano.Wallet.DB.Transactions.Types
+    ( TxRelation, TxRelationA, TxRelationF (..), WithTxOut (withTxOut_value) )
 import qualified Cardano.Wallet.Primitive.Types as W
 import qualified Cardano.Wallet.Primitive.Types.Coin as W
-import Cardano.Wallet.Primitive.Types.RewardAccount (RewardAccount)
+import Cardano.Wallet.Primitive.Types.RewardAccount
+    ( RewardAccount )
 import qualified Cardano.Wallet.Primitive.Types.TokenBundle as TokenBundle
-import Cardano.Wallet.Primitive.Types.TokenQuantity (TokenQuantity)
+import Cardano.Wallet.Primitive.Types.TokenQuantity
+    ( TokenQuantity )
 import qualified Cardano.Wallet.Primitive.Types.Tx as W
-import Data.Foldable (fold)
-import Data.Functor.Identity ( Identity(Identity) )
+import Data.Foldable
+    ( fold )
+import Data.Functor.Identity
+    ( Identity (Identity) )
 import qualified Data.Map.Strict as Map
-import Data.Word (Word32)
+import Data.Word
+    ( Word32 )
 
 mkTxMetaEntity ::
     W.WalletId ->
@@ -194,7 +192,7 @@ mkTxCore wid tx txmeta = TxRelationF
             $ tx
     do fmap (mkTxOut tid) . ordered . W.outputs $ tx
     do fmap (mkTxCollateralOut tid) . maybeToList . W.collateralOutput $ tx
-    do fmap (mkTxWithdrawal tid) . Map.toList . W.withdrawals $ tx 
+    do fmap (mkTxWithdrawal tid) . Map.toList . W.withdrawals $ tx
   where
     meta =
         mkTxMetaEntity
@@ -215,4 +213,13 @@ mkTxHistory ::
 mkTxHistory wid txs = fold $ do
     (tx, meta) <- txs
     pure $ mkTxCore wid tx meta
+
+dropTxRelationContext :: TxRelationA -> TxRelation
+dropTxRelationContext TxRelationF {..} = TxRelationF
+  (txRelation_metas)
+  (Identity .  withTxOut_value <$> txRelation_ins)
+  (Identity .  withTxOut_value <$> txRelation_colls)
+  txRelation_outs
+  txRelation_collouts
+  txRelation_withdraws
 

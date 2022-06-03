@@ -29,13 +29,19 @@ import Prelude hiding
     ( lookup )
 
 import Control.Exception
-    ( Exception, toException )
+    ( Exception )
 import Control.Monad
     ( guard, join, (<=<) )
 import Data.Bifunctor
     ( first )
 import Data.Delta
-    ( Delta (..), Embedding, Embedding' (..), liftUpdates, mkEmbedding )
+    ( Delta (..)
+    , Embedding
+    , Embedding' (..)
+    , StoreException (StoreException)
+    , liftUpdates
+    , mkEmbedding
+    )
 import Data.List
     ( unfoldr )
 import Data.Map.Strict
@@ -254,7 +260,7 @@ chainIntoTable toPile fromPile = mkEmbedding Embedding'{load,write,update}
     load = toEither . fmap (fmap $ fromPile . Pile)
         . fromEdges . getPile . Table.toPile
       where
-        toEither = maybe (Left $ toException ErrMalformedChainTable) Right
+        toEither = maybe (Left $ StoreException ErrMalformedChainTable) Right
 
     write = Table.fromList
         . concatMap (flattenEdge . fmap (getPile . toPile)) . toEdges

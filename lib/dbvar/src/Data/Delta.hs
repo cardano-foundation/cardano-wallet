@@ -1,8 +1,11 @@
 {-# LANGUAGE BangPatterns #-}
+{-# LANGUAGE ExistentialQuantification #-}
 {-# LANGUAGE GADTs #-}
 {-# LANGUAGE NamedFieldPuns #-}
+{-# LANGUAGE StandaloneDeriving #-}
 {-# LANGUAGE TupleSections #-}
 {-# LANGUAGE TypeFamilies #-}
+
 {- HLINT ignore "Use newtype instead of data" -}
 module Data.Delta (
     -- * Synopsis
@@ -22,6 +25,7 @@ module Data.Delta (
 
     -- * Embedding of types and delta encodings
     -- $Embedding
+    , StoreException (..)
     , Embedding
     , module Data.Semigroupoid
     , Embedding' (..), mkEmbedding
@@ -35,7 +39,7 @@ module Data.Delta (
 import Prelude
 
 import Control.Exception
-    ( SomeException )
+    ( Exception )
 import Data.Either
     ( fromRight )
 import Data.Kind
@@ -47,6 +51,8 @@ import Data.Semigroupoid
 import Data.Set
     ( Set )
 
+import Data.Data
+    ( Typeable )
 import qualified Data.Set as Set
 
 {-------------------------------------------------------------------------------
@@ -204,6 +210,13 @@ instance Ord a => Monoid (DeltaSet a) where
 {-------------------------------------------------------------------------------
     Embedding
 -------------------------------------------------------------------------------}
+
+data StoreException = forall a. (Typeable a, Show a) => StoreException a
+
+deriving instance Show StoreException
+
+instance  Exception StoreException
+
 {- $Embedding
 
 An 'Embedding'@ da db@ embeds one type and its delta encoding @da@
@@ -260,7 +273,7 @@ properties:
 data Embedding' da db where
     Embedding'
         :: (Delta da, Delta db, a ~ Base da, b ~ Base db) =>
-        { load   :: b -> Either SomeException a
+        { load   :: b -> Either StoreException a
         , write  :: a -> b
         , update :: a -> b -> da -> db
         } -> Embedding' da db
@@ -269,7 +282,7 @@ data Embedding' da db where
 -- To construct an embedding, use 'mkEmbedding'.
 data Embedding da db = Embedding
     { inject  :: Base da -> Machine da db
-    , project :: Base db -> Either SomeException (Base da, Machine da db)
+    , project :: Base db -> Either StoreException (Base da, Machine da db)
     }
 
 -- | Construct 'Embedding' with efficient composition

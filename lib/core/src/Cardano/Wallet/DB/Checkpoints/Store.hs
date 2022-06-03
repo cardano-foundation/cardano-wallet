@@ -91,7 +91,7 @@ import Control.Monad.Trans.Maybe
 import Data.Bifunctor
     ( bimap, second )
 import Data.DBVar
-    ( Store (..) )
+    ( Store (..), StoreException (StoreException) )
 import Data.Functor
     ( (<&>) )
 import Data.Generics.Internal.VL.Lens
@@ -123,8 +123,6 @@ import Database.Persist.Sql
     , (==.)
     , (>.)
     )
-import UnliftIO.Exception
-    ( toException )
 
 import Cardano.Wallet.DB.Checkpoints.Model
     ( DeltaCheckpoints (PutCheckpoint, RestrictTo, RollbackTo)
@@ -162,7 +160,7 @@ mkStoreCheckpoints
 mkStoreCheckpoints wid =
     Store{ loadS = load, writeS = write, updateS = \_ -> update }
   where
-    load = bimap toException loadCheckpoints <$> selectAllCheckpoints wid
+    load = bimap StoreException loadCheckpoints <$> selectAllCheckpoints wid
 
     write cps = forM_ (Map.toList $ cps ^. #checkpoints) $ \(pt,cp) ->
             update (PutCheckpoint pt cp)

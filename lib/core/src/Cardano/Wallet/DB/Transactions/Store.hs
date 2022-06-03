@@ -5,24 +5,25 @@ module Cardano.Wallet.DB.Transactions.Store where
 
 import Cardano.Wallet.DB
     ( ErrNoSuchWallet (ErrNoSuchWallet) )
+import Cardano.Wallet.DB.Transactions.Model
+    ( dropTxRelationContext )
 import Cardano.Wallet.DB.Transactions.Select
-    ()
+    ( selectWalletTxRelation )
 import Cardano.Wallet.DB.Transactions.Types
     ( DeltaTxHistory (DeltaTxHistory), TxHistory (TxHistory) )
 import Cardano.Wallet.DB.Transactions.Update
-    ( updateTxHistory )
+    ( putTxs )
 import Cardano.Wallet.DB.Unstored
     ( selectWallet )
 import Cardano.Wallet.Primitive.Types
     ( WalletId )
 import Control.Exception
-    ( SomeException, throw, Exception )
+    ( throw )
 import Data.DBVar
-    ( Store (Store, loadS, updateS, writeS) )
+    ( Store (Store, loadS, updateS, writeS), StoreException (StoreException) )
 import Database.Persist.Sql
     ( SqlPersistT )
 import Prelude
-import Data.Typeable (Typeable)
 
 mkStoreTransactions :: WalletId -> Store (SqlPersistT IO) DeltaTxHistory
 mkStoreTransactions wid =
@@ -36,19 +37,16 @@ update :: WalletId -> TxHistory -> DeltaTxHistory -> SqlPersistT IO ()
 update wid _ (DeltaTxHistory (TxHistory txs)) =
     selectWallet wid >>= \case
         Nothing -> throw 
-            $ Exceptional 
+            $ StoreException
             $ ErrNoSuchWallet wid
-        Just _ -> updateTxHistory wid txs
+        Just _ -> putTxs txs
 
 write :: WalletId -> TxHistory -> SqlPersistT IO ()
 write = error "write tx history not implemented"
 
-load :: WalletId -> SqlPersistT IO (Either SomeException TxHistory)
-load = fmap (Right . TxHistory) . undefined
+load :: WalletId -> SqlPersistT IO (Either StoreException  TxHistory)
+load wid = Right . TxHistory . dropTxRelationContext 
+    <$> selectWalletTxRelation wid
 
-newtype  Exceptional a = Exceptional a 
-    deriving (Show,Eq)
 
-instance (Typeable a, Show a) 
-    => Exception (Exceptional a)
 

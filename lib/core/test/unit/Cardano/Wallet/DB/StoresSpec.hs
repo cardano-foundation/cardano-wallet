@@ -163,7 +163,7 @@ prop_StoreWallet db (wid, InitialCheckpoint cp0) =
     toIO = runQuery db
     setup = run . toIO $ initializeWallet wid
     prop = do
-        let Just w0 = fromGenesis cp0 mempty
+        let Just w0 = fromGenesis wid cp0 mempty
         prop_StoreUpdates toIO (mkStoreWallet wid) (pure w0) genDeltaWalletState
 
 genDeltaWalletState
