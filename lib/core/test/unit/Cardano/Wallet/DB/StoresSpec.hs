@@ -24,7 +24,7 @@ import Cardano.Wallet.DB.Sqlite.Schema
 import Cardano.Wallet.DB.Sqlite.Types
     ( BlockId (..) )
 import Cardano.Wallet.DB.Wallets.State
-    ( DeltaWalletState, DeltaWalletState1 (..), fromGenesis, getLatest )
+    ( DeltaWalletState, DeltaWalletState1 (..), fromGenesis, getLatestCheckpoint )
 import Cardano.Wallet.DB.Wallets.Store
     ( PersistAddressBook (..), mkStoreWallet )
 import Cardano.Wallet.Primitive.AddressDerivation
@@ -180,7 +180,7 @@ genDeltaWalletState wallet = frequency . map (second updateCheckpoints) $
   where
     updateCheckpoints gen = (\x -> [UpdateCheckpoints x]) <$> gen
 
-    slotLatest = case getSlot . snd . fromWallet $ getLatest wallet of
+    slotLatest = case getSlot . snd . fromWallet $ getLatestCheckpoint wallet of
         Origin -> 0
         At (SlotNo s) -> s
     genSlotNo = SlotNo . (slotLatest +) <$> choose (1,10)

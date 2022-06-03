@@ -38,7 +38,7 @@ import Cardano.Wallet.DB.Transactions.Store
     ( mkStoreTransactions )
 import Cardano.Wallet.DB.Wallets.State
     ( DeltaWalletState
-    , DeltaWalletState1 (ReplacePrologue, UpdateCheckpoints)
+    , DeltaWalletState1 (ReplacePrologue, UpdateCheckpoints, UpdateTransactions)
     , WalletState (WalletState)
     )
 import Control.Exception
@@ -67,7 +67,8 @@ mkStoreWallets
     :: forall s key. (PersistAddressBook s, key ~ W.WalletId)
     => Store (SqlPersistT IO)
         (DeltaMap key (DeltaWalletState s))
-mkStoreWallets = Store{loadS=load,writeS=write,updateS=update}
+mkStoreWallets = Store
+    {loadS = load, writeS = write, updateS = update}
   where
     write = error "mkStoreWalletsCheckpoints: not implemented"
 
@@ -129,3 +130,6 @@ mkStoreWallet wid =
     update1 (UpdateCheckpoints delta) =
         -- FIXME LATER during ADP-1043: remove 'undefined'
         updateS storeCheckpoints undefined delta
+    update1 (UpdateTransactions delta) =
+     -- FIXME LATER during ADP-1043: remove 'undefined'
+        updateS storeTransactions undefined delta

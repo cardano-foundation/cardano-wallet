@@ -18,7 +18,7 @@ module Cardano.Wallet.DB.Checkpoints.Model
     , checkpoints
     , loadCheckpoints
     , fromGenesis
-    , getLatest
+    , getLatestCheckpoint
     , findNearestPoint
 
     -- * Delta types
@@ -109,11 +109,12 @@ fromGenesis :: a -> Checkpoints a
 fromGenesis a = Checkpoints $ Map.singleton W.Origin a
 
 -- | Get the checkpoint with the largest 'SlotNo'.
-getLatest :: Checkpoints a -> (W.Slot, a)
-getLatest = fromMaybe err . Map.lookupMax . view #checkpoints
+getLatestCheckpoint :: Checkpoints a -> (W.Slot, a)
+getLatestCheckpoint = fromMaybe err . Map.lookupMax . view #checkpoints
   where
     err = error
-        "getLatest: there should always be at least a genesis checkpoint"
+        "getLatestCheckpoint: \
+          \there should always be at least a genesis checkpoint"
 
 -- | Find the nearest 'Checkpoint' that is either at the given point or before.
 findNearestPoint :: Checkpoints a -> W.Slot -> Maybe W.Slot

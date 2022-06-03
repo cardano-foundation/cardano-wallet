@@ -264,7 +264,7 @@ import Cardano.Wallet.DB.Checkpoints.AddressBook
 import Cardano.Wallet.DB.Checkpoints.Model
     ( DeltaCheckpoints (..), fromWallet, getSlot )
 import Cardano.Wallet.DB.Wallets.State
-    ( DeltaMap (..), DeltaWalletState1 (..), getLatest )
+    ( DeltaMap (..), DeltaWalletState1 (..), getLatestCheckpoint )
 import Cardano.Wallet.Logging
     ( BracketLog
     , BracketLog' (..)
@@ -1455,7 +1455,7 @@ createRandomAddress ctx wid pwd mIx = db & \DBLayer{..} ->
             Right $ addAddress $ Rnd.withRNG s0 $ \rng ->
                 Rnd.findUnusedPath rng accIx (Rnd.unavailablePaths s0)
       where
-        s0 = getState $ getLatest wal
+        s0 = getState $ getLatestCheckpoint wal
         accIx = Rnd.defaultAccountIndex s0
         isKnownIndex addrIx s =
             (liftIndex accIx, liftIndex addrIx) `Set.member` Rnd.unavailablePaths s
@@ -1489,7 +1489,7 @@ importRandomAddresses ctx wid addrs = db & \DBLayer{..} ->
         Left err -> Left $ ErrImportAddr err
         Right s1 -> Right ([ ReplacePrologue $ getPrologue s1 ], ())
       where
-        s0  = getState $ getLatest wal
+        s0  = getState $ getLatestCheckpoint wal
         es1 = foldl' (\s addr -> s >>= Rnd.importAddress addr) (Right s0) addrs
 
 -- | Adjust a specific wallet if it exists or return 'ErrNoSuchWallet'.
@@ -2023,7 +2023,7 @@ assignChangeAddressesAndUpdateDb ctx wid generateChange selection =
         -- Newly generated change addresses only change the Prologue
         ([ReplacePrologue $ getPrologue stateUpdated], selectionUpdated)
       where
-        s = getState $ getLatest wallet
+        s = getState $ getLatestCheckpoint wallet
         (selectionUpdated, stateUpdated) =
             assignChangeAddresses generateChange selection s
 
@@ -3352,7 +3352,7 @@ updateCosigner ctx wid cosignerXPub cosigner cred = db & \DBLayer{..} ->
             Left err -> Left $ ErrAddCosignerKey err
             Right s1 -> Right ([ReplacePrologue $ getPrologue s1], ())
       where
-        s0 = getState $ getLatest wallet
+        s0 = getState $ getLatestCheckpoint wallet
 
 -- NOTE
 -- Addresses coming from the transaction history might be base (having payment credential) or

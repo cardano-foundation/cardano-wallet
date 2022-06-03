@@ -21,7 +21,7 @@ module Cardano.Wallet.DB.Wallets.State
     ( -- * Wallet state
       WalletState (..)
     , fromGenesis
-    , getLatest
+    , getLatestCheckpoint
     , findNearestPoint
 
     -- * Delta types
@@ -35,12 +35,11 @@ import Prelude
 import Cardano.Wallet.DB.Checkpoints.AddressBook
     ( AddressBookIso (..), Prologue )
 import Cardano.Wallet.DB.Checkpoints.Model hiding
-    ( checkpoints, findNearestPoint, fromGenesis, getLatest )
-
+    ( checkpoints, findNearestPoint, fromGenesis, getLatestCheckpoint )
 import Cardano.Wallet.DB.Transactions.Model
     ( mkTxHistory )
 import Cardano.Wallet.DB.Transactions.Types
-    ( TxHistory (TxHistory) )
+    ( TxHistory (TxHistory), DeltaTxHistory )
 import Cardano.Wallet.Primitive.Types
     ( WalletId )
 import Data.Delta
@@ -99,9 +98,10 @@ fromGenesis wid cp txs
     (prologue, checkpoint) = fromWallet cp
 
 -- | Get the wallet checkpoint with the largest slot number
-getLatest :: AddressBookIso s => WalletState s -> W.Wallet s
-getLatest w =
-    toWallet (w ^. #prologue) . snd $ CPS.getLatest (w ^. #checkpoints)
+getLatestCheckpoint :: AddressBookIso s => WalletState s -> W.Wallet s
+getLatestCheckpoint w =
+    toWallet (w ^. #prologue) . snd
+        $ CPS.getLatestCheckpoint (w ^. #checkpoints)
 
 -- | Find the nearest 'Checkpoint' that is either at the given point or before.
 findNearestPoint :: WalletState s -> W.Slot -> Maybe W.Slot
@@ -117,17 +117,19 @@ data DeltaWalletState1 s
     -- ^ Replace the prologue of the address discovery state
     | UpdateCheckpoints (DeltaCheckpoints (WalletCheckpoint s))
     -- ^ Update the wallet checkpoints.
+    | UpdateTransactions DeltaTxHistory
+    -- ^ Update the wallet transactions.
 
 instance Delta (DeltaWalletState1 s) where
     type Base (DeltaWalletState1 s) = WalletState s
     apply (ReplacePrologue p) = over #prologue $ const p
     apply (UpdateCheckpoints d) = over #checkpoints $ apply d
-    -- apply (UpdateTransactions d) = over #transactions $ apply d
+    apply (UpdateTransactions d) = over #transactions $ apply d
 
 instance Buildable (DeltaWalletState1 s) where
     build (ReplacePrologue _) = "ReplacePrologue …"
     build (UpdateCheckpoints d) = "UpdateCheckpoints (" <> build d <> ")"
-    -- build (UpdateTransactions d) = "UpdateTransactions (" <> build d <> ")"
+    build (UpdateTransactions d) = "UpdateTransactions (" <> build d <> ")"
 
 instance Show (DeltaWalletState1 s) where
     show = pretty

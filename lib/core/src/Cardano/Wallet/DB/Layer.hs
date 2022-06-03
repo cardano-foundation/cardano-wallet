@@ -129,9 +129,10 @@ import Cardano.Wallet.DB.Unstored
 import Cardano.Wallet.DB.Wallets.State
     ( DeltaMap (..)
     , DeltaWalletState1 (..)
+    , WalletState
     , findNearestPoint
     , fromGenesis
-    , getLatest
+    , getLatestCheckpoint
     )
 import Cardano.Wallet.DB.Wallets.Store
     ( PersistAddressBook (..), blockHeaderFromEntity, mkStoreWallets )
@@ -200,6 +201,10 @@ import UnliftIO.Exception
 import UnliftIO.MVar
     ( modifyMVar, modifyMVar_, newMVar, readMVar, withMVar )
 
+import Cardano.Wallet.DB.Transactions.Model
+    ( mkTxHistory )
+import Cardano.Wallet.DB.Transactions.Types
+    ( DeltaTxHistory (DeltaTxHistory), TxHistory (TxHistory) )
 import qualified Cardano.Wallet.Primitive.Model as W
 import qualified Cardano.Wallet.Primitive.Types as W
 import qualified Cardano.Wallet.Primitive.Types.Coin as Coin
@@ -514,7 +519,13 @@ newDBLayerWith _cacheBehavior _tr ti SqliteContext{runQuery} = do
             :: W.WalletId
             -> SqlPersistT IO (Maybe (W.Wallet s))
         readCheckpoint_ wid =
-            fmap getLatest . Map.lookup wid <$> readDBVar walletsDB_
+            fmap getLatestCheckpoint  . Map.lookup wid <$> readDBVar walletsDB_
+    let readWalletState
+            :: (WalletState s -> a)
+            -> W.WalletId
+            -> SqlPersistT IO (Maybe a)
+        readWalletState what wid =
+            fmap what . Map.lookup wid <$> readDBVar walletsDB_
 
     let pruneCheckpoints
             :: W.WalletId
@@ -585,7 +596,7 @@ newDBLayerWith _cacheBehavior _tr ti SqliteContext{runQuery} = do
                         ]
                 in  (delta, Right ())
 
-        , readCheckpoint = readCheckpoint_
+        , readCheckpoint = readWalletState getLatestCheckpoint
 
         , listCheckpoints = \wid -> do
             let toChainPoint = W.chainPointFromBlockHeader
@@ -636,7 +647,7 @@ newDBLayerWith _cacheBehavior _tr ti SqliteContext{runQuery} = do
                         $ view #currentTip wcp
 
         , prune = \wid epochStability -> ExceptT $
-            readCheckpoint_ wid >>= \case
+            readWalletState getLatestCheckpoint wid >>= \case
         Nothing -> pure $ Left $ ErrNoSuchWallet wid
         Just cp -> Right <$> do
             let tip = cp ^. #currentTip
@@ -700,13 +711,25 @@ newDBLayerWith _cacheBehavior _tr ti SqliteContext{runQuery} = do
         {-----------------------------------------------------------------------
                                      Tx History
         -----------------------------------------------------------------------}
-        , putTxHistory = \wid txs -> ExceptT $ do
-            selectWallet wid >>= \case
-                Nothing -> pure $ Left $ ErrNoSuchWallet wid
-                Just _ -> do
-                    updateTxHistory wid txs
-                    pure $ Right ()
+        -- , putTxHistory = \wid txs -> ExceptT $ do
+        --     selectWallet wid >>= \case
+        --         Nothing -> pure $ Left $ ErrNoSuchWallet wid
+        --         Just _ -> do
+        --             updateTxHistory wid txs
+        --             pure $ Right ()
 
+        , putTxHistory  = \wid deltaTxHistory -> ExceptT $
+            modifyDBMaybe walletsDB_ $ \ws ->
+        case Map.lookup wid ws of
+            Nothing -> (Nothing, Left $ ErrNoSuchWallet wid)
+            Just _  ->
+                let delta = Just $ Adjust wid
+                        [UpdateTransactions
+                            $ DeltaTxHistory
+                            $ TxHistory
+                            $ mkTxHistory wid deltaTxHistory
+                        ]
+                in  (delta, Right ())
         , readTxHistory = \wid minWithdrawal order range status ->
             readCheckpoint_ wid >>= \case
         Nothing -> pure []
