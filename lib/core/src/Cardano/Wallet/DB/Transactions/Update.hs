@@ -52,8 +52,7 @@ updateTxHistory :: W.WalletId -> [(W.Tx, W.TxMeta)] -> SqlPersistT IO ()
 updateTxHistory wid = putTxs . mkTxHistory wid
 
 -- | Insert multiple transactions, removing old instances first.
-putTxs ::
-    TxRelation -> SqlPersistT IO ()
+putTxs :: TxRelation -> SqlPersistT IO ()
 putTxs es = do
     let ( txMetas,
           txIns,
