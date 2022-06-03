@@ -3,18 +3,20 @@
 {-# LANGUAGE StandaloneDeriving #-}
 {-# LANGUAGE TypeFamilies #-}
 {-# OPTIONS_GHC -Wno-orphans #-}
-module Cardano.Wallet.DB.Sqlite.WrapSTM where
 
+module Cardano.Wallet.DB.Sqlite.WrapSTM () where
+
+import Prelude
+
+import Control.Applicative
+    ( Alternative )
 import Control.Monad.Class.MonadSTM
     ( MonadSTM (..) )
 import Control.Monad.Reader
     ( MonadPlus, ReaderT, liftIO )
 import Database.Persist.Sql
     ( SqlBackend )
-import Prelude
 
-import Control.Applicative
-    ( Alternative )
 import qualified Control.Concurrent.STM as STM
 
 {-------------------------------------------------------------------------------

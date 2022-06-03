@@ -12,18 +12,33 @@
 
 {-# OPTIONS_GHC -fno-warn-orphans #-}
 
-{- HLINT ignore "Redundant flip" -}
-{- HLINT ignore "Redundant ^." -}
-{- HLINT ignore "Use fst" -}
-{- HLINT ignore "Use snd" -}
 
 -- |
 -- Copyright: © 2018-2020 IOHK
 -- License: Apache-2.0
 --
 -- An implementation of the DBLayer which uses Persistent and SQLite.
-
 module Cardano.Wallet.DB.Unstored
+  ( ErrInitializeGenesisAbsent (..)
+  , ErrRollbackTo (..)
+  , deleteTxMetas
+  , updateTxMetas
+  , deleteLooseTransactions
+  , selectWallet
+  , deleteDelegationCertificates
+  , pruneLocalTxSubmission
+  , updatePendingTxForExpiryQuery
+  , deleteStakeKeyCerts
+  , localTxSubmissionFromEntity
+  , listPendingLocalTxSubmissionQuery
+  , selectPrivateKey
+  , selectGenesisParameters
+  , mkPrivateKeyEntity
+  , mkWalletMetadataUpdate
+  , mkWalletEntity
+  , readWalletDelegation
+  , readWalletMetadata
+  )
 where
 
 import Prelude
@@ -47,12 +62,8 @@ import Cardano.Wallet.Primitive.AddressDerivation
     ( Depth (..), PersistPrivateKey (..) )
 import Cardano.Wallet.Primitive.Passphrase
     ( PassphraseHash )
-import qualified Cardano.Wallet.Primitive.Passphrase as W
 import Cardano.Wallet.Primitive.Slotting
     ( TimeInterpreter, firstSlotInEpoch, interpretQuery )
-import qualified Cardano.Wallet.Primitive.Types as W
-import qualified Cardano.Wallet.Primitive.Types.Hash as W
-import qualified Cardano.Wallet.Primitive.Types.Tx as W
 import Control.Monad.IO.Class
     ( MonadIO (..) )
 import Data.Coerce
@@ -89,6 +100,11 @@ import Database.Persist.Sql
     )
 import UnliftIO.Exception
     ( Exception )
+
+import qualified Cardano.Wallet.Primitive.Passphrase as W
+import qualified Cardano.Wallet.Primitive.Types as W
+import qualified Cardano.Wallet.Primitive.Types.Hash as W
+import qualified Cardano.Wallet.Primitive.Types.Tx as W
 
 readWalletMetadata
     :: W.WalletId

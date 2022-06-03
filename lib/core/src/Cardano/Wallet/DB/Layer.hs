@@ -7,9 +7,7 @@
 {-# LANGUAGE NamedFieldPuns #-}
 {-# LANGUAGE OverloadedLabels #-}
 {-# LANGUAGE RankNTypes #-}
-
 {-# LANGUAGE ScopedTypeVariables #-}
-
 {-# LANGUAGE TypeApplications #-}
 {-# LANGUAGE TypeFamilies #-}
 {-# LANGUAGE UndecidableInstances #-}
@@ -139,12 +137,8 @@ import Cardano.Wallet.DB.Wallets.Store
     ( PersistAddressBook (..), blockHeaderFromEntity, mkStoreWallets )
 import Cardano.Wallet.Primitive.AddressDerivation
     ( Depth (..), PersistPrivateKey (..), WalletKey (..) )
-import qualified Cardano.Wallet.Primitive.Model as W
 import Cardano.Wallet.Primitive.Slotting
     ( TimeInterpreter, epochOf, interpretQuery )
-import qualified Cardano.Wallet.Primitive.Types as W
-import qualified Cardano.Wallet.Primitive.Types.Coin as Coin
-import qualified Cardano.Wallet.Primitive.Types.Tx as W
 import Control.Monad
     ( forM, unless, void, when, (<=<) )
 import Control.Monad.IO.Class
@@ -206,6 +200,10 @@ import UnliftIO.Exception
 import UnliftIO.MVar
     ( modifyMVar, modifyMVar_, newMVar, readMVar, withMVar )
 
+import qualified Cardano.Wallet.Primitive.Model as W
+import qualified Cardano.Wallet.Primitive.Types as W
+import qualified Cardano.Wallet.Primitive.Types.Coin as Coin
+import qualified Cardano.Wallet.Primitive.Types.Tx as W
 {-------------------------------------------------------------------------------
                                Database "factory"
              (a directory containing one database file per wallet)
