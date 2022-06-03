@@ -1408,9 +1408,7 @@ _assignScriptRedeemers pparams ti resolveInput redeemers tx =
                 }
 
     addScriptIntegrityHashBabbage
-        :: forall e.
-        ( e ~ Cardano.ShelleyLedgerEra Cardano.BabbageEra )
-     --   , HasField "_costmdls" (Babbage.PParams (Babbage.BabbageEra Compatibility.StandardCrypto) Alonzo.CostModels) )
+        :: forall e. ( e ~ Cardano.ShelleyLedgerEra Cardano.BabbageEra )
         => BabbageTx
         -> BabbageTx
     addScriptIntegrityHashBabbage babbageTx =
