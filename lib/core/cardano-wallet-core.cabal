@@ -81,6 +81,7 @@ library
     , free
     , generic-lens
     , generic-arbitrary
+    , generic-deriving
     , generics-sop
     , hashable
     , hedgehog
@@ -202,9 +203,13 @@ library
       Cardano.Wallet.DB.Checkpoints.AddressBook
       Cardano.Wallet.DB.Checkpoints.Model
       Cardano.Wallet.DB.Checkpoints.Store
-      Cardano.Wallet.DB.Transactions.Update
-      Cardano.Wallet.DB.Transactions.Select
       Cardano.Wallet.DB.Transactions.Delete
+      Cardano.Wallet.DB.Transactions.Delta
+      Cardano.Wallet.DB.Transactions.Model
+      Cardano.Wallet.DB.Transactions.Select
+      Cardano.Wallet.DB.Transactions.Store
+      Cardano.Wallet.DB.Transactions.Types
+      Cardano.Wallet.DB.Transactions.Update
       Cardano.Wallet.DB.Wallets.State
       Cardano.Wallet.DB.Wallets.Store
       Cardano.Wallet.DB.Sqlite.Migration
@@ -266,6 +271,7 @@ library
       Cardano.Wallet.Version
       Cardano.Wallet.Version.TH
       Control.Concurrent.Concierge
+      Control.Monad.Exception.Unchecked
       Control.Monad.Random.Extra
       Crypto.Hash.Utils
       Data.Aeson.Extra
