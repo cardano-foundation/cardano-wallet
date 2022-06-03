@@ -400,6 +400,13 @@ extra-deps:
     - ntp-client
     - ouroboros-consensus-mock
 
+  - git: https://github.com/input-output-hk/io-sim
+    commit: 29249b284e8e9d654b5c973b6ec18e65eb599713
+    subdirs:
+      io-classes
+      io-sim
+      strict-stm
+
   - git: https://github.com/input-output-hk/plutus
     commit: fec94223a985e34d3b270460c8f150002f41b85b
     subdirs:
