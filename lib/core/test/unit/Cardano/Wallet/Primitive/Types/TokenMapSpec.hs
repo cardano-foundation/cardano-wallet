@@ -1,3 +1,6 @@
+{-# LANGUAGE DataKinds #-}
+{-# LANGUAGE DeriveAnyClass #-}
+{-# LANGUAGE DerivingStrategies #-}
 {-# LANGUAGE FlexibleInstances #-}
 {-# LANGUAGE GeneralizedNewtypeDeriving #-}
 {-# LANGUAGE NoMonomorphismRestriction #-}
@@ -5,6 +8,7 @@
 {-# LANGUAGE StandaloneDeriving #-}
 {-# LANGUAGE TemplateHaskell #-}
 {-# LANGUAGE TypeApplications #-}
+{-# LANGUAGE ViewPatterns #-}
 {-# OPTIONS_GHC -fno-warn-orphans #-}
 {- HLINT ignore "Use camelCase" -}
 {- HLINT ignore "Functor law" -}
@@ -19,6 +23,8 @@ import Algebra.PartialOrd
     ( PartialOrd (..) )
 import Cardano.Numeric.Util
     ( inAscendingPartialOrder )
+import Cardano.Wallet.Primitive.Types.Hash
+    ( Hash (..) )
 import Cardano.Wallet.Primitive.Types.TokenMap
     ( AssetId (..)
     , Flat (..)
@@ -94,7 +100,9 @@ import Test.Hspec.Extra
 import Test.QuickCheck
     ( Arbitrary (..)
     , Blind (..)
+    , CoArbitrary (..)
     , Fun
+    , Function (..)
     , Property
     , Testable
     , applyFun
@@ -114,6 +122,8 @@ import Test.QuickCheck
     )
 import Test.QuickCheck.Classes
     ( eqLaws, monoidLaws, ordLaws, semigroupLaws, semigroupMonoidLaws )
+import Test.QuickCheck.Instances.ByteString
+    ()
 import Test.Utils.Laws
     ( testLawsMany )
 import Test.Utils.Laws.PartialOrd
@@ -261,6 +271,13 @@ spec =
             property prop_size_isEmpty
         it "prop_size_toFlatList" $ do
             property prop_size_toFlatList
+
+    parallel $ describe "Transformations" $ do
+
+        it "prop_mapAssetIds_identity" $ do
+            prop_mapAssetIds_identity & property
+        it "prop_mapAssetIds_composition" $ do
+            prop_mapAssetIds_composition & property
 
     parallel $ describe "Partitioning assets" $ do
 
@@ -713,6 +730,20 @@ checkCoverage_size m
     . cover 2 (TokenMap.size m >= 3) "size >= 3"
 
 --------------------------------------------------------------------------------
+-- Transformations
+--------------------------------------------------------------------------------
+
+prop_mapAssetIds_identity :: TokenMap -> Property
+prop_mapAssetIds_identity m =
+    TokenMap.mapAssetIds id m === m
+
+prop_mapAssetIds_composition
+    :: TokenMap -> Fun AssetId AssetId -> Fun AssetId AssetId -> Property
+prop_mapAssetIds_composition m (applyFun -> f) (applyFun -> g) =
+    TokenMap.mapAssetIds f (TokenMap.mapAssetIds g m) ===
+    TokenMap.mapAssetIds (f . g) m
+
+--------------------------------------------------------------------------------
 -- Partitioning assets
 --------------------------------------------------------------------------------
 
@@ -1062,7 +1093,7 @@ newtype Positive a = Positive
     { getPositive :: a }
     deriving (Eq, Show)
 
-deriving instance Arbitrary (Lexicographic TokenMap)
+deriving newtype instance Arbitrary (Lexicographic TokenMap)
 
 instance Arbitrary a => Arbitrary (Flat a) where
     arbitrary = Flat <$> arbitrary
@@ -1079,6 +1110,9 @@ instance Arbitrary a => Arbitrary (NonEmpty a) where
 instance Arbitrary AssetId where
     arbitrary = genAssetId
     shrink = shrinkAssetId
+
+deriving anyclass instance CoArbitrary AssetId
+deriving anyclass instance Function AssetId
 
 instance Arbitrary TokenMap where
     arbitrary = genTokenMapSmallRange
@@ -1102,9 +1136,18 @@ instance Arbitrary TokenName where
     arbitrary = genTokenName
     shrink = shrinkTokenName
 
+deriving anyclass instance CoArbitrary TokenName
+deriving anyclass instance Function TokenName
+
 instance Arbitrary TokenPolicyId where
     arbitrary = genTokenPolicyId
     shrink = shrinkTokenPolicyId
+
+deriving anyclass instance CoArbitrary TokenPolicyId
+deriving anyclass instance Function TokenPolicyId
+
+deriving anyclass instance CoArbitrary (Hash "TokenPolicy")
+deriving anyclass instance Function (Hash "TokenPolicy")
 
 instance Arbitrary TokenQuantity where
     -- We generate small token quantities in order to increase the chance of
