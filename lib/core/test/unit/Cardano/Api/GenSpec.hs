@@ -84,13 +84,17 @@ import Cardano.Api.Byron
     ( KeyWitness (ByronKeyWitness), WitnessNetworkIdOrByronAddress (..) )
 import Cardano.Api.Gen
 import Cardano.Api.Shelley
-    ( Certificate (..), StakeCredential (..), ReferenceScript (..), refInsScriptsAndInlineDatsSupportedInEra )
+    ( Certificate (..)
+    , ReferenceScript (..)
+    , StakeCredential (..)
+    , refInsScriptsAndInlineDatsSupportedInEra
+    )
 import Cardano.Chain.UTxO
     ( TxInWitness (..) )
+import qualified Cardano.Ledger.BaseTypes as Ledger
+    ( CertIx (..), TxIx (..) )
 import Cardano.Ledger.Credential
     ( Ptr (..) )
-import qualified Cardano.Ledger.BaseTypes as Ledger
-    ( TxIx (..), CertIx (..) )
 import Cardano.Ledger.Shelley.API
     ( MIRPot (..) )
 import Data.Char
@@ -108,7 +112,7 @@ import Data.Maybe
 import Data.Ratio
     ( denominator, numerator )
 import Data.Word
-    ( Word16, Word32 )
+    ( Word16, Word32, Word8 )
 import Numeric.Natural
     ( Natural )
 import Test.Hspec
@@ -376,19 +380,19 @@ spec =
                             (genUpdateProposalCoverage era)
 
 genTxIxCoverage :: TxIx -> Property
-genTxIxCoverage (TxIx ix) = unsignedCoverage (maxBound @Word16) "txIx" ix
+genTxIxCoverage (TxIx ix) = unsignedCoverage (6 * maxBound @Word8) "txIx" ix
 
 instance Arbitrary TxIx where
     arbitrary = genTxIndex
 
 genTxIxCoverage' :: Ledger.TxIx -> Property
-genTxIxCoverage' (Ledger.TxIx ix) = unsignedCoverage (maxBound @Word16) "txIx" ix
+genTxIxCoverage' (Ledger.TxIx ix) = unsignedCoverage (maxBound @Word16 - 1024) "txIx" ix
 
 instance Arbitrary Ledger.TxIx where
     arbitrary = genTxIx
 
 genCertIxCoverage :: Ledger.CertIx -> Property
-genCertIxCoverage (Ledger.CertIx ix) = unsignedCoverage (maxBound @Word16) "certIx" ix
+genCertIxCoverage (Ledger.CertIx ix) = unsignedCoverage (maxBound @Word16 - 1024) "certIx" ix
 
 instance Arbitrary Ledger.CertIx where
     arbitrary = genCertIx
