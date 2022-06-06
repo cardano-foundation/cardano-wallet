@@ -30,6 +30,8 @@ mkShell rec {
     nixWrapped
     pkgconfig
     gnutar
+    autoconf
+    secp256k1
   ]
   ++ lib.optional (!stdenv.isDarwin) git
   ++ (with haskellProject.hsPkgs; [
