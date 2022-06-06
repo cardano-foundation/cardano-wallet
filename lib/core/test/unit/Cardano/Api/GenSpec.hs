@@ -112,7 +112,7 @@ import Data.Maybe
 import Data.Ratio
     ( denominator, numerator )
 import Data.Word
-    ( Word16, Word32, Word8 )
+    ( Word16, Word32, Word64, Word8 )
 import Numeric.Natural
     ( Natural )
 import Test.Hspec
@@ -439,7 +439,7 @@ genTxInCollateralCoverage era collateral =
             TxInsCollateral _ cs -> Just $ length cs
 
 genSlotNoCoverage :: SlotNo -> Property
-genSlotNoCoverage = unsignedCoverage (maxBound @Word32) "slot number"
+genSlotNoCoverage = unsignedCoverage (maxBound @Word64 - 1000) "slot number"
 
 instance Arbitrary SlotNo where
     arbitrary = genSlotNo

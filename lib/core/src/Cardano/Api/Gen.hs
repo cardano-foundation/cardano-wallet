@@ -268,7 +268,15 @@ genTxInsCollateral era =
                           ]
 
 genSlotNo :: Gen SlotNo
-genSlotNo = SlotNo <$> arbitrary
+genSlotNo = do
+    boundary <- genBoundary
+    frequency
+        [ (20, pure $ SlotNo boundary)
+        , (20, pure $ SlotNo (maxBound @Word64 - boundary) )
+        , (60, SlotNo <$> arbitrary @Word64)
+        ]
+  where
+    genBoundary = choose (0, 10_000)
 
 genLovelace :: Gen Lovelace
 genLovelace = frequency
