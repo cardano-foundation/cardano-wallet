@@ -1,3 +1,9 @@
+{-# LANGUAGE DataKinds #-}
+{-# LANGUAGE DeriveAnyClass #-}
+{-# LANGUAGE DerivingStrategies #-}
+{-# LANGUAGE FlexibleInstances #-}
+{-# LANGUAGE StandaloneDeriving #-}
+{-# LANGUAGE ViewPatterns #-}
 {-# OPTIONS_GHC -fno-warn-orphans #-}
 
 -- |
@@ -10,12 +16,21 @@ module Cardano.Wallet.Primitive.Types.TxSpec
 
 import Prelude
 
+import Cardano.Wallet.Primitive.Types.Hash
+    ( Hash (..) )
+import Cardano.Wallet.Primitive.Types.TokenMap
+    ( AssetId (..) )
+import Cardano.Wallet.Primitive.Types.TokenMap.Gen
+    ( genAssetId, shrinkAssetId )
+import Cardano.Wallet.Primitive.Types.TokenPolicy
+    ( TokenName (..), TokenPolicyId (..) )
 import Cardano.Wallet.Primitive.Types.Tx
     ( SealedTx (..)
     , TxOut (..)
     , mockSealedTx
     , sealedTxFromBytes
     , txOutAssetIds
+    , txOutMapAssetIds
     , txOutRemoveAssetId
     )
 import Cardano.Wallet.Primitive.Types.Tx.Gen
@@ -35,7 +50,18 @@ import Test.Hspec.Extra
 import Test.Hspec.QuickCheck
     ( prop )
 import Test.QuickCheck
-    ( Arbitrary (..), Property, property, (.&&.), (===) )
+    ( Arbitrary (..)
+    , CoArbitrary (..)
+    , Fun (..)
+    , Function (..)
+    , Property
+    , applyFun
+    , property
+    , (.&&.)
+    , (===)
+    )
+import Test.QuickCheck.Instances.ByteString
+    ()
 
 import qualified Data.Foldable as F
 import qualified Data.Set as Set
@@ -50,8 +76,16 @@ spec = do
             prop_mockSealedTx
 
     parallel $ describe "Transformations" $ do
-        it "prop_txOutRemoveAssetId_txOutAssetIds" $
-            prop_txOutRemoveAssetId_txOutAssetIds & property
+
+        describe "txOutMapAssetIds" $ do
+            it "prop_txOutMapAssetIds_identity" $
+                prop_txOutMapAssetIds_identity & property
+            it "prop_txOutMapAssetIds_composition" $
+                prop_txOutMapAssetIds_composition & property
+
+        describe "txOutRemoveAssetId" $ do
+            it "prop_txOutRemoveAssetId_txOutAssetIds" $
+                prop_txOutRemoveAssetId_txOutAssetIds & property
 
 {-------------------------------------------------------------------------------
                          Evaluation of SealedTx fields
@@ -75,6 +109,16 @@ instance Arbitrary Gibberish where
 -- Transformations
 --------------------------------------------------------------------------------
 
+prop_txOutMapAssetIds_identity :: TxOut -> Property
+prop_txOutMapAssetIds_identity m =
+    txOutMapAssetIds id m === m
+
+prop_txOutMapAssetIds_composition
+    :: TxOut -> Fun AssetId AssetId -> Fun AssetId AssetId -> Property
+prop_txOutMapAssetIds_composition m (applyFun -> f) (applyFun -> g) =
+    txOutMapAssetIds f (txOutMapAssetIds g m) ===
+    txOutMapAssetIds (f . g) m
+
 prop_txOutRemoveAssetId_txOutAssetIds :: TxOut -> Property
 prop_txOutRemoveAssetId_txOutAssetIds txOut =
     case assetIdM of
@@ -92,6 +136,22 @@ prop_txOutRemoveAssetId_txOutAssetIds txOut =
 -- Arbitrary instances
 --------------------------------------------------------------------------------
 
+instance Arbitrary AssetId where
+    arbitrary = genAssetId
+    shrink = shrinkAssetId
+
+deriving anyclass instance CoArbitrary AssetId
+deriving anyclass instance Function AssetId
+
+deriving anyclass instance CoArbitrary (Hash "TokenPolicy")
+deriving anyclass instance Function (Hash "TokenPolicy")
+
 instance Arbitrary TxOut where
     arbitrary = genTxOut
     shrink = shrinkTxOut
+
+deriving anyclass instance CoArbitrary TokenName
+deriving anyclass instance Function TokenName
+
+deriving anyclass instance CoArbitrary TokenPolicyId
+deriving anyclass instance Function TokenPolicyId

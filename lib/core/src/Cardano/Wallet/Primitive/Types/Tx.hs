@@ -91,6 +91,7 @@ module Cardano.Wallet.Primitive.Types.Tx
     , txOutAssetIds
 
     -- * Transformations
+    , txOutMapAssetIds
     , txOutRemoveAssetId
 
     -- * Checks
@@ -984,6 +985,10 @@ txOutAssetIds (TxOut _ bundle) = TokenBundle.getAssets bundle
 --------------------------------------------------------------------------------
 -- Transformations
 --------------------------------------------------------------------------------
+
+txOutMapAssetIds :: (AssetId -> AssetId) -> TxOut -> TxOut
+txOutMapAssetIds f (TxOut address bundle) =
+    TxOut address (TokenBundle.mapAssetIds f bundle)
 
 txOutRemoveAssetId :: TxOut -> AssetId -> TxOut
 txOutRemoveAssetId (TxOut address bundle) asset =
