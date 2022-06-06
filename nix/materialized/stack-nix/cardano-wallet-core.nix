@@ -426,6 +426,7 @@
             "Cardano/Wallet/DB/Sqlite/TypesSpec"
             "Cardano/Wallet/DB/StateMachine"
             "Cardano/Wallet/DB/CheckpointsSpec"
+            "Cardano/Wallet/DB/Transactions/StoreSpec"
             "Cardano/Wallet/DummyTarget/Primitive/Types"
             "Cardano/Wallet/Network/LightSpec"
             "Cardano/Wallet/Network/PortsSpec"
