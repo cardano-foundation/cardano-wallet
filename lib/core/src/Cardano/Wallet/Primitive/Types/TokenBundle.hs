@@ -61,6 +61,9 @@ module Cardano.Wallet.Primitive.Types.TokenBundle
     -- * Queries
     , getAssets
 
+    -- * Transformations
+    , mapAssetIds
+
     -- * Unsafe operations
     , unsafeSubtract
 
@@ -384,6 +387,13 @@ equipartitionQuantitiesWithUpperBound (TokenBundle c m) maxQuantity =
 
 getAssets :: TokenBundle -> Set AssetId
 getAssets = TokenMap.getAssets . tokens
+
+--------------------------------------------------------------------------------
+-- Transformations
+--------------------------------------------------------------------------------
+
+mapAssetIds :: (AssetId -> AssetId) -> TokenBundle -> TokenBundle
+mapAssetIds f (TokenBundle c m) = TokenBundle c (TokenMap.mapAssetIds f m)
 
 --------------------------------------------------------------------------------
 -- Unsafe operations
