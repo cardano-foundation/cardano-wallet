@@ -47,6 +47,7 @@ module Cardano.Wallet.Primitive.Types.UTxO
 
     -- * Queries
     , assetIds
+    , txIds
 
     -- * Transformations
     , mapAssetIds
@@ -282,6 +283,9 @@ receiveD a b = (da, a <> b)
 
 assetIds :: UTxO -> Set AssetId
 assetIds (UTxO u) = foldMap txOutAssetIds u
+
+txIds :: UTxO -> Set (Hash "Tx")
+txIds (UTxO u) = Set.map (view #inputId) (Map.keysSet u)
 
 --------------------------------------------------------------------------------
 -- Transformations
