@@ -2,6 +2,7 @@
 {-# LANGUAGE FlexibleContexts #-}
 {-# LANGUAGE RankNTypes #-}
 {-# LANGUAGE ScopedTypeVariables #-}
+{-# LANGUAGE TypeApplications #-}
 
 module Cardano.Wallet.DB.Stores.Fixtures
     ( withDBInMemory
@@ -9,7 +10,9 @@ module Cardano.Wallet.DB.Stores.Fixtures
     , assertWith
     , runWalletProp
     , RunQuery (..)
-    )
+    , unsafeLoadS
+    , unsafeUpdateS
+    , logScale)
     where
 
 import Prelude
@@ -28,6 +31,12 @@ import Cardano.Wallet.Unsafe
     ( unsafeFromHex )
 import Control.Tracer
     ( nullTracer )
+import Data.DBVar
+    ( Store (loadS, updateS) )
+import Data.Delta
+    ( Delta (Base) )
+import Data.Either
+    ( fromRight )
 import Data.Time.Clock
     ( UTCTime )
 import Data.Time.Clock.POSIX
@@ -37,7 +46,7 @@ import Database.Persist.Sql
 import Database.Persist.Sqlite
     ( SqlPersistT, (==.) )
 import Test.QuickCheck
-    ( counterexample )
+    ( Gen, Property, Testable, counterexample, scale )
 import Test.QuickCheck.Monadic
     ( PropertyM, assert, monadicIO, monitor, run )
 import UnliftIO.Exception
@@ -92,10 +101,23 @@ assertWith lbl condition = do
     monitor (counterexample $ lbl <> " " <> flag)
     assert condition
 
+logScale :: Gen a -> Gen a
+logScale = scale (floor @Double . log . fromIntegral . succ)
 
 newtype RunQuery = RunQuery
     { _runQueryA :: forall a. SqlPersistT IO a -> IO a}
 
+runWalletProp
+    :: Testable a
+    => (WalletId -> RunQuery -> PropertyM IO a)
+    -> SqliteContext -> WalletId -> Property
+
 runWalletProp prop db wid = monadicIO $ do
     run . runQuery db $ initializeWallet wid
     prop wid (RunQuery $ runQuery db)
+
+unsafeLoadS :: Functor f => Store f da -> f (Base da)
+unsafeLoadS s = fromRight (error "store law is broken") <$> loadS s
+
+unsafeUpdateS :: Monad f => Store f da -> Base da -> da -> f (Base da)
+unsafeUpdateS store da ba = updateS store da ba >> unsafeLoadS store

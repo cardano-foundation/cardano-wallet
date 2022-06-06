@@ -5,22 +5,27 @@
 {-# LANGUAGE ScopedTypeVariables #-}
 {-# LANGUAGE TypeApplications #-}
 
-module Cardano.Wallet.DB.Stores.TransactionsSpec
-    ( spec
-    ) where
+module Cardano.Wallet.DB.Stores.TransactionsSpec (
+    spec,
+) where
 
 import Prelude
 
 import Cardano.DB.Sqlite
-    ( SqliteContext, runQuery )
+    ( SqliteContext )
 import Cardano.Wallet.DB.Arbitrary
     ()
 import Cardano.Wallet.DB.Sqlite.Schema
-    ( txMetaSlotExpires )
+    ( TxMeta (txMetaStatus), txMetaSlotExpires, txMetaTxId )
 import Cardano.Wallet.DB.Sqlite.Types
     ( getTxId )
 import Cardano.Wallet.DB.Stores.Fixtures
-    ( RunQuery (RunQuery), initializeWallet, runWalletProp, withDBInMemory )
+    ( RunQuery (RunQuery)
+    , logScale
+    , runWalletProp
+    , unsafeUpdateS
+    , withDBInMemory
+    )
 import Cardano.Wallet.DB.Transactions.Delta
     ( DeltaTxHistory (AgeTxHistory, ExpandTxHistory, PruneTxHistory) )
 import Cardano.Wallet.DB.Transactions.Store
@@ -29,60 +34,51 @@ import Cardano.Wallet.DB.Transactions.Types
     ( TxHistory, TxHistoryF (TxHistoryF), txHistory_relations )
 import Cardano.Wallet.Primitive.Types
     ( WalletId )
-import Data.DBVar
-    ()
+import Cardano.Wallet.Primitive.Types.Tx
+    ( TxStatus (InLedger) )
+import Control.Monad
+    ( foldM )
 import Data.Foldable
     ( toList )
 import Data.Maybe
     ( catMaybes )
 import Test.DBVar
-    ( GenDelta, Updates (Updates), genUpdates, prop_StoreUpdates )
+    ( GenDelta, prop_StoreUpdates )
 import Test.Hspec
     ( Spec, around, describe, it )
 import Test.QuickCheck
-    ( Blind (Blind)
-    , Gen
-    , Property
-    , arbitrary
-    , elements
-    , frequency
-    , property
-    , scale
-    )
+    ( Gen, Property, arbitrary, elements, frequency, property )
 import Test.QuickCheck.Monadic
-    ( monadicIO, pick, run )
+    ( assert, pick, run )
 
 import qualified Data.Map.Strict as Map
-import Database.Persist.Sql
-    ( SqlPersistT )
 
 spec :: Spec
 spec = around withDBInMemory $ do
     describe "Transactions store" $ do
         it "respects store laws" $
             property . prop_StoreTransactionsLaws
-        it "can prune a not-in-ledger transaction" $
+        it "can prune all not-in-ledger transaction" $
             property . prop_PrunePositive
 
 --------------------------------------------------------------------------------
 --  generate deltas
 --------------------------------------------------------------------------------
-genDeltas ::  WalletId -> GenDelta DeltaTxHistory
-genDeltas wid history
-    = scale (floor @Double . log . fromIntegral . succ)
-        $ frequency
-        [ (10, ExpandTxHistory wid <$> arbitrary)
-        , (1, PruneTxHistory <$> arbitrary)
-                -- probably just dropped
-        , (4, genPrune history)
-                -- will try to prune a valid id
-        , (1, AgeTxHistory <$> arbitrary)
-                -- probably just dropped
-        , (4, genAge history)
-                -- will age valid ids
-        ]
+genDeltas :: WalletId -> GenDelta DeltaTxHistory
+genDeltas wid history =
+        frequency
+            [ (10, genExpand wid),
+              (1, PruneTxHistory <$> arbitrary),
+              -- probably just dropped
+              (4, genPrune history),
+              -- will try to prune a valid id
+              (1, AgeTxHistory <$> arbitrary),
+              -- probably just dropped
+              (4, genAge history)
+              -- will age valid ids
+            ]
 
-genAge ::TxHistory -> Gen DeltaTxHistory
+genAge :: TxHistory -> Gen DeltaTxHistory
 genAge (TxHistoryF history) =
     case catMaybes $ txMetaSlotExpires . fst <$> toList history of
         [] -> AgeTxHistory <$> arbitrary
@@ -94,37 +90,35 @@ genPrune history =
         [] -> PruneTxHistory <$> arbitrary
         xs -> PruneTxHistory <$> elements xs
 
+genExpand :: WalletId -> Gen DeltaTxHistory
+genExpand wid = ExpandTxHistory wid <$> arbitrary
 
-
-------------------------------------------------------------------------
--- store laws
---------------------------------------------------------------------------------
-prop_StoreTransactionsLaws
-    :: SqliteContext
-    -> WalletId
-    -> Property
-prop_StoreTransactionsLaws  = runWalletProp $ \wid (RunQuery run) ->
+prop_StoreTransactionsLaws ::
+    SqliteContext ->
+    WalletId ->
+    Property
+prop_StoreTransactionsLaws = runWalletProp $ \wid (RunQuery runQ) ->
     prop_StoreUpdates
-        do run
+        do runQ
         do mkStoreTransactions wid
         do pure mempty
-        do genDeltas wid
+        do logScale . genDeltas wid
+
+allInLedger :: TxHistoryF f -> Bool
+allInLedger (TxHistoryF txs) = all ((==) InLedger . txMetaStatus . fst) txs
+
+pruneAll :: TxHistoryF f -> [DeltaTxHistory]
+pruneAll (TxHistoryF txs) = do
+    (meta, _tx) <- toList txs
+    pure $ PruneTxHistory $ getTxId $ txMetaTxId meta
+
+prop_PrunePositive :: SqliteContext -> WalletId -> Property
+prop_PrunePositive = runWalletProp $ \wid (RunQuery runQ) -> do
+    expansion <- pick $ logScale $ genExpand wid
+    let store = mkStoreTransactions wid
+    result <- run . runQ $ do
+        unsafeUpdateS store mempty expansion >>=
+            \ba -> foldM (unsafeUpdateS store) ba (pruneAll ba)
+    assert $ allInLedger result
 
 
-
---------------------------------------------------------------------------------
--- transactions delta semantics
---------------------------------------------------------------------------------
-
-
-prop_PrunePositive
-    :: SqliteContext
-    -> WalletId
-    -> Property
-prop_PrunePositive = runWalletProp $ \wid (RunQuery run) -> do
-    -- genUpdates arbitrary
-
-    Updates adas <- pick $ genUpdates (pure mempty) $ genDeltas wid
-    let as  = map fst adas <> [mempty]
-        das = map snd adas
-    pure True
