@@ -1,5 +1,11 @@
+{-# LANGUAGE DataKinds #-}
+{-# LANGUAGE DeriveAnyClass #-}
+{-# LANGUAGE DerivingStrategies #-}
 {-# LANGUAGE FlexibleInstances #-}
+{-# LANGUAGE GeneralizedNewtypeDeriving #-}
 {-# LANGUAGE OverloadedLabels #-}
+{-# LANGUAGE StandaloneDeriving #-}
+{-# LANGUAGE ViewPatterns #-}
 {-# OPTIONS_GHC -fno-warn-orphans #-}
 {- HLINT ignore "Use camelCase" -}
 
@@ -14,7 +20,7 @@ import Cardano.Wallet.Primitive.Types.Address
 import Cardano.Wallet.Primitive.Types.Address.Gen
     ( Parity (..), addressParity, coarbitraryAddress )
 import Cardano.Wallet.Primitive.Types.Hash
-    ( mockHash )
+    ( Hash (..), mockHash )
 import Cardano.Wallet.Primitive.Types.Tx
     ( TxIn (..), TxOut (..) )
 import Cardano.Wallet.Primitive.Types.Tx.Gen
@@ -47,14 +53,19 @@ import Test.Hspec.Extra
 import Test.QuickCheck
     ( Arbitrary (..)
     , CoArbitrary (..)
+    , Fun (..)
+    , Function (..)
     , Property
     , Testable
+    , applyFun
     , checkCoverage
     , conjoin
     , cover
     , property
     , (===)
     )
+import Test.QuickCheck.Instances.ByteString
+    ()
 
 import qualified Cardano.Wallet.Primitive.Types.UTxO as UTxO
 import qualified Data.Foldable as F
@@ -99,8 +110,16 @@ spec =
             property prop_filterByAddress_isSubset
 
     parallel $ describe "Transformations" $ do
-        it "prop_removeAssetId_assetIds" $
-            prop_removeAssetId_assetIds & property
+
+        describe "mapTxIds" $ do
+            it "prop_mapTxIds_identity" $
+                prop_mapTxIds_identity & property
+            it "prop_mapTxIds_composition" $
+                prop_mapTxIds_composition & property
+
+        describe "removeAssetId" $ do
+            it "prop_removeAssetId_assetIds" $
+                prop_removeAssetId_assetIds & property
 
 prop_deltaUTxO_semigroup_apply :: Property
 prop_deltaUTxO_semigroup_apply =
@@ -280,6 +299,19 @@ prop_filterByAddress_isSubset u f =
 -- Transformations
 --------------------------------------------------------------------------------
 
+prop_mapTxIds_identity :: UTxO -> Property
+prop_mapTxIds_identity m =
+    UTxO.mapTxIds id m === m
+
+prop_mapTxIds_composition
+    :: UTxO
+    -> Fun (Hash "Tx") (Hash "Tx")
+    -> Fun (Hash "Tx") (Hash "Tx")
+    -> Property
+prop_mapTxIds_composition m (applyFun -> f) (applyFun -> g) =
+    UTxO.mapTxIds f (UTxO.mapTxIds g m) ===
+    UTxO.mapTxIds (f . g) m
+
 prop_removeAssetId_assetIds :: UTxO -> Property
 prop_removeAssetId_assetIds u =
     case assetIdM of
@@ -299,6 +331,10 @@ prop_removeAssetId_assetIds u =
 
 instance CoArbitrary Address where
     coarbitrary = coarbitraryAddress
+
+deriving newtype instance Arbitrary (Hash "Tx")
+deriving anyclass instance CoArbitrary (Hash "Tx")
+deriving anyclass instance Function (Hash "Tx")
 
 instance CoArbitrary TxIn where
     coarbitrary = coarbitraryTxIn

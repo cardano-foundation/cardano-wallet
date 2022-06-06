@@ -1,3 +1,4 @@
+{-# LANGUAGE DataKinds #-}
 {-# LANGUAGE DeriveGeneric #-}
 {-# LANGUAGE DerivingStrategies #-}
 {-# LANGUAGE GeneralizedNewtypeDeriving #-}
@@ -48,6 +49,7 @@ module Cardano.Wallet.Primitive.Types.UTxO
     , assetIds
 
     -- * Transformations
+    , mapTxIds
     , removeAssetId
 
     -- * UTxO Statistics
@@ -65,6 +67,8 @@ import Prelude hiding
 
 import Cardano.Wallet.Primitive.Types.Address
     ( Address )
+import Cardano.Wallet.Primitive.Types.Hash
+    ( Hash )
 import Cardano.Wallet.Primitive.Types.TokenBundle
     ( TokenBundle )
 import Cardano.Wallet.Primitive.Types.TokenMap
@@ -80,7 +84,7 @@ import Data.Delta
 import Data.Functor.Identity
     ( runIdentity )
 import Data.Generics.Internal.VL.Lens
-    ( view )
+    ( over, view )
 import Data.List.NonEmpty
     ( NonEmpty (..) )
 import Data.Map.Strict
@@ -275,6 +279,9 @@ assetIds (UTxO u) = foldMap txOutAssetIds u
 --------------------------------------------------------------------------------
 -- Transformations
 --------------------------------------------------------------------------------
+
+mapTxIds :: (Hash "Tx" -> Hash "Tx") -> UTxO -> UTxO
+mapTxIds f (UTxO u) = UTxO $ Map.mapKeys (over #inputId f) u
 
 removeAssetId :: UTxO -> AssetId -> UTxO
 removeAssetId (UTxO u) a = UTxO $ Map.map (`txOutRemoveAssetId` a) u
