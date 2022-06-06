@@ -87,6 +87,9 @@ module Cardano.Wallet.Primitive.Types.Tx
     , TxSize (..)
     , txSizeDistance
 
+    -- * Queries
+    , txOutAssetIds
+
     -- * Transformations
     , txOutRemoveAssetId
 
@@ -970,6 +973,13 @@ txSizeDistance :: TxSize -> TxSize -> TxSize
 txSizeDistance (TxSize a) (TxSize b)
     | a >= b    = TxSize (a - b)
     | otherwise = TxSize (b - a)
+
+--------------------------------------------------------------------------------
+-- Queries
+--------------------------------------------------------------------------------
+
+txOutAssetIds :: TxOut -> Set AssetId
+txOutAssetIds (TxOut _ bundle) = TokenBundle.getAssets bundle
 
 --------------------------------------------------------------------------------
 -- Transformations
