@@ -116,7 +116,7 @@ TxMeta
 
     Primary txMetaTxId txMetaWalletId
     Foreign Wallet OnDeleteCascade fk_wallet_tx_meta txMetaWalletId
-    deriving Show Generic
+    deriving Show Generic Eq
 
 -- A transaction input associated with TxMeta.
 --
@@ -130,7 +130,7 @@ TxIn
     txInputSourceAmount   W.Coin        sql=source_amount
 
     Primary txInputTxId txInputSourceTxId txInputSourceIndex
-    deriving Show Generic
+    deriving Show Generic Eq
 
 -- A collateral input associated with TxMeta.
 --
@@ -144,7 +144,7 @@ TxCollateral
     txCollateralSourceAmount W.Coin sql=source_amount
 
     Primary txCollateralTxId txCollateralSourceTxId txCollateralSourceIndex
-    deriving Show Generic
+    deriving Show Generic Eq
 
 -- A transaction output associated with TxMeta.
 --
@@ -157,7 +157,7 @@ TxOut
     txOutputAmount   W.Coin      sql=amount
 
     Primary txOutputTxId txOutputIndex
-    deriving Show Generic
+    deriving Show Generic Eq
 
 -- A token quantity associated with a TxOut.
 --
@@ -173,7 +173,7 @@ TxOutToken
 
     Primary txOutTokenTxId txOutTokenTxIndex txOutTokenPolicyId txOutTokenName
     Foreign TxOut OnDeleteCascade txOut txOutTokenTxId txOutTokenTxIndex
-    deriving Show Generic
+    deriving Show Generic Eq 
 
 -- A transaction collateral return output associated with a TxMeta.
 --
@@ -189,7 +189,7 @@ TxCollateralOut
     txCollateralOutAmount  W.Coin    sql=amount
 
     Primary txCollateralOutTxId
-    deriving Show Generic
+    deriving Show Generic Eq
 
 -- A token quantity associated with a TxCollateralOut.
 --
@@ -210,7 +210,7 @@ TxCollateralOutToken
 
     Primary txCollateralOutTokenTxId txCollateralOutTokenPolicyId txCollateralOutTokenName
     Foreign TxCollateralOut OnDeleteCascade txCollateralOut txCollateralOutTokenTxId
-    deriving Show Generic
+    deriving Show Generic Eq 
 
 -- | A transaction withdrawal associated with TxMeta.
 --
@@ -222,7 +222,7 @@ TxWithdrawal
     txWithdrawalAccount W.RewardAccount     sql=account
 
     Primary txWithdrawalTxId txWithdrawalAccount
-    deriving Show Generic
+    deriving Show Generic Eq
 
 -- | Transactions sent to the node by LocalTxSubmission.
 -- Submission will be retried until the transaction is no longer pending.

@@ -32,6 +32,7 @@ module Cardano.Wallet.DB.Unstored
   , deleteStakeKeyCerts
   , localTxSubmissionFromEntity
   , listPendingLocalTxSubmissionQuery
+  , overWallet
   , selectPrivateKey
   , selectGenesisParameters
   , mkPrivateKeyEntity
@@ -132,6 +133,8 @@ import Database.Persist.Sql
 import UnliftIO.Exception
     ( Exception )
 
+import Cardano.Wallet.DB
+    ( ErrNoSuchWallet (ErrNoSuchWallet) )
 import qualified Cardano.Wallet.Primitive.Passphrase as W
 import qualified Cardano.Wallet.Primitive.Types as W
 import qualified Cardano.Wallet.Primitive.Types.Hash as W
@@ -139,7 +142,10 @@ import qualified Cardano.Wallet.Primitive.Types.TokenBundle as TokenBundle
 import qualified Cardano.Wallet.Primitive.Types.Tx as W
 import Data.Functor
     ( (<&>) )
-
+import Control.Exception
+    ( Exception (toException), throw )
+import Control.Monad.Exception.Unchecked
+    ( Unchecked (Unchecked) )
 
 readWalletMetadata
     :: W.WalletId
@@ -268,6 +274,18 @@ genesisParametersFromEntity (Wallet _ _ _ _ _ hash startTime) =
 {-------------------------------------------------------------------------------
     SQLite database operations
 -------------------------------------------------------------------------------}
+
+overWallet
+    :: MonadIO m
+    => W.WalletId
+    -> (Wallet -> SqlPersistT m b)
+    -> SqlPersistT m b
+overWallet wid f = selectWallet wid >>= \case
+        Nothing -> throw
+            $ toException
+            $ Unchecked
+            $ ErrNoSuchWallet wid
+        Just x -> f x
 
 selectWallet :: MonadIO m => W.WalletId -> SqlPersistT m (Maybe Wallet)
 selectWallet wid =
