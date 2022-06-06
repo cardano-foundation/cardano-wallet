@@ -2142,6 +2142,7 @@ components:
         allegra: *nullableEpochInfo
         mary: *nullableEpochInfo
         alonzo: *nullableEpochInfo
+        babbage: *nullableEpochInfo
       description: |
 
         If and when each era started or will start.
