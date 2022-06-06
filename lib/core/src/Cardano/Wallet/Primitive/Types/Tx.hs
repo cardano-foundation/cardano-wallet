@@ -88,6 +88,7 @@ module Cardano.Wallet.Primitive.Types.Tx
     , txSizeDistance
 
     -- * Queries
+    , txAssetIds
     , txOutAssetIds
 
     -- * Transformations
@@ -207,6 +208,7 @@ import qualified Cardano.Wallet.Primitive.Types.Coin as Coin
 import qualified Cardano.Wallet.Primitive.Types.TokenBundle as TokenBundle
 import qualified Cardano.Wallet.Primitive.Types.TokenMap as TokenMap
 import qualified Data.ByteString.Char8 as B8
+import qualified Data.Foldable as F
 import qualified Data.Map.Strict as Map
 import qualified Data.Set as Set
 import qualified Data.Text as T
@@ -979,6 +981,12 @@ txSizeDistance (TxSize a) (TxSize b)
 --------------------------------------------------------------------------------
 -- Queries
 --------------------------------------------------------------------------------
+
+txAssetIds :: Tx -> Set AssetId
+txAssetIds tx = F.fold
+    [ F.foldMap txOutAssetIds (view #outputs tx)
+    , F.foldMap txOutAssetIds (view #collateralOutput tx)
+    ]
 
 txOutAssetIds :: TxOut -> Set AssetId
 txOutAssetIds (TxOut _ bundle) = TokenBundle.getAssets bundle

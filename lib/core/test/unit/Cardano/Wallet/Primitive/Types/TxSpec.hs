@@ -26,15 +26,18 @@ import Cardano.Wallet.Primitive.Types.TokenPolicy
     ( TokenName (..), TokenPolicyId (..) )
 import Cardano.Wallet.Primitive.Types.Tx
     ( SealedTx (..)
+    , Tx (..)
     , TxOut (..)
     , mockSealedTx
     , sealedTxFromBytes
+    , txAssetIds
     , txOutAssetIds
     , txOutMapAssetIds
     , txOutRemoveAssetId
+    , txRemoveAssetId
     )
 import Cardano.Wallet.Primitive.Types.Tx.Gen
-    ( genTxOut, shrinkTxOut )
+    ( genTx, genTxOut, shrinkTx, shrinkTxOut )
 import Data.ByteString
     ( ByteString, pack )
 import Data.Either
@@ -77,6 +80,10 @@ spec = do
 
     parallel $ describe "Transformations" $ do
 
+        describe "txRemoveAssetId" $ do
+            it "prop_txRemoveAssetId_txAssetIds" $
+                prop_txRemoveAssetId_txAssetIds & property
+
         describe "txOutMapAssetIds" $ do
             it "prop_txOutMapAssetIds_identity" $
                 prop_txOutMapAssetIds_identity & property
@@ -108,6 +115,19 @@ instance Arbitrary Gibberish where
 --------------------------------------------------------------------------------
 -- Transformations
 --------------------------------------------------------------------------------
+
+prop_txRemoveAssetId_txAssetIds :: Tx -> Property
+prop_txRemoveAssetId_txAssetIds tx =
+    case assetIdM of
+        Nothing ->
+            assetIds === mempty
+        Just assetId ->
+            Set.notMember assetId
+                (txAssetIds (tx `txRemoveAssetId` assetId))
+            === True
+  where
+    assetIdM = listToMaybe $ F.toList assetIds
+    assetIds = txAssetIds tx
 
 prop_txOutMapAssetIds_identity :: TxOut -> Property
 prop_txOutMapAssetIds_identity m =
@@ -145,6 +165,10 @@ deriving anyclass instance Function AssetId
 
 deriving anyclass instance CoArbitrary (Hash "TokenPolicy")
 deriving anyclass instance Function (Hash "TokenPolicy")
+
+instance Arbitrary Tx where
+    arbitrary = genTx
+    shrink = shrinkTx
 
 instance Arbitrary TxOut where
     arbitrary = genTxOut
