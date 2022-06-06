@@ -46,6 +46,7 @@ module Cardano.Wallet.Primitive.Types.TokenBundle
     -- * Quantities
     , getQuantity
     , hasQuantity
+    , setQuantity
 
     -- * Partitioning
     , equipartitionAssets
@@ -332,6 +333,14 @@ getQuantity = TokenMap.getQuantity . tokens
 --
 hasQuantity :: TokenBundle -> AssetId -> Bool
 hasQuantity = TokenMap.hasQuantity . tokens
+
+-- | Sets the quantity associated with a given asset.
+--
+-- If the given quantity is zero, the resultant bundle will not have an entry
+-- for the given asset.
+--
+setQuantity :: TokenBundle -> AssetId -> TokenQuantity -> TokenBundle
+setQuantity (TokenBundle c m) a q = TokenBundle c (TokenMap.setQuantity m a q)
 
 --------------------------------------------------------------------------------
 -- Partitioning
