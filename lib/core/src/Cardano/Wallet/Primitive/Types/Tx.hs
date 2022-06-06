@@ -87,6 +87,9 @@ module Cardano.Wallet.Primitive.Types.Tx
     , TxSize (..)
     , txSizeDistance
 
+    -- * Transformations
+    , txOutRemoveAssetId
+
     -- * Checks
     , coinIsValidForTxOut
 
@@ -125,7 +128,7 @@ import Cardano.Wallet.Primitive.Types.RewardAccount
 import Cardano.Wallet.Primitive.Types.TokenBundle
     ( TokenBundle (..) )
 import Cardano.Wallet.Primitive.Types.TokenMap
-    ( Lexicographic (..), TokenMap )
+    ( AssetId, Lexicographic (..), TokenMap )
 import Cardano.Wallet.Primitive.Types.TokenQuantity
     ( TokenQuantity (..) )
 import Cardano.Wallet.Util
@@ -967,6 +970,14 @@ txSizeDistance :: TxSize -> TxSize -> TxSize
 txSizeDistance (TxSize a) (TxSize b)
     | a >= b    = TxSize (a - b)
     | otherwise = TxSize (b - a)
+
+--------------------------------------------------------------------------------
+-- Transformations
+--------------------------------------------------------------------------------
+
+txOutRemoveAssetId :: TxOut -> AssetId -> TxOut
+txOutRemoveAssetId (TxOut address bundle) asset =
+    TxOut address (TokenBundle.setQuantity bundle asset mempty)
 
 {-------------------------------------------------------------------------------
                       Internal functions for unit testing
