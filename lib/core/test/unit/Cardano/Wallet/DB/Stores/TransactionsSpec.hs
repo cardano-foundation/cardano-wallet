@@ -14,6 +14,7 @@ import Prelude
 
 import Cardano.DB.Sqlite
     ( SqliteContext )
+
 import Cardano.Wallet.DB.Arbitrary
     ()
 import Cardano.Wallet.DB.Sqlite.Schema
@@ -47,7 +48,7 @@ import Data.Map.Strict
     ( Map )
 import qualified Data.Map.Strict as Map
 import Data.Maybe
-    ( catMaybes )
+    ( catMaybes, fromJust )
 import Data.Set
     ( Set )
 import Test.DBVar
@@ -83,8 +84,8 @@ spec = around withDBInMemory $ do
             property . prop_AgeAllPending2Expire
         it "can mark past pending transactions as expired based on current slot" $
             property . prop_AgeSomePending2Expire
-        it "can roll back to a given slot, removing incoming transactions" $
-            property . prop_RollBackRemoveIncoming
+        -- it "can roll back to a given slot, removing incoming transactions" $
+            -- property . prop_RollBackRemoveIncoming
 
 prop_RollBackRemoveIncoming :: SqliteContext -> WalletId -> Property
 prop_RollBackRemoveIncoming = error "not implemented"
@@ -93,12 +94,17 @@ prop_RollBackRemoveIncoming = error "not implemented"
 
 prop_AgeAllPending2Expire :: SqliteContext -> WalletId -> Property
 prop_AgeAllPending2Expire = runWalletProp $ \wid (RunQuery runQ) -> do
-    expansion <- pick $ logScale $ genExpand wid
+    expansion <-
+        pick $
+            logScale $ ExpandTxHistory wid <$> listOf1 generatePendings
     let store = mkStoreTransactions wid
-    result <- run . runQ $ do
+    bootHistory <- run . runQ $ do
         unsafeUpdateS store mempty expansion
-            >>= \ba -> foldM (unsafeUpdateS store) ba (firstPendingSlot ba)
-    assert $ noPendingLeft result
+    result <- run . runQ $ do
+        foldM (unsafeUpdateS store) bootHistory (firstPendingSlot bootHistory)
+    cover 50 (not $ null (allPendings bootHistory) )
+        "pending transactions size"
+            <$> assert (noPendingLeft result)
 
 firstPendingSlot :: TxHistory -> Maybe DeltaTxHistory
 firstPendingSlot (TxHistoryF (null -> True)) = Nothing
@@ -113,47 +119,44 @@ prop_AgeSomePending2Expire = runWalletProp $ \wid (RunQuery runQ) -> do
     let store = mkStoreTransactions wid
     bootHistory <- run . runQ $ do
         unsafeUpdateS store mempty expansion
-    (NothingIsGreatest mSplitSlot, (unchanged, changed)) <-
-        let pendings = allPendings bootHistory
-         in if null pendings
-                then pure (NothingIsGreatest Nothing, mempty)
-                else pick $ splitPendingsG pendings
-    cover
-        50
-        (length unchanged + length changed > 0)
-        "pending transactions size"
-        <$> case mSplitSlot of
-            Nothing -> pure ()
-            Just splitSlot -> do
-                newHistory <- run . runQ $ do
-                    unsafeUpdateS store bootHistory $ AgeTxHistory splitSlot
-                assert $
-                    snd (allPendingsPartitionedBySlot newHistory splitSlot)
-                        == changed
+    let pendings = allPendings bootHistory
+    if null pendings
+        then pure $ property True
+        else do
+            (splitSlot, (unchanged, changed)) <- pick $ splitPendingsG pendings
+            cover 50 (length unchanged + length changed > 0)
+                "pending transactions size" <$> do
+                    newHistory <- run . runQ $ do
+                        unsafeUpdateS store bootHistory $ AgeTxHistory splitSlot
+                    assert $
+                        snd (allPendingsPartitionedBySlot newHistory splitSlot)
+                                == changed
 
 generatePendings :: Gen (W.Tx, W.TxMeta)
 generatePendings =
     biased
         arbitrary
-        [ (20, \(_, meta) -> status meta == Pending),
-          (1, const True)
+        [ (20, \(_, meta) -> status meta == Pending)
+        , (1, const True)
         ]
 
 noPendingLeft :: TxHistoryF f -> Bool
-noPendingLeft (TxHistoryF txs) = all ((/=) Pending . txMetaStatus . fst) txs
+noPendingLeft (TxHistoryF txs) = flip all txs
+    $ \(meta, _) -> txMetaStatus meta /= Pending
 
-allPendings :: TxHistoryF f -> Map (NothingIsGreatest W.SlotNo) [TxId]
+
+allPendings :: TxHistoryF f -> Map W.SlotNo [TxId]
 allPendings (TxHistoryF txs) =
     Map.fromListWith (<>) $
-        fmap (\(k, v) -> (gMaybe v, [k])) $
+        fmap (\(k, v) -> (v, [k])) $
             Map.assocs $
-                fmap txMetaSlotExpires $
+                fmap (fromJust . txMetaSlotExpires) $
                     Map.filter ((==) Pending . txMetaStatus) $
                         fst <$> txs
 
 splitPendingsG ::
-    Map (NothingIsGreatest W.SlotNo) [TxId] ->
-    Gen (NothingIsGreatest W.SlotNo, (Set TxId, Set TxId))
+    Map W.SlotNo [TxId] ->
+    Gen (W.SlotNo, (Set TxId, Set TxId))
 splitPendingsG m = do
     k <- elements $ Map.keys m
     pure $
@@ -164,23 +167,10 @@ splitPendingsG m = do
 allPendingsPartitionedBySlot :: TxHistoryF f -> W.SlotNo -> (Set TxId, Set TxId)
 allPendingsPartitionedBySlot (TxHistoryF txs) slotNo =
     (Map.keysSet *** Map.keysSet) $
-        Map.partition (<= gJust slotNo) $
-            fmap (gMaybe . txMetaSlotExpires) $
+        Map.partition (<= slotNo) $
+            fmap (fromJust . txMetaSlotExpires) $
                 Map.filter ((==) Pending . txMetaStatus) $
                     fst <$> txs
-
-newtype NothingIsGreatest a = NothingIsGreatest (Maybe a) deriving (Show, Eq)
-
-instance Ord a => Ord (NothingIsGreatest a) where
-    NothingIsGreatest Nothing `compare` NothingIsGreatest (Just _) = GT
-    NothingIsGreatest (Just _) `compare` NothingIsGreatest Nothing = LT
-    NothingIsGreatest x `compare` NothingIsGreatest y = x `compare` y
-
-gMaybe :: Maybe a -> NothingIsGreatest a
-gMaybe = NothingIsGreatest
-
-gJust :: a -> NothingIsGreatest a
-gJust = gMaybe . Just
 
 --------------------------------------------------------------------------------
 --  generate deltas
