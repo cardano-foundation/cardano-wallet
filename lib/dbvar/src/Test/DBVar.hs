@@ -18,7 +18,7 @@ import Fmt
 import Test.QuickCheck
     ( Blind (Blind), Gen, counterexample, sized )
 import Test.QuickCheck.Monadic
-    ( PropertyM, assert, monitor, pick, run )
+    ( PropertyM, assert, monitor, pick )
 
 
 -- | Given a value, generate a random delta starting from this value.
@@ -46,7 +46,7 @@ genUpdates gen0 more = sized $ \n -> go n [] =<< gen0
 -- TODO: Shrinking of the update sequence.
 prop_StoreUpdates
     :: ( Monad m, Delta da, Eq (Base da), Buildable da )
-    => (forall b. m b -> IO b)
+    => (forall b. m b -> PropertyM IO b)
     -- ^ Function to embed the monad in 'IO'
     -> Store m da
     -- ^ Store that is to be tested.
@@ -55,8 +55,7 @@ prop_StoreUpdates
     -> GenDelta da
     -- ^ Generator for deltas.
     -> PropertyM IO ()
-prop_StoreUpdates toIO store gen0 more = do
-    let runs = run . toIO
+prop_StoreUpdates toPropertyM store gen0 more = do
 
     -- randomly generate a sequence of updates
     Blind a0 <- pick $ Blind <$> gen0
@@ -68,7 +67,7 @@ prop_StoreUpdates toIO store gen0 more = do
         "\nUpdates applied:\n" <> pretty (listF das)
 
     -- apply those updates
-    ea <- runs $ do
+    ea <- toPropertyM $ do
         writeS store a0
         -- first update is applied last!
         let updates = reverse $ zip das (drop 1 as)

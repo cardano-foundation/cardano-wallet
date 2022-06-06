@@ -49,7 +49,8 @@ deriving instance (Show (f TxIn), Show (f TxCollateral))
      => Show (TxRelationF f)
 
 newtype TxHistoryF f = TxHistoryF
-    { txHistory_relations :: Map TxId (TxMeta,TxRelationF f) }
+    { txHistory_relations :: Map TxId (TxMeta,TxRelationF f)
+    }
     deriving (Generic)
 
 overTxHistoryF

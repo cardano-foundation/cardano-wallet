@@ -12,16 +12,14 @@ import Cardano.Wallet.DB.Sqlite.Schema
     ( TxMeta (..) )
 import Cardano.Wallet.DB.Sqlite.Types
     ( TxId (TxId) )
-import Cardano.Wallet.DB.Transactions.Model
-    ( mkTxHistory )
 import Cardano.Wallet.DB.Transactions.Types
-    ( TxHistory, TxHistoryF (TxHistoryF) )
+    ( TxHistory, TxHistoryF (TxHistoryF, txHistory_relations) )
 import Cardano.Wallet.Primitive.Types.Hash
     ( Hash )
 import Cardano.Wallet.Primitive.Types.Tx
     ( TxStatus (InLedger) )
 import Control.Monad
-    ( when, guard )
+    ( guard )
 import Data.Bifunctor
     ( first )
 import Data.Delta
@@ -40,15 +38,15 @@ import GHC.Generics
     ( Generic )
 
 data DeltaTxHistory
-    = ExpandTxHistory W.WalletId [(W.Tx, W.TxMeta)]
+    = ExpandTxHistory TxHistory
     | PruneTxHistory (Hash "Tx")
     | AgeTxHistory W.SlotNo
     | RollBackTxHistory W.SlotNo
     deriving (Show, Eq, Generic)
 
 instance Buildable DeltaTxHistory where
-    build (ExpandTxHistory _ txs) =
-        "ExpandTxHistory " <> build (length txs)
+    build (ExpandTxHistory txs) =
+        "ExpandTxHistory " <> build (length $ txHistory_relations txs)
     build (PruneTxHistory h) =
         "PruneTxHistory " <> build (show h)
     build (AgeTxHistory slot) =
@@ -58,7 +56,7 @@ instance Buildable DeltaTxHistory where
 
 instance Delta DeltaTxHistory where
     type Base DeltaTxHistory = TxHistory
-    apply (ExpandTxHistory wid txs) h = h <> mkTxHistory wid txs
+    apply (ExpandTxHistory txs) h = h <> txs
     apply (PruneTxHistory tid) (TxHistoryF txs) = TxHistoryF $
         Map.alter f (TxId tid) txs
         where

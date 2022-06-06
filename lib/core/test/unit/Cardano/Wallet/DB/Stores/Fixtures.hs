@@ -8,11 +8,14 @@ module Cardano.Wallet.DB.Stores.Fixtures
     ( withDBInMemory
     , initializeWallet
     , assertWith
-    , runWalletProp
-    , RunQuery (..)
+    , RunQuery
     , unsafeLoadS
     , unsafeUpdateS
-    , logScale,coverM)
+    , logScale
+    , coverM
+    , frequencySuchThat
+    , withInitializedWalletProp
+    , WalletProperty)
     where
 
 import Prelude
@@ -46,13 +49,23 @@ import Database.Persist.Sql
 import Database.Persist.Sqlite
     ( SqlPersistT, (==.) )
 import Test.QuickCheck
-    ( Gen, Property, Testable, counterexample, scale, cover )
+    ( Gen
+    , Property
+    , Testable
+    , counterexample
+    , cover
+    , frequency
+    , scale
+    , suchThat
+    )
 import Test.QuickCheck.Monadic
     ( PropertyM, assert, monadicIO, monitor, run )
 import UnliftIO.Exception
     ( bracket )
 
 import qualified Cardano.Wallet.DB.Sqlite.Schema as TH
+import Data.Bifunctor
+    ( second )
 
 
 {-------------------------------------------------------------------------------
@@ -101,26 +114,48 @@ assertWith lbl condition = do
     monitor (counterexample $ lbl <> " " <> flag)
     assert condition
 
+-- | rescale logaritmically, any base
+logScale' :: Double -> Gen a -> Gen a
+logScale' b = scale (floor @Double . logBase b . fromIntegral . succ)
+
+-- | rescale logaritmically
 logScale :: Gen a -> Gen a
-logScale = scale (floor @Double . log . fromIntegral . succ)
+logScale = logScale' $ exp 1
 
-coverM :: (Functor f, Testable prop)
-    => Double -> Bool -> String -> f prop -> f Property
+-- | cover with use of ($)
+coverM :: (Functor f, Testable prop) => Double -> Bool -> String -> f prop -> f Property
 coverM n c t =fmap $ cover n c t
-newtype RunQuery = RunQuery
-    { _runQueryA :: forall a. SqlPersistT IO a -> IO a}
 
-runWalletProp
+-- | like frequency but use only one generator with different filters
+frequencySuchThat :: Gen a -> [(Int, a -> Bool)] -> Gen a
+frequencySuchThat g fs = frequency $ second (suchThat g) <$> fs
+
+-- wallet property writing support
+
+-- | a wrapper just to avoid impredicative errors
+type RunQuery =
+    forall a. SqlPersistT IO a -> PropertyM IO a
+
+-- | minimalistic signature for a wallet property definition
+type WalletProperty = SqliteContext -> WalletId -> Property
+
+-- | initialize a wallet an pass control to the rest of the property
+withInitializedWalletProp
     :: Testable a
     => (WalletId -> RunQuery -> PropertyM IO a)
-    -> SqliteContext -> WalletId -> Property
+    -> WalletProperty
+withInitializedWalletProp prop db wid = monadicIO $ do
+    let runQ = run .runQuery db
+    runQ $ initializeWallet wid
+    prop wid runQ
 
-runWalletProp prop db wid = monadicIO $ do
-    run . runQuery db $ initializeWallet wid
-    prop wid (RunQuery $ runQuery db)
+-- store unsafe ops
 
+-- | bomb on Left
 unsafeLoadS :: Functor f => Store f da -> f (Base da)
 unsafeLoadS s = fromRight (error "store law is broken") <$> loadS s
 
-unsafeUpdateS :: Monad f => Store f da -> Base da -> da -> f (Base da)
-unsafeUpdateS store da ba = updateS store da ba >> unsafeLoadS store
+-- | a better interface for update in tests, using unsafeLoadS
+-- natural to fold onto
+unsafeUpdateS :: Applicative m => Store m da -> Base da -> da -> m (Base da)
+unsafeUpdateS store da ba = updateS store da ba *> unsafeLoadS store

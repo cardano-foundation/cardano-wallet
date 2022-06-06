@@ -12,8 +12,6 @@ module Cardano.Wallet.DB.Stores.TransactionsSpec (
 
 import Prelude
 
-import Cardano.DB.Sqlite
-    ( SqliteContext )
 import Cardano.Wallet.DB.Arbitrary
     ()
 import Cardano.Wallet.DB.Sqlite.Schema
@@ -24,12 +22,12 @@ import Cardano.Wallet.DB.Sqlite.Schema
 import Cardano.Wallet.DB.Sqlite.Types
     ( TxId, getTxId )
 import Cardano.Wallet.DB.Stores.Fixtures
-    ( RunQuery (RunQuery)
+    ( WalletProperty
     , coverM
     , logScale
-    , runWalletProp
     , unsafeUpdateS
     , withDBInMemory
+    , withInitializedWalletProp
     )
 import Cardano.Wallet.DB.Transactions.Delta
     ( DeltaTxHistory (AgeTxHistory, ExpandTxHistory, PruneTxHistory, RollBackTxHistory)
@@ -70,11 +68,17 @@ import Test.QuickCheck
     , suchThat
     )
 import Test.QuickCheck.Monadic
-    ( PropertyM, assert, pick, run )
+    ( PropertyM, assert, pick )
 
+import Cardano.Wallet.DB.Transactions.Model
+    ( mkTxHistory )
 import qualified Cardano.Wallet.Primitive.Types as W
 import qualified Cardano.Wallet.Primitive.Types.Tx as W
+import Data.DBVar
+    ( Store )
 import qualified Data.Set as Set
+import Database.Persist.Sql
+    ( SqlPersistT )
 
 spec :: Spec
 spec = around withDBInMemory $ do
@@ -97,36 +101,48 @@ spec = around withDBInMemory $ do
         it "can roll back to a given slot, leaving past untouched"
             $ property . prop_RollBackDoNotTouchPast
 
-
-withPropRollBack
-    :: (((TxHistory, TxHistory),
-         (TxHistory, TxHistory))
-    -> PropertyM IO ())
-    -> SqliteContext -> WalletId -> Property
-withPropRollBack f = runWalletProp $ \wid (RunQuery runQ) -> do
+withExpanded
+    :: Gen [(W.Tx, W.TxMeta)]
+    -> ( (forall a . SqlPersistT IO a -> PropertyM IO a)
+        -> Store (SqlPersistT IO) DeltaTxHistory
+        -> TxHistory
+        -> PropertyM IO Property
+       )
+    -> WalletProperty
+withExpanded expandG f = withInitializedWalletProp $ \wid runQ -> do
     expansion <- pick
         $ logScale
-        $ ExpandTxHistory wid <$> listOf1 arbitrary
+        $ genExpand wid expandG
     let store = mkStoreTransactions wid
-    bootHistory <- run . runQ $ do
+    bootHistory <- runQ $ do
         unsafeUpdateS store mempty expansion
-    slotNo <- pick $ internalSlotNoG bootHistory
-    newHistory <- run . runQ $ do
-        unsafeUpdateS store bootHistory $ RollBackTxHistory slotNo
-    coverM 40 (not . null $ allIncoming bootHistory)
-        "incoming transactions"
-        $ coverM 40 (not . null $ allOutgoing bootHistory)
-            "outgoing transactions"
-            $ f (splitHistory slotNo bootHistory
-                , splitHistory slotNo newHistory
-                )
+    f runQ store bootHistory
 
-prop_RollBackRemoveAfterSlot :: SqliteContext -> WalletId -> Property
+withPropRollBack
+    :: (( (TxHistory, TxHistory) -- bootHistory split
+        , (TxHistory, TxHistory) -- newHistory split
+        )
+    -> PropertyM IO ())
+    -> WalletProperty
+withPropRollBack f =  withExpanded (listOf1 arbitrary)
+    \run store bootHistory -> do
+        slotNo <- pick $ internalSlotNoG bootHistory
+        newHistory <- run $ do
+            unsafeUpdateS store bootHistory $ RollBackTxHistory slotNo
+        coverM 40 (not . null $ allIncoming bootHistory)
+            "incoming transactions"
+            $ coverM 40 (not . null $ allOutgoing bootHistory)
+                "outgoing transactions"
+                $ f (splitHistory slotNo bootHistory
+                    , splitHistory slotNo newHistory
+                    )
+
+prop_RollBackRemoveAfterSlot :: WalletProperty
 prop_RollBackRemoveAfterSlot =  withPropRollBack
     $ \((_afterBoot, _beforeBoot), (afterNew, _beforeNew)) ->
         assert $ null $ txHistory_relations  afterNew
 
-prop_RollBackSwitchOutgoing :: SqliteContext -> WalletId -> Property
+prop_RollBackSwitchOutgoing :: WalletProperty
 prop_RollBackSwitchOutgoing =  withPropRollBack
     $ \((_afterBoot, beforeBoot), (_afterNew, beforeNew)) -> do
         let future = overTxHistoryF beforeNew $ \beforeMap ->
@@ -137,7 +153,7 @@ prop_RollBackSwitchOutgoing =  withPropRollBack
                 <*> ((==) Outgoing . txMetaDirection . fst)
             do txHistory_relations future
 
-prop_RollBackPreserveOutgoing :: SqliteContext -> WalletId -> Property
+prop_RollBackPreserveOutgoing :: WalletProperty
 prop_RollBackPreserveOutgoing = withPropRollBack
     $ \((afterBoot, beforeBoot), (_afterNew, beforeNew)) -> do
         let future = overTxHistoryF beforeNew $ \beforeMap ->
@@ -146,7 +162,7 @@ prop_RollBackPreserveOutgoing = withPropRollBack
             do Map.keys $ allOutgoing afterBoot
             do Map.keys $ txHistory_relations future
 
-prop_RollBackDoNotTouchPast :: SqliteContext -> WalletId -> Property
+prop_RollBackDoNotTouchPast :: WalletProperty
 prop_RollBackDoNotTouchPast =  withPropRollBack
     $ \((afterBoot, beforeBoot), (_afterNew, beforeNew)) -> do
         let past = overTxHistoryF beforeNew $ \beforeMap ->
@@ -178,45 +194,40 @@ splitHistory slotSplit (TxHistoryF txs) =(TxHistoryF *** TxHistoryF)
 
 -- AgeTxHistory verb
 
-prop_AgeAllPending2Expire :: SqliteContext -> WalletId -> Property
-prop_AgeAllPending2Expire = runWalletProp $ \wid (RunQuery runQ) -> do
-    expansion <- pick
-        $ logScale
-        $ ExpandTxHistory wid <$> listOf1 generatePendings
-    let store = mkStoreTransactions wid
-    bootHistory <- run . runQ $ do
-        unsafeUpdateS store mempty expansion
-    result <- run . runQ $ do
-        foldM (unsafeUpdateS store) bootHistory (firstPendingSlot bootHistory)
-    coverM 50 (not $ null (allPendings bootHistory) )
-        "pending transactions size"
-            $ assert (noPendingLeft result)
+prop_AgeAllPending2Expire :: WalletProperty
+prop_AgeAllPending2Expire = withExpanded (listOf1 generatePendings)
+    \runQ store bootHistory -> do
+        result <- runQ $ do
+            foldM (unsafeUpdateS store) bootHistory
+                $ firstPendingSlot bootHistory
+        coverM 50 (not . null $ allPendings bootHistory)
+            "pending transactions size"
+                $ assert (noPendingLeft result)
 
 firstPendingSlot :: TxHistory -> Maybe DeltaTxHistory
 firstPendingSlot (TxHistoryF (null -> True)) = Nothing
 firstPendingSlot (TxHistoryF txs) =
     fmap AgeTxHistory $ maximum $ txMetaSlotExpires . fst <$> toList txs
 
-prop_AgeSomePending2Expire :: SqliteContext -> WalletId -> Property
-prop_AgeSomePending2Expire = runWalletProp $ \wid (RunQuery runQ) -> do
-    expansion <-
-        pick $
-            logScale $ ExpandTxHistory wid <$> listOf1 generatePendings
-    let store = mkStoreTransactions wid
-    bootHistory <- run . runQ $ do
-        unsafeUpdateS store mempty expansion
-    let pendings = allPendings bootHistory
-    if null pendings
-        then pure $ property True
-        else do
-            (splitSlot, (unchanged, changed)) <- pick $ splitPendingsG pendings
-            coverM 50 (length unchanged + length changed > 0)
-                "pending transactions size" $ do
-                    newHistory <- run . runQ $ do
-                        unsafeUpdateS store bootHistory $ AgeTxHistory splitSlot
+prop_AgeSomePending2Expire :: WalletProperty
+prop_AgeSomePending2Expire = withExpanded (listOf1 generatePendings)
+    \runQ store bootHistory -> do
+        let pendings = allPendings bootHistory
+        if null pendings
+            then pure $ property True
+            else do
+                (splitSlot, (unchanged, changed)) <-
+                    pick $ splitPendingsG pendings
+                coverM 50
+                    (length unchanged + length changed > 0)
+                    "pending transactions size"
+                    $ do
+                    newHistory <- runQ $ do
+                        unsafeUpdateS store bootHistory
+                            $ AgeTxHistory splitSlot
                     assert $
-                        snd (allPendingsPartitionedBySlot newHistory splitSlot)
-                                == changed
+                        snd (pendingsPartitionedBySlot newHistory splitSlot)
+                        == changed
 
 generatePendings :: Gen (W.Tx, W.TxMeta)
 generatePendings =
@@ -250,8 +261,8 @@ splitPendingsG m = do
             (foldMap Set.fromList *** foldMap Set.fromList) $
                 Map.split k m
 
-allPendingsPartitionedBySlot :: TxHistoryF f -> W.SlotNo -> (Set TxId, Set TxId)
-allPendingsPartitionedBySlot (TxHistoryF txs) slotNo =
+pendingsPartitionedBySlot :: TxHistoryF f -> W.SlotNo -> (Set TxId, Set TxId)
+pendingsPartitionedBySlot (TxHistoryF txs) slotNo =
     (Map.keysSet *** Map.keysSet) $
         Map.partition (<= slotNo) $
             fmap (fromJust . txMetaSlotExpires) $
@@ -264,7 +275,7 @@ allPendingsPartitionedBySlot (TxHistoryF txs) slotNo =
 genDeltas :: WalletId -> GenDelta DeltaTxHistory
 genDeltas wid history =
     frequency
-        [ (10, genExpand wid),
+        [ (10, genExpand wid arbitrary),
           (1, PruneTxHistory <$> arbitrary),
           -- probably just dropped
           (4, genPrune history),
@@ -287,17 +298,14 @@ genPrune history =
         [] -> PruneTxHistory <$> arbitrary
         xs -> PruneTxHistory <$> elements xs
 
-genExpand :: WalletId -> Gen DeltaTxHistory
-genExpand wid = ExpandTxHistory wid <$> arbitrary
+genExpand :: WalletId -> Gen [(W.Tx, W.TxMeta)] -> Gen DeltaTxHistory
+genExpand wid g = ExpandTxHistory . mkTxHistory wid <$> g
 
 biased :: Gen a -> [(Int, a -> Bool)] -> Gen a
 biased g fs = frequency $ second (suchThat g) <$> fs
 
-prop_StoreTransactionsLaws ::
-    SqliteContext ->
-    WalletId ->
-    Property
-prop_StoreTransactionsLaws = runWalletProp $ \wid (RunQuery runQ) ->
+prop_StoreTransactionsLaws :: WalletProperty
+prop_StoreTransactionsLaws = withInitializedWalletProp $ \wid runQ ->
     prop_StoreUpdates
         do runQ
         do mkStoreTransactions wid
@@ -312,11 +320,11 @@ pruneAll (TxHistoryF txs) = do
     (meta, _tx) <- toList txs
     pure $ PruneTxHistory $ getTxId $ txMetaTxId meta
 
-prop_PruneToAllInLedger :: SqliteContext -> WalletId -> Property
-prop_PruneToAllInLedger = runWalletProp $ \wid (RunQuery runQ) -> do
-    expansion <- pick $ logScale $ genExpand wid
+prop_PruneToAllInLedger :: WalletProperty
+prop_PruneToAllInLedger = withInitializedWalletProp $ \wid runQ -> do
+    expansion <- pick $ logScale $ genExpand wid arbitrary
     let store = mkStoreTransactions wid
-    result <- run . runQ $ do
+    result <- runQ $ do
         unsafeUpdateS store mempty expansion
             >>= \ba -> foldM (unsafeUpdateS store) ba (pruneAll ba)
     assert $ allInLedger result

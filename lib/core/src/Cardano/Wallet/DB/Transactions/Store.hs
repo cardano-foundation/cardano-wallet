@@ -28,8 +28,6 @@ import Cardano.Wallet.DB.Sqlite.Types
     ( TxId (TxId) )
 import Cardano.Wallet.DB.Transactions.Delta
     ( DeltaTxHistory (..) )
-import Cardano.Wallet.DB.Transactions.Model
-    ( mkTxHistory )
 import Cardano.Wallet.DB.Transactions.Select
     ( selectWalletTxRelation )
 import Cardano.Wallet.DB.Transactions.Types
@@ -74,12 +72,13 @@ mkStoreTransactions wid =
 
 update :: WalletId -> TxHistory -> DeltaTxHistory -> SqlPersistT IO ()
 update wid _ change = case change of
-    ExpandTxHistory _ txs -> putTxs $ mkTxHistory wid txs
+    ExpandTxHistory txs -> putTxs txs
     PruneTxHistory tid -> do
         let filt = [ TxMetaWalletId ==. wid, TxMetaTxId ==. (TxId tid) ]
         selectFirst ((TxMetaStatus ==. W.InLedger) : filt) [] >>= \case   
             Just _ -> pure () -- marked in ledger - refuse to delete
-            Nothing -> void $ deleteWhereCount
+            Nothing -> void
+                $ deleteWhereCount
                 $ (TxMetaStatus <-. [W.Pending, W.Expired]) : filt
     AgeTxHistory tip ->
         updateWhere isExpired [TxMetaStatus =. W.Expired]

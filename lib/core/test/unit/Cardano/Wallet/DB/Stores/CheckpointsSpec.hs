@@ -134,8 +134,8 @@ prop_StoreWallet
 prop_StoreWallet db (wid, InitialCheckpoint cp0) =
     monadicIO (setup >> prop)
   where
-    toIO = runQuery db
-    setup = run . toIO $ initializeWallet wid
+    toIO = run . runQuery db
+    setup = toIO $ initializeWallet wid
     prop = do
         let Just w0 = fromGenesis cp0 -- mempty
         prop_StoreUpdates toIO (mkStoreWallet wid) (pure w0) genDeltaWalletState
