@@ -327,6 +327,7 @@ constraints:
   -- This pin is just here to make cabalProejct == stackProject.
   -- Remove it if you are happy for a newer version to be picked when possible.
   , semigroups == 0.19.2
+  , persistent < 2.13.3.4
 
 -- ----------------------------------------------------------------
 -- Flags for dependencies
