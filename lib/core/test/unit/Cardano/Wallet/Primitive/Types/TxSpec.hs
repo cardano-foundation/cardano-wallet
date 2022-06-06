@@ -31,6 +31,7 @@ import Cardano.Wallet.Primitive.Types.Tx
     , mockSealedTx
     , sealedTxFromBytes
     , txAssetIds
+    , txMapAssetIds
     , txOutAssetIds
     , txOutMapAssetIds
     , txOutRemoveAssetId
@@ -80,6 +81,12 @@ spec = do
 
     parallel $ describe "Transformations" $ do
 
+        describe "txMapAssetIds" $ do
+            it "prop_txMapAssetIds_identity" $
+                prop_txMapAssetIds_identity & property
+            it "prop_txMapAssetIds_composition" $
+                prop_txMapAssetIds_composition & property
+
         describe "txRemoveAssetId" $ do
             it "prop_txRemoveAssetId_txAssetIds" $
                 prop_txRemoveAssetId_txAssetIds & property
@@ -115,6 +122,16 @@ instance Arbitrary Gibberish where
 --------------------------------------------------------------------------------
 -- Transformations
 --------------------------------------------------------------------------------
+
+prop_txMapAssetIds_identity :: Tx -> Property
+prop_txMapAssetIds_identity m =
+    txMapAssetIds id m === m
+
+prop_txMapAssetIds_composition
+    :: Tx -> Fun AssetId AssetId -> Fun AssetId AssetId -> Property
+prop_txMapAssetIds_composition m (applyFun -> f) (applyFun -> g) =
+    txMapAssetIds f (txMapAssetIds g m) ===
+    txMapAssetIds (f . g) m
 
 prop_txRemoveAssetId_txAssetIds :: Tx -> Property
 prop_txRemoveAssetId_txAssetIds tx =
