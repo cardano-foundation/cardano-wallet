@@ -2,6 +2,7 @@
 {-# LANGUAGE DeriveAnyClass #-}
 {-# LANGUAGE DerivingStrategies #-}
 {-# LANGUAGE FlexibleInstances #-}
+{-# LANGUAGE GeneralizedNewtypeDeriving #-}
 {-# LANGUAGE StandaloneDeriving #-}
 {-# LANGUAGE ViewPatterns #-}
 {-# OPTIONS_GHC -fno-warn-orphans #-}
@@ -32,6 +33,7 @@ import Cardano.Wallet.Primitive.Types.Tx
     , sealedTxFromBytes
     , txAssetIds
     , txMapAssetIds
+    , txMapTxIds
     , txOutAssetIds
     , txOutMapAssetIds
     , txOutRemoveAssetId
@@ -87,6 +89,12 @@ spec = do
             it "prop_txMapAssetIds_composition" $
                 prop_txMapAssetIds_composition & property
 
+        describe "txMapTxIds" $ do
+            it "prop_txMapTxIds_identity" $
+                prop_txMapTxIds_identity & property
+            it "prop_txMapTxIds_composition" $
+                prop_txMapTxIds_composition & property
+
         describe "txRemoveAssetId" $ do
             it "prop_txRemoveAssetId_txAssetIds" $
                 prop_txRemoveAssetId_txAssetIds & property
@@ -132,6 +140,19 @@ prop_txMapAssetIds_composition
 prop_txMapAssetIds_composition m (applyFun -> f) (applyFun -> g) =
     txMapAssetIds f (txMapAssetIds g m) ===
     txMapAssetIds (f . g) m
+
+prop_txMapTxIds_identity :: Tx -> Property
+prop_txMapTxIds_identity m =
+    txMapTxIds id m === m
+
+prop_txMapTxIds_composition
+    :: Tx
+    -> Fun (Hash "Tx") (Hash "Tx")
+    -> Fun (Hash "Tx") (Hash "Tx")
+    -> Property
+prop_txMapTxIds_composition m (applyFun -> f) (applyFun -> g) =
+    txMapTxIds f (txMapTxIds g m) ===
+    txMapTxIds (f . g) m
 
 prop_txRemoveAssetId_txAssetIds :: Tx -> Property
 prop_txRemoveAssetId_txAssetIds tx =
@@ -180,8 +201,12 @@ instance Arbitrary AssetId where
 deriving anyclass instance CoArbitrary AssetId
 deriving anyclass instance Function AssetId
 
+deriving newtype instance Arbitrary (Hash "Tx")
 deriving anyclass instance CoArbitrary (Hash "TokenPolicy")
 deriving anyclass instance Function (Hash "TokenPolicy")
+
+deriving anyclass instance CoArbitrary (Hash "Tx")
+deriving anyclass instance Function (Hash "Tx")
 
 instance Arbitrary Tx where
     arbitrary = genTx

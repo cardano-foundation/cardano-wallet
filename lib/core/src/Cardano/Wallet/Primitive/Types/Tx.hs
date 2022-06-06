@@ -93,6 +93,7 @@ module Cardano.Wallet.Primitive.Types.Tx
 
     -- * Transformations
     , txMapAssetIds
+    , txMapTxIds
     , txRemoveAssetId
     , txOutMapAssetIds
     , txOutRemoveAssetId
@@ -1002,6 +1003,15 @@ txMapAssetIds f tx = tx
         (fmap (txOutMapAssetIds f))
     & over #collateralOutput
         (fmap (txOutMapAssetIds f))
+
+txMapTxIds :: (Hash "Tx" -> Hash "Tx") -> Tx -> Tx
+txMapTxIds f tx = tx
+    & over #txId
+        f
+    & over #resolvedInputs
+        (fmap (first (over #inputId f)))
+    & over #resolvedCollateralInputs
+        (fmap (first (over #inputId f)))
 
 txRemoveAssetId :: Tx -> AssetId -> Tx
 txRemoveAssetId tx asset = tx
