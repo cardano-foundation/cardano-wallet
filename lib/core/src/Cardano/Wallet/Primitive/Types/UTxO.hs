@@ -49,6 +49,7 @@ module Cardano.Wallet.Primitive.Types.UTxO
     , assetIds
 
     -- * Transformations
+    , mapAssetIds
     , mapTxIds
     , removeAssetId
 
@@ -74,7 +75,13 @@ import Cardano.Wallet.Primitive.Types.TokenBundle
 import Cardano.Wallet.Primitive.Types.TokenMap
     ( AssetId )
 import Cardano.Wallet.Primitive.Types.Tx
-    ( TxIn, TxOut (..), txOutAssetIds, txOutCoin, txOutRemoveAssetId )
+    ( TxIn
+    , TxOut (..)
+    , txOutAssetIds
+    , txOutCoin
+    , txOutMapAssetIds
+    , txOutRemoveAssetId
+    )
 import Control.DeepSeq
     ( NFData (..) )
 import Data.Bifunctor
@@ -279,6 +286,9 @@ assetIds (UTxO u) = foldMap txOutAssetIds u
 --------------------------------------------------------------------------------
 -- Transformations
 --------------------------------------------------------------------------------
+
+mapAssetIds :: (AssetId -> AssetId) -> UTxO -> UTxO
+mapAssetIds f (UTxO u) = UTxO $ Map.map (txOutMapAssetIds f) u
 
 mapTxIds :: (Hash "Tx" -> Hash "Tx") -> UTxO -> UTxO
 mapTxIds f (UTxO u) = UTxO $ Map.mapKeys (over #inputId f) u

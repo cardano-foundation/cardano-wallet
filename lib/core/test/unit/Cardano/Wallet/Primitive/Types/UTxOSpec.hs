@@ -21,6 +21,12 @@ import Cardano.Wallet.Primitive.Types.Address.Gen
     ( Parity (..), addressParity, coarbitraryAddress )
 import Cardano.Wallet.Primitive.Types.Hash
     ( Hash (..), mockHash )
+import Cardano.Wallet.Primitive.Types.TokenMap
+    ( AssetId (..) )
+import Cardano.Wallet.Primitive.Types.TokenMap.Gen
+    ( genAssetId, shrinkAssetId )
+import Cardano.Wallet.Primitive.Types.TokenPolicy
+    ( TokenName (..), TokenPolicyId (..) )
 import Cardano.Wallet.Primitive.Types.Tx
     ( TxIn (..), TxOut (..) )
 import Cardano.Wallet.Primitive.Types.Tx.Gen
@@ -110,6 +116,12 @@ spec =
             property prop_filterByAddress_isSubset
 
     parallel $ describe "Transformations" $ do
+
+        describe "mapAssetIds" $ do
+            it "prop_mapAssetIds_identity" $
+                prop_mapAssetIds_identity & property
+            it "prop_mapAssetIds_composition" $
+                prop_mapAssetIds_composition & property
 
         describe "mapTxIds" $ do
             it "prop_mapTxIds_identity" $
@@ -299,6 +311,19 @@ prop_filterByAddress_isSubset u f =
 -- Transformations
 --------------------------------------------------------------------------------
 
+prop_mapAssetIds_identity :: UTxO -> Property
+prop_mapAssetIds_identity m =
+    UTxO.mapAssetIds id m === m
+
+prop_mapAssetIds_composition
+    :: UTxO
+    -> Fun AssetId AssetId
+    -> Fun AssetId AssetId
+    -> Property
+prop_mapAssetIds_composition m (applyFun -> f) (applyFun -> g) =
+    UTxO.mapAssetIds f (UTxO.mapAssetIds g m) ===
+    UTxO.mapAssetIds (f . g) m
+
 prop_mapTxIds_identity :: UTxO -> Property
 prop_mapTxIds_identity m =
     UTxO.mapTxIds id m === m
@@ -332,9 +357,25 @@ prop_removeAssetId_assetIds u =
 instance CoArbitrary Address where
     coarbitrary = coarbitraryAddress
 
+instance Arbitrary AssetId where
+    arbitrary = genAssetId
+    shrink = shrinkAssetId
+
+deriving anyclass instance CoArbitrary AssetId
+deriving anyclass instance Function AssetId
+
+deriving anyclass instance CoArbitrary (Hash "TokenPolicy")
+deriving anyclass instance Function (Hash "TokenPolicy")
+
 deriving newtype instance Arbitrary (Hash "Tx")
 deriving anyclass instance CoArbitrary (Hash "Tx")
 deriving anyclass instance Function (Hash "Tx")
+
+deriving anyclass instance CoArbitrary TokenName
+deriving anyclass instance Function TokenName
+
+deriving anyclass instance CoArbitrary TokenPolicyId
+deriving anyclass instance Function TokenPolicyId
 
 instance CoArbitrary TxIn where
     coarbitrary = coarbitraryTxIn
