@@ -99,17 +99,12 @@ import Cardano.Wallet.DB.Sqlite.Types
     ( TxId (..) )
 import Cardano.Wallet.DB.Sqlite.WrapSTM
     ()
-import Cardano.Wallet.DB.Transactions.Delete
-    ( deletePendingOrExpiredTx )
-import Cardano.Wallet.DB.Transactions.Select
-    ( selectTxHistory, selectTxMeta )
-import Cardano.Wallet.DB.Transactions.Update
-    ( updateTxHistory )
 import Cardano.Wallet.DB.Unstored
     ( ErrInitializeGenesisAbsent (ErrInitializeGenesisAbsent)
     , ErrRollbackTo (ErrNoOlderCheckpoint)
     , deleteDelegationCertificates
     , deleteLooseTransactions
+    , deletePendingOrExpiredTx
     , deleteStakeKeyCerts
     , deleteTxMetas
     , listPendingLocalTxSubmissionQuery
@@ -122,8 +117,11 @@ import Cardano.Wallet.DB.Unstored
     , readWalletMetadata
     , selectGenesisParameters
     , selectPrivateKey
+    , selectTxHistory
+    , selectTxMeta
     , selectWallet
     , updatePendingTxForExpiryQuery
+    , updateTxHistory
     , updateTxMetas
     )
 import Cardano.Wallet.DB.Wallets.State

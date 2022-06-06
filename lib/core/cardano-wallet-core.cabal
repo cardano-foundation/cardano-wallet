@@ -202,9 +202,6 @@ library
       Cardano.Wallet.DB.Checkpoints.AddressBook
       Cardano.Wallet.DB.Checkpoints.Model
       Cardano.Wallet.DB.Checkpoints.Store
-      Cardano.Wallet.DB.Transactions.Update
-      Cardano.Wallet.DB.Transactions.Select
-      Cardano.Wallet.DB.Transactions.Delete
       Cardano.Wallet.DB.Wallets.State
       Cardano.Wallet.DB.Wallets.Store
       Cardano.Wallet.DB.Sqlite.Migration

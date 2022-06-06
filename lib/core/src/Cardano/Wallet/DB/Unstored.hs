@@ -11,6 +11,9 @@
 {-# LANGUAGE UndecidableInstances #-}
 
 {-# OPTIONS_GHC -fno-warn-orphans #-}
+{-# LANGUAGE NamedFieldPuns #-}
+{-# LANGUAGE RecordWildCards #-}
+{-# LANGUAGE TupleSections #-}
 
 
 -- |
@@ -21,8 +24,6 @@
 module Cardano.Wallet.DB.Unstored
   ( ErrInitializeGenesisAbsent (..)
   , ErrRollbackTo (..)
-  , deleteTxMetas
-  , updateTxMetas
   , deleteLooseTransactions
   , selectWallet
   , deleteDelegationCertificates
@@ -38,6 +39,12 @@ module Cardano.Wallet.DB.Unstored
   , mkWalletEntity
   , readWalletDelegation
   , readWalletMetadata
+  , selectTxHistory
+  , selectTxMeta
+  , deletePendingOrExpiredTx
+  , deleteTxMetas
+  , updateTxMetas
+  , updateTxHistory
   )
 where
 
@@ -46,38 +53,61 @@ import Prelude
 import Cardano.Address.Derivation
     ( XPrv )
 import Cardano.DB.Sqlite
-    ( dbChunkedFor )
+    ( chunkSize, dbChunked', dbChunkedFor )
 import Cardano.Wallet.DB.Sqlite.Schema
     ( DelegationCertificate (..)
     , EntityField (..)
+    , Key (..)
     , LocalTxSubmission (..)
     , PrivateKey (..)
     , StakeKeyCertificate (..)
+    , TxCollateral (..)
+    , TxCollateralOut (..)
+    , TxCollateralOutToken (..)
+    , TxIn (..)
     , TxMeta (..)
+    , TxOut (..)
+    , TxOutToken (..)
+    , TxWithdrawal (..)
     , Wallet (..)
     )
 import Cardano.Wallet.DB.Sqlite.Types
     ( BlockId (..), TxId (..) )
 import Cardano.Wallet.Primitive.AddressDerivation
     ( Depth (..), PersistPrivateKey (..) )
+import qualified Cardano.Wallet.Primitive.Model as W
 import Cardano.Wallet.Primitive.Passphrase
     ( PassphraseHash )
 import Cardano.Wallet.Primitive.Slotting
-    ( TimeInterpreter, firstSlotInEpoch, interpretQuery )
+    ( TimeInterpreter, firstSlotInEpoch, interpretQuery, slotToUTCTime )
+import qualified Cardano.Wallet.Primitive.Types.Coin as W
+import Cardano.Wallet.Primitive.Types.TokenBundle
+    ( AssetId (AssetId) )
+import Control.Monad.Extra
+    ( concatMapM )
 import Control.Monad.IO.Class
     ( MonadIO (..) )
 import Data.Coerce
     ( coerce )
 import Data.Generics.Internal.VL.Lens
-    ( (^.) )
+    ( view, (^.) )
+import Data.List
+    ( nub, sortOn, unzip5 )
+import Data.List.Split
+    ( chunksOf )
+import Data.Map.Strict
+    ( Map )
+import qualified Data.Map.Strict as Map
 import Data.Maybe
-    ( catMaybes )
+    ( catMaybes, listToMaybe, maybeToList )
+import Data.Ord
+    ( Down (Down) )
 import Data.Quantity
     ( Quantity (..) )
 import Data.Word
     ( Word32 )
 import Database.Persist.Class
-    ( toPersistValue )
+    ( repsertMany, toPersistValue )
 import Database.Persist.Sql
     ( Entity (..)
     , Filter
@@ -86,6 +116,7 @@ import Database.Persist.Sql
     , SqlPersistT
     , Update (..)
     , deleteWhere
+    , deleteWhereCount
     , rawExecute
     , rawSql
     , selectFirst
@@ -104,7 +135,11 @@ import UnliftIO.Exception
 import qualified Cardano.Wallet.Primitive.Passphrase as W
 import qualified Cardano.Wallet.Primitive.Types as W
 import qualified Cardano.Wallet.Primitive.Types.Hash as W
+import qualified Cardano.Wallet.Primitive.Types.TokenBundle as TokenBundle
 import qualified Cardano.Wallet.Primitive.Types.Tx as W
+import Data.Functor
+    ( (<&>) )
+
 
 readWalletMetadata
     :: W.WalletId
@@ -263,23 +298,6 @@ updateTxMetas wid filters =
     updateWhere ((TxMetaWalletId ==. wid) : filters)
 
 
--- | Delete transactions that aren't referred to by TxMeta of any wallet.
-deleteLooseTransactions :: SqlPersistT IO ()
-deleteLooseTransactions = do
-    deleteLoose "tx_in"
-    deleteLoose "tx_out"
-    deleteLoose "tx_withdrawal"
-  where
-    -- Deletes all TxIn/TxOuts/TxWithdrawal returned by the sub-select.
-    -- The sub-select outer joins TxMeta with TxIn/TxOut/TxWithdrawal.
-    -- All rows of the join table TxMeta as NULL are loose (unreferenced)
-    -- transactions.
-    deleteLoose t = flip rawExecute [] $
-        "DELETE FROM "<> t <>" WHERE tx_id IN (" <>
-            "SELECT "<> t <>".tx_id FROM "<> t <>" " <>
-            "LEFT OUTER JOIN tx_meta ON tx_meta.tx_id = "<> t <>".tx_id " <>
-            "WHERE (tx_meta.tx_id IS NULL))"
-
 -- | Delete all delegation certificates matching the given filter
 deleteDelegationCertificates
     :: W.WalletId
@@ -389,3 +407,598 @@ data ErrInitializeGenesisAbsent
     = ErrInitializeGenesisAbsent W.WalletId W.BlockHeader deriving (Eq, Show)
 
 instance Exception ErrInitializeGenesisAbsent
+
+-- transactions history
+
+
+
+--------------------------------------------------------------------------------
+--------------------------------------------------------------------------------
+-- update
+--------------------------------------------------------------------------------
+--------------------------------------------------------------------------------
+
+{-------------------------------------------------------------------------------
+    SQLite database operations
+-------------------------------------------------------------------------------}
+updateTxHistory :: W.WalletId -> [(W.Tx, W.TxMeta)] -> SqlPersistT IO ()
+updateTxHistory wid txs = do
+  let ( txMetas
+          , txIns
+          , txCollateralIns
+          , txOuts
+          , txOutTokens
+          , txCollateralOuts
+          , txCollateralOutTokens
+          , txWithdrawals
+          ) = mkTxHistory wid txs
+  putTxs
+      txMetas
+      txIns
+      txCollateralIns
+      txOuts
+      txOutTokens
+      txCollateralOuts
+      txCollateralOutTokens
+      txWithdrawals
+
+-- | Insert multiple transactions, removing old instances first.
+putTxs
+    :: [TxMeta]
+    -> [TxIn]
+    -> [TxCollateral]
+    -> [TxOut]
+    -> [TxOutToken]
+    -> [TxCollateralOut]
+    -> [TxCollateralOutToken]
+    -> [TxWithdrawal]
+    -> SqlPersistT IO ()
+putTxs
+    txMetas
+    txIns
+    txCollateralIns
+    txOuts
+    txOutTokens
+    txCollateralOuts
+    txCollateralOutTokens
+    txWithdrawals = do
+        dbChunked' repsertMany
+            [ (TxMetaKey txMetaTxId txMetaWalletId, m)
+            | m@TxMeta{..} <- txMetas]
+        dbChunked' repsertMany
+            [ (TxInKey txInputTxId txInputSourceTxId txInputSourceIndex, i)
+            | i@TxIn{..} <- txIns ]
+        dbChunked' repsertMany
+            [ ( TxCollateralKey
+                txCollateralTxId
+                txCollateralSourceTxId
+                txCollateralSourceIndex
+              , i
+              )
+            | i@TxCollateral{..} <- txCollateralIns ]
+        dbChunked' repsertMany
+            [ (TxOutKey txOutputTxId txOutputIndex, o)
+            | o@TxOut{..} <- txOuts ]
+        dbChunked' repsertMany
+            [ ( TxOutTokenKey
+                txOutTokenTxId
+                txOutTokenTxIndex
+                txOutTokenPolicyId
+                txOutTokenName
+              , o
+              )
+            | o@TxOutToken{..} <- txOutTokens ]
+        dbChunked' repsertMany
+            [ (TxCollateralOutKey txCollateralOutTxId, o)
+            | o@TxCollateralOut{..} <- txCollateralOuts ]
+        dbChunked' repsertMany
+            [ ( TxCollateralOutTokenKey
+                txCollateralOutTokenTxId
+                txCollateralOutTokenPolicyId
+                txCollateralOutTokenName
+              , o
+              )
+            | o@TxCollateralOutToken{..} <- txCollateralOutTokens ]
+        dbChunked' repsertMany
+            [ (TxWithdrawalKey txWithdrawalTxId txWithdrawalAccount, w)
+            | w@TxWithdrawal{..} <- txWithdrawals ]
+
+mkTxHistory
+    :: W.WalletId
+    -> [(W.Tx, W.TxMeta)]
+    ->  ( [TxMeta]
+        , [TxIn]
+        , [TxCollateral]
+        , [TxOut]
+        , [TxOutToken]
+        , [TxCollateralOut]
+        , [TxCollateralOutToken]
+        , [TxWithdrawal]
+        )
+mkTxHistory wid txs = flatTxHistory
+    [ ( mkTxMetaEntity
+          wid txid (W.fee tx) (W.metadata tx) derived (W.scriptValidity tx)
+      , mkTxInputsOutputs (txid, tx)
+      , mkTxWithdrawals (txid, tx)
+      )
+    | (tx, derived) <- txs
+    , let txid = view #txId tx
+    ]
+  where
+    -- | Make flat lists of entities from the result of 'mkTxHistory'.
+    flatTxHistory ::
+        [ ( TxMeta
+          , ( [TxIn]
+            , [TxCollateral]
+            , [(TxOut, [TxOutToken])]
+            , [(TxCollateralOut, [TxCollateralOutToken])]
+            )
+          , [TxWithdrawal]
+          )
+        ] ->
+        ( [TxMeta]
+        , [TxIn]
+        , [TxCollateral]
+        , [TxOut]
+        , [TxOutToken]
+        , [TxCollateralOut]
+        , [TxCollateralOutToken]
+        , [TxWithdrawal]
+        )
+    flatTxHistory es =
+        (               map (                       (\(a, _, _) -> a)) es
+        ,         concatMap ((\(a, _, _, _) -> a) . (\(_, b, _) -> b)) es
+        ,         concatMap ((\(_, b, _, _) -> b) . (\(_, b, _) -> b)) es
+        , fst <$> concatMap ((\(_, _, c, _) -> c) . (\(_, b, _) -> b)) es
+        , snd =<< concatMap ((\(_, _, c, _) -> c) . (\(_, b, _) -> b)) es
+        , fst <$> concatMap ((\(_, _, _, d) -> d) . (\(_, b, _) -> b)) es
+        , snd =<< concatMap ((\(_, _, _, d) -> d) . (\(_, b, _) -> b)) es
+        ,         concatMap (                       (\(_, _, c) -> c)) es
+        )
+
+mkTxInputsOutputs ::
+    (W.Hash "Tx", W.Tx) ->
+    ( [TxIn]
+    , [TxCollateral]
+    , [(TxOut, [TxOutToken])]
+    , [(TxCollateralOut, [TxCollateralOutToken])]
+    )
+mkTxInputsOutputs tx =
+    ( (dist mkTxIn . ordered W.resolvedInputs) tx
+    , (dist mkTxCollateral . ordered W.resolvedCollateralInputs) tx
+    , (dist mkTxOut . ordered W.outputs) tx
+    , (dist mkTxCollateralOut . fmap (maybeToList . W.collateralOutput)) tx
+    )
+  where
+    mkTxIn tid (ix, (txIn, amt)) = TxIn
+        { txInputTxId = TxId tid
+        , txInputOrder = ix
+        , txInputSourceTxId = TxId (W.inputId txIn)
+        , txInputSourceIndex = W.inputIx txIn
+        , txInputSourceAmount = amt
+        }
+    mkTxCollateral tid (ix, (txCollateral, amt)) = TxCollateral
+        { txCollateralTxId = TxId tid
+        , txCollateralOrder = ix
+        , txCollateralSourceTxId = TxId (W.inputId txCollateral)
+        , txCollateralSourceIndex = W.inputIx txCollateral
+        , txCollateralSourceAmount = amt
+        }
+    mkTxOut tid (ix, txOut) = (out, tokens)
+      where
+        out = TxOut
+            { txOutputTxId = TxId tid
+            , txOutputIndex = ix
+            , txOutputAddress = view #address txOut
+            , txOutputAmount = W.txOutCoin txOut
+            }
+        tokens = mkTxOutToken tid ix <$>
+            snd (TokenBundle.toFlatList $ view #tokens txOut)
+    mkTxOutToken tid ix (AssetId policy token, quantity) = TxOutToken
+        { txOutTokenTxId = TxId tid
+        , txOutTokenTxIndex = ix
+        , txOutTokenPolicyId = policy
+        , txOutTokenName = token
+        , txOutTokenQuantity = quantity
+        }
+    mkTxCollateralOut tid txCollateralOut = (out, tokens)
+      where
+        out = TxCollateralOut
+            { txCollateralOutTxId = TxId tid
+            , txCollateralOutAddress = view #address txCollateralOut
+            , txCollateralOutAmount = W.txOutCoin txCollateralOut
+            }
+        tokens = mkTxCollateralOutToken tid <$>
+            snd (TokenBundle.toFlatList $ view #tokens txCollateralOut)
+    mkTxCollateralOutToken tid (AssetId policy token, quantity) =
+        TxCollateralOutToken
+        { txCollateralOutTokenTxId = TxId tid
+        , txCollateralOutTokenPolicyId = policy
+        , txCollateralOutTokenName = token
+        , txCollateralOutTokenQuantity = quantity
+        }
+    ordered f = fmap (zip [0..] . f)
+    -- | Distribute `a` across many `b`s using the given function.
+    -- >>> dist TxOut (addr, [Coin 1, Coin 42, Coin 14])
+    -- [TxOut addr (Coin 1), TxOut addr (Coin 42), TxOut addr (Coin 14)]
+    dist :: (a -> b -> c) -> (a, [b]) -> [c]
+    dist f (a, bs) = [f a b | b <- bs]
+
+mkTxWithdrawals
+    :: (W.Hash "Tx", W.Tx)
+    -> [TxWithdrawal]
+mkTxWithdrawals (txid, tx) =
+    mkTxWithdrawal <$> Map.toList (tx ^. #withdrawals)
+  where
+    txWithdrawalTxId = TxId txid
+    mkTxWithdrawal (txWithdrawalAccount, txWithdrawalAmount) =
+        TxWithdrawal
+            { txWithdrawalTxId
+            , txWithdrawalAccount
+            , txWithdrawalAmount
+            }
+
+mkTxMetaEntity
+    :: W.WalletId
+    -> W.Hash "Tx"
+    -> Maybe W.Coin
+    -> Maybe W.TxMetadata
+    -> W.TxMeta
+    -> Maybe W.TxScriptValidity
+    -> TxMeta
+mkTxMetaEntity wid txid mfee meta derived scriptValidity = TxMeta
+    { txMetaTxId = TxId txid
+    , txMetaWalletId = wid
+    , txMetaStatus = derived ^. #status
+    , txMetaDirection = derived ^. #direction
+    , txMetaSlot = derived ^. #slotNo
+    , txMetaBlockHeight = getQuantity (derived ^. #blockHeight)
+    , txMetaAmount = derived ^. #amount
+    , txMetaFee = fromIntegral . W.unCoin <$> mfee
+    , txMetaSlotExpires = derived ^. #expiry
+    , txMetadata = meta
+    , txMetaScriptValidity = scriptValidity <&> \case
+          W.TxScriptValid -> True
+          W.TxScriptInvalid -> False
+    }
+
+--------------------------------------------------------------------------------
+--------------------------------------------------------------------------------
+-- select
+--------------------------------------------------------------------------------
+--------------------------------------------------------------------------------
+
+
+-- This relies on available information from the database to reconstruct coin
+-- selection information for __outgoing__ payments. We can't however guarantee
+-- that we have such information for __incoming__ payments (we usually don't
+-- have it).
+--
+-- To reliably provide this information for incoming payments, it should be
+-- looked up when applying blocks from the global ledger, but that is future
+-- work.
+--
+-- See also: issue #573.
+selectTxs
+    :: [TxId]
+    -> SqlPersistT IO
+        ( [(TxIn, Maybe (TxOut, [TxOutToken]))]
+        , [(TxCollateral, Maybe (TxOut, [TxOutToken]))]
+        , [(TxOut, [TxOutToken])]
+        , [(TxCollateralOut, [TxCollateralOutToken])]
+        , [TxWithdrawal]
+        )
+selectTxs = fmap concatUnzip . mapM select . chunksOf chunkSize
+  where
+    select txids = do
+        inputs <- fmap entityVal <$> selectList
+            [TxInputTxId <-. txids]
+            [Asc TxInputTxId, Asc TxInputOrder]
+
+        collateral <- fmap entityVal <$> selectList
+            [TxCollateralTxId <-. txids]
+            [Asc TxCollateralTxId, Asc TxCollateralOrder]
+
+        resolvedInputs <- fmap toOutputMap $
+            combineChunked inputs $ \inputsChunk ->
+                traverse readTxOutTokens . fmap entityVal =<<
+                    selectList
+                        [TxOutputTxId <-. (txInputSourceTxId <$> inputsChunk)]
+                        [Asc TxOutputTxId, Asc TxOutputIndex]
+
+        resolvedCollateral <- fmap toOutputMap $
+            combineChunked collateral $ \collateralChunk ->
+                traverse readTxOutTokens . fmap entityVal =<< selectList
+                    [TxOutputTxId <-.
+                        (txCollateralSourceTxId <$> collateralChunk)]
+                    [Asc TxOutputTxId, Asc TxOutputIndex]
+
+        outputs <- traverse readTxOutTokens . fmap entityVal =<<
+            selectList
+                [TxOutputTxId <-. txids]
+                [Asc TxOutputTxId, Asc TxOutputIndex]
+
+        collateralOutputs <-
+            traverse readTxCollateralOutTokens . fmap entityVal =<<
+            selectList
+                [TxCollateralOutTxId <-. txids]
+                [Asc TxCollateralOutTxId]
+
+        withdrawals <- fmap entityVal <$> selectList
+            [TxWithdrawalTxId <-. txids]
+            []
+
+        pure
+            ( inputs
+                `resolveInputWith` resolvedInputs
+            , collateral
+                `resolveCollateralWith` resolvedCollateral
+            , outputs
+            , collateralOutputs
+            , withdrawals
+            )
+
+    -- Fetch the complete set of tokens associated with a TxOut.
+    --
+    readTxOutTokens :: TxOut -> SqlPersistT IO (TxOut, [TxOutToken])
+    readTxOutTokens out = (out,) . fmap entityVal <$> selectList
+        [ TxOutTokenTxId ==. txOutputTxId out
+        , TxOutTokenTxIndex ==. txOutputIndex out
+        ]
+        []
+
+    -- Fetch the complete set of tokens associated with a TxCollateralOut.
+    --
+    readTxCollateralOutTokens
+        :: TxCollateralOut
+        -> SqlPersistT IO (TxCollateralOut, [TxCollateralOutToken])
+    readTxCollateralOutTokens out = (out,) . fmap entityVal <$> selectList
+        [TxCollateralOutTokenTxId ==. txCollateralOutTxId out]
+        []
+
+    toOutputMap
+        :: [(TxOut, [TxOutToken])]
+        -> Map (TxId, Word32) (TxOut, [TxOutToken])
+    toOutputMap = Map.fromList . fmap toEntry
+      where
+        toEntry (out, tokens) = (key, (out, tokens))
+          where
+            key = (txOutputTxId out, txOutputIndex out)
+
+    resolveInputWith
+        :: [TxIn] -> Map (TxId, Word32) txOut -> [(TxIn, Maybe txOut)]
+    resolveInputWith inputs resolvedInputs =
+        [ (i, Map.lookup key resolvedInputs)
+        | i <- inputs
+        , let key = (txInputSourceTxId i, txInputSourceIndex i)
+        ]
+
+    resolveCollateralWith
+        :: [TxCollateral]
+        -> Map (TxId, Word32) txOut
+        -> [(TxCollateral, Maybe txOut)]
+    resolveCollateralWith collateral resolvedCollateral =
+        [ (i, Map.lookup key resolvedCollateral)
+        | i <- collateral
+        , let key =
+                ( txCollateralSourceTxId i
+                , txCollateralSourceIndex i
+                )
+        ]
+
+    concatUnzip
+        :: [([a], [b], [c], [d], [e])]
+        -> (([a], [b], [c], [d], [e]))
+    concatUnzip =
+        (\(a, b, c, d, e) ->
+            ( concat a
+            , concat b
+            , concat c
+            , concat d
+            , concat e
+            )
+        ) . unzip5
+
+-- | Split a query's input values into chunks, run multiple smaller queries,
+-- and then concatenate the results afterwards. Used to avoid "too many SQL
+-- variables" errors for "SELECT IN" queries.
+combineChunked :: [a] -> ([a] -> SqlPersistT IO [b]) -> SqlPersistT IO [b]
+combineChunked xs f = concatMapM f $ chunksOf chunkSize xs
+
+selectTxHistory
+    :: W.Wallet s
+    -> TimeInterpreter IO
+    -> W.WalletId
+    -> Maybe W.Coin
+    -> W.SortOrder
+    -> [Filter TxMeta]
+    -> SqlPersistT IO [W.TransactionInfo]
+selectTxHistory cp ti wid minWithdrawal order conditions = do
+    let txMetaFilter = (TxMetaWalletId ==. wid):conditions
+    metas <- case minWithdrawal of
+        Nothing -> fmap entityVal <$> selectList txMetaFilter sortOpt
+        Just coin -> do
+            txids <- fmap (txWithdrawalTxId . entityVal)
+                <$> selectList [ TxWithdrawalAmount >=. coin ] []
+            ms <- combineChunked (nub txids) (\chunk -> selectList
+              ((TxMetaTxId <-. chunk):txMetaFilter) [])
+            let sortTxId = case order of
+                    W.Ascending -> sortOn (Down . txMetaTxId)
+                    W.Descending -> sortOn txMetaTxId
+            let sortSlot = case order of
+                    W.Ascending -> sortOn txMetaSlot
+                    W.Descending -> sortOn (Down . txMetaSlot)
+            pure $ sortSlot $ sortTxId $ fmap entityVal ms
+
+    let txids = map txMetaTxId metas
+    (ins, cins, outs, couts, ws) <- selectTxs txids
+
+    let tip = W.currentTip cp
+
+    liftIO $ txHistoryFromEntity
+        ti tip metas ins cins outs couts ws
+  where
+    -- Note: there are sorted indices on these columns.
+    -- The secondary sort by TxId is to make the ordering stable
+    -- so that testing with random data always works.
+    sortOpt = case order of
+        W.Ascending -> [Asc TxMetaSlot, Desc TxMetaTxId]
+        W.Descending -> [Desc TxMetaSlot, Asc TxMetaTxId]
+
+selectTxMeta
+    :: W.WalletId
+    -> W.Hash "Tx"
+    -> SqlPersistT IO (Maybe TxMeta)
+selectTxMeta wid tid =
+    fmap entityVal <$> selectFirst
+        [ TxMetaWalletId ==. wid, TxMetaTxId ==. (TxId tid)]
+        [ Desc TxMetaSlot ]
+-- note: TxIn records must already be sorted by order
+-- and TxOut records must already be sorted by index
+txHistoryFromEntity
+    :: Monad m
+    => TimeInterpreter m
+    -> W.BlockHeader
+    -> [TxMeta]
+    -> [(TxIn, Maybe (TxOut, [TxOutToken]))]
+    -> [(TxCollateral, Maybe (TxOut, [TxOutToken]))]
+    -> [(TxOut, [TxOutToken])]
+    -> [(TxCollateralOut, [TxCollateralOutToken])]
+    -> [TxWithdrawal]
+    -> m [W.TransactionInfo]
+txHistoryFromEntity ti tip metas ins cins outs couts ws =
+    mapM mkItem metas
+  where
+    startTime' = interpretQuery ti . slotToUTCTime
+    mkItem m = mkTxWith
+        (txMetaTxId m)
+        (txMetaFee m)
+        (txMetadata m)
+        (mkTxDerived m)
+        (txMetaScriptValidity m)
+    mkTxWith txid mfee meta derived isValid = do
+        t <- startTime' (derived ^. #slotNo)
+        return $ W.TransactionInfo
+            { W.txInfoId =
+                getTxId txid
+            , W.txInfoFee =
+                W.Coin . fromIntegral <$> mfee
+            , W.txInfoInputs =
+                map mkTxIn $ filter ((== txid) . txInputTxId . fst) ins
+            , W.txInfoCollateralInputs =
+                map mkTxCollateral $
+                filter ((== txid) . txCollateralTxId . fst) cins
+            , W.txInfoOutputs =
+                map mkTxOut $ filter ((== txid) . txOutputTxId . fst) outs
+            , W.txInfoCollateralOutput =
+                -- This conversion from a list is correct, as the primary key
+                -- for the TxCollateralOut table guarantees that there can be
+                -- at most one collateral output for a given transaction.
+                listToMaybe $
+                map mkTxCollateralOut $
+                filter ((== txid) . txCollateralOutTxId . fst) couts
+            , W.txInfoWithdrawals =
+                Map.fromList
+                    $ map mkTxWithdrawal
+                    $ filter ((== txid) . txWithdrawalTxId) ws
+            , W.txInfoMeta =
+                derived
+            , W.txInfoMetadata =
+                meta
+            , W.txInfoDepth =
+                Quantity $ fromIntegral $ if tipH > txH then tipH - txH else 0
+            , W.txInfoTime =
+                t
+            , W.txInfoScriptValidity = isValid <&> \case
+                  False -> W.TxScriptInvalid
+                  True -> W.TxScriptValid
+            }
+      where
+        txH  = getQuantity (derived ^. #blockHeight)
+        tipH = getQuantity (tip ^. #blockHeight)
+    mkTxIn (tx, out) =
+        ( W.TxIn
+            { W.inputId = getTxId (txInputSourceTxId tx)
+            , W.inputIx = txInputSourceIndex tx
+            }
+        , txInputSourceAmount tx
+        , mkTxOut <$> out
+        )
+    mkTxCollateral (tx, out) =
+        ( W.TxIn
+            { W.inputId = getTxId (txCollateralSourceTxId tx)
+            , W.inputIx = txCollateralSourceIndex tx
+            }
+        , txCollateralSourceAmount tx
+        , mkTxOut <$> out
+        )
+    mkTxOut (out, tokens) = W.TxOut
+        { W.address = txOutputAddress out
+        , W.tokens = TokenBundle.fromFlatList
+            (txOutputAmount out)
+            (mkTxOutToken <$> tokens)
+        }
+    mkTxOutToken token =
+        ( AssetId (txOutTokenPolicyId token) (txOutTokenName token)
+        , txOutTokenQuantity token
+        )
+    mkTxCollateralOut (out, tokens) = W.TxOut
+        { W.address = txCollateralOutAddress out
+        , W.tokens = TokenBundle.fromFlatList
+            (txCollateralOutAmount out)
+            (mkTxCollateralOutToken <$> tokens)
+        }
+    mkTxCollateralOutToken token =
+        ( AssetId
+            (txCollateralOutTokenPolicyId token)
+            (txCollateralOutTokenName token)
+        , txCollateralOutTokenQuantity token
+        )
+    mkTxWithdrawal w =
+        ( txWithdrawalAccount w
+        , txWithdrawalAmount w
+        )
+    mkTxDerived m = W.TxMeta
+        { W.status = txMetaStatus m
+        , W.direction = txMetaDirection m
+        , W.slotNo = txMetaSlot m
+        , W.blockHeight = Quantity (txMetaBlockHeight m)
+        , W.amount = txMetaAmount m
+        , W.expiry = txMetaSlotExpires m
+        }
+
+--------------------------------------------------------------------------------
+--------------------------------------------------------------------------------
+-- delete
+--------------------------------------------------------------------------------
+--------------------------------------------------------------------------------
+
+-- | Delete the transaction, but only if it's not in ledger.
+-- Returns non-zero if this was a success.
+deletePendingOrExpiredTx
+    :: W.WalletId
+    -> W.Hash "Tx"
+    -> SqlPersistT IO Int
+deletePendingOrExpiredTx wid tid = do
+    let filt = [ TxMetaWalletId ==. wid, TxMetaTxId ==. (TxId tid) ]
+    selectFirst ((TxMetaStatus ==. W.InLedger):filt) [] >>= \case
+        Just _ -> pure 0  -- marked in ledger - refuse to delete
+        Nothing -> fromIntegral <$> deleteWhereCount
+            ((TxMetaStatus <-. [W.Pending, W.Expired]):filt)
+
+-- | Delete transactions that aren't referred to by TxMeta of any wallet.
+deleteLooseTransactions :: SqlPersistT IO ()
+deleteLooseTransactions = do
+    deleteLoose "tx_in"
+    deleteLoose "tx_out"
+    deleteLoose "tx_withdrawal"
+  where
+    -- Deletes all TxIn/TxOuts/TxWithdrawal returned by the sub-select.
+    -- The sub-select outer joins TxMeta with TxIn/TxOut/TxWithdrawal.
+    -- All rows of the join table TxMeta as NULL are loose (unreferenced)
+    -- transactions.
+    deleteLoose t = flip rawExecute [] $
+        "DELETE FROM "<> t <>" WHERE tx_id IN (" <>
+            "SELECT "<> t <>".tx_id FROM "<> t <>" " <>
+            "LEFT OUTER JOIN tx_meta ON tx_meta.tx_id = "<> t <>".tx_id " <>
+            "WHERE (tx_meta.tx_id IS NULL))"
