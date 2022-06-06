@@ -3,12 +3,19 @@
 {-# LANGUAGE RankNTypes #-}
 {-# LANGUAGE ScopedTypeVariables #-}
 
-module Cardano.Wallet.DB.Stores.Fixtures where
+module Cardano.Wallet.DB.Stores.Fixtures
+    ( withDBInMemory
+    , initializeWallet
+    , assertWith
+    , runWalletProp
+    , RunQuery (..)
+    )
+    where
 
 import Prelude
 
 import Cardano.DB.Sqlite
-    ( SqliteContext, newInMemorySqliteContext )
+    ( SqliteContext, newInMemorySqliteContext, runQuery )
 import Cardano.Wallet.DB.Sqlite.Schema
     ( Wallet (..), migrateAll )
 import Cardano.Wallet.DB.Sqlite.Types
@@ -32,7 +39,7 @@ import Database.Persist.Sqlite
 import Test.QuickCheck
     ( counterexample )
 import Test.QuickCheck.Monadic
-    ( PropertyM, assert, monitor )
+    ( PropertyM, assert, monadicIO, monitor, run )
 import UnliftIO.Exception
     ( bracket )
 
@@ -84,3 +91,11 @@ assertWith lbl condition = do
     let flag = if condition then "✓" else "✗"
     monitor (counterexample $ lbl <> " " <> flag)
     assert condition
+
+
+newtype RunQuery = RunQuery
+    { _runQueryA :: forall a. SqlPersistT IO a -> IO a}
+
+runWalletProp prop db wid = monadicIO $ do
+    run . runQuery db $ initializeWallet wid
+    prop wid (RunQuery $ runQuery db)

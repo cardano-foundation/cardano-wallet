@@ -1,9 +1,9 @@
+{-# LANGUAGE BlockArguments #-}
 {-# LANGUAGE DataKinds #-}
 {-# LANGUAGE FlexibleContexts #-}
 {-# LANGUAGE RankNTypes #-}
 {-# LANGUAGE ScopedTypeVariables #-}
-{-# LANGUAGE BlockArguments, TypeApplications #-}
-{-# LANGUAGE TupleSections #-}
+{-# LANGUAGE TypeApplications #-}
 
 module Cardano.Wallet.DB.Stores.TransactionsSpec
     ( spec
@@ -15,51 +15,58 @@ import Cardano.DB.Sqlite
     ( SqliteContext, runQuery )
 import Cardano.Wallet.DB.Arbitrary
     ()
+import Cardano.Wallet.DB.Sqlite.Schema
+    ( txMetaSlotExpires )
+import Cardano.Wallet.DB.Sqlite.Types
+    ( getTxId )
+import Cardano.Wallet.DB.Stores.Fixtures
+    ( RunQuery (RunQuery), initializeWallet, runWalletProp, withDBInMemory )
 import Cardano.Wallet.DB.Transactions.Delta
-    ( DeltaTxHistory (ExpandTxHistory, PruneTxHistory, AgeTxHistory) )
+    ( DeltaTxHistory (AgeTxHistory, ExpandTxHistory, PruneTxHistory) )
 import Cardano.Wallet.DB.Transactions.Store
     ( mkStoreTransactions )
+import Cardano.Wallet.DB.Transactions.Types
+    ( TxHistory, TxHistoryF (TxHistoryF), txHistory_relations )
 import Cardano.Wallet.Primitive.Types
     ( WalletId )
 import Data.DBVar
     ()
+import Data.Foldable
+    ( toList )
+import Data.Maybe
+    ( catMaybes )
 import Test.DBVar
-    ( GenDelta, prop_StoreUpdates )
+    ( GenDelta, Updates (Updates), genUpdates, prop_StoreUpdates )
 import Test.Hspec
     ( Spec, around, describe, it )
 import Test.QuickCheck
-    ( Gen, Property, arbitrary, frequency, property, scale, elements )
+    ( Blind (Blind)
+    , Gen
+    , Property
+    , arbitrary
+    , elements
+    , frequency
+    , property
+    , scale
+    )
 import Test.QuickCheck.Monadic
-    ( monadicIO, run )
-import Cardano.Wallet.DB.Stores.Fixtures ( withDBInMemory, initializeWallet )
-import Cardano.Wallet.DB.Transactions.Types (TxHistory, txHistory_relations, TxHistoryF (TxHistoryF))
+    ( monadicIO, pick, run )
+
 import qualified Data.Map.Strict as Map
-import Cardano.Wallet.DB.Sqlite.Types (getTxId)
-import Data.Foldable (toList)
-import Cardano.Wallet.DB.Sqlite.Schema (txMetaSlotExpires)
-import Data.Maybe (catMaybes)
+import Database.Persist.Sql
+    ( SqlPersistT )
 
 spec :: Spec
 spec = around withDBInMemory $ do
     describe "Transactions store" $ do
         it "respects store laws" $
             property . prop_StoreTransactionsLaws
+        it "can prune a not-in-ledger transaction" $
+            property . prop_PrunePositive
 
 --------------------------------------------------------------------------------
--- store laws
+--  generate deltas
 --------------------------------------------------------------------------------
-prop_StoreTransactionsLaws
-    :: SqliteContext
-    -> WalletId
-    -> Property
-prop_StoreTransactionsLaws db wid = monadicIO $ do
-    run . runQuery db $ initializeWallet wid
-    prop_StoreUpdates
-        do runQuery db
-        do mkStoreTransactions wid
-        do pure mempty
-        do genDeltas wid
-
 genDeltas ::  WalletId -> GenDelta DeltaTxHistory
 genDeltas wid history
     = scale (floor @Double . log . fromIntegral . succ)
@@ -87,15 +94,37 @@ genPrune history =
         [] -> PruneTxHistory <$> arbitrary
         xs -> PruneTxHistory <$> elements xs
 
+
+
+------------------------------------------------------------------------
+-- store laws
+--------------------------------------------------------------------------------
+prop_StoreTransactionsLaws
+    :: SqliteContext
+    -> WalletId
+    -> Property
+prop_StoreTransactionsLaws  = runWalletProp $ \wid (RunQuery run) ->
+    prop_StoreUpdates
+        do run
+        do mkStoreTransactions wid
+        do pure mempty
+        do genDeltas wid
+
+
+
 --------------------------------------------------------------------------------
 -- transactions delta semantics
 --------------------------------------------------------------------------------
 
 
-prop_UpdateTransactionsSemantics
+prop_PrunePositive
     :: SqliteContext
     -> WalletId
     -> Property
-prop_UpdateTransactionsSemantics db wid = monadicIO $ do
-    run . runQuery db $ initializeWallet wid
-    genUpdates arbitrary
+prop_PrunePositive = runWalletProp $ \wid (RunQuery run) -> do
+    -- genUpdates arbitrary
+
+    Updates adas <- pick $ genUpdates (pure mempty) $ genDeltas wid
+    let as  = map fst adas <> [mempty]
+        das = map snd adas
+    pure True

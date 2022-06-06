@@ -1,5 +1,6 @@
 {-# LANGUAGE BlockArguments #-}
 {-# LANGUAGE DataKinds #-}
+{-# LANGUAGE DeriveGeneric #-}
 {-# LANGUAGE RecordWildCards #-}
 {-# LANGUAGE TypeFamilies #-}
 
@@ -35,12 +36,15 @@ import Fmt
 import qualified Cardano.Wallet.Primitive.Types as W
 import qualified Cardano.Wallet.Primitive.Types.Tx as W
 import qualified Data.Map.Strict as Map
+import GHC.Generics
+    ( Generic )
 
 data DeltaTxHistory
     = ExpandTxHistory W.WalletId [(W.Tx, W.TxMeta)]
     | PruneTxHistory (Hash "Tx")
     | AgeTxHistory W.SlotNo
     | RollBackTxHistory W.SlotNo
+    deriving (Show, Eq, Generic)
 
 instance Buildable DeltaTxHistory where
     build (ExpandTxHistory _ txs) =
