@@ -12,7 +12,7 @@ module Cardano.Wallet.DB.Stores.Fixtures
     , RunQuery (..)
     , unsafeLoadS
     , unsafeUpdateS
-    , logScale)
+    , logScale,coverM)
     where
 
 import Prelude
@@ -46,7 +46,7 @@ import Database.Persist.Sql
 import Database.Persist.Sqlite
     ( SqlPersistT, (==.) )
 import Test.QuickCheck
-    ( Gen, Property, Testable, counterexample, scale )
+    ( Gen, Property, Testable, counterexample, scale, cover )
 import Test.QuickCheck.Monadic
     ( PropertyM, assert, monadicIO, monitor, run )
 import UnliftIO.Exception
@@ -104,6 +104,9 @@ assertWith lbl condition = do
 logScale :: Gen a -> Gen a
 logScale = scale (floor @Double . log . fromIntegral . succ)
 
+coverM :: (Functor f, Testable prop)
+    => Double -> Bool -> String -> f prop -> f Property
+coverM n c t =fmap $ cover n c t
 newtype RunQuery = RunQuery
     { _runQueryA :: forall a. SqlPersistT IO a -> IO a}
 

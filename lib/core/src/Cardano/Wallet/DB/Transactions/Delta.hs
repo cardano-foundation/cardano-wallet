@@ -21,7 +21,7 @@ import Cardano.Wallet.Primitive.Types.Hash
 import Cardano.Wallet.Primitive.Types.Tx
     ( TxStatus (InLedger) )
 import Control.Monad
-    ( when )
+    ( when, guard )
 import Data.Bifunctor
     ( first )
 import Data.Delta
@@ -82,13 +82,16 @@ instance Delta DeltaTxHistory where
         where
             rescheduleOrForget :: W.SlotNo -> TxMeta -> Maybe TxMeta
             rescheduleOrForget forkSlot meta = do
-                let isAfter = txMetaSlot meta > point
-                let isIncoming = txMetaDirection meta == W.Incoming
-                when (isIncoming && isAfter) Nothing
-                pure $ if isAfter
-                    then meta
-                            { txMetaSlot = forkSlot , txMetaStatus = W.Pending }
-                    else meta
+                let
+                    isAfter = txMetaSlot meta > point
+                    isIncoming = txMetaDirection meta == W.Incoming
+                guard $ not $ isIncoming && isAfter
+                Just $ if isAfter
+                            then meta
+                                    { txMetaSlot = forkSlot
+                                    , txMetaStatus = W.Pending
+                                    }
+                            else meta
 
 isExpired :: W.SlotNo -> TxMeta -> Bool
 isExpired tip TxMeta {..}

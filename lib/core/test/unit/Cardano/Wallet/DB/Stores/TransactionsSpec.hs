@@ -14,30 +14,34 @@ import Prelude
 
 import Cardano.DB.Sqlite
     ( SqliteContext )
-
 import Cardano.Wallet.DB.Arbitrary
     ()
 import Cardano.Wallet.DB.Sqlite.Schema
-    ( TxMeta (txMetaStatus), txMetaSlotExpires, txMetaTxId )
+    ( TxMeta (txMetaDirection, txMetaSlot, txMetaStatus)
+    , txMetaSlotExpires
+    , txMetaTxId
+    )
 import Cardano.Wallet.DB.Sqlite.Types
     ( TxId, getTxId )
 import Cardano.Wallet.DB.Stores.Fixtures
     ( RunQuery (RunQuery)
+    , coverM
     , logScale
     , runWalletProp
     , unsafeUpdateS
     , withDBInMemory
     )
 import Cardano.Wallet.DB.Transactions.Delta
-    ( DeltaTxHistory (AgeTxHistory, ExpandTxHistory, PruneTxHistory) )
+    ( DeltaTxHistory (AgeTxHistory, ExpandTxHistory, PruneTxHistory, RollBackTxHistory)
+    )
 import Cardano.Wallet.DB.Transactions.Store
     ( mkStoreTransactions )
 import Cardano.Wallet.DB.Transactions.Types
-    ( TxHistory, TxHistoryF (TxHistoryF), txHistory_relations )
+    ( TxHistory, TxHistoryF (TxHistoryF), overTxHistoryF, txHistory_relations )
 import Cardano.Wallet.Primitive.Types
     ( WalletId )
 import Cardano.Wallet.Primitive.Types.Tx
-    ( TxStatus (InLedger, Pending), status )
+    ( Direction (Incoming, Outgoing), TxStatus (InLedger, Pending), status )
 import Control.Arrow
     ( second, (***) )
 import Control.Monad
@@ -59,7 +63,6 @@ import Test.QuickCheck
     ( Gen
     , Property
     , arbitrary
-    , cover
     , elements
     , frequency
     , listOf1
@@ -67,7 +70,7 @@ import Test.QuickCheck
     , suchThat
     )
 import Test.QuickCheck.Monadic
-    ( assert, pick, run )
+    ( PropertyM, assert, pick, run )
 
 import qualified Cardano.Wallet.Primitive.Types as W
 import qualified Cardano.Wallet.Primitive.Types.Tx as W
@@ -76,35 +79,118 @@ import qualified Data.Set as Set
 spec :: Spec
 spec = around withDBInMemory $ do
     describe "Transactions store" $ do
-        it "respects store laws" $
-            property . prop_StoreTransactionsLaws
-        it "can prune all not-in-ledger transaction" $
-            property . prop_PruneToAllInLedger
-        it "can mark pending transactions as expired based on current slot" $
-            property . prop_AgeAllPending2Expire
-        it "can mark past pending transactions as expired based on current slot" $
-            property . prop_AgeSomePending2Expire
-        -- it "can roll back to a given slot, removing incoming transactions" $
-            -- property . prop_RollBackRemoveIncoming
+        it "respects store laws"
+            $ property . prop_StoreTransactionsLaws
+        it "can prune all not-in-ledger transaction"
+            $ property . prop_PruneToAllInLedger
+        it "can mark pending transactions as expired based on current slot"
+            $ property . prop_AgeAllPending2Expire
+        it "can mark past pending transactions as expired based on current slot"
+            $ property . prop_AgeSomePending2Expire
+        it "can roll back to a given slot, removing all incoming transactions"
+            $ property . prop_RollBackRemoveAfterSlot
+        it "can roll back to a given slot, switching all outgoing transactions \
+            \ after slot in pending state"
+            $ property . prop_RollBackSwitchOutgoing
+        it "can roll back to a given slot, preserving all outgoing transactions"
+            $ property . prop_RollBackPreserveOutgoing
+        it "can roll back to a given slot, leaving past untouched"
+            $ property . prop_RollBackDoNotTouchPast
 
-prop_RollBackRemoveIncoming :: SqliteContext -> WalletId -> Property
-prop_RollBackRemoveIncoming = error "not implemented"
+
+withPropRollBack
+    :: (((TxHistory, TxHistory),
+         (TxHistory, TxHistory))
+    -> PropertyM IO ())
+    -> SqliteContext -> WalletId -> Property
+withPropRollBack f = runWalletProp $ \wid (RunQuery runQ) -> do
+    expansion <- pick
+        $ logScale
+        $ ExpandTxHistory wid <$> listOf1 arbitrary
+    let store = mkStoreTransactions wid
+    bootHistory <- run . runQ $ do
+        unsafeUpdateS store mempty expansion
+    slotNo <- pick $ internalSlotNoG bootHistory
+    newHistory <- run . runQ $ do
+        unsafeUpdateS store bootHistory $ RollBackTxHistory slotNo
+    coverM 40 (not . null $ allIncoming bootHistory)
+        "incoming transactions"
+        $ coverM 40 (not . null $ allOutgoing bootHistory)
+            "outgoing transactions"
+            $ f (splitHistory slotNo bootHistory
+                , splitHistory slotNo newHistory
+                )
+
+prop_RollBackRemoveAfterSlot :: SqliteContext -> WalletId -> Property
+prop_RollBackRemoveAfterSlot =  withPropRollBack
+    $ \((afterBoot, beforeBoot), (afterNew, beforeNew)) ->
+        assert $ null $ txHistory_relations  afterNew
+
+prop_RollBackSwitchOutgoing :: SqliteContext -> WalletId -> Property
+prop_RollBackSwitchOutgoing =  withPropRollBack
+    $ \((afterBoot, beforeBoot), (afterNew, beforeNew)) -> do
+        let future = overTxHistoryF beforeNew $ \beforeMap ->
+                Map.difference beforeMap $ txHistory_relations beforeBoot
+        assert $ all
+            do (&&)
+                <$> ((==) Pending . txMetaStatus . fst)
+                <*> ((==) Outgoing . txMetaDirection . fst)
+            do txHistory_relations future
+
+prop_RollBackPreserveOutgoing :: SqliteContext -> WalletId -> Property
+prop_RollBackPreserveOutgoing = withPropRollBack
+    $ \((afterBoot, beforeBoot), (afterNew, beforeNew)) -> do
+        let future = overTxHistoryF beforeNew $ \beforeMap ->
+                Map.difference beforeMap $ txHistory_relations beforeBoot
+        assert  $ (==)
+            do Map.keys $ allOutgoing $ afterBoot
+            do Map.keys $ txHistory_relations future
+
+prop_RollBackDoNotTouchPast :: SqliteContext -> WalletId -> Property
+prop_RollBackDoNotTouchPast =  withPropRollBack
+    $ \((afterBoot, beforeBoot), (afterNew, beforeNew)) -> do
+        let past = overTxHistoryF beforeNew $ \beforeMap ->
+                Map.difference beforeMap $ txHistory_relations afterBoot
+        assert $ past == beforeBoot
+
+allWithDirection :: Direction -> TxHistoryF f -> Map TxId TxMeta
+allWithDirection dir (TxHistoryF txs) =
+    Map.filter ((==) dir . txMetaDirection) $
+        fst <$> txs
+
+allIncoming :: TxHistoryF f -> Map TxId TxMeta
+allIncoming= allWithDirection Incoming
+
+allOutgoing :: TxHistoryF f -> Map TxId TxMeta
+allOutgoing = allWithDirection Outgoing
+
+allSlots :: TxHistoryF f -> Set W.SlotNo
+allSlots (TxHistoryF txs) = Set.fromList . toList $ txMetaSlot . fst <$> txs
+
+internalSlotNoG ::
+    TxHistory ->
+    Gen W.SlotNo
+internalSlotNoG th = elements $ toList $ allSlots th
+
+splitHistory :: W.SlotNo -> TxHistoryF f -> (TxHistoryF f, TxHistoryF f)
+splitHistory slotSplit (TxHistoryF txs) =(TxHistoryF *** TxHistoryF)
+        $ Map.partition ((> slotSplit) . txMetaSlot  . fst) txs
 
 -- AgeTxHistory verb
 
 prop_AgeAllPending2Expire :: SqliteContext -> WalletId -> Property
 prop_AgeAllPending2Expire = runWalletProp $ \wid (RunQuery runQ) -> do
-    expansion <-
-        pick $
-            logScale $ ExpandTxHistory wid <$> listOf1 generatePendings
+    expansion <- pick
+        $ logScale
+        $ ExpandTxHistory wid <$> listOf1 generatePendings
     let store = mkStoreTransactions wid
     bootHistory <- run . runQ $ do
         unsafeUpdateS store mempty expansion
     result <- run . runQ $ do
         foldM (unsafeUpdateS store) bootHistory (firstPendingSlot bootHistory)
-    cover 50 (not $ null (allPendings bootHistory) )
+    coverM 50 (not $ null (allPendings bootHistory) )
         "pending transactions size"
-            <$> assert (noPendingLeft result)
+            $ assert (noPendingLeft result)
 
 firstPendingSlot :: TxHistory -> Maybe DeltaTxHistory
 firstPendingSlot (TxHistoryF (null -> True)) = Nothing
@@ -124,8 +210,8 @@ prop_AgeSomePending2Expire = runWalletProp $ \wid (RunQuery runQ) -> do
         then pure $ property True
         else do
             (splitSlot, (unchanged, changed)) <- pick $ splitPendingsG pendings
-            cover 50 (length unchanged + length changed > 0)
-                "pending transactions size" <$> do
+            coverM 50 (length unchanged + length changed > 0)
+                "pending transactions size" $ do
                     newHistory <- run . runQ $ do
                         unsafeUpdateS store bootHistory $ AgeTxHistory splitSlot
                     assert $

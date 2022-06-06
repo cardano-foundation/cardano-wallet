@@ -52,6 +52,12 @@ newtype TxHistoryF f = TxHistoryF
     { txHistory_relations :: Map TxId (TxMeta,TxRelationF f) }
     deriving (Generic)
 
+overTxHistoryF
+    :: TxHistoryF f1
+    -> (Map TxId (TxMeta, TxRelationF f1) -> Map TxId (TxMeta, TxRelationF f2))
+    -> TxHistoryF f2
+overTxHistoryF (TxHistoryF x) f = TxHistoryF $ f x
+
 deriving instance (Eq (f TxIn), Eq (f TxCollateral))
      => Eq (TxHistoryF f)
 
