@@ -5,24 +5,22 @@
 {-# LANGUAGE ScopedTypeVariables #-}
 {-# LANGUAGE TypeApplications #-}
 
-module Cardano.Wallet.DB.CheckpointsSpec
+module Cardano.Wallet.DB.Stores.CheckpointsSpec
     ( spec
     ) where
 
 import Prelude
 
 import Cardano.DB.Sqlite
-    ( SqliteContext (runQuery), newInMemorySqliteContext )
+    ( SqliteContext (runQuery) )
 import Cardano.Wallet.DB.Arbitrary
     ( GenState, InitialCheckpoint (..) )
 import Cardano.Wallet.DB.Checkpoints.AddressBook
     ( AddressBookIso (..), Prologue, getPrologue )
 import Cardano.Wallet.DB.Checkpoints.Model
     ( DeltaCheckpoints (..), fromWallet, getSlot )
-import Cardano.Wallet.DB.Sqlite.Schema
-    ( Wallet (..), migrateAll )
-import Cardano.Wallet.DB.Sqlite.Types
-    ( BlockId (..) )
+import Cardano.Wallet.DB.Stores.Fixtures
+    ( assertWith, initializeWallet, withDBInMemory )
 import Cardano.Wallet.DB.Wallets.State
     ( DeltaWalletState, DeltaWalletState1 (..), fromGenesis, getLatest )
 import Cardano.Wallet.DB.Wallets.Store
@@ -41,24 +39,10 @@ import Cardano.Wallet.Primitive.AddressDiscovery.Shared
     ( Readiness (Pending), SharedState (..) )
 import Cardano.Wallet.Primitive.Types
     ( SlotNo (..), WalletId (..), WithOrigin (..) )
-import Cardano.Wallet.Primitive.Types.Hash
-    ( Hash (..) )
-import Cardano.Wallet.Unsafe
-    ( unsafeFromHex )
-import Control.Tracer
-    ( nullTracer )
 import Data.Bifunctor
     ( second )
 import Data.Generics.Internal.VL.Lens
     ( over, (^.) )
-import Data.Time.Clock
-    ( UTCTime )
-import Data.Time.Clock.POSIX
-    ( posixSecondsToUTCTime )
-import Database.Persist.Sql
-    ( deleteWhere, insert_ )
-import Database.Persist.Sqlite
-    ( SqlPersistT, (==.) )
 import Fmt
     ( Buildable (..), pretty )
 import Test.DBVar
@@ -75,11 +59,8 @@ import Test.QuickCheck
     , vectorOf
     )
 import Test.QuickCheck.Monadic
-    ( PropertyM, assert, monadicIO, monitor, run )
-import UnliftIO.Exception
-    ( bracket )
+    ( PropertyM, monadicIO, monitor, run )
 
-import qualified Cardano.Wallet.DB.Sqlite.Schema as TH
 import qualified Data.Map.Strict as Map
 
 spec :: Spec
@@ -188,48 +169,4 @@ genDeltaWalletState wallet = frequency . map (second updateCheckpoints) $
         keeps <- vectorOf (length slots) arbitrary
         pure . map fst . filter snd $ zip slots keeps
 
-{-------------------------------------------------------------------------------
-    DB setup
--------------------------------------------------------------------------------}
-withDBInMemory :: (SqliteContext -> IO a) -> IO a
-withDBInMemory action = bracket newDBInMemory fst (action . snd)
 
-newDBInMemory :: IO (IO (), SqliteContext)
-newDBInMemory = newInMemorySqliteContext nullTracer [] migrateAll
-
-initializeWallet :: WalletId -> SqlPersistT IO ()
-initializeWallet wid = do
-    deleteWhere [TH.WalId ==. wid] -- triggers delete cascade
-    insertWalletTable wid
-
--- | Insert a wallet table in order to satisfy  FOREIGN PRIMARY constraints
-insertWalletTable :: WalletId -> SqlPersistT IO ()
-insertWalletTable wid = insert_ $ Wallet
-    { walId = wid
-    , walName = "Stores"
-    , walCreationTime = dummyUTCTime
-    , walPassphraseLastUpdatedAt = Nothing
-    , walPassphraseScheme = Nothing
-    , walGenesisHash = BlockId dummyHash
-    , walGenesisStart = dummyUTCTime
-    }
-
-{-------------------------------------------------------------------------------
-    Arbitrary
--------------------------------------------------------------------------------}
-dummyUTCTime :: UTCTime
-dummyUTCTime = posixSecondsToUTCTime 1506203091
-
-dummyHash :: Hash "BlockHeader"
-dummyHash = Hash $ unsafeFromHex
-    "5f20df933584822601f9e3f8c024eb5eb252fe8cefb24d1317dc3d432e940ebb"
-
-{-------------------------------------------------------------------------------
-    QuickCheck utilities
--------------------------------------------------------------------------------}
--- | Like 'assert', but allow giving a label / title before running a assertion
-assertWith :: String -> Bool -> PropertyM IO ()
-assertWith lbl condition = do
-    let flag = if condition then "✓" else "✗"
-    monitor (counterexample $ lbl <> " " <> flag)
-    assert condition

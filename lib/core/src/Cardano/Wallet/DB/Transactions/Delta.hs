@@ -59,7 +59,7 @@ instance Delta DeltaTxHistory where
         Map.alter f (TxId tid) txs
         where
             f (Just tx@(TxMeta {..}, _)) = if
-                txMetaStatus /= InLedger then Just tx
+                txMetaStatus == InLedger then Just tx
                 else Nothing
             f Nothing = Nothing
     apply (AgeTxHistory tip) (TxHistoryF txs) = TxHistoryF
