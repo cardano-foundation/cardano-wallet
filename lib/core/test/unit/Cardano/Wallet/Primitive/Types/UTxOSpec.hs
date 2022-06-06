@@ -32,10 +32,14 @@ import Cardano.Wallet.Primitive.Types.UTxO.Gen
     ( genUTxO, shrinkUTxO )
 import Data.Delta
     ( apply )
+import Data.Function
+    ( (&) )
 import Data.Functor.Identity
     ( runIdentity )
 import Data.Generics.Internal.VL.Lens
     ( view )
+import Data.Maybe
+    ( listToMaybe )
 import Test.Hspec
     ( Spec, describe, it )
 import Test.Hspec.Extra
@@ -53,6 +57,7 @@ import Test.QuickCheck
     )
 
 import qualified Cardano.Wallet.Primitive.Types.UTxO as UTxO
+import qualified Data.Foldable as F
 import qualified Data.List as L
 import qualified Data.Map.Strict as Map
 import qualified Data.Set as Set
@@ -93,8 +98,12 @@ spec =
         it "filterByAddress is always subset" $
             property prop_filterByAddress_isSubset
 
+    parallel $ describe "Transformations" $ do
+        it "prop_removeAssetId_assetIds" $
+            prop_removeAssetId_assetIds & property
+
 prop_deltaUTxO_semigroup_apply :: Property
-prop_deltaUTxO_semigroup_apply = 
+prop_deltaUTxO_semigroup_apply =
         delta2 `apply` (delta1 `apply` utxo0)
     ===
         (delta2 <> delta1) `apply` utxo0
@@ -108,7 +117,7 @@ prop_deltaUTxO_semigroup_apply =
     These examples are typically visualized as Venn diagrams.
 
     For example, in order to show that the equality
-    
+
         (A ∩ B) ∪ C = (A ∪ C) ∩ (B ∪ C)
 
     holds for all finite sets A,B,C, it is sufficient to show that it
@@ -124,7 +133,7 @@ prop_deltaUTxO_semigroup_apply =
     -}
     {- Note [Property Testing of DeltaUTxO]
 
-    In order to test properties of `DeltaUTxO`, we can apply 
+    In order to test properties of `DeltaUTxO`, we can apply
     Note [Property Testing of Boolean Algebras] above, as most operations
     on this data type are essentially set-theoretic operations.
 
@@ -142,7 +151,7 @@ prop_deltaUTxO_semigroup_apply =
     delta1 = mkDelta ["a1"] ["b1","b2"]
     delta2 = mkDelta ["a2","b2"] ["c2"]
 
-    names = Map.fromList $ zip ["a0","a1","a2","b1","b2","c2" :: String] [0..] 
+    names = Map.fromList $ zip ["a0","a1","a2","b1","b2","c2" :: String] [0..]
     mkTxIn name = TxIn (mockHash name) (names Map.! name)
     mkUTxO ix = UTxO $ Map.fromList
         [(mkTxIn ix, TxOut (Address "TEST") mempty)]
@@ -266,6 +275,23 @@ prop_filterByAddress_isSubset u f =
     isNonEmptyProperSubset = (&&)
         (filterByAddress f u /= mempty)
         (dom (filterByAddress f u) `Set.isProperSubsetOf` dom u)
+
+--------------------------------------------------------------------------------
+-- Transformations
+--------------------------------------------------------------------------------
+
+prop_removeAssetId_assetIds :: UTxO -> Property
+prop_removeAssetId_assetIds u =
+    case assetIdM of
+        Nothing ->
+            assetIds === mempty
+        Just assetId ->
+            Set.notMember assetId
+                (UTxO.assetIds (u `UTxO.removeAssetId` assetId))
+            === True
+  where
+    assetIdM = listToMaybe $ F.toList assetIds
+    assetIds = UTxO.assetIds u
 
 --------------------------------------------------------------------------------
 -- Arbitrary instances

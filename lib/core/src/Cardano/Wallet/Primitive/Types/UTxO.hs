@@ -44,6 +44,9 @@ module Cardano.Wallet.Primitive.Types.UTxO
     , excludingD
     , receiveD
 
+    -- * Queries
+    , assetIds
+
     -- * Transformations
     , removeAssetId
 
@@ -67,7 +70,7 @@ import Cardano.Wallet.Primitive.Types.TokenBundle
 import Cardano.Wallet.Primitive.Types.TokenMap
     ( AssetId )
 import Cardano.Wallet.Primitive.Types.Tx
-    ( TxIn, TxOut (..), txOutCoin, txOutRemoveAssetId )
+    ( TxIn, TxOut (..), txOutAssetIds, txOutCoin, txOutRemoveAssetId )
 import Control.DeepSeq
     ( NFData (..) )
 import Data.Bifunctor
@@ -261,6 +264,13 @@ excludingD u ins = (du, u `excluding` spent)
 receiveD :: UTxO -> UTxO -> (DeltaUTxO, UTxO)
 receiveD a b = (da, a <> b)
   where da = DeltaUTxO { excluded = mempty, received = b }
+
+--------------------------------------------------------------------------------
+-- Queries
+--------------------------------------------------------------------------------
+
+assetIds :: UTxO -> Set AssetId
+assetIds (UTxO u) = foldMap txOutAssetIds u
 
 --------------------------------------------------------------------------------
 -- Transformations
