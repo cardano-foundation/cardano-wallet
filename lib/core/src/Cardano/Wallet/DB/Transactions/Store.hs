@@ -77,17 +77,18 @@ update wid _ change = case change of
     ExpandTxHistory _ txs -> putTxs $ mkTxHistory wid txs
     PruneTxHistory tid -> do
         let filt = [ TxMetaWalletId ==. wid, TxMetaTxId ==. (TxId tid) ]
-        selectFirst ((TxMetaStatus ==. W.InLedger):filt) [] >>=
-            \case   Just _ -> pure () -- marked in ledger - refuse to delete
-                    Nothing -> void $ deleteWhereCount
-                        ((TxMetaStatus <-. [W.Pending, W.Expired]):filt)
+        selectFirst ((TxMetaStatus ==. W.InLedger) : filt) [] >>= \case   
+            Just _ -> pure () -- marked in ledger - refuse to delete
+            Nothing -> void $ deleteWhereCount
+                $ (TxMetaStatus <-. [W.Pending, W.Expired]) : filt
     AgeTxHistory tip ->
         updateWhere isExpired [TxMetaStatus =. W.Expired]
           where
             isExpired =
                 [ TxMetaWalletId ==. wid
                 , TxMetaStatus ==. W.Pending
-                , TxMetaSlotExpires <=. Just tip ]
+                , TxMetaSlotExpires <=. Just tip 
+                ]
     RollBackTxHistory nearestPoint -> do
         updateWhere
             [ TxMetaWalletId ==. wid
@@ -104,13 +105,12 @@ update wid _ change = case change of
             ]
 
 write :: WalletId -> TxHistory -> SqlPersistT IO ()
-write = error "write tx history not implemented"
+write wid txs = do  
+    deleteWhere [ TxMetaWalletId ==. wid ]
+    putTxs txs
 
 load :: WalletId -> SqlPersistT IO (Either SomeException TxHistory)
 load wid = Right <$> selectWalletTxRelation wid
-
--- updateTxHistory :: W.WalletId -> [(W.Tx, W.TxMeta)] -> SqlPersistT IO ()
--- updateTxHistory wid = putTxs . mkTxHistory wid
 
 -- | Insert multiple transactions, removing old instances first.
 putTxs :: TxHistory -> SqlPersistT IO ()
