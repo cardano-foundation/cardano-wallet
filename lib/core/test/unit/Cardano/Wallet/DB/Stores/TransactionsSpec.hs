@@ -123,12 +123,12 @@ withPropRollBack f = runWalletProp $ \wid (RunQuery runQ) -> do
 
 prop_RollBackRemoveAfterSlot :: SqliteContext -> WalletId -> Property
 prop_RollBackRemoveAfterSlot =  withPropRollBack
-    $ \((afterBoot, beforeBoot), (afterNew, beforeNew)) ->
+    $ \((_afterBoot, _beforeBoot), (afterNew, _beforeNew)) ->
         assert $ null $ txHistory_relations  afterNew
 
 prop_RollBackSwitchOutgoing :: SqliteContext -> WalletId -> Property
 prop_RollBackSwitchOutgoing =  withPropRollBack
-    $ \((afterBoot, beforeBoot), (afterNew, beforeNew)) -> do
+    $ \((_afterBoot, beforeBoot), (_afterNew, beforeNew)) -> do
         let future = overTxHistoryF beforeNew $ \beforeMap ->
                 Map.difference beforeMap $ txHistory_relations beforeBoot
         assert $ all
@@ -139,16 +139,16 @@ prop_RollBackSwitchOutgoing =  withPropRollBack
 
 prop_RollBackPreserveOutgoing :: SqliteContext -> WalletId -> Property
 prop_RollBackPreserveOutgoing = withPropRollBack
-    $ \((afterBoot, beforeBoot), (afterNew, beforeNew)) -> do
+    $ \((afterBoot, beforeBoot), (_afterNew, beforeNew)) -> do
         let future = overTxHistoryF beforeNew $ \beforeMap ->
                 Map.difference beforeMap $ txHistory_relations beforeBoot
-        assert  $ (==)
-            do Map.keys $ allOutgoing $ afterBoot
+        assert $ (==)
+            do Map.keys $ allOutgoing afterBoot
             do Map.keys $ txHistory_relations future
 
 prop_RollBackDoNotTouchPast :: SqliteContext -> WalletId -> Property
 prop_RollBackDoNotTouchPast =  withPropRollBack
-    $ \((afterBoot, beforeBoot), (afterNew, beforeNew)) -> do
+    $ \((afterBoot, beforeBoot), (_afterNew, beforeNew)) -> do
         let past = overTxHistoryF beforeNew $ \beforeMap ->
                 Map.difference beforeMap $ txHistory_relations afterBoot
         assert $ past == beforeBoot
