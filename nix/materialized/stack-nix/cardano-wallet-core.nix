@@ -353,6 +353,7 @@
             (hsPkgs."ouroboros-consensus" or (errorHandler.buildDepError "ouroboros-consensus"))
             (hsPkgs."QuickCheck" or (errorHandler.buildDepError "QuickCheck"))
             (hsPkgs."quickcheck-classes" or (errorHandler.buildDepError "quickcheck-classes"))
+            (hsPkgs."quickcheck-instances" or (errorHandler.buildDepError "quickcheck-instances"))
             (hsPkgs."quickcheck-state-machine" or (errorHandler.buildDepError "quickcheck-state-machine"))
             (hsPkgs."quickcheck-quid" or (errorHandler.buildDepError "quickcheck-quid"))
             (hsPkgs."quiet" or (errorHandler.buildDepError "quiet"))
