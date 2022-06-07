@@ -83,6 +83,63 @@ import Cardano.Api
 import Cardano.Api.Byron
     ( KeyWitness (ByronKeyWitness), WitnessNetworkIdOrByronAddress (..) )
 import Cardano.Api.Gen
+    ( genAddressInEra
+    , genAlphaNum
+    , genAssetName
+    , genByronKeyWitness
+    , genCertIx
+    , genCostModel
+    , genCostModels
+    , genEpochNo
+    , genExecutionUnitPrices
+    , genExecutionUnits
+    , genExtraKeyWitnesses
+    , genLovelace
+    , genMIRPot
+    , genMIRTarget
+    , genNat
+    , genNetworkId
+    , genNetworkMagic
+    , genPaymentCredential
+    , genPtr
+    , genRational
+    , genRationalInt64
+    , genScriptValidity
+    , genShelleyWitnessSigningKey
+    , genSignedQuantity
+    , genSimpleScript
+    , genSlotNo
+    , genStakeAddressReference
+    , genStakeCredential
+    , genTxAuxScripts
+    , genTxBody
+    , genTxCertificate
+    , genTxCertificates
+    , genTxFee
+    , genTxIn
+    , genTxIndex
+    , genTxInsCollateral
+    , genTxIx
+    , genTxMetadata
+    , genTxMetadataInEra
+    , genTxMetadataValue
+    , genTxMintValue
+    , genTxOut
+    , genTxOutDatum
+    , genTxOutValue
+    , genTxScriptValidity
+    , genTxValidityLowerBound
+    , genTxValidityRange
+    , genTxValidityUpperBound
+    , genTxWithdrawals
+    , genUnsignedQuantity
+    , genUpdateProposal
+    , genValueForMinting
+    , genValueForTxOut
+    , genWitnessNetworkIdOrByronAddress
+    , genWitnessStake
+    , genWitnesses
+    )
 import Cardano.Api.Shelley
     ( Certificate (..)
     , ReferenceScript (..)
@@ -105,6 +162,8 @@ import Data.Function
     ( (&) )
 import Data.Int
     ( Int32 )
+import Data.List
+    ( (\\) )
 import Data.Map.Strict
     ( Map )
 import Data.Maybe
@@ -116,6 +175,7 @@ import Data.Word
 import Numeric.Natural
     ( Natural )
 import Test.Hspec
+    ( Spec, describe, it )
 import Test.QuickCheck
     ( Arbitrary
     , Property
@@ -131,8 +191,6 @@ import Test.QuickCheck
 
 import qualified Data.ByteString as BS
 import qualified Data.ByteString.Char8 as B8
-import Data.List
-    ( (\\) )
 import qualified Data.Map.Strict as Map
 import qualified PlutusCore as Plutus
 
