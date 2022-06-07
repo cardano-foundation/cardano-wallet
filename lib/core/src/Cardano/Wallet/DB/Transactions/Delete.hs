@@ -1,7 +1,7 @@
 {-# LANGUAGE DataKinds #-}
 {-# LANGUAGE LambdaCase #-}
 
-module Cardano.Wallet.DB.Transactions.Delete where
+module Cardano.Wallet.DB.Transactions.Delete (deletePendingOrExpiredTx) where
 
 import Cardano.Wallet.DB.Sqlite.Schema
     ( EntityField (TxMetaStatus, TxMetaTxId, TxMetaWalletId) )

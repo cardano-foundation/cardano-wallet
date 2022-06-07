@@ -4,6 +4,7 @@
 {-# LANGUAGE RankNTypes #-}
 {-# LANGUAGE ScopedTypeVariables #-}
 {-# LANGUAGE TypeApplications #-}
+
 module Cardano.Wallet.DB.Sqlite.StoresSpec
     ( spec
     ) where

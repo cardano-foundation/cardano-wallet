@@ -22,7 +22,6 @@ module Cardano.Wallet.DB.Wallets.State
     , getLatest
     , findNearestPoint
 
-
     -- * Delta types
     , DeltaWalletState1 (..)
     , DeltaWalletState
@@ -64,7 +63,6 @@ import qualified Cardano.Wallet.Primitive.Types as W
 data WalletState s = WalletState
     { prologue    :: Prologue s
     , checkpoints :: Checkpoints (WalletCheckpoint s)
-    -- , transactions :: TxHistory
     } deriving (Generic)
 
 deriving instance AddressBookIso s => Eq (WalletState s)
@@ -73,13 +71,12 @@ deriving instance AddressBookIso s => Eq (WalletState s)
 fromGenesis
     :: AddressBookIso s
     => W.Wallet s
-    -- -> Model.TxHistory
     -> Maybe (WalletState s)
 fromGenesis cp -- txs
     | W.isGenesisBlockHeader header = Just $
-        WalletState{ prologue
+        WalletState
+            { prologue
             , checkpoints = CPS.fromGenesis checkpoint
-            -- , transactions = TxHistory txs
             }
     | otherwise = Nothing
   where
@@ -105,7 +102,6 @@ data DeltaWalletState1 s
     -- ^ Replace the prologue of the address discovery state
     | UpdateCheckpoints (DeltaCheckpoints (WalletCheckpoint s))
     -- ^ Update the wallet checkpoints.
-    -- | UpdateTransactions DeltaTxHistory
 
 instance Delta (DeltaWalletState1 s) where
     type Base (DeltaWalletState1 s) = WalletState s

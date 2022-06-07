@@ -26,6 +26,8 @@ module Cardano.Wallet.DB.Wallets.Store
     )
     where
 
+import Prelude
+
 import Cardano.Wallet.DB
     ( ErrBadFormat (ErrBadFormatAddressPrologue) )
 import Cardano.Wallet.DB.Checkpoints.Store
@@ -51,12 +53,11 @@ import Data.Generics.Internal.VL
     ( view, (^.) )
 import Database.Persist.Sql
     ( Entity, SqlPersistT, deleteWhere, entityVal, selectList, (==.) )
-import Prelude
 
 import qualified Cardano.Wallet.Primitive.Types as W
 import qualified Data.Map.Strict as Map
 
- {-------------------------------------------------------------------------------
+{-------------------------------------------------------------------------------
     WalletState Store
 -------------------------------------------------------------------------------}
 -- | Store for 'WalletState' of multiple different wallets.
@@ -101,14 +102,12 @@ mkStoreWallet wid =
     Store{ loadS = load, writeS = write, updateS = \_ -> update }
   where
     storeCheckpoints = mkStoreCheckpoints wid
-    -- storeTransactions = mkStoreTransactions wid
 
     load = do
         eprologue <- maybe
             (Left $ toException ErrBadFormatAddressPrologue) Right
                 <$> loadPrologue wid
         echeckpoints <- loadS storeCheckpoints
-        -- etransactions <- loadS storeTransactions
         pure $ WalletState <$> eprologue <*> echeckpoints -- <*> etransactions
 
     write wallet = do
@@ -123,6 +122,3 @@ mkStoreWallet wid =
     update1 (UpdateCheckpoints delta) =
         -- FIXME LATER during ADP-1043: remove 'undefined'
         updateS storeCheckpoints undefined delta
-    -- update1 (UpdateTransactions delta) =
-    --     -- FIXME LATER during ADP-1043: remove 'undefined'
-    --     updateS storeTransactions undefined delta

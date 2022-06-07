@@ -69,7 +69,7 @@ import Cardano.Wallet.DB
     )
 import Cardano.Wallet.DB.Arbitrary
     ( GenState, GenTxHistory (..), InitialCheckpoint (..) )
-import Cardano.Wallet.DB.Model
+import Cardano.Wallet.DB.Pure.Implementation
     ( Database (..)
     , Err (..)
     , TxHistory
