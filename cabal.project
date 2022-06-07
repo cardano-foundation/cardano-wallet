@@ -125,7 +125,7 @@ source-repository-package
 source-repository-package
   type: git
   location: https://github.com/input-output-hk/plutus
-  tag: fec94223a985e34d3b270460c8f150002f41b85b
+  tag: d24a7540e4659b57ce2ab25dadb968991e232191
   subdir:
     plutus-core
     plutus-ledger-api
@@ -148,7 +148,7 @@ source-repository-package
 source-repository-package
     type: git
     location: https://github.com/input-output-hk/cardano-ledger
-    tag: c415253fff9a5ce9d7575230fc9098bcfee97653
+    tag: e290bf8d0ea272a51e9acd10adc96b4e12e00d37
     subdir:
       eras/alonzo/impl
       eras/alonzo/test-suite
@@ -177,7 +177,7 @@ source-repository-package
 source-repository-package
     type: git
     location: https://github.com/input-output-hk/cardano-node
-    tag: 759b6d4fe7d49b92175f29fdb908b7cd880a274a
+    tag: 95c3692cfbd4cdb82071495d771b23e51840fb0e
     subdir:
       cardano-api
       cardano-git-rev
@@ -214,7 +214,7 @@ source-repository-package
 source-repository-package
     type: git
     location: https://github.com/input-output-hk/iohk-monitoring-framework
-    tag: eb7854d1337637b8672af1227b276aa33a658f47
+    tag: 066f7002aac5a0efc20e49643fea45454f226caa
     subdir: contra-tracer
             iohk-monitoring
             plugins/backend-aggregation
@@ -227,7 +227,7 @@ source-repository-package
 source-repository-package
     type: git
     location: https://github.com/input-output-hk/ouroboros-network
-    tag: ea202b7b21983140d1944ccfde8750b891b59699
+    tag: 04245dbd69387da98d3a37de9f400965e922bb0e
     subdir:
       monoidal-synchronisation
       network-mux
@@ -244,7 +244,7 @@ source-repository-package
 source-repository-package
   type: git
   location: https://github.com/input-output-hk/io-sim
-  tag: 29249b284e8e9d654b5c973b6ec18e65eb599713
+  tag: f4183f274d88d0ad15817c7052df3a6a8b40e6dc
   subdir:
     io-classes
     io-sim
@@ -253,8 +253,7 @@ source-repository-package
 source-repository-package
   type: git
   location: https://github.com/input-output-hk/typed-protocols
-  tag: 91c3fba44d68439df207796171cd6f867354b76b
-  --sha256: 1h1nh10859kd7j8bb55y577jfdp42aqpppx8fn0pm6fra5748a50
+  tag: 181601bc3d9e9d21a671ce01e0b481348b3ca104
   subdir:
     typed-protocols
     typed-protocols-cborg
