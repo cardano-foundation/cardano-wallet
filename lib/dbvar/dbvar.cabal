@@ -33,12 +33,15 @@ library
     , conduit
     , containers
     , exceptions
+    , fmt
     , generic-lens
     , io-classes
     , monad-logger
     , persistent
     , persistent-sqlite
+    , QuickCheck
     , safe
+    , safe-exceptions
     , say
     , semigroupoids
     , stm
@@ -54,6 +57,7 @@ library
       Data.Table
       Database.Persist.Delta
       Database.Schema
+      Test.DBVar
   other-modules:
       Demo.Database
 

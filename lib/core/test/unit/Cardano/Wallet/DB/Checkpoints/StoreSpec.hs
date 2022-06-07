@@ -5,24 +5,22 @@
 {-# LANGUAGE ScopedTypeVariables #-}
 {-# LANGUAGE TypeApplications #-}
 
-module Cardano.Wallet.DB.StoresSpec
+module Cardano.Wallet.DB.Checkpoints.StoreSpec
     ( spec
     ) where
 
 import Prelude
 
 import Cardano.DB.Sqlite
-    ( SqliteContext (runQuery), newInMemorySqliteContext )
+    ( SqliteContext (runQuery) )
 import Cardano.Wallet.DB.Arbitrary
     ( GenState, InitialCheckpoint (..) )
 import Cardano.Wallet.DB.Checkpoints.AddressBook
     ( AddressBookIso (..), Prologue, getPrologue )
 import Cardano.Wallet.DB.Checkpoints.Model
     ( DeltaCheckpoints (..), fromWallet, getSlot )
-import Cardano.Wallet.DB.Sqlite.Schema
-    ( Wallet (..), migrateAll )
-import Cardano.Wallet.DB.Sqlite.Types
-    ( BlockId (..) )
+import Cardano.Wallet.DB.Fixtures
+    ( assertWith, initializeWallet, withDBInMemory )
 import Cardano.Wallet.DB.Wallets.State
     ( DeltaWalletState, DeltaWalletState1 (..), fromGenesis, getLatest )
 import Cardano.Wallet.DB.Wallets.Store
@@ -41,52 +39,28 @@ import Cardano.Wallet.Primitive.AddressDiscovery.Shared
     ( Readiness (Pending), SharedState (..) )
 import Cardano.Wallet.Primitive.Types
     ( SlotNo (..), WalletId (..), WithOrigin (..) )
-import Cardano.Wallet.Primitive.Types.Hash
-    ( Hash (..) )
-import Cardano.Wallet.Unsafe
-    ( unsafeFromHex )
-import Control.Monad
-    ( forM_ )
-import Control.Tracer
-    ( nullTracer )
 import Data.Bifunctor
     ( second )
-import Data.DBVar
-    ( Store (..) )
-import Data.Delta
-    ( Base, Delta (..) )
 import Data.Generics.Internal.VL.Lens
     ( over, (^.) )
-import Data.Time.Clock
-    ( UTCTime )
-import Data.Time.Clock.POSIX
-    ( posixSecondsToUTCTime )
-import Database.Persist.Sql
-    ( deleteWhere, insert_ )
-import Database.Persist.Sqlite
-    ( SqlPersistT, (==.) )
 import Fmt
-    ( Buildable (..), listF, pretty )
+    ( Buildable (..), pretty )
+import Test.DBVar
+    ( GenDelta, prop_StoreUpdates )
 import Test.Hspec
     ( Spec, around, describe, it )
 import Test.QuickCheck
     ( Arbitrary (..)
-    , Blind (..)
-    , Gen
     , Property
     , choose
     , counterexample
     , frequency
     , property
-    , sized
     , vectorOf
     )
 import Test.QuickCheck.Monadic
-    ( PropertyM, assert, monadicIO, monitor, pick, run )
-import UnliftIO.Exception
-    ( bracket, impureThrow )
+    ( PropertyM, monadicIO, monitor, run )
 
-import qualified Cardano.Wallet.DB.Sqlite.Schema as TH
 import qualified Data.Map.Strict as Map
 
 spec :: Spec
@@ -97,7 +71,7 @@ spec = around withDBInMemory $ do
 
         it "loadPrologue . insertPrologue = id  for RndState" $
             property . prop_prologue_load_write @(RndState 'Mainnet) id
-        
+
         it "loadPrologue . insertPrologue = id  for SharedState" $
             property . prop_prologue_load_write @(SharedState 'Mainnet SharedKey)
                 (\s -> s { ready = Pending })
@@ -160,8 +134,8 @@ prop_StoreWallet
 prop_StoreWallet db (wid, InitialCheckpoint cp0) =
     monadicIO (setup >> prop)
   where
-    toIO = runQuery db
-    setup = run . toIO $ initializeWallet wid
+    toIO = run . runQuery db
+    setup = toIO $ initializeWallet wid
     prop = do
         let Just w0 = fromGenesis cp0 -- mempty
         prop_StoreUpdates toIO (mkStoreWallet wid) (pure w0) genDeltaWalletState
@@ -189,114 +163,10 @@ genDeltaWalletState wallet = frequency . map (second updateCheckpoints) $
         slot <- genSlotNo
         cp   <- over (#currentTip . #slotNo) (const slot) <$> arbitrary
         pure $ PutCheckpoint (At slot) (snd $ fromWallet cp)
-    
+
     genFilteredSlots = do
         let slots = Map.keys $ wallet ^. (#checkpoints . #checkpoints)
         keeps <- vectorOf (length slots) arbitrary
         pure . map fst . filter snd $ zip slots keeps
 
--- | Given a value, generate a random delta starting from this value.
-type GenDelta da = Base da -> Gen da
 
--- | A sequence of updates and values after updating.
--- The update that is applied *last* appears in the list *first*.
-newtype Updates da = Updates [(Base da, da)]
-
-instance Show da => Show (Updates da) where
-    show (Updates xs) = show . map snd $ xs
-
--- | Randomly generate a sequence of updates
-genUpdates :: Delta da => Gen (Base da) -> GenDelta da -> Gen (Updates da)
-genUpdates gen0 more = sized $ \n -> go n [] =<< gen0
-  where
-    go 0 das _  = pure $ Updates das
-    go n das a0 = do
-        da <- more a0
-        let a1 = apply da a0
-        go (n-1) ((a1,da):das) a1
-
--- | Test whether 'updateS' and 'loadS' behave as expected.
---
--- TODO: Shrinking of the update sequence.
-prop_StoreUpdates
-    :: ( Monad m, Delta da, Eq (Base da), Buildable da )
-    => (forall b. m b -> IO b)
-    -- ^ Function to embed the monad in 'IO'
-    -> Store m da
-    -- ^ Store that is to be tested.
-    -> Gen (Base da)
-    -- ^ Generator for the initial value.
-    -> GenDelta da
-    -- ^ Generator for deltas.
-    -> PropertyM IO ()
-prop_StoreUpdates toIO store gen0 more = do
-    let runs = run . toIO
-
-    -- randomly generate a sequence of updates
-    Blind a0 <- pick $ Blind <$> gen0
-    Blind (Updates adas) <- pick $ Blind <$> genUpdates (pure a0) more
-    let as  = map fst adas ++ [a0]
-        das = map snd adas
-
-    monitor $ counterexample $
-        "\nUpdates applied:\n" <> pretty (listF das)
-
-    -- apply those updates
-    ea <- runs $ do
-        writeS store a0
-        -- first update is applied last!
-        let updates = reverse $ zip das (drop 1 as)
-        forM_ updates $ \(da,a) -> updateS store a da
-        loadS store
-
-    -- check whether the last value is correct
-    case ea of
-        Left err -> impureThrow err
-        Right a  -> do
-            assert $ a == head as
-
-{-------------------------------------------------------------------------------
-    DB setup
--------------------------------------------------------------------------------}
-withDBInMemory :: (SqliteContext -> IO a) -> IO a
-withDBInMemory action = bracket newDBInMemory fst (action . snd)
-
-newDBInMemory :: IO (IO (), SqliteContext)
-newDBInMemory = newInMemorySqliteContext nullTracer [] migrateAll
-
-initializeWallet :: WalletId -> SqlPersistT IO ()
-initializeWallet wid = do
-    deleteWhere [TH.WalId ==. wid] -- triggers delete cascade
-    insertWalletTable wid
-
--- | Insert a wallet table in order to satisfy  FOREIGN PRIMARY constraints
-insertWalletTable :: WalletId -> SqlPersistT IO ()
-insertWalletTable wid = insert_ $ Wallet
-    { walId = wid
-    , walName = "Stores"
-    , walCreationTime = dummyUTCTime
-    , walPassphraseLastUpdatedAt = Nothing
-    , walPassphraseScheme = Nothing
-    , walGenesisHash = BlockId dummyHash
-    , walGenesisStart = dummyUTCTime
-    }
-
-{-------------------------------------------------------------------------------
-    Arbitrary
--------------------------------------------------------------------------------}
-dummyUTCTime :: UTCTime
-dummyUTCTime = posixSecondsToUTCTime 1506203091
-
-dummyHash :: Hash "BlockHeader"
-dummyHash = Hash $ unsafeFromHex
-    "5f20df933584822601f9e3f8c024eb5eb252fe8cefb24d1317dc3d432e940ebb"
-
-{-------------------------------------------------------------------------------
-    QuickCheck utilities
--------------------------------------------------------------------------------}
--- | Like 'assert', but allow giving a label / title before running a assertion
-assertWith :: String -> Bool -> PropertyM IO ()
-assertWith lbl condition = do
-    let flag = if condition then "✓" else "✗"
-    monitor (counterexample $ lbl <> " " <> flag)
-    assert condition
