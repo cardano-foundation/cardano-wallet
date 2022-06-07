@@ -70,7 +70,7 @@ import Cardano.Wallet.Primitive.Types.TokenQuantity
 import Cardano.Wallet.Primitive.Types.Tx
     ( TxOut (..) )
 import Data.ByteString.Short
-    ( toShort )
+    ( fromShort, toShort )
 import Data.Foldable
     ( toList )
 import Data.Function
@@ -221,11 +221,11 @@ instance Convert TokenName Ledger.AssetName where
 
 toLedgerTokenName :: TokenName -> Ledger.AssetName
 toLedgerTokenName (UnsafeTokenName bytes) =
-    Ledger.AssetName bytes
+    Ledger.AssetName $ toShort bytes
 
 toWalletTokenName :: Ledger.AssetName -> TokenName
 toWalletTokenName (Ledger.AssetName bytes) =
-    UnsafeTokenName bytes
+    UnsafeTokenName $ fromShort bytes
 
 --------------------------------------------------------------------------------
 -- Conversions for 'TokenPolicyId'

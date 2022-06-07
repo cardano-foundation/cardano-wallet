@@ -111,6 +111,7 @@ import Cardano.Api.Byron
 import Cardano.Api.Shelley
     ( Hash (..)
     , PlutusScript (..)
+    , PlutusScriptOrReferenceInput (..)
     , PoolId
     , ProtocolParameters (..)
     , ReferenceScript (..)
@@ -398,6 +399,13 @@ genPlutusScript _ =
     -- We make no attempt to create a valid script
     PlutusScriptSerialised . SBS.toShort <$> arbitrary
 
+genPlutusScriptOrReferenceInput
+    :: PlutusScriptVersion lang
+    -> Gen (PlutusScriptOrReferenceInput lang)
+genPlutusScriptOrReferenceInput lang =
+    -- TODO: Generate reference inputs
+    PScript <$> genPlutusScript lang
+
 genSimpleScript :: SimpleScriptVersion lang -> Gen (SimpleScript lang)
 genSimpleScript lang =
     sized genTerm
@@ -674,7 +682,7 @@ genScriptWitnessMint langEra =
             SimpleScriptWitness langEra ver <$> genSimpleScript ver
         (PlutusScriptLanguage ver) ->
             PlutusScriptWitness langEra ver
-            <$> genPlutusScript ver
+            <$> genPlutusScriptOrReferenceInput ver
             <*> pure NoScriptDatumForMint
             <*> genScriptData
             <*> genExecutionUnits
@@ -688,7 +696,7 @@ genScriptWitnessStake langEra =
             SimpleScriptWitness langEra ver <$> genSimpleScript ver
         (PlutusScriptLanguage ver) ->
             PlutusScriptWitness langEra ver
-            <$> genPlutusScript ver
+            <$> genPlutusScriptOrReferenceInput ver
             <*> pure NoScriptDatumForStake
             <*> genScriptData
             <*> genExecutionUnits
@@ -702,7 +710,7 @@ genScriptWitnessSpend langEra =
             SimpleScriptWitness langEra ver <$> genSimpleScript ver
         (PlutusScriptLanguage ver) ->
             PlutusScriptWitness langEra ver
-            <$> genPlutusScript ver
+            <$> genPlutusScriptOrReferenceInput ver
             <*> (ScriptDatumForTxIn <$> genScriptData)
             <*> genScriptData
             <*> genExecutionUnits

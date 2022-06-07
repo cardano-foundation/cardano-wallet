@@ -89,6 +89,7 @@ module Cardano.Wallet.Shelley.Compatibility
     , rewardAccountFromAddress
     , fromShelleyPParams
     , fromAlonzoPParams
+    , fromBabbagePParams
     , fromLedgerExUnits
     , toLedgerExUnits
     , fromCardanoAddress
@@ -116,6 +117,7 @@ module Cardano.Wallet.Shelley.Compatibility
     , toCardanoEra
     , toCardanoBlockHeader
     , toShelleyBlockHeader
+    , toBabbageBlockHeader
     , fromShelleyHash
     , fromCardanoHash
     , fromChainHash
@@ -135,6 +137,8 @@ module Cardano.Wallet.Shelley.Compatibility
     , fromAlonzoTx
     , fromAlonzoBlock
     , fromBabbageTx
+    , fromBabbageBlock
+    , getBabbageProducer
 
       -- * Internal Conversions
     , decentralizationLevelFromPParams
@@ -197,7 +201,7 @@ import Cardano.Ledger.BaseTypes
 import Cardano.Ledger.Era
     ( Era (..) )
 import Cardano.Ledger.Serialization
-    ( ToCBORGroup )
+    ( ToCBORGroup, sizedValue )
 import Cardano.Ledger.Shelley.API
     ( StrictMaybe (SJust, SNothing) )
 import Cardano.Slotting.Slot
@@ -360,6 +364,7 @@ import qualified Cardano.Ledger.Alonzo.TxBody as Alonzo
 import qualified Cardano.Ledger.Alonzo.TxSeq as Alonzo
 import qualified Cardano.Ledger.Alonzo.TxWitness as Alonzo
 import qualified Cardano.Ledger.Babbage as Babbage
+import qualified Cardano.Ledger.Babbage.PParams as Babbage
 import qualified Cardano.Ledger.Babbage.Tx as Babbage hiding
     ( ScriptIntegrityHash, TxBody )
 import qualified Cardano.Ledger.Babbage.TxBody as Babbage
@@ -406,9 +411,9 @@ import qualified Data.Map.Strict as Map
 import qualified Data.Map.Strict.NonEmptyMap as NonEmptyMap
 import qualified Data.Set as Set
 import qualified Data.Text.Encoding as T
-import qualified Ouroboros.Consensus.Protocol.TPraos as Consensus
 import qualified Ouroboros.Consensus.Protocol.Praos as Consensus
 import qualified Ouroboros.Consensus.Protocol.Praos.Header as Consensus
+import qualified Ouroboros.Consensus.Protocol.TPraos as Consensus
 import qualified Ouroboros.Consensus.Shelley.Ledger as O
 import qualified Ouroboros.Consensus.Shelley.Protocol.Abstract as Consensus
 import qualified Ouroboros.Network.Block as O
@@ -530,6 +535,12 @@ getProducer
     => ShelleyBlock (Consensus.TPraos StandardCrypto) era -> W.PoolId
 getProducer (ShelleyBlock (SL.Block (SL.BHeader header _) _) _) =
     fromPoolKeyHash $ SL.hashKey (SL.bheaderVk header)
+
+getBabbageProducer
+    :: (Era era, ToCBORGroup (Ledger.Era.TxSeq era))
+    => ShelleyBlock (Consensus.Praos StandardCrypto) era -> W.PoolId
+getBabbageProducer (ShelleyBlock (SL.Block (Consensus.Header header _) _) _) =
+    fromPoolKeyHash $ SL.hashKey (Consensus.hbVk header)
 
 fromCardanoBlock
     :: W.GenesisParameters
@@ -773,15 +784,17 @@ fromShelleyPParams eraInfo currentNodeProtocolParameters pp =
         , minimumUTxOvalue =
             MinimumUTxOValue . toWalletCoin $ SLAPI._minUTxOValue pp
         , stakeKeyDeposit = stakeKeyDepositFromPParams pp
-        , eras = fromBound <$> eraInfo
+        , eras = fromBoundToEpochNo <$> eraInfo
         -- Collateral inputs were not supported or required in Shelley:
         , maximumCollateralInputCount = 0
         , minimumCollateralPercentage = 0
         , executionUnitPrices = Nothing
         , currentNodeProtocolParameters
         }
-  where
-    fromBound (Bound _relTime _slotNo (EpochNo e)) = W.EpochNo $ fromIntegral e
+
+fromBoundToEpochNo :: Bound -> W.EpochNo
+fromBoundToEpochNo (Bound _relTime _slotNo (EpochNo e)) =
+    W.EpochNo $ fromIntegral e
 
 fromAlonzoPParams
     :: HasCallStack
@@ -802,7 +815,7 @@ fromAlonzoPParams eraInfo currentNodeProtocolParameters pp =
         , minimumUTxOvalue = MinimumUTxOValueCostPerWord
             . toWalletCoin $ Alonzo._coinsPerUTxOWord pp
         , stakeKeyDeposit = stakeKeyDepositFromPParams pp
-        , eras = fromBound <$> eraInfo
+        , eras = fromBoundToEpochNo <$> eraInfo
         , maximumCollateralInputCount = unsafeIntToWord $
             Alonzo._maxCollateralInputs pp
         , minimumCollateralPercentage =
@@ -811,8 +824,38 @@ fromAlonzoPParams eraInfo currentNodeProtocolParameters pp =
             Just $ executionUnitPricesFromPParams pp
         , currentNodeProtocolParameters
         }
+
+fromBabbagePParams
+    :: HasCallStack
+    => W.EraInfo Bound
+    -> Maybe Cardano.ProtocolParameters
+    -> Babbage.PParams StandardBabbage
+    -> W.ProtocolParameters
+fromBabbagePParams eraInfo currentNodeProtocolParameters pp =
+    W.ProtocolParameters
+        { decentralizationLevel =
+            decentralizationLevelFromPParams pp
+        , txParameters = txParametersFromPParams
+            (W.TokenBundleMaxSize $ W.TxSize $ Babbage._maxValSize pp)
+            (fromLedgerExUnits (getField @"_maxTxExUnits" pp))
+            pp
+        , desiredNumberOfStakePools =
+            desiredNumberOfStakePoolsFromPParams pp
+        , minimumUTxOvalue = MinimumUTxOValueCostPerWord
+            . fromByteToWord . toWalletCoin $ Babbage._coinsPerUTxOByte pp
+        , stakeKeyDeposit = stakeKeyDepositFromPParams pp
+        , eras = fromBoundToEpochNo <$> eraInfo
+        , maximumCollateralInputCount = unsafeIntToWord $
+            Babbage._maxCollateralInputs pp
+        , minimumCollateralPercentage =
+            Babbage._collateralPercentage pp
+        , executionUnitPrices =
+            Just $ executionUnitPricesFromPParams pp
+        , currentNodeProtocolParameters
+        }
   where
-    fromBound (Bound _relTime _slotNo (EpochNo e)) = W.EpochNo $ fromIntegral e
+    fromByteToWord (W.Coin v) = W.Coin $ 8 * v
+
 
 -- | Extract the current network decentralization level from the given set of
 -- protocol parameters.
@@ -1499,8 +1542,8 @@ fromBabbageTxBodyAndAux bod mad wits =
         , resolvedCollateralInputs =
             map ((,W.Coin 0) . fromShelleyTxIn) (toList collateralInps)
         , outputs =
-            map fromBabbageTxOut (toList outs)
-        , collateralOutput = case fmap fromBabbageTxOut collateralReturn of
+            map (fromBabbageTxOut . sizedValue) (toList outs)
+        , collateralOutput = case fmap (fromBabbageTxOut . sizedValue) collateralReturn of
                 SNothing -> Nothing
                 SJust txout -> Just txout
         , withdrawals =

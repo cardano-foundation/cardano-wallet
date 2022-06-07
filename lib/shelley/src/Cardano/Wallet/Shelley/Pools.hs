@@ -116,9 +116,12 @@ import Cardano.Wallet.Shelley.Compatibility
     ( StandardCrypto
     , fromAllegraBlock
     , fromAlonzoBlock
+    , fromBabbageBlock
     , fromMaryBlock
     , fromShelleyBlock
+    , getBabbageProducer
     , getProducer
+    , toBabbageBlockHeader
     , toShelleyBlockHeader
     )
 import Cardano.Wallet.Shelley.Network.Blockfrost.Conversion
@@ -768,8 +771,8 @@ monitorStakePools tr (NetworkParameters gp sp _pp) nl DBLayer{..} =
                 forEachShelleyBlock (fromMaryBlock gp blk) (getProducer blk)
             BlockAlonzo blk ->
                 forEachShelleyBlock (fromAlonzoBlock gp blk) (getProducer blk)
-            BlockBabbage _blk ->
-                error "todo: Babbage forAllBlocks"
+            BlockBabbage blk ->
+                forEachShelleyBlock (fromBabbageBlock gp blk) (getBabbageProducer blk)
 
         forLastBlock = \case
             BlockByron blk ->
@@ -782,8 +785,8 @@ monitorStakePools tr (NetworkParameters gp sp _pp) nl DBLayer{..} =
                 putHeader (toShelleyBlockHeader getGenesisBlockHash blk)
             BlockAlonzo blk ->
                 putHeader (toShelleyBlockHeader getGenesisBlockHash blk)
-            BlockBabbage _blk ->
-                error "todo: Babbage forLastBlock"
+            BlockBabbage blk ->
+                putHeader (toBabbageBlockHeader getGenesisBlockHash blk)
 
         forEachShelleyBlock (blk, certificates) poolId = do
             let header = view #header blk

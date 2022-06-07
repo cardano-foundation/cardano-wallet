@@ -259,6 +259,7 @@ import qualified Cardano.Ledger.Babbage.Tx as Babbage
 import qualified Cardano.Ledger.Babbage.PParams as Babbage
 import qualified Cardano.Ledger.Coin as Ledger
 import qualified Cardano.Ledger.Core as Ledger
+import qualified Cardano.Ledger.Serialization as Ledger
 import qualified Cardano.Ledger.Shelley.Address.Bootstrap as SL
 import qualified Cardano.Ledger.Shelley.Tx as Shelley
 import qualified Cardano.Ledger.Shelley.UTxO as Ledger
@@ -835,7 +836,8 @@ modifyShelleyTxBody txUpdate era ledgerBody = case era of
     ShelleyBasedEraBabbage -> ledgerBody
         { Babbage.outputs = Babbage.outputs ledgerBody
             <> StrictSeq.fromList
-                ( Cardano.toShelleyTxOut era
+                ( Ledger.mkSized
+                . Cardano.toShelleyTxOut era
                 . Cardano.toCtxUTxOTxOut
                 . toCardanoTxOut era <$> extraOutputs
                 )
@@ -1277,10 +1279,10 @@ _assignScriptRedeemers pparams ti resolveInput redeemers tx =
         let costs = toCostModelsAsArray (Alonzo.unCostModels $ Alonzo._costmdls pparams')
         let systemStart = getSystemStart ti
 
-        epochInfo <- hoistEpochInfo (left ErrAssignRedeemersPastHorizon . runIdentity . runExceptT)
+        epochInfo <- hoistEpochInfo (left (T.pack . show . ErrAssignRedeemersPastHorizon) . runIdentity . runExceptT)
             <$> left ErrAssignRedeemersPastHorizon (toEpochInfo ti)
 
-        res <- evaluateTransactionExecutionUnits
+        let res = evaluateTransactionExecutionUnits
                 pparams'
                 alonzoTx
                 utxo
@@ -1307,10 +1309,10 @@ _assignScriptRedeemers pparams ti resolveInput redeemers tx =
         let costs = toCostModelsAsArray (Alonzo.unCostModels $ Babbage._costmdls pparams')
         let systemStart = getSystemStart ti
 
-        epochInfo <- hoistEpochInfo (left ErrAssignRedeemersPastHorizon . runIdentity . runExceptT)
+        epochInfo <- hoistEpochInfo (left (T.pack . show . ErrAssignRedeemersPastHorizon) . runIdentity . runExceptT)
             <$> left ErrAssignRedeemersPastHorizon (toEpochInfo ti)
 
-        res <- evaluateTransactionExecutionUnits
+        let res = evaluateTransactionExecutionUnits
                 pparams'
                 babbageTx
                 utxo
@@ -1400,8 +1402,9 @@ _assignScriptRedeemers pparams ti resolveInput redeemers tx =
             alonzoTx
                 { Alonzo.body = (Alonzo.body alonzoTx)
                     { Alonzo.scriptIntegrityHash = Alonzo.hashScriptIntegrity
-                        (Cardano.toLedgerPParams Cardano.ShelleyBasedEraAlonzo pparams)
-                        (Set.fromList langs)
+                        (Set.fromList $ Alonzo.getLanguageView
+                            (Cardano.toLedgerPParams Cardano.ShelleyBasedEraAlonzo pparams)
+                            <$> langs)
                         (Alonzo.txrdmrs wits)
                         (Alonzo.txdats wits)
                     }
@@ -1424,8 +1427,9 @@ _assignScriptRedeemers pparams ti resolveInput redeemers tx =
             babbageTx
                 { Babbage.body = (Babbage.body babbageTx)
                     { Babbage.scriptIntegrityHash = Alonzo.hashScriptIntegrity
-                        (Cardano.toLedgerPParams Cardano.ShelleyBasedEraBabbage pparams)
-                        (Set.fromList langs)
+                        (Set.fromList $ Alonzo.getLanguageView
+                            (Cardano.toLedgerPParams Cardano.ShelleyBasedEraBabbage pparams)
+                            <$> langs)
                         (Alonzo.txrdmrs wits)
                         (Alonzo.txdats wits)
                     }
