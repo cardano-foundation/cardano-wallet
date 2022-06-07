@@ -511,6 +511,8 @@ data ErrAssignRedeemers
     -- ^ Evaluating the Plutus script failed past the visible horizon.
     | ErrAssignRedeemersUnresolvedTxIns [TxIn]
     -- ^ The transaction contains inputs which couldn't be resolved.
+    | ErrAssignRedeemersTranslationError String
+    -- ^ Mistranslating of hashes, credentials, certificates etc.
     deriving (Generic, Eq, Show)
 
 -- | Possible signing error
