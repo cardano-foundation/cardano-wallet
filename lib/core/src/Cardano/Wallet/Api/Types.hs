@@ -1725,6 +1725,7 @@ data ApiErrorCode
     | TransactionAlreadyBalanced
     | TransactionAlreadyInLedger
     | TransactionIsTooBig
+    | TranslationError
     | UnableToAssignInputOutput
     | UnableToDetermineCurrentEpoch
     | UnexpectedError

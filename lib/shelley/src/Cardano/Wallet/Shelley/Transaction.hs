@@ -1292,9 +1292,8 @@ _assignScriptRedeemers pparams ti resolveInput redeemers tx =
         case res of
             Left (UnknownTxIns ins) ->
                 Left $ ErrAssignRedeemersUnresolvedTxIns $ map fromShelleyTxIn (F.toList ins)
-            Left (BadTranslation _) -> do
-                error "TODO: Babbage evaluateExecutionUnits"
-
+            Left (BadTranslation translationError) ->
+                Left $ ErrAssignRedeemersTranslationError $ show translationError
             Right report ->
                 Right $ hoistScriptFailure indexedRedeemers report
 
@@ -1322,9 +1321,8 @@ _assignScriptRedeemers pparams ti resolveInput redeemers tx =
         case res of
             Left (UnknownTxIns ins) ->
                 Left $ ErrAssignRedeemersUnresolvedTxIns $ map fromShelleyTxIn (F.toList ins)
-            Left (BadTranslation _) -> do
-                error "TODO: Babbage evaluateExecutionUnits"
-
+            Left (BadTranslation translationError) -> do
+                Left $ ErrAssignRedeemersTranslationError $ show translationError
             Right report ->
                 Right $ hoistScriptFailure indexedRedeemers report
 

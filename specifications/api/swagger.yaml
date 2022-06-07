@@ -4791,6 +4791,18 @@ x-errRedeemerInvalidData: &errRedeemerInvalidData
       type: string
       enum: ['redeemer_invalid_data']
 
+x-errTranslationError: &errTranslationError
+  <<: *responsesErr
+  title: translation_error
+  properties:
+    message:
+      type: string
+      description: |
+        Occurs when any data in a provided transaction cannot be translated in a given era
+    code:
+      type: string
+      enum: ['translation_error']
+
 x-errExistingKeyWitnesses: &errExistingKeyWitnesses
   <<: *responsesErr
   title: existing_key_witnesses
@@ -5694,6 +5706,7 @@ x-responsesBalanceTransaction: &responsesBalanceTransaction
             - <<: *errRedeemerTargetNotFound
             - <<: *errRedeemerInvalidData
             - <<: *errUnresolvedInputs
+            - <<: *errTranslationError
   403:
     description: Forbidden
     content:

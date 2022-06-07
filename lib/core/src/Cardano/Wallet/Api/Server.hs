@@ -5054,6 +5054,12 @@ instance IsServerError ErrAssignRedeemers where
                 ]
         ErrAssignRedeemersPastHorizon e ->
             toServerError e
+        ErrAssignRedeemersTranslationError e ->
+            apiError err400 TranslationError $ T.unwords
+                [ "The transaction I was given contains bits that cannot "
+                , "be translated in the current era. The following is wrong:\n\n"
+                , pretty e
+                ]
 
 instance IsServerError (Request, ServerError) where
     toServerError (req, err@(ServerError code _ body _))
