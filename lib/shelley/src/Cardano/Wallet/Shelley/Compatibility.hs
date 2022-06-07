@@ -197,7 +197,7 @@ import Cardano.Ledger.BaseTypes
 import Cardano.Ledger.Era
     ( Era (..) )
 import Cardano.Ledger.Serialization
-    ( ToCBORGroup )
+    ( ToCBORGroup, sizedValue )
 import Cardano.Ledger.Shelley.API
     ( StrictMaybe (SJust, SNothing) )
 import Cardano.Slotting.Slot
@@ -406,9 +406,9 @@ import qualified Data.Map.Strict as Map
 import qualified Data.Map.Strict.NonEmptyMap as NonEmptyMap
 import qualified Data.Set as Set
 import qualified Data.Text.Encoding as T
-import qualified Ouroboros.Consensus.Protocol.TPraos as Consensus
 import qualified Ouroboros.Consensus.Protocol.Praos as Consensus
 import qualified Ouroboros.Consensus.Protocol.Praos.Header as Consensus
+import qualified Ouroboros.Consensus.Protocol.TPraos as Consensus
 import qualified Ouroboros.Consensus.Shelley.Ledger as O
 import qualified Ouroboros.Consensus.Shelley.Protocol.Abstract as Consensus
 import qualified Ouroboros.Network.Block as O
@@ -1520,8 +1520,8 @@ fromBabbageTxBodyAndAux bod mad wits =
         , resolvedCollateralInputs =
             map ((,W.Coin 0) . fromShelleyTxIn) (toList collateralInps)
         , outputs =
-            map fromBabbageTxOut (toList outs)
-        , collateralOutput = case fmap fromBabbageTxOut collateralReturn of
+            map (fromBabbageTxOut . sizedValue) (toList outs)
+        , collateralOutput = case fmap (fromBabbageTxOut . sizedValue) collateralReturn of
                 SNothing -> Nothing
                 SJust txout -> Just txout
         , withdrawals =
