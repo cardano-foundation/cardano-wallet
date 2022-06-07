@@ -98,7 +98,6 @@ import Cardano.Wallet.CoinSelection
     , SelectionSkeleton (..)
     , selectionDelta
     )
-import Data.Text.Class (ToText (..))
 import Cardano.Wallet.Primitive.AddressDerivation
     ( Depth (..), RewardAccount (..), WalletKey (..) )
 import Cardano.Wallet.Primitive.AddressDerivation.Byron
@@ -1280,10 +1279,10 @@ _assignScriptRedeemers pparams ti resolveInput redeemers tx =
         let costs = toCostModelsAsArray (Alonzo.unCostModels $ Alonzo._costmdls pparams')
         let systemStart = getSystemStart ti
 
-        epochInfo <- hoistEpochInfo (left (toText . ErrAssignRedeemersPastHorizon) . runIdentity . runExceptT)
+        epochInfo <- hoistEpochInfo (left (T.pack . show . ErrAssignRedeemersPastHorizon) . runIdentity . runExceptT)
             <$> left ErrAssignRedeemersPastHorizon (toEpochInfo ti)
 
-        res <- evaluateTransactionExecutionUnits
+        let res = evaluateTransactionExecutionUnits
                 pparams'
                 alonzoTx
                 utxo
@@ -1310,10 +1309,10 @@ _assignScriptRedeemers pparams ti resolveInput redeemers tx =
         let costs = toCostModelsAsArray (Alonzo.unCostModels $ Babbage._costmdls pparams')
         let systemStart = getSystemStart ti
 
-        epochInfo <- hoistEpochInfo (left (toText . ErrAssignRedeemersPastHorizon) . runIdentity . runExceptT)
+        epochInfo <- hoistEpochInfo (left (T.pack . show . ErrAssignRedeemersPastHorizon) . runIdentity . runExceptT)
             <$> left ErrAssignRedeemersPastHorizon (toEpochInfo ti)
 
-        res <- evaluateTransactionExecutionUnits
+        let res = evaluateTransactionExecutionUnits
                 pparams'
                 babbageTx
                 utxo
