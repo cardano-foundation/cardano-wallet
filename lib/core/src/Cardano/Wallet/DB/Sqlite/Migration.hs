@@ -32,7 +32,7 @@ import Cardano.DB.Sqlite
     , fieldType
     , tableName
     )
-import Cardano.Wallet.DB.Sqlite.TH
+import Cardano.Wallet.DB.Sqlite.Schema
     ( EntityField (..) )
 import Cardano.Wallet.Primitive.AddressDerivation.Icarus
     ( IcarusKey )

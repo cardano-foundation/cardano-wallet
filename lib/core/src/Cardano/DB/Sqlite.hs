@@ -104,6 +104,7 @@ import Database.Persist.Sql
     , Migration
     , PersistEntity (..)
     , PersistException
+    , SqlPersistT
     , SqlType (..)
     , close'
     , fieldDB
@@ -112,7 +113,7 @@ import Database.Persist.Sql
     , runSqlConn
     )
 import Database.Persist.Sqlite
-    ( SqlBackend, SqlPersistT, wrapConnection )
+    ( SqlBackend, wrapConnection )
 import Database.Sqlite
     ( Error (ErrorConstraint), SqliteException (SqliteException) )
 import Fmt
