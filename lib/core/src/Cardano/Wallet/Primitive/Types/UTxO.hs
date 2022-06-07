@@ -294,8 +294,14 @@ txIds (UTxO u) = Set.map (view #inputId) (Map.keysSet u)
 mapAssetIds :: (AssetId -> AssetId) -> UTxO -> UTxO
 mapAssetIds f (UTxO u) = UTxO $ Map.map (txOutMapAssetIds f) u
 
+-- | Applies a mapping on transaction identifiers to a 'UTxO' set.
+--
+-- If the provided mapping gives rise to a collision within the 'TxIn' key set,
+-- then only the smallest 'TxOut' is retained, according to the 'Ord' instance
+-- for 'TxOut'.
+--
 mapTxIds :: (Hash "Tx" -> Hash "Tx") -> UTxO -> UTxO
-mapTxIds f (UTxO u) = UTxO $ Map.mapKeys (over #inputId f) u
+mapTxIds f (UTxO u) = UTxO $ Map.mapKeysWith min (over #inputId f) u
 
 removeAssetId :: UTxO -> AssetId -> UTxO
 removeAssetId (UTxO u) a = UTxO $ Map.map (`txOutRemoveAssetId` a) u
