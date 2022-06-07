@@ -387,6 +387,7 @@ test-suite unit
     , ouroboros-consensus
     , QuickCheck
     , quickcheck-classes
+    , quickcheck-instances
     , quickcheck-state-machine >= 0.6.0
     , quickcheck-quid
     , quiet

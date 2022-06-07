@@ -90,6 +90,9 @@ module Cardano.Wallet.Primitive.Types.TokenMap
     -- * Queries
     , getAssets
 
+    -- * Transformations
+    , mapAssetIds
+
     -- * Unsafe operations
     , unsafeSubtract
 
@@ -804,6 +807,13 @@ equipartitionQuantitiesWithUpperBound m (TokenQuantity maxQuantity)
 
 getAssets :: TokenMap -> Set AssetId
 getAssets = Set.fromList . fmap fst . toFlatList
+
+--------------------------------------------------------------------------------
+-- Transformations
+--------------------------------------------------------------------------------
+
+mapAssetIds :: (AssetId -> AssetId) -> TokenMap -> TokenMap
+mapAssetIds f m = fromFlatList $ first f <$> toFlatList m
 
 --------------------------------------------------------------------------------
 -- Unsafe operations

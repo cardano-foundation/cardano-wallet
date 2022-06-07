@@ -1,3 +1,4 @@
+{-# LANGUAGE DataKinds #-}
 {-# LANGUAGE DeriveGeneric #-}
 {-# LANGUAGE DerivingStrategies #-}
 {-# LANGUAGE GeneralizedNewtypeDeriving #-}
@@ -44,6 +45,15 @@ module Cardano.Wallet.Primitive.Types.UTxO
     , excludingD
     , receiveD
 
+    -- * Queries
+    , assetIds
+    , txIds
+
+    -- * Transformations
+    , mapAssetIds
+    , mapTxIds
+    , removeAssetId
+
     -- * UTxO Statistics
     , UTxOStatistics (..)
     , BoundType
@@ -59,10 +69,20 @@ import Prelude hiding
 
 import Cardano.Wallet.Primitive.Types.Address
     ( Address )
+import Cardano.Wallet.Primitive.Types.Hash
+    ( Hash )
 import Cardano.Wallet.Primitive.Types.TokenBundle
     ( TokenBundle )
+import Cardano.Wallet.Primitive.Types.TokenMap
+    ( AssetId )
 import Cardano.Wallet.Primitive.Types.Tx
-    ( TxIn, TxOut (..), txOutCoin )
+    ( TxIn
+    , TxOut (..)
+    , txOutAssetIds
+    , txOutCoin
+    , txOutMapAssetIds
+    , txOutRemoveAssetId
+    )
 import Control.DeepSeq
     ( NFData (..) )
 import Data.Bifunctor
@@ -72,7 +92,7 @@ import Data.Delta
 import Data.Functor.Identity
     ( runIdentity )
 import Data.Generics.Internal.VL.Lens
-    ( view )
+    ( over, view )
 import Data.List.NonEmpty
     ( NonEmpty (..) )
 import Data.Map.Strict
@@ -235,7 +255,7 @@ instance Semigroup DeltaUTxO where
         excluded'db = excluded db `excludingS` received da
 
 -- | Exclude the inputs of a 'UTxO' from a 'Set' of inputs.
-excludingS :: Set TxIn -> UTxO -> Set TxIn 
+excludingS :: Set TxIn -> UTxO -> Set TxIn
 excludingS a (UTxO b) = Set.filter (not . (`Map.member` b)) a
 
 -- | Restrict a 'Set' of inputs by the inputs of a 'UTxO'.
@@ -256,6 +276,35 @@ excludingD u ins = (du, u `excluding` spent)
 receiveD :: UTxO -> UTxO -> (DeltaUTxO, UTxO)
 receiveD a b = (da, a <> b)
   where da = DeltaUTxO { excluded = mempty, received = b }
+
+--------------------------------------------------------------------------------
+-- Queries
+--------------------------------------------------------------------------------
+
+assetIds :: UTxO -> Set AssetId
+assetIds (UTxO u) = foldMap txOutAssetIds u
+
+txIds :: UTxO -> Set (Hash "Tx")
+txIds (UTxO u) = Set.map (view #inputId) (Map.keysSet u)
+
+--------------------------------------------------------------------------------
+-- Transformations
+--------------------------------------------------------------------------------
+
+mapAssetIds :: (AssetId -> AssetId) -> UTxO -> UTxO
+mapAssetIds f (UTxO u) = UTxO $ Map.map (txOutMapAssetIds f) u
+
+-- | Applies a mapping on transaction identifiers to a 'UTxO' set.
+--
+-- If the provided mapping gives rise to a collision within the 'TxIn' key set,
+-- then only the smallest 'TxOut' is retained, according to the 'Ord' instance
+-- for 'TxOut'.
+--
+mapTxIds :: (Hash "Tx" -> Hash "Tx") -> UTxO -> UTxO
+mapTxIds f (UTxO u) = UTxO $ Map.mapKeysWith min (over #inputId f) u
+
+removeAssetId :: UTxO -> AssetId -> UTxO
+removeAssetId (UTxO u) a = UTxO $ Map.map (`txOutRemoveAssetId` a) u
 
 --------------------------------------------------------------------------------
 -- UTxO Statistics

@@ -87,6 +87,17 @@ module Cardano.Wallet.Primitive.Types.Tx
     , TxSize (..)
     , txSizeDistance
 
+    -- * Queries
+    , txAssetIds
+    , txOutAssetIds
+
+    -- * Transformations
+    , txMapAssetIds
+    , txMapTxIds
+    , txRemoveAssetId
+    , txOutMapAssetIds
+    , txOutRemoveAssetId
+
     -- * Checks
     , coinIsValidForTxOut
 
@@ -125,7 +136,7 @@ import Cardano.Wallet.Primitive.Types.RewardAccount
 import Cardano.Wallet.Primitive.Types.TokenBundle
     ( TokenBundle (..) )
 import Cardano.Wallet.Primitive.Types.TokenMap
-    ( Lexicographic (..), TokenMap )
+    ( AssetId, Lexicographic (..), TokenMap )
 import Cardano.Wallet.Primitive.Types.TokenQuantity
     ( TokenQuantity (..) )
 import Cardano.Wallet.Util
@@ -141,7 +152,7 @@ import Data.ByteString
 import Data.Either
     ( partitionEithers )
 import Data.Function
-    ( on )
+    ( on, (&) )
 import Data.Generics.Internal.VL.Lens
     ( over, view )
 import Data.Generics.Labels
@@ -199,6 +210,7 @@ import qualified Cardano.Wallet.Primitive.Types.Coin as Coin
 import qualified Cardano.Wallet.Primitive.Types.TokenBundle as TokenBundle
 import qualified Cardano.Wallet.Primitive.Types.TokenMap as TokenMap
 import qualified Data.ByteString.Char8 as B8
+import qualified Data.Foldable as F
 import qualified Data.Map.Strict as Map
 import qualified Data.Set as Set
 import qualified Data.Text as T
@@ -967,6 +979,54 @@ txSizeDistance :: TxSize -> TxSize -> TxSize
 txSizeDistance (TxSize a) (TxSize b)
     | a >= b    = TxSize (a - b)
     | otherwise = TxSize (b - a)
+
+--------------------------------------------------------------------------------
+-- Queries
+--------------------------------------------------------------------------------
+
+txAssetIds :: Tx -> Set AssetId
+txAssetIds tx = F.fold
+    [ F.foldMap txOutAssetIds (view #outputs tx)
+    , F.foldMap txOutAssetIds (view #collateralOutput tx)
+    ]
+
+txOutAssetIds :: TxOut -> Set AssetId
+txOutAssetIds (TxOut _ bundle) = TokenBundle.getAssets bundle
+
+--------------------------------------------------------------------------------
+-- Transformations
+--------------------------------------------------------------------------------
+
+txMapAssetIds :: (AssetId -> AssetId) -> Tx -> Tx
+txMapAssetIds f tx = tx
+    & over #outputs
+        (fmap (txOutMapAssetIds f))
+    & over #collateralOutput
+        (fmap (txOutMapAssetIds f))
+
+txMapTxIds :: (Hash "Tx" -> Hash "Tx") -> Tx -> Tx
+txMapTxIds f tx = tx
+    & over #txId
+        f
+    & over #resolvedInputs
+        (fmap (first (over #inputId f)))
+    & over #resolvedCollateralInputs
+        (fmap (first (over #inputId f)))
+
+txRemoveAssetId :: Tx -> AssetId -> Tx
+txRemoveAssetId tx asset = tx
+    & over #outputs
+        (fmap (`txOutRemoveAssetId` asset))
+    & over #collateralOutput
+        (fmap (`txOutRemoveAssetId` asset))
+
+txOutMapAssetIds :: (AssetId -> AssetId) -> TxOut -> TxOut
+txOutMapAssetIds f (TxOut address bundle) =
+    TxOut address (TokenBundle.mapAssetIds f bundle)
+
+txOutRemoveAssetId :: TxOut -> AssetId -> TxOut
+txOutRemoveAssetId (TxOut address bundle) asset =
+    TxOut address (TokenBundle.setQuantity bundle asset mempty)
 
 {-------------------------------------------------------------------------------
                       Internal functions for unit testing

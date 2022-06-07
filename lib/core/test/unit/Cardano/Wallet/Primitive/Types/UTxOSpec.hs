@@ -1,5 +1,11 @@
+{-# LANGUAGE DataKinds #-}
+{-# LANGUAGE DeriveAnyClass #-}
+{-# LANGUAGE DerivingStrategies #-}
 {-# LANGUAGE FlexibleInstances #-}
+{-# LANGUAGE GeneralizedNewtypeDeriving #-}
 {-# LANGUAGE OverloadedLabels #-}
+{-# LANGUAGE StandaloneDeriving #-}
+{-# LANGUAGE ViewPatterns #-}
 {-# OPTIONS_GHC -fno-warn-orphans #-}
 {- HLINT ignore "Use camelCase" -}
 
@@ -14,7 +20,13 @@ import Cardano.Wallet.Primitive.Types.Address
 import Cardano.Wallet.Primitive.Types.Address.Gen
     ( Parity (..), addressParity, coarbitraryAddress )
 import Cardano.Wallet.Primitive.Types.Hash
-    ( mockHash )
+    ( Hash (..), mockHash )
+import Cardano.Wallet.Primitive.Types.TokenMap
+    ( AssetId (..) )
+import Cardano.Wallet.Primitive.Types.TokenMap.Gen
+    ( genAssetId, shrinkAssetId )
+import Cardano.Wallet.Primitive.Types.TokenPolicy
+    ( TokenName (..), TokenPolicyId (..) )
 import Cardano.Wallet.Primitive.Types.Tx
     ( TxIn (..), TxOut (..) )
 import Cardano.Wallet.Primitive.Types.Tx.Gen
@@ -32,10 +44,14 @@ import Cardano.Wallet.Primitive.Types.UTxO.Gen
     ( genUTxO, shrinkUTxO )
 import Data.Delta
     ( apply )
+import Data.Function
+    ( (&) )
 import Data.Functor.Identity
     ( runIdentity )
 import Data.Generics.Internal.VL.Lens
     ( view )
+import Data.Maybe
+    ( listToMaybe )
 import Test.Hspec
     ( Spec, describe, it )
 import Test.Hspec.Extra
@@ -43,16 +59,22 @@ import Test.Hspec.Extra
 import Test.QuickCheck
     ( Arbitrary (..)
     , CoArbitrary (..)
+    , Fun (..)
+    , Function (..)
     , Property
     , Testable
+    , applyFun
     , checkCoverage
     , conjoin
     , cover
     , property
     , (===)
     )
+import Test.QuickCheck.Instances.ByteString
+    ()
 
 import qualified Cardano.Wallet.Primitive.Types.UTxO as UTxO
+import qualified Data.Foldable as F
 import qualified Data.List as L
 import qualified Data.Map.Strict as Map
 import qualified Data.Set as Set
@@ -93,8 +115,26 @@ spec =
         it "filterByAddress is always subset" $
             property prop_filterByAddress_isSubset
 
+    parallel $ describe "Transformations" $ do
+
+        describe "mapAssetIds" $ do
+            it "prop_mapAssetIds_identity" $
+                prop_mapAssetIds_identity & property
+            it "prop_mapAssetIds_composition" $
+                prop_mapAssetIds_composition & property
+
+        describe "mapTxIds" $ do
+            it "prop_mapTxIds_identity" $
+                prop_mapTxIds_identity & property
+            it "prop_mapTxIds_composition" $
+                prop_mapTxIds_composition & property
+
+        describe "removeAssetId" $ do
+            it "prop_removeAssetId_assetIds" $
+                prop_removeAssetId_assetIds & property
+
 prop_deltaUTxO_semigroup_apply :: Property
-prop_deltaUTxO_semigroup_apply = 
+prop_deltaUTxO_semigroup_apply =
         delta2 `apply` (delta1 `apply` utxo0)
     ===
         (delta2 <> delta1) `apply` utxo0
@@ -108,7 +148,7 @@ prop_deltaUTxO_semigroup_apply =
     These examples are typically visualized as Venn diagrams.
 
     For example, in order to show that the equality
-    
+
         (A ∩ B) ∪ C = (A ∪ C) ∩ (B ∪ C)
 
     holds for all finite sets A,B,C, it is sufficient to show that it
@@ -124,7 +164,7 @@ prop_deltaUTxO_semigroup_apply =
     -}
     {- Note [Property Testing of DeltaUTxO]
 
-    In order to test properties of `DeltaUTxO`, we can apply 
+    In order to test properties of `DeltaUTxO`, we can apply
     Note [Property Testing of Boolean Algebras] above, as most operations
     on this data type are essentially set-theoretic operations.
 
@@ -142,7 +182,7 @@ prop_deltaUTxO_semigroup_apply =
     delta1 = mkDelta ["a1"] ["b1","b2"]
     delta2 = mkDelta ["a2","b2"] ["c2"]
 
-    names = Map.fromList $ zip ["a0","a1","a2","b1","b2","c2" :: String] [0..] 
+    names = Map.fromList $ zip ["a0","a1","a2","b1","b2","c2" :: String] [0..]
     mkTxIn name = TxIn (mockHash name) (names Map.! name)
     mkUTxO ix = UTxO $ Map.fromList
         [(mkTxIn ix, TxOut (Address "TEST") mempty)]
@@ -268,11 +308,74 @@ prop_filterByAddress_isSubset u f =
         (dom (filterByAddress f u) `Set.isProperSubsetOf` dom u)
 
 --------------------------------------------------------------------------------
+-- Transformations
+--------------------------------------------------------------------------------
+
+prop_mapAssetIds_identity :: UTxO -> Property
+prop_mapAssetIds_identity m =
+    UTxO.mapAssetIds id m === m
+
+prop_mapAssetIds_composition
+    :: UTxO
+    -> Fun AssetId AssetId
+    -> Fun AssetId AssetId
+    -> Property
+prop_mapAssetIds_composition m (applyFun -> f) (applyFun -> g) =
+    UTxO.mapAssetIds f (UTxO.mapAssetIds g m) ===
+    UTxO.mapAssetIds (f . g) m
+
+prop_mapTxIds_identity :: UTxO -> Property
+prop_mapTxIds_identity m =
+    UTxO.mapTxIds id m === m
+
+prop_mapTxIds_composition
+    :: UTxO
+    -> Fun (Hash "Tx") (Hash "Tx")
+    -> Fun (Hash "Tx") (Hash "Tx")
+    -> Property
+prop_mapTxIds_composition m (applyFun -> f) (applyFun -> g) =
+    UTxO.mapTxIds f (UTxO.mapTxIds g m) ===
+    UTxO.mapTxIds (f . g) m
+
+prop_removeAssetId_assetIds :: UTxO -> Property
+prop_removeAssetId_assetIds u =
+    case assetIdM of
+        Nothing ->
+            assetIds === mempty
+        Just assetId ->
+            Set.notMember assetId
+                (UTxO.assetIds (u `UTxO.removeAssetId` assetId))
+            === True
+  where
+    assetIdM = listToMaybe $ F.toList assetIds
+    assetIds = UTxO.assetIds u
+
+--------------------------------------------------------------------------------
 -- Arbitrary instances
 --------------------------------------------------------------------------------
 
 instance CoArbitrary Address where
     coarbitrary = coarbitraryAddress
+
+instance Arbitrary AssetId where
+    arbitrary = genAssetId
+    shrink = shrinkAssetId
+
+deriving anyclass instance CoArbitrary AssetId
+deriving anyclass instance Function AssetId
+
+deriving anyclass instance CoArbitrary (Hash "TokenPolicy")
+deriving anyclass instance Function (Hash "TokenPolicy")
+
+deriving newtype instance Arbitrary (Hash "Tx")
+deriving anyclass instance CoArbitrary (Hash "Tx")
+deriving anyclass instance Function (Hash "Tx")
+
+deriving anyclass instance CoArbitrary TokenName
+deriving anyclass instance Function TokenName
+
+deriving anyclass instance CoArbitrary TokenPolicyId
+deriving anyclass instance Function TokenPolicyId
 
 instance CoArbitrary TxIn where
     coarbitrary = coarbitraryTxIn
