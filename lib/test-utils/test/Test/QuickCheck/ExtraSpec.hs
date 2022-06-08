@@ -5,6 +5,7 @@
 {-# LANGUAGE OverloadedLabels #-}
 {-# LANGUAGE ScopedTypeVariables #-}
 {-# LANGUAGE TypeApplications #-}
+{-# LANGUAGE ViewPatterns #-}
 {- HLINT ignore "Use null" -}
 
 module Test.QuickCheck.ExtraSpec
@@ -40,6 +41,7 @@ import Test.Hspec
     ( Spec, describe, it )
 import Test.QuickCheck
     ( Arbitrary (..)
+    , Fun (..)
     , Gen
     , NonNegative (..)
     , NonPositive (..)
@@ -47,6 +49,7 @@ import Test.QuickCheck
     , Property
     , Small (..)
     , Testable
+    , applyFun
     , checkCoverage
     , chooseInteger
     , cover
@@ -67,6 +70,8 @@ import Test.QuickCheck.Extra
     , partitionList
     , selectMapEntries
     , selectMapEntry
+    , shrinkWhile
+    , shrinkWhileSteps
     , (<:>)
     , (<@>)
     )
@@ -152,6 +157,32 @@ spec = describe "Test.QuickCheck.ExtraSpec" $ do
             it "prop_selectMapEntries_union" $
                 prop_selectMapEntries_union
                     @Int @Int & property
+
+    describe "Evaluating shrinkers" $ do
+
+        describe "Repeatedly shrinking while a condition holds" $ do
+
+            describe "shrinkWhile" $ do
+
+                it "prop_shrinkWhile_coverage" $
+                    prop_shrinkWhile_coverage
+                        @Int & property
+                it "prop_shrinkWhile_isNothing" $
+                    prop_shrinkWhile_isNothing
+                        @Int & property
+                it "prop_shrinkWhile_satisfy" $
+                    prop_shrinkWhile_satisfy
+                        @Int & property
+
+            describe "shrinkWhileSteps" $ do
+
+                it "prop_shrinkWhileSteps_coverage" $
+                    prop_shrinkWhileSteps_coverage
+                        @Int & property
+                it "prop_shrinkWhileSteps_satisfy" $
+                    prop_shrinkWhileSteps_satisfy
+                        @Int & property
+                unit_shrinkWhileSteps_Int
 
 --------------------------------------------------------------------------------
 -- Generic shrinking
@@ -589,6 +620,88 @@ prop_selectMapEntries_union m0 (Positive (Small i)) =
         cover 1 (length kvs == 0)
             "number of selected entries = 0" $
         Map.fromList kvs `Map.union` m1 === m0
+
+--------------------------------------------------------------------------------
+-- Repeatedly shrinking while a condition holds
+--------------------------------------------------------------------------------
+
+prop_shrinkWhile_coverage :: Arbitrary a => Fun a Bool -> a -> Property
+prop_shrinkWhile_coverage (applyFun -> condition) a
+    = checkCoverage
+    $ cover 10
+        (isJust shrinkWhileResult)
+        "isJust shrinkWhileResult"
+    $ cover 10
+        (isNothing shrinkWhileResult)
+        "isNothing shrinkWhileResult"
+    $ property True
+  where
+    shrinkWhileResult = shrinkWhile condition shrink a
+
+prop_shrinkWhile_isNothing :: Arbitrary a => Fun a Bool -> a -> Property
+prop_shrinkWhile_isNothing (applyFun -> condition) a =
+    isNothing (shrinkWhile condition shrink a)
+    === (not (condition a) || null (L.find condition (shrink a)))
+
+prop_shrinkWhile_satisfy :: Arbitrary a => Fun a Bool -> a -> Property
+prop_shrinkWhile_satisfy (applyFun -> condition) a =
+    all condition (shrinkWhile condition shrink a)
+    === True
+
+prop_shrinkWhileSteps_coverage :: Arbitrary a => Fun a Bool -> a -> Property
+prop_shrinkWhileSteps_coverage (applyFun -> condition) a
+    = checkCoverage
+    $ cover 10
+        (null shrinkWhileStepsResult)
+        "null shrinkWhileStepsResult"
+    $ cover 10
+        (length shrinkWhileStepsResult == 1)
+        "length shrinkWhileStepsResult == 1"
+    $ cover 10
+        (length shrinkWhileStepsResult >= 2)
+        "length shrinkWhileStepsResult >= 2"
+    $ property True
+  where
+    shrinkWhileStepsResult = shrinkWhileSteps condition shrink a
+
+prop_shrinkWhileSteps_satisfy :: Arbitrary a => Fun a Bool -> a -> Property
+prop_shrinkWhileSteps_satisfy (applyFun -> condition) a =
+    all condition (shrinkWhileSteps condition shrink a)
+    === True
+
+unit_shrinkWhileSteps_Int :: Spec
+unit_shrinkWhileSteps_Int = unitTests
+    "unit_shrinkWhileSteps_Int"
+    (\(a, condition) -> shrinkWhileSteps condition shrink a)
+    tests
+  where
+    tests :: [UnitTestData (Int, (Int -> Bool)) [Int]]
+    tests =
+        [ UnitTestData
+            { params = (1024, (>= 0))
+            , result = [0]
+            }
+        , UnitTestData
+            { params = (1024, (>= 1))
+            , result = [512, 256, 128, 64, 32, 16, 8, 4, 2, 1]
+            }
+        , UnitTestData
+            { params = (1024, (>= 10))
+            , result = [512, 256, 128, 64, 32, 16, 12, 11, 10]
+            }
+        , UnitTestData
+            { params = (1024, (>= 100))
+            , result = [512, 256, 128, 112, 105, 102, 101, 100]
+            }
+        , UnitTestData
+            { params = (1024, (>= 1000))
+            , result = [1008, 1001, 1000]
+            }
+        , UnitTestData
+            { params = (1024, (>= 10000))
+            , result = []
+            }
+        ]
 
 --------------------------------------------------------------------------------
 -- Unit test support

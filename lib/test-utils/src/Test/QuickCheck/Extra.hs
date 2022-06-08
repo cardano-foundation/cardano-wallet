@@ -33,6 +33,10 @@ module Test.QuickCheck.Extra
     , (<@>)
     , (<:>)
 
+      -- * Evaluating shrinkers
+    , shrinkWhile
+    , shrinkWhileSteps
+
       -- * Partitioning lists
     , partitionList
 
@@ -74,7 +78,7 @@ import Data.List.NonEmpty
 import Data.Map.Strict
     ( Map )
 import Data.Maybe
-    ( mapMaybe )
+    ( listToMaybe, mapMaybe )
 import Fmt
     ( indentF, (+|), (|+) )
 import Generics.SOP
@@ -199,6 +203,52 @@ shrinkInterleaved (a, shrinkA) (b, shrinkB) = interleave
     interleave (x : xs) (y : ys) = x : y : interleave xs ys
     interleave xs [] = xs
     interleave [] ys = ys
+
+--------------------------------------------------------------------------------
+-- Evaluating shrinkers
+--------------------------------------------------------------------------------
+
+-- | Repeatedly applies a shrinking function to a value while a condition holds.
+--
+-- Provided that the given starting value satisfies the condition, and provided
+-- that at least one shrunken value satisfies the condition, this function will
+-- terminate with the smallest shrunken value that cannot be shrunk further
+-- with the given shrinking function.
+--
+-- This function returns 'Nothing' if the given starting value does not satisfy
+-- the condition, or if none of the shrunken values satisfy the condition.
+--
+-- The final result is evaluated eagerly. If you suspect that a given shrinking
+-- sequence does not terminate, then you may wish to consider evaluating a
+-- finite prefix of 'shrinkWhileSteps' instead.
+--
+shrinkWhile :: (a -> Bool) -> (a -> [a]) -> a -> Maybe a
+shrinkWhile condition shrinkFn =
+    listToMaybe . reverse . shrinkWhileSteps condition shrinkFn
+
+-- | Repeatedly applies a shrinking function to a value while a condition holds,
+--   returning all the intermediate shrinking steps.
+--
+-- Provided that the given starting value satisfies the condition, and provided
+-- that at least one shrunken value satisfies the condition, this function will
+-- produce a non-empty list of all intermediate shrinking steps, ordered from
+-- largest to smallest.
+--
+-- The list is evaluated lazily from largest to smallest. If you suspect that a
+-- given shrinking sequence does not terminate, then you may wish to consider
+-- evaluating a finite prefix of the list.
+--
+-- This function returns the empty list if the given starting value does not
+-- satisfy the condition, or if none of the shrunken values satisfy the
+-- condition.
+--
+shrinkWhileSteps :: forall a. (a -> Bool) -> (a -> [a]) -> a -> [a]
+shrinkWhileSteps condition shrinkFn a
+    | condition a = steps a
+    | otherwise = []
+  where
+    steps :: a -> [a]
+    steps = maybe [] (\y -> y : steps y) . L.find condition . shrinkFn
 
 --------------------------------------------------------------------------------
 -- Generating list partitions
