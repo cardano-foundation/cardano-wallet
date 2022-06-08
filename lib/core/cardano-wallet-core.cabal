@@ -170,6 +170,7 @@ library
       Cardano.Byron.Codec.Cbor
       Cardano.DB.Sqlite
       Cardano.DB.Sqlite.Delete
+      Cardano.Ledger.Credential.Safe
       Cardano.Pool.DB
       Cardano.Pool.DB.Log
       Cardano.Pool.DB.MVar
