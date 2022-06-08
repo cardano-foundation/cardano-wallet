@@ -122,8 +122,8 @@ import Cardano.Api.Shelley
     , StakePoolRelay (..)
     , refInsScriptsAndInlineDatsSupportedInEra
     )
-import Cardano.Ledger.Credential
-    ( Ptr (..) )
+import Cardano.Ledger.Credential.Safe
+    ( Ptr, SlotNo32 (..), safePtr )
 import Cardano.Ledger.SafeHash
     ( unsafeMakeSafeHash )
 import Cardano.Ledger.Shelley.API
@@ -153,7 +153,7 @@ import Data.String
 import Data.Text
     ( Text )
 import Data.Word
-    ( Word16, Word64 )
+    ( Word16, Word32, Word64 )
 import Network.Socket
     ( PortNumber )
 import Numeric.Natural
@@ -278,6 +278,17 @@ genSlotNo = do
         ]
   where
     genBoundary = choose (0, 10_000)
+
+genSlotNo32 :: Gen SlotNo32
+genSlotNo32 = do
+    offset <- genOffset
+    frequency
+        [ (20, pure $ SlotNo32 offset)
+        , (20, pure $ SlotNo32 (maxBound @Word32 - offset) )
+        , (60, SlotNo32 <$> arbitrary @Word32)
+        ]
+  where
+    genOffset = choose (0, 10_000)
 
 genLovelace :: Gen Lovelace
 genLovelace = frequency
@@ -783,7 +794,7 @@ genTxMetadataValue =
                 ((,) <$> genTxMetadataValue <*> genTxMetadataValue)
 
 genPtr :: Gen Ptr
-genPtr = Ptr <$> genSlotNo <*> genTxIx <*> genCertIx
+genPtr = safePtr <$> genSlotNo32 <*> genTxIx <*> genCertIx
 
 genTxIx :: Gen Ledger.TxIx
 genTxIx = Ledger.TxIx <$> arbitrary
