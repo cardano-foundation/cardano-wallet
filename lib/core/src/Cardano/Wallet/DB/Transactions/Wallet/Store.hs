@@ -15,7 +15,7 @@ import Cardano.Wallet.DB.Sqlite.Schema
 import Cardano.Wallet.DB.Sqlite.Types
     ( TxId )
 import Cardano.Wallet.DB.Transactions.Meta.Model
-    ( DeltaTxMetaHistory (ExpandTxMetaHistory, PruneTxMetaHistory)
+    ( DeltaTxMetaHistory (AgeTxMetaHistory, ExpandTxMetaHistory, PruneTxMetaHistory, RollBackTxMetaHistory)
     , TxMetaHistory
     , mkTxMetaHistory
     )
@@ -91,6 +91,9 @@ mkStoreWalletsMeta = Store { loadS = load, writeS = write, updateS = update}
 data DeltaTxWalletsHistory
     = ExpandTxWalletsHistory W.WalletId [(W.Tx, W.TxMeta)]
     | PruneTxWalletsHistory W.WalletId TxId
+    | AgeTxWalletsHistory W.WalletId W.SlotNo
+    | RollBackTxWalletsHistory W.WalletId W.SlotNo
+    | GarbageCollectTxWalletsHistory
     deriving (Show, Eq)
 
 instance Buildable DeltaTxWalletsHistory where build = build . show
@@ -109,6 +112,12 @@ instance Delta DeltaTxWalletsHistory where
         )
     apply (PruneTxWalletsHistory wid tid) (txh, mtxmh) =
         (txh, mtxmh & apply (Adjust wid $ PruneTxMetaHistory tid))
+    apply (AgeTxWalletsHistory wid slot) (txh, mtxmh) =
+        (txh, mtxmh & apply (Adjust wid $ AgeTxMetaHistory slot))
+    apply (RollBackTxWalletsHistory wid slot) (txh, mtxmh) =
+        (txh, mtxmh & apply (Adjust wid $ RollBackTxMetaHistory slot))
+    apply GarbageCollectTxWalletsHistory (_txh, mtxmh) =
+        (error "not implemented", mtxmh)
 
 mkStoreTxWalletsHistory
     :: Store (SqlPersistT IO)
@@ -134,6 +143,16 @@ mkStoreTxWalletsHistory = Store
             updateS mkStoreWalletsMeta mtxmh
                 $ Adjust wid
                 $ PruneTxMetaHistory tid
+        AgeTxWalletsHistory wid slotNo ->
+            updateS mkStoreWalletsMeta mtxmh
+                $ Adjust wid
+                $ AgeTxMetaHistory slotNo
+        RollBackTxWalletsHistory wid slotNo ->
+            updateS mkStoreWalletsMeta mtxmh
+                $ Adjust wid
+                $ RollBackTxMetaHistory slotNo
+        GarbageCollectTxWalletsHistory  ->
+            error "not implemented"
 
     }
 

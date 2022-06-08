@@ -19,6 +19,8 @@ import Cardano.Wallet.DB.Fixtures
     , withDBInMemory
     , withInitializedWalletProp
     )
+import Cardano.Wallet.DB.Sqlite.Schema
+    ( TxMeta (txMetaSlot, txMetaSlotExpires) )
 import Cardano.Wallet.DB.Sqlite.Types
     ( TxId (TxId) )
 import Cardano.Wallet.DB.Transactions.Meta.Model
@@ -30,6 +32,8 @@ import Cardano.Wallet.DB.Transactions.Wallet.Store
     ( DeltaTxWalletsHistory (..), mkStoreTxWalletsHistory, mkStoreWalletsMeta )
 import Data.DeltaMap
     ( DeltaMap (Adjust, Delete, Insert) )
+import Data.Maybe
+    ( catMaybes )
 import Test.DBVar
     ( GenDelta, prop_StoreUpdates )
 import Test.Hspec
@@ -103,10 +107,13 @@ genDeltaTxWallets wid (_, wmeta) =  do
         , (1, PruneTxWalletsHistory wid
                 <$> elementsOrArbitrary TxId  (onWid [] Map.keys )
                 )
-        -- , (1, DeleteTxHistory . TxId <$> arbitrary)
-        -- , (2, DeleteTxHistory
-        --         <$> if null history
-        --             then TxId <$> arbitrary
-        --             else elements (Map.keys history)
-        --   )
+        , (1, AgeTxWalletsHistory wid
+                <$> elementsOrArbitrary id
+                    (onWid [] $ catMaybes . foldMap (pure . txMetaSlotExpires))
+                )
+        -- , (1, RollBackTxWalletsHistory wid
+        --         <$> elementsOrArbitrary id
+        --             (onWid [] $ foldMap (pure . txMetaSlot))
+        --         )
+
         ]
