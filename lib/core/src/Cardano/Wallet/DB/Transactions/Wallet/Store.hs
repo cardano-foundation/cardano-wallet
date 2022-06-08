@@ -59,7 +59,7 @@ import qualified Data.Map.Strict as Map
 {-------------------------------------------------------------------------------
     WalletState Store
 -------------------------------------------------------------------------------}
--- | Store for 'WalletState' of multiple different wallets.
+-- | Store for 'WalletsMeta' of multiple different wallets.
 mkStoreWalletsMeta
     :: Store (SqlPersistT IO)
         (DeltaMap W.WalletId DeltaTxMetaHistory)

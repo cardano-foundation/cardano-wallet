@@ -1,7 +1,7 @@
-{-# LANGUAGE TypeFamilies #-}
 {-# LANGUAGE FlexibleContexts #-}
-{-# LANGUAGE UndecidableInstances #-}
 {-# LANGUAGE StandaloneDeriving #-}
+{-# LANGUAGE TypeFamilies #-}
+{-# LANGUAGE UndecidableInstances #-}
 
 module Data.DeltaMap
     ( DeltaMap(..)
@@ -13,7 +13,8 @@ import Data.Delta
     ( Delta (..) )
 import Data.Map.Strict
     ( Map )
-import Fmt (Buildable(..))
+import Fmt
+    ( Buildable (..) )
 
 
 import qualified Data.Map.Strict as Map

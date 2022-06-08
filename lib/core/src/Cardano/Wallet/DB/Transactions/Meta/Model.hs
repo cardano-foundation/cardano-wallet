@@ -22,6 +22,8 @@ import Control.Monad
     ( guard )
 import Data.Delta
     ( Delta (..) )
+import Data.Foldable
+    ( fold )
 import Data.Function
     ( (&) )
 import Data.Functor
@@ -40,8 +42,6 @@ import GHC.Generics
 import qualified Cardano.Wallet.Primitive.Types as W
 import qualified Cardano.Wallet.Primitive.Types.Coin as W
 import qualified Cardano.Wallet.Primitive.Types.Tx as W
-import Data.Foldable
-    ( fold )
 import qualified Data.Map.Strict as Map
 
 newtype TxMetaHistory = TxMetaHistory
