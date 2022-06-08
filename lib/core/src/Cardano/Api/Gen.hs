@@ -55,6 +55,7 @@ module Cardano.Api.Gen
     , genSigningKey
     , genSimpleScript
     , genSlotNo
+    , genSlotNo32
     , genStakeAddress
     , genStakeAddressReference
     , genStakeCredential

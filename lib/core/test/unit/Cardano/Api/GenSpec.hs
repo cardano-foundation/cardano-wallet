@@ -110,6 +110,7 @@ import Cardano.Api.Gen
     , genSignedQuantity
     , genSimpleScript
     , genSlotNo
+    , genSlotNo32
     , genStakeAddressReference
     , genStakeCredential
     , genTxAuxScripts
@@ -152,7 +153,7 @@ import Cardano.Chain.UTxO
 import qualified Cardano.Ledger.BaseTypes as Ledger
     ( CertIx (..), TxIx (..) )
 import Cardano.Ledger.Credential.Safe
-    ( Ptr, SlotNo32, safeUnwrapPtr )
+    ( Ptr, SlotNo32, safePtr, safeUnwrapPtr )
 import Cardano.Ledger.Shelley.API
     ( MIRPot (..) )
 import Data.Char
@@ -188,6 +189,7 @@ import Test.QuickCheck
     , forAll
     , label
     , property
+    , (===)
     )
 
 import qualified Data.ByteString as BS
@@ -313,8 +315,10 @@ spec =
             it "genTxIx" $
                 -- NOTE: can't use Arbitrary here because Ix is a type synonym
                 property (forAll genTxIx genTxIxCoverage')
-            it "genPtr" $
+            it "genPtrCoverage" $
                 property genPtrCoverage
+            it "prop_safePtr_safeUnwrapPtr" $
+                property prop_safePtr_safeUnwrapPtr
             it "genStakeAddressReference" $
                 property genStakeAddressReferenceCoverage
             it "genPaymentCredential" $
@@ -1141,8 +1145,16 @@ genPtrCoverage (safeUnwrapPtr -> (slotNo, txIx, certIx)) =
         , genCertIxCoverage certIx
         ]
 
+prop_safePtr_safeUnwrapPtr
+    :: SlotNo32 -> Ledger.TxIx -> Ledger.CertIx -> Property
+prop_safePtr_safeUnwrapPtr s t c =
+    safeUnwrapPtr (safePtr s t c) === (s, t, c)
+
 instance Arbitrary Ptr where
     arbitrary = genPtr
+
+instance Arbitrary SlotNo32 where
+    arbitrary = genSlotNo32
 
 genStakeAddressReferenceCoverage :: StakeAddressReference -> Property
 genStakeAddressReferenceCoverage ref = checkCoverage
