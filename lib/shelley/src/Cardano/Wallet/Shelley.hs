@@ -28,10 +28,6 @@ module Cardano.Wallet.Shelley
 
 import Prelude
 
-import Cardano.Pool.DB
-    ( DBLayer (..) )
-import Cardano.Pool.DB.Log
-    ( PoolDbLog )
 import Cardano.Wallet.Api
     ( ApiLayer, ApiV2 )
 import Cardano.Wallet.Api.Server
@@ -82,7 +78,6 @@ import Cardano.Wallet.Primitive.Types
     ( Block
     , NetworkParameters (..)
     , NetworkParameters
-    , PoolMetadataGCStatus (..)
     , ProtocolParameters (..)
     , Settings (..)
     , SlottingParameters (..)
@@ -98,7 +93,7 @@ import Cardano.Wallet.Primitive.Types.RewardAccount
 import Cardano.Wallet.Primitive.Types.Tx
     ( SealedTx )
 import Cardano.Wallet.Registry
-    ( HasWorkerCtx (..), traceAfterThread )
+    ( HasWorkerCtx (..) )
 import Cardano.Wallet.Shelley.Api.Server
     ( server )
 import Cardano.Wallet.Shelley.BlockchainSource
@@ -117,12 +112,7 @@ import Cardano.Wallet.Shelley.Network
 import Cardano.Wallet.Shelley.Network.Discriminant
     ( SomeNetworkDiscriminant (..), networkDiscriminantToId )
 import Cardano.Wallet.Shelley.Pools
-    ( StakePoolLayer (..)
-    , StakePoolLog (..)
-    , monitorMetadata
-    , monitorStakePools
-    , newStakePoolLayer
-    )
+    ( StakePoolLayer (..), withStakePoolDbLayer, withStakePoolLayer )
 import Cardano.Wallet.Shelley.Tracers as Tracers
     ( TracerSeverities
     , Tracers
@@ -139,18 +129,16 @@ import Cardano.Wallet.TokenMetadata
     ( newMetadataClient )
 import Cardano.Wallet.Transaction
     ( TransactionLayer )
-import Control.Monad
-    ( forM_, void, (>=>) )
 import Control.Monad.Trans.Class
     ( lift )
 import Control.Monad.Trans.Cont
     ( ContT (ContT), evalContT )
 import Control.Tracer
-    ( Tracer, contramap, traceWith )
+    ( Tracer, traceWith )
 import Data.Function
     ( (&) )
 import Data.Maybe
-    ( fromJust, fromMaybe )
+    ( fromJust )
 import Data.Proxy
     ( Proxy (..) )
 import Data.Text
@@ -171,14 +159,7 @@ import System.IOManager
     ( withIOManager )
 import Type.Reflection
     ( Typeable )
-import UnliftIO.Concurrent
-    ( forkFinally, forkIOWithUnmask, killThread )
-import UnliftIO.MVar
-    ( modifyMVar_, newMVar )
-import UnliftIO.STM
-    ( newTVarIO )
 
-import qualified Cardano.Pool.DB as PoolDb
 import qualified Cardano.Pool.DB.Sqlite as Pool
 import qualified Cardano.Wallet.Api.Server as Server
 import qualified Cardano.Wallet.DB.Sqlite as Sqlite
@@ -400,44 +381,6 @@ serveWallet
             dbFactory
             tokenMetaClient
             coworker
-
-withStakePoolDbLayer
-    :: Tracer IO PoolDbLog
-    -> Maybe FilePath
-    -> Maybe (Pool.DBDecorator IO)
-    -> NetworkLayer IO block
-    -> ContT r IO (PoolDb.DBLayer IO)
-withStakePoolDbLayer poolDbTracer databaseDir poolDbDecorator netLayer =
-    ContT $ Pool.withDecoratedDBLayer
-        (fromMaybe Pool.undecoratedDB poolDbDecorator)
-        poolDbTracer
-        (Pool.defaultFilePath <$> databaseDir)
-        (neverFails "withPoolsMonitoring never forecasts into the future" $
-            timeInterpreter netLayer)
-
-withStakePoolLayer
-    :: Tracer IO StakePoolLog
-    -> Maybe Settings
-    -> PoolDb.DBLayer IO
-    -> NetworkParameters
-    -> NetworkLayer IO (CardanoBlock StandardCrypto)
-    -> ContT ExitCode IO StakePoolLayer
-withStakePoolLayer tr settings dbLayer@DBLayer{..} netParams netLayer =
-    lift $ do
-    gcStatus <- newTVarIO NotStarted
-    forM_ settings $ atomically . putSettings
-    void $ forkFinally
-        (monitorStakePools tr netParams netLayer dbLayer)
-        (traceAfterThread (contramap MsgExitMonitoring tr))
-
-    -- fixme: needs to be simplified as part of ADP-634
-    let NetworkParameters{slottingParameters} = netParams
-        startMetadataThread = forkIOWithUnmask
-            ($ monitorMetadata gcStatus tr slottingParameters dbLayer)
-    metadataThread <- newMVar =<< startMetadataThread
-    let restartMetadataThread = modifyMVar_ metadataThread $
-            killThread >=> const startMetadataThread
-    newStakePoolLayer gcStatus netLayer dbLayer restartMetadataThread
 
 withNtpClient :: Tracer IO NtpTrace -> ContT r IO NtpClient
 withNtpClient tr = do

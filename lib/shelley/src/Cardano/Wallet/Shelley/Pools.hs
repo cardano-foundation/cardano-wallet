@@ -1,10 +1,8 @@
-{-# OPTIONS_GHC -Wno-unrecognised-pragmas #-}
-
+{-# LANGUAGE BlockArguments #-}
 {-# LANGUAGE DataKinds #-}
 {-# LANGUAGE DeriveGeneric #-}
 {-# LANGUAGE DuplicateRecordFields #-}
 {-# LANGUAGE LambdaCase #-}
-{-# LANGUAGE MultiWayIf #-}
 {-# LANGUAGE NamedFieldPuns #-}
 {-# LANGUAGE NumericUnderscores #-}
 {-# LANGUAGE OverloadedLabels #-}
@@ -24,6 +22,8 @@
 -- as provided through @StakePoolLayer@.
 module Cardano.Wallet.Shelley.Pools
     ( StakePoolLayer (..)
+    , withStakePoolLayer
+    , withStakePoolDbLayer
     , newStakePoolLayer
     , monitorStakePools
     , monitorMetadata
@@ -65,6 +65,7 @@ import Cardano.Wallet.Primitive.Slotting
     , TimeInterpreter
     , epochOf
     , interpretQuery
+    , neverFails
     , unsafeExtendSafeZone
     )
 import Cardano.Wallet.Primitive.Types
@@ -109,9 +110,13 @@ import Cardano.Wallet.Shelley.Compatibility
 import Cardano.Wallet.Unsafe
     ( unsafeMkPercentage )
 import Control.Monad
-    ( forM, forM_, forever, void, when )
+    ( forM, forM_, forever, void, when, (>=>) )
+import Control.Monad.Cont
+    ( ContT (ContT) )
 import Control.Monad.IO.Class
     ( liftIO )
+import Control.Monad.Trans.Class
+    ( lift )
 import Control.Monad.Trans.Except
     ( ExceptT (..), runExceptT )
 import Control.Monad.Trans.State
@@ -158,24 +163,33 @@ import GHC.Generics
     ( Generic )
 import Ouroboros.Consensus.Cardano.Block
     ( CardanoBlock, HardForkBlock (..) )
+import System.Exit
+    ( ExitCode )
 import System.Random
     ( RandomGen, random )
 import UnliftIO.Concurrent
-    ( forkFinally, killThread, threadDelay )
+    ( forkFinally, forkIOWithUnmask, killThread, threadDelay )
 import UnliftIO.Exception
     ( finally )
 import UnliftIO.IORef
     ( IORef, newIORef, readIORef, writeIORef )
+import UnliftIO.MVar
+    ( modifyMVar_, newMVar )
 import UnliftIO.STM
     ( TBQueue
     , TVar
     , newTBQueue
+    , newTVarIO
     , readTBQueue
     , readTVarIO
     , writeTBQueue
     , writeTVar
     )
 
+import qualified Cardano.Pool.DB as PoolDb
+import Cardano.Pool.DB.Log
+    ( PoolDbLog )
+import qualified Cardano.Pool.DB.Sqlite as Pool
 import qualified Cardano.Wallet.Api.Types as Api
 import qualified Data.List as L
 import qualified Data.List.NonEmpty as NE
@@ -218,6 +232,43 @@ data StakePoolLayer = StakePoolLayer
     , getGCMetadataStatus :: IO PoolMetadataGCStatus
     }
 
+withStakePoolLayer
+    :: Tracer IO StakePoolLog
+    -> Maybe Settings
+    -> PoolDb.DBLayer IO
+    -> NetworkParameters
+    -> NetworkLayer IO (CardanoBlock StandardCrypto)
+    -> ContT ExitCode IO StakePoolLayer
+withStakePoolLayer tr settings dbLayer@DBLayer{..} netParams netLayer = lift do
+    gcStatus <- newTVarIO NotStarted
+    forM_ settings $ atomically . putSettings
+    void $ forkFinally
+        (monitorStakePools tr netParams netLayer dbLayer)
+        (traceAfterThread (contramap MsgExitMonitoring tr))
+
+    -- fixme: needs to be simplified as part of ADP-634
+    let NetworkParameters{slottingParameters} = netParams
+        startMetadataThread = forkIOWithUnmask
+            ($ monitorMetadata gcStatus tr slottingParameters dbLayer)
+    metadataThread <- newMVar =<< startMetadataThread
+    let restartMetadataThread = modifyMVar_ metadataThread $
+            killThread >=> const startMetadataThread
+    newStakePoolLayer gcStatus netLayer dbLayer restartMetadataThread
+
+withStakePoolDbLayer
+    :: Tracer IO PoolDbLog
+    -> Maybe FilePath
+    -> Maybe (Pool.DBDecorator IO)
+    -> NetworkLayer IO block
+    -> ContT r IO (PoolDb.DBLayer IO)
+withStakePoolDbLayer poolDbTracer databaseDir poolDbDecorator netLayer =
+    ContT $ Pool.withDecoratedDBLayer
+        (fromMaybe Pool.undecoratedDB poolDbDecorator)
+        poolDbTracer
+        (Pool.defaultFilePath <$> databaseDir)
+        (neverFails "withPoolsMonitoring never forecasts into the future" $
+            timeInterpreter netLayer)
+
 newStakePoolLayer
     :: forall sc. ()
     => TVar PoolMetadataGCStatus
@@ -225,16 +276,16 @@ newStakePoolLayer
     -> DBLayer IO
     -> IO ()
     -> IO StakePoolLayer
-newStakePoolLayer gcStatus nl db@DBLayer {..} restartSyncThread = do
+newStakePoolLayer gcStatus nl db@DBLayer {..} restartSyncThread =
     pure $ StakePoolLayer
-        { getPoolLifeCycleStatus = _getPoolLifeCycleStatus
-        , knownPools = _knownPools
-        , listStakePools = _listPools
-        , forceMetadataGC = _forceMetadataGC
-        , putSettings = _putSettings
-        , getSettings = _getSettings
-        , getGCMetadataStatus = _getGCMetadataStatus
-        }
+    { getPoolLifeCycleStatus = _getPoolLifeCycleStatus
+    , knownPools = _knownPools
+    , listStakePools = _listPools
+    , forceMetadataGC = _forceMetadataGC
+    , putSettings = _putSettings
+    , getSettings = _getSettings
+    , getGCMetadataStatus = _getGCMetadataStatus
+    }
   where
     _getPoolLifeCycleStatus
         :: PoolId -> IO PoolLifeCycleStatus
@@ -406,7 +457,7 @@ combineDbAndLsqData ti nOpt lsqData =
             (interpretQuery (unsafeExtendSafeZone ti) . toApiEpochInfo)
             mRetirementEpoch
         pure $ Api.ApiStakePool
-            { Api.id = (ApiT pid)
+            { Api.id = ApiT pid
             , Api.metrics = Api.ApiStakePoolMetrics
                 { Api.nonMyopicMemberRewards = Api.coinToQuantity prew
                 , Api.relativeStake = Quantity pstk
@@ -442,7 +493,7 @@ combineLsqData StakePoolsSummary{nOpt, rewards, stake} =
     Map.merge stakeButNoRewards rewardsButNoStake bothPresent stake rewards
   where
     -- calculate the saturation from the relative stake
-    sat s = fromRational $ (getPercentage s) / (1 / fromIntegral nOpt)
+    sat s = fromRational $ getPercentage s / (1 / fromIntegral nOpt)
 
     -- If we fetch non-myopic member rewards of pools using the wallet
     -- balance of 0, the resulting map will be empty. So we set the rewards
@@ -484,7 +535,7 @@ combineChainData registrationMap retirementMap prodMap metaMap delistedSet =
             registrationMap
             prodMap
   where
-    registeredNoProductions = traverseMissing $ \_k cert ->
+    registeredNoProductions = traverseMissing $ \_k cert ->
         pure (cert, Quantity 0)
 
     -- Ignore blocks produced by BFT nodes.
@@ -583,7 +634,7 @@ monitorStakePools tr (NetworkParameters gp sp _pp) nl DBLayer{..} =
         -> NonEmpty (CardanoBlock StandardCrypto)
         -> BlockHeader
         -> IO ()
-    forward latestGarbageCollectionEpochRef blocks _ = do
+    forward latestGarbageCollectionEpochRef blocks _ =
         atomically $ forAllAndLastM blocks forAllBlocks forLastBlock
       where
         forAllBlocks = \case
@@ -711,7 +762,7 @@ monitorMetadata
     -> SlottingParameters
     -> DBLayer IO
     -> IO ()
-monitorMetadata gcStatus tr sp db@(DBLayer{..}) = do
+monitorMetadata gcStatus tr sp db@DBLayer{..} = do
     settings <- atomically readSettings
     manager <- newManager defaultManagerSettings
 
@@ -733,27 +784,25 @@ monitorMetadata gcStatus tr sp db@(DBLayer{..}) = do
 
         _ -> pure NoSmashConfigured
 
-    if  | health == Available || health == NoSmashConfigured -> do
-            case poolMetadataSource settings of
-                FetchNone -> do
-                    STM.atomically $ writeTVar gcStatus NotApplicable
+    if health == Available || health == NoSmashConfigured then (do
+        case poolMetadataSource settings of
+            FetchNone -> do
+                STM.atomically $ writeTVar gcStatus NotApplicable
 
-                FetchDirect -> do
-                    STM.atomically $ writeTVar gcStatus NotApplicable
-                    void $ fetchMetadata manager [identityUrlBuilder]
+            FetchDirect -> do
+                STM.atomically $ writeTVar gcStatus NotApplicable
+                void $ fetchMetadata manager [identityUrlBuilder]
 
-                FetchSMASH (unSmashServer -> uri) -> do
-                    STM.atomically $ writeTVar gcStatus NotStarted
-                    let getDelistedPools =
-                            fetchDelistedPools trFetch uri manager
-                    tid <- forkFinally
-                        (gcDelistedPools gcStatus tr db getDelistedPools)
-                        (traceAfterThread (contramap MsgGCThreadExit tr))
-                    void $ fetchMetadata manager [registryUrlBuilder uri]
-                        `finally` killThread tid
-
-        | otherwise ->
-            traceWith tr MsgSMASHUnreachable
+            FetchSMASH (unSmashServer -> uri) -> do
+                STM.atomically $ writeTVar gcStatus NotStarted
+                let getDelistedPools =
+                        fetchDelistedPools trFetch uri manager
+                tid <- forkFinally
+                    (gcDelistedPools gcStatus tr db getDelistedPools)
+                    (traceAfterThread (contramap MsgGCThreadExit tr))
+                void $ fetchMetadata manager [registryUrlBuilder uri]
+                    `finally` killThread tid) else
+        traceWith tr MsgSMASHUnreachable
   where
     trFetch = contramap MsgFetchPoolMetadata tr
 
@@ -769,16 +818,16 @@ monitorMetadata gcStatus tr sp db@(DBLayer{..}) = do
             when (null refs) $ do
                 traceWith tr $ MsgFetchTakeBreak blockFrequency
                 threadDelay blockFrequency
-            forM refs $ \k@(pid, url, hash) -> k <$ withAvailableSeat inFlights (do
+            forM refs $ \k@(pid, url, hash) -> k <$ withAvailableSeat inFlights (
                 fetchFromRemote trFetch strategies manager pid url hash >>= \case
-                    Nothing ->
-                        atomically $ do
-                            settings' <- readSettings
-                            when (settings == settings') $ putFetchAttempt (url, hash)
-                    Just meta -> do
-                        atomically $ do
-                            settings' <- readSettings
-                            when (settings == settings') $ putPoolMetadata hash meta
+                Nothing ->
+                    atomically $ do
+                        settings' <- readSettings
+                        when (settings == settings') $ putFetchAttempt (url, hash)
+                Just meta -> do
+                    atomically $ do
+                        settings' <- readSettings
+                        when (settings == settings') $ putPoolMetadata hash meta
                 )
       where
         -- Twice 'maxInFlight' so that, when removing keys currently in flight,
