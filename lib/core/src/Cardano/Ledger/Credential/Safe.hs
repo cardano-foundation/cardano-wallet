@@ -48,12 +48,20 @@ import GHC.Stack
 --
 -- Use 'toSlotNo32' to convert an ordinary 'SlotNo' to a 'SlotNo32'.
 --
+-- This function should satisfy the following property:
+--
+-- prop> safeUnwrapPtr (safePtr s t c) == (s, t, c)
+--
 safePtr :: SlotNo32 -> TxIx -> CertIx -> Ptr
 safePtr s t c = Ptr (fromSlotNo32 s) t c
 
 -- | Safely deconstructs a 'Ptr'.
 --
 -- Use 'fromSlotNo32' to convert the returned slot number to a 'SlotNo'.
+--
+-- This function should satisfy the following property:
+--
+-- prop> safeUnwrapPtr (safePtr s t c) == (s, t, c)
 --
 safeUnwrapPtr :: Ptr -> (SlotNo32, TxIx, CertIx)
 safeUnwrapPtr (Ptr s t c) = (unsafeToSlotNo32 s, t, c)
