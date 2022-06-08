@@ -1,105 +1,105 @@
 {
-    "seed": 5742029524742936006,
     "samples": [
         {
-            "total": {
-                "quantity": 242,
+            "available": {
+                "quantity": 73,
                 "unit": "lovelace"
             },
-            "available": {
-                "quantity": 15,
+            "total": {
+                "quantity": 9,
                 "unit": "lovelace"
             }
         },
         {
-            "total": {
-                "quantity": 226,
+            "available": {
+                "quantity": 91,
                 "unit": "lovelace"
             },
-            "available": {
-                "quantity": 95,
+            "total": {
+                "quantity": 218,
                 "unit": "lovelace"
             }
         },
         {
-            "total": {
-                "quantity": 80,
+            "available": {
+                "quantity": 114,
                 "unit": "lovelace"
             },
-            "available": {
-                "quantity": 190,
+            "total": {
+                "quantity": 120,
                 "unit": "lovelace"
             }
         },
         {
-            "total": {
-                "quantity": 92,
+            "available": {
+                "quantity": 126,
                 "unit": "lovelace"
             },
-            "available": {
-                "quantity": 158,
+            "total": {
+                "quantity": 51,
                 "unit": "lovelace"
             }
         },
         {
-            "total": {
-                "quantity": 159,
+            "available": {
+                "quantity": 130,
                 "unit": "lovelace"
             },
-            "available": {
-                "quantity": 74,
+            "total": {
+                "quantity": 94,
                 "unit": "lovelace"
             }
         },
         {
-            "total": {
-                "quantity": 146,
+            "available": {
+                "quantity": 60,
                 "unit": "lovelace"
             },
-            "available": {
-                "quantity": 146,
+            "total": {
+                "quantity": 89,
                 "unit": "lovelace"
             }
         },
         {
-            "total": {
-                "quantity": 128,
+            "available": {
+                "quantity": 97,
                 "unit": "lovelace"
             },
-            "available": {
-                "quantity": 189,
+            "total": {
+                "quantity": 63,
                 "unit": "lovelace"
             }
         },
         {
-            "total": {
-                "quantity": 108,
+            "available": {
+                "quantity": 46,
                 "unit": "lovelace"
             },
-            "available": {
-                "quantity": 201,
+            "total": {
+                "quantity": 173,
                 "unit": "lovelace"
             }
         },
         {
-            "total": {
-                "quantity": 36,
+            "available": {
+                "quantity": 123,
                 "unit": "lovelace"
             },
-            "available": {
-                "quantity": 2,
+            "total": {
+                "quantity": 216,
                 "unit": "lovelace"
             }
         },
         {
-            "total": {
-                "quantity": 222,
+            "available": {
+                "quantity": 93,
                 "unit": "lovelace"
             },
-            "available": {
-                "quantity": 183,
+            "total": {
+                "quantity": 84,
                 "unit": "lovelace"
             }
         }
-    ]
+    ],
+    "seed": 1114898049
 }

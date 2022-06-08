@@ -1,16 +1,6 @@
 {
-    "seed": 5254172405322478001,
     "samples": [
         {
-            "status": "unavailable"
-        },
-        {
-            "status": "pending"
-        },
-        {
-            "status": "pending"
-        },
-        {
             "status": "pending"
         },
         {
@@ -20,24 +10,34 @@
             "status": "pending"
         },
         {
-            "status": "pending"
-        },
-        {
-            "status": "available",
-            "offset": {
-                "quantity": -27,
-                "unit": "microsecond"
-            }
-        },
-        {
-            "status": "available",
-            "offset": {
-                "quantity": 1,
-                "unit": "microsecond"
-            }
+            "status": "unavailable"
         },
         {
             "status": "pending"
+        },
+        {
+            "offset": {
+                "quantity": -28,
+                "unit": "microsecond"
+            },
+            "status": "available"
+        },
+        {
+            "offset": {
+                "quantity": 27,
+                "unit": "microsecond"
+            },
+            "status": "available"
+        },
+        {
+            "status": "unavailable"
+        },
+        {
+            "status": "pending"
+        },
+        {
+            "status": "unavailable"
         }
-    ]
+    ],
+    "seed": -1851190509
 }

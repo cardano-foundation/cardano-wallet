@@ -1,15 +1,15 @@
 {
-    "seed": -185816452081821350,
     "samples": [
-        "addr_vkh1k9z3kyrs8amn7vfnqe4w2cn6sep5q6sdfevqx0pfdgc9yd22hsa",
-        "addr_vk1ddtxk0mlafpzqzjydd2d53nevqxp29pppen57zpzvpphyrs9duusxwm5wd",
-        "addr_vk1rzkx3nevgfxp7h3j899vsr25rcxjwezwg42nsl3mvsdrwpmmfcpq0tx2rg",
-        "addr_vkh1pg08hlqyw4vlx4t8fz4k2m3c5svswumfd5cqwx67zsmpsjtzngw",
-        "stake_vk1w9cf7r3cdesxgzra8agrspmzy348uvw6ggdxx0ptvdcsxecdvgms07g7mp",
-        "addr_vk1zaq528g3uapjq9ccrddqsct3f5946lgqfss9vwtfxp3l2wqmp4hq2unvq6",
-        "addr_vkh1z48n5dplzh2ysj2rqgtsngcx0q6r66qrfehx542ht75q2sw7ftp",
-        "addr_vkh1yyd5gfnedjy322fhyahrjd28d3psu76zg9nsqm3zwe48sqgyd5f",
-        "stake_vkh1qqg4z3yapcr575qpqqh52ce8fvszgynyg5unuzspgsy2smmkf69",
-        "stake_vkh1jy7xj4empgtkqpnkxf4syj6ew3qy92me4th4wyn99p5sky07za6"
-    ]
+        "addr_vkh14g4nrkntvgap5qngtqdq7nkhrfwyv2hsre7u4hm595882w8cumy",
+        "addr_vk1wqhyvpr4yskhjahdqfqtzanu83uywrfyr95y28fnqedy2pfxp3dqyjgrkp",
+        "addr_vkh19p5ryxq8y3smjp6k8snzgv3gs3f3kxn009txezns8vmqu8n45sr",
+        "addr_vk18625qnfd2vrr8937ffzk2zla0fers6pavsc3y63yr58hg2cnwuhql0vnyg",
+        "addr_vk1dsf3w3gmzphjugc7095pt6c6tyjtqltptp4z6fr5ryy4cpl4ykdqauuh2n",
+        "stake_vk1p8n5wveufq9pyht699g8yl3urcypcgvehcenv4g3rhezjl3tf5sq3g6a58",
+        "stake_vk1rpr3qzzgpwwyx5g6npmyxy3rf30s44e6dl2yc5e3fldsk4a6w9ns7kxxz2",
+        "addr_vkh1tyy95ntnrpfreq5gr76jsce52c69kl3c0ykdzzpl0u4nwna8pn6",
+        "stake_vk1prtx5xgpfpq3ffrqd56h69qwdfkeu6rk84usxt6arskkxw90hq2qau457d",
+        "addr_vk1fpyjq9mjyvd4u55h0cqhv8pua5nrvvgcwf5g5deavacs2fsp0zjsl9sqd9"
+    ],
+    "seed": 1191190142
 }
