@@ -1,17 +1,22 @@
 {-# LANGUAGE TypeFamilies #-}
+{-# LANGUAGE FlexibleContexts #-}
+{-# LANGUAGE UndecidableInstances #-}
+{-# LANGUAGE StandaloneDeriving #-}
 
 module Data.DeltaMap
     ( DeltaMap(..)
     ) where
 
+import Prelude
+
 import Data.Delta
     ( Delta (..) )
 import Data.Map.Strict
     ( Map )
-import qualified Data.Map.Strict as Map
-import Prelude
-    ( Ord )
+import Fmt (Buildable(..))
 
+
+import qualified Data.Map.Strict as Map
 
 {-------------------------------------------------------------------------------
     A Delta type for Maps,
@@ -23,8 +28,14 @@ data DeltaMap key da
     | Delete key
     | Adjust key da
 
-instance (Ord key, Delta da) => Delta (DeltaMap key da) where
+deriving instance (Show key, Show da, Show (Base da)) => Show (DeltaMap key da)
+instance (Ord key, Delta da)
+    => Delta (DeltaMap key da) where
     type Base (DeltaMap key da) = Map key (Base da)
     apply (Insert key a) = Map.insert key a
     apply (Delete key) = Map.delete key
     apply (Adjust key da) = Map.adjust (apply da) key
+
+instance (Show key, Show da, Show (Base da))
+    => Buildable (DeltaMap key da) where
+    build = build . show

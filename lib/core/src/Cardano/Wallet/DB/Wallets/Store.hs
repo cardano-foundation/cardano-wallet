@@ -108,7 +108,7 @@ mkStoreWallet wid =
             (Left $ toException ErrBadFormatAddressPrologue) Right
                 <$> loadPrologue wid
         echeckpoints <- loadS storeCheckpoints
-        pure $ WalletState <$> eprologue <*> echeckpoints -- <*> etransactions
+        pure $ WalletState <$> eprologue <*> echeckpoints
 
     write wallet = do
         insertPrologue wid (wallet ^. #prologue)

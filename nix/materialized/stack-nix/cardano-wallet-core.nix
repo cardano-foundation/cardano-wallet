@@ -194,6 +194,7 @@
           "Cardano/Wallet/DB/Transactions/Meta/Store"
           "Cardano/Wallet/DB/Transactions/Transaction/Store"
           "Cardano/Wallet/DB/Transactions/Transaction/Model"
+          "Cardano/Wallet/DB/Transactions/Wallet/Store"
           "Cardano/Wallet/DB/Wallets/State"
           "Cardano/Wallet/DB/Wallets/Store"
           "Cardano/Wallet/DB/Sqlite/Migration"

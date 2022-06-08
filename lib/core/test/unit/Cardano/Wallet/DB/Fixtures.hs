@@ -12,6 +12,7 @@ module Cardano.Wallet.DB.Fixtures
     , unsafeLoadS
     , unsafeUpdateS
     , logScale
+    , logScale'
     , coverM
     , frequencySuchThat
     , withInitializedWalletProp
@@ -37,6 +38,8 @@ import Cardano.Wallet.Unsafe
     ( unsafeFromHex )
 import Control.Tracer
     ( nullTracer )
+import Data.Bifunctor
+    ( second )
 import Data.DBVar
     ( Store (loadS, updateS) )
 import Data.Delta
@@ -67,9 +70,6 @@ import UnliftIO.Exception
     ( bracket )
 
 import qualified Cardano.Wallet.DB.Sqlite.Schema as TH
-import Data.Bifunctor
-    ( second )
-
 
 {-------------------------------------------------------------------------------
     DB setup
