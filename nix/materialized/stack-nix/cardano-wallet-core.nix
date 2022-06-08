@@ -427,6 +427,7 @@
             "Cardano/Wallet/DB/Fixtures"
             "Cardano/Wallet/DB/Transactions/Meta/StoreSpec"
             "Cardano/Wallet/DB/Transactions/Transaction/StoreSpec"
+            "Cardano/Wallet/DB/Transactions/Wallet/StoreSpec"
             "Cardano/Wallet/DummyTarget/Primitive/Types"
             "Cardano/Wallet/Network/LightSpec"
             "Cardano/Wallet/Network/PortsSpec"
