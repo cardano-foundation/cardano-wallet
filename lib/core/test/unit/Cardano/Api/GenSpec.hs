@@ -3,6 +3,7 @@
 {-# LANGUAGE LambdaCase #-}
 {-# LANGUAGE RankNTypes #-}
 {-# LANGUAGE TypeApplications #-}
+{-# LANGUAGE ViewPatterns #-}
 {-# OPTIONS_GHC -fno-warn-orphans #-}
 {-# OPTIONS_GHC -fno-warn-overlapping-patterns #-}
 
@@ -150,8 +151,8 @@ import Cardano.Chain.UTxO
     ( TxInWitness (..) )
 import qualified Cardano.Ledger.BaseTypes as Ledger
     ( CertIx (..), TxIx (..) )
-import Cardano.Ledger.Credential
-    ( Ptr (..) )
+import Cardano.Ledger.Credential.Safe
+    ( Ptr, SlotNo32, safeUnwrapPtr )
 import Cardano.Ledger.Shelley.API
     ( MIRPot (..) )
 import Data.Char
@@ -498,6 +499,10 @@ genTxInCollateralCoverage era collateral =
 
 genSlotNoCoverage :: SlotNo -> Property
 genSlotNoCoverage = unsignedCoverage (maxBound @Word64 - 1000) "slot number"
+
+genSlotNo32Coverage :: SlotNo32 -> Property
+genSlotNo32Coverage =
+    unsignedCoverage (maxBound @Word32 - 10000) "slot number (32-bit)"
 
 instance Arbitrary SlotNo where
     arbitrary = genSlotNo
@@ -1129,11 +1134,12 @@ genTxMetadataInEraCoverage era meta =
                 TxMetadataInEra _ _ -> cover 40 True "some metadata" True
 
 genPtrCoverage :: Ptr -> Property
-genPtrCoverage (Ptr slotNo txIx certIx) = checkCoverage $ conjoin
-    [ genSlotNoCoverage slotNo
-    , genTxIxCoverage' txIx
-    , genCertIxCoverage certIx
-    ]
+genPtrCoverage (safeUnwrapPtr -> (slotNo, txIx, certIx)) =
+    checkCoverage $ conjoin
+        [ genSlotNo32Coverage slotNo
+        , genTxIxCoverage' txIx
+        , genCertIxCoverage certIx
+        ]
 
 instance Arbitrary Ptr where
     arbitrary = genPtr
