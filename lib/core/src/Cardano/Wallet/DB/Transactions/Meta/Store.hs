@@ -46,7 +46,9 @@ import Data.Maybe
 
 import qualified Cardano.Wallet.Primitive.Types.Tx as W
 
-mkStoreTransactionsMeta :: WalletId -> Store (SqlPersistT IO) DeltaTxMetaHistory
+mkStoreTransactionsMeta
+    :: WalletId
+    -> Store (SqlPersistT IO) (DeltaTxMetaHistoryAny)
 mkStoreTransactionsMeta wid =
     Store
         { loadS = load wid
@@ -54,25 +56,33 @@ mkStoreTransactionsMeta wid =
         , updateS = update wid
         }
 
-update :: WalletId -> TxMetaHistory -> DeltaTxMetaHistory -> SqlPersistT IO ()
+update
+    :: WalletId
+    -> TxMetaHistory
+    -> DeltaTxMetaHistoryAny
+    -> SqlPersistT IO ()
 update wid _ change = case change of
-    ExpandTxMetaHistory txs -> putMetas txs
-    PruneTxMetaHistory tid -> do
+    DeltaTxMetaHistoryAny (ExpandTxMetaHistory txs) -> putMetas txs
+    DeltaTxMetaHistoryAny (PruneTxMetaHistory tid) -> do
         let filt = [ TxMetaWalletId ==. wid, TxMetaTxId ==. tid ]
         selectFirst ((TxMetaStatus ==. W.InLedger) : filt) [] >>= \case
             Just _ -> pure () -- marked in ledger - refuse to delete
             Nothing -> void
                 $ deleteWhereCount
                 $ (TxMetaStatus <-. [W.Pending, W.Expired]) : filt
-    AgeTxMetaHistory tip ->
-        updateWhere isExpired' [TxMetaStatus =. W.Expired]
-          where
-            isExpired' =
-                [ TxMetaWalletId ==. wid
-                , TxMetaStatus ==. W.Pending
-                , TxMetaSlotExpires <=. Just tip
-                ]
-    RollBackTxMetaHistory nearestPoint -> do
+    DeltaTxMetaHistoryAny (AgeTxMetaHistory tip) ->
+        updateWhere
+            [ TxMetaWalletId ==. wid
+            , TxMetaStatus ==. W.Pending
+            , TxMetaSlotExpires <=. Just tip
+            ]
+            [TxMetaStatus =. W.Expired]
+    DeltaTxMetaHistoryAny (RollBackTxMetaHistory nearestPoint) -> do
+        deleteWhere
+            [ TxMetaWalletId ==. wid
+            , TxMetaDirection ==. W.Incoming
+            , TxMetaSlot >. nearestPoint
+            ]
         updateWhere
             [ TxMetaWalletId ==. wid
             , TxMetaDirection ==. W.Outgoing
@@ -80,11 +90,6 @@ update wid _ change = case change of
             ]
             [ TxMetaStatus =. W.Pending
             , TxMetaSlot =. nearestPoint
-            ]
-        deleteWhere
-            [ TxMetaWalletId ==. wid
-            , TxMetaDirection ==. W.Incoming
-            , TxMetaSlot >. nearestPoint
             ]
 
 write :: WalletId -> TxMetaHistory -> SqlPersistT IO ()

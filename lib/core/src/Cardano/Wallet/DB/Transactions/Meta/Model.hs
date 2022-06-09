@@ -9,8 +9,17 @@
 {-# LANGUAGE ScopedTypeVariables #-}
 {-# LANGUAGE TypeFamilies #-}
 {-# LANGUAGE UndecidableInstances #-}
+{-# LANGUAGE StandaloneDeriving #-}
 
-module Cardano.Wallet.DB.Transactions.Meta.Model where
+module Cardano.Wallet.DB.Transactions.Meta.Model
+    ( DeltaTxMetaHistoryAny (..)
+    , DeltaTxMetaHistory (..)
+    , TxMetaHistory (..)
+    , mkTxMetaHistory
+    , TxMetaOp(..)
+    , overTxMetaHistory
+    )
+where
 
 import Prelude
 
@@ -19,13 +28,11 @@ import Cardano.Wallet.DB.Sqlite.Schema
 import Cardano.Wallet.DB.Sqlite.Types
     ( TxId (..) )
 import Control.Monad
-    ( guard )
+    ( MonadPlus (mzero) )
 import Data.Delta
     ( Delta (..) )
 import Data.Foldable
     ( fold )
-import Data.Function
-    ( (&) )
 import Data.Functor
     ( (<&>) )
 import Data.Generics.Internal.VL
@@ -52,14 +59,24 @@ instance Buildable TxMetaHistory where
     build txs = "TxMetaHistory "
         <> build (length $ txMetaHistory_relations txs)
 
-data DeltaTxMetaHistory
-    = ExpandTxMetaHistory TxMetaHistory
-    | PruneTxMetaHistory TxId
-    | AgeTxMetaHistory W.SlotNo
-    | RollBackTxMetaHistory W.SlotNo
-    deriving (Show, Eq, Generic)
+data TxMetaOp = Expansion | Manipulation
+data DeltaTxMetaHistory x where
+    ExpandTxMetaHistory :: TxMetaHistory -> DeltaTxMetaHistory 'Expansion
+    PruneTxMetaHistory :: TxId -> DeltaTxMetaHistory 'Manipulation
+    AgeTxMetaHistory :: W.SlotNo -> DeltaTxMetaHistory 'Manipulation
+    RollBackTxMetaHistory :: W.SlotNo -> DeltaTxMetaHistory 'Manipulation
 
-instance Buildable DeltaTxMetaHistory where
+data DeltaTxMetaHistoryAny = forall x . DeltaTxMetaHistoryAny
+    (DeltaTxMetaHistory x)
+
+deriving instance Show DeltaTxMetaHistoryAny
+
+deriving instance Show (DeltaTxMetaHistory x)
+deriving instance Eq (DeltaTxMetaHistory x)
+instance Buildable DeltaTxMetaHistoryAny where
+    build = build . show
+
+instance Buildable (DeltaTxMetaHistory x) where
     build (ExpandTxMetaHistory txs) =
         "ExpandTxMetaHistory " <> build (length $ txMetaHistory_relations txs)
     build (PruneTxMetaHistory h) =
@@ -69,43 +86,51 @@ instance Buildable DeltaTxMetaHistory where
     build (RollBackTxMetaHistory slot) =
         "RollbackTxMetaHistory " <> build slot
 
-instance Delta DeltaTxMetaHistory where
-    type Base DeltaTxMetaHistory = TxMetaHistory
-    apply (ExpandTxMetaHistory txs) h = h <> txs
-    apply (PruneTxMetaHistory tid) (TxMetaHistory txs) = TxMetaHistory $
-        Map.alter f tid txs
+newtype InfiniteNothing a = InfiniteNothing (Maybe a) deriving Eq
+instance Ord a => Ord (InfiniteNothing a) where
+    compare  (InfiniteNothing Nothing) (InfiniteNothing Nothing) = EQ
+    compare  (InfiniteNothing Nothing) _ = GT
+    compare  _  (InfiniteNothing Nothing) = LT
+    compare  (InfiniteNothing (Just x)) (InfiniteNothing (Just y))
+        = compare x y
+
+instance Delta DeltaTxMetaHistoryAny  where
+    type Base DeltaTxMetaHistoryAny = TxMetaHistory
+    apply (DeltaTxMetaHistoryAny (ExpandTxMetaHistory txs)) h = h <> txs
+    apply (DeltaTxMetaHistoryAny (PruneTxMetaHistory tid)) (TxMetaHistory txs)
+        = TxMetaHistory
+        $ Map.alter f tid txs
         where
             f (Just tx@(TxMeta {..})) = if
                 txMetaStatus == W.InLedger then Just tx
                 else Nothing
             f Nothing = Nothing
-    apply (AgeTxMetaHistory tip) (TxMetaHistory txs) = TxMetaHistory
-        $ txs <&>
-                do \meta@TxMeta {..} ->
-                    let newstatus =
-                            if isExpired tip meta
-                            then W.Expired
-                            else txMetaStatus
-                    in meta{txMetaStatus = newstatus}
-    apply (RollBackTxMetaHistory point) (TxMetaHistory txs) = TxMetaHistory
-        $ txs & Map.mapMaybe (rescheduleOrForget point )
+    apply (DeltaTxMetaHistoryAny (AgeTxMetaHistory tip)) (TxMetaHistory txs)
+        = TxMetaHistory $ txs <&>
+            \meta@TxMeta {..} ->
+                if txMetaStatus == W.Pending
+                    && InfiniteNothing txMetaSlotExpires
+                        <= InfiniteNothing (Just tip)
+                then meta{txMetaStatus = W.Expired}
+                else meta
+    apply (DeltaTxMetaHistoryAny (RollBackTxMetaHistory point))
+        (TxMetaHistory txs)
+        = TxMetaHistory
+            $ Map.mapMaybe (rescheduleOrForget point) txs
         where
             rescheduleOrForget :: W.SlotNo -> TxMeta -> Maybe TxMeta
-            rescheduleOrForget forkSlot meta = do
-                let
-                    isAfter = txMetaSlot meta > point
+            rescheduleOrForget forkSlot meta =
+                let isAfter = txMetaSlot meta > point
                     isIncoming = txMetaDirection meta == W.Incoming
-                guard $ not $ isIncoming && isAfter
-                Just $ if isAfter
-                            then meta
-                                    { txMetaSlot = forkSlot
-                                    , txMetaStatus = W.Pending
-                                    }
-                            else meta
+                in case (isAfter, isIncoming) of
+                    (True, True) -> mzero
+                    (True, False) -> Just $ meta
+                        { txMetaSlot = forkSlot
+                        , txMetaStatus = W.Pending
+                        }
+                    _ -> Just meta
 
-isExpired :: W.SlotNo -> TxMeta -> Bool
-isExpired tip TxMeta {..}
-    = txMetaSlotExpires <= Just tip && txMetaStatus == W.Pending
+
 
 mkTxMetaEntity
     :: W.WalletId -> W.Tx -> W.TxMeta -> TxMeta

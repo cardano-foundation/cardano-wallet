@@ -77,8 +77,7 @@ prop_StoreUpdates toPropertyM store gen0 more = do
     -- check whether the last value is correct
     case ea of
         Left err -> impureThrow err
-        Right a  -> do
-            assert $ a == head as
+        Right a  -> assert $ a == head as
 
 
 {-------------------------------------------------------------------------------

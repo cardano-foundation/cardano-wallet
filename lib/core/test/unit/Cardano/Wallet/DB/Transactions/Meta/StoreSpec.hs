@@ -6,7 +6,7 @@
 {-# LANGUAGE ViewPatterns #-}
 
 module Cardano.Wallet.DB.Transactions.Meta.StoreSpec(
-    spec,
+    spec, deltasTrueFreq
 ) where
 
 import Prelude
@@ -20,7 +20,7 @@ import Cardano.Wallet.DB.Fixtures
     , logScale
     , unsafeUpdateS
     , withDBInMemory
-    , withInitializedWalletProp
+    , withInitializedWalletProp, elementsOrArbitrary
     )
 import Cardano.Wallet.DB.Sqlite.Schema
     ( TxMeta (txMetaDirection, txMetaSlot, txMetaStatus)
@@ -33,7 +33,7 @@ import Cardano.Wallet.DB.Transactions.Meta.Model
     ( DeltaTxMetaHistory (..)
     , TxMetaHistory (..)
     , mkTxMetaHistory
-    , overTxMetaHistory
+    , overTxMetaHistory, DeltaTxMetaHistoryAny (DeltaTxMetaHistoryAny), TxMetaOp (Manipulation, Expansion)
     )
 import Cardano.Wallet.DB.Transactions.Meta.Store
     ( mkStoreTransactionsMeta )
@@ -60,7 +60,7 @@ import qualified Data.Set as Set
 import Database.Persist.Sql
     ( SqlPersistT )
 import Test.DBVar
-    ( GenDelta, prop_StoreUpdates )
+    ( prop_StoreUpdates )
 import Test.Hspec
     ( Spec, around, describe, it )
 import Test.QuickCheck
@@ -95,35 +95,46 @@ spec = around withDBInMemory $ do
 --------------------------------------------------------------------------------
 --  generate deltas
 --------------------------------------------------------------------------------
-genDeltas :: WalletId -> GenDelta DeltaTxMetaHistory
+genDeltas :: WalletId -> TxMetaHistory -> Gen DeltaTxMetaHistoryAny
 genDeltas wid history =
-    frequency
-        [ (10, genExpand wid arbitrary),
-          (1, PruneTxMetaHistory . TxId <$> arbitrary),
-          -- probably just dropped
-          (4, genPrune history),
-          -- will try to prune a valid id
-          (1, AgeTxMetaHistory <$> arbitrary),
-          -- probably just dropped
-          (4, genAge history)
-          -- will age valid ids
+    frequency $
+        (10, DeltaTxMetaHistoryAny <$> genExpand wid arbitrary)
+            : fmap (fmap (fmap DeltaTxMetaHistoryAny)) (deltasTrueFreq history)
+
+deltasTrueFreq :: Num a => TxMetaHistory -> [(a, Gen (DeltaTxMetaHistory Manipulation))]
+deltasTrueFreq history =
+        [
+         (1, PruneTxMetaHistory . TxId <$> arbitrary)
+        , (4, genPrune history)
+        , (1, AgeTxMetaHistory <$> arbitrary)
+        , (1, genAge history)
+        , (3, genRollBack history)
         ]
 
-genAge :: TxMetaHistory -> Gen DeltaTxMetaHistory
-genAge (TxMetaHistory history) =
-    case catMaybes $ txMetaSlotExpires <$> toList history of
-        [] -> AgeTxMetaHistory <$> arbitrary
-        xs -> AgeTxMetaHistory <$> elements xs
+genAge :: TxMetaHistory -> Gen (DeltaTxMetaHistory 'Manipulation)
+genAge (TxMetaHistory history)
+    = fmap AgeTxMetaHistory
+    $ elementsOrArbitrary id
+    $ catMaybes
+    $ txMetaSlotExpires <$> toList history
 
-genPrune :: TxMetaHistory -> Gen DeltaTxMetaHistory
-genPrune history =
-    case Map.keys $ txMetaHistory_relations history of
-        [] -> PruneTxMetaHistory . TxId <$> arbitrary
-        xs -> PruneTxMetaHistory <$> elements xs
+genPrune :: TxMetaHistory -> Gen (DeltaTxMetaHistory 'Manipulation)
+genPrune history
+    = fmap PruneTxMetaHistory
+    $ elementsOrArbitrary TxId
+    $ Map.keys $ txMetaHistory_relations history
 
-genExpand :: WalletId -> Gen [(W.Tx, W.TxMeta)] -> Gen DeltaTxMetaHistory
+genExpand
+    :: WalletId
+    -> Gen [(W.Tx, W.TxMeta)]
+    -> Gen (DeltaTxMetaHistory 'Expansion)
 genExpand wid g = ExpandTxMetaHistory . mkTxMetaHistory wid <$> g
 
+genRollBack :: TxMetaHistory -> Gen (DeltaTxMetaHistory 'Manipulation)
+genRollBack (TxMetaHistory history)
+    = fmap RollBackTxMetaHistory
+    $ elementsOrArbitrary id
+    $ txMetaSlot <$> toList history
 
 prop_StoreMetaLaws :: WalletProperty
 prop_StoreMetaLaws = withInitializedWalletProp $ \wid runQ ->
@@ -135,7 +146,7 @@ prop_StoreMetaLaws = withInitializedWalletProp $ \wid runQ ->
 withExpanded
     :: Gen [(W.Tx, W.TxMeta)]
     -> ( (forall a . SqlPersistT IO a -> PropertyM IO a)
-        -> Store (SqlPersistT IO) DeltaTxMetaHistory
+        -> Store (SqlPersistT IO) DeltaTxMetaHistoryAny
         -> TxMetaHistory
         -> PropertyM IO Property
        )
@@ -146,7 +157,7 @@ withExpanded expandG f = withInitializedWalletProp $ \wid runQ -> do
         $ genExpand wid expandG
     let store = mkStoreTransactionsMeta wid
     bootHistory <- runQ $ do
-        unsafeUpdateS store mempty expansion
+        unsafeUpdateS store mempty $ DeltaTxMetaHistoryAny expansion
     f runQ store bootHistory
 
 withPropRollBack
@@ -159,7 +170,9 @@ withPropRollBack f =  withExpanded (listOf1 arbitrary)
     $ \run store bootHistory -> do
         slotNo <- pick $ internalSlotNoG bootHistory
         newHistory <- run $ do
-            unsafeUpdateS store bootHistory $ RollBackTxMetaHistory slotNo
+            unsafeUpdateS store bootHistory
+                $ DeltaTxMetaHistoryAny
+                $ RollBackTxMetaHistory slotNo
         coverM 40 (not . null $ allIncoming bootHistory)
             "incoming transactions"
             $ coverM 40 (not . null $ allOutgoing bootHistory)
@@ -229,12 +242,13 @@ prop_AgeAllPending2Expire = withExpanded (listOf1 generatePendings)
     $ \runQ store bootHistory -> do
         result <- runQ $ do
             foldM (unsafeUpdateS store) bootHistory
-                $ firstPendingSlot bootHistory
+                $ DeltaTxMetaHistoryAny
+                <$> firstPendingSlot bootHistory
         coverM 50 (not . null $ allPendings bootHistory)
             "pending transactions size"
                 $ assert (noPendingLeft result)
 
-firstPendingSlot :: TxMetaHistory -> Maybe DeltaTxMetaHistory
+firstPendingSlot :: TxMetaHistory -> Maybe (DeltaTxMetaHistory 'Manipulation)
 firstPendingSlot (TxMetaHistory (null -> True)) = Nothing
 firstPendingSlot (TxMetaHistory txs) =
     fmap AgeTxMetaHistory $ maximum $ txMetaSlotExpires  <$> toList txs
@@ -254,6 +268,7 @@ prop_AgeSomePending2Expire = withExpanded (listOf1 generatePendings)
                     $ do
                     newHistory <- runQ $ do
                         unsafeUpdateS store bootHistory
+                            $ DeltaTxMetaHistoryAny
                             $ AgeTxMetaHistory splitSlot
                     assert $
                         snd (pendingsPartitionedBySlot newHistory splitSlot)
@@ -300,16 +315,18 @@ pendingsPartitionedBySlot (TxMetaHistory txs) slotNo
 allInLedger :: TxMetaHistory -> Bool
 allInLedger (TxMetaHistory txs) = all ((==) InLedger . txMetaStatus) txs
 
-pruneAll :: TxMetaHistory -> [DeltaTxMetaHistory]
+pruneAll :: TxMetaHistory -> [DeltaTxMetaHistory 'Manipulation]
 pruneAll (TxMetaHistory txs) = do
     meta <- toList txs
-    pure $ PruneTxMetaHistory $ txMetaTxId meta
+    pure
+        $ PruneTxMetaHistory
+        $ txMetaTxId meta
 
 prop_PruneToAllInLedger :: WalletProperty
 prop_PruneToAllInLedger = withInitializedWalletProp $ \wid runQ -> do
     expansion <- pick $ logScale $ genExpand wid arbitrary
     let store = mkStoreTransactionsMeta wid
     result <- runQ $ do
-        unsafeUpdateS store mempty expansion
-            >>= \ba -> foldM (unsafeUpdateS store) ba (pruneAll ba)
+        ba <- unsafeUpdateS store mempty (DeltaTxMetaHistoryAny expansion)
+        foldM (unsafeUpdateS store) ba (DeltaTxMetaHistoryAny <$> pruneAll ba)
     assert $ allInLedger result

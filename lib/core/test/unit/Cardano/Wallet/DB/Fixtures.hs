@@ -19,7 +19,7 @@ module Cardano.Wallet.DB.Fixtures
     , WalletProperty
     , withStoreProp
     , StoreProperty
-    )
+    ,elementsOrArbitrary)
     where
 
 import Prelude
@@ -62,7 +62,7 @@ import Test.QuickCheck
     , cover
     , frequency
     , scale
-    , suchThat
+    , suchThat, Arbitrary, arbitrary, elements
     )
 import Test.QuickCheck.Monadic
     ( PropertyM, assert, monadicIO, monitor, run )
@@ -133,6 +133,10 @@ coverM n c t =fmap $ cover n c t
 frequencySuchThat :: Gen a -> [(Int, a -> Bool)] -> Gen a
 frequencySuchThat g fs = frequency $ second (suchThat g) <$> fs
 
+-- | pick an element of a nonempty list or a default
+elementsOrArbitrary :: Arbitrary a => (a -> b) -> [b] -> Gen b
+elementsOrArbitrary f [] = f <$> arbitrary
+elementsOrArbitrary _ xs = elements xs
 -- wallet property writing support
 
 -- | a wrapper just to avoid impredicative errors

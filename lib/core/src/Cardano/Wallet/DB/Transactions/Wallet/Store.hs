@@ -1,4 +1,5 @@
 
+{-# LANGUAGE DataKinds #-}
 {-# LANGUAGE LambdaCase #-}
 {-# LANGUAGE OverloadedLabels #-}
 {-# LANGUAGE RankNTypes #-}
@@ -12,11 +13,11 @@ import Prelude
 
 import Cardano.Wallet.DB.Sqlite.Schema
     ( EntityField (TxMetaWalletId), TxMeta )
-import Cardano.Wallet.DB.Sqlite.Types
-    ( TxId )
 import Cardano.Wallet.DB.Transactions.Meta.Model
-    ( DeltaTxMetaHistory (AgeTxMetaHistory, ExpandTxMetaHistory, PruneTxMetaHistory, RollBackTxMetaHistory)
+    ( DeltaTxMetaHistory (ExpandTxMetaHistory)
+    , DeltaTxMetaHistoryAny (DeltaTxMetaHistoryAny)
     , TxMetaHistory
+    , TxMetaOp (Manipulation)
     , mkTxMetaHistory
     )
 import Cardano.Wallet.DB.Transactions.Meta.Store
@@ -62,16 +63,16 @@ import qualified Data.Map.Strict as Map
 -- | Store for 'WalletsMeta' of multiple different wallets.
 mkStoreWalletsMeta
     :: Store (SqlPersistT IO)
-        (DeltaMap W.WalletId DeltaTxMetaHistory)
+        (DeltaMap W.WalletId DeltaTxMetaHistoryAny)
 mkStoreWalletsMeta = Store { loadS = load, writeS = write, updateS = update}
   where
-    write :: Base (DeltaMap W.WalletId DeltaTxMetaHistory) -> SqlPersistT IO ()
+    -- write :: Base (DeltaMap W.WalletId DeltaTxMetaHistory) -> SqlPersistT IO ()
     write reset = forM_ (Map.assocs reset) $ \(wid, metas) ->
         writeS (mkStoreTransactionsMeta wid) metas
-    update
-        ::Base (DeltaMap W.WalletId DeltaTxMetaHistory)
-        -> DeltaMap W.WalletId DeltaTxMetaHistory
-        -> SqlPersistT IO ()
+    -- update
+    --     ::Base (DeltaMap W.WalletId DeltaTxMetaHistory)
+    --     -> DeltaMap W.WalletId DeltaTxMetaHistory
+    --     -> SqlPersistT IO ()
     update _ (Insert wid metas) =
         writeS (mkStoreTransactionsMeta wid) metas
     update _ (Delete wid) = do
@@ -90,9 +91,7 @@ mkStoreWalletsMeta = Store { loadS = load, writeS = write, updateS = update}
 
 data DeltaTxWalletsHistory
     = ExpandTxWalletsHistory W.WalletId [(W.Tx, W.TxMeta)]
-    | PruneTxWalletsHistory W.WalletId TxId
-    | AgeTxWalletsHistory W.WalletId W.SlotNo
-    | RollBackTxWalletsHistory W.WalletId W.SlotNo
+    | ChangeTxMetaWalletsHistory W.WalletId (DeltaTxMetaHistory 'Manipulation)
     | GarbageCollectTxWalletsHistory
     deriving (Show, Eq)
 
@@ -102,20 +101,17 @@ instance Delta DeltaTxWalletsHistory where
     apply (ExpandTxWalletsHistory wid cs) (txh, mtxmh) =
         ( apply (ExpandTxHistory $ mkTxHistory $  fst <$> cs) txh
         , mtxmh & case Map.lookup wid mtxmh of
-            Nothing -> apply @(DeltaMap _ DeltaTxMetaHistory)
+            Nothing -> apply @(DeltaMap _ DeltaTxMetaHistoryAny)
                 $ Insert wid
                 $ mkTxMetaHistory wid cs
-            Just _ -> apply
+            Just _ -> apply @(DeltaMap _ DeltaTxMetaHistoryAny)
                 $ Adjust wid
+                $ DeltaTxMetaHistoryAny
                 $ ExpandTxMetaHistory
                 $ mkTxMetaHistory wid cs
         )
-    apply (PruneTxWalletsHistory wid tid) (txh, mtxmh) =
-        (txh, mtxmh & apply (Adjust wid $ PruneTxMetaHistory tid))
-    apply (AgeTxWalletsHistory wid slot) (txh, mtxmh) =
-        (txh, mtxmh & apply (Adjust wid $ AgeTxMetaHistory slot))
-    apply (RollBackTxWalletsHistory wid slot) (txh, mtxmh) =
-        (txh, mtxmh & apply (Adjust wid $ RollBackTxMetaHistory slot))
+    apply (ChangeTxMetaWalletsHistory wid change) (txh, mtxmh) =
+        (txh, mtxmh & apply (Adjust wid $ DeltaTxMetaHistoryAny change))
     apply GarbageCollectTxWalletsHistory (_txh, mtxmh) =
         (error "not implemented", mtxmh)
 
@@ -137,20 +133,13 @@ mkStoreTxWalletsHistory = Store
                 $ fst <$> cs
             updateS mkStoreWalletsMeta mtxmh
                 $ Adjust wid
+                $ DeltaTxMetaHistoryAny
                 $ ExpandTxMetaHistory
                 $ mkTxMetaHistory wid cs
-        PruneTxWalletsHistory wid tid ->
+        ChangeTxMetaWalletsHistory wid change ->
             updateS mkStoreWalletsMeta mtxmh
                 $ Adjust wid
-                $ PruneTxMetaHistory tid
-        AgeTxWalletsHistory wid slotNo ->
-            updateS mkStoreWalletsMeta mtxmh
-                $ Adjust wid
-                $ AgeTxMetaHistory slotNo
-        RollBackTxWalletsHistory wid slotNo ->
-            updateS mkStoreWalletsMeta mtxmh
-                $ Adjust wid
-                $ RollBackTxMetaHistory slotNo
+                $ DeltaTxMetaHistoryAny change
         GarbageCollectTxWalletsHistory  ->
             error "not implemented"
 
