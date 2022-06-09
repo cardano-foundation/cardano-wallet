@@ -458,10 +458,10 @@
       },
       "locked": {
         "lastModified": 1654580214,
-        "narHash": "sha256-1RxPP2p2+97q5TGtxBi3C6z7bKlbc6lrGOgvOCPXozE=",
+        "narHash": "sha256-fzZetN7xqVR+4/0OLMwBGOvRqlcoV031YpDd62XyMHk=",
         "owner": "input-output-hk",
         "repo": "haskell.nix",
-        "rev": "d71e854deab4a5661f55d5a1675e34bd8d418061",
+        "rev": "49976f8bb435a915101d0f66bb16fe885defb713",
         "type": "github"
       },
       "original": {
