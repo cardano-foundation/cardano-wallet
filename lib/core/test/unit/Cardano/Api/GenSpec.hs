@@ -1738,4 +1738,5 @@ forAllShelleyBasedEras f =
                 , AnyCardanoEra AllegraEra
                 , AnyCardanoEra MaryEra
                 , AnyCardanoEra AlonzoEra
+                , AnyCardanoEra BabbageEra
                 ]
