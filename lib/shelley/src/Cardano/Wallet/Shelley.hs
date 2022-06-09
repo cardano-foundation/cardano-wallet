@@ -250,7 +250,7 @@ serveWallet
                 netParams
                 netLayer
         BlockfrostSource bfProject -> do
-            withBlockfrostStakePoolLayer poolsEngineTracer bfProject
+            withBlockfrostStakePoolLayer poolsEngineTracer bfProject network
     randomApi <- withRandomApi netLayer
     icarusApi  <- withIcarusApi netLayer
     shelleyApi <- withShelleyApi netLayer

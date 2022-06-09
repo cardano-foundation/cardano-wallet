@@ -22,13 +22,13 @@
 --
 -- Network Layer implementation that uses Blockfrost API
 module Cardano.Wallet.Shelley.Network.Blockfrost
-  ( withNetworkLayer,
-    Log,
+    ( withNetworkLayer,
+        Log,
 
-    -- * Internal
-    getPoolPerformanceEstimate,
-    eraByEpoch
-  )
+        -- * Internal
+        getPoolPerformanceEstimate,
+        eraByEpoch
+    )
 where
 
 import Prelude
@@ -58,7 +58,7 @@ import Cardano.Pool.Rank.Likelihood
 import Cardano.Slotting.Slot
     ( unEpochSize )
 import Cardano.Wallet.Api.Types
-    ( decodeAddress, decodeStakeAddress, encodeAddress, encodeStakeAddress )
+    ( decodeStakeAddress, encodeAddress, encodeStakeAddress )
 import Cardano.Wallet.Logging
     ( BracketLog, bracketTracer )
 import Cardano.Wallet.Network
@@ -132,8 +132,10 @@ import Cardano.Wallet.Primitive.Types.TokenBundle
     ( TokenBundle (..) )
 import Cardano.Wallet.Primitive.Types.Tx
     ( Tx (..), TxIn (..), TxOut (..), TxScriptValidity (..), TxSize (..) )
+import Cardano.Wallet.Shelley.Network.Blockfrost.Conversion
+    ( fromBfAddress, fromBfLovelaces )
 import Cardano.Wallet.Shelley.Network.Blockfrost.Error
-    ( BlockfrostError (..) )
+    ( BlockfrostError (..), (<?#>), (<?>) )
 import Cardano.Wallet.Shelley.Network.Blockfrost.Monad
     ( BFM )
 import Cardano.Wallet.Shelley.Network.Discriminant
@@ -158,8 +160,6 @@ import Data.Bifunctor
     ( first )
 import Data.Bitraversable
     ( bitraverse )
-import Data.Bits
-    ( Bits )
 import Data.Function
     ( (&) )
 import Data.Functor
@@ -167,7 +167,7 @@ import Data.Functor
 import Data.Functor.Contravariant
     ( (>$<) )
 import Data.IntCast
-    ( intCast, intCastMaybe )
+    ( intCast )
 import Data.List
     ( partition )
 import Data.List.NonEmpty
@@ -203,8 +203,6 @@ import Fmt
     ( pretty )
 import GHC.OldList
     ( sortOn )
-import Money
-    ( Discrete' )
 import Ouroboros.Consensus.Cardano.Block
     ( CardanoBlock, StandardCrypto )
 import Ouroboros.Consensus.HardFork.History.EraParams
@@ -649,7 +647,7 @@ withNetworkLayer tr network np project k = do
         BFM.run bfConfig do
             BF.Network{_networkStake = BF.NetworkStake{_stakeLive}} <-
                 BF.getNetworkInfo
-            totalLiveStake <- fromBlockfrostM _stakeLive
+            totalLiveStake <- fromBfLovelaces _stakeLive
             pools <- mapConcurrently BF.getPool =<< BF.listPools
             stake <- poolsStake totalLiveStake pools
             pure StakePoolsSummary
@@ -667,12 +665,12 @@ withNetworkLayer tr network np project k = do
                 -> m (Map PoolId Percentage)
             poolsStake total = fmap Map.fromList . traverse \BF.PoolInfo{..} ->
                 (,) <$> fromBlockfrostM _poolInfoPoolId <*> do
-                    live <- fromBlockfrostM @_ @Coin _poolInfoLiveStake
+                    live <- fromBfLovelaces _poolInfoLiveStake
                     let ratio = Coin.toInteger live % Coin.toInteger total
                     case mkPercentage ratio of
-                       Right percentage -> pure percentage
-                       Left PercentageOutOfBoundsError ->
-                           throwError $ PoolStakePercentageError total live
+                        Right percentage -> pure percentage
+                        Left PercentageOutOfBoundsError ->
+                            throwError $ PoolStakePercentageError total live
 
 fetchNextBlocks
     :: forall m
@@ -781,7 +779,7 @@ assembleTransaction
     -> [BF.TransactionMetaJSON]
     -> m Tx
 assembleTransaction
-    (SomeNetworkDiscriminant (Proxy :: Proxy nd))
+    network@(SomeNetworkDiscriminant (Proxy :: Proxy nd))
     BF.Transaction{..}
     BF.TransactionUtxos{..}
     txWithdrawals
@@ -791,15 +789,12 @@ assembleTransaction
         (resolvedInputs, resolvedCollateralInputs) <-
             fromInputs _transactionUtxosInputs
         outputs <- for _transactionUtxosOutputs \out@BF.UtxoOutput{..} -> do
-            let outAddr = BF.unAddress _utxoOutputAddress
-            address <-
-                either (throwError . InvalidAddress outAddr) pure $
-                    decodeAddress @nd outAddr
+            address <- fromBfAddress network _utxoOutputAddress
             tokens <- do
                 coin <- case [ lovelaces
                              | BF.AdaAmount lovelaces <- _utxoOutputAmount
                              ] of
-                    [l] -> fromBlockfrost l
+                    [l] -> fromBfLovelaces l
                     _ -> throwError $ InvalidUtxoOutputAmount out
                 pure $ TokenBundle coin mempty -- TODO: Handle native assets
             pure TxOut{..}
@@ -809,7 +804,7 @@ assembleTransaction
                     let addr = BF.unAddress _transactionWithdrawalAddress
                     rewardAccount <-
                         first (InvalidAddress addr) $ decodeStakeAddress @nd addr
-                    coin <- fromBlockfrost _transactionWithdrawalAmount
+                    coin <- fromBfLovelaces _transactionWithdrawalAmount
                     pure (rewardAccount, coin)
         metadata <-
             if null metadataJSON
@@ -851,7 +846,7 @@ assembleTransaction
                 txIndex <- _utxoInputOutputIndex <?#> "_utxoInputOutputIndex"
                 coin <-
                     case [lovelaces | BF.AdaAmount lovelaces <- _utxoInputAmount] of
-                        [l] -> fromBlockfrost l
+                        [l] -> fromBfLovelaces l
                         _ -> throwError $ InvalidUtxoInputAmount input
                 pure (TxIn txHash txIndex, coin)
 
@@ -905,8 +900,7 @@ fromBlockfrostPP
 fromBlockfrostPP network BF.ProtocolParams{..} = do
     decentralizationLevel <-
         let percentage =
-                mkPercentage $
-                    toRational _protocolParamsDecentralisationParam
+                mkPercentage $ toRational _protocolParamsDecentralisationParam
             in case percentage of
                 Left PercentageOutOfBoundsError ->
                     throwError $
@@ -1064,11 +1058,6 @@ instance FromBlockfrost BF.PoolId PoolId where
 instance FromBlockfrost BF.Epoch EpochNo where
     fromBlockfrost = pure . fromIntegral
 
--- type Lovelaces = Discrete' "ADA" '(1000000, 1)
-instance FromBlockfrost (Discrete' "ADA" '(1000000, 1)) Coin where
-    fromBlockfrost lovelaces =
-        Coin <$> (intCast @_ @Integer lovelaces <?#> "Lovelaces")
-
 eraByEpoch :: NetworkId -> EpochNo -> Either BlockfrostError AnyCardanoEra
 eraByEpoch networkId epoch =
     dropWhile ((> epoch) . snd) (reverse (Fixture.eraBoundaries networkId)) &
@@ -1086,27 +1075,6 @@ epochEraSummary networkId (EpochNo epoch) =
         UC.NonEmptyCons era@EraSummary{eraEnd=EraUnbounded} _eras -> era
         UC.NonEmptyCons era@EraSummary{eraEnd=EraEnd Bound{boundEpoch}} eras ->
             if boundEpoch > fromIntegral epoch then era else go eras
-
--- | Raises an error in case of an absent value
-(<?>) :: MonadError e m => Maybe a -> e -> m a
-(<?>) Nothing e = throwError e
-(<?>) (Just a) _ = pure a
-
-infixl 8 <?>
-
-{-# INLINE (<?>) #-}
-
--- | Casts integral values safely or raises an `IntegralCastError`
-(<?#>)
-    :: (MonadError BlockfrostError m, Integral a, Integral b, Bits a, Bits b)
-    => a
-    -> String
-    -> m b
-(<?#>) a e = intCastMaybe a <?> IntegralCastError e
-
-infixl 8 <?#>
-
-{-# INLINE (<?#>) #-}
 
 {-------------------------------------------------------------------------------
     Stake Pools

@@ -2,6 +2,7 @@
 {-# LANGUAGE DerivingStrategies #-}
 {-# LANGUAGE GeneralizedNewtypeDeriving #-}
 {-# LANGUAGE LambdaCase #-}
+{-# LANGUAGE RankNTypes #-}
 {-# LANGUAGE TupleSections #-}
 {-# LANGUAGE UndecidableInstances #-}
 
@@ -54,7 +55,7 @@ instance BF.MonadBlockfrost BFM where
 newClientConfig :: BF.Project -> IO BF.ClientConfig
 newClientConfig prj = (,prj) <$> BF.newEnvByProject prj
 
-run :: BF.ClientConfig -> BFM a -> IO a
+run :: BF.ClientConfig -> (forall a. BFM a -> IO a)
 run cfg (BFM c) = handleBlockfrostError (runReaderT c cfg)
 
 handleBlockfrostError :: ExceptT BlockfrostError IO a -> IO a
