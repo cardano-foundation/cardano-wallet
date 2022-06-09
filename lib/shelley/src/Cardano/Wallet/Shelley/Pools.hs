@@ -22,7 +22,8 @@
 -- as provided through @StakePoolLayer@.
 module Cardano.Wallet.Shelley.Pools
     ( StakePoolLayer (..)
-    , withStakePoolLayer
+    , withBlockfrostStakePoolLayer
+    , withNodeStakePoolLayer
     , withStakePoolDbLayer
     , newStakePoolLayer
     , monitorStakePools
@@ -41,6 +42,8 @@ import Cardano.BM.Data.Tracer
     ( HasPrivacyAnnotation (..), HasSeverityAnnotation (..) )
 import Cardano.Pool.DB
     ( DBLayer (..), ErrPointAlreadyExists (..), readPoolLifeCycleStatus )
+import Cardano.Pool.DB.Log
+    ( PoolDbLog )
 import Cardano.Pool.Metadata
     ( Manager
     , StakePoolMetadataFetchLog
@@ -186,9 +189,8 @@ import UnliftIO.STM
     , writeTVar
     )
 
+import qualified Blockfrost.Client as BF
 import qualified Cardano.Pool.DB as PoolDb
-import Cardano.Pool.DB.Log
-    ( PoolDbLog )
 import qualified Cardano.Pool.DB.Sqlite as Pool
 import qualified Cardano.Wallet.Api.Types as Api
 import qualified Data.List as L
@@ -232,14 +234,14 @@ data StakePoolLayer = StakePoolLayer
     , getGCMetadataStatus :: IO PoolMetadataGCStatus
     }
 
-withStakePoolLayer
+withNodeStakePoolLayer
     :: Tracer IO StakePoolLog
     -> Maybe Settings
     -> PoolDb.DBLayer IO
     -> NetworkParameters
     -> NetworkLayer IO (CardanoBlock StandardCrypto)
     -> ContT ExitCode IO StakePoolLayer
-withStakePoolLayer tr settings dbLayer@DBLayer{..} netParams netLayer = lift do
+withNodeStakePoolLayer tr settings dbLayer@DBLayer{..} netParams netLayer = lift do
     gcStatus <- newTVarIO NotStarted
     forM_ settings $ atomically . putSettings
     void $ forkFinally
@@ -269,6 +271,21 @@ withStakePoolDbLayer poolDbTracer databaseDir poolDbDecorator netLayer =
         (neverFails "withPoolsMonitoring never forecasts into the future" $
             timeInterpreter netLayer)
 
+withBlockfrostStakePoolLayer
+    :: Tracer IO StakePoolLog
+    -> BF.Project
+    -> ContT r IO StakePoolLayer
+withBlockfrostStakePoolLayer _tr _project =
+    ContT \k -> k StakePoolLayer
+        { getPoolLifeCycleStatus = \_poolId -> pure PoolNotRegistered
+        , knownPools = pure Set.empty
+        , listStakePools = \_epochNo _coin -> pure []
+        , forceMetadataGC = pure ()
+        , putSettings = \_settings -> pure ()
+        , getSettings = pure $ Settings FetchNone
+        , getGCMetadataStatus = pure NotApplicable
+        }
+
 newStakePoolLayer
     :: forall sc. ()
     => TVar PoolMetadataGCStatus
@@ -277,46 +294,41 @@ newStakePoolLayer
     -> IO ()
     -> IO StakePoolLayer
 newStakePoolLayer gcStatus nl db@DBLayer {..} restartSyncThread =
-    pure $ StakePoolLayer
-    { getPoolLifeCycleStatus = _getPoolLifeCycleStatus
-    , knownPools = _knownPools
-    , listStakePools = _listPools
-    , forceMetadataGC = _forceMetadataGC
-    , putSettings = _putSettings
-    , getSettings = _getSettings
-    , getGCMetadataStatus = _getGCMetadataStatus
-    }
+    pure StakePoolLayer
+        { getPoolLifeCycleStatus = _getPoolLifeCycleStatus
+        , knownPools = _knownPools
+        , listStakePools = _listPools
+        , forceMetadataGC = _forceMetadataGC
+        , putSettings = _putSettings
+        , getSettings = _getSettings
+        , getGCMetadataStatus = _getGCMetadataStatus
+        }
   where
-    _getPoolLifeCycleStatus
-        :: PoolId -> IO PoolLifeCycleStatus
-    _getPoolLifeCycleStatus pid =
-        liftIO $ atomically $ readPoolLifeCycleStatus pid
+    _getPoolLifeCycleStatus :: PoolId -> IO PoolLifeCycleStatus
+    _getPoolLifeCycleStatus pid = atomically $ readPoolLifeCycleStatus pid
 
-    _knownPools
-        :: IO (Set PoolId)
-    _knownPools =
-        Set.fromList <$> liftIO (atomically listRegisteredPools)
+    _knownPools :: IO (Set PoolId)
+    _knownPools = Set.fromList <$> liftIO (atomically listRegisteredPools)
+
+    _getSettings :: IO Settings
+    _getSettings = atomically readSettings
 
     _putSettings :: Settings -> IO ()
-    _putSettings settings = do
-        atomically (gcMetadata >> putSettings settings)
-        restartSyncThread
-
+    _putSettings settings =
+        atomically (gcMetadata >> putSettings settings) *> restartSyncThread
       where
         -- clean up metadata table if the new sync settings suggests so
         gcMetadata = do
             oldSettings <- readSettings
-            case (poolMetadataSource oldSettings, poolMetadataSource settings) of
-                (_, FetchNone) -> -- this is necessary if it's e.g. the first time
-                                  -- we start the server with the new feature
-                                  -- and the database has still stuff in it
+            case ( poolMetadataSource oldSettings
+                 , poolMetadataSource settings ) of
+                (_, FetchNone) ->
+                    -- this is necessary if it's e.g. the first time
+                    -- we start the server with the new feature
+                    -- and the database has still stuff in it
                     removePoolMetadata
-                (old, new)
-                    | old /= new -> removePoolMetadata
+                (old, new) | old /= new -> removePoolMetadata
                 _ -> pure ()
-
-    _getSettings :: IO Settings
-    _getSettings = liftIO $ atomically readSettings
 
     _listPools
         :: EpochNo
@@ -324,17 +336,14 @@ newStakePoolLayer gcStatus nl db@DBLayer {..} restartSyncThread =
         -> Coin
         -> IO [Api.ApiStakePool]
     _listPools currentEpoch userStake = do
-        rawLsqData <- liftIO $ stakeDistribution nl userStake
-        let lsqData = combineLsqData rawLsqData
-        dbData <- liftIO $ readPoolDbData db currentEpoch
-        seed <- liftIO $ atomically readSystemSeed
-        liftIO $ sortByReward seed
-            . map snd
-            . Map.toList
-            <$> combineDbAndLsqData
+        rawLsqData <- stakeDistribution nl userStake
+        dbData <- readPoolDbData db currentEpoch
+        seed <- atomically readSystemSeed
+        sortByReward seed . map snd . Map.toList <$>
+            combineDbAndLsqData
                 (timeInterpreter nl)
                 (nOpt rawLsqData)
-                lsqData
+                (combineLsqData rawLsqData)
                 dbData
       where
         -- Sort by non-myopic member rewards, making sure to also randomly sort

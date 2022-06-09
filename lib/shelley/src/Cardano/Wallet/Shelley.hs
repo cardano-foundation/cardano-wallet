@@ -112,7 +112,11 @@ import Cardano.Wallet.Shelley.Network
 import Cardano.Wallet.Shelley.Network.Discriminant
     ( SomeNetworkDiscriminant (..), networkDiscriminantToId )
 import Cardano.Wallet.Shelley.Pools
-    ( StakePoolLayer (..), withStakePoolDbLayer, withStakePoolLayer )
+    ( StakePoolLayer (..)
+    , withBlockfrostStakePoolLayer
+    , withNodeStakePoolLayer
+    , withStakePoolDbLayer
+    )
 import Cardano.Wallet.Shelley.Tracers as Tracers
     ( TracerSeverities
     , Tracers
@@ -232,17 +236,21 @@ serveWallet
         network
         netParams
         sTolerance
-    stakePoolDbLayer <- withStakePoolDbLayer
-        poolsDbTracer
-        databaseDir
-        mPoolDatabaseDecorator
-        netLayer
-    stakePoolLayer <- withStakePoolLayer
-        poolsEngineTracer
-        settings
-        stakePoolDbLayer
-        netParams
-        netLayer
+    stakePoolLayer <- case blockchainSource of
+        NodeSource _ _ -> do
+            stakePoolDbLayer <- withStakePoolDbLayer
+                poolsDbTracer
+                databaseDir
+                mPoolDatabaseDecorator
+                netLayer
+            withNodeStakePoolLayer
+                poolsEngineTracer
+                settings
+                stakePoolDbLayer
+                netParams
+                netLayer
+        BlockfrostSource bfProject -> do
+            withBlockfrostStakePoolLayer poolsEngineTracer bfProject
     randomApi <- withRandomApi netLayer
     icarusApi  <- withIcarusApi netLayer
     shelleyApi <- withShelleyApi netLayer
