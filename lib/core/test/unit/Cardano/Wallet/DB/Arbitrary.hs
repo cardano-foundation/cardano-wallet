@@ -86,7 +86,7 @@ import Cardano.Wallet.Primitive.Passphrase.Types
 import Cardano.Wallet.Primitive.Types
     ( Block (..)
     , BlockHeader (..)
-    , DecentralizationLevel (..)
+    , DecentralizationLevel
     , DelegationCertificate (..)
     , EpochNo (..)
     , EraInfo (..)
@@ -109,6 +109,7 @@ import Cardano.Wallet.Primitive.Types
     , WalletMetadata (..)
     , WalletName (..)
     , WithOrigin (..)
+    , fromDecentralizationLevel
     , rangeIsValid
     , unsafeEpochNo
     , wholeRange
@@ -768,7 +769,7 @@ instance Arbitrary Percentage where
         upperLimit = 10_000
 
 instance Arbitrary DecentralizationLevel where
-    arbitrary = DecentralizationLevel <$> arbitrary
+    arbitrary = fromDecentralizationLevel <$> arbitrary
 
 instance Arbitrary RewardAccount where
     arbitrary =

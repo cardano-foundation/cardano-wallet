@@ -32,9 +32,10 @@ import Prelude
 
 import Cardano.Wallet.Primitive.Types
     ( ActiveSlotCoefficient (..)
-    , DecentralizationLevel (..)
+    , DecentralizationLevel
     , EpochLength (..)
     , SlottingParameters (..)
+    , getFederationPercentage
     )
 import Control.DeepSeq
     ( NFData )
@@ -91,7 +92,7 @@ estimatePoolPerformance
         -- * Block production from > 50 epochs ago has less than 1% influence
         -- on the likelihoods and can be ignored.
     -> PerformanceEstimate
-estimatePoolPerformance sp (DecentralizationLevel d) history =
+estimatePoolPerformance sp d history =
     percentile' $ foldl' considerEpoch mempty (Seq.reverse history)
   where
     considerEpoch li perf = applyDecay decayFactor li <> likelihood' perf
@@ -99,7 +100,7 @@ estimatePoolPerformance sp (DecentralizationLevel d) history =
     prob perf = leaderProbability
         (toActiveSlotCoeff $ getActiveSlotCoefficient sp)
         (stakeRelative perf)
-        (getPercentage d)
+        (getPercentage $ getFederationPercentage d)
     likelihood' perf = likelihood
         (blocksProduced perf)
         (prob perf)

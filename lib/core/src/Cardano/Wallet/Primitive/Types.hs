@@ -78,7 +78,11 @@ module Cardano.Wallet.Primitive.Types
     , EraInfo (..)
     , emptyEraInfo
     , ActiveSlotCoefficient (..)
-    , DecentralizationLevel (..)
+    , DecentralizationLevel
+    , getDecentralizationLevel
+    , getFederationPercentage
+    , fromDecentralizationLevel
+    , fromFederationPercentage
     , EpochLength (..)
     , EpochNo (..)
     , unsafeEpochNo
@@ -224,7 +228,7 @@ import Data.Maybe
 import Data.Proxy
     ( Proxy (..) )
 import Data.Quantity
-    ( Percentage (..), Quantity (..) )
+    ( Percentage (..), Quantity (..), complementPercentage )
 import Data.Scientific
     ( fromRationalRepetendLimited )
 import Data.String
@@ -1219,13 +1223,24 @@ instance FromJSON ExecutionUnitPrices where
 --   * '100 %' indicates that the network is /completely decentralized/.
 --
 newtype DecentralizationLevel = DecentralizationLevel
-    { unDecentralizationLevel :: Percentage }
+    { getDecentralizationLevel :: Percentage }
     deriving (Bounded, Eq, Generic, Show)
+
+fromDecentralizationLevel :: Percentage -> DecentralizationLevel
+fromDecentralizationLevel = DecentralizationLevel
+
+-- | Percentage of federated nodes.
+-- Equal to the "decentralization parameter" /d/ from the ledger specification.
+fromFederationPercentage :: Percentage -> DecentralizationLevel
+fromFederationPercentage = fromDecentralizationLevel . complementPercentage
+
+getFederationPercentage :: DecentralizationLevel -> Percentage
+getFederationPercentage = complementPercentage . getDecentralizationLevel
 
 instance NFData DecentralizationLevel
 
 instance Buildable DecentralizationLevel where
-    build = build . unDecentralizationLevel
+    build = build . getDecentralizationLevel
 
 -- | The maximum size of a serialized `TokenBundle` (`_maxValSize` in the Alonzo
 -- ledger)

@@ -55,7 +55,7 @@ import Cardano.Wallet.Primitive.AddressDerivation.Byron
 import Cardano.Wallet.Primitive.AddressDerivation.Shelley
     ( ShelleyKey (..) )
 import Cardano.Wallet.Primitive.Types
-    ( DecentralizationLevel (..), SlotId (..), TokenBundleMaxSize (..) )
+    ( SlotId (..), TokenBundleMaxSize (..), getDecentralizationLevel )
 import Cardano.Wallet.Primitive.Types.Address
     ( Address (..) )
 import Cardano.Wallet.Primitive.Types.Coin
@@ -241,7 +241,7 @@ spec = do
                     & unsafeBoundRational
                     & mkDecentralizationParam
                     & decentralizationLevelFromPParams
-                    & unDecentralizationLevel
+                    & getDecentralizationLevel
                     & toText
             it title $ output `shouldBe` expectedOutput
 
