@@ -113,6 +113,11 @@ task :clean_node_db, [:env] do |task, args|
   rm_files(File.join(NODE_DB, "db-#{args[:env]}.tar.gz"))
 end
 
+task :clean_wallet_db, [:env] do |task, args|
+  log ">> Removing wallet_db"
+  rm_files(File.join(WALLET_DB, args[:env]))
+end
+
 task :clean_bins do
   log ">> Removing old bins"
   rm_files(BINS)
