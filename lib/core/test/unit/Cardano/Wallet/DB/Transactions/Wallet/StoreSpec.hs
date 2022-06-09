@@ -10,49 +10,35 @@ module Cardano.Wallet.DB.Transactions.Wallet.StoreSpec (
 
 import Prelude
 
-import Cardano.Wallet.DB.Arbitrary (
-
- )
-import Cardano.Wallet.DB.Fixtures (
-    WalletProperty,
-    logScale,
-    logScale',
-    withDBInMemory,
-    withInitializedWalletProp,
- )
-import Cardano.Wallet.DB.Transactions.Meta.Model (
-    DeltaTxMetaHistory (ExpandTxMetaHistory),
-    DeltaTxMetaHistoryAny (DeltaTxMetaHistoryAny),
-    mkTxMetaHistory,
- )
-import Cardano.Wallet.DB.Transactions.Wallet.Store (
-    DeltaTxWalletsHistory (..),
-    mkStoreTxWalletsHistory,
-    mkStoreWalletsMeta,
- )
-import Data.DeltaMap (
-    DeltaMap (Adjust, Delete, Insert),
- )
-import Test.DBVar (
-    GenDelta,
-    prop_StoreUpdates,
- )
-import Test.Hspec (
-    Spec,
-    around,
-    describe,
-    it,
- )
-import Test.QuickCheck (
-    NonEmptyList (getNonEmpty),
-    arbitrary,
-    frequency,
-    property,
- )
+import Cardano.Wallet.DB.Arbitrary
+    ()
+import Cardano.Wallet.DB.Fixtures
+    ( WalletProperty
+    , logScale
+    , logScale'
+    , withDBInMemory
+    , withInitializedWalletProp
+    )
+import Cardano.Wallet.DB.Transactions.Meta.Model
+    ( DeltaTxMetaHistory (ExpandTxMetaHistory)
+    , DeltaTxMetaHistoryAny (DeltaTxMetaHistoryAny)
+    , mkTxMetaHistory
+    )
+import Cardano.Wallet.DB.Transactions.Meta.StoreSpec
+    ( deltasTrueFreq )
+import Cardano.Wallet.DB.Transactions.Wallet.Store
+    ( DeltaTxWalletsHistory (..), mkStoreTxWalletsHistory, mkStoreWalletsMeta )
+import Data.DeltaMap
+    ( DeltaMap (Adjust, Delete, Insert) )
+import Test.DBVar
+    ( GenDelta, prop_StoreUpdates )
+import Test.Hspec
+    ( Spec, around, describe, it )
+import Test.QuickCheck
+    ( NonEmptyList (getNonEmpty), arbitrary, frequency, property )
 
 import qualified Cardano.Wallet.Primitive.Types as W
 import qualified Data.Map.Strict as Map
-import Cardano.Wallet.DB.Transactions.Meta.StoreSpec (deltasTrueFreq)
 
 spec :: Spec
 spec = around withDBInMemory $ do

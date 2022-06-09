@@ -55,14 +55,17 @@ import Database.Persist.Sql
 import Database.Persist.Sqlite
     ( SqlPersistT, (==.) )
 import Test.QuickCheck
-    ( Gen
+    ( Arbitrary
+    , Gen
     , Property
     , Testable
+    , arbitrary
     , counterexample
     , cover
+    , elements
     , frequency
     , scale
-    , suchThat, Arbitrary, arbitrary, elements
+    , suchThat
     )
 import Test.QuickCheck.Monadic
     ( PropertyM, assert, monadicIO, monitor, run )

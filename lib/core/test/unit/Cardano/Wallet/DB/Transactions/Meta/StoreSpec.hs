@@ -16,11 +16,12 @@ import Cardano.Wallet.DB.Arbitrary
 import Cardano.Wallet.DB.Fixtures
     ( WalletProperty
     , coverM
+    , elementsOrArbitrary
     , frequencySuchThat
     , logScale
     , unsafeUpdateS
     , withDBInMemory
-    , withInitializedWalletProp, elementsOrArbitrary
+    , withInitializedWalletProp
     )
 import Cardano.Wallet.DB.Sqlite.Schema
     ( TxMeta (txMetaDirection, txMetaSlot, txMetaStatus)
@@ -31,9 +32,11 @@ import Cardano.Wallet.DB.Sqlite.Types
     ( TxId (TxId) )
 import Cardano.Wallet.DB.Transactions.Meta.Model
     ( DeltaTxMetaHistory (..)
+    , DeltaTxMetaHistoryAny (DeltaTxMetaHistoryAny)
     , TxMetaHistory (..)
+    , TxMetaOp (Expansion, Manipulation)
     , mkTxMetaHistory
-    , overTxMetaHistory, DeltaTxMetaHistoryAny (DeltaTxMetaHistoryAny), TxMetaOp (Manipulation, Expansion)
+    , overTxMetaHistory
     )
 import Cardano.Wallet.DB.Transactions.Meta.Store
     ( mkStoreTransactionsMeta )
@@ -56,7 +59,6 @@ import Data.Maybe
     ( catMaybes, fromJust )
 import Data.Set
     ( Set )
-import qualified Data.Set as Set
 import Database.Persist.Sql
     ( SqlPersistT )
 import Test.DBVar
@@ -70,6 +72,7 @@ import Test.QuickCheck.Monadic
 
 import qualified Cardano.Wallet.Primitive.Types as W
 import qualified Cardano.Wallet.Primitive.Types.Tx as W
+import qualified Data.Set as Set
 
 spec :: Spec
 spec = around withDBInMemory $ do
@@ -101,7 +104,9 @@ genDeltas wid history =
         (10, DeltaTxMetaHistoryAny <$> genExpand wid arbitrary)
             : fmap (fmap (fmap DeltaTxMetaHistoryAny)) (deltasTrueFreq history)
 
-deltasTrueFreq :: Num a => TxMetaHistory -> [(a, Gen (DeltaTxMetaHistory Manipulation))]
+deltasTrueFreq
+    :: TxMetaHistory
+    -> [(Int, Gen (DeltaTxMetaHistory 'Manipulation))]
 deltasTrueFreq history =
         [
          (1, PruneTxMetaHistory . TxId <$> arbitrary)
