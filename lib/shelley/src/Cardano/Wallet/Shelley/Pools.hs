@@ -31,6 +31,9 @@ module Cardano.Wallet.Shelley.Pools
 
     -- * Logs
     , StakePoolLog (..)
+
+    -- * Internal, for testing:
+    , _getPoolLifeCycleStatus
     )
     where
 
@@ -63,6 +66,8 @@ import Cardano.Wallet.Byron.Compatibility
     ( toByronBlockHeader )
 import Cardano.Wallet.Network
     ( ChainFollowLog (..), ChainFollower (..), NetworkLayer (..) )
+import Cardano.Wallet.Primitive.AddressDerivation
+    ( unRewardAccount )
 import Cardano.Wallet.Primitive.Slotting
     ( PastHorizonException (..)
     , TimeInterpreter
@@ -110,6 +115,18 @@ import Cardano.Wallet.Shelley.Compatibility
     , getProducer
     , toShelleyBlockHeader
     )
+import Cardano.Wallet.Shelley.Network.Blockfrost.Conversion
+    ( fromBfLovelaces
+    , fromBfStakeAddress
+    , percentageFromDouble
+    , stakePoolMetadataHashFromText
+    )
+import Cardano.Wallet.Shelley.Network.Blockfrost.Error
+    ( BlockfrostError (..) )
+import Cardano.Wallet.Shelley.Network.Blockfrost.Monad
+    ( BFM )
+import Cardano.Wallet.Shelley.Network.Discriminant
+    ( SomeNetworkDiscriminant (..) )
 import Cardano.Wallet.Unsafe
     ( unsafeMkPercentage )
 import Control.Monad
@@ -285,6 +302,79 @@ withBlockfrostStakePoolLayer _tr _project =
         , getSettings = pure $ Settings FetchNone
         , getGCMetadataStatus = pure NotApplicable
         }
+
+_getPoolLifeCycleStatus
+    :: BF.ClientConfig
+    -> SomeNetworkDiscriminant
+    -> PoolId
+    -> IO PoolLifeCycleStatus
+_getPoolLifeCycleStatus
+    cfg network@(SomeNetworkDiscriminant (Proxy :: Proxy nd)) poolId =
+        BFM.run cfg do
+        let bfPoolId = BF.PoolId (toText poolId)
+        poolUpdates <- BF.getPoolUpdates bfPoolId
+        case reverse poolUpdates of
+            [] -> pure PoolNotRegistered
+            lastUpdate : otherUpdates ->
+                case BF._poolUpdateAction lastUpdate of
+                    BF.PoolRegistered ->
+                        PoolRegistered <$> poolRegCert lastUpdate
+                    BF.PoolDeregistered ->
+                        case findRegCert otherUpdates of
+                            Just regCertUpdate -> do
+                                reg <- poolRegCert regCertUpdate
+                                drg <- poolDeregCert lastUpdate
+                                pure $ PoolRegisteredAndRetired reg drg
+                            Nothing ->
+                                throwError $ PoolRegistrationIsMissing poolId
+
+    where
+    findRegCert :: [BF.PoolUpdate] -> Maybe BF.PoolUpdate
+    findRegCert = find \BF.PoolUpdate{..} ->
+        _poolUpdateAction == BF.PoolRegistered
+
+    poolRegCert :: BF.PoolUpdate -> BFM PoolRegistrationCertificate
+    poolRegCert update@BF.PoolUpdate{..} = do
+        let byIdx tpu = BF._transactionPoolUpdateCertIndex tpu
+                == _poolUpdateCertIndex
+        poolUpdates <- BF.getTxPoolUpdates _poolUpdateTxHash
+        case find byIdx poolUpdates of
+            Just BF.TransactionPoolUpdate{..} -> do
+                poolOwners <- for _transactionPoolUpdateOwners do
+                    (PoolOwner . unRewardAccount <$>) . fromBfStakeAddress network
+                poolMargin <-
+                    percentageFromDouble _transactionPoolUpdateMarginCost
+                poolCost <-
+                    fromBfLovelaces _transactionPoolUpdateFixedCost
+                poolPledge <-
+                    fromBfLovelaces _transactionPoolUpdatePledge
+                poolMetadata <-
+                    join <$> for _transactionPoolUpdateMetadata
+                        \BF.PoolUpdateMetadata{..} -> runMaybeT do
+                            url <- MaybeT . pure $
+                                StakePoolMetadataUrl <$> _poolUpdateMetadataUrl
+                            hash <- MaybeT do
+                                for _poolUpdateMetadataHash
+                                    stakePoolMetadataHashFromText
+                            pure (url, hash)
+                pure PoolRegistrationCertificate{..}
+            Nothing ->
+                throwError $ PoolUpdateCertificateNotFound poolId update
+
+    poolDeregCert :: BF.PoolUpdate -> BFM PoolRetirementCertificate
+    poolDeregCert update@BF.PoolUpdate{..} = do
+        poolRetiring  <-
+            BF.getTxPoolRetiring _poolUpdateTxHash <&> find \r ->
+                _transactionPoolRetiringCertIndex r == _poolUpdateCertIndex
+        case poolRetiring of
+            Just BF.TransactionPoolRetiring{..} -> do
+                pure PoolRetirementCertificate
+                    { poolId
+                    , retirementEpoch =
+                        fromIntegral _transactionPoolRetiringRetiringEpoch
+                    }
+            Nothing ->
+                throwError $ PoolRetirementCertificateNotFound poolId update
 
 newStakePoolLayer
     :: forall sc. ()

@@ -28,6 +28,7 @@ data BlockfrostError
     | InvalidTxMetadataValue String
     | InvalidTxHash Text TextDecodingError
     | InvalidAddress Text TextDecodingError
+    | InvalidStakeAddress Text TextDecodingError
     | InvalidPoolId Text TextDecodingError
     | PoolStakePercentageError Coin Coin
     | InvalidDecentralizationLevelPercentage Double
