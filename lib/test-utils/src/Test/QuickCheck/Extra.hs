@@ -1,3 +1,4 @@
+{-# LANGUAGE BangPatterns #-}
 {-# LANGUAGE DataKinds #-}
 {-# LANGUAGE FlexibleContexts #-}
 {-# LANGUAGE GADTs #-}
@@ -34,6 +35,7 @@ module Test.QuickCheck.Extra
     , (<:>)
 
       -- * Evaluating shrinkers
+    , shrinkSpace
     , shrinkWhile
     , shrinkWhileSteps
 
@@ -79,6 +81,8 @@ import Data.Map.Strict
     ( Map )
 import Data.Maybe
     ( listToMaybe, mapMaybe )
+import Data.Set
+    ( Set )
 import Fmt
     ( indentF, (+|), (|+) )
 import Generics.SOP
@@ -114,6 +118,7 @@ import Text.Pretty.Simple
 import qualified Data.List as L
 import qualified Data.List.NonEmpty as NE
 import qualified Data.Map.Strict as Map
+import qualified Data.Set as Set
 import qualified Data.Text.Lazy as TL
 import qualified Generics.SOP.GGP as GGP
 import qualified GHC.Generics as GHC
@@ -207,6 +212,61 @@ shrinkInterleaved (a, shrinkA) (b, shrinkB) = interleave
 --------------------------------------------------------------------------------
 -- Evaluating shrinkers
 --------------------------------------------------------------------------------
+
+-- | Computes the entire shrink space of a given value and shrinking function.
+--
+-- This function returns the set of all possible values to which the given
+-- starting value can be shrunk. By default, the given starting value is not
+-- included in the result.
+--
+-- Example:
+--
+-- >>> shrinkSpace shrinkIntegral (8 :: Int)
+-- fromList [0,1,2,3,4,5,6,7]
+--
+-- Caution:
+--
+-- Depending on the particular choice of shrinking function and starting value,
+-- the shrink space can grow very quickly. Therefore, this function should be
+-- used with extreme caution to avoid non-termination within test cases. If in
+-- doubt, use the 'within' modifier provided by QuickCheck to ensure that your
+-- test case terminates within a fixed time limit.
+--
+-- This function can be used to test that a given shrinking function always
+-- generates values that satisfy a given condition. For example:
+--
+-- @
+-- prop_shrinkApple_valid :: Apple -> Property
+-- prop_shrinkApple_valid apple =
+--     within twoSeconds $
+--     all isValidApple (shrinkSpace shrinkApple apple)
+--   where
+--     twoSeconds = 2_000_000
+-- @
+--
+shrinkSpace :: forall a. Ord a => (a -> [a]) -> a -> Set a
+shrinkSpace shrinkFn = loop mempty . Set.fromList . shrinkFn
+  where
+    -- Loop invariant: "processed" and "remaining" are always disjoint sets:
+    --
+    loop :: Set a -> Set a -> Set a
+    loop !processed !remaining
+        | Set.null remaining =
+            processed
+        | otherwise =
+            loop processedNew remainingNew
+      where
+        remainingFirst :: a
+        remainingFirst = Set.elemAt 0 remaining
+
+        remainingNew :: Set a
+        remainingNew =
+            Set.difference
+                (Set.union remaining (Set.fromList $ shrinkFn remainingFirst))
+                (processedNew)
+
+        processedNew :: Set a
+        processedNew = Set.insert remainingFirst processed
 
 -- | Repeatedly applies a shrinking function to a value while a condition holds.
 --

@@ -52,6 +52,7 @@ import Test.QuickCheck
     , applyFun
     , checkCoverage
     , chooseInteger
+    , conjoin
     , cover
     , forAll
     , frequency
@@ -61,6 +62,7 @@ import Test.QuickCheck
     , property
     , scale
     , shrinkIntegral
+    , within
     , (===)
     )
 import Test.QuickCheck.Extra
@@ -70,6 +72,7 @@ import Test.QuickCheck.Extra
     , partitionList
     , selectMapEntries
     , selectMapEntry
+    , shrinkSpace
     , shrinkWhile
     , shrinkWhileSteps
     , (<:>)
@@ -159,6 +162,14 @@ spec = describe "Test.QuickCheck.ExtraSpec" $ do
                     @Int @Int & property
 
     describe "Evaluating shrinkers" $ do
+
+        describe "Evaluating the entire shrink space of a shrinker" $ do
+
+            describe "shrinkSpace" $ do
+
+                it "prop_shrinkSpace_complete" $
+                    prop_shrinkSpace_complete
+                        @Int & property
 
         describe "Repeatedly shrinking while a condition holds" $ do
 
@@ -620,6 +631,23 @@ prop_selectMapEntries_union m0 (Positive (Small i)) =
         cover 1 (length kvs == 0)
             "number of selected entries = 0" $
         Map.fromList kvs `Map.union` m1 === m0
+
+--------------------------------------------------------------------------------
+-- Evaluating the entire shrink space of a shrinking function
+--------------------------------------------------------------------------------
+
+prop_shrinkSpace_complete :: (Arbitrary a, Ord a) => a -> Property
+prop_shrinkSpace_complete a =
+    within twoSeconds $
+    conjoin
+        [ -- All initial shrinks are present in the set:
+          all (`Set.member` ss) (shrink a)
+          -- All transitive shrinks are present in the set:
+        , all (all (`Set.member` ss) . shrink) ss
+        ]
+  where
+    ss = shrinkSpace shrink a
+    twoSeconds = 2_000_000
 
 --------------------------------------------------------------------------------
 -- Repeatedly shrinking while a condition holds
