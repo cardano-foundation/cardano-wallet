@@ -356,8 +356,8 @@ instance ToText Log where
 
 instance HasSeverityAnnotation Log where
     getSeverityAnnotation = \case
-        MsgTipReceived {} -> Info
-        MsgTipWatcherNotified {} -> Debug
+        MsgTipReceived{} -> Info
+        MsgTipWatcherNotified{} -> Debug
         MsgTipWatcherRegistered -> Debug
         MsgTimeInterpreterLog {} -> Info
         MsgLightLayerLog l -> getSeverityAnnotation l
