@@ -1,4 +1,4 @@
-RSpec.describe CardanoWallet::Misc do
+RSpec.describe CardanoWallet::Misc, :all, :misc do
 
   describe CardanoWallet::Misc::Network do
 

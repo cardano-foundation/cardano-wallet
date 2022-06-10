@@ -1,5 +1,5 @@
 # coding: utf-8
-RSpec.describe "Cardano Wallet E2E tests", :e2e do
+RSpec.describe "Cardano Wallet E2E tests", :all, :e2e do
 
   before(:all) do
     # shelley wallets
@@ -1262,7 +1262,8 @@ RSpec.describe "Cardano Wallet E2E tests", :e2e do
         # for transfering the assets over the network
         # in this the total `cost` is pure ADA minUTxOValue + 11 'utxo words' + fee
         min_utxo_value = NETWORK.parameters['minimum_utxo_value']['quantity'].to_i
-        lovelace_per_utxo_word = 34482
+        era = NETWORK.information['node_era']
+        lovelace_per_utxo_word = (era == 'babbage' ? 34480 : 34482)
         min_utxo_value_tokens = min_utxo_value + 11 * lovelace_per_utxo_word
         expect(src_after_minting['available']).to eq (src_before['available'] - expected_fee - min_utxo_value_tokens)
         expect(src_after_minting['total']).to eq (src_before['total'] - expected_fee - min_utxo_value_tokens)
@@ -1519,13 +1520,33 @@ RSpec.describe "Cardano Wallet E2E tests", :e2e do
         expect(assets).to be_correct_and_respond 200
         expect(assets.to_s).to include ASSETS[0]["policy_id"]
         expect(assets.to_s).to include ASSETS[0]["asset_name"]
+        expect(assets.to_s).to include ASSETS[1]["policy_id"]
+        expect(assets.to_s).to include ASSETS[1]["asset_name"]
+
+        assets = SHELLEY.assets.get(@wid, policy_id = ASSETS[0]["policy_id"])
+        expect(assets).to be_correct_and_respond 200
+        expect(assets["policy_id"]).to eq ASSETS[0]["policy_id"]
+        expect(assets["asset_name"]).to eq ASSETS[0]["asset_name"]
+        expect(assets["asset_name"]).not_to eq ASSETS[1]["asset_name"]
+
+        assets = SHELLEY.assets.get(@wid, policy_id = ASSETS[1]["policy_id"],
+                                          asset_name = ASSETS[1]["asset_name"])
+        expect(assets).to be_correct_and_respond 200
+        expect(assets["policy_id"]).to eq ASSETS[1]["policy_id"]
+        expect(assets["asset_name"]).to eq ASSETS[1]["asset_name"]
+        expect(assets["asset_name"]).not_to eq ASSETS[0]["asset_name"]
+      end
+
+      it "I can list native assets and get offchain metadata", :offchain do
+        assets = SHELLEY.assets.get @wid
+        expect(assets).to be_correct_and_respond 200
+        expect(assets.to_s).to include ASSETS[0]["policy_id"]
+        expect(assets.to_s).to include ASSETS[0]["asset_name"]
         expect(assets.to_s).to include ASSETS[0]["metadata"]["name"]
         expect(assets.to_s).to include ASSETS[1]["policy_id"]
         expect(assets.to_s).to include ASSETS[1]["asset_name"]
         expect(assets.to_s).to include ASSETS[1]["metadata"]["name"]
-      end
 
-      it "I can get native assets by policy_id" do
         assets = SHELLEY.assets.get(@wid, policy_id = ASSETS[0]["policy_id"])
         expect(assets).to be_correct_and_respond 200
         expect(assets["policy_id"]).to eq ASSETS[0]["policy_id"]
@@ -1533,10 +1554,9 @@ RSpec.describe "Cardano Wallet E2E tests", :e2e do
         expect(assets["metadata"]).to eq ASSETS[0]["metadata"]
         expect(assets["asset_name"]).not_to eq ASSETS[1]["asset_name"]
         expect(assets["metadata"]).not_to eq ASSETS[1]["metadata"]
-      end
 
-      it "I can get native assets by policy_id and asset_name" do
-        assets = SHELLEY.assets.get(@wid, policy_id = ASSETS[1]["policy_id"], asset_name = ASSETS[1]["asset_name"])
+        assets = SHELLEY.assets.get(@wid, policy_id = ASSETS[1]["policy_id"],
+                                          asset_name = ASSETS[1]["asset_name"])
         expect(assets).to be_correct_and_respond 200
         expect(assets["policy_id"]).to eq ASSETS[1]["policy_id"]
         expect(assets["asset_name"]).to eq ASSETS[1]["asset_name"]

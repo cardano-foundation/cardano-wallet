@@ -1,4 +1,4 @@
-RSpec.describe CardanoWallet::Shared do
+RSpec.describe CardanoWallet::Shared, :all, :shared do
   after(:each) do
     teardown
   end
