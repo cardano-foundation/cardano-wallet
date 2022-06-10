@@ -53,7 +53,7 @@ import GHC.Stack
 -- prop> safeUnwrapPtr (safePtr s t c) == (s, t, c)
 --
 safePtr :: SlotNo32 -> TxIx -> CertIx -> Ptr
-safePtr s t c = Ptr (fromSlotNo32 s) t c
+safePtr = Ptr . fromSlotNo32
 
 -- | Safely deconstructs a 'Ptr'.
 --

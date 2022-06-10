@@ -1827,7 +1827,7 @@ transformInitialFunds
     :: Aeson.Object
     -> IO Aeson.Object
 transformInitialFunds o = do
-    let res = HM.update toObject "nonAvvmBalances" $ (Aeson.toHashMap o)
+    let res = HM.update toObject "nonAvvmBalances" (Aeson.toHashMap o)
     pure $ Aeson.fromHashMap res
   where
     toObject = \case

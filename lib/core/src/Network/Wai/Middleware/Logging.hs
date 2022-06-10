@@ -282,9 +282,9 @@ sanitize keys bytes = encode' $ case decode' bytes of
         Object
             $ Aeson.fromHashMap
             $ foldr
-                (HM.adjust obfuscate)
+                (HM.adjust obfuscate . Aeson.fromText)
                 (Aeson.toHashMap o)
-                (map Aeson.fromText keys)
+                keys
     Just v ->
         v
     Nothing ->

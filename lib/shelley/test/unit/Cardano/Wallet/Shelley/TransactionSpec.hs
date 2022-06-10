@@ -3460,7 +3460,7 @@ mockProtocolParametersForBalancing = (mockProtocolParameters, nodePParams)
         , Cardano.protocolParamMaxCollateralInputs = Just 3
         }
     costModel = Cardano.CostModel
-        $ fromMaybe (error "Plutus.defaultCostModelParams")
+        . fromMaybe (error "Plutus.defaultCostModelParams")
         $ Plutus.defaultCostModelParams
 
 

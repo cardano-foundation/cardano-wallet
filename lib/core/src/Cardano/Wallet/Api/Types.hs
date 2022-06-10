@@ -3640,7 +3640,7 @@ instance FromJSON ApiSharedWalletPatchData where
 
 instance ToJSON ApiSharedWalletPatchData where
     toJSON (ApiSharedWalletPatchData cosigner accXPub) =
-        object [ (Aeson.fromText $ toText cosigner) .= toJSON accXPub ]
+        object [ Aeson.fromText (toText cosigner) .= toJSON accXPub ]
 
 instance FromJSON ApiActiveSharedWallet where
     parseJSON = genericParseJSON defaultRecordTypeOptions
