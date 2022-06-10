@@ -241,7 +241,7 @@
               });
               docs = pkgs.mkShell {
                 name = "cardano-wallet-docs";
-                nativeBuildInputs = [ emanote.defaultPackage.${system} pkgs.yq ];
+                nativeBuildInputs = [ emanote.packages.${system}.default pkgs.yq ];
                 # allow building the shell so that it can be cached in hydra
                 phases = [ "installPhase" ];
                 installPhase = "echo $nativeBuildInputs > $out";
