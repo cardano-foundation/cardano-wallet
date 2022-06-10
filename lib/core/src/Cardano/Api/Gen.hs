@@ -23,7 +23,8 @@ module Cardano.Api.Gen
     , genExecutionUnitPrices
     , genExecutionUnits
     , genExtraKeyWitnesses
-    , genIx
+    , genTxIx
+    , genCertIx
     , genLovelace
     , genMIRPot
     , genMIRTarget
@@ -112,14 +113,16 @@ import Cardano.Api.Shelley
     , PlutusScript (..)
     , PoolId
     , ProtocolParameters (..)
+    , ReferenceScript (..)
     , StakeCredential (..)
     , StakePoolMetadata (..)
     , StakePoolMetadataReference (..)
     , StakePoolParameters (..)
     , StakePoolRelay (..)
+    , refInsScriptsAndInlineDatsSupportedInEra
     )
 import Cardano.Ledger.Credential
-    ( Ix, Ptr (..) )
+    ( Ptr (..) )
 import Cardano.Ledger.SafeHash
     ( unsafeMakeSafeHash )
 import Cardano.Ledger.Shelley.API
@@ -149,7 +152,7 @@ import Data.String
 import Data.Text
     ( Text )
 import Data.Word
-    ( Word16, Word32, Word64 )
+    ( Word16, Word64 )
 import Network.Socket
     ( PortNumber )
 import Numeric.Natural
@@ -165,6 +168,7 @@ import Test.QuickCheck
     , Large (..)
     , NonNegative (..)
     , Positive (..)
+    , Small (..)
     , arbitrary
     , choose
     , chooseInt
@@ -189,7 +193,7 @@ import qualified Cardano.Binary as CBOR
 import qualified Cardano.Crypto.Hash as Crypto
 import qualified Cardano.Crypto.Seed as Crypto
 import qualified Cardano.Ledger.BaseTypes as Ledger
-    ( Port, dnsToText )
+    ( CertIx (..), Port, TxIx (..), dnsToText )
 import qualified Cardano.Ledger.Shelley.API as Ledger
     ( StakePoolRelay (..), portToWord16 )
 import qualified Cardano.Ledger.Shelley.TxBody as Ledger
@@ -204,7 +208,7 @@ import qualified Data.Map as Map
 import qualified Data.Set as Set
 import qualified Data.Text as T
 import qualified Data.Text.Encoding as T
-import qualified Plutus.V1.Ledger.Api as Plutus
+import qualified PlutusCore as Plutus
 import qualified Test.Cardano.Ledger.Shelley.Serialisation.Generators.Genesis as Ledger
     ( genStakePoolRelay )
 
@@ -244,15 +248,13 @@ genTxId :: Gen TxId
 genTxId = TxId <$> genShelleyHash
 
 genTxIndex :: Gen TxIx
-genTxIndex = frequency
-    [ ( 45, do
-          -- 2 ^ 32 - 1 is the upper limit on TxIxs in the Byron era
-          n <- chooseInteger (0, fromIntegral $ ((2 :: Word32) ^ (32 :: Word32)) - 1)
-          pure $ TxIx $ fromIntegral n
-      )
-    -- Make sure to choose some small values too
-    , ( 45, (TxIx . fromIntegral) <$> chooseInteger (0, fromIntegral (maxBound :: Word16)) )
-    , ( 10, pure $ TxIx 0 )
+genTxIndex = oneof
+    [ (TxIx . intCast) <$> (arbitrary @Word16)
+      -- FIXME: cardano-api uses a full Word here, yet the ledger uses Word16
+      -- and we'll fail to construct a tx unless we constrain ourselves to
+      -- Word16 here.
+    , TxIx . fromIntegral . getNonNegative <$> (arbitrary @(NonNegative Int))
+    -- For some bias towards small values
     ]
 
 genTxInsCollateral :: CardanoEra era -> Gen (TxInsCollateral era)
@@ -765,12 +767,13 @@ genTxMetadataValue =
                 ((,) <$> genTxMetadataValue <*> genTxMetadataValue)
 
 genPtr :: Gen Ptr
-genPtr = Ptr <$> genSlotNo <*> genIx <*> genIx
+genPtr = Ptr <$> genSlotNo <*> genTxIx <*> genCertIx
 
-genIx :: Gen Ix
-genIx = do
-    (Large (n :: Word64)) <- arbitrary
-    pure n
+genTxIx :: Gen Ledger.TxIx
+genTxIx = Ledger.TxIx <$> arbitrary
+
+genCertIx :: Gen Ledger.CertIx
+genCertIx = Ledger.CertIx <$> arbitrary
 
 genStakeAddressReference :: Gen StakeAddressReference
 genStakeAddressReference =
@@ -836,6 +839,7 @@ genTxOut era =
   TxOut <$> genAddressInEra era
         <*> genTxOutValue era
         <*> genTxOutDatum era
+        <*> genReferenceScript era
 
 genTxOutDatum :: CardanoEra era -> Gen (TxOutDatum ctx era)
 genTxOutDatum era = case scriptDataSupportedInEra era of
@@ -843,6 +847,14 @@ genTxOutDatum era = case scriptDataSupportedInEra era of
     Just supported -> oneof
         [ pure TxOutDatumNone
         , TxOutDatumHash supported <$> genHashScriptData
+        ]
+
+genReferenceScript :: CardanoEra era -> Gen (ReferenceScript era)
+genReferenceScript era = case refInsScriptsAndInlineDatsSupportedInEra era of
+    Nothing -> pure ReferenceScriptNone
+    Just supported -> oneof
+        [ pure ReferenceScriptNone
+        , ReferenceScript supported <$> genScriptInAnyLang
         ]
 
 mkDummyHash :: forall h a. Crypto.HashAlgorithm h => Int -> Crypto.Hash h a
@@ -915,7 +927,7 @@ genProtocolParameters :: Gen ProtocolParameters
 genProtocolParameters =
   ProtocolParameters
     <$> ((,) <$> genNat <*> genNat)
-    <*> genRational
+    <*> (Just <$> genRational)
     <*> liftArbitrary genPraosNonce
     <*> genNat
     <*> genNat
@@ -944,7 +956,7 @@ genProtocolParametersWithAlonzoScripts :: Gen ProtocolParameters
 genProtocolParametersWithAlonzoScripts =
   ProtocolParameters
     <$> ((,) <$> genNat <*> genNat)
-    <*> genRational
+    <*> (Just <$> genRational)
     <*> liftArbitrary genPraosNonce
     <*> genNat
     <*> genNat
@@ -1284,7 +1296,10 @@ genTxBodyContent era = do
         txBody = TxBodyContent
             { Api.txIns
             , Api.txInsCollateral = TxInsCollateralNone
+            , Api.txInsReference = TxInsReferenceNone
             , Api.txOuts
+            , Api.txTotalCollateral = TxTotalCollateralNone
+            , Api.txReturnCollateral = TxReturnCollateralNone
             , Api.txFee
             , Api.txValidityRange
             , Api.txMetadata

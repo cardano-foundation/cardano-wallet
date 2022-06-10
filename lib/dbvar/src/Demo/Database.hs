@@ -59,7 +59,7 @@ import Data.Word
 import Database.Persist.Delta
     ( newEntityStore, newSqlStore )
 import Database.Persist.Sql
-    ( SqlPersistM, SqlPersistT )
+    ( SqlPersistM )
 import Database.Persist.TH
     ( mkMigrate
     , mkPersist
@@ -155,9 +155,9 @@ newStoreAddress = embedStore addressChainIntoTable =<< newEntityStore
 --
 -- NB. This is missing most of the STM methods except for a handful of TVar
 -- ones!
-instance MonadSTM (SqlPersistT (NoLoggingT (ResourceT IO))) where
-    type STM (SqlPersistT (NoLoggingT (ResourceT IO))) = WrapSTM
-    type TVar (SqlPersistT (NoLoggingT (ResourceT IO))) = TVar IO
+instance MonadSTM (NoLoggingT (ResourceT IO)) where
+    type STM (NoLoggingT (ResourceT IO)) = WrapSTM
+    type TVar (NoLoggingT (ResourceT IO)) = TVar IO
     atomically = liftIO . STM.atomically . unWrapSTM
     newTVar = WrapSTM . STM.newTVar
     readTVar = WrapSTM . STM.readTVar

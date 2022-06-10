@@ -479,11 +479,12 @@ import qualified Cardano.Wallet.Primitive.Types.TokenPolicy as W
 import qualified Codec.Binary.Bech32 as Bech32
 import qualified Codec.Binary.Bech32.TH as Bech32
 import qualified Data.Aeson as Aeson
+import qualified Data.Aeson.Key as Aeson
+import qualified Data.Aeson.KeyMap as Aeson
 import qualified Data.Aeson.Types as Aeson
 import qualified Data.ByteString as BS
 import qualified Data.ByteString.Char8 as B8
 import qualified Data.ByteString.Lazy as BL
-import qualified Data.HashMap.Strict as HM
 import qualified Data.Map as Map
 import qualified Data.Text as T
 import qualified Data.Text.Encoding as T
@@ -1417,6 +1418,7 @@ data ApiEra
     | ApiAllegra
     | ApiMary
     | ApiAlonzo
+    | ApiBabbage
     deriving (Show, Eq, Generic, Enum, Ord, Bounded)
     deriving anyclass NFData
 
@@ -2587,7 +2589,7 @@ withExtraField
     -> Value
     -> Value
 withExtraField (k,v) = \case
-    Aeson.Object m -> Aeson.Object (HM.insert k v m)
+    Aeson.Object m -> Aeson.Object (Aeson.insert (Aeson.fromText k) v m)
     json -> json
 
 instance MkSomeMnemonic mw => FromJSON (ByronWalletPostData mw) where
@@ -2805,7 +2807,7 @@ instance FromJSON AnyAddress where
 
 parseFromText :: FromText a => String -> Text -> Aeson.Value -> Aeson.Parser a
 parseFromText typeName k = withObject typeName $ \o -> do
-    v <- o .: k
+    v <- o .: (Aeson.fromText k)
     case fromText v of
         Right bytes -> pure bytes
         Left (TextDecodingError err) -> fail err
@@ -3242,8 +3244,8 @@ parseExtendedAesonObject
     -> Value
     -> Parser a
 parseExtendedAesonObject txt fieldtoremove = withObject txt $ \o -> do
-    let removeCertType (numTxt,_) = numTxt /= fieldtoremove
-    let o' = HM.fromList $ filter removeCertType $ HM.toList o
+    let removeCertType numKey _ = Aeson.toText numKey /= fieldtoremove
+    let o' = Aeson.filterWithKey removeCertType o
     genericParseJSON defaultRecordTypeOptions (Object o')
 
 extendAesonObject
@@ -3573,10 +3575,10 @@ instance FromJSON ApiScriptTemplateEntry where
         ApiScriptTemplateEntry <$> (Map.fromList <$> cosigners') <*> template'
       where
         parseCosignerPairs = withObject "Cosigner pairs" $ \o ->
-            case HM.toList o of
+            case Aeson.toList o of
                 [] -> fail "Cosigners object array should not be empty"
                 cs -> for (reverse cs) $ \(numTxt, str) -> do
-                    cosigner' <- parseJSON @Cosigner (String numTxt)
+                    cosigner' <- parseJSON @Cosigner (String $ Aeson.toText numTxt)
                     xpubOrSelf <- parseJSON str
                     pure (cosigner', xpubOrSelf)
 
@@ -3585,9 +3587,9 @@ instance ToJSON ApiScriptTemplateEntry where
         object [ "cosigners" .= object (fmap toPair (Map.toList cosigners'))
                , "template" .= toJSON template']
       where
-        cosignerToText (Cosigner ix) = "cosigner#"<> T.pack (show ix)
+        cosignerToKey (Cosigner ix) = Aeson.fromText $ "cosigner#"<> T.pack (show ix)
         toPair (cosigner', xpubOrSelf) =
-            ( cosignerToText cosigner'
+            ( cosignerToKey cosigner'
             , toJSON xpubOrSelf  )
 
 instance FromJSON ApiSharedWalletPostDataFromAccountPubX where
@@ -3625,17 +3627,17 @@ instance ToJSON (ApiT Cosigner) where
 
 instance FromJSON ApiSharedWalletPatchData where
     parseJSON = withObject "ApiSharedWalletPatchData" $ \o ->
-        case HM.toList o of
+        case Aeson.toList o of
                 [] -> fail "ApiSharedWalletPatchData should not be empty"
                 [(numTxt, str)] -> do
-                    cosigner' <- parseJSON @(ApiT Cosigner) (String numTxt)
+                    cosigner' <- parseJSON @(ApiT Cosigner) (String $ Aeson.toText numTxt)
                     xpub <- parseJSON @ApiAccountPublicKey str
                     pure $ ApiSharedWalletPatchData cosigner' xpub
                 _ -> fail "ApiSharedWalletPatchData should have one pair"
 
 instance ToJSON ApiSharedWalletPatchData where
     toJSON (ApiSharedWalletPatchData cosigner accXPub) =
-        object [ toText cosigner .= toJSON accXPub ]
+        object [ (Aeson.fromText $ toText cosigner) .= toJSON accXPub ]
 
 instance FromJSON ApiActiveSharedWallet where
     parseJSON = genericParseJSON defaultRecordTypeOptions
@@ -3645,11 +3647,11 @@ instance ToJSON ApiActiveSharedWallet where
 instance FromJSON ApiPendingSharedWallet where
     parseJSON val = case val of
         Aeson.Object obj -> do
-            let obj' = HM.delete "state" obj
+            let obj' = Aeson.delete (Aeson.fromText "state") obj
             genericParseJSON defaultRecordTypeOptions (Aeson.Object obj')
         _ -> fail "ApiPendingSharedWallet should be object"
 instance ToJSON ApiPendingSharedWallet where
-    toJSON wal = Aeson.Object $ HM.insert "state" (object ["status" .= String "incomplete"]) obj
+    toJSON wal = Aeson.Object $ Aeson.insert (Aeson.fromText "state") (object ["status" .= String "incomplete"]) obj
       where
         (Aeson.Object obj) = genericToJSON defaultRecordTypeOptions wal
 
@@ -4163,7 +4165,7 @@ instance EncodeAddress n => ToJSON (ApiMintBurnOperation n) where
 
 instance DecodeAddress n => FromJSON (ApiMintBurnOperation n) where
     parseJSON = Aeson.withObject "ApiMintBurnOperation" $ \o ->
-        case HM.keys o of
+        case Aeson.keys o of
             ["mint"] -> ApiMint <$> o .: "mint"
             ["burn"] -> ApiBurn <$> o .: "burn"
             [] -> fail "Must include a \"mint\" or \"burn\" property."

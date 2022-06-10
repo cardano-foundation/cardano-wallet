@@ -468,11 +468,12 @@ import Web.HttpApiData
 
 import qualified Cardano.Wallet.Api.Types as Api
 import qualified Data.Aeson as Aeson
+import qualified Data.Aeson.Key as Aeson
+import qualified Data.Aeson.KeyMap as Aeson
 import qualified Data.Aeson.Types as Aeson
 import qualified Data.ByteArray as BA
 import qualified Data.ByteString as BS
 import qualified Data.ByteString.Char8 as B8
-import qualified Data.HashMap.Strict as HM
 import qualified Data.List.NonEmpty as NE
 import qualified Data.Map.Strict as Map
 import qualified Data.Text as T
@@ -1387,7 +1388,7 @@ instance FromJSON SchemaApiErrorCode where
     parseJSON = withObject "SchemaApiErrorCode" $ \o -> do
         vals <- forM (fmap showConstr $ dataTypeConstrs $ dataTypeOf NoSuchWallet)
             $ \n -> do
-                (r :: Maybe Yaml.Value) <- o .:? T.pack (toSchemaName n)
+                (r :: Maybe Yaml.Value) <- o .:? Aeson.fromString (toSchemaName n)
                 pure $ maybe (Left n) Right r
         case lefts vals of
             [] -> pure SchemaApiErrorCode
@@ -3180,7 +3181,7 @@ addDefinition (NamedSchema (Just k) s) = do
 
 unsafeLookupKey :: Aeson.Value -> Text -> Aeson.Value
 unsafeLookupKey json k = case json of
-    Aeson.Object m -> fromMaybe bombMissing (HM.lookup k m)
+    Aeson.Object m -> fromMaybe bombMissing (Aeson.lookup (Aeson.fromText k) m)
     m -> bombNotObject m
   where
     bombNotObject m =
@@ -3198,7 +3199,7 @@ instance {-# OVERLAPS #-} HasPath a => ValidateEveryPath a where
         let verbStr = toLower <$> show verb
         it (verbStr <> " " <> path <> " exists in specification") $ do
             case foldl' unsafeLookupKey specification ["paths", T.pack path] of
-                Aeson.Object m -> case HM.lookup (T.pack verbStr) m of
+                Aeson.Object m -> case Aeson.lookup (Aeson.fromString verbStr) m of
                     Just{}  -> return @IO ()
                     Nothing -> fail "couldn't find path in specification"
                 _ -> fail "couldn't find path in specification"

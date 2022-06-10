@@ -111,6 +111,7 @@ library
     , persistent-sqlite >=2.13 && <2.14
     , persistent-template >=2.12 && <2.13
     , plutus-ledger-api
+    , plutus-core
     , pretty-simple
     , profunctors
     , quiet
@@ -380,6 +381,7 @@ test-suite unit
     , nothunks
     , persistent >=2.13 && <2.14
     , persistent-sqlite >=2.13 && <2.14
+    , plutus-core
     , plutus-ledger-api
     , pretty-simple
     , regex-pcre-builtin
@@ -394,7 +396,6 @@ test-suite unit
     , random
     , retry
     , safe
-    , scrypt
     , servant
     , servant-server
     , should-not-typecheck
@@ -419,6 +420,9 @@ test-suite unit
     , wai
     , wai-extra
     , warp
+  if (flag(scrypt))
+    cpp-options: -DHAVE_SCRYPT
+    build-depends: scrypt
   build-tool-depends:
       hspec-discover:hspec-discover
   type:

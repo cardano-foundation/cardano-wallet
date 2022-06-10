@@ -38,7 +38,7 @@
 --
 --------------------------------------------------------------------------------
 
-index-state: 2022-03-29T23:10:49Z
+index-state: 2022-05-18T00:00:00Z
 with-compiler: ghc-8.10.7
 
 packages:
@@ -52,6 +52,16 @@ packages:
   , lib/test-utils/
   , lib/shelley/
   , lib/strict-non-empty-containers/
+
+-- Bundle VRF crypto in libsodium and do not rely on an external fork to have it.
+-- This still requires the host system to have the 'standard' libsodium installed.
+package cardano-crypto-praos
+  flags: -external-libsodium-vrf
+
+-- Using RDRAND instead of /dev/urandom as an entropy source for key
+-- generation is dubious. Set the flag so we use /dev/urandom by default.
+package cryptonite
+  flags: -support_rdrand
 
 -- Using a fork until our patches can be merged upstream
 
@@ -80,7 +90,7 @@ source-repository-package
 source-repository-package
     type: git
     location: https://github.com/input-output-hk/cardano-addresses
-    tag: ba8390504b6613957b73bf8d0d2aab1a989f104d
+    tag: e984c661c4cd6b09c8ac9273a407ed9020e09ced
     subdir: command-line
             core
 
@@ -94,7 +104,7 @@ source-repository-package
 source-repository-package
     type: git
     location: https://github.com/input-output-hk/cardano-base
-    tag: 41545ba3ac6b3095966316a99883d678b5ab8da8
+    tag: 631cb6cf1fa01ab346233b610a38b3b4cba6e6ab
     subdir:
             base-deriving-via
             binary
@@ -115,7 +125,7 @@ source-repository-package
 source-repository-package
   type: git
   location: https://github.com/input-output-hk/plutus
-  tag: fc5fe94d3d9525d032bcbc79ff0e1ebcfd8ef143
+  tag: fec94223a985e34d3b270460c8f150002f41b85b
   subdir:
     plutus-core
     plutus-ledger-api
@@ -138,10 +148,12 @@ source-repository-package
 source-repository-package
     type: git
     location: https://github.com/input-output-hk/cardano-ledger
-    tag: 1a9ec4ae9e0b09d54e49b2a40c4ead37edadcce5
+    tag: c415253fff9a5ce9d7575230fc9098bcfee97653
     subdir:
       eras/alonzo/impl
       eras/alonzo/test-suite
+      eras/babbage/impl
+      eras/babbage/test-suite
       eras/byron/chain/executable-spec
       eras/byron/crypto
       eras/byron/crypto/test
@@ -156,7 +168,7 @@ source-repository-package
       libs/cardano-ledger-pretty
       libs/cardano-protocol-tpraos
       libs/cardano-data
-      libs/compact-map
+      libs/vector-map
       libs/set-algebra
       libs/small-steps
       libs/small-steps-test
@@ -165,7 +177,7 @@ source-repository-package
 source-repository-package
     type: git
     location: https://github.com/input-output-hk/cardano-node
-    tag: 73f9a746362695dc2cb63ba757fbcabb81733d23
+    tag: 759b6d4fe7d49b92175f29fdb908b7cd880a274a
     subdir:
       cardano-api
       cardano-git-rev
@@ -183,35 +195,40 @@ source-repository-package
     subdir: cardano-prelude
             cardano-prelude-test
 
+-- In particular we rely on the code from this PR:
+--  * <https://github.com/input-output-hk/cardano-sl-x509/pull/6>
+-- being merged.
 source-repository-package
     type: git
-    location: https://github.com/input-output-hk/cardano-sl-x509
-    tag: 12925934c533b3a6e009b61ede555f8f26bac037
+    location: https://github.com/MELD-labs/cardano-sl-x509
+    tag: 819997049b9cc675b28059d3d6f511d08f934d10
 
 source-repository-package
     type: git
     location: https://github.com/input-output-hk/goblins
     tag: cde90a2b27f79187ca8310b6549331e59595e7ba
 
+-- In particular we rely on the code from this PR:
+--  * <https://github.com/input-output-hk/iohk-monitoring-framework/pull/622>
+-- being merged.
 source-repository-package
     type: git
     location: https://github.com/input-output-hk/iohk-monitoring-framework
-    tag: 808724ff8a19a33d0ed06f9ef59fbd900b08553c
+    tag: eb7854d1337637b8672af1227b276aa33a658f47
     subdir: contra-tracer
             iohk-monitoring
             plugins/backend-aggregation
             plugins/backend-ekg
             plugins/backend-monitoring
             plugins/backend-trace-forwarder
+            plugins/scribe-systemd
             tracer-transformers
 
 source-repository-package
     type: git
     location: https://github.com/input-output-hk/ouroboros-network
-    tag: 4fac197b6f0d2ff60dc3486c593b68dc00969fbf
+    tag: ea202b7b21983140d1944ccfde8750b891b59699
     subdir:
-      io-sim
-      io-classes
       monoidal-synchronisation
       network-mux
       ouroboros-consensus
@@ -222,24 +239,53 @@ source-repository-package
       ouroboros-network
       ouroboros-network-framework
       ouroboros-network-testing
-      strict-stm
-      typed-protocols
-      typed-protocols-cborg
-      typed-protocols-examples
       ntp-client
 
 source-repository-package
-    type: git
-    location: https://github.com/snoyberg/http-client.git
-    tag: 1a75bdfca014723dd5d40760fad854b3f0f37156
-    subdir: http-client
+  type: git
+  location: https://github.com/input-output-hk/io-sim
+  tag: 606de33fa2f467d108fb1efb86daeb3348bf34e3
+  --sha256: 048djqfdkzrbmdz670knbkjy12wddpvsmhm4x5yldg3w9lwqi1yx
+  subdir:
+    io-classes
+    io-sim
+    strict-stm
+
+source-repository-package
+  type: git
+  location: https://github.com/input-output-hk/typed-protocols
+  tag: 91c3fba44d68439df207796171cd6f867354b76b
+  --sha256: 1h1nh10859kd7j8bb55y577jfdp42aqpppx8fn0pm6fra5748a50
+  subdir:
+    typed-protocols
+    typed-protocols-cborg
+    typed-protocols-examples
 
 -- Drops an instance breaking cardano-node.
 source-repository-package
     type: git
-    location: https://github.com/input-output-hk/flat.git
+    location: https://github.com/input-output-hk/flat
     tag: ee59880f47ab835dbd73bea0847dab7869fc20d8
     --sha256: 1lrzknw765pz2j97nvv9ip3l1mcpf2zr4n56hwlz0rk7wq7ls4cm
+
+-- Until https://github.com/tibbe/ekg-json/pull/12 gets merged with aeson2 support
+source-repository-package
+  type: git
+  location: https://github.com/vshabanov/ekg-json
+  tag: 00ebe7211c981686e65730b7144fbf5350462608
+
+source-repository-package
+  type: git
+  location: https://github.com/input-output-hk/hedgehog-extras
+  tag: 967d79533c21e33387d0227a5f6cc185203fe658
+  --sha256: 0rbqb7a64aya1qizlr3im06hdydg9zr6sl3i8bvqqlf7kpa647sd
+
+-- Needed for cardano-addresses
+source-repository-package
+     type: git
+     location: https://github.com/haskell-works/hw-aeson
+     tag: d99d2f3e39a287607418ae605b132a3deb2b753f
+     --sha256: 1vxqcwjg9q37wbwi27y9ba5163lzfz51f1swbi0rp681yg63zvn4
 
 -- -------------------------------------------------------------------------
 -- Constraints tweaking
@@ -252,18 +298,22 @@ allow-newer:
     hjsonschema:*
   , hjsonpointer:*
   , cardano-sl-x509:ip
-  , cardano-addresses:aeson
+  , *:aeson
   , size-based:template-haskell
 
+-- Copied from (copied from cardano-node/cabal.project)
+allow-newer:
+  *:aeson,
+  monoidal-containers:aeson,
+  size-based:template-haskell
+
+allow-newer:
+  async-timer:unliftio-core
+
 constraints:
-    hedgehog >= 1.0.2
-  -- QUICK FIX: hedgehog >= 1.1 defines Rec constructor, PlutusIR also defines
-  -- Rec constructor, and imports Hedgehog unqualified, leading to ambiguous
-  -- reference to Rec.
-  -- FIXME: https://input-output.atlassian.net/browse/ADP-1545
-  , hedgehog < 1.1
-  , hashable < 1.4
+    hashable < 1.4
   , bimap >= 0.4.0
+  , openapi3 >= 3.2.0
   , libsystemd-journal >= 1.4.4
   , systemd >= 2.3.0
   -- dependency of systemd-2.3.0
@@ -271,14 +321,21 @@ constraints:
   -- choose versions that work with base >= 4.12
   , hjsonpointer >= 1.5.0
   , hjsonschema >= 1.10.0
+  , Cabal >= 3.4.0.0
+  , async-timer >= 0.2.0.0
+  , unliftio-core >= 0.2.0.1
+
+  -- This pin is just here to make cabalProejct == stackProject.
+  -- Remove it if you are happy for a newer version to be picked when possible.
+  , semigroups == 0.19.2
 
 -- ----------------------------------------------------------------
 -- Flags for dependencies
 
 package cardano-config
-  flags: -systemd
+  flags: +systemd
 package cardano-node
-  flags: -systemd
+  flags: +systemd
 
 -- -------------------------------------------------------------------------
 -- Enable specific tests in this repo

@@ -983,7 +983,7 @@ fromBlockfrostPP network BF.ProtocolParams{..} = do
                     { protocolParamProtocolVersion =
                         (protoMajorVer, protoMinorVer)
                     , protocolParamDecentralization =
-                        toRational _protocolParamsDecentralisationParam
+                        Just $ toRational _protocolParamsDecentralisationParam
                     , protocolParamExtraPraosEntropy = Nothing
                     , protocolParamMaxBlockHeaderSize = maxBlockHeaderSize
                     , protocolParamMaxBlockBodySize = maxBlockBodySize

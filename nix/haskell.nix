@@ -1,7 +1,7 @@
 ############################################################################
 # Builds Haskell packages with Haskell.nix
 ############################################################################
-haskell-nix: haskell-nix.stackProject' [
+haskell-nix: haskell-nix.cabalProject' [
   ({ lib, pkgs, buildProject, ... }: {
     options = {
       gitrev = lib.mkOption {
@@ -111,6 +111,7 @@ haskell-nix: haskell-nix.stackProject' [
 
     in {
       name = "cardano-wallet";
+      compiler-nix-name = "ghc8107";
 
       src = haskellLib.cleanSourceWith {
         name = "cardano-wallet-src";
@@ -118,7 +119,7 @@ haskell-nix: haskell-nix.stackProject' [
         filter = haskell-nix.haskellSourceFilter;
       };
 
-      materialized = ./materialized/stack-nix;
+      # materialized = ./materialized/plan-nix;
 
       sha256map = import ./sha256map.nix;
 
@@ -195,7 +196,7 @@ haskell-nix: haskell-nix.stackProject' [
           })
 
           # Provide configuration and dependencies to cardano-wallet components
-          ({ config, ... }:
+          ({ config, pkgs, ... }:
             let
               cardanoNodeExes = with config.hsPkgs;
                 [
@@ -204,6 +205,18 @@ haskell-nix: haskell-nix.stackProject' [
                 ];
             in
             {
+              reinstallableLibGhc = !pkgs.stdenv.hostPlatform.isMusl;
+
+              # These are here to make `stackProject` vs `cabalProject` `nix-diff` cleaner
+              # TODO remove
+              packages.entropy.components.setup.doExactConfig = true;
+              packages.prettyprinter-configurable.components.setup.doExactConfig = true;
+              packages.pretty-simple.components.setup.doExactConfig = true;
+              packages.wai-logger.components.setup.doExactConfig = true;
+              packages.openapi3.components.setup.doExactConfig = true;
+              packages.servant-openapi3.components.setup.doExactConfig = true;
+              packages.system-filepath.components.setup.doExactConfig = true;
+
               packages.cardano-wallet-core.components.tests = {
                 unit.preCheck = noCacheTestFailuresCookie;
                 # Attempt to ensure visible progress in the macOS hydra job.
@@ -350,11 +363,11 @@ haskell-nix: haskell-nix.stackProject' [
 
           ({ lib, pkgs, ... }: {
             # Use our forked libsodium from iohk-nix crypto overlay.
-            packages.plutus-tx.components.library.pkgconfig = lib.mkForce [ [ pkgs.libsodium-vrf ] ];
-            packages.byron-spec-ledger.components.library.pkgconfig = lib.mkForce [ [ pkgs.libsodium-vrf ] ];
-            packages.cardano-wallet-cli.components.library.pkgconfig = lib.mkForce [ [ pkgs.libsodium-vrf ] ];
-            packages.cardano-crypto-praos.components.library.pkgconfig = lib.mkForce [ [ pkgs.libsodium-vrf ] ];
-            packages.cardano-crypto-class.components.library.pkgconfig = lib.mkForce [ [ pkgs.libsodium-vrf ] ];
+            packages.plutus-tx.components.library.pkgconfig = lib.mkForce [ [ pkgs.libsodium-vrf pkgs.secp256k1 ] ];
+            packages.byron-spec-ledger.components.library.pkgconfig = lib.mkForce [ [ pkgs.libsodium-vrf pkgs.secp256k1 ] ];
+            packages.cardano-wallet-cli.components.library.pkgconfig = lib.mkForce [ [ pkgs.libsodium-vrf pkgs.secp256k1 ] ];
+            packages.cardano-crypto-praos.components.library.pkgconfig = lib.mkForce [ [ pkgs.libsodium-vrf pkgs.secp256k1 ] ];
+            packages.cardano-crypto-class.components.library.pkgconfig = lib.mkForce [ [ pkgs.libsodium-vrf pkgs.secp256k1 ] ];
           })
 
           # Build fixes for library dependencies
@@ -385,7 +398,7 @@ haskell-nix: haskell-nix.stackProject' [
           # Musl libc fully static build
           (lib.optionalAttrs stdenv.hostPlatform.isMusl (
             let
-              staticLibs = with pkgs; [ zlib openssl libffi gmp6 libsodium-vrf ];
+              staticLibs = with pkgs; [ zlib openssl libffi gmp6 libsodium-vrf pkgs.secp256k1 ];
 
               # Module options which add GHC flags and libraries for a fully static build
               fullyStaticOptions = {
@@ -425,47 +438,6 @@ haskell-nix: haskell-nix.stackProject' [
           ({ pkgs, ... }: {
             packages.cardano-wallet-core.flags.scrypt = !pkgs.stdenv.hostPlatform.isAarch64;
           })
-
-          # Allow installation of a newer version of Win32 than what is
-          # included with GHC. The packages in this list are all those
-          # installed with GHC, except for Win32.
-          {
-            nonReinstallablePkgs =
-              [
-                "rts"
-                "ghc-heap"
-                "ghc-prim"
-                "integer-gmp"
-                "integer-simple"
-                "base"
-                "deepseq"
-                "array"
-                "ghc-boot-th"
-                "pretty"
-                "template-haskell"
-                # ghcjs custom packages
-                "ghcjs-prim"
-                "ghcjs-th"
-                "ghc-boot"
-                "ghc"
-                "array"
-                "binary"
-                "bytestring"
-                "containers"
-                "filepath"
-                "ghc-boot"
-                "ghc-compact"
-                "ghc-prim"
-                # "ghci" "haskeline"
-                "hpc"
-                "mtl"
-                "parsec"
-                "text"
-                "transformers"
-                "xhtml"
-                # "stm" "terminfo"
-              ];
-          }
         ];
     })
 ]

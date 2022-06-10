@@ -33,7 +33,7 @@
   ############################################################################
 
   inputs = {
-    nixpkgs.follows = "haskellNix/nixpkgs-2111";
+    nixpkgs.follows = "haskellNix/nixpkgs-unstable";
     hostNixpkgs.follows = "nixpkgs";
     haskellNix = {
       url = "github:input-output-hk/haskell.nix";
@@ -45,7 +45,7 @@
       inputs.nixpkgs.follows = "nixpkgs";
     };
     flake-compat = {
-      url = "github:input-output-hk/flake-compat/fixes";
+      url = "github:input-output-hk/flake-compat";
       flake = false;
     };
     customConfig.url = "github:input-output-hk/empty-flake";

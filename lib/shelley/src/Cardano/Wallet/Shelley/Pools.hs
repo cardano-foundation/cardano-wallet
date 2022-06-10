@@ -768,6 +768,8 @@ monitorStakePools tr (NetworkParameters gp sp _pp) nl DBLayer{..} =
                 forEachShelleyBlock (fromMaryBlock gp blk) (getProducer blk)
             BlockAlonzo blk ->
                 forEachShelleyBlock (fromAlonzoBlock gp blk) (getProducer blk)
+            BlockBabbage _blk ->
+                error "todo: Babbage forAllBlocks"
 
         forLastBlock = \case
             BlockByron blk ->
@@ -780,6 +782,8 @@ monitorStakePools tr (NetworkParameters gp sp _pp) nl DBLayer{..} =
                 putHeader (toShelleyBlockHeader getGenesisBlockHash blk)
             BlockAlonzo blk ->
                 putHeader (toShelleyBlockHeader getGenesisBlockHash blk)
+            BlockBabbage _blk ->
+                error "todo: Babbage forLastBlock"
 
         forEachShelleyBlock (blk, certificates) poolId = do
             let header = view #header blk

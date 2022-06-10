@@ -13,7 +13,7 @@
 #
 ########################################################################
 
-resolver: lts-18.21
+resolver: lts-18.28
 compiler: ghc-8.10.7
 
 packages:
@@ -66,18 +66,24 @@ extra-deps:
 
   - OddWord-1.0.2.0
   - command-0.1.1
-  - hspec-2.8.2
-  - hspec-core-2.8.2
-  - hspec-discover-2.8.2
-  - blockfrost-api-0.4.0.0
-  - blockfrost-client-0.4.0.0
-  - blockfrost-client-core-0.4.0.0
+  - hspec-2.10.0
+  - hspec-core-2.10.0
+  - hspec-discover-2.10.0
+  - blockfrost-api-0.4.0.1
+  - blockfrost-client-0.4.0.1
+  - blockfrost-client-core-0.4.0.1
   - quickcheck-quid-0.0.1
   - servant-multipart-client-0.12.1
+  - aeson-2.0.2.0
+  - semialign-1.2.0.1
+  - tuples-0.1.0.0
+  - contiguous-0.6.2.0
+  - primitive-offset-0.2.0.0
+  - zigzag-0.0.1.0
 
   # cardano-addresses-3.10.0
   - git: https://github.com/input-output-hk/cardano-addresses
-    commit: ba8390504b6613957b73bf8d0d2aab1a989f104d
+    commit: e984c661c4cd6b09c8ac9273a407ed9020e09ced
     subdirs:
       - command-line
       - core
@@ -86,13 +92,13 @@ extra-deps:
   ### cardano-node 1.34.1 and its dependencies
 
   - cryptonite-0.27 # 0.29 on lts-18.5 - constraint from ouroboros-consensus-byron
-  - Cabal-3.4.0.0 # 3.2.1.0 on lts-18.5
-  - containers-0.6.4.1 # 0.6.2.1 on lts-18.5
+  - Cabal-3.6.3.0 # 3.2.1.0 on lts-18.5
+  - containers-0.6.5.1 # 0.6.2.1 on lts-18.5
   - dns-3.0.4 # 4.0.1 on lts-18.5
-  - network-3.1.2.1 # 3.1.1.1 on lts-18.5
+  - network-3.1.2.7 # 3.1.1.1 on lts-18.5
   - ral-0.1 # 0.2 on lts-18.5 - constraint from plutus-core
-  - recursion-schemes-5.1.3 # 5.2.2.1 on lts-18.5
-  - text-1.2.4.0 # 1.2.4.1 on lts-18.5
+  - recursion-schemes-5.2.2.2
+  - text-1.2.4.1 # 1.2.4.1 on lts-18.5
   - Win32-2.6.2.0 # 2.6.1.0 on lts-18.5
 
   # Not in LTS 18.5
@@ -102,23 +108,31 @@ extra-deps:
   - beam-sqlite-0.5.1.0
   - canonical-json-0.6.0.0
   - composition-prelude-3.0.0.2
-  - constraints-extras-0.3.1.0
-  - ip-1.5.1
+  - constraints-extras-0.3.2.1
+
+  - ip-1.7.4 # For cardano-sl-x509
+  - byteslice-0.2.7.0 # For ip
+  - bytesmith-0.3.8.0
+  - bytebuild-0.3.11.0
+  - natural-arithmetic-0.1.2.0
+  - run-st-0.1.1.0
+
   - gray-code-0.3.1
   - lazy-search-0.1.2.1
   - lazysmallcheck-0.6
-  - libsystemd-journal-1.4.4
+  - libsystemd-journal-1.4.5
   - markov-chain-usage-model-0.0.0
   - micro-recursion-schemes-5.0.2.2
-  - monoidal-containers-0.6.0.1
+  - monoidal-containers-0.6.2.0
   - moo-1.2
-  - nothunks-0.1.2
+  - nothunks-0.1.3
   - partial-order-0.2.0.0
-  - quickcheck-state-machine-0.7.0
+  - quickcheck-state-machine-0.7.1
   - regex-posix-clib-2.7
   - row-types-1.0.1.0
   - servant-subscriber-0.7.0.0
-  - dom-lt-0.2.2.1
+  - dom-lt-0.2.3
+  - secp256k1-haskell-0.6.1
   - servant-websockets-2.0.0
   - size-based-0.1.2.0
   - statistics-linreg-0.3
@@ -126,12 +140,119 @@ extra-deps:
   - time-interval-0.1.1
   - time-out-0.2
   - hspec-golden-0.2.0.0
-  - transformers-except-0.1.1
-  - Unique-0.4.7.6
+  - transformers-except-0.1.2
+  - Unique-0.4.7.9
+
 
   # Explicitly put back packages which were pruned by Stack.
   - binary-0.8.8.0
   - parsec-3.1.14.0
+
+  # Versions that differ in lts from those chosen by cabal
+  - OneTuple-0.3.1
+  - adjunctions-4.4.1
+  - algebraic-graphs-0.6
+  - ansi-terminal-0.11.3
+  - base-compat-0.12.1
+  - base-compat-batteries-0.12.1
+  - base16-0.3.2.0
+  - base64-bytestring-1.2.1.0
+  - base64-bytestring-type-1.0.1@rev:12
+  - bifunctors-5.5.12
+  - bin-0.1 # Older version lts had 0.1.1
+  - binary-orphans-1.0.2
+  - call-stack-0.4.0
+  - cborg-0.2.7.0
+  - conduit-extra-1.3.6
+  - deriving-compat-0.6.1
+  - either-5.0.2
+  - extra-1.7.10
+  - fast-logger-3.1.1
+  - fin-0.1.1 # Older version lts had 0.2
+  - fmt-0.6.1.2
+  - foldl-1.4.12@rev:3
+  - formatting-6.3.7
+  - free-5.1.8
+  - generic-arbitrary-0.2.2
+  - generic-lens-core-2.2.1.0
+  - generic-lens-2.2.1.0
+  - generic-random-1.5.0.1
+  - happy-1.20.0@rev:1
+  - hashable-1.3.5.0
+  - hedgehog-1.1.1
+  - hedgehog-quickcheck-0.1.1@rev:3
+  - hspec-golden-aeson-0.9.0.0
+  - http-api-data-0.4.3
+  - http-client-0.7.11
+  - http-client-tls-0.3.6.1
+  - http2-3.0.3
+  - indexed-traversable-instances-0.1.1
+  - invariant-0.5.6
+  - io-streams-haproxy-1.0.1.0@rev:5
+  - kan-extensions-5.2.4
+  - katip-0.8.7.1
+  - lattices-2.0.3
+  - lens-aeson-1.2.1
+  - lens-5.0.1
+  - list-t-1.0.5.2
+  - logict-0.8.0.0
+  - megaparsec-9.2.1
+  - memory-0.17.0
+  - microlens-0.4.13.0
+  - microlens-mtl-0.2.0.2
+  - microstache-1.0.2.1
+  - monad-logger-0.3.36@rev:2
+  - newtype-0.2.2.0@rev:3
+  - optics-core-0.4.1
+  - optics-extra-0.4.1
+  - optics-th-0.4.1
+  - optparse-applicative-0.17.0.0
+  - parsers-0.12.11
+  - parser-combinators-1.3.0
+  - persistent-2.13.3.5
+  - pipes-4.3.16@rev:3
+  - pipes-safe-2.3.4
+  - pretty-simple-4.1.0.0
+  - primitive-0.7.3.0@rev:2
+  - quickcheck-instances-0.3.27
+  - random-1.2.1.1
+  - regex-base-0.94.0.2@rev:1
+  - regex-posix-0.96.0.1@rev:1
+  - resourcet-1.2.5
+  - retry-0.9.2.0
+  - semigroups-0.19.2
+  - serialise-0.2.5.0
+  - servant-client-core-0.19
+  - servant-client-0.19
+  - servant-0.19
+  - servant-docs-0.12
+  - servant-multipart-api-0.12.1@rev:3
+  - servant-server-0.19.1
+  - snap-core-1.0.5.0@rev:1
+  - snap-server-1.1.2.0@rev:1
+  - statistics-0.16.1.0
+  - strict-list-0.1.7
+  - string-conv-0.2.0
+  - string-interpolate-0.3.1.2
+  - tasty-1.4.2.3
+  - tasty-hedgehog-1.2.0.0
+  - terminal-size-0.3.3
+  - text-conversions-0.3.1.1
+  - text-short-0.1.5
+  - th-compat-0.1.3@rev:1
+  - th-expand-syns-0.4.9.0
+  - time-compat-1.9.6.1
+  - typed-process-0.2.8.0@rev:1
+  - typerep-map-0.5.0.0
+  - universe-base-1.1.3
+  - unix-compat-0.5.4@rev:1
+  - unliftio-0.2.22.0
+  - unordered-containers-0.2.19.1
+  - vector-0.12.3.1@rev:2
+  - wai-app-static-3.1.7.4
+  - wai-extra-3.1.12.1
+  - wai-logger-2.4.0
+  - zlib-0.6.3.0
 
   # Using a fork until our patches can be merged upstream
 
@@ -154,57 +275,58 @@ extra-deps:
       - bech32-th
 
   - git: https://github.com/input-output-hk/cardano-base
-    commit: 41545ba3ac6b3095966316a99883d678b5ab8da8
+    commit: 631cb6cf1fa01ab346233b610a38b3b4cba6e6ab
     subdirs:
-      - base-deriving-via
-      - binary
-      - binary/test
-      - cardano-crypto-class
-      - cardano-crypto-praos
-      - cardano-crypto-tests
-      - orphans-deriving-via
-      - slotting
-      - strict-containers
-      - measures
+    - base-deriving-via
+    - binary
+    - binary/test
+    - cardano-crypto-class
+    - cardano-crypto-praos
+    - cardano-crypto-tests
+    - orphans-deriving-via
+    - slotting
+    - strict-containers
+    - measures
 
   - git: https://github.com/input-output-hk/cardano-crypto
     commit: f73079303f663e028288f9f4a9e08bcca39a923e
 
   - git: https://github.com/input-output-hk/cardano-ledger
-    commit: 1a9ec4ae9e0b09d54e49b2a40c4ead37edadcce5
+    commit: c415253fff9a5ce9d7575230fc9098bcfee97653
     subdirs:
-      - eras/alonzo/impl
-      - eras/alonzo/test-suite
-      - eras/byron/chain/executable-spec
-      - eras/byron/crypto
-      - eras/byron/crypto/test
-      - eras/byron/ledger/executable-spec
-      - eras/byron/ledger/impl
-      - eras/byron/ledger/impl/test
-      - eras/shelley/impl
-      - eras/shelley/test-suite
-      - eras/shelley-ma/impl
-      - eras/shelley-ma/test-suite
-      - libs/cardano-ledger-core
-      - libs/cardano-ledger-pretty
-      - libs/cardano-protocol-tpraos
-      - libs/cardano-data
-      - libs/compact-map
-      - libs/set-algebra
-      - libs/small-steps
-      - libs/small-steps-test
-      - libs/non-integral
+    - eras/babbage/impl
+    - eras/alonzo/impl
+    - eras/alonzo/test-suite
+    - eras/byron/chain/executable-spec
+    - eras/byron/crypto
+    - eras/byron/crypto/test
+    - eras/byron/ledger/executable-spec
+    - eras/byron/ledger/impl
+    - eras/byron/ledger/impl/test
+    - eras/shelley/impl
+    - eras/shelley/test-suite
+    - eras/shelley-ma/impl
+    - eras/shelley-ma/test-suite
+    - libs/cardano-ledger-core
+    - libs/cardano-ledger-pretty
+    - libs/cardano-protocol-tpraos
+    - libs/cardano-data
+    - libs/vector-map
+    - libs/set-algebra
+    - libs/small-steps
+    - libs/small-steps-test
+    - libs/non-integral
 
   - git: https://github.com/input-output-hk/cardano-node
-    commit: 73f9a746362695dc2cb63ba757fbcabb81733d23
+    commit: 759b6d4fe7d49b92175f29fdb908b7cd880a274a
     subdirs:
-      - cardano-api
-      - cardano-cli
-      - cardano-node
-      - cardano-git-rev
-      - trace-dispatcher
-      - trace-resources
-      - trace-forward
+    - cardano-api
+    - cardano-cli
+    - cardano-node
+    - cardano-git-rev
+    - trace-dispatcher
+    - trace-resources
+    - trace-forward
 
   - git: https://github.com/input-output-hk/cardano-prelude
     commit: bb4ed71ba8e587f672d06edf9d2e376f4b055555
@@ -212,11 +334,11 @@ extra-deps:
       - cardano-prelude
       - cardano-prelude-test
 
-  - git: https://github.com/input-output-hk/cardano-sl-x509
-    commit: 12925934c533b3a6e009b61ede555f8f26bac037
-
-  - git: https://github.com/input-output-hk/flat
-    commit: ee59880f47ab835dbd73bea0847dab7869fc20d8
+    # In particular we rely on the code from this PR:
+    # <https://github.com/input-output-hk/cardano-sl-x509/pull/6>
+    # being merged.
+  - git: https://github.com/MELD-labs/cardano-sl-x509
+    commit: 819997049b9cc675b28059d3d6f511d08f934d10
 
   - git: https://github.com/input-output-hk/goblins
     commit: cde90a2b27f79187ca8310b6549331e59595e7ba
@@ -225,51 +347,61 @@ extra-deps:
     commit: edf6945007177a638fbeb8802397f3a6f4e47c14
 
   - git: https://github.com/input-output-hk/iohk-monitoring-framework
-    commit: 808724ff8a19a33d0ed06f9ef59fbd900b08553c
+    commit: eb7854d1337637b8672af1227b276aa33a658f47
     subdirs:
-      - contra-tracer
-      - iohk-monitoring
-      - plugins/backend-aggregation
-      - plugins/backend-ekg
-      - plugins/backend-monitoring
-      - plugins/backend-trace-forwarder
-      - plugins/scribe-systemd
-      - tracer-transformers
+    - contra-tracer
+    - iohk-monitoring
+    - plugins/backend-aggregation
+    - plugins/backend-ekg
+    - plugins/backend-monitoring
+    - plugins/backend-trace-forwarder
+    - plugins/scribe-systemd
+    - tracer-transformers
 
   - git: https://github.com/shmish111/purescript-bridge.git
     commit: 6a92d7853ea514be8b70bab5e72077bf5a510596
 
-  - git: https://github.com/input-output-hk/ouroboros-network
-    commit: 4fac197b6f0d2ff60dc3486c593b68dc00969fbf
+  - git: https://github.com/input-output-hk/ekg-forward
+    commit: 297cd9db5074339a2fb2e5ae7d0780debb670c63
+  - git: https://github.com/input-output-hk/io-sim
+    commit: 606de33fa2f467d108fb1efb86daeb3348bf34e3
     subdirs:
-      - io-classes
-      - io-sim
-      - monoidal-synchronisation
-      - network-mux
-      - ouroboros-consensus
-      - ouroboros-consensus-test
-      - ouroboros-consensus-byron
-      - ouroboros-consensus-byronspec
-      - ouroboros-consensus-byron-test
-      - ouroboros-consensus-protocol
-      - ouroboros-consensus-shelley
-      - ouroboros-consensus-shelley-test
-      - ouroboros-consensus-cardano
-      - ouroboros-consensus-cardano-test
-      - ouroboros-network
-      - ouroboros-network-framework
-      - ouroboros-network-testing
-      - strict-stm
-      - typed-protocols
-      - typed-protocols-cborg
-      - typed-protocols-examples
-      # Extra packages not used by cardano-node but used by cardano-wallet
-      - cardano-client
-      - ntp-client
-      - ouroboros-consensus-mock
+      io-classes
+      io-sim
+      strict-stm
+
+  - git: https://github.com/input-output-hk/typed-protocols
+    commit: 91c3fba44d68439df207796171cd6f867354b76b
+    subdirs:
+    - typed-protocols
+    - typed-protocols-cborg
+    - typed-protocols-examples
+
+  - git: https://github.com/input-output-hk/ouroboros-network
+    commit: ea202b7b21983140d1944ccfde8750b891b59699
+    subdirs:
+    - monoidal-synchronisation
+    - network-mux
+    - ouroboros-consensus
+    - ouroboros-consensus-test
+    - ouroboros-consensus-byron
+    - ouroboros-consensus-byronspec
+    - ouroboros-consensus-byron-test
+    - ouroboros-consensus-protocol
+    - ouroboros-consensus-shelley
+    - ouroboros-consensus-shelley-test
+    - ouroboros-consensus-cardano
+    - ouroboros-consensus-cardano-test
+    - ouroboros-network
+    - ouroboros-network-framework
+    - ouroboros-network-testing
+    # Extra packages not used by cardano-node but used by cardano-wallet
+    - cardano-client
+    - ntp-client
+    - ouroboros-consensus-mock
 
   - git: https://github.com/input-output-hk/plutus
-    commit: fc5fe94d3d9525d032bcbc79ff0e1ebcfd8ef143
+    commit: fec94223a985e34d3b270460c8f150002f41b85b
     subdirs:
       - plutus-core
       - plutus-ledger-api
@@ -279,9 +411,6 @@ extra-deps:
       - prettyprinter-configurable
       - word-array
 
-  - git: https://github.com/input-output-hk/ekg-forward
-    commit: 297cd9db5074339a2fb2e5ae7d0780debb670c63
-
   - git: https://github.com/input-output-hk/cardano-config
     commit: 1646e9167fab36c0bff82317743b96efa2d3adaa
 
@@ -290,3 +419,11 @@ extra-deps:
 
   - git: https://github.com/input-output-hk/Win32-network
     commit: 3825d3abf75f83f406c1f7161883c438dac7277d
+
+    # Until https://github.com/tibbe/ekg-json/pull/12 gets merged with aeson2 support
+  - git: https://github.com/vshabanov/ekg-json
+    commit: 00ebe7211c981686e65730b7144fbf5350462608
+
+  - git: https://github.com/haskell-works/hw-aeson
+    commit: d99d2f3e39a287607418ae605b132a3deb2b753f
+

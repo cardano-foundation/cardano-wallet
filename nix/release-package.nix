@@ -47,7 +47,7 @@ pkgs.stdenv.mkDerivation {
     gnused
   ]
   ++ lib.optionals isMacOS [ darwin.cctools ]
-  ++ lib.optionals isWindows [ unzip wineMinimal ]
+  ++ lib.optionals isWindows [ unzip winePackages.minimal ]
   ++ lib.optional (stdenv.buildPlatform.libc == "glibc") glibcLocales;
 
   doCheck = true;
