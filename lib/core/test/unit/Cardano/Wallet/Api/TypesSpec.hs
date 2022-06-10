@@ -1388,7 +1388,8 @@ instance FromJSON SchemaApiErrorCode where
     parseJSON = withObject "SchemaApiErrorCode" $ \o -> do
         vals <- forM (fmap showConstr $ dataTypeConstrs $ dataTypeOf NoSuchWallet)
             $ \n -> do
-                (r :: Maybe Yaml.Value) <- o .:? Aeson.fromString (toSchemaName n)
+                (r :: Maybe Yaml.Value) <-
+                    o .:? Aeson.fromString (toSchemaName n)
                 pure $ maybe (Left n) Right r
         case lefts vals of
             [] -> pure SchemaApiErrorCode

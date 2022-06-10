@@ -279,7 +279,12 @@ instance ToJSON HandlerLog where
 sanitize :: [Text] -> ByteString -> Text
 sanitize keys bytes = encode' $ case decode' bytes of
     Just (Object o) ->
-        Object (Aeson.fromHashMap (foldr (HM.adjust obfuscate) (Aeson.toHashMap o) (map Aeson.fromText keys)))
+        Object
+            $ Aeson.fromHashMap
+            $ foldr
+                (HM.adjust obfuscate)
+                (Aeson.toHashMap o)
+                (map Aeson.fromText keys)
     Just v ->
         v
     Nothing ->

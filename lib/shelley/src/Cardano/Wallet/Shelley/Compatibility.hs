@@ -21,7 +21,6 @@
 {-# LANGUAGE TypeOperators #-}
 {-# LANGUAGE UndecidableInstances #-}
 
-
 -- Orphan instances for {Encode,Decode}Address until we get rid of the
 -- Jörmungandr dual support.
 {-# OPTIONS_GHC -fno-warn-orphans #-}

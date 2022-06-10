@@ -603,7 +603,6 @@ newTransactionLayer networkId = TransactionLayer
                     addressResolver inputResolver (body, wits)
                     & sealedTxFromCardano'
 
-
     , mkUnsignedTransaction = \era stakeXPub _pp ctx selection -> do
         let ttl   = txValidityInterval ctx
         let wdrl  = withdrawalToCoin $ view #txWithdrawal ctx
