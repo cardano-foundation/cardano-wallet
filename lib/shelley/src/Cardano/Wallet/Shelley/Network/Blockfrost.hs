@@ -93,7 +93,7 @@ import Cardano.Wallet.Primitive.Types
     , Block (..)
     , BlockHeader (..)
     , ChainPoint (..)
-    , DecentralizationLevel (..)
+    , DecentralizationLevel
     , DelegationCertificate (..)
     , EpochLength (EpochLength)
     , EpochNo (..)
@@ -118,6 +118,7 @@ import Cardano.Wallet.Primitive.Types
     , emptyEraInfo
     , executionMemory
     , executionSteps
+    , fromFederationPercentage
     , genesisParameters
     , getGenesisBlockDate
     , header
@@ -946,7 +947,7 @@ fromBlockfrostPP network BF.ProtocolParams{..} = do
                     throwError $
                         InvalidDecentralizationLevelPercentage
                             _protocolParamsDecentralisationParam
-                Right level -> pure $ DecentralizationLevel level
+                Right level -> pure $ fromFederationPercentage level
     minFeeA <-
         _protocolParamsMinFeeA <?#> "MinFeeA"
     minFeeB <-

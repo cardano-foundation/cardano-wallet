@@ -752,33 +752,12 @@ fromAlonzoPParams eraInfo currentNodeProtocolParameters pp =
 
 -- | Extract the current network decentralization level from the given set of
 -- protocol parameters.
---
--- According to the Design Specification for Delegation and Incentives in
--- Cardano, the decentralization parameter __/d/__ is a value in the range
--- '[0, 1]', where:
---
---   * __/d/__ = '1' indicates that the network is /completely federalized/.
---   * __/d/__ = '0' indicates that the network is /completely decentralized/.
---
--- However, in Cardano Wallet, we represent the decentralization level as a
--- percentage, where:
---
---   * '  0 %' indicates that the network is /completely federalized/.
---   * '100 %' indicates that the network is /completely decentralized/.
---
--- Therefore, we must invert the value provided by cardano-node before we
--- convert it into a percentage.
---
 decentralizationLevelFromPParams
     :: HasField "_d" pparams SL.UnitInterval
     => pparams
     -> W.DecentralizationLevel
 decentralizationLevelFromPParams pp =
-    W.DecentralizationLevel $ fromUnitInterval
-        -- We must invert the value provided: (see function comment)
-        $ invertUnitInterval d
-  where
-    d = getField @"_d" pp
+    W.fromFederationPercentage $ fromUnitInterval $ getField @"_d" pp
 
 executionUnitPricesFromPParams
     :: HasField "_prices" pparams Alonzo.Prices

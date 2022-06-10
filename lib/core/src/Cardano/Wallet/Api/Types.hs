@@ -304,7 +304,6 @@ import Cardano.Wallet.Primitive.SyncProgress
     ( SyncProgress (..) )
 import Cardano.Wallet.Primitive.Types
     ( ActiveSlotCoefficient (..)
-    , DecentralizationLevel (..)
     , EpochLength (..)
     , EpochNo (..)
     , ExecutionUnitPrices (..)
@@ -325,6 +324,7 @@ import Cardano.Wallet.Primitive.Types
     , WalletName (..)
     , decodePoolIdBech32
     , encodePoolIdBech32
+    , getDecentralizationLevel
     , unsafeEpochNo
     )
 import Cardano.Wallet.Primitive.Types.Address
@@ -1123,7 +1123,7 @@ toApiNetworkParameters (NetworkParameters gp sp pp) txConstraints toEpochInfo = 
             $ unActiveSlotCoefficient
             $ getActiveSlotCoefficient sp
         , decentralizationLevel = Quantity
-            $ unDecentralizationLevel
+            $ getDecentralizationLevel
             $ view #decentralizationLevel pp
         , desiredPoolNumber = view #desiredNumberOfStakePools pp
         , minimumUtxoValue = toApiCoin $ case (view #minimumUTxOvalue pp) of

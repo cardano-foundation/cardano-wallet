@@ -26,6 +26,7 @@ module Data.Quantity
     , mkPercentage
     , getPercentage
     , clipToPercentage
+    , complementPercentage
     , percentageToDouble
     ) where
 
@@ -220,6 +221,12 @@ data MkPercentageError
 -- out of bounds.
 clipToPercentage :: Rational -> Percentage
 clipToPercentage = Percentage . min 1 . max 0
+
+-- | The complement is the amount that is missing to make it 100%.
+--
+-- Example: The 'complementPercentage' of 0.7 is 0.3.
+complementPercentage :: Percentage -> Percentage
+complementPercentage (Percentage p) = Percentage (1-p)
 
 -- | Desired number of digits after the decimal point for presenting the
 -- @Percentage@ type.
