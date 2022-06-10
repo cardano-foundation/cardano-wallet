@@ -109,6 +109,7 @@ import Cardano.Wallet.Primitive.Types
     , SlotLength (SlotLength)
     , SlotNo (..)
     , SlottingParameters (..)
+    , StakePoolsSummary (..)
     , StartTime
     , TokenBundleMaxSize (..)
     , TxParameters (..)
@@ -186,6 +187,7 @@ import Data.Proxy
     ( Proxy (..) )
 import Data.Quantity
     ( MkPercentageError (PercentageOutOfBoundsError)
+    , Percentage
     , Quantity (..)
     , clipToPercentage
     , mkPercentage
@@ -233,6 +235,7 @@ import qualified Blockfrost.Client as BF
 import qualified Cardano.Api.Shelley as Node
 import qualified Cardano.Slotting.Time as ST
 import qualified Cardano.Wallet.Network.Light as LN
+import qualified Cardano.Wallet.Primitive.Types.Coin as Coin
 import qualified Cardano.Wallet.Shelley.Network.Blockfrost.Fixture as Fixture
 import qualified Data.Aeson as Aeson
 import qualified Data.HashMap.Strict as HashMap
@@ -259,6 +262,7 @@ data BlockfrostError
     | InvalidTxHash Text TextDecodingError
     | InvalidAddress Text TextDecodingError
     | InvalidPoolId Text TextDecodingError
+    | PoolStakePercentageError Coin Coin
     | InvalidDecentralizationLevelPercentage Double
     | InvalidUtxoInputAmount BF.UtxoInput
     | InvalidUtxoOutputAmount BF.UtxoOutput
@@ -324,7 +328,7 @@ withNetworkLayer tr network np project k = do
         , currentSlottingParameters = currentSlottingParameters bfConfig
         , watchNodeTip = subscribeNodeTip tipBroadcast
         , postTx = undefined
-        , stakeDistribution = undefined
+        , stakeDistribution = stakePoolsSummary bfConfig
         , getCachedRewardAccountBalance =
             getCachedRewardAccountBalance bfConfig
         , fetchRewardAccountBalances =
@@ -589,6 +593,37 @@ withNetworkLayer tr network np project k = do
             currentSlot = fromIntegral (unSlotNo s)
             percentage = currentSlot % latestSlot
         pure $ Syncing $ Quantity $ clipToPercentage percentage
+
+    stakePoolsSummary :: BF.ClientConfig -> Coin -> IO StakePoolsSummary
+    stakePoolsSummary bfConfig _coin = do
+        protocolParameters <- currentProtocolParameters bfConfig
+        runBFM bfConfig do
+            BF.Network{_networkStake = BF.NetworkStake{_stakeLive}} <-
+                BF.getNetworkInfo
+            totalLiveStake <- fromBlockfrostM _stakeLive
+            pools <- mapConcurrently BF.getPool =<< BF.listPools
+            stake <- poolsStake totalLiveStake pools
+            pure StakePoolsSummary
+                { nOpt = intCast $ desiredNumberOfStakePools protocolParameters
+                , rewards = Map.empty
+                -- TODO: Update to new `Cardano.Pool.Rank.StakePoolsSummary`
+                -- ADP-1509
+                , stake
+                }
+          where
+            poolsStake
+                :: MonadError BlockfrostError m
+                => Coin
+                -> [BF.PoolInfo]
+                -> m (Map PoolId Percentage)
+            poolsStake total = fmap Map.fromList . traverse \BF.PoolInfo{..} ->
+                (,) <$> fromBlockfrostM _poolInfoPoolId <*> do
+                    live <- fromBlockfrostM @_ @Coin _poolInfoLiveStake
+                    let ratio = Coin.toInteger live % Coin.toInteger total
+                    case mkPercentage ratio of
+                       Right percentage -> pure percentage
+                       Left PercentageOutOfBoundsError ->
+                           throwError $ PoolStakePercentageError total live
 
 fetchNextBlocks
     :: forall m
