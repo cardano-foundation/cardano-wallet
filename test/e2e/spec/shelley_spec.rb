@@ -416,7 +416,7 @@ RSpec.describe CardanoWallet::Shelley, :all, :shelley do
                                                              { "status" => "not_delegating" } })
     end
 
-    it "ADP-634 - Pool metadata is updated when settings are updated", :offchain do
+    it "ADP-634 - Pool metadata is updated when settings are updated", :offchain, :smash do
       settings = CardanoWallet.new.misc.settings
       pools = SHELLEY.stake_pools
 
