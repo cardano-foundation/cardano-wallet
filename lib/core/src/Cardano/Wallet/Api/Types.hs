@@ -2649,10 +2649,10 @@ instance FromJSON WalletPutPassphraseData where
     parseJSON  =
         fmap WalletPutPassphraseData . variants "PutPassphrase data"
             [ variant "old passphrase"
-                    (HM.member "old_passphrase")
+                    (Aeson.member "old_passphrase")
                     $ fmap Left <$> parseJSON
             , variant "mnemonic"
-                    (HM.member "mnemonic_sentence")
+                    (Aeson.member "mnemonic_sentence")
                     $ fmap Right <$> parseJSON
             ]
 

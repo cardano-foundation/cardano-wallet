@@ -231,7 +231,8 @@ import qualified Cardano.Wallet.Primitive.Types.Coin as Coin
 import qualified Cardano.Wallet.Shelley.Network.Blockfrost.Fixture as Fixture
 import qualified Cardano.Wallet.Shelley.Network.Blockfrost.Monad as BFM
 import qualified Data.Aeson as Aeson
-import qualified Data.HashMap.Strict as HashMap
+import qualified Data.Aeson.Key as Aeson
+import qualified Data.Aeson.KeyMap as Aeson
 import qualified Data.Map.Strict as Map
 import qualified Data.Sequence as Seq
 import qualified Data.Set as Set
@@ -855,10 +856,10 @@ assembleTransaction
 
 unmarshalMetadataValue :: Aeson.Value -> Either String TxMetadataValue
 unmarshalMetadataValue = \case
-    Aeson.Object hm ->
+    Aeson.Object km ->
         TxMetaMap <$> for
-            (HashMap.toList hm)
-            (bitraverse (unmarshalMetadataValue . Aeson.String)
+            (Aeson.toList km)
+            (bitraverse (unmarshalMetadataValue . Aeson.String . Aeson.toText)
                 unmarshalMetadataValue)
     Aeson.Array vec ->
         TxMetaList . V.toList <$> for vec unmarshalMetadataValue
