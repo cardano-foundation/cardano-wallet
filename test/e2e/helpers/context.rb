@@ -6,7 +6,7 @@
 #     WalletFactory.delete(:shelley, wid)
 #  end
 class Context
-  attr_accessor :shelley, :shared, :byron
+  attr_accessor :env, :shelley, :shared, :byron
   def initialize
     clear!
   end

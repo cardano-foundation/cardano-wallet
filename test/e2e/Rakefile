@@ -5,7 +5,6 @@ require_relative "helpers/utils"
 
 include Helpers::Utils
 
-RSpec::Core::RakeTask.new(:spec)
 
 STATE = absolute_path ENV['TESTS_E2E_STATEDIR']
 CONFIGS = absolute_path ENV['CARDANO_NODE_CONFIGS']
@@ -25,6 +24,7 @@ WALLET_PORT = ENV['WALLET_PORT']
 path_separator = is_win? ? ';' : ':'
 ENV['PATH'] = "#{BINS}#{path_separator}#{ENV['PATH']}"
 
+RSpec::Core::RakeTask.new(:spec)
 task :default => :spec
 
 task :secrets_encode do
