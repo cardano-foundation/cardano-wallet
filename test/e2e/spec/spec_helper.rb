@@ -157,7 +157,7 @@ def wait_for_shared_wallet_to_sync(wid)
   puts "Syncing Shared wallet..."
   retry_count = 10
   begin
-    while (SHARED.wallets.get(wid)['state']['status'] == "syncing") do
+    while (SHARED.wallets.get(wid)['state']['status'].to_s == "syncing") do
       w = SHARED.wallets.get(wid)
       puts "  Syncing... #{w['state']['progress']['quantity']}%" if w['state']['progress']
       sleep 5
@@ -192,7 +192,7 @@ def wait_for_shelley_wallet_to_sync(wid)
   puts "Syncing Shelley wallet..."
   retry_count = 10
   begin
-    while (SHELLEY.wallets.get(wid)['state']['status'] == "syncing") do
+    while (SHELLEY.wallets.get(wid)['state']['status'].to_s == "syncing") do
       w = SHELLEY.wallets.get(wid)
       puts "  Syncing... #{w['state']['progress']['quantity']}%" if w['state']['progress']
       sleep 5
@@ -227,7 +227,7 @@ def wait_for_byron_wallet_to_sync(wid)
   puts "Syncing Byron wallet..."
   retry_count = 10
   begin
-    while (BYRON.wallets.get(wid)['state']['status'] == "syncing") do
+    while (BYRON.wallets.get(wid)['state']['status'].to_s == "syncing") do
       w = BYRON.wallets.get(wid)
       puts "  Syncing... #{w['state']['progress']['quantity']}%" if w['state']['progress']
       sleep 5
