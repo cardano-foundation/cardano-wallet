@@ -170,7 +170,6 @@ import Test.QuickCheck
     , Large (..)
     , NonNegative (..)
     , Positive (..)
-    , Small (..)
     , arbitrary
     , choose
     , chooseInt
