@@ -383,7 +383,7 @@ haskell-nix: haskell-nix.cabalProject' [
           # Musl libc fully static build
           (lib.optionalAttrs stdenv.hostPlatform.isMusl (
             let
-              staticLibs = with pkgs; [ zlib openssl libffi gmp6 libsodium-vrf pkgs.secp256k1 ];
+              staticLibs = with pkgs; [ zlib openssl libffi gmp6 pkgs.secp256k1 ];
 
               # Module options which add GHC flags and libraries for a fully static build
               fullyStaticOptions = {
