@@ -1,6 +1,7 @@
 Usage:  transaction create [--port INT] WALLET_ID
                            (--payment PAYMENT) [--metadata JSON] 
                            [--ttl DURATION]
+
   Create and submit a new transaction.
 
 Available options:

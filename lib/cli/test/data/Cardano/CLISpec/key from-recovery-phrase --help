@@ -1,4 +1,5 @@
 Usage:  key from-recovery-phrase STYLE
+
   Convert a recovery phrase to an extended private key
 
 Available options:

@@ -5,6 +5,7 @@ require an active server and can be run offline (e.g.
 'recovery-phrase generate').
 
 Usage:  COMMAND
+
   Cardano Wallet Command-Line Interface (CLI)
 
 Available options:
