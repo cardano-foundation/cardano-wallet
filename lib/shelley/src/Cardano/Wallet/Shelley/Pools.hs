@@ -1,10 +1,8 @@
-{-# OPTIONS_GHC -Wno-unrecognised-pragmas #-}
-
+{-# LANGUAGE BlockArguments #-}
 {-# LANGUAGE DataKinds #-}
 {-# LANGUAGE DeriveGeneric #-}
 {-# LANGUAGE DuplicateRecordFields #-}
 {-# LANGUAGE LambdaCase #-}
-{-# LANGUAGE MultiWayIf #-}
 {-# LANGUAGE NamedFieldPuns #-}
 {-# LANGUAGE NumericUnderscores #-}
 {-# LANGUAGE OverloadedLabels #-}
@@ -24,23 +22,34 @@
 -- as provided through @StakePoolLayer@.
 module Cardano.Wallet.Shelley.Pools
     ( StakePoolLayer (..)
+    , withBlockfrostStakePoolLayer
+    , withNodeStakePoolLayer
+    , withStakePoolDbLayer
     , newStakePoolLayer
     , monitorStakePools
     , monitorMetadata
 
     -- * Logs
     , StakePoolLog (..)
+
+    -- * Internal, for testing:
+    , _getPoolLifeCycleStatus
+    , _knownPools
     )
     where
 
 import Prelude
 
+import Blockfrost.Client
+    ( TransactionPoolRetiring (_transactionPoolRetiringCertIndex) )
 import Cardano.BM.Data.Severity
     ( Severity (..) )
 import Cardano.BM.Data.Tracer
     ( HasPrivacyAnnotation (..), HasSeverityAnnotation (..) )
 import Cardano.Pool.DB
     ( DBLayer (..), ErrPointAlreadyExists (..), readPoolLifeCycleStatus )
+import Cardano.Pool.DB.Log
+    ( PoolDbLog )
 import Cardano.Pool.Metadata
     ( Manager
     , StakePoolMetadataFetchLog
@@ -65,6 +74,7 @@ import Cardano.Wallet.Primitive.Slotting
     , TimeInterpreter
     , epochOf
     , interpretQuery
+    , neverFails
     , unsafeExtendSafeZone
     )
 import Cardano.Wallet.Primitive.Types
@@ -80,6 +90,7 @@ import Cardano.Wallet.Primitive.Types
     , PoolLifeCycleStatus (..)
     , PoolMetadataGCStatus (..)
     , PoolMetadataSource (..)
+    , PoolOwner (PoolOwner)
     , PoolRegistrationCertificate (..)
     , PoolRetirementCertificate (..)
     , Settings (..)
@@ -88,13 +99,17 @@ import Cardano.Wallet.Primitive.Types
     , SlottingParameters (..)
     , StakePoolMetadata
     , StakePoolMetadataHash
+    , StakePoolMetadataUrl (StakePoolMetadataUrl)
     , StakePoolsSummary (..)
+    , decodePoolIdBech32
     , getPoolRegistrationCertificate
     , getPoolRetirementCertificate
     , unSmashServer
     )
 import Cardano.Wallet.Primitive.Types.Coin
     ( Coin (..) )
+import Cardano.Wallet.Primitive.Types.RewardAccount
+    ( unRewardAccount )
 import Cardano.Wallet.Registry
     ( AfterThreadLog, traceAfterThread )
 import Cardano.Wallet.Shelley.Compatibility
@@ -106,14 +121,34 @@ import Cardano.Wallet.Shelley.Compatibility
     , getProducer
     , toShelleyBlockHeader
     )
+import Cardano.Wallet.Shelley.Network.Blockfrost.Conversion
+    ( fromBfLovelaces
+    , fromBfStakeAddress
+    , percentageFromDouble
+    , stakePoolMetadataHashFromText
+    )
+import Cardano.Wallet.Shelley.Network.Blockfrost.Error
+    ( BlockfrostError (..) )
+import Cardano.Wallet.Shelley.Network.Blockfrost.Monad
+    ( BFM )
+import Cardano.Wallet.Shelley.Network.Discriminant
+    ( SomeNetworkDiscriminant (..) )
 import Cardano.Wallet.Unsafe
     ( unsafeMkPercentage )
 import Control.Monad
-    ( forM, forM_, forever, void, when )
+    ( forM, forM_, forever, join, void, when, (>=>) )
+import Control.Monad.Cont
+    ( ContT (ContT) )
+import Control.Monad.Error.Class
+    ( throwError )
 import Control.Monad.IO.Class
     ( liftIO )
+import Control.Monad.Trans.Class
+    ( lift )
 import Control.Monad.Trans.Except
     ( ExceptT (..), runExceptT )
+import Control.Monad.Trans.Maybe
+    ( MaybeT (MaybeT), runMaybeT )
 import Control.Monad.Trans.State
     ( State, evalState, state )
 import Control.Retry
@@ -122,8 +157,12 @@ import Control.Tracer
     ( Tracer, contramap, traceWith )
 import Data.Bifunctor
     ( first )
+import Data.Foldable
+    ( find )
 import Data.Function
     ( (&) )
+import Data.Functor
+    ( (<&>) )
 import Data.Generics.Internal.VL.Lens
     ( view )
 import Data.List
@@ -138,6 +177,8 @@ import Data.Maybe
     ( fromMaybe, mapMaybe )
 import Data.Ord
     ( Down (..) )
+import Data.Proxy
+    ( Proxy (..) )
 import Data.Quantity
     ( Percentage (..), Quantity (..) )
 import Data.Set
@@ -146,6 +187,8 @@ import Data.Text.Class
     ( ToText (..) )
 import Data.Time.Clock.POSIX
     ( getPOSIXTime, posixDayLength )
+import Data.Traversable
+    ( for )
 import Data.Tuple.Extra
     ( dupe )
 import Data.Void
@@ -158,25 +201,34 @@ import GHC.Generics
     ( Generic )
 import Ouroboros.Consensus.Cardano.Block
     ( CardanoBlock, HardForkBlock (..) )
+import System.Exit
+    ( ExitCode )
 import System.Random
     ( RandomGen, random )
 import UnliftIO.Concurrent
-    ( forkFinally, killThread, threadDelay )
+    ( forkFinally, forkIOWithUnmask, killThread, threadDelay )
 import UnliftIO.Exception
     ( finally )
 import UnliftIO.IORef
     ( IORef, newIORef, readIORef, writeIORef )
+import UnliftIO.MVar
+    ( modifyMVar_, newMVar )
 import UnliftIO.STM
     ( TBQueue
     , TVar
     , newTBQueue
+    , newTVarIO
     , readTBQueue
     , readTVarIO
     , writeTBQueue
     , writeTVar
     )
 
+import qualified Blockfrost.Client as BF
+import qualified Cardano.Pool.DB as PoolDb
+import qualified Cardano.Pool.DB.Sqlite as Pool
 import qualified Cardano.Wallet.Api.Types as Api
+import qualified Cardano.Wallet.Shelley.Network.Blockfrost.Monad as BFM
 import qualified Data.List as L
 import qualified Data.List.NonEmpty as NE
 import qualified Data.Map.Merge.Strict as Map
@@ -184,17 +236,11 @@ import qualified Data.Map.Strict as Map
 import qualified Data.Set as Set
 import qualified UnliftIO.STM as STM
 
---
--- Stake Pool Layer
---
 
 data StakePoolLayer = StakePoolLayer
-    { getPoolLifeCycleStatus
-        :: PoolId
-        -> IO PoolLifeCycleStatus
+    { getPoolLifeCycleStatus :: PoolId -> IO PoolLifeCycleStatus
 
-    , knownPools
-        :: IO (Set PoolId)
+    , knownPools :: IO (Set PoolId)
 
     -- | List pools based given the the amount of stake the user intends to
     --   delegate, which affects the size of the rewards and the ranking of
@@ -204,8 +250,7 @@ data StakePoolLayer = StakePoolLayer
     -- epoch will be excluded from the result.
     --
     , listStakePools
-        :: EpochNo
-        -- Exclude all pools that retired in or before this epoch.
+        :: EpochNo -- Exclude all pools that retired in or before this epoch.
         -> Coin
         -> IO [Api.ApiStakePool]
 
@@ -218,6 +263,140 @@ data StakePoolLayer = StakePoolLayer
     , getGCMetadataStatus :: IO PoolMetadataGCStatus
     }
 
+withNodeStakePoolLayer
+    :: Tracer IO StakePoolLog
+    -> Maybe Settings
+    -> PoolDb.DBLayer IO
+    -> NetworkParameters
+    -> NetworkLayer IO (CardanoBlock StandardCrypto)
+    -> ContT ExitCode IO StakePoolLayer
+withNodeStakePoolLayer tr settings dbLayer@DBLayer{..} netParams netLayer = lift do
+    gcStatus <- newTVarIO NotStarted
+    forM_ settings $ atomically . putSettings
+    void $ forkFinally
+        (monitorStakePools tr netParams netLayer dbLayer)
+        (traceAfterThread (contramap MsgExitMonitoring tr))
+
+    -- fixme: needs to be simplified as part of ADP-634
+    let NetworkParameters{slottingParameters} = netParams
+        startMetadataThread = forkIOWithUnmask
+            ($ monitorMetadata gcStatus tr slottingParameters dbLayer)
+    metadataThread <- newMVar =<< startMetadataThread
+    let restartMetadataThread = modifyMVar_ metadataThread $
+            killThread >=> const startMetadataThread
+    newStakePoolLayer gcStatus netLayer dbLayer restartMetadataThread
+
+withStakePoolDbLayer
+    :: Tracer IO PoolDbLog
+    -> Maybe FilePath
+    -> Maybe (Pool.DBDecorator IO)
+    -> NetworkLayer IO block
+    -> ContT r IO (PoolDb.DBLayer IO)
+withStakePoolDbLayer poolDbTracer databaseDir poolDbDecorator netLayer =
+    ContT $ Pool.withDecoratedDBLayer
+        (fromMaybe Pool.undecoratedDB poolDbDecorator)
+        poolDbTracer
+        (Pool.defaultFilePath <$> databaseDir)
+        (neverFails "withPoolsMonitoring never forecasts into the future" $
+            timeInterpreter netLayer)
+
+withBlockfrostStakePoolLayer
+    :: Tracer IO StakePoolLog
+    -> BF.Project
+    -> SomeNetworkDiscriminant
+    -> ContT r IO StakePoolLayer
+withBlockfrostStakePoolLayer _tr project network = do
+    bfConfig <- lift (BFM.newClientConfig project)
+    ContT \k -> k StakePoolLayer
+        { getPoolLifeCycleStatus = _getPoolLifeCycleStatus bfConfig network
+        , knownPools = _knownPools bfConfig
+        , listStakePools = \_epochNo _coin -> pure []
+        , forceMetadataGC = pure ()
+        , putSettings = \_settings -> pure ()
+        , getSettings = pure $ Settings FetchNone
+        , getGCMetadataStatus = pure NotApplicable
+        }
+
+_getPoolLifeCycleStatus
+    :: BF.ClientConfig
+    -> SomeNetworkDiscriminant
+    -> PoolId
+    -> IO PoolLifeCycleStatus
+_getPoolLifeCycleStatus
+    cfg network@(SomeNetworkDiscriminant (Proxy :: Proxy nd)) poolId =
+        BFM.run cfg do
+            let bfPoolId = BF.PoolId (toText poolId)
+            poolUpdates <- BF.allPages \paged ->
+                BF.getPoolUpdates' bfPoolId paged BF.Descending
+            case poolUpdates of
+                [] -> pure PoolNotRegistered
+                lastUpdate : otherUpdates ->
+                    case BF._poolUpdateAction lastUpdate of
+                        BF.PoolRegistered ->
+                            PoolRegistered <$> poolRegCert lastUpdate
+                        BF.PoolDeregistered ->
+                            case findRegCert otherUpdates of
+                                Just regCertUpdate ->
+                                    PoolRegisteredAndRetired
+                                        <$> poolRegCert regCertUpdate
+                                        <*> poolDeregCert lastUpdate
+                                Nothing -> throwError $
+                                    PoolRegistrationIsMissing poolId
+
+  where
+    findRegCert :: [BF.PoolUpdate] -> Maybe BF.PoolUpdate
+    findRegCert = find \upd -> BF._poolUpdateAction upd == BF.PoolRegistered
+
+    poolRegCert :: BF.PoolUpdate -> BFM PoolRegistrationCertificate
+    poolRegCert update@BF.PoolUpdate{..} = do
+        let byIdx tpu = BF._transactionPoolUpdateCertIndex tpu
+                == _poolUpdateCertIndex
+        poolUpdates <- BF.getTxPoolUpdates _poolUpdateTxHash
+        case find byIdx poolUpdates of
+            Just BF.TransactionPoolUpdate{..} -> do
+                poolOwners <- for _transactionPoolUpdateOwners do
+                    (PoolOwner . unRewardAccount <$>) . fromBfStakeAddress network
+                poolMargin <-
+                    percentageFromDouble _transactionPoolUpdateMarginCost
+                poolCost <-
+                    fromBfLovelaces _transactionPoolUpdateFixedCost
+                poolPledge <-
+                    fromBfLovelaces _transactionPoolUpdatePledge
+                poolMetadata <-
+                    join <$> for _transactionPoolUpdateMetadata
+                        \BF.PoolUpdateMetadata{..} -> runMaybeT do
+                            url <- MaybeT . pure $
+                                StakePoolMetadataUrl <$> _poolUpdateMetadataUrl
+                            hash <- MaybeT do
+                                for _poolUpdateMetadataHash
+                                    stakePoolMetadataHashFromText
+                            pure (url, hash)
+                pure PoolRegistrationCertificate{..}
+            Nothing ->
+                throwError $ PoolUpdateCertificateNotFound poolId update
+
+    poolDeregCert :: BF.PoolUpdate -> BFM PoolRetirementCertificate
+    poolDeregCert update@BF.PoolUpdate{..} = do
+        poolRetiring <-
+            BF.getTxPoolRetiring _poolUpdateTxHash <&> find \r ->
+                _transactionPoolRetiringCertIndex r == _poolUpdateCertIndex
+        case poolRetiring of
+            Just BF.TransactionPoolRetiring{..} -> do
+                pure PoolRetirementCertificate
+                    { poolId
+                    , retirementEpoch =
+                        fromIntegral _transactionPoolRetiringRetiringEpoch
+                    }
+            Nothing ->
+                throwError $ PoolRetirementCertificateNotFound poolId update
+
+_knownPools :: BF.ClientConfig -> IO (Set PoolId)
+_knownPools bfConfig = Set.fromList <$> BFM.run bfConfig do
+    -- BF.listPools returns only 100 items (1 page) but we want all pages
+    BF.allPages (`BF.listPools'` BF.Ascending) >>=
+        traverse \(BF.PoolId poolId) -> decodePoolIdBech32 poolId
+            & either (throwError . InvalidPoolId poolId) pure
+
 newStakePoolLayer
     :: forall sc. ()
     => TVar PoolMetadataGCStatus
@@ -225,8 +404,8 @@ newStakePoolLayer
     -> DBLayer IO
     -> IO ()
     -> IO StakePoolLayer
-newStakePoolLayer gcStatus nl db@DBLayer {..} restartSyncThread = do
-    pure $ StakePoolLayer
+newStakePoolLayer gcStatus nl db@DBLayer{..} restartSyncThread =
+    pure StakePoolLayer
         { getPoolLifeCycleStatus = _getPoolLifeCycleStatus
         , knownPools = _knownPools
         , listStakePools = _listPools
@@ -236,36 +415,31 @@ newStakePoolLayer gcStatus nl db@DBLayer {..} restartSyncThread = do
         , getGCMetadataStatus = _getGCMetadataStatus
         }
   where
-    _getPoolLifeCycleStatus
-        :: PoolId -> IO PoolLifeCycleStatus
-    _getPoolLifeCycleStatus pid =
-        liftIO $ atomically $ readPoolLifeCycleStatus pid
+    _getPoolLifeCycleStatus :: PoolId -> IO PoolLifeCycleStatus
+    _getPoolLifeCycleStatus pid = atomically $ readPoolLifeCycleStatus pid
 
-    _knownPools
-        :: IO (Set PoolId)
-    _knownPools =
-        Set.fromList <$> liftIO (atomically listRegisteredPools)
+    _knownPools :: IO (Set PoolId)
+    _knownPools = Set.fromList <$> liftIO (atomically listRegisteredPools)
+
+    _getSettings :: IO Settings
+    _getSettings = atomically readSettings
 
     _putSettings :: Settings -> IO ()
-    _putSettings settings = do
-        atomically (gcMetadata >> putSettings settings)
-        restartSyncThread
-
+    _putSettings settings =
+        atomically (gcMetadata >> putSettings settings) *> restartSyncThread
       where
         -- clean up metadata table if the new sync settings suggests so
         gcMetadata = do
             oldSettings <- readSettings
-            case (poolMetadataSource oldSettings, poolMetadataSource settings) of
-                (_, FetchNone) -> -- this is necessary if it's e.g. the first time
-                                  -- we start the server with the new feature
-                                  -- and the database has still stuff in it
+            case ( poolMetadataSource oldSettings
+                 , poolMetadataSource settings ) of
+                (_, FetchNone) ->
+                    -- this is necessary if it's e.g. the first time
+                    -- we start the server with the new feature
+                    -- and the database has still stuff in it
                     removePoolMetadata
-                (old, new)
-                    | old /= new -> removePoolMetadata
+                (old, new) | old /= new -> removePoolMetadata
                 _ -> pure ()
-
-    _getSettings :: IO Settings
-    _getSettings = liftIO $ atomically readSettings
 
     _listPools
         :: EpochNo
@@ -273,17 +447,14 @@ newStakePoolLayer gcStatus nl db@DBLayer {..} restartSyncThread = do
         -> Coin
         -> IO [Api.ApiStakePool]
     _listPools currentEpoch userStake = do
-        rawLsqData <- liftIO $ stakeDistribution nl userStake
-        let lsqData = combineLsqData rawLsqData
-        dbData <- liftIO $ readPoolDbData db currentEpoch
-        seed <- liftIO $ atomically readSystemSeed
-        liftIO $ sortByReward seed
-            . map snd
-            . Map.toList
-            <$> combineDbAndLsqData
+        rawLsqData <- stakeDistribution nl userStake
+        dbData <- readPoolDbData db currentEpoch
+        seed <- atomically readSystemSeed
+        sortByReward seed . map snd . Map.toList <$>
+            combineDbAndLsqData
                 (timeInterpreter nl)
                 (nOpt rawLsqData)
-                lsqData
+                (combineLsqData rawLsqData)
                 dbData
       where
         -- Sort by non-myopic member rewards, making sure to also randomly sort
@@ -406,7 +577,7 @@ combineDbAndLsqData ti nOpt lsqData =
             (interpretQuery (unsafeExtendSafeZone ti) . toApiEpochInfo)
             mRetirementEpoch
         pure $ Api.ApiStakePool
-            { Api.id = (ApiT pid)
+            { Api.id = ApiT pid
             , Api.metrics = Api.ApiStakePoolMetrics
                 { Api.nonMyopicMemberRewards = Api.coinToQuantity prew
                 , Api.relativeStake = Quantity pstk
@@ -442,7 +613,7 @@ combineLsqData StakePoolsSummary{nOpt, rewards, stake} =
     Map.merge stakeButNoRewards rewardsButNoStake bothPresent stake rewards
   where
     -- calculate the saturation from the relative stake
-    sat s = fromRational $ (getPercentage s) / (1 / fromIntegral nOpt)
+    sat s = fromRational $ getPercentage s / (1 / fromIntegral nOpt)
 
     -- If we fetch non-myopic member rewards of pools using the wallet
     -- balance of 0, the resulting map will be empty. So we set the rewards
@@ -484,7 +655,7 @@ combineChainData registrationMap retirementMap prodMap metaMap delistedSet =
             registrationMap
             prodMap
   where
-    registeredNoProductions = traverseMissing $ \_k cert ->
+    registeredNoProductions = traverseMissing $ \_k cert ->
         pure (cert, Quantity 0)
 
     -- Ignore blocks produced by BFT nodes.
@@ -583,7 +754,7 @@ monitorStakePools tr (NetworkParameters gp sp _pp) nl DBLayer{..} =
         -> NonEmpty (CardanoBlock StandardCrypto)
         -> BlockHeader
         -> IO ()
-    forward latestGarbageCollectionEpochRef blocks _ = do
+    forward latestGarbageCollectionEpochRef blocks _ =
         atomically $ forAllAndLastM blocks forAllBlocks forLastBlock
       where
         forAllBlocks = \case
@@ -711,7 +882,7 @@ monitorMetadata
     -> SlottingParameters
     -> DBLayer IO
     -> IO ()
-monitorMetadata gcStatus tr sp db@(DBLayer{..}) = do
+monitorMetadata gcStatus tr sp db@DBLayer{..} = do
     settings <- atomically readSettings
     manager <- newManager defaultManagerSettings
 
@@ -733,27 +904,27 @@ monitorMetadata gcStatus tr sp db@(DBLayer{..}) = do
 
         _ -> pure NoSmashConfigured
 
-    if  | health == Available || health == NoSmashConfigured -> do
-            case poolMetadataSource settings of
-                FetchNone -> do
-                    STM.atomically $ writeTVar gcStatus NotApplicable
+    if health == Available || health == NoSmashConfigured
+    then do
+        case poolMetadataSource settings of
+            FetchNone -> do
+                STM.atomically $ writeTVar gcStatus NotApplicable
 
-                FetchDirect -> do
-                    STM.atomically $ writeTVar gcStatus NotApplicable
-                    void $ fetchMetadata manager [identityUrlBuilder]
+            FetchDirect -> do
+                STM.atomically $ writeTVar gcStatus NotApplicable
+                void $ fetchMetadata manager [identityUrlBuilder]
 
-                FetchSMASH (unSmashServer -> uri) -> do
-                    STM.atomically $ writeTVar gcStatus NotStarted
-                    let getDelistedPools =
-                            fetchDelistedPools trFetch uri manager
-                    tid <- forkFinally
-                        (gcDelistedPools gcStatus tr db getDelistedPools)
-                        (traceAfterThread (contramap MsgGCThreadExit tr))
-                    void $ fetchMetadata manager [registryUrlBuilder uri]
-                        `finally` killThread tid
-
-        | otherwise ->
-            traceWith tr MsgSMASHUnreachable
+            FetchSMASH (unSmashServer -> uri) -> do
+                STM.atomically $ writeTVar gcStatus NotStarted
+                let getDelistedPools =
+                        fetchDelistedPools trFetch uri manager
+                tid <- forkFinally
+                    (gcDelistedPools gcStatus tr db getDelistedPools)
+                    (traceAfterThread (contramap MsgGCThreadExit tr))
+                void $ fetchMetadata manager [registryUrlBuilder uri]
+                    `finally` killThread tid
+    else
+        traceWith tr MsgSMASHUnreachable
   where
     trFetch = contramap MsgFetchPoolMetadata tr
 
@@ -769,7 +940,7 @@ monitorMetadata gcStatus tr sp db@(DBLayer{..}) = do
             when (null refs) $ do
                 traceWith tr $ MsgFetchTakeBreak blockFrequency
                 threadDelay blockFrequency
-            forM refs $ \k@(pid, url, hash) -> k <$ withAvailableSeat inFlights (do
+            forM refs $ \k@(pid, url, hash) -> k <$ withAvailableSeat inFlights (
                 fetchFromRemote trFetch strategies manager pid url hash >>= \case
                     Nothing ->
                         atomically $ do

@@ -1,12 +1,10 @@
 {-# LANGUAGE ApplicativeDo #-}
 {-# LANGUAGE BlockArguments #-}
 {-# LANGUAGE DataKinds #-}
-{-# LANGUAGE DeriveAnyClass #-}
 {-# LANGUAGE DerivingStrategies #-}
 {-# LANGUAGE FlexibleContexts #-}
 {-# LANGUAGE FlexibleInstances #-}
 {-# LANGUAGE GADTs #-}
-{-# LANGUAGE GeneralizedNewtypeDeriving #-}
 {-# LANGUAGE LambdaCase #-}
 {-# LANGUAGE MultiParamTypeClasses #-}
 {-# LANGUAGE NamedFieldPuns #-}
@@ -24,17 +22,13 @@
 --
 -- Network Layer implementation that uses Blockfrost API
 module Cardano.Wallet.Shelley.Network.Blockfrost
-  ( withNetworkLayer,
-    Log,
+    ( withNetworkLayer,
+        Log,
 
-    -- * Internal
-    getPoolPerformanceEstimate,
-    eraByEpoch,
-    newClientConfig,
-    BFM (..),
-    runBFM,
-    BlockfrostError (..),
-  )
+        -- * Internal
+        getPoolPerformanceEstimate,
+        eraByEpoch
+    )
 where
 
 import Prelude
@@ -64,7 +58,7 @@ import Cardano.Pool.Rank.Likelihood
 import Cardano.Slotting.Slot
     ( unEpochSize )
 import Cardano.Wallet.Api.Types
-    ( decodeAddress, decodeStakeAddress, encodeAddress, encodeStakeAddress )
+    ( decodeStakeAddress, encodeAddress, encodeStakeAddress )
 import Cardano.Wallet.Logging
     ( BracketLog, bracketTracer )
 import Cardano.Wallet.Network
@@ -138,36 +132,34 @@ import Cardano.Wallet.Primitive.Types.TokenBundle
     ( TokenBundle (..) )
 import Cardano.Wallet.Primitive.Types.Tx
     ( Tx (..), TxIn (..), TxOut (..), TxScriptValidity (..), TxSize (..) )
+import Cardano.Wallet.Shelley.Network.Blockfrost.Conversion
+    ( fromBfAddress, fromBfLovelaces )
+import Cardano.Wallet.Shelley.Network.Blockfrost.Error
+    ( BlockfrostError (..), (<?#>), (<?>) )
+import Cardano.Wallet.Shelley.Network.Blockfrost.Monad
+    ( BFM )
 import Cardano.Wallet.Shelley.Network.Discriminant
     ( SomeNetworkDiscriminant (..), networkDiscriminantToId )
 import Control.Concurrent
     ( threadDelay )
 import Control.Concurrent.Async.Lifted
     ( concurrently, forConcurrently, mapConcurrently )
-import Control.Exception
-    ( throwIO )
 import Control.Monad
-    ( forever, join, unless, (<=<) )
-import Control.Monad.Base
-    ( MonadBase )
+    ( forever, join, unless )
 import Control.Monad.Error.Class
-    ( MonadError (catchError), liftEither, throwError )
+    ( MonadError, liftEither, throwError )
 import Control.Monad.IO.Class
     ( MonadIO (liftIO) )
-import Control.Monad.Reader
-    ( MonadReader, ReaderT (runReaderT), ask, asks )
 import Control.Monad.Trans.Control
     ( MonadBaseControl )
 import Control.Monad.Trans.Except
-    ( ExceptT (..), runExceptT )
+    ( ExceptT (..) )
 import Data.Align
     ( align )
 import Data.Bifunctor
     ( first )
 import Data.Bitraversable
     ( bitraverse )
-import Data.Bits
-    ( Bits )
 import Data.Function
     ( (&) )
 import Data.Functor
@@ -175,7 +167,7 @@ import Data.Functor
 import Data.Functor.Contravariant
     ( (>$<) )
 import Data.IntCast
-    ( intCast, intCastMaybe )
+    ( intCast )
 import Data.List
     ( partition )
 import Data.List.NonEmpty
@@ -202,7 +194,7 @@ import Data.Set
 import Data.Text
     ( Text )
 import Data.Text.Class
-    ( FromText (fromText), TextDecodingError (..), ToText (..) )
+    ( FromText (fromText), ToText (..) )
 import Data.These
     ( These (That, These, This) )
 import Data.Traversable
@@ -211,24 +203,16 @@ import Fmt
     ( pretty )
 import GHC.OldList
     ( sortOn )
-import Money
-    ( Discrete' )
-import Network.HTTP.Types
-    ( status404 )
 import Ouroboros.Consensus.Cardano.Block
     ( CardanoBlock, StandardCrypto )
 import Ouroboros.Consensus.HardFork.History.EraParams
     ( EraParams (..), SafeZone (StandardSafeZone, UnsafeIndefiniteSafeZone) )
 import Ouroboros.Consensus.HardFork.History.Summary
     ( Bound (..), EraEnd (..), EraSummary (..), Summary (..) )
-import Servant.Client
-    ( runClientM )
 import Text.Read
     ( readEither )
 import UnliftIO.Async
     ( async, link )
-import UnliftIO.Exception
-    ( Exception )
 import UnliftIO.STM
     ( TChan
     , atomically
@@ -245,6 +229,7 @@ import qualified Cardano.Slotting.Time as ST
 import qualified Cardano.Wallet.Network.Light as LN
 import qualified Cardano.Wallet.Primitive.Types.Coin as Coin
 import qualified Cardano.Wallet.Shelley.Network.Blockfrost.Fixture as Fixture
+import qualified Cardano.Wallet.Shelley.Network.Blockfrost.Monad as BFM
 import qualified Data.Aeson as Aeson
 import qualified Data.HashMap.Strict as HashMap
 import qualified Data.Map.Strict as Map
@@ -254,32 +239,10 @@ import qualified Data.Text as T
 import qualified Data.Vector as V
 import qualified Ouroboros.Consensus.HardFork.History.Qry as HF
 import qualified Ouroboros.Consensus.Util.Counting as UC
-import qualified Servant.Client as Servant
 
 {-------------------------------------------------------------------------------
     NetworkLayer
 -------------------------------------------------------------------------------}
-
-data BlockfrostError
-    = ClientError Servant.ClientError
-    | NoSlotError BF.Block
-    | IntegralCastError String
-    | InvalidBlockHash BF.BlockHash TextDecodingError
-    | InvalidTxMetadataLabel String
-    | InvalidTxMetadataValue String
-    | InvalidTxHash Text TextDecodingError
-    | InvalidAddress Text TextDecodingError
-    | InvalidPoolId Text TextDecodingError
-    | PoolStakePercentageError Coin Coin
-    | InvalidDecentralizationLevelPercentage Double
-    | InvalidUtxoInputAmount BF.UtxoInput
-    | InvalidUtxoOutputAmount BF.UtxoOutput
-    | UnknownEraForEpoch EpochNo
-    deriving (Show, Eq)
-
-newtype BlockfrostException = BlockfrostException BlockfrostError
-    deriving stock (Show)
-    deriving anyclass (Exception)
 
 data Log
     = MsgTipReceived BlockHeader
@@ -387,7 +350,7 @@ withNetworkLayer
     -> (NetworkLayer IO (CardanoBlock StandardCrypto) -> IO a)
     -> IO a
 withNetworkLayer tr network np project k = do
-    bfConfig <- newClientConfig project
+    bfConfig <- BFM.newClientConfig project
     tipBroadcast <- newBroadcastTChanIO
     link =<< async (pollNodeTip bfConfig tipBroadcast)
     k NetworkLayer
@@ -416,7 +379,7 @@ withNetworkLayer tr network np project k = do
 
     currentNodeTip :: BF.ClientConfig -> IO BlockHeader
     currentNodeTip bfConfig = do
-        tip <- runBFM bfConfig $ fromBlockfrostM =<< BF.getLatestBlock
+        tip <- BFM.run bfConfig $ fromBlockfrostM =<< BF.getLatestBlock
         traceWith tr $ MsgFetchedLatestBlockHeader tip
         pure tip
 
@@ -424,7 +387,7 @@ withNetworkLayer tr network np project k = do
     pollNodeTip bfConfig nodeTip = do
         lastTip <- atomically $ dupTChan nodeTip
         link =<< async =<< forever do
-            header <- runBFM bfConfig $ fromBlockfrostM =<< BF.getLatestBlock
+            header <- BFM.run bfConfig $ fromBlockfrostM =<< BF.getLatestBlock
             atomically do
                 lastHeader <- tryReadTChan lastTip
                 unless (lastHeader == Just header) do
@@ -441,11 +404,11 @@ withNetworkLayer tr network np project k = do
 
     currentProtocolParameters :: BF.ClientConfig -> IO ProtocolParameters
     currentProtocolParameters bfConfig =
-        runBFM bfConfig $ liftEither . fromBlockfrostPP networkId
+        BFM.run bfConfig $ liftEither . fromBlockfrostPP networkId
             =<< BF.getLatestEpochProtocolParams
 
     currentSlottingParameters :: BF.ClientConfig -> IO SlottingParameters
-    currentSlottingParameters bfConfig = runBFM bfConfig do
+    currentSlottingParameters bfConfig = BFM.run bfConfig do
         liftIO $ traceWith tr MsgCurrentSlottingParameters
         BF.EpochInfo{_epochInfoEpoch} <- BF.getLatestEpoch
         epochNo <- fromBlockfrostM _epochInfoEpoch
@@ -466,7 +429,7 @@ withNetworkLayer tr network np project k = do
 
     currentNodeEra :: BF.ClientConfig -> IO AnyCardanoEra
     currentNodeEra bfConfig = do
-        (era, epoch) <- runBFM bfConfig do
+        (era, epoch) <- BFM.run bfConfig do
             BF.EpochInfo{_epochInfoEpoch} <- BF.getLatestEpoch
             latestEpoch <- fromBlockfrostM _epochInfoEpoch
             latestEra <- liftEither $ eraByEpoch networkId latestEpoch
@@ -488,10 +451,10 @@ withNetworkLayer tr network np project k = do
     fetchNetworkRewardAccountBalances
         (SomeNetworkDiscriminant (Proxy :: Proxy nd)) bfConfig accounts = do
             traceWith tr MsgFetchNetworkRewardAccountBalances
-            runBFM bfConfig $ Map.fromList . catMaybes <$>
+            BFM.run bfConfig $ Map.fromList . catMaybes <$>
                 for (Set.toList accounts) \rewardAccount -> do
                     let addr = BF.mkAddress $ encodeStakeAddress @nd rewardAccount
-                    maybe404 (BF.getAccount addr)
+                    BFM.maybe404 (BF.getAccount addr)
                         >>= traverse \BF.AccountInfo{..} ->
                             (rewardAccount,) . Coin <$>
                                 fromIntegral @_ @Integer _accountInfoRewardsSum
@@ -517,7 +480,7 @@ withNetworkLayer tr network np project k = do
         bfConfig
         follower = do
             let runBF :: forall a. BFM a -> IO a
-                runBF = runBFM bfConfig
+                runBF = BFM.run bfConfig
             AnyCardanoEra era <- currentNodeEra bfConfig
             let sp = slottingParameters np
             let stabilityWindow =
@@ -580,7 +543,7 @@ withNetworkLayer tr network np project k = do
                     runBF $ fromBlockEvents <$> case addrOrAcc of
                         Left address -> do
                             txs <- BF.allPages \paged ->
-                                empty404 $ BF.getAddressTransactions'
+                                BFM.empty404 $ BF.getAddressTransactions'
                                     (BF.Address (encodeAddress @nd address))
                                     paged
                                     BF.Ascending
@@ -600,10 +563,10 @@ withNetworkLayer tr network np project k = do
                             let address = BF.Address $ encodeStakeAddress @nd account
                             regTxHashes <-
                                 fmap BF._accountRegistrationTxHash
-                                    <$> empty404 (BF.getAccountRegistrations address)
+                                    <$> BFM.empty404 (BF.getAccountRegistrations address)
                             delTxHashes <-
                                 fmap BF._accountDelegationTxHash
-                                    <$> empty404 (BF.getAccountDelegations address)
+                                    <$> BFM.empty404 (BF.getAccountDelegations address)
                             blockEventsRegDeleg <-
                                 forConcurrently (regTxHashes <> delTxHashes) \hash -> do
                                     (tx@BF.Transaction{_transactionIndex}, dcerts) <-
@@ -618,7 +581,7 @@ withNetworkLayer tr network np project k = do
                                             (\(n, dc) -> ((txIndex, n), dc))
                                                 <$> zip [0 ..] dcerts
                                         )
-                            ws <- empty404 (BF.getAccountWithdrawals address)
+                            ws <- BFM.empty404 (BF.getAccountWithdrawals address)
                             blockEventsWithdraw <-
                                 forConcurrently ws \BF.AccountWithdrawal{..} -> do
                                     (bftx@BF.Transaction{_transactionIndex}, tx) <-
@@ -671,7 +634,7 @@ withNetworkLayer tr network np project k = do
             void $ LN.lightSync (MsgLightLayerLog >$< tr) lightSyncSource follower
 
     syncProgress :: BF.ClientConfig -> SlotNo -> IO SyncProgress
-    syncProgress bfConfig s = runBFM bfConfig do
+    syncProgress bfConfig s = BFM.run bfConfig do
         BF.Block {_blockSlot} <- BF.getLatestBlock
         let latestSlot = maybe 0 BF.unSlot _blockSlot
             currentSlot = fromIntegral (unSlotNo s)
@@ -681,10 +644,10 @@ withNetworkLayer tr network np project k = do
     stakePoolsSummary :: BF.ClientConfig -> Coin -> IO StakePoolsSummary
     stakePoolsSummary bfConfig _coin = do
         protocolParameters <- currentProtocolParameters bfConfig
-        runBFM bfConfig do
+        BFM.run bfConfig do
             BF.Network{_networkStake = BF.NetworkStake{_stakeLive}} <-
                 BF.getNetworkInfo
-            totalLiveStake <- fromBlockfrostM _stakeLive
+            totalLiveStake <- fromBfLovelaces _stakeLive
             pools <- mapConcurrently BF.getPool =<< BF.listPools
             stake <- poolsStake totalLiveStake pools
             pure StakePoolsSummary
@@ -702,12 +665,12 @@ withNetworkLayer tr network np project k = do
                 -> m (Map PoolId Percentage)
             poolsStake total = fmap Map.fromList . traverse \BF.PoolInfo{..} ->
                 (,) <$> fromBlockfrostM _poolInfoPoolId <*> do
-                    live <- fromBlockfrostM @_ @Coin _poolInfoLiveStake
+                    live <- fromBfLovelaces _poolInfoLiveStake
                     let ratio = Coin.toInteger live % Coin.toInteger total
                     case mkPercentage ratio of
-                       Right percentage -> pure percentage
-                       Left PercentageOutOfBoundsError ->
-                           throwError $ PoolStakePercentageError total live
+                        Right percentage -> pure percentage
+                        Left PercentageOutOfBoundsError ->
+                            throwError $ PoolStakePercentageError total live
 
 fetchNextBlocks
     :: forall m
@@ -816,7 +779,7 @@ assembleTransaction
     -> [BF.TransactionMetaJSON]
     -> m Tx
 assembleTransaction
-    (SomeNetworkDiscriminant (Proxy :: Proxy nd))
+    network@(SomeNetworkDiscriminant (Proxy :: Proxy nd))
     BF.Transaction{..}
     BF.TransactionUtxos{..}
     txWithdrawals
@@ -826,15 +789,12 @@ assembleTransaction
         (resolvedInputs, resolvedCollateralInputs) <-
             fromInputs _transactionUtxosInputs
         outputs <- for _transactionUtxosOutputs \out@BF.UtxoOutput{..} -> do
-            let outAddr = BF.unAddress _utxoOutputAddress
-            address <-
-                either (throwError . InvalidAddress outAddr) pure $
-                    decodeAddress @nd outAddr
+            address <- fromBfAddress network _utxoOutputAddress
             tokens <- do
                 coin <- case [ lovelaces
                              | BF.AdaAmount lovelaces <- _utxoOutputAmount
                              ] of
-                    [l] -> fromBlockfrost l
+                    [l] -> fromBfLovelaces l
                     _ -> throwError $ InvalidUtxoOutputAmount out
                 pure $ TokenBundle coin mempty -- TODO: Handle native assets
             pure TxOut{..}
@@ -844,7 +804,7 @@ assembleTransaction
                     let addr = BF.unAddress _transactionWithdrawalAddress
                     rewardAccount <-
                         first (InvalidAddress addr) $ decodeStakeAddress @nd addr
-                    coin <- fromBlockfrost _transactionWithdrawalAmount
+                    coin <- fromBfLovelaces _transactionWithdrawalAmount
                     pure (rewardAccount, coin)
         metadata <-
             if null metadataJSON
@@ -886,7 +846,7 @@ assembleTransaction
                 txIndex <- _utxoInputOutputIndex <?#> "_utxoInputOutputIndex"
                 coin <-
                     case [lovelaces | BF.AdaAmount lovelaces <- _utxoInputAmount] of
-                        [l] -> fromBlockfrost l
+                        [l] -> fromBfLovelaces l
                         _ -> throwError $ InvalidUtxoInputAmount input
                 pure (TxIn txHash txIndex, coin)
 
@@ -940,8 +900,7 @@ fromBlockfrostPP
 fromBlockfrostPP network BF.ProtocolParams{..} = do
     decentralizationLevel <-
         let percentage =
-                mkPercentage $
-                    toRational _protocolParamsDecentralisationParam
+                mkPercentage $ toRational _protocolParamsDecentralisationParam
             in case percentage of
                 Left PercentageOutOfBoundsError ->
                     throwError $
@@ -1099,11 +1058,6 @@ instance FromBlockfrost BF.PoolId PoolId where
 instance FromBlockfrost BF.Epoch EpochNo where
     fromBlockfrost = pure . fromIntegral
 
--- type Lovelaces = Discrete' "ADA" '(1000000, 1)
-instance FromBlockfrost (Discrete' "ADA" '(1000000, 1)) Coin where
-    fromBlockfrost lovelaces =
-        Coin <$> (intCast @_ @Integer lovelaces <?#> "Lovelaces")
-
 eraByEpoch :: NetworkId -> EpochNo -> Either BlockfrostError AnyCardanoEra
 eraByEpoch networkId epoch =
     dropWhile ((> epoch) . snd) (reverse (Fixture.eraBoundaries networkId)) &
@@ -1121,27 +1075,6 @@ epochEraSummary networkId (EpochNo epoch) =
         UC.NonEmptyCons era@EraSummary{eraEnd=EraUnbounded} _eras -> era
         UC.NonEmptyCons era@EraSummary{eraEnd=EraEnd Bound{boundEpoch}} eras ->
             if boundEpoch > fromIntegral epoch then era else go eras
-
--- | Raises an error in case of an absent value
-(<?>) :: MonadError e m => Maybe a -> e -> m a
-(<?>) Nothing e = throwError e
-(<?>) (Just a) _ = pure a
-
-infixl 8 <?>
-
-{-# INLINE (<?>) #-}
-
--- | Casts integral values safely or raises an `IntegralCastError`
-(<?#>)
-    :: (MonadError BlockfrostError m, Integral a, Integral b, Bits a, Bits b)
-    => a
-    -> String
-    -> m b
-(<?#>) a e = intCastMaybe a <?> IntegralCastError e
-
-infixl 8 <?#>
-
-{-# INLINE (<?#>) #-}
 
 {-------------------------------------------------------------------------------
     Stake Pools
@@ -1174,40 +1107,3 @@ getPoolPerformanceEstimate sp dl rp pid = do
                     / fromIntegral (unCoin $ totalStake rp)
                     -- _poolHistoryActiveSize would be incorrect here
             }
-
-newtype BFM a = BFM (ReaderT BF.ClientConfig (ExceptT BlockfrostError IO) a)
-    deriving newtype
-        ( Functor
-        , Applicative
-        , Monad
-        , MonadIO
-        , MonadBase IO
-        , MonadBaseControl IO
-        , MonadReader BF.ClientConfig
-        , MonadError BlockfrostError
-        )
-
-instance BF.MonadBlockfrost BFM where
-    getConf = ask
-    liftBlockfrostClient act = BFM do
-        env <- asks fst
-        liftIO (runClientM act env) >>= either (throwError . ClientError) pure
-
-newClientConfig :: BF.Project -> IO BF.ClientConfig
-newClientConfig prj = (,prj) <$> BF.newEnvByProject prj
-
-runBFM :: BF.ClientConfig -> BFM a -> IO a
-runBFM cfg (BFM c) = handleBlockfrostError (runReaderT c cfg)
-
-handleBlockfrostError :: ExceptT BlockfrostError IO a -> IO a
-handleBlockfrostError =
-    either (throwIO . BlockfrostException) pure <=< runExceptT
-
-maybe404 :: BFM a -> BFM (Maybe a)
-maybe404 bfm = (Just <$> bfm) `catchError` \case
-    ClientError (Servant.FailureResponse _ (Servant.Response s _ _ _))
-        | s == status404 -> pure Nothing
-    e -> throwError e
-
-empty404 :: Monoid a => BFM a -> BFM a
-empty404 = (fromMaybe mempty <$>) . maybe404
