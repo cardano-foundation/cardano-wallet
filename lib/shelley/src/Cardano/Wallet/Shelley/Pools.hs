@@ -34,6 +34,7 @@ module Cardano.Wallet.Shelley.Pools
 
     -- * Internal, for testing:
     , _getPoolLifeCycleStatus
+    , _knownPools
     )
     where
 
@@ -68,8 +69,6 @@ import Cardano.Wallet.Byron.Compatibility
     ( toByronBlockHeader )
 import Cardano.Wallet.Network
     ( ChainFollowLog (..), ChainFollower (..), NetworkLayer (..) )
-import Cardano.Wallet.Primitive.AddressDerivation
-    ( unRewardAccount )
 import Cardano.Wallet.Primitive.Slotting
     ( PastHorizonException (..)
     , TimeInterpreter
@@ -102,13 +101,15 @@ import Cardano.Wallet.Primitive.Types
     , StakePoolMetadataHash
     , StakePoolMetadataUrl (StakePoolMetadataUrl)
     , StakePoolsSummary (..)
-    , encodePoolIdBech32
+    , decodePoolIdBech32
     , getPoolRegistrationCertificate
     , getPoolRetirementCertificate
     , unSmashServer
     )
 import Cardano.Wallet.Primitive.Types.Coin
     ( Coin (..) )
+import Cardano.Wallet.Primitive.Types.RewardAccount
+    ( unRewardAccount )
 import Cardano.Wallet.Registry
     ( AfterThreadLog, traceAfterThread )
 import Cardano.Wallet.Shelley.Compatibility
@@ -308,84 +309,13 @@ withBlockfrostStakePoolLayer _tr project network = do
     bfConfig <- lift (BFM.newClientConfig project)
     ContT \k -> k StakePoolLayer
         { getPoolLifeCycleStatus = _getPoolLifeCycleStatus bfConfig network
-        , knownPools = pure Set.empty
+        , knownPools = _knownPools bfConfig
         , listStakePools = \_epochNo _coin -> pure []
         , forceMetadataGC = pure ()
         , putSettings = \_settings -> pure ()
         , getSettings = pure $ Settings FetchNone
         , getGCMetadataStatus = pure NotApplicable
         }
-  where
-    _getPoolLifeCycleStatus
-        :: BF.ClientConfig
-        -> SomeNetworkDiscriminant
-        -> PoolId
-        -> IO PoolLifeCycleStatus
-    _getPoolLifeCycleStatus
-        cfg (SomeNetworkDiscriminant (Proxy :: Proxy nd)) poolId = BFM.run cfg do
-        let bfPoolId = BF.PoolId (encodePoolIdBech32 poolId)
-        poolUpdates <- BF.getPoolUpdates bfPoolId
-        case reverse poolUpdates of
-            [] -> pure PoolNotRegistered
-            lastUpdate : otherUpdates ->
-                case BF._poolUpdateAction lastUpdate of
-                    BF.PoolRegistered -> PoolRegistered <$> poolRegCert lastUpdate
-                    BF.PoolDeregistered ->
-                        case findRegCert otherUpdates of
-                            Just regCertUpdate -> do
-                                reg <- poolRegCert regCertUpdate
-                                drg <- poolDeregCert lastUpdate
-                                pure $ PoolRegisteredAndRetired reg drg
-                            Nothing ->
-                                throwError $ PoolRegistrationIsMissing poolId
-
-      where
-        findRegCert :: [BF.PoolUpdate] -> Maybe BF.PoolUpdate
-        findRegCert = find \BF.PoolUpdate{..} ->
-            _poolUpdateAction == BF.PoolRegistered
-
-        poolRegCert :: BF.PoolUpdate -> BFM PoolRegistrationCertificate
-        poolRegCert update@BF.PoolUpdate{..} = do
-            let byIdx tpu = BF._transactionPoolUpdateCertIndex tpu
-                    == _poolUpdateCertIndex
-            poolUpdates <- BF.getTxPoolUpdates _poolUpdateTxHash
-            case find byIdx poolUpdates of
-                Just BF.TransactionPoolUpdate{..} -> do
-                    poolOwners <- for _transactionPoolUpdateOwners do
-                        (PoolOwner . unRewardAccount <$>) . fromBfStakeAddress network
-                    poolMargin <-
-                        percentageFromDouble _transactionPoolUpdateMarginCost
-                    poolCost <-
-                        fromBfLovelaces _transactionPoolUpdateFixedCost
-                    poolPledge <-
-                        fromBfLovelaces _transactionPoolUpdatePledge
-                    poolMetadata <-
-                        join <$> for _transactionPoolUpdateMetadata
-                            \BF.PoolUpdateMetadata{..} -> runMaybeT do
-                                url <- MaybeT . pure $
-                                    StakePoolMetadataUrl <$> _poolUpdateMetadataUrl
-                                hash <- MaybeT do
-                                    for _poolUpdateMetadataHash
-                                        stakePoolMetadataHashFromText
-                                pure (url, hash)
-                    pure PoolRegistrationCertificate{..}
-                Nothing ->
-                    throwError $ PoolUpdateCertificateNotFound poolId update
-
-        poolDeregCert :: BF.PoolUpdate -> BFM PoolRetirementCertificate
-        poolDeregCert update@BF.PoolUpdate{..} = do
-            poolRetiring  <-
-                BF.getTxPoolRetiring _poolUpdateTxHash <&> find \r ->
-                    _transactionPoolRetiringCertIndex r == _poolUpdateCertIndex
-            case poolRetiring of
-                Just BF.TransactionPoolRetiring{..} -> do
-                    pure PoolRetirementCertificate
-                        { poolId
-                        , retirementEpoch =
-                            fromIntegral _transactionPoolRetiringRetiringEpoch
-                        }
-                Nothing ->
-                    throwError $ PoolRetirementCertificateNotFound poolId update
 
 _getPoolLifeCycleStatus
     :: BF.ClientConfig
@@ -395,27 +325,27 @@ _getPoolLifeCycleStatus
 _getPoolLifeCycleStatus
     cfg network@(SomeNetworkDiscriminant (Proxy :: Proxy nd)) poolId =
         BFM.run cfg do
-        let bfPoolId = BF.PoolId (toText poolId)
-        poolUpdates <- BF.getPoolUpdates bfPoolId
-        case reverse poolUpdates of
-            [] -> pure PoolNotRegistered
-            lastUpdate : otherUpdates ->
-                case BF._poolUpdateAction lastUpdate of
-                    BF.PoolRegistered ->
-                        PoolRegistered <$> poolRegCert lastUpdate
-                    BF.PoolDeregistered ->
-                        case findRegCert otherUpdates of
-                            Just regCertUpdate -> do
-                                reg <- poolRegCert regCertUpdate
-                                drg <- poolDeregCert lastUpdate
-                                pure $ PoolRegisteredAndRetired reg drg
-                            Nothing ->
-                                throwError $ PoolRegistrationIsMissing poolId
+            let bfPoolId = BF.PoolId (toText poolId)
+            poolUpdates <- BF.allPages \paged ->
+                BF.getPoolUpdates' bfPoolId paged BF.Descending
+            case poolUpdates of
+                [] -> pure PoolNotRegistered
+                lastUpdate : otherUpdates ->
+                    case BF._poolUpdateAction lastUpdate of
+                        BF.PoolRegistered ->
+                            PoolRegistered <$> poolRegCert lastUpdate
+                        BF.PoolDeregistered ->
+                            case findRegCert otherUpdates of
+                                Just regCertUpdate ->
+                                    PoolRegisteredAndRetired
+                                        <$> poolRegCert regCertUpdate
+                                        <*> poolDeregCert lastUpdate
+                                Nothing -> throwError $
+                                    PoolRegistrationIsMissing poolId
 
-    where
+  where
     findRegCert :: [BF.PoolUpdate] -> Maybe BF.PoolUpdate
-    findRegCert = find \BF.PoolUpdate{..} ->
-        _poolUpdateAction == BF.PoolRegistered
+    findRegCert = find \upd -> BF._poolUpdateAction upd == BF.PoolRegistered
 
     poolRegCert :: BF.PoolUpdate -> BFM PoolRegistrationCertificate
     poolRegCert update@BF.PoolUpdate{..} = do
@@ -447,7 +377,7 @@ _getPoolLifeCycleStatus
 
     poolDeregCert :: BF.PoolUpdate -> BFM PoolRetirementCertificate
     poolDeregCert update@BF.PoolUpdate{..} = do
-        poolRetiring  <-
+        poolRetiring <-
             BF.getTxPoolRetiring _poolUpdateTxHash <&> find \r ->
                 _transactionPoolRetiringCertIndex r == _poolUpdateCertIndex
         case poolRetiring of
@@ -459,6 +389,13 @@ _getPoolLifeCycleStatus
                     }
             Nothing ->
                 throwError $ PoolRetirementCertificateNotFound poolId update
+
+_knownPools :: BF.ClientConfig -> IO (Set PoolId)
+_knownPools bfConfig = Set.fromList <$> BFM.run bfConfig do
+    -- BF.listPools returns only 100 items (1 page) but we want all pages
+    BF.allPages (`BF.listPools'` BF.Ascending) >>=
+        traverse \(BF.PoolId poolId) -> decodePoolIdBech32 poolId
+            & either (throwError . InvalidPoolId poolId) pure
 
 newStakePoolLayer
     :: forall sc. ()
@@ -967,7 +904,8 @@ monitorMetadata gcStatus tr sp db@DBLayer{..} = do
 
         _ -> pure NoSmashConfigured
 
-    if health == Available || health == NoSmashConfigured then (do
+    if health == Available || health == NoSmashConfigured
+    then do
         case poolMetadataSource settings of
             FetchNone -> do
                 STM.atomically $ writeTVar gcStatus NotApplicable
@@ -984,7 +922,8 @@ monitorMetadata gcStatus tr sp db@DBLayer{..} = do
                     (gcDelistedPools gcStatus tr db getDelistedPools)
                     (traceAfterThread (contramap MsgGCThreadExit tr))
                 void $ fetchMetadata manager [registryUrlBuilder uri]
-                    `finally` killThread tid) else
+                    `finally` killThread tid
+    else
         traceWith tr MsgSMASHUnreachable
   where
     trFetch = contramap MsgFetchPoolMetadata tr
@@ -1003,14 +942,14 @@ monitorMetadata gcStatus tr sp db@DBLayer{..} = do
                 threadDelay blockFrequency
             forM refs $ \k@(pid, url, hash) -> k <$ withAvailableSeat inFlights (
                 fetchFromRemote trFetch strategies manager pid url hash >>= \case
-                Nothing ->
-                    atomically $ do
-                        settings' <- readSettings
-                        when (settings == settings') $ putFetchAttempt (url, hash)
-                Just meta -> do
-                    atomically $ do
-                        settings' <- readSettings
-                        when (settings == settings') $ putPoolMetadata hash meta
+                    Nothing ->
+                        atomically $ do
+                            settings' <- readSettings
+                            when (settings == settings') $ putFetchAttempt (url, hash)
+                    Just meta -> do
+                        atomically $ do
+                            settings' <- readSettings
+                            when (settings == settings') $ putPoolMetadata hash meta
                 )
       where
         -- Twice 'maxInFlight' so that, when removing keys currently in flight,
