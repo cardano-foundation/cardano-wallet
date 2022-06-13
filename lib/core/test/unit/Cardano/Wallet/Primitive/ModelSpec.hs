@@ -1082,6 +1082,7 @@ instance (CoArbitrary a, CoArbitrary b, Function a, Function b) =>
     arbitrary = IsOursIf2
         <$> arbitrary
         <*> arbitrary
+    shrink (IsOursIf2 a b) = uncurry IsOursIf2 <$> shrink (a, b)
 
 instance Arbitrary Coin where
     shrink = shrinkCoin
