@@ -53,11 +53,6 @@ packages:
   , lib/shelley/
   , lib/strict-non-empty-containers/
 
--- Bundle VRF crypto in libsodium and do not rely on an external fork to have it.
--- This still requires the host system to have the 'standard' libsodium installed.
-package cardano-crypto-praos
-  flags: -external-libsodium-vrf
-
 -- Using RDRAND instead of /dev/urandom as an entropy source for key
 -- generation is dubious. Set the flag so we use /dev/urandom by default.
 package cryptonite
