@@ -42,6 +42,7 @@ module Cardano.Wallet.Shelley.Transaction
     , TxSkeleton (..)
     , TxWitnessTag (..)
     , TxWitnessTagFor (..)
+    , EraConstraints
     , _decodeSealedTx
     , _estimateMaxNumberOfInputs
     , _maxScriptExecutionCost
