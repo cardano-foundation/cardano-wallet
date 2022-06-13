@@ -1,6 +1,5 @@
 module Cardano.Wallet.Primitive.Types.RewardAccount.Gen
-    ( coarbitraryRewardAccount
-    , genRewardAccount
+    ( genRewardAccount
     , shrinkRewardAccount
     )
     where
@@ -10,17 +9,13 @@ import Prelude
 import Cardano.Wallet.Primitive.Types.RewardAccount
     ( RewardAccount (..) )
 import Test.QuickCheck
-    ( Gen, coarbitrary, elements, sized )
+    ( Gen, elements, sized )
 
-import qualified Data.ByteString as BS
 import qualified Data.ByteString.Char8 as B8
 
 --------------------------------------------------------------------------------
 -- Reward accounts generated according to the size parameter
 --------------------------------------------------------------------------------
-
-coarbitraryRewardAccount :: RewardAccount -> Gen a -> Gen a
-coarbitraryRewardAccount = coarbitrary . BS.unpack . unRewardAccount
 
 genRewardAccount :: Gen (RewardAccount)
 genRewardAccount = sized $ \size -> elements $ take (max 1 size) addresses
