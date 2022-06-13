@@ -18,7 +18,7 @@ import Prelude
 import Cardano.Wallet.Primitive.Types.Address
     ( Address (..) )
 import Cardano.Wallet.Primitive.Types.Address.Gen
-    ( Parity (..), addressParity, coarbitraryAddress )
+    ( Parity (..), addressParity )
 import Cardano.Wallet.Primitive.Types.Hash
     ( Hash (..), mockHash )
 import Cardano.Wallet.Primitive.Types.TokenMap
@@ -354,8 +354,8 @@ prop_removeAssetId_assetIds u =
 -- Arbitrary instances
 --------------------------------------------------------------------------------
 
-instance CoArbitrary Address where
-    coarbitrary = coarbitraryAddress
+deriving anyclass instance CoArbitrary Address
+deriving anyclass instance Function Address
 
 instance Arbitrary AssetId where
     arbitrary = genAssetId

@@ -3,7 +3,6 @@ module Cardano.Wallet.Primitive.Types.Address.Gen
       -- * Generators and shrinkers
       genAddress
     , shrinkAddress
-    , coarbitraryAddress
 
       -- * Indicator functions on addresses
     , addressParity
@@ -16,7 +15,7 @@ import Prelude
 import Cardano.Wallet.Primitive.Types.Address
     ( Address (..) )
 import Test.QuickCheck
-    ( Gen, coarbitrary, elements, sized )
+    ( Gen, elements, sized )
 
 import qualified Data.Bits as Bits
 import qualified Data.ByteString as BS
@@ -35,9 +34,6 @@ shrinkAddress a
     | otherwise = [simplest]
   where
     simplest = head addresses
-
-coarbitraryAddress :: Address -> Gen a -> Gen a
-coarbitraryAddress = coarbitrary . BS.unpack . unAddress
 
 addresses :: [Address]
 addresses = mkAddress <$> ['0' ..]
