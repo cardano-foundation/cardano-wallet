@@ -4,9 +4,8 @@ set -euo pipefail
 
 cd $(dirname "$0")/..
 
-# Regenerate sha256map.nix
-# FIXME: Can we remove this and stack.yaml?
-# nix run .#sha256map-regenerate < stack.yaml > nix/sha256map.nix
+# Regenerate --sha256 hashes in cabal.project
+nix build .#checkCabalProject -o check-cabal-project.sh && ./check-cabal-project.sh
 
 # Regenerate materialized haskell-build-tools in ./materialized
 nix build .#buildToolsGenerateMaterialized

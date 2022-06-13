@@ -110,10 +110,6 @@ haskell-nix: haskell-nix.cabalProject' [
         filter = haskell-nix.haskellSourceFilter;
       };
 
-      # materialized = ./materialized/plan-nix;
-
-      sha256map = import ./sha256map.nix;
-
       shell = {
         name = "cardano-wallet-shell${lib.optionalString config.profiling "-profiled"}";
         packages = ps: builtins.attrValues (haskellLib.selectProjectPackages ps);
