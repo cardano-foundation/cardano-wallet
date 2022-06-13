@@ -196,7 +196,7 @@ haskell-nix: haskell-nix.cabalProject' [
                 ];
             in
             {
-              reinstallableLibGhc = pkgs.stdenv.hostPlatform.isMusl;
+              reinstallableLibGhc = true;
 
               # These are here to make `stackProject` vs `cabalProject` `nix-diff` cleaner
               # TODO remove
