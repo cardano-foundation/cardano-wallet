@@ -378,6 +378,7 @@ haskell-nix: haskell-nix.cabalProject' [
             enableLibraryProfiling = true;
             packages.cardano-wallet.components.exes.cardano-wallet.enableProfiling = true;
             packages.cardano-wallet.components.benchmarks.restore.enableProfiling = true;
+            packages.plutus-core.ghcOptions = [ "-fexternal-interpreter" ];
           })
 
           # Musl libc fully static build
