@@ -17,6 +17,7 @@
 {-# LANGUAGE TypeApplications #-}
 
 {-# OPTIONS_GHC -fno-warn-orphans #-}
+{-# OPTIONS_GHC -Wno-unused-imports #-}
 
 -- |
 -- Copyright: © 2018-2020 IOHK
@@ -30,7 +31,6 @@
 -- >>> db <- newMemoryDBLayer :: IO TestDBSeq
 -- >>> quickCheck $ prop_sequential db
 
-{-# OPTIONS_GHC -Wno-unused-imports #-}
 module Cardano.Wallet.DB.LayerSpec
     ( spec
     ) where
