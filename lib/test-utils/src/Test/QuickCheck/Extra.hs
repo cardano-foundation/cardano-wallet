@@ -251,24 +251,33 @@ genShrinkSequence shrinkFn = loop
         [] -> pure []
         as -> liftM2 fmap (:) loop =<< elements as
 
--- | Computes the entire shrink space of a given value and shrinking function.
+-- | Computes the shrink space of a given shrinking function for a given
+--   starting value.
 --
--- This function returns the set of all possible values to which the given
--- starting value can be shrunk. By default, the given starting value is not
--- included in the result.
+-- This function returns the set of all values that are transitively reachable
+-- through repeated applications of the given shrinking function to the given
+-- starting value.
 --
--- Example:
+-- By default, the given starting value is not included in the result.
 --
--- >>> shrinkSpace shrinkIntegral (8 :: Int)
--- fromList [0,1,2,3,4,5,6,7]
+-- Examples:
+--
+-- >>> shrinkSpace shrink "abc"
+-- ["","a","aa","aaa","aab","aac","ab","aba","abb","ac","b","ba","bb","bc","c"]
+--
+-- >>> shrinkSpace shrink (8 :: Int)
+-- [0,1,2,3,4,5,6,7]
+--
+-- >>> shrinkSpace shrink (2 :: Int, 2 :: Int)
+-- [(0,0),(0,1),(0,2),(1,0),(1,1),(1,2),(2,0),(2,1)]
 --
 -- Caution:
 --
 -- Depending on the particular choice of shrinking function and starting value,
 -- the shrink space can grow very quickly. Therefore, this function should be
--- used with extreme caution to avoid non-termination within test cases. If in
--- doubt, use the 'within' modifier provided by QuickCheck to ensure that your
--- test case terminates within a fixed time limit.
+-- used with caution to avoid non-termination within test cases. If in doubt,
+-- use the 'within' modifier provided by QuickCheck to ensure that your test
+-- case terminates within a fixed time limit.
 --
 -- This function can be used to test that a given shrinking function always
 -- generates values that satisfy a given condition. For example:
