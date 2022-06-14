@@ -3287,7 +3287,7 @@ components:
         - new_passphrase
       properties:
         mnemonic_second_factor: *walletSecondFactor
-        mnemonic_sentence: 
+        mnemonic_sentence:
           <<: *walletMnemonicSentence
           description: The mnemonic list of words to restore the wallet
         new_passphrase:

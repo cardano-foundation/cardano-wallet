@@ -90,6 +90,8 @@ import Cardano.Ledger.Era
     ( Crypto, Era, ValidateScript (..) )
 import Cardano.Ledger.Shelley.API
     ( StrictMaybe (..) )
+import Cardano.Slotting.EpochInfo
+    ( EpochInfo )
 import Cardano.Slotting.EpochInfo.API
     ( hoistEpochInfo )
 import Cardano.Wallet.CoinSelection
@@ -208,6 +210,8 @@ import Control.Monad.Trans.State.Strict
     ( StateT (..), execStateT, get, modify' )
 import Data.Bifunctor
     ( bimap )
+import Data.Either
+    ( fromRight )
 import Data.Function
     ( (&) )
 import Data.Functor
@@ -1170,6 +1174,20 @@ _assignScriptRedeemers pparams ti resolveInput redeemers tx =
                 modify' addScriptIntegrityHashBabbage
             pure $ Cardano.ShelleyTx ShelleyBasedEraBabbage babbageTx'
   where
+    epochInfo :: EpochInfo (Either T.Text)
+    epochInfo = hoistEpochInfo (left (T.pack . show) . runIdentity . runExceptT)
+        -- Because `TimeInterpreter` conflates the monad for fetching the
+        -- interpreter with the possibility of errors, we cope with this `error`
+        -- call for now. A nicer solution would be exposing either
+        -- `EpochInfo` or `Cardano.EraHistory` in the `NetworkLayer` directly,
+        -- or - perhaps at some point - reimagining the `TimeInterpreter`
+        -- abstraction.
+        $ fromRight
+            (error "`toEpochInfo ti` can never fail")
+            (toEpochInfo ti)
+
+    systemStart = getSystemStart ti
+
     -- | Assign redeemers with null execution units to the input transaction.
     --
     -- Redeemers are determined from the context given to the caller via the
@@ -1276,11 +1294,6 @@ _assignScriptRedeemers pparams ti resolveInput redeemers tx =
         let utxo = utxoFromAlonzoTx alonzoTx
         let pparams' = Cardano.toLedgerPParams Cardano.ShelleyBasedEraAlonzo pparams
         let costs = toCostModelsAsArray (Alonzo.unCostModels $ Alonzo._costmdls pparams')
-        let systemStart = getSystemStart ti
-
-        epochInfo <- hoistEpochInfo (left (T.pack . show . ErrAssignRedeemersPastHorizon) . runIdentity . runExceptT)
-            <$> left ErrAssignRedeemersPastHorizon (toEpochInfo ti)
-
         let res = evaluateTransactionExecutionUnits
                 pparams'
                 alonzoTx
@@ -1305,10 +1318,6 @@ _assignScriptRedeemers pparams ti resolveInput redeemers tx =
         let utxo = utxoFromBabbageTx babbageTx
         let pparams' = Cardano.toLedgerPParams Cardano.ShelleyBasedEraBabbage pparams
         let costs = toCostModelsAsArray (Alonzo.unCostModels $ Babbage._costmdls pparams')
-        let systemStart = getSystemStart ti
-
-        epochInfo <- hoistEpochInfo (left (T.pack . show . ErrAssignRedeemersPastHorizon) . runIdentity . runExceptT)
-            <$> left ErrAssignRedeemersPastHorizon (toEpochInfo ti)
 
         let res = evaluateTransactionExecutionUnits
                 pparams'

@@ -5052,8 +5052,6 @@ instance IsServerError ErrAssignRedeemers where
                 , "part of the API request. The unknown inputs are:\n\n"
                 , pretty ins
                 ]
-        ErrAssignRedeemersPastHorizon e ->
-            toServerError e
         ErrAssignRedeemersTranslationError e ->
             apiError err400 TranslationError $ T.unwords
                 [ "The transaction I was given contains bits that cannot "

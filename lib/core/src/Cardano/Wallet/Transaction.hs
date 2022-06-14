@@ -506,8 +506,6 @@ data ErrAssignRedeemers
     -- ^ The given redeemer target couldn't be located in the transaction.
     | ErrAssignRedeemersInvalidData Redeemer String
     -- ^ Redeemer's data isn't a valid Plutus' data.
-    | ErrAssignRedeemersPastHorizon PastHorizonException
-    -- ^ Evaluating the Plutus script failed past the visible horizon.
     | ErrAssignRedeemersUnresolvedTxIns [TxIn]
     -- ^ The transaction contains inputs which couldn't be resolved.
     | ErrAssignRedeemersTranslationError String
