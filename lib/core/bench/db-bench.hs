@@ -73,7 +73,7 @@ import Cardano.Wallet.DB.Sqlite
     , WalletDBLog (..)
     , newDBLayerWith
     )
-import Cardano.Wallet.DB.Sqlite.TH
+import Cardano.Wallet.DB.Sqlite.Schema
     ( migrateAll )
 import Cardano.Wallet.DummyTarget.Primitive.Types
     ( block0, dummyGenesisParameters, mkTxId )

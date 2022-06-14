@@ -271,7 +271,7 @@ import UnliftIO.STM
 import UnliftIO.Temporary
     ( withSystemTempDirectory, withSystemTempFile )
 
-import qualified Cardano.Wallet.DB.Sqlite.TH as DB
+import qualified Cardano.Wallet.DB.Sqlite.Schema as DB
 import qualified Cardano.Wallet.Primitive.AddressDerivation.Shelley as Seq
 import qualified Cardano.Wallet.Primitive.Types.Coin as Coin
 import qualified Cardano.Wallet.Primitive.Types.TokenBundle as TokenBundle

@@ -18,10 +18,10 @@ import Cardano.Wallet.DB.Checkpoints
     ( DeltaCheckpoints (..) )
 import Cardano.Wallet.DB.Sqlite.AddressBook
     ( AddressBookIso (..), Prologue, getPrologue )
+import Cardano.Wallet.DB.Sqlite.Schema
+    ( Wallet (..), migrateAll )
 import Cardano.Wallet.DB.Sqlite.Stores
     ( PersistAddressBook (..), mkStoreWallet )
-import Cardano.Wallet.DB.Sqlite.TH
-    ( Wallet (..), migrateAll )
 import Cardano.Wallet.DB.Sqlite.Types
     ( BlockId (..) )
 import Cardano.Wallet.DB.WalletState
@@ -91,7 +91,7 @@ import Test.QuickCheck.Monadic
 import UnliftIO.Exception
     ( bracket, impureThrow )
 
-import qualified Cardano.Wallet.DB.Sqlite.TH as TH
+import qualified Cardano.Wallet.DB.Sqlite.Schema as Schema
 import qualified Data.Map.Strict as Map
 
 spec :: Spec
@@ -271,7 +271,7 @@ newDBInMemory = newInMemorySqliteContext nullTracer [] migrateAll
 
 initializeWallet :: WalletId -> SqlPersistT IO ()
 initializeWallet wid = do
-    deleteWhere [TH.WalId ==. wid] -- triggers delete cascade
+    deleteWhere [Schema.WalId ==. wid] -- triggers delete cascade
     insertWalletTable wid
 
 -- | Insert a wallet table in order to satisfy  FOREIGN PRIMARY constraints

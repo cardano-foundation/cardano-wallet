@@ -94,7 +94,7 @@ import Cardano.Wallet.DB.Sqlite.CheckpointsOld
     ( PersistAddressBook (..), blockHeaderFromEntity, mkStoreWallets )
 import Cardano.Wallet.DB.Sqlite.Migration
     ( DefaultFieldValues (..), migrateManually )
-import Cardano.Wallet.DB.Sqlite.TH
+import Cardano.Wallet.DB.Sqlite.Schema
     ( DelegationCertificate (..)
     , DelegationReward (..)
     , EntityField (..)
@@ -920,7 +920,7 @@ readDelegationCertificate wid filters = fmap entityVal
 
 {-------------------------------------------------------------------------------
     Conversion between types
-        from the `persistent` database (Cardano.Wallet.DB.Sqlite.TH)
+        from the `persistent` database (Cardano.Wallet.DB.Sqlite.Schema)
         and from the wallet core ( Cardano.Wallet.Primitive.Types.*)
 -------------------------------------------------------------------------------}
 

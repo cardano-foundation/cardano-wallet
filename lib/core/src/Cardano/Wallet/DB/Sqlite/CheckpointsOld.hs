@@ -57,7 +57,7 @@ import Cardano.Wallet.DB.Sqlite.AddressBook
     , Prologue (..)
     , SeqAddressMap (..)
     )
-import Cardano.Wallet.DB.Sqlite.TH
+import Cardano.Wallet.DB.Sqlite.Schema
     ( Checkpoint (..)
     , CosignerKey (..)
     , EntityField (..)
