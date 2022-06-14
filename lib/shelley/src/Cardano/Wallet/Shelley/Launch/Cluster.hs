@@ -1018,8 +1018,11 @@ genConfig dir systemStart clusterEra logCfg = do
     withHardForks era = withObject (pure . Aeson.union (Aeson.fromList hardForks))
       where
         hardForks =
-            [ (Aeson.fromText $ "Test" <> T.pack (show hardFork) <> "AtEpoch", Yaml.Number 0)
-            | hardFork <- [ShelleyHardFork .. era] ]
+            [ (Aeson.fromText $ "Test" <> T.pack (show hardFork) <> "AtEpoch"
+              , Yaml.Number 0
+              )
+            | hardFork <- [ShelleyHardFork .. era]
+            ]
 
 
     enableAlonzoIfNeeded =

@@ -1363,22 +1363,26 @@ getScriptIntegrityHash = \case
         Cardano.ShelleyBasedEraShelley -> Nothing
         Cardano.ShelleyBasedEraAllegra -> Nothing
         Cardano.ShelleyBasedEraMary    -> Nothing
-        Cardano.ShelleyBasedEraAlonzo  -> SafeHash.originalBytes <$> scriptIntegrityHashOfAlonzoTx tx
-        Cardano.ShelleyBasedEraBabbage -> SafeHash.originalBytes <$> scriptIntegrityHashOfBabbageTx tx
+        Cardano.ShelleyBasedEraAlonzo  ->
+            SafeHash.originalBytes <$> scriptIntegrityHashOfAlonzoTx tx
+        Cardano.ShelleyBasedEraBabbage ->
+            SafeHash.originalBytes <$> scriptIntegrityHashOfBabbageTx tx
     Cardano.ByronTx _                  -> Nothing
 
     where
-        scriptIntegrityHashOfAlonzoTx
-            :: Alonzo.ValidatedTx (Alonzo.AlonzoEra StandardCrypto)
-            -> Maybe (Alonzo.ScriptIntegrityHash StandardCrypto)
-        scriptIntegrityHashOfAlonzoTx (Alonzo.ValidatedTx body _wits _isValid _auxData)
-            = strictMaybeToMaybe . Alonzo.scriptIntegrityHash $ body
+      scriptIntegrityHashOfAlonzoTx
+          :: Alonzo.ValidatedTx (Alonzo.AlonzoEra StandardCrypto)
+          -> Maybe (Alonzo.ScriptIntegrityHash StandardCrypto)
+      scriptIntegrityHashOfAlonzoTx
+          (Alonzo.ValidatedTx body _wits _isValid _auxData)
+              = strictMaybeToMaybe . Alonzo.scriptIntegrityHash $ body
 
-        scriptIntegrityHashOfBabbageTx
-            :: Babbage.ValidatedTx (Babbage.BabbageEra StandardCrypto)
-            -> Maybe (Babbage.ScriptIntegrityHash StandardCrypto)
-        scriptIntegrityHashOfBabbageTx (Babbage.ValidatedTx body _wits _isValid _auxData)
-            = strictMaybeToMaybe . Babbage.scriptIntegrityHash $ body
+      scriptIntegrityHashOfBabbageTx
+          :: Babbage.ValidatedTx (Babbage.BabbageEra StandardCrypto)
+          -> Maybe (Babbage.ScriptIntegrityHash StandardCrypto)
+      scriptIntegrityHashOfBabbageTx
+          (Babbage.ValidatedTx body _wits _isValid _auxData)
+              = strictMaybeToMaybe . Babbage.scriptIntegrityHash $ body
 
 fromAlonzoTxBodyAndAux
     :: Alonzo.TxBody (Cardano.ShelleyLedgerEra AlonzoEra)
@@ -1542,7 +1546,8 @@ fromBabbageTxBodyAndAux bod mad wits =
             map ((,W.Coin 0) . fromShelleyTxIn) (toList collateralInps)
         , outputs =
             map (fromBabbageTxOut . sizedValue) (toList outs)
-        , collateralOutput = case fmap (fromBabbageTxOut . sizedValue) collateralReturn of
+        , collateralOutput =
+            case fmap (fromBabbageTxOut . sizedValue) collateralReturn of
                 SNothing -> Nothing
                 SJust txout -> Just txout
         , withdrawals =
@@ -1837,13 +1842,15 @@ toCardanoTxOut era = case era of
     toMaryTxOut (W.TxOut (W.Address addr) tokens) =
         Cardano.TxOut
             addrInEra
-            (Cardano.TxOutValue Cardano.MultiAssetInMaryEra $ toCardanoValue tokens)
+            (Cardano.TxOutValue Cardano.MultiAssetInMaryEra
+                $ toCardanoValue tokens)
             Cardano.TxOutDatumNone
             Cardano.ReferenceScriptNone
       where
         addrInEra = tina "toCardanoTxOut: malformed address"
-            [ Cardano.AddressInEra (Cardano.ShelleyAddressInEra Cardano.ShelleyBasedEraMary)
-                <$> deserialiseFromRawBytes AsShelleyAddress addr
+            [ Cardano.AddressInEra
+                (Cardano.ShelleyAddressInEra Cardano.ShelleyBasedEraMary)
+                    <$> deserialiseFromRawBytes AsShelleyAddress addr
 
             , Cardano.AddressInEra Cardano.ByronAddressInAnyEra
                 <$> deserialiseFromRawBytes AsByronAddress addr
@@ -1853,15 +1860,17 @@ toCardanoTxOut era = case era of
     toAlonzoTxOut (W.TxOut (W.Address addr) tokens) =
         Cardano.TxOut
             addrInEra
-            (Cardano.TxOutValue Cardano.MultiAssetInAlonzoEra $ toCardanoValue tokens)
+            (Cardano.TxOutValue Cardano.MultiAssetInAlonzoEra
+                $ toCardanoValue tokens)
             datumHash
             refScript
       where
         refScript = Cardano.ReferenceScriptNone
         datumHash = Cardano.TxOutDatumNone
         addrInEra = tina "toCardanoTxOut: malformed address"
-            [ Cardano.AddressInEra (Cardano.ShelleyAddressInEra Cardano.ShelleyBasedEraAlonzo)
-                <$> deserialiseFromRawBytes AsShelleyAddress addr
+            [ Cardano.AddressInEra
+                (Cardano.ShelleyAddressInEra Cardano.ShelleyBasedEraAlonzo)
+                    <$> deserialiseFromRawBytes AsShelleyAddress addr
 
             , Cardano.AddressInEra Cardano.ByronAddressInAnyEra
                 <$> deserialiseFromRawBytes AsByronAddress addr
@@ -1871,15 +1880,17 @@ toCardanoTxOut era = case era of
     toBabbageTxOut (W.TxOut (W.Address addr) tokens) =
         Cardano.TxOut
             addrInEra
-            (Cardano.TxOutValue Cardano.MultiAssetInBabbageEra $ toCardanoValue tokens)
+            (Cardano.TxOutValue Cardano.MultiAssetInBabbageEra
+                $ toCardanoValue tokens)
             datumHash
             refScript
       where
         refScript = Cardano.ReferenceScriptNone
         datumHash = Cardano.TxOutDatumNone
         addrInEra = tina "toCardanoTxOut: malformed address"
-            [ Cardano.AddressInEra (Cardano.ShelleyAddressInEra Cardano.ShelleyBasedEraBabbage)
-                <$> deserialiseFromRawBytes AsShelleyAddress addr
+            [ Cardano.AddressInEra
+                (Cardano.ShelleyAddressInEra Cardano.ShelleyBasedEraBabbage)
+                    <$> deserialiseFromRawBytes AsShelleyAddress addr
 
             , Cardano.AddressInEra Cardano.ByronAddressInAnyEra
                 <$> deserialiseFromRawBytes AsByronAddress addr
