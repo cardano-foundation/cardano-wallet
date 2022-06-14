@@ -198,12 +198,12 @@ library
       Cardano.Wallet.DB.Checkpoints
       Cardano.Wallet.DB.MVar
       Cardano.Wallet.DB.Model
-      Cardano.Wallet.DB.Sqlite
       Cardano.Wallet.DB.Sqlite.AddressBook
       Cardano.Wallet.DB.Sqlite.CheckpointsOld
+      Cardano.Wallet.DB.Layer
       Cardano.Wallet.DB.Sqlite.Migration
+      Cardano.Wallet.DB.Sqlite.Schema
       Cardano.Wallet.DB.Sqlite.Stores
-      Cardano.Wallet.DB.Sqlite.TH
       Cardano.Wallet.DB.Sqlite.Types
       Cardano.Wallet.DB.WalletState
       Cardano.Wallet.Logging
@@ -449,9 +449,9 @@ test-suite unit
       Cardano.Wallet.CoinSelection.Internal.BalanceSpec
       Cardano.Wallet.CoinSelection.Internal.CollateralSpec
       Cardano.Wallet.DB.Arbitrary
+      Cardano.Wallet.DB.LayerSpec
       Cardano.Wallet.DB.MVarSpec
       Cardano.Wallet.DB.Properties
-      Cardano.Wallet.DB.SqliteSpec
       Cardano.Wallet.DB.Sqlite.StoresSpec
       Cardano.Wallet.DB.Sqlite.TypesSpec
       Cardano.Wallet.DB.StateMachine

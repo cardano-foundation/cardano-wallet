@@ -46,12 +46,12 @@ import Cardano.Wallet.Primitive.Types.UTxO
     ( UTxO )
 import Data.Delta
     ( Delta (..) )
+import Data.DeltaMap
+    ( DeltaMap (..) )
 import Data.Generics.Internal.VL
     ( withIso )
 import Data.Generics.Internal.VL.Lens
     ( over, view, (^.) )
-import Data.Map.Strict
-    ( Map )
 import Data.Word
     ( Word32 )
 import Fmt
@@ -62,7 +62,6 @@ import GHC.Generics
 import qualified Cardano.Wallet.DB.Checkpoints as CPS
 import qualified Cardano.Wallet.Primitive.Model as W
 import qualified Cardano.Wallet.Primitive.Types as W
-import qualified Data.Map.Strict as Map
 
 {-------------------------------------------------------------------------------
     Wallet Checkpoint
@@ -156,19 +155,3 @@ instance Buildable (DeltaWalletState1 s) where
 
 instance Show (DeltaWalletState1 s) where
     show = pretty
-
-{-------------------------------------------------------------------------------
-    A Delta type for Maps,
-    useful for handling multiple wallets.
--------------------------------------------------------------------------------}
--- | Delta type for 'Map'.
-data DeltaMap key da
-    = Insert key (Base da)
-    | Delete key
-    | Adjust key da
-
-instance (Ord key, Delta da) => Delta (DeltaMap key da) where
-    type Base (DeltaMap key da) = Map key (Base da)
-    apply (Insert key a) = Map.insert key a
-    apply (Delete key) = Map.delete key
-    apply (Adjust key da) = Map.adjust (apply da) key

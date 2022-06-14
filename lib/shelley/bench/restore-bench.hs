@@ -78,7 +78,7 @@ import Cardano.Wallet.CoinSelection
     ( SelectionStrategy (..), selectionDelta )
 import Cardano.Wallet.DB
     ( DBLayer )
-import Cardano.Wallet.DB.Sqlite
+import Cardano.Wallet.DB.Layer
     ( PersistAddressBook, withDBLayer )
 import Cardano.Wallet.Logging
     ( trMessageText )
@@ -247,7 +247,7 @@ import UnliftIO.Temporary
     ( withSystemTempFile )
 
 import qualified Cardano.Wallet as W
-import qualified Cardano.Wallet.DB.Sqlite as Sqlite
+import qualified Cardano.Wallet.DB.Layer as Sqlite
 import qualified Cardano.Wallet.Primitive.AddressDerivation.Byron as Byron
 import qualified Cardano.Wallet.Primitive.AddressDerivation.Shelley as Shelley
 import qualified Cardano.Wallet.Primitive.Types.TokenBundle as TokenBundle

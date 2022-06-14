@@ -17,6 +17,7 @@
 {-# LANGUAGE TypeApplications #-}
 
 {-# OPTIONS_GHC -fno-warn-orphans #-}
+{-# OPTIONS_GHC -Wno-unused-imports #-}
 
 -- |
 -- Copyright: © 2018-2020 IOHK
@@ -30,8 +31,7 @@
 -- >>> db <- newMemoryDBLayer :: IO TestDBSeq
 -- >>> quickCheck $ prop_sequential db
 
-{-# OPTIONS_GHC -Wno-unused-imports #-}
-module Cardano.Wallet.DB.SqliteSpec
+module Cardano.Wallet.DB.LayerSpec
     ( spec
     ) where
 
@@ -55,9 +55,7 @@ import Cardano.Wallet.DB
     ( DBFactory (..), DBLayer (..), ErrNoSuchWallet (..), cleanDB )
 import Cardano.Wallet.DB.Arbitrary
     ( GenState, KeyValPairs (..) )
-import Cardano.Wallet.DB.Properties
-    ( properties )
-import Cardano.Wallet.DB.Sqlite
+import Cardano.Wallet.DB.Layer
     ( DefaultFieldValues (..)
     , PersistAddressBook
     , WalletDBLog (..)
@@ -66,6 +64,8 @@ import Cardano.Wallet.DB.Sqlite
     , withDBLayer
     , withDBLayerInMemory
     )
+import Cardano.Wallet.DB.Properties
+    ( properties )
 import Cardano.Wallet.DB.Sqlite.Migration
     ( InvalidDatabaseSchemaVersion (..)
     , SchemaVersion (..)
@@ -271,7 +271,7 @@ import UnliftIO.STM
 import UnliftIO.Temporary
     ( withSystemTempDirectory, withSystemTempFile )
 
-import qualified Cardano.Wallet.DB.Sqlite.TH as DB
+import qualified Cardano.Wallet.DB.Sqlite.Schema as DB
 import qualified Cardano.Wallet.Primitive.AddressDerivation.Shelley as Seq
 import qualified Cardano.Wallet.Primitive.Types.Coin as Coin
 import qualified Cardano.Wallet.Primitive.Types.TokenBundle as TokenBundle
