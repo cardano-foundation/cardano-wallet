@@ -105,6 +105,7 @@
             (hsPkgs."generic-lens" or (errorHandler.buildDepError "generic-lens"))
             (hsPkgs."generics-sop" or (errorHandler.buildDepError "generics-sop"))
             (hsPkgs."lattices" or (errorHandler.buildDepError "lattices"))
+            (hsPkgs."safe" or (errorHandler.buildDepError "safe"))
             (hsPkgs."silently" or (errorHandler.buildDepError "silently"))
             (hsPkgs."QuickCheck" or (errorHandler.buildDepError "QuickCheck"))
             (hsPkgs."unliftio" or (errorHandler.buildDepError "unliftio"))
