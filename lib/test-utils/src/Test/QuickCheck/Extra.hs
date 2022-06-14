@@ -308,6 +308,15 @@ shrinkSpace shrinkFn = loop mempty . Set.fromList . shrinkFn
 
 -- | Repeatedly applies a shrinking function to a value while a condition holds.
 --
+-- This function can be used to predict the final value that QuickCheck will
+-- produce when searching for a minimal counterexample.
+--
+-- Example:
+--
+-- >>> isCounterexample a = (a > 0) && (a `mod` 8 == 0)
+-- >>> shrinkWhile isCounterexample shrinkIntegral 1024
+-- Just 8
+--
 -- Provided that the given starting value satisfies the condition, and provided
 -- that at least one shrunken value satisfies the condition, this function will
 -- terminate with the smallest shrunken value that cannot be shrunk further
@@ -326,6 +335,15 @@ shrinkWhile condition shrinkFn =
 
 -- | Repeatedly applies a shrinking function to a value while a condition holds,
 --   returning all the intermediate shrinking steps.
+--
+-- This function can be used to predict the sequence of intermediate values
+-- that QuickCheck will produce when searching for a minimal counterexample.
+--
+-- Example:
+--
+-- >>> isCounterexample = (>= 100)
+-- >>> shrinkWhileSteps isCounterexample shrinkIntegral 1024
+-- [512,256,128,112,105,102,101,100]
 --
 -- Provided that the given starting value satisfies the condition, and provided
 -- that at least one shrunken value satisfies the condition, this function will
