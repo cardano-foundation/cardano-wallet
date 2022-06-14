@@ -2048,11 +2048,12 @@ unsealShelleyTx wtx = case W.cardanoTx wtx of
 
 -- | Converts a 'ShelleyBasedEra' to the broader 'CardanoEra'.
 shelleyBasedToCardanoEra :: ShelleyBasedEra era -> CardanoEra era
-shelleyBasedToCardanoEra Cardano.ShelleyBasedEraShelley = ShelleyEra
-shelleyBasedToCardanoEra Cardano.ShelleyBasedEraAllegra = AllegraEra
-shelleyBasedToCardanoEra Cardano.ShelleyBasedEraMary    = MaryEra
-shelleyBasedToCardanoEra Cardano.ShelleyBasedEraAlonzo  = AlonzoEra
-shelleyBasedToCardanoEra Cardano.ShelleyBasedEraBabbage  = BabbageEra
+shelleyBasedToCardanoEra = \case
+    Cardano.ShelleyBasedEraShelley -> ShelleyEra
+    Cardano.ShelleyBasedEraAllegra -> AllegraEra
+    Cardano.ShelleyBasedEraMary    -> MaryEra
+    Cardano.ShelleyBasedEraAlonzo  -> AlonzoEra
+    Cardano.ShelleyBasedEraBabbage -> BabbageEra
 
 -- | An existential type like 'AnyCardanoEra', but for 'ShelleyBasedEra'.
 data AnyShelleyBasedEra where

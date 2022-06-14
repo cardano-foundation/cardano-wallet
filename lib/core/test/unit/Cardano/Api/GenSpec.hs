@@ -449,13 +449,15 @@ instance Arbitrary TxIx where
     arbitrary = genTxIndex
 
 genTxIxCoverage' :: Ledger.TxIx -> Property
-genTxIxCoverage' (Ledger.TxIx ix) = unsignedCoverage (maxBound @Word16 - 1024) "txIx" ix
+genTxIxCoverage' (Ledger.TxIx ix) =
+    unsignedCoverage (maxBound @Word16 - 1024) "txIx" ix
 
 instance Arbitrary Ledger.TxIx where
     arbitrary = genTxIx
 
 genCertIxCoverage :: Ledger.CertIx -> Property
-genCertIxCoverage (Ledger.CertIx ix) = unsignedCoverage (maxBound @Word16 - 1024) "certIx" ix
+genCertIxCoverage (Ledger.CertIx ix) =
+    unsignedCoverage (maxBound @Word16 - 1024) "certIx" ix
 
 instance Arbitrary Ledger.CertIx where
     arbitrary = genCertIx
