@@ -276,7 +276,7 @@ RSpec.describe CardanoWallet::Misc do
     end
   end
 
-  describe CardanoWallet::Misc::Settings, :light do
+  describe CardanoWallet::Misc::Settings do
 
     after(:all) do
       SETTINGS.update({ :pool_metadata_source => "none" })
