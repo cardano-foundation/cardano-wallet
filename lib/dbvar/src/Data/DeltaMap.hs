@@ -1,18 +1,18 @@
 {-# LANGUAGE TypeFamilies #-}
 
 module Data.DeltaMap
-    ( DeltaMap(..)
+    ( DeltaMap (..)
     ) where
+
+import Prelude
+    ( Ord )
 
 import Data.Delta
     ( Delta (..) )
 import Data.Map.Strict
     ( Map )
+    
 import qualified Data.Map.Strict as Map
-import Prelude
-    ( Ord )
-
-
 {-------------------------------------------------------------------------------
     A Delta type for Maps,
     useful for handling multiple wallets.
