@@ -5,6 +5,7 @@
 {-# LANGUAGE OverloadedLabels #-}
 {-# LANGUAGE ScopedTypeVariables #-}
 {-# LANGUAGE TypeApplications #-}
+{-# LANGUAGE ViewPatterns #-}
 {- HLINT ignore "Use null" -}
 
 module Test.QuickCheck.ExtraSpec
@@ -26,6 +27,8 @@ import Data.Generics.Labels
     ()
 import Data.List.Extra
     ( dropEnd )
+import Data.List.NonEmpty
+    ( NonEmpty (..) )
 import Data.Map.Strict
     ( Map )
 import Data.Maybe
@@ -36,10 +39,13 @@ import Generics.SOP
     ( NP (Nil) )
 import GHC.Generics
     ( Generic )
+import Safe
+    ( tailMay )
 import Test.Hspec
     ( Spec, describe, it )
 import Test.QuickCheck
     ( Arbitrary (..)
+    , Fun (..)
     , Gen
     , NonNegative (..)
     , NonPositive (..)
@@ -47,8 +53,10 @@ import Test.QuickCheck
     , Property
     , Small (..)
     , Testable
+    , applyFun
     , checkCoverage
     , chooseInteger
+    , conjoin
     , cover
     , forAll
     , frequency
@@ -58,15 +66,20 @@ import Test.QuickCheck
     , property
     , scale
     , shrinkIntegral
+    , within
     , (===)
     )
 import Test.QuickCheck.Extra
     ( Pretty (..)
+    , genShrinkSequence
     , genericRoundRobinShrink
     , interleaveRoundRobin
     , partitionList
     , selectMapEntries
     , selectMapEntry
+    , shrinkSpace
+    , shrinkWhile
+    , shrinkWhileSteps
     , (<:>)
     , (<@>)
     )
@@ -74,6 +87,7 @@ import Test.QuickCheck.Extra
 import qualified Data.Foldable as F
 import qualified Data.List as L
 import qualified Data.List.Extra as L
+import qualified Data.List.NonEmpty as NE
 import qualified Data.Map.Strict as Map
 import qualified Data.Set as Set
 
@@ -152,6 +166,66 @@ spec = describe "Test.QuickCheck.ExtraSpec" $ do
             it "prop_selectMapEntries_union" $
                 prop_selectMapEntries_union
                     @Int @Int & property
+
+    describe "Evaluating shrinkers" $ do
+
+        describe "Generating sequences of shrunken values" $ do
+
+            describe "genShrinkSequence" $ do
+
+                it "prop_genShrinkSequence_length" $
+                    prop_genShrinkSequence_length
+                        @Integer & property
+                it "prop_genShrinkSequence_empty" $
+                    prop_genShrinkSequence_empty
+                        @Integer & property
+                it "prop_genShrinkSequence_start" $
+                    prop_genShrinkSequence_start
+                        @Integer & property
+                it "prop_genShrinkSequence_termination" $
+                    prop_genShrinkSequence_termination
+                        @Integer & property
+                it "prop_genShrinkSequence_validity" $
+                    prop_genShrinkSequence_validity
+                        @Integer & property
+
+        describe "Evaluating the entire shrink space of a shrinker" $ do
+
+            describe "shrinkSpace" $ do
+
+                it "prop_shrinkSpace_complete" $
+                    prop_shrinkSpace_complete
+                        @Int & property
+                it "prop_shrinkSpace_empty" $
+                    prop_shrinkSpace_empty
+                        @Int & property
+                it "prop_shrinkSpace_singleton" $
+                    prop_shrinkSpace_singleton
+                        @Int & property
+
+        describe "Repeatedly shrinking while a condition holds" $ do
+
+            describe "shrinkWhile" $ do
+
+                it "prop_shrinkWhile_coverage" $
+                    prop_shrinkWhile_coverage
+                        @Int & property
+                it "prop_shrinkWhile_isNothing" $
+                    prop_shrinkWhile_isNothing
+                        @Int & property
+                it "prop_shrinkWhile_satisfy" $
+                    prop_shrinkWhile_satisfy
+                        @Int & property
+
+            describe "shrinkWhileSteps" $ do
+
+                it "prop_shrinkWhileSteps_coverage" $
+                    prop_shrinkWhileSteps_coverage
+                        @Int & property
+                it "prop_shrinkWhileSteps_satisfy" $
+                    prop_shrinkWhileSteps_satisfy
+                        @Int & property
+                unit_shrinkWhileSteps_Int
 
 --------------------------------------------------------------------------------
 -- Generic shrinking
@@ -591,6 +665,163 @@ prop_selectMapEntries_union m0 (Positive (Small i)) =
         Map.fromList kvs `Map.union` m1 === m0
 
 --------------------------------------------------------------------------------
+-- Generating sequences of shrunken values
+--------------------------------------------------------------------------------
+
+prop_genShrinkSequence_length
+    :: (Arbitrary a, Eq a, Show a) => a -> Property
+prop_genShrinkSequence_length a =
+    forAll (genShrinkSequence shrink a) $ \as ->
+        checkCoverage $
+        cover 2 (length as ==  0) "length as ==  0" $
+        cover 2 (length as ==  1) "length as ==  1" $
+        cover 2 (length as ==  2) "length as ==  2" $
+        cover 2 (length as >= 10) "length as >= 10" $
+        property True
+
+-- Verify that the resulting sequence is only empty if the starting value
+-- cannot be shrunk.
+--
+prop_genShrinkSequence_empty
+    :: (Arbitrary a, Eq a, Show a) => a -> Property
+prop_genShrinkSequence_empty a =
+    forAll (genShrinkSequence shrink a) $ \as ->
+        null as === null (shrink a)
+
+-- Verify that the starting value is not present in the resulting sequence.
+--
+prop_genShrinkSequence_start
+    :: (Arbitrary a, Eq a, Show a) => a -> Property
+prop_genShrinkSequence_start a =
+    forAll (genShrinkSequence shrink a) $ \as ->
+        a `notElem` as
+
+-- Verify that the final element in the resulting sequence cannot be shrunk
+-- further.
+--
+prop_genShrinkSequence_termination
+    :: (Arbitrary a, Eq a, Show a) => a -> Property
+prop_genShrinkSequence_termination a =
+    forAll (genShrinkSequence shrink a) $ \as ->
+        shrink (NE.last (a :| as)) === []
+
+-- Verify that each successive element in the resulting sequence is a member of
+-- the shrink set of the preceding element.
+--
+prop_genShrinkSequence_validity
+    :: (Arbitrary a, Eq a, Show a) => a -> Property
+prop_genShrinkSequence_validity a =
+    forAll (genShrinkSequence shrink a) $ \as ->
+        all (\(x, y) -> y `elem` shrink x) (consecutivePairs (a :| as))
+
+--------------------------------------------------------------------------------
+-- Evaluating the entire shrink space of a shrinking function
+--------------------------------------------------------------------------------
+
+prop_shrinkSpace_complete :: (Arbitrary a, Ord a) => a -> Property
+prop_shrinkSpace_complete a =
+    within twoSeconds $
+    conjoin
+        [ -- All initial shrinks are present in the set:
+          all (`Set.member` ss) (shrink a)
+          -- All transitive shrinks are present in the set:
+        , all (all (`Set.member` ss) . shrink) ss
+        ]
+  where
+    ss = shrinkSpace shrink a
+    twoSeconds = 2_000_000
+
+prop_shrinkSpace_empty :: (Arbitrary a, Ord a, Show a) => a -> Property
+prop_shrinkSpace_empty a =
+    shrinkSpace (const []) a === mempty
+
+prop_shrinkSpace_singleton :: (Arbitrary a, Ord a, Show a) => a -> Property
+prop_shrinkSpace_singleton a =
+    shrinkSpace (const [a]) a === Set.singleton a
+
+--------------------------------------------------------------------------------
+-- Repeatedly shrinking while a condition holds
+--------------------------------------------------------------------------------
+
+prop_shrinkWhile_coverage :: Arbitrary a => Fun a Bool -> a -> Property
+prop_shrinkWhile_coverage (applyFun -> condition) a
+    = checkCoverage
+    $ cover 10
+        (isJust shrinkWhileResult)
+        "isJust shrinkWhileResult"
+    $ cover 10
+        (isNothing shrinkWhileResult)
+        "isNothing shrinkWhileResult"
+    $ property True
+  where
+    shrinkWhileResult = shrinkWhile condition shrink a
+
+prop_shrinkWhile_isNothing :: Arbitrary a => Fun a Bool -> a -> Property
+prop_shrinkWhile_isNothing (applyFun -> condition) a =
+    isNothing (shrinkWhile condition shrink a)
+    === (not (condition a) || null (L.find condition (shrink a)))
+
+prop_shrinkWhile_satisfy :: Arbitrary a => Fun a Bool -> a -> Property
+prop_shrinkWhile_satisfy (applyFun -> condition) a =
+    all condition (shrinkWhile condition shrink a)
+    === True
+
+prop_shrinkWhileSteps_coverage :: Arbitrary a => Fun a Bool -> a -> Property
+prop_shrinkWhileSteps_coverage (applyFun -> condition) a
+    = checkCoverage
+    $ cover 10
+        (null shrinkWhileStepsResult)
+        "null shrinkWhileStepsResult"
+    $ cover 10
+        (length shrinkWhileStepsResult == 1)
+        "length shrinkWhileStepsResult == 1"
+    $ cover 10
+        (length shrinkWhileStepsResult >= 2)
+        "length shrinkWhileStepsResult >= 2"
+    $ property True
+  where
+    shrinkWhileStepsResult = shrinkWhileSteps condition shrink a
+
+prop_shrinkWhileSteps_satisfy :: Arbitrary a => Fun a Bool -> a -> Property
+prop_shrinkWhileSteps_satisfy (applyFun -> condition) a =
+    all condition (shrinkWhileSteps condition shrink a)
+    === True
+
+unit_shrinkWhileSteps_Int :: Spec
+unit_shrinkWhileSteps_Int = unitTests
+    "unit_shrinkWhileSteps_Int"
+    (\(a, condition) -> shrinkWhileSteps condition shrink a)
+    tests
+  where
+    tests :: [UnitTestData (Int, (Int -> Bool)) [Int]]
+    tests =
+        [ UnitTestData
+            { params = (1024, (>= 0))
+            , result = [0]
+            }
+        , UnitTestData
+            { params = (1024, (>= 1))
+            , result = [512, 256, 128, 64, 32, 16, 8, 4, 2, 1]
+            }
+        , UnitTestData
+            { params = (1024, (>= 10))
+            , result = [512, 256, 128, 64, 32, 16, 12, 11, 10]
+            }
+        , UnitTestData
+            { params = (1024, (>= 100))
+            , result = [512, 256, 128, 112, 105, 102, 101, 100]
+            }
+        , UnitTestData
+            { params = (1024, (>= 1000))
+            , result = [1008, 1001, 1000]
+            }
+        , UnitTestData
+            { params = (1024, (>= 10000))
+            , result = []
+            }
+        ]
+
+--------------------------------------------------------------------------------
 -- Unit test support
 --------------------------------------------------------------------------------
 
@@ -618,3 +849,12 @@ unitTests title f unitTestData =
   where
     testNumbers :: [Int]
     testNumbers = [1 ..]
+
+--------------------------------------------------------------------------------
+-- Utilities
+--------------------------------------------------------------------------------
+
+consecutivePairs :: Foldable f => f a -> [(a, a)]
+consecutivePairs (F.toList -> xs) = case tailMay xs of
+    Nothing -> []
+    Just ys -> xs `zip` ys

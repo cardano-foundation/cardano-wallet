@@ -1,3 +1,4 @@
+{-# LANGUAGE BangPatterns #-}
 {-# LANGUAGE DataKinds #-}
 {-# LANGUAGE FlexibleContexts #-}
 {-# LANGUAGE GADTs #-}
@@ -33,6 +34,12 @@ module Test.QuickCheck.Extra
     , (<@>)
     , (<:>)
 
+      -- * Evaluating shrinkers
+    , genShrinkSequence
+    , shrinkSpace
+    , shrinkWhile
+    , shrinkWhileSteps
+
       -- * Partitioning lists
     , partitionList
 
@@ -66,7 +73,7 @@ module Test.QuickCheck.Extra
 import Prelude
 
 import Control.Monad
-    ( foldM )
+    ( foldM, liftM2 )
 import Data.IntCast
     ( intCast, intCastMaybe )
 import Data.List.NonEmpty
@@ -74,7 +81,9 @@ import Data.List.NonEmpty
 import Data.Map.Strict
     ( Map )
 import Data.Maybe
-    ( mapMaybe )
+    ( listToMaybe, mapMaybe )
+import Data.Set
+    ( Set )
 import Fmt
     ( indentF, (+|), (|+) )
 import Generics.SOP
@@ -88,6 +97,7 @@ import Test.QuickCheck
     , chooseInt
     , chooseInteger
     , counterexample
+    , elements
     , liftArbitrary2
     , liftShrink2
     , listOf
@@ -110,6 +120,7 @@ import Text.Pretty.Simple
 import qualified Data.List as L
 import qualified Data.List.NonEmpty as NE
 import qualified Data.Map.Strict as Map
+import qualified Data.Set as Set
 import qualified Data.Text.Lazy as TL
 import qualified Generics.SOP.GGP as GGP
 import qualified GHC.Generics as GHC
@@ -199,6 +210,170 @@ shrinkInterleaved (a, shrinkA) (b, shrinkB) = interleave
     interleave (x : xs) (y : ys) = x : y : interleave xs ys
     interleave xs [] = xs
     interleave [] ys = ys
+
+--------------------------------------------------------------------------------
+-- Evaluating shrinkers
+--------------------------------------------------------------------------------
+
+-- | Generates a random sequence of progressively shrunken values from a given
+--   starting value and shrinking function.
+--
+-- Each successive element in the sequence is selected at random from the
+-- result of applying the shrinking function to the preceding element.
+--
+-- The given starting value is not included in the sequence, by default.
+--
+-- Examples:
+--
+-- >>> generate (genShrinkSequence shrink (100 :: Int))
+-- [94,83,82,72,70,66,33,32,16,0]
+--
+-- >>> generate (genShrinkSequence shrink "Cardano")
+-- ["Caraano","aaraano","aaraaao","aaro","aarb","aaab","aab","aa",""]
+--
+-- The resulting sequence will be empty if (and only if) applying the shrinking
+-- function to the starting value yields the empty list:
+--
+-- >>> generate (genShrinkSequence (const []) "Cardano")
+-- []
+--
+-- If the resulting sequence is non-empty, then applying the shrinking function
+-- to the terminal element will yield the empty list:
+--
+-- >>> shrink . last <$> generate (genShrinkSequence shrink (100 :: Int))
+-- []
+--
+genShrinkSequence :: forall a. (a -> [a]) -> a -> Gen [a]
+genShrinkSequence shrinkFn = loop
+  where
+    loop :: a -> Gen [a]
+    loop a = case shrinkFn a of
+        [] -> pure []
+        as -> liftM2 fmap (:) loop =<< elements as
+
+-- | Computes the shrink space of a given shrinking function for a given
+--   starting value.
+--
+-- This function returns the set of all values that are transitively reachable
+-- through repeated applications of the given shrinking function to the given
+-- starting value.
+--
+-- By default, the given starting value is not included in the result.
+--
+-- Examples:
+--
+-- >>> shrinkSpace shrink "abc"
+-- ["","a","aa","aaa","aab","aac","ab","aba","abb","ac","b","ba","bb","bc","c"]
+--
+-- >>> shrinkSpace shrink (8 :: Int)
+-- [0,1,2,3,4,5,6,7]
+--
+-- >>> shrinkSpace shrink (2 :: Int, 2 :: Int)
+-- [(0,0),(0,1),(0,2),(1,0),(1,1),(1,2),(2,0),(2,1)]
+--
+-- Caution:
+--
+-- Depending on the particular choice of shrinking function and starting value,
+-- the shrink space can grow very quickly. Therefore, this function should be
+-- used with caution to avoid non-termination within test cases. If in doubt,
+-- use the 'within' modifier provided by QuickCheck to ensure that your test
+-- case terminates within a fixed time limit.
+--
+-- This function can be used to test that a given shrinking function always
+-- generates values that satisfy a given condition. For example:
+--
+-- @
+-- prop_shrinkApple_valid :: Apple -> Property
+-- prop_shrinkApple_valid apple =
+--     within twoSeconds $
+--     all isValidApple (shrinkSpace shrinkApple apple)
+--   where
+--     twoSeconds = 2_000_000
+-- @
+--
+shrinkSpace :: forall a. Ord a => (a -> [a]) -> a -> Set a
+shrinkSpace shrinkFn = loop mempty . Set.fromList . shrinkFn
+  where
+    -- Loop invariant: "processed" and "remaining" are always disjoint sets:
+    --
+    loop :: Set a -> Set a -> Set a
+    loop !processed !remaining
+        | Set.null remaining =
+            processed
+        | otherwise =
+            loop processedNew remainingNew
+      where
+        remainingFirst :: a
+        remainingFirst = Set.elemAt 0 remaining
+
+        remainingNew :: Set a
+        remainingNew =
+            Set.difference
+                (Set.union remaining (Set.fromList $ shrinkFn remainingFirst))
+                (processedNew)
+
+        processedNew :: Set a
+        processedNew = Set.insert remainingFirst processed
+
+-- | Repeatedly applies a shrinking function to a value while a condition holds.
+--
+-- This function can be used to predict the final value that QuickCheck will
+-- produce when searching for a minimal counterexample.
+--
+-- Example:
+--
+-- >>> isCounterexample a = (a > 0) && (a `mod` 8 == 0)
+-- >>> shrinkWhile isCounterexample shrinkIntegral 1024
+-- Just 8
+--
+-- Provided that the given starting value satisfies the condition, and provided
+-- that at least one shrunken value satisfies the condition, this function will
+-- terminate with the smallest shrunken value that cannot be shrunk further
+-- with the given shrinking function.
+--
+-- This function returns 'Nothing' if the given starting value does not satisfy
+-- the condition, or if none of the shrunken values satisfy the condition.
+--
+-- The final result is evaluated eagerly. If you suspect that a given shrinking
+-- sequence does not terminate, then you may wish to consider evaluating a
+-- finite prefix of 'shrinkWhileSteps' instead.
+--
+shrinkWhile :: (a -> Bool) -> (a -> [a]) -> a -> Maybe a
+shrinkWhile condition shrinkFn =
+    listToMaybe . reverse . shrinkWhileSteps condition shrinkFn
+
+-- | Repeatedly applies a shrinking function to a value while a condition holds,
+--   returning all the intermediate shrinking steps.
+--
+-- This function can be used to predict the sequence of intermediate values
+-- that QuickCheck will produce when searching for a minimal counterexample.
+--
+-- Example:
+--
+-- >>> isCounterexample = (>= 100)
+-- >>> shrinkWhileSteps isCounterexample shrinkIntegral 1024
+-- [512,256,128,112,105,102,101,100]
+--
+-- Provided that the given starting value satisfies the condition, and provided
+-- that at least one shrunken value satisfies the condition, this function will
+-- produce a non-empty list of all intermediate shrinking steps, ordered from
+-- largest to smallest.
+--
+-- The list is evaluated lazily from largest to smallest. If you suspect that a
+-- given shrinking sequence does not terminate, then you may wish to consider
+-- evaluating a finite prefix of the list.
+--
+-- This function returns the empty list if the given starting value does not
+-- satisfy the condition, or if none of the shrunken values satisfy the
+-- condition.
+--
+shrinkWhileSteps :: forall a. (a -> Bool) -> (a -> [a]) -> a -> [a]
+shrinkWhileSteps condition shrinkFn a
+    | condition a = steps a
+    | otherwise = []
+  where
+    steps :: a -> [a]
+    steps = maybe [] (\y -> y : steps y) . L.find condition . shrinkFn
 
 --------------------------------------------------------------------------------
 -- Generating list partitions
