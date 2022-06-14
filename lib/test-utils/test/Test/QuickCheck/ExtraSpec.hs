@@ -199,6 +199,9 @@ spec = describe "Test.QuickCheck.ExtraSpec" $ do
                 it "prop_shrinkSpace_empty" $
                     prop_shrinkSpace_empty
                         @Int & property
+                it "prop_shrinkSpace_singleton" $
+                    prop_shrinkSpace_singleton
+                        @Int & property
 
         describe "Repeatedly shrinking while a condition holds" $ do
 
@@ -731,6 +734,10 @@ prop_shrinkSpace_complete a =
 prop_shrinkSpace_empty :: (Arbitrary a, Ord a, Show a) => a -> Property
 prop_shrinkSpace_empty a =
     shrinkSpace (const []) a === mempty
+
+prop_shrinkSpace_singleton :: (Arbitrary a, Ord a, Show a) => a -> Property
+prop_shrinkSpace_singleton a =
+    shrinkSpace (const [a]) a === Set.singleton a
 
 --------------------------------------------------------------------------------
 -- Repeatedly shrinking while a condition holds
