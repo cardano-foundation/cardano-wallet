@@ -35,6 +35,7 @@ module Test.QuickCheck.Extra
     , (<:>)
 
       -- * Evaluating shrinkers
+    , genShrinkSequence
     , shrinkSpace
     , shrinkWhile
     , shrinkWhileSteps
@@ -72,7 +73,7 @@ module Test.QuickCheck.Extra
 import Prelude
 
 import Control.Monad
-    ( foldM )
+    ( foldM, liftM2 )
 import Data.IntCast
     ( intCast, intCastMaybe )
 import Data.List.NonEmpty
@@ -96,6 +97,7 @@ import Test.QuickCheck
     , chooseInt
     , chooseInteger
     , counterexample
+    , elements
     , liftArbitrary2
     , liftShrink2
     , listOf
@@ -212,6 +214,42 @@ shrinkInterleaved (a, shrinkA) (b, shrinkB) = interleave
 --------------------------------------------------------------------------------
 -- Evaluating shrinkers
 --------------------------------------------------------------------------------
+
+-- | Generates a random sequence of progressively shrunken values from a given
+--   starting value and shrinking function.
+--
+-- Each successive element in the sequence is selected at random from the
+-- result of applying the shrinking function to the preceding element.
+--
+-- The given starting value is not included in the sequence, by default.
+--
+-- Examples:
+--
+-- >>> generate (genShrinkSequence shrink (100 :: Int))
+-- [94,83,82,72,70,66,33,32,16,0]
+--
+-- >>> generate (genShrinkSequence shrink "Cardano")
+-- ["Caraano","aaraano","aaraaao","aaro","aarb","aaab","aab","aa",""]
+--
+-- The resulting sequence will be empty if (and only if) applying the shrinking
+-- function to the starting value yields the empty list:
+--
+-- >>> generate (genShrinkSequence (const []) "Cardano")
+-- []
+--
+-- If the resulting sequence is non-empty, then applying the shrinking function
+-- to the terminal element will yield the empty list:
+--
+-- >>> shrink . last <$> generate (genShrinkSequence shrink (100 :: Int))
+-- []
+--
+genShrinkSequence :: forall a. (a -> [a]) -> a -> Gen [a]
+genShrinkSequence shrinkFn = loop
+  where
+    loop :: a -> Gen [a]
+    loop a = case shrinkFn a of
+        [] -> pure []
+        as -> liftM2 fmap (:) loop =<< elements as
 
 -- | Computes the entire shrink space of a given value and shrinking function.
 --

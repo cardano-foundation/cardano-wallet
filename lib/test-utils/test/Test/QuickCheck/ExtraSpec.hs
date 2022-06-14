@@ -27,6 +27,8 @@ import Data.Generics.Labels
     ()
 import Data.List.Extra
     ( dropEnd )
+import Data.List.NonEmpty
+    ( NonEmpty (..) )
 import Data.Map.Strict
     ( Map )
 import Data.Maybe
@@ -37,6 +39,8 @@ import Generics.SOP
     ( NP (Nil) )
 import GHC.Generics
     ( Generic )
+import Safe
+    ( tailMay )
 import Test.Hspec
     ( Spec, describe, it )
 import Test.QuickCheck
@@ -67,6 +71,7 @@ import Test.QuickCheck
     )
 import Test.QuickCheck.Extra
     ( Pretty (..)
+    , genShrinkSequence
     , genericRoundRobinShrink
     , interleaveRoundRobin
     , partitionList
@@ -82,6 +87,7 @@ import Test.QuickCheck.Extra
 import qualified Data.Foldable as F
 import qualified Data.List as L
 import qualified Data.List.Extra as L
+import qualified Data.List.NonEmpty as NE
 import qualified Data.Map.Strict as Map
 import qualified Data.Set as Set
 
@@ -162,6 +168,26 @@ spec = describe "Test.QuickCheck.ExtraSpec" $ do
                     @Int @Int & property
 
     describe "Evaluating shrinkers" $ do
+
+        describe "Generating sequences of shrunken values" $ do
+
+            describe "genShrinkSequence" $ do
+
+                it "prop_genShrinkSequence_length" $
+                    prop_genShrinkSequence_length
+                        @Integer & property
+                it "prop_genShrinkSequence_empty" $
+                    prop_genShrinkSequence_empty
+                        @Integer & property
+                it "prop_genShrinkSequence_start" $
+                    prop_genShrinkSequence_start
+                        @Integer & property
+                it "prop_genShrinkSequence_termination" $
+                    prop_genShrinkSequence_termination
+                        @Integer & property
+                it "prop_genShrinkSequence_validity" $
+                    prop_genShrinkSequence_validity
+                        @Integer & property
 
         describe "Evaluating the entire shrink space of a shrinker" $ do
 
@@ -633,6 +659,56 @@ prop_selectMapEntries_union m0 (Positive (Small i)) =
         Map.fromList kvs `Map.union` m1 === m0
 
 --------------------------------------------------------------------------------
+-- Generating sequences of shrunken values
+--------------------------------------------------------------------------------
+
+prop_genShrinkSequence_length
+    :: (Arbitrary a, Eq a, Show a) => a -> Property
+prop_genShrinkSequence_length a =
+    forAll (genShrinkSequence shrink a) $ \as ->
+        checkCoverage $
+        cover 2 (length as ==  0) "length as ==  0" $
+        cover 2 (length as ==  1) "length as ==  1" $
+        cover 2 (length as ==  2) "length as ==  2" $
+        cover 2 (length as >= 10) "length as >= 10" $
+        property True
+
+-- Verify that the resulting sequence is only empty if the starting value
+-- cannot be shrunk.
+--
+prop_genShrinkSequence_empty
+    :: (Arbitrary a, Eq a, Show a) => a -> Property
+prop_genShrinkSequence_empty a =
+    forAll (genShrinkSequence shrink a) $ \as ->
+        null as === null (shrink a)
+
+-- Verify that the starting value is not present in the resulting sequence.
+--
+prop_genShrinkSequence_start
+    :: (Arbitrary a, Eq a, Show a) => a -> Property
+prop_genShrinkSequence_start a =
+    forAll (genShrinkSequence shrink a) $ \as ->
+        a `notElem` as
+
+-- Verify that the final element in the resulting sequence cannot be shrunk
+-- further.
+--
+prop_genShrinkSequence_termination
+    :: (Arbitrary a, Eq a, Show a) => a -> Property
+prop_genShrinkSequence_termination a =
+    forAll (genShrinkSequence shrink a) $ \as ->
+        shrink (NE.last (a :| as)) === []
+
+-- Verify that each successive element in the resulting sequence is a member of
+-- the shrink set of the preceding element.
+--
+prop_genShrinkSequence_validity
+    :: (Arbitrary a, Eq a, Show a) => a -> Property
+prop_genShrinkSequence_validity a =
+    forAll (genShrinkSequence shrink a) $ \as ->
+        all (\(x, y) -> y `elem` shrink x) (consecutivePairs (a :| as))
+
+--------------------------------------------------------------------------------
 -- Evaluating the entire shrink space of a shrinking function
 --------------------------------------------------------------------------------
 
@@ -759,3 +835,12 @@ unitTests title f unitTestData =
   where
     testNumbers :: [Int]
     testNumbers = [1 ..]
+
+--------------------------------------------------------------------------------
+-- Utilities
+--------------------------------------------------------------------------------
+
+consecutivePairs :: Foldable f => f a -> [(a, a)]
+consecutivePairs (F.toList -> xs) = case tailMay xs of
+    Nothing -> []
+    Just ys -> xs `zip` ys
