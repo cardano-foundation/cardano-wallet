@@ -196,6 +196,9 @@ spec = describe "Test.QuickCheck.ExtraSpec" $ do
                 it "prop_shrinkSpace_complete" $
                     prop_shrinkSpace_complete
                         @Int & property
+                it "prop_shrinkSpace_empty" $
+                    prop_shrinkSpace_empty
+                        @Int & property
 
         describe "Repeatedly shrinking while a condition holds" $ do
 
@@ -724,6 +727,10 @@ prop_shrinkSpace_complete a =
   where
     ss = shrinkSpace shrink a
     twoSeconds = 2_000_000
+
+prop_shrinkSpace_empty :: (Arbitrary a, Ord a, Show a) => a -> Property
+prop_shrinkSpace_empty a =
+    shrinkSpace (const []) a === mempty
 
 --------------------------------------------------------------------------------
 -- Repeatedly shrinking while a condition holds
