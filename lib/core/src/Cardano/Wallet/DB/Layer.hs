@@ -27,7 +27,7 @@
 --
 -- An implementation of the DBLayer which uses Persistent and SQLite.
 
-module Cardano.Wallet.DB.Sqlite
+module Cardano.Wallet.DB.Layer
     ( -- * Directory of single-file wallet databases
       newDBFactory
     , findDatabases

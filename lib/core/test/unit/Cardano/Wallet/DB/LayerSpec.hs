@@ -31,7 +31,7 @@
 -- >>> quickCheck $ prop_sequential db
 
 {-# OPTIONS_GHC -Wno-unused-imports #-}
-module Cardano.Wallet.DB.SqliteSpec
+module Cardano.Wallet.DB.LayerSpec
     ( spec
     ) where
 
@@ -55,9 +55,7 @@ import Cardano.Wallet.DB
     ( DBFactory (..), DBLayer (..), ErrNoSuchWallet (..), cleanDB )
 import Cardano.Wallet.DB.Arbitrary
     ( GenState, KeyValPairs (..) )
-import Cardano.Wallet.DB.Properties
-    ( properties )
-import Cardano.Wallet.DB.Sqlite
+import Cardano.Wallet.DB.Layer
     ( DefaultFieldValues (..)
     , PersistAddressBook
     , WalletDBLog (..)
@@ -66,6 +64,8 @@ import Cardano.Wallet.DB.Sqlite
     , withDBLayer
     , withDBLayerInMemory
     )
+import Cardano.Wallet.DB.Properties
+    ( properties )
 import Cardano.Wallet.DB.Sqlite.Migration
     ( InvalidDatabaseSchemaVersion (..)
     , SchemaVersion (..)

@@ -29,7 +29,7 @@ import Cardano.Pool.DB.Log
     ( PoolDbLog )
 import Cardano.Wallet.Api.Server
     ( WalletEngineLog )
-import Cardano.Wallet.DB.Sqlite
+import Cardano.Wallet.DB.Layer
     ( DBFactoryLog )
 import Cardano.Wallet.Logging
     ( trMessageText )

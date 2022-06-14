@@ -67,7 +67,7 @@ import Cardano.Startup
     ( withUtf8Encoding )
 import Cardano.Wallet.DB
     ( DBLayer (..), cleanDB )
-import Cardano.Wallet.DB.Sqlite
+import Cardano.Wallet.DB.Layer
     ( CacheBehavior (..)
     , PersistAddressBook
     , WalletDBLog (..)
