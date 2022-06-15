@@ -35,6 +35,8 @@ import Data.Foldable
     ( find )
 import Data.List.NonEmpty
     ( NonEmpty (..) )
+import Data.Maybe
+    ( listToMaybe )
 import Data.Quantity
     ( Quantity (..) )
 import Data.Void
@@ -89,8 +91,7 @@ type MockChain = NonEmpty Block
 type Block = BlockHeader
 
 -- | 'LightSyncSource' that reads from a 'MockChain'.
-mkLightSyncSourceMock
-    :: LightSyncSource ((->) MockChain) Block addr ()
+mkLightSyncSourceMock :: LightSyncSource ((->) MockChain) Block addr ()
 mkLightSyncSourceMock = LightSyncSource
     { stabilityWindow = fromIntegral mockStabilityWindow
     , getHeader = id
@@ -102,8 +103,12 @@ mkLightSyncSourceMock = LightSyncSource
         find ((pt ==) . toPoint)
     , getNextBlocks = \pt chain ->
         case NE.span ((pt /=) . toPoint) chain of
-            (_,[]) -> Nothing -- point does not exist
-            (xs,_) -> Just (reverse xs)
+            (_, []) -> Nothing -- point does not exist
+            (xs, _) -> Just (reverse xs)
+    , getNextBlockHeader = \bh chain ->
+        case NE.span (bh /=) chain of
+            (_, []) -> Nothing -- point does not exist
+            (xs, _) -> listToMaybe (reverse xs)
     , getAddressTxs = \_ _ _ -> pure ()
     }
   where
