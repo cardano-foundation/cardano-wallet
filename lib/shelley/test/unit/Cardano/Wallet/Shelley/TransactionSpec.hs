@@ -1406,9 +1406,11 @@ binaryCalculationsSpec (AnyCardanoEra era) =
             ShelleyBasedEraMary ->
                 binaryCalculationsSpec' @Cardano.MaryEra shelleyEra
             ShelleyBasedEraAlonzo ->
-                binaryCalculationsSpec' @Cardano.AlonzoEra shelleyEra
+                pure () -- TO_DO when ledger's PR 2863 is included in node bump
+                --binaryCalculationsSpec' @Cardano.AlonzoEra shelleyEra
             ShelleyBasedEraBabbage ->
-                binaryCalculationsSpec' @Cardano.BabbageEra shelleyEra
+                pure () -- TO_DO when ledger's PR 2863 is included in node bump
+                --binaryCalculationsSpec' @Cardano.BabbageEra shelleyEra
 
 binaryCalculationsSpec'
     :: forall era. EraConstraints era
