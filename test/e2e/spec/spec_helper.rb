@@ -45,6 +45,7 @@ PROXY = CW.misc.proxy
 CA = CardanoAddresses.new
 
 CONTEXT = Context.new
+CONTEXT.env = ENV['NETWORK'] || 'testnet'
 
 ##
 # default passphrase for wallets
@@ -156,12 +157,12 @@ def wait_for_shared_wallet_to_sync(wid)
   puts "Syncing Shared wallet..."
   retry_count = 10
   begin
-    while (SHARED.wallets.get(wid)['state']['status'] == "syncing") do
+    while (SHARED.wallets.get(wid)['state']['status'].to_s == "syncing") do
       w = SHARED.wallets.get(wid)
-      puts "  Syncing... #{w['state']['progress']['quantity']}%" if w['state']['progress']
+      puts "  Syncing... #{w['state']['progress']['quantity'].to_i}%" if w['state']['progress']
       sleep 5
     end
-  rescue NoMethodError
+  rescue 
     puts "Retry #{retry_count}"
     retry_count -= 1
     puts "SHARED.wallets.get(#{wid}) returned:"
@@ -191,12 +192,12 @@ def wait_for_shelley_wallet_to_sync(wid)
   puts "Syncing Shelley wallet..."
   retry_count = 10
   begin
-    while (SHELLEY.wallets.get(wid)['state']['status'] == "syncing") do
+    while (SHELLEY.wallets.get(wid)['state']['status'].to_s == "syncing") do
       w = SHELLEY.wallets.get(wid)
-      puts "  Syncing... #{w['state']['progress']['quantity']}%" if w['state']['progress']
+      puts "  Syncing... #{w['state']['progress']['quantity'].to_i}%" if w['state']['progress']
       sleep 5
     end
-  rescue NoMethodError
+  rescue
     puts "Retry #{retry_count}"
     retry_count -= 1
     puts "SHELLEY.wallets.get(#{wid}) returned:"
@@ -226,12 +227,12 @@ def wait_for_byron_wallet_to_sync(wid)
   puts "Syncing Byron wallet..."
   retry_count = 10
   begin
-    while (BYRON.wallets.get(wid)['state']['status'] == "syncing") do
+    while (BYRON.wallets.get(wid)['state']['status'].to_s == "syncing") do
       w = BYRON.wallets.get(wid)
-      puts "  Syncing... #{w['state']['progress']['quantity']}%" if w['state']['progress']
+      puts "  Syncing... #{w['state']['progress']['quantity'].to_i}%" if w['state']['progress']
       sleep 5
     end
-  rescue NoMethodError
+  rescue
     puts "Retry #{retry_count}"
     retry_count -= 1
     puts "BYRON.wallets.get(#{wid}) returned:"
@@ -567,4 +568,10 @@ end
 # The same as get_sent_amts, but we assume single output tx
 def get_sent_amt(outputs)
   get_sent_amts(outputs).first
+end
+
+def get_key_deposit
+  config = File.join(absolute_path(ENV['CARDANO_NODE_CONFIGS']), CONTEXT.env)
+  shelley_genesis = JSON.parse(File.read(File.join(config, "shelley-genesis.json")))
+  shelley_genesis['protocolParams']['keyDeposit'].to_i
 end

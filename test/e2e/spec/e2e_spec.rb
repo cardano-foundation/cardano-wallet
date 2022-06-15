@@ -1,5 +1,5 @@
 # coding: utf-8
-RSpec.describe "Cardano Wallet E2E tests", :e2e do
+RSpec.describe "Cardano Wallet E2E tests", :all, :e2e do
 
   before(:all) do
     # shelley wallets
@@ -509,7 +509,8 @@ RSpec.describe "Cardano Wallet E2E tests", :e2e do
 
     it "Delegation (join and quit)" do
       balance = get_shelley_balances(@target_id)
-      expected_deposit = 2000000
+      expected_deposit = get_key_deposit
+      puts "Expected deposit #{expected_deposit}"
       # Check wallet stake keys before joing stake pool
       stake_keys = SHELLEY.stake_pools.list_stake_keys(@target_id)
       expect(stake_keys).to be_correct_and_respond 200
@@ -1262,7 +1263,8 @@ RSpec.describe "Cardano Wallet E2E tests", :e2e do
         # for transfering the assets over the network
         # in this the total `cost` is pure ADA minUTxOValue + 11 'utxo words' + fee
         min_utxo_value = NETWORK.parameters['minimum_utxo_value']['quantity'].to_i
-        lovelace_per_utxo_word = 34482
+        era = NETWORK.information['node_era']
+        lovelace_per_utxo_word = (era == 'babbage' ? 34480 : 34482)
         min_utxo_value_tokens = min_utxo_value + 11 * lovelace_per_utxo_word
         expect(src_after_minting['available']).to eq (src_before['available'] - expected_fee - min_utxo_value_tokens)
         expect(src_after_minting['total']).to eq (src_before['total'] - expected_fee - min_utxo_value_tokens)
@@ -1519,13 +1521,33 @@ RSpec.describe "Cardano Wallet E2E tests", :e2e do
         expect(assets).to be_correct_and_respond 200
         expect(assets.to_s).to include ASSETS[0]["policy_id"]
         expect(assets.to_s).to include ASSETS[0]["asset_name"]
+        expect(assets.to_s).to include ASSETS[1]["policy_id"]
+        expect(assets.to_s).to include ASSETS[1]["asset_name"]
+
+        assets = SHELLEY.assets.get(@wid, policy_id = ASSETS[0]["policy_id"])
+        expect(assets).to be_correct_and_respond 200
+        expect(assets["policy_id"]).to eq ASSETS[0]["policy_id"]
+        expect(assets["asset_name"]).to eq ASSETS[0]["asset_name"]
+        expect(assets["asset_name"]).not_to eq ASSETS[1]["asset_name"]
+
+        assets = SHELLEY.assets.get(@wid, policy_id = ASSETS[1]["policy_id"],
+                                          asset_name = ASSETS[1]["asset_name"])
+        expect(assets).to be_correct_and_respond 200
+        expect(assets["policy_id"]).to eq ASSETS[1]["policy_id"]
+        expect(assets["asset_name"]).to eq ASSETS[1]["asset_name"]
+        expect(assets["asset_name"]).not_to eq ASSETS[0]["asset_name"]
+      end
+
+      it "I can list native assets and get offchain metadata", :offchain do
+        assets = SHELLEY.assets.get @wid
+        expect(assets).to be_correct_and_respond 200
+        expect(assets.to_s).to include ASSETS[0]["policy_id"]
+        expect(assets.to_s).to include ASSETS[0]["asset_name"]
         expect(assets.to_s).to include ASSETS[0]["metadata"]["name"]
         expect(assets.to_s).to include ASSETS[1]["policy_id"]
         expect(assets.to_s).to include ASSETS[1]["asset_name"]
         expect(assets.to_s).to include ASSETS[1]["metadata"]["name"]
-      end
 
-      it "I can get native assets by policy_id" do
         assets = SHELLEY.assets.get(@wid, policy_id = ASSETS[0]["policy_id"])
         expect(assets).to be_correct_and_respond 200
         expect(assets["policy_id"]).to eq ASSETS[0]["policy_id"]
@@ -1533,10 +1555,9 @@ RSpec.describe "Cardano Wallet E2E tests", :e2e do
         expect(assets["metadata"]).to eq ASSETS[0]["metadata"]
         expect(assets["asset_name"]).not_to eq ASSETS[1]["asset_name"]
         expect(assets["metadata"]).not_to eq ASSETS[1]["metadata"]
-      end
 
-      it "I can get native assets by policy_id and asset_name" do
-        assets = SHELLEY.assets.get(@wid, policy_id = ASSETS[1]["policy_id"], asset_name = ASSETS[1]["asset_name"])
+        assets = SHELLEY.assets.get(@wid, policy_id = ASSETS[1]["policy_id"],
+                                          asset_name = ASSETS[1]["asset_name"])
         expect(assets).to be_correct_and_respond 200
         expect(assets["policy_id"]).to eq ASSETS[1]["policy_id"]
         expect(assets["asset_name"]).to eq ASSETS[1]["asset_name"]
@@ -1786,10 +1807,10 @@ RSpec.describe "Cardano Wallet E2E tests", :e2e do
       end
 
       it "Can join and quit Stake Pool" do
-
         # Get funds on the wallet
         address = SHELLEY.addresses.list(@target_id)[0]['id']
         amt = 10000000
+        deposit = get_key_deposit
         tx_sent = SHELLEY.transactions.create(@wid,
                                               PASS,
                                               [{ address => amt }])
@@ -1827,8 +1848,7 @@ RSpec.describe "Cardano Wallet E2E tests", :e2e do
           tx['status'] == "in_ledger"
         end
         fee = SHELLEY.transactions.get(@target_id, join_tx_id)['fee']['quantity']
-        # deposit for joining the pool is 2 ₳da
-        deposit = 2000000
+
         stake_after_joining = stake - deposit - fee
 
         # Check wallet stake keys after joing stake pool

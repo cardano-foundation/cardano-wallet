@@ -25,6 +25,9 @@ on:
         options:
         - AWS
         - GH
+      tags:
+        description: 'Test tags (all, light, offchain...)'
+        default: 'all'
 
 defaults:
   run:
@@ -113,7 +116,7 @@ jobs:
       run: rake wait_until_node_synced
 
     - name: 🧪 Run all tests
-      run: rake spec
+      run: rake spec SPEC_OPTS="-t $TAGS"
 
     - name: 📖 Get docker logs
       if: always()
@@ -134,3 +137,4 @@ jobs:
       WALLET: ${{ github.event.inputs.walletTag || 'dev-master' }}
       TESTS_E2E_TOKEN_METADATA: https://metadata.cardano-testnet.iohkdev.io/
       NODE_DB_CACHE: ${{ github.event.inputs.node_db_cache || 'GH' }}
+      TAGS: ${{ github.event.inputs.tags || 'all' }}

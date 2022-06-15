@@ -20,6 +20,9 @@ on:
       pr:
         description: 'PR number or "master"'
         default: 'master'
+      tags:
+        description: 'Test tags (all, light, offchain...)'
+        default: 'all'
 
 defaults:
   run:
@@ -83,7 +86,7 @@ jobs:
       run: rake wait_until_node_synced
 
     - name: 🧪 Run all tests
-      run: rake spec
+      run: rake spec SPEC_OPTS="-t $TAGS"
 
     - name: 🏁 Stop node and wallet
       run: rake stop_node_and_wallet[$NETWORK]
@@ -100,3 +103,4 @@ jobs:
       NETWORK: ${{ github.event.inputs.network || 'testnet' }}
       PR: ${{ github.event.inputs.pr || '' }}
       NODE_DB_CACHE: ${{ github.event.inputs.node_db_cache || 'GH' }}
+      TAGS: ${{ github.event.inputs.tags || 'all' }}

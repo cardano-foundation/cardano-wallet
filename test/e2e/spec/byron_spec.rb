@@ -1,4 +1,4 @@
-RSpec.describe CardanoWallet::Byron do
+RSpec.describe CardanoWallet::Byron, :all, :byron do
   after(:each) do
     teardown
   end

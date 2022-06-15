@@ -12,7 +12,10 @@ on:
       pr:
         description: 'PR number or "master"'
         default: 'master'
-
+      tags:
+        description: 'Test tags (all, light, offchain...)'
+        default: 'light'
+        
 defaults:
   run:
     working-directory: ./test/e2e
@@ -49,7 +52,7 @@ jobs:
       run: rake start_wallet_light[$NETWORK]
 
     - name: 🧪 Run all tests
-      run: rake spec SPEC_OPTS="-t light"
+      run: rake spec SPEC_OPTS="-t $TAGS"
 
     - name: 🏁 Stop wallet --light
       run: rake stop_wallet_light[$NETWORK]
@@ -65,3 +68,4 @@ jobs:
       TESTS_E2E_FIXTURES: ${{ secrets.TESTS_E2E_FIXTURES }}
       NETWORK: ${{ github.event.inputs.network || 'testnet' }}
       PR: ${{ github.event.inputs.pr || '' }}
+      TAGS: ${{ github.event.inputs.tags || 'light' }}
