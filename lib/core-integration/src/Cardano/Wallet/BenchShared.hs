@@ -1,5 +1,6 @@
 {-# LANGUAGE DeriveGeneric #-}
 {-# LANGUAGE LambdaCase #-}
+{-# LANGUAGE PackageImports #-}
 {-# LANGUAGE TypeApplications #-}
 
 -- |
@@ -69,7 +70,7 @@ import Fmt
     ( Buildable (..), nameF, pretty )
 import GHC.Generics
     ( Generic )
-import Options.Applicative
+import "optparse-applicative" Options.Applicative
     ( HasValue
     , Mod
     , Parser

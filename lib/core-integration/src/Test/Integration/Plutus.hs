@@ -2,6 +2,7 @@
 {-# LANGUAGE DataKinds #-}
 {-# LANGUAGE NumericUnderscores #-}
 {-# LANGUAGE OverloadedLabels #-}
+{-# LANGUAGE PackageImports #-}
 {-# LANGUAGE QuasiQuotes #-}
 {-# LANGUAGE RankNTypes #-}
 {-# LANGUAGE ScopedTypeVariables #-}
@@ -66,7 +67,7 @@ import qualified Codec.Binary.Bech32 as Bech32
 import qualified Codec.CBOR.Term as CBOR
 import qualified Data.Aeson as Aeson
 import qualified Data.ByteString as BS
-import qualified Data.ByteString.Base16 as Base16
+import qualified "base16-bytestring" Data.ByteString.Base16 as Base16
 import qualified Data.ByteString.Lazy as BSL
 import qualified Data.Text.Encoding as T
 import qualified Data.Text.Lazy as TL

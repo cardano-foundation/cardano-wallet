@@ -1,6 +1,7 @@
 {-# LANGUAGE DeriveAnyClass #-}
 {-# LANGUAGE DerivingStrategies #-}
 {-# LANGUAGE GeneralizedNewtypeDeriving #-}
+{-# LANGUAGE PackageImports #-}
 {-# LANGUAGE ScopedTypeVariables #-}
 
 module Cardano.Wallet.Shelley.Launch.Blockfrost
@@ -20,7 +21,7 @@ import Control.Exception
     ( Exception, IOException, catch, throw )
 import Control.Monad
     ( when )
-import Options.Applicative
+import "optparse-applicative" Options.Applicative
     ( Parser, help, long, metavar, option, str )
 
 import qualified Data.Text as T

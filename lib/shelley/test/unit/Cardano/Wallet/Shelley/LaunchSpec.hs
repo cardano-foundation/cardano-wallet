@@ -1,3 +1,4 @@
+{-# LANGUAGE PackageImports #-}
 -- |
 -- Copyright: © 2020 IOHK
 -- License: Apache-2.0
@@ -9,7 +10,7 @@ import Prelude
 
 import Cardano.Wallet.Shelley.Launch
     ( nodeSocketOption )
-import Options.Applicative
+import "optparse-applicative" Options.Applicative
     ( ParserResult (..), defaultPrefs, execParserPure, info )
 import Test.Hspec
     ( Spec, describe, it, shouldSatisfy )

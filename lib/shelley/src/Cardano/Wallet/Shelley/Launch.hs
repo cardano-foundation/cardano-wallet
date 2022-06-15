@@ -3,6 +3,7 @@
 {-# LANGUAGE DerivingStrategies #-}
 {-# LANGUAGE GADTs #-}
 {-# LANGUAGE LambdaCase #-}
+{-# LANGUAGE PackageImports #-}
 {-# LANGUAGE RankNTypes #-}
 {-# LANGUAGE ScopedTypeVariables #-}
 {-# LANGUAGE TypeApplications #-}
@@ -78,7 +79,7 @@ import Data.Text.Class
     ( FromText (..), TextDecodingError, ToText (..) )
 import GHC.TypeLits
     ( KnownNat, Nat, SomeNat (..), someNatVal )
-import Options.Applicative
+import "optparse-applicative" Options.Applicative
     ( Parser, eitherReader, flag', help, long, metavar, option, (<|>) )
 import Ouroboros.Network.Magic
     ( NetworkMagic (..) )

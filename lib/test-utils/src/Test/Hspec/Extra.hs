@@ -1,5 +1,6 @@
 {-# LANGUAGE FlexibleContexts #-}
 {-# LANGUAGE LambdaCase #-}
+{-# LANGUAGE PackageImports #-}
 {-# LANGUAGE ScopedTypeVariables #-}
 
 -- |
@@ -37,7 +38,7 @@ import Control.Monad.IO.Unlift
     ( MonadUnliftIO )
 import Data.List
     ( elemIndex )
-import Options.Applicative
+import "optparse-applicative" Options.Applicative
     ( Parser
     , ParserInfo (..)
     , ReadM
