@@ -83,7 +83,9 @@ import Cardano.Binary
 import Cardano.Crypto.Wallet
     ( XPub )
 import Cardano.Ledger.Alonzo.Tools
-    ( BasicFailure (..), evaluateTransactionExecutionUnits )
+    ( BasicFailure (BadTranslation, UnknownTxIns)
+    , evaluateTransactionExecutionUnits
+    )
 import Cardano.Ledger.Crypto
     ( DSIGN )
 import Cardano.Ledger.Era
