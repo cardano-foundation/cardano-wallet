@@ -206,6 +206,7 @@ library
       Cardano.Wallet.DB.Sqlite.Stores
       Cardano.Wallet.DB.Sqlite.Types
       Cardano.Wallet.DB.WalletState
+      Cardano.Wallet.DB.WalletState
       Cardano.Wallet.Logging
       Cardano.Wallet.Network
       Cardano.Wallet.Network.Light
@@ -261,6 +262,7 @@ library
       Cardano.Wallet.Version
       Cardano.Wallet.Version.TH
       Control.Concurrent.Concierge
+      Control.Monad.Exception.Unchecked
       Control.Monad.Random.Extra
       Crypto.Hash.Utils
       Data.Aeson.Extra

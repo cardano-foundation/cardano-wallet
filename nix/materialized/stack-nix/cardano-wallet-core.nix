@@ -249,6 +249,7 @@
           "Cardano/Wallet/Version"
           "Cardano/Wallet/Version/TH"
           "Control/Concurrent/Concierge"
+          "Control/Monad/Exception/Unchecked"
           "Control/Monad/Random/Extra"
           "Crypto/Hash/Utils"
           "Data/Aeson/Extra"
