@@ -136,6 +136,8 @@ import Cardano.Api.Extra
     ( asAnyShelleyBasedEra, inAnyCardanoEra, withShelleyBasedTx )
 import Cardano.BM.Tracing
     ( HasPrivacyAnnotation (..), HasSeverityAnnotation (..) )
+import Cardano.Ledger.Alonzo.TxInfo
+    ( TranslationError (TimeTranslationPastHorizon) )
 import Cardano.Mnemonic
     ( SomeMnemonic )
 import Cardano.Wallet
@@ -5051,6 +5053,16 @@ instance IsServerError ErrAssignRedeemers where
                 , "about. Please ensure all foreign inputs are specified as "
                 , "part of the API request. The unknown inputs are:\n\n"
                 , pretty ins
+                ]
+        ErrAssignRedeemersTranslationError TimeTranslationPastHorizon ->
+            -- We differentiate this from @TranslationError@ for partial API
+            -- backwards compatibility.
+            apiError err400 PastHorizon $ T.unwords
+                [ "The transaction's validity interval is past the horizon"
+                , "of safe slot-to-time conversions."
+                , "This may happen when I know about a future era"
+                , "which has not yet been confirmed on-chain. Try setting the"
+                , "bounds of the validity interval to be earlier."
                 ]
         ErrAssignRedeemersTranslationError e ->
             apiError err400 TranslationError $ T.unwords
