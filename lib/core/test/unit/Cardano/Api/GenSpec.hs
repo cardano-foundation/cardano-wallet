@@ -1277,27 +1277,29 @@ genTxOutDatumCoverage era datum =
             TxOutDatumHash _ _ -> True
             _ -> False
 
-genTxOutReferenceScriptCoverage :: CardanoEra era -> ReferenceScript era -> Property
+genTxOutReferenceScriptCoverage
+    :: CardanoEra era -> ReferenceScript era -> Property
 genTxOutReferenceScriptCoverage era refScript =
     case refInsScriptsAndInlineDatsSupportedInEra era of
         Nothing ->
             (refScript == ReferenceScriptNone)
             & label "reference scripts not generated in unsupported era"
-            & counterexample ( "reference scripts were generated in unsupported "
-                               <> show era
-                             )
+            & counterexample
+                ( "reference scripts were generated in unsupported "
+                    <> show era
+                )
         Just _ -> checkCoverage
             $ cover 30 (hasNoRefScript refScript)
                 "no reference script"
             $ cover 30 (hasRefScript refScript)
                 "reference script present"
                 True
-    where
-        hasNoRefScript = (== ReferenceScriptNone)
+  where
+    hasNoRefScript = (== ReferenceScriptNone)
 
-        hasRefScript = \case
-            ReferenceScript _ _ -> True
-            _ -> False
+    hasRefScript = \case
+        ReferenceScript _ _ -> True
+        _ -> False
 
 genTxOutValueCoverage :: CardanoEra era -> TxOutValue era -> Property
 genTxOutValueCoverage era val =

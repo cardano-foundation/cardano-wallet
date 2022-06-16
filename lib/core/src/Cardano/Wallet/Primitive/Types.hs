@@ -1060,15 +1060,15 @@ emptyEraInfo = EraInfo Nothing Nothing Nothing Nothing Nothing Nothing
 instance NFData info => NFData (EraInfo info)
 
 instance Buildable (EraInfo EpochNo) where
-    build (EraInfo byron shelley allegra mary alonzo babbage) = blockListF' "-" id
-        [ "byron" <> boundF byron
-        , "shelley" <> boundF shelley
-        , "allegra" <> boundF allegra
-        , "mary" <> boundF mary
-        , "alonzo" <> boundF alonzo
-        , "babbage" <> boundF babbage
-        ]
-
+    build (EraInfo byron shelley allegra mary alonzo babbage) =
+        blockListF' "-" id
+            [ "byron" <> boundF byron
+            , "shelley" <> boundF shelley
+            , "allegra" <> boundF allegra
+            , "mary" <> boundF mary
+            , "alonzo" <> boundF alonzo
+            , "babbage" <> boundF babbage
+            ]
       where
         boundF (Just e) = " from " <> build e
         boundF Nothing = " <not started>"

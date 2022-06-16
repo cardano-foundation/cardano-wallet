@@ -580,13 +580,19 @@ numberOfTransactionsInBlock = \case
             , (fromBlockNo $ SL.bheaderBlockNo header, SL.bheaderSlotNo header)
             )
     transactionsBabbage
-        :: ShelleyBlock (Consensus.Praos StandardCrypto) (Babbage.BabbageEra StandardCrypto)
+        :: ShelleyBlock
+            (Consensus.Praos StandardCrypto)
+            (Babbage.BabbageEra StandardCrypto)
         -> (Int, (Quantity "block" Word32, O.SlotNo))
     transactionsBabbage
-        (ShelleyBlock (SL.Block (Consensus.Header header _) (Alonzo.TxSeq txs')) _) =
-            ( length txs'
-            , (fromBlockNo $ Consensus.hbBlockNo header, Consensus.hbSlotNo header)
-            )
+        (ShelleyBlock
+            (SL.Block (Consensus.Header header _)
+            (Alonzo.TxSeq txs')) _) =
+                ( length txs'
+                , ( fromBlockNo $ Consensus.hbBlockNo header
+                  , Consensus.hbSlotNo header
+                  )
+                )
     transactionsByron blk =
         (, (fromBlockNo $ O.blockNo blk, O.blockSlot blk)) $
             case byronBlockRaw blk of
@@ -606,7 +612,9 @@ toCardanoEra = \case
 
 fromShelleyBlock
     :: W.GenesisParameters
-    -> ShelleyBlock (Consensus.TPraos StandardCrypto) (SL.ShelleyEra StandardCrypto)
+    -> ShelleyBlock
+        (Consensus.TPraos StandardCrypto)
+        (SL.ShelleyEra StandardCrypto)
     -> (W.Block, [W.PoolCertificate])
 fromShelleyBlock gp blk@(ShelleyBlock (SL.Block _ (SL.TxSeq txs')) _) =
     let
@@ -623,7 +631,9 @@ fromShelleyBlock gp blk@(ShelleyBlock (SL.Block _ (SL.TxSeq txs')) _) =
 
 fromAllegraBlock
     :: W.GenesisParameters
-    -> ShelleyBlock (Consensus.TPraos StandardCrypto) (MA.ShelleyMAEra 'MA.Allegra StandardCrypto)
+    -> ShelleyBlock
+        (Consensus.TPraos StandardCrypto)
+        (MA.ShelleyMAEra 'MA.Allegra StandardCrypto)
     -> (W.Block, [W.PoolCertificate])
 fromAllegraBlock gp blk@(ShelleyBlock (SL.Block _ (SL.TxSeq txs')) _) =
     let
@@ -640,7 +650,9 @@ fromAllegraBlock gp blk@(ShelleyBlock (SL.Block _ (SL.TxSeq txs')) _) =
 
 fromMaryBlock
     :: W.GenesisParameters
-    -> ShelleyBlock (Consensus.TPraos StandardCrypto) (MA.ShelleyMAEra 'MA.Mary StandardCrypto)
+    -> ShelleyBlock
+        (Consensus.TPraos StandardCrypto)
+        (MA.ShelleyMAEra 'MA.Mary StandardCrypto)
     -> (W.Block, [W.PoolCertificate])
 fromMaryBlock gp blk@(ShelleyBlock (SL.Block _ (SL.TxSeq txs')) _) =
     let
@@ -663,9 +675,13 @@ fromMaryBlock gp blk@(ShelleyBlock (SL.Block _ (SL.TxSeq txs')) _) =
 -- would need to be cleaned up too. We probably will need to use `Point block`,
 -- in all chain followers (including the DBLayer).
 fromAlonzoBlock
-    :: ShelleyCompatible (Consensus.TPraos StandardCrypto) (Alonzo.AlonzoEra StandardCrypto)
+    :: ShelleyCompatible
+        (Consensus.TPraos StandardCrypto)
+        (Alonzo.AlonzoEra StandardCrypto)
     => W.GenesisParameters
-    -> ShelleyBlock (Consensus.TPraos StandardCrypto) (Alonzo.AlonzoEra StandardCrypto)
+    -> ShelleyBlock
+        (Consensus.TPraos StandardCrypto)
+        (Alonzo.AlonzoEra StandardCrypto)
     -> (W.Block, [W.PoolCertificate])
 fromAlonzoBlock gp blk@(ShelleyBlock (SL.Block _ txSeq) _) =
     let
@@ -683,7 +699,9 @@ fromAlonzoBlock gp blk@(ShelleyBlock (SL.Block _ txSeq) _) =
 
 fromBabbageBlock
     :: W.GenesisParameters
-    -> ShelleyBlock (Consensus.Praos StandardCrypto) (Babbage.BabbageEra StandardCrypto)
+    -> ShelleyBlock
+        (Consensus.Praos StandardCrypto)
+        (Babbage.BabbageEra StandardCrypto)
     -> (W.Block, [W.PoolCertificate])
 fromBabbageBlock gp blk@(ShelleyBlock (SL.Block _ txSeq) _) =
     let
@@ -1526,7 +1544,8 @@ fromBabbageValidatedTx (Alonzo.ValidatedTx bod wits _isValidating aux) =
 
 fromBabbageTxBodyAndAux
     :: Babbage.TxBody (Cardano.ShelleyLedgerEra BabbageEra)
-    -> SLAPI.StrictMaybe (Babbage.AuxiliaryData (Cardano.ShelleyLedgerEra BabbageEra))
+    -> SLAPI.StrictMaybe
+        (Babbage.AuxiliaryData (Cardano.ShelleyLedgerEra BabbageEra))
     -> Alonzo.TxWitness StandardBabbage
     -> ( W.Tx
        , [W.Certificate]
@@ -1537,7 +1556,8 @@ fromBabbageTxBodyAndAux
 fromBabbageTxBodyAndAux bod mad wits =
     ( W.Tx
         { txId =
-            fromShelleyTxId $ TxIn.txid @(Cardano.ShelleyLedgerEra BabbageEra) bod
+            fromShelleyTxId $
+            TxIn.txid @(Cardano.ShelleyLedgerEra BabbageEra) bod
         , fee =
             Just $ fromShelleyCoin fee
         , resolvedInputs =

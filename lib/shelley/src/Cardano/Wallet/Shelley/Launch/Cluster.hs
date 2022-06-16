@@ -1015,7 +1015,8 @@ genConfig dir systemStart clusterEra logCfg = do
 
     -- we need to specify genesis file location every run in tmp
     withAddedKey k v = withObject (pure . Aeson.insert k (toJSON v))
-    withHardForks era = withObject (pure . Aeson.union (Aeson.fromList hardForks))
+    withHardForks era =
+        withObject (pure . Aeson.union (Aeson.fromList hardForks))
       where
         hardForks =
             [ (Aeson.fromText $ "Test" <> T.pack (show hardFork) <> "AtEpoch"

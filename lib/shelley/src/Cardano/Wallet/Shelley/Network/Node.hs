@@ -491,8 +491,10 @@ withNodeNetworkLayerBase
             (Just . optimumNumberOfPools <$> LSQry Shelley.GetCurrentPParams)
             (Just . optimumNumberOfPools <$> LSQry Shelley.GetCurrentPParams)
             (Just . optimumNumberOfPools <$> LSQry Shelley.GetCurrentPParams)
-            (Just . fromIntegral . Alonzo._nOpt <$> LSQry Shelley.GetCurrentPParams)
-            (Just . fromIntegral . Babbage._nOpt <$> LSQry Shelley.GetCurrentPParams)
+            (Just . fromIntegral . Alonzo._nOpt
+                <$> LSQry Shelley.GetCurrentPParams)
+            (Just . fromIntegral . Babbage._nOpt
+                <$> LSQry Shelley.GetCurrentPParams)
 
         queryNonMyopicMemberRewards
             :: LSQ (CardanoBlock StandardCrypto) IO
@@ -1362,7 +1364,12 @@ instance (Ord key, Buildable key, Buildable value)
 
 byronOrShelleyBased
     :: LSQ Byron.ByronBlock m a
-    -> (forall shelleyEra praos. LSQ (Shelley.ShelleyBlock (praos StandardCrypto) (shelleyEra StandardCrypto)) m a)
+    ->  (forall shelleyEra praos. LSQ
+            (Shelley.ShelleyBlock
+                (praos StandardCrypto)
+                (shelleyEra StandardCrypto)
+            ) m a
+        )
     -> LSQ (CardanoBlock StandardCrypto) m a
 byronOrShelleyBased onByron onShelleyBased = onAnyEra
     onByron
@@ -1389,13 +1396,14 @@ onAnyEra
     -> LSQ (Shelley.ShelleyBlock (TPraos StandardCrypto) StandardAlonzo) m a
     -> LSQ (Shelley.ShelleyBlock (Praos StandardCrypto) StandardBabbage) m a
     -> LSQ (CardanoBlock StandardCrypto) m a
-onAnyEra onByron onShelley onAllegra onMary onAlonzo onBabbage = currentEra >>= \case
-    AnyCardanoEra ByronEra -> mapQuery QueryIfCurrentByron onByron
-    AnyCardanoEra ShelleyEra -> mapQuery QueryIfCurrentShelley onShelley
-    AnyCardanoEra AllegraEra -> mapQuery QueryIfCurrentAllegra onAllegra
-    AnyCardanoEra MaryEra -> mapQuery QueryIfCurrentMary onMary
-    AnyCardanoEra AlonzoEra -> mapQuery QueryIfCurrentAlonzo onAlonzo
-    AnyCardanoEra BabbageEra -> mapQuery QueryIfCurrentBabbage onBabbage
+onAnyEra onByron onShelley onAllegra onMary onAlonzo onBabbage =
+    currentEra >>= \case
+        AnyCardanoEra ByronEra -> mapQuery QueryIfCurrentByron onByron
+        AnyCardanoEra ShelleyEra -> mapQuery QueryIfCurrentShelley onShelley
+        AnyCardanoEra AllegraEra -> mapQuery QueryIfCurrentAllegra onAllegra
+        AnyCardanoEra MaryEra -> mapQuery QueryIfCurrentMary onMary
+        AnyCardanoEra AlonzoEra -> mapQuery QueryIfCurrentAlonzo onAlonzo
+        AnyCardanoEra BabbageEra -> mapQuery QueryIfCurrentBabbage onBabbage
   where
     mapQuery
         :: (forall r. BlockQuery block1 r
@@ -1413,7 +1421,12 @@ onAnyEra onByron onShelley onAllegra onMary onAlonzo onBabbage = currentEra >>= 
 
 -- | Return Nothings in Byron, or @Just result@ in Shelley.
 shelleyBased
-    :: (forall shelleyEra praos. LSQ (Shelley.ShelleyBlock (praos StandardCrypto) (shelleyEra StandardCrypto)) m a)
+    ::  (forall shelleyEra praos. LSQ
+            (Shelley.ShelleyBlock
+                (praos StandardCrypto)
+                (shelleyEra StandardCrypto)
+            ) m a
+        )
     -> LSQ (CardanoBlock StandardCrypto) m (Maybe a)
 shelleyBased onShelleyBased = byronOrShelleyBased
     (pure Nothing) -- on byron

@@ -3581,7 +3581,8 @@ instance FromJSON ApiScriptTemplateEntry where
             case Aeson.toList o of
                 [] -> fail "Cosigners object array should not be empty"
                 cs -> for (reverse cs) $ \(numTxt, str) -> do
-                    cosigner' <- parseJSON @Cosigner (String $ Aeson.toText numTxt)
+                    cosigner' <- parseJSON @Cosigner $
+                        String $ Aeson.toText numTxt
                     xpubOrSelf <- parseJSON str
                     pure (cosigner', xpubOrSelf)
 
@@ -3590,10 +3591,12 @@ instance ToJSON ApiScriptTemplateEntry where
         object [ "cosigners" .= object (fmap toPair (Map.toList cosigners'))
                , "template" .= toJSON template']
       where
-        cosignerToKey (Cosigner ix) = Aeson.fromText $ "cosigner#"<> T.pack (show ix)
+        cosignerToKey (Cosigner ix) =
+            Aeson.fromText $ "cosigner#"<> T.pack (show ix)
         toPair (cosigner', xpubOrSelf) =
             ( cosignerToKey cosigner'
-            , toJSON xpubOrSelf  )
+            , toJSON xpubOrSelf
+            )
 
 instance FromJSON ApiSharedWalletPostDataFromAccountPubX where
     parseJSON = genericParseJSON defaultRecordTypeOptions
@@ -3631,12 +3634,13 @@ instance ToJSON (ApiT Cosigner) where
 instance FromJSON ApiSharedWalletPatchData where
     parseJSON = withObject "ApiSharedWalletPatchData" $ \o ->
         case Aeson.toList o of
-                [] -> fail "ApiSharedWalletPatchData should not be empty"
-                [(numTxt, str)] -> do
-                    cosigner' <- parseJSON @(ApiT Cosigner) (String $ Aeson.toText numTxt)
-                    xpub <- parseJSON @ApiAccountPublicKey str
-                    pure $ ApiSharedWalletPatchData cosigner' xpub
-                _ -> fail "ApiSharedWalletPatchData should have one pair"
+            [] -> fail "ApiSharedWalletPatchData should not be empty"
+            [(numTxt, str)] -> do
+                cosigner' <- parseJSON @(ApiT Cosigner)
+                    (String $ Aeson.toText numTxt)
+                xpub <- parseJSON @ApiAccountPublicKey str
+                pure $ ApiSharedWalletPatchData cosigner' xpub
+            _ -> fail "ApiSharedWalletPatchData should have one pair"
 
 instance ToJSON ApiSharedWalletPatchData where
     toJSON (ApiSharedWalletPatchData cosigner accXPub) =
@@ -3653,10 +3657,13 @@ instance FromJSON ApiPendingSharedWallet where
             let obj' = Aeson.delete (Aeson.fromText "state") obj
             genericParseJSON defaultRecordTypeOptions (Aeson.Object obj')
         _ -> fail "ApiPendingSharedWallet should be object"
+
 instance ToJSON ApiPendingSharedWallet where
-    toJSON wal = Aeson.Object $ Aeson.insert (Aeson.fromText "state") (object ["status" .= String "incomplete"]) obj
+    toJSON wal = Aeson.Object $ Aeson.insert
+        (Aeson.fromText "state")
+        (object ["status" .= String "incomplete"]) obj
       where
-        (Aeson.Object obj) = genericToJSON defaultRecordTypeOptions wal
+        Aeson.Object obj = genericToJSON defaultRecordTypeOptions wal
 
 instance FromJSON ApiSharedWallet where
     parseJSON obj = do

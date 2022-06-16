@@ -317,7 +317,10 @@ toBabbageTxOut (TxOut addr bundle) = \case
         Babbage.TxOut
             (toLedger addr)
             (toLedger bundle)
-            (Babbage.DatumHash $ unsafeMakeSafeHash $ Crypto.UnsafeHash $ toShort bytes)
+            (Babbage.DatumHash
+                $ unsafeMakeSafeHash
+                $ Crypto.UnsafeHash
+                $ toShort bytes)
             Ledger.SNothing
 
 toWalletScript

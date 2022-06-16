@@ -3601,7 +3601,7 @@ sealedNumberOfRedeemers sealedTx =
             let dats =
                     case body of
                         Cardano.ShelleyTxBody _ _ _ d _ _ -> d
-             in case dats of
+            in case dats of
                     Cardano.TxBodyNoScriptData ->
                         0
                     Cardano.TxBodyScriptData _ _ (Alonzo.Redeemers rdmrs) ->
@@ -3610,7 +3610,7 @@ sealedNumberOfRedeemers sealedTx =
             let dats =
                     case body of
                         Cardano.ShelleyTxBody _ _ _ d _ _ -> d
-             in case dats of
+            in case dats of
                     Cardano.TxBodyNoScriptData ->
                         0
                     Cardano.TxBodyScriptData _ _ (Alonzo.Redeemers rdmrs) ->

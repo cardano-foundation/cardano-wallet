@@ -761,18 +761,23 @@ monitorStakePools tr (NetworkParameters gp sp _pp) nl DBLayer{..} =
         atomically $ forAllAndLastM blocks forAllBlocks forLastBlock
       where
         forAllBlocks = \case
-            BlockByron _ -> do
+            BlockByron _ ->
                 pure ()
-            BlockShelley blk -> do
-                forEachShelleyBlock (fromShelleyBlock gp blk) (getProducer blk)
+            BlockShelley blk ->
+                forEachShelleyBlock
+                    (fromShelleyBlock gp blk) (getProducer blk)
             BlockAllegra blk ->
-                forEachShelleyBlock (fromAllegraBlock gp blk) (getProducer blk)
+                forEachShelleyBlock
+                    (fromAllegraBlock gp blk) (getProducer blk)
             BlockMary blk ->
-                forEachShelleyBlock (fromMaryBlock gp blk) (getProducer blk)
+                forEachShelleyBlock
+                    (fromMaryBlock gp blk) (getProducer blk)
             BlockAlonzo blk ->
-                forEachShelleyBlock (fromAlonzoBlock gp blk) (getProducer blk)
+                forEachShelleyBlock
+                    (fromAlonzoBlock gp blk) (getProducer blk)
             BlockBabbage blk ->
-                forEachShelleyBlock (fromBabbageBlock gp blk) (getBabbageProducer blk)
+                forEachShelleyBlock
+                    (fromBabbageBlock gp blk) (getBabbageProducer blk)
 
         forLastBlock = \case
             BlockByron blk ->

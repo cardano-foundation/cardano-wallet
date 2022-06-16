@@ -3200,9 +3200,10 @@ instance {-# OVERLAPS #-} HasPath a => ValidateEveryPath a where
         let verbStr = toLower <$> show verb
         it (verbStr <> " " <> path <> " exists in specification") $ do
             case foldl' unsafeLookupKey specification ["paths", T.pack path] of
-                Aeson.Object m -> case Aeson.lookup (Aeson.fromString verbStr) m of
-                    Just{}  -> return @IO ()
-                    Nothing -> fail "couldn't find path in specification"
+                Aeson.Object m ->
+                    case Aeson.lookup (Aeson.fromString verbStr) m of
+                        Just{}  -> return @IO ()
+                        Nothing -> fail "couldn't find path in specification"
                 _ -> fail "couldn't find path in specification"
 
 instance (ValidateEveryPath a, ValidateEveryPath b) => ValidateEveryPath (a :<|> b) where

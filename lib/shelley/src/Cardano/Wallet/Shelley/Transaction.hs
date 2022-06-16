@@ -727,8 +727,10 @@ _evaluateTransactionBalance (Cardano.Tx body _) pp utxo extraUTxO =
         -> Cardano.TxOut ctx era
         -> Cardano.TxOut ctx era
     setDatumHash _era Nothing o = o
-    setDatumHash _era (Just (Hash datumHash)) (Cardano.TxOut addr val _ refScript) =
-        Cardano.TxOut addr val (Cardano.TxOutDatumHash scriptDataSupported hash) refScript
+    setDatumHash _era
+        (Just (Hash datumHash)) (Cardano.TxOut addr val _ refScript) =
+            Cardano.TxOut addr val
+                (Cardano.TxOutDatumHash scriptDataSupported hash) refScript
       where
         scriptDataSupported = case era of
             ShelleyBasedEraBabbage -> Cardano.ScriptDataInBabbageEra
@@ -1225,11 +1227,12 @@ _assignScriptRedeemers pparams ti resolveInput redeemers tx =
         -> Either ErrAssignRedeemers (Map Alonzo.RdmrPtr Redeemer, BabbageTx)
     assignNullRedeemersBabbage babbageTx = do
         (indexedRedeemers, nullRedeemers) <- fmap unzip $ forM redeemers $ \rd -> do
-            ptr <- case Alonzo.rdptr (Alonzo.body babbageTx) (toScriptPurpose rd) of
-                SNothing ->
-                    Left $ ErrAssignRedeemersTargetNotFound rd
-                SJust ptr ->
-                    pure ptr
+            ptr <-
+                case Alonzo.rdptr (Alonzo.body babbageTx) (toScriptPurpose rd) of
+                    SNothing ->
+                        Left $ ErrAssignRedeemersTargetNotFound rd
+                    SJust ptr ->
+                        pure ptr
 
             rData <- case deserialiseOrFail (BL.fromStrict $ redeemerData rd) of
                 Left e ->
@@ -1243,7 +1246,8 @@ _assignScriptRedeemers pparams ti resolveInput redeemers tx =
             ( Map.fromList indexedRedeemers
             , babbageTx
                 { Alonzo.wits = (Alonzo.wits babbageTx)
-                    { Alonzo.txrdmrs = Alonzo.Redeemers (Map.fromList nullRedeemers)
+                    { Alonzo.txrdmrs =
+                        Alonzo.Redeemers (Map.fromList nullRedeemers)
                     }
                 }
             )
@@ -1273,11 +1277,12 @@ _assignScriptRedeemers pparams ti resolveInput redeemers tx =
             inputs = Babbage.inputs (Alonzo.body babbageTx)
             utxo = flip mapMaybe (F.toList inputs) $ \i -> do
                 (o, dt) <- resolveInput (fromShelleyTxIn i)
-                -- NOTE: 'toAlonzoTxOut' only partially represent the information
-                -- because the wallet internal types aren't capturing datum at
-                -- the moment. It is _okay_ in this context because the
-                -- resulting UTxO is only used by 'evaluateTransactionExecutionUnits'
-                -- to lookup addresses corresponding to inputs.
+                -- NOTE: 'toAlonzoTxOut' only partially represent the
+                -- information because the wallet internal types aren't
+                -- capturing datum at the moment. It is _okay_ in this context
+                -- because the resulting UTxO is only used by
+                -- 'evaluateTransactionExecutionUnits' to lookup addresses
+                -- corresponding to inputs.
                 pure (i, toBabbageTxOut o dt)
          in
             Ledger.UTxO (Map.fromList utxo)
@@ -1292,8 +1297,10 @@ _assignScriptRedeemers pparams ti resolveInput redeemers tx =
             (Map Alonzo.RdmrPtr (Either ErrAssignRedeemers Alonzo.ExUnits))
     evaluateExecutionUnitsAlonzo indexedRedeemers alonzoTx = do
         let utxo = utxoFromAlonzoTx alonzoTx
-        let pparams' = Cardano.toLedgerPParams Cardano.ShelleyBasedEraAlonzo pparams
-        let costs = toCostModelsAsArray (Alonzo.unCostModels $ Alonzo._costmdls pparams')
+        let pparams' = Cardano.toLedgerPParams
+                Cardano.ShelleyBasedEraAlonzo pparams
+        let costs = toCostModelsAsArray
+                (Alonzo.unCostModels $ Alonzo._costmdls pparams')
         let res = evaluateTransactionExecutionUnits
                 pparams'
                 alonzoTx
@@ -1303,7 +1310,8 @@ _assignScriptRedeemers pparams ti resolveInput redeemers tx =
                 costs
         case res of
             Left (UnknownTxIns ins) ->
-                Left $ ErrAssignRedeemersUnresolvedTxIns $ map fromShelleyTxIn (F.toList ins)
+                Left $ ErrAssignRedeemersUnresolvedTxIns $
+                    map fromShelleyTxIn (F.toList ins)
             Left (BadTranslation translationError) ->
                 Left $ ErrAssignRedeemersTranslationError $ show translationError
             Right report ->
@@ -1316,8 +1324,10 @@ _assignScriptRedeemers pparams ti resolveInput redeemers tx =
             (Map Alonzo.RdmrPtr (Either ErrAssignRedeemers Alonzo.ExUnits))
     evaluateExecutionUnitsBabbage indexedRedeemers babbageTx = do
         let utxo = utxoFromBabbageTx babbageTx
-        let pparams' = Cardano.toLedgerPParams Cardano.ShelleyBasedEraBabbage pparams
-        let costs = toCostModelsAsArray (Alonzo.unCostModels $ Babbage._costmdls pparams')
+        let pparams' = Cardano.toLedgerPParams
+                Cardano.ShelleyBasedEraBabbage pparams
+        let costs = toCostModelsAsArray
+                (Alonzo.unCostModels $ Babbage._costmdls pparams')
 
         let res = evaluateTransactionExecutionUnits
                 pparams'
@@ -1328,7 +1338,8 @@ _assignScriptRedeemers pparams ti resolveInput redeemers tx =
                 costs
         case res of
             Left (UnknownTxIns ins) ->
-                Left $ ErrAssignRedeemersUnresolvedTxIns $ map fromShelleyTxIn (F.toList ins)
+                Left $ ErrAssignRedeemersUnresolvedTxIns $
+                    map fromShelleyTxIn (F.toList ins)
             Left (BadTranslation translationError) -> do
                 Left $ ErrAssignRedeemersTranslationError $ show translationError
             Right report ->
@@ -1404,17 +1415,18 @@ _assignScriptRedeemers pparams ti resolveInput redeemers tx =
                 , (not . isNativeScript @e) script
                 , Just l <- [Alonzo.language script]
                 ]
-         in
-            alonzoTx
-                { Alonzo.body = (Alonzo.body alonzoTx)
-                    { Alonzo.scriptIntegrityHash = Alonzo.hashScriptIntegrity
-                        (Set.fromList $ Alonzo.getLanguageView
-                            (Cardano.toLedgerPParams Cardano.ShelleyBasedEraAlonzo pparams)
-                            <$> langs)
-                        (Alonzo.txrdmrs wits)
-                        (Alonzo.txdats wits)
-                    }
+        in
+        alonzoTx
+            { Alonzo.body = (Alonzo.body alonzoTx)
+                { Alonzo.scriptIntegrityHash = Alonzo.hashScriptIntegrity
+                    (Set.fromList $ Alonzo.getLanguageView
+                        (Cardano.toLedgerPParams
+                            Cardano.ShelleyBasedEraAlonzo pparams)
+                        <$> langs)
+                    (Alonzo.txrdmrs wits)
+                    (Alonzo.txdats wits)
                 }
+            }
 
     addScriptIntegrityHashBabbage
         :: forall e. ( e ~ Cardano.ShelleyLedgerEra Cardano.BabbageEra )
@@ -1429,17 +1441,18 @@ _assignScriptRedeemers pparams ti resolveInput redeemers tx =
                 , (not . isNativeScript @e) script
                 , Just l <- [Alonzo.language script]
                 ]
-         in
-            babbageTx
-                { Babbage.body = (Babbage.body babbageTx)
-                    { Babbage.scriptIntegrityHash = Alonzo.hashScriptIntegrity
-                        (Set.fromList $ Alonzo.getLanguageView
-                            (Cardano.toLedgerPParams Cardano.ShelleyBasedEraBabbage pparams)
-                            <$> langs)
-                        (Alonzo.txrdmrs wits)
-                        (Alonzo.txdats wits)
-                    }
+        in
+        babbageTx
+            { Babbage.body = (Babbage.body babbageTx)
+                { Babbage.scriptIntegrityHash = Alonzo.hashScriptIntegrity
+                    (Set.fromList $ Alonzo.getLanguageView
+                        (Cardano.toLedgerPParams
+                            Cardano.ShelleyBasedEraBabbage pparams)
+                        <$> langs)
+                    (Alonzo.txrdmrs wits)
+                    (Alonzo.txdats wits)
                 }
+            }
 
 txConstraints :: ProtocolParameters -> TxWitnessTag -> TxConstraints
 txConstraints protocolParams witnessTag = TxConstraints
@@ -2447,8 +2460,13 @@ mkByronWitness
 
 explicitFees :: ShelleyBasedEra era -> Cardano.Lovelace -> Cardano.TxFee era
 explicitFees era = case era of
-    ShelleyBasedEraShelley -> Cardano.TxFeeExplicit Cardano.TxFeesExplicitInShelleyEra
-    ShelleyBasedEraAllegra -> Cardano.TxFeeExplicit Cardano.TxFeesExplicitInAllegraEra
-    ShelleyBasedEraMary    -> Cardano.TxFeeExplicit Cardano.TxFeesExplicitInMaryEra
-    ShelleyBasedEraAlonzo -> Cardano.TxFeeExplicit Cardano.TxFeesExplicitInAlonzoEra
-    ShelleyBasedEraBabbage -> Cardano.TxFeeExplicit Cardano.TxFeesExplicitInBabbageEra
+    ShelleyBasedEraShelley ->
+        Cardano.TxFeeExplicit Cardano.TxFeesExplicitInShelleyEra
+    ShelleyBasedEraAllegra ->
+        Cardano.TxFeeExplicit Cardano.TxFeesExplicitInAllegraEra
+    ShelleyBasedEraMary ->
+        Cardano.TxFeeExplicit Cardano.TxFeesExplicitInMaryEra
+    ShelleyBasedEraAlonzo ->
+        Cardano.TxFeeExplicit Cardano.TxFeesExplicitInAlonzoEra
+    ShelleyBasedEraBabbage ->
+        Cardano.TxFeeExplicit Cardano.TxFeesExplicitInBabbageEra
