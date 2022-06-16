@@ -1,7 +1,11 @@
 {-# LANGUAGE FlexibleContexts #-}
 {-# LANGUAGE RankNTypes #-}
 module Test.DBVar
-    ( genUpdates,prop_StoreUpdates, GenDelta, Updates (..)) where
+    ( genUpdates
+    , prop_StoreUpdates
+    , GenDelta
+    , Updates (..)
+    ) where
 
 import Prelude
 
@@ -79,7 +83,3 @@ prop_StoreUpdates toPropertyM store gen0 more = do
         Left err -> impureThrow err
         Right a  -> assert $ a == head as
 
-
-{-------------------------------------------------------------------------------
-    Properties
--------------------------------------------------------------------------------}
