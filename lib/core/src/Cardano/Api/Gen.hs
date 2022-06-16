@@ -414,7 +414,7 @@ genPlutusScriptOrReferenceInput
     :: PlutusScriptVersion lang
     -> Gen (PlutusScriptOrReferenceInput lang)
 genPlutusScriptOrReferenceInput lang =
-    -- TODO: Generate reference inputs
+    -- TODO add proper generator, perhaps as part of ADP-1655
     PScript <$> genPlutusScript lang
 
 genSimpleScript :: SimpleScriptVersion lang -> Gen (SimpleScript lang)
@@ -1322,11 +1322,20 @@ genTxBodyContent era = do
     let
         txBody = TxBodyContent
             { Api.txIns
-            , Api.txInsCollateral = TxInsCollateralNone
-            , Api.txInsReference = TxInsReferenceNone
             , Api.txOuts
+            -- NOTE: We are adding collateral at a later step, despite only
+            -- generating @TxInsCollateralNone@ here. This seems to be because
+            -- the generation currently is dependent on
+            -- @collectTxBodyScriptWitnesses txBody@.
+            , Api.txInsCollateral = TxInsCollateralNone
+
+            -- TODO add proper generator, perhaps as part of ADP-1655
+            , Api.txInsReference = TxInsReferenceNone
+
+            -- TODO add proper generators, perhaps as part of ADP-1653
             , Api.txTotalCollateral = TxTotalCollateralNone
             , Api.txReturnCollateral = TxReturnCollateralNone
+
             , Api.txFee
             , Api.txValidityRange
             , Api.txMetadata
