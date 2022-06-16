@@ -57,6 +57,8 @@ import Cardano.Address.Script
     ( KeyHash, Script )
 import Cardano.Api
     ( AnyCardanoEra )
+import Cardano.Ledger.Alonzo.TxInfo
+    ( TranslationError )
 import Cardano.Wallet.CoinSelection
     ( SelectionCollateralRequirement (..)
     , SelectionLimit
@@ -508,7 +510,7 @@ data ErrAssignRedeemers
     -- ^ Redeemer's data isn't a valid Plutus' data.
     | ErrAssignRedeemersUnresolvedTxIns [TxIn]
     -- ^ The transaction contains inputs which couldn't be resolved.
-    | ErrAssignRedeemersTranslationError String
+    | ErrAssignRedeemersTranslationError TranslationError
     -- ^ Mistranslating of hashes, credentials, certificates etc.
     deriving (Generic, Eq, Show)
 

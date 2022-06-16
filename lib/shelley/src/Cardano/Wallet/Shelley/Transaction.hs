@@ -1315,7 +1315,7 @@ _assignScriptRedeemers pparams ti resolveInput redeemers tx =
                 Left $ ErrAssignRedeemersUnresolvedTxIns $
                     map fromShelleyTxIn (F.toList ins)
             Left (BadTranslation translationError) ->
-                Left $ ErrAssignRedeemersTranslationError $ show translationError
+                Left $ ErrAssignRedeemersTranslationError translationError
             Right report ->
                 Right $ hoistScriptFailure indexedRedeemers report
 
@@ -1343,7 +1343,7 @@ _assignScriptRedeemers pparams ti resolveInput redeemers tx =
                 Left $ ErrAssignRedeemersUnresolvedTxIns $
                     map fromShelleyTxIn (F.toList ins)
             Left (BadTranslation translationError) -> do
-                Left $ ErrAssignRedeemersTranslationError $ show translationError
+                Left $ ErrAssignRedeemersTranslationError translationError
             Right report ->
                 Right $ hoistScriptFailure indexedRedeemers report
 

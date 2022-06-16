@@ -5054,9 +5054,9 @@ instance IsServerError ErrAssignRedeemers where
                 ]
         ErrAssignRedeemersTranslationError e ->
             apiError err400 TranslationError $ T.unwords
-                [ "The transaction I was given contains bits that cannot "
-                , "be translated in the current era. The following is wrong:\n\n"
-                , pretty e
+                [ "The transaction I was given contains bits that cannot be"
+                , "translated in the current era. The following is wrong:\n\n"
+                , showT e
                 ]
 
 instance IsServerError (Request, ServerError) where
