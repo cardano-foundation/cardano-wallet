@@ -55,6 +55,7 @@ import Data.Text
     ( Text )
 import Data.Text.Class
     ( FromText (..), TextDecodingError (..), toText )
+-- See ADP-1910
 import "optparse-applicative" Options.Applicative
     ( ParserInfo
     , ParserPrefs

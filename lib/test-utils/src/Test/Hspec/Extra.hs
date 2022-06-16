@@ -38,6 +38,7 @@ import Control.Monad.IO.Unlift
     ( MonadUnliftIO )
 import Data.List
     ( elemIndex )
+-- See ADP-1910
 import "optparse-applicative" Options.Applicative
     ( Parser
     , ParserInfo (..)

@@ -70,6 +70,7 @@ import Fmt
     ( Buildable (..), nameF, pretty )
 import GHC.Generics
     ( Generic )
+-- See ADP-1910
 import "optparse-applicative" Options.Applicative
     ( HasValue
     , Mod

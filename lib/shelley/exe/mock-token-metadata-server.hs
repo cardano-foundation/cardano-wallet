@@ -15,6 +15,7 @@ import Control.Monad
     ( forever )
 import Network.Wai.Middleware.RequestLogger
     ( logStdoutDev )
+-- See ADP-1910
 import "optparse-applicative" Options.Applicative
     ( ParserInfo
     , argument
@@ -34,6 +35,7 @@ import "optparse-applicative" Options.Applicative
     , showHelpOnEmpty
     , str
     )
+-- See ADP-1910
 import "optparse-applicative" Options.Applicative.Help.Pretty
     ( hang, indent, line, text, (</>) )
 

@@ -14,6 +14,7 @@ import Cardano.Wallet.Shelley.Launch
     ( Mode (Light, Normal), modeOption )
 import Cardano.Wallet.Shelley.Launch.Blockfrost
     ( TokenException (..), TokenFile (TokenFile), readToken )
+-- See ADP-1910
 import "optparse-applicative" Options.Applicative
     ( ParserFailure (execFailure)
     , ParserResult (CompletionInvoked, Failure, Success)

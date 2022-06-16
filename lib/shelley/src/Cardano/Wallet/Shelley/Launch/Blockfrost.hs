@@ -21,6 +21,7 @@ import Control.Exception
     ( Exception, IOException, catch, throw )
 import Control.Monad
     ( when )
+-- See ADP-1910
 import "optparse-applicative" Options.Applicative
     ( Parser, help, long, metavar, option, str )
 

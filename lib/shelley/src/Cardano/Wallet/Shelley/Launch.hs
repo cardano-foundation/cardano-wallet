@@ -79,6 +79,7 @@ import Data.Text.Class
     ( FromText (..), TextDecodingError, ToText (..) )
 import GHC.TypeLits
     ( KnownNat, Nat, SomeNat (..), someNatVal )
+-- See ADP-1910
 import "optparse-applicative" Options.Applicative
     ( Parser, eitherReader, flag', help, long, metavar, option, (<|>) )
 import Ouroboros.Network.Magic

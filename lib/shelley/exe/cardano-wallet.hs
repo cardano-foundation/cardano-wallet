@@ -125,6 +125,7 @@ import Data.Text.Class
     ( ToText (..) )
 import Network.URI
     ( URI )
+-- See ADP-1910
 import "optparse-applicative" Options.Applicative
     ( CommandFields
     , Mod

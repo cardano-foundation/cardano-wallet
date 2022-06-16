@@ -10,6 +10,7 @@ import Prelude
 
 import Cardano.Wallet.Shelley.Launch
     ( nodeSocketOption )
+-- See ADP-1910
 import "optparse-applicative" Options.Applicative
     ( ParserResult (..), defaultPrefs, execParserPure, info )
 import Test.Hspec

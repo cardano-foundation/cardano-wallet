@@ -240,6 +240,7 @@ import Network.HTTP.Client
     , newManager
     , responseTimeoutNone
     )
+-- See ADP-1910
 import "optparse-applicative" Options.Applicative
     ( ArgumentFields
     , CommandFields
@@ -275,8 +276,10 @@ import "optparse-applicative" Options.Applicative
     , switch
     , value
     )
+-- See ADP-1910
 import "optparse-applicative" Options.Applicative.Help.Pretty
     ( string, vsep )
+-- See ADP-1910
 import "optparse-applicative" Options.Applicative.Types
     ( ReadM (..), readerAsk )
 import Servant.Client
