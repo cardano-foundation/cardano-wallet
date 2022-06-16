@@ -147,7 +147,7 @@ import Cardano.Wallet.Shelley.Network.Discriminant
 import Control.Concurrent
     ( threadDelay )
 import Control.Concurrent.Async.Lifted
-    ( concurrently, forConcurrently, mapConcurrently )
+    ( concurrently )
 import Control.Monad
     ( forever, join, unless )
 import Control.Monad.Error.Class
@@ -570,7 +570,7 @@ withNetworkLayer tr network np project k = do
                                     BF.Ascending
                                     (Just $ headerToIndex bhFrom)
                                     (Just $ headerToIndex bhTo)
-                            forConcurrently txs \BF.AddressTransaction{..} -> do
+                            for txs \BF.AddressTransaction{..} -> do
                                 (bftx, tx) <-
                                     fetchTransaction tr network _addressTransactionTxHash
                                 txIndex <-
@@ -589,7 +589,7 @@ withNetworkLayer tr network np project k = do
                                 fmap BF._accountDelegationTxHash
                                     <$> BFM.empty404 (BF.getAccountDelegations address)
                             blockEventsRegDeleg <-
-                                forConcurrently (regTxHashes <> delTxHashes) \hash -> do
+                                for (regTxHashes <> delTxHashes) \hash -> do
                                     (tx@BF.Transaction{_transactionIndex}, dcerts) <-
                                         concurrently
                                             (BF.getTx hash)
@@ -604,7 +604,7 @@ withNetworkLayer tr network np project k = do
                                         )
                             ws <- BFM.empty404 (BF.getAccountWithdrawals address)
                             blockEventsWithdraw <-
-                                forConcurrently ws \BF.AccountWithdrawal{..} -> do
+                                for ws \BF.AccountWithdrawal{..} -> do
                                     (bftx@BF.Transaction{_transactionIndex}, tx) <-
                                         fetchTransaction tr network _accountWithdrawalTxHash
                                     txIndex <- _transactionIndex <?#> "_transactionIndex"
@@ -670,7 +670,7 @@ withNetworkLayer tr network np project k = do
             BF.Network{_networkStake = BF.NetworkStake{_stakeLive}} <-
                 BF.getNetworkInfo
             totalLiveStake <- fromBfLovelaces _stakeLive
-            pools <- mapConcurrently BF.getPool =<< BF.listPools
+            pools <- traverse BF.getPool =<< BF.listPools
             stake <- poolsStake totalLiveStake pools
             pure StakePoolsSummary
                 { nOpt = intCast $ desiredNumberOfStakePools protocolParameters
@@ -709,8 +709,8 @@ fetchNextBlocks tr nd hash = do
     BF.getNextBlocks (Right blockHash) >>= traverse \block@BF.Block{..} -> do
         header <- liftEither $ bfBlockHeader block
         txhs <- fetchTxHashes blockHash _blockTxCount
-        transactions <- fmap snd <$> mapConcurrently (fetchTransaction tr nd) txhs
-        delegations <- join <$> mapConcurrently (fetchDelegation tr nd) txhs
+        transactions <- fmap snd <$> traverse (fetchTransaction tr nd) txhs
+        delegations <- join <$> traverse (fetchDelegation tr nd) txhs
         pure Block{header, transactions, delegations}
 
 fetchTxHashes
