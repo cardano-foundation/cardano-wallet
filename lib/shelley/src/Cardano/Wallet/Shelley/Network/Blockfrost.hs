@@ -705,10 +705,10 @@ fetchNextBlocks
     -> Hash "BlockHeader"
     -> m [Block]
 fetchNextBlocks tr nd hash = do
-    let blockHash = BF.BlockHash $ toText hash
-    BF.getNextBlocks (Right blockHash) >>= traverse \block@BF.Block{..} -> do
+    let prevBlockHash = BF.BlockHash $ toText hash
+    BF.getNextBlocks (Right prevBlockHash) >>= traverse \block@BF.Block{..} -> do
         header <- liftEither $ bfBlockHeader block
-        txhs <- fetchTxHashes blockHash _blockTxCount
+        txhs <- fetchTxHashes _blockHash _blockTxCount
         transactions <- fmap snd <$> traverse (fetchTransaction tr nd) txhs
         delegations <- join <$> traverse (fetchDelegation tr nd) txhs
         pure Block{header, transactions, delegations}
