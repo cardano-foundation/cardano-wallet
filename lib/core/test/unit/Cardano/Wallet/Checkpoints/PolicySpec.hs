@@ -99,7 +99,7 @@ prop_mappendOnTrailing = let g17 = choose (1,7) in
 {-------------------------------------------------------------------------------
     Generators
 -------------------------------------------------------------------------------}
--- | Data type for generating sensible blockchein heights
+-- | Data type for generating sensible blockchain heights
 data GenHeightContext = GenHeightContext
     { _epochStability :: BlockHeight
     , _tip :: BlockHeight

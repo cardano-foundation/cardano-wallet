@@ -126,7 +126,7 @@ atTip = CheckpointPolicy $ \tip height ->
 -- at block heights that are multiples of @height@
 -- and which are closest to the tip of the chain.
 -- (Fewer than @n@ checkpoints are kept while the chain is too short
--- to accomodate all checkpoints.)
+-- to accommodate all checkpoints.)
 trailingArithmetic :: Integer -> BlockHeight -> CheckpointPolicy
 trailingArithmetic n grid = CheckpointPolicy $ \tip height ->
     case [h | h <- window tip, h >= height] of
