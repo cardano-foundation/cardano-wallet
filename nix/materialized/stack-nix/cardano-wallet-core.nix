@@ -194,7 +194,6 @@
           "Cardano/Wallet/DB/Sqlite/Stores"
           "Cardano/Wallet/DB/Sqlite/Types"
           "Cardano/Wallet/DB/WalletState"
-          "Cardano/Wallet/DB/WalletState"
           "Cardano/Wallet/Logging"
           "Cardano/Wallet/Network"
           "Cardano/Wallet/Network/Light"
