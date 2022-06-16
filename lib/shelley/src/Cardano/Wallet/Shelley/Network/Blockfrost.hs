@@ -108,7 +108,6 @@ import Cardano.Wallet.Primitive.Types
     , TokenBundleMaxSize (..)
     , TxParameters (..)
     , WithOrigin (At)
-    , decodePoolIdBech32
     , emptyEraInfo
     , executionMemory
     , executionSteps
@@ -133,9 +132,14 @@ import Cardano.Wallet.Primitive.Types.TokenBundle
 import Cardano.Wallet.Primitive.Types.Tx
     ( Tx (..), TxIn (..), TxOut (..), TxScriptValidity (..), TxSize (..) )
 import Cardano.Wallet.Shelley.Network.Blockfrost.Conversion
-    ( fromBfAddress, fromBfLovelaces )
+    ( bfBlockHeader
+    , fromBfAddress
+    , fromBfEpoch
+    , fromBfLovelaces
+    , fromBfPoolId
+    )
 import Cardano.Wallet.Shelley.Network.Blockfrost.Error
-    ( BlockfrostError (..), (<?#>), (<?>) )
+    ( BlockfrostError (..), (<?#>) )
 import Cardano.Wallet.Shelley.Network.Blockfrost.Monad
     ( BFM )
 import Cardano.Wallet.Shelley.Network.Discriminant
@@ -175,7 +179,7 @@ import Data.List.NonEmpty
 import Data.Map
     ( Map )
 import Data.Maybe
-    ( catMaybes, fromMaybe )
+    ( catMaybes, fromMaybe, listToMaybe )
 import Data.Proxy
     ( Proxy (..) )
 import Data.Quantity
@@ -261,6 +265,7 @@ data Log
     | MsgIsConsensus ChainPoint Bool
     | MsgBlockHeaderAtHeight Integer (Maybe BlockHeader)
     | MsgBlockHeaderAt ChainPoint (Maybe BlockHeader)
+    | MsgNextBlockHeader BlockHeader (Maybe BlockHeader)
     | MsgGotNextBlocks Int
 
 instance ToText Log where
@@ -314,11 +319,14 @@ instance ToText Log where
                 , "belong to consensus"
                 ]
         MsgBlockHeaderAtHeight height mbh ->
-            "Fetched BlockHeader at height" <> pretty height
+            "Fetched BlockHeader at height " <> pretty height
                 <> ": " <> pretty mbh
         MsgBlockHeaderAt cp mbh ->
             "Fetched BlockHeader at " <> pretty cp
                 <> ": " <> pretty mbh
+        MsgNextBlockHeader prev next ->
+            "Fetched next block header: " <> pretty next
+            <> " for the previous one: " <> pretty prev
         MsgGotNextBlocks n ->
             "Fetched " <> pretty n <> " next blocks"
 
@@ -340,6 +348,7 @@ instance HasSeverityAnnotation Log where
         MsgIsConsensus {} -> Debug
         MsgBlockHeaderAtHeight {} -> Debug
         MsgBlockHeaderAt {} -> Debug
+        MsgNextBlockHeader{} -> Debug
         MsgGotNextBlocks {} -> Debug
 
 withNetworkLayer
@@ -379,7 +388,8 @@ withNetworkLayer tr network np project k = do
 
     currentNodeTip :: BF.ClientConfig -> IO BlockHeader
     currentNodeTip bfConfig = do
-        tip <- BFM.run bfConfig $ fromBlockfrostM =<< BF.getLatestBlock
+        tip <- BFM.run bfConfig do
+            liftEither . bfBlockHeader =<< BF.getLatestBlock
         traceWith tr $ MsgFetchedLatestBlockHeader tip
         pure tip
 
@@ -387,7 +397,8 @@ withNetworkLayer tr network np project k = do
     pollNodeTip bfConfig nodeTip = do
         lastTip <- atomically $ dupTChan nodeTip
         link =<< async =<< forever do
-            header <- BFM.run bfConfig $ fromBlockfrostM =<< BF.getLatestBlock
+            header <- BFM.run bfConfig do
+                liftEither . bfBlockHeader =<< BF.getLatestBlock
             atomically do
                 lastHeader <- tryReadTChan lastTip
                 unless (lastHeader == Just header) do
@@ -411,8 +422,9 @@ withNetworkLayer tr network np project k = do
     currentSlottingParameters bfConfig = BFM.run bfConfig do
         liftIO $ traceWith tr MsgCurrentSlottingParameters
         BF.EpochInfo{_epochInfoEpoch} <- BF.getLatestEpoch
-        epochNo <- fromBlockfrostM _epochInfoEpoch
-        let EraParams{..} = eraParams $ epochEraSummary networkId epochNo
+        let EraParams{..} = eraParams
+                $ epochEraSummary networkId
+                $ fromBfEpoch _epochInfoEpoch
         epochLen <- unEpochSize eraEpochSize <?#> "EpochSize"
         getSecurityParameter <- case eraSafeZone of
             StandardSafeZone wo -> Quantity <$> wo <?#> "StandardSafeZone"
@@ -431,7 +443,7 @@ withNetworkLayer tr network np project k = do
     currentNodeEra bfConfig = do
         (era, epoch) <- BFM.run bfConfig do
             BF.EpochInfo{_epochInfoEpoch} <- BF.getLatestEpoch
-            latestEpoch <- fromBlockfrostM _epochInfoEpoch
+            let latestEpoch = fromBfEpoch _epochInfoEpoch
             latestEra <- liftEither $ eraByEpoch networkId latestEpoch
             pure (latestEra, latestEpoch)
         traceWith tr $ MsgEraByLatestEpoch era epoch
@@ -501,10 +513,19 @@ withNetworkLayer tr network np project k = do
 
                 getBlockHeaderAtHeight :: Integer -> IO (Maybe BlockHeader)
                 getBlockHeaderAtHeight height = do
-                    mbh <- either (error . show) Just . fromBlockfrost
+                    mbh <- either (error . show) Just . bfBlockHeader
                         <$> (runBF . BF.getBlock) (Left height)
                     traceWith tr $ MsgBlockHeaderAtHeight height mbh
                     pure mbh
+
+                getNextBlockHeader :: BlockHeader -> IO (Maybe BlockHeader)
+                getNextBlockHeader prev@BlockHeader{headerHash} = runBF do
+                    let blockHash = BF.BlockHash (toText headerHash)
+                    blocks <- BF.getNextBlocks' (Right blockHash) (BF.paged 1 1)
+                    nextHeader <- for (listToMaybe blocks) do
+                        liftEither . bfBlockHeader
+                    liftIO $ traceWith tr $ MsgNextBlockHeader prev nextHeader
+                    pure nextHeader
 
                 getBlockHeaderAt :: ChainPoint -> IO (Maybe BlockHeader)
                 getBlockHeaderAt cp = do
@@ -517,7 +538,7 @@ withNetworkLayer tr network np project k = do
                             pure $
                                 if bfHeaderHash == toText blockHeaderHash
                                     then either (error . show) Just $
-                                            fromBlockfrost b
+                                        bfBlockHeader b
                                     else Nothing
                     traceWith tr $ MsgBlockHeaderAt cp mbh
                     pure mbh
@@ -627,6 +648,7 @@ withNetworkLayer tr network np project k = do
                         , getTip = currentNodeTip bfConfig
                         , isConsensus
                         , getBlockHeaderAtHeight
+                        , getNextBlockHeader
                         , getBlockHeaderAt
                         , getNextBlocks
                         , getAddressTxs
@@ -664,7 +686,7 @@ withNetworkLayer tr network np project k = do
                 -> [BF.PoolInfo]
                 -> m (Map PoolId Percentage)
             poolsStake total = fmap Map.fromList . traverse \BF.PoolInfo{..} ->
-                (,) <$> fromBlockfrostM _poolInfoPoolId <*> do
+                (,) <$> liftEither (fromBfPoolId _poolInfoPoolId) <*> do
                     live <- fromBfLovelaces _poolInfoLiveStake
                     let ratio = Coin.toInteger live % Coin.toInteger total
                     case mkPercentage ratio of
@@ -685,7 +707,7 @@ fetchNextBlocks
 fetchNextBlocks tr nd hash = do
     let blockHash = BF.BlockHash $ toText hash
     BF.getNextBlocks (Right blockHash) >>= traverse \block@BF.Block{..} -> do
-        header <- fromBlockfrostM block
+        header <- liftEither $ bfBlockHeader block
         txhs <- fetchTxHashes blockHash _blockTxCount
         transactions <- fmap snd <$> mapConcurrently (fetchTransaction tr nd) txhs
         delegations <- join <$> mapConcurrently (fetchDelegation tr nd) txhs
@@ -738,7 +760,7 @@ fetchDelegation tr (SomeNetworkDiscriminant (Proxy :: Proxy nd)) hash = do
         let addr = BF.unAddress _transactionDelegationAddress
         rewardAccount <-
             first (InvalidAddress addr) $ decodeStakeAddress @nd addr
-        poolId <- fromBlockfrostM _transactionDelegationPoolId
+        poolId <- fromBfPoolId _transactionDelegationPoolId
         pure
             ( _transactionDelegationCertIndex
             , CertDelegateFull rewardAccount poolId
@@ -872,26 +894,6 @@ unmarshalMetadataValue = \case
         Left $ "Expected TxMetadataValue but got bool (" <> show b <> ")"
     Aeson.Null ->
         Left "Expected TxMetadataValue but got null"
-
-class FromBlockfrost b w where
-    fromBlockfrost :: b -> Either BlockfrostError w
-
-fromBlockfrostM ::
-    FromBlockfrost b w => MonadError BlockfrostError m => b -> m w
-fromBlockfrostM = liftEither . fromBlockfrost
-
-instance FromBlockfrost BF.Block BlockHeader where
-    fromBlockfrost block@BF.Block{..} = do
-        slotNo <- _blockSlot <?> NoSlotError block >>= fromBlockfrostM
-        blockHeight <- Quantity <$> fromMaybe 0 _blockHeight <?#> "BlockHeight"
-        headerHash <- parseBlockHeader _blockHash
-        parentHeaderHash <- for _blockPreviousBlock parseBlockHeader
-        pure BlockHeader{slotNo, blockHeight, headerHash, parentHeaderHash}
-      where
-        parseBlockHeader blockHash =
-            case fromText (BF.unBlockHash blockHash) of
-                Right hash -> pure hash
-                Left tde -> throwError $ InvalidBlockHash blockHash tde
 
 fromBlockfrostPP
     :: NetworkId
@@ -1041,22 +1043,6 @@ fromBlockfrostPP network BF.ProtocolParams{..} = do
                         Just $ intCast maxCollateralInputs
                     }
         , .. }
-
-instance FromBlockfrost BF.TxHash (Hash "Tx") where
-    fromBlockfrost txHash = first (InvalidTxHash hash) $ fromText hash
-      where
-        hash = BF.unTxHash txHash
-
-instance FromBlockfrost BF.Slot SlotNo where
-    fromBlockfrost = fmap SlotNo . (<?#> "SlotNo") . BF.unSlot
-
-instance FromBlockfrost BF.PoolId PoolId where
-    fromBlockfrost poolId = first (InvalidPoolId addr) (decodePoolIdBech32 addr)
-      where
-        addr = BF.unPoolId poolId
-
-instance FromBlockfrost BF.Epoch EpochNo where
-    fromBlockfrost = pure . fromIntegral
 
 eraByEpoch :: NetworkId -> EpochNo -> Either BlockfrostError AnyCardanoEra
 eraByEpoch networkId epoch =

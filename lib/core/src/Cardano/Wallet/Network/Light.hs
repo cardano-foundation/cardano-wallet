@@ -69,6 +69,8 @@ data LightSyncSource m block addr txs = LightSyncSource
     , getBlockHeaderAtHeight :: BlockHeight -> m (Maybe BlockHeader)
         -- ^ Get the 'BlockHeader' at a given block height.
         -- Returns 'Nothing' if there is no block at this height (anymore).
+    , getNextBlockHeader :: BlockHeader -> m (Maybe BlockHeader)
+        -- ^ Get the next block header.
     , getBlockHeaderAt :: ChainPoint -> m (Maybe BlockHeader)
         -- ^ Get the full 'BlockHeader' belonging to a given 'ChainPoint'.
         -- Return 'Nothing' if the point is not consensus anymore.
@@ -89,6 +91,7 @@ hoistLightSyncSource f x = LightSyncSource
     , getTip = f $ getTip x
     , isConsensus = f . isConsensus x
     , getBlockHeaderAtHeight = f . getBlockHeaderAtHeight x
+    , getNextBlockHeader = f . getNextBlockHeader x
     , getBlockHeaderAt = f . getBlockHeaderAt x
     , getNextBlocks = f . getNextBlocks x
     , getAddressTxs = \a b c -> f $ getAddressTxs x a b c
@@ -172,8 +175,7 @@ proceedToNextPoint light chainPoint = do
                         then Unstable (b:bs) new tip
                         else Rollback
         else do
-            mold <- getBlockHeaderAtHeight light $
-                blockHeightToInteger (blockHeight here) + 1
+            mold <- getNextBlockHeader light here
             mnew <- getBlockHeaderAtHeight light $
                 blockHeightToInteger (blockHeight tip) - stabilityWindow light
             maybeRollback mold $ \old ->
