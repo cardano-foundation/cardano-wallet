@@ -237,7 +237,6 @@ import Cardano.Wallet.Shelley.Transaction
     )
 import Cardano.Wallet.Transaction
     ( DelegationAction (RegisterKeyAndJoin)
-    , ErrAssignRedeemers (..)
     , ErrMoreSurplusNeeded (..)
     , TransactionCtx (..)
     , TransactionLayer (..)
@@ -2990,28 +2989,19 @@ prop_balanceTransactionUnresolvedInputs wallet (ShowBuildable partialTx') seed =
     checkCoverage
         $ forAll (dropResolvedInputs partialTx') $ \(partialTx, dropped) -> do
             let res = balanceTransaction' wallet seed partialTx
-            cover 1 (isUnresolvedTxInsErr res) "unknown txins" $
-                case res of
-                    Right _
-                        | null dropped
-                            -> label "nothing dropped"
-                                $ property True
-                        | otherwise
-                            -> label "succeeded despite unresolved input"
-                                $ property True
-                            -- Balancing can succeed if the dropped inputs
-                            -- happen to be a part of the wallet UTxO.
-                    Left (ErrBalanceTxAssignRedeemers
-                        (ErrAssignRedeemersUnresolvedTxIns _))
-                        -> property True
-                    Left _
-                        -> label "other error" $ property True
+            case res of
+                Right _
+                    | null dropped
+                        -> label "nothing dropped"
+                            $ property True
+                    | otherwise
+                        -> label "succeeded despite unresolved input"
+                            $ property True
+                        -- Balancing can succeed if the dropped inputs
+                        -- happen to be a part of the wallet UTxO.
+                Left _
+                    -> label "other error" $ property True
   where
-    isUnresolvedTxInsErr
-        (Left (ErrBalanceTxAssignRedeemers
-            (ErrAssignRedeemersUnresolvedTxIns _))) = True
-    isUnresolvedTxInsErr _ = False
-
     dropResolvedInputs (PartialTx tx inputs redeemers) = do
         shouldKeep <- vectorOf (length inputs) $ frequency
             [ (8, pure False)

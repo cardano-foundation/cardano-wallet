@@ -83,9 +83,7 @@ import Cardano.Binary
 import Cardano.Crypto.Wallet
     ( XPub )
 import Cardano.Ledger.Alonzo.Tools
-    ( BasicFailure (BadTranslation, UnknownTxIns)
-    , evaluateTransactionExecutionUnits
-    )
+    ( evaluateTransactionExecutionUnits )
 import Cardano.Ledger.Crypto
     ( DSIGN )
 import Cardano.Ledger.Era
@@ -1311,10 +1309,7 @@ _assignScriptRedeemers pparams ti resolveInput redeemers tx =
                 systemStart
                 costs
         case res of
-            Left (UnknownTxIns ins) ->
-                Left $ ErrAssignRedeemersUnresolvedTxIns $
-                    map fromShelleyTxIn (F.toList ins)
-            Left (BadTranslation translationError) ->
+            Left translationError ->
                 Left $ ErrAssignRedeemersTranslationError translationError
             Right report ->
                 Right $ hoistScriptFailure indexedRedeemers report
@@ -1339,10 +1334,7 @@ _assignScriptRedeemers pparams ti resolveInput redeemers tx =
                 systemStart
                 costs
         case res of
-            Left (UnknownTxIns ins) ->
-                Left $ ErrAssignRedeemersUnresolvedTxIns $
-                    map fromShelleyTxIn (F.toList ins)
-            Left (BadTranslation translationError) -> do
+            Left translationError ->
                 Left $ ErrAssignRedeemersTranslationError translationError
             Right report ->
                 Right $ hoistScriptFailure indexedRedeemers report
@@ -2339,8 +2331,10 @@ mkUnsignedTx era ttl cs md wdrls certs fees mintData burnData allScripts =
                         Cardano.negateValue $
                         toCardanoValue (TokenBundle (Coin 0) burnData)
                     toScriptWitness script =
-                        Cardano.SimpleScriptWitness scriptWitsSupported
-                        Cardano.SimpleScriptV2 (toCardanoSimpleScript script)
+                        Cardano.SimpleScriptWitness
+                          scriptWitsSupported
+                          Cardano.SimpleScriptV2
+                          (Cardano.SScript $ toCardanoSimpleScript script)
                     witMap =
                         Map.map toScriptWitness $
                         Map.mapKeys (toCardanoPolicyId . TokenMap.tokenPolicyId)

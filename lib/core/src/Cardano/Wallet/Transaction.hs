@@ -59,6 +59,8 @@ import Cardano.Api
     ( AnyCardanoEra )
 import Cardano.Ledger.Alonzo.TxInfo
     ( TranslationError )
+import Cardano.Ledger.Crypto
+    ( StandardCrypto )
 import Cardano.Wallet.CoinSelection
     ( SelectionCollateralRequirement (..)
     , SelectionLimit
@@ -508,9 +510,7 @@ data ErrAssignRedeemers
     -- ^ The given redeemer target couldn't be located in the transaction.
     | ErrAssignRedeemersInvalidData Redeemer String
     -- ^ Redeemer's data isn't a valid Plutus' data.
-    | ErrAssignRedeemersUnresolvedTxIns [TxIn]
-    -- ^ The transaction contains inputs which couldn't be resolved.
-    | ErrAssignRedeemersTranslationError TranslationError
+    | ErrAssignRedeemersTranslationError (TranslationError StandardCrypto)
     -- ^ Mistranslating of hashes, credentials, certificates etc.
     deriving (Generic, Eq, Show)
 
