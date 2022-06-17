@@ -64,7 +64,7 @@ import Cardano.Wallet.Logging
 import Cardano.Wallet.Network
     ( ChainFollower, NetworkLayer (..) )
 import Cardano.Wallet.Network.Light
-    ( Consensual (Consensual, NotConsensual), LightSyncSource (..) )
+    ( Consensual (..), LightSyncSource (..) )
 import Cardano.Wallet.Primitive.BlockSummary
     ( BlockEvents (..)
     , ChainEvents
