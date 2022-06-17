@@ -130,7 +130,7 @@ lightSync tr light follower = readChainPoints follower >>= syncFrom . latest
                 prev <- secondLatest <$> readChainPoints follower
                 -- NOTE: Rolling back to a result of 'readChainPoints'
                 -- should always be possible,
-                -- but the code current does not need this assumption.
+                -- but the code currently does not need this assumption.
                 traceWith tr $ MsgLightRollBackward chainPoint prev
                 rollBackward follower prev
             Stable old new tip -> do
@@ -156,6 +156,10 @@ data NextPointMove block
     -- ^ We are entering the unstable region.
     -- @Unstable blocks new tip@.
 
+-- | 'Consensual' represents the result of query on the blockchain.
+-- Either the result is a value that is part of the consensus chain,
+-- or the result is an indication that the consensus had changed
+-- before the entire value could be retrieved.
 data Consensual a
     = NotConsensual
     | Consensual a
