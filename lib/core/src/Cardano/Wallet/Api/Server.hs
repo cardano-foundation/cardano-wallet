@@ -137,7 +137,8 @@ import Cardano.Api.Extra
 import Cardano.BM.Tracing
     ( HasPrivacyAnnotation (..), HasSeverityAnnotation (..) )
 import Cardano.Ledger.Alonzo.TxInfo
-    ( TranslationError (TimeTranslationPastHorizon) )
+    ( TranslationError (TimeTranslationPastHorizon, TranslationLogicMissingInput)
+    )
 import Cardano.Mnemonic
     ( SomeMnemonic )
 import Cardano.Wallet
@@ -5043,6 +5044,17 @@ instance IsServerError ErrAssignRedeemers where
                 , "for one of your redeemers since I am unable to decode it"
                 , "into a valid Plutus data:", pretty r <> "."
                 ]
+        ErrAssignRedeemersTranslationError (TranslationLogicMissingInput inp) ->
+             -- Note that although this error is thrown from
+             -- '_assignScriptRedeemers', it's more related to balanceTransaction
+             -- in general than to assigning redeemers. Hence we don't mention
+             -- redeemers in the message.
+             apiError err400 UnresolvedInputs $ T.unwords
+                 [ "The transaction I was given contains inputs I don't know"
+                 , "about. Please ensure all foreign inputs are specified as "
+                 , "part of the API request. The unknown input is:\n\n"
+                 , T.pack $ show inp
+                 ]
         ErrAssignRedeemersTranslationError (TimeTranslationPastHorizon t) ->
             -- We differentiate this from @TranslationError@ for partial API
             -- backwards compatibility.

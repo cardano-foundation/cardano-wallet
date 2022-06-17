@@ -62,6 +62,8 @@ import Cardano.BM.Data.Tracer
     ( nullTracer )
 import Cardano.BM.Tracer
     ( Tracer )
+import Cardano.Ledger.Alonzo.TxInfo
+    ( TranslationError (TranslationLogicMissingInput) )
 import Cardano.Ledger.Shelley.API
     ( StrictMaybe (SJust, SNothing), Wdrl (..) )
 import Cardano.Ledger.ShelleyMA.Timelocks
@@ -237,6 +239,7 @@ import Cardano.Wallet.Shelley.Transaction
     )
 import Cardano.Wallet.Transaction
     ( DelegationAction (RegisterKeyAndJoin)
+    , ErrAssignRedeemers (..)
     , ErrMoreSurplusNeeded (..)
     , TransactionCtx (..)
     , TransactionLayer (..)
@@ -2978,7 +2981,7 @@ balanceTransaction' (Wallet' utxo wal pending) seed tx  =
             (utxo, wal, pending)
             tx
 
--- | Tests that 'ErrAssignRedeemersUnresolvedTxIns' can in fact be returned by
+-- | Tests that 'TranslationLogicMissingInput' can in fact be returned by
 -- 'balanceTransaction'.
 prop_balanceTransactionUnresolvedInputs
     :: Wallet'
@@ -2989,19 +2992,31 @@ prop_balanceTransactionUnresolvedInputs wallet (ShowBuildable partialTx') seed =
     checkCoverage
         $ forAll (dropResolvedInputs partialTx') $ \(partialTx, dropped) -> do
             let res = balanceTransaction' wallet seed partialTx
-            case res of
-                Right _
-                    | null dropped
-                        -> label "nothing dropped"
-                            $ property True
-                    | otherwise
-                        -> label "succeeded despite unresolved input"
-                            $ property True
-                        -- Balancing can succeed if the dropped inputs
-                        -- happen to be a part of the wallet UTxO.
-                Left _
-                    -> label "other error" $ property True
+            cover 0.1 (isUnresolvedTxInsErr res) "unknown txins" $
+                case res of
+                    Right _
+                        | null dropped
+                            -> label "nothing dropped"
+                                $ property True
+                        | otherwise
+                            -> label "succeeded despite unresolved input"
+                                $ property True
+                            -- Balancing can succeed if the dropped inputs
+                            -- happen to be a part of the wallet UTxO.
+                    Left (ErrBalanceTxAssignRedeemers
+                        (ErrAssignRedeemersTranslationError
+                            (TranslationLogicMissingInput _)))
+                        -> property True
+                    Left _
+                        -> label "other error" $ property True
   where
+    isUnresolvedTxInsErr
+        (Left
+            (ErrBalanceTxAssignRedeemers
+                (ErrAssignRedeemersTranslationError
+                    (TranslationLogicMissingInput _)))) = True
+    isUnresolvedTxInsErr _ = False
+
     dropResolvedInputs (PartialTx tx inputs redeemers) = do
         shouldKeep <- vectorOf (length inputs) $ frequency
             [ (8, pure False)
