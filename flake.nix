@@ -367,7 +367,7 @@
                 inherit dockerImage;
                 inherit (config) dockerHubRepoName;
               };
-              inherit (pkgs) sha256map-regenerate checkStackProject;
+              inherit (pkgs) checkCabalProject cabalProjectRegenerate;
               inherit (project.stack-nix.passthru) generateMaterialized;
               buildToolsGenerateMaterialized = pkgs.haskell-build-tools.regenerateMaterialized;
               iohkNixGenerateMaterialized = pkgs.iohk-nix-utils.regenerateMaterialized;
