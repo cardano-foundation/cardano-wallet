@@ -27,7 +27,7 @@
 -- and are used for QuickCheck state machine testing, and the MVar database
 -- backend.
 
-module Cardano.Wallet.DB.Model
+module Cardano.Wallet.DB.Pure.Implementation
     (
     -- * Model Types
       Database (..)

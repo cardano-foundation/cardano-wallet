@@ -278,7 +278,7 @@ import UnliftIO.Concurrent
 import qualified Cardano.Crypto.Wallet as CC
 import qualified Cardano.Wallet as W
 import qualified Cardano.Wallet.DB.Layer as Sqlite
-import qualified Cardano.Wallet.DB.MVar as MVar
+import qualified Cardano.Wallet.DB.Pure.Layer as PureLayer
 import qualified Cardano.Wallet.DB.Sqlite.AddressBook as Sqlite
 import qualified Cardano.Wallet.Primitive.Migration as Migration
 import qualified Cardano.Wallet.Primitive.Types.Coin as Coin
@@ -1323,7 +1323,7 @@ setupFixture
 setupFixture (wid, wname, wstate) = do
     let nl = mockNetworkLayer
     let tl = dummyTransactionLayer
-    db <- MVar.newDBLayer timeInterpreter
+    db <- PureLayer.newDBLayer timeInterpreter
     let wl = WalletLayer nullTracer (block0, np, st) nl tl db
     res <- runExceptT $ W.createWallet wl wid wname wstate
     let wal = case res of

@@ -13,7 +13,7 @@
 -- for testing to compare with an implementation on a real data store, or to use
 -- when compiling the wallet for targets which don't have SQLite.
 
-module Cardano.Wallet.DB.MVar
+module Cardano.Wallet.DB.Pure.Layer
     ( newDBLayer
     ) where
 
@@ -29,7 +29,7 @@ import Cardano.Wallet.DB
     , ErrRemoveTx (..)
     , ErrWalletAlreadyExists (..)
     )
-import Cardano.Wallet.DB.Model
+import Cardano.Wallet.DB.Pure.Implementation
     ( Database
     , Err (..)
     , ModelOp
