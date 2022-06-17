@@ -37,7 +37,7 @@ import Cardano.Crypto.Wallet
     ( unXPrv )
 import Cardano.Mnemonic
     ( SomeMnemonic (..) )
-import Cardano.Wallet.DB.Model
+import Cardano.Wallet.DB.Pure.Implementation
     ( TxHistory, filterTxHistory )
 import Cardano.Wallet.DB.Sqlite.AddressBook
     ( AddressBookIso (..) )

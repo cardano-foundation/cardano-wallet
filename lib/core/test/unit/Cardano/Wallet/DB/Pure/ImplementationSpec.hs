@@ -9,7 +9,7 @@
 
 {-# OPTIONS_GHC -fno-warn-orphans #-}
 
-module Cardano.Wallet.DB.MVarSpec
+module Cardano.Wallet.DB.Pure.ImplementationSpec
     ( spec
     ) where
 
@@ -38,24 +38,24 @@ import Test.QuickCheck
 import Test.Utils.Platform
     ( pendingOnMacOS )
 
-import qualified Cardano.Wallet.DB.MVar as MVar
+import qualified Cardano.Wallet.DB.Pure.Layer as PureLayer
 
 spec :: Spec
 spec =
     before (pendingOnMacOS "#2472: timeouts in hydra mac builds")
-    $ before (MVar.newDBLayer @IO @(SeqState 'Mainnet ShelleyKey) ti)
-    $ describe "MVar" properties
+    $ before (PureLayer.newDBLayer @IO @(SeqState 'Mainnet ShelleyKey) ti)
+    $ describe "PureLayer" properties
   where
     ti = dummyTimeInterpreter
 
-newtype DummyStateMVar = DummyStateMVar Int
+newtype DummyStatePureLayer = DummyStatePureLayer Int
     deriving (Show, Eq)
 
-instance Arbitrary DummyStateMVar where
+instance Arbitrary DummyStatePureLayer where
     shrink _ = []
-    arbitrary = DummyStateMVar <$> arbitrary
+    arbitrary = DummyStatePureLayer <$> arbitrary
 
-deriving instance NFData DummyStateMVar
+deriving instance NFData DummyStatePureLayer
 
-instance IsOurs DummyStateMVar Address where
+instance IsOurs DummyStatePureLayer Address where
     isOurs _ num = (Nothing, num)
