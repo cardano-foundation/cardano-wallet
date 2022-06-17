@@ -148,7 +148,7 @@ spec = describe "Logging Middleware" $ do
             expectLogs ctx
                 [ (Debug, "LogRequestStart")
                 , (Info, "[POST] /post")
-                , (Debug, "{\"sensitive\":\"*****\",\"field\":\"patate\"}")
+                , (Debug, "{\"field\":\"patate\",\"sensitive\":\"*****\"}")
                 , (Info, "201 Created")
                 , (Debug, "{\"status\":\"ok\",\"whatever\":42}")
                 , (Debug, "LogRequestFinish")

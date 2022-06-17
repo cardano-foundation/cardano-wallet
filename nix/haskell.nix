@@ -1,7 +1,7 @@
 ############################################################################
 # Builds Haskell packages with Haskell.nix
 ############################################################################
-haskell-nix: haskell-nix.stackProject' [
+haskell-nix: haskell-nix.cabalProject' [
   ({ lib, pkgs, buildProject, ... }: {
     options = {
       gitrev = lib.mkOption {
@@ -59,15 +59,6 @@ haskell-nix: haskell-nix.stackProject' [
 
       noCacheTestFailuresCookie = lib.optionalString (!config.cacheTestFailures) noCacheCookie;
 
-      # Make sure that the libsodium DLL is available beside the EXEs of
-      # the windows build.
-      libSodiumPostInstall = lib.optionalString stdenv.hostPlatform.isWindows ''
-        ln -s ${pkgs.libsodium-vrf}/bin/libsodium-23.dll $out/bin
-        ln -s ${pkgs.buildPackages.gcc.cc}/x86_64-w64-mingw32/lib/libstdc++-6.dll $out/bin
-        ln -s ${pkgs.buildPackages.gcc.cc}/x86_64-w64-mingw32/lib/libgcc_s_seh-1.dll $out/bin
-        ln -s ${pkgs.windows.mcfgthreads}/bin/mcfgthread-12.dll $out/bin
-      '';
-
       # setGitRev is a postInstall script to stamp executables with
       # version info. It uses the "gitrev" option.
       setGitRevPostInstall = setGitRevPostInstall' config.gitrev;
@@ -111,16 +102,13 @@ haskell-nix: haskell-nix.stackProject' [
 
     in {
       name = "cardano-wallet";
+      compiler-nix-name = "ghc8107";
 
       src = haskellLib.cleanSourceWith {
         name = "cardano-wallet-src";
         src = srcAll;
         filter = haskell-nix.haskellSourceFilter;
       };
-
-      materialized = ./materialized/stack-nix;
-
-      sha256map = import ./sha256map.nix;
 
       shell = {
         name = "cardano-wallet-shell${lib.optionalString config.profiling "-profiled"}";
@@ -195,7 +183,7 @@ haskell-nix: haskell-nix.stackProject' [
           })
 
           # Provide configuration and dependencies to cardano-wallet components
-          ({ config, ... }:
+          ({ config, pkgs, ... }:
             let
               cardanoNodeExes = with config.hsPkgs;
                 [
@@ -204,6 +192,18 @@ haskell-nix: haskell-nix.stackProject' [
                 ];
             in
             {
+              reinstallableLibGhc = true;
+
+              # These are here to make `stackProject` vs `cabalProject` `nix-diff` cleaner
+              # TODO remove
+              packages.entropy.components.setup.doExactConfig = true;
+              packages.prettyprinter-configurable.components.setup.doExactConfig = true;
+              packages.pretty-simple.components.setup.doExactConfig = true;
+              packages.wai-logger.components.setup.doExactConfig = true;
+              packages.openapi3.components.setup.doExactConfig = true;
+              packages.servant-openapi3.components.setup.doExactConfig = true;
+              packages.system-filepath.components.setup.doExactConfig = true;
+
               packages.cardano-wallet-core.components.tests = {
                 unit.preCheck = noCacheTestFailuresCookie;
                 # Attempt to ensure visible progress in the macOS hydra job.
@@ -263,7 +263,6 @@ haskell-nix: haskell-nix.stackProject' [
                 # provide cardano-node & cardano-cli to tests
                 unit.build-tools = cardanoNodeExes;
                 integration.build-tools = cardanoNodeExes;
-                unit.postInstall = libSodiumPostInstall;
               };
 
               # Add node backend to the PATH of the latency benchmarks, and
@@ -300,7 +299,7 @@ haskell-nix: haskell-nix.stackProject' [
                   postInstall = ''
                     mkdir -p $out/bin/test/data
                     cp -Rv ${testData} $out/bin/test/data
-                  '' + libSodiumPostInstall;
+                  '';
                 } else {
                   build-tools = [ pkgs.buildPackages.makeWrapper ];
                   postInstall = ''
@@ -310,13 +309,8 @@ haskell-nix: haskell-nix.stackProject' [
                   '';
                 };
 
-              # Make sure that libsodium DLLs for all windows executables,
-              # and add shell completions for main executables.
-              packages.cardano-wallet.components.exes.cardano-wallet.postInstall = optparseCompletionPostInstall + libSodiumPostInstall + setGitRevPostInstall + rewriteLibsPostInstall + stripBinariesPostInstall;
-              packages.cardano-wallet-core.components.tests.unit.postInstall = libSodiumPostInstall;
-              packages.cardano-wallet-cli.components.tests.unit.postInstall = libSodiumPostInstall;
-              packages.cardano-wallet-launcher.components.tests.unit.postInstall = libSodiumPostInstall;
-              packages.cardano-wallet-test-utils.components.tests.unit.postInstall = libSodiumPostInstall;
+              # Add shell completions for main executables.
+              packages.cardano-wallet.components.exes.cardano-wallet.postInstall = optparseCompletionPostInstall + setGitRevPostInstall + rewriteLibsPostInstall + stripBinariesPostInstall;
             })
 
           ({ config, ... }:
@@ -325,8 +319,8 @@ haskell-nix: haskell-nix.stackProject' [
             in
             {
               # Add shell completions for tools.
-              packages.cardano-cli.components.exes.cardano-cli.postInstall = optparseCompletionPostInstall + libSodiumPostInstall + setGitRevPostInstall;
-              packages.cardano-node.components.exes.cardano-node.postInstall = optparseCompletionPostInstall + libSodiumPostInstall + setGitRevPostInstall;
+              packages.cardano-cli.components.exes.cardano-cli.postInstall = optparseCompletionPostInstall + setGitRevPostInstall;
+              packages.cardano-node.components.exes.cardano-node.postInstall = optparseCompletionPostInstall + setGitRevPostInstall;
               packages.cardano-addresses-cli.components.exes.cardano-address.postInstall = optparseCompletionPostInstall;
               packages.bech32.components.exes.bech32.postInstall = optparseCompletionPostInstall;
             })
@@ -350,11 +344,11 @@ haskell-nix: haskell-nix.stackProject' [
 
           ({ lib, pkgs, ... }: {
             # Use our forked libsodium from iohk-nix crypto overlay.
-            packages.plutus-tx.components.library.pkgconfig = lib.mkForce [ [ pkgs.libsodium-vrf ] ];
-            packages.byron-spec-ledger.components.library.pkgconfig = lib.mkForce [ [ pkgs.libsodium-vrf ] ];
-            packages.cardano-wallet-cli.components.library.pkgconfig = lib.mkForce [ [ pkgs.libsodium-vrf ] ];
-            packages.cardano-crypto-praos.components.library.pkgconfig = lib.mkForce [ [ pkgs.libsodium-vrf ] ];
-            packages.cardano-crypto-class.components.library.pkgconfig = lib.mkForce [ [ pkgs.libsodium-vrf ] ];
+            packages.plutus-tx.components.library.pkgconfig = lib.mkForce [ [ pkgs.libsodium-vrf pkgs.secp256k1 ] ];
+            packages.byron-spec-ledger.components.library.pkgconfig = lib.mkForce [ [ pkgs.libsodium-vrf pkgs.secp256k1 ] ];
+            packages.cardano-wallet-cli.components.library.pkgconfig = lib.mkForce [ [ pkgs.libsodium-vrf pkgs.secp256k1 ] ];
+            packages.cardano-crypto-praos.components.library.pkgconfig = lib.mkForce [ [ pkgs.libsodium-vrf pkgs.secp256k1 ] ];
+            packages.cardano-crypto-class.components.library.pkgconfig = lib.mkForce [ [ pkgs.libsodium-vrf pkgs.secp256k1 ] ];
           })
 
           # Build fixes for library dependencies
@@ -380,12 +374,13 @@ haskell-nix: haskell-nix.stackProject' [
             enableLibraryProfiling = true;
             packages.cardano-wallet.components.exes.cardano-wallet.enableProfiling = true;
             packages.cardano-wallet.components.benchmarks.restore.enableProfiling = true;
+            packages.plutus-core.ghcOptions = [ "-fexternal-interpreter" ];
           })
 
           # Musl libc fully static build
           (lib.optionalAttrs stdenv.hostPlatform.isMusl (
             let
-              staticLibs = with pkgs; [ zlib openssl libffi gmp6 libsodium-vrf ];
+              staticLibs = with pkgs; [ zlib openssl libffi gmp6 pkgs.secp256k1 ];
 
               # Module options which add GHC flags and libraries for a fully static build
               fullyStaticOptions = {
@@ -425,47 +420,6 @@ haskell-nix: haskell-nix.stackProject' [
           ({ pkgs, ... }: {
             packages.cardano-wallet-core.flags.scrypt = !pkgs.stdenv.hostPlatform.isAarch64;
           })
-
-          # Allow installation of a newer version of Win32 than what is
-          # included with GHC. The packages in this list are all those
-          # installed with GHC, except for Win32.
-          {
-            nonReinstallablePkgs =
-              [
-                "rts"
-                "ghc-heap"
-                "ghc-prim"
-                "integer-gmp"
-                "integer-simple"
-                "base"
-                "deepseq"
-                "array"
-                "ghc-boot-th"
-                "pretty"
-                "template-haskell"
-                # ghcjs custom packages
-                "ghcjs-prim"
-                "ghcjs-th"
-                "ghc-boot"
-                "ghc"
-                "array"
-                "binary"
-                "bytestring"
-                "containers"
-                "filepath"
-                "ghc-boot"
-                "ghc-compact"
-                "ghc-prim"
-                # "ghci" "haskeline"
-                "hpc"
-                "mtl"
-                "parsec"
-                "text"
-                "transformers"
-                "xhtml"
-                # "stm" "terminfo"
-              ];
-          }
         ];
     })
 ]

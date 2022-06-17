@@ -54,3 +54,5 @@ asAnyShelleyBasedEra = \case
         Just $ InAnyShelleyBasedEra ShelleyBasedEraMary a
     InAnyCardanoEra AlonzoEra a ->
         Just $ InAnyShelleyBasedEra ShelleyBasedEraAlonzo a
+    InAnyCardanoEra BabbageEra a ->
+        Just $ InAnyShelleyBasedEra ShelleyBasedEraBabbage a

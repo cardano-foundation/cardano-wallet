@@ -466,6 +466,7 @@ import qualified Cardano.Wallet.Primitive.Types.TokenMap as TokenMap
 import qualified Cardano.Wallet.Primitive.Types.TokenQuantity as TokenQuantity
 import qualified Codec.Binary.Bech32 as Bech32
 import qualified Data.Aeson as Aeson
+import qualified Data.Aeson.Key as Aeson
 import qualified Data.ByteArray as BA
 import qualified Data.ByteString as BS
 import qualified Data.ByteString.Char8 as B8
@@ -703,6 +704,7 @@ maximumCollateralInputCountByEra = \case
     ApiMary    -> 0
     -- value from alonzo-genesis.yaml:
     ApiAlonzo  -> 3
+    ApiBabbage -> 3
 
 minimumCollateralPercentageByEra :: ApiEra -> Natural
 minimumCollateralPercentageByEra = \case
@@ -712,6 +714,7 @@ minimumCollateralPercentageByEra = \case
     ApiMary    -> 0
     -- value from alonzo-genesis.yaml:
     ApiAlonzo  -> 150
+    ApiBabbage -> 150
 
 --
 -- Helpers
@@ -2570,7 +2573,7 @@ toQueryString kvs = if T.null suffix then mempty else "?" <> suffix
 addField :: ToJSON a => Text -> a -> Payload -> Payload
 addField fieldName field = \case
     Json (Aeson.Object o) ->
-        Json (Aeson.Object (o <> (fieldName .= field)))
+        Json (Aeson.Object (o <> ((Aeson.fromText fieldName) .= field)))
     _ ->
         error "addField called on a non-json payload"
 

@@ -57,6 +57,8 @@ import Cardano.Address.Script
     ( KeyHash, Script )
 import Cardano.Api
     ( AnyCardanoEra )
+import Cardano.Ledger.Alonzo.TxInfo
+    ( TranslationError )
 import Cardano.Wallet.CoinSelection
     ( SelectionCollateralRequirement (..)
     , SelectionLimit
@@ -269,13 +271,12 @@ data TransactionLayer k tx = TransactionLayer
     , distributeSurplus
         :: FeePolicy
         -> Coin
-        --  Surplus transaction balance to distribute.
+        -- Surplus transaction balance to distribute.
         -> TxFeeAndChange [TxOut]
-        --  Original fee and change outputs.
+        -- Original fee and change outputs.
         -> Either ErrMoreSurplusNeeded (TxFeeAndChange [TxOut])
-        -- ^ Adjusted fee and change outputs.
         --
-        -- Distributes a surplus transaction balance between the given change
+        -- ^ Distributes a surplus transaction balance between the given change
         -- outputs and the given fee. This function is aware of the fact that
         -- any increase in a 'Coin' value could increase the size and fee
         -- requirement of a transaction.
@@ -507,10 +508,10 @@ data ErrAssignRedeemers
     -- ^ The given redeemer target couldn't be located in the transaction.
     | ErrAssignRedeemersInvalidData Redeemer String
     -- ^ Redeemer's data isn't a valid Plutus' data.
-    | ErrAssignRedeemersPastHorizon PastHorizonException
-    -- ^ Evaluating the Plutus script failed past the visible horizon.
     | ErrAssignRedeemersUnresolvedTxIns [TxIn]
     -- ^ The transaction contains inputs which couldn't be resolved.
+    | ErrAssignRedeemersTranslationError TranslationError
+    -- ^ Mistranslating of hashes, credentials, certificates etc.
     deriving (Generic, Eq, Show)
 
 -- | Possible signing error

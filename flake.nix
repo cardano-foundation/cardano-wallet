@@ -33,7 +33,7 @@
   ############################################################################
 
   inputs = {
-    nixpkgs.follows = "haskellNix/nixpkgs-2111";
+    nixpkgs.follows = "haskellNix/nixpkgs-unstable";
     hostNixpkgs.follows = "nixpkgs";
     haskellNix = {
       url = "github:input-output-hk/haskell.nix";
@@ -45,7 +45,7 @@
       inputs.nixpkgs.follows = "nixpkgs";
     };
     flake-compat = {
-      url = "github:input-output-hk/flake-compat/fixes";
+      url = "github:input-output-hk/flake-compat";
       flake = false;
     };
     customConfig.url = "github:input-output-hk/empty-flake";
@@ -241,7 +241,7 @@
               });
               docs = pkgs.mkShell {
                 name = "cardano-wallet-docs";
-                nativeBuildInputs = [ emanote.defaultPackage.${system} pkgs.yq ];
+                nativeBuildInputs = [ pkgs.yq ];
                 # allow building the shell so that it can be cached in hydra
                 phases = [ "installPhase" ];
                 installPhase = "echo $nativeBuildInputs > $out";
@@ -367,7 +367,7 @@
                 inherit dockerImage;
                 inherit (config) dockerHubRepoName;
               };
-              inherit (pkgs) sha256map-regenerate checkStackProject;
+              inherit (pkgs) checkCabalProject cabalProjectRegenerate;
               inherit (project.stack-nix.passthru) generateMaterialized;
               buildToolsGenerateMaterialized = pkgs.haskell-build-tools.regenerateMaterialized;
               iohkNixGenerateMaterialized = pkgs.iohk-nix-utils.regenerateMaterialized;

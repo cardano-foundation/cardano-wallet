@@ -5,6 +5,7 @@
 {-# LANGUAGE FlexibleInstances #-}
 {-# LANGUAGE GADTs #-}
 {-# LANGUAGE LambdaCase #-}
+{-# LANGUAGE PackageImports #-}
 {-# LANGUAGE ScopedTypeVariables #-}
 {-# LANGUAGE TypeApplications #-}
 {-# LANGUAGE TypeFamilies #-}
@@ -124,7 +125,8 @@ import Data.Text.Class
     ( ToText (..) )
 import Network.URI
     ( URI )
-import Options.Applicative
+-- See ADP-1910
+import "optparse-applicative" Options.Applicative
     ( CommandFields
     , Mod
     , Parser

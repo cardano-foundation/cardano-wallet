@@ -12,6 +12,7 @@
 {-# LANGUAGE LambdaCase #-}
 {-# LANGUAGE MultiParamTypeClasses #-}
 {-# LANGUAGE NumericUnderscores #-}
+{-# LANGUAGE PackageImports #-}
 {-# LANGUAGE RankNTypes #-}
 {-# LANGUAGE ScopedTypeVariables #-}
 {-# LANGUAGE TypeApplications #-}
@@ -239,7 +240,8 @@ import Network.HTTP.Client
     , newManager
     , responseTimeoutNone
     )
-import Options.Applicative
+-- See ADP-1910
+import "optparse-applicative" Options.Applicative
     ( ArgumentFields
     , CommandFields
     , Mod
@@ -274,9 +276,11 @@ import Options.Applicative
     , switch
     , value
     )
-import Options.Applicative.Help.Pretty
+-- See ADP-1910
+import "optparse-applicative" Options.Applicative.Help.Pretty
     ( string, vsep )
-import Options.Applicative.Types
+-- See ADP-1910
+import "optparse-applicative" Options.Applicative.Types
     ( ReadM (..), readerAsk )
 import Servant.Client
     ( BaseUrl (..), ClientM, Scheme (..), mkClientEnv, runClientM )

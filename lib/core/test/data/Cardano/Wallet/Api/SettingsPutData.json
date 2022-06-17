@@ -1,39 +1,13 @@
 {
-    "seed": -5361789725986382093,
     "samples": [
         {
             "settings": {
-                "pool_metadata_source": "none"
+                "pool_metadata_source": "direct"
             }
         },
         {
             "settings": {
                 "pool_metadata_source": "none"
-            }
-        },
-        {
-            "settings": {
-                "pool_metadata_source": "http://its-friday.com:8000"
-            }
-        },
-        {
-            "settings": {
-                "pool_metadata_source": "http://its-friday.com:8000"
-            }
-        },
-        {
-            "settings": {
-                "pool_metadata_source": "none"
-            }
-        },
-        {
-            "settings": {
-                "pool_metadata_source": "http://its-friday.com:8000"
-            }
-        },
-        {
-            "settings": {
-                "pool_metadata_source": "http://its-friday.com:8000"
             }
         },
         {
@@ -43,7 +17,32 @@
         },
         {
             "settings": {
+                "pool_metadata_source": "direct"
+            }
+        },
+        {
+            "settings": {
+                "pool_metadata_source": "https://my.little.friend"
+            }
+        },
+        {
+            "settings": {
                 "pool_metadata_source": "none"
+            }
+        },
+        {
+            "settings": {
+                "pool_metadata_source": "https://my.little.friend"
+            }
+        },
+        {
+            "settings": {
+                "pool_metadata_source": "direct"
+            }
+        },
+        {
+            "settings": {
+                "pool_metadata_source": "direct"
             }
         },
         {
@@ -51,5 +50,6 @@
                 "pool_metadata_source": "direct"
             }
         }
-    ]
+    ],
+    "seed": 1407475605
 }

@@ -559,7 +559,7 @@ instance FromJSON SubjectProperties where
             Just p -> Just <$> parseJSON @(Property name) p
             Nothing -> pure Nothing
           where
-            propName = T.pack (symbolVal (Proxy @name))
+            propName = fromString $ symbolVal (Proxy @name)
 
 instance (HasValidator name, FromJSON (PropertyValue name)) => FromJSON (Property name) where
     parseJSON = withObject "Property value" $ \o -> Property

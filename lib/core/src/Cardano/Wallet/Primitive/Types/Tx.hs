@@ -619,7 +619,23 @@ cardanoTxFromBytes
     -> ByteString -- ^ Serialised transaction
     -> Either DecoderError (InAnyCardanoEra Cardano.Tx)
 cardanoTxFromBytes maxEra bs = asum $ map snd $ filter (withinEra maxEra . fst)
+    -- NOTE: Attempting to deserialise in Alonzo before Babbage is intentional.
+    --
+    -- It seems Alonzo transactions can be deserialized as Babbage
+    -- transactions. This causes new-tx workflow integration tests to fail.
+    -- The txs are interpreted as Babbage txs right before submitting them to
+    -- the Alonzo-era ledger.
+    --
+    -- This may also cause problems with our store of pending txs.
+    --
+    -- TODO: Can we come up with a better solution?
+    -- - Using Alonzo txs once we're in Babbage doesn't sound good?
+    -- - Ideally we should set @maxEra == currentNodeEra@ argument.
+    --    - But we can't access currentNodeEra from PersistField instances
+    --    - It might be good to ensure txs in the DB also store which era they
+    --      correspond to.
     [ deserialise AlonzoEra  Cardano.AsAlonzoEra
+    , deserialise BabbageEra Cardano.AsBabbageEra
     , deserialise MaryEra    Cardano.AsMaryEra
     , deserialise AllegraEra Cardano.AsAllegraEra
     , deserialise ShelleyEra Cardano.AsShelleyEra
@@ -656,10 +672,11 @@ withinEra = (>=) `on` numberEra
         AllegraEra -> 3
         MaryEra    -> 4
         AlonzoEra  -> 5
+        BabbageEra -> 6
 
 -- | Deserialise a transaction to construct a 'SealedTx'.
 sealedTxFromBytes :: ByteString -> Either DecoderError SealedTx
-sealedTxFromBytes = sealedTxFromBytes' (anyCardanoEra AlonzoEra)
+sealedTxFromBytes = sealedTxFromBytes' (anyCardanoEra BabbageEra)
 
 -- | Deserialise a transaction to construct a 'SealedTx'.
 sealedTxFromBytes'

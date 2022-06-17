@@ -3,6 +3,7 @@
 {-# LANGUAGE LambdaCase #-}
 {-# LANGUAGE RankNTypes #-}
 {-# LANGUAGE TypeApplications #-}
+{-# LANGUAGE ViewPatterns #-}
 {-# OPTIONS_GHC -fno-warn-orphans #-}
 {-# OPTIONS_GHC -fno-warn-overlapping-patterns #-}
 
@@ -83,12 +84,76 @@ import Cardano.Api
 import Cardano.Api.Byron
     ( KeyWitness (ByronKeyWitness), WitnessNetworkIdOrByronAddress (..) )
 import Cardano.Api.Gen
+    ( genAddressInEra
+    , genAlphaNum
+    , genAssetName
+    , genByronKeyWitness
+    , genCertIx
+    , genCostModel
+    , genCostModels
+    , genEpochNo
+    , genExecutionUnitPrices
+    , genExecutionUnits
+    , genExtraKeyWitnesses
+    , genLovelace
+    , genMIRPot
+    , genMIRTarget
+    , genNat
+    , genNetworkId
+    , genNetworkMagic
+    , genPaymentCredential
+    , genPtr
+    , genRational
+    , genRationalInt64
+    , genScriptValidity
+    , genShelleyWitnessSigningKey
+    , genSignedQuantity
+    , genSimpleScript
+    , genSlotNo
+    , genSlotNo32
+    , genStakeAddressReference
+    , genStakeCredential
+    , genTxAuxScripts
+    , genTxBody
+    , genTxCertificate
+    , genTxCertificates
+    , genTxFee
+    , genTxIn
+    , genTxIndex
+    , genTxInsCollateral
+    , genTxIx
+    , genTxMetadata
+    , genTxMetadataInEra
+    , genTxMetadataValue
+    , genTxMintValue
+    , genTxOut
+    , genTxOutDatum
+    , genTxOutValue
+    , genTxScriptValidity
+    , genTxValidityLowerBound
+    , genTxValidityRange
+    , genTxValidityUpperBound
+    , genTxWithdrawals
+    , genUnsignedQuantity
+    , genUpdateProposal
+    , genValueForMinting
+    , genValueForTxOut
+    , genWitnessNetworkIdOrByronAddress
+    , genWitnessStake
+    , genWitnesses
+    )
 import Cardano.Api.Shelley
-    ( Certificate (..), StakeCredential (..) )
+    ( Certificate (..)
+    , ReferenceScript (..)
+    , StakeCredential (..)
+    , refInsScriptsAndInlineDatsSupportedInEra
+    )
 import Cardano.Chain.UTxO
     ( TxInWitness (..) )
-import Cardano.Ledger.Credential
-    ( Ix, Ptr (..) )
+import qualified Cardano.Ledger.BaseTypes as Ledger
+    ( CertIx (..), TxIx (..) )
+import Cardano.Ledger.Credential.Safe
+    ( Ptr, SlotNo32, safePtr, safeUnwrapPtr )
 import Cardano.Ledger.Shelley.API
     ( MIRPot (..) )
 import Data.Char
@@ -99,6 +164,8 @@ import Data.Function
     ( (&) )
 import Data.Int
     ( Int32 )
+import Data.List
+    ( (\\) )
 import Data.Map.Strict
     ( Map )
 import Data.Maybe
@@ -106,10 +173,11 @@ import Data.Maybe
 import Data.Ratio
     ( denominator, numerator )
 import Data.Word
-    ( Word16, Word32 )
+    ( Word16, Word32, Word64, Word8 )
 import Numeric.Natural
     ( Natural )
 import Test.Hspec
+    ( Spec, describe, it )
 import Test.QuickCheck
     ( Arbitrary
     , Property
@@ -121,14 +189,13 @@ import Test.QuickCheck
     , forAll
     , label
     , property
+    , (===)
     )
 
 import qualified Data.ByteString as BS
 import qualified Data.ByteString.Char8 as B8
-import Data.List
-    ( (\\) )
 import qualified Data.Map.Strict as Map
-import qualified Plutus.V1.Ledger.Api as Plutus
+import qualified PlutusCore as Plutus
 
 spec :: Spec
 spec =
@@ -245,11 +312,13 @@ spec =
                         property
                         $ forAll (genTxMetadataInEra era)
                         $ genTxMetadataInEraCoverage era
-            it "genIx" $
+            it "genTxIx" $
                 -- NOTE: can't use Arbitrary here because Ix is a type synonym
-                property (forAll genIx genIxCoverage)
-            it "genPtr" $
+                property (forAll genTxIx genTxIxCoverage')
+            it "genPtrCoverage" $
                 property genPtrCoverage
+            it "prop_safePtr_safeUnwrapPtr" $
+                property prop_safePtr_safeUnwrapPtr
             it "genStakeAddressReference" $
                 property genStakeAddressReferenceCoverage
             it "genPaymentCredential" $
@@ -374,10 +443,24 @@ spec =
                             (genUpdateProposalCoverage era)
 
 genTxIxCoverage :: TxIx -> Property
-genTxIxCoverage (TxIx ix) = unsignedCoverage (maxBound @Word16) "txIx" ix
+genTxIxCoverage (TxIx ix) = unsignedCoverage (6 * maxBound @Word8) "txIx" ix
 
 instance Arbitrary TxIx where
     arbitrary = genTxIndex
+
+genTxIxCoverage' :: Ledger.TxIx -> Property
+genTxIxCoverage' (Ledger.TxIx ix) =
+    unsignedCoverage (maxBound @Word16 - 1024) "txIx" ix
+
+instance Arbitrary Ledger.TxIx where
+    arbitrary = genTxIx
+
+genCertIxCoverage :: Ledger.CertIx -> Property
+genCertIxCoverage (Ledger.CertIx ix) =
+    unsignedCoverage (maxBound @Word16 - 1024) "certIx" ix
+
+instance Arbitrary Ledger.CertIx where
+    arbitrary = genCertIx
 
 genTxInCoverage :: TxIn -> Property
 genTxInCoverage (TxIn _id ix) =
@@ -421,7 +504,11 @@ genTxInCollateralCoverage era collateral =
             TxInsCollateral _ cs -> Just $ length cs
 
 genSlotNoCoverage :: SlotNo -> Property
-genSlotNoCoverage = unsignedCoverage (maxBound @Word32) "slot number"
+genSlotNoCoverage = unsignedCoverage (maxBound @Word64 - 1000) "slot number"
+
+genSlotNo32Coverage :: SlotNo32 -> Property
+genSlotNo32Coverage =
+    unsignedCoverage (maxBound @Word32 - 10000) "slot number (32-bit)"
 
 instance Arbitrary SlotNo where
     arbitrary = genSlotNo
@@ -1052,18 +1139,24 @@ genTxMetadataInEraCoverage era meta =
                 TxMetadataNone -> cover 10 True "no metadata" True
                 TxMetadataInEra _ _ -> cover 40 True "some metadata" True
 
-genIxCoverage :: Ix -> Property
-genIxCoverage = unsignedCoverage (maxBound @Word32) "ix"
-
 genPtrCoverage :: Ptr -> Property
-genPtrCoverage (Ptr slotNo ix1 ix2) = checkCoverage $ conjoin
-    [ genSlotNoCoverage slotNo
-    , genIxCoverage ix1
-    , genIxCoverage ix2
-    ]
+genPtrCoverage (safeUnwrapPtr -> (slotNo, txIx, certIx)) =
+    checkCoverage $ conjoin
+        [ genSlotNo32Coverage slotNo
+        , genTxIxCoverage' txIx
+        , genCertIxCoverage certIx
+        ]
+
+prop_safePtr_safeUnwrapPtr
+    :: SlotNo32 -> Ledger.TxIx -> Ledger.CertIx -> Property
+prop_safePtr_safeUnwrapPtr s t c =
+    safeUnwrapPtr (safePtr s t c) === (s, t, c)
 
 instance Arbitrary Ptr where
     arbitrary = genPtr
+
+instance Arbitrary SlotNo32 where
+    arbitrary = genSlotNo32
 
 genStakeAddressReferenceCoverage :: StakeAddressReference -> Property
 genStakeAddressReferenceCoverage ref = checkCoverage
@@ -1184,6 +1277,30 @@ genTxOutDatumCoverage era datum =
             TxOutDatumHash _ _ -> True
             _ -> False
 
+genTxOutReferenceScriptCoverage
+    :: CardanoEra era -> ReferenceScript era -> Property
+genTxOutReferenceScriptCoverage era refScript =
+    case refInsScriptsAndInlineDatsSupportedInEra era of
+        Nothing ->
+            (refScript == ReferenceScriptNone)
+            & label "reference scripts not generated in unsupported era"
+            & counterexample
+                ( "reference scripts were generated in unsupported "
+                    <> show era
+                )
+        Just _ -> checkCoverage
+            $ cover 30 (hasNoRefScript refScript)
+                "no reference script"
+            $ cover 30 (hasRefScript refScript)
+                "reference script present"
+                True
+  where
+    hasNoRefScript = (== ReferenceScriptNone)
+
+    hasRefScript = \case
+        ReferenceScript _ _ -> True
+        _ -> False
+
 genTxOutValueCoverage :: CardanoEra era -> TxOutValue era -> Property
 genTxOutValueCoverage era val =
     case multiAssetSupportedInEra era of
@@ -1205,10 +1322,11 @@ genTxOutValueCoverage era val =
                     & counterexample (show era <> " should support multi-asset")
 
 genTxOutCoverage :: CardanoEra era -> TxOut ctx era -> Property
-genTxOutCoverage era (TxOut addr val datum) = checkCoverage $ conjoin
+genTxOutCoverage era (TxOut addr val datum refScript) = checkCoverage $ conjoin
     [ genAddressInEraCoverage era addr
     , genTxOutValueCoverage era val
     , genTxOutDatumCoverage era datum
+    , genTxOutReferenceScriptCoverage era refScript
     ]
 
 genWitnessNetworkIdOrByronAddressCoverage

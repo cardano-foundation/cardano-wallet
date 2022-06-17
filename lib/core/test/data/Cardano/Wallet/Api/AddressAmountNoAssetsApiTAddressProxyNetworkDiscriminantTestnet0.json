@@ -1,75 +1,75 @@
 {
-    "seed": 4955423387302849722,
     "samples": [
         {
+            "address": "<addr>",
             "amount": {
-                "quantity": 60,
+                "quantity": 199,
                 "unit": "lovelace"
-            },
-            "address": "<addr>"
+            }
         },
         {
+            "address": "<addr>",
             "amount": {
-                "quantity": 9,
+                "quantity": 14,
                 "unit": "lovelace"
-            },
-            "address": "<addr>"
+            }
         },
         {
+            "address": "<addr>",
             "amount": {
-                "quantity": 117,
+                "quantity": 78,
                 "unit": "lovelace"
-            },
-            "address": "<addr>"
+            }
         },
         {
+            "address": "<addr>",
             "amount": {
-                "quantity": 109,
+                "quantity": 68,
                 "unit": "lovelace"
-            },
-            "address": "<addr>"
+            }
         },
         {
+            "address": "<addr>",
             "amount": {
-                "quantity": 110,
+                "quantity": 13,
                 "unit": "lovelace"
-            },
-            "address": "<addr>"
+            }
         },
         {
+            "address": "<addr>",
             "amount": {
-                "quantity": 233,
+                "quantity": 126,
                 "unit": "lovelace"
-            },
-            "address": "<addr>"
+            }
         },
         {
+            "address": "<addr>",
             "amount": {
-                "quantity": 46,
+                "quantity": 139,
                 "unit": "lovelace"
-            },
-            "address": "<addr>"
+            }
         },
         {
+            "address": "<addr>",
             "amount": {
-                "quantity": 33,
+                "quantity": 230,
                 "unit": "lovelace"
-            },
-            "address": "<addr>"
+            }
         },
         {
+            "address": "<addr>",
             "amount": {
-                "quantity": 96,
+                "quantity": 254,
                 "unit": "lovelace"
-            },
-            "address": "<addr>"
+            }
         },
         {
+            "address": "<addr>",
             "amount": {
-                "quantity": 134,
+                "quantity": 239,
                 "unit": "lovelace"
-            },
-            "address": "<addr>"
+            }
         }
-    ]
+    ],
+    "seed": 1500902440
 }

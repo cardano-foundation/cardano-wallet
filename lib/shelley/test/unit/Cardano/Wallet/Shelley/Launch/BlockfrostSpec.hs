@@ -1,3 +1,4 @@
+{-# LANGUAGE PackageImports #-}
 module Cardano.Wallet.Shelley.Launch.BlockfrostSpec
     ( spec
     ) where
@@ -13,7 +14,8 @@ import Cardano.Wallet.Shelley.Launch
     ( Mode (Light, Normal), modeOption )
 import Cardano.Wallet.Shelley.Launch.Blockfrost
     ( TokenException (..), TokenFile (TokenFile), readToken )
-import Options.Applicative
+-- See ADP-1910
+import "optparse-applicative" Options.Applicative
     ( ParserFailure (execFailure)
     , ParserResult (CompletionInvoked, Failure, Success)
     , defaultPrefs

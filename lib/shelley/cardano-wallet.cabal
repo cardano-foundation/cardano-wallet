@@ -47,11 +47,13 @@ library
     , cardano-crypto-class
     , cardano-crypto-wrapper
     , cardano-wallet-launcher
+    , cardano-ledger-babbage
     , cardano-ledger-byron
     , cardano-ledger-core
     , cardano-ledger-shelley
     , cardano-ledger-shelley-ma
     , cardano-ledger-alonzo
+    , cardano-protocol-tpraos
     , cardano-slotting
     , cardano-wallet-cli
     , cardano-wallet-core
@@ -81,6 +83,7 @@ library
     , ouroboros-consensus
     , ouroboros-consensus-byron
     , ouroboros-consensus-cardano
+    , ouroboros-consensus-protocol
     , ouroboros-consensus-shelley
     , ouroboros-network
     , ouroboros-network-framework
@@ -274,6 +277,7 @@ test-suite unit
     , ouroboros-consensus-shelley
     , ouroboros-network
     , cardano-ledger-shelley
+    , plutus-core
     , text
     , text-class
     , transformers

@@ -72,7 +72,7 @@ import Data.Map.Strict
 import Data.Text.Class
     ( FromText (..) )
 import Data.Word
-    ( Word32 )
+    ( Word16, Word32 )
 import Generics.SOP
     ( NP (..) )
 import GHC.Generics
@@ -210,7 +210,9 @@ shrinkTxIndex 0 = []
 shrinkTxIndex _ = [0]
 
 txIndices :: [Word32]
-txIndices = [0 ..]
+txIndices =
+    let w16range = [0 ..] :: [Word16]
+    in fromIntegral <$> w16range
 
 --------------------------------------------------------------------------------
 -- Transaction inputs generated according to the size parameter

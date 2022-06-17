@@ -32,7 +32,6 @@ steps:
     key: nix
     commands:
       - './nix/regenerate.sh'
-      - 'nix build .#checkStackProject -o check-stack-project.sh && ./check-stack-project.sh'
     agents:
       system: x86_64-linux
 

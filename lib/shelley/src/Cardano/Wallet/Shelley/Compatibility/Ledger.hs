@@ -24,6 +24,7 @@ module Cardano.Wallet.Shelley.Compatibility.Ledger
     , toLedgerTokenName
     , toLedgerTokenQuantity
     , toAlonzoTxOut
+    , toBabbageTxOut
 
       -- * Conversions from ledger specification types to wallet types
     , toWalletCoin
@@ -69,7 +70,7 @@ import Cardano.Wallet.Primitive.Types.TokenQuantity
 import Cardano.Wallet.Primitive.Types.Tx
     ( TxOut (..) )
 import Data.ByteString.Short
-    ( toShort )
+    ( fromShort, toShort )
 import Data.Foldable
     ( toList )
 import Data.Function
@@ -94,6 +95,8 @@ import qualified Cardano.Ledger.Address as Ledger
 import qualified Cardano.Ledger.Alonzo as Alonzo
 import qualified Cardano.Ledger.Alonzo.Rules.Utxo as Alonzo
 import qualified Cardano.Ledger.Alonzo.TxBody as Alonzo
+import qualified Cardano.Ledger.Babbage as Babbage
+import qualified Cardano.Ledger.Babbage.TxBody as Babbage
 import qualified Cardano.Ledger.Crypto as Ledger
 import qualified Cardano.Ledger.Keys as Ledger
 import qualified Cardano.Ledger.Mary.Value as Ledger
@@ -218,11 +221,11 @@ instance Convert TokenName Ledger.AssetName where
 
 toLedgerTokenName :: TokenName -> Ledger.AssetName
 toLedgerTokenName (UnsafeTokenName bytes) =
-    Ledger.AssetName bytes
+    Ledger.AssetName $ toShort bytes
 
 toWalletTokenName :: Ledger.AssetName -> TokenName
 toWalletTokenName (Ledger.AssetName bytes) =
-    UnsafeTokenName bytes
+    UnsafeTokenName $ fromShort bytes
 
 --------------------------------------------------------------------------------
 -- Conversions for 'TokenPolicyId'
@@ -298,6 +301,27 @@ toAlonzoTxOut (TxOut addr bundle) = \case
             (toLedger addr)
             (toLedger bundle)
             (Ledger.SJust $ unsafeMakeSafeHash $ Crypto.UnsafeHash $ toShort bytes)
+
+toBabbageTxOut
+    :: TxOut
+    -> Maybe (Hash "Datum")
+    -> Babbage.TxOut (Babbage.BabbageEra StandardCrypto)
+toBabbageTxOut (TxOut addr bundle) = \case
+    Nothing ->
+        Babbage.TxOut
+            (toLedger addr)
+            (toLedger bundle)
+            Babbage.NoDatum
+            Ledger.SNothing
+    Just (Hash bytes) ->
+        Babbage.TxOut
+            (toLedger addr)
+            (toLedger bundle)
+            (Babbage.DatumHash
+                $ unsafeMakeSafeHash
+                $ Crypto.UnsafeHash
+                $ toShort bytes)
+            Ledger.SNothing
 
 toWalletScript
     :: Ledger.Crypto crypto

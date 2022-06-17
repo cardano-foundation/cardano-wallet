@@ -23,7 +23,8 @@ module Cardano.Api.Gen
     , genExecutionUnitPrices
     , genExecutionUnits
     , genExtraKeyWitnesses
-    , genIx
+    , genTxIx
+    , genCertIx
     , genLovelace
     , genMIRPot
     , genMIRTarget
@@ -54,6 +55,7 @@ module Cardano.Api.Gen
     , genSigningKey
     , genSimpleScript
     , genSlotNo
+    , genSlotNo32
     , genStakeAddress
     , genStakeAddressReference
     , genStakeCredential
@@ -110,16 +112,19 @@ import Cardano.Api.Byron
 import Cardano.Api.Shelley
     ( Hash (..)
     , PlutusScript (..)
+    , PlutusScriptOrReferenceInput (..)
     , PoolId
     , ProtocolParameters (..)
+    , ReferenceScript (..)
     , StakeCredential (..)
     , StakePoolMetadata (..)
     , StakePoolMetadataReference (..)
     , StakePoolParameters (..)
     , StakePoolRelay (..)
+    , refInsScriptsAndInlineDatsSupportedInEra
     )
-import Cardano.Ledger.Credential
-    ( Ix, Ptr (..) )
+import Cardano.Ledger.Credential.Safe
+    ( Ptr, SlotNo32 (..), safePtr )
 import Cardano.Ledger.SafeHash
     ( unsafeMakeSafeHash )
 import Cardano.Ledger.Shelley.API
@@ -189,7 +194,7 @@ import qualified Cardano.Binary as CBOR
 import qualified Cardano.Crypto.Hash as Crypto
 import qualified Cardano.Crypto.Seed as Crypto
 import qualified Cardano.Ledger.BaseTypes as Ledger
-    ( Port, dnsToText )
+    ( CertIx (..), Port, TxIx (..), dnsToText )
 import qualified Cardano.Ledger.Shelley.API as Ledger
     ( StakePoolRelay (..), portToWord16 )
 import qualified Cardano.Ledger.Shelley.TxBody as Ledger
@@ -204,7 +209,7 @@ import qualified Data.Map as Map
 import qualified Data.Set as Set
 import qualified Data.Text as T
 import qualified Data.Text.Encoding as T
-import qualified Plutus.V1.Ledger.Api as Plutus
+import qualified PlutusCore as Plutus
 import qualified Test.Cardano.Ledger.Shelley.Serialisation.Generators.Genesis as Ledger
     ( genStakePoolRelay )
 
@@ -244,15 +249,13 @@ genTxId :: Gen TxId
 genTxId = TxId <$> genShelleyHash
 
 genTxIndex :: Gen TxIx
-genTxIndex = frequency
-    [ ( 45, do
-          -- 2 ^ 32 - 1 is the upper limit on TxIxs in the Byron era
-          n <- chooseInteger (0, fromIntegral $ ((2 :: Word32) ^ (32 :: Word32)) - 1)
-          pure $ TxIx $ fromIntegral n
-      )
-    -- Make sure to choose some small values too
-    , ( 45, (TxIx . fromIntegral) <$> chooseInteger (0, fromIntegral (maxBound :: Word16)) )
-    , ( 10, pure $ TxIx 0 )
+genTxIndex = oneof
+    [ (TxIx . intCast) <$> (arbitrary @Word16)
+      -- FIXME: cardano-api uses a full Word here, yet the ledger uses Word16
+      -- and we'll fail to construct a tx unless we constrain ourselves to
+      -- Word16 here.
+    , TxIx . fromIntegral . getNonNegative <$> (arbitrary @(NonNegative Int))
+    -- For some bias towards small values
     ]
 
 genTxInsCollateral :: CardanoEra era -> Gen (TxInsCollateral era)
@@ -266,7 +269,26 @@ genTxInsCollateral era =
                           ]
 
 genSlotNo :: Gen SlotNo
-genSlotNo = SlotNo <$> arbitrary
+genSlotNo = do
+    boundary <- genBoundary
+    frequency
+        [ (20, pure $ SlotNo boundary)
+        , (20, pure $ SlotNo (maxBound @Word64 - boundary) )
+        , (60, SlotNo <$> arbitrary @Word64)
+        ]
+  where
+    genBoundary = choose (0, 10_000)
+
+genSlotNo32 :: Gen SlotNo32
+genSlotNo32 = do
+    offset <- genOffset
+    frequency
+        [ (20, pure $ SlotNo32 offset)
+        , (20, pure $ SlotNo32 (maxBound @Word32 - offset) )
+        , (60, SlotNo32 <$> arbitrary @Word32)
+        ]
+  where
+    genOffset = choose (0, 10_000)
 
 genLovelace :: Gen Lovelace
 genLovelace = frequency
@@ -387,6 +409,13 @@ genPlutusScript :: PlutusScriptVersion lang -> Gen (PlutusScript lang)
 genPlutusScript _ =
     -- We make no attempt to create a valid script
     PlutusScriptSerialised . SBS.toShort <$> arbitrary
+
+genPlutusScriptOrReferenceInput
+    :: PlutusScriptVersion lang
+    -> Gen (PlutusScriptOrReferenceInput lang)
+genPlutusScriptOrReferenceInput lang =
+    -- TODO add proper generator, perhaps as part of ADP-1655
+    PScript <$> genPlutusScript lang
 
 genSimpleScript :: SimpleScriptVersion lang -> Gen (SimpleScript lang)
 genSimpleScript lang =
@@ -664,7 +693,7 @@ genScriptWitnessMint langEra =
             SimpleScriptWitness langEra ver <$> genSimpleScript ver
         (PlutusScriptLanguage ver) ->
             PlutusScriptWitness langEra ver
-            <$> genPlutusScript ver
+            <$> genPlutusScriptOrReferenceInput ver
             <*> pure NoScriptDatumForMint
             <*> genScriptData
             <*> genExecutionUnits
@@ -678,7 +707,7 @@ genScriptWitnessStake langEra =
             SimpleScriptWitness langEra ver <$> genSimpleScript ver
         (PlutusScriptLanguage ver) ->
             PlutusScriptWitness langEra ver
-            <$> genPlutusScript ver
+            <$> genPlutusScriptOrReferenceInput ver
             <*> pure NoScriptDatumForStake
             <*> genScriptData
             <*> genExecutionUnits
@@ -692,7 +721,7 @@ genScriptWitnessSpend langEra =
             SimpleScriptWitness langEra ver <$> genSimpleScript ver
         (PlutusScriptLanguage ver) ->
             PlutusScriptWitness langEra ver
-            <$> genPlutusScript ver
+            <$> genPlutusScriptOrReferenceInput ver
             <*> (ScriptDatumForTxIn <$> genScriptData)
             <*> genScriptData
             <*> genExecutionUnits
@@ -765,12 +794,13 @@ genTxMetadataValue =
                 ((,) <$> genTxMetadataValue <*> genTxMetadataValue)
 
 genPtr :: Gen Ptr
-genPtr = Ptr <$> genSlotNo <*> genIx <*> genIx
+genPtr = safePtr <$> genSlotNo32 <*> genTxIx <*> genCertIx
 
-genIx :: Gen Ix
-genIx = do
-    (Large (n :: Word64)) <- arbitrary
-    pure n
+genTxIx :: Gen Ledger.TxIx
+genTxIx = Ledger.TxIx <$> arbitrary
+
+genCertIx :: Gen Ledger.CertIx
+genCertIx = Ledger.CertIx <$> arbitrary
 
 genStakeAddressReference :: Gen StakeAddressReference
 genStakeAddressReference =
@@ -836,6 +866,7 @@ genTxOut era =
   TxOut <$> genAddressInEra era
         <*> genTxOutValue era
         <*> genTxOutDatum era
+        <*> genReferenceScript era
 
 genTxOutDatum :: CardanoEra era -> Gen (TxOutDatum ctx era)
 genTxOutDatum era = case scriptDataSupportedInEra era of
@@ -843,6 +874,14 @@ genTxOutDatum era = case scriptDataSupportedInEra era of
     Just supported -> oneof
         [ pure TxOutDatumNone
         , TxOutDatumHash supported <$> genHashScriptData
+        ]
+
+genReferenceScript :: CardanoEra era -> Gen (ReferenceScript era)
+genReferenceScript era = case refInsScriptsAndInlineDatsSupportedInEra era of
+    Nothing -> pure ReferenceScriptNone
+    Just supported -> oneof
+        [ pure ReferenceScriptNone
+        , ReferenceScript supported <$> genScriptInAnyLang
         ]
 
 mkDummyHash :: forall h a. Crypto.HashAlgorithm h => Int -> Crypto.Hash h a
@@ -915,7 +954,7 @@ genProtocolParameters :: Gen ProtocolParameters
 genProtocolParameters =
   ProtocolParameters
     <$> ((,) <$> genNat <*> genNat)
-    <*> genRational
+    <*> (Just <$> genRational)
     <*> liftArbitrary genPraosNonce
     <*> genNat
     <*> genNat
@@ -944,7 +983,7 @@ genProtocolParametersWithAlonzoScripts :: Gen ProtocolParameters
 genProtocolParametersWithAlonzoScripts =
   ProtocolParameters
     <$> ((,) <$> genNat <*> genNat)
-    <*> genRational
+    <*> (Just <$> genRational)
     <*> liftArbitrary genPraosNonce
     <*> genNat
     <*> genNat
@@ -1283,8 +1322,20 @@ genTxBodyContent era = do
     let
         txBody = TxBodyContent
             { Api.txIns
-            , Api.txInsCollateral = TxInsCollateralNone
             , Api.txOuts
+            -- NOTE: We are adding collateral at a later step, despite only
+            -- generating @TxInsCollateralNone@ here. This seems to be because
+            -- the generation currently is dependent on
+            -- @collectTxBodyScriptWitnesses txBody@.
+            , Api.txInsCollateral = TxInsCollateralNone
+
+            -- TODO add proper generator, perhaps as part of ADP-1655
+            , Api.txInsReference = TxInsReferenceNone
+
+            -- TODO add proper generators, perhaps as part of ADP-1653
+            , Api.txTotalCollateral = TxTotalCollateralNone
+            , Api.txReturnCollateral = TxReturnCollateralNone
+
             , Api.txFee
             , Api.txValidityRange
             , Api.txMetadata

@@ -43,7 +43,6 @@ import Cardano.Api
     , NodeToClientVersion (..)
     , SlotNo (..)
     , connectToLocalNode
-    , fromLedgerPParams
     )
 import Cardano.BM.Data.Severity
     ( Severity (..) )
@@ -80,6 +79,7 @@ import Cardano.Wallet.Primitive.Types.Tx
 import Cardano.Wallet.Shelley.Compatibility
     ( StandardCrypto
     , fromAlonzoPParams
+    , fromBabbagePParams
     , fromNonMyopicMemberRewards
     , fromPoint
     , fromPoolDistr
@@ -189,6 +189,7 @@ import Ouroboros.Consensus.Cardano.Block
     , EraCrypto
     , StandardAllegra
     , StandardAlonzo
+    , StandardBabbage
     , StandardMary
     , StandardShelley
     )
@@ -204,6 +205,10 @@ import Ouroboros.Consensus.Network.NodeToClient
     ( ClientCodecs, Codecs' (..), DefaultCodecs, clientCodecs, defaultCodecs )
 import Ouroboros.Consensus.Node.NetworkProtocolVersion
     ( HasNetworkProtocolVersion (..), SupportedNetworkProtocolVersion (..) )
+import Ouroboros.Consensus.Protocol.Praos
+    ( Praos )
+import Ouroboros.Consensus.Protocol.TPraos
+    ( TPraos )
 import Ouroboros.Consensus.Shelley.Ledger.Config
     ( CodecConfig (..), getCompactGenesis )
 import Ouroboros.Network.Block
@@ -265,6 +270,7 @@ import UnliftIO.Exception
 import qualified Cardano.Api as Cardano
 import qualified Cardano.Crypto.Hash as Crypto
 import qualified Cardano.Ledger.Alonzo.PParams as Alonzo
+import qualified Cardano.Ledger.Babbage.PParams as Babbage
 import qualified Cardano.Ledger.Crypto as SL
 import qualified Cardano.Ledger.Shelley.API as SL
 import qualified Cardano.Ledger.Shelley.LedgerState as SL
@@ -485,7 +491,10 @@ withNodeNetworkLayerBase
             (Just . optimumNumberOfPools <$> LSQry Shelley.GetCurrentPParams)
             (Just . optimumNumberOfPools <$> LSQry Shelley.GetCurrentPParams)
             (Just . optimumNumberOfPools <$> LSQry Shelley.GetCurrentPParams)
-            (Just . fromIntegral . Alonzo._nOpt <$> LSQry Shelley.GetCurrentPParams)
+            (Just . fromIntegral . Alonzo._nOpt
+                <$> LSQry Shelley.GetCurrentPParams)
+            (Just . fromIntegral . Babbage._nOpt
+                <$> LSQry Shelley.GetCurrentPParams)
 
         queryNonMyopicMemberRewards
             :: LSQ (CardanoBlock StandardCrypto) IO
@@ -680,6 +689,7 @@ mkTipSyncClient tr np onPParamsUpdate onInterpreterUpdate onEraUpdate = do
                 <*> LSQry (QueryAnytimeAllegra GetEraStart)
                 <*> LSQry (QueryAnytimeMary GetEraStart)
                 <*> LSQry (QueryAnytimeAlonzo GetEraStart)
+                <*> LSQry (QueryAnytimeBabbage GetEraStart)
 
             sp <- byronOrShelleyBased
                 (pure $ W.slottingParameters np)
@@ -688,13 +698,15 @@ mkTipSyncClient tr np onPParamsUpdate onInterpreterUpdate onEraUpdate = do
 
             ppNode <- onAnyEra
                 (pure Nothing)
-                (Just . fromLedgerPParams Cardano.ShelleyBasedEraShelley
+                (Just . Cardano.fromLedgerPParams Cardano.ShelleyBasedEraShelley
                     <$> LSQry Shelley.GetCurrentPParams)
-                (Just . fromLedgerPParams Cardano.ShelleyBasedEraAllegra
+                (Just . Cardano.fromLedgerPParams Cardano.ShelleyBasedEraAllegra
                     <$> LSQry Shelley.GetCurrentPParams)
-                (Just . fromLedgerPParams Cardano.ShelleyBasedEraMary
+                (Just . Cardano.fromLedgerPParams Cardano.ShelleyBasedEraMary
                     <$> LSQry Shelley.GetCurrentPParams)
-                (Just . fromLedgerPParams Cardano.ShelleyBasedEraAlonzo
+                (Just . Cardano.fromLedgerPParams Cardano.ShelleyBasedEraAlonzo
+                    <$> LSQry Shelley.GetCurrentPParams)
+                (Just . Cardano.fromLedgerPParams Cardano.ShelleyBasedEraBabbage
                     <$> LSQry Shelley.GetCurrentPParams)
 
             pp <- onAnyEra
@@ -707,6 +719,8 @@ mkTipSyncClient tr np onPParamsUpdate onInterpreterUpdate onEraUpdate = do
                 (fromShelleyPParams eraBounds ppNode
                     <$> LSQry Shelley.GetCurrentPParams)
                 (fromAlonzoPParams eraBounds ppNode
+                    <$> LSQry Shelley.GetCurrentPParams)
+                (fromBabbagePParams eraBounds ppNode
                     <$> LSQry Shelley.GetCurrentPParams)
 
             return (pp, sp)
@@ -767,6 +781,7 @@ mkLocalTxSubmissionClient _tr localTxSubmissionQ = LocalNodeClientProtocols
     { localChainSyncClient = NoLocalChainSyncClient
     , localTxSubmissionClient = Just $ localTxSubmission localTxSubmissionQ
     , localStateQueryClient = Nothing
+    , localTxMonitoringClient = Nothing
     }
     -- FIXME: Put back logging for local Tx Submission.
     -- tr' = contramap MsgTxSubmission tr
@@ -812,6 +827,7 @@ fetchRewardAccounts tr queryRewardQ accounts = do
                 shelleyQry
                 shelleyQry
                 shelleyQry
+                shelleyQry
 
         (res,logs) <- bracketQuery "queryRewards" tr (send queryRewardQ (SomeLSQ qry))
         liftIO $ mapM_ (traceWith tr) logs
@@ -823,7 +839,7 @@ fetchRewardAccounts tr queryRewardQ accounts = do
     shelleyQry
         :: (Crypto.HashAlgorithm (SL.ADDRHASH (EraCrypto shelleyEra)))
         => LSQ
-            (Shelley.ShelleyBlock shelleyEra)
+            (Shelley.ShelleyBlock protocol shelleyEra)
             IO
             (Map W.RewardAccount W.Coin, [Log])
     shelleyQry =
@@ -930,6 +946,7 @@ codecVersion version = verMap ! version
 codecConfig :: W.SlottingParameters -> CodecConfig (CardanoBlock c)
 codecConfig sp = CardanoCodecConfig
     (byronCodecConfig sp)
+    ShelleyCodecConfig
     ShelleyCodecConfig
     ShelleyCodecConfig
     ShelleyCodecConfig
@@ -1347,10 +1364,16 @@ instance (Ord key, Buildable key, Buildable value)
 
 byronOrShelleyBased
     :: LSQ Byron.ByronBlock m a
-    -> (forall shelleyEra. LSQ (Shelley.ShelleyBlock (shelleyEra StandardCrypto)) m a)
+    ->  (forall shelleyEra praos. LSQ
+            (Shelley.ShelleyBlock
+                (praos StandardCrypto)
+                (shelleyEra StandardCrypto)
+            ) m a
+        )
     -> LSQ (CardanoBlock StandardCrypto) m a
 byronOrShelleyBased onByron onShelleyBased = onAnyEra
     onByron
+    onShelleyBased
     onShelleyBased
     onShelleyBased
     onShelleyBased
@@ -1367,17 +1390,20 @@ byronOrShelleyBased onByron onShelleyBased = onAnyEra
 -- @PParams@ in alonzo.
 onAnyEra
     :: LSQ Byron.ByronBlock m a
-    -> LSQ (Shelley.ShelleyBlock StandardShelley) m a
-    -> LSQ (Shelley.ShelleyBlock StandardAllegra) m a
-    -> LSQ (Shelley.ShelleyBlock StandardMary) m a
-    -> LSQ (Shelley.ShelleyBlock StandardAlonzo) m a
+    -> LSQ (Shelley.ShelleyBlock (TPraos StandardCrypto) StandardShelley) m a
+    -> LSQ (Shelley.ShelleyBlock (TPraos StandardCrypto) StandardAllegra) m a
+    -> LSQ (Shelley.ShelleyBlock (TPraos StandardCrypto) StandardMary) m a
+    -> LSQ (Shelley.ShelleyBlock (TPraos StandardCrypto) StandardAlonzo) m a
+    -> LSQ (Shelley.ShelleyBlock (Praos StandardCrypto) StandardBabbage) m a
     -> LSQ (CardanoBlock StandardCrypto) m a
-onAnyEra onByron onShelley onAllegra onMary onAlonzo = currentEra >>= \case
-    AnyCardanoEra ByronEra -> mapQuery QueryIfCurrentByron onByron
-    AnyCardanoEra ShelleyEra -> mapQuery QueryIfCurrentShelley onShelley
-    AnyCardanoEra AllegraEra -> mapQuery QueryIfCurrentAllegra onAllegra
-    AnyCardanoEra MaryEra -> mapQuery QueryIfCurrentMary onMary
-    AnyCardanoEra AlonzoEra -> mapQuery QueryIfCurrentAlonzo onAlonzo
+onAnyEra onByron onShelley onAllegra onMary onAlonzo onBabbage =
+    currentEra >>= \case
+        AnyCardanoEra ByronEra -> mapQuery QueryIfCurrentByron onByron
+        AnyCardanoEra ShelleyEra -> mapQuery QueryIfCurrentShelley onShelley
+        AnyCardanoEra AllegraEra -> mapQuery QueryIfCurrentAllegra onAllegra
+        AnyCardanoEra MaryEra -> mapQuery QueryIfCurrentMary onMary
+        AnyCardanoEra AlonzoEra -> mapQuery QueryIfCurrentAlonzo onAlonzo
+        AnyCardanoEra BabbageEra -> mapQuery QueryIfCurrentBabbage onBabbage
   where
     mapQuery
         :: (forall r. BlockQuery block1 r
@@ -1395,7 +1421,12 @@ onAnyEra onByron onShelley onAllegra onMary onAlonzo = currentEra >>= \case
 
 -- | Return Nothings in Byron, or @Just result@ in Shelley.
 shelleyBased
-    :: (forall shelleyEra. LSQ (Shelley.ShelleyBlock (shelleyEra StandardCrypto)) m a)
+    ::  (forall shelleyEra praos. LSQ
+            (Shelley.ShelleyBlock
+                (praos StandardCrypto)
+                (shelleyEra StandardCrypto)
+            ) m a
+        )
     -> LSQ (CardanoBlock StandardCrypto) m (Maybe a)
 shelleyBased onShelleyBased = byronOrShelleyBased
     (pure Nothing) -- on byron
@@ -1427,4 +1458,5 @@ eraIndexToAnyCardanoEra index =
         2 -> AnyCardanoEra AllegraEra
         3 -> AnyCardanoEra MaryEra
         4 -> AnyCardanoEra AlonzoEra
+        5 -> AnyCardanoEra BabbageEra
         _ -> error "eraIndexToAnyCardanoEra: unknown era"

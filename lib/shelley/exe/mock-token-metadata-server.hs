@@ -1,4 +1,5 @@
 {-# LANGUAGE NamedFieldPuns #-}
+{-# LANGUAGE PackageImports #-}
 
 module Main where
 
@@ -14,7 +15,8 @@ import Control.Monad
     ( forever )
 import Network.Wai.Middleware.RequestLogger
     ( logStdoutDev )
-import Options.Applicative
+-- See ADP-1910
+import "optparse-applicative" Options.Applicative
     ( ParserInfo
     , argument
     , auto
@@ -33,7 +35,8 @@ import Options.Applicative
     , showHelpOnEmpty
     , str
     )
-import Options.Applicative.Help.Pretty
+-- See ADP-1910
+import "optparse-applicative" Options.Applicative.Help.Pretty
     ( hang, indent, line, text, (</>) )
 
 data MetadataServerArgs = MetadataServerArgs

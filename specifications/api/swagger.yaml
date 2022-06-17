@@ -2112,6 +2112,7 @@ components:
         - allegra
         - mary
         - alonzo
+        - babbage
 
     ApiNetworkInformation: &ApiNetworkInformation
       type: object
@@ -2141,6 +2142,7 @@ components:
         allegra: *nullableEpochInfo
         mary: *nullableEpochInfo
         alonzo: *nullableEpochInfo
+        babbage: *nullableEpochInfo
       description: |
 
         If and when each era started or will start.
@@ -3285,7 +3287,7 @@ components:
         - new_passphrase
       properties:
         mnemonic_second_factor: *walletSecondFactor
-        mnemonic_sentence: 
+        mnemonic_sentence:
           <<: *walletMnemonicSentence
           description: The mnemonic list of words to restore the wallet
         new_passphrase:
@@ -4789,6 +4791,18 @@ x-errRedeemerInvalidData: &errRedeemerInvalidData
       type: string
       enum: ['redeemer_invalid_data']
 
+x-errTranslationError: &errTranslationError
+  <<: *responsesErr
+  title: translation_error
+  properties:
+    message:
+      type: string
+      description: |
+        Occurs when any data in a provided transaction cannot be translated in a given era
+    code:
+      type: string
+      enum: ['translation_error']
+
 x-errExistingKeyWitnesses: &errExistingKeyWitnesses
   <<: *responsesErr
   title: existing_key_witnesses
@@ -5692,6 +5706,7 @@ x-responsesBalanceTransaction: &responsesBalanceTransaction
             - <<: *errRedeemerTargetNotFound
             - <<: *errRedeemerInvalidData
             - <<: *errUnresolvedInputs
+            - <<: *errTranslationError
   403:
     description: Forbidden
     content:

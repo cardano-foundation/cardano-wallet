@@ -136,6 +136,8 @@ import Cardano.Api.Extra
     ( asAnyShelleyBasedEra, inAnyCardanoEra, withShelleyBasedTx )
 import Cardano.BM.Tracing
     ( HasPrivacyAnnotation (..), HasSeverityAnnotation (..) )
+import Cardano.Ledger.Alonzo.TxInfo
+    ( TranslationError (TimeTranslationPastHorizon) )
 import Cardano.Mnemonic
     ( SomeMnemonic )
 import Cardano.Wallet
@@ -3458,6 +3460,7 @@ getNetworkInformation st nl = liftIO $ do
     toApiEra (AnyCardanoEra AllegraEra) = ApiAllegra
     toApiEra (AnyCardanoEra MaryEra) = ApiMary
     toApiEra (AnyCardanoEra AlonzoEra) = ApiAlonzo
+    toApiEra (AnyCardanoEra BabbageEra) = ApiBabbage
 
     -- (network tip, next epoch)
     -- May be unavailable if the node is still syncing.
@@ -5051,8 +5054,22 @@ instance IsServerError ErrAssignRedeemers where
                 , "part of the API request. The unknown inputs are:\n\n"
                 , pretty ins
                 ]
-        ErrAssignRedeemersPastHorizon e ->
-            toServerError e
+        ErrAssignRedeemersTranslationError TimeTranslationPastHorizon ->
+            -- We differentiate this from @TranslationError@ for partial API
+            -- backwards compatibility.
+            apiError err400 PastHorizon $ T.unwords
+                [ "The transaction's validity interval is past the horizon"
+                , "of safe slot-to-time conversions."
+                , "This may happen when I know about a future era"
+                , "which has not yet been confirmed on-chain. Try setting the"
+                , "bounds of the validity interval to be earlier."
+                ]
+        ErrAssignRedeemersTranslationError e ->
+            apiError err400 TranslationError $ T.unwords
+                [ "The transaction I was given contains bits that cannot be"
+                , "translated in the current era. The following is wrong:\n\n"
+                , showT e
+                ]
 
 instance IsServerError (Request, ServerError) where
     toServerError (req, err@(ServerError code _ body _))

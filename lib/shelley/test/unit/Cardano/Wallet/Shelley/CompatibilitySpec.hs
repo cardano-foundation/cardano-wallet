@@ -530,8 +530,8 @@ toKeyHash txt = case fromBase16 (T.encodeUtf8 txt) of
 toPaymentHash :: Text -> Cardano.SimpleScript lang
 toPaymentHash txt =
     case Cardano.deserialiseFromRawBytesHex (Cardano.AsHash Cardano.AsPaymentKey) (T.encodeUtf8 txt) of
-        Just payKeyHash -> Cardano.RequireSignature payKeyHash
-        Nothing -> error "Hash key not valid"
+        Right payKeyHash -> Cardano.RequireSignature payKeyHash
+        Left err -> error $ "toPaymentHash: " <> show err
 
 checkScriptHashes
     :: String

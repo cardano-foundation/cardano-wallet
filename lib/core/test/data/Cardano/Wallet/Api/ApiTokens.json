@@ -1,267 +1,200 @@
 {
-    "seed": 5280105298771503003,
     "samples": [
         {
-            "policy_script": {
-                "script": "policy_vkh1w60pcvcg22g4v7hajc2wqufs6sgjuxplu27a3a4lr95vul0tffw",
-                "script_type": "native"
-            },
-            "policy_id": "769e1c33085291567afd9614e07130d4112e183fe2bdd8f6bf1968ce",
             "assets": [
                 {
-                    "fingerprint": "asset1tmkkm6p8fs0xw625fna8ymslvnef0zt9na3v7h",
-                    "asset_name": "546f6b656e51",
-                    "quantity": 8870
-                },
-                {
-                    "fingerprint": "asset195jtqchyrd6shupn8elg3knalkh6qt087uk007",
-                    "asset_name": "546f6b656e49",
-                    "quantity": 7652
-                },
-                {
-                    "fingerprint": "asset1j00zuc26cq2qr2qxw8chh60kh7wyw39jqlm4y9",
-                    "asset_name": "546f6b656e4f",
-                    "quantity": 9967
-                }
-            ]
-        },
-        {
-            "policy_script": {
-                "language_version": "v1",
-                "script_type": "plutus"
-            },
-            "policy_id": "d7855a919d47584c74343f33812d599e5008b183d7bbe6d801d93ceb",
-            "assets": [
-                {
-                    "fingerprint": "asset19zvdfaxmdfd6demwgze5pwvcv35hkwl6l4zqat",
-                    "asset_name": "546f6b656e51",
-                    "quantity": 8122
-                },
-                {
-                    "fingerprint": "asset1x9w6d5xkundcsg47tw49hp758c4s3kgsmepfye",
-                    "asset_name": "546f6b656e59",
-                    "quantity": 3698
-                },
-                {
-                    "fingerprint": "asset13s8ctpmzvt4rx7my3w7etumkn6zw4t53s4y5l3",
-                    "asset_name": "546f6b656e4d",
-                    "quantity": 6350
-                }
-            ]
-        },
-        {
-            "policy_script": {
-                "language_version": "v1",
-                "script_type": "plutus"
-            },
-            "policy_id": "5d9fe5d7c205c73654f417e71ee9a4d2e333847392dc49e1e740cf47",
-            "assets": [
-                {
-                    "fingerprint": "asset1xqkjn82qchykxa8kughm9scpdzhttwqjkh22sc",
-                    "asset_name": "546f6b656e42",
-                    "quantity": 98
-                },
-                {
-                    "fingerprint": "asset1zww7kwf8gcjpv3ljyy255tkz6tegkddm90mcjg",
-                    "asset_name": "546f6b656e4d",
-                    "quantity": 5301
-                },
-                {
-                    "fingerprint": "asset1vhs4443am6p20gy3mj4sufa5v58mlwyn4xlz5r",
-                    "asset_name": "546f6b656e47",
-                    "quantity": 802
-                },
-                {
-                    "fingerprint": "asset1r5cysnplr7w85htzxvx3x4h8pneyfl8yzuxlx8",
-                    "asset_name": "546f6b656e5a",
-                    "quantity": 4368
-                }
-            ]
-        },
-        {
-            "policy_script": {
-                "language_version": "v2",
-                "script_type": "plutus"
-            },
-            "policy_id": "d31547b880067a90f190606dc7560c964b63b3070a8c7979f2db958d",
-            "assets": [
-                {
-                    "fingerprint": "asset1vhctcjkjws8vnup64qxdyx5wq7u4ve8jd784h5",
-                    "asset_name": "546f6b656e43",
-                    "quantity": 5888
-                },
-                {
-                    "fingerprint": "asset175e7fvh5zdjn300jevrv2cv30p87zxgw8vxq3t",
-                    "asset_name": "546f6b656e41",
-                    "quantity": 3097
-                }
-            ]
-        },
-        {
-            "policy_script": {
-                "script": {
-                    "all": [
-                        "policy_vkh1uqdfn0x37vaw2kjyf7krsm6zmdtgpv9fluv8yh70640u67860p9",
-                        {
-                            "active_from": 100
-                        },
-                        {
-                            "active_until": 150
-                        }
-                    ]
-                },
-                "script_type": "native"
-            },
-            "policy_id": "e01a99bcd1f33ae55a444fac386f42db5680b0a9ff18725fcfd55fcd",
-            "assets": [
-                {
-                    "fingerprint": "asset1gzw8c879n53u5nsxsjaalza9txeptfyw2y5ktp",
-                    "asset_name": "546f6b656e50",
-                    "quantity": 7245
-                },
-                {
-                    "fingerprint": "asset1ldm6cqsr8h3d64tewvszjkum4gazjv4j3wrlxw",
-                    "asset_name": "546f6b656e54",
-                    "quantity": 9757
-                },
-                {
-                    "fingerprint": "asset1338yx44z08fehcdugectnf9gkgwsv7qgnsed7j",
-                    "asset_name": "546f6b656e4f",
-                    "quantity": 8171
-                },
-                {
-                    "fingerprint": "asset1mg5af6dz3dlhsjwt4qasdpku664qapxq2anad8",
-                    "asset_name": "546f6b656e45",
-                    "quantity": 6922
-                }
-            ]
-        },
-        {
-            "policy_script": {
-                "script": {
-                    "all": [
-                        "policy_vkh1m6yy9xrulln3dhpd60dajtt8netac655kysukkexmdwfumc96ds",
-                        {
-                            "active_from": 100
-                        }
-                    ]
-                },
-                "script_type": "native"
-            },
-            "policy_id": "de8842987cffe716dc2dd3dbd92d679e57dc6a94b121cb5b26db5c9e",
-            "assets": [
-                {
-                    "fingerprint": "asset12fvrpzw2upg8x07pa9m07krs6r9qk5l9sj6xzt",
-                    "asset_name": "546f6b656e53",
-                    "quantity": 7383
-                }
-            ]
-        },
-        {
-            "policy_script": {
-                "script": {
-                    "all": [
-                        "policy_vkh1xhj09dvnd6nt9u6kzxzlu22u95ur3dz4jgl6r55m8398ylhq234",
-                        {
-                            "active_from": 100
-                        },
-                        {
-                            "active_until": 150
-                        }
-                    ]
-                },
-                "script_type": "native"
-            },
-            "policy_id": "35e4f2b5936ea6b2f3561185fe295c2d3838b455923fa1d29b3c4a72",
-            "assets": [
-                {
-                    "fingerprint": "asset1uywxqlpdslhs8hm8whxt686fdwpvs9tmnkm6q7",
-                    "asset_name": "546f6b656e48",
-                    "quantity": 6527
-                },
-                {
-                    "fingerprint": "asset1qnpp9aqx00s59mrpsdl6r874xch2segpkql7pa",
-                    "asset_name": "546f6b656e50",
-                    "quantity": 2732
-                },
-                {
-                    "fingerprint": "asset138cgtyrh8x7h5jwp3rl6tv0ql63wwmu958cgm2",
                     "asset_name": "546f6b656e52",
-                    "quantity": 6289
+                    "fingerprint": "asset18ttdphys3f7f9pex93zyxm7jgukxjaxzkfca72",
+                    "quantity": 5079
+                },
+                {
+                    "asset_name": "546f6b656e56",
+                    "fingerprint": "asset1fnsnfsj8khuhsk6zvajwyldgwlumz5ngtmwkfd",
+                    "quantity": 6257
                 }
-            ]
-        },
-        {
+            ],
+            "policy_id": "8af4ba6cb4ad520253de66370da3236c58153a4882d7249fe7ebd825",
             "policy_script": {
                 "language_version": "v2",
                 "script_type": "plutus"
-            },
-            "policy_id": "41880acdda07dbd44bdb1017949ea2ab162cb5e3d0d1482a2be5e7bd",
+            }
+        },
+        {
             "assets": [
                 {
-                    "fingerprint": "asset1e9geamk2zjdu48ymxnx65l9llty2f6drlum7xr",
-                    "asset_name": "546f6b656e42",
-                    "quantity": 9906
-                },
-                {
-                    "fingerprint": "asset1qjzz5nr354hr5kxxsf0hwfdf2cf3fe7kjs8gkn",
-                    "asset_name": "546f6b656e53",
-                    "quantity": 4697
-                },
-                {
-                    "fingerprint": "asset14erjnlv4xhcsrl09p2pqe5ehm7xz7de0lxt7np",
-                    "asset_name": "546f6b656e48",
-                    "quantity": 4145
-                },
-                {
-                    "fingerprint": "asset1956zhqj3f2lsdvz329yxllv7tdju4ex4l6n75g",
                     "asset_name": "546f6b656e45",
-                    "quantity": 4424
+                    "fingerprint": "asset1suay8f6leayrhj9kdvm6gwdgmnacszg82gkma5",
+                    "quantity": 5965
+                },
+                {
+                    "asset_name": "546f6b656e4b",
+                    "fingerprint": "asset1sdf2ze489lnph5efvkjk8qxrd3e9q42gr5jmuy",
+                    "quantity": 7956
                 }
-            ]
+            ],
+            "policy_id": "414d4d58bdc1746c660a84efdd1c2940e5963f9095e710a268bb9116",
+            "policy_script": {
+                "script": "policy_vkh1g9x56k9ac96xces2snha68pfgrjev0usjhn3pgnghwg3v4mnnuc",
+                "script_type": "native"
+            }
         },
         {
+            "assets": [
+                {
+                    "asset_name": "546f6b656e5a",
+                    "fingerprint": "asset14ff4392eezz79zqmw3j3ufm7yy49auhfjts25v",
+                    "quantity": 1899
+                },
+                {
+                    "asset_name": "546f6b656e53",
+                    "fingerprint": "asset1wva8dcdjsheaswp9v8rc52s7zd2euy60hjc5ee",
+                    "quantity": 7818
+                }
+            ],
+            "policy_id": "e279f8f9a5e9fee6a38b1e35e9b121040fe1b677aba1774c1f62316b",
+            "policy_script": {
+                "language_version": "v1",
+                "script_type": "plutus"
+            }
+        },
+        {
+            "assets": [
+                {
+                    "asset_name": "546f6b656e4e",
+                    "fingerprint": "asset1hxgrf4qywttkvlp4la2h695mexa4j28yfz990c",
+                    "quantity": 1600
+                },
+                {
+                    "asset_name": "546f6b656e51",
+                    "fingerprint": "asset1hsp0cy538gwp4leeax6ullufgjanjyr8ypycp4",
+                    "quantity": 1224
+                }
+            ],
+            "policy_id": "0b3539642bbec2a9f16c9b59765f0258eb0e6c32f04adef9828525ca",
             "policy_script": {
                 "language_version": "v2",
                 "script_type": "plutus"
-            },
-            "policy_id": "a482c4e849e4d462ddf17968cc5b17c555caaabc9a9344faf3388901",
-            "assets": [
-                {
-                    "fingerprint": "asset1xnknn27xfym5q78jhh8l2r3vgmlpxs087gnd47",
-                    "asset_name": "546f6b656e58",
-                    "quantity": 6659
-                },
-                {
-                    "fingerprint": "asset1zfjmut6xv8py0f6nmxuudqlhyp8gsvrfcdky4k",
-                    "asset_name": "546f6b656e4a",
-                    "quantity": 1563
-                },
-                {
-                    "fingerprint": "asset1ulsxvpg49um9fss800l8dwkeuq22ga84svce7a",
-                    "asset_name": "546f6b656e43",
-                    "quantity": 2328
-                }
-            ]
+            }
         },
         {
+            "assets": [
+                {
+                    "asset_name": "546f6b656e4d",
+                    "fingerprint": "asset1znqeec6ddftsceqzac08j4n7y0p4y4gs322edq",
+                    "quantity": 5751
+                }
+            ],
+            "policy_id": "bde8b6873dd00149a57b1dac5cea9c3cbd98492a675ad2a2dcf38537",
+            "policy_script": {
+                "script": "policy_vkh1hh5tdpea6qq5nftmrkk9e65u8j7esjf2vadd9gku7wznwqjjuxw",
+                "script_type": "native"
+            }
+        },
+        {
+            "assets": [
+                {
+                    "asset_name": "546f6b656e54",
+                    "fingerprint": "asset1duu8t58ttpy6tm9zn2qd8uqd9v2tgm3mxnu856",
+                    "quantity": 9834
+                },
+                {
+                    "asset_name": "546f6b656e48",
+                    "fingerprint": "asset1asdyas9dmmemkntdhkllal2csxnnhvxutu7lf7",
+                    "quantity": 8887
+                },
+                {
+                    "asset_name": "546f6b656e41",
+                    "fingerprint": "asset19uzh8vc53rpcqz04zmtx8446v73m94ulg3jr0f",
+                    "quantity": 9902
+                }
+            ],
+            "policy_id": "7d9938b310969616c547c2c57b7e3455bd400bb334656c1abecf6472",
+            "policy_script": {
+                "script": {
+                    "all": [
+                        "policy_vkh10kvn3vcsj6tpd328ctzhkl352k75qzanx3jkcx47eaj8yqqdzmg",
+                        {
+                            "active_from": 100
+                        },
+                        {
+                            "active_until": 150
+                        }
+                    ]
+                },
+                "script_type": "native"
+            }
+        },
+        {
+            "assets": [
+                {
+                    "asset_name": "546f6b656e42",
+                    "fingerprint": "asset1wk9kavzh2eaacg0hudl5cxgv503k4vrwxan3q6",
+                    "quantity": 7000
+                },
+                {
+                    "asset_name": "546f6b656e54",
+                    "fingerprint": "asset10sznq4asj42yjmwgzc8rk847gwjxrmyme3uyde",
+                    "quantity": 6555
+                }
+            ],
+            "policy_id": "902449ea89f6d15f066fb57a252488a144d73b261bcbe0fc5c4eca97",
+            "policy_script": {
+                "script": {
+                    "all": [
+                        "policy_vkh1jqjyn65f7mg47pn0k4az2fyg59zdwwexr097plzufm9fwes0dev",
+                        {
+                            "active_from": 100
+                        },
+                        {
+                            "active_until": 150
+                        }
+                    ]
+                },
+                "script_type": "native"
+            }
+        },
+        {
+            "assets": [
+                {
+                    "asset_name": "546f6b656e52",
+                    "fingerprint": "asset1t8eg5t4dgtrga98l6tfxmevk0qqvnsw68wtwnd",
+                    "quantity": 6533
+                }
+            ],
+            "policy_id": "60e1a57882dbf316b45792fd548ef03cfd7d7e9caa51c33d3342ef9d",
             "policy_script": {
                 "language_version": "v2",
                 "script_type": "plutus"
-            },
-            "policy_id": "71124c75dc813737ed2fa752eb43fd8e6b3d13c3886e0c9e1fd005b6",
+            }
+        },
+        {
             "assets": [
                 {
-                    "fingerprint": "asset1623hxr8tvs7guw7qhamve8tnrtxhp84u36wp8n",
-                    "asset_name": "546f6b656e4c",
-                    "quantity": 4254
-                },
-                {
-                    "fingerprint": "asset1uqdcjjf6sncvqpqwd68jy58xndyp3q9tl5fwxp",
-                    "asset_name": "546f6b656e4c",
-                    "quantity": 8416
+                    "asset_name": "546f6b656e5a",
+                    "fingerprint": "asset1rhdt2wrdhvxvxddccyje5zgqv2tjwespktk848",
+                    "quantity": 9751
                 }
-            ]
+            ],
+            "policy_id": "3ef89edf68707ad746a2f646c4e4b173a3d8bfbcb5580ae065bfa760",
+            "policy_script": {
+                "language_version": "v1",
+                "script_type": "plutus"
+            }
+        },
+        {
+            "assets": [
+                {
+                    "asset_name": "546f6b656e53",
+                    "fingerprint": "asset1dnat6vj3anqsecz96rnsxlwfdfp60emdexg28q",
+                    "quantity": 8899
+                }
+            ],
+            "policy_id": "b7118cf9b7642262ab1bff529b780d3cb0203c3aae268ccd7d592cbc",
+            "policy_script": {
+                "script": "policy_vkh1kugce7dhvs3x92cmlaffk7qd8jczq0p64cngentatyktckqe3pu",
+                "script_type": "native"
+            }
         }
-    ]
+    ],
+    "seed": -1215361796
 }
