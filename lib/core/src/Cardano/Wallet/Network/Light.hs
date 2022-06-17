@@ -1,14 +1,18 @@
+{-# LANGUAGE BlockArguments #-}
 {-# LANGUAGE DataKinds #-}
 {-# LANGUAGE DeriveGeneric #-}
+{-# LANGUAGE DeriveTraversable #-}
+{-# LANGUAGE DerivingStrategies #-}
 {-# LANGUAGE LambdaCase #-}
 {-# LANGUAGE RankNTypes #-}
+
 module Cardano.Wallet.Network.Light
     ( -- * Interface
       LightSyncSource (..)
     , LightBlocks
     , hoistLightSyncSource
     , lightSync
-
+    , Consensual (..)
     , LightLayerLog (..)
     ) where
 
@@ -66,17 +70,15 @@ data LightSyncSource m block addr txs = LightSyncSource
     , isConsensus :: ChainPoint -> m Bool
         -- ^ Check whether a 'ChainPoint' still exists in the consensus,
         -- or whether the chain has rolled back already.
-    , getBlockHeaderAtHeight :: BlockHeight -> m (Maybe BlockHeader)
+    , getBlockHeaderAtHeight :: BlockHeight -> m (Consensual BlockHeader)
         -- ^ Get the 'BlockHeader' at a given block height.
-        -- Returns 'Nothing' if there is no block at this height (anymore).
-    , getNextBlockHeader :: BlockHeader -> m (Maybe BlockHeader)
+    , getNextBlockHeader :: BlockHeader -> m (Consensual (Maybe BlockHeader))
         -- ^ Get the next block header.
-    , getBlockHeaderAt :: ChainPoint -> m (Maybe BlockHeader)
+    , getBlockHeaderAt :: ChainPoint -> m (Consensual BlockHeader)
         -- ^ Get the full 'BlockHeader' belonging to a given 'ChainPoint'.
         -- Return 'Nothing' if the point is not consensus anymore.
-    , getNextBlocks :: ChainPoint -> m (Maybe [block])
+    , getNextBlocks :: ChainPoint -> m (Consensual [block])
         -- ^ Get several blocks immediately following the given 'Chainpoint'.
-        -- Return 'Nothing' if the point is not consensus anymore.
     , getAddressTxs :: BlockHeader -> BlockHeader -> addr -> m txs
         -- ^ Transactions for a given address and point range.
     }
@@ -94,7 +96,7 @@ hoistLightSyncSource f x = LightSyncSource
     , getNextBlockHeader = f . getNextBlockHeader x
     , getBlockHeaderAt = f . getBlockHeaderAt x
     , getNextBlocks = f . getNextBlocks x
-    , getAddressTxs = \a b c -> f $ getAddressTxs x a b c
+    , getAddressTxs = \a block c -> f $ getAddressTxs x a block c
     }
 
 type LightBlocks m block addr txs =
@@ -128,7 +130,7 @@ lightSync tr light follower = readChainPoints follower >>= syncFrom . latest
                 prev <- secondLatest <$> readChainPoints follower
                 -- NOTE: Rolling back to a result of 'readChainPoints'
                 -- should always be possible,
-                -- but the code here does not need this assumption.
+                -- but the code current does not need this assumption.
                 traceWith tr $ MsgLightRollBackward chainPoint prev
                 rollBackward follower prev
             Stable old new tip -> do
@@ -139,9 +141,9 @@ lightSync tr light follower = readChainPoints follower >>= syncFrom . latest
             Unstable blocks new tip -> do
                 case blocks of
                     [] -> threadDelay secondsPerSlot
-                    b : bs -> do
+                    block : bs -> do
                         traceWith tr $ MsgLightRollForward chainPoint new tip
-                        rollForward follower (Left $ b :| bs) tip
+                        rollForward follower (Left $ block :| bs) tip
                 pure $ chainPointFromBlockHeader new
 
 data NextPointMove block
@@ -154,6 +156,21 @@ data NextPointMove block
     -- ^ We are entering the unstable region.
     -- @Unstable blocks new tip@.
 
+data Consensual a
+    = NotConsensual
+    | Consensual a
+    deriving stock (Eq, Show, Functor, Foldable, Traversable)
+
+consensually
+    :: Applicative m
+    => Consensual a
+    -> (a -> m (NextPointMove block))
+    -> m (NextPointMove block)
+consensually ca k =
+    case ca of
+        NotConsensual-> pure Rollback
+        Consensual a -> k a
+
 proceedToNextPoint
     :: Monad m
     => LightSyncSource m block addr txs
@@ -161,28 +178,28 @@ proceedToNextPoint
     -> m (NextPointMove block)
 proceedToNextPoint light chainPoint = do
     tip <- getTip light
-    mhere <- getBlockHeaderAt light chainPoint
-    maybeRollback mhere $ \here ->
-        if isUnstable (stabilityWindow light) here tip
+    currentBlockHeader <- getBlockHeaderAt light chainPoint
+    consensually currentBlockHeader \current ->
+        if isUnstable (stabilityWindow light) current tip
         then do
-            mblocks <- getNextBlocks light chainPoint
-            maybeRollback mblocks $ \case
-                [] -> pure $ Unstable [] here tip
-                b : bs -> do
-                    let new = getHeader light $ NE.last (b :| bs)
+            nextBlocks <- getNextBlocks light chainPoint
+            consensually nextBlocks \case
+                [] -> pure $ Unstable [] current tip
+                block : blocks -> do
+                    let new = getHeader light $ NE.last (block :| blocks)
                     continue <- isConsensus light $ chainPointFromBlockHeader new
                     pure $ if continue
-                        then Unstable (b:bs) new tip
+                        then Unstable (block : blocks) new tip
                         else Rollback
         else do
-            mold <- getNextBlockHeader light here
-            mnew <- getBlockHeaderAtHeight light $
+            frBlockHeader <- getNextBlockHeader light current
+            toBlockHeader <- getBlockHeaderAtHeight light $
                 blockHeightToInteger (blockHeight tip) - stabilityWindow light
-            maybeRollback mold $ \old ->
-                maybeRollback mnew $ \new ->
-                    pure $ Stable old new tip
-  where
-    maybeRollback m f = maybe (pure Rollback) f m
+            consensually frBlockHeader \case
+                Nothing -> pure $ Unstable [] current tip
+                Just fromBH ->
+                    consensually toBlockHeader \toBH ->
+                        pure $ Stable fromBH toBH tip
 
 -- | Test whether a 'ChainPoint' is in the
 -- unstable region close to the tip.

@@ -10,6 +10,8 @@ module Cardano.Wallet.Shelley.Network.Blockfrost.Monad where
 
 import Prelude
 
+import Cardano.Wallet.Network.Light
+    ( Consensual (..) )
 import Cardano.Wallet.Shelley.Network.Blockfrost.Error
     ( BlockfrostError (ClientError)
     , BlockfrostException (BlockfrostException)
@@ -70,3 +72,6 @@ maybe404 bfm = (Just <$> bfm) `catchError` \case
 
 empty404 :: Monoid a => BFM a -> BFM a
 empty404 = (fromMaybe mempty <$>) . maybe404
+
+consensual404 :: BFM a -> BFM (Consensual a)
+consensual404 = (maybe NotConsensual Consensual <$>) . maybe404

@@ -64,7 +64,7 @@ import Cardano.Wallet.Logging
 import Cardano.Wallet.Network
     ( ChainFollower, NetworkLayer (..) )
 import Cardano.Wallet.Network.Light
-    ( LightSyncSource (..) )
+    ( Consensual (Consensual, NotConsensual), LightSyncSource (..) )
 import Cardano.Wallet.Primitive.BlockSummary
     ( BlockEvents (..)
     , ChainEvents
@@ -263,9 +263,9 @@ data Log
     | MsgEraByLatestEpoch AnyCardanoEra EpochNo
     | MsgFetchNetworkRewardAccountBalances
     | MsgIsConsensus ChainPoint Bool
-    | MsgBlockHeaderAtHeight Integer (Maybe BlockHeader)
-    | MsgBlockHeaderAt ChainPoint (Maybe BlockHeader)
-    | MsgNextBlockHeader BlockHeader (Maybe BlockHeader)
+    | MsgBlockHeaderAtHeight Integer (Consensual BlockHeader)
+    | MsgBlockHeaderAt ChainPoint (Consensual BlockHeader)
+    | MsgNextBlockHeader BlockHeader (Consensual (Maybe BlockHeader))
     | MsgGotNextBlocks Int
 
 instance ToText Log where
@@ -320,12 +320,12 @@ instance ToText Log where
                 ]
         MsgBlockHeaderAtHeight height mbh ->
             "Fetched BlockHeader at height " <> pretty height
-                <> ": " <> pretty mbh
+                <> ": " <> T.pack (show mbh)
         MsgBlockHeaderAt cp mbh ->
             "Fetched BlockHeader at " <> pretty cp
-                <> ": " <> pretty mbh
+                <> ": " <> T.pack (show mbh)
         MsgNextBlockHeader prev next ->
-            "Fetched next block header: " <> pretty next
+            "Fetched next block header: " <> T.pack (show next)
             <> " for the previous one: " <> pretty prev
         MsgGotNextBlocks n ->
             "Fetched " <> pretty n <> " next blocks"
@@ -511,48 +511,55 @@ withNetworkLayer tr network np project k = do
                     traceWith tr $ MsgIsConsensus cp res
                     pure res
 
-                getBlockHeaderAtHeight :: Integer -> IO (Maybe BlockHeader)
+                getBlockHeaderAtHeight :: Integer -> IO (Consensual BlockHeader)
                 getBlockHeaderAtHeight height = do
-                    mbh <- either (error . show) Just . bfBlockHeader
-                        <$> (runBF . BF.getBlock) (Left height)
-                    traceWith tr $ MsgBlockHeaderAtHeight height mbh
-                    pure mbh
+                    consensualBlockHeader <-
+                        either (error . show) Consensual . bfBlockHeader
+                            <$> (runBF . BF.getBlock) (Left height)
+                    traceWith tr $
+                        MsgBlockHeaderAtHeight height consensualBlockHeader
+                    pure consensualBlockHeader
 
-                getNextBlockHeader :: BlockHeader -> IO (Maybe BlockHeader)
+                getNextBlockHeader ::
+                    BlockHeader -> IO (Consensual (Maybe BlockHeader))
                 getNextBlockHeader prev@BlockHeader{headerHash} = runBF do
                     let blockHash = BF.BlockHash (toText headerHash)
-                    blocks <- BF.getNextBlocks' (Right blockHash) (BF.paged 1 1)
-                    nextHeader <- for (listToMaybe blocks) do
-                        liftEither . bfBlockHeader
+                    consensualBlocks <- BFM.consensual404 $
+                        BF.getNextBlocks' (Right blockHash) (BF.paged 1 1)
+                    nextHeader <-
+                        for consensualBlocks \bls ->
+                            for (listToMaybe bls) (liftEither . bfBlockHeader)
                     liftIO $ traceWith tr $ MsgNextBlockHeader prev nextHeader
                     pure nextHeader
 
-                getBlockHeaderAt :: ChainPoint -> IO (Maybe BlockHeader)
+                getBlockHeaderAt :: ChainPoint -> IO (Consensual BlockHeader)
                 getBlockHeaderAt cp = do
-                    mbh <- runBF case cp of
+                    consensualBlockHeader <- runBF case cp of
                         ChainPointAtGenesis ->
-                            pure . Just $ Fixture.genesisBlockHeader networkId
+                            pure . Consensual $
+                                Fixture.genesisBlockHeader networkId
                         ChainPoint (SlotNo slot) blockHeaderHash -> do
                             b@BF.Block{_blockHash = BF.BlockHash bfHeaderHash} <-
                                 BF.getBlockSlot (BF.Slot (toInteger slot))
                             pure $
                                 if bfHeaderHash == toText blockHeaderHash
-                                    then either (error . show) Just $
+                                    then either (error . show) Consensual $
                                         bfBlockHeader b
-                                    else Nothing
-                    traceWith tr $ MsgBlockHeaderAt cp mbh
-                    pure mbh
+                                    else NotConsensual
+                    traceWith tr $ MsgBlockHeaderAt cp consensualBlockHeader
+                    pure consensualBlockHeader
 
-                getNextBlocks :: ChainPoint -> IO (Maybe [Block])
+                getNextBlocks :: ChainPoint -> IO (Consensual [Block])
                 getNextBlocks cp = do
-                    bs <- runBF $ fetchNextBlocks tr network case cp of
+                    consensualBlocks <- runBF $ BFM.consensual404 $
+                        fetchNextBlocks tr network case cp of
                             ChainPoint _slotNo hash -> hash
                             ChainPointAtGenesis -> headerHash $
                                 Fixture.genesisBlockHeader networkId
-                    traceWith tr $ MsgGotNextBlocks $ length bs
-                    pure case bs of
-                        [] -> Nothing
-                        x -> Just x
+                    traceWith tr $ MsgGotNextBlocks $ case consensualBlocks of
+                       NotConsensual -> 0
+                       Consensual bls -> length bls
+                    pure consensualBlocks
 
                 getAddressTxs ::
                     BlockHeader ->
