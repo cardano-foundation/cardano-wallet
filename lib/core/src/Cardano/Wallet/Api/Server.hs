@@ -5043,12 +5043,12 @@ instance IsServerError ErrAssignRedeemers where
                 , "for one of your redeemers since I am unable to decode it"
                 , "into a valid Plutus data:", pretty r <> "."
                 ]
-        ErrAssignRedeemersTranslationError TimeTranslationPastHorizon ->
+        ErrAssignRedeemersTranslationError (TimeTranslationPastHorizon t) ->
             -- We differentiate this from @TranslationError@ for partial API
             -- backwards compatibility.
             apiError err400 PastHorizon $ T.unwords
                 [ "The transaction's validity interval is past the horizon"
-                , "of safe slot-to-time conversions."
+                , "of safe slot-to-time conversions: " <> t <> "."
                 , "This may happen when I know about a future era"
                 , "which has not yet been confirmed on-chain. Try setting the"
                 , "bounds of the validity interval to be earlier."
