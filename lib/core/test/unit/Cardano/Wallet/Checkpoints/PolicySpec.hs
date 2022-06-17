@@ -49,13 +49,24 @@ spec = do
                         tip
                         height
 
-    describe "specific policy, trailingArithmetic" $
-        it "trailingArithmetic n _  has <= n checkpoints" $
+    describe "specific policies" $ do
+        it "atGenesis <> atTip has exactly two checkpoints" $
+            property $ \(GenHeightContext _ tip) ->
+                CP.toListAtTip (CP.atGenesis <> CP.atTip) tip == [0,tip]
+
+        it "trailingArithmetic n _  has at most n checkpoints" $
+            property prop_trailingLength
+        
+        it "trailingArithmetic checkpoints are located at grid points" $
+            property prop_trailingGrid
+    
+        it "sparseArithmetic checkpoints after genesis are close to tip" $
             property $ \(GenHeightContext epochStability tip) ->
-                prop_lengthTrailing epochStability tip
+                maybe False (>= tip - 2*epochStability - 20) $
+                    nextCheckpoint (CP.sparseArithmetic epochStability) tip 1
 
 {-------------------------------------------------------------------------------
-    Properties
+    Properties, general
 -------------------------------------------------------------------------------}
 -- | Internal invariant.
 prop_monotonicHeight
@@ -80,10 +91,6 @@ prop_monotonicTip policy tip height = case nextCheckpoint policy tip height of
             Nothing -> property False
             Just height2 -> property $ height1 <= height2
 
-prop_lengthTrailing :: BlockHeight -> BlockHeight -> Property
-prop_lengthTrailing gap tip = forAll (choose (0,5)) $ \n ->
-    fromIntegral n >= length (toListAtTip (CP.trailingArithmetic n gap) tip)
-
 prop_mappendOnTrailing :: Property
 prop_mappendOnTrailing = let g17 = choose (1,7) in
     forAll g17 $ \n1 -> forAll g17 $ \gap1 ->
@@ -95,6 +102,21 @@ prop_mappendOnTrailing = let g17 = choose (1,7) in
                 <> Set.fromList (toListAtTip policy2 tip)
             ===
                 Set.fromList (toListAtTip (policy1 <> policy2) tip)
+
+{-------------------------------------------------------------------------------
+    Properties, specific
+-------------------------------------------------------------------------------}
+prop_trailingLength :: GenHeightContext -> Property
+prop_trailingLength (GenHeightContext gap tip) =
+    forAll (choose (0,5)) $ \n ->
+        fromIntegral n >= length (toListAtTip (CP.trailingArithmetic n gap) tip)
+
+prop_trailingGrid :: GenHeightContext -> Property
+prop_trailingGrid (GenHeightContext gap tip) =
+    forAll (choose (1,7)) $ \n ->
+        all (`divisibleBy` gap) $ toListAtTip (CP.trailingArithmetic n gap) tip
+  where
+    a `divisibleBy` b = a `mod` b == 0
 
 {-------------------------------------------------------------------------------
     Generators
@@ -109,7 +131,7 @@ instance Arbitrary GenHeightContext where
     arbitrary = do
         es <- max 1 <$> oneof
             [choose (0,1000000), elements [1,3,10,30,100,300,1000] ]
-        tip <- oneof
+        tip <- max 1 <$> oneof
             [choose (0,1000000), choose (0,10), choose (es-200,es+200)]
         pure $ GenHeightContext es tip
 
