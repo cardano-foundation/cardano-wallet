@@ -190,6 +190,7 @@ library
       Cardano.Wallet.Api.Server.Tls
       Cardano.Wallet.Api.Types
       Cardano.Wallet.Api.Types.SchemaMetadata
+      Cardano.Wallet.Checkpoints.Policy
       Cardano.Wallet.CoinSelection
       Cardano.Wallet.CoinSelection.Internal
       Cardano.Wallet.CoinSelection.Internal.Balance
@@ -450,6 +451,7 @@ test-suite unit
       Cardano.Wallet.Api.ServerSpec
       Cardano.Wallet.Api.TypesSpec
       Cardano.Wallet.ApiSpec
+      Cardano.Wallet.Checkpoints.PolicySpec
       Cardano.Wallet.CoinSelectionSpec
       Cardano.Wallet.CoinSelection.InternalSpec
       Cardano.Wallet.CoinSelection.Internal.BalanceSpec
