@@ -1462,11 +1462,12 @@ genTxInEra era = do
 
 genTx :: Gen (InAnyCardanoEra Tx)
 genTx =
-    oneof [ InAnyCardanoEra ByronEra   <$> genTxInEra ByronEra
-          , InAnyCardanoEra ShelleyEra <$> genTxInEra ShelleyEra
-          , InAnyCardanoEra MaryEra    <$> genTxInEra MaryEra
-          , InAnyCardanoEra AllegraEra <$> genTxInEra AllegraEra
-          , InAnyCardanoEra AlonzoEra  <$> genTxInEra AlonzoEra
+    oneof [ InAnyCardanoEra ByronEra    <$> genTxInEra ByronEra
+          , InAnyCardanoEra ShelleyEra  <$> genTxInEra ShelleyEra
+          , InAnyCardanoEra MaryEra     <$> genTxInEra MaryEra
+          , InAnyCardanoEra AllegraEra  <$> genTxInEra AllegraEra
+          , InAnyCardanoEra AlonzoEra   <$> genTxInEra AlonzoEra
+          , InAnyCardanoEra BabbageEra  <$> genTxInEra BabbageEra
           ]
 
 -- TODO: Generate txs with no inputs

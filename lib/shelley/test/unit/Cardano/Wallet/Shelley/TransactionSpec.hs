@@ -17,6 +17,7 @@
 {-# LANGUAGE TupleSections #-}
 {-# LANGUAGE TypeApplications #-}
 {-# LANGUAGE TypeFamilies #-}
+{-# LANGUAGE TypeOperators #-}
 {-# LANGUAGE UndecidableInstances #-}
 {- HLINT ignore "Use null" -}
 
@@ -212,7 +213,8 @@ import Cardano.Wallet.Shelley.Compatibility
 import Cardano.Wallet.Shelley.Compatibility.Ledger
     ( toAlonzoTxOut )
 import Cardano.Wallet.Shelley.Transaction
-    ( TxSkeleton (..)
+    ( EraConstraints
+    , TxSkeleton (..)
     , TxUpdate (..)
     , TxWitnessTag (..)
     , TxWitnessTagFor
@@ -221,6 +223,7 @@ import Cardano.Wallet.Shelley.Transaction
     , estimateTxCost
     , estimateTxSize
     , maximumCostOfIncreasingCoin
+    , mkByronWitness
     , mkDelegationCertificates
     , mkShelleyWitness
     , mkTxSkeleton
@@ -318,7 +321,6 @@ import System.FilePath
 import Test.Hspec
     ( Spec
     , SpecWith
-    , before_
     , describe
     , expectationFailure
     , it
@@ -982,6 +984,7 @@ forAllShelleyBasedEras eraSpec = do
     eraSpec (AnyCardanoEra AllegraEra)
     eraSpec (AnyCardanoEra MaryEra)
     eraSpec (AnyCardanoEra AlonzoEra)
+    eraSpec (AnyCardanoEra BabbageEra)
 
 allEras :: [(Int, AnyCardanoEra)]
 allEras =
@@ -990,6 +993,7 @@ allEras =
     , (3, AnyCardanoEra AllegraEra)
     , (4, AnyCardanoEra MaryEra)
     , (5, AnyCardanoEra AlonzoEra)
+    , (6, AnyCardanoEra BabbageEra)
     ]
 
 eraNum :: AnyCardanoEra -> Int
@@ -997,11 +1001,6 @@ eraNum e = fst $ head $ filter ((== e) . snd) allEras
 
 shelleyEraNum :: AnyShelleyBasedEra -> Int
 shelleyEraNum = eraNum . shelleyToCardanoEra
-
-pendingOnAlonzo :: String -> ShelleyBasedEra era -> SpecWith a -> SpecWith a
-pendingOnAlonzo msg era = before_ $ case era of
-    Cardano.ShelleyBasedEraAlonzo -> pendingWith ("AlonzoEra: " ++ msg)
-    _ -> pure ()
 
 instance Arbitrary AnyCardanoEra where
     arbitrary = frequency $ zip [1..] $ map (pure . snd) allEras
@@ -1399,13 +1398,23 @@ binaryCalculationsSpec :: AnyCardanoEra -> Spec
 binaryCalculationsSpec (AnyCardanoEra era) =
     case cardanoEraStyle era of
         LegacyByronEra -> pure ()
-        ShelleyBasedEra shelleyEra ->
-            -- TODO: [ADP-919] tests for byron witnesses
-            pendingOnAlonzo "Golden transactions not yet updated" shelleyEra $
-            before_ (pendingWith ("Will return with signTx PR")) $
-            binaryCalculationsSpec' shelleyEra
+        ShelleyBasedEra shelleyEra -> case shelleyEra of
+            ShelleyBasedEraShelley ->
+                binaryCalculationsSpec' @Cardano.ShelleyEra shelleyEra
+            ShelleyBasedEraAllegra ->
+                binaryCalculationsSpec' @Cardano.AllegraEra shelleyEra
+            ShelleyBasedEraMary ->
+                binaryCalculationsSpec' @Cardano.MaryEra shelleyEra
+            ShelleyBasedEraAlonzo ->
+                pure () -- TO_DO when ledger's PR 2863 is included in node bump
+                --binaryCalculationsSpec' @Cardano.AlonzoEra shelleyEra
+            ShelleyBasedEraBabbage ->
+                pure () -- TO_DO when ledger's PR 2863 is included in node bump
+                --binaryCalculationsSpec' @Cardano.BabbageEra shelleyEra
 
-binaryCalculationsSpec' :: IsShelleyBasedEra era => ShelleyBasedEra era -> Spec
+binaryCalculationsSpec'
+    :: forall era. EraConstraints era
+    => ShelleyBasedEra era -> Spec
 binaryCalculationsSpec' era = describe ("calculateBinary - "+||era||+"") $ do
     describe "Byron witnesses - mainnet" $ do
         let net = Cardano.Mainnet
@@ -1558,12 +1567,12 @@ binaryCalculationsSpec' era = describe ("calculateBinary - "+||era||+"") $ do
   where
     slotNo = SlotNo 7750
     md = Nothing
-    calculateBinary _net utxo outs chgs pairs =
+    calculateBinary net utxo outs chgs pairs =
         hex (Cardano.serialiseToCBOR ledgerTx)
       where
           ledgerTx = Cardano.makeSignedTransaction addrWits unsigned
-          mkByronWitness' _unsignedTx (_, (TxOut _addr _)) =
-              error "mkByronWitness'" -- TODO: [ADP-919]
+          mkByronWitness' unsignedTx (_, (TxOut addr _)) =
+              mkByronWitness @era unsignedTx net addr
           addrWits = zipWith (mkByronWitness' unsigned) inps pairs
           fee = toCardanoLovelace $ selectionDelta txOutCoin cs
           Right unsigned =
