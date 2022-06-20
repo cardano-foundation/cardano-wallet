@@ -452,6 +452,7 @@ test-suite unit
       Cardano.Wallet.Api.TypesSpec
       Cardano.Wallet.ApiSpec
       Cardano.Wallet.Checkpoints.PolicySpec
+      Cardano.Wallet.CheckpointsSpec
       Cardano.Wallet.CoinSelectionSpec
       Cardano.Wallet.CoinSelection.InternalSpec
       Cardano.Wallet.CoinSelection.Internal.BalanceSpec

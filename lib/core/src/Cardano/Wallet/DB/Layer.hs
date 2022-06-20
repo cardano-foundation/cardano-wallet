@@ -78,7 +78,10 @@ import Cardano.DB.Sqlite.Delete
     , withRef
     )
 import Cardano.Wallet.Checkpoints
-    ( DeltaCheckpoints (..) )
+    ( DeltaCheckpoints (..)
+    , defaultSparseCheckpointsConfig
+    , sparseCheckpoints
+    )
 import Cardano.Wallet.DB
     ( DBFactory (..)
     , DBLayer (..)
@@ -86,8 +89,6 @@ import Cardano.Wallet.DB
     , ErrPutLocalTxSubmission (..)
     , ErrRemoveTx (..)
     , ErrWalletAlreadyExists (..)
-    , defaultSparseCheckpointsConfig
-    , sparseCheckpoints
     )
 import Cardano.Wallet.DB.Sqlite.Migration
     ( DefaultFieldValues (..), migrateManually )
