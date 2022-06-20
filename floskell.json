@@ -37,14 +37,14 @@
             "deriving": 4,
             "import-spec-list": "indent-by 4",
             "where": 2,
-            "typesig": "align",
+            "typesig": "indent-by 4",
             "do": "indent-by 4",
             "app": "indent-by 4",
             "where-binds": "indent-by 2",
-            "multi-if": "indent-by 2",
+            "multi-if": "indent-by 4",
             "class": "indent-by 4",
             "if": "indent-by 4",
-            "let-binds": "align",
+            "let-binds": "indent-by 4",
             "onside": 4,
             "case": "indent-by 4",
             "let-in": "align",
@@ -60,7 +60,7 @@
             "let-binds": false,
             "case": true,
             "import-module": false,
-            "record-fields": true
+            "record-fields": false
         },
         "op": {
             ",": {
