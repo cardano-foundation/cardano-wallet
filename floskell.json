@@ -135,9 +135,9 @@
         "penalty": {
             "indent": 10,
             "max-line-length": 80,
-            "overfull": 100,
+            "overfull": 70,
             "overfull-once": 200,
-            "linebreak": 50
+            "linebreak": 100
         },
         "options": {
             "sort-pragmas": true,
