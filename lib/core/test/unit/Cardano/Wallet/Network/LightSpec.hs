@@ -12,7 +12,12 @@ import Prelude
 import Cardano.Wallet.Network
     ( ChainFollower (..) )
 import Cardano.Wallet.Network.Light
-    ( LightBlocks, LightSyncSource (..), hoistLightSyncSource, lightSync )
+    ( Consensual (Consensual, NotConsensual)
+    , LightBlocks
+    , LightSyncSource (..)
+    , hoistLightSyncSource
+    , lightSync
+    )
 import Cardano.Wallet.Primitive.BlockSummary
     ( BlockSummary (..) )
 import Cardano.Wallet.Primitive.Types
@@ -98,17 +103,17 @@ mkLightSyncSourceMock = LightSyncSource
     , getTip = NE.head
     , isConsensus = \pt -> any ((pt ==) . toPoint)
     , getBlockHeaderAtHeight = \height ->
-        find ((height ==) . toHeight)
+        maybe NotConsensual Consensual . find ((height ==) . toHeight)
     , getBlockHeaderAt = \pt ->
-        find ((pt ==) . toPoint)
+        maybe NotConsensual Consensual . find ((pt ==) . toPoint)
     , getNextBlocks = \pt chain ->
         case NE.span ((pt /=) . toPoint) chain of
-            (_, []) -> Nothing -- point does not exist
-            (xs, _) -> Just (reverse xs)
+            (_, []) -> NotConsensual
+            (xs, _) -> Consensual (reverse xs)
     , getNextBlockHeader = \bh chain ->
         case NE.span (bh /=) chain of
-            (_, []) -> Nothing -- point does not exist
-            (xs, _) -> listToMaybe (reverse xs)
+            (_, []) -> NotConsensual
+            (xs, _) -> Consensual $ listToMaybe $ reverse xs
     , getAddressTxs = \_ _ _ -> pure ()
     }
   where

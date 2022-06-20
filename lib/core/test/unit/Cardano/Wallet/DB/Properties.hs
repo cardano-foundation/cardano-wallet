@@ -24,7 +24,6 @@ import Prelude
 
 import Cardano.Wallet.DB
     ( DBLayer (..)
-    , ErrNoSuchWallet (..)
     , ErrWalletAlreadyExists (..)
     , SparseCheckpointsConfig (..)
     , cleanDB
@@ -41,6 +40,8 @@ import Cardano.Wallet.DB.Arbitrary
     )
 import Cardano.Wallet.DB.Pure.Implementation
     ( filterTxHistory )
+import Cardano.Wallet.DB.WalletState
+    ( ErrNoSuchWallet (..) )
 import Cardano.Wallet.DummyTarget.Primitive.Types
     ( dummyGenesisParameters )
 import Cardano.Wallet.Primitive.AddressDerivation.Shelley

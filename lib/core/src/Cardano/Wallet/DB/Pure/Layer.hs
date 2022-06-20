@@ -24,7 +24,6 @@ import Cardano.Address.Derivation
 import Cardano.Wallet.DB
     ( DBLayer (..)
     , ErrNoSuchTransaction (..)
-    , ErrNoSuchWallet (..)
     , ErrPutLocalTxSubmission (..)
     , ErrRemoveTx (..)
     , ErrWalletAlreadyExists (..)
@@ -58,6 +57,8 @@ import Cardano.Wallet.DB.Pure.Implementation
     , mRollbackTo
     , mUpdatePendingTxForExpiry
     )
+import Cardano.Wallet.DB.WalletState
+    ( ErrNoSuchWallet (..) )
 import Cardano.Wallet.Primitive.AddressDerivation
     ( Depth (..) )
 import Cardano.Wallet.Primitive.Passphrase

@@ -83,7 +83,6 @@ import Cardano.Wallet.DB
     ( DBFactory (..)
     , DBLayer (..)
     , ErrNoSuchTransaction (..)
-    , ErrNoSuchWallet (..)
     , ErrPutLocalTxSubmission (..)
     , ErrRemoveTx (..)
     , ErrWalletAlreadyExists (..)
@@ -119,6 +118,7 @@ import Cardano.Wallet.DB.Store.Checkpoints
 import Cardano.Wallet.DB.WalletState
     ( DeltaMap (..)
     , DeltaWalletState1 (..)
+    , ErrNoSuchWallet (..)
     , findNearestPoint
     , fromGenesis
     , fromWallet

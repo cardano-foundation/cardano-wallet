@@ -52,7 +52,7 @@ import Cardano.DB.Sqlite
 import Cardano.Mnemonic
     ( SomeMnemonic (..) )
 import Cardano.Wallet.DB
-    ( DBFactory (..), DBLayer (..), ErrNoSuchWallet (..), cleanDB )
+    ( DBFactory (..), DBLayer (..), cleanDB )
 import Cardano.Wallet.DB.Arbitrary
     ( GenState, KeyValPairs (..) )
 import Cardano.Wallet.DB.Layer
@@ -73,6 +73,8 @@ import Cardano.Wallet.DB.Sqlite.Migration
     )
 import Cardano.Wallet.DB.StateMachine
     ( TestConstraints, prop_parallel, prop_sequential, validateGenerators )
+import Cardano.Wallet.DB.WalletState
+    ( ErrNoSuchWallet (..) )
 import Cardano.Wallet.DummyTarget.Primitive.Types
     ( block0, dummyGenesisParameters, dummyTimeInterpreter )
 import Cardano.Wallet.Gen

@@ -46,7 +46,9 @@ import Cardano.Wallet.CoinSelection
     , SelectionError (..)
     )
 import Cardano.Wallet.DB
-    ( DBLayer (..), ErrNoSuchWallet (..), putTxHistory )
+    ( DBLayer (..), putTxHistory )
+import Cardano.Wallet.DB.WalletState
+    ( ErrNoSuchWallet (..) )
 import Cardano.Wallet.DummyTarget.Primitive.Types
     ( block0
     , dummyNetworkLayer
