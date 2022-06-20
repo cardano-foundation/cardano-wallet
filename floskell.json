@@ -24,7 +24,7 @@
             },
             "[": {
                 "force-linebreak": false,
-                "spaces": "both",
+                "spaces": "after",
                 "linebreaks": "after"
             },
             "[ in type": {
@@ -37,7 +37,7 @@
             "deriving": 4,
             "import-spec-list": "indent-by 4",
             "where": 2,
-            "typesig": "indent-by 4",
+            "typesig": "align",
             "do": "indent-by 4",
             "app": "indent-by 4",
             "where-binds": "indent-by 2",
@@ -54,10 +54,7 @@
         "align": {
             "where": false,
             "matches": false,
-            "limits": [
-                10,
-                25
-            ],
+            "limits": [80,80],
             "import-spec": false,
             "class": false,
             "let-binds": false,
@@ -78,8 +75,8 @@
             },
             ". in type": {
                 "force-linebreak": false,
-                "spaces": "after",
-                "linebreaks": "after"
+                "spaces": "both",
+                "linebreaks": "before"
             },
             ", in other": {
                 "force-linebreak": false,
@@ -112,17 +109,12 @@
                 "linebreaks": "before"
             },
             "-> in type": {
-                "force-linebreak": true,
-                "spaces": "both",
-                "linebreaks": "none"
-            },
-            "::": {
                 "force-linebreak": false,
                 "spaces": "both",
                 "linebreaks": "before"
             },
-            "=>": {
-                "force-linebreak": true,
+            "::": {
+                "force-linebreak": false,
                 "spaces": "both",
                 "linebreaks": "before"
             }
@@ -132,7 +124,7 @@
             "import-spec-list": "vertical",
             "declaration": "try-oneline",
             "app": "try-oneline",
-            "type": "vertical",
+            "type": "try-oneline",
             "list-comp": "flex",
             "if": "vertical",
             "con-decls": "vertical",
@@ -141,11 +133,11 @@
             "export-spec-list": "try-oneline"
         },
         "penalty": {
-            "indent": 1,
+            "indent": 10,
             "max-line-length": 80,
-            "overfull": 10,
+            "overfull": 100,
             "overfull-once": 200,
-            "linebreak": 100
+            "linebreak": 50
         },
         "options": {
             "sort-pragmas": true,
@@ -154,7 +146,11 @@
             "preserve-vertical-space": true,
             "preserve-horizontal-space": true,
             "align-let-binds-and-in-expr": false,
-            "decl-no-blank-lines": [],
+            "decl-no-blank-lines": [
+                "where",
+                "instance",
+                "class"
+            ],
             "split-language-pragmas": false,
             "sort-import-lists": true,
             "sort-imports": false
