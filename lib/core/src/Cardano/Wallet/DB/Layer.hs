@@ -78,10 +78,7 @@ import Cardano.DB.Sqlite.Delete
     , withRef
     )
 import Cardano.Wallet.Checkpoints
-    ( DeltaCheckpoints (..)
-    , defaultSparseCheckpointsConfig
-    , sparseCheckpoints
-    )
+    ( DeltaCheckpoints (..) )
 import Cardano.Wallet.DB
     ( DBFactory (..)
     , DBLayer (..)
@@ -686,7 +683,6 @@ newDBLayerWith _cacheBehavior _tr ti SqliteContext{runQuery} = do
                 Nothing -> pure $ Left $ ErrNoSuchWallet wid
                 Just cp -> Right <$> do
                     let tip = cp ^. #currentTip
-                    pruneCheckpoints wid epochStability tip
                     pruneLocalTxSubmission wid epochStability tip
                     deleteLooseTransactions
 

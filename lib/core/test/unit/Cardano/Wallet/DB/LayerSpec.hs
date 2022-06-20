@@ -51,6 +51,10 @@ import Cardano.DB.Sqlite
     ( DBField, DBLog (..), SqliteContext, fieldName, newInMemorySqliteContext )
 import Cardano.Mnemonic
     ( SomeMnemonic (..) )
+import Cardano.Wallet.Address.Book
+    ( AddressBookIso, getPrologue )
+import Cardano.Wallet.Checkpoints
+    ( extendAndPrune )
 import Cardano.Wallet.DB
     ( DBFactory (..), DBLayer (..), cleanDB )
 import Cardano.Wallet.DB.Arbitrary
@@ -74,7 +78,16 @@ import Cardano.Wallet.DB.Sqlite.Migration
 import Cardano.Wallet.DB.StateMachine
     ( TestConstraints, prop_parallel, prop_sequential, validateGenerators )
 import Cardano.Wallet.DB.WalletState
-    ( ErrNoSuchWallet (..) )
+    ( DeltaMap (..)
+    , DeltaWalletState1 (..)
+    , ErrNoSuchWallet (..)
+    , WalletState (..)
+    , adjustNoSuchWallet
+    , fromWallet
+    , getBlockHeight
+    , getLatest
+    , getSlot
+    )
 import Cardano.Wallet.DummyTarget.Primitive.Types
     ( block0, dummyGenesisParameters, dummyTimeInterpreter )
 import Cardano.Wallet.Gen
@@ -176,13 +189,15 @@ import Control.Monad
 import Control.Monad.IO.Class
     ( liftIO )
 import Control.Monad.Trans.Except
-    ( ExceptT, mapExceptT )
+    ( ExceptT (..), mapExceptT )
 import Crypto.Hash
     ( hash )
 import Data.ByteString
     ( ByteString )
 import Data.Coerce
     ( coerce )
+import Data.DBVar
+    ( modifyDBMaybe )
 import Data.Generics.Internal.VL.Lens
     ( over, view, (^.) )
 import Data.Generics.Labels
@@ -280,6 +295,7 @@ import qualified Cardano.Wallet.Primitive.Types.TokenBundle as TokenBundle
 import qualified Data.ByteArray as BA
 import qualified Data.ByteString as BS
 import qualified Data.List as L
+import qualified Data.List.NonEmpty as NE
 import qualified Data.Set as Set
 import qualified Data.Text as T
 import qualified Data.Text.Encoding as T
@@ -561,11 +577,28 @@ fileModeSpec =  do
                             mempty
                     let (FilteredBlock{transactions=txs}, (_,cpB)) =
                             applyBlock fakeBlock cpA
+                        epochStability = Quantity 2160
+                        putAndPruneCheckpoint wid cp =
+                          ExceptT $ modifyDBMaybe walletsDB $
+                            adjustNoSuchWallet wid id $ \wal ->
+                                let wcp = snd $ fromWallet cp
+                                    delta =
+                                        [ ReplacePrologue $ getPrologue $ getState cp
+                                        , UpdateCheckpoints $
+                                            extendAndPrune
+                                                getSlot
+                                                (Quantity . getBlockHeight)
+                                                epochStability
+                                                (currentTip cp ^. #blockHeight)
+                                                (wcp NE.:| [])
+                                                (checkpoints wal)
+                                        ]
+                                in Right (delta, ())
                     print $ utxo cpB
                     atomically $ do
-                        unsafeRunExceptT $ putCheckpoint testWid cpB
+                        unsafeRunExceptT $ putAndPruneCheckpoint testWid cpB
                         unsafeRunExceptT $ putTxHistory testWid txs
-                        unsafeRunExceptT $ prune testWid (Quantity 2160)
+                        unsafeRunExceptT $ prune testWid epochStability
 
             it "Should spend collateral inputs and create spendable collateral \
                 \outputs if validation fails" $

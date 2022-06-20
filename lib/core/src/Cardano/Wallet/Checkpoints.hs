@@ -25,6 +25,9 @@ module Cardano.Wallet.Checkpoints
     , DeltasCheckpoints
     
     -- * Checkpoint hygiene
+    , extendAndPrune
+
+    -- * Internal / Testing
     , SparseCheckpointsConfig (..)
     , defaultSparseCheckpointsConfig
     , sparseCheckpoints
@@ -52,6 +55,7 @@ import GHC.Generics
 
 import qualified Cardano.Wallet.Primitive.Types as W
 import qualified Data.List as L
+import qualified Data.List.NonEmpty as NE
 import qualified Data.Map.Strict as Map
 import qualified Data.Set as Set
 
@@ -151,6 +155,74 @@ instance Buildable (DeltaCheckpoints a) where
 
 {-------------------------------------------------------------------------------
     Checkpoint hygiene
+-------------------------------------------------------------------------------}
+type BlockHeight = Quantity "block" Word32
+
+-- | Extend the known checkpoints and prune unnecessary ones.
+extendAndPrune
+    :: (a -> W.Slot)
+        -- ^ Convert checkpoint to slot.
+    -> (a -> BlockHeight)
+        -- ^ Convert checkpoint to block height.
+    -> BlockHeight
+        -- ^ Epoch stability window
+    -> BlockHeight
+        -- ^ Current tip of the blockchain
+    -> NE.NonEmpty a
+        -- ^ Checkpoints, ordered by increasing @Slot@.
+    -> Checkpoints a
+    -> DeltasCheckpoints a
+extendAndPrune getSlot getHeight epochStability tip xs (Checkpoints cps) =
+    prunes ++ additions
+    -- FIXME BUG: RestrictTo from  prunes  must also include
+    -- the checkpoints that were added in  additions !
+    -- Will be fixed in subsequent commit.
+  where
+    additions = reverse -- larget slot needs to be applied last
+        [ PutCheckpoint (getSlot x) x | x <- keeps ]
+    keeps = filter willKeep (NE.init xs) <> [NE.last xs]
+
+    -- FIXME LATER: Optimization: do not put checkpoints that are going
+    -- to be pruned immediately.
+    prunes = pruneCheckpoints getHeight epochStability tip cps
+
+    willKeep x = getQuantity (getHeight x) `Set.member` unstable
+    unstable = Set.fromList $ sparseCheckpoints cfg tip
+      where
+        -- NOTE
+        -- The edge really is an optimization to avoid rolling back too
+        -- "far" in the past. Yet, we let the edge construct itself
+        -- organically once we reach the tip of the chain and start
+        -- processing blocks one by one.
+        --
+        -- This prevents the wallet from trying to create too many
+        -- checkpoints at once during restoration which causes massive
+        -- performance degradation on large wallets.
+        --
+        -- Rollback may still occur during this short period, but
+        -- rolling back from a few hundred blocks is relatively fast
+        -- anyway.
+        cfg = (defaultSparseCheckpointsConfig epochStability) { edgeSize = 0 }
+
+pruneCheckpoints
+    :: (a -> BlockHeight)
+    -> BlockHeight
+        -- ^ Epoch stability window
+    -> BlockHeight
+        -- ^ Current tip of the blockchain
+    -> Checkpoints a
+    -> DeltaCheckpoints a
+pruneCheckpoints getHeight epochStability tip (Checkpoints cps) =
+    [ RestrictTo slots ]
+  where
+    willKeep cp = getQuantity (getHeight cp) `Set.member` heights
+    slots = Map.keys $ Map.filter willKeep cps
+    heights = Set.fromList $ sparseCheckpoints
+        (defaultSparseCheckpointsConfig epochStability)
+        tip
+
+{-------------------------------------------------------------------------------
+    Checkpoint creation policy
 -------------------------------------------------------------------------------}
 -- | Storing EVERY checkpoints in the database is quite expensive and useless.
 -- We make the following assumptions:
