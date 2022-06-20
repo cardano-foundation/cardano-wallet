@@ -58,7 +58,7 @@
             "import-spec": false,
             "class": false,
             "let-binds": false,
-            "case": true,
+            "case": false,
             "import-module": false,
             "record-fields": false
         },
@@ -137,7 +137,7 @@
             "max-line-length": 80,
             "overfull": 70,
             "overfull-once": 200,
-            "linebreak": 100
+            "linebreak": 50
         },
         "options": {
             "sort-pragmas": true,
