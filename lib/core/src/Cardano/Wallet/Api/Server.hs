@@ -5048,10 +5048,11 @@ instance IsServerError ErrAssignRedeemers where
             -- backwards compatibility.
             apiError err400 PastHorizon $ T.unwords
                 [ "The transaction's validity interval is past the horizon"
-                , "of safe slot-to-time conversions: " <> t <> "."
+                , "of safe slot-to-time conversions."
                 , "This may happen when I know about a future era"
                 , "which has not yet been confirmed on-chain. Try setting the"
-                , "bounds of the validity interval to be earlier."
+                , "bounds of the validity interval to be earlier.\n\n"
+                , "Here are the full details: " <> t
                 ]
         ErrAssignRedeemersTranslationError e ->
             apiError err400 TranslationError $ T.unwords
