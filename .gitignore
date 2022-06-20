@@ -53,3 +53,4 @@ lib/shelley/test/data/balanceTx/**/actual
 
 ## local ignored space
 ignore-me
+ignore-us
