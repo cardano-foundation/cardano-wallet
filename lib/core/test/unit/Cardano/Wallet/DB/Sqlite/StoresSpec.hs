@@ -12,12 +12,12 @@ import Prelude
 
 import Cardano.DB.Sqlite
     ( SqliteContext (runQuery), newInMemorySqliteContext )
+import Cardano.Wallet.Address.Book
+    ( AddressBookIso (..), Prologue, getPrologue )
+import Cardano.Wallet.Checkpoints
+    ( DeltaCheckpoints (..) )
 import Cardano.Wallet.DB.Arbitrary
     ( GenState, InitialCheckpoint (..) )
-import Cardano.Wallet.DB.Checkpoints
-    ( DeltaCheckpoints (..) )
-import Cardano.Wallet.DB.Sqlite.AddressBook
-    ( AddressBookIso (..), Prologue, getPrologue )
 import Cardano.Wallet.DB.Sqlite.Schema
     ( Wallet (..), migrateAll )
 import Cardano.Wallet.DB.Sqlite.Stores
@@ -102,7 +102,7 @@ spec = around withDBInMemory $ do
 
         it "loadPrologue . insertPrologue = id  for RndState" $
             property . prop_prologue_load_write @(RndState 'Mainnet) id
-        
+
         it "loadPrologue . insertPrologue = id  for SharedState" $
             property . prop_prologue_load_write @(SharedState 'Mainnet SharedKey)
                 (\s -> s { ready = Pending })
@@ -194,7 +194,7 @@ genDeltaWalletState wallet = frequency . map (second updateCheckpoints) $
         slot <- genSlotNo
         cp   <- over (#currentTip . #slotNo) (const slot) <$> arbitrary
         pure $ PutCheckpoint (At slot) (snd $ fromWallet cp)
-    
+
     genFilteredSlots = do
         let slots = Map.keys $ wallet ^. (#checkpoints . #checkpoints)
         keeps <- vectorOf (length slots) arbitrary

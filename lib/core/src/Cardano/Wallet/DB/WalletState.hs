@@ -36,10 +36,10 @@ module Cardano.Wallet.DB.WalletState
 
 import Prelude
 
-import Cardano.Wallet.DB.Checkpoints
-    ( Checkpoints )
-import Cardano.Wallet.DB.Sqlite.AddressBook
+import Cardano.Wallet.Address.Book
     ( AddressBookIso (..), Discoveries, Prologue )
+import Cardano.Wallet.Checkpoints
+    ( Checkpoints )
 import Cardano.Wallet.Primitive.Types
     ( BlockHeader )
 import Cardano.Wallet.Primitive.Types.UTxO
@@ -59,7 +59,7 @@ import Fmt
 import GHC.Generics
     ( Generic )
 
-import qualified Cardano.Wallet.DB.Checkpoints as CPS
+import qualified Cardano.Wallet.Checkpoints as CPS
 import qualified Cardano.Wallet.Primitive.Model as W
 import qualified Cardano.Wallet.Primitive.Types as W
 

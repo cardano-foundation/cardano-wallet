@@ -77,6 +77,8 @@ import Cardano.DB.Sqlite.Delete
     , waitForFree
     , withRef
     )
+import Cardano.Wallet.Checkpoints
+    ( DeltaCheckpoints (..) )
 import Cardano.Wallet.DB
     ( DBFactory (..)
     , DBLayer (..)
@@ -88,10 +90,6 @@ import Cardano.Wallet.DB
     , defaultSparseCheckpointsConfig
     , sparseCheckpoints
     )
-import Cardano.Wallet.DB.Checkpoints
-    ( DeltaCheckpoints (..) )
-import Cardano.Wallet.DB.Sqlite.CheckpointsOld
-    ( PersistAddressBook (..), blockHeaderFromEntity, mkStoreWallets )
 import Cardano.Wallet.DB.Sqlite.Migration
     ( DefaultFieldValues (..), migrateManually )
 import Cardano.Wallet.DB.Sqlite.Schema
@@ -116,6 +114,8 @@ import Cardano.Wallet.DB.Sqlite.Schema
     )
 import Cardano.Wallet.DB.Sqlite.Types
     ( BlockId (..), TxId (..) )
+import Cardano.Wallet.DB.Store.Checkpoints
+    ( PersistAddressBook (..), blockHeaderFromEntity, mkStoreWallets )
 import Cardano.Wallet.DB.WalletState
     ( DeltaMap (..)
     , DeltaWalletState1 (..)

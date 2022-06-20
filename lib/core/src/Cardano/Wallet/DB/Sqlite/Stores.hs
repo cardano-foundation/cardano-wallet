@@ -24,4 +24,4 @@ module Cardano.Wallet.DB.Sqlite.Stores
     )
     where
 
-import Cardano.Wallet.DB.Sqlite.CheckpointsOld
+import Cardano.Wallet.DB.Store.Checkpoints

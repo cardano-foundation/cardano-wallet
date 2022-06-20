@@ -27,7 +27,7 @@
 -- * Inline the contents of this module into its new name
 --   "Cardano.Wallet.DB.Sqlite.Stores"
 
-module Cardano.Wallet.DB.Sqlite.CheckpointsOld
+module Cardano.Wallet.DB.Store.Checkpoints
     ( mkStoreWallets
     , PersistAddressBook (..)
     , blockHeaderFromEntity
@@ -45,16 +45,16 @@ import Cardano.Address.Script
     ( Cosigner (..), ScriptTemplate (..) )
 import Cardano.DB.Sqlite
     ( dbChunked )
-import Cardano.Wallet.DB
-    ( ErrBadFormat (..) )
-import Cardano.Wallet.DB.Checkpoints
-    ( DeltaCheckpoints (..), loadCheckpoints )
-import Cardano.Wallet.DB.Sqlite.AddressBook
+import Cardano.Wallet.Address.Book
     ( AddressBookIso (..)
     , Discoveries (..)
     , Prologue (..)
     , SeqAddressMap (..)
     )
+import Cardano.Wallet.Checkpoints
+    ( DeltaCheckpoints (..), loadCheckpoints )
+import Cardano.Wallet.DB
+    ( ErrBadFormat (..) )
 import Cardano.Wallet.DB.Sqlite.Schema
     ( Checkpoint (..)
     , CosignerKey (..)

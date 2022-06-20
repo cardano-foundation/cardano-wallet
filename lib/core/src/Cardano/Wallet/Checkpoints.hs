@@ -9,7 +9,7 @@
 -- Data type that represents a collection of checkpoints.
 -- Each checkpoints is associated with a 'Slot'.
 
-module Cardano.Wallet.DB.Checkpoints
+module Cardano.Wallet.Checkpoints
     ( -- * Checkpoints  
       Checkpoints
     , checkpoints
