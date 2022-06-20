@@ -277,9 +277,9 @@ import UnliftIO.Concurrent
 
 import qualified Cardano.Crypto.Wallet as CC
 import qualified Cardano.Wallet as W
+import qualified Cardano.Wallet.Address.Book as Sqlite
 import qualified Cardano.Wallet.DB.Layer as Sqlite
 import qualified Cardano.Wallet.DB.Pure.Layer as PureLayer
-import qualified Cardano.Wallet.DB.Sqlite.AddressBook as Sqlite
 import qualified Cardano.Wallet.Primitive.Migration as Migration
 import qualified Cardano.Wallet.Primitive.Types.Coin as Coin
 import qualified Cardano.Wallet.Primitive.Types.TokenBundle as TokenBundle
@@ -568,14 +568,14 @@ walletUpdatePassphrase wallet new mxprv = monadicIO $ do
         Just (xprv, pwd) -> prop_withPrivateKey wl wid (xprv, pwd)
   where
     prop_withoutPrivateKey wl wid = do
-        attempt <- run $ runExceptT 
+        attempt <- run $ runExceptT
             $ W.updateWalletPassphraseWithOldPassphrase wl wid (new, new)
         let err = ErrUpdatePassphraseWithRootKey $ ErrWithRootKeyNoRootKey wid
         assert (attempt == Left err)
 
     prop_withPrivateKey wl wid (xprv, pwd) = do
         run $ unsafeRunExceptT $ W.attachPrivateKeyFromPwd wl wid (xprv, pwd)
-        attempt <- run $ runExceptT 
+        attempt <- run $ runExceptT
             $ W.updateWalletPassphraseWithOldPassphrase wl wid (coerce pwd, new)
         assert (attempt == Right ())
 
@@ -589,7 +589,7 @@ walletUpdatePassphraseWrong wallet (xprv, pwd) (old, new) =
         WalletLayerFixture _ wl [wid] _ <- run $ setupFixture wallet
         attempt <- run $ do
             unsafeRunExceptT $ W.attachPrivateKeyFromPwd wl wid (xprv, pwd)
-            runExceptT 
+            runExceptT
                 $ W.updateWalletPassphraseWithOldPassphrase wl wid (old, new)
         let err = ErrUpdatePassphraseWithRootKey
                 $ ErrWithRootKeyWrongPassphrase wid
@@ -604,7 +604,7 @@ walletUpdatePassphraseNoSuchWallet
 walletUpdatePassphraseNoSuchWallet wallet@(wid', _, _) wid (old, new) =
     wid /= wid' ==> monadicIO $ do
         WalletLayerFixture _ wl _ _ <- run $ setupFixture wallet
-        attempt <- run $ runExceptT 
+        attempt <- run $ runExceptT
             $ W.updateWalletPassphraseWithOldPassphrase wl wid (old, new)
         let err = ErrUpdatePassphraseWithRootKey $ ErrWithRootKeyNoRootKey wid
         assert (attempt == Left err)
@@ -625,8 +625,8 @@ walletUpdatePassphraseDate wallet (xprv, pwd) = monadicIO $ liftIO $ do
     unsafeRunExceptT $ W.attachPrivateKeyFromPwd wl wid (xprv, pwd)
     info <- infoShouldSatisfy isJust
     pause
-    unsafeRunExceptT 
-        $ W.updateWalletPassphraseWithOldPassphrase wl wid 
+    unsafeRunExceptT
+        $ W.updateWalletPassphraseWithOldPassphrase wl wid
             (coerce pwd, coerce pwd)
     void $ infoShouldSatisfy (\info' -> isJust info' && info' > info)
   where

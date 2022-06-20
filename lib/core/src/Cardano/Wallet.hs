@@ -225,6 +225,10 @@ import Cardano.Crypto.Wallet
     ( toXPub )
 import Cardano.Slotting.Slot
     ( SlotNo (..) )
+import Cardano.Wallet.Address.Book
+    ( AddressBookIso, Prologue (..), getPrologue )
+import Cardano.Wallet.Checkpoints
+    ( DeltaCheckpoints (..) )
 import Cardano.Wallet.CoinSelection
     ( Selection
     , SelectionBalanceError (..)
@@ -259,10 +263,6 @@ import Cardano.Wallet.DB
     , defaultSparseCheckpointsConfig
     , sparseCheckpoints
     )
-import Cardano.Wallet.DB.Checkpoints
-    ( DeltaCheckpoints (..) )
-import Cardano.Wallet.DB.Sqlite.AddressBook
-    ( AddressBookIso, Prologue (..), getPrologue )
 import Cardano.Wallet.DB.WalletState
     ( DeltaMap (..), DeltaWalletState1 (..), fromWallet, getLatest, getSlot )
 import Cardano.Wallet.Logging

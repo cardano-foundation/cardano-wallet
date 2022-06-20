@@ -192,6 +192,8 @@ import Cardano.Wallet
     , manageRewardBalance
     , networkLayer
     )
+import Cardano.Wallet.Address.Book
+    ( AddressBookIso )
 import Cardano.Wallet.Api
     ( ApiLayer (..)
     , HasDBFactory
@@ -352,8 +354,6 @@ import Cardano.Wallet.Compat
     ( (^?) )
 import Cardano.Wallet.DB
     ( DBFactory (..) )
-import Cardano.Wallet.DB.Sqlite.AddressBook
-    ( AddressBookIso )
 import Cardano.Wallet.Network
     ( NetworkLayer, fetchRewardAccountBalances, timeInterpreter )
 import Cardano.Wallet.Primitive.AddressDerivation

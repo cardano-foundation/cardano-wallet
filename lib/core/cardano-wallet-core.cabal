@@ -181,6 +181,7 @@ library
       Cardano.Pool.Rank
       Cardano.Pool.Rank.Likelihood
       Cardano.Wallet
+      Cardano.Wallet.Address.Book
       Cardano.Wallet.Address.Pool
       Cardano.Wallet.Api
       Cardano.Wallet.Api.Aeson.Variant
@@ -191,6 +192,7 @@ library
       Cardano.Wallet.Api.Types
       Cardano.Wallet.Api.Types.SchemaMetadata
       Cardano.Wallet.Checkpoints.Policy
+      Cardano.Wallet.Checkpoints
       Cardano.Wallet.CoinSelection
       Cardano.Wallet.CoinSelection.Internal
       Cardano.Wallet.CoinSelection.Internal.Balance
@@ -198,16 +200,14 @@ library
       Cardano.Wallet.CoinSelection.Internal.Context
       Cardano.Wallet.Compat
       Cardano.Wallet.DB
-      Cardano.Wallet.DB.Checkpoints
       Cardano.Wallet.DB.Pure.Implementation
       Cardano.Wallet.DB.Pure.Layer
-      Cardano.Wallet.DB.Sqlite.AddressBook
-      Cardano.Wallet.DB.Sqlite.CheckpointsOld
       Cardano.Wallet.DB.Layer
       Cardano.Wallet.DB.Sqlite.Migration
       Cardano.Wallet.DB.Sqlite.Schema
       Cardano.Wallet.DB.Sqlite.Stores
       Cardano.Wallet.DB.Sqlite.Types
+      Cardano.Wallet.DB.Store.Checkpoints
       Cardano.Wallet.DB.WalletState
       Cardano.Wallet.Logging
       Cardano.Wallet.Network
