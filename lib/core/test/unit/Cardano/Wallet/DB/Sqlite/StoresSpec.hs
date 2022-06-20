@@ -183,7 +183,7 @@ genDeltaWalletState wallet = frequency . map (second updateCheckpoints) $
     , (1, pure $ RestrictTo [])
     ]
   where
-    updateCheckpoints gen = (\x -> [UpdateCheckpoints x]) <$> gen
+    updateCheckpoints gen = (\x -> [UpdateCheckpoints [x]]) <$> gen
 
     slotLatest = case getSlot . snd . fromWallet $ getLatest wallet of
         Origin -> 0

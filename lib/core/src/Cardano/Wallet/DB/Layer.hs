@@ -564,7 +564,7 @@ newDBLayerWith _cacheBehavior _tr ti SqliteContext{runQuery} = do
                         let willKeep cp = getBlockHeight cp `Set.member` heights
                             slots = Map.filter willKeep (wal ^. #checkpoints ^. #checkpoints)
                             delta = Adjust wid
-                                [ UpdateCheckpoints $ RestrictTo $ Map.keys slots ]
+                                [ UpdateCheckpoints [ RestrictTo $ Map.keys slots ] ]
                         in  (Just delta, ())
 
     -- Delete the a wallet from the checkpoint DBVar
@@ -626,7 +626,7 @@ newDBLayerWith _cacheBehavior _tr ti SqliteContext{runQuery} = do
                         let (prologue, wcp) = fromWallet cp
                             slot = getSlot wcp
                             delta = Just $ Adjust wid
-                                [ UpdateCheckpoints $ PutCheckpoint slot wcp
+                                [ UpdateCheckpoints [ PutCheckpoint slot wcp ]
                                 , ReplacePrologue prologue
                                 ]
                         in  (delta, Right ())
@@ -650,7 +650,7 @@ newDBLayerWith _cacheBehavior _tr ti SqliteContext{runQuery} = do
                             )
                         Just nearestPoint ->
                             ( Just $ Adjust wid
-                                [ UpdateCheckpoints $ RollbackTo nearestPoint ]
+                                [ UpdateCheckpoints [ RollbackTo nearestPoint ] ]
                             , pure $ Map.lookup nearestPoint $
                                 wal ^. #checkpoints ^. #checkpoints
                             )

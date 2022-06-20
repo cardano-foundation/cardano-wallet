@@ -52,7 +52,7 @@ import Cardano.Wallet.Address.Book
     , SeqAddressMap (..)
     )
 import Cardano.Wallet.Checkpoints
-    ( DeltaCheckpoints (..), loadCheckpoints )
+    ( DeltaCheckpoints (..), DeltasCheckpoints, loadCheckpoints )
 import Cardano.Wallet.DB
     ( ErrBadFormat (..) )
 import Cardano.Wallet.DB.Sqlite.Schema
@@ -233,25 +233,28 @@ mkStoreWallet wid =
 mkStoreCheckpoints
     :: forall s. PersistAddressBook s
     => W.WalletId
-    -> Store (SqlPersistT IO) (DeltaCheckpoints (WalletCheckpoint s))
+    -> Store (SqlPersistT IO) (DeltasCheckpoints (WalletCheckpoint s))
 mkStoreCheckpoints wid =
     Store{ loadS = load, writeS = write, updateS = \_ -> update }
   where
     load = bimap toException loadCheckpoints <$> selectAllCheckpoints wid
 
     write cps = forM_ (Map.toList $ cps ^. #checkpoints) $ \(pt,cp) ->
-            update (PutCheckpoint pt cp)
+            update1 (PutCheckpoint pt cp)
 
-    update (PutCheckpoint _ state) =
+         -- first update in list is the last to be applied!
+    update = mapM_ update1 . reverse
+
+    update1 (PutCheckpoint _ state) =
         insertCheckpoint wid state
-    update (RollbackTo (W.At slot)) =
+    update1 (RollbackTo (W.At slot)) =
         deleteWhere [ CheckpointWalletId ==. wid, CheckpointSlot >. slot ]
-    update (RollbackTo W.Origin) =
+    update1 (RollbackTo W.Origin) =
         deleteWhere
             [ CheckpointWalletId ==. wid
             , CheckpointParentHash !=. BlockId hashOfNoParent
             ]
-    update (RestrictTo pts) = do
+    update1 (RestrictTo pts) = do
         let points = W.Origin : pts
         let pseudoSlot W.Origin    = W.SlotNo 0
             pseudoSlot (W.At slot) = slot
