@@ -91,3 +91,13 @@ steps:
       - './scripts/shellcheck.sh'
     agents:
       system: x86_64-linux
+
+  - block: "Clear cabal cache"
+    key: 'should_clear_cache'
+    allow_dependency_failure: true
+    depends_on: [] # allows triggering this step even if previous steps failed
+
+  - label: 'Clearing cabal cache'
+    command: 'rm -vrf $CABAL_DIR'
+    agents:
+      system: x86_64-linux
