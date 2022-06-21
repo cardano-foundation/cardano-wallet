@@ -1011,8 +1011,8 @@ txOutsOurs
     -> s
     -> (Set (Tx, TxOut), s)
 txOutsOurs txs =
-    runState $ Set.fromList <$>
-        forMaybe (foldMap (\tx -> zip (repeat tx) (outputs tx)) txs) pick
+    runState $ Set.fromList <$> forMaybe
+        (foldMap (\tx -> zip (repeat tx) (outputsToCreate tx)) txs) pick
   where
     pick :: (Tx, TxOut) -> State s (Maybe (Tx, TxOut))
     pick (tx, out) = do
@@ -1022,6 +1022,13 @@ txOutsOurs txs =
             Nothing -> Nothing
     forMaybe :: Monad m => [a] -> (a -> m (Maybe b)) -> m [b]
     forMaybe xs = fmap catMaybes . for xs
+
+    outputsToCreate :: Tx -> [TxOut]
+    outputsToCreate tx
+        | txScriptInvalid tx =
+            F.toList (collateralOutput tx)
+        | otherwise =
+            outputs tx
 
 {-------------------------------------------------------------------------------
                                   Test Data
