@@ -986,7 +986,15 @@ updateUTxO !b utxo = do
     let txs = Set.fromList $ transactions b
     utxo' <- (foldMap utxoFromTx txs `restrictedTo`) . Set.map snd
         <$> state (txOutsOurs txs)
-    return $ (utxo <> utxo') `excluding` txIns txs
+    return $
+        (utxo <> utxo') `excluding` foldMap (Set.fromList . inputsToSpend) txs
+  where
+     inputsToSpend :: Tx -> [TxIn]
+     inputsToSpend tx
+        | txScriptInvalid tx =
+            collateralInputs tx
+        | otherwise =
+            inputs tx
 
 -- | Return all transaction outputs that are ours. This plays well within a
 -- 'State' monad.
