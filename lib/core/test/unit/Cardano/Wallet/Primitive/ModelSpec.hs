@@ -2385,6 +2385,16 @@ instance Show (RewardAccount -> Bool) where
 -- Utility functions
 --------------------------------------------------------------------------------
 
+-- | Returns the inputs that a transaction should spend, based on the
+--   transaction's script validation status.
+--
+inputsSpentByTx :: Tx -> Set TxIn
+inputsSpentByTx tx
+    | txScriptInvalid tx =
+        Set.fromList (collateralInputs tx)
+    | otherwise =
+        Set.fromList (inputs tx)
+
 -- | Returns the outputs that a transaction should create, based on the
 --   transaction's script validation status.
 --
