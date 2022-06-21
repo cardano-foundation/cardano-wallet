@@ -1993,6 +1993,46 @@ blockchain =
             ]
         , delegations = []
         }
+
+    , Block
+        { header = BlockHeader
+            { slotNo = slot 14 21
+            , blockHeight = Quantity 302379
+            , headerHash = Hash "unused"
+            , parentHeaderHash = Just $ Hash "unused"
+            }
+        , transactions =
+            -- This transaction spends a single collateral output that was
+            -- created in the previous transaction:
+            [ Tx
+                { txId = Hash "tx-spend-collateral-output"
+                , fee = Just (Coin 1)
+                , resolvedInputs =
+                    [   ( TxIn
+                            { inputId = Hash "tx-create-collateral-output"
+                            -- The previous transaction defined exactly one
+                            -- ordinary output, so we use 1 as the index of
+                            -- the collateral output:
+                            , inputIx = 1
+                            }
+                        , Coin (19999800000 - 1)
+                        )
+                    ]
+                , resolvedCollateralInputs = []
+                , outputs =
+                    [ TxOut
+                        { address = Address "\130\216\CANXB\131X\FS\147\ACKn\246.n\DLE\233Y\166)\207c\v\248\183\235\212\EOTV\243h\192\190T\150'\196\161\SOHX\RSX\FS\202>U<\156c\197&\DC3S\235C\198\245\163\204=\214fa\201\t\205\248\204\226r%\NUL\SUB\174\187\&7\t"
+                        , tokens = coinToBundle (19999800000 - 2)
+                        }
+                    ]
+                , collateralOutput = Nothing
+                , withdrawals = mempty
+                , metadata = Nothing
+                , scriptValidity = Just TxScriptValid
+                }
+            ]
+        , delegations = []
+        }
     ]
   where
     slot e s = SlotNo $ flatSlot (EpochLength 21600) (SlotId e s)
