@@ -116,6 +116,7 @@ import Cardano.Api.Shelley
     , PoolId
     , ProtocolParameters (..)
     , ReferenceScript (..)
+    , SimpleScriptOrReferenceInput (..)
     , StakeCredential (..)
     , StakePoolMetadata (..)
     , StakePoolMetadataReference (..)
@@ -453,6 +454,17 @@ genSimpleScript lang =
         (Positive m) <- arbitrary
         genTerm (n `div` (m + 3))
 
+genReferenceInput :: Gen TxIn
+genReferenceInput = genTxIn
+
+genSimpleScriptOrReferenceInput
+    :: SimpleScriptVersion lang
+    -> Gen (SimpleScriptOrReferenceInput lang)
+genSimpleScriptOrReferenceInput lang =
+    oneof [ SScript <$> genSimpleScript lang
+          , SReferenceScript <$> genReferenceInput
+          ]
+
 genScript :: ScriptLanguage lang -> Gen (Script lang)
 genScript (SimpleScriptLanguage lang) =
     SimpleScript lang <$> genSimpleScript lang
@@ -690,7 +702,7 @@ genScriptWitnessMint
 genScriptWitnessMint langEra =
     case languageOfScriptLanguageInEra langEra of
         (SimpleScriptLanguage ver) ->
-            SimpleScriptWitness langEra ver <$> genSimpleScript ver
+            SimpleScriptWitness langEra ver <$> genSimpleScriptOrReferenceInput ver
         (PlutusScriptLanguage ver) ->
             PlutusScriptWitness langEra ver
             <$> genPlutusScriptOrReferenceInput ver
@@ -704,7 +716,7 @@ genScriptWitnessStake
 genScriptWitnessStake langEra =
     case languageOfScriptLanguageInEra langEra of
         (SimpleScriptLanguage ver) ->
-            SimpleScriptWitness langEra ver <$> genSimpleScript ver
+            SimpleScriptWitness langEra ver <$> genSimpleScriptOrReferenceInput ver
         (PlutusScriptLanguage ver) ->
             PlutusScriptWitness langEra ver
             <$> genPlutusScriptOrReferenceInput ver
@@ -718,7 +730,7 @@ genScriptWitnessSpend
 genScriptWitnessSpend langEra =
     case languageOfScriptLanguageInEra langEra of
         (SimpleScriptLanguage ver) ->
-            SimpleScriptWitness langEra ver <$> genSimpleScript ver
+            SimpleScriptWitness langEra ver <$> genSimpleScriptOrReferenceInput ver
         (PlutusScriptLanguage ver) ->
             PlutusScriptWitness langEra ver
             <$> genPlutusScriptOrReferenceInput ver

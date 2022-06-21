@@ -137,7 +137,8 @@ import Cardano.Api.Extra
 import Cardano.BM.Tracing
     ( HasPrivacyAnnotation (..), HasSeverityAnnotation (..) )
 import Cardano.Ledger.Alonzo.TxInfo
-    ( TranslationError (TimeTranslationPastHorizon) )
+    ( TranslationError (TimeTranslationPastHorizon, TranslationLogicMissingInput)
+    )
 import Cardano.Mnemonic
     ( SomeMnemonic )
 import Cardano.Wallet
@@ -5043,18 +5044,18 @@ instance IsServerError ErrAssignRedeemers where
                 , "for one of your redeemers since I am unable to decode it"
                 , "into a valid Plutus data:", pretty r <> "."
                 ]
-        ErrAssignRedeemersUnresolvedTxIns ins ->
-            -- Note that although this error is thrown from
-            -- '_assignScriptRedeemers', it's more related to balanceTransaction
-            -- in general than to assigning redeemers. Hence we don't mention
-            -- redeemers in the message.
-            apiError err400 UnresolvedInputs $ T.unwords
-                [ "The transaction I was given contains inputs I don't know"
-                , "about. Please ensure all foreign inputs are specified as "
-                , "part of the API request. The unknown inputs are:\n\n"
-                , pretty ins
-                ]
-        ErrAssignRedeemersTranslationError TimeTranslationPastHorizon ->
+        ErrAssignRedeemersTranslationError (TranslationLogicMissingInput inp) ->
+             -- Note that although this error is thrown from
+             -- '_assignScriptRedeemers', it's more related to balanceTransaction
+             -- in general than to assigning redeemers. Hence we don't mention
+             -- redeemers in the message.
+             apiError err400 UnresolvedInputs $ T.unwords
+                 [ "The transaction I was given contains inputs I don't know"
+                 , "about. Please ensure all foreign inputs are specified as "
+                 , "part of the API request. The unknown input is:\n\n"
+                 , T.pack $ show inp
+                 ]
+        ErrAssignRedeemersTranslationError (TimeTranslationPastHorizon t) ->
             -- We differentiate this from @TranslationError@ for partial API
             -- backwards compatibility.
             apiError err400 PastHorizon $ T.unwords
@@ -5062,7 +5063,8 @@ instance IsServerError ErrAssignRedeemers where
                 , "of safe slot-to-time conversions."
                 , "This may happen when I know about a future era"
                 , "which has not yet been confirmed on-chain. Try setting the"
-                , "bounds of the validity interval to be earlier."
+                , "bounds of the validity interval to be earlier.\n\n"
+                , "Here are the full details: " <> t
                 ]
         ErrAssignRedeemersTranslationError e ->
             apiError err400 TranslationError $ T.unwords
