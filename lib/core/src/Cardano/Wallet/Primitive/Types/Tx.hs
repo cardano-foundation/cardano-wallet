@@ -307,7 +307,7 @@ instance Buildable TxScriptValidity where
     build TxScriptInvalid = "invalid"
 
 txIns :: Set Tx -> Set TxIn
-txIns = foldMap (Set.fromList . inputs)
+txIns = foldMap (\tx -> Set.fromList (inputs tx <> collateralInputs tx))
 
 inputs :: Tx -> [TxIn]
 inputs = map fst . resolvedInputs

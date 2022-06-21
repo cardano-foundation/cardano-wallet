@@ -986,7 +986,8 @@ updateUTxO !b utxo = do
     let txs = Set.fromList $ transactions b
     utxo' <- (foldMap utxoFromTx txs `restrictedTo`) . Set.map snd
         <$> state (txOutsOurs txs)
-    return $ (utxo <> utxo') `excluding` txIns txs
+    return $
+        (utxo <> utxo') `excluding` foldMap inputsSpentByTx txs
 
 -- | Return all transaction outputs that are ours. This plays well within a
 -- 'State' monad.
@@ -1003,8 +1004,8 @@ txOutsOurs
     -> s
     -> (Set (Tx, TxOut), s)
 txOutsOurs txs =
-    runState $ Set.fromList <$>
-        forMaybe (foldMap (\tx -> zip (repeat tx) (outputs tx)) txs) pick
+    runState $ Set.fromList <$> forMaybe
+        (foldMap (\tx -> zip (repeat tx) (outputsCreatedByTx tx)) txs) pick
   where
     pick :: (Tx, TxOut) -> State s (Maybe (Tx, TxOut))
     pick (tx, out) = do
@@ -1926,6 +1927,98 @@ blockchain =
             ]
         , delegations = []
         }
+
+    -- After this point, all blocks and transactions are constructed by hand,
+    -- in order to simulate various interesting scenarios:
+
+    , Block
+        { header = BlockHeader
+            { slotNo = slot 14 20
+            , blockHeight = Quantity 302378
+            , headerHash = Hash "unused"
+            , parentHeaderHash = Just $ Hash "unused"
+            }
+        , transactions =
+            -- This transaction is marked as having an invalid script.
+            -- It spends a single collateral input and creates a single
+            -- collateral output:
+            [ Tx
+                { txId = Hash "tx-create-collateral-output"
+                , fee = Just (Coin 1)
+                , resolvedInputs =
+                    [   ( TxIn
+                            { inputId = Hash "9c6fed8fef3b296d4dee6e62ca72b180bf0ed1c13eb5f0445099b2a146235e77"
+                            , inputIx = 0
+                            }
+                        , Coin 3823755953610
+                        )
+                    ]
+                , resolvedCollateralInputs =
+                    [   ( TxIn
+                            { inputId = Hash "9c6fed8fef3b296d4dee6e62ca72b180bf0ed1c13eb5f0445099b2a146235e77"
+                            , inputIx = 1
+                            }
+                        , Coin 19999800000
+                        )
+                    ]
+                , outputs =
+                    [ TxOut
+                        { address = Address "\130\216\CANXB\131X\FS\147\ACKn\246.n\DLE\233Y\166)\207c\v\248\183\235\212\EOTV\243h\192\190T\150'\196\161\SOHX\RSX\FS\202>U<\156c\197&\DC3S\235C\198\245\163\204=\214fa\201\t\205\248\204\226r%\NUL\SUB\174\187\&7\t"
+                        , tokens = coinToBundle (3823755953610 - 1)
+                        }
+                    ]
+                , collateralOutput = Just
+                    TxOut
+                        { address = Address "\130\216\CANXB\131X\FS\147\ACKn\246.n\DLE\233Y\166)\207c\v\248\183\235\212\EOTV\243h\192\190T\150'\196\161\SOHX\RSX\FS\202>U<\156c\197&\DC3S\235C\198\245\163\204=\214fa\201\t\205\248\204\226r%\NUL\SUB\174\187\&7\t"
+                        , tokens = coinToBundle (19999800000 - 1)
+                        }
+                , withdrawals = mempty
+                , metadata = Nothing
+                , scriptValidity = Just TxScriptInvalid
+                }
+            ]
+        , delegations = []
+        }
+
+    , Block
+        { header = BlockHeader
+            { slotNo = slot 14 21
+            , blockHeight = Quantity 302379
+            , headerHash = Hash "unused"
+            , parentHeaderHash = Just $ Hash "unused"
+            }
+        , transactions =
+            -- This transaction spends a single collateral output that was
+            -- created in the previous transaction:
+            [ Tx
+                { txId = Hash "tx-spend-collateral-output"
+                , fee = Just (Coin 1)
+                , resolvedInputs =
+                    [   ( TxIn
+                            { inputId = Hash "tx-create-collateral-output"
+                            -- The previous transaction defined exactly one
+                            -- ordinary output, so we use 1 as the index of
+                            -- the collateral output:
+                            , inputIx = 1
+                            }
+                        , Coin (19999800000 - 1)
+                        )
+                    ]
+                , resolvedCollateralInputs = []
+                , outputs =
+                    [ TxOut
+                        { address = Address "\130\216\CANXB\131X\FS\147\ACKn\246.n\DLE\233Y\166)\207c\v\248\183\235\212\EOTV\243h\192\190T\150'\196\161\SOHX\RSX\FS\202>U<\156c\197&\DC3S\235C\198\245\163\204=\214fa\201\t\205\248\204\226r%\NUL\SUB\174\187\&7\t"
+                        , tokens = coinToBundle (19999800000 - 2)
+                        }
+                    ]
+                , collateralOutput = Nothing
+                , withdrawals = mempty
+                , metadata = Nothing
+                , scriptValidity = Just TxScriptValid
+                }
+            ]
+        , delegations = []
+        }
     ]
   where
     slot e s = SlotNo $ flatSlot (EpochLength 21600) (SlotId e s)
@@ -1968,10 +2061,9 @@ prop_applyTxToUTxO_balance tx u =
         "not $ txScriptInvalid tx" $
     balance (applyTxToUTxO tx u) === expectedBalance
   where
-    expectedBalance = balance (utxoFromTx tx) <>
-        if txScriptInvalid tx
-        then balance (u `excluding` Set.fromList (collateralInputs tx))
-        else balance (u `excluding` Set.fromList (inputs tx))
+    expectedBalance =
+        balance (utxoFromTx tx) <>
+        balance (u `excluding` inputsSpentByTx tx)
 
 prop_applyTxToUTxO_entries :: Tx -> UTxO -> Property
 prop_applyTxToUTxO_entries tx u =
@@ -1990,10 +2082,7 @@ prop_applyTxToUTxO_entries tx u =
         "not $ txScriptInvalid tx" $
     applyTxToUTxO tx u === expectedResult
   where
-    expectedResult = (<> utxoFromTx tx) $
-        if txScriptInvalid tx
-        then u `excluding` Set.fromList (collateralInputs tx)
-        else u `excluding` Set.fromList (inputs tx)
+    expectedResult = (u `excluding` inputsSpentByTx tx) <> utxoFromTx tx
 
 prop_filterByAddress_balance_applyTxToUTxO
     :: (Address -> Bool) -> Tx -> Property
@@ -2015,10 +2104,7 @@ prop_filterByAddress_balance_applyTxToUTxO f tx =
     ===
     expectedResult
   where
-    expectedResult =
-        if txScriptInvalid tx
-        then foldMap m (collateralOutput tx)
-        else foldMap m (outputs tx)
+    expectedResult = F.foldMap m (outputsCreatedByTx tx)
       where
         m output =
             if f (address output)
@@ -2094,10 +2180,7 @@ prop_utxoFromTx_balance tx =
     cover 10
         (not $ txScriptInvalid tx)
         "not $ txScriptInvalid tx)" $
-    balance (utxoFromTx tx) ===
-        if txScriptInvalid tx
-        then foldMap tokens (collateralOutput tx)
-        else foldMap tokens (outputs tx)
+    balance (utxoFromTx tx) === F.foldMap tokens (outputsCreatedByTx tx)
 
 prop_utxoFromTx_size :: Tx -> Property
 prop_utxoFromTx_size tx =
@@ -2111,10 +2194,7 @@ prop_utxoFromTx_size tx =
     cover 10
         (not $ txScriptInvalid tx)
         "not $ txScriptInvalid tx)" $
-    UTxO.size (utxoFromTx tx) ===
-        if txScriptInvalid tx
-        then F.length (collateralOutput tx)
-        else F.length (outputs tx)
+    UTxO.size (utxoFromTx tx) === F.length (outputsCreatedByTx tx)
 
 prop_utxoFromTx_values :: Tx -> Property
 prop_utxoFromTx_values tx =
@@ -2128,10 +2208,7 @@ prop_utxoFromTx_values tx =
     cover 10
         (not $ txScriptInvalid tx)
         "not $ txScriptInvalid tx)" $
-    F.toList (unUTxO (utxoFromTx tx)) ===
-        if txScriptInvalid tx
-        then F.toList (collateralOutput tx)
-        else F.toList (outputs tx)
+    F.toList (unUTxO (utxoFromTx tx)) === outputsCreatedByTx tx
 
 prop_utxoFromTx_disjoint :: Tx -> Property
 prop_utxoFromTx_disjoint tx =
@@ -2215,14 +2292,9 @@ prop_spendTx_balance tx u =
     lhs === rhs
   where
     lhs = balance (spendTx tx u)
-    rhs = TokenBundle.unsafeSubtract (balance u) toSubtract
-      where
-        toSubtract =
-            if txScriptInvalid tx
-            then balance
-                (u `UTxO.restrictedBy` Set.fromList (collateralInputs tx))
-            else balance
-                (u `UTxO.restrictedBy` Set.fromList (inputs tx))
+    rhs = TokenBundle.unsafeSubtract
+        (balance u)
+        (balance (u `UTxO.restrictedBy` inputsSpentByTx tx))
 
 prop_spendTx :: Tx -> UTxO -> Property
 prop_spendTx tx u =
@@ -2236,12 +2308,7 @@ prop_spendTx tx u =
     cover 10
         (not $ txScriptInvalid tx)
         "not $ txScriptInvalid tx" $
-    spendTx tx u === u `excluding` toExclude
-  where
-    toExclude =
-        if txScriptInvalid tx
-        then Set.fromList (collateralInputs tx)
-        else Set.fromList (inputs tx)
+    spendTx tx u === u `excluding` inputsSpentByTx tx
 
 prop_spendTx_utxoFromTx :: Tx -> UTxO -> Property
 prop_spendTx_utxoFromTx tx u =
@@ -2273,3 +2340,30 @@ instance Show (Address -> Bool) where
 
 instance Show (RewardAccount -> Bool) where
     show = const "(RewardAccount -> Bool)"
+
+--------------------------------------------------------------------------------
+-- Utility functions
+--------------------------------------------------------------------------------
+
+-- | Returns the inputs that a transaction should spend, based on the
+--   transaction's script validation status.
+--
+inputsSpentByTx :: Tx -> Set TxIn
+inputsSpentByTx tx
+    | txScriptInvalid tx =
+        Set.fromList (collateralInputs tx)
+    | otherwise =
+        Set.fromList (inputs tx)
+
+-- | Returns the outputs that a transaction should create, based on the
+--   transaction's script validation status.
+--
+-- Note that the indices are not returned. If it's important to obtain the
+-- indices, then use function 'utxoFromTx'.
+--
+outputsCreatedByTx :: Tx -> [TxOut]
+outputsCreatedByTx tx
+    | txScriptInvalid tx =
+        F.toList (collateralOutput tx)
+    | otherwise =
+        outputs tx
