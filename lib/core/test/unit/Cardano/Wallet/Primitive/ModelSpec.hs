@@ -987,14 +987,7 @@ updateUTxO !b utxo = do
     utxo' <- (foldMap utxoFromTx txs `restrictedTo`) . Set.map snd
         <$> state (txOutsOurs txs)
     return $
-        (utxo <> utxo') `excluding` foldMap (Set.fromList . inputsToSpend) txs
-  where
-     inputsToSpend :: Tx -> [TxIn]
-     inputsToSpend tx
-        | txScriptInvalid tx =
-            collateralInputs tx
-        | otherwise =
-            inputs tx
+        (utxo <> utxo') `excluding` foldMap inputsSpentByTx txs
 
 -- | Return all transaction outputs that are ours. This plays well within a
 -- 'State' monad.
@@ -2068,10 +2061,9 @@ prop_applyTxToUTxO_balance tx u =
         "not $ txScriptInvalid tx" $
     balance (applyTxToUTxO tx u) === expectedBalance
   where
-    expectedBalance = balance (utxoFromTx tx) <>
-        if txScriptInvalid tx
-        then balance (u `excluding` Set.fromList (collateralInputs tx))
-        else balance (u `excluding` Set.fromList (inputs tx))
+    expectedBalance =
+        balance (utxoFromTx tx) <>
+        balance (u `excluding` inputsSpentByTx tx)
 
 prop_applyTxToUTxO_entries :: Tx -> UTxO -> Property
 prop_applyTxToUTxO_entries tx u =
@@ -2090,10 +2082,7 @@ prop_applyTxToUTxO_entries tx u =
         "not $ txScriptInvalid tx" $
     applyTxToUTxO tx u === expectedResult
   where
-    expectedResult = (<> utxoFromTx tx) $
-        if txScriptInvalid tx
-        then u `excluding` Set.fromList (collateralInputs tx)
-        else u `excluding` Set.fromList (inputs tx)
+    expectedResult = (u `excluding` inputsSpentByTx tx) <> utxoFromTx tx
 
 prop_filterByAddress_balance_applyTxToUTxO
     :: (Address -> Bool) -> Tx -> Property
@@ -2303,14 +2292,9 @@ prop_spendTx_balance tx u =
     lhs === rhs
   where
     lhs = balance (spendTx tx u)
-    rhs = TokenBundle.unsafeSubtract (balance u) toSubtract
-      where
-        toSubtract =
-            if txScriptInvalid tx
-            then balance
-                (u `UTxO.restrictedBy` Set.fromList (collateralInputs tx))
-            else balance
-                (u `UTxO.restrictedBy` Set.fromList (inputs tx))
+    rhs = TokenBundle.unsafeSubtract
+        (balance u)
+        (balance (u `UTxO.restrictedBy` inputsSpentByTx tx))
 
 prop_spendTx :: Tx -> UTxO -> Property
 prop_spendTx tx u =
@@ -2324,12 +2308,7 @@ prop_spendTx tx u =
     cover 10
         (not $ txScriptInvalid tx)
         "not $ txScriptInvalid tx" $
-    spendTx tx u === u `excluding` toExclude
-  where
-    toExclude =
-        if txScriptInvalid tx
-        then Set.fromList (collateralInputs tx)
-        else Set.fromList (inputs tx)
+    spendTx tx u === u `excluding` inputsSpentByTx tx
 
 prop_spendTx_utxoFromTx :: Tx -> UTxO -> Property
 prop_spendTx_utxoFromTx tx u =
