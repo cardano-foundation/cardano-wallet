@@ -2380,3 +2380,20 @@ instance Show (Address -> Bool) where
 
 instance Show (RewardAccount -> Bool) where
     show = const "(RewardAccount -> Bool)"
+
+--------------------------------------------------------------------------------
+-- Utility functions
+--------------------------------------------------------------------------------
+
+-- | Returns the outputs that a transaction should create, based on the
+--   transaction's script validation status.
+--
+-- Note that the indices are not returned. If it's important to obtain the
+-- indices, then use function 'utxoFromTx'.
+--
+outputsCreatedByTx :: Tx -> [TxOut]
+outputsCreatedByTx tx
+    | txScriptInvalid tx =
+        F.toList (collateralOutput tx)
+    | otherwise =
+        outputs tx
