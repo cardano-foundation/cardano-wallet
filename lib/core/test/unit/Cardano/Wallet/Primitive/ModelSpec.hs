@@ -1012,7 +1012,7 @@ txOutsOurs
     -> (Set (Tx, TxOut), s)
 txOutsOurs txs =
     runState $ Set.fromList <$> forMaybe
-        (foldMap (\tx -> zip (repeat tx) (outputsToCreate tx)) txs) pick
+        (foldMap (\tx -> zip (repeat tx) (outputsCreatedByTx tx)) txs) pick
   where
     pick :: (Tx, TxOut) -> State s (Maybe (Tx, TxOut))
     pick (tx, out) = do
@@ -1022,13 +1022,6 @@ txOutsOurs txs =
             Nothing -> Nothing
     forMaybe :: Monad m => [a] -> (a -> m (Maybe b)) -> m [b]
     forMaybe xs = fmap catMaybes . for xs
-
-    outputsToCreate :: Tx -> [TxOut]
-    outputsToCreate tx
-        | txScriptInvalid tx =
-            F.toList (collateralOutput tx)
-        | otherwise =
-            outputs tx
 
 {-------------------------------------------------------------------------------
                                   Test Data
@@ -2122,10 +2115,7 @@ prop_filterByAddress_balance_applyTxToUTxO f tx =
     ===
     expectedResult
   where
-    expectedResult =
-        if txScriptInvalid tx
-        then foldMap m (collateralOutput tx)
-        else foldMap m (outputs tx)
+    expectedResult = F.foldMap m (outputsCreatedByTx tx)
       where
         m output =
             if f (address output)
@@ -2201,10 +2191,7 @@ prop_utxoFromTx_balance tx =
     cover 10
         (not $ txScriptInvalid tx)
         "not $ txScriptInvalid tx)" $
-    balance (utxoFromTx tx) ===
-        if txScriptInvalid tx
-        then foldMap tokens (collateralOutput tx)
-        else foldMap tokens (outputs tx)
+    balance (utxoFromTx tx) === F.foldMap tokens (outputsCreatedByTx tx)
 
 prop_utxoFromTx_size :: Tx -> Property
 prop_utxoFromTx_size tx =
@@ -2218,10 +2205,7 @@ prop_utxoFromTx_size tx =
     cover 10
         (not $ txScriptInvalid tx)
         "not $ txScriptInvalid tx)" $
-    UTxO.size (utxoFromTx tx) ===
-        if txScriptInvalid tx
-        then F.length (collateralOutput tx)
-        else F.length (outputs tx)
+    UTxO.size (utxoFromTx tx) === F.length (outputsCreatedByTx tx)
 
 prop_utxoFromTx_values :: Tx -> Property
 prop_utxoFromTx_values tx =
@@ -2235,10 +2219,7 @@ prop_utxoFromTx_values tx =
     cover 10
         (not $ txScriptInvalid tx)
         "not $ txScriptInvalid tx)" $
-    F.toList (unUTxO (utxoFromTx tx)) ===
-        if txScriptInvalid tx
-        then F.toList (collateralOutput tx)
-        else F.toList (outputs tx)
+    F.toList (unUTxO (utxoFromTx tx)) === outputsCreatedByTx tx
 
 prop_utxoFromTx_disjoint :: Tx -> Property
 prop_utxoFromTx_disjoint tx =
