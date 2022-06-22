@@ -33,6 +33,8 @@ hie.yaml
 ### Nix ###
 /result*
 /.nix-shell-cabal.project*
+cabal.project.old
+check-cabal.project.sh
 
 ### Direnv ###
 .envrc-local

@@ -14,7 +14,9 @@ echo "+++ Cabal configure"
 cabal configure --enable-tests --enable-benchmarks
 echo
 
-echo "+++ haskell-language-server"
-ln -sf hie-direnv.yaml hie.yaml
-haskell-language-server lib/core/src/Cardano/Wallet.hs
-echo
+# TODO: suspend until hls-1.7.0.1 is out
+#
+# echo "+++ haskell-language-server"
+# ln -sf hie-direnv.yaml hie.yaml
+# haskell-language-server lib/core/src/Cardano/Wallet.hs
+# echo
