@@ -154,7 +154,7 @@ instance Buildable (DeltaCheckpoints a) where
 --
 -- - We can't rollback for more than `k=epochStability` blocks in the past
 -- - It is pretty fast to re-sync a few hundred blocks
--- - Small rollbacks may occur more often than long one
+-- - Small rollbacks may occur more often than deep ones
 --
 -- So, as we insert checkpoints, we make sure to:
 --
@@ -194,7 +194,7 @@ instance Buildable (DeltaCheckpoints a) where
 --  @
 --
 -- NOTE: There might be cases where the chain following "fails" (because, for
--- example, the node has switch to a different chain, different by more than k),
+-- example, the node has switched to a different chain, different by more than k),
 -- and in such cases, we have no choice but rolling back from genesis.
 -- Therefore, we need to keep the very first checkpoint in the database, no
 -- matter what.
@@ -228,7 +228,7 @@ sparseCheckpoints cfg blkH  =
 --
 -- NOTE: large values of 'edgeSize' aren't recommended as they would mean
 -- storing many unnecessary checkpoints. In Ouroboros Praos, there's a
--- reasonable probability for small forks of a few blocks so it makes sense to
+-- reasonable probability for small forks each a few blocks deep so it makes sense to
 -- maintain a small part that is denser near the edge.
 data SparseCheckpointsConfig = SparseCheckpointsConfig
     { edgeSize :: Word8
