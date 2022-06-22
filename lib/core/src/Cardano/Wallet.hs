@@ -1106,9 +1106,9 @@ restoreBlocks ctx tr wid blocks nodeTip = db & \DBLayer{..} -> mapExceptT atomic
                     [ UpdateCheckpoints $
                         extendAndPrune
                             getSlot
-                            (Quantity . getBlockHeight)
-                            epochStability
-                            (nodeTip ^. #blockHeight)
+                            (fromIntegral . getBlockHeight)
+                            (fromIntegral $ getQuantity epochStability)
+                            (fromIntegral $ getQuantity $ nodeTip ^. #blockHeight)
                             wcps
                             (checkpoints wal)
                     ]

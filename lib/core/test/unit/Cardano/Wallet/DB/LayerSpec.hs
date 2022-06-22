@@ -587,9 +587,9 @@ fileModeSpec =  do
                                         , UpdateCheckpoints $
                                             extendAndPrune
                                                 getSlot
-                                                (Quantity . getBlockHeight)
-                                                epochStability
-                                                (currentTip cp ^. #blockHeight)
+                                                (fromIntegral . getBlockHeight)
+                                                (fromIntegral $ getQuantity epochStability)
+                                                (fromIntegral $ getQuantity $ currentTip cp ^. #blockHeight)
                                                 (wcp NE.:| [])
                                                 (checkpoints wal)
                                         ]
