@@ -39,7 +39,6 @@ pkgs: super: let
     hie-bios = {
       modules = [{ reinstallableLibGhc = false; }];
     };
-    hie-bios = {};
     hoogle.version                  = "5.0.18.1";
     hlint.version                   = "3.3.1";
     lentil.version                  = "1.5.2.0";
