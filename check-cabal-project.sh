@@ -1,1 +1,0 @@
-/nix/store/19m3ybns2whd3lnc4jydzd1zhw93xq0r-check-cabal-project
