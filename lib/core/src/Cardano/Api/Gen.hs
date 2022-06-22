@@ -461,8 +461,11 @@ genSimpleScriptOrReferenceInput
     :: SimpleScriptVersion lang
     -> Gen (SimpleScriptOrReferenceInput lang)
 genSimpleScriptOrReferenceInput lang =
-    oneof [ SScript <$> genSimpleScript lang
-          , SReferenceScript <$> genReferenceInput
+    oneof [ SScript
+            <$> genSimpleScript lang
+          , SReferenceScript
+            <$> genReferenceInput
+            <*> liftArbitrary genScriptHash
           ]
 
 genScript :: ScriptLanguage lang -> Gen (Script lang)
