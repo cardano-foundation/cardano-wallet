@@ -2649,7 +2649,7 @@ decodeTransaction ctx (ApiT wid) (ApiSerialisedTransaction (ApiT sealed)) = do
             , metadata
             , scriptValidity
             }) = decodedTx
-    (txinsOutsPaths, collsOutsPaths, outsPath, acct, acctPath, pp, policyXPubM)
+    (txinsOutsPaths, collateralInsOutsPaths, outsPath, acct, acctPath, pp, policyXPubM)
         <- withWorkerCtx ctx wid liftE liftE $ \wrk -> do
         (acct, _, acctPath) <-
             liftHandler $ W.readRewardAccount @_ @s @k @n wrk wid
@@ -2678,7 +2678,7 @@ decodeTransaction ctx (ApiT wid) (ApiSerialisedTransaction (ApiT sealed)) = do
         , fee = maybe (Quantity 0) (Quantity . fromIntegral . unCoin) fee
         , inputs = map toInp txinsOutsPaths
         , outputs = map toOut outsPath
-        , collateral = map toInp collsOutsPaths
+        , collateral = map toInp collateralInsOutsPaths
         -- TODO: [ADP-1670]
         , collateralOutputs = ApiAsArray Nothing
         , withdrawals = map (toWrdl acct) $ Map.assocs withdrawals

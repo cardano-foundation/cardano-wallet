@@ -208,6 +208,8 @@ library
       Cardano.Wallet.DB.Sqlite.Stores
       Cardano.Wallet.DB.Sqlite.Types
       Cardano.Wallet.DB.Store.Checkpoints
+      Cardano.Wallet.DB.Store.Transactions.Model
+      Cardano.Wallet.DB.Store.Transactions.Store
       Cardano.Wallet.DB.WalletState
       Cardano.Wallet.Logging
       Cardano.Wallet.Network
@@ -464,6 +466,8 @@ test-suite unit
       Cardano.Wallet.DB.Sqlite.StoresSpec
       Cardano.Wallet.DB.Sqlite.TypesSpec
       Cardano.Wallet.DB.StateMachine
+      Cardano.Wallet.DB.Store.Transactions.StoreSpec
+      Cardano.Wallet.DB.Fixtures
       Cardano.Wallet.DummyTarget.Primitive.Types
       Cardano.Wallet.Network.LightSpec
       Cardano.Wallet.Network.PortsSpec
