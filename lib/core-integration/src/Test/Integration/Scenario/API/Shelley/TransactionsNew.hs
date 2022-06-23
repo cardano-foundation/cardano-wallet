@@ -1770,11 +1770,11 @@ spec = describe "NEW_SHELLEY_TRANSACTIONS" $ do
             , expectErrorMessage errMsg403Collateral
             , expectErrorMessage $ unwords
                 [ "I need an ada amount of at least:"
-                , "4.279500"
+                , "4.280100"
                 ]
             , expectErrorMessage $ unwords
                 [ "The largest combination of pure ada UTxOs I could find is:"
-                , "[2.853000]"
+                , "[2.853400]"
                 ]
             ]
 

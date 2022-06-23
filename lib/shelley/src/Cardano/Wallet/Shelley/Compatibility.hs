@@ -300,7 +300,7 @@ import Data.Text.Class
 import Data.Type.Equality
     ( (:~:) (..), testEquality )
 import Data.Word
-    ( Word16, Word32, Word8 )
+    ( Word16, Word32, Word64, Word8 )
 import Fmt
     ( Buildable (..), Builder, (+|), (+||), (||+) )
 import GHC.Records
@@ -1101,8 +1101,17 @@ fromShelleyTxIn
 fromShelleyTxIn (SL.TxIn txid (SL.TxIx ix)) =
     W.TxIn (fromShelleyTxId txid) (unsafeCast ix)
   where
-    unsafeCast :: Word16 -> Word32
-    unsafeCast = fromIntegral
+    -- During the Vasil hard-fork the cardano-ledger team moved from
+    -- representing transaction indices with Word16s, to using Word64s (see
+    -- commit
+    -- https://github.com/input-output-hk/cardano-ledger/commit/4097a9055e6ea57161755e6a8cbfcf719b65e9ab).
+    -- However, the valid range is still 0 <= x <= (maxBound :: Word16), so we
+    -- reflect that here.
+    unsafeCast :: Word64 -> Word32
+    unsafeCast txIx =
+        if txIx > fromIntegral (maxBound :: Word16)
+        then error $ "Value for wallet TxIx is out of a valid range: " <> show txIx
+        else fromIntegral txIx
 
 fromCardanoTxIn
     :: Cardano.TxIn
