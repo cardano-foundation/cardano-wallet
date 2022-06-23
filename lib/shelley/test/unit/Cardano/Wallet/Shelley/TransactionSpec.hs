@@ -272,6 +272,8 @@ import Control.Monad.Trans.Except
     ( except, runExceptT )
 import Crypto.Hash.Utils
     ( blake2b224 )
+import Data.ByteArray.Encoding
+    ( Base (..), convertToBase )
 import Data.ByteString
     ( ByteString )
 import Data.Either
@@ -284,6 +286,8 @@ import Data.Generics.Internal.VL.Lens
     ( view )
 import Data.List
     ( nub )
+import Data.List
+    ( isSuffixOf )
 import Data.List.NonEmpty
     ( NonEmpty (..) )
 import Data.Map.Strict
@@ -319,7 +323,7 @@ import Ouroboros.Network.Block
 import System.Directory
     ( listDirectory )
 import System.FilePath
-    ( (</>) )
+    ( takeExtension, (</>) )
 import Test.Hspec
     ( Spec
     , SpecWith
@@ -3544,7 +3548,28 @@ updateSealedTxSpec = do
                                 "expected update to succeed but failed: "
                                     <> show e
                             Right tx' -> do
-                                tx `shouldBe` tx'
+                                if tx /= tx' && show tx == show tx'
+                                -- The transaction encoding has changed.
+                                -- Unfortunately transactions are compared using
+                                -- their memoized bytes, but shown without their
+                                -- memoized bytes. This leads to the very
+                                -- confusing situation where the show result of
+                                -- two transactions is identical, but the (==)
+                                -- result of two transactions shows a
+                                -- discrepancy.
+                                --
+                                -- In this case we expect failure and write out
+                                -- the new memoized bytes to a file so the
+                                -- developer can update the binary test data.
+                                then do
+                                  let
+                                     newEncoding = convertToBase Base16 $ Cardano.serialiseToCBOR tx'
+                                     rejectFilePath = $(getTestData) </> "plutus" </> filepath <> ".rej"
+                                  BS.writeFile rejectFilePath newEncoding
+                                  expectationFailure $ "Transaction encoding has changed, making comparison impossible, see .rej file: " <> rejectFilePath
+                                else
+                                  Cardano.serialiseToCBOR tx
+                                      `shouldBe` Cardano.serialiseToCBOR tx'
 
                 prop ("with TxUpdate: " <> filepath) $
                     prop_updateSealedTx anyShelleyEraTx
@@ -3753,9 +3778,16 @@ signedTxGoldens =
 readTestTransactions :: SpecM a [(FilePath, SealedTx)]
 readTestTransactions = runIO $ do
     let dir = $(getTestData) </> "plutus"
-    listDirectory dir
-        >>= traverse (\f -> (f,) <$> BS.readFile (dir </> f))
-        >>= traverse (\(f,bs) -> (f,) <$> unsafeSealedTxFromHex bs)
+    paths <- listDirectory dir
+    files <- flip foldMap paths $ \f ->
+        -- Ignore reject files
+        if ".rej" `isSuffixOf` takeExtension f
+        then pure []
+        else do
+            contents <- BS.readFile (dir </> f)
+            pure [(f, contents)]
+    fileTxs <- traverse (\(f,bs) -> (f,) <$> unsafeSealedTxFromHex bs) files
+    pure fileTxs
 
 dummyTimeInterpreter :: Monad m => TimeInterpreter m
 dummyTimeInterpreter = hoistTimeInterpreter (pure . runIdentity)
