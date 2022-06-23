@@ -285,9 +285,7 @@ import Data.Functor.Identity
 import Data.Generics.Internal.VL.Lens
     ( view )
 import Data.List
-    ( nub )
-import Data.List
-    ( isSuffixOf )
+    ( isSuffixOf, nub )
 import Data.List.NonEmpty
     ( NonEmpty (..) )
 import Data.Map.Strict
@@ -3786,8 +3784,7 @@ readTestTransactions = runIO $ do
         else do
             contents <- BS.readFile (dir </> f)
             pure [(f, contents)]
-    fileTxs <- traverse (\(f,bs) -> (f,) <$> unsafeSealedTxFromHex bs) files
-    pure fileTxs
+    traverse (\(f,bs) -> (f,) <$> unsafeSealedTxFromHex bs) files
 
 dummyTimeInterpreter :: Monad m => TimeInterpreter m
 dummyTimeInterpreter = hoistTimeInterpreter (pure . runIdentity)
