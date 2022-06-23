@@ -173,7 +173,7 @@ import Data.Maybe
 import Data.Ratio
     ( denominator, numerator )
 import Data.Word
-    ( Word16, Word32, Word64, Word8 )
+    ( Word32, Word64, Word8 )
 import Numeric.Natural
     ( Natural )
 import Test.Hspec
@@ -450,14 +450,14 @@ instance Arbitrary TxIx where
 
 genTxIxCoverage' :: Ledger.TxIx -> Property
 genTxIxCoverage' (Ledger.TxIx ix) =
-    unsignedCoverage (maxBound @Word16 - 1024) "txIx" ix
+    unsignedCoverage (maxBound @Word32 - 1024) "txIx" ix
 
 instance Arbitrary Ledger.TxIx where
     arbitrary = genTxIx
 
 genCertIxCoverage :: Ledger.CertIx -> Property
 genCertIxCoverage (Ledger.CertIx ix) =
-    unsignedCoverage (maxBound @Word16 - 1024) "certIx" ix
+    unsignedCoverage (maxBound @Word32 - 1024) "certIx" ix
 
 instance Arbitrary Ledger.CertIx where
     arbitrary = genCertIx
