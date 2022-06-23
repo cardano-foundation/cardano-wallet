@@ -16,6 +16,7 @@ module Cardano.Api.Gen
     , genAssetIdNoAda
     , genAssetName
     , genByronKeyWitness
+    , genCertIx
     , genCostModel
     , genCostModels
     , genEncodingBoundaryLovelace
@@ -23,8 +24,6 @@ module Cardano.Api.Gen
     , genExecutionUnitPrices
     , genExecutionUnits
     , genExtraKeyWitnesses
-    , genTxIx
-    , genCertIx
     , genLovelace
     , genMIRPot
     , genMIRTarget
@@ -75,9 +74,10 @@ module Cardano.Api.Gen
     , genTxForBalancing
     , genTxId
     , genTxIn
-    , genTxInEra
     , genTxIndex
+    , genTxInEra
     , genTxInsCollateral
+    , genTxIx
     , genTxMetadata
     , genTxMetadataInEra
     , genTxMetadataValue
@@ -85,7 +85,9 @@ module Cardano.Api.Gen
     , genTxOut
     , genTxOutDatum
     , genTxOutValue
+    , genTxReturnCollateral
     , genTxScriptValidity
+    , genTxTotalCollateral
     , genTxValidityLowerBound
     , genTxValidityRange
     , genTxValidityUpperBound
@@ -98,9 +100,9 @@ module Cardano.Api.Gen
     , genVerificationKeyHash
     , genWithdrawalInfo
     , genWitness
+    , genWitnesses
     , genWitnessNetworkIdOrByronAddress
     , genWitnessStake
-    , genWitnesses
     ) where
 
 import Prelude
@@ -400,10 +402,28 @@ genExtraKeyWitnesses :: CardanoEra era -> Gen (TxExtraKeyWitnesses era)
 genExtraKeyWitnesses era =
     case extraKeyWitnessesSupportedInEra era of
         Nothing -> pure TxExtraKeyWitnessesNone
-        Just supported  -> oneof
+        Just supported -> oneof
             [ pure TxExtraKeyWitnessesNone
             , TxExtraKeyWitnesses supported
               <$> scale (`div` 3) (listOf (genVerificationKeyHash AsPaymentKey))
+            ]
+
+genTxTotalCollateral :: CardanoEra era -> Gen (TxTotalCollateral era)
+genTxTotalCollateral era =
+    case totalAndReturnCollateralSupportedInEra era of
+        Nothing -> pure TxTotalCollateralNone
+        Just supported -> oneof
+            [ pure TxTotalCollateralNone
+            , TxTotalCollateral supported <$> genLovelace
+            ]
+
+genTxReturnCollateral :: CardanoEra era -> Gen (TxReturnCollateral ctx era)
+genTxReturnCollateral era =
+    case totalAndReturnCollateralSupportedInEra era of
+        Nothing -> pure TxReturnCollateralNone
+        Just supported -> oneof
+            [ pure TxReturnCollateralNone
+            , TxReturnCollateral supported <$> genTxOut era
             ]
 
 genPlutusScript :: PlutusScriptVersion lang -> Gen (PlutusScript lang)
@@ -1330,6 +1350,8 @@ genTxBodyContent era = do
     txMintValue <- genTxMintValue era
     txScriptValidity <- genTxScriptValidity era
     txExtraKeyWits <- genExtraKeyWitnesses era
+    txTotalCollateral <- genTxTotalCollateral era
+    txReturnCollateral <- genTxReturnCollateral era
 
     let
         txBody = TxBodyContent
@@ -1344,10 +1366,8 @@ genTxBodyContent era = do
             -- TODO add proper generator, perhaps as part of ADP-1655
             , Api.txInsReference = TxInsReferenceNone
 
-            -- TODO add proper generators, perhaps as part of ADP-1653
-            , Api.txTotalCollateral = TxTotalCollateralNone
-            , Api.txReturnCollateral = TxReturnCollateralNone
-
+            , Api.txTotalCollateral
+            , Api.txReturnCollateral
             , Api.txFee
             , Api.txValidityRange
             , Api.txMetadata

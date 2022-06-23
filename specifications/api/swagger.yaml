@@ -4444,6 +4444,134 @@ x-errBadRequest: &errBadRequest
       type: string
       enum: ['bad_request']
 
+x-errBalanceTxByronNotSupported: &errBalanceTxByronNotSupported
+  <<: *responsesErr
+  title: balance_tx_byron_not_supported
+  properties:
+    message:
+      type: string
+      description: Balancing Byron transactions is not supported.
+    code:
+      type: string
+      enum: ["balance_tx_byron_not_supported"]
+
+x-errBalanceTxConflictingNetworks: &errBalanceTxConflictingNetworks
+  <<: *responsesErr
+  title: balance_tx_conflicting_networks
+  properties:
+    message:
+      type: string
+      description: |
+        There are withdrawals for multiple networks
+        (e.g. both mainnet and testnet) in the provided transaction.
+        This makes no sense, and I'm confused.
+    code:
+      type: string
+      enum: ["balance_tx_conflicting_networks"]
+
+x-errBalanceTxExistingCollateral: &errBalanceTxExistingCollateral
+  <<: *responsesErr
+  title: balance_tx_existing_collateral
+  properties:
+    message:
+      type: string
+      description: I cannot balance transactions with pre-defined collateral.
+    code:
+      type: string
+      enum: ["balance_tx_existing_collateral"]
+
+x-errBalanceTxExistingKeyWitnesses: &errBalanceTxExistingKeyWitnesses
+  <<: *responsesErr
+  title: balance_tx_existing_key_witnesses
+  properties:
+    message:
+      type: string
+      description: |
+        The transaction could not be balanced, because it contains
+        existing key-witnesses which would be invalid after
+        the transaction body is modified.
+        Please sign the transaction after it is balanced instead.
+    code:
+      type: string
+      enum: ["balance_tx_existing_key_witnesses"]
+
+x-errBalanceTxExistingReturnCollateral: &errBalanceTxExistingReturnCollateral
+  <<: *responsesErr
+  title: balance_tx_existing_collateral_return_outputs
+  properties:
+    message:
+      type: string
+      description: |
+        Balancing transactions with pre-defined collateral return outputs
+        is not yet supported.
+    code:
+      type: string
+      enum: ["balance_tx_existing_collateral_return_outputs"]
+
+x-errBalanceTxExistingTotalCollateral: &errBalanceTxExistingTotalCollateral
+  <<: *responsesErr
+  title: balance_tx_existing_total_collateral
+  properties:
+    message:
+      type: string
+      description: |
+        I cannot balance transactions with pre-defined total collateral.
+    code:
+      type: string
+      enum: ["balance_tx_existing_total_collateral"]
+
+x-errBalanceTxInternalError: &errBalanceTxInternalError
+  <<: *responsesErr
+  title: balance_tx_internal_error
+  properties:
+    message:
+      type: string
+      description: |
+        Balancing transaction failed for an internal reason.
+    code:
+      type: string
+      enum: ["balance_tx_internal_error"]
+
+x-errBalanceTxMaxSizeLimitExceeded: &errBalanceTxMaxSizeLimitExceeded
+  <<: *responsesErr
+  title: balance_tx_max_size_limit_exceeded
+  properties:
+    message:
+      type: string
+      description: |
+        I was not able to balance the transaction without exceeding
+        the maximum transaction size.
+    code:
+      type: string
+      enum: ["balance_tx_max_size_limit_exceeded"]
+
+x-errBalanceTxUnderestimatedFee: &errBalanceTxUnderestimatedFee
+  <<: *responsesErr
+  title: balance_tx_underestimated_fee
+  properties:
+    message:
+      type: string
+      description: |
+        I have somehow underestimated the fee of the transaction
+        and cannot finish balancing.
+    code:
+      type: string
+      enum: ["balance_tx_underestimated_fee"]
+
+x-errBalanceTxZeroAdaOutput: &errBalanceTxZeroAdaOutput
+  <<: *responsesErr
+  title: balance_tx_zero_ada_output
+  properties:
+    message:
+      type: string
+      description: |
+        I don't currently support balancing transactions containing
+        one or more zero-ada outputs. In the future I might be able
+        to increase the values to the minimum allowed ada value.
+    code:
+      type: string
+      enum: ["balance_tx_zero_ada_output"]
+
 x-errMethodNotAllowed: &errMethodNotAllowed
   <<: *responsesErr
   title: method_not_allowed
@@ -5713,15 +5841,23 @@ x-responsesBalanceTransaction: &responsesBalanceTransaction
       application/json:
         schema:
           oneOf:
-            - <<: *errInvalidWalletType
             - <<: *errAlreadyWithdrawing
-            - <<: *errUtxoTooSmall
+            - <<: *errBalanceTxByronNotSupported
+            - <<: *errBalanceTxConflictingNetworks
+            - <<: *errBalanceTxExistingCollateral
+            - <<: *errBalanceTxExistingKeyWitnesses
+            - <<: *errBalanceTxExistingReturnCollateral
+            - <<: *errBalanceTxExistingTotalCollateral
+            - <<: *errBalanceTxInternalError
+            - <<: *errBalanceTxMaxSizeLimitExceeded
             - <<: *errCannotCoverFee
-            - <<: *errNotEnoughMoney
             - <<: *errInsufficientCollateral
-            - <<: *errTransactionIsTooBig
+            - <<: *errInvalidWalletType
+            - <<: *errNotEnoughMoney
             - <<: *errTransactionAlreadyBalanced
-            - <<: *errExistingKeyWitnesses
+            - <<: *errTransactionIsTooBig
+            - <<: *errUtxoTooSmall
+
   <<: *responsesErr404WalletNotFound
   <<: *responsesErr406
   <<: *responsesErr415UnsupportedMediaType

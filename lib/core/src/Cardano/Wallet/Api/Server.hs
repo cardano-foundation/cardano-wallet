@@ -4522,10 +4522,10 @@ instance IsServerError ErrDecodeTx where
 instance IsServerError ErrBalanceTx where
     toServerError = \case
         ErrByronTxNotSupported ->
-            apiError err403 CreatedInvalidTransaction
+            apiError err403 BalanceTxByronNotSupported
                 "Balancing Byron transactions is not supported."
         ErrBalanceTxUpdateError (ErrExistingKeyWitnesses n) ->
-            apiError err403 CreatedInvalidTransaction $ mconcat
+            apiError err403 BalanceTxExistingKeyWitnesses $ mconcat
                 [ "The transaction could not be balanced, because it contains "
                 , T.pack (show n), " "
                 , "existing key-witnesses which would be invalid after "
@@ -4535,34 +4535,45 @@ instance IsServerError ErrBalanceTx where
         ErrBalanceTxSelectAssets err -> toServerError err
         ErrBalanceTxAssignRedeemers err -> toServerError err
         ErrBalanceTxConflictingNetworks ->
-            apiError err403 CreatedInvalidTransaction $ mconcat
-                [ "There are withdrawals for multiple networks (e.g. both "
-                , "mainnet and testnet) in the provided transaction. This "
+            apiError err403 BalanceTxConflictingNetworks $ T.unwords
+                [ "There are withdrawals for multiple networks (e.g. both"
+                , "mainnet and testnet) in the provided transaction. This"
                 , "makes no sense, and I'm confused."
                 ]
         ErrBalanceTxExistingCollateral ->
-            apiError err403 CreatedInvalidTransaction $ mconcat
-                [ "I cannot balance transactions with pre-defined collateral."
+            apiError err403 BalanceTxExistingCollateral
+                "I cannot balance transactions with pre-defined collateral."
+
+        ErrBalanceTxExistingTotalCollateral ->
+            apiError err403 BalanceTxExistingTotalCollateral $ T.unwords
+                [ "I cannot balance transactions"
+                , "with pre-defined total collateral."
+                ]
+        ErrBalanceTxExistingReturnCollateral ->
+            apiError err403 BalanceTxExistingReturnCollateral $ T.unwords
+                [ "Balancing transactions with pre-defined"
+                , "collateral return outputs is not yet supported."
                 ]
         ErrBalanceTxZeroAdaOutput ->
-            apiError err501 CreatedInvalidTransaction $ mconcat
-                [ "I don't currently support balancing transactions containing "
-                , "one or more zero ada outputs. In the future I might be able "
+            apiError err501 BalanceTxZeroAdaOutput $ T.unwords
+                [ "I don't currently support balancing transactions containing"
+                , "one or more zero-ada outputs. In the future I might be able"
                 , "to increase the values to the minimum allowed ada value."
                 ]
         ErrBalanceTxInternalError (ErrFailedBalancing v) ->
-            apiError err500 CreatedInvalidTransaction $ mconcat
-                [ "I have somehow failed to balance the transaction. The balance"
-                , " is " <> T.pack (show v)
+            apiError err500 BalanceTxInternalError $ T.unwords
+                [ "I have somehow failed to balance the transaction."
+                , "The balance is"
+                , T.pack (show v)
                 ]
         ErrBalanceTxInternalError (ErrUnderestimatedFee c _) ->
-            apiError err500 CreatedInvalidTransaction $ mconcat
-                [ "I have somehow underestimated the fee of the transaction "
-                , " by " <> pretty c
+            apiError err500 BalanceTxUnderestimatedFee $ T.unwords
+                [ "I have somehow underestimated the fee of the transaction by"
+                , pretty c
                 , "and cannot finish balancing."
                 ]
         ErrBalanceTxMaxSizeLimitExceeded ->
-            apiError err403 CreatedInvalidTransaction $ mconcat
+            apiError err403 BalanceTxMaxSizeLimitExceeded $ T.unwords
                 [ "I was not able to balance the transaction without exceeding"
                 , "the maximum transaction size."
                 ]
