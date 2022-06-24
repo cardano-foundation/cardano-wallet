@@ -1669,6 +1669,16 @@ data ApiErrorCode
     | AssetNameTooLong
     | AssetNotPresent
     | BadRequest
+    | BalanceTxByronNotSupported
+    | BalanceTxConflictingNetworks
+    | BalanceTxExistingCollateral
+    | BalanceTxExistingKeyWitnesses
+    | BalanceTxExistingReturnCollateral
+    | BalanceTxExistingTotalCollateral
+    | BalanceTxInternalError
+    | BalanceTxMaxSizeLimitExceeded
+    | BalanceTxUnderestimatedFee
+    | BalanceTxZeroAdaOutput
     | CannotCoverFee
     | CreatedInvalidTransaction
     | CreatedMultiaccountTransaction

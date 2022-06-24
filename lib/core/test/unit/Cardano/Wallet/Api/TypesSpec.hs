@@ -1099,25 +1099,25 @@ spec = parallel $ do
                     }
             in
                 x' === x .&&. show x' === show x
-        it "WalletPutPassphraseData" $ property $ \case 
-                WalletPutPassphraseData  (Left x) -> 
+        it "WalletPutPassphraseData" $ property $ \case
+                WalletPutPassphraseData  (Left x) ->
                     let
                         x' = WalletPutPassphraseOldPassphraseData
-                            { oldPassphrase = oldPassphrase 
+                            { oldPassphrase = oldPassphrase
                                 (x :: WalletPutPassphraseOldPassphraseData)
-                            , newPassphrase = newPassphrase 
+                            , newPassphrase = newPassphrase
                                 (x :: WalletPutPassphraseOldPassphraseData)
                             }
                     in
                         x' === x .&&. show x' === show x
-                WalletPutPassphraseData  (Right x) -> 
+                WalletPutPassphraseData  (Right x) ->
                     let
                         x' = Api.WalletPutPassphraseMnemonicData
                             { mnemonicSentence = mnemonicSentence
                                 (x :: WalletPutPassphraseMnemonicData)
                             ,  mnemonicSecondFactor  = mnemonicSecondFactor
                                 (x :: WalletPutPassphraseMnemonicData)
-                            , newPassphrase = newPassphrase 
+                            , newPassphrase = newPassphrase
                                 (x :: WalletPutPassphraseMnemonicData)
                             }
                     in

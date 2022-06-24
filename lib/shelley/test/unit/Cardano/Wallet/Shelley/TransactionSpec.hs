@@ -65,6 +65,8 @@ import Cardano.BM.Tracer
     ( Tracer )
 import Cardano.Ledger.Alonzo.TxInfo
     ( TranslationError (TranslationLogicMissingInput) )
+import Cardano.Ledger.Era
+    ( Era )
 import Cardano.Ledger.Shelley.API
     ( StrictMaybe (SJust, SNothing), Wdrl (..) )
 import Cardano.Ledger.ShelleyMA.Timelocks
@@ -399,6 +401,7 @@ import qualified Cardano.Crypto.Hash.Blake2b as Crypto
 import qualified Cardano.Crypto.Hash.Class as Crypto
 import qualified Cardano.Ledger.Alonzo.Tx as Alonzo
 import qualified Cardano.Ledger.Alonzo.TxWitness as Alonzo
+import qualified Cardano.Ledger.Babbage.Tx as Babbage
 import qualified Cardano.Ledger.Coin as Ledger
 import qualified Cardano.Ledger.Core as Ledger
 import qualified Cardano.Ledger.Crypto as Crypto
@@ -2205,6 +2208,12 @@ balanceTransactionSpec = do
     describe "balanceTransaction" $ do
         -- TODO: Create a test to show that datums are passed through...
 
+        it "doesn't balance transactions with existing 'totalCollateral'"
+            $ property prop_balanceTransactionExistingTotalCollateral
+
+        it "doesn't balance transactions with existing 'returnCollateral'"
+            $ property prop_balanceTransactionExistingReturnCollateral
+
         it "produces valid transactions or fails"
             $ property prop_balanceTransactionValid
 
@@ -2836,13 +2845,37 @@ instance Arbitrary (PartialTx Cardano.AlonzoEra) where
             tx'
             inputs
             redeemers
-        | tx' <- shrinkTx tx
+        | tx' <- shrinkTxAlonzo tx
         ]
       where
         shrinkInputs (i:ins) =
             map (:ins) (shrink i) ++ map (i:) (shrinkInputs ins)
         shrinkInputs [] =
             []
+
+instance Arbitrary (PartialTx Cardano.BabbageEra) where
+    arbitrary = do
+        let era = BabbageEra
+        tx <- genTxForBalancing era
+        let (Cardano.Tx (Cardano.TxBody content) _) = tx
+        let inputs = Cardano.txIns content
+        resolvedInputs <- forM inputs $ \i -> do
+            -- NOTE: genTxOut does not generate quantities larger than
+            -- `maxBound :: Word64`, however users could supply these.
+            -- We should ideally test what happens, and make it clear what code,
+            -- if any, should validate.
+            o <- fromCardanoTxOut <$> genTxOut Cardano.BabbageEra
+            return (fromCardanoTxIn $ fst i, o, Nothing)
+        let redeemers = []
+        return $ PartialTx tx resolvedInputs redeemers
+    shrink (PartialTx tx inputs redeemers) =
+        [ PartialTx tx inputs' redeemers | inputs' <- shrinkInputs inputs ] <>
+        [ restrictResolution $ PartialTx tx' inputs redeemers
+        | tx' <- shrinkTxBabbage tx ]
+      where
+        shrinkInputs (i:ins) =
+            map (:ins) (shrink i) ++ map (i:) (shrinkInputs ins)
+        shrinkInputs [] = []
 
 resolvedInputsUTxO
     :: ShelleyBasedEra era
@@ -2862,12 +2895,15 @@ instance Semigroup (Cardano.UTxO era) where
 instance Monoid (Cardano.UTxO era) where
     mempty = Cardano.UTxO mempty
 
-shrinkTx
-    :: Cardano.Tx Cardano.AlonzoEra -> [Cardano.Tx Cardano.AlonzoEra]
-shrinkTx (Cardano.Tx bod wits) =
-    [ Cardano.Tx bod' wits
-    | bod' <- shrinkTxBody bod
-    ]
+shrinkTxAlonzo ::
+    Cardano.Tx Cardano.AlonzoEra -> [Cardano.Tx Cardano.AlonzoEra]
+shrinkTxAlonzo (Cardano.Tx bod wits) =
+    [ Cardano.Tx bod' wits | bod' <- shrinkTxBodyAlonzo bod ]
+
+shrinkTxBabbage ::
+    Cardano.Tx Cardano.BabbageEra -> [Cardano.Tx Cardano.BabbageEra]
+shrinkTxBabbage (Cardano.Tx bod wits) =
+    [ Cardano.Tx bod' wits | bod' <- shrinkTxBodyBabbage bod ]
 
 -- | Restricts the inputs list of the 'PartialTx' to the inputs of the
 -- underlying CBOR transaction. This allows us to "fix" the 'PartialTx' after
@@ -2885,41 +2921,22 @@ restrictResolution (PartialTx tx inputs redeemers) =
     inputsInTx (Cardano.Tx (Cardano.TxBody bod) _) =
         Set.fromList $ map (fromCardanoTxIn . fst) $ Cardano.txIns bod
 
-shrinkTxBody
+shrinkTxBodyAlonzo
     :: Cardano.TxBody Cardano.AlonzoEra
     -> [Cardano.TxBody Cardano.AlonzoEra]
-shrinkTxBody (Cardano.ShelleyTxBody e bod scripts scriptData aux val) = tail
-    [ Cardano.ShelleyTxBody e bod' scripts' scriptData' aux' val'
-    | bod' <- prependOriginal shrinkLedgerTxBody bod
-    , aux' <- aux : filter (/= aux) [Nothing]
-    , scriptData' <- prependOriginal shrinkScriptData scriptData
-    , scripts' <- prependOriginal shrinkScripts scripts
-    , val' <- val : filter (/= val)
-        [ Cardano.TxScriptValidity Cardano.TxScriptValiditySupportedInAlonzoEra
-            Cardano.ScriptValid
+shrinkTxBodyAlonzo (Cardano.ShelleyTxBody e bod scripts scriptData aux val) =
+    tail
+        [ Cardano.ShelleyTxBody e bod' scripts' scriptData' aux' val'
+        | bod' <- prependOriginal shrinkLedgerTxBody bod
+        , aux' <- aux : filter (/= aux) [Nothing]
+        , scriptData' <- prependOriginal shrinkScriptData scriptData
+        , scripts' <- prependOriginal (shrinkList (const [])) scripts
+        , val' <- case Cardano.txScriptValiditySupportedInShelleyBasedEra e of
+            Nothing -> [val]
+            Just txsvsie -> val : filter (/= val)
+                [ Cardano.TxScriptValidity txsvsie Cardano.ScriptValid ]
         ]
-    ]
   where
-    -- | For writing shrinkers in the style of https://stackoverflow.com/a/14006575
-    prependOriginal shrinker = \x -> x : shrinker x
-
-    shrinkScripts = shrinkList (const [])
-
-    shrinkScriptData Cardano.TxBodyNoScriptData = []
-    shrinkScriptData
-        (Cardano.TxBodyScriptData era
-            (Alonzo.TxDats dats)
-            (Alonzo.Redeemers redeemers)
-        ) = tail
-            [ Cardano.TxBodyScriptData era
-                (Alonzo.TxDats dats')
-                (Alonzo.Redeemers redeemers')
-            | dats' <- dats :
-                (Map.fromList <$> shrinkList (const []) (Map.toList dats))
-            , redeemers' <- redeemers :
-                (Map.fromList <$> shrinkList (const []) (Map.toList redeemers))
-            ]
-
     shrinkLedgerTxBody
         :: Ledger.TxBody (Cardano.ShelleyLedgerEra Cardano.AlonzoEra)
         -> [Ledger.TxBody (Cardano.ShelleyLedgerEra Cardano.AlonzoEra)]
@@ -2934,7 +2951,7 @@ shrinkTxBody (Cardano.ShelleyTxBody e bod scripts scriptData aux val) = tail
             { Alonzo.txUpdates = updates' }
             { Alonzo.txfee = txfee' }
         | updates' <-
-            prependOriginal shrinkUpdates (Alonzo.txUpdates body)
+            prependOriginal shrinkStrictMaybe (Alonzo.txUpdates body)
         , wdrls' <-
             prependOriginal shrinkWdrl (Alonzo.txwdrls body)
         , outs' <-
@@ -2951,31 +2968,103 @@ shrinkTxBody (Cardano.ShelleyTxBody e bod scripts scriptData aux val) = tail
             prependOriginal shrinkFee (Alonzo.txfee body)
         ]
 
-    shrinkValue v = filter (/= v) [v0]
-      where
-        v0 = mempty
+shrinkTxBodyBabbage
+    :: Cardano.TxBody Cardano.BabbageEra -> [Cardano.TxBody Cardano.BabbageEra]
+shrinkTxBodyBabbage (Cardano.ShelleyTxBody e bod scripts scriptData aux val) =
+    tail
+        [ Cardano.ShelleyTxBody e bod' scripts' scriptData' aux' val'
+        | bod' <- prependOriginal shrinkLedgerTxBody bod
+        , aux' <- aux : filter (/= aux) [Nothing]
+        , scriptData' <- prependOriginal shrinkScriptData scriptData
+        , scripts' <- prependOriginal (shrinkList (const [])) scripts
+        , val' <- case Cardano.txScriptValiditySupportedInShelleyBasedEra e of
+            Nothing -> [val]
+            Just txsvsie -> val : filter (/= val)
+                [ Cardano.TxScriptValidity txsvsie Cardano.ScriptValid ]
+        ]
+  where
+    shrinkLedgerTxBody
+        :: Ledger.TxBody (Cardano.ShelleyLedgerEra Cardano.BabbageEra)
+        -> [Ledger.TxBody (Cardano.ShelleyLedgerEra Cardano.BabbageEra)]
+    shrinkLedgerTxBody body = tail
+        [ body
+            { Babbage.txwdrls = wdrls'
+            , Babbage.outputs = outs'
+            , Babbage.inputs = ins'
+            , Babbage.txcerts = certs'
+            , Babbage.mint = mint'
+            , Babbage.reqSignerHashes = rsh'
+            , Babbage.txUpdates = updates'
+            , Babbage.txfee = txfee'
+            }
+        | updates' <-
+            prependOriginal shrinkStrictMaybe (Babbage.txUpdates body)
+        , wdrls' <-
+            prependOriginal shrinkWdrl (Babbage.txwdrls body)
+        , outs' <-
+            prependOriginal (shrinkSeq (const [])) (Babbage.outputs body)
+        , ins' <-
+            prependOriginal (shrinkSet (const [])) (Babbage.inputs body)
+        , certs' <-
+            prependOriginal (shrinkSeq (const [])) (Babbage.txcerts body)
+        , mint' <-
+            prependOriginal shrinkValue (Babbage.mint body)
+        , rsh' <-
+            prependOriginal
+                (shrinkSet (const [])) (Babbage.reqSignerHashes body)
+        , txfee' <-
+            prependOriginal shrinkFee (Babbage.txfee body)
+        ]
 
-    shrinkSet :: Ord a => (a -> [a]) -> Set a -> [Set a]
-    shrinkSet shrinkElem = map Set.fromList . shrinkList shrinkElem . F.toList
 
-    shrinkSeq shrinkElem =
-        map StrictSeq.fromList . shrinkList shrinkElem . F.toList
 
-    shrinkFee :: Ledger.Coin -> [Ledger.Coin]
-    shrinkFee (Ledger.Coin 0) = []
-    shrinkFee _ = [Ledger.Coin 0]
+shrinkScriptData
+    :: Era (Cardano.ShelleyLedgerEra era)
+    => Cardano.TxBodyScriptData era
+    -> [Cardano.TxBodyScriptData era]
+shrinkScriptData Cardano.TxBodyNoScriptData = []
+shrinkScriptData (Cardano.TxBodyScriptData era
+    (Alonzo.TxDats dats) (Alonzo.Redeemers redeemers)) = tail
+        [ Cardano.TxBodyScriptData era
+            (Alonzo.TxDats dats')
+            (Alonzo.Redeemers redeemers')
+        | dats' <- dats :
+            (Map.fromList <$> shrinkList (const []) (Map.toList dats))
+        , redeemers' <- redeemers :
+            (Map.fromList <$> shrinkList (const []) (Map.toList redeemers))
+        ]
 
-    shrinkWdrl :: Wdrl era -> [Wdrl era]
-    shrinkWdrl (Wdrl m) = map (Wdrl . Map.fromList) $
-        shrinkList shrinkWdrl' (Map.toList m)
-      where
-        shrinkWdrl' (acc, Ledger.Coin c) =
-            [ (acc, Ledger.Coin c')
-            | c' <- filter (>= 1) $ shrink c
-            ]
+-- | For writing shrinkers in the style of https://stackoverflow.com/a/14006575
+prependOriginal :: (t -> [t]) -> t -> [t]
+prependOriginal shrinker x = x : shrinker x
 
-    shrinkUpdates SNothing = []
-    shrinkUpdates (SJust _) = [SNothing]
+shrinkValue :: (Eq a, Monoid a) => a -> [a]
+shrinkValue v = filter (/= v) [mempty]
+
+shrinkSet :: Ord a => (a -> [a]) -> Set a -> [Set a]
+shrinkSet shrinkElem = map Set.fromList . shrinkList shrinkElem . F.toList
+
+shrinkSeq :: Foldable t => (a -> [a]) -> t a -> [StrictSeq.StrictSeq a]
+shrinkSeq shrinkElem =
+    map StrictSeq.fromList . shrinkList shrinkElem . F.toList
+
+shrinkFee :: Ledger.Coin -> [Ledger.Coin]
+shrinkFee (Ledger.Coin 0) = []
+shrinkFee _ = [Ledger.Coin 0]
+
+shrinkWdrl :: Wdrl era -> [Wdrl era]
+shrinkWdrl (Wdrl m) = map (Wdrl . Map.fromList) $
+    shrinkList shrinkWdrl' (Map.toList m)
+    where
+    shrinkWdrl' (acc, Ledger.Coin c) =
+        [ (acc, Ledger.Coin c')
+        | c' <- filter (>= 1) $ shrink c
+        ]
+
+shrinkStrictMaybe :: StrictMaybe a -> [StrictMaybe a]
+shrinkStrictMaybe = \case
+    SNothing -> []
+    SJust _ -> [SNothing]
 
 balanceTransaction'
     :: IsShelleyBasedEra era
@@ -3326,6 +3415,10 @@ prop_balanceTransactionValid wallet (ShowBuildable partialTx') seed
                 label "outputs below minCoinValue" $ property True
             Left (ErrBalanceTxExistingCollateral) ->
                 label "existing collateral" True
+            Left (ErrBalanceTxExistingTotalCollateral) ->
+                label "existing total collateral" True
+            Left (ErrBalanceTxExistingReturnCollateral) ->
+                label "existing collateral return outputs" True
             Left ErrBalanceTxZeroAdaOutput ->
                 label "not yet supported: zero ada output" $ property True
             Left ErrBalanceTxMaxSizeLimitExceeded ->
@@ -3466,6 +3559,53 @@ prop_balanceTransactionValid wallet (ShowBuildable partialTx') seed
         TxOutValue _ val -> val
 
     (_, nodePParams) = mockProtocolParametersForBalancing
+
+prop_balanceTransactionExistingTotalCollateral
+    :: Wallet'
+    -> ShowBuildable (PartialTx Cardano.BabbageEra)
+    -> StdGenSeed
+    -> Property
+prop_balanceTransactionExistingTotalCollateral
+    wallet (ShowBuildable partialTx@PartialTx{tx}) seed = withMaxSuccess 10 $
+        hasTotalCollateral tx
+            && not (hasInsCollateral tx)
+            && not (hasReturnCollateral tx) ==>
+        case balanceTransaction' wallet seed partialTx of
+            Left err -> ErrBalanceTxExistingTotalCollateral === err
+            e -> counterexample (show e) False
+
+prop_balanceTransactionExistingReturnCollateral
+    :: Wallet'
+    -> ShowBuildable (PartialTx Cardano.BabbageEra)
+    -> StdGenSeed
+    -> Property
+prop_balanceTransactionExistingReturnCollateral
+    wallet (ShowBuildable partialTx@PartialTx{tx}) seed = withMaxSuccess 10 $
+        hasReturnCollateral tx
+            && not (hasInsCollateral tx)
+            && not (hasTotalCollateral tx) ==>
+        case balanceTransaction' wallet seed partialTx of
+            Left err -> ErrBalanceTxExistingReturnCollateral === err
+            e -> counterexample (show e) False
+
+hasInsCollateral :: Cardano.Tx era -> Bool
+hasInsCollateral (Cardano.Tx (Cardano.TxBody content) _) =
+    case Cardano.txInsCollateral content of
+        Cardano.TxInsCollateralNone -> False
+        Cardano.TxInsCollateral _ [] -> False
+        Cardano.TxInsCollateral _ _ -> True
+
+hasTotalCollateral :: Cardano.Tx era -> Bool
+hasTotalCollateral (Cardano.Tx (Cardano.TxBody content) _) =
+    case Cardano.txTotalCollateral content of
+        Cardano.TxTotalCollateralNone -> False
+        Cardano.TxTotalCollateral _ _ -> True
+
+hasReturnCollateral :: Cardano.Tx era -> Bool
+hasReturnCollateral (Cardano.Tx (Cardano.TxBody content) _) =
+    case Cardano.txReturnCollateral content of
+        Cardano.TxReturnCollateralNone -> False
+        Cardano.TxReturnCollateral _ _ -> True
 
 -- | Consistent pair of ProtocolParameters of both wallet and cardano-api types.
 --

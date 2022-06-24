@@ -1593,6 +1593,8 @@ balanceTransactionWithSelectionStrategy
     ptx@(PartialTx partialTx externalInputs redeemers)
     = do
     guardExistingCollateral partialTx
+    guardExistingTotalCollateral partialTx
+    guardExistingReturnCollateral partialTx
     guardZeroAdaOutputs (extractOutputsFromTx $ toSealed partialTx)
     guardConflictingWithdrawalNetworks partialTx
 
@@ -1850,6 +1852,18 @@ balanceTransactionWithSelectionStrategy
             Cardano.TxInsCollateral _ [] -> return ()
             Cardano.TxInsCollateral _ _ ->
                 throwE ErrBalanceTxExistingCollateral
+
+    guardExistingTotalCollateral (Cardano.Tx (Cardano.TxBody body) _) =
+        case Cardano.txTotalCollateral body of
+            Cardano.TxTotalCollateralNone -> return ()
+            Cardano.TxTotalCollateral _ _ ->
+               throwE ErrBalanceTxExistingTotalCollateral
+
+    guardExistingReturnCollateral (Cardano.Tx (Cardano.TxBody body) _) =
+        case Cardano.txReturnCollateral body of
+            Cardano.TxReturnCollateralNone -> return ()
+            Cardano.TxReturnCollateral _ _ ->
+               throwE ErrBalanceTxExistingReturnCollateral
 
     -- | Select assets to cover the specified balance and fee.
     --
@@ -3436,6 +3450,8 @@ data ErrBalanceTx
     | ErrBalanceTxSelectAssets ErrSelectAssets
     | ErrBalanceTxMaxSizeLimitExceeded
     | ErrBalanceTxExistingCollateral
+    | ErrBalanceTxExistingTotalCollateral
+    | ErrBalanceTxExistingReturnCollateral
     | ErrBalanceTxConflictingNetworks
     | ErrBalanceTxAssignRedeemers ErrAssignRedeemers
     | ErrBalanceTxInternalError ErrBalanceTxInternalError
