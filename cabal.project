@@ -235,7 +235,7 @@ source-repository-package
 
 source-repository-package
     type: git
-    location: https://github.com/MELD-labs/cardano-sl-x509
+    location: https://github.com/input-output-hk/cardano-sl-x509
     tag: a91add165152fa36f08e95fafe7da24f1dba4690
     --sha256: 1ia8vlqghis92cla8qmqa6kh8f3jn29b01fshyk5hmgy5373s684
 
