@@ -379,7 +379,9 @@ test-suite unit
     , io-sim
     , lattices
     , lens
+    , list-transformer
     , memory
+    , mtl
     , MonadRandom
     , network
     , network-uri

@@ -6,6 +6,7 @@
 {-# LANGUAGE NamedFieldPuns #-}
 {-# LANGUAGE OverloadedLabels #-}
 {-# LANGUAGE RankNTypes #-}
+{-# LANGUAGE RecordWildCards #-}
 {-# LANGUAGE ScopedTypeVariables #-}
 {-# LANGUAGE StandaloneDeriving #-}
 {-# LANGUAGE TypeFamilies #-}
@@ -28,6 +29,12 @@ module Cardano.Wallet.DB.Store.Transactions.Model
     , tokenOutOrd
     , mkTxHistory
     , Decoration (..)
+    , WithTxOut (..)
+    , decorateWithTxOuts
+    , mkTxIn
+    , mkTxCollateral
+    , mkTxOut
+    , undecorateFromTxOuts
     ) where
 
 import Prelude
@@ -56,7 +63,7 @@ import Control.Arrow
 import Data.Delta
     ( Delta (..) )
 import Data.Foldable
-    ( fold )
+    ( fold, toList )
 import Data.Generics.Internal.VL
     ( view, (^.) )
 import Data.List
@@ -171,8 +178,8 @@ mkTxIn tid (ix,(txIn,amt)) =
     , txInputSourceAmount = amt
     }
 
-mkTxCollateral :: TxId -- ^
-    -> (Int, (W.TxIn, W.Coin)) -- ^
+mkTxCollateral :: TxId
+    -> (Int, (W.TxIn, W.Coin)) 
     -> TxCollateral
 mkTxCollateral tid (ix,(txCollateral,amt)) =
     TxCollateral
@@ -276,3 +283,55 @@ mkTxHistory txs = TxHistoryF $ fold $ do
     tx <- txs
     let relation = mkTxRelation tx
     pure $ Map.singleton (TxId $ tx ^. #txId) relation
+
+type TxOutKey = (TxId, Word32)
+
+decorateWithTxOuts :: TxHistoryF 'Without -> TxHistoryF 'With
+decorateWithTxOuts (TxHistoryF w) =
+    let
+        txouts :: Map TxOutKey (TxOut, [TxOutToken])
+        txouts = Map.fromList $ do
+            TxRelationF {..} <- toList w
+            [(txOutputTxId &&& txOutputIndex $ txout, x) | x@(txout,_ ) <- outs]
+    in  TxHistoryF $ fmap (solveTxOut txouts) w
+
+decorateInputs
+    :: (t -> TxOutKey)
+    -> Map TxOutKey (TxOut, [TxOutToken])
+    -> [t]
+    -> [WithTxOut t]
+decorateInputs keyOf txOutMap ins = do
+        i <- ins
+        pure $ WithTxOut i $ Map.lookup (keyOf i) txOutMap
+
+solveTxOut
+    :: Map TxOutKey (TxOut, [TxOutToken])
+    -> TxRelationF 'Without
+    -> TxRelationF 'With
+solveTxOut txOutMap TxRelationF {..} = TxRelationF
+    { ins =
+        decorateInputs
+            (txInputSourceTxId &&& txInputSourceIndex)
+            txOutMap
+            ins
+    , collateralIns =
+        decorateInputs
+            (txCollateralSourceTxId &&& txCollateralSourceIndex)
+            txOutMap
+            collateralIns
+    , outs = outs
+    , collateralOuts = collateralOuts
+    , withdrawals = withdrawals
+    }
+
+undecorateFromTxOuts :: TxHistoryF 'With -> TxHistoryF 'Without
+undecorateFromTxOuts (TxHistoryF w) = TxHistoryF $ fmap unsolveTxOut w
+
+unsolveTxOut :: TxRelationF 'With -> TxRelationF 'Without
+unsolveTxOut TxRelationF {..} = TxRelationF
+    { ins = fmap txIn ins
+    , collateralIns = fmap txIn collateralIns
+    , outs = outs
+    , collateralOuts = collateralOuts
+    , withdrawals = withdrawals
+    }
