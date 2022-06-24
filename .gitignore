@@ -34,7 +34,8 @@ hie.yaml
 /result*
 /.nix-shell-cabal.project*
 cabal.project.old
-check-cabal.project.sh
+check-cabal-project.sh
+cabal.project.diff
 
 ### Direnv ###
 .envrc-local

@@ -233,13 +233,10 @@ source-repository-package
     subdir: cardano-prelude
             cardano-prelude-test
 
--- In particular we rely on the code from this PR:
---  * <https://github.com/input-output-hk/cardano-sl-x509/pull/6>
--- being merged.
 source-repository-package
     type: git
     location: https://github.com/MELD-labs/cardano-sl-x509
-    tag: 819997049b9cc675b28059d3d6f511d08f934d10
+    tag: a91add165152fa36f08e95fafe7da24f1dba4690
     --sha256: 1ia8vlqghis92cla8qmqa6kh8f3jn29b01fshyk5hmgy5373s684
 
 source-repository-package
