@@ -19,9 +19,9 @@ jobs:
         uses: actions/checkout@v2
 
       - name: '❄ Install Nix'
-        uses: cachix/install-nix-action@v16
+        uses: cachix/install-nix-action@v17
         with:
-          install_url: https://releases.nixos.org/nix/nix-2.6.0/install
+          install_url: https://releases.nixos.org/nix/nix-2.7.0/install
           nix_path: nixpkgs=channel:nixos-21.11
           extra_nix_config: |
             access-tokens = github.com=${{ secrets.GITHUB_TOKEN }}
