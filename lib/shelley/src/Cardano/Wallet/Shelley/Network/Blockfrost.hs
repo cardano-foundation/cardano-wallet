@@ -183,7 +183,7 @@ import Data.List.NonEmpty
 import Data.Map
     ( Map )
 import Data.Maybe
-    ( catMaybes, fromMaybe, listToMaybe )
+    ( catMaybes, fromMaybe )
 import Data.Proxy
     ( Proxy (..) )
 import Data.Quantity
@@ -237,6 +237,7 @@ import qualified Cardano.Slotting.Time as ST
 import qualified Cardano.Wallet.Network.Light as LN
 import qualified Cardano.Wallet.Primitive.Types.Coin as Coin
 import qualified Cardano.Wallet.Shelley.Network.Blockfrost.Fixture as Fixture
+import qualified Cardano.Wallet.Shelley.Network.Blockfrost.Layer as Layer
 import qualified Data.Aeson as Aeson
 import qualified Data.Aeson.Key as Aeson
 import qualified Data.Aeson.KeyMap as Aeson
@@ -270,7 +271,8 @@ data Log
     | MsgBlockHeaderAtHeight Integer (Consensual BlockHeader)
     | MsgBlockHeaderAt ChainPoint (Consensual BlockHeader)
     | MsgNextBlockHeader BlockHeader (Consensual (Maybe BlockHeader))
-    | MsgGotNextBlocks Int
+    | MsgGotNextBlocks (Hash "BlockHeader") Int (Maybe BlockHeader)
+    | MsgBlockfrostLayer Layer.Log
 
 instance ToText Log where
     toText = \case
@@ -331,29 +333,33 @@ instance ToText Log where
         MsgNextBlockHeader prev next ->
             "Fetched next block header: " <> T.pack (show next)
             <> " for the previous one: " <> pretty prev
-        MsgGotNextBlocks n ->
-            "Fetched " <> pretty n <> " next blocks"
+        MsgGotNextBlocks f n m ->
+            "Fetched " <> pretty n <> " blocks after " <> toText f <>
+                maybe "." ((", starting from " <>) . pretty) m
+        MsgBlockfrostLayer l ->
+            toText l
 
 instance HasSeverityAnnotation Log where
     getSeverityAnnotation = \case
         MsgTipReceived{} -> Info
         MsgTipWatcherNotified{} -> Debug
-        MsgTipWatcherRegistered -> Debug
+        MsgTipWatcherRegistered -> Notice
         MsgTimeInterpreterLog {} -> Info
         MsgLightLayerLog l -> getSeverityAnnotation l
         MsgAccountNotFound {} -> Warning
-        MsgGetAddressTxs {} -> Debug
-        MsgFetchTransaction {} -> Debug
-        MsgFetchDelegation {} -> Debug
-        MsgFetchedLatestBlockHeader {} -> Debug
-        MsgCurrentSlottingParameters -> Debug
-        MsgEraByLatestEpoch {} -> Debug
-        MsgFetchNetworkRewardAccountBalances -> Debug
-        MsgIsConsensus {} -> Debug
-        MsgBlockHeaderAtHeight {} -> Debug
-        MsgBlockHeaderAt {} -> Debug
-        MsgNextBlockHeader{} -> Debug
-        MsgGotNextBlocks {} -> Debug
+        MsgGetAddressTxs {} -> Notice
+        MsgFetchTransaction {} -> Notice
+        MsgFetchDelegation {} -> Notice
+        MsgFetchedLatestBlockHeader {} -> Notice
+        MsgCurrentSlottingParameters -> Notice
+        MsgEraByLatestEpoch {} -> Notice
+        MsgFetchNetworkRewardAccountBalances -> Notice
+        MsgIsConsensus {} -> Notice
+        MsgBlockHeaderAtHeight {} -> Notice
+        MsgBlockHeaderAt {} -> Notice
+        MsgNextBlockHeader{} -> Notice
+        MsgGotNextBlocks {} -> Notice
+        MsgBlockfrostLayer l -> getSeverityAnnotation l
 
 withNetworkLayer
     :: Tracer IO Log
@@ -363,7 +369,7 @@ withNetworkLayer
     -> (NetworkLayer IO (CardanoBlock StandardCrypto) -> IO a)
     -> IO a
 withNetworkLayer tr network np project k = do
-    bfLayer <- rateLimitedBlockfrostLayer project
+    bfLayer <- rateLimitedBlockfrostLayer (MsgBlockfrostLayer >$< tr) project
     tipBroadcast <- newBroadcastTChanIO
     link =<< async (pollNodeTip bfLayer tipBroadcast)
     k NetworkLayer
@@ -558,14 +564,21 @@ withNetworkLayer tr network np project k = do
 
                 getNextBlocks :: ChainPoint -> IO (Consensual [Block])
                 getNextBlocks cp = do
-                    consensualBlocks <-
-                        fetchNextBlocks tr network bfLayer case cp of
+                    let b = case cp of
                             ChainPoint _slotNo hash -> hash
                             ChainPointAtGenesis -> headerHash $
                                 Fixture.genesisBlockHeader networkId
-                    traceWith tr $ MsgGotNextBlocks $ case consensualBlocks of
-                       NotConsensual -> 0
-                       Consensual bls -> length bls
+                    consensualBlocks <- fetchNextBlocks tr network bfLayer b
+                    traceWith tr $ uncurry (MsgGotNextBlocks b) $
+                        case consensualBlocks of
+                            NotConsensual ->
+                                (0, Nothing)
+                            Consensual bls ->
+                                ( length bls
+                                , case bls of
+                                    [] -> Nothing
+                                    h : _ -> Just (header h)
+                                )
                     pure consensualBlocks
 
                 getAddressTxs ::
@@ -1093,3 +1106,5 @@ getPoolPerformanceEstimate bfLayer sp dl rp pid = do
                     / fromIntegral (unCoin $ totalStake rp)
                     -- _poolHistoryActiveSize would be incorrect here
             }
+
+
