@@ -11,21 +11,25 @@ import Cardano.Wallet.Primitive.Types
 import Cardano.Wallet.Primitive.Types.Coin
     ( Coin )
 import Control.Exception
-    ( Exception )
+    ( Exception, throwIO )
+import Control.Monad
+    ( (<=<) )
+import Control.Monad.Error.Class
+    ( MonadError (throwError) )
+import Control.Monad.Trans.Except
+    ( ExceptT, runExceptT )
 import Data.Bits
     ( Bits )
+import Data.IntCast
+    ( intCastMaybe )
+import Data.Quantity
+    ( MkPercentageError )
 import Data.Text
     ( Text )
 import Data.Text.Class
     ( TextDecodingError )
 
 import qualified Blockfrost.Client as BF
-import Control.Monad.Error.Class
-    ( MonadError (throwError) )
-import Data.IntCast
-    ( intCastMaybe )
-import Data.Quantity
-    ( MkPercentageError )
 import qualified Servant.Client as Servant
 
 data BlockfrostError
@@ -75,3 +79,7 @@ infixl 8 <?>
 infixl 8 <?#>
 
 {-# INLINE (<?#>) #-}
+
+throwBlockfrostError :: ExceptT BlockfrostError IO a -> IO a
+throwBlockfrostError =
+    either (throwIO . BlockfrostException) pure <=< runExceptT

@@ -13,15 +13,11 @@ import Prelude
 import Cardano.Wallet.Network.Light
     ( Consensual (..) )
 import Cardano.Wallet.Shelley.Network.Blockfrost.Error
-    ( BlockfrostError (ClientError)
-    , BlockfrostException (BlockfrostException)
-    )
-import Control.Exception
-    ( throwIO )
+    ( BlockfrostError (ClientError), throwBlockfrostError )
 import Control.Monad.Base
     ( MonadBase )
 import Control.Monad.Except
-    ( ExceptT, MonadError (..), MonadIO (..), runExceptT, (<=<) )
+    ( ExceptT, MonadError (..), MonadIO (..) )
 import Control.Monad.Reader
     ( MonadReader (ask), ReaderT (..), asks )
 import Control.Monad.Trans.Control
@@ -58,11 +54,7 @@ newClientConfig :: BF.Project -> IO BF.ClientConfig
 newClientConfig prj = (,prj) <$> BF.newEnvByProject prj
 
 run :: BF.ClientConfig -> (forall a. BFM a -> IO a)
-run cfg (BFM c) = handleBlockfrostError (runReaderT c cfg)
-
-handleBlockfrostError :: ExceptT BlockfrostError IO a -> IO a
-handleBlockfrostError =
-    either (throwIO . BlockfrostException) pure <=< runExceptT
+run cfg (BFM c) = throwBlockfrostError (runReaderT c cfg)
 
 maybe404 :: BFM a -> BFM (Maybe a)
 maybe404 bfm = (Just <$> bfm) `catchError` \case
