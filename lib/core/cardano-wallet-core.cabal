@@ -476,6 +476,7 @@ test-suite unit
       Cardano.Wallet.DB.Store.Meta.ModelSpec
       Cardano.Wallet.DB.Store.Meta.StoreSpec
       Cardano.Wallet.DB.Store.Transactions.StoreSpec
+      Cardano.Wallet.DB.Store.Wallets.StoreSpec
       Cardano.Wallet.DummyTarget.Primitive.Types
       Cardano.Wallet.Network.LightSpec
       Cardano.Wallet.Network.PortsSpec
