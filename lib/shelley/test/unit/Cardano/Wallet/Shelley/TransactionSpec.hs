@@ -1414,8 +1414,7 @@ binaryCalculationsSpec (AnyCardanoEra era) =
             ShelleyBasedEraMary ->
                 binaryCalculationsSpec' @Cardano.MaryEra shelleyEra
             ShelleyBasedEraAlonzo ->
-                pure () -- TO_DO when ledger's PR 2863 is included in node bump
-                --binaryCalculationsSpec' @Cardano.AlonzoEra shelleyEra
+                binaryCalculationsSpec' @Cardano.AlonzoEra shelleyEra
             ShelleyBasedEraBabbage ->
                 pure () -- TO_DO when ledger's PR 2863 is included in node bump
                 --binaryCalculationsSpec' @Cardano.BabbageEra shelleyEra
@@ -1576,8 +1575,15 @@ binaryCalculationsSpec' era = describe ("calculateBinary - "+||era||+"") $ do
     slotNo = SlotNo 7750
     md = Nothing
     calculateBinary net utxo outs chgs pairs =
-        hex (Cardano.serialiseToCBOR ledgerTx)
+        case era of
+            ShelleyBasedEraAlonzo ->
+                slimCBOR eraSerializedCBOR
+            ShelleyBasedEraBabbage ->
+                slimCBOR eraSerializedCBOR
+            _ ->
+                eraSerializedCBOR
       where
+          eraSerializedCBOR = hex (Cardano.serialiseToCBOR ledgerTx)
           ledgerTx = Cardano.makeSignedTransaction addrWits unsigned
           mkByronWitness' unsignedTx (_, (TxOut addr _)) =
               mkByronWitness @era unsignedTx net addr
@@ -1597,6 +1603,38 @@ binaryCalculationsSpec' era = describe ("calculateBinary - "+||era||+"") $ do
             , assetsToBurn = mempty
             }
           inps = Map.toList $ unUTxO utxo
+
+          -- Up till Mary era we have the following structure of transaction
+          --   transaction =
+          -- [ transaction_body
+          -- , transaction_witness_set
+          -- , auxiliary_data / null
+          -- ]
+          -- So we begin with 3-element array binary prefix, that is encoded as '83'
+          -- From Alonzo on tx was enriched for isValid field
+          --   transaction =
+          -- [ transaction_body
+          -- , transaction_witness_set
+          -- , bool
+          -- , auxiliary_data / null
+          -- ]
+          -- So we begin with 4-element array, that was encoded is '84' and
+          -- there is 'F5/F6' for valid/not-valid before auxiliary data
+          -- In order to be comparable with binaries valid for earlier eras we
+          -- remove isValid field from binary and change array prefix to '83'
+          slimCBOR bs =
+              let auxiliaryData = takeEnd 2 bs
+              in flip BS.append auxiliaryData
+                 . BS.append "83"
+                 . BS.drop 2
+                 . dropEnd 4 $ bs
+
+          -- it is introduced in Data.Bytestring from 0.11.1.0
+          -- the version below not performant but correct
+          takeEnd n = BS.reverse . BS.take n . BS.reverse
+          -- it is introduced in Data.Bytestring from 0.11.1.0
+          -- the version below not performant but correct
+          dropEnd n = BS.reverse . BS.drop n . BS.reverse
 
 transactionConstraintsSpec :: Spec
 transactionConstraintsSpec = describe "Transaction constraints" $ do
