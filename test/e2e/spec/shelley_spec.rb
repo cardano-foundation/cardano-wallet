@@ -276,7 +276,7 @@ RSpec.describe CardanoWallet::Shelley, :all, :shelley do
 
     it "Can list addresses" do
       id = create_shelley_wallet
-      shelley_addr = CardanoWallet.new.shelley.addresses
+      shelley_addr = SHELLEY.addresses
       addresses = shelley_addr.list id
       expect(addresses).to be_correct_and_respond 200
       expect(addresses.size).to eq 20
@@ -399,7 +399,7 @@ RSpec.describe CardanoWallet::Shelley, :all, :shelley do
   describe CardanoWallet::Shelley::StakePools do
 
     after(:each) do
-      settings = CardanoWallet.new.misc.settings
+      settings = CW.misc.settings
       s = settings.update({ :pool_metadata_source => "none" })
     end
 
@@ -417,7 +417,7 @@ RSpec.describe CardanoWallet::Shelley, :all, :shelley do
     end
 
     it "ADP-634 - Pool metadata is updated when settings are updated", :offchain, :smash do
-      settings = CardanoWallet.new.misc.settings
+      settings = CW.misc.settings
       pools = SHELLEY.stake_pools
 
       s = settings.update({ :pool_metadata_source => "direct" })
@@ -456,10 +456,10 @@ RSpec.describe CardanoWallet::Shelley, :all, :shelley do
     describe "Stake Pools GC Maintenance" do
       matrix = [{ "direct" => "not_applicable" },
                 { "none" => "not_applicable" },
-                { "https://smash.cardano-testnet.iohkdev.io" => "has_run" }]
+                { ENV['TESTS_E2E_SMASH'] => "has_run" }]
       matrix.each do |tc|
         it "GC metadata maintenance action on metadata source #{tc}" do
-          settings = CardanoWallet.new.misc.settings
+          settings = CW.misc.settings
           pools = SHELLEY.stake_pools
 
           s = settings.update({ :pool_metadata_source => tc.keys.first })
