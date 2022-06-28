@@ -1436,7 +1436,7 @@ binaryCalculationsSpec (AnyCardanoEra era) =
 -- Alonzo transaction stil has the same binary representation (array)
 -- for transaction outputs like in the previous eras.
 -- Babbage era changes this representation, and introduces map binary
--- representation for transaction outputs as the contept of them is
+-- representation for transaction outputs as the concept of them is
 -- extended in this era.
 binaryCalculationsSpec'
     :: forall era. EraConstraints era
