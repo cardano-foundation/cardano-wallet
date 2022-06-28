@@ -1418,6 +1418,26 @@ binaryCalculationsSpec (AnyCardanoEra era) =
             ShelleyBasedEraBabbage ->
                 binaryCalculationsSpec' @Cardano.BabbageEra shelleyEra
 
+-- Up till Mary era we have the following structure of transaction
+--   transaction =
+-- [ transaction_body
+-- , transaction_witness_set
+-- , auxiliary_data / null
+-- ]
+-- So we begin with 3-element array binary prefix, that is encoded as '83'
+-- From Alonzo on tx was enriched for isValid field making it
+-- 4-element array that is encoded as '84'.
+--   transaction =
+-- [ transaction_body
+-- , transaction_witness_set
+-- , bool
+-- , auxiliary_data / null
+-- ]
+-- Alonzo transaction stil has the same binary representation (array)
+-- for transaction outputs like in the previous eras.
+-- Babbage era changes this representation, and introduces map binary
+-- representation for transaction outputs as the contept of them is
+-- extended in this era.
 binaryCalculationsSpec'
     :: forall era. EraConstraints era
     => ShelleyBasedEra era -> Spec
@@ -1456,6 +1476,19 @@ binaryCalculationsSpec' era = describe ("calculateBinary - "+||era||+"") $ do
                         \483a53a5aa35247e0d2b80e6300f7bdec763a20458200000000000\
                         \000000000000000000000000000000000000000000000000000000\
                         \41a0f5f6"
+                    ShelleyBasedEraAlonzo ->
+                        "84a400818258200000000000000000000000000000000000000000\
+                        \000000000000000000000000000182825839010101010101010101\
+                        \010101010101010101010101010101010101010101010101010101\
+                        \0101010101010101010101010101010101010101011a001e848082\
+                        \583901020202020202020202020202020202020202020202020202\
+                        \020202020202020202020202020202020202020202020202020202\
+                        \02020202021a0078175c021a0001faa403191e46a1028184582001\
+                        \000000000000000000000000000000000000000000000000000000\
+                        \000000005840d7af60ae33d2af351411c1445c79590526990bfa73\
+                        \cbb3732b54ef322daa142e6884023410f8be3c16e9bd52076f2bb3\
+                        \6bf38dfe034a9f04658e9f56197ab80f5820000000000000000000\
+                        \000000000000000000000000000000000000000000000041a0f5f6"
                     _ ->
                         "83a400818258200000000000000000000000000000000000000000\
                         \000000000000000000000000000182825839010101010101010101\
@@ -1517,6 +1550,28 @@ binaryCalculationsSpec' era = describe ("calculateBinary - "+||era||+"") $ do
                         \f6cd898eb4ab8439a16e08befdc415120e58200101010101010101\
                         \01010101010101010101010101010101010101010101010141a0f5\
                         \f6"
+                    ShelleyBasedEraAlonzo ->
+                        "84a400828258200000000000000000000000000000000000000000\
+                        \000000000000000000000000008258200000000000000000000000\
+                        \000000000000000000000000000000000000000000010183825839\
+                        \010202020202020202020202020202020202020202020202020202\
+                        \020202020202020202020202020202020202020202020202020202\
+                        \0202021a005b8d8082583901030303030303030303030303030303\
+                        \030303030303030303030303030303030303030303030303030303\
+                        \03030303030303030303030303031a005b8d808258390104040404\
+                        \040404040404040404040404040404040404040404040404040404\
+                        \040404040404040404040404040404040404040404040404041a00\
+                        \7801e0021a0002102003191e46a102828458200100000000000000\
+                        \0000000000000000000000000000000000000000000000005840e8\
+                        \e769ecd0f3c538f0a5a574a1c881775f086d6f4c845b81be9b7895\
+                        \5728bffa7efa54297c6a5d73337bd6280205b1759c13f79d4c93f2\
+                        \9871fc51b78aeba80e582000000000000000000000000000000000\
+                        \0000000000000000000000000000000041a0845820130ae82201d7\
+                        \072e6fbfc0a1884fb54636554d14945b799125cf7ce38d477f5158\
+                        \405835ff78c6fc5e4466a179ca659fa85c99b8a3fba083f3f3f42b\
+                        \a360d479c64ef169914b52ade49b19a7208fd63a6e67a19c406b48\
+                        \26608fdc5307025506c30758200101010101010101010101010101\
+                        \01010101010101010101010101010101010141a0f5f6"
                     _ ->
                         "83a400828258200000000000000000000000000000000000000000\
                         \000000000000000000000000008258200000000000000000000000\
@@ -1576,6 +1631,20 @@ binaryCalculationsSpec' era = describe ("calculateBinary - "+||era||+"") $ do
                         \483a53a5aa35247e0d2b80e6300f7bdec763a20458200000000000\
                         \000000000000000000000000000000000000000000000000000000\
                         \44a1024100f5f6"
+                    ShelleyBasedEraAlonzo ->
+                        "84a400818258200000000000000000000000000000000000000000\
+                        \000000000000000000000000000182825839010101010101010101\
+                        \010101010101010101010101010101010101010101010101010101\
+                        \0101010101010101010101010101010101010101011a001e848082\
+                        \583901020202020202020202020202020202020202020202020202\
+                        \020202020202020202020202020202020202020202020202020202\
+                        \02020202021a0078175c021a0001faa403191e46a1028184582001\
+                        \000000000000000000000000000000000000000000000000000000\
+                        \000000005840d7af60ae33d2af351411c1445c79590526990bfa73\
+                        \cbb3732b54ef322daa142e6884023410f8be3c16e9bd52076f2bb3\
+                        \6bf38dfe034a9f04658e9f56197ab80f5820000000000000000000\
+                        \000000000000000000000000000000000000000000000044a10241\
+                        \00f5f6"
                     _ ->
                         "83a400818258200000000000000000000000000000000000000000\
                         \000000000000000000000000000182825839010101010101010101\
@@ -1638,6 +1707,29 @@ binaryCalculationsSpec' era = describe ("calculateBinary - "+||era||+"") $ do
                         \40025f63192a382e526f4150e2b336ee9ed8080858200000000000\
                         \000000000000000000000000000000000000000000000000000000\
                         \44a1024100f5f6"
+                    ShelleyBasedEraAlonzo ->
+                        "84a400828258200000000000000000000000000000000000000000\
+                        \000000000000000000000000008258200000000000000000000000\
+                        \000000000000000000000000000000000000000000010183825839\
+                        \010202020202020202020202020202020202020202020202020202\
+                        \020202020202020202020202020202020202020202020202020202\
+                        \0202021a005b8d8082583901030303030303030303030303030303\
+                        \030303030303030303030303030303030303030303030303030303\
+                        \03030303030303030303030303031a005b8d808258390104040404\
+                        \040404040404040404040404040404040404040404040404040404\
+                        \040404040404040404040404040404040404040404040404041a00\
+                        \7801e0021a0002102003191e46a10282845820130ae82201d7072e\
+                        \6fbfc0a1884fb54636554d14945b799125cf7ce38d477f51584058\
+                        \35ff78c6fc5e4466a179ca659fa85c99b8a3fba083f3f3f42ba360\
+                        \d479c64ef169914b52ade49b19a7208fd63a6e67a19c406b482660\
+                        \8fdc5307025506c307582001010101010101010101010101010101\
+                        \0101010101010101010101010101010144a1024100845820010000\
+                        \000000000000000000000000000000000000000000000000000000\
+                        \00005840e8e769ecd0f3c538f0a5a574a1c881775f086d6f4c845b\
+                        \81be9b78955728bffa7efa54297c6a5d73337bd6280205b1759c13\
+                        \f79d4c93f29871fc51b78aeba80e58200000000000000000000000\
+                        \00000000000000000000000000000000000000000044a1024100f5\
+                        \f6"
                     _ ->
                         "83a400828258200000000000000000000000000000000000000000\
                         \000000000000000000000000008258200000000000000000000000\
@@ -1667,13 +1759,8 @@ binaryCalculationsSpec' era = describe ("calculateBinary - "+||era||+"") $ do
     slotNo = SlotNo 7750
     md = Nothing
     calculateBinary net utxo outs chgs pairs =
-        case era of
-            ShelleyBasedEraAlonzo ->
-                slimCBOR eraSerializedCBOR
-            _ ->
-                eraSerializedCBOR
+        hex (Cardano.serialiseToCBOR ledgerTx)
       where
-          eraSerializedCBOR = hex (Cardano.serialiseToCBOR ledgerTx)
           ledgerTx = Cardano.makeSignedTransaction addrWits unsigned
           mkByronWitness' unsignedTx (_, (TxOut addr _)) =
               mkByronWitness @era unsignedTx net addr
@@ -1693,38 +1780,6 @@ binaryCalculationsSpec' era = describe ("calculateBinary - "+||era||+"") $ do
             , assetsToBurn = mempty
             }
           inps = Map.toList $ unUTxO utxo
-
-          -- Up till Mary era we have the following structure of transaction
-          --   transaction =
-          -- [ transaction_body
-          -- , transaction_witness_set
-          -- , auxiliary_data / null
-          -- ]
-          -- So we begin with 3-element array binary prefix, that is encoded as '83'
-          -- From Alonzo on tx was enriched for isValid field
-          --   transaction =
-          -- [ transaction_body
-          -- , transaction_witness_set
-          -- , bool
-          -- , auxiliary_data / null
-          -- ]
-          -- So we begin with 4-element array, that was encoded is '84' and
-          -- there is 'F5/F6' for valid/not-valid before auxiliary data
-          -- In order to be comparable with binaries valid for earlier eras we
-          -- remove isValid field from binary and change array prefix to '83'
-          slimCBOR bs =
-              let auxiliaryData = takeEnd 2 bs
-              in flip BS.append auxiliaryData
-                 . BS.append "83"
-                 . BS.drop 2
-                 . dropEnd 4 $ bs
-
-          -- it is introduced in Data.Bytestring from 0.11.1.0
-          -- the version below not performant but correct
-          takeEnd n = BS.reverse . BS.take n . BS.reverse
-          -- it is introduced in Data.Bytestring from 0.11.1.0
-          -- the version below not performant but correct
-          dropEnd n = BS.reverse . BS.drop n . BS.reverse
 
 transactionConstraintsSpec :: Spec
 transactionConstraintsSpec = describe "Transaction constraints" $ do
