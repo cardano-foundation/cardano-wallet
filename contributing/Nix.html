@@ -1,3 +1,4 @@
+<!DOCTYPE html>
 <html lang='en'>
 
 <head>
@@ -8,8 +9,9 @@
   </title>
   
     
-      <meta property='og:description' content />
+      <meta property='og:description' content='Nix is a package manager and build tool. It is used in cardano-wallet for:' />
       <meta property='og:site_name' content='Cardano Wallet' />
+      <meta property='og:image' content />
       <meta property='og:type' content='website' />
       <meta property='og:title' content='Nix' />
     
@@ -25,7 +27,7 @@
 
 
   
-  <link href='tailwind.css?instanceId=cf8ef3b7-94d3-47b6-8c48-87272b7d9057' rel='stylesheet' type='text/css' />
+  <link href='tailwind.css?instanceId=9b5a2c21-66a2-4a0e-89ec-4e041fdb4311' rel='stylesheet' type='text/css' />
 
   <!-- Heist error element -->
   <style type='text/css'>
@@ -40,7 +42,8 @@
 <style>
   @font-face {
     font-family: 'MavenPro';
-    src: url('_emanote-static/fonts/Maven_Pro/MavenPro-VariableFont_wght.ttf') format("truetype");
+    /* FIXME: This ought to be: ${ema:emanoteStaticLayerUrl}/fonts/Maven_Pro/MavenPro-VariableFont_wght.ttf */
+    src: url(_emanote-static/fonts/Maven_Pro/MavenPro-VariableFont_wght.ttf) format("truetype");
     font-display: swap;
   }
 
@@ -2326,7 +2329,7 @@
   <!-- What goes in this file will appear on top of note body-->
   
     <p class='mb-3'>
-      <a href='https://nixos.org' class='text-blue-600 hover:underline' target='_blank' rel='noopener'>Nix</a> is a package manager and build tool. It is used in <code class='py-0.5 px-1 rounded bg-gray-700 text-sm text-white'>cardano-wallet</code> for:
+      <a href='https://nixos.org' class='text-blue-600 hover:underline' target='_blank' rel='noopener'>Nix</a> is a package manager and build tool. It is used in <code class='py-0.5 px-0.5 bg-gray-100'>cardano-wallet</code> for:
     </p>
   
     <ul class='my-3 ml-6 space-y-1 list-disc'>
@@ -2346,7 +2349,7 @@
     </ul>
   
     <p class='mb-3'>
-      Nix is not required for <code class='py-0.5 px-1 rounded bg-gray-700 text-sm text-white'>cardano-wallet</code> development, but it can help you a lot if you try it.
+      Nix is not required for <code class='py-0.5 px-0.5 bg-gray-100'>cardano-wallet</code> development, but it can help you a lot if you try it.
     </p>
   <h2 id='installingupgrading-nix' class='inline-block mt-6 mb-4 text-4xl font-bold text-gray-700 border-b-2'>Installing/Upgrading Nix</h2>
     <p class='mb-3'>
@@ -2378,11 +2381,11 @@
     </p>
   <h2 id='reproducible-development-environment' class='inline-block mt-6 mb-4 text-4xl font-bold text-gray-700 border-b-2'>Reproducible Development Environment</h2>
     <p class='mb-3'>
-      Run <a href='https://nixos.org/manual/nix/stable/command-ref/new-cli/nix3-develop.html' class='text-blue-600 hover:underline' target='_blank' rel='noopener'><code class='py-0.5 px-1 rounded bg-gray-700 text-sm text-white'>nix develop</code></a> to get a build environment which includes all necessary compilers, libraries, and development tools.
+      Run <a href='https://nixos.org/manual/nix/stable/command-ref/new-cli/nix3-develop.html' class='text-blue-600 hover:underline' target='_blank' rel='noopener'><code class='py-0.5 px-0.5 bg-gray-100'>nix develop</code></a> to get a build environment which includes all necessary compilers, libraries, and development tools.
     </p>
   
     <p class='mb-3'>
-      This uses the <code class='py-0.5 px-1 rounded bg-gray-700 text-sm text-white'>devShell</code> attribute of <a href='https://github.com/input-output-hk/cardano-wallet/blob/master/flake.nix' class='text-blue-600 hover:underline' target='_blank' rel='noopener'><code class='py-0.5 px-1 rounded bg-gray-700 text-sm text-white'>flake.nix</code></a>.
+      This uses the <code class='py-0.5 px-0.5 bg-gray-100'>devShell</code> attribute of <a href='https://github.com/input-output-hk/cardano-wallet/blob/master/flake.nix' class='text-blue-600 hover:underline' target='_blank' rel='noopener'><code class='py-0.5 px-0.5 bg-gray-100'>flake.nix</code></a>.
     </p>
   
     <p class='mb-3'>
@@ -2390,7 +2393,7 @@
     </p>
   <h2 id='development-tips' class='inline-block mt-6 mb-4 text-4xl font-bold text-gray-700 border-b-2'>Development tips</h2><h3 id='code-generation' class='mt-6 mb-2 text-3xl font-bold text-gray-700'>Code generation</h3>
     <p class='mb-3'>
-      The Nix build depends on code which is generated from <code class='py-0.5 px-1 rounded bg-gray-700 text-sm text-white'>stack.yaml</code> and the Cabal files. If you change these files, then you will probably need to update the generated files.
+      The Nix build depends on code which is generated from <code class='py-0.5 px-0.5 bg-gray-100'>stack.yaml</code> and the Cabal files. If you change these files, then you will probably need to update the generated files.
     </p>
   
     <p class='mb-3'>
@@ -2406,7 +2409,7 @@
     </p>
   <h3 id='haskellnix-pin' class='mt-6 mb-2 text-3xl font-bold text-gray-700'>Haskell.nix pin</h3>
     <p class='mb-3'>
-      The Nix build also depends on the <a href='https://github.com/input-output-hk/haskell.nix' class='text-blue-600 hover:underline' target='_blank' rel='noopener'>Haskell.nix</a> build infrastructure. It may be necessary to update <code class='py-0.5 px-1 rounded bg-gray-700 text-sm text-white'>haskell.nix</code> when moving to a new Haskell LTS version or adding Hackage dependencies.
+      The Nix build also depends on the <a href='https://github.com/input-output-hk/haskell.nix' class='text-blue-600 hover:underline' target='_blank' rel='noopener'>Haskell.nix</a> build infrastructure. It may be necessary to update <code class='py-0.5 px-0.5 bg-gray-100'>haskell.nix</code> when moving to a new Haskell LTS version or adding Hackage dependencies.
     </p>
   
     <p class='mb-3'>
@@ -2429,15 +2432,15 @@ warning: Git tree '/home/rodney/iohk/cw/flake' is dirty</code></pre></div>
     </p>
   
     <p class='mb-3'>
-      When updating Haskell.nix, consult the <a href='https://github.com/input-output-hk/haskell.nix/blob/master/changelog.md#L1' class='text-blue-600 hover:underline' target='_blank' rel='noopener'>ChangeLog</a> file. There may have been API changes which need corresponding updates in <code class='py-0.5 px-1 rounded bg-gray-700 text-sm text-white'>cardano-wallet</code>.
+      When updating Haskell.nix, consult the <a href='https://github.com/input-output-hk/haskell.nix/blob/master/changelog.md#L1' class='text-blue-600 hover:underline' target='_blank' rel='noopener'>ChangeLog</a> file. There may have been API changes which need corresponding updates in <code class='py-0.5 px-0.5 bg-gray-100'>cardano-wallet</code>.
     </p>
   <h3 id='iohk-nix-pin' class='mt-6 mb-2 text-3xl font-bold text-gray-700'>iohk-nix pin</h3>
     <p class='mb-3'>
-      The procedure for updating the <a href='https://github.com/input-output-hk/iohk-nix' class='text-blue-600 hover:underline' target='_blank' rel='noopener'><code class='py-0.5 px-1 rounded bg-gray-700 text-sm text-white'>iohk-nix</code></a> library of common code is much the same as for Haskell.nix. Run this command and commit the updated <code class='py-0.5 px-1 rounded bg-gray-700 text-sm text-white'>flake.lock</code> file:
+      The procedure for updating the <a href='https://github.com/input-output-hk/iohk-nix' class='text-blue-600 hover:underline' target='_blank' rel='noopener'><code class='py-0.5 px-0.5 bg-gray-100'>iohk-nix</code></a> library of common code is much the same as for Haskell.nix. Run this command and commit the updated <code class='py-0.5 px-0.5 bg-gray-100'>flake.lock</code> file:
     </p>
   <div class='py-0.5 mb-3 text-sm'><pre><code class='console language-console'>$ nix flake lock --update-input iohkNix</code></pre></div>
     <p class='mb-3'>
-      It is not often necessary to update <code class='py-0.5 px-1 rounded bg-gray-700 text-sm text-white'>iohk-nix</code>. Before updating, ask devops whether there may be changes which affect our build.
+      It is not often necessary to update <code class='py-0.5 px-0.5 bg-gray-100'>iohk-nix</code>. Before updating, ask devops whether there may be changes which affect our build.
     </p>
   <h2 id='common-problems' class='inline-block mt-6 mb-4 text-4xl font-bold text-gray-700 border-b-2'>Common problems</h2><h3 id='warning-dumping-very-large-path' class='mt-6 mb-2 text-3xl font-bold text-gray-700'>Warning: dumping very large path</h3><div class='py-0.5 mb-3 text-sm'><pre><code class='language-none'>warning: dumping very large path (&gt; 256 MiB); this may run out of memory</code></pre></div>
     <p class='mb-3'>
@@ -2445,7 +2448,7 @@ warning: Git tree '/home/rodney/iohk/cw/flake' is dirty</code></pre></div>
     </p>
   
     <p class='mb-3'>
-      When building, Nix will copy the project sources into <code class='py-0.5 px-1 rounded bg-gray-700 text-sm text-white'>/nix/store</code>. Standard folders such as <code class='py-0.5 px-1 rounded bg-gray-700 text-sm text-white'>.stack-work</code> will be filtered out, but everything else will be copied.
+      When building, Nix will copy the project sources into <code class='py-0.5 px-0.5 bg-gray-100'>/nix/store</code>. Standard folders such as <code class='py-0.5 px-0.5 bg-gray-100'>.stack-work</code> will be filtered out, but everything else will be copied.
     </p>
   
   <!-- What goes in this file will appear below the note body-->
@@ -2556,7 +2559,7 @@ warning: Git tree '/home/rodney/iohk/cw/flake' is dirty</code></pre></div>
     </a>
   </div>
   <div>
-    <a href='https://emanote.srid.ca' target='_blank' title='Generated by Emanote 0.4.11.3'>
+    <a href='https://emanote.srid.ca' target='_blank' title='Generated by Emanote 0.6.15.1'>
       <img class='w-6 h-6 hover:text-blue-700' src='_emanote-static/emanote-logo.svg' />
     </a>
   </div>

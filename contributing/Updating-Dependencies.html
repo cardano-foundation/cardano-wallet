@@ -1,3 +1,4 @@
+<!DOCTYPE html>
 <html lang='en'>
 
 <head>
@@ -8,8 +9,9 @@
   </title>
   
     
-      <meta property='og:description' content />
+      <meta property='og:description' content='If you use ([[Nix]],[]) to manage build and runtime dependencies you can be confident that you will always have the correct versions for the branch you are on, and that these will be exactly the same as those versions used in CI.' />
       <meta property='og:site_name' content='Cardano Wallet' />
+      <meta property='og:image' content />
       <meta property='og:type' content='website' />
       <meta property='og:title' content='Updating Dependencies' />
     
@@ -25,7 +27,7 @@
 
 
   
-  <link href='tailwind.css?instanceId=cf8ef3b7-94d3-47b6-8c48-87272b7d9057' rel='stylesheet' type='text/css' />
+  <link href='tailwind.css?instanceId=9b5a2c21-66a2-4a0e-89ec-4e041fdb4311' rel='stylesheet' type='text/css' />
 
   <!-- Heist error element -->
   <style type='text/css'>
@@ -40,7 +42,8 @@
 <style>
   @font-face {
     font-family: 'MavenPro';
-    src: url('_emanote-static/fonts/Maven_Pro/MavenPro-VariableFont_wght.ttf') format("truetype");
+    /* FIXME: This ought to be: ${ema:emanoteStaticLayerUrl}/fonts/Maven_Pro/MavenPro-VariableFont_wght.ttf */
+    src: url(_emanote-static/fonts/Maven_Pro/MavenPro-VariableFont_wght.ttf) format("truetype");
     font-display: swap;
   }
 
@@ -2334,23 +2337,23 @@
     </p>
   <h2 id='nix-develop' class='inline-block mt-6 mb-4 text-4xl font-bold text-gray-700 border-b-2'>nix develop</h2>
     <p class='mb-3'>
-      The default <code class='py-0.5 px-1 rounded bg-gray-700 text-sm text-white'>nix develop</code> contains build tools, utilities and GHC configured with a global package-db which matches <code class='py-0.5 px-1 rounded bg-gray-700 text-sm text-white'>stack.yaml</code>. This is defined in the <code class='py-0.5 px-1 rounded bg-gray-700 text-sm text-white'>devShell</code> attribute of <code class='py-0.5 px-1 rounded bg-gray-700 text-sm text-white'>flake.nix</code>.
+      The default <code class='py-0.5 px-0.5 bg-gray-100'>nix develop</code> contains build tools, utilities and GHC configured with a global package-db which matches <code class='py-0.5 px-0.5 bg-gray-100'>stack.yaml</code>. This is defined in the <code class='py-0.5 px-0.5 bg-gray-100'>devShell</code> attribute of <code class='py-0.5 px-0.5 bg-gray-100'>flake.nix</code>.
     </p>
   <h2 id='buildkite' class='inline-block mt-6 mb-4 text-4xl font-bold text-gray-700 border-b-2'>Buildkite</h2>
     <p class='mb-3'>
-      On Buildkite, the project will be built with <code class='py-0.5 px-1 rounded bg-gray-700 text-sm text-white'>cabal build</code> in a particular Nix shell. The Nix shell provisioned is defined by <a href='https://github.com/input-output-hk/cardano-wallet/blob/master/nix/cabal-shell.nix' class='text-blue-600 hover:underline' target='_blank' rel='noopener'><code class='py-0.5 px-1 rounded bg-gray-700 text-sm text-white'>nix/cabal-shell.nix</code></a>. If there is a program that is needed by the build or tests, make sure that it is present there.
+      On Buildkite, the project will be built with <code class='py-0.5 px-0.5 bg-gray-100'>cabal build</code> in a particular Nix shell. The Nix shell provisioned is defined by <a href='https://github.com/input-output-hk/cardano-wallet/blob/master/nix/cabal-shell.nix' class='text-blue-600 hover:underline' target='_blank' rel='noopener'><code class='py-0.5 px-0.5 bg-gray-100'>nix/cabal-shell.nix</code></a>. If there is a program that is needed by the build or tests, make sure that it is present there.
     </p>
   <h2 id='nix-flake-lock' class='inline-block mt-6 mb-4 text-4xl font-bold text-gray-700 border-b-2'>nix flake lock</h2>
     <p class='mb-3'>
-      <a href='https://nixos.wiki/wiki/Flakes' class='text-blue-600 hover:underline' target='_blank' rel='noopener'><code class='py-0.5 px-1 rounded bg-gray-700 text-sm text-white'>nix flake</code></a> manages the file <a href='https://github.com/input-output-hk/cardano-wallet/blob/master/flake.lock' class='text-blue-600 hover:underline' target='_blank' rel='noopener'><code class='py-0.5 px-1 rounded bg-gray-700 text-sm text-white'>flake.lock</code></a>.
+      <a href='https://nixos.wiki/wiki/Flakes' class='text-blue-600 hover:underline' target='_blank' rel='noopener'><code class='py-0.5 px-0.5 bg-gray-100'>nix flake</code></a> manages the file <a href='https://github.com/input-output-hk/cardano-wallet/blob/master/flake.lock' class='text-blue-600 hover:underline' target='_blank' rel='noopener'><code class='py-0.5 px-0.5 bg-gray-100'>flake.lock</code></a>.
     </p>
-  <h2 id='updating-node-backends' class='inline-block mt-6 mb-4 text-4xl font-bold text-gray-700 border-b-2'>Updating node backends</h2><h3 id='cardano-node-haskell-dependencies' class='mt-6 mb-2 text-3xl font-bold text-gray-700'><code class='py-0.5 px-1 rounded bg-gray-700 text-sm text-white'>cardano-node</code> Haskell dependencies</h3>
+  <h2 id='updating-node-backends' class='inline-block mt-6 mb-4 text-4xl font-bold text-gray-700 border-b-2'>Updating node backends</h2><h3 id='cardano-node-haskell-dependencies' class='mt-6 mb-2 text-3xl font-bold text-gray-700'><code class='py-0.5 px-0.5 bg-gray-100'>cardano-node</code> Haskell dependencies</h3>
     <p class='mb-3'>
-      These are defined by the <code class='py-0.5 px-1 rounded bg-gray-700 text-sm text-white'>resolver</code> in <a href='https://github.com/input-output-hk/cardano-wallet/blob/master/stack.yaml' class='text-blue-600 hover:underline' target='_blank' rel='noopener'><code class='py-0.5 px-1 rounded bg-gray-700 text-sm text-white'>stack.yaml</code></a>.
+      These are defined by the <code class='py-0.5 px-0.5 bg-gray-100'>resolver</code> in <a href='https://github.com/input-output-hk/cardano-wallet/blob/master/stack.yaml' class='text-blue-600 hover:underline' target='_blank' rel='noopener'><code class='py-0.5 px-0.5 bg-gray-100'>stack.yaml</code></a>.
     </p>
   
     <p class='mb-3'>
-      It points to a file in <a href='https://github.com/input-output-hk/cardano-haskell/tree/master/snapshots' class='text-blue-600 hover:underline' target='_blank' rel='noopener'><code class='py-0.5 px-1 rounded bg-gray-700 text-sm text-white'>cardano-haskell/snapshots</code></a>.
+      It points to a file in <a href='https://github.com/input-output-hk/cardano-haskell/tree/master/snapshots' class='text-blue-600 hover:underline' target='_blank' rel='noopener'><code class='py-0.5 px-0.5 bg-gray-100'>cardano-haskell/snapshots</code></a>.
     </p>
   
     <p class='mb-3'>
@@ -2364,33 +2367,33 @@
         </li>
       
         <li>
-          Update the dependency revisions to match your chosen version of <code class='py-0.5 px-1 rounded bg-gray-700 text-sm text-white'>cardano-node/cabal.project</code>. Refer to <code class='py-0.5 px-1 rounded bg-gray-700 text-sm text-white'>cabal.project</code> rather than <code class='py-0.5 px-1 rounded bg-gray-700 text-sm text-white'>stack.yaml</code> because it is more likely to be correct.
+          Update the dependency revisions to match your chosen version of <code class='py-0.5 px-0.5 bg-gray-100'>cardano-node/cabal.project</code>. Refer to <code class='py-0.5 px-0.5 bg-gray-100'>cabal.project</code> rather than <code class='py-0.5 px-0.5 bg-gray-100'>stack.yaml</code> because it is more likely to be correct.
         </li>
       
         <li>
-          Check that <code class='py-0.5 px-1 rounded bg-gray-700 text-sm text-white'>extra-deps</code> are correct and there are no conflicts with those in <code class='py-0.5 px-1 rounded bg-gray-700 text-sm text-white'>cardano-wallet</code>.
+          Check that <code class='py-0.5 px-0.5 bg-gray-100'>extra-deps</code> are correct and there are no conflicts with those in <code class='py-0.5 px-0.5 bg-gray-100'>cardano-wallet</code>.
         </li>
       
         <li>
-          Run <code class='py-0.5 px-1 rounded bg-gray-700 text-sm text-white'>./nix/regenerate.sh</code> (or let Buildkite do it)
+          Run <code class='py-0.5 px-0.5 bg-gray-100'>./nix/regenerate.sh</code> (or let Buildkite do it)
         </li>
       
         <li>
-          Open a PR on <a href='https://github.com/input-output-hk/cardano-haskell' class='text-blue-600 hover:underline' target='_blank' rel='noopener'><code class='py-0.5 px-1 rounded bg-gray-700 text-sm text-white'>cardano-haskell</code></a>.
+          Open a PR on <a href='https://github.com/input-output-hk/cardano-haskell' class='text-blue-600 hover:underline' target='_blank' rel='noopener'><code class='py-0.5 px-0.5 bg-gray-100'>cardano-haskell</code></a>.
         </li>
       
         <li>
-          Temporarily the snapshot URL in <code class='py-0.5 px-1 rounded bg-gray-700 text-sm text-white'>cardano-wallet/stack.yaml</code> to point to the PR branch so that you can test the build.
+          Temporarily the snapshot URL in <code class='py-0.5 px-0.5 bg-gray-100'>cardano-wallet/stack.yaml</code> to point to the PR branch so that you can test the build.
         </li>
       
     </ul>
   
     <p class='mb-3'>
-      <strong>Tip</strong>: The <code class='py-0.5 px-1 rounded bg-gray-700 text-sm text-white'>stack.yaml</code> <code class='py-0.5 px-1 rounded bg-gray-700 text-sm text-white'>resolver</code> file can also refer to a local file path – so you needn’t necessarily open a PR on <code class='py-0.5 px-1 rounded bg-gray-700 text-sm text-white'>cardano-haskell</code> to make a temporary change.
+      <strong>Tip</strong>: The <code class='py-0.5 px-0.5 bg-gray-100'>stack.yaml</code> <code class='py-0.5 px-0.5 bg-gray-100'>resolver</code> file can also refer to a local file path – so you needn’t necessarily open a PR on <code class='py-0.5 px-0.5 bg-gray-100'>cardano-haskell</code> to make a temporary change.
     </p>
   <h3 id='jörmungandr' class='mt-6 mb-2 text-3xl font-bold text-gray-700'>Jörmungandr</h3>
     <p class='mb-3'>
-      Follow the instructions in <a href='https://github.com/input-output-hk/cardano-wallet/blob/master/nix/jormungandr.nix' class='text-blue-600 hover:underline' target='_blank' rel='noopener'><code class='py-0.5 px-1 rounded bg-gray-700 text-sm text-white'>nix/jormungandr.nix</code></a>.
+      Follow the instructions in <a href='https://github.com/input-output-hk/cardano-wallet/blob/master/nix/jormungandr.nix' class='text-blue-600 hover:underline' target='_blank' rel='noopener'><code class='py-0.5 px-0.5 bg-gray-100'>nix/jormungandr.nix</code></a>.
     </p>
   
   <!-- What goes in this file will appear below the note body-->
@@ -2448,7 +2451,7 @@
     </a>
   </div>
   <div>
-    <a href='https://emanote.srid.ca' target='_blank' title='Generated by Emanote 0.4.11.3'>
+    <a href='https://emanote.srid.ca' target='_blank' title='Generated by Emanote 0.6.15.1'>
       <img class='w-6 h-6 hover:text-blue-700' src='_emanote-static/emanote-logo.svg' />
     </a>
   </div>

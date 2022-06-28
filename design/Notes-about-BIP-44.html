@@ -1,3 +1,4 @@
+<!DOCTYPE html>
 <html lang='en'>
 
 <head>
@@ -8,8 +9,9 @@
   </title>
   
     
-      <meta property='og:description' content />
+      <meta property='og:description' content='This document gives a semi-technical overview of multi-account hierarchy for deterministic wallets, their trade-offs and limitations.' />
       <meta property='og:site_name' content='Cardano Wallet' />
+      <meta property='og:image' content />
       <meta property='og:type' content='website' />
       <meta property='og:title' content='Notes about BIP-44' />
     
@@ -25,7 +27,7 @@
 
 
   
-  <link href='tailwind.css?instanceId=cf8ef3b7-94d3-47b6-8c48-87272b7d9057' rel='stylesheet' type='text/css' />
+  <link href='tailwind.css?instanceId=9b5a2c21-66a2-4a0e-89ec-4e041fdb4311' rel='stylesheet' type='text/css' />
 
   <!-- Heist error element -->
   <style type='text/css'>
@@ -40,7 +42,8 @@
 <style>
   @font-face {
     font-family: 'MavenPro';
-    src: url('_emanote-static/fonts/Maven_Pro/MavenPro-VariableFont_wght.ttf') format("truetype");
+    /* FIXME: This ought to be: ${ema:emanoteStaticLayerUrl}/fonts/Maven_Pro/MavenPro-VariableFont_wght.ttf */
+    src: url(_emanote-static/fonts/Maven_Pro/MavenPro-VariableFont_wght.ttf) format("truetype");
     font-display: swap;
   }
 
@@ -2342,7 +2345,7 @@
         <li>
           
     <p class='mb-3'>
-      The first derivation index is called the <em>purpose</em> and is always set to <code class='py-0.5 px-1 rounded bg-gray-700 text-sm text-white'>44'</code> to indicate that the derivation indexes must be interpreted according to BIP-44.
+      The first derivation index is called the <em>purpose</em> and is always set to <code class='py-0.5 px-0.5 bg-gray-100'>44'</code> to indicate that the derivation indexes must be interpreted according to BIP-44.
     </p>
   
         </li>
@@ -2350,7 +2353,7 @@
         <li>
           
     <p class='mb-3'>
-      The second derivation index is called the <em>coin_type</em> and is set depending on the underlying coin. There’s a <a href='https://github.com/satoshilabs/slips/blob/master/slip-0044.md' class='text-blue-600 hover:underline' target='_blank' rel='noopener'>public list of registered coin types</a>. Ada is registered as <code class='py-0.5 px-1 rounded bg-gray-700 text-sm text-white'>1815'</code>. The idea of having this second level is to allow a wallet to use a single root key to manage assets of different kinds.
+      The second derivation index is called the <em>coin_type</em> and is set depending on the underlying coin. There’s a <a href='https://github.com/satoshilabs/slips/blob/master/slip-0044.md' class='text-blue-600 hover:underline' target='_blank' rel='noopener'>public list of registered coin types</a>. Ada is registered as <code class='py-0.5 px-0.5 bg-gray-100'>1815'</code>. The idea of having this second level is to allow a wallet to use a single root key to manage assets of different kinds.
     </p>
   
         </li>
@@ -2382,7 +2385,7 @@
     </ul>
   
     <p class='mb-3'>
-      Each derivation level can contain up to <code class='py-0.5 px-1 rounded bg-gray-700 text-sm text-white'>2^31 (2 147 483 648)</code> different values, which in total makes for <em>a lot</em> of possible combinations. In practice, the first two levels are always set to the same constants and the third and fourth index has a very limited range.
+      Each derivation level can contain up to <code class='py-0.5 px-0.5 bg-gray-100'>2^31 (2 147 483 648)</code> different values, which in total makes for <em>a lot</em> of possible combinations. In practice, the first two levels are always set to the same constants and the third and fourth index has a very limited range.
     </p>
   <h2 id='address--account-discovery' class='inline-block mt-6 mb-4 text-4xl font-bold text-gray-700 border-b-2'>Address & Account discovery</h2>
     <p class='mb-3'>
@@ -2394,7 +2397,7 @@
     </p>
   <h3 id='example' class='mt-6 mb-2 text-3xl font-bold text-gray-700'>Example</h3>
     <p class='mb-3'>
-      Let see how it works with an example in which we consider only a single derivation level (the last one) and for which the gap limit is set to <code class='py-0.5 px-1 rounded bg-gray-700 text-sm text-white'>3</code>.
+      Let see how it works with an example in which we consider only a single derivation level (the last one) and for which the gap limit is set to <code class='py-0.5 px-0.5 bg-gray-100'>3</code>.
     </p>
   
     <ul class='my-3 ml-6 space-y-1 list-decimal list-inside'>
@@ -2402,7 +2405,7 @@
         <li>
           
     <p class='mb-3'>
-      A new empty wallet would be allowed to generate up to 3 addresses with index <code class='py-0.5 px-1 rounded bg-gray-700 text-sm text-white'>0</code>, <code class='py-0.5 px-1 rounded bg-gray-700 text-sm text-white'>1</code> and <code class='py-0.5 px-1 rounded bg-gray-700 text-sm text-white'>2</code>
+      A new empty wallet would be allowed to generate up to 3 addresses with index <code class='py-0.5 px-0.5 bg-gray-100'>0</code>, <code class='py-0.5 px-0.5 bg-gray-100'>1</code> and <code class='py-0.5 px-0.5 bg-gray-100'>2</code>
     </p>
   <div class='py-0.5 mb-3 text-sm'><pre><code class='language-none'>┌───┬───┬───┐
 │ 0 │ 1 │ 2 │
@@ -2412,14 +2415,14 @@
         <li>
           
     <p class='mb-3'>
-      The wallet scans the blockchain looking for addresses which would have been generated from these indexes. An addresses is found using the index <code class='py-0.5 px-1 rounded bg-gray-700 text-sm text-white'>i=2</code>.
+      The wallet scans the blockchain looking for addresses which would have been generated from these indexes. An addresses is found using the index <code class='py-0.5 px-0.5 bg-gray-100'>i=2</code>.
     </p>
   <div class='py-0.5 mb-3 text-sm'><pre><code class='language-none'>          ↓
 ┌───┬───┬───┐       ┌───┬───┬───┬───┬───┬───┐
 │ 0 │ 1 │ 2 │   ⇒   │ 0 │ 1 │ ✓ │ 3 │ 4 │ 5 │
 └───┴───┴───┘       └───┴───┴───┴───┴───┴───┘</code></pre></div>
     <p class='mb-3'>
-      By discovering an address using <code class='py-0.5 px-1 rounded bg-gray-700 text-sm text-white'>i=2</code>, the wallet needs to generate 3 new addresses at indexes <code class='py-0.5 px-1 rounded bg-gray-700 text-sm text-white'>i=3</code>, <code class='py-0.5 px-1 rounded bg-gray-700 text-sm text-white'>i=4</code> and <code class='py-0.5 px-1 rounded bg-gray-700 text-sm text-white'>i=5</code> so that it is always keeping track of 3 consecutive unused addresses.
+      By discovering an address using <code class='py-0.5 px-0.5 bg-gray-100'>i=2</code>, the wallet needs to generate 3 new addresses at indexes <code class='py-0.5 px-0.5 bg-gray-100'>i=3</code>, <code class='py-0.5 px-0.5 bg-gray-100'>i=4</code> and <code class='py-0.5 px-0.5 bg-gray-100'>i=5</code> so that it is always keeping track of 3 consecutive unused addresses.
     </p>
   
         </li>
@@ -2427,14 +2430,14 @@
         <li>
           
     <p class='mb-3'>
-      The wallet continues scanning the blockchain and finds an address at index <code class='py-0.5 px-1 rounded bg-gray-700 text-sm text-white'>i=0</code>.
+      The wallet continues scanning the blockchain and finds an address at index <code class='py-0.5 px-0.5 bg-gray-100'>i=0</code>.
     </p>
   <div class='py-0.5 mb-3 text-sm'><pre><code class='language-none'>  ↓
 ┌───┬───┬───┬───┬───┬───┐      ┌───┬───┬───┬───┬───┬───┐
 │ 0 │ 1 │ ✓ │ 3 │ 4 │ 5 │  ⇒   │ ✓ │ 1 │ ✓ │ 3 │ 4 │ 5 │
 └───┴───┴───┴───┴───┴───┘      └───┴───┴───┴───┴───┴───┘</code></pre></div>
     <p class='mb-3'>
-      Because discovering the address at index <code class='py-0.5 px-1 rounded bg-gray-700 text-sm text-white'>i=0</code> does not reduce the number of consecutive unused addresses, there’s no need to generate new addresses, there are still 3 consecutive unused addresses available.
+      Because discovering the address at index <code class='py-0.5 px-0.5 bg-gray-100'>i=0</code> does not reduce the number of consecutive unused addresses, there’s no need to generate new addresses, there are still 3 consecutive unused addresses available.
     </p>
   
         </li>
@@ -2442,7 +2445,7 @@
         <li>
           
     <p class='mb-3'>
-      The wallet continues scanning the blockchain and finds an address at index <code class='py-0.5 px-1 rounded bg-gray-700 text-sm text-white'>i=3</code>
+      The wallet continues scanning the blockchain and finds an address at index <code class='py-0.5 px-0.5 bg-gray-100'>i=3</code>
     </p>
   <div class='py-0.5 mb-3 text-sm'><pre><code class='language-none'>              ↓
 ┌───┬───┬───┬───┬───┬───┐      ┌───┬───┬───┬───┬───┬───┬───┐
@@ -2465,7 +2468,7 @@
     </ul>
   
     <p class='mb-3'>
-      <strong>What if there’s an address with index <code class='py-0.5 px-1 rounded bg-gray-700 text-sm text-white'>i=7</code> ?</strong>
+      <strong>What if there’s an address with index <code class='py-0.5 px-0.5 bg-gray-100'>i=7</code> ?</strong>
     </p>
   <h2 id='limitations-of-bip-44' class='inline-block mt-6 mb-4 text-4xl font-bold text-gray-700 border-b-2'>Limitations of BIP-44</h2>
     <p class='mb-3'>
@@ -2565,7 +2568,7 @@
     </ul>
   
     <p class='mb-3'>
-      What has happened? The <strong>main</strong> wallet only looks for addresses with indexes between 0 and 19 (incl.) and a transaction is made on an address with index <code class='py-0.5 px-1 rounded bg-gray-700 text-sm text-white'>i=23</code>; it is therefore outside of what’s currently observable by the main wallet. This is because, from the main wallet’s perspective, one of the two BIP-44 invariants has been violated. It shouldn’t have been possible to generate an address beyond the 20th index on the main network because no previous address had been used on this network.
+      What has happened? The <strong>main</strong> wallet only looks for addresses with indexes between 0 and 19 (incl.) and a transaction is made on an address with index <code class='py-0.5 px-0.5 bg-gray-100'>i=23</code>; it is therefore outside of what’s currently observable by the main wallet. This is because, from the main wallet’s perspective, one of the two BIP-44 invariants has been violated. It shouldn’t have been possible to generate an address beyond the 20th index on the main network because no previous address had been used on this network.
     </p>
   
     <p class='mb-3'>
@@ -2625,7 +2628,7 @@
     </a>
   </div>
   <div>
-    <a href='https://emanote.srid.ca' target='_blank' title='Generated by Emanote 0.4.11.3'>
+    <a href='https://emanote.srid.ca' target='_blank' title='Generated by Emanote 0.6.15.1'>
       <img class='w-6 h-6 hover:text-blue-700' src='_emanote-static/emanote-logo.svg' />
     </a>
   </div>

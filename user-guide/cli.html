@@ -1,3 +1,4 @@
+<!DOCTYPE html>
 <html lang='en'>
 
 <head>
@@ -8,8 +9,9 @@
   </title>
   
     
-      <meta property='og:description' content />
+      <meta property='og:description' content='The CLI is a proxy to the wallet server, which is required for most commands. Commands are turned into corresponding API calls, and submitted to an up-and-running server. Some commands do not require an active server and can be run offline. (e.g. recovery-phrase generate)' />
       <meta property='og:site_name' content='Cardano Wallet' />
+      <meta property='og:image' content />
       <meta property='og:type' content='website' />
       <meta property='og:title' content='Command-Line Interface' />
     
@@ -25,7 +27,7 @@
 
 
   
-  <link href='tailwind.css?instanceId=cf8ef3b7-94d3-47b6-8c48-87272b7d9057' rel='stylesheet' type='text/css' />
+  <link href='tailwind.css?instanceId=9b5a2c21-66a2-4a0e-89ec-4e041fdb4311' rel='stylesheet' type='text/css' />
 
   <!-- Heist error element -->
   <style type='text/css'>
@@ -40,7 +42,8 @@
 <style>
   @font-face {
     font-family: 'MavenPro';
-    src: url('_emanote-static/fonts/Maven_Pro/MavenPro-VariableFont_wght.ttf') format("truetype");
+    /* FIXME: This ought to be: ${ema:emanoteStaticLayerUrl}/fonts/Maven_Pro/MavenPro-VariableFont_wght.ttf */
+    src: url(_emanote-static/fonts/Maven_Pro/MavenPro-VariableFont_wght.ttf) format("truetype");
     font-display: swap;
   }
 
@@ -2326,7 +2329,7 @@
   <!-- What goes in this file will appear on top of note body-->
   
     <p class='mb-3'>
-      The CLI is a proxy to the wallet server, which is required for most commands. Commands are turned into corresponding API calls, and submitted to an up-and-running server. Some commands do not require an active server and can be run “offline”. (e.g. <code class='py-0.5 px-1 rounded bg-gray-700 text-sm text-white'>recovery-phrase generate</code>)
+      The CLI is a proxy to the wallet server, which is required for most commands. Commands are turned into corresponding API calls, and submitted to an up-and-running server. Some commands do not require an active server and can be run “offline”. (e.g. <code class='py-0.5 px-0.5 bg-gray-100'>recovery-phrase generate</code>)
     </p>
   
     <p class='mb-3'>
@@ -2362,7 +2365,7 @@
         <li>
           
     <p class='mb-3'>
-      Download the <code class='py-0.5 px-1 rounded bg-gray-700 text-sm text-white'>byronGenesis.json</code> initial configuration file from <a href='https://hydra.iohk.io/job/Cardano/cardano-node/cardano-deployment/latest-finished/download/1/index.html' class='text-blue-600 hover:underline' target='_blank' rel='noopener'>Cardano configurations</a>.
+      Download the <code class='py-0.5 px-0.5 bg-gray-100'>byronGenesis.json</code> initial configuration file from <a href='https://hydra.iohk.io/job/Cardano/cardano-node/cardano-deployment/latest-finished/download/1/index.html' class='text-blue-600 hover:underline' target='_blank' rel='noopener'>Cardano configurations</a>.
     </p>
   
         </li>
@@ -2402,7 +2405,7 @@
     </ul>
   
     <p class='mb-3'>
-      Each sub-command will also provide some additional help when passed <code class='py-0.5 px-1 rounded bg-gray-700 text-sm text-white'>--help</code>. For example:
+      Each sub-command will also provide some additional help when passed <code class='py-0.5 px-0.5 bg-gray-100'>--help</code>. For example:
     </p>
   <div class='py-0.5 mb-3 text-sm'><pre><code class='console language-console'>$ cardano-wallet transaction --help</code></pre></div><h2 id='commands' class='inline-block mt-6 mb-4 text-4xl font-bold text-gray-700 border-b-2'>Commands</h2><div class='bg-blue-50 text-sm p-2 rounded-md shadow mb-4 mx-2'><div xmlhtmlRaw><pre>
 Usage: cardano-wallet COMMAND
@@ -2452,11 +2455,11 @@ Available COMMANDS:
 </pre>
 </div></div><div class='info-block-container admonition-container px-3 py-1 my-3 mx-4 rounded bg-blue-100 hover:border-blue-400 hover:shadow border-t-8 border-blue-200'>
     <p class='mb-3'>
-      <span class='emoji' data-emoji='information_source' style='font-family: emoji'>ℹ️</span> The CLI commands for <code class='py-0.5 px-1 rounded bg-gray-700 text-sm text-white'>wallet</code>, <code class='py-0.5 px-1 rounded bg-gray-700 text-sm text-white'>transaction</code> and <code class='py-0.5 px-1 rounded bg-gray-700 text-sm text-white'>address</code> only output valid JSON on <code class='py-0.5 px-1 rounded bg-gray-700 text-sm text-white'>stdout</code>. So you may redirect the output to a file with <code class='py-0.5 px-1 rounded bg-gray-700 text-sm text-white'>&gt;</code> or pipe it into utility software like <code class='py-0.5 px-1 rounded bg-gray-700 text-sm text-white'>jq</code>!
+      <span class='emoji' data-emoji='information_source' style='font-family: emoji'>ℹ️</span> The CLI commands for <code class='py-0.5 px-0.5 bg-gray-100'>wallet</code>, <code class='py-0.5 px-0.5 bg-gray-100'>transaction</code> and <code class='py-0.5 px-0.5 bg-gray-100'>address</code> only output valid JSON on <code class='py-0.5 px-0.5 bg-gray-100'>stdout</code>. So you may redirect the output to a file with <code class='py-0.5 px-0.5 bg-gray-100'>&gt;</code> or pipe it into utility software like <code class='py-0.5 px-0.5 bg-gray-100'>jq</code>!
     </p>
   </div><h2 id='commands-1' class='inline-block mt-6 mb-4 text-4xl font-bold text-gray-700 border-b-2'>Commands</h2><h3 id='serve' class='mt-6 mb-2 text-3xl font-bold text-gray-700'>serve</h3>
     <p class='mb-3'>
-      Serve API that listens for commands/actions. Before launching user should start <a href='https://github.com/input-output-hk/cardano-node' class='text-blue-600 hover:underline' target='_blank' rel='noopener'><code class='py-0.5 px-1 rounded bg-gray-700 text-sm text-white'>cardano-node</code></a>.
+      Serve API that listens for commands/actions. Before launching user should start <a href='https://github.com/input-output-hk/cardano-node' class='text-blue-600 hover:underline' target='_blank' rel='noopener'><code class='py-0.5 px-0.5 bg-gray-100'>cardano-node</code></a>.
     </p>
   <div class='bg-blue-50 text-sm p-2 rounded-md shadow mb-4 mx-2'><div class='py-0.5 mb-3 text-sm'><pre><code class='language-none'>Usage: cardano-wallet serve [--listen-address HOST]
                             (--node-socket FILE | --light
@@ -2535,15 +2538,15 @@ Available options:
     </p>
   
     <p class='mb-3'>
-      We also recommend to pass a <code class='py-0.5 px-1 rounded bg-gray-700 text-sm text-white'>--database</code> option pointing to a directory on the file-system; without this option, the wallet will maintain a state in-memory which will vanish once stopped.
+      We also recommend to pass a <code class='py-0.5 px-0.5 bg-gray-100'>--database</code> option pointing to a directory on the file-system; without this option, the wallet will maintain a state in-memory which will vanish once stopped.
     </p>
   <h4 id='runtime-flags' class='mt-6 mb-2 text-2xl font-bold text-gray-700'>Runtime flags</h4>
     <p class='mb-3'>
-      By default, the wallet runs <strong>on a single core</strong> which is sufficient for most ‘normal users’. Application running larger wallets like exchanges should configure the server to use multiple cores for some database blocking operations may have a visible negative effect on the overall server behavior. This can be achieved by providing specific runtime flags to the serve command delimited by <code class='py-0.5 px-1 rounded bg-gray-700 text-sm text-white'>+RTS &lt;flags&gt; -RTS</code>. To configure the how much cores are available to the server, use the <code class='py-0.5 px-1 rounded bg-gray-700 text-sm text-white'>-N</code> flag. For example, to configure 2 cores do:
+      By default, the wallet runs <strong>on a single core</strong> which is sufficient for most ‘normal users’. Application running larger wallets like exchanges should configure the server to use multiple cores for some database blocking operations may have a visible negative effect on the overall server behavior. This can be achieved by providing specific runtime flags to the serve command delimited by <code class='py-0.5 px-0.5 bg-gray-100'>+RTS &lt;flags&gt; -RTS</code>. To configure the how much cores are available to the server, use the <code class='py-0.5 px-0.5 bg-gray-100'>-N</code> flag. For example, to configure 2 cores do:
     </p>
   <div class='py-0.5 mb-3 text-sm'><pre><code class='console language-console'>$ cardano-wallet serve ... +RTS -N2 -RTS</code></pre></div>
     <p class='mb-3'>
-      Using <code class='py-0.5 px-1 rounded bg-gray-700 text-sm text-white'>+RTS -N4 -RTS</code> will tell the server to use 4 cores. Note that there’s little performance benefits between 2 and 4 cores for server running a single wallet, but there are visible performance improvements from 1 to 2.
+      Using <code class='py-0.5 px-0.5 bg-gray-100'>+RTS -N4 -RTS</code> will tell the server to use 4 cores. Note that there’s little performance benefits between 2 and 4 cores for server running a single wallet, but there are visible performance improvements from 1 to 2.
     </p>
   <h4 id='domain-socketnamed-pipe' class='mt-6 mb-2 text-2xl font-bold text-gray-700'>Domain socket/named pipe</h4>
     <p class='mb-3'>
@@ -2551,7 +2554,7 @@ Available options:
     </p>
   
     <p class='mb-3'>
-      On these systems, the <code class='py-0.5 px-1 rounded bg-gray-700 text-sm text-white'>--node-socket</code> argument must be a path to a socket file. Note that there is a limitation on socket path lengths of about 100 characters or so.
+      On these systems, the <code class='py-0.5 px-0.5 bg-gray-100'>--node-socket</code> argument must be a path to a socket file. Note that there is a limitation on socket path lengths of about 100 characters or so.
     </p>
   
     <p class='mb-3'>
@@ -2559,7 +2562,7 @@ Available options:
     </p>
   
     <p class='mb-3'>
-      <a href='https://docs.microsoft.com/en-us/windows/win32/ipc/named-pipes' class='text-blue-600 hover:underline' target='_blank' rel='noopener'>Windows Named Pipes</a> do not have filenames. So on Windows systems, the <code class='py-0.5 px-1 rounded bg-gray-700 text-sm text-white'>--node-socket</code> argument must be a pipe name. Pipe names are a string of the form <code class='py-0.5 px-1 rounded bg-gray-700 text-sm text-white'>\\.\pipe\name</code>. For example, <code class='py-0.5 px-1 rounded bg-gray-700 text-sm text-white'>\\.\pipe\cardano-wallet</code>.
+      <a href='https://docs.microsoft.com/en-us/windows/win32/ipc/named-pipes' class='text-blue-600 hover:underline' target='_blank' rel='noopener'>Windows Named Pipes</a> do not have filenames. So on Windows systems, the <code class='py-0.5 px-0.5 bg-gray-100'>--node-socket</code> argument must be a pipe name. Pipe names are a string of the form <code class='py-0.5 px-0.5 bg-gray-100'>\\.\pipe\name</code>. For example, <code class='py-0.5 px-0.5 bg-gray-100'>\\.\pipe\cardano-wallet</code>.
     </p>
   <h4 id='examples' class='mt-6 mb-2 text-2xl font-bold text-gray-700'>Examples</h4><h5 id='mainnet' class='mt-6 mb-2 text-xl font-bold text-gray-700'>Mainnet</h5><div class='py-0.5 mb-3 text-sm'><pre><code class='console language-console'>$ cardano-wallet serve \
   --mainnet \
@@ -2573,11 +2576,11 @@ Available options:
   --node-socket CARDANO_NODE_SOCKET_PATH_OR_PIPE \
   --database ./wallets-testnet</code></pre></div><h4 id='metadata' class='mt-6 mb-2 text-2xl font-bold text-gray-700'>Metadata</h4>
     <p class='mb-3'>
-      For the wallet to show stake pool metadata, you need to set <code class='py-0.5 px-1 rounded bg-gray-700 text-sm text-white'>--pool-metadata-fetching ( none | direct | SMASH-URL )</code>. And for the wallet to show token metadata, you need to set <code class='py-0.5 px-1 rounded bg-gray-700 text-sm text-white'>--token-metadata-server URL</code>.
+      For the wallet to show stake pool metadata, you need to set <code class='py-0.5 px-0.5 bg-gray-100'>--pool-metadata-fetching ( none | direct | SMASH-URL )</code>. And for the wallet to show token metadata, you need to set <code class='py-0.5 px-0.5 bg-gray-100'>--token-metadata-server URL</code>.
     </p>
   <h4 id='logging-options-for-serve' class='mt-6 mb-2 text-2xl font-bold text-gray-700'>Logging options for serve</h4>
     <p class='mb-3'>
-      <code class='py-0.5 px-1 rounded bg-gray-700 text-sm text-white'>serve</code> accepts extra command-line arguments for logging (also called “tracing”). Use <code class='py-0.5 px-1 rounded bg-gray-700 text-sm text-white'>--help-tracing</code> to show the options, the tracer names, and the possible log levels.
+      <code class='py-0.5 px-0.5 bg-gray-100'>serve</code> accepts extra command-line arguments for logging (also called “tracing”). Use <code class='py-0.5 px-0.5 bg-gray-100'>--help-tracing</code> to show the options, the tracer names, and the possible log levels.
     </p>
   <div class='bg-blue-50 text-sm p-2 rounded-md shadow mb-4 mx-2'><div xmlhtmlRaw><pre>
 $ <b>cardano-wallet serve --help-tracing</b>
@@ -2617,7 +2620,7 @@ The possible tracers are:
     </p>
   <div class='py-0.5 mb-3 text-sm'><pre><code class='console language-console'>$ cardano-wallet recovery-phrase generate</code></pre></div>
     <p class='mb-3'>
-      These words will be used to create a wallet later. You may also ask for a specific number of words using the <code class='py-0.5 px-1 rounded bg-gray-700 text-sm text-white'>--size</code> option:
+      These words will be used to create a wallet later. You may also ask for a specific number of words using the <code class='py-0.5 px-0.5 bg-gray-100'>--size</code> option:
     </p>
   <div class='py-0.5 mb-3 text-sm'><pre><code class='language-none'>$ cardano-wallet recovery-phrase generate --size 21</code></pre></div><div class='text-sm text-gray-600 text-center border-slate-500 border-b mt-6 mb-0 p-0'>
     <p class='mb-3'>
@@ -2707,7 +2710,7 @@ Enter the passphrase a second time: ****************</code></pre></div>
     <p class='mb-3'>
       Each entry in the list contains the following fields:
     </p>
-  <table class='mb-3'><thead><tr class='border-b-2 border-t-2 border-gray-300'><th class='py-2 px-2 align-top border-r-2 border-l-2 border-gray-300'>Field</th><th class='py-2 px-2 align-top border-r-2 border-l-2 border-gray-300'>Description</th></tr></thead><tbody><tr class='border-b-2 border-t-2 border-gray-300'><td class='py-2 px-2 align-top border-r-2 border-l-2 border-gray-300'><code class='py-0.5 px-1 rounded bg-gray-700 text-sm text-white'>ada</code></td><td class='py-2 px-2 align-top border-r-2 border-l-2 border-gray-300'>the actual ada quantity of this UTxO entry</td></tr><tr class='border-b-2 border-t-2 border-gray-300'><td class='py-2 px-2 align-top border-r-2 border-l-2 border-gray-300'><code class='py-0.5 px-1 rounded bg-gray-700 text-sm text-white'>ada_minimum</code></td><td class='py-2 px-2 align-top border-r-2 border-l-2 border-gray-300'>the minimum ada quantity permitted by the protocol</td></tr><tr class='border-b-2 border-t-2 border-gray-300'><td class='py-2 px-2 align-top border-r-2 border-l-2 border-gray-300'><code class='py-0.5 px-1 rounded bg-gray-700 text-sm text-white'>assets</code></td><td class='py-2 px-2 align-top border-r-2 border-l-2 border-gray-300'>quantities of all other assets included in this UTxO entry</td></tr></tbody></table><div class='py-0.5 mb-3 text-sm'><pre><code class='json language-json'>{
+  <table class='mb-3'><thead><tr class='border-b-2 border-t-2 border-gray-300'><th class='py-2 px-2 align-top border-r-2 border-l-2 border-gray-300'>Field</th><th class='py-2 px-2 align-top border-r-2 border-l-2 border-gray-300'>Description</th></tr></thead><tbody><tr class='border-b-2 border-t-2 border-gray-300'><td class='py-2 px-2 align-top border-r-2 border-l-2 border-gray-300'><code class='py-0.5 px-0.5 bg-gray-100'>ada</code></td><td class='py-2 px-2 align-top border-r-2 border-l-2 border-gray-300'>the actual ada quantity of this UTxO entry</td></tr><tr class='border-b-2 border-t-2 border-gray-300'><td class='py-2 px-2 align-top border-r-2 border-l-2 border-gray-300'><code class='py-0.5 px-0.5 bg-gray-100'>ada_minimum</code></td><td class='py-2 px-2 align-top border-r-2 border-l-2 border-gray-300'>the minimum ada quantity permitted by the protocol</td></tr><tr class='border-b-2 border-t-2 border-gray-300'><td class='py-2 px-2 align-top border-r-2 border-l-2 border-gray-300'><code class='py-0.5 px-0.5 bg-gray-100'>assets</code></td><td class='py-2 px-2 align-top border-r-2 border-l-2 border-gray-300'>quantities of all other assets included in this UTxO entry</td></tr></tbody></table><div class='py-0.5 mb-3 text-sm'><pre><code class='json language-json'>{
     "entries": [
         {
             "ada_minimum": {
@@ -2777,11 +2780,11 @@ Enter the passphrase a second time: **********</code></pre></div><div class='tex
     --payment 5@Ae2tdPwUPEZ7...pVwEPhKwseVvf \
     --metadata '{ "0":{ "string":"cardano" } }'</code></pre></div>
     <p class='mb-3'>
-      This creates a transaction that sends 22 lovelace to <code class='py-0.5 px-1 rounded bg-gray-700 text-sm text-white'>Ae2tdPwUPEZ...nRtbfw6EHRv1D</code> and 5 lovelace to <code class='py-0.5 px-1 rounded bg-gray-700 text-sm text-white'>Ae2tdPwUPEZ7...pVwEPhKwseVvf</code> from wallet with id 2512a00e9653fe49a44a5886202e24d77eeb998f.
+      This creates a transaction that sends 22 lovelace to <code class='py-0.5 px-0.5 bg-gray-100'>Ae2tdPwUPEZ...nRtbfw6EHRv1D</code> and 5 lovelace to <code class='py-0.5 px-0.5 bg-gray-100'>Ae2tdPwUPEZ7...pVwEPhKwseVvf</code> from wallet with id 2512a00e9653fe49a44a5886202e24d77eeb998f.
     </p>
   
     <p class='mb-3'>
-      For more information about the <code class='py-0.5 px-1 rounded bg-gray-700 text-sm text-white'>--metadata</code> option, see <a href='user-guide/common-use-cases/TxMetadata' class='text-blue-600 mavenLinkBold hover:underline' data-wikilink-type='WikiLinkNormal'>TxMetadata</a>.
+      For more information about the <code class='py-0.5 px-0.5 bg-gray-100'>--metadata</code> option, see <a href='user-guide/common-use-cases/TxMetadata' class='text-blue-600 mavenLinkBold hover:underline' data-wikilink-type='WikiLinkNormal'>TxMetadata</a>.
     </p>
   <div class='text-sm text-gray-600 text-center border-slate-500 border-b mt-6 mb-0 p-0'>
     <p class='mb-3'>
@@ -2796,7 +2799,7 @@ Enter the passphrase a second time: **********</code></pre></div><div class='tex
     --payment 5@Ae2tdPwUPEZ7...pVwEPhKwseVvf \
     --metadata '{ "0":{ "string":"cardano" } }'</code></pre></div>
     <p class='mb-3'>
-      This estimates fees for a transaction that sends 22 lovelace to <code class='py-0.5 px-1 rounded bg-gray-700 text-sm text-white'>Ae2tdPwUPEZ...nRtbfw6EHRv1D</code> and 5 lovelace to <code class='py-0.5 px-1 rounded bg-gray-700 text-sm text-white'>Ae2tdPwUPEZ7...pVwEPhKwseVvf</code> from wallet with id 2512a00e9653fe49a44a5886202e24d77eeb998f.
+      This estimates fees for a transaction that sends 22 lovelace to <code class='py-0.5 px-0.5 bg-gray-100'>Ae2tdPwUPEZ...nRtbfw6EHRv1D</code> and 5 lovelace to <code class='py-0.5 px-0.5 bg-gray-100'>Ae2tdPwUPEZ7...pVwEPhKwseVvf</code> from wallet with id 2512a00e9653fe49a44a5886202e24d77eeb998f.
     </p>
   <div class='text-sm text-gray-600 text-center border-slate-500 border-b mt-6 mb-0 p-0'>
     <p class='mb-3'>
@@ -2811,7 +2814,7 @@ Enter the passphrase a second time: **********</code></pre></div><div class='tex
     --end 2019-11-21T10:15:00Z \
     --order ascending</code></pre></div>
     <p class='mb-3'>
-      This lists all transactions between <code class='py-0.5 px-1 rounded bg-gray-700 text-sm text-white'>2018-09-25T10:15:00Z</code> and <code class='py-0.5 px-1 rounded bg-gray-700 text-sm text-white'>2019-11-21T10:15:00Z</code> in <code class='py-0.5 px-1 rounded bg-gray-700 text-sm text-white'>ascending</code> order.
+      This lists all transactions between <code class='py-0.5 px-0.5 bg-gray-100'>2018-09-25T10:15:00Z</code> and <code class='py-0.5 px-0.5 bg-gray-100'>2019-11-21T10:15:00Z</code> in <code class='py-0.5 px-0.5 bg-gray-100'>ascending</code> order.
     </p>
   <div class='text-sm text-gray-600 text-center border-slate-500 border-b mt-6 mb-0 p-0'>
     <p class='mb-3'>
@@ -2885,7 +2888,7 @@ Ok.
     </p>
   </div><h3 id='network-parameters' class='mt-6 mb-2 text-3xl font-bold text-gray-700'>network parameters</h3><div class='bg-blue-50 text-sm p-2 rounded-md shadow mb-4 mx-2'><div class='py-0.5 mb-3 text-sm'><pre><code class='language-none'>cardano-wallet network parameters [--port=INT] EPOCH_NUMBER</code></pre></div></div>
     <p class='mb-3'>
-      View network parameters. EPOCH_NUMBER can be <code class='py-0.5 px-1 rounded bg-gray-700 text-sm text-white'>latest</code> or valid epoch number (not later than the current one), ie., <code class='py-0.5 px-1 rounded bg-gray-700 text-sm text-white'>0</code>, <code class='py-0.5 px-1 rounded bg-gray-700 text-sm text-white'>1</code>, .. .
+      View network parameters. EPOCH_NUMBER can be <code class='py-0.5 px-0.5 bg-gray-100'>latest</code> or valid epoch number (not later than the current one), ie., <code class='py-0.5 px-0.5 bg-gray-100'>0</code>, <code class='py-0.5 px-0.5 bg-gray-100'>1</code>, .. .
     </p>
   <div class='py-0.5 mb-3 text-sm'><pre><code class='console language-console'>$ cardano-wallet network parameters latest</code></pre></div><div class='text-sm text-gray-600 text-center border-slate-500 border-b mt-6 mb-0 p-0'>
     <p class='mb-3'>
@@ -2905,7 +2908,7 @@ Ok.
     }
 }</code></pre></div><div class='px-3 py-1 mb-3 rounded bg-blue-100 hover:border-blue-400 hover:shadow border-t-8 border-blue-200'>
     <p class='mb-3'>
-      <span class='emoji' data-emoji='warning' style='font-family: emoji'>⚠️</span> At this stage the command is not supported on Windows platform. Invoked on Windows will return <code class='py-0.5 px-1 rounded bg-gray-700 text-sm text-white'>status: unavailable</code> in the response message.
+      <span class='emoji' data-emoji='warning' style='font-family: emoji'>⚠️</span> At this stage the command is not supported on Windows platform. Invoked on Windows will return <code class='py-0.5 px-0.5 bg-gray-100'>status: unavailable</code> in the response message.
     </p>
   </div><div class='text-sm text-gray-600 text-center border-slate-500 border-b mt-6 mb-0 p-0'>
     <p class='mb-3'>
@@ -2913,7 +2916,7 @@ Ok.
     </p>
   </div><h3 id='key-from-recovery-phrase' class='mt-6 mb-2 text-3xl font-bold text-gray-700'>key from-recovery-phrase</h3>
     <p class='mb-3'>
-      Extract the root extended private key from a recovery phrase. New recovery phrases can be generated using <span xmlhtmlRaw><a href="#recovery-phrase-generate"></span><code class='py-0.5 px-1 rounded bg-gray-700 text-sm text-white'>recovery-phrase generate</code><span xmlhtmlRaw></a></span>.
+      Extract the root extended private key from a recovery phrase. New recovery phrases can be generated using <span xmlhtmlRaw><a href="#recovery-phrase-generate"></span><code class='py-0.5 px-0.5 bg-gray-100'>recovery-phrase generate</code><span xmlhtmlRaw></a></span>.
     </p>
   <div class='bg-blue-50 text-sm p-2 rounded-md shadow mb-4 mx-2'><div class='py-0.5 mb-3 text-sm'><pre><code class='language-none'>Usage: cardano-wallet key from-recovery-phrase ([--base16] | [--base58] | [--bech32]) STYLE
   Convert a recovery phrase to an extended private key
@@ -2955,7 +2958,7 @@ xprv13parrg5g83utetrwsp563w7hps2chu8mwcwqcrzehql67w9k73fq8utx6m8kgjlhle8claexrtc
     </p>
   </div><h3 id='key-public' class='mt-6 mb-2 text-3xl font-bold text-gray-700'>key public</h3>
     <p class='mb-3'>
-      Extract the public key of an extended private key. Keys can be obtained using <span xmlhtmlRaw><a href="#key-from-recovery-phrase"></span><code class='py-0.5 px-1 rounded bg-gray-700 text-sm text-white'>key from-recovery-phrase</code><span xmlhtmlRaw></a></span> and <span xmlhtmlRaw><a href="#key-child"></span><code class='py-0.5 px-1 rounded bg-gray-700 text-sm text-white'>key child</code><span xmlhtmlRaw></a></span>.
+      Extract the public key of an extended private key. Keys can be obtained using <span xmlhtmlRaw><a href="#key-from-recovery-phrase"></span><code class='py-0.5 px-0.5 bg-gray-100'>key from-recovery-phrase</code><span xmlhtmlRaw></a></span> and <span xmlhtmlRaw><a href="#key-child"></span><code class='py-0.5 px-0.5 bg-gray-100'>key child</code><span xmlhtmlRaw></a></span>.
     </p>
   <div class='bg-blue-50 text-sm p-2 rounded-md shadow mb-4 mx-2'><div class='py-0.5 mb-3 text-sm'><pre><code class='language-none'>Usage: cardano-wallet-jormungandr key public ([--base16] | [--base58] | [--bech32])
   Get the public counterpart of a private key
@@ -3004,7 +3007,7 @@ Available options:
     </p>
   </div><h2 id='bash-shell-command-completion' class='inline-block mt-6 mb-4 text-4xl font-bold text-gray-700 border-b-2'>Bash Shell Command Completion</h2>
     <p class='mb-3'>
-      <span class='emoji' data-emoji='gift_heart' style='font-family: emoji'>💝</span> For bash/zsh auto-completion, put the following script in your <code class='py-0.5 px-1 rounded bg-gray-700 text-sm text-white'>/etc/bash_completion.d</code>:
+      <span class='emoji' data-emoji='gift_heart' style='font-family: emoji'>💝</span> For bash/zsh auto-completion, put the following script in your <code class='py-0.5 px-0.5 bg-gray-100'>/etc/bash_completion.d</code>:
     </p>
   <div class='py-0.5 mb-3 text-sm'><pre><code class='bash language-bash'># /etc/bash_completion.d/cardano-wallet.sh
 
@@ -3152,7 +3155,7 @@ complete -o filenames -F _cardano-wallet cardano-wallet</code></pre></div>
     </a>
   </div>
   <div>
-    <a href='https://emanote.srid.ca' target='_blank' title='Generated by Emanote 0.4.11.3'>
+    <a href='https://emanote.srid.ca' target='_blank' title='Generated by Emanote 0.6.15.1'>
       <img class='w-6 h-6 hover:text-blue-700' src='_emanote-static/emanote-logo.svg' />
     </a>
   </div>

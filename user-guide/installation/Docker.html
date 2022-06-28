@@ -1,3 +1,4 @@
+<!DOCTYPE html>
 <html lang='en'>
 
 <head>
@@ -8,8 +9,9 @@
   </title>
   
     
-      <meta property='og:description' content />
+      <meta property='og:description' content='Docker images are continuously built and deployed on dockerhub under specific tags. Using docker provides the fastest and easiest user experience for setting up the Cardano stack. You should prefer this solution over building from sources unless you have really good reasons not to. The following images are available for each component of the Adrestia architecture:' />
       <meta property='og:site_name' content='Cardano Wallet' />
+      <meta property='og:image' content />
       <meta property='og:type' content='website' />
       <meta property='og:title' content='Docker' />
     
@@ -25,7 +27,7 @@
 
 
   
-  <link href='tailwind.css?instanceId=cf8ef3b7-94d3-47b6-8c48-87272b7d9057' rel='stylesheet' type='text/css' />
+  <link href='tailwind.css?instanceId=9b5a2c21-66a2-4a0e-89ec-4e041fdb4311' rel='stylesheet' type='text/css' />
 
   <!-- Heist error element -->
   <style type='text/css'>
@@ -40,7 +42,8 @@
 <style>
   @font-face {
     font-family: 'MavenPro';
-    src: url('_emanote-static/fonts/Maven_Pro/MavenPro-VariableFont_wght.ttf') format("truetype");
+    /* FIXME: This ought to be: ${ema:emanoteStaticLayerUrl}/fonts/Maven_Pro/MavenPro-VariableFont_wght.ttf */
+    src: url(_emanote-static/fonts/Maven_Pro/MavenPro-VariableFont_wght.ttf) format("truetype");
     font-display: swap;
   }
 
@@ -2337,13 +2340,13 @@
     <p class='mb-3'>
       Docker images are continuously built and deployed on <a href='https://hub.docker.com/u/inputoutput' class='text-blue-600 hover:underline' target='_blank' rel='noopener'>dockerhub</a> under specific tags. Using docker provides <strong>the fastest</strong> and <strong>easiest</strong> user experience for setting up the Cardano stack. You should prefer this solution over building from sources unless you have really good reasons not to. The following images are available for each component of the Adrestia architecture:
     </p>
-  <table class='mb-3'><thead><tr class='border-b-2 border-t-2 border-gray-300'><th class='py-2 px-2 align-top border-r-2 border-l-2 border-gray-300'>Repository</th><th class='py-2 px-2 align-top border-r-2 border-l-2 border-gray-300'>Tags</th><th class='py-2 px-2 align-top border-r-2 border-l-2 border-gray-300'>Documentation</th></tr></thead><tbody><tr class='border-b-2 border-t-2 border-gray-300'><td class='py-2 px-2 align-top border-r-2 border-l-2 border-gray-300'><a href='https://hub.docker.com/r/inputoutput/cardano-node' class='text-blue-600 hover:underline' target='_blank' rel='noopener'>inputoutput/cardano-node</a></td><td class='py-2 px-2 align-top border-r-2 border-l-2 border-gray-300'><code class='py-0.5 px-1 rounded bg-gray-700 text-sm text-white'>master</code>, <code class='py-0.5 px-1 rounded bg-gray-700 text-sm text-white'>MAJ.MIN.PATCH</code>, <code class='py-0.5 px-1 rounded bg-gray-700 text-sm text-white'>latest</code></td><td class='py-2 px-2 align-top border-r-2 border-l-2 border-gray-300'><a href='https://github.com/input-output-hk/cardano-node/blob/master/nix/docker.nix#L1-L25' class='text-blue-600 hover:underline' target='_blank' rel='noopener'>link</a></td></tr><tr class='border-b-2 border-t-2 border-gray-300'><td class='py-2 px-2 align-top border-r-2 border-l-2 border-gray-300'><a href='https://hub.docker.com/r/inputoutput/cardano-wallet' class='text-blue-600 hover:underline' target='_blank' rel='noopener'>inputoutput/cardano-wallet</a></td><td class='py-2 px-2 align-top border-r-2 border-l-2 border-gray-300'><code class='py-0.5 px-1 rounded bg-gray-700 text-sm text-white'>byron</code>, <code class='py-0.5 px-1 rounded bg-gray-700 text-sm text-white'>YYYY.MM.DD-byron</code>, <code class='py-0.5 px-1 rounded bg-gray-700 text-sm text-white'>latest</code></td><td class='py-2 px-2 align-top border-r-2 border-l-2 border-gray-300'><a href='user-guide/installation/Docker' class='text-blue-600 mavenLinkBold hover:underline' data-wikilink-type='WikiLinkNormal'>Docker</a></td></tr></tbody></table><h2 id='tag-naming-scheme' class='inline-block mt-6 mb-4 text-4xl font-bold text-gray-700 border-b-2'>Tag Naming Scheme</h2><table class='mb-3'><thead><tr class='border-b-2 border-t-2 border-gray-300'><th class='py-2 px-2 align-top border-r-2 border-l-2 border-gray-300'>Tag</th><th class='py-2 px-2 align-top border-r-2 border-l-2 border-gray-300'>Contents</th></tr></thead><tbody><tr class='border-b-2 border-t-2 border-gray-300'><td class='py-2 px-2 align-top border-r-2 border-l-2 border-gray-300'><code class='py-0.5 px-1 rounded bg-gray-700 text-sm text-white'>latest</code></td><td class='py-2 px-2 align-top border-r-2 border-l-2 border-gray-300'>Points to the latest <strong>stable</strong> image for the corresponding component. This is also the tag to which <code class='py-0.5 px-1 rounded bg-gray-700 text-sm text-white'>docker</code> defaults when pulling without an explicit tag. These typically points to latest known release which happens at the end of an iteration cycle. Depending on which project / component, the iteration cycle may vary from 1 to 2 weeks.</td></tr><tr class='border-b-2 border-t-2 border-gray-300'><td class='py-2 px-2 align-top border-r-2 border-l-2 border-gray-300'><code class='py-0.5 px-1 rounded bg-gray-700 text-sm text-white'>MAJ.MIN.PATCH</code> or <code class='py-0.5 px-1 rounded bg-gray-700 text-sm text-white'>YYYY.MM.DD</code></td><td class='py-2 px-2 align-top border-r-2 border-l-2 border-gray-300'>Must match actual releases of the corresponding component. Refer to each component release notes to know which release tags are available.</td></tr><tr class='border-b-2 border-t-2 border-gray-300'><td class='py-2 px-2 align-top border-r-2 border-l-2 border-gray-300'><code class='py-0.5 px-1 rounded bg-gray-700 text-sm text-white'>master</code></td><td class='py-2 px-2 align-top border-r-2 border-l-2 border-gray-300'>Points to the very tip of the development branch. This is therefore <strong>not recommended</strong> for production but can be useful to try out features before they are officially released.</td></tr></tbody></table><h3 id='examples' class='mt-6 mb-2 text-3xl font-bold text-gray-700'>Examples</h3>
+  <table class='mb-3'><thead><tr class='border-b-2 border-t-2 border-gray-300'><th class='py-2 px-2 align-top border-r-2 border-l-2 border-gray-300'>Repository</th><th class='py-2 px-2 align-top border-r-2 border-l-2 border-gray-300'>Tags</th><th class='py-2 px-2 align-top border-r-2 border-l-2 border-gray-300'>Documentation</th></tr></thead><tbody><tr class='border-b-2 border-t-2 border-gray-300'><td class='py-2 px-2 align-top border-r-2 border-l-2 border-gray-300'><a href='https://hub.docker.com/r/inputoutput/cardano-node' class='text-blue-600 hover:underline' target='_blank' rel='noopener'>inputoutput/cardano-node</a></td><td class='py-2 px-2 align-top border-r-2 border-l-2 border-gray-300'><code class='py-0.5 px-0.5 bg-gray-100'>master</code>, <code class='py-0.5 px-0.5 bg-gray-100'>MAJ.MIN.PATCH</code>, <code class='py-0.5 px-0.5 bg-gray-100'>latest</code></td><td class='py-2 px-2 align-top border-r-2 border-l-2 border-gray-300'><a href='https://github.com/input-output-hk/cardano-node/blob/master/nix/docker.nix#L1-L25' class='text-blue-600 hover:underline' target='_blank' rel='noopener'>link</a></td></tr><tr class='border-b-2 border-t-2 border-gray-300'><td class='py-2 px-2 align-top border-r-2 border-l-2 border-gray-300'><a href='https://hub.docker.com/r/inputoutput/cardano-wallet' class='text-blue-600 hover:underline' target='_blank' rel='noopener'>inputoutput/cardano-wallet</a></td><td class='py-2 px-2 align-top border-r-2 border-l-2 border-gray-300'><code class='py-0.5 px-0.5 bg-gray-100'>byron</code>, <code class='py-0.5 px-0.5 bg-gray-100'>YYYY.MM.DD-byron</code>, <code class='py-0.5 px-0.5 bg-gray-100'>latest</code></td><td class='py-2 px-2 align-top border-r-2 border-l-2 border-gray-300'><a href='user-guide/installation/Docker' class='text-blue-600 mavenLinkBold hover:underline' data-wikilink-type='WikiLinkNormal'>Docker</a></td></tr></tbody></table><h2 id='tag-naming-scheme' class='inline-block mt-6 mb-4 text-4xl font-bold text-gray-700 border-b-2'>Tag Naming Scheme</h2><table class='mb-3'><thead><tr class='border-b-2 border-t-2 border-gray-300'><th class='py-2 px-2 align-top border-r-2 border-l-2 border-gray-300'>Tag</th><th class='py-2 px-2 align-top border-r-2 border-l-2 border-gray-300'>Contents</th></tr></thead><tbody><tr class='border-b-2 border-t-2 border-gray-300'><td class='py-2 px-2 align-top border-r-2 border-l-2 border-gray-300'><code class='py-0.5 px-0.5 bg-gray-100'>latest</code></td><td class='py-2 px-2 align-top border-r-2 border-l-2 border-gray-300'>Points to the latest <strong>stable</strong> image for the corresponding component. This is also the tag to which <code class='py-0.5 px-0.5 bg-gray-100'>docker</code> defaults when pulling without an explicit tag. These typically points to latest known release which happens at the end of an iteration cycle. Depending on which project / component, the iteration cycle may vary from 1 to 2 weeks.</td></tr><tr class='border-b-2 border-t-2 border-gray-300'><td class='py-2 px-2 align-top border-r-2 border-l-2 border-gray-300'><code class='py-0.5 px-0.5 bg-gray-100'>MAJ.MIN.PATCH</code> or <code class='py-0.5 px-0.5 bg-gray-100'>YYYY.MM.DD</code></td><td class='py-2 px-2 align-top border-r-2 border-l-2 border-gray-300'>Must match actual releases of the corresponding component. Refer to each component release notes to know which release tags are available.</td></tr><tr class='border-b-2 border-t-2 border-gray-300'><td class='py-2 px-2 align-top border-r-2 border-l-2 border-gray-300'><code class='py-0.5 px-0.5 bg-gray-100'>master</code></td><td class='py-2 px-2 align-top border-r-2 border-l-2 border-gray-300'>Points to the very tip of the development branch. This is therefore <strong>not recommended</strong> for production but can be useful to try out features before they are officially released.</td></tr></tbody></table><h3 id='examples' class='mt-6 mb-2 text-3xl font-bold text-gray-700'>Examples</h3>
     <p class='mb-3'>
-      For example, in order to use <code class='py-0.5 px-1 rounded bg-gray-700 text-sm text-white'>cardano-node@1.10.0</code>, one can simply run:
+      For example, in order to use <code class='py-0.5 px-0.5 bg-gray-100'>cardano-node@1.10.0</code>, one can simply run:
     </p>
   <div class='py-0.5 mb-3 text-sm'><pre><code class='language-none'>docker pull inputoutput/cardano-node:1.10.0</code></pre></div>
     <p class='mb-3'>
-      Similarly, one can pull <code class='py-0.5 px-1 rounded bg-gray-700 text-sm text-white'>cardano-wallet@v2021-08-11</code> with:
+      Similarly, one can pull <code class='py-0.5 px-0.5 bg-gray-100'>cardano-wallet@v2021-08-11</code> with:
     </p>
   <div class='py-0.5 mb-3 text-sm'><pre><code class='language-none'>docker pull inputoutput/cardano-wallet:2021.8.11</code></pre></div><div class='info-block-container admonition-container px-3 py-1 my-3 mx-4 rounded bg-blue-100 hover:border-blue-400 hover:shadow border-t-8 border-blue-200'><h3 id='about-version-compatibility' class='mt-6 mb-2 text-3xl font-bold text-gray-700'>About version compatibility</h3>
     <p class='mb-3'>
@@ -2351,7 +2354,7 @@
     </p>
   </div><h2 id='downloading-the-docker-image' class='inline-block mt-6 mb-4 text-4xl font-bold text-gray-700 border-b-2'>Downloading the Docker image</h2>
     <p class='mb-3'>
-      To get the latest release of <code class='py-0.5 px-1 rounded bg-gray-700 text-sm text-white'>cardano-wallet</code>, run:
+      To get the latest release of <code class='py-0.5 px-0.5 bg-gray-100'>cardano-wallet</code>, run:
     </p>
   <div class='py-0.5 mb-3 text-sm'><pre><code class='language-none'>docker pull inputoutput/cardano-wallet:latest</code></pre></div><h2 id='running-the-docker-container-for-cardano-wallet' class='inline-block mt-6 mb-4 text-4xl font-bold text-gray-700 border-b-2'>Running the Docker container for cardano-wallet</h2>
     <p class='mb-3'>
@@ -2367,7 +2370,7 @@
     </p>
   
     <p class='mb-3'>
-      Then run this command from the <code class='py-0.5 px-1 rounded bg-gray-700 text-sm text-white'>cardano-wallet</code> git repo:
+      Then run this command from the <code class='py-0.5 px-0.5 bg-gray-100'>cardano-wallet</code> git repo:
     </p>
   <div class='py-0.5 mb-3 text-sm'><pre><code class='language-none'>docker load -i $(nix build --json .#dockerImage | jq -r '.[0].outputs.out')</code></pre></div>
     <p class='mb-3'>
@@ -2375,15 +2378,15 @@
     </p>
   <h2 id='inspecting-the-contents-of-the-docker-image' class='inline-block mt-6 mb-4 text-4xl font-bold text-gray-700 border-b-2'>Inspecting the contents of the Docker image</h2>
     <p class='mb-3'>
-      The default entrypoint of the image is <code class='py-0.5 px-1 rounded bg-gray-700 text-sm text-white'>/bin/start-cardano-wallet-shelley</code>. If you need to run a shell inside the Docker image, use the bash shell as the entrypoint:
+      The default entrypoint of the image is <code class='py-0.5 px-0.5 bg-gray-100'>/bin/start-cardano-wallet-shelley</code>. If you need to run a shell inside the Docker image, use the bash shell as the entrypoint:
     </p>
   <div class='py-0.5 mb-3 text-sm'><pre><code class='language-none'>docker run --rm -it --entrypoint bash inputoutput/cardano-wallet:latest</code></pre></div><h2 id='docker-compose' class='inline-block mt-6 mb-4 text-4xl font-bold text-gray-700 border-b-2'>Docker compose</h2>
     <p class='mb-3'>
-      One can also use <a href='https://docs.docker.com/compose/' class='text-blue-600 hover:underline' target='_blank' rel='noopener'>docker-compose</a> to quickly spin up <code class='py-0.5 px-1 rounded bg-gray-700 text-sm text-white'>cardano-wallet</code> together with supported block producer. Those are useful for a quick start or as a baseline for development.
+      One can also use <a href='https://docs.docker.com/compose/' class='text-blue-600 hover:underline' target='_blank' rel='noopener'>docker-compose</a> to quickly spin up <code class='py-0.5 px-0.5 bg-gray-100'>cardano-wallet</code> together with supported block producer. Those are useful for a quick start or as a baseline for development.
     </p>
   
     <p class='mb-3'>
-      <a href='https://github.com/input-output-hk/cardano-wallet/blob/master/docker-compose.yml' class='text-blue-600 hover:underline' target='_blank' rel='noopener'>cardano-wallet/docker-compose.yml</a> is an example <code class='py-0.5 px-1 rounded bg-gray-700 text-sm text-white'>docker-compose.yaml</code> combining the latest versions of <code class='py-0.5 px-1 rounded bg-gray-700 text-sm text-white'>cardano-wallet</code> and <code class='py-0.5 px-1 rounded bg-gray-700 text-sm text-white'>cardano-node</code>.
+      <a href='https://github.com/input-output-hk/cardano-wallet/blob/master/docker-compose.yml' class='text-blue-600 hover:underline' target='_blank' rel='noopener'>cardano-wallet/docker-compose.yml</a> is an example <code class='py-0.5 px-0.5 bg-gray-100'>docker-compose.yaml</code> combining the latest versions of <code class='py-0.5 px-0.5 bg-gray-100'>cardano-wallet</code> and <code class='py-0.5 px-0.5 bg-gray-100'>cardano-node</code>.
     </p>
   
     <p class='mb-3'>
@@ -2480,7 +2483,7 @@ NETWORK=mainnet docker-compose up</code></pre></div>
     </a>
   </div>
   <div>
-    <a href='https://emanote.srid.ca' target='_blank' title='Generated by Emanote 0.4.11.3'>
+    <a href='https://emanote.srid.ca' target='_blank' title='Generated by Emanote 0.6.15.1'>
       <img class='w-6 h-6 hover:text-blue-700' src='_emanote-static/emanote-logo.svg' />
     </a>
   </div>

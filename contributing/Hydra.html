@@ -1,3 +1,4 @@
+<!DOCTYPE html>
 <html lang='en'>
 
 <head>
@@ -8,8 +9,9 @@
   </title>
   
     
-      <meta property='og:description' content />
+      <meta property='og:description' content='The Nix build server - not to be confused with Ouroboros Hydra.' />
       <meta property='og:site_name' content='Cardano Wallet' />
+      <meta property='og:image' content />
       <meta property='og:type' content='website' />
       <meta property='og:title' content='Hydra CI' />
     
@@ -25,7 +27,7 @@
 
 
   
-  <link href='tailwind.css?instanceId=cf8ef3b7-94d3-47b6-8c48-87272b7d9057' rel='stylesheet' type='text/css' />
+  <link href='tailwind.css?instanceId=9b5a2c21-66a2-4a0e-89ec-4e041fdb4311' rel='stylesheet' type='text/css' />
 
   <!-- Heist error element -->
   <style type='text/css'>
@@ -40,7 +42,8 @@
 <style>
   @font-face {
     font-family: 'MavenPro';
-    src: url('_emanote-static/fonts/Maven_Pro/MavenPro-VariableFont_wght.ttf') format("truetype");
+    /* FIXME: This ought to be: ${ema:emanoteStaticLayerUrl}/fonts/Maven_Pro/MavenPro-VariableFont_wght.ttf */
+    src: url(_emanote-static/fonts/Maven_Pro/MavenPro-VariableFont_wght.ttf) format("truetype");
     font-display: swap;
   }
 
@@ -2334,7 +2337,7 @@
     </p>
   <h2 id='jobset' class='inline-block mt-6 mb-4 text-4xl font-bold text-gray-700 border-b-2'>Jobset</h2>
     <p class='mb-3'>
-      The Hydra jobsets are defined by the <code class='py-0.5 px-1 rounded bg-gray-700 text-sm text-white'>hydraJobs</code>, <code class='py-0.5 px-1 rounded bg-gray-700 text-sm text-white'>hydraJobsPr</code> and <code class='py-0.5 px-1 rounded bg-gray-700 text-sm text-white'>hydraJobsBors</code> flake attributes (cf. <code class='py-0.5 px-1 rounded bg-gray-700 text-sm text-white'>mkSystemHydraJobs</code> function <a href='https://github.com/input-output-hk/cardano-wallet/blob/master/flake.nix' class='text-blue-600 hover:underline' target='_blank' rel='noopener'><code class='py-0.5 px-1 rounded bg-gray-700 text-sm text-white'>flake.nix</code></a>). There are slight variations between them to avoid test results caching for bors builds and to disable integration tests for PRs.
+      The Hydra jobsets are defined by the <code class='py-0.5 px-0.5 bg-gray-100'>hydraJobs</code>, <code class='py-0.5 px-0.5 bg-gray-100'>hydraJobsPr</code> and <code class='py-0.5 px-0.5 bg-gray-100'>hydraJobsBors</code> flake attributes (cf. <code class='py-0.5 px-0.5 bg-gray-100'>mkSystemHydraJobs</code> function <a href='https://github.com/input-output-hk/cardano-wallet/blob/master/flake.nix' class='text-blue-600 hover:underline' target='_blank' rel='noopener'><code class='py-0.5 px-0.5 bg-gray-100'>flake.nix</code></a>). There are slight variations between them to avoid test results caching for bors builds and to disable integration tests for PRs.
     </p>
   
     <p class='mb-3'>
@@ -2370,7 +2373,7 @@
     </p>
   
     <p class='mb-3'>
-      This job is set up with the <code class='py-0.5 px-1 rounded bg-gray-700 text-sm text-white'>mkRequiredJob</code> function in <code class='py-0.5 px-1 rounded bg-gray-700 text-sm text-white'>flake.nix</code>.
+      This job is set up with the <code class='py-0.5 px-0.5 bg-gray-100'>mkRequiredJob</code> function in <code class='py-0.5 px-0.5 bg-gray-100'>flake.nix</code>.
     </p>
   <h2 id='build-products' class='inline-block mt-6 mb-4 text-4xl font-bold text-gray-700 border-b-2'>Build Products</h2>
     <p class='mb-3'>
@@ -2378,15 +2381,15 @@
     </p>
   
     <p class='mb-3'>
-      When you click the “latest successful build” link for a job, it redirects (HTTP 302 Moved Temporarily) to the location of the <em>current latest successful build</em>. To make a download link which is always the latest, click the <code class='py-0.5 px-1 rounded bg-gray-700 text-sm text-white'>Details</code> button next a build product, and copy the links.
+      When you click the “latest successful build” link for a job, it redirects (HTTP 302 Moved Temporarily) to the location of the <em>current latest successful build</em>. To make a download link which is always the latest, click the <code class='py-0.5 px-0.5 bg-gray-100'>Details</code> button next a build product, and copy the links.
     </p>
   
     <p class='mb-3'>
-      A nix derivation builder script can register build products by adding lines to the file <code class='py-0.5 px-1 rounded bg-gray-700 text-sm text-white'>$out/nix-support/hydra-build-products</code>.
+      A nix derivation builder script can register build products by adding lines to the file <code class='py-0.5 px-0.5 bg-gray-100'>$out/nix-support/hydra-build-products</code>.
     </p>
   <h2 id='evaluation' class='inline-block mt-6 mb-4 text-4xl font-bold text-gray-700 border-b-2'>Evaluation</h2>
     <p class='mb-3'>
-      Hydra evaluates the <code class='py-0.5 px-1 rounded bg-gray-700 text-sm text-white'>hydraJobs</code> attribute of <a href='https://github.com/input-output-hk/cardano-wallet/blob/master/flake.nix' class='text-blue-600 hover:underline' target='_blank' rel='noopener'><code class='py-0.5 px-1 rounded bg-gray-700 text-sm text-white'>flake.nix</code></a> file on the Hydra master host (<a href='https://hydra.iohk.io' class='text-blue-600 hover:underline' target='_blank' rel='noopener'>hydra.iohk.io</a>). It then sends the jobs out to the build farm to be built.
+      Hydra evaluates the <code class='py-0.5 px-0.5 bg-gray-100'>hydraJobs</code> attribute of <a href='https://github.com/input-output-hk/cardano-wallet/blob/master/flake.nix' class='text-blue-600 hover:underline' target='_blank' rel='noopener'><code class='py-0.5 px-0.5 bg-gray-100'>flake.nix</code></a> file on the Hydra master host (<a href='https://hydra.iohk.io' class='text-blue-600 hover:underline' target='_blank' rel='noopener'>hydra.iohk.io</a>). It then sends the jobs out to the build farm to be built.
     </p>
   
     <p class='mb-3'>
@@ -2394,7 +2397,7 @@
     </p>
   
     <p class='mb-3'>
-      <strong>Note</strong>: If evaluation fails, the Hydra eval runner will retry until it succeeds. The <code class='py-0.5 px-1 rounded bg-gray-700 text-sm text-white'>ci/hydra-eval</code> status will change from pending to failed, until the evaluation succeeds.
+      <strong>Note</strong>: If evaluation fails, the Hydra eval runner will retry until it succeeds. The <code class='py-0.5 px-0.5 bg-gray-100'>ci/hydra-eval</code> status will change from pending to failed, until the evaluation succeeds.
     </p>
   <h2 id='restarting-builds' class='inline-block mt-6 mb-4 text-4xl font-bold text-gray-700 border-b-2'>Restarting builds</h2><div class='flex justify-center items-center mx-auto px-8'>
     <p class='mb-3'>
@@ -2502,7 +2505,7 @@
     </a>
   </div>
   <div>
-    <a href='https://emanote.srid.ca' target='_blank' title='Generated by Emanote 0.4.11.3'>
+    <a href='https://emanote.srid.ca' target='_blank' title='Generated by Emanote 0.6.15.1'>
       <img class='w-6 h-6 hover:text-blue-700' src='_emanote-static/emanote-logo.svg' />
     </a>
   </div>

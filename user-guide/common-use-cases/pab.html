@@ -1,3 +1,4 @@
+<!DOCTYPE html>
 <html lang='en'>
 
 <head>
@@ -8,8 +9,9 @@
   </title>
   
     
-      <meta property='og:description' content />
+      <meta property='og:description' content='This guide is to show how to invoke Plutus contracts with cardano-wallet.' />
       <meta property='og:site_name' content='Cardano Wallet' />
+      <meta property='og:image' content />
       <meta property='og:type' content='website' />
       <meta property='og:title' content='Using cardano-wallet with Plutus Application Backend' />
     
@@ -25,7 +27,7 @@
 
 
   
-  <link href='tailwind.css?instanceId=cf8ef3b7-94d3-47b6-8c48-87272b7d9057' rel='stylesheet' type='text/css' />
+  <link href='tailwind.css?instanceId=9b5a2c21-66a2-4a0e-89ec-4e041fdb4311' rel='stylesheet' type='text/css' />
 
   <!-- Heist error element -->
   <style type='text/css'>
@@ -40,7 +42,8 @@
 <style>
   @font-face {
     font-family: 'MavenPro';
-    src: url('_emanote-static/fonts/Maven_Pro/MavenPro-VariableFont_wght.ttf') format("truetype");
+    /* FIXME: This ought to be: ${ema:emanoteStaticLayerUrl}/fonts/Maven_Pro/MavenPro-VariableFont_wght.ttf */
+    src: url(_emanote-static/fonts/Maven_Pro/MavenPro-VariableFont_wght.ttf) format("truetype");
     font-display: swap;
   }
 
@@ -2383,7 +2386,7 @@
     </ul>
   <h3 id='balance-transaction' class='mt-6 mb-2 text-3xl font-bold text-gray-700'>Balance transaction</h3>
     <p class='mb-3'>
-      Plutus Application Backend provides a payload of an unbalanced transaction. This transaction needs to be balanced with wallet’s inputs such that it can be submitted to the network. The response from this endpoint returns <code class='py-0.5 px-1 rounded bg-gray-700 text-sm text-white'>fee</code> and <code class='py-0.5 px-1 rounded bg-gray-700 text-sm text-white'>coin_selection</code> of the balanced transaction as well as CBOR-encoded <code class='py-0.5 px-1 rounded bg-gray-700 text-sm text-white'>transaction</code> represented in base64 encoding. We will need the returned <code class='py-0.5 px-1 rounded bg-gray-700 text-sm text-white'>transaction</code> value to pass on to <a href='https://input-output-hk.github.io/cardano-wallet/api/edge/#operation/signTransaction' class='text-blue-600 hover:underline' target='_blank' rel='noopener'>POST /wallets/{walletId}/transactions-sign</a> endpoint.
+      Plutus Application Backend provides a payload of an unbalanced transaction. This transaction needs to be balanced with wallet’s inputs such that it can be submitted to the network. The response from this endpoint returns <code class='py-0.5 px-0.5 bg-gray-100'>fee</code> and <code class='py-0.5 px-0.5 bg-gray-100'>coin_selection</code> of the balanced transaction as well as CBOR-encoded <code class='py-0.5 px-0.5 bg-gray-100'>transaction</code> represented in base64 encoding. We will need the returned <code class='py-0.5 px-0.5 bg-gray-100'>transaction</code> value to pass on to <a href='https://input-output-hk.github.io/cardano-wallet/api/edge/#operation/signTransaction' class='text-blue-600 hover:underline' target='_blank' rel='noopener'>POST /wallets/{walletId}/transactions-sign</a> endpoint.
     </p>
   <div class='py-0.5 mb-3 text-sm'><pre><code class='language-none'>$ curl -X POST http://localhost:8090/v2/wallets/1b0aa24994b4181e79116c131510f2abf6cdaa4f/transactions-balance \
 -d '{"transaction":"84a500800d80018183581d704d72cf569a339a18a7d9302313983f56e0d96cd45bdcb1d6512dca6a1a001e84805820923918e403bf43c34b4ef6b48eb2ee04babed17320d8d1b9ff9ad086e86f44ec02000e80a10481d87980f5f6","redeemers":[],"inputs":[]}' \
@@ -2391,7 +2394,7 @@
 
 hKYAgYJYIJs6ATvbNwo5xpOkjHfUzr9Cv4zuFLFicFwWwpPC4ltBAw2AAYKDWB1wTXLPVpozmhin2TAjE5g/VuDZbNRb3LHWUS3KahoAHoSAWCCSORjkA79Dw0tO9rSOsu4Eur7RcyDY0bn/mtCG6G9E7IJYOQDsKgV69YfvMZdbfIT11OqtWL9bv7n++Jx0f+TDFwodcRLCv14tOV5BoBhV6ODYaS1MNdWnvKCjgBq2bfNOAhoAApgxDoALWCAvUOolRvjOAgykW/zyq+sC/xivIoNGb4iK5IkYSz0tOaEEgdh5gPX2</code></pre></div><h3 id='sign-transaction' class='mt-6 mb-2 text-3xl font-bold text-gray-700'>Sign transaction</h3>
     <p class='mb-3'>
-      Once the transaction is balanced we need to sign it using our wallet’s secure passphrase and pass the previously returned CBOR-encoded <code class='py-0.5 px-1 rounded bg-gray-700 text-sm text-white'>transaction</code>. The sign endpoint will again return CBOR-encoded <code class='py-0.5 px-1 rounded bg-gray-700 text-sm text-white'>transaction</code> which is needed to be passed further to <a href='https://input-output-hk.github.io/cardano-wallet/api/edge/#operation/submitTransaction' class='text-blue-600 hover:underline' target='_blank' rel='noopener'>POST<br />/wallets/{walletId}/transactions-submit</a> endpoint.
+      Once the transaction is balanced we need to sign it using our wallet’s secure passphrase and pass the previously returned CBOR-encoded <code class='py-0.5 px-0.5 bg-gray-100'>transaction</code>. The sign endpoint will again return CBOR-encoded <code class='py-0.5 px-0.5 bg-gray-100'>transaction</code> which is needed to be passed further to <a href='https://input-output-hk.github.io/cardano-wallet/api/edge/#operation/submitTransaction' class='text-blue-600 hover:underline' target='_blank' rel='noopener'>POST<br />/wallets/{walletId}/transactions-submit</a> endpoint.
     </p>
   <div class='py-0.5 mb-3 text-sm'><pre><code class='language-none'>$ curl -X POST http://localhost:8090/v2/wallets/1b0aa24994b4181e79116c131510f2abf6cdaa4f/transactions-sign \
 -d '{"passphrase":"Secure Passphrase",
@@ -2400,7 +2403,7 @@ hKYAgYJYIJs6ATvbNwo5xpOkjHfUzr9Cv4zuFLFicFwWwpPC4ltBAw2AAYKDWB1wTXLPVpozmhin2TAj
 
 hKYAgYJYIJs6ATvbNwo5xpOkjHfUzr9Cv4zuFLFicFwWwpPC4ltBAw2AAYKDWB1wTXLPVpozmhin2TAjE5g/VuDZbNRb3LHWUS3KahoAHoSAWCCSORjkA79Dw0tO9rSOsu4Eur7RcyDY0bn/mtCG6G9E7IJYOQDsKgV69YfvMZdbfIT11OqtWL9bv7n++Jx0f+TDFwodcRLCv14tOV5BoBhV6ODYaS1MNdWnvKCjgBq2bfNOAhoAApgxDoALWCAvUOolRvjOAgykW/zyq+sC/xivIoNGb4iK5IkYSz0tOaIAgYJYIAVUtVUzi4FodRYiBmO9mD5hQGo2YjjYDoCgw5gn+/w9WEAyVhMWNiK88QKW6HBXIVxQyu0E+9epkIQbCQwNjKur5ORLojHxIZtZDDfkT6caz0yxp92t4Y7rDwsDw4geMOkJBIHYeYD19g==</code></pre></div><h3 id='submit-transaction' class='mt-6 mb-2 text-3xl font-bold text-gray-700'>Submit transaction</h3>
     <p class='mb-3'>
-      We have our balanced and signed CBOR-encoded <code class='py-0.5 px-1 rounded bg-gray-700 text-sm text-white'>transaction</code> represented in base64 encoding. Now we can submit it to the network with <a href='https://input-output-hk.github.io/cardano-wallet/api/edge/#operation/submitTransaction' class='text-blue-600 hover:underline' target='_blank' rel='noopener'>POST<br />/wallets/{walletId}/transactions-submit</a> endpoint.
+      We have our balanced and signed CBOR-encoded <code class='py-0.5 px-0.5 bg-gray-100'>transaction</code> represented in base64 encoding. Now we can submit it to the network with <a href='https://input-output-hk.github.io/cardano-wallet/api/edge/#operation/submitTransaction' class='text-blue-600 hover:underline' target='_blank' rel='noopener'>POST<br />/wallets/{walletId}/transactions-submit</a> endpoint.
     </p>
   <div class='py-0.5 mb-3 text-sm'><pre><code class='language-none'>$ curl -X POST http://localhost:8090/v2/wallets/1b0aa24994b4181e79116c131510f2abf6cdaa4f/transactions-submit \
 -d '{"transaction":"hKYAgYJYIJs6ATvbNwo5xpOkjHfUzr9Cv4zuFLFicFwWwpPC4ltBAw2AAYKDWB1wTXLPVpozmhin2TAjE5g/VuDZbNRb3LHWUS3KahoAHoSAWCCSORjkA79Dw0tO9rSOsu4Eur7RcyDY0bn/mtCG6G9E7IJYOQDsKgV69YfvMZdbfIT11OqtWL9bv7n++Jx0f+TDFwodcRLCv14tOV5BoBhV6ODYaS1MNdWnvKCjgBq2bfNOAhoAApgxDoALWCAvUOolRvjOAgykW/zyq+sC/xivIoNGb4iK5IkYSz0tOaIAgYJYIAVUtVUzi4FodRYiBmO9mD5hQGo2YjjYDoCgw5gn+/w9WEAyVhMWNiK88QKW6HBXIVxQyu0E+9epkIQbCQwNjKur5ORLojHxIZtZDDfkT6caz0yxp92t4Y7rDwsDw4geMOkJBIHYeYD19g=="}' \
@@ -2463,7 +2466,7 @@ hKYAgYJYIJs6ATvbNwo5xpOkjHfUzr9Cv4zuFLFicFwWwpPC4ltBAw2AAYKDWB1wTXLPVpozmhin2TAj
     </a>
   </div>
   <div>
-    <a href='https://emanote.srid.ca' target='_blank' title='Generated by Emanote 0.4.11.3'>
+    <a href='https://emanote.srid.ca' target='_blank' title='Generated by Emanote 0.6.15.1'>
       <img class='w-6 h-6 hover:text-blue-700' src='_emanote-static/emanote-logo.svg' />
     </a>
   </div>

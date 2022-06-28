@@ -1,3 +1,4 @@
+<!DOCTYPE html>
 <html lang='en'>
 
 <head>
@@ -8,8 +9,9 @@
   </title>
   
     
-      <meta property='og:description' content />
+      <meta property='og:description' content='There are a number of ways to obtain cardano-wallet.' />
       <meta property='og:site_name' content='Cardano Wallet' />
+      <meta property='og:image' content />
       <meta property='og:type' content='website' />
       <meta property='og:title' content='Installation Instructions' />
     
@@ -25,7 +27,7 @@
 
 
   
-  <link href='tailwind.css?instanceId=cf8ef3b7-94d3-47b6-8c48-87272b7d9057' rel='stylesheet' type='text/css' />
+  <link href='tailwind.css?instanceId=9b5a2c21-66a2-4a0e-89ec-4e041fdb4311' rel='stylesheet' type='text/css' />
 
   <!-- Heist error element -->
   <style type='text/css'>
@@ -40,7 +42,8 @@
 <style>
   @font-face {
     font-family: 'MavenPro';
-    src: url('_emanote-static/fonts/Maven_Pro/MavenPro-VariableFont_wght.ttf') format("truetype");
+    /* FIXME: This ought to be: ${ema:emanoteStaticLayerUrl}/fonts/Maven_Pro/MavenPro-VariableFont_wght.ttf */
+    src: url(_emanote-static/fonts/Maven_Pro/MavenPro-VariableFont_wght.ttf) format("truetype");
     font-display: swap;
   }
 
@@ -2330,19 +2333,19 @@
     </p>
   <h2 id='daedalus-installer' class='inline-block mt-6 mb-4 text-4xl font-bold text-gray-700 border-b-2'>Daedalus installer</h2>
     <p class='mb-3'>
-      The <code class='py-0.5 px-1 rounded bg-gray-700 text-sm text-white'>cardano-wallet</code> backend is included in the <a href='https://daedaluswallet.io' class='text-blue-600 hover:underline' target='_blank' rel='noopener'>Daedalus</a> installation. This is convenient if you already have Daedalus installed, but the version of <code class='py-0.5 px-1 rounded bg-gray-700 text-sm text-white'>cardano-wallet</code> may not be the latest.
+      The <code class='py-0.5 px-0.5 bg-gray-100'>cardano-wallet</code> backend is included in the <a href='https://daedaluswallet.io' class='text-blue-600 hover:underline' target='_blank' rel='noopener'>Daedalus</a> installation. This is convenient if you already have Daedalus installed, but the version of <code class='py-0.5 px-0.5 bg-gray-100'>cardano-wallet</code> may not be the latest.
     </p>
   <h2 id='pre-built-binaries-from-github-release-page' class='inline-block mt-6 mb-4 text-4xl font-bold text-gray-700 border-b-2'>Pre-built binaries from GitHub release page</h2>
     <p class='mb-3'>
-      Release builds of <code class='py-0.5 px-1 rounded bg-gray-700 text-sm text-white'>cardano-wallet</code> for Linux, macOS, and Windows are available at: <a href='https://github.com/input-output-hk/cardano-wallet/releases' class='text-blue-600 hover:underline' target='_blank' rel='noopener'>https://github.com/input-output-hk/cardano-wallet/releases</a>
+      Release builds of <code class='py-0.5 px-0.5 bg-gray-100'>cardano-wallet</code> for Linux, macOS, and Windows are available at: <a href='https://github.com/input-output-hk/cardano-wallet/releases' class='text-blue-600 hover:underline' target='_blank' rel='noopener'>https://github.com/input-output-hk/cardano-wallet/releases</a>
     </p>
   
     <p class='mb-3'>
-      These release bundles include the recommended version of <code class='py-0.5 px-1 rounded bg-gray-700 text-sm text-white'>cardano-node</code>, according to the <a href='https://github.com/input-output-hk/cardano-wallet#latest-releases' class='text-blue-600 hover:underline' target='_blank' rel='noopener'>release matrix</a>.
+      These release bundles include the recommended version of <code class='py-0.5 px-0.5 bg-gray-100'>cardano-node</code>, according to the <a href='https://github.com/input-output-hk/cardano-wallet#latest-releases' class='text-blue-600 hover:underline' target='_blank' rel='noopener'>release matrix</a>.
     </p>
   <h3 id='direct-download-urls' class='mt-6 mb-2 text-3xl font-bold text-gray-700'>Direct download URLS</h3>
     <p class='mb-3'>
-      The release packages can be downloaded directly from the github servers using a command-line tool like <code class='py-0.5 px-1 rounded bg-gray-700 text-sm text-white'>wget</code> or <code class='py-0.5 px-1 rounded bg-gray-700 text-sm text-white'>cURL</code>. For example, one can download and unpack a pre-packaged linux binary for <code class='py-0.5 px-1 rounded bg-gray-700 text-sm text-white'>cardano-wallet@v2020-04-07</code> with:
+      The release packages can be downloaded directly from the github servers using a command-line tool like <code class='py-0.5 px-0.5 bg-gray-100'>wget</code> or <code class='py-0.5 px-0.5 bg-gray-100'>cURL</code>. For example, one can download and unpack a pre-packaged linux binary for <code class='py-0.5 px-0.5 bg-gray-100'>cardano-wallet@v2020-04-07</code> with:
     </p>
   <div class='py-0.5 mb-3 text-sm'><pre><code class='language-none'>curl -L https://github.com/input-output-hk/cardano-wallet/releases/download/v2020-04-07/cardano-wallet-v2020-04-07-linux64.tar.gz | tar xvz</code></pre></div><h2 id='docker' class='inline-block mt-6 mb-4 text-4xl font-bold text-gray-700 border-b-2'>Docker</h2>
     <p class='mb-3'>
@@ -2358,7 +2361,7 @@
     </p>
   
     <p class='mb-3'>
-      If you feel brave enough and want to compile everything from sources, please refer to <a href='developers/Building' class='text-blue-600 mavenLinkBold hover:underline' data-wikilink-type='WikiLinkNormal'>Building</a>, or the equivalent documentation in each source repository (instructions often appear in <code class='py-0.5 px-1 rounded bg-gray-700 text-sm text-white'>README.md</code>).
+      If you feel brave enough and want to compile everything from sources, please refer to <a href='developers/Building' class='text-blue-600 mavenLinkBold hover:underline' data-wikilink-type='WikiLinkNormal'>Building</a>, or the equivalent documentation in each source repository (instructions often appear in <code class='py-0.5 px-0.5 bg-gray-100'>README.md</code>).
     </p>
   
     <p class='mb-3'>
@@ -2420,7 +2423,7 @@
     </a>
   </div>
   <div>
-    <a href='https://emanote.srid.ca' target='_blank' title='Generated by Emanote 0.4.11.3'>
+    <a href='https://emanote.srid.ca' target='_blank' title='Generated by Emanote 0.6.15.1'>
       <img class='w-6 h-6 hover:text-blue-700' src='_emanote-static/emanote-logo.svg' />
     </a>
   </div>

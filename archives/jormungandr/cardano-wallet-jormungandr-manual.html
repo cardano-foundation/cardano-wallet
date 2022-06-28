@@ -1,3 +1,4 @@
+<!DOCTYPE html>
 <html lang='en'>
 
 <head>
@@ -8,8 +9,9 @@
   </title>
   
     
-      <meta property='og:description' content />
+      <meta property='og:description' content='The CLI is a proxy to the wallet server, which is required for most commands. Commands are turned into corresponding API calls, and submitted to an up-and-running server. Some commands do not require an active server and can be run offline. (e.g. recovery-phrase generate)' />
       <meta property='og:site_name' content='Cardano Wallet' />
+      <meta property='og:image' content />
       <meta property='og:type' content='website' />
       <meta property='og:title' content='Command-Line Interface' />
     
@@ -25,7 +27,7 @@
 
 
   
-  <link href='tailwind.css?instanceId=cf8ef3b7-94d3-47b6-8c48-87272b7d9057' rel='stylesheet' type='text/css' />
+  <link href='tailwind.css?instanceId=9b5a2c21-66a2-4a0e-89ec-4e041fdb4311' rel='stylesheet' type='text/css' />
 
   <!-- Heist error element -->
   <style type='text/css'>
@@ -40,7 +42,8 @@
 <style>
   @font-face {
     font-family: 'MavenPro';
-    src: url('_emanote-static/fonts/Maven_Pro/MavenPro-VariableFont_wght.ttf') format("truetype");
+    /* FIXME: This ought to be: ${ema:emanoteStaticLayerUrl}/fonts/Maven_Pro/MavenPro-VariableFont_wght.ttf */
+    src: url(_emanote-static/fonts/Maven_Pro/MavenPro-VariableFont_wght.ttf) format("truetype");
     font-display: swap;
   }
 
@@ -2391,7 +2394,7 @@ Available COMMANDS:
     <blockquote class='py-0.5 px-4 mb-3 italic border-l-4 bg-gray-50 text-gray-600 border-gray-400 quote'>
       
     <p class='mb-3'>
-      <span class='emoji' data-emoji='information_source' style='font-family: emoji'>ℹ️</span> The CLI commands for <code class='py-0.5 px-1 rounded bg-gray-700 text-sm text-white'>wallet</code>, <code class='py-0.5 px-1 rounded bg-gray-700 text-sm text-white'>transaction</code> and <code class='py-0.5 px-1 rounded bg-gray-700 text-sm text-white'>address</code> only output valid JSON on <code class='py-0.5 px-1 rounded bg-gray-700 text-sm text-white'>stdout</code>. So you may redirect the output to a file with <code class='py-0.5 px-1 rounded bg-gray-700 text-sm text-white'>&gt;</code> or pipe it into utility softwares like <code class='py-0.5 px-1 rounded bg-gray-700 text-sm text-white'>jq</code>!
+      <span class='emoji' data-emoji='information_source' style='font-family: emoji'>ℹ️</span> The CLI commands for <code class='py-0.5 px-0.5 bg-gray-100'>wallet</code>, <code class='py-0.5 px-0.5 bg-gray-100'>transaction</code> and <code class='py-0.5 px-0.5 bg-gray-100'>address</code> only output valid JSON on <code class='py-0.5 px-0.5 bg-gray-100'>stdout</code>. So you may redirect the output to a file with <code class='py-0.5 px-0.5 bg-gray-100'>&gt;</code> or pipe it into utility softwares like <code class='py-0.5 px-0.5 bg-gray-100'>jq</code>!
     </p>
   
     </blockquote>
@@ -2399,7 +2402,7 @@ Available COMMANDS:
     <blockquote class='py-0.5 px-4 mb-3 italic border-l-4 bg-gray-50 text-gray-600 border-gray-400 quote'>
       
     <p class='mb-3'>
-      <span class='emoji' data-emoji='gift_heart' style='font-family: emoji'>💝</span> For bash/zsh auto-completion, put the following script in your <code class='py-0.5 px-1 rounded bg-gray-700 text-sm text-white'>/etc/bash_completion.d</code>:
+      <span class='emoji' data-emoji='gift_heart' style='font-family: emoji'>💝</span> For bash/zsh auto-completion, put the following script in your <code class='py-0.5 px-0.5 bg-gray-100'>/etc/bash_completion.d</code>:
     </p>
   <div xmlhtmlRaw><details>
 <summary>cardano-wallet.sh</summary>
@@ -2427,7 +2430,7 @@ complete -o filenames -F _cardano-wallet cardano-wallet</code></pre></div><div x
     <ul class='my-3 ml-6 space-y-1 list-disc'>
       
         <li>
-          A wallet server (using <code class='py-0.5 px-1 rounded bg-gray-700 text-sm text-white'>cardano-wallet serve</code>)
+          A wallet server (using <code class='py-0.5 px-0.5 bg-gray-100'>cardano-wallet serve</code>)
         </li>
       
         <li>
@@ -2441,7 +2444,7 @@ complete -o filenames -F _cardano-wallet cardano-wallet</code></pre></div><div x
     </p>
   
     <p class='mb-3'>
-      Many options supported by <a href='#serve' class='text-blue-600 mavenLinkBold hover:underline'><code class='py-0.5 px-1 rounded bg-gray-700 text-sm text-white'>cardano-wallet serve</code></a> are also supported by `launch`.
+      Many options supported by <a href='#serve' class='text-blue-600 mavenLinkBold hover:underline'><code class='py-0.5 px-0.5 bg-gray-100'>cardano-wallet serve</code></a> are also supported by `launch`.
     </p>
   <h3 id='invocation' class='mt-6 mb-2 text-3xl font-bold text-gray-700'>Invocation</h3>
     <blockquote class='py-0.5 px-4 mb-3 italic border-l-4 bg-gray-50 text-gray-600 border-gray-400 quote'>
@@ -2457,11 +2460,11 @@ complete -o filenames -F _cardano-wallet cardano-wallet</code></pre></div><div x
     </blockquote>
   <h5 id='state-dir' class='mt-6 mb-2 text-xl font-bold text-gray-700'>–state-dir</h5>
     <p class='mb-3'>
-      <code class='py-0.5 px-1 rounded bg-gray-700 text-sm text-white'>cardano-wallet launch</code> will store the wallet databases and Jörmungandr chain data inside the folder specified by <code class='py-0.5 px-1 rounded bg-gray-700 text-sm text-white'>--state-dir</code>. If it does not exist, it will be created.
+      <code class='py-0.5 px-0.5 bg-gray-100'>cardano-wallet launch</code> will store the wallet databases and Jörmungandr chain data inside the folder specified by <code class='py-0.5 px-0.5 bg-gray-100'>--state-dir</code>. If it does not exist, it will be created.
     </p>
   <h5 id='genesis-block--genesis-block-hash' class='mt-6 mb-2 text-xl font-bold text-gray-700'>–genesis-block | –genesis-block-hash</h5>
     <p class='mb-3'>
-      The genesis block file can be obtained using Jörmungandr’s tool command-line <code class='py-0.5 px-1 rounded bg-gray-700 text-sm text-white'>jcli</code> as follows:
+      The genesis block file can be obtained using Jörmungandr’s tool command-line <code class='py-0.5 px-0.5 bg-gray-100'>jcli</code> as follows:
     </p>
   <div class='py-0.5 mb-3 text-sm'><pre><code class='bash language-bash'>$ jcli genesis encode --input genesis.yaml &gt; block0.bin</code></pre></div>
     <p class='mb-3'>
@@ -2534,12 +2537,12 @@ initial:
   # And so forth...</code></pre></div><div xmlhtmlRaw></details>
 </div><h5 id='example' class='mt-6 mb-2 text-xl font-bold text-gray-700'>example</h5><div class='py-0.5 mb-3 text-sm'><pre><code class='language-none'>$ cardano-wallet launch --genesis-block block0.bin -- --secret secret.yaml</code></pre></div><h5 id='-arguments' class='mt-6 mb-2 text-xl font-bold text-gray-700'>– ARGUMENTS…</h5>
     <p class='mb-3'>
-      All other arguments are passed to the <code class='py-0.5 px-1 rounded bg-gray-700 text-sm text-white'>jormungandr</code> child process. Place <code class='py-0.5 px-1 rounded bg-gray-700 text-sm text-white'>--</code> before the Jörmungandr arguments so that they are not interpreted as <code class='py-0.5 px-1 rounded bg-gray-700 text-sm text-white'>cardano-wallet</code> arguments.
+      All other arguments are passed to the <code class='py-0.5 px-0.5 bg-gray-100'>jormungandr</code> child process. Place <code class='py-0.5 px-0.5 bg-gray-100'>--</code> before the Jörmungandr arguments so that they are not interpreted as <code class='py-0.5 px-0.5 bg-gray-100'>cardano-wallet</code> arguments.
     </p>
   <div xmlhtmlRaw><p align=right><a href="#">top :arrow_heading_up:</a></p>
 </div><h2 id='serve' class='inline-block mt-6 mb-4 text-4xl font-bold text-gray-700 border-b-2'>serve</h2>
     <p class='mb-3'>
-      Serve API that listens for commands/actions. Before launching user should start <a href='https://github.com/input-output-hk/jormungandr/' class='text-blue-600 hover:underline' target='_blank' rel='noopener'><code class='py-0.5 px-1 rounded bg-gray-700 text-sm text-white'>jormungandr</code></a> (see details on the provided link).
+      Serve API that listens for commands/actions. Before launching user should start <a href='https://github.com/input-output-hk/jormungandr/' class='text-blue-600 hover:underline' target='_blank' rel='noopener'><code class='py-0.5 px-0.5 bg-gray-100'>jormungandr</code></a> (see details on the provided link).
     </p>
   <h3 id='invocation-1' class='mt-6 mb-2 text-3xl font-bold text-gray-700'>Invocation</h3>
     <blockquote class='py-0.5 px-4 mb-3 italic border-l-4 bg-gray-50 text-gray-600 border-gray-400 quote'>
@@ -2558,15 +2561,15 @@ initial:
     </p>
   
     <p class='mb-3'>
-      As an example, to bind to the IPv4 local host only, use <code class='py-0.5 px-1 rounded bg-gray-700 text-sm text-white'>127.0.0.1</code>. This is the default listen address.
+      As an example, to bind to the IPv4 local host only, use <code class='py-0.5 px-0.5 bg-gray-100'>127.0.0.1</code>. This is the default listen address.
     </p>
   
     <p class='mb-3'>
-      The <code class='py-0.5 px-1 rounded bg-gray-700 text-sm text-white'>--listen-address</code> option recognizes the following special values:
+      The <code class='py-0.5 px-0.5 bg-gray-100'>--listen-address</code> option recognizes the following special values:
     </p>
-  <table class='mb-3'><thead><tr class='border-b-2 border-t-2 border-gray-300'><th class='py-2 px-2 align-top border-r-2 border-l-2 border-gray-300'>Special Value</th><th class='py-2 px-2 align-top border-r-2 border-l-2 border-gray-300'>Meaning</th></tr></thead><tbody><tr class='border-b-2 border-t-2 border-gray-300'><td class='py-2 px-2 align-top border-r-2 border-l-2 border-gray-300'><code class='py-0.5 px-1 rounded bg-gray-700 text-sm text-white'>*</code></td><td class='py-2 px-2 align-top border-r-2 border-l-2 border-gray-300'>any IPv4 or IPv6 hostname</td></tr><tr class='border-b-2 border-t-2 border-gray-300'><td class='py-2 px-2 align-top border-r-2 border-l-2 border-gray-300'><code class='py-0.5 px-1 rounded bg-gray-700 text-sm text-white'>*4</code></td><td class='py-2 px-2 align-top border-r-2 border-l-2 border-gray-300'>any IPv4 or IPv6 hostname, IPv4 preferred</td></tr><tr class='border-b-2 border-t-2 border-gray-300'><td class='py-2 px-2 align-top border-r-2 border-l-2 border-gray-300'><code class='py-0.5 px-1 rounded bg-gray-700 text-sm text-white'>!4</code></td><td class='py-2 px-2 align-top border-r-2 border-l-2 border-gray-300'>any IPv4 hostname</td></tr><tr class='border-b-2 border-t-2 border-gray-300'><td class='py-2 px-2 align-top border-r-2 border-l-2 border-gray-300'><code class='py-0.5 px-1 rounded bg-gray-700 text-sm text-white'>*6</code></td><td class='py-2 px-2 align-top border-r-2 border-l-2 border-gray-300'>any IPv4 or IPv6 hostname, IPv6 preferred</td></tr><tr class='border-b-2 border-t-2 border-gray-300'><td class='py-2 px-2 align-top border-r-2 border-l-2 border-gray-300'><code class='py-0.5 px-1 rounded bg-gray-700 text-sm text-white'>!6</code></td><td class='py-2 px-2 align-top border-r-2 border-l-2 border-gray-300'>any IPv6 hostname</td></tr></tbody></table>
+  <table class='mb-3'><thead><tr class='border-b-2 border-t-2 border-gray-300'><th class='py-2 px-2 align-top border-r-2 border-l-2 border-gray-300'>Special Value</th><th class='py-2 px-2 align-top border-r-2 border-l-2 border-gray-300'>Meaning</th></tr></thead><tbody><tr class='border-b-2 border-t-2 border-gray-300'><td class='py-2 px-2 align-top border-r-2 border-l-2 border-gray-300'><code class='py-0.5 px-0.5 bg-gray-100'>*</code></td><td class='py-2 px-2 align-top border-r-2 border-l-2 border-gray-300'>any IPv4 or IPv6 hostname</td></tr><tr class='border-b-2 border-t-2 border-gray-300'><td class='py-2 px-2 align-top border-r-2 border-l-2 border-gray-300'><code class='py-0.5 px-0.5 bg-gray-100'>*4</code></td><td class='py-2 px-2 align-top border-r-2 border-l-2 border-gray-300'>any IPv4 or IPv6 hostname, IPv4 preferred</td></tr><tr class='border-b-2 border-t-2 border-gray-300'><td class='py-2 px-2 align-top border-r-2 border-l-2 border-gray-300'><code class='py-0.5 px-0.5 bg-gray-100'>!4</code></td><td class='py-2 px-2 align-top border-r-2 border-l-2 border-gray-300'>any IPv4 hostname</td></tr><tr class='border-b-2 border-t-2 border-gray-300'><td class='py-2 px-2 align-top border-r-2 border-l-2 border-gray-300'><code class='py-0.5 px-0.5 bg-gray-100'>*6</code></td><td class='py-2 px-2 align-top border-r-2 border-l-2 border-gray-300'>any IPv4 or IPv6 hostname, IPv6 preferred</td></tr><tr class='border-b-2 border-t-2 border-gray-300'><td class='py-2 px-2 align-top border-r-2 border-l-2 border-gray-300'><code class='py-0.5 px-0.5 bg-gray-100'>!6</code></td><td class='py-2 px-2 align-top border-r-2 border-l-2 border-gray-300'>any IPv6 hostname</td></tr></tbody></table>
     <p class='mb-3'>
-      Note that the permissive <code class='py-0.5 px-1 rounded bg-gray-700 text-sm text-white'>*</code> values allow binding to an IPv4 or an IPv6 hostname, which means you might be able to successfully bind to a port more times than you expect (e.g. once on the IPv4 localhost <code class='py-0.5 px-1 rounded bg-gray-700 text-sm text-white'>127.0.0.1</code> and again on the IPv6 localhost <code class='py-0.5 px-1 rounded bg-gray-700 text-sm text-white'>0:0:0:0:0:0:0:1</code>).
+      Note that the permissive <code class='py-0.5 px-0.5 bg-gray-100'>*</code> values allow binding to an IPv4 or an IPv6 hostname, which means you might be able to successfully bind to a port more times than you expect (e.g. once on the IPv4 localhost <code class='py-0.5 px-0.5 bg-gray-100'>127.0.0.1</code> and again on the IPv6 localhost <code class='py-0.5 px-0.5 bg-gray-100'>0:0:0:0:0:0:0:1</code>).
     </p>
   
     <p class='mb-3'>
@@ -2578,11 +2581,11 @@ initial:
     </p>
   <h5 id='genesis-block-hash' class='mt-6 mb-2 text-xl font-bold text-gray-700'>–genesis-block-hash</h5>
     <p class='mb-3'>
-      This is a hash of the the genesis block file which can obtained using Jörmungandr’s tool command-line <code class='py-0.5 px-1 rounded bg-gray-700 text-sm text-white'>jcli</code> as follows:
+      This is a hash of the the genesis block file which can obtained using Jörmungandr’s tool command-line <code class='py-0.5 px-0.5 bg-gray-100'>jcli</code> as follows:
     </p>
   <div class='py-0.5 mb-3 text-sm'><pre><code class='language-none'>$ jcli genesis hash --input block0.bin</code></pre></div>
     <p class='mb-3'>
-      See also <a href='#launch' class='text-blue-600 mavenLinkBold hover:underline'><code class='py-0.5 px-1 rounded bg-gray-700 text-sm text-white'>launch</code> via Jörmungandr</a> for details about how to generate `block0.bin`.
+      See also <a href='#launch' class='text-blue-600 mavenLinkBold hover:underline'><code class='py-0.5 px-0.5 bg-gray-100'>launch</code> via Jörmungandr</a> for details about how to generate `block0.bin`.
     </p>
   <h5 id='example-1' class='mt-6 mb-2 text-xl font-bold text-gray-700'>example</h5>
     <p class='mb-3'>
@@ -2595,13 +2598,13 @@ initial:
   <div class='py-0.5 mb-3 text-sm'><pre><code class='language-none'>$ cardano-wallet serve --genesis-block-hash $(jcli genesis hash --input block0.bin)</code></pre></div><div xmlhtmlRaw><p align=right><a href="#">top :arrow_heading_up:</a></p>
 </div><h2 id='logging-options-for-launch--serve' class='inline-block mt-6 mb-4 text-4xl font-bold text-gray-700 border-b-2'>Logging options for launch / serve</h2>
     <p class='mb-3'>
-      Both <code class='py-0.5 px-1 rounded bg-gray-700 text-sm text-white'>launch</code> and <code class='py-0.5 px-1 rounded bg-gray-700 text-sm text-white'>serve</code> accept extra command-line arguments for logging (also called “tracing”). Use <code class='py-0.5 px-1 rounded bg-gray-700 text-sm text-white'>--help-tracing</code> to show the options, the tracer names, and the possible log levels.
+      Both <code class='py-0.5 px-0.5 bg-gray-100'>launch</code> and <code class='py-0.5 px-0.5 bg-gray-100'>serve</code> accept extra command-line arguments for logging (also called “tracing”). Use <code class='py-0.5 px-0.5 bg-gray-100'>--help-tracing</code> to show the options, the tracer names, and the possible log levels.
     </p>
   
     <blockquote class='py-0.5 px-4 mb-3 italic border-l-4 bg-gray-50 text-gray-600 border-gray-400 quote'>
       
     <p class='mb-3'>
-      <code class='py-0.5 px-1 rounded bg-gray-700 text-sm text-white'>cardano-wallet launch --help-tracing</code>
+      <code class='py-0.5 px-0.5 bg-gray-100'>cardano-wallet launch --help-tracing</code>
     </p>
   
     </blockquote>
@@ -2633,7 +2636,7 @@ The possible tracers are:
     <blockquote class='py-0.5 px-4 mb-3 italic border-l-4 bg-gray-50 text-gray-600 border-gray-400 quote'>
       
     <p class='mb-3'>
-      <code class='py-0.5 px-1 rounded bg-gray-700 text-sm text-white'>cardano-wallet recovery-phrase generate [--size=INT]</code>
+      <code class='py-0.5 px-0.5 bg-gray-100'>cardano-wallet recovery-phrase generate [--size=INT]</code>
     </p>
   
     </blockquote>
@@ -2643,14 +2646,14 @@ The possible tracers are:
     </p>
   <div class='py-0.5 mb-3 text-sm'><pre><code class='language-none'>$ cardano-wallet recovery-phrase generate</code></pre></div>
     <p class='mb-3'>
-      These words will be used to create a wallet later. You may also ask for a specific number of words using the <code class='py-0.5 px-1 rounded bg-gray-700 text-sm text-white'>--size</code> option:
+      These words will be used to create a wallet later. You may also ask for a specific number of words using the <code class='py-0.5 px-0.5 bg-gray-100'>--size</code> option:
     </p>
   <div class='py-0.5 mb-3 text-sm'><pre><code class='language-none'>$ cardano-wallet recovery-phrase generate --size 21</code></pre></div><div xmlhtmlRaw><p align=right><a href="#">top :arrow_heading_up:</a></p>
 </div><h2 id='wallet-list' class='inline-block mt-6 mb-4 text-4xl font-bold text-gray-700 border-b-2'>wallet list</h2>
     <blockquote class='py-0.5 px-4 mb-3 italic border-l-4 bg-gray-50 text-gray-600 border-gray-400 quote'>
       
     <p class='mb-3'>
-      <code class='py-0.5 px-1 rounded bg-gray-700 text-sm text-white'>cardano-wallet wallet list [--port=INT]</code>
+      <code class='py-0.5 px-0.5 bg-gray-100'>cardano-wallet wallet list [--port=INT]</code>
     </p>
   
     </blockquote>
@@ -2663,7 +2666,7 @@ The possible tracers are:
     <blockquote class='py-0.5 px-4 mb-3 italic border-l-4 bg-gray-50 text-gray-600 border-gray-400 quote'>
       
     <p class='mb-3'>
-      <code class='py-0.5 px-1 rounded bg-gray-700 text-sm text-white'>cardano-wallet wallet create from-recovery-phrase [--port=INT] &lt;name&gt; [--address-pool-gap=INT]</code>
+      <code class='py-0.5 px-0.5 bg-gray-100'>cardano-wallet wallet create from-recovery-phrase [--port=INT] &lt;name&gt; [--address-pool-gap=INT]</code>
     </p>
   
     </blockquote>
@@ -2685,7 +2688,7 @@ Enter the passphrase a second time: ****************</code></pre></div>
     <blockquote class='py-0.5 px-4 mb-3 italic border-l-4 bg-gray-50 text-gray-600 border-gray-400 quote'>
       
     <p class='mb-3'>
-      <code class='py-0.5 px-1 rounded bg-gray-700 text-sm text-white'>cardano-wallet-jormungandr wallet create from-public-key [--port INT] STRING [--address-pool-gap INT] ACCOUNT_PUBLIC_KEY</code>
+      <code class='py-0.5 px-0.5 bg-gray-100'>cardano-wallet-jormungandr wallet create from-public-key [--port INT] STRING [--address-pool-gap INT] ACCOUNT_PUBLIC_KEY</code>
     </p>
   
     </blockquote>
@@ -2698,7 +2701,7 @@ Enter the passphrase a second time: ****************</code></pre></div>
     <blockquote class='py-0.5 px-4 mb-3 italic border-l-4 bg-gray-50 text-gray-600 border-gray-400 quote'>
       
     <p class='mb-3'>
-      <code class='py-0.5 px-1 rounded bg-gray-700 text-sm text-white'>cardano-wallet wallet get [--port=INT] WALLET_ID</code>
+      <code class='py-0.5 px-0.5 bg-gray-100'>cardano-wallet wallet get [--port=INT] WALLET_ID</code>
     </p>
   
     </blockquote>
@@ -2711,7 +2714,7 @@ Enter the passphrase a second time: ****************</code></pre></div>
     <blockquote class='py-0.5 px-4 mb-3 italic border-l-4 bg-gray-50 text-gray-600 border-gray-400 quote'>
       
     <p class='mb-3'>
-      <code class='py-0.5 px-1 rounded bg-gray-700 text-sm text-white'>cardano-wallet wallet utxo [--port=INT] WALLET_ID</code>
+      <code class='py-0.5 px-0.5 bg-gray-100'>cardano-wallet wallet utxo [--port=INT] WALLET_ID</code>
     </p>
   
     </blockquote>
@@ -2759,7 +2762,7 @@ Enter the passphrase a second time: ****************</code></pre></div>
     <blockquote class='py-0.5 px-4 mb-3 italic border-l-4 bg-gray-50 text-gray-600 border-gray-400 quote'>
       
     <p class='mb-3'>
-      <code class='py-0.5 px-1 rounded bg-gray-700 text-sm text-white'>cardano-wallet wallet update name [--port=INT] WALLET_ID STRING</code>
+      <code class='py-0.5 px-0.5 bg-gray-100'>cardano-wallet wallet update name [--port=INT] WALLET_ID STRING</code>
     </p>
   
     </blockquote>
@@ -2772,7 +2775,7 @@ Enter the passphrase a second time: ****************</code></pre></div>
     <blockquote class='py-0.5 px-4 mb-3 italic border-l-4 bg-gray-50 text-gray-600 border-gray-400 quote'>
       
     <p class='mb-3'>
-      <code class='py-0.5 px-1 rounded bg-gray-700 text-sm text-white'>cardano-wallet wallet update passphrase [--port=INT] WALLET_ID</code>
+      <code class='py-0.5 px-0.5 bg-gray-100'>cardano-wallet wallet update passphrase [--port=INT] WALLET_ID</code>
     </p>
   
     </blockquote>
@@ -2788,7 +2791,7 @@ Enter the passphrase a second time: **********</code></pre></div><div xmlhtmlRaw
     <blockquote class='py-0.5 px-4 mb-3 italic border-l-4 bg-gray-50 text-gray-600 border-gray-400 quote'>
       
     <p class='mb-3'>
-      <code class='py-0.5 px-1 rounded bg-gray-700 text-sm text-white'>cardano-wallet wallet delete [--port=INT] WALLET_ID</code>
+      <code class='py-0.5 px-0.5 bg-gray-100'>cardano-wallet wallet delete [--port=INT] WALLET_ID</code>
     </p>
   
     </blockquote>
@@ -2801,7 +2804,7 @@ Enter the passphrase a second time: **********</code></pre></div><div xmlhtmlRaw
     <blockquote class='py-0.5 px-4 mb-3 italic border-l-4 bg-gray-50 text-gray-600 border-gray-400 quote'>
       
     <p class='mb-3'>
-      <code class='py-0.5 px-1 rounded bg-gray-700 text-sm text-white'>cardano-wallet transaction create [--port=INT] WALLET_ID --payment=PAYMENT...</code>
+      <code class='py-0.5 px-0.5 bg-gray-100'>cardano-wallet transaction create [--port=INT] WALLET_ID --payment=PAYMENT...</code>
     </p>
   
     </blockquote>
@@ -2813,14 +2816,14 @@ Enter the passphrase a second time: **********</code></pre></div><div xmlhtmlRaw
     --payment 22@Ae2tdPwUPEZ...nRtbfw6EHRv1D \
     --payment 5@Ae2tdPwUPEZ7...pVwEPhKwseVvf</code></pre></div>
     <p class='mb-3'>
-      This creates a transaction that sends 22 lovelace to <code class='py-0.5 px-1 rounded bg-gray-700 text-sm text-white'>Ae2tdPwUPEZ...nRtbfw6EHRv1D</code> and 5 lovelace to <code class='py-0.5 px-1 rounded bg-gray-700 text-sm text-white'>Ae2tdPwUPEZ7...pVwEPhKwseVvf</code> from wallet with id 2512a00e9653fe49a44a5886202e24d77eeb998f.
+      This creates a transaction that sends 22 lovelace to <code class='py-0.5 px-0.5 bg-gray-100'>Ae2tdPwUPEZ...nRtbfw6EHRv1D</code> and 5 lovelace to <code class='py-0.5 px-0.5 bg-gray-100'>Ae2tdPwUPEZ7...pVwEPhKwseVvf</code> from wallet with id 2512a00e9653fe49a44a5886202e24d77eeb998f.
     </p>
   <div xmlhtmlRaw><p align=right><a href="#">top :arrow_heading_up:</a></p>
 </div><h2 id='transaction-fees' class='inline-block mt-6 mb-4 text-4xl font-bold text-gray-700 border-b-2'>transaction fees</h2>
     <blockquote class='py-0.5 px-4 mb-3 italic border-l-4 bg-gray-50 text-gray-600 border-gray-400 quote'>
       
     <p class='mb-3'>
-      <code class='py-0.5 px-1 rounded bg-gray-700 text-sm text-white'>cardano-wallet transaction fees [--port=INT] WALLET_ID --payment=PAYMENT...</code>
+      <code class='py-0.5 px-0.5 bg-gray-100'>cardano-wallet transaction fees [--port=INT] WALLET_ID --payment=PAYMENT...</code>
     </p>
   
     </blockquote>
@@ -2832,14 +2835,14 @@ Enter the passphrase a second time: **********</code></pre></div><div xmlhtmlRaw
     --payment 22@Ae2tdPwUPEZ...nRtbfw6EHRv1D \
     --payment 5@Ae2tdPwUPEZ7...pVwEPhKwseVvf</code></pre></div>
     <p class='mb-3'>
-      This estimates fees for a transaction that sends 22 lovelace to <code class='py-0.5 px-1 rounded bg-gray-700 text-sm text-white'>Ae2tdPwUPEZ...nRtbfw6EHRv1D</code> and 5 lovelace to <code class='py-0.5 px-1 rounded bg-gray-700 text-sm text-white'>Ae2tdPwUPEZ7...pVwEPhKwseVvf</code> from wallet with id 2512a00e9653fe49a44a5886202e24d77eeb998f.
+      This estimates fees for a transaction that sends 22 lovelace to <code class='py-0.5 px-0.5 bg-gray-100'>Ae2tdPwUPEZ...nRtbfw6EHRv1D</code> and 5 lovelace to <code class='py-0.5 px-0.5 bg-gray-100'>Ae2tdPwUPEZ7...pVwEPhKwseVvf</code> from wallet with id 2512a00e9653fe49a44a5886202e24d77eeb998f.
     </p>
   <div xmlhtmlRaw><p align=right><a href="#">top :arrow_heading_up:</a></p>
 </div><h2 id='transaction-list' class='inline-block mt-6 mb-4 text-4xl font-bold text-gray-700 border-b-2'>transaction list</h2>
     <blockquote class='py-0.5 px-4 mb-3 italic border-l-4 bg-gray-50 text-gray-600 border-gray-400 quote'>
       
     <p class='mb-3'>
-      <code class='py-0.5 px-1 rounded bg-gray-700 text-sm text-white'>cardano-wallet transaction list [--port INT] WALLET_ID [--start TIME] [--end TIME] [--order ORDER]</code>
+      <code class='py-0.5 px-0.5 bg-gray-100'>cardano-wallet transaction list [--port INT] WALLET_ID [--start TIME] [--end TIME] [--order ORDER]</code>
     </p>
   
     </blockquote>
@@ -2852,14 +2855,14 @@ Enter the passphrase a second time: **********</code></pre></div><div xmlhtmlRaw
     --end 2019-11-21T10:15:00Z \
     --order ascending</code></pre></div>
     <p class='mb-3'>
-      This lists all transactions between <code class='py-0.5 px-1 rounded bg-gray-700 text-sm text-white'>2018-09-25T10:15:00Z</code> and <code class='py-0.5 px-1 rounded bg-gray-700 text-sm text-white'>2019-11-21T10:15:00Z</code> in <code class='py-0.5 px-1 rounded bg-gray-700 text-sm text-white'>ascending</code> order.
+      This lists all transactions between <code class='py-0.5 px-0.5 bg-gray-100'>2018-09-25T10:15:00Z</code> and <code class='py-0.5 px-0.5 bg-gray-100'>2019-11-21T10:15:00Z</code> in <code class='py-0.5 px-0.5 bg-gray-100'>ascending</code> order.
     </p>
   <div xmlhtmlRaw><p align=right><a href="#">top :arrow_heading_up:</a></p>
 </div><h2 id='transaction-submit' class='inline-block mt-6 mb-4 text-4xl font-bold text-gray-700 border-b-2'>transaction submit</h2>
     <blockquote class='py-0.5 px-4 mb-3 italic border-l-4 bg-gray-50 text-gray-600 border-gray-400 quote'>
       
     <p class='mb-3'>
-      <code class='py-0.5 px-1 rounded bg-gray-700 text-sm text-white'>cardano-wallet transaction submit [--port INT] BINARY_BLOB</code>
+      <code class='py-0.5 px-0.5 bg-gray-100'>cardano-wallet transaction submit [--port INT] BINARY_BLOB</code>
     </p>
   
     </blockquote>
@@ -2876,7 +2879,7 @@ Enter the passphrase a second time: **********</code></pre></div><div xmlhtmlRaw
     <blockquote class='py-0.5 px-4 mb-3 italic border-l-4 bg-gray-50 text-gray-600 border-gray-400 quote'>
       
     <p class='mb-3'>
-      <code class='py-0.5 px-1 rounded bg-gray-700 text-sm text-white'>cardano-wallet transaction forget [--port INT] WALLET_ID TRANSACTION_ID</code>
+      <code class='py-0.5 px-0.5 bg-gray-100'>cardano-wallet transaction forget [--port INT] WALLET_ID TRANSACTION_ID</code>
     </p>
   
     </blockquote>
@@ -2889,7 +2892,7 @@ Enter the passphrase a second time: **********</code></pre></div><div xmlhtmlRaw
     <blockquote class='py-0.5 px-4 mb-3 italic border-l-4 bg-gray-50 text-gray-600 border-gray-400 quote'>
       
     <p class='mb-3'>
-      <code class='py-0.5 px-1 rounded bg-gray-700 text-sm text-white'>cardano-wallet address list [--port=INT] WALLET_ID [--state=STRING]</code>
+      <code class='py-0.5 px-0.5 bg-gray-100'>cardano-wallet address list [--port=INT] WALLET_ID [--state=STRING]</code>
     </p>
   
     </blockquote>
@@ -2902,7 +2905,7 @@ Enter the passphrase a second time: **********</code></pre></div><div xmlhtmlRaw
     <blockquote class='py-0.5 px-4 mb-3 italic border-l-4 bg-gray-50 text-gray-600 border-gray-400 quote'>
       
     <p class='mb-3'>
-      <code class='py-0.5 px-1 rounded bg-gray-700 text-sm text-white'>cardano-wallet stake-pool list [--port=INT]</code>
+      <code class='py-0.5 px-0.5 bg-gray-100'>cardano-wallet stake-pool list [--port=INT]</code>
     </p>
   
     </blockquote>
@@ -2915,7 +2918,7 @@ Enter the passphrase a second time: **********</code></pre></div><div xmlhtmlRaw
     <blockquote class='py-0.5 px-4 mb-3 italic border-l-4 bg-gray-50 text-gray-600 border-gray-400 quote'>
       
     <p class='mb-3'>
-      <code class='py-0.5 px-1 rounded bg-gray-700 text-sm text-white'>cardano-wallet network information [--port=INT]</code>
+      <code class='py-0.5 px-0.5 bg-gray-100'>cardano-wallet network information [--port=INT]</code>
     </p>
   
     </blockquote>
@@ -2928,20 +2931,20 @@ Enter the passphrase a second time: **********</code></pre></div><div xmlhtmlRaw
     <blockquote class='py-0.5 px-4 mb-3 italic border-l-4 bg-gray-50 text-gray-600 border-gray-400 quote'>
       
     <p class='mb-3'>
-      <code class='py-0.5 px-1 rounded bg-gray-700 text-sm text-white'>cardano-wallet network parameters [--port=INT] EPOCH_NUMBER</code>
+      <code class='py-0.5 px-0.5 bg-gray-100'>cardano-wallet network parameters [--port=INT] EPOCH_NUMBER</code>
     </p>
   
     </blockquote>
   
     <p class='mb-3'>
-      View network parameters. EPOCH_NUMBER can be <code class='py-0.5 px-1 rounded bg-gray-700 text-sm text-white'>latest</code> or valid epoch number (not later than the current one), ie., <code class='py-0.5 px-1 rounded bg-gray-700 text-sm text-white'>0</code>, <code class='py-0.5 px-1 rounded bg-gray-700 text-sm text-white'>1</code>, .. .
+      View network parameters. EPOCH_NUMBER can be <code class='py-0.5 px-0.5 bg-gray-100'>latest</code> or valid epoch number (not later than the current one), ie., <code class='py-0.5 px-0.5 bg-gray-100'>0</code>, <code class='py-0.5 px-0.5 bg-gray-100'>1</code>, .. .
     </p>
   <div class='py-0.5 mb-3 text-sm'><pre><code class='language-none'>$ cardano-wallet network parameters latest</code></pre></div><div xmlhtmlRaw><p align=right><a href="#">top :arrow_heading_up:</a></p>
 </div><h2 id='network-clock' class='inline-block mt-6 mb-4 text-4xl font-bold text-gray-700 border-b-2'>network clock</h2>
     <blockquote class='py-0.5 px-4 mb-3 italic border-l-4 bg-gray-50 text-gray-600 border-gray-400 quote'>
       
     <p class='mb-3'>
-      <code class='py-0.5 px-1 rounded bg-gray-700 text-sm text-white'>cardano-wallet network clock</code>
+      <code class='py-0.5 px-0.5 bg-gray-100'>cardano-wallet network clock</code>
     </p>
   
     </blockquote>
@@ -2961,14 +2964,14 @@ Ok.
     <blockquote class='py-0.5 px-4 mb-3 italic border-l-4 bg-gray-50 text-gray-600 border-gray-400 quote'>
       
     <p class='mb-3'>
-      <span class='emoji' data-emoji='warning' style='font-family: emoji'>⚠️</span> At this stage the command is not supported on Windows platform. Invoked on Windows will return <code class='py-0.5 px-1 rounded bg-gray-700 text-sm text-white'>status: unavailable</code> in the response message.
+      <span class='emoji' data-emoji='warning' style='font-family: emoji'>⚠️</span> At this stage the command is not supported on Windows platform. Invoked on Windows will return <code class='py-0.5 px-0.5 bg-gray-100'>status: unavailable</code> in the response message.
     </p>
   
     </blockquote>
   <div xmlhtmlRaw><p align=right><a href="#">top :arrow_heading_up:</a></p>
 </div><h2 id='key-from-recovery-phrase' class='inline-block mt-6 mb-4 text-4xl font-bold text-gray-700 border-b-2'>key from-recovery-phrase</h2>
     <p class='mb-3'>
-      Extract the root extended private key from a recovery phrase. New recovery phrases can be generated using <span xmlhtmlRaw><a href="#recovery-phrase-generate"></span><code class='py-0.5 px-1 rounded bg-gray-700 text-sm text-white'>recovery-phrase generate</code><span xmlhtmlRaw></a></span>.
+      Extract the root extended private key from a recovery phrase. New recovery phrases can be generated using <span xmlhtmlRaw><a href="#recovery-phrase-generate"></span><code class='py-0.5 px-0.5 bg-gray-100'>recovery-phrase generate</code><span xmlhtmlRaw></a></span>.
     </p>
   
     <blockquote class='py-0.5 px-4 mb-3 italic border-l-4 bg-gray-50 text-gray-600 border-gray-400 quote'>
@@ -3008,7 +3011,7 @@ $ cat root.xprv | cardano-wallet key child 44H/1815H/0H/0
 xprv13parrg5g83utetrwsp563w7hps2chu8mwcwqcrzehql67w9k73fq8utx6m8kgjlhle8claexrtcu068jgwl9zj5jyce6wn2k340ahpmglnq6x8zkt7plaqjgads0nvmj5ahav35m0ss8q95djl0dcee59vvwkaya</code></pre></div><div xmlhtmlRaw><p align=right><a href="#">top :arrow_heading_up:</a></p>
 </div><h2 id='key-public' class='inline-block mt-6 mb-4 text-4xl font-bold text-gray-700 border-b-2'>key public</h2>
     <p class='mb-3'>
-      Extract the public key of an extended private key. Keys can be obtained using <span xmlhtmlRaw><a href="#key-from-recovery-phrase"></span><code class='py-0.5 px-1 rounded bg-gray-700 text-sm text-white'>key from-recovery-phrase</code><span xmlhtmlRaw></a></span> and <span xmlhtmlRaw><a href="#key-child"></span><code class='py-0.5 px-1 rounded bg-gray-700 text-sm text-white'>key child</code><span xmlhtmlRaw></a></span>.
+      Extract the public key of an extended private key. Keys can be obtained using <span xmlhtmlRaw><a href="#key-from-recovery-phrase"></span><code class='py-0.5 px-0.5 bg-gray-100'>key from-recovery-phrase</code><span xmlhtmlRaw></a></span> and <span xmlhtmlRaw><a href="#key-child"></span><code class='py-0.5 px-0.5 bg-gray-100'>key child</code><span xmlhtmlRaw></a></span>.
     </p>
   
     <blockquote class='py-0.5 px-4 mb-3 italic border-l-4 bg-gray-50 text-gray-600 border-gray-400 quote'>
@@ -3038,7 +3041,7 @@ The parent key is read from stdin.</code></pre></div>
     <blockquote class='py-0.5 px-4 mb-3 italic border-l-4 bg-gray-50 text-gray-600 border-gray-400 quote'>
       
     <p class='mb-3'>
-      <code class='py-0.5 px-1 rounded bg-gray-700 text-sm text-white'>cardano-wallet version</code>
+      <code class='py-0.5 px-0.5 bg-gray-100'>cardano-wallet version</code>
     </p>
   
     </blockquote>
@@ -3103,7 +3106,7 @@ The parent key is read from stdin.</code></pre></div>
     </a>
   </div>
   <div>
-    <a href='https://emanote.srid.ca' target='_blank' title='Generated by Emanote 0.4.11.3'>
+    <a href='https://emanote.srid.ca' target='_blank' title='Generated by Emanote 0.6.15.1'>
       <img class='w-6 h-6 hover:text-blue-700' src='_emanote-static/emanote-logo.svg' />
     </a>
   </div>

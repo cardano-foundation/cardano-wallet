@@ -1,3 +1,4 @@
+<!DOCTYPE html>
 <html lang='en'>
 
 <head>
@@ -8,8 +9,9 @@
   </title>
   
     
-      <meta property='og:description' content />
+      <meta property='og:description' content='Once you have a wallet you can manage your funds. In order to receive a transaction you need to provide an address associated with your wallet to the sender.' />
       <meta property='og:site_name' content='Cardano Wallet' />
+      <meta property='og:image' content />
       <meta property='og:type' content='website' />
       <meta property='og:title' content='How to "create" addresses' />
     
@@ -25,7 +27,7 @@
 
 
   
-  <link href='tailwind.css?instanceId=cf8ef3b7-94d3-47b6-8c48-87272b7d9057' rel='stylesheet' type='text/css' />
+  <link href='tailwind.css?instanceId=9b5a2c21-66a2-4a0e-89ec-4e041fdb4311' rel='stylesheet' type='text/css' />
 
   <!-- Heist error element -->
   <style type='text/css'>
@@ -40,7 +42,8 @@
 <style>
   @font-face {
     font-family: 'MavenPro';
-    src: url('_emanote-static/fonts/Maven_Pro/MavenPro-VariableFont_wght.ttf') format("truetype");
+    /* FIXME: This ought to be: ${ema:emanoteStaticLayerUrl}/fonts/Maven_Pro/MavenPro-VariableFont_wght.ttf */
+    src: url(_emanote-static/fonts/Maven_Pro/MavenPro-VariableFont_wght.ttf) format("truetype");
     font-display: swap;
   }
 
@@ -2351,7 +2354,7 @@
     </p>
   <h2 id='sequential-wallets-icarus-shelley--shared' class='inline-block mt-6 mb-4 text-4xl font-bold text-gray-700 border-b-2'>Sequential wallets (Icarus, Shelley & Shared)</h2>
     <p class='mb-3'>
-      Since Icarus, wallets use sequential derivation which must satisfy very specific rules: a wallet is not allowed to use addresses beyond a certain limit before previously generated addresses have been used. This means that, at a given point in a time, a wallet has both a minimum and a maximum number of possible unused addresses. By default, the maximum number of consecutive unused addresses is set to <code class='py-0.5 px-1 rounded bg-gray-700 text-sm text-white'>20</code>.
+      Since Icarus, wallets use sequential derivation which must satisfy very specific rules: a wallet is not allowed to use addresses beyond a certain limit before previously generated addresses have been used. This means that, at a given point in a time, a wallet has both a minimum and a maximum number of possible unused addresses. By default, the maximum number of consecutive unused addresses is set to <code class='py-0.5 px-0.5 bg-gray-100'>20</code>.
     </p>
   
     <p class='mb-3'>
@@ -2361,21 +2364,21 @@
     <ul class='my-3 ml-6 space-y-1 list-disc'>
       
         <li>
-          <a href='https://input-output-hk.github.io/cardano-wallet/api/edge/#operation/listByronAddresses' class='text-blue-600 hover:underline' target='_blank' rel='noopener'><code class='py-0.5 px-1 rounded bg-gray-700 text-sm text-white'>GET /byron-wallets/{walletId}/addresses</code></a> - <strong>Icarus</strong> wallet addresses
+          <a href='https://input-output-hk.github.io/cardano-wallet/api/edge/#operation/listByronAddresses' class='text-blue-600 hover:underline' target='_blank' rel='noopener'><code class='py-0.5 px-0.5 bg-gray-100'>GET /byron-wallets/{walletId}/addresses</code></a> - <strong>Icarus</strong> wallet addresses
         </li>
       
         <li>
-          <a href='https://input-output-hk.github.io/cardano-wallet/api/edge/#operation/listAddresses' class='text-blue-600 hover:underline' target='_blank' rel='noopener'><code class='py-0.5 px-1 rounded bg-gray-700 text-sm text-white'>GET /wallets/{walletId}/addresses</code></a> - <strong>Shelley</strong> wallet addresses
+          <a href='https://input-output-hk.github.io/cardano-wallet/api/edge/#operation/listAddresses' class='text-blue-600 hover:underline' target='_blank' rel='noopener'><code class='py-0.5 px-0.5 bg-gray-100'>GET /wallets/{walletId}/addresses</code></a> - <strong>Shelley</strong> wallet addresses
         </li>
       
         <li>
-          <a href='https://input-output-hk.github.io/cardano-wallet/api/edge/#operation/listSharedAddresses' class='text-blue-600 hover:underline' target='_blank' rel='noopener'><code class='py-0.5 px-1 rounded bg-gray-700 text-sm text-white'>GET /shared-wallets/{walletId}/addresses</code></a> - <strong>Shared</strong> wallet addresses
+          <a href='https://input-output-hk.github.io/cardano-wallet/api/edge/#operation/listSharedAddresses' class='text-blue-600 hover:underline' target='_blank' rel='noopener'><code class='py-0.5 px-0.5 bg-gray-100'>GET /shared-wallets/{walletId}/addresses</code></a> - <strong>Shared</strong> wallet addresses
         </li>
       
     </ul>
   
     <p class='mb-3'>
-      This list automatically expands when new addresses become available so that there’s always <code class='py-0.5 px-1 rounded bg-gray-700 text-sm text-white'>address_pool_gap</code> consecutive unused addresses available (where <code class='py-0.5 px-1 rounded bg-gray-700 text-sm text-white'>address_pool_gap</code> can be configured when a wallet is first restored / created).
+      This list automatically expands when new addresses become available so that there’s always <code class='py-0.5 px-0.5 bg-gray-100'>address_pool_gap</code> consecutive unused addresses available (where <code class='py-0.5 px-0.5 bg-gray-100'>address_pool_gap</code> can be configured when a wallet is first restored / created).
     </p>
   <h2 id='random-wallets-legacy-byron' class='inline-block mt-6 mb-4 text-4xl font-bold text-gray-700 border-b-2'>Random wallets (Legacy Byron)</h2>
     <p class='mb-3'>
@@ -2383,11 +2386,11 @@
     </p>
   
     <p class='mb-3'>
-      For <code class='py-0.5 px-1 rounded bg-gray-700 text-sm text-white'>random</code> wallets user needs to invoke the following wallet endpoint to create new addresses:
+      For <code class='py-0.5 px-0.5 bg-gray-100'>random</code> wallets user needs to invoke the following wallet endpoint to create new addresses:
     </p>
   
     <p class='mb-3'>
-      <a href='https://input-output-hk.github.io/cardano-wallet/api/edge/#operation/createAddress' class='text-blue-600 hover:underline' target='_blank' rel='noopener'><code class='py-0.5 px-1 rounded bg-gray-700 text-sm text-white'>POST /byron-wallets/{walletId}/addresses</code></a>
+      <a href='https://input-output-hk.github.io/cardano-wallet/api/edge/#operation/createAddress' class='text-blue-600 hover:underline' target='_blank' rel='noopener'><code class='py-0.5 px-0.5 bg-gray-100'>POST /byron-wallets/{walletId}/addresses</code></a>
     </p>
   
     <p class='mb-3'>
@@ -2395,7 +2398,7 @@
     </p>
   
     <p class='mb-3'>
-      <a href='https://input-output-hk.github.io/cardano-wallet/api/edge/#operation/listByronAddresses' class='text-blue-600 hover:underline' target='_blank' rel='noopener'><code class='py-0.5 px-1 rounded bg-gray-700 text-sm text-white'>GET /byron-wallets/{walletId}/addresses</code></a>
+      <a href='https://input-output-hk.github.io/cardano-wallet/api/edge/#operation/listByronAddresses' class='text-blue-600 hover:underline' target='_blank' rel='noopener'><code class='py-0.5 px-0.5 bg-gray-100'>GET /byron-wallets/{walletId}/addresses</code></a>
     </p>
   
   <!-- What goes in this file will appear below the note body-->
@@ -2453,7 +2456,7 @@
     </a>
   </div>
   <div>
-    <a href='https://emanote.srid.ca' target='_blank' title='Generated by Emanote 0.4.11.3'>
+    <a href='https://emanote.srid.ca' target='_blank' title='Generated by Emanote 0.6.15.1'>
       <img class='w-6 h-6 hover:text-blue-700' src='_emanote-static/emanote-logo.svg' />
     </a>
   </div>

@@ -1,3 +1,4 @@
+<!DOCTYPE html>
 <html lang='en'>
 
 <head>
@@ -8,8 +9,9 @@
   </title>
   
     
-      <meta property='og:description' content />
+      <meta property='og:description' content='It is possible to enable EKG and Prometheus monitoring on cardano-wallet server, by setting environment variables that configure ports and host names for those services:' />
       <meta property='og:site_name' content='Cardano Wallet' />
+      <meta property='og:image' content='https://raw.githubusercontent.com/wiki/input-output-hk/cardano-wallet/ekg.png' />
       <meta property='og:type' content='website' />
       <meta property='og:title' content='EKG and Prometheus Metrics' />
     
@@ -25,7 +27,7 @@
 
 
   
-  <link href='tailwind.css?instanceId=cf8ef3b7-94d3-47b6-8c48-87272b7d9057' rel='stylesheet' type='text/css' />
+  <link href='tailwind.css?instanceId=9b5a2c21-66a2-4a0e-89ec-4e041fdb4311' rel='stylesheet' type='text/css' />
 
   <!-- Heist error element -->
   <style type='text/css'>
@@ -40,7 +42,8 @@
 <style>
   @font-face {
     font-family: 'MavenPro';
-    src: url('_emanote-static/fonts/Maven_Pro/MavenPro-VariableFont_wght.ttf') format("truetype");
+    /* FIXME: This ought to be: ${ema:emanoteStaticLayerUrl}/fonts/Maven_Pro/MavenPro-VariableFont_wght.ttf */
+    src: url(_emanote-static/fonts/Maven_Pro/MavenPro-VariableFont_wght.ttf) format("truetype");
     font-display: swap;
   }
 
@@ -2336,13 +2339,13 @@ CARDANO_WALLET_PROMETHEUS_HOST</code></pre></div>
     <blockquote class='py-0.5 px-4 mb-3 italic border-l-4 bg-gray-50 text-gray-600 border-gray-400 quote'>
       
     <p class='mb-3'>
-      <span class='emoji' data-emoji='information_source' style='font-family: emoji'>ℹ️</span> Monitoring is disabled by default. It is enabled by setting <code class='py-0.5 px-1 rounded bg-gray-700 text-sm text-white'>CARDANO_WALLET_EKG_PORT</code> and/or <code class='py-0.5 px-1 rounded bg-gray-700 text-sm text-white'>CARDANO_WALLET_PROMETHEUS_PORT</code> respectively.
+      <span class='emoji' data-emoji='information_source' style='font-family: emoji'>ℹ️</span> Monitoring is disabled by default. It is enabled by setting <code class='py-0.5 px-0.5 bg-gray-100'>CARDANO_WALLET_EKG_PORT</code> and/or <code class='py-0.5 px-0.5 bg-gray-100'>CARDANO_WALLET_PROMETHEUS_PORT</code> respectively.
     </p>
   
     </blockquote>
   <h3 id='enabling-monitoring' class='mt-6 mb-2 text-3xl font-bold text-gray-700'>Enabling monitoring</h3>
     <p class='mb-3'>
-      To enable monitoring one can simply set environment variables with <code class='py-0.5 px-1 rounded bg-gray-700 text-sm text-white'>cardano-wallet serve</code> command as follows:
+      To enable monitoring one can simply set environment variables with <code class='py-0.5 px-0.5 bg-gray-100'>cardano-wallet serve</code> command as follows:
     </p>
   <div class='py-0.5 mb-3 text-sm'><pre><code class='language-none'>CARDANO_WALLET_EKG_PORT=8070 \
 CARDANO_WALLET_PROMETHEUS_PORT=8080 \
@@ -2353,13 +2356,13 @@ cardano-wallet serve --port 8090 \
     <blockquote class='py-0.5 px-4 mb-3 italic border-l-4 bg-gray-50 text-gray-600 border-gray-400 quote'>
       
     <p class='mb-3'>
-      <span class='emoji' data-emoji='information_source' style='font-family: emoji'>ℹ️</span> In order to see EKG <code class='py-0.5 px-1 rounded bg-gray-700 text-sm text-white'>GC and memory statistics</code> start wallet with <code class='py-0.5 px-1 rounded bg-gray-700 text-sm text-white'>cardano-wallet +RTS -T -RTS &lt;other-args&gt;</code>
+      <span class='emoji' data-emoji='information_source' style='font-family: emoji'>ℹ️</span> In order to see EKG <code class='py-0.5 px-0.5 bg-gray-100'>GC and memory statistics</code> start wallet with <code class='py-0.5 px-0.5 bg-gray-100'>cardano-wallet +RTS -T -RTS &lt;other-args&gt;</code>
     </p>
   
     </blockquote>
   
     <p class='mb-3'>
-      Following the example above metrics would be available in <code class='py-0.5 px-1 rounded bg-gray-700 text-sm text-white'>localhost</code> under corresponding ports:
+      Following the example above metrics would be available in <code class='py-0.5 px-0.5 bg-gray-100'>localhost</code> under corresponding ports:
     </p>
   
     <ul class='my-3 ml-6 space-y-1 list-disc'>
@@ -2408,7 +2411,7 @@ cardano_wallet_metrics_Stat_minflt_int 6731
 cardano_wallet_metrics_Stat_cminflt_int 0
 ....</code></pre></div><h3 id='binding-monitoring' class='mt-6 mb-2 text-3xl font-bold text-gray-700'>Binding monitoring</h3>
     <p class='mb-3'>
-      By default both EKG and Prometheus monitoring is bound to <code class='py-0.5 px-1 rounded bg-gray-700 text-sm text-white'>localhost</code>. One can bind it to different hostname or external ip using:
+      By default both EKG and Prometheus monitoring is bound to <code class='py-0.5 px-0.5 bg-gray-100'>localhost</code>. One can bind it to different hostname or external ip using:
     </p>
   <div class='py-0.5 mb-3 text-sm'><pre><code class='language-none'>CARDANO_WALLET_EKG_HOST
 CARDANO_WALLET_PROMETHEUS_HOST</code></pre></div>
@@ -2456,7 +2459,7 @@ cardano-wallet serve --port 8090 \
     </a>
   </div>
   <div>
-    <a href='https://emanote.srid.ca' target='_blank' title='Generated by Emanote 0.4.11.3'>
+    <a href='https://emanote.srid.ca' target='_blank' title='Generated by Emanote 0.6.15.1'>
       <img class='w-6 h-6 hover:text-blue-700' src='_emanote-static/emanote-logo.svg' />
     </a>
   </div>

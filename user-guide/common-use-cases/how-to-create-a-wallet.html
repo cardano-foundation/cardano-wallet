@@ -1,3 +1,4 @@
+<!DOCTYPE html>
 <html lang='en'>
 
 <head>
@@ -8,8 +9,9 @@
   </title>
   
     
-      <meta property='og:description' content />
+      <meta property='og:description' content='The easiest and most common way of managing your funds on the Cardano blockchain is through a ([[hierarchical-deterministic-wallets]],[]). One can create a wallet using one of the following endpoints of ([[http-api]],[]):' />
       <meta property='og:site_name' content='Cardano Wallet' />
+      <meta property='og:image' content />
       <meta property='og:type' content='website' />
       <meta property='og:title' content='How to create a wallet' />
     
@@ -25,7 +27,7 @@
 
 
   
-  <link href='tailwind.css?instanceId=cf8ef3b7-94d3-47b6-8c48-87272b7d9057' rel='stylesheet' type='text/css' />
+  <link href='tailwind.css?instanceId=9b5a2c21-66a2-4a0e-89ec-4e041fdb4311' rel='stylesheet' type='text/css' />
 
   <!-- Heist error element -->
   <style type='text/css'>
@@ -40,7 +42,8 @@
 <style>
   @font-face {
     font-family: 'MavenPro';
-    src: url('_emanote-static/fonts/Maven_Pro/MavenPro-VariableFont_wght.ttf') format("truetype");
+    /* FIXME: This ought to be: ${ema:emanoteStaticLayerUrl}/fonts/Maven_Pro/MavenPro-VariableFont_wght.ttf */
+    src: url(_emanote-static/fonts/Maven_Pro/MavenPro-VariableFont_wght.ttf) format("truetype");
     font-display: swap;
   }
 
@@ -2347,19 +2350,19 @@
     </p>
   
     <p class='mb-3'>
-      <a href='https://input-output-hk.github.io/cardano-wallet/api/edge/#operation/postWallet' class='text-blue-600 hover:underline' target='_blank' rel='noopener'><code class='py-0.5 px-1 rounded bg-gray-700 text-sm text-white'>POST /wallets</code></a> - create <strong>Shelley</strong> wallet
+      <a href='https://input-output-hk.github.io/cardano-wallet/api/edge/#operation/postWallet' class='text-blue-600 hover:underline' target='_blank' rel='noopener'><code class='py-0.5 px-0.5 bg-gray-100'>POST /wallets</code></a> - create <strong>Shelley</strong> wallet
     </p>
   
     <p class='mb-3'>
-      <a href='https://input-output-hk.github.io/cardano-wallet/api/edge/#operation/postByronWallet' class='text-blue-600 hover:underline' target='_blank' rel='noopener'><code class='py-0.5 px-1 rounded bg-gray-700 text-sm text-white'>POST /byron-wallets</code></a> - create <strong>Byron</strong> wallet
+      <a href='https://input-output-hk.github.io/cardano-wallet/api/edge/#operation/postByronWallet' class='text-blue-600 hover:underline' target='_blank' rel='noopener'><code class='py-0.5 px-0.5 bg-gray-100'>POST /byron-wallets</code></a> - create <strong>Byron</strong> wallet
     </p>
   
     <p class='mb-3'>
-      <a href='https://input-output-hk.github.io/cardano-wallet/api/edge/#operation/postSharedWallet' class='text-blue-600 hover:underline' target='_blank' rel='noopener'><code class='py-0.5 px-1 rounded bg-gray-700 text-sm text-white'>POST /shared-wallets</code></a> - create <strong>Shared</strong> wallet
+      <a href='https://input-output-hk.github.io/cardano-wallet/api/edge/#operation/postSharedWallet' class='text-blue-600 hover:underline' target='_blank' rel='noopener'><code class='py-0.5 px-0.5 bg-gray-100'>POST /shared-wallets</code></a> - create <strong>Shared</strong> wallet
     </p>
   <h2 id='shelley-wallets' class='inline-block mt-6 mb-4 text-4xl font-bold text-gray-700 border-b-2'>Shelley wallets</h2>
     <p class='mb-3'>
-      Shelley wallets are <code class='py-0.5 px-1 rounded bg-gray-700 text-sm text-white'>sequential</code> wallets recommended for any new applications. In particular they support delegation feature which is not supported by the Byron era wallets.
+      Shelley wallets are <code class='py-0.5 px-0.5 bg-gray-100'>sequential</code> wallets recommended for any new applications. In particular they support delegation feature which is not supported by the Byron era wallets.
     </p>
   
     <p class='mb-3'>
@@ -2372,7 +2375,7 @@
      "address_pool_gap":20}' \
 -H "Content-Type: application/json"</code></pre></div>
     <p class='mb-3'>
-      Note also that you can have many wallets being operated by a single <code class='py-0.5 px-1 rounded bg-gray-700 text-sm text-white'>cardano-wallet</code> server.
+      Note also that you can have many wallets being operated by a single <code class='py-0.5 px-0.5 bg-gray-100'>cardano-wallet</code> server.
     </p>
   <h2 id='byron-wallets' class='inline-block mt-6 mb-4 text-4xl font-bold text-gray-700 border-b-2'>Byron wallets</h2>
     <p class='mb-3'>
@@ -2400,11 +2403,11 @@
     </ul>
   
     <p class='mb-3'>
-      The basic difference between them is that for a <code class='py-0.5 px-1 rounded bg-gray-700 text-sm text-white'>random</code> wallet user needs to <a href='user-guide/common-use-cases/how-to-create-addresses' class='text-blue-600 mavenLinkBold hover:underline' data-wikilink-type='WikiLinkNormal'>create new address</a> manually, whereas for sequential wallets like <code class='py-0.5 px-1 rounded bg-gray-700 text-sm text-white'>icarus</code>, <code class='py-0.5 px-1 rounded bg-gray-700 text-sm text-white'>trezor</code> and <code class='py-0.5 px-1 rounded bg-gray-700 text-sm text-white'>ledger</code> addresses are <a href='user-guide/common-use-cases/how-to-create-addresses' class='text-blue-600 mavenLinkBold hover:underline' data-wikilink-type='WikiLinkNormal'>generated automatically</a>) by the wallet.
+      The basic difference between them is that for a <code class='py-0.5 px-0.5 bg-gray-100'>random</code> wallet user needs to <a href='user-guide/common-use-cases/how-to-create-addresses' class='text-blue-600 mavenLinkBold hover:underline' data-wikilink-type='WikiLinkNormal'>create new address</a> manually, whereas for sequential wallets like <code class='py-0.5 px-0.5 bg-gray-100'>icarus</code>, <code class='py-0.5 px-0.5 bg-gray-100'>trezor</code> and <code class='py-0.5 px-0.5 bg-gray-100'>ledger</code> addresses are <a href='user-guide/common-use-cases/how-to-create-addresses' class='text-blue-600 mavenLinkBold hover:underline' data-wikilink-type='WikiLinkNormal'>generated automatically</a>) by the wallet.
     </p>
   <div class='px-3 py-1 mb-3 rounded bg-blue-100 hover:border-blue-400 hover:shadow border-t-8 border-blue-200'>
     <p class='mb-3'>
-      Please note that <code class='py-0.5 px-1 rounded bg-gray-700 text-sm text-white'>random</code> wallets are considered <strong>deprecated</strong> and should not be used by new applications.
+      Please note that <code class='py-0.5 px-0.5 bg-gray-100'>random</code> wallets are considered <strong>deprecated</strong> and should not be used by new applications.
     </p>
   </div>
     <p class='mb-3'>
@@ -2412,7 +2415,7 @@
     </p>
   <h2 id='shared-wallets' class='inline-block mt-6 mb-4 text-4xl font-bold text-gray-700 border-b-2'>Shared wallets</h2>
     <p class='mb-3'>
-      Shared wallets are modern <code class='py-0.5 px-1 rounded bg-gray-700 text-sm text-white'>sequential</code> “Shelly-type wallets”, so they will also support delegation in the future. The idea behind is that funds on the Shared wallets can be managed by more than one owner. While creating such wallet one provides <code class='py-0.5 px-1 rounded bg-gray-700 text-sm text-white'>payment_script_template</code> listing all the future co-signers and their public keys for spending operations and the template script primitive which sets the rules for sharing custody of the wallet’s spending operations between co-signers. Similarly one can provide <code class='py-0.5 px-1 rounded bg-gray-700 text-sm text-white'>delegation_script_template</code> for sharing custody of delegation operations.
+      Shared wallets are modern <code class='py-0.5 px-0.5 bg-gray-100'>sequential</code> “Shelly-type wallets”, so they will also support delegation in the future. The idea behind is that funds on the Shared wallets can be managed by more than one owner. While creating such wallet one provides <code class='py-0.5 px-0.5 bg-gray-100'>payment_script_template</code> listing all the future co-signers and their public keys for spending operations and the template script primitive which sets the rules for sharing custody of the wallet’s spending operations between co-signers. Similarly one can provide <code class='py-0.5 px-0.5 bg-gray-100'>delegation_script_template</code> for sharing custody of delegation operations.
     </p>
   
     <p class='mb-3'>
@@ -2586,7 +2589,7 @@
     </a>
   </div>
   <div>
-    <a href='https://emanote.srid.ca' target='_blank' title='Generated by Emanote 0.4.11.3'>
+    <a href='https://emanote.srid.ca' target='_blank' title='Generated by Emanote 0.6.15.1'>
       <img class='w-6 h-6 hover:text-blue-700' src='_emanote-static/emanote-logo.svg' />
     </a>
   </div>

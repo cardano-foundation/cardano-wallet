@@ -1,3 +1,4 @@
+<!DOCTYPE html>
 <html lang='en'>
 
 <head>
@@ -8,8 +9,9 @@
   </title>
   
     
-      <meta property='og:description' content />
+      <meta property='og:description' content='A blockchain hard fork is a change to the block producing software such that any new blocks produced would be invalid according to the old unchanged software. Therefore, the unchanged software would not accept these blocks into its chain. If nodes running the new and modified software continue to produce blocks on top of their chain, a fork will result, starting at the parent block of the first incompatible block.' />
       <meta property='og:site_name' content='Cardano Wallet' />
+      <meta property='og:image' content />
       <meta property='og:type' content='website' />
       <meta property='og:title' content='Cardano Eras' />
     
@@ -25,7 +27,7 @@
 
 
   
-  <link href='tailwind.css?instanceId=cf8ef3b7-94d3-47b6-8c48-87272b7d9057' rel='stylesheet' type='text/css' />
+  <link href='tailwind.css?instanceId=9b5a2c21-66a2-4a0e-89ec-4e041fdb4311' rel='stylesheet' type='text/css' />
 
   <!-- Heist error element -->
   <style type='text/css'>
@@ -40,7 +42,8 @@
 <style>
   @font-face {
     font-family: 'MavenPro';
-    src: url('_emanote-static/fonts/Maven_Pro/MavenPro-VariableFont_wght.ttf') format("truetype");
+    /* FIXME: This ought to be: ${ema:emanoteStaticLayerUrl}/fonts/Maven_Pro/MavenPro-VariableFont_wght.ttf */
+    src: url(_emanote-static/fonts/Maven_Pro/MavenPro-VariableFont_wght.ttf) format("truetype");
     font-display: swap;
   }
 
@@ -2354,11 +2357,11 @@
     </p>
   <table class='mb-3'><thead><tr class='border-b-2 border-t-2 border-gray-300'><th class='py-2 px-2 align-top border-r-2 border-l-2 border-gray-300'>Date</th><th class='py-2 px-2 align-top border-r-2 border-l-2 border-gray-300'>Title</th><th class='py-2 px-2 align-top border-r-2 border-l-2 border-gray-300'>Description</th></tr></thead><tbody><tr class='border-b-2 border-t-2 border-gray-300'><td class='py-2 px-2 align-top border-r-2 border-l-2 border-gray-300'>2020/05/15</td><td class='py-2 px-2 align-top border-r-2 border-l-2 border-gray-300'><a href='https://drive.google.com/file/d/1m_jKQM_gxBm0ctLqIq9NGj5_nXPI66Su/view' class='text-blue-600 hover:underline' target='_blank' rel='noopener'>Hardfork Combinator I: Reconciling The Eras</a></td><td class='py-2 px-2 align-top border-r-2 border-l-2 border-gray-300'>This session will explain the technology behind the fabled hardfork combinator for Cardano. As this is quite a bit of machinery, and central to Shelley, we will take the time to talk about it in two sessions, to give enough background that everyone can follow along. This first session will focus on the combinator itself, and how advanced Haskell features allow us to travel from one typed world to another. In a future session, which yet needs to be scheduled, he will present on the subtleties of treating time in the presence of a hardfork.</td></tr><tr class='border-b-2 border-t-2 border-gray-300'><td class='py-2 px-2 align-top border-r-2 border-l-2 border-gray-300'>2020/06/05</td><td class='py-2 px-2 align-top border-r-2 border-l-2 border-gray-300'><a href='https://drive.google.com/file/d/1QIJ-VBlj-txB6K6E7DIEnY5TzaD89qQm/view' class='text-blue-600 hover:underline' target='_blank' rel='noopener'>Hard Fork Combinator II: Time for a Hard Fork</a></td><td class='py-2 px-2 align-top border-r-2 border-l-2 border-gray-300'>As any computer scientist, physicist, or cross-timezone remote worker can testify, time is a tricky and unforgiving beast. Cardano, as a slot-based Proof of Stake system, is inherently time-driven, so it is vital to get time right. Across the hardfork from Byron to Shelley, the way in which time is divided into slots will change, which turned out to be a massive complicating factor. In this presentation, Edsko will show us how the hard fork combinator handles time across the fork point.</td></tr></tbody></table>
     <p class='mb-3'>
-      In a nutshell, pretty much all types in <code class='py-0.5 px-1 rounded bg-gray-700 text-sm text-white'>Cardano.Api</code> are indexed by the <code class='py-0.5 px-1 rounded bg-gray-700 text-sm text-white'>Era</code>. The node will provide a <code class='py-0.5 px-1 rounded bg-gray-700 text-sm text-white'>TimeInterpreter</code> object by the <code class='py-0.5 px-1 rounded bg-gray-700 text-sm text-white'>LocalStateQuery</code> protocol, which allows <code class='py-0.5 px-1 rounded bg-gray-700 text-sm text-white'>cardano-wallet</code> to calculate what time a certain slot occurs at. Calculating the time of a given slot number is more complicated than it sounds.
+      In a nutshell, pretty much all types in <code class='py-0.5 px-0.5 bg-gray-100'>Cardano.Api</code> are indexed by the <code class='py-0.5 px-0.5 bg-gray-100'>Era</code>. The node will provide a <code class='py-0.5 px-0.5 bg-gray-100'>TimeInterpreter</code> object by the <code class='py-0.5 px-0.5 bg-gray-100'>LocalStateQuery</code> protocol, which allows <code class='py-0.5 px-0.5 bg-gray-100'>cardano-wallet</code> to calculate what time a certain slot occurs at. Calculating the time of a given slot number is more complicated than it sounds.
     </p>
   <h2 id='configuration' class='inline-block mt-6 mb-4 text-4xl font-bold text-gray-700 border-b-2'>Configuration</h2>
     <p class='mb-3'>
-      Both <code class='py-0.5 px-1 rounded bg-gray-700 text-sm text-white'>cardano-node</code> and <code class='py-0.5 px-1 rounded bg-gray-700 text-sm text-white'>cardano-wallet</code> have command-line parameters and/or configuration options for the hard-fork combinator.
+      Both <code class='py-0.5 px-0.5 bg-gray-100'>cardano-node</code> and <code class='py-0.5 px-0.5 bg-gray-100'>cardano-wallet</code> have command-line parameters and/or configuration options for the hard-fork combinator.
     </p>
   <h3 id='genesis' class='mt-6 mb-2 text-3xl font-bold text-gray-700'>Genesis</h3>
     <p class='mb-3'>
@@ -2370,7 +2373,7 @@
     </p>
   
     <p class='mb-3'>
-      When <code class='py-0.5 px-1 rounded bg-gray-700 text-sm text-white'>cardano-wallet</code> connects to its local <code class='py-0.5 px-1 rounded bg-gray-700 text-sm text-white'>cardano-node</code>, it must provide the Byron genesis config hash. Hashes for subsequent genesis configs are contained on-chain within the voting system update proposals.
+      When <code class='py-0.5 px-0.5 bg-gray-100'>cardano-wallet</code> connects to its local <code class='py-0.5 px-0.5 bg-gray-100'>cardano-node</code>, it must provide the Byron genesis config hash. Hashes for subsequent genesis configs are contained on-chain within the voting system update proposals.
     </p>
   
     <p class='mb-3'>
@@ -2386,18 +2389,18 @@
     </p>
   
     <p class='mb-3'>
-      Therefore, <code class='py-0.5 px-1 rounded bg-gray-700 text-sm text-white'>cardano-node</code> can be configured to hard fork itself at the start of any given epoch number, without an update proposal. It’s also possible to hard fork directly into all the eras at epoch 0. This is what we use for the integration tests <code class='py-0.5 px-1 rounded bg-gray-700 text-sm text-white'>local-cluster</code>. The <code class='py-0.5 px-1 rounded bg-gray-700 text-sm text-white'>cardano-node</code> configuration for this is:
+      Therefore, <code class='py-0.5 px-0.5 bg-gray-100'>cardano-node</code> can be configured to hard fork itself at the start of any given epoch number, without an update proposal. It’s also possible to hard fork directly into all the eras at epoch 0. This is what we use for the integration tests <code class='py-0.5 px-0.5 bg-gray-100'>local-cluster</code>. The <code class='py-0.5 px-0.5 bg-gray-100'>cardano-node</code> configuration for this is:
     </p>
   <div class='py-0.5 mb-3 text-sm'><pre><code class='yaml language-yaml'>TestShelleyHardForkAtEpoch: 0
 TestAllegraHardForkAtEpoch: 0
 TestMaryHardForkAtEpoch: 0
 TestAlonzoHardForkAtEpoch: 0</code></pre></div><h3 id='historical-note-cardano-mode' class='mt-6 mb-2 text-3xl font-bold text-gray-700'>Historical note: “Cardano Mode”</h3>
     <p class='mb-3'>
-      In theory, it is possible to run <code class='py-0.5 px-1 rounded bg-gray-700 text-sm text-white'>cardano-node</code> in a single-era mode, where the Hard Fork Combinator is completely disabled. This is called running in Byron-only or Shelley-only mode. Then there is full “Cardano Mode”, which enables the Hard Fork Combinator, thereby allowing the software to pass through eras.
+      In theory, it is possible to run <code class='py-0.5 px-0.5 bg-gray-100'>cardano-node</code> in a single-era mode, where the Hard Fork Combinator is completely disabled. This is called running in Byron-only or Shelley-only mode. Then there is full “Cardano Mode”, which enables the Hard Fork Combinator, thereby allowing the software to pass through eras.
     </p>
   
     <p class='mb-3'>
-      For <code class='py-0.5 px-1 rounded bg-gray-700 text-sm text-white'>cardano-cli</code>, there are <code class='py-0.5 px-1 rounded bg-gray-700 text-sm text-white'>--byron-mode</code>, <code class='py-0.5 px-1 rounded bg-gray-700 text-sm text-white'>--shelley-mode</code>, and <code class='py-0.5 px-1 rounded bg-gray-700 text-sm text-white'>--cardano-mode</code> switches, to tell the network client which mode the local node is using.
+      For <code class='py-0.5 px-0.5 bg-gray-100'>cardano-cli</code>, there are <code class='py-0.5 px-0.5 bg-gray-100'>--byron-mode</code>, <code class='py-0.5 px-0.5 bg-gray-100'>--shelley-mode</code>, and <code class='py-0.5 px-0.5 bg-gray-100'>--cardano-mode</code> switches, to tell the network client which mode the local node is using.
     </p>
   
     <p class='mb-3'>
@@ -2405,7 +2408,7 @@ TestAlonzoHardForkAtEpoch: 0</code></pre></div><h3 id='historical-note-cardano-m
     </p>
   <h2 id='specifications' class='inline-block mt-6 mb-4 text-4xl font-bold text-gray-700 border-b-2'>Specifications</h2>
     <p class='mb-3'>
-      Formal specifications (and the actual implementations!) for each Cardano era exist in the <a href='https://github.com/input-output-hk/cardano-ledger' class='text-blue-600 hover:underline' target='_blank' rel='noopener'>input-output-hk/cardano-ledger</a> repo. These documents are surprisingly readable, and are our go-to source for answers about how the node operates. See the <a href='https://github.com/input-output-hk/cardano-ledger/blob/master/README.md' class='text-blue-600 hover:underline' target='_blank' rel='noopener'><code class='py-0.5 px-1 rounded bg-gray-700 text-sm text-white'>README.md</code></a> for links to PDFs and/or build instructions.
+      Formal specifications (and the actual implementations!) for each Cardano era exist in the <a href='https://github.com/input-output-hk/cardano-ledger' class='text-blue-600 hover:underline' target='_blank' rel='noopener'>input-output-hk/cardano-ledger</a> repo. These documents are surprisingly readable, and are our go-to source for answers about how the node operates. See the <a href='https://github.com/input-output-hk/cardano-ledger/blob/master/README.md' class='text-blue-600 hover:underline' target='_blank' rel='noopener'><code class='py-0.5 px-0.5 bg-gray-100'>README.md</code></a> for links to PDFs and/or build instructions.
     </p>
   <h3 id='decentralized-update-proposals' class='mt-6 mb-2 text-3xl font-bold text-gray-700'>Decentralized Update Proposals</h3>
     <p class='mb-3'>
@@ -2445,7 +2448,7 @@ TestAlonzoHardForkAtEpoch: 0</code></pre></div><h3 id='historical-note-cardano-m
     </a>
   </div>
   <div>
-    <a href='https://emanote.srid.ca' target='_blank' title='Generated by Emanote 0.4.11.3'>
+    <a href='https://emanote.srid.ca' target='_blank' title='Generated by Emanote 0.6.15.1'>
       <img class='w-6 h-6 hover:text-blue-700' src='_emanote-static/emanote-logo.svg' />
     </a>
   </div>

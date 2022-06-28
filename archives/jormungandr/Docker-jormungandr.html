@@ -1,3 +1,4 @@
+<!DOCTYPE html>
 <html lang='en'>
 
 <head>
@@ -8,8 +9,9 @@
   </title>
   
     
-      <meta property='og:description' content />
+      <meta property='og:description' content='Docker builds of cardano-wallet-jormungandr are available on DockerHub.' />
       <meta property='og:site_name' content='Cardano Wallet' />
+      <meta property='og:image' content />
       <meta property='og:type' content='website' />
       <meta property='og:title' content='Docker Image' />
     
@@ -25,7 +27,7 @@
 
 
   
-  <link href='tailwind.css?instanceId=cf8ef3b7-94d3-47b6-8c48-87272b7d9057' rel='stylesheet' type='text/css' />
+  <link href='tailwind.css?instanceId=9b5a2c21-66a2-4a0e-89ec-4e041fdb4311' rel='stylesheet' type='text/css' />
 
   <!-- Heist error element -->
   <style type='text/css'>
@@ -40,7 +42,8 @@
 <style>
   @font-face {
     font-family: 'MavenPro';
-    src: url('_emanote-static/fonts/Maven_Pro/MavenPro-VariableFont_wght.ttf') format("truetype");
+    /* FIXME: This ought to be: ${ema:emanoteStaticLayerUrl}/fonts/Maven_Pro/MavenPro-VariableFont_wght.ttf */
+    src: url(_emanote-static/fonts/Maven_Pro/MavenPro-VariableFont_wght.ttf) format("truetype");
     font-display: swap;
   }
 
@@ -2335,13 +2338,13 @@
   <!-- What goes in this file will appear on top of note body-->
   
     <p class='mb-3'>
-      Docker builds of <code class='py-0.5 px-1 rounded bg-gray-700 text-sm text-white'>cardano-wallet-jormungandr</code> are available on <a href='https://hub.docker.com/repository/docker/inputoutput/cardano-wallet' class='text-blue-600 hover:underline' target='_blank' rel='noopener'>DockerHub</a>.
+      Docker builds of <code class='py-0.5 px-0.5 bg-gray-100'>cardano-wallet-jormungandr</code> are available on <a href='https://hub.docker.com/repository/docker/inputoutput/cardano-wallet' class='text-blue-600 hover:underline' target='_blank' rel='noopener'>DockerHub</a>.
     </p>
   <h2 id='downloading-the-docker-image' class='inline-block mt-6 mb-4 text-4xl font-bold text-gray-700 border-b-2'>Downloading the Docker image</h2>
     <p class='mb-3'>
-      To get the latest release of <code class='py-0.5 px-1 rounded bg-gray-700 text-sm text-white'>cardano-wallet-itn</code>, run:
+      To get the latest release of <code class='py-0.5 px-0.5 bg-gray-100'>cardano-wallet-itn</code>, run:
     </p>
-  <div class='py-0.5 mb-3 text-sm'><pre><code class='language-none'>docker pull inputoutput/cardano-wallet:jormungandr</code></pre></div><h2 id='running-the-docker-container-for-cardano-wallet-itn' class='inline-block mt-6 mb-4 text-4xl font-bold text-gray-700 border-b-2'>Running the Docker container for <code class='py-0.5 px-1 rounded bg-gray-700 text-sm text-white'>cardano-wallet-itn</code></h2>
+  <div class='py-0.5 mb-3 text-sm'><pre><code class='language-none'>docker pull inputoutput/cardano-wallet:jormungandr</code></pre></div><h2 id='running-the-docker-container-for-cardano-wallet-itn' class='inline-block mt-6 mb-4 text-4xl font-bold text-gray-700 border-b-2'>Running the Docker container for <code class='py-0.5 px-0.5 bg-gray-100'>cardano-wallet-itn</code></h2>
     <p class='mb-3'>
       To run basic CLI commands, use:
     </p>
@@ -2351,7 +2354,7 @@
     </p>
   
     <p class='mb-3'>
-      Running a <code class='py-0.5 px-1 rounded bg-gray-700 text-sm text-white'>cardano-wallet</code> server requires setting up a state directory with a jormungandr config file.
+      Running a <code class='py-0.5 px-0.5 bg-gray-100'>cardano-wallet</code> server requires setting up a state directory with a jormungandr config file.
     </p>
   
     <p class='mb-3'>
@@ -2372,7 +2375,7 @@ wget -P $HOME/state-docker https://hydra.iohk.io/job/Cardano/iohk-nix/jormungand
         <li>
           
     <p class='mb-3'>
-      Run the <code class='py-0.5 px-1 rounded bg-gray-700 text-sm text-white'>cardano-wallet</code> server and <code class='py-0.5 px-1 rounded bg-gray-700 text-sm text-white'>jormungandr</code>:
+      Run the <code class='py-0.5 px-0.5 bg-gray-100'>cardano-wallet</code> server and <code class='py-0.5 px-0.5 bg-gray-100'>jormungandr</code>:
     </p>
   <div class='py-0.5 mb-3 text-sm'><pre><code class='language-none'>docker run \
     --publish 127.0.0.1:8090:8090 \
@@ -2394,7 +2397,7 @@ wget -P $HOME/state-docker https://hydra.iohk.io/job/Cardano/iohk-nix/jormungand
         <li>
           
     <p class='mb-3'>
-      <code class='py-0.5 px-1 rounded bg-gray-700 text-sm text-white'>--publish 127.0.0.1:8090:8090</code> - exposes the API server port from the container to the Docker host.
+      <code class='py-0.5 px-0.5 bg-gray-100'>--publish 127.0.0.1:8090:8090</code> - exposes the API server port from the container to the Docker host.
     </p>
   
         </li>
@@ -2402,7 +2405,7 @@ wget -P $HOME/state-docker https://hydra.iohk.io/job/Cardano/iohk-nix/jormungand
         <li>
           
     <p class='mb-3'>
-      <code class='py-0.5 px-1 rounded bg-gray-700 text-sm text-white'>--volume $HOME/state-docker:/data</code> - mounts the <code class='py-0.5 px-1 rounded bg-gray-700 text-sm text-white'>~/state-docker</code> directory on the Docker host to <code class='py-0.5 px-1 rounded bg-gray-700 text-sm text-white'>/data</code> inside the container.
+      <code class='py-0.5 px-0.5 bg-gray-100'>--volume $HOME/state-docker:/data</code> - mounts the <code class='py-0.5 px-0.5 bg-gray-100'>~/state-docker</code> directory on the Docker host to <code class='py-0.5 px-0.5 bg-gray-100'>/data</code> inside the container.
     </p>
   
         </li>
@@ -2410,7 +2413,7 @@ wget -P $HOME/state-docker https://hydra.iohk.io/job/Cardano/iohk-nix/jormungand
         <li>
           
     <p class='mb-3'>
-      <code class='py-0.5 px-1 rounded bg-gray-700 text-sm text-white'>--env TMPDIR=/data</code> - work around a temp directory issue (<a href='https://github.com/input-output-hk/cardano-wallet/pull/1262' class='text-blue-600 hover:underline' target='_blank' rel='noopener'>#1262</a>). Alternatively, you may mount an additional volume on your own temporary directory with <code class='py-0.5 px-1 rounded bg-gray-700 text-sm text-white'>--volume /tmp:/tmp</code>.
+      <code class='py-0.5 px-0.5 bg-gray-100'>--env TMPDIR=/data</code> - work around a temp directory issue (<a href='https://github.com/input-output-hk/cardano-wallet/pull/1262' class='text-blue-600 hover:underline' target='_blank' rel='noopener'>#1262</a>). Alternatively, you may mount an additional volume on your own temporary directory with <code class='py-0.5 px-0.5 bg-gray-100'>--volume /tmp:/tmp</code>.
     </p>
   
         </li>
@@ -2418,7 +2421,7 @@ wget -P $HOME/state-docker https://hydra.iohk.io/job/Cardano/iohk-nix/jormungand
         <li>
           
     <p class='mb-3'>
-      <code class='py-0.5 px-1 rounded bg-gray-700 text-sm text-white'>--listen-address 0.0.0.0</code> - ensures that the API server binds to the Docker network interface, so that the server can be accessed from outside of the container.
+      <code class='py-0.5 px-0.5 bg-gray-100'>--listen-address 0.0.0.0</code> - ensures that the API server binds to the Docker network interface, so that the server can be accessed from outside of the container.
     </p>
   
         </li>
@@ -2426,7 +2429,7 @@ wget -P $HOME/state-docker https://hydra.iohk.io/job/Cardano/iohk-nix/jormungand
         <li>
           
     <p class='mb-3'>
-      <code class='py-0.5 px-1 rounded bg-gray-700 text-sm text-white'>--state-dir /data</code> - use the data volume for chain and wallet databases.
+      <code class='py-0.5 px-0.5 bg-gray-100'>--state-dir /data</code> - use the data volume for chain and wallet databases.
     </p>
   
         </li>
@@ -2438,7 +2441,7 @@ wget -P $HOME/state-docker https://hydra.iohk.io/job/Cardano/iohk-nix/jormungand
         <li>
           
     <p class='mb-3'>
-      Wait for the log message <code class='py-0.5 px-1 rounded bg-gray-700 text-sm text-white'>Wallet backend server listening on 0.0.0.0:8090</code> to be shown (it may take 30-60 minutes for jormungandr to bootstrap).
+      Wait for the log message <code class='py-0.5 px-0.5 bg-gray-100'>Wallet backend server listening on 0.0.0.0:8090</code> to be shown (it may take 30-60 minutes for jormungandr to bootstrap).
     </p>
   
     <p class='mb-3'>
@@ -2456,13 +2459,13 @@ wget -P $HOME/state-docker https://hydra.iohk.io/job/Cardano/iohk-nix/jormungand
     <p class='mb-3'>
       The following tags are pushed to <a href='https://hub.docker.com/repository/docker/inputoutput/cardano-wallet' class='text-blue-600 hover:underline' target='_blank' rel='noopener'>DockerHub</a>.
     </p>
-  <table class='mb-3'><thead><tr class='border-b-2 border-t-2 border-gray-300'><th class='py-2 px-2 align-top border-r-2 border-l-2 border-gray-300'>Tag</th><th class='py-2 px-2 align-top border-r-2 border-l-2 border-gray-300'>Network node backend</th><th class='py-2 px-2 align-top border-r-2 border-l-2 border-gray-300'>Version</th></tr></thead><tbody><tr class='border-b-2 border-t-2 border-gray-300'><td class='py-2 px-2 align-top border-r-2 border-l-2 border-gray-300'><code class='py-0.5 px-1 rounded bg-gray-700 text-sm text-white'>inputoutput/cardano-wallet:jormungandr</code></td><td class='py-2 px-2 align-top border-r-2 border-l-2 border-gray-300'>Jörmungandr</td><td class='py-2 px-2 align-top border-r-2 border-l-2 border-gray-300'>Latest <a href='https://github.com/input-output-hk/cardano-wallet/releases' class='text-blue-600 hover:underline' target='_blank' rel='noopener'>GitHub release</a></td></tr><tr class='border-b-2 border-t-2 border-gray-300'><td class='py-2 px-2 align-top border-r-2 border-l-2 border-gray-300'><code class='py-0.5 px-1 rounded bg-gray-700 text-sm text-white'>inputoutput/cardano-wallet:dev-master-jormungandr</code></td><td class='py-2 px-2 align-top border-r-2 border-l-2 border-gray-300'>Jörmungandr</td><td class='py-2 px-2 align-top border-r-2 border-l-2 border-gray-300'>Latest revision of <a href='https://github.com/input-output-hk/cardano-wallet/commits/master' class='text-blue-600 hover:underline' target='_blank' rel='noopener'>master branch</a></td></tr><tr class='border-b-2 border-t-2 border-gray-300'><td class='py-2 px-2 align-top border-r-2 border-l-2 border-gray-300'><code class='py-0.5 px-1 rounded bg-gray-700 text-sm text-white'>inputoutput/cardano-wallet:2020.1.7-jormungandr</code></td><td class='py-2 px-2 align-top border-r-2 border-l-2 border-gray-300'>Jörmungandr</td><td class='py-2 px-2 align-top border-r-2 border-l-2 border-gray-300'><a href='https://github.com/input-output-hk/cardano-wallet/releases/tag/v2020-01-07' class='text-blue-600 hover:underline' target='_blank' rel='noopener'>v2020-01-07</a> (for example)</td></tr><tr class='border-b-2 border-t-2 border-gray-300'><td class='py-2 px-2 align-top border-r-2 border-l-2 border-gray-300'><code class='py-0.5 px-1 rounded bg-gray-700 text-sm text-white'>inputoutput/cardano-wallet:e902913750f763ac3dcb37f57fa35154db2934eb-jormungandr</code></td><td class='py-2 px-2 align-top border-r-2 border-l-2 border-gray-300'>Jörmungandr</td><td class='py-2 px-2 align-top border-r-2 border-l-2 border-gray-300'>A certain revision of the master branch (e902913 for example).</td></tr></tbody></table><h2 id='building-the-docker-image-locally' class='inline-block mt-6 mb-4 text-4xl font-bold text-gray-700 border-b-2'>Building the Docker image locally</h2>
+  <table class='mb-3'><thead><tr class='border-b-2 border-t-2 border-gray-300'><th class='py-2 px-2 align-top border-r-2 border-l-2 border-gray-300'>Tag</th><th class='py-2 px-2 align-top border-r-2 border-l-2 border-gray-300'>Network node backend</th><th class='py-2 px-2 align-top border-r-2 border-l-2 border-gray-300'>Version</th></tr></thead><tbody><tr class='border-b-2 border-t-2 border-gray-300'><td class='py-2 px-2 align-top border-r-2 border-l-2 border-gray-300'><code class='py-0.5 px-0.5 bg-gray-100'>inputoutput/cardano-wallet:jormungandr</code></td><td class='py-2 px-2 align-top border-r-2 border-l-2 border-gray-300'>Jörmungandr</td><td class='py-2 px-2 align-top border-r-2 border-l-2 border-gray-300'>Latest <a href='https://github.com/input-output-hk/cardano-wallet/releases' class='text-blue-600 hover:underline' target='_blank' rel='noopener'>GitHub release</a></td></tr><tr class='border-b-2 border-t-2 border-gray-300'><td class='py-2 px-2 align-top border-r-2 border-l-2 border-gray-300'><code class='py-0.5 px-0.5 bg-gray-100'>inputoutput/cardano-wallet:dev-master-jormungandr</code></td><td class='py-2 px-2 align-top border-r-2 border-l-2 border-gray-300'>Jörmungandr</td><td class='py-2 px-2 align-top border-r-2 border-l-2 border-gray-300'>Latest revision of <a href='https://github.com/input-output-hk/cardano-wallet/commits/master' class='text-blue-600 hover:underline' target='_blank' rel='noopener'>master branch</a></td></tr><tr class='border-b-2 border-t-2 border-gray-300'><td class='py-2 px-2 align-top border-r-2 border-l-2 border-gray-300'><code class='py-0.5 px-0.5 bg-gray-100'>inputoutput/cardano-wallet:2020.1.7-jormungandr</code></td><td class='py-2 px-2 align-top border-r-2 border-l-2 border-gray-300'>Jörmungandr</td><td class='py-2 px-2 align-top border-r-2 border-l-2 border-gray-300'><a href='https://github.com/input-output-hk/cardano-wallet/releases/tag/v2020-01-07' class='text-blue-600 hover:underline' target='_blank' rel='noopener'>v2020-01-07</a> (for example)</td></tr><tr class='border-b-2 border-t-2 border-gray-300'><td class='py-2 px-2 align-top border-r-2 border-l-2 border-gray-300'><code class='py-0.5 px-0.5 bg-gray-100'>inputoutput/cardano-wallet:e902913750f763ac3dcb37f57fa35154db2934eb-jormungandr</code></td><td class='py-2 px-2 align-top border-r-2 border-l-2 border-gray-300'>Jörmungandr</td><td class='py-2 px-2 align-top border-r-2 border-l-2 border-gray-300'>A certain revision of the master branch (e902913 for example).</td></tr></tbody></table><h2 id='building-the-docker-image-locally' class='inline-block mt-6 mb-4 text-4xl font-bold text-gray-700 border-b-2'>Building the Docker image locally</h2>
     <p class='mb-3'>
       Ensure that you have Nix installed and the IOHK binary cache enabled (<a href='https://github.com/input-output-hk/iohk-nix/blob/master/docs/nix.md' class='text-blue-600 hover:underline' target='_blank' rel='noopener'>instructions</a>).
     </p>
   
     <p class='mb-3'>
-      Then run this command from the <code class='py-0.5 px-1 rounded bg-gray-700 text-sm text-white'>cardano-wallet</code> git repo:
+      Then run this command from the <code class='py-0.5 px-0.5 bg-gray-100'>cardano-wallet</code> git repo:
     </p>
   <div class='py-0.5 mb-3 text-sm'><pre><code class='language-none'>docker load -i $(nix-build -A dockerImage.jormungandr --no-out-link)</code></pre></div>
     <p class='mb-3'>
@@ -2470,7 +2473,7 @@ wget -P $HOME/state-docker https://hydra.iohk.io/job/Cardano/iohk-nix/jormungand
     </p>
   <h2 id='inspecting-the-contents-of-the-docker-image' class='inline-block mt-6 mb-4 text-4xl font-bold text-gray-700 border-b-2'>Inspecting the contents of the Docker image</h2>
     <p class='mb-3'>
-      The default entrypoint of the image is <code class='py-0.5 px-1 rounded bg-gray-700 text-sm text-white'>/bin/start-cardano-wallet-jormungandr</code>. If you need to run a shell inside the Docker image, use the bash shell as the entrypoint:
+      The default entrypoint of the image is <code class='py-0.5 px-0.5 bg-gray-100'>/bin/start-cardano-wallet-jormungandr</code>. If you need to run a shell inside the Docker image, use the bash shell as the entrypoint:
     </p>
   <div class='py-0.5 mb-3 text-sm'><pre><code class='language-none'>docker run --rm -it --entrypoint bash inputoutput/cardano-wallet:jormungandr</code></pre></div>
   <!-- What goes in this file will appear below the note body-->
@@ -2528,7 +2531,7 @@ wget -P $HOME/state-docker https://hydra.iohk.io/job/Cardano/iohk-nix/jormungand
     </a>
   </div>
   <div>
-    <a href='https://emanote.srid.ca' target='_blank' title='Generated by Emanote 0.4.11.3'>
+    <a href='https://emanote.srid.ca' target='_blank' title='Generated by Emanote 0.6.15.1'>
       <img class='w-6 h-6 hover:text-blue-700' src='_emanote-static/emanote-logo.svg' />
     </a>
   </div>

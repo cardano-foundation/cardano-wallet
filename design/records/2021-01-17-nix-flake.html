@@ -1,3 +1,4 @@
+<!DOCTYPE html>
 <html lang='en'>
 
 <head>
@@ -8,8 +9,9 @@
   </title>
   
     
-      <meta property='og:description' content />
+      <meta property='og:description' content='Accepted - ADP-983' />
       <meta property='og:site_name' content='Cardano Wallet' />
+      <meta property='og:image' content />
       <meta property='og:type' content='website' />
       <meta property='og:title' content='Nix Flake' />
     
@@ -25,7 +27,7 @@
 
 
   
-  <link href='tailwind.css?instanceId=cf8ef3b7-94d3-47b6-8c48-87272b7d9057' rel='stylesheet' type='text/css' />
+  <link href='tailwind.css?instanceId=9b5a2c21-66a2-4a0e-89ec-4e041fdb4311' rel='stylesheet' type='text/css' />
 
   <!-- Heist error element -->
   <style type='text/css'>
@@ -40,7 +42,8 @@
 <style>
   @font-face {
     font-family: 'MavenPro';
-    src: url('_emanote-static/fonts/Maven_Pro/MavenPro-VariableFont_wght.ttf') format("truetype");
+    /* FIXME: This ought to be: ${ema:emanoteStaticLayerUrl}/fonts/Maven_Pro/MavenPro-VariableFont_wght.ttf */
+    src: url(_emanote-static/fonts/Maven_Pro/MavenPro-VariableFont_wght.ttf) format("truetype");
     font-display: swap;
   }
 
@@ -2351,7 +2354,7 @@
     </p>
   
     <p class='mb-3'>
-      The <em>tl;dr</em> for flakes is that <code class='py-0.5 px-1 rounded bg-gray-700 text-sm text-white'>default.nix</code> and <code class='py-0.5 px-1 rounded bg-gray-700 text-sm text-white'>shell.nix</code> are deprecated in favour of <code class='py-0.5 px-1 rounded bg-gray-700 text-sm text-white'>flake.nix</code>. You type <code class='py-0.5 px-1 rounded bg-gray-700 text-sm text-white'>nix build .#cardano-wallet</code> instead of <code class='py-0.5 px-1 rounded bg-gray-700 text-sm text-white'>nix-build -A cardano-wallet</code> and you type <code class='py-0.5 px-1 rounded bg-gray-700 text-sm text-white'>nix develop</code> instead of <code class='py-0.5 px-1 rounded bg-gray-700 text-sm text-white'>nix-shell</code>.
+      The <em>tl;dr</em> for flakes is that <code class='py-0.5 px-0.5 bg-gray-100'>default.nix</code> and <code class='py-0.5 px-0.5 bg-gray-100'>shell.nix</code> are deprecated in favour of <code class='py-0.5 px-0.5 bg-gray-100'>flake.nix</code>. You type <code class='py-0.5 px-0.5 bg-gray-100'>nix build .#cardano-wallet</code> instead of <code class='py-0.5 px-0.5 bg-gray-100'>nix-build -A cardano-wallet</code> and you type <code class='py-0.5 px-0.5 bg-gray-100'>nix develop</code> instead of <code class='py-0.5 px-0.5 bg-gray-100'>nix-shell</code>.
     </p>
   <h2 id='decision' class='inline-block mt-6 mb-4 text-4xl font-bold text-gray-700 border-b-2'>Decision</h2>
     <p class='mb-3'>
@@ -2359,7 +2362,7 @@
     </p>
   
     <p class='mb-3'>
-      This will add a <code class='py-0.5 px-1 rounded bg-gray-700 text-sm text-white'>flake.nix</code> file, and replace <code class='py-0.5 px-1 rounded bg-gray-700 text-sm text-white'>default.nix</code>, <code class='py-0.5 px-1 rounded bg-gray-700 text-sm text-white'>shell.nix</code>, and <code class='py-0.5 px-1 rounded bg-gray-700 text-sm text-white'>release.nix</code> with backwards compatibility shims.
+      This will add a <code class='py-0.5 px-0.5 bg-gray-100'>flake.nix</code> file, and replace <code class='py-0.5 px-0.5 bg-gray-100'>default.nix</code>, <code class='py-0.5 px-0.5 bg-gray-100'>shell.nix</code>, and <code class='py-0.5 px-0.5 bg-gray-100'>release.nix</code> with backwards compatibility shims.
     </p>
   
     <ul class='my-3 ml-6 space-y-1 list-disc'>
@@ -2377,7 +2380,7 @@
         </li>
       
         <li>
-          After a while, remove <code class='py-0.5 px-1 rounded bg-gray-700 text-sm text-white'>default.nix</code> and <code class='py-0.5 px-1 rounded bg-gray-700 text-sm text-white'>shell.nix</code> and associated compatibility code.
+          After a while, remove <code class='py-0.5 px-0.5 bg-gray-100'>default.nix</code> and <code class='py-0.5 px-0.5 bg-gray-100'>shell.nix</code> and associated compatibility code.
         </li>
       
     </ul>
@@ -2389,19 +2392,19 @@
         </li>
       
         <li>
-          The <code class='py-0.5 px-1 rounded bg-gray-700 text-sm text-white'>nix build</code> CLI for building with flakes seems nicer than the old <code class='py-0.5 px-1 rounded bg-gray-700 text-sm text-white'>nix-build</code>.
+          The <code class='py-0.5 px-0.5 bg-gray-100'>nix build</code> CLI for building with flakes seems nicer than the old <code class='py-0.5 px-0.5 bg-gray-100'>nix-build</code>.
         </li>
       
         <li>
-          Apparently, <code class='py-0.5 px-1 rounded bg-gray-700 text-sm text-white'>nix develop</code> has better caching than <code class='py-0.5 px-1 rounded bg-gray-700 text-sm text-white'>nix-shell</code>, and so it will be faster to start the dev environment.
+          Apparently, <code class='py-0.5 px-0.5 bg-gray-100'>nix develop</code> has better caching than <code class='py-0.5 px-0.5 bg-gray-100'>nix-shell</code>, and so it will be faster to start the dev environment.
         </li>
       
         <li>
-          The process for updating Nix dependencies (e.g. Haskell.nix) is easier and more sane - <code class='py-0.5 px-1 rounded bg-gray-700 text-sm text-white'>nix flake lock</code>.
+          The process for updating Nix dependencies (e.g. Haskell.nix) is easier and more sane - <code class='py-0.5 px-0.5 bg-gray-100'>nix flake lock</code>.
         </li>
       
         <li>
-          Other PRs which are open may need to be rebased on latest <code class='py-0.5 px-1 rounded bg-gray-700 text-sm text-white'>master</code> for their CI to pass.
+          Other PRs which are open may need to be rebased on latest <code class='py-0.5 px-0.5 bg-gray-100'>master</code> for their CI to pass.
         </li>
       
     </ul>
@@ -2439,7 +2442,7 @@
     </a>
   </div>
   <div>
-    <a href='https://emanote.srid.ca' target='_blank' title='Generated by Emanote 0.4.11.3'>
+    <a href='https://emanote.srid.ca' target='_blank' title='Generated by Emanote 0.6.15.1'>
       <img class='w-6 h-6 hover:text-blue-700' src='_emanote-static/emanote-logo.svg' />
     </a>
   </div>

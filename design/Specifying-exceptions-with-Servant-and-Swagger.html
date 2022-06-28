@@ -1,3 +1,4 @@
+<!DOCTYPE html>
 <html lang='en'>
 
 <head>
@@ -8,8 +9,9 @@
   </title>
   
     
-      <meta property='og:description' content />
+      <meta property='og:description' content='To be able to exert fine-grained control over errors defined in Swagger API specifications.' />
       <meta property='og:site_name' content='Cardano Wallet' />
+      <meta property='og:image' content />
       <meta property='og:type' content='website' />
       <meta property='og:title' content='Specifying Exceptions with Servant and Swagger' />
     
@@ -25,7 +27,7 @@
 
 
   
-  <link href='tailwind.css?instanceId=cf8ef3b7-94d3-47b6-8c48-87272b7d9057' rel='stylesheet' type='text/css' />
+  <link href='tailwind.css?instanceId=9b5a2c21-66a2-4a0e-89ec-4e041fdb4311' rel='stylesheet' type='text/css' />
 
   <!-- Heist error element -->
   <style type='text/css'>
@@ -40,7 +42,8 @@
 <style>
   @font-face {
     font-family: 'MavenPro';
-    src: url('_emanote-static/fonts/Maven_Pro/MavenPro-VariableFont_wght.ttf') format("truetype");
+    /* FIXME: This ought to be: ${ema:emanoteStaticLayerUrl}/fonts/Maven_Pro/MavenPro-VariableFont_wght.ttf */
+    src: url(_emanote-static/fonts/Maven_Pro/MavenPro-VariableFont_wght.ttf) format("truetype");
     font-display: swap;
   }
 
@@ -2366,11 +2369,11 @@
     </p>
   <h2 id='background' class='inline-block mt-6 mb-4 text-4xl font-bold text-gray-700 border-b-2'>Background</h2>
     <p class='mb-3'>
-      Our API is defined in Haskell with <a href='https://haskell-servant.github.io/' class='text-blue-600 hover:underline' target='_blank' rel='noopener'>Servant</a>, and translated into <a href='https://swagger.io/' class='text-blue-600 hover:underline' target='_blank' rel='noopener'>Swagger</a> format using the <a href='http://hackage.haskell.org/package/servant-swagger' class='text-blue-600 hover:underline' target='_blank' rel='noopener'><code class='py-0.5 px-1 rounded bg-gray-700 text-sm text-white'>servant-swagger</code></a> library.
+      Our API is defined in Haskell with <a href='https://haskell-servant.github.io/' class='text-blue-600 hover:underline' target='_blank' rel='noopener'>Servant</a>, and translated into <a href='https://swagger.io/' class='text-blue-600 hover:underline' target='_blank' rel='noopener'>Swagger</a> format using the <a href='http://hackage.haskell.org/package/servant-swagger' class='text-blue-600 hover:underline' target='_blank' rel='noopener'><code class='py-0.5 px-0.5 bg-gray-100'>servant-swagger</code></a> library.
     </p>
   
     <p class='mb-3'>
-      Swagger makes it possible to specify that an endpoint can return one or more errors. For example, the following specification states that the endpoint can return a <code class='py-0.5 px-1 rounded bg-gray-700 text-sm text-white'>404</code> (not found) error:
+      Swagger makes it possible to specify that an endpoint can return one or more errors. For example, the following specification states that the endpoint can return a <code class='py-0.5 px-0.5 bg-gray-100'>404</code> (not found) error:
     </p>
   <div class='py-0.5 mb-3 text-sm'><pre><code class='JSON language-JSON'>"responses" :
   { "200" : { "schema" : {"$ref" : "#/definitions/Location" }
@@ -2381,7 +2384,7 @@
     </p>
   
     <p class='mb-3'>
-      Since Servant itself doesn’t provide a way to manually specify errors, and since it is typical to define errors when writing a Swagger specification, <code class='py-0.5 px-1 rounded bg-gray-700 text-sm text-white'>servant-swagger</code> takes the approach of <strong>auto-generating</strong> errors when various Servant combinators appear in the API. For example, when a <code class='py-0.5 px-1 rounded bg-gray-700 text-sm text-white'>Capture</code> combinator is used, <code class='py-0.5 px-1 rounded bg-gray-700 text-sm text-white'>servant-swagger</code> automatically inserts a <code class='py-0.5 px-1 rounded bg-gray-700 text-sm text-white'>404</code> (not found) error in the generated Swagger output.
+      Since Servant itself doesn’t provide a way to manually specify errors, and since it is typical to define errors when writing a Swagger specification, <code class='py-0.5 px-0.5 bg-gray-100'>servant-swagger</code> takes the approach of <strong>auto-generating</strong> errors when various Servant combinators appear in the API. For example, when a <code class='py-0.5 px-0.5 bg-gray-100'>Capture</code> combinator is used, <code class='py-0.5 px-0.5 bg-gray-100'>servant-swagger</code> automatically inserts a <code class='py-0.5 px-0.5 bg-gray-100'>404</code> (not found) error in the generated Swagger output.
     </p>
   
     <p class='mb-3'>
@@ -2401,7 +2404,7 @@
     </ul>
   <h2 id='example' class='inline-block mt-6 mb-4 text-4xl font-bold text-gray-700 border-b-2'>Example</h2>
     <p class='mb-3'>
-      Consider the following endpoint, allowing the caller to add a new <code class='py-0.5 px-1 rounded bg-gray-700 text-sm text-white'>Location</code> to a location database:
+      Consider the following endpoint, allowing the caller to add a new <code class='py-0.5 px-0.5 bg-gray-100'>Location</code> to a location database:
     </p>
   <div class='py-0.5 mb-3 text-sm'><pre><code class='Haskell language-Haskell'>type AddLocation = "location"
   :&gt; "add"
@@ -2430,17 +2433,17 @@
     <ul class='my-3 ml-6 space-y-1 list-decimal list-inside'>
       
         <li>
-          The generated error is <strong>inappropriate</strong>. Since we’re adding a new location (and not looking up an existing location), we don’t want to ever return a <code class='py-0.5 px-1 rounded bg-gray-700 text-sm text-white'>404</code>.
+          The generated error is <strong>inappropriate</strong>. Since we’re adding a new location (and not looking up an existing location), we don’t want to ever return a <code class='py-0.5 px-0.5 bg-gray-100'>404</code>.
         </li>
       
         <li>
-          The error we really want is <strong>missing</strong>. We’d like to perform various validation checks on the new location name, and possibly return a <code class='py-0.5 px-1 rounded bg-gray-700 text-sm text-white'>400</code> error if validation fails. However, this isn’t included in the generated Swagger output.
+          The error we really want is <strong>missing</strong>. We’d like to perform various validation checks on the new location name, and possibly return a <code class='py-0.5 px-0.5 bg-gray-100'>400</code> error if validation fails. However, this isn’t included in the generated Swagger output.
         </li>
       
     </ul>
   <h2 id='what-do-we-really-want' class='inline-block mt-6 mb-4 text-4xl font-bold text-gray-700 border-b-2'>What do we really want?</h2>
     <p class='mb-3'>
-      Suppose that adding a <code class='py-0.5 px-1 rounded bg-gray-700 text-sm text-white'>Location</code> can fail in two ways, either because:
+      Suppose that adding a <code class='py-0.5 px-0.5 bg-gray-100'>Location</code> can fail in two ways, either because:
     </p>
   
     <ul class='my-3 ml-6 space-y-1 list-disc'>
@@ -2456,7 +2459,7 @@
     </ul>
   
     <p class='mb-3'>
-      We’d ideally like for the <code class='py-0.5 px-1 rounded bg-gray-700 text-sm text-white'>"responses"</code> section to reflect the above modes of failure:
+      We’d ideally like for the <code class='py-0.5 px-0.5 bg-gray-100'>"responses"</code> section to reflect the above modes of failure:
     </p>
   <div class='py-0.5 mb-3 text-sm'><pre><code class='JSON language-JSON'>"responses" :
   { "200" : { "schema" : { "$ref" : "#/definitions/Location" }
@@ -2466,11 +2469,11 @@
                  OR
                  the location name contained invalid characters" } }</code></pre></div><h2 id='how-can-we-achieve-this' class='inline-block mt-6 mb-4 text-4xl font-bold text-gray-700 border-b-2'>How can we achieve this?</h2>
     <p class='mb-3'>
-      The <a href='http://hackage.haskell.org/package/servant-checked-exceptions' class='text-blue-600 hover:underline' target='_blank' rel='noopener'><code class='py-0.5 px-1 rounded bg-gray-700 text-sm text-white'>servant-checked-exceptions</code></a> package defines the <a href='http://hackage.haskell.org/package/servant-checked-exceptions-core-2.0.0.0/docs/Servant-Checked-Exceptions-Internal-Servant-API.html#t:Throws' class='text-blue-600 hover:underline' target='_blank' rel='noopener'><code class='py-0.5 px-1 rounded bg-gray-700 text-sm text-white'>Throws</code> combinator</a>, making it possible to specify individual exceptions as part of the endpoint definition.
+      The <a href='http://hackage.haskell.org/package/servant-checked-exceptions' class='text-blue-600 hover:underline' target='_blank' rel='noopener'><code class='py-0.5 px-0.5 bg-gray-100'>servant-checked-exceptions</code></a> package defines the <a href='http://hackage.haskell.org/package/servant-checked-exceptions-core-2.0.0.0/docs/Servant-Checked-Exceptions-Internal-Servant-API.html#t:Throws' class='text-blue-600 hover:underline' target='_blank' rel='noopener'><code class='py-0.5 px-0.5 bg-gray-100'>Throws</code> combinator</a>, making it possible to specify individual exceptions as part of the endpoint definition.
     </p>
   
     <p class='mb-3'>
-      Let’s have a look at how we might use the <code class='py-0.5 px-1 rounded bg-gray-700 text-sm text-white'>Throws</code> combinator to define our modes of failure:
+      Let’s have a look at how we might use the <code class='py-0.5 px-0.5 bg-gray-100'>Throws</code> combinator to define our modes of failure:
     </p>
   <div class='py-0.5 mb-3 text-sm'><pre><code class='Haskell language-Haskell'>type AddLocation = "location"
   :&gt; "add"
@@ -2489,14 +2492,14 @@ data LocationNameHasInvalidCharsError = LocationNameHasInvalidCharsError
     </p>
   
     <p class='mb-3'>
-      It’s possible to assign specific response codes to individual exceptions by defining <a href='http://hackage.haskell.org/package/servant-checked-exceptions-core-2.0.0.0/docs/Servant-Checked-Exceptions-Internal-Servant-API.html#t:ErrStatus' class='text-blue-600 hover:underline' target='_blank' rel='noopener'><code class='py-0.5 px-1 rounded bg-gray-700 text-sm text-white'>ErrStatus</code></a> instances. In our example, both exceptions will share the same response code <code class='py-0.5 px-1 rounded bg-gray-700 text-sm text-white'>400</code> (bad request):
+      It’s possible to assign specific response codes to individual exceptions by defining <a href='http://hackage.haskell.org/package/servant-checked-exceptions-core-2.0.0.0/docs/Servant-Checked-Exceptions-Internal-Servant-API.html#t:ErrStatus' class='text-blue-600 hover:underline' target='_blank' rel='noopener'><code class='py-0.5 px-0.5 bg-gray-100'>ErrStatus</code></a> instances. In our example, both exceptions will share the same response code <code class='py-0.5 px-0.5 bg-gray-100'>400</code> (bad request):
     </p>
   <div class='py-0.5 mb-3 text-sm'><pre><code class='Haskell language-Haskell'>instance ErrStatus LocationNameHasInvalidCharsError where
   toErrStatus _ = toEnum 400
 instance ErrStatus LocationNameTooShortError where
   toErrStatus _ = toEnum 400</code></pre></div>
     <p class='mb-3'>
-      For client code that’s written in Haskell, the <code class='py-0.5 px-1 rounded bg-gray-700 text-sm text-white'>servant-checked-exceptions</code> library provides the very useful <a href='hackage.haskell.org/package/servant-checked-exceptions-core/docs/Servant-Checked-Exceptions-Internal-Envelope.html#v:catchesEnvelope' class='text-blue-600 mavenLinkBold hover:underline'><code class='py-0.5 px-1 rounded bg-gray-700 text-sm text-white'>catchesEnvelope</code></a> function, allowing the caller to perform exception case analysis on values returned by an API.
+      For client code that’s written in Haskell, the <code class='py-0.5 px-0.5 bg-gray-100'>servant-checked-exceptions</code> library provides the very useful <a href='hackage.haskell.org/package/servant-checked-exceptions-core/docs/Servant-Checked-Exceptions-Internal-Envelope.html#v:catchesEnvelope' class='text-blue-600 mavenLinkBold hover:underline'><code class='py-0.5 px-0.5 bg-gray-100'>catchesEnvelope</code></a> function, allowing the caller to perform exception case analysis on values returned by an API.
     </p>
   
     <p class='mb-3'>
@@ -2510,11 +2513,11 @@ instance ErrStatus LocationNameTooShortError where
     <ul class='my-3 ml-6 space-y-1 list-decimal list-inside'>
       
         <li>
-          <code class='py-0.5 px-1 rounded bg-gray-700 text-sm text-white'>servant-swagger</code> doesn’t know what to do with the <code class='py-0.5 px-1 rounded bg-gray-700 text-sm text-white'>Throws</code> combinator.
+          <code class='py-0.5 px-0.5 bg-gray-100'>servant-swagger</code> doesn’t know what to do with the <code class='py-0.5 px-0.5 bg-gray-100'>Throws</code> combinator.
         </li>
       
         <li>
-          <code class='py-0.5 px-1 rounded bg-gray-700 text-sm text-white'>servant-swagger</code> inserts its own default error response codes.
+          <code class='py-0.5 px-0.5 bg-gray-100'>servant-swagger</code> inserts its own default error response codes.
         </li>
       
     </ul>
@@ -2528,7 +2531,7 @@ instance ErrStatus LocationNameTooShortError where
     </p>
   <div class='py-0.5 mb-3 text-sm'><pre><code class='JSON language-JSON'>"400" : { "description" : "the location name was too short" }</code></pre></div>
     <p class='mb-3'>
-      By default, <code class='py-0.5 px-1 rounded bg-gray-700 text-sm text-white'>servant-checked-exceptions</code> doesn’t provide a way to define descriptions for exceptions. We can solve this by defining our own <code class='py-0.5 px-1 rounded bg-gray-700 text-sm text-white'>ErrDescription</code> class, and providing instances:
+      By default, <code class='py-0.5 px-0.5 bg-gray-100'>servant-checked-exceptions</code> doesn’t provide a way to define descriptions for exceptions. We can solve this by defining our own <code class='py-0.5 px-0.5 bg-gray-100'>ErrDescription</code> class, and providing instances:
     </p>
   <div class='py-0.5 mb-3 text-sm'><pre><code class='Haskell language-Haskell'>class ErrDescription e where
   toErrDescription :: e -&gt; Text
@@ -2540,7 +2543,7 @@ instance ErrDescription LocationNameTooShortError where
   toErrDescription _ =
     "the location name was too short"</code></pre></div>
     <p class='mb-3'>
-      To include these descriptions in the generated Swagger output, we need to define a new instance of the <a href='http://hackage.haskell.org/package/servant-swagger-1.1.7/docs/Servant-Swagger-Internal.html' class='text-blue-600 hover:underline' target='_blank' rel='noopener'><code class='py-0.5 px-1 rounded bg-gray-700 text-sm text-white'>HasSwagger</code></a> type class:
+      To include these descriptions in the generated Swagger output, we need to define a new instance of the <a href='http://hackage.haskell.org/package/servant-swagger-1.1.7/docs/Servant-Swagger-Internal.html' class='text-blue-600 hover:underline' target='_blank' rel='noopener'><code class='py-0.5 px-0.5 bg-gray-100'>HasSwagger</code></a> type class:
     </p>
   <div class='py-0.5 mb-3 text-sm'><pre><code class='Haskell language-Haskell'>type IsErr err = (ErrDescription err, ErrStatus err)
 
@@ -2556,7 +2559,7 @@ instance (IsErr err, HasSwagger sub) =&gt; HasSwagger (Throws err :&gt; sub)
           addDescription = description %~ ((errDescription &lt;&gt; " OR ") &lt;&gt;)
           errDescription = toErrDescription (undefined :: err)</code></pre></div>
     <p class='mb-3'>
-      Note that in the above instance, if multiple errors share the same response code, then we concatenate together the descriptions, separating the descriptions with <code class='py-0.5 px-1 rounded bg-gray-700 text-sm text-white'>" OR "</code>.
+      Note that in the above instance, if multiple errors share the same response code, then we concatenate together the descriptions, separating the descriptions with <code class='py-0.5 px-0.5 bg-gray-100'>" OR "</code>.
     </p>
   
     <p class='mb-3'>
@@ -2571,15 +2574,15 @@ instance (IsErr err, HasSwagger sub) =&gt; HasSwagger (Throws err :&gt; sub)
                  the location name contained invalid characters" }
   , "404" : { "description" : "`locationName` not found" } }</code></pre></div>
     <p class='mb-3'>
-      The <code class='py-0.5 px-1 rounded bg-gray-700 text-sm text-white'>400</code> section now contains what we want.
+      The <code class='py-0.5 px-0.5 bg-gray-100'>400</code> section now contains what we want.
     </p>
   
     <p class='mb-3'>
-      However, the unwanted <code class='py-0.5 px-1 rounded bg-gray-700 text-sm text-white'>404</code> section is still there. Recall that this is generated automatically by <code class='py-0.5 px-1 rounded bg-gray-700 text-sm text-white'>servant-swagger</code>. How can we remove this default error response?
+      However, the unwanted <code class='py-0.5 px-0.5 bg-gray-100'>404</code> section is still there. Recall that this is generated automatically by <code class='py-0.5 px-0.5 bg-gray-100'>servant-swagger</code>. How can we remove this default error response?
     </p>
   <h3 id='removing-default-errors-from-the-generated-swagger-output' class='mt-6 mb-2 text-3xl font-bold text-gray-700'>Removing default errors from the generated Swagger output</h3>
     <p class='mb-3'>
-      Currently, <code class='py-0.5 px-1 rounded bg-gray-700 text-sm text-white'>servant-swagger</code> doesn’t provide a way to disable the generation of default error responses. There are several possible ways to solve this:
+      Currently, <code class='py-0.5 px-0.5 bg-gray-100'>servant-swagger</code> doesn’t provide a way to disable the generation of default error responses. There are several possible ways to solve this:
     </p>
   
     <ul class='my-3 ml-6 space-y-1 list-decimal list-inside'>
@@ -2587,7 +2590,7 @@ instance (IsErr err, HasSwagger sub) =&gt; HasSwagger (Throws err :&gt; sub)
         <li>
           
     <p class='mb-3'>
-      Provide a patch to <code class='py-0.5 px-1 rounded bg-gray-700 text-sm text-white'>servant-swagger</code> that adds a configuration option to disable the generation of default error responses. See <a href='https://github.com/jonathanknowles/servant-swagger/tree/jonathanknowles/disable-default-error-responses' class='text-blue-600 hover:underline' target='_blank' rel='noopener'>here</a> for a simple fork that disables all default error responses.
+      Provide a patch to <code class='py-0.5 px-0.5 bg-gray-100'>servant-swagger</code> that adds a configuration option to disable the generation of default error responses. See <a href='https://github.com/jonathanknowles/servant-swagger/tree/jonathanknowles/disable-default-error-responses' class='text-blue-600 hover:underline' target='_blank' rel='noopener'>here</a> for a simple fork that disables all default error responses.
     </p>
   
         </li>
@@ -2595,7 +2598,7 @@ instance (IsErr err, HasSwagger sub) =&gt; HasSwagger (Throws err :&gt; sub)
         <li>
           
     <p class='mb-3'>
-      Define a new alternative <code class='py-0.5 px-1 rounded bg-gray-700 text-sm text-white'>Capture</code> operator and associated <code class='py-0.5 px-1 rounded bg-gray-700 text-sm text-white'>HasSwagger</code> instances that don’t generated default error responses. The downside is that this might require us to define instances for multiple other type classes.
+      Define a new alternative <code class='py-0.5 px-0.5 bg-gray-100'>Capture</code> operator and associated <code class='py-0.5 px-0.5 bg-gray-100'>HasSwagger</code> instances that don’t generated default error responses. The downside is that this might require us to define instances for multiple other type classes.
     </p>
   
         </li>
@@ -2603,7 +2606,7 @@ instance (IsErr err, HasSwagger sub) =&gt; HasSwagger (Throws err :&gt; sub)
         <li>
           
     <p class='mb-3'>
-      Amend the <code class='py-0.5 px-1 rounded bg-gray-700 text-sm text-white'>HasSwagger</code> instance of <code class='py-0.5 px-1 rounded bg-gray-700 text-sm text-white'>Throws</code> to detect and erase any default error responses. This solution would be rather brittle, as it would require the <code class='py-0.5 px-1 rounded bg-gray-700 text-sm text-white'>Throws</code> combinator to appear at a particular place in endpoint definition.
+      Amend the <code class='py-0.5 px-0.5 bg-gray-100'>HasSwagger</code> instance of <code class='py-0.5 px-0.5 bg-gray-100'>Throws</code> to detect and erase any default error responses. This solution would be rather brittle, as it would require the <code class='py-0.5 px-0.5 bg-gray-100'>Throws</code> combinator to appear at a particular place in endpoint definition.
     </p>
   
         </li>
@@ -2627,7 +2630,7 @@ instance (IsErr err, HasSwagger sub) =&gt; HasSwagger (Throws err :&gt; sub)
     </p>
   
     <p class='mb-3'>
-      Note that the above example also uses a <strong>patched</strong> version of <code class='py-0.5 px-1 rounded bg-gray-700 text-sm text-white'>servant-client</code>, to allow pattern matching on error responses with the <code class='py-0.5 px-1 rounded bg-gray-700 text-sm text-white'>catchesEnvelope</code> function.
+      Note that the above example also uses a <strong>patched</strong> version of <code class='py-0.5 px-0.5 bg-gray-100'>servant-client</code>, to allow pattern matching on error responses with the <code class='py-0.5 px-0.5 bg-gray-100'>catchesEnvelope</code> function.
     </p>
   
   <!-- What goes in this file will appear below the note body-->
@@ -2685,7 +2688,7 @@ instance (IsErr err, HasSwagger sub) =&gt; HasSwagger (Throws err :&gt; sub)
     </a>
   </div>
   <div>
-    <a href='https://emanote.srid.ca' target='_blank' title='Generated by Emanote 0.4.11.3'>
+    <a href='https://emanote.srid.ca' target='_blank' title='Generated by Emanote 0.6.15.1'>
       <img class='w-6 h-6 hover:text-blue-700' src='_emanote-static/emanote-logo.svg' />
     </a>
   </div>

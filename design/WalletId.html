@@ -1,3 +1,4 @@
+<!DOCTYPE html>
 <html lang='en'>
 
 <head>
@@ -8,8 +9,9 @@
   </title>
   
     
-      <meta property='og:description' content />
+      <meta property='og:description' content='The WalletId is a hexadecimal string derived from the wallet’s mnemonic.' />
       <meta property='og:site_name' content='Cardano Wallet' />
+      <meta property='og:image' content />
       <meta property='og:type' content='website' />
       <meta property='og:title' content='WalletId' />
     
@@ -39,7 +41,7 @@
 <script async id='MathJax-script' src='https://cdn.jsdelivr.net/npm/mathjax@3/es5/tex-mml-chtml.js'></script>
 
   
-  <link href='tailwind.css?instanceId=cf8ef3b7-94d3-47b6-8c48-87272b7d9057' rel='stylesheet' type='text/css' />
+  <link href='tailwind.css?instanceId=9b5a2c21-66a2-4a0e-89ec-4e041fdb4311' rel='stylesheet' type='text/css' />
 
   <!-- Heist error element -->
   <style type='text/css'>
@@ -54,7 +56,8 @@
 <style>
   @font-face {
     font-family: 'MavenPro';
-    src: url('_emanote-static/fonts/Maven_Pro/MavenPro-VariableFont_wght.ttf') format("truetype");
+    /* FIXME: This ought to be: ${ema:emanoteStaticLayerUrl}/fonts/Maven_Pro/MavenPro-VariableFont_wght.ttf */
+    src: url(_emanote-static/fonts/Maven_Pro/MavenPro-VariableFont_wght.ttf) format("truetype");
     font-display: swap;
   }
 
@@ -2340,27 +2343,27 @@
   <!-- What goes in this file will appear on top of note body-->
   
     <p class='mb-3'>
-      The <code class='py-0.5 px-1 rounded bg-gray-700 text-sm text-white'>WalletId</code> is a hexadecimal string derived from the wallet’s mnemonic.
+      The <code class='py-0.5 px-0.5 bg-gray-100'>WalletId</code> is a hexadecimal string derived from the wallet’s mnemonic.
     </p>
   
     <p class='mb-3'>
-      It is used by the <code class='py-0.5 px-1 rounded bg-gray-700 text-sm text-white'>cardano-wallet</code> server to refer to specific wallets.
+      It is used by the <code class='py-0.5 px-0.5 bg-gray-100'>cardano-wallet</code> server to refer to specific wallets.
     </p>
   
     <p class='mb-3'>
-      For all wallet types, the <code class='py-0.5 px-1 rounded bg-gray-700 text-sm text-white'>WalletId</code> is a <em>blake2b-160</em> hash of something. This hash function produces a 20-byte digest, which becomes 40 hexadecimal digits.
+      For all wallet types, the <code class='py-0.5 px-0.5 bg-gray-100'>WalletId</code> is a <em>blake2b-160</em> hash of something. This hash function produces a 20-byte digest, which becomes 40 hexadecimal digits.
     </p>
   <h2 id='shelley-wallets' class='inline-block mt-6 mb-4 text-4xl font-bold text-gray-700 border-b-2'>Shelley Wallets</h2>
     <p class='mb-3'>
-      The <code class='py-0.5 px-1 rounded bg-gray-700 text-sm text-white'>WalletId</code> is calculated the same way for shared (multi-sig) and non-shared Shelley wallets.
+      The <code class='py-0.5 px-0.5 bg-gray-100'>WalletId</code> is calculated the same way for shared (multi-sig) and non-shared Shelley wallets.
     </p>
   
     <p class='mb-3'>
-      Therefore, each signer in a shared wallet will have a unique <code class='py-0.5 px-1 rounded bg-gray-700 text-sm text-white'>WalletId</code>, because they have a different mnemonic.
+      Therefore, each signer in a shared wallet will have a unique <code class='py-0.5 px-0.5 bg-gray-100'>WalletId</code>, because they have a different mnemonic.
     </p>
   <h3 id='full-wallets-the-default' class='mt-6 mb-2 text-3xl font-bold text-gray-700'>Full Wallets (the default)</h3>
     <p class='mb-3'>
-      The extended private key is derived from the mnemonic, and then its public key is hashed to produce the <code class='py-0.5 px-1 rounded bg-gray-700 text-sm text-white'>WalletId</code>.
+      The extended private key is derived from the mnemonic, and then its public key is hashed to produce the <code class='py-0.5 px-0.5 bg-gray-100'>WalletId</code>.
     </p>
   
     <p class='mb-3'>
@@ -2376,7 +2379,7 @@
     </p>
   <h2 id='byron-wallets' class='inline-block mt-6 mb-4 text-4xl font-bold text-gray-700 border-b-2'>Byron Wallets</h2>
     <p class='mb-3'>
-      The <code class='py-0.5 px-1 rounded bg-gray-700 text-sm text-white'>WalletId</code> comes from the extended public key of the wallet root key.
+      The <code class='py-0.5 px-0.5 bg-gray-100'>WalletId</code> comes from the extended public key of the wallet root key.
     </p>
   
     <p class='mb-3'>
@@ -2384,7 +2387,7 @@
     </p>
   <h2 id='example-code' class='inline-block mt-6 mb-4 text-4xl font-bold text-gray-700 border-b-2'>Example code</h2>
     <p class='mb-3'>
-      This shell script will produce a Shelley <code class='py-0.5 px-1 rounded bg-gray-700 text-sm text-white'>WalletId</code> from the mnemonic words provided on stdin.
+      This shell script will produce a Shelley <code class='py-0.5 px-0.5 bg-gray-100'>WalletId</code> from the mnemonic words provided on stdin.
     </p>
   <div class='py-0.5 mb-3 text-sm'><pre><code class='bash language-bash'>#!/usr/bin/env bash
 
@@ -2428,7 +2431,7 @@ xargs \
     </a>
   </div>
   <div>
-    <a href='https://emanote.srid.ca' target='_blank' title='Generated by Emanote 0.4.11.3'>
+    <a href='https://emanote.srid.ca' target='_blank' title='Generated by Emanote 0.6.15.1'>
       <img class='w-6 h-6 hover:text-blue-700' src='_emanote-static/emanote-logo.svg' />
     </a>
   </div>

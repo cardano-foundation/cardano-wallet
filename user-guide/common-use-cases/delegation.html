@@ -1,3 +1,4 @@
+<!DOCTYPE html>
 <html lang='en'>
 
 <head>
@@ -8,8 +9,9 @@
   </title>
   
     
-      <meta property='og:description' content />
+      <meta property='og:description' content='Delegation is the process by which ada holders delegate the stake associated with their ada to a stake pool. Cardano wallet allows listing all stake pools that are operating on the blockchain and then join or quit them via special delegation transaction.' />
       <meta property='og:site_name' content='Cardano Wallet' />
+      <meta property='og:image' content />
       <meta property='og:type' content='website' />
       <meta property='og:title' content='Delegation' />
     
@@ -25,7 +27,7 @@
 
 
   
-  <link href='tailwind.css?instanceId=cf8ef3b7-94d3-47b6-8c48-87272b7d9057' rel='stylesheet' type='text/css' />
+  <link href='tailwind.css?instanceId=9b5a2c21-66a2-4a0e-89ec-4e041fdb4311' rel='stylesheet' type='text/css' />
 
   <!-- Heist error element -->
   <style type='text/css'>
@@ -40,7 +42,8 @@
 <style>
   @font-face {
     font-family: 'MavenPro';
-    src: url('_emanote-static/fonts/Maven_Pro/MavenPro-VariableFont_wght.ttf') format("truetype");
+    /* FIXME: This ought to be: ${ema:emanoteStaticLayerUrl}/fonts/Maven_Pro/MavenPro-VariableFont_wght.ttf */
+    src: url(_emanote-static/fonts/Maven_Pro/MavenPro-VariableFont_wght.ttf) format("truetype");
     font-display: swap;
   }
 
@@ -2359,25 +2362,25 @@
     </p>
   <h2 id='listing-stake-pools' class='inline-block mt-6 mb-4 text-4xl font-bold text-gray-700 border-b-2'>Listing stake pools</h2>
     <p class='mb-3'>
-      Before joining any stake pool we can first list all available stake pools that are operating on our blockchain. Stake pools are ordered by <code class='py-0.5 px-1 rounded bg-gray-700 text-sm text-white'>non_myopic_member_rewards</code> which gives higher ranking and hence favors the pools potentially producing the best rewards in the future. The ordering could be influenced by the <code class='py-0.5 px-1 rounded bg-gray-700 text-sm text-white'>?stake</code> query parameter which says how much stake we want to delegate.
+      Before joining any stake pool we can first list all available stake pools that are operating on our blockchain. Stake pools are ordered by <code class='py-0.5 px-0.5 bg-gray-100'>non_myopic_member_rewards</code> which gives higher ranking and hence favors the pools potentially producing the best rewards in the future. The ordering could be influenced by the <code class='py-0.5 px-0.5 bg-gray-100'>?stake</code> query parameter which says how much stake we want to delegate.
     </p>
   
     <ul class='my-3 ml-6 space-y-1 list-disc'>
       
         <li>
-          <a href='https://input-output-hk.github.io/cardano-wallet/api/edge/#operation/listStakePools' class='text-blue-600 hover:underline' target='_blank' rel='noopener'><code class='py-0.5 px-1 rounded bg-gray-700 text-sm text-white'>GET /stake-pools</code></a>
+          <a href='https://input-output-hk.github.io/cardano-wallet/api/edge/#operation/listStakePools' class='text-blue-600 hover:underline' target='_blank' rel='noopener'><code class='py-0.5 px-0.5 bg-gray-100'>GET /stake-pools</code></a>
         </li>
       
     </ul>
   <div class='py-0.5 mb-3 text-sm'><pre><code class='language-none'>$ curl -X GET http://localhost:8090/v2/stake-pools?stake=1000000000</code></pre></div><h2 id='joining-stake-pool' class='inline-block mt-6 mb-4 text-4xl font-bold text-gray-700 border-b-2'>Joining stake pool</h2>
     <p class='mb-3'>
-      Once we select a stake pool we can “join” it. This operation will “virtually” add our wallet balance to the stake of this particular stake pool. Joining a pool for the first time will incur <code class='py-0.5 px-1 rounded bg-gray-700 text-sm text-white'>fee</code> and <code class='py-0.5 px-1 rounded bg-gray-700 text-sm text-white'>deposit</code> required for registering our stake key on the blockchain. This deposit will be returned to us if we quit stake pool all together.
+      Once we select a stake pool we can “join” it. This operation will “virtually” add our wallet balance to the stake of this particular stake pool. Joining a pool for the first time will incur <code class='py-0.5 px-0.5 bg-gray-100'>fee</code> and <code class='py-0.5 px-0.5 bg-gray-100'>deposit</code> required for registering our stake key on the blockchain. This deposit will be returned to us if we quit stake pool all together.
     </p>
   
     <blockquote class='py-0.5 px-4 mb-3 italic border-l-4 bg-gray-50 text-gray-600 border-gray-400 quote'>
       
     <p class='mb-3'>
-      <span class='emoji' data-emoji='information_source' style='font-family: emoji'>ℹ️</span> The amount of the deposit is controlled by Cardano network parameter. It is currently 2₳ on <code class='py-0.5 px-1 rounded bg-gray-700 text-sm text-white'>mainnet</code> and <code class='py-0.5 px-1 rounded bg-gray-700 text-sm text-white'>testnet</code>. Deposit is taken only once, when joining stake pool for the first time. Rejoining another stake pool does not incur another deposit.
+      <span class='emoji' data-emoji='information_source' style='font-family: emoji'>ℹ️</span> The amount of the deposit is controlled by Cardano network parameter. It is currently 2₳ on <code class='py-0.5 px-0.5 bg-gray-100'>mainnet</code> and <code class='py-0.5 px-0.5 bg-gray-100'>testnet</code>. Deposit is taken only once, when joining stake pool for the first time. Rejoining another stake pool does not incur another deposit.
     </p>
   
     </blockquote>
@@ -2389,7 +2392,7 @@
     <ul class='my-3 ml-6 space-y-1 list-disc'>
       
         <li>
-          <a href='https://input-output-hk.github.io/cardano-wallet/api/edge/#operation/joinStakePool' class='text-blue-600 hover:underline' target='_blank' rel='noopener'><code class='py-0.5 px-1 rounded bg-gray-700 text-sm text-white'>PUT /stake-pools/{stakePoolId}/wallets/{walletId}</code></a>
+          <a href='https://input-output-hk.github.io/cardano-wallet/api/edge/#operation/joinStakePool' class='text-blue-600 hover:underline' target='_blank' rel='noopener'><code class='py-0.5 px-0.5 bg-gray-100'>PUT /stake-pools/{stakePoolId}/wallets/{walletId}</code></a>
         </li>
       
     </ul>
@@ -2401,15 +2404,15 @@
     <ul class='my-3 ml-6 space-y-1 list-disc'>
       
         <li>
-          Construct: <a href='https://input-output-hk.github.io/cardano-wallet/api/edge/#operation/constructTransaction' class='text-blue-600 hover:underline' target='_blank' rel='noopener'><code class='py-0.5 px-1 rounded bg-gray-700 text-sm text-white'>POST /wallets/{walletId}/transactions-construct</code></a>
+          Construct: <a href='https://input-output-hk.github.io/cardano-wallet/api/edge/#operation/constructTransaction' class='text-blue-600 hover:underline' target='_blank' rel='noopener'><code class='py-0.5 px-0.5 bg-gray-100'>POST /wallets/{walletId}/transactions-construct</code></a>
         </li>
       
         <li>
-          Sign: <a href='https://input-output-hk.github.io/cardano-wallet/api/edge/#operation/signTransaction' class='text-blue-600 hover:underline' target='_blank' rel='noopener'><code class='py-0.5 px-1 rounded bg-gray-700 text-sm text-white'>POST /wallets/{walletId}/transactions-sign</code></a>
+          Sign: <a href='https://input-output-hk.github.io/cardano-wallet/api/edge/#operation/signTransaction' class='text-blue-600 hover:underline' target='_blank' rel='noopener'><code class='py-0.5 px-0.5 bg-gray-100'>POST /wallets/{walletId}/transactions-sign</code></a>
         </li>
       
         <li>
-          Submit: <a href='https://input-output-hk.github.io/cardano-wallet/api/edge/#operation/submitTransaction' class='text-blue-600 hover:underline' target='_blank' rel='noopener'><code class='py-0.5 px-1 rounded bg-gray-700 text-sm text-white'>POST /wallets/{walletId}/transactions-submit</code></a>
+          Submit: <a href='https://input-output-hk.github.io/cardano-wallet/api/edge/#operation/submitTransaction' class='text-blue-600 hover:underline' target='_blank' rel='noopener'><code class='py-0.5 px-0.5 bg-gray-100'>POST /wallets/{walletId}/transactions-submit</code></a>
         </li>
       
     </ul>
@@ -2429,13 +2432,13 @@
     <blockquote class='py-0.5 px-4 mb-3 italic border-l-4 bg-gray-50 text-gray-600 border-gray-400 quote'>
       
     <p class='mb-3'>
-      <span class='emoji' data-emoji='information_source' style='font-family: emoji'>ℹ️</span> Note that information about <code class='py-0.5 px-1 rounded bg-gray-700 text-sm text-white'>deposit_taken</code> and <code class='py-0.5 px-1 rounded bg-gray-700 text-sm text-white'>deposit_returned</code> is available in the wallet transaction history. Refer to <a href='user-guide/common-use-cases/how-to-make-a-transaction' class='text-blue-600 mavenLinkBold hover:underline' data-wikilink-type='WikiLinkNormal'>How to make a transaction</a>.
+      <span class='emoji' data-emoji='information_source' style='font-family: emoji'>ℹ️</span> Note that information about <code class='py-0.5 px-0.5 bg-gray-100'>deposit_taken</code> and <code class='py-0.5 px-0.5 bg-gray-100'>deposit_returned</code> is available in the wallet transaction history. Refer to <a href='user-guide/common-use-cases/how-to-make-a-transaction' class='text-blue-600 mavenLinkBold hover:underline' data-wikilink-type='WikiLinkNormal'>How to make a transaction</a>.
     </p>
   
     </blockquote>
   <h2 id='joining-another-stake-pool' class='inline-block mt-6 mb-4 text-4xl font-bold text-gray-700 border-b-2'>Joining another stake pool</h2>
     <p class='mb-3'>
-      Joining another stake pool doesn’t differ from the previous process at all. The only difference is that, behind the scenes, <code class='py-0.5 px-1 rounded bg-gray-700 text-sm text-white'>deposit</code> is not taken from the wallet, as it was already taken when joining for the first time.
+      Joining another stake pool doesn’t differ from the previous process at all. The only difference is that, behind the scenes, <code class='py-0.5 px-0.5 bg-gray-100'>deposit</code> is not taken from the wallet, as it was already taken when joining for the first time.
     </p>
   <h2 id='withdrawing-rewards' class='inline-block mt-6 mb-4 text-4xl font-bold text-gray-700 border-b-2'>Withdrawing rewards</h2>
     <p class='mb-3'>
@@ -2445,13 +2448,13 @@
     <ul class='my-3 ml-6 space-y-1 list-disc'>
       
         <li>
-          <a href='https://input-output-hk.github.io/cardano-wallet/api/edge/#operation/getWallet' class='text-blue-600 hover:underline' target='_blank' rel='noopener'><code class='py-0.5 px-1 rounded bg-gray-700 text-sm text-white'>GET /wallets/{walletId}</code></a>
+          <a href='https://input-output-hk.github.io/cardano-wallet/api/edge/#operation/getWallet' class='text-blue-600 hover:underline' target='_blank' rel='noopener'><code class='py-0.5 px-0.5 bg-gray-100'>GET /wallets/{walletId}</code></a>
         </li>
       
     </ul>
   
     <p class='mb-3'>
-      Just look up <code class='py-0.5 px-1 rounded bg-gray-700 text-sm text-white'>balance</code> while getting your wallet details:
+      Just look up <code class='py-0.5 px-0.5 bg-gray-100'>balance</code> while getting your wallet details:
     </p>
   <div class='py-0.5 mb-3 text-sm'><pre><code class='language-none'>$ curl -X GET http://localhost:8090/v2/wallets/1ceb45b37a94c7022837b5ca14045f11a5927c65 | jq .balance
 
@@ -2470,7 +2473,7 @@
   }
 }</code></pre></div>
     <p class='mb-3'>
-      We can withdraw those rewards when making any transaction. In the both, old and new transaction workflow, it is as simple as adding <code class='py-0.5 px-1 rounded bg-gray-700 text-sm text-white'>{ "withdrawal": "self" }</code> to the transaction payload.
+      We can withdraw those rewards when making any transaction. In the both, old and new transaction workflow, it is as simple as adding <code class='py-0.5 px-0.5 bg-gray-100'>{ "withdrawal": "self" }</code> to the transaction payload.
     </p>
   
     <p class='mb-3'>
@@ -2493,7 +2496,7 @@
     <blockquote class='py-0.5 px-4 mb-3 italic border-l-4 bg-gray-50 text-gray-600 border-gray-400 quote'>
       
     <p class='mb-3'>
-      <span class='emoji' data-emoji='information_source' style='font-family: emoji'>ℹ️</span> Note that information about <code class='py-0.5 px-1 rounded bg-gray-700 text-sm text-white'>withdrawals</code> is also available in the wallet transaction history. Refer to <a href='user-guide/common-use-cases/how-to-make-a-transaction' class='text-blue-600 mavenLinkBold hover:underline' data-wikilink-type='WikiLinkNormal'>How to make a transaction</a>.
+      <span class='emoji' data-emoji='information_source' style='font-family: emoji'>ℹ️</span> Note that information about <code class='py-0.5 px-0.5 bg-gray-100'>withdrawals</code> is also available in the wallet transaction history. Refer to <a href='user-guide/common-use-cases/how-to-make-a-transaction' class='text-blue-600 mavenLinkBold hover:underline' data-wikilink-type='WikiLinkNormal'>How to make a transaction</a>.
     </p>
   
     </blockquote>
@@ -2509,7 +2512,7 @@
     <ul class='my-3 ml-6 space-y-1 list-disc'>
       
         <li>
-          <a href='https://input-output-hk.github.io/cardano-wallet/api/edge/#operation/quitStakePool' class='text-blue-600 hover:underline' target='_blank' rel='noopener'><code class='py-0.5 px-1 rounded bg-gray-700 text-sm text-white'>DELETE /stake-pools/*/wallets/{walletId}</code></a>
+          <a href='https://input-output-hk.github.io/cardano-wallet/api/edge/#operation/quitStakePool' class='text-blue-600 hover:underline' target='_blank' rel='noopener'><code class='py-0.5 px-0.5 bg-gray-100'>DELETE /stake-pools/*/wallets/{walletId}</code></a>
         </li>
       
     </ul>
@@ -2588,7 +2591,7 @@
     </a>
   </div>
   <div>
-    <a href='https://emanote.srid.ca' target='_blank' title='Generated by Emanote 0.4.11.3'>
+    <a href='https://emanote.srid.ca' target='_blank' title='Generated by Emanote 0.6.15.1'>
       <img class='w-6 h-6 hover:text-blue-700' src='_emanote-static/emanote-logo.svg' />
     </a>
   </div>

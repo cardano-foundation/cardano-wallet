@@ -1,3 +1,4 @@
+<!DOCTYPE html>
 <html lang='en'>
 
 <head>
@@ -8,8 +9,9 @@
   </title>
   
     
-      <meta property='og:description' content />
+      <meta property='og:description' content='Assuming you have already created a wallet, you can send a transaction by using the following endpoint:' />
       <meta property='og:site_name' content='Cardano Wallet' />
+      <meta property='og:image' content />
       <meta property='og:type' content='website' />
       <meta property='og:title' content='How to make a transaction' />
     
@@ -25,7 +27,7 @@
 
 
   
-  <link href='tailwind.css?instanceId=cf8ef3b7-94d3-47b6-8c48-87272b7d9057' rel='stylesheet' type='text/css' />
+  <link href='tailwind.css?instanceId=9b5a2c21-66a2-4a0e-89ec-4e041fdb4311' rel='stylesheet' type='text/css' />
 
   <!-- Heist error element -->
   <style type='text/css'>
@@ -40,7 +42,8 @@
 <style>
   @font-face {
     font-family: 'MavenPro';
-    src: url('_emanote-static/fonts/Maven_Pro/MavenPro-VariableFont_wght.ttf') format("truetype");
+    /* FIXME: This ought to be: ${ema:emanoteStaticLayerUrl}/fonts/Maven_Pro/MavenPro-VariableFont_wght.ttf */
+    src: url(_emanote-static/fonts/Maven_Pro/MavenPro-VariableFont_wght.ttf) format("truetype");
     font-display: swap;
   }
 
@@ -2357,11 +2360,11 @@
     <ul class='my-3 ml-6 space-y-1 list-disc'>
       
         <li>
-          <a href='https://input-output-hk.github.io/cardano-wallet/api/edge/#operation/postTransaction' class='text-blue-600 hover:underline' target='_blank' rel='noopener'><code class='py-0.5 px-1 rounded bg-gray-700 text-sm text-white'>POST /wallets/{walletId}/transactions</code></a> - transaction from <strong>Shelley</strong> wallet
+          <a href='https://input-output-hk.github.io/cardano-wallet/api/edge/#operation/postTransaction' class='text-blue-600 hover:underline' target='_blank' rel='noopener'><code class='py-0.5 px-0.5 bg-gray-100'>POST /wallets/{walletId}/transactions</code></a> - transaction from <strong>Shelley</strong> wallet
         </li>
       
         <li>
-          <a href='https://input-output-hk.github.io/cardano-wallet/api/edge/#operation/postByronTransaction' class='text-blue-600 hover:underline' target='_blank' rel='noopener'><code class='py-0.5 px-1 rounded bg-gray-700 text-sm text-white'>POST /byron-wallets/{walletId}/transactions</code></a> - transaction from <strong>Byron</strong> wallet
+          <a href='https://input-output-hk.github.io/cardano-wallet/api/edge/#operation/postByronTransaction' class='text-blue-600 hover:underline' target='_blank' rel='noopener'><code class='py-0.5 px-0.5 bg-gray-100'>POST /byron-wallets/{walletId}/transactions</code></a> - transaction from <strong>Byron</strong> wallet
         </li>
       
     </ul>
@@ -2377,29 +2380,29 @@
     <ul class='my-3 ml-6 space-y-1 list-disc'>
       
         <li>
-          Construct: <a href='https://input-output-hk.github.io/cardano-wallet/api/edge/#operation/constructTransaction' class='text-blue-600 hover:underline' target='_blank' rel='noopener'><code class='py-0.5 px-1 rounded bg-gray-700 text-sm text-white'>POST /wallets/{walletId}/transactions-construct</code></a>
+          Construct: <a href='https://input-output-hk.github.io/cardano-wallet/api/edge/#operation/constructTransaction' class='text-blue-600 hover:underline' target='_blank' rel='noopener'><code class='py-0.5 px-0.5 bg-gray-100'>POST /wallets/{walletId}/transactions-construct</code></a>
         </li>
       
         <li>
-          Sign: <a href='https://input-output-hk.github.io/cardano-wallet/api/edge/#operation/signTransaction' class='text-blue-600 hover:underline' target='_blank' rel='noopener'><code class='py-0.5 px-1 rounded bg-gray-700 text-sm text-white'>POST /wallets/{walletId}/transactions-sign</code></a>
+          Sign: <a href='https://input-output-hk.github.io/cardano-wallet/api/edge/#operation/signTransaction' class='text-blue-600 hover:underline' target='_blank' rel='noopener'><code class='py-0.5 px-0.5 bg-gray-100'>POST /wallets/{walletId}/transactions-sign</code></a>
         </li>
       
         <li>
-          Submit: <a href='https://input-output-hk.github.io/cardano-wallet/api/edge/#operation/submitTransaction' class='text-blue-600 hover:underline' target='_blank' rel='noopener'><code class='py-0.5 px-1 rounded bg-gray-700 text-sm text-white'>POST /wallets/{walletId}/transactions-submit</code></a>
+          Submit: <a href='https://input-output-hk.github.io/cardano-wallet/api/edge/#operation/submitTransaction' class='text-blue-600 hover:underline' target='_blank' rel='noopener'><code class='py-0.5 px-0.5 bg-gray-100'>POST /wallets/{walletId}/transactions-submit</code></a>
         </li>
       
     </ul>
   
     <p class='mb-3'>
-      Behind the scene, on the <strong>construct</strong> step, the wallet engine will select necessary inputs belonging to the wallet, generate a change address of the wallet and calculate the <code class='py-0.5 px-1 rounded bg-gray-700 text-sm text-white'>fee</code> for this particular transaction.
+      Behind the scene, on the <strong>construct</strong> step, the wallet engine will select necessary inputs belonging to the wallet, generate a change address of the wallet and calculate the <code class='py-0.5 px-0.5 bg-gray-100'>fee</code> for this particular transaction.
     </p>
   
     <p class='mb-3'>
-      <strong>Sign</strong> and <strong>submit</strong> are now invoked as separate steps. This allows for presenting the actual transaction <code class='py-0.5 px-1 rounded bg-gray-700 text-sm text-white'>fee</code> to the end user. In the old workflow, when all those steps where done in one go, showing precise fee was not possible and it had to be estimated using separate wallet endpoint. Because of the random nature of coin-selection algorithm such estimation might not have been always the same as the actual transaction fee.
+      <strong>Sign</strong> and <strong>submit</strong> are now invoked as separate steps. This allows for presenting the actual transaction <code class='py-0.5 px-0.5 bg-gray-100'>fee</code> to the end user. In the old workflow, when all those steps where done in one go, showing precise fee was not possible and it had to be estimated using separate wallet endpoint. Because of the random nature of coin-selection algorithm such estimation might not have been always the same as the actual transaction fee.
     </p>
   
     <p class='mb-3'>
-      Here is very basic example sending out 10₳ and 1 <code class='py-0.5 px-1 rounded bg-gray-700 text-sm text-white'>asset</code> from the wallet:
+      Here is very basic example sending out 10₳ and 1 <code class='py-0.5 px-0.5 bg-gray-100'>asset</code> from the wallet:
     </p>
   
     <ul class='my-3 ml-6 space-y-1 list-decimal list-inside'>
@@ -2428,7 +2431,7 @@
     <blockquote class='py-0.5 px-4 mb-3 italic border-l-4 bg-gray-50 text-gray-600 border-gray-400 quote'>
       
     <p class='mb-3'>
-      <span class='emoji' data-emoji='information_source' style='font-family: emoji'>ℹ️</span> The response from <strong>construct</strong> will give us information like <code class='py-0.5 px-1 rounded bg-gray-700 text-sm text-white'>fee</code> or <code class='py-0.5 px-1 rounded bg-gray-700 text-sm text-white'>coin selection</code> details. It also returns a CBOR-encoded <code class='py-0.5 px-1 rounded bg-gray-700 text-sm text-white'>transaction</code> represented in base64 encoding. This is what we need to feed into <strong>sign</strong>’s payload.
+      <span class='emoji' data-emoji='information_source' style='font-family: emoji'>ℹ️</span> The response from <strong>construct</strong> will give us information like <code class='py-0.5 px-0.5 bg-gray-100'>fee</code> or <code class='py-0.5 px-0.5 bg-gray-100'>coin selection</code> details. It also returns a CBOR-encoded <code class='py-0.5 px-0.5 bg-gray-100'>transaction</code> represented in base64 encoding. This is what we need to feed into <strong>sign</strong>’s payload.
     </p>
   
     </blockquote>
@@ -2447,7 +2450,7 @@
     <blockquote class='py-0.5 px-4 mb-3 italic border-l-4 bg-gray-50 text-gray-600 border-gray-400 quote'>
       
     <p class='mb-3'>
-      <span class='emoji' data-emoji='information_source' style='font-family: emoji'>ℹ️</span> Again, we are feeding <strong>submit</strong>’s payload with CBOR-encoded <code class='py-0.5 px-1 rounded bg-gray-700 text-sm text-white'>transaction</code> returned by <strong>sign</strong> request.
+      <span class='emoji' data-emoji='information_source' style='font-family: emoji'>ℹ️</span> Again, we are feeding <strong>submit</strong>’s payload with CBOR-encoded <code class='py-0.5 px-0.5 bg-gray-100'>transaction</code> returned by <strong>sign</strong> request.
     </p>
   
     </blockquote>
@@ -2487,11 +2490,11 @@
     <ul class='my-3 ml-6 space-y-1 list-disc'>
       
         <li>
-          <a href='https://input-output-hk.github.io/cardano-wallet/api/edge/#operation/listTransactions' class='text-blue-600 hover:underline' target='_blank' rel='noopener'><code class='py-0.5 px-1 rounded bg-gray-700 text-sm text-white'>GET /wallets/{walletId}/transactions</code></a> - transactions from <strong>Shelley</strong> wallet
+          <a href='https://input-output-hk.github.io/cardano-wallet/api/edge/#operation/listTransactions' class='text-blue-600 hover:underline' target='_blank' rel='noopener'><code class='py-0.5 px-0.5 bg-gray-100'>GET /wallets/{walletId}/transactions</code></a> - transactions from <strong>Shelley</strong> wallet
         </li>
       
         <li>
-          <a href='https://input-output-hk.github.io/cardano-wallet/api/edge/#operation/listByronTransactions' class='text-blue-600 hover:underline' target='_blank' rel='noopener'><code class='py-0.5 px-1 rounded bg-gray-700 text-sm text-white'>GET /byron-wallets/{walletId}/transactions</code></a> - transactions from <strong>Byron</strong> wallet
+          <a href='https://input-output-hk.github.io/cardano-wallet/api/edge/#operation/listByronTransactions' class='text-blue-600 hover:underline' target='_blank' rel='noopener'><code class='py-0.5 px-0.5 bg-gray-100'>GET /byron-wallets/{walletId}/transactions</code></a> - transactions from <strong>Byron</strong> wallet
         </li>
       
     </ul>
@@ -2503,11 +2506,11 @@
     <ul class='my-3 ml-6 space-y-1 list-disc'>
       
         <li>
-          <a href='https://input-output-hk.github.io/cardano-wallet/api/edge/#operation/deleteTransaction' class='text-blue-600 hover:underline' target='_blank' rel='noopener'><code class='py-0.5 px-1 rounded bg-gray-700 text-sm text-white'>DELETE /wallets/{walletId}/transactions/{transactionId}</code></a> - transactions from <strong>Shelley</strong> wallet
+          <a href='https://input-output-hk.github.io/cardano-wallet/api/edge/#operation/deleteTransaction' class='text-blue-600 hover:underline' target='_blank' rel='noopener'><code class='py-0.5 px-0.5 bg-gray-100'>DELETE /wallets/{walletId}/transactions/{transactionId}</code></a> - transactions from <strong>Shelley</strong> wallet
         </li>
       
         <li>
-          <a href='https://input-output-hk.github.io/cardano-wallet/api/edge/#operation/deleteByronTransaction' class='text-blue-600 hover:underline' target='_blank' rel='noopener'><code class='py-0.5 px-1 rounded bg-gray-700 text-sm text-white'>DELETE /byron-wallets/{walletId}/transactions/{transactionId}</code></a> - transactions from <strong>Byron</strong> wallet
+          <a href='https://input-output-hk.github.io/cardano-wallet/api/edge/#operation/deleteByronTransaction' class='text-blue-600 hover:underline' target='_blank' rel='noopener'><code class='py-0.5 px-0.5 bg-gray-100'>DELETE /byron-wallets/{walletId}/transactions/{transactionId}</code></a> - transactions from <strong>Byron</strong> wallet
         </li>
       
     </ul>
@@ -2517,11 +2520,11 @@
     </p>
   <h2 id='signed-and-serialized-transactions' class='inline-block mt-6 mb-4 text-4xl font-bold text-gray-700 border-b-2'>Signed and serialized transactions</h2>
     <p class='mb-3'>
-      Alternatively, <code class='py-0.5 px-1 rounded bg-gray-700 text-sm text-white'>cardano-wallet</code> allows clients to submit already signed and serialized transactions as a raw bytes blob. This can be done by submitting such serialized data as an <code class='py-0.5 px-1 rounded bg-gray-700 text-sm text-white'>application/octet-stream</code> :
+      Alternatively, <code class='py-0.5 px-0.5 bg-gray-100'>cardano-wallet</code> allows clients to submit already signed and serialized transactions as a raw bytes blob. This can be done by submitting such serialized data as an <code class='py-0.5 px-0.5 bg-gray-100'>application/octet-stream</code> :
     </p>
   
     <p class='mb-3'>
-      <a href='https://input-output-hk.github.io/cardano-wallet/api/edge/#operation/postExternalTransaction' class='text-blue-600 hover:underline' target='_blank' rel='noopener'><code class='py-0.5 px-1 rounded bg-gray-700 text-sm text-white'>POST /proxy/transactions</code></a>
+      <a href='https://input-output-hk.github.io/cardano-wallet/api/edge/#operation/postExternalTransaction' class='text-blue-600 hover:underline' target='_blank' rel='noopener'><code class='py-0.5 px-0.5 bg-gray-100'>POST /proxy/transactions</code></a>
     </p>
   
     <p class='mb-3'>
@@ -2618,7 +2621,7 @@
     </a>
   </div>
   <div>
-    <a href='https://emanote.srid.ca' target='_blank' title='Generated by Emanote 0.4.11.3'>
+    <a href='https://emanote.srid.ca' target='_blank' title='Generated by Emanote 0.6.15.1'>
       <img class='w-6 h-6 hover:text-blue-700' src='_emanote-static/emanote-logo.svg' />
     </a>
   </div>

@@ -1,3 +1,4 @@
+<!DOCTYPE html>
 <html lang='en'>
 
 <head>
@@ -8,8 +9,9 @@
   </title>
   
     
-      <meta property='og:description' content />
+      <meta property='og:description' content='The easiest and most common way of managing your funds on the Cardano blockchain is through a wallet. This guide is to show how to start cardano-wallet together with cardano-node.' />
       <meta property='og:site_name' content='Cardano Wallet' />
+      <meta property='og:image' content />
       <meta property='og:type' content='website' />
       <meta property='og:title' content='How to start wallet server' />
     
@@ -25,7 +27,7 @@
 
 
   
-  <link href='tailwind.css?instanceId=cf8ef3b7-94d3-47b6-8c48-87272b7d9057' rel='stylesheet' type='text/css' />
+  <link href='tailwind.css?instanceId=9b5a2c21-66a2-4a0e-89ec-4e041fdb4311' rel='stylesheet' type='text/css' />
 
   <!-- Heist error element -->
   <style type='text/css'>
@@ -40,7 +42,8 @@
 <style>
   @font-face {
     font-family: 'MavenPro';
-    src: url('_emanote-static/fonts/Maven_Pro/MavenPro-VariableFont_wght.ttf') format("truetype");
+    /* FIXME: This ought to be: ${ema:emanoteStaticLayerUrl}/fonts/Maven_Pro/MavenPro-VariableFont_wght.ttf */
+    src: url(_emanote-static/fonts/Maven_Pro/MavenPro-VariableFont_wght.ttf) format("truetype");
     font-display: swap;
   }
 
@@ -2335,17 +2338,17 @@
   <!-- What goes in this file will appear on top of note body-->
   <h2 id='overview' class='inline-block mt-6 mb-4 text-4xl font-bold text-gray-700 border-b-2'>Overview</h2>
     <p class='mb-3'>
-      The easiest and most common way of managing your funds on the Cardano blockchain is through a wallet. This guide is to show how to start <code class='py-0.5 px-1 rounded bg-gray-700 text-sm text-white'>cardano-wallet</code> together with <code class='py-0.5 px-1 rounded bg-gray-700 text-sm text-white'>cardano-node</code>.
+      The easiest and most common way of managing your funds on the Cardano blockchain is through a wallet. This guide is to show how to start <code class='py-0.5 px-0.5 bg-gray-100'>cardano-wallet</code> together with <code class='py-0.5 px-0.5 bg-gray-100'>cardano-node</code>.
     </p>
   <h2 id='full-node-mode' class='inline-block mt-6 mb-4 text-4xl font-bold text-gray-700 border-b-2'>Full node mode</h2>
     <p class='mb-3'>
-      Here we are going to start <code class='py-0.5 px-1 rounded bg-gray-700 text-sm text-white'>cardano-wallet</code> in full node mode, meaning that we need to have also <code class='py-0.5 px-1 rounded bg-gray-700 text-sm text-white'>cardano-node</code> running on the same machine. We can get binaries of <code class='py-0.5 px-1 rounded bg-gray-700 text-sm text-white'>cardano-wallet</code> and compatible version of <code class='py-0.5 px-1 rounded bg-gray-700 text-sm text-white'>cardano-node</code> from <a href='https://github.com/input-output-hk/cardano-wallet/releases' class='text-blue-600 hover:underline' target='_blank' rel='noopener'>cardano wallet release page</a>. <code class='py-0.5 px-1 rounded bg-gray-700 text-sm text-white'>Cardano-wallet</code> archives published for each release, besides <code class='py-0.5 px-1 rounded bg-gray-700 text-sm text-white'>cardano-wallet</code> itself, include all the relevant tools like <code class='py-0.5 px-1 rounded bg-gray-700 text-sm text-white'>cardano-node</code>, <code class='py-0.5 px-1 rounded bg-gray-700 text-sm text-white'>cardano-cli</code>, <code class='py-0.5 px-1 rounded bg-gray-700 text-sm text-white'>cardano-addresses</code> or <code class='py-0.5 px-1 rounded bg-gray-700 text-sm text-white'>bech32</code>.
+      Here we are going to start <code class='py-0.5 px-0.5 bg-gray-100'>cardano-wallet</code> in full node mode, meaning that we need to have also <code class='py-0.5 px-0.5 bg-gray-100'>cardano-node</code> running on the same machine. We can get binaries of <code class='py-0.5 px-0.5 bg-gray-100'>cardano-wallet</code> and compatible version of <code class='py-0.5 px-0.5 bg-gray-100'>cardano-node</code> from <a href='https://github.com/input-output-hk/cardano-wallet/releases' class='text-blue-600 hover:underline' target='_blank' rel='noopener'>cardano wallet release page</a>. <code class='py-0.5 px-0.5 bg-gray-100'>Cardano-wallet</code> archives published for each release, besides <code class='py-0.5 px-0.5 bg-gray-100'>cardano-wallet</code> itself, include all the relevant tools like <code class='py-0.5 px-0.5 bg-gray-100'>cardano-node</code>, <code class='py-0.5 px-0.5 bg-gray-100'>cardano-cli</code>, <code class='py-0.5 px-0.5 bg-gray-100'>cardano-addresses</code> or <code class='py-0.5 px-0.5 bg-gray-100'>bech32</code>.
     </p>
   
     <blockquote class='py-0.5 px-4 mb-3 italic border-l-4 bg-gray-50 text-gray-600 border-gray-400 quote'>
       
     <p class='mb-3'>
-      <span class='emoji' data-emoji='information_source' style='font-family: emoji'>ℹ️</span> Alternatively one can use handy <a href='https://github.com/input-output-hk/cardano-wallet#getting-started' class='text-blue-600 hover:underline' target='_blank' rel='noopener'>docker-compose</a> to start wallet and the node. <code class='py-0.5 px-1 rounded bg-gray-700 text-sm text-white'>$ NETWORK=testnet docker-compose up</code>
+      <span class='emoji' data-emoji='information_source' style='font-family: emoji'>ℹ️</span> Alternatively one can use handy <a href='https://github.com/input-output-hk/cardano-wallet#getting-started' class='text-blue-600 hover:underline' target='_blank' rel='noopener'>docker-compose</a> to start wallet and the node. <code class='py-0.5 px-0.5 bg-gray-100'>$ NETWORK=testnet docker-compose up</code>
     </p>
   
     </blockquote>
@@ -2365,9 +2368,9 @@
         </li>
       
     </ul>
-  <h4 id='start-cardano-wallet-in-full-node-mode' class='mt-6 mb-2 text-2xl font-bold text-gray-700'>Start <code class='py-0.5 px-1 rounded bg-gray-700 text-sm text-white'>cardano-wallet</code> in full node mode</h4>
+  <h4 id='start-cardano-wallet-in-full-node-mode' class='mt-6 mb-2 text-2xl font-bold text-gray-700'>Start <code class='py-0.5 px-0.5 bg-gray-100'>cardano-wallet</code> in full node mode</h4>
     <p class='mb-3'>
-      We are going to use <code class='py-0.5 px-1 rounded bg-gray-700 text-sm text-white'>testnet</code> configuration in this example.
+      We are going to use <code class='py-0.5 px-0.5 bg-gray-100'>testnet</code> configuration in this example.
     </p>
   
     <ul class='my-3 ml-6 space-y-1 list-decimal list-inside'>
@@ -2399,11 +2402,11 @@
     </p>
   
     <p class='mb-3'>
-      However, in order to be able to make transactions, we still need to wait until <code class='py-0.5 px-1 rounded bg-gray-700 text-sm text-white'>cardano-node</code> is synced fully with the Cardano blockchain. In case of <code class='py-0.5 px-1 rounded bg-gray-700 text-sm text-white'>mainnet</code> it may take several hours, in case of <code class='py-0.5 px-1 rounded bg-gray-700 text-sm text-white'>testnet</code> a bit less.
+      However, in order to be able to make transactions, we still need to wait until <code class='py-0.5 px-0.5 bg-gray-100'>cardano-node</code> is synced fully with the Cardano blockchain. In case of <code class='py-0.5 px-0.5 bg-gray-100'>mainnet</code> it may take several hours, in case of <code class='py-0.5 px-0.5 bg-gray-100'>testnet</code> a bit less.
     </p>
   
     <p class='mb-3'>
-      We can monitor this process using <code class='py-0.5 px-1 rounded bg-gray-700 text-sm text-white'>cardano-wallet's</code> <a href='https://input-output-hk.github.io/cardano-wallet/api/edge/#operation/getNetworkInformation' class='text-blue-600 hover:underline' target='_blank' rel='noopener'><code class='py-0.5 px-1 rounded bg-gray-700 text-sm text-white'>GET /network/information</code></a> endpoint. Once the endpoint returns <code class='py-0.5 px-1 rounded bg-gray-700 text-sm text-white'>sync_progress</code> status <code class='py-0.5 px-1 rounded bg-gray-700 text-sm text-white'>ready</code> we’ll know we are good to go:
+      We can monitor this process using <code class='py-0.5 px-0.5 bg-gray-100'>cardano-wallet's</code> <a href='https://input-output-hk.github.io/cardano-wallet/api/edge/#operation/getNetworkInformation' class='text-blue-600 hover:underline' target='_blank' rel='noopener'><code class='py-0.5 px-0.5 bg-gray-100'>GET /network/information</code></a> endpoint. Once the endpoint returns <code class='py-0.5 px-0.5 bg-gray-100'>sync_progress</code> status <code class='py-0.5 px-0.5 bg-gray-100'>ready</code> we’ll know we are good to go:
     </p>
   <div class='py-0.5 mb-3 text-sm'><pre><code class='language-none'>$ curl -X GET http://localhost:8090/v2/network/information | jq .sync_progress
 {
@@ -2412,13 +2415,13 @@
     <blockquote class='py-0.5 px-4 mb-3 italic border-l-4 bg-gray-50 text-gray-600 border-gray-400 quote'>
       
     <p class='mb-3'>
-      <span class='emoji' data-emoji='warning' style='font-family: emoji'>⚠️</span> This mode is currently <strong>under development</strong>. Please note that some parts may be available only in <code class='py-0.5 px-1 rounded bg-gray-700 text-sm text-white'>master</code> branch.
+      <span class='emoji' data-emoji='warning' style='font-family: emoji'>⚠️</span> This mode is currently <strong>under development</strong>. Please note that some parts may be available only in <code class='py-0.5 px-0.5 bg-gray-100'>master</code> branch.
     </p>
   
     </blockquote>
   
     <p class='mb-3'>
-      You can start your cardano-wallet server also in <strong>light mode</strong>. As opposed to full-node mode, in light-mode your wallet is not connected to a locally running instance of <code class='py-0.5 px-1 rounded bg-gray-700 text-sm text-white'>cardano-node</code>. Instead it relays on external source of blockchain data. This significantly improves synchronization speed of the wallet and also removes the need to spend time synchronizing the node itself. The downside is that external source of data is obviously less trusted than the local one provided by your own <code class='py-0.5 px-1 rounded bg-gray-700 text-sm text-white'>cardano-node</code> instance.
+      You can start your cardano-wallet server also in <strong>light mode</strong>. As opposed to full-node mode, in light-mode your wallet is not connected to a locally running instance of <code class='py-0.5 px-0.5 bg-gray-100'>cardano-node</code>. Instead it relays on external source of blockchain data. This significantly improves synchronization speed of the wallet and also removes the need to spend time synchronizing the node itself. The downside is that external source of data is obviously less trusted than the local one provided by your own <code class='py-0.5 px-0.5 bg-gray-100'>cardano-node</code> instance.
     </p>
   
     <blockquote class='py-0.5 px-4 mb-3 italic border-l-4 bg-gray-50 text-gray-600 border-gray-400 quote'>
@@ -2440,7 +2443,7 @@
         </li>
       
     </ul>
-  <h4 id='start-cardano-wallet-in-light-mode' class='mt-6 mb-2 text-2xl font-bold text-gray-700'>Start <code class='py-0.5 px-1 rounded bg-gray-700 text-sm text-white'>cardano-wallet</code> in light mode</h4>
+  <h4 id='start-cardano-wallet-in-light-mode' class='mt-6 mb-2 text-2xl font-bold text-gray-700'>Start <code class='py-0.5 px-0.5 bg-gray-100'>cardano-wallet</code> in light mode</h4>
     <p class='mb-3'>
       Let’s suppose we have our API keys generated and saved in files as follows:
     </p>
@@ -2448,11 +2451,11 @@
     <ul class='my-3 ml-6 space-y-1 list-disc'>
       
         <li>
-          <code class='py-0.5 px-1 rounded bg-gray-700 text-sm text-white'>blockfrost-testnet.key</code> - API key for <code class='py-0.5 px-1 rounded bg-gray-700 text-sm text-white'>testnet</code>
+          <code class='py-0.5 px-0.5 bg-gray-100'>blockfrost-testnet.key</code> - API key for <code class='py-0.5 px-0.5 bg-gray-100'>testnet</code>
         </li>
       
         <li>
-          <code class='py-0.5 px-1 rounded bg-gray-700 text-sm text-white'>blockfrost-mainnet.key</code> - API key for <code class='py-0.5 px-1 rounded bg-gray-700 text-sm text-white'>mainnet</code>
+          <code class='py-0.5 px-0.5 bg-gray-100'>blockfrost-mainnet.key</code> - API key for <code class='py-0.5 px-0.5 bg-gray-100'>mainnet</code>
         </li>
       
     </ul>
@@ -2646,7 +2649,7 @@
     </a>
   </div>
   <div>
-    <a href='https://emanote.srid.ca' target='_blank' title='Generated by Emanote 0.4.11.3'>
+    <a href='https://emanote.srid.ca' target='_blank' title='Generated by Emanote 0.6.15.1'>
       <img class='w-6 h-6 hover:text-blue-700' src='_emanote-static/emanote-logo.svg' />
     </a>
   </div>

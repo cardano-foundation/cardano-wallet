@@ -1,3 +1,4 @@
+<!DOCTYPE html>
 <html lang='en'>
 
 <head>
@@ -8,8 +9,9 @@
   </title>
   
     
-      <meta property='og:description' content />
+      <meta property='og:description' content='Alternatively, one can run tests of a particular module by running:' />
       <meta property='og:site_name' content='Cardano Wallet' />
+      <meta property='og:image' content='https://github.com/input-output-hk/cardano-wallet/actions/workflows/e2e-linux.yml/badge.svg' />
       <meta property='og:type' content='website' />
       <meta property='og:title' content='Testing' />
     
@@ -25,7 +27,7 @@
 
 
   
-  <link href='tailwind.css?instanceId=cf8ef3b7-94d3-47b6-8c48-87272b7d9057' rel='stylesheet' type='text/css' />
+  <link href='tailwind.css?instanceId=9b5a2c21-66a2-4a0e-89ec-4e041fdb4311' rel='stylesheet' type='text/css' />
 
   <!-- Heist error element -->
   <style type='text/css'>
@@ -40,7 +42,8 @@
 <style>
   @font-face {
     font-family: 'MavenPro';
-    src: url('_emanote-static/fonts/Maven_Pro/MavenPro-VariableFont_wght.ttf') format("truetype");
+    /* FIXME: This ought to be: ${ema:emanoteStaticLayerUrl}/fonts/Maven_Pro/MavenPro-VariableFont_wght.ttf */
+    src: url(_emanote-static/fonts/Maven_Pro/MavenPro-VariableFont_wght.ttf) format("truetype");
     font-display: swap;
   }
 
@@ -2332,21 +2335,21 @@ $ cabal test cardano-wallet:unit</code></pre></div>
     </p>
   <div class='py-0.5 mb-3 text-sm'><pre><code class='language-none'>$ cabal test cardano-wallet:unit --test-options "--match MyModule"</code></pre></div><h2 id='integration-tests' class='inline-block mt-6 mb-4 text-4xl font-bold text-gray-700 border-b-2'>Integration Tests</h2><h4 id='pre-requisites' class='mt-6 mb-2 text-2xl font-bold text-gray-700'>Pre-requisites</h4>
     <p class='mb-3'>
-      Install <a href='https://docs.cardano.org/projects/cardano-node/en/latest/getting-started/install.html' class='text-blue-600 hover:underline' target='_blank' rel='noopener'><code class='py-0.5 px-1 rounded bg-gray-700 text-sm text-white'>cardano-node</code></a> and <a href='https://docs.cardano.org/projects/cardano-node/en/latest/getting-started/install.html' class='text-blue-600 hover:underline' target='_blank' rel='noopener'><code class='py-0.5 px-1 rounded bg-gray-700 text-sm text-white'>cardano-cli</code></a>; make sure to use one of the <a href='https://github.com/input-output-hk/cardano-wallet/blob/master/README.md#latest-releases' class='text-blue-600 hover:underline' target='_blank' rel='noopener'>compatible versions</a>.
+      Install <a href='https://docs.cardano.org/projects/cardano-node/en/latest/getting-started/install.html' class='text-blue-600 hover:underline' target='_blank' rel='noopener'><code class='py-0.5 px-0.5 bg-gray-100'>cardano-node</code></a> and <a href='https://docs.cardano.org/projects/cardano-node/en/latest/getting-started/install.html' class='text-blue-600 hover:underline' target='_blank' rel='noopener'><code class='py-0.5 px-0.5 bg-gray-100'>cardano-cli</code></a>; make sure to use one of the <a href='https://github.com/input-output-hk/cardano-wallet/blob/master/README.md#latest-releases' class='text-blue-600 hover:underline' target='_blank' rel='noopener'>compatible versions</a>.
     </p>
   
     <p class='mb-3'>
-      Alternatively, use <code class='py-0.5 px-1 rounded bg-gray-700 text-sm text-white'>cabal test all -j8</code>.
+      Alternatively, use <code class='py-0.5 px-0.5 bg-gray-100'>cabal test all -j8</code>.
     </p>
   <h4 id='test' class='mt-6 mb-2 text-2xl font-bold text-gray-700'>Test</h4><div class='py-0.5 mb-3 text-sm'><pre><code class='language-none'>$ cabal test cardano-wallet:integration</code></pre></div>
     <p class='mb-3'>
-      Many tests require a cardano network with stake pools. To support this, the integration tests run a local <code class='py-0.5 px-1 rounded bg-gray-700 text-sm text-white'>cardano-node</code> cluster with one Ouroboros BFT node and three Ouroboros Praos nodes for the three stake pools.
+      Many tests require a cardano network with stake pools. To support this, the integration tests run a local <code class='py-0.5 px-0.5 bg-gray-100'>cardano-node</code> cluster with one Ouroboros BFT node and three Ouroboros Praos nodes for the three stake pools.
     </p>
   <h4 id='environment-variables' class='mt-6 mb-2 text-2xl font-bold text-gray-700'>Environment Variables</h4>
     <p class='mb-3'>
       Several environment variables control debugging features of the integration tests and test cluster.
     </p>
-  <table class='mb-3'><thead><tr class='border-b-2 border-t-2 border-gray-300'><th class='py-2 px-2 align-top border-r-2 border-l-2 border-gray-300'><strong>Variable</strong></th><th class='py-2 px-2 align-top border-r-2 border-l-2 border-gray-300'><strong>Type</strong></th><th class='py-2 px-2 align-top border-r-2 border-l-2 border-gray-300'><strong>Meaning</strong></th><th class='py-2 px-2 align-top border-r-2 border-l-2 border-gray-300'><strong>Default</strong></th></tr></thead><tbody><tr class='border-b-2 border-t-2 border-gray-300'><td class='py-2 px-2 align-top border-r-2 border-l-2 border-gray-300'><code class='py-0.5 px-1 rounded bg-gray-700 text-sm text-white'>CARDANO_WALLET_PORT</code></td><td class='py-2 px-2 align-top border-r-2 border-l-2 border-gray-300'>number</td><td class='py-2 px-2 align-top border-r-2 border-l-2 border-gray-300'>Set a specific port for the wallet HTTP server</td><td class='py-2 px-2 align-top border-r-2 border-l-2 border-gray-300'>Random unused port</td></tr><tr class='border-b-2 border-t-2 border-gray-300'><td class='py-2 px-2 align-top border-r-2 border-l-2 border-gray-300'><code class='py-0.5 px-1 rounded bg-gray-700 text-sm text-white'>NO_CLEANUP</code></td><td class='py-2 px-2 align-top border-r-2 border-l-2 border-gray-300'>bool</td><td class='py-2 px-2 align-top border-r-2 border-l-2 border-gray-300'>Leave the temporary directory after tests have finished.</td><td class='py-2 px-2 align-top border-r-2 border-l-2 border-gray-300'>Delete directory on exit</td></tr><tr class='border-b-2 border-t-2 border-gray-300'><td class='py-2 px-2 align-top border-r-2 border-l-2 border-gray-300'><code class='py-0.5 px-1 rounded bg-gray-700 text-sm text-white'>CARDANO_WALLET_TRACING_MIN_SEVERITY</code></td><td class='py-2 px-2 align-top border-r-2 border-l-2 border-gray-300'>severity</td><td class='py-2 px-2 align-top border-r-2 border-l-2 border-gray-300'>Log level for the cardano-wallet server under test.</td><td class='py-2 px-2 align-top border-r-2 border-l-2 border-gray-300'>Critical</td></tr><tr class='border-b-2 border-t-2 border-gray-300'><td class='py-2 px-2 align-top border-r-2 border-l-2 border-gray-300'><code class='py-0.5 px-1 rounded bg-gray-700 text-sm text-white'>CARDANO_NODE_TRACING_MIN_SEVERITY</code></td><td class='py-2 px-2 align-top border-r-2 border-l-2 border-gray-300'>severity</td><td class='py-2 px-2 align-top border-r-2 border-l-2 border-gray-300'>Log level for the test cluster nodes</td><td class='py-2 px-2 align-top border-r-2 border-l-2 border-gray-300'>Info</td></tr><tr class='border-b-2 border-t-2 border-gray-300'><td class='py-2 px-2 align-top border-r-2 border-l-2 border-gray-300'><code class='py-0.5 px-1 rounded bg-gray-700 text-sm text-white'>TESTS_TRACING_MIN_SEVERITY</code></td><td class='py-2 px-2 align-top border-r-2 border-l-2 border-gray-300'>severity</td><td class='py-2 px-2 align-top border-r-2 border-l-2 border-gray-300'>Log level for test suite and cluster</td><td class='py-2 px-2 align-top border-r-2 border-l-2 border-gray-300'>Notice</td></tr><tr class='border-b-2 border-t-2 border-gray-300'><td class='py-2 px-2 align-top border-r-2 border-l-2 border-gray-300'><code class='py-0.5 px-1 rounded bg-gray-700 text-sm text-white'>TESTS_LOGDIR</code></td><td class='py-2 px-2 align-top border-r-2 border-l-2 border-gray-300'>path</td><td class='py-2 px-2 align-top border-r-2 border-l-2 border-gray-300'>Write log files in the given directory</td><td class='py-2 px-2 align-top border-r-2 border-l-2 border-gray-300'>Log files are written to the tests temp directory</td></tr><tr class='border-b-2 border-t-2 border-gray-300'><td class='py-2 px-2 align-top border-r-2 border-l-2 border-gray-300'><code class='py-0.5 px-1 rounded bg-gray-700 text-sm text-white'>TESTS_RETRY_FAILED</code></td><td class='py-2 px-2 align-top border-r-2 border-l-2 border-gray-300'>bool</td><td class='py-2 px-2 align-top border-r-2 border-l-2 border-gray-300'>Enable retrying once of failed tests</td><td class='py-2 px-2 align-top border-r-2 border-l-2 border-gray-300'>No retrying</td></tr><tr class='border-b-2 border-t-2 border-gray-300'><td class='py-2 px-2 align-top border-r-2 border-l-2 border-gray-300'><code class='py-0.5 px-1 rounded bg-gray-700 text-sm text-white'>NO_POOLS</code></td><td class='py-2 px-2 align-top border-r-2 border-l-2 border-gray-300'>bool</td><td class='py-2 px-2 align-top border-r-2 border-l-2 border-gray-300'>Don’t start any stake pool nodes in the local test cluster.</td><td class='py-2 px-2 align-top border-r-2 border-l-2 border-gray-300'>Pool nodes are started</td></tr><tr class='border-b-2 border-t-2 border-gray-300'><td class='py-2 px-2 align-top border-r-2 border-l-2 border-gray-300'><code class='py-0.5 px-1 rounded bg-gray-700 text-sm text-white'>TOKEN_METADATA_SERVER</code></td><td class='py-2 px-2 align-top border-r-2 border-l-2 border-gray-300'>URL</td><td class='py-2 px-2 align-top border-r-2 border-l-2 border-gray-300'>Use this URL for querying asset metadata</td><td class='py-2 px-2 align-top border-r-2 border-l-2 border-gray-300'>Asset metadata fetching disabled</td></tr><tr class='border-b-2 border-t-2 border-gray-300'><td class='py-2 px-2 align-top border-r-2 border-l-2 border-gray-300'><code class='py-0.5 px-1 rounded bg-gray-700 text-sm text-white'>NO_CACHE_LISTPOOLS</code></td><td class='py-2 px-2 align-top border-r-2 border-l-2 border-gray-300'>bool</td><td class='py-2 px-2 align-top border-r-2 border-l-2 border-gray-300'>Do not cache pool listing retrieved from cardano-node. <em>Testing only. Use <code class='py-0.5 px-1 rounded bg-gray-700 text-sm text-white'>--no-cache-listpools</code> command line for executable</em>.</td><td class='py-2 px-2 align-top border-r-2 border-l-2 border-gray-300'>Stake distribution is cached to improve responsiveness</td></tr><tr class='border-b-2 border-t-2 border-gray-300'><td class='py-2 px-2 align-top border-r-2 border-l-2 border-gray-300'><code class='py-0.5 px-1 rounded bg-gray-700 text-sm text-white'>CACHE_LISTPOOLS_TTL</code></td><td class='py-2 px-2 align-top border-r-2 border-l-2 border-gray-300'>number</td><td class='py-2 px-2 align-top border-r-2 border-l-2 border-gray-300'>Cache time to live (TTL) for pool listing. <em>Testing only. Use <code class='py-0.5 px-1 rounded bg-gray-700 text-sm text-white'>--no-cache-listpools</code> command line for executable</em>.</td><td class='py-2 px-2 align-top border-r-2 border-l-2 border-gray-300'>6 seconds for test builds</td></tr></tbody></table>
+  <table class='mb-3'><thead><tr class='border-b-2 border-t-2 border-gray-300'><th class='py-2 px-2 align-top border-r-2 border-l-2 border-gray-300'><strong>Variable</strong></th><th class='py-2 px-2 align-top border-r-2 border-l-2 border-gray-300'><strong>Type</strong></th><th class='py-2 px-2 align-top border-r-2 border-l-2 border-gray-300'><strong>Meaning</strong></th><th class='py-2 px-2 align-top border-r-2 border-l-2 border-gray-300'><strong>Default</strong></th></tr></thead><tbody><tr class='border-b-2 border-t-2 border-gray-300'><td class='py-2 px-2 align-top border-r-2 border-l-2 border-gray-300'><code class='py-0.5 px-0.5 bg-gray-100'>CARDANO_WALLET_PORT</code></td><td class='py-2 px-2 align-top border-r-2 border-l-2 border-gray-300'>number</td><td class='py-2 px-2 align-top border-r-2 border-l-2 border-gray-300'>Set a specific port for the wallet HTTP server</td><td class='py-2 px-2 align-top border-r-2 border-l-2 border-gray-300'>Random unused port</td></tr><tr class='border-b-2 border-t-2 border-gray-300'><td class='py-2 px-2 align-top border-r-2 border-l-2 border-gray-300'><code class='py-0.5 px-0.5 bg-gray-100'>NO_CLEANUP</code></td><td class='py-2 px-2 align-top border-r-2 border-l-2 border-gray-300'>bool</td><td class='py-2 px-2 align-top border-r-2 border-l-2 border-gray-300'>Leave the temporary directory after tests have finished.</td><td class='py-2 px-2 align-top border-r-2 border-l-2 border-gray-300'>Delete directory on exit</td></tr><tr class='border-b-2 border-t-2 border-gray-300'><td class='py-2 px-2 align-top border-r-2 border-l-2 border-gray-300'><code class='py-0.5 px-0.5 bg-gray-100'>CARDANO_WALLET_TRACING_MIN_SEVERITY</code></td><td class='py-2 px-2 align-top border-r-2 border-l-2 border-gray-300'>severity</td><td class='py-2 px-2 align-top border-r-2 border-l-2 border-gray-300'>Log level for the cardano-wallet server under test.</td><td class='py-2 px-2 align-top border-r-2 border-l-2 border-gray-300'>Critical</td></tr><tr class='border-b-2 border-t-2 border-gray-300'><td class='py-2 px-2 align-top border-r-2 border-l-2 border-gray-300'><code class='py-0.5 px-0.5 bg-gray-100'>CARDANO_NODE_TRACING_MIN_SEVERITY</code></td><td class='py-2 px-2 align-top border-r-2 border-l-2 border-gray-300'>severity</td><td class='py-2 px-2 align-top border-r-2 border-l-2 border-gray-300'>Log level for the test cluster nodes</td><td class='py-2 px-2 align-top border-r-2 border-l-2 border-gray-300'>Info</td></tr><tr class='border-b-2 border-t-2 border-gray-300'><td class='py-2 px-2 align-top border-r-2 border-l-2 border-gray-300'><code class='py-0.5 px-0.5 bg-gray-100'>TESTS_TRACING_MIN_SEVERITY</code></td><td class='py-2 px-2 align-top border-r-2 border-l-2 border-gray-300'>severity</td><td class='py-2 px-2 align-top border-r-2 border-l-2 border-gray-300'>Log level for test suite and cluster</td><td class='py-2 px-2 align-top border-r-2 border-l-2 border-gray-300'>Notice</td></tr><tr class='border-b-2 border-t-2 border-gray-300'><td class='py-2 px-2 align-top border-r-2 border-l-2 border-gray-300'><code class='py-0.5 px-0.5 bg-gray-100'>TESTS_LOGDIR</code></td><td class='py-2 px-2 align-top border-r-2 border-l-2 border-gray-300'>path</td><td class='py-2 px-2 align-top border-r-2 border-l-2 border-gray-300'>Write log files in the given directory</td><td class='py-2 px-2 align-top border-r-2 border-l-2 border-gray-300'>Log files are written to the tests temp directory</td></tr><tr class='border-b-2 border-t-2 border-gray-300'><td class='py-2 px-2 align-top border-r-2 border-l-2 border-gray-300'><code class='py-0.5 px-0.5 bg-gray-100'>TESTS_RETRY_FAILED</code></td><td class='py-2 px-2 align-top border-r-2 border-l-2 border-gray-300'>bool</td><td class='py-2 px-2 align-top border-r-2 border-l-2 border-gray-300'>Enable retrying once of failed tests</td><td class='py-2 px-2 align-top border-r-2 border-l-2 border-gray-300'>No retrying</td></tr><tr class='border-b-2 border-t-2 border-gray-300'><td class='py-2 px-2 align-top border-r-2 border-l-2 border-gray-300'><code class='py-0.5 px-0.5 bg-gray-100'>NO_POOLS</code></td><td class='py-2 px-2 align-top border-r-2 border-l-2 border-gray-300'>bool</td><td class='py-2 px-2 align-top border-r-2 border-l-2 border-gray-300'>Don’t start any stake pool nodes in the local test cluster.</td><td class='py-2 px-2 align-top border-r-2 border-l-2 border-gray-300'>Pool nodes are started</td></tr><tr class='border-b-2 border-t-2 border-gray-300'><td class='py-2 px-2 align-top border-r-2 border-l-2 border-gray-300'><code class='py-0.5 px-0.5 bg-gray-100'>TOKEN_METADATA_SERVER</code></td><td class='py-2 px-2 align-top border-r-2 border-l-2 border-gray-300'>URL</td><td class='py-2 px-2 align-top border-r-2 border-l-2 border-gray-300'>Use this URL for querying asset metadata</td><td class='py-2 px-2 align-top border-r-2 border-l-2 border-gray-300'>Asset metadata fetching disabled</td></tr><tr class='border-b-2 border-t-2 border-gray-300'><td class='py-2 px-2 align-top border-r-2 border-l-2 border-gray-300'><code class='py-0.5 px-0.5 bg-gray-100'>NO_CACHE_LISTPOOLS</code></td><td class='py-2 px-2 align-top border-r-2 border-l-2 border-gray-300'>bool</td><td class='py-2 px-2 align-top border-r-2 border-l-2 border-gray-300'>Do not cache pool listing retrieved from cardano-node. <em>Testing only. Use <code class='py-0.5 px-0.5 bg-gray-100'>--no-cache-listpools</code> command line for executable</em>.</td><td class='py-2 px-2 align-top border-r-2 border-l-2 border-gray-300'>Stake distribution is cached to improve responsiveness</td></tr><tr class='border-b-2 border-t-2 border-gray-300'><td class='py-2 px-2 align-top border-r-2 border-l-2 border-gray-300'><code class='py-0.5 px-0.5 bg-gray-100'>CACHE_LISTPOOLS_TTL</code></td><td class='py-2 px-2 align-top border-r-2 border-l-2 border-gray-300'>number</td><td class='py-2 px-2 align-top border-r-2 border-l-2 border-gray-300'>Cache time to live (TTL) for pool listing. <em>Testing only. Use <code class='py-0.5 px-0.5 bg-gray-100'>--no-cache-listpools</code> command line for executable</em>.</td><td class='py-2 px-2 align-top border-r-2 border-l-2 border-gray-300'>6 seconds for test builds</td></tr></tbody></table>
     <p class='mb-3'>
       Here are the possible values of different types of environment variables:
     </p>
@@ -2356,7 +2359,7 @@ $ cabal test cardano-wallet:unit</code></pre></div>
     </p>
   
     <p class='mb-3'>
-      To inspect this directory after the tests have finished, set the <code class='py-0.5 px-1 rounded bg-gray-700 text-sm text-white'>NO_CLEANUP</code> variable.
+      To inspect this directory after the tests have finished, set the <code class='py-0.5 px-0.5 bg-gray-100'>NO_CLEANUP</code> variable.
     </p>
   <div xmlhtmlRaw><details>
     <summary>Here is an example tree</summary>
@@ -2460,7 +2463,7 @@ $ cabal test cardano-wallet:unit</code></pre></div>
     </p>
   
     <p class='mb-3'>
-      Only Error level logs are shown on stdout during test execution. To change this, set the <code class='py-0.5 px-1 rounded bg-gray-700 text-sm text-white'>*_MIN_SEVERITY</code> variables shown above.
+      Only Error level logs are shown on stdout during test execution. To change this, set the <code class='py-0.5 px-0.5 bg-gray-100'>*_MIN_SEVERITY</code> variables shown above.
     </p>
   <h4 id='common-failures-and-resolution' class='mt-6 mb-2 text-2xl font-bold text-gray-700'>Common Failures and Resolution</h4><h5 id='no-more-wallets' class='mt-6 mb-2 text-xl font-bold text-gray-700'>No More Wallets</h5>
     <p class='mb-3'>
@@ -2468,7 +2471,7 @@ $ cabal test cardano-wallet:unit</code></pre></div>
     </p>
   <div class='py-0.5 mb-3 text-sm'><pre><code class='language-none'>user error (No more faucet wallet available in MVar!)</code></pre></div>
     <p class='mb-3'>
-      Generate more wallet mnemonics and populate the appropriate list in <code class='py-0.5 px-1 rounded bg-gray-700 text-sm text-white'>lib/core-integration/src/Test/Integration/Faucet.hs</code>.
+      Generate more wallet mnemonics and populate the appropriate list in <code class='py-0.5 px-0.5 bg-gray-100'>lib/core-integration/src/Test/Integration/Faucet.hs</code>.
     </p>
   
     <p class='mb-3'>
@@ -2478,7 +2481,7 @@ $ cabal test cardano-wallet:unit</code></pre></div>
 # Size may vary depending on which array you need to add to.
 ./result/bin/cardano-wallet recovery-phrase generate --size 15</code></pre></div><h2 id='mock-servers' class='inline-block mt-6 mb-4 text-4xl font-bold text-gray-700 border-b-2'>Mock servers</h2>
     <p class='mb-3'>
-      Use the <code class='py-0.5 px-1 rounded bg-gray-700 text-sm text-white'>cardano-wallet:mock-token-metadata-server</code> executable as a mock server for asset metadata. See the <code class='py-0.5 px-1 rounded bg-gray-700 text-sm text-white'>--help</code> output for full instructions.
+      Use the <code class='py-0.5 px-0.5 bg-gray-100'>cardano-wallet:mock-token-metadata-server</code> executable as a mock server for asset metadata. See the <code class='py-0.5 px-0.5 bg-gray-100'>--help</code> output for full instructions.
     </p>
   <h2 id='benchmarks' class='inline-block mt-6 mb-4 text-4xl font-bold text-gray-700 border-b-2'>Benchmarks</h2><h3 id='database' class='mt-6 mb-2 text-3xl font-bold text-gray-700'>Database</h3><div class='py-0.5 mb-3 text-sm'><pre><code class='language-none'>$ cabal bench cardano-wallet-core:db</code></pre></div><h3 id='restoration' class='mt-6 mb-2 text-3xl font-bold text-gray-700'>Restoration</h3><h4 id='pre-requisites-1' class='mt-6 mb-2 text-2xl font-bold text-gray-700'>Pre-requisites</h4>
     <ul class='my-3 ml-6 space-y-1 list-decimal list-inside'>
@@ -2486,7 +2489,7 @@ $ cabal test cardano-wallet:unit</code></pre></div>
         <li>
           
     <p class='mb-3'>
-      Follow the pre-requisites from <code class='py-0.5 px-1 rounded bg-gray-700 text-sm text-white'>integration</code> above
+      Follow the pre-requisites from <code class='py-0.5 px-0.5 bg-gray-100'>integration</code> above
     </p>
   
         </li>
@@ -2508,13 +2511,13 @@ $ cabal test cardano-wallet:unit</code></pre></div>
     </p>
   
     <p class='mb-3'>
-      Restoration benchmarks will catch up with the chain before running which can take quite a long time in the case of <code class='py-0.5 px-1 rounded bg-gray-700 text-sm text-white'>mainnet</code>. For a better experience, make sure your system isn’t too far behind the tip before running.
+      Restoration benchmarks will catch up with the chain before running which can take quite a long time in the case of <code class='py-0.5 px-0.5 bg-gray-100'>mainnet</code>. For a better experience, make sure your system isn’t too far behind the tip before running.
     </p>
   
     </blockquote>
   <div class='py-0.5 mb-3 text-sm'><pre><code class='language-none'>$ cabal bench cardano-wallet:restore</code></pre></div>
     <p class='mb-3'>
-      Alternatively, one can specify a target network (by default, benchmarks run on <code class='py-0.5 px-1 rounded bg-gray-700 text-sm text-white'>testnet</code>):
+      Alternatively, one can specify a target network (by default, benchmarks run on <code class='py-0.5 px-0.5 bg-gray-100'>testnet</code>):
     </p>
   <div class='py-0.5 mb-3 text-sm'><pre><code class='language-none'>$ cabal bench cardano-wallet:restore --benchmark-options "mainnet"</code></pre></div>
     <p class='mb-3'>
@@ -2526,13 +2529,13 @@ $ eog restore.svg</code></pre></div><h2 id='code-coverage' class='inline-block m
     <ul class='my-3 ml-6 space-y-1 list-decimal list-inside'>
       
         <li>
-          Follow the pre-requisites from <code class='py-0.5 px-1 rounded bg-gray-700 text-sm text-white'>integration</code> above
+          Follow the pre-requisites from <code class='py-0.5 px-0.5 bg-gray-100'>integration</code> above
         </li>
       
     </ul>
   <h4 id='test-2' class='mt-6 mb-2 text-2xl font-bold text-gray-700'>Test</h4>
     <p class='mb-3'>
-      Running combined code coverage on all components is pretty easy. This generates code coverage reports in an HTML format as well as a short summary in the console. Note that, because code has to be compiled in a particular way to be “instrumentable” by the code coverage engine, it is recommended to run this command using another working directory (<code class='py-0.5 px-1 rounded bg-gray-700 text-sm text-white'>--builddir</code> option) so that one can easily switch between coverage testing and standard testing (faster to run):
+      Running combined code coverage on all components is pretty easy. This generates code coverage reports in an HTML format as well as a short summary in the console. Note that, because code has to be compiled in a particular way to be “instrumentable” by the code coverage engine, it is recommended to run this command using another working directory (<code class='py-0.5 px-0.5 bg-gray-100'>--builddir</code> option) so that one can easily switch between coverage testing and standard testing (faster to run):
     </p>
   <div class='py-0.5 mb-3 text-sm'><pre><code class='language-none'>$ cabal test all --enable-coverage --builddir .dist-coverage</code></pre></div>
     <p class='mb-3'>
@@ -2626,7 +2629,7 @@ $ eog restore.svg</code></pre></div><h2 id='code-coverage' class='inline-block m
     </a>
   </div>
   <div>
-    <a href='https://emanote.srid.ca' target='_blank' title='Generated by Emanote 0.4.11.3'>
+    <a href='https://emanote.srid.ca' target='_blank' title='Generated by Emanote 0.6.15.1'>
       <img class='w-6 h-6 hover:text-blue-700' src='_emanote-static/emanote-logo.svg' />
     </a>
   </div>
