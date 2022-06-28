@@ -212,6 +212,7 @@ library
       Cardano.Wallet.DB.Store.Meta.Store
       Cardano.Wallet.DB.Store.Transactions.Model
       Cardano.Wallet.DB.Store.Transactions.Store
+      Cardano.Wallet.DB.Store.Wallets.Model
       Cardano.Wallet.DB.WalletState
       Cardano.Wallet.Logging
       Cardano.Wallet.Network
