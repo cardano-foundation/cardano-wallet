@@ -7,4 +7,3 @@ order: 20
 This section contains historical information about deprecated and/or obsolete projects.
 
 - [[jormungandr]]
-- [[cardano-sl]]
