@@ -52,9 +52,7 @@ jobs:
             Source commit: ${{ github.sha }}
 
       - name: '❄ Install dependencies'
-        run: |
-          nix profile install github:srid/emanote
-          nix develop .#docs --command emanote --version
+        run: 'nix develop .#docs --command emanote --version'
 
       - name: '📸 Build Documentation'
         run: |
