@@ -7,7 +7,6 @@
 {-# LANGUAGE NamedFieldPuns #-}
 {-# LANGUAGE OverloadedLabels #-}
 {-# LANGUAGE RankNTypes #-}
-{-# LANGUAGE RecordWildCards #-}
 {-# LANGUAGE ScopedTypeVariables #-}
 {-# LANGUAGE TupleSections #-}
 {-# LANGUAGE TypeApplications #-}
@@ -63,8 +62,6 @@ import Cardano.DB.Sqlite
     ( DBLog (..)
     , SqliteContext (..)
     , chunkSize
-    , dbChunked'
-    , dbChunkedFor
     , handleConstraint
     , newInMemorySqliteContext
     , newSqliteContext
@@ -116,6 +113,12 @@ import Cardano.Wallet.DB.Sqlite.Types
     ( BlockId (..), TxId (..) )
 import Cardano.Wallet.DB.Store.Checkpoints
     ( PersistAddressBook (..), blockHeaderFromEntity, mkStoreWallets )
+import Cardano.Wallet.DB.Store.Meta.Model
+    ( ManipulateTxMetaHistory (AgeTxMetaHistory, PruneTxMetaHistory) )
+import Cardano.Wallet.DB.Store.Transactions.Model
+    ( TxHistoryF (..) )
+import Cardano.Wallet.DB.Store.Wallets.Store
+    ( DeltaTxWalletsHistory (..), mkStoreTxWalletsHistory )
 import Cardano.Wallet.DB.WalletState
     ( DeltaMap (..)
     , DeltaWalletState1 (..)
@@ -144,8 +147,6 @@ import Control.Monad
     ( forM, unless, void, when, (<=<) )
 import Control.Monad.Extra
     ( concatMapM )
-import Control.Monad.Identity
-    ( Identity (..) )
 import Control.Monad.IO.Class
     ( MonadIO (..) )
 import Control.Monad.Trans.Except
@@ -169,7 +170,7 @@ import Data.List.Split
 import Data.Map.Strict
     ( Map )
 import Data.Maybe
-    ( catMaybes, listToMaybe, maybeToList )
+    ( catMaybes, listToMaybe )
 import Data.Ord
     ( Down (..) )
 import Data.Proxy
@@ -191,12 +192,10 @@ import Database.Persist.Sql
     , Single (..)
     , Update (..)
     , deleteWhere
-    , deleteWhereCount
     , insert_
     , rawExecute
     , rawSql
     , repsert
-    , repsertMany
     , selectFirst
     , selectKeysList
     , selectList
@@ -526,6 +525,7 @@ newDBLayerWith _cacheBehavior _tr ti SqliteContext{runQuery} = do
     -- FIXME LATER during ADP-1043:
     --   Handle the case where loading the database fails.
     walletsDB_ <- runQuery $ loadDBVar mkStoreWallets
+    transactionsDBVar <- runQuery $ loadDBVar mkStoreTxWalletsHistory
 
     -- NOTE
     -- The cache will not work properly unless 'atomically' is protected by a
@@ -577,40 +577,34 @@ newDBLayerWith _cacheBehavior _tr ti SqliteContext{runQuery} = do
                                       Wallets
         -----------------------------------------------------------------------}
 
-        { initializeWallet = \wid cp meta txs gp -> ExceptT $ do
-            res <- handleConstraint (ErrWalletAlreadyExists wid) $
-                insert_ (mkWalletEntity wid meta gp)
-            when (isRight res) $ do
-                insertCheckpointGenesis wid cp
-                let Identity
-                        ( txMetas
-                        , txIns
-                        , txCollateralIns
-                        , txOuts
-                        , txOutTokens
-                        , txCollateralOuts
-                        , txCollateralOutTokens
-                        , txWithdrawals
-                        ) = Identity $ mkTxHistory wid txs
-                putTxs
-                    txMetas
-                    txIns
-                    txCollateralIns
-                    txOuts
-                    txOutTokens
-                    txCollateralOuts
-                    txCollateralOutTokens
-                    txWithdrawals
-            pure res
-
-        , removeWallet = \wid -> ExceptT $ do
-            selectWallet wid >>= \case
-                Nothing -> pure $ Left $ ErrNoSuchWallet wid
-                Just _  -> Right <$> do
-                    deleteWhere [WalId ==. wid]
-                    deleteLooseTransactions
-                    deleteCheckpoints wid
-
+        { initializeWallet = \wid cp meta txs gp -> do
+            ExceptT $ do
+                res <- handleConstraint (ErrWalletAlreadyExists wid) $
+                    insert_ (mkWalletEntity wid meta gp)
+                when (isRight res) $ do
+                    insertCheckpointGenesis wid cp
+                    void $ modifyDBMaybe transactionsDBVar $ \(_txsOld, _ws) ->
+                        let delta = Just $ ExpandTxWalletsHistory wid txs
+                        in  (delta, Right ())
+                pure res
+        , removeWallet = \wid -> do
+            ExceptT $ do
+                selectWallet wid >>= \case
+                    Nothing -> pure $ Left $ ErrNoSuchWallet wid
+                    Just _  -> Right <$> do
+                        deleteWhere [WalId ==. wid]
+                        deleteCheckpoints wid
+            ExceptT $ modifyDBMaybe transactionsDBVar $ \(_txsOld, ws) ->
+                case Map.lookup wid ws of
+                    Nothing -> (Nothing, Left $ ErrNoSuchWallet wid)
+                    Just _  ->
+                        let
+                            delta = Just $ RemoveWallet wid
+                        in  (delta, Right ())
+            ExceptT $ modifyDBMaybe transactionsDBVar $ \_ ->
+                        let
+                            delta = Just GarbageCollectTxWalletsHistory
+                        in  (delta, Right ())
         , listWallets = map unWalletKey <$> selectKeysList [] [Asc WalId]
 
         {-----------------------------------------------------------------------
@@ -681,14 +675,22 @@ newDBLayerWith _cacheBehavior _tr ti SqliteContext{runQuery} = do
                         $ W.chainPointFromBlockHeader
                         $ view #currentTip wcp
 
-        , prune = \wid epochStability -> ExceptT $ do
-            readCheckpoint_ wid >>= \case
-                Nothing -> pure $ Left $ ErrNoSuchWallet wid
-                Just cp -> Right <$> do
-                    let tip = cp ^. #currentTip
-                    pruneCheckpoints wid epochStability tip
-                    pruneLocalTxSubmission wid epochStability tip
-                    deleteLooseTransactions
+        , prune = \wid epochStability -> do
+            ExceptT $ do
+                readCheckpoint_ wid >>= \case
+                    Nothing -> pure $ Left $ ErrNoSuchWallet wid
+                    Just cp -> Right <$> do
+                        let tip = cp ^. #currentTip
+                        pruneCheckpoints wid epochStability tip
+                        pruneLocalTxSubmission wid epochStability tip
+            ExceptT $ modifyDBMaybe transactionsDBVar $ \(_txsOld, ws) ->
+                case Map.lookup wid ws of
+                    Nothing -> (Nothing, Left $ ErrNoSuchWallet wid)
+                    Just _  ->
+                        let
+                            delta = Just GarbageCollectTxWalletsHistory
+                        in  (delta, Right ())
+            -- deleteLooseTransactions
 
         {-----------------------------------------------------------------------
                                    Wallet Metadata
@@ -746,31 +748,14 @@ newDBLayerWith _cacheBehavior _tr ti SqliteContext{runQuery} = do
         {-----------------------------------------------------------------------
                                      Tx History
         -----------------------------------------------------------------------}
-
         , putTxHistory = \wid txs -> ExceptT $ do
-            selectWallet wid >>= \case
-                Nothing -> pure $ Left $ ErrNoSuchWallet wid
-                Just _ -> do
-                    let Identity
-                            ( txMetas
-                            , txIns
-                            , txCollateralIns
-                            , txOuts
-                            , txOutTokens
-                            , txCollateralOuts
-                            , txCollateralOutTokens
-                            , txWithdrawals
-                            ) = Identity $ mkTxHistory wid txs
-                    putTxs
-                        txMetas
-                        txIns
-                        txCollateralIns
-                        txOuts
-                        txOutTokens
-                        txCollateralOuts
-                        txCollateralOutTokens
-                        txWithdrawals
-                    pure $ Right ()
+            modifyDBMaybe transactionsDBVar $ \(_txsOld, ws) ->
+                case Map.lookup wid ws of
+                    Nothing -> (Nothing, Left $ ErrNoSuchWallet wid)
+                    Just _  ->
+                        let
+                            delta = Just $ ExpandTxWalletsHistory wid txs
+                        in  (delta, Right ())
 
         , readTxHistory = \wid minWithdrawal order range status -> do
             readCheckpoint_ wid >>= \case
@@ -799,27 +784,34 @@ newDBLayerWith _cacheBehavior _tr ti SqliteContext{runQuery} = do
             . listPendingLocalTxSubmissionQuery
 
         , updatePendingTxForExpiry = \wid tip -> ExceptT $ do
-            selectWallet wid >>= \case
-                Nothing -> pure $ Left $ ErrNoSuchWallet wid
-                Just _ -> Right <$> updatePendingTxForExpiryQuery wid tip
-
-        , removePendingOrExpiredTx = \wid tid -> ExceptT $ do
-            let errNoSuchWallet =
-                    Left $ ErrRemoveTxNoSuchWallet $ ErrNoSuchWallet wid
-            let errNoMorePending =
-                    Left $ ErrRemoveTxAlreadyInLedger tid
-            let errNoSuchTransaction =
-                    Left $ ErrRemoveTxNoSuchTransaction $
-                    ErrNoSuchTransaction wid tid
-            selectWallet wid >>= \case
-                Nothing -> pure errNoSuchWallet
-                Just _  -> selectTxMeta wid tid >>= \case
-                    Nothing -> pure errNoSuchTransaction
-                    Just _ -> do
-                        count <- deletePendingOrExpiredTx wid tid
-                        pure $ if count == 0
-                            then errNoMorePending
-                            else Right ()
+            modifyDBMaybe transactionsDBVar $ \(_txsOld, ws) ->
+                case Map.lookup wid ws of
+                    Nothing -> (Nothing, Left $ ErrNoSuchWallet wid)
+                    Just _  ->
+                        let
+                            delta = Just
+                                $ ChangeTxMetaWalletsHistory wid
+                                $ AgeTxMetaHistory tip
+                        in  (delta, Right ())
+        , removePendingOrExpiredTx = \wid txId -> ExceptT $ do
+            modifyDBMaybe transactionsDBVar $ \(TxHistoryF txsOld, ws) ->
+                case Map.lookup wid ws of
+                    Nothing ->
+                        ( Nothing
+                        , Left
+                            $ ErrRemoveTxNoSuchWallet
+                            $ ErrNoSuchWallet wid
+                        )
+                    Just _  ->
+                        if TxId txId `Map.member` txsOld
+                            then
+                                let
+                                    delta = Just
+                                        $ ChangeTxMetaWalletsHistory wid
+                                        $ PruneTxMetaHistory $ TxId txId
+                                in  (delta, Right ())
+                            else (Nothing, Left $ ErrRemoveTxNoSuchTransaction
+                                $ ErrNoSuchTransaction wid txId)
 
         , getTx = \wid tid -> ExceptT $ do
             readCheckpoint_ wid >>= \case
@@ -985,165 +977,6 @@ privateKeyFromEntity
 privateKeyFromEntity (PrivateKey _ k h) =
     unsafeDeserializeXPrv (k, h)
 
-mkTxHistory
-    :: W.WalletId
-    -> [(W.Tx, W.TxMeta)]
-    ->  ( [TxMeta]
-        , [TxIn]
-        , [TxCollateral]
-        , [TxOut]
-        , [TxOutToken]
-        , [TxCollateralOut]
-        , [TxCollateralOutToken]
-        , [TxWithdrawal]
-        )
-mkTxHistory wid txs = flatTxHistory
-    [ ( mkTxMetaEntity
-          wid txid (W.fee tx) (W.metadata tx) derived (W.scriptValidity tx)
-      , mkTxInputsOutputs (txid, tx)
-      , mkTxWithdrawals (txid, tx)
-      )
-    | (tx, derived) <- txs
-    , let txid = view #txId tx
-    ]
-  where
-    -- | Make flat lists of entities from the result of 'mkTxHistory'.
-    flatTxHistory ::
-        [ ( TxMeta
-          , ( [TxIn]
-            , [TxCollateral]
-            , [(TxOut, [TxOutToken])]
-            , [(TxCollateralOut, [TxCollateralOutToken])]
-            )
-          , [TxWithdrawal]
-          )
-        ] ->
-        ( [TxMeta]
-        , [TxIn]
-        , [TxCollateral]
-        , [TxOut]
-        , [TxOutToken]
-        , [TxCollateralOut]
-        , [TxCollateralOutToken]
-        , [TxWithdrawal]
-        )
-    flatTxHistory es =
-        (               map (                       (\(a, _, _) -> a)) es
-        ,         concatMap ((\(a, _, _, _) -> a) . (\(_, b, _) -> b)) es
-        ,         concatMap ((\(_, b, _, _) -> b) . (\(_, b, _) -> b)) es
-        , fst <$> concatMap ((\(_, _, c, _) -> c) . (\(_, b, _) -> b)) es
-        , snd =<< concatMap ((\(_, _, c, _) -> c) . (\(_, b, _) -> b)) es
-        , fst <$> concatMap ((\(_, _, _, d) -> d) . (\(_, b, _) -> b)) es
-        , snd =<< concatMap ((\(_, _, _, d) -> d) . (\(_, b, _) -> b)) es
-        ,         concatMap (                       (\(_, _, c) -> c)) es
-        )
-
-mkTxInputsOutputs ::
-    (W.Hash "Tx", W.Tx) ->
-    ( [TxIn]
-    , [TxCollateral]
-    , [(TxOut, [TxOutToken])]
-    , [(TxCollateralOut, [TxCollateralOutToken])]
-    )
-mkTxInputsOutputs tx =
-    ( (dist mkTxIn . ordered W.resolvedInputs) tx
-    , (dist mkTxCollateral . ordered W.resolvedCollateralInputs) tx
-    , (dist mkTxOut . ordered W.outputs) tx
-    , (dist mkTxCollateralOut . fmap (maybeToList . W.collateralOutput)) tx
-    )
-  where
-    mkTxIn tid (ix, (txIn, amt)) = TxIn
-        { txInputTxId = TxId tid
-        , txInputOrder = ix
-        , txInputSourceTxId = TxId (W.inputId txIn)
-        , txInputSourceIndex = W.inputIx txIn
-        , txInputSourceAmount = amt
-        }
-    mkTxCollateral tid (ix, (txCollateral, amt)) = TxCollateral
-        { txCollateralTxId = TxId tid
-        , txCollateralOrder = ix
-        , txCollateralSourceTxId = TxId (W.inputId txCollateral)
-        , txCollateralSourceIndex = W.inputIx txCollateral
-        , txCollateralSourceAmount = amt
-        }
-    mkTxOut tid (ix, txOut) = (out, tokens)
-      where
-        out = TxOut
-            { txOutputTxId = TxId tid
-            , txOutputIndex = ix
-            , txOutputAddress = view #address txOut
-            , txOutputAmount = W.txOutCoin txOut
-            }
-        tokens = mkTxOutToken tid ix <$>
-            snd (TokenBundle.toFlatList $ view #tokens txOut)
-    mkTxOutToken tid ix (AssetId policy token, quantity) = TxOutToken
-        { txOutTokenTxId = TxId tid
-        , txOutTokenTxIndex = ix
-        , txOutTokenPolicyId = policy
-        , txOutTokenName = token
-        , txOutTokenQuantity = quantity
-        }
-    mkTxCollateralOut tid txCollateralOut = (out, tokens)
-      where
-        out = TxCollateralOut
-            { txCollateralOutTxId = TxId tid
-            , txCollateralOutAddress = view #address txCollateralOut
-            , txCollateralOutAmount = W.txOutCoin txCollateralOut
-            }
-        tokens = mkTxCollateralOutToken tid <$>
-            snd (TokenBundle.toFlatList $ view #tokens txCollateralOut)
-    mkTxCollateralOutToken tid (AssetId policy token, quantity) =
-        TxCollateralOutToken
-        { txCollateralOutTokenTxId = TxId tid
-        , txCollateralOutTokenPolicyId = policy
-        , txCollateralOutTokenName = token
-        , txCollateralOutTokenQuantity = quantity
-        }
-    ordered f = fmap (zip [0..] . f)
-    -- | Distribute `a` across many `b`s using the given function.
-    -- >>> dist TxOut (addr, [Coin 1, Coin 42, Coin 14])
-    -- [TxOut addr (Coin 1), TxOut addr (Coin 42), TxOut addr (Coin 14)]
-    dist :: (a -> b -> c) -> (a, [b]) -> [c]
-    dist f (a, bs) = [f a b | b <- bs]
-
-mkTxWithdrawals
-    :: (W.Hash "Tx", W.Tx)
-    -> [TxWithdrawal]
-mkTxWithdrawals (txid, tx) =
-    mkTxWithdrawal <$> Map.toList (tx ^. #withdrawals)
-  where
-    txWithdrawalTxId = TxId txid
-    mkTxWithdrawal (txWithdrawalAccount, txWithdrawalAmount) =
-        TxWithdrawal
-            { txWithdrawalTxId
-            , txWithdrawalAccount
-            , txWithdrawalAmount
-            }
-
-mkTxMetaEntity
-    :: W.WalletId
-    -> W.Hash "Tx"
-    -> Maybe W.Coin
-    -> Maybe W.TxMetadata
-    -> W.TxMeta
-    -> Maybe W.TxScriptValidity
-    -> TxMeta
-mkTxMetaEntity wid txid mfee meta derived scriptValidity = TxMeta
-    { txMetaTxId = TxId txid
-    , txMetaWalletId = wid
-    , txMetaStatus = derived ^. #status
-    , txMetaDirection = derived ^. #direction
-    , txMetaSlot = derived ^. #slotNo
-    , txMetaBlockHeight = getQuantity (derived ^. #blockHeight)
-    , txMetaAmount = derived ^. #amount
-    , txMetaFee = fromIntegral . W.unCoin <$> mfee
-    , txMetaSlotExpires = derived ^. #expiry
-    , txMetadata = meta
-    , txMetaScriptValidity = scriptValidity <&> \case
-          W.TxScriptValid -> True
-          W.TxScriptInvalid -> False
-    }
-
 -- note: TxIn records must already be sorted by order
 -- and TxOut records must already be sorted by index
 txHistoryFromEntity
@@ -1298,84 +1131,6 @@ updateTxMetas
     -> SqlPersistT IO ()
 updateTxMetas wid filters =
     updateWhere ((TxMetaWalletId ==. wid) : filters)
-
--- | Insert multiple transactions, removing old instances first.
-putTxs
-    :: [TxMeta]
-    -> [TxIn]
-    -> [TxCollateral]
-    -> [TxOut]
-    -> [TxOutToken]
-    -> [TxCollateralOut]
-    -> [TxCollateralOutToken]
-    -> [TxWithdrawal]
-    -> SqlPersistT IO ()
-putTxs
-    txMetas
-    txIns
-    txCollateralIns
-    txOuts
-    txOutTokens
-    txCollateralOuts
-    txCollateralOutTokens
-    txWithdrawals = do
-        dbChunked' repsertMany
-            [ (TxMetaKey txMetaTxId txMetaWalletId, m)
-            | m@TxMeta{..} <- txMetas]
-        dbChunked' repsertMany
-            [ (TxInKey txInputTxId txInputSourceTxId txInputSourceIndex, i)
-            | i@TxIn{..} <- txIns ]
-        dbChunked' repsertMany
-            [ ( TxCollateralKey
-                txCollateralTxId
-                txCollateralSourceTxId
-                txCollateralSourceIndex
-              , i
-              )
-            | i@TxCollateral{..} <- txCollateralIns ]
-        dbChunked' repsertMany
-            [ (TxOutKey txOutputTxId txOutputIndex, o)
-            | o@TxOut{..} <- txOuts ]
-        dbChunked' repsertMany
-            [ ( TxOutTokenKey
-                txOutTokenTxId
-                txOutTokenTxIndex
-                txOutTokenPolicyId
-                txOutTokenName
-              , o
-              )
-            | o@TxOutToken{..} <- txOutTokens ]
-        dbChunked' repsertMany
-            [ (TxCollateralOutKey txCollateralOutTxId, o)
-            | o@TxCollateralOut{..} <- txCollateralOuts ]
-        dbChunked' repsertMany
-            [ ( TxCollateralOutTokenKey
-                txCollateralOutTokenTxId
-                txCollateralOutTokenPolicyId
-                txCollateralOutTokenName
-              , o
-              )
-            | o@TxCollateralOutToken{..} <- txCollateralOutTokens ]
-        dbChunked' repsertMany
-            [ (TxWithdrawalKey txWithdrawalTxId txWithdrawalAccount, w)
-            | w@TxWithdrawal{..} <- txWithdrawals ]
-
--- | Delete transactions that aren't referred to by TxMeta of any wallet.
-deleteLooseTransactions :: SqlPersistT IO ()
-deleteLooseTransactions = do
-    deleteLoose "tx_in"
-    deleteLoose "tx_out"
-    deleteLoose "tx_withdrawal"
-  where
-    -- Deletes all TxIn/TxOuts/TxWithdrawal returned by the sub-select.
-    -- The sub-select outer joins TxMeta with TxIn/TxOut/TxWithdrawal.
-    -- All rows of the join table TxMeta as NULL are loose (unreferenced)
-    -- transactions.
-    deleteLoose t = flip rawExecute [] $
-        "DELETE FROM "<> t <>" WHERE tx_id IN (" <>
-            "SELECT "<> t <>".tx_id FROM "<> t <>" " <>
-            "LEFT OUTER JOIN tx_meta ON tx_meta.tx_id = "<> t <>".tx_id " <>
-            "WHERE (tx_meta.tx_id IS NULL))"
 
 -- | Delete all delegation certificates matching the given filter
 deleteDelegationCertificates
@@ -1562,28 +1317,6 @@ selectTxHistory cp ti wid minWithdrawal order conditions = do
         W.Ascending -> [Asc TxMetaSlot, Desc TxMetaTxId]
         W.Descending -> [Desc TxMetaSlot, Asc TxMetaTxId]
 
-selectTxMeta
-    :: W.WalletId
-    -> W.Hash "Tx"
-    -> SqlPersistT IO (Maybe TxMeta)
-selectTxMeta wid tid =
-    fmap entityVal <$> selectFirst
-        [ TxMetaWalletId ==. wid, TxMetaTxId ==. (TxId tid)]
-        [ Desc TxMetaSlot ]
-
--- | Delete the transaction, but only if it's not in ledger.
--- Returns non-zero if this was a success.
-deletePendingOrExpiredTx
-    :: W.WalletId
-    -> W.Hash "Tx"
-    -> SqlPersistT IO Int
-deletePendingOrExpiredTx wid tid = do
-    let filt = [ TxMetaWalletId ==. wid, TxMetaTxId ==. (TxId tid) ]
-    selectFirst ((TxMetaStatus ==. W.InLedger):filt) [] >>= \case
-        Just _ -> pure 0  -- marked in ledger - refuse to delete
-        Nothing -> fromIntegral <$> deleteWhereCount
-            ((TxMetaStatus <-. [W.Pending, W.Expired]):filt)
-
 -- | Returns the initial submission slot and submission record for all pending
 -- transactions in the wallet.
 listPendingLocalTxSubmissionQuery
@@ -1624,29 +1357,6 @@ pruneLocalTxSubmission wid (Quantity epochStability) tip =
         "( SELECT tx_id FROM tx_meta WHERE tx_meta.block_height < ? )"
     params = [toPersistValue wid, toPersistValue stableHeight]
     stableHeight = getQuantity (tip ^. #blockHeight) - epochStability
-
--- | Mutates all pending transaction entries which have exceeded their TTL so
--- that their status becomes expired. Then it removes these transactions from
--- the local tx submission pool.
---
--- Transaction expiry is not something which can be rolled back.
-updatePendingTxForExpiryQuery
-    :: W.WalletId
-    -> W.SlotNo
-    -> SqlPersistT IO ()
-updatePendingTxForExpiryQuery wid tip = do
-    txIds <- fmap (txMetaTxId . entityVal) <$> selectList isExpired []
-    updateWhere isExpired [TxMetaStatus =. W.Expired]
-    -- Remove these transactions from the wallet's local submission pool.
-    dbChunkedFor @LocalTxSubmission (\batch -> deleteWhere
-        [ LocalTxSubmissionWalletId ==. wid
-        , LocalTxSubmissionTxId <-. batch
-        ]) txIds
-  where
-    isExpired =
-        [ TxMetaWalletId ==. wid
-        , TxMetaStatus ==. W.Pending
-        , TxMetaSlotExpires <=. Just tip ]
 
 selectPrivateKey
     :: (MonadIO m, PersistPrivateKey (k 'RootK))
