@@ -22,6 +22,7 @@ module Cardano.Wallet.Checkpoints
     
     -- * Delta types
     , DeltaCheckpoints (..)
+    , DeltasCheckpoints
     
     -- * Checkpoint hygiene
     , SparseCheckpointsConfig (..)
@@ -124,6 +125,8 @@ findNearestPoint m key = fst <$> Map.lookupLE key (view #checkpoints m)
 {-------------------------------------------------------------------------------
     Delta type for Checkpoints
 -------------------------------------------------------------------------------}
+type DeltasCheckpoints a = [DeltaCheckpoints a]
+
 data DeltaCheckpoints a
     = PutCheckpoint W.Slot a
     | RollbackTo W.Slot

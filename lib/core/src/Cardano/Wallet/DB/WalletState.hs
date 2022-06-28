@@ -148,7 +148,7 @@ type DeltaWalletState s = [DeltaWalletState1 s]
 data DeltaWalletState1 s
     = ReplacePrologue (Prologue s)
     -- ^ Replace the prologue of the address discovery state
-    | UpdateCheckpoints (CPS.DeltaCheckpoints (WalletCheckpoint s))
+    | UpdateCheckpoints (CPS.DeltasCheckpoints (WalletCheckpoint s))
     -- ^ Update the wallet checkpoints.
 
 instance Delta (DeltaWalletState1 s) where

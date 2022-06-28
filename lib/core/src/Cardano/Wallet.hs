@@ -1141,7 +1141,7 @@ restoreBlocks ctx tr wid blocks nodeTip = db & \DBLayer{..} -> mapExceptT atomic
         deltaPrologue =
             [ ReplacePrologue $ getPrologue $ getState $ NE.last cps ]
         delta = deltaPrologue ++ reverse
-            [ UpdateCheckpoints $ PutCheckpoint (getSlot wcp) wcp
+            [ UpdateCheckpoints [ PutCheckpoint (getSlot wcp) wcp ]
             | wcp <- map (snd . fromWallet) cpsKeep
             ]
 
