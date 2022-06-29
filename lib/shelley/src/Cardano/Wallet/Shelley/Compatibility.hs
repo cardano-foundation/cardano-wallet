@@ -686,7 +686,7 @@ fromAlonzoBlock
 fromAlonzoBlock gp blk@(ShelleyBlock (SL.Block _ txSeq) _) =
     let
         Alonzo.TxSeq txs' = txSeq
-        (txs, certs, _, _, _) = unzip5 $ map fromAlonzoValidatedTx $ toList txs'
+        (txs, certs, _, _, _) = unzip5 $ map fromAlonzoTx $ toList txs'
         certs' = mconcat certs
     in
         ( W.Block
@@ -1411,17 +1411,15 @@ getScriptIntegrityHash = \case
           (Babbage.ValidatedTx body _wits _isValid _auxData)
               = strictMaybeToMaybe . Babbage.scriptIntegrityHash $ body
 
-fromAlonzoTxBodyAndAux
-    :: Alonzo.TxBody (Cardano.ShelleyLedgerEra AlonzoEra)
-    -> SLAPI.StrictMaybe (Alonzo.AuxiliaryData (Cardano.ShelleyLedgerEra AlonzoEra))
-    -> Alonzo.TxWitness StandardAlonzo
+fromAlonzoTx
+    :: Alonzo.ValidatedTx (Cardano.ShelleyLedgerEra AlonzoEra)
     -> ( W.Tx
        , [W.Certificate]
        , TokenMapWithScripts
        , TokenMapWithScripts
        , Maybe ValidityIntervalExplicit
        )
-fromAlonzoTxBodyAndAux bod mad wits =
+fromAlonzoTx (Alonzo.ValidatedTx bod wits (Alonzo.IsValid isValid) aux) =
     ( W.Tx
         { txId =
             fromShelleyTxId $ TxIn.txid @(Cardano.ShelleyLedgerEra AlonzoEra) bod
@@ -1439,9 +1437,9 @@ fromAlonzoTxBodyAndAux bod mad wits =
         , withdrawals =
             fromShelleyWdrl wdrls
         , metadata =
-            fromShelleyMD . toSLMetadata <$> SL.strictMaybeToMaybe mad
+            fromShelleyMD . toSLMetadata <$> SL.strictMaybeToMaybe aux
         , scriptValidity =
-            Nothing
+            validity
         }
     , map fromShelleyCert (toList certs)
     , TokenMapWithScripts assetsToMint mintScriptMap
@@ -1495,33 +1493,10 @@ fromAlonzoTxBodyAndAux bod mad wits =
 
     toSLMetadata (Alonzo.AuxiliaryData blob _scripts) = SL.Metadata blob
 
-fromAlonzoValidatedTx
-    :: Alonzo.ValidatedTx (Cardano.ShelleyLedgerEra AlonzoEra)
-    -> ( W.Tx
-       , [W.Certificate]
-       , TokenMapWithScripts
-       , TokenMapWithScripts
-       , Maybe ValidityIntervalExplicit
-       )
-fromAlonzoValidatedTx (Alonzo.ValidatedTx bod wits _isValidating aux) =
-    fromAlonzoTxBodyAndAux bod aux wits
-
-fromAlonzoTx
-    :: Alonzo.ValidatedTx (Cardano.ShelleyLedgerEra AlonzoEra)
-    -> ( W.Tx
-       , [W.Certificate]
-       , TokenMapWithScripts
-       , TokenMapWithScripts
-       , Maybe ValidityIntervalExplicit
-       )
-fromAlonzoTx (Alonzo.ValidatedTx bod wits (Alonzo.IsValid isValid) aux) =
-    (\(tx, c, m, b, i) -> (tx { W.scriptValidity = validity }, c, m, b, i))
-    $ fromAlonzoTxBodyAndAux bod aux wits
-    where
-        validity =
-            if isValid
-            then Just W.TxScriptValid
-            else Just W.TxScriptInvalid
+    validity =
+        if isValid
+        then Just W.TxScriptValid
+        else Just W.TxScriptInvalid
 
 fromBabbageTx
     :: Alonzo.ValidatedTx (Cardano.ShelleyLedgerEra BabbageEra)
