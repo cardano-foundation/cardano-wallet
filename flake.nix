@@ -128,6 +128,8 @@
                 (import ./nix/overlays/pkgs.nix)
                 # Our own utils (cardanoWalletLib)
                 (import ./nix/overlays/common-lib.nix)
+                # LMDB cross-compilation
+                (import ./nix/overlays/lmdb-windows.nix)
                 overlay
               ];
             };
