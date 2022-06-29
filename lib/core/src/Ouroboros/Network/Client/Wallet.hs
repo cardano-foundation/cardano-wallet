@@ -515,8 +515,8 @@ compareSlot (Point (At b1)) (Point (At b2)) = comparing blockPointSlot b1 b2
 -- LocalStateQuery
 
 -- | Type of commands that are stored in a queue for local state queries.
-data LocalStateQueryCmd block m = forall a. SomeLSQ
-    (LSQ block m a)
+data LocalStateQueryCmd block m = forall a fp. SomeLSQ
+    (LSQ block fp m a)
     (a -> m ())
 
 -- | Client for the 'Local State Query' mini-protocol.
@@ -599,7 +599,7 @@ localStateQuery queue =
             clientStIdle
       where
           go
-              :: forall a. LSQ block m a
+              :: forall a fp. LSQ block fp m a
               -> (a -> (LSQ.ClientStAcquired block (Point block) (Query block) m Void))
               -> (LSQ.ClientStAcquired block (Point block) (Query block) m Void)
           go (LSQPure a) cont = cont a
@@ -637,21 +637,21 @@ localStateQuery queue =
 --
 -- /Warning/: Partial functions inside the @LSQ@ monad may cause the entire
 -- wallet to crash when interpreted by @localStateQuery@.
-data LSQ block (m :: Type -> Type) a where
-    LSQPure :: a -> LSQ block m a
-    LSQBind :: LSQ block m a -> (a -> LSQ block m b) -> LSQ block m b
+data LSQ block fp (m :: Type -> Type) a where
+    LSQPure :: a -> LSQ block fp m a
+    LSQBind :: LSQ block fp m a -> (a -> LSQ block fp m b) -> LSQ block fp m b
 
     -- | A local state query.
-    LSQry :: (BlockQuery block res) -> LSQ block m res
+    LSQry :: (BlockQuery block fp res) -> LSQ block fp m res
 
-instance Functor (LSQ block m) where
+instance Functor (LSQ block fp m) where
     fmap = liftM
 
-instance Applicative (LSQ block m) where
+instance Applicative (LSQ block fp m) where
     pure  = LSQPure
     (<*>) = ap
 
-instance Monad (LSQ block m) where
+instance Monad (LSQ block fp m) where
     return = pure
     (>>=)  = LSQBind
 

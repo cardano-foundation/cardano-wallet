@@ -226,6 +226,8 @@ import Ouroboros.Network.Client.Wallet
     )
 import Ouroboros.Network.Driver.Simple
     ( TraceSendRecv, runPeer, runPipelinedPeer )
+import Ouroboros.Network.Protocol.LocalStateQuery.Type
+    ( FootprintL (..) )
 import Ouroboros.Network.Mux
     ( MuxMode (..)
     , MuxPeer (..)
@@ -460,7 +462,7 @@ withNodeNetworkLayerBase
     _stakeDistribution queue coin = do
         liftIO $ traceWith tr $ MsgWillQueryRewardsForStake coin
 
-        let qry :: LSQ (CardanoBlock StandardCrypto) IO (Maybe W.StakePoolsSummary)
+        let qry :: LSQ (CardanoBlock StandardCrypto) 'SmallL IO (Maybe W.StakePoolsSummary)
             qry = liftA3 (liftA3 W.StakePoolsSummary)
                 getNOpt
                 queryNonMyopicMemberRewards
@@ -480,12 +482,12 @@ withNodeNetworkLayerBase
             Nothing -> pure $ W.StakePoolsSummary 0 mempty mempty
       where
         stakeDistr
-            :: LSQ (CardanoBlock StandardCrypto) IO
+            :: LSQ (CardanoBlock StandardCrypto) 'SmallL IO
                 (Maybe (Map W.PoolId Percentage))
         stakeDistr = shelleyBased
             (fromPoolDistr <$> LSQry Shelley.GetStakeDistribution)
 
-        getNOpt :: LSQ (CardanoBlock StandardCrypto) IO (Maybe Int)
+        getNOpt :: LSQ (CardanoBlock StandardCrypto) 'SmallL IO (Maybe Int)
         getNOpt = onAnyEra
             (pure Nothing)
             (Just . optimumNumberOfPools <$> LSQry Shelley.GetCurrentPParams)
@@ -497,7 +499,7 @@ withNodeNetworkLayerBase
                 <$> LSQry Shelley.GetCurrentPParams)
 
         queryNonMyopicMemberRewards
-            :: LSQ (CardanoBlock StandardCrypto) IO
+            :: LSQ (CardanoBlock StandardCrypto) 'SmallL IO
                     (Maybe (Map W.PoolId W.Coin))
         queryNonMyopicMemberRewards = shelleyBased $
             (getRewardMap . fromNonMyopicMemberRewards)
@@ -840,6 +842,7 @@ fetchRewardAccounts tr queryRewardQ accounts = do
         :: (Crypto.HashAlgorithm (SL.ADDRHASH (EraCrypto shelleyEra)))
         => LSQ
             (Shelley.ShelleyBlock protocol shelleyEra)
+            'SmallL
             IO
             (Map W.RewardAccount W.Coin, [Log])
     shelleyQry =
@@ -1363,14 +1366,14 @@ instance (Ord key, Buildable key, Buildable value)
 -------------------------------------------------------------------------------}
 
 byronOrShelleyBased
-    :: LSQ Byron.ByronBlock m a
+    :: LSQ Byron.ByronBlock 'SmallL m a
     ->  (forall shelleyEra praos. LSQ
             (Shelley.ShelleyBlock
                 (praos StandardCrypto)
                 (shelleyEra StandardCrypto)
-            ) m a
+            ) 'SmallL m a
         )
-    -> LSQ (CardanoBlock StandardCrypto) m a
+    -> LSQ (CardanoBlock StandardCrypto) 'SmallL m a
 byronOrShelleyBased onByron onShelleyBased = onAnyEra
     onByron
     onShelleyBased
@@ -1389,13 +1392,13 @@ byronOrShelleyBased onByron onShelleyBased = onAnyEra
 -- should be used. This more raw helper was added to simplify dealing with
 -- @PParams@ in alonzo.
 onAnyEra
-    :: LSQ Byron.ByronBlock m a
-    -> LSQ (Shelley.ShelleyBlock (TPraos StandardCrypto) StandardShelley) m a
-    -> LSQ (Shelley.ShelleyBlock (TPraos StandardCrypto) StandardAllegra) m a
-    -> LSQ (Shelley.ShelleyBlock (TPraos StandardCrypto) StandardMary) m a
-    -> LSQ (Shelley.ShelleyBlock (TPraos StandardCrypto) StandardAlonzo) m a
-    -> LSQ (Shelley.ShelleyBlock (Praos StandardCrypto) StandardBabbage) m a
-    -> LSQ (CardanoBlock StandardCrypto) m a
+    :: LSQ Byron.ByronBlock 'SmallL m a
+    -> LSQ (Shelley.ShelleyBlock (TPraos StandardCrypto) StandardShelley) 'SmallL m a
+    -> LSQ (Shelley.ShelleyBlock (TPraos StandardCrypto) StandardAllegra) 'SmallL m a
+    -> LSQ (Shelley.ShelleyBlock (TPraos StandardCrypto) StandardMary) 'SmallL m a
+    -> LSQ (Shelley.ShelleyBlock (TPraos StandardCrypto) StandardAlonzo) 'SmallL m a
+    -> LSQ (Shelley.ShelleyBlock (Praos StandardCrypto) StandardBabbage) 'SmallL m a
+    -> LSQ (CardanoBlock StandardCrypto) 'SmallL m a
 onAnyEra onByron onShelley onAllegra onMary onAlonzo onBabbage =
     currentEra >>= \case
         AnyCardanoEra ByronEra -> mapQuery QueryIfCurrentByron onByron
@@ -1406,11 +1409,11 @@ onAnyEra onByron onShelley onAllegra onMary onAlonzo onBabbage =
         AnyCardanoEra BabbageEra -> mapQuery QueryIfCurrentBabbage onBabbage
   where
     mapQuery
-        :: (forall r. BlockQuery block1 r
+        :: (forall r. BlockQuery block1 'SmallL r
             -> BlockQuery block2
-                ((Either (MismatchEraInfo (CardanoEras StandardCrypto))) r))
-        -> LSQ block1 m a
-        -> LSQ block2 m a
+                'SmallL ((Either (MismatchEraInfo (CardanoEras StandardCrypto))) r))
+        -> LSQ block1 'SmallL m a
+        -> LSQ block2 'SmallL m a
     mapQuery _ (LSQPure x) = LSQPure x
     mapQuery f (LSQBind ma f') = LSQBind (mapQuery f ma) (mapQuery f . f')
     mapQuery f (LSQry q) = unwrap <$> LSQry (f q)
@@ -1425,9 +1428,9 @@ shelleyBased
             (Shelley.ShelleyBlock
                 (praos StandardCrypto)
                 (shelleyEra StandardCrypto)
-            ) m a
+            ) 'SmallL m a
         )
-    -> LSQ (CardanoBlock StandardCrypto) m (Maybe a)
+    -> LSQ (CardanoBlock StandardCrypto) 'SmallL m (Maybe a)
 shelleyBased onShelleyBased = byronOrShelleyBased
     (pure Nothing) -- on byron
     (Just <$> onShelleyBased)
@@ -1440,7 +1443,7 @@ shelleyBased onShelleyBased = byronOrShelleyBased
 --
 -- which would make us unable to send Local State Queries until the node has
 -- updated its tip once.
-currentEra :: LSQ (CardanoBlock StandardCrypto) m AnyCardanoEra
+currentEra :: LSQ (CardanoBlock StandardCrypto) 'SmallL m AnyCardanoEra
 currentEra = eraIndexToAnyCardanoEra <$> LSQry (QueryHardFork GetCurrentEra)
 
 -- | Provides a mapping from 'EraIndex' to 'AnyCardanoEra'.
