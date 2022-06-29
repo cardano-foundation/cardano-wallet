@@ -29,6 +29,114 @@ RSpec.describe "Cardano Wallet E2E tests", :all, :e2e do
     SHELLEY.stake_pools.quit(@target_id, PASS)
   end
 
+  describe "Collateral return" do
+    it "AlwaysFails.plutus with collateral return to the wallet" do
+      ##
+      # This test is trying to spend utxo from a script address
+      # that will always fail.
+      # Script: https://github.com/input-output-hk/cardano-node/blob/master/scripts/plutus/scripts/v2/always-fails.plutus
+      #
+      # The spending transaction sets:
+      # - collateral return output to be sent to wallet address
+      # - aims to spend ADA also to the wallet address
+      #
+      # Because the script will fail we expect:
+      # - collateral return output to be send to the wallet address
+      # - wallet to show balance correctly
+      # - wallet to be able to spend this collateral output in the subsequent transaction
+      #
+      # We are trying to spend pre-created UTxO from the script address,
+      # which was created as follows using fixtures/alwaysfails.plutus:
+      #
+      # cardano-cli address build --payment-script-file alwaysfails.plutus --testnet-magic --testnet-magic 9 > AlwaysFails.addr
+      # cardano-cli transaction hash-script-data --script-data-value 1914 > datumhash
+      # cardano-cli transaction build  \
+      # 	--babbage-era  \
+      # 	--testnet-magic 9 \
+      # 	--tx-in "5684d05be2b84ac369fbd99d01f3d95782779d81a6715bb7e455d0729277df5a#0"  \
+      # 	--tx-out $(<AlwaysFails.addr)+50000000  \
+      # 	--tx-out-datum-hash $(<datumhash) \
+      # 	--change-address $(cat payment.addr) \
+      # --protocol-params-file protocol.json  \
+      # --out-file body.tx
+      #
+      #  cardano-cli transaction sign \
+      #    --tx-body-file body.tx \
+      #    --testnet-magic 9 \
+      #    --signing-key-file payment.skey \
+      #    --out-file signed.tx
+      #
+      # cardano-cli transaction submit --tx-file signed.tx --testnet-magic 9
+      #
+      # Therefore it needs to be done once for each network we want to run our test against.
+
+      case ENV['NETWORK']
+      when 'vasil-dev'
+        script_utxo = 'ce149a5dea4b09d1717ffbe79f8e46ddd9bf0401e95a69502b71f792982b5013#1'
+      else
+        skip %(
+                This test cannot be executed on '#{ENV['NETWORK']}' yet!
+                Follow instructions in test description to prepare alwaysfails.plutus UTxO for it.
+              )
+      end
+
+      # Create payment address
+      payment_keys = CARDANO_CLI.generate_payment_keys
+      payment_address = CARDANO_CLI.build_payment_address(payment_keys)
+
+      # Fund payment address to be used as collateral utxo
+      collateral_amt = 10000000
+      payment = [{ :address => payment_address,
+                   :amount => { :quantity => collateral_amt,
+                                :unit => 'lovelace' }
+                }]
+      tx = construct_sign_submit(@wid, payment)
+      wait_for_tx_in_ledger(@wid, tx.last['id'])
+      collateral_utxo = CARDANO_CLI.get_utxos(payment_address).last
+      # Try to spend from alwaysfails.plutus address
+      target_address = SHELLEY.addresses.list(@target_id)[0]['id']
+      target_before = get_shelley_balances(@target_id)
+      explicit_fee = 2000000 # setting fee explicitely because we build tx raw
+      txbody = CARDANO_CLI.tx_build_raw_always_fails(script = get_plutus_file_path('alwaysfails.plutus'),
+                                                     script_utxo,
+                                                     "#{collateral_utxo[:utxo]}##{collateral_utxo[:ix]}",
+                                                     collateral_amt,
+                                                     explicit_fee,
+                                                     target_address,
+                                                     collateral_ret_addr = target_address)
+      txsigned = CARDANO_CLI.tx_sign(txbody, payment_keys)
+      txid = CARDANO_CLI.tx_submit(txsigned)
+      wait_for_tx_in_ledger(@target_id, txid)
+
+      # Make sure tx properly displays collateral, collateral return and script_validity
+      tx = SHELLEY.transactions.get(@target_id, txid)
+      # collateral return amount to be returned is:
+      #  collateral_ret_amt = collateral_amt - calculated_total_collateral_amt
+      #  (calculated_total_collateral_amt = 150% * fee)
+      collateral_ret_amt = collateral_amt - (explicit_fee * 1.5).to_i
+      collateral = [ {"id" => collateral_utxo[:utxo], "index" => collateral_utxo[:ix].to_i} ]
+      collateral_outputs = [ {"address" => target_address,
+                              "amount" => {"quantity" => collateral_ret_amt, "unit" => "lovelace"},
+                              "assets" => []} ]
+      expect(tx['collateral']).to eq collateral
+      expect(tx['collateral_outputs']).to eq collateral_outputs
+      expect(tx['script_validity']).to eq 'invalid'
+
+      # Make sure balance is correct (+collateral_ret_amt)
+      target_after = get_shelley_balances(@target_id)
+      expect(target_after['available']).to eq (target_before['available'] + collateral_ret_amt)
+
+      # Make sure you can spend collateral return output from the wallet
+      payment = [{ :address => payment_address,
+                   :amount => { :quantity => 6500000,
+                                :unit => 'lovelace' }
+                }]
+      tx = construct_sign_submit(@target_id, payment)
+      wait_for_tx_in_ledger(@target_id, tx.last['id'])
+
+    end
+  end
+
   describe "E2E Balance -> Sign -> Submit" do
 
     def run_script(script, payload)
