@@ -361,7 +361,6 @@ import qualified Cardano.Ledger.Alonzo.Scripts as Alonzo
 import qualified Cardano.Ledger.Alonzo.Tx as Alonzo
 import qualified Cardano.Ledger.Alonzo.TxBody as Alonzo
 import qualified Cardano.Ledger.Alonzo.TxSeq as Alonzo
-import qualified Cardano.Ledger.Alonzo.TxWitness as Alonzo
 import qualified Cardano.Ledger.Babbage as Babbage
 import qualified Cardano.Ledger.Babbage.PParams as Babbage
 import qualified Cardano.Ledger.Babbage.Tx as Babbage hiding
@@ -706,7 +705,7 @@ fromBabbageBlock
 fromBabbageBlock gp blk@(ShelleyBlock (SL.Block _ txSeq) _) =
     let
         Alonzo.TxSeq txs' = txSeq
-        (txs, certs, _, _, _) = unzip5 $ map fromBabbageValidatedTx $ toList txs'
+        (txs, certs, _, _, _) = unzip5 $ map fromBabbageTx $ toList txs'
         certs' = mconcat certs
     in
         ( W.Block
@@ -1507,37 +1506,6 @@ fromBabbageTx
        , Maybe ValidityIntervalExplicit
        )
 fromBabbageTx (Alonzo.ValidatedTx bod wits (Alonzo.IsValid isValid) aux) =
-    (\(tx, c, m, b, i) -> (tx { W.scriptValidity = validity }, c, m, b, i))
-    $ fromBabbageTxBodyAndAux bod aux wits
-    where
-        validity =
-            if isValid
-            then Just W.TxScriptValid
-            else Just W.TxScriptInvalid
-
-fromBabbageValidatedTx
-    :: Alonzo.ValidatedTx (Cardano.ShelleyLedgerEra BabbageEra)
-    -> ( W.Tx
-       , [W.Certificate]
-       , TokenMapWithScripts
-       , TokenMapWithScripts
-       , Maybe ValidityIntervalExplicit
-       )
-fromBabbageValidatedTx (Alonzo.ValidatedTx bod wits _isValidating aux) =
-    fromBabbageTxBodyAndAux bod aux wits
-
-fromBabbageTxBodyAndAux
-    :: Babbage.TxBody (Cardano.ShelleyLedgerEra BabbageEra)
-    -> SLAPI.StrictMaybe
-        (Babbage.AuxiliaryData (Cardano.ShelleyLedgerEra BabbageEra))
-    -> Alonzo.TxWitness StandardBabbage
-    -> ( W.Tx
-       , [W.Certificate]
-       , TokenMapWithScripts
-       , TokenMapWithScripts
-       , Maybe ValidityIntervalExplicit
-       )
-fromBabbageTxBodyAndAux bod mad wits =
     ( W.Tx
         { txId =
             fromShelleyTxId $
@@ -1557,9 +1525,9 @@ fromBabbageTxBodyAndAux bod mad wits =
         , withdrawals =
             fromShelleyWdrl wdrls
         , metadata =
-            fromShelleyMD . toSLMetadata <$> SL.strictMaybeToMaybe mad
+            fromShelleyMD . toSLMetadata <$> SL.strictMaybeToMaybe aux
         , scriptValidity =
-            Nothing
+            validity
         }
     , map fromShelleyCert (toList certs)
     , TokenMapWithScripts assetsToMint mintScriptMap
@@ -1616,6 +1584,10 @@ fromBabbageTxBodyAndAux bod mad wits =
 
     toSLMetadata (Alonzo.AuxiliaryData blob _scripts) = SL.Metadata blob
 
+    validity =
+        if isValid
+        then Just W.TxScriptValid
+        else Just W.TxScriptInvalid
 
 -- Lovelace to coin. Quantities from ledger should always fit in Word64.
 fromCardanoLovelace :: HasCallStack => Cardano.Lovelace -> W.Coin
