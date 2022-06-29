@@ -632,8 +632,8 @@ newTransactionLayer networkId = TransactionLayer
     , estimateSignedTxSize = \pp (Cardano.Tx body _) -> do
         _estimateSignedTxSize pp body
 
-    , calcMinimumCost = \pp ctx skeleton ->
-        estimateTxCost pp (mkTxSkeleton (txWitnessTagFor @k) ctx skeleton)
+    , calcMinimumCost = \era pp ctx skeleton ->
+        estimateTxCost era pp (mkTxSkeleton (txWitnessTagFor @k) ctx skeleton)
         <>
         txFeePadding ctx
 
@@ -650,15 +650,15 @@ newTransactionLayer networkId = TransactionLayer
 
     , evaluateTransactionBalance = _evaluateTransactionBalance
 
-    , computeSelectionLimit = \pp ctx outputsToCover ->
+    , computeSelectionLimit = \era pp ctx outputsToCover ->
         let txMaxSize = getTxMaxSize $ txParameters pp in
         MaximumInputLimit $
-            _estimateMaxNumberOfInputs @k txMaxSize ctx outputsToCover
+            _estimateMaxNumberOfInputs @k era txMaxSize ctx outputsToCover
 
     , tokenBundleSizeAssessor =
         Compatibility.tokenBundleSizeAssessor
 
-    , constraints = \pp -> txConstraints pp (txWitnessTagFor @k)
+    , constraints = \era pp -> txConstraints era pp (txWitnessTagFor @k)
 
     , decodeTx = _decodeSealedTx
 
@@ -956,15 +956,17 @@ modifyShelleyTxBody txUpdate era ledgerBody = case era of
 -- information and the shape of the requested output, we can get down to a
 -- pretty accurate result.
 _estimateMaxNumberOfInputs
-    :: forall k. TxWitnessTagFor k
-    => Quantity "byte" Word16
+    :: forall k
+     . TxWitnessTagFor k
+    => AnyCardanoEra
+    -> Quantity "byte" Word16
      -- ^ Transaction max size in bytes
     -> TransactionCtx
      -- ^ An additional transaction context
     -> [TxOut]
      -- ^ A list of outputs being considered.
     -> Int
-_estimateMaxNumberOfInputs txMaxSize ctx outs =
+_estimateMaxNumberOfInputs era txMaxSize ctx outs =
     fromIntegral $ findLargestUntil ((> maxSize) . txSizeGivenInputs) 0
   where
     -- | Find the largest amount of inputs that doesn't make the tx too big.
@@ -981,7 +983,7 @@ _estimateMaxNumberOfInputs txMaxSize ctx outs =
 
     txSizeGivenInputs nInps = fromIntegral size
       where
-        TxSize size = estimateTxSize $ mkTxSkeleton
+        TxSize size = estimateTxSize era $ mkTxSkeleton
             (txWitnessTagFor @k) ctx sel
         sel  = dummySkeleton (fromIntegral nInps) outs
 
@@ -1449,8 +1451,8 @@ _assignScriptRedeemers pparams ti resolveInput redeemers tx =
                 }
             }
 
-txConstraints :: ProtocolParameters -> TxWitnessTag -> TxConstraints
-txConstraints protocolParams witnessTag = TxConstraints
+txConstraints :: AnyCardanoEra -> ProtocolParameters -> TxWitnessTag -> TxConstraints
+txConstraints era protocolParams witnessTag = TxConstraints
     { txBaseCost
     , txBaseSize
     , txInputCost
@@ -1466,10 +1468,10 @@ txConstraints protocolParams witnessTag = TxConstraints
     }
   where
     txBaseCost =
-        estimateTxCost protocolParams empty
+        estimateTxCost era protocolParams empty
 
     txBaseSize =
-        estimateTxSize empty
+        estimateTxSize era empty
 
     txInputCost =
         marginalCostOf empty {txInputCount = 1}
@@ -1514,13 +1516,13 @@ txConstraints protocolParams witnessTag = TxConstraints
     -- skeleton.
     marginalCostOf :: TxSkeleton -> Coin
     marginalCostOf =
-        Coin.distance txBaseCost . estimateTxCost protocolParams
+        Coin.distance txBaseCost . estimateTxCost era protocolParams
 
     -- Computes the size difference between the given skeleton and an empty
     -- skeleton.
     marginalSizeOf :: TxSkeleton -> TxSize
     marginalSizeOf =
-        txSizeDistance txBaseSize . estimateTxSize
+        txSizeDistance txBaseSize . estimateTxSize era
 
     -- Constructs a real transaction output from a token bundle.
     mkTxOut :: TokenBundle -> TxOut
@@ -1609,10 +1611,10 @@ mkTxSkeleton witness context skeleton = TxSkeleton
 
 -- | Estimates the final cost of a transaction based on its skeleton.
 --
-estimateTxCost :: ProtocolParameters -> TxSkeleton -> Coin
-estimateTxCost pp skeleton =
+estimateTxCost :: AnyCardanoEra -> ProtocolParameters -> TxSkeleton -> Coin
+estimateTxCost era pp skeleton =
     F.fold
-        [ computeFee (estimateTxSize skeleton)
+        [ computeFee (estimateTxSize era skeleton)
         , view #txScriptExecutionCost skeleton
         ]
   where
@@ -1794,8 +1796,11 @@ burnSurplusAsFees feePolicy surplus (TxFeeAndChange fee0 ())
 -- https://github.com/input-output-hk/cardano-ledger/blob/master/eras/shelley-ma/test-suite/cddl-files/shelley-ma.cddl
 -- https://github.com/input-output-hk/cardano-ledger/blob/master/eras/alonzo/test-suite/cddl-files/alonzo.cddl
 --
-estimateTxSize :: TxSkeleton -> TxSize
-estimateTxSize skeleton =
+estimateTxSize
+    :: AnyCardanoEra
+    -> TxSkeleton
+    -> TxSize
+estimateTxSize era skeleton =
     TxSize $ fromIntegral sizeOf_Transaction
   where
     TxSkeleton
