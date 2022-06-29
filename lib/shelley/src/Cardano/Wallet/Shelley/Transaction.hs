@@ -1976,25 +1976,80 @@ estimateTxSize era skeleton =
         + sizeOf_Hash32
         + sizeOf_UInt
 
-    -- transaction_output =
+    -- legacy_transaction_output =
     --   [address, amount : value]
     -- value =
     --   coin / [coin,multiasset<uint>]
-    sizeOf_Output TxOut {address, tokens}
+    sizeOf_LegacyTransactionOutput TxOut {address, tokens}
         = sizeOf_SmallArray
         + sizeOf_Address address
         + sizeOf_SmallArray
         + sizeOf_Coin (TokenBundle.getCoin tokens)
         + sumVia sizeOf_NativeAsset (TokenBundle.getAssets tokens)
 
+    -- post_alonzo_transaction_output =
+    --   { 0 : address
+    --   , 1 : value
+    --   , ? 2 : datum_option ; New; datum option
+    --   , ? 3 : script_ref   ; New; script reference
+    --   }
+    -- value =
+    --   coin / [coin,multiasset<uint>]
+    sizeOf_PostAlonzoTransactionOutput TxOut {address, tokens}
+        = sizeOf_SmallMap
+        + sizeOf_SmallUInt
+        + sizeOf_Address address
+        + sizeOf_SmallUInt
+        + sizeOf_SmallArray
+        + sizeOf_Coin (TokenBundle.getCoin tokens)
+        + sumVia sizeOf_NativeAsset (TokenBundle.getAssets tokens)
+
+    sizeOf_Output
+        = case era of
+          (AnyCardanoEra ByronEra)   -> sizeOf_LegacyTransactionOutput
+          (AnyCardanoEra ShelleyEra) -> sizeOf_LegacyTransactionOutput
+          (AnyCardanoEra AllegraEra) -> sizeOf_LegacyTransactionOutput
+          (AnyCardanoEra MaryEra)    -> sizeOf_LegacyTransactionOutput
+          (AnyCardanoEra AlonzoEra)  -> sizeOf_LegacyTransactionOutput
+          (AnyCardanoEra BabbageEra) -> sizeOf_PostAlonzoTransactionOutput
+
+    sizeOf_ChangeOutput :: Set AssetId -> Integer
+    sizeOf_ChangeOutput
+        = case era of
+          (AnyCardanoEra ByronEra)   -> sizeOf_LegacyChangeOutput
+          (AnyCardanoEra ShelleyEra) -> sizeOf_LegacyChangeOutput
+          (AnyCardanoEra AllegraEra) -> sizeOf_LegacyChangeOutput
+          (AnyCardanoEra MaryEra)    -> sizeOf_LegacyChangeOutput
+          (AnyCardanoEra AlonzoEra)  -> sizeOf_LegacyChangeOutput
+          (AnyCardanoEra BabbageEra) -> sizeOf_PostAlonzoChangeOutput
+
     -- transaction_output =
     --   [address, amount : value]
     -- value =
     --   coin / [coin,multiasset<uint>]
-    sizeOf_ChangeOutput xs
+    sizeOf_LegacyChangeOutput :: Set AssetId -> Integer
+    sizeOf_LegacyChangeOutput xs
         = sizeOf_SmallArray
         + sizeOf_ChangeAddress
         + sizeOf_SmallArray
+        + sizeOf_LargeUInt
+        + sumVia sizeOf_NativeAsset xs
+
+    -- post_alonzo_transaction_output =
+    --   { 0 : address
+    --   , 1 : value
+    --   , ? 2 : datum_option ; New; datum option
+    --   , ? 3 : script_ref   ; New; script reference
+    --   }
+    -- value =
+    --   coin / [coin,multiasset<uint>]
+    sizeOf_PostAlonzoChangeOutput :: Set AssetId -> Integer
+    sizeOf_PostAlonzoChangeOutput xs
+        = sizeOf_SmallMap
+        + sizeOf_SmallUInt
+        + sizeOf_ChangeAddress
+        + sizeOf_SmallMap
+        + sizeOf_SmallUInt
         + sizeOf_LargeUInt
         + sumVia sizeOf_NativeAsset xs
 
