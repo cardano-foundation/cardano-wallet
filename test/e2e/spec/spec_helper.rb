@@ -10,6 +10,7 @@ require_relative "../helpers/matchers"
 require_relative "../helpers/context"
 require_relative "../helpers/wallet_factory"
 require_relative "../helpers/cardano_addresses"
+require_relative "../helpers/cardano_cli"
 
 include Helpers::Utils
 
@@ -46,6 +47,8 @@ CA = CardanoAddresses.new
 
 CONTEXT = Context.new
 CONTEXT.env = ENV['NETWORK'] || 'testnet'
+
+CARDANO_CLI = CardanoCli.new
 
 ##
 # default passphrase for wallets
@@ -162,7 +165,7 @@ def wait_for_shared_wallet_to_sync(wid)
       puts "  Syncing... #{w['state']['progress']['quantity'].to_i}%" if w['state']['progress']
       sleep 5
     end
-  rescue 
+  rescue
     puts "Retry #{retry_count}"
     retry_count -= 1
     puts "SHARED.wallets.get(#{wid}) returned:"
@@ -537,12 +540,16 @@ end
 
 ##
 # Plutus helpers
+def get_plutus_file_path(file)
+  File.join(PLUTUS_DIR, file)
+end
+
 def get_plutus_tx(file)
-  JSON.parse(File.read(File.join(PLUTUS_DIR, file)))
+  JSON.parse(File.read(get_plutus_file_path(file)))
 end
 
 def read_mustached_file(file, ctx = {})
-  Mustache.render(File.read(File.join(PLUTUS_DIR, file)), ctx).strip
+  Mustache.render(File.read(get_plutus_file_path(file)), ctx).strip
 end
 
 def get_templated_plutus_tx(file, ctx = {})
@@ -574,4 +581,10 @@ def get_key_deposit
   config = File.join(absolute_path(ENV['CARDANO_NODE_CONFIGS']), CONTEXT.env)
   shelley_genesis = JSON.parse(File.read(File.join(config, "shelley-genesis.json")))
   shelley_genesis['protocolParams']['keyDeposit'].to_i
+end
+
+def get_protocol_magic
+  config = File.join(absolute_path(ENV['CARDANO_NODE_CONFIGS']), CONTEXT.env)
+  byron_genesis = JSON.parse(File.read(File.join(config, "byron-genesis.json")))
+  byron_genesis['protocolConsts']['protocolMagic'].to_i
 end
