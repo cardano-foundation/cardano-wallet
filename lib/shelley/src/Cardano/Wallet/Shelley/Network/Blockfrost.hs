@@ -253,114 +253,6 @@ import qualified Ouroboros.Consensus.Util.Counting as UC
     NetworkLayer
 -------------------------------------------------------------------------------}
 
-data Log
-    = MsgTipReceived BlockHeader
-    | MsgTipWatcherRegistered
-    | MsgTipWatcherNotified BracketLog
-    | MsgTimeInterpreterLog TimeInterpreterLog
-    | MsgLightLayerLog LN.LightLayerLog
-    | MsgAccountNotFound Text
-    | MsgGetAddressTxs BlockHeader BlockHeader (Either Address RewardAccount)
-    | MsgFetchTransaction BF.TxHash
-    | MsgFetchDelegation BF.TxHash
-    | MsgFetchedLatestBlockHeader BlockHeader
-    | MsgCurrentSlottingParameters
-    | MsgEraByLatestEpoch AnyCardanoEra EpochNo
-    | MsgFetchNetworkRewardAccountBalances
-    | MsgIsConsensus ChainPoint Bool
-    | MsgBlockHeaderAtHeight Integer (Consensual BlockHeader)
-    | MsgBlockHeaderAt ChainPoint (Consensual BlockHeader)
-    | MsgNextBlockHeader BlockHeader (Consensual (Maybe BlockHeader))
-    | MsgGotNextBlocks (Hash "BlockHeader") Int (Maybe BlockHeader)
-    | MsgBlockfrostLayer Layer.Log
-
-instance ToText Log where
-    toText = \case
-        MsgTipReceived blockHeader ->
-            "New tip received " <> pretty blockHeader
-        MsgTipWatcherNotified startFinish ->
-            "Tip watcher callback: " <> pretty startFinish
-        MsgTipWatcherRegistered ->
-            "Tip watcher registered"
-        MsgTimeInterpreterLog til ->
-            toText til
-        MsgLightLayerLog l ->
-            toText l
-        MsgAccountNotFound account ->
-            "Reward account not found: " <> pretty account
-        MsgGetAddressTxs f t a ->
-            T.unwords
-                [ "Getting transactions from"
-                , pretty f
-                , "till"
-                , pretty t
-                , "for the"
-                , either
-                    (("address " <>) . pretty)
-                    (("reward account " <>) . pretty)
-                    a
-                ]
-        MsgFetchTransaction h ->
-            "Fetching transaction: " <> pretty (BF.unTxHash h)
-        MsgFetchDelegation h ->
-            "Fetching delegation: " <> pretty (BF.unTxHash h)
-        MsgFetchedLatestBlockHeader bh ->
-            "Fetched latest block header: " <> pretty bh
-        MsgCurrentSlottingParameters ->
-            "Fetching current slotting parameters..."
-        MsgEraByLatestEpoch era epoch ->
-            T.unwords
-                [ "Latest Cardano era is"
-                , T.pack $ show era
-                , ", determined by the latest epoch"
-                , pretty epoch
-                ]
-        MsgFetchNetworkRewardAccountBalances ->
-            "Fetching network reward account balances..."
-        MsgIsConsensus cp b ->
-            T.unwords
-                [ "ChainPoint"
-                , pretty cp
-                , if b then "does" else "doesn't"
-                , "belong to consensus"
-                ]
-        MsgBlockHeaderAtHeight height mbh ->
-            "Fetched BlockHeader at height " <> pretty height
-                <> ": " <> T.pack (show mbh)
-        MsgBlockHeaderAt cp mbh ->
-            "Fetched BlockHeader at " <> pretty cp
-                <> ": " <> T.pack (show mbh)
-        MsgNextBlockHeader prev next ->
-            "Fetched next block header: " <> T.pack (show next)
-            <> " for the previous one: " <> pretty prev
-        MsgGotNextBlocks f n m ->
-            "Fetched " <> pretty n <> " blocks after " <> toText f <>
-                maybe "." ((", starting from " <>) . pretty) m
-        MsgBlockfrostLayer l ->
-            toText l
-
-instance HasSeverityAnnotation Log where
-    getSeverityAnnotation = \case
-        MsgTipReceived{} -> Info
-        MsgTipWatcherNotified{} -> Debug
-        MsgTipWatcherRegistered -> Notice
-        MsgTimeInterpreterLog {} -> Info
-        MsgLightLayerLog l -> getSeverityAnnotation l
-        MsgAccountNotFound {} -> Warning
-        MsgGetAddressTxs {} -> Notice
-        MsgFetchTransaction {} -> Notice
-        MsgFetchDelegation {} -> Notice
-        MsgFetchedLatestBlockHeader {} -> Notice
-        MsgCurrentSlottingParameters -> Notice
-        MsgEraByLatestEpoch {} -> Notice
-        MsgFetchNetworkRewardAccountBalances -> Notice
-        MsgIsConsensus {} -> Notice
-        MsgBlockHeaderAtHeight {} -> Notice
-        MsgBlockHeaderAt {} -> Notice
-        MsgNextBlockHeader{} -> Notice
-        MsgGotNextBlocks {} -> Notice
-        MsgBlockfrostLayer l -> getSeverityAnnotation l
-
 withNetworkLayer
     :: Tracer IO Log
     -> SomeNetworkDiscriminant
@@ -1107,4 +999,114 @@ getPoolPerformanceEstimate bfLayer sp dl rp pid = do
                     -- _poolHistoryActiveSize would be incorrect here
             }
 
+{-------------------------------------------------------------------------------
+    Logging
+-------------------------------------------------------------------------------}
 
+data Log
+    = MsgTipReceived BlockHeader
+    | MsgTipWatcherRegistered
+    | MsgTipWatcherNotified BracketLog
+    | MsgTimeInterpreterLog TimeInterpreterLog
+    | MsgLightLayerLog LN.LightLayerLog
+    | MsgAccountNotFound Text
+    | MsgGetAddressTxs BlockHeader BlockHeader (Either Address RewardAccount)
+    | MsgFetchTransaction BF.TxHash
+    | MsgFetchDelegation BF.TxHash
+    | MsgFetchedLatestBlockHeader BlockHeader
+    | MsgCurrentSlottingParameters
+    | MsgEraByLatestEpoch AnyCardanoEra EpochNo
+    | MsgFetchNetworkRewardAccountBalances
+    | MsgIsConsensus ChainPoint Bool
+    | MsgBlockHeaderAtHeight Integer (Consensual BlockHeader)
+    | MsgBlockHeaderAt ChainPoint (Consensual BlockHeader)
+    | MsgNextBlockHeader BlockHeader (Consensual (Maybe BlockHeader))
+    | MsgGotNextBlocks (Hash "BlockHeader") Int (Maybe BlockHeader)
+    | MsgBlockfrostLayer Layer.Log
+
+instance ToText Log where
+    toText = \case
+        MsgTipReceived blockHeader ->
+            "New tip received " <> pretty blockHeader
+        MsgTipWatcherNotified startFinish ->
+            "Tip watcher callback: " <> pretty startFinish
+        MsgTipWatcherRegistered ->
+            "Tip watcher registered"
+        MsgTimeInterpreterLog til ->
+            toText til
+        MsgLightLayerLog l ->
+            toText l
+        MsgAccountNotFound account ->
+            "Reward account not found: " <> pretty account
+        MsgGetAddressTxs f t a ->
+            T.unwords
+                [ "Getting transactions from"
+                , pretty f
+                , "till"
+                , pretty t
+                , "for the"
+                , either
+                    (("address " <>) . pretty)
+                    (("reward account " <>) . pretty)
+                    a
+                ]
+        MsgFetchTransaction h ->
+            "Fetching transaction: " <> pretty (BF.unTxHash h)
+        MsgFetchDelegation h ->
+            "Fetching delegation: " <> pretty (BF.unTxHash h)
+        MsgFetchedLatestBlockHeader bh ->
+            "Fetched latest block header: " <> pretty bh
+        MsgCurrentSlottingParameters ->
+            "Fetching current slotting parameters..."
+        MsgEraByLatestEpoch era epoch ->
+            T.unwords
+                [ "Latest Cardano era is"
+                , T.pack $ show era
+                , ", determined by the latest epoch"
+                , pretty epoch
+                ]
+        MsgFetchNetworkRewardAccountBalances ->
+            "Fetching network reward account balances..."
+        MsgIsConsensus cp b ->
+            T.unwords
+                [ "ChainPoint"
+                , pretty cp
+                , if b then "does" else "doesn't"
+                , "belong to consensus"
+                ]
+        MsgBlockHeaderAtHeight height mbh ->
+            "Fetched BlockHeader at height " <> pretty height
+                <> ": " <> T.pack (show mbh)
+        MsgBlockHeaderAt cp mbh ->
+            "Fetched BlockHeader at " <> pretty cp
+                <> ": " <> T.pack (show mbh)
+        MsgNextBlockHeader prev next ->
+            "Fetched next block header: " <> T.pack (show next)
+            <> " for the previous one: " <> pretty prev
+        MsgGotNextBlocks f n m ->
+            "Fetched " <> pretty n <> " blocks after " <> toText f <>
+                maybe "." ((", starting from " <>) . pretty) m
+        MsgBlockfrostLayer l ->
+            toText l
+
+instance HasSeverityAnnotation Log where
+    getSeverityAnnotation = \case
+        MsgTipReceived{} -> Info
+        MsgTipWatcherNotified{} -> Debug
+        MsgTipWatcherRegistered -> Notice
+        MsgTimeInterpreterLog {} -> Info
+        MsgLightLayerLog l -> getSeverityAnnotation l
+        MsgAccountNotFound {} -> Warning
+        MsgGetAddressTxs {} -> Notice
+        MsgFetchTransaction {} -> Notice
+        MsgFetchDelegation {} -> Notice
+        MsgFetchedLatestBlockHeader {} -> Notice
+        MsgCurrentSlottingParameters -> Notice
+        MsgEraByLatestEpoch {} -> Notice
+        MsgFetchNetworkRewardAccountBalances -> Notice
+        MsgIsConsensus {} -> Notice
+        MsgBlockHeaderAtHeight {} -> Notice
+        MsgBlockHeaderAt {} -> Notice
+        MsgNextBlockHeader{} -> Notice
+        MsgGotNextBlocks {} -> Notice
+        MsgBlockfrostLayer l -> getSeverityAnnotation l
