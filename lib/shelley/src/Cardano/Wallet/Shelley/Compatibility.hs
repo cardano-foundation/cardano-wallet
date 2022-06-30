@@ -88,6 +88,7 @@ module Cardano.Wallet.Shelley.Compatibility
     , rewardAccountFromAddress
     , fromShelleyPParams
     , fromAllegraPParams
+    , fromMaryPParams
     , fromAlonzoPParams
     , fromBabbagePParams
     , fromLedgerExUnits
@@ -321,6 +322,7 @@ import Ouroboros.Consensus.Cardano.Block
     , StandardAllegra
     , StandardAlonzo
     , StandardBabbage
+    , StandardMary
     , StandardShelley
     )
 import Ouroboros.Consensus.HardFork.Combinator.AcrossEras
@@ -374,6 +376,7 @@ import qualified Cardano.Ledger.Core as SL.Core
 import qualified Cardano.Ledger.Credential as SL
 import qualified Cardano.Ledger.Crypto as SL
 import qualified Cardano.Ledger.Era as Ledger.Era
+import qualified Cardano.Ledger.Mary as Mary
 import qualified Cardano.Ledger.Mary.Value as SL
 import qualified Cardano.Ledger.SafeHash as SafeHash
 import qualified Cardano.Ledger.Shelley as SL hiding
@@ -832,6 +835,32 @@ fromAllegraPParams eraInfo currentNodeProtocolParameters pp =
         , stakeKeyDeposit = stakeKeyDepositFromPParams pp
         , eras = fromBoundToEpochNo <$> eraInfo
         -- Collateral inputs were not supported or required in Allegra:
+        , maximumCollateralInputCount = 0
+        , minimumCollateralPercentage = 0
+        , executionUnitPrices = Nothing
+        , currentNodeProtocolParameters
+        }
+
+fromMaryPParams
+    :: HasCallStack
+    => W.EraInfo Bound
+    -> Maybe Cardano.ProtocolParameters
+    -> Mary.PParams StandardMary
+    -> W.ProtocolParameters
+fromMaryPParams eraInfo currentNodeProtocolParameters pp =
+    W.ProtocolParameters
+        { decentralizationLevel =
+            decentralizationLevelFromPParams pp
+        , txParameters =
+            txParametersFromPParams
+                maryTokenBundleMaxSize (W.ExecutionUnits 0 0) pp
+        , desiredNumberOfStakePools =
+            desiredNumberOfStakePoolsFromPParams pp
+        , minimumUTxOvalue =
+            MinimumUTxOValue . toWalletCoin $ SLAPI._minUTxOValue pp
+        , stakeKeyDeposit = stakeKeyDepositFromPParams pp
+        , eras = fromBoundToEpochNo <$> eraInfo
+        -- Collateral inputs were not supported or required in Mary:
         , maximumCollateralInputCount = 0
         , minimumCollateralPercentage = 0
         , executionUnitPrices = Nothing

@@ -81,6 +81,7 @@ import Cardano.Wallet.Shelley.Compatibility
     , fromAllegraPParams
     , fromAlonzoPParams
     , fromBabbagePParams
+    , fromMaryPParams
     , fromNonMyopicMemberRewards
     , fromPoint
     , fromPoolDistr
@@ -717,7 +718,7 @@ mkTipSyncClient tr np onPParamsUpdate onInterpreterUpdate onEraUpdate = do
                     <$> LSQry Shelley.GetCurrentPParams)
                 (fromAllegraPParams eraBounds ppNode
                     <$> LSQry Shelley.GetCurrentPParams)
-                (fromShelleyPParams eraBounds ppNode
+                (fromMaryPParams eraBounds ppNode
                     <$> LSQry Shelley.GetCurrentPParams)
                 (fromAlonzoPParams eraBounds ppNode
                     <$> LSQry Shelley.GetCurrentPParams)
