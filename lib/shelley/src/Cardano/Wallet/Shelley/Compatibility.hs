@@ -381,6 +381,7 @@ import qualified Cardano.Ledger.Mary.Value as SL
 import qualified Cardano.Ledger.SafeHash as SafeHash
 import qualified Cardano.Ledger.Shelley as SL hiding
     ( Value )
+import qualified Cardano.Ledger.Shelley as Shelley
 import qualified Cardano.Ledger.Shelley.API as SL
 import qualified Cardano.Ledger.Shelley.API as SLAPI
 import qualified Cardano.Ledger.Shelley.BlockChain as SL
@@ -793,7 +794,7 @@ fromShelleyPParams
     :: HasCallStack
     => W.EraInfo Bound
     -> Maybe Cardano.ProtocolParameters
-    -> SLAPI.PParams era
+    -> Shelley.PParams StandardShelley
     -> W.ProtocolParameters
 fromShelleyPParams eraInfo currentNodeProtocolParameters pp =
     W.ProtocolParameters
@@ -1043,7 +1044,7 @@ localNodeConnectInfo sp net = LocalNodeConnectInfo params net . nodeSocketFile
 
 -- | Convert genesis data into blockchain params and an initial set of UTxO
 fromGenesisData
-    :: forall e crypto. (Era e, e ~ SL.ShelleyEra crypto)
+    :: forall e crypto. (e ~ SL.ShelleyEra crypto, crypto ~ StandardCrypto)
     => ShelleyGenesis e
     -> [(SL.Addr crypto, SL.Coin)]
     -> (W.NetworkParameters, W.Block)
