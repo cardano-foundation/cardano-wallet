@@ -135,14 +135,14 @@ lightSync tr light follower = readChainPoints follower >>= syncFrom . latest
                 rollBackward follower prev
             Stable old new tip -> do
                 traceWith tr $
-                    MsgLightRollForward chainPoint new tip
+                    MsgLightRollForwardStable chainPoint old new tip
                 rollForward follower (Right $ mkBlockSummary light old new) tip
                 pure $ chainPointFromBlockHeader new
             Unstable blocks new tip -> do
                 case blocks of
                     [] -> threadDelay secondsPerSlot
                     block : bs -> do
-                        traceWith tr $ MsgLightRollForward chainPoint new tip
+                        traceWith tr $ MsgLightRollForwardUnstable chainPoint new tip
                         rollForward follower (Left $ block :| bs) tip
                 pure $ chainPointFromBlockHeader new
 
@@ -234,14 +234,22 @@ blockHeightToInteger (Quantity n) = fromIntegral n
     Logging
 -------------------------------------------------------------------------------}
 data LightLayerLog
-    = MsgLightRollForward ChainPoint BlockHeader BlockHeader
+    = MsgLightRollForwardStable ChainPoint BlockHeader BlockHeader BlockHeader
+    | MsgLightRollForwardUnstable ChainPoint BlockHeader BlockHeader
     | MsgLightRollBackward ChainPoint ChainPoint
     deriving (Show, Eq, Generic)
 
 instance ToText LightLayerLog where
     toText = \case
-        MsgLightRollForward from_ to_ tip -> T.unwords
-            [ "LightLayer roll forward:"
+        MsgLightRollForwardStable cp_ from_ to_ tip -> T.unwords
+            [ "LightLayer roll forward (stable region):"
+            , "chain_point: ", toText $ show cp_
+            , "from: ", toText $ show from_
+            , "to: ", toText $ show to_
+            , "tip: ", toText $ show tip
+            ]
+        MsgLightRollForwardUnstable from_ to_ tip -> T.unwords
+            [ "LightLayer roll forward (unstable region):"
             , "from: ", toText $ show from_
             , "to: ", toText $ show to_
             , "tip: ", toText $ show tip
@@ -256,5 +264,6 @@ instance HasPrivacyAnnotation LightLayerLog
 
 instance HasSeverityAnnotation LightLayerLog where
     getSeverityAnnotation = \case
-        MsgLightRollForward{} -> Debug
+        MsgLightRollForwardStable{} -> Debug
+        MsgLightRollForwardUnstable{} -> Debug
         MsgLightRollBackward{} -> Debug

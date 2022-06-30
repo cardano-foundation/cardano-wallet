@@ -121,21 +121,22 @@ library
       Cardano.Wallet.Shelley.BlockchainSource
       Cardano.Wallet.Shelley.Compatibility
       Cardano.Wallet.Shelley.Compatibility.Ledger
+      Cardano.Wallet.Shelley.Launch
+      Cardano.Wallet.Shelley.Launch.Blockfrost
+      Cardano.Wallet.Shelley.Launch.Cluster
+      Cardano.Wallet.Shelley.Logging
       Cardano.Wallet.Shelley.Network
       Cardano.Wallet.Shelley.Network.Blockfrost
       Cardano.Wallet.Shelley.Network.Blockfrost.Conversion
       Cardano.Wallet.Shelley.Network.Blockfrost.Error
       Cardano.Wallet.Shelley.Network.Blockfrost.Fixture
+      Cardano.Wallet.Shelley.Network.Blockfrost.Layer
       Cardano.Wallet.Shelley.Network.Blockfrost.Monad
       Cardano.Wallet.Shelley.Network.Discriminant
       Cardano.Wallet.Shelley.Network.Node
-      Cardano.Wallet.Shelley.Transaction
-      Cardano.Wallet.Shelley.Launch
-      Cardano.Wallet.Shelley.Launch.Blockfrost
-      Cardano.Wallet.Shelley.Launch.Cluster
-      Cardano.Wallet.Shelley.Logging
       Cardano.Wallet.Shelley.Pools
       Cardano.Wallet.Shelley.Tracers
+      Cardano.Wallet.Shelley.Transaction
 
 executable cardano-wallet
   default-language:
