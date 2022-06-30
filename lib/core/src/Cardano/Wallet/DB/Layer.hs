@@ -1,25 +1,12 @@
 {-# LANGUAGE AllowAmbiguousTypes #-}
 {-# LANGUAGE DataKinds #-}
 {-# LANGUAGE DeriveGeneric #-}
-{-# LANGUAGE DuplicateRecordFields #-}
-{-# LANGUAGE FlexibleContexts #-}
 {-# LANGUAGE LambdaCase #-}
 {-# LANGUAGE NamedFieldPuns #-}
 {-# LANGUAGE OverloadedLabels #-}
-{-# LANGUAGE RankNTypes #-}
-{-# LANGUAGE ScopedTypeVariables #-}
-{-# LANGUAGE TupleSections #-}
-{-# LANGUAGE TypeApplications #-}
-{-# LANGUAGE TypeFamilies #-}
-{-# LANGUAGE UndecidableInstances #-}
-
-{-# OPTIONS_GHC -fno-warn-orphans #-}
 {-# LANGUAGE RecordWildCards #-}
-
-{- HLINT ignore "Redundant flip" -}
-{- HLINT ignore "Redundant ^." -}
-{- HLINT ignore "Use fst" -}
-{- HLINT ignore "Use snd" -}
+{-# LANGUAGE ScopedTypeVariables #-}
+{-# LANGUAGE TypeApplications #-}
 
 -- |
 -- Copyright: © 2018-2020 IOHK
@@ -63,7 +50,6 @@ import Cardano.DB.Sqlite
     ( DBLog (..)
     , ForeignKeysSetting (ForeignKeysEnabled)
     , SqliteContext (..)
-    , chunkSize
     , handleConstraint
     , newInMemorySqliteContext
     , newSqliteContext
@@ -99,14 +85,8 @@ import Cardano.Wallet.DB.Sqlite.Schema
     , LocalTxSubmission (..)
     , PrivateKey (..)
     , StakeKeyCertificate (..)
-    , TxCollateral (..)
-    , TxCollateralOut (..)
-    , TxCollateralOutToken (..)
-    , TxIn (..)
     , TxMeta (..)
-    , TxOut (..)
-    , TxOutToken (..)
-    , TxWithdrawal (..)
+    , TxWithdrawal (txWithdrawalAmount)
     , Wallet (..)
     , migrateAll
     , unWalletKey
@@ -118,7 +98,9 @@ import Cardano.Wallet.DB.Store.Checkpoints
 import Cardano.Wallet.DB.Store.Meta.Model
     ( ManipulateTxMetaHistory (..), TxMetaHistory (..) )
 import Cardano.Wallet.DB.Store.Transactions.Model
-    ( TxHistoryF (..) )
+    ( TxHistoryF (..), decorateWithTxOuts, withdrawals )
+import Cardano.Wallet.DB.Store.Wallets.Model
+    ( TxWalletsHistory, mkTransactionInfo )
 import Cardano.Wallet.DB.Store.Wallets.Store
     ( DeltaTxWalletsHistory (..), mkStoreTxWalletsHistory )
 import Cardano.Wallet.DB.WalletState
@@ -137,20 +119,13 @@ import Cardano.Wallet.Primitive.AddressDerivation
 import Cardano.Wallet.Primitive.Passphrase
     ( PassphraseHash )
 import Cardano.Wallet.Primitive.Slotting
-    ( TimeInterpreter
-    , epochOf
-    , firstSlotInEpoch
-    , interpretQuery
-    , slotToUTCTime
-    )
-import Cardano.Wallet.Primitive.Types.TokenMap
-    ( AssetId (..) )
+    ( TimeInterpreter, epochOf, firstSlotInEpoch, interpretQuery )
+import Cardano.Wallet.Primitive.Types.Tx
+    ( TransactionInfo (..), TxMeta (..) )
 import Control.Exception
     ( throw )
 import Control.Monad
-    ( forM, unless, void, when, (<=<) )
-import Control.Monad.Extra
-    ( concatMapM )
+    ( forM, guard, unless, void, when, (<=<) )
 import Control.Monad.IO.Class
     ( MonadIO (..) )
 import Control.Monad.Trans
@@ -165,18 +140,14 @@ import Data.DBVar
     ( loadDBVar, modifyDBMaybe, readDBVar, updateDBVar )
 import Data.Either
     ( isRight )
-import Data.Functor
-    ( (<&>) )
+import Data.Foldable
+    ( toList )
 import Data.Generics.Internal.VL.Lens
     ( view, (^.) )
 import Data.List
-    ( nub, sortOn, unzip5 )
-import Data.List.Split
-    ( chunksOf )
-import Data.Map.Strict
-    ( Map )
+    ( sortOn )
 import Data.Maybe
-    ( catMaybes, listToMaybe )
+    ( catMaybes, listToMaybe, maybeToList )
 import Data.Ord
     ( Down (..) )
 import Data.Proxy
@@ -207,9 +178,7 @@ import Database.Persist.Sql
     , selectList
     , updateWhere
     , upsert
-    , (<-.)
     , (<.)
-    , (<=.)
     , (=.)
     , (==.)
     , (>.)
@@ -230,13 +199,13 @@ import UnliftIO.Exception
 import UnliftIO.MVar
     ( modifyMVar, modifyMVar_, newMVar, readMVar, withMVar )
 
+import qualified Cardano.Wallet.DB.Sqlite.Schema as DB
 import qualified Cardano.Wallet.Primitive.Model as W
 import qualified Cardano.Wallet.Primitive.Passphrase as W
 import qualified Cardano.Wallet.Primitive.Types as W
 import qualified Cardano.Wallet.Primitive.Types.Coin as Coin
 import qualified Cardano.Wallet.Primitive.Types.Coin as W
 import qualified Cardano.Wallet.Primitive.Types.Hash as W
-import qualified Cardano.Wallet.Primitive.Types.TokenBundle as TokenBundle
 import qualified Cardano.Wallet.Primitive.Types.Tx as W
 import qualified Data.Map.Strict as Map
 import qualified Data.Set as Set
@@ -569,7 +538,7 @@ newDBLayerWith _cacheBehavior _tr ti SqliteContext{runQuery} = do
                     Nothing  -> (Nothing, ())
                     Just wal ->
                         let willKeep cp = getBlockHeight cp `Set.member` heights
-                            slots = Map.filter willKeep (wal ^. #checkpoints ^. #checkpoints)
+                            slots = Map.filter willKeep (wal ^. #checkpoints . #checkpoints)
                             delta = Adjust wid
                                 [ UpdateCheckpoints [ RestrictTo $ Map.keys slots ] ]
                         in  (Just delta, ())
@@ -601,10 +570,7 @@ newDBLayerWith _cacheBehavior _tr ti SqliteContext{runQuery} = do
                     Just _  -> Right <$> do
                         deleteWhere [WalId ==. wid]
                         deleteCheckpoints wid
-            ExceptT $ modifyDBMaybe transactionsDBVar $ \(_txsOld, ws) ->
-                case Map.lookup wid ws of
-                    Nothing -> (Nothing, Left $ ErrNoSuchWallet wid)
-                    Just _  ->
+            ExceptT $ modifyDBMaybe transactionsDBVar $ \_ ->
                         let
                             delta = Just $ RemoveWallet wid
                         in  (delta, Right ())
@@ -654,13 +620,13 @@ newDBLayerWith _cacheBehavior _tr ti SqliteContext{runQuery} = do
                                 ( Just $ Adjust wid
                                     [ UpdateCheckpoints [ RollbackTo nearestPoint ] ]
                                 , pure $ Map.lookup nearestPoint $
-                                    wal ^. #checkpoints ^. #checkpoints
+                                    wal ^. #checkpoints . #checkpoints
                                 )
 
             case mNearestCheckpoint of
                 Nothing  -> ExceptT $ pure $ Left $ ErrNoSuchWallet wid
                 Just wcp -> do
-                    let nearestPoint = wcp ^. #currentTip ^. #slotNo
+                    let nearestPoint = wcp ^. #currentTip . #slotNo
                     lift $ deleteDelegationCertificates wid
                         [ CertSlot >. nearestPoint
                         ]
@@ -685,14 +651,8 @@ newDBLayerWith _cacheBehavior _tr ti SqliteContext{runQuery} = do
                         let tip = cp ^. #currentTip
                         pruneCheckpoints wid epochStability tip
                         pruneLocalTxSubmission wid epochStability tip
-            ExceptT $ modifyDBMaybe transactionsDBVar $ \(_txsOld, ws) ->
-                case Map.lookup wid ws of
-                    Nothing -> (Nothing, Left $ ErrNoSuchWallet wid)
-                    Just _  ->
-                        let
-                            delta = Just GarbageCollectTxWalletsHistory
-                        in  (delta, Right ())
-            -- deleteLooseTransactions
+            lift $ modifyDBMaybe transactionsDBVar $ \_ ->
+                (Just GarbageCollectTxWalletsHistory, ())
 
         {-----------------------------------------------------------------------
                                    Wallet Metadata
@@ -751,23 +711,25 @@ newDBLayerWith _cacheBehavior _tr ti SqliteContext{runQuery} = do
                                      Tx History
         -----------------------------------------------------------------------}
         , putTxHistory = \wid txs -> ExceptT $ do
-            modifyDBMaybe transactionsDBVar $ \(_txsOld, ws) ->
-                case Map.lookup wid ws of
-                    Nothing -> (Nothing, Left $ ErrNoSuchWallet wid)
-                    Just _  ->
-                        let
-                            delta = Just $ ExpandTxWalletsHistory wid txs
-                        in  (delta, Right ())
+            selectWallet wid >>= \case
+                Nothing -> pure $ Left $ ErrNoSuchWallet wid
+                Just _ -> modifyDBMaybe transactionsDBVar $ \_ ->
+                    let
+                        delta = Just $ ExpandTxWalletsHistory wid txs
+                    in  (delta, Right ())
 
         , readTxHistory = \wid minWithdrawal order range status -> do
             readCheckpoint_ wid >>= \case
                 Nothing -> pure []
-                Just cp -> selectTxHistory cp
-                    ti wid minWithdrawal order $ catMaybes
-                    [ (TxMetaSlot >=.) <$> W.inclusiveLowerBound range
-                    , (TxMetaSlot <=.) <$> W.inclusiveUpperBound range
-                    , (TxMetaStatus ==.) <$> status
-                    ]
+                Just cp -> do
+                    txHistory <- readDBVar transactionsDBVar
+                    let filtering DB.TxMeta{..} = and $ catMaybes
+                            [ (txMetaSlot >=) <$> W.inclusiveLowerBound range
+                            , (txMetaSlot <=) <$> W.inclusiveUpperBound range
+                            , (txMetaStatus ==) <$> status
+                            ]
+                    lift $ selectTxHistory cp ti wid minWithdrawal
+                        order filtering txHistory
 
         , putLocalTxSubmission = \wid txid tx sl -> ExceptT $ do
             let errNoSuchWallet = ErrPutLocalTxSubmissionNoSuchWallet $
@@ -785,33 +747,16 @@ newDBLayerWith _cacheBehavior _tr ti SqliteContext{runQuery} = do
             fmap (map localTxSubmissionFromEntity)
             . listPendingLocalTxSubmissionQuery
 
-        , updatePendingTxForExpiry = \wid tip -> ExceptT $ do
-            modifyDBMaybe transactionsDBVar $ \(_txsOld, ws) ->
-                case Map.lookup wid ws of
-                    Nothing -> (Nothing, Left $ ErrNoSuchWallet wid)
-                    Just _  ->
-                        let
-                            delta = Just
-                                $ ChangeTxMetaWalletsHistory wid
-                                $ AgeTxMetaHistory tip
-                        in  (delta, Right ())
-{-         , removePendingOrExpiredTx = \wid tid -> ExceptT $ do
-            let errNoSuchWallet =
-                    Left $ ErrRemoveTxNoSuchWallet $ ErrNoSuchWallet wid
-            let errNoMorePending =
-                    Left $ ErrRemoveTxAlreadyInLedger tid
-            let errNoSuchTransaction =
-                    Left $ ErrRemoveTxNoSuchTransaction $
-                    ErrNoSuchTransaction wid tid
+        , updatePendingTxForExpiry = \wid tip -> ExceptT $
             selectWallet wid >>= \case
-                Nothing -> pure errNoSuchWallet
-                Just _  -> selectTxMeta wid tid >>= \case
-                    Nothing -> pure errNoSuchTransaction
-                    Just _ -> do
-                        count <- deletePendingOrExpiredTx wid tid
-                        pure $ if count == 0
-                            then errNoMorePending
-                            else Right () -}
+                Nothing -> pure $ Left $ ErrNoSuchWallet wid
+                Just _ -> modifyDBMaybe transactionsDBVar $ \_ ->
+                    let
+                        delta = Just
+                            $ ChangeTxMetaWalletsHistory wid
+                            $ AgeTxMetaHistory tip
+                    in  (delta, Right ())
+
         , removePendingOrExpiredTx = \wid txId -> ExceptT $ do
             modifyDBMaybe transactionsDBVar $ \(TxHistoryF _txsOld, ws) ->
                 case Map.lookup wid ws of
@@ -823,7 +768,7 @@ newDBLayerWith _cacheBehavior _tr ti SqliteContext{runQuery} = do
                         )
                     Just (TxMetaHistory metas)  ->
                         case Map.lookup (TxId txId) metas of
-                            Just TxMeta{..} ->
+                            Just DB.TxMeta{..} ->
                                 if txMetaStatus == W.InLedger then
                                     (Nothing,
                                         Left $ ErrRemoveTxAlreadyInLedger txId
@@ -843,12 +788,12 @@ newDBLayerWith _cacheBehavior _tr ti SqliteContext{runQuery} = do
             readCheckpoint_ wid >>= \case
                 Nothing -> pure $ Left $ ErrNoSuchWallet wid
                 Just cp -> do
-                    metas <- selectTxHistory cp
+                    txHistory <- readDBVar transactionsDBVar
+                    metas <- lift $ selectTxHistory cp
                         ti wid Nothing W.Descending
-                            [ TxMetaTxId ==. TxId tid ]
-                    case metas of
-                        [] -> pure (Right Nothing)
-                        meta:_ -> pure (Right $ Just meta)
+                            (\meta -> txMetaTxId meta == TxId tid )
+                            txHistory
+                    pure $ Right $ listToMaybe metas
 
         {-----------------------------------------------------------------------
                                        Keystore
@@ -1003,119 +948,6 @@ privateKeyFromEntity
 privateKeyFromEntity (PrivateKey _ k h) =
     unsafeDeserializeXPrv (k, h)
 
--- note: TxIn records must already be sorted by order
--- and TxOut records must already be sorted by index
-txHistoryFromEntity
-    :: Monad m
-    => TimeInterpreter m
-    -> W.BlockHeader
-    -> [TxMeta]
-    -> [(TxIn, Maybe (TxOut, [TxOutToken]))]
-    -> [(TxCollateral, Maybe (TxOut, [TxOutToken]))]
-    -> [(TxOut, [TxOutToken])]
-    -> [(TxCollateralOut, [TxCollateralOutToken])]
-    -> [TxWithdrawal]
-    -> m [W.TransactionInfo]
-txHistoryFromEntity ti tip metas ins cins outs couts ws =
-    mapM mkItem metas
-  where
-    startTime' = interpretQuery ti . slotToUTCTime
-    mkItem m = mkTxWith
-        (txMetaTxId m)
-        (txMetaFee m)
-        (txMetadata m)
-        (mkTxDerived m)
-        (txMetaScriptValidity m)
-    mkTxWith txid mfee meta derived isValid = do
-        t <- startTime' (derived ^. #slotNo)
-        return $ W.TransactionInfo
-            { W.txInfoId =
-                getTxId txid
-            , W.txInfoFee =
-                W.Coin . fromIntegral <$> mfee
-            , W.txInfoInputs =
-                map mkTxIn $ filter ((== txid) . txInputTxId . fst) ins
-            , W.txInfoCollateralInputs =
-                map mkTxCollateral $
-                filter ((== txid) . txCollateralTxId . fst) cins
-            , W.txInfoOutputs =
-                map mkTxOut $ filter ((== txid) . txOutputTxId . fst) outs
-            , W.txInfoCollateralOutput =
-                -- This conversion from a list is correct, as the primary key
-                -- for the TxCollateralOut table guarantees that there can be
-                -- at most one collateral output for a given transaction.
-                listToMaybe $
-                map mkTxCollateralOut $
-                filter ((== txid) . txCollateralOutTxId . fst) couts
-            , W.txInfoWithdrawals =
-                Map.fromList
-                    $ map mkTxWithdrawal
-                    $ filter ((== txid) . txWithdrawalTxId) ws
-            , W.txInfoMeta =
-                derived
-            , W.txInfoMetadata =
-                meta
-            , W.txInfoDepth =
-                Quantity $ fromIntegral $ if tipH > txH then tipH - txH else 0
-            , W.txInfoTime =
-                t
-            , W.txInfoScriptValidity = isValid <&> \case
-                  False -> W.TxScriptInvalid
-                  True -> W.TxScriptValid
-            }
-      where
-        txH  = getQuantity (derived ^. #blockHeight)
-        tipH = getQuantity (tip ^. #blockHeight)
-    mkTxIn (tx, out) =
-        ( W.TxIn
-            { W.inputId = getTxId (txInputSourceTxId tx)
-            , W.inputIx = txInputSourceIndex tx
-            }
-        , txInputSourceAmount tx
-        , mkTxOut <$> out
-        )
-    mkTxCollateral (tx, out) =
-        ( W.TxIn
-            { W.inputId = getTxId (txCollateralSourceTxId tx)
-            , W.inputIx = txCollateralSourceIndex tx
-            }
-        , txCollateralSourceAmount tx
-        , mkTxOut <$> out
-        )
-    mkTxOut (out, tokens) = W.TxOut
-        { W.address = txOutputAddress out
-        , W.tokens = TokenBundle.fromFlatList
-            (txOutputAmount out)
-            (mkTxOutToken <$> tokens)
-        }
-    mkTxOutToken token =
-        ( AssetId (txOutTokenPolicyId token) (txOutTokenName token)
-        , txOutTokenQuantity token
-        )
-    mkTxCollateralOut (out, tokens) = W.TxOut
-        { W.address = txCollateralOutAddress out
-        , W.tokens = TokenBundle.fromFlatList
-            (txCollateralOutAmount out)
-            (mkTxCollateralOutToken <$> tokens)
-        }
-    mkTxCollateralOutToken token =
-        ( AssetId
-            (txCollateralOutTokenPolicyId token)
-            (txCollateralOutTokenName token)
-        , txCollateralOutTokenQuantity token
-        )
-    mkTxWithdrawal w =
-        ( txWithdrawalAccount w
-        , txWithdrawalAmount w
-        )
-    mkTxDerived m = W.TxMeta
-        { W.status = txMetaStatus m
-        , W.direction = txMetaDirection m
-        , W.slotNo = txMetaSlot m
-        , W.blockHeight = Quantity (txMetaBlockHeight m)
-        , W.amount = txMetaAmount m
-        , W.expiry = txMetaSlotExpires m
-        }
 
 genesisParametersFromEntity
     :: Wallet
@@ -1159,172 +991,40 @@ deleteDelegationCertificates wid filters = do
 -- looked up when applying blocks from the global ledger, but that is future
 -- work.
 --
+
 -- See also: issue #573.
-selectTxs
-    :: [TxId]
-    -> SqlPersistT IO
-        ( [(TxIn, Maybe (TxOut, [TxOutToken]))]
-        , [(TxCollateral, Maybe (TxOut, [TxOutToken]))]
-        , [(TxOut, [TxOutToken])]
-        , [(TxCollateralOut, [TxCollateralOutToken])]
-        , [TxWithdrawal]
-        )
-selectTxs = fmap concatUnzip . mapM select . chunksOf chunkSize
-  where
-    select txids = do
-        inputs <- fmap entityVal <$> selectList
-            [TxInputTxId <-. txids]
-            [Asc TxInputTxId, Asc TxInputOrder]
-
-        collateral <- fmap entityVal <$> selectList
-            [TxCollateralTxId <-. txids]
-            [Asc TxCollateralTxId, Asc TxCollateralOrder]
-
-        resolvedInputs <- fmap toOutputMap $
-            combineChunked inputs $ \inputsChunk ->
-                traverse readTxOutTokens . fmap entityVal =<<
-                    selectList
-                        [TxOutputTxId <-. (txInputSourceTxId <$> inputsChunk)]
-                        [Asc TxOutputTxId, Asc TxOutputIndex]
-
-        resolvedCollateral <- fmap toOutputMap $
-            combineChunked collateral $ \collateralChunk ->
-                traverse readTxOutTokens . fmap entityVal =<< selectList
-                    [TxOutputTxId <-.
-                        (txCollateralSourceTxId <$> collateralChunk)]
-                    [Asc TxOutputTxId, Asc TxOutputIndex]
-
-        outputs <- traverse readTxOutTokens . fmap entityVal =<<
-            selectList
-                [TxOutputTxId <-. txids]
-                [Asc TxOutputTxId, Asc TxOutputIndex]
-
-        collateralOutputs <-
-            traverse readTxCollateralOutTokens . fmap entityVal =<<
-            selectList
-                [TxCollateralOutTxId <-. txids]
-                [Asc TxCollateralOutTxId]
-
-        withdrawals <- fmap entityVal <$> selectList
-            [TxWithdrawalTxId <-. txids]
-            []
-
-        pure
-            ( inputs
-                `resolveInputWith` resolvedInputs
-            , collateral
-                `resolveCollateralWith` resolvedCollateral
-            , outputs
-            , collateralOutputs
-            , withdrawals
-            )
-
-    -- Fetch the complete set of tokens associated with a TxOut.
-    --
-    readTxOutTokens :: TxOut -> SqlPersistT IO (TxOut, [TxOutToken])
-    readTxOutTokens out = (out,) . fmap entityVal <$> selectList
-        [ TxOutTokenTxId ==. txOutputTxId out
-        , TxOutTokenTxIndex ==. txOutputIndex out
-        ]
-        []
-
-    -- Fetch the complete set of tokens associated with a TxCollateralOut.
-    --
-    readTxCollateralOutTokens
-        :: TxCollateralOut
-        -> SqlPersistT IO (TxCollateralOut, [TxCollateralOutToken])
-    readTxCollateralOutTokens out = (out,) . fmap entityVal <$> selectList
-        [TxCollateralOutTokenTxId ==. txCollateralOutTxId out]
-        []
-
-    toOutputMap
-        :: [(TxOut, [TxOutToken])]
-        -> Map (TxId, Word32) (TxOut, [TxOutToken])
-    toOutputMap = Map.fromList . fmap toEntry
-      where
-        toEntry (out, tokens) = (key, (out, tokens))
-          where
-            key = (txOutputTxId out, txOutputIndex out)
-
-    resolveInputWith
-        :: [TxIn] -> Map (TxId, Word32) txOut -> [(TxIn, Maybe txOut)]
-    resolveInputWith inputs resolvedInputs =
-        [ (i, Map.lookup key resolvedInputs)
-        | i <- inputs
-        , let key = (txInputSourceTxId i, txInputSourceIndex i)
-        ]
-
-    resolveCollateralWith
-        :: [TxCollateral]
-        -> Map (TxId, Word32) txOut
-        -> [(TxCollateral, Maybe txOut)]
-    resolveCollateralWith collateral resolvedCollateral =
-        [ (i, Map.lookup key resolvedCollateral)
-        | i <- collateral
-        , let key =
-                ( txCollateralSourceTxId i
-                , txCollateralSourceIndex i
-                )
-        ]
-
-    concatUnzip
-        :: [([a], [b], [c], [d], [e])]
-        -> (([a], [b], [c], [d], [e]))
-    concatUnzip =
-        (\(a, b, c, d, e) ->
-            ( concat a
-            , concat b
-            , concat c
-            , concat d
-            , concat e
-            )
-        ) . unzip5
-
--- | Split a query's input values into chunks, run multiple smaller queries,
--- and then concatenate the results afterwards. Used to avoid "too many SQL
--- variables" errors for "SELECT IN" queries.
-combineChunked :: [a] -> ([a] -> SqlPersistT IO [b]) -> SqlPersistT IO [b]
-combineChunked xs f = concatMapM f $ chunksOf chunkSize xs
-
 selectTxHistory
-    :: W.Wallet s
-    -> TimeInterpreter IO
+    :: Monad m
+    => W.Wallet s
+    -> TimeInterpreter m
     -> W.WalletId
     -> Maybe W.Coin
     -> W.SortOrder
-    -> [Filter TxMeta]
-    -> SqlPersistT IO [W.TransactionInfo]
-selectTxHistory cp ti wid minWithdrawal order conditions = do
-    let txMetaFilter = (TxMetaWalletId ==. wid):conditions
-    metas <- case minWithdrawal of
-        Nothing -> fmap entityVal <$> selectList txMetaFilter sortOpt
-        Just coin -> do
-            txids <- fmap (txWithdrawalTxId . entityVal)
-                <$> selectList [ TxWithdrawalAmount >=. coin ] []
-            ms <- combineChunked (nub txids) (\chunk -> selectList
-              ((TxMetaTxId <-. chunk):txMetaFilter) [])
-            let sortTxId = case order of
-                    W.Ascending -> sortOn (Down . txMetaTxId)
-                    W.Descending -> sortOn txMetaTxId
-            let sortSlot = case order of
-                    W.Ascending -> sortOn txMetaSlot
-                    W.Descending -> sortOn (Down . txMetaSlot)
-            pure $ sortSlot $ sortTxId $ fmap entityVal ms
+    -> (DB.TxMeta -> Bool)
+    -> TxWalletsHistory
+    -> m [W.TransactionInfo]
+selectTxHistory cp ti wid minWithdrawal order whichMeta
+    (txHistory, wmetas) = do
+    tinfos <- mapM (uncurry $ mkTransactionInfo ti (W.currentTip cp)) $ do
+        TxMetaHistory metas <- maybeToList $ Map.lookup wid wmetas
+        meta <- toList metas
+        guard $  whichMeta meta
+        transaction <- maybeToList $ Map.lookup (txMetaTxId meta) txs
+        guard $ maybe
+            True
+            (\coin -> any (>= coin)
+                $ txWithdrawalAmount <$>  withdrawals transaction)
+            minWithdrawal
+        pure (transaction, meta)
+    pure $ sortTx tinfos
+    where
+        sortTx = case order of
+            W.Ascending -> sortOn
+                $ (,) <$> slotNo . txInfoMeta <*> Down . txInfoId
+            W.Descending -> sortOn
+                $ (,) <$> (Down . slotNo . txInfoMeta) <*> txInfoId
+        TxHistoryF txs = decorateWithTxOuts txHistory
 
-    let txids = map txMetaTxId metas
-    (ins, cins, outs, couts, ws) <- selectTxs txids
-
-    let tip = W.currentTip cp
-
-    liftIO $ txHistoryFromEntity
-        ti tip metas ins cins outs couts ws
-  where
-    -- Note: there are sorted indices on these columns.
-    -- The secondary sort by TxId is to make the ordering stable
-    -- so that testing with random data always works.
-    sortOpt = case order of
-        W.Ascending -> [Asc TxMetaSlot, Desc TxMetaTxId]
-        W.Descending -> [Desc TxMetaSlot, Asc TxMetaTxId]
 
 -- | Returns the initial submission slot and submission record for all pending
 -- transactions in the wallet.
