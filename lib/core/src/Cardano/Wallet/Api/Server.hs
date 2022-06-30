@@ -1678,6 +1678,10 @@ selectCoins
     -> Handler (ApiCoinSelection n)
 selectCoins ctx genChange (ApiT wid) body = do
     let md = body ^? #metadata . traverse . #getApiT
+
+    -- FIXME [ADP-1489] mkRewardAccountBuilder does itself read
+    -- @currentNodeEra@ which is not guaranteed with the era read here. This
+    -- could cause problems under exceptional circumstances.
     (wdrl, _) <-
         mkRewardAccountBuilder @_ @s @_ @n ctx wid (body ^. #withdrawal)
 
@@ -1783,6 +1787,9 @@ selectCoinsForQuit
     -> Handler (Api.ApiCoinSelection n)
 selectCoinsForQuit ctx (ApiT wid) = do
     withWorkerCtx ctx wid liftE liftE $ \wrk -> do
+        -- FIXME [ADP-1489] mkRewardAccountBuilder does itself read
+        -- @currentNodeEra@ which is not guaranteed with the era read here. This
+        -- could cause problems under exceptional circumstances.
         (wdrl, _mkRwdAcct) <-
             mkRewardAccountBuilder @_ @s @_ @n ctx wid (Just SelfWithdrawal)
         action <- liftHandler $ W.quitStakePool @_ @s @k wrk wid wdrl
@@ -2046,6 +2053,9 @@ postTransactionOld ctx genChange (ApiT wid) body = do
     let md = body ^? #metadata . traverse . #txMetadataWithSchema_metadata
     let mTTL = body ^? #timeToLive . traverse . #getQuantity
 
+    -- FIXME [ADP-1489] mkRewardAccountBuilder does itself read
+    -- @currentNodeEra@ which is not guaranteed with the era read here. This
+    -- could cause problems under exceptional circumstances.
     (wdrl, mkRwdAcct) <-
         mkRewardAccountBuilder @_ @s @_ @n ctx wid (body ^. #withdrawal)
 
@@ -2224,6 +2234,10 @@ postTransactionFeeOld
     -> PostTransactionFeeOldData n
     -> Handler ApiFee
 postTransactionFeeOld ctx (ApiT wid) body = do
+
+    -- FIXME [ADP-1489] mkRewardAccountBuilder does itself read
+    -- @currentNodeEra@ which is not guaranteed with the era read here. This
+    -- could cause problems under exceptional circumstances.
     (wdrl, _) <- mkRewardAccountBuilder @_ @s @_ @n ctx wid (body ^. #withdrawal)
     let txCtx = defaultTransactionCtx
             { txWithdrawal = wdrl
@@ -2395,6 +2409,10 @@ constructTransaction ctx genChange knownPools getPoolStatus (ApiT wid) body = do
         $ liftHandler
         $ throwE ErrConstructTxValidityIntervalNotWithinScriptTimelock
 
+
+    -- FIXME [ADP-1489] mkRewardAccountBuilder does itself read
+    -- @currentNodeEra@ which is not guaranteed with the era read here. This
+    -- could cause problems under exceptional circumstances.
     (wdrl, _) <-
         mkRewardAccountBuilder @_ @s @_ @n ctx wid (body ^. #withdrawal)
 
@@ -2980,6 +2998,9 @@ joinStakePool ctx knownPools getPoolStatus apiPoolId (ApiT wid) body = do
         (action, _) <- liftHandler
             $ W.joinStakePool @_ @s @k wrk curEpoch pools pid poolStatus wid
 
+        -- FIXME [ADP-1489] mkRewardAccountBuilder does itself read
+        -- @currentNodeEra@ which is not guaranteed with the era read here. This
+        -- could cause problems under exceptional circumstances.
         (wdrl, mkRwdAcct) <- mkRewardAccountBuilder @_ @s @_ @n ctx wid Nothing
         ttl <- liftIO $ W.getTxExpiry ti Nothing
         let txCtx = defaultTransactionCtx
@@ -2989,6 +3010,8 @@ joinStakePool ctx knownPools getPoolStatus apiPoolId (ApiT wid) body = do
                 }
         (utxoAvailable, wallet, pendingTxs) <-
             liftHandler $ W.readWalletUTxOIndex @_ @s @k wrk wid
+        -- FIXME [ADP-1489] pp and era are not guaranteed to be consistent,
+        -- which could cause problems under exceptional circumstances.
         pp <- liftIO $ NW.currentProtocolParameters (wrk ^. networkLayer)
         era <- liftIO $ NW.currentNodeEra (wrk ^. networkLayer)
         let selectAssetsParams = W.SelectAssetsParams
@@ -3098,6 +3121,9 @@ quitStakePool ctx (ApiT wid) body = do
     let pwd = coerce $ getApiT $ body ^. #passphrase
 
     (sel, tx, txMeta, txTime, pp) <- withWorkerCtx ctx wid liftE liftE $ \wrk -> do
+        -- FIXME [ADP-1489] mkRewardAccountBuilder does itself read
+        -- @currentNodeEra@ which is not guaranteed with the era read here. This
+        -- could cause problems under exceptional circumstances.
         (wdrl, mkRwdAcct) <-
             mkRewardAccountBuilder @_ @s @_ @n ctx wid (Just SelfWithdrawal)
         action <- liftHandler $ W.quitStakePool wrk wid wdrl
@@ -3281,6 +3307,9 @@ createMigrationPlan
         -- ^ Target addresses
     -> Handler (ApiWalletMigrationPlan n)
 createMigrationPlan ctx withdrawalType (ApiT wid) postData = do
+    -- FIXME [ADP-1489] mkRewardAccountBuilder does itself read
+    -- @currentNodeEra@ which is not guaranteed with the era read here. This
+    -- could cause problems under exceptional circumstances.
     (rewardWithdrawal, _) <-
         mkRewardAccountBuilder @_ @s @_ @n ctx wid withdrawalType
     withWorkerCtx ctx wid liftE liftE $ \wrk -> liftHandler $ do
@@ -3372,6 +3401,9 @@ migrateWallet
     -> ApiWalletMigrationPostData n p
     -> Handler (NonEmpty (ApiTransaction n))
 migrateWallet ctx withdrawalType (ApiT wid) postData = do
+    -- FIXME [ADP-1489] mkRewardAccountBuilder does itself read
+    -- @currentNodeEra@ which is not guaranteed with the era read here. This
+    -- could cause problems under exceptional circumstances.
     (rewardWithdrawal, mkRewardAccount) <-
         mkRewardAccountBuilder @_ @s @_ @n ctx wid withdrawalType
     withWorkerCtx ctx wid liftE liftE $ \wrk -> do
