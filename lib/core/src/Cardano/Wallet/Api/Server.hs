@@ -2081,7 +2081,7 @@ postTransactionOld ctx genChange (ApiT wid) body = do
                 $ W.assignChangeAddressesAndUpdateDb wrk wid genChange sel
             (tx, txMeta, txTime, sealedTx) <- liftHandler
                 $ W.buildAndSignTransaction
-                    @_ @s @k wrk wid mkRwdAcct pwd txCtx sel'
+                    @_ @s @k wrk wid era mkRwdAcct pwd txCtx sel'
             liftHandler
                 $ W.submitTx @_ @s @k wrk wid (tx, txMeta, sealedTx)
             pure (sel, tx, txMeta, txTime, pp)
@@ -2540,7 +2540,7 @@ constructTransaction ctx genChange knownPools getPoolStatus (ApiT wid) body = do
             pure (sel, sel', estMin)
 
         tx <- liftHandler
-            $ W.constructTransaction @_ @s @k @n wrk wid txCtx' sel
+            $ W.constructTransaction @_ @s @k @n wrk wid era txCtx' sel
 
         pure $ ApiConstructTransaction
             { transaction = ApiT tx
@@ -3007,7 +3007,8 @@ joinStakePool ctx knownPools getPoolStatus apiPoolId (ApiT wid) body = do
         sel' <- liftHandler
             $ W.assignChangeAddressesAndUpdateDb wrk wid genChange sel
         (tx, txMeta, txTime, sealedTx) <- liftHandler
-            $ W.buildAndSignTransaction @_ @s @k wrk wid mkRwdAcct pwd txCtx sel'
+            $ W.buildAndSignTransaction @_ @s @k
+                wrk wid era mkRwdAcct pwd txCtx sel'
         liftHandler
             $ W.submitTx @_ @s @k wrk wid (tx, txMeta, sealedTx)
 
@@ -3127,7 +3128,8 @@ quitStakePool ctx (ApiT wid) body = do
         sel' <- liftHandler
             $ W.assignChangeAddressesAndUpdateDb wrk wid genChange sel
         (tx, txMeta, txTime, sealedTx) <- liftHandler
-            $ W.buildAndSignTransaction @_ @s @k wrk wid mkRwdAcct pwd txCtx sel'
+            $ W.buildAndSignTransaction @_ @s @k
+                wrk wid era mkRwdAcct pwd txCtx sel'
         liftHandler
             $ W.submitTx @_ @s @k wrk wid (tx, txMeta, sealedTx)
 
@@ -3388,7 +3390,12 @@ migrateWallet ctx withdrawalType (ApiT wid) postData = do
                     , txDelegationAction = Nothing
                     }
             (tx, txMeta, txTime, sealedTx) <- liftHandler $
-                W.buildAndSignTransaction @_ @s @k wrk wid mkRewardAccount pwd
+                W.buildAndSignTransaction @_ @s @k
+                    wrk
+                    wid
+                    era
+                    mkRewardAccount
+                    pwd
                     txContext (selection {change = []})
             liftHandler $
                 W.submitTx @_ @s @k wrk wid (tx, txMeta, sealedTx)

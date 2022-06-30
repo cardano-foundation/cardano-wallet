@@ -2354,6 +2354,7 @@ buildAndSignTransaction
         )
     => ctx
     -> WalletId
+    -> Cardano.AnyCardanoEra
     -> ( (k 'RootK XPrv, Passphrase "encryption") ->
          (         XPrv, Passphrase "encryption")
        )
@@ -2362,8 +2363,7 @@ buildAndSignTransaction
     -> TransactionCtx
     -> SelectionOf TxOut
     -> ExceptT ErrSignPayment IO (Tx, TxMeta, UTCTime, SealedTx)
-buildAndSignTransaction ctx wid mkRwdAcct pwd txCtx sel = db & \DBLayer{..} -> do
-    era <- liftIO $ currentNodeEra nl
+buildAndSignTransaction ctx wid era mkRwdAcct pwd txCtx sel = db & \DBLayer{..} -> do
     withRootKey @_ @s ctx wid pwd ErrSignPaymentWithRootKey $ \xprv scheme -> do
         let pwdP = preparePassphrase scheme pwd
         mapExceptT atomically $ do
@@ -2396,11 +2396,11 @@ constructTransaction
         )
     => ctx
     -> WalletId
+    -> Cardano.AnyCardanoEra
     -> TransactionCtx
     -> SelectionOf TxOut
     -> ExceptT ErrConstructTx IO SealedTx
-constructTransaction ctx wid txCtx sel = db & \DBLayer{..} -> do
-    era <- liftIO $ currentNodeEra nl
+constructTransaction ctx wid era txCtx sel = db & \DBLayer{..} -> do
     (_, xpub, _) <- withExceptT ErrConstructTxReadRewardAccount $
         readRewardAccount @ctx @s @k @n ctx wid
     mapExceptT atomically $ do
