@@ -114,7 +114,7 @@ import Cardano.Wallet.DB.Sqlite.Types
 import Cardano.Wallet.DB.Store.Checkpoints
     ( PersistAddressBook (..), blockHeaderFromEntity, mkStoreWallets )
 import Cardano.Wallet.DB.Store.Meta.Model
-    ( ManipulateTxMetaHistory (AgeTxMetaHistory, PruneTxMetaHistory) )
+    ( ManipulateTxMetaHistory (..) )
 import Cardano.Wallet.DB.Store.Transactions.Model
     ( TxHistoryF (..) )
 import Cardano.Wallet.DB.Store.Wallets.Store
@@ -143,12 +143,16 @@ import Cardano.Wallet.Primitive.Slotting
     )
 import Cardano.Wallet.Primitive.Types.TokenMap
     ( AssetId (..) )
+import Control.Exception
+    ( throw )
 import Control.Monad
     ( forM, unless, void, when, (<=<) )
 import Control.Monad.Extra
     ( concatMapM )
 import Control.Monad.IO.Class
     ( MonadIO (..) )
+import Control.Monad.Trans
+    ( lift )
 import Control.Monad.Trans.Except
     ( ExceptT (..) )
 import Control.Tracer
@@ -633,45 +637,40 @@ newDBLayerWith _cacheBehavior _tr ti SqliteContext{runQuery} = do
                 [ CheckpointWalletId ==. wid ]
                 [ Asc CheckpointSlot ]
 
-        , rollbackTo = \wid requestedPoint -> ExceptT $ do
-            iomNearestCheckpoint <- modifyDBMaybe walletsDB_ $ \ws ->
-                case Map.lookup wid ws of
-                    Nothing  -> (Nothing, pure Nothing)
-                    Just wal -> case findNearestPoint wal requestedPoint of
-                        Nothing ->
-                            ( Nothing
-                            , throwIO $ ErrNoOlderCheckpoint wid requestedPoint
-                            )
-                        Just nearestPoint ->
-                            ( Just $ Adjust wid
-                                [ UpdateCheckpoints [ RollbackTo nearestPoint ] ]
-                            , pure $ Map.lookup nearestPoint $
-                                wal ^. #checkpoints ^. #checkpoints
-                            )
-            mNearestCheckpoint <- liftIO iomNearestCheckpoint
+        , rollbackTo = \wid requestedPoint -> do
+            mNearestCheckpoint <-  ExceptT $ do
+                modifyDBMaybe walletsDB_ $ \ws ->
+                    case Map.lookup wid ws of
+                        Nothing  -> (Nothing, pure Nothing)
+                        Just wal -> case findNearestPoint wal requestedPoint of
+                            Nothing ->
+                                ( Nothing
+                                , throw $ ErrNoOlderCheckpoint wid requestedPoint
+                                )
+                            Just nearestPoint ->
+                                ( Just $ Adjust wid
+                                    [ UpdateCheckpoints [ RollbackTo nearestPoint ] ]
+                                , pure $ Map.lookup nearestPoint $
+                                    wal ^. #checkpoints ^. #checkpoints
+                                )
 
             case mNearestCheckpoint of
-                Nothing  -> pure $ Left $ ErrNoSuchWallet wid
+                Nothing  -> ExceptT $ pure $ Left $ ErrNoSuchWallet wid
                 Just wcp -> do
                     let nearestPoint = wcp ^. #currentTip ^. #slotNo
-                    deleteDelegationCertificates wid
+                    lift $ deleteDelegationCertificates wid
                         [ CertSlot >. nearestPoint
                         ]
-                    updateTxMetas wid
-                        [ TxMetaDirection ==. W.Outgoing
-                        , TxMetaSlot >. nearestPoint
-                        ]
-                        [ TxMetaStatus =. W.Pending
-                        , TxMetaSlot =. nearestPoint
-                        ]
-                    deleteTxMetas wid
-                        [ TxMetaDirection ==. W.Incoming
-                        , TxMetaSlot >. nearestPoint
-                        ]
-                    deleteStakeKeyCerts wid
+                    lift $ deleteStakeKeyCerts wid
                         [ StakeKeyCertSlot >. nearestPoint
                         ]
-                    pure $ Right
+                    ExceptT $ modifyDBMaybe transactionsDBVar $ \_ ->
+                        let
+                            delta = Just
+                                $ ChangeTxMetaWalletsHistory wid
+                                $ RollBackTxMetaHistory nearestPoint
+                        in  (delta, Right ())
+                    pure
                         $ W.chainPointFromBlockHeader
                         $ view #currentTip wcp
 
@@ -1108,14 +1107,6 @@ selectWallet :: MonadIO m => W.WalletId -> SqlPersistT m (Maybe Wallet)
 selectWallet wid =
     fmap entityVal <$> selectFirst [WalId ==. wid] []
 
--- | Delete TxMeta values for a wallet.
-deleteTxMetas
-    :: W.WalletId
-    -> [Filter TxMeta]
-    -> SqlPersistT IO ()
-deleteTxMetas wid filters =
-    deleteWhere ((TxMetaWalletId ==. wid) : filters)
-
 -- | Delete stake key certificates for a wallet.
 deleteStakeKeyCerts
     :: W.WalletId
@@ -1124,14 +1115,6 @@ deleteStakeKeyCerts
 deleteStakeKeyCerts wid filters =
     deleteWhere ((StakeKeyCertWalletId ==. wid) : filters)
 
-updateTxMetas
-    :: W.WalletId
-    -> [Filter TxMeta]
-    -> [Update TxMeta]
-    -> SqlPersistT IO ()
-updateTxMetas wid filters =
-    updateWhere ((TxMetaWalletId ==. wid) : filters)
-
 -- | Delete all delegation certificates matching the given filter
 deleteDelegationCertificates
     :: W.WalletId
@@ -1139,7 +1122,6 @@ deleteDelegationCertificates
     -> SqlPersistT IO ()
 deleteDelegationCertificates wid filters = do
     deleteWhere ((CertWalletId ==. wid) : filters)
-
 
 -- This relies on available information from the database to reconstruct coin
 -- selection information for __outgoing__ payments. We can't however guarantee
