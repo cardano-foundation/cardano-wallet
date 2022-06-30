@@ -1037,7 +1037,15 @@ newtype ActiveSlotCoefficient
 
 instance NFData ActiveSlotCoefficient
 
--- |
+-- | Represents 'info' about the starting epoch/time of all possible eras.
+--
+-- Field values can be either:
+-- - Just pastEpochBoundary - the network forked to this era in the past.
+-- - Just futureEpochBoundary - the hard-fork to this era is confirmed, but it
+--                              hasn't yet occured.
+-- - Nothing - the hard-fork to this era is not yet confirmed.
+--
+-- Note: this type is not a practical way to tell what the current era is.
 --
 -- It is expected that there is an order, @byron, shelley, allegra, mary@, by
 -- which the @Maybe@ fields are filled in.
@@ -1113,6 +1121,11 @@ data ProtocolParameters = ProtocolParameters
         -- (such as registering a stake pool).
     , eras
         :: EraInfo EpochNo
+        -- ^ Contains information about when each era did start if it has
+        -- already happened, or otherwise when it will start, if the hard-fork
+        -- time is confirmed on-chain.
+        --
+        -- Note: this is not a practical way to tell the current era.
     , maximumCollateralInputCount
         :: Word16
         -- ^ Limit on the maximum number of collateral inputs present in a
