@@ -125,6 +125,7 @@ library
       Cardano.Wallet.Shelley.Launch.Blockfrost
       Cardano.Wallet.Shelley.Launch.Cluster
       Cardano.Wallet.Shelley.Logging
+      Cardano.Wallet.Shelley.MinimumUTxO
       Cardano.Wallet.Shelley.Network
       Cardano.Wallet.Shelley.Network.Blockfrost
       Cardano.Wallet.Shelley.Network.Blockfrost.Conversion
@@ -282,6 +283,7 @@ test-suite unit
     , ouroboros-network
     , cardano-ledger-shelley
     , plutus-core
+    , quickcheck-classes
     , text
     , text-class
     , transformers
@@ -301,6 +303,7 @@ test-suite unit
       Cardano.Wallet.Shelley.Compatibility.LedgerSpec
       Cardano.Wallet.Shelley.LaunchSpec
       Cardano.Wallet.Shelley.Launch.BlockfrostSpec
+      Cardano.Wallet.Shelley.MinimumUTxOSpec
       Cardano.Wallet.Shelley.NetworkSpec
       Cardano.Wallet.Shelley.Network.BlockfrostSpec
       Cardano.Wallet.Shelley.TransactionSpec
