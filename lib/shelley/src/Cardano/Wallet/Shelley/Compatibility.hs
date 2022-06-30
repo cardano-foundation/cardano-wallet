@@ -87,6 +87,7 @@ module Cardano.Wallet.Shelley.Compatibility
     , fromCardanoLovelace
     , rewardAccountFromAddress
     , fromShelleyPParams
+    , fromAllegraPParams
     , fromAlonzoPParams
     , fromBabbagePParams
     , fromLedgerExUnits
@@ -317,6 +318,7 @@ import Ouroboros.Consensus.Cardano.Block
     ( CardanoBlock
     , CardanoEras
     , HardForkBlock (..)
+    , StandardAllegra
     , StandardAlonzo
     , StandardBabbage
     , StandardShelley
@@ -353,6 +355,7 @@ import qualified Cardano.Byron.Codec.Cbor as CBOR
 import qualified Cardano.Chain.Common as Byron
 import qualified Cardano.Crypto.Hash as Crypto
 import qualified Cardano.Ledger.Address as SL
+import qualified Cardano.Ledger.Allegra as Allegra
 import qualified Cardano.Ledger.Alonzo as Alonzo
 import qualified Cardano.Ledger.Alonzo.Data as Alonzo
 import qualified Cardano.Ledger.Alonzo.Language as Alonzo
@@ -803,6 +806,32 @@ fromShelleyPParams eraInfo currentNodeProtocolParameters pp =
         , stakeKeyDeposit = stakeKeyDepositFromPParams pp
         , eras = fromBoundToEpochNo <$> eraInfo
         -- Collateral inputs were not supported or required in Shelley:
+        , maximumCollateralInputCount = 0
+        , minimumCollateralPercentage = 0
+        , executionUnitPrices = Nothing
+        , currentNodeProtocolParameters
+        }
+
+fromAllegraPParams
+    :: HasCallStack
+    => W.EraInfo Bound
+    -> Maybe Cardano.ProtocolParameters
+    -> Allegra.PParams StandardAllegra
+    -> W.ProtocolParameters
+fromAllegraPParams eraInfo currentNodeProtocolParameters pp =
+    W.ProtocolParameters
+        { decentralizationLevel =
+            decentralizationLevelFromPParams pp
+        , txParameters =
+            txParametersFromPParams
+                maryTokenBundleMaxSize (W.ExecutionUnits 0 0) pp
+        , desiredNumberOfStakePools =
+            desiredNumberOfStakePoolsFromPParams pp
+        , minimumUTxOvalue =
+            MinimumUTxOValue . toWalletCoin $ SLAPI._minUTxOValue pp
+        , stakeKeyDeposit = stakeKeyDepositFromPParams pp
+        , eras = fromBoundToEpochNo <$> eraInfo
+        -- Collateral inputs were not supported or required in Allegra:
         , maximumCollateralInputCount = 0
         , minimumCollateralPercentage = 0
         , executionUnitPrices = Nothing

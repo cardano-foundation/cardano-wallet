@@ -78,6 +78,7 @@ import Cardano.Wallet.Primitive.Types.Tx
     ( SealedTx (..) )
 import Cardano.Wallet.Shelley.Compatibility
     ( StandardCrypto
+    , fromAllegraPParams
     , fromAlonzoPParams
     , fromBabbagePParams
     , fromNonMyopicMemberRewards
@@ -714,7 +715,7 @@ mkTipSyncClient tr np onPParamsUpdate onInterpreterUpdate onEraUpdate = do
                     <$> LSQry Byron.GetUpdateInterfaceState)
                 (fromShelleyPParams eraBounds ppNode
                     <$> LSQry Shelley.GetCurrentPParams)
-                (fromShelleyPParams eraBounds ppNode
+                (fromAllegraPParams eraBounds ppNode
                     <$> LSQry Shelley.GetCurrentPParams)
                 (fromShelleyPParams eraBounds ppNode
                     <$> LSQry Shelley.GetCurrentPParams)
