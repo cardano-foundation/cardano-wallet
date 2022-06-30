@@ -416,6 +416,7 @@ import qualified Ouroboros.Consensus.Shelley.Ledger as O
 import qualified Ouroboros.Consensus.Shelley.Protocol.Abstract as Consensus
 import qualified Ouroboros.Network.Block as O
 import qualified Ouroboros.Network.Point as Point
+
 --------------------------------------------------------------------------------
 --
 -- Chain Parameters
@@ -871,7 +872,6 @@ fromBabbagePParams eraInfo currentNodeProtocolParameters pp =
         }
   where
     fromByteToWord (W.Coin v) = W.Coin $ 8 * v
-
 
 -- | Extract the current network decentralization level from the given set of
 -- protocol parameters.

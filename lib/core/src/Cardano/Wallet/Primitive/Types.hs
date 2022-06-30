@@ -1162,13 +1162,18 @@ instance NFData ProtocolParameters where
 
 instance Buildable ProtocolParameters where
     build pp = blockListF' "" id
-        [ "Decentralization level: " <> build (pp ^. #decentralizationLevel)
-        , "Transaction parameters: " <> build (pp ^. #txParameters)
-        , "Desired number of pools: " <> build (pp ^. #desiredNumberOfStakePools)
-        , "Minimum UTxO value: " <> build (pp ^. #minimumUTxOvalue)
-        , "Eras:\n" <> indentF 2 (build (pp ^. #eras))
-        , "Execution unit prices: " <>
-            maybe "not specified" build (pp ^. #executionUnitPrices)
+        [ "Decentralization level: "
+            <> build (pp ^. #decentralizationLevel)
+        , "Transaction parameters: "
+            <> build (pp ^. #txParameters)
+        , "Desired number of pools: "
+            <> build (pp ^. #desiredNumberOfStakePools)
+        , "Minimum UTxO value: "
+            <> build (pp ^. #minimumUTxOvalue)
+        , "Eras:\n"
+            <> indentF 2 (build (pp ^. #eras))
+        , "Execution unit prices: "
+            <> maybe "not specified" build (pp ^. #executionUnitPrices)
         ]
 
 data ExecutionUnits = ExecutionUnits
