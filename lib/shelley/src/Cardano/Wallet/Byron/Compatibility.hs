@@ -66,6 +66,8 @@ import Cardano.Crypto
     ( serializeCborHash )
 import Cardano.Crypto.ProtocolMagic
     ( ProtocolMagicId, unProtocolMagicId )
+import Cardano.Wallet.Primitive.Types.MinimumUTxO
+    ( minimumUTxONone )
 import Cardano.Wallet.Unsafe
     ( unsafeFromHex )
 import Crypto.Hash.Utils
@@ -141,6 +143,7 @@ mainnetNetworkParameters = W.NetworkParameters
             , getMaxExecutionUnits = W.ExecutionUnits 0 0
             }
         , desiredNumberOfStakePools = 0
+        , minimumUTxO = minimumUTxONone
         , minimumUTxOvalue = W.MinimumUTxOValue $ W.Coin 0
         , stakeKeyDeposit = W.Coin 0
         , eras = W.emptyEraInfo
@@ -364,6 +367,7 @@ protocolParametersFromPP eraInfo currentNodeProtocolParameters pp =
             , getMaxExecutionUnits = W.ExecutionUnits 0 0
             }
         , desiredNumberOfStakePools = 0
+        , minimumUTxO = minimumUTxONone
         , minimumUTxOvalue = W.MinimumUTxOValue $ W.Coin 0
         , stakeKeyDeposit = W.Coin 0
         , eras = fromBound <$> eraInfo

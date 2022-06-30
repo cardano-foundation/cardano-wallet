@@ -229,6 +229,8 @@ import Cardano.Wallet.Primitive.Types
     , ProtocolParameters (txParameters)
     , TxParameters (getTokenBundleMaxSize)
     )
+import Cardano.Wallet.Primitive.Types.MinimumUTxO
+    ( minimumUTxOForShelleyBasedEra )
 import Cardano.Wallet.Primitive.Types.TokenMap
     ( TokenMap, toNestedList )
 import Cardano.Wallet.Primitive.Types.TokenPolicy
@@ -805,6 +807,8 @@ fromShelleyPParams eraInfo currentNodeProtocolParameters pp =
                 maryTokenBundleMaxSize (W.ExecutionUnits 0 0) pp
         , desiredNumberOfStakePools =
             desiredNumberOfStakePoolsFromPParams pp
+        , minimumUTxO =
+            minimumUTxOForShelleyBasedEra ShelleyBasedEraShelley pp
         , minimumUTxOvalue =
             MinimumUTxOValue . toWalletCoin $ SLAPI._minUTxOValue pp
         , stakeKeyDeposit = stakeKeyDepositFromPParams pp
@@ -831,6 +835,8 @@ fromAllegraPParams eraInfo currentNodeProtocolParameters pp =
                 maryTokenBundleMaxSize (W.ExecutionUnits 0 0) pp
         , desiredNumberOfStakePools =
             desiredNumberOfStakePoolsFromPParams pp
+        , minimumUTxO =
+            minimumUTxOForShelleyBasedEra ShelleyBasedEraAllegra pp
         , minimumUTxOvalue =
             MinimumUTxOValue . toWalletCoin $ SLAPI._minUTxOValue pp
         , stakeKeyDeposit = stakeKeyDepositFromPParams pp
@@ -857,6 +863,8 @@ fromMaryPParams eraInfo currentNodeProtocolParameters pp =
                 maryTokenBundleMaxSize (W.ExecutionUnits 0 0) pp
         , desiredNumberOfStakePools =
             desiredNumberOfStakePoolsFromPParams pp
+        , minimumUTxO =
+            minimumUTxOForShelleyBasedEra ShelleyBasedEraMary pp
         , minimumUTxOvalue =
             MinimumUTxOValue . toWalletCoin $ SLAPI._minUTxOValue pp
         , stakeKeyDeposit = stakeKeyDepositFromPParams pp
@@ -888,6 +896,8 @@ fromAlonzoPParams eraInfo currentNodeProtocolParameters pp =
             pp
         , desiredNumberOfStakePools =
             desiredNumberOfStakePoolsFromPParams pp
+        , minimumUTxO =
+            minimumUTxOForShelleyBasedEra ShelleyBasedEraAlonzo pp
         , minimumUTxOvalue = MinimumUTxOValueCostPerWord
             . toWalletCoin $ Alonzo._coinsPerUTxOWord pp
         , stakeKeyDeposit = stakeKeyDepositFromPParams pp
@@ -917,6 +927,8 @@ fromBabbagePParams eraInfo currentNodeProtocolParameters pp =
             pp
         , desiredNumberOfStakePools =
             desiredNumberOfStakePoolsFromPParams pp
+        , minimumUTxO =
+            minimumUTxOForShelleyBasedEra ShelleyBasedEraBabbage pp
         , minimumUTxOvalue = MinimumUTxOValueCostPerWord
             . fromByteToWord . toWalletCoin $ Babbage._coinsPerUTxOByte pp
         , stakeKeyDeposit = stakeKeyDepositFromPParams pp

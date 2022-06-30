@@ -120,6 +120,8 @@ import Cardano.Wallet.Primitive.Types.Coin
     ( Coin (..) )
 import Cardano.Wallet.Primitive.Types.Hash
     ( Hash (..), mockHash )
+import Cardano.Wallet.Primitive.Types.MinimumUTxO.Gen
+    ( genMinimumUTxO, shrinkMinimumUTxO )
 import Cardano.Wallet.Primitive.Types.RewardAccount
     ( RewardAccount (..) )
 import Cardano.Wallet.Primitive.Types.TokenBundle.Gen
@@ -684,6 +686,7 @@ instance Arbitrary ProtocolParameters where
         <@> shrink
         <:> shrink
         <:> shrink
+        <:> shrinkMinimumUTxO
         <:> shrink
         <:> shrink
         <:> shrink
@@ -696,6 +699,7 @@ instance Arbitrary ProtocolParameters where
         <$> arbitrary
         <*> arbitrary
         <*> choose (0, 100)
+        <*> genMinimumUTxO
         <*> arbitrary
         <*> arbitrary
         <*> arbitrary
