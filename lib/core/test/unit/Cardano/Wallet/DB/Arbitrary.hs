@@ -692,7 +692,6 @@ instance Arbitrary ProtocolParameters where
         <:> shrink
         <:> shrink
         <:> shrink
-        <:> shrink
         <:> const []
         <:> Nil
     arbitrary = ProtocolParameters
@@ -700,7 +699,6 @@ instance Arbitrary ProtocolParameters where
         <*> arbitrary
         <*> choose (0, 100)
         <*> genMinimumUTxO
-        <*> arbitrary
         <*> arbitrary
         <*> arbitrary
         <*> genMaximumCollateralInputCount

@@ -32,7 +32,6 @@ import Cardano.Wallet.Primitive.Types
     , FeePolicy (..)
     , GenesisParameters (..)
     , LinearFunction (..)
-    , MinimumUTxOValue (..)
     , NetworkParameters (..)
     , ProtocolParameters (..)
     , SlotLength (..)
@@ -126,7 +125,6 @@ dummyProtocolParameters = ProtocolParameters
     , txParameters = dummyTxParameters
     , desiredNumberOfStakePools = 100
     , minimumUTxO = MinimumUTxONone
-    , minimumUTxOvalue = MinimumUTxOValue $ Coin 0
     , stakeKeyDeposit = Coin 0
     , eras = emptyEraInfo
     , maximumCollateralInputCount = 3

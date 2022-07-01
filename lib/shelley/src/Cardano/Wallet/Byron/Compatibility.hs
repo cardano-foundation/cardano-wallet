@@ -144,7 +144,6 @@ mainnetNetworkParameters = W.NetworkParameters
             }
         , desiredNumberOfStakePools = 0
         , minimumUTxO = minimumUTxONone
-        , minimumUTxOvalue = W.MinimumUTxOValue $ W.Coin 0
         , stakeKeyDeposit = W.Coin 0
         , eras = W.emptyEraInfo
         -- Collateral inputs were not supported or required in Byron:
@@ -368,7 +367,6 @@ protocolParametersFromPP eraInfo currentNodeProtocolParameters pp =
             }
         , desiredNumberOfStakePools = 0
         , minimumUTxO = minimumUTxONone
-        , minimumUTxOvalue = W.MinimumUTxOValue $ W.Coin 0
         , stakeKeyDeposit = W.Coin 0
         , eras = fromBound <$> eraInfo
         -- Collateral inputs were not supported or required in Byron:

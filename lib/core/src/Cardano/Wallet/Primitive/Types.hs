@@ -1116,9 +1116,6 @@ data ProtocolParameters = ProtocolParameters
     , minimumUTxO
         :: MinimumUTxO
         -- ^ Represents a way of calculating minimum UTxO values.
-    , minimumUTxOvalue
-        :: MinimumUTxOValue
-        -- ^ The minimum UTxO value.
     , stakeKeyDeposit
         :: Coin
         -- ^ Registering a stake key requires storage on the node and as such
@@ -1157,7 +1154,6 @@ instance NFData ProtocolParameters where
         , rnf txParameters
         , rnf desiredNumberOfStakePools
         , rnf minimumUTxO
-        , rnf minimumUTxOvalue
         , rnf stakeKeyDeposit
         , rnf eras
         , rnf maximumCollateralInputCount
@@ -1176,8 +1172,6 @@ instance Buildable ProtocolParameters where
             <> build (pp ^. #desiredNumberOfStakePools)
         , "Minimum UTxO: "
             <> build (pp ^. #minimumUTxO)
-        , "Minimum UTxO value: "
-            <> build (pp ^. #minimumUTxOvalue)
         , "Eras:\n"
             <> indentF 2 (build (pp ^. #eras))
         , "Execution unit prices: "

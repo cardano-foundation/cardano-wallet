@@ -222,7 +222,6 @@ import Cardano.Wallet.Primitive.AddressDerivation
 import Cardano.Wallet.Primitive.Types
     ( Certificate (..)
     , ChainPoint (..)
-    , MinimumUTxOValue (..)
     , PoolCertificate (..)
     , PoolRegistrationCertificate (..)
     , PoolRetirementCertificate (..)
@@ -793,8 +792,7 @@ fromMaxSize :: Natural -> Quantity "byte" Word16
 fromMaxSize = Quantity . fromIntegral
 
 fromShelleyPParams
-    :: HasCallStack
-    => W.EraInfo Bound
+    :: W.EraInfo Bound
     -> Maybe Cardano.ProtocolParameters
     -> Shelley.PParams StandardShelley
     -> W.ProtocolParameters
@@ -809,8 +807,6 @@ fromShelleyPParams eraInfo currentNodeProtocolParameters pp =
             desiredNumberOfStakePoolsFromPParams pp
         , minimumUTxO =
             minimumUTxOForShelleyBasedEra ShelleyBasedEraShelley pp
-        , minimumUTxOvalue =
-            MinimumUTxOValue . toWalletCoin $ SLAPI._minUTxOValue pp
         , stakeKeyDeposit = stakeKeyDepositFromPParams pp
         , eras = fromBoundToEpochNo <$> eraInfo
         -- Collateral inputs were not supported or required in Shelley:
@@ -821,8 +817,7 @@ fromShelleyPParams eraInfo currentNodeProtocolParameters pp =
         }
 
 fromAllegraPParams
-    :: HasCallStack
-    => W.EraInfo Bound
+    :: W.EraInfo Bound
     -> Maybe Cardano.ProtocolParameters
     -> Allegra.PParams StandardAllegra
     -> W.ProtocolParameters
@@ -837,8 +832,6 @@ fromAllegraPParams eraInfo currentNodeProtocolParameters pp =
             desiredNumberOfStakePoolsFromPParams pp
         , minimumUTxO =
             minimumUTxOForShelleyBasedEra ShelleyBasedEraAllegra pp
-        , minimumUTxOvalue =
-            MinimumUTxOValue . toWalletCoin $ SLAPI._minUTxOValue pp
         , stakeKeyDeposit = stakeKeyDepositFromPParams pp
         , eras = fromBoundToEpochNo <$> eraInfo
         -- Collateral inputs were not supported or required in Allegra:
@@ -849,8 +842,7 @@ fromAllegraPParams eraInfo currentNodeProtocolParameters pp =
         }
 
 fromMaryPParams
-    :: HasCallStack
-    => W.EraInfo Bound
+    :: W.EraInfo Bound
     -> Maybe Cardano.ProtocolParameters
     -> Mary.PParams StandardMary
     -> W.ProtocolParameters
@@ -865,8 +857,6 @@ fromMaryPParams eraInfo currentNodeProtocolParameters pp =
             desiredNumberOfStakePoolsFromPParams pp
         , minimumUTxO =
             minimumUTxOForShelleyBasedEra ShelleyBasedEraMary pp
-        , minimumUTxOvalue =
-            MinimumUTxOValue . toWalletCoin $ SLAPI._minUTxOValue pp
         , stakeKeyDeposit = stakeKeyDepositFromPParams pp
         , eras = fromBoundToEpochNo <$> eraInfo
         -- Collateral inputs were not supported or required in Mary:
@@ -898,8 +888,6 @@ fromAlonzoPParams eraInfo currentNodeProtocolParameters pp =
             desiredNumberOfStakePoolsFromPParams pp
         , minimumUTxO =
             minimumUTxOForShelleyBasedEra ShelleyBasedEraAlonzo pp
-        , minimumUTxOvalue = MinimumUTxOValueCostPerWord
-            . toWalletCoin $ Alonzo._coinsPerUTxOWord pp
         , stakeKeyDeposit = stakeKeyDepositFromPParams pp
         , eras = fromBoundToEpochNo <$> eraInfo
         , maximumCollateralInputCount = unsafeIntToWord $
@@ -929,8 +917,6 @@ fromBabbagePParams eraInfo currentNodeProtocolParameters pp =
             desiredNumberOfStakePoolsFromPParams pp
         , minimumUTxO =
             minimumUTxOForShelleyBasedEra ShelleyBasedEraBabbage pp
-        , minimumUTxOvalue = MinimumUTxOValueCostPerWord
-            . fromByteToWord . toWalletCoin $ Babbage._coinsPerUTxOByte pp
         , stakeKeyDeposit = stakeKeyDepositFromPParams pp
         , eras = fromBoundToEpochNo <$> eraInfo
         , maximumCollateralInputCount = unsafeIntToWord $
@@ -941,8 +927,6 @@ fromBabbagePParams eraInfo currentNodeProtocolParameters pp =
             Just $ executionUnitPricesFromPParams pp
         , currentNodeProtocolParameters
         }
-  where
-    fromByteToWord (W.Coin v) = W.Coin $ 8 * v
 
 -- | Extract the current network decentralization level from the given set of
 -- protocol parameters.
