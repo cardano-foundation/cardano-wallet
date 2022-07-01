@@ -1797,12 +1797,9 @@ binaryCalculationsSpec' era = describe ("calculateBinary - "+||era||+"") $ do
 
 transactionConstraintsSpec :: Spec
 transactionConstraintsSpec = describe "Transaction constraints" $ do
-    spec_forAllEras "cost of empty transaction" $
-        prop_txConstraints_txBaseCost
-    spec_forAllEras "size of empty transaction" $
-        prop_txConstraints_txBaseSize
-    spec_forAllEras "cost of non-empty transaction" $
-        prop_txConstraints_txCost
+    spec_forAllEras "cost of empty transaction" prop_txConstraints_txBaseCost
+    spec_forAllEras "size of empty transaction" prop_txConstraints_txBaseSize
+    spec_forAllEras "cost of non-empty transaction" prop_txConstraints_txCost
     it "size of non-empty transaction" $
         property prop_txConstraints_txSize
     it "maximum size of output" $
