@@ -597,6 +597,7 @@ import qualified Cardano.Address.Script as CA
 import qualified Cardano.Api as Cardano
 import qualified Cardano.Api.Shelley as Cardano
 import qualified Cardano.Crypto.Wallet as CC
+import qualified Cardano.Wallet.Checkpoints.Policy as CP
 import qualified Cardano.Wallet.CoinSelection as CS
 import qualified Cardano.Wallet.Primitive.AddressDiscovery.Random as Rnd
 import qualified Cardano.Wallet.Primitive.AddressDiscovery.Sequential as Seq
@@ -969,7 +970,8 @@ restoreWallet
     -> WalletId
     -> ExceptT ErrNoSuchWallet IO ()
 restoreWallet ctx wid = db & \DBLayer{..} ->
-    let readChainPoints = liftIO $ atomically $ listCheckpoints wid
+    let checkpointPolicy = CP.defaultPolicy
+        readChainPoints = liftIO $ atomically $ listCheckpoints wid
         rollBackward =
             throwInIO . rollbackBlocks @_ @s @k ctx wid . toSlot
         rollForward' = \blockdata tip -> throwInIO $
@@ -979,13 +981,15 @@ restoreWallet ctx wid = db & \DBLayer{..} ->
       catchFromIO $ case (maybeDiscover, lightSync nw) of
         (Just discover, Just sync) ->
             sync $ ChainFollower
-                { readChainPoints
+                { checkpointPolicy
+                , readChainPoints
                 , rollForward = rollForward' . either List (Summary discover)
                 , rollBackward
                 }
         (_,_) -> -- light-mode not available
             chainSync nw (contramap MsgChainFollow tr) $ ChainFollower
-                { readChainPoints
+                { checkpointPolicy
+                , readChainPoints
                 , rollForward = rollForward' . List
                 , rollBackward
                 }
