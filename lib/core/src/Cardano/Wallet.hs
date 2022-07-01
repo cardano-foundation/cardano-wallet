@@ -919,23 +919,27 @@ getWalletUtxoSnapshot
 getWalletUtxoSnapshot ctx wid = do
     (wallet, _, pending) <- withExceptT id (readWallet @ctx @s @k ctx wid)
     pp <- liftIO $ currentProtocolParameters nl
+    era <- liftIO $ currentNodeEra nl
     let bundles = availableUTxO @s pending wallet
             & unUTxO
             & F.toList
             & fmap (view #tokens)
-    pure $ pairBundleWithMinAdaQuantity pp <$> bundles
+    pure $ pairBundleWithMinAdaQuantity era pp <$> bundles
   where
     nl = ctx ^. networkLayer
     tl = ctx ^. transactionLayer @k
 
     pairBundleWithMinAdaQuantity
-        :: ProtocolParameters -> TokenBundle -> (TokenBundle, Coin)
-    pairBundleWithMinAdaQuantity pp bundle =
+        :: Cardano.AnyCardanoEra
+        -> ProtocolParameters
+        -> TokenBundle
+        -> (TokenBundle, Coin)
+    pairBundleWithMinAdaQuantity era pp bundle =
         (bundle, computeMinAdaQuantity $ view #tokens bundle)
       where
         computeMinAdaQuantity :: TokenMap -> Coin
         computeMinAdaQuantity =
-            view #txOutputMinimumAdaQuantity (constraints tl pp)
+            view #txOutputMinimumAdaQuantity (constraints tl era pp)
 
 -- | List the wallet's UTxO statistics.
 listUtxoStatistics
@@ -1208,16 +1212,17 @@ readNextWithdrawal
         , HasNetworkLayer IO ctx
         )
     => ctx
+    -> Cardano.AnyCardanoEra
     -> Coin
     -> IO Coin
-readNextWithdrawal ctx (Coin withdrawal) = do
+readNextWithdrawal ctx era (Coin withdrawal) = do
     pp <- currentProtocolParameters nl
 
     let costWith =
-            calcMinimumCost tl pp (mkTxCtx $ Coin withdrawal) emptySkeleton
+            calcMinimumCost tl era pp (mkTxCtx $ Coin withdrawal) emptySkeleton
 
     let costWithout =
-            calcMinimumCost tl pp (mkTxCtx $ Coin 0) emptySkeleton
+            calcMinimumCost tl era pp (mkTxCtx $ Coin 0) emptySkeleton
 
     let costOfWithdrawal =
             Coin.toInteger costWith - Coin.toInteger costWithout
@@ -1598,6 +1603,8 @@ balanceTransactionWithSelectionStrategy
     guardZeroAdaOutputs (extractOutputsFromTx $ toSealed partialTx)
     guardConflictingWithdrawalNetworks partialTx
 
+    let era = Cardano.anyCardanoEra $ Cardano.cardanoEra @era
+
     (balance0, minfee0) <- balanceAfterSettingMinFee partialTx
 
     (extraInputs, extraCollateral, extraOutputs) <- do
@@ -1652,6 +1659,7 @@ balanceTransactionWithSelectionStrategy
             (BuildableInAnyEra Cardano.cardanoEra ptx)
 
         let mSel = selectAssets'
+                era
                 (extractOutputsFromTx $ toSealed partialTx)
                 (UTxOSelection.fromIndexPair
                     (internalUtxoAvailable, externalSelectedUtxo))
@@ -1872,7 +1880,8 @@ balanceTransactionWithSelectionStrategy
     -- transaction. For this, and other reasons, the selection may include too
     -- much ada.
     selectAssets'
-        :: [TxOut]
+        :: Cardano.AnyCardanoEra
+        -> [TxOut]
         -> UTxOSelection WalletUTxO
         -- ^ Describes which utxos are pre-selected, and which can be used as
         -- inputs or collateral.
@@ -1880,7 +1889,7 @@ balanceTransactionWithSelectionStrategy
         -> Cardano.Lovelace -- Current minfee (before selecting assets)
         -> StdGenSeed
         -> Either (SelectionError WalletSelectionContext) Selection
-    selectAssets' outs utxoSelection balance fee0 seed =
+    selectAssets' era outs utxoSelection balance fee0 seed =
         let
             txPlutusScriptExecutionCost = maxScriptExecutionCost tl pp redeemers
             colReq =
@@ -1910,6 +1919,7 @@ balanceTransactionWithSelectionStrategy
                         }
                 in calcMinimumCost
                         tl
+                        era
                         pp
                         defaultTransactionCtx
                         boringSkeleton
@@ -1942,11 +1952,11 @@ balanceTransactionWithSelectionStrategy
                 , certificateDepositAmount =
                     view #stakeKeyDeposit pp
                 , computeMinimumAdaQuantity =
-                    view #txOutputMinimumAdaQuantity $ constraints tl pp
+                    view #txOutputMinimumAdaQuantity $ constraints tl era pp
                 , computeMinimumCost = \skeleton -> mconcat
                     [ feePadding
                     , fromCardanoLovelace fee0
-                    , calcMinimumCost tl pp
+                    , calcMinimumCost tl era pp
                         (defaultTransactionCtx
                             { txPlutusScriptExecutionCost =
                                 txPlutusScriptExecutionCost })
@@ -2137,12 +2147,13 @@ calcMinimumCoinValues
         , Applicative f
         )
     => ctx
+    -> Cardano.AnyCardanoEra
     -> f TxOut
     -> IO (f Coin)
-calcMinimumCoinValues ctx outs = do
+calcMinimumCoinValues ctx era outs = do
     pp <- currentProtocolParameters nl
     pure
-        $ view #txOutputMinimumAdaQuantity (constraints tl pp)
+        $ view #txOutputMinimumAdaQuantity (constraints tl era pp)
         . view (#tokens . #tokens) <$> outs
   where
     nl = ctx ^. networkLayer
@@ -2189,11 +2200,12 @@ selectAssets
         , MonadRandom m
         )
     => ctx
+    -> Cardano.AnyCardanoEra
     -> ProtocolParameters
     -> SelectAssetsParams s result
     -> (s -> Selection -> result)
     -> ExceptT ErrSelectAssets m result
-selectAssets ctx pp params transform = do
+selectAssets ctx era pp params transform = do
     guardPendingWithdrawal
     lift $ traceWith tr $ MsgSelectionStart
         (UTxOSelection.availableSize
@@ -2207,12 +2219,12 @@ selectAssets ctx pp params transform = do
             , certificateDepositAmount =
                 view #stakeKeyDeposit pp
             , computeMinimumAdaQuantity =
-                view #txOutputMinimumAdaQuantity $ constraints tl pp
+                view #txOutputMinimumAdaQuantity $ constraints tl era pp
             , computeMinimumCost =
-                calcMinimumCost tl pp $ params ^. #txContext
+                calcMinimumCost tl era pp $ params ^. #txContext
             , computeSelectionLimit =
                 Cardano.Wallet.Transaction.computeSelectionLimit
-                    tl pp $ params ^. #txContext
+                    tl era pp $ params ^. #txContext
             , maximumCollateralInputCount =
                 intCast @Word16 @Int $ view #maximumCollateralInputCount pp
             , minimumCollateralPercentage =
@@ -2342,6 +2354,7 @@ buildAndSignTransaction
         )
     => ctx
     -> WalletId
+    -> Cardano.AnyCardanoEra
     -> ( (k 'RootK XPrv, Passphrase "encryption") ->
          (         XPrv, Passphrase "encryption")
        )
@@ -2350,8 +2363,7 @@ buildAndSignTransaction
     -> TransactionCtx
     -> SelectionOf TxOut
     -> ExceptT ErrSignPayment IO (Tx, TxMeta, UTCTime, SealedTx)
-buildAndSignTransaction ctx wid mkRwdAcct pwd txCtx sel = db & \DBLayer{..} -> do
-    era <- liftIO $ currentNodeEra nl
+buildAndSignTransaction ctx wid era mkRwdAcct pwd txCtx sel = db & \DBLayer{..} -> do
     withRootKey @_ @s ctx wid pwd ErrSignPaymentWithRootKey $ \xprv scheme -> do
         let pwdP = preparePassphrase scheme pwd
         mapExceptT atomically $ do
@@ -2384,11 +2396,11 @@ constructTransaction
         )
     => ctx
     -> WalletId
+    -> Cardano.AnyCardanoEra
     -> TransactionCtx
     -> SelectionOf TxOut
     -> ExceptT ErrConstructTx IO SealedTx
-constructTransaction ctx wid txCtx sel = db & \DBLayer{..} -> do
-    era <- liftIO $ currentNodeEra nl
+constructTransaction ctx wid era txCtx sel = db & \DBLayer{..} -> do
     (_, xpub, _) <- withExceptT ErrConstructTxReadRewardAccount $
         readRewardAccount @ctx @s @k @n ctx wid
     mapExceptT atomically $ do
@@ -2785,14 +2797,15 @@ createMigrationPlan
         , HasTransactionLayer k ctx
         )
     => ctx
+    -> Cardano.AnyCardanoEra
     -> WalletId
     -> Withdrawal
     -> ExceptT ErrCreateMigrationPlan IO MigrationPlan
-createMigrationPlan ctx wid rewardWithdrawal = do
+createMigrationPlan ctx era wid rewardWithdrawal = do
     (wallet, _, pending) <- withExceptT ErrCreateMigrationPlanNoSuchWallet $
         readWallet @ctx @s @k ctx wid
     pp <- liftIO $ currentProtocolParameters nl
-    let txConstraints = constraints tl pp
+    let txConstraints = constraints tl era pp
     let utxo = availableUTxO @s pending wallet
     pure
         $ Migration.createPlan txConstraints utxo

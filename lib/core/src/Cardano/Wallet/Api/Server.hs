@@ -1678,6 +1678,10 @@ selectCoins
     -> Handler (ApiCoinSelection n)
 selectCoins ctx genChange (ApiT wid) body = do
     let md = body ^? #metadata . traverse . #getApiT
+
+    -- FIXME [ADP-1489] mkRewardAccountBuilder does itself read
+    -- @currentNodeEra@ which is not guaranteed with the era read here. This
+    -- could cause problems under exceptional circumstances.
     (wdrl, _) <-
         mkRewardAccountBuilder @_ @s @_ @n ctx wid (body ^. #withdrawal)
 
@@ -1693,6 +1697,7 @@ selectCoins ctx genChange (ApiT wid) body = do
         (utxoAvailable, wallet, pendingTxs) <-
             liftHandler $ W.readWalletUTxOIndex @_ @s @k wrk wid
         pp <- liftIO $ NW.currentProtocolParameters (wrk ^. networkLayer)
+        era <- liftIO $ NW.currentNodeEra (wrk ^. networkLayer)
         let selectAssetsParams = W.SelectAssetsParams
                 { outputs = F.toList outs
                 , pendingTxs
@@ -1704,7 +1709,7 @@ selectCoins ctx genChange (ApiT wid) body = do
                 , selectionStrategy = SelectionStrategyOptimal
                 }
         utx <- liftHandler $
-            W.selectAssets @_ @_ @s @k wrk pp selectAssetsParams transform
+            W.selectAssets @_ @_ @s @k wrk era pp selectAssetsParams transform
         pure $ mkApiCoinSelection [] [] Nothing md utx
 
 selectCoinsForJoin
@@ -1744,6 +1749,7 @@ selectCoinsForJoin ctx knownPools getPoolStatus pid wid = do
         (utxoAvailable, wallet, pendingTxs) <-
             liftHandler $ W.readWalletUTxOIndex @_ @s @k wrk wid
         pp <- liftIO $ NW.currentProtocolParameters (wrk ^. networkLayer)
+        era <- liftIO $ NW.currentNodeEra (wrk ^. networkLayer)
 
         let selectAssetsParams = W.SelectAssetsParams
                 { outputs = []
@@ -1756,7 +1762,7 @@ selectCoinsForJoin ctx knownPools getPoolStatus pid wid = do
                 , selectionStrategy = SelectionStrategyOptimal
                 }
         utx <- liftHandler
-            $ W.selectAssets @_ @_ @s @k wrk pp selectAssetsParams transform
+            $ W.selectAssets @_ @_ @s @k wrk era pp selectAssetsParams transform
         (_, _, path) <- liftHandler
             $ W.readRewardAccount @_ @s @k @n wrk wid
 
@@ -1781,6 +1787,9 @@ selectCoinsForQuit
     -> Handler (Api.ApiCoinSelection n)
 selectCoinsForQuit ctx (ApiT wid) = do
     withWorkerCtx ctx wid liftE liftE $ \wrk -> do
+        -- FIXME [ADP-1489] mkRewardAccountBuilder does itself read
+        -- @currentNodeEra@ which is not guaranteed with the era read here. This
+        -- could cause problems under exceptional circumstances.
         (wdrl, _mkRwdAcct) <-
             mkRewardAccountBuilder @_ @s @_ @n ctx wid (Just SelfWithdrawal)
         action <- liftHandler $ W.quitStakePool @_ @s @k wrk wid wdrl
@@ -1796,6 +1805,7 @@ selectCoinsForQuit ctx (ApiT wid) = do
         (utxoAvailable, wallet, pendingTxs) <-
             liftHandler $ W.readWalletUTxOIndex @_ @s @k wrk wid
         pp <- liftIO $ NW.currentProtocolParameters (wrk ^. networkLayer)
+        era <- liftIO $ NW.currentNodeEra (wrk ^. networkLayer)
         let refund = W.stakeKeyDeposit pp
         let selectAssetsParams = W.SelectAssetsParams
                 { outputs = []
@@ -1808,7 +1818,7 @@ selectCoinsForQuit ctx (ApiT wid) = do
                 , selectionStrategy = SelectionStrategyOptimal
                 }
         utx <- liftHandler
-            $ W.selectAssets @_ @_ @s @k wrk pp selectAssetsParams transform
+            $ W.selectAssets @_ @_ @s @k wrk era pp selectAssetsParams transform
         (_, _, path) <- liftHandler $ W.readRewardAccount @_ @s @k @n wrk wid
 
         pure $ mkApiCoinSelection [] [refund] (Just (action, path)) Nothing utx
@@ -2043,6 +2053,9 @@ postTransactionOld ctx genChange (ApiT wid) body = do
     let md = body ^? #metadata . traverse . #txMetadataWithSchema_metadata
     let mTTL = body ^? #timeToLive . traverse . #getQuantity
 
+    -- FIXME [ADP-1489] mkRewardAccountBuilder does itself read
+    -- @currentNodeEra@ which is not guaranteed with the era read here. This
+    -- could cause problems under exceptional circumstances.
     (wdrl, mkRwdAcct) <-
         mkRewardAccountBuilder @_ @s @_ @n ctx wid (body ^. #withdrawal)
 
@@ -2058,6 +2071,7 @@ postTransactionOld ctx genChange (ApiT wid) body = do
             (utxoAvailable, wallet, pendingTxs) <-
                 liftHandler $ W.readWalletUTxOIndex @_ @s @k wrk wid
             pp <- liftIO $ NW.currentProtocolParameters (wrk ^. networkLayer)
+            era <- liftIO $ NW.currentNodeEra (wrk ^. networkLayer)
             let selectAssetsParams = W.SelectAssetsParams
                     { outputs = F.toList outs
                     , pendingTxs
@@ -2071,13 +2085,13 @@ postTransactionOld ctx genChange (ApiT wid) body = do
                     , selectionStrategy = SelectionStrategyOptimal
                     }
             sel <- liftHandler
-                $ W.selectAssets @_ @_ @s @k wrk pp selectAssetsParams
+                $ W.selectAssets @_ @_ @s @k wrk era pp selectAssetsParams
                 $ const Prelude.id
             sel' <- liftHandler
                 $ W.assignChangeAddressesAndUpdateDb wrk wid genChange sel
             (tx, txMeta, txTime, sealedTx) <- liftHandler
                 $ W.buildAndSignTransaction
-                    @_ @s @k wrk wid mkRwdAcct pwd txCtx sel'
+                    @_ @s @k wrk wid era mkRwdAcct pwd txCtx sel'
             liftHandler
                 $ W.submitTx @_ @s @k wrk wid (tx, txMeta, sealedTx)
             pure (sel, tx, txMeta, txTime, pp)
@@ -2220,6 +2234,10 @@ postTransactionFeeOld
     -> PostTransactionFeeOldData n
     -> Handler ApiFee
 postTransactionFeeOld ctx (ApiT wid) body = do
+
+    -- FIXME [ADP-1489] mkRewardAccountBuilder does itself read
+    -- @currentNodeEra@ which is not guaranteed with the era read here. This
+    -- could cause problems under exceptional circumstances.
     (wdrl, _) <- mkRewardAccountBuilder @_ @s @_ @n ctx wid (body ^. #withdrawal)
     let txCtx = defaultTransactionCtx
             { txWithdrawal = wdrl
@@ -2233,6 +2251,7 @@ postTransactionFeeOld ctx (ApiT wid) body = do
             liftHandler $ W.readWalletUTxOIndex @_ @s @k wrk wid
         let outs = addressAmountToTxOut <$> body ^. #payments
         pp <- liftIO $ NW.currentProtocolParameters (wrk ^. networkLayer)
+        era <- liftIO $ NW.currentNodeEra (wrk ^. networkLayer)
         let getFee = const (selectionDelta TokenBundle.getCoin)
         let selectAssetsParams = W.SelectAssetsParams
                 { outputs = F.toList outs
@@ -2245,8 +2264,8 @@ postTransactionFeeOld ctx (ApiT wid) body = do
                 , selectionStrategy = SelectionStrategyOptimal
                 }
         let runSelection =
-                W.selectAssets @_ @_ @s @k wrk pp selectAssetsParams getFee
-        minCoins <- liftIO (W.calcMinimumCoinValues @_ @k wrk (F.toList outs))
+                W.selectAssets @_ @_ @s @k wrk era pp selectAssetsParams getFee
+        minCoins <- liftIO (W.calcMinimumCoinValues @_ @k wrk era (F.toList outs))
         liftHandler $ mkApiFee Nothing minCoins <$> W.estimateFee runSelection
 
 constructTransaction
@@ -2390,11 +2409,16 @@ constructTransaction ctx genChange knownPools getPoolStatus (ApiT wid) body = do
         $ liftHandler
         $ throwE ErrConstructTxValidityIntervalNotWithinScriptTimelock
 
+
+    -- FIXME [ADP-1489] mkRewardAccountBuilder does itself read
+    -- @currentNodeEra@ which is not guaranteed with the era read here. This
+    -- could cause problems under exceptional circumstances.
     (wdrl, _) <-
         mkRewardAccountBuilder @_ @s @_ @n ctx wid (body ^. #withdrawal)
 
     withWorkerCtx ctx wid liftE liftE $ \wrk -> do
         pp <- liftIO $ NW.currentProtocolParameters (wrk ^. networkLayer)
+        era <- liftIO $ NW.currentNodeEra (wrk ^. networkLayer)
         (deposit, refund, txCtx) <- case body ^. #delegations of
             Nothing -> pure (Nothing, Nothing, defaultTransactionCtx
                  { txWithdrawal = wdrl
@@ -2490,7 +2514,7 @@ constructTransaction ctx genChange knownPools getPoolStatus (ApiT wid) body = do
                 pure (txCtx, Nothing)
 
         let runSelection outs =
-                W.selectAssets @_ @_ @s @k wrk pp selectAssetsParams transform
+                W.selectAssets @_ @_ @s @k wrk era pp selectAssetsParams transform
               where
                 selectAssetsParams = W.SelectAssetsParams
                     { outputs = outs
@@ -2534,7 +2558,7 @@ constructTransaction ctx genChange knownPools getPoolStatus (ApiT wid) body = do
             pure (sel, sel', estMin)
 
         tx <- liftHandler
-            $ W.constructTransaction @_ @s @k @n wrk wid txCtx' sel
+            $ W.constructTransaction @_ @s @k @n wrk wid era txCtx' sel
 
         pure $ ApiConstructTransaction
             { transaction = ApiT tx
@@ -2974,6 +2998,9 @@ joinStakePool ctx knownPools getPoolStatus apiPoolId (ApiT wid) body = do
         (action, _) <- liftHandler
             $ W.joinStakePool @_ @s @k wrk curEpoch pools pid poolStatus wid
 
+        -- FIXME [ADP-1489] mkRewardAccountBuilder does itself read
+        -- @currentNodeEra@ which is not guaranteed with the era read here. This
+        -- could cause problems under exceptional circumstances.
         (wdrl, mkRwdAcct) <- mkRewardAccountBuilder @_ @s @_ @n ctx wid Nothing
         ttl <- liftIO $ W.getTxExpiry ti Nothing
         let txCtx = defaultTransactionCtx
@@ -2983,7 +3010,10 @@ joinStakePool ctx knownPools getPoolStatus apiPoolId (ApiT wid) body = do
                 }
         (utxoAvailable, wallet, pendingTxs) <-
             liftHandler $ W.readWalletUTxOIndex @_ @s @k wrk wid
+        -- FIXME [ADP-1489] pp and era are not guaranteed to be consistent,
+        -- which could cause problems under exceptional circumstances.
         pp <- liftIO $ NW.currentProtocolParameters (wrk ^. networkLayer)
+        era <- liftIO $ NW.currentNodeEra (wrk ^. networkLayer)
         let selectAssetsParams = W.SelectAssetsParams
                 { outputs = []
                 , pendingTxs
@@ -2995,12 +3025,13 @@ joinStakePool ctx knownPools getPoolStatus apiPoolId (ApiT wid) body = do
                 , selectionStrategy = SelectionStrategyOptimal
                 }
         sel <- liftHandler
-            $ W.selectAssets @_ @_ @s @k wrk pp selectAssetsParams
+            $ W.selectAssets @_ @_ @s @k wrk era pp selectAssetsParams
             $ const Prelude.id
         sel' <- liftHandler
             $ W.assignChangeAddressesAndUpdateDb wrk wid genChange sel
         (tx, txMeta, txTime, sealedTx) <- liftHandler
-            $ W.buildAndSignTransaction @_ @s @k wrk wid mkRwdAcct pwd txCtx sel'
+            $ W.buildAndSignTransaction @_ @s @k
+                wrk wid era mkRwdAcct pwd txCtx sel'
         liftHandler
             $ W.submitTx @_ @s @k wrk wid (tx, txMeta, sealedTx)
 
@@ -3044,15 +3075,16 @@ delegationFee ctx (ApiT wid) = do
         w <- withExceptT ErrSelectAssetsNoSuchWallet $
             W.readWalletUTxOIndex @_ @s @k wrk wid
         pp <- liftIO $ NW.currentProtocolParameters (wrk ^. networkLayer)
+        era <- liftIO $ NW.currentNodeEra (wrk ^. networkLayer)
         deposit <- W.calcMinimumDeposit @_ @s @k wrk wid
         mkApiFee (Just deposit) [] <$>
-            W.estimateFee (runSelection wrk pp deposit w)
+            W.estimateFee (runSelection wrk era pp deposit w)
   where
     txCtx :: TransactionCtx
     txCtx = defaultTransactionCtx
 
-    runSelection wrk pp _deposit (utxoAvailable, wallet, pendingTxs) =
-        W.selectAssets @_ @_ @s @k wrk pp selectAssetsParams calcFee
+    runSelection wrk era pp _deposit (utxoAvailable, wallet, pendingTxs) =
+        W.selectAssets @_ @_ @s @k wrk era pp selectAssetsParams calcFee
       where
         calcFee _ = selectionDelta TokenBundle.getCoin
         selectAssetsParams = W.SelectAssetsParams
@@ -3089,6 +3121,9 @@ quitStakePool ctx (ApiT wid) body = do
     let pwd = coerce $ getApiT $ body ^. #passphrase
 
     (sel, tx, txMeta, txTime, pp) <- withWorkerCtx ctx wid liftE liftE $ \wrk -> do
+        -- FIXME [ADP-1489] mkRewardAccountBuilder does itself read
+        -- @currentNodeEra@ which is not guaranteed with the era read here. This
+        -- could cause problems under exceptional circumstances.
         (wdrl, mkRwdAcct) <-
             mkRewardAccountBuilder @_ @s @_ @n ctx wid (Just SelfWithdrawal)
         action <- liftHandler $ W.quitStakePool wrk wid wdrl
@@ -3102,6 +3137,7 @@ quitStakePool ctx (ApiT wid) body = do
         (utxoAvailable, wallet, pendingTxs) <-
             liftHandler $ W.readWalletUTxOIndex @_ @s @k wrk wid
         pp <- liftIO $ NW.currentProtocolParameters (wrk ^. networkLayer)
+        era <- liftIO $ NW.currentNodeEra (wrk ^. networkLayer)
         let selectAssetsParams = W.SelectAssetsParams
                 { outputs = []
                 , pendingTxs
@@ -3113,12 +3149,13 @@ quitStakePool ctx (ApiT wid) body = do
                 , selectionStrategy = SelectionStrategyOptimal
                 }
         sel <- liftHandler
-            $ W.selectAssets @_ @_ @s @k wrk pp selectAssetsParams
+            $ W.selectAssets @_ @_ @s @k wrk era pp selectAssetsParams
             $ const Prelude.id
         sel' <- liftHandler
             $ W.assignChangeAddressesAndUpdateDb wrk wid genChange sel
         (tx, txMeta, txTime, sealedTx) <- liftHandler
-            $ W.buildAndSignTransaction @_ @s @k wrk wid mkRwdAcct pwd txCtx sel'
+            $ W.buildAndSignTransaction @_ @s @k
+                wrk wid era mkRwdAcct pwd txCtx sel'
         liftHandler
             $ W.submitTx @_ @s @k wrk wid (tx, txMeta, sealedTx)
 
@@ -3270,12 +3307,16 @@ createMigrationPlan
         -- ^ Target addresses
     -> Handler (ApiWalletMigrationPlan n)
 createMigrationPlan ctx withdrawalType (ApiT wid) postData = do
+    -- FIXME [ADP-1489] mkRewardAccountBuilder does itself read
+    -- @currentNodeEra@ which is not guaranteed with the era read here. This
+    -- could cause problems under exceptional circumstances.
     (rewardWithdrawal, _) <-
         mkRewardAccountBuilder @_ @s @_ @n ctx wid withdrawalType
     withWorkerCtx ctx wid liftE liftE $ \wrk -> liftHandler $ do
+        era <- liftIO $ NW.currentNodeEra (wrk ^. networkLayer)
         (wallet, _, _) <- withExceptT ErrCreateMigrationPlanNoSuchWallet $
             W.readWallet wrk wid
-        plan <- W.createMigrationPlan wrk wid rewardWithdrawal
+        plan <- W.createMigrationPlan wrk era wid rewardWithdrawal
         failWith ErrCreateMigrationPlanEmpty $ mkApiWalletMigrationPlan
             (getState wallet)
             (view #addresses postData)
@@ -3360,10 +3401,14 @@ migrateWallet
     -> ApiWalletMigrationPostData n p
     -> Handler (NonEmpty (ApiTransaction n))
 migrateWallet ctx withdrawalType (ApiT wid) postData = do
+    -- FIXME [ADP-1489] mkRewardAccountBuilder does itself read
+    -- @currentNodeEra@ which is not guaranteed with the era read here. This
+    -- could cause problems under exceptional circumstances.
     (rewardWithdrawal, mkRewardAccount) <-
         mkRewardAccountBuilder @_ @s @_ @n ctx wid withdrawalType
     withWorkerCtx ctx wid liftE liftE $ \wrk -> do
-        plan <- liftHandler $ W.createMigrationPlan wrk wid rewardWithdrawal
+        era <- liftIO $ NW.currentNodeEra (wrk ^. networkLayer)
+        plan <- liftHandler $ W.createMigrationPlan wrk era wid rewardWithdrawal
         ttl <- liftIO $ W.getTxExpiry ti Nothing
         pp <- liftIO $ NW.currentProtocolParameters (wrk ^. networkLayer)
         selectionWithdrawals <- liftHandler
@@ -3377,7 +3422,12 @@ migrateWallet ctx withdrawalType (ApiT wid) postData = do
                     , txDelegationAction = Nothing
                     }
             (tx, txMeta, txTime, sealedTx) <- liftHandler $
-                W.buildAndSignTransaction @_ @s @k wrk wid mkRewardAccount pwd
+                W.buildAndSignTransaction @_ @s @k
+                    wrk
+                    wid
+                    era
+                    mkRewardAccount
+                    pwd
                     txContext (selection {change = []})
             liftHandler $
                 W.submitTx @_ @s @k wrk wid (tx, txMeta, sealedTx)
@@ -3484,8 +3534,9 @@ getNetworkParameters
 getNetworkParameters (_block0, genesisNp, _st) nl tl = do
     pp <- liftIO $ NW.currentProtocolParameters nl
     sp <- liftIO $ NW.currentSlottingParameters nl
+    era <- liftIO $ NW.currentNodeEra nl
     let np = genesisNp { protocolParameters = pp, slottingParameters = sp }
-    let txConstraints = constraints tl pp
+    let txConstraints = constraints tl era pp
     liftIO $ toApiNetworkParameters np txConstraints (interpretQuery ti . toApiEpochInfo)
   where
     ti :: TimeInterpreter IO
@@ -3713,6 +3764,7 @@ mkRewardAccountBuilder ctx wid withdrawal = do
             (getRawKey $ deriveRewardAccount @k pwdP rootK, pwdP)
 
     withWorkerCtx ctx wid liftE liftE $ \wrk -> do
+        era <- liftIO $ NW.currentNodeEra (wrk ^. networkLayer)
         case (testEquality (typeRep @s) (typeRep @shelley), withdrawal) of
             (Nothing, Just{}) ->
                 liftHandler $ throwE ErrReadRewardAccountNotAShelleyWallet
@@ -3724,12 +3776,12 @@ mkRewardAccountBuilder ctx wid withdrawal = do
                 (acct, _, path) <- liftHandler $ W.readRewardAccount @_ @s @k @n wrk wid
                 wdrl <- liftHandler $ W.queryRewardBalance @_ wrk acct
                 (, selfRewardCredentials) . WithdrawalSelf acct path
-                    <$> liftIO (W.readNextWithdrawal @_ @k wrk wdrl)
+                    <$> liftIO (W.readNextWithdrawal @_ @k wrk era wdrl)
 
             (Just Refl, Just (ExternalWithdrawal (ApiMnemonicT mw))) -> do
                 let (xprv, acct, path) = W.someRewardAccount @ShelleyKey mw
                 wdrl <- liftHandler (W.queryRewardBalance @_ wrk acct)
-                    >>= liftIO . W.readNextWithdrawal @_ @k wrk
+                    >>= liftIO . W.readNextWithdrawal @_ @k wrk era
                 when (wdrl == Coin 0) $ do
                     liftHandler $ throwE ErrWithdrawalNotWorth
                 pure (WithdrawalExternal acct path wdrl, const (xprv, mempty))

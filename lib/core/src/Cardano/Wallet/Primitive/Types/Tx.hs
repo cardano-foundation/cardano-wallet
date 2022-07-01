@@ -56,6 +56,7 @@ module Cardano.Wallet.Primitive.Types.Tx
 
     -- ** Unit testing helpers
     , mockSealedTx
+    , withinEra
 
     -- * Functions
     , fromTransactionInfo

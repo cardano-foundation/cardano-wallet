@@ -520,6 +520,7 @@ benchmarksRnd _ w wid wname benchname restoreTime = do
         (utxoAvailable, wallet, pendingTxs) <-
             unsafeRunExceptT $ W.readWalletUTxOIndex @_ @s @k w wid
         pp <- liftIO $ currentProtocolParameters (w ^. networkLayer)
+        era <- liftIO $ currentNodeEra (w ^. networkLayer)
         let selectAssetsParams = W.SelectAssetsParams
                 { outputs = [out]
                 , pendingTxs
@@ -531,7 +532,7 @@ benchmarksRnd _ w wid wname benchname restoreTime = do
                 , selectionStrategy = SelectionStrategyOptimal
                 }
         let runSelection =
-                W.selectAssets @_ @_ @s @k w pp selectAssetsParams getFee
+                W.selectAssets @_ @_ @s @k w era pp selectAssetsParams getFee
         runExceptT $ withExceptT show $ W.estimateFee runSelection
 
     oneAddress <- genAddresses 1 cp
@@ -623,6 +624,7 @@ benchmarksSeq _ w wid _wname benchname restoreTime = do
         (utxoAvailable, wallet, pendingTxs) <-
             unsafeRunExceptT $ W.readWalletUTxOIndex w wid
         pp <- liftIO $ currentProtocolParameters (w ^. networkLayer)
+        era <- liftIO $ currentNodeEra (w ^. networkLayer)
         let selectAssetsParams = W.SelectAssetsParams
                 { outputs = [out]
                 , pendingTxs
@@ -634,7 +636,7 @@ benchmarksSeq _ w wid _wname benchname restoreTime = do
                 , selectionStrategy = SelectionStrategyOptimal
                 }
         let runSelection =
-                W.selectAssets @_ @_ @s @k w pp selectAssetsParams getFee
+                W.selectAssets @_ @_ @s @k w era pp selectAssetsParams getFee
         runExceptT $ withExceptT show $ W.estimateFee runSelection
 
     let walletOverview = WalletOverview{utxo,addresses,transactions}

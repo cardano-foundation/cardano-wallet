@@ -210,7 +210,9 @@ data TransactionLayer k tx = TransactionLayer
         -- The function returns CBOR-ed transaction body to be signed in another step.
 
     , calcMinimumCost
-        :: ProtocolParameters
+        :: AnyCardanoEra
+            -- Era for which the transaction should be created.
+        -> ProtocolParameters
             -- Current protocol parameters
         -> TransactionCtx
             -- Additional information about the transaction
@@ -309,7 +311,8 @@ data TransactionLayer k tx = TransactionLayer
         -- return 'Right'.
 
     , computeSelectionLimit
-        :: ProtocolParameters
+        :: AnyCardanoEra
+        -> ProtocolParameters
         -> TransactionCtx
         -> [TxOut]
         -> SelectionLimit
@@ -319,7 +322,9 @@ data TransactionLayer k tx = TransactionLayer
         -- ^ A function to assess the size of a token bundle.
 
     , constraints
-        :: ProtocolParameters
+        :: AnyCardanoEra
+        -- Era for which the transaction should be created.
+        -> ProtocolParameters
         -- Current protocol parameters.
         -> TxConstraints
         -- The set of constraints that apply to all transactions.
