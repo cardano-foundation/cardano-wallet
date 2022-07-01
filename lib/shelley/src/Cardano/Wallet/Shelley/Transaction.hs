@@ -151,6 +151,7 @@ import Cardano.Wallet.Primitive.Types.Tx
     , txOutAddCoin
     , txOutCoin
     , txSizeDistance
+    , withinEra
     )
 import Cardano.Wallet.Primitive.Types.UTxO
     ( UTxO (..) )
@@ -2005,23 +2006,15 @@ estimateTxSize era skeleton =
         + sumVia sizeOf_NativeAsset (TokenBundle.getAssets tokens)
 
     sizeOf_Output
-        = case era of
-          (AnyCardanoEra ByronEra)   -> sizeOf_LegacyTransactionOutput
-          (AnyCardanoEra ShelleyEra) -> sizeOf_LegacyTransactionOutput
-          (AnyCardanoEra AllegraEra) -> sizeOf_LegacyTransactionOutput
-          (AnyCardanoEra MaryEra)    -> sizeOf_LegacyTransactionOutput
-          (AnyCardanoEra AlonzoEra)  -> sizeOf_LegacyTransactionOutput
-          (AnyCardanoEra BabbageEra) -> sizeOf_PostAlonzoTransactionOutput
+        = if withinEra (AnyCardanoEra AlonzoEra) era
+          then sizeOf_LegacyTransactionOutput
+          else sizeOf_PostAlonzoTransactionOutput
 
     sizeOf_ChangeOutput :: Set AssetId -> Integer
     sizeOf_ChangeOutput
-        = case era of
-          (AnyCardanoEra ByronEra)   -> sizeOf_LegacyChangeOutput
-          (AnyCardanoEra ShelleyEra) -> sizeOf_LegacyChangeOutput
-          (AnyCardanoEra AllegraEra) -> sizeOf_LegacyChangeOutput
-          (AnyCardanoEra MaryEra)    -> sizeOf_LegacyChangeOutput
-          (AnyCardanoEra AlonzoEra)  -> sizeOf_LegacyChangeOutput
-          (AnyCardanoEra BabbageEra) -> sizeOf_PostAlonzoChangeOutput
+        = if withinEra (AnyCardanoEra AlonzoEra) era
+          then sizeOf_LegacyChangeOutput
+          else sizeOf_PostAlonzoChangeOutput
 
     -- transaction_output =
     --   [address, amount : value]
