@@ -16,6 +16,7 @@ module Cardano.Wallet.Checkpoints.Policy
     , atTip
     , trailingArithmetic
     , sparseArithmetic
+    , defaultPolicy
     , gapSize
 
     -- * Internal invariants
@@ -180,6 +181,10 @@ sparseArithmetic epochStability =
   where
     largeGap = gapSize epochStability
     n = epochStability `div` largeGap
+
+-- | A sensible default checkpoint policy; currently 'sparseArithmetic'.
+defaultPolicy :: BlockHeight -> CheckpointPolicy
+defaultPolicy = sparseArithmetic
 
 {- | A reasonable gap size used internally in 'sparseArithmeticPolicy'.
 

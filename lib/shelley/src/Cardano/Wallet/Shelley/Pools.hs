@@ -231,6 +231,7 @@ import qualified Blockfrost.Client as BF
 import qualified Cardano.Pool.DB as PoolDb
 import qualified Cardano.Pool.DB.Sqlite as Pool
 import qualified Cardano.Wallet.Api.Types as Api
+import qualified Cardano.Wallet.Checkpoints.Policy as CP
 import qualified Cardano.Wallet.Shelley.Network.Blockfrost.Monad as BFM
 import qualified Data.List as L
 import qualified Data.List.NonEmpty as NE
@@ -728,7 +729,8 @@ monitorStakePools tr (NetworkParameters gp sp _pp) nl DBLayer{..} =
             toChainPoint (BlockHeader sl _ h _) = ChainPoint sl h
 
         chainSync nl (contramap MsgChainMonitoring tr) $ ChainFollower
-            { readChainPoints = map toChainPoint <$> initCursor
+            { checkpointPolicy = CP.defaultPolicy
+            , readChainPoints = map toChainPoint <$> initCursor
             , rollForward  = rollForward
             , rollBackward = rollback
             }

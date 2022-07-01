@@ -59,6 +59,7 @@ import Test.QuickCheck
     , (===)
     )
 
+import qualified Cardano.Wallet.Checkpoints.Policy as CP
 import qualified Data.ByteString.Char8 as B8
 import qualified Data.List as L
 import qualified Data.List.NonEmpty as NE
@@ -302,7 +303,10 @@ mkFollower
     -> ChainFollower m ChainPoint BlockHeader
         (LightBlocks m Block addr txs)
 mkFollower lift = ChainFollower
-    { readChainPoints = lift $ map chainPointFromBlockHeader . NE.toList <$> get
+    { checkpointPolicy = \epochStability ->
+        CP.atTip <> CP.atGenesis
+        <> CP.trailingArithmetic 2 (min 1 $ epochStability `div` 3)
+    , readChainPoints = lift $ map chainPointFromBlockHeader . NE.toList <$> get
     , rollForward = \blocks _tip -> lift $ modify $ \s -> case blocks of
         Left bs ->
             if latest s `isParentOf` NE.head bs

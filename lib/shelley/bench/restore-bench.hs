@@ -84,7 +84,7 @@ import Cardano.Wallet.Logging
     ( trMessageText )
 import Cardano.Wallet.Network
     ( ChainFollowLog (..)
-    , ChainFollower (ChainFollower, readChainPoints, rollBackward, rollForward)
+    , ChainFollower (..)
     , ChainSyncLog (..)
     , NetworkLayer (..)
     )
@@ -247,6 +247,7 @@ import UnliftIO.Temporary
     ( withSystemTempFile )
 
 import qualified Cardano.Wallet as W
+import qualified Cardano.Wallet.Checkpoints.Policy as CP
 import qualified Cardano.Wallet.DB.Layer as Sqlite
 import qualified Cardano.Wallet.Primitive.AddressDerivation.Byron as Byron
 import qualified Cardano.Wallet.Primitive.AddressDerivation.Shelley as Shelley
@@ -710,7 +711,8 @@ bench_baseline_restoration
         synchronizer <- async
             $ chainSync nw nullTracer
             $ ChainFollower
-            { readChainPoints  = readTVarIO chainPointT
+            { checkpointPolicy = const CP.atTip
+            , readChainPoints  = readTVarIO chainPointT
             , rollForward = \blocks ntip -> do
                 atomically $ writeTVar chainPointT
                     [chainPointFromBlockHeader ntip]

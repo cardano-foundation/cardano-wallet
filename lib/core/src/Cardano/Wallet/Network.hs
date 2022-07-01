@@ -43,6 +43,8 @@ import Cardano.BM.Data.Severity
     ( Severity (..) )
 import Cardano.BM.Data.Tracer
     ( HasPrivacyAnnotation (..), HasSeverityAnnotation (..) )
+import Cardano.Wallet.Checkpoints.Policy
+    ( CheckpointPolicy )
 import Cardano.Wallet.Primitive.BlockSummary
     ( LightSummary )
 import Cardano.Wallet.Primitive.Slotting
@@ -196,12 +198,23 @@ instance Functor m => Functor (NetworkLayer m) where
 
 -- | A collection of callbacks to use with the 'chainSync' function.
 data ChainFollower m point tip blocks = ChainFollower
-    { readChainPoints :: m [point]
+    { checkpointPolicy :: Integer -> CheckpointPolicy
+        -- ^ The policy for creating and pruning checkpoints that
+        -- is used by the 'ChainFollower'.
+        -- The argument of this field is the @epochStability@.
+        --
+        -- Exposing this policy here enables any chain synchronizer 
+        -- which does not retrieve full blocks, such as 'lightSync',
+        -- to specifically target those block heights at which
+        -- the 'ChainFollower' intends to create checkpoints.
+
+    , readChainPoints :: m [point]
         -- ^ Callback for reading the local tip. Used to negotiate the
         -- intersection with the node.
         --
         -- A response of [] is interpreted as `Origin` -- i.e. the chain will be
         -- served from genesis.
+
     , rollForward :: blocks -> tip -> m ()
         -- ^ Callback for rolling forward.
         --
@@ -254,7 +267,8 @@ mapChainFollower
     -> ChainFollower m point2 tip2 blocks2
 mapChainFollower fpoint12 fpoint21 ftip fblocks cf =
     ChainFollower
-        { readChainPoints = map fpoint12 <$> readChainPoints cf
+        { checkpointPolicy = checkpointPolicy cf
+        , readChainPoints = map fpoint12 <$> readChainPoints cf
         , rollForward = \bs tip -> rollForward cf (fblocks bs) (ftip tip)
         , rollBackward = fmap fpoint12 . rollBackward cf . fpoint21
         }

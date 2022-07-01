@@ -56,7 +56,7 @@ import Cardano.Wallet.Logging
     ( BracketLog, bracketTracer, produceTimings )
 import Cardano.Wallet.Network
     ( ChainFollowLog (..)
-    , ChainFollower (..)
+    , ChainFollower
     , ChainSyncLog (..)
     , ErrPostTx (..)
     , NetworkLayer (..)
