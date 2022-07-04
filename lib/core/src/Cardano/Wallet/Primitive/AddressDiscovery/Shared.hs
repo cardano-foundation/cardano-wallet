@@ -78,6 +78,7 @@ import Cardano.Wallet.Primitive.AddressDerivation
     , MkKeyFingerprint (..)
     , NetworkDiscriminant (..)
     , PersistPublicKey (..)
+    , Role (..)
     , SoftDerivation
     , WalletKey (..)
     , utxoExternal
@@ -99,13 +100,19 @@ import Cardano.Wallet.Primitive.AddressDiscovery
     , coinTypeAda
     )
 import Cardano.Wallet.Primitive.AddressDiscovery.Sequential
-    ( AddressPoolGap (..), unsafePaymentKeyFingerprint )
+    ( AddressPoolGap (..)
+    , PendingIxs (..)
+    , emptyPendingIxs
+    , unsafePaymentKeyFingerprint
+    )
 import Cardano.Wallet.Primitive.Passphrase
     ( Passphrase )
 import Cardano.Wallet.Primitive.Types.Address
     ( Address (..) )
 import Cardano.Wallet.Primitive.Types.RewardAccount
     ( RewardAccount )
+import Control.Applicative
+    ( (<|>) )
 import Control.Arrow
     ( first )
 import Control.DeepSeq
@@ -127,7 +134,7 @@ import Data.Text
 import Data.Text.Class
     ( FromText (..), TextDecodingError (..), ToText (..) )
 import Fmt
-    ( Buildable (..), indentF )
+    ( Buildable (..), blockListF', indentF )
 import GHC.Generics
     ( Generic )
 import Type.Reflection
@@ -153,23 +160,49 @@ type SupportsDiscovery (n :: NetworkDiscriminant) k =
 {-------------------------------------------------------------------------------
     Address Pool
 -------------------------------------------------------------------------------}
+data SharedAddressPools (key :: Depth -> Type -> Type) = SharedAddressPools
+    { externalPool :: !(SharedAddressPool 'UtxoExternal key)
+    , internalPool :: !(SharedAddressPool 'UtxoInternal key)
+    , pendingChangeIxs :: !PendingIxs
+    }
+    deriving stock (Generic, Show)
+
+instance NFData (SharedAddressPools key)
+
+instance Buildable (SharedAddressPools key) where
+    build (SharedAddressPools extPool intPool pending) = "\n"
+        <> indentF 6 ("External pool:" <> build extPool)
+        <> indentF 6 ("Internal pool:" <> build intPool)
+        <> indentF 6 ("Change indexes: " <> indentF 4 chgsF)
+      where
+        chgsF = blockListF' "-" build (pendingIxsToList pending)
+
 -- | An address pool which keeps track of shared addresses.
 -- To create a new pool, see 'newSharedAddressPool'.
-type SharedAddressPool (key :: Depth -> Type -> Type) =
-        AddressPool.Pool
-            (KeyFingerprint "payment" key)
-            (Index 'Soft 'ScriptK)
+newtype SharedAddressPool (c :: Role) (key :: Depth -> Type -> Type) =
+    SharedAddressPool {
+        getPool ::
+            AddressPool.Pool
+                (KeyFingerprint "payment" key)
+                (Index 'Soft 'ScriptK)
+    } deriving (Generic, Show)
+
+instance NFData (SharedAddressPool c k)
+
+instance Buildable (SharedAddressPool c k) where
+    build (SharedAddressPool pool) = build pool
 
 -- | Create a new shared address pool from complete script templates.
 newSharedAddressPool
-    :: forall (n :: NetworkDiscriminant) key.
-        ( key ~ SharedKey, SupportsDiscovery n key )
+    :: forall (n :: NetworkDiscriminant) c key.
+        ( key ~ SharedKey
+        , SupportsDiscovery n key )
     => AddressPoolGap
     -> ScriptTemplate
     -> Maybe ScriptTemplate
-    -> SharedAddressPool key
+    -> SharedAddressPool c key
 newSharedAddressPool g payment delegation =
-    AddressPool.new addressFromIx gap
+    SharedAddressPool $ AddressPool.new addressFromIx gap
   where
     gap = fromIntegral $ getAddressPoolGap g
     addressFromIx
@@ -239,7 +272,7 @@ data SharedState (n :: NetworkDiscriminant) k = SharedState
         -- payment is used.
     , poolGap :: !AddressPoolGap
         -- ^ Address pool gap to be used in the address pool of shared state
-    , ready :: !(Readiness (SharedAddressPool k))
+    , ready :: !(Readiness (SharedAddressPools k))
         -- ^ Readiness status of the shared state.
         -- The state is ready if all cosigner public keys have been obtained.
         -- In this case, an address pool is allocated
@@ -257,8 +290,10 @@ instance Eq (k 'AccountK XPub) => Eq (SharedState n k) where
         = and [a1 == b1, a2 == b2, a3 == b3, a4 == b4, a5 == b5, ap `match` bp]
       where
         match Pending Pending = True
-        match (Active a) (Active b)
-            = AddressPool.addresses a == AddressPool.addresses b
+        match (Active (SharedAddressPools ext1 int1 pend1)) (Active (SharedAddressPools ext2 int2 pend2))
+            =  AddressPool.addresses (getPool int1) == AddressPool.addresses (getPool int2)
+            && AddressPool.addresses (getPool ext1) == AddressPool.addresses (getPool ext2)
+            && pend1 == pend2
         match _ _ = False
 
 instance PersistPublicKey (k 'AccountK) => Buildable (SharedState n k) where
@@ -327,7 +362,11 @@ activate
   where
     new Pending
         | templatesComplete accountXPub pT dT
-            = Active $ newSharedAddressPool @n poolGap pT dT
+            = Active $ SharedAddressPools
+              { externalPool = newSharedAddressPool @n poolGap pT dT
+              , internalPool = newSharedAddressPool @n poolGap pT dT
+              , pendingChangeIxs = emptyPendingIxs
+              }
     new r   = r
 
 -- | Possible errors from adding a co-signer key to the shared wallet state.
@@ -492,12 +531,30 @@ isShared
     -> (Maybe (Index 'Soft 'ScriptK), SharedState n k)
 isShared addrRaw st = case ready st of
     Pending -> nop
-    Active pool -> case paymentKeyFingerprint addrRaw of
-        Left _ -> nop
-        Right addr -> case AddressPool.lookup addr pool of
-            Nothing -> nop
-            Just ix -> let pool' = AddressPool.update addr pool in
-                ( Just ix , st { ready = Active pool' } )
+    Active (SharedAddressPools extPool intPool pending) ->
+        case paymentKeyFingerprint addrRaw of
+            Left _ -> nop
+            Right addr -> case ( AddressPool.lookup addr (getPool extPool)
+                               , AddressPool.lookup addr (getPool intPool)) of
+                (Just ix, Nothing) ->
+                    let pool' = AddressPool.update addr (getPool extPool) in
+                    ( Just ix
+                    , st { ready = Active
+                             ( SharedAddressPools
+                                 (SharedAddressPool pool')
+                                 intPool
+                                 pending )
+                         } )
+                (Nothing, Just ix) ->
+                    let pool' = AddressPool.update addr (getPool intPool) in
+                    ( Just ix
+                    , st { ready = Active
+                             ( SharedAddressPools
+                                 extPool
+                                 (SharedAddressPool pool')
+                                 pending )
+                         } )
+                _ -> nop
   where
     nop = (Nothing, st)
     -- FIXME: Check that the network discrimant of the type
@@ -532,17 +589,20 @@ instance SupportsDiscovery n k => CompareDiscovery (SharedState n k) where
     compareDiscovery st a1 a2 = case ready st of
         Pending ->
             error "comparing addresses in pending shared state does not make sense"
-        Active pool ->
-            case (ix a1 pool, ix a2 pool) of
+        Active pools ->
+            case (ix a1 pools, ix a2 pools) of
                 (Nothing, Nothing) -> EQ
                 (Nothing, Just _)  -> GT
                 (Just _, Nothing)  -> LT
                 (Just i1, Just i2) -> compare i1 i2
       where
-        ix :: Address -> SharedAddressPool k -> Maybe (Index 'Soft 'ScriptK)
-        ix a pool = case paymentKeyFingerprint a of
-            Left _ -> Nothing
-            Right addr -> AddressPool.lookup addr pool
+        ix :: Address -> SharedAddressPools k -> Maybe (Index 'Soft 'ScriptK)
+        ix a (SharedAddressPools extPool intPool _) =
+            case paymentKeyFingerprint a of
+                Left _ -> Nothing
+                Right addr ->
+                    AddressPool.lookup addr (getPool extPool) <|>
+                    AddressPool.lookup addr (getPool intPool)
 
 instance Typeable n => KnownAddresses (SharedState n k) where
     knownAddresses st = nonChangeAddresses
@@ -550,7 +610,10 @@ instance Typeable n => KnownAddresses (SharedState n k) where
         -- TODO - After enabling txs for shared wallets we will need to expand this
         nonChangeAddresses = case ready st of
             Pending -> []
-            Active pool -> map swivel $ Map.toList $ AddressPool.addresses pool
+            Active (SharedAddressPools extPool intPool _) ->
+                map swivel $ Map.toList $
+                AddressPool.addresses (getPool extPool) <>
+                AddressPool.addresses (getPool intPool)
         swivel (k,(ix,s)) = (liftPaymentAddress @n k, s, decoratePath st ix)
 
 instance MaybeLight (SharedState n k) where
