@@ -19,14 +19,14 @@ import Cardano.Wallet.Primitive.Types.Coin.Gen
     ( chooseCoin, shrinkCoin )
 import Cardano.Wallet.Primitive.Types.MinimumUTxO
     ( MinimumUTxO
-    , ProtocolParametersForShelleyBasedEra (..)
+    , MinimumUTxOForShelleyBasedEra (..)
     , minimumUTxOForShelleyBasedEra
     )
 import Cardano.Wallet.Primitive.Types.MinimumUTxO.Gen
     ( genMinimumUTxO
-    , genProtocolParametersForShelleyBasedEra
+    , genMinimumUTxOForShelleyBasedEra
     , shrinkMinimumUTxO
-    , shrinkProtocolParametersForShelleyBasedEra
+    , shrinkMinimumUTxOForShelleyBasedEra
     )
 import Cardano.Wallet.Primitive.Types.TokenBundle
     ( TokenBundle (..) )
@@ -91,10 +91,10 @@ prop_computeMinimumCoinForUTxO minimumUTxO m = property $
 prop_computeMinimumCoinForUTxO_shelleyBasedEra_lowerBound
     :: TokenBundle
     -> Cardano.Address Cardano.ShelleyAddr
-    -> ProtocolParametersForShelleyBasedEra
+    -> MinimumUTxOForShelleyBasedEra
     -> Property
 prop_computeMinimumCoinForUTxO_shelleyBasedEra_lowerBound
-    tokenBundle addr (ProtocolParametersForShelleyBasedEra era pp) =
+    tokenBundle addr (MinimumUTxOForShelleyBasedEra era pp) =
         case apiResultMaybe of
             Left e -> error $ unwords
                 [ "Failed to obtain result from Cardano API:"
@@ -157,9 +157,9 @@ instance Arbitrary MinimumUTxO where
     arbitrary = genMinimumUTxO
     shrink = shrinkMinimumUTxO
 
-instance Arbitrary ProtocolParametersForShelleyBasedEra where
-    arbitrary = genProtocolParametersForShelleyBasedEra
-    shrink = shrinkProtocolParametersForShelleyBasedEra
+instance Arbitrary MinimumUTxOForShelleyBasedEra where
+    arbitrary = genMinimumUTxOForShelleyBasedEra
+    shrink = shrinkMinimumUTxOForShelleyBasedEra
 
 instance Arbitrary TokenMap where
     arbitrary = genTokenMap

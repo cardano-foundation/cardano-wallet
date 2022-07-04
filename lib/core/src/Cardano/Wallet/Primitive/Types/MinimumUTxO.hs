@@ -13,7 +13,7 @@ module Cardano.Wallet.Primitive.Types.MinimumUTxO
     , minimumUTxONone
     , minimumUTxOConstant
     , minimumUTxOForShelleyBasedEra
-    , ProtocolParametersForShelleyBasedEra (..)
+    , MinimumUTxOForShelleyBasedEra (..)
     )
     where
 
@@ -42,8 +42,8 @@ data MinimumUTxO where
     MinimumUTxOConstant
         :: Coin
         -> MinimumUTxO
-    MinimumUTxOForShelleyBasedEra
-        :: ProtocolParametersForShelleyBasedEra
+    MinimumUTxOForShelleyBasedEraOf
+        :: MinimumUTxOForShelleyBasedEra
         -> MinimumUTxO
 
 instance Buildable MinimumUTxO where
@@ -54,9 +54,9 @@ instance Buildable MinimumUTxO where
             [ "MinimumUTxOConstant"
             , build c
             ]
-        MinimumUTxOForShelleyBasedEra pp -> blockListF
+        MinimumUTxOForShelleyBasedEraOf m -> blockListF
             [ "MinimumUTxOForShelleyBasedEra"
-            , build pp
+            , build m
             ]
 
 instance Eq MinimumUTxO where
@@ -68,7 +68,7 @@ instance NFData MinimumUTxO where
             rnf ()
         MinimumUTxOConstant c ->
             rnf c
-        MinimumUTxOForShelleyBasedEra pp ->
+        MinimumUTxOForShelleyBasedEraOf pp ->
             rnf pp
 
 instance Show MinimumUTxO where
@@ -79,7 +79,7 @@ instance Show MinimumUTxO where
             [ "MinimumUTxOConstant"
             , show c
             ]
-        MinimumUTxOForShelleyBasedEra pp -> unwords
+        MinimumUTxOForShelleyBasedEraOf pp -> unwords
             [ "MinimumUTxOForShelleyBasedEra"
             , show pp
             ]
@@ -95,33 +95,33 @@ minimumUTxOForShelleyBasedEra
     -> PParams (ShelleyLedgerEra era)
     -> MinimumUTxO
 minimumUTxOForShelleyBasedEra era pp =
-    MinimumUTxOForShelleyBasedEra $
-    ProtocolParametersForShelleyBasedEra era pp
+    MinimumUTxOForShelleyBasedEraOf $
+    MinimumUTxOForShelleyBasedEra era pp
 
 --------------------------------------------------------------------------------
--- The 'ProtocolParametersForShelleyBasedEra' type
+-- The 'MinimumUTxOForShelleyBasedEra' type
 --------------------------------------------------------------------------------
 
-data ProtocolParametersForShelleyBasedEra where
-    ProtocolParametersForShelleyBasedEra
+data MinimumUTxOForShelleyBasedEra where
+    MinimumUTxOForShelleyBasedEra
         :: ShelleyBasedEra era
         -> PParams (ShelleyLedgerEra era)
-        -> ProtocolParametersForShelleyBasedEra
+        -> MinimumUTxOForShelleyBasedEra
 
-instance Buildable ProtocolParametersForShelleyBasedEra where
-    build (ProtocolParametersForShelleyBasedEra era _) = blockListF
-        [ "ProtocolParametersForShelleyBasedEra"
+instance Buildable MinimumUTxOForShelleyBasedEra where
+    build (MinimumUTxOForShelleyBasedEra era _) = blockListF
+        [ "MinimumUTxOForShelleyBasedEra"
         , show era
         ]
 
-instance Eq ProtocolParametersForShelleyBasedEra where
+instance Eq MinimumUTxOForShelleyBasedEra where
     (==) = (==) `on` show
 
-instance NFData ProtocolParametersForShelleyBasedEra where
-    rnf (ProtocolParametersForShelleyBasedEra !_ !_) = rnf ()
+instance NFData MinimumUTxOForShelleyBasedEra where
+    rnf (MinimumUTxOForShelleyBasedEra !_ !_) = rnf ()
 
-instance Show ProtocolParametersForShelleyBasedEra where
-    show (ProtocolParametersForShelleyBasedEra era pp) = unwords
+instance Show MinimumUTxOForShelleyBasedEra where
+    show (MinimumUTxOForShelleyBasedEra era pp) = unwords
         [ show era
         , show (fromLedgerPParams era pp)
         ]

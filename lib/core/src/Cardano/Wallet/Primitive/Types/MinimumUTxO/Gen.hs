@@ -9,9 +9,9 @@
 --
 module Cardano.Wallet.Primitive.Types.MinimumUTxO.Gen
     ( genMinimumUTxO
-    , genProtocolParametersForShelleyBasedEra
+    , genMinimumUTxOForShelleyBasedEra
     , shrinkMinimumUTxO
-    , shrinkProtocolParametersForShelleyBasedEra
+    , shrinkMinimumUTxOForShelleyBasedEra
     )
     where
 
@@ -22,7 +22,7 @@ import Cardano.Api
 import Cardano.Wallet.Primitive.Types.Coin
     ( Coin (..) )
 import Cardano.Wallet.Primitive.Types.MinimumUTxO
-    ( MinimumUTxO (..), ProtocolParametersForShelleyBasedEra (..) )
+    ( MinimumUTxO (..), MinimumUTxOForShelleyBasedEra (..) )
 import Data.Bits
     ( Bits )
 import Data.Default
@@ -49,7 +49,7 @@ genMinimumUTxO :: Gen MinimumUTxO
 genMinimumUTxO = frequency
     [ (1, genMinimumUTxONone)
     , (1, genMinimumUTxOConstant)
-    , (8, genMinimumUTxOForShelleyBasedEra)
+    , (8, MinimumUTxOForShelleyBasedEraOf <$> genMinimumUTxOForShelleyBasedEra)
     ]
   where
     genMinimumUTxONone :: Gen MinimumUTxO
@@ -59,20 +59,16 @@ genMinimumUTxO = frequency
     genMinimumUTxOConstant = MinimumUTxOConstant . Coin
         <$> genInterestingCoinValue
 
-    genMinimumUTxOForShelleyBasedEra :: Gen MinimumUTxO
-    genMinimumUTxOForShelleyBasedEra = MinimumUTxOForShelleyBasedEra
-        <$> genProtocolParametersForShelleyBasedEra
-
 shrinkMinimumUTxO :: MinimumUTxO -> [MinimumUTxO]
 shrinkMinimumUTxO = const []
 
 --------------------------------------------------------------------------------
--- Generating 'ProtocolParametersForShelleyBasedEra' values
+-- Generating 'MinimumUTxOForShelleyBasedEra' values
 --------------------------------------------------------------------------------
 
-genProtocolParametersForShelleyBasedEra
-    :: Gen ProtocolParametersForShelleyBasedEra
-genProtocolParametersForShelleyBasedEra = oneof
+genMinimumUTxOForShelleyBasedEra
+    :: Gen MinimumUTxOForShelleyBasedEra
+genMinimumUTxOForShelleyBasedEra = oneof
     [ genShelley
     , genAllegra
     , genMary
@@ -80,40 +76,39 @@ genProtocolParametersForShelleyBasedEra = oneof
     , genBabbage
     ]
   where
-    genShelley :: Gen ProtocolParametersForShelleyBasedEra
+    genShelley :: Gen MinimumUTxOForShelleyBasedEra
     genShelley = do
         minUTxOValue <- genInterestingLedgerCoin
-        pure $ ProtocolParametersForShelleyBasedEra ShelleyBasedEraShelley
+        pure $ MinimumUTxOForShelleyBasedEra ShelleyBasedEraShelley
             def {Shelley._minUTxOValue = minUTxOValue}
 
-    genAllegra :: Gen ProtocolParametersForShelleyBasedEra
+    genAllegra :: Gen MinimumUTxOForShelleyBasedEra
     genAllegra = do
         minUTxOValue <- genInterestingLedgerCoin
-        pure $ ProtocolParametersForShelleyBasedEra ShelleyBasedEraAllegra
+        pure $ MinimumUTxOForShelleyBasedEra ShelleyBasedEraAllegra
             def {Shelley._minUTxOValue = minUTxOValue}
 
-    genMary :: Gen ProtocolParametersForShelleyBasedEra
+    genMary :: Gen MinimumUTxOForShelleyBasedEra
     genMary = do
         minUTxOValue <- genInterestingLedgerCoin
-        pure $ ProtocolParametersForShelleyBasedEra ShelleyBasedEraMary
+        pure $ MinimumUTxOForShelleyBasedEra ShelleyBasedEraMary
             def {Shelley._minUTxOValue = minUTxOValue}
 
-    genAlonzo :: Gen ProtocolParametersForShelleyBasedEra
+    genAlonzo :: Gen MinimumUTxOForShelleyBasedEra
     genAlonzo = do
         coinsPerUTxOWord <- genInterestingLedgerCoin
-        pure $ ProtocolParametersForShelleyBasedEra ShelleyBasedEraAlonzo
+        pure $ MinimumUTxOForShelleyBasedEra ShelleyBasedEraAlonzo
             def {Alonzo._coinsPerUTxOWord = coinsPerUTxOWord}
 
-    genBabbage :: Gen ProtocolParametersForShelleyBasedEra
+    genBabbage :: Gen MinimumUTxOForShelleyBasedEra
     genBabbage = do
         coinsPerUTxOByte <- genInterestingLedgerCoin
-        pure $ ProtocolParametersForShelleyBasedEra ShelleyBasedEraBabbage
+        pure $ MinimumUTxOForShelleyBasedEra ShelleyBasedEraBabbage
             def {Babbage._coinsPerUTxOByte = coinsPerUTxOByte}
 
-shrinkProtocolParametersForShelleyBasedEra
-    :: ProtocolParametersForShelleyBasedEra
-    -> [ProtocolParametersForShelleyBasedEra]
-shrinkProtocolParametersForShelleyBasedEra = const []
+shrinkMinimumUTxOForShelleyBasedEra
+    :: MinimumUTxOForShelleyBasedEra -> [MinimumUTxOForShelleyBasedEra]
+shrinkMinimumUTxOForShelleyBasedEra = const []
 
 --------------------------------------------------------------------------------
 -- Internal functions

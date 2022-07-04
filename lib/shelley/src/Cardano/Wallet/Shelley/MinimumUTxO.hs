@@ -20,7 +20,7 @@ import Cardano.Wallet.Primitive.Types.Address
 import Cardano.Wallet.Primitive.Types.Coin
     ( Coin (..) )
 import Cardano.Wallet.Primitive.Types.MinimumUTxO
-    ( MinimumUTxO (..), ProtocolParametersForShelleyBasedEra (..) )
+    ( MinimumUTxO (..), MinimumUTxOForShelleyBasedEra (..) )
 import Cardano.Wallet.Primitive.Types.TokenBundle
     ( TokenBundle (..) )
 import Cardano.Wallet.Primitive.Types.TokenMap
@@ -52,16 +52,16 @@ computeMinimumCoinForUTxO = \case
         const (Coin 0)
     MinimumUTxOConstant c ->
         const c
-    MinimumUTxOForShelleyBasedEra pp ->
+    MinimumUTxOForShelleyBasedEraOf pp ->
         computeMinimumCoinForShelleyBasedEra pp
 
 computeMinimumCoinForShelleyBasedEra
     :: HasCallStack
-    => ProtocolParametersForShelleyBasedEra
+    => MinimumUTxOForShelleyBasedEra
     -> TokenMap
     -> Coin
 computeMinimumCoinForShelleyBasedEra
-    (ProtocolParametersForShelleyBasedEra era pp) tokenMap =
+    (MinimumUTxOForShelleyBasedEra era pp) tokenMap =
         extractResult $
         Cardano.calculateMinimumUTxO era
             (embedTokenMapWithinPaddedTxOut era tokenMap)
