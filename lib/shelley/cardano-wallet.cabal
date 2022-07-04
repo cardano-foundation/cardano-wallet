@@ -273,6 +273,7 @@ test-suite unit
     , time
     , hspec
     , hspec-core
+    , int-cast
     , memory
     , MonadRandom
     , optparse-applicative
