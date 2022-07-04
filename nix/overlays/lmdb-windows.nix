@@ -23,8 +23,5 @@ in
       # We need the `liblmdb.dll.a` import library on Windows:
       ./lmdb-mingw-implib.patch  # adapted from <https://github.com/msys2/MINGW-packages/tree/master/mingw-w64-lmdb>
     ];
-
-    makeFlags = oldAttrs.makeFlags
-      ++ self.lib.optionals self.stdenv.hostPlatform.isDarwin [ "SOEXT=.dylib" ];
   });
 }
