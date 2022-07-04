@@ -267,6 +267,7 @@ test-suite unit
     , fmt
     , generic-arbitrary
     , generic-lens
+    , generics-sop
     , hspec-core
     , hspec-golden
     , iohk-monitoring
