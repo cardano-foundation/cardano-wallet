@@ -137,7 +137,8 @@
             inherit (pkgs.haskell-nix.haskellLib)
               isProjectPackage
               collectComponents
-              collectChecks;
+              collectChecks
+              check;
 
             project = (import ./nix/haskell.nix pkgs.haskell-nix).appendModule [{
               gitrev =
@@ -199,7 +200,28 @@
                   # `tests` are the test suites which have been built.
                   tests = removeRecurse (collectComponents "tests" isProjectPackage coveredProject.hsPkgs);
                   # `checks` are the result of executing the tests.
-                  checks = removeRecurse (collectChecks isProjectPackage coveredProject.hsPkgs);
+                  checks = removeRecurse (
+                    lib.recursiveUpdate
+                      (collectChecks isProjectPackage coveredProject.hsPkgs)
+                      # Run the integration tests in the previous era too:
+                      (
+                        let
+                          integrationCheck = check coveredProject.hsPkgs.cardano-wallet.components.tests.integration;
+                          integrationPrevEraCheck = integrationCheck.overrideAttrs (prev: {
+                            preCheck = prev.preCheck + ''
+                              export LOCAL_CLUSTER_ERA=alonzo
+                            '';
+                          });
+                        in
+                          if integrationCheck.doCheck == true
+                          then
+                            {
+                              cardano-wallet.integration-prev-era = integrationPrevEraCheck;
+                            }
+                          else
+                            {}
+                      )
+                  );
                   # `benchmarks` are only built, not run.
                   benchmarks = removeRecurse (collectComponents "benchmarks" isProjectPackage project.hsPkgs);
                 };
