@@ -2662,12 +2662,13 @@ constructSharedTransaction ctx genChange _knownPools _getPoolStatus (ApiT wid) b
 
     withWorkerCtx ctx wid liftE liftE $ \wrk -> do
         pp <- liftIO $ NW.currentProtocolParameters (wrk ^. networkLayer)
+        era <- liftIO $ NW.currentNodeEra (wrk ^. networkLayer)
 
         (utxoAvailable, wallet, pendingTxs) <-
             liftHandler $ W.readWalletUTxOIndex @_ @s @k wrk wid
 
         let runSelection outs =
-                W.selectAssets @_ @_ @s @k wrk pp selectAssetsParams transform
+                W.selectAssets @_ @_ @s @k wrk era pp selectAssetsParams transform
               where
                 selectAssetsParams = W.SelectAssetsParams
                     { outputs = outs
@@ -2697,7 +2698,7 @@ constructSharedTransaction ctx genChange _knownPools _getPoolStatus (ApiT wid) b
             pure (sel, sel', estMin)
 
         tx <- liftHandler
-            $ W.constructTransaction @_ @s @k @n wrk wid txCtx sel
+            $ W.constructTransaction @_ @s @k @n wrk wid era txCtx sel
 
         pure $ ApiConstructTransaction
             { transaction = ApiT tx

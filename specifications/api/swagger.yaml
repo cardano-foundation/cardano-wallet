@@ -7379,6 +7379,24 @@ paths:
             schema: *ApiSharedWalletPatchData
       responses: *responsesPatchSharedWallet
 
+  /shared-wallets/{walletId}/transactions-construct:
+    post:
+      operationId: constructSharedTransaction
+      tags: ["Transactions New"]
+      summary: Construct
+      description: |
+        <p align="right">status: <strong>under development</strong></p>
+
+        Create a transaction to be signed from the shared wallet.
+      parameters:
+        - *parametersWalletId
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema: *ApiConstructTransactionData
+      responses: *responsesConstructTransaction
+
   /shared-wallets/{walletId}/keys/{index}:
     post:
       operationId: postAccountKeyShared
