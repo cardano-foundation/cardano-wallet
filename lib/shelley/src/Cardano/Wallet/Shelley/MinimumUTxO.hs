@@ -9,6 +9,8 @@
 --
 module Cardano.Wallet.Shelley.MinimumUTxO
     ( computeMinimumCoinForUTxO
+    , maxLengthCoin
+    , maxLengthAddress
     , unsafeLovelaceToWalletCoin
     , unsafeValueToLovelace
     ) where
@@ -34,7 +36,7 @@ import Data.Function
 import Data.IntCast
     ( intCast, intCastMaybe )
 import Data.Word
-    ( Word64 )
+    ( Word64, Word8 )
 import GHC.Stack
     ( HasCallStack )
 import Numeric.Natural
@@ -113,16 +115,31 @@ embedTokenMapWithinPaddedTxOut
     -> TokenMap
     -> Cardano.TxOut Cardano.CtxTx era
 embedTokenMapWithinPaddedTxOut era m =
-    toCardanoTxOut era $ TxOut dummyAddress $ TokenBundle dummyCoin m
-  where
-    dummyAddress :: Address
-    dummyAddress = Address $ BS.pack $ replicate maximumAddressLength 0
-      where
-        maximumAddressLength :: Int
-        maximumAddressLength = 57
+    toCardanoTxOut era $ TxOut maxLengthAddress $ TokenBundle maxLengthCoin m
 
-    dummyCoin :: Coin
-    dummyCoin = Coin $ intCast @Word64 @Natural $ maxBound
+-- | An 'Address' value that is maximal in length when serialized to bytes.
+--
+-- When serialized to bytes, this 'Address' value has a length that is greater
+-- than or equal to the serialized length of any 'Address' value that is valid
+-- for inclusion in a transaction output.
+--
+maxLengthAddress :: Address
+maxLengthAddress = Address $ BS.pack $ replicate maxAddressLength nullByte
+  where
+    maxAddressLength :: Int
+    maxAddressLength = 57
+
+    nullByte :: Word8
+    nullByte = 0
+
+-- | A 'Coin' value that is maximal in length when serialized to bytes.
+--
+-- When serialized to bytes, this 'Coin' value has a length that is greater
+-- than or equal to the serialized length of any 'Coin' value that is valid
+-- for inclusion in a transaction output.
+--
+maxLengthCoin :: Coin
+maxLengthCoin = Coin $ intCast @Word64 @Natural $ maxBound
 
 -- | Extracts a 'Coin' value from a 'Cardano.Lovelace' value.
 --
