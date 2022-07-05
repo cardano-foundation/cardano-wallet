@@ -79,17 +79,25 @@ spec = do
             ]
 
     describe "computeMinimumCoinForUTxO" $ do
-        it "prop_computeMinimumCoinForUTxO" $
-            prop_computeMinimumCoinForUTxO
+        it "prop_computeMinimumCoinForUTxO_evaluation" $
+            prop_computeMinimumCoinForUTxO_evaluation
                 & property
         it "prop_computeMinimumCoinForUTxO_shelleyBasedEra_bounds" $
             prop_computeMinimumCoinForUTxO_shelleyBasedEra_bounds
                 & property
 
-prop_computeMinimumCoinForUTxO :: MinimumUTxO -> TokenMap -> Property
-prop_computeMinimumCoinForUTxO minimumUTxO m = property $
+-- Check that it's possible to evaluate 'computeMinimumCoinForUTxO' without
+-- any run-time error.
+--
+prop_computeMinimumCoinForUTxO_evaluation
+    :: MinimumUTxO -> TokenMap -> Property
+prop_computeMinimumCoinForUTxO_evaluation minimumUTxO m = property $
+    -- Use an arbitrary test to force evaluation of the result:
     computeMinimumCoinForUTxO minimumUTxO m >= Coin 0
 
+-- Check that 'computeMinimumCoinForUTxO' produces a result that is within
+-- bounds, as determined by the Cardano API function 'calculateMinimumUTxO'.
+--
 prop_computeMinimumCoinForUTxO_shelleyBasedEra_bounds
     :: TokenBundle
     -> Cardano.AddressAny
