@@ -10,7 +10,7 @@ module Cardano.Wallet.Shelley.MinimumUTxOSpec
 import Prelude
 
 import Cardano.Api.Gen
-    ( genAddressShelley )
+    ( genAddressAny )
 import Cardano.Wallet.Primitive.Types.Address
     ( Address (..) )
 import Cardano.Wallet.Primitive.Types.Coin
@@ -37,7 +37,7 @@ import Cardano.Wallet.Primitive.Types.TokenMap.Gen
 import Cardano.Wallet.Primitive.Types.Tx
     ( TxOut (..) )
 import Cardano.Wallet.Shelley.Compatibility
-    ( fromCardanoAddress, toCardanoTxOut )
+    ( toCardanoTxOut )
 import Cardano.Wallet.Shelley.MinimumUTxO
     ( computeMinimumCoinForUTxO
     , maxLengthAddress
@@ -92,7 +92,7 @@ prop_computeMinimumCoinForUTxO minimumUTxO m = property $
 
 prop_computeMinimumCoinForUTxO_shelleyBasedEra_bounds
     :: TokenBundle
-    -> Cardano.Address Cardano.ShelleyAddr
+    -> Cardano.AddressAny
     -> MinimumUTxOForShelleyBasedEra
     -> Property
 prop_computeMinimumCoinForUTxO_shelleyBasedEra_bounds
@@ -125,8 +125,8 @@ prop_computeMinimumCoinForUTxO_shelleyBasedEra_bounds
             (BS.length (Cardano.serialiseToRawBytes addr))
             "BS.length (Cardano.serialiseToRawBytes addr))"
         & report
-            (BS.length (unAddress (fromCardanoAddress addr)))
-            "BS.length (unAddress (fromCardanoAddress addr))"
+            (BS.length (unAddress (fromCardanoAddressAny addr)))
+            "BS.length (unAddress (fromCardanoAddressAny addr))"
         & report
             (BS.length (unAddress maxLengthAddress))
             "BS.length (unAddress maxLengthAddress))"
@@ -142,7 +142,7 @@ prop_computeMinimumCoinForUTxO_shelleyBasedEra_bounds
             Cardano.fromLedgerPParams era pp
 
         apiTxOutMinBound =
-            toCardanoTxOut era $ TxOut (fromCardanoAddress addr) tokenBundle
+            toCardanoTxOut era $ TxOut (fromCardanoAddressAny addr) tokenBundle
 
         apiTxOutMaxBound =
             toCardanoTxOut era $ TxOut maxLengthAddress $
@@ -154,11 +154,18 @@ prop_computeMinimumCoinForUTxO_shelleyBasedEra_bounds
         (TokenBundle.tokens tokenBundle)
 
 --------------------------------------------------------------------------------
+-- Utility functions
+--------------------------------------------------------------------------------
+
+fromCardanoAddressAny :: Cardano.AddressAny -> Address
+fromCardanoAddressAny =  Address . Cardano.serialiseToRawBytes
+
+--------------------------------------------------------------------------------
 -- Arbitrary instances
 --------------------------------------------------------------------------------
 
-instance Arbitrary (Cardano.Address Cardano.ShelleyAddr) where
-    arbitrary = genAddressShelley
+instance Arbitrary Cardano.AddressAny where
+    arbitrary = genAddressAny
 
 instance Arbitrary TokenBundle where
     arbitrary = TokenBundle
