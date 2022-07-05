@@ -9,7 +9,8 @@
 {-# OPTIONS_GHC -fno-warn-orphans #-}
 
 module Cardano.Api.Gen
-    ( genAddressByron
+    ( genAddressAny
+    , genAddressByron
     , genAddressInEra
     , genAddressShelley
     , genAlphaNum
@@ -859,6 +860,14 @@ genPaymentCredential =
 
         byScript :: Gen PaymentCredential
         byScript = PaymentCredentialByScript <$> genScriptHash
+
+genAddressAny :: Gen AddressAny
+genAddressAny = oneof
+    [ AddressByron
+        <$> genAddressByron
+    , AddressShelley
+        <$> genAddressShelley
+    ]
 
 genAddressByron :: Gen (Address ByronAddr)
 genAddressByron = makeByronAddress <$> genNetworkId
