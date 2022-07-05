@@ -96,11 +96,17 @@ import Cardano.Wallet.DB.Sqlite.Types
 import Cardano.Wallet.DB.Store.Checkpoints
     ( PersistAddressBook (..), blockHeaderFromEntity, mkStoreWallets )
 import Cardano.Wallet.DB.Store.Meta.Model
-    ( ManipulateTxMetaHistory (..), TxMetaHistory (..) )
+    ( DeltaTxMetaHistory (..)
+    , ManipulateTxMetaHistory (..)
+    , TxMetaHistory (..)
+    )
 import Cardano.Wallet.DB.Store.Transactions.Model
     ( TxHistoryF (..), decorateWithTxOuts, withdrawals )
 import Cardano.Wallet.DB.Store.Wallets.Model
-    ( TxWalletsHistory, mkTransactionInfo )
+    ( DeltaWalletsMetaWithSubmissions (..)
+    , TxWalletsHistory
+    , mkTransactionInfo
+    )
 import Cardano.Wallet.DB.Store.Wallets.Store
     ( DeltaTxWalletsHistory (..), mkStoreTxWalletsHistory )
 import Cardano.Wallet.DB.WalletState
@@ -637,6 +643,8 @@ newDBLayerWith _cacheBehavior _tr ti SqliteContext{runQuery} = do
                         let
                             delta = Just
                                 $ ChangeTxMetaWalletsHistory wid
+                                $ ChangeMeta
+                                $ Manipulate
                                 $ RollBackTxMetaHistory nearestPoint
                         in  (delta, Right ())
                     pure
@@ -754,6 +762,8 @@ newDBLayerWith _cacheBehavior _tr ti SqliteContext{runQuery} = do
                     let
                         delta = Just
                             $ ChangeTxMetaWalletsHistory wid
+                            $ ChangeMeta
+                            $ Manipulate
                             $ AgeTxMetaHistory tip
                     in  (delta, Right ())
 
@@ -770,7 +780,7 @@ newDBLayerWith _cacheBehavior _tr ti SqliteContext{runQuery} = do
                     $ ErrNoSuchWallet wid
                 Just _ -> modifyDBMaybe transactionsDBVar
                     $ \(TxHistoryF _txsOld, ws) -> fromMaybe noTx $ do
-                        TxMetaHistory metas <- Map.lookup wid ws
+                        (TxMetaHistory metas, _) <- Map.lookup wid ws
                         DB.TxMeta{..} <- Map.lookup (TxId txId) metas
                         pure $
                             if txMetaStatus == W.InLedger
@@ -779,6 +789,8 @@ newDBLayerWith _cacheBehavior _tr ti SqliteContext{runQuery} = do
                             else
                                 let delta = Just
                                         $ ChangeTxMetaWalletsHistory wid
+                                        $ ChangeMeta
+                                        $ Manipulate
                                         $ PruneTxMetaHistory $ TxId txId
                                 in  (delta, Right ())
 
@@ -1004,7 +1016,7 @@ selectTxHistory
 selectTxHistory cp ti wid minWithdrawal order whichMeta
     (txHistory, wmetas) = do
     tinfos <- mapM (uncurry $ mkTransactionInfo ti (W.currentTip cp)) $ do
-        TxMetaHistory metas <- maybeToList $ Map.lookup wid wmetas
+        (TxMetaHistory metas, _) <- maybeToList $ Map.lookup wid wmetas
         meta <- toList metas
         guard $  whichMeta meta
         transaction <- maybeToList $ Map.lookup (txMetaTxId meta) txs
