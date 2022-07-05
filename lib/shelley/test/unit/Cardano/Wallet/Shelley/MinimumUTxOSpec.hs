@@ -40,6 +40,8 @@ import Cardano.Wallet.Shelley.Compatibility
     ( fromCardanoAddress, toCardanoTxOut )
 import Cardano.Wallet.Shelley.MinimumUTxO
     ( computeMinimumCoinForUTxO
+    , maxLengthAddress
+    , maxLengthCoin
     , unsafeLovelaceToWalletCoin
     , unsafeValueToLovelace
     )
@@ -60,7 +62,7 @@ import Test.QuickCheck
 import Test.QuickCheck.Classes
     ( eqLaws, showLaws )
 import Test.QuickCheck.Extra
-    ( genericRoundRobinShrink, report, (<:>), (<@>) )
+    ( genericRoundRobinShrink, report, verify, (<:>), (<@>) )
 import Test.Utils.Laws
     ( testLawsMany )
 
@@ -80,57 +82,71 @@ spec = do
         it "prop_computeMinimumCoinForUTxO" $
             prop_computeMinimumCoinForUTxO
                 & property
-        it "prop_computeMinimumCoinForUTxO_shelleyBasedEra_lowerBound" $
-            prop_computeMinimumCoinForUTxO_shelleyBasedEra_lowerBound
+        it "prop_computeMinimumCoinForUTxO_shelleyBasedEra_bounds" $
+            prop_computeMinimumCoinForUTxO_shelleyBasedEra_bounds
                 & property
 
 prop_computeMinimumCoinForUTxO :: MinimumUTxO -> TokenMap -> Property
 prop_computeMinimumCoinForUTxO minimumUTxO m = property $
     computeMinimumCoinForUTxO minimumUTxO m >= Coin 0
 
-prop_computeMinimumCoinForUTxO_shelleyBasedEra_lowerBound
+prop_computeMinimumCoinForUTxO_shelleyBasedEra_bounds
     :: TokenBundle
     -> Cardano.Address Cardano.ShelleyAddr
     -> MinimumUTxOForShelleyBasedEra
     -> Property
-prop_computeMinimumCoinForUTxO_shelleyBasedEra_lowerBound
+prop_computeMinimumCoinForUTxO_shelleyBasedEra_bounds
     tokenBundle addr (MinimumUTxOForShelleyBasedEra era pp) =
-        case apiResultMaybe of
+        case apiResultBoundsM of
             Left e -> error $ unwords
                 [ "Failed to obtain result from Cardano API:"
                 , show e
                 ]
-            Right value -> prop_inner
-                $ unsafeLovelaceToWalletCoin
-                $ unsafeValueToLovelace value
+            Right apiResultBounds -> prop_inner apiResultBounds
   where
-    prop_inner :: Coin -> Property
-    prop_inner apiResult =
-        ourResult >= apiResult
-            & report
-                (apiResult)
-                "apiResult"
-            & report
-                (ourResult)
-                "ourResult"
-            & report
-                (BS.length (Cardano.serialiseToRawBytes addr))
-                "BS.length (Cardano.serialiseToRawBytes addr))"
-            & report
-                (BS.length (unAddress (fromCardanoAddress addr)))
-                "BS.length (unAddress (fromCardanoAddress addr))"
+    prop_inner :: (Coin, Coin) -> Property
+    prop_inner (apiResultMinBound, apiResultMaxBound) = property True
+        & verify
+            (ourResult >= apiResultMinBound)
+            "ourResult >= apiResultMinBound"
+        & verify
+            (ourResult <= apiResultMaxBound)
+            "ourResult <= apiResultMaxBound"
+        & report
+            (apiResultMinBound)
+            "apiResultMinBound"
+        & report
+            (apiResultMaxBound)
+            "apiResultMaxBound"
+        & report
+            (ourResult)
+            "ourResult"
+        & report
+            (BS.length (Cardano.serialiseToRawBytes addr))
+            "BS.length (Cardano.serialiseToRawBytes addr))"
+        & report
+            (BS.length (unAddress (fromCardanoAddress addr)))
+            "BS.length (unAddress (fromCardanoAddress addr))"
+        & report
+            (BS.length (unAddress maxLengthAddress))
+            "BS.length (unAddress maxLengthAddress))"
 
-    apiResultMaybe :: Either Cardano.MinimumUTxOError Cardano.Value
-    apiResultMaybe =
-        Cardano.calculateMinimumUTxO era apiTxOut apiProtocolParameters
+    apiResultBoundsM :: Either Cardano.MinimumUTxOError (Coin, Coin)
+    apiResultBoundsM = (,)
+        <$> apiCalculateMinimumUTxO apiTxOutMinBound
+        <*> apiCalculateMinimumUTxO apiTxOutMaxBound
       where
-        apiTxOut =
-            toCardanoTxOut era $
-            TxOut (fromCardanoAddress addr) tokenBundle
-
-        apiProtocolParameters :: Cardano.ProtocolParameters
-        apiProtocolParameters =
+        apiCalculateMinimumUTxO tx =
+            fmap (unsafeLovelaceToWalletCoin . unsafeValueToLovelace) $
+            Cardano.calculateMinimumUTxO era tx $
             Cardano.fromLedgerPParams era pp
+
+        apiTxOutMinBound =
+            toCardanoTxOut era $ TxOut (fromCardanoAddress addr) tokenBundle
+
+        apiTxOutMaxBound =
+            toCardanoTxOut era $ TxOut maxLengthAddress $
+            TokenBundle.setCoin tokenBundle maxLengthCoin
 
     ourResult :: Coin
     ourResult = computeMinimumCoinForUTxO
