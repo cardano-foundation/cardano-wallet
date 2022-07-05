@@ -30,6 +30,8 @@ module Cardano.Wallet.Primitive.AddressDiscovery.Shared
     -- ** State
     , SharedState (..)
     , Readiness (..)
+    , SharedAddressPools (..)
+    , SharedAddressPool (..)
     , newSharedAddressPool
 
     , ErrAddCosigner (..)

@@ -50,6 +50,7 @@ import Cardano.Wallet.Address.Book
     , Discoveries (..)
     , Prologue (..)
     , SeqAddressMap (..)
+    , SharedAddressMap (..)
     )
 import Cardano.Wallet.Checkpoints
     ( DeltaCheckpoints (..), DeltasCheckpoints, loadCheckpoints )
@@ -562,12 +563,18 @@ instance
                  | ((Cosigner c), xpub) <- Map.assocs cs
                  ]
 
-    insertDiscoveries wid sl (SharedDiscoveries addrs) = do
+    insertDiscoveries wid sl sharedDiscoveries = do
         dbChunked insertMany_
             [ SeqStateAddress wid sl addr ix UtxoExternal status
-            | (ix, addr, status) <- map convert $ Map.toList addrs
+            | (ix, addr, status) <- map convert $ Map.toList extAddrs
+            ]
+        dbChunked insertMany_
+            [ SeqStateAddress wid sl addr ix UtxoInternal status
+            | (ix, addr, status) <- map convert $ Map.toList intAddrs
             ]
       where
+        SharedDiscoveries (SharedAddressMap extAddrs) (SharedAddressMap intAddrs) =
+            sharedDiscoveries
         convert (addr,(ix,status)) =
             (fromIntegral $ fromEnum ix, Shared.liftPaymentAddress @n addr, status)
 
@@ -584,21 +591,28 @@ instance
             mkSharedState = Shared.SharedState prefix accXPub pTemplate dTemplateM gap
         prologue <- lift $ multisigPoolAbsent wid <&> \case
             True ->  mkSharedState Shared.Pending
-            False -> mkSharedState $ Shared.Active
-                $ Shared.newSharedAddressPool @n gap pTemplate dTemplateM
+            False -> mkSharedState $ Shared.Active $ Shared.SharedAddressPools
+                (Shared.newSharedAddressPool @n @'UtxoExternal gap pTemplate dTemplateM)
+                (Shared.newSharedAddressPool @n @'UtxoInternal gap pTemplate dTemplateM)
+                Seq.emptyPendingIxs
         pure $ SharedPrologue prologue
 
     loadDiscoveries wid sl = do
-        addrs <- map entityVal <$> selectList
-            [ SeqStateAddressWalletId ==. wid
-            , SeqStateAddressSlot ==. sl
-            , SeqStateAddressRole ==. UtxoExternal
-            ] [Asc SeqStateAddressIndex]
-        pure $ SharedDiscoveries $ Map.fromList
-            [ (fingerprint, (toEnum $ fromIntegral ix, status))
-            | SeqStateAddress _ _ addr ix _ status <- addrs
-            , Right fingerprint <- [paymentKeyFingerprint addr]
-            ]
+        extAddrMap <- loadAddresses wid sl UtxoExternal
+        intAddrMap <- loadAddresses wid sl UtxoInternal
+        pure $ SharedDiscoveries extAddrMap intAddrMap
+          where
+          loadAddresses wid sl chain = do
+              addrs <- map entityVal <$> selectList
+                  [ SeqStateAddressWalletId ==. wid
+                  , SeqStateAddressSlot ==. sl
+                  , SeqStateAddressRole ==. chain
+                  ] [Asc SeqStateAddressIndex]
+              pure $ SharedAddressMap $ Map.fromList
+                  [ (fingerprint, (toEnum $ fromIntegral ix, status))
+                  | SeqStateAddress _ _ addr ix _ status <- addrs
+                  , Right fingerprint <- [paymentKeyFingerprint addr]
+                  ]
 
 selectCosigners
     :: forall k. PersistPublicKey (k 'AccountK)

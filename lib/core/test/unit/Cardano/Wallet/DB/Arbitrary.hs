@@ -71,6 +71,7 @@ import Cardano.Wallet.Primitive.AddressDiscovery.Sequential
     , SeqState (..)
     , coinTypeAda
     , defaultAddressPoolGap
+    , emptyPendingIxs
     , purposeCIP1852
     )
 import Cardano.Wallet.Primitive.AddressDiscovery.Shared
@@ -648,8 +649,11 @@ instance Arbitrary (SharedState 'Mainnet SharedKey) where
             pt
             Nothing
             defaultAddressPoolGap
-            (Shared.Active
-                $ Shared.newSharedAddressPool @'Mainnet defaultAddressPoolGap pt Nothing)
+            (Shared.Active $ SharedAddressPools
+                (Shared.newSharedAddressPool @'Mainnet defaultAddressPoolGap pt Nothing)
+                (Shared.newSharedAddressPool @'Mainnet defaultAddressPoolGap pt Nothing)
+                emptyPendingIxs
+            )
 
 defaultSharedStatePrefix :: DerivationPrefix
 defaultSharedStatePrefix = DerivationPrefix

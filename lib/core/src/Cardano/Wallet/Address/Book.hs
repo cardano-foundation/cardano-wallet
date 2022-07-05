@@ -21,6 +21,7 @@ module Cardano.Wallet.Address.Book
     , getPrologue
     , getDiscoveries
     , SeqAddressMap (..)
+    , SharedAddressMap (..)
     )
   where
 
@@ -160,6 +161,16 @@ instance Eq (Seq.SeqState n k) => Eq (Discoveries (Seq.SeqState n k)) where
 {-------------------------------------------------------------------------------
     Shared key address book
 -------------------------------------------------------------------------------}
+
+newtype SharedAddressMap (c :: Role) (key :: Depth -> Type -> Type) =
+    SharedAddressMap
+        ( Map
+            (KeyFingerprint "payment" key)
+            (Index 'Soft 'ScriptK, AddressState)
+        )
+    deriving Eq
+
+
 -- | Isomorphism for multi-sig address book.
 instance ( key ~ SharedKey ) => AddressBookIso (Shared.SharedState n key)
   where
@@ -168,26 +179,47 @@ instance ( key ~ SharedKey ) => AddressBookIso (Shared.SharedState n key)
         -- Trick: We keep the type, but we empty the discovered addresses
     data Discoveries (Shared.SharedState n key)
         = SharedDiscoveries
-            ( Map
-                (KeyFingerprint "payment" SharedKey)
-                (Index 'Soft 'ScriptK, AddressState)
-            )
+            (SharedAddressMap 'UtxoExternal key)
+            (SharedAddressMap 'UtxoInternal key)
 
     addressIso = iso from to
       where
         from st = case Shared.ready st of
-            Shared.Pending -> (SharedPrologue st, SharedDiscoveries Map.empty)
-            Shared.Active pool ->
-                let pool0 = AddressPool.clear pool
-                in  ( SharedPrologue st{ Shared.ready = Shared.Active pool0 }
-                    , SharedDiscoveries $ AddressPool.addresses pool
+            Shared.Pending ->
+                ( SharedPrologue st
+                , SharedDiscoveries (SharedAddressMap Map.empty) (SharedAddressMap Map.empty))
+            Shared.Active (Shared.SharedAddressPools extPool intPool _pending) ->
+                let extPool0 = clearShared extPool
+                    intPool0 = clearShared intPool
+                    pending0 = Seq.emptyPendingIxs
+                    pools0 = Shared.SharedAddressPools extPool0 intPool0 pending0
+                in  ( SharedPrologue st{ Shared.ready = Shared.Active pools0 }
+                    , SharedDiscoveries
+                        (addressesShared extPool)
+                        (addressesShared intPool)
                     )
-        to (SharedPrologue st, SharedDiscoveries addrs)
+        to (SharedPrologue st, SharedDiscoveries exts ints)
           = case Shared.ready st of
             Shared.Pending -> st
-            Shared.Active pool0 ->
-                let pool = AddressPool.loadUnsafe pool0 addrs
-                in  st{ Shared.ready = Shared.Active pool }
+            Shared.Active (Shared.SharedAddressPools extPool0 intPool0 pending0) ->
+                let extPool = loadUnsafeShared extPool0 exts
+                    intPool = loadUnsafeShared intPool0 ints
+                    -- TODO - think about pending here and in from
+                    pools = Shared.SharedAddressPools extPool intPool pending0
+                in  st{ Shared.ready = Shared.Active pools }
+
+clearShared :: Shared.SharedAddressPool c k -> Shared.SharedAddressPool c k
+clearShared = Shared.SharedAddressPool . AddressPool.clear . Shared.getPool
+
+addressesShared :: Shared.SharedAddressPool c k -> SharedAddressMap c k
+addressesShared = SharedAddressMap . AddressPool.addresses . Shared.getPool
+
+loadUnsafeShared
+    :: Shared.SharedAddressPool c k
+    -> SharedAddressMap c k
+    -> Shared.SharedAddressPool c k
+loadUnsafeShared (Shared.SharedAddressPool pool0) (SharedAddressMap addrs) =
+    Shared.SharedAddressPool $ AddressPool.loadUnsafe pool0 addrs
 
 instance ( key ~ SharedKey )
     => Buildable (Prologue (Shared.SharedState n key))
@@ -198,7 +230,8 @@ instance ( key ~ SharedKey ) => Eq (Prologue (Shared.SharedState n key)) where
     SharedPrologue a == SharedPrologue b = a == b
 
 instance ( key ~ SharedKey ) => Eq (Discoveries (Shared.SharedState n key)) where
-    SharedDiscoveries a == SharedDiscoveries b = a == b
+    SharedDiscoveries ext1 int1 == SharedDiscoveries ext2 int2 =
+        ext1 == ext2 && int1 == int2
 
 {-------------------------------------------------------------------------------
     HD Random address book
