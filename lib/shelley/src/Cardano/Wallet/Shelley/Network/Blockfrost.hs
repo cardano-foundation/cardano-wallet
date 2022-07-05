@@ -40,6 +40,7 @@ import Cardano.Api
     , ExecutionUnits (executionMemory, executionSteps)
     , NetworkId (..)
     , PlutusScriptVersion (PlutusScriptV1)
+    , ShelleyBasedEra (ShelleyBasedEraAlonzo)
     , TxMetadata (TxMetadata)
     , TxMetadataValue (..)
     )
@@ -120,7 +121,7 @@ import Cardano.Wallet.Primitive.Types.Coin
 import Cardano.Wallet.Primitive.Types.Hash
     ( Hash )
 import Cardano.Wallet.Primitive.Types.MinimumUTxO
-    ( minimumUTxONone )
+    ( minimumUTxOForShelleyBasedEra )
 import Cardano.Wallet.Primitive.Types.RewardAccount
     ( RewardAccount )
 import Cardano.Wallet.Primitive.Types.TokenBundle
@@ -164,6 +165,8 @@ import Data.Bifunctor
     ( first )
 import Data.Bitraversable
     ( bitraverse )
+import Data.Default
+    ( Default (..) )
 import Data.Function
     ( (&) )
 import Data.Functor
@@ -229,6 +232,8 @@ import UnliftIO.STM
 
 import qualified Blockfrost.Client as BF
 import qualified Cardano.Api.Shelley as Node
+import qualified Cardano.Ledger.Alonzo.PParams as Alonzo
+import qualified Cardano.Ledger.Coin as Ledger
 import qualified Cardano.Slotting.Time as ST
 import qualified Cardano.Wallet.Network.Light as LN
 import qualified Cardano.Wallet.Primitive.Types.Coin as Coin
@@ -814,6 +819,9 @@ fromBlockfrostPP network BF.ProtocolParams{..} = do
         BF.unQuantity _protocolParamsMaxTxExMem <?#> "MaxTxExMem"
     desiredNumberOfStakePools <-
         _protocolParamsNOpt <?#> "NOpt"
+    coinsPerUTxOWord <- Ledger.Coin
+        <$> intCast @_ @Integer _protocolParamsCoinsPerUtxoWord
+        <?#> "CoinsPerUtxoWord"
     stakeKeyDeposit <-
         Coin
             <$> intCast @_ @Integer _protocolParamsKeyDeposit <?#> "KeyDeposit"
@@ -862,8 +870,9 @@ fromBlockfrostPP network BF.ProtocolParams{..} = do
                     }
         , maximumCollateralInputCount = maxCollateralInputs
         , minimumCollateralPercentage = collateralPercent
-        -- TODO: Determine the appropriate value for this field:
-        , minimumUTxO = minimumUTxONone
+        -- TODO: Revise this so that we are not hard-coding the era:
+        , minimumUTxO = minimumUTxOForShelleyBasedEra ShelleyBasedEraAlonzo
+            def {Alonzo._coinsPerUTxOWord = coinsPerUTxOWord}
         , currentNodeProtocolParameters =
             Just
                 Node.ProtocolParameters
