@@ -15,8 +15,6 @@ import Cardano.Wallet.Primitive.Types.Address
     ( Address (..) )
 import Cardano.Wallet.Primitive.Types.Coin
     ( Coin (..) )
-import Cardano.Wallet.Primitive.Types.Coin.Gen
-    ( chooseCoin, shrinkCoin )
 import Cardano.Wallet.Primitive.Types.MinimumUTxO
     ( MinimumUTxO
     , MinimumUTxOForShelleyBasedEra (..)
@@ -30,12 +28,16 @@ import Cardano.Wallet.Primitive.Types.MinimumUTxO.Gen
     )
 import Cardano.Wallet.Primitive.Types.TokenBundle
     ( TokenBundle (..) )
+import Cardano.Wallet.Primitive.Types.TokenBundle.Gen
+    ( shrinkTokenBundle )
 import Cardano.Wallet.Primitive.Types.TokenMap
     ( TokenMap )
 import Cardano.Wallet.Primitive.Types.TokenMap.Gen
     ( genTokenMap, shrinkTokenMap )
 import Cardano.Wallet.Primitive.Types.Tx
     ( TxOut (..) )
+import Cardano.Wallet.Primitive.Types.Tx.Gen
+    ( genTxOutTokenBundle )
 import Cardano.Wallet.Shelley.Compatibility
     ( toCardanoTxOut )
 import Cardano.Wallet.Shelley.MinimumUTxO
@@ -47,22 +49,14 @@ import Cardano.Wallet.Shelley.MinimumUTxO
     )
 import Data.Function
     ( (&) )
-import Data.IntCast
-    ( intCast )
-import Data.Word
-    ( Word64 )
-import Generics.SOP
-    ( NP (..) )
-import Numeric.Natural
-    ( Natural )
 import Test.Hspec
     ( Spec, describe, it )
 import Test.QuickCheck
-    ( Arbitrary (..), Property, property )
+    ( Arbitrary (..), Property, property, sized )
 import Test.QuickCheck.Classes
     ( eqLaws, showLaws )
 import Test.QuickCheck.Extra
-    ( genericRoundRobinShrink, report, verify, (<:>), (<@>) )
+    ( report, verify )
 import Test.Utils.Laws
     ( testLawsMany )
 
@@ -176,13 +170,8 @@ instance Arbitrary Cardano.AddressAny where
     arbitrary = genAddressAny
 
 instance Arbitrary TokenBundle where
-    arbitrary = TokenBundle
-        <$> chooseCoin (Coin 0, Coin $ intCast @Word64 @Natural $ maxBound)
-        <*> genTokenMap
-    shrink = genericRoundRobinShrink
-        <@> shrinkCoin
-        <:> shrinkTokenMap
-        <:> Nil
+    arbitrary = sized genTxOutTokenBundle
+    shrink = shrinkTokenBundle
 
 instance Arbitrary MinimumUTxO where
     arbitrary = genMinimumUTxO
