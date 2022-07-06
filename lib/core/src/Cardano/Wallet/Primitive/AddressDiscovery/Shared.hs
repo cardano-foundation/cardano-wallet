@@ -83,6 +83,7 @@ import Cardano.Wallet.Primitive.AddressDerivation
     , Role (..)
     , SoftDerivation
     , WalletKey (..)
+    , roleVal
     , utxoExternal
     )
 import Cardano.Wallet.Primitive.AddressDerivation.SharedKey
@@ -151,6 +152,8 @@ import qualified Data.Map.Strict as Map
 import qualified Data.Text as T
 import qualified Data.Text.Encoding as T
 
+import qualified Debug.Trace as TR
+
 -- | Convenient alias for commonly used class contexts on keys.
 type SupportsDiscovery (n :: NetworkDiscriminant) k =
     ( MkKeyFingerprint k (Proxy n, k 'AddressK XPub)
@@ -198,7 +201,8 @@ instance Buildable (SharedAddressPool c k) where
 newSharedAddressPool
     :: forall (n :: NetworkDiscriminant) c key.
         ( key ~ SharedKey
-        , SupportsDiscovery n key )
+        , SupportsDiscovery n key
+        , Typeable c )
     => AddressPoolGap
     -> ScriptTemplate
     -> Maybe ScriptTemplate
@@ -209,7 +213,7 @@ newSharedAddressPool g payment delegation =
     gap = fromIntegral $ getAddressPoolGap g
     addressFromIx
         = unsafePaymentKeyFingerprint @key
-        . constructAddressFromIx @n payment delegation
+        . constructAddressFromIx @n (roleVal @c) payment delegation
 
 {-------------------------------------------------------------------------------
     Shared State
@@ -533,14 +537,14 @@ isShared
     -> (Maybe (Index 'Soft 'ScriptK), SharedState n k)
 isShared addrRaw st = case ready st of
     Pending -> nop
-    Active (SharedAddressPools extPool intPool pending) ->
+    Active (SharedAddressPools extPool intPool pending) -> TR.trace ("addrRaw:"<>show addrRaw<>" extPool:"<>show extPool<>" intPool:"<>show intPool) $
         case paymentKeyFingerprint addrRaw of
             Left _ -> nop
             Right addr -> case ( AddressPool.lookup addr (getPool extPool)
                                , AddressPool.lookup addr (getPool intPool)) of
                 (Just ix, Nothing) ->
                     let pool' = AddressPool.update addr (getPool extPool) in
-                    ( Just ix
+                    TR.trace ("addr:"<>show addr<>" extPool:"<>show extPool) $ ( Just ix
                     , st { ready = Active
                              ( SharedAddressPools
                                  (SharedAddressPool pool')

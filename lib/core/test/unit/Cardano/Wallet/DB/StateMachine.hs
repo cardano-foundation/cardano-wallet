@@ -109,6 +109,7 @@ import Cardano.Wallet.Primitive.AddressDerivation
     , KeyFingerprint
     , NetworkDiscriminant (..)
     , PersistPrivateKey (..)
+    , Role (..)
     )
 import Cardano.Wallet.Primitive.AddressDerivation.Byron
     ( ByronKey )
@@ -121,9 +122,13 @@ import Cardano.Wallet.Primitive.AddressDerivation.Shelley
 import Cardano.Wallet.Primitive.AddressDiscovery.Random
     ( RndState )
 import Cardano.Wallet.Primitive.AddressDiscovery.Sequential
-    ( AddressPoolGap, SeqState (..) )
+    ( AddressPoolGap, PendingIxs (..), SeqState (..) )
 import Cardano.Wallet.Primitive.AddressDiscovery.Shared
-    ( Readiness, SharedState (..) )
+    ( Readiness
+    , SharedAddressPool (..)
+    , SharedAddressPools (..)
+    , SharedState (..)
+    )
 import Cardano.Wallet.Primitive.Model
     ( Wallet )
 import Cardano.Wallet.Primitive.Passphrase.Types
@@ -987,6 +992,18 @@ instance ToExpr (SharedKey 'AccountK CC.XPub) where
 
 instance ToExpr (KeyFingerprint "payment" SharedKey) where
     toExpr = defaultExprViaShow
+
+instance ToExpr PendingIxs where
+    toExpr = genericToExpr
+
+instance ToExpr (SharedAddressPool 'UtxoExternal SharedKey) where
+    toExpr = genericToExpr
+
+instance ToExpr (SharedAddressPool 'UtxoInternal SharedKey) where
+    toExpr = genericToExpr
+
+instance ToExpr (SharedAddressPools SharedKey) where
+    toExpr = genericToExpr
 
 instance ToExpr (SharedState 'Mainnet SharedKey) where
     toExpr = genericToExpr
