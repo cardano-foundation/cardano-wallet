@@ -48,12 +48,13 @@ RSpec.describe "Cardano Wallet E2E tests", :all, :e2e do
       # We are trying to spend pre-created UTxO from the script address,
       # which was created as follows using fixtures/alwaysfails.plutus:
       #
-      # cardano-cli address build --payment-script-file alwaysfails.plutus --testnet-magic --testnet-magic 9 > AlwaysFails.addr
+      # export NETWORK_ID="--testnet-magic 1097911063"
+      # cardano-cli address build --payment-script-file alwaysfails.plutus $NETWORK_ID > AlwaysFails.addr
       # cardano-cli transaction hash-script-data --script-data-value 1914 > datumhash
       # cardano-cli transaction build  \
       # 	--babbage-era  \
-      # 	--testnet-magic 9 \
-      # 	--tx-in "5684d05be2b84ac369fbd99d01f3d95782779d81a6715bb7e455d0729277df5a#0"  \
+      # 	$NETWORK_ID \
+      # 	--tx-in "6042918f95e9921772c0cf5c604a23c42e46cc6c6280b3bec5722041e056d2b0#0"  \
       # 	--tx-out $(<AlwaysFails.addr)+50000000  \
       # 	--tx-out-datum-hash $(<datumhash) \
       # 	--change-address $(cat payment.addr) \
@@ -62,17 +63,19 @@ RSpec.describe "Cardano Wallet E2E tests", :all, :e2e do
       #
       #  cardano-cli transaction sign \
       #    --tx-body-file body.tx \
-      #    --testnet-magic 9 \
+      #    $NETWORK_ID \
       #    --signing-key-file payment.skey \
       #    --out-file signed.tx
       #
-      # cardano-cli transaction submit --tx-file signed.tx --testnet-magic 9
+      # cardano-cli transaction submit --tx-file signed.tx $NETWORK_ID
       #
       # Therefore it needs to be done once for each network we want to run our test against.
 
-      case ENV['NETWORK']
+      case CONTEXT.env
       when 'vasil-dev'
         script_utxo = 'ce149a5dea4b09d1717ffbe79f8e46ddd9bf0401e95a69502b71f792982b5013#1'
+      when 'testnet'
+        script_utxo = '54b4e4e34a022424e441b00d8a73e9aaef71b3c63084e76246d326074c5d3756#1'
       else
         skip %(
                 This test cannot be executed on '#{ENV['NETWORK']}' yet!
