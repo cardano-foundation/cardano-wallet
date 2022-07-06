@@ -37,7 +37,12 @@ import Cardano.Address.Style.Shared
 import Cardano.Address.Style.Shelley
     ( Credential (..), delegationAddress, paymentAddress )
 import Cardano.Wallet.Primitive.AddressDerivation
-    ( Depth (..), DerivationType (..), Index (..), NetworkDiscriminant (..) )
+    ( Depth (..)
+    , DerivationType (..)
+    , Index (..)
+    , NetworkDiscriminant (..)
+    , Role (..)
+    )
 import Cardano.Wallet.Primitive.Types.Address
     ( Address (..) )
 import Cardano.Wallet.Util
@@ -86,11 +91,12 @@ instance (NFData key) => NFData (SharedKey depth key)
 
 constructAddressFromIx
     :: forall (n :: NetworkDiscriminant).  Typeable n
-    => ScriptTemplate
+    => Role
+    -> ScriptTemplate
     -> Maybe ScriptTemplate
     -> Index 'Soft 'ScriptK
     -> Address
-constructAddressFromIx pTemplate dTemplate ix =
+constructAddressFromIx role pTemplate dTemplate ix =
     let delegationCredential = DelegationFromScript . toScriptHash
         paymentCredential = PaymentFromScript . toScriptHash
         tag = toNetworkTag @n
@@ -102,8 +108,13 @@ constructAddressFromIx pTemplate dTemplate ix =
             CA.unAddress $
             paymentAddress tag
             (paymentCredential pScript')
+        role' = case role of
+            UtxoExternal -> CA.UTxOExternal
+            UtxoInternal -> CA.UTxOInternal
+            MutableAccount ->
+                error "role is specified only for payment credential"
         pScript =
-            replaceCosignersWithVerKeys CA.UTxOExternal pTemplate ix
+            replaceCosignersWithVerKeys role' pTemplate ix
         dScript s =
             replaceCosignersWithVerKeys CA.Stake s ix
     in Address $ case dTemplate of

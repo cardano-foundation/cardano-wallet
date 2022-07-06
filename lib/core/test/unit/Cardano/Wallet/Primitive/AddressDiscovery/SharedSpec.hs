@@ -31,7 +31,9 @@ import Cardano.Wallet.Primitive.AddressDerivation
     , DerivationType (..)
     , HardDerivation (..)
     , Index (..)
+    , KeyFingerprint
     , NetworkDiscriminant (..)
+    , Role (..)
     , WalletKey (..)
     )
 import Cardano.Wallet.Primitive.AddressDerivation.Shared
@@ -42,6 +44,8 @@ import Cardano.Wallet.Primitive.AddressDiscovery.Sequential
     ( AddressPoolGap (..), mkUnboundedAddressPoolGap )
 import Cardano.Wallet.Primitive.AddressDiscovery.Shared
     ( Readiness (..)
+    , SharedAddressPool (..)
+    , SharedAddressPools (..)
     , SharedState (..)
     , isShared
     , liftPaymentAddress
@@ -110,7 +114,7 @@ prop_addressWithScriptFromOurVerKeyIxIn (CatalystSharedState accXPub' accIx' pTe
     preconditions keyIx g dTemplate' ==>
     keyIx' === keyIx
   where
-    addr = constructAddressFromIx @n pTemplate' dTemplate' keyIx
+    addr = constructAddressFromIx @n UtxoExternal pTemplate' dTemplate' keyIx
     sharedState = mkSharedStateFromAccountXPub @n accXPub' accIx' g pTemplate' dTemplate'
     (Just keyIx', _) = isShared @n addr sharedState
 
@@ -124,8 +128,15 @@ prop_addressWithScriptFromOurVerKeyIxBeyond (CatalystSharedState accXPub' accIx'
     fst (isShared @n addr sharedState) === Nothing .&&.
     snd (isShared @n addr sharedState) === sharedState
   where
-    addr = constructAddressFromIx @n pTemplate' dTemplate' keyIx
+    addr = constructAddressFromIx @n UtxoExternal pTemplate' dTemplate' keyIx
     sharedState = mkSharedStateFromAccountXPub @n accXPub' accIx' g pTemplate' dTemplate'
+
+getAddrPool
+    :: SharedState n k
+    -> AddressPool.Pool (KeyFingerprint "payment" k) (Index 'Soft 'ScriptK)
+getAddrPool st = case ready st of
+    Active (SharedAddressPools (SharedAddressPool pool) _ _) -> pool
+    Pending -> error "expected active state"
 
 prop_addressDiscoveryMakesAddressUsed
     :: forall (n :: NetworkDiscriminant). Typeable n
@@ -138,12 +149,9 @@ prop_addressDiscoveryMakesAddressUsed (CatalystSharedState accXPub' accIx' pTemp
     fromIntegral (Map.size ourAddrs) === (fromIntegral (fromEnum ix + 1) + getAddressPoolGap g)
   where
     sharedState = mkSharedStateFromAccountXPub @n accXPub' accIx' g pTemplate' dTemplate'
-    addr = AddressPool.addressFromIx (getPool sharedState) keyIx
+    addr = AddressPool.addressFromIx (getAddrPool sharedState) keyIx
     (Just ix, sharedState') = isShared @n (liftPaymentAddress @n addr) sharedState
-    getPool st = case ready st of
-        Active pool -> pool
-        Pending -> error "expected active state"
-    ourAddrs = AddressPool.addresses (getPool sharedState')
+    ourAddrs = AddressPool.addresses (getAddrPool sharedState')
 
 prop_addressDoubleDiscovery
     :: forall (n :: NetworkDiscriminant). Typeable n
@@ -155,7 +163,7 @@ prop_addressDoubleDiscovery (CatalystSharedState accXPub' accIx' pTemplate' dTem
     isJust (fst sharedState') === True .&&.
     snd sharedState' === snd sharedState''
   where
-    addr = constructAddressFromIx @n pTemplate' dTemplate' keyIx
+    addr = constructAddressFromIx @n UtxoExternal pTemplate' dTemplate' keyIx
     sharedState = mkSharedStateFromAccountXPub @n accXPub' accIx' g pTemplate' dTemplate'
     sharedState' = isShared @n addr sharedState
     sharedState'' = isShared @n addr (snd sharedState')
@@ -171,7 +179,7 @@ prop_addressDiscoveryImpossibleFromOtherAccXPub (CatalystSharedState _ accIx' pT
     fst (isShared addr sharedState) === Nothing .&&.
     snd (isShared addr sharedState) === sharedState
   where
-    addr = constructAddressFromIx @n pTemplate' dTemplate' keyIx
+    addr = constructAddressFromIx @n UtxoExternal pTemplate' dTemplate' keyIx
     (ScriptTemplate _ script') = pTemplate'
     pTemplate'' = ScriptTemplate (Map.fromList [(Cosigner 0, getRawKey accXPub')]) script'
     sharedState = mkSharedStateFromAccountXPub @n accXPub' accIx' g pTemplate'' dTemplate'
@@ -193,7 +201,7 @@ prop_addressDiscoveryImpossibleFromOtherAccountOfTheSameRootXPrv (CatalystShared
     pTemplate'' = ScriptTemplate (Map.fromList [(Cosigner 0, getRawKey accXPub')]) script'
     pTemplate''' = ScriptTemplate (Map.fromList [(Cosigner 0, getRawKey accXPub'')]) script'
     sharedState = mkSharedStateFromAccountXPub @n accXPub'' accIx'' g pTemplate'' dTemplate'
-    addr = constructAddressFromIx @n pTemplate''' dTemplate' keyIx
+    addr = constructAddressFromIx @n UtxoExternal pTemplate''' dTemplate' keyIx
 
 prop_addressDiscoveryImpossibleWithinAccountButDifferentScript
     :: forall (n :: NetworkDiscriminant). Typeable n
@@ -209,7 +217,7 @@ prop_addressDiscoveryImpossibleWithinAccountButDifferentScript (CatalystSharedSt
     (ScriptTemplate cosignerXpubs _) = pTemplate'
     pTemplate'' = ScriptTemplate cosignerXpubs script'
     sharedState = mkSharedStateFromAccountXPub @n accXPub' accIx' g pTemplate' dTemplate'
-    addr = constructAddressFromIx @n pTemplate'' dTemplate' keyIx
+    addr = constructAddressFromIx @n UtxoExternal pTemplate'' dTemplate' keyIx
 
 prop_addressDiscoveryDoesNotChangeGapInvariance
     :: forall (n :: NetworkDiscriminant). Typeable n
@@ -221,18 +229,15 @@ prop_addressDiscoveryDoesNotChangeGapInvariance (CatalystSharedState accXPub' ac
     fromIntegral (L.length mapOfConsecutiveUnused) === getAddressPoolGap g
   where
     sharedState = mkSharedStateFromAccountXPub @n accXPub' accIx' g pTemplate' dTemplate'
-    addr = AddressPool.addressFromIx (getPool sharedState) keyIx
+    addr = AddressPool.addressFromIx (getAddrPool sharedState) keyIx
     (_, sharedState') = isShared @n (liftPaymentAddress @n addr) sharedState
-    getPool st = case ready st of
-        Active pool -> pool
-        Pending -> error "expected active state"
     mapOfConsecutiveUnused
         = L.tail
         . L.dropWhile (== Unused)
         . L.map snd
         . L.sortOn fst
         . Map.elems . AddressPool.addresses
-        $ getPool sharedState'
+        $ getAddrPool sharedState'
 
 preconditions
     :: Index 'Soft 'ScriptK

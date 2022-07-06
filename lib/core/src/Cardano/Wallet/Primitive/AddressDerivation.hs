@@ -34,6 +34,7 @@ module Cardano.Wallet.Primitive.AddressDerivation
       Depth (..)
     , Index (..)
     , Role (..)
+    , roleVal
     , utxoExternal
     , utxoInternal
     , mutableAccount
@@ -86,6 +87,8 @@ import Cardano.Wallet.Primitive.Types.Address
     ( Address (..) )
 import Cardano.Wallet.Primitive.Types.RewardAccount
     ( RewardAccount (..) )
+import Control.Applicative
+    ( (<|>) )
 import Control.DeepSeq
     ( NFData )
 import Control.Monad
@@ -104,6 +107,8 @@ import Data.Kind
     ( Type )
 import Data.List.NonEmpty
     ( NonEmpty (..) )
+import Data.Maybe
+    ( fromMaybe )
 import Data.Proxy
     ( Proxy (..) )
 import Data.Scientific
@@ -120,8 +125,8 @@ import Data.Text.Class
     , fromTextToBoundedEnum
     , toTextFromBoundedEnum
     )
-import Data.Typeable
-    ( Typeable )
+import Data.Type.Equality
+    ( (:~:) (..), testEquality )
 import Data.Word
     ( Word32 )
 import Fmt
@@ -134,6 +139,8 @@ import Quiet
     ( Quiet (..) )
 import Safe
     ( readMay, toEnumMay )
+import Type.Reflection
+    ( Typeable, typeRep )
 
 import qualified Data.Text as T
 
@@ -201,6 +208,32 @@ instance ToText Role where
 
 instance FromText Role where
     fromText = fromTextToBoundedEnum SnakeLowerCase
+
+-- | Bring a 'Role' type back to the term-level. This requires a type
+-- application and either a scoped type variable, or an explicit passing of a
+-- 'Role'.
+--
+-- >>> roleVal @'UtxoExternal
+-- UtxoExternal
+--
+-- >>> roleVal @chain
+-- ...
+roleVal :: forall (c :: Role). Typeable c => Role
+roleVal = fromMaybe (error $ "role: unmatched type" <> show (typeRep @c))
+       (tryUtxoExternal <|> tryUtxoInternal <|> tryMutableAccount)
+  where
+    tryUtxoExternal =
+        case testEquality (typeRep @c) (typeRep @'UtxoExternal) of
+            Just Refl  -> Just UtxoExternal
+            Nothing -> Nothing
+    tryUtxoInternal =
+        case testEquality (typeRep @c) (typeRep @'UtxoInternal) of
+            Just Refl  -> Just UtxoInternal
+            Nothing -> Nothing
+    tryMutableAccount =
+        case testEquality (typeRep @c) (typeRep @'MutableAccount) of
+            Just Refl  -> Just MutableAccount
+            Nothing -> Nothing
 
 -- | smart-constructor for getting a derivation index that refers to external
 -- utxo.

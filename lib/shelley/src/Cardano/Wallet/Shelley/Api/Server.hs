@@ -159,7 +159,7 @@ import Cardano.Wallet.Api.Types
 import Cardano.Wallet.Api.Types.SchemaMetadata
     ( TxMetadataSchema (..), parseSimpleMetadataFlag )
 import Cardano.Wallet.Primitive.AddressDerivation
-    ( DelegationAddress (..), PaymentAddress (..) )
+    ( DelegationAddress (..), PaymentAddress (..), Role (..) )
 import Cardano.Wallet.Primitive.AddressDerivation.Byron
     ( ByronKey )
 import Cardano.Wallet.Primitive.AddressDerivation.Icarus
@@ -605,7 +605,8 @@ server byron icarus shelley multisig spl ntp =
         :: ApiLayer (SharedState n SharedKey) SharedKey
         -> Server (SharedTransactions n)
     sharedTransactions apilayer =
-        constructSharedTransaction apilayer (constructAddressFromIx @n) (knownPools spl) (getPoolLifeCycleStatus spl)
+        constructSharedTransaction apilayer (constructAddressFromIx @n UtxoInternal)
+        (knownPools spl) (getPoolLifeCycleStatus spl)
 
 postAnyAddress
     :: NetworkId

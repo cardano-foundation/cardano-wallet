@@ -48,7 +48,6 @@ module Cardano.Wallet.Primitive.AddressDiscovery.Sequential
 
     -- ** Address Pool
     , SeqAddressPool (..)
-    , role
     , getGap
     , newSeqAddressPool
     , unsafePaymentKeyFingerprint
@@ -100,6 +99,7 @@ import Cardano.Wallet.Primitive.AddressDerivation
     , SoftDerivation (..)
     , ToRewardAccount (..)
     , WalletKey (..)
+    , roleVal
     )
 import Cardano.Wallet.Primitive.AddressDerivation.MintBurn
     ( derivePolicyPrivateKey )
@@ -141,8 +141,6 @@ import Data.Kind
     ( Type )
 import Data.List.NonEmpty
     ( NonEmpty (..) )
-import Data.Maybe
-    ( fromMaybe )
 import Data.Proxy
     ( Proxy (..) )
 import Data.Text
@@ -152,7 +150,7 @@ import Data.Text.Class
 import Data.Text.Read
     ( decimal )
 import Data.Type.Equality
-    ( (:~:) (..), type (==), testEquality )
+    ( type (==) )
 import Data.Word
     ( Word32 )
 import Fmt
@@ -164,7 +162,7 @@ import GHC.Stack
 import GHC.TypeLits
     ( KnownNat, Nat, natVal )
 import Type.Reflection
-    ( Typeable, typeRep )
+    ( Typeable )
 
 import qualified Cardano.Wallet.Address.Pool as AddressPool
 import qualified Data.List as L
@@ -285,7 +283,7 @@ newSeqAddressPool account g =
     addressFromIx ix =
         unsafePaymentKeyFingerprint @key
             ( Proxy @n
-            , deriveAddressPublicKey @key account (role @c) ix
+            , deriveAddressPublicKey @key account (roleVal @c) ix
             )
 
 getGap :: SeqAddressPool c k -> AddressPoolGap
@@ -344,32 +342,6 @@ instance Buildable ScriptTemplate where
             "cosigner#"<> T.pack (show ix)
         presentCosigners =
             Map.foldrWithKey (\c k acc -> acc <> "| " <> printCosigner c <> " " <> accXPubTxt k ) mempty
-
--- | Bring a 'Role' type back to the term-level. This requires a type
--- application and either a scoped type variable, or an explicit passing of a
--- 'Role'.
---
--- >>> role @'UtxoExternal
--- UtxoExternal
---
--- >>> role @chain
--- ...
-role :: forall (c :: Role). Typeable c => Role
-role = fromMaybe (error $ "role: unmatched type" <> show (typeRep @c))
-       (tryUtxoExternal <|> tryUtxoInternal <|> tryMutableAccount)
-  where
-    tryUtxoExternal =
-        case testEquality (typeRep @c) (typeRep @'UtxoExternal) of
-            Just Refl  -> Just UtxoExternal
-            Nothing -> Nothing
-    tryUtxoInternal =
-        case testEquality (typeRep @c) (typeRep @'UtxoInternal) of
-            Just Refl  -> Just UtxoInternal
-            Nothing -> Nothing
-    tryMutableAccount =
-        case testEquality (typeRep @c) (typeRep @'MutableAccount) of
-            Just Refl  -> Just MutableAccount
-            Nothing -> Nothing
 
 {-------------------------------------------------------------------------------
                             Pending Change Indexes
@@ -671,7 +643,7 @@ instance
             -> SeqAddressPool c k
             -> Maybe (k 'AddressK XPrv)
         lookupAndDeriveXPrv addr (SeqAddressPool pool) =
-                deriveAddressPrivateKey pwd accountPrv (role @c)
+                deriveAddressPrivateKey pwd accountPrv (roleVal @c)
             <$> AddressPool.lookup addr pool
 
 instance SupportsDiscovery n k => CompareDiscovery (SeqState n k) where
@@ -704,7 +676,7 @@ instance
           where
             idx (_,(ix,_)) = ix
             shuffle (k,(ix,s)) =
-                (liftPaymentAddress @n k, s, decoratePath st (role @c) ix)
+                (liftPaymentAddress @n k, s, decoratePath st (roleVal @c) ix)
 
         nonChangeAddresses = listAddresses $ externalPool st
 
@@ -765,7 +737,7 @@ discoverSeqWithRewards query s@SeqState{internalPool,externalPool,rewardAccountK
     -- Every 'Address' is composed of a payment part and a staking part.
     -- Ideally, we would want 'query' to give us all transactions
     -- belonging to a given payment part, regardless of the staking parts
-    -- that are paired with that payment part. 
+    -- that are paired with that payment part.
     -- Unfortunately, this is not possible at the moment.
     -- However, fortunately, the staking part is always the same,
     -- so we supply it here in order to obtain an 'Address' that we can query.

@@ -96,6 +96,7 @@ import Cardano.Wallet.Primitive.AddressDerivation
     , Role (..)
     , SoftDerivation (..)
     , WalletKey (..)
+    , roleVal
     )
 import Cardano.Wallet.Primitive.AddressDerivation.SharedKey
     ( SharedKey (..) )
@@ -121,6 +122,8 @@ import Data.Functor
     ( (<&>) )
 import Data.Generics.Internal.VL.Lens
     ( view, (^.) )
+import Data.Kind
+    ( Type )
 import Data.Map.Strict
     ( Map )
 import Data.Maybe
@@ -505,7 +508,7 @@ insertSeqAddressMap
 insertSeqAddressMap wid sl (SeqAddressMap pool) = void $
     dbChunked insertMany_
         [ SeqStateAddress wid sl (liftPaymentAddress @n addr)
-            (W.getIndex ix) (Seq.role @c) status
+            (W.getIndex ix) (roleVal @c) status
         | (addr, (ix, status)) <- Map.toList pool
         ]
 
@@ -518,7 +521,7 @@ selectSeqAddressMap wid sl = do
     SeqAddressMap . Map.fromList . map (toTriple . entityVal) <$> selectList
         [ SeqStateAddressWalletId ==. wid
         , SeqStateAddressSlot ==. sl
-        , SeqStateAddressRole ==. Seq.role @c
+        , SeqStateAddressRole ==. roleVal @c
         ] [Asc SeqStateAddressIndex]
   where
     toTriple x =
@@ -598,15 +601,20 @@ instance
         pure $ SharedPrologue prologue
 
     loadDiscoveries wid sl = do
-        extAddrMap <- loadAddresses wid sl UtxoExternal
-        intAddrMap <- loadAddresses wid sl UtxoInternal
+        extAddrMap <- loadAddresses @'UtxoExternal
+        intAddrMap <- loadAddresses @'UtxoInternal
         pure $ SharedDiscoveries extAddrMap intAddrMap
           where
-          loadAddresses wid sl chain = do
+          loadAddresses
+              :: forall (c :: Role) (k :: Depth -> Type -> Type).
+                 ( MkKeyFingerprint k W.Address
+                 , Typeable c )
+              => SqlPersistT IO (SharedAddressMap c k)
+          loadAddresses = do
               addrs <- map entityVal <$> selectList
                   [ SeqStateAddressWalletId ==. wid
                   , SeqStateAddressSlot ==. sl
-                  , SeqStateAddressRole ==. chain
+                  , SeqStateAddressRole ==. roleVal @c
                   ] [Asc SeqStateAddressIndex]
               pure $ SharedAddressMap $ Map.fromList
                   [ (fingerprint, (toEnum $ fromIntegral ix, status))
