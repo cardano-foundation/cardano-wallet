@@ -122,9 +122,10 @@ import Cardano.Wallet.Primitive.AddressDerivation.Shelley
 import Cardano.Wallet.Primitive.AddressDiscovery.Random
     ( RndState )
 import Cardano.Wallet.Primitive.AddressDiscovery.Sequential
-    ( AddressPoolGap, PendingIxs (..), SeqState (..) )
+    ( AddressPoolGap, SeqState (..) )
 import Cardano.Wallet.Primitive.AddressDiscovery.Shared
-    ( Readiness
+    ( PendingIxs
+    , Readiness
     , SharedAddressPool (..)
     , SharedAddressPools (..)
     , SharedState (..)

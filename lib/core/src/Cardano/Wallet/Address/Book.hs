@@ -191,7 +191,7 @@ instance ( key ~ SharedKey ) => AddressBookIso (Shared.SharedState n key)
             Shared.Active (Shared.SharedAddressPools extPool intPool _pending) ->
                 let extPool0 = clearShared extPool
                     intPool0 = clearShared intPool
-                    pending0 = Seq.emptyPendingIxs
+                    pending0 = Shared.emptyPendingIxs
                     pools0 = Shared.SharedAddressPools extPool0 intPool0 pending0
                 in  ( SharedPrologue st{ Shared.ready = Shared.Active pools0 }
                     , SharedDiscoveries

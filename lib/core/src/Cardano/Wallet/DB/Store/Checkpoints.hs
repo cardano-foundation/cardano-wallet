@@ -597,7 +597,7 @@ instance
             False -> mkSharedState $ Shared.Active $ Shared.SharedAddressPools
                 (Shared.newSharedAddressPool @n @'UtxoExternal gap pTemplate dTemplateM)
                 (Shared.newSharedAddressPool @n @'UtxoInternal gap pTemplate dTemplateM)
-                Seq.emptyPendingIxs
+                Shared.emptyPendingIxs
         pure $ SharedPrologue prologue
 
     loadDiscoveries wid sl = do
