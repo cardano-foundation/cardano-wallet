@@ -133,6 +133,9 @@ cardanoNodeProcess cfg socketPath = do
         , "--topology", nodeTopologyFile cfg
         , "--database-path", nodeDatabaseDir cfg
         , "--socket-path", socketPath
+        -- UTxO-HD configurations
+        , "--lmdb-ledger-db-backend"
+        , "--lmdb-mapsize", "2Gi"
         ]
         ++ opt "--port" (show . unNodePort <$> nodePort cfg)
         ++ opt "--signing-key" (nodeSignKeyFile cfg)
