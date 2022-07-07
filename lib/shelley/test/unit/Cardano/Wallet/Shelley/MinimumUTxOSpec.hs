@@ -52,7 +52,14 @@ import Data.Function
 import Test.Hspec
     ( Spec, describe, it )
 import Test.QuickCheck
-    ( Arbitrary (..), Property, property, sized )
+    ( Arbitrary (..)
+    , Property
+    , checkCoverage
+    , conjoin
+    , cover
+    , property
+    , sized
+    )
 import Test.QuickCheck.Classes
     ( eqLaws, showLaws )
 import Test.QuickCheck.Extra
@@ -78,6 +85,9 @@ spec = do
                 & property
         it "prop_computeMinimumCoinForUTxO_shelleyBasedEra_bounds" $
             prop_computeMinimumCoinForUTxO_shelleyBasedEra_bounds
+                & property
+        it "prop_computeMinimumCoinForUTxO_shelleyBasedEra_stability" $
+            prop_computeMinimumCoinForUTxO_shelleyBasedEra_stability
                 & property
 
 -- Check that it's possible to evaluate 'computeMinimumCoinForUTxO' without
@@ -154,6 +164,77 @@ prop_computeMinimumCoinForUTxO_shelleyBasedEra_bounds
     ourResult = computeMinimumCoinForUTxO
         (minimumUTxOForShelleyBasedEra era pp)
         (TokenBundle.tokens tokenBundle)
+
+-- Compares the stability of:
+--
+-- - the Cardano API function 'calculateMinimumUTxO'
+-- - the wallet function 'computeMinimumCoinForUTxO'
+--
+prop_computeMinimumCoinForUTxO_shelleyBasedEra_stability
+    :: TokenMap
+    -> Cardano.AddressAny
+    -> MinimumUTxOForShelleyBasedEra
+    -> Property
+prop_computeMinimumCoinForUTxO_shelleyBasedEra_stability
+    tokenMap addr (MinimumUTxOForShelleyBasedEra era pp) =
+        conjoin
+            [ prop_apiFunctionStability
+            , prop_ourFunctionStability
+            ]
+  where
+    -- Demonstrate that applying the Cardano API function to its own result can
+    -- lead to an increase in the ada quantity.
+    --
+    prop_apiFunctionStability :: Property
+    prop_apiFunctionStability =
+        let apiResult0 = apiComputeMinCoin $ TokenBundle (Coin 0)   tokenMap
+            apiResult1 = apiComputeMinCoin $ TokenBundle apiResult0 tokenMap
+        in
+        property True
+            & verify   (apiResult0 <= apiResult1) "apiResult0 <= apiResult1"
+            & cover 10 (apiResult0 == apiResult1) "apiResult0 == apiResult1"
+            & cover 10 (apiResult0  < apiResult1) "apiResult0  < apiResult1"
+            & report apiResult0 "apiResult0"
+            & report apiResult1 "apiResult1"
+            & checkCoverage
+
+    -- Demonstrate that applying the Cardano API function to the result of the
+    -- wallet function does not lead to an increase in the ada quantity.
+    --
+    prop_ourFunctionStability :: Property
+    prop_ourFunctionStability =
+        let ourResult0 = ourComputeMinCoin                          tokenMap
+            ourResult1 = apiComputeMinCoin $ TokenBundle ourResult0 tokenMap
+        in
+        property True
+            & verify   (ourResult0 >= ourResult1) "ourResult0 >= ourResult1"
+            & cover 10 (ourResult0 == ourResult1) "ourResult0 == ourResult1"
+            & cover 10 (ourResult0  > ourResult1) "ourResult0  > ourResult1"
+            & report ourResult0 "ourResult0"
+            & report ourResult1 "ourResult1"
+            & checkCoverage
+
+    -- Uses the Cardano API function 'calculateMinimumUTxO' to compute a
+    -- minimum 'Coin' value.
+    --
+    apiComputeMinCoin :: TokenBundle -> Coin
+    apiComputeMinCoin b
+        = either raiseApiError unsafeValueToWalletCoin
+        $ Cardano.calculateMinimumUTxO era (toApiTxOut b)
+        $ Cardano.fromLedgerPParams era pp
+      where
+        raiseApiError e = error $ unwords
+            ["Failed to obtain result from Cardano API:", show e]
+        toApiTxOut = toCardanoTxOut era . TxOut (fromCardanoAddressAny addr)
+        unsafeValueToWalletCoin =
+            (unsafeLovelaceToWalletCoin . unsafeValueToLovelace)
+
+    -- Uses the wallet function 'computeMinimumCoinForUTxO' to compute a
+    -- minimum 'Coin' value.
+    --
+    ourComputeMinCoin :: TokenMap -> Coin
+    ourComputeMinCoin =
+        computeMinimumCoinForUTxO (minimumUTxOForShelleyBasedEra era pp)
 
 --------------------------------------------------------------------------------
 -- Utility functions
