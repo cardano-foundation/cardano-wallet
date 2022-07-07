@@ -151,12 +151,12 @@ replaceCosignersWithVerKeys role' (ScriptTemplate xpubs scriptTemplate) ix =
         in hashKey walletRole verKey
     walletRole = case role' of
         CA.UTxOExternal -> CA.Payment
+        CA.UTxOInternal -> CA.Payment
         CA.Stake -> CA.Delegation
-        _ ->  error "replaceCosignersWithVerKeys is supported only for role=0 and role=2"
     deriveMultisigPublicKey = case role' of
         CA.UTxOExternal -> deriveAddressPublicKey
+        CA.UTxOInternal -> deriveAddressPublicKey
         CA.Stake -> deriveDelegationPublicKey
-        _ ->  error "replaceCosignersWithVerKeys is supported only for role=0 and role=2"
 
 -- | Convert 'NetworkDiscriminant type parameter to
 -- 'Cardano.Address.NetworkTag'.
