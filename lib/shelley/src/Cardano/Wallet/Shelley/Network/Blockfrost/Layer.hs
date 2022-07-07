@@ -64,7 +64,7 @@ import Blockfrost.Client
     )
 import Cardano.BM.Tracing
     ( HasSeverityAnnotation (getSeverityAnnotation)
-    , Severity (Debug)
+    , Severity (Debug, Notice)
     , Tracer
     , traceWith
     )
@@ -76,6 +76,11 @@ import Control.Concurrent
     ( threadDelay )
 import Control.Monad
     ( when )
+import Control.Retry
+    ( RetryStatus (RetryStatus, rsCumulativeDelay, rsIterNumber, rsPreviousDelay)
+    , recoverAll
+    , retryPolicyDefault
+    )
 import Data.IORef
     ( newIORef, readIORef, writeIORef )
 import Data.Maybe
@@ -103,7 +108,7 @@ data BlockfrostLayer m = BlockfrostLayer
     , bfGetAccount ::
         Address -> m (Maybe AccountInfo)
     , bfGetBlockSlot ::
-        Slot -> m Block
+        Slot -> m (Consensual Block)
     , bfGetBlockAtHeight ::
         Integer -> m Block
     , bfGetBlockAfterHash ::
@@ -149,7 +154,7 @@ blockfrostLayer = BlockfrostLayer
     , bfGetPoolHistory = getPoolHistory'
     , bfGetLedgerGenesis = getLedgerGenesis
     , bfGetAccount = maybe404 . getAccount
-    , bfGetBlockSlot = getBlockSlot
+    , bfGetBlockSlot = consensual404 . getBlockSlot
     , bfGetBlockAtHeight = getBlock . Left
     , bfGetBlockAfterHash =
         consensual404 . (listToMaybe <$>) . (`getNextBlocks'` paged 1 1) . Right
@@ -175,7 +180,7 @@ blockfrostLayer = BlockfrostLayer
     }
 
 hoistBlockfrostLayer ::
-    BlockfrostLayer BFM -> (forall a. BFM a -> IO a) -> BlockfrostLayer IO
+    BlockfrostLayer m -> (forall a. m a -> n a) -> BlockfrostLayer n
 hoistBlockfrostLayer BlockfrostLayer{..} nt =
     BlockfrostLayer
     { bfGetLatestBlock = nt bfGetLatestBlock
@@ -202,6 +207,13 @@ hoistBlockfrostLayer BlockfrostLayer{..} nt =
     , bfGetNetworkInfo = nt bfGetNetworkInfo
     , bfListPools = nt bfListPools
     }
+
+withRecovery :: Tracer IO Log -> BlockfrostLayer IO -> BlockfrostLayer IO
+withRecovery tr layer = hoistBlockfrostLayer layer \action ->
+    recoverAll retryPolicyDefault \RetryStatus{..} -> do
+        when (rsIterNumber > 0) do
+            traceWith tr $ Retrying rsIterNumber
+        action
 
 rateLimitedBlockfrostLayer :: Tracer IO Log -> Project -> IO (BlockfrostLayer IO)
 rateLimitedBlockfrostLayer tr project = do
@@ -232,15 +244,19 @@ rateLimitedBlockfrostLayer tr project = do
     nextSecond =
         fromIntegral @Integer . truncate . (+ 1) . nominalDiffTimeToSeconds
 
-newtype Log = RateLimiting Int
+data Log = RateLimiting Int | Retrying Int
 
 instance ToText Log where
     toText = \case
         RateLimiting micros ->
             "Pausing for " <> toText (show micros) <> " microseconds..."
+        Retrying iter ->
+            "Retrying (" <> toText (show iter) <> ")... "
 
 instance HasSeverityAnnotation Log where
-    getSeverityAnnotation = \case RateLimiting{} -> Debug
+    getSeverityAnnotation = \case
+        RateLimiting{} -> Debug
+        Retrying{} -> Notice
 
 -- | Query all results, until we get less than maximum items per page.
 -- Until https://github.com/blockfrost/blockfrost-haskell/issues/26 is fixed.
@@ -253,7 +269,7 @@ allPages' act = do
                 xs -> do
                     next <- fetch (nextPage page')
                     pure $ xs <> next
-    fetch Paged { countPerPage = maxPageSize, pageNumber = 1 }
+    fetch Paged{ countPerPage = maxPageSize, pageNumber = 1 }
   where
     nextPage :: Paged -> Paged
     nextPage p = p { pageNumber = 1 + pageNumber p }
