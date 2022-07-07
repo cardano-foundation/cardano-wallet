@@ -153,10 +153,10 @@ replaceCosignersWithVerKeys role' (ScriptTemplate xpubs scriptTemplate) ix =
         CA.UTxOExternal -> CA.Payment
         CA.UTxOInternal -> CA.Payment
         CA.Stake -> CA.Delegation
-    deriveMultisigPublicKey = case role' of
-        CA.UTxOExternal -> deriveAddressPublicKey
-        CA.UTxOInternal -> deriveAddressPublicKey
-        CA.Stake -> deriveDelegationPublicKey
+    deriveMultisigPublicKey accXPub = case role' of
+        CA.UTxOExternal -> deriveAddressPublicKey accXPub role'
+        CA.UTxOInternal -> deriveAddressPublicKey accXPub role'
+        CA.Stake -> deriveDelegationPublicKey accXPub
 
 -- | Convert 'NetworkDiscriminant type parameter to
 -- 'Cardano.Address.NetworkTag'.
