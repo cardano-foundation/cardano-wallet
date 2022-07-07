@@ -109,61 +109,62 @@ prop_computeMinimumCoinForUTxO_shelleyBasedEra_bounds
     -> Property
 prop_computeMinimumCoinForUTxO_shelleyBasedEra_bounds
     tokenBundle addr (MinimumUTxOForShelleyBasedEra era pp) =
-        case apiResultBoundsM of
-            Left e -> error $ unwords
-                [ "Failed to obtain result from Cardano API:"
-                , show e
-                ]
-            Right apiResultBounds -> prop_inner apiResultBounds
+        let ourResult = ourComputeMinCoin
+                (TokenBundle.tokens tokenBundle)
+            apiResultMinBound = apiComputeMinCoin
+                (fromCardanoAddressAny addr)
+                (tokenBundle)
+            apiResultMaxBound = apiComputeMinCoin
+                (maxLengthAddress)
+                (TokenBundle.setCoin tokenBundle maxLengthCoin)
+        in
+        property True
+            & verify
+                (ourResult >= apiResultMinBound)
+                "ourResult >= apiResultMinBound"
+            & verify
+                (ourResult <= apiResultMaxBound)
+                "ourResult <= apiResultMaxBound"
+            & report
+                (apiResultMinBound)
+                "apiResultMinBound"
+            & report
+                (apiResultMaxBound)
+                "apiResultMaxBound"
+            & report
+                (ourResult)
+                "ourResult"
+            & report
+                (BS.length (Cardano.serialiseToRawBytes addr))
+                "BS.length (Cardano.serialiseToRawBytes addr))"
+            & report
+                (BS.length (unAddress (fromCardanoAddressAny addr)))
+                "BS.length (unAddress (fromCardanoAddressAny addr))"
+            & report
+                (BS.length (unAddress maxLengthAddress))
+                "BS.length (unAddress maxLengthAddress))"
   where
-    prop_inner :: (Coin, Coin) -> Property
-    prop_inner (apiResultMinBound, apiResultMaxBound) = property True
-        & verify
-            (ourResult >= apiResultMinBound)
-            "ourResult >= apiResultMinBound"
-        & verify
-            (ourResult <= apiResultMaxBound)
-            "ourResult <= apiResultMaxBound"
-        & report
-            (apiResultMinBound)
-            "apiResultMinBound"
-        & report
-            (apiResultMaxBound)
-            "apiResultMaxBound"
-        & report
-            (ourResult)
-            "ourResult"
-        & report
-            (BS.length (Cardano.serialiseToRawBytes addr))
-            "BS.length (Cardano.serialiseToRawBytes addr))"
-        & report
-            (BS.length (unAddress (fromCardanoAddressAny addr)))
-            "BS.length (unAddress (fromCardanoAddressAny addr))"
-        & report
-            (BS.length (unAddress maxLengthAddress))
-            "BS.length (unAddress maxLengthAddress))"
-
-    apiResultBoundsM :: Either Cardano.MinimumUTxOError (Coin, Coin)
-    apiResultBoundsM = (,)
-        <$> apiCalculateMinimumUTxO apiTxOutMinBound
-        <*> apiCalculateMinimumUTxO apiTxOutMaxBound
+    -- Uses the Cardano API function 'calculateMinimumUTxO' to compute a
+    -- minimum 'Coin' value.
+    --
+    apiComputeMinCoin :: Address -> TokenBundle -> Coin
+    apiComputeMinCoin a b
+        = either raiseApiError unsafeValueToWalletCoin
+        $ Cardano.calculateMinimumUTxO era (toApiTxOut b)
+        $ Cardano.fromLedgerPParams era pp
       where
-        apiCalculateMinimumUTxO tx =
-            fmap (unsafeLovelaceToWalletCoin . unsafeValueToLovelace) $
-            Cardano.calculateMinimumUTxO era tx $
-            Cardano.fromLedgerPParams era pp
+        raiseApiError e = error $ unwords
+            ["Failed to obtain result from Cardano API:", show e]
+        toApiTxOut = toCardanoTxOut era . TxOut a
+        unsafeValueToWalletCoin =
+            (unsafeLovelaceToWalletCoin . unsafeValueToLovelace)
 
-        apiTxOutMinBound =
-            toCardanoTxOut era $ TxOut (fromCardanoAddressAny addr) tokenBundle
-
-        apiTxOutMaxBound =
-            toCardanoTxOut era $ TxOut maxLengthAddress $
-            TokenBundle.setCoin tokenBundle maxLengthCoin
-
-    ourResult :: Coin
-    ourResult = computeMinimumCoinForUTxO
-        (minimumUTxOForShelleyBasedEra era pp)
-        (TokenBundle.tokens tokenBundle)
+    -- Uses the wallet function 'computeMinimumCoinForUTxO' to compute a
+    -- minimum 'Coin' value.
+    --
+    ourComputeMinCoin :: TokenMap -> Coin
+    ourComputeMinCoin =
+        computeMinimumCoinForUTxO (minimumUTxOForShelleyBasedEra era pp)
 
 -- Compares the stability of:
 --
