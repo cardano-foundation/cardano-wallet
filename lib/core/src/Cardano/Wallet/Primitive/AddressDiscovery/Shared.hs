@@ -34,6 +34,9 @@ module Cardano.Wallet.Primitive.AddressDiscovery.Shared
     , SharedAddressPool (..)
     , newSharedAddressPool
 
+    , PendingIxs
+    , emptyPendingIxs
+
     , ErrAddCosigner (..)
     , ErrScriptTemplate (..)
     , mkSharedStateFromAccountXPub
@@ -103,17 +106,15 @@ import Cardano.Wallet.Primitive.AddressDiscovery
     , coinTypeAda
     )
 import Cardano.Wallet.Primitive.AddressDiscovery.Sequential
-    ( AddressPoolGap (..)
-    , PendingIxs (..)
-    , emptyPendingIxs
-    , unsafePaymentKeyFingerprint
-    )
+    ( AddressPoolGap (..), unsafePaymentKeyFingerprint )
 import Cardano.Wallet.Primitive.Passphrase
     ( Passphrase )
 import Cardano.Wallet.Primitive.Types.Address
     ( Address (..) )
 import Cardano.Wallet.Primitive.Types.RewardAccount
     ( RewardAccount )
+import Cardano.Wallet.Util
+    ( invariant )
 import Control.Applicative
     ( (<|>) )
 import Control.Arrow
@@ -152,7 +153,6 @@ import qualified Data.Map.Strict as Map
 import qualified Data.Text as T
 import qualified Data.Text.Encoding as T
 
-import qualified Debug.Trace as TR
 
 -- | Convenient alias for commonly used class contexts on keys.
 type SupportsDiscovery (n :: NetworkDiscriminant) k =
@@ -161,6 +161,24 @@ type SupportsDiscovery (n :: NetworkDiscriminant) k =
     , SoftDerivation k
     , Typeable n
     )
+
+{-------------------------------------------------------------------------------
+                            Pending Change Indexes
+-------------------------------------------------------------------------------}
+
+-- | An ordered set of pending indexes. This keep track of indexes used
+newtype PendingIxs = PendingIxs
+    { pendingIxsToList :: [Index 'Soft 'ScriptK] }
+    deriving stock (Generic, Show, Eq)
+
+instance NFData PendingIxs
+
+-- | An empty pending set of change indexes.
+--
+-- NOTE: We do not define a 'Monoid' instance here because there's no rational
+-- of combining two pending sets.
+emptyPendingIxs :: PendingIxs
+emptyPendingIxs = PendingIxs mempty
 
 {-------------------------------------------------------------------------------
     Address Pool
@@ -537,14 +555,14 @@ isShared
     -> (Maybe (Index 'Soft 'ScriptK), SharedState n k)
 isShared addrRaw st = case ready st of
     Pending -> nop
-    Active (SharedAddressPools extPool intPool pending) -> TR.trace ("addrRaw:"<>show addrRaw<>" extPool:"<>show extPool<>" intPool:"<>show intPool) $
+    Active (SharedAddressPools extPool intPool pending) ->
         case paymentKeyFingerprint addrRaw of
             Left _ -> nop
             Right addr -> case ( AddressPool.lookup addr (getPool extPool)
                                , AddressPool.lookup addr (getPool intPool)) of
                 (Just ix, Nothing) ->
                     let pool' = AddressPool.update addr (getPool extPool) in
-                    TR.trace ("addr:"<>show addr<>" extPool:"<>show extPool) $ ( Just ix
+                    ( Just ix
                     , st { ready = Active
                              ( SharedAddressPools
                                  (SharedAddressPool pool')
@@ -629,7 +647,37 @@ instance GenChange (SharedState n k) where
     type ArgGenChange (SharedState n k) =
         (ScriptTemplate -> Maybe ScriptTemplate -> Index 'Soft 'ScriptK -> Address)
 
-    genChange mkAddress st = undefined
+    genChange mkAddress st = case ready st of
+        Pending ->
+            error "generating change in pending shared state does not make sense"
+        Active (SharedAddressPools extPool intPool pending) ->
+            let (ix, pending') = nextChangeIndex intPool pending
+                addr = mkAddress (paymentTemplate st) (delegationTemplate st) ix
+            in (addr, st{ ready = Active (SharedAddressPools extPool intPool pending') })
+
+-- | Get the next change index; If every available indexes have already been
+-- taken, we'll rotate the pending set and re-use already provided indexes.
+nextChangeIndex
+    :: SharedAddressPool c k
+    -> PendingIxs
+    -> (Index 'Soft 'ScriptK, PendingIxs)
+nextChangeIndex (SharedAddressPool pool) (PendingIxs ixs) =
+    let
+        poolLen = AddressPool.size  pool
+        (firstUnused, lastUnused) =
+            ( toEnum $ poolLen - AddressPool.gap pool
+            , toEnum $ poolLen - 1
+            )
+        (ix, ixs') = case ixs of
+            [] ->
+                (firstUnused, PendingIxs [firstUnused])
+            h:_ | length ixs < AddressPool.gap pool ->
+                (succ h, PendingIxs (succ h:ixs))
+            h:q ->
+                (h, PendingIxs (q++[h]))
+    in
+        invariant "index is within first unused and last unused" (ix, ixs')
+            (\(i,_) -> i >= firstUnused && i <= lastUnused)
 
 {-------------------------------------------------------------------------------
     Address utilities
