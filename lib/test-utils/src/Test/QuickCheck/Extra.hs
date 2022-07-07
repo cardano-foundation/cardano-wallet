@@ -543,7 +543,7 @@ report a name = counterexample $
 --
 -- On failure, reports the name of the condition that failed.
 --
-verify :: Bool -> String -> Property -> Property
+verify :: Testable t => Bool -> String -> t -> Property
 verify condition conditionTitle =
     (.&&.) (counterexample counterexampleText $ property condition)
   where
