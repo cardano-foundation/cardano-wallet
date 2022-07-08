@@ -4211,6 +4211,18 @@ x-errValidityIntervalNotInsideScriptTimelock: &errValidityIntervalNotInsideScrip
       type: string
       enum: ['validity_interval_not_inside_script_timelock']
 
+x-errSharedWalletPending: &errSharedWalletPending
+  <<: *responsesErr
+  title: shared_wallet_pending
+  properties:
+    message:
+      type: string
+      description:
+        Occurs when attempting to create a transaction for a pending shared wallet.
+    code:
+      type: string
+      enum: ['shared_wallet_pending']
+
 x-errInputsDepleted: &errInputsDepleted
   <<: *responsesErr
   title: inputs_depleted
@@ -5403,6 +5415,7 @@ x-responsesConstructTransaction: &responsesConstructTransaction
             - <<: *errMintOrBurnAssetQuantityOutOfBounds
             - <<: *errInvalidValidityBounds
             - <<: *errValidityIntervalNotInsideScriptTimelock
+            - <<: *errSharedWalletPending
   <<: *responsesErr404WalletNotFound
   <<: *responsesErr406
   <<: *responsesErr415UnsupportedMediaType

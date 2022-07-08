@@ -2602,7 +2602,7 @@ handleValidityInterval ti validityInterval = do
                     fromValidityBound (Right val)
             pure (before'', hereafter'')
 
-    pure $ (before, hereafter, isThereNegativeTime)
+    pure (before, hereafter, isThereNegativeTime)
 
 -- TO-DO delegations/withdrawals
 -- TO-DO minting/burning
