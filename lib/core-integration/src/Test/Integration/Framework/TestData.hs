@@ -114,6 +114,7 @@ module Test.Integration.Framework.TestData
     , errMsg403MintOrBurnAssetQuantityOutOfBounds
     , errMsg403InvalidValidityBounds
     , errMsg403ValidityIntervalNotInsideScriptTimelock
+    , errMsg403SharedWalletPending
     ) where
 
 import Prelude
@@ -734,6 +735,13 @@ errMsg403ValidityIntervalNotInsideScriptTimelock = unwords
     [ "Attempted to create a transaction with a validity interval"
     , "that is not a subinterval of an associated script's timelock"
     , "interval."
+    ]
+
+errMsg403SharedWalletPending :: String
+errMsg403SharedWalletPending = unwords
+    [ "Transaction for a shared wallet should not be tried for "
+    , "a pending shared wallet. Make the wallet active before sending "
+    , "transaction."
     ]
 
 --------------------------------------------------------------------------------

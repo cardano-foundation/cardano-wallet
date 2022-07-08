@@ -3500,6 +3500,7 @@ data ErrConstructTx
     | ErrConstructTxMintOrBurnAssetQuantityOutOfBounds
     | ErrConstructTxWrongValidityBounds
     | ErrConstructTxValidityIntervalNotWithinScriptTimelock
+    | ErrConstructTxSharedWalletPending
     | ErrConstructTxNotImplemented String
     -- ^ Temporary error constructor.
     deriving (Show, Eq)

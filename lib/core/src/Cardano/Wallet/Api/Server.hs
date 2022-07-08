@@ -2604,11 +2604,12 @@ handleValidityInterval ti validityInterval = do
 
     pure $ (before, hereafter, isThereNegativeTime)
 
--- TO-DO delegations
--- TO-DO minting
+-- TO-DO delegations/withdrawals
+-- TO-DO minting/burning
 constructSharedTransaction
     :: forall ctx s k n.
-        ( ctx ~ ApiLayer s k
+        ( s ~ SharedState n k
+        , ctx ~ ApiLayer s k
         , Bounded (Index (AddressIndexDerivationType k) 'AddressK)
         , GenChange s
         , HardDerivation k
@@ -2661,50 +2662,56 @@ constructSharedTransaction ctx genChange _knownPools _getPoolStatus (ApiT wid) b
             )
 
     withWorkerCtx ctx wid liftE liftE $ \wrk -> do
-        pp <- liftIO $ NW.currentProtocolParameters (wrk ^. networkLayer)
-        era <- liftIO $ NW.currentNodeEra (wrk ^. networkLayer)
+        (cp, _, _) <- liftHandler $ withExceptT ErrConstructTxNoSuchWallet $
+            W.readWallet @_ @s @k wrk wid
+        case Shared.ready (getState cp) of
+            Shared.Pending ->
+                liftHandler $ throwE ErrConstructTxSharedWalletPending
+            Shared.Active _ -> do
+                pp <- liftIO $ NW.currentProtocolParameters (wrk ^. networkLayer)
+                era <- liftIO $ NW.currentNodeEra (wrk ^. networkLayer)
 
-        (utxoAvailable, wallet, pendingTxs) <-
-            liftHandler $ W.readWalletUTxOIndex @_ @s @k wrk wid
+                (utxoAvailable, wallet, pendingTxs) <-
+                    liftHandler $ W.readWalletUTxOIndex @_ @s @k wrk wid
 
-        let runSelection outs =
-                W.selectAssets @_ @_ @s @k wrk era pp selectAssetsParams transform
-              where
-                selectAssetsParams = W.SelectAssetsParams
-                    { outputs = outs
-                    , pendingTxs
-                    , randomSeed = Nothing
-                    , txContext = txCtx
-                    , utxoAvailableForInputs =
-                        UTxOSelection.fromIndex utxoAvailable
-                    , utxoAvailableForCollateral =
-                        UTxOIndex.toMap utxoAvailable
-                    , wallet
-                    , selectionStrategy = SelectionStrategyOptimal
+                let runSelection outs =
+                        W.selectAssets @_ @_ @s @k wrk era pp selectAssetsParams transform
+                      where
+                        selectAssetsParams = W.SelectAssetsParams
+                            { outputs = outs
+                            , pendingTxs
+                            , randomSeed = Nothing
+                            , txContext = txCtx
+                            , utxoAvailableForInputs =
+                                UTxOSelection.fromIndex utxoAvailable
+                            , utxoAvailableForCollateral =
+                                UTxOIndex.toMap utxoAvailable
+                            , wallet
+                            , selectionStrategy = SelectionStrategyOptimal
+                            }
+                (sel, sel', fee) <- do
+                    outs <- case (body ^. #payments) of
+                        Nothing -> pure []
+                        Just (ApiPaymentAddresses content) ->
+                            pure $ F.toList (addressAmountToTxOut <$> content)
+                        Just (ApiPaymentAll _) -> do
+                            liftHandler $
+                                throwE $ ErrConstructTxNotImplemented "ADP-1189"
+
+                    (sel', utx, fee') <- liftHandler $ runSelection outs
+                    sel <- liftHandler $
+                        W.assignChangeAddressesWithoutDbUpdate wrk wid genChange utx
+                    (FeeEstimation estMin _) <- liftHandler $ W.estimateFee (pure fee')
+                    pure (sel, sel', estMin)
+
+                tx <- liftHandler
+                    $ W.constructTransaction @_ @s @k @n wrk wid era txCtx sel
+
+                pure $ ApiConstructTransaction
+                    { transaction = ApiT tx
+                    , coinSelection = mkApiCoinSelection [] [] Nothing md sel'
+                    , fee = Quantity $ fromIntegral fee
                     }
-        (sel, sel', fee) <- do
-            outs <- case (body ^. #payments) of
-                Nothing -> pure []
-                Just (ApiPaymentAddresses content) ->
-                    pure $ F.toList (addressAmountToTxOut <$> content)
-                Just (ApiPaymentAll _) -> do
-                    liftHandler $
-                        throwE $ ErrConstructTxNotImplemented "ADP-1189"
-
-            (sel', utx, fee') <- liftHandler $ runSelection outs
-            sel <- liftHandler $
-                W.assignChangeAddressesWithoutDbUpdate wrk wid genChange utx
-            (FeeEstimation estMin _) <- liftHandler $ W.estimateFee (pure fee')
-            pure (sel, sel', estMin)
-
-        tx <- liftHandler
-            $ W.constructTransaction @_ @s @k @n wrk wid era txCtx sel
-
-        pure $ ApiConstructTransaction
-            { transaction = ApiT tx
-            , coinSelection = mkApiCoinSelection [] [] Nothing md sel'
-            , fee = Quantity $ fromIntegral fee
-            }
   where
     ti :: TimeInterpreter (ExceptT PastHorizonException IO)
     ti = timeInterpreter (ctx ^. networkLayer)
@@ -4665,6 +4672,12 @@ instance IsServerError ErrConstructTx where
             [ "Attempted to create a transaction with a validity interval"
             , "that is not a subinterval of an associated script's timelock"
             , "interval."
+            ]
+        ErrConstructTxSharedWalletPending ->
+            apiError err403 SharedWalletPending $ mconcat
+            [ "Transaction for a shared wallet should not be tried for "
+            , "a pending shared wallet. Make the wallet active before sending "
+            , "transaction."
             ]
         ErrConstructTxNotImplemented _ ->
             apiError err501 NotImplemented
