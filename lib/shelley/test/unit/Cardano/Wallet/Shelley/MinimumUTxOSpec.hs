@@ -529,5 +529,8 @@ instance Arbitrary MinimumUTxOForShelleyBasedEra where
     shrink = shrinkMinimumUTxOForShelleyBasedEra
 
 instance Arbitrary TokenMap where
-    arbitrary = genTokenMap
+    arbitrary = frequency
+        [ (4, genTokenMap)
+        , (1, elements goldenTokenMaps)
+        ]
     shrink = shrinkTokenMap
