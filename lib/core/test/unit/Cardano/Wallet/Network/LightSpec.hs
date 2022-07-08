@@ -1,11 +1,14 @@
+{-# LANGUAGE BlockArguments #-}
 {-# LANGUAGE DataKinds #-}
+{-# LANGUAGE FlexibleContexts #-}
 {-# LANGUAGE FlexibleInstances #-}
 {-# LANGUAGE GADTs #-}
+{-# LANGUAGE LambdaCase #-}
 {-# LANGUAGE NamedFieldPuns #-}
 {-# LANGUAGE RankNTypes #-}
-module Cardano.Wallet.Network.LightSpec
-    ( spec
-    ) where
+{-# LANGUAGE UndecidableInstances #-}
+
+module Cardano.Wallet.Network.LightSpec where
 
 import Prelude
 
@@ -32,10 +35,12 @@ import Control.Monad
     ( ap, forever, void )
 import Control.Monad.Class.MonadTimer
     ( MonadDelay (..) )
-import Control.Monad.Trans.State
+import Control.Monad.Trans.State.Strict
     ( State, get, modify, runState )
 import Control.Tracer
     ( nullTracer )
+import Data.Bifunctor
+    ( bimap )
 import Data.Foldable
     ( find )
 import Data.List.NonEmpty
@@ -44,6 +49,8 @@ import Data.Maybe
     ( listToMaybe )
 import Data.Quantity
     ( Quantity (..) )
+import Data.Text.Encoding
+    ( decodeUtf8 )
 import Data.Void
     ( Void )
 import Test.Hspec
@@ -63,6 +70,7 @@ import qualified Cardano.Wallet.Checkpoints.Policy as CP
 import qualified Data.ByteString.Char8 as B8
 import qualified Data.List as L
 import qualified Data.List.NonEmpty as NE
+import qualified Data.Text as T
 
 spec :: Spec
 spec =
@@ -74,11 +82,10 @@ spec =
     Properties
 -------------------------------------------------------------------------------}
 prop_followLightSync :: ChainHistory -> Property
-prop_followLightSync history =
-    eval (fullSync follower)
-  ===
-    eval (lightSync nullTracer lightSource follower)
+prop_followLightSync history = fullSyncChain === lightSyncChain
   where
+    fullSyncChain = eval (fullSync follower)
+    lightSyncChain = eval (lightSync nullTracer lightSource follower)
     follower = mkFollower updateFollower
     eval action =
         latest $ evalMockMonad action history $ initFollowerState history
@@ -99,14 +106,12 @@ type Block = BlockHeader
 -- | 'LightSyncSource' that reads from a 'MockChain'.
 mkLightSyncSourceMock :: LightSyncSource ((->) MockChain) Block addr ()
 mkLightSyncSourceMock = LightSyncSource
-    { stabilityWindow = fromIntegral mockStabilityWindow
-    , getHeader = id
+    { getHeader = id
     , getTip = NE.head
-    , isConsensus = \pt -> any ((pt ==) . toPoint)
     , getBlockHeaderAtHeight = \height ->
         maybe NotConsensual Consensual . find ((height ==) . toHeight)
-    , getBlockHeaderAt = \pt ->
-        maybe NotConsensual Consensual . find ((pt ==) . toPoint)
+    , getBlockHeaderAt = \pt mockChain ->
+            maybe NotConsensual Consensual $ find ((pt ==) . toPoint) mockChain
     , getNextBlocks = \pt chain ->
         case NE.span ((pt /=) . toPoint) chain of
             (_, []) -> NotConsensual
@@ -125,11 +130,9 @@ data ChainHistory = ChainHistory !MockChain ![(DeltaChain, MockChain)]
     deriving Eq
 
 instance Show ChainHistory where
-    show (ChainHistory c0 deltas) = unwords $ L.intersperse "->"
-        [ show s
-        | b <- c0 : map snd deltas
-        , let Hash s = headerHash $ NE.head b
-        ]
+    show (ChainHistory c0 deltas) = unwords $ L.intersperse "->" $
+        showBlockChain c0 :
+            (showTup . (bimap showDeltaChain showBlockChain) <$> deltas)
 
 instance Arbitrary ChainHistory where
     arbitrary = sized genChainHistory
@@ -157,12 +160,17 @@ subsequences xs = do
     n <- choose (1,length xs)
     (NE.fromList (take n xs) :) <$> subsequences (drop n xs)
 
-
 data DeltaChain
     = Forward (NonEmpty Block) BlockHeader
     | Backward BlockHeader
     | Idle
     deriving (Eq,Show)
+
+showDeltaChain :: DeltaChain -> String
+showDeltaChain = \case
+    Forward chain _ -> "Forward " <> showBlockChain chain
+    Backward header -> "Backward to " <> showBlockHeader header
+    Idle -> "Idle"
 
 genesisBlock :: Block
 genesisBlock = BlockHeader
@@ -250,26 +258,31 @@ updateFollower :: State s a -> MockMonad s a
 updateFollower action = Free (UpdateFollower action Pure)
 
 instance MonadDelay (MockMonad s) where
-    threadDelay _ = wait
+    threadDelay _ = wait <* void tick
 
 -- | Evaluate a 'MockMonad' action on a given 'ChainHistory'.
 evalMockMonad :: MockMonad s a -> ChainHistory -> s -> s
 evalMockMonad action0 (ChainHistory chain0 deltas0) s0
-    = go action0 s0 chain0 deltas0
+    = go (500 :: Integer) False action0 s0 chain0 deltas0
   where
-    go (Pure _) s _ _ = s -- monad has finished
-    go (Free action) s chain deltas = case action of
-        Wait k -> case deltas of
-            [] -> s -- chain will not change anymore
-            _ -> go (k ()) s chain deltas
-        Tick k -> case deltas of
-            [] -> go (k Idle) s chain deltas
-            ((d,chain2):ds) -> go (k d) s chain2 ds
-        GetChain k ->
-            go (k chain) s chain deltas
-        UpdateFollower act k ->
-            let (a, s2) = runState act s
-            in  go (k a) s2 chain deltas
+    go depth _lastWait _action _s _chain _deltas | depth < 1 =
+        error $ "Recursion depth exceeded (" <> show depth <> ")"
+    go _depth _waitCounter (Pure _) s _chain _deltas = s -- monad has finished
+    go prevDepth lastWait (Free action) s chain deltas =
+        let depth = pred prevDepth
+        in case action of
+            Wait k -> case deltas of
+                [] | lastWait -> s -- chain will not change anymore
+                [] -> go depth True (k ()) s chain deltas
+                _ -> go depth lastWait (k ()) s chain deltas
+            Tick k -> case deltas of
+                [] -> go depth lastWait (k Idle) s chain deltas
+                (d, chain2) : ds -> go depth lastWait (k d) s chain2 ds
+            GetChain k ->
+                go depth lastWait (k chain) s chain deltas
+            UpdateFollower act k ->
+                let (a, s2) = runState act s
+                in  go depth lastWait (k a) s2 chain deltas
 
 -- | Run a 'ChainFollower' based on the full synchronization.
 fullSync
@@ -306,16 +319,18 @@ mkFollower lift = ChainFollower
     { checkpointPolicy = \epochStability ->
         CP.atTip <> CP.atGenesis
         <> CP.trailingArithmetic 2 (min 1 $ epochStability `div` 3)
-    , readChainPoints = lift $ map chainPointFromBlockHeader . NE.toList <$> get
-    , rollForward = \blocks _tip -> lift $ modify $ \s -> case blocks of
-        Left bs ->
-            if latest s `isParentOf` NE.head bs
-                then NE.reverse bs <> s
-                else error "lightSync: Nonempty Block out of order"
-        Right BlockSummary{from,to} ->
-            if latest s `isParentOf` from
-                then to NE.<| s
-                else error "lightSync: BlockSummary out of order"
+    , readChainPoints =
+        lift $ map chainPointFromBlockHeader . NE.toList <$> get
+    , rollForward = \blocks _tip ->
+        lift $ modify $ \s -> case blocks of
+            Left bs ->
+                if latest s `isParentOf` NE.head bs
+                    then NE.reverse bs <> s
+                    else error "lightSync: Nonempty Block out of order"
+            Right BlockSummary{from,to} ->
+                if latest s `isParentOf` from
+                    then to NE.<| s
+                    else error "lightSync: BlockSummary out of order"
     , rollBackward = \target -> lift $ do
         modify $ NE.fromList . NE.dropWhile (`after` target)
         chainPointFromBlockHeader . NE.head <$> get
@@ -326,3 +341,20 @@ mkFollower lift = ChainFollower
 
     isParentOf :: BlockHeader -> BlockHeader -> Bool
     isParentOf parent = (== Just (headerHash parent)) . parentHeaderHash
+
+showBlockChain :: NonEmpty BlockHeader -> String
+showBlockChain = unwords . L.intersperse "->" . fmap showBlockHeader . NE.toList
+
+showChainPoint :: ChainPoint -> String
+showChainPoint = \case
+    ChainPointAtGenesis -> "G"
+    ChainPoint _ h -> show $ getHash h
+
+showBlockHeader :: BlockHeader -> String
+showBlockHeader = unHash . headerHash
+
+unHash :: Hash tag -> String
+unHash (Hash h) = T.unpack (decodeUtf8 h)
+
+showTup :: (String, String) -> String
+showTup (a, b) = "(" <> a <> ", " <> b <> ")"

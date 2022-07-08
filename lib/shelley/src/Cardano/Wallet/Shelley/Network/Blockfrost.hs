@@ -36,14 +36,12 @@ import Prelude
 import Cardano.Api
     ( AnyCardanoEra (..)
     , AnyPlutusScriptVersion (AnyPlutusScriptVersion)
-    , CardanoEraStyle (LegacyByronEra, ShelleyBasedEra)
     , ExecutionUnitPrices (priceExecutionMemory, priceExecutionSteps)
     , ExecutionUnits (executionMemory, executionSteps)
     , NetworkId (..)
     , PlutusScriptVersion (PlutusScriptV1)
     , TxMetadata (TxMetadata)
     , TxMetadataValue (..)
-    , cardanoEraStyle
     )
 import Cardano.BM.Data.Severity
     ( Severity (..) )
@@ -115,9 +113,6 @@ import Cardano.Wallet.Primitive.Types
     , genesisParameters
     , getGenesisBlockDate
     , header
-    , slottingParameters
-    , stabilityWindowByron
-    , stabilityWindowShelley
     )
 import Cardano.Wallet.Primitive.Types.Address
     ( Address )
@@ -145,7 +140,7 @@ import Cardano.Wallet.Shelley.Network.Blockfrost.Error
     , (<?#>)
     )
 import Cardano.Wallet.Shelley.Network.Blockfrost.Layer
-    ( BlockfrostLayer (..), rateLimitedBlockfrostLayer )
+    ( BlockfrostLayer (..), rateLimitedBlockfrostLayer, withRecovery )
 import Cardano.Wallet.Shelley.Network.Discriminant
     ( SomeNetworkDiscriminant (..), networkDiscriminantToId )
 import Control.Concurrent
@@ -261,7 +256,9 @@ withNetworkLayer
     -> (NetworkLayer IO (CardanoBlock StandardCrypto) -> IO a)
     -> IO a
 withNetworkLayer tr network np project k = do
-    bfLayer <- rateLimitedBlockfrostLayer (MsgBlockfrostLayer >$< tr) project
+    let layerLog = MsgBlockfrostLayer >$< tr
+    bfLayer <-
+        withRecovery layerLog <$> rateLimitedBlockfrostLayer layerLog project
     tipBroadcast <- newBroadcastTChanIO
     link =<< async (pollNodeTip bfLayer tipBroadcast)
     k NetworkLayer
@@ -397,32 +394,15 @@ withNetworkLayer tr network np project k = do
         (SomeNetworkDiscriminant (Proxy :: Proxy nd))
         bfLayer@BlockfrostLayer{..}
         follower = do
-            AnyCardanoEra era <- currentNodeEra bfLayer
-            let sp = slottingParameters np
-            let stabilityWindow =
-                    fromIntegral $ getQuantity case cardanoEraStyle era of
-                        LegacyByronEra -> stabilityWindowByron sp
-                        ShelleyBasedEra _ -> stabilityWindowShelley sp
-
-                isConsensus :: ChainPoint -> IO Bool
-                isConsensus cp = do
-                    res <- case cp of
-                        ChainPointAtGenesis -> pure True
-                        ChainPoint (SlotNo slot) blockHeaderHash -> do
-                            BF.Block{_blockHash = BF.BlockHash bfHeaderHash} <-
-                                bfGetBlockSlot (BF.Slot (toInteger slot))
-                            pure $ bfHeaderHash == toText blockHeaderHash
-                    traceWith tr $ MsgIsConsensus cp res
-                    pure res
-
-                getBlockHeaderAtHeight :: Integer -> IO (Consensual BlockHeader)
+            let getBlockHeaderAtHeight :: Integer -> IO (Consensual BlockHeader)
                 getBlockHeaderAtHeight height = do
-                    consensualBlockHeader <-
-                        either (error . show) Consensual . bfBlockHeader
-                            <$> bfGetBlockAtHeight height
-                    traceWith tr $
-                        MsgBlockHeaderAtHeight height consensualBlockHeader
-                    pure consensualBlockHeader
+                    header <-
+                        either
+                            (throwIO . BlockfrostException)
+                            (pure . Consensual)
+                        . bfBlockHeader =<< bfGetBlockAtHeight height
+                    traceWith tr $ MsgBlockHeaderAtHeight height header
+                    pure header
 
                 getNextBlockHeader ::
                     BlockHeader -> IO (Consensual (Maybe BlockHeader))
@@ -430,10 +410,9 @@ withNetworkLayer tr network np project k = do
                     consensualBlocks <-
                         bfGetBlockAfterHash (BF.BlockHash (toText headerHash))
                     nextHeader <-
-                        for consensualBlocks \bls ->
-                            for bls $
-                                either (throwIO . BlockfrostException) pure .
-                                bfBlockHeader
+                        for consensualBlocks $ traverse $
+                            either (throwIO . BlockfrostException) pure
+                            .  bfBlockHeader
                     liftIO $ traceWith tr $ MsgNextBlockHeader prev nextHeader
                     pure nextHeader
 
@@ -444,13 +423,17 @@ withNetworkLayer tr network np project k = do
                             pure . Consensual $
                                 Fixture.genesisBlockHeader networkId
                         ChainPoint (SlotNo slot) blockHeaderHash -> do
-                            b@BF.Block{_blockHash = BF.BlockHash bfHeaderHash} <-
-                                bfGetBlockSlot (BF.Slot (toInteger slot))
-                            pure $
-                                if bfHeaderHash == toText blockHeaderHash
-                                    then either (error . show) Consensual $
-                                        bfBlockHeader b
-                                    else NotConsensual
+                            bfGetBlockSlot (BF.Slot (toInteger slot)) >>= \case
+                                NotConsensual -> pure NotConsensual
+                                Consensual b@BF.Block{_blockHash =
+                                    BF.BlockHash bfHeaderHash} ->
+                                    if bfHeaderHash == toText blockHeaderHash
+                                        then
+                                            either
+                                            (throwIO . BlockfrostException)
+                                            (pure . Consensual)
+                                            (bfBlockHeader b)
+                                        else pure NotConsensual
                     traceWith tr $ MsgBlockHeaderAt cp consensualBlockHeader
                     pure consensualBlockHeader
 
@@ -569,10 +552,8 @@ withNetworkLayer tr network np project k = do
 
                 lightSyncSource =
                     LightSyncSource
-                        { stabilityWindow
-                        , getHeader = header
+                        { getHeader = header
                         , getTip = currentNodeTip bfLayer
-                        , isConsensus
                         , getBlockHeaderAtHeight
                         , getNextBlockHeader
                         , getBlockHeaderAt
@@ -1074,15 +1055,31 @@ instance ToText Log where
                 , if b then "does" else "doesn't"
                 , "belong to consensus"
                 ]
-        MsgBlockHeaderAtHeight height mbh ->
-            "Fetched BlockHeader at height " <> pretty height
-                <> ": " <> T.pack (show mbh)
-        MsgBlockHeaderAt cp mbh ->
-            "Fetched BlockHeader at " <> pretty cp
-                <> ": " <> T.pack (show mbh)
-        MsgNextBlockHeader prev next ->
-            "Fetched next block header: " <> T.pack (show next)
-            <> " for the previous one: " <> pretty prev
+        MsgBlockHeaderAtHeight height cbh ->
+            case cbh of
+                NotConsensual ->
+                    "Block at height " <> pretty height <>
+                    " isn't a part of consensus anymore (rollback)."
+                Consensual bh ->
+                    "Fetched BlockHeader at height " <> pretty height
+                        <> ": " <> pretty bh
+        MsgBlockHeaderAt cp cbh ->
+            case cbh of
+                NotConsensual ->
+                    "Block at point " <> pretty cp <>
+                    " isn't a part of consensus anymore (rollback)."
+                Consensual bh ->
+                    "Fetched BlockHeader at " <> pretty cp <> ": " <> pretty bh
+        MsgNextBlockHeader prev cnext ->
+            case cnext of
+                NotConsensual ->
+                    "Block header " <> pretty prev <>
+                    " isn't a part of consensus anymore (rollback)."
+                Consensual Nothing ->
+                    "Fetched no new block headers after " <> pretty prev
+                Consensual (Just next) ->
+                    "Fetched next block header " <> pretty next
+                    <> " after the previous " <> pretty prev
         MsgGotNextBlocks f n m ->
             "Fetched " <> pretty n <> " blocks after " <> toText f <>
                 maybe "." ((", starting from " <>) . pretty) m

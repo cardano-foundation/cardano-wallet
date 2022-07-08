@@ -5,6 +5,7 @@
 {-# LANGUAGE DerivingStrategies #-}
 {-# LANGUAGE LambdaCase #-}
 {-# LANGUAGE RankNTypes #-}
+{-# LANGUAGE RecordWildCards #-}
 
 module Cardano.Wallet.Network.Light
     ( -- * Interface
@@ -33,25 +34,24 @@ import Cardano.Wallet.Primitive.Types
     , compareSlot
     )
 import Control.Monad.Class.MonadTimer
-    ( DiffTime, MonadDelay (..) )
+    ( MonadDelay (..) )
 import Control.Tracer
     ( Tracer, traceWith )
+import Data.Functor
+    ( ($>) )
 import Data.List
     ( maximumBy, sortBy )
 import Data.List.NonEmpty
     ( NonEmpty (..) )
-import Data.Quantity
-    ( Quantity (..) )
 import Data.Text.Class
     ( ToText (..) )
 import Data.Void
     ( Void )
-import Data.Word
-    ( Word32 )
+import Fmt
+    ( Buildable (build), pretty )
 import GHC.Generics
     ( Generic )
 
-import qualified Data.List.NonEmpty as NE
 import qualified Data.Text as T
 
 {-------------------------------------------------------------------------------
@@ -61,15 +61,10 @@ type BlockHeight = Integer
 
 -- | Blockchain data source suitable for the implementation of 'lightSync'.
 data LightSyncSource m block addr txs = LightSyncSource
-    { stabilityWindow :: BlockHeight
-        -- ^ Stability window.
-    , getHeader :: block -> BlockHeader
+    { getHeader :: block -> BlockHeader
         -- ^ Get the 'BlockHeader' of a given @block@.
     , getTip :: m BlockHeader
         -- ^ Latest tip of the chain.
-    , isConsensus :: ChainPoint -> m Bool
-        -- ^ Check whether a 'ChainPoint' still exists in the consensus,
-        -- or whether the chain has rolled back already.
     , getBlockHeaderAtHeight :: BlockHeight -> m (Consensual BlockHeader)
         -- ^ Get the 'BlockHeader' at a given block height.
     , getNextBlockHeader :: BlockHeader -> m (Consensual (Maybe BlockHeader))
@@ -88,10 +83,8 @@ hoistLightSyncSource
     -> LightSyncSource m block addr txs
     -> LightSyncSource n block addr txs
 hoistLightSyncSource f x = LightSyncSource
-    { stabilityWindow = stabilityWindow x
-    , getHeader = getHeader x
+    { getHeader = getHeader x
     , getTip = f $ getTip x
-    , isConsensus = f . isConsensus x
     , getBlockHeaderAtHeight = f . getBlockHeaderAtHeight x
     , getNextBlockHeader = f . getNextBlockHeader x
     , getBlockHeaderAt = f . getBlockHeaderAt x
@@ -116,7 +109,7 @@ secondLatest xs  = head . tail $ sortBy (flip compareSlot) xs
 -- | Drive a 'ChainFollower' using a 'LightSyncSource'.
 -- Never returns.
 lightSync
-    :: (Monad m, MonadDelay m)
+    :: MonadDelay m
     => Tracer m LightLayerLog
     -> LightSyncSource m block addr txs
     -> ChainFollower m ChainPoint BlockHeader (LightBlocks m block addr txs)
@@ -126,35 +119,33 @@ lightSync tr light follower = readChainPoints follower >>= syncFrom . latest
     syncFrom chainPoint = do
         move <- proceedToNextPoint light chainPoint
         syncFrom =<< case move of
-            Rollback -> do
+            RollBackward -> do
                 prev <- secondLatest <$> readChainPoints follower
                 -- NOTE: Rolling back to a result of 'readChainPoints'
                 -- should always be possible,
                 -- but the code currently does not need this assumption.
                 traceWith tr $ MsgLightRollBackward chainPoint prev
                 rollBackward follower prev
-            Stable old new tip -> do
-                traceWith tr $
-                    MsgLightRollForwardStable chainPoint old new tip
+            RollForward old new tip -> do
+                traceWith tr $ MsgLightRollForward chainPoint old new tip
                 rollForward follower (Right $ mkBlockSummary light old new) tip
+                traceWith tr $ MsgLightRolledForward new
                 pure $ chainPointFromBlockHeader new
-            Unstable blocks new tip -> do
-                case blocks of
-                    [] -> threadDelay secondsPerSlot
-                    block : bs -> do
-                        traceWith tr $ MsgLightRollForwardUnstable chainPoint new tip
-                        rollForward follower (Left $ block :| bs) tip
-                pure $ chainPointFromBlockHeader new
+            WaitForANewTip tip -> do
+                threadDelay 2 -- seconds
+                $> chainPointFromBlockHeader tip
 
 data NextPointMove block
-    = Rollback
-    -- ^ We are forced to roll back.
-    | Stable BlockHeader BlockHeader BlockHeader
-    -- ^ We are still in the stable region.
-    -- @Stable old new tip@.
-    | Unstable [block] BlockHeader BlockHeader
-    -- ^ We are entering the unstable region.
-    -- @Unstable blocks new tip@.
+    = RollForward
+        BlockHeader
+        -- ^ From
+        BlockHeader
+        -- ^ To
+        BlockHeader
+        -- ^ Tip
+    | RollBackward
+    | WaitForANewTip BlockHeader
+    deriving (Show)
 
 -- | 'Consensual' represents the result of query on the blockchain.
 -- Either the result is a value that is part of the consensus chain,
@@ -165,14 +156,19 @@ data Consensual a
     | Consensual a
     deriving stock (Eq, Show, Functor, Foldable, Traversable)
 
+instance Buildable a => Buildable (Consensual a) where
+  build = \case
+    NotConsensual -> "NotConsensual"
+    Consensual a -> "Consensual " <> build a
+
 consensually
     :: Applicative m
-    => Consensual a
-    -> (a -> m (NextPointMove block))
+    => (a -> m (NextPointMove block))
+    -> Consensual a
     -> m (NextPointMove block)
-consensually ca k =
+consensually k ca =
     case ca of
-        NotConsensual-> pure Rollback
+        NotConsensual-> pure RollBackward
         Consensual a -> k a
 
 proceedToNextPoint
@@ -180,40 +176,31 @@ proceedToNextPoint
     => LightSyncSource m block addr txs
     -> ChainPoint
     -> m (NextPointMove block)
-proceedToNextPoint light chainPoint = do
-    tip <- getTip light
-    currentBlockHeader <- getBlockHeaderAt light chainPoint
-    consensually currentBlockHeader \current ->
-        if isUnstable (stabilityWindow light) current tip
-        then do
-            nextBlocks <- getNextBlocks light chainPoint
-            consensually nextBlocks \case
-                [] -> pure $ Unstable [] current tip
-                block : blocks -> do
-                    let new = getHeader light $ NE.last (block :| blocks)
-                    continue <- isConsensus light $ chainPointFromBlockHeader new
-                    pure $ if continue
-                        then Unstable (block : blocks) new tip
-                        else Rollback
-        else do
-            frBlockHeader <- getNextBlockHeader light current
-            toBlockHeader <- getBlockHeaderAtHeight light $
-                blockHeightToInteger (blockHeight tip) - stabilityWindow light
-            consensually frBlockHeader \case
-                Nothing -> pure $ Unstable [] current tip
-                Just fromBH ->
-                    consensually toBlockHeader \toBH ->
-                        pure $ Stable fromBH toBH tip
-
--- | Test whether a 'ChainPoint' is in the
--- unstable region close to the tip.
-isUnstable :: BlockHeight -> BlockHeader -> BlockHeader -> Bool
-isUnstable stabilityWindow_ old tip =
-    blockHeightToInteger (blockHeight tip) - stabilityWindow_
-  <= blockHeightToInteger (blockHeight old)
-
-secondsPerSlot :: DiffTime
-secondsPerSlot = 2
+proceedToNextPoint LightSyncSource{..} chainPoint =
+    getBlockHeaderAt chainPoint >>= consensually \currentBlock ->
+        getNextBlockHeader currentBlock >>= consensually \case
+            Nothing -> pure $ WaitForANewTip currentBlock
+            Just fromBlock -> do
+                chainTip <- getTip
+                -- In some rare cases a rollback happens on the blockchain
+                -- in between the getNextBlockHeader and getTip
+                -- and the tip is behind the next block. We don't want to
+                -- roll forward in this case, so we additionally check that
+                -- we only roll forward if the block height is growing.
+                --
+                -- FIXME later: This criterion is not foolproof —
+                -- it is possible for the tip to gain higher block height even
+                -- after a rollback. For now, we accept this rare risk.
+                -- Note: The invariant that we (eventually) want to preserve
+                -- is that all block headers in `RollForward` are consistent
+                -- with a potential history of the blockchain.
+                -- (The headers do not need to consensus at the time
+                -- of the roll forward, but they do need to be consistent
+                -- with each other.)
+                pure
+                    if blockHeight fromBlock <= blockHeight chainTip
+                    then RollForward fromBlock chainTip chainTip
+                    else RollBackward
 
 -- | Create a 'BlockSummary'
 mkBlockSummary
@@ -227,43 +214,43 @@ mkBlockSummary light old new = BlockSummary
     , query = getAddressTxs light old new
     }
 
-blockHeightToInteger :: Quantity "block" Word32 -> Integer
-blockHeightToInteger (Quantity n) = fromIntegral n
-
 {-------------------------------------------------------------------------------
     Logging
 -------------------------------------------------------------------------------}
 data LightLayerLog
-    = MsgLightRollForwardStable ChainPoint BlockHeader BlockHeader BlockHeader
-    | MsgLightRollForwardUnstable ChainPoint BlockHeader BlockHeader
-    | MsgLightRollBackward ChainPoint ChainPoint
+    = MsgLightRollForward
+        ChainPoint BlockHeader BlockHeader BlockHeader
+    | MsgLightRolledForward BlockHeader
+    | MsgLightRollBackward
+        ChainPoint ChainPoint
     deriving (Show, Eq, Generic)
 
 instance ToText LightLayerLog where
     toText = \case
-        MsgLightRollForwardStable cp_ from_ to_ tip -> T.unwords
-            [ "LightLayer roll forward (stable region):"
-            , "chain_point: ", toText $ show cp_
-            , "from: ", toText $ show from_
-            , "to: ", toText $ show to_
-            , "tip: ", toText $ show tip
-            ]
-        MsgLightRollForwardUnstable from_ to_ tip -> T.unwords
-            [ "LightLayer roll forward (unstable region):"
-            , "from: ", toText $ show from_
-            , "to: ", toText $ show to_
-            , "tip: ", toText $ show tip
-            ]
-        MsgLightRollBackward from_ to_ -> T.unwords
-            [ "LightLayer roll backward:"
-            , "from: ", toText $ show from_
-            , "to: ", toText $ show to_
-            ]
+        MsgLightRollForward cp_ from_ to_ tip ->
+            T.unwords
+                [ "LightLayer started rolling forward:"
+                , "chain_point: ", pretty cp_
+                , "from: ", pretty from_
+                , "to: ", pretty to_
+                , "tip: ", pretty tip
+                ]
+        MsgLightRolledForward bh ->
+            T.unwords
+                [ "LightLayer finished rolling forward:"
+                , "last block: ", pretty bh
+                ]
+        MsgLightRollBackward from_ to_ ->
+            T.unwords
+                [ "LightLayer roll backward:"
+                , "from: ", pretty from_
+                , "to: ", pretty to_
+                ]
 
 instance HasPrivacyAnnotation LightLayerLog
 
 instance HasSeverityAnnotation LightLayerLog where
     getSeverityAnnotation = \case
-        MsgLightRollForwardStable{} -> Debug
-        MsgLightRollForwardUnstable{} -> Debug
+        MsgLightRollForward{} -> Debug
+        MsgLightRolledForward{} -> Debug
         MsgLightRollBackward{} -> Debug
