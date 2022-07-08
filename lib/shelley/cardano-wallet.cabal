@@ -264,6 +264,7 @@ test-suite unit
     , strict-containers
     , containers
     , contra-tracer
+    , data-default
     , directory
     , filepath
     , fmt
