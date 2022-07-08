@@ -212,6 +212,8 @@ library
       Cardano.Wallet.DB.Store.Meta.Store
       Cardano.Wallet.DB.Store.Transactions.Model
       Cardano.Wallet.DB.Store.Transactions.Store
+      Cardano.Wallet.DB.Store.Wallets.Model
+      Cardano.Wallet.DB.Store.Wallets.Store
       Cardano.Wallet.DB.WalletState
       Cardano.Wallet.Logging
       Cardano.Wallet.Network
@@ -474,6 +476,7 @@ test-suite unit
       Cardano.Wallet.DB.Store.Meta.ModelSpec
       Cardano.Wallet.DB.Store.Meta.StoreSpec
       Cardano.Wallet.DB.Store.Transactions.StoreSpec
+      Cardano.Wallet.DB.Store.Wallets.StoreSpec
       Cardano.Wallet.DummyTarget.Primitive.Types
       Cardano.Wallet.Network.LightSpec
       Cardano.Wallet.Network.PortsSpec

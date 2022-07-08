@@ -49,7 +49,7 @@ genUpdates gen0 more = sized $ \n -> go n [] =<< gen0
 --
 -- TODO: Shrinking of the update sequence.
 prop_StoreUpdates
-    :: ( Monad m, Delta da, Eq (Base da), Buildable da )
+    :: ( Monad m, Delta da, Eq (Base da), Buildable da, Show (Base da))
     => (forall b. m b -> PropertyM IO b)
     -- ^ Function to embed the monad in 'IO'
     -> Store m da
@@ -81,5 +81,7 @@ prop_StoreUpdates toPropertyM store gen0 more = do
     -- check whether the last value is correct
     case ea of
         Left err -> impureThrow err
-        Right a  -> assert $ a == head as
-
+        Right a  -> do
+            monitor $ counterexample $ "\nExpected:\n" <> show (head as)
+            monitor $ counterexample $ "\nGot:\n" <> show a
+            assert $ a == head as
