@@ -60,7 +60,7 @@ import Test.Integration.Framework.DSL
     , verify
     )
 import Test.Integration.Framework.TestData
-    ( errMsg403SharedWalletPending )
+    ( errMsg403EmptyUTxO, errMsg403SharedWalletPending )
 
 import qualified Cardano.Wallet.Api.Link as Link
 import qualified Data.ByteArray as BA
@@ -115,4 +115,43 @@ spec = describe "SHARED_TRANSACTIONS" $ do
         verify rTx
             [ expectResponseCode HTTP.status403
             , expectErrorMessage errMsg403SharedWalletPending
+            ]
+
+    it "SHARED_TRANSACTIONS_CREATE_01 - Can create tx for an active shared wallet" $ \ctx -> runResourceT $ do
+        m15txt <- liftIO $ genMnemonics M15
+        m12txt <- liftIO $ genMnemonics M12
+        let (Right m15) = mkSomeMnemonic @'[ 15 ] m15txt
+        let (Right m12) = mkSomeMnemonic @'[ 12 ] m12txt
+        let passphrase = Passphrase $ BA.convert $ T.encodeUtf8 fixturePassphrase
+        let index = 30
+        let accXPubDerived = accPubKeyFromMnemonics m15 (Just m12) index passphrase
+        let payload = Json [json| {
+                "name": "Shared Wallet",
+                "mnemonic_sentence": #{m15txt},
+                "mnemonic_second_factor": #{m12txt},
+                "passphrase": #{fixturePassphrase},
+                "account_index": "30H",
+                "payment_script_template":
+                    { "cosigners":
+                        { "cosigner#0": #{accXPubDerived} },
+                      "template":
+                          { "all":
+                             [ "cosigner#0" ]
+                          }
+                    }
+                } |]
+        rPost <- postSharedWallet ctx Default payload
+        verify (fmap (swapEither . view #wallet) <$> rPost)
+            [ expectResponseCode HTTP.status201
+            ]
+
+        let (ApiSharedWallet (Right wal)) = getFromResponse id rPost
+
+        let metadata = Json [json|{ "metadata": { "1": { "string": "hello" } } }|]
+
+        rTx <- request @(ApiConstructTransaction n) ctx
+            (Link.createUnsignedTransaction @'Shared wal) Default metadata
+        verify rTx
+            [ expectResponseCode HTTP.status403
+            , expectErrorMessage errMsg403EmptyUTxO
             ]
