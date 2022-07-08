@@ -1761,6 +1761,7 @@ data ApiErrorCode
     | SharedWalletNoDelegationTemplate
     | SharedWalletNoSuchCosigner
     | SharedWalletNotPending
+    | SharedWalletPending
     | SharedWalletScriptTemplateInvalid
     | SoftDerivationRequired
     | StartTimeLaterThanEndTime

@@ -71,7 +71,6 @@ import Cardano.Wallet.Primitive.AddressDiscovery.Sequential
     , SeqState (..)
     , coinTypeAda
     , defaultAddressPoolGap
-    , emptyPendingIxs
     , purposeCIP1852
     )
 import Cardano.Wallet.Primitive.AddressDiscovery.Shared
