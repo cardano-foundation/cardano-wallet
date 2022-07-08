@@ -739,8 +739,8 @@ errMsg403ValidityIntervalNotInsideScriptTimelock = unwords
 
 errMsg403SharedWalletPending :: String
 errMsg403SharedWalletPending = unwords
-    [ "Transaction for a shared wallet should not be tried for "
-    , "a pending shared wallet. Make the wallet active before sending "
+    [ "Transaction for a shared wallet should not be tried for"
+    , "a pending shared wallet. Make the wallet active before sending"
     , "transaction."
     ]
 
