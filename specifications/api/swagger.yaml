@@ -7382,12 +7382,16 @@ paths:
   /shared-wallets/{walletId}/transactions-construct:
     post:
       operationId: constructSharedTransaction
-      tags: ["Transactions New"]
+      tags: ["Shared Wallets"]
       summary: Construct
       description: |
         <p align="right">status: <strong>under development</strong></p>
 
         Create a transaction to be signed from the shared wallet.
+        Works for the following fields:
+              - payments
+              - metadata
+              - validity_interval
       parameters:
         - *parametersWalletId
       requestBody:
