@@ -5904,6 +5904,7 @@ x-tagGroups:
     - Shared Wallets
     - Shared Keys
     - Shared Addresses
+    - Shared Transactions
 
   - name: Byron (Random)
     tags:
@@ -7395,16 +7396,17 @@ paths:
   /shared-wallets/{walletId}/transactions-construct:
     post:
       operationId: constructSharedTransaction
-      tags: ["Shared Wallets"]
+      tags: ["Shared Transactions"]
       summary: Construct
       description: |
         <p align="right">status: <strong>under development</strong></p>
 
         Create a transaction to be signed from the shared wallet.
+
         Works for the following fields:
-              - payments
-              - metadata
-              - validity_interval
+          - payments
+          - metadata
+          - validity_interval
       parameters:
         - *parametersWalletId
       requestBody:
