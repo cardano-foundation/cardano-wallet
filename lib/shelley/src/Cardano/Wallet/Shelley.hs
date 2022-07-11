@@ -78,6 +78,7 @@ import Cardano.Wallet.Primitive.Types
     ( Block
     , NetworkParameters (..)
     , NetworkParameters
+    , PoolCertificate
     , ProtocolParameters (..)
     , Settings (..)
     , SlottingParameters (..)
@@ -182,6 +183,8 @@ serveWallet
     -- ^ pipelining value depending  on block height
     -> SomeNetworkDiscriminant
     -- ^ Proxy for the network discriminant
+    -> [PoolCertificate]
+    -- ^ Shelley genesis pools
     -> Tracers IO
     -- ^ Logging config.
     -> SyncTolerance
@@ -214,6 +217,7 @@ serveWallet
     }
   pipeliningStrategy
   network@(SomeNetworkDiscriminant proxyNetwork)
+  shelleyGenesisPools
   Tracers{..}
   sTolerance
   databaseDir
@@ -248,6 +252,7 @@ serveWallet
                 settings
                 stakePoolDbLayer
                 netParams
+                shelleyGenesisPools
                 netLayer
         BlockfrostSource bfProject -> do
             withBlockfrostStakePoolLayer poolsEngineTracer bfProject network

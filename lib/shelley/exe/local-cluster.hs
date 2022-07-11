@@ -260,6 +260,7 @@ main = withLocalClusterSetup $ \dir clusterLogs walletLogs ->
                 gp
                 tunedForMainnetPipeliningStrategy
                 (SomeNetworkDiscriminant $ Proxy @'Mainnet)
+                []
                 tracers
                 (SyncTolerance 10)
                 (Just db)
