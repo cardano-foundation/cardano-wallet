@@ -22,8 +22,12 @@ import Prelude
 import Cardano.Mnemonic
     ( MkSomeMnemonic (..) )
 import Cardano.Wallet.Api.Types
-    ( ApiConstructTransaction (..)
+    ( ApiAddress
+    , ApiConstructTransaction (..)
+    , ApiFee (..)
     , ApiSharedWallet (..)
+    , ApiTransaction
+    , ApiWallet
     , DecodeAddress
     , DecodeStakeAddress
     , EncodeAddress (..)
@@ -38,9 +42,13 @@ import Control.Monad.Trans.Resource
 import Data.Either.Combinators
     ( swapEither )
 import Data.Generics.Internal.VL.Lens
-    ( view )
+    ( view, (^.) )
+import Data.Quantity
+    ( Quantity (..) )
 import Test.Hspec
     ( SpecWith, describe )
+import Test.Hspec.Expectations.Lifted
+    ( shouldBe )
 import Test.Hspec.Extra
     ( it )
 import Test.Integration.Framework.DSL
@@ -49,14 +57,21 @@ import Test.Integration.Framework.DSL
     , MnemonicLength (..)
     , Payload (..)
     , accPubKeyFromMnemonics
+    , eventually
     , expectErrorMessage
+    , expectField
     , expectResponseCode
+    , faucetAmt
     , fixturePassphrase
+    , fixtureWallet
     , genMnemonics
     , getFromResponse
+    , getSharedWallet
     , json
+    , minUTxOValue
     , postSharedWallet
     , request
+    , unsafeRequest
     , verify
     )
 import Test.Integration.Framework.TestData
@@ -145,7 +160,7 @@ spec = describe "SHARED_TRANSACTIONS" $ do
             [ expectResponseCode HTTP.status201
             ]
 
-        let (ApiSharedWallet (Right wal)) = getFromResponse id rPost
+        let walShared@(ApiSharedWallet (Right wal)) = getFromResponse id rPost
 
         let metadata = Json [json|{ "metadata": { "1": { "string": "hello" } } }|]
 
@@ -154,4 +169,48 @@ spec = describe "SHARED_TRANSACTIONS" $ do
         verify rTx
             [ expectResponseCode HTTP.status403
             , expectErrorMessage errMsg403EmptyUTxO
+            ]
+
+        let amt = 10 * minUTxOValue (_mainEra ctx)
+        fundSharedWallet ctx amt walShared
+  where
+     fundSharedWallet ctx amt walShared = do
+
+        let wal = case walShared of
+                ApiSharedWallet (Right wal) -> wal
+                _ -> error "funding of shared wallet make sense only for active one"
+
+        rAddr <- request @[ApiAddress n] ctx
+            (Link.listAddresses @'Shared wal) Default Empty
+        expectResponseCode HTTP.status200 rAddr
+        let sharedAddrs = getFromResponse id rAddr
+        let destination = (sharedAddrs !! 1) ^. #id
+
+        wShelley <- fixtureWallet ctx
+        let payloadTx = Json [json|{
+                "payments": [{
+                    "address": #{destination},
+                    "amount": {
+                        "quantity": #{amt},
+                        "unit": "lovelace"
+                    }
+                }],
+                "passphrase": #{fixturePassphrase}
+            }|]
+        (_, ApiFee (Quantity _) (Quantity feeMax) _ _) <- unsafeRequest ctx
+            (Link.getTransactionFeeOld @'Shelley wShelley) payloadTx
+        let ep = Link.createTransactionOld @'Shelley
+        rTx <- request @(ApiTransaction n) ctx (ep wShelley) Default payloadTx
+        expectResponseCode HTTP.status202 rTx
+        eventually "wShelley balance is decreased" $ do
+            ra <- request @ApiWallet ctx
+                (Link.getWallet @'Shelley wShelley) Default Empty
+            expectField
+                (#balance . #available)
+                (`shouldBe` Quantity (faucetAmt - feeMax - amt)) ra
+
+        rWal <- getSharedWallet ctx walShared
+        verify (fmap (view #wallet) <$> rWal)
+            [ expectResponseCode HTTP.status200
+            , expectField (traverse . #balance . #available) (`shouldBe` Quantity amt)
             ]
