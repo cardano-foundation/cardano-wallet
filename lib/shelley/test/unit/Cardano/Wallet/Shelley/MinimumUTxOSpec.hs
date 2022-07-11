@@ -1,7 +1,6 @@
-{-# LANGUAGE DeriveGeneric #-}
 {-# LANGUAGE FlexibleInstances #-}
+{-# LANGUAGE NamedFieldPuns #-}
 {-# LANGUAGE NumericUnderscores #-}
-{-# LANGUAGE OverloadedLabels #-}
 {-# LANGUAGE ScopedTypeVariables #-}
 {-# LANGUAGE TypeApplications #-}
 
@@ -64,10 +63,6 @@ import Data.Default
     ( Default (..) )
 import Data.Function
     ( (&) )
-import Data.Generics.Internal.VL.Lens
-    ( view )
-import GHC.Generics
-    ( Generic )
 import Test.Hspec
     ( Spec, describe, it )
 import Test.QuickCheck
@@ -87,8 +82,6 @@ import Test.QuickCheck.Extra
     ( report, verify )
 import Test.Utils.Laws
     ( testLawsMany )
-import Test.Utils.Pretty
-    ( (====) )
 
 import qualified Cardano.Api.Shelley as Cardano
 import qualified Cardano.Ledger.Alonzo.PParams as Alonzo
@@ -310,7 +303,7 @@ goldenTests_computeMinimumCoinForUTxO
         :: (TokenMap, Coin) -> GoldenTestData (MinimumUTxO, TokenMap) Coin
     mkTest (tokenMap, coinExpected) = GoldenTestData
         { params = (minimumUTxO, tokenMap)
-        , result = coinExpected
+        , resultExpected = coinExpected
         }
     title = unwords
         ["goldenTests_computeMinimumCoinForUTxO", eraName]
@@ -479,9 +472,9 @@ mkAssetId pid name = AssetId
 
 data GoldenTestData params result = GoldenTestData
     { params :: params
-    , result :: result
+    , resultExpected :: result
     }
-    deriving (Eq, Generic, Show)
+    deriving (Eq, Show)
 
 goldenTests
     :: (Eq result, Show result)
@@ -491,13 +484,17 @@ goldenTests
     -> Spec
 goldenTests title f goldenTestData =
     describe title $
-    forM_ (zip testNumbers goldenTestData) $
-        \(testNumber :: Int, test) -> do
-            let subtitle = "golden test #" <> show testNumber
-            it subtitle $
-                let resultExpected = view #result test in
-                let resultActual = f (view #params test) in
-                property $ resultExpected ==== resultActual
+    forM_ (zip testNumbers goldenTestData) $ \(testNumber, testData) -> do
+        let subtitle = "golden test #" <> show testNumber
+        it subtitle $ do
+            let GoldenTestData {params, resultExpected} = testData
+            let resultReturned = f params
+            property True
+                & verify
+                    (resultReturned == resultExpected)
+                    "resultReturned == resultExpected"
+                & report resultReturned "resultReturned"
+                & report resultExpected "resultExpected"
   where
     testNumbers :: [Int]
     testNumbers = [0 ..]
