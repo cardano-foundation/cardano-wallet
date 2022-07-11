@@ -48,7 +48,7 @@ class CardanoCli
   # 4f10e314ca4f71031ae2f801638d1671571bc0fa811bd59520b34d3e68ae5344     0        10000000 lovelace + TxOutDatumNone
   # f8e12cf50ebf8b0a3d87869f8ca31ed1a95acc77dcc6007997ea97cb9f5a24cd     0        10000000 lovelace + TxOutDatumNone
   #
-  # into: 
+  # into:
   # @return [Array] - [{utxo: utxoId, ix: index, amt: ada amount}, ...]
   def get_utxos(address)
     output = cmd(%(cardano-cli query utxo \
@@ -65,9 +65,12 @@ class CardanoCli
   def get_protocol_params
     pparams = File.join(@node_state, 'pparams.json')
     unless File.exists?(pparams)
+      log "Getting pparams.json"
       cmd(%(cardano-cli query protocol-parameters \
             --testnet-magic #{get_protocol_magic} \
             --out-file #{pparams}))
+    else
+      log "Using existing pparams.json" 
     end
     pparams
   end
