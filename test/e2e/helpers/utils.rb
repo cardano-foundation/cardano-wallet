@@ -11,6 +11,7 @@ module Helpers
     def cmd(cmd, display_result = false)
       cmd.gsub(/\s+/, ' ')
       res = `#{cmd}`
+      log cmd if display_result
       log res if display_result
       res
     end
