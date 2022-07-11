@@ -231,7 +231,7 @@ spec = describe "SHELLEY_TRANSACTIONS" $ do
                     Nothing
             r <- request @([ApiTransaction n]) ctx link Default Empty
             expectResponseCode HTTP.status200 r
-            expectListSize 1 r
+            expectListSize 10 r
 
     it "Regression #1004 -\
         \ Transaction to self shows only fees as a tx amount\

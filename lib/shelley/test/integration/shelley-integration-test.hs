@@ -40,7 +40,7 @@ import Cardano.Startup
     , withUtf8Encoding
     )
 import Cardano.Wallet.Api.Types
-    ( EncodeAddress (..) )
+    ( DecodeAddress (..), EncodeAddress (..) )
 import Cardano.Wallet.Logging
     ( BracketLog, bracketTracer, stdoutTextTracer, trMessageText )
 import Cardano.Wallet.Network.Ports
@@ -75,7 +75,6 @@ import Cardano.Wallet.Shelley.Launch.Cluster
     , moveInstantaneousRewardsTo
     , oneMillionAda
     , sendFaucetAssetsTo
-    , sendFaucetFundsTo
     , testLogDirFromEnv
     , testMinSeverityFromEnv
     , walletListenFromEnv
@@ -126,7 +125,9 @@ import Test.Hspec.Core.Spec
 import Test.Hspec.Extra
     ( aroundAll, hspecMain )
 import Test.Integration.Faucet
-    ( genRewardAccounts
+    ( byronIntegrationTestFunds
+    , genRewardAccounts
+    , hwWalletFunds
     , maryIntegrationTestAssets
     , mirMnemonics
     , seaHorseTestAssets
@@ -234,6 +235,7 @@ withTestsSetup action = do
     -- Enables small test-specific workarounds, like timing out faster if wallet
     -- deletion fails.
     setEnv "CARDANO_WALLET_TEST_INTEGRATION" "1"
+
     -- Flush test output as soon as a line is printed.
     -- Set UTF-8, regardless of user locale.
     withUtf8Encoding $
@@ -317,24 +319,36 @@ specWithServer testDir (tr, tracers) = aroundAll withContext
                 pure certificates
 
     withServer dbDecorator onReady = bracketTracer' tr "withServer" $
-        withSMASH testDir $ \smashUrl -> do
+        withSMASH tr' testDir $ \smashUrl -> do
             clusterCfg <- localClusterConfigFromEnv
-            withCluster tr' testDir clusterCfg setupFaucet $
+            withCluster tr' testDir clusterCfg faucetFunds $
                 onClusterStart (onReady $ T.pack smashUrl) dbDecorator
 
     tr' = contramap MsgCluster tr
     encodeAddresses = map (first (T.unpack . encodeAddress @'Mainnet))
-    setupFaucet (RunningNode conn _ _) = do
+
+    faucetFunds =
+            shelleyIntegrationTestFunds
+             <> byronIntegrationTestFunds
+             <> map (first unsafeDecodeAddr) hwWalletFunds
+
+    unsafeDecodeAddr = either (error . show) id . decodeAddress @'Mainnet
+
+
+    onClusterStart action dbDecorator (RunningNode conn block0 (gp, vData) genesisPools) = do
         traceWith tr MsgSettingUpFaucet
+
         let rewards = (,Coin $ fromIntegral oneMillionAda) <$>
                 concatMap genRewardAccounts mirMnemonics
+
+        -- Needs to happen in the first 20% of the epoch.
         moveInstantaneousRewardsTo tr' conn testDir (first KeyCredential <$> rewards)
-        sendFaucetFundsTo tr' conn testDir $
-            encodeAddresses shelleyIntegrationTestFunds
+
+        -- We cannot set up MA funds through the genesis, so we need to do it
+        -- here through txs.
         sendFaucetAssetsTo tr' conn testDir 20 $
             encodeAddresses (maryIntegrationTestAssets (Coin 10_000_000))
 
-    onClusterStart action dbDecorator (RunningNode conn block0 (gp, vData)) = do
         let db = testDir </> "wallets"
         createDirectory db
         listen <- walletListenFromEnv
@@ -345,6 +359,7 @@ specWithServer testDir (tr, tracers) = aroundAll withContext
                 gp
                 tunedForMainnetPipeliningStrategy
                 (SomeNetworkDiscriminant $ Proxy @'Mainnet)
+                genesisPools
                 tracers
                 (SyncTolerance 10)
                 (Just db)

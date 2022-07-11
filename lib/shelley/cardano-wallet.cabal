@@ -31,6 +31,7 @@ library
   build-depends:
       base
     , aeson
+    , aeson-qq
     , array
     , base58-bytestring
     , bech32

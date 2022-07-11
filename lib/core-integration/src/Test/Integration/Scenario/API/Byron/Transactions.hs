@@ -493,7 +493,7 @@ spec = describe "BYRON_TRANSACTIONS" $ do
         r <- request @([ApiTransaction n]) ctx link Default Empty
         verify r
             [ expectResponseCode HTTP.status200
-            , expectListSize 1 -- Now funded through a tx in the cluster setup
+            , expectListSize 10
             ]
 
     describe "BYRON_TX_LIST_01 - Faulty start, end, order values" $ do

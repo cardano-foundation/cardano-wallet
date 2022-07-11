@@ -30,8 +30,10 @@ module Test.Integration.Faucet
 
       -- * Integration test funds
     , shelleyIntegrationTestFunds
+    , byronIntegrationTestFunds
     , maryIntegrationTestAssets
     , seaHorseTestAssets
+    , hwWalletFunds
 
       -- * Internals
     , genByronFaucets
@@ -94,7 +96,7 @@ import Data.ByteString.Base58
 import Data.Text
     ( Text )
 import GHC.TypeLits
-    ( Nat, Symbol )
+    ( KnownNat, Nat, Symbol )
 import UnliftIO.MVar
     ( MVar, modifyMVar )
 
@@ -2217,28 +2219,28 @@ mirMnemonics = unsafeMkMnemonic <$>
 --
 -- >>> genMnemonics 100 >>= genByronFaucets "byron-faucets.yaml"
 genByronFaucets :: FilePath -> [Mnemonic 12] -> IO [[Text]]
-genByronFaucets = genFaucet encodeAddress genAddresses
+genByronFaucets = genFaucet encodeAddress byronAddresses
   where
     encodeAddress :: Address -> Text
     encodeAddress (Address bytes) =
         T.decodeUtf8 $ encodeBase58 bitcoinAlphabet bytes
 
-    genAddresses :: Mnemonic 12 -> [Address]
-    genAddresses mw =
-        let
-            (seed, pwd) =
-                (SomeMnemonic mw, mempty)
-            rootXPrv =
-                Byron.generateKeyFromSeed seed pwd
-            accXPrv =
-                Byron.deriveAccountPrivateKey pwd rootXPrv (liftIndex @'Hardened minBound)
-            addrXPrv =
-                Byron.deriveAddressPrivateKey pwd accXPrv
-        in
-            [ paymentAddress @'Mainnet
-                $ publicKey $ addrXPrv $ liftIndex @'Hardened ix
-            | ix <- [minBound..maxBound]
-            ]
+byronAddresses :: KnownNat mw => Mnemonic mw -> [Address]
+byronAddresses mw =
+    let
+        (seed, pwd) =
+            (SomeMnemonic mw, mempty)
+        rootXPrv =
+            Byron.generateKeyFromSeed seed pwd
+        accXPrv =
+            Byron.deriveAccountPrivateKey pwd rootXPrv (liftIndex @'Hardened minBound)
+        addrXPrv =
+            Byron.deriveAddressPrivateKey pwd accXPrv
+    in
+        [ paymentAddress @'Mainnet
+            $ publicKey $ addrXPrv $ liftIndex @'Hardened ix
+        | ix <- [minBound..maxBound]
+        ]
 
 icaAddresses :: Mnemonic 15 -> [Address]
 icaAddresses mw =
@@ -2511,6 +2513,135 @@ chunks _ [] = []
 chunks n xs =
     let (ys, zs) = splitAt n xs
     in  ys : chunks n zs
+
+byronIntegrationTestFunds :: [(Address, Coin)]
+byronIntegrationTestFunds = mconcat
+    [ rndMnemonics >>= take 10 . map (, defaultAmt) . byronAddresses
+    , dustWallet1Funds
+    , dustWallet2Funds
+    ]
+  where
+    defaultAmt = Coin 100000000000
+
+    -- A special Byron Wallet coming from
+    -- with with only dust
+    dustWallet1 :: Mnemonic 12
+    dustWallet1 = unsafeMkMnemonic @12
+        ["suffer", "decorate", "head", "opera"
+        , "yellow", "debate", "visa", "fire"
+        , "salute", "hybrid", "stone", "smart"
+        ]
+
+    dustWallet1Funds = zip
+        (byronAddresses dustWallet1)
+        [Coin 1, Coin 2, Coin 3, Coin 4, Coin 5]
+
+    dustWallet2 :: Mnemonic 12
+    dustWallet2 = unsafeMkMnemonic @12
+        ["collect", "fold", "file", "clown"
+        , "injury", "sun", "brass", "diet"
+        , "exist", "spike", "behave", "clip"
+        ]
+
+    dustWallet2Funds = zip
+        (byronAddresses dustWallet2)
+        (mempty
+            <> replicate 100 (Coin 10_000_000_000)
+            <> replicate 100 (Coin 1))
+
+
+-- NOTE: Would be nice to derive the addresses programatically from the
+-- mnemonics, but not sure how this is done here.
+--
+-- NOTE2: Deserialising the addresses would need  access to
+-- "Cardano.Wallet.Shelley.Compatibility" orphan to call 'decodeAddress', so we
+-- leave this up to the caller.
+hwWalletFunds :: [(Text, Coin)]
+hwWalletFunds =
+  -- Legacy Funds (Trezor)
+  --
+  -- (12 words) "walk", "license", "firm", "dwarf", "hundred", "pride", "ensure", "midnight", "unit", "keen", "warfare", "east"
+  [ ("Ae2tdPwUPEZ9W3XajXS7ypra9BBYkwfvTz1PinD1eSCxHCQjTmw99wBz39y", Coin 100000000000)
+  , ("Ae2tdPwUPEZEhg3LiSAMZmtosbQcAgSU4jvLhWSRyph8hwYqv9CzrFy6vQo", Coin 100000000000)
+  , ("Ae2tdPwUPEZ2zpcZVpVoBtGnncG3qSCMQGQ6M4pV2H2K5YyDhqZ7424GKyz", Coin 100000000000)
+  , ("Ae2tdPwUPEZ7tEnAvFtc3v7eP195XrS3pFgZSSCoa5S8oBFk6ztxVwmUcxA", Coin 100000000000)
+  , ("Ae2tdPwUPEZHanmRFbXA1f4pYrFRoBcDMG88CeV4Z57XpMUjqsc8jRz8GE3", Coin 100000000000)
+  , ("Ae2tdPwUPEZAyvGMHqdRfLcMuP6Ez6RgYjdyGUFBCeqzPqHbkn4wd3WQrgJ", Coin 100000000000)
+  , ("Ae2tdPwUPEZ2CdZbNdzsbu8yBU5ZK3XLEQa2pYwsZzgagKCMMdpRLKQKFfX", Coin 100000000000)
+  , ("Ae2tdPwUPEYzrrpt2NccDnv72v1noz2vTXt17UeHPtXuZztcqYM57ncCvfD", Coin 100000000000)
+  , ("Ae2tdPwUPEZFyBM66NYnCREpZy43gEpUKwyvYBdf8nK38N6VeKJoawNsVQC", Coin 100000000000)
+  , ("Ae2tdPwUPEZ7tNoEkK58MrWdR6q6unhSqDgXQvEc2XyRtNLgSWbCe3QZghK", Coin 100000000000)
+
+  -- Legacy Funds (Trezor)
+  --
+  -- (18 words) "hen", "idea", "mimic", "frog", "second", "magnet", "egg", "indicate", "jar", "girl", "broccoli", "heart", "verify", "person", "present", "toe", "vibrant", "unable"
+  , ("Ae2tdPwUPEYzx9hEnPZKT14SfPmsQvpwL46yPRFqzkqBPTDpwwDBiSQSe5H", Coin 100000000000)
+  , ("Ae2tdPwUPEZJYmMs1z8Gh2eGZZR3uBqgcQxBevA3rsvWft3U9d6a8dGkcZ8", Coin 100000000000)
+  , ("Ae2tdPwUPEYw6pDMLtHTxBq8LnYCbXeey8AkPeL9DNkibDz4i1SssCTH8R5", Coin 100000000000)
+  , ("Ae2tdPwUPEZ4wqGZtptW4LxngfZjdmCRaLrsdo3H31CqFkrKH5fxF3GAUdm", Coin 100000000000)
+  , ("Ae2tdPwUPEYxyHGuNmABqY4P7uzzGd6UWVeguwgUrF3tV9AEptExgAbb2Ds", Coin 100000000000)
+  , ("Ae2tdPwUPEZ9wCuUSgeHEC7jMhiHS8hXWx8w1Vtt9ZxrzYoKDPbTKhdPAfJ", Coin 100000000000)
+  , ("Ae2tdPwUPEZ8Vt43wsBaAzHnEdvjwPnjAoWLC1xeJeNeWAvvZnNDAMwZ22b", Coin 100000000000)
+  , ("Ae2tdPwUPEYx21tKjtE2WzQsmsxNdVZQxCCgojUxMFtmCYR9gqqwXhBPm57", Coin 100000000000)
+  , ("Ae2tdPwUPEYxVQrJm6PuWkjgNadiUV3YfC2sCmQFDZqwuzNFGj7Tgp8n1Bi", Coin 100000000000)
+  , ("Ae2tdPwUPEYwBbU6ghpjWkNw81wZ6LdyWdZVMdoScDPiSV5ZhwSJzkZqus3", Coin 100000000000)
+
+  -- Legacy Funds (Trezor)
+  --
+  -- (24 words) "slot", "young", "shoot", "surround", "equal", "trouble", "rice", "update", "rare", "dinosaur", "drastic", "kitten", "mom", "actress", "salon", "abuse", "happy", "satisfy"
+  , ("Ae2tdPwUPEZBvaca39j3KRRikqY3AGFseAtgBLdnV8pDArUS5pqyMAzXUzY", Coin 100000000000)
+  , ("Ae2tdPwUPEZ4MemwEvUPeHWHckYjfYGiU7qyLCJ6MumaU5c64YVboeVBU4o", Coin 100000000000)
+  , ("Ae2tdPwUPEZHwVZCJ9ntZM6w5XJ2z9QtZKwkuPUMBusiVx5q31KpqGR9FcJ", Coin 100000000000)
+  , ("Ae2tdPwUPEYygErppRsoEqXEyPGxEFsKVoa2BFKMG3prWh6sFi8VSgW4h3k", Coin 100000000000)
+  , ("Ae2tdPwUPEZCWwt43jbnf3RjEBqixpjkzMdTB9cyt7zJjVnq8PTnF55rHQL", Coin 100000000000)
+  , ("Ae2tdPwUPEYzbmFy6Mbn1WjwtQJyj71Wqj27jz9QpPty1KoyJL3tQh4XBkW", Coin 100000000000)
+  , ("Ae2tdPwUPEZ4m5XyBU9c41sareSBsLMoSn97co3XMnaGtuQDCPRywXp6bt5", Coin 100000000000)
+  , ("Ae2tdPwUPEZNLXT48whvAoRTn9bMeZweHhPqG7xFDzCrKfzGu8Ku8myrRcj", Coin 100000000000)
+  , ("Ae2tdPwUPEZMpnbSJauTkyFvaxzmcxbz29h4ogiQemoMDEwun5tAEQnHaV2", Coin 100000000000)
+  , ("Ae2tdPwUPEZEaxZqj8oXrCPuA3Ehaa5fa9kPAgpdLmgoSeKipZEPWo5qeQF", Coin 100000000000)
+
+  -- Legacy Funds (Ledger)
+  --
+  -- (12 words) "struggle", "section", "scissors", "siren", "garbage", "yellow", "maximum", "finger", "duty", "require", "mule", "earn"
+  , ("Ae2tdPwUPEZ4Gs4s2recjNjQHBKfuBTkeuqbHJJrC6CuyjGyUD44cCTq4sJ", Coin 100000000000)
+  , ("Ae2tdPwUPEZ8ozZuJWsLVb7aEb5p9ntcja47B9i68GV3y9by1eY5C2y6WUT", Coin 100000000000)
+  , ("Ae2tdPwUPEZJoUCoyoCxUAKAbn2vFo6nu6B7aTWL1Pv9MRKm8unG9ixLurg", Coin 100000000000)
+  , ("Ae2tdPwUPEYwFNKLxqF8s31nbaNt5MZisVqsQ5qsiY763HY5wsBN3mSzPRa", Coin 100000000000)
+  , ("Ae2tdPwUPEZ4ZXzzehKoWWC9QYVqJfEL9x63zjH6wyEJbNRsZ9eccR6nSpv", Coin 100000000000)
+  , ("Ae2tdPwUPEYyX7ug8zm6K7nLWhgEEBo7Ewf1qALxkvqyHHSC5jMFzH418Q1", Coin 100000000000)
+  , ("Ae2tdPwUPEZ95eCwDjNQjReRkeLZFv6kBs3vwaKPHJsw2cxXc3HaCD2jzqw", Coin 100000000000)
+  , ("Ae2tdPwUPEZDHGbQ9sbLZuw3cfhcSzqqdK8Xj3dhAzmWZGeVgJhncu5LR9N", Coin 100000000000)
+  , ("Ae2tdPwUPEYyDca1eVbeEea6CjihoMAgt6mPiNuC1hEpy5U2qQ1Tzt6E8q8", Coin 100000000000)
+  , ("Ae2tdPwUPEZHRMjjXMT2icJXp5h2k2j3Ph6dB5iGRashA2QxHLgFZbHzdms", Coin 100000000000)
+
+  -- Legacy Funds (Ledger)
+  --
+  -- (18 words) "vague" , "wrist" , "poet" , "crazy" , "danger" , "dinner", "grace" , "home" , "naive" , "unfold" , "april" , "exile", "relief" , "rifle" , "ranch" , "tone" , "betray" , "wrong"
+  , ("Ae2tdPwUPEZMCGyPAK85FrcserPvzVZZUcbFk5TvDmL9LrUyq2KPYubPcru", Coin 100000000000)
+  , ("Ae2tdPwUPEZ6drrnNd1KW3UoiU3U1ZK3mxSpQpFAdXzJHuwvDcYB7Wzxkp1", Coin 100000000000)
+  , ("Ae2tdPwUPEZ7Jaw9qt1q2CjCcds6zpHMyzmPGDh9tBeyQG28AdRGHcaWYx7", Coin 100000000000)
+  , ("Ae2tdPwUPEZ9SW4qxWkFoozTux5i7F9jVpHQFQUycQuNanSUScyMTYrnQXK", Coin 100000000000)
+  , ("Ae2tdPwUPEZ6YegpN8XurGfWyKqkNHLgdbHpdohumKt5QpkNVJhw4FCSRdo", Coin 100000000000)
+  , ("Ae2tdPwUPEZLgrXt3zJeHgFWM2stxRjdm6wWATSoUzJ1CmUxKqgbYQXR8cC", Coin 100000000000)
+  , ("Ae2tdPwUPEZ6axGCfo5nCLn5hEoRo4yNmQKBzn12B2quPncgQRFP6JBZ2ex", Coin 100000000000)
+  , ("Ae2tdPwUPEYzdHGmJDL9tEWXfzyshohvzyS3K9wmLc5qMrwRNFPQA611uzB", Coin 100000000000)
+  , ("Ae2tdPwUPEYxLNQJXcT3XUh54BXn5w53pPe5EHMXo6qo47gpNM9QyJsaXz4", Coin 100000000000)
+  , ("Ae2tdPwUPEYvq2fnzqs9EWxFF2j87nZzBAZZ7y3qoj5oTce1ZGvsc4potp3", Coin 100000000000)
+
+  -- Legacy Funds (Ledger)
+  --
+  -- (24 words) "recall" , "grace" , "sport" , "punch" , "exhibit" , "mad", "harbor" , "stand" , "obey" , "short" , "width" , "stem", "awkward" , "used" , "stairs" , "wool" , "ugly" , "trap", "season" , "stove" , "worth" , "toward" , "congress" , "jaguar"
+  , ("Ae2tdPwUPEZFvG914wGXtCsb9hCr9aKjJC2ZciLKSNRqAKtjnduH7XtPn78", Coin 1000000000000)
+  , ("Ae2tdPwUPEZ8rVsdBE6EMZpac32MLzciY75MrwrPs8ikjf6MWYFJUHkGaw5", Coin 1000000000000)
+  , ("Ae2tdPwUPEZADQdQy2cbHDwwFRYUcrfreiu82Ngm9Bxdw1pJqJFUnFoQmNL", Coin 1000000000000)
+  , ("Ae2tdPwUPEZ3NULtb3fK6qtJYwJbVnmhDeWzoMbjzPbCsEC9MyB4foBABhz", Coin 1000000000000)
+  , ("Ae2tdPwUPEZ3rGvPCdzCPrVRvzEfpUp8XnZ861nss3XfLun5wA3c3YMA41v", Coin 1000000000000)
+  , ("Ae2tdPwUPEZ575pMY9TBJyPdrwGkq2kr49V9fuqRWpF6wM9JbuZLmxHDo2N", Coin 1000000000000)
+  , ("Ae2tdPwUPEZFaVKwy9bcN81ZPVL8uHRfsrCj7ZZhbm2uqiwLrzsy9Bs1rBN", Coin 1000000000000)
+  , ("Ae2tdPwUPEZ4K16qFm6qVRWTEGpq5TJiyt8ZojmRANTSpPDAWZuH2Ge85uB", Coin 1000000000000)
+  , ("Ae2tdPwUPEZMMYd8JP9F16HJgCsDsPjUoERWoFzZugN4mNjhR9ZnFwPonCs", Coin 1000000000000)
+  , ("Ae2tdPwUPEZ3anXo172NFuumSGjrvbk1pHK9LiF82nGmPKC52NMYR77V2dM", Coin 1000000000000)
+  ]
 
 --
 -- Helpers

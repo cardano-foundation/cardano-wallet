@@ -28,7 +28,7 @@ import Cardano.CLI
 import Cardano.Startup
     ( installSignalHandlers, setDefaultFilePermissions, withUtf8Encoding )
 import Cardano.Wallet.Api.Types
-    ( EncodeAddress (..) )
+    ( EncodeAddress (..), decodeAddress )
 import Cardano.Wallet.Logging
     ( stdoutTextTracer, trMessageText )
 import Cardano.Wallet.Primitive.AddressDerivation
@@ -55,7 +55,6 @@ import Cardano.Wallet.Shelley.Launch.Cluster
     , moveInstantaneousRewardsTo
     , oneMillionAda
     , sendFaucetAssetsTo
-    , sendFaucetFundsTo
     , testMinSeverityFromEnv
     , tokenMetadataServerFromEnv
     , walletListenFromEnv
@@ -81,7 +80,9 @@ import System.Directory
 import System.FilePath
     ( (</>) )
 import Test.Integration.Faucet
-    ( genRewardAccounts
+    ( byronIntegrationTestFunds
+    , genRewardAccounts
+    , hwWalletFunds
     , maryIntegrationTestAssets
     , mirMnemonics
     , shelleyIntegrationTestFunds
@@ -218,25 +219,30 @@ main = withLocalClusterSetup $ \dir clusterLogs walletLogs ->
     withLoggingNamed "cluster" clusterLogs $ \(_, (_, trCluster)) -> do
         let tr' = contramap MsgCluster $ trMessageText trCluster
         clusterCfg <- localClusterConfigFromEnv
-        withCluster tr' dir clusterCfg
-            (setupFaucet dir (trMessageText trCluster))
+        withCluster tr' dir clusterCfg faucetFunds
             (whenReady dir (trMessageText trCluster) walletLogs)
   where
-    setupFaucet dir trCluster (RunningNode socketPath _ _) = do
+    unsafeDecodeAddr = either (error . show) id . decodeAddress @'Mainnet
+
+    faucetFunds =
+            shelleyIntegrationTestFunds
+             <> byronIntegrationTestFunds
+             <> map (first unsafeDecodeAddr) hwWalletFunds
+
+    setupFaucet dir trCluster (RunningNode socketPath _ _ _) = do
         traceWith trCluster MsgSettingUpFaucet
         let trCluster' = contramap MsgCluster trCluster
         let encodeAddresses = map (first (T.unpack . encodeAddress @'Mainnet))
         let accts = KeyCredential <$> concatMap genRewardAccounts mirMnemonics
         let rewards' = (, Coin $ fromIntegral oneMillionAda) <$> accts
 
-        sendFaucetFundsTo trCluster' socketPath dir $
-            encodeAddresses shelleyIntegrationTestFunds
         sendFaucetAssetsTo trCluster' socketPath dir 20 $ encodeAddresses $
             maryIntegrationTestAssets (Coin 1_000_000_000)
         moveInstantaneousRewardsTo trCluster' socketPath dir rewards'
 
-    whenReady dir trCluster logs (RunningNode socketPath block0 (gp, vData)) =
+    whenReady dir trCluster logs node@(RunningNode socketPath block0 (gp, vData) _) =
         withLoggingNamed "cardano-wallet" logs $ \(sb, (cfg, tr)) -> do
+            setupFaucet dir trCluster node
 
             ekgEnabled >>= flip when (EKG.plugin cfg tr sb >>= loadPlugin sb)
 

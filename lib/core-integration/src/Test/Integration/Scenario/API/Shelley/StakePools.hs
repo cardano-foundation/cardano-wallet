@@ -1059,8 +1059,8 @@ spec = describe "SHELLEY_STAKE_POOLS" $ do
                 setOf pools' (view #pledge)
                     `shouldBe`
                     Set.fromList
-                        [ Quantity oneMillionAda
-                        , Quantity $ 2 * oneMillionAda
+                        [ Quantity $ 100 * oneMillionAda
+                        , Quantity $ 200 * oneMillionAda
                         ]
 
         it "at least one pool eventually produces block" $ \ctx -> runResourceT $ do

@@ -674,6 +674,7 @@ walletId =
 -- | Min UTxO parameter for the test cluster.
 minUTxOValue :: ApiEra -> Natural
 minUTxOValue e
+    | e >= ApiBabbage = 999_920
     | e >= ApiAlonzo = 999_978 -- From 34482 lovelace per word
     | otherwise   = 1_000_000
 
@@ -689,7 +690,7 @@ securityParameterValue = 5
 
 -- | Parameter in test cluster shelley genesis.
 epochLengthValue :: Word32
-epochLengthValue = 100
+epochLengthValue = 80
 
 -- | Wallet server's chosen transaction TTL value (in seconds) when none is
 -- given.
