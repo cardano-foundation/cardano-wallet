@@ -36,7 +36,6 @@ module Cardano.Wallet.Shelley.Launch.Cluster
 
       -- * Cluster node launcher
     , defaultPoolConfigs
-    , poolConfigsFromEnv
     , clusterEraFromEnv
     , clusterToApiEra
     , clusterEraToString
@@ -155,7 +154,7 @@ import Cardano.Wallet.Primitive.Types.Tx
 import Cardano.Wallet.Shelley.Compatibility
     ( StandardShelley, fromGenesisData )
 import Cardano.Wallet.Shelley.Launch
-    ( TempDirLog (..), envFromText, isEnvSet, lookupEnvNonEmpty )
+    ( TempDirLog (..), envFromText, lookupEnvNonEmpty )
 import Cardano.Wallet.Unsafe
     ( unsafeBech32Decode, unsafeFromHex )
 import Cardano.Wallet.Util
@@ -191,7 +190,7 @@ import Data.Either
 import Data.Foldable
     ( traverse_ )
 import Data.Functor
-    ( ($>), (<&>) )
+    ( ($>) )
 import Data.Generics.Product.Fields
     ( setField )
 import Data.IntCast
@@ -693,18 +692,11 @@ defaultPoolConfigs = zipWith (\i p -> p {index = i}) [1..]
   where
     millionAda = 1_000_000_000_000
 
-poolConfigsFromEnv :: IO [PoolRecipe]
-poolConfigsFromEnv = isEnvSet "NO_POOLS" <&> \case
-    False -> defaultPoolConfigs
-    True -> []
-
 localClusterConfigFromEnv :: IO LocalClusterConfig
 localClusterConfigFromEnv = do
     era <- clusterEraFromEnv
-    LocalClusterConfig
-        <$> poolConfigsFromEnv
-        <*> (pure era)
-        <*> logFileConfigFromEnv (Just $ clusterEraToString era)
+    LocalClusterConfig defaultPoolConfigs era
+        <$> logFileConfigFromEnv (Just $ clusterEraToString era)
 
 data ClusterEra
     = ByronNoHardFork
@@ -2386,15 +2378,9 @@ instance ToText ClusterLog where
             , "with SMASH with the metadata hash"
             , hash
             ]
-
-        MsgRegisteringStakePools 0 -> mconcat
-                [ "Not registering any stake pools due to "
-                , "NO_POOLS=1. Some tests may fail."
-                ]
         MsgRegisteringStakePools n -> mconcat
                 [ T.pack (show n)
                 , " stake pools are being registered on chain... "
-                , "Can be skipped using NO_POOLS=1."
                 ]
         MsgLauncher name msg ->
             T.pack name <> " " <> toText msg

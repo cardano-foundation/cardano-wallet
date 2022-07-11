@@ -48,7 +48,6 @@ integration tests and test cluster.
 | `TESTS_TRACING_MIN_SEVERITY` | severity | Log level for test suite and cluster | Notice |
 | `TESTS_LOGDIR` | path | Write log files in the given directory | Log files are written to the tests temp directory |
 | `TESTS_RETRY_FAILED` | bool | Enable retrying once of failed tests | No retrying |
-| `NO_POOLS` | bool | Don't start any stake pool nodes in the local test cluster. | Pool nodes are started |
 | `TOKEN_METADATA_SERVER` | URL | Use this URL for querying asset metadata | Asset metadata fetching disabled |
 | `NO_CACHE_LISTPOOLS` | bool | Do not cache pool listing retrieved from cardano-node. *Testing only. Use `--no-cache-listpools` command line for executable*. | Stake distribution is cached to improve responsiveness |
 | `CACHE_LISTPOOLS_TTL` | number | Cache time to live (TTL) for pool listing. *Testing only. Use `--no-cache-listpools` command line for executable*. | 6 seconds for test builds |
