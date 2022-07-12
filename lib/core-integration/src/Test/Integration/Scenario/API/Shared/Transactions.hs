@@ -43,12 +43,14 @@ import Data.Either.Combinators
     ( swapEither )
 import Data.Generics.Internal.VL.Lens
     ( view, (^.) )
+import Data.Maybe
+    ( isJust )
 import Data.Quantity
     ( Quantity (..) )
 import Test.Hspec
     ( SpecWith, describe )
 import Test.Hspec.Expectations.Lifted
-    ( shouldBe )
+    ( shouldBe, shouldSatisfy )
 import Test.Hspec.Extra
     ( it )
 import Test.Integration.Framework.DSL
@@ -178,12 +180,14 @@ spec = describe "SHARED_TRANSACTIONS" $ do
             (Link.createUnsignedTransaction @'Shared wal) Default metadata
         verify rTx2
             [ expectResponseCode HTTP.status202
+            , expectField (#coinSelection . #metadata) (`shouldSatisfy` isJust)
+            , expectField (#fee . #getQuantity) (`shouldSatisfy` (>0))
             ]
   where
      fundSharedWallet ctx amt walShared = do
 
         let wal = case walShared of
-                ApiSharedWallet (Right wal) -> wal
+                ApiSharedWallet (Right wal') -> wal'
                 _ -> error "funding of shared wallet make sense only for active one"
 
         rAddr <- request @[ApiAddress n] ctx

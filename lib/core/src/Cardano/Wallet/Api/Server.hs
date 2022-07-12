@@ -4667,9 +4667,11 @@ instance IsServerError ErrConstructTx where
             ]
         ErrConstructTxSharedWalletPending ->
             apiError err403 SharedWalletPending $ mconcat
-            [ "Transaction for a shared wallet should not be tried for "
-            , "a pending shared wallet. Make the wallet active before sending "
-            , "transaction."
+            [ "I cannot construct transaction for a shared wallet that is in 'incomplete' "
+            , "state. Please update your wallet accordingly with "
+            , "'PATCH /shared-wallets/{walletId}/payment-script-template' or "
+            , "'PATCH /shared-wallets/{walletId}/delegation-script-template' to make "
+            , "it applicable for constructing transaction."
             ]
         ErrConstructTxNotASharedWallet ->
             apiError err403 InvalidWalletType $ mconcat
