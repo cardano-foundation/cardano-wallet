@@ -739,9 +739,11 @@ errMsg403ValidityIntervalNotInsideScriptTimelock = unwords
 
 errMsg403SharedWalletPending :: String
 errMsg403SharedWalletPending = unwords
-    [ "Transaction for a shared wallet should not be tried for"
-    , "a pending shared wallet. Make the wallet active before sending"
-    , "transaction."
+    [ "I cannot construct transaction for a shared wallet that is in 'incomplete'"
+    , "state. Please update your wallet accordingly with"
+    , "'PATCH /shared-wallets/{walletId}/payment-script-template' or"
+    , "'PATCH /shared-wallets/{walletId}/delegation-script-template' to make"
+    , "it applicable for constructing transaction."
     ]
 
 --------------------------------------------------------------------------------
