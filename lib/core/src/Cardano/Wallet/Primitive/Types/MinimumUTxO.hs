@@ -9,11 +9,15 @@
 -- Defines the 'MinimumUTxO' type and related functions.
 --
 module Cardano.Wallet.Primitive.Types.MinimumUTxO
-    ( MinimumUTxO (..)
+    (
+    -- * Types
+      MinimumUTxO (..)
+    , MinimumUTxOForShelleyBasedEra (..)
+
+    -- * Constructor functions
     , minimumUTxONone
     , minimumUTxOConstant
     , minimumUTxOForShelleyBasedEra
-    , MinimumUTxOForShelleyBasedEra (..)
     )
     where
 
@@ -36,15 +40,20 @@ import Fmt
 -- The 'MinimumUTxO' type
 --------------------------------------------------------------------------------
 
+-- | Represents a function for computing minimum UTxO values.
+--
 data MinimumUTxO where
     MinimumUTxONone
         :: MinimumUTxO
+        -- ^ Indicates that there is no minimum UTxO value.
     MinimumUTxOConstant
         :: Coin
         -> MinimumUTxO
+        -- ^ Indicates a constant minimum UTxO value.
     MinimumUTxOForShelleyBasedEraOf
         :: MinimumUTxOForShelleyBasedEra
         -> MinimumUTxO
+        -- ^ Indicates a Shelley-based era-specific minimum UTxO function.
 
 instance Buildable MinimumUTxO where
     build = \case
@@ -84,24 +93,12 @@ instance Show MinimumUTxO where
             , show pp
             ]
 
-minimumUTxONone :: MinimumUTxO
-minimumUTxONone = MinimumUTxONone
-
-minimumUTxOConstant :: Coin -> MinimumUTxO
-minimumUTxOConstant = MinimumUTxOConstant
-
-minimumUTxOForShelleyBasedEra
-    :: ShelleyBasedEra era
-    -> PParams (ShelleyLedgerEra era)
-    -> MinimumUTxO
-minimumUTxOForShelleyBasedEra era pp =
-    MinimumUTxOForShelleyBasedEraOf $
-    MinimumUTxOForShelleyBasedEra era pp
-
 --------------------------------------------------------------------------------
 -- The 'MinimumUTxOForShelleyBasedEra' type
 --------------------------------------------------------------------------------
 
+-- | Represents a minimum UTxO function that is specific to a Shelley-based era.
+--
 data MinimumUTxOForShelleyBasedEra where
     MinimumUTxOForShelleyBasedEra
         :: ShelleyBasedEra era
@@ -125,3 +122,21 @@ instance Show MinimumUTxOForShelleyBasedEra where
         [ show era
         , show (fromLedgerPParams era pp)
         ]
+
+--------------------------------------------------------------------------------
+-- Constructor functions
+--------------------------------------------------------------------------------
+
+minimumUTxONone :: MinimumUTxO
+minimumUTxONone = MinimumUTxONone
+
+minimumUTxOConstant :: Coin -> MinimumUTxO
+minimumUTxOConstant = MinimumUTxOConstant
+
+minimumUTxOForShelleyBasedEra
+    :: ShelleyBasedEra era
+    -> PParams (ShelleyLedgerEra era)
+    -> MinimumUTxO
+minimumUTxOForShelleyBasedEra era pp =
+    MinimumUTxOForShelleyBasedEraOf $
+    MinimumUTxOForShelleyBasedEra era pp

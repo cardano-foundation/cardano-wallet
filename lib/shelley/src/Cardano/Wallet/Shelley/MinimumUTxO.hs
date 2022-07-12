@@ -57,6 +57,13 @@ computeMinimumCoinForUTxO = \case
     MinimumUTxOForShelleyBasedEraOf pp ->
         computeMinimumCoinForShelleyBasedEra pp
 
+-- | Computes a minimum 'Coin' value for a 'TokenMap' that is destined for
+--   inclusion in a transaction output.
+--
+-- This function returns a value that is specific to a given Shelley-based era.
+-- Importantly, a value that is valid in one era will not necessarily be valid
+-- in another era.
+--
 computeMinimumCoinForShelleyBasedEra
     :: HasCallStack
     => MinimumUTxOForShelleyBasedEra
@@ -79,9 +86,18 @@ computeMinimumCoinForShelleyBasedEra
                 & unsafeValueToLovelace
                 & unsafeLovelaceToWalletCoin
         Left e ->
-            -- We assume that the provided protocol parameters record has all
-            -- the required parameters for the given era. If this assumption is
-            -- violated, we have no way to continue, and must raise an error:
+            -- The 'Cardano.calculateMinimumUTxO' function should only return
+            -- an error if a required protocol parameter is missing.
+            --
+            -- However, given that values of 'MinimumUTxOForShelleyBasedEra'
+            -- can only be constructed by supplying an era-specific protocol
+            -- parameters record, it should be impossible to trigger this
+            -- condition.
+            --
+            -- Any violation of this assumption indicates a programming error.
+            -- If this condition is triggered, we have no way to continue, and
+            -- must raise an error:
+            --
             error $ unwords
                 [ "computeMinimumCoinForUTxO:"
                 , "unexpected error:"

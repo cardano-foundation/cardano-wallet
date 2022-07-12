@@ -340,6 +340,7 @@ goldenMinimumUTxO_Babbage :: MinimumUTxO
 goldenMinimumUTxO_Babbage =
     minimumUTxOForShelleyBasedEra ShelleyBasedEraBabbage
         -- Value derived from 'mainnet-alonzo-genesis.json':
+        -- >>> 34_482 `div` 8 == 4_310
         def {Babbage._coinsPerUTxOByte = Ledger.Coin 4_310}
 
 --------------------------------------------------------------------------------
