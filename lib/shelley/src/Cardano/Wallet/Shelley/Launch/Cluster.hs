@@ -149,8 +149,6 @@ import Cardano.Wallet.Primitive.Types.TokenPolicy
     ( TokenName (..) )
 import Cardano.Wallet.Primitive.Types.TokenQuantity
     ( TokenQuantity (..) )
-import Cardano.Wallet.Primitive.Types.Tx
-    ( TxOut )
 import Cardano.Wallet.Shelley.Compatibility
     ( StandardShelley, fromGenesisData )
 import Cardano.Wallet.Shelley.Launch
@@ -170,11 +168,9 @@ import Control.Tracer
 import Crypto.Hash.Utils
     ( blake2b256 )
 import Data.Aeson
-    ( FromJSON (..), object, toJSON, (.:), (.=) )
+    ( object, toJSON, (.:), (.=) )
 import Data.Aeson.QQ
     ( aesonQQ )
-import Data.Bifunctor
-    ( bimap )
 import Data.Bits
     ( (.|.) )
 import Data.ByteArray.Encoding
@@ -189,8 +185,6 @@ import Data.Either
     ( fromRight, isLeft, isRight )
 import Data.Foldable
     ( traverse_ )
-import Data.Functor
-    ( ($>) )
 import Data.Generics.Product.Fields
     ( setField )
 import Data.IntCast
@@ -236,13 +230,10 @@ import UnliftIO.Chan
 import UnliftIO.Exception
     ( SomeException, finally, handle, throwIO, throwString )
 import UnliftIO.MVar
-    ( MVar, modifyMVar, newMVar, putMVar, swapMVar, takeMVar )
+    ( MVar, modifyMVar, newMVar, swapMVar )
 
-import qualified Cardano.Chain.Common as Byron
-import qualified Cardano.Chain.UTxO as Legacy
 import qualified Cardano.Ledger.Address as Ledger
 import qualified Cardano.Ledger.Shelley.API as Ledger
-import qualified Cardano.Wallet.Byron.Compatibility as Byron
 import qualified Cardano.Wallet.Primitive.AddressDerivation as W
 import qualified Cardano.Wallet.Primitive.Types.TokenBundle as TokenBundle
 import qualified Cardano.Wallet.Primitive.Types.TokenMap as TokenMap
@@ -419,6 +410,10 @@ data PoolRecipe = PoolRecipe
       -- ^ An optional retirement epoch. If specified, then a pool retirement
       -- certificate will be published after the pool is initially registered.
     , poolMetadata :: Aeson.Value
+    , operatorKeys :: (PoolId, Aeson.Value, Aeson.Value, Aeson.Value)
+      -- ^ @(poolId, vk, sk, counter)@ - as long as the integration tests make
+      -- use of hard-coded pool ids, we need to pre-assign the operator keys and
+      -- related data already here.
     , delisted :: Bool
     }
     deriving (Eq, Show)
@@ -485,7 +480,9 @@ configurePool
     -> PoolMetadataServer
     -> PoolRecipe
     -> IO ConfiguredPool
-configurePool tr baseDir metadataServer pr@(PoolRecipe pledgeAmt i mretirementEpoch metadata _) = do
+configurePool tr baseDir metadataServer recipe = do
+    let PoolRecipe pledgeAmt i mretirementEpoch metadata _ _ = recipe
+
     -- Use pool-specific dir
     let name = "pool-" <> show i
     let dir = baseDir </> name
@@ -494,7 +491,7 @@ configurePool tr baseDir metadataServer pr@(PoolRecipe pledgeAmt i mretirementEp
     -- Generate/assign keys
     (vrfPrv, vrfPub) <- genVrfKeyPair tr dir
     (kesPrv, kesPub) <- genKesKeyPair tr dir
-    (opPrv, opPub, opCount, _meta) <- genOperatorKeyPair tr dir
+    (opPrv, opPub, opCount) <- writeOperatorKeyPair tr dir recipe
     opCert <- issueOpCert tr dir kesPub opPrv opCount
     let ownerPub = dir </> "stake.pub"
     let ownerPrv = dir </> "stake.prv"
@@ -630,7 +627,7 @@ configurePool tr baseDir metadataServer pr@(PoolRecipe pledgeAmt i mretirementEp
             tx <- signTx tr dir rawTx [faucetPrv, ownerPrv, opPrv]
             submitTx tr socket name tx
         , metadataUrl = T.pack metadataURL
-        , recipe = pr
+        , recipe = recipe
         }
 
 defaultPoolConfigs :: [PoolRecipe]
@@ -646,6 +643,29 @@ defaultPoolConfigs = zipWith (\i p -> p {index = i}) [1..]
               , "homepage" .= Aeson.String "https://iohk.io"
               ]
         , delisted = False
+        , operatorKeys =
+            ( PoolId $ unsafeFromHex
+                "ec28f33dcbe6d6400a1e5e339bd0647c0973ca6c0cf9c2bbe6838dc6"
+            , Aeson.object
+                [ "type" .= Aeson.String "StakePoolVerificationKey_ed25519"
+                , "description" .= Aeson.String "Stake pool operator key"
+                , "cborHex" .= Aeson.String
+                    "5820a12804d805eff46c691da5b11eb703cbf7463983e325621b41ac5b24e4b51887"
+                ]
+            , Aeson.object
+                [ "type" .= Aeson.String "StakePoolSigningKey_ed25519"
+                , "description" .= Aeson.String "Stake pool operator key"
+                , "cborHex" .= Aeson.String
+                    "5820d8f81c455ef786f47ad9f573e49dc417e0125dfa8db986d6c0ddc03be8634dc6"
+                ]
+            , Aeson.object
+                [ "type" .= Aeson.String "NodeOperationalCertificateIssueCounter"
+                , "description" .= Aeson.String "Next certificate issue number: 0"
+                , "cborHex" .= Aeson.String
+                    "82005820a12804d805eff46c691da5b11eb703cbf7463983e325621b41ac5b24e4b51887"
+                ]
+              )
+
         , index = undefined
         }
 
@@ -659,6 +679,28 @@ defaultPoolConfigs = zipWith (\i p -> p {index = i}) [1..]
               , "homepage" .= Aeson.String "https://iohk.io"
               ]
         , delisted = False
+    , operatorKeys =
+          ( PoolId $ unsafeFromHex
+              "1b3dc19c6ab89eaffc8501f375bb03c11bf8ed5d183736b1d80413d6"
+          , Aeson.object
+              [ "type" .= Aeson.String "StakePoolVerificationKey_ed25519"
+              , "description" .= Aeson.String "Stake pool operator key"
+              , "cborHex" .= Aeson.String
+                  "5820109440baecebefd92e3b933b4a717dae8d3291edee85f27ebac1f40f945ad9d4"
+              ]
+          , Aeson.object
+              [ "type" .= Aeson.String "StakePoolSigningKey_ed25519"
+              , "description" .= Aeson.String "Stake pool operator key"
+              , "cborHex" .= Aeson.String
+                  "5820fab9d94c52b3e222ed494f84020a29ef8405228d509a924106d05ed01c923547"
+              ]
+          , Aeson.object
+              [ "type" .= Aeson.String "NodeOperationalCertificateIssueCounter"
+              , "description" .= Aeson.String "Next certificate issue number: 0"
+              , "cborHex" .= Aeson.String
+                  "82005820109440baecebefd92e3b933b4a717dae8d3291edee85f27ebac1f40f945ad9d4"
+              ]
+          )
         , index = undefined
         }
 
@@ -673,6 +715,28 @@ defaultPoolConfigs = zipWith (\i p -> p {index = i}) [1..]
               , "homepage" .= Aeson.String "https://iohk.io"
               ]
         , delisted = True
+        , operatorKeys =
+            ( PoolId $ unsafeFromHex
+                "b45768c1a2da4bd13ebcaa1ea51408eda31dcc21765ccbd407cda9f2"
+            , Aeson.object
+                [ "type" .= Aeson.String "StakePoolVerificationKey_ed25519"
+                , "description" .= Aeson.String "Stake pool operator key"
+                , "cborHex" .= Aeson.String
+                    "5820c7383d89aa33656464a7796b06616c4590d6db018b2f73640be985794db0702d"
+                ]
+            , Aeson.object
+                [ "type" .= Aeson.String "StakePoolSigningKey_ed25519"
+                , "description" .= Aeson.String "Stake pool operator key"
+                , "cborHex" .= Aeson.String
+                    "5820047572e48be93834d6d7ddb01bb1ad889b4de5a7a1a78112f1edd46284250869"
+                ]
+            , Aeson.object
+                [ "type" .= Aeson.String "NodeOperationalCertificateIssueCounter"
+                , "description" .= Aeson.String "Next certificate issue number: 0"
+                , "cborHex" .= Aeson.String
+                    "82005820c7383d89aa33656464a7796b06616c4590d6db018b2f73640be985794db0702d"
+                ]
+            )
         , index = undefined
         }
     -- This pool should retire almost immediately:
@@ -686,6 +750,28 @@ defaultPoolConfigs = zipWith (\i p -> p {index = i}) [1..]
               , "homepage" .= Aeson.String "https://iohk.io"
               ]
         , delisted = False
+        , operatorKeys =
+            ( PoolId $ unsafeFromHex
+                "bb114cb37d75fa05260328c235a3dae295a33d0ba674a5eb1e3e568e"
+            , Aeson.object
+                [ "type" .= Aeson.String "StakePoolVerificationKey_ed25519"
+                , "description" .= Aeson.String "Stake Pool Operator Verification Key"
+                , "cborHex" .= Aeson.String
+                    "58203263e07605b9fc0100eb520d317f472ae12989fbf27fc71f46310bc0f24f2970"
+                ]
+            , Aeson.object
+                [ "type" .= Aeson.String "StakePoolSigningKey_ed25519"
+                , "description" .= Aeson.String "Stake Pool Operator Signing Key"
+                , "cborHex" .= Aeson.String
+                    "58208f50de27d74325eaf57767d70277210b31eb97cdc3033f632a9791a3677a64d2"
+                ]
+            , Aeson.object
+                [ "type" .= Aeson.String "NodeOperationalCertificateIssueCounter"
+                , "description" .= Aeson.String "Next certificate issue number: 0"
+                , "cborHex" .= Aeson.String
+                    "820058203263e07605b9fc0100eb520d317f472ae12989fbf27fc71f46310bc0f24f2970"
+                ]
+            )
         , index = undefined
         }
     ]
@@ -1177,7 +1263,10 @@ withSMASH tr parentDir action = do
 
 
     -- write pool metadatas
-    forM_ operatorsFixture $ \(poolId, _, _, _, metadata) -> do
+    forM_ defaultPoolConfigs $ \pool -> do
+        let (poolId, _, _, _) = operatorKeys pool
+        let metadata = poolMetadata pool
+
         let bytes = Aeson.encode metadata
 
         let metadataDir = baseDir </> "metadata"
@@ -1193,14 +1282,12 @@ withSMASH tr parentDir action = do
         BL8.writeFile (poolDir </> hashFile) bytes
 
     -- Write delisted pools
-    --
-    -- FIXME: The pool config is too entangled. We should rely on only
-    -- [PoolConfig] here, delete operatorsFixture, and not hard-code the
-    -- delisted pools.
-    let delisted = [SMASHPoolId (T.pack
-            "b45768c1a2da4bd13ebcaa1ea51408eda31dcc21765ccbd407cda9f2")]
-    let bytes = Aeson.encode delisted
-    BL8.writeFile (baseDir </> "delisted") bytes
+    let toSmashId (PoolId bytes) = SMASHPoolId . T.pack . B8.unpack . hex $ bytes
+    let poolId (PoolRecipe _ _ _ _ (pid, _, _, _) _) = toSmashId pid
+    let delistedPoolIds = map poolId $ filter delisted defaultPoolConfigs
+    BL8.writeFile
+        (baseDir </> "delisted")
+        (Aeson.encode delistedPoolIds)
 
     -- health check
     let health = Aeson.encode (HealthStatusSMASH "OK" "1.2.0")
@@ -1327,14 +1414,17 @@ genTopology dir peers = do
         , "port"    .= port
         , "valency" .= (1 :: Int)
         ]
--- | Create a key pair for a node operator's offline key and a new certificate
+-- | Write a key pair for a node operator's offline key and a new certificate
 -- issue counter
-genOperatorKeyPair :: Tracer IO ClusterLog -> FilePath -> IO (FilePath, FilePath, FilePath, Aeson.Value)
-genOperatorKeyPair tr dir = do
+writeOperatorKeyPair
+    :: Tracer IO ClusterLog
+    -> FilePath
+    -> PoolRecipe
+    -> IO (FilePath, FilePath, FilePath)
+writeOperatorKeyPair tr dir recipe = do
+    let (_pId, pub, prv, count) = operatorKeys recipe
+
     traceWith tr $ MsgGenOperatorKeyPair dir
-    (_poolId, pub, prv, count, metadata) <- takeMVar operators >>= \case
-        [] -> fail "genOperatorKeyPair: Awe crap! No more operators available!"
-        (op:q) -> putMVar operators q $> op
 
     let opPub = dir </> "op.pub"
     let opPrv = dir </> "op.prv"
@@ -1344,7 +1434,7 @@ genOperatorKeyPair tr dir = do
     Aeson.encodeFile opPrv prv
     Aeson.encodeFile opCount count
 
-    pure (opPrv, opPub, opCount, metadata)
+    pure (opPrv, opPub, opCount)
 
 -- | Create a key pair for a node KES operational key
 genKesKeyPair :: Tracer IO ClusterLog -> FilePath -> IO (FilePath, FilePath)
@@ -2141,128 +2231,11 @@ faucetFunds = map
   where
     unsafeDecodeAddr = either (error . show) id . decodeAddress @'W.Mainnet
 
-operators :: MVar [(PoolId, Aeson.Value, Aeson.Value, Aeson.Value, Aeson.Value)]
-operators = unsafePerformIO $ newMVar operatorsFixture
-{-# NOINLINE operators #-}
-
--- FIXME: Must be updated alongside defaultPoolConfigs. We should de-entangle.
-operatorsFixture :: [(PoolId, Aeson.Value, Aeson.Value, Aeson.Value, Aeson.Value)]
-operatorsFixture =
-    [ ( PoolId $ unsafeFromHex
-          "ec28f33dcbe6d6400a1e5e339bd0647c0973ca6c0cf9c2bbe6838dc6"
-      , Aeson.object
-          [ "type" .= Aeson.String "StakePoolVerificationKey_ed25519"
-          , "description" .= Aeson.String "Stake pool operator key"
-          , "cborHex" .= Aeson.String
-              "5820a12804d805eff46c691da5b11eb703cbf7463983e325621b41ac5b24e4b51887"
-          ]
-      , Aeson.object
-          [ "type" .= Aeson.String "StakePoolSigningKey_ed25519"
-          , "description" .= Aeson.String "Stake pool operator key"
-          , "cborHex" .= Aeson.String
-              "5820d8f81c455ef786f47ad9f573e49dc417e0125dfa8db986d6c0ddc03be8634dc6"
-          ]
-      , Aeson.object
-          [ "type" .= Aeson.String "NodeOperationalCertificateIssueCounter"
-          , "description" .= Aeson.String "Next certificate issue number: 0"
-          , "cborHex" .= Aeson.String
-              "82005820a12804d805eff46c691da5b11eb703cbf7463983e325621b41ac5b24e4b51887"
-          ]
-      , Aeson.object
-          [ "name" .= Aeson.String "Genesis Pool A"
-          , "ticker" .= Aeson.String "GPA"
-          , "description" .= Aeson.Null
-          , "homepage" .= Aeson.String "https://iohk.io"
-          ]
-      )
-    , ( PoolId $ unsafeFromHex
-          "1b3dc19c6ab89eaffc8501f375bb03c11bf8ed5d183736b1d80413d6"
-      , Aeson.object
-          [ "type" .= Aeson.String "StakePoolVerificationKey_ed25519"
-          , "description" .= Aeson.String "Stake pool operator key"
-          , "cborHex" .= Aeson.String
-              "5820109440baecebefd92e3b933b4a717dae8d3291edee85f27ebac1f40f945ad9d4"
-          ]
-      , Aeson.object
-          [ "type" .= Aeson.String "StakePoolSigningKey_ed25519"
-          , "description" .= Aeson.String "Stake pool operator key"
-          , "cborHex" .= Aeson.String
-              "5820fab9d94c52b3e222ed494f84020a29ef8405228d509a924106d05ed01c923547"
-          ]
-      , Aeson.object
-          [ "type" .= Aeson.String "NodeOperationalCertificateIssueCounter"
-          , "description" .= Aeson.String "Next certificate issue number: 0"
-          , "cborHex" .= Aeson.String
-              "82005820109440baecebefd92e3b933b4a717dae8d3291edee85f27ebac1f40f945ad9d4"
-          ]
-      , Aeson.object
-          [ "name" .= Aeson.String "Genesis Pool B"
-          , "ticker" .= Aeson.String "GPB"
-          , "description" .= Aeson.Null
-          , "homepage" .= Aeson.String "https://iohk.io"
-          ]
-      )
-    , ( PoolId $ unsafeFromHex
-          "b45768c1a2da4bd13ebcaa1ea51408eda31dcc21765ccbd407cda9f2"
-      , Aeson.object
-          [ "type" .= Aeson.String "StakePoolVerificationKey_ed25519"
-          , "description" .= Aeson.String "Stake pool operator key"
-          , "cborHex" .= Aeson.String
-              "5820c7383d89aa33656464a7796b06616c4590d6db018b2f73640be985794db0702d"
-          ]
-      , Aeson.object
-          [ "type" .= Aeson.String "StakePoolSigningKey_ed25519"
-          , "description" .= Aeson.String "Stake pool operator key"
-          , "cborHex" .= Aeson.String
-              "5820047572e48be93834d6d7ddb01bb1ad889b4de5a7a1a78112f1edd46284250869"
-          ]
-      , Aeson.object
-          [ "type" .= Aeson.String "NodeOperationalCertificateIssueCounter"
-          , "description" .= Aeson.String "Next certificate issue number: 0"
-          , "cborHex" .= Aeson.String
-              "82005820c7383d89aa33656464a7796b06616c4590d6db018b2f73640be985794db0702d"
-          ]
-      , Aeson.object
-          [ "name" .= Aeson.String "Genesis Pool C"
-          , "ticker" .= Aeson.String "GPC"
-          , "description" .= Aeson.String "Lorem Ipsum Dolor Sit Amet."
-          , "homepage" .= Aeson.String "https://iohk.io"
-          ]
-      )
-    , ( PoolId $ unsafeFromHex
-          "bb114cb37d75fa05260328c235a3dae295a33d0ba674a5eb1e3e568e"
-      , Aeson.object
-          [ "type" .= Aeson.String "StakePoolVerificationKey_ed25519"
-          , "description" .= Aeson.String "Stake Pool Operator Verification Key"
-          , "cborHex" .= Aeson.String
-              "58203263e07605b9fc0100eb520d317f472ae12989fbf27fc71f46310bc0f24f2970"
-          ]
-      , Aeson.object
-          [ "type" .= Aeson.String "StakePoolSigningKey_ed25519"
-          , "description" .= Aeson.String "Stake Pool Operator Signing Key"
-          , "cborHex" .= Aeson.String
-              "58208f50de27d74325eaf57767d70277210b31eb97cdc3033f632a9791a3677a64d2"
-          ]
-      , Aeson.object
-          [ "type" .= Aeson.String "NodeOperationalCertificateIssueCounter"
-          , "description" .= Aeson.String "Next certificate issue number: 0"
-          , "cborHex" .= Aeson.String
-              "820058203263e07605b9fc0100eb520d317f472ae12989fbf27fc71f46310bc0f24f2970"
-          ]
-      , Aeson.object
-          [ "name" .= Aeson.String "Genesis Pool D"
-          , "ticker" .= Aeson.String "GPD"
-          , "description" .= Aeson.String "Lorem Ipsum Dolor Sit Amet."
-          , "homepage" .= Aeson.String "https://iohk.io"
-          ]
-      )
-    ]
 
 -- | Allow running the test cluster a second time in the same process.
 resetGlobals :: IO ()
 resetGlobals = do
     void $ swapMVar faucetIndex 1
-    void $ swapMVar operators operatorsFixture
 
 getClusterEra :: FilePath -> IO ClusterEra
 getClusterEra dir = read <$> readFile (dir </> "era")
