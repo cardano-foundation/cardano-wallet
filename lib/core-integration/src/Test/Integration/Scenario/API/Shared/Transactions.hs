@@ -164,15 +164,21 @@ spec = describe "SHARED_TRANSACTIONS" $ do
 
         let metadata = Json [json|{ "metadata": { "1": { "string": "hello" } } }|]
 
-        rTx <- request @(ApiConstructTransaction n) ctx
+        rTx1 <- request @(ApiConstructTransaction n) ctx
             (Link.createUnsignedTransaction @'Shared wal) Default metadata
-        verify rTx
+        verify rTx1
             [ expectResponseCode HTTP.status403
             , expectErrorMessage errMsg403EmptyUTxO
             ]
 
         let amt = 10 * minUTxOValue (_mainEra ctx)
         fundSharedWallet ctx amt walShared
+
+        rTx2 <- request @(ApiConstructTransaction n) ctx
+            (Link.createUnsignedTransaction @'Shared wal) Default metadata
+        verify rTx2
+            [ expectResponseCode HTTP.status202
+            ]
   where
      fundSharedWallet ctx amt walShared = do
 
