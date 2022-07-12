@@ -215,6 +215,14 @@ prop_computeMinimumCoinForUTxO_shelleyBasedEra_bounds
 -- - the Cardano API function 'calculateMinimumUTxO'
 -- - the wallet function 'computeMinimumCoinForUTxO'
 --
+-- In particular, we:
+--
+-- Demonstrate that applying the Cardano API function to its own result can
+-- lead to an increase in the ada quantity.
+--
+-- Demonstrate that applying the Cardano API function to the result of the
+-- wallet function does not lead to an increase in the ada quantity.
+--
 prop_computeMinimumCoinForUTxO_shelleyBasedEra_stability
     :: TokenMap
     -> Cardano.AddressAny
