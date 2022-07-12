@@ -29,7 +29,7 @@ RSpec.describe "Cardano Wallet E2E tests", :all, :e2e do
     SHELLEY.stake_pools.quit(@target_id, PASS)
   end
 
-  describe "Collateral return" do
+  describe "Collateral return", :collateral do
     it "AlwaysFails.plutus with collateral return to the wallet" do
       ##
       # This test is trying to spend utxo from a script address
