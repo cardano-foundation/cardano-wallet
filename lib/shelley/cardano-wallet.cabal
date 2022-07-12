@@ -43,6 +43,7 @@ library
     , bytestring
     , cardano-addresses
     , cardano-api
+    , cardano-cli
     , cardano-binary
     , cardano-crypto
     , cardano-crypto-class

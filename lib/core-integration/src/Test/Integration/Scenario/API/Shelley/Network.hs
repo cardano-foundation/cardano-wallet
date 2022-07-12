@@ -1,6 +1,5 @@
 {-# LANGUAGE DataKinds #-}
 {-# LANGUAGE FlexibleContexts #-}
-{-# LANGUAGE LambdaCase #-}
 {-# LANGUAGE OverloadedLabels #-}
 {-# LANGUAGE ScopedTypeVariables #-}
 {-# LANGUAGE TypeApplications #-}
@@ -51,7 +50,11 @@ spec = describe "SHELLEY_NETWORK" $ do
     it "NETWORK_PARAMS - Able to fetch network parameters" $ \ctx -> do
         r <- request @ApiNetworkParameters ctx Link.getNetworkParams Default Empty
         expectResponseCode @IO HTTP.status200 r
-        let Right d = Quantity <$> mkPercentage (3 % 4)
+        let Right d = fmap Quantity . mkPercentage $
+                if _mainEra ctx >= ApiBabbage
+                then 1 % 1
+                else 3 % 4
+
         -- for Shelley desiredPoolNumber is node's nOpt protocol parameter
         -- in integration test setup it is 3
         let nOpt = 3
@@ -80,9 +83,10 @@ spec = describe "SHELLEY_NETWORK" $ do
         let checkExecutionUnitPricesPresence
                 :: ApiEra
                 -> ((HTTP.Status, Either RequestException ApiNetworkParameters) -> IO ())
-            checkExecutionUnitPricesPresence = \case
-                ApiAlonzo -> expectField #executionUnitPrices (`shouldBe` execUnitPrices)
-                _ -> expectField #executionUnitPrices (`shouldBe` Nothing)
+            checkExecutionUnitPricesPresence era =
+                if era >= ApiAlonzo
+                then expectField #executionUnitPrices (`shouldBe` execUnitPrices)
+                else expectField #executionUnitPrices (`shouldBe` Nothing)
 
         verify r $
             [ expectField #decentralizationLevel (`shouldBe` d)
