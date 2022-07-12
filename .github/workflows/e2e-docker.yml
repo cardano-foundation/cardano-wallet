@@ -138,3 +138,4 @@ jobs:
       TESTS_E2E_TOKEN_METADATA: https://metadata.cardano-testnet.iohkdev.io/
       NODE_DB_CACHE: ${{ github.event.inputs.node_db_cache || 'GH' }}
       TAGS: ${{ github.event.inputs.tags || 'all' }}
+      E2E_DOCKER_RUN: 1
