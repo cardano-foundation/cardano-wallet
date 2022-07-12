@@ -2610,14 +2610,11 @@ constructSharedTransaction
     :: forall ctx s k n.
         ( s ~ SharedState n k
         , ctx ~ ApiLayer s k
-        , Bounded (Index (AddressIndexDerivationType k) 'AddressK)
         , GenChange s
-        , HardDerivation k
         , HasNetworkLayer IO ctx
         , IsOurs s Address
         , Typeable n
         , Typeable s
-        , WalletKey k
         )
     => ctx
     -> ArgGenChange s
@@ -2638,9 +2635,6 @@ constructSharedTransaction ctx genChange _knownPools _getPoolStatus (ApiT wid) b
 
     let md = body ^? #metadata . traverse . #txMetadataWithSchema_metadata
 
-    (wdrl, _) <-
-        mkRewardAccountBuilder @_ @s @_ @n ctx wid (body ^. #withdrawal)
-
     (before, hereafter, isThereNegativeTime) <-
         handleValidityInterval ti (body ^. #validityInterval)
 
@@ -2648,7 +2642,7 @@ constructSharedTransaction ctx genChange _knownPools _getPoolStatus (ApiT wid) b
         liftHandler $ throwE ErrConstructTxWrongValidityBounds
 
     let txCtx = defaultTransactionCtx
-            { txWithdrawal = wdrl
+            { txWithdrawal = NoWithdrawal
             , txMetadata = md
             , txValidityInterval = (Just before, hereafter)
             , txDelegationAction = Nothing
@@ -2691,12 +2685,10 @@ constructSharedTransaction ctx genChange _knownPools _getPoolStatus (ApiT wid) b
                             }
                 (sel, sel', fee) <- do
                     outs <- case (body ^. #payments) of
-                        Nothing -> pure []
                         Just (ApiPaymentAddresses content) ->
                             pure $ F.toList (addressAmountToTxOut <$> content)
-                        Just (ApiPaymentAll _) -> do
-                            liftHandler $
-                                throwE $ ErrConstructTxNotImplemented "ADP-1189"
+                        _ ->
+                            pure []
 
                     (sel', utx, fee') <- liftHandler $ runSelection outs
                     sel <- liftHandler $
@@ -2705,7 +2697,7 @@ constructSharedTransaction ctx genChange _knownPools _getPoolStatus (ApiT wid) b
                     pure (sel, sel', estMin)
 
                 tx <- liftHandler
-                    $ W.constructTransaction @_ @s @k @n wrk wid era txCtx sel
+                    $ W.constructSharedTransaction @_ @s @k @n wrk wid era txCtx sel
 
                 pure $ ApiConstructTransaction
                     { transaction = ApiT tx
@@ -4679,6 +4671,12 @@ instance IsServerError ErrConstructTx where
             , "a pending shared wallet. Make the wallet active before sending "
             , "transaction."
             ]
+        ErrConstructTxNotASharedWallet ->
+            apiError err403 InvalidWalletType $ mconcat
+                [ "It is regrettable but you've just attempted an operation "
+                , "that is invalid for this type of wallet. Only new 'Shared' "
+                , "wallets can do something with both script and keyhash delegation ."
+                ]
         ErrConstructTxNotImplemented _ ->
             apiError err501 NotImplemented
                 "This feature is not yet implemented."

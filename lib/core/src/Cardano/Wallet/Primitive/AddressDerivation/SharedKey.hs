@@ -116,7 +116,7 @@ constructAddressFromIx role pTemplate dTemplate ix =
         pScript =
             replaceCosignersWithVerKeys role' pTemplate ix
         dScript s =
-            replaceCosignersWithVerKeys CA.Stake s ix
+            replaceCosignersWithVerKeys CA.Stake s minBound
     in Address $ case dTemplate of
         Just dTemplate' ->
             createBaseAddress pScript (dScript dTemplate')

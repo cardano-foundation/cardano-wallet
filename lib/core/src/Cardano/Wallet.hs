@@ -101,6 +101,7 @@ module Cardano.Wallet
     , ErrAddCosignerKey (..)
     , ErrConstructSharedWallet (..)
     , normalizeSharedAddress
+    , constructSharedTransaction
 
     -- ** Address
     , createRandomAddress
@@ -215,6 +216,8 @@ import Cardano.Address.Derivation
     ( XPrv, XPub )
 import Cardano.Address.Script
     ( Cosigner (..), KeyHash )
+import Cardano.Address.Style.Shared
+    ( deriveDelegationPublicKey )
 import Cardano.Api
     ( serialiseToCBOR )
 import Cardano.BM.Data.Severity
@@ -593,6 +596,7 @@ import UnliftIO.MVar
     ( modifyMVar_, newMVar )
 
 import qualified Cardano.Address.Script as CA
+import qualified Cardano.Address.Style.Shared as CA
 import qualified Cardano.Api as Cardano
 import qualified Cardano.Api.Shelley as Cardano
 import qualified Cardano.Crypto.Wallet as CC
@@ -2413,6 +2417,45 @@ constructTransaction ctx wid era txCtx sel = db & \DBLayer{..} -> do
     tl = ctx ^. transactionLayer @k
     nl = ctx ^. networkLayer
 
+-- | Construct an unsigned transaction from a given selection
+-- for a shared wallet.
+constructSharedTransaction
+    :: forall ctx s k (n :: NetworkDiscriminant) shared.
+        ( HasTransactionLayer k ctx
+        , HasDBLayer IO s k ctx
+        , HasNetworkLayer IO ctx
+        , shared ~ SharedState n SharedKey
+        , Typeable s
+        , Typeable n
+        )
+    => ctx
+    -> WalletId
+    -> Cardano.AnyCardanoEra
+    -> TransactionCtx
+    -> SelectionOf TxOut
+    -> ExceptT ErrConstructTx IO SealedTx
+constructSharedTransaction ctx wid era txCtx sel = db & \DBLayer{..} -> do
+    cp <- withExceptT ErrConstructTxNoSuchWallet
+        $ mapExceptT atomically
+        $ withNoSuchWallet wid
+        $ readCheckpoint wid
+    xpub <- case testEquality (typeRep @s) (typeRep @shared) of
+        Nothing ->
+            throwE ErrConstructTxNotASharedWallet
+        Just Refl -> do
+            let s = getState cp
+            let accXPub = getRawKey $ Shared.accountXPub s
+            pure $ CA.getKey $
+                deriveDelegationPublicKey (CA.liftXPub accXPub) minBound
+    mapExceptT atomically $ do
+        pp <- liftIO $ currentProtocolParameters nl
+        withExceptT ErrConstructTxBody $ ExceptT $ pure $
+            mkUnsignedTransaction tl era xpub pp txCtx sel
+  where
+    db = ctx ^. dbLayer @IO @s @k
+    tl = ctx ^. transactionLayer @k
+    nl = ctx ^. networkLayer
+
 -- | Calculate the transaction expiry slot, given a 'TimeInterpreter', and an
 -- optional TTL in seconds.
 --
@@ -3501,6 +3544,7 @@ data ErrConstructTx
     | ErrConstructTxWrongValidityBounds
     | ErrConstructTxValidityIntervalNotWithinScriptTimelock
     | ErrConstructTxSharedWalletPending
+    | ErrConstructTxNotASharedWallet
     | ErrConstructTxNotImplemented String
     -- ^ Temporary error constructor.
     deriving (Show, Eq)
