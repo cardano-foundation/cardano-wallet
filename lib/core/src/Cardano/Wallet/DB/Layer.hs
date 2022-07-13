@@ -649,14 +649,8 @@ newDBLayerWith _cacheBehavior _tr ti SqliteContext{runQuery} = do
                         let tip = cp ^. #currentTip
                         pruneCheckpoints wid epochStability tip
                         pruneLocalTxSubmission wid epochStability tip
-            ExceptT $ modifyDBMaybe transactionsDBVar $ \(_txsOld, ws) ->
-                case Map.lookup wid ws of
-                    Nothing -> (Nothing, Left $ ErrNoSuchWallet wid)
-                    Just _  ->
-                        let
-                            delta = Just GarbageCollectTxWalletsHistory
-                        in  (delta, Right ())
-            -- deleteLooseTransactions
+            ExceptT $ modifyDBMaybe transactionsDBVar $ \_ ->
+                (Just GarbageCollectTxWalletsHistory, Right ())
 
         {-----------------------------------------------------------------------
                                    Wallet Metadata
