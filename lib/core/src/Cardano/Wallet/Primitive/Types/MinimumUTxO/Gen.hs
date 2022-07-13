@@ -1,5 +1,5 @@
 {-# LANGUAGE NumericUnderscores #-}
-{-# LANGUAGE TypeApplications #-}
+{- HLINT ignore "Use camelCase" -}
 
 -- |
 -- Copyright: © 2022 IOHK
@@ -12,6 +12,8 @@ module Cardano.Wallet.Primitive.Types.MinimumUTxO.Gen
     , genMinimumUTxOForShelleyBasedEra
     , shrinkMinimumUTxO
     , shrinkMinimumUTxOForShelleyBasedEra
+    , genCoinOfSimilarMagnitude
+    , genLedgerCoinOfSimilarMagnitude
     )
     where
 
@@ -21,20 +23,16 @@ import Cardano.Api
     ( ShelleyBasedEra (..) )
 import Cardano.Wallet.Primitive.Types.Coin
     ( Coin (..) )
+import Cardano.Wallet.Primitive.Types.Coin.Gen
+    ( chooseCoin )
 import Cardano.Wallet.Primitive.Types.MinimumUTxO
     ( MinimumUTxO (..), MinimumUTxOForShelleyBasedEra (..) )
-import Data.Bits
-    ( Bits )
 import Data.Default
     ( Default (..) )
-import Data.IntCast
-    ( intCast, intCastMaybe )
-import Data.Maybe
-    ( fromMaybe )
-import Numeric.Natural
-    ( Natural )
+import Data.Semigroup
+    ( stimes )
 import Test.QuickCheck
-    ( Gen, choose, frequency, oneof )
+    ( Gen, chooseInteger, frequency, oneof )
 
 import qualified Cardano.Ledger.Alonzo.PParams as Alonzo
 import qualified Cardano.Ledger.Babbage.PParams as Babbage
@@ -56,8 +54,9 @@ genMinimumUTxO = frequency
     genMinimumUTxONone = pure MinimumUTxONone
 
     genMinimumUTxOConstant :: Gen MinimumUTxO
-    genMinimumUTxOConstant = MinimumUTxOConstant . Coin
-        <$> genInterestingCoinValue
+    genMinimumUTxOConstant = MinimumUTxOConstant <$>
+        -- The 'MinimumUTxOConstant' constructor is only used for testing.
+        genCoinOfSimilarMagnitude (Coin 1_000_000)
 
 shrinkMinimumUTxO :: MinimumUTxO -> [MinimumUTxO]
 shrinkMinimumUTxO = const []
@@ -78,31 +77,36 @@ genMinimumUTxOForShelleyBasedEra = oneof
   where
     genShelley :: Gen MinimumUTxOForShelleyBasedEra
     genShelley = do
-        minUTxOValue <- genInterestingLedgerCoin
+        minUTxOValue <- genLedgerCoinOfSimilarMagnitude
+            testParameter_minUTxOValue_Shelley
         pure $ MinimumUTxOForShelleyBasedEra ShelleyBasedEraShelley
             def {Shelley._minUTxOValue = minUTxOValue}
 
     genAllegra :: Gen MinimumUTxOForShelleyBasedEra
     genAllegra = do
-        minUTxOValue <- genInterestingLedgerCoin
+        minUTxOValue <- genLedgerCoinOfSimilarMagnitude
+            testParameter_minUTxOValue_Allegra
         pure $ MinimumUTxOForShelleyBasedEra ShelleyBasedEraAllegra
             def {Shelley._minUTxOValue = minUTxOValue}
 
     genMary :: Gen MinimumUTxOForShelleyBasedEra
     genMary = do
-        minUTxOValue <- genInterestingLedgerCoin
+        minUTxOValue <- genLedgerCoinOfSimilarMagnitude
+            testParameter_minUTxOValue_Mary
         pure $ MinimumUTxOForShelleyBasedEra ShelleyBasedEraMary
             def {Shelley._minUTxOValue = minUTxOValue}
 
     genAlonzo :: Gen MinimumUTxOForShelleyBasedEra
     genAlonzo = do
-        coinsPerUTxOWord <- genInterestingLedgerCoin
+        coinsPerUTxOWord <- genLedgerCoinOfSimilarMagnitude
+            testParameter_coinsPerUTxOWord_Alonzo
         pure $ MinimumUTxOForShelleyBasedEra ShelleyBasedEraAlonzo
             def {Alonzo._coinsPerUTxOWord = coinsPerUTxOWord}
 
     genBabbage :: Gen MinimumUTxOForShelleyBasedEra
     genBabbage = do
-        coinsPerUTxOByte <- genInterestingLedgerCoin
+        coinsPerUTxOByte <- genLedgerCoinOfSimilarMagnitude
+            testParameter_coinsPerUTxOByte_Babbage
         pure $ MinimumUTxOForShelleyBasedEra ShelleyBasedEraBabbage
             def {Babbage._coinsPerUTxOByte = coinsPerUTxOByte}
 
@@ -111,18 +115,65 @@ shrinkMinimumUTxOForShelleyBasedEra
 shrinkMinimumUTxOForShelleyBasedEra = const []
 
 --------------------------------------------------------------------------------
+-- Test protocol parameter values
+--------------------------------------------------------------------------------
+
+-- | A test value of the Shelley-era 'minUTxOValue' parameter.
+--
+-- Value derived from 'mainnet-shelley-genesis.json'.
+--
+testParameter_minUTxOValue_Shelley :: Ledger.Coin
+testParameter_minUTxOValue_Shelley = Ledger.Coin 1_000_000
+
+-- | A test value of the Allegra-era 'minUTxOValue' parameter.
+--
+-- Value derived from 'mainnet-shelley-genesis.json'.
+--
+testParameter_minUTxOValue_Allegra :: Ledger.Coin
+testParameter_minUTxOValue_Allegra = Ledger.Coin 1_000_000
+
+-- | A test value of the Mary-era 'minUTxOValue' parameter.
+--
+-- Value derived from 'mainnet-shelley-genesis.json'.
+--
+testParameter_minUTxOValue_Mary :: Ledger.Coin
+testParameter_minUTxOValue_Mary = Ledger.Coin 1_000_000
+
+-- | A test value of the Alonzo-era 'coinsPerUTxOWord' parameter.
+--
+-- Value derived from 'mainnet-alonzo-genesis.json'.
+--
+testParameter_coinsPerUTxOWord_Alonzo :: Ledger.Coin
+testParameter_coinsPerUTxOWord_Alonzo = Ledger.Coin 34_482
+
+-- | A test value of the Babbage-era 'coinsPerUTxOByte' parameter.
+--
+-- Value derived from 'mainnet-alonzo-genesis.json':
+-- >>> 34_482 `div` 8 == 4_310
+--
+testParameter_coinsPerUTxOByte_Babbage :: Ledger.Coin
+testParameter_coinsPerUTxOByte_Babbage = Ledger.Coin 4_310
+
+--------------------------------------------------------------------------------
 -- Internal functions
 --------------------------------------------------------------------------------
 
-genInterestingCoinValue :: Gen Natural
-genInterestingCoinValue = do
-    base <- (1_000_000 *) <$> choose (0, 8)
-    offset <- choose @Integer (-10, 10)
-    pure $ intCastMaybeZero $ base + offset
+-- | Chooses a 'Ledger.Coin' value from within the given range.
+--
+chooseLedgerCoin :: (Ledger.Coin, Ledger.Coin) -> Gen Ledger.Coin
+chooseLedgerCoin (Ledger.Coin lo, Ledger.Coin hi) =
+    Ledger.Coin <$> chooseInteger (lo, hi)
 
-genInterestingLedgerCoin :: Gen Ledger.Coin
-genInterestingLedgerCoin = Ledger.Coin . intCast
-    <$> genInterestingCoinValue
+-- | Generates a wallet 'Coin' value that has a similar magnitude to the given
+--   value.
+--
+genCoinOfSimilarMagnitude :: Coin -> Gen Coin
+genCoinOfSimilarMagnitude coin =
+    chooseCoin (mempty, stimes (2 :: Int) coin)
 
-intCastMaybeZero :: (Integral a, Integral b, Bits a, Bits b) => a -> b
-intCastMaybeZero = fromMaybe 0 . intCastMaybe
+-- | Generates a 'Ledger.Coin' value that has a similar magnitude to the given
+--   value.
+--
+genLedgerCoinOfSimilarMagnitude :: Ledger.Coin -> Gen Ledger.Coin
+genLedgerCoinOfSimilarMagnitude coin =
+    chooseLedgerCoin (mempty, stimes (2 :: Int) coin)
