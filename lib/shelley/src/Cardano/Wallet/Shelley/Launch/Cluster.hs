@@ -415,6 +415,8 @@ data PoolRecipe = PoolRecipe
       -- use of hard-coded pool ids, we need to pre-assign the operator keys and
       -- related data already here.
     , delisted :: Bool
+      -- ^ Tells @withSMASH@ whether to delist this pool or not. Aside from
+      -- this, a delisted pool will operate as normal.
     }
     deriving (Eq, Show)
 
