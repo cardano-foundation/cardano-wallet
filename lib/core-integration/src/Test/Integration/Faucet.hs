@@ -2392,6 +2392,18 @@ shelleyIntegrationTestFunds = mconcat
     ]
   where
     defaultAmt = Coin 100000000000
+
+    -- NOTE: Generating e.g. 100 addresses for inclusion in the shelley genesis
+    -- sgInitialFunds could theoretically cause some funds not to be
+    -- discoverable by the wallet with its default address gap of 20, as the
+    -- ordering in sgInitialFunds is not guaranteed.
+    --
+    -- **This seems to work out in practice, however.**
+    --
+    -- Using `cycle . take 20` on the addresses is not an option, because the
+    -- duplicate addresses are then lost in the
+    -- @sgInitialFunds :: !(Map (Addr (Crypto era)) Coin)@. Perhaps using random
+    -- stake keys could be an option if this ever becomes a problem.
     addresses = genShelleyAddresses
 
     -- Funds for wallet with a pre-registered stake key.
