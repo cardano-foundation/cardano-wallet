@@ -1078,7 +1078,9 @@ restoreBlocks
     -> BlockHeader
     -> ExceptT ErrNoSuchWallet IO ()
 restoreBlocks ctx tr wid blocks nodeTip = db & \DBLayer{..} -> mapExceptT atomically $ do
+    liftIO $ putStrLn "blocks"
     cp0  <- withNoSuchWallet wid (readCheckpoint wid)
+    liftIO $ putStrLn "blocks2"
     sp   <- liftIO $ currentSlottingParameters nl
 
     unless (cp0 `isParentOf` firstHeader blocks) $ fail $ T.unpack $ T.unwords
@@ -1102,12 +1104,15 @@ restoreBlocks ctx tr wid blocks nodeTip = db & \DBLayer{..} -> mapExceptT atomic
     let epochStability = (3*) <$> getSecurityParameter sp
     let localTip = currentTip $ NE.last cps
 
+    liftIO $ putStrLn "blocks3"
     putTxHistory wid txs
+    liftIO $ putStrLn "blocks4"
     updatePendingTxForExpiry wid (view #slotNo localTip)
     forM_ slotPoolDelegations $ \delegation@(slotNo, cert) -> do
         liftIO $ logDelegation delegation
         putDelegationCertificate wid cert slotNo
 
+    liftIO $ putStrLn "blocks5"
     -- FIXME LATER during ADP-1403
     -- We need to rethink checkpoint creation and consider the case
     -- where the blocks are given as a 'Summary' and not a full 'List'

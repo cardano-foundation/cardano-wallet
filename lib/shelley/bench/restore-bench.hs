@@ -358,13 +358,13 @@ cardanoRestoreBench tr c socketFile = do
                 (unsafeMkPercentage 1)
 
     runBenchmarks [
-        benchRestoreBaseline tunedForMainnetPipeliningStrategy
+        -- benchRestoreBaseline tunedForMainnetPipeliningStrategy
         -- -- We restore /to/ a percentage that is low enough to be fast,
         -- -- but high enough to give an accurate enough indication of the
         -- -- to-100% time.
-        , benchRestoreSeqWithOwnership (Proxy @0)
+        benchRestoreSeqWithOwnership (Proxy @0)
             tunedForMainnetPipeliningStrategy
-        , benchRestoreSeqWithOwnership (Proxy @1)
+{-         , benchRestoreSeqWithOwnership (Proxy @1)
             tunedForMainnetPipeliningStrategy
         , benchRestoreRndWithOwnership (Proxy @1)
             tunedForMainnetPipeliningStrategy
@@ -373,7 +373,7 @@ cardanoRestoreBench tr c socketFile = do
         , benchRestoreMultipleWallets 10 (unsafeMkPercentage 0.01)
             tunedForMainnetPipeliningStrategy
         , benchRestoreMultipleWallets 100 (unsafeMkPercentage 0.01)
-            tunedForMainnetPipeliningStrategy
+            tunedForMainnetPipeliningStrategy -}
         ]
   where
     walletRnd
