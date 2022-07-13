@@ -752,8 +752,9 @@ assembleTransaction
             :: [BF.UtxoInput]
             -> Either BlockfrostError ([(TxIn, Coin)], [(TxIn, Coin)])
         fromInputs utxos =
-            bitraverse f f $ partition BF._utxoInputCollateral utxos
+            bitraverse f f $ partition isRegularTxIn utxos
           where
+            isRegularTxIn = not . BF._utxoInputCollateral
             f :: [BF.UtxoInput] -> Either BlockfrostError [(TxIn, Coin)]
             f = traverse \input@BF.UtxoInput{..} -> do
                 txHash <- parseTxHash $ BF.unTxHash _utxoInputTxHash
