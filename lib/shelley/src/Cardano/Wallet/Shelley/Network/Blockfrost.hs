@@ -71,7 +71,6 @@ import Cardano.Wallet.Primitive.BlockSummary
     , Sublist
     , fromBlockEvents
     , unsafeMkSublist
-    , wholeList
     )
 import Cardano.Wallet.Primitive.Slotting
     ( PastHorizonException
@@ -489,7 +488,7 @@ withNetworkLayer tr network np project k = do
                                 txBlockEvents
                                     bftx
                                     (unsafeMkSublist [((txIndex, 0), tx)])
-                                    (wholeList [])
+                                    (unsafeMkSublist [])
                         Right account -> do
                             let address = BF.Address $ encodeStakeAddress @nd account
                             regTxHashes <-
@@ -508,7 +507,7 @@ withNetworkLayer tr network np project k = do
                                         _transactionIndex <?#> "_transactionIndex"
                                     txBlockEvents
                                         tx
-                                        (wholeList [])
+                                        ( unsafeMkSublist [] )
                                         ( unsafeMkSublist $
                                             (\(n, dc) -> ((txIndex, n), dc))
                                                 <$> zip [0 ..] dcerts
@@ -527,7 +526,7 @@ withNetworkLayer tr network np project k = do
                                     txBlockEvents
                                         bftx
                                         (unsafeMkSublist [((txIndex, 0), tx)])
-                                        (wholeList [])
+                                        (unsafeMkSublist [])
                             pure $ blockEventsRegDeleg <> blockEventsWithdraw
                   where
                     txBlockEvents ::
