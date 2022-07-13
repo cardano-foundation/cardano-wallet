@@ -49,7 +49,9 @@ data MinimumUTxO where
     MinimumUTxOConstant
         :: Coin
         -> MinimumUTxO
-        -- ^ Indicates a constant minimum UTxO value.
+        -- ^ Indicates a constant minimum UTxO value. This constructor is
+        -- useful for writing tests, where we often want to have precise
+        -- control over the value that is chosen.
     MinimumUTxOForShelleyBasedEraOf
         :: MinimumUTxOForShelleyBasedEra
         -> MinimumUTxO
