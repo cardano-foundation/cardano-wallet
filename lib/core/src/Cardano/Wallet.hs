@@ -1158,12 +1158,16 @@ restoreBlocks ctx tr wid blocks nodeTip = db & \DBLayer{..} -> mapExceptT atomic
             | wcp <- map (snd . fromWallet) cpsKeep
             ]
 
+    liftIO $ putStrLn "blocks6"
     liftIO $ mapM_ logCheckpoint cpsKeep
+    liftIO $ putStrLn "blocks7"
     ExceptT $ modifyDBMaybe walletsDB $
         adjustNoSuchWallet wid id $ \_ -> Right ( delta, () )
 
+    liftIO $ putStrLn "blocks8"
     prune wid epochStability
 
+    liftIO $ putStrLn "blocks9"
     liftIO $ do
         traceWith tr $ MsgDiscoveredTxs txs
         traceWith tr $ MsgDiscoveredTxsContent txs
