@@ -1,3 +1,4 @@
+{-# LANGUAGE DataKinds #-}
 {-# LANGUAGE LambdaCase #-}
 {-# LANGUAGE TypeApplications #-}
 
@@ -17,6 +18,10 @@ module Cardano.Wallet.Shelley.MinimumUTxO
 
 import Prelude
 
+import Cardano.Wallet.Api.Types
+    ( DecodeAddress (..) )
+import Cardano.Wallet.Primitive.AddressDerivation
+    ( NetworkDiscriminant (..) )
 import Cardano.Wallet.Primitive.Types.Address
     ( Address (..) )
 import Cardano.Wallet.Primitive.Types.Coin
@@ -36,14 +41,13 @@ import Data.Function
 import Data.IntCast
     ( intCast, intCastMaybe )
 import Data.Word
-    ( Word64, Word8 )
+    ( Word64 )
 import GHC.Stack
     ( HasCallStack )
 import Numeric.Natural
     ( Natural )
 
 import qualified Cardano.Api.Shelley as Cardano
-import qualified Data.ByteString as BS
 
 -- | Computes a minimum 'Coin' value for a 'TokenMap' that is destined for
 --   inclusion in a transaction output.
@@ -141,13 +145,17 @@ embedTokenMapWithinPaddedTxOut era m =
 -- for inclusion in a transaction output.
 --
 maxLengthAddress :: Address
-maxLengthAddress = Address $ BS.pack $ replicate maxAddressLength nullByte
+maxLengthAddress = largeByronAddress
   where
-    maxAddressLength :: Int
-    maxAddressLength = 57
-
-    nullByte :: Word8
-    nullByte = 0
+    -- FIXME: It's imperative to return the largest possible address, which is a
+    -- byron address. The following is /a/ large one, but not necessarily /the
+    -- largest/:
+    largeByronAddress :: Address
+    largeByronAddress = unsafeDecodeAddr
+        "DdzFFzCqrht74rkP7eNhMp9iaQ79JQZzHX6QxjoFoie4qAn5D2MESx3Rzpqtc9zX6ASEdDT\
+        \hwJyqjc2kjqHMFnoUnC79GmmNCB9Vfe6a"
+      where
+        unsafeDecodeAddr = either (error . show) id . decodeAddress @'Mainnet
 
 -- | A 'Coin' value that is maximal in length when serialized to bytes.
 --
