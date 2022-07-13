@@ -40,6 +40,7 @@ import Cardano.Api
     , ExecutionUnits (executionMemory, executionSteps)
     , NetworkId (..)
     , PlutusScriptVersion (PlutusScriptV1)
+    , ShelleyBasedEra (ShelleyBasedEraAlonzo)
     , TxMetadata (TxMetadata)
     , TxMetadataValue (..)
     )
@@ -94,7 +95,6 @@ import Cardano.Wallet.Primitive.Types
     , FeePolicy (LinearFee)
     , GenesisParameters (..)
     , LinearFunction (..)
-    , MinimumUTxOValue (..)
     , NetworkParameters (..)
     , PoolId
     , ProtocolParameters (..)
@@ -120,6 +120,8 @@ import Cardano.Wallet.Primitive.Types.Coin
     ( Coin (Coin, unCoin) )
 import Cardano.Wallet.Primitive.Types.Hash
     ( Hash )
+import Cardano.Wallet.Primitive.Types.MinimumUTxO
+    ( MinimumUTxO, minimumUTxOForShelleyBasedEra )
 import Cardano.Wallet.Primitive.Types.RewardAccount
     ( RewardAccount )
 import Cardano.Wallet.Primitive.Types.TokenBundle
@@ -163,6 +165,8 @@ import Data.Bifunctor
     ( first )
 import Data.Bitraversable
     ( bitraverse )
+import Data.Default
+    ( Default (..) )
 import Data.Function
     ( (&) )
 import Data.Functor
@@ -228,6 +232,8 @@ import UnliftIO.STM
 
 import qualified Blockfrost.Client as BF
 import qualified Cardano.Api.Shelley as Node
+import qualified Cardano.Ledger.Alonzo.PParams as Alonzo
+import qualified Cardano.Ledger.Coin as Ledger
 import qualified Cardano.Slotting.Time as ST
 import qualified Cardano.Wallet.Network.Light as LN
 import qualified Cardano.Wallet.Primitive.Types.Coin as Coin
@@ -785,7 +791,7 @@ fromBlockfrostPP
     :: NetworkId
     -> BF.ProtocolParams
     -> Either BlockfrostError ProtocolParameters
-fromBlockfrostPP network BF.ProtocolParams{..} = do
+fromBlockfrostPP network pp@BF.ProtocolParams{..} = do
     decentralizationLevel <-
         let percentage =
                 mkPercentage $ toRational _protocolParamsDecentralisationParam
@@ -813,10 +819,8 @@ fromBlockfrostPP network BF.ProtocolParams{..} = do
         BF.unQuantity _protocolParamsMaxTxExMem <?#> "MaxTxExMem"
     desiredNumberOfStakePools <-
         _protocolParamsNOpt <?#> "NOpt"
-    minimumUTxOvalue <-
-        MinimumUTxOValueCostPerWord . Coin
-            <$> intCast @_ @Integer _protocolParamsCoinsPerUtxoWord
-            <?#> "CoinsPerUtxoWord"
+    minimumUTxO <-
+        getMinimumUTxOFunction pp
     stakeKeyDeposit <-
         Coin
             <$> intCast @_ @Integer _protocolParamsKeyDeposit <?#> "KeyDeposit"
@@ -929,6 +933,33 @@ fromBlockfrostPP network BF.ProtocolParams{..} = do
                         Just $ intCast maxCollateralInputs
                     }
         , .. }
+
+-- | Selects a minimum UTxO function that is appropriate for the current era.
+--
+-- TODO: [ADP-1994]
+--
+-- This function is currently hard-wired to select the Alonzo era minimum UTxO
+-- function, which computes a result based on the 'coinsPerUTxOWord' protocol
+-- parameter.
+--
+-- However, the Babbage era will switch to a minimum UTxO function that depends
+-- on the 'coinsPerUTxOByte' protocol parameter.
+--
+-- We should revise this function so that it's capable of selecting a minimum
+-- UTxO function that's appropriate for the current era.
+--
+getMinimumUTxOFunction
+    :: BF.ProtocolParams
+    -> Either BlockfrostError MinimumUTxO
+getMinimumUTxOFunction BF.ProtocolParams {_protocolParamsCoinsPerUtxoWord} =
+    minimumUTxOForAlonzoEra . Ledger.Coin
+        <$> intCast @_ @Integer _protocolParamsCoinsPerUtxoWord
+        <?#> "CoinsPerUtxoWord"
+  where
+    minimumUTxOForAlonzoEra :: Ledger.Coin -> MinimumUTxO
+    minimumUTxOForAlonzoEra coinsPerUTxOWord = minimumUTxOForShelleyBasedEra
+        ShelleyBasedEraAlonzo
+        def {Alonzo._coinsPerUTxOWord = coinsPerUTxOWord}
 
 eraByEpoch :: NetworkId -> EpochNo -> Either BlockfrostError AnyCardanoEra
 eraByEpoch networkId epoch =

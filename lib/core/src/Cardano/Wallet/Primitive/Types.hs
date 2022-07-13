@@ -72,7 +72,6 @@ module Cardano.Wallet.Primitive.Types
     , GenesisParameters (..)
     , SlottingParameters (..)
     , ProtocolParameters (..)
-    , MinimumUTxOValue (..)
     , TxParameters (..)
     , TokenBundleMaxSize (..)
     , EraInfo (..)
@@ -181,6 +180,8 @@ import Cardano.Wallet.Primitive.Types.Coin
     ( Coin (..) )
 import Cardano.Wallet.Primitive.Types.Hash
     ( Hash (..), hashFromText )
+import Cardano.Wallet.Primitive.Types.MinimumUTxO
+    ( MinimumUTxO )
 import Cardano.Wallet.Primitive.Types.RewardAccount
     ( RewardAccount (..) )
 import Cardano.Wallet.Primitive.Types.Tx
@@ -1081,23 +1082,6 @@ instance Buildable (EraInfo EpochNo) where
         boundF (Just e) = " from " <> build e
         boundF Nothing = " <not started>"
 
-data MinimumUTxOValue
-    -- | In Shelley, tx outputs could only be created if they were larger than
-    -- this `MinimumUTxOValue`.
-    = MinimumUTxOValue Coin
-
-    -- | With Alonzo, `MinimumUTxOValue` is replaced by an ada-cost per word of
-    -- the output. Note that the alonzo ledger assumes fixed sizes for address
-    -- and coin, so the size is not the serialized size exactly.
-    | MinimumUTxOValueCostPerWord Coin
-    deriving (Eq, Generic, Show)
-
-instance NFData MinimumUTxOValue
-
-instance Buildable MinimumUTxOValue where
-    build (MinimumUTxOValue c) = "constant " <> build c
-    build (MinimumUTxOValueCostPerWord c) = build c <> " per word"
-
 -- | Protocol parameters that can be changed through the update system.
 --
 data ProtocolParameters = ProtocolParameters
@@ -1111,9 +1095,9 @@ data ProtocolParameters = ProtocolParameters
         :: Word16
         -- ^ The current desired number of stakepools in the network.
         -- Also known as k parameter.
-    , minimumUTxOvalue
-        :: MinimumUTxOValue
-        -- ^ The minimum UTxO value.
+    , minimumUTxO
+        :: MinimumUTxO
+        -- ^ Represents a way of calculating minimum UTxO values.
     , stakeKeyDeposit
         :: Coin
         -- ^ Registering a stake key requires storage on the node and as such
@@ -1151,7 +1135,7 @@ instance NFData ProtocolParameters where
         [ rnf decentralizationLevel
         , rnf txParameters
         , rnf desiredNumberOfStakePools
-        , rnf minimumUTxOvalue
+        , rnf minimumUTxO
         , rnf stakeKeyDeposit
         , rnf eras
         , rnf maximumCollateralInputCount
@@ -1162,13 +1146,18 @@ instance NFData ProtocolParameters where
 
 instance Buildable ProtocolParameters where
     build pp = blockListF' "" id
-        [ "Decentralization level: " <> build (pp ^. #decentralizationLevel)
-        , "Transaction parameters: " <> build (pp ^. #txParameters)
-        , "Desired number of pools: " <> build (pp ^. #desiredNumberOfStakePools)
-        , "Minimum UTxO value: " <> build (pp ^. #minimumUTxOvalue)
-        , "Eras:\n" <> indentF 2 (build (pp ^. #eras))
-        , "Execution unit prices: " <>
-            maybe "not specified" build (pp ^. #executionUnitPrices)
+        [ "Decentralization level: "
+            <> build (pp ^. #decentralizationLevel)
+        , "Transaction parameters: "
+            <> build (pp ^. #txParameters)
+        , "Desired number of pools: "
+            <> build (pp ^. #desiredNumberOfStakePools)
+        , "Minimum UTxO: "
+            <> build (pp ^. #minimumUTxO)
+        , "Eras:\n"
+            <> indentF 2 (build (pp ^. #eras))
+        , "Execution unit prices: "
+            <> maybe "not specified" build (pp ^. #executionUnitPrices)
         ]
 
 data ExecutionUnits = ExecutionUnits

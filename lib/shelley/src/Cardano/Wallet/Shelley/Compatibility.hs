@@ -8,7 +8,6 @@
 {-# LANGUAGE LambdaCase #-}
 {-# LANGUAGE NamedFieldPuns #-}
 {-# LANGUAGE NumericUnderscores #-}
-{-# LANGUAGE PartialTypeSignatures #-}
 {-# LANGUAGE PatternSynonyms #-}
 {-# LANGUAGE QuantifiedConstraints #-}
 {-# LANGUAGE QuasiQuotes #-}
@@ -87,6 +86,8 @@ module Cardano.Wallet.Shelley.Compatibility
     , fromCardanoLovelace
     , rewardAccountFromAddress
     , fromShelleyPParams
+    , fromAllegraPParams
+    , fromMaryPParams
     , fromAlonzoPParams
     , fromBabbagePParams
     , fromLedgerExUnits
@@ -220,13 +221,14 @@ import Cardano.Wallet.Primitive.AddressDerivation
 import Cardano.Wallet.Primitive.Types
     ( Certificate (..)
     , ChainPoint (..)
-    , MinimumUTxOValue (..)
     , PoolCertificate (..)
     , PoolRegistrationCertificate (..)
     , PoolRetirementCertificate (..)
     , ProtocolParameters (txParameters)
     , TxParameters (getTokenBundleMaxSize)
     )
+import Cardano.Wallet.Primitive.Types.MinimumUTxO
+    ( minimumUTxOForShelleyBasedEra )
 import Cardano.Wallet.Primitive.Types.TokenMap
     ( TokenMap, toNestedList )
 import Cardano.Wallet.Primitive.Types.TokenPolicy
@@ -317,8 +319,10 @@ import Ouroboros.Consensus.Cardano.Block
     ( CardanoBlock
     , CardanoEras
     , HardForkBlock (..)
+    , StandardAllegra
     , StandardAlonzo
     , StandardBabbage
+    , StandardMary
     , StandardShelley
     )
 import Ouroboros.Consensus.HardFork.Combinator.AcrossEras
@@ -353,6 +357,7 @@ import qualified Cardano.Byron.Codec.Cbor as CBOR
 import qualified Cardano.Chain.Common as Byron
 import qualified Cardano.Crypto.Hash as Crypto
 import qualified Cardano.Ledger.Address as SL
+import qualified Cardano.Ledger.Allegra as Allegra
 import qualified Cardano.Ledger.Alonzo as Alonzo
 import qualified Cardano.Ledger.Alonzo.Data as Alonzo
 import qualified Cardano.Ledger.Alonzo.Language as Alonzo
@@ -371,10 +376,12 @@ import qualified Cardano.Ledger.Core as SL.Core
 import qualified Cardano.Ledger.Credential as SL
 import qualified Cardano.Ledger.Crypto as SL
 import qualified Cardano.Ledger.Era as Ledger.Era
+import qualified Cardano.Ledger.Mary as Mary
 import qualified Cardano.Ledger.Mary.Value as SL
 import qualified Cardano.Ledger.SafeHash as SafeHash
 import qualified Cardano.Ledger.Shelley as SL hiding
     ( Value )
+import qualified Cardano.Ledger.Shelley as Shelley
 import qualified Cardano.Ledger.Shelley.API as SL
 import qualified Cardano.Ledger.Shelley.API as SLAPI
 import qualified Cardano.Ledger.Shelley.BlockChain as SL
@@ -416,6 +423,7 @@ import qualified Ouroboros.Consensus.Shelley.Ledger as O
 import qualified Ouroboros.Consensus.Shelley.Protocol.Abstract as Consensus
 import qualified Ouroboros.Network.Block as O
 import qualified Ouroboros.Network.Point as Point
+
 --------------------------------------------------------------------------------
 --
 -- Chain Parameters
@@ -783,10 +791,9 @@ fromMaxSize :: Natural -> Quantity "byte" Word16
 fromMaxSize = Quantity . fromIntegral
 
 fromShelleyPParams
-    :: HasCallStack
-    => W.EraInfo Bound
+    :: W.EraInfo Bound
     -> Maybe Cardano.ProtocolParameters
-    -> SLAPI.PParams era
+    -> Shelley.PParams StandardShelley
     -> W.ProtocolParameters
 fromShelleyPParams eraInfo currentNodeProtocolParameters pp =
     W.ProtocolParameters
@@ -797,11 +804,61 @@ fromShelleyPParams eraInfo currentNodeProtocolParameters pp =
                 maryTokenBundleMaxSize (W.ExecutionUnits 0 0) pp
         , desiredNumberOfStakePools =
             desiredNumberOfStakePoolsFromPParams pp
-        , minimumUTxOvalue =
-            MinimumUTxOValue . toWalletCoin $ SLAPI._minUTxOValue pp
+        , minimumUTxO =
+            minimumUTxOForShelleyBasedEra ShelleyBasedEraShelley pp
         , stakeKeyDeposit = stakeKeyDepositFromPParams pp
         , eras = fromBoundToEpochNo <$> eraInfo
         -- Collateral inputs were not supported or required in Shelley:
+        , maximumCollateralInputCount = 0
+        , minimumCollateralPercentage = 0
+        , executionUnitPrices = Nothing
+        , currentNodeProtocolParameters
+        }
+
+fromAllegraPParams
+    :: W.EraInfo Bound
+    -> Maybe Cardano.ProtocolParameters
+    -> Allegra.PParams StandardAllegra
+    -> W.ProtocolParameters
+fromAllegraPParams eraInfo currentNodeProtocolParameters pp =
+    W.ProtocolParameters
+        { decentralizationLevel =
+            decentralizationLevelFromPParams pp
+        , txParameters =
+            txParametersFromPParams
+                maryTokenBundleMaxSize (W.ExecutionUnits 0 0) pp
+        , desiredNumberOfStakePools =
+            desiredNumberOfStakePoolsFromPParams pp
+        , minimumUTxO =
+            minimumUTxOForShelleyBasedEra ShelleyBasedEraAllegra pp
+        , stakeKeyDeposit = stakeKeyDepositFromPParams pp
+        , eras = fromBoundToEpochNo <$> eraInfo
+        -- Collateral inputs were not supported or required in Allegra:
+        , maximumCollateralInputCount = 0
+        , minimumCollateralPercentage = 0
+        , executionUnitPrices = Nothing
+        , currentNodeProtocolParameters
+        }
+
+fromMaryPParams
+    :: W.EraInfo Bound
+    -> Maybe Cardano.ProtocolParameters
+    -> Mary.PParams StandardMary
+    -> W.ProtocolParameters
+fromMaryPParams eraInfo currentNodeProtocolParameters pp =
+    W.ProtocolParameters
+        { decentralizationLevel =
+            decentralizationLevelFromPParams pp
+        , txParameters =
+            txParametersFromPParams
+                maryTokenBundleMaxSize (W.ExecutionUnits 0 0) pp
+        , desiredNumberOfStakePools =
+            desiredNumberOfStakePoolsFromPParams pp
+        , minimumUTxO =
+            minimumUTxOForShelleyBasedEra ShelleyBasedEraMary pp
+        , stakeKeyDeposit = stakeKeyDepositFromPParams pp
+        , eras = fromBoundToEpochNo <$> eraInfo
+        -- Collateral inputs were not supported or required in Mary:
         , maximumCollateralInputCount = 0
         , minimumCollateralPercentage = 0
         , executionUnitPrices = Nothing
@@ -828,8 +885,8 @@ fromAlonzoPParams eraInfo currentNodeProtocolParameters pp =
             pp
         , desiredNumberOfStakePools =
             desiredNumberOfStakePoolsFromPParams pp
-        , minimumUTxOvalue = MinimumUTxOValueCostPerWord
-            . toWalletCoin $ Alonzo._coinsPerUTxOWord pp
+        , minimumUTxO =
+            minimumUTxOForShelleyBasedEra ShelleyBasedEraAlonzo pp
         , stakeKeyDeposit = stakeKeyDepositFromPParams pp
         , eras = fromBoundToEpochNo <$> eraInfo
         , maximumCollateralInputCount = unsafeIntToWord $
@@ -857,8 +914,8 @@ fromBabbagePParams eraInfo currentNodeProtocolParameters pp =
             pp
         , desiredNumberOfStakePools =
             desiredNumberOfStakePoolsFromPParams pp
-        , minimumUTxOvalue = MinimumUTxOValueCostPerWord
-            . fromByteToWord . toWalletCoin $ Babbage._coinsPerUTxOByte pp
+        , minimumUTxO =
+            minimumUTxOForShelleyBasedEra ShelleyBasedEraBabbage pp
         , stakeKeyDeposit = stakeKeyDepositFromPParams pp
         , eras = fromBoundToEpochNo <$> eraInfo
         , maximumCollateralInputCount = unsafeIntToWord $
@@ -869,9 +926,6 @@ fromBabbagePParams eraInfo currentNodeProtocolParameters pp =
             Just $ executionUnitPricesFromPParams pp
         , currentNodeProtocolParameters
         }
-  where
-    fromByteToWord (W.Coin v) = W.Coin $ 8 * v
-
 
 -- | Extract the current network decentralization level from the given set of
 -- protocol parameters.
@@ -985,7 +1039,7 @@ localNodeConnectInfo sp net = LocalNodeConnectInfo params net . nodeSocketFile
 
 -- | Convert genesis data into blockchain params and an initial set of UTxO
 fromGenesisData
-    :: forall e crypto. (Era e, e ~ SL.ShelleyEra crypto)
+    :: forall e crypto. (e ~ SL.ShelleyEra crypto, crypto ~ StandardCrypto)
     => ShelleyGenesis e
     -> [(SL.Addr crypto, SL.Coin)]
     -> (W.NetworkParameters, W.Block)
@@ -1852,7 +1906,7 @@ toCardanoTxOut era = case era of
                 <$> deserialiseFromRawBytes AsByronAddress addr
             ]
 
-    toBabbageTxOut :: HasCallStack => W.TxOut -> Cardano.TxOut ctx _
+    toBabbageTxOut :: HasCallStack => W.TxOut -> Cardano.TxOut ctx BabbageEra
     toBabbageTxOut (W.TxOut (W.Address addr) tokens) =
         Cardano.TxOut
             addrInEra

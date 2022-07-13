@@ -62,6 +62,7 @@ library
     , cborg
     , containers
     , contra-tracer
+    , data-default
     , directory
     , extra
     , filepath
@@ -125,6 +126,7 @@ library
       Cardano.Wallet.Shelley.Launch.Blockfrost
       Cardano.Wallet.Shelley.Launch.Cluster
       Cardano.Wallet.Shelley.Logging
+      Cardano.Wallet.Shelley.MinimumUTxO
       Cardano.Wallet.Shelley.Network
       Cardano.Wallet.Shelley.Network.Blockfrost
       Cardano.Wallet.Shelley.Network.Blockfrost.Conversion
@@ -262,17 +264,20 @@ test-suite unit
     , strict-containers
     , containers
     , contra-tracer
+    , data-default
     , directory
     , filepath
     , fmt
     , generic-arbitrary
     , generic-lens
+    , generics-sop
     , hspec-core
     , hspec-golden
     , iohk-monitoring
     , time
     , hspec
     , hspec-core
+    , int-cast
     , memory
     , MonadRandom
     , optparse-applicative
@@ -280,6 +285,7 @@ test-suite unit
     , ouroboros-network
     , cardano-ledger-shelley
     , plutus-core
+    , quickcheck-classes
     , text
     , text-class
     , transformers
@@ -299,6 +305,7 @@ test-suite unit
       Cardano.Wallet.Shelley.Compatibility.LedgerSpec
       Cardano.Wallet.Shelley.LaunchSpec
       Cardano.Wallet.Shelley.Launch.BlockfrostSpec
+      Cardano.Wallet.Shelley.MinimumUTxOSpec
       Cardano.Wallet.Shelley.NetworkSpec
       Cardano.Wallet.Shelley.Network.BlockfrostSpec
       Cardano.Wallet.Shelley.TransactionSpec

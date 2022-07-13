@@ -143,7 +143,6 @@ import Cardano.Wallet.Primitive.Types
     , FeePolicy (..)
     , GenesisParameters (..)
     , LinearFunction (..)
-    , MinimumUTxOValue (..)
     , PoolId (PoolId)
     , ProtocolParameters (..)
     , SlotLength (SlotLength)
@@ -161,6 +160,8 @@ import Cardano.Wallet.Primitive.Types.Coin.Gen
     ( genCoin, genCoinPositive, shrinkCoin, shrinkCoinPositive )
 import Cardano.Wallet.Primitive.Types.Hash
     ( Hash (..), mockHash )
+import Cardano.Wallet.Primitive.Types.MinimumUTxO
+    ( MinimumUTxO (..) )
 import Cardano.Wallet.Primitive.Types.Redeemer
     ( Redeemer (..) )
 import Cardano.Wallet.Primitive.Types.RewardAccount
@@ -2133,8 +2134,8 @@ dummyProtocolParameters = ProtocolParameters
         error "dummyProtocolParameters: txParameters"
     , desiredNumberOfStakePools =
         error "dummyProtocolParameters: desiredNumberOfStakePools"
-    , minimumUTxOvalue =
-        error "dummyProtocolParameters: minimumUTxOvalue"
+    , minimumUTxO =
+        error "dummyProtocolParameters: minimumUTxO"
     , stakeKeyDeposit =
         error "dummyProtocolParameters: stakeKeyDeposit"
     , eras =
@@ -2181,7 +2182,7 @@ mockProtocolParameters = dummyProtocolParameters
         , getTokenBundleMaxSize = TokenBundleMaxSize $ TxSize 4000
         , getMaxExecutionUnits = ExecutionUnits 10_000_000_000 14_000_000
         }
-    , minimumUTxOvalue = MinimumUTxOValue $ Coin 1000000
+    , minimumUTxO = MinimumUTxOConstant $ Coin 1000000
     , maximumCollateralInputCount = 3
     , minimumCollateralPercentage = 150
     }

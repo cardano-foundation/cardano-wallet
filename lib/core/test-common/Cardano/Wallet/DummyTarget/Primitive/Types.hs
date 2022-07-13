@@ -32,7 +32,6 @@ import Cardano.Wallet.Primitive.Types
     , FeePolicy (..)
     , GenesisParameters (..)
     , LinearFunction (..)
-    , MinimumUTxOValue (..)
     , NetworkParameters (..)
     , ProtocolParameters (..)
     , SlotLength (..)
@@ -47,6 +46,8 @@ import Cardano.Wallet.Primitive.Types.Coin
     ( Coin (..) )
 import Cardano.Wallet.Primitive.Types.Hash
     ( Hash (..), mockHash )
+import Cardano.Wallet.Primitive.Types.MinimumUTxO
+    ( MinimumUTxO (MinimumUTxONone) )
 import Cardano.Wallet.Primitive.Types.RewardAccount
     ( RewardAccount (..) )
 import Cardano.Wallet.Primitive.Types.Tx
@@ -123,7 +124,7 @@ dummyProtocolParameters = ProtocolParameters
     { decentralizationLevel = minBound
     , txParameters = dummyTxParameters
     , desiredNumberOfStakePools = 100
-    , minimumUTxOvalue = MinimumUTxOValue $ Coin 0
+    , minimumUTxO = MinimumUTxONone
     , stakeKeyDeposit = Coin 0
     , eras = emptyEraInfo
     , maximumCollateralInputCount = 3
