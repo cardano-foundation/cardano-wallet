@@ -45,8 +45,6 @@ import Fmt
     ( build, fmt, indentF )
 import Ouroboros.Network.Client.Wallet
     ( tunedForMainnetPipeliningStrategy )
-import Ouroboros.Network.Magic
-    ( NetworkMagic (..) )
 import Ouroboros.Network.NodeToClient
     ( NodeToClientVersionData )
 import Test.Hspec
@@ -84,7 +82,7 @@ concurrentConnectionSpec = describe "NetworkLayer regression test #1708" $ do
             tasks <- replicateM 10 $ async $
                 withNetworkLayer tr
                     tunedForMainnetPipeliningStrategy
-                    mainnet np sock vData sTol $ \nl -> do
+                    Mainnet np sock vData sTol $ \nl -> do
                         -- Wait for the first tip result from the node
                         waiter <- newEmptyMVar
                         race_
@@ -260,6 +258,3 @@ withTestNode tr action = do
     withSystemTempDir (contramap MsgTempDir tr) "network-spec" $ \dir ->
         withCluster tr dir cfg [] $ \(RunningNode sock _ (np, vData) _) ->
             action np sock vData
-
-mainnet :: NetworkId
-mainnet = Testnet $ NetworkMagic 764824073
