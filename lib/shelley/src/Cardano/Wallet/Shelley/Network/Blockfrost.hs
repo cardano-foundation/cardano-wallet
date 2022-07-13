@@ -377,7 +377,7 @@ withNetworkLayer tr network np project k = do
                     bfGetAccount bfLayer addr
                         >>= traverse \BF.AccountInfo{..} -> throwBlockfrostError $
                             (rewardAccount,) . Coin <$>
-                                fromIntegral @_ @Integer _accountInfoRewardsSum
+                                fromIntegral @_ @Integer _accountInfoWithdrawableAmount
                                     <?#> "AccountInfoRewardsSum"
 
     getCachedRewardAccountBalance :: BlockfrostLayer IO -> RewardAccount -> IO Coin
