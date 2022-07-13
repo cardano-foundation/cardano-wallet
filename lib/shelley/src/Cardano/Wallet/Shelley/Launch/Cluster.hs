@@ -668,7 +668,7 @@ defaultPoolConfigs = zipWith (\i p -> p {index = i}) [1..]
 
         , index = undefined
         }
-
+    -- This pool should retire almost immediately:
     , PoolRecipe
         { pledgeAmt = 100 * millionAda
         , retirementEpoch = Just 3
@@ -739,7 +739,7 @@ defaultPoolConfigs = zipWith (\i p -> p {index = i}) [1..]
             )
         , index = undefined
         }
-    -- This pool should retire almost immediately:
+    -- This pool should retire, but not within the duration of a test run:
     , PoolRecipe
         { pledgeAmt = 100 * millionAda
         , retirementEpoch = Just 1_000_000
