@@ -999,8 +999,8 @@ withCluster tr dir LocalClusterConfig{..} initialFunds onClusterStart = bracketT
         configuredPools <- configurePools tr dir metadataServer cfgStakePools
 
         addGenesisPools <- do
-                genesisDeltas <- mapM registerViaShelleyGenesis configuredPools
-                pure $ foldr (.) id genesisDeltas
+            genesisDeltas <- mapM registerViaShelleyGenesis configuredPools
+            pure $ foldr (.) id genesisDeltas
         let federalizeNetwork =
                 let
                     adjustPParams f genesis = genesis
