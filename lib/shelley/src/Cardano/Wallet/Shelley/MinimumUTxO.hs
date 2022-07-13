@@ -121,10 +121,11 @@ computeMinimumCoinForShelleyBasedEra
 -- However, while we cannot underestimate minimum UTxO quantities, we are at
 -- liberty to moderately overestimate them.
 --
--- Since the minimum UTxO quantity function is monotonically increasing in the
--- serialized length of its input, if we supply a 'TxOut' with an address and
--- ada quantity whose serialized lengths are the maximum possible lengths, we
--- can be confident that the resultant value will not be an underestimate.
+-- Since the minimum UTxO quantity function is monotonically increasing w.r.t.
+-- the size of the address and ada quantity, if we supply a 'TxOut' with an
+-- address and ada quantity whose serialized lengths are the maximum possible
+-- lengths, we can be confident that the resultant value will not be an
+-- underestimate.
 --
 embedTokenMapWithinPaddedTxOut
     :: Cardano.ShelleyBasedEra era
