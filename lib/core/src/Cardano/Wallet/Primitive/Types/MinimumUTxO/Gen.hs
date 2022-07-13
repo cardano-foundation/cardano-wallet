@@ -8,12 +8,19 @@
 -- Defines generators and shrinkers for the 'MinimumUTxO' data type.
 --
 module Cardano.Wallet.Primitive.Types.MinimumUTxO.Gen
-    ( genMinimumUTxO
+    (
+    -- * Generators and shrinkers
+      genMinimumUTxO
     , genMinimumUTxOForShelleyBasedEra
     , shrinkMinimumUTxO
     , shrinkMinimumUTxOForShelleyBasedEra
-    , genCoinOfSimilarMagnitude
-    , genLedgerCoinOfSimilarMagnitude
+
+    -- * Test protocol parameter values
+    , testParameter_minUTxOValue_Shelley
+    , testParameter_minUTxOValue_Allegra
+    , testParameter_minUTxOValue_Mary
+    , testParameter_coinsPerUTxOWord_Alonzo
+    , testParameter_coinsPerUTxOByte_Babbage
     )
     where
 

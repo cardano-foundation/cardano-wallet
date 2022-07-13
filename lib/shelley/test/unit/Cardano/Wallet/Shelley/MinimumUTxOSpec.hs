@@ -31,6 +31,11 @@ import Cardano.Wallet.Primitive.Types.MinimumUTxO.Gen
     , genMinimumUTxOForShelleyBasedEra
     , shrinkMinimumUTxO
     , shrinkMinimumUTxOForShelleyBasedEra
+    , testParameter_coinsPerUTxOByte_Babbage
+    , testParameter_coinsPerUTxOWord_Alonzo
+    , testParameter_minUTxOValue_Allegra
+    , testParameter_minUTxOValue_Mary
+    , testParameter_minUTxOValue_Shelley
     )
 import Cardano.Wallet.Primitive.Types.TokenBundle
     ( TokenBundle (..) )
@@ -86,7 +91,6 @@ import Test.Utils.Laws
 import qualified Cardano.Api.Shelley as Cardano
 import qualified Cardano.Ledger.Alonzo.PParams as Alonzo
 import qualified Cardano.Ledger.Babbage.PParams as Babbage
-import qualified Cardano.Ledger.Coin as Ledger
 import qualified Cardano.Ledger.Shelley.PParams as Shelley
 import qualified Cardano.Wallet.Primitive.Types.TokenBundle as TokenBundle
 import qualified Cardano.Wallet.Primitive.Types.TokenMap as TokenMap
@@ -323,33 +327,27 @@ goldenTests_computeMinimumCoinForUTxO
 goldenMinimumUTxO_Shelley :: MinimumUTxO
 goldenMinimumUTxO_Shelley =
     minimumUTxOForShelleyBasedEra ShelleyBasedEraShelley
-        -- Value derived from 'mainnet-shelley-genesis.json':
-        def {Shelley._minUTxOValue = Ledger.Coin 1_000_000}
+        def {Shelley._minUTxOValue = testParameter_minUTxOValue_Shelley}
 
 goldenMinimumUTxO_Allegra :: MinimumUTxO
 goldenMinimumUTxO_Allegra =
     minimumUTxOForShelleyBasedEra ShelleyBasedEraAllegra
-        -- Value derived from 'mainnet-shelley-genesis.json':
-        def {Shelley._minUTxOValue = Ledger.Coin 1_000_000}
+        def {Shelley._minUTxOValue = testParameter_minUTxOValue_Allegra}
 
 goldenMinimumUTxO_Mary :: MinimumUTxO
 goldenMinimumUTxO_Mary =
     minimumUTxOForShelleyBasedEra ShelleyBasedEraMary
-        -- Value derived from 'mainnet-shelley-genesis.json':
-        def {Shelley._minUTxOValue = Ledger.Coin 1_000_000}
+        def {Shelley._minUTxOValue = testParameter_minUTxOValue_Mary}
 
 goldenMinimumUTxO_Alonzo :: MinimumUTxO
 goldenMinimumUTxO_Alonzo =
     minimumUTxOForShelleyBasedEra ShelleyBasedEraAlonzo
-        -- Value derived from 'mainnet-alonzo-genesis.json':
-        def {Alonzo._coinsPerUTxOWord = Ledger.Coin 34_482}
+        def {Alonzo._coinsPerUTxOWord = testParameter_coinsPerUTxOWord_Alonzo}
 
 goldenMinimumUTxO_Babbage :: MinimumUTxO
 goldenMinimumUTxO_Babbage =
     minimumUTxOForShelleyBasedEra ShelleyBasedEraBabbage
-        -- Value derived from 'mainnet-alonzo-genesis.json':
-        -- >>> 34_482 `div` 8 == 4_310
-        def {Babbage._coinsPerUTxOByte = Ledger.Coin 4_310}
+        def {Babbage._coinsPerUTxOByte = testParameter_coinsPerUTxOByte_Babbage}
 
 --------------------------------------------------------------------------------
 -- Golden minimum 'Coin' values
