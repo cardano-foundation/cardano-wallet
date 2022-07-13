@@ -351,7 +351,6 @@ import Cardano.Wallet.Primitive.Model
     , getState
     , initWallet
     , totalUTxO
-    , updateState
     )
 import Cardano.Wallet.Primitive.Passphrase
     ( ErrWrongPassphrase (..)
@@ -806,9 +805,7 @@ createIcarusWallet ctx wid wname credentials = db & \DBLayer{..} -> do
             , delegation = WalletDelegation NotDelegating []
             }
     mapExceptT atomically $
-        -- FIXME: Why `updateState s cp` and not `cp`?
-        -- The genesis block could very well update the address discovery state.
-        initializeWallet wid (updateState s cp) meta hist gp $> wid
+        initializeWallet wid cp meta hist gp $> wid
   where
     db = ctx ^. dbLayer @IO @s @k
     (block0, NetworkParameters gp _sp _pp, _) = ctx ^. genesisData

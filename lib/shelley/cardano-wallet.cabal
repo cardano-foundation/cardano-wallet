@@ -31,6 +31,7 @@ library
   build-depends:
       base
     , aeson
+    , aeson-qq
     , array
     , base58-bytestring
     , bech32
@@ -42,6 +43,7 @@ library
     , bytestring
     , cardano-addresses
     , cardano-api
+    , cardano-cli
     , cardano-binary
     , cardano-crypto
     , cardano-crypto-class

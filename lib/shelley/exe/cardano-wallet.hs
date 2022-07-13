@@ -258,6 +258,7 @@ cmdServe = command "serve" $ info (helper <*> helper' <*> cmd) $
                 netParams
                 tunedForMainnetPipeliningStrategy
                 discriminant
+                []
                 tracers
                 sTolerance
                 databaseDir

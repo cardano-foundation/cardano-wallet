@@ -311,14 +311,9 @@ instance ToText ClusterLog where
     toText = \case
         MsgStartingCluster dir ->
             "Configuring cluster in " <> T.pack dir
-        MsgRegisteringStakePools 0 -> mconcat
-                [ "Not registering any stake pools due to "
-                , "NO_POOLS=1. Some tests may fail."
-                ]
         MsgRegisteringStakePools n -> mconcat
                 [ T.pack (show n)
                 , " stake pools are being registered on chain... "
-                , "Can be skipped using NO_POOLS=1."
                 ]
         MsgLauncher name msg ->
             T.pack name <> " " <> toText msg

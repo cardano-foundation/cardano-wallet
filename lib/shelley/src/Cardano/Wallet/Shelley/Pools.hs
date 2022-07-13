@@ -272,13 +272,14 @@ withNodeStakePoolLayer
     -> Maybe Settings
     -> PoolDb.DBLayer IO
     -> NetworkParameters
+    -> [PoolCertificate] -- Shelley genesis pools
     -> NetworkLayer IO (CardanoBlock StandardCrypto)
     -> ContT ExitCode IO StakePoolLayer
-withNodeStakePoolLayer tr settings dbLayer@DBLayer{..} netParams netLayer = lift do
+withNodeStakePoolLayer tr settings dbLayer@DBLayer{..} netParams genesisPools netLayer = lift do
     gcStatus <- newTVarIO NotStarted
     forM_ settings $ atomically . putSettings
     void $ forkFinally
-        (monitorStakePools tr netParams netLayer dbLayer)
+        (monitorStakePools tr netParams genesisPools netLayer dbLayer)
         (traceAfterThread (contramap MsgExitMonitoring tr))
 
     -- fixme: needs to be simplified as part of ADP-634
@@ -704,10 +705,11 @@ readPoolDbData DBLayer {..} currentEpoch = atomically $ do
 monitorStakePools
     :: Tracer IO StakePoolLog
     -> NetworkParameters
+    -> [PoolCertificate] -- Shelley genesis pools; not present on mainnet
     -> NetworkLayer IO (CardanoBlock StandardCrypto)
     -> DBLayer IO
     -> IO ()
-monitorStakePools tr (NetworkParameters gp sp _pp) nl DBLayer{..} =
+monitorStakePools tr (NetworkParameters gp sp _pp) genesisPools nl DBLayer{..} =
     monitor =<< mkLatestGarbageCollectionEpochRef
   where
     monitor latestGarbageCollectionEpochRef = do
@@ -727,6 +729,17 @@ monitorStakePools tr (NetworkParameters gp sp _pp) nl DBLayer{..} =
             toChainPoint :: BlockHeader -> ChainPoint
             toChainPoint (BlockHeader  0 _ _ _) = ChainPointAtGenesis
             toChainPoint (BlockHeader sl _ h _) = ChainPoint sl h
+
+
+        -- Write genesis pools to DB. These are specific to the integration test
+        -- cluster, and is always set to [] in the cardano-wallet executable.
+        --
+        -- Had this not been unique to the integration tests, this code could
+        -- have been run twice just by restarting the wallet server, which
+        -- may not have be a good idea.
+        let psudoGenesisSlotNo = SlotNo 0
+        atomically $ do
+            putPoolCertificates psudoGenesisSlotNo genesisPools
 
         chainSync nl (contramap MsgChainMonitoring tr) $ ChainFollower
             { checkpointPolicy = CP.defaultPolicy

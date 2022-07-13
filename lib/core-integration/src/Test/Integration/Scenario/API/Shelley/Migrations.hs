@@ -142,7 +142,10 @@ spec = describe "SHELLEY_MIGRATIONS" $ do
             verify response
                 [ expectResponseCode HTTP.status202
                 , expectField (#totalFee . #getQuantity)
-                    (`shouldBe` 254_900)
+                    (`shouldBe`
+                        if _mainEra ctx >= ApiBabbage
+                        then 255_100
+                        else 254_900)
                 , expectField (#selections)
                     ((`shouldBe` 1) . length)
                 , expectField (#balanceSelected . #ada . #getQuantity)
@@ -306,7 +309,10 @@ spec = describe "SHELLEY_MIGRATIONS" $ do
             verify response
                 [ expectResponseCode HTTP.status202
                 , expectField (#totalFee . #getQuantity)
-                    (`shouldBe` 139_000)
+                    (`shouldBe`
+                        if _mainEra ctx >= ApiBabbage
+                        then 139_200
+                        else 139_000)
                 , expectField (#selections)
                     ((`shouldBe` 1) . length)
                 , expectField (#selections)
@@ -614,7 +620,10 @@ spec = describe "SHELLEY_MIGRATIONS" $ do
             [ expectResponseCode HTTP.status202
             , expectField
                 (#totalFee . #getQuantity)
-                (`shouldBe` 3_119_800)
+                (`shouldBe`
+                    if _mainEra ctx >= ApiBabbage
+                    then 3_120_200
+                    else 3_119_800)
             , expectField
                 (#selections)
                 ((`shouldBe` 2) . length)
@@ -703,7 +712,11 @@ spec = describe "SHELLEY_MIGRATIONS" $ do
         \Actual fee for migration is identical to predicted fee."
         $ \ctx -> runResourceT @IO $ do
 
-            let feeExpected = 254_900
+            let feeExpected =
+                    if _mainEra ctx >= ApiBabbage
+                    then 255_100
+                    else 254_900
+
 
             -- Restore a source wallet with funds:
             sourceWallet <- fixtureWallet ctx
@@ -864,7 +877,10 @@ spec = describe "SHELLEY_MIGRATIONS" $ do
                     (\(ApiTypes.ApiAddress addrId _ _) -> addrId)
 
             -- Compute the expected migration plan:
-            let feeExpected = 254_500
+            let feeExpected =
+                    if _mainEra ctx >= ApiBabbage
+                    then 254_700
+                    else 254_500
             responsePlan <- request @(ApiWalletMigrationPlan n) ctx
                 (Link.createMigrationPlan @'Shelley sourceWallet) Default
                 (Json [json|{addresses: #{targetAddressIds}}|])
@@ -958,7 +974,10 @@ spec = describe "SHELLEY_MIGRATIONS" $ do
                     }|]
 
             -- Verify the fee is as expected:
-            let expectedFee = 139_000
+            let expectedFee =
+                    if _mainEra ctx >= ApiBabbage
+                    then 139_200
+                    else 139_000
             verify responseMigrate
                 [ expectResponseCode HTTP.status202
                 , expectField id ((`shouldBe` 1) . length)
@@ -1039,7 +1058,10 @@ spec = describe "SHELLEY_MIGRATIONS" $ do
                 Json [json|{addresses: #{targetAddressIds}}|]
 
             -- Verify the plan is as expected:
-            let expectedFee = 190_800
+            let expectedFee =
+                    if _mainEra ctx >= ApiBabbage
+                    then 191_000
+                    else 190_800
             verify responsePlan
                 [ expectResponseCode HTTP.status202
                 , expectField (#totalFee . #getQuantity)

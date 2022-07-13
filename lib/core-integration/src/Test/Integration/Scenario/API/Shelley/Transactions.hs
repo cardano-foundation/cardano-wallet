@@ -27,6 +27,7 @@ import Cardano.Wallet.Api.Types
     ( AddressAmount (..)
     , ApiAsset (..)
     , ApiCoinSelectionOutput (..)
+    , ApiEra (..)
     , ApiFee (..)
     , ApiT (..)
     , ApiTransaction
@@ -61,7 +62,7 @@ import Cardano.Wallet.Primitive.Types.Tx
 import Cardano.Wallet.Unsafe
     ( unsafeFromText )
 import Control.Monad
-    ( forM, forM_ )
+    ( forM, forM_, when )
 import Control.Monad.IO.Unlift
     ( MonadIO (..), MonadUnliftIO (..), liftIO )
 import Control.Monad.Trans.Resource
@@ -231,7 +232,7 @@ spec = describe "SHELLEY_TRANSACTIONS" $ do
                     Nothing
             r <- request @([ApiTransaction n]) ctx link Default Empty
             expectResponseCode HTTP.status200 r
-            expectListSize 1 r
+            expectListSize 10 r
 
     it "Regression #1004 -\
         \ Transaction to self shows only fees as a tx amount\
@@ -925,7 +926,7 @@ spec = describe "SHELLEY_TRANSACTIONS" $ do
                 , txMetadata =
                     Nothing
                 , expectedFee =
-                    Quantity 131_000
+                    Quantity 131_400
                 }
             , CreateTransactionWithMetadataTest
                 { testName =
@@ -935,7 +936,7 @@ spec = describe "SHELLEY_TRANSACTIONS" $ do
                 , txMetadata =
                     Just $ TxMetadata $ Map.singleton 1 $ TxMetaText "hello"
                 , expectedFee =
-                    Quantity 135_200
+                    Quantity 135_600
                 }
             , CreateTransactionWithMetadataTest
                 { testName =
@@ -945,7 +946,7 @@ spec = describe "SHELLEY_TRANSACTIONS" $ do
                 , txMetadata =
                       Just txMetadata_ADP_1005
                 , expectedFee =
-                    Quantity 152_800
+                    Quantity 153_200
                 }
             , CreateTransactionWithMetadataTest
                 { testName =
@@ -956,7 +957,7 @@ spec = describe "SHELLEY_TRANSACTIONS" $ do
                 , txMetadata =
                       Just txMetadata_ADP_1005
                 , expectedFee =
-                    Quantity 166_400
+                    Quantity 167_200
                 }
             ]
 
@@ -2194,6 +2195,11 @@ spec = describe "SHELLEY_TRANSACTIONS" $ do
                 , expectedFee
                 } = testData
         in it testName $ \ctx -> runResourceT $ do
+
+        when (_mainEra ctx < ApiBabbage) $
+            liftIO $ pendingWith
+                "expected fees have been updated to Babbage and these \
+                \tests marked pending on earlier eras."
 
         let maybeAddTxMetadata = maybe
                 (Prelude.id)

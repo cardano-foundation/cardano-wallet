@@ -71,8 +71,8 @@ import Cardano.Wallet.Shelley.Launch.Cluster
     ( LocalClusterConfig (..)
     , LogFileConfig (..)
     , RunningNode (..)
+    , defaultPoolConfigs
     , sendFaucetAssetsTo
-    , sendFaucetFundsTo
     , walletListenFromEnv
     , withCluster
     )
@@ -111,7 +111,10 @@ import System.FilePath
 import Test.Hspec
     ( shouldBe )
 import Test.Integration.Faucet
-    ( maryIntegrationTestAssets, shelleyIntegrationTestFunds )
+    ( byronIntegrationTestFunds
+    , maryIntegrationTestAssets
+    , shelleyIntegrationTestFunds
+    )
 import Test.Integration.Framework.DSL
     ( Context (..)
     , Headers (..)
@@ -460,24 +463,29 @@ withShelleyServer tracers action = do
             let db = dir </> "wallets"
             createDirectory db
             let logCfg = LogFileConfig Error Nothing Error
-            let clusterCfg = LocalClusterConfig [] maxBound logCfg
-            withCluster nullTracer dir clusterCfg (setupFaucet dir) $
-                onClusterStart act db
+            let clusterCfg = LocalClusterConfig
+                    [head defaultPoolConfigs]
+                    maxBound
+                    logCfg
+            let initialFunds =
+                    shelleyIntegrationTestFunds
+                    <> byronIntegrationTestFunds
+            withCluster nullTracer dir clusterCfg initialFunds $
+                onClusterStart act db dir
 
-    setupFaucet dir (RunningNode conn _ _) = do
+    onClusterStart act db dir (RunningNode conn block0 (np, vData) _) = do
+
         let encodeAddr = T.unpack . encodeAddress @'Mainnet
-        let addresses = map (first encodeAddr) shelleyIntegrationTestFunds
         let addressesMA = map (first encodeAddr) (maryIntegrationTestAssets (Coin 10_000_000))
-        sendFaucetFundsTo nullTracer conn dir addresses
         sendFaucetAssetsTo nullTracer conn dir 20 addressesMA
 
-    onClusterStart act db (RunningNode conn block0 (np, vData)) = do
         listen <- walletListenFromEnv
         serveWallet
             (NodeSource conn vData)
             np
             tunedForMainnetPipeliningStrategy
             (SomeNetworkDiscriminant $ Proxy @'Mainnet)
+            []
             tracers
             (SyncTolerance 10)
             (Just db)

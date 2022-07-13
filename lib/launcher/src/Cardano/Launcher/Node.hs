@@ -135,8 +135,8 @@ cardanoNodeProcess cfg socketPath = do
         , "--socket-path", socketPath
         ]
         ++ opt "--port" (show . unNodePort <$> nodePort cfg)
-        ++ opt "--signing-key" (nodeSignKeyFile cfg)
-        ++ opt "--delegation-certificate" (nodeDlgCertFile cfg)
+        ++ opt "--byron-signing-key" (nodeSignKeyFile cfg)
+        ++ opt "--byron-delegation-certificate" (nodeDlgCertFile cfg)
         ++ opt "--shelley-operational-certificate" (nodeOpCertFile cfg)
         ++ opt "--shelley-kes-key" (nodeKesKeyFile cfg)
         ++ opt "--shelley-vrf-key" (nodeVrfKeyFile cfg)
