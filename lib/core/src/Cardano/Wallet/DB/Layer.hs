@@ -649,8 +649,8 @@ newDBLayerWith _cacheBehavior _tr ti SqliteContext{runQuery} = do
                         let tip = cp ^. #currentTip
                         pruneCheckpoints wid epochStability tip
                         pruneLocalTxSubmission wid epochStability tip
-            ExceptT $ modifyDBMaybe transactionsDBVar $ \_ ->
-                (Just GarbageCollectTxWalletsHistory, Right ())
+            lift $ modifyDBMaybe transactionsDBVar $ \_ ->
+                (Just GarbageCollectTxWalletsHistory, ())
 
         {-----------------------------------------------------------------------
                                    Wallet Metadata
