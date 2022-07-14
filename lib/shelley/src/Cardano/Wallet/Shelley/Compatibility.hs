@@ -277,8 +277,6 @@ import Data.ByteString.Short
     ( fromShort, toShort )
 import Data.Coerce
     ( coerce )
-import Data.Default
-    ( Default (..) )
 import Data.Foldable
     ( toList )
 import Data.Function
@@ -915,19 +913,7 @@ fromBabbagePParams eraInfo currentNodeProtocolParameters pp =
         , desiredNumberOfStakePools =
             desiredNumberOfStakePoolsFromPParams pp
         , minimumUTxO =
-            -- FIXME [ADP-1978] need to fix for final Babbage support ⚠️
-            --
-            -- We unexpectedly needed to increase @maxLengthAddress@ causing
-            -- tests to break in Babbage. Using the Alonzo calculation even in
-            -- Babbage is correct enough to make the integration tests to pass
-            -- in Babbage, and for us to be able to merge the Babbage
-            -- integration cluster support to master. This is not waterproof
-            -- though, and we should definitely use the babbage-specific
-            -- calculation.
-            minimumUTxOForShelleyBasedEra ShelleyBasedEraAlonzo $
-                def { Alonzo._coinsPerUTxOWord =
-                        multiplyCoinBy 8 $ Babbage._coinsPerUTxOByte pp
-                    }
+            minimumUTxOForShelleyBasedEra ShelleyBasedEraBabbage pp
         , stakeKeyDeposit = stakeKeyDepositFromPParams pp
         , eras = fromBoundToEpochNo <$> eraInfo
         , maximumCollateralInputCount = unsafeIntToWord $
@@ -938,8 +924,6 @@ fromBabbagePParams eraInfo currentNodeProtocolParameters pp =
             Just $ executionUnitPricesFromPParams pp
         , currentNodeProtocolParameters
         }
-  where
-    multiplyCoinBy a (SL.Coin c) = SL.Coin (a * c)
 
 -- | Extract the current network decentralization level from the given set of
 -- protocol parameters.
