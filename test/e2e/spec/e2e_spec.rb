@@ -1571,6 +1571,98 @@ RSpec.describe "Cardano Wallet E2E tests", :all, :e2e do
   end
 
   describe "E2E Shared" do
+    describe "E2E Construct -> Sign -> Submit" do
+      it "Single output transaction" do
+        amt = 1000000
+        address = SHELLEY.addresses.list(@target_id)[1]['id']
+        target_before = get_shelley_balances(@target_id)
+        src_before = get_shared_balances(@wid_sha)
+
+        payment = [{ :address => address,
+                   :amount => { :quantity => amt,
+                             :unit => 'lovelace' }
+                 }]
+        tx_constructed = SHARED.transactions.construct(@wid_sha, payment)
+        expect(tx_constructed).to be_correct_and_respond 202
+      end
+
+      it "Multi output transaction" do
+        amt = 1000000
+        address = SHELLEY.addresses.list(@target_id)[1]['id']
+        target_before = get_shelley_balances(@target_id)
+        src_before = get_shared_balances(@wid_sha)
+
+        payment = [{ :address => address,
+                   :amount => { :quantity => amt,
+                             :unit => 'lovelace' }
+                  },
+                  { :address => address,
+                   :amount => { :quantity => amt,
+                               :unit => 'lovelace' }
+                  }
+                  ]
+        tx_constructed = SHARED.transactions.construct(@wid_sha, payment)
+        expect(tx_constructed).to be_correct_and_respond 202
+      end
+
+      it "Multi-assets transaction" do
+        amt = 1
+        amt_ada = 1600000
+        address = SHELLEY.addresses.list(@target_id)[1]['id']
+        target_before = get_shelley_balances(@target_id)
+        src_before = get_shared_balances(@wid_sha)
+
+        payment = [{ "address" => address,
+                    "amount" => { "quantity" => amt_ada, "unit" => "lovelace" },
+                    "assets" => [ { "policy_id" => ASSETS[0]["policy_id"],
+                                    "asset_name" => ASSETS[0]["asset_name"],
+                                    "quantity" => amt
+                                  },
+                                  { "policy_id" => ASSETS[1]["policy_id"],
+                                    "asset_name" => ASSETS[1]["asset_name"],
+                                    "quantity" => amt
+                                  }
+                                ]
+                    }
+                   ]
+        tx_constructed = SHARED.transactions.construct(@wid_sha, payment)
+        expect(tx_constructed).to be_correct_and_respond 202
+      end
+
+      it "Only metadata" do
+        metadata = METADATA
+        balance = get_shared_balances(@wid_sha)
+        tx_constructed = SHARED.transactions.construct(@wid_sha,
+                                                        payments = nil,
+                                                        withdrawal = nil,
+                                                        metadata)
+        expect(tx_constructed).to be_correct_and_respond 202
+
+      end
+
+      it "Validity intervals" do
+        amt = 1000000
+        address = SHELLEY.addresses.list(@target_id)[1]['id']
+        target_before = get_shelley_balances(@target_id)
+        src_before = get_shared_balances(@wid_sha)
+
+        payment = [{ :address => address,
+                   :amount => { :quantity => amt,
+                             :unit => 'lovelace' }
+                 }]
+        validity_interval = {:invalid_before => {:quantity => 0, :unit => "second"},
+                             :invalid_hereafter => {:quantity => 600, :unit => "second"}}
+        tx_constructed = SHARED.transactions.construct(@wid_sha, payment,
+                                                        withdrawal = nil,
+                                                        metadata = nil,
+                                                        delegations = nil,
+                                                        mint_burn = nil,
+                                                        validity_interval)
+        expect(tx_constructed).to be_correct_and_respond 202
+      end
+    end
+
+
     it "I can receive transaction to shared wallet" do
       amt = 1
       amt_ada = 3000000
