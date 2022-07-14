@@ -61,6 +61,7 @@ import Cardano.BM.Data.Tracer
     ( HasPrivacyAnnotation (..), HasSeverityAnnotation (..) )
 import Cardano.DB.Sqlite
     ( DBLog (..)
+    , ForeignKeysSetting (ForeignKeysEnabled)
     , SqliteContext (..)
     , chunkSize
     , dbChunked'
@@ -466,7 +467,8 @@ newDBLayerInMemory
     -> IO (IO (), DBLayer IO s k)
 newDBLayerInMemory tr ti = do
     let tr' = contramap MsgDB tr
-    (destroy, ctx) <- newInMemorySqliteContext tr' [] migrateAll
+    (destroy, ctx) <-
+        newInMemorySqliteContext tr' [] migrateAll ForeignKeysEnabled
     db <- newDBLayer tr ti ctx
     pure (destroy, db)
 

@@ -11,7 +11,7 @@ module Cardano.Wallet.DB.Sqlite.StoresSpec
 import Prelude
 
 import Cardano.DB.Sqlite
-    ( SqliteContext (runQuery) )
+    ( ForeignKeysSetting (..), SqliteContext (runQuery) )
 import Cardano.Wallet.Address.Book
     ( AddressBookIso (..), Prologue, getPrologue )
 import Cardano.Wallet.Checkpoints
@@ -78,21 +78,23 @@ import UnliftIO.Exception
 import qualified Data.Map.Strict as Map
 
 spec :: Spec
-spec = around withDBInMemory $ do
-    describe "Writing and loading" $ do
-        it "loadPrologue . insertPrologue = id  for SeqState" $
-            property . prop_prologue_load_write @(SeqState 'Mainnet ShelleyKey) id
+spec = do
+    around (withDBInMemory ForeignKeysEnabled) $ do
+        describe "Writing and loading" $ do
+            it "loadPrologue . insertPrologue = id  for SeqState" $
+                property . prop_prologue_load_write @(SeqState 'Mainnet ShelleyKey) id
 
-        it "loadPrologue . insertPrologue = id  for RndState" $
-            property . prop_prologue_load_write @(RndState 'Mainnet) id
+            it "loadPrologue . insertPrologue = id  for RndState" $
+                property . prop_prologue_load_write @(RndState 'Mainnet) id
 
-        it "loadPrologue . insertPrologue = id  for SharedState" $
-            property . prop_prologue_load_write @(SharedState 'Mainnet SharedKey)
-                (\s -> s { ready = Pending })
+            it "loadPrologue . insertPrologue = id  for SharedState" $
+                property . prop_prologue_load_write @(SharedState 'Mainnet SharedKey)
+                    (\s -> s { ready = Pending })
 
-    describe "Update" $ do
-        it "mkStoreWallet" $
-            property . prop_StoreWallet @(SeqState 'Mainnet ShelleyKey)
+    around (withDBInMemory ForeignKeysEnabled) $ do
+        describe "Update" $ do
+            it "mkStoreWallet" $
+                property . prop_StoreWallet @(SeqState 'Mainnet ShelleyKey)
 
 {-------------------------------------------------------------------------------
     Properties

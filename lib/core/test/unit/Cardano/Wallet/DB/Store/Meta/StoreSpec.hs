@@ -11,6 +11,8 @@ module Cardano.Wallet.DB.Store.Meta.StoreSpec
 
 import Prelude
 
+import Cardano.DB.Sqlite
+    ( ForeignKeysSetting (..) )
 import Cardano.Wallet.DB.Arbitrary
     ()
 import Cardano.Wallet.DB.Fixtures
@@ -31,7 +33,7 @@ import Test.QuickCheck
     ( Gen, arbitrary, frequency, property )
 
 spec :: Spec
-spec = around withDBInMemory $ do
+spec = around (withDBInMemory ForeignKeysEnabled) $ do
     describe "meta-transactions store" $ do
         it "respects store laws"
             $ property . prop_StoreMetaLaws
