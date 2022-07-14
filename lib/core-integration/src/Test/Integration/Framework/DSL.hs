@@ -674,7 +674,8 @@ walletId =
 -- | Min UTxO parameter for the test cluster.
 minUTxOValue :: ApiEra -> Natural
 minUTxOValue e
-    | e >= ApiBabbage = 999_920
+    | e >= ApiBabbage = 1_107_670 -- needs to be overestimated for the sake of
+    -- long byron addresses
     | e >= ApiAlonzo = 999_978 -- From 34482 lovelace per word
     | otherwise   = 1_000_000
 
