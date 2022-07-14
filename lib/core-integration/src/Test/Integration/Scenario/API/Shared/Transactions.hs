@@ -35,8 +35,8 @@ import Cardano.Wallet.Api.Types
     )
 import Cardano.Wallet.Primitive.Passphrase
     ( Passphrase (..) )
-import Control.Monad.IO.Class
-    ( liftIO )
+import Control.Monad.IO.Unlift
+    ( MonadUnliftIO (..), liftIO )
 import Control.Monad.Trans.Resource
     ( runResourceT )
 import Data.Either.Combinators
@@ -47,6 +47,8 @@ import Data.Maybe
     ( isJust )
 import Data.Quantity
     ( Quantity (..) )
+import Numeric.Natural
+    ( Natural )
 import Test.Hspec
     ( SpecWith, describe )
 import Test.Hspec.Expectations.Lifted
@@ -59,10 +61,12 @@ import Test.Integration.Framework.DSL
     , MnemonicLength (..)
     , Payload (..)
     , accPubKeyFromMnemonics
+    , emptyWallet
     , eventually
     , expectErrorMessage
     , expectField
     , expectResponseCode
+    , expectSuccess
     , faucetAmt
     , faucetUtxoAmt
     , fixturePassphrase
@@ -71,6 +75,7 @@ import Test.Integration.Framework.DSL
     , getFromResponse
     , getSharedWallet
     , json
+    , listAddresses
     , minUTxOValue
     , postSharedWallet
     , request
@@ -79,7 +84,9 @@ import Test.Integration.Framework.DSL
     )
 import Test.Integration.Framework.TestData
     ( errMsg403EmptyUTxO
+    , errMsg403Fee
     , errMsg403InvalidConstructTx
+    , errMsg403MinUTxOValue
     , errMsg403SharedWalletPending
     )
 
@@ -199,6 +206,111 @@ spec = describe "SHARED_TRANSACTIONS" $ do
             , expectErrorMessage errMsg403InvalidConstructTx
             ]
 
+    it "SHARED_TRANSACTIONS_CREATE_01b - \
+        \Validity interval only is not allowed" $
+        \ctx -> runResourceT $ do
+
+        wa <- fixtureSharedWallet ctx
+        let validityInterval = Json [json|
+                { "validity_interval":
+                    { "invalid_before":
+                        { "quantity": 10
+                        , "unit": "second"
+                        }
+                    , "invalid_hereafter":
+                        { "quantity": 50
+                        , "unit": "second"
+                        }
+                    }
+                }|]
+
+        rTx <- request @(ApiConstructTransaction n) ctx
+            (Link.createUnsignedTransaction @'Shared wa) Default validityInterval
+        verify rTx
+            [ expectResponseCode HTTP.status403
+            , expectErrorMessage errMsg403InvalidConstructTx
+            ]
+
+    it "SHARED_TRANSACTIONS_CREATE_04a - Single Output Transaction with decode transaction" $ \ctx -> runResourceT $ do
+
+        wa <- fixtureSharedWallet ctx
+        wb <- emptyWallet ctx
+        let amt = (minUTxOValue (_mainEra ctx) :: Natural)
+
+        payload <- liftIO $ mkTxPayload ctx wb amt
+
+        rTx <- request @(ApiConstructTransaction n) ctx
+            (Link.createUnsignedTransaction @'Shared wa) Default payload
+        verify rTx
+            [ expectSuccess
+            , expectResponseCode HTTP.status202
+            , expectField (#coinSelection . #inputs) (`shouldSatisfy` (not . null))
+            , expectField (#coinSelection . #outputs) (`shouldSatisfy` (not . null))
+            , expectField (#coinSelection . #change) (`shouldSatisfy` (not . null))
+            , expectField (#fee . #getQuantity) (`shouldSatisfy` (> 0))
+            ]
+
+    it "SHARED_TRANSACTIONS_CREATE_04b - Cannot spend less than minUTxOValue" $ \ctx -> runResourceT $ do
+        wa <- fixtureSharedWallet ctx
+        wb <- emptyWallet ctx
+        let amt = minUTxOValue (_mainEra ctx) - 1
+
+        payload <- liftIO $ mkTxPayload ctx wb amt
+
+        rTx <- request @(ApiConstructTransaction n) ctx
+            (Link.createUnsignedTransaction @'Shared wa) Default payload
+        verify rTx
+            [ expectResponseCode HTTP.status403
+            , expectErrorMessage errMsg403MinUTxOValue
+            ]
+
+    it "SHARED_TRANSACTIONS_CREATE_04c - Can't cover fee" $ \ctx -> runResourceT $ do
+        wa <- fixtureSharedWallet ctx
+        wb <- emptyWallet ctx
+
+        payload <- liftIO $ mkTxPayload ctx wb faucetUtxoAmt
+
+        rTx <- request @(ApiConstructTransaction n) ctx
+            (Link.createUnsignedTransaction @'Shared wa) Default payload
+        verify rTx
+            [ expectResponseCode HTTP.status403
+            , expectErrorMessage errMsg403Fee
+            ]
+
+    it "SHARED_TRANSACTIONS_CREATE_04e- Multiple Output Tx to single wallet" $ \ctx -> runResourceT $ do
+        wa <- fixtureSharedWallet ctx
+        wb <- emptyWallet ctx
+        addrs <- listAddresses @n ctx wb
+        let amt = minUTxOValue (_mainEra ctx) :: Natural
+        let destination1 = (addrs !! 1) ^. #id
+        let destination2 = (addrs !! 2) ^. #id
+        let payload = Json [json|{
+                "payments": [{
+                    "address": #{destination1},
+                    "amount": {
+                        "quantity": #{amt},
+                        "unit": "lovelace"
+                    }
+                },
+                {
+                    "address": #{destination2},
+                    "amount": {
+                        "quantity": #{amt},
+                        "unit": "lovelace"
+                    }
+                }]
+            }|]
+
+        rTx <- request @(ApiConstructTransaction n) ctx
+            (Link.createUnsignedTransaction @'Shared wa) Default payload
+        verify rTx
+            [ expectSuccess
+            , expectResponseCode HTTP.status202
+            , expectField (#coinSelection . #inputs) (`shouldSatisfy` (not . null))
+            , expectField (#coinSelection . #outputs) (`shouldSatisfy` (not . null))
+            , expectField (#coinSelection . #change) (`shouldSatisfy` (not . null))
+            , expectField (#fee . #getQuantity) (`shouldSatisfy` (> 0))
+            ]
   where
      fundSharedWallet ctx amt walShared = do
         let wal = case walShared of
@@ -272,3 +384,22 @@ spec = describe "SHARED_TRANSACTIONS" $ do
         fundSharedWallet ctx faucetUtxoAmt walShared
 
         return wal
+
+     mkTxPayload
+         :: MonadUnliftIO m
+         => Context
+         -> ApiWallet
+         -> Natural
+         -> m Payload
+     mkTxPayload ctx wDest amt = do
+         addrs <- listAddresses @n ctx wDest
+         let destination = (addrs !! 1) ^. #id
+         return $ Json [json|{
+                 "payments": [{
+                     "address": #{destination},
+                     "amount": {
+                         "quantity": #{amt},
+                         "unit": "lovelace"
+                     }
+                 }]
+             }|]
