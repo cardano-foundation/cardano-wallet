@@ -24,9 +24,6 @@
 -- Jörmungandr dual support.
 {-# OPTIONS_GHC -fno-warn-orphans #-}
 
--- We have to use it until 'BabbageEra' appears in 'Cardano.Api'.
-{-# OPTIONS_GHC -Wno-partial-type-signatures #-}
-
 -- |
 -- Copyright: © 2020 IOHK
 -- License: Apache-2.0
