@@ -1060,6 +1060,9 @@ rollbackBlocks ctx wid point = db & \DBLayer{..} -> do
 
 -- | Apply the given blocks to the wallet and update the wallet state,
 -- transaction history and corresponding metadata.
+--
+-- Concurrency: `restoreBlocks` is not atomic; we assume that
+-- it is called in a sequential fashion for each wallet.
 restoreBlocks
     :: forall ctx s k.
         ( HasDBLayer IO s k ctx
@@ -1074,10 +1077,10 @@ restoreBlocks
     -> BlockData IO (Either Address RewardAccount) ChainEvents s
     -> BlockHeader
     -> ExceptT ErrNoSuchWallet IO ()
-restoreBlocks ctx tr wid blocks nodeTip = db & \DBLayer{..} -> mapExceptT atomically $ do
-    cp0  <- withNoSuchWallet wid (readCheckpoint wid)
-    sp   <- liftIO $ currentSlottingParameters nl
-
+restoreBlocks ctx tr wid blocks nodeTip = db & \DBLayer{..} -> do
+    sp  <- liftIO $ currentSlottingParameters nl
+    cp0 <- mapExceptT atomically $
+        withNoSuchWallet wid (readCheckpoint wid)
     unless (cp0 `isParentOf` firstHeader blocks) $ fail $ T.unpack $ T.unwords
         [ "restoreBlocks: given chain isn't a valid continuation."
         , "Wallet is at:", pretty (currentTip cp0)
@@ -1085,6 +1088,12 @@ restoreBlocks ctx tr wid blocks nodeTip = db & \DBLayer{..} -> mapExceptT atomic
         , pretty (firstHeader blocks)
         ]
 
+    -- NOTE on concurrency:
+    -- In light-mode, 'applyBlocks' may take some time to retrieve
+    -- transaction data. We avoid blocking the database by
+    -- not wrapping this into a call to 'atomically'.
+    -- However, this only works if the latest database checkpoint, `cp0`,
+    -- does not change in the meantime.
     (filteredBlocks', cps') <- liftIO $ NE.unzip <$> applyBlocks @s blocks cp0
     let cps = NE.map snd cps'
         filteredBlocks = concat filteredBlocks'
@@ -1098,12 +1107,6 @@ restoreBlocks ctx tr wid blocks nodeTip = db & \DBLayer{..} -> mapExceptT atomic
     let txs = fold $ view #transactions <$> filteredBlocks
     let epochStability = (3*) <$> getSecurityParameter sp
     let localTip = currentTip $ NE.last cps
-
-    putTxHistory wid txs
-    updatePendingTxForExpiry wid (view #slotNo localTip)
-    forM_ slotPoolDelegations $ \delegation@(slotNo, cert) -> do
-        liftIO $ logDelegation delegation
-        putDelegationCertificate wid cert slotNo
 
     -- FIXME LATER during ADP-1403
     -- We need to rethink checkpoint creation and consider the case
@@ -1150,15 +1153,22 @@ restoreBlocks ctx tr wid blocks nodeTip = db & \DBLayer{..} -> mapExceptT atomic
             | wcp <- map (snd . fromWallet) cpsKeep
             ]
 
-    liftIO $ mapM_ logCheckpoint cpsKeep
-    ExceptT $ modifyDBMaybe walletsDB $
-        adjustNoSuchWallet wid id $ \_ -> Right ( delta, () )
+    mapExceptT atomically $ do
+        putTxHistory wid txs
+        updatePendingTxForExpiry wid (view #slotNo localTip)
+        forM_ slotPoolDelegations $ \delegation@(slotNo, cert) -> do
+            liftIO $ logDelegation delegation
+            putDelegationCertificate wid cert slotNo
+        
+        liftIO $ mapM_ logCheckpoint cpsKeep
+        ExceptT $ modifyDBMaybe walletsDB $
+            adjustNoSuchWallet wid id $ \_ -> Right ( delta, () )
 
-    prune wid epochStability
+        prune wid epochStability
 
-    liftIO $ do
-        traceWith tr $ MsgDiscoveredTxs txs
-        traceWith tr $ MsgDiscoveredTxsContent txs
+        liftIO $ do
+            traceWith tr $ MsgDiscoveredTxs txs
+            traceWith tr $ MsgDiscoveredTxsContent txs
   where
     nl = ctx ^. networkLayer
     db = ctx ^. dbLayer @IO @s @k
