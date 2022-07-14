@@ -2697,7 +2697,7 @@ spec = describe "NEW_SHELLEY_TRANSACTIONS" $ do
 
     it "TRANS_NEW_JOIN_02 - Can join stakepool in case I have many UTxOs on 1 address"
         $ \ctx -> runResourceT $ do
-        let amt = 1_000_000
+        let amt = minUTxOValue (_mainEra ctx)
         src <- emptyWallet ctx
         wa <- fixtureWallet ctx
 
