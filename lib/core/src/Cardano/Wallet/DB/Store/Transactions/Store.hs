@@ -49,6 +49,8 @@ import Data.Foldable
     ( fold, forM_, toList )
 import Data.List
     ( sortOn )
+import Data.List.Split
+    ( chunksOf )
 import Data.Map.Strict
     ( Map )
 import Data.Maybe
@@ -100,6 +102,7 @@ write txs = do
     deleteWhere @_ @_ @TxWithdrawal mempty
     putTxHistory txs
 
+
 -- | Insert multiple transactions
 putTxHistory :: TxHistory -> SqlPersistT IO ()
 putTxHistory (TxHistoryF tx_map) = forM_ tx_map $ \TxRelationF {..} -> do
@@ -114,7 +117,8 @@ putTxHistory (TxHistoryF tx_map) = forM_ tx_map $ \TxRelationF {..} -> do
     where
         repsertMany' xs = let
             Just f = keyFromRecordM
-            in repsertMany [(f x, x) | x <- xs]
+            in chunked repsertMany [(f x, x) | x <- xs]
+        chunked f xs = mapM_ f (chunksOf 1000 xs)
 
 -- | Select transactions history from the database
 selectTxHistory :: SqlPersistT IO TxHistory

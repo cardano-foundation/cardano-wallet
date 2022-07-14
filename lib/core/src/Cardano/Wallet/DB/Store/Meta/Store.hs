@@ -33,6 +33,8 @@ import Data.DBVar
     ( Store (Store, loadS, updateS, writeS) )
 import Data.Foldable
     ( Foldable (toList) )
+import Data.List.Split
+    ( chunksOf )
 import Data.Maybe
     ( fromJust )
 import Database.Persist.Sql
@@ -111,4 +113,5 @@ load wid =
 -- Only one meta-transaction can be stored per transaction for a given wallet.
 putMetas :: TxMetaHistory -> SqlPersistT IO ()
 putMetas (TxMetaHistory metas) =
-    repsertMany [(fromJust keyFromRecordM x, x) | x <- toList metas]
+    chunked repsertMany [(fromJust keyFromRecordM x, x) | x <- toList metas]
+    where chunked f xs = mapM_ f (chunksOf 1000 xs)
