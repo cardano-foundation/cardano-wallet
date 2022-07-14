@@ -64,6 +64,7 @@ import Test.Integration.Framework.DSL
     , expectField
     , expectResponseCode
     , faucetAmt
+    , faucetUtxoAmt
     , fixturePassphrase
     , fixtureWallet
     , genMnemonics
@@ -77,7 +78,10 @@ import Test.Integration.Framework.DSL
     , verify
     )
 import Test.Integration.Framework.TestData
-    ( errMsg403EmptyUTxO, errMsg403SharedWalletPending )
+    ( errMsg403EmptyUTxO
+    , errMsg403InvalidConstructTx
+    , errMsg403SharedWalletPending
+    )
 
 import qualified Cardano.Wallet.Api.Link as Link
 import qualified Data.ByteArray as BA
@@ -183,9 +187,20 @@ spec = describe "SHARED_TRANSACTIONS" $ do
             , expectField (#coinSelection . #metadata) (`shouldSatisfy` isJust)
             , expectField (#fee . #getQuantity) (`shouldSatisfy` (>0))
             ]
+
+    it "SHARED_TRANSACTIONS_CREATE_01a - Empty payload is not allowed" $ \ctx -> runResourceT $ do
+        wa <- fixtureSharedWallet ctx
+        let emptyPayload = Json [json|{}|]
+
+        rTx <- request @(ApiConstructTransaction n) ctx
+            (Link.createUnsignedTransaction @'Shared wa) Default emptyPayload
+        verify rTx
+            [ expectResponseCode HTTP.status403
+            , expectErrorMessage errMsg403InvalidConstructTx
+            ]
+
   where
      fundSharedWallet ctx amt walShared = do
-
         let wal = case walShared of
                 ApiSharedWallet (Right wal') -> wal'
                 _ -> error "funding of shared wallet make sense only for active one"
@@ -224,3 +239,36 @@ spec = describe "SHARED_TRANSACTIONS" $ do
             [ expectResponseCode HTTP.status200
             , expectField (traverse . #balance . #available) (`shouldBe` Quantity amt)
             ]
+
+     fixtureSharedWallet ctx = do
+        m15txt <- liftIO $ genMnemonics M15
+        m12txt <- liftIO $ genMnemonics M12
+        let (Right m15) = mkSomeMnemonic @'[ 15 ] m15txt
+        let (Right m12) = mkSomeMnemonic @'[ 12 ] m12txt
+        let passphrase = Passphrase $ BA.convert $ T.encodeUtf8 fixturePassphrase
+        let index = 30
+        let accXPubDerived = accPubKeyFromMnemonics m15 (Just m12) index passphrase
+        let payload = Json [json| {
+                "name": "Shared Wallet",
+                "mnemonic_sentence": #{m15txt},
+                "mnemonic_second_factor": #{m12txt},
+                "passphrase": #{fixturePassphrase},
+                "account_index": "30H",
+                "payment_script_template":
+                    { "cosigners":
+                        { "cosigner#0": #{accXPubDerived} },
+                      "template":
+                          { "all":
+                             [ "cosigner#0" ]
+                          }
+                    }
+                } |]
+        rPost <- postSharedWallet ctx Default payload
+        verify (fmap (swapEither . view #wallet) <$> rPost)
+            [ expectResponseCode HTTP.status201
+            ]
+        let walShared@(ApiSharedWallet (Right wal)) = getFromResponse id rPost
+
+        fundSharedWallet ctx faucetUtxoAmt walShared
+
+        return wal
