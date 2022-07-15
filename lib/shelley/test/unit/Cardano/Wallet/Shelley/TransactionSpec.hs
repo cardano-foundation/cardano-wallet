@@ -3948,13 +3948,15 @@ prop_updateSealedTx
             , outputs tx' === outputs tx <> Set.fromList extraOuts
             , sealedFee tx' === Just newFee
             , collateralIns tx' ===
-                if isAlonzo era
+                if isAlonzoOrLater era
                 then collateralIns tx <> Set.fromList extraCol
                 else mempty
             ]
   where
-    isAlonzo Cardano.ShelleyBasedEraAlonzo = True
-    isAlonzo _                             = False
+    -- No 'Ord' on 'AnyCardanoEra'
+    isAlonzoOrLater Cardano.ShelleyBasedEraAlonzo  = True
+    isAlonzoOrLater Cardano.ShelleyBasedEraBabbage = True
+    isAlonzoOrLater _                              = False
 
     inputs = sealedInputs . sealedTxFromCardano'
     outputs = sealedOutputs . sealedTxFromCardano'

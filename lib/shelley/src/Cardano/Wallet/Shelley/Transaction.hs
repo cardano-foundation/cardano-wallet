@@ -146,6 +146,7 @@ import Cardano.Wallet.Primitive.Types.Tx
     , TxMetadata (..)
     , TxOut (..)
     , TxSize (..)
+    , cardanoTx
     , sealedTxFromCardano'
     , sealedTxFromCardanoBody
     , txOutAddCoin

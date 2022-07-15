@@ -53,6 +53,7 @@ module Cardano.Wallet.Primitive.Types.Tx
     , getSealedTxWitnesses
     , persistSealedTx
     , unPersistSealedTx
+    , ideallyNoLaterThan
 
     -- ** Unit testing helpers
     , mockSealedTx
@@ -587,6 +588,36 @@ instance NFData SealedTx where
         -- Showing the transaction should be enough to fully evaluate it.
         tx' = if v then show tx else ""
 
+-- Helper function to constrain the era of a 'SealedTx' to at most the provided
+-- era. If this is not possible, the original 'SealedTx' is returned.
+--
+-- In contrast to the "most recent era" argument of @sealedTxFromBytes'@, this
+-- function allows constraining the era at a point after the tx has been
+-- deserialised. For instance, in a server handler with known current era,
+-- instead of in an @Aeson.FromJSON@ instance.
+--
+-- >>> ideallyNoLaterThan alonzoEra alonzoCompatibleBabbageTx
+-- alonzoCompatibleBabbageTx
+--
+-- >>> ideallyNoLaterThan alonzoEra alonzoIncompatibleBabbageTx
+-- babbageTx
+--
+-- == Is this what we want? (for the new tx-workflow..)
+--
+-- Probably not. This is a minimally invasive approach to ensure:
+-- - tx workflow works in both Alonzo and Babbage
+-- - tx workflow tries to create Alonzo txs in Alonzo and Babbage txs in Babbage
+--
+-- With the added behaviour:
+-- - tx workflow may partially work for babbage-only txs when in alonzo
+ideallyNoLaterThan
+    :: AnyCardanoEra
+    -> SealedTx
+    -> SealedTx
+ideallyNoLaterThan maxEra sealedTx =
+    either (const sealedTx) (sealedTxFromCardano)
+        (cardanoTxFromBytes maxEra (serialisedTx sealedTx))
+
 getSealedTxBody :: SealedTx -> InAnyCardanoEra Cardano.TxBody
 getSealedTxBody (SealedTx _ (InAnyCardanoEra era tx) _) =
     InAnyCardanoEra era (Cardano.getTxBody tx)
@@ -620,23 +651,8 @@ cardanoTxFromBytes
     -> ByteString -- ^ Serialised transaction
     -> Either DecoderError (InAnyCardanoEra Cardano.Tx)
 cardanoTxFromBytes maxEra bs = asum $ map snd $ filter (withinEra maxEra . fst)
-    -- NOTE: Attempting to deserialise in Alonzo before Babbage is intentional.
-    --
-    -- It seems Alonzo transactions can be deserialized as Babbage
-    -- transactions. This causes new-tx workflow integration tests to fail.
-    -- The txs are interpreted as Babbage txs right before submitting them to
-    -- the Alonzo-era ledger.
-    --
-    -- This may also cause problems with our store of pending txs.
-    --
-    -- TODO: Can we come up with a better solution?
-    -- - Using Alonzo txs once we're in Babbage doesn't sound good?
-    -- - Ideally we should set @maxEra == currentNodeEra@ argument.
-    --    - But we can't access currentNodeEra from PersistField instances
-    --    - It might be good to ensure txs in the DB also store which era they
-    --      correspond to.
-    [ deserialise AlonzoEra  Cardano.AsAlonzoEra
-    , deserialise BabbageEra Cardano.AsBabbageEra
+    [ deserialise BabbageEra Cardano.AsBabbageEra
+    , deserialise AlonzoEra  Cardano.AsAlonzoEra
     , deserialise MaryEra    Cardano.AsMaryEra
     , deserialise AllegraEra Cardano.AsAllegraEra
     , deserialise ShelleyEra Cardano.AsShelleyEra

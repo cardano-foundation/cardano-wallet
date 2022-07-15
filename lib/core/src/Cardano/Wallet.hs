@@ -439,6 +439,7 @@ import Cardano.Wallet.Primitive.Types.Tx
     , TxStatus (..)
     , UnsignedTx (..)
     , fromTransactionInfo
+    , ideallyNoLaterThan
     , sealedTxFromCardano
     , txOutCoin
     , withdrawals
@@ -2658,12 +2659,18 @@ runLocalTxSubmissionPool
 runLocalTxSubmissionPool cfg ctx wid = db & \DBLayer{..} -> do
     submitPending <- rateLimited $ \bh -> bracketTracer trBracket $ do
         sp <- currentSlottingParameters nw
+        era <- currentNodeEra nw
         pending <- atomically $ readLocalTxSubmissionPending wid
         let sl = bh ^. #slotNo
         -- Re-submit transactions due, ignore errors
         forM_ (filter (isScheduled sp sl) pending) $ \st -> do
             _ <- runExceptT $ traceResult (trRetry (st ^. #txId)) $
-                postTx nw (st ^. #submittedTx)
+                -- The era-is not necessarily preserved when persisting and
+                -- un-persiting the 'SealedTx' to the DB. Therefore we need to
+                -- re-cast. We don't want local tx submission to submit all
+                -- alonzo txs before the Vasil HF as babbage txs which would be
+                -- rejected.
+                postTx nw (ideallyNoLaterThan era $ st ^. #submittedTx)
             atomically $ runExceptT $ putLocalTxSubmission
                 wid
                 (st ^. #txId)
