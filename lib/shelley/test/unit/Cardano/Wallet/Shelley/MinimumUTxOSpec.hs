@@ -391,11 +391,11 @@ goldenMinimumCoins_Alonzo =
 
 goldenMinimumCoins_Babbage :: [(TokenMap, Coin)]
 goldenMinimumCoins_Babbage =
-    [ (goldenTokenMap_0, Coin   995_610)
-    , (goldenTokenMap_1, Coin 1_150_770)
-    , (goldenTokenMap_2, Coin 1_323_170)
-    , (goldenTokenMap_3, Coin 1_323_170)
-    , (goldenTokenMap_4, Coin 2_012_770)
+    [ (goldenTokenMap_0, Coin 1_107_670)
+    , (goldenTokenMap_1, Coin 1_262_830)
+    , (goldenTokenMap_2, Coin 1_435_230)
+    , (goldenTokenMap_3, Coin 1_435_230)
+    , (goldenTokenMap_4, Coin 2_124_830)
     ]
 
 --------------------------------------------------------------------------------
