@@ -1340,7 +1340,6 @@ RSpec.describe "Cardano Wallet E2E tests", :all, :e2e do
       # Tx4: Burns them
       it "Mint to foreign wallet / Cannot burn if I don't have keys" do
 
-        src_before = get_shelley_balances(@wid)
         target_before = get_shelley_balances(@target_id)
         address = SHELLEY.addresses.list(@target_id).first['id']
         policy_script = 'cosigner#0'
@@ -1365,20 +1364,7 @@ RSpec.describe "Cardano Wallet E2E tests", :all, :e2e do
 
         tx_id = tx_submitted['id']
         wait_for_tx_in_ledger(@wid, tx_id)
-        src_after_minting = get_shelley_balances(@wid)
         target_after_minting = get_shelley_balances(@target_id)
-
-        # verify ADA balance is correct on src wallet:
-        # we are minting and sending to external address
-        # therefore the cost is fee + mintUTxOValue of ADA that is required
-        # for transfering the assets over the network
-        # in this the total `cost` is pure ADA minUTxOValue + 11 'utxo words' + fee
-        min_utxo_value = NETWORK.parameters['minimum_utxo_value']['quantity'].to_i
-        era = NETWORK.information['node_era']
-        lovelace_per_utxo_word = (era == 'babbage' ? 34480 : 34482)
-        min_utxo_value_tokens = min_utxo_value + 11 * lovelace_per_utxo_word
-        expect(src_after_minting['available']).to eq (src_before['available'] - expected_fee - min_utxo_value_tokens)
-        expect(src_after_minting['total']).to eq (src_before['total'] - expected_fee - min_utxo_value_tokens)
 
         # verify assets have been minted and on target wallet's balance
         assets_to_check = get_assets_from_decode(tx_decoded['mint'])
