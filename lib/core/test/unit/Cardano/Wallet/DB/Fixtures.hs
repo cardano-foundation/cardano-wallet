@@ -25,7 +25,7 @@ module Cardano.Wallet.DB.Fixtures
 import Prelude
 
 import Cardano.DB.Sqlite
-    ( SqliteContext, newInMemorySqliteContext, runQuery )
+    ( ForeignKeysSetting, SqliteContext, newInMemorySqliteContext, runQuery )
 import Cardano.Wallet.DB.Sqlite.Schema
     ( Wallet (..), migrateAll )
 import Cardano.Wallet.DB.Sqlite.Types
@@ -77,10 +77,10 @@ import qualified Cardano.Wallet.DB.Sqlite.Schema as TH
 {-------------------------------------------------------------------------------
     DB setup
 -------------------------------------------------------------------------------}
-withDBInMemory :: (SqliteContext -> IO a) -> IO a
-withDBInMemory action = bracket newDBInMemory fst (action . snd)
+withDBInMemory :: ForeignKeysSetting -> (SqliteContext -> IO a) -> IO a
+withDBInMemory disableFK action = bracket (newDBInMemory disableFK) fst (action . snd)
 
-newDBInMemory :: IO (IO (), SqliteContext)
+newDBInMemory :: ForeignKeysSetting -> IO (IO (), SqliteContext)
 newDBInMemory = newInMemorySqliteContext nullTracer [] migrateAll
 
 initializeWallet :: WalletId -> SqlPersistT IO ()

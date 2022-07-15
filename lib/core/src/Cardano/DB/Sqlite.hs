@@ -27,6 +27,7 @@ module Cardano.DB.Sqlite
     ( SqliteContext (..)
     , newSqliteContext
     , newInMemorySqliteContext
+    , ForeignKeysSetting (..)
 
     -- * ConnectionPool
     , ConnectionPool
@@ -167,8 +168,9 @@ newInMemorySqliteContext
     :: Tracer IO DBLog
     -> [ManualMigration]
     -> Migration
+    -> ForeignKeysSetting
     -> IO (IO (), SqliteContext)
-newInMemorySqliteContext tr manualMigrations autoMigration = do
+newInMemorySqliteContext tr manualMigrations autoMigration disableFK = do
     conn <- Sqlite.open ":memory:"
     mapM_ (`executeManualMigration` conn) manualMigrations
     unsafeBackend <- wrapConnection conn (queryLogFunc tr)
@@ -181,8 +183,13 @@ newInMemorySqliteContext tr manualMigrations autoMigration = do
     -- concurrent accesses and ensure database integrity in case where multiple
     -- threads would be reading/writing from/to it.
     lock <- newMVar unsafeBackend
-    let runQuery :: forall a. SqlPersistT IO a -> IO a
-        runQuery cmd = withMVarMasked lock (observe . runSqlConn cmd)
+    let useForeignKeys :: IO a -> IO a
+        useForeignKeys
+            | disableFK == ForeignKeysDisabled = withForeignKeysDisabled tr conn
+            | otherwise = id
+        runQuery :: forall a. SqlPersistT IO a -> IO a
+        runQuery cmd = withMVarMasked lock
+            (observe . useForeignKeys . runSqlConn cmd)
 
     return (close' unsafeBackend, SqliteContext { runQuery })
 
@@ -196,7 +203,9 @@ newSqliteContext
     -> IO (Either MigrationError SqliteContext)
 newSqliteContext tr pool manualMigrations autoMigration = do
     migrationResult <- withResource pool $ \(backend, conn) -> do
-        let executeAutoMigration = runSqlConn (runMigrationUnsafeQuiet autoMigration) backend
+        let executeAutoMigration = runSqlConn
+                (runMigrationUnsafeQuiet autoMigration)
+                backend
         migrationResult <- withForeignKeysDisabled tr conn $ do
             mapM_ (`executeManualMigration` conn) manualMigrations
             executeAutoMigration

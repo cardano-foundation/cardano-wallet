@@ -38,6 +38,7 @@ import Prelude
 import Cardano.DB.Sqlite
     ( DBField (..)
     , DBLog (..)
+    , ForeignKeysSetting (ForeignKeysEnabled)
     , ManualMigration (..)
     , MigrationError
     , SqliteContext (..)
@@ -206,7 +207,8 @@ withDecoratedDBLayer
 withDecoratedDBLayer dbDecorator tr mDatabaseDir ti action = do
     case mDatabaseDir of
         Nothing -> bracket
-            (newInMemorySqliteContext tr' createViews migrateAll)
+            (newInMemorySqliteContext tr'
+                createViews migrateAll ForeignKeysEnabled)
             fst
             (action . decorateDBLayer dbDecorator . newDBLayer tr ti . snd)
 

@@ -11,19 +11,17 @@ module Cardano.Wallet.DB.Sqlite.StoresSpec
 import Prelude
 
 import Cardano.DB.Sqlite
-    ( SqliteContext (runQuery), newInMemorySqliteContext )
+    ( ForeignKeysSetting (..), SqliteContext (runQuery) )
 import Cardano.Wallet.Address.Book
     ( AddressBookIso (..), Prologue, getPrologue )
 import Cardano.Wallet.Checkpoints
     ( DeltaCheckpoints (..) )
 import Cardano.Wallet.DB.Arbitrary
     ( GenState, InitialCheckpoint (..) )
-import Cardano.Wallet.DB.Sqlite.Schema
-    ( Wallet (..), migrateAll )
+import Cardano.Wallet.DB.Fixtures
+    ( initializeWallet, withDBInMemory )
 import Cardano.Wallet.DB.Sqlite.Stores
     ( PersistAddressBook (..), mkStoreWallet )
-import Cardano.Wallet.DB.Sqlite.Types
-    ( BlockId (..) )
 import Cardano.Wallet.DB.WalletState
     ( DeltaWalletState
     , DeltaWalletState1 (..)
@@ -46,14 +44,8 @@ import Cardano.Wallet.Primitive.AddressDiscovery.Shared
     ( Readiness (Pending), SharedState (..) )
 import Cardano.Wallet.Primitive.Types
     ( SlotNo (..), WalletId (..), WithOrigin (..) )
-import Cardano.Wallet.Primitive.Types.Hash
-    ( Hash (..) )
-import Cardano.Wallet.Unsafe
-    ( unsafeFromHex )
 import Control.Monad
     ( forM_ )
-import Control.Tracer
-    ( nullTracer )
 import Data.Bifunctor
     ( second )
 import Data.DBVar
@@ -62,14 +54,6 @@ import Data.Delta
     ( Base, Delta (..) )
 import Data.Generics.Internal.VL.Lens
     ( over, (^.) )
-import Data.Time.Clock
-    ( UTCTime )
-import Data.Time.Clock.POSIX
-    ( posixSecondsToUTCTime )
-import Database.Persist.Sql
-    ( deleteWhere, insert_ )
-import Database.Persist.Sqlite
-    ( SqlPersistT, (==.) )
 import Fmt
     ( Buildable (..), listF, pretty )
 import Test.Hspec
@@ -89,27 +73,28 @@ import Test.QuickCheck
 import Test.QuickCheck.Monadic
     ( PropertyM, assert, monadicIO, monitor, pick, run )
 import UnliftIO.Exception
-    ( bracket, impureThrow )
+    ( impureThrow )
 
-import qualified Cardano.Wallet.DB.Sqlite.Schema as Schema
 import qualified Data.Map.Strict as Map
 
 spec :: Spec
-spec = around withDBInMemory $ do
-    describe "Writing and loading" $ do
-        it "loadPrologue . insertPrologue = id  for SeqState" $
-            property . prop_prologue_load_write @(SeqState 'Mainnet ShelleyKey) id
+spec = do
+    around (withDBInMemory ForeignKeysEnabled) $ do
+        describe "Writing and loading" $ do
+            it "loadPrologue . insertPrologue = id  for SeqState" $
+                property . prop_prologue_load_write @(SeqState 'Mainnet ShelleyKey) id
 
-        it "loadPrologue . insertPrologue = id  for RndState" $
-            property . prop_prologue_load_write @(RndState 'Mainnet) id
+            it "loadPrologue . insertPrologue = id  for RndState" $
+                property . prop_prologue_load_write @(RndState 'Mainnet) id
 
-        it "loadPrologue . insertPrologue = id  for SharedState" $
-            property . prop_prologue_load_write @(SharedState 'Mainnet SharedKey)
-                (\s -> s { ready = Pending })
+            it "loadPrologue . insertPrologue = id  for SharedState" $
+                property . prop_prologue_load_write @(SharedState 'Mainnet SharedKey)
+                    (\s -> s { ready = Pending })
 
-    describe "Update" $ do
-        it "mkStoreWallet" $
-            property . prop_StoreWallet @(SeqState 'Mainnet ShelleyKey)
+    around (withDBInMemory ForeignKeysEnabled) $ do
+        describe "Update" $ do
+            it "mkStoreWallet" $
+                property . prop_StoreWallet @(SeqState 'Mainnet ShelleyKey)
 
 {-------------------------------------------------------------------------------
     Properties
@@ -259,42 +244,6 @@ prop_StoreUpdates toIO store gen0 more = do
         Left err -> impureThrow err
         Right a  -> do
             assert $ a == head as
-
-{-------------------------------------------------------------------------------
-    DB setup
--------------------------------------------------------------------------------}
-withDBInMemory :: (SqliteContext -> IO a) -> IO a
-withDBInMemory action = bracket newDBInMemory fst (action . snd)
-
-newDBInMemory :: IO (IO (), SqliteContext)
-newDBInMemory = newInMemorySqliteContext nullTracer [] migrateAll
-
-initializeWallet :: WalletId -> SqlPersistT IO ()
-initializeWallet wid = do
-    deleteWhere [Schema.WalId ==. wid] -- triggers delete cascade
-    insertWalletTable wid
-
--- | Insert a wallet table in order to satisfy  FOREIGN PRIMARY constraints
-insertWalletTable :: WalletId -> SqlPersistT IO ()
-insertWalletTable wid = insert_ $ Wallet
-    { walId = wid
-    , walName = "Stores"
-    , walCreationTime = dummyUTCTime
-    , walPassphraseLastUpdatedAt = Nothing
-    , walPassphraseScheme = Nothing
-    , walGenesisHash = BlockId dummyHash
-    , walGenesisStart = dummyUTCTime
-    }
-
-{-------------------------------------------------------------------------------
-    Arbitrary
--------------------------------------------------------------------------------}
-dummyUTCTime :: UTCTime
-dummyUTCTime = posixSecondsToUTCTime 1506203091
-
-dummyHash :: Hash "BlockHeader"
-dummyHash = Hash $ unsafeFromHex
-    "5f20df933584822601f9e3f8c024eb5eb252fe8cefb24d1317dc3d432e940ebb"
 
 {-------------------------------------------------------------------------------
     QuickCheck utilities

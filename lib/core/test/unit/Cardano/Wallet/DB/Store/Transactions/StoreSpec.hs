@@ -9,6 +9,8 @@ module Cardano.Wallet.DB.Store.Transactions.StoreSpec (spec) where
 
 import Prelude
 
+import Cardano.DB.Sqlite
+    ( ForeignKeysSetting (..) )
 import Cardano.Wallet.DB.Arbitrary
     ()
 import Cardano.Wallet.DB.Fixtures
@@ -53,7 +55,7 @@ import qualified List.Transformer as LT
 
 spec :: Spec
 spec = do
-    around withDBInMemory $ do
+    around (withDBInMemory ForeignKeysEnabled) $ do
         describe "Transactions store" $ do
             it "respects store laws" $
                 property . prop_StoreLaws
