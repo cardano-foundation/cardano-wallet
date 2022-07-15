@@ -66,6 +66,12 @@ createPlan
     -> RewardWithdrawal
     -> MigrationPlan
 createPlan constraints utxo reward = MigrationPlan
+-- To fix the migration integration test (and make migration better in Babbage)
+-- we could:
+--
+-- 1. Find the largest address in the UTxO
+-- 2. Call a `setMaxAddress :: TxConstraints -> TxConstraints` beforing passing
+-- the constraints on here.
     { selections = view #selections plan
     , unselected = Planning.uncategorizeUTxO (view #unselected plan)
     , totalFee = view #totalFee plan

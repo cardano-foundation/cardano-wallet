@@ -2005,6 +2005,62 @@ balanceTransactionWithSelectionStrategy
                     $ runExceptT
                     $ performSelection selectionConstraints selectionParams
 
+
+-- HACK: We will assume the wallet will never need more than 20 change
+-- addresses. This will allow us to know the largest change address we could
+-- possibly generate.
+--
+-- By using @cycle@ if we need more than 20 when assigning change addresses, we
+-- can also make the assumtion true by definition!
+--
+-- We need to keep the 's' around for each 'Address' to know how to update our
+-- state once
+--
+changeAddresses :: GenChange s => ArgGenChange s -> s -> [(Address, s)]
+changeAddresses = error "todo"
+
+-- Use this to construct a 'TxConstraints' where only a 'TokenBundle' is needed
+-- to compute the minUTxOValue.
+largestAddress :: [(Address, s)] -> Address
+largestAddress = error "todo"
+
+assignChangeAddresses
+    :: [(Address, s)] -- Pool of availble change addresses
+    -> Selection
+    -> s
+    -> (SelectionOf TxOut, s)
+assignChangeAddresses changeAddrs =
+    let
+        changeBundles = view #change sel
+
+        changeOuts = zip (cycleState changeAddrs) changeBundles
+    in
+        (sel { change = changeOuts }, s)
+  where
+
+    -- Keep the last state of the input list when cycling back to the beginning.
+    --
+    -- >>> cycleState [(a0,s0), (a1,s1), (a2, s2)]
+    -- [(a0,s0), (a1, s1), (a2, s2), (a0, s2), (a1, s2) ... ]
+    cycleState :: [(a,s)] -> [(a,s)]
+    cycleState x = go x x
+      where
+        go ((x,finalState):[]) list = map ((,finalState) . fst) list
+
+
+assignChangeAddressesAndUpdateDb
+    :: forall ctx s k.
+        ( HasDBLayer IO s k ctx
+        , AddressBookIso s
+        )
+    => ctx
+    -> WalletId
+    -> [(Address, s)] -- ^ Pool of availble change addresses
+    -> Selection
+    -> ExceptT ErrSignPayment IO (SelectionOf TxOut)
+assignChangeAddressesAndUpdateDb = error "todo"
+
+
 -- | Augments the given outputs with new outputs. These new outputs correspond
 -- to change outputs to which new addresses have been assigned. This updates
 -- the wallet state as it needs to keep track of new pending change addresses.
@@ -2020,15 +2076,24 @@ assignChangeAddresses argGenChange sel = runState $ do
         pure $ TxOut addr bundle
     pure $ sel { change = changeOuts }
 
+
+-- Will this break atomicity? If so we probably shouldn't do it.
 assignChangeAddressesAndUpdateDb
     :: forall ctx s k.
-        ( GenChange s
-        , HasDBLayer IO s k ctx
+        ( HasDBLayer IO s k ctx
         , AddressBookIso s
         )
     => ctx
     -> WalletId
-    -> ArgGenChange s
+    -> [(Address, s)]
+    -- ^ FIXME: This will break atomicity; the reading and writing of 's' would
+    -- now be done in wildly different places...
+    --
+    -- It might be unwise to try to quickly reduce minAdaQuantity overestimation
+    -- in change generation, then.
+    --
+    -- Re-thinking 'GenChange' is highly relevant to the balanceTx library
+    -- anyway, but would demand some proper thinking.
     -> Selection
     -> ExceptT ErrSignPayment IO (SelectionOf TxOut)
 assignChangeAddressesAndUpdateDb ctx wid generateChange selection =

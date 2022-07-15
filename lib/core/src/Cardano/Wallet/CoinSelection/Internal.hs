@@ -820,6 +820,9 @@ verifySelectionOutputCoinsSufficient cs _ps selection =
         | otherwise =
             Nothing
       where
+        -- FIXME: We have access to the address here!
+        --
+        -- Using the real address would allow users to send 1 ada again!
         minimumExpectedCoin :: Coin
         minimumExpectedCoin =
             (cs ^. #computeMinimumAdaQuantity)
@@ -1437,6 +1440,9 @@ prepareOutputsWith
 prepareOutputsWith minCoinValueFor =
     fmap $ fmap augmentBundle
   where
+    -- FIXME: We have access to the real address here.
+    --
+    -- Using the real address could make transfering NFTs up to 0.3 ada cheaper!
     augmentBundle :: TokenBundle -> TokenBundle
     augmentBundle bundle
         | TokenBundle.getCoin bundle == Coin 0 =
