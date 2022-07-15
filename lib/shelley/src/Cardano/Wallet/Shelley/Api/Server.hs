@@ -66,6 +66,7 @@ import Cardano.Wallet.Api.Server
     , constructSharedTransaction
     , constructTransaction
     , createMigrationPlan
+    , decodeSharedTransaction
     , decodeTransaction
     , delegationFee
     , deleteTransaction
@@ -607,6 +608,7 @@ server byron icarus shelley multisig spl ntp =
     sharedTransactions apilayer =
         constructSharedTransaction apilayer (constructAddressFromIx @n UtxoInternal)
             (knownPools spl) (getPoolLifeCycleStatus spl)
+        :<|> decodeSharedTransaction apilayer
 
 postAnyAddress
     :: NetworkId

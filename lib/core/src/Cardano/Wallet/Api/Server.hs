@@ -97,6 +97,7 @@ module Cardano.Wallet.Api.Server
     , postPolicyKey
     , postPolicyId
     , constructSharedTransaction
+    , decodeSharedTransaction
 
     -- * Server error responses
     , IsServerError(..)
@@ -2707,6 +2708,19 @@ constructSharedTransaction ctx genChange _knownPools _getPoolStatus (ApiT wid) b
   where
     ti :: TimeInterpreter (ExceptT PastHorizonException IO)
     ti = timeInterpreter (ctx ^. networkLayer)
+
+decodeSharedTransaction
+    :: forall ctx s k n.
+        ( ctx ~ ApiLayer s k
+        , IsOurs s Address
+        , Typeable s
+        , Typeable n
+        )
+    => ctx
+    -> ApiT WalletId
+    -> ApiSerialisedTransaction
+    -> Handler (ApiDecodedTransaction n)
+decodeSharedTransaction _ctx (ApiT _wid) (ApiSerialisedTransaction (ApiT _sealed)) = undefined
 
 
 -- TODO: Most of the body of this function should really belong to
