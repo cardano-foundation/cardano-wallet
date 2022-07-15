@@ -164,7 +164,9 @@ instance Buildable DeltaTxHistory where
 
 instance Delta DeltaTxHistory where
     type Base DeltaTxHistory = TxHistory
-    apply (Append txs) h = h <> txs
+    -- transactions are immutable so here there should happen no rewriting
+    -- but we mimic the repsert in the store
+    apply (Append txs) h = txs <> h 
     apply (DeleteTx tid) (TxHistoryF txs) =
         TxHistoryF $ Map.delete tid txs
 
