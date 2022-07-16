@@ -133,6 +133,7 @@ import Cardano.Wallet.Shelley.Network.Blockfrost.Conversion
     , fromBfEpoch
     , fromBfLovelaces
     , fromBfPoolId
+    , fromBfTxHash
     )
 import Cardano.Wallet.Shelley.Network.Blockfrost.Error
     ( BlockfrostError (..)
@@ -200,7 +201,7 @@ import Data.Set
 import Data.Text
     ( Text )
 import Data.Text.Class
-    ( FromText (fromText), ToText (..) )
+    ( ToText (..) )
 import Data.These
     ( These (That, These, This) )
 import Data.Traversable
@@ -697,7 +698,7 @@ assembleTransaction
     BF.TransactionUtxos{..}
     txWithdrawals
     metadataJSON = either (throwIO . BlockfrostException) pure do
-        txId <- parseTxHash _transactionHash
+        txId <- fromBfTxHash $ BF.TxHash _transactionHash
         let fee = Just $ Coin $ fromIntegral _transactionFees
         (resolvedInputs, resolvedCollateralInputs) <-
             fromInputs _transactionUtxosInputs
@@ -756,16 +757,13 @@ assembleTransaction
             isRegularTxIn = not . BF._utxoInputCollateral
             f :: [BF.UtxoInput] -> Either BlockfrostError [(TxIn, Coin)]
             f = traverse \input@BF.UtxoInput{..} -> do
-                txHash <- parseTxHash $ BF.unTxHash _utxoInputTxHash
+                txHash <- fromBfTxHash _utxoInputTxHash
                 txIndex <- _utxoInputOutputIndex <?#> "_utxoInputOutputIndex"
                 coin <-
                     case [lovelaces | BF.AdaAmount lovelaces <- _utxoInputAmount] of
                         [l] -> fromBfLovelaces l
                         _ -> throwError $ InvalidUtxoInputAmount input
                 pure (TxIn txHash txIndex, coin)
-
-        parseTxHash hash =
-            either (throwError . InvalidTxHash hash) pure $ fromText hash
 
 unmarshalMetadataValue :: Aeson.Value -> Either String TxMetadataValue
 unmarshalMetadataValue = \case
