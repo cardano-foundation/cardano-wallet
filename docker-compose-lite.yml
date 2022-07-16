@@ -1,0 +1,36 @@
+version: "3.5"
+
+services:
+  cardano-wallet:
+    image: inputoutput/cardano-wallet:2022.7.1
+    volumes:
+      - wallet-${NETWORK}-light-db:/wallet-db-light
+      - node-ipc:/ipc
+      - ./config:/config  
+    ports:
+      - 8090:8090
+    entrypoint: []
+    command: bash -c "
+        ([[ $$NETWORK == \"mainnet\" ]] && $$CMD --mainnet) ||
+        ($$CMD --testnet /config/${NETWORK}/genesis-byron.json)
+      "
+    environment:
+      CMD: "cardano-wallet serve --light --blockfrost-token-file config/blockfrost-testnet.key --database /wallet-db-light --listen-address 0.0.0.0"
+      NETWORK:
+    restart: on-failure
+    logging:
+      driver: "json-file"
+      options:
+        compress: "true"
+        max-file: "10"
+        max-size: "50m"
+
+volumes:
+  node-mainnet-db:
+  node-testnet-db:
+  node-alonzo-purple-db:
+  wallet-mainnet-db:
+  wallet-testnet-light-db:
+  wallet-alonzo-purple-db:
+  node-ipc:
+  node-config:

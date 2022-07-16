@@ -1,0 +1,65 @@
+{
+    "epochLength": 500,
+    "activeSlotsCoeff": 1.0,
+    "slotLength": 0.1,
+    "securityParam": 100,
+    "genDelegs": {},
+    "initialFunds": {
+        "00813c32c92aad21770ff8001de0918f598df8c06775f77f8e8839d2a0074a515f7f32bf31a4f41c7417a8136e8152bfb42f06d71b389a6896": 900000000000,
+        "609783be7d3c54f11377966dfabc9284cd6c32fca1cd42ef0a4f1cc45b": 900000000000
+    },
+    "maxKESEvolutions": 60,
+    "maxLovelaceSupply": 2000000000000,
+    "networkId": "Testnet",
+    "networkMagic": 42,
+    "protocolParams": {
+        "a0": 0.0,
+        "decentralisationParam": 0,
+        "eMax": 18,
+        "extraEntropy": {
+            "tag": "NeutralNonce"
+        },
+        "keyDeposit": 0,
+        "maxBlockBodySize": 65536,
+        "maxBlockHeaderSize": 1100,
+        "maxTxSize": 32768,
+        "minFeeA": 44,
+        "minFeeB": 155381,
+        "minPoolCost": 0,
+        "minUTxOValue": 0,
+        "nOpt": 100,
+        "poolDeposit": 0,
+        "protocolVersion": {
+            "major": 7,
+            "minor": 0
+        },
+        "rho": 0.1,
+        "tau": 0.1
+    },
+    "slotsPerKESPeriod": 129600,
+    "staking": {
+        "pools": {
+            "8a219b698d3b6e034391ae84cee62f1d76b6fbc45ddfe4e31e0d4b60": {
+                "cost": 0,
+                "margin": 0.0,
+                "metadata": null,
+                "owners": [],
+                "pledge": 0,
+                "publicKey": "8a219b698d3b6e034391ae84cee62f1d76b6fbc45ddfe4e31e0d4b60",
+                "relays": [],
+                "rewardAccount": {
+                    "credential": {
+                        "key hash": "b6ffb20cf821f9286802235841d4348a2c2bafd4f73092b7de6655ea"
+                    },
+                    "network": "Testnet"
+                },
+                "vrf": "fec17ed60cbf2ec5be3f061fb4de0b6ef1f20947cfbfce5fb2783d12f3f69ff5"
+            }
+        },
+        "stake": {
+            "074a515f7f32bf31a4f41c7417a8136e8152bfb42f06d71b389a6896": "8a219b698d3b6e034391ae84cee62f1d76b6fbc45ddfe4e31e0d4b60"
+        }
+    },
+    "systemStart": "2022-07-13T13:28:33Z",
+    "updateQuorum": 2
+}

@@ -1,0 +1,36 @@
+{
+    "protocolConsts": {
+        "k": 2160,
+        "protocolMagic": 42
+    },
+    "startTime": 1657718913,
+    "blockVersionData": {
+        "scriptVersion": 0,
+        "slotDuration": "250",
+        "maxBlockSize": "2000000",
+        "maxHeaderSize": "2000000",
+        "maxTxSize": "4096",
+        "maxProposalSize": "700",
+        "mpcThd": "20000000000000",
+        "heavyDelThd": "300000000000",
+        "updateVoteThd": "1000000000000",
+        "updateProposalThd": "100000000000000",
+        "updateImplicit": "10000",
+        "softforkRule": {
+            "initThd": "900000000000000",
+            "minThd": "600000000000000",
+            "thdDecrement": "50000000000000"
+        },
+        "txFeePolicy": {
+            "summand": "155381000000000",
+            "multiplier": "43000000000"
+        },
+        "unlockStakeEpoch": "18446744073709551615"
+    },
+    "bootStakeholders": {
+        "7a4519c93d7be4577dd85bd524c644e6b809e44eae0457b43128c1c7": 1
+    },
+    "heavyDelegation": {},
+    "nonAvvmBalances": {},
+    "avvmDistr": {}
+}
