@@ -2697,7 +2697,7 @@ spec = describe "NEW_SHELLEY_TRANSACTIONS" $ do
 
     it "TRANS_NEW_JOIN_02 - Can join stakepool in case I have many UTxOs on 1 address"
         $ \ctx -> runResourceT $ do
-        let amt = 1_000_000
+        let amt = minUTxOValue (_mainEra ctx)
         src <- emptyWallet ctx
         wa <- fixtureWallet ctx
 
@@ -3434,13 +3434,11 @@ spec = describe "NEW_SHELLEY_TRANSACTIONS" $ do
         -- UTxO plus additional adjusting of assets in output. Here, we are
         -- having 80-byte (10-word) asset's additional burden
         --
-        let lovelacePerUtxoWord =
+        let minUtxoWithAsset = minutxo +
+                -- The extra amount is dependent on the era:
                 if _mainEra ctx >= ApiBabbage
-                then 34480
-                -- Not sure why this differs... perhaps because of the new
-                -- minUTxO calculation. Should be fine nonethenless though.
-                else 34482
-        let minUtxoWithAsset = minutxo + 10*lovelacePerUtxoWord
+                then 176_710
+                else 344_820 -- = 34_482 lovelace per word * 10 words
 
         eventually
             "Wallet balance is decreased by fee and adjusted minimum UTxO and \

@@ -18,10 +18,10 @@ module Cardano.Wallet.Shelley.MinimumUTxO
 
 import Prelude
 
-import Cardano.Wallet.Api.Types
-    ( DecodeAddress (..) )
-import Cardano.Wallet.Primitive.AddressDerivation
-    ( NetworkDiscriminant (..) )
+import Cardano.Wallet.Primitive.Passphrase
+    ( Passphrase (..) )
+import Cardano.Wallet.Primitive.Types
+    ( ProtocolMagic (..) )
 import Cardano.Wallet.Primitive.Types.Address
     ( Address (..) )
 import Cardano.Wallet.Primitive.Types.Coin
@@ -48,6 +48,11 @@ import Numeric.Natural
     ( Natural )
 
 import qualified Cardano.Api.Shelley as Cardano
+import qualified Cardano.Byron.Codec.Cbor as Byron
+import qualified Cardano.Crypto.Wallet as CC
+import qualified Codec.CBOR.Write as CBOR
+import qualified Data.ByteArray as BA
+import qualified Data.ByteString as BS
 
 -- | Computes a minimum 'Coin' value for a 'TokenMap' that is destined for
 --   inclusion in a transaction output.
@@ -145,17 +150,29 @@ embedTokenMapWithinPaddedTxOut era m =
 -- for inclusion in a transaction output.
 --
 maxLengthAddress :: Address
-maxLengthAddress = largeByronAddress
+maxLengthAddress = longestByronAddrGeneratedByWallet
   where
-    -- FIXME: It's imperative to return the largest possible address, which is a
-    -- byron address. The following is /a/ large one, but not necessarily /the
-    -- largest/:
-    largeByronAddress :: Address
-    largeByronAddress = unsafeDecodeAddr
-        "DdzFFzCqrht74rkP7eNhMp9iaQ79JQZzHX6QxjoFoie4qAn5D2MESx3Rzpqtc9zX6ASEdDT\
-        \hwJyqjc2kjqHMFnoUnC79GmmNCB9Vfe6a"
+    -- This should be the longest possible address the wallet can generate,
+    -- with a length of 86 bytes. (We can look at the callsites to encodeAddress
+    -- to confirm)
+    --
+    -- With 4310 lovelace/byte, the minimum utxo value for a pure-ada output is
+    -- now 1.107670 ada (according to /v2/network/information). The largest
+    -- possible overestimation should be (86-29) bytes, or 0.245670 ada.
+    longestByronAddrGeneratedByWallet = Address
+        $ CBOR.toStrictByteString
+        $ Byron.encodeAddress xpub
+            [ Byron.encodeDerivationPathAttr pwd maxBound maxBound
+            , Byron.encodeProtocolMagicAttr (ProtocolMagic maxBound)
+            ]
       where
-        unsafeDecodeAddr = either (error . show) id . decodeAddress @'Mainnet
+        -- Must apparently always be 32 bytes
+        pwd :: Passphrase "addr-derivation-payload"
+        pwd = Passphrase $ BA.convert $ BS.replicate 32 0
+
+        xpub = CC.toXPub $ CC.generate (BS.replicate 32 0) xprvPass
+          where
+            xprvPass = mempty :: BS.ByteString
 
 -- | A 'Coin' value that is maximal in length when serialized to bytes.
 --

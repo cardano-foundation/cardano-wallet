@@ -952,8 +952,12 @@ spec = describe "SHELLEY_TRANSACTIONS" $ do
                 { testName =
                     "transaction with metadata from ADP-1005 (2 outputs)"
                 , txOutputAdaQuantities = \_minUTxOVal ->
-                    -- The exact ada quantities recorded in ADP-1005:
-                    [1_000_000, 498_283_127]
+                    -- An ada quantity that is greater than or equal to the
+                    -- minimum ada quantity for all known eras:
+                    [ 1_107_670
+                    -- The exact ada quantity recorded in ADP-1005:
+                    , 498_283_127
+                    ]
                 , txMetadata =
                       Just txMetadata_ADP_1005
                 , expectedFee =

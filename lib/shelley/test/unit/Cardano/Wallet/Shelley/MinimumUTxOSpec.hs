@@ -134,11 +134,9 @@ spec = do
             goldenTests_computeMinimumCoinForUTxO "Alonzo"
                 goldenMinimumUTxO_Alonzo
                 goldenMinimumCoins_Alonzo
-
-            -- FIXME [ADP-1978] Re-enable
-            --goldenTests_computeMinimumCoinForUTxO "Babbage"
-            --    goldenMinimumUTxO_Babbage
-            --    goldenMinimumCoins_Babbage
+            goldenTests_computeMinimumCoinForUTxO "Babbage"
+                goldenMinimumUTxO_Babbage
+                goldenMinimumCoins_Babbage
 
 -- Check that it's possible to evaluate 'computeMinimumCoinForUTxO' without
 -- any run-time error.
@@ -346,9 +344,8 @@ goldenMinimumUTxO_Alonzo =
     minimumUTxOForShelleyBasedEra ShelleyBasedEraAlonzo
         def {Alonzo._coinsPerUTxOWord = testParameter_coinsPerUTxOWord_Alonzo}
 
--- FIXME [ADP-1978] Re-enable
-_goldenMinimumUTxO_Babbage :: MinimumUTxO
-_goldenMinimumUTxO_Babbage =
+goldenMinimumUTxO_Babbage :: MinimumUTxO
+goldenMinimumUTxO_Babbage =
     minimumUTxOForShelleyBasedEra ShelleyBasedEraBabbage
         def {Babbage._coinsPerUTxOByte = testParameter_coinsPerUTxOByte_Babbage}
 
@@ -392,14 +389,13 @@ goldenMinimumCoins_Alonzo =
     , (goldenTokenMap_4, Coin 1_862_028)
     ]
 
--- FIXME [ADP-1978] Re-enable
-_goldenMinimumCoins_Babbage :: [(TokenMap, Coin)]
-_goldenMinimumCoins_Babbage =
-    [ (goldenTokenMap_0, Coin   995_610)
-    , (goldenTokenMap_1, Coin 1_150_770)
-    , (goldenTokenMap_2, Coin 1_323_170)
-    , (goldenTokenMap_3, Coin 1_323_170)
-    , (goldenTokenMap_4, Coin 2_012_770)
+goldenMinimumCoins_Babbage :: [(TokenMap, Coin)]
+goldenMinimumCoins_Babbage =
+    [ (goldenTokenMap_0, Coin 1_107_670)
+    , (goldenTokenMap_1, Coin 1_262_830)
+    , (goldenTokenMap_2, Coin 1_435_230)
+    , (goldenTokenMap_3, Coin 1_435_230)
+    , (goldenTokenMap_4, Coin 2_124_830)
     ]
 
 --------------------------------------------------------------------------------
