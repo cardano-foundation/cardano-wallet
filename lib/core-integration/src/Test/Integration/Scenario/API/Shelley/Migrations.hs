@@ -506,7 +506,7 @@ spec = describe "SHELLEY_MIGRATIONS" $ do
             -- small enough to make the migration algorithm categorize the
             -- entry as a freerider.
             --
-            let perEntryAdaQuantity = Coin 1_562_500
+            let perEntryAdaQuantity = Coin 1_462_500
             let perEntryAssetCount = 1
             let batchSize = 20
             sourceAddresses <- take 20 . map (getApiT . fst . view #id)
@@ -520,7 +520,7 @@ spec = describe "SHELLEY_MIGRATIONS" $ do
 
             -- Check that minting was successful, and that the balance and UTxO
             -- distribution have both changed accordingly:
-            let expectedBalanceAda = 287_500_000
+            let expectedBalanceAda = 275_500_000
             let expectedAssetCount = 20
             request @ApiWallet ctx
                 (Link.getWallet @'Shelley sourceWallet) Default Empty
@@ -566,9 +566,9 @@ spec = describe "SHELLEY_MIGRATIONS" $ do
                 , expectField id
                     ((`shouldBe` 1) . apiPlanTotalOutputCount)
                 , expectField (#balanceSelected . #ada . #getQuantity)
-                    (`shouldBe` 257_812_500)
+                    (`shouldBe` 247_712_500)
                 , expectField (#balanceLeftover . #ada . #getQuantity)
-                    (`shouldBe`  29_687_500)
+                    (`shouldBe` 27_787_500)
                 , expectField (#balanceSelected . #assets . #getApiT)
                     ((.> 0) . TokenMap.size)
                 , expectField (#balanceLeftover . #assets . #getApiT)
