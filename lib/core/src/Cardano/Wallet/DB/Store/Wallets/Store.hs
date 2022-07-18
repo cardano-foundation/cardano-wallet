@@ -57,7 +57,7 @@ import qualified Cardano.Wallet.DB.Store.Transactions.Model as TxStore
 import qualified Cardano.Wallet.Primitive.Types as W
 import qualified Data.Map.Strict as Map
 
--- | Store for 'WalletsMeta' of multiple different wallets.
+-- | Store for a map of 'DeltaTxMetaHistory' of multiple different wallets.
 mkStoreWalletsMeta :: Store
         (SqlPersistT IO)
         (DeltaMap W.WalletId DeltaTxMetaHistory)
@@ -86,6 +86,7 @@ mkStoreWalletsMeta =
             xs <- forM wids $ ExceptT . loadS . mkStoreMetaTransactions
             pure $ Map.fromList $ zip wids xs
 
+-- | Store for 'DeltaTxWalletsHistory'.
 mkStoreTxWalletsHistory
     :: Store (SqlPersistT IO) DeltaTxWalletsHistory
 mkStoreTxWalletsHistory =

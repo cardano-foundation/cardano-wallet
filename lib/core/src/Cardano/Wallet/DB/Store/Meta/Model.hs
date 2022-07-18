@@ -60,11 +60,17 @@ instance Buildable TxMetaHistory where
         "TxMetaHistory "
         <> build (length $ relations txs)
 
--- | Meta changes that can be issued independently from the transaction store.
+-- | Verbs for 'TxMeta' changes
+-- that can be issued independently from the transaction store.
 data ManipulateTxMetaHistory
     = PruneTxMetaHistory TxId
+    -- ^ Remove a meta if it is /not/ in the ledger.
     | AgeTxMetaHistory W.SlotNo
+    -- ^ Change the state of any meta to 'Expired'
+    -- if the given slot is equal or after its expiration slot.
     | RollBackTxMetaHistory W.SlotNo
+    -- ^ Remove all incoming transactions created after the given slot and
+    -- mark all outgoing transactions after the given slot as 'Pending'.
     deriving ( Eq, Show )
 
 -- | All meta-transactions changes, including the addition of new
@@ -135,6 +141,7 @@ mkTxMetaEntity wid tx derived =
           W.TxScriptInvalid -> False
     }
 
+-- | Compute a 'TxMetaHistory' for a wallet.
 mkTxMetaHistory :: W.WalletId -> [(W.Tx, W.TxMeta)] -> TxMetaHistory
 mkTxMetaHistory wid txs = TxMetaHistory $
     Map.fromList
