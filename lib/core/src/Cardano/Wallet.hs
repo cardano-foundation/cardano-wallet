@@ -2304,8 +2304,6 @@ signTransaction
      )
   => TransactionLayer k SealedTx
   -- ^ The way to interact with the wallet backend
-  -> Cardano.AnyCardanoEra
-  -- ^ The era to operate in
   -> (Address -> Maybe (k 'AddressK XPrv, Passphrase "encryption"))
   -- ^ The wallets address-key lookup function
   -> (k 'RootK XPrv, Passphrase "encryption")
@@ -2318,7 +2316,7 @@ signTransaction
   -> SealedTx
   -- ^ The original transaction, with additional signatures added where
   -- necessary
-signTransaction tl era keyLookup (rootKey, rootPwd) utxo =
+signTransaction tl keyLookup (rootKey, rootPwd) utxo =
     let
         rewardAcnt :: (XPrv, Passphrase "encryption")
         rewardAcnt =
@@ -2338,7 +2336,7 @@ signTransaction tl era keyLookup (rootKey, rootPwd) utxo =
             TxOut addr _ <- UTxO.lookup i utxo
             pure addr
     in
-        addVkWitnesses tl era rewardAcnt policyKey keyLookup inputResolver
+        addVkWitnesses tl rewardAcnt policyKey keyLookup inputResolver
 
 -- | Produce witnesses and construct a transaction from a given selection.
 --

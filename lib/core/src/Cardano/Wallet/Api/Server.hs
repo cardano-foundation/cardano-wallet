@@ -2000,8 +2000,6 @@ signTransaction ctx (ApiT wid) body = do
         let
             db = wrk ^. W.dbLayer @IO @s @k
             tl = wrk ^. W.transactionLayer @k
-            nl = wrk ^. W.networkLayer
-        era <- liftIO $ NW.currentNodeEra nl
         db & \W.DBLayer{atomically, readCheckpoint} -> do
             W.withRootKey @_ @s wrk wid pwd ErrWitnessTxWithRootKey $ \rootK scheme -> do
                 cp <- mapExceptT atomically
@@ -2020,7 +2018,7 @@ signTransaction ctx (ApiT wid) body = do
                         -> Maybe (k 'AddressK XPrv, Passphrase "encryption")
                     keyLookup = isOwned (getState cp) (rootK, pwdP)
 
-                pure $ W.signTransaction tl era keyLookup (rootK, pwdP) utxo sealedTx
+                pure $ W.signTransaction tl keyLookup (rootK, pwdP) utxo sealedTx
 
     -- TODO: The body+witnesses seem redundant with the sealedTx already. What's
     -- the use-case for having them provided separately? In the end, the client
