@@ -147,7 +147,7 @@ import Data.Generics.Internal.VL.Lens
 import Data.List
     ( sortOn )
 import Data.Maybe
-    ( catMaybes, listToMaybe, maybeToList )
+    ( catMaybes, fromMaybe, listToMaybe, maybeToList )
 import Data.Ord
     ( Down (..) )
 import Data.Proxy
@@ -757,32 +757,30 @@ newDBLayerWith _cacheBehavior _tr ti SqliteContext{runQuery} = do
                             $ AgeTxMetaHistory tip
                     in  (delta, Right ())
 
-        , removePendingOrExpiredTx = \wid txId -> ExceptT $ do
-            modifyDBMaybe transactionsDBVar $ \(TxHistoryF _txsOld, ws) ->
-                case Map.lookup wid ws of
-                    Nothing ->
-                        ( Nothing
+        , removePendingOrExpiredTx = \wid txId ->
+            let noTx =
+                    (   Nothing
                         , Left
-                            $ ErrRemoveTxNoSuchWallet
-                            $ ErrNoSuchWallet wid
-                        )
-                    Just (TxMetaHistory metas)  ->
-                        case Map.lookup (TxId txId) metas of
-                            Just DB.TxMeta{..} ->
-                                if txMetaStatus == W.InLedger then
-                                    (Nothing,
-                                        Left $ ErrRemoveTxAlreadyInLedger txId
-                                    )
-                                else
-                                    let delta = Just
-                                            $ ChangeTxMetaWalletsHistory wid
-                                            $ PruneTxMetaHistory $ TxId txId
-                                    in  (delta, Right ())
-                            Nothing ->
-                                (Nothing, Left
-                                    $ ErrRemoveTxNoSuchTransaction
-                                    $ ErrNoSuchTransaction wid txId
-                                    )
+                            $ ErrRemoveTxNoSuchTransaction
+                            $ ErrNoSuchTransaction wid txId
+                    )
+            in ExceptT $ selectWallet wid >>= \case
+                Nothing -> pure $ Left
+                    $ ErrRemoveTxNoSuchWallet
+                    $ ErrNoSuchWallet wid
+                Just _ -> modifyDBMaybe transactionsDBVar
+                    $ \(TxHistoryF _txsOld, ws) -> fromMaybe noTx $ do
+                        TxMetaHistory metas <- Map.lookup wid ws
+                        DB.TxMeta{..} <- Map.lookup (TxId txId) metas
+                        pure $
+                            if txMetaStatus == W.InLedger
+                            then (Nothing
+                                , Left $ ErrRemoveTxAlreadyInLedger txId)
+                            else
+                                let delta = Just
+                                        $ ChangeTxMetaWalletsHistory wid
+                                        $ PruneTxMetaHistory $ TxId txId
+                                in  (delta, Right ())
 
         , getTx = \wid tid -> ExceptT $ do
             readCheckpoint_ wid >>= \case
