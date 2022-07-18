@@ -156,7 +156,9 @@ type TxHistory = TxHistoryF 'Without
 -- | Verbs to change a 'TxHistory'.
 data DeltaTxHistory
     = Append TxHistory
+    -- ^ Add new set of transactions, rewriting by transaction id.
     | DeleteTx TxId
+    -- ^ Try to remove the transaction at the given transaction id.
     deriving ( Show, Eq, Generic )
 
 instance Buildable DeltaTxHistory where
@@ -192,11 +194,11 @@ mkTxCollateral tid (ix,(txCollateral,amt)) =
     , txCollateralSourceAmount = amt
     }
 
--- | The key to sort TxCollateralOutToken
+-- The key to sort TxCollateralOutToken
 tokenCollateralOrd :: TxCollateralOutToken -> (TokenPolicyId, TokenName)
 tokenCollateralOrd = txCollateralOutTokenPolicyId &&& txCollateralOutTokenName
 
--- | The key to sort TxOutToken
+-- The key to sort TxOutToken
 tokenOutOrd :: TxOutToken -> (TokenPolicyId, TokenName)
 tokenOutOrd = txOutTokenPolicyId &&& txOutTokenName
 
