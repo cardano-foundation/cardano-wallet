@@ -79,7 +79,7 @@ instance Buildable DeltaTxMetaHistory where
 
 instance Delta DeltaTxMetaHistory where
     type Base DeltaTxMetaHistory = TxMetaHistory
-    apply (Expand txs) h = h <> txs
+    apply (Expand txs) h = txs <> h
     apply (Manipulate d) h = apply d h
 
 instance Delta ManipulateTxMetaHistory where
