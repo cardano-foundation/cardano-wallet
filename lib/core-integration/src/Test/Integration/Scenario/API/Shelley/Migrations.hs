@@ -225,8 +225,9 @@ spec = describe "SHELLEY_MIGRATIONS" $ do
             -- entry as a freerider.
 
             let perEntryAdaQuantity = Coin $ case _mainEra ctx of
-                    e | e >= ApiAlonzo -> 3_100_000
-                      | otherwise      -> 3_300_000
+                    e | e == ApiAlonzo  -> 3_100_000
+                      | e == ApiBabbage -> 2_500_000
+                      | otherwise       -> 3_300_000
 
             let perEntryAssetCount = 10
             let batchSize = 20
