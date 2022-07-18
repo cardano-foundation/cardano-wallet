@@ -86,16 +86,23 @@ import qualified Cardano.Wallet.Primitive.Types.Tx as WT
 import qualified Data.Map.Strict as Map
 import qualified Data.Set as Set
 
+-- | Verbs to change transactions store and wallet-indexed meta stores.
 data DeltaTxWalletsHistory
     = ExpandTxWalletsHistory W.WalletId [(WT.Tx, WT.TxMeta)]
+    -- ^ Add transactions and meta for a wallet.
     | ChangeTxMetaWalletsHistory W.WalletId ManipulateTxMetaHistory
+    -- ^ Change metas for a wallet.
     | GarbageCollectTxWalletsHistory
+    -- ^ Delete all transactions that have no metas.
     | RemoveWallet W.WalletId
+    -- ^ Remove all metas of a wallet.
     deriving ( Show, Eq )
 
 instance Buildable DeltaTxWalletsHistory where
     build = build . show
 
+-- | Transactions history is a shared transactions store together with
+-- a set of meta-transactions stores indexed by wallet.
 type TxWalletsHistory = (TxHistory, Map W.WalletId TxMetaHistory)
 
 instance Delta DeltaTxWalletsHistory where
@@ -131,6 +138,9 @@ linkedTransactions (TxMetaHistory m) = Map.keysSet m
 walletsLinkedTransactions :: Map W.WalletId TxMetaHistory -> Set TxId
 walletsLinkedTransactions = Set.unions . toList .  fmap linkedTransactions
 
+-- | Compute a high level view of a transaction known as 'TransactionInfo'
+-- from a 'TxMeta' and a 'TxRelationF'.
+-- Assumes that these data refer to the same 'TxId', does /not/ check this.
 mkTransactionInfo :: Monad m
     => TimeInterpreter m
     -> W.BlockHeader

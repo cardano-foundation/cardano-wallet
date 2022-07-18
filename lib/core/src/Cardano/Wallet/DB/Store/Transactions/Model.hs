@@ -156,7 +156,8 @@ type TxHistory = TxHistoryF 'Without
 -- | Verbs to change a 'TxHistory'.
 data DeltaTxHistory
     = Append TxHistory
-    -- ^ Add new set of transactions, rewriting by transaction id.
+    -- ^ Add new set of transactions.
+    -- Overwrites transactions whose id is already present in the 'TxHistory'.
     | DeleteTx TxId
     -- ^ Try to remove the transaction at the given transaction id.
     deriving ( Show, Eq, Generic )
