@@ -92,6 +92,8 @@ ASSETS = [ { "policy_id" => "ee1ce9d7560f48a4ba3867037dbec2d8fed776d94dd6b00a353
             },
          ]
 
+MIN_UTXO_VALUE = 1107670
+
 def create_incomplete_shared_wallet(m, acc_ix, acc_xpub)
   script_template = { 'cosigners' =>
                         { 'cosigner#0' => acc_xpub },

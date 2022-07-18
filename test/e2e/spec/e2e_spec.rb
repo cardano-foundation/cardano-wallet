@@ -399,7 +399,7 @@ RSpec.describe "Cardano Wallet E2E tests", :all, :e2e do
 
   describe "E2E Construct -> Sign -> Submit" do
     it "Single output transaction" do
-      amt = 1000000
+      amt = MIN_UTXO_VALUE
       address = SHELLEY.addresses.list(@target_id)[0]['id']
       target_before = get_shelley_balances(@target_id)
       src_before = get_shelley_balances(@wid)
@@ -438,7 +438,7 @@ RSpec.describe "Cardano Wallet E2E tests", :all, :e2e do
     end
 
     it "Multi output transaction" do
-      amt = 1000000
+      amt = MIN_UTXO_VALUE
       address = SHELLEY.addresses.list(@target_id)[0]['id']
       target_before = get_shelley_balances(@target_id)
       src_before = get_shelley_balances(@wid)
@@ -1725,7 +1725,7 @@ RSpec.describe "Cardano Wallet E2E tests", :all, :e2e do
 
     describe "Shelley Transactions" do
       it "I can send transaction and funds are received" do
-        amt = 1000000
+        amt = MIN_UTXO_VALUE
 
         address = SHELLEY.addresses.list(@target_id)[0]['id']
         available_before = SHELLEY.wallets.get(@target_id)['balance']['available']['quantity']
@@ -1744,7 +1744,7 @@ RSpec.describe "Cardano Wallet E2E tests", :all, :e2e do
       end
 
       it "I can send transaction with ttl and funds are received" do
-        amt = 1000000
+        amt = MIN_UTXO_VALUE
         ttl_in_s = 1200
 
         address = SHELLEY.addresses.list(@target_id)[0]['id']
@@ -1769,7 +1769,7 @@ RSpec.describe "Cardano Wallet E2E tests", :all, :e2e do
 
       it "Transaction with ttl = 0 would expire and I can forget it" do
         skip "Test is flaky due to ADP-608"
-        amt = 1000000
+        amt = MIN_UTXO_VALUE
         ttl_in_s = 0
 
         address = SHELLEY.addresses.list(@target_id)[0]['id']
@@ -1795,7 +1795,7 @@ RSpec.describe "Cardano Wallet E2E tests", :all, :e2e do
       end
 
       it "I can send transaction using 'withdrawal' flag and funds are received" do
-        amt = 1000000
+        amt = MIN_UTXO_VALUE
         address = SHELLEY.addresses.list(@target_id)[0]['id']
         target_before = get_shelley_balances(@target_id)
         src_before = get_shelley_balances(@wid)
@@ -1816,7 +1816,7 @@ RSpec.describe "Cardano Wallet E2E tests", :all, :e2e do
       end
 
       it "I can send transaction with metadata" do
-        amt = 1000000
+        amt = MIN_UTXO_VALUE
         metadata = METADATA
 
         address = SHELLEY.addresses.list(@target_id)[0]['id']
@@ -1850,7 +1850,7 @@ RSpec.describe "Cardano Wallet E2E tests", :all, :e2e do
         metadata = METADATA
 
         address = SHELLEY.addresses.list(@target_id)[0]['id']
-        amt = [{ address => 1000000 }]
+        amt = [{ address => MIN_UTXO_VALUE }]
 
         txs = SHELLEY.transactions
         fees = txs.payment_fees(@wid, amt)
@@ -2016,7 +2016,7 @@ RSpec.describe "Cardano Wallet E2E tests", :all, :e2e do
       end
 
       it "I can trigger random coin selection delegation action" do
-        pid = SHELLEY.stake_pools.list({ stake: 1000000 }).sample['id']
+        pid = SHELLEY.stake_pools.list({ stake: 10000000 }).sample['id']
         action_join = { action: "join", pool: pid }
 
         rnd = SHELLEY.coin_selections.random_deleg @wid, action_join
@@ -2034,7 +2034,7 @@ RSpec.describe "Cardano Wallet E2E tests", :all, :e2e do
 
       it "I could trigger random coin selection delegation action - if I had money" do
         wid = create_shelley_wallet
-        pid = SHELLEY.stake_pools.list({ stake: 1000000 }).sample['id']
+        pid = SHELLEY.stake_pools.list({ stake: 10000000 }).sample['id']
         action_join = { action: "join", pool: pid }
 
         rnd = SHELLEY.coin_selections.random_deleg wid, action_join
@@ -2073,7 +2073,7 @@ RSpec.describe "Cardano Wallet E2E tests", :all, :e2e do
   describe "E2E Byron" do
 
     def test_byron_tx(source_wid, target_wid)
-      amt = 1000000
+      amt = MIN_UTXO_VALUE
       address = SHELLEY.addresses.list(target_wid)[0]['id']
       target_before = get_shelley_balances(target_wid)
       src_before = get_byron_balances(source_wid)
@@ -2235,7 +2235,7 @@ RSpec.describe "Cardano Wallet E2E tests", :all, :e2e do
 
   describe "E2E External transaction" do
     it "Single output transaction" do
-      amt = 1000000
+      amt = MIN_UTXO_VALUE
       address = SHELLEY.addresses.list(@target_id)[0]['id']
       target_before = get_shelley_balances(@target_id)
       src_before = get_shelley_balances(@wid)
