@@ -24,21 +24,34 @@ import Cardano.Mnemonic
 import Cardano.Wallet.Api.Types
     ( ApiAddress
     , ApiConstructTransaction (..)
+    , ApiDecodedTransaction (..)
     , ApiFee (..)
+    , ApiSerialisedTransaction (..)
     , ApiSharedWallet (..)
+    , ApiT (..)
     , ApiTransaction
+    , ApiTxInputGeneral (..)
+    , ApiTxMetadata (..)
+    , ApiTxOutputGeneral (..)
     , ApiWallet
+    , ApiWalletOutput (..)
     , DecodeAddress
     , DecodeStakeAddress
     , EncodeAddress (..)
     , WalletStyle (..)
     )
+import Cardano.Wallet.Primitive.AddressDerivation
+    ( DerivationIndex (..) )
 import Cardano.Wallet.Primitive.Passphrase
     ( Passphrase (..) )
+import Cardano.Wallet.Primitive.Types.Tx
+    ( TxScriptValidity (..) )
 import Control.Monad.IO.Unlift
     ( MonadUnliftIO (..), liftIO )
 import Control.Monad.Trans.Resource
     ( runResourceT )
+import Data.Aeson
+    ( toJSON )
 import Data.Either.Combinators
     ( swapEither )
 import Data.Generics.Internal.VL.Lens
@@ -52,7 +65,7 @@ import Numeric.Natural
 import Test.Hspec
     ( SpecWith, describe )
 import Test.Hspec.Expectations.Lifted
-    ( shouldBe, shouldSatisfy )
+    ( shouldBe, shouldNotContain, shouldSatisfy )
 import Test.Hspec.Extra
     ( it )
 import Test.Integration.Framework.DSL
@@ -91,7 +104,9 @@ import Test.Integration.Framework.TestData
     )
 
 import qualified Cardano.Wallet.Api.Link as Link
+import qualified Cardano.Wallet.Primitive.Types.TokenMap as TokenMap
 import qualified Data.ByteArray as BA
+import qualified Data.List.NonEmpty as NE
 import qualified Data.Text.Encoding as T
 import qualified Network.HTTP.Types as HTTP
 
@@ -134,7 +149,8 @@ spec = describe "SHARED_TRANSACTIONS" $ do
             [ expectResponseCode HTTP.status201
             ]
 
-        let (ApiSharedWallet (Left wal)) = getFromResponse id rPost
+        let (ApiSharedWallet (Left wal)) =
+                getFromResponse Prelude.id rPost
 
         let metadata = Json [json|{ "metadata": { "1": { "string": "hello" } } }|]
 
@@ -173,7 +189,8 @@ spec = describe "SHARED_TRANSACTIONS" $ do
             [ expectResponseCode HTTP.status201
             ]
 
-        let walShared@(ApiSharedWallet (Right wal)) = getFromResponse id rPost
+        let walShared@(ApiSharedWallet (Right wal)) =
+                getFromResponse Prelude.id rPost
 
         let metadata = Json [json|{ "metadata": { "1": { "string": "hello" } } }|]
 
@@ -249,6 +266,55 @@ spec = describe "SHARED_TRANSACTIONS" $ do
             , expectField (#coinSelection . #change) (`shouldSatisfy` (not . null))
             , expectField (#fee . #getQuantity) (`shouldSatisfy` (> 0))
             ]
+        let txCbor = getFromResponse #transaction rTx
+        let decodePayload = Json (toJSON $ ApiSerialisedTransaction txCbor)
+        rDecodedTxSource <- request @(ApiDecodedTransaction n) ctx
+            (Link.decodeTransaction @'Shared wa) Default decodePayload
+        rDecodedTxTarget <- request @(ApiDecodedTransaction n) ctx
+            (Link.decodeTransaction @'Shelley wb) Default decodePayload
+
+        let isInpOurs inp = case inp of
+                ExternalInput _ -> False
+                WalletInput _ -> True
+        let areOurs = all isInpOurs
+        addrs <- listAddresses @n ctx wb
+        let addrIx = 1
+        let addrDest = (addrs !! addrIx) ^. #id
+        let expectedTxOutTarget = WalletOutput $ ApiWalletOutput
+                { address = addrDest
+                , amount = Quantity amt
+                , assets = ApiT TokenMap.empty
+                , derivationPath = NE.fromList
+                    [ ApiT (DerivationIndex 2147485500)
+                    , ApiT (DerivationIndex 2147485463)
+                    , ApiT (DerivationIndex 2147483648)
+                    , ApiT (DerivationIndex 0)
+                    , ApiT (DerivationIndex $ fromIntegral addrIx)
+                    ]
+                }
+        let isOutOurs out = case out of
+                WalletOutput _ -> False
+                ExternalOutput _ -> True
+
+        let expectedFee = getFromResponse (#fee . #getQuantity) rTx
+        let sharedExpectationsBetweenWallets =
+                [ expectResponseCode HTTP.status202
+                , expectField (#fee . #getQuantity) (`shouldBe` expectedFee)
+                , expectField #withdrawals (`shouldBe` [])
+                , expectField #collateral (`shouldBe` [])
+                , expectField #metadata (`shouldBe` (ApiTxMetadata Nothing))
+                , expectField #scriptValidity (`shouldBe` (Just $ ApiT TxScriptValid))
+                ]
+
+        verify rDecodedTxTarget sharedExpectationsBetweenWallets
+
+        verify rDecodedTxSource $
+            sharedExpectationsBetweenWallets ++
+            [ expectField #inputs (`shouldSatisfy` areOurs)
+            , expectField #outputs (`shouldNotContain` [expectedTxOutTarget])
+            -- Check that the change output is there:
+            , expectField (#outputs) ((`shouldBe` 1) . length . filter isOutOurs)
+            ]
 
     it "SHARED_TRANSACTIONS_CREATE_04b - Cannot spend less than minUTxOValue" $ \ctx -> runResourceT $ do
         wa <- fixtureSharedWallet ctx
@@ -320,7 +386,7 @@ spec = describe "SHARED_TRANSACTIONS" $ do
         rAddr <- request @[ApiAddress n] ctx
             (Link.listAddresses @'Shared wal) Default Empty
         expectResponseCode HTTP.status200 rAddr
-        let sharedAddrs = getFromResponse id rAddr
+        let sharedAddrs = getFromResponse Prelude.id rAddr
         let destination = (sharedAddrs !! 1) ^. #id
 
         wShelley <- fixtureWallet ctx
@@ -379,7 +445,8 @@ spec = describe "SHARED_TRANSACTIONS" $ do
         verify (fmap (swapEither . view #wallet) <$> rPost)
             [ expectResponseCode HTTP.status201
             ]
-        let walShared@(ApiSharedWallet (Right wal)) = getFromResponse id rPost
+        let walShared@(ApiSharedWallet (Right wal)) =
+                getFromResponse Prelude.id rPost
 
         fundSharedWallet ctx faucetUtxoAmt walShared
 
