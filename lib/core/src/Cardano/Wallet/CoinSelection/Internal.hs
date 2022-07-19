@@ -9,7 +9,6 @@
 {-# LANGUAGE ScopedTypeVariables #-}
 {-# LANGUAGE StandaloneDeriving #-}
 {-# LANGUAGE TupleSections #-}
-{-# LANGUAGE TypeApplications #-}
 
 -- |
 -- Copyright: © 2021 IOHK
@@ -159,7 +158,7 @@ data SelectionConstraints ctx = SelectionConstraints
         -- ^ Amount that should be taken from/returned back to the wallet for
         -- each stake key registration/de-registration in the transaction.
     , computeMinimumAdaQuantity
-        :: TokenMap -> Coin
+        :: Address ctx -> TokenMap -> Coin
         -- ^ Computes the minimum ada quantity required for a given output.
     , computeMinimumCost
         :: SelectionSkeleton ctx -> Coin
@@ -382,7 +381,8 @@ performSelectionCollateral balanceResult cs ps
 -- | Returns a selection's ordinary outputs and change outputs in a single list.
 --
 -- Since change outputs do not have addresses at the point of generation,
--- this function assigns all change outputs with a dummy change address.
+-- this function assigns all change outputs with a dummy change address
+-- of the maximum possible length.
 --
 selectionAllOutputs
     :: SelectionConstraints ctx
@@ -827,6 +827,7 @@ verifySelectionOutputCoinsSufficient cs _ps selection =
         minimumExpectedCoin :: Coin
         minimumExpectedCoin =
             (cs ^. #computeMinimumAdaQuantity)
+            (fst output)
             (snd output ^. #tokens)
 
 --------------------------------------------------------------------------------
@@ -971,6 +972,7 @@ verifyInsufficientMinCoinValueError cs _ps e =
     reportedMinCoinValue = e ^. #expectedMinCoinValue
     verifiedMinCoinValue =
         (cs ^. #computeMinimumAdaQuantity)
+        (fst reportedOutput)
         (snd reportedOutput ^. #tokens)
 
 --------------------------------------------------------------------------------
@@ -1111,7 +1113,7 @@ verifyUnableToConstructChangeError cs ps errorOriginal =
         -- A modified set of constraints that should always allow the
         -- successful creation of a selection:
         cs' = cs
-            { computeMinimumAdaQuantity = const $ Coin 0
+            { computeMinimumAdaQuantity = const $ const $ Coin 0
             , computeMinimumCost = const $ Coin 0
             , computeSelectionLimit = const Balance.NoLimit
             }
@@ -1434,19 +1436,18 @@ prepareOutputsInternal constraints outputsUnprepared
 -- quantity required to make a particular output valid.
 --
 prepareOutputsWith
-    :: Functor f
-    => (TokenMap -> Coin)
+    :: forall f address. Functor f
+    => (address -> TokenMap -> Coin)
     -> f (address, TokenBundle)
     -> f (address, TokenBundle)
 prepareOutputsWith minCoinValueFor =
-    fmap $ fmap augmentBundle
+    fmap augmentBundle
   where
-    augmentBundle :: TokenBundle -> TokenBundle
-    augmentBundle bundle
-        | TokenBundle.getCoin bundle == Coin 0 =
-            bundle & set #coin (minCoinValueFor (view #tokens bundle))
-        | otherwise =
-            bundle
+    augmentBundle :: (address, TokenBundle) -> (address, TokenBundle)
+    augmentBundle (addr, bundle) = (addr,) $
+        if TokenBundle.getCoin bundle == Coin 0
+        then bundle & set #coin (minCoinValueFor addr (view #tokens bundle))
+        else bundle
 
 -- | Indicates a problem when preparing outputs for a coin selection.
 --

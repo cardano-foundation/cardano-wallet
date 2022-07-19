@@ -2207,8 +2207,15 @@ components:
             It is only applicable for pure-ada outputs. If outputs contain other assets
             or a datum hash, the true minimum will be higher than this value.
 
-            With Alonzo, `minimum_utxo_value` is not a real protocol parameter, but rather
+            In Alonzo, `minimum_utxo_value` is not a real protocol parameter, but rather
             derived from from the Alonzo genesis `adaPerUTxOWord`.
+
+            In Babbage, `minimum_utxo_value` is derived from `adaPerUTxOByte`, and dependent on the
+            actual serialised size of an output. In particular, address length and size of the encoded
+            ada-quantity now matters. This value assumes the largest possible ada-quantity encoding, and
+            the largest possible Shelley address. The `minimum_utxo_value` for outputs with Byron addresses
+            will be larger.
+
         eras: *ApiEraInfo
         maximum_collateral_input_count:
           <<: *collateralInputCount

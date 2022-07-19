@@ -222,7 +222,7 @@ data SelectionConstraints = SelectionConstraints
         -- ^ Amount that should be taken from/returned back to the wallet for
         -- each stake key registration/de-registration in the transaction.
     , computeMinimumAdaQuantity
-        :: TokenMap -> Coin
+        :: Address -> TokenMap -> Coin
         -- ^ Computes the minimum ada quantity required for a given output.
     , computeMinimumCost
         :: SelectionSkeleton -> Coin
@@ -239,6 +239,8 @@ data SelectionConstraints = SelectionConstraints
         :: Natural
         -- ^ Specifies the minimum required amount of collateral as a
         -- percentage of the total transaction fee.
+    , maximumLengthChangeAddress
+        :: Address
     }
     deriving Generic
 
@@ -255,10 +257,6 @@ toInternalSelectionConstraints SelectionConstraints {..} =
             txOutMaxCoin
         , maximumOutputTokenQuantity =
             txOutMaxTokenQuantity
-        , maximumLengthChangeAddress =
-            -- TODO:
-            -- Specify a real address of the maximum length here.
-            Address ""
         , ..
         }
 

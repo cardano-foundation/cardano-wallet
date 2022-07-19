@@ -1,4 +1,3 @@
-{-# LANGUAGE DataKinds #-}
 {-# LANGUAGE LambdaCase #-}
 {-# LANGUAGE TypeApplications #-}
 
@@ -11,23 +10,18 @@
 module Cardano.Wallet.Shelley.MinimumUTxO
     ( computeMinimumCoinForUTxO
     , maxLengthCoin
-    , maxLengthAddress
     , unsafeLovelaceToWalletCoin
     , unsafeValueToLovelace
     ) where
 
 import Prelude
 
-import Cardano.Wallet.Primitive.Passphrase
-    ( Passphrase (..) )
 import Cardano.Wallet.Primitive.Types.Address
     ( Address (..) )
 import Cardano.Wallet.Primitive.Types.Coin
     ( Coin (..) )
 import Cardano.Wallet.Primitive.Types.MinimumUTxO
     ( MinimumUTxO (..), MinimumUTxOForShelleyBasedEra (..) )
-import Cardano.Wallet.Primitive.Types.ProtocolMagic
-    ( ProtocolMagic (..) )
 import Cardano.Wallet.Primitive.Types.TokenBundle
     ( TokenBundle (..) )
 import Cardano.Wallet.Primitive.Types.TokenMap
@@ -48,23 +42,23 @@ import Numeric.Natural
     ( Natural )
 
 import qualified Cardano.Api.Shelley as Cardano
-import qualified Cardano.Byron.Codec.Cbor as Byron
-import qualified Cardano.Crypto.Wallet as CC
-import qualified Codec.CBOR.Write as CBOR
-import qualified Data.ByteArray as BA
-import qualified Data.ByteString as BS
 
 -- | Computes a minimum 'Coin' value for a 'TokenMap' that is destined for
 --   inclusion in a transaction output.
 --
-computeMinimumCoinForUTxO :: HasCallStack => MinimumUTxO -> TokenMap -> Coin
+computeMinimumCoinForUTxO
+    :: HasCallStack
+    => MinimumUTxO
+    -> Address
+    -> TokenMap
+    -> Coin
 computeMinimumCoinForUTxO = \case
     MinimumUTxONone ->
-        const (Coin 0)
+        \_addr _tokenMap -> Coin 0
     MinimumUTxOConstant c ->
-        const c
-    MinimumUTxOForShelleyBasedEraOf pp ->
-        computeMinimumCoinForShelleyBasedEra pp
+        \_addr _tokenMap -> c
+    MinimumUTxOForShelleyBasedEraOf minUTxO ->
+        computeMinimumCoinForShelleyBasedEra minUTxO
 
 -- | Computes a minimum 'Coin' value for a 'TokenMap' that is destined for
 --   inclusion in a transaction output.
@@ -76,13 +70,14 @@ computeMinimumCoinForUTxO = \case
 computeMinimumCoinForShelleyBasedEra
     :: HasCallStack
     => MinimumUTxOForShelleyBasedEra
+    -> Address
     -> TokenMap
     -> Coin
 computeMinimumCoinForShelleyBasedEra
-    (MinimumUTxOForShelleyBasedEra era pp) tokenMap =
+    (MinimumUTxOForShelleyBasedEra era pp) addr tokenMap =
         extractResult $
         Cardano.calculateMinimumUTxO era
-            (embedTokenMapWithinPaddedTxOut era tokenMap)
+            (embedTokenMapWithinPaddedTxOut era addr tokenMap)
             (Cardano.fromLedgerPParams era pp)
   where
     extractResult :: Either Cardano.MinimumUTxOError Cardano.Value -> Coin
@@ -138,41 +133,11 @@ computeMinimumCoinForShelleyBasedEra
 --
 embedTokenMapWithinPaddedTxOut
     :: Cardano.ShelleyBasedEra era
+    -> Address
     -> TokenMap
     -> Cardano.TxOut Cardano.CtxTx era
-embedTokenMapWithinPaddedTxOut era m =
-    toCardanoTxOut era $ TxOut maxLengthAddress $ TokenBundle maxLengthCoin m
-
--- | An 'Address' value that is maximal in length when serialized to bytes.
---
--- When serialized to bytes, this 'Address' value has a length that is greater
--- than or equal to the serialized length of any 'Address' value that is valid
--- for inclusion in a transaction output.
---
-maxLengthAddress :: Address
-maxLengthAddress = longestByronAddrGeneratedByWallet
-  where
-    -- This should be the longest possible address the wallet can generate,
-    -- with a length of 86 bytes. (We can look at the callsites to encodeAddress
-    -- to confirm)
-    --
-    -- With 4310 lovelace/byte, the minimum utxo value for a pure-ada output is
-    -- now 1.107670 ada (according to /v2/network/information). The largest
-    -- possible overestimation should be (86-29) bytes, or 0.245670 ada.
-    longestByronAddrGeneratedByWallet = Address
-        $ CBOR.toStrictByteString
-        $ Byron.encodeAddress xpub
-            [ Byron.encodeDerivationPathAttr pwd maxBound maxBound
-            , Byron.encodeProtocolMagicAttr (ProtocolMagic maxBound)
-            ]
-      where
-        -- Must apparently always be 32 bytes
-        pwd :: Passphrase "addr-derivation-payload"
-        pwd = Passphrase $ BA.convert $ BS.replicate 32 0
-
-        xpub = CC.toXPub $ CC.generate (BS.replicate 32 0) xprvPass
-          where
-            xprvPass = mempty :: BS.ByteString
+embedTokenMapWithinPaddedTxOut era addr m =
+    toCardanoTxOut era $ TxOut addr $ TokenBundle maxLengthCoin m
 
 -- | A 'Coin' value that is maximal in length when serialized to bytes.
 --
