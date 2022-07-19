@@ -105,6 +105,7 @@ import Cardano.Wallet.Primitive.Types
     , TokenBundleMaxSize (..)
     , TxParameters (..)
     , WithOrigin (At)
+    , chainPointFromBlockHeader
     , emptyEraInfo
     , executionMemory
     , executionSteps
@@ -112,6 +113,7 @@ import Cardano.Wallet.Primitive.Types
     , genesisParameters
     , getGenesisBlockDate
     , header
+    , toSlot
     )
 import Cardano.Wallet.Primitive.Types.Address
     ( Address )
@@ -580,7 +582,7 @@ blockfrostLightSyncSource
                                     <$> zip [0 ..] dcerts
                             )
                 ws <- bfGetAccountWithdrawals address
-                blockEventsWithdraw <-
+                blockEventsWithdrawUnfiltered <-
                     for ws \BF.AccountWithdrawal{..} -> do
                         (bftx@BF.Transaction{_transactionIndex}, tx) <-
                             fetchTransaction
@@ -594,8 +596,17 @@ blockfrostLightSyncSource
                             bftx
                             (unsafeMkSublist [((txIndex, 0), tx)])
                             (unsafeMkSublist [])
+                let inRange x = slotFrom <= slot x && slot x <= slotTo
+                    blockEventsWithdraw =
+                        filter inRange blockEventsWithdrawUnfiltered
                 pure $ blockEventsRegDeleg <> blockEventsWithdraw
       where
+        slotFromBlockHeader = toSlot . chainPointFromBlockHeader
+        (slotFrom, slotTo) =
+            ( slotFromBlockHeader bhFrom
+            , slotFromBlockHeader bhTo
+            )
+
         txBlockEvents ::
             BF.Transaction ->
             Sublist Tx ->
