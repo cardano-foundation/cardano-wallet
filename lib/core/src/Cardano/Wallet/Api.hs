@@ -1123,7 +1123,7 @@ type ConstructSharedTransaction n = "shared-wallets"
     :> PostAccepted '[JSON] (ApiConstructTransactionT n)
 
 -- | https://input-output-hk.github.io/cardano-wallet/api/#operation/decodeSharedTransaction
-type DecodeSharedTransaction n = "wallets"
+type DecodeSharedTransaction n = "shared-wallets"
     :> Capture "walletId" (ApiT WalletId)
     :> "transactions-decode"
     :> ReqBody '[JSON] ApiSerialisedTransaction
