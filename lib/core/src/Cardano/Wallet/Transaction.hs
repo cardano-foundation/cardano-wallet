@@ -171,7 +171,9 @@ data TransactionLayer k tx = TransactionLayer
         -- key corresponding to a particular address.
 
     , addVkWitnesses
-        :: (XPrv, Passphrase "encryption")
+        :: AnyCardanoEra
+            -- Preferred latest era
+        -> (XPrv, Passphrase "encryption")
             -- Reward account
         -> (KeyHash, XPrv, Passphrase "encryption")
             -- policy public and private key
@@ -328,7 +330,8 @@ data TransactionLayer k tx = TransactionLayer
         -- The set of constraints that apply to all transactions.
 
     , decodeTx
-        :: tx ->
+        :: AnyCardanoEra
+        -> tx ->
             ( Tx
             , TokenMapWithScripts
             , TokenMapWithScripts

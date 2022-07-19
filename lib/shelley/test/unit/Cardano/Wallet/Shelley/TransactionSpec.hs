@@ -183,7 +183,7 @@ import Cardano.Wallet.Primitive.Types.Tx
     , TxMetadataValue (..)
     , TxOut (..)
     , TxSize (..)
-    , cardanoTx
+    , cardanoTxIdeallyNoLaterThan
     , getSealedTxWitnesses
     , sealedTxFromBytes
     , sealedTxFromBytes'
@@ -585,7 +585,7 @@ prop_signTransaction_addsRewardAccountKey
                 tl = testTxLayer
 
                 sealedTx = sealedTxFromCardano' $ Cardano.Tx txBody wits
-                sealedTx' = signTransaction tl
+                sealedTx' = signTransaction tl (AnyCardanoEra era)
                     (const Nothing) rootK utxo sealedTx
 
                 expectedWits :: [InAnyCardanoEra Cardano.KeyWitness]
@@ -660,6 +660,7 @@ prop_signTransaction_addsExtraKeyWitnesses
 
             sealedTx = sealedTxFromCardano' $ Cardano.Tx txBody wits
             sealedTx' = signTransaction tl
+                (AnyCardanoEra era)
                 (lookupFnFromKeys extraKeys)
                 (first liftRawKey rootK)
                 utxo
@@ -791,6 +792,7 @@ prop_signTransaction_addsTxInWitnesses
 
                 sealedTx = sealedTxFromCardano' $ Cardano.Tx txBody wits
                 sealedTx' = signTransaction tl
+                    (AnyCardanoEra era)
                     (lookupFnFromKeys extraKeys)
                     (first liftRawKey rootK)
                     utxo
@@ -843,6 +845,7 @@ prop_signTransaction_addsTxInCollateralWitnesses
 
                     sealedTx = sealedTxFromCardano' $ Cardano.Tx txBody wits
                     sealedTx' = signTransaction tl
+                        (AnyCardanoEra era)
                         (lookupFnFromKeys extraKeys)
                         (first liftRawKey rootK)
                         utxo
@@ -878,6 +881,7 @@ prop_signTransaction_neverRemovesWitnesses
 
             sealedTx = sealedTxFromCardano' tx
             sealedTx' = signTransaction tl
+                (AnyCardanoEra era)
                 (lookupFnFromKeys extraKeys)
                 (first liftRawKey rootK)
                 utxo
@@ -909,6 +913,7 @@ prop_signTransaction_neverChangesTxBody
 
             sealedTx = sealedTxFromCardano' tx
             sealedTx' = signTransaction tl
+                (AnyCardanoEra era)
                 (lookupFnFromKeys extraKeys)
                 (first liftRawKey rootK)
                 utxo
@@ -945,6 +950,7 @@ prop_signTransaction_preservesScriptIntegrity (AnyCardanoEra era) rootK utxo =
 
             sealedTx = sealedTxFromCardano' tx
             sealedTx' = signTransaction tl
+                (AnyCardanoEra era)
                 (const Nothing)
                 (first liftRawKey rootK)
                 utxo
@@ -2437,7 +2443,7 @@ balanceTransactionSpec = do
             let balance = balanceTransaction' wallet testStdGenSeed
             let totalOutput tx =
                     let (wtx, _, _, _, _) =
-                            decodeTx testTxLayer (sealedTxFromCardano' tx)
+                            decodeTx testTxLayer maxBound (sealedTxFromCardano' tx)
                     in
                         F.foldMap (view (#tokens . #coin)) (view #outputs wtx)
                         <> fromMaybe (Coin 0) (view #fee wtx)
@@ -3987,7 +3993,7 @@ fst5 (a,_,_,_, _) = a
 
 sealedInputs :: SealedTx -> Set TxIn
 sealedInputs =
-    Set.fromList . map fst . view #resolvedInputs . fst5 . _decodeSealedTx
+    Set.fromList . map fst . view #resolvedInputs . fst5 . _decodeSealedTx maxBound
 
 sealedCollateralInputs
     :: SealedTx -> Set TxIn
@@ -3996,12 +4002,12 @@ sealedCollateralInputs =
     . map fst
     . view #resolvedCollateralInputs
     . fst5
-    . _decodeSealedTx
+    . _decodeSealedTx maxBound
 
 sealedOutputs
     :: SealedTx -> Set TxOut
 sealedOutputs =
-    Set.fromList . view #outputs . fst5 . _decodeSealedTx
+    Set.fromList . view #outputs . fst5 . _decodeSealedTx maxBound
 
 sealedNumberOfRedeemers :: SealedTx -> Int
 sealedNumberOfRedeemers sealedTx =
@@ -4032,7 +4038,7 @@ sealedNumberOfRedeemers sealedTx =
 sealedFee
     :: forall era. Cardano.IsCardanoEra era => Cardano.Tx era -> Maybe Coin
 sealedFee =
-    view #fee . fst5 . _decodeSealedTx . sealedTxFromCardano'
+    view #fee . fst5 . _decodeSealedTx maxBound . sealedTxFromCardano'
 
 paymentPartialTx :: [TxOut] -> PartialTx Cardano.AlonzoEra
 paymentPartialTx txouts = PartialTx (Cardano.Tx body []) [] []
@@ -4171,3 +4177,6 @@ shelleyBasedTxFromBytes bytes =
         case asAnyShelleyBasedEra anyEraTx of
             Just shelleyTx -> shelleyTx
             Nothing -> error "shelleyBasedTxFromBytes: ByronTx not supported"
+
+cardanoTx :: SealedTx -> InAnyCardanoEra Cardano.Tx
+cardanoTx = cardanoTxIdeallyNoLaterThan maxBound

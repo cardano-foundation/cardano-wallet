@@ -39,7 +39,8 @@ module Cardano.Wallet.Primitive.Types.Tx
     , ScriptWitnessIndex (..)
 
     -- * Serialisation
-    , SealedTx (serialisedTx, cardanoTx)
+    , SealedTx (serialisedTx)
+    , cardanoTxIdeallyNoLaterThan
     , sealedTxFromBytes
     , sealedTxFromBytes'
     , sealedTxFromCardano
@@ -53,7 +54,6 @@ module Cardano.Wallet.Primitive.Types.Tx
     , getSealedTxWitnesses
     , persistSealedTx
     , unPersistSealedTx
-    , ideallyNoLaterThan
 
     -- ** Unit testing helpers
     , mockSealedTx
@@ -538,8 +538,8 @@ data SealedTx = SealedTx
     -- always be True, but it will be False if 'mockSealedTx' is used to
     -- construct a 'SealedTx' for unit tests.
 
-    , cardanoTx :: InAnyCardanoEra Cardano.Tx
-    -- ^ Decoded transaction.
+    , unsafeCardanoTx :: InAnyCardanoEra Cardano.Tx
+    -- ^ Decoded transaction. Potentially in the wrong era.
 
     , serialisedTx :: ByteString
     -- ^ CBOR-serialised bytes of the transaction.
@@ -617,6 +617,12 @@ ideallyNoLaterThan
 ideallyNoLaterThan maxEra sealedTx =
     either (const sealedTx) (sealedTxFromCardano)
         (cardanoTxFromBytes maxEra (serialisedTx sealedTx))
+
+cardanoTxIdeallyNoLaterThan
+    :: AnyCardanoEra
+    -> SealedTx
+    -> InAnyCardanoEra Cardano.Tx
+cardanoTxIdeallyNoLaterThan era = unsafeCardanoTx . ideallyNoLaterThan era
 
 getSealedTxBody :: SealedTx -> InAnyCardanoEra Cardano.TxBody
 getSealedTxBody (SealedTx _ (InAnyCardanoEra era tx) _) =

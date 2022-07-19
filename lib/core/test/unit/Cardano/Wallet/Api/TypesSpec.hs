@@ -609,6 +609,10 @@ spec = parallel $ do
         jsonTest @WalletPutData
         jsonTest @WalletPutPassphraseData
 
+    describe "ApiEra roundtrip" $
+        it "toApiEra . fromApiEra == id" $ property $ \era -> do
+            Api.toApiEra (Api.fromApiEra era) === era
+
     describe "ToText-FromText Roundtrip" $ do
             textRoundtrip $ Proxy @Iso8601Time
             textRoundtrip $ Proxy @SortOrder

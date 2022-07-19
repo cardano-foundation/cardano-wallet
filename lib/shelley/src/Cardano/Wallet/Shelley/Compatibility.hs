@@ -2070,8 +2070,12 @@ rewardAccountFromAddress (W.Address bytes) = refToAccount . ref =<< parseAddr by
 
 -- | Converts 'SealedTx' to something that can be submitted with the
 -- 'Cardano.Api' local tx submission client.
-unsealShelleyTx :: W.SealedTx -> TxInMode CardanoMode
-unsealShelleyTx wtx = case W.cardanoTx wtx of
+unsealShelleyTx
+    :: AnyCardanoEra
+    -- ^ Preferred latest era (see 'ideallyNoLaterThan')
+    -> W.SealedTx
+    -> TxInMode CardanoMode
+unsealShelleyTx era wtx = case W.cardanoTxIdeallyNoLaterThan era wtx of
     Cardano.InAnyCardanoEra ByronEra tx ->
         TxInMode tx ByronEraInCardanoMode
     Cardano.InAnyCardanoEra ShelleyEra tx ->

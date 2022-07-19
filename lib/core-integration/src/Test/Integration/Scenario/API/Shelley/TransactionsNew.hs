@@ -71,6 +71,7 @@ import Cardano.Wallet.Api.Types
     , EncodeStakeAddress
     , ResourceContext (..)
     , WalletStyle (..)
+    , fromApiEra
     )
 import Cardano.Wallet.Primitive.AddressDerivation
     ( DerivationIndex (..)
@@ -114,7 +115,7 @@ import Cardano.Wallet.Primitive.Types.Tx
     , TxMetadataValue (..)
     , TxScriptValidity (..)
     , TxStatus (..)
-    , cardanoTx
+    , cardanoTxIdeallyNoLaterThan
     , getSealedTxBody
     , sealedTxFromCardanoBody
     )
@@ -315,7 +316,9 @@ spec = describe "NEW_SHELLEY_TRANSACTIONS" $ do
                         Cardano.TxMetadataInEra _ (Cardano.TxMetadata m) ->
                             Just m
 
-        case getMetadata (cardanoTx $ getApiT (signedTx ^. #transaction)) of
+        let era = fromApiEra $ _mainEra ctx
+        let tx = cardanoTxIdeallyNoLaterThan era $ getApiT (signedTx ^. #transaction)
+        case getMetadata tx of
             Nothing -> error "Tx doesn't include metadata"
             Just m  -> case Map.lookup 1 m of
                 Nothing -> error "Tx doesn't include metadata"
@@ -380,7 +383,9 @@ spec = describe "NEW_SHELLEY_TRANSACTIONS" $ do
                         Cardano.TxMetadataInEra _ (Cardano.TxMetadata m) ->
                             Just m
 
-        case getMetadata (cardanoTx $ getApiT (signedTx ^. #transaction)) of
+        let era = fromApiEra $ _mainEra ctx
+        let tx = cardanoTxIdeallyNoLaterThan era $ getApiT (signedTx ^. #transaction)
+        case getMetadata tx of
             Nothing -> error "Tx doesn't include metadata"
             Just m  -> case Map.lookup 1 m of
                 Nothing -> error "Tx doesn't include metadata"

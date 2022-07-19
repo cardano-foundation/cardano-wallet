@@ -131,7 +131,7 @@ import Cardano.Address.Script
     , validateScriptOfTemplate
     )
 import Cardano.Api
-    ( AnyCardanoEra (..), CardanoEra (..), SerialiseAsCBOR (..) )
+    ( SerialiseAsCBOR (..) )
 import Cardano.Api.Extra
     ( asAnyShelleyBasedEra, inAnyCardanoEra, withShelleyBasedTx )
 import Cardano.BM.Tracing
@@ -237,7 +237,6 @@ import Cardano.Wallet.Api.Types
     , ApiDecodedTransaction (..)
     , ApiDeregisterPool (..)
     , ApiEpochInfo (ApiEpochInfo)
-    , ApiEra (..)
     , ApiErrorCode (..)
     , ApiExternalCertificate (..)
     , ApiExternalInput (..)
@@ -332,6 +331,7 @@ import Cardano.Wallet.Api.Types
     , getApiMnemonicT
     , toApiAsset
     , toApiEpochInfo
+    , toApiEra
     , toApiNetworkParameters
     , toApiUtxoStatistics
     )
@@ -502,9 +502,8 @@ import Cardano.Wallet.Primitive.Types.Tx
     , TxOut (..)
     , TxStatus (..)
     , UnsignedTx (..)
-    , cardanoTx
+    , cardanoTxIdeallyNoLaterThan
     , getSealedTxWitnesses
-    , ideallyNoLaterThan
     , txMintBurnMaxTokenQuantity
     , txOutCoin
     )
@@ -2021,9 +2020,8 @@ signTransaction ctx (ApiT wid) body = do
                     keyLookup = isOwned (getState cp) (rootK, pwdP)
 
                 era <- liftIO $ NW.currentNodeEra nl
-                let sealedTx =
-                        ideallyNoLaterThan era $ body ^. #transaction . #getApiT
-                pure $ W.signTransaction tl keyLookup (rootK, pwdP) utxo sealedTx
+                let sealedTx = body ^. #transaction . #getApiT
+                pure $ W.signTransaction tl era keyLookup (rootK, pwdP) utxo sealedTx
 
     -- TODO: The body+witnesses seem redundant with the sealedTx already. What's
     -- the use-case for having them provided separately? In the end, the client
@@ -2642,8 +2640,7 @@ balanceTransaction ctx genChange (ApiT wid) body = do
 
         anyShelleyTx <- maybeToHandler ErrByronTxNotSupported
             . asAnyShelleyBasedEra
-            . cardanoTx
-            . ideallyNoLaterThan era
+            . cardanoTxIdeallyNoLaterThan era
             . getApiT $ body ^. #transaction
 
         res <- withShelleyBasedTx anyShelleyTx
@@ -2672,7 +2669,7 @@ decodeTransaction
 decodeTransaction ctx (ApiT wid) (ApiSerialisedTransaction (ApiT sealed)) = do
     era <- liftIO $ NW.currentNodeEra nl
     let (decodedTx, toMint, toBurn, allCerts, interval) =
-            decodeTx tl $ ideallyNoLaterThan era sealed
+            decodeTx tl era sealed
     let (Tx { txId
             , fee
             , resolvedInputs
@@ -2870,8 +2867,8 @@ submitTransaction ctx apiw@(ApiT wid) apitx = do
     ttl <- liftIO $ W.getTxExpiry ti Nothing
     era <- liftIO $ NW.currentNodeEra nl
 
-    let sealedTx = ideallyNoLaterThan era . getApiT . (view #transaction) $ apitx
-    let (tx,_,_,_,_) = decodeTx tl sealedTx
+    let sealedTx = getApiT . (view #transaction) $ apitx
+    let (tx,_,_,_,_) = decodeTx tl era sealedTx
 
     apiDecoded <- decodeTransaction @_ @s @k @n ctx apiw apitx
     when (isForeign apiDecoded) $
@@ -3519,14 +3516,6 @@ getNetworkInformation st nl = liftIO $ do
   where
     ti :: TimeInterpreter (MaybeT IO)
     ti = hoistTimeInterpreter exceptToMaybeT $ timeInterpreter nl
-
-    toApiEra :: AnyCardanoEra -> ApiEra
-    toApiEra (AnyCardanoEra ByronEra) = ApiByron
-    toApiEra (AnyCardanoEra ShelleyEra) = ApiShelley
-    toApiEra (AnyCardanoEra AllegraEra) = ApiAllegra
-    toApiEra (AnyCardanoEra MaryEra) = ApiMary
-    toApiEra (AnyCardanoEra AlonzoEra) = ApiAlonzo
-    toApiEra (AnyCardanoEra BabbageEra) = ApiBabbage
 
     -- (network tip, next epoch)
     -- May be unavailable if the node is still syncing.
