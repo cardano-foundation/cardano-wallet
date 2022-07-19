@@ -7,12 +7,14 @@ order: 2
 1. Cryptographic Keys
     - [[recovery-phrases]]
     - [[master-key-generation]]
-2. Address Management
+2. Security
+    - [[security]]
+3. Address Management
     - [[hierarchical-deterministic-wallets]]
     - [[address-derivation]]
     - [[byron-address-format]]
-3. Balances and transaction history
+4. Balances and transaction history
     - [[utxo]]
-4. Transaction submission
+5. Transaction submission
     - [[coin-selection]]
     - [[transaction-lifecycle]]
