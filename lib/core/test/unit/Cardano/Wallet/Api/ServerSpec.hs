@@ -10,7 +10,7 @@ module Cardano.Wallet.Api.ServerSpec (spec) where
 import Prelude
 
 import Cardano.Api
-    ( AnyCardanoEra (..), CardanoEra (..) )
+    ( AnyCardanoEra (..), CardanoEra (..), NetworkId (..), NetworkMagic (..) )
 import Cardano.BM.Trace
     ( nullTracer )
 import Cardano.Slotting.Slot
@@ -173,7 +173,10 @@ networkInfoSpec = describe "getNetworkInformation" $ do
         let nodeTip' = SlotNo 0
         let nl = mockNetworkLayer nodeTip' ti
         let tolerance = mkSyncTolerance 5
-        Right info <- run $ runHandler $ getNetworkInformation tolerance nl
+        Right info <- run
+            $ runHandler
+            $ getNetworkInformation
+                (Testnet $ NetworkMagic 1) tolerance nl
 
         --  0              20
         --  *               |        *
@@ -225,6 +228,8 @@ networkInfoSpec = describe "getNetworkInformation" $ do
                 HF.EraSummary start (HF.EraEnd end) era1Params
             int = HF.mkInterpreter summary
         in mkTimeInterpreter nullTracer startTime (pure int)
+
+
 
 errorHandlingSpec :: Spec
 errorHandlingSpec = describe "liftHandler and toServerError" $ do

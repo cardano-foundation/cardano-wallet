@@ -248,7 +248,7 @@ server byron icarus shelley multisig spl ntp =
     :<|> byronCoinSelections
     :<|> byronTransactions
     :<|> byronMigrations
-    :<|> network'
+    :<|> network' (networkIdVal (Proxy @n))
     :<|> proxy
     :<|> settingS
     :<|> smash
@@ -530,9 +530,9 @@ server byron icarus shelley multisig spl ntp =
                 (icarus, migrateWallet icarus Nothing wid m)
              )
 
-    network' :: Server Network
-    network' =
-        getNetworkInformation syncTolerance nl
+    network' :: NetworkId -> Server Network
+    network' nid =
+        getNetworkInformation nid syncTolerance nl
         :<|> getNetworkParameters genesis nl tl
         :<|> getNetworkClock ntp
       where

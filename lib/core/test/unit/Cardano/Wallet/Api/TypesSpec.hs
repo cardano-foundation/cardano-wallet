@@ -106,6 +106,7 @@ import Cardano.Wallet.Api.Types
     , ApiMnemonicT (..)
     , ApiMultiDelegationAction (..)
     , ApiNetworkClock (..)
+    , ApiNetworkInfo
     , ApiNetworkInformation (..)
     , ApiNetworkParameters (..)
     , ApiNtpStatus (..)
@@ -252,6 +253,7 @@ import Cardano.Wallet.Primitive.Types
     , PoolMetadataGCStatus (..)
     , PoolMetadataSource
     , PoolOwner (..)
+    , ProtocolMagic
     , Settings
     , SlotId (..)
     , SlotInEpoch (..)
@@ -1326,6 +1328,7 @@ spec = parallel $ do
                     , nodeTip = nodeTip (x :: ApiNetworkInformation)
                     , networkTip = networkTip (x :: ApiNetworkInformation)
                     , nodeEra = nodeEra (x :: ApiNetworkInformation)
+                    , networkInfo = networkInfo (x :: ApiNetworkInformation)
                     }
             in
                 x' === x .&&. show x' === show x
@@ -1995,6 +1998,14 @@ instance Arbitrary ApiSlotReference where
 instance Arbitrary ApiSlotId where
     arbitrary = genericArbitrary
     shrink = genericShrink
+
+instance Arbitrary ProtocolMagic where
+    arbitrary = error "implement protocolMagic arbitrary instance"
+    shrink = error "implement protocolMagic arbitrary instance"
+
+instance Arbitrary ApiNetworkInfo where
+    arbitrary = error "implement protocolMagic arbitrary instance"
+    shrink = error "implement protocolMagic arbitrary instance"
 
 instance Arbitrary ApiNetworkInformation where
     arbitrary = genericArbitrary

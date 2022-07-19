@@ -2117,7 +2117,7 @@ components:
     ApiNetworkInformation: &ApiNetworkInformation
       type: object
       required:
-        - sync_progress
+        - sync_progrestgss
         - node_tip
         - node_era
       properties:

@@ -130,6 +130,7 @@ module Cardano.Wallet.Api.Types
     , Iso8601Time (..)
     , MinWithdrawal (..)
     , ApiNetworkParameters (..)
+    , ApiNetworkInfo (..)
     , toApiNetworkParameters
     , ApiEraInfo (..)
     , ApiWalletDelegation (..)
@@ -1448,12 +1449,27 @@ instance ToJSON ApiEra where
     toJSON = genericToJSON $ Aeson.defaultOptions
         { constructorTagModifier = drop 4 . camelTo2 '_' }
 
+data ApiNetworkInfo = ApiNetworkInfo
+    { networkId :: !Text
+    , protocolMagic :: !Integer
+    }
+    deriving  (Eq, Show, Generic, NFData)
+
+instance FromJSON ApiNetworkInfo where
+    parseJSON = genericParseJSON $ Aeson.defaultOptions
+        { fieldLabelModifier =  camelTo2 '_' }
+
+instance ToJSON ApiNetworkInfo where
+    toJSON = genericToJSON $ Aeson.defaultOptions
+        { fieldLabelModifier =  camelTo2 '_' }
+
 data ApiNetworkInformation = ApiNetworkInformation
     { syncProgress :: !(ApiT SyncProgress)
     , nextEpoch :: !(Maybe ApiEpochInfo)
     , nodeTip :: !ApiBlockReference
     , networkTip :: !(Maybe ApiSlotReference)
     , nodeEra :: !ApiEra
+    , networkInfo :: !ApiNetworkInfo
     } deriving (Eq, Generic, Show)
       deriving anyclass NFData
 
