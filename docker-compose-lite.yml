@@ -16,7 +16,7 @@ services:
       "
     environment:
       CMD: "cardano-wallet serve --light --blockfrost-token-file config/blockfrost-testnet.key --database /wallet-db-light --listen-address 0.0.0.0"
-      NETWORK:
+      NETWORK: testnet
     restart: on-failure
     logging:
       driver: "json-file"
