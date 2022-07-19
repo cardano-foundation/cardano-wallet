@@ -607,6 +607,9 @@ withNetworkLayer tr network np project k = do
                                 throwIO . BlockfrostException $
                                     PoolStakePercentageError total live
 
+{-------------------------------------------------------------------------------
+    Fetching blocks and transactions
+-------------------------------------------------------------------------------}
 fetchNextBlocks
     :: Tracer IO Log
     -> SomeNetworkDiscriminant
@@ -785,6 +788,9 @@ unmarshalMetadataValue = \case
     Aeson.Null ->
         Left "Expected TxMetadataValue but got null"
 
+{-------------------------------------------------------------------------------
+    Protocol parameters and network information
+-------------------------------------------------------------------------------}
 fromBlockfrostPP
     :: NetworkId
     -> BF.ProtocolParams
