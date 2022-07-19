@@ -5,15 +5,15 @@
   <meta charset='UTF-8' />
   <meta name='viewport' content='width=device-width, initial-scale=1' />
   <title>
-    Nix – Cardano Wallet
+    security – Cardano Wallet
   </title>
   
     
-      <meta property='og:description' content='Nix is a package manager and build tool. It is used in cardano-wallet for:' />
+      <meta property='og:description' content='The cardano-wallet HTTP service is designed to be used by trusted users only. Any other use is not supported or planned .' />
       <meta property='og:site_name' content='Cardano Wallet' />
       <meta property='og:image' content />
       <meta property='og:type' content='website' />
-      <meta property='og:title' content='Nix' />
+      <meta property='og:title' content='security' />
     
     
       <base href='/cardano-wallet/' />
@@ -108,8 +108,8 @@
             </li>
           
             <li class='inline-flex items-center'>
-              <a class='px-1 font-bold' href='contributing'>
-                Contributors' Guide
+              <a class='px-1 font-bold' href='user-guide'>
+                User Guide
               </a>
               <svg fill='currentColor' viewBox='0 0 20 20' class='w-auto h-5 text-gray-400'>
                 <path fill-rule='evenodd' d='M7.293 14.707a1 1 0 010-1.414L10.586 10 7.293 6.707a1 1 0 011.414-1.414l4 4a1 1 0 010 1.414l-4 4a1 1 0 01-1.414 0z' clip-rule='evenodd'></path>
@@ -249,11 +249,7 @@
     
       <!-- Variable bindings for this tree-->
   
-    
-      
-    
-    
-
+  
 
 
   
@@ -266,12 +262,12 @@
     
     
       <svg class='w-4 h-4 flex-shrink-0 inline' fill='none' stroke='currentColor' viewBox='0 0 24 24' xmlns='http://www.w3.org/2000/svg'>
-        <path stroke-linecap='round' stroke-linejoin='round' stroke-width='2' d='M7 21h10a2 2 0 002-2V9.414a1 1 0 00-.293-.707l-5.414-5.414A1 1 0 0012.586 3H7a2 2 0 00-2 2v14a2 2 0 002 2z'>
+        <path stroke-linecap='round' stroke-linejoin='round' stroke-width='2' d='M9 12h6m-6 4h6m2 5H7a2 2 0 01-2-2V5a2 2 0 012-2h5.586a1 1 0 01.707.293l5.414 5.414a1 1 0 01.293.707V19a2 2 0 01-2 2z'>
         </path>
       </svg>
-    
+      
   
-    <a class='hover:underline truncate' title='security' href='user-guide/security'>
+    <a class='font-bold text-blue-600 hover:underline truncate' title='security' href='user-guide/security'>
       security
     </a>
     
@@ -1614,7 +1610,11 @@
     
       <!-- Variable bindings for this tree-->
   
-  
+    
+      
+    
+    
+
 
 
   
@@ -1627,12 +1627,12 @@
     
     
       <svg class='w-4 h-4 flex-shrink-0 inline' fill='none' stroke='currentColor' viewBox='0 0 24 24' xmlns='http://www.w3.org/2000/svg'>
-        <path stroke-linecap='round' stroke-linejoin='round' stroke-width='2' d='M9 12h6m-6 4h6m2 5H7a2 2 0 01-2-2V5a2 2 0 012-2h5.586a1 1 0 01.707.293l5.414 5.414a1 1 0 01.293.707V19a2 2 0 01-2 2z'>
+        <path stroke-linecap='round' stroke-linejoin='round' stroke-width='2' d='M7 21h10a2 2 0 002-2V9.414a1 1 0 00-.293-.707l-5.414-5.414A1 1 0 0012.586 3H7a2 2 0 00-2 2v14a2 2 0 002 2z'>
         </path>
       </svg>
-      
+    
   
-    <a class='font-bold text-blue-600 hover:underline truncate' title='Nix' href='contributing/Nix'>
+    <a class='hover:underline truncate' title='Nix' href='contributing/Nix'>
       Nix
     </a>
     
@@ -2361,133 +2361,26 @@
           <main class='px-4 py-4'>
             <h1 class='flex items-end justify-center mb-4 p-3 bg-blue-100 text-5xl font-extrabold text-black rounded'>
   <a class='z-40 tracking-tighter '>
-    Nix
+    security
   </a>
 </h1>
             <article class='overflow-auto'>
   <!-- What goes in this file will appear on top of note body-->
-  
+  <h2 id='wallet-security-considerations' class='inline-block mt-6 mb-4 text-4xl font-bold text-gray-700 border-b-2'>Wallet security considerations</h2>
     <p class='mb-3'>
-      <a href='https://nixos.org' class='text-blue-600 hover:underline' target='_blank' rel='noopener'>Nix</a> is a package manager and build tool. It is used in <code class='py-0.5 px-0.5 bg-gray-100'>cardano-wallet</code> for:
-    </p>
-  
-    <ul class='my-3 ml-6 space-y-1 list-disc'>
-      
-        <li>
-          <a href='contributing/Hydra' class='text-blue-600 mavenLinkBold hover:underline' data-wikilink-type='WikiLinkNormal'>Hydra CI</a>
-        </li>
-      
-        <li>
-          Provisioning dependencies in <a href='https://github.com/input-output-hk/cardano-wallet/blob/master/.buildkite/pipeline.yml#L1' class='text-blue-600 hover:underline' target='_blank' rel='noopener'>Buildkite CI</a>.
-        </li>
-      
-        <li>
-          Reproducible development environments (<a href='https://github.com/input-output-hk/cardano-wallet/blob/master/flake.nix' class='text-blue-600 hover:underline' target='_blank' rel='noopener'>nix develop</a>).
-        </li>
-      
-    </ul>
-  
-    <p class='mb-3'>
-      Nix is not required for <code class='py-0.5 px-0.5 bg-gray-100'>cardano-wallet</code> development, but it can help you a lot if you try it.
-    </p>
-  <h2 id='installingupgrading-nix' class='inline-block mt-6 mb-4 text-4xl font-bold text-gray-700 border-b-2'>Installing/Upgrading Nix</h2>
-    <p class='mb-3'>
-      The minimum required version of Nix is 2.5.
-    </p>
-  
-    <ul class='my-3 ml-6 space-y-1 list-disc'>
-      
-        <li>
-          <a href='https://nixos.org/manual/nix/stable/#ch-installing-binary' class='text-blue-600 hover:underline' target='_blank' rel='noopener'>Nix Package Manager Guide: Installation</a>
-        </li>
-      
-        <li>
-          <a href='https://nixos.org/manual/nix/stable/#ch-upgrading-nix' class='text-blue-600 hover:underline' target='_blank' rel='noopener'>Nix Package Manager Guide: Upgrading Nix</a>
-        </li>
-      
-    </ul>
-  <h2 id='binary-cache' class='inline-block mt-6 mb-4 text-4xl font-bold text-gray-700 border-b-2'>Binary cache</h2>
-    <p class='mb-3'>
-      To improve build speed, it is <strong>highly recommended</strong> (but not mandatory) to configure the <strong>binary cache maintained by IOHK</strong>.
+      The cardano-wallet HTTP service is designed to be used by trusted users only. <em>Any other use is not supported or planned</em> .
     </p>
   
     <p class='mb-3'>
-      See <a href='https://github.com/input-output-hk/iohk-nix/blob/8b1d65ba294708b12d7b15103ac35431d9b60819/docs/nix.md' class='text-blue-600 hover:underline' target='_blank' rel='noopener'>iohk-nix/docs/nix.md</a> or <a href='https://github.com/input-output-hk/cardano-node/blob/468f52e5a6a2f18a2a89218a849d702481819f0b/doc/getting-started/building-the-node-using-nix.md#building-under-nix' class='text-blue-600 hover:underline' target='_blank' rel='noopener'>cardano-node/doc/getting-started/building-the-node-using-nix.md</a> for instructions on how to configure the Hydra binary cache on your system.
-    </p>
-  <h2 id='building-with-nix' class='inline-block mt-6 mb-4 text-4xl font-bold text-gray-700 border-b-2'>Building with Nix</h2>
-    <p class='mb-3'>
-      See the <a href='developers/Building' class='text-blue-600 mavenLinkBold hover:underline' data-wikilink-type='WikiLinkNormal'>Building</a> page.
-    </p>
-  <h2 id='reproducible-development-environment' class='inline-block mt-6 mb-4 text-4xl font-bold text-gray-700 border-b-2'>Reproducible Development Environment</h2>
-    <p class='mb-3'>
-      Run <a href='https://nixos.org/manual/nix/stable/command-ref/new-cli/nix3-develop.html' class='text-blue-600 hover:underline' target='_blank' rel='noopener'><code class='py-0.5 px-0.5 bg-gray-100'>nix develop</code></a> to get a build environment which includes all necessary compilers, libraries, and development tools.
+      In order to ensure that only trusted users may access the HTTP service, cardano-wallet uses TLS client certificate authentication. For example, this is how the Daedalus wallet frontend ensures that only this frontend can access the cardano-wallet API. In other words, trust is established through a TLS client certificate. Such certificates need to be placed in the disk storage used by the cardano-wallet process before the HTTP service is started.
     </p>
   
     <p class='mb-3'>
-      This uses the <code class='py-0.5 px-0.5 bg-gray-100'>devShell</code> attribute of <a href='https://github.com/input-output-hk/cardano-wallet/blob/master/flake.nix' class='text-blue-600 hover:underline' target='_blank' rel='noopener'><code class='py-0.5 px-0.5 bg-gray-100'>flake.nix</code></a>.
+      It’s worth mentioning that a trusted user can attack the wallet through the HTTP service in many ways, they can also view sensitive information, delete a wallet’s store, etc. Thus, as soon as an attacker is able to become a trusted user.
     </p>
   
     <p class='mb-3'>
-      Full instructions are on the <a href='developers/Building' class='text-blue-600 mavenLinkBold hover:underline' data-wikilink-type='WikiLinkNormal'>Building</a> page.
-    </p>
-  <h2 id='development-tips' class='inline-block mt-6 mb-4 text-4xl font-bold text-gray-700 border-b-2'>Development tips</h2><h3 id='code-generation' class='mt-6 mb-2 text-3xl font-bold text-gray-700'>Code generation</h3>
-    <p class='mb-3'>
-      The Nix build depends on code which is generated from <code class='py-0.5 px-0.5 bg-gray-100'>stack.yaml</code> and the Cabal files. If you change these files, then you will probably need to update the generated files.
-    </p>
-  
-    <p class='mb-3'>
-      To do this, run:
-    </p>
-  <div class='py-0.5 mb-3 text-sm'><pre><code class='language-none'>./nix/regenerate.sh</code></pre></div>
-    <p class='mb-3'>
-      Then add and commit the files that it creates.
-    </p>
-  
-    <p class='mb-3'>
-      Alternatively, wait for Buildkite to run this same command. It will produce a patch, and also push a commit with updates back to your branch.
-    </p>
-  <h3 id='haskellnix-pin' class='mt-6 mb-2 text-3xl font-bold text-gray-700'>Haskell.nix pin</h3>
-    <p class='mb-3'>
-      The Nix build also depends on the <a href='https://github.com/input-output-hk/haskell.nix' class='text-blue-600 hover:underline' target='_blank' rel='noopener'>Haskell.nix</a> build infrastructure. It may be necessary to update <code class='py-0.5 px-0.5 bg-gray-100'>haskell.nix</code> when moving to a new Haskell LTS version or adding Hackage dependencies.
-    </p>
-  
-    <p class='mb-3'>
-      To update to the latest version, run the following command:
-    </p>
-  <div class='py-0.5 mb-3 text-sm'><pre><code class='console language-console'>$ nix flake lock --update-input haskellNix
-warning: updating lock file '/home/rodney/iohk/cw/flake/flake.lock':
-• Updated input 'haskellNix':
-    'github:input-output-hk/haskell.nix/f05b4ce7337cfa833a377a4f7a889cdbc6581103' (2022-01-11)
-  → 'github:input-output-hk/haskell.nix/a3c9d33f301715b162b12afe926b4968f2fe573d' (2022-01-17)
-• Updated input 'haskellNix/hackage':
-    'github:input-output-hk/hackage.nix/d3e03042af2d0c71773965051d29b1e50fbb128e' (2022-01-11)
-  → 'github:input-output-hk/hackage.nix/3e64c7f692490cb403a258209e90fd589f2434a0' (2022-01-17)
-• Updated input 'haskellNix/stackage':
-    'github:input-output-hk/stackage.nix/308844000fafade0754e8c6641d0277768050413' (2022-01-11)
-  → 'github:input-output-hk/stackage.nix/3c20ae33c6e59db9ba49b918d69caefb0187a2c5' (2022-01-15)
-warning: Git tree '/home/rodney/iohk/cw/flake' is dirty</code></pre></div>
-    <p class='mb-3'>
-      Then commit the updated <a href='https://github.com/input-output-hk/cardano-wallet/blob/master/flake.lock' class='text-blue-600 hover:underline' target='_blank' rel='noopener'>flake.lock</a> file.
-    </p>
-  
-    <p class='mb-3'>
-      When updating Haskell.nix, consult the <a href='https://github.com/input-output-hk/haskell.nix/blob/master/changelog.md#L1' class='text-blue-600 hover:underline' target='_blank' rel='noopener'>ChangeLog</a> file. There may have been API changes which need corresponding updates in <code class='py-0.5 px-0.5 bg-gray-100'>cardano-wallet</code>.
-    </p>
-  <h3 id='iohk-nix-pin' class='mt-6 mb-2 text-3xl font-bold text-gray-700'>iohk-nix pin</h3>
-    <p class='mb-3'>
-      The procedure for updating the <a href='https://github.com/input-output-hk/iohk-nix' class='text-blue-600 hover:underline' target='_blank' rel='noopener'><code class='py-0.5 px-0.5 bg-gray-100'>iohk-nix</code></a> library of common code is much the same as for Haskell.nix. Run this command and commit the updated <code class='py-0.5 px-0.5 bg-gray-100'>flake.lock</code> file:
-    </p>
-  <div class='py-0.5 mb-3 text-sm'><pre><code class='console language-console'>$ nix flake lock --update-input iohkNix</code></pre></div>
-    <p class='mb-3'>
-      It is not often necessary to update <code class='py-0.5 px-0.5 bg-gray-100'>iohk-nix</code>. Before updating, ask devops whether there may be changes which affect our build.
-    </p>
-  <h2 id='common-problems' class='inline-block mt-6 mb-4 text-4xl font-bold text-gray-700 border-b-2'>Common problems</h2><h3 id='warning-dumping-very-large-path' class='mt-6 mb-2 text-3xl font-bold text-gray-700'>Warning: dumping very large path</h3><div class='py-0.5 mb-3 text-sm'><pre><code class='language-none'>warning: dumping very large path (&gt; 256 MiB); this may run out of memory</code></pre></div>
-    <p class='mb-3'>
-      Make sure you don’t have large files or directories in your git worktree.
-    </p>
-  
-    <p class='mb-3'>
-      When building, Nix will copy the project sources into <code class='py-0.5 px-0.5 bg-gray-100'>/nix/store</code>. Standard folders such as <code class='py-0.5 px-0.5 bg-gray-100'>.stack-work</code> will be filtered out, but everything else will be copied.
+      It’s also worth mentioning that a trusted user that can access the HTTP API is not able to spend funds of the wallet without gaining access to additional information such as the passphrase or the wallet secret key. TLS prevents eavesdropping on the passphrase, and the wallet secret key is encrypted by the passphrase.
     </p>
   
   <!-- What goes in this file will appear below the note body-->
@@ -2500,67 +2393,14 @@ warning: Git tree '/home/rodney/iohk/cw/flake' is dirty</code></pre></div>
     <ul class='space-y-1'>
       
         <li>
-          <a class='text-blue-600 mavenLinkBold hover:bg-blue-50' href='contributing/Updating-Dependencies'>
-            Updating Dependencies
+          <a class='text-blue-600 mavenLinkBold hover:bg-blue-50' href='concepts'>
+            Key Concepts
           </a>
           
             <div class='mb-4 overflow-auto text-sm text-gray-500'>
   
     <div class='pl-2 mt-2 border-l-2 border-blue-200 hover:border-blue-500'>
-      <div><p>If you use <a href='contributing/Nix' class='text-gray-600 font-bold hover:bg-gray-50' data-wikilink-type='WikiLinkNormal'>Nix</a> to manage build and runtime dependencies you can be confident that you will always have the correct versions for the branch you are on, and that these will be exactly the same as those versions used in CI.</p></div>
-    </div>
-  
-</div>
-          
-        </li>
-      
-        <li>
-          <a class='text-blue-600 mavenLinkBold hover:bg-blue-50' href='contributing/Hydra'>
-            Hydra CI
-          </a>
-          
-            <div class='mb-4 overflow-auto text-sm text-gray-500'>
-  
-    <div class='pl-2 mt-2 border-l-2 border-blue-200 hover:border-blue-500'>
-      <div><p>For general information about nix, see <a href='contributing/Nix' class='text-gray-600 font-bold hover:bg-gray-50' data-wikilink-type='WikiLinkNormal'>Nix</a>.</p></div>
-    </div>
-  
-</div>
-          
-        </li>
-      
-        <li>
-          <a class='text-blue-600 mavenLinkBold hover:bg-blue-50' href='developers'>
-            Developer Information
-          </a>
-          
-            <div class='mb-4 overflow-auto text-sm text-gray-500'>
-  
-    <div class='pl-2 mt-2 border-l-2 border-blue-200 hover:border-blue-500'>
-      <div><a href='contributing/Nix' class='text-gray-600 font-bold hover:bg-gray-50' data-wikilink-type='WikiLinkNormal'>Nix</a></div>
-    </div>
-  
-</div>
-          
-        </li>
-      
-        <li>
-          <a class='text-blue-600 mavenLinkBold hover:bg-blue-50' href='developers/Building'>
-            Building
-          </a>
-          
-            <div class='mb-4 overflow-auto text-sm text-gray-500'>
-  
-    <div class='pl-2 mt-2 border-l-2 border-blue-200 hover:border-blue-500'>
-      <div><a href='contributing/Nix' class='text-gray-600 font-bold hover:bg-gray-50' data-wikilink-type='WikiLinkNormal'>Nix</a></div>
-    </div>
-  
-    <div class='pl-2 mt-2 border-l-2 border-blue-200 hover:border-blue-500'>
-      <div><p>Follow the instructions on the <a href='contributing/Nix' class='text-gray-600 font-bold hover:bg-gray-50' data-wikilink-type='WikiLinkNormal'>Nix</a> page to install <em>and configure</em> Nix.</p></div>
-    </div>
-  
-    <div class='pl-2 mt-2 border-l-2 border-blue-200 hover:border-blue-500'>
-      <div><p>Use the <a href='contributing/Nix' class='text-gray-600 font-bold hover:bg-gray-50' data-wikilink-type='WikiLinkNormal'>Nix</a> build if:</p></div>
+      <div><a href='user-guide/security' class='text-gray-600 font-bold hover:bg-gray-50' data-wikilink-type='WikiLinkNormal'>security</a></div>
     </div>
   
 </div>
