@@ -480,7 +480,8 @@ prop_prepareOutputsWith_preparedOrExistedBefore minCoinValueDef outs =
         | outputCoin before /= Coin 0 =
             outputCoin after == outputCoin before
         | otherwise =
-            outputCoin after == minCoinValueFor (view #tokens $ snd before)
+            outputCoin after ==
+                uncurry minCoinValueFor (view #tokens <$> before)
       where
         outputCoin = view #coin . snd
 

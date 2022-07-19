@@ -219,7 +219,7 @@ data SelectionConstraints ctx = SelectionConstraints
         -- the 'TokenBundleSizeAssessor' type to learn about the expected
         -- properties of this field.
     , computeMinimumAdaQuantity
-        :: TokenMap -> Coin
+        :: Address ctx -> TokenMap -> Coin
         -- ^ Computes the minimum ada quantity required for a given output.
     , computeMinimumCost
         :: SelectionSkeleton ctx -> Coin
@@ -851,11 +851,11 @@ performSelectionEmpty performSelectionFn constraints params =
     transform :: a -> (NonEmpty (Address ctx, TokenBundle) -> a) -> a
     transform x y = maybe x y $ NE.nonEmpty $ view #outputsToCover params
 
+    dummyAddress :: Address ctx
+    dummyAddress = maximumLengthChangeAddress constraints
+
     dummyOutput :: (Address ctx, TokenBundle)
-    dummyOutput =
-        ( maximumLengthChangeAddress constraints
-        , TokenBundle.fromCoin minCoin
-        )
+    dummyOutput = (dummyAddress, TokenBundle.fromCoin minCoin)
 
     -- The 'performSelectionNonEmpty' function imposes a precondition that all
     -- outputs must have at least the minimum ada quantity. Therefore, the
@@ -872,7 +872,8 @@ performSelectionEmpty performSelectionFn constraints params =
     minCoin :: Coin
     minCoin = max
         (Coin 1)
-        (view #computeMinimumAdaQuantity constraints TokenMap.empty)
+        (view #computeMinimumAdaQuantity constraints dummyAddress TokenMap.empty
+        )
 
 performSelectionNonEmpty
     :: forall m ctx. (HasCallStack, MonadRandom m, SelectionContext ctx)
@@ -917,6 +918,7 @@ performSelectionNonEmpty constraints params
         , computeSelectionLimit
         , maximumOutputAdaQuantity
         , maximumOutputTokenQuantity
+        , maximumLengthChangeAddress
         } = constraints
     SelectionParams
         { outputsToCover
@@ -956,17 +958,17 @@ performSelectionNonEmpty constraints params
         mkInsufficientMinCoinValueError
             :: (Address ctx, TokenBundle)
             -> Maybe (InsufficientMinCoinValueError ctx)
-        mkInsufficientMinCoinValueError o
-            | view #coin (snd o) >= expectedMinCoinValue =
+        mkInsufficientMinCoinValueError (addr, bundle)
+            | view #coin bundle >= expectedMinCoinValue =
                 Nothing
             | otherwise =
                 Just $ InsufficientMinCoinValueError
                     { expectedMinCoinValue
-                    , outputWithInsufficientAda = o
+                    , outputWithInsufficientAda = (addr, bundle)
                     }
           where
-            expectedMinCoinValue = computeMinimumAdaQuantity
-                (view #tokens $ snd o)
+            expectedMinCoinValue = computeMinimumAdaQuantity addr
+                (view #tokens bundle)
 
     -- Given a UTxO index that corresponds to a valid selection covering
     -- 'outputsToCover', 'predictChange' yields a non-empty list of assets
@@ -1084,7 +1086,7 @@ performSelectionNonEmpty constraints params
       where
         mChangeGenerated :: Either UnableToConstructChangeError [TokenBundle]
         mChangeGenerated = makeChange MakeChangeCriteria
-            { minCoinFor = computeMinimumAdaQuantity
+            { minCoinFor = computeMinimumAdaQuantity maximumLengthChangeAddress
             , bundleSizeAssessor = TokenBundleSizeAssessor assessTokenBundleSize
             , requiredCost
             , extraCoinSource

@@ -26,6 +26,8 @@ import Cardano.Wallet.Primitive.Migration.Selection
     , minimizeFee
     , minimizeFeeStep
     )
+import Cardano.Wallet.Primitive.Types.Address
+    ( Address )
 import Cardano.Wallet.Primitive.Types.Coin
     ( Coin (..) )
 import Cardano.Wallet.Primitive.Types.Hash
@@ -43,7 +45,6 @@ import Cardano.Wallet.Primitive.Types.Tx
     , TxSize (..)
     , txOutMaxCoin
     , txOutputCoinCost
-    , txOutputCoinMinimum
     , txOutputCoinSize
     , txOutputHasValidSize
     , txOutputHasValidTokenQuantities
@@ -853,8 +854,8 @@ data MockTxOutputMinimumAdaQuantity = MockTxOutputMinimumAdaQuantity
 
 unMockTxOutputMinimumAdaQuantity
     :: MockTxOutputMinimumAdaQuantity
-    -> (TokenMap -> Coin)
-unMockTxOutputMinimumAdaQuantity mock m =
+    -> (Address -> TokenMap -> Coin)
+unMockTxOutputMinimumAdaQuantity mock _addr m =
     let assetCount = TokenMap.size m in
     perOutput mock
         <> mtimesDefault assetCount (perOutputAsset mock)
@@ -863,6 +864,16 @@ genMockTxOutputMinimumAdaQuantity :: Gen MockTxOutputMinimumAdaQuantity
 genMockTxOutputMinimumAdaQuantity = MockTxOutputMinimumAdaQuantity
     <$> genCoinRange (Coin 4) (Coin 8)
     <*> genCoinRange (Coin 1) (Coin 2)
+
+-- Addresses are currently never used within the mock minimum ada quantity
+-- calculation. However, 'unMockTxOutputMinimumAdaQuantity' still requires an
+-- address. For convenience, we define a dummy address that produces an error
+-- if it is used unexpectedly.
+--
+-- See 'unMockTxOutputMinimumAdaQuantity'.
+--
+dummyAddress :: Address
+dummyAddress = error "dummyAddress"
 
 --------------------------------------------------------------------------------
 -- Mock maximum transaction sizes
@@ -923,19 +934,21 @@ genMockInputId = MockInputId . BS.pack <$>
 
 genCoinAboveMinimumAdaQuantity :: MockTxConstraints -> Gen Coin
 genCoinAboveMinimumAdaQuantity mockConstraints =
-    genCoinRange
-        (txOutputCoinMinimum constraints)
-        (txOutputCoinMinimum constraints `scaleCoin` 1000)
+    genCoinRange lo hi
   where
     constraints = unMockTxConstraints mockConstraints
+    lo = txOutputMinimumAdaQuantity constraints dummyAddress TokenMap.empty
+    hi = lo `scaleCoin` 1000
 
 genCoinBelowMinimumAdaQuantity :: MockTxConstraints -> Gen Coin
 genCoinBelowMinimumAdaQuantity mockConstraints =
-    genCoinRange
-        (Coin 1)
-        (Coin.distance (txOutputCoinMinimum constraints) (Coin 1))
+    genCoinRange lo hi
   where
     constraints = unMockTxConstraints mockConstraints
+    lo = Coin 1
+    hi = Coin.difference
+        (txOutputMinimumAdaQuantity constraints dummyAddress TokenMap.empty)
+        (Coin 1)
 
 genCoinRange :: Coin -> Coin -> Gen Coin
 genCoinRange (Coin minCoin) (Coin maxCoin) =
@@ -961,7 +974,7 @@ genTokenBundleMixed mockConstraints =
 genTokenBundleWithMinimumAdaQuantity :: MockTxConstraints -> Gen TokenBundle
 genTokenBundleWithMinimumAdaQuantity mockConstraints = do
     m <- genTokenMap mockConstraints
-    let minAda = txOutputMinimumAdaQuantity constraints m
+    let minAda = txOutputMinimumAdaQuantity constraints dummyAddress m
     pure $ TokenBundle minAda m
   where
     constraints = unMockTxConstraints mockConstraints
@@ -969,7 +982,7 @@ genTokenBundleWithMinimumAdaQuantity mockConstraints = do
 genTokenBundleAboveMinimumAdaQuantity :: MockTxConstraints -> Gen TokenBundle
 genTokenBundleAboveMinimumAdaQuantity mockConstraints = do
     m <- genTokenMap mockConstraints
-    let minAda = txOutputMinimumAdaQuantity constraints m
+    let minAda = txOutputMinimumAdaQuantity constraints dummyAddress m
     c <- genCoinRange (minAda <> Coin 1) (minAda `scaleCoin` 1000)
     pure $ TokenBundle c m
   where
