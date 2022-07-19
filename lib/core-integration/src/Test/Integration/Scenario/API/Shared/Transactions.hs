@@ -45,7 +45,7 @@ import Cardano.Wallet.Primitive.AddressDerivation
 import Cardano.Wallet.Primitive.Passphrase
     ( Passphrase (..) )
 import Cardano.Wallet.Primitive.Types.Tx
-    ( TxScriptValidity (..) )
+    ( TxMetadata (..), TxMetadataValue (..), TxScriptValidity (..) )
 import Control.Monad.IO.Unlift
     ( MonadUnliftIO (..), liftIO )
 import Control.Monad.Trans.Resource
@@ -107,6 +107,7 @@ import qualified Cardano.Wallet.Api.Link as Link
 import qualified Cardano.Wallet.Primitive.Types.TokenMap as TokenMap
 import qualified Data.ByteArray as BA
 import qualified Data.List.NonEmpty as NE
+import qualified Data.Map.Strict as Map
 import qualified Data.Text.Encoding as T
 import qualified Network.HTTP.Types as HTTP
 
@@ -210,6 +211,22 @@ spec = describe "SHARED_TRANSACTIONS" $ do
             [ expectResponseCode HTTP.status202
             , expectField (#coinSelection . #metadata) (`shouldSatisfy` isJust)
             , expectField (#fee . #getQuantity) (`shouldSatisfy` (>0))
+            ]
+
+        let txCbor = getFromResponse #transaction rTx2
+        let decodePayload = Json (toJSON $ ApiSerialisedTransaction txCbor)
+        rDecodedTx <- request @(ApiDecodedTransaction n) ctx
+            (Link.decodeTransaction @'Shared wal) Default decodePayload
+        let expectedFee = getFromResponse (#fee . #getQuantity) rTx2
+        let metadata' = ApiT (TxMetadata (Map.fromList [(1,TxMetaText "hello")]))
+        verify rDecodedTx
+            [ expectResponseCode HTTP.status202
+            , expectField (#fee . #getQuantity) (`shouldBe` expectedFee)
+            , expectField #withdrawals (`shouldBe` [])
+            , expectField #collateral (`shouldBe` [])
+            , expectField #metadata
+                (`shouldBe` (ApiTxMetadata (Just metadata')))
+            , expectField #scriptValidity (`shouldBe` (Just $ ApiT TxScriptValid))
             ]
 
     it "SHARED_TRANSACTIONS_CREATE_01a - Empty payload is not allowed" $ \ctx -> runResourceT $ do
