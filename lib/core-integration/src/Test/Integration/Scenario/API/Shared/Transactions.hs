@@ -273,6 +273,18 @@ spec = describe "SHARED_TRANSACTIONS" $ do
         rDecodedTxTarget <- request @(ApiDecodedTransaction n) ctx
             (Link.decodeTransaction @'Shelley wb) Default decodePayload
 
+        let expectedFee = getFromResponse (#fee . #getQuantity) rTx
+        let sharedExpectationsBetweenWallets =
+                [ expectResponseCode HTTP.status202
+                , expectField (#fee . #getQuantity) (`shouldBe` expectedFee)
+                , expectField #withdrawals (`shouldBe` [])
+                , expectField #collateral (`shouldBe` [])
+                , expectField #metadata (`shouldBe` (ApiTxMetadata Nothing))
+                , expectField #scriptValidity (`shouldBe` (Just $ ApiT TxScriptValid))
+                ]
+
+        verify rDecodedTxTarget sharedExpectationsBetweenWallets
+
         let isInpOurs inp = case inp of
                 ExternalInput _ -> False
                 WalletInput _ -> True
@@ -295,18 +307,6 @@ spec = describe "SHARED_TRANSACTIONS" $ do
         let isOutOurs out = case out of
                 WalletOutput _ -> False
                 ExternalOutput _ -> True
-
-        let expectedFee = getFromResponse (#fee . #getQuantity) rTx
-        let sharedExpectationsBetweenWallets =
-                [ expectResponseCode HTTP.status202
-                , expectField (#fee . #getQuantity) (`shouldBe` expectedFee)
-                , expectField #withdrawals (`shouldBe` [])
-                , expectField #collateral (`shouldBe` [])
-                , expectField #metadata (`shouldBe` (ApiTxMetadata Nothing))
-                , expectField #scriptValidity (`shouldBe` (Just $ ApiT TxScriptValid))
-                ]
-
-        verify rDecodedTxTarget sharedExpectationsBetweenWallets
 
         verify rDecodedTxSource $
             sharedExpectationsBetweenWallets ++

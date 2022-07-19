@@ -2718,7 +2718,7 @@ decodeSharedTransaction
     -> ApiT WalletId
     -> ApiSerialisedTransaction
     -> Handler (ApiDecodedTransaction n)
-decodeSharedTransaction ctx (ApiT wid) (ApiSerialisedTransaction (ApiT sealed)) = do
+decodeSharedTransaction ctx (ApiT wid) (ApiSerialisedTransaction (ApiT sealed)) =  do
     let (decodedTx, _toMint, _toBurn, _allCerts, interval) = decodeTx tl sealed
     let (Tx { txId
             , fee
