@@ -2713,15 +2713,63 @@ decodeSharedTransaction
     :: forall ctx s k n.
         ( ctx ~ ApiLayer s k
         , IsOurs s Address
-        , Typeable s
-        , Typeable n
         )
     => ctx
     -> ApiT WalletId
     -> ApiSerialisedTransaction
     -> Handler (ApiDecodedTransaction n)
-decodeSharedTransaction _ctx (ApiT _wid) (ApiSerialisedTransaction (ApiT _sealed)) = undefined
-
+decodeSharedTransaction ctx (ApiT wid) (ApiSerialisedTransaction (ApiT sealed)) = do
+    let (decodedTx, _toMint, _toBurn, _allCerts, interval) = decodeTx tl sealed
+    let (Tx { txId
+            , fee
+            , resolvedInputs
+            , resolvedCollateralInputs
+            , outputs
+            , metadata
+            , scriptValidity
+            }) = decodedTx
+    (txinsOutsPaths, collateralInsOutsPaths, outsPath)
+        <- withWorkerCtx ctx wid liftE liftE $ \wrk -> do
+        inputPaths <-
+            liftHandler $ W.lookupTxIns @_ @s @k wrk wid $
+            fst <$> resolvedInputs
+        collateralInputPaths <-
+            liftHandler $ W.lookupTxIns @_ @s @k wrk wid $
+            fst <$> resolvedCollateralInputs
+        outputPaths <-
+            liftHandler $ W.lookupTxOuts @_ @s @k wrk wid outputs
+        pure
+            ( inputPaths
+            , collateralInputPaths
+            , outputPaths
+            )
+    pure $ ApiDecodedTransaction
+        { id = ApiT txId
+        , fee = maybe (Quantity 0) (Quantity . fromIntegral . unCoin) fee
+        , inputs = map toInp txinsOutsPaths
+        , outputs = map toOut outsPath
+        , collateral = map toInp collateralInsOutsPaths
+        -- TODO: [ADP-1670]
+        , collateralOutputs = ApiAsArray Nothing
+        , withdrawals = []
+        -- TODO minting/burning multisig
+        , mint = emptyApiAssetMntBurn
+        , burn = emptyApiAssetMntBurn
+        -- TODO delegation/withdrawals multisig
+        , certificates = []
+        , depositsTaken = []
+        , depositsReturned = []
+        , metadata = ApiTxMetadata $ ApiT <$> metadata
+        , scriptValidity = ApiT <$> scriptValidity
+        , validityInterval = interval
+        }
+  where
+    tl = ctx ^. W.transactionLayer @k
+    emptyApiAssetMntBurn = ApiAssetMintBurn
+        { tokens = []
+        , walletPolicyKeyHash = Nothing
+        , walletPolicyKeyIndex = Nothing
+        }
 
 -- TODO: Most of the body of this function should really belong to
 -- Cardano.Wallet to keep the Api.Server module free of business logic!
@@ -2903,28 +2951,6 @@ decodeTransaction ctx (ApiT wid) (ApiSerialisedTransaction (ApiT sealed)) = do
         , walletPolicyKeyIndex =
             policyIx <$ includePolicyKeyInfo tokenWithScripts xpubM
         }
-    toOut (txoutIncoming, Nothing) =
-        ExternalOutput $ toAddressAmount @n txoutIncoming
-    toOut ((TxOut addr (TokenBundle (Coin c) tmap)), (Just path)) =
-            WalletOutput $ ApiWalletOutput
-                { address = (ApiT addr, Proxy @n)
-                , amount = Quantity $ fromIntegral c
-                , assets = ApiT tmap
-                , derivationPath = NE.map ApiT path
-                }
-    toInp (txin@(TxIn txid ix), txoutPathM) =
-        case txoutPathM of
-            Nothing ->
-                ExternalInput (ApiT txin)
-            Just (TxOut addr (TokenBundle (Coin c) tmap), path) ->
-                WalletInput $ ApiWalletInput
-                    { id = ApiT txid
-                    , index = ix
-                    , address = (ApiT addr, Proxy @n)
-                    , derivationPath = NE.map ApiT path
-                    , amount = Quantity $ fromIntegral c
-                    , assets = ApiT tmap
-                    }
     toWrdl acct (rewardKey, (Coin c)) =
         if rewardKey == acct then
            ApiWithdrawalGeneral (ApiT rewardKey, Proxy @n) (Quantity $ fromIntegral c) Our
@@ -2935,7 +2961,6 @@ decodeTransaction ctx (ApiT wid) (ApiSerialisedTransaction (ApiT sealed)) = do
         W.CertificateOfDelegation delCert -> toApiDelCert acct acctPath delCert
         W.CertificateOfPool poolCert -> toApiPoolCert poolCert
         W.CertificateOther otherCert -> toApiOtherCert otherCert
-
     toApiOtherCert = OtherCertificate . ApiT
 
     toApiPoolCert (W.Registration (W.PoolRegistrationCertificate poolId' poolOwners' poolMargin' poolCost' poolPledge' poolMetadata')) =
@@ -2978,6 +3003,36 @@ decodeTransaction ctx (ApiT wid) (ApiSerialisedTransaction (ApiT sealed)) = do
     ourRewardAccountDeregistration = \case
         WalletDelegationCertificate (QuitPool _) -> True
         _ -> False
+
+toInp
+    :: forall n. (TxIn, Maybe (TxOut, NonEmpty DerivationIndex))
+    -> ApiTxInputGeneral n
+toInp (txin@(TxIn txid ix), txoutPathM) =
+    case txoutPathM of
+        Nothing ->
+            ExternalInput (ApiT txin)
+        Just (TxOut addr (TokenBundle (Coin c) tmap), path) ->
+            WalletInput $ ApiWalletInput
+                { id = ApiT txid
+                , index = ix
+                , address = (ApiT addr, Proxy @n)
+                , derivationPath = NE.map ApiT path
+                , amount = Quantity $ fromIntegral c
+                , assets = ApiT tmap
+                }
+
+toOut
+    :: forall n. (TxOut, Maybe (NonEmpty DerivationIndex))
+    -> ApiTxOutputGeneral n
+toOut (txoutIncoming, Nothing) =
+    ExternalOutput $ toAddressAmount @n txoutIncoming
+toOut ((TxOut addr (TokenBundle (Coin c) tmap)), (Just path)) =
+        WalletOutput $ ApiWalletOutput
+            { address = (ApiT addr, Proxy @n)
+            , amount = Quantity $ fromIntegral c
+            , assets = ApiT tmap
+            , derivationPath = NE.map ApiT path
+            }
 
 submitTransaction
     :: forall ctx s k (n :: NetworkDiscriminant).
