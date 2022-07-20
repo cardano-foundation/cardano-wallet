@@ -31,6 +31,13 @@ jobs:
     - name: Check space
       run: Get-PSDrive
 
+    - name: configure Pagefile
+      uses: al-cheb/configure-pagefile-action@v1.2
+      with:
+        minimum-size: 16GB
+        maximum-size: 24GB
+        disk-root: "C:"
+
     - name: Checkout
       shell: bash
       run: |
