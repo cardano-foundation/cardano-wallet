@@ -82,9 +82,9 @@ jobs:
       uses: actions/cache@v2.1.7
       with:
         path: C:/cardano-wallet/test/e2e/state/wallet_db/${{ env.NETWORK }}
-        key: wallet-db-${{ runner.os }}-${{ env.NETWORK }}-${{ steps.date-time.outputs.value }}
+        key: wallet-db2-${{ runner.os }}-${{ env.NETWORK }}-${{ steps.date-time.outputs.value }}
         restore-keys: |
-          wallet-db-${{ runner.os }}-${{ env.NETWORK }}-
+          wallet-db2-${{ runner.os }}-${{ env.NETWORK }}-
 
     - name: ⚙️ Setup (get latest bins and configs and decode fixtures)
       working-directory: C:/cardano-wallet/test/e2e
