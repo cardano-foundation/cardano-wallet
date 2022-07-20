@@ -106,7 +106,7 @@ import Cardano.Wallet.Api.Types
     , ApiMnemonicT (..)
     , ApiMultiDelegationAction (..)
     , ApiNetworkClock (..)
-    , ApiNetworkInfo
+    , ApiNetworkInfo (..)
     , ApiNetworkInformation (..)
     , ApiNetworkParameters (..)
     , ApiNtpStatus (..)
@@ -253,7 +253,6 @@ import Cardano.Wallet.Primitive.Types
     , PoolMetadataGCStatus (..)
     , PoolMetadataSource
     , PoolOwner (..)
-    , ProtocolMagic
     , Settings
     , SlotId (..)
     , SlotInEpoch (..)
@@ -1999,13 +1998,11 @@ instance Arbitrary ApiSlotId where
     arbitrary = genericArbitrary
     shrink = genericShrink
 
-instance Arbitrary ProtocolMagic where
-    arbitrary = error "implement protocolMagic arbitrary instance"
-    shrink = error "implement protocolMagic arbitrary instance"
-
 instance Arbitrary ApiNetworkInfo where
-    arbitrary = error "implement protocolMagic arbitrary instance"
-    shrink = error "implement protocolMagic arbitrary instance"
+    arbitrary = oneof 
+        [ pure $ ApiNetworkInfo "mainnet" 764824073
+        , ApiNetworkInfo "testnet" <$> arbitrary
+        ]
 
 instance Arbitrary ApiNetworkInformation where
     arbitrary = genericArbitrary
