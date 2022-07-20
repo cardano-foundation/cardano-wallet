@@ -2114,18 +2114,36 @@ components:
         - alonzo
         - babbage
 
+    NetworkInfo: &NetworkInfo
+      type: object
+      required:
+        - protocol_magic
+        - network_id
+      properties:
+        protocol_magic:
+          description: The unique magic number defining the network the wallet is working on.
+          type: integer
+        network_id:
+          description: A name just distinguishing mainnet from testnets
+          type: string
+          enum:
+              - mainnet
+              - testnet
+
     ApiNetworkInformation: &ApiNetworkInformation
       type: object
       required:
-        - sync_progrestgss
+        - sync_progress
         - node_tip
         - node_era
+        - network_info
       properties:
         sync_progress: *networkInformationSyncProgress
         node_tip: *networkInformationNodeTip
         network_tip: *ApiNetworkTip
         next_epoch: *epochInfo
         node_era: *ApiEra
+        network_info: *NetworkInfo
 
     ApiNetworkClock: &ApiNetworkClock
       <<: *networkInformationNtpStatus
