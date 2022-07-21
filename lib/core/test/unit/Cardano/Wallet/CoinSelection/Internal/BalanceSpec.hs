@@ -21,7 +21,7 @@ module Cardano.Wallet.CoinSelection.Internal.BalanceSpec
     , MockComputeMinimumAdaQuantity
     , MockComputeMinimumCost
     , MockComputeSelectionLimit
-    , TestAddress
+    , TestAddress (..)
     , TestSelectionContext
     , TestUTxO
     , genMockAssessTokenBundleSize
@@ -1859,6 +1859,7 @@ mkBoundaryTestExpectation (BoundaryTestData params expectedResult) = do
         , assessTokenBundleSize = unMockAssessTokenBundleSize $
             boundaryTestBundleSizeAssessor params
         , computeSelectionLimit = const NoLimit
+        , dummyAddress = TestAddress 0x0
         , maximumOutputAdaQuantity = testMaximumOutputAdaQuantity
         , maximumOutputTokenQuantity = testMaximumOutputTokenQuantity
         }
@@ -2489,6 +2490,8 @@ unMockSelectionConstraints m = SelectionConstraints
         unMockComputeMinimumCost $ view #computeMinimumCost m
     , computeSelectionLimit =
         unMockComputeSelectionLimit $ view #computeSelectionLimit m
+    , dummyAddress =
+        TestAddress 0x0
     , maximumOutputAdaQuantity =
         testMaximumOutputAdaQuantity
     , maximumOutputTokenQuantity =
@@ -4448,8 +4451,6 @@ data TestSelectionContext
 instance SC.SelectionContext TestSelectionContext where
     type Address TestSelectionContext = TestAddress
     type UTxO TestSelectionContext = TestUTxO
-
-    dummyAddress = TestAddress 0x0
 
 newtype TestAddress = TestAddress (Hexadecimal Quid)
     deriving Arbitrary via Quid
