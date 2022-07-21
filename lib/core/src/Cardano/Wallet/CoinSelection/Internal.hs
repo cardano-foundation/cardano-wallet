@@ -168,6 +168,8 @@ data SelectionConstraints ctx = SelectionConstraints
         :: [(Address ctx, TokenBundle)] -> SelectionLimit
         -- ^ Computes an upper bound for the number of ordinary inputs to
         -- select, given a current set of outputs.
+    , dummyAddress
+        :: Address ctx
     , maximumCollateralInputCount
         :: Int
         -- ^ Specifies an inclusive upper bound on the number of unique inputs
@@ -383,12 +385,12 @@ performSelectionCollateral balanceResult cs ps
 -- this function assigns all change outputs with a dummy change address.
 --
 selectionAllOutputs
-    :: forall ctx. SelectionContext ctx
-    => Selection ctx
+    :: SelectionConstraints ctx
+    -> Selection ctx
     -> [(Address ctx, TokenBundle)]
-selectionAllOutputs selection = (<>)
+selectionAllOutputs constraints selection = (<>)
     (selection ^. #outputs)
-    (selection ^. #change <&> (dummyAddress @ctx, ))
+    (selection ^. #change <&> (dummyAddress constraints, ))
 
 -- | Creates constraints and parameters for 'Balance.performSelection'.
 --
@@ -408,6 +410,8 @@ toBalanceConstraintsParams (constraints, params) =
         , computeSelectionLimit =
             view #computeSelectionLimit constraints
                 & adjustComputeSelectionLimit
+        , dummyAddress =
+            view #dummyAddress constraints
         , assessTokenBundleSize =
             view #assessTokenBundleSize constraints
         , maximumOutputAdaQuantity =
@@ -808,7 +812,7 @@ verifySelectionOutputCoinsSufficient cs _ps selection =
     verifyEmpty errors FailureToVerifySelectionOutputCoinsSufficient
   where
     errors :: [SelectionOutputCoinInsufficientError (Address ctx)]
-    errors = mapMaybe maybeError (selectionAllOutputs selection)
+    errors = mapMaybe maybeError (selectionAllOutputs cs selection)
 
     maybeError
         :: (Address ctx, TokenBundle)
@@ -840,7 +844,7 @@ verifySelectionOutputSizesWithinLimit cs _ps selection =
     verifyEmpty errors FailureToVerifySelectionOutputSizesWithinLimit
   where
     errors :: [SelectionOutputSizeExceedsLimitError ctx]
-    errors = mapMaybe (verifyOutputSize cs) (selectionAllOutputs selection)
+    errors = mapMaybe (verifyOutputSize cs) (selectionAllOutputs cs selection)
 
 --------------------------------------------------------------------------------
 -- Selection verification: output token quantities
@@ -853,11 +857,11 @@ newtype FailureToVerifySelectionOutputTokenQuantitiesWithinLimit address =
 
 verifySelectionOutputTokenQuantitiesWithinLimit
     :: forall ctx. SelectionContext ctx => VerifySelection ctx
-verifySelectionOutputTokenQuantitiesWithinLimit _cs _ps selection =
+verifySelectionOutputTokenQuantitiesWithinLimit cs _ps selection =
     verifyEmpty errors FailureToVerifySelectionOutputTokenQuantitiesWithinLimit
   where
     errors :: [SelectionOutputTokenQuantityExceedsLimitError ctx]
-    errors = verifyOutputTokenQuantities =<< selectionAllOutputs selection
+    errors = verifyOutputTokenQuantities =<< selectionAllOutputs cs selection
 
 --------------------------------------------------------------------------------
 -- Selection error verification

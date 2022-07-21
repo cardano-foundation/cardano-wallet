@@ -157,8 +157,6 @@ instance SC.SelectionContext WalletSelectionContext where
     type Address WalletSelectionContext = Address
     type UTxO WalletSelectionContext = WalletUTxO
 
-    dummyAddress = Address ""
-
 --------------------------------------------------------------------------------
 -- Mapping between external (wallet) and internal UTxO identifiers
 --------------------------------------------------------------------------------
@@ -253,6 +251,8 @@ toInternalSelectionConstraints SelectionConstraints {..} =
             computeMinimumCost . toExternalSelectionSkeleton
         , computeSelectionLimit =
             computeSelectionLimit . fmap (uncurry TxOut)
+        , dummyAddress =
+            Address ""
         , maximumOutputAdaQuantity =
             txOutMaxCoin
         , maximumOutputTokenQuantity =

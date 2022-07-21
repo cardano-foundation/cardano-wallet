@@ -49,7 +49,7 @@ import Cardano.Wallet.CoinSelection.Internal.BalanceSpec
     , MockComputeMinimumAdaQuantity
     , MockComputeMinimumCost
     , MockComputeSelectionLimit
-    , TestAddress
+    , TestAddress (..)
     , TestSelectionContext
     , TestUTxO
     , genMockAssessTokenBundleSize
@@ -589,6 +589,8 @@ unMockSelectionConstraints m = SelectionConstraints
         unMockComputeMinimumCost $ view #computeMinimumCost m
     , computeSelectionLimit =
         unMockComputeSelectionLimit $ view #computeSelectionLimit m
+    , dummyAddress =
+        TestAddress 0x0
     , maximumCollateralInputCount =
         view #maximumCollateralInputCount m
     , minimumCollateralPercentage =
