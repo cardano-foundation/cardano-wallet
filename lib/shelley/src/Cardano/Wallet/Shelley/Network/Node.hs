@@ -380,7 +380,7 @@ withNodeNetworkLayerBase
         , currentSlottingParameters =
             snd <$> atomically (readTMVar networkParamsVar)
         , postTx =
-            _postTx localTxSubmissionQ
+            _postTx localTxSubmissionQ readCurrentNodeEra
         , stakeDistribution =
             _stakeDistribution queryRewardQ
         , getCachedRewardAccountBalance =
@@ -452,9 +452,10 @@ withNodeNetworkLayerBase
     -- all form of type-level indicator about the era. The 'SealedTx' type
     -- shouldn't be needed anymore since we've dropped jormungandr, so we could
     -- instead carry a transaction from cardano-api types with proper typing.
-    _postTx localTxSubmissionQ tx = do
+    _postTx localTxSubmissionQ readCurrentEra tx = do
         liftIO $ traceWith tr $ MsgPostTx tx
-        let cmd = CmdSubmitTx $ unsealShelleyTx tx
+        preferredEra <- liftIO readCurrentEra
+        let cmd = CmdSubmitTx $ unsealShelleyTx preferredEra tx
         liftIO (localTxSubmissionQ `send` cmd) >>= \case
             SubmitSuccess -> pure ()
             SubmitFail e -> throwE $ ErrPostTxValidationError $ T.pack $ show e

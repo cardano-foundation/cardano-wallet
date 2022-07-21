@@ -114,6 +114,8 @@ module Cardano.Wallet.Api.Types
     , ApiErrorCode (..)
     , ApiNetworkInformation (..)
     , ApiEra (..)
+    , toApiEra
+    , fromApiEra
     , ApiNtpStatus (..)
     , NtpSyncingStatus (..)
     , ApiNetworkClock (..)
@@ -256,7 +258,9 @@ import Cardano.Address.Derivation
 import Cardano.Address.Script
     ( Cosigner (..), KeyHash, Script, ScriptTemplate, ValidationLevel (..) )
 import Cardano.Api
-    ( StakeAddress
+    ( AnyCardanoEra (..)
+    , CardanoEra (..)
+    , StakeAddress
     , TxMetadataJsonSchema (..)
     , deserialiseFromBech32
     , displayError
@@ -1419,6 +1423,23 @@ data ApiEra
     | ApiBabbage
     deriving (Show, Eq, Generic, Enum, Ord, Bounded)
     deriving anyclass NFData
+
+toApiEra :: AnyCardanoEra -> ApiEra
+toApiEra (AnyCardanoEra ByronEra) = ApiByron
+toApiEra (AnyCardanoEra ShelleyEra) = ApiShelley
+toApiEra (AnyCardanoEra AllegraEra) = ApiAllegra
+toApiEra (AnyCardanoEra MaryEra) = ApiMary
+toApiEra (AnyCardanoEra AlonzoEra) = ApiAlonzo
+toApiEra (AnyCardanoEra BabbageEra) = ApiBabbage
+
+fromApiEra :: ApiEra -> AnyCardanoEra
+fromApiEra ApiByron = AnyCardanoEra ByronEra
+fromApiEra ApiShelley = AnyCardanoEra ShelleyEra
+fromApiEra ApiAllegra = AnyCardanoEra AllegraEra
+fromApiEra ApiMary = AnyCardanoEra MaryEra
+fromApiEra ApiAlonzo = AnyCardanoEra AlonzoEra
+fromApiEra ApiBabbage = AnyCardanoEra BabbageEra
+
 
 instance FromJSON ApiEra where
     parseJSON = genericParseJSON $ Aeson.defaultOptions

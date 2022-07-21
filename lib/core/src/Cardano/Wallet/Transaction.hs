@@ -172,7 +172,7 @@ data TransactionLayer k tx = TransactionLayer
 
     , addVkWitnesses
         :: AnyCardanoEra
-            -- Era for which the transaction should be created.
+            -- Preferred latest era
         -> (XPrv, Passphrase "encryption")
             -- Reward account
         -> (KeyHash, XPrv, Passphrase "encryption")
@@ -330,7 +330,8 @@ data TransactionLayer k tx = TransactionLayer
         -- The set of constraints that apply to all transactions.
 
     , decodeTx
-        :: tx ->
+        :: AnyCardanoEra
+        -> tx ->
             ( Tx
             , TokenMapWithScripts
             , TokenMapWithScripts

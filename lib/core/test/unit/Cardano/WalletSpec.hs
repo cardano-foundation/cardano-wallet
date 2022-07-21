@@ -1393,7 +1393,7 @@ dummyTransactionLayer = TransactionLayer
         error "dummyTransactionLayer: tokenBundleSizeAssessor not implemented"
     , constraints =
         error "dummyTransactionLayer: constraints not implemented"
-    , decodeTx = \_sealed ->
+    , decodeTx = \_era _sealed ->
         ( Tx
             { txId = Hash ""
             , fee = mempty

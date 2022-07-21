@@ -63,7 +63,6 @@ import Test.QuickCheck
     , Property
     , applyFun
     , property
-    , (.&&.)
     , (===)
     )
 import Test.QuickCheck.Instances.ByteString
@@ -114,9 +113,8 @@ spec = do
 -------------------------------------------------------------------------------}
 
 prop_sealedTxGibberish :: Gibberish -> Property
-prop_sealedTxGibberish (Gibberish bs) =
-    isLeft (serialisedTx <$> sealedTxFromBytes bs) .&&.
-    isLeft (cardanoTx <$> sealedTxFromBytes bs)
+prop_sealedTxGibberish (Gibberish bs) = property $
+    isLeft (sealedTxFromBytes bs)
 
 prop_mockSealedTx :: Gibberish -> Property
 prop_mockSealedTx (Gibberish bs) =

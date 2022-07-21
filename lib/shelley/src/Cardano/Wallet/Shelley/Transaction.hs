@@ -146,6 +146,7 @@ import Cardano.Wallet.Primitive.Types.Tx
     , TxMetadata (..)
     , TxOut (..)
     , TxSize (..)
+    , cardanoTxIdeallyNoLaterThan
     , sealedTxFromCardano'
     , sealedTxFromCardanoBody
     , txOutAddCoin
@@ -575,7 +576,7 @@ newTransactionLayer networkId = TransactionLayer
                         selection delta
 
     , addVkWitnesses =
-        \_era stakeCreds policyCreds addressResolver inputResolver sealedTx ->
+        \era stakeCreds policyCreds addressResolver inputResolver sealedTx ->
         do
             let acctResolver
                     :: RewardAccount -> Maybe (XPrv, Passphrase "encryption")
@@ -587,7 +588,7 @@ newTransactionLayer networkId = TransactionLayer
                 policyResolver keyhash = do
                     let (keyhash', xprv, encP) = policyCreds
                     guard (keyhash == keyhash') $> (xprv, encP)
-            case cardanoTx sealedTx of
+            case cardanoTxIdeallyNoLaterThan era sealedTx of
                 InAnyCardanoEra ByronEra _ ->
                     sealedTx
                 InAnyCardanoEra ShelleyEra (Cardano.Tx body wits) ->
@@ -669,14 +670,16 @@ newTransactionLayer networkId = TransactionLayer
     }
 
 _decodeSealedTx
-    :: SealedTx ->
+    :: AnyCardanoEra
+    -> SealedTx ->
         ( Tx
         , TokenMapWithScripts
         , TokenMapWithScripts
         , [Certificate]
         , Maybe ValidityIntervalExplicit
         )
-_decodeSealedTx (cardanoTx -> InAnyCardanoEra _era tx) = fromCardanoTx tx
+_decodeSealedTx preferredLatestEra (cardanoTxIdeallyNoLaterThan preferredLatestEra -> Cardano.InAnyCardanoEra _ tx) =
+    fromCardanoTx tx
 
 _evaluateTransactionBalance
     :: forall era. IsShelleyBasedEra era

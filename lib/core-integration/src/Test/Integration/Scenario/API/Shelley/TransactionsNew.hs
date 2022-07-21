@@ -71,6 +71,7 @@ import Cardano.Wallet.Api.Types
     , EncodeStakeAddress
     , ResourceContext (..)
     , WalletStyle (..)
+    , fromApiEra
     )
 import Cardano.Wallet.Primitive.AddressDerivation
     ( DerivationIndex (..)
@@ -114,7 +115,7 @@ import Cardano.Wallet.Primitive.Types.Tx
     , TxMetadataValue (..)
     , TxScriptValidity (..)
     , TxStatus (..)
-    , cardanoTx
+    , cardanoTxIdeallyNoLaterThan
     , getSealedTxBody
     , sealedTxFromCardanoBody
     )
@@ -315,7 +316,9 @@ spec = describe "NEW_SHELLEY_TRANSACTIONS" $ do
                         Cardano.TxMetadataInEra _ (Cardano.TxMetadata m) ->
                             Just m
 
-        case getMetadata (cardanoTx $ getApiT (signedTx ^. #transaction)) of
+        let era = fromApiEra $ _mainEra ctx
+        let tx = cardanoTxIdeallyNoLaterThan era $ getApiT (signedTx ^. #transaction)
+        case getMetadata tx of
             Nothing -> error "Tx doesn't include metadata"
             Just m  -> case Map.lookup 1 m of
                 Nothing -> error "Tx doesn't include metadata"
@@ -380,7 +383,9 @@ spec = describe "NEW_SHELLEY_TRANSACTIONS" $ do
                         Cardano.TxMetadataInEra _ (Cardano.TxMetadata m) ->
                             Just m
 
-        case getMetadata (cardanoTx $ getApiT (signedTx ^. #transaction)) of
+        let era = fromApiEra $ _mainEra ctx
+        let tx = cardanoTxIdeallyNoLaterThan era $ getApiT (signedTx ^. #transaction)
+        case getMetadata tx of
             Nothing -> error "Tx doesn't include metadata"
             Just m  -> case Map.lookup 1 m of
                 Nothing -> error "Tx doesn't include metadata"
@@ -1768,8 +1773,9 @@ spec = describe "NEW_SHELLEY_TRANSACTIONS" $ do
             (Link.balanceTransaction @'Shelley wa) Default toBalance'
 
         let (requiredAmt, largestFound) =
-                -- May need babbage specific values when address ADP-1909.
-                ("4.280100", "[2.853400]")
+                if _mainEra ctx >= ApiBabbage
+                then ("4.279050", "[2.852700]")
+                else ("4.280100", "[2.853400]")
         verify rTx'
             [ expectResponseCode HTTP.status403
             , expectErrorMessage errMsg403Collateral
@@ -2026,21 +2032,15 @@ spec = describe "NEW_SHELLEY_TRANSACTIONS" $ do
         -- too small, which is good enough for this test... Yet really, we
         -- should be able to construct transactions with extra signers from the
         -- API!
+        --
+        -- Update July 2022: For some reason the tx is now accepted. This may be
+        -- because of fee overestimation . Ideally fees should be as small as
+        -- possible, and this would fail.
         submittedTx <- submitTxWithWid ctx w signedTx
 
-        -- For some reason the tx is still accepted in Babbage. This must be
-        -- because the fee overestimation is big enough. Ideally fees should
-        -- be as small as possible, and this would fail.
-        if _mainEra ctx >= ApiBabbage
-        then do
-            verify submittedTx
-                [ expectResponseCode HTTP.status202
-                ]
-        else do
-            verify submittedTx
-                [ expectResponseCode HTTP.status500
-                , expectErrorMessage "FeeTooSmallUTxO"
-                ]
+        verify submittedTx
+            [ expectResponseCode HTTP.status202
+            ]
 
     describe "TRANS_NEW_SUBMIT_01 - Submitting on foreign wallet is forbidden" $ do
         let scenarios =

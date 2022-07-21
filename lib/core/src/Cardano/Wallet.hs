@@ -1752,6 +1752,7 @@ balanceTransactionWithSelectionStrategy
     tl = ctx ^. transactionLayer @k
     tr = contramap MsgWallet $ ctx ^. logger @m
 
+    toSealed :: Cardano.Tx era -> SealedTx
     toSealed = sealedTxFromCardano . Cardano.InAnyCardanoEra Cardano.cardanoEra
 
     guardTxSize :: Cardano.Tx era -> ExceptT ErrBalanceTx m (Cardano.Tx era)
@@ -1836,7 +1837,9 @@ balanceTransactionWithSelectionStrategy
             throwE ErrBalanceTxZeroAdaOutput
 
     extractOutputsFromTx tx =
-        let (Tx {outputs}, _, _, _, _) = decodeTx tl tx
+        let
+            era = Cardano.AnyCardanoEra $ Cardano.cardanoEra @era
+            (Tx {outputs}, _, _, _, _) = decodeTx tl era tx
         in outputs
 
     guardConflictingWithdrawalNetworks
@@ -2315,7 +2318,7 @@ signTransaction
   => TransactionLayer k SealedTx
   -- ^ The way to interact with the wallet backend
   -> Cardano.AnyCardanoEra
-  -- ^ The era to operate in
+  -- ^ Preferred latest era
   -> (Address -> Maybe (k 'AddressK XPrv, Passphrase "encryption"))
   -- ^ The wallets address-key lookup function
   -> (k 'RootK XPrv, Passphrase "encryption")
@@ -2328,7 +2331,7 @@ signTransaction
   -> SealedTx
   -- ^ The original transaction, with additional signatures added where
   -- necessary
-signTransaction tl era keyLookup (rootKey, rootPwd) utxo =
+signTransaction tl preferredLatestEra keyLookup (rootKey, rootPwd) utxo =
     let
         rewardAcnt :: (XPrv, Passphrase "encryption")
         rewardAcnt =
@@ -2348,7 +2351,13 @@ signTransaction tl era keyLookup (rootKey, rootPwd) utxo =
             TxOut addr _ <- UTxO.lookup i utxo
             pure addr
     in
-        addVkWitnesses tl era rewardAcnt policyKey keyLookup inputResolver
+        addVkWitnesses
+            tl
+            preferredLatestEra
+            rewardAcnt
+            policyKey
+            keyLookup
+            inputResolver
 
 -- | Produce witnesses and construct a transaction from a given selection.
 --
@@ -2591,14 +2600,18 @@ submitExternalTx
     => ctx
     -> SealedTx
     -> ExceptT ErrPostTx IO Tx
-submitExternalTx ctx sealedTx = traceResult trPost $ do
-    postTx nw sealedTx
-    pure tx
+submitExternalTx ctx sealedTx = do
+    -- FIXME: We read the current era to constrain the @sealedTx@ **twice**:
+    -- once here for decodeTx, and once in postTx before submitting.
+    era <- liftIO $ currentNodeEra nw
+    let (tx, _, _, _, _) = decodeTx tl era sealedTx
+    let trPost = contramap (MsgSubmitExternalTx (tx ^. #txId)) (ctx ^. logger)
+    traceResult trPost $ do
+        postTx nw sealedTx
+        pure tx
   where
     tl = ctx ^. transactionLayer @k
     nw = ctx ^. networkLayer
-    trPost = contramap (MsgSubmitExternalTx (tx ^. #txId)) (ctx ^. logger)
-    (tx, _, _, _, _) = decodeTx tl sealedTx
 
 -- | Remove a pending or expired transaction from the transaction history. This
 -- happens at the request of the user. If the transaction is already on chain,
