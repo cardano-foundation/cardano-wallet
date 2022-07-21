@@ -696,10 +696,10 @@ applyBlockEventsToUTxO BlockEvents{slot,blockHeight,transactions,delegations} s 
   where
     fblock = FilteredBlock
       { slot
-      , transactions = txs1
+      , transactions = reverse rtxs1
       , delegations = filter (ours s . dlgCertAccount) $ toList delegations
       }
-    (txs1, du1, u1) = L.foldl' applyOurTx (mempty, mempty, u0)
+    (rtxs1, du1, u1) = L.foldl' applyOurTx (mempty, mempty, u0)
         $ toList transactions
 
     applyOurTx
