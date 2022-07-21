@@ -178,7 +178,7 @@ import Data.Functor.Contravariant
 import Data.IntCast
     ( intCast )
 import Data.List
-    ( partition )
+    ( partition, sortOn )
 import Data.List.NonEmpty
     ( NonEmpty (..) )
 import Data.Map
@@ -210,8 +210,6 @@ import Data.Traversable
     ( for )
 import Fmt
     ( pretty )
-import GHC.OldList
-    ( sortOn )
 import Ouroboros.Consensus.Cardano.Block
     ( CardanoBlock, StandardCrypto )
 import Ouroboros.Consensus.HardFork.History.EraParams
@@ -731,7 +729,9 @@ assembleTransaction
         let fee = Just $ Coin $ fromIntegral _transactionFees
         (resolvedInputs, resolvedCollateralInputs) <-
             fromInputs _transactionUtxosInputs
-        outputs <- for _transactionUtxosOutputs \out@BF.UtxoOutput{..} -> do
+        let sortedTransactionUtxosOutputs =
+                sortOn BF._utxoOutputOutputIndex _transactionUtxosOutputs
+        outputs <- for sortedTransactionUtxosOutputs \out@BF.UtxoOutput{..} -> do
             address <- fromBfAddress network _utxoOutputAddress
             tokens <- do
                 coin <- case [ lovelaces
