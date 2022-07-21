@@ -1,116 +1,146 @@
 {
     "samples": [
         {
-            "network_tip": {
-                "absolute_slot_number": 8274426,
-                "epoch_number": 4043,
-                "slot_number": 12088,
-                "time": "1866-11-30T10:07:10Z"
+            "network_info": {
+                "network_id": "testnet",
+                "protocol_magic": 28
             },
-            "next_epoch": {
-                "epoch_number": 12763,
-                "epoch_start_time": "1865-01-30T16:00:00Z"
+            "network_tip": {
+                "absolute_slot_number": 176624,
+                "epoch_number": 10450,
+                "slot_number": 7740,
+                "time": "1885-10-04T14:00:00Z"
             },
             "node_era": "allegra",
             "node_tip": {
-                "absolute_slot_number": 7907785,
-                "epoch_number": 3178,
+                "absolute_slot_number": 3812067,
+                "epoch_number": 762,
                 "height": {
-                    "quantity": 6451,
+                    "quantity": 13928,
                     "unit": "block"
                 },
-                "slot_number": 151,
-                "time": "1867-01-20T13:00:00Z"
+                "slot_number": 1815,
+                "time": "1861-11-16T09:20:27.783787341728Z"
             },
             "sync_progress": {
                 "status": "not_responding"
             }
         },
         {
-            "network_tip": {
-                "absolute_slot_number": 1889322,
-                "epoch_number": 5975,
-                "slot_number": 3704,
-                "time": "1865-10-06T11:47:16Z"
+            "network_info": {
+                "network_id": "testnet",
+                "protocol_magic": -1
             },
-            "node_era": "byron",
+            "network_tip": {
+                "absolute_slot_number": 543524,
+                "epoch_number": 13327,
+                "slot_number": 13002,
+                "time": "1890-02-22T11:27:23Z"
+            },
+            "next_epoch": {
+                "epoch_number": 8112,
+                "epoch_start_time": "1861-11-06T04:00:00Z"
+            },
+            "node_era": "mary",
             "node_tip": {
-                "absolute_slot_number": 4377857,
-                "epoch_number": 6933,
+                "absolute_slot_number": 8183255,
+                "epoch_number": 12251,
                 "height": {
-                    "quantity": 2159,
+                    "quantity": 10138,
                     "unit": "block"
                 },
-                "slot_number": 6860,
-                "time": "1866-03-08T09:33:52Z"
+                "slot_number": 2287,
+                "time": "1897-07-27T03:09:12Z"
             },
             "sync_progress": {
                 "status": "ready"
             }
         },
         {
+            "network_info": {
+                "network_id": "testnet",
+                "protocol_magic": -2
+            },
             "network_tip": {
-                "absolute_slot_number": 158023,
-                "epoch_number": 11718,
-                "slot_number": 6166,
-                "time": "1874-11-08T21:00:00Z"
+                "absolute_slot_number": 2338216,
+                "epoch_number": 5432,
+                "slot_number": 13606,
+                "time": "1889-11-23T19:15:52.479514941402Z"
             },
             "next_epoch": {
-                "epoch_number": 3296,
-                "epoch_start_time": "1877-03-22T04:56:06.658027680404Z"
+                "epoch_number": 2962,
+                "epoch_start_time": "1897-05-17T05:59:53Z"
             },
-            "node_era": "byron",
+            "node_era": "allegra",
             "node_tip": {
-                "absolute_slot_number": 2649549,
-                "epoch_number": 1268,
+                "absolute_slot_number": 126931,
+                "epoch_number": 3004,
                 "height": {
-                    "quantity": 5523,
+                    "quantity": 13615,
                     "unit": "block"
                 },
-                "slot_number": 2477,
-                "time": "1890-08-03T02:00:00Z"
+                "slot_number": 8609,
+                "time": "1880-02-20T22:00:00Z"
             },
             "sync_progress": {
                 "status": "not_responding"
             }
         },
         {
-            "network_tip": {
-                "absolute_slot_number": 1326558,
-                "epoch_number": 10787,
-                "slot_number": 11824,
-                "time": "1866-11-21T13:09:46.314579837668Z"
+            "network_info": {
+                "network_id": "mainnet",
+                "protocol_magic": 764824073
             },
-            "node_era": "byron",
+            "network_tip": {
+                "absolute_slot_number": 2435158,
+                "epoch_number": 14308,
+                "slot_number": 410,
+                "time": "1892-02-15T07:00:00Z"
+            },
+            "next_epoch": {
+                "epoch_number": 2949,
+                "epoch_start_time": "1904-12-19T17:00:00Z"
+            },
+            "node_era": "allegra",
             "node_tip": {
-                "absolute_slot_number": 5447785,
-                "epoch_number": 8154,
+                "absolute_slot_number": 6919308,
+                "epoch_number": 3893,
                 "height": {
-                    "quantity": 7165,
+                    "quantity": 3480,
                     "unit": "block"
                 },
-                "slot_number": 13883,
-                "time": "1865-12-31T10:19:21Z"
+                "slot_number": 8489,
+                "time": "1878-03-15T04:48:21Z"
             },
             "sync_progress": {
                 "status": "ready"
             }
         },
         {
-            "next_epoch": {
-                "epoch_number": 6179,
-                "epoch_start_time": "1908-09-06T12:00:00Z"
+            "network_info": {
+                "network_id": "mainnet",
+                "protocol_magic": 764824073
             },
-            "node_era": "babbage",
+            "network_tip": {
+                "absolute_slot_number": 977668,
+                "epoch_number": 13354,
+                "slot_number": 15613,
+                "time": "1869-10-02T18:00:00Z"
+            },
+            "next_epoch": {
+                "epoch_number": 7454,
+                "epoch_start_time": "1879-02-10T06:00:00Z"
+            },
+            "node_era": "shelley",
             "node_tip": {
-                "absolute_slot_number": 7222803,
-                "epoch_number": 4356,
+                "absolute_slot_number": 4231279,
+                "epoch_number": 11242,
                 "height": {
-                    "quantity": 11462,
+                    "quantity": 633,
                     "unit": "block"
                 },
-                "slot_number": 10343,
-                "time": "1880-10-23T02:14:49Z"
+                "slot_number": 7151,
+                "time": "1898-10-25T23:27:17Z"
             },
             "sync_progress": {
                 "progress": {
@@ -121,26 +151,30 @@
             }
         },
         {
+            "network_info": {
+                "network_id": "testnet",
+                "protocol_magic": 16
+            },
             "network_tip": {
-                "absolute_slot_number": 4864069,
-                "epoch_number": 16364,
-                "slot_number": 14732,
-                "time": "1866-01-13T00:07:16.671971613144Z"
+                "absolute_slot_number": 1852389,
+                "epoch_number": 2427,
+                "slot_number": 12787,
+                "time": "1873-04-01T18:16:27.075796691267Z"
             },
             "next_epoch": {
-                "epoch_number": 8063,
-                "epoch_start_time": "1882-05-12T20:24:41.656006203896Z"
+                "epoch_number": 13366,
+                "epoch_start_time": "1865-12-13T19:21:46Z"
             },
-            "node_era": "shelley",
+            "node_era": "byron",
             "node_tip": {
-                "absolute_slot_number": 4543558,
-                "epoch_number": 13049,
+                "absolute_slot_number": 4674178,
+                "epoch_number": 15012,
                 "height": {
-                    "quantity": 7026,
+                    "quantity": 13811,
                     "unit": "block"
                 },
-                "slot_number": 3026,
-                "time": "1893-09-13T11:09:57.964893156806Z"
+                "slot_number": 7197,
+                "time": "1894-01-02T10:00:00Z"
             },
             "sync_progress": {
                 "progress": {
@@ -151,26 +185,30 @@
             }
         },
         {
+            "network_info": {
+                "network_id": "testnet",
+                "protocol_magic": -2
+            },
             "network_tip": {
-                "absolute_slot_number": 4283256,
-                "epoch_number": 8140,
-                "slot_number": 7995,
-                "time": "1887-01-01T22:57:01.383049324209Z"
+                "absolute_slot_number": 8065187,
+                "epoch_number": 13298,
+                "slot_number": 2792,
+                "time": "1901-12-10T03:29:17Z"
             },
             "next_epoch": {
-                "epoch_number": 11202,
-                "epoch_start_time": "1895-03-12T20:00:00Z"
+                "epoch_number": 390,
+                "epoch_start_time": "1890-07-07T21:00:00Z"
             },
-            "node_era": "mary",
+            "node_era": "allegra",
             "node_tip": {
-                "absolute_slot_number": 4638558,
-                "epoch_number": 2038,
+                "absolute_slot_number": 6229920,
+                "epoch_number": 5027,
                 "height": {
-                    "quantity": 3766,
+                    "quantity": 8507,
                     "unit": "block"
                 },
-                "slot_number": 90,
-                "time": "1868-02-11T04:16:57Z"
+                "slot_number": 9396,
+                "time": "1882-10-11T10:00:00Z"
             },
             "sync_progress": {
                 "progress": {
@@ -181,64 +219,86 @@
             }
         },
         {
-            "network_tip": {
-                "absolute_slot_number": 8239074,
-                "epoch_number": 16311,
-                "slot_number": 8417,
-                "time": "1869-10-20T07:07:26Z"
+            "network_info": {
+                "network_id": "mainnet",
+                "protocol_magic": 764824073
             },
-            "node_era": "mary",
+            "network_tip": {
+                "absolute_slot_number": 56689,
+                "epoch_number": 12198,
+                "slot_number": 13331,
+                "time": "1867-12-04T08:12:52.444895992733Z"
+            },
+            "next_epoch": {
+                "epoch_number": 9899,
+                "epoch_start_time": "1869-11-23T02:25:55Z"
+            },
+            "node_era": "babbage",
             "node_tip": {
-                "absolute_slot_number": 6273395,
-                "epoch_number": 5509,
+                "absolute_slot_number": 7015738,
+                "epoch_number": 4180,
                 "height": {
-                    "quantity": 15105,
+                    "quantity": 1547,
                     "unit": "block"
                 },
-                "slot_number": 3892,
-                "time": "1885-02-07T18:25:20.773758414156Z"
+                "slot_number": 9069,
+                "time": "1872-03-10T18:00:00Z"
             },
             "sync_progress": {
                 "status": "ready"
             }
         },
         {
-            "network_tip": {
-                "absolute_slot_number": 5860693,
-                "epoch_number": 16175,
-                "slot_number": 12843,
-                "time": "1875-04-19T21:02:28Z"
+            "network_info": {
+                "network_id": "testnet",
+                "protocol_magic": 23
             },
-            "node_era": "alonzo",
+            "network_tip": {
+                "absolute_slot_number": 6789597,
+                "epoch_number": 2527,
+                "slot_number": 12031,
+                "time": "1886-06-20T12:00:00Z"
+            },
+            "node_era": "allegra",
             "node_tip": {
-                "absolute_slot_number": 6665134,
-                "epoch_number": 13493,
+                "absolute_slot_number": 3902473,
+                "epoch_number": 2951,
                 "height": {
-                    "quantity": 8895,
+                    "quantity": 10233,
                     "unit": "block"
                 },
-                "slot_number": 1487,
-                "time": "1880-09-05T20:07:00Z"
+                "slot_number": 643,
+                "time": "1866-05-27T13:42:57.078735584296Z"
             },
             "sync_progress": {
                 "status": "not_responding"
             }
         },
         {
+            "network_info": {
+                "network_id": "testnet",
+                "protocol_magic": -6
+            },
+            "network_tip": {
+                "absolute_slot_number": 4904072,
+                "epoch_number": 15870,
+                "slot_number": 12444,
+                "time": "1882-09-05T09:04:37.329616007962Z"
+            },
             "next_epoch": {
-                "epoch_number": 7561,
-                "epoch_start_time": "1867-03-15T07:00:00Z"
+                "epoch_number": 6118,
+                "epoch_start_time": "1884-02-13T19:15:59.854972221273Z"
             },
             "node_era": "babbage",
             "node_tip": {
-                "absolute_slot_number": 924220,
-                "epoch_number": 2972,
+                "absolute_slot_number": 87006,
+                "epoch_number": 14433,
                 "height": {
-                    "quantity": 11597,
+                    "quantity": 13692,
                     "unit": "block"
                 },
-                "slot_number": 15967,
-                "time": "1874-08-07T07:34:21Z"
+                "slot_number": 10206,
+                "time": "1876-07-17T10:00:00Z"
             },
             "sync_progress": {
                 "progress": {

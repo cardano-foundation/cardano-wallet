@@ -21,6 +21,8 @@ import Cardano.Wallet.Api.Types
     )
 import Cardano.Wallet.Primitive.SyncProgress
     ( SyncProgress (..) )
+import Cardano.Wallet.Primitive.Types
+    ( getProtocolMagic, mainnetMagic )
 import Control.Monad
     ( when )
 import Control.Monad.IO.Class
@@ -70,6 +72,8 @@ spec = describe "COMMON_NETWORK" $ do
                 , expectField (#nodeEra) (`shouldBe` _mainEra ctx)
                 , expectField (#nodeTip . #absoluteSlotNumber . #getApiT) (`shouldNotBe` 0)
                 , \x -> (epochStartTime <$> nextEpoch (unsafeResponse x)) .> Just now
+                , expectField (#networkInfo . #protocolMagic) 
+                    (`shouldBe` fromIntegral (getProtocolMagic mainnetMagic))
                 ]
             counterexample (show r) $ do
                 (epochStartTime <$> nextEpoch i) .> Just now

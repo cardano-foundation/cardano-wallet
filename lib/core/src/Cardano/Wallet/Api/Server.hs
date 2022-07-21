@@ -131,7 +131,7 @@ import Cardano.Address.Script
     , validateScriptOfTemplate
     )
 import Cardano.Api
-    ( SerialiseAsCBOR (..) )
+    ( NetworkId, SerialiseAsCBOR (..), toNetworkMagic, unNetworkMagic )
 import Cardano.Api.Extra
     ( asAnyShelleyBasedEra, inAnyCardanoEra, withShelleyBasedTx )
 import Cardano.BM.Tracing
@@ -3490,10 +3490,11 @@ getCurrentEpoch ctx = liftIO (runExceptT (currentEpoch ti)) >>= \case
 
 getNetworkInformation
     :: HasCallStack
-    => SyncTolerance
+    => NetworkId
+    -> SyncTolerance
     -> NetworkLayer IO Block
     -> Handler ApiNetworkInformation
-getNetworkInformation st nl = liftIO $ do
+getNetworkInformation nid st nl = liftIO $ do
     now <- currentRelativeTime ti
     nodeTip <- NW.currentNodeTip nl
     nodeEra <- NW.currentNodeEra nl
@@ -3512,6 +3513,13 @@ getNetworkInformation st nl = liftIO $ do
         , Api.nodeTip = apiNodeTip
         , Api.networkTip = fst <$> nowInfo
         , Api.nodeEra = toApiEra nodeEra
+        , Api.networkInfo =
+            Api.ApiNetworkInfo
+                (case nid of
+                     Cardano.Mainnet -> "mainnet" 
+                     Cardano.Testnet _ -> "testnet"
+                     )
+                (fromIntegral $ unNetworkMagic $ toNetworkMagic nid)
         }
   where
     ti :: TimeInterpreter (MaybeT IO)

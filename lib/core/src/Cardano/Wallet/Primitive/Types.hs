@@ -1387,7 +1387,7 @@ instance NFData StartTime
 
 -- | Magic constant associated to a given network
 newtype ProtocolMagic = ProtocolMagic { getProtocolMagic :: Int32 }
-    deriving (Generic, Show, Eq)
+    deriving (Generic, Show, Eq, NFData, FromJSON, ToJSON)
 
 instance ToText ProtocolMagic where
     toText (ProtocolMagic pm) = T.pack (show pm)

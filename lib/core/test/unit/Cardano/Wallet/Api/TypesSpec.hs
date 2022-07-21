@@ -106,6 +106,7 @@ import Cardano.Wallet.Api.Types
     , ApiMnemonicT (..)
     , ApiMultiDelegationAction (..)
     , ApiNetworkClock (..)
+    , ApiNetworkInfo (..)
     , ApiNetworkInformation (..)
     , ApiNetworkParameters (..)
     , ApiNtpStatus (..)
@@ -1326,6 +1327,7 @@ spec = parallel $ do
                     , nodeTip = nodeTip (x :: ApiNetworkInformation)
                     , networkTip = networkTip (x :: ApiNetworkInformation)
                     , nodeEra = nodeEra (x :: ApiNetworkInformation)
+                    , networkInfo = networkInfo (x :: ApiNetworkInformation)
                     }
             in
                 x' === x .&&. show x' === show x
@@ -1995,6 +1997,12 @@ instance Arbitrary ApiSlotReference where
 instance Arbitrary ApiSlotId where
     arbitrary = genericArbitrary
     shrink = genericShrink
+
+instance Arbitrary ApiNetworkInfo where
+    arbitrary = oneof 
+        [ pure $ ApiNetworkInfo "mainnet" 764824073
+        , ApiNetworkInfo "testnet" <$> arbitrary
+        ]
 
 instance Arbitrary ApiNetworkInformation where
     arbitrary = genericArbitrary
