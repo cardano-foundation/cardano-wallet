@@ -41,10 +41,10 @@ services:
 
 volumes:
   node-mainnet-db:
-  node-testnet-db:
+  node-testnet-db:   # ./tmp
   node-alonzo-purple-db:
   wallet-mainnet-db:
-  wallet-testnet-db:
+  wallet-testnet-db: # ./tmp/db
   wallet-alonzo-purple-db:
-  node-ipc:
+  node-ipc: ../hydra-poc/vasil-testnet/ipc  
   node-config:

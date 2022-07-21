@@ -12,7 +12,7 @@ services:
     entrypoint: []
     command: bash -c "
         ([[ $$NETWORK == \"mainnet\" ]] && $$CMD --mainnet) ||
-        ($$CMD --testnet /config/${NETWORK}/genesis-byron.json)
+        ($$CMD --testnet /config/${NETWORK}/byron-genesis.json)
       "
     environment:
       CMD: "cardano-wallet serve --light --blockfrost-token-file config/blockfrost-testnet.key --database /wallet-db-light --listen-address 0.0.0.0"
