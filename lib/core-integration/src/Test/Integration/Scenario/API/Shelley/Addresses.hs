@@ -92,6 +92,7 @@ import Test.Integration.Framework.TestData
 
 import qualified Cardano.Wallet.Api.Link as Link
 import qualified Data.Aeson as Aeson
+import qualified Data.Aeson.KeyMap as KeyMap
 import qualified Data.Aeson.Lens as Aeson
 import qualified Data.Text as T
 import qualified Network.HTTP.Types.Status as HTTP
@@ -1011,7 +1012,27 @@ spec = describe "SHELLEY_ADDRESSES" $ do
             }|]
         resp <- request @ApiAccountKey ctx accountPath Default payload4
         expectErrorMessage errMsg403WrongIndex resp
-  where
+
+    it "ANY_ADDRESS_POST_15 - Staking address using stake credential non-hashed" $ \ctx -> runResourceT $ do
+        w <- emptyWallet ctx
+
+        let stakePath =
+                Link.getWalletKey @'Shelley w MutableAccount (DerivationIndex 0) Nothing
+        (_, stakeKey) <-
+            unsafeRequest @ApiVerificationKeyShelley ctx stakePath Empty
+        let (Aeson.String stakeKeyTxt) = toJSON stakeKey
+        stakeKeyTxt `shouldSatisfy` T.isPrefixOf "stake_vk1"
+
+        let payload = Json [json|{
+                "stake": #{stakeKey}
+            }|]
+        (_, stakeAddr) <-
+                unsafeRequest @AnyAddress ctx Link.postAnyAddress payload
+        let (Aeson.Object stakeAddrJson) = toJSON stakeAddr
+        let (Just (Aeson.String stakeAddrTxt)) =
+                KeyMap.lookup "address" stakeAddrJson
+        stakeAddrTxt `shouldSatisfy` T.isPrefixOf "stake1"
+ where
     validateAddr resp expected = do
         let addr = getFromResponse id resp
         toJSON addr `shouldBe` object ["address" .= expected ]
