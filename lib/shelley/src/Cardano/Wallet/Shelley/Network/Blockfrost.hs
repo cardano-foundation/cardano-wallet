@@ -600,10 +600,8 @@ blockfrostLightSyncSource
                 pure $ blockEventsRegDeleg <> blockEventsWithdraw
       where
         slotFromBlockHeader = toSlot . chainPointFromBlockHeader
-        (slotFrom, slotTo) =
-            ( slotFromBlockHeader bhFrom
-            , slotFromBlockHeader bhTo
-            )
+        slotFrom = slotFromBlockHeader bhFrom
+        slotTo = slotFromBlockHeader bhTo
 
         txBlockEvents ::
             BF.Transaction ->
