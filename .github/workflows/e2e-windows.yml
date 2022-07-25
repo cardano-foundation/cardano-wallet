@@ -124,6 +124,13 @@ jobs:
         name: ${{ runner.os }}-logs
         path: C:/cardano-wallet/test/e2e/state/logs
 
+    - name: 📎 Upload wallet-db
+      uses: actions/upload-artifact@v2
+      if: failure()
+      with:
+        name: ${{ runner.os }}-wallet-db
+        path: C:/cardano-wallet/test/e2e/state/wallet_db
+
     env:
       NETWORK: ${{ github.event.inputs.network || 'testnet' }}
       TESTS_E2E_FIXTURES: ${{ secrets.TESTS_E2E_FIXTURES }}
