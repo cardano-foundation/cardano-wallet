@@ -4229,6 +4229,18 @@ x-errValidityIntervalNotInsideScriptTimelock: &errValidityIntervalNotInsideScrip
       type: string
       enum: ['validity_interval_not_inside_script_timelock']
 
+x-errSharedWalletPending: &errSharedWalletPending
+  <<: *responsesErr
+  title: shared_wallet_pending
+  properties:
+    message:
+      type: string
+      description:
+        Occurs when attempting to create a transaction for a pending shared wallet.
+    code:
+      type: string
+      enum: ['shared_wallet_pending']
+
 x-errInputsDepleted: &errInputsDepleted
   <<: *responsesErr
   title: inputs_depleted
@@ -5421,6 +5433,7 @@ x-responsesConstructTransaction: &responsesConstructTransaction
             - <<: *errMintOrBurnAssetQuantityOutOfBounds
             - <<: *errInvalidValidityBounds
             - <<: *errValidityIntervalNotInsideScriptTimelock
+            - <<: *errSharedWalletPending
   <<: *responsesErr404WalletNotFound
   <<: *responsesErr406
   <<: *responsesErr415UnsupportedMediaType
@@ -5909,6 +5922,7 @@ x-tagGroups:
     - Shared Wallets
     - Shared Keys
     - Shared Addresses
+    - Shared Transactions
 
   - name: Byron (Random)
     tags:
@@ -7396,6 +7410,29 @@ paths:
           application/json:
             schema: *ApiSharedWalletPatchData
       responses: *responsesPatchSharedWallet
+
+  /shared-wallets/{walletId}/transactions-construct:
+    post:
+      operationId: constructSharedTransaction
+      tags: ["Shared Transactions"]
+      summary: Construct
+      description: |
+        <p align="right">status: <strong>under development</strong></p>
+
+        Create a transaction to be signed from the shared wallet.
+
+        Works for the following fields:
+          - payments
+          - metadata
+          - validity_interval
+      parameters:
+        - *parametersWalletId
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema: *ApiConstructTransactionData
+      responses: *responsesConstructTransaction
 
   /shared-wallets/{walletId}/keys/{index}:
     post:
