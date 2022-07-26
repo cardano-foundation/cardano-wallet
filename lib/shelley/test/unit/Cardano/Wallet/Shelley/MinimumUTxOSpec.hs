@@ -190,7 +190,7 @@ prop_computeMinimumCoinForUTxO_shelleyBasedEra_bounds
                 "BS.length (unAddress (fromCardanoAddressAny addr))"
             & report
                 (BS.length (unAddress maxLengthAddress))
-                "BS.length (unAddress maxLengthAddress))"
+                "BS.length (unAddress maxLengthAddress)"
   where
     -- Uses the Cardano API function 'calculateMinimumUTxO' to compute a
     -- minimum 'Coin' value.
