@@ -36,6 +36,7 @@ module Cardano.Wallet.Primitive.AddressDiscovery.Shared
 
     , PendingIxs
     , emptyPendingIxs
+    , pendingIxsToList
 
     , ErrAddCosigner (..)
     , ErrScriptTemplate (..)
@@ -192,6 +193,12 @@ data SharedAddressPools (key :: Depth -> Type -> Type) = SharedAddressPools
 
 instance NFData (SharedAddressPools key)
 
+instance Eq (SharedAddressPools key) where
+    (SharedAddressPools ext1 int1 pend1) == (SharedAddressPools ext2 int2 pend2)
+        =  AddressPool.addresses (getPool int1) == AddressPool.addresses (getPool int2)
+        && AddressPool.addresses (getPool ext1) == AddressPool.addresses (getPool ext2)
+        && pend1 == pend2
+
 instance Buildable (SharedAddressPools key) where
     build (SharedAddressPools extPool intPool pending) = "\n"
         <> indentF 6 ("External pool:" <> build extPool)
@@ -314,10 +321,8 @@ instance Eq (k 'AccountK XPub) => Eq (SharedState n k) where
         = and [a1 == b1, a2 == b2, a3 == b3, a4 == b4, a5 == b5, ap `match` bp]
       where
         match Pending Pending = True
-        match (Active (SharedAddressPools ext1 int1 pend1)) (Active (SharedAddressPools ext2 int2 pend2))
-            =  AddressPool.addresses (getPool int1) == AddressPool.addresses (getPool int2)
-            && AddressPool.addresses (getPool ext1) == AddressPool.addresses (getPool ext2)
-            && pend1 == pend2
+        match (Active sharedAddressPools1) (Active sharedAddressPools2)
+            = sharedAddressPools1 == sharedAddressPools2
         match _ _ = False
 
 instance PersistPublicKey (k 'AccountK) => Buildable (SharedState n k) where

@@ -67,6 +67,7 @@ import Cardano.Wallet.DB.Sqlite.Schema
     , SeqState (..)
     , SeqStateAddress (..)
     , SeqStatePendingIx (..)
+    , SharedStatePendingIx (..)
     , SharedState (..)
     , UTxO (..)
     , UTxOToken (..)
@@ -542,11 +543,16 @@ instance
     ) => PersistAddressBook (Shared.SharedState n key) where
 
     insertPrologue wid (SharedPrologue st) = do
-        let Shared.SharedState prefix accXPub pTemplate dTemplateM gap _ = st
+        let Shared.SharedState prefix accXPub pTemplate dTemplateM gap readiness = st
         insertSharedState prefix accXPub gap pTemplate dTemplateM
         insertCosigner (cosigners pTemplate) Payment
         when (isJust dTemplateM) $
             insertCosigner (fromJust $ cosigners <$> dTemplateM) Delegation
+        unless (Shared.Pending == readiness) $ do
+            let (Shared.Active (Shared.SharedAddressPools _ _ pendingIxs)) =
+                    readiness
+            deleteWhere [SharedStatePendingWalletId ==. wid]
+            dbChunked insertMany_ (mkSharedStatePendingIxs wid pendingIxs)
       where
          insertSharedState prefix accXPub gap pTemplate dTemplateM = do
              deleteWhere [SharedStateWalletId ==. wid]
@@ -565,6 +571,10 @@ instance
                  [ CosignerKey wid cred (serializeXPub @(key 'AccountK) $ liftRawKey xpub) c
                  | ((Cosigner c), xpub) <- Map.assocs cs
                  ]
+
+         mkSharedStatePendingIxs :: W.WalletId -> Shared.PendingIxs -> [SharedStatePendingIx]
+         mkSharedStatePendingIxs wid =
+             fmap (SharedStatePendingIx wid . W.getIndex) . Shared.pendingIxsToList
 
     insertDiscoveries wid sl sharedDiscoveries = do
         dbChunked insertMany_
