@@ -21,7 +21,7 @@ import Cardano.Wallet.Api.Types
     )
 import Cardano.Wallet.Primitive.SyncProgress
     ( SyncProgress (..) )
-import Cardano.Wallet.Primitive.Types
+import Cardano.Wallet.Primitive.Types.ProtocolMagic
     ( getProtocolMagic, mainnetMagic )
 import Control.Monad
     ( when )
