@@ -206,7 +206,7 @@ def wait_for_shelley_wallet_to_sync(wid)
     puts "Retry #{retry_count}"
     retry_count -= 1
     puts "SHELLEY.wallets.get(#{wid}) returned:"
-    puts SHELLEY.wallets.get(wid)
+    puts w
     retry if retry_count > 0
   end
 end
