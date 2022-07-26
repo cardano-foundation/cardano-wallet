@@ -65,6 +65,7 @@ module Cardano.Wallet.Primitive.AddressDerivation
     -- * Backends Interoperability
     , PaymentAddress(..)
     , DelegationAddress(..)
+    , BoundedAddressLength (..)
     , WalletKey(..)
     , PersistPrivateKey(..)
     , PersistPublicKey(..)
@@ -608,6 +609,25 @@ class WalletKey (key :: Depth -> Type -> Type) where
     liftRawKey
         :: raw
         -> key depth raw
+
+-- | The class of keys for which addresses are bounded in length.
+--
+class BoundedAddressLength key where
+    -- | Returns the longest address that the wallet can generate for a given
+    --   key.
+    --
+    -- This is useful in situations where we want to compute some function of
+    -- an output under construction (such as a minimum UTxO value), but don't
+    -- yet have convenient access to a real address.
+    --
+    -- Please note that this address should:
+    --
+    --  - never be used for anything besides its length and validity properties.
+    --  - never be used as a payment target within a real transaction.
+    --
+    maxLengthAddressFor
+        :: Proxy key
+        -> Address
 
 -- | Encoding of addresses for certain key types and backend targets.
 class MkKeyFingerprint key Address
