@@ -256,6 +256,7 @@ library
       Cardano.Wallet.Primitive.Types.Hash
       Cardano.Wallet.Primitive.Types.MinimumUTxO
       Cardano.Wallet.Primitive.Types.MinimumUTxO.Gen
+      Cardano.Wallet.Primitive.Types.ProtocolMagic
       Cardano.Wallet.Primitive.Types.Redeemer
       Cardano.Wallet.Primitive.Types.RewardAccount
       Cardano.Wallet.Primitive.Types.TokenBundle

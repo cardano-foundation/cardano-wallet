@@ -71,10 +71,10 @@ import Cardano.Wallet.Primitive.AddressDiscovery.Sequential
     ( SeqState, coinTypeAda, discoverSeq, purposeBIP44 )
 import Cardano.Wallet.Primitive.Passphrase
     ( Passphrase (..), PassphraseHash (..), changePassphraseXPrv )
-import Cardano.Wallet.Primitive.Types
-    ( testnetMagic )
 import Cardano.Wallet.Primitive.Types.Address
     ( Address (..) )
+import Cardano.Wallet.Primitive.Types.ProtocolMagic
+    ( testnetMagic )
 import Cardano.Wallet.Util
     ( invariant )
 import Control.Arrow

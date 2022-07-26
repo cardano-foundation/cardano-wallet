@@ -20,14 +20,14 @@ import Prelude
 
 import Cardano.Wallet.Primitive.Passphrase
     ( Passphrase (..) )
-import Cardano.Wallet.Primitive.Types
-    ( ProtocolMagic (..) )
 import Cardano.Wallet.Primitive.Types.Address
     ( Address (..) )
 import Cardano.Wallet.Primitive.Types.Coin
     ( Coin (..) )
 import Cardano.Wallet.Primitive.Types.MinimumUTxO
     ( MinimumUTxO (..), MinimumUTxOForShelleyBasedEra (..) )
+import Cardano.Wallet.Primitive.Types.ProtocolMagic
+    ( ProtocolMagic (..) )
 import Cardano.Wallet.Primitive.Types.TokenBundle
     ( TokenBundle (..) )
 import Cardano.Wallet.Primitive.Types.TokenMap
