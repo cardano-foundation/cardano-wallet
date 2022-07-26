@@ -359,7 +359,8 @@ import Cardano.Wallet.DB
 import Cardano.Wallet.Network
     ( NetworkLayer (..), fetchRewardAccountBalances, timeInterpreter )
 import Cardano.Wallet.Primitive.AddressDerivation
-    ( DelegationAddress (..)
+    ( BoundedAddressLength (..)
+    , DelegationAddress (..)
     , Depth (..)
     , DerivationIndex (..)
     , DerivationType (..)
@@ -1671,6 +1672,7 @@ selectCoins
         , Typeable n
         , Typeable s
         , WalletKey k
+        , BoundedAddressLength k
         )
     => ctx
     -> ArgGenChange s
@@ -1722,6 +1724,7 @@ selectCoinsForJoin
         , SoftDerivation k
         , Typeable n
         , Typeable s
+        , BoundedAddressLength k
         )
     => ctx
     -> IO (Set PoolId)
@@ -1782,6 +1785,7 @@ selectCoinsForQuit
         , Typeable n
         , Typeable s
         , WalletKey k
+        , BoundedAddressLength k
         )
     => ctx
     -> ApiT WalletId
@@ -2043,6 +2047,7 @@ postTransactionOld
         , Typeable s
         , WalletKey k
         , AddressBookIso s
+        , BoundedAddressLength k
         )
     => ctx
     -> ArgGenChange s
@@ -2230,6 +2235,7 @@ postTransactionFeeOld
         , Typeable n
         , Typeable s
         , WalletKey k
+        , BoundedAddressLength k
         )
     => ctx
     -> ApiT WalletId
@@ -2281,6 +2287,7 @@ constructTransaction
         , Typeable n
         , Typeable s
         , WalletKey k
+        , BoundedAddressLength k
         )
     => ctx
     -> ArgGenChange s
@@ -2615,6 +2622,7 @@ constructSharedTransaction
         , GenChange s
         , HasNetworkLayer IO ctx
         , IsOurs s Address
+        , BoundedAddressLength k
         )
     => ctx
     -> ArgGenChange s
@@ -2717,6 +2725,7 @@ balanceTransaction
         ( ctx ~ ApiLayer s k
         , HasNetworkLayer IO ctx
         , GenChange s
+        , BoundedAddressLength k
         )
     => ctx
     -> ArgGenChange s
@@ -3101,6 +3110,7 @@ joinStakePool
         , Typeable s
         , WalletKey k
         , AddressBookIso s
+        , BoundedAddressLength k
         )
     => ctx
     -> IO (Set PoolId)
@@ -3194,6 +3204,7 @@ delegationFee
     :: forall ctx s n k.
         ( s ~ SeqState n k
         , ctx ~ ApiLayer s k
+        , BoundedAddressLength k
         )
     => ctx
     -> ApiT WalletId
@@ -3240,6 +3251,7 @@ quitStakePool
         , Typeable s
         , WalletKey k
         , AddressBookIso s
+        , BoundedAddressLength k
         )
     => ctx
     -> ApiT WalletId
