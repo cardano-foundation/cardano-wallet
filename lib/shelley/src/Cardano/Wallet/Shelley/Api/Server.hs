@@ -51,6 +51,7 @@ import Cardano.Wallet.Api
     , SMASH
     , Settings
     , SharedAddresses
+    , SharedTransactions
     , SharedWalletKeys
     , SharedWallets
     , ShelleyMigrations
@@ -62,6 +63,7 @@ import Cardano.Wallet.Api
 import Cardano.Wallet.Api.Server
     ( apiError
     , balanceTransaction
+    , constructSharedTransaction
     , constructTransaction
     , createMigrationPlan
     , decodeTransaction
@@ -157,13 +159,15 @@ import Cardano.Wallet.Api.Types
 import Cardano.Wallet.Api.Types.SchemaMetadata
     ( TxMetadataSchema (..), parseSimpleMetadataFlag )
 import Cardano.Wallet.Primitive.AddressDerivation
-    ( DelegationAddress (..), PaymentAddress (..) )
+    ( DelegationAddress (..), PaymentAddress (..), Role (..) )
 import Cardano.Wallet.Primitive.AddressDerivation.Byron
     ( ByronKey )
 import Cardano.Wallet.Primitive.AddressDerivation.Icarus
     ( IcarusKey (..) )
 import Cardano.Wallet.Primitive.AddressDerivation.Shared
     ( SharedKey (..) )
+import Cardano.Wallet.Primitive.AddressDerivation.SharedKey
+    ( constructAddressFromIx )
 import Cardano.Wallet.Primitive.AddressDerivation.Shelley
     ( ShelleyKey (..) )
 import Cardano.Wallet.Primitive.AddressDiscovery.Random
@@ -255,6 +259,7 @@ server byron icarus shelley multisig spl ntp =
     :<|> sharedWallets multisig
     :<|> sharedWalletKeys multisig
     :<|> sharedAddresses multisig
+    :<|> sharedTransactions multisig
   where
     wallets :: Server Wallets
     wallets = deleteWallet shelley
@@ -262,7 +267,7 @@ server byron icarus shelley multisig spl ntp =
         :<|> (fmap fst <$> listWallets shelley mkShelleyWallet)
         :<|> postWallet shelley Shelley.generateKeyFromSeed ShelleyKey
         :<|> putWallet shelley mkShelleyWallet
-        :<|> putWalletPassphrase 
+        :<|> putWalletPassphrase
                 shelley Shelley.generateKeyFromSeed Shelley.getKey
         :<|> getWalletUtxoSnapshot shelley
         :<|> getUTxOsStatistics shelley
@@ -594,7 +599,14 @@ server byron icarus shelley multisig spl ntp =
         :: ApiLayer (SharedState n SharedKey) SharedKey
         -> Server (SharedAddresses n)
     sharedAddresses apilayer =
-             listAddresses apilayer normalizeSharedAddress
+        listAddresses apilayer normalizeSharedAddress
+
+    sharedTransactions
+        :: ApiLayer (SharedState n SharedKey) SharedKey
+        -> Server (SharedTransactions n)
+    sharedTransactions apilayer =
+        constructSharedTransaction apilayer (constructAddressFromIx @n UtxoInternal)
+            (knownPools spl) (getPoolLifeCycleStatus spl)
 
 postAnyAddress
     :: NetworkId

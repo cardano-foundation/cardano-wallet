@@ -459,6 +459,15 @@ SharedState
     Foreign Wallet OnDeleteCascade shared_state sharedStateWalletId
     deriving Show Generic
 
+-- Shared Wallet -- pending change indexes
+SharedStatePendingIx                            sql=shared_state_pending
+    sharedStatePendingWalletId     W.WalletId   sql=wallet_id
+    sharedStatePendingIxIndex      Word32       sql=pending_ix
+
+    Primary sharedStatePendingWalletId sharedStatePendingIxIndex
+    Foreign Wallet OnDeleteCascade shared_state_address_pending sharedStatePendingWalletId
+    deriving Show Generic
+
 CosignerKey
     cosignerKeyWalletId                  W.WalletId                sql=wallet_id
     cosignerKeyCredential                CredentialType            sql=credential

@@ -74,7 +74,7 @@ import Cardano.Wallet.Primitive.AddressDiscovery.Sequential
     , purposeCIP1852
     )
 import Cardano.Wallet.Primitive.AddressDiscovery.Shared
-    ( SharedState (..) )
+    ( SharedAddressPools (..), SharedState (..) )
 import Cardano.Wallet.Primitive.Model
     ( Wallet, currentTip, getState, unsafeInitWallet, utxo )
 import Cardano.Wallet.Primitive.Passphrase.Types
@@ -648,8 +648,11 @@ instance Arbitrary (SharedState 'Mainnet SharedKey) where
             pt
             Nothing
             defaultAddressPoolGap
-            (Shared.Active
-                $ Shared.newSharedAddressPool @'Mainnet defaultAddressPoolGap pt Nothing)
+            (Shared.Active $ SharedAddressPools
+                (Shared.newSharedAddressPool @'Mainnet defaultAddressPoolGap pt Nothing)
+                (Shared.newSharedAddressPool @'Mainnet defaultAddressPoolGap pt Nothing)
+                Shared.emptyPendingIxs
+            )
 
 defaultSharedStatePrefix :: DerivationPrefix
 defaultSharedStatePrefix = DerivationPrefix

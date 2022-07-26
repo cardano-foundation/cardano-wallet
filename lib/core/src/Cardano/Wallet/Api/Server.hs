@@ -96,6 +96,7 @@ module Cardano.Wallet.Api.Server
     , getPolicyKey
     , postPolicyKey
     , postPolicyId
+    , constructSharedTransaction
 
     -- * Server error responses
     , IsServerError(..)
@@ -2349,53 +2350,8 @@ constructTransaction ctx genChange knownPools getPoolStatus (ApiT wid) body = do
 
     let md = body ^? #metadata . traverse . #txMetadataWithSchema_metadata
 
-    let isValidityBoundTimeNegative
-            (ApiValidityBoundAsTimeFromNow (Quantity sec)) = sec < 0
-        isValidityBoundTimeNegative _ = False
-
-    let isThereNegativeTime = case body ^. #validityInterval of
-            Just (ApiValidityInterval (Just before') Nothing) ->
-                isValidityBoundTimeNegative before'
-            Just (ApiValidityInterval Nothing (Just hereafter')) ->
-                isValidityBoundTimeNegative hereafter'
-            Just (ApiValidityInterval (Just before') (Just hereafter')) ->
-                isValidityBoundTimeNegative before' ||
-                isValidityBoundTimeNegative hereafter'
-            _ -> False
-
-    let fromValidityBound = liftIO . \case
-            Left ApiValidityBoundUnspecified ->
-                pure $ SlotNo 0
-            Right ApiValidityBoundUnspecified ->
-                W.getTxExpiry ti Nothing
-            Right (ApiValidityBoundAsTimeFromNow (Quantity sec)) ->
-                W.getTxExpiry ti (Just sec)
-            Left (ApiValidityBoundAsTimeFromNow (Quantity sec)) ->
-                W.getTxExpiry ti (Just sec)
-            Right (ApiValidityBoundAsSlot (Quantity slot)) ->
-                pure $ SlotNo slot
-            Left (ApiValidityBoundAsSlot (Quantity slot)) ->
-                pure $ SlotNo slot
-
-    (before, hereafter) <- case body ^. #validityInterval of
-        Nothing -> do
-            before' <-
-                fromValidityBound (Left ApiValidityBoundUnspecified)
-            hereafter' <-
-                fromValidityBound (Right ApiValidityBoundUnspecified)
-            pure (before', hereafter')
-        Just (ApiValidityInterval before' hereafter') -> do
-            before'' <- case before' of
-                Nothing ->
-                    fromValidityBound (Left ApiValidityBoundUnspecified)
-                Just val ->
-                    fromValidityBound (Left val)
-            hereafter'' <- case hereafter' of
-                Nothing ->
-                    fromValidityBound (Right ApiValidityBoundUnspecified)
-                Just val ->
-                    fromValidityBound (Right val)
-            pure (before'', hereafter'')
+    (before, hereafter, isThereNegativeTime) <-
+        decodeValidityInterval ti (body ^. #validityInterval)
 
     when (hereafter < before || isThereNegativeTime) $
         liftHandler $ throwE ErrConstructTxWrongValidityBounds
@@ -2593,6 +2549,165 @@ constructTransaction ctx genChange knownPools getPoolStatus (ApiT wid) body = do
         map toTxOut
             . Map.toList
             . foldr (uncurry (Map.insertWith (<>))) Map.empty
+
+decodeValidityInterval
+    :: TimeInterpreter (ExceptT PastHorizonException IO)
+    -> Maybe ApiValidityInterval
+    -> Handler (SlotNo, SlotNo, Bool)
+decodeValidityInterval ti validityInterval = do
+    let isValidityBoundTimeNegative
+            (ApiValidityBoundAsTimeFromNow (Quantity sec)) = sec < 0
+        isValidityBoundTimeNegative _ = False
+
+    let isThereNegativeTime = case validityInterval of
+            Just (ApiValidityInterval (Just before') Nothing) ->
+                isValidityBoundTimeNegative before'
+            Just (ApiValidityInterval Nothing (Just hereafter')) ->
+                isValidityBoundTimeNegative hereafter'
+            Just (ApiValidityInterval (Just before') (Just hereafter')) ->
+                isValidityBoundTimeNegative before' ||
+                isValidityBoundTimeNegative hereafter'
+            _ -> False
+
+    let fromValidityBound = liftIO . \case
+            Left ApiValidityBoundUnspecified ->
+                pure $ SlotNo 0
+            Right ApiValidityBoundUnspecified ->
+                W.getTxExpiry ti Nothing
+            Right (ApiValidityBoundAsTimeFromNow (Quantity sec)) ->
+                W.getTxExpiry ti (Just sec)
+            Left (ApiValidityBoundAsTimeFromNow (Quantity sec)) ->
+                W.getTxExpiry ti (Just sec)
+            Right (ApiValidityBoundAsSlot (Quantity slot)) ->
+                pure $ SlotNo slot
+            Left (ApiValidityBoundAsSlot (Quantity slot)) ->
+                pure $ SlotNo slot
+
+    (before, hereafter) <- case validityInterval of
+        Nothing -> do
+            before' <-
+                fromValidityBound (Left ApiValidityBoundUnspecified)
+            hereafter' <-
+                fromValidityBound (Right ApiValidityBoundUnspecified)
+            pure (before', hereafter')
+        Just (ApiValidityInterval before' hereafter') -> do
+            before'' <- case before' of
+                Nothing ->
+                    fromValidityBound (Left ApiValidityBoundUnspecified)
+                Just val ->
+                    fromValidityBound (Left val)
+            hereafter'' <- case hereafter' of
+                Nothing ->
+                    fromValidityBound (Right ApiValidityBoundUnspecified)
+                Just val ->
+                    fromValidityBound (Right val)
+            pure (before'', hereafter'')
+
+    pure (before, hereafter, isThereNegativeTime)
+
+-- TO-DO delegations/withdrawals
+-- TO-DO minting/burning
+constructSharedTransaction
+    :: forall ctx s k n.
+        ( k ~ SharedKey
+        , s ~ SharedState n k
+        , ctx ~ ApiLayer s k
+        , GenChange s
+        , HasNetworkLayer IO ctx
+        , IsOurs s Address
+        )
+    => ctx
+    -> ArgGenChange s
+    -> IO (Set PoolId)
+    -> (PoolId -> IO PoolLifeCycleStatus)
+    -> ApiT WalletId
+    -> ApiConstructTransactionData n
+    -> Handler (ApiConstructTransaction n)
+constructSharedTransaction ctx genChange _knownPools _getPoolStatus (ApiT wid) body = do
+    let isNoPayload =
+            isNothing (body ^. #payments) &&
+            isNothing (body ^. #withdrawal) &&
+            isNothing (body ^. #metadata) &&
+            isNothing (body ^. #mintBurn) &&
+            isNothing (body ^. #delegations)
+    when isNoPayload $
+        liftHandler $ throwE ErrConstructTxWrongPayload
+
+    let md = body ^? #metadata . traverse . #txMetadataWithSchema_metadata
+
+    (before, hereafter, isThereNegativeTime) <-
+        decodeValidityInterval ti (body ^. #validityInterval)
+
+    when (hereafter < before || isThereNegativeTime) $
+        liftHandler $ throwE ErrConstructTxWrongValidityBounds
+
+    let txCtx = defaultTransactionCtx
+            { txWithdrawal = NoWithdrawal
+            , txMetadata = md
+            , txValidityInterval = (Just before, hereafter)
+            , txDelegationAction = Nothing
+            }
+
+    let transform s sel =
+            ( W.assignChangeAddresses genChange sel s
+                & uncurry (W.selectionToUnsignedTx (txWithdrawal txCtx))
+            , sel
+            , selectionDelta TokenBundle.getCoin sel
+            )
+
+    withWorkerCtx ctx wid liftE liftE $ \wrk -> do
+        (cp, _, _) <- liftHandler $ withExceptT ErrConstructTxNoSuchWallet $
+            W.readWallet @_ @s @k wrk wid
+        case Shared.ready (getState cp) of
+            Shared.Pending ->
+                liftHandler $ throwE ErrConstructTxSharedWalletPending
+            Shared.Active _ -> do
+                pp <- liftIO $ NW.currentProtocolParameters (wrk ^. networkLayer)
+                era <- liftIO $ NW.currentNodeEra (wrk ^. networkLayer)
+
+                (utxoAvailable, wallet, pendingTxs) <-
+                    liftHandler $ W.readWalletUTxOIndex @_ @s @k wrk wid
+
+                let runSelection outs =
+                        W.selectAssets @_ @_ @s @k wrk era pp selectAssetsParams transform
+                      where
+                        selectAssetsParams = W.SelectAssetsParams
+                            { outputs = outs
+                            , pendingTxs
+                            , randomSeed = Nothing
+                            , txContext = txCtx
+                            , utxoAvailableForInputs =
+                                UTxOSelection.fromIndex utxoAvailable
+                            , utxoAvailableForCollateral =
+                                UTxOIndex.toMap utxoAvailable
+                            , wallet
+                            , selectionStrategy = SelectionStrategyOptimal
+                            }
+                (sel, sel', fee) <- do
+                    outs <- case (body ^. #payments) of
+                        Just (ApiPaymentAddresses content) ->
+                            pure $ F.toList (addressAmountToTxOut <$> content)
+                        _ ->
+                            pure []
+
+                    (sel', utx, fee') <- liftHandler $ runSelection outs
+                    sel <- liftHandler $
+                        W.assignChangeAddressesWithoutDbUpdate wrk wid genChange utx
+                    (FeeEstimation estMin _) <- liftHandler $ W.estimateFee (pure fee')
+                    pure (sel, sel', estMin)
+
+                tx <- liftHandler
+                    $ W.constructSharedTransaction @_ @s @k @n wrk wid era txCtx sel
+
+                pure $ ApiConstructTransaction
+                    { transaction = ApiT tx
+                    , coinSelection = mkApiCoinSelection [] [] Nothing md sel'
+                    , fee = Quantity $ fromIntegral fee
+                    }
+  where
+    ti :: TimeInterpreter (ExceptT PastHorizonException IO)
+    ti = timeInterpreter (ctx ^. networkLayer)
+
 
 -- TODO: Most of the body of this function should really belong to
 -- Cardano.Wallet to keep the Api.Server module free of business logic!
@@ -3516,7 +3631,7 @@ getNetworkInformation nid st nl = liftIO $ do
         , Api.networkInfo =
             Api.ApiNetworkInfo
                 (case nid of
-                     Cardano.Mainnet -> "mainnet" 
+                     Cardano.Mainnet -> "mainnet"
                      Cardano.Testnet _ -> "testnet"
                      )
                 (fromIntegral $ unNetworkMagic $ toNetworkMagic nid)
@@ -4560,6 +4675,14 @@ instance IsServerError ErrConstructTx where
             [ "Attempted to create a transaction with a validity interval"
             , "that is not a subinterval of an associated script's timelock"
             , "interval."
+            ]
+        ErrConstructTxSharedWalletPending ->
+            apiError err403 SharedWalletPending $ mconcat
+            [ "I cannot construct transaction for a shared wallet that is in 'incomplete' "
+            , "state. Please update your wallet accordingly with "
+            , "'PATCH /shared-wallets/{walletId}/payment-script-template' or "
+            , "'PATCH /shared-wallets/{walletId}/delegation-script-template' to make "
+            , "it applicable for constructing transaction."
             ]
         ErrConstructTxNotImplemented _ ->
             apiError err501 NotImplemented
