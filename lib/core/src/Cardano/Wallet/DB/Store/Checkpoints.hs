@@ -67,8 +67,8 @@ import Cardano.Wallet.DB.Sqlite.Schema
     , SeqState (..)
     , SeqStateAddress (..)
     , SeqStatePendingIx (..)
-    , SharedStatePendingIx (..)
     , SharedState (..)
+    , SharedStatePendingIx (..)
     , UTxO (..)
     , UTxOToken (..)
     , Wallet (..)
@@ -554,27 +554,27 @@ instance
             deleteWhere [SharedStatePendingWalletId ==. wid]
             dbChunked insertMany_ (mkSharedStatePendingIxs pendingIxs)
       where
-         insertSharedState prefix accXPub gap pTemplate dTemplateM = do
-             deleteWhere [SharedStateWalletId ==. wid]
-             insert_ $ SharedState
-                 { sharedStateWalletId = wid
-                 , sharedStateAccountXPub = serializeXPub accXPub
-                 , sharedStateScriptGap = gap
-                 , sharedStatePaymentScript = template pTemplate
-                 , sharedStateDelegationScript = template <$> dTemplateM
-                 , sharedStateDerivationPrefix = prefix
-                 }
+        insertSharedState prefix accXPub gap pTemplate dTemplateM = do
+            deleteWhere [SharedStateWalletId ==. wid]
+            insert_ $ SharedState
+                { sharedStateWalletId = wid
+                , sharedStateAccountXPub = serializeXPub accXPub
+                , sharedStateScriptGap = gap
+                , sharedStatePaymentScript = template pTemplate
+                , sharedStateDelegationScript = template <$> dTemplateM
+                , sharedStateDerivationPrefix = prefix
+                }
 
-         insertCosigner cs cred = do
-             deleteWhere [CosignerKeyWalletId ==. wid, CosignerKeyCredential ==. cred]
-             dbChunked insertMany_
-                 [ CosignerKey wid cred (serializeXPub @(key 'AccountK) $ liftRawKey xpub) c
-                 | ((Cosigner c), xpub) <- Map.assocs cs
-                 ]
+        insertCosigner cs cred = do
+            deleteWhere [CosignerKeyWalletId ==. wid, CosignerKeyCredential ==. cred]
+            dbChunked insertMany_
+                [ CosignerKey wid cred (serializeXPub @(key 'AccountK) $ liftRawKey xpub) c
+                | ((Cosigner c), xpub) <- Map.assocs cs
+                ]
 
-         mkSharedStatePendingIxs :: Shared.PendingIxs -> [SharedStatePendingIx]
-         mkSharedStatePendingIxs =
-             fmap (SharedStatePendingIx wid . W.getIndex) . Shared.pendingIxsToList
+        mkSharedStatePendingIxs :: Shared.PendingIxs -> [SharedStatePendingIx]
+        mkSharedStatePendingIxs =
+            fmap (SharedStatePendingIx wid . W.getIndex) . Shared.pendingIxsToList
 
     insertDiscoveries wid sl sharedDiscoveries = do
         dbChunked insertMany_
@@ -611,35 +611,35 @@ instance
                 pendingIxs
         pure $ SharedPrologue prologue
       where
-          selectSharedStatePendingIxs :: SqlPersistT IO Shared.PendingIxs
-          selectSharedStatePendingIxs =
-              Shared.pendingIxsFromList . fromRes <$> selectList
-              [SharedStatePendingWalletId ==. wid]
-              [Desc SharedStatePendingIxIndex]
-            where
-                fromRes = fmap (W.Index . sharedStatePendingIxIndex . entityVal)
+        selectSharedStatePendingIxs :: SqlPersistT IO Shared.PendingIxs
+        selectSharedStatePendingIxs =
+            Shared.pendingIxsFromList . fromRes <$> selectList
+                [SharedStatePendingWalletId ==. wid]
+                [Desc SharedStatePendingIxIndex]
+          where
+              fromRes = fmap (W.Index . sharedStatePendingIxIndex . entityVal)
 
     loadDiscoveries wid sl = do
         extAddrMap <- loadAddresses @'UtxoExternal
         intAddrMap <- loadAddresses @'UtxoInternal
         pure $ SharedDiscoveries extAddrMap intAddrMap
-          where
-          loadAddresses
-              :: forall (c :: Role) (k :: Depth -> Type -> Type).
-                 ( MkKeyFingerprint k W.Address
-                 , Typeable c )
-              => SqlPersistT IO (SharedAddressMap c k)
-          loadAddresses = do
-              addrs <- map entityVal <$> selectList
-                  [ SeqStateAddressWalletId ==. wid
-                  , SeqStateAddressSlot ==. sl
-                  , SeqStateAddressRole ==. roleVal @c
-                  ] [Asc SeqStateAddressIndex]
-              pure $ SharedAddressMap $ Map.fromList
-                  [ (fingerprint, (toEnum $ fromIntegral ix, status))
-                  | SeqStateAddress _ _ addr ix _ status <- addrs
-                  , Right fingerprint <- [paymentKeyFingerprint addr]
-                  ]
+      where
+        loadAddresses
+            :: forall (c :: Role) (k :: Depth -> Type -> Type).
+               ( MkKeyFingerprint k W.Address
+               , Typeable c )
+            => SqlPersistT IO (SharedAddressMap c k)
+        loadAddresses = do
+            addrs <- map entityVal <$> selectList
+                [ SeqStateAddressWalletId ==. wid
+                , SeqStateAddressSlot ==. sl
+                , SeqStateAddressRole ==. roleVal @c
+                ] [Asc SeqStateAddressIndex]
+            pure $ SharedAddressMap $ Map.fromList
+                [ (fingerprint, (toEnum $ fromIntegral ix, status))
+                | SeqStateAddress _ _ addr ix _ status <- addrs
+                , Right fingerprint <- [paymentKeyFingerprint addr]
+                ]
 
 selectCosigners
     :: forall k. PersistPublicKey (k 'AccountK)
