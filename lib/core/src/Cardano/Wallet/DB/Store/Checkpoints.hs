@@ -552,7 +552,7 @@ instance
             let (Shared.Active (Shared.SharedAddressPools _ _ pendingIxs)) =
                     readiness
             deleteWhere [SharedStatePendingWalletId ==. wid]
-            dbChunked insertMany_ (mkSharedStatePendingIxs wid pendingIxs)
+            dbChunked insertMany_ (mkSharedStatePendingIxs pendingIxs)
       where
          insertSharedState prefix accXPub gap pTemplate dTemplateM = do
              deleteWhere [SharedStateWalletId ==. wid]
@@ -572,8 +572,8 @@ instance
                  | ((Cosigner c), xpub) <- Map.assocs cs
                  ]
 
-         mkSharedStatePendingIxs :: W.WalletId -> Shared.PendingIxs -> [SharedStatePendingIx]
-         mkSharedStatePendingIxs wid =
+         mkSharedStatePendingIxs :: Shared.PendingIxs -> [SharedStatePendingIx]
+         mkSharedStatePendingIxs =
              fmap (SharedStatePendingIx wid . W.getIndex) . Shared.pendingIxsToList
 
     insertDiscoveries wid sl sharedDiscoveries = do
