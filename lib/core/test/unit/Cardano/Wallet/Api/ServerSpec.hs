@@ -15,8 +15,6 @@ import Cardano.BM.Trace
     ( nullTracer )
 import Cardano.Slotting.Slot
     ( EpochNo (..) )
-import Cardano.Wallet
-    ( ErrNoSuchWallet (..) )
 import Cardano.Wallet.Api.Server
     ( IsServerError (..)
     , Listen (..)
@@ -28,14 +26,21 @@ import Cardano.Wallet.Api.Server
     )
 import Cardano.Wallet.Api.Types
     ( ApiNetworkInformation (..) )
+import Cardano.Wallet.DB.WalletState
+    ( ErrNoSuchWallet (..) )
 import Cardano.Wallet.DummyTarget.Primitive.Types
     ( dummyNetworkLayer )
 import Cardano.Wallet.Network
     ( NetworkLayer (..) )
 import Cardano.Wallet.Primitive.Slotting
-    ( PastHorizonException, TimeInterpreter, mkTimeInterpreter )
+    ( PastHorizonException
+    , TimeInterpreter
+    , currentRelativeTime
+    , mkTimeInterpreter
+    , neverFails
+    )
 import Cardano.Wallet.Primitive.SyncProgress
-    ( mkSyncTolerance )
+    ( SyncTolerance (..) )
 import Cardano.Wallet.Primitive.Types
     ( Block (..), BlockHeader (..), SlotNo (..), StartTime (..) )
 import Cardano.Wallet.Primitive.Types.Hash
@@ -88,6 +93,7 @@ import UnliftIO.Async
 import UnliftIO.Concurrent
     ( threadDelay )
 
+import qualified Cardano.Wallet.Primitive.SyncProgress as S
 import qualified Data.ByteString.Char8 as B8
 import qualified Data.ByteString.Lazy as BL
 import qualified Ouroboros.Consensus.HardFork.History.EraParams as HF
@@ -167,16 +173,14 @@ networkInfoSpec = describe "getNetworkInformation" $ do
        \ the current time" $ property $ \(gap' ::(NonNegative Int)) ->
         monadicIO $ do
         let gap = fromRational $ toRational $ getNonNegative gap'
-        st <- run $ StartTime . ((negate gap) `addUTCTime`)
-                <$> getCurrentTime
+        st <- run $ StartTime . ((negate gap) `addUTCTime`) <$> getCurrentTime
         let ti = forkInterpreter st
+        now <- currentRelativeTime ti
         let nodeTip' = SlotNo 0
-        let nl = mockNetworkLayer nodeTip' ti
-        let tolerance = mkSyncTolerance 5
+        let nl = mockNetworkLayer nodeTip' ti now
         Right info <- run
             $ runHandler
-            $ getNetworkInformation
-                (Testnet $ NetworkMagic 1) tolerance nl
+            $ getNetworkInformation (Testnet $ NetworkMagic 1) nl
 
         --  0              20
         --  *               |        *
@@ -203,17 +207,25 @@ networkInfoSpec = describe "getNetworkInformation" $ do
     mockNetworkLayer
         :: SlotNo
         -> TimeInterpreter (ExceptT PastHorizonException IO)
+        -> RelativeTime
         -> NetworkLayer IO Block
-    mockNetworkLayer sl ti = dummyNetworkLayer
-        { currentNodeEra = return $ AnyCardanoEra MaryEra
-        , currentNodeTip = return $
+    mockNetworkLayer sl ti relativeTime =
+        dummyNetworkLayer
+            { currentNodeEra = pure $ AnyCardanoEra MaryEra
+            , currentNodeTip = pure $
                 BlockHeader
                     sl
                     (Quantity $ fromIntegral $ unSlotNo sl)
                     (Hash "header hash")
                     (Just $ Hash "prevHeaderHash")
-        , timeInterpreter = ti
-        }
+            , timeInterpreter = ti
+            , syncProgress = \slot ->
+                S.syncProgress
+                    (SyncTolerance 10)
+                    (neverFails "syncProgress" ti)
+                    slot
+                    relativeTime
+            }
 
     forkInterpreter startTime =
         let

@@ -175,6 +175,7 @@ data NetworkLayer m block = NetworkLayer
 
     , timeInterpreter
         :: TimeInterpreter (ExceptT PastHorizonException m)
+
     , syncProgress
         :: SlotNo -> m (SyncProgress)
         -- ^ Compute the ratio between the provided 'SlotNo' and the slot
@@ -203,7 +204,7 @@ data ChainFollower m point tip blocks = ChainFollower
         -- is used by the 'ChainFollower'.
         -- The argument of this field is the @epochStability@.
         --
-        -- Exposing this policy here enables any chain synchronizer 
+        -- Exposing this policy here enables any chain synchronizer
         -- which does not retrieve full blocks, such as 'lightSync',
         -- to specifically target those block heights at which
         -- the 'ChainFollower' intends to create checkpoints.

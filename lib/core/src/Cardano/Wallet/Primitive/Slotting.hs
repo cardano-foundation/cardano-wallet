@@ -524,11 +524,9 @@ neverFails
     :: String
     -> TimeInterpreter (ExceptT PastHorizonException IO)
     -> TimeInterpreter IO
-neverFails reason = f . hoistTimeInterpreter (runExceptT >=> eitherToIO)
+neverFails reason =
+    f . hoistTimeInterpreter (runExceptT >=> either throwIO pure)
   where
-    eitherToIO (Right x) = pure x
-    eitherToIO (Left e) = throwIO e
-
     f (TimeInterpreter getI ss tr h) = TimeInterpreter
         { interpreter = getI
         , blockchainStartTime = ss

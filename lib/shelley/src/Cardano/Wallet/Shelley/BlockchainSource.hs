@@ -10,15 +10,13 @@ module Cardano.Wallet.Shelley.BlockchainSource
 
 import Cardano.Launcher.Node
     ( CardanoNodeConn )
+import Cardano.Wallet.Primitive.SyncProgress
+    ( SyncTolerance )
 import Cardano.Wallet.Shelley.Compatibility
     ( NodeToClientVersionData )
 
 import qualified Blockfrost.Client as Blockfrost
 
 data BlockchainSource
-    = NodeSource
-        CardanoNodeConn
-        -- ^ Socket for communicating with the node
-        NodeToClientVersionData
+    = NodeSource CardanoNodeConn NodeToClientVersionData SyncTolerance
     | BlockfrostSource Blockfrost.Project
-    -- ^ Blockfrost token when working in the light mode

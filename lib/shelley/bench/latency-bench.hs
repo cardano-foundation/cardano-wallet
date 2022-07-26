@@ -481,13 +481,12 @@ withShelleyServer tracers action = do
 
         listen <- walletListenFromEnv
         serveWallet
-            (NodeSource conn vData)
+            (NodeSource conn vData (SyncTolerance 10))
             np
             tunedForMainnetPipeliningStrategy
             (SomeNetworkDiscriminant $ Proxy @'Mainnet)
             []
             tracers
-            (SyncTolerance 10)
             (Just db)
             Nothing
             "127.0.0.1"

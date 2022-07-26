@@ -134,10 +134,12 @@ import Control.Monad.Class.MonadThrow
     ( MonadThrow )
 import Control.Monad.Class.MonadTimer
     ( MonadTimer, threadDelay )
+import Control.Monad.Except
+    ( runExcept )
 import Control.Monad.IO.Unlift
     ( MonadIO, MonadUnliftIO, liftIO )
 import Control.Monad.Trans.Except
-    ( ExceptT (..), runExceptT, throwE )
+    ( ExceptT (..), throwE )
 import Control.Retry
     ( RetryAction (..)
     , RetryPolicyM
@@ -150,12 +152,12 @@ import Control.Tracer
     ( Tracer (..), contramap, nullTracer, traceWith )
 import Data.ByteString.Lazy
     ( ByteString )
+import Data.Either
+    ( fromRight )
 import Data.Function
     ( (&) )
 import Data.Functor.Contravariant
     ( (>$<) )
-import Data.Functor.Identity
-    ( runIdentity )
 import Data.List
     ( isInfixOf )
 import Data.List.NonEmpty
@@ -276,7 +278,7 @@ import qualified Cardano.Ledger.Babbage.PParams as Babbage
 import qualified Cardano.Ledger.Crypto as SL
 import qualified Cardano.Ledger.Shelley.API as SL
 import qualified Cardano.Ledger.Shelley.LedgerState as SL
-import qualified Cardano.Wallet.Primitive.SyncProgress as SyncProgress
+import qualified Cardano.Wallet.Primitive.SyncProgress as SP
 import qualified Cardano.Wallet.Primitive.Types as W
 import qualified Cardano.Wallet.Primitive.Types.Coin as W
 import qualified Cardano.Wallet.Primitive.Types.RewardAccount as W
@@ -543,29 +545,24 @@ withNodeNetworkLayerBase
     _syncProgress :: TMVar IO (CardanoInterpreter sc)
         -> SlotNo
         -> IO SyncProgress
-    _syncProgress var slot = do
-        liftIO (atomically $ tryReadTMVar var) >>= \case
-            -- If the wallet has been started, but not yet been able to connect
-            -- to the node, we don't have an interpreter summary, and can't
-            -- calculate the syncProgress using a @SlotNo@.
-            --
-            -- If we want to guarantee the availability of @SyncProgress@, we
-            -- could consider storing @UTCTime@ along with the follower tip in
-            -- question, but that would make chain-following dependent on
-            -- a TimeInterpreter.
-            Nothing -> return NotResponding
-            Just i -> do
-                let ti = mkTimeInterpreter nullTracer getGenesisBlockDate (pure i)
-                time <- currentRelativeTime ti
-                let res = SyncProgress.syncProgress tol ti slot time
-                case runIdentity $ runExceptT res of
-                    -- Getting a past horizon error here should be unlikely, but
-                    -- could happen if we switch from a in-sync node to a
-                    -- not-in-sync node, either by restarting the wallet, or
-                    -- restarting the node using the same socket but different
-                    -- db.
-                    Left _pastHorizon -> return NotResponding
-                    Right p -> return p
+    _syncProgress var slot = atomically (tryReadTMVar var) >>= \case
+        -- If the wallet has been started, but not yet been able to connect
+        -- to the node, we don't have an interpreter summary, and can't
+        -- calculate the syncProgress using a @SlotNo@.
+        --
+        -- If we want to guarantee the availability of @SyncProgress@, we
+        -- could consider storing @UTCTime@ along with the follower tip in
+        -- question, but that would make chain-following dependent on
+        -- a TimeInterpreter.
+        Nothing -> pure NotResponding
+        Just i -> do
+            let ti = mkTimeInterpreter nullTracer getGenesisBlockDate (pure i)
+            -- Getting a past horizon error here should be unlikely, but
+            -- could happen if we switch from a in-sync node to a
+            -- not-in-sync node, either by restarting the wallet, or
+            -- restarting the node using the same socket but different db.
+            fromRight NotResponding . runExcept . SP.syncProgress tol ti slot
+                <$> currentRelativeTime ti
 
 {-------------------------------------------------------------------------------
     NetworkClient

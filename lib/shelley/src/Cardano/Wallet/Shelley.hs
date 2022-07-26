@@ -72,8 +72,6 @@ import Cardano.Wallet.Primitive.AddressDiscovery.Shared
     ( SharedState )
 import Cardano.Wallet.Primitive.Slotting
     ( neverFails )
-import Cardano.Wallet.Primitive.SyncProgress
-    ( SyncTolerance )
 import Cardano.Wallet.Primitive.Types
     ( Block
     , NetworkParameters (..)
@@ -187,8 +185,6 @@ serveWallet
     -- ^ Shelley genesis pools
     -> Tracers IO
     -- ^ Logging config.
-    -> SyncTolerance
-    -- ^ A time tolerance within we consider being synced
     -> Maybe FilePath
     -- ^ Database folder filepath
     -> Maybe (Pool.DBDecorator IO)
@@ -219,7 +215,6 @@ serveWallet
   network@(SomeNetworkDiscriminant proxyNetwork)
   shelleyGenesisPools
   Tracers{..}
-  sTolerance
   databaseDir
   mPoolDatabaseDecorator
   hostPref
@@ -230,7 +225,7 @@ serveWallet
   block0
   beforeMainLoop = evalContT $ do
     lift $ case blockchainSource of
-        NodeSource nodeConn _ -> trace $ MsgStartingNode nodeConn
+        NodeSource nodeConn _ _ -> trace $ MsgStartingNode nodeConn
         BlockfrostSource project -> trace $ MsgStartingLite project
     lift . trace $ MsgNetworkName $ networkName proxyNetwork
     netLayer <- withNetworkLayer
@@ -239,9 +234,8 @@ serveWallet
         blockchainSource
         network
         netParams
-        sTolerance
     stakePoolLayer <- case blockchainSource of
-        NodeSource _ _ -> do
+        NodeSource{} -> do
             stakePoolDbLayer <- withStakePoolDbLayer
                 poolsDbTracer
                 databaseDir
@@ -387,7 +381,7 @@ serveWallet
             databaseDir
         Server.newApiLayer
             walletEngineTracer
-            (block0, netParams, sTolerance)
+            (block0, netParams)
             (fromCardanoBlock genesisParameters <$> netLayer)
             txLayer
             dbFactory

@@ -47,8 +47,8 @@ spec = describe "Blockfrost CLI options" $ do
         case execParserPure defaultPrefs parserInfo args of
             Failure pf -> expectationFailure $ show pf
             CompletionInvoked cr -> expectationFailure $ show cr
-            Success (Light _) -> expectationFailure "Normal mode expected"
-            Success (Normal _conn) -> pure ()
+            Success Light{} -> expectationFailure "Normal mode expected"
+            Success Normal{} -> pure ()
 
     it "modeOption --light" $ withSystemTempFile "blockfrost.token" $ \f h -> do
         let parserInfo = info modeOption fullDesc
@@ -58,7 +58,7 @@ spec = describe "Blockfrost CLI options" $ do
         case execParserPure defaultPrefs parserInfo args of
             Failure pf -> expectationFailure $ show pf
             CompletionInvoked cr -> expectationFailure $ show cr
-            Success (Normal _conn) -> expectationFailure "Light mode expected"
+            Success Normal{} -> expectationFailure "Light mode expected"
             Success (Light tf) -> do
                 hClose h *> writeFile f (net <> projectId)
                 readToken tf `shouldReturn`

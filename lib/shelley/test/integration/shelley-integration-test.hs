@@ -357,13 +357,12 @@ specWithServer testDir (tr, tracers) = aroundAll withContext
         let testMetadata = $(getTestData) </> "token-metadata.json"
         withMetadataServer (queryServerStatic testMetadata) $ \tokenMetaUrl ->
             serveWallet
-                (NodeSource conn vData)
+                (NodeSource conn vData (SyncTolerance 10))
                 gp
                 tunedForMainnetPipeliningStrategy
                 (SomeNetworkDiscriminant $ Proxy @'Mainnet)
                 genesisPools
                 tracers
-                (SyncTolerance 10)
                 (Just db)
                 (Just dbDecorator)
                 "127.0.0.1"

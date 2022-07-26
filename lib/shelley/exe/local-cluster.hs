@@ -256,13 +256,12 @@ main = withLocalClusterSetup $ \dir clusterLogs walletLogs ->
                 <$> getEKGURL
 
             void $ serveWallet
-                (NodeSource socketPath vData)
+                (NodeSource socketPath vData (SyncTolerance 10))
                 gp
                 tunedForMainnetPipeliningStrategy
                 (SomeNetworkDiscriminant $ Proxy @'Mainnet)
                 []
                 tracers
-                (SyncTolerance 10)
                 (Just db)
                 Nothing
                 "127.0.0.1"

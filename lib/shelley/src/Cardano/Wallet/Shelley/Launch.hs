@@ -48,7 +48,7 @@ import Cardano.BM.Data.Tracer
 import Cardano.Chain.Genesis
     ( GenesisData (..), readGenesisData )
 import Cardano.CLI
-    ( optionT )
+    ( optionT, syncToleranceOption )
 import Cardano.Launcher
     ( LauncherLog )
 import Cardano.Launcher.Node
@@ -96,6 +96,8 @@ import UnliftIO.Temporary
     ( withTempDirectory )
 
 import qualified Cardano.Wallet.Byron.Compatibility as Byron
+import Cardano.Wallet.Primitive.SyncProgress
+    ( SyncTolerance )
 import qualified Cardano.Wallet.Primitive.Types as W
 import qualified Cardano.Wallet.Shelley.Launch.Blockfrost as Blockfrost
 import qualified Data.ByteString.Lazy.Char8 as BL8
@@ -387,14 +389,16 @@ instance HasSeverityAnnotation TempDirLog where
                                     Mode
 -------------------------------------------------------------------------------}
 
-data Mode = Normal CardanoNodeConn | Light Blockfrost.TokenFile
+data Mode
+    = Normal CardanoNodeConn SyncTolerance
+    | Light Blockfrost.TokenFile
   deriving (Show)
 
 modeOption :: Parser Mode
 modeOption = normalMode <|> lightMode
   where
     normalMode =
-        Normal <$> nodeSocketOption
+        Normal <$> nodeSocketOption <*> syncToleranceOption
     lightMode =
         flag' () (long "light" <> help "Enable light mode") *>
         fmap Light Blockfrost.tokenFileOption

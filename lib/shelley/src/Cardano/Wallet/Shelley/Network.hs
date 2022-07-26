@@ -21,8 +21,6 @@ import Cardano.BM.Tracing
     ( HasPrivacyAnnotation, HasSeverityAnnotation (..), Tracer )
 import Cardano.Wallet.Network
     ( NetworkLayer )
-import Cardano.Wallet.Primitive.SyncProgress
-    ( SyncTolerance )
 import Cardano.Wallet.Primitive.Types
     ( NetworkParameters )
 import Cardano.Wallet.Shelley.BlockchainSource
@@ -65,14 +63,13 @@ withNetworkLayer
     -> BlockchainSource
     -> SomeNetworkDiscriminant
     -> NetworkParameters
-    -> SyncTolerance
     -> ContT r IO (NetworkLayer IO (CardanoBlock StandardCrypto))
-withNetworkLayer tr pipeliningStrategy blockchainSrc net netParams tol =
+withNetworkLayer tr pipeliningStrategy blockchainSrc net netParams =
     ContT $ case blockchainSrc of
-        NodeSource nodeConn ver ->
+        NodeSource nodeConn ver tol ->
             let tr' = NodeNetworkLog >$< tr
                 netId = networkDiscriminantToId net
-            in Node.withNetworkLayer 
+            in Node.withNetworkLayer
                 tr' pipeliningStrategy netId netParams nodeConn ver tol
         BlockfrostSource project ->
             let tr' = BlockfrostNetworkLog >$< tr

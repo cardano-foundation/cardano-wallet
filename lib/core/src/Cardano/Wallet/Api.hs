@@ -239,8 +239,6 @@ import Cardano.Wallet.Network
     ( NetworkLayer )
 import Cardano.Wallet.Primitive.AddressDerivation
     ( Depth, DerivationIndex, Role )
-import Cardano.Wallet.Primitive.SyncProgress
-    ( SyncTolerance )
 import Cardano.Wallet.Primitive.Types
     ( Block
     , NetworkParameters
@@ -1146,7 +1144,7 @@ data ApiLayer s (k :: Depth -> Type -> Type)
     = ApiLayer
         (Tracer IO TxSubmitLog)
         (Tracer IO (WorkerLog WalletId WalletWorkerLog))
-        (Block, NetworkParameters, SyncTolerance)
+        (Block, NetworkParameters)
         (NetworkLayer IO Block)
         (TransactionLayer k SealedTx)
         (DBFactory IO s k)
