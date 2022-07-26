@@ -290,7 +290,8 @@ import Cardano.Wallet.Network
     , NetworkLayer (..)
     )
 import Cardano.Wallet.Primitive.AddressDerivation
-    ( DelegationAddress (..)
+    ( BoundedAddressLength (..)
+    , DelegationAddress (..)
     , Depth (..)
     , DerivationIndex (..)
     , DerivationPrefix (..)
@@ -1568,6 +1569,7 @@ balanceTransaction
         , MonadRandom m
         , HasLogger m WalletWorkerLog ctx
         , Cardano.IsShelleyBasedEra era
+        , BoundedAddressLength k
         )
     => ctx
     -> ArgGenChange s
@@ -1591,6 +1593,7 @@ balanceTransactionWithSelectionStrategy
     :: forall era m s k ctx.
         ( HasTransactionLayer k ctx
         , GenChange s
+        , BoundedAddressLength k
         , MonadRandom m
         , HasLogger m WalletWorkerLog ctx
         , Cardano.IsShelleyBasedEra era
@@ -2213,7 +2216,8 @@ data SelectAssetsParams s result = SelectAssetsParams
 --
 selectAssets
     :: forall ctx m s k result.
-        ( HasTransactionLayer k ctx
+        ( BoundedAddressLength k
+        , HasTransactionLayer k ctx
         , HasLogger m WalletWorkerLog ctx
         , MonadRandom m
         )
