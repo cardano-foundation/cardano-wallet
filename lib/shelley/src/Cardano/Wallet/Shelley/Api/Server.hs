@@ -606,7 +606,7 @@ server byron icarus shelley multisig spl ntp =
         -> Server (SharedTransactions n)
     sharedTransactions apilayer =
         constructSharedTransaction apilayer (constructAddressFromIx @n UtxoInternal)
-        (knownPools spl) (getPoolLifeCycleStatus spl)
+            (knownPools spl) (getPoolLifeCycleStatus spl)
 
 postAnyAddress
     :: NetworkId

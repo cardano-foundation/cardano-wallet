@@ -1163,7 +1163,7 @@ restoreBlocks ctx tr wid blocks nodeTip = db & \DBLayer{..} -> do
         forM_ slotPoolDelegations $ \delegation@(slotNo, cert) -> do
             liftIO $ logDelegation delegation
             putDelegationCertificate wid cert slotNo
-        
+
         liftIO $ mapM_ logCheckpoint cpsKeep
         ExceptT $ modifyDBMaybe walletsDB $
             adjustNoSuchWallet wid id $ \_ -> Right ( delta, () )
@@ -2439,13 +2439,12 @@ constructTransaction ctx wid era txCtx sel = db & \DBLayer{..} -> do
 -- | Construct an unsigned transaction from a given selection
 -- for a shared wallet.
 constructSharedTransaction
-    :: forall ctx s k (n :: NetworkDiscriminant) shared.
+    :: forall ctx s k (n :: NetworkDiscriminant).
         ( HasTransactionLayer k ctx
         , HasDBLayer IO s k ctx
         , HasNetworkLayer IO ctx
-        , shared ~ SharedState n SharedKey
-        , Typeable s
-        , Typeable n
+        , k ~ SharedKey
+        , s ~ SharedState n k
         )
     => ctx
     -> WalletId
@@ -2458,14 +2457,10 @@ constructSharedTransaction ctx wid era txCtx sel = db & \DBLayer{..} -> do
         $ mapExceptT atomically
         $ withNoSuchWallet wid
         $ readCheckpoint wid
-    xpub <- case testEquality (typeRep @s) (typeRep @shared) of
-        Nothing ->
-            throwE ErrConstructTxNotASharedWallet
-        Just Refl -> do
-            let s = getState cp
-            let accXPub = getRawKey $ Shared.accountXPub s
-            pure $ CA.getKey $
-                deriveDelegationPublicKey (CA.liftXPub accXPub) minBound
+    let s = getState cp
+    let accXPub = getRawKey $ Shared.accountXPub s
+    let xpub = CA.getKey $
+            deriveDelegationPublicKey (CA.liftXPub accXPub) minBound
     mapExceptT atomically $ do
         pp <- liftIO $ currentProtocolParameters nl
         withExceptT ErrConstructTxBody $ ExceptT $ pure $
@@ -3567,7 +3562,6 @@ data ErrConstructTx
     | ErrConstructTxWrongValidityBounds
     | ErrConstructTxValidityIntervalNotWithinScriptTimelock
     | ErrConstructTxSharedWalletPending
-    | ErrConstructTxNotASharedWallet
     | ErrConstructTxNotImplemented String
     -- ^ Temporary error constructor.
     deriving (Show, Eq)

@@ -2351,7 +2351,7 @@ constructTransaction ctx genChange knownPools getPoolStatus (ApiT wid) body = do
     let md = body ^? #metadata . traverse . #txMetadataWithSchema_metadata
 
     (before, hereafter, isThereNegativeTime) <-
-        handleValidityInterval ti (body ^. #validityInterval)
+        decodeValidityInterval ti (body ^. #validityInterval)
 
     when (hereafter < before || isThereNegativeTime) $
         liftHandler $ throwE ErrConstructTxWrongValidityBounds
@@ -2550,11 +2550,11 @@ constructTransaction ctx genChange knownPools getPoolStatus (ApiT wid) body = do
             . Map.toList
             . foldr (uncurry (Map.insertWith (<>))) Map.empty
 
-handleValidityInterval
+decodeValidityInterval
     :: TimeInterpreter (ExceptT PastHorizonException IO)
     -> Maybe ApiValidityInterval
     -> Handler (SlotNo, SlotNo, Bool)
-handleValidityInterval ti validityInterval = do
+decodeValidityInterval ti validityInterval = do
     let isValidityBoundTimeNegative
             (ApiValidityBoundAsTimeFromNow (Quantity sec)) = sec < 0
         isValidityBoundTimeNegative _ = False
@@ -2609,13 +2609,12 @@ handleValidityInterval ti validityInterval = do
 -- TO-DO minting/burning
 constructSharedTransaction
     :: forall ctx s k n.
-        ( s ~ SharedState n k
+        ( k ~ SharedKey
+        , s ~ SharedState n k
         , ctx ~ ApiLayer s k
         , GenChange s
         , HasNetworkLayer IO ctx
         , IsOurs s Address
-        , Typeable n
-        , Typeable s
         )
     => ctx
     -> ArgGenChange s
@@ -2637,7 +2636,7 @@ constructSharedTransaction ctx genChange _knownPools _getPoolStatus (ApiT wid) b
     let md = body ^? #metadata . traverse . #txMetadataWithSchema_metadata
 
     (before, hereafter, isThereNegativeTime) <-
-        handleValidityInterval ti (body ^. #validityInterval)
+        decodeValidityInterval ti (body ^. #validityInterval)
 
     when (hereafter < before || isThereNegativeTime) $
         liftHandler $ throwE ErrConstructTxWrongValidityBounds
@@ -3632,7 +3631,7 @@ getNetworkInformation nid st nl = liftIO $ do
         , Api.networkInfo =
             Api.ApiNetworkInfo
                 (case nid of
-                     Cardano.Mainnet -> "mainnet" 
+                     Cardano.Mainnet -> "mainnet"
                      Cardano.Testnet _ -> "testnet"
                      )
                 (fromIntegral $ unNetworkMagic $ toNetworkMagic nid)
@@ -4685,12 +4684,6 @@ instance IsServerError ErrConstructTx where
             , "'PATCH /shared-wallets/{walletId}/delegation-script-template' to make "
             , "it applicable for constructing transaction."
             ]
-        ErrConstructTxNotASharedWallet ->
-            apiError err403 InvalidWalletType $ mconcat
-                [ "It is regrettable but you've just attempted an operation "
-                , "that is invalid for this type of wallet. Only new 'Shared' "
-                , "wallets can do something with both script and keyhash delegation ."
-                ]
         ErrConstructTxNotImplemented _ ->
             apiError err501 NotImplemented
                 "This feature is not yet implemented."
