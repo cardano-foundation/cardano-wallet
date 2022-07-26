@@ -602,13 +602,22 @@ instance
             pTemplate = ScriptTemplate (Map.fromList $ prepareKeys pCosigners) pScript
             dTemplateM = ScriptTemplate (Map.fromList $ prepareKeys dCosigners) <$> dScriptM
             mkSharedState = Shared.SharedState prefix accXPub pTemplate dTemplateM gap
+        pendingIxs <- lift selectSharedStatePendingIxs
         prologue <- lift $ multisigPoolAbsent wid <&> \case
             True ->  mkSharedState Shared.Pending
             False -> mkSharedState $ Shared.Active $ Shared.SharedAddressPools
                 (Shared.newSharedAddressPool @n @'UtxoExternal gap pTemplate dTemplateM)
                 (Shared.newSharedAddressPool @n @'UtxoInternal gap pTemplate dTemplateM)
-                Shared.emptyPendingIxs
+                pendingIxs
         pure $ SharedPrologue prologue
+      where
+          selectSharedStatePendingIxs :: SqlPersistT IO Shared.PendingIxs
+          selectSharedStatePendingIxs =
+              Shared.pendingIxsFromList . fromRes <$> selectList
+              [SharedStatePendingWalletId ==. wid]
+              [Desc SharedStatePendingIxIndex]
+            where
+                fromRes = fmap (W.Index . sharedStatePendingIxIndex . entityVal)
 
     loadDiscoveries wid sl = do
         extAddrMap <- loadAddresses @'UtxoExternal

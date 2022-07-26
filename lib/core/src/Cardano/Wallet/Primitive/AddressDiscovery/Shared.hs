@@ -37,6 +37,7 @@ module Cardano.Wallet.Primitive.AddressDiscovery.Shared
     , PendingIxs
     , emptyPendingIxs
     , pendingIxsToList
+    , pendingIxsFromList
 
     , ErrAddCosigner (..)
     , ErrScriptTemplate (..)
@@ -149,6 +150,7 @@ import qualified Cardano.Address as CA
 import qualified Cardano.Address.Style.Shelley as CA
 import qualified Cardano.Wallet.Address.Pool as AddressPool
 import qualified Data.Foldable as F
+import qualified Data.List as L
 import qualified Data.List.NonEmpty as NE
 import qualified Data.Map.Strict as Map
 import qualified Data.Text as T
@@ -180,6 +182,11 @@ instance NFData PendingIxs
 -- of combining two pending sets.
 emptyPendingIxs :: PendingIxs
 emptyPendingIxs = PendingIxs mempty
+
+-- | Construct a 'PendingIxs' from a list, ensuring that it is a set of indexes
+-- in descending order.
+pendingIxsFromList :: [Index 'Soft 'ScriptK] -> PendingIxs
+pendingIxsFromList = PendingIxs . reverse . map head . L.group . L.sort
 
 {-------------------------------------------------------------------------------
     Address Pool

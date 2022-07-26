@@ -188,11 +188,10 @@ instance ( key ~ SharedKey ) => AddressBookIso (Shared.SharedState n key)
             Shared.Pending ->
                 ( SharedPrologue st
                 , SharedDiscoveries (SharedAddressMap Map.empty) (SharedAddressMap Map.empty))
-            Shared.Active (Shared.SharedAddressPools extPool intPool _pending) ->
+            Shared.Active (Shared.SharedAddressPools extPool intPool pending) ->
                 let extPool0 = clearShared extPool
                     intPool0 = clearShared intPool
-                    pending0 = Shared.emptyPendingIxs
-                    pools0 = Shared.SharedAddressPools extPool0 intPool0 pending0
+                    pools0 = Shared.SharedAddressPools extPool0 intPool0 pending
                 in  ( SharedPrologue st{ Shared.ready = Shared.Active pools0 }
                     , SharedDiscoveries
                         (addressesShared extPool)
@@ -204,7 +203,6 @@ instance ( key ~ SharedKey ) => AddressBookIso (Shared.SharedState n key)
             Shared.Active (Shared.SharedAddressPools extPool0 intPool0 pending0) ->
                 let extPool = loadUnsafeShared extPool0 exts
                     intPool = loadUnsafeShared intPool0 ints
-                    -- TODO - think about pending here and in from
                     pools = Shared.SharedAddressPools extPool intPool pending0
                 in  st{ Shared.ready = Shared.Active pools }
 
