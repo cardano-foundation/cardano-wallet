@@ -2623,7 +2623,8 @@ constructSharedTransaction
     -> ApiT WalletId
     -> ApiConstructTransactionData n
     -> Handler (ApiConstructTransaction n)
-constructSharedTransaction ctx genChange _knownPools _getPoolStatus (ApiT wid) body = do
+constructSharedTransaction
+    ctx genChange _knownPools _getPoolStatus (ApiT wid) body = do
     let isNoPayload =
             isNothing (body ^. #payments) &&
             isNothing (body ^. #withdrawal) &&
@@ -2668,8 +2669,8 @@ constructSharedTransaction ctx genChange _knownPools _getPoolStatus (ApiT wid) b
                 (utxoAvailable, wallet, pendingTxs) <-
                     liftHandler $ W.readWalletUTxOIndex @_ @s @k wrk wid
 
-                let runSelection outs =
-                        W.selectAssets @_ @_ @s @k wrk era pp selectAssetsParams transform
+                let runSelection outs = W.selectAssets @_ @_ @s @k
+                        wrk era pp selectAssetsParams transform
                       where
                         selectAssetsParams = W.SelectAssetsParams
                             { outputs = outs

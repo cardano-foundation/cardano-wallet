@@ -544,9 +544,9 @@ data MockSelectionConstraints = MockSelectionConstraints
     , minimumCollateralPercentage
         :: Natural
     , maximumOutputAdaQuantity
-         :: Coin
+        :: Coin
     , maximumOutputTokenQuantity
-         :: TokenQuantity
+        :: TokenQuantity
     }
     deriving (Eq, Generic, Show)
 
