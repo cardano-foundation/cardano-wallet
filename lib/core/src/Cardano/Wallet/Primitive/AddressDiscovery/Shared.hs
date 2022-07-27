@@ -643,36 +643,38 @@ instance SupportsDiscovery n k => CompareDiscovery (SharedState n k) where
                     AddressPool.lookup addr (getPool intPool)
 
 instance Typeable n => KnownAddresses (SharedState n k) where
-    knownAddresses st =
-        nonChangeAddresses <> usedChangeAddresses <> pendingChangeAddresses
+    knownAddresses st = case ready st of
+        Pending -> []
+        Active (SharedAddressPools extPool intPool (PendingIxs ixs)) ->
+            nonChangeAddresses extPool <>
+            usedChangeAddresses intPool <>
+            pendingChangeAddresses intPool ixs
       where
-        nonChangeAddresses = case ready st of
-            Pending -> []
-            Active (SharedAddressPools extPool _ _) ->
-                map (swivel utxoExternal) $ Map.toList $
-                AddressPool.addresses (getPool extPool)
+        nonChangeAddresses extPool =
+            map (swivel utxoExternal) $ L.sortOn idx $ Map.toList $
+            AddressPool.addresses (getPool extPool)
+
+        idx (_,(ix,_)) = ix
 
         swivel role' (k,(ix,s)) =
             (liftPaymentAddress @n k, s, decoratePath st role' ix)
 
-        changeAddresses = case ready st of
-            Pending -> []
-            Active (SharedAddressPools _ intPool _) ->
-                map (swivel utxoInternal) $ Map.toList $
-                AddressPool.addresses (getPool intPool)
-        usedChangeAddresses =
-            filter (\(_, status, _) -> status == Used) changeAddresses
+        changeAddresses intPool =
+            map (swivel utxoInternal) $ L.sortOn idx $ Map.toList $
+            AddressPool.addresses (getPool intPool)
+        usedChangeAddresses intPool =
+            filter (\(_, status, _) -> status == Used) $
+            changeAddresses intPool
 
         -- pick as many unused change addresses as there are pending
         -- transactions. Note: the last `internalGap` addresses are all
         -- unused.
-        pendingChangeAddresses = case ready st of
-            Pending -> []
-            Active (SharedAddressPools _ intPool (PendingIxs ixs)) ->
-                let internalGap = AddressPool.gap $ getPool intPool
-                    edgeChangeAddresses =
-                        drop (length changeAddresses - internalGap) changeAddresses
-                in take (length ixs) edgeChangeAddresses
+        pendingChangeAddresses intPool ixs =
+            let internalGap = AddressPool.gap $ getPool intPool
+                changeAddresses' = changeAddresses intPool
+                edgeChangeAddresses =
+                    drop (length changeAddresses' - internalGap) changeAddresses'
+            in take (length ixs) edgeChangeAddresses
 
 instance MaybeLight (SharedState n k) where
     maybeDiscover = Nothing
