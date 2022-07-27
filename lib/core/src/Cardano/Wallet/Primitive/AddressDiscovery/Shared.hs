@@ -112,7 +112,7 @@ import Cardano.Wallet.Primitive.AddressDiscovery.Sequential
 import Cardano.Wallet.Primitive.Passphrase
     ( Passphrase )
 import Cardano.Wallet.Primitive.Types.Address
-    ( Address (..) )
+    ( Address (..), AddressState (..) )
 import Cardano.Wallet.Primitive.Types.RewardAccount
     ( RewardAccount )
 import Cardano.Wallet.Util
@@ -641,16 +641,24 @@ instance SupportsDiscovery n k => CompareDiscovery (SharedState n k) where
                     AddressPool.lookup addr (getPool intPool)
 
 instance Typeable n => KnownAddresses (SharedState n k) where
-    knownAddresses st = nonChangeAddresses
+    knownAddresses st =
+        nonChangeAddresses <> usedChangeAddresses
       where
-        -- TODO - After enabling txs for shared wallets we will need to expand this
         nonChangeAddresses = case ready st of
             Pending -> []
-            Active (SharedAddressPools extPool intPool _) ->
+            Active (SharedAddressPools extPool _ _) ->
                 map swivel $ Map.toList $
-                AddressPool.addresses (getPool extPool) <>
-                AddressPool.addresses (getPool intPool)
+                AddressPool.addresses (getPool extPool)
+
         swivel (k,(ix,s)) = (liftPaymentAddress @n k, s, decoratePath st ix)
+
+        changeAddresses = case ready st of
+            Pending -> []
+            Active (SharedAddressPools _ intPool _) ->
+                map swivel $ Map.toList $
+                AddressPool.addresses (getPool intPool)
+        usedChangeAddresses =
+            filter (\(_, status, _) -> status == Used) changeAddresses
 
 instance MaybeLight (SharedState n k) where
     maybeDiscover = Nothing
