@@ -266,14 +266,14 @@ end
 
 ##
 # create fixture wallet or return it's id if it exists
-# @param type [Symbol] :shelley, :random, :icarus
+# @param type [Symbol] :shelley, :shelley_light, :random, :icarus
 def create_fixture_wallet(type)
   payload = { name: "Fixture wallet with funds",
               passphrase: PASS,
               mnemonic_sentence: get_fixture_wallet_mnemonics(:fixture, type.to_sym)
             }
   case type.to_sym
-  when :shelley
+  when :shelley, :shelley_light
     wallet = SHELLEY.wallets.create(payload)
     return_wallet_id(wallet)
   when :random, :icarus

@@ -62,7 +62,8 @@ task :fixture_wallets_template do
   fixture_wallets = { :linux => {
                           :fixture => { :shelley => mnemonic_sentence(24),
                                          :icarus => mnemonic_sentence(15),
-                                         :random => mnemonic_sentence(12)
+                                         :random => mnemonic_sentence(12),
+                                         :shelley_light => mnemonic_sentence(24)
                                        },
                           :target =>  { :shelley => mnemonic_sentence(24),
                                          :shared => mnemonic_sentence(24)
@@ -71,7 +72,8 @@ task :fixture_wallets_template do
                       :macos => {
                           :fixture => { :shelley => mnemonic_sentence(24),
                                          :icarus => mnemonic_sentence(15),
-                                         :random => mnemonic_sentence(12)
+                                         :random => mnemonic_sentence(12),
+                                         :shelley_light => mnemonic_sentence(24)
                                        },
                           :target =>  { :shelley => mnemonic_sentence(24),
                                          :shared => mnemonic_sentence(24)
@@ -80,7 +82,8 @@ task :fixture_wallets_template do
                       :windows => {
                           :fixture => { :shelley => mnemonic_sentence(24),
                                          :icarus => mnemonic_sentence(15),
-                                         :random => mnemonic_sentence(12)
+                                         :random => mnemonic_sentence(12),
+                                         :shelley_light => mnemonic_sentence(24)
                                        },
                           :target =>  { :shelley => mnemonic_sentence(24),
                                          :shared => mnemonic_sentence(24)
