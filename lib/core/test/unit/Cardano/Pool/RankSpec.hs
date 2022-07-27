@@ -102,7 +102,7 @@ proportionTo (Coin x) (Coin y) = fromIntegral x / fromIntegral y
 
 genStakePoolsSummary :: RewardParams -> Gen StakePoolsSummary
 genStakePoolsSummary rp =
-    StakePoolsSummary rp <$> liftArbitrary (genRewardInfoPool rp) 
+    StakePoolsSummary rp <$> liftArbitrary (genRewardInfoPool rp)
 
 instance Arbitrary PoolId where
     arbitrary =

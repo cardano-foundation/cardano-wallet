@@ -229,7 +229,7 @@ update addr pool@Pool{addresses} =
 -- in order to satisfy 'prop_fresh' again.
 --
 -- Preconditions:
--- 
+--
 -- * The index @ix@ satisfies:
 --
 --     either @ix = fromEnum 0@

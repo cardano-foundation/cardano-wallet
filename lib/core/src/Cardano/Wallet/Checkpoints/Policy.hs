@@ -160,7 +160,7 @@ Hence, we should strive to
 - Keep only one checkpoint every `largeGap` ~100 blocks
 - But still keep ~10 most recent checkpoints to cope with small rollbacks.
 
-Roughly, the 'sparseArithmetic' 
+Roughly, the 'sparseArithmetic'
 
 0 ..... N*largeGap .... (N+1)*largeGap .. .. M*smallGap (M+1)*smallGap tip
         |_______________________________________________________________|

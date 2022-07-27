@@ -15,6 +15,7 @@ steps:
       pad_module_names: false
       separate_lists: true
       space_surround: true
+  - trailing_whitespace: {}
 
   - language_pragmas:
       align: false

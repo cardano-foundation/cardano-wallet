@@ -106,7 +106,7 @@ sqlDB = Database
     Database operations
 -------------------------------------------------------------------------------}
 -- | Construct a 'Store' from an SQL table.
--- 
+--
 -- The unique IDs will be stored in a column "id" at the end of
 -- each row in the database table.
 newSqlStore

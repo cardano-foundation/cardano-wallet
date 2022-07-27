@@ -1067,7 +1067,7 @@ instance Malformed (BodyParam WalletPutPassphraseData) where
                 }|]
               , "Error in $['mnemonic_second_factor']: Invalid entropy checksum: please double-check the last word of your mnemonic sentence., mnemonic variant"
               )
-            
+
             ]
 
 instance Malformed (BodyParam ByronWalletPutPassphraseData) where

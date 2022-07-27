@@ -48,7 +48,7 @@ variant = Variant
 -- representing the 'Left'/'Right' cases.
 -- Instead, the predicates of the variants can be used to disambiguate a
 -- 'Value' by checking the presence of absence of certain JSON object keys.
-variants 
+variants
     :: String -- ^ Error message suffix in case of parse failure.
     -> [Variant a] -- ^ Possible variants.
     -> Value -- ^ Value to parse.

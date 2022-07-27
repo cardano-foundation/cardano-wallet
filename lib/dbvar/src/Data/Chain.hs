@@ -193,13 +193,13 @@ collapseNode now chain@Chain{next,prev} =
                 $ Map.delete now next
             , prev
                 = Map.insert nto (Just nfrom)
-                $ Map.delete now prev 
+                $ Map.delete now prev
             }
         _ -> chain
 
 -- | Remove the tip and more nodes from the chain until
 -- the given node is the tip.
--- 
+--
 -- Do nothing if the node is not in the chain.
 rollbackTo :: Ord node => node -> Chain node edge -> Chain node edge
 rollbackTo new chain@Chain{next,prev,tip}
@@ -306,6 +306,6 @@ data Edge node edge = Edge
 instance Functor (Edge node) where
     fmap f e@Edge{via} = e{ via = f via }
 
--- | Flatten a list of edges 
+-- | Flatten a list of edges
 flattenEdge :: Edge node [edge] -> [Edge node edge]
 flattenEdge Edge{to,from,via} = [ Edge{to,from,via=v} | v <- via ]

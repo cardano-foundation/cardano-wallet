@@ -200,7 +200,7 @@ fromSet = Pile . Set.toList
 -- Every function @f :: Pile A -> B@ should satisfy
 --
 -- > forall g.  f . permute g = f
--- 
+--
 -- permute :: RandomGen g => g -> Pile a -> Pile a
 -- permute = undefined
 --      let (index, g2) = randomR (1,n) g1
@@ -214,7 +214,7 @@ deltaSetToPile = Pile . Delta.deltaSetToList
 --
 -- > deltaSetFromPile . deltaSetToPile = id
 deltaSetFromPile :: Ord a => Pile (DeltaSet1 a) -> DeltaSet a
-deltaSetFromPile = Delta.deltaSetFromList . getPile 
+deltaSetFromPile = Delta.deltaSetFromList . getPile
 
 -- | Map a 'DeltaList' to a 'Pile' of indexed single element concatenations.
 -- Higher indices are prepended later.

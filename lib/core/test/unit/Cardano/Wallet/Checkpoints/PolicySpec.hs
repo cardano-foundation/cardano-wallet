@@ -56,10 +56,10 @@ spec = do
 
         it "trailingArithmetic n _  has at most n checkpoints" $
             property prop_trailingLength
-        
+
         it "trailingArithmetic checkpoints are located at grid points" $
             property prop_trailingGrid
-    
+
         it "sparseArithmetic checkpoints after genesis are close to tip" $
             property $ \(GenHeightContext epochStability tip) ->
                 maybe False (>= tip - 2*epochStability - 20) $

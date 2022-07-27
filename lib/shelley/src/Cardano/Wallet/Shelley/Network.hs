@@ -72,7 +72,7 @@ withNetworkLayer tr pipeliningStrategy blockchainSrc net netParams tol =
         NodeSource nodeConn ver ->
             let tr' = NodeNetworkLog >$< tr
                 netId = networkDiscriminantToId net
-            in Node.withNetworkLayer 
+            in Node.withNetworkLayer
                 tr' pipeliningStrategy netId netParams nodeConn ver tol
         BlockfrostSource project ->
             let tr' = BlockfrostNetworkLog >$< tr
