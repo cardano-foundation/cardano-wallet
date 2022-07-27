@@ -79,7 +79,7 @@ import Cardano.Wallet.Primitive.Slotting
     , mkTimeInterpreter
     )
 import Cardano.Wallet.Primitive.SyncProgress
-    ( SyncProgress (Syncing) )
+    ( SyncProgress (..) )
 import Cardano.Wallet.Primitive.Types
     ( ActiveSlotCoefficient (ActiveSlotCoefficient)
     , Block (..)
@@ -193,6 +193,7 @@ import Data.Quantity
     , Quantity (..)
     , clipToPercentage
     , mkPercentage
+    , percentageToDouble
     )
 import Data.Ratio
     ( (%) )
@@ -401,8 +402,11 @@ withNetworkLayer tr network np project k = do
         BF.Block {_blockSlot} <- bfGetLatestBlock bfLayer
         let latestSlot = maybe 0 BF.unSlot _blockSlot
             currentSlot = fromIntegral (unSlotNo s)
-            percentage = currentSlot % latestSlot
-        pure $ Syncing $ Quantity $ clipToPercentage percentage
+            percentage = clipToPercentage $ currentSlot % latestSlot
+        pure $
+            if percentageToDouble percentage > 0.99
+                then Ready
+                else Syncing $ Quantity percentage
 
     stakePoolsSummary :: BlockfrostLayer IO -> Coin -> IO StakePoolsSummary
     stakePoolsSummary bfLayer _coin = do
