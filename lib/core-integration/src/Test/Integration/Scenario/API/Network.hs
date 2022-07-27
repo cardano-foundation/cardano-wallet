@@ -72,7 +72,7 @@ spec = describe "COMMON_NETWORK" $ do
                 , expectField (#nodeEra) (`shouldBe` _mainEra ctx)
                 , expectField (#nodeTip . #absoluteSlotNumber . #getApiT) (`shouldNotBe` 0)
                 , \x -> (epochStartTime <$> nextEpoch (unsafeResponse x)) .> Just now
-                , expectField (#networkInfo . #protocolMagic) 
+                , expectField (#networkInfo . #protocolMagic)
                     (`shouldBe` fromIntegral (getProtocolMagic mainnetMagic))
                 ]
             counterexample (show r) $ do

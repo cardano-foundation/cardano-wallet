@@ -12,18 +12,18 @@
 -- Each checkpoints is associated with a 'Slot'.
 
 module Cardano.Wallet.Checkpoints
-    ( -- * Checkpoints  
+    ( -- * Checkpoints
       Checkpoints
     , checkpoints
     , loadCheckpoints
     , fromGenesis
     , getLatest
     , findNearestPoint
-    
+
     -- * Delta types
     , DeltaCheckpoints (..)
     , DeltasCheckpoints
-    
+
     -- * Checkpoint hygiene
     , SparseCheckpointsConfig (..)
     , defaultSparseCheckpointsConfig
@@ -114,7 +114,7 @@ fromGenesis a = Checkpoints $ Map.singleton W.Origin a
 
 -- | Get the checkpoint with the largest 'SlotNo'.
 getLatest :: Checkpoints a -> (W.Slot, a)
-getLatest = from . Map.lookupMax . view #checkpoints 
+getLatest = from . Map.lookupMax . view #checkpoints
   where
     from = fromMaybe (error "getLatest: there should always be at least a genesis checkpoint")
 

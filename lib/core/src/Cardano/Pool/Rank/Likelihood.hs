@@ -88,7 +88,7 @@ estimatePoolPerformance
         -- Recent performance weighs more than past performance:
         --
         -- * Block production from > 25 epochs ago has less than 10% influence
-        -- on the likelihoods. 
+        -- on the likelihoods.
         -- * Block production from > 50 epochs ago has less than 1% influence
         -- on the likelihoods and can be ignored.
     -> PerformanceEstimate

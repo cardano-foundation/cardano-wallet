@@ -12,14 +12,14 @@ module Data.Delta (
     -- is a delta encoding of the corresponding base type 'Base'@ delta@.
     --
     -- Delta encodings can be transformed into each other using an 'Embedding'.
-    
+
     -- * Delta encodings
     Delta (..)
     , NoChange (..), Replace (..)
     , DeltaList (..)
     , DeltaSet1 (..)
     , DeltaSet, mkDeltaSet, deltaSetToList, deltaSetFromList
-    
+
     -- * Embedding of types and delta encodings
     -- $Embedding
     , Embedding
@@ -57,7 +57,7 @@ class Delta delta where
     -- | Base type for which @delta@ represents a delta encoding.
     -- This is implemented as a type family, so that we can have
     -- multiple delta encodings for the same base type.
-    -- 
+    --
     -- FIXME: Better name for 'Base'? It's sooo generic.
     -- Pier, dock, ground, anchor, site, …
     type Base delta :: Type
@@ -286,7 +286,7 @@ mkEmbedding Embedding'{load,write,update} = Embedding
 -- from an efficient 'Embedding'.
 fromEmbedding :: (Delta da, Delta db) => Embedding da db -> Embedding' da db
 fromEmbedding Embedding{inject,project} = Embedding'
-    { load = fmap fst . project 
+    { load = fmap fst . project
     , write = state_ . inject
     , update = \a b da ->
         let (_ ,mab) = from (project b)
@@ -351,7 +351,7 @@ replaceFromApply = Embedding'
 {-
 -- | Use the 'update' function of an 'Embedding' to convert
 -- one delta encoding to another.
--- 
+--
 -- This function assumes that the 'Embedding' argument satisfies
 -- @load = Just@ and @write = id@.
 applyWithEmbedding

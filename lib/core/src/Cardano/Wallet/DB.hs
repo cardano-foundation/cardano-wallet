@@ -145,7 +145,7 @@ data DBLayer m s k = forall stm. (MonadIO stm, MonadFail stm) => DBLayer
         -- ^ 'DBVar' containing the 'WalletState' of each wallet in the database.
         -- Currently contains all 'Checkpoints' of the 'UTxO' and the
         -- 'Discoveries', as well as the 'Prologue' of the address discovery state.
-        -- 
+        --
         -- Intended to replace 'putCheckpoint' and 'readCheckpoint' in the short-term,
         -- and all other functions in the long-term.
 

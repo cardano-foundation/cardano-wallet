@@ -126,7 +126,7 @@ import qualified Data.Aeson as Aeson
 {-------------------------------------------------------------------------------
                               Server Interaction
 -------------------------------------------------------------------------------}
-type family  WalletPutPassphraseFormat wallet where 
+type family  WalletPutPassphraseFormat wallet where
     WalletPutPassphraseFormat ApiWallet = WalletPutPassphraseData
     WalletPutPassphraseFormat ApiByronWallet = ByronWalletPutPassphraseData
 

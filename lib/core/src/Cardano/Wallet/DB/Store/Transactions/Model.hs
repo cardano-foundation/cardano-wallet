@@ -83,7 +83,7 @@ import qualified Cardano.Wallet.Primitive.Types.Tx as W
 import qualified Data.Map.Strict as Map
 
 -- | A context that carries a TxOut together with its tokens
--- (this will be needed in the future for the DB Layer 
+-- (this will be needed in the future for the DB Layer
 -- to reconstruct 'TransactionInfo').
 data WithTxOut txin = WithTxOut
     { txIn :: txin, context :: Maybe (TxOut, [TxOutToken]) }
@@ -169,7 +169,7 @@ instance Delta DeltaTxHistory where
     type Base DeltaTxHistory = TxHistory
     -- transactions are immutable so here there should happen no rewriting
     -- but we mimic the repsert in the store
-    apply (Append txs) h = txs <> h 
+    apply (Append txs) h = txs <> h
     apply (DeleteTx tid) (TxHistoryF txs) =
         TxHistoryF $ Map.delete tid txs
 
@@ -184,7 +184,7 @@ mkTxIn tid (ix,(txIn,amt)) =
     }
 
 mkTxCollateral :: TxId
-    -> (Int, (W.TxIn, W.Coin)) 
+    -> (Int, (W.TxIn, W.Coin))
     -> TxCollateral
 mkTxCollateral tid (ix,(txCollateral,amt)) =
     TxCollateral

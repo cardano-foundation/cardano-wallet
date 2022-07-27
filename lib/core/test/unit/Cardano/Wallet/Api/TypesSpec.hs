@@ -1999,7 +1999,7 @@ instance Arbitrary ApiSlotId where
     shrink = genericShrink
 
 instance Arbitrary ApiNetworkInfo where
-    arbitrary = oneof 
+    arbitrary = oneof
         [ pure $ ApiNetworkInfo "mainnet" 764824073
         , ApiNetworkInfo "testnet" <$> arbitrary
         ]

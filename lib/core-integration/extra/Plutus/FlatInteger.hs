@@ -48,7 +48,7 @@ word7s x
 ------------------------------------------------------------------------------}
 -- | Convert a bytes into a sequence of bits.
 -- The least significant bit comes last, e.g.
--- 
+--
 -- > toBits 0x03 = [False,False,False,False,False,False,True,True]
 toBits :: Word8 -> [Bool]
 toBits x = map (Bits.testBit x) [7,6,5,4,3,2,1,0]

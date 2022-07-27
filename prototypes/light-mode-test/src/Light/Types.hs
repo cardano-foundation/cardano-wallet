@@ -43,6 +43,6 @@ latest = maximumBy (comparing height)
 -- | Get the 'ChainPoint' that the block is associated to.
 fromBlock :: Block -> ChainPoint
 fromBlock b = case _blockHeight b of
-    Nothing -> Origin 
+    Nothing -> Origin
     Just height -> At height (_blockHash b)
 
