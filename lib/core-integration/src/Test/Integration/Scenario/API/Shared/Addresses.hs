@@ -83,7 +83,7 @@ spec = describe "SHARED_ADDRESSES" $ do
             (Link.listAddresses @'Shared wal) Default Empty
         expectResponseCode HTTP.status200 r
         let g = fromIntegral $ getAddressPoolGap defaultAddressPoolGap
-        expectListSize (2*g) r
+        expectListSize g r
         forM_ [0..(g-1)] $ \addrNum -> do
             expectListField addrNum (#state . #getApiT) (`shouldBe` Unused) r
             expectListField addrNum #derivationPath

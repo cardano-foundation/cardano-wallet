@@ -90,6 +90,7 @@ import Cardano.Wallet.Primitive.AddressDerivation
     , WalletKey (..)
     , roleVal
     , utxoExternal
+    , utxoInternal
     )
 import Cardano.Wallet.Primitive.AddressDerivation.SharedKey
     ( SharedKey (..)
@@ -112,7 +113,7 @@ import Cardano.Wallet.Primitive.AddressDiscovery.Sequential
 import Cardano.Wallet.Primitive.Passphrase
     ( Passphrase )
 import Cardano.Wallet.Primitive.Types.Address
-    ( Address (..) )
+    ( Address (..), AddressState (..) )
 import Cardano.Wallet.Primitive.Types.RewardAccount
     ( RewardAccount )
 import Cardano.Wallet.Util
@@ -598,18 +599,19 @@ isShared addrRaw st = case ready st of
 
 instance SupportsDiscovery n k => IsOurs (SharedState n k) Address
   where
-    isOurs addr st = first (fmap (decoratePath st)) (isShared addr st)
+    isOurs addr st = first (fmap (decoratePath st utxoExternal)) (isShared addr st)
 
 -- | Decorate an index with the derivation prefix corresponding to the state.
 decoratePath
     :: SharedState n key
+    -> Index 'Soft 'RoleK
     -> Index 'Soft 'ScriptK
     -> NE.NonEmpty DerivationIndex
-decoratePath st ix = NE.fromList
+decoratePath st role' ix = NE.fromList
     [ DerivationIndex $ getIndex purpose
     , DerivationIndex $ getIndex coinType
     , DerivationIndex $ getIndex accIx
-    , DerivationIndex $ getIndex utxoExternal
+    , DerivationIndex $ getIndex role'
     , DerivationIndex $ getIndex ix
     ]
   where
@@ -641,16 +643,38 @@ instance SupportsDiscovery n k => CompareDiscovery (SharedState n k) where
                     AddressPool.lookup addr (getPool intPool)
 
 instance Typeable n => KnownAddresses (SharedState n k) where
-    knownAddresses st = nonChangeAddresses
+    knownAddresses st = case ready st of
+        Pending -> []
+        Active (SharedAddressPools extPool intPool (PendingIxs ixs)) ->
+            nonChangeAddresses extPool <>
+            usedChangeAddresses intPool <>
+            pendingChangeAddresses intPool ixs
       where
-        -- TODO - After enabling txs for shared wallets we will need to expand this
-        nonChangeAddresses = case ready st of
-            Pending -> []
-            Active (SharedAddressPools extPool intPool _) ->
-                map swivel $ Map.toList $
-                AddressPool.addresses (getPool extPool) <>
-                AddressPool.addresses (getPool intPool)
-        swivel (k,(ix,s)) = (liftPaymentAddress @n k, s, decoratePath st ix)
+        nonChangeAddresses extPool =
+            map (swivel utxoExternal) $ L.sortOn idx $ Map.toList $
+            AddressPool.addresses (getPool extPool)
+
+        idx (_,(ix,_)) = ix
+
+        swivel role' (k,(ix,s)) =
+            (liftPaymentAddress @n k, s, decoratePath st role' ix)
+
+        changeAddresses intPool =
+            map (swivel utxoInternal) $ L.sortOn idx $ Map.toList $
+            AddressPool.addresses (getPool intPool)
+        usedChangeAddresses intPool =
+            filter (\(_, status, _) -> status == Used) $
+            changeAddresses intPool
+
+        -- pick as many unused change addresses as there are pending
+        -- transactions. Note: the last `internalGap` addresses are all
+        -- unused.
+        pendingChangeAddresses intPool ixs =
+            let internalGap = AddressPool.gap $ getPool intPool
+                changeAddresses' = changeAddresses intPool
+                edgeChangeAddresses =
+                    drop (length changeAddresses' - internalGap) changeAddresses'
+            in take (length ixs) edgeChangeAddresses
 
 instance MaybeLight (SharedState n k) where
     maybeDiscover = Nothing
