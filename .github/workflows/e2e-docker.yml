@@ -91,10 +91,10 @@ jobs:
       uses: actions/cache@v2.1.7
       with:
         path: test/e2e/state/wallet_db/${{ env.NETWORK }}
-        key: wallet-db-${{ runner.os }}-${{ env.NETWORK }}-${{ steps.date-time.outputs.value }}
+        key: wallet-db3-${{ runner.os }}-${{ env.NETWORK }}-${{ steps.date-time.outputs.value }}
         restore-keys: |
-          wallet-db-docker-${{ env.NETWORK }}-
-          wallet-db-Linux-${{ env.NETWORK }}-
+          wallet-db3-docker-${{ env.NETWORK }}-
+          wallet-db3-Linux-${{ env.NETWORK }}-
 
     - name: 🚀 Start node and wallet
       run: |
