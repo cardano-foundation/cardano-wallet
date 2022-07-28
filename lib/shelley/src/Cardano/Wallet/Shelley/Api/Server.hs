@@ -47,7 +47,7 @@ import Cardano.Wallet.Api
     , ByronWallets
     , CoinSelections
     , Network
-    , Proxy_
+    --, Proxy_
     , SMASH
     , Settings
     , SharedAddresses
@@ -98,7 +98,7 @@ import Cardano.Wallet.Api.Server
     , patchSharedWallet
     , postAccountPublicKey
     , postAccountWallet
-    , postExternalTransaction
+    --, postExternalTransaction
     , postIcarusWallet
     , postLedgerWallet
     , postPolicyId
@@ -121,7 +121,7 @@ import Cardano.Wallet.Api.Server
     , selectCoins
     , selectCoinsForJoin
     , selectCoinsForQuit
-    , signMetadata
+    --, signMetadata
     , signTransaction
     , submitTransaction
     , withLegacyLayer
@@ -253,7 +253,7 @@ server byron icarus shelley multisig spl ntp =
     :<|> byronTransactions
     :<|> byronMigrations
     :<|> network' (networkIdVal (Proxy @n))
-    :<|> proxy
+    -- :<|> proxy
     :<|> settingS
     :<|> smash
     :<|> sharedWallets multisig
@@ -274,7 +274,7 @@ server byron icarus shelley multisig spl ntp =
 
     walletKeys :: Server WalletKeys
     walletKeys = derivePublicKey shelley ApiVerificationKeyShelley
-        :<|> signMetadata shelley
+        -- :<|> signMetadata shelley
         :<|> postAccountPublicKey shelley ApiAccountKey
         :<|> getAccountPublicKey shelley ApiAccountKey
         :<|> getPolicyKey @_ @_ @_ @n shelley
@@ -545,8 +545,9 @@ server byron icarus shelley multisig spl ntp =
         tl = icarus ^. transactionLayer @IcarusKey
         genesis@(_,_,syncTolerance) = icarus ^. genesisData
 
-    proxy :: Server Proxy_
-    proxy = postExternalTransaction icarus
+    -- commenting out `proxy` (above) for typescript-gen.hs
+    -- proxy :: Server Proxy_
+    -- proxy = postExternalTransaction icarus
 
     settingS :: Server Settings
     settingS = putSettings' :<|> getSettings'

@@ -178,7 +178,8 @@
                   # Local test cluster and mock metadata server
                   inherit (project.hsPkgs.cardano-wallet.components.exes)
                     local-cluster
-                    mock-token-metadata-server;
+                    mock-token-metadata-server
+                    typescript-gen;
 
                   # Adrestia tool belt
                   inherit (project.hsPkgs.bech32.components.exes) bech32;
