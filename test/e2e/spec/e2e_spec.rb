@@ -1571,9 +1571,9 @@ RSpec.describe "Cardano Wallet E2E tests", :all, :e2e do
   end
 
   describe "E2E Shared" do
-    describe "E2E Construct -> Sign -> Submit" do
+    describe "E2E Construct -> Sign -> Submit", :shared do
       it "Single output transaction" do
-        amt = 1000000
+        amt = MIN_UTXO_VALUE
         address = SHELLEY.addresses.list(@target_id)[1]['id']
         target_before = get_shelley_balances(@target_id)
         src_before = get_shared_balances(@wid_sha)
@@ -1587,7 +1587,7 @@ RSpec.describe "Cardano Wallet E2E tests", :all, :e2e do
       end
 
       it "Multi output transaction" do
-        amt = 1000000
+        amt = MIN_UTXO_VALUE
         address = SHELLEY.addresses.list(@target_id)[1]['id']
         target_before = get_shelley_balances(@target_id)
         src_before = get_shared_balances(@wid_sha)
@@ -1641,7 +1641,7 @@ RSpec.describe "Cardano Wallet E2E tests", :all, :e2e do
       end
 
       it "Validity intervals" do
-        amt = 1000000
+        amt = MIN_UTXO_VALUE
         address = SHELLEY.addresses.list(@target_id)[1]['id']
         target_before = get_shelley_balances(@target_id)
         src_before = get_shared_balances(@wid_sha)
@@ -1661,7 +1661,6 @@ RSpec.describe "Cardano Wallet E2E tests", :all, :e2e do
         expect(tx_constructed).to be_correct_and_respond 202
       end
     end
-
 
     it "I can receive transaction to shared wallet" do
       amt = 1
