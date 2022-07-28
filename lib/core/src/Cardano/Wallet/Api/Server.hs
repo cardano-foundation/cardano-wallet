@@ -2713,13 +2713,16 @@ decodeSharedTransaction
     :: forall ctx s k n.
         ( ctx ~ ApiLayer s k
         , IsOurs s Address
+        , HasNetworkLayer IO ctx
         )
     => ctx
     -> ApiT WalletId
     -> ApiSerialisedTransaction
     -> Handler (ApiDecodedTransaction n)
 decodeSharedTransaction ctx (ApiT wid) (ApiSerialisedTransaction (ApiT sealed)) = do
-    let (decodedTx, _toMint, _toBurn, _allCerts, interval) = decodeTx tl sealed
+    era <- liftIO $ NW.currentNodeEra nl
+    let (decodedTx, _toMint, _toBurn, _allCerts, interval) =
+            decodeTx tl era sealed
     let (Tx { txId
             , fee
             , resolvedInputs
@@ -2765,6 +2768,8 @@ decodeSharedTransaction ctx (ApiT wid) (ApiSerialisedTransaction (ApiT sealed)) 
         }
   where
     tl = ctx ^. W.transactionLayer @k
+    nl = ctx ^. W.networkLayer @IO
+
     emptyApiAssetMntBurn = ApiAssetMintBurn
         { tokens = []
         , walletPolicyKeyHash = Nothing
