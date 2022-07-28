@@ -99,13 +99,10 @@ import Cardano.Wallet.Primitive.AddressDerivation
     , WalletKey (..)
     , roleVal
     )
-import Cardano.Wallet.Primitive.AddressDiscovery
-    ( PendingIxs
-    , pendingIxsToList
-    , pendingIxsFromList
-    )
 import Cardano.Wallet.Primitive.AddressDerivation.SharedKey
     ( SharedKey (..) )
+import Cardano.Wallet.Primitive.AddressDiscovery
+    ( PendingIxs, pendingIxsFromList, pendingIxsToList )
 import Cardano.Wallet.Primitive.AddressDiscovery.Shared
     ( CredentialType (..) )
 import Cardano.Wallet.Primitive.Types.TokenBundle
