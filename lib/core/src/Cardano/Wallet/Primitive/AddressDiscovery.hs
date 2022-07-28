@@ -38,6 +38,7 @@ module Cardano.Wallet.Primitive.AddressDiscovery
     , pendingIxsToList
     , pendingIxsFromList
     , nextChangeIndex
+    , updatePendingIxs
     ) where
 
 import Prelude
@@ -249,3 +250,17 @@ nextChangeIndex pool (PendingIxs ixs) =
     in
         invariant "index is within first unused and last unused" (ix, ixs')
             (\(i,_) -> i >= firstUnused && i <= lastUnused)
+
+-- | Update the set of pending indexes by discarding every indexes _below_ the
+-- given index.
+--
+-- Why is that?
+--
+-- Because we really do care about the higher index that was last used in order
+-- to know from where we can generate new indexes.
+updatePendingIxs
+    :: Index 'Soft k
+    -> PendingIxs k
+    -> PendingIxs k
+updatePendingIxs ix (PendingIxs ixs) =
+    PendingIxs $ L.filter (> ix) ixs

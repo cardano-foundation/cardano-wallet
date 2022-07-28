@@ -53,6 +53,7 @@ import Cardano.Wallet.Primitive.AddressDiscovery
     , IsOwned (..)
     , KnownAddresses (..)
     , genChange
+    , emptyPendingIxs
     )
 import Cardano.Wallet.Primitive.AddressDiscovery.Sequential
     ( AddressPoolGap (..)
@@ -62,7 +63,6 @@ import Cardano.Wallet.Primitive.AddressDiscovery.Sequential
     , SeqState (..)
     , coinTypeAda
     , defaultAddressPoolGap
-    , emptyPendingIxs
     , mkAddressPoolGap
     , mkSeqStateFromAccountXPub
     , mkSeqStateFromRootXPrv

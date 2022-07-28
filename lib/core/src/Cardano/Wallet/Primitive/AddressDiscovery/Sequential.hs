@@ -52,12 +52,6 @@ module Cardano.Wallet.Primitive.AddressDiscovery.Sequential
     , newSeqAddressPool
     , unsafePaymentKeyFingerprint
 
-    -- * Pending Change Indexes
-    , PendingIxs
-    , emptyPendingIxs
-    , pendingIxsToList
-    , pendingIxsFromList
-
     -- ** State
     , SeqState (..)
     , DerivationPrefix (..)
@@ -113,7 +107,12 @@ import Cardano.Wallet.Primitive.AddressDiscovery
     , IsOwned (..)
     , KnownAddresses (..)
     , MaybeLight (..)
+    , PendingIxs
     , coinTypeAda
+    , emptyPendingIxs
+    , nextChangeIndex
+    , pendingIxsToList
+    , updatePendingIxs
     )
 import Cardano.Wallet.Primitive.BlockSummary
     ( ChainEvents )
@@ -123,8 +122,6 @@ import Cardano.Wallet.Primitive.Types.Address
     ( Address (..), AddressState (..) )
 import Cardano.Wallet.Primitive.Types.RewardAccount
     ( RewardAccount )
-import Cardano.Wallet.Util
-    ( invariant )
 import Codec.Binary.Encoding
     ( AbstractEncoding (..), encode )
 import Control.Applicative
@@ -344,71 +341,6 @@ instance Buildable ScriptTemplate where
             Map.foldrWithKey (\c k acc -> acc <> "| " <> printCosigner c <> " " <> accXPubTxt k ) mempty
 
 {-------------------------------------------------------------------------------
-                            Pending Change Indexes
--------------------------------------------------------------------------------}
-
--- | An ordered set of pending indexes. This keep track of indexes used
-newtype PendingIxs = PendingIxs
-    { pendingIxsToList :: [Index 'Soft 'AddressK] }
-    deriving stock (Generic, Show, Eq)
-
-instance NFData PendingIxs
-
--- | An empty pending set of change indexes.
---
--- NOTE: We do not define a 'Monoid' instance here because there's no rational
--- of combining two pending sets.
-emptyPendingIxs :: PendingIxs
-emptyPendingIxs = PendingIxs mempty
-
--- | Update the set of pending indexes by discarding every indexes _below_ the
--- given index.
---
--- Why is that?
---
--- Because we really do care about the higher index that was last used in order
--- to know from where we can generate new indexes.
-updatePendingIxs
-    :: Index 'Soft 'AddressK
-    -> PendingIxs
-    -> PendingIxs
-updatePendingIxs ix (PendingIxs ixs) =
-    PendingIxs $ L.filter (> ix) ixs
-
--- | Construct a 'PendingIxs' from a list, ensuring that it is a set of indexes
--- in descending order.
-pendingIxsFromList :: [Index 'Soft 'AddressK] -> PendingIxs
-pendingIxsFromList = PendingIxs . reverse . map head . L.group . L.sort
-
--- | Get the next change index; If every available indexes have already been
--- taken, we'll rotate the pending set and re-use already provided indexes.
---
--- This should not be a problem for users in practice, and remain okay for
--- exchanges who care less about privacy / not-reusing addresses than
--- regular users.
-nextChangeIndex
-    :: SeqAddressPool c k
-    -> PendingIxs
-    -> (Index 'Soft 'AddressK, PendingIxs)
-nextChangeIndex (SeqAddressPool pool) (PendingIxs ixs) =
-    let
-        poolLen = AddressPool.size  pool
-        (firstUnused, lastUnused) =
-            ( toEnum $ poolLen - AddressPool.gap pool
-            , toEnum $ poolLen - 1
-            )
-        (ix, ixs') = case ixs of
-            [] ->
-                (firstUnused, PendingIxs [firstUnused])
-            h:_ | length ixs < AddressPool.gap pool ->
-                (succ h, PendingIxs (succ h:ixs))
-            h:q ->
-                (h, PendingIxs (q++[h]))
-    in
-        invariant "index is within first unused and last unused" (ix, ixs')
-            (\(i,_) -> i >= firstUnused && i <= lastUnused)
-
-{-------------------------------------------------------------------------------
     SeqState
 -------------------------------------------------------------------------------}
 
@@ -423,7 +355,7 @@ data SeqState (n :: NetworkDiscriminant) k = SeqState
         -- ^ Addresses living on the 'UtxoInternal'
     , externalPool :: !(SeqAddressPool 'UtxoExternal k)
         -- ^ Addresses living on the 'UtxoExternal'
-    , pendingChangeIxs :: !PendingIxs
+    , pendingChangeIxs :: !(PendingIxs 'AddressK)
         -- ^ Indexes from the internal pool that have been used in pending
         -- transactions. The list is maintained sorted in descending order
         -- (cf: 'PendingIxs')
@@ -613,7 +545,8 @@ instance
     genChange mkAddress st =
         (addr, st{ pendingChangeIxs = pending' })
       where
-        (ix, pending') = nextChangeIndex (internalPool st) (pendingChangeIxs st)
+        (ix, pending') =
+            nextChangeIndex (getPool $ internalPool st) (pendingChangeIxs st)
         addressXPub = deriveAddressPublicKey (accountXPub st) UtxoInternal ix
         addr = mkAddress addressXPub (rewardAccountKey st)
 
@@ -689,7 +622,7 @@ instance
         -- unused.
         pendingChangeAddresses = take (length ixs) edgeChangeAddresses
           where
-            PendingIxs ixs = pendingChangeIxs st
+            ixs = pendingIxsToList $ pendingChangeIxs st
             internalGap = AddressPool.gap $ getPool $ internalPool st
             edgeChangeAddresses =
                 drop (length changeAddresses - internalGap) changeAddresses
