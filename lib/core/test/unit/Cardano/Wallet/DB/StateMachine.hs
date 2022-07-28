@@ -119,13 +119,14 @@ import Cardano.Wallet.Primitive.AddressDerivation.SharedKey
     ( SharedKey )
 import Cardano.Wallet.Primitive.AddressDerivation.Shelley
     ( ShelleyKey )
+import Cardano.Wallet.Primitive.AddressDiscovery
+    ( PendingIxs )
 import Cardano.Wallet.Primitive.AddressDiscovery.Random
     ( RndState )
 import Cardano.Wallet.Primitive.AddressDiscovery.Sequential
     ( AddressPoolGap, SeqState (..) )
 import Cardano.Wallet.Primitive.AddressDiscovery.Shared
-    ( PendingIxs
-    , Readiness
+    ( Readiness
     , SharedAddressPool (..)
     , SharedAddressPools (..)
     , SharedState (..)
@@ -994,7 +995,7 @@ instance ToExpr (SharedKey 'AccountK CC.XPub) where
 instance ToExpr (KeyFingerprint "payment" SharedKey) where
     toExpr = defaultExprViaShow
 
-instance ToExpr PendingIxs where
+instance ToExpr (PendingIxs 'ScriptK) where
     toExpr = genericToExpr
 
 instance ToExpr (SharedAddressPool 'UtxoExternal SharedKey) where

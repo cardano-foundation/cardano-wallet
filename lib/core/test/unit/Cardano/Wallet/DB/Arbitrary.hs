@@ -63,7 +63,7 @@ import Cardano.Wallet.Primitive.AddressDerivation.SharedKey
 import Cardano.Wallet.Primitive.AddressDerivation.Shelley
     ( ShelleyKey (..) )
 import Cardano.Wallet.Primitive.AddressDiscovery
-    ( IsOurs )
+    ( IsOurs, emptyPendingIxs )
 import Cardano.Wallet.Primitive.AddressDiscovery.Random
     ( RndState (..) )
 import Cardano.Wallet.Primitive.AddressDiscovery.Sequential
@@ -651,7 +651,7 @@ instance Arbitrary (SharedState 'Mainnet SharedKey) where
             (Shared.Active $ SharedAddressPools
                 (Shared.newSharedAddressPool @'Mainnet defaultAddressPoolGap pt Nothing)
                 (Shared.newSharedAddressPool @'Mainnet defaultAddressPoolGap pt Nothing)
-                Shared.emptyPendingIxs
+                emptyPendingIxs
             )
 
 defaultSharedStatePrefix :: DerivationPrefix

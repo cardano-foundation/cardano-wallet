@@ -99,6 +99,11 @@ import Cardano.Wallet.Primitive.AddressDerivation
     , WalletKey (..)
     , roleVal
     )
+import Cardano.Wallet.Primitive.AddressDiscovery
+    ( PendingIxs
+    , pendingIxsToList
+    , pendingIxsFromList
+    )
 import Cardano.Wallet.Primitive.AddressDerivation.SharedKey
     ( SharedKey (..) )
 import Cardano.Wallet.Primitive.AddressDiscovery.Shared
@@ -572,9 +577,9 @@ instance
                 | ((Cosigner c), xpub) <- Map.assocs cs
                 ]
 
-        mkSharedStatePendingIxs :: Shared.PendingIxs -> [SharedStatePendingIx]
+        mkSharedStatePendingIxs :: PendingIxs 'ScriptK -> [SharedStatePendingIx]
         mkSharedStatePendingIxs =
-            fmap (SharedStatePendingIx wid . W.getIndex) . Shared.pendingIxsToList
+            fmap (SharedStatePendingIx wid . W.getIndex) . pendingIxsToList
 
     insertDiscoveries wid sl sharedDiscoveries = do
         dbChunked insertMany_
@@ -611,9 +616,9 @@ instance
                 pendingIxs
         pure $ SharedPrologue prologue
       where
-        selectSharedStatePendingIxs :: SqlPersistT IO Shared.PendingIxs
+        selectSharedStatePendingIxs :: SqlPersistT IO (PendingIxs 'ScriptK)
         selectSharedStatePendingIxs =
-            Shared.pendingIxsFromList . fromRes <$> selectList
+            pendingIxsFromList . fromRes <$> selectList
                 [SharedStatePendingWalletId ==. wid]
                 [Desc SharedStatePendingIxIndex]
           where
