@@ -69,9 +69,9 @@ jobs:
       uses: actions/cache@v2.1.7
       with:
         path: test/e2e/state/wallet_db/${{ env.NETWORK }}
-        key: wallet-db-${{ runner.os }}-${{ env.NETWORK }}-${{ steps.date-time.outputs.value }}
+        key: wallet-db3-${{ runner.os }}-${{ env.NETWORK }}-${{ steps.date-time.outputs.value }}
         restore-keys: |
-          wallet-db-${{ runner.os }}-${{ env.NETWORK }}-
+          wallet-db3-${{ runner.os }}-${{ env.NETWORK }}-
 
     - name: ⚙️ Setup (get latest bins and configs and decode fixtures)
       run: rake setup[$NETWORK,$PR]
@@ -104,7 +104,7 @@ jobs:
       with:
         name: ${{ runner.os }}-wallet-db
         path: test/e2e/state/wallet_db
-        
+
     env:
       TESTS_E2E_FIXTURES: ${{ secrets.TESTS_E2E_FIXTURES }}
       NETWORK: ${{ github.event.inputs.network || 'testnet' }}
