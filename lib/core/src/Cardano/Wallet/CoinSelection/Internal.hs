@@ -185,6 +185,8 @@ data SelectionConstraints ctx = SelectionConstraints
         -- token bundle of an output.
     , maximumLengthChangeAddress
         :: Address ctx
+    , minimumLengthChangeAddress
+        :: Address ctx
     }
     deriving Generic
 
@@ -418,6 +420,8 @@ toBalanceConstraintsParams (constraints, params) =
             view #maximumOutputTokenQuantity constraints
         , maximumLengthChangeAddress =
             view #maximumLengthChangeAddress constraints
+        , minimumLengthChangeAddress =
+            view #minimumLengthChangeAddress constraints
         }
       where
         adjustComputeMinimumCost
