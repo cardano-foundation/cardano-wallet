@@ -225,12 +225,13 @@ executable typescript-gen
     , iohk-monitoring
     , directory
     , aeson
-    , aeson-typescript
     , filepath
     , lobemo-backend-ekg
     , text
     , text-class
+    , servant-server
     , servant-typescript
+    , aeson-typescript
   hs-source-dirs:
       exe
   main-is:
