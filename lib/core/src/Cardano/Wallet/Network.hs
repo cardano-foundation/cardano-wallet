@@ -175,6 +175,7 @@ data NetworkLayer m block = NetworkLayer
 
     , timeInterpreter
         :: TimeInterpreter (ExceptT PastHorizonException m)
+
     , syncProgress
         :: SlotNo -> m (SyncProgress)
         -- ^ Compute the ratio between the provided 'SlotNo' and the slot

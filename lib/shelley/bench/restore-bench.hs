@@ -795,9 +795,7 @@ bench_restoration
                     let tracer =
                             trMessageText wlTr <>
                             contramap walletWorkerLogToBlockHeight progressTrace
-                    let w = WalletLayer
-                            tracer (emptyGenesis gp, np, sTol) nw tl db
-
+                    let w = WalletLayer tracer (emptyGenesis gp, np) nw tl db
                     forM_ wallets $ \(wid, wname, s) -> do
                         _ <- unsafeRunExceptT $ W.createWallet w wid wname s
                         void

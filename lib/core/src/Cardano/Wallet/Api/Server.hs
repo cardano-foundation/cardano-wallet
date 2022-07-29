@@ -357,7 +357,7 @@ import Cardano.Wallet.Compat
 import Cardano.Wallet.DB
     ( DBFactory (..) )
 import Cardano.Wallet.Network
-    ( NetworkLayer, fetchRewardAccountBalances, timeInterpreter )
+    ( NetworkLayer (..), fetchRewardAccountBalances, timeInterpreter )
 import Cardano.Wallet.Primitive.AddressDerivation
     ( DelegationAddress (..)
     , Depth (..)
@@ -460,7 +460,7 @@ import Cardano.Wallet.Primitive.Slotting
     , unsafeExtendSafeZone
     )
 import Cardano.Wallet.Primitive.SyncProgress
-    ( SyncProgress (..), SyncTolerance, syncProgress )
+    ( SyncProgress (..) )
 import Cardano.Wallet.Primitive.Types
     ( Block
     , BlockHeader (..)
@@ -3606,39 +3606,39 @@ getCurrentEpoch ctx = liftIO (runExceptT (currentEpoch ti)) >>= \case
 getNetworkInformation
     :: HasCallStack
     => NetworkId
-    -> SyncTolerance
     -> NetworkLayer IO Block
     -> Handler ApiNetworkInformation
-getNetworkInformation nid st nl = liftIO $ do
-    now <- currentRelativeTime ti
-    nodeTip <- NW.currentNodeTip nl
-    nodeEra <- NW.currentNodeEra nl
-    apiNodeTip <- makeApiBlockReferenceFromHeader
-        (neverFails "node tip is within safe-zone" $ timeInterpreter nl)
-        nodeTip
-    nowInfo <- runMaybeT $ networkTipInfo now
-    progress <- syncProgress
-            st
-            (neverFails "syncProgress" $ timeInterpreter nl)
-            (view #slotNo nodeTip)
-            now
-    pure $ Api.ApiNetworkInformation
-        { Api.syncProgress = ApiT progress
-        , Api.nextEpoch = snd <$> nowInfo
-        , Api.nodeTip = apiNodeTip
-        , Api.networkTip = fst <$> nowInfo
-        , Api.nodeEra = toApiEra nodeEra
-        , Api.networkInfo =
-            Api.ApiNetworkInfo
-                (case nid of
-                     Cardano.Mainnet -> "mainnet"
-                     Cardano.Testnet _ -> "testnet"
-                     )
-                (fromIntegral $ unNetworkMagic $ toNetworkMagic nid)
-        }
+getNetworkInformation nid NetworkLayer
+    { syncProgress
+    , currentNodeTip
+    , currentNodeEra
+    , timeInterpreter
+    } = liftIO $ do
+        now <- currentRelativeTime ti
+        nodeTip <- currentNodeTip
+        nodeEra <- currentNodeEra
+        apiNodeTip <- makeApiBlockReferenceFromHeader
+            (neverFails "node tip is within safe-zone" timeInterpreter)
+            nodeTip
+        nowInfo <- runMaybeT $ networkTipInfo now
+        progress <- syncProgress $ view #slotNo nodeTip
+        pure Api.ApiNetworkInformation
+            { Api.syncProgress = ApiT progress
+            , Api.nextEpoch = snd <$> nowInfo
+            , Api.nodeTip = apiNodeTip
+            , Api.networkTip = fst <$> nowInfo
+            , Api.nodeEra = toApiEra nodeEra
+            , Api.networkInfo =
+                Api.ApiNetworkInfo
+                    ( case nid of
+                        Cardano.Mainnet -> "mainnet"
+                        Cardano.Testnet _ -> "testnet"
+                    )
+                    (fromIntegral $ unNetworkMagic $ toNetworkMagic nid)
+            }
   where
     ti :: TimeInterpreter (MaybeT IO)
-    ti = hoistTimeInterpreter exceptToMaybeT $ timeInterpreter nl
+    ti = hoistTimeInterpreter exceptToMaybeT timeInterpreter
 
     -- (network tip, next epoch)
     -- May be unavailable if the node is still syncing.
@@ -3654,11 +3654,11 @@ getNetworkInformation nid st nl = liftIO $ do
         return (tip, nextEpoch)
 
 getNetworkParameters
-    :: (Block, NetworkParameters, SyncTolerance)
+    :: (Block, NetworkParameters)
     -> NetworkLayer IO Block
     -> TransactionLayer k W.SealedTx
     -> Handler ApiNetworkParameters
-getNetworkParameters (_block0, genesisNp, _st) nl tl = do
+getNetworkParameters (_block0, genesisNp) nl tl = do
     pp <- liftIO $ NW.currentProtocolParameters nl
     sp <- liftIO $ NW.currentSlottingParameters nl
     era <- liftIO $ NW.currentNodeEra nl
@@ -4264,7 +4264,7 @@ newApiLayer
         , MaybeLight s
         )
     => Tracer IO WalletEngineLog
-    -> (Block, NetworkParameters, SyncTolerance)
+    -> (Block, NetworkParameters)
     -> NetworkLayer IO Block
     -> TransactionLayer k W.SealedTx
     -> DBFactory IO s k
@@ -4300,7 +4300,7 @@ startWalletWorker ctx coworker = void . registerWorker ctx before coworker
     before ctx' wid =
         runExceptT (W.checkWalletIntegrity ctx' wid gp)
         >>= either throwIO pure
-    (_, NetworkParameters gp _ _, _) = ctx ^. genesisData
+    (_, NetworkParameters gp _ _) = ctx ^. genesisData
 
 -- | Register a wallet create and restore thread with the worker registry.
 -- See 'Cardano.Wallet#createWallet'

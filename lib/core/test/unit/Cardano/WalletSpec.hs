@@ -90,8 +90,6 @@ import Cardano.Wallet.Primitive.Passphrase
     ( ErrWrongPassphrase (..), Passphrase (..) )
 import Cardano.Wallet.Primitive.Passphrase.Current
     ( preparePassphrase )
-import Cardano.Wallet.Primitive.SyncProgress
-    ( SyncTolerance (..) )
 import Cardano.Wallet.Primitive.Types
     ( ActiveSlotCoefficient (..)
     , Block
@@ -1326,7 +1324,7 @@ setupFixture (wid, wname, wstate) = do
     let nl = mockNetworkLayer
     let tl = dummyTransactionLayer
     db <- PureLayer.newDBLayer timeInterpreter
-    let wl = WalletLayer nullTracer (block0, np, st) nl tl db
+    let wl = WalletLayer nullTracer (block0, np) nl tl db
     res <- runExceptT $ W.createWallet wl wid wname wstate
     let wal = case res of
             Left _ -> []
@@ -1336,7 +1334,6 @@ setupFixture (wid, wname, wstate) = do
     timeInterpreter = dummyTimeInterpreter
     slotNoTime = posixSecondsToUTCTime . fromIntegral . unSlotNo
     np = dummyNetworkParameters
-    st = SyncTolerance 10
 
 -- | A dummy transaction layer to see the effect of a root private key. It
 -- implements a fake signer that still produces sort of witnesses

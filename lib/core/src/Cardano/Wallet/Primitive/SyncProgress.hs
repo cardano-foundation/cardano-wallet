@@ -81,8 +81,7 @@ newtype SyncTolerance = SyncTolerance NominalDiffTime
 
 -- | Construct a 'SyncTolerance' from a number of __seconds__
 mkSyncTolerance :: Int -> SyncTolerance
-mkSyncTolerance =
-    SyncTolerance . toEnum . (* pico)
+mkSyncTolerance = SyncTolerance . toEnum . (* pico)
   where
     pico = 1_000_000_000_000
 

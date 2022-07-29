@@ -379,7 +379,7 @@ import Cardano.Wallet.Primitive.Slotting
     , unsafeExtendSafeZone
     )
 import Cardano.Wallet.Primitive.SyncProgress
-    ( SyncProgress, SyncTolerance (..) )
+    ( SyncProgress )
 import Cardano.Wallet.Primitive.Types
     ( ActiveSlotCoefficient (..)
     , Block (..)
@@ -665,7 +665,7 @@ import qualified Data.Vector as V
 data WalletLayer m s (k :: Depth -> Type -> Type)
     = WalletLayer
         (Tracer m WalletWorkerLog)
-        (Block, NetworkParameters, SyncTolerance)
+        (Block, NetworkParameters)
         (NetworkLayer m Block)
         (TransactionLayer k SealedTx)
         (DBLayer m s k)
@@ -703,7 +703,7 @@ data WalletLayer m s (k :: Depth -> Type -> Type)
 -- and their metadata does not require any networking layer.
 type HasDBLayer m s k = HasType (DBLayer m s k)
 
-type HasGenesisData = HasType (Block, NetworkParameters, SyncTolerance)
+type HasGenesisData = HasType (Block, NetworkParameters)
 
 type HasLogger m msg = HasType (Tracer m msg)
 
@@ -721,9 +721,9 @@ dbLayer =
 
 genesisData
     :: forall ctx. HasGenesisData ctx
-    => Lens' ctx (Block, NetworkParameters, SyncTolerance)
+    => Lens' ctx (Block, NetworkParameters)
 genesisData =
-    typed @(Block, NetworkParameters, SyncTolerance)
+    typed @(Block, NetworkParameters)
 
 logger
     :: forall m msg ctx. HasLogger m msg ctx
@@ -775,7 +775,7 @@ createWallet ctx wid wname s = db & \DBLayer{..} -> do
         initializeWallet wid cp meta hist gp $> wid
   where
     db = ctx ^. dbLayer @m @s @k
-    (block0, NetworkParameters gp _sp _pp, _) = ctx ^. genesisData
+    (block0, NetworkParameters gp _sp _pp) = ctx ^. genesisData
 
 -- | Initialise and store a new legacy Icarus wallet. These wallets are
 -- intrinsically sequential, but, in the incentivized testnet, we only have
@@ -812,7 +812,7 @@ createIcarusWallet ctx wid wname credentials = db & \DBLayer{..} -> do
         initializeWallet wid cp meta hist gp $> wid
   where
     db = ctx ^. dbLayer @IO @s @k
-    (block0, NetworkParameters gp _sp _pp, _) = ctx ^. genesisData
+    (block0, NetworkParameters gp _sp _pp) = ctx ^. genesisData
 
 -- | Check whether a wallet is in good shape when restarting a worker.
 checkWalletIntegrity

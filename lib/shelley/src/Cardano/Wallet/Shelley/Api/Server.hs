@@ -537,13 +537,13 @@ server byron icarus shelley multisig spl ntp =
 
     network' :: NetworkId -> Server Network
     network' nid =
-        getNetworkInformation nid syncTolerance nl
+        getNetworkInformation nid nl
         :<|> getNetworkParameters genesis nl tl
         :<|> getNetworkClock ntp
       where
         nl = icarus ^. networkLayer
         tl = icarus ^. transactionLayer @IcarusKey
-        genesis@(_,_,syncTolerance) = icarus ^. genesisData
+        genesis@(_,_) = icarus ^. genesisData
 
     proxy :: Server Proxy_
     proxy = postExternalTransaction icarus

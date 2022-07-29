@@ -59,7 +59,6 @@ import Cardano.CLI
     , runCli
     , setupDirectory
     , shutdownHandlerFlag
-    , syncToleranceOption
     , tlsOption
     , tokenMetadataSourceOption
     , withLogging
@@ -83,8 +82,6 @@ import Cardano.Wallet.Api.Types
     ( ApiStakePool )
 import Cardano.Wallet.Logging
     ( trMessage, transformTextTrace )
-import Cardano.Wallet.Primitive.SyncProgress
-    ( SyncTolerance )
 import Cardano.Wallet.Primitive.Types
     ( PoolMetadataSource (..), Settings (..), TokenMetadataServer (..) )
 import Cardano.Wallet.Shelley
@@ -188,7 +185,6 @@ data ServeArgs = ServeArgs
     , _tlsConfig :: Maybe TlsConfiguration
     , _networkConfiguration :: NetworkConfiguration
     , _database :: Maybe FilePath
-    , _syncTolerance :: SyncTolerance
     , _enableShutdownHandler :: Bool
     , _poolMetadataSourceOpt :: Maybe PoolMetadataSource
     , _tokenMetadataSourceOpt :: Maybe TokenMetadataServer
@@ -208,7 +204,6 @@ cmdServe = command "serve" $ info (helper <*> helper' <*> cmd) $
         <*> optional tlsOption
         <*> networkConfigurationOption
         <*> optional databaseOption
-        <*> syncToleranceOption
         <*> shutdownHandlerFlag
         <*> optional poolMetadataSourceOption
         <*> optional tokenMetadataSourceOption
@@ -222,7 +217,6 @@ cmdServe = command "serve" $ info (helper <*> helper' <*> cmd) $
       tlsConfig
       networkConfig
       databaseDir
-      sTolerance
       enableShutdownHandler
       poolMetadataFetching
       tokenMetadataServerURI
@@ -240,7 +234,8 @@ cmdServe = command "serve" $ info (helper <*> helper' <*> cmd) $
                 setupDirectory (logInfo tr . MsgSetupDatabases)
 
             blockchainSource <- case mode of
-                Normal conn -> pure $ NodeSource conn vData
+                Normal conn syncTolerance ->
+                    pure $ NodeSource conn vData syncTolerance
                 Light token -> BlockfrostSource <$> Blockfrost.readToken token
                     `catch` \case
                         Blockfrost.BadTokenFile f -> do
@@ -260,7 +255,6 @@ cmdServe = command "serve" $ info (helper <*> helper' <*> cmd) $
                 discriminant
                 []
                 tracers
-                sTolerance
                 databaseDir
                 Nothing
                 host
