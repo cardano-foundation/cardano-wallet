@@ -325,7 +325,7 @@ type Api n apiPool =
     :<|> ByronTransactions n
     :<|> ByronMigrations n
     :<|> Network
-    :<|> Proxy_
+    -- :<|> Proxy_
     :<|> Settings
     :<|> SMASH
     :<|> SharedWallets
@@ -401,7 +401,7 @@ type GetUTxOsStatistics = "wallets"
 
 type WalletKeys =
     GetWalletKey
-    :<|> SignMetadata
+    -- :<|> SignMetadata
     :<|> PostAccountKey
     :<|> GetAccountKey
     :<|> GetPolicyKey
@@ -1129,6 +1129,7 @@ type ConstructSharedTransaction n = "shared-wallets"
   See also: https://input-output-hk.github.io/cardano-wallet/api/edge/#tag/Proxy
 -------------------------------------------------------------------------------}
 
+-- commenting out `Proxy` (above) for typescript-gen.hs
 type Proxy_ =
     PostExternalTransaction
 
