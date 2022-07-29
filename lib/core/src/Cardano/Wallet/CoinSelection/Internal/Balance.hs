@@ -228,7 +228,7 @@ data SelectionConstraints ctx = SelectionConstraints
         :: [(Address ctx, TokenBundle)] -> SelectionLimit
         -- ^ Computes an upper bound for the number of ordinary inputs to
         -- select, given a current set of outputs.
-    , dummyAddress
+    , maximumLengthChangeAddress
         :: Address ctx
     , maximumOutputAdaQuantity
         :: Coin
@@ -852,7 +852,10 @@ performSelectionEmpty performSelectionFn constraints params =
     transform x y = maybe x y $ NE.nonEmpty $ view #outputsToCover params
 
     dummyOutput :: (Address ctx, TokenBundle)
-    dummyOutput = (dummyAddress constraints, TokenBundle.fromCoin minCoin)
+    dummyOutput =
+        ( maximumLengthChangeAddress constraints
+        , TokenBundle.fromCoin minCoin
+        )
 
     -- The 'performSelectionNonEmpty' function imposes a precondition that all
     -- outputs must have at least the minimum ada quantity. Therefore, the

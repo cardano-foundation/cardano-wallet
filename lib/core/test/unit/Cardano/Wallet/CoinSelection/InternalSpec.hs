@@ -589,8 +589,6 @@ unMockSelectionConstraints m = SelectionConstraints
         unMockComputeMinimumCost $ view #computeMinimumCost m
     , computeSelectionLimit =
         unMockComputeSelectionLimit $ view #computeSelectionLimit m
-    , dummyAddress =
-        TestAddress 0x0
     , maximumCollateralInputCount =
         view #maximumCollateralInputCount m
     , minimumCollateralPercentage =
@@ -599,6 +597,8 @@ unMockSelectionConstraints m = SelectionConstraints
         view #maximumOutputAdaQuantity m
     , maximumOutputTokenQuantity =
         view #maximumOutputTokenQuantity m
+    , maximumLengthChangeAddress =
+        TestAddress 0x0
     }
 
 --------------------------------------------------------------------------------
