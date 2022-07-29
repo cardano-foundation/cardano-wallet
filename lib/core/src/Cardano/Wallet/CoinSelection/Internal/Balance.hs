@@ -230,6 +230,8 @@ data SelectionConstraints ctx = SelectionConstraints
         -- select, given a current set of outputs.
     , maximumLengthChangeAddress
         :: Address ctx
+    , minimumLengthChangeAddress
+        :: Address ctx
     , maximumOutputAdaQuantity
         :: Coin
         -- ^ Specifies the largest ada quantity that can appear in the token
@@ -852,7 +854,7 @@ performSelectionEmpty performSelectionFn constraints params =
     transform x y = maybe x y $ NE.nonEmpty $ view #outputsToCover params
 
     dummyAddress :: Address ctx
-    dummyAddress = maximumLengthChangeAddress constraints
+    dummyAddress = minimumLengthChangeAddress constraints
 
     dummyOutput :: (Address ctx, TokenBundle)
     dummyOutput = (dummyAddress, TokenBundle.fromCoin minCoin)
