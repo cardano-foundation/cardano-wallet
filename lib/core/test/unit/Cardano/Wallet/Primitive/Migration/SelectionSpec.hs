@@ -30,6 +30,8 @@ import Cardano.Wallet.Primitive.Types.Address
     ( Address )
 import Cardano.Wallet.Primitive.Types.Coin
     ( Coin (..) )
+import Cardano.Wallet.Primitive.Types.Coin.Gen
+    ( chooseCoin )
 import Cardano.Wallet.Primitive.Types.Hash
     ( Hash (..) )
 import Cardano.Wallet.Primitive.Types.TokenBundle
@@ -102,7 +104,7 @@ import Test.QuickCheck
     , withMaxSuccess
     )
 import Test.QuickCheck.Extra
-    ( chooseNatural, report, verify )
+    ( report, verify )
 
 import qualified Cardano.Wallet.Primitive.Migration.Selection as Selection
 import qualified Cardano.Wallet.Primitive.Types.Coin as Coin
@@ -395,7 +397,7 @@ prop_minimizeFee (Blind mockConstraints) =
     prop_minimizeFee_inner mockConstraints feeExcessToMinimize outputs
   where
     genFeeExcess :: Gen Coin
-    genFeeExcess = genCoinRange (Coin 0) (Coin 10_000)
+    genFeeExcess = chooseCoin (Coin 0, Coin 10_000)
 
     genOutputs :: Gen (NonEmpty TokenBundle)
     genOutputs = do
@@ -487,7 +489,7 @@ prop_minimizeFeeStep (Blind mockConstraints) =
     prop_minimizeFeeStep_inner mockConstraints feeExcessToMinimize output
   where
     genFeeExcess :: Gen Coin
-    genFeeExcess = genCoinRange (Coin 0) (Coin 10_000)
+    genFeeExcess = chooseCoin (Coin 0, Coin 10_000)
 
     genOutput :: Gen TokenBundle
     genOutput = genTokenBundleMixed mockConstraints
@@ -787,8 +789,8 @@ data MockTxCostFunction = MockTxCostFunction
 
 genMockTxCostFunction :: Gen MockTxCostFunction
 genMockTxCostFunction = MockTxCostFunction
-    <$> genCoinRange (Coin 0) (Coin 1000)
-    <*> genCoinRange (Coin 1) (Coin 4)
+    <$> chooseCoin (Coin 0, Coin 1000)
+    <*> chooseCoin (Coin 1, Coin 4)
 
 --------------------------------------------------------------------------------
 -- Mock base transaction sizes
@@ -862,8 +864,8 @@ unMockTxOutputMinimumAdaQuantity mock _addr m =
 
 genMockTxOutputMinimumAdaQuantity :: Gen MockTxOutputMinimumAdaQuantity
 genMockTxOutputMinimumAdaQuantity = MockTxOutputMinimumAdaQuantity
-    <$> genCoinRange (Coin 4) (Coin 8)
-    <*> genCoinRange (Coin 1) (Coin 2)
+    <$> chooseCoin (Coin 4, Coin 8)
+    <*> chooseCoin (Coin 1, Coin 2)
 
 -- Addresses are currently never used within the mock minimum ada quantity
 -- calculation. However, 'unMockTxOutputMinimumAdaQuantity' still requires an
@@ -934,7 +936,7 @@ genMockInputId = MockInputId . BS.pack <$>
 
 genCoinAboveMinimumAdaQuantity :: MockTxConstraints -> Gen Coin
 genCoinAboveMinimumAdaQuantity mockConstraints =
-    genCoinRange lo hi
+    chooseCoin (lo, hi)
   where
     constraints = unMockTxConstraints mockConstraints
     lo = txOutputMinimumAdaQuantity constraints dummyAddress TokenMap.empty
@@ -942,17 +944,13 @@ genCoinAboveMinimumAdaQuantity mockConstraints =
 
 genCoinBelowMinimumAdaQuantity :: MockTxConstraints -> Gen Coin
 genCoinBelowMinimumAdaQuantity mockConstraints =
-    genCoinRange lo hi
+    chooseCoin (lo, hi)
   where
     constraints = unMockTxConstraints mockConstraints
     lo = Coin 1
     hi = Coin.difference
         (txOutputMinimumAdaQuantity constraints dummyAddress TokenMap.empty)
         (Coin 1)
-
-genCoinRange :: Coin -> Coin -> Gen Coin
-genCoinRange (Coin minCoin) (Coin maxCoin) =
-    Coin <$> chooseNatural (minCoin, maxCoin)
 
 genTokenBundleMixed :: MockTxConstraints -> Gen TokenBundle
 genTokenBundleMixed mockConstraints =
@@ -983,7 +981,7 @@ genTokenBundleAboveMinimumAdaQuantity :: MockTxConstraints -> Gen TokenBundle
 genTokenBundleAboveMinimumAdaQuantity mockConstraints = do
     m <- genTokenMap mockConstraints
     let minAda = txOutputMinimumAdaQuantity constraints dummyAddress m
-    c <- genCoinRange (minAda <> Coin 1) (minAda `scaleCoin` 1000)
+    c <- chooseCoin (minAda <> Coin 1, minAda `scaleCoin` 1000)
     pure $ TokenBundle c m
   where
     constraints = unMockTxConstraints mockConstraints
@@ -1032,7 +1030,7 @@ mockAssetIds =
 genRewardWithdrawal :: Gen RewardWithdrawal
 genRewardWithdrawal = RewardWithdrawal <$> oneof
     [ pure (Coin 0)
-    , genCoinRange (Coin 1) (Coin 1_000_000)
+    , chooseCoin (Coin 1, Coin 1_000_000)
     ]
 
 --------------------------------------------------------------------------------
