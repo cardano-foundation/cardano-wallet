@@ -223,6 +223,8 @@ import qualified Cardano.Wallet.Primitive.AddressDerivation.Shelley as Shelley
 import qualified Data.ByteString as BS
 import qualified Data.Text as T
 
+import qualified Debug.Trace as TR
+
 server
     :: forall n.
         ( PaymentAddress n IcarusKey
@@ -614,7 +616,7 @@ postAnyAddress
     :: NetworkId
     -> ApiAddressData
     -> Either TextDecodingError AnyAddress
-postAnyAddress net addrData = do
+postAnyAddress net addrData = TR.trace ("addrData: "<>show addrData) $ do
     (addr, addrType) <- case addrData of
         (ApiAddressData (AddrEnterprise spendingCred) validation') -> do
             guardValidation validation' spendingCred

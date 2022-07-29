@@ -476,7 +476,7 @@ spec = describe "SHELLEY_ADDRESSES" $ do
 
     -- Generating golden test data for reward account addresses - script credential:
     --- $ cardano-address script hash "$(cat script.txt)" \
-    --- | cardano-address address stake --from-script --network-tag mainnet
+    --- | cardano-address address stake --network-tag mainnet
     it "ANY_ADDRESS_POST_05 - Golden tests for reward account script address - any" $ \ctx -> do
         let payload = Json [json|{
                 "stake": {
@@ -494,8 +494,8 @@ spec = describe "SHELLEY_ADDRESSES" $ do
 
     -- Generating golden test data for reward account addresses - both script credentials:
     --- $ cardano-address script hash "$(cat script1.txt)" \
-    --- | cardano-address address payment --from-script --network-tag mainnet \
-    --- | cardano-address address delegation --from-script $(cardano-address script hash "$(cat script2.txt)")
+    --- | cardano-address address payment --network-tag mainnet \
+    --- | cardano-address address delegation $(cardano-address script hash "$(cat script2.txt)")
     it "ANY_ADDRESS_POST_06 - Golden tests for delegating script address - any" $ \ctx -> do
         let payload = Json [json|{
                 "payment": {
@@ -527,7 +527,7 @@ spec = describe "SHELLEY_ADDRESSES" $ do
     --- $ cat recovery-phrase.txt | cardano-address key from-recovery-phrase Shelley \
     --- > | cardano-address key child 1852H/1815H/0H/0/0 \
     --- > | cardano-address key public --without-chain-code
-    --- xpub1lqglg77z6kajsdz4739q22c0zm0yhuy567z6xk2vc0z5ucjtkwps75l8wa
+    --- addr_vk1lqglg77z6kajsdz4739q22c0zm0yhuy567z6xk2vc0z5ucjtkwpschzd2j
     -- which can be translated in cardano-addresses
     -- :set -XOverloadedStrings
     -- import Data.Text
@@ -543,7 +543,7 @@ spec = describe "SHELLEY_ADDRESSES" $ do
     --- $ cat recovery-phrase.txt | cardano-address key from-recovery-phrase Shelley \
     --- > | cardano-address key child 1852H/1815H/0H/0/0 \
     --- > | cardano-address key public --with-chain-code \
-    --- > | cardano-address address payment --from-key --network-tag mainnet
+    --- > | cardano-address address payment --network-tag mainnet
     it "ANY_ADDRESS_POST_07 - Golden tests for enterprise pub key address" $ \ctx -> do
         let payload = Json [json|{
                 "payment": "addr_vk1lqglg77z6kajsdz4739q22c0zm0yhuy567z6xk2vc0z5ucjtkwpschzd2j"
@@ -1032,7 +1032,27 @@ spec = describe "SHELLEY_ADDRESSES" $ do
         let (Just (Aeson.String stakeAddrTxt)) =
                 KeyMap.lookup "address" stakeAddrJson
         stakeAddrTxt `shouldSatisfy` T.isPrefixOf "stake1"
- where
+
+    it "ANY_ADDRESS_POST_16 - Staking address using stake credential hashed" $ \ctx -> runResourceT $ do
+        w <- emptyWallet ctx
+
+        let stakePath =
+                Link.getWalletKey @'Shelley w MutableAccount (DerivationIndex 0) (Just True)
+        (_, stakeKeyHash) <-
+            unsafeRequest @ApiVerificationKeyShelley ctx stakePath Empty
+        let (Aeson.String stakeKeyHashTxt) = toJSON stakeKeyHash
+        stakeKeyHashTxt `shouldSatisfy` T.isPrefixOf "stake_vkh1"
+
+        let payload = Json [json|{
+                "stake": #{stakeKeyHash}
+            }|]
+        (_, stakeAddr) <-
+                unsafeRequest @AnyAddress ctx Link.postAnyAddress payload
+        let (Aeson.Object stakeAddrJson) = toJSON stakeAddr
+        let (Just (Aeson.String stakeAddrTxt)) =
+                KeyMap.lookup "address" stakeAddrJson
+        stakeAddrTxt `shouldSatisfy` T.isPrefixOf "stake1"
+  where
     validateAddr resp expected = do
         let addr = getFromResponse id resp
         toJSON addr `shouldBe` object ["address" .= expected ]
