@@ -251,12 +251,14 @@ toInternalSelectionConstraints SelectionConstraints {..} =
             computeMinimumCost . toExternalSelectionSkeleton
         , computeSelectionLimit =
             computeSelectionLimit . fmap (uncurry TxOut)
-        , dummyAddress =
-            Address ""
         , maximumOutputAdaQuantity =
             txOutMaxCoin
         , maximumOutputTokenQuantity =
             txOutMaxTokenQuantity
+        , maximumLengthChangeAddress =
+            -- TODO:
+            -- Specify a real address of the maximum length here.
+            Address ""
         , ..
         }
 

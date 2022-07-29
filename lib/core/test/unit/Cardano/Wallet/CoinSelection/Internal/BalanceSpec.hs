@@ -1859,9 +1859,9 @@ mkBoundaryTestExpectation (BoundaryTestData params expectedResult) = do
         , assessTokenBundleSize = unMockAssessTokenBundleSize $
             boundaryTestBundleSizeAssessor params
         , computeSelectionLimit = const NoLimit
-        , dummyAddress = TestAddress 0x0
         , maximumOutputAdaQuantity = testMaximumOutputAdaQuantity
         , maximumOutputTokenQuantity = testMaximumOutputTokenQuantity
+        , maximumLengthChangeAddress = TestAddress 0x0
         }
 
 encodeBoundaryTestCriteria
@@ -2490,12 +2490,12 @@ unMockSelectionConstraints m = SelectionConstraints
         unMockComputeMinimumCost $ view #computeMinimumCost m
     , computeSelectionLimit =
         unMockComputeSelectionLimit $ view #computeSelectionLimit m
-    , dummyAddress =
-        TestAddress 0x0
     , maximumOutputAdaQuantity =
         testMaximumOutputAdaQuantity
     , maximumOutputTokenQuantity =
         testMaximumOutputTokenQuantity
+    , maximumLengthChangeAddress =
+        TestAddress 0x0
     }
 
 -- | Specifies the largest ada quantity that can appear in the token bundle

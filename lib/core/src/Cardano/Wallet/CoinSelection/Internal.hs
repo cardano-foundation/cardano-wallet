@@ -168,8 +168,6 @@ data SelectionConstraints ctx = SelectionConstraints
         :: [(Address ctx, TokenBundle)] -> SelectionLimit
         -- ^ Computes an upper bound for the number of ordinary inputs to
         -- select, given a current set of outputs.
-    , dummyAddress
-        :: Address ctx
     , maximumCollateralInputCount
         :: Int
         -- ^ Specifies an inclusive upper bound on the number of unique inputs
@@ -186,6 +184,8 @@ data SelectionConstraints ctx = SelectionConstraints
         :: TokenQuantity
         -- ^ Specifies the largest non-ada quantity that can appear in the
         -- token bundle of an output.
+    , maximumLengthChangeAddress
+        :: Address ctx
     }
     deriving Generic
 
@@ -390,7 +390,7 @@ selectionAllOutputs
     -> [(Address ctx, TokenBundle)]
 selectionAllOutputs constraints selection = (<>)
     (selection ^. #outputs)
-    (selection ^. #change <&> (dummyAddress constraints, ))
+    (selection ^. #change <&> (maximumLengthChangeAddress constraints, ))
 
 -- | Creates constraints and parameters for 'Balance.performSelection'.
 --
@@ -410,14 +410,14 @@ toBalanceConstraintsParams (constraints, params) =
         , computeSelectionLimit =
             view #computeSelectionLimit constraints
                 & adjustComputeSelectionLimit
-        , dummyAddress =
-            view #dummyAddress constraints
         , assessTokenBundleSize =
             view #assessTokenBundleSize constraints
         , maximumOutputAdaQuantity =
             view #maximumOutputAdaQuantity constraints
         , maximumOutputTokenQuantity =
             view #maximumOutputTokenQuantity constraints
+        , maximumLengthChangeAddress =
+            view #maximumLengthChangeAddress constraints
         }
       where
         adjustComputeMinimumCost
