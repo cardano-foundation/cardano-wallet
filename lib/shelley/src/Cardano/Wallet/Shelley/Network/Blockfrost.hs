@@ -36,8 +36,10 @@ import Prelude
 import Cardano.Api
     ( AnyCardanoEra (..)
     , AnyPlutusScriptVersion (AnyPlutusScriptVersion)
+    , CardanoEra (..)
     , ExecutionUnitPrices (priceExecutionMemory, priceExecutionSteps)
     , ExecutionUnits (executionMemory, executionSteps)
+    , IsCardanoEra
     , NetworkId (..)
     , PlutusScriptVersion (PlutusScriptV1)
     , ShelleyBasedEra (ShelleyBasedEraAlonzo)
@@ -89,6 +91,7 @@ import Cardano.Wallet.Primitive.Types
     , DelegationCertificate (..)
     , EpochLength (EpochLength)
     , EpochNo (..)
+    , EraInfo (..)
     , ExecutionUnitPrices (..)
     , ExecutionUnits (..)
     , FeePolicy (LinearFee)
@@ -106,7 +109,6 @@ import Cardano.Wallet.Primitive.Types
     , TxParameters (..)
     , WithOrigin (At)
     , chainPointFromBlockHeader
-    , emptyEraInfo
     , executionMemory
     , executionSteps
     , fromFederationPercentage
@@ -874,7 +876,7 @@ fromBlockfrostPP network pp@BF.ProtocolParams{..} = do
         _protocolParamsNOpt <?#> "NOpt"
 
     pure ProtocolParameters
-        { eras = emptyEraInfo
+        { eras = protocolParametersEras (Fixture.eraBoundaries network)
         , txParameters =
             TxParameters
                 { getFeePolicy =
@@ -965,6 +967,24 @@ fromBlockfrostPP network pp@BF.ProtocolParams{..} = do
                         Just $ intCast maxCollateralInputs
                     }
         , .. }
+  where
+    protocolParametersEras :: [(AnyCardanoEra, EpochNo)] -> EraInfo EpochNo
+    protocolParametersEras eraEpochs =
+        EraInfo
+            { byron = lookupEpochNo ByronEra
+            , shelley = lookupEpochNo ShelleyEra
+            , allegra = lookupEpochNo AllegraEra
+            , mary = lookupEpochNo MaryEra
+            , alonzo = lookupEpochNo AlonzoEra
+            , babbage = Nothing
+            -- Commented out until Babbage era epoch boundary happen,
+            -- otherwise API response contains some
+            -- epoch_start_time from the future (e.g. 2024-11-24T20:20:16Z)
+            -- lookupEpochNo BabbageEra
+            }
+      where
+        lookupEpochNo :: IsCardanoEra e => CardanoEra e -> Maybe EpochNo
+        lookupEpochNo era = lookup (AnyCardanoEra era) eraEpochs
 
 -- | Selects a minimum UTxO function that is appropriate for the current era.
 --
