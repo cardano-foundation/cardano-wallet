@@ -7434,6 +7434,24 @@ paths:
             schema: *ApiConstructTransactionData
       responses: *responsesConstructTransaction
 
+  /shared-wallets/{walletId}/transactions-decode:
+    post:
+      operationId: decodeSharedTransaction
+      tags: ["Shared Keys"]
+      summary: Decode
+      description: |
+        <p align="right">status: <strong>unstable</strong></p>
+
+        Decode a serialized transaction.
+      parameters:
+        - *parametersWalletId
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema: *ApiSerialisedTransactionEncoded
+      responses: *responsesDecodedTransaction
+
   /shared-wallets/{walletId}/keys/{index}:
     post:
       operationId: postAccountKeyShared

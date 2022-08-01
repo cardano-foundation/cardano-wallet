@@ -1,5 +1,6 @@
 {-# LANGUAGE AllowAmbiguousTypes #-}
 {-# LANGUAGE DataKinds #-}
+{-# LANGUAGE DeriveGeneric #-}
 {-# LANGUAGE DerivingStrategies #-}
 {-# LANGUAGE FlexibleContexts #-}
 {-# LANGUAGE FlexibleInstances #-}
@@ -31,6 +32,13 @@ module Cardano.Wallet.Primitive.AddressDiscovery
     , coinTypeAda
     , MaybeLight (..)
     , DiscoverTxs (..)
+
+    , PendingIxs
+    , emptyPendingIxs
+    , pendingIxsToList
+    , pendingIxsFromList
+    , nextChangeIndex
+    , updatePendingIxs
     ) where
 
 import Prelude
@@ -42,6 +50,7 @@ import Cardano.Wallet.Primitive.AddressDerivation
     , DerivationIndex (..)
     , DerivationType (..)
     , Index (..)
+    , KeyFingerprint (..)
     , RewardAccount
     )
 import Cardano.Wallet.Primitive.BlockSummary
@@ -50,10 +59,19 @@ import Cardano.Wallet.Primitive.Passphrase
     ( Passphrase (..) )
 import Cardano.Wallet.Primitive.Types.Address
     ( Address (..), AddressState (..) )
+import Cardano.Wallet.Util
+    ( invariant )
+import Control.DeepSeq
+    ( NFData )
 import Data.Kind
     ( Type )
 import Data.List.NonEmpty
     ( NonEmpty )
+import GHC.Generics
+    ( Generic )
+
+import qualified Cardano.Wallet.Address.Pool as AddressPool
+import qualified Data.List as L
 
 -- | Checks whether or not a given entity belongs to us.
 --
@@ -184,3 +202,65 @@ newtype DiscoverTxs addr txs s = DiscoverTxs
         :: forall m. Monad m
         => (addr -> m txs) -> s -> m (txs, s)
     }
+
+{-------------------------------------------------------------------------------
+                            Pending Change Indexes
+-------------------------------------------------------------------------------}
+
+-- | An ordered set of pending indexes. This keep track of indexes used
+newtype PendingIxs k = PendingIxs
+    { pendingIxsToList :: [Index 'Soft k] }
+    deriving stock (Generic, Show, Eq)
+
+instance NFData (PendingIxs k)
+
+-- | An empty pending set of change indexes.
+--
+-- NOTE: We do not define a 'Monoid' instance here because there's no rational
+-- of combining two pending sets.
+emptyPendingIxs :: PendingIxs k
+emptyPendingIxs = PendingIxs mempty
+
+-- | Construct a 'PendingIxs' from a list, ensuring that it is a set of indexes
+-- in descending order.
+pendingIxsFromList :: [Index 'Soft k] -> PendingIxs k
+pendingIxsFromList = PendingIxs . reverse . map head . L.group . L.sort
+
+-- | Get the next change index; If every available indexes have already been
+-- taken, we'll rotate the pending set and re-use already provided indexes.
+nextChangeIndex
+    :: forall (key :: Depth -> Type -> Type) k.
+       AddressPool.Pool (KeyFingerprint "payment" key) (Index 'Soft k)
+    -> PendingIxs k
+    -> (Index 'Soft k, PendingIxs k)
+nextChangeIndex pool (PendingIxs ixs) =
+    let
+        poolLen = AddressPool.size  pool
+        (firstUnused, lastUnused) =
+            ( toEnum $ poolLen - AddressPool.gap pool
+            , toEnum $ poolLen - 1
+            )
+        (ix, ixs') = case ixs of
+            [] ->
+                (firstUnused, PendingIxs [firstUnused])
+            h:_ | length ixs < AddressPool.gap pool ->
+                (succ h, PendingIxs (succ h:ixs))
+            h:q ->
+                (h, PendingIxs (q++[h]))
+    in
+        invariant "index is within first unused and last unused" (ix, ixs')
+            (\(i,_) -> i >= firstUnused && i <= lastUnused)
+
+-- | Update the set of pending indexes by discarding every indexes _below_ the
+-- given index.
+--
+-- Why is that?
+--
+-- Because we really do care about the higher index that was last used in order
+-- to know from where we can generate new indexes.
+updatePendingIxs
+    :: Index 'Soft k
+    -> PendingIxs k
+    -> PendingIxs k
+updatePendingIxs ix (PendingIxs ixs) =
+    PendingIxs $ L.filter (> ix) ixs

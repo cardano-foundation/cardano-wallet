@@ -101,6 +101,8 @@ import Cardano.Wallet.Primitive.AddressDerivation
     )
 import Cardano.Wallet.Primitive.AddressDerivation.SharedKey
     ( SharedKey (..) )
+import Cardano.Wallet.Primitive.AddressDiscovery
+    ( PendingIxs, pendingIxsFromList, pendingIxsToList )
 import Cardano.Wallet.Primitive.AddressDiscovery.Shared
     ( CredentialType (..) )
 import Cardano.Wallet.Primitive.Types.TokenBundle
@@ -491,13 +493,13 @@ instance
             <$> selectSeqAddressMap wid sl
             <*> selectSeqAddressMap wid sl
 
-mkSeqStatePendingIxs :: W.WalletId -> Seq.PendingIxs -> [SeqStatePendingIx]
+mkSeqStatePendingIxs :: W.WalletId -> PendingIxs 'AddressK -> [SeqStatePendingIx]
 mkSeqStatePendingIxs wid =
-    fmap (SeqStatePendingIx wid . W.getIndex) . Seq.pendingIxsToList
+    fmap (SeqStatePendingIx wid . W.getIndex) . pendingIxsToList
 
-selectSeqStatePendingIxs :: W.WalletId -> SqlPersistT IO Seq.PendingIxs
+selectSeqStatePendingIxs :: W.WalletId -> SqlPersistT IO (PendingIxs 'AddressK)
 selectSeqStatePendingIxs wid =
-    Seq.pendingIxsFromList . fromRes <$> selectList
+    pendingIxsFromList . fromRes <$> selectList
         [SeqStatePendingWalletId ==. wid]
         [Desc SeqStatePendingIxIndex]
   where
@@ -572,9 +574,9 @@ instance
                 | ((Cosigner c), xpub) <- Map.assocs cs
                 ]
 
-        mkSharedStatePendingIxs :: Shared.PendingIxs -> [SharedStatePendingIx]
+        mkSharedStatePendingIxs :: PendingIxs 'ScriptK -> [SharedStatePendingIx]
         mkSharedStatePendingIxs =
-            fmap (SharedStatePendingIx wid . W.getIndex) . Shared.pendingIxsToList
+            fmap (SharedStatePendingIx wid . W.getIndex) . pendingIxsToList
 
     insertDiscoveries wid sl sharedDiscoveries = do
         dbChunked insertMany_
@@ -611,9 +613,9 @@ instance
                 pendingIxs
         pure $ SharedPrologue prologue
       where
-        selectSharedStatePendingIxs :: SqlPersistT IO Shared.PendingIxs
+        selectSharedStatePendingIxs :: SqlPersistT IO (PendingIxs 'ScriptK)
         selectSharedStatePendingIxs =
-            Shared.pendingIxsFromList . fromRes <$> selectList
+            pendingIxsFromList . fromRes <$> selectList
                 [SharedStatePendingWalletId ==. wid]
                 [Desc SharedStatePendingIxIndex]
           where

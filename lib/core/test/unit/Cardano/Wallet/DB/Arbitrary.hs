@@ -63,7 +63,7 @@ import Cardano.Wallet.Primitive.AddressDerivation.SharedKey
 import Cardano.Wallet.Primitive.AddressDerivation.Shelley
     ( ShelleyKey (..) )
 import Cardano.Wallet.Primitive.AddressDiscovery
-    ( IsOurs )
+    ( IsOurs, PendingIxs, emptyPendingIxs )
 import Cardano.Wallet.Primitive.AddressDiscovery.Random
     ( RndState (..) )
 import Cardano.Wallet.Primitive.AddressDiscovery.Sequential
@@ -542,11 +542,11 @@ instance Arbitrary (ShelleyKey 'RootK XPrv) where
 -- inserted checkpoints!
 --
 --    shrink =
---        map Seq.pendingIxsFromList . shrink . Seq.pendingIxsToList
+--        map pendingIxsFromList . shrink . pendingIxsToList
 --    arbitrary =
---        Seq.pendingIxsFromList . Set.toList <$> arbitrary
-instance Arbitrary (Seq.PendingIxs) where
-    arbitrary = pure Seq.emptyPendingIxs
+--        pendingIxsFromList . Set.toList <$> arbitrary
+instance Arbitrary (PendingIxs 'AddressK) where
+    arbitrary = pure emptyPendingIxs
 
 instance ( Typeable ( c :: Role ) )
     => Arbitrary (Seq.SeqAddressPool c ShelleyKey)
@@ -651,7 +651,7 @@ instance Arbitrary (SharedState 'Mainnet SharedKey) where
             (Shared.Active $ SharedAddressPools
                 (Shared.newSharedAddressPool @'Mainnet defaultAddressPoolGap pt Nothing)
                 (Shared.newSharedAddressPool @'Mainnet defaultAddressPoolGap pt Nothing)
-                Shared.emptyPendingIxs
+                emptyPendingIxs
             )
 
 defaultSharedStatePrefix :: DerivationPrefix

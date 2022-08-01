@@ -755,7 +755,7 @@ decodeTransaction
 decodeTransaction w = discriminate @style
     (endpoint @(Api.DecodeTransaction Net) (wid &))
     (notSupported "Byron")
-    (notSupported "Shared")
+    (endpoint @(Api.DecodeSharedTransaction Net) (wid &))
   where
     wid = w ^. typed @(ApiT WalletId)
 
