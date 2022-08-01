@@ -5497,6 +5497,8 @@ x-responsesPostExternalTransaction: &responsesPostExternalTransaction
   <<: *responsesErr400
   <<: *responsesErr406
   <<: *responsesErr415UnsupportedMediaType
+  425:
+    description: Mempool is full, please try resubmitting again later.
   202:
     description: Accepted
     content:
