@@ -245,9 +245,6 @@ prop_performSelection_coverage params r innerProperty =
         (isSelectionBalanceError_SelectionLimitReached r)
         "isSelectionBalanceError_SelectionLimitReached" $
     cover 0.1
-        (isSelectionBalanceError_InsufficientMinCoinValues r)
-        "isSelectionBalanceError_InsufficientMinCoinValues" $
-    cover 0.1
         (isSelectionBalanceError_UnableToConstructChange r)
         "isSelectionBalanceError_UnableToConstructChange" $
     cover 0.1
@@ -273,9 +270,6 @@ prop_performSelection_coverage params r innerProperty =
             -> True; _ -> False
     isSelectionBalanceError_SelectionLimitReached = \case
         Left (SelectionBalanceErrorOf Balance.SelectionLimitReached {})
-            -> True; _ -> False
-    isSelectionBalanceError_InsufficientMinCoinValues = \case
-        Left (SelectionBalanceErrorOf Balance.InsufficientMinCoinValues {})
             -> True; _ -> False
     isSelectionBalanceError_UnableToConstructChange = \case
         Left (SelectionBalanceErrorOf Balance.UnableToConstructChange {})
