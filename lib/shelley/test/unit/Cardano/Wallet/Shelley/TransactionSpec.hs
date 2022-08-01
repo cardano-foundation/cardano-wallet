@@ -94,6 +94,7 @@ import Cardano.Wallet.CoinSelection
     ( SelectionBalanceError (..)
     , SelectionError (..)
     , SelectionOf (..)
+    , SelectionOutputError (..)
     , UnableToConstructChangeError (..)
     , WalletUTxO (..)
     , balanceMissing
@@ -3612,9 +3613,9 @@ prop_balanceTransactionValid wallet (ShowBuildable partialTx') seed
             Left
                 (ErrBalanceTxSelectAssets
                 (ErrSelectAssetsSelectionError
-                (SelectionBalanceErrorOf
-                (InsufficientMinCoinValues _)))) ->
-                label "outputs below minCoinValue" $ property True
+                (SelectionOutputErrorOf
+                (SelectionOutputCoinInsufficient _)))) ->
+                label "output below minCoinValue" $ property True
             Left (ErrBalanceTxExistingCollateral) ->
                 label "existing collateral" True
             Left (ErrBalanceTxExistingTotalCollateral) ->
