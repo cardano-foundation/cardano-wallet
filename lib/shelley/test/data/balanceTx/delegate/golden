@@ -38,10 +38,10 @@
  1.850000,ErrBalanceTxSelectAssets (ErrSelectAssetsSelectionError (SelectionBalanceErrorOf (BalanceInsufficient (BalanceInsufficientError {utxoBalanceAvailable = TokenBundle {coin = Coin 1850000, tokens = TokenMap (fromList [])}, utxoBalanceRequired = TokenBundle {coin = Coin 2000000, tokens = TokenMap (fromList [])}}))))
  1.900000,ErrBalanceTxSelectAssets (ErrSelectAssetsSelectionError (SelectionBalanceErrorOf (BalanceInsufficient (BalanceInsufficientError {utxoBalanceAvailable = TokenBundle {coin = Coin 1900000, tokens = TokenMap (fromList [])}, utxoBalanceRequired = TokenBundle {coin = Coin 2000000, tokens = TokenMap (fromList [])}}))))
  1.950000,ErrBalanceTxSelectAssets (ErrSelectAssetsSelectionError (SelectionBalanceErrorOf (BalanceInsufficient (BalanceInsufficientError {utxoBalanceAvailable = TokenBundle {coin = Coin 1950000, tokens = TokenMap (fromList [])}, utxoBalanceRequired = TokenBundle {coin = Coin 2000000, tokens = TokenMap (fromList [])}}))))
- 2.000000,ErrBalanceTxSelectAssets (ErrSelectAssetsSelectionError (SelectionBalanceErrorOf (UnableToConstructChange (UnableToConstructChangeError {requiredCost = Coin 182177, shortfall = Coin 182177}))))
- 2.050000,ErrBalanceTxSelectAssets (ErrSelectAssetsSelectionError (SelectionBalanceErrorOf (UnableToConstructChange (UnableToConstructChangeError {requiredCost = Coin 182177, shortfall = Coin 132177}))))
- 2.100000,ErrBalanceTxSelectAssets (ErrSelectAssetsSelectionError (SelectionBalanceErrorOf (UnableToConstructChange (UnableToConstructChangeError {requiredCost = Coin 182177, shortfall = Coin 82177}))))
- 2.150000,ErrBalanceTxSelectAssets (ErrSelectAssetsSelectionError (SelectionBalanceErrorOf (UnableToConstructChange (UnableToConstructChangeError {requiredCost = Coin 182177, shortfall = Coin 32177}))))
+ 2.000000,ErrBalanceTxSelectAssets (ErrSelectAssetsSelectionError (SelectionBalanceErrorOf (UnableToConstructChange (UnableToConstructChangeError {requiredCost = Coin 180725, shortfall = Coin 180725}))))
+ 2.050000,ErrBalanceTxSelectAssets (ErrSelectAssetsSelectionError (SelectionBalanceErrorOf (UnableToConstructChange (UnableToConstructChangeError {requiredCost = Coin 180725, shortfall = Coin 130725}))))
+ 2.100000,ErrBalanceTxSelectAssets (ErrSelectAssetsSelectionError (SelectionBalanceErrorOf (UnableToConstructChange (UnableToConstructChangeError {requiredCost = Coin 180725, shortfall = Coin 80725}))))
+ 2.150000,ErrBalanceTxSelectAssets (ErrSelectAssetsSelectionError (SelectionBalanceErrorOf (UnableToConstructChange (UnableToConstructChangeError {requiredCost = Coin 180725, shortfall = Coin 30725}))))
  2.200000,0.200000,0.175401
  2.250000,0.250000,0.175401
  2.300000,0.300000,0.175401
