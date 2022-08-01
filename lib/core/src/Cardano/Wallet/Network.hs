@@ -279,12 +279,13 @@ mapChainFollower fpoint12 fpoint21 ftip fblocks cf =
 -------------------------------------------------------------------------------}
 
 -- | Error while trying to send a transaction
-newtype ErrPostTx = ErrPostTxValidationError Text
+data ErrPostTx = ErrPostTxValidationError Text | MempoolFull
     deriving (Generic, Show, Eq)
 
 instance ToText ErrPostTx where
     toText = \case
         ErrPostTxValidationError msg -> msg
+        MempoolFull -> "mempool was full and refused posted transaction"
 
 {-------------------------------------------------------------------------------
     Logging
