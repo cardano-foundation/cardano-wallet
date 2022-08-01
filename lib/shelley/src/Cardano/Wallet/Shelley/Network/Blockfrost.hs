@@ -63,7 +63,7 @@ import Cardano.Wallet.Api.Types
 import Cardano.Wallet.Logging
     ( BracketLog, bracketTracer )
 import Cardano.Wallet.Network
-    ( ChainFollower, NetworkLayer (..) )
+    ( ChainFollower, ErrPostTx (..), NetworkLayer (..) )
 import Cardano.Wallet.Network.Light
     ( Consensual (..), LightSyncSource (..) )
 import Cardano.Wallet.Primitive.BlockSummary
@@ -134,7 +134,14 @@ import Cardano.Wallet.Primitive.Types.TokenMap
 import Cardano.Wallet.Primitive.Types.TokenQuantity
     ( TokenQuantity (..) )
 import Cardano.Wallet.Primitive.Types.Tx
-    ( Tx (..), TxIn (..), TxOut (..), TxScriptValidity (..), TxSize (..) )
+    ( SealedTx
+    , Tx (..)
+    , TxIn (..)
+    , TxOut (..)
+    , TxScriptValidity (..)
+    , TxSize (..)
+    , serialisedTx
+    )
 import Cardano.Wallet.Shelley.Network.Blockfrost.Conversion
     ( bfBlockHeader
     , fromBfAddress
@@ -150,7 +157,11 @@ import Cardano.Wallet.Shelley.Network.Blockfrost.Error
     , (<?#>)
     )
 import Cardano.Wallet.Shelley.Network.Blockfrost.Layer
-    ( BlockfrostLayer (..), rateLimitedBlockfrostLayer, withRecovery )
+    ( BlockfrostLayer (..)
+    , PostTxResult (..)
+    , rateLimitedBlockfrostLayer
+    , withRecovery
+    )
 import Cardano.Wallet.Shelley.Network.Discriminant
     ( SomeNetworkDiscriminant (..), networkDiscriminantToId )
 import Control.Concurrent
@@ -250,6 +261,7 @@ import qualified Cardano.Wallet.Shelley.Network.Blockfrost.Layer as Layer
 import qualified Data.Aeson as Aeson
 import qualified Data.Aeson.Key as Aeson
 import qualified Data.Aeson.KeyMap as Aeson
+import qualified Data.ByteString.Lazy as BL
 import qualified Data.Map.Strict as Map
 import qualified Data.Sequence as Seq
 import qualified Data.Set as Set
@@ -284,7 +296,7 @@ withNetworkLayer tr network np project k = do
         , currentProtocolParameters = currentProtocolParameters bfLayer
         , currentSlottingParameters = currentSlottingParameters bfLayer
         , watchNodeTip = subscribeNodeTip tipBroadcast
-        , postTx = undefined
+        , postTx = postBFTransaction bfLayer
         , stakeDistribution = stakePoolsSummary bfLayer
         , getCachedRewardAccountBalance =
             getCachedRewardAccountBalance bfLayer
@@ -446,6 +458,17 @@ withNetworkLayer tr network np project k = do
                             Left PercentageOutOfBoundsError ->
                                 throwIO . BlockfrostException $
                                     PoolStakePercentageError total live
+
+    postBFTransaction ::
+        BlockfrostLayer IO ->
+        SealedTx ->
+        ExceptT ErrPostTx IO ()
+    postBFTransaction BlockfrostLayer{..} sealed = ExceptT $ do
+            result <- bfPostTx $ BF.CBORString
+                $ BL.fromStrict $ serialisedTx sealed
+            pure $ case result of
+                Accepted _ -> Right ()
+                NotAcceptedMempoolFull -> Left ErrPostTxMempoolFull
 
 {-------------------------------------------------------------------------------
     LightSyncSource
