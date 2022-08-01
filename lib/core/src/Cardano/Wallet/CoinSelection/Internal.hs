@@ -1407,6 +1407,12 @@ prepareOutputsInternal constraints outputsUnprepared
         -- We encountered one or more excessive token quantities.
         -- Just report the first such quantity:
         SelectionOutputTokenQuantityExceedsLimit e
+    | e : _ <- insufficientCoins =
+        Left $
+        -- We encountered one or more outputs with an ada quantity that is
+        -- below the minimum required quantity.
+        -- Just report the first such output:
+        SelectionOutputCoinInsufficient e
     | otherwise =
         pure outputsToCover
   where
@@ -1426,6 +1432,13 @@ prepareOutputsInternal constraints outputsUnprepared
     excessiveTokenQuantities
         :: [SelectionOutputTokenQuantityExceedsLimitError ctx]
     excessiveTokenQuantities = verifyOutputTokenQuantities =<< outputsToCover
+
+    -- The complete list of outputs whose ada quantities are below the minimum
+    -- required:
+    insufficientCoins
+        :: [SelectionOutputCoinInsufficientError (Address ctx)]
+    insufficientCoins =
+        mapMaybe (verifyOutputCoinSufficient constraints) outputsToCover
 
     outputsToCover =
         prepareOutputsWith computeMinimumAdaQuantity outputsUnprepared
@@ -1539,3 +1552,27 @@ verifyOutputTokenQuantities out =
     , (asset, quantity) <- TokenMap.toFlatList $ (snd out) ^. #tokens
     , quantity > txOutMaxTokenQuantity
     ]
+
+-- | Verifies that an output's ada quantity is sufficient.
+--
+-- An output's ada quantity must be greater than or equal to the minimum
+-- required quantity for that output.
+--
+verifyOutputCoinSufficient
+    :: SelectionConstraints ctx
+    -> (Address ctx, TokenBundle)
+    -> Maybe (SelectionOutputCoinInsufficientError (Address ctx))
+verifyOutputCoinSufficient constraints output
+    | actualCoin >= minimumExpectedCoin =
+        Nothing
+    | otherwise =
+        Just SelectionOutputCoinInsufficientError {minimumExpectedCoin, output}
+  where
+    actualCoin :: Coin
+    actualCoin = snd output ^. #coin
+
+    minimumExpectedCoin :: Coin
+    minimumExpectedCoin =
+        (constraints ^. #computeMinimumAdaQuantity)
+        (fst output)
+        (snd output ^. #tokens)
