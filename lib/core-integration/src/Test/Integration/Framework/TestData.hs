@@ -83,6 +83,7 @@ module Test.Integration.Framework.TestData
     , errMsg403WithdrawalNotWorth
     , errMsg403NotAShelleyWallet
     , errMsg403MinUTxOValue
+    , errMsg403MinUTxOValueNew
     , errMsg403CouldntIdentifyAddrAsMine
     , errMsg503PastHorizon
     , errMsg403WrongIndex
@@ -321,6 +322,15 @@ errMsg403MinUTxOValue =
     \minimum ada value specified by the protocol that each output must satisfy. \
     \I'll handle that minimum value myself when you do not explicitly specify \
     \an ada value for an output. Otherwise, you must specify enough ada."
+
+errMsg403MinUTxOValueNew :: String
+errMsg403MinUTxOValueNew = unwords
+    [ "One of the outputs you've specified has an ada quantity that is"
+    , "below the minimum required. Either increase the ada quantity to"
+    , "at least the minimum, or specify an ada quantity of zero, in"
+    , "which case the wallet will automatically assign the correct"
+    , "minimum ada quantity to the output."
+    ]
 
 errMsg409WalletExists :: String -> String
 errMsg409WalletExists walId = "This operation would yield a wallet with the following\

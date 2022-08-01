@@ -31,6 +31,7 @@ module Cardano.Wallet.CoinSelection.Internal
     -- * Output preparation
     , prepareOutputsWith
     , SelectionOutputError (..)
+    , SelectionOutputCoinInsufficientError (..)
     , SelectionOutputSizeExceedsLimitError (..)
     , SelectionOutputTokenQuantityExceedsLimitError (..)
 
@@ -808,7 +809,7 @@ data SelectionOutputCoinInsufficientError address =
         { minimumExpectedCoin :: Coin
         , output :: (address, TokenBundle)
         }
-    deriving (Eq, Show)
+    deriving (Eq, Generic, Show)
 
 verifySelectionOutputCoinsSufficient
     :: forall ctx. SelectionContext ctx => VerifySelection ctx
@@ -1193,6 +1194,9 @@ verifySelectionOutputError
     :: SelectionContext ctx
     => VerifySelectionError (SelectionOutputError ctx) ctx
 verifySelectionOutputError cs ps = \case
+    SelectionOutputCoinInsufficient _e ->
+        -- TODO: verify this error:
+        VerificationSuccess
     SelectionOutputSizeExceedsLimit e ->
         verifySelectionOutputSizeExceedsLimitError cs ps e
     SelectionOutputTokenQuantityExceedsLimit e ->
@@ -1456,7 +1460,9 @@ prepareOutputsWith minCoinValueFor =
 -- | Indicates a problem when preparing outputs for a coin selection.
 --
 data SelectionOutputError ctx
-    = SelectionOutputSizeExceedsLimit
+    = SelectionOutputCoinInsufficient
+        (SelectionOutputCoinInsufficientError (Address ctx))
+    | SelectionOutputSizeExceedsLimit
         (SelectionOutputSizeExceedsLimitError ctx)
     | SelectionOutputTokenQuantityExceedsLimit
         (SelectionOutputTokenQuantityExceedsLimitError ctx)

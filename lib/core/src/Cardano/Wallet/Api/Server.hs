@@ -343,6 +343,7 @@ import Cardano.Wallet.CoinSelection
     , SelectionCollateralError
     , SelectionError (..)
     , SelectionOf (..)
+    , SelectionOutputCoinInsufficientError (..)
     , SelectionOutputError (..)
     , SelectionOutputSizeExceedsLimitError (..)
     , SelectionOutputTokenQuantityExceedsLimitError (..)
@@ -5081,10 +5082,34 @@ instance IsServerError (ErrInvalidDerivationIndex 'Soft level) where
 
 instance IsServerError (SelectionOutputError WalletSelectionContext) where
     toServerError = \case
+        SelectionOutputCoinInsufficient e ->
+            toServerError e
         SelectionOutputSizeExceedsLimit e ->
             toServerError e
         SelectionOutputTokenQuantityExceedsLimit e ->
             toServerError e
+
+instance IsServerError
+    (SelectionOutputCoinInsufficientError Address)
+  where
+    toServerError e =
+        apiError err403 UtxoTooSmall $ T.unlines [preamble, details]
+      where
+        preamble = T.unwords
+            [ "One of the outputs you've specified has an ada quantity that is"
+            , "below the minimum required. Either increase the ada quantity to"
+            , "at least the minimum, or specify an ada quantity of zero, in"
+            , "which case the wallet will automatically assign the correct"
+            , "minimum ada quantity to the output."
+            ]
+        details = T.unlines
+            [ "Destination address:"
+            , pretty (fst $ view #output e)
+            , "Required minimum ada quantity:"
+            , pretty (view #minimumExpectedCoin e)
+            , "Specified ada quantity:"
+            , pretty (TokenBundle.getCoin $ snd $ view #output e)
+            ]
 
 instance IsServerError
     (SelectionOutputSizeExceedsLimitError WalletSelectionContext)

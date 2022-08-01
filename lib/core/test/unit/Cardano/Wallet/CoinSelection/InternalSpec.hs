@@ -257,6 +257,9 @@ prop_performSelection_coverage params r innerProperty =
         (isSelectionCollateralError r)
         "isSelectionCollateralError" $
     cover 0.1
+        (isSelectionOutputError_SelectionOutputCoinInsufficient r)
+        "isSelectionOutputError_SelectionOutputCoinInsufficient" $
+    cover 0.1
         (isSelectionOutputError_SelectionOutputSizeExceedsLimit r)
         "isSelectionOutputError_SelectionOutputSizeExceedsLimit" $
     cover 0.1
@@ -283,6 +286,9 @@ prop_performSelection_coverage params r innerProperty =
     isSelectionCollateralError = \case
         Left (SelectionCollateralErrorOf _)
             -> True; _ -> False
+    isSelectionOutputError_SelectionOutputCoinInsufficient = \case
+        Left (SelectionOutputErrorOf SelectionOutputCoinInsufficient {})
+            -> True; _ -> False
     isSelectionOutputError_SelectionOutputSizeExceedsLimit = \case
         Left (SelectionOutputErrorOf SelectionOutputSizeExceedsLimit {})
             -> True; _ -> False
@@ -308,6 +314,7 @@ prop_performSelection_coverage params r innerProperty =
         SelectionCollateralErrorOf e -> case e of
             SelectionCollateralError {} -> ()
         SelectionOutputErrorOf e -> case e of
+            SelectionOutputCoinInsufficient {} -> ()
             SelectionOutputSizeExceedsLimit {} -> ()
             SelectionOutputTokenQuantityExceedsLimit {} -> ()
 
