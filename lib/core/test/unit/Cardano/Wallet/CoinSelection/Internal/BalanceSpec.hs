@@ -1842,7 +1842,7 @@ mkBoundaryTestExpectation (BoundaryTestData params expectedResult) = do
         , maximumOutputAdaQuantity = testMaximumOutputAdaQuantity
         , maximumOutputTokenQuantity = testMaximumOutputTokenQuantity
         , maximumLengthChangeAddress = TestAddress 0x0
-        , minimumLengthChangeAddress = TestAddress 0x0
+        , nullAddress = TestAddress 0x0
         }
 
 encodeBoundaryTestCriteria
@@ -2477,7 +2477,7 @@ unMockSelectionConstraints m = SelectionConstraints
         testMaximumOutputTokenQuantity
     , maximumLengthChangeAddress =
         TestAddress 0x0
-    , minimumLengthChangeAddress =
+    , nullAddress =
         TestAddress 0x0
     }
 

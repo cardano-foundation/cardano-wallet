@@ -229,8 +229,6 @@ data SelectionConstraints ctx = SelectionConstraints
         -- select, given a current set of outputs.
     , maximumLengthChangeAddress
         :: Address ctx
-    , minimumLengthChangeAddress
-        :: Address ctx
     , maximumOutputAdaQuantity
         :: Coin
         -- ^ Specifies the largest ada quantity that can appear in the token
@@ -239,6 +237,8 @@ data SelectionConstraints ctx = SelectionConstraints
         :: TokenQuantity
         -- ^ Specifies the largest non-ada quantity that can appear in the
         -- token bundle of an output.
+    , nullAddress
+        :: Address ctx
     }
     deriving Generic
 
@@ -804,7 +804,7 @@ performSelectionEmpty performSelectionFn constraints params =
         -> SelectionParamsOf NonEmpty ctx
     transformParams p@SelectionParams {..} = p
         { extraCoinSource =
-            transform (`Coin.add` minCoin) (const id) extraCoinSource
+            transform (`Coin.add` dummyCoin) (const id) extraCoinSource
         , outputsToCover =
             transform (const (dummyOutput :| [])) (const . id) outputsToCover
         }
@@ -814,7 +814,7 @@ performSelectionEmpty performSelectionFn constraints params =
         -> SelectionResultOf []       ctx
     transformResult r@SelectionResult {..} = r
         { extraCoinSource =
-            transform (`Coin.difference` minCoin) (const id) extraCoinSource
+            transform (`Coin.difference` dummyCoin) (const id) extraCoinSource
         , outputsCovered =
             transform (const []) (const . F.toList) outputsCovered
         }
@@ -822,29 +822,34 @@ performSelectionEmpty performSelectionFn constraints params =
     transform :: a -> (NonEmpty (Address ctx, TokenBundle) -> a) -> a
     transform x y = maybe x y $ NE.nonEmpty $ view #outputsToCover params
 
-    dummyAddress :: Address ctx
-    dummyAddress = minimumLengthChangeAddress constraints
-
+    -- A dummy output that is added before calling 'performSelectionNonEmpty'
+    -- and removed immediately after selection is complete.
+    --
     dummyOutput :: (Address ctx, TokenBundle)
-    dummyOutput = (dummyAddress, TokenBundle.fromCoin minCoin)
+    dummyOutput = (dummyAddress, TokenBundle.fromCoin dummyCoin)
 
-    -- The 'performSelectionNonEmpty' function imposes a precondition that all
-    -- outputs must have at least the minimum ada quantity. Therefore, the
-    -- dummy output must also satisfy this condition.
+    -- A dummy 'Address' value for the dummy output.
     --
-    -- However, we must also ensure that the value is non-zero, since:
+    -- We can use a null address here, as 'performSelectionNonEmpty' does not
+    -- verify the minimum ada quantities of user-specified outputs, and hence
+    -- we do not need to provide a valid address.
     --
-    --   1. Under some cost models, the 'computeMinimumAdaQuantity' function
-    --      has a constant value of zero.
+    -- Using a null address allows us to minimize any overestimation in cost
+    -- resulting from the use of a dummy output.
     --
-    --   2. The change generation algorithm requires that the total ada balance
-    --      of all outputs is non-zero.
+    dummyAddress = nullAddress constraints
+
+    -- A dummy 'Coin' value for the dummy output.
     --
-    minCoin :: Coin
-    minCoin = max
-        (Coin 1)
-        (view #computeMinimumAdaQuantity constraints dummyAddress TokenMap.empty
-        )
+    -- This value is chosen to be as small as possible in order to minimize
+    -- any overestimation in cost resulting from the use of a dummy output.
+    --
+    -- However, we cannot choose a value of zero, since the change generation
+    -- algorithm requires that the total ada balance of all outputs is
+    -- non-zero, so instead we specify the smallest possible non-zero value.
+    --
+    dummyCoin :: Coin
+    dummyCoin = Coin 1
 
 performSelectionNonEmpty
     :: forall m ctx. (HasCallStack, MonadRandom m, SelectionContext ctx)

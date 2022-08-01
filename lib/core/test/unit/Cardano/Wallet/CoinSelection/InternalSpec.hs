@@ -600,7 +600,7 @@ unMockSelectionConstraints m = SelectionConstraints
         view #maximumOutputTokenQuantity m
     , maximumLengthChangeAddress =
         TestAddress 0x0
-    , minimumLengthChangeAddress =
+    , nullAddress =
         TestAddress 0x0
     }
 

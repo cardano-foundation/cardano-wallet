@@ -98,8 +98,6 @@ import Cardano.Wallet.Primitive.Collateral
     ( asCollateral )
 import Cardano.Wallet.Primitive.Types.Address
     ( Address (..) )
-import Cardano.Wallet.Primitive.Types.Address.Constants
-    ( minLengthAddress )
 import Cardano.Wallet.Primitive.Types.Coin
     ( Coin (..) )
 import Cardano.Wallet.Primitive.Types.TokenBundle
@@ -261,8 +259,8 @@ toInternalSelectionConstraints SelectionConstraints {..} =
             txOutMaxCoin
         , maximumOutputTokenQuantity =
             txOutMaxTokenQuantity
-        , minimumLengthChangeAddress =
-            minLengthAddress
+        , nullAddress =
+            Address ""
         , ..
         }
 
