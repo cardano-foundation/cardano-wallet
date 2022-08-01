@@ -4163,6 +4163,17 @@ x-errMalformedTxPayload: &errMalformedTxPayload
       type: string
       enum: ['malformed_tx_payload']
 
+x-errMempoolIsFull: &errMempoolIsFull
+  <<: *responsesErr
+  title: mempool_is_full 
+  properties:
+    message:
+      type: string
+      description: May occur when submitting a serialized transaction to a node with full mempool.
+    code:
+      type: string
+      enum: [mempool_is_full]
+
 x-errTokensMintedButNotSpentOrBurned: &errTokensMintedButNotSpentOrBurned
   <<: *responsesErr
   title: tokens_minted_but_not_spent_or_burned
@@ -5110,6 +5121,13 @@ x-responsesErr423: &responsesErr423
       application/json:
         schema: *responsesErr
 
+x-responsesErr425MempoolIsFull: &responsesErr425MempoolIsFull
+  425:
+    description: Mempool is Full
+    content:
+      application/json:
+        schema: *errMempoolIsFull
+
 x-responsesErr404WalletNotFound: &responsesErr404WalletNotFound
   404:
     description: Not Found
@@ -5578,6 +5596,7 @@ x-responsesPostExternalTransaction: &responsesPostExternalTransaction
   <<: *responsesErr400
   <<: *responsesErr406
   <<: *responsesErr415UnsupportedMediaType
+  <<: *responsesErr425MempoolIsFull
   202:
     description: Accepted
     content:
