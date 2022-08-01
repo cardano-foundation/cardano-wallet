@@ -21,6 +21,7 @@ import Blockfrost.Client
     , Block
     , BlockHash
     , BlockIndex
+    , CBORString
     , EpochInfo
     , Genesis
     , Network
@@ -61,6 +62,7 @@ import Blockfrost.Client
     , getTxWithdrawals
     , listPools'
     , paged
+    , submitTx
     )
 import Cardano.BM.Tracing
     ( HasSeverityAnnotation (getSeverityAnnotation)
@@ -71,7 +73,7 @@ import Cardano.BM.Tracing
 import Cardano.Wallet.Network.Light
     ( Consensual )
 import Cardano.Wallet.Shelley.Network.Blockfrost.Monad
-    ( BFM, consensual404, empty404, maybe404 )
+    ( BFM, consensual404, empty404, handleStatus, maybe404 )
 import Control.Concurrent
     ( threadDelay )
 import Control.Monad
@@ -144,7 +146,10 @@ data BlockfrostLayer m = BlockfrostLayer
         m Network
     , bfListPools ::
         m [PoolId]
+    , bfPostTx :: CBORString -> m PostTxResult
     }
+
+data PostTxResult = Accepted TxHash | NotAcceptedMempoolFull
 
 blockfrostLayer :: BlockfrostLayer BFM
 blockfrostLayer = BlockfrostLayer
@@ -177,6 +182,7 @@ blockfrostLayer = BlockfrostLayer
         empty404 $ allPages' \p -> getAccountWithdrawals' a p Ascending
     , bfGetNetworkInfo = getNetworkInfo
     , bfListPools = allPages' (`listPools'` Ascending)
+    , bfPostTx = handleStatus NotAcceptedMempoolFull Accepted 425 . submitTx
     }
 
 hoistBlockfrostLayer ::
@@ -206,6 +212,7 @@ hoistBlockfrostLayer BlockfrostLayer{..} nt =
     , bfGetAccountWithdrawals = nt . bfGetAccountWithdrawals
     , bfGetNetworkInfo = nt bfGetNetworkInfo
     , bfListPools = nt bfListPools
+    , bfPostTx = nt . bfPostTx
     }
 
 withRecovery :: Tracer IO Log -> BlockfrostLayer IO -> BlockfrostLayer IO
