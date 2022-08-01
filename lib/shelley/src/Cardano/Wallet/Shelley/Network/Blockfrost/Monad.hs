@@ -25,7 +25,7 @@ import Control.Monad.Trans.Control
 import Data.Maybe
     ( fromMaybe )
 import Network.HTTP.Types
-    ( status404 )
+    ( Status (statusCode) )
 import Servant.Client
     ( runClientM )
 
@@ -57,13 +57,18 @@ run :: BF.ClientConfig -> (forall a. BFM a -> IO a)
 run cfg (BFM c) = throwBlockfrostError (runReaderT c cfg)
 
 maybe404 :: BFM a -> BFM (Maybe a)
-maybe404 bfm = (Just <$> bfm) `catchError` \case
-    ClientError (Servant.FailureResponse _ (Servant.Response s _ _ _))
-        | s == status404 -> pure Nothing
-    e -> throwError e
+maybe404 = handleStatus Nothing Just 404
 
 empty404 :: Monoid a => BFM a -> BFM a
 empty404 = (fromMaybe mempty <$>) . maybe404
 
 consensual404 :: BFM a -> BFM (Consensual a)
 consensual404 = (maybe NotConsensual Consensual <$>) . maybe404
+
+handleStatus :: b -> (a -> b) -> Int -> BFM a -> BFM b
+handleStatus notMatched matched status bfm =
+    (matched <$> bfm) `catchError` \case
+        ClientError (Servant.FailureResponse _ (Servant.Response s  _ _ _))
+            | statusCode s == 425 -> pure notMatched
+        e -> throwError e
+
