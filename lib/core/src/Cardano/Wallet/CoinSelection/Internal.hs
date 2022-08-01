@@ -906,9 +906,6 @@ verifySelectionBalanceError cs ps = \case
         verifyBalanceInsufficientError cs ps e
     Balance.EmptyUTxO ->
         verifyEmptyUTxOError cs ps ()
-    Balance.InsufficientMinCoinValues _es ->
-        -- TODO: Completely remove this pattern match.
-        VerificationSuccess
     Balance.UnableToConstructChange e->
         verifyUnableToConstructChangeError cs ps e
     Balance.SelectionLimitReached e ->

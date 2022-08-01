@@ -47,7 +47,6 @@ import Cardano.Numeric.Util
 import Cardano.Wallet.CoinSelection.Internal.Balance
     ( AssetCount (..)
     , BalanceInsufficientError (..)
-    , InsufficientMinCoinValueError (..)
     , MakeChangeCriteria (..)
     , PerformSelection
     , RunSelectionParams (..)
@@ -983,8 +982,6 @@ prop_performSelection mockConstraints params coverage =
             onBalanceInsufficient e
         SelectionLimitReached e ->
             onSelectionLimitReached e
-        InsufficientMinCoinValues es ->
-            onInsufficientMinCoinValues es
         UnableToConstructChange e ->
             onUnableToConstructChange e
         EmptyUTxO ->
@@ -1038,24 +1035,6 @@ prop_performSelection mockConstraints params coverage =
             errorBalanceRequired errorInputsSelected _ = e
         errorBalanceSelected =
             F.foldMap (view #tokens . snd) errorInputsSelected
-
-    onInsufficientMinCoinValues
-        :: NonEmpty (InsufficientMinCoinValueError TestSelectionContext)
-        -> Property
-    onInsufficientMinCoinValues es =
-        counterexample "onInsufficientMinCoinValues" $
-        report es
-            "error values" $
-        report
-            (NE.zip (expectedMinCoinValue <$> es) (actualMinCoinValue <$> es))
-            "(expected, actual) pairs" $
-        verify
-            (all (\e -> expectedMinCoinValue e > actualMinCoinValue e) es)
-            "all (λe -> expectedMinCoinValue e > actualMinCoinValue e) es" $
-        property True
-      where
-        actualMinCoinValue
-            = view #coin . snd . outputWithInsufficientAda
 
     onUnableToConstructChange :: UnableToConstructChangeError -> Property
     onUnableToConstructChange e =

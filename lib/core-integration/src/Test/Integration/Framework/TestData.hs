@@ -82,7 +82,6 @@ module Test.Integration.Framework.TestData
     , errMsg400MinWithdrawalWrong
     , errMsg403WithdrawalNotWorth
     , errMsg403NotAShelleyWallet
-    , errMsg403MinUTxOValueOld
     , errMsg403MinUTxOValue
     , errMsg403CouldntIdentifyAddrAsMine
     , errMsg503PastHorizon
@@ -315,13 +314,6 @@ errMsg403InvalidConstructTx =
     "It looks like I've created an empty transaction that does not have \
      \any payments, withdrawals, delegations, metadata nor minting. \
      \Include at least one of them."
-
-errMsg403MinUTxOValueOld :: String
-errMsg403MinUTxOValueOld =
-    "Some outputs have ada values that are too small. There's a \
-    \minimum ada value specified by the protocol that each output must satisfy. \
-    \I'll handle that minimum value myself when you do not explicitly specify \
-    \an ada value for an output. Otherwise, you must specify enough ada."
 
 errMsg403MinUTxOValue :: String
 errMsg403MinUTxOValue = unwords

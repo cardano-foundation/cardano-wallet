@@ -605,7 +605,7 @@ import Data.Type.Equality
 import Data.Word
     ( Word32 )
 import Fmt
-    ( blockListF, indentF, listF, pretty )
+    ( listF, pretty )
 import GHC.Generics
     ( Generic )
 import GHC.Stack
@@ -5195,16 +5195,6 @@ instance IsServerError (SelectionBalanceError WalletSelectionContext) where
                 , "doing so will make the transaction too big. Try "
                 , "sending a smaller amount. I had already selected "
                 , showT (length $ view #inputsSelected e), " inputs."
-                ]
-        InsufficientMinCoinValues xs ->
-            apiError err403 UtxoTooSmall $ mconcat
-                [ "Some outputs have ada values that are too small. "
-                , "There's a minimum ada value specified by the "
-                , "protocol that each output must satisfy. I'll handle "
-                , "that minimum value myself when you do not explicitly "
-                , "specify an ada value for an output. Otherwise, you "
-                , "must specify enough ada. Here are the problematic "
-                , "outputs:\n" <> pretty (indentF 2 $ blockListF xs)
                 ]
         UnableToConstructChange e ->
             apiError err403 CannotCoverFee $ T.unwords

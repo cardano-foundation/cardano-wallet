@@ -43,7 +43,6 @@ module Cardano.Wallet.CoinSelection.Internal.Balance
     , SelectionStrategy (..)
     , SelectionBalanceError (..)
     , BalanceInsufficientError (..)
-    , InsufficientMinCoinValueError (..)
     , UnableToConstructChangeError (..)
 
     -- * Selection limits
@@ -136,7 +135,7 @@ import Cardano.Wallet.Primitive.Types.Coin
 import Cardano.Wallet.Primitive.Types.TokenBundle
     ( TokenBundle (..) )
 import Cardano.Wallet.Primitive.Types.TokenMap
-    ( AssetId, Flat (..), Lexicographic (..), TokenMap )
+    ( AssetId, Lexicographic (..), TokenMap )
 import Cardano.Wallet.Primitive.Types.TokenQuantity
     ( TokenQuantity (..) )
 import Cardano.Wallet.Primitive.Types.Tx
@@ -176,7 +175,7 @@ import Data.Semigroup
 import Data.Set
     ( Set )
 import Fmt
-    ( Buildable (..), Builder, blockMapF, nameF, unlinesF )
+    ( Buildable (..), Builder, blockMapF )
 import GHC.Generics
     ( Generic )
 import GHC.Stack
@@ -693,8 +692,6 @@ data SelectionBalanceError ctx
         BalanceInsufficientError
     | SelectionLimitReached
         (SelectionLimitReachedError ctx)
-    | InsufficientMinCoinValues
-        (NonEmpty (InsufficientMinCoinValueError ctx))
     | UnableToConstructChange
         UnableToConstructChangeError
     | EmptyUTxO
@@ -739,34 +736,6 @@ data BalanceInsufficientError = BalanceInsufficientError
 balanceMissing :: BalanceInsufficientError -> TokenBundle
 balanceMissing (BalanceInsufficientError available required) =
     TokenBundle.difference required available
-
--- | Indicates that a particular output does not have the minimum coin quantity
---   expected by the protocol.
---
--- See also: 'prepareOutputs'.
---
-data InsufficientMinCoinValueError ctx = InsufficientMinCoinValueError
-    { outputWithInsufficientAda
-        :: !(Address ctx, TokenBundle)
-        -- ^ The particular output that does not have the minimum coin quantity
-        -- expected by the protocol.
-    , expectedMinCoinValue
-        :: !Coin
-        -- ^ The minimum coin quantity expected for this output.
-    } deriving Generic
-
-deriving instance SelectionContext ctx =>
-    Eq (InsufficientMinCoinValueError ctx)
-deriving instance SelectionContext ctx =>
-    Show (InsufficientMinCoinValueError ctx)
-
-instance SelectionContext ctx => Buildable (InsufficientMinCoinValueError ctx)
-  where
-    build (InsufficientMinCoinValueError (a, b) c) = unlinesF @[]
-        [ nameF "Expected min coin value" (build c)
-        , nameF "Address" (build a)
-        , nameF "Token bundle" (build (Flat b))
-        ]
 
 data UnableToConstructChangeError = UnableToConstructChangeError
     { requiredCost
@@ -886,11 +855,6 @@ performSelectionNonEmpty constraints params
         pure $ Left $ BalanceInsufficient $ BalanceInsufficientError
             {utxoBalanceAvailable, utxoBalanceRequired}
 
-    -- Are the minimum ada quantities of the outputs too small?
-    | not (null insufficientMinCoinValues) =
-        pure $ Left $ InsufficientMinCoinValues $
-            NE.fromList insufficientMinCoinValues
-
     | otherwise = do
         maybeSelection <- runSelectionNonEmpty RunSelectionParams
             { selectionLimit
@@ -952,25 +916,6 @@ performSelectionNonEmpty constraints params
 
     utxoBalanceSufficient :: Bool
     utxoBalanceSufficient = isUTxOBalanceSufficient params
-
-    insufficientMinCoinValues :: [InsufficientMinCoinValueError ctx]
-    insufficientMinCoinValues =
-        mapMaybe mkInsufficientMinCoinValueError outputsToCover
-      where
-        mkInsufficientMinCoinValueError
-            :: (Address ctx, TokenBundle)
-            -> Maybe (InsufficientMinCoinValueError ctx)
-        mkInsufficientMinCoinValueError (addr, bundle)
-            | view #coin bundle >= expectedMinCoinValue =
-                Nothing
-            | otherwise =
-                Just $ InsufficientMinCoinValueError
-                    { expectedMinCoinValue
-                    , outputWithInsufficientAda = (addr, bundle)
-                    }
-          where
-            expectedMinCoinValue = computeMinimumAdaQuantity addr
-                (view #tokens bundle)
 
     -- Given a UTxO index that corresponds to a valid selection covering
     -- 'outputsToCover', 'predictChange' yields a non-empty list of assets

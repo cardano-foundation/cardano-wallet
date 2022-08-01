@@ -302,7 +302,6 @@ prop_performSelection_coverage params r innerProperty =
         SelectionBalanceErrorOf e -> case e of
             Balance.BalanceInsufficient {} -> ()
             Balance.SelectionLimitReached {} -> ()
-            Balance.InsufficientMinCoinValues {} -> ()
             Balance.UnableToConstructChange {} -> ()
             Balance.EmptyUTxO {} -> ()
         SelectionCollateralErrorOf e -> case e of
