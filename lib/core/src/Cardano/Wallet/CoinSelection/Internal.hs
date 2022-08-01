@@ -906,8 +906,9 @@ verifySelectionBalanceError cs ps = \case
         verifyBalanceInsufficientError cs ps e
     Balance.EmptyUTxO ->
         verifyEmptyUTxOError cs ps ()
-    Balance.InsufficientMinCoinValues es ->
-        F.foldMap (verifyInsufficientMinCoinValueError cs ps) es
+    Balance.InsufficientMinCoinValues _es ->
+        -- TODO: Completely remove this pattern match.
+        VerificationSuccess
     Balance.UnableToConstructChange e->
         verifyUnableToConstructChangeError cs ps e
     Balance.SelectionLimitReached e ->
@@ -955,26 +956,27 @@ verifyEmptyUTxOError _cs SelectionParams {utxoAvailableForInputs} _e =
 -- Selection error verification: insufficient minimum ada quantity errors
 --------------------------------------------------------------------------------
 
-data FailureToVerifyInsufficientMinCoinValueError address =
-    FailureToVerifyInsufficientMinCoinValueError
+data FailureToVerifySelectionOutputCoinInsufficientError address =
+    FailureToVerifySelectionOutputCoinInsufficientError
     { reportedOutput :: (address, TokenBundle)
     , reportedMinCoinValue :: Coin
     , verifiedMinCoinValue :: Coin
     }
     deriving (Eq, Show)
 
-verifyInsufficientMinCoinValueError
+verifySelectionOutputCoinInsufficientError
     :: SelectionContext ctx
-    => VerifySelectionError (Balance.InsufficientMinCoinValueError ctx) ctx
-verifyInsufficientMinCoinValueError cs _ps e =
+    => VerifySelectionError
+        (SelectionOutputCoinInsufficientError (Address ctx)) ctx
+verifySelectionOutputCoinInsufficientError cs _ps e =
     verifyAll
         [ reportedMinCoinValue == verifiedMinCoinValue
         , reportedMinCoinValue > snd reportedOutput ^. #coin
         ]
-        FailureToVerifyInsufficientMinCoinValueError {..}
+        FailureToVerifySelectionOutputCoinInsufficientError {..}
   where
-    reportedOutput = e ^. #outputWithInsufficientAda
-    reportedMinCoinValue = e ^. #expectedMinCoinValue
+    reportedOutput = e ^. #output
+    reportedMinCoinValue = e ^. #minimumExpectedCoin
     verifiedMinCoinValue =
         (cs ^. #computeMinimumAdaQuantity)
         (fst reportedOutput)
@@ -1194,9 +1196,8 @@ verifySelectionOutputError
     :: SelectionContext ctx
     => VerifySelectionError (SelectionOutputError ctx) ctx
 verifySelectionOutputError cs ps = \case
-    SelectionOutputCoinInsufficient _e ->
-        -- TODO: verify this error:
-        VerificationSuccess
+    SelectionOutputCoinInsufficient e ->
+        verifySelectionOutputCoinInsufficientError cs ps e
     SelectionOutputSizeExceedsLimit e ->
         verifySelectionOutputSizeExceedsLimitError cs ps e
     SelectionOutputTokenQuantityExceedsLimit e ->
