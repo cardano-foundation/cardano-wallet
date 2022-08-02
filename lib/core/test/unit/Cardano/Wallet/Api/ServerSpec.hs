@@ -25,7 +25,7 @@ import Cardano.Wallet.Api.Server
     , withListeningSocket
     )
 import Cardano.Wallet.Api.Types
-    ( ApiNetworkInformation (..) )
+    ( ApiNetworkInformation (..), ApiWalletMode (..) )
 import Cardano.Wallet.DB.WalletState
     ( ErrNoSuchWallet (..) )
 import Cardano.Wallet.DummyTarget.Primitive.Types
@@ -180,7 +180,7 @@ networkInfoSpec = describe "getNetworkInformation" $ do
         let nl = mockNetworkLayer nodeTip' ti now
         Right info <- run
             $ runHandler
-            $ getNetworkInformation (Testnet $ NetworkMagic 1) nl
+            $ getNetworkInformation (Testnet $ NetworkMagic 1) nl Node
 
         --  0              20
         --  *               |        *

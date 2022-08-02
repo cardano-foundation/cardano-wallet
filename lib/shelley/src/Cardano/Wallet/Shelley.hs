@@ -320,7 +320,7 @@ serveWallet
         let serverSettings = Warp.defaultSettings
                 & setBeforeMainLoop (beforeMainLoop serverUrl)
         let application = Server.serve (Proxy @(ApiV2 n ApiStakePool)) $
-                server byron icarus shelley multisig spl ntp
+                server byron icarus shelley multisig spl ntp blockchainSource
         Server.start serverSettings apiServerTracer tlsConfig socket application
 
     apiLayer

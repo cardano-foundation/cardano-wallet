@@ -151,6 +151,7 @@ import Cardano.Wallet.Api.Types
     , ApiT (..)
     , ApiVerificationKeyShared (..)
     , ApiVerificationKeyShelley (..)
+    , ApiWalletMode (..)
     , ApiWithdrawalPostData (..)
     , HealthCheckSMASH (..)
     , MaintenanceAction (..)
@@ -179,6 +180,8 @@ import Cardano.Wallet.Primitive.AddressDiscovery.Shared
     ( CredentialType (..), SharedState )
 import Cardano.Wallet.Primitive.Types
     ( PoolMetadataSource (..), SmashServer (..), poolMetadataSource )
+import Cardano.Wallet.Shelley.BlockchainSource
+    ( BlockchainSource (..) )
 import Cardano.Wallet.Shelley.Compatibility
     ( HasNetworkId (..), NetworkId, inspectAddress, rewardAccountFromAddress )
 import Cardano.Wallet.Shelley.Pools
@@ -238,8 +241,9 @@ server
     -> ApiLayer (SharedState n SharedKey) SharedKey
     -> StakePoolLayer
     -> NtpClient
+    -> BlockchainSource
     -> Server (Api n ApiStakePool)
-server byron icarus shelley multisig spl ntp =
+server byron icarus shelley multisig spl ntp blockchainSource =
          wallets
     :<|> walletKeys
     :<|> assets
@@ -539,13 +543,16 @@ server byron icarus shelley multisig spl ntp =
 
     network' :: NetworkId -> Server Network
     network' nid =
-        getNetworkInformation nid nl
+        getNetworkInformation nid nl mode
         :<|> getNetworkParameters genesis nl tl
         :<|> getNetworkClock ntp
       where
         nl = icarus ^. networkLayer
         tl = icarus ^. transactionLayer @IcarusKey
         genesis@(_,_) = icarus ^. genesisData
+        mode = case blockchainSource of
+          NodeSource {} -> Node
+          BlockfrostSource {} -> Light
 
     proxy :: Server Proxy_
     proxy = postExternalTransaction icarus
