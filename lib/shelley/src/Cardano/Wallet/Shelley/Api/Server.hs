@@ -636,19 +636,24 @@ postAnyAddress net addrData = TR.trace ("addrData: "<>show addrData) $ do
                  , EnterpriseDelegating )
     pure $ AnyAddress addr addrType (fromInteger netTag)
   where
+      fromXPub = fromJust . CA.xpubFromBytes
       toXPub = fromJust . CA.xpubFromBytes . pubToXPub
       pubToXPub bytes = BS.append bytes bytes
       netTag = case net of
           Cardano.Mainnet -> 1
           _ -> 0
       spendingFrom cred = case cred of
-          CredentialPubKey  bytes ->
+          CredentialPubKey bytes ->
               CA.PaymentFromKey $ CA.liftXPub $ toXPub bytes
+          CredentialExtendedPubKey bytes ->
+              CA.PaymentFromKey $ CA.liftXPub $ fromXPub bytes
           CredentialScript  script' ->
               CA.PaymentFromScript $ CA.toScriptHash script'
       stakingFrom cred = case cred of
           CredentialPubKey bytes ->
               CA.DelegationFromKey $ CA.liftXPub $ toXPub bytes
+          CredentialExtendedPubKey bytes ->
+              CA.DelegationFromKey $ CA.liftXPub $ fromXPub bytes
           CredentialScript script' ->
               CA.DelegationFromScript $ CA.toScriptHash script'
       guardValidation v cred =
@@ -656,6 +661,7 @@ postAnyAddress net addrData = TR.trace ("addrData: "<>show addrData) $ do
                 Left $ snd $ checkValidation v cred
       checkValidation v cred = case cred of
           CredentialPubKey _ -> (False, TextDecodingError "")
+          CredentialExtendedPubKey _ -> (False, TextDecodingError "")
           CredentialScript script' -> case v of
               Just (ApiT v') ->
                   case validateScript v' script' of

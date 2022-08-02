@@ -645,7 +645,8 @@ data ApiAddress (n :: NetworkDiscriminant) = ApiAddress
       deriving anyclass NFData
 
 data ApiCredential =
-      CredentialPubKey ByteString
+      CredentialExtendedPubKey ByteString
+    | CredentialPubKey ByteString
     | CredentialScript (Script KeyHash)
     deriving (Eq, Generic, Show)
 
@@ -2801,7 +2802,8 @@ instance ToJSON (ApiT (Passphrase purpose)) where
 instance FromJSON ApiCredential where
     parseJSON v =
         (CredentialScript <$> parseJSON v) <|>
-        (CredentialPubKey <$> parsePubKey v)
+        (CredentialPubKey <$> parsePubKey v) <|>
+        (CredentialExtendedPubKey <$> parseExtendedPubKey v)
 
 parsePubKey :: Aeson.Value -> Aeson.Parser ByteString
 parsePubKey = withText "CredentialPubKey" $ \txt ->
@@ -2824,9 +2826,33 @@ parsePubKey = withText "CredentialPubKey" $ \txt ->
                 _ -> fail "CredentialPubKey must have either 'addr_vk' or 'stake_vk' prefix."
         _ -> fail "CredentialPubKey must be must be encoded as Bech32."
 
+parseExtendedPubKey :: Aeson.Value -> Aeson.Parser ByteString
+parseExtendedPubKey = withText "CredentialPubKey" $ \txt ->
+    case detectEncoding (T.unpack txt) of
+        Just EBech32{} -> do
+            (hrp, dp) <- case Bech32.decodeLenient txt of
+                Left _ -> fail "CredentialPubKey's Bech32 has invalid text."
+                Right res -> pure res
+            let checkPayload bytes
+                    | BS.length bytes /= 64 =
+                          fail "CredentialExtendedPubKey must be 64 bytes."
+                    | otherwise = pure bytes
+            let proceedWhenHrpCorrect = case  Bech32.dataPartToBytes dp of
+                    Nothing ->
+                          fail "CredentialPubKey has invalid Bech32 datapart."
+                    Just bytes -> checkPayload bytes
+            case Bech32.humanReadablePartToText hrp of
+                "stake_xvk" -> proceedWhenHrpCorrect
+                "addr_xvk" -> proceedWhenHrpCorrect
+                _ -> fail "CredentialPubKey must have either 'addr_xvk' or 'stake_xvk' prefix."
+        _ -> fail "CredentialExtendedPubKey must be must be encoded as Bech32."
+
 instance ToJSON ApiCredential where
     toJSON (CredentialPubKey key') = do
         let hrp = [Bech32.humanReadablePart|addr_vk|]
+        String $ T.decodeUtf8 $ encode (EBech32 hrp) key'
+    toJSON (CredentialExtendedPubKey key') = do
+        let hrp = [Bech32.humanReadablePart|addr_xvk|]
         String $ T.decodeUtf8 $ encode (EBech32 hrp) key'
     toJSON (CredentialScript s) = toJSON s
 
