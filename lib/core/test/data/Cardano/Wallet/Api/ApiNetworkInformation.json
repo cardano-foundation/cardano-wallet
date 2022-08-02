@@ -2,14 +2,14 @@
     "samples": [
         {
             "network_info": {
-                "network_id": "testnet",
-                "protocol_magic": 6
+                "network_id": "mainnet",
+                "protocol_magic": 764824073
             },
             "next_epoch": {
                 "epoch_number": 5734,
                 "epoch_start_time": "1899-04-17T03:49:59Z"
             },
-            "node_era": "alonzo",
+            "node_era": "shelley",
             "node_tip": {
                 "absolute_slot_number": 987143,
                 "epoch_number": 6425,
@@ -22,20 +22,21 @@
             },
             "sync_progress": {
                 "status": "not_responding"
-            }
+            },
+            "wallet_mode": "node"
         },
         {
             "network_info": {
                 "network_id": "testnet",
-                "protocol_magic": -12
+                "protocol_magic": -8
             },
             "network_tip": {
-                "absolute_slot_number": 6671381,
-                "epoch_number": 14128,
-                "slot_number": 16295,
-                "time": "1872-11-13T15:00:00Z"
+                "absolute_slot_number": 7282775,
+                "epoch_number": 5965,
+                "slot_number": 1044,
+                "time": "1860-08-22T08:00:00Z"
             },
-            "node_era": "allegra",
+            "node_era": "babbage",
             "node_tip": {
                 "absolute_slot_number": 1661798,
                 "epoch_number": 9802,
@@ -52,24 +53,25 @@
                     "unit": "percent"
                 },
                 "status": "syncing"
-            }
+            },
+            "wallet_mode": "node"
         },
         {
             "network_info": {
-                "network_id": "testnet",
-                "protocol_magic": -20
+                "network_id": "mainnet",
+                "protocol_magic": 764824073
             },
             "network_tip": {
-                "absolute_slot_number": 8385019,
-                "epoch_number": 6670,
-                "slot_number": 1744,
-                "time": "1873-12-17T14:21:30Z"
+                "absolute_slot_number": 6085569,
+                "epoch_number": 2848,
+                "slot_number": 8106,
+                "time": "1882-10-21T22:13:23Z"
             },
             "next_epoch": {
                 "epoch_number": 5577,
                 "epoch_start_time": "1861-06-29T23:54:58Z"
             },
-            "node_era": "allegra",
+            "node_era": "babbage",
             "node_tip": {
                 "absolute_slot_number": 1812322,
                 "epoch_number": 14249,
@@ -86,18 +88,19 @@
                     "unit": "percent"
                 },
                 "status": "syncing"
-            }
+            },
+            "wallet_mode": "node"
         },
         {
             "network_info": {
-                "network_id": "mainnet",
-                "protocol_magic": 764824073
+                "network_id": "testnet",
+                "protocol_magic": 29
             },
             "network_tip": {
-                "absolute_slot_number": 1295129,
-                "epoch_number": 6148,
-                "slot_number": 10635,
-                "time": "1862-04-08T18:20:14.52430871144Z"
+                "absolute_slot_number": 8249548,
+                "epoch_number": 576,
+                "slot_number": 4172,
+                "time": "1893-06-15T14:27:45Z"
             },
             "next_epoch": {
                 "epoch_number": 8447,
@@ -116,7 +119,8 @@
             },
             "sync_progress": {
                 "status": "not_responding"
-            }
+            },
+            "wallet_mode": "light"
         },
         {
             "network_info": {
@@ -124,16 +128,16 @@
                 "protocol_magic": 764824073
             },
             "network_tip": {
-                "absolute_slot_number": 1203027,
-                "epoch_number": 14709,
-                "slot_number": 4789,
-                "time": "1889-11-04T16:57:47Z"
+                "absolute_slot_number": 3632182,
+                "epoch_number": 5385,
+                "slot_number": 7530,
+                "time": "1869-09-07T17:31:04.9212569294Z"
             },
             "next_epoch": {
                 "epoch_number": 10392,
                 "epoch_start_time": "1861-07-06T18:27:01Z"
             },
-            "node_era": "allegra",
+            "node_era": "mary",
             "node_tip": {
                 "absolute_slot_number": 3540199,
                 "epoch_number": 3398,
@@ -150,24 +154,19 @@
                     "unit": "percent"
                 },
                 "status": "syncing"
-            }
+            },
+            "wallet_mode": "light"
         },
         {
             "network_info": {
                 "network_id": "mainnet",
                 "protocol_magic": 764824073
             },
-            "network_tip": {
-                "absolute_slot_number": 4418472,
-                "epoch_number": 11383,
-                "slot_number": 9563,
-                "time": "1865-07-28T03:53:31Z"
-            },
             "next_epoch": {
                 "epoch_number": 11277,
                 "epoch_start_time": "1868-06-25T21:50:16.87341351637Z"
             },
-            "node_era": "alonzo",
+            "node_era": "shelley",
             "node_tip": {
                 "absolute_slot_number": 5608038,
                 "epoch_number": 12510,
@@ -180,18 +179,25 @@
             },
             "sync_progress": {
                 "status": "not_responding"
-            }
+            },
+            "wallet_mode": "light"
         },
         {
             "network_info": {
-                "network_id": "testnet",
-                "protocol_magic": 4
+                "network_id": "mainnet",
+                "protocol_magic": 764824073
+            },
+            "network_tip": {
+                "absolute_slot_number": 3726089,
+                "epoch_number": 6737,
+                "slot_number": 9638,
+                "time": "1867-04-21T02:32:58.234387976934Z"
             },
             "next_epoch": {
                 "epoch_number": 7359,
                 "epoch_start_time": "1893-10-11T02:00:00Z"
             },
-            "node_era": "byron",
+            "node_era": "shelley",
             "node_tip": {
                 "absolute_slot_number": 103444,
                 "epoch_number": 10427,
@@ -204,20 +210,21 @@
             },
             "sync_progress": {
                 "status": "ready"
-            }
+            },
+            "wallet_mode": "node"
         },
         {
             "network_info": {
                 "network_id": "testnet",
-                "protocol_magic": 11
+                "protocol_magic": -18
             },
             "network_tip": {
-                "absolute_slot_number": 5326319,
-                "epoch_number": 14068,
-                "slot_number": 12532,
-                "time": "1889-03-21T03:53:23.566813809364Z"
+                "absolute_slot_number": 3737037,
+                "epoch_number": 3060,
+                "slot_number": 14705,
+                "time": "1876-07-17T20:32:29.159771324722Z"
             },
-            "node_era": "shelley",
+            "node_era": "babbage",
             "node_tip": {
                 "absolute_slot_number": 5754467,
                 "epoch_number": 13027,
@@ -234,24 +241,25 @@
                     "unit": "percent"
                 },
                 "status": "syncing"
-            }
+            },
+            "wallet_mode": "node"
         },
         {
             "network_info": {
-                "network_id": "mainnet",
-                "protocol_magic": 764824073
+                "network_id": "testnet",
+                "protocol_magic": -7
             },
             "network_tip": {
-                "absolute_slot_number": 3669544,
-                "epoch_number": 11967,
-                "slot_number": 16099,
-                "time": "1882-01-28T06:00:00Z"
+                "absolute_slot_number": 1712410,
+                "epoch_number": 12339,
+                "slot_number": 2611,
+                "time": "1894-08-26T15:04:30Z"
             },
             "next_epoch": {
                 "epoch_number": 14638,
                 "epoch_start_time": "1873-01-01T04:00:00Z"
             },
-            "node_era": "shelley",
+            "node_era": "babbage",
             "node_tip": {
                 "absolute_slot_number": 5825212,
                 "epoch_number": 2206,
@@ -268,18 +276,25 @@
                     "unit": "percent"
                 },
                 "status": "syncing"
-            }
+            },
+            "wallet_mode": "light"
         },
         {
             "network_info": {
-                "network_id": "testnet",
-                "protocol_magic": 4
+                "network_id": "mainnet",
+                "protocol_magic": 764824073
+            },
+            "network_tip": {
+                "absolute_slot_number": 1532775,
+                "epoch_number": 4985,
+                "slot_number": 4206,
+                "time": "1860-10-16T19:00:00Z"
             },
             "next_epoch": {
                 "epoch_number": 10927,
                 "epoch_start_time": "1892-02-09T01:47:27Z"
             },
-            "node_era": "byron",
+            "node_era": "allegra",
             "node_tip": {
                 "absolute_slot_number": 8369192,
                 "epoch_number": 3059,
@@ -296,7 +311,8 @@
                     "unit": "percent"
                 },
                 "status": "syncing"
-            }
+            },
+            "wallet_mode": "node"
         }
     ],
     "seed": 482627922
