@@ -799,29 +799,34 @@ verifySelectionInputCountWithinLimit cs _ps selection =
 -- Selection verification: minimum ada quantities
 --------------------------------------------------------------------------------
 
-newtype FailureToVerifySelectionOutputCoinsSufficient address =
+newtype FailureToVerifySelectionOutputCoinsSufficient ctx =
     FailureToVerifySelectionOutputCoinsSufficient
-    (NonEmpty (SelectionOutputCoinInsufficientError address))
+    (NonEmpty (SelectionOutputCoinInsufficientError ctx))
     deriving (Eq, Show)
 
-data SelectionOutputCoinInsufficientError address =
+data SelectionOutputCoinInsufficientError ctx =
     SelectionOutputCoinInsufficientError
         { minimumExpectedCoin :: Coin
-        , output :: (address, TokenBundle)
+        , output :: (Address ctx, TokenBundle)
         }
-    deriving (Eq, Generic, Show)
+    deriving Generic
+
+deriving instance SelectionContext ctx =>
+    Eq (SelectionOutputCoinInsufficientError ctx)
+deriving instance SelectionContext ctx =>
+    Show (SelectionOutputCoinInsufficientError ctx)
 
 verifySelectionOutputCoinsSufficient
     :: forall ctx. SelectionContext ctx => VerifySelection ctx
 verifySelectionOutputCoinsSufficient cs _ps selection =
     verifyEmpty errors FailureToVerifySelectionOutputCoinsSufficient
   where
-    errors :: [SelectionOutputCoinInsufficientError (Address ctx)]
+    errors :: [SelectionOutputCoinInsufficientError ctx]
     errors = mapMaybe maybeError (selectionAllOutputs cs selection)
 
     maybeError
         :: (Address ctx, TokenBundle)
-        -> Maybe (SelectionOutputCoinInsufficientError (Address ctx))
+        -> Maybe (SelectionOutputCoinInsufficientError ctx)
     maybeError output
         | snd output ^. #coin < minimumExpectedCoin =
             Just SelectionOutputCoinInsufficientError
@@ -963,8 +968,7 @@ data FailureToVerifySelectionOutputCoinInsufficientError address =
 
 verifySelectionOutputCoinInsufficientError
     :: SelectionContext ctx
-    => VerifySelectionError
-        (SelectionOutputCoinInsufficientError (Address ctx)) ctx
+    => VerifySelectionError (SelectionOutputCoinInsufficientError ctx) ctx
 verifySelectionOutputCoinInsufficientError cs _ps e =
     verifyAll
         [ reportedMinCoinValue == verifiedMinCoinValue
@@ -1434,7 +1438,7 @@ prepareOutputsInternal constraints outputsUnprepared
     -- The complete list of outputs whose ada quantities are below the minimum
     -- required:
     insufficientCoins
-        :: [SelectionOutputCoinInsufficientError (Address ctx)]
+        :: [SelectionOutputCoinInsufficientError ctx]
     insufficientCoins =
         mapMaybe (verifyOutputCoinSufficient constraints) outputsToCover
 
@@ -1472,7 +1476,7 @@ prepareOutputsWith minCoinValueFor =
 --
 data SelectionOutputError ctx
     = SelectionOutputCoinInsufficient
-        (SelectionOutputCoinInsufficientError (Address ctx))
+        (SelectionOutputCoinInsufficientError ctx)
     | SelectionOutputSizeExceedsLimit
         (SelectionOutputSizeExceedsLimitError ctx)
     | SelectionOutputTokenQuantityExceedsLimit
@@ -1559,7 +1563,7 @@ verifyOutputTokenQuantities out =
 verifyOutputCoinSufficient
     :: SelectionConstraints ctx
     -> (Address ctx, TokenBundle)
-    -> Maybe (SelectionOutputCoinInsufficientError (Address ctx))
+    -> Maybe (SelectionOutputCoinInsufficientError ctx)
 verifyOutputCoinSufficient constraints output
     | actualCoin >= minimumExpectedCoin =
         Nothing

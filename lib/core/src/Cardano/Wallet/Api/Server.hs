@@ -5090,7 +5090,7 @@ instance IsServerError (SelectionOutputError WalletSelectionContext) where
             toServerError e
 
 instance IsServerError
-    (SelectionOutputCoinInsufficientError Address)
+    (SelectionOutputCoinInsufficientError WalletSelectionContext)
   where
     toServerError e =
         apiError err403 UtxoTooSmall $ T.unlines [preamble, details]
