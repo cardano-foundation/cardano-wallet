@@ -645,6 +645,8 @@ postAnyAddress net addrData = TR.trace ("addrData: "<>show addrData) $ do
       spendingFrom cred = case cred of
           CredentialPubKey bytes ->
               CA.PaymentFromKey $ CA.liftXPub $ toXPub bytes
+          CredentialKeyHash bytes ->
+              CA.PaymentFromKeyHash $ CA.KeyHash CA.Payment bytes
           CredentialExtendedPubKey bytes ->
               CA.PaymentFromKey $ CA.liftXPub $ fromXPub bytes
           CredentialScript  script' ->
@@ -652,6 +654,8 @@ postAnyAddress net addrData = TR.trace ("addrData: "<>show addrData) $ do
       stakingFrom cred = case cred of
           CredentialPubKey bytes ->
               CA.DelegationFromKey $ CA.liftXPub $ toXPub bytes
+          CredentialKeyHash bytes ->
+              CA.DelegationFromKeyHash $ CA.KeyHash CA.Delegation bytes
           CredentialExtendedPubKey bytes ->
               CA.DelegationFromKey $ CA.liftXPub $ fromXPub bytes
           CredentialScript script' ->
@@ -661,6 +665,7 @@ postAnyAddress net addrData = TR.trace ("addrData: "<>show addrData) $ do
                 Left $ snd $ checkValidation v cred
       checkValidation v cred = case cred of
           CredentialPubKey _ -> (False, TextDecodingError "")
+          CredentialKeyHash _ -> (False, TextDecodingError "")
           CredentialExtendedPubKey _ -> (False, TextDecodingError "")
           CredentialScript script' -> case v of
               Just (ApiT v') ->
