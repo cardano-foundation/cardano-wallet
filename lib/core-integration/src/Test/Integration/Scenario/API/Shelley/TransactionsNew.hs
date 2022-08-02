@@ -1051,7 +1051,7 @@ spec = describe "NEW_SHELLEY_TRANSACTIONS" $ do
             (Link.createUnsignedTransaction @'Shelley wa) Default payload
         verify rTx
             [ expectResponseCode HTTP.status403
-            , expectErrorMessage "Some outputs have ada values that are too small."
+            , expectErrorMessage errMsg403MinUTxOValue
             ]
 
     it "TRANS_NEW_ASSETS_CREATE_01c - Multi-asset tx without Ada" $ \ctx -> runResourceT $ do

@@ -683,7 +683,7 @@ spec = describe "SHELLEY_TRANSACTIONS" $ do
             (Link.createTransactionOld @'Shelley wSrc) Default payload
         -- It should fail with InsufficientMinCoinValueError
         expectResponseCode HTTP.status403 rtx
-        expectErrorMessage "Some outputs have ada values that are too small." rtx
+        expectErrorMessage errMsg403MinUTxOValue rtx
 
     it "TRANS_ASSETS_CREATE_02a - Multi-asset transaction without Ada" $ \ctx -> runResourceT $ do
         wSrc <- fixtureMultiAssetWallet ctx

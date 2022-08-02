@@ -106,6 +106,7 @@ import Test.Integration.Framework.Request
     ( RequestException )
 import Test.Integration.Framework.TestData
     ( errMsg400StartTimeLaterThanEndTime
+    , errMsg403MinUTxOValue
     , errMsg404NoAsset
     , errMsg404NoWallet
     , steveToken
@@ -186,7 +187,7 @@ spec = describe "BYRON_TRANSACTIONS" $ do
         rtx <- request @(ApiTransaction n) ctx
             (Link.createTransactionOld @'Byron wSrc) Default payload
         expectResponseCode HTTP.status403 rtx
-        expectErrorMessage "Some outputs have ada values that are too small." rtx
+        expectErrorMessage errMsg403MinUTxOValue rtx
 
     describe "BYRON_TRANS_ASSETS_CREATE_02a - Multi-asset transaction with no ADA" $
         forM_ [ (fixtureMultiAssetRandomWallet @n, "Byron wallet")
