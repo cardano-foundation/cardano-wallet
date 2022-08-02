@@ -2803,10 +2803,10 @@ instance ToJSON (ApiT (Passphrase purpose)) where
 
 instance FromJSON ApiCredential where
     parseJSON v =
-        (CredentialScript <$> parseJSON v) <|>
-        (CredentialPubKey <$> parseCredential 32 ["stake_vk","addr_vk"] v) <|>
         (CredentialKeyHash <$> parseCredential 28 ["stake_vkh","addr_vkh"] v) <|>
-        (CredentialExtendedPubKey <$> parseCredential 64 ["stake_xvk","addr_xvk"] v)
+        (CredentialPubKey <$> parseCredential 32 ["stake_vk","addr_vk"] v) <|>
+        (CredentialExtendedPubKey <$> parseCredential 64 ["stake_xvk","addr_xvk"] v) <|>
+        (CredentialScript <$> parseJSON v)
 
 parseCredential
     :: Int
