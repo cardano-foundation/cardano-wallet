@@ -1467,7 +1467,12 @@ instance Arbitrary ScriptTemplate where
 instance Arbitrary ApiCredential where
     arbitrary = do
         pubKey <- BS.pack <$> replicateM 32 arbitrary
-        oneof [ pure $ CredentialPubKey pubKey, CredentialScript <$> arbitrary ]
+        xpubKey <- BS.pack <$> replicateM 64 arbitrary
+        keyHash <- BS.pack <$> replicateM 28 arbitrary
+        oneof [ pure $ CredentialPubKey pubKey
+              , pure $ CredentialExtendedPubKey xpubKey
+              , pure $ CredentialKeyHash keyHash
+              , CredentialScript <$> arbitrary ]
 
 instance Arbitrary ValidationLevel where
     arbitrary =

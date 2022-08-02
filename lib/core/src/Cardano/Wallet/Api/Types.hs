@@ -2860,8 +2860,12 @@ instance FromJSON ApiAddressData where
              \ with possible prefixes: 'stake_shared_vkh', 'stake_shared_vk', 'stake_shared_xvk', \
              \'addr_shared_vkh', 'addr_shared_vk' or 'addr_shared_xvk' and proper \
              \payload size. 'at_least' cannot exceed 255. When public key is used as a credential \
-             \then bech32 encoded public keys are expected to be used with possible prefixes:\
-             \ 'stake_vk' or 'addr_vk', always with proper payload size."
+             \then bech32 encoded public keys are expected to be used with possible prefixes: \
+             \'stake_xvk', 'addr_xvk', 'stake_vk' or 'addr_vk', always with proper payload size \
+             \(32-byte and 64-byte payload for non-extended and extended credential, respectively). \
+             \When key hash is used as a credential then bech32 encoded public keys are expected \
+             \to be used with possible prefixes: 'stake_vkh' or 'addr_vkh', always with 28-byte \
+             \payload size."
          parseBaseAddr = withObject "AddrBase" $ \o -> do
              addr <- AddrBase <$> o .: "payment" <*> o .: "stake"
              ApiAddressData addr <$> o .:? "validation"
