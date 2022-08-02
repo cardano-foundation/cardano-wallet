@@ -303,6 +303,7 @@ import Cardano.Wallet.Api.Types
     , ApiWalletMigrationPlan (..)
     , ApiWalletMigrationPlanPostData (..)
     , ApiWalletMigrationPostData (..)
+    
     , ApiWalletOutput (..)
     , ApiWalletPassphrase (..)
     , ApiWalletPassphraseInfo (..)
@@ -3723,6 +3724,7 @@ getNetworkInformation nid NetworkLayer
                         Cardano.Testnet _ -> "testnet"
                     )
                     (fromIntegral $ unNetworkMagic $ toNetworkMagic nid)
+            , Api.walletMode = error "not implemented"
             }
   where
     ti :: TimeInterpreter (MaybeT IO)

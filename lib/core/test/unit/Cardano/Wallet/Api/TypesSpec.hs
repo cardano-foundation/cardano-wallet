@@ -167,6 +167,7 @@ import Cardano.Wallet.Api.Types
     , ApiWalletMigrationPlan (..)
     , ApiWalletMigrationPlanPostData (..)
     , ApiWalletMigrationPostData (..)
+    , ApiWalletMode
     , ApiWalletOutput (..)
     , ApiWalletPassphrase (..)
     , ApiWalletPassphraseInfo (..)
@@ -1328,6 +1329,7 @@ spec = parallel $ do
                     , networkTip = networkTip (x :: ApiNetworkInformation)
                     , nodeEra = nodeEra (x :: ApiNetworkInformation)
                     , networkInfo = networkInfo (x :: ApiNetworkInformation)
+                    , walletMode = walletMode (x :: ApiNetworkInformation)
                     }
             in
                 x' === x .&&. show x' === show x
@@ -2008,6 +2010,10 @@ instance Arbitrary ApiNetworkInfo where
         [ pure $ ApiNetworkInfo "mainnet" 764824073
         , ApiNetworkInfo "testnet" <$> arbitrary
         ]
+
+instance Arbitrary ApiWalletMode where
+    arbitrary = genericArbitrary
+    shrink = genericShrink
 
 instance Arbitrary ApiNetworkInformation where
     arbitrary = genericArbitrary

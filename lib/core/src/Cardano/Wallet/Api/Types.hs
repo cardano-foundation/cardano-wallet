@@ -81,6 +81,7 @@ module Cardano.Wallet.Api.Types
     , ApiWallet (..)
     , ApiWalletBalance (..)
     , ApiWalletAssetsBalance (..)
+    , ApiWalletMode (..)
     , ApiWalletPassphrase (..)
     , ApiWalletPassphraseInfo (..)
     , ApiWalletUtxoSnapshot (..)
@@ -412,6 +413,8 @@ import Data.ByteArray.Encoding
     ( Base (..), convertFromBase, convertToBase )
 import Data.ByteString
     ( ByteString )
+import Data.Char
+    ( toLower )
 import Data.Data
     ( Data )
 import Data.Either.Combinators
@@ -1496,6 +1499,16 @@ instance ToJSON ApiNetworkInfo where
     toJSON = genericToJSON $ Aeson.defaultOptions
         { fieldLabelModifier =  camelTo2 '_' }
 
+data ApiWalletMode = Light | Node
+    deriving  (Eq, Show, Generic, NFData)
+
+instance FromJSON ApiWalletMode where
+    parseJSON = genericParseJSON $ Aeson.defaultOptions
+        { constructorTagModifier = fmap toLower }
+instance ToJSON ApiWalletMode where
+    toJSON = genericToJSON $ Aeson.defaultOptions
+        { constructorTagModifier = fmap toLower }
+
 data ApiNetworkInformation = ApiNetworkInformation
     { syncProgress :: !(ApiT SyncProgress)
     , nextEpoch :: !(Maybe ApiEpochInfo)
@@ -1503,6 +1516,7 @@ data ApiNetworkInformation = ApiNetworkInformation
     , networkTip :: !(Maybe ApiSlotReference)
     , nodeEra :: !ApiEra
     , networkInfo :: !ApiNetworkInfo
+    , walletMode :: !ApiWalletMode
     } deriving (Eq, Generic, Show)
       deriving anyclass NFData
 
