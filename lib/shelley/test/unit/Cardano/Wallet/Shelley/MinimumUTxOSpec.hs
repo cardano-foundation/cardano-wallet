@@ -17,8 +17,16 @@ import Cardano.Api
     ( ShelleyBasedEra (..) )
 import Cardano.Api.Gen
     ( genAddressAny )
+import Cardano.Wallet.Primitive.AddressDerivation
+    ( BoundedAddressLength (..) )
+import Cardano.Wallet.Primitive.AddressDerivation.Byron
+    ( ByronKey )
+import Cardano.Wallet.Primitive.AddressDerivation.Shelley
+    ( ShelleyKey )
 import Cardano.Wallet.Primitive.Types.Address
     ( Address (..) )
+import Cardano.Wallet.Primitive.Types.Address.Constants
+    ( maxLengthAddress )
 import Cardano.Wallet.Primitive.Types.Coin
     ( Coin (..) )
 import Cardano.Wallet.Primitive.Types.MinimumUTxO
@@ -57,13 +65,14 @@ import Cardano.Wallet.Shelley.Compatibility
     ( toCardanoTxOut )
 import Cardano.Wallet.Shelley.MinimumUTxO
     ( computeMinimumCoinForUTxO
-    , maxLengthAddress
     , maxLengthCoin
     , unsafeLovelaceToWalletCoin
     , unsafeValueToLovelace
     )
 import Control.Monad
     ( forM_ )
+import Data.Data
+    ( Proxy (..) )
 import Data.Default
     ( Default (..) )
 import Data.Function
@@ -122,30 +131,60 @@ spec = do
 
         describe "Golden Tests" $ do
 
-            goldenTests_computeMinimumCoinForUTxO "Shelley"
-                goldenMinimumUTxO_Shelley
-                goldenMinimumCoins_Shelley
-            goldenTests_computeMinimumCoinForUTxO "Allegra"
-                goldenMinimumUTxO_Allegra
-                goldenMinimumCoins_Allegra
-            goldenTests_computeMinimumCoinForUTxO "Mary"
-                goldenMinimumUTxO_Mary
-                goldenMinimumCoins_Mary
-            goldenTests_computeMinimumCoinForUTxO "Alonzo"
-                goldenMinimumUTxO_Alonzo
-                goldenMinimumCoins_Alonzo
-            goldenTests_computeMinimumCoinForUTxO "Babbage"
-                goldenMinimumUTxO_Babbage
-                goldenMinimumCoins_Babbage
+            describe "Byron-style addresses" $ do
+
+                goldenTests_computeMinimumCoinForUTxO
+                    "Shelley"
+                    goldenMinimumUTxO_ShelleyEra
+                    goldenMinimumCoins_ByronAddress_ShelleyEra
+                goldenTests_computeMinimumCoinForUTxO
+                    "Allegra"
+                    goldenMinimumUTxO_AllegraEra
+                    goldenMinimumCoins_ByronAddress_AllegraEra
+                goldenTests_computeMinimumCoinForUTxO
+                    "Mary"
+                    goldenMinimumUTxO_MaryEra
+                    goldenMinimumCoins_ByronAddress_MaryEra
+                goldenTests_computeMinimumCoinForUTxO
+                    "Alonzo"
+                    goldenMinimumUTxO_AlonzoEra
+                    goldenMinimumCoins_ByronAddress_AlonzoEra
+                goldenTests_computeMinimumCoinForUTxO
+                    "Babbage"
+                    goldenMinimumUTxO_BabbageEra
+                    goldenMinimumCoins_ByronAddress_BabbageEra
+
+            describe "Shelley-style addresses" $ do
+
+                goldenTests_computeMinimumCoinForUTxO
+                    "Shelley"
+                    goldenMinimumUTxO_ShelleyEra
+                    goldenMinimumCoins_ShelleyAddress_ShelleyEra
+                goldenTests_computeMinimumCoinForUTxO
+                    "Allegra"
+                    goldenMinimumUTxO_AllegraEra
+                    goldenMinimumCoins_ShelleyAddress_AllegraEra
+                goldenTests_computeMinimumCoinForUTxO
+                    "Mary"
+                    goldenMinimumUTxO_MaryEra
+                    goldenMinimumCoins_ShelleyAddress_MaryEra
+                goldenTests_computeMinimumCoinForUTxO
+                    "Alonzo"
+                    goldenMinimumUTxO_AlonzoEra
+                    goldenMinimumCoins_ShelleyAddress_AlonzoEra
+                goldenTests_computeMinimumCoinForUTxO
+                    "Babbage"
+                    goldenMinimumUTxO_BabbageEra
+                    goldenMinimumCoins_ShelleyAddress_BabbageEra
 
 -- Check that it's possible to evaluate 'computeMinimumCoinForUTxO' without
 -- any run-time error.
 --
 prop_computeMinimumCoinForUTxO_evaluation
-    :: MinimumUTxO -> TokenMap -> Property
-prop_computeMinimumCoinForUTxO_evaluation minimumUTxO m = property $
+    :: MinimumUTxO -> Address -> TokenMap -> Property
+prop_computeMinimumCoinForUTxO_evaluation minimumUTxO addr m = property $
     -- Use an arbitrary test to force evaluation of the result:
-    computeMinimumCoinForUTxO minimumUTxO m >= Coin 0
+    computeMinimumCoinForUTxO minimumUTxO addr m >= Coin 0
 
 -- Check that 'computeMinimumCoinForUTxO' produces a result that is within
 -- bounds, as determined by the Cardano API function 'calculateMinimumUTxO'.
@@ -158,6 +197,7 @@ prop_computeMinimumCoinForUTxO_shelleyBasedEra_bounds
 prop_computeMinimumCoinForUTxO_shelleyBasedEra_bounds
     tokenBundle addr (MinimumUTxOForShelleyBasedEra era pp) =
         let ourResult = ourComputeMinCoin
+                (fromCardanoAddressAny addr)
                 (TokenBundle.tokens tokenBundle)
             apiResultMinBound = apiComputeMinCoin
                 (fromCardanoAddressAny addr)
@@ -190,7 +230,7 @@ prop_computeMinimumCoinForUTxO_shelleyBasedEra_bounds
                 "BS.length (unAddress (fromCardanoAddressAny addr))"
             & report
                 (BS.length (unAddress maxLengthAddress))
-                "BS.length (unAddress maxLengthAddress))"
+                "BS.length (unAddress maxLengthAddress)"
   where
     -- Uses the Cardano API function 'calculateMinimumUTxO' to compute a
     -- minimum 'Coin' value.
@@ -210,9 +250,9 @@ prop_computeMinimumCoinForUTxO_shelleyBasedEra_bounds
     -- Uses the wallet function 'computeMinimumCoinForUTxO' to compute a
     -- minimum 'Coin' value.
     --
-    ourComputeMinCoin :: TokenMap -> Coin
-    ourComputeMinCoin =
-        computeMinimumCoinForUTxO (minimumUTxOForShelleyBasedEra era pp)
+    ourComputeMinCoin :: Address -> TokenMap -> Coin
+    ourComputeMinCoin = computeMinimumCoinForUTxO
+        (minimumUTxOForShelleyBasedEra era pp)
 
 -- Compares the stability of:
 --
@@ -290,8 +330,8 @@ prop_computeMinimumCoinForUTxO_shelleyBasedEra_stability
     -- minimum 'Coin' value.
     --
     ourComputeMinCoin :: TokenMap -> Coin
-    ourComputeMinCoin =
-        computeMinimumCoinForUTxO (minimumUTxOForShelleyBasedEra era pp)
+    ourComputeMinCoin = computeMinimumCoinForUTxO
+        (minimumUTxOForShelleyBasedEra era pp) (fromCardanoAddressAny addr)
 
 --------------------------------------------------------------------------------
 -- Golden tests
@@ -302,100 +342,156 @@ goldenTests_computeMinimumCoinForUTxO
     -- ^ The era name.
     -> MinimumUTxO
     -- ^ The minimum UTxO function.
-    -> [(TokenMap, Coin)]
+    -> [(Address, TokenMap, Coin)]
     -- ^ Mappings from 'TokenMap' values to expected minimum 'Coin' values.
     -> Spec
 goldenTests_computeMinimumCoinForUTxO
-    eraName minimumUTxO expectedMinimumCoins =
+    testName minimumUTxO expectedMinimumCoins =
         goldenTests title
-            (uncurry computeMinimumCoinForUTxO)
+            (\(minUTxO, addr, m) -> computeMinimumCoinForUTxO minUTxO addr m)
             (mkTest <$> expectedMinimumCoins)
   where
     mkTest
-        :: (TokenMap, Coin) -> GoldenTestData (MinimumUTxO, TokenMap) Coin
-    mkTest (tokenMap, coinExpected) = GoldenTestData
-        { params = (minimumUTxO, tokenMap)
+        :: (Address, TokenMap, Coin)
+        -> GoldenTestData (MinimumUTxO, Address, TokenMap) Coin
+    mkTest (addr, tokenMap, coinExpected) = GoldenTestData
+        { params = (minimumUTxO, addr, tokenMap)
         , resultExpected = coinExpected
         }
     title = unwords
-        ["goldenTests_computeMinimumCoinForUTxO", eraName]
+        ["goldenTests_computeMinimumCoinForUTxO:", testName]
 
 --------------------------------------------------------------------------------
 -- Golden 'MinimumUTxO' values
 --------------------------------------------------------------------------------
 
-goldenMinimumUTxO_Shelley :: MinimumUTxO
-goldenMinimumUTxO_Shelley =
+goldenMinimumUTxO_ShelleyEra :: MinimumUTxO
+goldenMinimumUTxO_ShelleyEra =
     minimumUTxOForShelleyBasedEra ShelleyBasedEraShelley
         def {Shelley._minUTxOValue = testParameter_minUTxOValue_Shelley}
 
-goldenMinimumUTxO_Allegra :: MinimumUTxO
-goldenMinimumUTxO_Allegra =
+goldenMinimumUTxO_AllegraEra :: MinimumUTxO
+goldenMinimumUTxO_AllegraEra =
     minimumUTxOForShelleyBasedEra ShelleyBasedEraAllegra
         def {Shelley._minUTxOValue = testParameter_minUTxOValue_Allegra}
 
-goldenMinimumUTxO_Mary :: MinimumUTxO
-goldenMinimumUTxO_Mary =
+goldenMinimumUTxO_MaryEra :: MinimumUTxO
+goldenMinimumUTxO_MaryEra =
     minimumUTxOForShelleyBasedEra ShelleyBasedEraMary
         def {Shelley._minUTxOValue = testParameter_minUTxOValue_Mary}
 
-goldenMinimumUTxO_Alonzo :: MinimumUTxO
-goldenMinimumUTxO_Alonzo =
+goldenMinimumUTxO_AlonzoEra :: MinimumUTxO
+goldenMinimumUTxO_AlonzoEra =
     minimumUTxOForShelleyBasedEra ShelleyBasedEraAlonzo
         def {Alonzo._coinsPerUTxOWord = testParameter_coinsPerUTxOWord_Alonzo}
 
-goldenMinimumUTxO_Babbage :: MinimumUTxO
-goldenMinimumUTxO_Babbage =
+goldenMinimumUTxO_BabbageEra :: MinimumUTxO
+goldenMinimumUTxO_BabbageEra =
     minimumUTxOForShelleyBasedEra ShelleyBasedEraBabbage
         def {Babbage._coinsPerUTxOByte = testParameter_coinsPerUTxOByte_Babbage}
 
 --------------------------------------------------------------------------------
--- Golden minimum 'Coin' values
+-- Golden minimum 'Coin' values: Byron-style addresses
 --------------------------------------------------------------------------------
 
-goldenMinimumCoins_Shelley :: [(TokenMap, Coin)]
-goldenMinimumCoins_Shelley =
-    [ (goldenTokenMap_0, Coin 1_000_000)
-    , (goldenTokenMap_1, Coin 1_000_000)
-    , (goldenTokenMap_2, Coin 1_000_000)
-    , (goldenTokenMap_3, Coin 1_000_000)
-    , (goldenTokenMap_4, Coin 1_000_000)
+maxLengthAddressBryon :: Address
+maxLengthAddressBryon = maxLengthAddressFor $ Proxy @ByronKey
+
+goldenMinimumCoins_ByronAddress_ShelleyEra :: [(Address, TokenMap, Coin)]
+goldenMinimumCoins_ByronAddress_ShelleyEra =
+    [ (maxLengthAddressBryon, goldenTokenMap_0, Coin 1_000_000)
+    , (maxLengthAddressBryon, goldenTokenMap_1, Coin 1_000_000)
+    , (maxLengthAddressBryon, goldenTokenMap_2, Coin 1_000_000)
+    , (maxLengthAddressBryon, goldenTokenMap_3, Coin 1_000_000)
+    , (maxLengthAddressBryon, goldenTokenMap_4, Coin 1_000_000)
     ]
 
-goldenMinimumCoins_Allegra :: [(TokenMap, Coin)]
-goldenMinimumCoins_Allegra =
-    [ (goldenTokenMap_0, Coin 1_000_000)
-    , (goldenTokenMap_1, Coin 1_000_000)
-    , (goldenTokenMap_2, Coin 1_000_000)
-    , (goldenTokenMap_3, Coin 1_000_000)
-    , (goldenTokenMap_4, Coin 1_000_000)
+goldenMinimumCoins_ByronAddress_AllegraEra :: [(Address, TokenMap, Coin)]
+goldenMinimumCoins_ByronAddress_AllegraEra =
+    [ (maxLengthAddressBryon, goldenTokenMap_0, Coin 1_000_000)
+    , (maxLengthAddressBryon, goldenTokenMap_1, Coin 1_000_000)
+    , (maxLengthAddressBryon, goldenTokenMap_2, Coin 1_000_000)
+    , (maxLengthAddressBryon, goldenTokenMap_3, Coin 1_000_000)
+    , (maxLengthAddressBryon, goldenTokenMap_4, Coin 1_000_000)
     ]
 
-goldenMinimumCoins_Mary :: [(TokenMap, Coin)]
-goldenMinimumCoins_Mary =
-    [ (goldenTokenMap_0, Coin 1_000_000)
-    , (goldenTokenMap_1, Coin 1_444_443)
-    , (goldenTokenMap_2, Coin 1_555_554)
-    , (goldenTokenMap_3, Coin 1_740_739)
-    , (goldenTokenMap_4, Coin 1_999_998)
+goldenMinimumCoins_ByronAddress_MaryEra :: [(Address, TokenMap, Coin)]
+goldenMinimumCoins_ByronAddress_MaryEra =
+    [ (maxLengthAddressBryon, goldenTokenMap_0, Coin 1_000_000)
+    , (maxLengthAddressBryon, goldenTokenMap_1, Coin 1_444_443)
+    , (maxLengthAddressBryon, goldenTokenMap_2, Coin 1_555_554)
+    , (maxLengthAddressBryon, goldenTokenMap_3, Coin 1_740_739)
+    , (maxLengthAddressBryon, goldenTokenMap_4, Coin 1_999_998)
     ]
 
-goldenMinimumCoins_Alonzo :: [(TokenMap, Coin)]
-goldenMinimumCoins_Alonzo =
-    [ (goldenTokenMap_0, Coin   999_978)
-    , (goldenTokenMap_1, Coin 1_344_798)
-    , (goldenTokenMap_2, Coin 1_448_244)
-    , (goldenTokenMap_3, Coin 1_620_654)
-    , (goldenTokenMap_4, Coin 1_862_028)
+goldenMinimumCoins_ByronAddress_AlonzoEra :: [(Address, TokenMap, Coin)]
+goldenMinimumCoins_ByronAddress_AlonzoEra =
+    [ (maxLengthAddressBryon, goldenTokenMap_0, Coin   999_978)
+    , (maxLengthAddressBryon, goldenTokenMap_1, Coin 1_344_798)
+    , (maxLengthAddressBryon, goldenTokenMap_2, Coin 1_448_244)
+    , (maxLengthAddressBryon, goldenTokenMap_3, Coin 1_620_654)
+    , (maxLengthAddressBryon, goldenTokenMap_4, Coin 1_862_028)
     ]
 
-goldenMinimumCoins_Babbage :: [(TokenMap, Coin)]
-goldenMinimumCoins_Babbage =
-    [ (goldenTokenMap_0, Coin 1_107_670)
-    , (goldenTokenMap_1, Coin 1_262_830)
-    , (goldenTokenMap_2, Coin 1_435_230)
-    , (goldenTokenMap_3, Coin 1_435_230)
-    , (goldenTokenMap_4, Coin 2_124_830)
+goldenMinimumCoins_ByronAddress_BabbageEra :: [(Address, TokenMap, Coin)]
+goldenMinimumCoins_ByronAddress_BabbageEra =
+    [ (maxLengthAddressBryon, goldenTokenMap_0, Coin 1_107_670)
+    , (maxLengthAddressBryon, goldenTokenMap_1, Coin 1_262_830)
+    , (maxLengthAddressBryon, goldenTokenMap_2, Coin 1_435_230)
+    , (maxLengthAddressBryon, goldenTokenMap_3, Coin 1_435_230)
+    , (maxLengthAddressBryon, goldenTokenMap_4, Coin 2_124_830)
+    ]
+
+--------------------------------------------------------------------------------
+-- Golden minimum 'Coin' values: Shelley-style addresses
+--------------------------------------------------------------------------------
+
+maxLengthAddressShelley :: Address
+maxLengthAddressShelley = maxLengthAddressFor $ Proxy @ShelleyKey
+
+goldenMinimumCoins_ShelleyAddress_ShelleyEra :: [(Address, TokenMap, Coin)]
+goldenMinimumCoins_ShelleyAddress_ShelleyEra =
+    [ (maxLengthAddressShelley, goldenTokenMap_0, Coin 1_000_000)
+    , (maxLengthAddressShelley, goldenTokenMap_1, Coin 1_000_000)
+    , (maxLengthAddressShelley, goldenTokenMap_2, Coin 1_000_000)
+    , (maxLengthAddressShelley, goldenTokenMap_3, Coin 1_000_000)
+    , (maxLengthAddressShelley, goldenTokenMap_4, Coin 1_000_000)
+    ]
+
+goldenMinimumCoins_ShelleyAddress_AllegraEra :: [(Address, TokenMap, Coin)]
+goldenMinimumCoins_ShelleyAddress_AllegraEra =
+    [ (maxLengthAddressShelley, goldenTokenMap_0, Coin 1_000_000)
+    , (maxLengthAddressShelley, goldenTokenMap_1, Coin 1_000_000)
+    , (maxLengthAddressShelley, goldenTokenMap_2, Coin 1_000_000)
+    , (maxLengthAddressShelley, goldenTokenMap_3, Coin 1_000_000)
+    , (maxLengthAddressShelley, goldenTokenMap_4, Coin 1_000_000)
+    ]
+
+goldenMinimumCoins_ShelleyAddress_MaryEra :: [(Address, TokenMap, Coin)]
+goldenMinimumCoins_ShelleyAddress_MaryEra =
+    [ (maxLengthAddressShelley, goldenTokenMap_0, Coin 1_000_000)
+    , (maxLengthAddressShelley, goldenTokenMap_1, Coin 1_444_443)
+    , (maxLengthAddressShelley, goldenTokenMap_2, Coin 1_555_554)
+    , (maxLengthAddressShelley, goldenTokenMap_3, Coin 1_740_739)
+    , (maxLengthAddressShelley, goldenTokenMap_4, Coin 1_999_998)
+    ]
+
+goldenMinimumCoins_ShelleyAddress_AlonzoEra :: [(Address, TokenMap, Coin)]
+goldenMinimumCoins_ShelleyAddress_AlonzoEra =
+    [ (maxLengthAddressShelley, goldenTokenMap_0, Coin   999_978)
+    , (maxLengthAddressShelley, goldenTokenMap_1, Coin 1_344_798)
+    , (maxLengthAddressShelley, goldenTokenMap_2, Coin 1_448_244)
+    , (maxLengthAddressShelley, goldenTokenMap_3, Coin 1_620_654)
+    , (maxLengthAddressShelley, goldenTokenMap_4, Coin 1_862_028)
+    ]
+
+goldenMinimumCoins_ShelleyAddress_BabbageEra :: [(Address, TokenMap, Coin)]
+goldenMinimumCoins_ShelleyAddress_BabbageEra =
+    [ (maxLengthAddressShelley, goldenTokenMap_0, Coin   995_610)
+    , (maxLengthAddressShelley, goldenTokenMap_1, Coin 1_150_770)
+    , (maxLengthAddressShelley, goldenTokenMap_2, Coin 1_323_170)
+    , (maxLengthAddressShelley, goldenTokenMap_3, Coin 1_323_170)
+    , (maxLengthAddressShelley, goldenTokenMap_4, Coin 2_012_770)
     ]
 
 --------------------------------------------------------------------------------
@@ -519,6 +615,9 @@ fromCardanoAddressAny =  Address . Cardano.serialiseToRawBytes
 
 instance Arbitrary Cardano.AddressAny where
     arbitrary = genAddressAny
+
+instance Arbitrary Address where
+    arbitrary = fromCardanoAddressAny <$> arbitrary
 
 instance Arbitrary TokenBundle where
     arbitrary = sized genTxOutTokenBundle

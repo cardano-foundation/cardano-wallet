@@ -56,6 +56,8 @@ module Cardano.Wallet.Primitive.Migration.Selection
 
 import Prelude
 
+import Cardano.Wallet.Primitive.Types.Address.Constants
+    ( maxLengthAddress )
 import Cardano.Wallet.Primitive.Types.Coin
     ( Coin (..) )
 import Cardano.Wallet.Primitive.Types.TokenBundle
@@ -274,7 +276,15 @@ assignMinimumAdaQuantity :: TxConstraints -> TokenMap -> TokenBundle
 assignMinimumAdaQuantity constraints m =
     TokenBundle c m
   where
-    c = txOutputMinimumAdaQuantity constraints m
+    -- Using @maxLengthAddressFor $ Proxy @k@ via @constraints@ would not help
+    -- here, as outputs created by the migration algorithm are assigned with
+    -- user-defined addresses.
+    --
+    -- Something we /could/ do would be to pass in the actual user-defined
+    -- addresses here, since they are available in the 'createMigrationPlan'
+    -- server handler.
+    --
+    c = txOutputMinimumAdaQuantity constraints maxLengthAddress m
 
 --------------------------------------------------------------------------------
 -- Adding value to outputs
@@ -835,8 +845,9 @@ checkOutputMinimumAdaQuantities constraints selection =
                 , expectedMinimumAdaQuantity
                 }
       where
-        expectedMinimumAdaQuantity =
-            txOutputMinimumAdaQuantity constraints (view #tokens outputBundle)
+        expectedMinimumAdaQuantity = txOutputMinimumAdaQuantity constraints
+            maxLengthAddress
+            (view #tokens outputBundle)
 
 --------------------------------------------------------------------------------
 -- Selection correctness: output sizes

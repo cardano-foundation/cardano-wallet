@@ -39,6 +39,3 @@ class
 
     -- | A unique identifier for an individual UTxO.
     type UTxO c
-
-    -- | Generates a dummy address value.
-    dummyAddress :: Address c

@@ -316,11 +316,13 @@ errMsg403InvalidConstructTx =
      \Include at least one of them."
 
 errMsg403MinUTxOValue :: String
-errMsg403MinUTxOValue =
-    "Some outputs have ada values that are too small. There's a \
-    \minimum ada value specified by the protocol that each output must satisfy. \
-    \I'll handle that minimum value myself when you do not explicitly specify \
-    \an ada value for an output. Otherwise, you must specify enough ada."
+errMsg403MinUTxOValue = unwords
+    [ "One of the outputs you've specified has an ada quantity that is"
+    , "below the minimum required. Either increase the ada quantity to"
+    , "at least the minimum, or specify an ada quantity of zero, in"
+    , "which case the wallet will automatically assign the correct"
+    , "minimum ada quantity to the output."
+    ]
 
 errMsg409WalletExists :: String -> String
 errMsg409WalletExists walId = "This operation would yield a wallet with the following\

@@ -55,7 +55,8 @@ import Cardano.Crypto.Wallet
 import Cardano.Mnemonic
     ( SomeMnemonic (..), entropyToBytes, mnemonicToEntropy )
 import Cardano.Wallet.Primitive.AddressDerivation
-    ( DelegationAddress (..)
+    ( BoundedAddressLength (..)
+    , DelegationAddress (..)
     , Depth (..)
     , DerivationIndex (..)
     , DerivationType (..)
@@ -353,6 +354,9 @@ instance MkKeyFingerprint ShelleyKey Address where
 instance MkKeyFingerprint ShelleyKey (Proxy (n :: NetworkDiscriminant), ShelleyKey 'AddressK XPub) where
     paymentKeyFingerprint (_, paymentK) =
         Right $ KeyFingerprint $ blake2b224 $ xpubPublicKey $ getKey paymentK
+
+instance BoundedAddressLength ShelleyKey where
+    maxLengthAddressFor _ = Address $ BS.replicate 57 0
 
 {-------------------------------------------------------------------------------
                           Dealing with Rewards

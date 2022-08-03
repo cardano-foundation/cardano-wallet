@@ -43,7 +43,6 @@ module Cardano.Wallet.CoinSelection.Internal.Balance
     , SelectionStrategy (..)
     , SelectionBalanceError (..)
     , BalanceInsufficientError (..)
-    , InsufficientMinCoinValueError (..)
     , UnableToConstructChangeError (..)
 
     -- * Selection limits
@@ -136,7 +135,7 @@ import Cardano.Wallet.Primitive.Types.Coin
 import Cardano.Wallet.Primitive.Types.TokenBundle
     ( TokenBundle (..) )
 import Cardano.Wallet.Primitive.Types.TokenMap
-    ( AssetId, Flat (..), Lexicographic (..), TokenMap )
+    ( AssetId, Lexicographic (..), TokenMap )
 import Cardano.Wallet.Primitive.Types.TokenQuantity
     ( TokenQuantity (..) )
 import Cardano.Wallet.Primitive.Types.Tx
@@ -176,7 +175,7 @@ import Data.Semigroup
 import Data.Set
     ( Set )
 import Fmt
-    ( Buildable (..), Builder, blockMapF, nameF, unlinesF )
+    ( Buildable (..), Builder, blockMapF )
 import GHC.Generics
     ( Generic )
 import GHC.Stack
@@ -219,7 +218,7 @@ data SelectionConstraints ctx = SelectionConstraints
         -- the 'TokenBundleSizeAssessor' type to learn about the expected
         -- properties of this field.
     , computeMinimumAdaQuantity
-        :: TokenMap -> Coin
+        :: Address ctx -> TokenMap -> Coin
         -- ^ Computes the minimum ada quantity required for a given output.
     , computeMinimumCost
         :: SelectionSkeleton ctx -> Coin
@@ -228,6 +227,8 @@ data SelectionConstraints ctx = SelectionConstraints
         :: [(Address ctx, TokenBundle)] -> SelectionLimit
         -- ^ Computes an upper bound for the number of ordinary inputs to
         -- select, given a current set of outputs.
+    , maximumLengthChangeAddress
+        :: Address ctx
     , maximumOutputAdaQuantity
         :: Coin
         -- ^ Specifies the largest ada quantity that can appear in the token
@@ -236,6 +237,8 @@ data SelectionConstraints ctx = SelectionConstraints
         :: TokenQuantity
         -- ^ Specifies the largest non-ada quantity that can appear in the
         -- token bundle of an output.
+    , nullAddress
+        :: Address ctx
     }
     deriving Generic
 
@@ -689,8 +692,6 @@ data SelectionBalanceError ctx
         BalanceInsufficientError
     | SelectionLimitReached
         (SelectionLimitReachedError ctx)
-    | InsufficientMinCoinValues
-        (NonEmpty (InsufficientMinCoinValueError ctx))
     | UnableToConstructChange
         UnableToConstructChangeError
     | EmptyUTxO
@@ -735,34 +736,6 @@ data BalanceInsufficientError = BalanceInsufficientError
 balanceMissing :: BalanceInsufficientError -> TokenBundle
 balanceMissing (BalanceInsufficientError available required) =
     TokenBundle.difference required available
-
--- | Indicates that a particular output does not have the minimum coin quantity
---   expected by the protocol.
---
--- See also: 'prepareOutputs'.
---
-data InsufficientMinCoinValueError ctx = InsufficientMinCoinValueError
-    { outputWithInsufficientAda
-        :: !(Address ctx, TokenBundle)
-        -- ^ The particular output that does not have the minimum coin quantity
-        -- expected by the protocol.
-    , expectedMinCoinValue
-        :: !Coin
-        -- ^ The minimum coin quantity expected for this output.
-    } deriving Generic
-
-deriving instance SelectionContext ctx =>
-    Eq (InsufficientMinCoinValueError ctx)
-deriving instance SelectionContext ctx =>
-    Show (InsufficientMinCoinValueError ctx)
-
-instance SelectionContext ctx => Buildable (InsufficientMinCoinValueError ctx)
-  where
-    build (InsufficientMinCoinValueError (a, b) c) = unlinesF @[]
-        [ nameF "Expected min coin value" (build c)
-        , nameF "Address" (build a)
-        , nameF "Token bundle" (build (Flat b))
-        ]
 
 data UnableToConstructChangeError = UnableToConstructChangeError
     { requiredCost
@@ -819,7 +792,7 @@ performSelection = performSelectionEmpty performSelectionNonEmpty
 --          selectionHasValidSurplus constraints (transformResult result)
 --
 performSelectionEmpty
-    :: forall m ctx. (Functor m, SelectionContext ctx)
+    :: forall m ctx. (Functor m)
     => PerformSelection m NonEmpty ctx
     -> PerformSelection m []       ctx
 performSelectionEmpty performSelectionFn constraints params =
@@ -831,7 +804,7 @@ performSelectionEmpty performSelectionFn constraints params =
         -> SelectionParamsOf NonEmpty ctx
     transformParams p@SelectionParams {..} = p
         { extraCoinSource =
-            transform (`Coin.add` minCoin) (const id) extraCoinSource
+            transform (`Coin.add` dummyCoin) (const id) extraCoinSource
         , outputsToCover =
             transform (const (dummyOutput :| [])) (const . id) outputsToCover
         }
@@ -841,7 +814,7 @@ performSelectionEmpty performSelectionFn constraints params =
         -> SelectionResultOf []       ctx
     transformResult r@SelectionResult {..} = r
         { extraCoinSource =
-            transform (`Coin.difference` minCoin) (const id) extraCoinSource
+            transform (`Coin.difference` dummyCoin) (const id) extraCoinSource
         , outputsCovered =
             transform (const []) (const . F.toList) outputsCovered
         }
@@ -849,25 +822,34 @@ performSelectionEmpty performSelectionFn constraints params =
     transform :: a -> (NonEmpty (Address ctx, TokenBundle) -> a) -> a
     transform x y = maybe x y $ NE.nonEmpty $ view #outputsToCover params
 
+    -- A dummy output that is added before calling 'performSelectionNonEmpty'
+    -- and removed immediately after selection is complete.
+    --
     dummyOutput :: (Address ctx, TokenBundle)
-    dummyOutput = (dummyAddress @ctx, TokenBundle.fromCoin minCoin)
+    dummyOutput = (dummyAddress, TokenBundle.fromCoin dummyCoin)
 
-    -- The 'performSelectionNonEmpty' function imposes a precondition that all
-    -- outputs must have at least the minimum ada quantity. Therefore, the
-    -- dummy output must also satisfy this condition.
+    -- A dummy 'Address' value for the dummy output.
     --
-    -- However, we must also ensure that the value is non-zero, since:
+    -- We can use a null address here, as 'performSelectionNonEmpty' does not
+    -- verify the minimum ada quantities of user-specified outputs, and hence
+    -- we do not need to provide a valid address.
     --
-    --   1. Under some cost models, the 'computeMinimumAdaQuantity' function
-    --      has a constant value of zero.
+    -- Using a null address allows us to minimize any overestimation in cost
+    -- resulting from the use of a dummy output.
     --
-    --   2. The change generation algorithm requires that the total ada balance
-    --      of all outputs is non-zero.
+    dummyAddress = nullAddress constraints
+
+    -- A dummy 'Coin' value for the dummy output.
     --
-    minCoin :: Coin
-    minCoin = max
-        (Coin 1)
-        (view #computeMinimumAdaQuantity constraints TokenMap.empty)
+    -- This value is chosen to be as small as possible in order to minimize
+    -- any overestimation in cost resulting from the use of a dummy output.
+    --
+    -- However, we cannot choose a value of zero, since the change generation
+    -- algorithm requires that the total ada balance of all outputs is
+    -- non-zero, so instead we specify the smallest possible non-zero value.
+    --
+    dummyCoin :: Coin
+    dummyCoin = Coin 1
 
 performSelectionNonEmpty
     :: forall m ctx. (HasCallStack, MonadRandom m, SelectionContext ctx)
@@ -877,11 +859,6 @@ performSelectionNonEmpty constraints params
     | not utxoBalanceSufficient =
         pure $ Left $ BalanceInsufficient $ BalanceInsufficientError
             {utxoBalanceAvailable, utxoBalanceRequired}
-
-    -- Are the minimum ada quantities of the outputs too small?
-    | not (null insufficientMinCoinValues) =
-        pure $ Left $ InsufficientMinCoinValues $
-            NE.fromList insufficientMinCoinValues
 
     | otherwise = do
         maybeSelection <- runSelectionNonEmpty RunSelectionParams
@@ -912,6 +889,7 @@ performSelectionNonEmpty constraints params
         , computeSelectionLimit
         , maximumOutputAdaQuantity
         , maximumOutputTokenQuantity
+        , maximumLengthChangeAddress
         } = constraints
     SelectionParams
         { outputsToCover
@@ -943,25 +921,6 @@ performSelectionNonEmpty constraints params
 
     utxoBalanceSufficient :: Bool
     utxoBalanceSufficient = isUTxOBalanceSufficient params
-
-    insufficientMinCoinValues :: [InsufficientMinCoinValueError ctx]
-    insufficientMinCoinValues =
-        mapMaybe mkInsufficientMinCoinValueError outputsToCover
-      where
-        mkInsufficientMinCoinValueError
-            :: (Address ctx, TokenBundle)
-            -> Maybe (InsufficientMinCoinValueError ctx)
-        mkInsufficientMinCoinValueError o
-            | view #coin (snd o) >= expectedMinCoinValue =
-                Nothing
-            | otherwise =
-                Just $ InsufficientMinCoinValueError
-                    { expectedMinCoinValue
-                    , outputWithInsufficientAda = o
-                    }
-          where
-            expectedMinCoinValue = computeMinimumAdaQuantity
-                (view #tokens $ snd o)
 
     -- Given a UTxO index that corresponds to a valid selection covering
     -- 'outputsToCover', 'predictChange' yields a non-empty list of assets
@@ -1079,7 +1038,7 @@ performSelectionNonEmpty constraints params
       where
         mChangeGenerated :: Either UnableToConstructChangeError [TokenBundle]
         mChangeGenerated = makeChange MakeChangeCriteria
-            { minCoinFor = computeMinimumAdaQuantity
+            { minCoinFor = computeMinimumAdaQuantity maximumLengthChangeAddress
             , bundleSizeAssessor = TokenBundleSizeAssessor assessTokenBundleSize
             , requiredCost
             , extraCoinSource

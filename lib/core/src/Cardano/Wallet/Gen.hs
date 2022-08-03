@@ -53,7 +53,6 @@ import Cardano.Wallet.Primitive.Types
     ( ActiveSlotCoefficient (..)
     , BlockHeader (..)
     , ChainPoint (..)
-    , ProtocolMagic (..)
     , Slot
     , SlotNo (..)
     , WithOrigin (..)
@@ -62,6 +61,8 @@ import Cardano.Wallet.Primitive.Types.Address
     ( Address (..) )
 import Cardano.Wallet.Primitive.Types.Hash
     ( Hash (..) )
+import Cardano.Wallet.Primitive.Types.ProtocolMagic
+    ( ProtocolMagic (..) )
 import Cardano.Wallet.Unsafe
     ( unsafeFromHex, unsafeMkEntropy, unsafeMkPercentage )
 import Data.Aeson

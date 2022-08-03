@@ -290,7 +290,8 @@ import Cardano.Wallet.Network
     , NetworkLayer (..)
     )
 import Cardano.Wallet.Primitive.AddressDerivation
-    ( DelegationAddress (..)
+    ( BoundedAddressLength (..)
+    , DelegationAddress (..)
     , Depth (..)
     , DerivationIndex (..)
     , DerivationPrefix (..)
@@ -421,8 +422,6 @@ import Cardano.Wallet.Primitive.Types.RewardAccount
     ( RewardAccount (..) )
 import Cardano.Wallet.Primitive.Types.TokenBundle
     ( TokenBundle (..) )
-import Cardano.Wallet.Primitive.Types.TokenMap
-    ( TokenMap )
 import Cardano.Wallet.Primitive.Types.TokenPolicy
     ( TokenName (UnsafeTokenName), TokenPolicyId (UnsafeTokenPolicyId) )
 import Cardano.Wallet.Primitive.Types.TokenQuantity
@@ -473,7 +472,7 @@ import Cardano.Wallet.Transaction
 import Control.Applicative
     ( (<|>) )
 import Control.Arrow
-    ( left )
+    ( first, left )
 import Control.DeepSeq
     ( NFData )
 import Control.Monad
@@ -546,7 +545,7 @@ import Data.Map.Strict
 import Data.Maybe
     ( fromMaybe, isJust, mapMaybe )
 import Data.Proxy
-    ( Proxy )
+    ( Proxy (..) )
 import Data.Quantity
     ( Quantity (..) )
 import Data.Set
@@ -922,26 +921,28 @@ getWalletUtxoSnapshot ctx wid = do
     (wallet, _, pending) <- withExceptT id (readWallet @ctx @s @k ctx wid)
     pp <- liftIO $ currentProtocolParameters nl
     era <- liftIO $ currentNodeEra nl
-    let bundles = availableUTxO @s pending wallet
+    let txOuts = availableUTxO @s pending wallet
             & unUTxO
             & F.toList
-            & fmap (view #tokens)
-    pure $ pairBundleWithMinAdaQuantity era pp <$> bundles
+    pure $ first (view #tokens) . pairTxOutWithMinAdaQuantity era pp <$> txOuts
   where
     nl = ctx ^. networkLayer
     tl = ctx ^. transactionLayer @k
 
-    pairBundleWithMinAdaQuantity
+    pairTxOutWithMinAdaQuantity
         :: Cardano.AnyCardanoEra
         -> ProtocolParameters
-        -> TokenBundle
-        -> (TokenBundle, Coin)
-    pairBundleWithMinAdaQuantity era pp bundle =
-        (bundle, computeMinAdaQuantity $ view #tokens bundle)
+        -> TxOut
+        -> (TxOut, Coin)
+    pairTxOutWithMinAdaQuantity era pp out =
+        (out, computeMinAdaQuantity out)
       where
-        computeMinAdaQuantity :: TokenMap -> Coin
-        computeMinAdaQuantity =
-            view #txOutputMinimumAdaQuantity (constraints tl era pp)
+        computeMinAdaQuantity :: TxOut -> Coin
+        computeMinAdaQuantity (TxOut addr bundle) =
+            view #txOutputMinimumAdaQuantity
+                (constraints tl era pp)
+                (addr)
+                (view #tokens bundle)
 
 -- | List the wallet's UTxO statistics.
 listUtxoStatistics
@@ -1568,6 +1569,7 @@ balanceTransaction
         , MonadRandom m
         , HasLogger m WalletWorkerLog ctx
         , Cardano.IsShelleyBasedEra era
+        , BoundedAddressLength k
         )
     => ctx
     -> ArgGenChange s
@@ -1591,6 +1593,7 @@ balanceTransactionWithSelectionStrategy
     :: forall era m s k ctx.
         ( HasTransactionLayer k ctx
         , GenChange s
+        , BoundedAddressLength k
         , MonadRandom m
         , HasLogger m WalletWorkerLog ctx
         , Cardano.IsShelleyBasedEra era
@@ -1985,6 +1988,8 @@ balanceTransactionWithSelectionStrategy
                     intCast @Word16 @Int $ view #maximumCollateralInputCount pp
                 , minimumCollateralPercentage =
                     view #minimumCollateralPercentage pp
+                , maximumLengthChangeAddress =
+                    maxLengthAddressFor $ Proxy @k
                 }
 
             selectionParams = SelectionParams
@@ -2171,8 +2176,8 @@ calcMinimumCoinValues
 calcMinimumCoinValues ctx era outs = do
     pp <- currentProtocolParameters nl
     pure
-        $ view #txOutputMinimumAdaQuantity (constraints tl era pp)
-        . view (#tokens . #tokens) <$> outs
+        $ uncurry (view #txOutputMinimumAdaQuantity (constraints tl era pp))
+        . (\o -> (view #address o, view (#tokens . #tokens) o)) <$> outs
   where
     nl = ctx ^. networkLayer
     tl = ctx ^. transactionLayer @k
@@ -2213,7 +2218,8 @@ data SelectAssetsParams s result = SelectAssetsParams
 --
 selectAssets
     :: forall ctx m s k result.
-        ( HasTransactionLayer k ctx
+        ( BoundedAddressLength k
+        , HasTransactionLayer k ctx
         , HasLogger m WalletWorkerLog ctx
         , MonadRandom m
         )
@@ -2247,6 +2253,8 @@ selectAssets ctx era pp params transform = do
                 intCast @Word16 @Int $ view #maximumCollateralInputCount pp
             , minimumCollateralPercentage =
                 view #minimumCollateralPercentage pp
+            , maximumLengthChangeAddress =
+                maxLengthAddressFor $ Proxy @k
             }
     let selectionParams = SelectionParams
             { assetsToMint =

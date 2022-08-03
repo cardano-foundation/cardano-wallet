@@ -144,11 +144,6 @@ module Cardano.Wallet.Primitive.Types
     , rangeLowerBound
     , rangeUpperBound
 
-    -- * ProtocolMagic
-    , ProtocolMagic (..)
-    , mainnetMagic
-    , testnetMagic
-
     -- * Polymorphic
     , Signature (..)
 
@@ -216,8 +211,6 @@ import Data.Generics.Internal.VL.Lens
     ( set, view, (^.) )
 import Data.Generics.Labels
     ()
-import Data.Int
-    ( Int32 )
 import Data.Kind
     ( Type )
 import Data.List
@@ -226,8 +219,6 @@ import Data.Map.Strict
     ( Map )
 import Data.Maybe
     ( isJust, isNothing )
-import Data.Proxy
-    ( Proxy (..) )
 import Data.Quantity
     ( Percentage (..), Quantity (..), complementPercentage )
 import Data.Scientific
@@ -269,8 +260,6 @@ import GHC.Generics
     ( Generic )
 import GHC.Stack
     ( HasCallStack )
-import GHC.TypeLits
-    ( KnownNat, natVal )
 import Network.URI
     ( URI (..), uriToString )
 import NoThunks.Class
@@ -1380,28 +1369,6 @@ newtype StartTime = StartTime UTCTime
     deriving (Show, Eq, Ord, Generic)
 
 instance NFData StartTime
-
-{-------------------------------------------------------------------------------
-                                Protocol Magic
--------------------------------------------------------------------------------}
-
--- | Magic constant associated to a given network
-newtype ProtocolMagic = ProtocolMagic { getProtocolMagic :: Int32 }
-    deriving (Generic, Show, Eq, NFData, FromJSON, ToJSON)
-
-instance ToText ProtocolMagic where
-    toText (ProtocolMagic pm) = T.pack (show pm)
-
-instance FromText ProtocolMagic where
-    fromText = fmap (ProtocolMagic . fromIntegral @Natural) . fromText
-
--- | Hard-coded protocol magic for the Byron MainNet
-mainnetMagic :: ProtocolMagic
-mainnetMagic =  ProtocolMagic 764824073
-
--- | Derive testnet magic from a type-level Nat
-testnetMagic :: forall pm. KnownNat pm => ProtocolMagic
-testnetMagic = ProtocolMagic $ fromIntegral $ natVal $ Proxy @pm
 
 {-------------------------------------------------------------------------------
               Stake Pool Delegation and Registration Certificates

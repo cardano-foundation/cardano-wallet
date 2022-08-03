@@ -344,6 +344,7 @@ import Cardano.Wallet.CoinSelection
     , SelectionCollateralError
     , SelectionError (..)
     , SelectionOf (..)
+    , SelectionOutputCoinInsufficientError (..)
     , SelectionOutputError (..)
     , SelectionOutputSizeExceedsLimitError (..)
     , SelectionOutputTokenQuantityExceedsLimitError (..)
@@ -360,7 +361,8 @@ import Cardano.Wallet.DB
 import Cardano.Wallet.Network
     ( NetworkLayer (..), fetchRewardAccountBalances, timeInterpreter )
 import Cardano.Wallet.Primitive.AddressDerivation
-    ( DelegationAddress (..)
+    ( BoundedAddressLength (..)
+    , DelegationAddress (..)
     , Depth (..)
     , DerivationIndex (..)
     , DerivationType (..)
@@ -604,7 +606,7 @@ import Data.Type.Equality
 import Data.Word
     ( Word32 )
 import Fmt
-    ( blockListF, indentF, listF, pretty )
+    ( listF, pretty )
 import GHC.Generics
     ( Generic )
 import GHC.Stack
@@ -1672,6 +1674,7 @@ selectCoins
         , Typeable n
         , Typeable s
         , WalletKey k
+        , BoundedAddressLength k
         )
     => ctx
     -> ArgGenChange s
@@ -1723,6 +1726,7 @@ selectCoinsForJoin
         , SoftDerivation k
         , Typeable n
         , Typeable s
+        , BoundedAddressLength k
         )
     => ctx
     -> IO (Set PoolId)
@@ -1783,6 +1787,7 @@ selectCoinsForQuit
         , Typeable n
         , Typeable s
         , WalletKey k
+        , BoundedAddressLength k
         )
     => ctx
     -> ApiT WalletId
@@ -2044,6 +2049,7 @@ postTransactionOld
         , Typeable s
         , WalletKey k
         , AddressBookIso s
+        , BoundedAddressLength k
         )
     => ctx
     -> ArgGenChange s
@@ -2231,6 +2237,7 @@ postTransactionFeeOld
         , Typeable n
         , Typeable s
         , WalletKey k
+        , BoundedAddressLength k
         )
     => ctx
     -> ApiT WalletId
@@ -2282,6 +2289,7 @@ constructTransaction
         , Typeable n
         , Typeable s
         , WalletKey k
+        , BoundedAddressLength k
         )
     => ctx
     -> ArgGenChange s
@@ -2616,6 +2624,7 @@ constructSharedTransaction
         , GenChange s
         , HasNetworkLayer IO ctx
         , IsOurs s Address
+        , BoundedAddressLength k
         )
     => ctx
     -> ArgGenChange s
@@ -2624,7 +2633,8 @@ constructSharedTransaction
     -> ApiT WalletId
     -> ApiConstructTransactionData n
     -> Handler (ApiConstructTransaction n)
-constructSharedTransaction ctx genChange _knownPools _getPoolStatus (ApiT wid) body = do
+constructSharedTransaction
+    ctx genChange _knownPools _getPoolStatus (ApiT wid) body = do
     let isNoPayload =
             isNothing (body ^. #payments) &&
             isNothing (body ^. #withdrawal) &&
@@ -2669,8 +2679,8 @@ constructSharedTransaction ctx genChange _knownPools _getPoolStatus (ApiT wid) b
                 (utxoAvailable, wallet, pendingTxs) <-
                     liftHandler $ W.readWalletUTxOIndex @_ @s @k wrk wid
 
-                let runSelection outs =
-                        W.selectAssets @_ @_ @s @k wrk era pp selectAssetsParams transform
+                let runSelection outs = W.selectAssets @_ @_ @s @k
+                        wrk era pp selectAssetsParams transform
                       where
                         selectAssetsParams = W.SelectAssetsParams
                             { outputs = outs
@@ -2783,6 +2793,7 @@ balanceTransaction
         ( ctx ~ ApiLayer s k
         , HasNetworkLayer IO ctx
         , GenChange s
+        , BoundedAddressLength k
         )
     => ctx
     -> ArgGenChange s
@@ -3174,6 +3185,7 @@ joinStakePool
         , Typeable s
         , WalletKey k
         , AddressBookIso s
+        , BoundedAddressLength k
         )
     => ctx
     -> IO (Set PoolId)
@@ -3267,6 +3279,7 @@ delegationFee
     :: forall ctx s n k.
         ( s ~ SeqState n k
         , ctx ~ ApiLayer s k
+        , BoundedAddressLength k
         )
     => ctx
     -> ApiT WalletId
@@ -3313,6 +3326,7 @@ quitStakePool
         , Typeable s
         , WalletKey k
         , AddressBookIso s
+        , BoundedAddressLength k
         )
     => ctx
     -> ApiT WalletId
@@ -5142,10 +5156,34 @@ instance IsServerError (ErrInvalidDerivationIndex 'Soft level) where
 
 instance IsServerError (SelectionOutputError WalletSelectionContext) where
     toServerError = \case
+        SelectionOutputCoinInsufficient e ->
+            toServerError e
         SelectionOutputSizeExceedsLimit e ->
             toServerError e
         SelectionOutputTokenQuantityExceedsLimit e ->
             toServerError e
+
+instance IsServerError
+    (SelectionOutputCoinInsufficientError WalletSelectionContext)
+  where
+    toServerError e =
+        apiError err403 UtxoTooSmall $ T.unlines [preamble, details]
+      where
+        preamble = T.unwords
+            [ "One of the outputs you've specified has an ada quantity that is"
+            , "below the minimum required. Either increase the ada quantity to"
+            , "at least the minimum, or specify an ada quantity of zero, in"
+            , "which case the wallet will automatically assign the correct"
+            , "minimum ada quantity to the output."
+            ]
+        details = T.unlines
+            [ "Destination address:"
+            , pretty (fst $ view #output e)
+            , "Required minimum ada quantity:"
+            , pretty (view #minimumExpectedCoin e)
+            , "Specified ada quantity:"
+            , pretty (TokenBundle.getCoin $ snd $ view #output e)
+            ]
 
 instance IsServerError
     (SelectionOutputSizeExceedsLimitError WalletSelectionContext)
@@ -5231,16 +5269,6 @@ instance IsServerError (SelectionBalanceError WalletSelectionContext) where
                 , "doing so will make the transaction too big. Try "
                 , "sending a smaller amount. I had already selected "
                 , showT (length $ view #inputsSelected e), " inputs."
-                ]
-        InsufficientMinCoinValues xs ->
-            apiError err403 UtxoTooSmall $ mconcat
-                [ "Some outputs have ada values that are too small. "
-                , "There's a minimum ada value specified by the "
-                , "protocol that each output must satisfy. I'll handle "
-                , "that minimum value myself when you do not explicitly "
-                , "specify an ada value for an output. Otherwise, you "
-                , "must specify enough ada. Here are the problematic "
-                , "outputs:\n" <> pretty (indentF 2 $ blockListF xs)
                 ]
         UnableToConstructChange e ->
             apiError err403 CannotCoverFee $ T.unwords

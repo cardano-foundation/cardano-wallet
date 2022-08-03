@@ -43,12 +43,12 @@ import Cardano.Crypto.Wallet
     , unXPub
     , xPrvChangePass
     , xprv
-    , xpub
     )
 import Cardano.Mnemonic
     ( SomeMnemonic (..), entropyToBytes, mnemonicToEntropy, mnemonicToText )
 import Cardano.Wallet.Primitive.AddressDerivation
-    ( Depth (..)
+    ( BoundedAddressLength (..)
+    , Depth (..)
     , DerivationType (..)
     , ErrMkKeyFingerprint (..)
     , HardDerivation (..)
@@ -71,10 +71,10 @@ import Cardano.Wallet.Primitive.AddressDiscovery.Sequential
     ( SeqState, coinTypeAda, discoverSeq, purposeBIP44 )
 import Cardano.Wallet.Primitive.Passphrase
     ( Passphrase (..), PassphraseHash (..), changePassphraseXPrv )
-import Cardano.Wallet.Primitive.Types
-    ( testnetMagic )
 import Cardano.Wallet.Primitive.Types.Address
     ( Address (..) )
+import Cardano.Wallet.Primitive.Types.ProtocolMagic
+    ( ProtocolMagic (..), testnetMagic )
 import Cardano.Wallet.Util
     ( invariant )
 import Control.Arrow
@@ -111,6 +111,7 @@ import GHC.TypeLits
     ( KnownNat )
 
 import qualified Cardano.Byron.Codec.Cbor as CBOR
+import qualified Cardano.Crypto.Wallet as CC
 import qualified Codec.CBOR.Write as CBOR
 import qualified Crypto.ECC.Edwards25519 as Ed25519
 import qualified Crypto.KDF.PBKDF2 as PBKDF2
@@ -404,6 +405,19 @@ instance IsOurs (SeqState n IcarusKey) RewardAccount where
 instance PaymentAddress n IcarusKey => MaybeLight (SeqState n IcarusKey) where
     maybeDiscover = Just $ DiscoverTxs discoverSeq
 
+instance BoundedAddressLength IcarusKey where
+    -- Matching 'paymentAddress' above.
+    maxLengthAddressFor _ = Address
+        $ CBOR.toStrictByteString
+        $ CBOR.encodeAddress xpub
+            [ CBOR.encodeProtocolMagicAttr (ProtocolMagic maxBound)
+            ]
+      where
+        xpub :: CC.XPub
+        xpub = CC.toXPub $ CC.generate (BS.replicate 32 0) xprvPass
+          where
+            xprvPass = mempty :: BS.ByteString
+
 {-------------------------------------------------------------------------------
                           Storing and retrieving keys
 -------------------------------------------------------------------------------}
@@ -428,5 +442,5 @@ instance PersistPublicKey (IcarusKey depth) where
     unsafeDeserializeXPub =
         either err IcarusKey . xpubFromText
       where
-        xpubFromText = xpub <=< fromHex @ByteString
+        xpubFromText = CC.xpub <=< fromHex @ByteString
         err _ = error "unsafeDeserializeXPub: unable to deserialize IcarusKey"

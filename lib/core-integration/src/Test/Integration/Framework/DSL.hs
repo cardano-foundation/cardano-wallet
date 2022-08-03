@@ -674,9 +674,20 @@ walletId =
 -- | Min UTxO parameter for the test cluster.
 minUTxOValue :: ApiEra -> Natural
 minUTxOValue e
-    | e >= ApiBabbage = 1_107_670 -- needs to be overestimated for the sake of
-    -- long byron addresses
-    | e >= ApiAlonzo = 999_978 -- From 34482 lovelace per word
+    | e >= ApiBabbage = 995_610
+        -- This value is a slight overestimation for outputs with Shelley
+        -- addresses and no tokens.
+        --
+        -- However, it would be incorrect for outputs with Byron addresses,
+        -- where the lower bound would be greater by the following amount:
+        --
+        -- 4310 lovelace/byte * (86 - 57) byte ≈ 0.125 ada
+        --
+        -- However, this value appears to be fine for the purposes of
+        -- integration tests.
+        --
+    | e >= ApiAlonzo = 999_978
+        -- From 34482 lovelace/word.
     | otherwise   = 1_000_000
 
 -- | Parameter in test cluster shelley genesis.

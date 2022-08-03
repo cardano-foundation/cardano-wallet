@@ -293,6 +293,8 @@ import Cardano.Wallet.Primitive.AddressDerivation
     )
 import Cardano.Wallet.Primitive.AddressDerivation.SharedKey
     ( purposeCIP1854 )
+import Cardano.Wallet.Primitive.AddressDerivation.Shelley
+    ( ShelleyKey )
 import Cardano.Wallet.Primitive.AddressDiscovery.Random
     ( RndState )
 import Cardano.Wallet.Primitive.AddressDiscovery.Sequential
@@ -1134,7 +1136,32 @@ toApiNetworkParameters (NetworkParameters gp sp pp) txConstraints toEpochInfo = 
             $ view #decentralizationLevel pp
         , desiredPoolNumber = view #desiredNumberOfStakePools pp
         , minimumUtxoValue = toApiCoin $
-            txOutputMinimumAdaQuantity txConstraints TokenMap.empty
+            -- NOTE:
+            --
+            -- In eras prior to Babbage, the ledger minimum UTxO function was
+            -- independent of the length of an address.
+            --
+            -- However, from the Babbage era onwards, the ledger minimum UTxO
+            -- function is *dependent* on the length of an address: longer
+            -- addresses give rise to greater minimum UTxO values.
+            --
+            -- Since address lengths are variable, there is no single ideal
+            -- constant that we can return here.
+            --
+            -- Therefore, we return a "minimum" UTxO quantity that is likely to
+            -- be more useful than others: the quantity required to send a
+            -- 9-byte ada quantity (and no non-ada tokens) to the longest
+            -- possible Shelley address.
+            --
+            -- We should consider deprecating this parameter, and replacing it
+            -- with era-specific protocol parameters such as:
+            --
+            -- - lovelacePerUTxOWord (Alonzo)
+            -- - lovelacePerUTxOByte (Babbage)
+            --
+            txOutputMinimumAdaQuantity txConstraints
+                (AD.maxLengthAddressFor $ Proxy @ShelleyKey)
+                TokenMap.empty
         , eras = apiEras
         , maximumCollateralInputCount =
             view #maximumCollateralInputCount pp

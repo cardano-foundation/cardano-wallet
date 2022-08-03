@@ -21,7 +21,7 @@ module Cardano.Wallet.CoinSelection.Internal.BalanceSpec
     , MockComputeMinimumAdaQuantity
     , MockComputeMinimumCost
     , MockComputeSelectionLimit
-    , TestAddress
+    , TestAddress (..)
     , TestSelectionContext
     , TestUTxO
     , genMockAssessTokenBundleSize
@@ -47,7 +47,6 @@ import Cardano.Numeric.Util
 import Cardano.Wallet.CoinSelection.Internal.Balance
     ( AssetCount (..)
     , BalanceInsufficientError (..)
-    , InsufficientMinCoinValueError (..)
     , MakeChangeCriteria (..)
     , PerformSelection
     , RunSelectionParams (..)
@@ -983,8 +982,6 @@ prop_performSelection mockConstraints params coverage =
             onBalanceInsufficient e
         SelectionLimitReached e ->
             onSelectionLimitReached e
-        InsufficientMinCoinValues es ->
-            onInsufficientMinCoinValues es
         UnableToConstructChange e ->
             onUnableToConstructChange e
         EmptyUTxO ->
@@ -1039,24 +1036,6 @@ prop_performSelection mockConstraints params coverage =
         errorBalanceSelected =
             F.foldMap (view #tokens . snd) errorInputsSelected
 
-    onInsufficientMinCoinValues
-        :: NonEmpty (InsufficientMinCoinValueError TestSelectionContext)
-        -> Property
-    onInsufficientMinCoinValues es =
-        counterexample "onInsufficientMinCoinValues" $
-        report es
-            "error values" $
-        report
-            (NE.zip (expectedMinCoinValue <$> es) (actualMinCoinValue <$> es))
-            "(expected, actual) pairs" $
-        verify
-            (all (\e -> expectedMinCoinValue e > actualMinCoinValue e) es)
-            "all (λe -> expectedMinCoinValue e > actualMinCoinValue e) es" $
-        property True
-      where
-        actualMinCoinValue
-            = view #coin . snd . outputWithInsufficientAda
-
     onUnableToConstructChange :: UnableToConstructChangeError -> Property
     onUnableToConstructChange e =
         counterexample "onUnableToConstructChange" $
@@ -1091,7 +1070,8 @@ prop_performSelection mockConstraints params coverage =
                 constraints
                     { assessTokenBundleSize = unMockAssessTokenBundleSize
                         MockAssessTokenBundleSizeUnlimited
-                    , computeMinimumAdaQuantity = computeMinimumAdaQuantityZero
+                    , computeMinimumAdaQuantity =
+                        const computeMinimumAdaQuantityZero
                     , computeMinimumCost = computeMinimumCostZero
                     , computeSelectionLimit = const NoLimit
                     }
@@ -1854,13 +1834,15 @@ mkBoundaryTestExpectation (BoundaryTestData params expectedResult) = do
     fmap decodeBoundaryTestResult actualResult `shouldBe` Right expectedResult
   where
     constraints = SelectionConstraints
-        { computeMinimumAdaQuantity = computeMinimumAdaQuantityZero
+        { computeMinimumAdaQuantity = const computeMinimumAdaQuantityZero
         , computeMinimumCost = computeMinimumCostZero
         , assessTokenBundleSize = unMockAssessTokenBundleSize $
             boundaryTestBundleSizeAssessor params
         , computeSelectionLimit = const NoLimit
         , maximumOutputAdaQuantity = testMaximumOutputAdaQuantity
         , maximumOutputTokenQuantity = testMaximumOutputTokenQuantity
+        , maximumLengthChangeAddress = TestAddress 0x0
+        , nullAddress = TestAddress 0x0
         }
 
 encodeBoundaryTestCriteria
@@ -2493,6 +2475,10 @@ unMockSelectionConstraints m = SelectionConstraints
         testMaximumOutputAdaQuantity
     , maximumOutputTokenQuantity =
         testMaximumOutputTokenQuantity
+    , maximumLengthChangeAddress =
+        TestAddress 0x0
+    , nullAddress =
+        TestAddress 0x0
     }
 
 -- | Specifies the largest ada quantity that can appear in the token bundle
@@ -2534,17 +2520,17 @@ shrinkMockComputeMinimumAdaQuantity = \case
         [MockComputeMinimumAdaQuantityZero]
 
 unMockComputeMinimumAdaQuantity
-    :: MockComputeMinimumAdaQuantity -> (TokenMap -> Coin)
+    :: MockComputeMinimumAdaQuantity -> (TestAddress -> TokenMap -> Coin)
 unMockComputeMinimumAdaQuantity = \case
     MockComputeMinimumAdaQuantityZero ->
-        computeMinimumAdaQuantityZero
+        const computeMinimumAdaQuantityZero
     MockComputeMinimumAdaQuantityLinear ->
-        computeMinimumAdaQuantityLinear
+        const computeMinimumAdaQuantityLinear
 
 -- | Returns a constant minimum ada quantity of zero.
 --
 computeMinimumAdaQuantityZero :: TokenMap -> Coin
-computeMinimumAdaQuantityZero = const (Coin 0)
+computeMinimumAdaQuantityZero = const $ Coin 0
 
 -- | A dummy function for calculating the minimum ada quantity to pay for a
 --   token map.
@@ -2744,8 +2730,10 @@ makeChangeWith
     :: MakeChangeData
     -> Either UnableToConstructChangeError [TokenBundle]
 makeChangeWith p = makeChange p
-    { minCoinFor = unMockComputeMinimumAdaQuantity $ minCoinFor p
-    , bundleSizeAssessor = mkTokenBundleSizeAssessor $ bundleSizeAssessor p
+    { minCoinFor =
+        unMockComputeMinimumAdaQuantity (minCoinFor p) (TestAddress 0x0)
+    , bundleSizeAssessor =
+        mkTokenBundleSizeAssessor $ bundleSizeAssessor p
     }
 
 prop_makeChange_identity
@@ -3007,7 +2995,8 @@ prop_makeChange_success_minValueRespected p =
     F.foldr ((.&&.) . checkMinValue) (property True)
   where
     minCoinValueFor :: TokenMap -> Coin
-    minCoinValueFor = unMockComputeMinimumAdaQuantity (minCoinFor p)
+    minCoinValueFor =
+        unMockComputeMinimumAdaQuantity (minCoinFor p) (TestAddress 0x0)
 
     checkMinValue :: TokenBundle -> Property
     checkMinValue m@TokenBundle{coin,tokens} =
@@ -3093,7 +3082,7 @@ prop_makeChange_fail_minValueTooBig p =
                 totalInputValue
                 totalOutputValue
             minCoinValueFor =
-                unMockComputeMinimumAdaQuantity (minCoinFor p)
+                unMockComputeMinimumAdaQuantity (minCoinFor p) (TestAddress 0x0)
             totalMinCoinDeposit = F.foldr Coin.add (Coin 0)
                 (minCoinValueFor . view #tokens <$> change)
   where
@@ -4448,8 +4437,6 @@ data TestSelectionContext
 instance SC.SelectionContext TestSelectionContext where
     type Address TestSelectionContext = TestAddress
     type UTxO TestSelectionContext = TestUTxO
-
-    dummyAddress = TestAddress 0x0
 
 newtype TestAddress = TestAddress (Hexadecimal Quid)
     deriving Arbitrary via Quid

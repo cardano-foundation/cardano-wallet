@@ -9,7 +9,6 @@
 {-# LANGUAGE ScopedTypeVariables #-}
 {-# LANGUAGE StandaloneDeriving #-}
 {-# LANGUAGE TupleSections #-}
-{-# LANGUAGE TypeApplications #-}
 
 -- |
 -- Copyright: © 2021 IOHK
@@ -32,6 +31,7 @@ module Cardano.Wallet.CoinSelection.Internal
     -- * Output preparation
     , prepareOutputsWith
     , SelectionOutputError (..)
+    , SelectionOutputCoinInsufficientError (..)
     , SelectionOutputSizeExceedsLimitError (..)
     , SelectionOutputTokenQuantityExceedsLimitError (..)
 
@@ -159,7 +159,7 @@ data SelectionConstraints ctx = SelectionConstraints
         -- ^ Amount that should be taken from/returned back to the wallet for
         -- each stake key registration/de-registration in the transaction.
     , computeMinimumAdaQuantity
-        :: TokenMap -> Coin
+        :: Address ctx -> TokenMap -> Coin
         -- ^ Computes the minimum ada quantity required for a given output.
     , computeMinimumCost
         :: SelectionSkeleton ctx -> Coin
@@ -184,6 +184,10 @@ data SelectionConstraints ctx = SelectionConstraints
         :: TokenQuantity
         -- ^ Specifies the largest non-ada quantity that can appear in the
         -- token bundle of an output.
+    , maximumLengthChangeAddress
+        :: Address ctx
+    , nullAddress
+        :: Address ctx
     }
     deriving Generic
 
@@ -380,15 +384,16 @@ performSelectionCollateral balanceResult cs ps
 -- | Returns a selection's ordinary outputs and change outputs in a single list.
 --
 -- Since change outputs do not have addresses at the point of generation,
--- this function assigns all change outputs with a dummy change address.
+-- this function assigns all change outputs with a dummy change address
+-- of the maximum possible length.
 --
 selectionAllOutputs
-    :: forall ctx. SelectionContext ctx
-    => Selection ctx
+    :: SelectionConstraints ctx
+    -> Selection ctx
     -> [(Address ctx, TokenBundle)]
-selectionAllOutputs selection = (<>)
+selectionAllOutputs constraints selection = (<>)
     (selection ^. #outputs)
-    (selection ^. #change <&> (dummyAddress @ctx, ))
+    (selection ^. #change <&> (maximumLengthChangeAddress constraints, ))
 
 -- | Creates constraints and parameters for 'Balance.performSelection'.
 --
@@ -414,6 +419,10 @@ toBalanceConstraintsParams (constraints, params) =
             view #maximumOutputAdaQuantity constraints
         , maximumOutputTokenQuantity =
             view #maximumOutputTokenQuantity constraints
+        , maximumLengthChangeAddress =
+            view #maximumLengthChangeAddress constraints
+        , nullAddress =
+            view #nullAddress constraints
         }
       where
         adjustComputeMinimumCost
@@ -790,29 +799,34 @@ verifySelectionInputCountWithinLimit cs _ps selection =
 -- Selection verification: minimum ada quantities
 --------------------------------------------------------------------------------
 
-newtype FailureToVerifySelectionOutputCoinsSufficient address =
+newtype FailureToVerifySelectionOutputCoinsSufficient ctx =
     FailureToVerifySelectionOutputCoinsSufficient
-    (NonEmpty (SelectionOutputCoinInsufficientError address))
+    (NonEmpty (SelectionOutputCoinInsufficientError ctx))
     deriving (Eq, Show)
 
-data SelectionOutputCoinInsufficientError address =
+data SelectionOutputCoinInsufficientError ctx =
     SelectionOutputCoinInsufficientError
         { minimumExpectedCoin :: Coin
-        , output :: (address, TokenBundle)
+        , output :: (Address ctx, TokenBundle)
         }
-    deriving (Eq, Show)
+    deriving Generic
+
+deriving instance SelectionContext ctx =>
+    Eq (SelectionOutputCoinInsufficientError ctx)
+deriving instance SelectionContext ctx =>
+    Show (SelectionOutputCoinInsufficientError ctx)
 
 verifySelectionOutputCoinsSufficient
     :: forall ctx. SelectionContext ctx => VerifySelection ctx
 verifySelectionOutputCoinsSufficient cs _ps selection =
     verifyEmpty errors FailureToVerifySelectionOutputCoinsSufficient
   where
-    errors :: [SelectionOutputCoinInsufficientError (Address ctx)]
-    errors = mapMaybe maybeError (selectionAllOutputs selection)
+    errors :: [SelectionOutputCoinInsufficientError ctx]
+    errors = mapMaybe maybeError (selectionAllOutputs cs selection)
 
     maybeError
         :: (Address ctx, TokenBundle)
-        -> Maybe (SelectionOutputCoinInsufficientError (Address ctx))
+        -> Maybe (SelectionOutputCoinInsufficientError ctx)
     maybeError output
         | snd output ^. #coin < minimumExpectedCoin =
             Just SelectionOutputCoinInsufficientError
@@ -823,6 +837,7 @@ verifySelectionOutputCoinsSufficient cs _ps selection =
         minimumExpectedCoin :: Coin
         minimumExpectedCoin =
             (cs ^. #computeMinimumAdaQuantity)
+            (fst output)
             (snd output ^. #tokens)
 
 --------------------------------------------------------------------------------
@@ -840,7 +855,7 @@ verifySelectionOutputSizesWithinLimit cs _ps selection =
     verifyEmpty errors FailureToVerifySelectionOutputSizesWithinLimit
   where
     errors :: [SelectionOutputSizeExceedsLimitError ctx]
-    errors = mapMaybe (verifyOutputSize cs) (selectionAllOutputs selection)
+    errors = mapMaybe (verifyOutputSize cs) (selectionAllOutputs cs selection)
 
 --------------------------------------------------------------------------------
 -- Selection verification: output token quantities
@@ -853,11 +868,11 @@ newtype FailureToVerifySelectionOutputTokenQuantitiesWithinLimit address =
 
 verifySelectionOutputTokenQuantitiesWithinLimit
     :: forall ctx. SelectionContext ctx => VerifySelection ctx
-verifySelectionOutputTokenQuantitiesWithinLimit _cs _ps selection =
+verifySelectionOutputTokenQuantitiesWithinLimit cs _ps selection =
     verifyEmpty errors FailureToVerifySelectionOutputTokenQuantitiesWithinLimit
   where
     errors :: [SelectionOutputTokenQuantityExceedsLimitError ctx]
-    errors = verifyOutputTokenQuantities =<< selectionAllOutputs selection
+    errors = verifyOutputTokenQuantities =<< selectionAllOutputs cs selection
 
 --------------------------------------------------------------------------------
 -- Selection error verification
@@ -896,8 +911,6 @@ verifySelectionBalanceError cs ps = \case
         verifyBalanceInsufficientError cs ps e
     Balance.EmptyUTxO ->
         verifyEmptyUTxOError cs ps ()
-    Balance.InsufficientMinCoinValues es ->
-        F.foldMap (verifyInsufficientMinCoinValueError cs ps) es
     Balance.UnableToConstructChange e->
         verifyUnableToConstructChangeError cs ps e
     Balance.SelectionLimitReached e ->
@@ -945,28 +958,29 @@ verifyEmptyUTxOError _cs SelectionParams {utxoAvailableForInputs} _e =
 -- Selection error verification: insufficient minimum ada quantity errors
 --------------------------------------------------------------------------------
 
-data FailureToVerifyInsufficientMinCoinValueError address =
-    FailureToVerifyInsufficientMinCoinValueError
+data FailureToVerifySelectionOutputCoinInsufficientError address =
+    FailureToVerifySelectionOutputCoinInsufficientError
     { reportedOutput :: (address, TokenBundle)
     , reportedMinCoinValue :: Coin
     , verifiedMinCoinValue :: Coin
     }
     deriving (Eq, Show)
 
-verifyInsufficientMinCoinValueError
+verifySelectionOutputCoinInsufficientError
     :: SelectionContext ctx
-    => VerifySelectionError (Balance.InsufficientMinCoinValueError ctx) ctx
-verifyInsufficientMinCoinValueError cs _ps e =
+    => VerifySelectionError (SelectionOutputCoinInsufficientError ctx) ctx
+verifySelectionOutputCoinInsufficientError cs _ps e =
     verifyAll
         [ reportedMinCoinValue == verifiedMinCoinValue
         , reportedMinCoinValue > snd reportedOutput ^. #coin
         ]
-        FailureToVerifyInsufficientMinCoinValueError {..}
+        FailureToVerifySelectionOutputCoinInsufficientError {..}
   where
-    reportedOutput = e ^. #outputWithInsufficientAda
-    reportedMinCoinValue = e ^. #expectedMinCoinValue
+    reportedOutput = e ^. #output
+    reportedMinCoinValue = e ^. #minimumExpectedCoin
     verifiedMinCoinValue =
         (cs ^. #computeMinimumAdaQuantity)
+        (fst reportedOutput)
         (snd reportedOutput ^. #tokens)
 
 --------------------------------------------------------------------------------
@@ -1107,7 +1121,7 @@ verifyUnableToConstructChangeError cs ps errorOriginal =
         -- A modified set of constraints that should always allow the
         -- successful creation of a selection:
         cs' = cs
-            { computeMinimumAdaQuantity = const $ Coin 0
+            { computeMinimumAdaQuantity = const $ const $ Coin 0
             , computeMinimumCost = const $ Coin 0
             , computeSelectionLimit = const Balance.NoLimit
             }
@@ -1183,6 +1197,8 @@ verifySelectionOutputError
     :: SelectionContext ctx
     => VerifySelectionError (SelectionOutputError ctx) ctx
 verifySelectionOutputError cs ps = \case
+    SelectionOutputCoinInsufficient e ->
+        verifySelectionOutputCoinInsufficientError cs ps e
     SelectionOutputSizeExceedsLimit e ->
         verifySelectionOutputSizeExceedsLimitError cs ps e
     SelectionOutputTokenQuantityExceedsLimit e ->
@@ -1393,6 +1409,12 @@ prepareOutputsInternal constraints outputsUnprepared
         -- We encountered one or more excessive token quantities.
         -- Just report the first such quantity:
         SelectionOutputTokenQuantityExceedsLimit e
+    | e : _ <- insufficientCoins =
+        Left $
+        -- We encountered one or more outputs with an ada quantity that is
+        -- below the minimum required quantity.
+        -- Just report the first such output:
+        SelectionOutputCoinInsufficient e
     | otherwise =
         pure outputsToCover
   where
@@ -1413,6 +1435,13 @@ prepareOutputsInternal constraints outputsUnprepared
         :: [SelectionOutputTokenQuantityExceedsLimitError ctx]
     excessiveTokenQuantities = verifyOutputTokenQuantities =<< outputsToCover
 
+    -- The complete list of outputs whose ada quantities are below the minimum
+    -- required:
+    insufficientCoins
+        :: [SelectionOutputCoinInsufficientError ctx]
+    insufficientCoins =
+        mapMaybe (verifyOutputCoinSufficient constraints) outputsToCover
+
     outputsToCover =
         prepareOutputsWith computeMinimumAdaQuantity outputsUnprepared
 
@@ -1430,24 +1459,25 @@ prepareOutputsInternal constraints outputsUnprepared
 -- quantity required to make a particular output valid.
 --
 prepareOutputsWith
-    :: Functor f
-    => (TokenMap -> Coin)
+    :: forall f address. Functor f
+    => (address -> TokenMap -> Coin)
     -> f (address, TokenBundle)
     -> f (address, TokenBundle)
 prepareOutputsWith minCoinValueFor =
-    fmap $ fmap augmentBundle
+    fmap augmentBundle
   where
-    augmentBundle :: TokenBundle -> TokenBundle
-    augmentBundle bundle
-        | TokenBundle.getCoin bundle == Coin 0 =
-            bundle & set #coin (minCoinValueFor (view #tokens bundle))
-        | otherwise =
-            bundle
+    augmentBundle :: (address, TokenBundle) -> (address, TokenBundle)
+    augmentBundle (addr, bundle) = (addr,) $
+        if TokenBundle.getCoin bundle == Coin 0
+        then bundle & set #coin (minCoinValueFor addr (view #tokens bundle))
+        else bundle
 
 -- | Indicates a problem when preparing outputs for a coin selection.
 --
 data SelectionOutputError ctx
-    = SelectionOutputSizeExceedsLimit
+    = SelectionOutputCoinInsufficient
+        (SelectionOutputCoinInsufficientError ctx)
+    | SelectionOutputSizeExceedsLimit
         (SelectionOutputSizeExceedsLimitError ctx)
     | SelectionOutputTokenQuantityExceedsLimit
         (SelectionOutputTokenQuantityExceedsLimitError ctx)
@@ -1524,3 +1554,27 @@ verifyOutputTokenQuantities out =
     , (asset, quantity) <- TokenMap.toFlatList $ (snd out) ^. #tokens
     , quantity > txOutMaxTokenQuantity
     ]
+
+-- | Verifies that an output's ada quantity is sufficient.
+--
+-- An output's ada quantity must be greater than or equal to the minimum
+-- required quantity for that output.
+--
+verifyOutputCoinSufficient
+    :: SelectionConstraints ctx
+    -> (Address ctx, TokenBundle)
+    -> Maybe (SelectionOutputCoinInsufficientError ctx)
+verifyOutputCoinSufficient constraints output
+    | actualCoin >= minimumExpectedCoin =
+        Nothing
+    | otherwise =
+        Just SelectionOutputCoinInsufficientError {minimumExpectedCoin, output}
+  where
+    actualCoin :: Coin
+    actualCoin = snd output ^. #coin
+
+    minimumExpectedCoin :: Coin
+    minimumExpectedCoin =
+        (constraints ^. #computeMinimumAdaQuantity)
+        (fst output)
+        (snd output ^. #tokens)

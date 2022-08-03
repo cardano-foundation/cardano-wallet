@@ -59,6 +59,7 @@ module Cardano.Wallet.CoinSelection
     , SelectionBalanceError (..)
     , SelectionCollateralError
     , SelectionOutputError (..)
+    , SelectionOutputCoinInsufficientError (..)
     , SelectionOutputSizeExceedsLimitError (..)
     , SelectionOutputTokenQuantityExceedsLimitError (..)
     , UnableToConstructChangeError (..)
@@ -79,6 +80,7 @@ import Cardano.Wallet.CoinSelection.Internal
     ( SelectionCollateralError
     , SelectionCollateralRequirement (..)
     , SelectionError (..)
+    , SelectionOutputCoinInsufficientError (..)
     , SelectionOutputError (..)
     , SelectionOutputSizeExceedsLimitError (..)
     , SelectionOutputTokenQuantityExceedsLimitError (..)
@@ -157,8 +159,6 @@ instance SC.SelectionContext WalletSelectionContext where
     type Address WalletSelectionContext = Address
     type UTxO WalletSelectionContext = WalletUTxO
 
-    dummyAddress = Address ""
-
 --------------------------------------------------------------------------------
 -- Mapping between external (wallet) and internal UTxO identifiers
 --------------------------------------------------------------------------------
@@ -224,7 +224,7 @@ data SelectionConstraints = SelectionConstraints
         -- ^ Amount that should be taken from/returned back to the wallet for
         -- each stake key registration/de-registration in the transaction.
     , computeMinimumAdaQuantity
-        :: TokenMap -> Coin
+        :: Address -> TokenMap -> Coin
         -- ^ Computes the minimum ada quantity required for a given output.
     , computeMinimumCost
         :: SelectionSkeleton -> Coin
@@ -241,6 +241,8 @@ data SelectionConstraints = SelectionConstraints
         :: Natural
         -- ^ Specifies the minimum required amount of collateral as a
         -- percentage of the total transaction fee.
+    , maximumLengthChangeAddress
+        :: Address
     }
     deriving Generic
 
@@ -257,6 +259,8 @@ toInternalSelectionConstraints SelectionConstraints {..} =
             txOutMaxCoin
         , maximumOutputTokenQuantity =
             txOutMaxTokenQuantity
+        , nullAddress =
+            Address ""
         , ..
         }
 

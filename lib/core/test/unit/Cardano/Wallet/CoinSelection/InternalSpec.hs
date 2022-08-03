@@ -49,7 +49,7 @@ import Cardano.Wallet.CoinSelection.Internal.BalanceSpec
     , MockComputeMinimumAdaQuantity
     , MockComputeMinimumCost
     , MockComputeSelectionLimit
-    , TestAddress
+    , TestAddress (..)
     , TestSelectionContext
     , TestUTxO
     , genMockAssessTokenBundleSize
@@ -245,9 +245,6 @@ prop_performSelection_coverage params r innerProperty =
         (isSelectionBalanceError_SelectionLimitReached r)
         "isSelectionBalanceError_SelectionLimitReached" $
     cover 0.1
-        (isSelectionBalanceError_InsufficientMinCoinValues r)
-        "isSelectionBalanceError_InsufficientMinCoinValues" $
-    cover 0.1
         (isSelectionBalanceError_UnableToConstructChange r)
         "isSelectionBalanceError_UnableToConstructChange" $
     cover 0.1
@@ -256,6 +253,9 @@ prop_performSelection_coverage params r innerProperty =
     cover 0.1
         (isSelectionCollateralError r)
         "isSelectionCollateralError" $
+    cover 0.1
+        (isSelectionOutputError_SelectionOutputCoinInsufficient r)
+        "isSelectionOutputError_SelectionOutputCoinInsufficient" $
     cover 0.1
         (isSelectionOutputError_SelectionOutputSizeExceedsLimit r)
         "isSelectionOutputError_SelectionOutputSizeExceedsLimit" $
@@ -271,9 +271,6 @@ prop_performSelection_coverage params r innerProperty =
     isSelectionBalanceError_SelectionLimitReached = \case
         Left (SelectionBalanceErrorOf Balance.SelectionLimitReached {})
             -> True; _ -> False
-    isSelectionBalanceError_InsufficientMinCoinValues = \case
-        Left (SelectionBalanceErrorOf Balance.InsufficientMinCoinValues {})
-            -> True; _ -> False
     isSelectionBalanceError_UnableToConstructChange = \case
         Left (SelectionBalanceErrorOf Balance.UnableToConstructChange {})
             -> True; _ -> False
@@ -282,6 +279,9 @@ prop_performSelection_coverage params r innerProperty =
             -> True; _ -> False
     isSelectionCollateralError = \case
         Left (SelectionCollateralErrorOf _)
+            -> True; _ -> False
+    isSelectionOutputError_SelectionOutputCoinInsufficient = \case
+        Left (SelectionOutputErrorOf SelectionOutputCoinInsufficient {})
             -> True; _ -> False
     isSelectionOutputError_SelectionOutputSizeExceedsLimit = \case
         Left (SelectionOutputErrorOf SelectionOutputSizeExceedsLimit {})
@@ -302,12 +302,12 @@ prop_performSelection_coverage params r innerProperty =
         SelectionBalanceErrorOf e -> case e of
             Balance.BalanceInsufficient {} -> ()
             Balance.SelectionLimitReached {} -> ()
-            Balance.InsufficientMinCoinValues {} -> ()
             Balance.UnableToConstructChange {} -> ()
             Balance.EmptyUTxO {} -> ()
         SelectionCollateralErrorOf e -> case e of
             SelectionCollateralError {} -> ()
         SelectionOutputErrorOf e -> case e of
+            SelectionOutputCoinInsufficient {} -> ()
             SelectionOutputSizeExceedsLimit {} -> ()
             SelectionOutputTokenQuantityExceedsLimit {} -> ()
 
@@ -480,7 +480,8 @@ prop_prepareOutputsWith_preparedOrExistedBefore minCoinValueDef outs =
         | outputCoin before /= Coin 0 =
             outputCoin after == outputCoin before
         | otherwise =
-            outputCoin after == minCoinValueFor (view #tokens $ snd before)
+            outputCoin after ==
+                uncurry minCoinValueFor (view #tokens <$> before)
       where
         outputCoin = view #coin . snd
 
@@ -544,9 +545,9 @@ data MockSelectionConstraints = MockSelectionConstraints
     , minimumCollateralPercentage
         :: Natural
     , maximumOutputAdaQuantity
-         :: Coin
+        :: Coin
     , maximumOutputTokenQuantity
-         :: TokenQuantity
+        :: TokenQuantity
     }
     deriving (Eq, Generic, Show)
 
@@ -597,6 +598,10 @@ unMockSelectionConstraints m = SelectionConstraints
         view #maximumOutputAdaQuantity m
     , maximumOutputTokenQuantity =
         view #maximumOutputTokenQuantity m
+    , maximumLengthChangeAddress =
+        TestAddress 0x0
+    , nullAddress =
+        TestAddress 0x0
     }
 
 --------------------------------------------------------------------------------

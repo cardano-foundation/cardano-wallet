@@ -78,7 +78,11 @@ import Test.Integration.Framework.DSL
     , verify
     )
 import Test.Integration.Framework.TestData
-    ( errMsg403Fee, errMsg403InvalidConstructTx, errMsg403NotEnoughMoney )
+    ( errMsg403Fee
+    , errMsg403InvalidConstructTx
+    , errMsg403MinUTxOValue
+    , errMsg403NotEnoughMoney
+    )
 
 import qualified Cardano.Wallet.Api.Link as Link
 import qualified Network.HTTP.Types.Status as HTTP
@@ -324,7 +328,7 @@ spec = describe "NEW_BYRON_TRANSACTIONS" $ do
                 (Link.createUnsignedTransaction @'Byron wa) Default payload
             verify rTx
                 [ expectResponseCode HTTP.status403
-                , expectErrorMessage "Some outputs have ada values that are too small."
+                , expectErrorMessage errMsg403MinUTxOValue
                 ]
 
     describe "BYRON_TRANS_NEW_ASSETS_CREATE_01c - Multi-asset tx without Ada" $
