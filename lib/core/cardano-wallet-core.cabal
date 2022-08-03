@@ -195,6 +195,7 @@ library
       Cardano.Wallet.Api.Server
       Cardano.Wallet.Api.Server.Tls
       Cardano.Wallet.Api.Types
+      Cardano.Wallet.Api.Types.BlockHeader
       Cardano.Wallet.Api.Types.SchemaMetadata
       Cardano.Wallet.Checkpoints.Policy
       Cardano.Wallet.Checkpoints
