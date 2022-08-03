@@ -129,6 +129,10 @@ import Cardano.Wallet.Primitive.Types.RewardAccount
     ( RewardAccount )
 import Cardano.Wallet.Primitive.Types.TokenBundle
     ( TokenBundle (..) )
+import Cardano.Wallet.Primitive.Types.TokenMap
+    ( AssetId (..) )
+import Cardano.Wallet.Primitive.Types.TokenQuantity
+    ( TokenQuantity (..) )
 import Cardano.Wallet.Primitive.Types.Tx
     ( Tx (..), TxIn (..), TxOut (..), TxScriptValidity (..), TxSize (..) )
 import Cardano.Wallet.Shelley.Network.Blockfrost.Conversion
@@ -206,7 +210,7 @@ import Data.Set
 import Data.Text
     ( Text )
 import Data.Text.Class
-    ( ToText (..) )
+    ( ToText (..), fromText )
 import Data.These
     ( These (That, These, This) )
 import Data.Traversable
@@ -240,6 +244,7 @@ import qualified Cardano.Ledger.Coin as Ledger
 import qualified Cardano.Slotting.Time as ST
 import qualified Cardano.Wallet.Network.Light as LN
 import qualified Cardano.Wallet.Primitive.Types.Coin as Coin
+import qualified Cardano.Wallet.Primitive.Types.TokenMap as TokenMap
 import qualified Cardano.Wallet.Shelley.Network.Blockfrost.Fixture as Fixture
 import qualified Cardano.Wallet.Shelley.Network.Blockfrost.Layer as Layer
 import qualified Data.Aeson as Aeson
@@ -250,6 +255,7 @@ import qualified Data.Sequence as Seq
 import qualified Data.Set as Set
 import qualified Data.Text as T
 import qualified Data.Vector as V
+import qualified Money
 import qualified Ouroboros.Consensus.HardFork.History.Qry as HF
 import qualified Ouroboros.Consensus.Util.Counting as UC
 
@@ -743,7 +749,20 @@ assembleTransaction
                              ] of
                     [l] -> fromBfLovelaces l
                     _ -> throwError $ InvalidUtxoOutputAmount out
-                pure $ TokenBundle coin mempty -- TODO: Handle native assets
+                let bfAssets = [ ( Money.someDiscreteCurrency sd
+                                 , Money.someDiscreteAmount sd
+                                 )
+                               | BF.AssetAmount sd <- _utxoOutputAmount
+                               ]
+                tokens <- for bfAssets \(textValue, a) -> do
+                    let (policy, name) = T.splitAt 56 textValue
+                    policyId <-
+                        first (InvalidTokenPolicyId policy) (fromText policy)
+                    assetName <-
+                        first (InvalidTokenName name) (fromText name)
+                    assetQuantity <- TokenQuantity <$> (a <?#> "TokenQuantity")
+                    pure (AssetId policyId assetName, assetQuantity)
+                pure $ TokenBundle coin (TokenMap.fromFlatList tokens)
             pure TxOut{..}
         withdrawals <-
             Map.fromList
