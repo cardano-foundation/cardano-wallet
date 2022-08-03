@@ -521,32 +521,65 @@ spec = describe "SHELLEY_ADDRESSES" $ do
                 "addr1xyqmnmwuh85e0fxaggl6ac2hfeqncg76gsr0ld8qdjd84afpwzn9v3w2waeke8x2fzgn0jel7r2glte5g02pzn7dsctqu6mtx3" :: Text
         validateAddr r goldenAddr
 
-    -- Generating golden test data for enterprise addresses - key credential:
+    -- Generating golden test. We use the following mnemonic in all examples below:
     --- $ cat recovery-phrase.txt
     --- east student silly already breeze enact seat trade few way online skin grass humble electric
+
+
     --- $ cat recovery-phrase.txt | cardano-address key from-recovery-phrase Shelley \
     --- > | cardano-address key child 1852H/1815H/0H/0/0 \
     --- > | cardano-address key public --without-chain-code
     --- addr_vk1lqglg77z6kajsdz4739q22c0zm0yhuy567z6xk2vc0z5ucjtkwpschzd2j
-    -- which can be translated in cardano-addresses
-    -- :set -XOverloadedStrings
-    -- import Data.Text
-    -- let k = "xpub1lqglg77z6kajsdz4739q22c0zm0yhuy567z6xk2vc0z5ucjtkwps75l8wa" :: Text
-    -- let (Right bytes) = fromBech32 (const id) (T.encodeUtf8 k)
-    -- bytes
-    -- "\248\DC1\244{\194\213\187(4U\244J\ENQ+\SI\SYN\222K\240\148\215\133\163YL\195\197NbK\179\131"
-    -- let (Right hrp) = Bech32.humanReadablePartFromText "addr_vk"
-    -- encode (EBech32 hrp) bytes
-    -- "addr_vk1lqglg77z6kajsdz4739q22c0zm0yhuy567z6xk2vc0z5ucjtkwpschzd2j"
-
     -- Golden address can be obtained via
     --- $ cat recovery-phrase.txt | cardano-address key from-recovery-phrase Shelley \
     --- > | cardano-address key child 1852H/1815H/0H/0/0 \
     --- > | cardano-address key public --with-chain-code \
     --- > | cardano-address address payment --network-tag mainnet
-    it "ANY_ADDRESS_POST_07 - Golden tests for enterprise pub key address" $ \ctx -> do
+    it "ANY_ADDRESS_POST_07a - Golden tests for enterprise address - from non-extended public key" $ \ctx -> do
         let payload = Json [json|{
                 "payment": "addr_vk1lqglg77z6kajsdz4739q22c0zm0yhuy567z6xk2vc0z5ucjtkwpschzd2j"
+            }|]
+        r <- request @AnyAddress ctx Link.postAnyAddress Default payload
+        expectResponseCode HTTP.status202 r
+        let goldenAddr =
+                "addr1v9qthemrg5kczwfjjnahwt65elhrl95e9hcgufnajtp6wfgknj82e" :: Text
+        validateAddr r goldenAddr
+
+
+    --- $ cat recovery-phrase.txt | cardano-address key from-recovery-phrase Shelley \
+    --- > | cardano-address key child 1852H/1815H/0H/0/0 \
+    --- > | cardano-address key public --with-chain-code
+    --- addr_xvk1lqglg77z6kajsdz4739q22c0zm0yhuy567z6xk2vc0z5ucjtkwp3k2zz8796vdstcu7q0qp232wyvzjes0qkpmt7gzwa0x2q75h3qcgl5y4q0
+    -- Golden address can be obtained via
+    --- $ cat recovery-phrase.txt | cardano-address key from-recovery-phrase Shelley \
+    --- > | cardano-address key child 1852H/1815H/0H/0/0 \
+    --- > | cardano-address key public --with-chain-code \
+    --- > | cardano-address address payment --network-tag mainnet
+    it "ANY_ADDRESS_POST_07b - Golden tests for enterprise address - from extended public key" $ \ctx -> do
+        let payload = Json [json|{
+                "payment": "addr_xvk1lqglg77z6kajsdz4739q22c0zm0yhuy567z6xk2vc0z5ucjtkwp3k2zz8796vdstcu7q0qp232wyvzjes0qkpmt7gzwa0x2q75h3qcgl5y4q0"
+            }|]
+        r <- request @AnyAddress ctx Link.postAnyAddress Default payload
+        expectResponseCode HTTP.status202 r
+        let goldenAddr =
+                "addr1v9qthemrg5kczwfjjnahwt65elhrl95e9hcgufnajtp6wfgknj82e" :: Text
+        validateAddr r goldenAddr
+
+    --- $ cat recovery-phrase.txt | cardano-address key from-recovery-phrase Shelley \
+    --- > | cardano-address key child 1852H/1815H/0H/0/0 \
+    --- > | cardano-address key public --with-chain-code \
+    --- > | cardano-address key hash
+    --- addr_vkh1gza7wc699kqnjv55ldmj74x0acledxfd7z8zvlvjcwnj2h09mcs
+    --- One can also use --without-chain-code to get the same key hash
+    -- Golden address can be obtained via
+    --- $ cat recovery-phrase.txt | cardano-address key from-recovery-phrase Shelley \
+    --- > | cardano-address key child 1852H/1815H/0H/0/0 \
+    --- > | cardano-address key public --with-chain-code \
+    --- > | cardano-address key hash
+    --- > | cardano-address address payment --network-tag mainnet
+    it "ANY_ADDRESS_POST_07c - Golden tests for enterprise address - from key hash" $ \ctx -> do
+        let payload = Json [json|{
+                "payment": "addr_vkh1gza7wc699kqnjv55ldmj74x0acledxfd7z8zvlvjcwnj2h09mcs"
             }|]
         r <- request @AnyAddress ctx Link.postAnyAddress Default payload
         expectResponseCode HTTP.status202 r
