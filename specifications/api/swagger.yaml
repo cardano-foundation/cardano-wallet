@@ -2205,29 +2205,40 @@ components:
             The absolute minimum quantity of ada required for a new transaction
             output created with the wallet.
 
+            Warning: This field may be deprecated or removed in future versions
+            of the wallet.
+
             In general, the ledger rules require that every transaction output
             has a minimum quantity of ada. This minimum quantity is determined
-            by an era-specific function whose value increases as the number of
-            different assets increases, as the quantity of any individual asset
-            increases, as the length of the target address increases, and if a
-            datum hash is added.
+            by an era-specific function whose value increases:
+
+              - as the number of different assets increases;
+              - as the quantity of any individual asset increases;
+              - as the length of the target address increases; and
+              - if a datum hash is added.
 
             Therefore, the value reported by this field should only be viewed
             as an absolute minimum, and only applies to outputs that send ada
-            (and no other assets) to Shelley-era addresses. If an output
-            contains other assets, specifies a datum hash, or sends funds to a
-            Byron-era address, then the minimum value required by the ledger
-            (and the wallet) will be higher than the value reported by this
-            field.
+            (and no other assets) to addresses of the minimum possible length.
+            (At the time of writing, this corresponds to a 29-byte long
+            Shelley-era address.)
 
-            When using the wallet to construct or balance a transaction, if the
-            caller specifies an output with a non-zero ada quantity, then the
-            wallet will verify that the specified quantity is not less than the
-            minimum quantity required by the ledger, and if this verification
-            step fails, return an error that reports the required minimum. If
-            the caller specifies an output without an ada quantity, then the
-            wallet will automatically assign a minimal ada quantity to that
-            output.
+            In practice, if an output contains other assets, specifies a datum
+            hash, or sends funds to an address that is longer than the absolute
+            minimum length, then the minimum value required by the ledger (and
+            the wallet) will be higher than the value reported by this field.
+
+            When using the wallet to construct or balance a transaction:
+
+              - if the caller specifies an output without an ada quantity, then
+                the wallet will automatically assign a minimal ada quantity to
+                the output that is guaranteed to be accepted by the ledger;
+
+              - if the caller specifes an output with a non-zero ada quantity,
+                then the wallet will verify that the specified quantity is not
+                less than the minimum quantity required by the ledger, and if
+                this verification step fails, return an error that reports the
+                required minimum.
 
             In the Shelley, Allegra, and Mary eras, the `minimum_utxo_value`
             field was equivalent to the ledger `minUTxOValue` protocol
