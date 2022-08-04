@@ -1993,7 +1993,7 @@ prop_biggerMaxSizeMeansMoreInputs era size outs
         <=
         _estimateMaxNumberOfInputs @k era ((*2) <$> size ) defaultTransactionCtx outs
 
-testTxLayer :: TransactionLayer ShelleyKey SealedTx
+testTxLayer :: TransactionLayer ShelleyKey 'AddressK SealedTx
 testTxLayer = newTransactionLayer @ShelleyKey Cardano.Mainnet
 
 newtype ForByron a = ForByron { getForByron :: a } deriving (Show, Eq)
@@ -2422,7 +2422,7 @@ instance Arbitrary KeyHash where
         cred <- oneof [pure Payment, pure Delegation]
         KeyHash cred . BS.pack <$> vectorOf 28 arbitrary
 
-data Ctx m = Ctx (Tracer m WalletWorkerLog) (TransactionLayer ShelleyKey SealedTx)
+data Ctx m = Ctx (Tracer m WalletWorkerLog) (TransactionLayer ShelleyKey 'AddressK SealedTx)
     deriving Generic
 
 instance Arbitrary StdGenSeed  where

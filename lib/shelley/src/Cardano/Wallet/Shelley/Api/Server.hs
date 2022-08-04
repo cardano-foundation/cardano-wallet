@@ -165,7 +165,7 @@ import Cardano.Wallet.Api.Types.BlockHeader
 import Cardano.Wallet.Api.Types.SchemaMetadata
     ( TxMetadataSchema (..), parseSimpleMetadataFlag )
 import Cardano.Wallet.Primitive.AddressDerivation
-    ( DelegationAddress (..), PaymentAddress (..), Role (..) )
+    ( DelegationAddress (..), Depth (..), PaymentAddress (..), Role (..) )
 import Cardano.Wallet.Primitive.AddressDerivation.Byron
     ( ByronKey )
 import Cardano.Wallet.Primitive.AddressDerivation.Icarus
@@ -238,10 +238,10 @@ server
         , Typeable n
         , HasNetworkId n
         )
-    => ApiLayer (RndState n) ByronKey
-    -> ApiLayer (SeqState n IcarusKey) IcarusKey
-    -> ApiLayer (SeqState n ShelleyKey) ShelleyKey
-    -> ApiLayer (SharedState n SharedKey) SharedKey
+    => ApiLayer (RndState n) ByronKey 'AddressK
+    -> ApiLayer (SeqState n IcarusKey) IcarusKey 'AddressK
+    -> ApiLayer (SeqState n ShelleyKey) ShelleyKey 'AddressK
+    -> ApiLayer (SharedState n SharedKey) SharedKey 'ScriptK
     -> StakePoolLayer
     -> NtpClient
     -> BlockchainSource
@@ -535,7 +535,7 @@ server byron icarus shelley multisig spl ntp blockchainSource =
         :<|> getNetworkClock ntp
       where
         nl = icarus ^. networkLayer
-        tl = icarus ^. transactionLayer @IcarusKey
+        tl = icarus ^. transactionLayer @IcarusKey @'AddressK
         genesis@(_,_) = icarus ^. genesisData
         mode = case blockchainSource of
           NodeSource {} -> Node
@@ -570,7 +570,7 @@ server byron icarus shelley multisig spl ntp blockchainSource =
                 _ -> pure (ApiHealthCheck NoSmashConfigured)
 
     sharedWallets
-        :: ApiLayer (SharedState n SharedKey) SharedKey
+        :: ApiLayer (SharedState n SharedKey) SharedKey 'ScriptK
         -> Server SharedWallets
     sharedWallets apilayer =
              postSharedWallet @_ @_ @SharedKey apilayer Shared.generateKeyFromSeed SharedKey
@@ -581,7 +581,7 @@ server byron icarus shelley multisig spl ntp blockchainSource =
         :<|> deleteWallet apilayer
 
     sharedWalletKeys
-        :: ApiLayer (SharedState n SharedKey) SharedKey
+        :: ApiLayer (SharedState n SharedKey) SharedKey 'ScriptK
         -> Server SharedWalletKeys
     sharedWalletKeys apilayer = derivePublicKey apilayer ApiVerificationKeyShared
         :<|> (\wid ix p -> postAccountPublicKey apilayer ApiAccountKeyShared wid ix (toKeyDataPurpose p) )
@@ -592,13 +592,13 @@ server byron icarus shelley multisig spl ntp blockchainSource =
               ApiPostAccountKeyDataWithPurpose p f Nothing
 
     sharedAddresses
-        :: ApiLayer (SharedState n SharedKey) SharedKey
+        :: ApiLayer (SharedState n SharedKey) SharedKey 'ScriptK
         -> Server (SharedAddresses n)
     sharedAddresses apilayer =
         listAddresses apilayer normalizeSharedAddress
 
     sharedTransactions
-        :: ApiLayer (SharedState n SharedKey) SharedKey
+        :: ApiLayer (SharedState n SharedKey) SharedKey 'ScriptK
         -> Server (SharedTransactions n)
     sharedTransactions apilayer =
         constructSharedTransaction apilayer (constructAddressFromIx @n UtxoInternal)

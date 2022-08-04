@@ -308,10 +308,10 @@ serveWallet
             )
         => Proxy n
         -> Socket
-        -> ApiLayer (RndState n) ByronKey
-        -> ApiLayer (SeqState n IcarusKey) IcarusKey
-        -> ApiLayer (SeqState n ShelleyKey) ShelleyKey
-        -> ApiLayer (SharedState n SharedKey) SharedKey
+        -> ApiLayer (RndState n) ByronKey 'AddressK
+        -> ApiLayer (SeqState n IcarusKey) IcarusKey 'AddressK
+        -> ApiLayer (SeqState n ShelleyKey) ShelleyKey 'AddressK
+        -> ApiLayer (SharedState n SharedKey) SharedKey 'ScriptK
         -> StakePoolLayer
         -> NtpClient
         -> IO ()
@@ -324,7 +324,7 @@ serveWallet
         Server.start serverSettings apiServerTracer tlsConfig socket application
 
     apiLayer
-        :: forall s k.
+        :: forall s k ktype.
             ( IsOurs s Address
             , IsOurs s RewardAccount
             , MaybeLight s
@@ -332,10 +332,10 @@ serveWallet
             , PersistPrivateKey (k 'RootK)
             , WalletKey k
             )
-        => TransactionLayer k SealedTx
+        => TransactionLayer k ktype SealedTx
         -> NetworkLayer IO (CardanoBlock StandardCrypto)
-        -> (WorkerCtx (ApiLayer s k) -> WalletId -> IO ())
-        -> IO (ApiLayer s k)
+        -> (WorkerCtx (ApiLayer s k ktype) -> WalletId -> IO ())
+        -> IO (ApiLayer s k ktype)
     apiLayer txLayer netLayer coworker = do
         tokenMetaClient <- newMetadataClient tokenMetadataTracer tokenMetaUri
         dbFactory <- Sqlite.newDBFactory

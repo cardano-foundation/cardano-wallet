@@ -1308,7 +1308,7 @@ instance Arbitrary UTxO where
 
 data WalletLayerFixture s m = WalletLayerFixture
     { _fixtureDBLayer :: DBLayer m s ShelleyKey
-    , _fixtureWalletLayer :: WalletLayer m s ShelleyKey
+    , _fixtureWalletLayer :: WalletLayer m s ShelleyKey 'AddressK
     , _fixtureWallet :: [WalletId]
     , _fixtureSlotNoTime :: SlotNo -> UTCTime
     }
@@ -1340,7 +1340,7 @@ setupFixture (wid, wname, wstate) = do
 
 -- | A dummy transaction layer to see the effect of a root private key. It
 -- implements a fake signer that still produces sort of witnesses
-dummyTransactionLayer :: TransactionLayer ShelleyKey SealedTx
+dummyTransactionLayer :: TransactionLayer ShelleyKey 'AddressK SealedTx
 dummyTransactionLayer = TransactionLayer
     { mkTransaction = \_era _stakeCredentials keystore _pp _ctx cs -> do
         let inps' = NE.toList $ second txOutCoin <$> view #inputs cs

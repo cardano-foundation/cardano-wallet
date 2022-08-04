@@ -435,7 +435,7 @@ mkTx networkId payload ttl (rewardAcnt, pwdAcnt) addrResolver wdrl cs fees era =
 --
 -- If a key for a given input isn't found, the input is skipped.
 signTransaction
-    :: forall k era.
+    :: forall k ktype era.
         ( EraConstraints era
         , TxWitnessTagFor k
         , WalletKey k
@@ -446,7 +446,7 @@ signTransaction
     -- ^ Stake key store / reward account resolution
     -> (KeyHash -> Maybe (XPrv, Passphrase "encryption"))
     -- ^ Policy key resolution
-    -> (Address -> Maybe (k 'AddressK XPrv, Passphrase "encryption"))
+    -> (Address -> Maybe (k ktype XPrv, Passphrase "encryption"))
     -- ^ Payment key store
     -> (TxIn -> Maybe Address)
     -- ^ Input resolver
@@ -550,12 +550,12 @@ signTransaction
         pure $ mkShelleyWitness body (getRawKey k, pwd)
 
 newTransactionLayer
-    :: forall k.
+    :: forall k ktype.
         ( TxWitnessTagFor k
         , WalletKey k
         )
     => NetworkId
-    -> TransactionLayer k SealedTx
+    -> TransactionLayer k ktype SealedTx
 newTransactionLayer networkId = TransactionLayer
     { mkTransaction = \era stakeCreds keystore _pp ctx selection -> do
         let ttl   = txValidityInterval ctx

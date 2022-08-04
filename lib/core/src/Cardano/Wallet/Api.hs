@@ -1151,13 +1151,13 @@ type PostExternalTransaction = "proxy"
                                Api Layer
 -------------------------------------------------------------------------------}
 
-data ApiLayer s (k :: Depth -> Type -> Type)
+data ApiLayer s (k :: Depth -> Type -> Type) ktype
     = ApiLayer
         (Tracer IO TxSubmitLog)
         (Tracer IO (WorkerLog WalletId WalletWorkerLog))
         (Block, NetworkParameters)
         (NetworkLayer IO Block)
-        (TransactionLayer k SealedTx)
+        (TransactionLayer k ktype SealedTx)
         (DBFactory IO s k)
         (WorkerRegistry WalletId (DBLayer IO s k))
         (Concierge IO WalletLock)
@@ -1170,10 +1170,10 @@ data ApiLayer s (k :: Depth -> Type -> Type)
 data WalletLock = PostTransactionOld WalletId
     deriving (Eq, Ord, Show)
 
-instance HasWorkerCtx (DBLayer IO s k) (ApiLayer s k) where
-    type WorkerCtx (ApiLayer s k) = WalletLayer IO s k
-    type WorkerMsg (ApiLayer s k) = WalletWorkerLog
-    type WorkerKey (ApiLayer s k) = WalletId
+instance HasWorkerCtx (DBLayer IO s k) (ApiLayer s k ktype) where
+    type WorkerCtx (ApiLayer s k ktype) = WalletLayer IO s k ktype
+    type WorkerMsg (ApiLayer s k ktype) = WalletWorkerLog
+    type WorkerKey (ApiLayer s k ktype) = WalletId
     hoistResource db transform (ApiLayer _ tr gp nw tl _ _ _ _) =
         WalletLayer (contramap transform tr) gp nw tl db
 

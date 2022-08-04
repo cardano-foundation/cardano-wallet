@@ -669,12 +669,12 @@ import qualified Data.Vector as V
 --
 -- __Fix__: Add type-applications at the call-site "@myFunction \@ctx \@s \\@k@"
 
-data WalletLayer m s (k :: Depth -> Type -> Type)
+data WalletLayer m s (k :: Depth -> Type -> Type) ktype
     = WalletLayer
         (Tracer m WalletWorkerLog)
         (Block, NetworkParameters)
         (NetworkLayer m Block)
-        (TransactionLayer k SealedTx)
+        (TransactionLayer k ktype SealedTx)
         (DBLayer m s k)
     deriving (Generic)
 
@@ -718,7 +718,7 @@ type HasLogger m msg = HasType (Tracer m msg)
 -- hides that choice, for some ease of use.
 type HasNetworkLayer m = HasType (NetworkLayer m Block)
 
-type HasTransactionLayer k = HasType (TransactionLayer k SealedTx)
+type HasTransactionLayer k ktype = HasType (TransactionLayer k ktype SealedTx)
 
 dbLayer
     :: forall m s k ctx. HasDBLayer m s k ctx
@@ -745,10 +745,10 @@ networkLayer =
     typed @(NetworkLayer m Block)
 
 transactionLayer
-    :: forall k ctx. (HasTransactionLayer k ctx)
-    => Lens' ctx (TransactionLayer k SealedTx)
+    :: forall k ktype ctx. (HasTransactionLayer k ktype ctx)
+    => Lens' ctx (TransactionLayer k ktype SealedTx)
 transactionLayer =
-    typed @(TransactionLayer k SealedTx)
+    typed @(TransactionLayer k ktype SealedTx)
 
 {-------------------------------------------------------------------------------
                                    Wallet
@@ -917,10 +917,10 @@ updateWalletPassphraseWithMnemonic ctx wid (xprv, new) =
             (xprv, (currentPassphraseScheme , new))
 
 getWalletUtxoSnapshot
-    :: forall ctx s k.
+    :: forall ctx s k ktype.
         ( HasDBLayer IO s k ctx
         , HasNetworkLayer IO ctx
-        , HasTransactionLayer k ctx
+        , HasTransactionLayer k ktype ctx
         )
     => ctx
     -> WalletId
@@ -935,7 +935,7 @@ getWalletUtxoSnapshot ctx wid = do
     pure $ first (view #tokens) . pairTxOutWithMinAdaQuantity era pp <$> txOuts
   where
     nl = ctx ^. networkLayer
-    tl = ctx ^. transactionLayer @k
+    tl = ctx ^. transactionLayer @k @ktype
 
     pairTxOutWithMinAdaQuantity
         :: Cardano.AnyCardanoEra
@@ -1236,8 +1236,8 @@ fetchRewardBalance ctx wid = db & \DBLayer{..} ->
 -- b) The current reward value is too small to be considered (adding it would
 -- cost more than its value).
 readNextWithdrawal
-    :: forall ctx k.
-        ( HasTransactionLayer k ctx
+    :: forall ctx k ktype.
+        ( HasTransactionLayer k ktype ctx
         , HasNetworkLayer IO ctx
         )
     => ctx
@@ -1260,7 +1260,7 @@ readNextWithdrawal ctx era (Coin withdrawal) = do
     then pure (Coin 0)
     else pure (Coin withdrawal)
   where
-    tl = ctx ^. transactionLayer @k
+    tl = ctx ^. transactionLayer @k @ktype
     nl = ctx ^. networkLayer
 
     mkTxCtx wdrl = defaultTransactionCtx
@@ -1586,8 +1586,8 @@ instance Buildable (PartialTx era) where
         cardanoTxF tx' = pretty $ pShow tx'
 
 balanceTransaction
-    :: forall era m s k ctx.
-        ( HasTransactionLayer k ctx
+    :: forall era m s k ktype ctx.
+        ( HasTransactionLayer k ktype ctx
         , GenChange s
         , MonadRandom m
         , HasLogger m WalletWorkerLog ctx
@@ -1622,7 +1622,7 @@ balanceTransaction
     -> ExceptT ErrBalanceTx m (Cardano.Tx era)
 balanceTransaction ctx change pp ti wallet ptx = do
     let balanceWith strategy =
-            balanceTransactionWithSelectionStrategy @era @m @s @k
+            balanceTransactionWithSelectionStrategy @era @m @s @k @ktype
                 ctx change pp ti wallet strategy ptx
     balanceWith SelectionStrategyOptimal
         `catchE` \case
@@ -1632,8 +1632,8 @@ balanceTransaction ctx change pp ti wallet ptx = do
                 -> throwE otherErr
 
 balanceTransactionWithSelectionStrategy
-    :: forall era m s k ctx.
-        ( HasTransactionLayer k ctx
+    :: forall era m s k ktype ctx.
+        ( HasTransactionLayer k ktype ctx
         , GenChange s
         , BoundedAddressLength k
         , MonadRandom m
@@ -1774,7 +1774,7 @@ balanceTransactionWithSelectionStrategy
         , feeUpdate = UseNewTxFee updatedFee
         })
   where
-    tl = ctx ^. transactionLayer @k
+    tl = ctx ^. transactionLayer @k @ktype
     tr = contramap MsgWallet $ ctx ^. logger @m
 
     toSealed :: Cardano.Tx era -> SealedTx
@@ -2261,8 +2261,8 @@ readWalletUTxOIndex ctx wid = do
 -- | Calculate the minimum coin values required for a bunch of specified
 -- outputs.
 calcMinimumCoinValues
-    :: forall ctx k f.
-        ( HasTransactionLayer k ctx
+    :: forall ctx k ktype f.
+        ( HasTransactionLayer k ktype ctx
         , HasNetworkLayer IO ctx
         , Applicative f
         )
@@ -2277,7 +2277,7 @@ calcMinimumCoinValues ctx era outs = do
         . (\o -> (view #address o, view (#tokens . #tokens) o)) <$> outs
   where
     nl = ctx ^. networkLayer
-    tl = ctx ^. transactionLayer @k
+    tl = ctx ^. transactionLayer @k @ktype
 
 -- | Parameters for the 'selectAssets' function.
 --
@@ -2314,9 +2314,9 @@ data SelectAssetsParams s result = SelectAssetsParams
 -- selection.
 --
 selectAssets
-    :: forall ctx m s k result.
+    :: forall ctx m s k ktype result.
         ( BoundedAddressLength k
-        , HasTransactionLayer k ctx
+        , HasTransactionLayer k ktype ctx
         , HasLogger m WalletWorkerLog ctx
         , MonadRandom m
         )
@@ -2399,7 +2399,7 @@ selectAssets ctx era pp params transform = do
     withExceptT ErrSelectAssetsSelectionError $ except $
         transform (getState $ params ^. #wallet) <$> mSel
   where
-    tl = ctx ^. transactionLayer @k
+    tl = ctx ^. transactionLayer @k @ktype
     tr = contramap MsgWallet $ ctx ^. logger @m
 
     -- Ensure that there's no existing pending withdrawals. Indeed, a withdrawal
@@ -2423,16 +2423,16 @@ selectAssets ctx era pp params transform = do
         txWithdrawal = params ^. (#txContext . #txWithdrawal)
 
 signTransaction
-  :: forall k
+  :: forall k ktype
    . ( WalletKey k
      , HardDerivation k
      , Bounded (Index (AddressIndexDerivationType k) 'AddressK)
      )
-  => TransactionLayer k SealedTx
+  => TransactionLayer k ktype SealedTx
   -- ^ The way to interact with the wallet backend
   -> Cardano.AnyCardanoEra
   -- ^ Preferred latest era
-  -> (Address -> Maybe (k 'AddressK XPrv, Passphrase "encryption"))
+  -> (Address -> Maybe (k ktype XPrv, Passphrase "encryption"))
   -- ^ The wallets address-key lookup function
   -> (k 'RootK XPrv, Passphrase "encryption")
   -- ^ The root key of the wallet
@@ -2479,8 +2479,8 @@ signTransaction tl preferredLatestEra keyLookup (rootKey, rootPwd) utxo =
 -- do so, use 'submitTx'.
 --
 buildAndSignTransaction
-    :: forall ctx s k.
-        ( HasTransactionLayer k ctx
+    :: forall ctx s k ktype.
+        ( HasTransactionLayer k ktype ctx
         , HasDBLayer IO s k ctx
         , HasNetworkLayer IO ctx
         , IsOwned s k
@@ -2513,7 +2513,7 @@ buildAndSignTransaction ctx wid era mkRwdAcct pwd txCtx sel = db & \DBLayer{..} 
             return (tx, meta, time, sealedTx)
   where
     db = ctx ^. dbLayer @IO @s @k
-    tl = ctx ^. transactionLayer @k
+    tl = ctx ^. transactionLayer @k @ktype
     nl = ctx ^. networkLayer
     ti = timeInterpreter nl
 
@@ -2521,7 +2521,7 @@ buildAndSignTransaction ctx wid era mkRwdAcct pwd txCtx sel = db & \DBLayer{..} 
 -- | Construct an unsigned transaction from a given selection.
 constructTransaction
     :: forall ctx s k (n :: NetworkDiscriminant).
-        ( HasTransactionLayer k ctx
+        ( HasTransactionLayer k 'AddressK ctx
         , HasDBLayer IO s k ctx
         , HasNetworkLayer IO ctx
         , Typeable s
@@ -2542,14 +2542,14 @@ constructTransaction ctx wid era txCtx sel = db & \DBLayer{..} -> do
             mkUnsignedTransaction tl era xpub pp txCtx sel
   where
     db = ctx ^. dbLayer @IO @s @k
-    tl = ctx ^. transactionLayer @k
+    tl = ctx ^. transactionLayer @k @'AddressK
     nl = ctx ^. networkLayer
 
 -- | Construct an unsigned transaction from a given selection
 -- for a shared wallet.
 constructSharedTransaction
     :: forall ctx s k (n :: NetworkDiscriminant).
-        ( HasTransactionLayer k ctx
+        ( HasTransactionLayer k 'ScriptK ctx
         , HasDBLayer IO s k ctx
         , HasNetworkLayer IO ctx
         , k ~ SharedKey
@@ -2576,7 +2576,7 @@ constructSharedTransaction ctx wid era txCtx sel = db & \DBLayer{..} -> do
             mkUnsignedTransaction tl era xpub pp txCtx sel
   where
     db = ctx ^. dbLayer @IO @s @k
-    tl = ctx ^. transactionLayer @k
+    tl = ctx ^. transactionLayer @k @'ScriptK
     nl = ctx ^. networkLayer
 
 -- | Calculate the transaction expiry slot, given a 'TimeInterpreter', and an
@@ -2739,9 +2739,9 @@ submitTx ctx wid (tx, meta, binary) = traceResult tr' $ db & \DBLayer{..} -> do
 -- NOTE: external transactions will not be added to the LocalTxSubmission pool,
 -- so the user must retry submission themselves.
 submitExternalTx
-    :: forall ctx k.
+    :: forall ctx k ktype.
         ( HasNetworkLayer IO ctx
-        , HasTransactionLayer k ctx
+        , HasTransactionLayer k ktype ctx
         , HasLogger IO TxSubmitLog ctx
         )
     => ctx
@@ -2757,7 +2757,7 @@ submitExternalTx ctx sealedTx = do
         postTx nw sealedTx
         pure tx
   where
-    tl = ctx ^. transactionLayer @k
+    tl = ctx ^. transactionLayer @k @ktype
     nw = ctx ^. networkLayer
 
 -- | Remove a pending or expired transaction from the transaction history. This
@@ -2965,7 +2965,7 @@ createMigrationPlan
     :: forall ctx k s.
         ( HasDBLayer IO s k ctx
         , HasNetworkLayer IO ctx
-        , HasTransactionLayer k ctx
+        , HasTransactionLayer k 'AddressK ctx
         )
     => ctx
     -> Cardano.AnyCardanoEra
@@ -2984,7 +2984,7 @@ createMigrationPlan ctx era wid rewardWithdrawal = do
         $ withdrawalToCoin rewardWithdrawal
   where
     nl = ctx ^. networkLayer
-    tl = ctx ^. transactionLayer @k
+    tl = ctx ^. transactionLayer @k @'AddressK
 
 type SelectionWithoutChange = SelectionOf Void
 
