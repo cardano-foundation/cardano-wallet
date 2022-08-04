@@ -55,6 +55,7 @@ module Test.Integration.Framework.DSL
 
     -- * Constants
     , minUTxOValue
+    , minUTxOValueForMinLengthAddress
     , slotLengthValue
     , securityParameterValue
     , epochLengthValue
@@ -689,6 +690,15 @@ minUTxOValue e
     | e >= ApiAlonzo = 999_978
         -- From 34482 lovelace/word.
     | otherwise   = 1_000_000
+
+minUTxOValueForMinLengthAddress :: ApiEra -> Natural
+minUTxOValueForMinLengthAddress = \case
+    ApiByron   ->         0
+    ApiShelley -> 1_000_000
+    ApiAllegra -> 1_000_000
+    ApiMary    -> 1_000_000
+    ApiAlonzo  ->   999_978
+    ApiBabbage ->   874_930
 
 -- | Parameter in test cluster shelley genesis.
 --
