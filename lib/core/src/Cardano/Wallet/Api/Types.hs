@@ -257,7 +257,12 @@ import Prelude
 import Cardano.Address.Derivation
     ( XPrv, XPub, xpubFromBytes, xpubToBytes )
 import Cardano.Address.Script
-    ( Cosigner (..), KeyHash (..), Script, ScriptTemplate, ValidationLevel (..) )
+    ( Cosigner (..)
+    , KeyHash (..)
+    , Script
+    , ScriptTemplate
+    , ValidationLevel (..)
+    )
 import Cardano.Api
     ( AnyCardanoEra (..)
     , CardanoEra (..)
@@ -491,8 +496,8 @@ import qualified Data.Aeson.Types as Aeson
 import qualified Data.ByteString as BS
 import qualified Data.ByteString.Char8 as B8
 import qualified Data.ByteString.Lazy as BL
-import qualified Data.Map as Map
 import qualified Data.List as L
+import qualified Data.Map as Map
 import qualified Data.Text as T
 import qualified Data.Text.Encoding as T
 import qualified Data.Text.Read as T
