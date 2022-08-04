@@ -461,6 +461,24 @@ x-credentialPubKey: &credentialPubKey
     - stake_vk16apaenn9ut6s40lcw3l8v68xawlrlq20z2966uzcx8jmv2q9uy7qau558d
     - addr_vk16apaenn9ut6s40lcw3l8v68xawlrlq20z2966uzcx8jmv2q9uy7q3yvuv2
 
+x-credentialExtendedPubKey: &credentialExtendedPubKey
+  description: An extended public key (public key with chain code) for credential - 64 bytes
+  type: string
+  format: bech32
+  pattern: "^((addr_xvk)|(stake_xvk))1[0-9a-z]*$"
+  example:
+    - stake_xvk1qqqqzqqpqyqqzqgpqyqszqgpqqqqzqgpqqqqqqqpqyqqzqgqqqqqqqgpqqqqqqgqqyqszqqpqyqsqqqqqyqszqqqqqqqqqqpqqqqzqqgjanje
+    - addr_xvk1qyqqqqgqqyqsqqgqqyqsqqgqqqqszqqpqyqsqqgqqqqqqqgqqyqqqqqpqqqsqqqpqyqszqqpqqqszqgpqqqqzqgpqqqqqqqqqqqsqqqptg5dh
+
+x-credentialKeyHash: &credentialKeyHash
+  description: A key hash for credential - 28 bytes
+  type: string
+  format: bech32
+  pattern: "^((addr_vkh)|(stake_vkh))1[0-9a-z]*$"
+  example:
+    - stake_vkh1zxt0uvrza94h3hv4jpv0ttddgnwkvdgeyq8jf9w30mcs6y8w3nq
+    - addr_vkh1zxt0uvrza94h3hv4jpv0ttddgnwkvdgeyq8jf9w30mcs6y8w3nq
+
 x-validationLevel: &validationLevel
   description: |
     Script validation level. Required validation sifts off scripts that would not
@@ -661,6 +679,10 @@ x-CredentialValue: &CredentialValue
   oneOf:
     - <<: *credentialPubKey
       title: public key
+    - <<: *credentialExtendedPubKey
+      title: extended public key
+    - <<: *credentialKeyHash
+      title: key hash
     - <<: *script
       title: script
   example:
