@@ -560,7 +560,7 @@ instance
     , SupportsDiscovery n k
     , AddressIndexDerivationType k ~ 'Soft
     )
-    => IsOwned (SeqState n k) k where
+    => IsOwned (SeqState n k) k 'AddressK where
     isOwned st (rootPrv, pwd) addrRaw =
         case paymentKeyFingerprint addrRaw of
             Left _ -> Nothing
@@ -778,7 +778,7 @@ instance IsOurs (SeqAnyState n k p) RewardAccount where
 instance
     ( AddressIndexDerivationType k ~ 'Soft
     , KnownNat p
-    ) => IsOwned (SeqAnyState n k p) k
+    ) => IsOwned (SeqAnyState n k p) k 'AddressK
   where
     isOwned _ _ _ = Nothing
 

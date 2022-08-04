@@ -294,9 +294,9 @@ prop_derivedKeysAreOwned
     -> Index 'WholeDomain 'AddressK
     -> Property
 prop_derivedKeysAreOwned (Rnd st rk pwd) (Rnd st' rk' pwd') addrIx =
-    isOwned st (rk, pwd) addr === Just (addrKey, pwd)
+    isOwned @_ @_ @'AddressK st (rk, pwd) addr === Just (addrKey, pwd)
     .&&.
-    isOwned st' (rk', pwd') addr === Nothing
+    isOwned @_ @_ @'AddressK st' (rk', pwd') addr === Nothing
   where
     addr = paymentAddress @'Mainnet (publicKey addrKey)
     addrKey = deriveAddressPrivateKey pwd acctKey addrIx

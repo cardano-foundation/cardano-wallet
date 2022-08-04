@@ -297,7 +297,7 @@ prop_lookupDiscovered (s0, addr) =
     mw = someDummyMnemonic (Proxy @12)
     key = Shelley.unsafeGenerateKeyFromSeed (mw, Nothing) mempty
     prop s = monadicIO $ liftIO $ do
-        unless (isJust $ isOwned s (key, mempty) addr) $ do
+        unless (isJust $ isOwned @_ @_ @'AddressK s (key, mempty) addr) $ do
             expectationFailure "couldn't find private key corresponding to addr"
 
 

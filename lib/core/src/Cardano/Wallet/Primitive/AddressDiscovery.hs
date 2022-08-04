@@ -104,12 +104,12 @@ class IsOurs s entity where
 -- the root private key of a particular wallet. This isn't true for externally
 -- owned wallet which would delegate its key management to a third party (like
 -- a hardware Ledger or Trezor).
-class IsOurs s Address => IsOwned s key where
+class IsOurs s Address => IsOwned s key ktype where
     isOwned
         :: s
         -> (key 'RootK XPrv, Passphrase "encryption")
         -> Address
-        -> Maybe (key 'AddressK XPrv, Passphrase "encryption")
+        -> Maybe (key ktype XPrv, Passphrase "encryption")
         -- ^ Derive the private key corresponding to an address. Careful, this
         -- operation can be costly. Note that the state is discarded from this
         -- function as we do not intend to discover any addresses from this

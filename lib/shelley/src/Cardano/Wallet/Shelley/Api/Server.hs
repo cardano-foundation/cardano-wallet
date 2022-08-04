@@ -124,7 +124,6 @@ import Cardano.Wallet.Api.Server
     , selectCoinsForJoin
     , selectCoinsForQuit
     , signMetadata
-    , signSharedTransaction
     , signTransaction
     , submitTransaction
     , withLegacyLayer
@@ -332,7 +331,7 @@ server byron icarus shelley multisig spl ntp blockchainSource =
     shelleyTransactions :: Server (ShelleyTransactions n)
     shelleyTransactions =
              constructTransaction shelley (delegationAddress @n) (knownPools spl) (getPoolLifeCycleStatus spl)
-        :<|> signTransaction shelley
+        :<|> signTransaction @_ @_ @_ @'AddressK shelley
         :<|>
             (\wid mMinWithdrawal mStart mEnd mOrder simpleMetadataFlag ->
                 listTransactions shelley wid mMinWithdrawal mStart mEnd mOrder
@@ -603,7 +602,7 @@ server byron icarus shelley multisig spl ntp blockchainSource =
     sharedTransactions apilayer =
         constructSharedTransaction apilayer (constructAddressFromIx @n UtxoInternal)
             (knownPools spl) (getPoolLifeCycleStatus spl)
-        :<|> signSharedTransaction apilayer
+        :<|> signTransaction @_ @_ @_ @'ScriptK apilayer
         :<|> decodeSharedTransaction apilayer
 
     blocks :: Handler ApiBlockHeader

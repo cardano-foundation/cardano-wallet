@@ -97,7 +97,6 @@ module Cardano.Wallet.Api.Server
     , postPolicyKey
     , postPolicyId
     , constructSharedTransaction
-    , signSharedTransaction
     , decodeSharedTransaction
     , getBlocksLatestHeader
 
@@ -1995,11 +1994,11 @@ listAddresses ctx normalize (ApiT wid) stateFilter = do
 -------------------------------------------------------------------------------}
 
 signTransaction
-    :: forall ctx s k.
-        ( ctx ~ ApiLayer s k 'AddressK
+    :: forall ctx s k ktype.
+        ( ctx ~ ApiLayer s k ktype
         , Bounded (Index (AddressIndexDerivationType k) 'AddressK)
         , WalletKey k
-        , IsOwned s k
+        , IsOwned s k ktype
         , HardDerivation k
         )
     => ctx
@@ -2012,7 +2011,7 @@ signTransaction ctx (ApiT wid) body = do
     sealedTx' <- withWorkerCtx ctx wid liftE liftE $ \wrk -> liftHandler $ do
         let
             db = wrk ^. W.dbLayer @IO @s @k
-            tl = wrk ^. W.transactionLayer @k @'AddressK
+            tl = wrk ^. W.transactionLayer @k @ktype
             nl = wrk ^. W.networkLayer
         db & \W.DBLayer{atomically, readCheckpoint} -> do
             W.withRootKey @_ @s wrk wid pwd ErrWitnessTxWithRootKey $ \rootK scheme -> do
@@ -2029,7 +2028,7 @@ signTransaction ctx (ApiT wid) body = do
 
                     keyLookup
                         :: Address
-                        -> Maybe (k 'AddressK XPrv, Passphrase "encryption")
+                        -> Maybe (k ktype XPrv, Passphrase "encryption")
                     keyLookup = isOwned (getState cp) (rootK, pwdP)
 
                 era <- liftIO $ NW.currentNodeEra nl
@@ -2050,7 +2049,7 @@ postTransactionOld
         , GenChange s
         , HardDerivation k
         , HasNetworkLayer IO ctx
-        , IsOwned s k
+        , IsOwned s k 'AddressK
         , Typeable n
         , Typeable s
         , WalletKey k
@@ -2106,7 +2105,7 @@ postTransactionOld ctx genChange (ApiT wid) body = do
             sel' <- liftHandler
                 $ W.assignChangeAddressesAndUpdateDb wrk wid genChange sel
             (tx, txMeta, txTime, sealedTx) <- liftHandler
-                $ W.buildAndSignTransaction @_ @s @k @'AddressK
+                $ W.buildAndSignTransaction @_ @s @k
                     wrk wid era mkRwdAcct pwd txCtx sel'
             liftHandler
                 $ W.submitTx @_ @s @k wrk wid (tx, txMeta, sealedTx)
@@ -2732,53 +2731,6 @@ constructSharedTransaction
     ti :: TimeInterpreter (ExceptT PastHorizonException IO)
     ti = timeInterpreter (ctx ^. networkLayer)
 
-signSharedTransaction
-    :: forall ctx s k.
-        ( ctx ~ ApiLayer s k 'ScriptK
-        , WalletKey k
-        )
-    => ctx
-    -> ApiT WalletId
-    -> ApiSignTransactionPostData
-    -> Handler ApiSerialisedTransaction
-signSharedTransaction _ctx (ApiT _wid) _body = do
-    undefined
-{--
-    let pwd = coerce $ body ^. #passphrase . #getApiT
-    sealedTx' <- withWorkerCtx ctx wid liftE liftE $ \wrk -> liftHandler $ do
-        let
-            db = wrk ^. W.dbLayer @IO @s @k
-            tl = wrk ^. W.transactionLayer @k 'ScriptK
-            nl = wrk ^. W.networkLayer
-        db & \W.DBLayer{atomically, readCheckpoint} -> do
-            W.withRootKey @_ @s wrk wid pwd ErrWitnessTxWithRootKey $ \rootK scheme -> do
-                cp <- mapExceptT atomically
-                    $ withExceptT ErrWitnessTxNoSuchWallet
-                    $ W.withNoSuchWallet wid
-                    $ readCheckpoint wid
-                let
-                    pwdP :: Passphrase "encryption"
-                    pwdP = preparePassphrase scheme pwd
-
-                    utxo :: UTxO.UTxO
-                    utxo = totalUTxO mempty cp
-
-                    keyLookup
-                        :: Address
-                        -> Maybe (k 'AddressK XPrv, Passphrase "encryption")
-                    keyLookup = isOwned (getState cp) (rootK, pwdP)
-
-                era <- liftIO $ NW.currentNodeEra nl
-                let sealedTx = body ^. #transaction . #getApiT
-                pure $ W.signTransaction tl era keyLookup (rootK, pwdP) utxo sealedTx
-
-    -- TODO: The body+witnesses seem redundant with the sealedTx already. What's
-    -- the use-case for having them provided separately? In the end, the client
-    -- should be able to decouple them if they need to.
-    pure $ Api.ApiSerialisedTransaction
-        { transaction = ApiT sealedTx'
-        }
---}
 decodeSharedTransaction
     :: forall ctx s k n.
         ( ctx ~ ApiLayer s k 'ScriptK
@@ -3120,7 +3072,7 @@ submitTransaction
     :: forall ctx s k (n :: NetworkDiscriminant).
         ( ctx ~ ApiLayer s k 'AddressK
         , HasNetworkLayer IO ctx
-        , IsOwned s k
+        , IsOwned s k 'AddressK
         , Typeable s
         , Typeable n
         )
@@ -3245,7 +3197,7 @@ joinStakePool
         , AddressIndexDerivationType k ~ 'Soft
         , DelegationAddress n k
         , GenChange s
-        , IsOwned s k
+        , IsOwned s k 'AddressK
         , SoftDerivation k
         , Typeable n
         , Typeable s
@@ -3309,7 +3261,7 @@ joinStakePool ctx knownPools getPoolStatus apiPoolId (ApiT wid) body = do
         sel' <- liftHandler
             $ W.assignChangeAddressesAndUpdateDb wrk wid genChange sel
         (tx, txMeta, txTime, sealedTx) <- liftHandler
-            $ W.buildAndSignTransaction @_ @s @k @'AddressK
+            $ W.buildAndSignTransaction @_ @s @k
                 wrk wid era mkRwdAcct pwd txCtx sel'
         liftHandler
             $ W.submitTx @_ @s @k wrk wid (tx, txMeta, sealedTx)
@@ -3386,7 +3338,7 @@ quitStakePool
         , DelegationAddress n k
         , GenChange s
         , HasNetworkLayer IO ctx
-        , IsOwned s k
+        , IsOwned s k 'AddressK
         , SoftDerivation k
         , Typeable n
         , Typeable s
@@ -3435,7 +3387,7 @@ quitStakePool ctx (ApiT wid) body = do
         sel' <- liftHandler
             $ W.assignChangeAddressesAndUpdateDb wrk wid genChange sel
         (tx, txMeta, txTime, sealedTx) <- liftHandler
-            $ W.buildAndSignTransaction @_ @s @k @'AddressK
+            $ W.buildAndSignTransaction @_ @s @k
                 wrk wid era mkRwdAcct pwd txCtx sel'
         liftHandler
             $ W.submitTx @_ @s @k wrk wid (tx, txMeta, sealedTx)
@@ -3574,7 +3526,7 @@ createMigrationPlan
         ( ctx ~ ApiLayer s k 'AddressK
         , Bounded (Index (AddressIndexDerivationType k) 'AddressK)
         , HardDerivation k
-        , IsOwned s k
+        , IsOwned s k 'AddressK
         , Typeable n
         , Typeable s
         , WalletKey k
@@ -3670,7 +3622,7 @@ migrateWallet
         , Bounded (Index (AddressIndexDerivationType k) 'AddressK)
         , HardDerivation k
         , HasNetworkLayer IO ctx
-        , IsOwned s k
+        , IsOwned s k 'AddressK
         , Typeable n
         , Typeable s
         , WalletKey k
@@ -3703,7 +3655,7 @@ migrateWallet ctx withdrawalType (ApiT wid) postData = do
                     , txDelegationAction = Nothing
                     }
             (tx, txMeta, txTime, sealedTx) <- liftHandler $
-                W.buildAndSignTransaction @_ @s @k @'AddressK
+                W.buildAndSignTransaction @_ @s @k
                     wrk
                     wid
                     era

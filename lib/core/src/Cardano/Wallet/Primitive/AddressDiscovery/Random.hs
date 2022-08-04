@@ -218,7 +218,7 @@ instance IsOurs (RndState n) Address where
 instance IsOurs (RndState n) RewardAccount where
     isOurs _account state = (Nothing, state)
 
-instance IsOwned (RndState n) ByronKey where
+instance IsOwned (RndState n) ByronKey 'AddressK where
     isOwned st (key, pwd) addr =
         (, pwd) . deriveAddressKeyFromPath key pwd
             <$> addressToPath addr (hdPassphrase st)
@@ -440,7 +440,7 @@ instance KnownNat p => IsOurs (RndAnyState n p) Address where
 instance IsOurs (RndAnyState n p) RewardAccount where
     isOurs _account state = (Nothing, state)
 
-instance KnownNat p => IsOwned (RndAnyState n p) ByronKey where
+instance KnownNat p => IsOwned (RndAnyState n p) ByronKey 'AddressK where
     isOwned _ _ _ = Nothing
 
 instance PaymentAddress n ByronKey => GenChange (RndAnyState n p) where

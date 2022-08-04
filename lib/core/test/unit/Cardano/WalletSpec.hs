@@ -1486,7 +1486,7 @@ instance IsOurs DummyState Address where
 instance IsOurs DummyState RewardAccount where
     isOurs _ s = (Nothing, s)
 
-instance IsOwned DummyState ShelleyKey where
+instance IsOwned DummyState ShelleyKey 'AddressK where
     isOwned (DummyState m) (rootK, pwd) addr = do
         ix <- Map.lookup addr m
         let accXPrv = deriveAccountPrivateKey pwd rootK minBound

@@ -99,6 +99,7 @@ import Cardano.Wallet.Primitive.AddressDiscovery
     , GenChange (..)
     , GetAccount (..)
     , IsOurs (..)
+    , IsOwned (..)
     , KnownAddresses (..)
     , MaybeLight (..)
     , PendingIxs
@@ -729,3 +730,8 @@ toSharedWalletId accXPub pTemplate dTemplateM =
   where
     serializeScriptTemplate (ScriptTemplate _ script) =
         T.encodeUtf8 $ scriptToText script
+
+instance ( key ~ SharedKey
+         , SupportsDiscovery n key ) =>
+         IsOwned (SharedState n key) key 'ScriptK where
+    isOwned _st (_rootPrv, _pwd) _addrRaw = undefined

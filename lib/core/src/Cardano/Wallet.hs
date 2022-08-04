@@ -2479,11 +2479,11 @@ signTransaction tl preferredLatestEra keyLookup (rootKey, rootPwd) utxo =
 -- do so, use 'submitTx'.
 --
 buildAndSignTransaction
-    :: forall ctx s k ktype.
-        ( HasTransactionLayer k ktype ctx
+    :: forall ctx s k.
+        ( HasTransactionLayer k 'AddressK ctx
         , HasDBLayer IO s k ctx
         , HasNetworkLayer IO ctx
-        , IsOwned s k
+        , IsOwned s k 'AddressK
         )
     => ctx
     -> WalletId
@@ -2513,7 +2513,7 @@ buildAndSignTransaction ctx wid era mkRwdAcct pwd txCtx sel = db & \DBLayer{..} 
             return (tx, meta, time, sealedTx)
   where
     db = ctx ^. dbLayer @IO @s @k
-    tl = ctx ^. transactionLayer @k @ktype
+    tl = ctx ^. transactionLayer @k @'AddressK
     nl = ctx ^. networkLayer
     ti = timeInterpreter nl
 
