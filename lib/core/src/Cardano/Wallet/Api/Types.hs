@@ -257,7 +257,12 @@ import Prelude
 import Cardano.Address.Derivation
     ( XPrv, XPub, xpubFromBytes, xpubToBytes )
 import Cardano.Address.Script
-    ( Cosigner (..), KeyHash, Script, ScriptTemplate, ValidationLevel (..) )
+    ( Cosigner (..)
+    , KeyHash (..)
+    , Script
+    , ScriptTemplate
+    , ValidationLevel (..)
+    )
 import Cardano.Api
     ( AnyCardanoEra (..)
     , CardanoEra (..)
@@ -491,6 +496,7 @@ import qualified Data.Aeson.Types as Aeson
 import qualified Data.ByteString as BS
 import qualified Data.ByteString.Char8 as B8
 import qualified Data.ByteString.Lazy as BL
+import qualified Data.List as L
 import qualified Data.Map as Map
 import qualified Data.Text as T
 import qualified Data.Text.Encoding as T
@@ -645,7 +651,9 @@ data ApiAddress (n :: NetworkDiscriminant) = ApiAddress
       deriving anyclass NFData
 
 data ApiCredential =
-      CredentialPubKey ByteString
+      CredentialExtendedPubKey ByteString
+    | CredentialPubKey ByteString
+    | CredentialKeyHash ByteString
     | CredentialScript (Script KeyHash)
     deriving (Eq, Generic, Show)
 
@@ -2800,33 +2808,47 @@ instance ToJSON (ApiT (Passphrase purpose)) where
 
 instance FromJSON ApiCredential where
     parseJSON v =
-        (CredentialScript <$> parseJSON v) <|>
-        (CredentialPubKey <$> parsePubKey v)
+        (CredentialKeyHash <$> parseCredential 28 ["stake_vkh","addr_vkh"] v) <|>
+        (CredentialPubKey <$> parseCredential 32 ["stake_vk","addr_vk"] v) <|>
+        (CredentialExtendedPubKey <$> parseCredential 64 ["stake_xvk","addr_xvk"] v) <|>
+        (CredentialScript <$> parseJSON v)
 
-parsePubKey :: Aeson.Value -> Aeson.Parser ByteString
-parsePubKey = withText "CredentialPubKey" $ \txt ->
+parseCredential
+    :: Int
+    -> [Text]
+    -> Aeson.Value
+    -> Aeson.Parser ByteString
+parseCredential payloadLength prefixes = withText "Credential" $ \txt ->
     case detectEncoding (T.unpack txt) of
         Just EBech32{} -> do
             (hrp, dp) <- case Bech32.decodeLenient txt of
-                Left _ -> fail "CredentialPubKey's Bech32 has invalid text."
+                Left _ -> fail "Credential's Bech32 has invalid text."
                 Right res -> pure res
             let checkPayload bytes
-                    | BS.length bytes /= 32 =
-                          fail "CredentialPubKey must be 32 bytes."
+                    | BS.length bytes /= payloadLength =
+                          fail $ "Credential must be "
+                          <> show payloadLength <> " bytes."
                     | otherwise = pure bytes
             let proceedWhenHrpCorrect = case  Bech32.dataPartToBytes dp of
                     Nothing ->
-                          fail "CredentialPubKey has invalid Bech32 datapart."
+                          fail "Credential has invalid Bech32 datapart."
                     Just bytes -> checkPayload bytes
-            case Bech32.humanReadablePartToText hrp of
-                "stake_vk" -> proceedWhenHrpCorrect
-                "addr_vk" -> proceedWhenHrpCorrect
-                _ -> fail "CredentialPubKey must have either 'addr_vk' or 'stake_vk' prefix."
-        _ -> fail "CredentialPubKey must be must be encoded as Bech32."
+            if Bech32.humanReadablePartToText hrp `L.elem` prefixes then
+                proceedWhenHrpCorrect
+            else
+                fail $ "Credential must have following prefixes: "
+                <> show prefixes
+        _ -> fail "Credential must be must be encoded as Bech32."
 
 instance ToJSON ApiCredential where
     toJSON (CredentialPubKey key') = do
         let hrp = [Bech32.humanReadablePart|addr_vk|]
+        String $ T.decodeUtf8 $ encode (EBech32 hrp) key'
+    toJSON (CredentialExtendedPubKey key') = do
+        let hrp = [Bech32.humanReadablePart|addr_xvk|]
+        String $ T.decodeUtf8 $ encode (EBech32 hrp) key'
+    toJSON (CredentialKeyHash key') = do
+        let hrp = [Bech32.humanReadablePart|addr_vkh|]
         String $ T.decodeUtf8 $ encode (EBech32 hrp) key'
     toJSON (CredentialScript s) = toJSON s
 
@@ -2843,8 +2865,12 @@ instance FromJSON ApiAddressData where
              \ with possible prefixes: 'stake_shared_vkh', 'stake_shared_vk', 'stake_shared_xvk', \
              \'addr_shared_vkh', 'addr_shared_vk' or 'addr_shared_xvk' and proper \
              \payload size. 'at_least' cannot exceed 255. When public key is used as a credential \
-             \then bech32 encoded public keys are expected to be used with possible prefixes:\
-             \ 'stake_vk' or 'addr_vk', always with proper payload size."
+             \then bech32 encoded public keys are expected to be used with possible prefixes: \
+             \'stake_xvk', 'addr_xvk', 'stake_vk' or 'addr_vk', always with proper payload size \
+             \(32-byte and 64-byte payload for non-extended and extended credential, respectively). \
+             \When key hash is used as a credential then bech32 encoded public keys are expected \
+             \to be used with possible prefixes: 'stake_vkh' or 'addr_vkh', always with 28-byte \
+             \payload size."
          parseBaseAddr = withObject "AddrBase" $ \o -> do
              addr <- AddrBase <$> o .: "payment" <*> o .: "stake"
              ApiAddressData addr <$> o .:? "validation"

@@ -1,306 +1,110 @@
 {
     "samples": [
         {
+            "payment": "addr_vkh1kssfg2xfdzgh77gnp0k2xhfyka05hfyy0vyzv55j8q4g56s24zd"
+        },
+        {
             "stake": {
-                "some": {
-                    "at_least": 3,
-                    "from": [
-                        {
-                            "any": [
-                                "stake_shared_vkh1pvzaa8rmqpfw3hzknsaycjzgwz0pgpssaz2vrnj5gem964pfkha",
-                                "stake_shared_vkh1zn5pl7da662k6qkxlypvaxq48d9rh78kuf3pq2jgvsxasepp3rk",
-                                {
-                                    "active_until": 5
-                                },
-                                {
-                                    "active_until": 9
-                                },
-                                "stake_shared_vkh1j3f7zmc00xy96jp07eernd7kzxawxs5rfmf076xjdekn5xn62y9"
-                            ]
-                        },
-                        {
-                            "any": [
-                                "stake_shared_vkh1zn5pl7da662k6qkxlypvaxq48d9rh78kuf3pq2jgvsxasepp3rk",
-                                {
-                                    "active_until": 9
-                                },
-                                "stake_shared_vkh146pwtefg9qyxllgdjtdqhgk87l7kg4v8t6vzarmwc760wfash2a",
-                                {
-                                    "active_until": 4
-                                },
-                                {
-                                    "active_until": 9
-                                },
-                                {
-                                    "active_until": 9
-                                },
-                                {
-                                    "active_from": 7
-                                },
-                                {
-                                    "active_until": 1
-                                },
-                                "stake_shared_vkh1df8gpf28eq2cuup207d4hx5v0wuzj8s05tt53gazeqkh2xamj30"
-                            ]
-                        },
-                        {
-                            "all": [
-                                "addr_shared_vkh1099rz8u7zh0ef989x6rw2gfv345e78jkqmvrmvxl6vn6yalp3ke",
-                                {
-                                    "active_from": 4
-                                },
-                                "stake_shared_vkh18spgcwvq6jfu0zz8u2rjwfhjr2zsqsyt8ev93a4xrvfcqjc60pk",
-                                "addr_shared_vkh1l4dk4j356dgzpgvf0ye4223nrclh4fmp8ks3kuxx92g525p80gu",
-                                "stake_shared_vkh146pwtefg9qyxllgdjtdqhgk87l7kg4v8t6vzarmwc760wfash2a",
-                                {
-                                    "active_until": 3
-                                },
-                                "addr_shared_vkh1a8dv52ccppetvql6hhyz0cz5acx3vszzryhla04mev9zjctp77r"
-                            ]
-                        },
-                        {
-                            "some": {
-                                "at_least": 3,
-                                "from": [
-                                    {
-                                        "active_until": 2
-                                    },
-                                    {
-                                        "active_until": 0
-                                    },
-                                    "stake_shared_vkh146pwtefg9qyxllgdjtdqhgk87l7kg4v8t6vzarmwc760wfash2a",
-                                    {
-                                        "active_from": 6
-                                    },
-                                    {
-                                        "active_from": 1
-                                    },
-                                    {
-                                        "active_from": 4
-                                    },
-                                    {
-                                        "active_until": 3
-                                    },
-                                    {
-                                        "active_until": 7
-                                    },
-                                    {
-                                        "active_from": 6
-                                    }
-                                ]
-                            }
-                        },
-                        {
-                            "any": [
-                                {
-                                    "active_from": 6
-                                }
-                            ]
-                        },
-                        {
-                            "all": [
-                                "addr_shared_vkh1099rz8u7zh0ef989x6rw2gfv345e78jkqmvrmvxl6vn6yalp3ke",
-                                {
-                                    "active_until": 4
-                                },
-                                "addr_shared_vkh16g8wfvlvqaex7vqfp0d07zz2v3fmmy0qwg7pzukas7g3se2dqea",
-                                {
-                                    "active_from": 10
-                                },
-                                {
-                                    "active_until": 3
-                                },
-                                {
-                                    "active_from": 10
-                                },
-                                {
-                                    "active_until": 6
-                                }
-                            ]
-                        },
-                        {
-                            "some": {
-                                "at_least": 2,
-                                "from": [
-                                    "addr_shared_vkh16g8wfvlvqaex7vqfp0d07zz2v3fmmy0qwg7pzukas7g3se2dqea",
-                                    {
-                                        "active_from": 1
-                                    }
-                                ]
-                            }
-                        },
-                        {
-                            "all": [
-                                {
-                                    "active_from": 0
-                                },
-                                "stake_shared_vkh1zn5pl7da662k6qkxlypvaxq48d9rh78kuf3pq2jgvsxasepp3rk",
-                                {
-                                    "active_until": 0
-                                },
-                                {
-                                    "active_until": 1
-                                },
-                                "stake_shared_vkh1zn5pl7da662k6qkxlypvaxq48d9rh78kuf3pq2jgvsxasepp3rk",
-                                {
-                                    "active_from": 9
-                                },
-                                {
-                                    "active_until": 10
-                                },
-                                {
-                                    "active_from": 9
-                                },
-                                "addr_shared_vkh16g8wfvlvqaex7vqfp0d07zz2v3fmmy0qwg7pzukas7g3se2dqea",
-                                {
-                                    "active_from": 1
-                                }
-                            ]
-                        },
-                        {
-                            "all": [
-                                {
-                                    "active_until": 6
-                                },
-                                "stake_shared_vkh1j3f7zmc00xy96jp07eernd7kzxawxs5rfmf076xjdekn5xn62y9",
-                                {
-                                    "active_from": 5
-                                },
-                                {
-                                    "active_until": 7
-                                },
-                                {
-                                    "active_until": 3
-                                },
-                                "addr_shared_vkh16g8wfvlvqaex7vqfp0d07zz2v3fmmy0qwg7pzukas7g3se2dqea",
-                                {
-                                    "active_from": 7
-                                }
-                            ]
-                        }
-                    ]
-                }
-            }
-        },
-        {
-            "payment": {
-                "some": {
-                    "at_least": 2,
-                    "from": [
-                        "stake_shared_vkh1zgdq8433g7nuas04wle9qpep2hlp3c6e797mq2u6gcl9q54ramd",
-                        {
-                            "active_from": 7
-                        },
-                        {
-                            "active_until": 3
-                        },
-                        "stake_shared_vkh1gw9w73dg9qjv424uqy7ln9cz2jhk2tsz0law48ftt06asvf5qpv",
-                        {
-                            "active_until": 4
-                        },
-                        {
-                            "active_until": 8
-                        },
-                        {
-                            "active_until": 6
-                        },
-                        "stake_shared_vkh1kjw45mgfqas0e8ph9qt0yha8dzl4c22qg869uthmmsuh54wh5yn",
-                        "stake_shared_vkh1zgdq8433g7nuas04wle9qpep2hlp3c6e797mq2u6gcl9q54ramd",
-                        {
-                            "active_until": 8
-                        }
-                    ]
-                }
-            }
-        },
-        {
-            "payment": "addr_vk1trmxxc7566xzxffthvpzfm88hlwprn4asq4c8sy5y04c27xqheasxyura7"
-        },
-        {
-            "payment": "addr_vk1gkgr9ha774qs867htt42taxawjvd3wdv2sp0qtk02kjeeh6zsygs45w279",
-            "stake": {
-                "some": {
-                    "at_least": 3,
-                    "from": [
-                        {
-                            "some": {
-                                "at_least": 1,
-                                "from": [
-                                    {
-                                        "active_until": 3
-                                    },
-                                    "addr_shared_vkh1htx27wkjwwynl3mvnfnn2tekfa6xgeqcft4wg68m0wgkkytv087",
-                                    {
-                                        "active_from": 8
-                                    },
-                                    {
-                                        "active_until": 10
-                                    },
-                                    {
-                                        "active_from": 3
-                                    }
-                                ]
-                            }
-                        },
-                        {
-                            "some": {
-                                "at_least": 3,
-                                "from": [
-                                    {
-                                        "active_from": 5
-                                    },
-                                    "addr_shared_vkh17axgwlawqfcuyjvyn8rlx60z0dae4qz8nzvc50a48ga4jr8985c",
-                                    "stake_shared_vkh1et0k9vtnc6xugyafpewaet92r5ct9ykpkrz2qdrjh4p2vukukqy"
-                                ]
-                            }
-                        },
-                        {
-                            "all": [
-                                {
-                                    "active_from": 8
-                                },
-                                {
-                                    "active_until": 7
-                                },
-                                "stake_shared_vkh1vl4w3f72xhmpnswx8gd3jedv02ws5x7382xpapet2hfjvgw0rmc",
-                                {
-                                    "active_until": 2
-                                },
-                                "stake_shared_vkh1f8d0tgqh8yy3tsqkzfgve62dnu7a7n3tfhfznwe7hayus9rm4u6",
-                                {
-                                    "active_from": 8
-                                },
-                                "stake_shared_vkh1pr888a2tfap6u9jr60z5de6w2klduuh7c8sk4kmamt6av4k9zt4",
-                                "stake_shared_vkh1et0k9vtnc6xugyafpewaet92r5ct9ykpkrz2qdrjh4p2vukukqy",
-                                {
-                                    "active_from": 3
-                                }
-                            ]
-                        }
-                    ]
-                }
-            }
-        },
-        {
-            "payment": "addr_vk1w6a2u0ccp8auvhqz86avahjrpd6fpgnr9r9mu2fz6k2fdllkqmeqfnfm46"
-        },
-        {
-            "payment": "addr_vk1kye5e4e0rwdx9sq55sk79jrupn8ky0e0qq0xrjazt6awvu0m07xqvgw0kf"
-        },
-        {
-            "payment": {
                 "any": [
                     {
                         "all": [
                             {
-                                "active_until": 8
+                                "active_until": 3
                             },
                             {
                                 "active_from": 10
                             },
-                            "stake_shared_vkh137npfsdm8vs62xjweczmq23epgg79t892grxhd9cf6gscldzgkw",
-                            "addr_shared_vkh1kzv6v6uhpg66dukz04w3396cfjep4f5aemsrewe20ttdu8mfu94",
-                            "stake_shared_vkh1863q4y7qgad98nvcvr02smq29zz75xxj699958ey7025yu7szs3"
+                            {
+                                "active_from": 7
+                            },
+                            "stake_shared_vkh19nc6q4nnqylhfs8eneu3jvzeayz729u7ys28yfcsea06y56j20f",
+                            {
+                                "active_until": 5
+                            },
+                            {
+                                "active_from": 4
+                            },
+                            "addr_shared_vkh13mnag2c94yl6e9q7jztu9ahe0vanpxdvex4q2a5v9u9m7lg2wxl",
+                            "stake_shared_vkh1fsmmfr0z8um9unv5fqqulmxy2x4wlfgq6vmphmlpmqgygfw9fmp"
+                        ]
+                    },
+                    {
+                        "any": [
+                            "addr_shared_vkh1rjj34lnrqktsytrgcjchmtj8x4gv46md2jrj2nh622z75eedgdf",
+                            {
+                                "active_until": 1
+                            },
+                            {
+                                "active_from": 2
+                            },
+                            "stake_shared_vkh1fsmmfr0z8um9unv5fqqulmxy2x4wlfgq6vmphmlpmqgygfw9fmp",
+                            {
+                                "active_from": 2
+                            }
+                        ]
+                    },
+                    {
+                        "any": [
+                            {
+                                "active_until": 7
+                            },
+                            {
+                                "active_until": 9
+                            },
+                            {
+                                "active_until": 7
+                            },
+                            {
+                                "active_from": 4
+                            },
+                            {
+                                "active_until": 5
+                            },
+                            {
+                                "active_until": 8
+                            },
+                            {
+                                "active_until": 2
+                            }
+                        ]
+                    },
+                    {
+                        "any": [
+                            {
+                                "active_until": 9
+                            },
+                            {
+                                "active_from": 6
+                            },
+                            {
+                                "active_until": 4
+                            }
+                        ]
+                    },
+                    {
+                        "all": [
+                            {
+                                "active_until": 10
+                            },
+                            {
+                                "active_until": 9
+                            },
+                            {
+                                "active_until": 7
+                            },
+                            "stake_shared_vkh1kjs4y87e6capa5d2c2z3pqmknluf3yj0m22y4wsp7ra6q8quzlq",
+                            {
+                                "active_from": 3
+                            },
+                            {
+                                "active_from": 0
+                            },
+                            {
+                                "active_from": 9
+                            },
+                            {
+                                "active_until": 8
+                            }
                         ]
                     },
                     {
@@ -308,125 +112,57 @@
                             "at_least": 1,
                             "from": [
                                 {
-                                    "active_until": 10
-                                },
-                                "addr_shared_vkh1kzv6v6uhpg66dukz04w3396cfjep4f5aemsrewe20ttdu8mfu94"
-                            ]
-                        }
-                    },
-                    {
-                        "some": {
-                            "at_least": 4,
-                            "from": [
-                                {
-                                    "active_from": 1
-                                },
-                                {
-                                    "active_from": 2
-                                },
-                                {
-                                    "active_from": 0
-                                },
-                                {
                                     "active_until": 2
                                 },
-                                {
-                                    "active_from": 2
-                                },
-                                "addr_shared_vkh1v63c92qzrgpzterpq59j9ssdh3arg6fcesun8e6kkw02cfjhkpw",
-                                {
-                                    "active_from": 1
-                                },
-                                {
-                                    "active_until": 8
-                                },
-                                {
-                                    "active_until": 4
-                                },
-                                "stake_shared_vkh1eej092eahsaaahxd60yxxhkm602cgn4fw709660tzpfexunszeu"
+                                "stake_shared_vkh1fsmmfr0z8um9unv5fqqulmxy2x4wlfgq6vmphmlpmqgygfw9fmp"
                             ]
                         }
-                    },
+                    }
+                ]
+            }
+        },
+        {
+            "payment": "addr_vkh1j0evy6g843vpqgelk5srhd5jfnx959cravkagkpxvp985uhr4n6"
+        },
+        {
+            "stake": {
+                "any": [
                     {
                         "all": [
                             {
-                                "active_from": 6
+                                "active_until": 1
                             },
                             {
-                                "active_until": 3
+                                "active_until": 6
+                            },
+                            "stake_shared_vkh1cmwm057ne43agp5e56m0p2wv8r2vepzs9jtkj9e769feutdu9zn",
+                            {
+                                "active_from": 3
+                            },
+                            "stake_shared_vkh1mql37ed7anhu9zadkumqx9rmf2vxur3ekqpnsh6kslc6sfrhsql",
+                            "addr_shared_vkh1j22hptjyny4snszsnej8dv6wvqq9t8uxyw74758wapcqvq74aqj",
+                            "addr_shared_vkh153f9tw8cyc23kw6scwgjflx2ztp5qejmqc98jscgqpnwy30huqg",
+                            "stake_shared_vkh1rx884p3h7njxe0lvpzzudys9cn4gnxhxmgqdqned8pgp5p6g8ph",
+                            {
+                                "active_until": 5
                             }
                         ]
                     },
                     {
                         "any": [
+                            "stake_shared_vkh1a25qkj27gncclnyxcsvx4sljk46ky7eulfxc5ahhx760xmmktl5",
                             {
-                                "active_from": 2
+                                "active_from": 1
                             },
                             {
-                                "active_until": 1
-                            },
-                            {
-                                "active_until": 0
-                            },
-                            {
-                                "active_until": 6
+                                "active_until": 8
                             },
                             {
                                 "active_until": 7
                             },
                             {
-                                "active_until": 10
+                                "active_until": 0
                             }
-                        ]
-                    },
-                    {
-                        "any": [
-                            {
-                                "active_from": 0
-                            },
-                            "stake_shared_vkh137npfsdm8vs62xjweczmq23epgg79t892grxhd9cf6gscldzgkw",
-                            {
-                                "active_from": 6
-                            },
-                            {
-                                "active_until": 0
-                            },
-                            "stake_shared_vkh1eej092eahsaaahxd60yxxhkm602cgn4fw709660tzpfexunszeu",
-                            {
-                                "active_until": 2
-                            },
-                            {
-                                "active_from": 7
-                            },
-                            "addr_shared_vkh1xzfpfpy7ngt6c4s0h08kzj5aydk9ha7tkn2489jut9ptg95ua9u",
-                            {
-                                "active_from": 9
-                            },
-                            "addr_shared_vkh1v63c92qzrgpzterpq59j9ssdh3arg6fcesun8e6kkw02cfjhkpw"
-                        ]
-                    },
-                    {
-                        "some": {
-                            "at_least": 2,
-                            "from": [
-                                {
-                                    "active_until": 0
-                                },
-                                {
-                                    "active_until": 7
-                                }
-                            ]
-                        }
-                    },
-                    {
-                        "all": [
-                            {
-                                "active_until": 0
-                            },
-                            {
-                                "active_until": 4
-                            },
-                            "addr_shared_vkh1xzfpfpy7ngt6c4s0h08kzj5aydk9ha7tkn2489jut9ptg95ua9u"
                         ]
                     }
                 ]
@@ -434,66 +170,12 @@
             "validation": "recommended"
         },
         {
-            "stake": {
+            "payment": {
                 "any": [
                     {
-                        "all": [
+                        "any": [
                             {
-                                "active_until": 2
-                            },
-                            {
-                                "active_from": 0
-                            }
-                        ]
-                    },
-                    {
-                        "some": {
-                            "at_least": 4,
-                            "from": [
-                                {
-                                    "active_until": 2
-                                },
-                                "stake_shared_vkh1anl8qwrqul087wvmqjsft372w5yxhnpa6mhtgw0dpyhfvg000rt",
-                                {
-                                    "active_from": 6
-                                },
-                                {
-                                    "active_from": 8
-                                },
-                                {
-                                    "active_from": 9
-                                }
-                            ]
-                        }
-                    },
-                    {
-                        "some": {
-                            "at_least": 1,
-                            "from": [
-                                "addr_shared_vkh1cnesp078ygjj0he0hy32fpqm4lxkhseh9zz49vd8sufnwjh9gf5",
-                                {
-                                    "active_until": 5
-                                }
-                            ]
-                        }
-                    },
-                    {
-                        "all": [
-                            {
-                                "active_until": 7
-                            },
-                            "stake_shared_vkh1huhlvwzrm9s73fmc3jesg22j9v0rwdg0kkxxt28jsmmd7jpm39v",
-                            {
-                                "active_until": 9
-                            },
-                            {
-                                "active_from": 8
-                            },
-                            {
-                                "active_from": 3
-                            },
-                            {
-                                "active_until": 1
+                                "active_from": 5
                             }
                         ]
                     },
@@ -502,41 +184,13 @@
                             "at_least": 2,
                             "from": [
                                 {
-                                    "active_until": 6
-                                },
-                                {
-                                    "active_until": 9
-                                },
-                                "stake_shared_vkh1anl8qwrqul087wvmqjsft372w5yxhnpa6mhtgw0dpyhfvg000rt",
-                                {
-                                    "active_until": 4
-                                }
-                            ]
-                        }
-                    },
-                    {
-                        "any": [
-                            "addr_shared_vkh13z0qvywfc4c3z6f4gvhsgyn40xw78ttpgakz3zq54drqk69c3qf",
-                            {
-                                "active_until": 0
-                            },
-                            {
-                                "active_until": 8
-                            },
-                            {
-                                "active_until": 7
-                            }
-                        ]
-                    },
-                    {
-                        "some": {
-                            "at_least": 1,
-                            "from": [
-                                {
-                                    "active_from": 5
+                                    "active_from": 2
                                 },
                                 {
                                     "active_from": 1
+                                },
+                                {
+                                    "active_from": 5
                                 }
                             ]
                         }
@@ -544,79 +198,689 @@
                     {
                         "all": [
                             {
-                                "active_until": 3
+                                "active_until": 4
                             },
-                            "stake_shared_vkh1p8up6dyztrpygmge2dlp76gwx6x9zzphry2vaxkhj0kjcz039cz",
                             {
-                                "active_from": 6
+                                "active_until": 7
                             },
+                            {
+                                "active_until": 1
+                            },
+                            {
+                                "active_until": 10
+                            },
+                            {
+                                "active_until": 7
+                            },
+                            {
+                                "active_until": 7
+                            },
+                            "stake_shared_vkh1kmt2kspjpxa50mhdd8mgfppm76u2s0qhhalv57xr37pjquqj3ea",
+                            "stake_shared_vkh1qzj0efqdqgm2n46rczfjwmfjk7rwqlyprw02kmaxtnrrknwrhf0",
+                            {
+                                "active_until": 5
+                            }
+                        ]
+                    },
+                    {
+                        "some": {
+                            "at_least": 1,
+                            "from": [
+                                "addr_shared_vkh175p3nzyhss4gzpch3u6mnv89pvgkslawyn6q0fj7x0m5xawjxze"
+                            ]
+                        }
+                    },
+                    {
+                        "all": [
+                            "stake_shared_vkh1qzj0efqdqgm2n46rczfjwmfjk7rwqlyprw02kmaxtnrrknwrhf0",
+                            {
+                                "active_until": 7
+                            },
+                            {
+                                "active_until": 9
+                            },
+                            {
+                                "active_until": 6
+                            },
+                            {
+                                "active_until": 0
+                            },
+                            {
+                                "active_from": 3
+                            },
+                            "stake_shared_vkh1qn35q7d4asm655vyyerl4prw0yz9x8xzrlyhlnelhd8mgafetcu",
+                            {
+                                "active_until": 8
+                            }
+                        ]
+                    },
+                    {
+                        "some": {
+                            "at_least": 5,
+                            "from": [
+                                {
+                                    "active_until": 4
+                                },
+                                "addr_shared_vkh1dpzxdd88vrw2g7y2wncn9jhyu5fmwecc8pns9jtag8rygaueypg",
+                                {
+                                    "active_from": 6
+                                },
+                                "addr_shared_vkh1gfgjv472stsk8p22ecawzu38w8827yhxdjwrasdjz459cp3c0ls",
+                                "stake_shared_vkh1qn35q7d4asm655vyyerl4prw0yz9x8xzrlyhlnelhd8mgafetcu",
+                                "addr_shared_vkh1upctylrqey8083st74uukvw73jyg9fac7gjpfrlf0kyguhvnhya"
+                            ]
+                        }
+                    },
+                    {
+                        "some": {
+                            "at_least": 1,
+                            "from": [
+                                {
+                                    "active_from": 6
+                                },
+                                "addr_shared_vkh1l40lc2h9l8we66fvrnn26nd7fp9pqpthjuxdqkq8zgxdvpgz6k0",
+                                {
+                                    "active_from": 8
+                                },
+                                {
+                                    "active_until": 8
+                                }
+                            ]
+                        }
+                    }
+                ]
+            },
+            "stake": {
+                "some": {
+                    "at_least": 2,
+                    "from": [
+                        {
+                            "all": [
+                                {
+                                    "active_until": 7
+                                },
+                                {
+                                    "active_from": 0
+                                }
+                            ]
+                        },
+                        {
+                            "some": {
+                                "at_least": 5,
+                                "from": [
+                                    {
+                                        "active_until": 3
+                                    },
+                                    "stake_shared_vkh1r564c46ky0uxaxg3jufz3g5j65e7s2vcgvx4wcxftgtfg2qrrh5",
+                                    {
+                                        "active_until": 5
+                                    },
+                                    {
+                                        "active_until": 3
+                                    },
+                                    {
+                                        "active_until": 9
+                                    },
+                                    {
+                                        "active_from": 7
+                                    },
+                                    {
+                                        "active_until": 3
+                                    },
+                                    {
+                                        "active_from": 9
+                                    },
+                                    {
+                                        "active_from": 4
+                                    }
+                                ]
+                            }
+                        },
+                        {
+                            "any": [
+                                "stake_shared_vkh1r564c46ky0uxaxg3jufz3g5j65e7s2vcgvx4wcxftgtfg2qrrh5",
+                                {
+                                    "active_from": 0
+                                },
+                                {
+                                    "active_from": 3
+                                },
+                                "addr_shared_vkh1vt44ntq2qq6va84ejtevpqetkf4jry265gldr39yfm99ywtkh6x",
+                                {
+                                    "active_until": 8
+                                },
+                                "stake_shared_vkh1rc43vmh7zzwxfs6a9fkuhxawvtp2ra6umjkgr657m6ye23xdxqv",
+                                {
+                                    "active_from": 0
+                                },
+                                {
+                                    "active_from": 10
+                                },
+                                {
+                                    "active_until": 2
+                                }
+                            ]
+                        },
+                        {
+                            "all": [
+                                "addr_shared_vkh1vt44ntq2qq6va84ejtevpqetkf4jry265gldr39yfm99ywtkh6x",
+                                {
+                                    "active_from": 0
+                                },
+                                {
+                                    "active_from": 8
+                                },
+                                "addr_shared_vkh1vt44ntq2qq6va84ejtevpqetkf4jry265gldr39yfm99ywtkh6x",
+                                "stake_shared_vkh10xmnjsaywk4cfw7fl2a3jv5w7nllw28us69ua4mpra45w9az9rc",
+                                "stake_shared_vkh1z3fa75702k8qtph7j5k3z393mx9p7qlkxv35l3qwcsqlc2ctpdh"
+                            ]
+                        },
+                        {
+                            "any": [
+                                {
+                                    "active_from": 8
+                                },
+                                {
+                                    "active_from": 1
+                                },
+                                {
+                                    "active_from": 3
+                                },
+                                {
+                                    "active_until": 7
+                                }
+                            ]
+                        },
+                        {
+                            "all": [
+                                "stake_shared_vkh1rc43vmh7zzwxfs6a9fkuhxawvtp2ra6umjkgr657m6ye23xdxqv"
+                            ]
+                        },
+                        {
+                            "any": [
+                                {
+                                    "active_from": 7
+                                }
+                            ]
+                        }
+                    ]
+                }
+            }
+        },
+        {
+            "payment": {
+                "some": {
+                    "at_least": 1,
+                    "from": [
+                        {
+                            "any": [
+                                {
+                                    "active_from": 8
+                                },
+                                "stake_shared_vkh1pwn8pcnfwwhj9qymh6e04lwt6v6j5px68jw8083chlnkzwwnp2l",
+                                "stake_shared_vkh1q32scq3z0crqfsnww6q9t5t50smu3sknq9x0sa4y9909c40mujx",
+                                {
+                                    "active_until": 5
+                                },
+                                {
+                                    "active_from": 5
+                                },
+                                "stake_shared_vkh1xgxckfrx0rqgvfder9a5lfu6gvr05rdyc09vv0xflrhczjk0xdp",
+                                "stake_shared_vkh1q32scq3z0crqfsnww6q9t5t50smu3sknq9x0sa4y9909c40mujx",
+                                {
+                                    "active_from": 7
+                                },
+                                {
+                                    "active_until": 9
+                                }
+                            ]
+                        },
+                        {
+                            "all": [
+                                {
+                                    "active_from": 7
+                                },
+                                {
+                                    "active_until": 3
+                                },
+                                {
+                                    "active_from": 6
+                                },
+                                "stake_shared_vkh1pwn8pcnfwwhj9qymh6e04lwt6v6j5px68jw8083chlnkzwwnp2l",
+                                {
+                                    "active_from": 2
+                                },
+                                "addr_shared_vkh1uva0mtn27qvkls5ke2sceky2alq7v5ru60scknu0fqs5s4dz4f4",
+                                {
+                                    "active_from": 6
+                                },
+                                {
+                                    "active_until": 2
+                                },
+                                {
+                                    "active_from": 10
+                                },
+                                {
+                                    "active_until": 1
+                                }
+                            ]
+                        },
+                        {
+                            "any": [
+                                "addr_shared_vkh1x9elt6f57w0l226ezv3y8hj9tcwt64n09kdfyfclk9n2gd55yyy",
+                                {
+                                    "active_from": 8
+                                },
+                                {
+                                    "active_from": 6
+                                },
+                                "stake_shared_vkh1xgxckfrx0rqgvfder9a5lfu6gvr05rdyc09vv0xflrhczjk0xdp",
+                                {
+                                    "active_until": 3
+                                }
+                            ]
+                        },
+                        {
+                            "some": {
+                                "at_least": 1,
+                                "from": [
+                                    {
+                                        "active_until": 7
+                                    }
+                                ]
+                            }
+                        },
+                        {
+                            "all": [
+                                {
+                                    "active_until": 9
+                                },
+                                "addr_shared_vkh17cfwr2catg5vyuhq2fm6hjhty7ns4ke2nyzj9g2urtvw7qkkp60",
+                                {
+                                    "active_from": 4
+                                },
+                                {
+                                    "active_until": 3
+                                }
+                            ]
+                        },
+                        {
+                            "any": [
+                                {
+                                    "active_until": 3
+                                },
+                                "addr_shared_vkh17cfwr2catg5vyuhq2fm6hjhty7ns4ke2nyzj9g2urtvw7qkkp60",
+                                "addr_shared_vkh1epgydawqvatm8c7acxswwgt6jq85jzc4u3wm36p6tqsezymn37l"
+                            ]
+                        },
+                        {
+                            "all": [
+                                {
+                                    "active_from": 1
+                                }
+                            ]
+                        },
+                        {
+                            "some": {
+                                "at_least": 8,
+                                "from": [
+                                    "stake_shared_vkh1pwn8pcnfwwhj9qymh6e04lwt6v6j5px68jw8083chlnkzwwnp2l",
+                                    {
+                                        "active_from": 9
+                                    },
+                                    {
+                                        "active_until": 0
+                                    },
+                                    {
+                                        "active_until": 10
+                                    },
+                                    "addr_shared_vkh1x9elt6f57w0l226ezv3y8hj9tcwt64n09kdfyfclk9n2gd55yyy",
+                                    "addr_shared_vkh1epgydawqvatm8c7acxswwgt6jq85jzc4u3wm36p6tqsezymn37l",
+                                    {
+                                        "active_until": 8
+                                    },
+                                    {
+                                        "active_from": 5
+                                    }
+                                ]
+                            }
+                        },
+                        {
+                            "any": [
+                                {
+                                    "active_until": 7
+                                },
+                                {
+                                    "active_from": 9
+                                },
+                                "addr_shared_vkh1lupcg4rvn8kukkjm9e39jh8atqak0xc3rmeatzwrmw8jjhjeem4",
+                                {
+                                    "active_until": 3
+                                },
+                                "addr_shared_vkh1epgydawqvatm8c7acxswwgt6jq85jzc4u3wm36p6tqsezymn37l",
+                                {
+                                    "active_until": 0
+                                },
+                                {
+                                    "active_from": 3
+                                },
+                                {
+                                    "active_from": 6
+                                }
+                            ]
+                        }
+                    ]
+                }
+            }
+        },
+        {
+            "payment": "addr_vk15qyj6wezzrduzc6g8vkq6t8gtspmgsae2asx792f2th84z670z4qujgs02"
+        },
+        {
+            "payment": {
+                "any": [
+                    {
+                        "some": {
+                            "at_least": 1,
+                            "from": [
+                                {
+                                    "active_from": 6
+                                },
+                                {
+                                    "active_from": 1
+                                },
+                                {
+                                    "active_until": 3
+                                },
+                                "addr_shared_vkh1njgps3qzet0fj38cz07makuydt7vme0l40twcg8d5p0dxlrtz30",
+                                {
+                                    "active_until": 7
+                                },
+                                {
+                                    "active_until": 9
+                                },
+                                {
+                                    "active_until": 10
+                                },
+                                "addr_shared_vkh1hn8hqzk0ne7m7wmhdkldygxlrn4ndcnll7l5qu0nltm2caqaj3j",
+                                {
+                                    "active_from": 7
+                                }
+                            ]
+                        }
+                    }
+                ]
+            }
+        },
+        {
+            "payment": {
+                "any": [
+                    {
+                        "all": [
+                            {
+                                "active_until": 9
+                            },
+                            {
+                                "active_until": 8
+                            },
+                            {
+                                "active_from": 7
+                            },
+                            "stake_shared_vkh15rp48recrvuy96t79943qf68wqp9ut5l9ge5xnv4g9sqv575g9j",
+                            {
+                                "active_from": 7
+                            },
+                            {
+                                "active_from": 5
+                            },
+                            {
+                                "active_until": 2
+                            },
+                            {
+                                "active_from": 3
+                            }
+                        ]
+                    },
+                    {
+                        "all": [
+                            "stake_shared_vkh1avrst6edvenzypcr6fgeu8dlna92l0q09k7dl9c23yvgq2rf9e8",
                             {
                                 "active_from": 2
                             },
+                            "stake_shared_vkh1ffctf938zyk00xr6hgt4g73w3clg3gyj958r9nw9utzt53vm4xk",
+                            "stake_shared_vkh1a0kjwmtvznkj5en3pxh3vz0gdler69qrf3g5gvw6edpp7h78pqf",
                             {
-                                "active_from": 10
+                                "active_until": 6
+                            },
+                            {
+                                "active_until": 6
+                            },
+                            "stake_shared_vkh1ffctf938zyk00xr6hgt4g73w3clg3gyj958r9nw9utzt53vm4xk",
+                            {
+                                "active_until": 8
+                            },
+                            "stake_shared_vkh1kps6rtges49avu93amu4srgrghjcy2e3j8xm7aynv9mewrct2yd",
+                            {
+                                "active_until": 7
+                            }
+                        ]
+                    }
+                ]
+            },
+            "validation": "recommended"
+        },
+        {
+            "payment": {
+                "some": {
+                    "at_least": 9,
+                    "from": [
+                        {
+                            "all": [
+                                {
+                                    "active_until": 2
+                                },
+                                {
+                                    "active_until": 3
+                                },
+                                "addr_shared_vkh1pcdjvwx4fzxaj0z7qp3a83sjftk02n7d4vt7f50qkg0z5rprnqa",
+                                "addr_shared_vkh17aehkuvqn67keur4fx7kfgs0phv04vsme5pq0fn60nhu502eued"
+                            ]
+                        },
+                        {
+                            "any": [
+                                {
+                                    "active_until": 0
+                                },
+                                {
+                                    "active_until": 6
+                                },
+                                {
+                                    "active_from": 5
+                                },
+                                {
+                                    "active_until": 10
+                                },
+                                {
+                                    "active_until": 6
+                                },
+                                "addr_shared_vkh1eyqeqdwkqhrwy96ec8809vc5l0dc4fhhxwr726jq6t0j2ngg6hs",
+                                {
+                                    "active_from": 7
+                                },
+                                "addr_shared_vkh1mr45p2yyky89twt4rdnav8a9xjxqc6mp59saj83ef9ln2w7ry38",
+                                {
+                                    "active_until": 9
+                                },
+                                "addr_shared_vkh1eyqeqdwkqhrwy96ec8809vc5l0dc4fhhxwr726jq6t0j2ngg6hs"
+                            ]
+                        },
+                        {
+                            "all": [
+                                "addr_shared_vkh1r7lc2qnfh3ql2x6sd3nrhp4a8eda873t6ae3dj2fwahs7gq4nv3",
+                                {
+                                    "active_from": 8
+                                },
+                                {
+                                    "active_until": 4
+                                },
+                                {
+                                    "active_from": 7
+                                },
+                                "addr_shared_vkh1ntt4rk4jz33w7xf65j8dmw28ef5nenqutkrllqlnrjgmytulq0d",
+                                {
+                                    "active_until": 3
+                                },
+                                "stake_shared_vkh1dwzt8w0hmz5tsxzy88rgxvcaeeahals5fae8kvsnux0v69ajgzv",
+                                "addr_shared_vkh1ntt4rk4jz33w7xf65j8dmw28ef5nenqutkrllqlnrjgmytulq0d",
+                                {
+                                    "active_from": 7
+                                }
+                            ]
+                        },
+                        {
+                            "any": [
+                                "addr_shared_vkh1mr45p2yyky89twt4rdnav8a9xjxqc6mp59saj83ef9ln2w7ry38",
+                                {
+                                    "active_from": 1
+                                },
+                                {
+                                    "active_from": 8
+                                },
+                                "addr_shared_vkh17aehkuvqn67keur4fx7kfgs0phv04vsme5pq0fn60nhu502eued",
+                                {
+                                    "active_until": 6
+                                },
+                                {
+                                    "active_from": 5
+                                }
+                            ]
+                        },
+                        {
+                            "all": [
+                                {
+                                    "active_from": 10
+                                }
+                            ]
+                        },
+                        {
+                            "any": [
+                                {
+                                    "active_from": 4
+                                },
+                                {
+                                    "active_from": 3
+                                },
+                                {
+                                    "active_from": 3
+                                }
+                            ]
+                        },
+                        {
+                            "any": [
+                                "addr_shared_vkh1mr45p2yyky89twt4rdnav8a9xjxqc6mp59saj83ef9ln2w7ry38"
+                            ]
+                        },
+                        {
+                            "some": {
+                                "at_least": 4,
+                                "from": [
+                                    {
+                                        "active_until": 9
+                                    },
+                                    {
+                                        "active_from": 5
+                                    },
+                                    "stake_shared_vkh1rn4n7q920htv6h7gg99xc5yld6ck70n4mwujyjzlagt327tlzwx",
+                                    "addr_shared_vkh1eyqeqdwkqhrwy96ec8809vc5l0dc4fhhxwr726jq6t0j2ngg6hs",
+                                    "addr_shared_vkh1eyqeqdwkqhrwy96ec8809vc5l0dc4fhhxwr726jq6t0j2ngg6hs",
+                                    "stake_shared_vkh1rn4n7q920htv6h7gg99xc5yld6ck70n4mwujyjzlagt327tlzwx",
+                                    {
+                                        "active_until": 2
+                                    },
+                                    {
+                                        "active_until": 10
+                                    },
+                                    {
+                                        "active_until": 3
+                                    }
+                                ]
+                            }
+                        },
+                        {
+                            "any": [
+                                {
+                                    "active_until": 10
+                                },
+                                "addr_shared_vkh1pcdjvwx4fzxaj0z7qp3a83sjftk02n7d4vt7f50qkg0z5rprnqa",
+                                {
+                                    "active_until": 4
+                                },
+                                {
+                                    "active_until": 10
+                                },
+                                {
+                                    "active_from": 4
+                                },
+                                {
+                                    "active_from": 3
+                                },
+                                {
+                                    "active_until": 4
+                                }
+                            ]
+                        }
+                    ]
+                }
+            },
+            "stake": {
+                "all": [
+                    {
+                        "all": [
+                            "stake_shared_vkh1tp368a5893aq074l6azrpz60mpnvsl2hu3pdjrwusf27x9c90dv"
+                        ]
+                    },
+                    {
+                        "all": [
+                            {
+                                "active_from": 9
+                            },
+                            "stake_shared_vkh1tp368a5893aq074l6azrpz60mpnvsl2hu3pdjrwusf27x9c90dv",
+                            "addr_shared_vkh16yprdsn7e89kgj8cz3sx4f7ypjmlfrmsas7qj0h87wsjsd7m6pq",
+                            "stake_shared_vkh15qzuhtjp9zs6r9m7eqxjpxv4jnu25gsef3unhfp5ezqvza83dka",
+                            "stake_shared_vkh1ah85jp725zns2yq0l9yal7sn8xrh8v8cm378g9wesw5wzculsh6"
+                        ]
+                    },
+                    {
+                        "all": [
+                            "stake_shared_vkh15qzuhtjp9zs6r9m7eqxjpxv4jnu25gsef3unhfp5ezqvza83dka",
+                            {
+                                "active_until": 4
+                            },
+                            {
+                                "active_from": 5
                             }
                         ]
                     },
                     {
                         "any": [
                             {
-                                "active_until": 8
+                                "active_until": 4
                             },
                             {
-                                "active_from": 4
-                            },
-                            {
-                                "active_until": 3
-                            },
-                            "addr_shared_vkh17x0086awnvjzgz7jz3y0x69ha9wwl8tnh2rjr9uamunu6v988n7",
-                            {
-                                "active_until": 3
+                                "active_until": 4
                             }
+                        ]
+                    },
+                    {
+                        "all": [
+                            "stake_shared_vkh1ah85jp725zns2yq0l9yal7sn8xrh8v8cm378g9wesw5wzculsh6",
+                            "stake_shared_vkh15qzuhtjp9zs6r9m7eqxjpxv4jnu25gsef3unhfp5ezqvza83dka",
+                            "addr_shared_vkh16yprdsn7e89kgj8cz3sx4f7ypjmlfrmsas7qj0h87wsjsd7m6pq"
                         ]
                     }
                 ]
             }
-        },
-        {
-            "stake": "addr_vk1slv63qa9nkhtkdfhz3q4efgj7cjzysvuukc43zns8nhrddptepjs5aaavk",
-            "validation": "required"
-        },
-        {
-            "payment": {
-                "all": [
-                    {
-                        "active_from": 9
-                    },
-                    {
-                        "active_until": 2
-                    },
-                    {
-                        "active_until": 1
-                    },
-                    "addr_shared_vkh1u58dn5cky59rsmya7mdgf9du7mxqk4ewvfs05wthphpyutpxg7k",
-                    {
-                        "active_from": 7
-                    },
-                    {
-                        "active_until": 2
-                    },
-                    {
-                        "active_from": 3
-                    },
-                    {
-                        "active_until": 3
-                    },
-                    {
-                        "active_until": 0
-                    },
-                    {
-                        "active_from": 8
-                    }
-                ]
-            },
-            "validation": "required"
         }
     ],
-    "seed": -792321471
+    "seed": 1171230330
 }

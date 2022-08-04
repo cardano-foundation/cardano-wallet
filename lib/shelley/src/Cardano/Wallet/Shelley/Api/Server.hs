@@ -223,6 +223,7 @@ import qualified Cardano.Wallet.Primitive.AddressDerivation.Shelley as Shelley
 import qualified Data.ByteString as BS
 import qualified Data.Text as T
 
+
 server
     :: forall n.
         ( PaymentAddress n IcarusKey
@@ -634,19 +635,28 @@ postAnyAddress net addrData = do
                  , EnterpriseDelegating )
     pure $ AnyAddress addr addrType (fromInteger netTag)
   where
+      fromXPub = fromJust . CA.xpubFromBytes
       toXPub = fromJust . CA.xpubFromBytes . pubToXPub
       pubToXPub bytes = BS.append bytes bytes
       netTag = case net of
           Cardano.Mainnet -> 1
           _ -> 0
       spendingFrom cred = case cred of
-          CredentialPubKey  bytes ->
+          CredentialPubKey bytes ->
               CA.PaymentFromKey $ CA.liftXPub $ toXPub bytes
+          CredentialKeyHash bytes ->
+              CA.PaymentFromKeyHash $ CA.KeyHash CA.Payment bytes
+          CredentialExtendedPubKey bytes ->
+              CA.PaymentFromKey $ CA.liftXPub $ fromXPub bytes
           CredentialScript  script' ->
               CA.PaymentFromScript $ CA.toScriptHash script'
       stakingFrom cred = case cred of
           CredentialPubKey bytes ->
               CA.DelegationFromKey $ CA.liftXPub $ toXPub bytes
+          CredentialKeyHash bytes ->
+              CA.DelegationFromKeyHash $ CA.KeyHash CA.Delegation bytes
+          CredentialExtendedPubKey bytes ->
+              CA.DelegationFromKey $ CA.liftXPub $ fromXPub bytes
           CredentialScript script' ->
               CA.DelegationFromScript $ CA.toScriptHash script'
       guardValidation v cred =
@@ -654,6 +664,8 @@ postAnyAddress net addrData = do
                 Left $ snd $ checkValidation v cred
       checkValidation v cred = case cred of
           CredentialPubKey _ -> (False, TextDecodingError "")
+          CredentialKeyHash _ -> (False, TextDecodingError "")
+          CredentialExtendedPubKey _ -> (False, TextDecodingError "")
           CredentialScript script' -> case v of
               Just (ApiT v') ->
                   case validateScript v' script' of
