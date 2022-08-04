@@ -7537,7 +7537,7 @@ paths:
       tags: ["Shared Transactions"]
       summary: Decode
       description: |
-        <p align="right">status: <strong>stable</strong></p>
+        <p align="right">status: <strong>under development</strong></p>
 
         Decode a serialized transaction, either freshly constructed,
         partially signed or fully-signed.
@@ -7549,6 +7549,29 @@ paths:
           application/json:
             schema: *ApiSerialisedTransactionEncoded
       responses: *responsesDecodedTransaction
+
+  /shared-wallets/{walletId}/transactions-sign:
+    post:
+      operationId: signTransaction
+      tags: ["Shared Transactions"]
+      summary: Sign
+      description: |
+        <p align="right">status: <strong>under development</strong></p>
+
+        Signs a serialised transaction, returning the modified
+        transaction.
+
+        This endpoint will add new witnesses using the keys available
+        to this wallet. Any existing witnesses will remain in the
+        witness set.
+      parameters:
+        - *parametersWalletId
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema: *ApiSignTransactionPostData
+      responses: *responsesSignTransaction
 
   /shared-wallets/{walletId}/keys/{index}:
     post:

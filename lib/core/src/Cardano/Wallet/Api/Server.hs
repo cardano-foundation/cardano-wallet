@@ -97,6 +97,7 @@ module Cardano.Wallet.Api.Server
     , postPolicyKey
     , postPolicyId
     , constructSharedTransaction
+    , signSharedTransaction
     , decodeSharedTransaction
     , getBlocksLatestHeader
 
@@ -2728,6 +2729,53 @@ constructSharedTransaction
     ti :: TimeInterpreter (ExceptT PastHorizonException IO)
     ti = timeInterpreter (ctx ^. networkLayer)
 
+signSharedTransaction
+    :: forall ctx s k.
+        ( ctx ~ ApiLayer s k
+        , WalletKey k
+        )
+    => ctx
+    -> ApiT WalletId
+    -> ApiSignTransactionPostData
+    -> Handler ApiSerialisedTransaction
+signSharedTransaction _ctx (ApiT _wid) _body = do
+    undefined
+{--
+    let pwd = coerce $ body ^. #passphrase . #getApiT
+    sealedTx' <- withWorkerCtx ctx wid liftE liftE $ \wrk -> liftHandler $ do
+        let
+            db = wrk ^. W.dbLayer @IO @s @k
+            tl = wrk ^. W.transactionLayer @k
+            nl = wrk ^. W.networkLayer
+        db & \W.DBLayer{atomically, readCheckpoint} -> do
+            W.withRootKey @_ @s wrk wid pwd ErrWitnessTxWithRootKey $ \rootK scheme -> do
+                cp <- mapExceptT atomically
+                    $ withExceptT ErrWitnessTxNoSuchWallet
+                    $ W.withNoSuchWallet wid
+                    $ readCheckpoint wid
+                let
+                    pwdP :: Passphrase "encryption"
+                    pwdP = preparePassphrase scheme pwd
+
+                    utxo :: UTxO.UTxO
+                    utxo = totalUTxO mempty cp
+
+                    keyLookup
+                        :: Address
+                        -> Maybe (k 'AddressK XPrv, Passphrase "encryption")
+                    keyLookup = isOwned (getState cp) (rootK, pwdP)
+
+                era <- liftIO $ NW.currentNodeEra nl
+                let sealedTx = body ^. #transaction . #getApiT
+                pure $ W.signTransaction tl era keyLookup (rootK, pwdP) utxo sealedTx
+
+    -- TODO: The body+witnesses seem redundant with the sealedTx already. What's
+    -- the use-case for having them provided separately? In the end, the client
+    -- should be able to decouple them if they need to.
+    pure $ Api.ApiSerialisedTransaction
+        { transaction = ApiT sealedTx'
+        }
+--}
 decodeSharedTransaction
     :: forall ctx s k n.
         ( ctx ~ ApiLayer s k
