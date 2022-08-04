@@ -293,8 +293,6 @@ import Cardano.Wallet.Primitive.AddressDerivation
     )
 import Cardano.Wallet.Primitive.AddressDerivation.SharedKey
     ( purposeCIP1854 )
-import Cardano.Wallet.Primitive.AddressDerivation.Shelley
-    ( ShelleyKey )
 import Cardano.Wallet.Primitive.AddressDiscovery.Random
     ( RndState )
 import Cardano.Wallet.Primitive.AddressDiscovery.Sequential
@@ -335,6 +333,8 @@ import Cardano.Wallet.Primitive.Types
     )
 import Cardano.Wallet.Primitive.Types.Address
     ( Address (..), AddressState (..) )
+import Cardano.Wallet.Primitive.Types.Address.Constants
+    ( minLengthAddress )
 import Cardano.Wallet.Primitive.Types.Coin
     ( Coin (..) )
 import Cardano.Wallet.Primitive.Types.Hash
@@ -1148,10 +1148,9 @@ toApiNetworkParameters (NetworkParameters gp sp pp) txConstraints toEpochInfo = 
             -- Since address lengths are variable, there is no single ideal
             -- constant that we can return here.
             --
-            -- Therefore, we return a "minimum" UTxO quantity that is likely to
-            -- be more useful than others: the quantity required to send a
-            -- 9-byte ada quantity (and no non-ada tokens) to the longest
-            -- possible Shelley address.
+            -- Therefore, we return the absolute minimum UTxO quantity for an
+            -- output that sends ada (and no other assets) to an address of the
+            -- minimum possible length.
             --
             -- We should consider deprecating this parameter, and replacing it
             -- with era-specific protocol parameters such as:
@@ -1159,9 +1158,8 @@ toApiNetworkParameters (NetworkParameters gp sp pp) txConstraints toEpochInfo = 
             -- - lovelacePerUTxOWord (Alonzo)
             -- - lovelacePerUTxOByte (Babbage)
             --
-            txOutputMinimumAdaQuantity txConstraints
-                (AD.maxLengthAddressFor $ Proxy @ShelleyKey)
-                TokenMap.empty
+            txOutputMinimumAdaQuantity
+                txConstraints minLengthAddress TokenMap.empty
         , eras = apiEras
         , maximumCollateralInputCount =
             view #maximumCollateralInputCount pp

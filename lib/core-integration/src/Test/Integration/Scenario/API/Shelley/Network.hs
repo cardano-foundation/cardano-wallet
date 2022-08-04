@@ -34,7 +34,7 @@ import Test.Integration.Framework.DSL
     , expectField
     , expectResponseCode
     , maximumCollateralInputCountByEra
-    , minUTxOValue
+    , minUTxOValueForMinLengthAddress
     , minimumCollateralPercentageByEra
     , request
     , securityParameterValue
@@ -89,19 +89,29 @@ spec = describe "SHELLEY_NETWORK" $ do
                 else expectField #executionUnitPrices (`shouldBe` Nothing)
 
         verify r $
-            [ expectField #decentralizationLevel (`shouldBe` d)
-            , expectField #desiredPoolNumber (`shouldBe` nOpt)
-            , expectField #minimumUtxoValue (`shouldBe` Quantity (minUTxOValue (_mainEra ctx)))
-            , expectField #slotLength (`shouldBe` Quantity slotLengthValue)
-            , expectField #epochLength (`shouldBe` Quantity epochLengthValue)
-            , expectField #securityParameter (`shouldBe` Quantity securityParameterValue)
-            , expectField #activeSlotCoefficient (`shouldBe` Quantity 50.0)
+            [ expectField #decentralizationLevel
+                (`shouldBe` d)
+            , expectField #desiredPoolNumber
+                (`shouldBe` nOpt)
+            , expectField #minimumUtxoValue
+                (`shouldBe` Quantity
+                    (minUTxOValueForMinLengthAddress (_mainEra ctx)))
+            , expectField #slotLength
+                (`shouldBe` Quantity slotLengthValue)
+            , expectField #epochLength
+                (`shouldBe` Quantity epochLengthValue)
+            , expectField #securityParameter
+                (`shouldBe` Quantity securityParameterValue)
+            , expectField #activeSlotCoefficient
+                (`shouldBe` Quantity 50.0)
             , expectField #maximumCollateralInputCount
-                  (`shouldBe` maximumCollateralInputCountByEra (_mainEra ctx))
+                (`shouldBe` maximumCollateralInputCountByEra (_mainEra ctx))
             , expectField #minimumCollateralPercentage
-                  (`shouldBe` minimumCollateralPercentageByEra (_mainEra ctx))
-            , expectField #maximumTokenBundleSize (`shouldBe` Quantity 5000)
-            , checkExecutionUnitPricesPresence (_mainEra ctx)
+                (`shouldBe` minimumCollateralPercentageByEra (_mainEra ctx))
+            , expectField #maximumTokenBundleSize
+                (`shouldBe` Quantity 5000)
+            , checkExecutionUnitPricesPresence
+                (_mainEra ctx)
             ]
             ++ map (expectEraField (`shouldNotBe` Nothing)) knownEras
             ++ map (expectEraField (`shouldBe` Nothing)) unknownEras
