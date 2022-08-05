@@ -672,24 +672,28 @@ walletId =
 -- Constants
 --
 
--- | Min UTxO parameter for the test cluster.
+-- | Minimum UTxO parameter for the test cluster.
+--
+-- The value returned by this function is only appropriate for a very minimal
+-- output, where:
+--
+-- - the output has no assets other than ada.
+-- - the output uses a Shelley-era address of the length typically used in
+--   the integration test suite.
+-- - the output has no datum hash.
+--
+-- This value will almost certainly not be correct for outputs with non-ada
+-- assets, for outputs with longer addresses, or outputs with a datum hash.
+--
+-- In those cases, a larger value will be required. The precise value can be
+-- determined by calling one of the endpoints that returns an 'ApiFee' object,
+-- and inspecting the 'minimumCoins' field.
+--
 minUTxOValue :: ApiEra -> Natural
 minUTxOValue e
-    | e >= ApiBabbage = 995_610
-        -- This value is a slight overestimation for outputs with Shelley
-        -- addresses and no tokens.
-        --
-        -- However, it would be incorrect for outputs with Byron addresses,
-        -- where the lower bound would be greater by the following amount:
-        --
-        -- 4310 lovelace/byte * (86 - 57) byte ≈ 0.125 ada
-        --
-        -- However, this value appears to be fine for the purposes of
-        -- integration tests.
-        --
-    | e >= ApiAlonzo = 999_978
-        -- From 34482 lovelace/word.
-    | otherwise   = 1_000_000
+    | e >= ApiBabbage =   978_370
+    | e >= ApiAlonzo  =   999_978
+    | otherwise       = 1_000_000
 
 minUTxOValueForMinLengthAddress :: ApiEra -> Natural
 minUTxOValueForMinLengthAddress = \case

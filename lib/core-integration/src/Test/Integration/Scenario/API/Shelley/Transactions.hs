@@ -324,7 +324,21 @@ spec = describe "SHELLEY_TRANSACTIONS" $ do
             , expectResponseCode HTTP.status202
             , expectField (#amount . #getQuantity) $
                 between (feeMin + amt, feeMax + amt)
-            , const (minCoins `shouldBe` [Quantity (minUTxOValue (_mainEra ctx))])
+            , const $
+                -- The minimum ada quantities returned within an 'ApiFee'
+                -- object are computed using the 'computeMinimumCoinForUTxO'
+                -- function. This function produces quantities that are very
+                -- slightly higher than the Cardano API function on which it is
+                -- based, so as to guarantee that ada quantities can always be
+                -- safely increased while still retaining their validity.
+                --
+                -- To avoid making the test suite more brittle than necessary,
+                -- here we simply assert that the minimum values returned are
+                -- greater than or equal to the 'minUTxOValue' test suite
+                -- constant:
+                --
+                minCoins `shouldSatisfy` all
+                    (>= (Quantity $ minUTxOValue (_mainEra ctx)))
             , expectField #inputs $ \inputs' -> do
                 inputs' `shouldSatisfy` all (isJust . source)
             , expectField (#direction . #getApiT) (`shouldBe` Outgoing)
