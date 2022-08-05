@@ -58,13 +58,13 @@ import Cardano.Wallet.Primitive.Types.TokenPolicy
 import Cardano.Wallet.Primitive.Types.TokenPolicy.Gen
     ( mkTokenPolicyId )
 import Cardano.Wallet.Primitive.Types.Tx
-    ( TxOut (..), txOutMaxTokenQuantity, txOutMinTokenQuantity )
+    ( TxOut (..), txOutMaxCoin, txOutMaxTokenQuantity, txOutMinTokenQuantity )
 import Cardano.Wallet.Primitive.Types.Tx.Gen
     ( genTxOutTokenBundle )
 import Cardano.Wallet.Shelley.Compatibility
     ( toCardanoTxOut, unsafeLovelaceToWalletCoin, unsafeValueToLovelace )
 import Cardano.Wallet.Shelley.MinimumUTxO
-    ( computeMinimumCoinForUTxO, isBelowMinimumCoinForUTxO, maxLengthCoin )
+    ( computeMinimumCoinForUTxO, isBelowMinimumCoinForUTxO )
 import Control.Monad
     ( forM_ )
 import Data.Data
@@ -217,7 +217,7 @@ prop_computeMinimumCoinForUTxO_shelleyBasedEra_bounds
                 (tokenBundle)
             apiResultMaxBound = apiComputeMinCoin
                 (maxLengthAddress)
-                (TokenBundle.setCoin tokenBundle maxLengthCoin)
+                (TokenBundle.setCoin tokenBundle txOutMaxCoin)
         in
         property True
             & verify

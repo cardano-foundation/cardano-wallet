@@ -1,5 +1,4 @@
 {-# LANGUAGE LambdaCase #-}
-{-# LANGUAGE TypeApplications #-}
 
 -- |
 -- Copyright: © 2022 IOHK
@@ -10,7 +9,6 @@
 module Cardano.Wallet.Shelley.MinimumUTxO
     ( computeMinimumCoinForUTxO
     , isBelowMinimumCoinForUTxO
-    , maxLengthCoin
     ) where
 
 import Prelude
@@ -26,19 +24,13 @@ import Cardano.Wallet.Primitive.Types.TokenBundle
 import Cardano.Wallet.Primitive.Types.TokenMap
     ( TokenMap )
 import Cardano.Wallet.Primitive.Types.Tx
-    ( TxOut (..) )
+    ( TxOut (..), txOutMaxCoin )
 import Cardano.Wallet.Shelley.Compatibility
     ( toCardanoTxOut, unsafeLovelaceToWalletCoin, unsafeValueToLovelace )
 import Data.Function
     ( (&) )
-import Data.IntCast
-    ( intCast )
-import Data.Word
-    ( Word64 )
 import GHC.Stack
     ( HasCallStack )
-import Numeric.Natural
-    ( Natural )
 
 import qualified Cardano.Api.Shelley as Cardano
 import qualified Cardano.Wallet.Primitive.Types.TokenBundle as TokenBundle
@@ -147,16 +139,7 @@ embedTokenMapWithinPaddedTxOut
     -> TokenMap
     -> Cardano.TxOut Cardano.CtxTx era
 embedTokenMapWithinPaddedTxOut era addr m =
-    toCardanoTxOut era $ TxOut addr $ TokenBundle maxLengthCoin m
-
--- | A 'Coin' value that is maximal in length when serialized to bytes.
---
--- When serialized to bytes, this 'Coin' value has a length that is greater
--- than or equal to the serialized length of any 'Coin' value that is valid
--- for inclusion in a transaction output.
---
-maxLengthCoin :: Coin
-maxLengthCoin = Coin $ intCast @Word64 @Natural $ maxBound
+    toCardanoTxOut era $ TxOut addr $ TokenBundle txOutMaxCoin m
 
 -- | Extracts a 'Coin' value from the result of calling the Cardano API
 --   function 'calculateMinimumUTxO'.
