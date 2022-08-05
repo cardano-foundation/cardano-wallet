@@ -65,6 +65,7 @@ import Cardano.Wallet.Shelley.Compatibility
     ( toCardanoTxOut )
 import Cardano.Wallet.Shelley.MinimumUTxO
     ( computeMinimumCoinForUTxO
+    , isBelowMinimumCoinForUTxO
     , maxLengthCoin
     , unsafeLovelaceToWalletCoin
     , unsafeValueToLovelace
@@ -89,6 +90,7 @@ import Test.QuickCheck
     , frequency
     , property
     , sized
+    , (===)
     )
 import Test.QuickCheck.Classes
     ( eqLaws, showLaws )
@@ -121,6 +123,9 @@ spec = do
 
             it "prop_computeMinimumCoinForUTxO_evaluation" $
                 prop_computeMinimumCoinForUTxO_evaluation
+                    & property
+            it "prop_computeMinimumCoinForUTxO_isBelowMinimumCoinForUTxO" $
+                prop_computeMinimumCoinForUTxO_isBelowMinimumCoinForUTxO
                     & property
             it "prop_computeMinimumCoinForUTxO_shelleyBasedEra_bounds" $
                 prop_computeMinimumCoinForUTxO_shelleyBasedEra_bounds
@@ -185,6 +190,19 @@ prop_computeMinimumCoinForUTxO_evaluation
 prop_computeMinimumCoinForUTxO_evaluation minimumUTxO addr m = property $
     -- Use an arbitrary test to force evaluation of the result:
     computeMinimumCoinForUTxO minimumUTxO addr m >= Coin 0
+
+-- Tests the following composition:
+--
+-- >>> isBelowMinimumCoinForUTxO . computeMinimumCoinForUTxO
+--
+-- The composition should never be `True`.
+--
+prop_computeMinimumCoinForUTxO_isBelowMinimumCoinForUTxO
+    :: MinimumUTxO -> Address -> TokenMap -> Property
+prop_computeMinimumCoinForUTxO_isBelowMinimumCoinForUTxO minimumUTxO addr m =
+    isBelowMinimumCoinForUTxO minimumUTxO addr
+        (TokenBundle (computeMinimumCoinForUTxO minimumUTxO addr m) m)
+    === False
 
 -- Check that 'computeMinimumCoinForUTxO' produces a result that is within
 -- bounds, as determined by the Cardano API function 'calculateMinimumUTxO'.
