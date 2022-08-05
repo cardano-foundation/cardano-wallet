@@ -890,7 +890,7 @@ ourAccount = publicKey $ unsafeGenerateKeyFromSeed (seed, Nothing) mempty
   where
     seed = someDummyMnemonic (Proxy @15)
 
-rewardAccount :: ShelleyKey 'AddressK XPub
+rewardAccount :: ShelleyKey 'CredFromKeyK XPub
 rewardAccount = publicKey $ unsafeGenerateKeyFromSeed (seed, Nothing) mempty
   where
     seed = someDummyMnemonic (Proxy @15)

@@ -68,23 +68,23 @@ prop_keyDerivationFromSeed
     :: SomeMnemonic
     -> Passphrase "encryption"
     -> Index 'WholeDomain 'AccountK
-    -> Index 'WholeDomain 'AddressK
+    -> Index 'WholeDomain 'CredFromKeyK
     -> Property
 prop_keyDerivationFromSeed seed encPwd accIx addrIx =
     rndKey `seq` property () -- NOTE Making sure this doesn't throw
   where
-    rndKey :: ByronKey 'AddressK XPrv
+    rndKey :: ByronKey 'CredFromKeyK XPrv
     rndKey = unsafeGenerateKeyFromSeed (accIx, addrIx) seed encPwd
 
 prop_keyDerivationFromXPrv
     :: XPrv
     -> Index 'WholeDomain 'AccountK
-    -> Index 'WholeDomain 'AddressK
+    -> Index 'WholeDomain 'CredFromKeyK
     -> Property
 prop_keyDerivationFromXPrv masterkey accIx addrIx =
     rndKey `seq` property () -- NOTE Making sure this doesn't throw
   where
-    rndKey :: ByronKey 'AddressK XPrv
+    rndKey :: ByronKey 'CredFromKeyK XPrv
     rndKey = unsafeMkByronKeyFromMasterKey (accIx, addrIx) masterkey
 
 {-------------------------------------------------------------------------------

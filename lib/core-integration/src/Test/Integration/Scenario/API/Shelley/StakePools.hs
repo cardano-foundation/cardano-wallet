@@ -163,7 +163,7 @@ spec :: forall n.
     ( DecodeAddress n
     , DecodeStakeAddress n
     , EncodeAddress n
-    , PaymentAddress n ShelleyKey 'AddressK
+    , PaymentAddress n ShelleyKey 'CredFromKeyK
     ) => SpecWith Context
 spec = describe "SHELLEY_STAKE_POOLS" $ do
     let listPools ctx stake = request @[ApiStakePool] ctx

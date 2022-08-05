@@ -198,28 +198,28 @@ spec = do
 
     describe "Shelley Addresses" $ do
         prop "(Mainnet) can be deserialised by shelley ledger spec" $ \k -> do
-            let Address addr = paymentAddress @'Mainnet @ShelleyKey @'AddressK k
+            let Address addr = paymentAddress @'Mainnet @ShelleyKey @'CredFromKeyK k
             case SL.deserialiseAddr @StandardCrypto addr of
                 Just _ -> property True
                 Nothing -> property False
 
         prop "Shelley addresses from bech32" $ \k ->
-            let addr@(Address bytes) = paymentAddress @'Mainnet @ShelleyKey @'AddressK k
+            let addr@(Address bytes) = paymentAddress @'Mainnet @ShelleyKey @'CredFromKeyK k
             in  decodeAddress @'Mainnet (bech32 bytes) === Right addr
                     & counterexample (show $ bech32 bytes)
 
         prop "Shelley addresses with delegation from bech32" $ \k1 k2 ->
-            let addr@(Address bytes) = delegationAddress @'Mainnet @ShelleyKey @'AddressK k1 k2
+            let addr@(Address bytes) = delegationAddress @'Mainnet @ShelleyKey @'CredFromKeyK k1 k2
             in  decodeAddress @'Mainnet (bech32 bytes) === Right addr
                     & counterexample (show $ bech32 bytes)
 
         prop "Shelley addresses from bech32 - testnet" $ \k ->
-            let addr@(Address raw) = paymentAddress @('Testnet 0) @ShelleyKey @'AddressK k
+            let addr@(Address raw) = paymentAddress @('Testnet 0) @ShelleyKey @'CredFromKeyK k
             in  decodeAddress @('Testnet 0) (bech32testnet raw) === Right addr
                    & counterexample (show $ bech32testnet raw)
 
         prop "Byron addresses from base58" $ \k ->
-            let addr@(Address bytes) = paymentAddress @'Mainnet @ByronKey @'AddressK k
+            let addr@(Address bytes) = paymentAddress @'Mainnet @ByronKey @'CredFromKeyK k
             in  decodeAddress @'Mainnet (base58 bytes) === Right addr
                     & counterexample (show $ base58 bytes)
 
@@ -734,13 +734,13 @@ instance Arbitrary SlotId where
         <$> (W.EpochNo . fromIntegral <$> choose (0, 10 :: Word32))
         <*> (W.SlotInEpoch <$> choose (0, 10))
 
-instance Arbitrary (ShelleyKey 'AddressK XPrv) where
+instance Arbitrary (ShelleyKey 'CredFromKeyK XPrv) where
     shrink _ = []
     arbitrary = do
         mnemonic <- arbitrary
         return $ Shelley.unsafeGenerateKeyFromSeed mnemonic mempty
 
-instance Arbitrary (ByronKey 'AddressK XPrv) where
+instance Arbitrary (ByronKey 'CredFromKeyK XPrv) where
     shrink _ = []
     arbitrary = do
         mnemonic <- arbitrary
@@ -758,8 +758,8 @@ instance
         maxIndex = fromIntegral . getIndex $
             maxBound @(AddressDerivation.Index derivationType depth)
 
-instance (WalletKey k, Arbitrary (k 'AddressK XPrv)) =>
-    Arbitrary (k 'AddressK XPub)
+instance (WalletKey k, Arbitrary (k 'CredFromKeyK XPrv)) =>
+    Arbitrary (k 'CredFromKeyK XPub)
   where
     shrink _ = []
     arbitrary = publicKey <$> arbitrary

@@ -166,7 +166,7 @@ data State
     -- | There is more than one active stake keys. Can only be reached using
     -- wallets with support for multiple stake keys.
     | More
-        !(Index 'Soft 'AddressK)
+        !(Index 'Soft 'CredFromKeyK)
           -- nextKeyIx - the ix of the next unused key
         PointerUTxO
           -- ^ pointer utxo that need to be spent when changing state.
@@ -192,29 +192,29 @@ data Key0Status = ValidKey0 | MissingKey0
 
 instance NFData Key0Status
 
-instance (NFData (k 'AccountK XPub), NFData (k 'AddressK XPub))
+instance (NFData (k 'AccountK XPub), NFData (k 'CredFromKeyK XPub))
     => NFData (DelegationState k)
 
 deriving instance
     ( Show (k 'AccountK XPub)
-    , Show (k 'AddressK XPub)
+    , Show (k 'CredFromKeyK XPub)
     ) => Show (DelegationState k)
 
 deriving instance
     ( Eq (k 'AccountK XPub)
-    , Eq (k 'AddressK XPub)
+    , Eq (k 'CredFromKeyK XPub)
     ) => Eq (DelegationState k)
 
 keyAtIx
     :: (SoftDerivation k)
     => DelegationState k
-    -> Index 'Soft 'AddressK
-    -> k 'AddressK XPub
+    -> Index 'Soft 'CredFromKeyK
+    -> k 'CredFromKeyK XPub
 keyAtIx s = deriveAddressPublicKey (rewardAccountKey s) MutableAccount
 
 nextKeyIx
     :: DelegationState k
-    -> Index 'Soft 'AddressK
+    -> Index 'Soft 'CredFromKeyK
 nextKeyIx s = case state s of
     Zero -> minBound
     One -> succ minBound
@@ -222,7 +222,7 @@ nextKeyIx s = case state s of
 
 lastActiveIx
     :: DelegationState k
-    -> Maybe (Index 'Soft 'AddressK)
+    -> Maybe (Index 'Soft 'CredFromKeyK)
 lastActiveIx s
     | nextKeyIx s == minBound = Nothing
     | otherwise               = Just $ pred $ nextKeyIx s
@@ -238,7 +238,7 @@ data PointerUTxO = PointerUTxO { pTxIn :: TxIn, pCoin :: Coin }
 -- the @[0] -> [0,1] transition@, i.e. @nextKeyIx 1 -> nextKeyIx 2@.
 pointerIx
     :: Int
-    -> Maybe (Index 'Soft 'AddressK)
+    -> Maybe (Index 'Soft 'CredFromKeyK)
 pointerIx 0 = Nothing
 pointerIx 1 = Nothing
 pointerIx n = Just $ toEnum n
@@ -295,7 +295,7 @@ setPortfolioOf
     => DelegationState k
     -> Coin
         -- ^ minUTxOVal
-    -> (k 'AddressK XPub -> Address)
+    -> (k 'CredFromKeyK XPub -> Address)
         -- ^ A way to construct an Address
     -> (RewardAccount -> Bool)
         -- ^ Whether or not the key is registered.
@@ -347,7 +347,7 @@ setPortfolioOf ds minUTxOVal mkAddress isReg n =
             -- Note: If c > minUTxOVal we need to rely on the wallet to return the
             -- difference to the user as change.
 
-    deleg :: [Index 'Soft 'AddressK] -> [Cert]
+    deleg :: [Index 'Soft 'CredFromKeyK] -> [Cert]
     deleg = (>>= \ix ->
         if isReg (acct ix)
         then [Delegate (acct ix)]
@@ -355,7 +355,7 @@ setPortfolioOf ds minUTxOVal mkAddress isReg n =
         )
 
 
-    dereg :: [Index 'Soft 'AddressK] -> [Cert]
+    dereg :: [Index 'Soft 'CredFromKeyK] -> [Cert]
     dereg ixs =
         [ DeRegisterKey (acct ix)
         | ix <- ixs
@@ -373,7 +373,7 @@ applyTx
     :: forall k. ( SoftDerivation k
         , ToRewardAccount k
         , MkKeyFingerprint k Address
-        , MkKeyFingerprint k (k 'AddressK XPub))
+        , MkKeyFingerprint k (k 'CredFromKeyK XPub))
     => Tx
     -> Hash "Tx"
     -> DelegationState k
@@ -463,7 +463,7 @@ applyTx (Tx cs _ins outs) h ds0 = foldl applyCert ds0 cs
 -- [0, 1]
 -- >>> presentableKeys s2
 -- [0, 1, 2]
-presentableKeys :: SoftDerivation k => DelegationState k -> [k 'AddressK XPub]
+presentableKeys :: SoftDerivation k => DelegationState k -> [k 'CredFromKeyK XPub]
 presentableKeys s = case lastActiveIx s of
     Just i -> map (keyAtIx s) [minBound .. (succ i)]
     Nothing -> [keyAtIx s minBound]
@@ -484,13 +484,13 @@ presentableKeys s = case lastActiveIx s of
 -- Also note that old wallet software may unregister the first stake key 0
 -- despite stake key 1 being active. This doesn't affect `usableKeys`
 -- (it still includes key 0), as we view the state as incorrect and temporary.
-usableKeys :: SoftDerivation k => DelegationState k -> [k 'AddressK XPub]
+usableKeys :: SoftDerivation k => DelegationState k -> [k 'CredFromKeyK XPub]
 usableKeys s = case lastActiveIx s of
     Just i -> map (keyAtIx s) [minBound .. i]
     Nothing -> [keyAtIx s minBound]
 
 -- | For testing. Returns all registered and delegating stake keys.
-activeKeys :: SoftDerivation k => DelegationState k -> [k 'AddressK XPub]
+activeKeys :: SoftDerivation k => DelegationState k -> [k 'CredFromKeyK XPub]
 activeKeys ds = map (keyAtIx ds) $ case state ds of
     Zero                      -> []
     One                       -> [minBound]

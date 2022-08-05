@@ -387,7 +387,7 @@ mkTx
     -- ^ Slot at which the transaction will start and expire.
     -> (XPrv, Passphrase "encryption")
     -- ^ Reward account
-    -> (Address -> Maybe (k 'AddressK XPrv, Passphrase "encryption"))
+    -> (Address -> Maybe (k 'CredFromKeyK XPrv, Passphrase "encryption"))
     -- ^ Key store
     -> Coin
     -- ^ An optional withdrawal amount, can be zero

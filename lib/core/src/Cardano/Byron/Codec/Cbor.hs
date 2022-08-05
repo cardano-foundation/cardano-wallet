@@ -162,7 +162,7 @@ decodeAddressDerivationPath
     :: Passphrase "addr-derivation-payload"
     -> CBOR.Decoder s (Maybe
         ( Index 'WholeDomain 'AccountK
-        , Index 'WholeDomain 'AddressK
+        , Index 'WholeDomain 'CredFromKeyK
         ))
 decodeAddressDerivationPath pwd = do
     _ <- CBOR.decodeListLenCanonicalOf 3
@@ -196,7 +196,7 @@ decodeDerivationPathAttr
     -> [(Word8, ByteString)]
     -> CBOR.Decoder s (Maybe
         ( Index 'WholeDomain 'AccountK
-        , Index 'WholeDomain 'AddressK
+        , Index 'WholeDomain 'CredFromKeyK
         ))
 decodeDerivationPathAttr pwd attrs = do
     case lookup derPathTag attrs of
@@ -210,7 +210,7 @@ decodeDerivationPathAttr pwd attrs = do
     derPathTag = 1
     decoder :: CBOR.Decoder s (Maybe
         ( Index 'WholeDomain 'AccountK
-        , Index 'WholeDomain 'AddressK
+        , Index 'WholeDomain 'CredFromKeyK
         ))
     decoder = do
         bytes <- CBOR.decodeBytes
@@ -224,7 +224,7 @@ decodeDerivationPathAttr pwd attrs = do
 decodeDerivationPath
     :: CBOR.Decoder s
         ( Index 'WholeDomain 'AccountK
-        , Index 'WholeDomain 'AddressK
+        , Index 'WholeDomain 'CredFromKeyK
         )
 decodeDerivationPath = do
     ixs <- decodeListIndef CBOR.decodeWord32
@@ -348,7 +348,7 @@ encodeProtocolMagicAttr pm = mempty
 encodeDerivationPathAttr
     :: Passphrase "addr-derivation-payload"
     -> Index 'WholeDomain 'AccountK
-    -> Index 'WholeDomain 'AddressK
+    -> Index 'WholeDomain 'CredFromKeyK
     -> CBOR.Encoding
 encodeDerivationPathAttr pwd acctIx addrIx = mempty
     <> CBOR.encodeWord8 1 -- Tag for 'DerivationPath' attribute
@@ -358,7 +358,7 @@ encodeDerivationPathAttr pwd acctIx addrIx = mempty
 
 encodeDerivationPath
     :: Index 'WholeDomain 'AccountK
-    -> Index 'WholeDomain 'AddressK
+    -> Index 'WholeDomain 'CredFromKeyK
     -> CBOR.Encoding
 encodeDerivationPath (Index acctIx) (Index addrIx) = mempty
     <> CBOR.encodeListLenIndef
@@ -441,7 +441,7 @@ encryptDerivationPath passphrase payload = unsafeSerialize $ do
     -- if the key was created with 'generateKeyFromSeed'.
     useInvariant = \case
         CryptoPassed res -> res
-        CryptoFailed err -> error $ "encodeAddressKey: " ++ show err
+        CryptoFailed err -> error $ "encodeCredFromKeyKey: " ++ show err
 
 -- | ChaCha20/Poly1305 decrypting and authenticating the HD payload of
 -- addresses.

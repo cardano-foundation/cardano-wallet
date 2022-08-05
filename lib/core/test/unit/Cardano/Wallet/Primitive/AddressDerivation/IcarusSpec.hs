@@ -96,7 +96,7 @@ prop_publicChildKeyDerivation
     :: SomeMnemonic
     -> Passphrase "encryption"
     -> Role
-    -> Index 'Soft 'AddressK
+    -> Index 'Soft 'CredFromKeyK
     -> Property
 prop_publicChildKeyDerivation seed encPwd cc ix =
     addrXPub1 === addrXPub2
@@ -124,7 +124,7 @@ prop_roundtripFingerprintLift
 prop_roundtripFingerprintLift addr =
     let
         fingerprint = paymentKeyFingerprint @IcarusKey addr
-        eAddr = liftPaymentAddress @'Mainnet @IcarusKey @'AddressK <$> fingerprint
+        eAddr = liftPaymentAddress @'Mainnet @IcarusKey @'CredFromKeyK <$> fingerprint
     in
         eAddr === Right addr
 

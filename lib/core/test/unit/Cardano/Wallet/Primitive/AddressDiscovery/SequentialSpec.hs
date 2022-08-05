@@ -297,7 +297,7 @@ prop_lookupDiscovered (s0, addr) =
     mw = someDummyMnemonic (Proxy @12)
     key = Shelley.unsafeGenerateKeyFromSeed (mw, Nothing) mempty
     prop s = monadicIO $ liftIO $ do
-        unless (isJust $ isOwned @_ @_ @'AddressK s (key, mempty) addr) $ do
+        unless (isJust $ isOwned @_ @_ @'CredFromKeyK s (key, mempty) addr) $ do
             expectationFailure "couldn't find private key corresponding to addr"
 
 
@@ -437,7 +437,8 @@ instance AddressPoolTest ShelleyKey where
       where
         mkAddress k = delegationAddress @'Mainnet k rewardAccount
 
-rewardAccount :: ShelleyKey 'AddressK XPub
+rewardAccount
+    :: ShelleyKey 'CredFromKeyK XPub
 rewardAccount = publicKey $
     Shelley.unsafeGenerateKeyFromSeed (mw, Nothing) mempty
   where
@@ -503,7 +504,7 @@ instance Arbitrary Address where
 
 instance
     ( Typeable c
-    , MkKeyFingerprint k (Proxy 'Mainnet, k 'AddressK XPub)
+    , MkKeyFingerprint k (Proxy 'Mainnet, k 'CredFromKeyK XPub)
     , MkKeyFingerprint k Address
     , SoftDerivation k
     , AddressPoolTest k
@@ -536,7 +537,7 @@ data Key = forall (k :: Depth -> * -> *).
     ( Typeable k
     , Eq (k 'AccountK XPub)
     , Show (k 'AccountK XPub)
-    , MkKeyFingerprint k (Proxy 'Mainnet, k 'AddressK XPub)
+    , MkKeyFingerprint k (Proxy 'Mainnet, k 'CredFromKeyK XPub)
     , MkKeyFingerprint k Address
     , SoftDerivation k
     , AddressPoolTest k

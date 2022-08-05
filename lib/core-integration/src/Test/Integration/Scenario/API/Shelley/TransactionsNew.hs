@@ -244,7 +244,7 @@ spec :: forall n.
     , DecodeStakeAddress n
     , EncodeStakeAddress n
     , EncodeAddress n
-    , PaymentAddress n IcarusKey 'AddressK
+    , PaymentAddress n IcarusKey 'CredFromKeyK
     ) => SpecWith Context
 spec = describe "NEW_SHELLEY_TRANSACTIONS" $ do
     it "TRANS_NEW_CREATE_01a - Empty payload is not allowed" $ \ctx -> runResourceT $ do

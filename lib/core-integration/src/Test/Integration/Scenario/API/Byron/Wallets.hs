@@ -110,8 +110,8 @@ spec :: forall n.
     ( DecodeAddress n
     , DecodeStakeAddress n
     , EncodeAddress n
-    , PaymentAddress n IcarusKey 'AddressK
-    , PaymentAddress n ByronKey 'AddressK
+    , PaymentAddress n IcarusKey 'CredFromKeyK
+    , PaymentAddress n ByronKey 'CredFromKeyK
     ) => SpecWith Context
 spec = describe "BYRON_WALLETS" $ do
     it "BYRON_GET_04, DELETE_01 - Deleted wallet is not available" $ \ctx -> runResourceT $ do

@@ -1812,7 +1812,7 @@ fixtureRandomWallet = fmap fst . fixtureRandomWalletMws
 
 fixtureRandomWalletAddrs
     :: forall (n :: NetworkDiscriminant) m.
-        ( PaymentAddress n ByronKey 'AddressK
+        ( PaymentAddress n ByronKey 'CredFromKeyK
         , MonadIO m
         , MonadUnliftIO m
         )
@@ -1834,7 +1834,7 @@ fixtureRandomWalletWith
         ( EncodeAddress n
         , DecodeAddress n
         , DecodeStakeAddress n
-        , PaymentAddress n ByronKey 'AddressK
+        , PaymentAddress n ByronKey 'CredFromKeyK
         , MonadIO m
         , MonadUnliftIO m
         )
@@ -1872,7 +1872,7 @@ fixtureIcarusWallet = fmap fst . fixtureIcarusWalletMws
 
 fixtureIcarusWalletAddrs
     :: forall (n :: NetworkDiscriminant) m.
-        ( PaymentAddress n IcarusKey 'AddressK
+        ( PaymentAddress n IcarusKey 'CredFromKeyK
         , MonadIO m
         , MonadUnliftIO m
         )
@@ -1894,7 +1894,7 @@ fixtureIcarusWalletWith
         ( EncodeAddress n
         , DecodeAddress n
         , DecodeStakeAddress n
-        , PaymentAddress n IcarusKey 'AddressK
+        , PaymentAddress n IcarusKey 'CredFromKeyK
         , MonadIO m
         , MonadUnliftIO m
         )
@@ -2259,7 +2259,7 @@ delegationFee ctx w = do
 -- >>> take 1 (randomAddresses @n)
 -- [addr]
 randomAddresses
-    :: forall (n :: NetworkDiscriminant). (PaymentAddress n ByronKey 'AddressK)
+    :: forall (n :: NetworkDiscriminant). (PaymentAddress n ByronKey 'CredFromKeyK)
     => Mnemonic 12
     -> [Address]
 randomAddresses mw =
@@ -2284,7 +2284,7 @@ randomAddresses mw =
 -- >>> take 1 (icarusAddresses @n)
 -- [addr]
 icarusAddresses
-    :: forall (n :: NetworkDiscriminant). (PaymentAddress n IcarusKey 'AddressK)
+    :: forall (n :: NetworkDiscriminant). (PaymentAddress n IcarusKey 'CredFromKeyK)
     => Mnemonic 15
     -> [Address]
 icarusAddresses mw =
@@ -2309,7 +2309,7 @@ icarusAddresses mw =
 -- >>> take 1 (shelleyAddresses @n)
 -- [addr]
 shelleyAddresses
-    :: forall (n :: NetworkDiscriminant). (PaymentAddress n ShelleyKey 'AddressK)
+    :: forall (n :: NetworkDiscriminant). (PaymentAddress n ShelleyKey 'CredFromKeyK)
     => Mnemonic 15
     -> [Address]
 shelleyAddresses mw =

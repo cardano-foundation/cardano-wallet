@@ -219,7 +219,7 @@ prop_roundtripEnumIndexHard :: Index 'WholeDomain 'AccountK -> Property
 prop_roundtripEnumIndexHard ix =
     (toEnum . fromEnum) ix === ix .&&. (toEnum . fromEnum . getIndex) ix === ix
 
-prop_roundtripEnumIndexSoft :: Index 'Soft 'AddressK -> Property
+prop_roundtripEnumIndexSoft :: Index 'Soft 'CredFromKeyK -> Property
 prop_roundtripEnumIndexSoft ix =
     (toEnum . fromEnum) ix === ix .&&. (toEnum . fromEnum . getIndex) ix === ix
 
@@ -246,7 +246,7 @@ prop_roundtripXPub key = do
                              Arbitrary Instances
 -------------------------------------------------------------------------------}
 
-instance Arbitrary (Index 'Soft 'AddressK) where
+instance Arbitrary (Index 'Soft 'CredFromKeyK) where
     shrink _ = []
     arbitrary = arbitraryBoundedEnum
 
@@ -254,11 +254,11 @@ instance Arbitrary (Index 'Hardened 'AccountK) where
     shrink _ = []
     arbitrary = arbitraryBoundedEnum
 
-instance Arbitrary (Index 'Hardened 'AddressK) where
+instance Arbitrary (Index 'Hardened 'CredFromKeyK) where
     shrink _ = []
     arbitrary = arbitraryBoundedEnum
 
-instance Arbitrary (Index 'WholeDomain 'AddressK) where
+instance Arbitrary (Index 'WholeDomain 'CredFromKeyK) where
     shrink _ = []
     arbitrary = arbitraryBoundedEnum
 

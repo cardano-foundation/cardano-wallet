@@ -184,7 +184,7 @@ prop_derivationPathRoundTrip
     :: Passphrase "addr-derivation-payload"
     -> Passphrase "addr-derivation-payload"
     -> Index 'WholeDomain 'AccountK
-    -> Index 'WholeDomain 'AddressK
+    -> Index 'WholeDomain 'CredFromKeyK
     -> Property
 prop_derivationPathRoundTrip pwd pwd' acctIx addrIx =
     let
@@ -208,7 +208,7 @@ instance {-# OVERLAPS #-} Arbitrary (Passphrase "addr-derivation-payload") where
         bytes <- BS.pack <$> vector 32
         return $ Passphrase $ BA.convert bytes
 
-instance Arbitrary (Index 'WholeDomain 'AddressK) where
+instance Arbitrary (Index 'WholeDomain 'CredFromKeyK) where
     shrink _ = []
     arbitrary = arbitraryBoundedEnum
 

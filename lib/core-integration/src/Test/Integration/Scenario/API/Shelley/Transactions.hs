@@ -194,7 +194,7 @@ spec :: forall n.
     ( DecodeAddress n
     , DecodeStakeAddress n
     , EncodeAddress n
-    , PaymentAddress n IcarusKey 'AddressK
+    , PaymentAddress n IcarusKey 'CredFromKeyK
     ) => SpecWith Context
 spec = describe "SHELLEY_TRANSACTIONS" $ do
 

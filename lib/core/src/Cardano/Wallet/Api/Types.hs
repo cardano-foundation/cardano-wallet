@@ -1567,7 +1567,7 @@ newtype ApiNetworkClock = ApiNetworkClock
 
 data ApiPostRandomAddressData = ApiPostRandomAddressData
     { passphrase :: !(ApiT (Passphrase "lenient"))
-    , addressIndex :: !(Maybe (ApiT (Index 'AD.Hardened 'AddressK)))
+    , addressIndex :: !(Maybe (ApiT (Index 'AD.Hardened 'CredFromKeyK)))
     } deriving (Eq, Generic, Show)
       deriving anyclass NFData
 

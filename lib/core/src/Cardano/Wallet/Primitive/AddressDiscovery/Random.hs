@@ -177,7 +177,7 @@ instance Buildable (RndState network) where
         <> indentF 4 ("Change addresses: " <> blockMapF' tupleF build pending)
 
 -- | Shortcut type alias for HD random address derivation path.
-type DerivationPath = (Index 'WholeDomain 'AccountK, Index 'WholeDomain 'AddressK)
+type DerivationPath = (Index 'WholeDomain 'AccountK, Index 'WholeDomain 'CredFromKeyK)
 
 instance RndStateLike (RndState n) where
     importAddress addr s = do
@@ -218,9 +218,9 @@ instance IsOurs (RndState n) Address where
 instance IsOurs (RndState n) RewardAccount where
     isOurs _account state = (Nothing, state)
 
-instance IsOwned (RndState n) ByronKey 'AddressK where
+instance IsOwned (RndState n) ByronKey 'CredFromKeyK where
     isOwned st (key, pwd) addr =
-        (, pwd) . deriveAddressKeyFromPath key pwd
+        (, pwd) . deriveCredFromKeyKeyFromPath key pwd
             <$> addressToPath addr (hdPassphrase st)
 
 -- Updates a 'RndState' by adding an address and its derivation path to the
@@ -267,7 +267,7 @@ newtype ErrImportAddress
     = ErrAddrDoesNotBelong Address
     deriving (Generic, Eq, Show)
 
-instance PaymentAddress n ByronKey 'AddressK => GenChange (RndState n) where
+instance PaymentAddress n ByronKey 'CredFromKeyK => GenChange (RndState n) where
     type ArgGenChange (RndState n) = (ByronKey 'RootK XPrv, Passphrase "encryption")
     genChange (rootXPrv, pwd) st = (address, st')
       where
@@ -297,7 +297,7 @@ findUnusedPath g accIx used
     (addrIx, gen') = randomIndex g
 
 randomIndex
-    :: forall ix g. (RandomGen g, ix ~ Index 'Hardened 'AddressK)
+    :: forall ix g. (RandomGen g, ix ~ Index 'Hardened 'CredFromKeyK)
     => g
     -> (ix, g)
 randomIndex g = (Index ix, g')
@@ -307,25 +307,25 @@ randomIndex g = (Index ix, g')
 
 -- | Use the key material in 'RndState' to derive a change address for a given
 -- derivation path.
-deriveAddressKeyFromPath
+deriveCredFromKeyKeyFromPath
     :: ByronKey 'RootK XPrv
     -> Passphrase "encryption"
     -> DerivationPath
-    -> ByronKey 'AddressK XPrv
-deriveAddressKeyFromPath rootXPrv passphrase (accIx, addrIx) = addrXPrv
+    -> ByronKey 'CredFromKeyK XPrv
+deriveCredFromKeyKeyFromPath rootXPrv passphrase (accIx, addrIx) = addrXPrv
   where
     accXPrv = deriveAccountPrivateKey passphrase rootXPrv accIx
     addrXPrv = deriveAddressPrivateKey passphrase accXPrv addrIx
 
 -- | Use the key material in 'RndState' to derive a change address.
 deriveRndStateAddress
-    :: forall n. (PaymentAddress n ByronKey 'AddressK)
+    :: forall n. (PaymentAddress n ByronKey 'CredFromKeyK)
     => ByronKey 'RootK XPrv
     -> Passphrase "encryption"
     -> DerivationPath
     -> Address
 deriveRndStateAddress k passphrase path =
-    paymentAddress @n $ publicKey $ deriveAddressKeyFromPath k passphrase path
+    paymentAddress @n $ publicKey $ deriveCredFromKeyKeyFromPath k passphrase path
 
 -- Unlike sequential derivation, we can't derive an order from the index only
 -- (they are randomly generated), nor anything else in the address itself.
@@ -440,10 +440,10 @@ instance KnownNat p => IsOurs (RndAnyState n p) Address where
 instance IsOurs (RndAnyState n p) RewardAccount where
     isOurs _account state = (Nothing, state)
 
-instance KnownNat p => IsOwned (RndAnyState n p) ByronKey 'AddressK where
+instance KnownNat p => IsOwned (RndAnyState n p) ByronKey 'CredFromKeyK where
     isOwned _ _ _ = Nothing
 
-instance PaymentAddress n ByronKey 'AddressK => GenChange (RndAnyState n p) where
+instance PaymentAddress n ByronKey 'CredFromKeyK => GenChange (RndAnyState n p) where
     type ArgGenChange (RndAnyState n p) = ArgGenChange (RndState n)
     genChange a (RndAnyState s) = RndAnyState <$> genChange a s
 

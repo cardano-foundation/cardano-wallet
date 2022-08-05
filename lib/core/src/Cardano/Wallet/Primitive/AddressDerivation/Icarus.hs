@@ -126,7 +126,7 @@ import qualified Data.Text.Encoding as T
 -- @
 -- let rootPrivateKey = IcarusKey 'RootK XPrv
 -- let accountPubKey = IcarusKey 'AccountK XPub
--- let addressPubKey = IcarusKey 'AddressK XPub
+-- let addressPubKey = IcarusKey 'CredFromKeyK XPub
 -- @
 newtype IcarusKey (depth :: Depth) key =
     IcarusKey { getKey :: key }
@@ -366,14 +366,14 @@ instance WalletKey IcarusKey where
 instance GetPurpose IcarusKey where
     getPurpose = purposeBIP44
 
-instance PaymentAddress 'Mainnet IcarusKey 'AddressK where
+instance PaymentAddress 'Mainnet IcarusKey 'CredFromKeyK where
     paymentAddress k = Address
         $ CBOR.toStrictByteString
         $ CBOR.encodeAddress (getKey k) []
     liftPaymentAddress (KeyFingerprint bytes) =
         Address bytes
 
-instance KnownNat pm => PaymentAddress ('Testnet pm) IcarusKey 'AddressK where
+instance KnownNat pm => PaymentAddress ('Testnet pm) IcarusKey 'CredFromKeyK where
     paymentAddress k = Address
         $ CBOR.toStrictByteString
         $ CBOR.encodeAddress (getKey k)
@@ -388,8 +388,8 @@ instance MkKeyFingerprint IcarusKey Address where
             Just _  -> Right $ KeyFingerprint bytes
             Nothing -> Left $ ErrInvalidAddress addr (Proxy @IcarusKey)
 
-instance PaymentAddress n IcarusKey 'AddressK
-    => MkKeyFingerprint IcarusKey (Proxy (n :: NetworkDiscriminant), IcarusKey 'AddressK XPub)
+instance PaymentAddress n IcarusKey 'CredFromKeyK
+    => MkKeyFingerprint IcarusKey (Proxy (n :: NetworkDiscriminant), IcarusKey 'CredFromKeyK XPub)
   where
     paymentKeyFingerprint (proxy, k) =
         bimap (const err) coerce
@@ -402,7 +402,7 @@ instance PaymentAddress n IcarusKey 'AddressK
 instance IsOurs (SeqState n IcarusKey) RewardAccount where
     isOurs _account state = (Nothing, state)
 
-instance PaymentAddress n IcarusKey 'AddressK =>
+instance PaymentAddress n IcarusKey 'CredFromKeyK =>
     MaybeLight (SeqState n IcarusKey)
   where
     maybeDiscover = Just $ DiscoverTxs discoverSeq

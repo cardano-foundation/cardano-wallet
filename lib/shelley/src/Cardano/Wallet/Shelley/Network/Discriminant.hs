@@ -40,10 +40,10 @@ data SomeNetworkDiscriminant where
     SomeNetworkDiscriminant
         :: forall (n :: NetworkDiscriminant).
             ( NetworkDiscriminantVal n
-            , PaymentAddress n IcarusKey 'AddressK
-            , PaymentAddress n ByronKey 'AddressK
-            , PaymentAddress n ShelleyKey 'AddressK
-            , DelegationAddress n ShelleyKey 'AddressK
+            , PaymentAddress n IcarusKey 'CredFromKeyK
+            , PaymentAddress n ByronKey 'CredFromKeyK
+            , PaymentAddress n ShelleyKey 'CredFromKeyK
+            , DelegationAddress n ShelleyKey 'CredFromKeyK
             , HasNetworkId n
             , DecodeAddress n
             , EncodeAddress n

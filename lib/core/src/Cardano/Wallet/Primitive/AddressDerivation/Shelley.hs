@@ -132,7 +132,7 @@ import qualified Data.List.NonEmpty as NE
 -- @
 -- let rootPrivateKey = ShelleyKey 'RootK XPrv
 -- let accountPubKey = ShelleyKey 'AccountK XPub
--- let addressPubKey = ShelleyKey 'AddressK XPub
+-- let addressPubKey = ShelleyKey 'CredFromKeyK XPub
 -- @
 newtype ShelleyKey (depth :: Depth) key =
     ShelleyKey { getKey :: key }
@@ -275,7 +275,7 @@ instance WalletKey ShelleyKey where
 instance GetPurpose ShelleyKey where
     getPurpose = purposeCIP1852
 
-instance PaymentAddress 'Mainnet ShelleyKey 'AddressK where
+instance PaymentAddress 'Mainnet ShelleyKey 'CredFromKeyK where
     paymentAddress paymentK = do
         Address $ BL.toStrict $ runPut $ do
             putWord8 (enterprise + networkId)
@@ -292,7 +292,7 @@ instance PaymentAddress 'Mainnet ShelleyKey 'AddressK where
         enterprise = 96
         networkId = 1
 
-instance PaymentAddress ('Testnet pm) ShelleyKey 'AddressK where
+instance PaymentAddress ('Testnet pm) ShelleyKey 'CredFromKeyK where
     paymentAddress paymentK =
         Address $ BL.toStrict $ runPut $ do
             putWord8 (enterprise + networkId)
@@ -309,7 +309,7 @@ instance PaymentAddress ('Testnet pm) ShelleyKey 'AddressK where
         enterprise = 96
         networkId = 0
 
-instance DelegationAddress 'Mainnet ShelleyKey 'AddressK where
+instance DelegationAddress 'Mainnet ShelleyKey 'CredFromKeyK where
     delegationAddress paymentK stakingK =
         Address $ BL.toStrict $ runPut $ do
             putWord8 (base + networkId)
@@ -328,7 +328,7 @@ instance DelegationAddress 'Mainnet ShelleyKey 'AddressK where
         base = 0
         networkId = 1
 
-instance DelegationAddress ('Testnet pm) ShelleyKey 'AddressK where
+instance DelegationAddress ('Testnet pm) ShelleyKey 'CredFromKeyK where
     delegationAddress paymentK stakingK =
         Address $ BL.toStrict $ runPut $ do
             putWord8 (base + networkId)
@@ -351,7 +351,7 @@ instance MkKeyFingerprint ShelleyKey Address where
     paymentKeyFingerprint (Address bytes) =
         Right $ KeyFingerprint $ BS.take hashSize $ BS.drop 1 bytes
 
-instance MkKeyFingerprint ShelleyKey (Proxy (n :: NetworkDiscriminant), ShelleyKey 'AddressK XPub) where
+instance MkKeyFingerprint ShelleyKey (Proxy (n :: NetworkDiscriminant), ShelleyKey 'CredFromKeyK XPub) where
     paymentKeyFingerprint (_, paymentK) =
         Right $ KeyFingerprint $ blake2b224 $ xpubPublicKey $ getKey paymentK
 
@@ -402,7 +402,7 @@ instance ToRewardAccount ShelleyKey where
 toRewardAccountRaw :: XPub -> RewardAccount
 toRewardAccountRaw = RewardAccount . blake2b224 . xpubPublicKey
 
-instance DelegationAddress n ShelleyKey 'AddressK
+instance DelegationAddress n ShelleyKey 'CredFromKeyK
     => MaybeLight (SeqState n ShelleyKey)
   where
     maybeDiscover = Just $ DiscoverTxs discoverSeqWithRewards

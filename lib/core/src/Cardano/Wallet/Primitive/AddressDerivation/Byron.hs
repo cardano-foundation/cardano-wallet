@@ -144,8 +144,8 @@ type family DerivationPathFrom (depth :: Depth) :: Type where
     DerivationPathFrom 'AccountK =
         Index 'WholeDomain 'AccountK
     -- The address key is generated from the account key and address index.
-    DerivationPathFrom 'AddressK =
-        (Index 'WholeDomain 'AccountK, Index 'WholeDomain 'AddressK)
+    DerivationPathFrom 'CredFromKeyK =
+        (Index 'WholeDomain 'AccountK, Index 'WholeDomain 'CredFromKeyK)
 
 instance WalletKey ByronKey where
     changePassphrase = changePassphraseRnd
@@ -157,7 +157,7 @@ instance WalletKey ByronKey where
     liftRawKey = error "not supported"
     keyTypeDescriptor _ = "rnd"
 
-instance KnownNat pm => PaymentAddress ('Testnet pm) ByronKey 'AddressK where
+instance KnownNat pm => PaymentAddress ('Testnet pm) ByronKey 'CredFromKeyK where
     paymentAddress k = Address
         $ CBOR.toStrictByteString
         $ CBOR.encodeAddress (getKey k)
@@ -170,7 +170,7 @@ instance KnownNat pm => PaymentAddress ('Testnet pm) ByronKey 'AddressK where
     liftPaymentAddress (KeyFingerprint bytes) =
         Address bytes
 
-instance PaymentAddress 'Mainnet ByronKey 'AddressK where
+instance PaymentAddress 'Mainnet ByronKey 'CredFromKeyK where
     paymentAddress k = Address
         $ CBOR.toStrictByteString
         $ CBOR.encodeAddress (getKey k)
@@ -362,8 +362,8 @@ deriveAccountPrivateKey (Passphrase pwd) masterKey idx@(Index accIx) = ByronKey
 deriveAddressPrivateKey
     :: Passphrase "encryption"
     -> ByronKey 'AccountK XPrv
-    -> Index 'WholeDomain 'AddressK
-    -> ByronKey 'AddressK XPrv
+    -> Index 'WholeDomain 'CredFromKeyK
+    -> ByronKey 'CredFromKeyK XPrv
 deriveAddressPrivateKey (Passphrase pwd) accountKey idx@(Index addrIx) = ByronKey
     { getKey = deriveXPrv DerivationScheme1 pwd (getKey accountKey) addrIx
     , derivationPath = (derivationPath accountKey, idx)

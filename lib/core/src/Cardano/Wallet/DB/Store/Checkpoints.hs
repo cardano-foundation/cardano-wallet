@@ -441,10 +441,10 @@ instance
 
 instance
     ( PersistPublicKey (key 'AccountK)
-    , PersistPublicKey (key 'AddressK)
+    , PersistPublicKey (key 'CredFromKeyK)
     , PersistPublicKey (key 'PolicyK)
-    , MkKeyFingerprint key (Proxy n, key 'AddressK XPub)
-    , PaymentAddress n key 'AddressK
+    , MkKeyFingerprint key (Proxy n, key 'CredFromKeyK XPub)
+    , PaymentAddress n key 'CredFromKeyK
     , SoftDerivation key
     , Typeable n
     , (key == SharedKey) ~ 'False
@@ -494,11 +494,11 @@ instance
             <$> selectSeqAddressMap wid sl
             <*> selectSeqAddressMap wid sl
 
-mkSeqStatePendingIxs :: W.WalletId -> PendingIxs 'AddressK -> [SeqStatePendingIx]
+mkSeqStatePendingIxs :: W.WalletId -> PendingIxs 'CredFromKeyK -> [SeqStatePendingIx]
 mkSeqStatePendingIxs wid =
     fmap (SeqStatePendingIx wid . W.getIndex) . pendingIxsToList
 
-selectSeqStatePendingIxs :: W.WalletId -> SqlPersistT IO (PendingIxs 'AddressK)
+selectSeqStatePendingIxs :: W.WalletId -> SqlPersistT IO (PendingIxs 'CredFromKeyK)
 selectSeqStatePendingIxs wid =
     pendingIxsFromList . fromRes <$> selectList
         [SeqStatePendingWalletId ==. wid]
@@ -507,16 +507,16 @@ selectSeqStatePendingIxs wid =
     fromRes = fmap (W.Index . seqStatePendingIxIndex . entityVal)
 
 insertSeqAddressMap
-    :: forall n c key. (PaymentAddress n key 'AddressK, Typeable c)
+    :: forall n c key. (PaymentAddress n key 'CredFromKeyK, Typeable c)
     =>  W.WalletId -> W.SlotNo -> SeqAddressMap c key -> SqlPersistT IO ()
 insertSeqAddressMap wid sl (SeqAddressMap pool) = void $
     dbChunked insertMany_
-        [ SeqStateAddress wid sl (liftPaymentAddress @n @key @'AddressK addr)
+        [ SeqStateAddress wid sl (liftPaymentAddress @n @key @'CredFromKeyK addr)
             (W.getIndex ix) (roleVal @c) status
         | (addr, (ix, status)) <- Map.toList pool
         ]
 
--- MkKeyFingerprint key (Proxy n, key 'AddressK XPub)
+-- MkKeyFingerprint key (Proxy n, key 'CredFromKeyK XPub)
 selectSeqAddressMap :: forall (c :: Role) key.
     ( MkKeyFingerprint key W.Address
     , Typeable c

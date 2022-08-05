@@ -171,7 +171,7 @@ data Depth
     | CoinTypeK
     | AccountK
     | RoleK
-    | AddressK
+    | CredFromKeyK
     | ScriptK
     | PolicyK
 
@@ -254,7 +254,7 @@ utxoInternal = toEnum $ fromEnum UtxoInternal
 mutableAccount :: Index 'Soft 'RoleK
 mutableAccount = toEnum $ fromEnum MutableAccount
 
-zeroAccount :: Index 'Soft 'AddressK
+zeroAccount :: Index 'Soft 'CredFromKeyK
 zeroAccount = minBound
 
 -- | Full path to the stake key. There's only one.
@@ -339,7 +339,7 @@ instance FromText DerivationIndex where
 --
 -- @
 -- let accountIx = Index 'Hardened 'AccountK
--- let addressIx = Index 'Soft 'AddressK
+-- let addressIx = Index 'Soft 'CredFromKeyK
 -- @
 newtype Index (derivationType :: DerivationType) (level :: Depth) = Index
     { getIndex :: Word32 }
@@ -515,8 +515,8 @@ class HardDerivation (key :: Depth -> Type -> Type) where
         :: Passphrase "encryption"
         -> key 'AccountK XPrv
         -> Role
-        -> Index (AddressIndexDerivationType key) 'AddressK
-        -> key 'AddressK XPrv
+        -> Index (AddressIndexDerivationType key) 'CredFromKeyK
+        -> key 'CredFromKeyK XPrv
 
 -- | An interface for doing soft derivations from an account public key
 class HardDerivation key => SoftDerivation (key :: Depth -> Type -> Type) where
@@ -528,13 +528,13 @@ class HardDerivation key => SoftDerivation (key :: Depth -> Type -> Type) where
     deriveAddressPublicKey
         :: key 'AccountK XPub
         -> Role
-        -> Index 'Soft 'AddressK
-        -> key 'AddressK XPub
+        -> Index 'Soft 'CredFromKeyK
+        -> key 'CredFromKeyK XPub
 
 -- | Derivation of a reward account, as a type-class because different between
 -- key types (in particular, Jörmungandr vs Shelley).
 class ToRewardAccount k where
-    toRewardAccount :: k 'AddressK XPub -> RewardAccount
+    toRewardAccount :: k 'CredFromKeyK XPub -> RewardAccount
     someRewardAccount :: SomeMnemonic -> (XPrv, RewardAccount, NonEmpty DerivationIndex)
 
 -- | Derive a reward account from a root private key. It is agreed by standard
@@ -542,11 +542,11 @@ class ToRewardAccount k where
 -- located into a special derivation path and uses the first index of that path.
 deriveRewardAccount
     :: ( HardDerivation k
-       , Bounded (Index (AddressIndexDerivationType k) 'AddressK)
+       , Bounded (Index (AddressIndexDerivationType k) 'CredFromKeyK)
        )
     => Passphrase "encryption"
     -> k 'RootK XPrv
-    -> k 'AddressK XPrv
+    -> k 'CredFromKeyK XPrv
 deriveRewardAccount pwd rootPrv =
     let accPrv = deriveAccountPrivateKey pwd rootPrv minBound
     in deriveAddressPrivateKey pwd accPrv MutableAccount minBound

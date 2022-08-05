@@ -74,8 +74,8 @@ spec :: forall n.
     ( DecodeAddress n
     , DecodeStakeAddress n
     , EncodeAddress n
-    , PaymentAddress n IcarusKey 'AddressK
-    , PaymentAddress n ByronKey 'AddressK
+    , PaymentAddress n IcarusKey 'CredFromKeyK
+    , PaymentAddress n ByronKey 'CredFromKeyK
     ) => SpecWith Context
 spec = describe "BYRON_COIN_SELECTION" $ do
 

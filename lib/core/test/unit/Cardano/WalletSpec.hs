@@ -1308,7 +1308,7 @@ instance Arbitrary UTxO where
 
 data WalletLayerFixture s m = WalletLayerFixture
     { _fixtureDBLayer :: DBLayer m s ShelleyKey
-    , _fixtureWalletLayer :: WalletLayer m s ShelleyKey 'AddressK
+    , _fixtureWalletLayer :: WalletLayer m s ShelleyKey 'CredFromKeyK
     , _fixtureWallet :: [WalletId]
     , _fixtureSlotNoTime :: SlotNo -> UTCTime
     }
@@ -1340,7 +1340,7 @@ setupFixture (wid, wname, wstate) = do
 
 -- | A dummy transaction layer to see the effect of a root private key. It
 -- implements a fake signer that still produces sort of witnesses
-dummyTransactionLayer :: TransactionLayer ShelleyKey 'AddressK SealedTx
+dummyTransactionLayer :: TransactionLayer ShelleyKey 'CredFromKeyK SealedTx
 dummyTransactionLayer = TransactionLayer
     { mkTransaction = \_era _stakeCredentials keystore _pp _ctx cs -> do
         let inps' = NE.toList $ second txOutCoin <$> view #inputs cs
@@ -1453,7 +1453,7 @@ mockNetworkLayer = dummyNetworkLayer
     dummyHash = Hash "dummy hash"
 
 newtype DummyState
-    = DummyState (Map Address (Index 'Soft 'AddressK))
+    = DummyState (Map Address (Index 'Soft 'CredFromKeyK))
     deriving (Generic, Show, Eq)
 
 instance Sqlite.AddressBookIso DummyState where
@@ -1486,7 +1486,7 @@ instance IsOurs DummyState Address where
 instance IsOurs DummyState RewardAccount where
     isOurs _ s = (Nothing, s)
 
-instance IsOwned DummyState ShelleyKey 'AddressK where
+instance IsOwned DummyState ShelleyKey 'CredFromKeyK where
     isOwned (DummyState m) (rootK, pwd) addr = do
         ix <- Map.lookup addr m
         let accXPrv = deriveAccountPrivateKey pwd rootK minBound

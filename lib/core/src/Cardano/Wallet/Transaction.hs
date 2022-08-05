@@ -149,7 +149,7 @@ data TransactionLayer k ktype tx = TransactionLayer
             -- Era for which the transaction should be created.
         -> (XPrv, Passphrase "encryption")
             -- Reward account
-        -> (Address -> Maybe (k 'AddressK XPrv, Passphrase "encryption"))
+        -> (Address -> Maybe (k 'CredFromKeyK XPrv, Passphrase "encryption"))
             -- Key store
         -> ProtocolParameters
             -- Current protocol parameters

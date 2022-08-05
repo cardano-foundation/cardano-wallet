@@ -818,9 +818,9 @@ type MkApiWallet ctx s w
 postWallet
     :: forall ctx s k n.
         ( s ~ SeqState n k
-        , ctx ~ ApiLayer s k 'AddressK
+        , ctx ~ ApiLayer s k 'CredFromKeyK
         , SoftDerivation k
-        , MkKeyFingerprint k (Proxy n, k 'AddressK XPub)
+        , MkKeyFingerprint k (Proxy n, k 'CredFromKeyK XPub)
         , MkKeyFingerprint k Address
         , WalletKey k
         , HasDBFactory s k ctx
@@ -847,9 +847,9 @@ postWallet ctx generateKey liftKey (WalletOrAccountPostData body) = case body of
 postShelleyWallet
     :: forall ctx s k n.
         ( s ~ SeqState n k
-        , ctx ~ ApiLayer s k 'AddressK
+        , ctx ~ ApiLayer s k 'CredFromKeyK
         , SoftDerivation k
-        , MkKeyFingerprint k (Proxy n, k 'AddressK XPub)
+        , MkKeyFingerprint k (Proxy n, k 'CredFromKeyK XPub)
         , MkKeyFingerprint k Address
         , WalletKey k
         , HasDBFactory s k ctx
@@ -886,9 +886,9 @@ postShelleyWallet ctx generateKey body = do
 postAccountWallet
     :: forall ctx s k n w.
         ( s ~ SeqState n k
-        , ctx ~ ApiLayer s k 'AddressK
+        , ctx ~ ApiLayer s k 'CredFromKeyK
         , SoftDerivation k
-        , MkKeyFingerprint k (Proxy n, k 'AddressK XPub)
+        , MkKeyFingerprint k (Proxy n, k 'CredFromKeyK XPub)
         , MkKeyFingerprint k Address
         , WalletKey k
         , HasWorkerRegistry s k ctx
@@ -921,7 +921,7 @@ postAccountWallet ctx mkWallet liftKey coworker body = do
 
 mkShelleyWallet
     :: forall ctx s k n.
-        ( ctx ~ ApiLayer s k 'AddressK
+        ( ctx ~ ApiLayer s k 'CredFromKeyK
         , s ~ SeqState n k
         , IsOurs s Address
         , IsOurs s RewardAccount
@@ -1198,7 +1198,7 @@ patchSharedWallet ctx liftKey cred (ApiT wid) body = do
 
 postLegacyWallet
     :: forall ctx s k.
-        ( ctx ~ ApiLayer s k 'AddressK
+        ( ctx ~ ApiLayer s k 'CredFromKeyK
         , KnownDiscovery s
         , IsOurs s RewardAccount
         , IsOurs s Address
@@ -1293,7 +1293,7 @@ mkLegacyWallet ctx wid cp meta pending progress = do
 
 postRandomWallet
     :: forall ctx s k n.
-        ( ctx ~ ApiLayer s k 'AddressK
+        ( ctx ~ ApiLayer s k 'CredFromKeyK
         , s ~ RndState n
         , k ~ ByronKey
         )
@@ -1313,7 +1313,7 @@ postRandomWallet ctx body = do
 
 postRandomWalletFromXPrv
     :: forall ctx s k n.
-        ( ctx ~ ApiLayer s k 'AddressK
+        ( ctx ~ ApiLayer s k 'CredFromKeyK
         , s ~ RndState n
         , k ~ ByronKey
         , HasNetworkLayer IO ctx
@@ -1338,11 +1338,11 @@ postRandomWalletFromXPrv ctx body = do
 
 postIcarusWallet
     :: forall ctx s k n.
-        ( ctx ~ ApiLayer s k 'AddressK
+        ( ctx ~ ApiLayer s k 'CredFromKeyK
         , s ~ SeqState n k
         , k ~ IcarusKey
         , HasWorkerRegistry s k ctx
-        , PaymentAddress n IcarusKey 'AddressK
+        , PaymentAddress n IcarusKey 'CredFromKeyK
         , Typeable n
         )
     => ctx
@@ -1361,11 +1361,11 @@ postIcarusWallet ctx body = do
 
 postTrezorWallet
     :: forall ctx s k n.
-        ( ctx ~ ApiLayer s k 'AddressK
+        ( ctx ~ ApiLayer s k 'CredFromKeyK
         , s ~ SeqState n k
         , k ~ IcarusKey
         , HasWorkerRegistry s k ctx
-        , PaymentAddress n IcarusKey 'AddressK
+        , PaymentAddress n IcarusKey 'CredFromKeyK
         , Typeable n
         )
     => ctx
@@ -1384,11 +1384,11 @@ postTrezorWallet ctx body = do
 
 postLedgerWallet
     :: forall ctx s k n.
-        ( ctx ~ ApiLayer s k 'AddressK
+        ( ctx ~ ApiLayer s k 'CredFromKeyK
         , s ~ SeqState n k
         , k ~ IcarusKey
         , HasWorkerRegistry s k ctx
-        , PaymentAddress n IcarusKey 'AddressK
+        , PaymentAddress n IcarusKey 'CredFromKeyK
         , Typeable n
         )
     => ctx
@@ -1414,8 +1414,8 @@ postLedgerWallet ctx body = do
 -- Since they have identical ids, we actually lookup both contexts in sequence.
 withLegacyLayer
     :: forall byron icarus n a.
-        ( byron ~ ApiLayer (RndState n) ByronKey 'AddressK
-        , icarus ~ ApiLayer (SeqState n IcarusKey) IcarusKey 'AddressK
+        ( byron ~ ApiLayer (RndState n) ByronKey 'CredFromKeyK
+        , icarus ~ ApiLayer (SeqState n IcarusKey) IcarusKey 'CredFromKeyK
         )
     => ApiT WalletId
     -> (byron, Handler a)
@@ -1430,8 +1430,8 @@ withLegacyLayer (ApiT wid) (byron, withByron) (icarus, withIcarus) =
 -- workers.
 withLegacyLayer'
     :: forall byron icarus n a.
-        ( byron ~ ApiLayer (RndState n) ByronKey 'AddressK
-        , icarus ~ ApiLayer (SeqState n IcarusKey) IcarusKey 'AddressK
+        ( byron ~ ApiLayer (RndState n) ByronKey 'CredFromKeyK
+        , icarus ~ ApiLayer (SeqState n IcarusKey) IcarusKey 'CredFromKeyK
         )
     => ApiT WalletId
     -> (byron, Handler a, ErrWalletNotResponding -> Handler a)
@@ -1606,7 +1606,7 @@ putWalletPassphrase ctx createKey getKey (ApiT wid)
 putByronWalletPassphrase
     :: forall ctx s k.
         ( WalletKey k
-        , ctx ~ ApiLayer s k 'AddressK
+        , ctx ~ ApiLayer s k 'CredFromKeyK
         )
     => ctx
     -> ApiT WalletId
@@ -1659,11 +1659,11 @@ getWalletUtxoSnapshot ctx (ApiT wid) = do
 
 selectCoins
     :: forall ctx s k n.
-        ( ctx ~ ApiLayer s k 'AddressK
+        ( ctx ~ ApiLayer s k 'CredFromKeyK
         , SoftDerivation k
         , IsOurs s Address
         , GenChange s
-        , Bounded (Index (AddressIndexDerivationType k) 'AddressK)
+        , Bounded (Index (AddressIndexDerivationType k) 'CredFromKeyK)
         , Typeable n
         , Typeable s
         , WalletKey k
@@ -1707,15 +1707,15 @@ selectCoins ctx genChange (ApiT wid) body = do
                 , selectionStrategy = SelectionStrategyOptimal
                 }
         utx <- liftHandler $
-            W.selectAssets @_ @_ @s @k @'AddressK wrk era pp selectAssetsParams transform
+            W.selectAssets @_ @_ @s @k @'CredFromKeyK wrk era pp selectAssetsParams transform
         pure $ mkApiCoinSelection [] [] Nothing md utx
 
 selectCoinsForJoin
     :: forall ctx s n k.
         ( s ~ SeqState n k
-        , ctx ~ ApiLayer s k 'AddressK
-        , DelegationAddress n k 'AddressK
-        , MkKeyFingerprint k (Proxy n, k 'AddressK XPub)
+        , ctx ~ ApiLayer s k 'CredFromKeyK
+        , DelegationAddress n k 'CredFromKeyK
+        , MkKeyFingerprint k (Proxy n, k 'CredFromKeyK XPub)
         , SoftDerivation k
         , Typeable n
         , Typeable s
@@ -1761,7 +1761,7 @@ selectCoinsForJoin ctx knownPools getPoolStatus pid wid = do
                 , selectionStrategy = SelectionStrategyOptimal
                 }
         utx <- liftHandler
-            $ W.selectAssets @_ @_ @s @k @'AddressK wrk era pp selectAssetsParams transform
+            $ W.selectAssets @_ @_ @s @k @'CredFromKeyK wrk era pp selectAssetsParams transform
         (_, _, path) <- liftHandler
             $ W.readRewardAccount @_ @s @k @n wrk wid
 
@@ -1772,10 +1772,10 @@ selectCoinsForJoin ctx knownPools getPoolStatus pid wid = do
 selectCoinsForQuit
     :: forall ctx s n k.
         ( s ~ SeqState n k
-        , ctx ~ ApiLayer s k 'AddressK
-        , DelegationAddress n k 'AddressK
-        , MkKeyFingerprint k (Proxy n, k 'AddressK XPub)
-        , Bounded (Index (AddressIndexDerivationType k) 'AddressK)
+        , ctx ~ ApiLayer s k 'CredFromKeyK
+        , DelegationAddress n k 'CredFromKeyK
+        , MkKeyFingerprint k (Proxy n, k 'CredFromKeyK XPub)
+        , Bounded (Index (AddressIndexDerivationType k) 'CredFromKeyK)
         , SoftDerivation k
         , Typeable n
         , Typeable s
@@ -1818,7 +1818,7 @@ selectCoinsForQuit ctx (ApiT wid) = do
                 , selectionStrategy = SelectionStrategyOptimal
                 }
         utx <- liftHandler
-            $ W.selectAssets @_ @_ @s @k @'AddressK wrk era pp selectAssetsParams transform
+            $ W.selectAssets @_ @_ @s @k @'CredFromKeyK wrk era pp selectAssetsParams transform
         (_, _, path) <- liftHandler $ W.readRewardAccount @_ @s @k @n wrk wid
 
         pure $ mkApiCoinSelection [] [refund] (Just (action, path)) Nothing utx
@@ -1839,7 +1839,7 @@ newtype ErrListAssets = ErrListAssetsNoSuchWallet ErrNoSuchWallet
 -- available). This list may include assets which have already been spent.
 listAssets
     :: forall ctx s k.
-        ( ctx ~ ApiLayer s k 'AddressK
+        ( ctx ~ ApiLayer s k 'CredFromKeyK
         , IsOurs s Address
         , HasTokenMetadataClient ctx
         )
@@ -1905,8 +1905,8 @@ postRandomAddress
     :: forall ctx s k n.
         ( s ~ RndState n
         , k ~ ByronKey
-        , ctx ~ ApiLayer s k 'AddressK
-        , PaymentAddress n ByronKey 'AddressK
+        , ctx ~ ApiLayer s k 'CredFromKeyK
+        , PaymentAddress n ByronKey 'CredFromKeyK
         )
     => ctx
     -> ApiT WalletId
@@ -1926,7 +1926,7 @@ putRandomAddress
     :: forall ctx s k n.
         ( s ~ RndState n
         , k ~ ByronKey
-        , ctx ~ ApiLayer s k 'AddressK
+        , ctx ~ ApiLayer s k 'CredFromKeyK
         )
     => ctx
     -> ApiT WalletId
@@ -1941,7 +1941,7 @@ putRandomAddresses
     :: forall ctx s k n.
         ( s ~ RndState n
         , k ~ ByronKey
-        , ctx ~ ApiLayer s k 'AddressK
+        , ctx ~ ApiLayer s k 'CredFromKeyK
         )
     => ctx
     -> ApiT WalletId
@@ -1984,7 +1984,7 @@ listAddresses ctx normalize (ApiT wid) stateFilter = do
 signTransaction
     :: forall ctx s k ktype.
         ( ctx ~ ApiLayer s k ktype
-        , Bounded (Index (AddressIndexDerivationType k) 'AddressK)
+        , Bounded (Index (AddressIndexDerivationType k) 'CredFromKeyK)
         , WalletKey k
         , IsOwned s k ktype
         , HardDerivation k
@@ -2032,12 +2032,12 @@ signTransaction ctx (ApiT wid) body = do
 
 postTransactionOld
     :: forall ctx s k n.
-        ( ctx ~ ApiLayer s k 'AddressK
-        , Bounded (Index (AddressIndexDerivationType k) 'AddressK)
+        ( ctx ~ ApiLayer s k 'CredFromKeyK
+        , Bounded (Index (AddressIndexDerivationType k) 'CredFromKeyK)
         , GenChange s
         , HardDerivation k
         , HasNetworkLayer IO ctx
-        , IsOwned s k 'AddressK
+        , IsOwned s k 'CredFromKeyK
         , Typeable n
         , Typeable s
         , WalletKey k
@@ -2087,7 +2087,7 @@ postTransactionOld ctx genChange (ApiT wid) body = do
                     , selectionStrategy = SelectionStrategyOptimal
                     }
             sel <- liftHandler
-                $ W.selectAssets @_ @_ @s @k @'AddressK
+                $ W.selectAssets @_ @_ @s @k @'CredFromKeyK
                     wrk era pp selectAssetsParams
                 $ const Prelude.id
             sel' <- liftHandler
@@ -2123,7 +2123,7 @@ postTransactionOld ctx genChange (ApiT wid) body = do
     ti = timeInterpreter (ctx ^. networkLayer)
 
 deleteTransaction
-    :: forall ctx s k. ctx ~ ApiLayer s k 'AddressK
+    :: forall ctx s k. ctx ~ ApiLayer s k 'CredFromKeyK
     => ctx
     -> ApiT WalletId
     -> ApiTxId
@@ -2134,7 +2134,7 @@ deleteTransaction ctx (ApiT wid) (ApiTxId (ApiT (tid))) = do
     return NoContent
 
 listTransactions
-    :: forall ctx s k n. (ctx ~ ApiLayer s k 'AddressK)
+    :: forall ctx s k n. (ctx ~ ApiLayer s k 'CredFromKeyK)
     => ctx
     -> ApiT WalletId
     -> Maybe MinWithdrawal
@@ -2166,7 +2166,7 @@ listTransactions
     defaultSortOrder = Descending
 
 getTransaction
-    :: forall ctx s k n. (ctx ~ ApiLayer s k 'AddressK)
+    :: forall ctx s k n. (ctx ~ ApiLayer s k 'CredFromKeyK)
     => ctx
     -> ApiT WalletId
     -> ApiTxId
@@ -2225,8 +2225,8 @@ mkApiTransactionFromInfo ti deposit info metadataSchema = do
 
 postTransactionFeeOld
     :: forall ctx s k n.
-        ( ctx ~ ApiLayer s k 'AddressK
-        , Bounded (Index (AddressIndexDerivationType k) 'AddressK)
+        ( ctx ~ ApiLayer s k 'CredFromKeyK
+        , Bounded (Index (AddressIndexDerivationType k) 'CredFromKeyK)
         , HardDerivation k
         , Typeable n
         , Typeable s
@@ -2268,15 +2268,15 @@ postTransactionFeeOld ctx (ApiT wid) body = do
                 , selectionStrategy = SelectionStrategyOptimal
                 }
         let runSelection =
-                W.selectAssets @_ @_ @s @k @'AddressK
+                W.selectAssets @_ @_ @s @k @'CredFromKeyK
                   wrk era pp selectAssetsParams getFee
-        minCoins <- liftIO (W.calcMinimumCoinValues @_ @k @'AddressK wrk era (F.toList outs))
+        minCoins <- liftIO (W.calcMinimumCoinValues @_ @k @'CredFromKeyK wrk era (F.toList outs))
         liftHandler $ mkApiFee Nothing minCoins <$> W.estimateFee runSelection
 
 constructTransaction
     :: forall ctx s k n.
-        ( ctx ~ ApiLayer s k 'AddressK
-        , Bounded (Index (AddressIndexDerivationType k) 'AddressK)
+        ( ctx ~ ApiLayer s k 'CredFromKeyK
+        , Bounded (Index (AddressIndexDerivationType k) 'CredFromKeyK)
         , GenChange s
         , HardDerivation k
         , HasNetworkLayer IO ctx
@@ -2478,7 +2478,7 @@ constructTransaction ctx genChange knownPools getPoolStatus (ApiT wid) body = do
                 pure (txCtx, Nothing)
 
         let runSelection outs =
-                W.selectAssets @_ @_ @s @k @'AddressK
+                W.selectAssets @_ @_ @s @k @'CredFromKeyK
                   wrk era pp selectAssetsParams transform
               where
                 selectAssetsParams = W.SelectAssetsParams
@@ -2788,7 +2788,7 @@ decodeSharedTransaction ctx (ApiT wid) (ApiSerialisedTransaction (ApiT sealed) _
 
 balanceTransaction
     :: forall ctx s k (n :: NetworkDiscriminant).
-        ( ctx ~ ApiLayer s k 'AddressK
+        ( ctx ~ ApiLayer s k 'CredFromKeyK
         , HasNetworkLayer IO ctx
         , GenChange s
         , BoundedAddressLength k
@@ -2824,7 +2824,7 @@ balanceTransaction ctx genChange (ApiT wid) body = do
                 => W.PartialTx era
                 -> Handler (Cardano.Tx era)
             balanceTx partialTx =
-                liftHandler $ W.balanceTransaction @_ @IO @s @k @'AddressK
+                liftHandler $ W.balanceTransaction @_ @IO @s @k @'CredFromKeyK
                     wrk
                     genChange
                     (pp, nodePParams)
@@ -2855,7 +2855,7 @@ balanceTransaction ctx genChange (ApiT wid) body = do
 
 decodeTransaction
     :: forall ctx s k n.
-        ( ctx ~ ApiLayer s k 'AddressK
+        ( ctx ~ ApiLayer s k 'CredFromKeyK
         , IsOurs s Address
         , Typeable s
         , Typeable n
@@ -2927,7 +2927,7 @@ decodeTransaction ctx (ApiT wid) (ApiSerialisedTransaction (ApiT sealed) _) = do
         , validityInterval = interval
         }
   where
-    tl = ctx ^. W.transactionLayer @k @'AddressK
+    tl = ctx ^. W.transactionLayer @k @'CredFromKeyK
     nl = ctx ^. W.networkLayer @IO
 
     policyIx = ApiT $ DerivationIndex $
@@ -3058,9 +3058,9 @@ toOut ((TxOut addr (TokenBundle (Coin c) tmap)), (Just path)) =
 
 submitTransaction
     :: forall ctx s k (n :: NetworkDiscriminant).
-        ( ctx ~ ApiLayer s k 'AddressK
+        ( ctx ~ ApiLayer s k 'CredFromKeyK
         , HasNetworkLayer IO ctx
-        , IsOwned s k 'AddressK
+        , IsOwned s k 'CredFromKeyK
         , Typeable s
         , Typeable n
         )
@@ -3123,7 +3123,7 @@ submitTransaction ctx apiw@(ApiT wid) apitx = do
             $ W.submitTx @_ @s @k wrk wid (tx, txMeta, sealedTx)
     return $ ApiTxId (apiDecoded ^. #id)
   where
-    tl = ctx ^. W.transactionLayer @k @'AddressK
+    tl = ctx ^. W.transactionLayer @k @'CredFromKeyK
     ti :: TimeInterpreter (ExceptT PastHorizonException IO)
     nl = ctx ^. networkLayer
     ti = timeInterpreter nl
@@ -3180,12 +3180,12 @@ submitTransaction ctx apiw@(ApiT wid) apitx = do
 
 joinStakePool
     :: forall ctx s n k.
-        ( ctx ~ ApiLayer s k 'AddressK
+        ( ctx ~ ApiLayer s k 'CredFromKeyK
         , s ~ SeqState n k
         , AddressIndexDerivationType k ~ 'Soft
-        , DelegationAddress n k 'AddressK
+        , DelegationAddress n k 'CredFromKeyK
         , GenChange s
-        , IsOwned s k 'AddressK
+        , IsOwned s k 'CredFromKeyK
         , SoftDerivation k
         , Typeable n
         , Typeable s
@@ -3244,7 +3244,7 @@ joinStakePool ctx knownPools getPoolStatus apiPoolId (ApiT wid) body = do
                 , selectionStrategy = SelectionStrategyOptimal
                 }
         sel <- liftHandler
-            $ W.selectAssets @_ @_ @s @k @'AddressK wrk era pp selectAssetsParams
+            $ W.selectAssets @_ @_ @s @k @'CredFromKeyK wrk era pp selectAssetsParams
             $ const Prelude.id
         sel' <- liftHandler
             $ W.assignChangeAddressesAndUpdateDb wrk wid genChange sel
@@ -3284,7 +3284,7 @@ joinStakePool ctx knownPools getPoolStatus apiPoolId (ApiT wid) body = do
 delegationFee
     :: forall ctx s n k.
         ( s ~ SeqState n k
-        , ctx ~ ApiLayer s k 'AddressK
+        , ctx ~ ApiLayer s k 'CredFromKeyK
         , BoundedAddressLength k
         )
     => ctx
@@ -3304,7 +3304,7 @@ delegationFee ctx (ApiT wid) = do
     txCtx = defaultTransactionCtx
 
     runSelection wrk era pp _deposit (utxoAvailable, wallet, pendingTxs) =
-        W.selectAssets @_ @_ @s @k @'AddressK wrk era pp selectAssetsParams calcFee
+        W.selectAssets @_ @_ @s @k @'CredFromKeyK wrk era pp selectAssetsParams calcFee
       where
         calcFee _ = selectionDelta TokenBundle.getCoin
         selectAssetsParams = W.SelectAssetsParams
@@ -3320,13 +3320,13 @@ delegationFee ctx (ApiT wid) = do
 
 quitStakePool
     :: forall ctx s n k.
-        ( ctx ~ ApiLayer s k 'AddressK
+        ( ctx ~ ApiLayer s k 'CredFromKeyK
         , s ~ SeqState n k
         , AddressIndexDerivationType k ~ 'Soft
-        , DelegationAddress n k 'AddressK
+        , DelegationAddress n k 'CredFromKeyK
         , GenChange s
         , HasNetworkLayer IO ctx
-        , IsOwned s k 'AddressK
+        , IsOwned s k 'CredFromKeyK
         , SoftDerivation k
         , Typeable n
         , Typeable s
@@ -3370,7 +3370,7 @@ quitStakePool ctx (ApiT wid) body = do
                 , selectionStrategy = SelectionStrategyOptimal
                 }
         sel <- liftHandler
-            $ W.selectAssets @_ @_ @s @k @'AddressK wrk era pp selectAssetsParams
+            $ W.selectAssets @_ @_ @s @k @'CredFromKeyK wrk era pp selectAssetsParams
             $ const Prelude.id
         sel' <- liftHandler
             $ W.assignChangeAddressesAndUpdateDb wrk wid genChange sel
@@ -3473,7 +3473,7 @@ listStakeKeys' utxo lookupStakeRef fetchRewards ourKeysWithInfo = do
 
 listStakeKeys
     :: forall ctx s n k.
-        ( ctx ~ ApiLayer s k 'AddressK
+        ( ctx ~ ApiLayer s k 'CredFromKeyK
         , s ~ SeqState n k
         , HasNetworkLayer IO ctx
         , Typeable n
@@ -3511,10 +3511,10 @@ listStakeKeys lookupStakeRef ctx (ApiT wid) = do
 
 createMigrationPlan
     :: forall ctx n s k.
-        ( ctx ~ ApiLayer s k 'AddressK
-        , Bounded (Index (AddressIndexDerivationType k) 'AddressK)
+        ( ctx ~ ApiLayer s k 'CredFromKeyK
+        , Bounded (Index (AddressIndexDerivationType k) 'CredFromKeyK)
         , HardDerivation k
-        , IsOwned s k 'AddressK
+        , IsOwned s k 'CredFromKeyK
         , Typeable n
         , Typeable s
         , WalletKey k
@@ -3606,11 +3606,11 @@ mkApiWalletMigrationPlan s addresses rewardWithdrawal plan =
 
 migrateWallet
     :: forall ctx s k n p.
-        ( ctx ~ ApiLayer s k 'AddressK
-        , Bounded (Index (AddressIndexDerivationType k) 'AddressK)
+        ( ctx ~ ApiLayer s k 'CredFromKeyK
+        , Bounded (Index (AddressIndexDerivationType k) 'CredFromKeyK)
         , HardDerivation k
         , HasNetworkLayer IO ctx
-        , IsOwned s k 'AddressK
+        , IsOwned s k 'CredFromKeyK
         , Typeable n
         , Typeable s
         , WalletKey k
@@ -3794,7 +3794,7 @@ postExternalTransaction ctx (ApiT sealed) = do
 
 signMetadata
     :: forall ctx s k n.
-        ( ctx ~ ApiLayer s k 'AddressK
+        ( ctx ~ ApiLayer s k 'CredFromKeyK
         , s ~ SeqState n k
         , HardDerivation k
         , AddressIndexDerivationType k ~ 'Soft
@@ -3891,7 +3891,7 @@ getAccountPublicKey ctx mkAccount (ApiT wid) extended = do
 
 getPolicyKey
     :: forall ctx s k (n :: NetworkDiscriminant).
-        ( ctx ~ ApiLayer s k 'AddressK
+        ( ctx ~ ApiLayer s k 'CredFromKeyK
         , Typeable s
         , Typeable n
         )
@@ -3906,7 +3906,7 @@ getPolicyKey ctx (ApiT wid) hashed = do
 
 postPolicyKey
     :: forall ctx s (n :: NetworkDiscriminant).
-        ( ctx ~ ApiLayer s ShelleyKey 'AddressK
+        ( ctx ~ ApiLayer s ShelleyKey 'CredFromKeyK
         , s ~ SeqState n ShelleyKey
         )
     => ctx
@@ -3923,7 +3923,7 @@ postPolicyKey ctx (ApiT wid) hashed apiPassphrase =
 
 postPolicyId
     :: forall ctx s k (n :: NetworkDiscriminant).
-        ( ctx ~ ApiLayer s k 'AddressK
+        ( ctx ~ ApiLayer s k 'CredFromKeyK
         , WalletKey k
         , Typeable s
         , Typeable n
@@ -3956,7 +3956,7 @@ postPolicyId ctx (ApiT wid) payload = do
 -- XPrv), necessary to derive new change addresses.
 rndStateChange
     :: forall ctx s k n.
-        ( ctx ~ ApiLayer s k 'AddressK
+        ( ctx ~ ApiLayer s k 'CredFromKeyK
         , s ~ RndState n
         , k ~ ByronKey
         )
@@ -3975,10 +3975,10 @@ type RewardAccountBuilder k
 
 mkRewardAccountBuilder
     :: forall ctx s k (n :: NetworkDiscriminant) shelley.
-        ( ctx ~ ApiLayer s k 'AddressK
+        ( ctx ~ ApiLayer s k 'CredFromKeyK
         , shelley ~ SeqState n ShelleyKey
         , HardDerivation k
-        , Bounded (Index (AddressIndexDerivationType k) 'AddressK)
+        , Bounded (Index (AddressIndexDerivationType k) 'CredFromKeyK)
         , WalletKey k
         , Typeable s
         , Typeable n
@@ -4004,12 +4004,12 @@ mkRewardAccountBuilder ctx wid withdrawal = do
                 (acct, _, path) <- liftHandler $ W.readRewardAccount @_ @s @k @n wrk wid
                 wdrl <- liftHandler $ W.queryRewardBalance @_ wrk acct
                 (, selfRewardCredentials) . WithdrawalSelf acct path
-                    <$> liftIO (W.readNextWithdrawal @_ @k @'AddressK wrk era wdrl)
+                    <$> liftIO (W.readNextWithdrawal @_ @k @'CredFromKeyK wrk era wdrl)
 
             (Just Refl, Just (ExternalWithdrawal (ApiMnemonicT mw))) -> do
                 let (xprv, acct, path) = W.someRewardAccount @ShelleyKey mw
                 wdrl <- liftHandler (W.queryRewardBalance @_ wrk acct)
-                    >>= liftIO . W.readNextWithdrawal @_ @k @'AddressK wrk era
+                    >>= liftIO . W.readNextWithdrawal @_ @k @'CredFromKeyK wrk era
                 when (wdrl == Coin 0) $ do
                     liftHandler $ throwE ErrWithdrawalNotWorth
                 pure (WithdrawalExternal acct path wdrl, const (xprv, mempty))

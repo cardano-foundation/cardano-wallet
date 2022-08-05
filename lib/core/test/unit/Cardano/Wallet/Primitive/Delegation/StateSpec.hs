@@ -288,7 +288,7 @@ isConsecutiveRange (a:b:t)
 newtype StakeKey' (depth :: Depth) key = StakeKey' Word
     deriving newtype (Eq, Enum, Ord, Show, Bounded)
 
-type StakeKey = StakeKey' 'AddressK XPub
+type StakeKey = StakeKey' 'CredFromKeyK XPub
 
 instance ToRewardAccount StakeKey' where
     toRewardAccount (StakeKey' i) = RewardAccount . B8.pack $ show i
@@ -307,11 +307,11 @@ instance SoftDerivation StakeKey' where
 instance MkKeyFingerprint StakeKey' Address where
     paymentKeyFingerprint (Address addr) = Right $ KeyFingerprint $ B8.drop 4 addr
 
-instance PaymentAddress 'Mainnet StakeKey' 'AddressK where
+instance PaymentAddress 'Mainnet StakeKey' 'CredFromKeyK where
     liftPaymentAddress (KeyFingerprint fp) = Address fp
     paymentAddress k = Address $ "addr" <> unRewardAccount (toRewardAccount k)
 
-instance MkKeyFingerprint StakeKey' (StakeKey' 'AddressK XPub) where
+instance MkKeyFingerprint StakeKey' (StakeKey' 'CredFromKeyK XPub) where
     paymentKeyFingerprint k =
         Right $ KeyFingerprint $ unRewardAccount (toRewardAccount k)
 
@@ -465,7 +465,7 @@ stepCmd CmdOldWalletToggleFirstKey env =
             in tryApplyTx tx env
 stepCmd (CmdMimicPointerOutput (RewardAccount acc)) env =
             let
-                addr = liftPaymentAddress @'Mainnet @StakeKey' @'AddressK $
+                addr = liftPaymentAddress @'Mainnet @StakeKey' @'CredFromKeyK $
                     KeyFingerprint acc
                 c = Coin 1
                 out = TxOut addr (TB.fromCoin c)

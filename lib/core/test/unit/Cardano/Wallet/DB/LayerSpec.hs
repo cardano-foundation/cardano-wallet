@@ -314,8 +314,8 @@ stateMachineSpec = describe ("State machine test (" ++ showState @s ++ ")") $ do
     xit "Parallel" $ prop_parallel newDB
 
 stateMachineSpecSeq, stateMachineSpecRnd, stateMachineSpecShared :: Spec
-stateMachineSpecSeq = stateMachineSpec @ShelleyKey @(SeqState 'Mainnet ShelleyKey) @'AddressK
-stateMachineSpecRnd = stateMachineSpec @ByronKey @(RndState 'Mainnet) @'AddressK
+stateMachineSpecSeq = stateMachineSpec @ShelleyKey @(SeqState 'Mainnet ShelleyKey) @'CredFromKeyK
+stateMachineSpecRnd = stateMachineSpec @ByronKey @(RndState 'Mainnet) @'CredFromKeyK
 stateMachineSpecShared = stateMachineSpec @SharedKey @(SharedState 'Mainnet SharedKey) @'ScriptK
 
 instance PaymentAddress 'Mainnet SharedKey 'ScriptK where
@@ -1105,7 +1105,7 @@ testMigrationTxMetaFee
         , WalletKey k
         , PersistAddressBook s
         , PersistPrivateKey (k 'RootK)
-        , PaymentAddress 'Mainnet k 'AddressK
+        , PaymentAddress 'Mainnet k 'CredFromKeyK
         )
     => String
     -> Int
@@ -1162,7 +1162,7 @@ testMigrationCleanupCheckpoints
         , WalletKey k
         , PersistAddressBook s
         , PersistPrivateKey (k 'RootK)
-        , PaymentAddress 'Mainnet k 'AddressK
+        , PaymentAddress 'Mainnet k 'CredFromKeyK
         )
     => String
     -> GenesisParameters
@@ -1200,7 +1200,7 @@ testMigrationRole
         , WalletKey k
         , PersistAddressBook s
         , PersistPrivateKey (k 'RootK)
-        , PaymentAddress 'Mainnet k 'AddressK
+        , PaymentAddress 'Mainnet k 'CredFromKeyK
         , GetPurpose k
         , Show s
         )

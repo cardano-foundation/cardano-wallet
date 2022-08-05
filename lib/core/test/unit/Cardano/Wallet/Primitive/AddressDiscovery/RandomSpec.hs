@@ -159,7 +159,7 @@ prop_IndexesAlwaysHardened g accIx =
     in
         accIx' >= liftIndex (minBound :: Index 'Hardened 'AccountK)
       .&&.
-        addrIx >= liftIndex (minBound :: Index 'Hardened 'AddressK)
+        addrIx >= liftIndex (minBound :: Index 'Hardened 'CredFromKeyK)
 
 goldenSpecTestnet :: Spec
 goldenSpecTestnet =
@@ -281,7 +281,7 @@ data Rnd = Rnd
 prop_derivedKeysAreOurs
     :: Rnd
     -> Rnd
-    -> Index 'WholeDomain 'AddressK
+    -> Index 'WholeDomain 'CredFromKeyK
     -> Property
 prop_derivedKeysAreOurs rnd@(Rnd st _ _) (Rnd st' _ _) addrIx =
     isJust (fst $ isOurs addr st) .&&. isNothing (fst $ isOurs addr st')
@@ -291,12 +291,12 @@ prop_derivedKeysAreOurs rnd@(Rnd st _ _) (Rnd st' _ _) addrIx =
 prop_derivedKeysAreOwned
     :: Rnd
     -> Rnd
-    -> Index 'WholeDomain 'AddressK
+    -> Index 'WholeDomain 'CredFromKeyK
     -> Property
 prop_derivedKeysAreOwned (Rnd st rk pwd) (Rnd st' rk' pwd') addrIx =
-    isOwned @_ @_ @'AddressK st (rk, pwd) addr === Just (addrKey, pwd)
+    isOwned @_ @_ @'CredFromKeyK st (rk, pwd) addr === Just (addrKey, pwd)
     .&&.
-    isOwned @_ @_ @'AddressK st' (rk', pwd') addr === Nothing
+    isOwned @_ @_ @'CredFromKeyK st' (rk', pwd') addr === Nothing
   where
     addr = paymentAddress @'Mainnet (publicKey addrKey)
     addrKey = deriveAddressPrivateKey pwd acctKey addrIx
@@ -313,7 +313,7 @@ prop_changeAddressesBelongToUs (Rnd st rk pwd) (Rnd st' _ _) =
 
 prop_forbiddenAddresses
     :: Rnd
-    -> Index 'WholeDomain 'AddressK
+    -> Index 'WholeDomain 'CredFromKeyK
     -> Property
 prop_forbiddenAddresses rnd@(Rnd st rk pwd) addrIx = conjoin
     [ (Set.notMember addr (forbidden st))
@@ -332,7 +332,7 @@ prop_forbiddenAddresses rnd@(Rnd st rk pwd) addrIx = conjoin
 
 prop_oursAreUsed
     :: Rnd
-    -> Index 'WholeDomain 'AddressK
+    -> Index 'WholeDomain 'CredFromKeyK
     -> Property
 prop_oursAreUsed rnd@(Rnd st _ _) addrIx = do
     case find (\(a,_,_) -> (a == addr)) $ knownAddresses $ snd $ isOurs addr st of
@@ -363,7 +363,7 @@ instance Arbitrary Rnd where
 
 mkAddress
     :: Rnd
-    -> Index 'WholeDomain 'AddressK
+    -> Index 'WholeDomain 'CredFromKeyK
     -> Address
 mkAddress (Rnd (RndState _ accIx _ _ _) rk pwd) addrIx =
     let

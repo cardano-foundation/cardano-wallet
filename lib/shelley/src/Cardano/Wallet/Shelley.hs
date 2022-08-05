@@ -296,9 +296,9 @@ serveWallet
 
     startServer
         :: forall n.
-            ( PaymentAddress n IcarusKey 'AddressK
-            , PaymentAddress n ByronKey 'AddressK
-            , DelegationAddress n ShelleyKey 'AddressK
+            ( PaymentAddress n IcarusKey 'CredFromKeyK
+            , PaymentAddress n ByronKey 'CredFromKeyK
+            , DelegationAddress n ShelleyKey 'CredFromKeyK
             , DecodeAddress n
             , EncodeAddress n
             , EncodeStakeAddress n
@@ -308,9 +308,9 @@ serveWallet
             )
         => Proxy n
         -> Socket
-        -> ApiLayer (RndState n) ByronKey 'AddressK
-        -> ApiLayer (SeqState n IcarusKey) IcarusKey 'AddressK
-        -> ApiLayer (SeqState n ShelleyKey) ShelleyKey 'AddressK
+        -> ApiLayer (RndState n) ByronKey 'CredFromKeyK
+        -> ApiLayer (SeqState n IcarusKey) IcarusKey 'CredFromKeyK
+        -> ApiLayer (SeqState n ShelleyKey) ShelleyKey 'CredFromKeyK
         -> ApiLayer (SharedState n SharedKey) SharedKey 'ScriptK
         -> StakePoolLayer
         -> NtpClient

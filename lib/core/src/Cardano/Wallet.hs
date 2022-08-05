@@ -794,7 +794,7 @@ createIcarusWallet
     :: forall ctx s k n.
         ( HasGenesisData ctx
         , HasDBLayer IO s k ctx
-        , PaymentAddress n k 'AddressK
+        , PaymentAddress n k 'CredFromKeyK
         , k ~ IcarusKey
         , s ~ SeqState n k
         , Typeable n
@@ -1467,7 +1467,7 @@ listAddresses ctx wid normalize = db & \DBLayer{..} -> do
 createRandomAddress
     :: forall ctx s k n.
         ( HasDBLayer IO s k ctx
-        , PaymentAddress n k 'AddressK
+        , PaymentAddress n k 'CredFromKeyK
         , RndStateLike s
         , k ~ ByronKey
         , AddressBookIso s
@@ -1475,7 +1475,7 @@ createRandomAddress
     => ctx
     -> WalletId
     -> Passphrase "user"
-    -> Maybe (Index 'Hardened 'AddressK)
+    -> Maybe (Index 'Hardened 'CredFromKeyK)
     -> ExceptT ErrCreateRandomAddress IO (Address, NonEmpty DerivationIndex)
 createRandomAddress ctx wid pwd mIx = db & \DBLayer{..} ->
     withRootKey @ctx @s @k ctx wid pwd ErrCreateAddrWithRootKey $ \xprv scheme -> do
@@ -1537,7 +1537,7 @@ importRandomAddresses ctx wid addrs = db & \DBLayer{..} ->
 -- to make sure that we compare them correctly.
 normalizeDelegationAddress
     :: forall s k n.
-        ( DelegationAddress n k 'AddressK
+        ( DelegationAddress n k 'CredFromKeyK
         , s ~ SeqState n k
         )
     => s
@@ -2426,7 +2426,7 @@ signTransaction
   :: forall k ktype
    . ( WalletKey k
      , HardDerivation k
-     , Bounded (Index (AddressIndexDerivationType k) 'AddressK)
+     , Bounded (Index (AddressIndexDerivationType k) 'CredFromKeyK)
      )
   => TransactionLayer k ktype SealedTx
   -- ^ The way to interact with the wallet backend
@@ -2480,10 +2480,10 @@ signTransaction tl preferredLatestEra keyLookup (rootKey, rootPwd) utxo =
 --
 buildAndSignTransaction
     :: forall ctx s k.
-        ( HasTransactionLayer k 'AddressK ctx
+        ( HasTransactionLayer k 'CredFromKeyK ctx
         , HasDBLayer IO s k ctx
         , HasNetworkLayer IO ctx
-        , IsOwned s k 'AddressK
+        , IsOwned s k 'CredFromKeyK
         )
     => ctx
     -> WalletId
@@ -2513,7 +2513,7 @@ buildAndSignTransaction ctx wid era mkRwdAcct pwd txCtx sel = db & \DBLayer{..} 
             return (tx, meta, time, sealedTx)
   where
     db = ctx ^. dbLayer @IO @s @k
-    tl = ctx ^. transactionLayer @k @'AddressK
+    tl = ctx ^. transactionLayer @k @'CredFromKeyK
     nl = ctx ^. networkLayer
     ti = timeInterpreter nl
 
@@ -2521,7 +2521,7 @@ buildAndSignTransaction ctx wid era mkRwdAcct pwd txCtx sel = db & \DBLayer{..} 
 -- | Construct an unsigned transaction from a given selection.
 constructTransaction
     :: forall ctx s k (n :: NetworkDiscriminant).
-        ( HasTransactionLayer k 'AddressK ctx
+        ( HasTransactionLayer k 'CredFromKeyK ctx
         , HasDBLayer IO s k ctx
         , HasNetworkLayer IO ctx
         , Typeable s
@@ -2542,7 +2542,7 @@ constructTransaction ctx wid era txCtx sel = db & \DBLayer{..} -> do
             mkUnsignedTransaction tl era xpub pp txCtx sel
   where
     db = ctx ^. dbLayer @IO @s @k
-    tl = ctx ^. transactionLayer @k @'AddressK
+    tl = ctx ^. transactionLayer @k @'CredFromKeyK
     nl = ctx ^. networkLayer
 
 -- | Construct an unsigned transaction from a given selection
@@ -2965,7 +2965,7 @@ createMigrationPlan
     :: forall ctx k s.
         ( HasDBLayer IO s k ctx
         , HasNetworkLayer IO ctx
-        , HasTransactionLayer k 'AddressK ctx
+        , HasTransactionLayer k 'CredFromKeyK ctx
         )
     => ctx
     -> Cardano.AnyCardanoEra
@@ -2984,7 +2984,7 @@ createMigrationPlan ctx era wid rewardWithdrawal = do
         $ withdrawalToCoin rewardWithdrawal
   where
     nl = ctx ^. networkLayer
-    tl = ctx ^. transactionLayer @k @'AddressK
+    tl = ctx ^. transactionLayer @k @'CredFromKeyK
 
 type SelectionWithoutChange = SelectionOf Void
 
@@ -3397,7 +3397,7 @@ derivePublicKey
     -> WalletId
     -> Role
     -> DerivationIndex
-    -> ExceptT ErrDerivePublicKey IO (k 'AddressK XPub)
+    -> ExceptT ErrDerivePublicKey IO (k 'CredFromKeyK XPub)
 derivePublicKey ctx wid role_ ix = db & \DBLayer{..} -> do
     addrIx <- withExceptT ErrDerivePublicKeyInvalidIndex $ guardSoftIndex ix
 
@@ -3500,7 +3500,7 @@ getAccountPublicKeyAtIndex ctx wid pwd ix purposeM = db & \DBLayer{..} -> do
 guardSoftIndex
     :: Monad m
     => DerivationIndex
-    -> ExceptT (ErrInvalidDerivationIndex 'Soft 'AddressK) m (Index 'Soft whatever)
+    -> ExceptT (ErrInvalidDerivationIndex 'Soft 'CredFromKeyK) m (Index 'Soft whatever)
 guardSoftIndex ix =
     if ix > DerivationIndex (getIndex @'Soft maxBound) || ix < DerivationIndex (getIndex @'Soft minBound)
     then throwE $ ErrIndexOutOfBound minBound maxBound ix
@@ -3572,14 +3572,14 @@ data ErrSignMetadataWith
         -- ^ The wallet exists, but there's no root key attached to it
     | ErrSignMetadataWithNoSuchWallet ErrNoSuchWallet
         -- ^ The wallet doesn't exist?
-    | ErrSignMetadataWithInvalidIndex (ErrInvalidDerivationIndex 'Soft 'AddressK)
+    | ErrSignMetadataWithInvalidIndex (ErrInvalidDerivationIndex 'Soft 'CredFromKeyK)
         -- ^ User provided a derivation index outside of the 'Soft' domain
     deriving (Eq, Show)
 
 data ErrDerivePublicKey
     = ErrDerivePublicKeyNoSuchWallet ErrNoSuchWallet
         -- ^ The wallet doesn't exist?
-    | ErrDerivePublicKeyInvalidIndex (ErrInvalidDerivationIndex 'Soft 'AddressK)
+    | ErrDerivePublicKeyInvalidIndex (ErrInvalidDerivationIndex 'Soft 'CredFromKeyK)
         -- ^ User provided a derivation index outside of the 'Soft' domain
     deriving (Eq, Show)
 
@@ -3774,7 +3774,7 @@ newtype ErrWalletNotResponding
     deriving (Eq, Show)
 
 data ErrCreateRandomAddress
-    = ErrIndexAlreadyExists (Index 'Hardened 'AddressK)
+    = ErrIndexAlreadyExists (Index 'Hardened 'CredFromKeyK)
     | ErrCreateAddrNoSuchWallet ErrNoSuchWallet
     | ErrCreateAddrWithRootKey ErrWithRootKey
     | ErrCreateAddressNotAByronWallet

@@ -231,15 +231,15 @@ import qualified Data.Text as T
 
 server
     :: forall n.
-        ( PaymentAddress n IcarusKey 'AddressK
-        , PaymentAddress n ByronKey 'AddressK
-        , DelegationAddress n ShelleyKey 'AddressK
+        ( PaymentAddress n IcarusKey 'CredFromKeyK
+        , PaymentAddress n ByronKey 'CredFromKeyK
+        , DelegationAddress n ShelleyKey 'CredFromKeyK
         , Typeable n
         , HasNetworkId n
         )
-    => ApiLayer (RndState n) ByronKey 'AddressK
-    -> ApiLayer (SeqState n IcarusKey) IcarusKey 'AddressK
-    -> ApiLayer (SeqState n ShelleyKey) ShelleyKey 'AddressK
+    => ApiLayer (RndState n) ByronKey 'CredFromKeyK
+    -> ApiLayer (SeqState n IcarusKey) IcarusKey 'CredFromKeyK
+    -> ApiLayer (SeqState n ShelleyKey) ShelleyKey 'CredFromKeyK
     -> ApiLayer (SharedState n SharedKey) SharedKey 'ScriptK
     -> StakePoolLayer
     -> NtpClient
@@ -331,7 +331,7 @@ server byron icarus shelley multisig spl ntp blockchainSource =
     shelleyTransactions :: Server (ShelleyTransactions n)
     shelleyTransactions =
              constructTransaction shelley (delegationAddress @n) (knownPools spl) (getPoolLifeCycleStatus spl)
-        :<|> signTransaction @_ @_ @_ @'AddressK shelley
+        :<|> signTransaction @_ @_ @_ @'CredFromKeyK shelley
         :<|>
             (\wid mMinWithdrawal mStart mEnd mOrder simpleMetadataFlag ->
                 listTransactions shelley wid mMinWithdrawal mStart mEnd mOrder
@@ -534,7 +534,7 @@ server byron icarus shelley multisig spl ntp blockchainSource =
         :<|> getNetworkClock ntp
       where
         nl = icarus ^. networkLayer
-        tl = icarus ^. transactionLayer @IcarusKey @'AddressK
+        tl = icarus ^. transactionLayer @IcarusKey @'CredFromKeyK
         genesis@(_,_) = icarus ^. genesisData
         mode = case blockchainSource of
           NodeSource {} -> Node

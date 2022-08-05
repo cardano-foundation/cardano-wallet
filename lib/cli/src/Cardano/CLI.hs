@@ -1058,7 +1058,7 @@ cmdAddressList mkClient =
 -- | Arguments for 'address create' command
 data AddressCreateArgs = AddressCreateArgs
     { _port :: Port "Wallet"
-    , _addressIndex :: Maybe (Index 'Hardened 'AddressK)
+    , _addressIndex :: Maybe (Index 'Hardened 'CredFromKeyK)
     , _id :: WalletId
     }
 

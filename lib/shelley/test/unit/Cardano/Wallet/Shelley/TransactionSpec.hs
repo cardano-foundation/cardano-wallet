@@ -707,7 +707,7 @@ instance Arbitrary a => Arbitrary (NonEmpty a) where
 keyToAddress :: (XPrv, Passphrase "encryption") -> Address
 keyToAddress (xprv, _pwd) =
     -- TODO, decrypt?
-    paymentAddress @'Mainnet @ShelleyKey @'AddressK .
+    paymentAddress @'Mainnet @ShelleyKey @'CredFromKeyK .
     publicKey .
     liftRawKey @ShelleyKey $ xprv
 
@@ -734,11 +734,11 @@ utxoFromKeys keys utxoProp =
 
 lookupFnFromKeys
     :: [(XPrv, Passphrase "encryption")]
-    -> (Address -> Maybe (ShelleyKey 'AddressK XPrv, Passphrase "encryption"))
+    -> (Address -> Maybe (ShelleyKey 'CredFromKeyK XPrv, Passphrase "encryption"))
 lookupFnFromKeys keys addr =
     let
         addrMap
-            :: Map Address (ShelleyKey 'AddressK XPrv, Passphrase "encryption")
+            :: Map Address (ShelleyKey 'CredFromKeyK XPrv, Passphrase "encryption")
         addrMap = Map.fromList
             $ zip (keyToAddress <$> keys) (first liftRawKey <$> keys)
     in
@@ -1995,7 +1995,7 @@ prop_biggerMaxSizeMeansMoreInputs era size outs
         <=
         _estimateMaxNumberOfInputs @k era ((*2) <$> size ) defaultTransactionCtx outs
 
-testTxLayer :: TransactionLayer ShelleyKey 'AddressK SealedTx
+testTxLayer :: TransactionLayer ShelleyKey 'CredFromKeyK SealedTx
 testTxLayer = newTransactionLayer @ShelleyKey Cardano.Mainnet
 
 newtype ForByron a = ForByron { getForByron :: a } deriving (Show, Eq)
@@ -2424,7 +2424,7 @@ instance Arbitrary KeyHash where
         cred <- oneof [pure Payment, pure Delegation]
         KeyHash cred . BS.pack <$> vectorOf 28 arbitrary
 
-data Ctx m = Ctx (Tracer m WalletWorkerLog) (TransactionLayer ShelleyKey 'AddressK SealedTx)
+data Ctx m = Ctx (Tracer m WalletWorkerLog) (TransactionLayer ShelleyKey 'CredFromKeyK SealedTx)
     deriving Generic
 
 instance Arbitrary StdGenSeed  where
