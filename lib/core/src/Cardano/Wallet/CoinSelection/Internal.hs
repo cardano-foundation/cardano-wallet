@@ -161,6 +161,10 @@ data SelectionConstraints ctx = SelectionConstraints
     , computeMinimumAdaQuantity
         :: Address ctx -> TokenMap -> Coin
         -- ^ Computes the minimum ada quantity required for a given output.
+    , isBelowMinimumAdaQuantity
+        :: Address ctx -> TokenBundle -> Bool
+      -- ^ Returns 'True' if the given 'TokenBundle' has a 'Coin' value that is
+      -- below the minimum required.
     , computeMinimumCost
         :: SelectionSkeleton ctx -> Coin
         -- ^ Computes the minimum cost of a given selection skeleton.
