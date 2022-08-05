@@ -1,5 +1,4 @@
 {-# LANGUAGE LambdaCase #-}
-{-# LANGUAGE TypeApplications #-}
 
 -- |
 -- Copyright: © 2022 IOHK
@@ -9,9 +8,7 @@
 --
 module Cardano.Wallet.Shelley.MinimumUTxO
     ( computeMinimumCoinForUTxO
-    , maxLengthCoin
-    , unsafeLovelaceToWalletCoin
-    , unsafeValueToLovelace
+    , isBelowMinimumCoinForUTxO
     ) where
 
 import Prelude
@@ -27,21 +24,16 @@ import Cardano.Wallet.Primitive.Types.TokenBundle
 import Cardano.Wallet.Primitive.Types.TokenMap
     ( TokenMap )
 import Cardano.Wallet.Primitive.Types.Tx
-    ( TxOut (..) )
+    ( TxOut (..), txOutMaxCoin )
 import Cardano.Wallet.Shelley.Compatibility
-    ( toCardanoTxOut )
+    ( toCardanoTxOut, unsafeLovelaceToWalletCoin, unsafeValueToLovelace )
 import Data.Function
     ( (&) )
-import Data.IntCast
-    ( intCast, intCastMaybe )
-import Data.Word
-    ( Word64 )
 import GHC.Stack
     ( HasCallStack )
-import Numeric.Natural
-    ( Natural )
 
 import qualified Cardano.Api.Shelley as Cardano
+import qualified Cardano.Wallet.Primitive.Types.TokenBundle as TokenBundle
 
 -- | Computes a minimum 'Coin' value for a 'TokenMap' that is destined for
 --   inclusion in a transaction output.
@@ -58,7 +50,7 @@ computeMinimumCoinForUTxO = \case
     MinimumUTxOConstant c ->
         \_addr _tokenMap -> c
     MinimumUTxOForShelleyBasedEraOf minUTxO ->
-        computeMinimumCoinForShelleyBasedEra minUTxO
+        computeMinimumCoinForUTxOShelleyBasedEra minUTxO
 
 -- | Computes a minimum 'Coin' value for a 'TokenMap' that is destined for
 --   inclusion in a transaction output.
@@ -67,46 +59,56 @@ computeMinimumCoinForUTxO = \case
 -- Importantly, a value that is valid in one era will not necessarily be valid
 -- in another era.
 --
-computeMinimumCoinForShelleyBasedEra
+computeMinimumCoinForUTxOShelleyBasedEra
     :: HasCallStack
     => MinimumUTxOForShelleyBasedEra
     -> Address
     -> TokenMap
     -> Coin
-computeMinimumCoinForShelleyBasedEra
+computeMinimumCoinForUTxOShelleyBasedEra
     (MinimumUTxOForShelleyBasedEra era pp) addr tokenMap =
-        extractResult $
+        unsafeCoinFromCardanoApiCalculateMinimumUTxOResult $
         Cardano.calculateMinimumUTxO era
             (embedTokenMapWithinPaddedTxOut era addr tokenMap)
             (Cardano.fromLedgerPParams era pp)
+
+-- | Returns 'True' if and only if the given 'TokenBundle' has a 'Coin' value
+--   that is below the minimum acceptable 'Coin' value.
+--
+isBelowMinimumCoinForUTxO
+    :: MinimumUTxO
+    -> Address
+    -> TokenBundle
+    -> Bool
+isBelowMinimumCoinForUTxO = \case
+    MinimumUTxONone ->
+        \_addr _tokenBundle ->
+            False
+    MinimumUTxOConstant c ->
+        \_addr tokenBundle ->
+            TokenBundle.getCoin tokenBundle < c
+    MinimumUTxOForShelleyBasedEraOf minUTxO ->
+        isBelowMinimumCoinForUTxOShelleyBasedEra minUTxO
+
+-- | Returns 'True' if and only if the given 'TokenBundle' has a 'Coin' value
+--   that is below the minimum acceptable 'Coin' value for a Shelley-based
+--   era.
+--
+isBelowMinimumCoinForUTxOShelleyBasedEra
+    :: MinimumUTxOForShelleyBasedEra
+    -> Address
+    -> TokenBundle
+    -> Bool
+isBelowMinimumCoinForUTxOShelleyBasedEra
+    (MinimumUTxOForShelleyBasedEra era pp) addr tokenBundle =
+        TokenBundle.getCoin tokenBundle < cardanoApiMinimumCoin
   where
-    extractResult :: Either Cardano.MinimumUTxOError Cardano.Value -> Coin
-    extractResult = \case
-        Right value ->
-            -- We assume that the returned value is a non-negative ada quantity
-            -- with no other assets. If this assumption is violated, we have no
-            -- way to continue, and must raise an error:
-            value
-                & unsafeValueToLovelace
-                & unsafeLovelaceToWalletCoin
-        Left e ->
-            -- The 'Cardano.calculateMinimumUTxO' function should only return
-            -- an error if a required protocol parameter is missing.
-            --
-            -- However, given that values of 'MinimumUTxOForShelleyBasedEra'
-            -- can only be constructed by supplying an era-specific protocol
-            -- parameters record, it should be impossible to trigger this
-            -- condition.
-            --
-            -- Any violation of this assumption indicates a programming error.
-            -- If this condition is triggered, we have no way to continue, and
-            -- must raise an error:
-            --
-            error $ unwords
-                [ "computeMinimumCoinForUTxO:"
-                , "unexpected error:"
-                , show e
-                ]
+    cardanoApiMinimumCoin :: Coin
+    cardanoApiMinimumCoin =
+        unsafeCoinFromCardanoApiCalculateMinimumUTxOResult $
+        Cardano.calculateMinimumUTxO era
+            (toCardanoTxOut era $ TxOut addr tokenBundle)
+            (Cardano.fromLedgerPParams era pp)
 
 -- | Embeds a 'TokenMap' within a padded 'Cardano.TxOut' value.
 --
@@ -137,43 +139,38 @@ embedTokenMapWithinPaddedTxOut
     -> TokenMap
     -> Cardano.TxOut Cardano.CtxTx era
 embedTokenMapWithinPaddedTxOut era addr m =
-    toCardanoTxOut era $ TxOut addr $ TokenBundle maxLengthCoin m
+    toCardanoTxOut era $ TxOut addr $ TokenBundle txOutMaxCoin m
 
--- | A 'Coin' value that is maximal in length when serialized to bytes.
+-- | Extracts a 'Coin' value from the result of calling the Cardano API
+--   function 'calculateMinimumUTxO'.
 --
--- When serialized to bytes, this 'Coin' value has a length that is greater
--- than or equal to the serialized length of any 'Coin' value that is valid
--- for inclusion in a transaction output.
---
-maxLengthCoin :: Coin
-maxLengthCoin = Coin $ intCast @Word64 @Natural $ maxBound
-
--- | Extracts a 'Coin' value from a 'Cardano.Lovelace' value.
---
--- Fails with a run-time error if the value is negative.
---
-unsafeLovelaceToWalletCoin :: HasCallStack => Cardano.Lovelace -> Coin
-unsafeLovelaceToWalletCoin (Cardano.Lovelace v) =
-  case intCastMaybe @Integer @Natural v of
-      Nothing -> error $ unwords
-          [ "unsafeLovelaceToWalletCoin:"
-          , "encountered negative value:"
-          , show v
-          ]
-      Just lovelaceNonNegative ->
-          Coin lovelaceNonNegative
-
--- | Extracts a 'Cardano.Lovelace' value from a 'Cardano.Value'.
---
--- Fails with a run-time error if the 'Cardano.Value' contains any non-ada
--- assets.
---
-unsafeValueToLovelace :: HasCallStack => Cardano.Value -> Cardano.Lovelace
-unsafeValueToLovelace v =
-    case Cardano.valueToLovelace v of
-        Nothing -> error $ unwords
-            [ "unsafeValueToLovelace:"
-            , "encountered value with non-ada assets:"
-            , show v
+unsafeCoinFromCardanoApiCalculateMinimumUTxOResult
+    :: HasCallStack
+    => Either Cardano.MinimumUTxOError Cardano.Value
+    -> Coin
+unsafeCoinFromCardanoApiCalculateMinimumUTxOResult = \case
+    Right value ->
+        -- We assume that the returned value is a non-negative ada quantity
+        -- with no other assets. If this assumption is violated, we have no
+        -- way to continue, and must raise an error:
+        value
+            & unsafeValueToLovelace
+            & unsafeLovelaceToWalletCoin
+    Left e ->
+        -- The 'Cardano.calculateMinimumUTxO' function should only return
+        -- an error if a required protocol parameter is missing.
+        --
+        -- However, given that values of 'MinimumUTxOForShelleyBasedEra'
+        -- can only be constructed by supplying an era-specific protocol
+        -- parameters record, it should be impossible to trigger this
+        -- condition.
+        --
+        -- Any violation of this assumption indicates a programming error.
+        -- If this condition is triggered, we have no way to continue, and
+        -- must raise an error:
+        --
+        error $ unwords
+            [ "unsafeCoinFromCardanoApiCalculateMinimumUTxOResult:"
+            , "unexpected error:"
+            , show e
             ]
-        Just lovelace -> lovelace

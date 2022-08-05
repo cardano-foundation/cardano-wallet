@@ -97,6 +97,10 @@ module Cardano.Wallet.Shelley.Compatibility
     , toCardanoPolicyId
     , toCardanoSimpleScript
 
+      -- * Unsafe conversions
+    , unsafeLovelaceToWalletCoin
+    , unsafeValueToLovelace
+
       -- ** Assessing sizes of token bundles
     , tokenBundleSizeAssessor
     , computeTokenBundleSerializedLengthBytes
@@ -282,7 +286,7 @@ import Data.Foldable
 import Data.Function
     ( (&) )
 import Data.IntCast
-    ( intCast )
+    ( intCast, intCastMaybe )
 import Data.List
     ( unzip5 )
 import Data.Map.Strict
@@ -2130,6 +2134,40 @@ instance (forall era. IsCardanoEra era => Eq (thing era)) =>
     InAnyCardanoEra e1 a == InAnyCardanoEra e2 b = case testEquality e1 e2 of
         Just Refl -> a == b
         Nothing -> False
+
+--------------------------------------------------------------------------------
+-- Unsafe conversions
+--------------------------------------------------------------------------------
+
+-- | Extracts a 'Coin' value from a 'Cardano.Lovelace' value.
+--
+-- Fails with a run-time error if the value is negative.
+--
+unsafeLovelaceToWalletCoin :: HasCallStack => Cardano.Lovelace -> W.Coin
+unsafeLovelaceToWalletCoin (Cardano.Lovelace v) =
+  case intCastMaybe @Integer @Natural v of
+      Nothing -> error $ unwords
+          [ "unsafeLovelaceToWalletCoin:"
+          , "encountered negative value:"
+          , show v
+          ]
+      Just lovelaceNonNegative ->
+          W.Coin lovelaceNonNegative
+
+-- | Extracts a 'Cardano.Lovelace' value from a 'Cardano.Value'.
+--
+-- Fails with a run-time error if the 'Cardano.Value' contains any non-ada
+-- assets.
+--
+unsafeValueToLovelace :: HasCallStack => Cardano.Value -> Cardano.Lovelace
+unsafeValueToLovelace v =
+    case Cardano.valueToLovelace v of
+        Nothing -> error $ unwords
+            [ "unsafeValueToLovelace:"
+            , "encountered value with non-ada assets:"
+            , show v
+            ]
+        Just lovelace -> lovelace
 
 {-------------------------------------------------------------------------------
                    Assessing sizes of token bundles

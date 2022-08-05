@@ -1973,7 +1973,11 @@ balanceTransactionWithSelectionStrategy
                 , certificateDepositAmount =
                     view #stakeKeyDeposit pp
                 , computeMinimumAdaQuantity =
-                    view #txOutputMinimumAdaQuantity $ constraints tl era pp
+                    view #txOutputMinimumAdaQuantity
+                        (constraints tl era pp)
+                , isBelowMinimumAdaQuantity =
+                    view #txOutputBelowMinimumAdaQuantity
+                        (constraints tl era pp)
                 , computeMinimumCost = \skeleton -> mconcat
                     [ feePadding
                     , fromCardanoLovelace fee0
@@ -2243,7 +2247,11 @@ selectAssets ctx era pp params transform = do
             , certificateDepositAmount =
                 view #stakeKeyDeposit pp
             , computeMinimumAdaQuantity =
-                view #txOutputMinimumAdaQuantity $ constraints tl era pp
+                view #txOutputMinimumAdaQuantity
+                    (constraints tl era pp)
+            , isBelowMinimumAdaQuantity =
+                view #txOutputBelowMinimumAdaQuantity
+                    (constraints tl era pp)
             , computeMinimumCost =
                 calcMinimumCost tl era pp $ params ^. #txContext
             , computeSelectionLimit =

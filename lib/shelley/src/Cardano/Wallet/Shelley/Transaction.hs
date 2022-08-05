@@ -183,7 +183,7 @@ import Cardano.Wallet.Shelley.Compatibility
 import Cardano.Wallet.Shelley.Compatibility.Ledger
     ( toAlonzoTxOut, toBabbageTxOut )
 import Cardano.Wallet.Shelley.MinimumUTxO
-    ( computeMinimumCoinForUTxO )
+    ( computeMinimumCoinForUTxO, isBelowMinimumCoinForUTxO )
 import Cardano.Wallet.Transaction
     ( AnyScript (..)
     , DelegationAction (..)
@@ -1462,7 +1462,8 @@ _assignScriptRedeemers pparams ti resolveInput redeemers tx =
                 }
             }
 
-txConstraints :: AnyCardanoEra -> ProtocolParameters -> TxWitnessTag -> TxConstraints
+txConstraints
+    :: AnyCardanoEra -> ProtocolParameters -> TxWitnessTag -> TxConstraints
 txConstraints era protocolParams witnessTag = TxConstraints
     { txBaseCost
     , txBaseSize
@@ -1473,6 +1474,7 @@ txConstraints era protocolParams witnessTag = TxConstraints
     , txOutputMaximumSize
     , txOutputMaximumTokenQuantity
     , txOutputMinimumAdaQuantity
+    , txOutputBelowMinimumAdaQuantity
     , txRewardWithdrawalCost
     , txRewardWithdrawalSize
     , txMaximumSize
@@ -1507,6 +1509,9 @@ txConstraints era protocolParams witnessTag = TxConstraints
 
     txOutputMinimumAdaQuantity =
         computeMinimumCoinForUTxO (minimumUTxO protocolParams)
+
+    txOutputBelowMinimumAdaQuantity =
+        isBelowMinimumCoinForUTxO (minimumUTxO protocolParams)
 
     txRewardWithdrawalCost c =
         marginalCostOf empty {txRewardWithdrawal = c}

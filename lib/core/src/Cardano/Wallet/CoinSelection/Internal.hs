@@ -161,6 +161,10 @@ data SelectionConstraints ctx = SelectionConstraints
     , computeMinimumAdaQuantity
         :: Address ctx -> TokenMap -> Coin
         -- ^ Computes the minimum ada quantity required for a given output.
+    , isBelowMinimumAdaQuantity
+        :: Address ctx -> TokenBundle -> Bool
+      -- ^ Returns 'True' if the given 'TokenBundle' has a 'Coin' value that is
+      -- below the minimum required.
     , computeMinimumCost
         :: SelectionSkeleton ctx -> Coin
         -- ^ Computes the minimum cost of a given selection skeleton.
@@ -971,11 +975,15 @@ verifySelectionOutputCoinInsufficientError
     => VerifySelectionError (SelectionOutputCoinInsufficientError ctx) ctx
 verifySelectionOutputCoinInsufficientError cs _ps e =
     verifyAll
-        [ reportedMinCoinValue == verifiedMinCoinValue
+        [ isBelowMinimum
+        , reportedMinCoinValue == verifiedMinCoinValue
         , reportedMinCoinValue > snd reportedOutput ^. #coin
         ]
         FailureToVerifySelectionOutputCoinInsufficientError {..}
   where
+    isBelowMinimum :: Bool
+    isBelowMinimum = uncurry (cs ^. #isBelowMinimumAdaQuantity) reportedOutput
+
     reportedOutput = e ^. #output
     reportedMinCoinValue = e ^. #minimumExpectedCoin
     verifiedMinCoinValue =
@@ -1445,18 +1453,10 @@ prepareOutputsInternal constraints outputsUnprepared
     outputsToCover =
         prepareOutputsWith computeMinimumAdaQuantity outputsUnprepared
 
--- | Transforms a set of outputs (provided by users) into valid Cardano outputs.
+-- | Assigns minimal ada quantities to outputs without ada quantities.
 --
--- Every output in Cardano needs to have a minimum quantity of ada, in order to
--- prevent attacks that flood the network with worthless UTxOs.
---
--- However, we do not require users to specify the minimum ada quantity
--- themselves. Most users would prefer to send '10 Apple' rather than
--- '10 Apple & 1.2 Ada'.
---
--- Therefore, unless a coin quantity is explicitly specified, we assign a coin
--- quantity manually for each non-ada output. That quantity is the minimum
--- quantity required to make a particular output valid.
+-- This function only modifies outputs that have an ada quantity of zero.
+-- Outputs that have non-zero ada quantities will not be modified.
 --
 prepareOutputsWith
     :: forall f address. Functor f
@@ -1565,13 +1565,13 @@ verifyOutputCoinSufficient
     -> (Address ctx, TokenBundle)
     -> Maybe (SelectionOutputCoinInsufficientError ctx)
 verifyOutputCoinSufficient constraints output
-    | actualCoin >= minimumExpectedCoin =
-        Nothing
-    | otherwise =
+    | isBelowMinimum =
         Just SelectionOutputCoinInsufficientError {minimumExpectedCoin, output}
+    | otherwise =
+        Nothing
   where
-    actualCoin :: Coin
-    actualCoin = snd output ^. #coin
+    isBelowMinimum :: Bool
+    isBelowMinimum = uncurry (constraints ^. #isBelowMinimumAdaQuantity) output
 
     minimumExpectedCoin :: Coin
     minimumExpectedCoin =

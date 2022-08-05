@@ -3437,7 +3437,7 @@ spec = describe "NEW_SHELLEY_TRANSACTIONS" $ do
         let minUtxoWithAsset = minutxo +
                 -- The extra amount is dependent on the era:
                 if _mainEra ctx >= ApiBabbage
-                then 176_710
+                then 193_950
                 else 344_820 -- = 34_482 lovelace per word * 10 words
 
         eventually

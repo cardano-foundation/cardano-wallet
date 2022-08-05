@@ -586,6 +586,8 @@ unMockSelectionConstraints m = SelectionConstraints
         view #certificateDepositAmount m
     , computeMinimumAdaQuantity =
         unMockComputeMinimumAdaQuantity $ view #computeMinimumAdaQuantity m
+    , isBelowMinimumAdaQuantity =
+        unMockIsBelowMinimumAdaQuantity $ view #computeMinimumAdaQuantity m
     , computeMinimumCost =
         unMockComputeMinimumCost $ view #computeMinimumCost m
     , computeSelectionLimit =
@@ -613,6 +615,15 @@ genCertificateDepositAmount = genCoinPositive
 
 shrinkCertificateDepositAmount :: Coin -> [Coin]
 shrinkCertificateDepositAmount = shrinkCoinPositive
+
+--------------------------------------------------------------------------------
+-- Minimum ada quantities
+--------------------------------------------------------------------------------
+
+unMockIsBelowMinimumAdaQuantity
+    :: MockComputeMinimumAdaQuantity -> TestAddress -> TokenBundle -> Bool
+unMockIsBelowMinimumAdaQuantity mock addr b =
+    view #coin b < unMockComputeMinimumAdaQuantity mock addr (view #tokens b)
 
 --------------------------------------------------------------------------------
 -- Maximum collateral input counts
