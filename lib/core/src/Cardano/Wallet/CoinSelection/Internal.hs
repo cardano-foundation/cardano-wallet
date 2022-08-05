@@ -975,11 +975,15 @@ verifySelectionOutputCoinInsufficientError
     => VerifySelectionError (SelectionOutputCoinInsufficientError ctx) ctx
 verifySelectionOutputCoinInsufficientError cs _ps e =
     verifyAll
-        [ reportedMinCoinValue == verifiedMinCoinValue
+        [ isBelowMinimum
+        , reportedMinCoinValue == verifiedMinCoinValue
         , reportedMinCoinValue > snd reportedOutput ^. #coin
         ]
         FailureToVerifySelectionOutputCoinInsufficientError {..}
   where
+    isBelowMinimum :: Bool
+    isBelowMinimum = uncurry (cs ^. #isBelowMinimumAdaQuantity) reportedOutput
+
     reportedOutput = e ^. #output
     reportedMinCoinValue = e ^. #minimumExpectedCoin
     verifiedMinCoinValue =
@@ -1569,13 +1573,13 @@ verifyOutputCoinSufficient
     -> (Address ctx, TokenBundle)
     -> Maybe (SelectionOutputCoinInsufficientError ctx)
 verifyOutputCoinSufficient constraints output
-    | actualCoin >= minimumExpectedCoin =
-        Nothing
-    | otherwise =
+    | isBelowMinimum =
         Just SelectionOutputCoinInsufficientError {minimumExpectedCoin, output}
+    | otherwise =
+        Nothing
   where
-    actualCoin :: Coin
-    actualCoin = snd output ^. #coin
+    isBelowMinimum :: Bool
+    isBelowMinimum = uncurry (constraints ^. #isBelowMinimumAdaQuantity) output
 
     minimumExpectedCoin :: Coin
     minimumExpectedCoin =
