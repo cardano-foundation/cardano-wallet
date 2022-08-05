@@ -9,6 +9,7 @@
 --
 module Cardano.Wallet.Shelley.MinimumUTxO
     ( computeMinimumCoinForUTxO
+    , isBelowMinimumCoinForUTxO
     , maxLengthCoin
     , unsafeLovelaceToWalletCoin
     , unsafeValueToLovelace
@@ -42,6 +43,7 @@ import Numeric.Natural
     ( Natural )
 
 import qualified Cardano.Api.Shelley as Cardano
+import qualified Cardano.Wallet.Primitive.Types.TokenBundle as TokenBundle
 
 -- | Computes a minimum 'Coin' value for a 'TokenMap' that is destined for
 --   inclusion in a transaction output.
@@ -78,6 +80,44 @@ computeMinimumCoinForUTxOShelleyBasedEra
         unsafeCoinFromCardanoApiCalculateMinimumUTxOResult $
         Cardano.calculateMinimumUTxO era
             (embedTokenMapWithinPaddedTxOut era addr tokenMap)
+            (Cardano.fromLedgerPParams era pp)
+
+-- | Returns 'True' if and only if the given 'TokenBundle' has a 'Coin' value
+--   that is below the minimum acceptable 'Coin' value.
+--
+isBelowMinimumCoinForUTxO
+    :: MinimumUTxO
+    -> Address
+    -> TokenBundle
+    -> Bool
+isBelowMinimumCoinForUTxO = \case
+    MinimumUTxONone ->
+        \_addr _tokenBundle ->
+            False
+    MinimumUTxOConstant c ->
+        \_addr tokenBundle ->
+            TokenBundle.getCoin tokenBundle < c
+    MinimumUTxOForShelleyBasedEraOf minUTxO ->
+        isBelowMinimumCoinForUTxOShelleyBasedEra minUTxO
+
+-- | Returns 'True' if and only if the given 'TokenBundle' has a 'Coin' value
+--   that is below the minimum acceptable 'Coin' value for a Shelley-based
+--   era.
+--
+isBelowMinimumCoinForUTxOShelleyBasedEra
+    :: MinimumUTxOForShelleyBasedEra
+    -> Address
+    -> TokenBundle
+    -> Bool
+isBelowMinimumCoinForUTxOShelleyBasedEra
+    (MinimumUTxOForShelleyBasedEra era pp) addr tokenBundle =
+        TokenBundle.getCoin tokenBundle < cardanoApiMinimumCoin
+  where
+    cardanoApiMinimumCoin :: Coin
+    cardanoApiMinimumCoin =
+        unsafeCoinFromCardanoApiCalculateMinimumUTxOResult $
+        Cardano.calculateMinimumUTxO era
+            (toCardanoTxOut era $ TxOut addr tokenBundle)
             (Cardano.fromLedgerPParams era pp)
 
 -- | Embeds a 'TokenMap' within a padded 'Cardano.TxOut' value.
