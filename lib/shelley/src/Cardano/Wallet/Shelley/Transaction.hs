@@ -1462,7 +1462,8 @@ _assignScriptRedeemers pparams ti resolveInput redeemers tx =
                 }
             }
 
-txConstraints :: AnyCardanoEra -> ProtocolParameters -> TxWitnessTag -> TxConstraints
+txConstraints
+    :: AnyCardanoEra -> ProtocolParameters -> TxWitnessTag -> TxConstraints
 txConstraints era protocolParams witnessTag = TxConstraints
     { txBaseCost
     , txBaseSize
