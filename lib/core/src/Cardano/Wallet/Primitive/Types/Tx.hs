@@ -972,6 +972,9 @@ data TxConstraints = TxConstraints
       -- ^ The maximum token quantity that can appear in a transaction output.
     , txOutputMinimumAdaQuantity :: Address -> TokenMap -> Coin
       -- ^ The variable minimum ada quantity of a transaction output.
+    , txOutputBelowMinimumAdaQuantity :: Address -> TokenBundle -> Bool
+      -- ^ Returns 'True' if the given 'TokenBundle' has a 'Coin' value that is
+      -- below the minimum required.
     , txRewardWithdrawalCost :: Coin -> Coin
       -- ^ The variable cost of a reward withdrawal.
     , txRewardWithdrawalSize :: Coin -> TxSize

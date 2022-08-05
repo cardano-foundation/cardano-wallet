@@ -750,6 +750,8 @@ unMockTxConstraints MockTxConstraints {..} = TxConstraints
         unMockTxOutputMaximumTokenQuantity mockTxOutputMaximumTokenQuantity
     , txOutputMinimumAdaQuantity =
         unMockTxOutputMinimumAdaQuantity mockTxOutputMinimumAdaQuantity
+    , txOutputBelowMinimumAdaQuantity =
+        unMockTxOutputBelowMinimumAdaQuantity mockTxOutputMinimumAdaQuantity
     , txRewardWithdrawalCost =
         mockSizeToCost . mockRewardWithdrawalSize
     , txRewardWithdrawalSize =
@@ -861,6 +863,12 @@ unMockTxOutputMinimumAdaQuantity mock _addr m =
     let assetCount = TokenMap.size m in
     perOutput mock
         <> mtimesDefault assetCount (perOutputAsset mock)
+
+unMockTxOutputBelowMinimumAdaQuantity
+    :: MockTxOutputMinimumAdaQuantity
+    -> (Address -> TokenBundle -> Bool)
+unMockTxOutputBelowMinimumAdaQuantity mock addr b =
+    view #coin b < unMockTxOutputMinimumAdaQuantity mock addr (view #tokens b)
 
 genMockTxOutputMinimumAdaQuantity :: Gen MockTxOutputMinimumAdaQuantity
 genMockTxOutputMinimumAdaQuantity = MockTxOutputMinimumAdaQuantity
