@@ -316,9 +316,9 @@ stateMachineSpec = describe ("State machine test (" ++ showState @s ++ ")") $ do
 stateMachineSpecSeq, stateMachineSpecRnd, stateMachineSpecShared :: Spec
 stateMachineSpecSeq = stateMachineSpec @ShelleyKey @(SeqState 'Mainnet ShelleyKey) @'CredFromKeyK
 stateMachineSpecRnd = stateMachineSpec @ByronKey @(RndState 'Mainnet) @'CredFromKeyK
-stateMachineSpecShared = stateMachineSpec @SharedKey @(SharedState 'Mainnet SharedKey) @'ScriptK
+stateMachineSpecShared = stateMachineSpec @SharedKey @(SharedState 'Mainnet SharedKey) @'CredFromScriptK
 
-instance PaymentAddress 'Mainnet SharedKey 'ScriptK where
+instance PaymentAddress 'Mainnet SharedKey 'CredFromScriptK where
     paymentAddress _ = error "does not make sense for SharedKey but want to use stateMachineSpec"
     liftPaymentAddress _ = error "does not make sense for SharedKey but want to use stateMachineSpec"
 

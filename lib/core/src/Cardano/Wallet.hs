@@ -2549,7 +2549,7 @@ constructTransaction ctx wid era txCtx sel = db & \DBLayer{..} -> do
 -- for a shared wallet.
 constructSharedTransaction
     :: forall ctx s k (n :: NetworkDiscriminant).
-        ( HasTransactionLayer k 'ScriptK ctx
+        ( HasTransactionLayer k 'CredFromScriptK ctx
         , HasDBLayer IO s k ctx
         , HasNetworkLayer IO ctx
         , k ~ SharedKey
@@ -2576,7 +2576,7 @@ constructSharedTransaction ctx wid era txCtx sel = db & \DBLayer{..} -> do
             mkUnsignedTransaction tl era xpub pp txCtx sel
   where
     db = ctx ^. dbLayer @IO @s @k
-    tl = ctx ^. transactionLayer @k @'ScriptK
+    tl = ctx ^. transactionLayer @k @'CredFromScriptK
     nl = ctx ^. networkLayer
 
 -- | Calculate the transaction expiry slot, given a 'TimeInterpreter', and an

@@ -172,7 +172,7 @@ data Depth
     | AccountK
     | RoleK
     | CredFromKeyK
-    | ScriptK
+    | CredFromScriptK
     | PolicyK
 
 -- | Marker for addresses type engaged. We want to handle four cases here.

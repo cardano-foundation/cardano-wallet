@@ -1007,7 +1007,7 @@ postSharedWallet
     :: forall ctx s k n.
         ( s ~ SharedState n k
         , k ~ SharedKey
-        , ctx ~ ApiLayer s k 'ScriptK
+        , ctx ~ ApiLayer s k 'CredFromScriptK
         , Shared.SupportsDiscovery n k
         , WalletKey k
         , HasDBFactory s k ctx
@@ -1029,7 +1029,7 @@ postSharedWalletFromRootXPrv
     :: forall ctx s k n.
         ( s ~ SharedState n k
         , k ~ SharedKey
-        , ctx ~ ApiLayer s k 'ScriptK
+        , ctx ~ ApiLayer s k 'CredFromScriptK
         , Shared.SupportsDiscovery n k
         , WalletKey k
         , HasDBFactory s k ctx
@@ -1072,7 +1072,7 @@ postSharedWalletFromAccountXPub
     :: forall ctx s k n.
         ( s ~ SharedState n k
         , k ~ SharedKey
-        , ctx ~ ApiLayer s k 'ScriptK
+        , ctx ~ ApiLayer s k 'CredFromScriptK
         , Shared.SupportsDiscovery n k
         , WalletKey k
         , HasDBFactory s k ctx
@@ -1115,7 +1115,7 @@ scriptTemplateFromSelf xpub (ApiScriptTemplateEntry cosigners' template') =
 
 mkSharedWallet
     :: forall ctx s k n.
-        ( ctx ~ ApiLayer s k 'ScriptK
+        ( ctx ~ ApiLayer s k 'CredFromScriptK
         , s ~ SharedState n k
         , HasWorkerRegistry s k ctx
         , Shared.SupportsDiscovery n k
@@ -1174,7 +1174,7 @@ patchSharedWallet
     :: forall ctx s k n.
         ( s ~ SharedState n k
         , k ~ SharedKey
-        , ctx ~ ApiLayer s k 'ScriptK
+        , ctx ~ ApiLayer s k 'CredFromScriptK
         , Shared.SupportsDiscovery n k
         , WalletKey k
         , HasDBFactory s k ctx
@@ -2618,7 +2618,7 @@ constructSharedTransaction
     :: forall ctx s k n.
         ( k ~ SharedKey
         , s ~ SharedState n k
-        , ctx ~ ApiLayer s k 'ScriptK
+        , ctx ~ ApiLayer s k 'CredFromScriptK
         , GenChange s
         , HasNetworkLayer IO ctx
         , IsOurs s Address
@@ -2677,7 +2677,7 @@ constructSharedTransaction
                 (utxoAvailable, wallet, pendingTxs) <-
                     liftHandler $ W.readWalletUTxOIndex @_ @s @k wrk wid
 
-                let runSelection outs = W.selectAssets @_ @_ @s @k @'ScriptK
+                let runSelection outs = W.selectAssets @_ @_ @s @k @'CredFromScriptK
                         wrk era pp selectAssetsParams transform
                       where
                         selectAssetsParams = W.SelectAssetsParams
@@ -2721,7 +2721,7 @@ constructSharedTransaction
 
 decodeSharedTransaction
     :: forall ctx s k n.
-        ( ctx ~ ApiLayer s k 'ScriptK
+        ( ctx ~ ApiLayer s k 'CredFromScriptK
         , IsOurs s Address
         , HasNetworkLayer IO ctx
         )
@@ -2777,7 +2777,7 @@ decodeSharedTransaction ctx (ApiT wid) (ApiSerialisedTransaction (ApiT sealed) _
         , validityInterval = interval
         }
   where
-    tl = ctx ^. W.transactionLayer @k @'ScriptK
+    tl = ctx ^. W.transactionLayer @k @'CredFromScriptK
     nl = ctx ^. W.networkLayer @IO
 
     emptyApiAssetMntBurn = ApiAssetMintBurn

@@ -311,7 +311,7 @@ serveWallet
         -> ApiLayer (RndState n) ByronKey 'CredFromKeyK
         -> ApiLayer (SeqState n IcarusKey) IcarusKey 'CredFromKeyK
         -> ApiLayer (SeqState n ShelleyKey) ShelleyKey 'CredFromKeyK
-        -> ApiLayer (SharedState n SharedKey) SharedKey 'ScriptK
+        -> ApiLayer (SharedState n SharedKey) SharedKey 'CredFromScriptK
         -> StakePoolLayer
         -> NtpClient
         -> IO ()

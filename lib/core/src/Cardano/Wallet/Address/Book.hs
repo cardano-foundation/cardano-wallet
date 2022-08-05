@@ -166,7 +166,7 @@ newtype SharedAddressMap (c :: Role) (key :: Depth -> Type -> Type) =
     SharedAddressMap
         ( Map
             (KeyFingerprint "payment" key)
-            (Index 'Soft 'ScriptK, AddressState)
+            (Index 'Soft 'CredFromScriptK, AddressState)
         )
     deriving Eq
 

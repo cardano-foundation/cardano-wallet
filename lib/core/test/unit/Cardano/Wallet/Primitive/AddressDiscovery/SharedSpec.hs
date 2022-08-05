@@ -108,7 +108,7 @@ spec = do
 prop_addressWithScriptFromOurVerKeyIxIn
     :: forall (n :: NetworkDiscriminant). Typeable n
     => CatalystSharedState
-    -> Index 'Soft 'ScriptK
+    -> Index 'Soft 'CredFromScriptK
     -> Property
 prop_addressWithScriptFromOurVerKeyIxIn (CatalystSharedState accXPub' accIx' pTemplate' dTemplate' g) keyIx =
     preconditions keyIx g dTemplate' ==>
@@ -121,7 +121,7 @@ prop_addressWithScriptFromOurVerKeyIxIn (CatalystSharedState accXPub' accIx' pTe
 prop_addressWithScriptFromOurVerKeyIxBeyond
     :: forall (n :: NetworkDiscriminant). Typeable n
     => CatalystSharedState
-    -> Index 'Soft 'ScriptK
+    -> Index 'Soft 'CredFromScriptK
     -> Property
 prop_addressWithScriptFromOurVerKeyIxBeyond (CatalystSharedState accXPub' accIx' pTemplate' dTemplate' g) keyIx =
     fromIntegral (fromEnum keyIx) >= threshold g ==>
@@ -133,7 +133,7 @@ prop_addressWithScriptFromOurVerKeyIxBeyond (CatalystSharedState accXPub' accIx'
 
 getAddrPool
     :: SharedState n k
-    -> AddressPool.Pool (KeyFingerprint "payment" k) (Index 'Soft 'ScriptK)
+    -> AddressPool.Pool (KeyFingerprint "payment" k) (Index 'Soft 'CredFromScriptK)
 getAddrPool st = case ready st of
     Active (SharedAddressPools (SharedAddressPool pool) _ _) -> pool
     Pending -> error "expected active state"
@@ -141,7 +141,7 @@ getAddrPool st = case ready st of
 prop_addressDiscoveryMakesAddressUsed
     :: forall (n :: NetworkDiscriminant). Typeable n
     => CatalystSharedState
-    -> Index 'Soft 'ScriptK
+    -> Index 'Soft 'CredFromScriptK
     -> Property
 prop_addressDiscoveryMakesAddressUsed (CatalystSharedState accXPub' accIx' pTemplate' dTemplate' g) keyIx =
     preconditions keyIx g dTemplate' ==>
@@ -156,7 +156,7 @@ prop_addressDiscoveryMakesAddressUsed (CatalystSharedState accXPub' accIx' pTemp
 prop_addressDoubleDiscovery
     :: forall (n :: NetworkDiscriminant). Typeable n
     => CatalystSharedState
-    -> Index 'Soft 'ScriptK
+    -> Index 'Soft 'CredFromScriptK
     -> Property
 prop_addressDoubleDiscovery (CatalystSharedState accXPub' accIx' pTemplate' dTemplate' g) keyIx =
     preconditions keyIx g dTemplate' ==>
@@ -171,7 +171,7 @@ prop_addressDoubleDiscovery (CatalystSharedState accXPub' accIx' pTemplate' dTem
 prop_addressDiscoveryImpossibleFromOtherAccXPub
     :: forall (n :: NetworkDiscriminant). Typeable n
     => CatalystSharedState
-    -> Index 'Soft 'ScriptK
+    -> Index 'Soft 'CredFromScriptK
     -> SharedKey 'AccountK XPub
     -> Property
 prop_addressDiscoveryImpossibleFromOtherAccXPub (CatalystSharedState _ accIx' pTemplate' dTemplate' g) keyIx accXPub' =
@@ -187,7 +187,7 @@ prop_addressDiscoveryImpossibleFromOtherAccXPub (CatalystSharedState _ accIx' pT
 prop_addressDiscoveryImpossibleFromOtherAccountOfTheSameRootXPrv
     :: forall (n :: NetworkDiscriminant). Typeable n
     => CatalystSharedState
-    -> Index 'Soft 'ScriptK
+    -> Index 'Soft 'CredFromScriptK
     -> (SharedKey 'RootK XPrv, Index 'Hardened 'AccountK, Index 'Hardened 'AccountK)
     -> Property
 prop_addressDiscoveryImpossibleFromOtherAccountOfTheSameRootXPrv (CatalystSharedState _ _ pTemplate' dTemplate' g) keyIx (rootXPrv, accIx', accIx'') =
@@ -206,7 +206,7 @@ prop_addressDiscoveryImpossibleFromOtherAccountOfTheSameRootXPrv (CatalystShared
 prop_addressDiscoveryImpossibleWithinAccountButDifferentScript
     :: forall (n :: NetworkDiscriminant). Typeable n
     => CatalystSharedState
-    -> Index 'Soft 'ScriptK
+    -> Index 'Soft 'CredFromScriptK
     -> OneCosignerScript
     -> Property
 prop_addressDiscoveryImpossibleWithinAccountButDifferentScript (CatalystSharedState accXPub' accIx' pTemplate' dTemplate' g) keyIx (OneCosignerScript script') =
@@ -222,7 +222,7 @@ prop_addressDiscoveryImpossibleWithinAccountButDifferentScript (CatalystSharedSt
 prop_addressDiscoveryDoesNotChangeGapInvariance
     :: forall (n :: NetworkDiscriminant). Typeable n
     => CatalystSharedState
-    -> Index 'Soft 'ScriptK
+    -> Index 'Soft 'CredFromScriptK
     -> Property
 prop_addressDiscoveryDoesNotChangeGapInvariance (CatalystSharedState accXPub' accIx' pTemplate' dTemplate' g) keyIx =
     preconditions keyIx g dTemplate' ==>
@@ -240,7 +240,7 @@ prop_addressDiscoveryDoesNotChangeGapInvariance (CatalystSharedState accXPub' ac
         $ getAddrPool sharedState'
 
 preconditions
-    :: Index 'Soft 'ScriptK
+    :: Index 'Soft 'CredFromScriptK
     -> AddressPoolGap
     -> Maybe ScriptTemplate
     -> Bool
@@ -253,7 +253,7 @@ preconditions keyIx g dTemplate' =
 
 threshold :: AddressPoolGap -> Word32
 threshold g =
-    fromIntegral (fromEnum (minBound @(Index 'Soft 'ScriptK))) +
+    fromIntegral (fromEnum (minBound @(Index 'Soft 'CredFromScriptK))) +
     getAddressPoolGap g
 
 data CatalystSharedState = CatalystSharedState

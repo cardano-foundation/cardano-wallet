@@ -159,7 +159,7 @@ import qualified Data.Text.Encoding as T
 
 -- | Convenient alias for commonly used class contexts on keys.
 type SupportsDiscovery (n :: NetworkDiscriminant) k =
-    ( MkKeyFingerprint k (Proxy n, k 'ScriptK XPub)
+    ( MkKeyFingerprint k (Proxy n, k 'CredFromScriptK XPub)
     , MkKeyFingerprint k Address
     , SoftDerivation k
     , Typeable n
@@ -171,7 +171,7 @@ type SupportsDiscovery (n :: NetworkDiscriminant) k =
 data SharedAddressPools (key :: Depth -> Type -> Type) = SharedAddressPools
     { externalPool :: !(SharedAddressPool 'UtxoExternal key)
     , internalPool :: !(SharedAddressPool 'UtxoInternal key)
-    , pendingChangeIxs :: !(PendingIxs 'ScriptK)
+    , pendingChangeIxs :: !(PendingIxs 'CredFromScriptK)
     }
     deriving stock (Generic, Show)
 
@@ -198,7 +198,7 @@ newtype SharedAddressPool (c :: Role) (key :: Depth -> Type -> Type) =
         getPool ::
             AddressPool.Pool
                 (KeyFingerprint "payment" key)
-                (Index 'Soft 'ScriptK)
+                (Index 'Soft 'CredFromScriptK)
     } deriving (Generic, Show)
 
 instance NFData (SharedAddressPool c k)
@@ -541,7 +541,7 @@ isShared
     :: SupportsDiscovery n k
     => Address
     -> SharedState n k
-    -> (Maybe (Index 'Soft 'ScriptK), SharedState n k)
+    -> (Maybe (Index 'Soft 'CredFromScriptK), SharedState n k)
 isShared addrRaw st = case ready st of
     Pending -> nop
     Active (SharedAddressPools extPool intPool pending) ->
@@ -581,7 +581,7 @@ instance SupportsDiscovery n k => IsOurs (SharedState n k) Address
 decoratePath
     :: SharedState n key
     -> Index 'Soft 'RoleK
-    -> Index 'Soft 'ScriptK
+    -> Index 'Soft 'CredFromScriptK
     -> NE.NonEmpty DerivationIndex
 decoratePath st role' ix = NE.fromList
     [ DerivationIndex $ getIndex purpose
@@ -610,7 +610,7 @@ instance SupportsDiscovery n k => CompareDiscovery (SharedState n k) where
                 (Just _, Nothing)  -> LT
                 (Just i1, Just i2) -> compare i1 i2
       where
-        ix :: Address -> SharedAddressPools k -> Maybe (Index 'Soft 'ScriptK)
+        ix :: Address -> SharedAddressPools k -> Maybe (Index 'Soft 'CredFromScriptK)
         ix a (SharedAddressPools extPool intPool _) =
             case paymentKeyFingerprint a of
                 Left _ -> Nothing
@@ -657,7 +657,7 @@ instance MaybeLight (SharedState n k) where
 
 instance GenChange (SharedState n k) where
     type ArgGenChange (SharedState n k) =
-        (ScriptTemplate -> Maybe ScriptTemplate -> Index 'Soft 'ScriptK -> Address)
+        (ScriptTemplate -> Maybe ScriptTemplate -> Index 'Soft 'CredFromScriptK -> Address)
 
     genChange mkAddress st = case ready st of
         Pending ->
@@ -702,7 +702,7 @@ liftPaymentAddress (KeyFingerprint fingerprint) =
 liftDelegationAddress
     :: forall (n :: NetworkDiscriminant) (k :: Depth -> Type -> Type).
        Typeable n
-    => Index 'Soft 'ScriptK
+    => Index 'Soft 'CredFromScriptK
     -> ScriptTemplate
     -> KeyFingerprint "payment" k
     -> Address
@@ -734,5 +734,5 @@ toSharedWalletId accXPub pTemplate dTemplateM =
 
 instance ( key ~ SharedKey
          , SupportsDiscovery n key ) =>
-         IsOwned (SharedState n key) key 'ScriptK where
+         IsOwned (SharedState n key) key 'CredFromScriptK where
     isOwned _st (_rootPrv, _pwd) _addrRaw = undefined

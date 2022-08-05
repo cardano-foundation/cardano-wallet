@@ -575,7 +575,7 @@ instance
                 | ((Cosigner c), xpub) <- Map.assocs cs
                 ]
 
-        mkSharedStatePendingIxs :: PendingIxs 'ScriptK -> [SharedStatePendingIx]
+        mkSharedStatePendingIxs :: PendingIxs 'CredFromScriptK -> [SharedStatePendingIx]
         mkSharedStatePendingIxs =
             fmap (SharedStatePendingIx wid . W.getIndex) . pendingIxsToList
 
@@ -614,7 +614,7 @@ instance
                 pendingIxs
         pure $ SharedPrologue prologue
       where
-        selectSharedStatePendingIxs :: SqlPersistT IO (PendingIxs 'ScriptK)
+        selectSharedStatePendingIxs :: SqlPersistT IO (PendingIxs 'CredFromScriptK)
         selectSharedStatePendingIxs =
             pendingIxsFromList . fromRes <$> selectList
                 [SharedStatePendingWalletId ==. wid]

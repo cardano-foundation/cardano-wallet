@@ -240,7 +240,7 @@ server
     => ApiLayer (RndState n) ByronKey 'CredFromKeyK
     -> ApiLayer (SeqState n IcarusKey) IcarusKey 'CredFromKeyK
     -> ApiLayer (SeqState n ShelleyKey) ShelleyKey 'CredFromKeyK
-    -> ApiLayer (SharedState n SharedKey) SharedKey 'ScriptK
+    -> ApiLayer (SharedState n SharedKey) SharedKey 'CredFromScriptK
     -> StakePoolLayer
     -> NtpClient
     -> BlockchainSource
@@ -569,7 +569,7 @@ server byron icarus shelley multisig spl ntp blockchainSource =
                 _ -> pure (ApiHealthCheck NoSmashConfigured)
 
     sharedWallets
-        :: ApiLayer (SharedState n SharedKey) SharedKey 'ScriptK
+        :: ApiLayer (SharedState n SharedKey) SharedKey 'CredFromScriptK
         -> Server SharedWallets
     sharedWallets apilayer =
              postSharedWallet @_ @_ @SharedKey apilayer Shared.generateKeyFromSeed SharedKey
@@ -580,7 +580,7 @@ server byron icarus shelley multisig spl ntp blockchainSource =
         :<|> deleteWallet apilayer
 
     sharedWalletKeys
-        :: ApiLayer (SharedState n SharedKey) SharedKey 'ScriptK
+        :: ApiLayer (SharedState n SharedKey) SharedKey 'CredFromScriptK
         -> Server SharedWalletKeys
     sharedWalletKeys apilayer = derivePublicKey apilayer ApiVerificationKeyShared
         :<|> (\wid ix p -> postAccountPublicKey apilayer ApiAccountKeyShared wid ix (toKeyDataPurpose p) )
@@ -591,18 +591,18 @@ server byron icarus shelley multisig spl ntp blockchainSource =
               ApiPostAccountKeyDataWithPurpose p f Nothing
 
     sharedAddresses
-        :: ApiLayer (SharedState n SharedKey) SharedKey 'ScriptK
+        :: ApiLayer (SharedState n SharedKey) SharedKey 'CredFromScriptK
         -> Server (SharedAddresses n)
     sharedAddresses apilayer =
         listAddresses apilayer normalizeSharedAddress
 
     sharedTransactions
-        :: ApiLayer (SharedState n SharedKey) SharedKey 'ScriptK
+        :: ApiLayer (SharedState n SharedKey) SharedKey 'CredFromScriptK
         -> Server (SharedTransactions n)
     sharedTransactions apilayer =
         constructSharedTransaction apilayer (constructAddressFromIx @n UtxoInternal)
             (knownPools spl) (getPoolLifeCycleStatus spl)
-        :<|> signTransaction @_ @_ @_ @'ScriptK apilayer
+        :<|> signTransaction @_ @_ @_ @'CredFromScriptK apilayer
         :<|> decodeSharedTransaction apilayer
 
     blocks :: Handler ApiBlockHeader
