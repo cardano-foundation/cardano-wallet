@@ -62,14 +62,9 @@ import Cardano.Wallet.Primitive.Types.Tx
 import Cardano.Wallet.Primitive.Types.Tx.Gen
     ( genTxOutTokenBundle )
 import Cardano.Wallet.Shelley.Compatibility
-    ( toCardanoTxOut )
+    ( toCardanoTxOut, unsafeLovelaceToWalletCoin, unsafeValueToLovelace )
 import Cardano.Wallet.Shelley.MinimumUTxO
-    ( computeMinimumCoinForUTxO
-    , isBelowMinimumCoinForUTxO
-    , maxLengthCoin
-    , unsafeLovelaceToWalletCoin
-    , unsafeValueToLovelace
-    )
+    ( computeMinimumCoinForUTxO, isBelowMinimumCoinForUTxO, maxLengthCoin )
 import Control.Monad
     ( forM_ )
 import Data.Data

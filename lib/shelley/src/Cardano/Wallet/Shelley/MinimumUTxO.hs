@@ -11,8 +11,6 @@ module Cardano.Wallet.Shelley.MinimumUTxO
     ( computeMinimumCoinForUTxO
     , isBelowMinimumCoinForUTxO
     , maxLengthCoin
-    , unsafeLovelaceToWalletCoin
-    , unsafeValueToLovelace
     ) where
 
 import Prelude
@@ -30,11 +28,11 @@ import Cardano.Wallet.Primitive.Types.TokenMap
 import Cardano.Wallet.Primitive.Types.Tx
     ( TxOut (..) )
 import Cardano.Wallet.Shelley.Compatibility
-    ( toCardanoTxOut )
+    ( toCardanoTxOut, unsafeLovelaceToWalletCoin, unsafeValueToLovelace )
 import Data.Function
     ( (&) )
 import Data.IntCast
-    ( intCast, intCastMaybe )
+    ( intCast )
 import Data.Word
     ( Word64 )
 import GHC.Stack
@@ -193,33 +191,3 @@ unsafeCoinFromCardanoApiCalculateMinimumUTxOResult = \case
             , "unexpected error:"
             , show e
             ]
-
--- | Extracts a 'Coin' value from a 'Cardano.Lovelace' value.
---
--- Fails with a run-time error if the value is negative.
---
-unsafeLovelaceToWalletCoin :: HasCallStack => Cardano.Lovelace -> Coin
-unsafeLovelaceToWalletCoin (Cardano.Lovelace v) =
-  case intCastMaybe @Integer @Natural v of
-      Nothing -> error $ unwords
-          [ "unsafeLovelaceToWalletCoin:"
-          , "encountered negative value:"
-          , show v
-          ]
-      Just lovelaceNonNegative ->
-          Coin lovelaceNonNegative
-
--- | Extracts a 'Cardano.Lovelace' value from a 'Cardano.Value'.
---
--- Fails with a run-time error if the 'Cardano.Value' contains any non-ada
--- assets.
---
-unsafeValueToLovelace :: HasCallStack => Cardano.Value -> Cardano.Lovelace
-unsafeValueToLovelace v =
-    case Cardano.valueToLovelace v of
-        Nothing -> error $ unwords
-            [ "unsafeValueToLovelace:"
-            , "encountered value with non-ada assets:"
-            , show v
-            ]
-        Just lovelace -> lovelace
