@@ -98,6 +98,7 @@ import Cardano.Wallet.Primitive.AddressDerivation
     , SoftDerivation (..)
     , WalletKey (..)
     , roleVal
+    , unsafePaymentKeyFingerprint
     )
 import Cardano.Wallet.Primitive.AddressDerivation.SharedKey
     ( SharedKey (..) )
@@ -443,7 +444,7 @@ instance
     , PersistPublicKey (key 'AddressK)
     , PersistPublicKey (key 'PolicyK)
     , MkKeyFingerprint key (Proxy n, key 'AddressK XPub)
-    , PaymentAddress n key
+    , PaymentAddress n key 'AddressK
     , SoftDerivation key
     , Typeable n
     , (key == SharedKey) ~ 'False
@@ -506,11 +507,11 @@ selectSeqStatePendingIxs wid =
     fromRes = fmap (W.Index . seqStatePendingIxIndex . entityVal)
 
 insertSeqAddressMap
-    :: forall n c key. (PaymentAddress n key, Typeable c)
+    :: forall n c key. (PaymentAddress n key 'AddressK, Typeable c)
     =>  W.WalletId -> W.SlotNo -> SeqAddressMap c key -> SqlPersistT IO ()
 insertSeqAddressMap wid sl (SeqAddressMap pool) = void $
     dbChunked insertMany_
-        [ SeqStateAddress wid sl (liftPaymentAddress @n addr)
+        [ SeqStateAddress wid sl (liftPaymentAddress @n @key @'AddressK addr)
             (W.getIndex ix) (roleVal @c) status
         | (addr, (ix, status)) <- Map.toList pool
         ]
@@ -528,7 +529,7 @@ selectSeqAddressMap wid sl = do
         ] [Asc SeqStateAddressIndex]
   where
     toTriple x =
-        ( Seq.unsafePaymentKeyFingerprint @key (seqStateAddressAddress x)
+        ( unsafePaymentKeyFingerprint @key (seqStateAddressAddress x)
         ,   ( toEnum $ fromIntegral $ seqStateAddressIndex x
             , seqStateAddressStatus x
             )

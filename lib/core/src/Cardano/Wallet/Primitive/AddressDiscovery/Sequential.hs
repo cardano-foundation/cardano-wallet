@@ -50,7 +50,6 @@ module Cardano.Wallet.Primitive.AddressDiscovery.Sequential
     , SeqAddressPool (..)
     , getGap
     , newSeqAddressPool
-    , unsafePaymentKeyFingerprint
 
     -- ** State
     , SeqState (..)
@@ -94,6 +93,7 @@ import Cardano.Wallet.Primitive.AddressDerivation
     , ToRewardAccount (..)
     , WalletKey (..)
     , roleVal
+    , unsafePaymentKeyFingerprint
     )
 import Cardano.Wallet.Primitive.AddressDerivation.MintBurn
     ( derivePolicyPrivateKey )
@@ -154,8 +154,6 @@ import Fmt
     ( Buildable (..), blockListF', hexF, indentF, prefixF, suffixF )
 import GHC.Generics
     ( Generic )
-import GHC.Stack
-    ( HasCallStack )
 import GHC.TypeLits
     ( KnownNat, Nat, natVal )
 import Type.Reflection
@@ -284,23 +282,6 @@ newSeqAddressPool account g =
 
 getGap :: SeqAddressPool c k -> AddressPoolGap
 getGap = AddressPoolGap . fromIntegral . AddressPool.gap . getPool
-
--- Extract the fingerprint from an 'Address', we expect the caller to
--- provide addresses that are compatible with the key scheme being used.
---
--- Actually, addresses passed as asgument should have been "generated" by
--- the address pool itself in the past, so they ought to be valid!
-unsafePaymentKeyFingerprint
-    :: forall k from. (HasCallStack, MkKeyFingerprint k from)
-    => from
-    -> KeyFingerprint "payment" k
-unsafePaymentKeyFingerprint from = case paymentKeyFingerprint @k from of
-    Right a -> a
-    Left err -> error $ unwords
-        [ "unsafePaymentKeyFingerprint was given a source invalid with its"
-        , "key type:"
-        , show err
-        ]
 
 {-------------------------------------------------------------------------------
     Pretty printing
@@ -598,7 +579,7 @@ instance SupportsDiscovery n k => CompareDiscovery (SeqState n k) where
             Right addr -> AddressPool.lookup addr pool
 
 instance
-    ( PaymentAddress n k
+    ( PaymentAddress n k 'AddressK
     ) => KnownAddresses (SeqState n k) where
     knownAddresses st =
         nonChangeAddresses <> usedChangeAddresses <> pendingChangeAddresses
@@ -614,7 +595,7 @@ instance
           where
             idx (_,(ix,_)) = ix
             shuffle (k,(ix,s)) =
-                (liftPaymentAddress @n k, s, decoratePath st (roleVal @c) ix)
+                (liftPaymentAddress @n @k @'AddressK k, s, decoratePath st (roleVal @c) ix)
 
         nonChangeAddresses = listAddresses $ externalPool st
         changeAddresses = listAddresses $ internalPool st
@@ -637,7 +618,7 @@ instance GetAccount (SeqState n k) k where
 -- efficient query @addr -> m txs@.
 -- Does /not/ take 'RewardAccount' into account.
 discoverSeq
-    :: forall n k m. (PaymentAddress n k, Monad m)
+    :: forall n k m. (PaymentAddress n k 'AddressK, Monad m)
     => (Either Address RewardAccount -> m ChainEvents)
     -> SeqState n k -> m (ChainEvents, SeqState n k)
 discoverSeq query state = do
@@ -655,8 +636,7 @@ discoverSeq query state = do
     pure (discoveredEvents, state')
   where
     -- Only enterprise address (for legacy Icarus keys)
-    fromPayment hash = liftPaymentAddress @n hash
-
+    fromPayment hash = liftPaymentAddress @n @k @'AddressK hash
     discover :: SeqAddressPool r k -> m (ChainEvents, SeqAddressPool r k)
     discover = fmap (second SeqAddressPool)
         . AddressPool.discover (query . Left . fromPayment) . getPool
@@ -665,7 +645,7 @@ discoverSeq query state = do
 -- efficient query @addr -> m txs@.
 -- Does take 'RewardAccount' into account.
 discoverSeqWithRewards
-    :: forall n k m. (DelegationAddress n k, ToRewardAccount k, Monad m)
+    :: forall n k m. (DelegationAddress n k 'AddressK, ToRewardAccount k, Monad m)
     => (Either Address RewardAccount -> m ChainEvents)
     -> SeqState n k -> m (ChainEvents, SeqState n k)
 discoverSeqWithRewards query state = do
@@ -789,7 +769,7 @@ instance SoftDerivation k => GenChange (SeqAnyState n k p) where
 instance SupportsDiscovery n k => CompareDiscovery (SeqAnyState n k p) where
     compareDiscovery (SeqAnyState s) = compareDiscovery s
 
-instance PaymentAddress n k => KnownAddresses (SeqAnyState n k p) where
+instance PaymentAddress n k 'AddressK => KnownAddresses (SeqAnyState n k p) where
     knownAddresses (SeqAnyState s) = knownAddresses s
 
 instance MaybeLight (SeqAnyState n k p) where

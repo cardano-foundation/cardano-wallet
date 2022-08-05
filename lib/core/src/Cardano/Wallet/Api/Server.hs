@@ -1006,15 +1006,12 @@ toApiWalletDelegation W.WalletDelegation{active,next} ti = do
 postSharedWallet
     :: forall ctx s k n.
         ( s ~ SharedState n k
+        , k ~ SharedKey
         , ctx ~ ApiLayer s k 'ScriptK
-        , SoftDerivation k
-        , MkKeyFingerprint k (Proxy n, k 'AddressK XPub) --TODO ADP-1850
-        , MkKeyFingerprint k Address
+        , Shared.SupportsDiscovery n k
         , WalletKey k
         , HasDBFactory s k ctx
         , HasWorkerRegistry s k ctx
-        , Typeable n
-        , k ~ SharedKey
         )
     => ctx
     -> ((SomeMnemonic, Maybe SomeMnemonic) -> Passphrase "encryption" -> k 'RootK XPrv)
@@ -1031,15 +1028,12 @@ postSharedWallet ctx generateKey liftKey postData =
 postSharedWalletFromRootXPrv
     :: forall ctx s k n.
         ( s ~ SharedState n k
+        , k ~ SharedKey
         , ctx ~ ApiLayer s k 'ScriptK
-        , SoftDerivation k
-        , MkKeyFingerprint k (Proxy n, k 'AddressK XPub) --TODO ADP-1850
-        , MkKeyFingerprint k Address
+        , Shared.SupportsDiscovery n k
         , WalletKey k
         , HasDBFactory s k ctx
         , HasWorkerRegistry s k ctx
-        , Typeable n
-        , k ~ SharedKey
         )
     => ctx
     -> ((SomeMnemonic, Maybe SomeMnemonic) -> Passphrase "encryption" -> k 'RootK XPrv)
@@ -1077,15 +1071,12 @@ postSharedWalletFromRootXPrv ctx generateKey body = do
 postSharedWalletFromAccountXPub
     :: forall ctx s k n.
         ( s ~ SharedState n k
+        , k ~ SharedKey
         , ctx ~ ApiLayer s k 'ScriptK
-        , SoftDerivation k
-        , MkKeyFingerprint k (Proxy n, k 'AddressK XPub) --TODO 1850
-        , MkKeyFingerprint k Address
+        , Shared.SupportsDiscovery n k
         , WalletKey k
         , HasDBFactory s k ctx
         , HasWorkerRegistry s k ctx
-        , Typeable n
-        , k ~ SharedKey
         )
     => ctx
     -> (XPub -> k 'AccountK XPub)
@@ -1182,14 +1173,11 @@ mkSharedWallet ctx wid cp meta pending progress = case Shared.ready st of
 patchSharedWallet
     :: forall ctx s k n.
         ( s ~ SharedState n k
+        , k ~ SharedKey
         , ctx ~ ApiLayer s k 'ScriptK
-        , SoftDerivation k
-        , MkKeyFingerprint k (Proxy n, k 'AddressK XPub) --TODO 1850
-        , MkKeyFingerprint k Address
+        , Shared.SupportsDiscovery n k
         , WalletKey k
         , HasDBFactory s k ctx
-        , Typeable n
-        , k ~ SharedKey
         )
     => ctx
     -> (XPub -> k 'AccountK XPub)
@@ -1354,7 +1342,7 @@ postIcarusWallet
         , s ~ SeqState n k
         , k ~ IcarusKey
         , HasWorkerRegistry s k ctx
-        , PaymentAddress n IcarusKey
+        , PaymentAddress n IcarusKey 'AddressK
         , Typeable n
         )
     => ctx
@@ -1377,7 +1365,7 @@ postTrezorWallet
         , s ~ SeqState n k
         , k ~ IcarusKey
         , HasWorkerRegistry s k ctx
-        , PaymentAddress n IcarusKey
+        , PaymentAddress n IcarusKey 'AddressK
         , Typeable n
         )
     => ctx
@@ -1400,7 +1388,7 @@ postLedgerWallet
         , s ~ SeqState n k
         , k ~ IcarusKey
         , HasWorkerRegistry s k ctx
-        , PaymentAddress n IcarusKey
+        , PaymentAddress n IcarusKey 'AddressK
         , Typeable n
         )
     => ctx
@@ -1726,7 +1714,7 @@ selectCoinsForJoin
     :: forall ctx s n k.
         ( s ~ SeqState n k
         , ctx ~ ApiLayer s k 'AddressK
-        , DelegationAddress n k
+        , DelegationAddress n k 'AddressK
         , MkKeyFingerprint k (Proxy n, k 'AddressK XPub)
         , SoftDerivation k
         , Typeable n
@@ -1785,7 +1773,7 @@ selectCoinsForQuit
     :: forall ctx s n k.
         ( s ~ SeqState n k
         , ctx ~ ApiLayer s k 'AddressK
-        , DelegationAddress n k
+        , DelegationAddress n k 'AddressK
         , MkKeyFingerprint k (Proxy n, k 'AddressK XPub)
         , Bounded (Index (AddressIndexDerivationType k) 'AddressK)
         , SoftDerivation k
@@ -1918,7 +1906,7 @@ postRandomAddress
         ( s ~ RndState n
         , k ~ ByronKey
         , ctx ~ ApiLayer s k 'AddressK
-        , PaymentAddress n ByronKey
+        , PaymentAddress n ByronKey 'AddressK
         )
     => ctx
     -> ApiT WalletId
@@ -3195,7 +3183,7 @@ joinStakePool
         ( ctx ~ ApiLayer s k 'AddressK
         , s ~ SeqState n k
         , AddressIndexDerivationType k ~ 'Soft
-        , DelegationAddress n k
+        , DelegationAddress n k 'AddressK
         , GenChange s
         , IsOwned s k 'AddressK
         , SoftDerivation k
@@ -3335,7 +3323,7 @@ quitStakePool
         ( ctx ~ ApiLayer s k 'AddressK
         , s ~ SeqState n k
         , AddressIndexDerivationType k ~ 'Soft
-        , DelegationAddress n k
+        , DelegationAddress n k 'AddressK
         , GenChange s
         , HasNetworkLayer IO ctx
         , IsOwned s k 'AddressK

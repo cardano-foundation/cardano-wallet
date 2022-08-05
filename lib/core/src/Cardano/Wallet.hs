@@ -794,7 +794,7 @@ createIcarusWallet
     :: forall ctx s k n.
         ( HasGenesisData ctx
         , HasDBLayer IO s k ctx
-        , PaymentAddress n k
+        , PaymentAddress n k 'AddressK
         , k ~ IcarusKey
         , s ~ SeqState n k
         , Typeable n
@@ -1467,7 +1467,7 @@ listAddresses ctx wid normalize = db & \DBLayer{..} -> do
 createRandomAddress
     :: forall ctx s k n.
         ( HasDBLayer IO s k ctx
-        , PaymentAddress n k
+        , PaymentAddress n k 'AddressK
         , RndStateLike s
         , k ~ ByronKey
         , AddressBookIso s
@@ -1537,7 +1537,7 @@ importRandomAddresses ctx wid addrs = db & \DBLayer{..} ->
 -- to make sure that we compare them correctly.
 normalizeDelegationAddress
     :: forall s k n.
-        ( DelegationAddress n k
+        ( DelegationAddress n k 'AddressK
         , s ~ SeqState n k
         )
     => s
@@ -3518,13 +3518,10 @@ guardHardIndex ix =
 updateCosigner
     :: forall ctx s k n.
         ( s ~ SharedState n k
---        , MkKeyFingerprint k (Proxy n, k 'AddressK CC.XPub)
-        , MkKeyFingerprint k Address
-        , SoftDerivation k
-        , Typeable n
+        , k ~ SharedKey
+        , Shared.SupportsDiscovery n k
         , WalletKey k
         , HasDBLayer IO s k ctx
-        , k ~ SharedKey
         )
     => ctx
     -> WalletId

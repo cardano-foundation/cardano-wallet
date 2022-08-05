@@ -231,9 +231,9 @@ import qualified Data.Text as T
 
 server
     :: forall n.
-        ( PaymentAddress n IcarusKey
-        , PaymentAddress n ByronKey
-        , DelegationAddress n ShelleyKey
+        ( PaymentAddress n IcarusKey 'AddressK
+        , PaymentAddress n ByronKey 'AddressK
+        , DelegationAddress n ShelleyKey 'AddressK
         , Typeable n
         , HasNetworkId n
         )

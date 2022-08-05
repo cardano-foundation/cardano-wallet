@@ -307,7 +307,7 @@ instance SoftDerivation StakeKey' where
 instance MkKeyFingerprint StakeKey' Address where
     paymentKeyFingerprint (Address addr) = Right $ KeyFingerprint $ B8.drop 4 addr
 
-instance PaymentAddress 'Mainnet StakeKey' where
+instance PaymentAddress 'Mainnet StakeKey' 'AddressK where
     liftPaymentAddress (KeyFingerprint fp) = Address fp
     paymentAddress k = Address $ "addr" <> unRewardAccount (toRewardAccount k)
 
@@ -465,7 +465,8 @@ stepCmd CmdOldWalletToggleFirstKey env =
             in tryApplyTx tx env
 stepCmd (CmdMimicPointerOutput (RewardAccount acc)) env =
             let
-                addr = liftPaymentAddress @'Mainnet @StakeKey' $ KeyFingerprint acc
+                addr = liftPaymentAddress @'Mainnet @StakeKey' @'AddressK $
+                    KeyFingerprint acc
                 c = Coin 1
                 out = TxOut addr (TB.fromCoin c)
                 tx = Tx [] [] [out]

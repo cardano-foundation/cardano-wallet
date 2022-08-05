@@ -44,7 +44,7 @@ import Cardano.Wallet.Api.Types
 import Cardano.Wallet.Api.Types.SchemaMetadata
     ( detailedMetadata )
 import Cardano.Wallet.Primitive.AddressDerivation
-    ( PaymentAddress )
+    ( Depth (..), PaymentAddress )
 import Cardano.Wallet.Primitive.AddressDerivation.Icarus
     ( IcarusKey )
 import Cardano.Wallet.Primitive.Types
@@ -194,7 +194,7 @@ spec :: forall n.
     ( DecodeAddress n
     , DecodeStakeAddress n
     , EncodeAddress n
-    , PaymentAddress n IcarusKey
+    , PaymentAddress n IcarusKey 'AddressK
     ) => SpecWith Context
 spec = describe "SHELLEY_TRANSACTIONS" $ do
 

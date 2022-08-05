@@ -181,7 +181,7 @@ instance MkKeyFingerprint SharedKey Address where
     paymentKeyFingerprint (Address bytes) =
         Right $ KeyFingerprint $ BS.take hashSize $ BS.drop 1 bytes
 
-instance MkKeyFingerprint SharedKey (Proxy (n :: NetworkDiscriminant), SharedKey 'AddressK XPub) where
+instance MkKeyFingerprint SharedKey (Proxy (n :: NetworkDiscriminant), SharedKey 'ScriptK XPub) where
     paymentKeyFingerprint (_, paymentK) =
         Right $ KeyFingerprint $ blake2b224 $ xpubPublicKey $ getKey paymentK
 

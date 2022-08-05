@@ -296,9 +296,9 @@ serveWallet
 
     startServer
         :: forall n.
-            ( PaymentAddress n IcarusKey
-            , PaymentAddress n ByronKey
-            , DelegationAddress n ShelleyKey
+            ( PaymentAddress n IcarusKey 'AddressK
+            , PaymentAddress n ByronKey 'AddressK
+            , DelegationAddress n ShelleyKey 'AddressK
             , DecodeAddress n
             , EncodeAddress n
             , EncodeStakeAddress n

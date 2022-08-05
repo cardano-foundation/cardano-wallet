@@ -267,7 +267,7 @@ newtype ErrImportAddress
     = ErrAddrDoesNotBelong Address
     deriving (Generic, Eq, Show)
 
-instance PaymentAddress n ByronKey => GenChange (RndState n) where
+instance PaymentAddress n ByronKey 'AddressK => GenChange (RndState n) where
     type ArgGenChange (RndState n) = (ByronKey 'RootK XPrv, Passphrase "encryption")
     genChange (rootXPrv, pwd) st = (address, st')
       where
@@ -319,7 +319,7 @@ deriveAddressKeyFromPath rootXPrv passphrase (accIx, addrIx) = addrXPrv
 
 -- | Use the key material in 'RndState' to derive a change address.
 deriveRndStateAddress
-    :: forall n. (PaymentAddress n ByronKey)
+    :: forall n. (PaymentAddress n ByronKey 'AddressK)
     => ByronKey 'RootK XPrv
     -> Passphrase "encryption"
     -> DerivationPath
@@ -443,7 +443,7 @@ instance IsOurs (RndAnyState n p) RewardAccount where
 instance KnownNat p => IsOwned (RndAnyState n p) ByronKey 'AddressK where
     isOwned _ _ _ = Nothing
 
-instance PaymentAddress n ByronKey => GenChange (RndAnyState n p) where
+instance PaymentAddress n ByronKey 'AddressK => GenChange (RndAnyState n p) where
     type ArgGenChange (RndAnyState n p) = ArgGenChange (RndState n)
     genChange a (RndAnyState s) = RndAnyState <$> genChange a s
 

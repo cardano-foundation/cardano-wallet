@@ -84,6 +84,7 @@ import Cardano.Wallet.Primitive.AddressDerivation
     , SoftDerivation
     , WalletKey (..)
     , roleVal
+    , unsafePaymentKeyFingerprint
     , utxoExternal
     , utxoInternal
     )
@@ -109,7 +110,7 @@ import Cardano.Wallet.Primitive.AddressDiscovery
     , pendingIxsToList
     )
 import Cardano.Wallet.Primitive.AddressDiscovery.Sequential
-    ( AddressPoolGap (..), unsafePaymentKeyFingerprint )
+    ( AddressPoolGap (..) )
 import Cardano.Wallet.Primitive.Passphrase
     ( Passphrase )
 import Cardano.Wallet.Primitive.Types.Address
@@ -158,7 +159,7 @@ import qualified Data.Text.Encoding as T
 
 -- | Convenient alias for commonly used class contexts on keys.
 type SupportsDiscovery (n :: NetworkDiscriminant) k =
-    ( MkKeyFingerprint k (Proxy n, k 'AddressK XPub)
+    ( MkKeyFingerprint k (Proxy n, k 'ScriptK XPub)
     , MkKeyFingerprint k Address
     , SoftDerivation k
     , Typeable n

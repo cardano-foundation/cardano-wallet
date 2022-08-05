@@ -275,7 +275,7 @@ instance WalletKey ShelleyKey where
 instance GetPurpose ShelleyKey where
     getPurpose = purposeCIP1852
 
-instance PaymentAddress 'Mainnet ShelleyKey where
+instance PaymentAddress 'Mainnet ShelleyKey 'AddressK where
     paymentAddress paymentK = do
         Address $ BL.toStrict $ runPut $ do
             putWord8 (enterprise + networkId)
@@ -292,7 +292,7 @@ instance PaymentAddress 'Mainnet ShelleyKey where
         enterprise = 96
         networkId = 1
 
-instance PaymentAddress ('Testnet pm) ShelleyKey where
+instance PaymentAddress ('Testnet pm) ShelleyKey 'AddressK where
     paymentAddress paymentK =
         Address $ BL.toStrict $ runPut $ do
             putWord8 (enterprise + networkId)
@@ -309,7 +309,7 @@ instance PaymentAddress ('Testnet pm) ShelleyKey where
         enterprise = 96
         networkId = 0
 
-instance DelegationAddress 'Mainnet ShelleyKey where
+instance DelegationAddress 'Mainnet ShelleyKey 'AddressK where
     delegationAddress paymentK stakingK =
         Address $ BL.toStrict $ runPut $ do
             putWord8 (base + networkId)
@@ -328,7 +328,7 @@ instance DelegationAddress 'Mainnet ShelleyKey where
         base = 0
         networkId = 1
 
-instance DelegationAddress ('Testnet pm) ShelleyKey where
+instance DelegationAddress ('Testnet pm) ShelleyKey 'AddressK where
     delegationAddress paymentK stakingK =
         Address $ BL.toStrict $ runPut $ do
             putWord8 (base + networkId)
@@ -402,7 +402,7 @@ instance ToRewardAccount ShelleyKey where
 toRewardAccountRaw :: XPub -> RewardAccount
 toRewardAccountRaw = RewardAccount . blake2b224 . xpubPublicKey
 
-instance DelegationAddress n ShelleyKey
+instance DelegationAddress n ShelleyKey 'AddressK
     => MaybeLight (SeqState n ShelleyKey)
   where
     maybeDiscover = Just $ DiscoverTxs discoverSeqWithRewards

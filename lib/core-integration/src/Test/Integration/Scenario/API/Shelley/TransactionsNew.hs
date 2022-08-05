@@ -74,7 +74,8 @@ import Cardano.Wallet.Api.Types
     , fromApiEra
     )
 import Cardano.Wallet.Primitive.AddressDerivation
-    ( DerivationIndex (..)
+    ( Depth (..)
+    , DerivationIndex (..)
     , HardDerivation (..)
     , PaymentAddress (..)
     , Role (..)
@@ -243,7 +244,7 @@ spec :: forall n.
     , DecodeStakeAddress n
     , EncodeStakeAddress n
     , EncodeAddress n
-    , PaymentAddress n IcarusKey
+    , PaymentAddress n IcarusKey 'AddressK
     ) => SpecWith Context
 spec = describe "NEW_SHELLEY_TRANSACTIONS" $ do
     it "TRANS_NEW_CREATE_01a - Empty payload is not allowed" $ \ctx -> runResourceT $ do

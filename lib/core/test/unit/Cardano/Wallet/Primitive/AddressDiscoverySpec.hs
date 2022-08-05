@@ -81,7 +81,7 @@ spec = do
 -------------------------------------------------------------------------------}
 
 prop_derivedKeysAreOurs
-    :: forall (n :: NetworkDiscriminant). (PaymentAddress n ByronKey)
+    :: forall (n :: NetworkDiscriminant). (PaymentAddress n ByronKey 'AddressK)
     => SomeMnemonic
     -> Passphrase "encryption"
     -> Index 'WholeDomain 'AccountK
@@ -95,7 +95,7 @@ prop_derivedKeysAreOurs seed encPwd accIx addrIx rk' =
     fst' (a,_,_) = a
     (resPos, stPos') = isOurs addr (mkRndState @n rootXPrv 0)
     (resNeg, stNeg') = isOurs addr (mkRndState @n rk' 0)
-    key = publicKey $ unsafeGenerateKeyFromSeed (accIx, addrIx) seed encPwd
+    key = publicKey $ unsafeGenerateKeyFromSeed @'AddressK (accIx, addrIx) seed encPwd
     rootXPrv = generateKeyFromSeed seed encPwd
     addr = paymentAddress @n key
 

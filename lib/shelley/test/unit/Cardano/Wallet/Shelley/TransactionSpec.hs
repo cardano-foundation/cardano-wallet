@@ -707,7 +707,9 @@ instance Arbitrary a => Arbitrary (NonEmpty a) where
 keyToAddress :: (XPrv, Passphrase "encryption") -> Address
 keyToAddress (xprv, _pwd) =
     -- TODO, decrypt?
-    paymentAddress @'Mainnet . publicKey . liftRawKey @ShelleyKey $ xprv
+    paymentAddress @'Mainnet @ShelleyKey @'AddressK .
+    publicKey .
+    liftRawKey @ShelleyKey $ xprv
 
 utxoFromKeys
     :: [(XPrv, Passphrase "encryption")]

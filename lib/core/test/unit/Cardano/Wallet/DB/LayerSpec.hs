@@ -298,10 +298,10 @@ spec = parallel $ do
     manualMigrationsSpec
 
 stateMachineSpec
-    :: forall k s.
+    :: forall k s ktype.
         ( WalletKey k
         , PersistPrivateKey (k 'RootK)
-        , PaymentAddress 'Mainnet k
+        , PaymentAddress 'Mainnet k ktype
         , PersistAddressBook s
         , TestConstraints s k
         , Typeable s
@@ -314,11 +314,11 @@ stateMachineSpec = describe ("State machine test (" ++ showState @s ++ ")") $ do
     xit "Parallel" $ prop_parallel newDB
 
 stateMachineSpecSeq, stateMachineSpecRnd, stateMachineSpecShared :: Spec
-stateMachineSpecSeq = stateMachineSpec @ShelleyKey @(SeqState 'Mainnet ShelleyKey)
-stateMachineSpecRnd = stateMachineSpec @ByronKey @(RndState 'Mainnet)
-stateMachineSpecShared = stateMachineSpec @SharedKey @(SharedState 'Mainnet SharedKey)
+stateMachineSpecSeq = stateMachineSpec @ShelleyKey @(SeqState 'Mainnet ShelleyKey) @'AddressK
+stateMachineSpecRnd = stateMachineSpec @ByronKey @(RndState 'Mainnet) @'AddressK
+stateMachineSpecShared = stateMachineSpec @SharedKey @(SharedState 'Mainnet SharedKey) @'ScriptK
 
-instance PaymentAddress 'Mainnet SharedKey where
+instance PaymentAddress 'Mainnet SharedKey 'ScriptK where
     paymentAddress _ = error "does not make sense for SharedKey but want to use stateMachineSpec"
     liftPaymentAddress _ = error "does not make sense for SharedKey but want to use stateMachineSpec"
 
@@ -1105,7 +1105,7 @@ testMigrationTxMetaFee
         , WalletKey k
         , PersistAddressBook s
         , PersistPrivateKey (k 'RootK)
-        , PaymentAddress 'Mainnet k
+        , PaymentAddress 'Mainnet k 'AddressK
         )
     => String
     -> Int
@@ -1162,7 +1162,7 @@ testMigrationCleanupCheckpoints
         , WalletKey k
         , PersistAddressBook s
         , PersistPrivateKey (k 'RootK)
-        , PaymentAddress 'Mainnet k
+        , PaymentAddress 'Mainnet k 'AddressK
         )
     => String
     -> GenesisParameters
@@ -1200,7 +1200,7 @@ testMigrationRole
         , WalletKey k
         , PersistAddressBook s
         , PersistPrivateKey (k 'RootK)
-        , PaymentAddress 'Mainnet k
+        , PaymentAddress 'Mainnet k 'AddressK
         , GetPurpose k
         , Show s
         )

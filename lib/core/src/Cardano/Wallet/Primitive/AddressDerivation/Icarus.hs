@@ -366,14 +366,14 @@ instance WalletKey IcarusKey where
 instance GetPurpose IcarusKey where
     getPurpose = purposeBIP44
 
-instance PaymentAddress 'Mainnet IcarusKey where
+instance PaymentAddress 'Mainnet IcarusKey 'AddressK where
     paymentAddress k = Address
         $ CBOR.toStrictByteString
         $ CBOR.encodeAddress (getKey k) []
     liftPaymentAddress (KeyFingerprint bytes) =
         Address bytes
 
-instance KnownNat pm => PaymentAddress ('Testnet pm) IcarusKey where
+instance KnownNat pm => PaymentAddress ('Testnet pm) IcarusKey 'AddressK where
     paymentAddress k = Address
         $ CBOR.toStrictByteString
         $ CBOR.encodeAddress (getKey k)
@@ -388,7 +388,7 @@ instance MkKeyFingerprint IcarusKey Address where
             Just _  -> Right $ KeyFingerprint bytes
             Nothing -> Left $ ErrInvalidAddress addr (Proxy @IcarusKey)
 
-instance PaymentAddress n IcarusKey
+instance PaymentAddress n IcarusKey 'AddressK
     => MkKeyFingerprint IcarusKey (Proxy (n :: NetworkDiscriminant), IcarusKey 'AddressK XPub)
   where
     paymentKeyFingerprint (proxy, k) =
@@ -402,7 +402,9 @@ instance PaymentAddress n IcarusKey
 instance IsOurs (SeqState n IcarusKey) RewardAccount where
     isOurs _account state = (Nothing, state)
 
-instance PaymentAddress n IcarusKey => MaybeLight (SeqState n IcarusKey) where
+instance PaymentAddress n IcarusKey 'AddressK =>
+    MaybeLight (SeqState n IcarusKey)
+  where
     maybeDiscover = Just $ DiscoverTxs discoverSeq
 
 instance BoundedAddressLength IcarusKey where

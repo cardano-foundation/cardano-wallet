@@ -36,7 +36,8 @@ import Cardano.Wallet.Api.Types
     , WalletStyle (..)
     )
 import Cardano.Wallet.Primitive.AddressDerivation
-    ( HardDerivation (..)
+    ( Depth (..)
+    , HardDerivation (..)
     , PaymentAddress
     , PersistPublicKey (..)
     , WalletKey (..)
@@ -104,7 +105,7 @@ spec :: forall n.
     ( DecodeAddress n
     , DecodeStakeAddress n
     , EncodeAddress n
-    , PaymentAddress n IcarusKey
+    , PaymentAddress n IcarusKey 'AddressK
     ) => SpecWith Context
 spec = describe "BYRON_HW_WALLETS" $ do
     it "HW_WALLETS_01 - Restoration from account public key preserves funds" $ \ctx -> runResourceT $ do

@@ -198,28 +198,28 @@ spec = do
 
     describe "Shelley Addresses" $ do
         prop "(Mainnet) can be deserialised by shelley ledger spec" $ \k -> do
-            let Address addr = paymentAddress @'Mainnet @ShelleyKey k
+            let Address addr = paymentAddress @'Mainnet @ShelleyKey @'AddressK k
             case SL.deserialiseAddr @StandardCrypto addr of
                 Just _ -> property True
                 Nothing -> property False
 
         prop "Shelley addresses from bech32" $ \k ->
-            let addr@(Address bytes) = paymentAddress @'Mainnet @ShelleyKey k
+            let addr@(Address bytes) = paymentAddress @'Mainnet @ShelleyKey @'AddressK k
             in  decodeAddress @'Mainnet (bech32 bytes) === Right addr
                     & counterexample (show $ bech32 bytes)
 
         prop "Shelley addresses with delegation from bech32" $ \k1 k2 ->
-            let addr@(Address bytes) = delegationAddress @'Mainnet @ShelleyKey k1 k2
+            let addr@(Address bytes) = delegationAddress @'Mainnet @ShelleyKey @'AddressK k1 k2
             in  decodeAddress @'Mainnet (bech32 bytes) === Right addr
                     & counterexample (show $ bech32 bytes)
 
         prop "Shelley addresses from bech32 - testnet" $ \k ->
-            let addr@(Address raw) = paymentAddress @('Testnet 0) @ShelleyKey k
+            let addr@(Address raw) = paymentAddress @('Testnet 0) @ShelleyKey @'AddressK k
             in  decodeAddress @('Testnet 0) (bech32testnet raw) === Right addr
                    & counterexample (show $ bech32testnet raw)
 
         prop "Byron addresses from base58" $ \k ->
-            let addr@(Address bytes) = paymentAddress @'Mainnet @ByronKey k
+            let addr@(Address bytes) = paymentAddress @'Mainnet @ByronKey @'AddressK k
             in  decodeAddress @'Mainnet (base58 bytes) === Right addr
                     & counterexample (show $ base58 bytes)
 

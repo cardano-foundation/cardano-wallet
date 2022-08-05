@@ -157,7 +157,7 @@ instance WalletKey ByronKey where
     liftRawKey = error "not supported"
     keyTypeDescriptor _ = "rnd"
 
-instance KnownNat pm => PaymentAddress ('Testnet pm) ByronKey where
+instance KnownNat pm => PaymentAddress ('Testnet pm) ByronKey 'AddressK where
     paymentAddress k = Address
         $ CBOR.toStrictByteString
         $ CBOR.encodeAddress (getKey k)
@@ -170,7 +170,7 @@ instance KnownNat pm => PaymentAddress ('Testnet pm) ByronKey where
     liftPaymentAddress (KeyFingerprint bytes) =
         Address bytes
 
-instance PaymentAddress 'Mainnet ByronKey where
+instance PaymentAddress 'Mainnet ByronKey 'AddressK where
     paymentAddress k = Address
         $ CBOR.toStrictByteString
         $ CBOR.encodeAddress (getKey k)

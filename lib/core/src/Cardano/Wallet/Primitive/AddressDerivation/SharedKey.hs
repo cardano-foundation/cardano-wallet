@@ -81,7 +81,7 @@ purposeCIP1854 = toEnum 0x8000073E
 -- @
 -- let rootPrivateKey = SharedKey 'RootK XPrv
 -- let accountPubKey = SharedKey 'AccountK XPub
--- let addressPubKey = SharedKey 'AddressK XPub
+-- let addressPubKey = SharedKey 'ScriptK XPub
 -- @
 newtype SharedKey (depth :: Depth) key =
     SharedKey { getKey :: key }
