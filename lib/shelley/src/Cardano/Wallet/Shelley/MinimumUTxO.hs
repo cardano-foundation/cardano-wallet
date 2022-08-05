@@ -58,7 +58,7 @@ computeMinimumCoinForUTxO = \case
     MinimumUTxOConstant c ->
         \_addr _tokenMap -> c
     MinimumUTxOForShelleyBasedEraOf minUTxO ->
-        computeMinimumCoinForShelleyBasedEra minUTxO
+        computeMinimumCoinForUTxOShelleyBasedEra minUTxO
 
 -- | Computes a minimum 'Coin' value for a 'TokenMap' that is destined for
 --   inclusion in a transaction output.
@@ -67,13 +67,13 @@ computeMinimumCoinForUTxO = \case
 -- Importantly, a value that is valid in one era will not necessarily be valid
 -- in another era.
 --
-computeMinimumCoinForShelleyBasedEra
+computeMinimumCoinForUTxOShelleyBasedEra
     :: HasCallStack
     => MinimumUTxOForShelleyBasedEra
     -> Address
     -> TokenMap
     -> Coin
-computeMinimumCoinForShelleyBasedEra
+computeMinimumCoinForUTxOShelleyBasedEra
     (MinimumUTxOForShelleyBasedEra era pp) addr tokenMap =
         unsafeCoinFromCardanoApiCalculateMinimumUTxOResult $
         Cardano.calculateMinimumUTxO era
