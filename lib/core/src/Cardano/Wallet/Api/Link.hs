@@ -102,7 +102,7 @@ module Cardano.Wallet.Api.Link
     , getNetworkParams
     , getNetworkClock
     , getNetworkClock'
-
+    , getBlocksLatestHeader
       -- * Proxy
     , postExternalTransaction
 
@@ -918,6 +918,14 @@ patchSharedWallet w cred =
             endpoint @Api.PatchSharedWalletInDelegation (wid &)
   where
     wid = w ^. typed @(ApiT WalletId)
+
+--
+-- Node
+--
+
+getBlocksLatestHeader :: (Method, Text)
+getBlocksLatestHeader = endpoint @Api.GetBlocksLatestHeader id
+
 
 --
 -- Internals

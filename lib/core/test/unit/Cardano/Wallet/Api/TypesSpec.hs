@@ -203,6 +203,8 @@ import Cardano.Wallet.Api.Types
     , WalletPutPassphraseOldPassphraseData (..)
     , toApiAsset
     )
+import Cardano.Wallet.Api.Types.BlockHeader
+    ( ApiBlockHeader )
 import Cardano.Wallet.Api.Types.SchemaMetadata
     ( TxMetadataSchema (..), TxMetadataWithSchema (..) )
 import Cardano.Wallet.Gen
@@ -2725,7 +2727,10 @@ instance Arbitrary TxStatus where
     shrink = genericShrink
 
 instance Arbitrary (Quantity "block" Natural) where
-    arbitrary = fmap (Quantity . fromIntegral) (arbitrary @Word32)
+    arbitrary = Quantity . fromIntegral <$> arbitrary @Word32
+
+instance Arbitrary (Quantity "slot" Word64) where
+    arbitrary = Quantity <$> arbitrary @Word64
 
 instance Arbitrary ApiPostRandomAddressData where
     arbitrary = genericArbitrary
@@ -2802,6 +2807,12 @@ instance Arbitrary ApiNullStakeKey where
     arbitrary = genericArbitrary
     shrink = genericShrink
 
+instance Arbitrary (Hash "BlockHeader") where
+    arbitrary = Hash . B8.pack <$> replicateM 32 arbitrary
+
+instance Arbitrary ApiBlockHeader where
+    arbitrary = genericArbitrary
+    shrink = genericShrink
 {-------------------------------------------------------------------------------
                    Specification / Servant-Swagger Machinery
 
@@ -3180,6 +3191,9 @@ instance Typeable n => ToSchema (ApiDecodedTransaction n) where
         addDefinition =<< declareSchemaForDefinition "TransactionMetadataValueNoSchema"
         addDefinition =<< declareSchemaForDefinition "ScriptValue"
         declareSchemaForDefinition "ApiDecodedTransaction"
+
+instance ToSchema ApiBlockHeader where
+    declareNamedSchema _ = declareSchemaForDefinition "ApiBlockHeader"
 
 -- | Utility function to provide an ad-hoc 'ToSchema' instance for a definition:
 -- we simply look it up within the Swagger specification.

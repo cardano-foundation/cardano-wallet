@@ -266,6 +266,7 @@ server byron icarus shelley multisig spl ntp blockchainSource =
     :<|> sharedWalletKeys multisig
     :<|> sharedAddresses multisig
     :<|> sharedTransactions multisig
+    :<|> error "not implemented"
   where
     wallets :: Server Wallets
     wallets = deleteWallet shelley
