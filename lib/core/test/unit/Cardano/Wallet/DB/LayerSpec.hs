@@ -561,7 +561,6 @@ fileModeSpec =  do
                             mempty
                     let (FilteredBlock{transactions=txs}, (_,cpB)) =
                             applyBlock fakeBlock cpA
-                    print $ utxo cpB
                     atomically $ do
                         unsafeRunExceptT $ putCheckpoint testWid cpB
                         unsafeRunExceptT $ putTxHistory testWid txs
