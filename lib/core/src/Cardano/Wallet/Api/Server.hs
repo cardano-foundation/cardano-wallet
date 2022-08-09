@@ -303,6 +303,7 @@ import Cardano.Wallet.Api.Types
     , ApiWalletMigrationPlan (..)
     , ApiWalletMigrationPlanPostData (..)
     , ApiWalletMigrationPostData (..)
+    , ApiWalletMode (..)
     , ApiWalletOutput (..)
     , ApiWalletPassphrase (..)
     , ApiWalletPassphraseInfo (..)
@@ -3695,13 +3696,16 @@ getNetworkInformation
     :: HasCallStack
     => NetworkId
     -> NetworkLayer IO Block
+    -> ApiWalletMode
     -> Handler ApiNetworkInformation
-getNetworkInformation nid NetworkLayer
-    { syncProgress
-    , currentNodeTip
-    , currentNodeEra
-    , timeInterpreter
-    } = liftIO $ do
+getNetworkInformation nid
+    NetworkLayer
+        { syncProgress
+        , currentNodeTip
+        , currentNodeEra
+        , timeInterpreter
+        }
+    mode = liftIO $ do
         now <- currentRelativeTime ti
         nodeTip <- currentNodeTip
         nodeEra <- currentNodeEra
@@ -3723,6 +3727,7 @@ getNetworkInformation nid NetworkLayer
                         Cardano.Testnet _ -> "testnet"
                     )
                     (fromIntegral $ unNetworkMagic $ toNetworkMagic nid)
+            , Api.walletMode = mode
             }
   where
     ti :: TimeInterpreter (MaybeT IO)
