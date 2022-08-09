@@ -2159,6 +2159,7 @@ components:
         - node_tip
         - node_era
         - network_info
+        - wallet_mode
       properties:
         sync_progress: *networkInformationSyncProgress
         node_tip: *networkInformationNodeTip
@@ -2166,6 +2167,11 @@ components:
         next_epoch: *epochInfo
         node_era: *ApiEra
         network_info: *NetworkInfo
+        wallet_mode: 
+          type: string
+          enum:
+            - light
+            - node
 
     ApiNetworkClock: &ApiNetworkClock
       <<: *networkInformationNtpStatus
