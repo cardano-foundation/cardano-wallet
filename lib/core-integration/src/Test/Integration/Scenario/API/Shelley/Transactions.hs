@@ -197,96 +197,103 @@ spec :: forall n.
     , PaymentAddress n IcarusKey
     ) => SpecWith Context
 spec = describe "SHELLEY_TRANSACTIONS" $ do
-    it "TRANS_MIN_UTXO_01 - I cannot spend less than minUTxOValue" $ \ctx -> runResourceT $ do
-      wSrc <- fixtureWallet ctx
-      wDest <- emptyWallet ctx
 
-      let amt = minUTxOValue (_mainEra ctx) - 1
-      addrs <- listAddresses @n ctx wDest
-      let destination = (addrs !! 1) ^. #id
-      let payload = Json [json|{
-              "payments": [{
-                  "address": #{destination},
-                  "amount": {
-                      "quantity": #{amt},
-                      "unit": "lovelace"
-                  }
-              }],
-              "passphrase": #{fixturePassphrase}
-          }|]
+    it "TRANS_MIN_UTXO_01 - I cannot spend less than minUTxOValue" $
+        \ctx -> runResourceT $ do
 
-      let ep = Link.createTransactionOld @'Shelley
-      r <- request @(ApiTransaction n) ctx (ep wSrc) Default payload
-      expectResponseCode HTTP.status403 r
-      expectErrorMessage errMsg403MinUTxOValue r
+        wSrc <- fixtureWallet ctx
+        wDest <- emptyWallet ctx
 
-    it "TRANS_MIN_UTXO_BABBAGE_PRECISION - \
-        \I can spend exactly minUTxOValue" $ \ctx -> runResourceT $ do
-      -- Coin-selection will out of caution overestimate the size of the ada
-      -- quantity in its calculation when assigning a new minUTxOValue. In
-      -- practice, this would always be an overestimation of 0.017240 ada (see
-      -- calculation below). This tests checks that that the wallet also doesn't
-      -- validate user-provided values based on the overestimation: we want
-      -- all ada values allowed by the ledger to also be allowed by the wallet.
-      wSrc <- fixtureWallet ctx
-      wDest <- emptyWallet ctx
+        let amt = minUTxOValue (_mainEra ctx) - 1
+        addrs <- listAddresses @n ctx wDest
+        let destination = (addrs !! 1) ^. #id
+        let payload = Json [json|{
+                "payments": [{
+                    "address": #{destination},
+                    "amount": {
+                        "quantity": #{amt},
+                        "unit": "lovelace"
+                    }
+                }],
+                "passphrase": #{fixturePassphrase}
+            }|]
 
-      when (_mainEra ctx < ApiBabbage) $
-        liftIO $ pendingWith "only for the babbage era or later"
+        let ep = Link.createTransactionOld @'Shelley
+        r <- request @(ApiTransaction n) ctx (ep wSrc) Default payload
+        expectResponseCode HTTP.status403 r
+        expectErrorMessage errMsg403MinUTxOValue r
 
-      addrs <- listAddresses @n ctx wDest
-      let destination = (addrs !! 1) ^. #id
+    it "TRANS_MIN_UTXO_BABBAGE_PRECISION - I can spend exactly minUTxOValue" $
+        \ctx -> runResourceT $ do
 
-      let ep = Link.createTransactionOld @'Shelley
+        -- Coin selection will out of caution overestimate the size of the ada
+        -- quantity in its calculation when assigning a new minUTxOValue. In
+        -- practice, this would always be an overestimation of 0.017240 ada
+        -- (see calculation below). This tests checks that that the wallet also
+        -- doesn't validate user-provided values based on the overestimation:
+        -- we want all ada values allowed by the ledger to also be allowed by
+        -- the wallet.
+        wSrc <- fixtureWallet ctx
+        wDest <- emptyWallet ctx
 
-      minAda <-
-        counterexample "1. calculate the exact minUTxOValue (for address length)\
+        when (_mainEra ctx < ApiBabbage) $
+            liftIO $ pendingWith "only for the babbage era or later"
+
+        addrs <- listAddresses @n ctx wDest
+        let destination = (addrs !! 1) ^. #id
+
+        let ep = Link.createTransactionOld @'Shelley
+
+        minAda <- counterexample
+            "1. calculate the exact minUTxOValue (for address length)\
             \ and manually compensate for the overestimation" $ do
-          r <- request @(ApiTransaction n) ctx (ep wSrc) Default $
-                  Json [json|{
-                      "payments": [{
-                          "address": #{destination},
-                          "amount": {
-                              "quantity": 0,
-                              "unit": "lovelace"
-                          }
-                      }],
-                      "passphrase": #{fixturePassphrase}
-                  }|]
+            r <- request @(ApiTransaction n) ctx (ep wSrc) Default $
+                Json [json|{
+                    "payments": [{
+                        "address": #{destination},
+                        "amount": {
+                            "quantity": 0,
+                            "unit": "lovelace"
+                        }
+                    }],
+                    "passphrase": #{fixturePassphrase}
+                }|]
 
-          expectResponseCode HTTP.status202 r
-          let Quantity totalAmt = getFromResponse #amount r
-          let Quantity fee = getFromResponse #fee r
-          let lovelacePerUTxOWord = 4310
-          let overestimatedCoinBytes = 9 - 5
-          let overestimation = lovelacePerUTxOWord * overestimatedCoinBytes
-          return $ totalAmt - fee - overestimation
+            expectResponseCode HTTP.status202 r
+            let Quantity totalAmt = getFromResponse #amount r
+            let Quantity fee = getFromResponse #fee r
+            let lovelacePerUTxOWord = 4310
+            let overestimatedCoinBytes = 9 - 5
+            let overestimation = lovelacePerUTxOWord * overestimatedCoinBytes
+            return $ totalAmt - fee - overestimation
 
-      counterexample "2. paying minUTxOValue should succeed" $ do
-          r2 <- request @(ApiTransaction n) ctx (ep wSrc) Default $ Json [json|{
-                  "payments": [{
-                      "address": #{destination},
-                      "amount": {
-                          "quantity": #{minAda},
-                          "unit": "lovelace"
-                      }
-                  }],
-                  "passphrase": #{fixturePassphrase}
-              }|]
-          expectResponseCode HTTP.status202 r2
+        counterexample "2. paying minUTxOValue should succeed" $ do
+            r2 <- request @(ApiTransaction n) ctx (ep wSrc) Default $
+                Json [json|{
+                    "payments": [{
+                        "address": #{destination},
+                        "amount": {
+                            "quantity": #{minAda},
+                            "unit": "lovelace"
+                        }
+                    }],
+                    "passphrase": #{fixturePassphrase}
+                }|]
+            expectResponseCode HTTP.status202 r2
 
-      counterexample "3. paying (minUTxOValue - 1) should fail" $ do
-          r3 <- request @(ApiTransaction n) ctx (ep wSrc) Default $ Json [json|{
-                  "payments": [{
-                      "address": #{destination},
-                      "amount": {
-                          "quantity": #{minAda - 1},
-                          "unit": "lovelace"
-                      }
-                  }],
-                  "passphrase": #{fixturePassphrase}
-              }|]
-          expectResponseCode HTTP.status403 r3
+        counterexample "3. paying (minUTxOValue - 1) should fail" $ do
+            r3 <- request @(ApiTransaction n) ctx (ep wSrc) Default $
+                Json [json|{
+                    "payments": [{
+                        "address": #{destination},
+                        "amount": {
+                            "quantity": #{minAda - 1},
+                            "unit": "lovelace"
+                        }
+                    }],
+                    "passphrase": #{fixturePassphrase}
+                }|]
+            expectResponseCode HTTP.status403 r3
 
     it "Regression ADP-626 - Filtering transactions between eras" $ do
         \ctx -> runResourceT $ do
