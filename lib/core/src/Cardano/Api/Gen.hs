@@ -1022,6 +1022,7 @@ genProtocolParameters =
     <*> liftArbitrary genNat
     <*> liftArbitrary genNat
     <*> liftArbitrary genNat
+    <*> liftArbitrary genLovelace
 
 genProtocolParametersWithAlonzoScripts :: Gen ProtocolParameters
 genProtocolParametersWithAlonzoScripts =
@@ -1051,6 +1052,7 @@ genProtocolParametersWithAlonzoScripts =
     <*> (Just <$> genNat)
     <*> (Just <$> genNat)
     <*> (Just <$> genNat)
+    <*> (Just <$> genLovelace)
 
 genWitnessNetworkIdOrByronAddress :: Gen WitnessNetworkIdOrByronAddress
 genWitnessNetworkIdOrByronAddress =
@@ -1296,6 +1298,8 @@ genProtocolParametersUpdate = do
         liftArbitrary genNat
     protocolUpdateMaxCollateralInputs <-
         liftArbitrary genNat
+    protocolUpdateUTxOCostPerByte <-
+        liftArbitrary genLovelace
 
     pure $ ProtocolParametersUpdate
         { Api.protocolUpdateProtocolVersion
@@ -1323,6 +1327,7 @@ genProtocolParametersUpdate = do
         , Api.protocolUpdateMaxValueSize
         , Api.protocolUpdateCollateralPercent
         , Api.protocolUpdateMaxCollateralInputs
+        , Api.protocolUpdateUTxOCostPerByte
         }
 
 genUpdateProposal :: CardanoEra era -> Gen (TxUpdateProposal era)

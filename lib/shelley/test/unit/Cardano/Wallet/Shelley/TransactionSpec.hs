@@ -3855,6 +3855,7 @@ mockProtocolParametersForBalancing = (mockProtocolParameters, nodePParams)
             Just $ Cardano.ExecutionUnits 10000000000 14000000
         , Cardano.protocolParamCollateralPercent = Just 1
         , Cardano.protocolParamMaxCollateralInputs = Just 3
+        , Cardano.protocolParamUTxOCostPerByte = Just 4310
         }
     costModel = Cardano.CostModel
         . fromMaybe (error "Plutus.defaultCostModelParams")

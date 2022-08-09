@@ -965,6 +965,7 @@ fromBlockfrostPP network pp@BF.ProtocolParams{..} = do
                     , protocolParamCollateralPercent = Just collateralPercent
                     , protocolParamMaxCollateralInputs =
                         Just $ intCast maxCollateralInputs
+                    , protocolParamUTxOCostPerByte = Just 4310
                     }
         , .. }
   where
