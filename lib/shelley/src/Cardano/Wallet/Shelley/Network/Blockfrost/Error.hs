@@ -47,6 +47,8 @@ data BlockfrostError
     | InvalidAddress Text TextDecodingError
     | InvalidStakeAddress Text TextDecodingError
     | InvalidPoolId Text TextDecodingError
+    | InvalidTokenPolicyId Text TextDecodingError
+    | InvalidTokenName Text TextDecodingError
     | PoolStakePercentageError Coin Coin
     | InvalidDecentralizationLevelPercentage Double
     | InvalidPercentage Double MkPercentageError
