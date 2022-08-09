@@ -755,7 +755,9 @@ assembleTransaction
                                | BF.AssetAmount sd <- _utxoOutputAmount
                                ]
                 tokens <- for bfAssets \(textValue, a) -> do
-                    let (policy, name) = T.splitAt 56 textValue
+                    -- textValue is hex-encoded,
+                    -- the first 28 bytes are the policy script hash
+                    let (policy, name) = T.splitAt (2*28) textValue
                     policyId <-
                         first (InvalidTokenPolicyId policy) (fromText policy)
                     assetName <-
