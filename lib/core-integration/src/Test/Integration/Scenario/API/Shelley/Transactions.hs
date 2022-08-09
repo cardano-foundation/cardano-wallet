@@ -223,16 +223,16 @@ spec = describe "SHELLEY_TRANSACTIONS" $ do
         expectResponseCode HTTP.status403 r
         expectErrorMessage errMsg403MinUTxOValue r
 
-    it "TRANS_MIN_UTXO_BABBAGE_PRECISION - I can spend exactly minUTxOValue" $
+    it "TRANS_MIN_UTXO_BABBAGE_VALIDATION - I can spend exactly minUTxOValue" $
         \ctx -> runResourceT $ do
-
-        -- Coin selection will out of caution overestimate the size of the ada
-        -- quantity in its calculation when assigning a new minUTxOValue. In
-        -- practice, this would always be an overestimation of 0.017240 ada
-        -- (see calculation below). This tests checks that that the wallet also
-        -- doesn't validate user-provided values based on the overestimation:
-        -- we want all ada values allowed by the ledger to also be allowed by
-        -- the wallet.
+        -- Coin selection may, when itself /calculating and assigning/
+        -- minUTxOValue to an output, assign a value in excess of the actual
+        -- requirement. Currently (Aug 2022) the excess is in practice always
+        -- 0.017240 ada (c.f. calculation below).
+        --
+        -- This test checks that the excess is not required when /validating/
+        -- user-specified output ada quantities. We don't want the wallet's
+        -- validation to be stricter than the ledger's.
         wSrc <- fixtureWallet ctx
         wDest <- emptyWallet ctx
 
@@ -262,9 +262,9 @@ spec = describe "SHELLEY_TRANSACTIONS" $ do
             expectResponseCode HTTP.status202 r
             let Quantity totalAmt = getFromResponse #amount r
             let Quantity fee = getFromResponse #fee r
-            let lovelacePerUTxOWord = 4310
+            let lovelacePerUTxOByte = 4310
             let overestimatedCoinBytes = 9 - 5
-            let overestimation = lovelacePerUTxOWord * overestimatedCoinBytes
+            let overestimation = lovelacePerUTxOByte * overestimatedCoinBytes
             return $ totalAmt - fee - overestimation
 
         counterexample "2. paying minUTxOValue should succeed" $ do
