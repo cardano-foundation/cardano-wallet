@@ -149,6 +149,7 @@ import qualified Cardano.BM.Backend.EKGView as EKG
 import qualified Cardano.Pool.DB as Pool
 import qualified Cardano.Pool.DB.Sqlite as Pool
 import qualified Data.Text as T
+import qualified Test.Integration.Scenario.API.Blocks as Blocks
 import qualified Test.Integration.Scenario.API.Byron.Addresses as ByronAddresses
 import qualified Test.Integration.Scenario.API.Byron.CoinSelections as ByronCoinSelections
 import qualified Test.Integration.Scenario.API.Byron.HWWallets as ByronHWWallets
@@ -190,6 +191,7 @@ main = withTestsSetup $ \testDir tracers -> do
                 parallel $ do
                     Addresses.spec @n
                     CoinSelections.spec @n
+                    Blocks.spec
                     ByronAddresses.spec @n
                     ByronCoinSelections.spec @n
                     Wallets.spec @n
