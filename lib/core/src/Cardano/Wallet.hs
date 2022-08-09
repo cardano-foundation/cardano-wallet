@@ -2426,7 +2426,7 @@ signTransaction
   :: forall k ktype
    . ( WalletKey k
      , HardDerivation k
-     , Bounded (Index (AddressIndexDerivationType k) 'CredFromKeyK)
+     , Bounded (Index (AddressIndexDerivationType k) (AddressCredential k))
      )
   => TransactionLayer k ktype SealedTx
   -- ^ The way to interact with the wallet backend
@@ -3397,7 +3397,7 @@ derivePublicKey
     -> WalletId
     -> Role
     -> DerivationIndex
-    -> ExceptT ErrDerivePublicKey IO (k 'CredFromKeyK XPub)
+    -> ExceptT ErrDerivePublicKey IO (k (AddressCredential k) XPub)
 derivePublicKey ctx wid role_ ix = db & \DBLayer{..} -> do
     addrIx <- withExceptT ErrDerivePublicKeyInvalidIndex $ guardSoftIndex ix
 

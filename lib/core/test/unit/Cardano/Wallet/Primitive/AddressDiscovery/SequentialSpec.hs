@@ -61,6 +61,7 @@ import Cardano.Wallet.Primitive.AddressDiscovery.Sequential
     , MkAddressPoolGapError (..)
     , SeqAddressPool (..)
     , SeqState (..)
+    , SupportsDiscovery
     , coinTypeAda
     , defaultAddressPoolGap
     , mkAddressPoolGap
@@ -504,9 +505,7 @@ instance Arbitrary Address where
 
 instance
     ( Typeable c
-    , MkKeyFingerprint k (Proxy 'Mainnet, k 'CredFromKeyK XPub)
-    , MkKeyFingerprint k Address
-    , SoftDerivation k
+    , SupportsDiscovery 'Mainnet k
     , AddressPoolTest k
     , GetPurpose k
     , (k == SharedKey) ~ 'False

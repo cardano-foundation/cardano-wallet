@@ -161,6 +161,8 @@ import qualified Data.Text.Encoding as T
 type SupportsDiscovery (n :: NetworkDiscriminant) k =
     ( MkKeyFingerprint k (Proxy n, k 'CredFromScriptK XPub)
     , MkKeyFingerprint k Address
+    , AddressIndexDerivationType SharedKey ~ 'Soft
+    , AddressCredential k ~ 'CredFromScriptK
     , SoftDerivation k
     , Typeable n
     )
@@ -735,4 +737,10 @@ toSharedWalletId accXPub pTemplate dTemplateM =
 instance ( key ~ SharedKey
          , SupportsDiscovery n key ) =>
          IsOwned (SharedState n key) key 'CredFromScriptK where
-    isOwned _st (_rootPrv, _pwd) _addrRaw = undefined
+    isOwned st (rootPrv, pwd) addr = case isShared addr st of
+        (Just ix, _) ->
+            let DerivationPrefix (_,_,accIx) = derivationPrefix st
+                accXPrv = deriveAccountPrivateKey pwd rootPrv accIx
+            in Just ( deriveAddressPrivateKey pwd accXPrv UtxoExternal ix
+                    , pwd )
+        (Nothing, _) -> Nothing

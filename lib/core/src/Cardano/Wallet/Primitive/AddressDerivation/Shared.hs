@@ -110,6 +110,7 @@ unsafeGenerateKeyFromSeed mnemonics pwd =
 
 instance HardDerivation SharedKey where
     type AddressIndexDerivationType SharedKey = 'Soft
+    type AddressCredential SharedKey = 'CredFromScriptK
 
     deriveAccountPrivateKey pwd (SharedKey rootXPrv) ix =
         SharedKey $ deriveAccountPrivateKeyShelley purposeCIP1854 pwd rootXPrv ix

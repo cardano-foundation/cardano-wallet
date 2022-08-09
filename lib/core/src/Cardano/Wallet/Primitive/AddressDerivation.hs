@@ -485,6 +485,7 @@ data DerivationType = Hardened | Soft | WholeDomain
 -- | An interface for doing hard derivations from the root private key
 class HardDerivation (key :: Depth -> Type -> Type) where
     type AddressIndexDerivationType key :: DerivationType
+    type AddressCredential key :: Depth
 
     -- | Derives account private key from the given root private key, using
     -- derivation scheme 2 (see <https://github.com/input-output-hk/cardano-crypto/ cardano-crypto>
@@ -515,8 +516,8 @@ class HardDerivation (key :: Depth -> Type -> Type) where
         :: Passphrase "encryption"
         -> key 'AccountK XPrv
         -> Role
-        -> Index (AddressIndexDerivationType key) 'CredFromKeyK
-        -> key 'CredFromKeyK XPrv
+        -> Index (AddressIndexDerivationType key) (AddressCredential key)
+        -> key (AddressCredential key) XPrv
 
 -- | An interface for doing soft derivations from an account public key
 class HardDerivation key => SoftDerivation (key :: Depth -> Type -> Type) where
@@ -528,8 +529,8 @@ class HardDerivation key => SoftDerivation (key :: Depth -> Type -> Type) where
     deriveAddressPublicKey
         :: key 'AccountK XPub
         -> Role
-        -> Index 'Soft 'CredFromKeyK
-        -> key 'CredFromKeyK XPub
+        -> Index 'Soft (AddressCredential key)
+        -> key (AddressCredential key) XPub
 
 -- | Derivation of a reward account, as a type-class because different between
 -- key types (in particular, Jörmungandr vs Shelley).
@@ -542,19 +543,18 @@ class ToRewardAccount k where
 -- located into a special derivation path and uses the first index of that path.
 deriveRewardAccount
     :: ( HardDerivation k
-       , Bounded (Index (AddressIndexDerivationType k) 'CredFromKeyK)
-       )
+       , Bounded (Index (AddressIndexDerivationType k) (AddressCredential k)) )
     => Passphrase "encryption"
     -> k 'RootK XPrv
-    -> k 'CredFromKeyK XPrv
+    -> k (AddressCredential k) XPrv
 deriveRewardAccount pwd rootPrv =
     let accPrv = deriveAccountPrivateKey pwd rootPrv minBound
     in deriveAddressPrivateKey pwd accPrv MutableAccount minBound
 
 hashVerificationKey
-    :: WalletKey key
+    :: WalletKey k
     => KeyRole
-    -> key depth XPub
+    -> k depth XPub
     -> KeyHash
 hashVerificationKey keyRole =
     KeyHash keyRole . blake2b224 . xpubPublicKey . getRawKey

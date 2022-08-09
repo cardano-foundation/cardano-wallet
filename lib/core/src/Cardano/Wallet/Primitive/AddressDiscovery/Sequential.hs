@@ -37,9 +37,11 @@
 
 module Cardano.Wallet.Primitive.AddressDiscovery.Sequential
     (
+      SupportsDiscovery
+
     -- * Sequential Derivation
     -- ** Address Pool Gap
-      AddressPoolGap
+    , AddressPoolGap
     , MkAddressPoolGapError (..)
     , defaultAddressPoolGap
     , getAddressPoolGap
@@ -170,6 +172,7 @@ import qualified Data.Text.Encoding as T
 type SupportsDiscovery n k =
     ( MkKeyFingerprint k (Proxy n, k 'CredFromKeyK XPub)
     , MkKeyFingerprint k Address
+    , AddressCredential k ~ 'CredFromKeyK
     , SoftDerivation k
     , Typeable n
     )
@@ -519,7 +522,9 @@ instance SupportsDiscovery n k => IsOurs (SeqState n k) Address where
                 Just ix ->
                     (Just ix, SeqAddressPool $ AddressPool.update addr pool)
 
-instance SoftDerivation k => GenChange (SeqState n k) where
+instance
+    ( SoftDerivation k, AddressCredential k ~ 'CredFromKeyK
+    ) => GenChange (SeqState n k) where
     -- | We pick indexes in sequence from the first known available index (i.e.
     -- @length addrs - gap@) but we do not generate _new change addresses_. As a
     -- result, we can't generate more than @gap@ _pending_ change addresses and
@@ -762,7 +767,11 @@ instance
   where
     isOwned _ _ _ = Nothing
 
-instance SoftDerivation k => GenChange (SeqAnyState n k p) where
+instance
+    ( SoftDerivation k
+    , AddressCredential k ~ 'CredFromKeyK
+    ) => GenChange (SeqAnyState n k p)
+  where
     type ArgGenChange (SeqAnyState n k p) = ArgGenChange (SeqState n k)
     genChange a (SeqAnyState s) = SeqAnyState <$> genChange a s
 

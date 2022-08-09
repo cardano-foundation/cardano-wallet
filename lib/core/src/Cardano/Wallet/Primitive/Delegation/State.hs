@@ -43,6 +43,7 @@ import Cardano.Crypto.Wallet
 import Cardano.Wallet.Primitive.AddressDerivation
     ( Depth (..)
     , DerivationType (..)
+    , HardDerivation (..)
     , Index (..)
     , MkKeyFingerprint (paymentKeyFingerprint)
     , Role (..)
@@ -206,7 +207,7 @@ deriving instance
     ) => Eq (DelegationState k)
 
 keyAtIx
-    :: (SoftDerivation k)
+    :: (SoftDerivation k, AddressCredential k ~ 'CredFromKeyK)
     => DelegationState k
     -> Index 'Soft 'CredFromKeyK
     -> k 'CredFromKeyK XPub
@@ -291,7 +292,9 @@ data Cert
 --
 -- Returns @Nothing@ if the target @n@ is already reached.
 setPortfolioOf
-    :: (SoftDerivation k, ToRewardAccount k)
+    :: ( SoftDerivation k
+       , ToRewardAccount k
+       , AddressCredential k ~ 'CredFromKeyK)
     => DelegationState k
     -> Coin
         -- ^ minUTxOVal
@@ -373,7 +376,8 @@ applyTx
     :: forall k. ( SoftDerivation k
         , ToRewardAccount k
         , MkKeyFingerprint k Address
-        , MkKeyFingerprint k (k 'CredFromKeyK XPub))
+        , MkKeyFingerprint k (k 'CredFromKeyK XPub)
+        , AddressCredential k ~ 'CredFromKeyK )
     => Tx
     -> Hash "Tx"
     -> DelegationState k
@@ -463,7 +467,10 @@ applyTx (Tx cs _ins outs) h ds0 = foldl applyCert ds0 cs
 -- [0, 1]
 -- >>> presentableKeys s2
 -- [0, 1, 2]
-presentableKeys :: SoftDerivation k => DelegationState k -> [k 'CredFromKeyK XPub]
+presentableKeys
+    :: ( SoftDerivation k
+       , AddressCredential k ~ 'CredFromKeyK)
+    => DelegationState k -> [k 'CredFromKeyK XPub]
 presentableKeys s = case lastActiveIx s of
     Just i -> map (keyAtIx s) [minBound .. (succ i)]
     Nothing -> [keyAtIx s minBound]
@@ -484,13 +491,19 @@ presentableKeys s = case lastActiveIx s of
 -- Also note that old wallet software may unregister the first stake key 0
 -- despite stake key 1 being active. This doesn't affect `usableKeys`
 -- (it still includes key 0), as we view the state as incorrect and temporary.
-usableKeys :: SoftDerivation k => DelegationState k -> [k 'CredFromKeyK XPub]
+usableKeys
+    :: ( SoftDerivation k
+       , AddressCredential k ~ 'CredFromKeyK)
+    => DelegationState k -> [k 'CredFromKeyK XPub]
 usableKeys s = case lastActiveIx s of
     Just i -> map (keyAtIx s) [minBound .. i]
     Nothing -> [keyAtIx s minBound]
 
 -- | For testing. Returns all registered and delegating stake keys.
-activeKeys :: SoftDerivation k => DelegationState k -> [k 'CredFromKeyK XPub]
+activeKeys
+    :: ( SoftDerivation k
+       , AddressCredential k ~ 'CredFromKeyK )
+    => DelegationState k -> [k 'CredFromKeyK XPub]
 activeKeys ds = map (keyAtIx ds) $ case state ds of
     Zero                      -> []
     One                       -> [minBound]

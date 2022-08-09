@@ -296,6 +296,7 @@ unsafeGenerateKeyFromSeed (SomeMnemonic mw) (Passphrase pwd) =
 
 instance HardDerivation IcarusKey where
     type AddressIndexDerivationType IcarusKey = 'Soft
+    type AddressCredential IcarusKey = 'CredFromKeyK
 
     deriveAccountPrivateKey
             (Passphrase pwd) (IcarusKey rootXPrv) (Index accIx) =

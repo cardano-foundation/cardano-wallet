@@ -296,6 +296,8 @@ instance ToRewardAccount StakeKey' where
 
 instance HardDerivation StakeKey' where
     type AddressIndexDerivationType StakeKey' = 'Soft
+    type AddressCredential StakeKey' = 'CredFromKeyK
+
     deriveAccountPrivateKey _ _ _ =
         error "deriveAccountPrivateKey: not implemented"
     deriveAddressPrivateKey _ _ _ _ =

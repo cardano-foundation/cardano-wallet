@@ -327,6 +327,7 @@ changePassphraseRnd old new key = ByronKey
 -- we're doing something wrong.
 instance W.HardDerivation ByronKey where
     type AddressIndexDerivationType ByronKey = 'WholeDomain
+    type AddressCredential ByronKey = 'CredFromKeyK
 
     deriveAccountPrivateKey _ _ _ = error
         "unsound evaluation of 'deriveAccountPrivateKey' in the context of Byron key"

@@ -372,7 +372,6 @@ import Cardano.Wallet.Primitive.AddressDerivation
     , DerivationType (..)
     , HardDerivation (..)
     , Index (..)
-    , MkKeyFingerprint
     , NetworkDiscriminant (..)
     , PaymentAddress (..)
     , RewardAccount (..)
@@ -675,6 +674,7 @@ import qualified Cardano.Wallet.DB as W
 import qualified Cardano.Wallet.Network as NW
 import qualified Cardano.Wallet.Primitive.AddressDerivation.Byron as Byron
 import qualified Cardano.Wallet.Primitive.AddressDerivation.Icarus as Icarus
+import qualified Cardano.Wallet.Primitive.AddressDiscovery.Sequential as Seq
 import qualified Cardano.Wallet.Primitive.AddressDiscovery.Shared as Shared
 import qualified Cardano.Wallet.Primitive.Types as W
 import qualified Cardano.Wallet.Primitive.Types.Coin as Coin
@@ -819,15 +819,12 @@ postWallet
     :: forall ctx s k n.
         ( s ~ SeqState n k
         , ctx ~ ApiLayer s k 'CredFromKeyK
-        , SoftDerivation k
-        , MkKeyFingerprint k (Proxy n, k 'CredFromKeyK XPub)
-        , MkKeyFingerprint k Address
+        , Seq.SupportsDiscovery n k
         , WalletKey k
         , HasDBFactory s k ctx
         , HasWorkerRegistry s k ctx
         , IsOurs s RewardAccount
         , Typeable s
-        , Typeable n
         , (k == SharedKey) ~ 'False
         , AddressBookIso s
         , MaybeLight s
@@ -848,16 +845,13 @@ postShelleyWallet
     :: forall ctx s k n.
         ( s ~ SeqState n k
         , ctx ~ ApiLayer s k 'CredFromKeyK
-        , SoftDerivation k
-        , MkKeyFingerprint k (Proxy n, k 'CredFromKeyK XPub)
-        , MkKeyFingerprint k Address
         , WalletKey k
+        , Seq.SupportsDiscovery n k
         , HasDBFactory s k ctx
         , HasWorkerRegistry s k ctx
         , IsOurs s RewardAccount
         , MaybeLight s
         , Typeable s
-        , Typeable n
         , (k == SharedKey) ~ 'False
         , AddressBookIso s
         )
@@ -887,15 +881,12 @@ postAccountWallet
     :: forall ctx s k n w.
         ( s ~ SeqState n k
         , ctx ~ ApiLayer s k 'CredFromKeyK
-        , SoftDerivation k
-        , MkKeyFingerprint k (Proxy n, k 'CredFromKeyK XPub)
-        , MkKeyFingerprint k Address
         , WalletKey k
+        , Seq.SupportsDiscovery n k
         , HasWorkerRegistry s k ctx
         , IsOurs s RewardAccount
         , MaybeLight s
         , (k == SharedKey) ~ 'False
-        , Typeable n
         , AddressBookIso s
         )
     => ctx
@@ -1663,7 +1654,7 @@ selectCoins
         , SoftDerivation k
         , IsOurs s Address
         , GenChange s
-        , Bounded (Index (AddressIndexDerivationType k) 'CredFromKeyK)
+        , Bounded (Index (AddressIndexDerivationType k) (AddressCredential k))
         , Typeable n
         , Typeable s
         , WalletKey k
@@ -1715,9 +1706,7 @@ selectCoinsForJoin
         ( s ~ SeqState n k
         , ctx ~ ApiLayer s k 'CredFromKeyK
         , DelegationAddress n k 'CredFromKeyK
-        , MkKeyFingerprint k (Proxy n, k 'CredFromKeyK XPub)
-        , SoftDerivation k
-        , Typeable n
+        , Seq.SupportsDiscovery n k
         , Typeable s
         , BoundedAddressLength k
         )
@@ -1774,10 +1763,8 @@ selectCoinsForQuit
         ( s ~ SeqState n k
         , ctx ~ ApiLayer s k 'CredFromKeyK
         , DelegationAddress n k 'CredFromKeyK
-        , MkKeyFingerprint k (Proxy n, k 'CredFromKeyK XPub)
-        , Bounded (Index (AddressIndexDerivationType k) 'CredFromKeyK)
-        , SoftDerivation k
-        , Typeable n
+        , Seq.SupportsDiscovery n k
+        , Bounded (Index (AddressIndexDerivationType k) (AddressCredential k))
         , Typeable s
         , WalletKey k
         , BoundedAddressLength k
@@ -1984,7 +1971,7 @@ listAddresses ctx normalize (ApiT wid) stateFilter = do
 signTransaction
     :: forall ctx s k ktype.
         ( ctx ~ ApiLayer s k ktype
-        , Bounded (Index (AddressIndexDerivationType k) 'CredFromKeyK)
+        , Bounded (Index (AddressIndexDerivationType k) (AddressCredential k))
         , WalletKey k
         , IsOwned s k ktype
         , HardDerivation k
@@ -2033,11 +2020,11 @@ signTransaction ctx (ApiT wid) body = do
 postTransactionOld
     :: forall ctx s k n.
         ( ctx ~ ApiLayer s k 'CredFromKeyK
-        , Bounded (Index (AddressIndexDerivationType k) 'CredFromKeyK)
         , GenChange s
         , HardDerivation k
         , HasNetworkLayer IO ctx
         , IsOwned s k 'CredFromKeyK
+        , Bounded (Index (AddressIndexDerivationType k) (AddressCredential k))
         , Typeable n
         , Typeable s
         , WalletKey k
@@ -2226,7 +2213,7 @@ mkApiTransactionFromInfo ti deposit info metadataSchema = do
 postTransactionFeeOld
     :: forall ctx s k n.
         ( ctx ~ ApiLayer s k 'CredFromKeyK
-        , Bounded (Index (AddressIndexDerivationType k) 'CredFromKeyK)
+        , Bounded (Index (AddressIndexDerivationType k) (AddressCredential k))
         , HardDerivation k
         , Typeable n
         , Typeable s
@@ -2276,7 +2263,7 @@ postTransactionFeeOld ctx (ApiT wid) body = do
 constructTransaction
     :: forall ctx s k n.
         ( ctx ~ ApiLayer s k 'CredFromKeyK
-        , Bounded (Index (AddressIndexDerivationType k) 'CredFromKeyK)
+        , Bounded (Index (AddressIndexDerivationType k) (AddressCredential k))
         , GenChange s
         , HardDerivation k
         , HasNetworkLayer IO ctx
@@ -3512,7 +3499,7 @@ listStakeKeys lookupStakeRef ctx (ApiT wid) = do
 createMigrationPlan
     :: forall ctx n s k.
         ( ctx ~ ApiLayer s k 'CredFromKeyK
-        , Bounded (Index (AddressIndexDerivationType k) 'CredFromKeyK)
+        , Bounded (Index (AddressIndexDerivationType k) (AddressCredential k))
         , HardDerivation k
         , IsOwned s k 'CredFromKeyK
         , Typeable n
@@ -3607,7 +3594,7 @@ mkApiWalletMigrationPlan s addresses rewardWithdrawal plan =
 migrateWallet
     :: forall ctx s k n p.
         ( ctx ~ ApiLayer s k 'CredFromKeyK
-        , Bounded (Index (AddressIndexDerivationType k) 'CredFromKeyK)
+        , Bounded (Index (AddressIndexDerivationType k) (AddressCredential k))
         , HardDerivation k
         , HasNetworkLayer IO ctx
         , IsOwned s k 'CredFromKeyK
@@ -3978,7 +3965,7 @@ mkRewardAccountBuilder
         ( ctx ~ ApiLayer s k 'CredFromKeyK
         , shelley ~ SeqState n ShelleyKey
         , HardDerivation k
-        , Bounded (Index (AddressIndexDerivationType k) 'CredFromKeyK)
+        , Bounded (Index (AddressIndexDerivationType k) (AddressCredential k))
         , WalletKey k
         , Typeable s
         , Typeable n

@@ -234,6 +234,7 @@ deriveAddressPublicKeyShelley accXPub role (Index addrIx) =
 
 instance HardDerivation ShelleyKey where
     type AddressIndexDerivationType ShelleyKey = 'Soft
+    type AddressCredential ShelleyKey = 'CredFromKeyK
 
     deriveAccountPrivateKey pwd (ShelleyKey rootXPrv) ix =
         ShelleyKey $ deriveAccountPrivateKeyShelley purposeCIP1852 pwd rootXPrv ix

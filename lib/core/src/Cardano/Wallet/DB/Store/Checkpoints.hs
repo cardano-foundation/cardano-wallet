@@ -91,6 +91,7 @@ import Cardano.Wallet.DB.WalletState
     )
 import Cardano.Wallet.Primitive.AddressDerivation
     ( Depth (..)
+    , HardDerivation (..)
     , MkKeyFingerprint (..)
     , PaymentAddress (..)
     , PersistPublicKey (..)
@@ -445,6 +446,7 @@ instance
     , PersistPublicKey (key 'PolicyK)
     , MkKeyFingerprint key (Proxy n, key 'CredFromKeyK XPub)
     , PaymentAddress n key 'CredFromKeyK
+    , AddressCredential key ~ 'CredFromKeyK
     , SoftDerivation key
     , Typeable n
     , (key == SharedKey) ~ 'False
