@@ -92,6 +92,7 @@ import Test.Integration.Framework.DSL
     , postSharedWallet
     , request
     , signSharedTx
+    , submitSharedTxWithWid
     , unsafeRequest
     , verify
     )
@@ -165,11 +166,6 @@ spec = describe "SHARED_TRANSACTIONS" $ do
     it "SHARED_TRANSACTIONS_CREATE_01 - Can create tx for an active shared wallet" $ \ctx -> runResourceT $ do
         m15txt <- liftIO $ genMnemonics M15
         m12txt <- liftIO $ genMnemonics M12
-        let (Right m15) = mkSomeMnemonic @'[ 15 ] m15txt
-        let (Right m12) = mkSomeMnemonic @'[ 12 ] m12txt
-        let passphrase = Passphrase $ BA.convert $ T.encodeUtf8 fixturePassphrase
-        let index = 30
-        let accXPubDerived = accPubKeyFromMnemonics m15 (Just m12) index passphrase
         let payload = Json [json| {
                 "name": "Shared Wallet",
                 "mnemonic_sentence": #{m15txt},
@@ -178,7 +174,7 @@ spec = describe "SHARED_TRANSACTIONS" $ do
                 "account_index": "30H",
                 "payment_script_template":
                     { "cosigners":
-                        { "cosigner#0": #{accXPubDerived} },
+                        { "cosigner#0": "self" },
                       "template":
                           { "all":
                              [ "cosigner#0" ]
@@ -239,6 +235,23 @@ spec = describe "SHARED_TRANSACTIONS" $ do
         rDecodedTx2 <- request @(ApiDecodedTransaction n) ctx
             (Link.decodeTransaction @'Shared wal) Default decodePayload2
         verify rDecodedTx2 decodedExpectations
+
+        -- Submit tx
+        submittedTx <- submitSharedTxWithWid ctx wal signedTx
+        verify submittedTx
+            [ expectSuccess
+            , expectResponseCode HTTP.status202
+            ]
+
+        -- Make sure only fee is deducted from shared Wallet
+        eventually "Wallet balance is as expected" $ do
+            rWal <- getSharedWallet ctx walShared
+            verify (fmap (view #wallet) <$> rWal)
+                [ expectResponseCode HTTP.status200
+                , expectField
+                    (traverse . #balance . #available . #getQuantity)
+                    (`shouldBe` (amt - expectedFee))
+                ]
 
     it "SHARED_TRANSACTIONS_CREATE_01a - Empty payload is not allowed" $ \ctx -> runResourceT $ do
         wa <- fixtureSharedWallet ctx

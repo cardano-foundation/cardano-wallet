@@ -769,7 +769,7 @@ submitTransaction
 submitTransaction w = discriminate @style
     (endpoint @Api.SubmitTransaction (wid &))
     (notSupported "Byron")
-    (notSupported "Shared")
+    (endpoint @Api.SubmitSharedTransaction (wid &))
   where
     wid = w ^. typed @(ApiT WalletId)
 

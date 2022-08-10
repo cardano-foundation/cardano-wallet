@@ -177,6 +177,7 @@ module Test.Integration.Framework.DSL
     , hexText
     , fromHexText
     , accPubKeyFromMnemonics
+    , submitSharedTxWithWid
 
     -- * Delegation helpers
     , notDelegating
@@ -2399,6 +2400,17 @@ submitTxWithWid
     -> m (HTTP.Status, Either RequestException ApiTxId)
 submitTxWithWid ctx w tx = do
     let submitEndpoint = Link.submitTransaction @'Shelley w
+    let payload = Json $ Aeson.toJSON tx
+    request @ApiTxId ctx submitEndpoint Default payload
+
+submitSharedTxWithWid
+    :: MonadUnliftIO m
+    => Context
+    -> ApiActiveSharedWallet
+    -> ApiSerialisedTransaction
+    -> m (HTTP.Status, Either RequestException ApiTxId)
+submitSharedTxWithWid ctx w tx = do
+    let submitEndpoint = Link.submitTransaction @'Shared w
     let payload = Json $ Aeson.toJSON tx
     request @ApiTxId ctx submitEndpoint Default payload
 

@@ -149,6 +149,8 @@ module Cardano.Wallet.Api
         , ConstructSharedTransaction
         , SignSharedTransaction
         , DecodeSharedTransaction
+        , SubmitSharedTransaction
+
     , GetBlocksLatestHeader
     , Proxy_
         , PostExternalTransaction
@@ -1110,6 +1112,7 @@ type SharedTransactions n =
          ConstructSharedTransaction n
     :<|> SignSharedTransaction n
     :<|> DecodeSharedTransaction n
+    :<|> SubmitSharedTransaction
 
 -- | https://input-output-hk.github.io/cardano-wallet/api/#operation/constructSharedTransaction
 type ConstructSharedTransaction n = "shared-wallets"
@@ -1131,6 +1134,13 @@ type DecodeSharedTransaction n = "shared-wallets"
     :> "transactions-decode"
     :> ReqBody '[JSON] ApiSerialisedTransaction
     :> PostAccepted '[JSON] (ApiDecodedTransactionT n)
+
+-- | https://input-output-hk.github.io/cardano-wallet/api/#operation/submitSharedTransaction
+type SubmitSharedTransaction = "shared-wallets"
+    :> Capture "walletId" (ApiT WalletId)
+    :> "transactions-submit"
+    :> ReqBody '[JSON] ApiSerialisedTransaction
+    :> PostAccepted '[JSON] ApiTxId
 
 {-------------------------------------------------------------------------------
                                    Proxy_

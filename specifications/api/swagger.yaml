@@ -7573,6 +7573,25 @@ paths:
             schema: *ApiSignTransactionPostData
       responses: *responsesSignTransaction
 
+  /shared-wallets/{walletId}/transactions-submit:
+    post:
+      operationId: submitSharedTransaction
+      tags: ["Shared Transactions"]
+      summary: Submit
+      description: |
+        <p align="right">status: <strong>stable</strong></p>
+        Submit a transaction that was already created and fully signed.
+        Fails for foreign transactions that is transactions which lack
+        the wallet's inputs and withdrawals.
+      parameters:
+        - *parametersWalletId
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema: *ApiSignedTransactionEncoded
+      responses: *responsesPostExternalTransaction
+
   /shared-wallets/{walletId}/keys/{index}:
     post:
       operationId: postAccountKeyShared

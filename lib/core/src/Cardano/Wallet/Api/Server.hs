@@ -99,6 +99,7 @@ module Cardano.Wallet.Api.Server
     , constructSharedTransaction
     , decodeSharedTransaction
     , getBlocksLatestHeader
+    , submitSharedTransaction
 
     -- * Server error responses
     , IsServerError(..)
@@ -2707,7 +2708,7 @@ constructSharedTransaction
     ti = timeInterpreter (ctx ^. networkLayer)
 
 decodeSharedTransaction
-    :: forall ctx s k n.
+    :: forall ctx s k (n :: NetworkDiscriminant).
         ( ctx ~ ApiLayer s k 'CredFromScriptK
         , IsOurs s Address
         , HasNetworkLayer IO ctx
@@ -3115,15 +3116,6 @@ submitTransaction ctx apiw@(ApiT wid) apitx = do
     nl = ctx ^. networkLayer
     ti = timeInterpreter nl
 
-    isOutOurs (WalletOutput _) = True
-    isOutOurs _ = False
-    toTxOut (WalletOutput (ApiWalletOutput (ApiT addr, _) (Quantity amt) (ApiT tmap) _)) =
-        TxOut addr (TokenBundle (Coin $ fromIntegral amt) tmap)
-    toTxOut _ = error "we should have only our outputs at this point"
-    getOurOuts apiDecodedTx =
-        let generalOuts = apiDecodedTx ^. #outputs
-        in map toTxOut $ filter isOutOurs generalOuts
-
     getOurWdrl rewardAcct path apiDecodedTx =
         let generalWdrls = apiDecodedTx ^. #withdrawals
             isWdrlOurs (ApiWithdrawalGeneral _ _ context) = context == Our
@@ -3134,29 +3126,6 @@ submitTransaction ctx apiw@(ApiT wid) apitx = do
             _ ->
                 NoWithdrawal
 
-    isInpOurs (WalletInput _) = True
-    isInpOurs _ = False
-    toTxInp (WalletInput (ApiWalletInput (ApiT txid) ix _ _ (Quantity amt) _)) =
-        (TxIn txid ix, Coin $ fromIntegral amt)
-    toTxInp _ = error "we should have only our inputs at this point"
-    getOurInps apiDecodedTx =
-        let generalInps = apiDecodedTx ^. #inputs
-        in map toTxInp $ filter isInpOurs generalInps
-
-    isForeign apiDecodedTx =
-        let generalInps = apiDecodedTx ^. #inputs
-            generalWdrls = apiDecodedTx ^. #withdrawals
-            isInpForeign (WalletInput _) = False
-            isInpForeign _ = True
-            isWdrlForeign (ApiWithdrawalGeneral _ _ context) = context == External
-        in
-            all isInpForeign generalInps &&
-            all isWdrlForeign generalWdrls
-
-    samePaymentKey inp1 inp2 = case (inp1, inp2) of
-        (WalletInput (ApiWalletInput _ _ _ derPath1 _ _), WalletInput (ApiWalletInput _ _ _ derPath2 _ _) ) ->
-               derPath1 == derPath2
-        _ -> False
     isJoiningOrQuitting = \case
         WalletDelegationCertificate (JoinPool _ (ApiT poolId)) ->
             Just $ Join poolId
@@ -3164,6 +3133,92 @@ submitTransaction ctx apiw@(ApiT wid) apitx = do
             Just Quit
         _ ->
             Nothing
+
+samePaymentKey :: ApiTxInputGeneral n -> ApiTxInputGeneral n -> Bool
+samePaymentKey inp1 inp2 = case (inp1, inp2) of
+    (WalletInput (ApiWalletInput _ _ _ derPath1 _ _), WalletInput (ApiWalletInput _ _ _ derPath2 _ _) ) ->
+           derPath1 == derPath2
+    _ -> False
+
+getOurOuts :: ApiDecodedTransaction n -> [TxOut]
+getOurOuts apiDecodedTx =
+    map toTxOut $ filter isOutOurs generalOuts
+  where
+    generalOuts = apiDecodedTx ^. #outputs
+    isOutOurs (WalletOutput _) = True
+    isOutOurs _ = False
+    toTxOut (WalletOutput (ApiWalletOutput (ApiT addr, _) (Quantity amt) (ApiT tmap) _)) =
+        TxOut addr (TokenBundle (Coin $ fromIntegral amt) tmap)
+    toTxOut _ = error "we should have only our outputs at this point"
+
+isInpOurs :: ApiTxInputGeneral n -> Bool
+isInpOurs (WalletInput _) = True
+isInpOurs _ = False
+
+getOurInps :: ApiDecodedTransaction n -> [(TxIn,Coin)]
+getOurInps apiDecodedTx =
+    map toTxInp $ filter isInpOurs generalInps
+  where
+    generalInps = apiDecodedTx ^. #inputs
+    toTxInp (WalletInput (ApiWalletInput (ApiT txid) ix _ _ (Quantity amt) _)) =
+        (TxIn txid ix, Coin $ fromIntegral amt)
+    toTxInp _ = error "we should have only our inputs at this point"
+
+isForeign :: ApiDecodedTransaction n -> Bool
+isForeign apiDecodedTx =
+    let generalInps = apiDecodedTx ^. #inputs
+        generalWdrls = apiDecodedTx ^. #withdrawals
+        isInpForeign (WalletInput _) = False
+        isInpForeign _ = True
+        isWdrlForeign (ApiWithdrawalGeneral _ _ context) = context == External
+    in
+        all isInpForeign generalInps &&
+        all isWdrlForeign generalWdrls
+
+submitSharedTransaction
+    :: forall ctx s k (n :: NetworkDiscriminant).
+        ( ctx ~ ApiLayer s k 'CredFromScriptK
+        , HasNetworkLayer IO ctx
+        , IsOwned s k 'CredFromScriptK
+        )
+    => ctx
+    -> ApiT WalletId
+    -> ApiSerialisedTransaction
+    -> Handler ApiTxId
+submitSharedTransaction ctx apiw@(ApiT wid) apitx = do
+    ttl <- liftIO $ W.getTxExpiry ti Nothing
+    era <- liftIO $ NW.currentNodeEra nl
+
+    let sealedTx = getApiT . (view #transaction) $ apitx
+    let (tx,_,_,_,_) = decodeTx tl era sealedTx
+
+    apiDecoded <- decodeSharedTransaction @_ @s @k @n ctx apiw apitx
+    when (isForeign apiDecoded) $
+        liftHandler $ throwE ErrSubmitTransactionForeignWallet
+    let ourOuts = getOurOuts apiDecoded
+    let ourInps = getOurInps apiDecoded
+
+    let witsRequiredForInputs = length $ L.nubBy samePaymentKey $
+            filter isInpOurs $
+            (apiDecoded ^. #inputs) ++ (apiDecoded ^. #collateral)
+    let totalNumberOfWits = length $ getSealedTxWitnesses sealedTx
+    when (witsRequiredForInputs > totalNumberOfWits) $
+        liftHandler $ throwE $
+        ErrSubmitTransactionPartiallySignedOrNoSignedTx witsRequiredForInputs totalNumberOfWits
+
+    _ <- withWorkerCtx ctx wid liftE liftE $ \wrk -> do
+        let txCtx = defaultTransactionCtx
+                { txValidityInterval = (Nothing, ttl)
+                }
+        txMeta <- liftHandler $ W.constructTxMeta @_ @s @k wrk wid txCtx ourInps ourOuts
+        liftHandler
+            $ W.submitTx @_ @s @k wrk wid (tx, txMeta, sealedTx)
+    return $ ApiTxId (apiDecoded ^. #id)
+  where
+    tl = ctx ^. W.transactionLayer @k @'CredFromScriptK
+    ti :: TimeInterpreter (ExceptT PastHorizonException IO)
+    nl = ctx ^. networkLayer
+    ti = timeInterpreter nl
 
 joinStakePool
     :: forall ctx s n k.

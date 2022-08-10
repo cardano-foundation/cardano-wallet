@@ -125,6 +125,7 @@ import Cardano.Wallet.Api.Server
     , selectCoinsForQuit
     , signMetadata
     , signTransaction
+    , submitSharedTransaction
     , submitTransaction
     , withLegacyLayer
     , withLegacyLayer'
@@ -604,6 +605,7 @@ server byron icarus shelley multisig spl ntp blockchainSource =
             (knownPools spl) (getPoolLifeCycleStatus spl)
         :<|> signTransaction @_ @_ @_ @'CredFromScriptK apilayer
         :<|> decodeSharedTransaction apilayer
+        :<|> submitSharedTransaction @_ @_ @_ @n apilayer
 
     blocks :: Handler ApiBlockHeader
     blocks = getBlocksLatestHeader (shelley ^. networkLayer)
