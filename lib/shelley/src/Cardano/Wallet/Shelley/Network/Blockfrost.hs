@@ -958,6 +958,9 @@ fromBlockfrostPP network pp@BF.ProtocolParams{..} = do
                         Just $
                             Node.Lovelace $
                                 intCast _protocolParamsCoinsPerUtxoWord
+                    -- TODO Blockfrost has not yet updated their API to include
+                    -- the "UTxO Cost Per Byte" protocol parameter.
+                    , protocolParamUTxOCostPerByte = Nothing
                     , protocolParamCostModels =
                         Map.singleton
                             (AnyPlutusScriptVersion PlutusScriptV1)

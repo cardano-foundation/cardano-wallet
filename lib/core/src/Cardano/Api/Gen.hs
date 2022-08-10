@@ -1022,6 +1022,7 @@ genProtocolParameters =
     <*> liftArbitrary genNat
     <*> liftArbitrary genNat
     <*> liftArbitrary genNat
+    <*> liftArbitrary genLovelace
 
 genProtocolParametersWithAlonzoScripts :: Gen ProtocolParameters
 genProtocolParametersWithAlonzoScripts =
@@ -1051,6 +1052,7 @@ genProtocolParametersWithAlonzoScripts =
     <*> (Just <$> genNat)
     <*> (Just <$> genNat)
     <*> (Just <$> genNat)
+    <*> (Just <$> genLovelace)
 
 genWitnessNetworkIdOrByronAddress :: Gen WitnessNetworkIdOrByronAddress
 genWitnessNetworkIdOrByronAddress =
@@ -1282,6 +1284,8 @@ genProtocolParametersUpdate = do
         liftArbitrary genRational
     protocolUpdateUTxOCostPerWord <-
         liftArbitrary genLovelace
+    protocolUpdateUTxOCostPerByte <-
+        liftArbitrary genLovelace
     protocolUpdateCostModels <-
         genCostModels
     protocolUpdatePrices <-
@@ -1316,6 +1320,7 @@ genProtocolParametersUpdate = do
         , Api.protocolUpdateMonetaryExpansion
         , Api.protocolUpdateTreasuryCut
         , Api.protocolUpdateUTxOCostPerWord
+        , Api.protocolUpdateUTxOCostPerByte
         , Api.protocolUpdateCostModels
         , Api.protocolUpdatePrices
         , Api.protocolUpdateMaxTxExUnits

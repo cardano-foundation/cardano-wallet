@@ -81,11 +81,12 @@ source-repository-package
 -- work with aeson-2, library dependencies will need to be updated to no longer use
 -- this compatibility shim and have bounds to indicate they work with aeson-2 only.
 -- After this, the dependency to hw-aeson can be dropped.
+-- Using a fork until our patches can be merged upstream: https://github.com/haskell-works/hw-aeson/pull/64
 source-repository-package
     type: git
-    location: https://github.com/haskell-works/hw-aeson
-    tag: d99d2f3e39a287607418ae605b132a3deb2b753f
-    --sha256: 1vxqcwjg9q37wbwi27y9ba5163lzfz51f1swbi0rp681yg63zvn4
+    location: https://github.com/sevanspowell/hw-aeson
+    tag: b5ef03a7d7443fcd6217ed88c335f0c411a05408
+    --sha256: 1dwx90wqavdl4d0npbzbxyh2pzi9zs1qz7nvsrb3n1cm2xbv4i5z
 
 -- Using a fork until our patches can be merged upstream
 
@@ -118,8 +119,8 @@ source-repository-package
 source-repository-package
     type: git
     location: https://github.com/input-output-hk/cardano-addresses
-    tag: 8f57479422264f33bfbf58198623c035cc973f30
-    --sha256: 032knh0kli2shpqh9b4w2ci9rp01q6p8albj56brg6gn5l9sknzy
+    tag: b7273a5d3c21f1a003595ebf1e1f79c28cd72513
+    --sha256: 129r5kyiw10n2021bkdvnr270aiiwyq58h472d151ph0r7wpslgp
     subdir: command-line
             core
 
@@ -213,8 +214,8 @@ source-repository-package
 source-repository-package
     type: git
     location: https://github.com/input-output-hk/cardano-node
-    tag: b443f540133888442e5475c05890dc2eee13d43e
-    --sha256: 0vg5775z683wf421asxjm7g2b6yxmgprpylhs9ryb035id83slp2
+    tag: 950c4e222086fed5ca53564e642434ce9307b0b9
+    --sha256: 020fwimsm24yblr1fmnwx240wj8r3x715p89cpjgnnd8axwf32p0
     subdir:
       cardano-api
       cardano-git-rev
@@ -317,8 +318,8 @@ source-repository-package
 source-repository-package
   type: git
   location: https://github.com/input-output-hk/hedgehog-extras
-  tag: 967d79533c21e33387d0227a5f6cc185203fe658
-  --sha256: 0rbqb7a64aya1qizlr3im06hdydg9zr6sl3i8bvqqlf7kpa647sd
+  tag: 714ee03a5a786a05fc57ac5d2f1c2edce4660d85
+  --sha256: 1qa4mm36xynaf17990ijmzww0ij8hjrc0vw5nas6d0zx6q9hb978
 
 -- -------------------------------------------------------------------------
 -- Constraints tweaking
