@@ -91,6 +91,7 @@ import Test.Integration.Framework.DSL
     , minUTxOValue
     , postSharedWallet
     , request
+    , signSharedTx
     , unsafeRequest
     , verify
     )
@@ -212,21 +213,32 @@ spec = describe "SHARED_TRANSACTIONS" $ do
             , expectField (#fee . #getQuantity) (`shouldSatisfy` (>0))
             ]
 
-        let txCbor = getFromResponse #transaction rTx2
-        let decodePayload = Json (toJSON txCbor)
-        rDecodedTx <- request @(ApiDecodedTransaction n) ctx
-            (Link.decodeTransaction @'Shared wal) Default decodePayload
+        let txCbor1 = getFromResponse #transaction rTx2
+        let decodePayload1 = Json (toJSON $ ApiSerialisedTransaction txCbor1)
+        rDecodedTx1 <- request @(ApiDecodedTransaction n) ctx
+            (Link.decodeTransaction @'Shared wal) Default decodePayload1
         let expectedFee = getFromResponse (#fee . #getQuantity) rTx2
         let metadata' = ApiT (TxMetadata (Map.fromList [(1,TxMetaText "hello")]))
-        verify rDecodedTx
-            [ expectResponseCode HTTP.status202
-            , expectField (#fee . #getQuantity) (`shouldBe` expectedFee)
-            , expectField #withdrawals (`shouldBe` [])
-            , expectField #collateral (`shouldBe` [])
-            , expectField #metadata
-                (`shouldBe` (ApiTxMetadata (Just metadata')))
-            , expectField #scriptValidity (`shouldBe` (Just $ ApiT TxScriptValid))
-            ]
+        let decodedExpectations =
+                [ expectResponseCode HTTP.status202
+                , expectField (#fee . #getQuantity) (`shouldBe` expectedFee)
+                , expectField #withdrawals (`shouldBe` [])
+                , expectField #collateral (`shouldBe` [])
+                , expectField #metadata
+                  (`shouldBe` (ApiTxMetadata (Just metadata')))
+                , expectField #scriptValidity (`shouldBe` (Just $ ApiT TxScriptValid))
+                ]
+        verify rDecodedTx1 decodedExpectations
+
+        let apiTx = getFromResponse #transaction rTx2
+        signedTx <-
+            signSharedTx ctx wal apiTx [ expectResponseCode HTTP.status202 ]
+        let txCbor2 =
+                getFromResponse #transaction (HTTP.status202, Right signedTx)
+        let decodePayload2 = Json (toJSON $ ApiSerialisedTransaction txCbor2)
+        rDecodedTx2 <- request @(ApiDecodedTransaction n) ctx
+            (Link.decodeTransaction @'Shared wal) Default decodePayload2
+        verify rDecodedTx2 decodedExpectations
 
     it "SHARED_TRANSACTIONS_CREATE_01a - Empty payload is not allowed" $ \ctx -> runResourceT $ do
         wa <- fixtureSharedWallet ctx

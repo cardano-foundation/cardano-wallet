@@ -116,6 +116,7 @@ module Test.Integration.Framework.DSL
     , selectCoinsWith
     , listAddresses
     , signTx
+    , signSharedTx
     , submitTx
     , submitTxWithWid
     , getWallet
@@ -237,6 +238,7 @@ import Cardano.Mnemonic
 import Cardano.Wallet.Api.Types
     ( AddressAmount
     , ApiAccountKeyShared
+    , ApiActiveSharedWallet
     , ApiAddress
     , ApiBlockReference (..)
     , ApiByronWallet
@@ -2351,6 +2353,23 @@ signTx ctx w sealedTx expectations = do
                            , "passphrase": #{fixturePassphrase}
                            }|]
     let signEndpoint = Link.signTransaction @'Shelley w
+    r <- request @ApiSerialisedTransaction ctx signEndpoint Default toSign
+    verify r expectations
+    pure $ getFromResponse Prelude.id r
+
+signSharedTx
+    :: MonadUnliftIO m
+    => Context
+    -> ApiActiveSharedWallet
+    -> ApiT SealedTx
+    -> [(HTTP.Status, Either RequestException ApiSerialisedTransaction) -> m ()]
+    -> m ApiSerialisedTransaction
+signSharedTx ctx w sealedTx expectations = do
+    let toSign = Json [aesonQQ|
+                           { "transaction": #{sealedTx}
+                           , "passphrase": #{fixturePassphrase}
+                           }|]
+    let signEndpoint = Link.signTransaction @'Shared w
     r <- request @ApiSerialisedTransaction ctx signEndpoint Default toSign
     verify r expectations
     pure $ getFromResponse Prelude.id r

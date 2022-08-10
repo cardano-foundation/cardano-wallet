@@ -716,8 +716,7 @@ createUnsignedTransaction w = discriminate @style
 
 signTransaction
     :: forall style w.
-        ( HasCallStack
-        , HasType (ApiT WalletId) w
+        ( HasType (ApiT WalletId) w
         , Discriminate style
         )
     => w
@@ -725,7 +724,7 @@ signTransaction
 signTransaction w = discriminate @style
     (endpoint @(Api.SignTransaction Net) (wid &))
     (notSupported "Byron")
-    (notSupported "Shared") -- TODO: [ADP-909] should be supported in the final version of Transaction Workflow.
+    (endpoint @(Api.SignSharedTransaction Net) (wid &))
   where
     wid = w ^. typed @(ApiT WalletId)
 
