@@ -543,7 +543,7 @@ isShared
     :: SupportsDiscovery n k
     => Address
     -> SharedState n k
-    -> (Maybe (Index 'Soft 'CredFromScriptK), SharedState n k)
+    -> (Maybe (Index 'Soft 'CredFromScriptK, Role), SharedState n k)
 isShared addrRaw st = case ready st of
     Pending -> nop
     Active (SharedAddressPools extPool intPool pending) ->
@@ -553,7 +553,7 @@ isShared addrRaw st = case ready st of
                                , AddressPool.lookup addr (getPool intPool)) of
                 (Just ix, Nothing) ->
                     let pool' = AddressPool.update addr (getPool extPool) in
-                    ( Just ix
+                    ( Just (ix, UtxoExternal)
                     , st { ready = Active
                              ( SharedAddressPools
                                  (SharedAddressPool pool')
@@ -562,7 +562,7 @@ isShared addrRaw st = case ready st of
                          } )
                 (Nothing, Just ix) ->
                     let pool' = AddressPool.update addr (getPool intPool) in
-                    ( Just ix
+                    ( Just (ix, UtxoInternal)
                     , st { ready = Active
                              ( SharedAddressPools
                                  extPool
@@ -577,7 +577,8 @@ isShared addrRaw st = case ready st of
 
 instance SupportsDiscovery n k => IsOurs (SharedState n k) Address
   where
-    isOurs addr st = first (fmap (decoratePath st utxoExternal)) (isShared addr st)
+    isOurs addr st =
+        first (fmap (decoratePath st utxoExternal . fst)) (isShared addr st)
 
 -- | Decorate an index with the derivation prefix corresponding to the state.
 decoratePath
@@ -738,9 +739,9 @@ instance ( key ~ SharedKey
          , SupportsDiscovery n key ) =>
          IsOwned (SharedState n key) key 'CredFromScriptK where
     isOwned st (rootPrv, pwd) addr = case isShared addr st of
-        (Just ix, _) ->
+        (Just (ix, role'), _) ->
             let DerivationPrefix (_,_,accIx) = derivationPrefix st
                 accXPrv = deriveAccountPrivateKey pwd rootPrv accIx
-            in Just ( deriveAddressPrivateKey pwd accXPrv UtxoExternal ix
+            in Just ( deriveAddressPrivateKey pwd accXPrv role' ix
                     , pwd )
         (Nothing, _) -> Nothing

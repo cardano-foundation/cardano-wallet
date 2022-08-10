@@ -116,7 +116,7 @@ prop_addressWithScriptFromOurVerKeyIxIn (CatalystSharedState accXPub' accIx' pTe
   where
     addr = constructAddressFromIx @n UtxoExternal pTemplate' dTemplate' keyIx
     sharedState = mkSharedStateFromAccountXPub @n accXPub' accIx' g pTemplate' dTemplate'
-    (Just keyIx', _) = isShared @n addr sharedState
+    (Just (keyIx', _), _) = isShared @n addr sharedState
 
 prop_addressWithScriptFromOurVerKeyIxBeyond
     :: forall (n :: NetworkDiscriminant). Typeable n
@@ -150,7 +150,7 @@ prop_addressDiscoveryMakesAddressUsed (CatalystSharedState accXPub' accIx' pTemp
   where
     sharedState = mkSharedStateFromAccountXPub @n accXPub' accIx' g pTemplate' dTemplate'
     addr = AddressPool.addressFromIx (getAddrPool sharedState) keyIx
-    (Just ix, sharedState') = isShared @n (liftPaymentAddress @n addr) sharedState
+    (Just (ix, _), sharedState') = isShared @n (liftPaymentAddress @n addr) sharedState
     ourAddrs = AddressPool.addresses (getAddrPool sharedState')
 
 prop_addressDoubleDiscovery

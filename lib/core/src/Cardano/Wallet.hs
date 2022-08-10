@@ -3558,7 +3558,7 @@ normalizeSharedAddress st addr = case Shared.ready st of
         fingerprint <- eitherToMaybe (paymentKeyFingerprint @k addr)
         let (ixM, _) = Shared.isShared addr st
         case (dTM, ixM) of
-            (Just dT, Just ix) ->
+            (Just dT, Just (ix,_)) ->
                 pure $ Shared.liftDelegationAddress @n ix dT fingerprint
             _ ->
                 pure $ Shared.liftPaymentAddress @n fingerprint
