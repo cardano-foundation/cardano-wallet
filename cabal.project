@@ -84,8 +84,8 @@ source-repository-package
 source-repository-package
     type: git
     location: https://github.com/haskell-works/hw-aeson
-    tag: 5b4613379830ce06b167301c5ecb3c49c7d7eb4b
-    --sha256: 0i0f7rnbr49rk59fzap9433b00hklgiq26aq9vqgmw9dmafv43i3
+    tag: b5ef03a7d7443fcd6217ed88c335f0c411a05408
+    --sha256: 1dwx90wqavdl4d0npbzbxyh2pzi9zs1qz7nvsrb3n1cm2xbv4i5z
 
 -- Using a fork until our patches can be merged upstream
 
@@ -118,8 +118,8 @@ source-repository-package
 source-repository-package
     type: git
     location: https://github.com/input-output-hk/cardano-addresses
-    tag: a5d50375f936ab13111c9f7d257d4bda0fa3eb85
-    --sha256: 12w7q9faix691djs45lcr547jm29y7jakqm112f3ipdsxwr3dsyx
+    tag: b7273a5d3c21f1a003595ebf1e1f79c28cd72513
+    --sha256: 129r5kyiw10n2021bkdvnr270aiiwyq58h472d151ph0r7wpslgp
     subdir: command-line
             core
 
