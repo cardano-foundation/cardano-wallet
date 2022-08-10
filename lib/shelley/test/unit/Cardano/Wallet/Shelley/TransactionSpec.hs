@@ -163,6 +163,10 @@ import Cardano.Wallet.Primitive.Types.Hash
     ( Hash (..), mockHash )
 import Cardano.Wallet.Primitive.Types.MinimumUTxO
     ( MinimumUTxO (..) )
+import Cardano.Wallet.Primitive.Types.MinimumUTxO.Gen
+    ( testParameter_coinsPerUTxOByte_Babbage
+    , testParameter_coinsPerUTxOWord_Alonzo
+    )
 import Cardano.Wallet.Primitive.Types.Redeemer
     ( Redeemer (..) )
 import Cardano.Wallet.Primitive.Types.RewardAccount
@@ -3842,7 +3846,10 @@ mockProtocolParametersForBalancing = (mockProtocolParameters, nodePParams)
         , Cardano.protocolParamPoolPledgeInfluence = 0
         , Cardano.protocolParamMonetaryExpansion = 0
         , Cardano.protocolParamTreasuryCut  = 0
-        , Cardano.protocolParamUTxOCostPerWord = Just 34482
+        , Cardano.protocolParamUTxOCostPerWord =
+            Just $ fromIntegral $ SL.unCoin testParameter_coinsPerUTxOWord_Alonzo
+        , Cardano.protocolParamUTxOCostPerByte =
+            Just $ fromIntegral $ SL.unCoin testParameter_coinsPerUTxOByte_Babbage
         , Cardano.protocolParamCostModels =
             Map.singleton
                 (Cardano.AnyPlutusScriptVersion Cardano.PlutusScriptV1)
@@ -3855,7 +3862,6 @@ mockProtocolParametersForBalancing = (mockProtocolParameters, nodePParams)
             Just $ Cardano.ExecutionUnits 10000000000 14000000
         , Cardano.protocolParamCollateralPercent = Just 1
         , Cardano.protocolParamMaxCollateralInputs = Just 3
-        , Cardano.protocolParamUTxOCostPerByte = Just 4310
         }
     costModel = Cardano.CostModel
         . fromMaybe (error "Plutus.defaultCostModelParams")

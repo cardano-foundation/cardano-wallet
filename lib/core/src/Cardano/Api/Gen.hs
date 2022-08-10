@@ -1284,6 +1284,8 @@ genProtocolParametersUpdate = do
         liftArbitrary genRational
     protocolUpdateUTxOCostPerWord <-
         liftArbitrary genLovelace
+    protocolUpdateUTxOCostPerByte <-
+        liftArbitrary genLovelace
     protocolUpdateCostModels <-
         genCostModels
     protocolUpdatePrices <-
@@ -1298,8 +1300,6 @@ genProtocolParametersUpdate = do
         liftArbitrary genNat
     protocolUpdateMaxCollateralInputs <-
         liftArbitrary genNat
-    protocolUpdateUTxOCostPerByte <-
-        liftArbitrary genLovelace
 
     pure $ ProtocolParametersUpdate
         { Api.protocolUpdateProtocolVersion
@@ -1320,6 +1320,7 @@ genProtocolParametersUpdate = do
         , Api.protocolUpdateMonetaryExpansion
         , Api.protocolUpdateTreasuryCut
         , Api.protocolUpdateUTxOCostPerWord
+        , Api.protocolUpdateUTxOCostPerByte
         , Api.protocolUpdateCostModels
         , Api.protocolUpdatePrices
         , Api.protocolUpdateMaxTxExUnits
@@ -1327,7 +1328,6 @@ genProtocolParametersUpdate = do
         , Api.protocolUpdateMaxValueSize
         , Api.protocolUpdateCollateralPercent
         , Api.protocolUpdateMaxCollateralInputs
-        , Api.protocolUpdateUTxOCostPerByte
         }
 
 genUpdateProposal :: CardanoEra era -> Gen (TxUpdateProposal era)
