@@ -937,6 +937,9 @@ fromBlockfrostPP network pp@BF.ProtocolParams{..} = do
                         Just $
                             Node.Lovelace $
                                 intCast _protocolParamsCoinsPerUtxoWord
+                    -- TODO Blockfrost has not yet updated their API to include
+                    -- the "UTxO Cost Per Byte" protocol parameter.
+                    , protocolParamUTxOCostPerByte = Nothing
                     , protocolParamCostModels =
                         Map.singleton
                             (AnyPlutusScriptVersion PlutusScriptV1)
@@ -965,7 +968,6 @@ fromBlockfrostPP network pp@BF.ProtocolParams{..} = do
                     , protocolParamCollateralPercent = Just collateralPercent
                     , protocolParamMaxCollateralInputs =
                         Just $ intCast maxCollateralInputs
-                    , protocolParamUTxOCostPerByte = Just 4310
                     }
         , .. }
   where
