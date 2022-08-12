@@ -2516,7 +2516,7 @@ balanceTransactionSpec = describe "balanceTransaction" $ do
                     Left (ErrBalanceTxAssignRedeemers
                             (ErrAssignRedeemersTranslationError
                                 (TimeTranslationPastHorizon
-                                    pastHoriozon))) -> return ()
+                                    _pastHoriozon))) -> return ()
                     other -> expectationFailure $
                         "Expected pastHorizon failure; got " <> show other
 
@@ -2533,10 +2533,9 @@ balanceTransactionSpec = describe "balanceTransaction" $ do
             -- case, but this test illustrates the current behaviour.
             let withNoRedeemers = over #redeemers (const [])
             case balanceTx (withNoRedeemers pingPong_2) of
-                Right tx -> pure ()
+                Right _tx -> pure ()
                 other -> expectationFailure $
-                    "Expected (Right tx); \
-                    \got " <> show other
+                    "Expected (Right tx); got " <> show other
 
     describe "when the input a redeemer is pointing at doesn't exist" $ do
         it "fails with TimeTranslationPastHorizon" $ do
