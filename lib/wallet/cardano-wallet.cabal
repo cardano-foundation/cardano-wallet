@@ -322,6 +322,7 @@ library
     Cardano.Wallet.Primitive.Types.Redeemer
     Cardano.Wallet.Primitive.Types.RewardAccount
     Cardano.Wallet.Primitive.Types.RewardAccount.Gen
+    Cardano.Wallet.Primitive.Types.StateDeltaSeq
     Cardano.Wallet.Primitive.Types.TokenBundle
     Cardano.Wallet.Primitive.Types.TokenBundle.Gen
     Cardano.Wallet.Primitive.Types.TokenMap
@@ -749,6 +750,7 @@ test-suite unit
     Cardano.Wallet.Primitive.Types.AddressSpec
     Cardano.Wallet.Primitive.Types.CoinSpec
     Cardano.Wallet.Primitive.Types.HashSpec
+    Cardano.Wallet.Primitive.Types.StateDeltaSeqSpec
     Cardano.Wallet.Primitive.Types.TokenBundleSpec
     Cardano.Wallet.Primitive.Types.TokenMapSpec
     Cardano.Wallet.Primitive.Types.TokenMapSpec.TypeErrorSpec
