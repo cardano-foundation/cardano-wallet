@@ -533,7 +533,7 @@ spec = describe "SHELLEY_ADDRESSES" $ do
     -- Golden address can be obtained via
     --- $ cat recovery-phrase.txt | cardano-address key from-recovery-phrase Shelley \
     --- > | cardano-address key child 1852H/1815H/0H/0/0 \
-    --- > | cardano-address key public --with-chain-code \
+    --- > | cardano-address key public --without-chain-code \
     --- > | cardano-address address payment --network-tag mainnet
     it "ANY_ADDRESS_POST_07a - Golden tests for enterprise address - from non-extended public key" $ \ctx -> do
         let payload = Json [json|{
@@ -594,7 +594,7 @@ spec = describe "SHELLEY_ADDRESSES" $ do
     -- Golden address can be obtained via
     --- $ cat recovery-phrase.txt | cardano-address key from-recovery-phrase Shelley \
     --- > | cardano-address key child 1852H/1815H/0H/2/0 \
-    --- > | cardano-address key public --with-chain-code \
+    --- > | cardano-address key public --without-chain-code \
     --- > | cardano-address address stake --network-tag mainnet
     it "ANY_ADDRESS_POST_08a - Golden tests for reward account address - from non-extended public key" $ \ctx -> do
         let payload = Json [json|{
