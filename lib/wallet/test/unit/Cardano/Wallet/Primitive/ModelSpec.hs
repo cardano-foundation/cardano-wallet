@@ -671,6 +671,13 @@ instance IsOurs AllOurs a where
       where
         shouldNotEvaluate = error "AllOurs: unexpected evaluation"
 
+-- | A simplified wallet state that marks no entities as "ours".
+--
+data NoneOurs = NoneOurs
+
+instance IsOurs NoneOurs a where
+    isOurs _ = (Nothing,)
+
 -- | Encapsulates a filter condition for matching entities with 'IsOurs'.
 --
 newtype IsOursIf a = IsOursIf {condition :: a -> Bool}
