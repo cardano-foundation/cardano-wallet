@@ -81,12 +81,11 @@ source-repository-package
 -- work with aeson-2, library dependencies will need to be updated to no longer use
 -- this compatibility shim and have bounds to indicate they work with aeson-2 only.
 -- After this, the dependency to hw-aeson can be dropped.
--- Using a fork until our patches can be merged upstream: https://github.com/haskell-works/hw-aeson/pull/64
 source-repository-package
     type: git
-    location: https://github.com/sevanspowell/hw-aeson
-    tag: b5ef03a7d7443fcd6217ed88c335f0c411a05408
-    --sha256: 1dwx90wqavdl4d0npbzbxyh2pzi9zs1qz7nvsrb3n1cm2xbv4i5z
+    location: https://github.com/haskell-works/hw-aeson
+    tag: ba7c1e41c6e54d6bf9fd1cd013489ac713fc3153
+    --sha256: 1czyn0whgv7czzgwn5y1zgwlkb9p9sn9z9sc9gixrjprcyc0p15p
 
 -- Using a fork until our patches can be merged upstream
 
@@ -119,8 +118,8 @@ source-repository-package
 source-repository-package
     type: git
     location: https://github.com/input-output-hk/cardano-addresses
-    tag: b7273a5d3c21f1a003595ebf1e1f79c28cd72513
-    --sha256: 129r5kyiw10n2021bkdvnr270aiiwyq58h472d151ph0r7wpslgp
+    tag: 2d1904ad93c6b6fbc5bd20f3e7d074ace3ecfd35
+    --sha256: 1y4qzgcni8ifm2fz19bpykiah1m99xy6sj0w469nnwq0dc37zfkj
     subdir: command-line
             core
 
