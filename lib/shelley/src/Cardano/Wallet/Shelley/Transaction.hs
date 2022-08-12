@@ -7,8 +7,8 @@
 {-# LANGUAGE EmptyCase #-}
 {-# LANGUAGE FlexibleContexts #-}
 {-# LANGUAGE FlexibleInstances #-}
+{-# LANGUAGE GADTs #-}
 {-# LANGUAGE LambdaCase #-}
-{-# LANGUAGE MultiParamTypeClasses #-}
 {-# LANGUAGE NamedFieldPuns #-}
 {-# LANGUAGE NumericUnderscores #-}
 {-# LANGUAGE OverloadedLabels #-}
@@ -83,18 +83,12 @@ import Cardano.Binary
     ( serialize' )
 import Cardano.Crypto.Wallet
     ( XPub )
-import Cardano.Ledger.Alonzo.Tools
-    ( evaluateTransactionExecutionUnits )
 import Cardano.Ledger.Crypto
     ( DSIGN )
 import Cardano.Ledger.Era
     ( Crypto, Era, ValidateScript (..) )
 import Cardano.Ledger.Shelley.API
     ( StrictMaybe (..) )
-import Cardano.Slotting.EpochInfo
-    ( EpochInfo )
-import Cardano.Slotting.EpochInfo.API
-    ( hoistEpochInfo )
 import Cardano.Wallet.CoinSelection
     ( SelectionLimitOf (..)
     , SelectionOf (..)
@@ -114,7 +108,7 @@ import Cardano.Wallet.Primitive.AddressDerivation.Shelley
 import Cardano.Wallet.Primitive.Passphrase
     ( Passphrase (..) )
 import Cardano.Wallet.Primitive.Slotting
-    ( PastHorizonException, TimeInterpreter, getSystemStart, toEpochInfo )
+    ( SystemStart )
 import Cardano.Wallet.Primitive.Types
     ( Certificate
     , ExecutionUnitPrices (..)
@@ -164,7 +158,6 @@ import Cardano.Wallet.Shelley.Compatibility
     , fromCardanoLovelace
     , fromCardanoTx
     , fromCardanoWdrls
-    , fromShelleyTxIn
     , toCardanoLovelace
     , toCardanoPolicyId
     , toCardanoSimpleScript
@@ -172,15 +165,12 @@ import Cardano.Wallet.Shelley.Compatibility
     , toCardanoTxIn
     , toCardanoTxOut
     , toCardanoValue
-    , toCostModelsAsArray
     , toHDPayloadAddress
     , toScriptPurpose
     , toStakeKeyDeregCert
     , toStakeKeyRegCert
     , toStakePoolDlgCert
     )
-import Cardano.Wallet.Shelley.Compatibility.Ledger
-    ( toAlonzoTxOut, toBabbageTxOut )
 import Cardano.Wallet.Shelley.MinimumUTxO
     ( computeMinimumCoinForUTxO, isBelowMinimumCoinForUTxO )
 import Cardano.Wallet.Transaction
@@ -201,29 +191,19 @@ import Cardano.Wallet.Transaction
     , withdrawalToCoin
     )
 import Cardano.Wallet.Util
-    ( internalError, modifyM )
+    ( internalError )
 import Codec.Serialise
     ( deserialiseOrFail )
 import Control.Arrow
     ( left, second )
 import Control.Monad
     ( forM, guard )
-import Control.Monad.Trans.Class
-    ( lift )
-import Control.Monad.Trans.Except
-    ( runExceptT )
-import Control.Monad.Trans.State.Strict
-    ( StateT (..), execStateT, get, modify' )
 import Data.Bifunctor
     ( bimap )
-import Data.Either
-    ( fromRight )
 import Data.Function
     ( (&) )
 import Data.Functor
     ( ($>), (<&>) )
-import Data.Functor.Identity
-    ( runIdentity )
 import Data.Generics.Internal.VL.Lens
     ( view, (^.) )
 import Data.Generics.Labels
@@ -233,7 +213,7 @@ import Data.IntCast
 import Data.Kind
     ( Type )
 import Data.Map.Strict
-    ( Map, (!) )
+    ( Map )
 import Data.Maybe
     ( fromMaybe, mapMaybe )
 import Data.Quantity
@@ -261,7 +241,6 @@ import qualified Cardano.Crypto.Hash.Class as Crypto
 import qualified Cardano.Crypto.Wallet as Crypto.HD
 import qualified Cardano.Ledger.Alonzo.Data as Alonzo
 import qualified Cardano.Ledger.Alonzo.PlutusScriptApi as Alonzo
-import qualified Cardano.Ledger.Alonzo.PParams as Alonzo
 import qualified Cardano.Ledger.Alonzo.Scripts as Alonzo
 import qualified Cardano.Ledger.Alonzo.Tx as Alonzo
 import qualified Cardano.Ledger.Alonzo.TxWitness as Alonzo
@@ -272,7 +251,6 @@ import qualified Cardano.Ledger.Core as Ledger
 import qualified Cardano.Ledger.Serialization as Ledger
 import qualified Cardano.Ledger.Shelley.Address.Bootstrap as SL
 import qualified Cardano.Ledger.Shelley.Tx as Shelley
-import qualified Cardano.Ledger.Shelley.UTxO as Ledger
 import qualified Cardano.Ledger.ShelleyMA.TxBody as ShelleyMA
 import qualified Cardano.Wallet.Primitive.Types.Coin as Coin
 import qualified Cardano.Wallet.Primitive.Types.TokenBundle as TokenBundle
@@ -289,7 +267,6 @@ import qualified Data.Map.Merge.Strict as Map
 import qualified Data.Sequence.Strict as StrictSeq
 import qualified Data.Set as Set
 import qualified Data.Text as T
-
 
 -- | Type encapsulating what we need to know to add things -- payloads,
 -- certificates -- to a transaction.
@@ -693,16 +670,15 @@ _evaluateTransactionBalance
     :: forall era. IsShelleyBasedEra era
     => Cardano.Tx era
     -> Cardano.ProtocolParameters
-    -> UTxO
-    -> [(TxIn, TxOut, Maybe (Hash "Datum"))]
+    -> Cardano.UTxO era
     -> Cardano.Value
-_evaluateTransactionBalance (Cardano.Tx body _) pp utxo extraUTxO =
-            lovelaceFromCardanoTxOutValue
-                $ Cardano.evaluateTransactionBalance
-                    pp
-                    mempty
-                    (_toCardanoUTxO utxo extraUTxO)
-                    body
+_evaluateTransactionBalance (Cardano.Tx body _) pp utxo =
+    lovelaceFromCardanoTxOutValue
+        $ Cardano.evaluateTransactionBalance
+            pp
+            mempty
+            utxo
+            body
   where
     lovelaceFromCardanoTxOutValue
         :: Cardano.TxOutValue era -> Cardano.Value
@@ -711,7 +687,7 @@ _evaluateTransactionBalance (Cardano.Tx body _) pp utxo extraUTxO =
         Cardano.TxOutValue _ val   -> val
 
 _toCardanoUTxO
-    :: forall era. Cardano.IsShelleyBasedEra era
+    :: forall era. IsShelleyBasedEra era
     => UTxO
     -> [(TxIn, TxOut, Maybe (Hash "Datum"))]
     -> Cardano.UTxO era
@@ -1167,59 +1143,110 @@ type AlonzoTx =
 type BabbageTx =
     Ledger.Tx (Cardano.ShelleyLedgerEra Cardano.BabbageEra)
 
+data PlutusSupportedInEra e where
+    PlutusSupportedInAlonzoEra
+        :: Cardano.CardanoEra Cardano.AlonzoEra
+        -> PlutusSupportedInEra Cardano.AlonzoEra
+    PlutusSupportedInBabbageEra
+        :: Cardano.CardanoEra Cardano.BabbageEra
+        -> PlutusSupportedInEra Cardano.BabbageEra
+
+class HasPlutusSupport era where
+    plutusIsSupportedInEra :: PlutusSupportedInEra era
+
+instance HasPlutusSupport Cardano.AlonzoEra where
+    plutusIsSupportedInEra = PlutusSupportedInAlonzoEra Cardano.cardanoEra
+
+instance HasPlutusSupport Cardano.BabbageEra where
+    plutusIsSupportedInEra = PlutusSupportedInBabbageEra Cardano.cardanoEra
+
 _assignScriptRedeemers
     :: forall era. Cardano.IsShelleyBasedEra era
     => Cardano.ProtocolParameters
-    -> TimeInterpreter (Either PastHorizonException)
-    -> (TxIn -> Maybe (TxOut, Maybe (Hash "Datum")))
+    -> (Cardano.EraHistory Cardano.CardanoMode, SystemStart)
+    -> Cardano.UTxO era
     -> [Redeemer]
     -> Cardano.Tx era
     -> Either ErrAssignRedeemers (Cardano.Tx era )
-_assignScriptRedeemers pparams ti resolveInput redeemers tx =
-    case Cardano.shelleyBasedEra @era of
-        Cardano.ShelleyBasedEraShelley ->
-            pure tx
-        Cardano.ShelleyBasedEraAllegra ->
-            pure tx
-        Cardano.ShelleyBasedEraMary->
-            pure tx
-        Cardano.ShelleyBasedEraAlonzo -> do
-            let Cardano.ShelleyTx _ alonzoTx = tx
-            alonzoTx' <- flip execStateT alonzoTx $ do
-                indexedRedeemers <- StateT assignNullRedeemersAlonzo
-                executionUnits <- get
-                    >>= lift . evaluateExecutionUnitsAlonzo indexedRedeemers
-                modifyM (assignExecutionUnitsAlonzo executionUnits)
-                modify' addScriptIntegrityHashAlonzo
-            pure $ Cardano.ShelleyTx ShelleyBasedEraAlonzo alonzoTx'
-        Cardano.ShelleyBasedEraBabbage -> do
-            let Cardano.ShelleyTx _ babbageTx = tx
-            babbageTx' <- flip execStateT babbageTx $ do
-                indexedRedeemers <- StateT assignNullRedeemersBabbage
-                executionUnits <- get
-                    >>= lift . evaluateExecutionUnitsBabbage indexedRedeemers
-                modifyM (assignExecutionUnitsBabbage executionUnits)
-                modify' addScriptIntegrityHashBabbage
-            pure $ Cardano.ShelleyTx ShelleyBasedEraBabbage babbageTx'
+_assignScriptRedeemers pparams (eraHistory, systemStart) utxo redeemers tx0 =
+    onlyInPlutusEra $
+        assignNullRedeemers redeemers tx0
+            >>= evaluateAndAssignExecutionUnits
+            <&> addScriptIntegrityHash pparams
   where
-    epochInfo :: EpochInfo (Either T.Text)
-    epochInfo = hoistEpochInfo (left (T.pack . show) . runIdentity . runExceptT)
-        -- Because `TimeInterpreter` conflates the monad for fetching the
-        -- interpreter with the possibility of errors, we cope with this `error`
-        -- call for now. A nicer solution would be exposing either
-        -- `EpochInfo` or `Cardano.EraHistory` in the `NetworkLayer` directly,
-        -- or - perhaps at some point - reimagining the `TimeInterpreter`
-        -- abstraction.
-        $ fromRight
-            (error "`toEpochInfo ti` can never fail")
-            (toEpochInfo ti)
+    evaluateAndAssignExecutionUnits
+        :: HasPlutusSupport era
+        => Cardano.Tx era
+        -> Either ErrAssignRedeemers (Cardano.Tx era)
+    evaluateAndAssignExecutionUnits tx = do
+        -- Important to use the same tx!
+        executionUnits <- evaluateExecutionUnits tx
+        assignExecutionUnits executionUnits tx
 
-    systemStart = getSystemStart ti
+    onlyInPlutusEra
+        :: forall m. Monad m => (HasPlutusSupport era => m (Cardano.Tx era))
+        -> m (Cardano.Tx era)
+    onlyInPlutusEra f = case Cardano.cardanoEra @era of
+        Cardano.AlonzoEra -> f
+        Cardano.BabbageEra -> f
+        _ ->
+            -- NOTE: It appears we are returning the original tx rather than
+            -- erroring when we are asked to assign redeemers to a tx in an era
+            -- which doesn't support Plutus. We may want to error instead.
+            pure tx0
 
-    -- | Assign redeemers with null execution units to the input transaction.
-    --
-    -- Redeemers are determined from the context given to the caller via the
-    -- 'Redeemer' type which is mapped to an 'Alonzo.ScriptPurpose'.
+    -- | Evaluate execution units of each script/redeemer in the transaction.
+    -- This may fail for each script.
+    evaluateExecutionUnits
+        :: Cardano.Tx era
+        -> Either ErrAssignRedeemers (Map Cardano.ScriptWitnessIndex (Either ErrAssignRedeemers Cardano.ExecutionUnits))
+    evaluateExecutionUnits tx = do
+        let Cardano.Tx txBody _keyWits = tx
+
+        let res = Cardano.evaluateTransactionExecutionUnits @era
+                mode
+                systemStart
+                eraHistory
+                pparams
+                utxo
+                txBody
+
+        case res of
+            Left (Cardano.TransactionValidityTranslationError err)
+                -> Left $ ErrAssignRedeemersTranslationError err
+            Left e@Cardano.TransactionValidityIntervalError{}
+                -> Left $ ErrAssignRedeemersUnexpectedCardanoAPIError $ Cardano.displayError e
+            Left e@Cardano.TransactionValidityCostModelError{}
+                -> Left $ ErrAssignRedeemersUnexpectedCardanoAPIError $ Cardano.displayError e
+            Right report -> pure $ hoistScriptFailure report
+      where
+        hoistScriptFailure
+            :: Map Cardano.ScriptWitnessIndex (Either Cardano.ScriptExecutionError a)
+            -> Map Cardano.ScriptWitnessIndex (Either ErrAssignRedeemers a)
+        hoistScriptFailure = Map.map $ left $ \e ->
+            ErrAssignRedeemersScriptFailure e
+
+        Just mode = Cardano.toEraInMode (Cardano.cardanoEra @era) Cardano.CardanoMode
+
+-- | Assign redeemers with null execution units to the input transaction.
+--
+-- Redeemers are determined from the context given to the caller via the
+-- 'Redeemer' type which is mapped to an 'Alonzo.ScriptPurpose'.
+assignNullRedeemers
+    :: forall era. HasPlutusSupport era
+    => [Redeemer]
+    -> Cardano.Tx era
+    -> Either ErrAssignRedeemers (Cardano.Tx era)
+assignNullRedeemers redeemers tx = case plutusIsSupportedInEra @era of
+    PlutusSupportedInBabbageEra Cardano.BabbageEra ->
+        let (Cardano.ShelleyTx Cardano.ShelleyBasedEraBabbage babbageTx) = tx
+        in  (Cardano.ShelleyTx Cardano.ShelleyBasedEraBabbage) . snd
+            <$> assignNullRedeemersBabbage babbageTx
+    PlutusSupportedInAlonzoEra Cardano.AlonzoEra ->
+        let (Cardano.ShelleyTx Cardano.ShelleyBasedEraAlonzo alonzoTx) = tx
+        in  (Cardano.ShelleyTx Cardano.ShelleyBasedEraAlonzo) . snd
+            <$> assignNullRedeemersAlonzo alonzoTx
+  where
     assignNullRedeemersAlonzo
         :: AlonzoTx
         -> Either ErrAssignRedeemers (Map Alonzo.RdmrPtr Redeemer, AlonzoTx)
@@ -1278,108 +1305,42 @@ _assignScriptRedeemers pparams ti resolveInput redeemers tx =
                 }
             )
 
-    utxoFromAlonzoTx
-        :: AlonzoTx
-        -> Ledger.UTxO (Cardano.ShelleyLedgerEra Cardano.AlonzoEra)
-    utxoFromAlonzoTx alonzoTx =
+toLedgerScriptUnits
+    :: Functor f
+    => Map Cardano.ScriptWitnessIndex (f Cardano.ExecutionUnits)
+    -> Map Alonzo.RdmrPtr (f Alonzo.ExUnits)
+toLedgerScriptUnits =
+    Map.mapKeys Cardano.toAlonzoRdmrPtr
+    . Map.map (fmap Cardano.toAlonzoExUnits)
+
+
+-- NOTE: Could potentially be replaced with 'substituteExecutionUnits' from
+-- @cardano-api@?
+assignExecutionUnits
+    :: forall era m. (Monad m, HasPlutusSupport era)
+    => Map Cardano.ScriptWitnessIndex (m Cardano.ExecutionUnits)
+    -> Cardano.Tx era
+    -> m (Cardano.Tx era)
+assignExecutionUnits exUnits' tx = case plutusIsSupportedInEra @era of
+    PlutusSupportedInBabbageEra Cardano.BabbageEra ->
         let
-            inputs = Alonzo.inputs (Alonzo.body alonzoTx)
-            utxo = flip mapMaybe (F.toList inputs) $ \i -> do
-                (o, dt) <- resolveInput (fromShelleyTxIn i)
-                -- NOTE: 'toAlonzoTxOut' only partially represent the information
-                -- because the wallet internal types aren't capturing datum at
-                -- the moment. It is _okay_ in this context because the
-                -- resulting UTxO is only used by 'evaluateTransactionExecutionUnits'
-                -- to lookup addresses corresponding to inputs.
-                pure (i, toAlonzoTxOut o dt)
-         in
-            Ledger.UTxO (Map.fromList utxo)
-
-    utxoFromBabbageTx
-        :: BabbageTx
-        -> Ledger.UTxO (Cardano.ShelleyLedgerEra Cardano.BabbageEra)
-    utxoFromBabbageTx babbageTx =
+            Cardano.ShelleyTx Cardano.ShelleyBasedEraBabbage babbageTx = tx
+        in
+            Cardano.ShelleyTx Cardano.ShelleyBasedEraBabbage
+                <$> assignExecutionUnitsBabbage babbageTx
+    PlutusSupportedInAlonzoEra Cardano.AlonzoEra ->
         let
-            inputs = Babbage.inputs (Alonzo.body babbageTx)
-            utxo = flip mapMaybe (F.toList inputs) $ \i -> do
-                (o, dt) <- resolveInput (fromShelleyTxIn i)
-                -- NOTE: 'toAlonzoTxOut' only partially represent the
-                -- information because the wallet internal types aren't
-                -- capturing datum at the moment. It is _okay_ in this context
-                -- because the resulting UTxO is only used by
-                -- 'evaluateTransactionExecutionUnits' to lookup addresses
-                -- corresponding to inputs.
-                pure (i, toBabbageTxOut o dt)
-         in
-            Ledger.UTxO (Map.fromList utxo)
-
-
-    -- | Evaluate execution units of each script/redeemer in the transaction.
-    -- This may fail for each script.
-    evaluateExecutionUnitsAlonzo
-        :: Map Alonzo.RdmrPtr Redeemer
-        -> AlonzoTx
-        -> Either ErrAssignRedeemers
-            (Map Alonzo.RdmrPtr (Either ErrAssignRedeemers Alonzo.ExUnits))
-    evaluateExecutionUnitsAlonzo indexedRedeemers alonzoTx = do
-        let utxo = utxoFromAlonzoTx alonzoTx
-        let pparams' = Cardano.toLedgerPParams
-                Cardano.ShelleyBasedEraAlonzo pparams
-        let costs = toCostModelsAsArray
-                (Alonzo.unCostModels $ Alonzo._costmdls pparams')
-        let res = evaluateTransactionExecutionUnits
-                pparams'
-                alonzoTx
-                utxo
-                epochInfo
-                systemStart
-                costs
-        case res of
-            Left translationError ->
-                Left $ ErrAssignRedeemersTranslationError translationError
-            Right report ->
-                Right $ hoistScriptFailure indexedRedeemers report
-
-    evaluateExecutionUnitsBabbage
-        :: Map Alonzo.RdmrPtr Redeemer
-        -> BabbageTx
-        -> Either ErrAssignRedeemers
-            (Map Alonzo.RdmrPtr (Either ErrAssignRedeemers Alonzo.ExUnits))
-    evaluateExecutionUnitsBabbage indexedRedeemers babbageTx = do
-        let utxo = utxoFromBabbageTx babbageTx
-        let pparams' = Cardano.toLedgerPParams
-                Cardano.ShelleyBasedEraBabbage pparams
-        let costs = toCostModelsAsArray
-                (Alonzo.unCostModels $ Babbage._costmdls pparams')
-
-        let res = evaluateTransactionExecutionUnits
-                pparams'
-                babbageTx
-                utxo
-                epochInfo
-                systemStart
-                costs
-        case res of
-            Left translationError ->
-                Left $ ErrAssignRedeemersTranslationError translationError
-            Right report ->
-                Right $ hoistScriptFailure indexedRedeemers report
-
-    hoistScriptFailure
-        :: Show scriptFailure
-        => Map Alonzo.RdmrPtr Redeemer
-        -> Map Alonzo.RdmrPtr (Either scriptFailure a)
-        -> Map Alonzo.RdmrPtr (Either ErrAssignRedeemers a)
-    hoistScriptFailure indexedRedeemers = Map.mapWithKey $ \ptr -> left $ \e ->
-        ErrAssignRedeemersScriptFailure (indexedRedeemers ! ptr) (show e)
+            Cardano.ShelleyTx Cardano.ShelleyBasedEraAlonzo alonzoTx = tx
+        in
+            Cardano.ShelleyTx Cardano.ShelleyBasedEraAlonzo
+                <$> assignExecutionUnitsAlonzo alonzoTx
+  where
+    exUnits = toLedgerScriptUnits exUnits'
 
     -- | Change execution units for each redeemers in the transaction to what
     -- they ought to be.
-    assignExecutionUnitsAlonzo
-        :: Map Alonzo.RdmrPtr (Either ErrAssignRedeemers Alonzo.ExUnits)
-        -> AlonzoTx
-        -> Either ErrAssignRedeemers AlonzoTx
-    assignExecutionUnitsAlonzo exUnits alonzoTx = do
+    assignExecutionUnitsAlonzo :: AlonzoTx -> m AlonzoTx
+    assignExecutionUnitsAlonzo alonzoTx = do
         let wits = Alonzo.wits alonzoTx
         let Alonzo.Redeemers rdmrs = Alonzo.txrdmrs wits
         rdmrs' <- Map.mergeA
@@ -1393,12 +1354,8 @@ _assignScriptRedeemers pparams ti resolveInput redeemers tx =
                 { Alonzo.txrdmrs = Alonzo.Redeemers rdmrs'
                 }
             }
-
-    assignExecutionUnitsBabbage
-        :: Map Alonzo.RdmrPtr (Either ErrAssignRedeemers Alonzo.ExUnits)
-        -> BabbageTx
-        -> Either ErrAssignRedeemers BabbageTx
-    assignExecutionUnitsBabbage exUnits babbageTx = do
+    assignExecutionUnitsBabbage :: BabbageTx -> m BabbageTx
+    assignExecutionUnitsBabbage babbageTx = do
         let wits = Alonzo.wits babbageTx
         let Alonzo.Redeemers rdmrs = Alonzo.txrdmrs wits
         rdmrs' <- Map.mergeA
@@ -1412,18 +1369,35 @@ _assignScriptRedeemers pparams ti resolveInput redeemers tx =
                 { Alonzo.txrdmrs = Alonzo.Redeemers rdmrs'
                 }
             }
-
     assignUnits
-        :: (dat, Alonzo.ExUnits)
-        -> Either err Alonzo.ExUnits
-        -> Either err (dat, Alonzo.ExUnits)
+        :: forall dat. (dat, Alonzo.ExUnits)
+        -> m Alonzo.ExUnits
+        -> m (dat, Alonzo.ExUnits)
     assignUnits (dats, _zero) =
         fmap (dats,)
 
-    -- | Finally, calculate and add the script integrity hash with the new
-    -- final redeemers, if any.
+
+addScriptIntegrityHash
+    :: forall era. HasPlutusSupport era
+    => Cardano.ProtocolParameters
+    -> Cardano.Tx era
+    -> Cardano.Tx era
+addScriptIntegrityHash pparams tx = case plutusIsSupportedInEra @era of
+    PlutusSupportedInBabbageEra Cardano.BabbageEra ->
+        let
+            Cardano.ShelleyTx Cardano.ShelleyBasedEraBabbage babbageTx = tx
+        in
+            Cardano.ShelleyTx Cardano.ShelleyBasedEraBabbage
+                $ addScriptIntegrityHashBabbage babbageTx
+    PlutusSupportedInAlonzoEra Cardano.AlonzoEra ->
+        let
+            Cardano.ShelleyTx Cardano.ShelleyBasedEraAlonzo alonzoTx = tx
+        in
+            Cardano.ShelleyTx Cardano.ShelleyBasedEraAlonzo
+                $ addScriptIntegrityHashAlonzo alonzoTx
+  where
     addScriptIntegrityHashAlonzo
-        :: forall e. (e ~ Cardano.ShelleyLedgerEra Cardano.AlonzoEra)
+        :: forall e. ( e ~ Cardano.ShelleyLedgerEra Cardano.AlonzoEra )
         => AlonzoTx
         -> AlonzoTx
     addScriptIntegrityHashAlonzo alonzoTx =
@@ -1441,7 +1415,7 @@ _assignScriptRedeemers pparams ti resolveInput redeemers tx =
                 { Alonzo.scriptIntegrityHash = Alonzo.hashScriptIntegrity
                     (Set.fromList $ Alonzo.getLanguageView
                         (Cardano.toLedgerPParams
-                            Cardano.ShelleyBasedEraAlonzo pparams)
+                            Cardano.ShelleyBasedEraBabbage pparams)
                         <$> langs)
                     (Alonzo.txrdmrs wits)
                     (Alonzo.txdats wits)

@@ -1,6 +1,10 @@
 {-# LANGUAGE GADTs #-}
 {-# LANGUAGE LambdaCase #-}
 {-# LANGUAGE Rank2Types #-}
+{-# LANGUAGE StandaloneDeriving #-}
+
+{-# OPTIONS_GHC -fno-warn-orphans #-}
+
 
 -- |
 -- Copyright: © 2022 IOHK
@@ -21,9 +25,13 @@ import Cardano.Api
     , InAnyShelleyBasedEra (..)
     , IsCardanoEra (cardanoEra)
     , IsShelleyBasedEra
+    , ScriptExecutionError (..)
     , ShelleyBasedEra (..)
+    , TransactionValidityError (..)
     , Tx
     )
+import Cardano.Wallet.Orphans
+    ()
 
 -- | Apply an era-parameterized function to an existentially-wrapped
 -- tx.
@@ -56,3 +64,9 @@ asAnyShelleyBasedEra = \case
         Just $ InAnyShelleyBasedEra ShelleyBasedEraAlonzo a
     InAnyCardanoEra BabbageEra a ->
         Just $ InAnyShelleyBasedEra ShelleyBasedEraBabbage a
+
+-- TODO: Open PR to cardano-api
+deriving instance Eq ScriptExecutionError
+
+-- NOTE: Needs Eq PastHorizonException orphan
+deriving instance Eq TransactionValidityError

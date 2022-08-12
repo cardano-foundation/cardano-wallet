@@ -139,8 +139,7 @@ import Cardano.Api.Extra
 import Cardano.BM.Tracing
     ( HasPrivacyAnnotation (..), HasSeverityAnnotation (..) )
 import Cardano.Ledger.Alonzo.TxInfo
-    ( TranslationError (TimeTranslationPastHorizon, TranslationLogicMissingInput)
-    )
+    ( TranslationError (..) )
 import Cardano.Mnemonic
     ( SomeMnemonic )
 import Cardano.Wallet
@@ -458,7 +457,6 @@ import Cardano.Wallet.Primitive.Slotting
     , neverFails
     , ongoingSlotAt
     , slotToUTCTime
-    , snapshot
     , timeOfEpoch
     , toSlotId
     , unsafeExtendSafeZone
@@ -2807,15 +2805,18 @@ balanceTransaction ctx genChange (ApiT wid) body = do
     let nodePParams = fromJust $ W.currentNodeProtocolParameters pp
     withWorkerCtx ctx wid liftE liftE $ \wrk -> do
         wallet <- liftHandler $ W.readWalletUTxOIndex @_ @s @k wrk wid
-        ti <- liftIO $ snapshot $ timeInterpreter $ ctx ^. networkLayer
+        eh <- liftIO $ eraHistory $ ctx ^. networkLayer
 
         let mkPartialTx
-                :: forall era. Cardano.Tx era
+                :: forall era. Cardano.IsShelleyBasedEra era => Cardano.Tx era
                 -> W.PartialTx era
             mkPartialTx tx = W.PartialTx
                     tx
-                    (fromExternalInput <$> body ^. #inputs)
+                    (convertToCardano $ fromExternalInput <$> body ^. #inputs)
                     (fromApiRedeemer <$> body ^. #redeemers)
+              where
+                convertToCardano xs =
+                    toCardanoUTxO (wrk ^. W.transactionLayer @k) mempty xs
 
         let balanceTx
                 :: forall era. Cardano.IsShelleyBasedEra era
@@ -2826,7 +2827,7 @@ balanceTransaction ctx genChange (ApiT wid) body = do
                     wrk
                     genChange
                     (pp, nodePParams)
-                    ti
+                    eh
                     wallet
                     partialTx
 
@@ -4855,7 +4856,12 @@ instance IsServerError ErrBalanceTx where
                 [ "I was not able to balance the transaction without exceeding"
                 , "the maximum transaction size."
                 ]
-
+        ErrBalanceTxConflictingInputResolution ->
+            apiError err403 ConflictingInputResolution $ mconcat
+                [ "At least one of the inputs provided has a different value "
+                , "or different address from that recorded in the wallet UTxO. "
+                , "Please ensure it is correct."
+                ]
 
 instance IsServerError ErrRemoveTx where
     toServerError = \case
@@ -5327,12 +5333,12 @@ instance IsServerError ErrUpdateSealedTx where
 
 instance IsServerError ErrAssignRedeemers where
     toServerError = \case
-        ErrAssignRedeemersScriptFailure r failure ->
+        ErrAssignRedeemersScriptFailure scriptExecutionError ->
             apiError err400 RedeemerScriptFailure $ T.unwords
                 [ "I was unable to assign execution units to one of your"
-                , "redeemers:", pretty r <> ";"
-                , "Its execution is failing with the following error:"
-                , T.pack failure <> "."
+                , "redeemers."
+                , "Its execution is failing with the following error:\n"
+                , T.pack $ Cardano.displayError scriptExecutionError
                 ]
         ErrAssignRedeemersTargetNotFound r ->
             apiError err400 RedeemerTargetNotFound $ T.unwords
@@ -5374,6 +5380,11 @@ instance IsServerError ErrAssignRedeemers where
                 [ "The transaction I was given contains bits that cannot be"
                 , "translated in the current era. The following is wrong:\n\n"
                 , showT e
+                ]
+        ErrAssignRedeemersUnexpectedCardanoAPIError e ->
+            apiError err500 TranslationError $ T.unwords
+                [ "I got an error I didn't expect:"
+                , T.pack e
                 ]
 
 instance IsServerError (Request, ServerError) where

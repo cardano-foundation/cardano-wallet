@@ -57,8 +57,10 @@ import Cardano.Address.Script
     ( KeyHash, Script )
 import Cardano.Api
     ( AnyCardanoEra )
+import Cardano.Api.Extra
+    ()
 import Cardano.Ledger.Alonzo.TxInfo
-    ( TranslationError )
+    ( TranslationError (..) )
 import Cardano.Ledger.Crypto
     ( StandardCrypto )
 import Cardano.Wallet.CoinSelection
@@ -72,7 +74,7 @@ import Cardano.Wallet.Primitive.AddressDerivation
 import Cardano.Wallet.Primitive.Passphrase
     ( Passphrase )
 import Cardano.Wallet.Primitive.Slotting
-    ( PastHorizonException, TimeInterpreter )
+    ( PastHorizonException, SystemStart )
 import Cardano.Wallet.Primitive.Types
     ( Certificate
     , FeePolicy
@@ -254,8 +256,7 @@ data TransactionLayer k tx = TransactionLayer
         :: forall era. Cardano.IsShelleyBasedEra era
         => Cardano.Tx era
         -> Cardano.ProtocolParameters
-        -> UTxO
-        -> [(TxIn, TxOut, Maybe (Hash "Datum"))] -- Extra UTxO
+        -> Cardano.UTxO era
         -> Cardano.Value
         -- ^ Evaluate the balance of a transaction using the ledger. The balance
         -- is defined as @(value consumed by transaction) - (value produced by
@@ -351,10 +352,8 @@ data TransactionLayer k tx = TransactionLayer
         :: forall era. Cardano.IsShelleyBasedEra era
         => Cardano.ProtocolParameters
             -- Current protocol parameters
-        -> TimeInterpreter (Either PastHorizonException)
-            -- Time interpreter in the Monad m
-        -> (TxIn -> Maybe (TxOut, Maybe (Hash "Datum")))
-            -- A input resolver for transactions' inputs containing scripts.
+        -> (Cardano.EraHistory Cardano.CardanoMode, SystemStart)
+        -> Cardano.UTxO era
         -> [Redeemer]
             -- A list of redeemers to set on the transaction.
         -> (Cardano.Tx era)
@@ -523,18 +522,13 @@ data ErrMkTransaction
     deriving (Generic, Eq, Show)
 
 data ErrAssignRedeemers
-    = ErrAssignRedeemersScriptFailure Redeemer String
-    -- ^ Failed to assign execution units for a particular redeemer. The
-    -- 'String' indicates the reason of the failure.
-    --
-    -- TODO: Refine this type to avoid the 'String' and provides a better
-    -- sum-type of possible errors.
+    = ErrAssignRedeemersScriptFailure Cardano.ScriptExecutionError
     | ErrAssignRedeemersTargetNotFound Redeemer
     -- ^ The given redeemer target couldn't be located in the transaction.
     | ErrAssignRedeemersInvalidData Redeemer String
     -- ^ Redeemer's data isn't a valid Plutus' data.
     | ErrAssignRedeemersTranslationError (TranslationError StandardCrypto)
-    -- ^ Mistranslating of hashes, credentials, certificates etc.
+    | ErrAssignRedeemersUnexpectedCardanoAPIError String
     deriving (Generic, Eq, Show)
 
 -- | Possible signing error
