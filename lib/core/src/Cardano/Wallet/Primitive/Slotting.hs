@@ -68,6 +68,7 @@ module Cardano.Wallet.Primitive.Slotting
      -- * Dummy values for testing
     , dummyForkInterpreter
     , dummyEraHistory
+    , dummyForkEraHistory
     ) where
 
 import Prelude
@@ -658,11 +659,12 @@ dummyForkInterpreter =
         summary = HF.summaryWithExactly $ exactlyTwo
             (HF.EraSummary t0 (HF.EraEnd t1) era1Params)
             (HF.EraSummary t1 (HF.EraEnd t2) era1Params)
-        in
+    in
             hoistTimeInterpreter (runIdentity . runExceptT) $ mkTimeInterpreter
                 nullTracer
                 (StartTime $ posixSecondsToUTCTime 0)
                 (pure $ HF.mkInterpreter summary)
+
 
 -- | For testing only.
 dummyEraHistory :: (Cardano.EraHistory Cardano.CardanoMode, SystemStart)
@@ -706,6 +708,56 @@ dummyEraHistory =
                     , boundEpoch = Cardano.EpochNo 0
                     }
                 , eraEnd = EraUnbounded
+                , eraParams = eraParams
+                }
+        }
+
+-- | For testing only.
+dummyForkEraHistory :: (Cardano.EraHistory Cardano.CardanoMode, SystemStart)
+dummyForkEraHistory =
+    ( Cardano.EraHistory Cardano.CardanoMode int
+    , SystemStart $ posixSecondsToUTCTime 0
+    )
+  where
+    int = mkInterpreter summary
+
+    eraParams = EraParams
+        { eraEpochSize = EpochSize 432000
+        , eraSlotLength = mkSlotLength 1
+        , eraSafeZone = StandardSafeZone 129600
+        }
+
+    emptyEra = EraSummary
+        { eraStart = Bound
+            { boundTime = RelativeTime 0
+            , boundSlot = 0
+            , boundEpoch = Cardano.EpochNo 0
+            }
+        , eraEnd = EraEnd Bound
+            { boundTime = RelativeTime 0
+            , boundSlot = 0
+            , boundEpoch = Cardano.EpochNo 0
+            }
+        , eraParams = eraParams
+        }
+
+    summary = Summary
+        { getSummary =
+            NonEmptyCons emptyEra -- Byron
+            $ NonEmptyCons emptyEra -- Shelley
+            $ NonEmptyCons emptyEra -- Allegra
+            $ NonEmptyCons emptyEra -- Mary
+            $ NonEmptyOne EraSummary -- Alonzo
+                { eraStart = Bound
+                    { boundTime = RelativeTime 0
+                    , boundSlot = 0
+                    , boundEpoch = Cardano.EpochNo 0
+                    }
+                , eraEnd = EraEnd $ Bound
+                    { boundTime = RelativeTime 0
+                    , boundSlot = 432000
+                    , boundEpoch = Cardano.EpochNo 1
+                    }
                 , eraParams = eraParams
                 }
         }
