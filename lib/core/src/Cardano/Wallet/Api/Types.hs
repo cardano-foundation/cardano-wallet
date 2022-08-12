@@ -1774,6 +1774,7 @@ data ApiErrorCode
     | InvalidValidityBounds
     | KeyNotFoundForAddress
     | MalformedTxPayload
+    | MempoolIsFull
     | MethodNotAllowed
     | MinWithdrawalWrong
     | MintOrBurnAssetQuantityOutOfBounds

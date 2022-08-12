@@ -4881,6 +4881,16 @@ instance IsServerError ErrPostTx where
                 , "node. Here's an error message that may help with "
                 , "debugging:\n", err
                 ]
+        ErrPostTxMempoolFull ->
+            apiError err425
+            {errBody = "Mempool is full, please try resubmitting again later."}
+                MempoolIsFull $ mconcat
+                [ "The submitted transaction was rejected by the Cardano node "
+                , "because its mempool was full."
+                ]
+
+err425 :: ServerError
+err425 = ServerError 425 "Too early" "" []
 
 instance IsServerError ErrSubmitTransaction where
     toServerError = \case
