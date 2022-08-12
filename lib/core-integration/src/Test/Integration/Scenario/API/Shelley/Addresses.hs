@@ -405,24 +405,37 @@ spec = describe "SHELLEY_ADDRESSES" $ do
             ]
 
     -- Generating golden test data for enterprise addresses - script credential:
+    --- (a) from script hash
     --- $ cardano-address script hash "$(cat script.txt)" \
-    --- | cardano-address address payment --from-script --network-tag mainnet
+    --- | cardano-address address payment --network-tag mainnet
+    --- (b) from script
+    --- $ cardano-address address payment --network-tag mainnet "$(cat script.txt)"
     it "ANY_ADDRESS_POST_01 - Golden tests for enterprise script address - signature" $ \ctx -> do
         --- $ cat script.txt
         --- addr_shared_vkh1zxt0uvrza94h3hv4jpv0ttddgnwkvdgeyq8jf9w30mcs6y8w3nq
-        let payload = Json [json|{
+        --- $ cardano-address script hash "$(cat script.txt)"
+        --- script1ccqe6wa40878s2pxrfwj0qxz9t7dxw8rhfreqwzjuy67gk2ausz
+        let payload1 = Json [json|{
                 "payment": "addr_shared_vkh1zxt0uvrza94h3hv4jpv0ttddgnwkvdgeyq8jf9w30mcs6y8w3nq"
             }|]
-        r <- request @AnyAddress ctx Link.postAnyAddress Default payload
-        expectResponseCode HTTP.status202 r
+        r1 <- request @AnyAddress ctx Link.postAnyAddress Default payload1
+        expectResponseCode HTTP.status202 r1
+        let payload2 = Json [json|{
+                "payment": "script1ccqe6wa40878s2pxrfwj0qxz9t7dxw8rhfreqwzjuy67gk2ausz"
+            }|]
+        r2 <- request @AnyAddress ctx Link.postAnyAddress Default payload2
+        expectResponseCode HTTP.status202 r2
         let goldenAddr =
                 "addr1w8rqr8fmk4ulc7pgycd96fuqcg40e5ecuway0ypc2tsnteqm5wul2" :: Text
-        validateAddr r goldenAddr
+        validateAddr r1 goldenAddr
+        validateAddr r2 goldenAddr
 
     it "ANY_ADDRESS_POST_02 - Golden tests for enterprise script address - any" $ \ctx -> do
         --- $ cat script.txt
         --- any [addr_shared_vkh1zxt0uvrza94h3hv4jpv0ttddgnwkvdgeyq8jf9w30mcs6y8w3nq, addr_shared_vkh1y3zl4nqgm96ankt96dsdhc86vd5geny0wr7hu8cpzdfcqskq2cp]
-        let payload = Json [json|{
+        --- $ cardano-address script hash "$(cat script.txt)"
+        --- script1ujl6y7gx0e3h79kyzqan0smw3xq6x289za64fn6tap6xc7rsm0z
+        let payload1 = Json [json|{
                 "payment": {
                     "any": [
                         "addr_shared_vkh1zxt0uvrza94h3hv4jpv0ttddgnwkvdgeyq8jf9w30mcs6y8w3nq",
@@ -430,16 +443,24 @@ spec = describe "SHELLEY_ADDRESSES" $ do
                         ]
                     }
             }|]
-        r <- request @AnyAddress ctx Link.postAnyAddress Default payload
-        expectResponseCode HTTP.status202 r
+        r1 <- request @AnyAddress ctx Link.postAnyAddress Default payload1
+        expectResponseCode HTTP.status202 r1
+        let payload2 = Json [json|{
+                "payment": "script1ujl6y7gx0e3h79kyzqan0smw3xq6x289za64fn6tap6xc7rsm0z"
+            }|]
+        r2 <- request @AnyAddress ctx Link.postAnyAddress Default payload2
+        expectResponseCode HTTP.status202 r2
         let goldenAddr =
                 "addr1w8jtlgneqelxxlckcsgrkd7rd6ycrgegu5th24x0f058gmqhsnv92" :: Text
-        validateAddr r goldenAddr
+        validateAddr r1 goldenAddr
+        validateAddr r2 goldenAddr
 
     it "ANY_ADDRESS_POST_03 - Golden tests for enterprise script address - all" $ \ctx -> do
         --- $ cat script.txt
         --- all [addr_shared_vkh1zxt0uvrza94h3hv4jpv0ttddgnwkvdgeyq8jf9w30mcs6y8w3nq, addr_shared_vkh1y3zl4nqgm96ankt96dsdhc86vd5geny0wr7hu8cpzdfcqskq2cp]
-        let payload = Json [json|{
+        --- $ cardano-address script hash "$(cat script.txt)"
+        --- script1gr69m385thgvkrtspk73zmkwk537wxyxuevs2u9cukglvtlkz4k
+        let payload1 = Json [json|{
                 "payment": {
                     "all": [
                         "addr_shared_vkh1zxt0uvrza94h3hv4jpv0ttddgnwkvdgeyq8jf9w30mcs6y8w3nq",
@@ -447,16 +468,24 @@ spec = describe "SHELLEY_ADDRESSES" $ do
                         ]
                     }
             }|]
-        r <- request @AnyAddress ctx Link.postAnyAddress Default payload
-        expectResponseCode HTTP.status202 r
+        r1 <- request @AnyAddress ctx Link.postAnyAddress Default payload1
+        expectResponseCode HTTP.status202 r1
+        let payload2 = Json [json|{
+                "payment": "script1gr69m385thgvkrtspk73zmkwk537wxyxuevs2u9cukglvtlkz4k"
+            }|]
+        r2 <- request @AnyAddress ctx Link.postAnyAddress Default payload2
+        expectResponseCode HTTP.status202 r2
         let goldenAddr =
                 "addr1w9q0ghwy73wapjcdwqxm6ytwe66j8eccsmn9jptshrjerasvf2cg0" :: Text
-        validateAddr r goldenAddr
+        validateAddr r1 goldenAddr
+        validateAddr r2 goldenAddr
 
     it "ANY_ADDRESS_POST_04 - Golden tests for enterprise script address - some" $ \ctx -> do
         --- $ cat script.txt
         --- at_least 2 [addr_shared_vkh1zxt0uvrza94h3hv4jpv0ttddgnwkvdgeyq8jf9w30mcs6y8w3nq,addr_shared_vkh1y3zl4nqgm96ankt96dsdhc86vd5geny0wr7hu8cpzdfcqskq2cp,addr_shared_vkh175wsm9ckhm3snwcsn72543yguxeuqm7v9r6kl6gx57h8gdydcd9]
-        let payload = Json [json|{
+        --- $ cardano-address script hash "$(cat script.txt)"
+        ---- script1qxu7mh9eaxt6fh2z87hwz46wgy7z8kjyqmlmfcrvnfa02aj9778
+        let payload1 = Json [json|{
                 "payment": {
                     "some": {
                         "from" : [
@@ -468,11 +497,17 @@ spec = describe "SHELLEY_ADDRESSES" $ do
                          }
                     }
             }|]
-        r <- request @AnyAddress ctx Link.postAnyAddress Default payload
-        expectResponseCode HTTP.status202 r
+        r1 <- request @AnyAddress ctx Link.postAnyAddress Default payload1
+        expectResponseCode HTTP.status202 r1
+        let payload2 = Json [json|{
+                "payment": "script1qxu7mh9eaxt6fh2z87hwz46wgy7z8kjyqmlmfcrvnfa02aj9778"
+            }|]
+        r2 <- request @AnyAddress ctx Link.postAnyAddress Default payload2
+        expectResponseCode HTTP.status202 r2
         let goldenAddr =
                 "addr1wyqmnmwuh85e0fxaggl6ac2hfeqncg76gsr0ld8qdjd84ag6sm0n8" :: Text
-        validateAddr r goldenAddr
+        validateAddr r1 goldenAddr
+        validateAddr r2 goldenAddr
 
     -- Generating golden test data for reward account addresses - script credential:
     --- $ cardano-address script hash "$(cat script.txt)" \
