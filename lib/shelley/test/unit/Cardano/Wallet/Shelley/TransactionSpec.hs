@@ -448,6 +448,7 @@ spec = do
     transactionConstraintsSpec
     updateSealedTxSpec
     balanceTransactionSpec
+    distributeSurplusSpec
     estimateSignedTxSizeSpec
     describe "Sign transaction" $ do
         spec_forAllEras
@@ -2412,73 +2413,74 @@ instance Arbitrary StdGenSeed  where
   arbitrary = StdGenSeed . fromIntegral @Int <$> arbitrary
 
 balanceTransactionSpec :: Spec
-balanceTransactionSpec = do
-    describe "balanceTransaction" $ do
-        -- TODO: Create a test to show that datums are passed through...
+balanceTransactionSpec = describe "balanceTransaction" $ do
+    -- TODO: Create a test to show that datums are passed through...
 
-        it "doesn't balance transactions with existing 'totalCollateral'"
-            $ property prop_balanceTransactionExistingTotalCollateral
+    it "doesn't balance transactions with existing 'totalCollateral'"
+        $ property prop_balanceTransactionExistingTotalCollateral
 
-        it "doesn't balance transactions with existing 'returnCollateral'"
-            $ property prop_balanceTransactionExistingReturnCollateral
+    it "doesn't balance transactions with existing 'returnCollateral'"
+        $ property prop_balanceTransactionExistingReturnCollateral
 
-        it "produces valid transactions or fails"
-            $ property prop_balanceTransactionValid
+    it "produces valid transactions or fails"
+        $ property prop_balanceTransactionValid
 
-        balanceTransactionGoldenSpec
+    balanceTransactionGoldenSpec
 
-        describe "posAndNegFromCardanoValue" $
-            it "roundtrips with toCardanoValue" $
-                property prop_posAndNegFromCardanoValueRoundtrip
+    describe "posAndNegFromCardanoValue" $
+        it "roundtrips with toCardanoValue" $
+            property prop_posAndNegFromCardanoValueRoundtrip
 
-        describe "effect of txMaxSize on coin selection" $ do
-            let addr = Address $ unsafeFromHex
-                    "60b1e5e0fb74c86c801f646841e07\
-                    \cdb42df8b82ef3ce4e57cb5412e77"
-            let mw = SomeMnemonic $ either (error . show) id
-                    (entropyToMnemonic @12 <$> mkEntropy "0000000000000000")
-            let rootK = Shelley.unsafeGenerateKeyFromSeed (mw, Nothing) mempty
-            let tid = Hash $ B8.replicate 32 '1'
-            let wallet = mkTestWallet rootK $ UTxO $ Map.fromList $
-                    [ ( TxIn tid ix
-                      , TxOut addr (TokenBundle.fromCoin $ Coin 1_000_000)
-                      )
-                    | ix <- [0 .. 500]
+    describe "effect of txMaxSize on coin selection" $ do
+        let addr = Address $ unsafeFromHex
+                "60b1e5e0fb74c86c801f646841e07\
+                \cdb42df8b82ef3ce4e57cb5412e77"
+        let mw = SomeMnemonic $ either (error . show) id
+                (entropyToMnemonic @12 <$> mkEntropy "0000000000000000")
+        let rootK = Shelley.unsafeGenerateKeyFromSeed (mw, Nothing) mempty
+        let tid = Hash $ B8.replicate 32 '1'
+        let wallet = mkTestWallet rootK $ UTxO $ Map.fromList $
+                [ ( TxIn tid ix
+                  , TxOut addr (TokenBundle.fromCoin $ Coin 1_000_000)
+                  )
+                | ix <- [0 .. 500]
+                ]
+
+        let balance = balanceTransaction' wallet testStdGenSeed
+        let totalOutput tx =
+                let (wtx, _, _, _, _) =
+                        decodeTx testTxLayer maxBound (sealedTxFromCardano' tx)
+                in
+                    F.foldMap (view (#tokens . #coin)) (view #outputs wtx)
+                    <> fromMaybe (Coin 0) (view #fee wtx)
+
+        it "tries to select 2x the payment amount" $ do
+            let tx = balance $ paymentPartialTx
+                    [ TxOut addr
+                        (TokenBundle.fromCoin (Coin 50_000_000))
                     ]
+            totalOutput <$> tx `shouldBe` Right (Coin 100_000_000)
 
-            let balance = balanceTransaction' wallet testStdGenSeed
-            let totalOutput tx =
-                    let (wtx, _, _, _, _) =
-                            decodeTx testTxLayer maxBound (sealedTxFromCardano' tx)
-                    in
-                        F.foldMap (view (#tokens . #coin)) (view #outputs wtx)
-                        <> fromMaybe (Coin 0) (view #fee wtx)
+        it "falls back to 1x if out of space" $ do
+            let tx = balance $ paymentPartialTx
+                    [ TxOut addr
+                        (TokenBundle.fromCoin (Coin 100_000_000))
+                    ]
+            totalOutput <$> tx `shouldBe` Right (Coin 102_000_000)
 
-            it "tries to select 2x the payment amount" $ do
-                let tx = balance $ paymentPartialTx
-                        [ TxOut addr
-                            (TokenBundle.fromCoin (Coin 50_000_000))
-                        ]
-                totalOutput <$> tx `shouldBe` Right (Coin 100_000_000)
+        it "otherwise fails with ErrBalanceTxMaxSizeLimitExceeded" $ do
+            let tx = balance $ paymentPartialTx
+                    [ TxOut addr
+                        (TokenBundle.fromCoin (Coin 200_000_000))
+                    ]
+            tx `shouldBe` Left ErrBalanceTxMaxSizeLimitExceeded
 
-            it "falls back to 1x if out of space" $ do
-                let tx = balance $ paymentPartialTx
-                        [ TxOut addr
-                            (TokenBundle.fromCoin (Coin 100_000_000))
-                        ]
-                totalOutput <$> tx `shouldBe` Right (Coin 102_000_000)
+    describe "when passed unresolved inputs" $ do
+        xit "may fail"
+            $ property prop_balanceTransactionUnresolvedInputs
 
-            it "otherwise fails with ErrBalanceTxMaxSizeLimitExceeded" $ do
-                let tx = balance $ paymentPartialTx
-                        [ TxOut addr
-                            (TokenBundle.fromCoin (Coin 200_000_000))
-                        ]
-                tx `shouldBe` Left ErrBalanceTxMaxSizeLimitExceeded
-
-        describe "when passed unresolved inputs" $ do
-            xit "may fail"
-                $ property prop_balanceTransactionUnresolvedInputs
-
+distributeSurplusSpec :: Spec
+distributeSurplusSpec = do
     describe "sizeOfCoin" $ do
         let coinToWord64Clamped = fromMaybe maxBound . Coin.toWord64
         let cborSizeOfCoin =
