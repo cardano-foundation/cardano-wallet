@@ -218,7 +218,7 @@ import Cardano.Wallet.Shelley.Compatibility
     , toCardanoValue
     )
 import Cardano.Wallet.Shelley.Compatibility.Ledger
-    ( toAlonzoTxOut )
+    ( toBabbageTxOut )
 import Cardano.Wallet.Shelley.Transaction
     ( EraConstraints
     , TxSkeleton (..)
@@ -321,6 +321,8 @@ import Fmt
     ( Buildable (..), blockListF', fmt, nameF, pretty, (+||), (||+) )
 import GHC.Generics
     ( Generic )
+import Ouroboros.Consensus.Shelley.Eras
+    ( StandardBabbage )
 import Ouroboros.Network.Block
     ( SlotNo (..) )
 import System.Directory
@@ -3413,7 +3415,7 @@ balanceTransactionGoldenSpec = describe "balance goldens" $ do
         test "delegate" delegate
         test "1ada-payment" payment
   where
-    test :: String -> PartialTx Cardano.AlonzoEra -> Spec
+    test :: String -> PartialTx Cardano.BabbageEra -> Spec
     test name partialTx = it name $ do
         goldenText name
             (map (mkGolden partialTx . Coin) defaultWalletBalanceRange)
@@ -3434,7 +3436,7 @@ balanceTransactionGoldenSpec = describe "balance goldens" $ do
           where
             dir = $(getTestData) </> "balanceTx"
 
-        mkGolden :: PartialTx Cardano.AlonzoEra -> Coin -> BalanceTxGolden
+        mkGolden :: PartialTx Cardano.BabbageEra -> Coin -> BalanceTxGolden
         mkGolden ptx c =
             let
                 res = balanceTransaction'
@@ -3460,7 +3462,7 @@ balanceTransactionGoldenSpec = describe "balance goldens" $ do
         addr = Address $ unsafeFromHex
             "60b1e5e0fb74c86c801f646841e07cdb42df8b82ef3ce4e57cb5412e77"
 
-    payment :: PartialTx Cardano.AlonzoEra
+    payment :: PartialTx Cardano.BabbageEra
     payment = paymentPartialTx
         [ TxOut addr (TokenBundle.fromCoin (Coin 1_000_000))
         ]
@@ -3468,12 +3470,12 @@ balanceTransactionGoldenSpec = describe "balance goldens" $ do
         addr = Address $ unsafeFromHex
             "60b1e5e0fb74c86c801f646841e07cdb42df8b82ef3ce4e57cb5412e77"
 
-    delegate :: PartialTx Cardano.AlonzoEra
+    delegate :: PartialTx Cardano.BabbageEra
     delegate = PartialTx (Cardano.Tx body []) [] []
       where
         body = Cardano.ShelleyTxBody
-            Cardano.ShelleyBasedEraAlonzo
-            alonzoBody
+            Cardano.ShelleyBasedEraBabbage
+            ledgerBody
             []
             Cardano.TxBodyNoScriptData
             Nothing
@@ -3487,21 +3489,24 @@ balanceTransactionGoldenSpec = describe "balance goldens" $ do
             mw = SomeMnemonic $ either (error . show) id
                 (entropyToMnemonic @12 <$> mkEntropy "0000000000000001")
             rootK = Shelley.unsafeGenerateKeyFromSeed (mw, Nothing) mempty
-        alonzoBody = Alonzo.TxBody
-          { Alonzo.inputs = mempty
-          , Alonzo.collateral = mempty
-          , Alonzo.outputs = mempty
-          , Alonzo.txcerts
+        ledgerBody = Babbage.TxBody
+          { Babbage.inputs = mempty
+          , Babbage.collateral = mempty
+          , Babbage.outputs = mempty
+          , Babbage.txcerts
             = StrictSeq.fromList $ map Cardano.toShelleyCertificate certs
-          , Alonzo.txwdrls = Wdrl mempty
-          , Alonzo.txfee = mempty
-          , Alonzo.txvldt = ValidityInterval SNothing SNothing
-          , Alonzo.txUpdates = SNothing
-          , Alonzo.reqSignerHashes = mempty
-          , Alonzo.mint = mempty
-          , Alonzo.scriptIntegrityHash = SNothing
-          , Alonzo.adHash = SNothing
-          , Alonzo.txnetworkid = SNothing
+          , Babbage.txwdrls = Wdrl mempty
+          , Babbage.txfee = mempty
+          , Babbage.txvldt = ValidityInterval SNothing SNothing
+          , Babbage.txUpdates = SNothing
+          , Babbage.reqSignerHashes = mempty
+          , Babbage.mint = mempty
+          , Babbage.scriptIntegrityHash = SNothing
+          , Babbage.adHash = SNothing
+          , Babbage.txnetworkid = SNothing
+          , Babbage.referenceInputs = mempty
+          , Babbage.collateralReturn = SNothing
+          , Babbage.totalCollateral = SNothing
           }
 
     pingPong_1 :: PartialTx Cardano.AlonzoEra
@@ -3537,19 +3542,15 @@ balanceTransactionGoldenSpec = describe "balance goldens" $ do
         bytes (Hash x) = x
         tid = Hash $ B8.replicate 32 '1'
 
-    txFee :: Cardano.Tx Cardano.AlonzoEra -> Cardano.Lovelace
+    txFee :: Cardano.Tx Cardano.BabbageEra -> Cardano.Lovelace
     txFee (Cardano.Tx (Cardano.TxBody content) _) =
         case Cardano.txFee content of
             Cardano.TxFeeExplicit _ c -> c
             Cardano.TxFeeImplicit _ -> error "implicit fee"
 
-    txMinFee :: Cardano.Tx Cardano.AlonzoEra -> Cardano.Lovelace
+    txMinFee :: Cardano.Tx Cardano.BabbageEra -> Cardano.Lovelace
     txMinFee = toCardanoLovelace
         . evaluateMinimumFee testTxLayer (snd mockProtocolParametersForBalancing)
-
-    deserializeAlonzoTx :: ByteString -> Cardano.Tx Cardano.AlonzoEra
-    deserializeAlonzoTx = either (error . show) id
-        . Cardano.deserialiseFromCBOR (Cardano.AsTx Cardano.AsAlonzoEra)
 
 -- NOTE: 'balanceTransaction' relies on estimating the number of witnesses that
 -- will be needed. The correctness of this estimation is not tested here.
@@ -4041,31 +4042,43 @@ sealedFee
 sealedFee =
     view #fee . fst5 . _decodeSealedTx maxBound . sealedTxFromCardano'
 
-paymentPartialTx :: [TxOut] -> PartialTx Cardano.AlonzoEra
+paymentPartialTx :: [TxOut] -> PartialTx Cardano.BabbageEra
 paymentPartialTx txouts = PartialTx (Cardano.Tx body []) [] []
   where
     body = Cardano.ShelleyTxBody
-        Cardano.ShelleyBasedEraAlonzo
+        Cardano.ShelleyBasedEraBabbage
         alonzoBody
         []
         Cardano.TxBodyNoScriptData
         Nothing
         Cardano.TxScriptValidityNone
-    alonzoBody = Alonzo.TxBody
-        { Alonzo.inputs = mempty
-        , Alonzo.collateral = mempty
-        , Alonzo.outputs = StrictSeq.fromList $
-            map (`toAlonzoTxOut` Nothing) txouts
-        , Alonzo.txcerts = mempty
-        , Alonzo.txwdrls = Wdrl mempty
-        , Alonzo.txfee = mempty
-        , Alonzo.txvldt = ValidityInterval SNothing SNothing
-        , Alonzo.txUpdates = SNothing
-        , Alonzo.reqSignerHashes = mempty
-        , Alonzo.mint = mempty
-        , Alonzo.scriptIntegrityHash = SNothing
-        , Alonzo.adHash = SNothing
-        , Alonzo.txnetworkid = SNothing
+
+    -- NOTE: It would be nicer not to have to deal with the ledger internals
+    -- here. Perhaps we could go through cardano-api instead, if we create a
+    -- @TxBodyContent -> Tx@, where - unlike @makeTransactionBody@ - there is
+    -- no validation.
+    alonzoBody = Babbage.TxBody
+        { Babbage.inputs = mempty
+        , Babbage.collateral = mempty
+        , Babbage.outputs = StrictSeq.fromList $
+            map (Ledger.mkSized . (`toBabbageTxOut` Nothing)) txouts
+        , Babbage.txcerts = mempty
+        , Babbage.txwdrls = Wdrl mempty
+        , Babbage.txfee = mempty
+        , Babbage.txvldt = ValidityInterval SNothing SNothing
+        , Babbage.txUpdates = SNothing
+        , Babbage.reqSignerHashes = mempty
+        , Babbage.mint = mempty
+        , Babbage.scriptIntegrityHash = SNothing
+        , Babbage.adHash = SNothing
+        , Babbage.txnetworkid = SNothing
+        , Babbage.referenceInputs = mempty
+        , Babbage.collateralReturn = SNothing
+        , Babbage.totalCollateral = SNothing
+        }
+deserializeBabbageTx :: ByteString -> Cardano.Tx Cardano.BabbageEra
+deserializeBabbageTx = either (error . show) id
+    . Cardano.deserialiseFromCBOR (Cardano.AsTx Cardano.AsBabbageEra)
         }
 
 txWithInputsOutputsAndWits :: ByteString
