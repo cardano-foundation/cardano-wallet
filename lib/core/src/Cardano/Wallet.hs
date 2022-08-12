@@ -1541,8 +1541,17 @@ normalizeDelegationAddress s addr = do
 -- | A 'PartialTx' is an an unbalanced 'SealedTx' along with the necessary
 -- information to balance it.
 --
--- The 'inputs' and 'redeemers' must match the binary transaction contained in
--- the 'sealedTx'.
+-- The 'inputs' must match the binary transaction contained in
+-- the 'tx'.
+--
+-- The provided 'redeemers' will overwrite any redeemers inside the 'tx'. This
+-- is done as the internal redeemers in the 'tx' use an index referring to a
+-- 'TxIn', rather than a 'TxIn'. When we are adding extra inputs as part of
+-- balancing, these indexes become incorrect.
+--
+-- TODO: With some extra care, we could probably remove the 'redeemers' field
+-- and instead adjust the existing redeemer indexes ourselves when balancing,
+-- even though they are in an "unordered" set.
 data PartialTx era = PartialTx
     { tx :: Cardano.Tx era
     , inputs :: [(TxIn, TxOut, Maybe (Hash "Datum"))]
