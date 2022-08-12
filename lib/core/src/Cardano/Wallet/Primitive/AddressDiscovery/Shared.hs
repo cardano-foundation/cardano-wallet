@@ -695,7 +695,7 @@ liftPaymentAddress
 liftPaymentAddress (KeyFingerprint fingerprint) =
     Address $ CA.unAddress $
     paymentAddress (toNetworkTag @n)
-    (PaymentFromScript (ScriptHash fingerprint))
+    (PaymentFromScriptHash (ScriptHash fingerprint))
 
 liftDelegationAddress
     :: forall (n :: NetworkDiscriminant) (k :: Depth -> Type -> Type).
@@ -707,10 +707,11 @@ liftDelegationAddress
 liftDelegationAddress ix dTemplate (KeyFingerprint fingerprint) =
     Address $ CA.unAddress $
     delegationAddress (toNetworkTag @n)
-    (PaymentFromScript (ScriptHash fingerprint))
+    (PaymentFromScriptHash (ScriptHash fingerprint))
     (delegationCredential dScript)
   where
-    delegationCredential = DelegationFromScript . toScriptHash
+    delegationCredential =
+        DelegationFromScriptHash . toScriptHash
     dScript =
         replaceCosignersWithVerKeys CA.Stake dTemplate ix
 
