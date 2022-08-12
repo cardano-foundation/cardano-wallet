@@ -24,6 +24,8 @@ module Cardano.Wallet.Primitive.Types.Tx.Gen
     , shrinkTxOut
     , shrinkTxOutCoin
     , shrinkTxScriptValidity
+    , TxWithoutId (..)
+    , txWithoutIdToTx
     )
     where
 
