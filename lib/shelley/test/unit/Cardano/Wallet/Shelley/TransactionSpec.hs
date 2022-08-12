@@ -215,15 +215,12 @@ import Cardano.Wallet.Shelley.Compatibility
     ( AnyShelleyBasedEra (..)
     , computeTokenBundleSerializedLengthBytes
     , fromCardanoLovelace
-    , fromCardanoTxIn
-    , fromCardanoTxOut
     , getScriptIntegrityHash
     , getShelleyBasedEra
     , shelleyToCardanoEra
     , toCardanoLovelace
     , toCardanoTxIn
     , toCardanoTxOut
-    , toCardanoUTxO
     , toCardanoValue
     )
 import Cardano.Wallet.Shelley.Compatibility.Ledger
@@ -434,6 +431,7 @@ import qualified Cardano.Wallet.Primitive.Types.TokenMap as TokenMap
 import qualified Cardano.Wallet.Primitive.Types.Tx.Gen as TxGen
 import qualified Cardano.Wallet.Primitive.Types.UTxO as UTxO
 import qualified Cardano.Wallet.Primitive.Types.UTxOIndex as UTxOIndex
+import qualified Cardano.Wallet.Shelley.Compatibility as Compatibility
 import qualified Codec.CBOR.Encoding as CBOR
 import qualified Codec.CBOR.Write as CBOR
 import qualified Data.ByteArray as BA
@@ -3120,8 +3118,8 @@ instance Arbitrary Wallet' where
           where
             genEntry = (,) <$> genIn <*> genOut
               where
-                genIn = fromCardanoTxIn <$> Cardano.genTxIn
-                genOut = fromCardanoTxOut <$> genTxOut AlonzoEra
+                genIn = Compatibility.fromCardanoTxIn <$> Cardano.genTxIn
+                genOut = Compatibility.fromCardanoTxOut <$> genTxOut AlonzoEra
 
         rootK :: SomeMnemonic -> ShelleyKey 'RootK XPrv
         rootK mw = generateKeyFromSeed (mw, Nothing) mempty
@@ -3176,8 +3174,8 @@ instance Arbitrary (PartialTx Cardano.AlonzoEra) where
             -- `maxBound :: Word64`, however users could supply these.
             -- We should ideally test what happens, and make it clear what code,
             -- if any, should validate.
-            o <- fromCardanoTxOut <$> genTxOut Cardano.AlonzoEra
-            return (fromCardanoTxIn $ fst i, o, Nothing)
+            o <- Compatibility.fromCardanoTxOut <$> genTxOut Cardano.AlonzoEra
+            return (Compatibility.fromCardanoTxIn $ fst i, o, Nothing)
         let redeemers = []
         return $ PartialTx
             tx
@@ -3210,8 +3208,8 @@ instance Arbitrary (PartialTx Cardano.BabbageEra) where
             -- `maxBound :: Word64`, however users could supply these.
             -- We should ideally test what happens, and make it clear what code,
             -- if any, should validate.
-            o <- fromCardanoTxOut <$> genTxOut Cardano.BabbageEra
-            return (fromCardanoTxIn $ fst i, o, Nothing)
+            o <- Compatibility.fromCardanoTxOut <$> genTxOut Cardano.BabbageEra
+            return (Compatibility.fromCardanoTxIn $ fst i, o, Nothing)
         let redeemers = []
         return $ PartialTx tx resolvedInputs redeemers
     shrink (PartialTx tx inputs redeemers) =
@@ -3265,7 +3263,7 @@ restrictResolution (PartialTx tx inputs redeemers) =
         PartialTx tx inputs' redeemers
   where
     inputsInTx (Cardano.Tx (Cardano.TxBody bod) _) =
-        Set.fromList $ map (fromCardanoTxIn . fst) $ Cardano.txIns bod
+        Set.fromList $ map (Compatibility.fromCardanoTxIn . fst) $ Cardano.txIns bod
 
 shrinkTxBodyAlonzo
     :: Cardano.TxBody Cardano.AlonzoEra
@@ -3594,7 +3592,7 @@ prop_balanceTransactionValid wallet (ShowBuildable partialTx') seed
     = withMaxSuccess 1000 $ do
         let combinedUTxO = mconcat
                 [ resolvedInputsUTxO Cardano.ShelleyBasedEraAlonzo partialTx
-                , toCardanoUTxO Cardano.ShelleyBasedEraAlonzo walletUTxO
+                , Compatibility.toCardanoUTxO Cardano.ShelleyBasedEraAlonzo walletUTxO
                 ]
         let originalBalance = txBalance (view #tx partialTx) combinedUTxO
         let res = balanceTransaction'

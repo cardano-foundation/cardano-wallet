@@ -163,7 +163,6 @@ import Cardano.Wallet.Shelley.Compatibility
     , fromCardanoAddress
     , fromCardanoLovelace
     , fromCardanoTx
-    , fromCardanoTxIn
     , fromCardanoWdrls
     , fromShelleyTxIn
     , toCardanoLovelace
@@ -479,7 +478,7 @@ signTransaction
         Cardano.TxBody bodyContent = body
 
         inputs =
-            [ fromCardanoTxIn i
+            [ Compatibility.fromCardanoTxIn i
             | (i, _) <- Cardano.txIns bodyContent
             ]
 
@@ -488,7 +487,7 @@ signTransaction
                 Cardano.TxInsCollateralNone ->
                     []
                 Cardano.TxInsCollateral _ is ->
-                    fromCardanoTxIn <$> is
+                    Compatibility.fromCardanoTxIn <$> is
 
         extraKeys =
             case Cardano.txExtraKeyWits bodyContent of
@@ -672,6 +671,10 @@ newTransactionLayer networkId = TransactionLayer
     , decodeTx = _decodeSealedTx
 
     , updateTx = updateSealedTx
+
+    , toCardanoUTxO = _toCardanoUTxO
+    , fromCardanoTxOut = Compatibility.fromCardanoTxOut
+    , fromCardanoTxIn = Compatibility.fromCardanoTxIn
     }
 
 _decodeSealedTx
@@ -694,42 +697,56 @@ _evaluateTransactionBalance
     -> [(TxIn, TxOut, Maybe (Hash "Datum"))]
     -> Cardano.Value
 _evaluateTransactionBalance (Cardano.Tx body _) pp utxo extraUTxO =
-        let
-            utxo' = Map.fromList
-                . map (bimap toCardanoTxIn (toCardanoTxOut era))
-                . Map.toList
-                $ unUTxO utxo
-
-            extraUTxO' = Map.fromList
-                . map (\(i, o, mDatumHash) ->
-                    (toCardanoTxIn i
-                    , setDatumHash era mDatumHash (toCardanoTxOut era o))
-                    )
-                $ extraUTxO
-        in
             lovelaceFromCardanoTxOutValue
                 $ Cardano.evaluateTransactionBalance
                     pp
                     mempty
-                    (Cardano.UTxO $ utxo' <> extraUTxO')
-                    -- The two UTxO sets could overlap here. When called by
-                    -- 'balanceTransaction' the user-specified input resolution
-                    -- will overwrite the wallet UTxO (if in conflict).
-                    --
-                    -- If the overridden outputs are incorrect, the wallet will
-                    -- incorrectly calculate the balance, and the transaction
-                    -- will ultimately be rejected by the node.
-                    --
-                    -- If the overwridden outputs simply adds datum hashes
-                    -- (which the wallet cannot currently represent), this
-                    -- shouldn't affect the balance.
-                    --
-                    -- Ultimately, however, it might be be wiser to error out of
-                    -- caution.
-                    --
-                    -- NOTE: There is a similar case in the 'resolveInput' of
-                    -- 'balanceTransaction'.
+                    (_toCardanoUTxO utxo extraUTxO)
                     body
+  where
+    lovelaceFromCardanoTxOutValue
+        :: Cardano.TxOutValue era -> Cardano.Value
+    lovelaceFromCardanoTxOutValue = \case
+        Cardano.TxOutAdaOnly _ ada -> Cardano.lovelaceToValue ada
+        Cardano.TxOutValue _ val   -> val
+
+_toCardanoUTxO
+    :: forall era. Cardano.IsShelleyBasedEra era
+    => UTxO
+    -> [(TxIn, TxOut, Maybe (Hash "Datum"))]
+    -> Cardano.UTxO era
+_toCardanoUTxO utxo extraUTxO =
+    let
+        utxo' = Map.fromList
+            . map (bimap toCardanoTxIn (toCardanoTxOut era))
+            . Map.toList
+            $ unUTxO utxo
+
+        extraUTxO' = Map.fromList
+            . map (\(i, o, mDatumHash) ->
+                (toCardanoTxIn i
+                , setDatumHash era mDatumHash (toCardanoTxOut era o))
+                )
+            $ extraUTxO
+    in
+        -- The two UTxO sets could overlap here. When called by
+        -- 'balanceTransaction' the user-specified input resolution
+        -- will overwrite the wallet UTxO (if in conflict).
+        --
+        -- If the overridden outputs are incorrect, the wallet will
+        -- incorrectly calculate the balance, and the transaction
+        -- will ultimately be rejected by the node.
+        --
+        -- If the overwridden outputs simply adds datum hashes
+        -- (which the wallet cannot currently represent), this
+        -- shouldn't affect the balance.
+        --
+        -- Ultimately, however, it might be be wiser to error out of
+        -- caution.
+        --
+        -- NOTE: There is a similar case in the 'resolveInput' of
+        -- 'balanceTransaction'.
+        Cardano.UTxO $ extraUTxO' <> utxo' -- Left-bias
   where
     era = Cardano.shelleyBasedEra @era
 
@@ -753,7 +770,7 @@ _evaluateTransactionBalance (Cardano.Tx body _) pp utxo extraUTxO =
           where
             -- FIXME [ADP-1479] Proper error handling
             errBadEra = error $ unwords
-                [ "evaluateTransactionBalance:"
+                [ "_toCardanoUTxO:"
                 , "cannot add a datum hash to the transaction body of an"
                 , "era that doesn't support datum hashes."
                 ]
@@ -763,15 +780,10 @@ _evaluateTransactionBalance (Cardano.Tx body _) pp utxo extraUTxO =
           where
             -- FIXME [ADP-1479] Proper error handling
             errBadHash = error $ unwords
-                [ "evaluateTransactionBalance: couldn't convert hash "
+                [ "_toCardanoUTxO: couldn't convert hash "
                 , show datumHash
                 ]
 
-    lovelaceFromCardanoTxOutValue
-        :: Cardano.TxOutValue era -> Cardano.Value
-    lovelaceFromCardanoTxOutValue = \case
-        Cardano.TxOutAdaOnly _ ada -> Cardano.lovelaceToValue ada
-        Cardano.TxOutValue _ val   -> val
 
 mkDelegationCertificates
     :: DelegationAction
