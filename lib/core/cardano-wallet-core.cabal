@@ -290,6 +290,7 @@ library
       Control.Concurrent.Concierge
       Control.Monad.Exception.Unchecked
       Control.Monad.Random.Extra
+      Control.Monad.Util
       Crypto.Hash.Utils
       Data.Aeson.Extra
       Data.Function.Utils
@@ -541,6 +542,7 @@ test-suite unit
       Cardano.WalletSpec
       Control.Concurrent.ConciergeSpec
       Control.Monad.Random.ExtraSpec
+      Control.Monad.UtilSpec
       Data.Function.UtilsSpec
       Data.QuantitySpec
       Data.Time.TextSpec
