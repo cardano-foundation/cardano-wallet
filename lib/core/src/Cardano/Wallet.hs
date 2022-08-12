@@ -455,7 +455,7 @@ import Cardano.Wallet.Primitive.Types.UTxOSelection
     ( UTxOSelection )
 import Cardano.Wallet.Transaction
     ( DelegationAction (..)
-    , ErrAssignRedeemers
+    , ErrAssignRedeemers (..)
     , ErrCannotJoin (..)
     , ErrCannotQuit (..)
     , ErrMkTransaction (..)
@@ -471,8 +471,6 @@ import Cardano.Wallet.Transaction
     , defaultTransactionCtx
     , withdrawalToCoin
     )
-import Control.Applicative
-    ( (<|>) )
 import Control.Arrow
     ( first, left )
 import Control.DeepSeq
@@ -523,7 +521,7 @@ import Data.ByteString.Lazy
 import Data.DBVar
     ( modifyDBMaybe )
 import Data.Either
-    ( partitionEithers )
+    ( lefts, partitionEithers )
 import Data.Either.Extra
     ( eitherToMaybe )
 import Data.Foldable
@@ -574,9 +572,9 @@ import Fmt
     ( Buildable
     , Builder
     , blockListF
+    , blockListF'
     , blockMapF
     , build
-    , listF'
     , nameF
     , pretty
     , unlinesF
@@ -624,6 +622,7 @@ import qualified Data.ByteArray as BA
 import qualified Data.Foldable as F
 import qualified Data.List as L
 import qualified Data.List.NonEmpty as NE
+import qualified Data.Map as Map
 import qualified Data.Set as Set
 import qualified Data.Text as T
 import qualified Data.Vector as V
@@ -1567,19 +1566,19 @@ normalizeDelegationAddress s addr = do
 -- even though they are in an "unordered" set.
 data PartialTx era = PartialTx
     { tx :: Cardano.Tx era
-    , inputs :: [(TxIn, TxOut, Maybe (Hash "Datum"))]
+    , inputs :: Cardano.UTxO era
     , redeemers :: [Redeemer]
     } deriving (Show, Generic, Eq)
 
 instance Buildable (PartialTx era) where
-    build (PartialTx tx ins redeemers) = nameF "PartialTx" $ mconcat
-        [ nameF "inputs" (listF' inF ins)
-        , nameF "redeemers" (pretty redeemers)
-        , nameF "tx" (cardanoTxF tx)
-        ]
+    build (PartialTx tx (Cardano.UTxO ins) redeemers)
+        = nameF "PartialTx" $ mconcat
+            [ nameF "inputs" (blockListF' "-" inF (Map.toList ins))
+            , nameF "redeemers" (pretty redeemers)
+            , nameF "tx" (cardanoTxF tx)
+            ]
       where
-        inF :: (TxIn, TxOut, Maybe (Hash "Datum")) -> Builder
-        inF (i,o,d) = ""+|i|+" "+|o|+" "+|d|+""
+        inF = build . show
 
         cardanoTxF :: Cardano.Tx era -> Builder
         cardanoTxF tx' = pretty $ pShow tx'
@@ -1654,44 +1653,20 @@ balanceTransactionWithSelectionStrategy
     ti
     (internalUtxoAvailable, wallet, _pendingTxs)
     selectionStrategy
-    ptx@(PartialTx partialTx externalInputs redeemers)
+    ptx@(PartialTx partialTx inputUTxO redeemers)
     = do
     guardExistingCollateral partialTx
     guardExistingTotalCollateral partialTx
     guardExistingReturnCollateral partialTx
     guardZeroAdaOutputs (extractOutputsFromTx $ toSealed partialTx)
     guardConflictingWithdrawalNetworks partialTx
+    guardWalletUTxOConsistencyWith inputUTxO
 
     let era = Cardano.anyCardanoEra $ Cardano.cardanoEra @era
 
     (balance0, minfee0) <- balanceAfterSettingMinFee partialTx
 
     (extraInputs, extraCollateral, extraOutputs) <- do
-        let externalSelectedUtxo = UTxOIndex.fromSequence $
-                map (\(i, TxOut a b,_datumHash) -> (WalletUTxO i a, b))
-                externalInputs
-        -- TODO [ADP-1544] 'externalInputs' could conflict with the actual
-        -- inputs in 'partialTx'.
-        --
-        -- Values could be ommitted, added or conflict with the wallet and
-        -- ledger UTxO sets.
-        --
-        -- It appears 'prop_balanceTransactionUnresolvedInputs'
-        --
-        -- Ideally this would at-worst result in the resulting tx being rejected
-        -- by the node. However, /perhaps/:
-        -- 1. Any inconsistent input resolution inside 'balanceTransaction'
-        --    could lead to unexpected results like fees being burnt.
-        -- 2. Incorrect resolution could could lead to phase 2 validation
-        --    failures, if e.g. different coin values lead to a different amount
-        --    of execution units.
-        --
-        -- 'prop_balanceTransactionUnresolvedInputs' show that
-        -- 'balanceTransaction' fails if outputs are omitted because of
-        -- 'assignScriptRedeemers'. This should make the problem (1) unlikely,
-        -- but not necessarily impossible.
-        --
-        -- We should investigate and make sure to handle this better.
 
         -- NOTE: It is not possible to know the script execution cost in
         -- advance because it actually depends on the final transaction. Inputs
@@ -1717,6 +1692,7 @@ balanceTransactionWithSelectionStrategy
             (UTxOIndex.size internalUtxoAvailable)
             (BuildableInAnyEra Cardano.cardanoEra ptx)
 
+        externalSelectedUtxo <- extractExternallySelectedUTxO ptx
         let mSel = selectAssets'
                 era
                 (extractOutputsFromTx $ toSealed partialTx)
@@ -1765,7 +1741,6 @@ balanceTransactionWithSelectionStrategy
         , feeUpdate = UseNewTxFee $ unsafeFromLovelace minfee0
         }
 
-
     (balance, candidateMinFee) <- balanceAfterSettingMinFee candidateTx
     surplus <- case Cardano.selectLovelace balance of
         (Cardano.Lovelace c)
@@ -1803,6 +1778,36 @@ balanceTransactionWithSelectionStrategy
     toSealed :: Cardano.Tx era -> SealedTx
     toSealed = sealedTxFromCardano . Cardano.InAnyCardanoEra Cardano.cardanoEra
 
+    -- | Extract the resolved inputs contained in the @PartialTx@
+    --
+    -- Requires @guardWalletUTxOConsistencyWith inputUTxO@ to validate
+    -- for balancing to succeed.
+    extractExternallySelectedUTxO
+        :: PartialTx era
+        -> ExceptT ErrBalanceTx m (UTxOIndex WalletUTxO)
+    extractExternallySelectedUTxO (PartialTx tx _ _rdms) = do
+        let res = flip map txIns $ \(i, _) -> do
+                case Map.lookup i utxo of
+                    Nothing ->
+                       Left i
+                    Just o -> do
+                        let i' = fromCardanoTxIn tl i
+                        let TxOut addr bundle = fromCardanoTxOut tl o
+                        pure (WalletUTxO i' addr, bundle)
+
+        case partitionEithers res of
+            ([], resolved) ->
+                pure $ UTxOIndex.fromSequence resolved
+            (unresolvedInsHead:unresolvedInsTail, _) ->
+                throwE
+                . ErrBalanceTxUnresolvedInputs
+                . fmap (fromCardanoTxIn tl)
+                $ (unresolvedInsHead :| unresolvedInsTail)
+      where
+        Cardano.UTxO utxo = combinedUTxO
+        Cardano.Tx (Cardano.TxBody (Cardano.TxBodyContent { Cardano.txIns })) _
+            = tx
+
     guardTxSize :: Cardano.Tx era -> ExceptT ErrBalanceTx m (Cardano.Tx era)
     guardTxSize tx = do
         let size = estimateSignedTxSize tl nodePParams tx
@@ -1823,9 +1828,7 @@ balanceTransactionWithSelectionStrategy
 
     txBalance :: Cardano.Tx era -> Cardano.Value
     txBalance tx =
-        evaluateTransactionBalance tl tx nodePParams utxo externalInputs
-      where
-        utxo = CS.toExternalUTxOMap $ UTxOIndex.toMap internalUtxoAvailable
+        evaluateTransactionBalance tl tx nodePParams combinedUTxO
 
     balanceAfterSettingMinFee
         :: Cardano.Tx era
@@ -1836,11 +1839,54 @@ balanceTransactionWithSelectionStrategy
         let minfee = evaluateMinimumFee tl nodePParams tx
         let update = TxUpdate [] [] [] (UseNewTxFee minfee)
         tx' <- left ErrBalanceTxUpdateError $ updateTx tl tx update
-        let balance = evaluateTransactionBalance tl tx' nodePParams
-                (CS.toExternalUTxOMap $ UTxOIndex.toMap internalUtxoAvailable)
-                (view #inputs ptx)
+        let balance = evaluateTransactionBalance tl tx' nodePParams combinedUTxO
         let minfee' = Cardano.Lovelace $ fromIntegral $ unCoin minfee
         return (balance, minfee')
+
+    -- | Ensure the wallet UTxO is consistent with a provided @Cardano.UTxO@.
+    --
+    -- They are not consistent iff an input can be looked up in both UTxO sets
+    -- with different @Address@, or @TokenBundle@ values.
+    --
+    -- The @Cardano.UTxO era@ is allowed to contain additional information, like
+    -- datum hashes, which the wallet UTxO cannot represent.
+    --
+    -- NOTE: Representing the wallet utxo as a @Cardano.UTxO@ will not make this
+    -- check easier, even if it may be useful in other regards.
+    guardWalletUTxOConsistencyWith
+        :: Cardano.UTxO era
+        -> ExceptT ErrBalanceTx m ()
+    guardWalletUTxOConsistencyWith u' = do
+        let u = Map.mapKeys (fromCardanoTxIn tl)
+                . Map.map (fromCardanoTxOut tl)
+                $ (unUTxO u')
+        let conflicts = lefts $ flip map (Map.toList u) $ \(i, o) ->
+                case i `UTxO.lookup` walletUTxO of
+                    Just o' -> unless (o == o') $ Left (o, o')
+                    Nothing -> pure ()
+
+        case conflicts of
+            [] -> return ()
+            (c:cs) -> throwE $ ErrBalanceTxInputResolutionConflicts (c :| cs)
+      where
+         unUTxO (Cardano.UTxO u) = u
+
+    walletUTxO :: UTxO
+    walletUTxO = CS.toExternalUTxOMap $ UTxOIndex.toMap internalUtxoAvailable
+
+    combinedUTxO :: Cardano.UTxO era
+    combinedUTxO = Cardano.UTxO $ mconcat
+         -- The @Cardano.UTxO@ can contain strictly more information than
+         -- @W.UTxO@. Therefore we make the user-specified @inputUTxO@ to take
+         -- precedence. This matters if a user is trying to balance a tx making
+         -- use of a datum hash in a UTxO which is also present in the wallet
+         -- UTxO set. (Whether or not this is a sane thing for the user to do,
+         -- is another question.)
+         [ unUTxO inputUTxO
+         , unUTxO $ toCardanoUTxO tl walletUTxO []
+         ]
+      where
+         unUTxO (Cardano.UTxO u) = u
 
     assembleTransaction
         :: TxUpdate
@@ -1848,15 +1894,7 @@ balanceTransactionWithSelectionStrategy
     assembleTransaction update = ExceptT . pure $ do
         tx' <- left ErrBalanceTxUpdateError $ updateTx tl partialTx update
         left ErrBalanceTxAssignRedeemers $ assignScriptRedeemers
-            tl nodePParams ti resolveInput redeemers tx'
-      where
-        resolveInput :: TxIn -> Maybe (TxOut, Maybe (Hash "Datum"))
-        resolveInput i =
-            (\(_,o,d) -> (o,d))
-                <$> L.find (\(i',_,_) -> i == i') externalInputs
-            <|>
-            (\(_,o) -> (o, Nothing))
-                <$> L.find (\(i',_) -> i == i') (extraInputs update)
+            tl nodePParams ti combinedUTxO redeemers tx'
 
     guardZeroAdaOutputs outputs = do
         -- We seem to produce imbalanced transactions if zero-ada
@@ -3588,6 +3626,8 @@ data ErrBalanceTx
     | ErrBalanceTxAssignRedeemers ErrAssignRedeemers
     | ErrBalanceTxInternalError ErrBalanceTxInternalError
     | ErrBalanceTxZeroAdaOutput
+    | ErrBalanceTxInputResolutionConflicts (NonEmpty (TxOut, TxOut))
+    | ErrBalanceTxUnresolvedInputs (NonEmpty TxIn)
     | ErrByronTxNotSupported
     deriving (Show, Eq)
 
