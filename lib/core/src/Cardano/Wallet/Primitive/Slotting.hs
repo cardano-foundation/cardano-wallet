@@ -64,6 +64,9 @@ module Cardano.Wallet.Primitive.Slotting
     , snapshot
     , hoistTimeInterpreter
     , expectAndThrowFailures
+
+     -- * Dummy values for testing
+    , dummyForkInterpreter
     ) where
 
 import Prelude
@@ -100,7 +103,7 @@ import Control.Tracer
 import Data.Coerce
     ( coerce )
 import Data.Functor.Identity
-    ( Identity )
+    ( Identity (runIdentity), runIdentity )
 import Data.Generics.Internal.VL.Lens
     ( (^.) )
 import Data.Kind
@@ -113,6 +116,8 @@ import Data.Text.Class
     ( ToText (..) )
 import Data.Time.Clock
     ( NominalDiffTime, UTCTime, addUTCTime, getCurrentTime )
+import Data.Time.Clock.POSIX
+    ( posixSecondsToUTCTime )
 import Data.Word
     ( Word32, Word64 )
 import Fmt
@@ -120,7 +125,9 @@ import Fmt
 import GHC.Stack
     ( CallStack, HasCallStack, getCallStack, prettySrcLoc )
 import Ouroboros.Consensus.BlockchainTime.WallClock.Types
-    ( RelativeTime (..), SystemStart (SystemStart), addRelTime )
+    ( RelativeTime (..), SystemStart (SystemStart), addRelTime, mkSlotLength )
+import Ouroboros.Consensus.Config
+    ( SecurityParam (..) )
 import Ouroboros.Consensus.HardFork.History.EpochInfo
     ( interpreterToEpochInfo )
 import Ouroboros.Consensus.HardFork.History.Qry
@@ -136,12 +143,15 @@ import Ouroboros.Consensus.HardFork.History.Qry
     )
 import Ouroboros.Consensus.HardFork.History.Summary
     ( neverForksSummary )
+import Ouroboros.Consensus.Util.Counting
+    ( exactlyTwo )
 import UnliftIO.Exception
     ( throwIO )
 
 import qualified Cardano.Slotting.Slot as Cardano
 import qualified Data.Text as T
 import qualified Ouroboros.Consensus.BlockchainTime.WallClock.Types as Cardano
+import qualified Ouroboros.Consensus.HardFork.History.EraParams as HF
 import qualified Ouroboros.Consensus.HardFork.History.Qry as HF
 import qualified Ouroboros.Consensus.HardFork.History.Summary as HF
 
@@ -609,3 +619,32 @@ unsafeExtendSafeZone = f . neverFails r
         , handleResult = h
         }
     r = "unsafeExtendSafeZone should make PastHorizonExceptions impossible."
+
+{-------------------------------------------------------------------------------
+                       For testing
+-------------------------------------------------------------------------------}
+
+-- | A dummy 'TimeInterpreter' for testing. A horizon at @SlotNo 40@ allows
+-- testing 'PastHorizonException's.
+dummyForkInterpreter :: TimeInterpreter (Either PastHorizonException)
+dummyForkInterpreter =
+    let
+        t0 = HF.initBound
+        t1 = HF.Bound
+                (RelativeTime 20)
+                (SlotNo 20)
+                (Cardano.EpochNo 1)
+        t2 = HF.Bound
+                (RelativeTime 40)
+                (SlotNo 40)
+                (Cardano.EpochNo 2)
+
+        era1Params = HF.defaultEraParams (SecurityParam 2) (mkSlotLength 1)
+        summary = HF.summaryWithExactly $ exactlyTwo
+            (HF.EraSummary t0 (HF.EraEnd t1) era1Params)
+            (HF.EraSummary t1 (HF.EraEnd t2) era1Params)
+        in
+            hoistTimeInterpreter (runIdentity . runExceptT) $ mkTimeInterpreter
+                nullTracer
+                (StartTime $ posixSecondsToUTCTime 0)
+                (pure $ HF.mkInterpreter summary)

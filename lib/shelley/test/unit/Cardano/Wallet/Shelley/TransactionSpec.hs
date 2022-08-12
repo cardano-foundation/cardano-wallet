@@ -64,7 +64,7 @@ import Cardano.BM.Data.Tracer
 import Cardano.BM.Tracer
     ( Tracer )
 import Cardano.Ledger.Alonzo.TxInfo
-    ( TranslationError (TranslationLogicMissingInput) )
+    ( TranslationError (..) )
 import Cardano.Ledger.Era
     ( Era )
 import Cardano.Ledger.Shelley.API
@@ -133,7 +133,11 @@ import Cardano.Wallet.Primitive.Passphrase
     , preparePassphrase
     )
 import Cardano.Wallet.Primitive.Slotting
-    ( TimeInterpreter, hoistTimeInterpreter, mkSingleEraInterpreter )
+    ( TimeInterpreter
+    , dummyForkInterpreter
+    , hoistTimeInterpreter
+    , mkSingleEraInterpreter
+    )
 import Cardano.Wallet.Primitive.Types
     ( ActiveSlotCoefficient (ActiveSlotCoefficient)
     , Block (..)
@@ -288,7 +292,7 @@ import Data.Function
 import Data.Functor.Identity
     ( runIdentity )
 import Data.Generics.Internal.VL.Lens
-    ( view )
+    ( over, view )
 import Data.List
     ( isSuffixOf, nub )
 import Data.List.NonEmpty
@@ -321,6 +325,8 @@ import Fmt
     ( Buildable (..), blockListF', fmt, nameF, pretty, (+||), (||+) )
 import GHC.Generics
     ( Generic )
+import Ouroboros.Consensus.Shelley.Eras
+    ( StandardBabbage )
 import Ouroboros.Network.Block
     ( SlotNo (..) )
 import System.Directory
@@ -338,7 +344,6 @@ import Test.Hspec
     , shouldBe
     , shouldSatisfy
     , xdescribe
-    , xit
     )
 import Test.Hspec.Core.Spec
     ( SpecM )
@@ -2472,8 +2477,113 @@ balanceTransactionSpec = describe "balanceTransaction" $ do
             tx `shouldBe` Left ErrBalanceTxMaxSizeLimitExceeded
 
     describe "when passed unresolved inputs" $ do
-        xit "may fail"
-            $ property prop_balanceTransactionUnresolvedInputs
+        it "fails with some error" $ do
+            pendingWith "currently silently ignored"
+            let txin = TxIn (Hash $ B8.replicate 32 '3') 10
+
+            let addr = Address $ unsafeFromHex
+                    "60b1e5e0fb74c86c801f646841e07cdb42df8b82ef3ce4e57cb5412e77"
+
+            -- 1 output, 1 input without utxo entry
+            let partialTx :: PartialTx Cardano.BabbageEra
+                partialTx = over #tx (addExtraTxIns [txin]) $
+                    paymentPartialTx
+                        [ TxOut addr (TokenBundle.fromCoin (Coin 1_000_000))
+                        ]
+            case balanceTx partialTx of
+                Left _ -> return ()
+                Right _ -> expectationFailure "expected Left"
+
+        describe "with redeemers" $
+            it "fails with RedeemerPointsToUnknownScriptHash" $ do
+                let withNoUTxO :: PartialTx era -> PartialTx era
+                    withNoUTxO ptx = ptx { inputs = [] }
+
+                balanceTx (withNoUTxO pingPong_2)
+                    `shouldBe` Left
+                        (ErrBalanceTxAssignRedeemers
+                            (ErrAssignRedeemersScriptFailure
+                                (head (redeemers pingPong_2))
+                                "RedeemerPointsToUnknownScriptHash \
+                                \(RdmrPtr Spend 1)"
+                            )
+                        )
+
+    describe "when validity interval is too far in the future" $ do
+        describe "with some Plutus redeemers" $ do
+            it "fails with TimeTranslationPastHorizon" $ do
+                case balanceTx (withValidityBeyondHorizon pingPong_2) of
+                    Left (ErrBalanceTxAssignRedeemers
+                            (ErrAssignRedeemersTranslationError
+                                (TimeTranslationPastHorizon
+                                    pastHoriozon))) -> return ()
+                    other -> expectationFailure $
+                        "Expected pastHorizon failure; got " <> show other
+
+        describe "with no redeemers" $ do
+            it "succeeds to balance" $ do
+                case balanceTx (withValidityBeyondHorizon pingPong_1) of
+                    Right _tx -> return ()
+                    other -> expectationFailure $
+                        "Expected (Right tx); got " <> show other
+
+    describe "when a redeemer is missing" $ do
+        it "balancing succeeds (currently)" $ do
+            -- I would presumably make more sense to fail, if possible, in this
+            -- case, but this test illustrates the current behaviour.
+            let withNoRedeemers = over #redeemers (const [])
+            case balanceTx (withNoRedeemers pingPong_2) of
+                Right tx -> pure ()
+                other -> expectationFailure $
+                    "Expected (Right tx); \
+                    \got " <> show other
+
+    describe "when the input a redeemer is pointing at doesn't exist" $ do
+        it "fails with TimeTranslationPastHorizon" $ do
+
+            let tid = Hash $ B8.replicate 32 '1'
+
+            -- With ix 1 instead of 0, making it point to an input which
+            -- doesn't exist in the tx.
+            let faultyRedeemer =
+                    RedeemerSpending (unsafeFromHex "D87A80") (TxIn tid 1)
+
+            let withFaultyRedeemer =
+                    over #redeemers $ mapFirst $ const faultyRedeemer
+
+            balanceTx (withFaultyRedeemer pingPong_2)
+                `shouldBe`
+                Left (ErrBalanceTxAssignRedeemers
+                        (ErrAssignRedeemersTargetNotFound faultyRedeemer))
+  where
+    mapFirst f (x:xs) = f x : xs
+    mapFirst _ [] = error "mapFirst: empty list"
+
+    balanceTx
+        :: IsShelleyBasedEra era
+        => PartialTx era
+        -> Either ErrBalanceTx (Cardano.Tx era)
+    balanceTx tx = flip evalRand (stdGenFromSeed testStdGenSeed) $ runExceptT $
+        balanceTransaction @_ @(Rand StdGen)
+            (Ctx @(Rand StdGen) nullTracer testTxLayer)
+            (delegationAddress @'Mainnet)
+            mockProtocolParametersForBalancing
+            dummyForkInterpreter
+            (u, wal, pending)
+            tx
+      where
+        Wallet' u wal pending = mkTestWallet rootK (utxo [Coin 5_000_000])
+        utxo coins = UTxO $ Map.fromList $ zip ins outs
+          where
+            ins = map (TxIn dummyHash) [0..]
+            outs = map (TxOut addr . TokenBundle.fromCoin) coins
+            dummyHash = Hash $ B8.replicate 32 '0'
+
+        mw = SomeMnemonic $ either (error . show) id
+            (entropyToMnemonic @12 <$> mkEntropy "0000000000000000")
+        rootK = Shelley.unsafeGenerateKeyFromSeed (mw, Nothing) mempty
+        addr = Address $ unsafeFromHex
+            "60b1e5e0fb74c86c801f646841e07cdb42df8b82ef3ce4e57cb5412e77"
 
 distributeSurplusSpec :: Spec
 distributeSurplusSpec = do
@@ -3288,88 +3398,6 @@ balanceTransaction' (Wallet' utxo wal pending) seed tx  =
             (utxo, wal, pending)
             tx
 
--- | Tests that 'TranslationLogicMissingInput' can in fact be returned by
--- 'balanceTransaction'.
---
--- FIXME: Coverage is too poor. It might be best to replace with one or two
--- simple unit tests instead. (one where dropping input resulted in an error
--- like 'TranslationLogicMissingInput' and one where it succeeded anyway because
--- of the wallet utxo)
-prop_balanceTransactionUnresolvedInputs
-    :: (ShowBuildable (PartialTx Cardano.AlonzoEra))
-    -> StdGenSeed
-    -> Property
-prop_balanceTransactionUnresolvedInputs (ShowBuildable partialTx') seed =
-    -- checkCoverage
-    forAll (dropResolvedInputs partialTx') $ \(partialTx, dropped) -> do
-        let wallet = smallWallet
-        let res = balanceTransaction' wallet seed partialTx
-
-        let userSpecifiedInputs = Set.fromList $
-                map (\(i,_,_) -> i) $ view #inputs partialTx
-        let walletUTxOInputs =
-                let
-                    Wallet' _ w _ = wallet
-                in
-                    Set.fromList $ map fst $ UTxO.toList $ view #utxo w
-
-        let requiredInputs =
-                userSpecifiedInputs `Set.difference` walletUTxOInputs
-
-        cover 1 (isUnresolvedTxInsErr res) "unknown txins" $
-            case res of
-                Right _
-                    | null dropped
-                        -> label "nothing dropped"
-                            $ property True
-                    | otherwise
-                        -> label "succeeded despite unresolved input" $ do
-                            let droppedSet =
-                                    Set.fromList $ map (\(i,_,_) -> i) dropped
-                            property $
-                                (requiredInputs `Set.intersection` droppedSet)
-                                    === mempty
-                        -- Balancing can succeed if the dropped inputs
-                        -- happen to be a part of the wallet UTxO.
-                Left (ErrBalanceTxAssignRedeemers
-                    (ErrAssignRedeemersTranslationError
-                        (TranslationLogicMissingInput _)))
-                    -> property True
-                Left e
-                    -> counterexample (show e) $ property False
-  where
-    isUnresolvedTxInsErr
-        (Left
-            (ErrBalanceTxAssignRedeemers
-                (ErrAssignRedeemersTranslationError
-                    (TranslationLogicMissingInput _)))) = True
-    isUnresolvedTxInsErr _ = False
-
-    dropResolvedInputs (PartialTx tx inputs redeemers) = do
-        shouldKeep <- vectorOf (length inputs) $ frequency
-            [ (9, pure False)
-            , (1, pure True)
-            ]
-        let inputs' = map snd $ filter        fst  $ zip shouldKeep inputs
-        let dropped = map snd $ filter (not . fst) $ zip shouldKeep inputs
-        pure (PartialTx tx inputs' redeemers, dropped)
-
-    -- A wallet with a single utxo for minimal overlap with user-specified
-    -- resolution, and lots of ada to make balancing succeed.
-    smallWallet = mkTestWallet rootK $ utxo [Coin 20_000_000_000_000]
-      where
-            utxo coins = UTxO $ Map.fromList $ zip ins outs
-              where
-                ins = map (TxIn dummyHash) [0..]
-                outs = map (TxOut addr . TokenBundle.fromCoin) coins
-                dummyHash = Hash $ B8.replicate 32 '0'
-
-            mw = SomeMnemonic $ either (error . show) id
-                (entropyToMnemonic @12 <$> mkEntropy "0000000000000000")
-            rootK = Shelley.unsafeGenerateKeyFromSeed (mw, Nothing) mempty
-            addr = Address $ unsafeFromHex
-                "60b1e5e0fb74c86c801f646841e07cdb42df8b82ef3ce4e57cb5412e77"
-
 prop_posAndNegFromCardanoValueRoundtrip :: Property
 prop_posAndNegFromCardanoValueRoundtrip = forAll genSignedValue $ \v ->
     let
@@ -4081,6 +4109,61 @@ pingPong_2 = PartialTx
 deserializeBabbageTx :: ByteString -> Cardano.Tx Cardano.BabbageEra
 deserializeBabbageTx = either (error . show) id
     . Cardano.deserialiseFromCBOR (Cardano.AsTx Cardano.AsBabbageEra)
+
+-- Ideally merge with 'updateSealedTx'
+addExtraTxIns
+    :: [TxIn]
+    -> Cardano.Tx Cardano.BabbageEra
+    -> Cardano.Tx Cardano.BabbageEra
+addExtraTxIns ins = modifyBabbageTxBody $ \body ->
+    body
+        { Babbage.inputs = Babbage.inputs body
+            <> (Set.map (Cardano.toShelleyTxIn . toCardanoTxIn) (Set.fromList ins))
+        }
+
+withValidityBeyondHorizon
+    :: PartialTx Cardano.BabbageEra
+    -> PartialTx Cardano.BabbageEra
+withValidityBeyondHorizon ptx = ptx
+    { tx = modifyBabbageTxBody setValidityBeyondHorizon (tx ptx)
+    }
+
+  where
+    -- Set validity beyond horizon used in dummyEraHistoryBounded
+    setValidityBeyondHorizon
+        :: Babbage.TxBody StandardBabbage
+        -> Babbage.TxBody StandardBabbage
+    setValidityBeyondHorizon body = body
+        { Babbage.txvldt =
+            ValidityInterval
+                (SJust $ SlotNo 1_000_000)
+                (SJust $ SlotNo 2_000_000)
+        }
+
+-- Ideally merge with 'updateSealedTx'
+modifyBabbageTxBody
+    :: (Babbage.TxBody StandardBabbage -> Babbage.TxBody StandardBabbage)
+    -> Cardano.Tx Cardano.BabbageEra -> Cardano.Tx Cardano.BabbageEra
+modifyBabbageTxBody
+    f
+    (Cardano.Tx
+        (Cardano.ShelleyTxBody
+            era
+            body
+            scripts
+            scriptData
+            auxData
+            scriptValidity)
+        keyWits)
+    = Cardano.Tx
+        (Cardano.ShelleyTxBody
+            era
+            (f body)
+            scripts
+            scriptData
+            auxData
+            scriptValidity)
+        keyWits
 
 txWithInputsOutputsAndWits :: ByteString
 txWithInputsOutputsAndWits =
