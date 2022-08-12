@@ -662,6 +662,8 @@ postAnyAddress net addrData = do
               CA.PaymentFromExtendedKey $ CA.liftXPub $ fromXPub bytes
           CredentialScript script' ->
               CA.PaymentFromScript script'
+          CredentialScriptHash scriptHash ->
+              CA.PaymentFromScriptHash scriptHash
       stakingFrom cred = case cred of
           CredentialPubKey bytes ->
               CA.DelegationFromKey $ CA.liftPub $ fromPub bytes
@@ -671,6 +673,8 @@ postAnyAddress net addrData = do
               CA.DelegationFromExtendedKey $ CA.liftXPub $ fromXPub bytes
           CredentialScript script' ->
               CA.DelegationFromScript script'
+          CredentialScriptHash scriptHash ->
+              CA.DelegationFromScriptHash scriptHash
       guardValidation v cred =
             when (fst $ checkValidation v cred) $
                 Left $ snd $ checkValidation v cred
@@ -678,6 +682,7 @@ postAnyAddress net addrData = do
           CredentialPubKey _ -> (False, TextDecodingError "")
           CredentialKeyHash _ -> (False, TextDecodingError "")
           CredentialExtendedPubKey _ -> (False, TextDecodingError "")
+          CredentialScriptHash _ -> (False, TextDecodingError "")
           CredentialScript script' -> case v of
               Just (ApiT v') ->
                   case validateScript v' script' of
