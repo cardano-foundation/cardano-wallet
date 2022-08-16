@@ -1100,8 +1100,9 @@ withCluster tr dir LocalClusterConfig{..} faucetFunds onClusterStart = bracketTr
         -- Submit retirement certs for all pools using the connection to
         -- the only running first pool to avoid the certs being rolled
         -- back.
-        forM_ configuredPools $ \pool -> do
-            finalizeShelleyGenesisSetup pool runningNode
+        when postAlonzo $
+            forM_ configuredPools $ \pool -> do
+                finalizeShelleyGenesisSetup pool runningNode
 
         -- Should ideally not be hard-coded in 'withCluster'
         (rawTx, faucetPrv) <- prepareKeyRegistration tr dir
