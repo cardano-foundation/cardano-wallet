@@ -357,6 +357,54 @@ spec = describe "SHARED_TRANSACTIONS" $ do
             , expectField (#outputs) ((`shouldBe` 1) . length . filter isOutOurs)
             ]
 
+        let apiTx = getFromResponse #transaction rTx
+        signedTx <-
+            signSharedTx ctx wa apiTx [ expectResponseCode HTTP.status202 ]
+        let txCbor1 =
+                getFromResponse #transaction (HTTP.status202, Right signedTx)
+        let decodePayload1 = Json (toJSON $ ApiSerialisedTransaction txCbor1)
+        rDecodedTxSource1 <- request @(ApiDecodedTransaction n) ctx
+            (Link.decodeTransaction @'Shared wa) Default decodePayload1
+        rDecodedTxTarget1 <- request @(ApiDecodedTransaction n) ctx
+            (Link.decodeTransaction @'Shelley wb) Default decodePayload1
+        verify rDecodedTxTarget1 sharedExpectationsBetweenWallets
+        verify rDecodedTxSource1 $
+            sharedExpectationsBetweenWallets ++
+            [ expectField #inputs (`shouldSatisfy` areOurs)
+            , expectField #outputs (`shouldNotContain` [expectedTxOutTarget])
+            -- Check that the change output is there:
+            , expectField (#outputs) ((`shouldBe` 1) . length . filter isOutOurs)
+            ]
+
+        -- Submit tx
+        submittedTx <- submitSharedTxWithWid ctx wa signedTx
+        verify submittedTx
+            [ expectSuccess
+            , expectResponseCode HTTP.status202
+            ]
+
+        let walShared = ApiSharedWallet (Right wa)
+
+        eventually "Source wallet balance is decreased by amt + fee" $ do
+            rWal <- getSharedWallet ctx walShared
+            verify (fmap (view #wallet) <$> rWal)
+                [ expectResponseCode HTTP.status200
+                , expectField
+                    (traverse . #balance . #available . #getQuantity)
+                    (`shouldBe` (faucetUtxoAmt - expectedFee - amt))
+                ]
+
+        eventually "Target wallet balance is increased by amt" $ do
+            rWa <- request @ApiWallet ctx
+                (Link.getWallet @'Shelley wb) Default Empty
+            verify rWa
+                [ expectSuccess
+                , expectField
+                        (#balance . #available . #getQuantity)
+                        (`shouldBe` amt)
+                ]
+
+
     it "SHARED_TRANSACTIONS_CREATE_04b - Cannot spend less than minUTxOValue" $ \ctx -> runResourceT $ do
         wa <- fixtureSharedWallet ctx
         wb <- emptyWallet ctx
