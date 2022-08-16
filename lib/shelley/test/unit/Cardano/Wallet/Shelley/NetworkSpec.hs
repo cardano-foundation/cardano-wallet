@@ -255,7 +255,6 @@ withTestNode tr action = do
             defaultPoolConfigs
             BabbageHardFork
             (LogFileConfig Info Nothing Info)
-    let setup _ = return ()
     withSystemTempDir (contramap MsgTempDir tr) "network-spec" $ \dir ->
-        withCluster tr dir cfg [] setup $ \(RunningNode sock _ (np, vData) _) ->
+        withCluster tr dir cfg mempty $ \(RunningNode sock _ (np, vData) _) ->
             action np sock vData

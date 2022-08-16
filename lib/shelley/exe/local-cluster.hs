@@ -28,7 +28,7 @@ import Cardano.CLI
 import Cardano.Startup
     ( installSignalHandlers, setDefaultFilePermissions, withUtf8Encoding )
 import Cardano.Wallet.Api.Types
-    ( EncodeAddress (..), decodeAddress )
+    ( decodeAddress )
 import Cardano.Wallet.Logging
     ( stdoutTextTracer, trMessageText )
 import Cardano.Wallet.Primitive.AddressDerivation
@@ -50,11 +50,10 @@ import Cardano.Wallet.Shelley.Launch
 import Cardano.Wallet.Shelley.Launch.Cluster
     ( ClusterLog (..)
     , Credential (..)
+    , FaucetFunds (..)
     , RunningNode (..)
     , localClusterConfigFromEnv
-    , moveInstantaneousRewardsTo
     , oneMillionAda
-    , sendFaucetAssetsTo
     , testMinSeverityFromEnv
     , tokenMetadataServerFromEnv
     , walletListenFromEnv
@@ -214,28 +213,24 @@ main = withLocalClusterSetup $ \dir clusterLogs walletLogs ->
         let tr' = contramap MsgCluster $ trMessageText trCluster
         clusterCfg <- localClusterConfigFromEnv
         withCluster tr' dir clusterCfg faucetFunds
-            (extraSetup dir (trMessageText trCluster))
             (whenReady dir (trMessageText trCluster) walletLogs)
   where
     unsafeDecodeAddr = either (error . show) id . decodeAddress @'Mainnet
 
-    faucetFunds =
+    faucetFunds = FaucetFunds
+        { pureAdaFunds =
             shelleyIntegrationTestFunds
              <> byronIntegrationTestFunds
              <> map (first unsafeDecodeAddr) hwWalletFunds
+        , maFunds =
+            maryIntegrationTestAssets (Coin 10_000_000)
+        , mirFunds =
+            first KeyCredential
+            . (,Coin $ fromIntegral oneMillionAda)
+            <$> concatMap genRewardAccounts mirMnemonics
+        }
 
-    extraSetup dir trCluster (RunningNode socketPath _ _ _) = do
-        traceWith trCluster MsgSettingUpFaucet
-        let trCluster' = contramap MsgCluster trCluster
-        let encodeAddresses = map (first (T.unpack . encodeAddress @'Mainnet))
-        let accts = KeyCredential <$> concatMap genRewardAccounts mirMnemonics
-        let rewards' = (, Coin $ fromIntegral oneMillionAda) <$> accts
-
-        sendFaucetAssetsTo trCluster' socketPath dir 20 $ encodeAddresses $
-            maryIntegrationTestAssets (Coin 1_000_000_000)
-        moveInstantaneousRewardsTo trCluster' socketPath dir rewards'
-
-    whenReady dir trCluster logs node@(RunningNode socketPath block0 (gp, vData) _) =
+    whenReady dir trCluster logs (RunningNode socketPath block0 (gp, vData) _) =
         withLoggingNamed "cardano-wallet" logs $ \(sb, (cfg, tr)) -> do
             ekgEnabled >>= flip when (EKG.plugin cfg tr sb >>= loadPlugin sb)
 

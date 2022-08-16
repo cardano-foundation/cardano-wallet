@@ -67,6 +67,7 @@ import Cardano.Wallet.Shelley.Launch
 import Cardano.Wallet.Shelley.Launch.Cluster
     ( ClusterLog
     , Credential (..)
+    , FaucetFunds (..)
     , RunningNode (..)
     , clusterEraFromEnv
     , clusterEraToString
@@ -323,32 +324,26 @@ specWithServer testDir (tr, tracers) = aroundAll withContext
     withServer dbDecorator onReady = bracketTracer' tr "withServer" $
         withSMASH tr' testDir $ \smashUrl -> do
             clusterCfg <- localClusterConfigFromEnv
-            withCluster tr' testDir clusterCfg faucetFunds extraSetup
+            withCluster tr' testDir clusterCfg faucetFunds
                 $ onClusterStart (onReady $ T.pack smashUrl) dbDecorator
 
     tr' = contramap MsgCluster tr
     encodeAddresses = map (first (T.unpack . encodeAddress @'Mainnet))
 
-    faucetFunds =
+    faucetFunds = FaucetFunds
+        { pureAdaFunds =
             shelleyIntegrationTestFunds
              <> byronIntegrationTestFunds
              <> map (first unsafeDecodeAddr) hwWalletFunds
+        , maFunds =
+            maryIntegrationTestAssets (Coin 10_000_000)
+        , mirFunds =
+            first KeyCredential
+            . (,Coin $ fromIntegral oneMillionAda)
+            <$> concatMap genRewardAccounts mirMnemonics
+        }
 
     unsafeDecodeAddr = either (error . show) id . decodeAddress @'Mainnet
-
-    extraSetup (RunningNode conn block0 (gp, vData) genesisPools) = do
-        traceWith tr MsgSettingUpFaucet
-
-        let rewards = (,Coin $ fromIntegral oneMillionAda) <$>
-                concatMap genRewardAccounts mirMnemonics
-
-        -- Needs to happen in the first 20% of the epoch.
-        moveInstantaneousRewardsTo tr' conn testDir (first KeyCredential <$> rewards)
-
-        -- We cannot set up MA funds through the genesis, so we need to do it
-        -- here through txs.
-        sendFaucetAssetsTo tr' conn testDir 20 $
-            encodeAddresses (maryIntegrationTestAssets (Coin 10_000_000))
 
     onClusterStart action dbDecorator (RunningNode conn block0 (gp, vData) genesisPools) = do
         let db = testDir </> "wallets"
