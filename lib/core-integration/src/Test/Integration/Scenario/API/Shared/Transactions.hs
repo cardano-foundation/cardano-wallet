@@ -112,8 +112,6 @@ import qualified Data.Map.Strict as Map
 import qualified Data.Text.Encoding as T
 import qualified Network.HTTP.Types as HTTP
 
-import qualified Debug.Trace as TR
-
 
 spec :: forall n.
     ( DecodeAddress n
@@ -229,7 +227,7 @@ spec = describe "SHARED_TRANSACTIONS" $ do
         verify rDecodedTx1 decodedExpectations
 
         let apiTx = getFromResponse #transaction rTx2
-        signedTx <- TR.trace ("---------------SIGN-----------------\n") $
+        signedTx <-
             signSharedTx ctx wal apiTx [ expectResponseCode HTTP.status202 ]
         let txCbor2 =
                 getFromResponse #transaction (HTTP.status202, Right signedTx)

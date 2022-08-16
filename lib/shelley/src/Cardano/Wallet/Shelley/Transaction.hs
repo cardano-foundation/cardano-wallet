@@ -2374,11 +2374,6 @@ mkUnsignedTx era ttl cs md wdrls certs fees mintData burnData mintingScripts inp
                     burnValue =
                         Cardano.negateValue $
                         toCardanoValue (TokenBundle (Coin 0) burnData)
-                    toScriptWitness script =
-                        Cardano.SimpleScriptWitness
-                          scriptWitsSupported
-                          Cardano.SimpleScriptV2
-                          (Cardano.SScript $ toCardanoSimpleScript script)
                     witMap =
                         Map.map toScriptWitness $
                         Map.mapKeys (toCardanoPolicyId . TokenMap.tokenPolicyId)
@@ -2450,13 +2445,29 @@ mkUnsignedTx era ttl cs md wdrls certs fees mintData burnData mintingScripts inp
         ShelleyBasedEraAlonzo -> Cardano.SimpleScriptV2InAlonzo
         ShelleyBasedEraBabbage -> Cardano.SimpleScriptV2InBabbage
 
+    toScriptWitness :: Script KeyHash -> Cardano.ScriptWitness witctx era
+    toScriptWitness script =
+        Cardano.SimpleScriptWitness
+        scriptWitsSupported
+        Cardano.SimpleScriptV2
+        (Cardano.SScript $ toCardanoSimpleScript script)
+
+    constructInpScriptWit inp =
+        let script = case Map.lookup inp inpsScripts of
+                Nothing -> error "constructInpScriptWit: each input should have script in multisig"
+                Just script' -> script'
+            scriptWit = toScriptWitness script
+        in ( toCardanoTxIn inp
+           , Cardano.BuildTxWith
+             (Cardano.ScriptWitness Cardano.ScriptWitnessForSpending scriptWit)
+           )
     inputWits =
         if inpsScripts == Map.empty then
             (,Cardano.BuildTxWith (Cardano.KeyWitness Cardano.KeyWitnessForSpending))
             . toCardanoTxIn
             . fst <$> F.toList (view #inputs cs)
         else
-            undefined
+            constructInpScriptWit . fst <$> F.toList (view #inputs cs)
 
 mkWithdrawals
     :: NetworkId
