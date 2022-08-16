@@ -412,6 +412,8 @@ data TransactionCtx = TransactionCtx
     -- ^ The assets to mint.
     , txAssetsToBurn :: (TokenMap, Map AssetId (Script KeyHash))
     -- ^ The assets to burn.
+    , txScriptInputs :: Map TxIn (Script KeyHash)
+    -- ^ A map of script hashes related to inputs. Only for multisig wallets
     , txCollateralRequirement :: SelectionCollateralRequirement
     -- ^ The collateral requirement.
     , txFeePadding :: !Coin
@@ -443,6 +445,7 @@ defaultTransactionCtx = TransactionCtx
     , txPlutusScriptExecutionCost = Coin 0
     , txAssetsToMint = (TokenMap.empty, Map.empty)
     , txAssetsToBurn = (TokenMap.empty, Map.empty)
+    , txScriptInputs = Map.empty
     , txCollateralRequirement = SelectionCollateralNotRequired
     , txFeePadding = Coin 0
     }
