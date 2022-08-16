@@ -242,7 +242,6 @@ import UnliftIO.MVar
 import qualified Cardano.Ledger.Address as Ledger
 import qualified Cardano.Ledger.Shelley.API as Ledger
 import qualified Cardano.Wallet.Primitive.AddressDerivation as W
-import qualified Cardano.Wallet.Primitive.AddressDerivation as W
 import qualified Cardano.Wallet.Primitive.Types.TokenBundle as TokenBundle
 import qualified Cardano.Wallet.Primitive.Types.TokenMap as TokenMap
 import qualified Codec.Binary.Bech32 as Bech32
@@ -1060,22 +1059,8 @@ withCluster tr dir LocalClusterConfig{..} faucetFunds onClusterStart = bracketTr
                     port0
                     cfgNodeLogging
             operatePool pool0 pool0Cfg $ \runningPool0 -> do
-
-                let RunningNode conn _ _ _ = runningPool0
-
-                -- Needs to happen in the first 20% of the epoch, so we run this
-                -- first.
-                moveInstantaneousRewardsTo tr conn dir mirFunds
-
-                sendFaucetAssetsTo tr conn dir 20 (encodeAddresses maFunds)
-
-                -- Submit retirement certs for all pools using the connection to
-                -- the only running first pool to avoid the certs being rolled
-                -- back.
-                forM_ configuredPools $ \pool -> do
-                    finalizeShelleyGenesisSetup pool runningPool0
-
-                launchPools otherPools genesisFiles ports onClusterStart'
+                extraClusterSetupUsingNode configuredPools runningPool0
+                launchPools otherPools genesisFiles ports onClusterStart
         else do
             ports <- rotate <$> randomUnusedTCPPorts (1 + nPools)
             let bftCfg = NodeParams
@@ -1084,6 +1069,8 @@ withCluster tr dir LocalClusterConfig{..} faucetFunds onClusterStart = bracketTr
                     (head ports)
                     cfgNodeLogging
             withBFTNode tr dir bftCfg $ \runningBFTNode -> do
+                extraClusterSetupUsingNode configuredPools runningBFTNode
+
                 -- NOTE: We used to perform 'registerViaTx' as part of 'launchPools'
                 -- where we waited for the pools to become active (e.g. be in
                 -- the stake distribution) in parallel. Just submitting the
@@ -1091,7 +1078,7 @@ withCluster tr dir LocalClusterConfig{..} faucetFunds onClusterStart = bracketTr
                 -- setup working 100% correctly in alonzo will soon not be
                 -- important.
                 mapM_ (`registerViaTx` runningBFTNode) configuredPools
-                launchPools configuredPools genesisFiles (tail ports) onClusterStart'
+                launchPools configuredPools genesisFiles (tail ports) onClusterStart
   where
     nPools = length cfgStakePools
 
@@ -1099,11 +1086,27 @@ withCluster tr dir LocalClusterConfig{..} faucetFunds onClusterStart = bracketTr
 
     FaucetFunds adaFunds maFunds mirFunds = faucetFunds
 
-    onClusterStart' node@(RunningNode socket _ _ _) = do
+    -- Important cluster setup to run without rollbacks
+    extraClusterSetupUsingNode :: [ConfiguredPool] -> RunningNode -> IO ()
+    extraClusterSetupUsingNode configuredPools runningNode = do
+        let RunningNode conn _ _ _ = runningNode
+
+        -- Needs to happen in the first 20% of the epoch, so we run this
+        -- first.
+        moveInstantaneousRewardsTo tr conn dir mirFunds
+
+        sendFaucetAssetsTo tr conn dir 20 (encodeAddresses maFunds)
+
+        -- Submit retirement certs for all pools using the connection to
+        -- the only running first pool to avoid the certs being rolled
+        -- back.
+        forM_ configuredPools $ \pool -> do
+            finalizeShelleyGenesisSetup pool runningNode
+
+        -- Should ideally not be hard-coded in 'withCluster'
         (rawTx, faucetPrv) <- prepareKeyRegistration tr dir
         tx <- signTx tr dir rawTx [faucetPrv]
-        submitTx tr socket "pre-registered stake key" tx
-        onClusterStart node
+        submitTx tr conn "pre-registered stake key" tx
 
     -- | Actually spin up the pools.
     launchPools
