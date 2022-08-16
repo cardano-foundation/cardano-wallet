@@ -303,8 +303,8 @@ RSpec.describe CardanoWallet::Shelley, :all, :shelley do
       wid = create_shelley_wallet
       addresses = SHELLEY.addresses.list(wid)
       addr_amount = [
-         { addresses[0]['id'] => 123 },
-         { addresses[1]['id'] => 456 }
+         { addresses[0]['id'] => MIN_UTXO_VALUE },
+         { addresses[1]['id'] => MIN_UTXO_VALUE }
         ]
 
       rnd = SHELLEY.coin_selections.random wid, addr_amount
