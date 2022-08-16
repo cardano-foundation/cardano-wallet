@@ -214,6 +214,7 @@ main = withLocalClusterSetup $ \dir clusterLogs walletLogs ->
         let tr' = contramap MsgCluster $ trMessageText trCluster
         clusterCfg <- localClusterConfigFromEnv
         withCluster tr' dir clusterCfg faucetFunds
+            (extraSetup dir (trMessageText trCluster))
             (whenReady dir (trMessageText trCluster) walletLogs)
   where
     unsafeDecodeAddr = either (error . show) id . decodeAddress @'Mainnet
@@ -223,7 +224,7 @@ main = withLocalClusterSetup $ \dir clusterLogs walletLogs ->
              <> byronIntegrationTestFunds
              <> map (first unsafeDecodeAddr) hwWalletFunds
 
-    setupFaucet dir trCluster (RunningNode socketPath _ _ _) = do
+    extraSetup dir trCluster (RunningNode socketPath _ _ _) = do
         traceWith trCluster MsgSettingUpFaucet
         let trCluster' = contramap MsgCluster trCluster
         let encodeAddresses = map (first (T.unpack . encodeAddress @'Mainnet))
@@ -236,8 +237,6 @@ main = withLocalClusterSetup $ \dir clusterLogs walletLogs ->
 
     whenReady dir trCluster logs node@(RunningNode socketPath block0 (gp, vData) _) =
         withLoggingNamed "cardano-wallet" logs $ \(sb, (cfg, tr)) -> do
-            setupFaucet dir trCluster node
-
             ekgEnabled >>= flip when (EKG.plugin cfg tr sb >>= loadPlugin sb)
 
             let tracers = setupTracers (tracerSeverities (Just Debug)) tr
