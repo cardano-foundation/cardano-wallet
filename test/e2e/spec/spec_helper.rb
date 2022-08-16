@@ -92,7 +92,10 @@ ASSETS = [ { "policy_id" => "ee1ce9d7560f48a4ba3867037dbec2d8fed776d94dd6b00a353
             },
          ]
 
-MIN_UTXO_VALUE = 1107670
+##
+# Since alonzo min_utxo_value is calculated based on the particular output size
+# 1 ADA, however should be enough for sending pure Ada output to shelley address
+MIN_UTXO_VALUE_PURE_ADA = 1000000
 
 def create_incomplete_shared_wallet(m, acc_ix, acc_xpub)
   script_template = { 'cosigners' =>

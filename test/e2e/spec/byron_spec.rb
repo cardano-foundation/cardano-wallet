@@ -246,8 +246,8 @@ RSpec.describe CardanoWallet::Byron, :all, :byron do
       wid = create_byron_wallet "icarus"
       addresses = BYRON.addresses.list(wid)
       addr_amount = [
-         { addresses[0]['id'] => MIN_UTXO_VALUE },
-         { addresses[1]['id'] => MIN_UTXO_VALUE }
+         { addresses[0]['id'] => MIN_UTXO_VALUE_PURE_ADA },
+         { addresses[1]['id'] => MIN_UTXO_VALUE_PURE_ADA }
         ]
 
       rnd = BYRON.coin_selections.random wid, addr_amount
