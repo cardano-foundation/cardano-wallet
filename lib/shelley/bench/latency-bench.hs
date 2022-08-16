@@ -470,15 +470,20 @@ withShelleyServer tracers action = do
             let initialFunds =
                     shelleyIntegrationTestFunds
                     <> byronIntegrationTestFunds
-            withCluster nullTracer dir clusterCfg initialFunds $
-                onClusterStart act db dir
+            withCluster
+                nullTracer
+                dir
+                clusterCfg
+                initialFunds
+                (extraSetup dir)
+                (onClusterStart act db)
 
-    onClusterStart act db dir (RunningNode conn block0 (np, vData) _) = do
-
+    extraSetup dir (RunningNode conn _ _ _)= do
         let encodeAddr = T.unpack . encodeAddress @'Mainnet
         let addressesMA = map (first encodeAddr) (maryIntegrationTestAssets (Coin 10_000_000))
         sendFaucetAssetsTo nullTracer conn dir 20 addressesMA
 
+    onClusterStart act db (RunningNode conn block0 (np, vData) _) = do
         listen <- walletListenFromEnv
         serveWallet
             (NodeSource conn vData (SyncTolerance 10))

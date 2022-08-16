@@ -992,10 +992,12 @@ withCluster
     -> LocalClusterConfig
     -- ^ The configurations of pools to spawn.
     -> [(Address, Coin)] -- Faucet funds
+    -> (RunningNode -> IO ())
+    -- ^ Cluster setup to run when only a single pool has started (no rollbacks)
     -> (RunningNode -> IO a)
-    -- ^ Action to run once when the stake pools are setup.
+    -- ^ Action to run once when all pools have started.
     -> IO a
-withCluster tr dir LocalClusterConfig{..} initialFunds onClusterStart = bracketTracer' tr "withCluster" $ do
+withCluster tr dir LocalClusterConfig{..} initialFunds extraSetup onClusterStart = bracketTracer' tr "withCluster" $ do
     withPoolMetadataServer tr dir $ \metadataServer -> do
         createDirectoryIfMissing True dir
         traceWith tr $ MsgStartingCluster dir
@@ -1032,6 +1034,12 @@ withCluster tr dir LocalClusterConfig{..} initialFunds onClusterStart = bracketT
                     port0
                     cfgNodeLogging
             operatePool pool0 pool0Cfg $ \runningPool0 -> do
+
+                -- If 'extraSetup' calls 'moveInstantaneousRewardsTo' we need to
+                -- be in the first 20% of the epoch. Calling it before submitting
+                -- the pool retirement certs (below) for more leeway.
+                extraSetup runningPool0
+
                 -- Submit retirement certs for all pools using the connection to
                 -- the only running first pool to avoid the certs being rolled
                 -- back.

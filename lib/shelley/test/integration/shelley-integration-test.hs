@@ -323,8 +323,8 @@ specWithServer testDir (tr, tracers) = aroundAll withContext
     withServer dbDecorator onReady = bracketTracer' tr "withServer" $
         withSMASH tr' testDir $ \smashUrl -> do
             clusterCfg <- localClusterConfigFromEnv
-            withCluster tr' testDir clusterCfg faucetFunds $
-                onClusterStart (onReady $ T.pack smashUrl) dbDecorator
+            withCluster tr' testDir clusterCfg faucetFunds extraSetup
+                $ onClusterStart (onReady $ T.pack smashUrl) dbDecorator
 
     tr' = contramap MsgCluster tr
     encodeAddresses = map (first (T.unpack . encodeAddress @'Mainnet))
@@ -336,8 +336,7 @@ specWithServer testDir (tr, tracers) = aroundAll withContext
 
     unsafeDecodeAddr = either (error . show) id . decodeAddress @'Mainnet
 
-
-    onClusterStart action dbDecorator (RunningNode conn block0 (gp, vData) genesisPools) = do
+    extraSetup (RunningNode conn block0 (gp, vData) genesisPools) = do
         traceWith tr MsgSettingUpFaucet
 
         let rewards = (,Coin $ fromIntegral oneMillionAda) <$>
@@ -351,6 +350,7 @@ specWithServer testDir (tr, tracers) = aroundAll withContext
         sendFaucetAssetsTo tr' conn testDir 20 $
             encodeAddresses (maryIntegrationTestAssets (Coin 10_000_000))
 
+    onClusterStart action dbDecorator (RunningNode conn block0 (gp, vData) genesisPools) = do
         let db = testDir </> "wallets"
         createDirectory db
         listen <- walletListenFromEnv
