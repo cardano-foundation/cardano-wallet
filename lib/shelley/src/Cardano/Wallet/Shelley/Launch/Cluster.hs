@@ -433,6 +433,9 @@ data ConfiguredPool = ConfiguredPool
       -- ^ The 'PoolRecipe' used to create this 'ConfiguredPool'.
     , registerViaShelleyGenesis
         :: IO (ShelleyGenesis StandardShelley -> ShelleyGenesis StandardShelley)
+    , finalizeShelleyGenesisSetup :: RunningNode -> IO ()
+      -- ^ Submit any pool retirement certificate according to the 'recipe'
+      -- on-chain.
     , registerViaTx :: RunningNode -> IO ()
     }
 
@@ -534,21 +537,8 @@ configurePool tr baseDir metadataServer recipe = do
                         , nodePort = Just (NodePort port)
                         , nodeLoggingHostname = Just name
                         }
+
                 withCardanoNodeProcess tr name cfg $ \socket -> do
-                    -- Here is our chance to respect the 'retirementEpoch' of
-                    -- the 'PoolRecipe'.
-                    --
-                    -- NOTE: We also submit the retirement cert in
-                    -- @registerViaTx@, but this seems to work regardless. (We
-                    -- do want to submit it here for the sake of babbage)
-                    let retire e = do
-                            retCert <- issuePoolRetirementCert tr dir opPub e
-                            (rawTx, faucetPrv) <- preparePoolRetirement tr dir [retCert]
-                            tx <- signTx tr dir rawTx [faucetPrv, ownerPrv, opPrv]
-                            submitTx tr socket "retirement cert" tx
-
-                    traverse_ retire mretirementEpoch
-
                     action $ RunningNode socket block0 (bp, vd) genesisPools
 
         , registerViaShelleyGenesis = do
@@ -581,10 +571,26 @@ configurePool tr baseDir metadataServer recipe = do
                     }
             let poolSpecificFunds = Map.fromList
                     [(pledgeAddr, Ledger.Coin $ intCast pledgeAmt)]
+
             return $ \sg -> sg
                 { sgInitialFunds = poolSpecificFunds <> (sgInitialFunds sg)
                 , sgStaking = updateStaking (sgStaking sg)
                 }
+
+        , finalizeShelleyGenesisSetup = \(RunningNode socket _ _ _) -> do
+            -- Here is our chance to respect the 'retirementEpoch' of
+            -- the 'PoolRecipe'.
+            --
+            -- NOTE: We also submit the retirement cert in
+            -- @registerViaTx@, but this seems to work regardless. (We
+            -- do want to submit it here for the sake of babbage)
+            let retire e = do
+                    retCert <- issuePoolRetirementCert tr dir opPub e
+                    (rawTx, faucetPrv) <- preparePoolRetirement tr dir [retCert]
+                    tx <- signTx tr dir rawTx [faucetPrv, ownerPrv, opPrv]
+                    submitTx tr socket "retirement cert" tx
+
+            traverse_ retire mretirementEpoch
         , registerViaTx = \(RunningNode socket _ _ _) -> do
             stakeCert <- issueStakeVkCert tr dir "stake-pool" ownerPub
             let poolRegistrationCert = dir </> "pool.cert"
@@ -602,6 +608,7 @@ configurePool tr baseDir metadataServer recipe = do
                 , "--mainnet"
                 , "--out-file", poolRegistrationCert
                 ]
+
 
             mPoolRetirementCert <- traverse
                 (issuePoolRetirementCert tr dir opPub) mretirementEpoch
@@ -1016,8 +1023,22 @@ withCluster tr dir LocalClusterConfig{..} initialFunds onClusterStart = bracketT
 
         if postAlonzo
         then do
-            ports <- rotate <$> randomUnusedTCPPorts nPools
-            launchPools configuredPools genesisFiles ports onClusterStart'
+            port0:ports <- rotate <$> randomUnusedTCPPorts nPools
+            let pool0:otherPools = configuredPools
+
+            let pool0Cfg = NodeParams
+                    genesisFiles
+                    cfgLastHardFork
+                    port0
+                    cfgNodeLogging
+            operatePool pool0 pool0Cfg $ \runningPool0 -> do
+                -- Submit retirement certs for all pools using the connection to
+                -- the only running first pool to avoid the certs being rolled
+                -- back.
+                forM_ configuredPools $ \pool -> do
+                    finalizeShelleyGenesisSetup pool runningPool0
+
+                launchPools otherPools genesisFiles ports onClusterStart'
         else do
             ports <- rotate <$> randomUnusedTCPPorts (1 + nPools)
             let bftCfg = NodeParams
