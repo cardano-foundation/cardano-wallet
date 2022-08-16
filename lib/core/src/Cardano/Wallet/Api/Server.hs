@@ -2611,6 +2611,7 @@ constructSharedTransaction
         , HasNetworkLayer IO ctx
         , IsOurs s Address
         , BoundedAddressLength k
+        , Typeable n
         )
     => ctx
     -> ArgGenChange s

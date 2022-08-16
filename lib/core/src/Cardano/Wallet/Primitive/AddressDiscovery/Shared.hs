@@ -156,8 +156,6 @@ import qualified Data.Map.Strict as Map
 import qualified Data.Text as T
 import qualified Data.Text.Encoding as T
 
-import qualified Debug.Trace as TR
-
 -- | Convenient alias for commonly used class contexts on keys.
 type SupportsDiscovery (n :: NetworkDiscriminant) k =
     ( MkKeyFingerprint k (Proxy n, k 'CredFromScriptK XPub)
@@ -547,12 +545,12 @@ isShared
     -> (Maybe (Index 'Soft 'CredFromScriptK, Role), SharedState n k)
 isShared addrRaw st = case ready st of
     Pending -> nop
-    Active (SharedAddressPools extPool intPool pending) -> TR.trace ("extPool:"<>show extPool) $
+    Active (SharedAddressPools extPool intPool pending) ->
         case paymentKeyFingerprint addrRaw of
             Left _ -> nop
             Right addr -> case ( AddressPool.lookup addr (getPool extPool)
                                , AddressPool.lookup addr (getPool intPool)) of
-                (Just ix, Nothing) -> TR.trace ("ix:"<>show ix) $
+                (Just ix, Nothing) ->
                     let pool' = AddressPool.update addr (getPool extPool) in
                     ( Just (ix, UtxoExternal)
                     , st { ready = Active
@@ -743,6 +741,6 @@ instance ( key ~ SharedKey
         (Just (ix, role'), _) ->
             let DerivationPrefix (_,_,accIx) = derivationPrefix st
                 accXPrv = deriveAccountPrivateKey pwd rootPrv accIx
-            in TR.trace ("accIx:"<>show accIx) $ Just ( deriveAddressPrivateKey pwd accXPrv role' ix
+            in Just ( deriveAddressPrivateKey pwd accXPrv role' ix
                     , pwd )
         (Nothing, _) -> Nothing

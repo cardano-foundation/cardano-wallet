@@ -317,7 +317,7 @@ import Cardano.Wallet.Primitive.AddressDerivation.Icarus
 import Cardano.Wallet.Primitive.AddressDerivation.MintBurn
     ( derivePolicyPrivateKey, policyDerivationPath )
 import Cardano.Wallet.Primitive.AddressDerivation.SharedKey
-    ( SharedKey (..) )
+    ( SharedKey (..), replaceCosignersWithVerKeys )
 import Cardano.Wallet.Primitive.AddressDerivation.Shelley
     ( ShelleyKey, deriveAccountPrivateKeyShelley )
 import Cardano.Wallet.Primitive.AddressDiscovery
@@ -340,6 +340,7 @@ import Cardano.Wallet.Primitive.AddressDiscovery.Shared
     , ErrScriptTemplate (..)
     , SharedState (..)
     , addCosignerAccXPub
+    , isShared
     )
 import Cardano.Wallet.Primitive.BlockSummary
     ( ChainEvents )
@@ -603,6 +604,7 @@ import UnliftIO.MVar
 
 import qualified Cardano.Address.Script as CA
 import qualified Cardano.Address.Style.Shared as CA
+import qualified Cardano.Address.Style.Shelley as CAShelley
 import qualified Cardano.Api as Cardano
 import qualified Cardano.Api.Shelley as Cardano
 import qualified Cardano.Crypto.Wallet as CC
@@ -623,7 +625,7 @@ import qualified Data.ByteArray as BA
 import qualified Data.Foldable as F
 import qualified Data.List as L
 import qualified Data.List.NonEmpty as NE
-import qualified Data.Map as Map
+import qualified Data.Map.Strict as Map
 import qualified Data.Set as Set
 import qualified Data.Text as T
 import qualified Data.Vector as V
@@ -2554,6 +2556,7 @@ constructSharedTransaction
         , HasNetworkLayer IO ctx
         , k ~ SharedKey
         , s ~ SharedState n k
+        , Typeable n
         )
     => ctx
     -> WalletId
@@ -2570,10 +2573,27 @@ constructSharedTransaction ctx wid era txCtx sel = db & \DBLayer{..} -> do
     let accXPub = getRawKey $ Shared.accountXPub s
     let xpub = CA.getKey $
             deriveDelegationPublicKey (CA.liftXPub accXPub) minBound
+    let allInps =
+            (view #collateral sel) ++
+            NE.toList (view #inputs sel)
+    let getScript (_, TxOut addr _) = case fst (isShared addr s) of
+            Nothing -> error "each input coin selected of multisig must be recognized"
+            Just (ix,role) ->
+                let template = paymentTemplate s
+                    role' = case role of
+                        UtxoExternal -> CAShelley.UTxOExternal
+                        UtxoInternal -> CAShelley.UTxOInternal
+                        MutableAccount ->
+                            error "role is specified only for payment credential"
+                in replaceCosignersWithVerKeys role' template ix
+    let scriptInps =
+            foldr (\inp@(txin,_) -> Map.insert txin (getScript inp))
+            Map.empty allInps
+    let txCtx' = txCtx {txScriptInputs = scriptInps}
     mapExceptT atomically $ do
         pp <- liftIO $ currentProtocolParameters nl
         withExceptT ErrConstructTxBody $ ExceptT $ pure $
-            mkUnsignedTransaction tl era xpub pp txCtx sel
+            mkUnsignedTransaction tl era xpub pp txCtx' sel
   where
     db = ctx ^. dbLayer @IO @s @k
     tl = ctx ^. transactionLayer @k @'CredFromScriptK
