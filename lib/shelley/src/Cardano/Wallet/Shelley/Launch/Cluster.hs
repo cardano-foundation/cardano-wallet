@@ -28,6 +28,7 @@ module Cardano.Wallet.Shelley.Launch.Cluster
     , LocalClusterConfig (..)
     , localClusterConfigFromEnv
     , ClusterEra (..)
+    , FaucetFunds (..)
 
       -- * Node launcher
     , NodeParams (..)
@@ -124,7 +125,11 @@ import Cardano.Startup
 import Cardano.Wallet.Api.Server
     ( Listen (..) )
 import Cardano.Wallet.Api.Types
-    ( ApiEra (..), DecodeAddress (..), HealthStatusSMASH (..) )
+    ( ApiEra (..)
+    , DecodeAddress (..)
+    , EncodeAddress (..)
+    , HealthStatusSMASH (..)
+    )
 import Cardano.Wallet.Logging
     ( BracketLog, bracketTracer )
 import Cardano.Wallet.Network.Ports
@@ -159,6 +164,8 @@ import Cardano.Wallet.Util
     ( mapFirst )
 import Codec.Binary.Bech32.TH
     ( humanReadablePart )
+import Control.Arrow
+    ( first )
 import Control.Monad
     ( forM, forM_, liftM2, replicateM, replicateM_, void, when, (>=>) )
 import Control.Retry
@@ -234,6 +241,7 @@ import UnliftIO.MVar
 
 import qualified Cardano.Ledger.Address as Ledger
 import qualified Cardano.Ledger.Shelley.API as Ledger
+import qualified Cardano.Wallet.Primitive.AddressDerivation as W
 import qualified Cardano.Wallet.Primitive.AddressDerivation as W
 import qualified Cardano.Wallet.Primitive.Types.TokenBundle as TokenBundle
 import qualified Cardano.Wallet.Primitive.Types.TokenMap as TokenMap
@@ -971,6 +979,26 @@ generateGenesis dir systemStart initialFunds addPoolsToGenesis = do
         | (Address addrBytes, Coin c) <- initialFunds
         ]
 
+data FaucetFunds = FaucetFunds
+    { pureAdaFunds :: [(Address, Coin)]
+      -- ^ Pure ada funds
+    , maFunds :: [(Address, (TokenBundle, [(String, String)]))]
+      -- ^ Multi asset funds. Slower to setup than pure ada funds.
+      --
+      -- Beside the assets, there is a list of
+      -- @(signing key, verification key hash)@, so that they can be minted by
+      -- the faucet.
+    , mirFunds :: [(Credential, Coin)]
+      -- ^ "Move instantaneous rewards" - for easily funding reward accounts.
+    } deriving (Eq, Show)
+
+instance Semigroup FaucetFunds where
+    FaucetFunds ada1 ma1 mir1 <> FaucetFunds ada2 ma2 mir2
+        = FaucetFunds (ada1 <> ada2) (ma1 <> ma2) (mir1 <> mir2)
+
+instance Monoid FaucetFunds where
+    mempty = FaucetFunds [] [] []
+
 -- | Execute an action after starting a cluster of stake pools. The cluster also
 -- contains a single BFT node that is pre-configured with keys available in the
 -- test data.
@@ -991,13 +1019,11 @@ withCluster
     -- ^ Temporary directory to create config files in.
     -> LocalClusterConfig
     -- ^ The configurations of pools to spawn.
-    -> [(Address, Coin)] -- Faucet funds
-    -> (RunningNode -> IO ())
-    -- ^ Cluster setup to run when only a single pool has started (no rollbacks)
+    -> FaucetFunds
     -> (RunningNode -> IO a)
     -- ^ Action to run once when all pools have started.
     -> IO a
-withCluster tr dir LocalClusterConfig{..} initialFunds extraSetup onClusterStart = bracketTracer' tr "withCluster" $ do
+withCluster tr dir LocalClusterConfig{..} faucetFunds onClusterStart = bracketTracer' tr "withCluster" $ do
     withPoolMetadataServer tr dir $ \metadataServer -> do
         createDirectoryIfMissing True dir
         traceWith tr $ MsgStartingCluster dir
@@ -1020,7 +1046,7 @@ withCluster tr dir LocalClusterConfig{..} initialFunds extraSetup onClusterStart
         genesisFiles <- generateGenesis
             dir
             systemStart
-            (initialFunds <> faucetFunds)
+            (adaFunds <> internalFaucetFunds)
             (if postAlonzo then addGenesisPools else federalizeNetwork)
 
         if postAlonzo
@@ -1035,10 +1061,13 @@ withCluster tr dir LocalClusterConfig{..} initialFunds extraSetup onClusterStart
                     cfgNodeLogging
             operatePool pool0 pool0Cfg $ \runningPool0 -> do
 
-                -- If 'extraSetup' calls 'moveInstantaneousRewardsTo' we need to
-                -- be in the first 20% of the epoch. Calling it before submitting
-                -- the pool retirement certs (below) for more leeway.
-                extraSetup runningPool0
+                let RunningNode conn _ _ _ = runningPool0
+
+                -- Needs to happen in the first 20% of the epoch, so we run this
+                -- first.
+                moveInstantaneousRewardsTo tr conn dir mirFunds
+
+                sendFaucetAssetsTo tr conn dir 20 (encodeAddresses maFunds)
 
                 -- Submit retirement certs for all pools using the connection to
                 -- the only running first pool to avoid the certs being rolled
@@ -1067,6 +1096,8 @@ withCluster tr dir LocalClusterConfig{..} initialFunds extraSetup onClusterStart
     nPools = length cfgStakePools
 
     postAlonzo = cfgLastHardFork >= BabbageHardFork
+
+    FaucetFunds adaFunds maFunds mirFunds = faucetFunds
 
     onClusterStart' node@(RunningNode socket _ _ _) = do
         (rawTx, faucetPrv) <- prepareKeyRegistration tr dir
@@ -1142,6 +1173,8 @@ withCluster tr dir LocalClusterConfig{..} initialFunds extraSetup onClusterStart
     -- [(1,[2,3]), (2, [1,3]), (3, [1,2])]
     rotate :: Ord a => [a] -> [(a, [a])]
     rotate = nub . fmap (\(x:xs) -> (x, sort xs)) . permutations
+
+    encodeAddresses = map (first (T.unpack . encodeAddress @'W.Mainnet))
 
 data LogFileConfig = LogFileConfig
     { minSeverityTerminal :: Severity
@@ -1812,6 +1845,7 @@ batch s xs = forM_ (group s xs)
 data Credential
     = KeyCredential XPub
     | ScriptCredential ByteString
+    deriving (Eq, Show)
 
 moveInstantaneousRewardsTo
     :: Tracer IO ClusterLog
@@ -2034,8 +2068,8 @@ faucetIndex = unsafePerformIO $ newMVar 1
 --
 -- FIXME: We should generate these programatically. Currently they need to match
 -- the files on disk read by 'takeFaucet'.
-faucetFunds :: [(Address, Coin)]
-faucetFunds = map
+internalFaucetFunds :: [(Address, Coin)]
+internalFaucetFunds = map
     ((,Coin 1000000000000000) . unsafeDecodeAddr . T.pack)
   [ "Ae2tdPwUPEZGc7WAmkmXxP3QJ8aiKSMGgfWV6w4A58ebjpr5ah147VvJfDH"
   , "Ae2tdPwUPEZCREUZxa3F1fTyVPMU2MLMYAkRe7DEVoyZsWKahphgdifWuc3"

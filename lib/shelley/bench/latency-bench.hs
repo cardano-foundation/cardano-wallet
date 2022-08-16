@@ -39,7 +39,6 @@ import Cardano.Wallet.Api.Types
     , ApiUtxoStatistics
     , ApiWallet
     , ApiWalletMigrationPlan (..)
-    , EncodeAddress (..)
     , WalletStyle (..)
     )
 import Cardano.Wallet.LatencyBenchShared
@@ -68,18 +67,16 @@ import Cardano.Wallet.Shelley.Faucet
 import Cardano.Wallet.Shelley.Launch
     ( withSystemTempDir )
 import Cardano.Wallet.Shelley.Launch.Cluster
-    ( LocalClusterConfig (..)
+    ( FaucetFunds (..)
+    , LocalClusterConfig (..)
     , LogFileConfig (..)
     , RunningNode (..)
     , defaultPoolConfigs
-    , sendFaucetAssetsTo
     , walletListenFromEnv
     , withCluster
     )
 import Cardano.Wallet.Unsafe
     ( unsafeFromText )
-import Control.Arrow
-    ( first )
 import Control.Monad
     ( replicateM, replicateM_ )
 import Control.Monad.IO.Class
@@ -146,7 +143,6 @@ import UnliftIO.STM
     ( TVar )
 
 import qualified Cardano.Wallet.Api.Link as Link
-import qualified Data.Text as T
 import qualified Network.HTTP.Types.Status as HTTP
 
 main :: forall n. (n ~ 'Mainnet) => IO ()
@@ -467,21 +463,21 @@ withShelleyServer tracers action = do
                     [head defaultPoolConfigs]
                     maxBound
                     logCfg
-            let initialFunds =
-                    shelleyIntegrationTestFunds
-                    <> byronIntegrationTestFunds
             withCluster
                 nullTracer
                 dir
                 clusterCfg
-                initialFunds
-                (extraSetup dir)
+                faucetFunds
                 (onClusterStart act db)
 
-    extraSetup dir (RunningNode conn _ _ _)= do
-        let encodeAddr = T.unpack . encodeAddress @'Mainnet
-        let addressesMA = map (first encodeAddr) (maryIntegrationTestAssets (Coin 10_000_000))
-        sendFaucetAssetsTo nullTracer conn dir 20 addressesMA
+    faucetFunds = FaucetFunds
+        { pureAdaFunds =
+            shelleyIntegrationTestFunds
+             <> byronIntegrationTestFunds
+        , maFunds =
+            maryIntegrationTestAssets (Coin 10_000_000)
+        , mirFunds = [] -- not needed
+        }
 
     onClusterStart act db (RunningNode conn block0 (np, vData) _) = do
         listen <- walletListenFromEnv
