@@ -7552,7 +7552,7 @@ paths:
 
   /shared-wallets/{walletId}/transactions-sign:
     post:
-      operationId: signTransaction
+      operationId: signSharedTransaction
       tags: ["Shared Transactions"]
       summary: Sign
       description: |
