@@ -2445,9 +2445,7 @@ instance Arbitrary (ApiMintData n) where
     arbitrary = ApiMintData <$> arbitrary <*> arbitrary
 
 instance Arbitrary (ApiPaymentDestination n) where
-    arbitrary = oneof
-        [ ApiPaymentAddresses <$> arbitrary
-        , ApiPaymentAll <$> arbitrary]
+    arbitrary = ApiPaymentAddresses <$> arbitrary
 
 instance Arbitrary ApiBurnData where
     arbitrary = ApiBurnData <$> arbitrary

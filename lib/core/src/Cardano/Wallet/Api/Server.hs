@@ -2503,9 +2503,6 @@ constructTransaction ctx genChange knownPools getPoolStatus (ApiT wid) body = do
                 Nothing -> pure []
                 Just (ApiPaymentAddresses content) ->
                     pure $ F.toList (addressAmountToTxOut <$> content)
-                Just (ApiPaymentAll _) -> do
-                    liftHandler $
-                        throwE $ ErrConstructTxNotImplemented "ADP-1189"
 
             let mintWithAddress
                     (ApiMintBurnData _ _ (ApiMint (ApiMintData (Just _) _)))
@@ -4783,9 +4780,6 @@ instance IsServerError ErrConstructTx where
             , "'PATCH /shared-wallets/{walletId}/delegation-script-template' to make "
             , "it applicable for constructing transaction."
             ]
-        ErrConstructTxNotImplemented _ ->
-            apiError err501 NotImplemented
-                "This feature is not yet implemented."
 
 instance IsServerError ErrGetPolicyId where
     toServerError = \case

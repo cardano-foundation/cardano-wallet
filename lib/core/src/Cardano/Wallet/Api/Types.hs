@@ -1005,8 +1005,6 @@ data ApiConstructTransactionData (n :: NetworkDiscriminant) = ApiConstructTransa
 data ApiPaymentDestination (n :: NetworkDiscriminant)
     = ApiPaymentAddresses !(NonEmpty (AddressAmount (ApiAddressIdT n)))
     -- ^ Pay amounts to one or more addresses.
-    | ApiPaymentAll !(NonEmpty  (ApiT Address, Proxy n))
-    -- ^ Migrate all money to one or more addresses.
     deriving (Eq, Generic, Show, Typeable)
     deriving anyclass NFData
 
@@ -3089,14 +3087,12 @@ instance EncodeAddress t => ToJSON (PostTransactionOldData t) where
     toJSON = genericToJSON defaultRecordTypeOptions
 
 instance DecodeAddress t => FromJSON (ApiPaymentDestination t) where
-    parseJSON obj = parseAll <|> parseAddrs
+    parseJSON obj = parseAddrs
       where
-        parseAll = ApiPaymentAll <$> parseJSON obj
         parseAddrs = ApiPaymentAddresses <$> parseJSON obj
 
 instance EncodeAddress t => ToJSON (ApiPaymentDestination t) where
     toJSON (ApiPaymentAddresses addrs) = toJSON addrs
-    toJSON (ApiPaymentAll addrs) = toJSON addrs
 
 instance DecodeAddress t => FromJSON (ApiConstructTransactionData t) where
     parseJSON = genericParseJSON defaultRecordTypeOptions

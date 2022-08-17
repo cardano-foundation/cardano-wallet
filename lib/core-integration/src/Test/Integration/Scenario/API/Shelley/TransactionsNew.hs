@@ -34,7 +34,7 @@ import Cardano.Api
 import Cardano.Crypto.DSIGN.Class
     ( rawDeserialiseVerKeyDSIGN )
 import Cardano.Mnemonic
-    ( SomeMnemonic (..), mnemonicToText )
+    ( SomeMnemonic (..) )
 import Cardano.Wallet.Api.Types
     ( AddressAmount (..)
     , ApiAddress (..)

@@ -1176,14 +1176,6 @@ x-transactionCollateralOutputs: &transactionCollateralOutputs
       amount: *amount
       assets: *walletAssets
 
-x-transactionNoAmountOutputs: &transactionNoAmountOutputs
-  description: A list of target outputs without amounts specified
-  type: array
-  minItems: 0
-  items:
-    type: string
-    <<: *addressId
-
 x-delegationAction: &delegationAction
   description: |
     A delegation action.
@@ -3526,11 +3518,7 @@ components:
         invalid_hereafter: *validityBound
 
     ApiPaymentDestination: &ApiPaymentDestination
-      oneOf:
-        - title: outputs with specified amounts
-          <<: *transactionOutputs
-        - title: outputs without amounts
-          <<: *transactionNoAmountOutputs
+       <<: *transactionOutputs
 
     ApiMintData: &ApiMintData
       type: object

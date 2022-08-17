@@ -3673,8 +3673,6 @@ data ErrConstructTx
     | ErrConstructTxWrongValidityBounds
     | ErrConstructTxValidityIntervalNotWithinScriptTimelock
     | ErrConstructTxSharedWalletPending
-    | ErrConstructTxNotImplemented String
-    -- ^ Temporary error constructor.
     deriving (Show, Eq)
 
 -- | Errors that can occur when getting policy id.
