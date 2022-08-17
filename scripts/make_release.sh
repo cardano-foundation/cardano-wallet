@@ -21,9 +21,9 @@ SCRIPT=$(realpath "$0")
 ################################################################################
 # Release-specific parameters. Can be changed interactively by running the script.
 # Release tags must follow format vYYYY-MM-DD.
-GIT_TAG="v2022-07-01"
-OLD_GIT_TAG="v2022-05-27"
-CARDANO_NODE_TAG="1.35.0"
+GIT_TAG="v2022-08-16"
+OLD_GIT_TAG="v2022-07-01"
+CARDANO_NODE_TAG="1.35.3"
 
 ################################################################################
 # Tag munging functions
