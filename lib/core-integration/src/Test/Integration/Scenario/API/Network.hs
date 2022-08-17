@@ -14,6 +14,7 @@ import Cardano.Wallet.Api.Types
     , ApiEpochInfo (..)
     , ApiNetworkClock
     , ApiNetworkInformation
+    , ApiWalletMode (..)
     , NtpSyncingStatus (..)
     , WalletStyle (..)
     , epochStartTime
@@ -74,6 +75,7 @@ spec = describe "COMMON_NETWORK" $ do
                 , \x -> (epochStartTime <$> nextEpoch (unsafeResponse x)) .> Just now
                 , expectField (#networkInfo . #protocolMagic)
                     (`shouldBe` fromIntegral (getProtocolMagic mainnetMagic))
+                , expectField (#walletMode) (`shouldBe` Node)
                 ]
             counterexample (show r) $ do
                 (epochStartTime <$> nextEpoch i) .> Just now
