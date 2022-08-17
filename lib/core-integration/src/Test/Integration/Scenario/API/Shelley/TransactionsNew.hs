@@ -2443,7 +2443,15 @@ spec = describe "NEW_SHELLEY_TRANSACTIONS" $ do
             Default Empty
         verify rw1 [ expectListSize 0 ]
 
-        -- can use rewards with an explicit withdrawal request to self.
+        -- We can use rewards
+        -- Tested by making an explicit withdrawal request to self.
+
+        -- We wait for the start of a new epoch here
+        -- so that there is a good chance that we spend all rewards
+        -- in the next transaction, and don't receive any new rewards
+        -- before that transaction has concluded.
+        waitForNextEpoch ctx
+
         addrs <- listAddresses @n ctx dest
         let coin = minUTxOValue (_mainEra ctx) :: Natural
         let addr = (addrs !! 1) ^. #id
@@ -2479,6 +2487,7 @@ spec = describe "NEW_SHELLEY_TRANSACTIONS" $ do
                     [ expectField
                         (#balance . #reward)
                         (`shouldBe` (Quantity 0))
+                        -- this assumes that we have received no new rewards
                     , expectField
                         (#balance . #available)
                         (.> previousBalance)
