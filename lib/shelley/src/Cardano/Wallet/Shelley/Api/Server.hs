@@ -476,23 +476,6 @@ server byron icarus shelley multisig spl ntp blockchainSource =
 
     byronTransactions :: Server (ByronTransactions n)
     byronTransactions =
-             (\wid tx -> withLegacyLayer wid
-                 (byron , do
-                    let pwd = error "fixme: unimplemented"
-                    genChange <- rndStateChange byron wid pwd
-                    constructTransaction byron genChange (knownPools spl) (getPoolLifeCycleStatus spl) wid tx
-                 )
-                 (icarus, do
-                    let genChange k _ = paymentAddress @n k
-                    constructTransaction icarus genChange (knownPools spl) (getPoolLifeCycleStatus spl) wid tx
-                 )
-             )
-        :<|> (\wid tx ->
-                 withLegacyLayer wid
-                 (byron, signTransaction byron wid tx)
-                 (icarus, signTransaction icarus wid tx)
-             )
-        :<|>
             (\wid r0 r1 s -> withLegacyLayer wid
                 ( byron
                 , listTransactions

@@ -110,8 +110,6 @@ module Cardano.Wallet.Api
         , ByronSelectCoins
 
     , ByronTransactions
-        , ConstructByronTransaction
-        , SignByronTransaction
         , ListByronTransactions
         , GetByronTransaction
         , DeleteByronTransaction
@@ -891,27 +889,11 @@ type ByronSelectCoins n = "byron-wallets"
 -------------------------------------------------------------------------------}
 
 type ByronTransactions n =
-         ConstructByronTransaction n
-    :<|> SignByronTransaction n
-    :<|> ListByronTransactions n
+         ListByronTransactions n
     :<|> GetByronTransaction n
     :<|> DeleteByronTransaction
     :<|> CreateByronTransactionOld n
     :<|> PostByronTransactionFeeOld n
-
--- | https://input-output-hk.github.io/cardano-wallet/api/#operation/constructByronTransaction
-type ConstructByronTransaction n = "byron-wallets"
-    :> Capture "walletId" (ApiT WalletId)
-    :> "transactions-construct"
-    :> ReqBody '[JSON] (ApiConstructTransactionDataT n)
-    :> PostAccepted '[JSON] (ApiConstructTransactionT n)
-
--- | https://input-output-hk.github.io/cardano-wallet/api/#operation/signByronTransaction
-type SignByronTransaction n = "byron-wallets"
-    :> Capture "walletId" (ApiT WalletId)
-    :> "transactions-sign"
-    :> ReqBody '[JSON] ApiSignTransactionPostData
-    :> PostAccepted '[JSON] ApiSerialisedTransaction
 
 -- | https://input-output-hk.github.io/cardano-wallet/api/#operation/postByronTransaction
 type CreateByronTransactionOld n = "byron-wallets"

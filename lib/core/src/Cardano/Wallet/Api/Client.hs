@@ -351,9 +351,7 @@ byronTransactionClient
     :: TransactionClient
 byronTransactionClient =
     let
-        _constructTransaction
-            :<|> _signTransaction
-            :<|> _listTransactions
+        _listTransactions
             :<|> _getTransaction
             :<|> _deleteTransaction
             :<|> _postTransaction
@@ -366,16 +364,16 @@ byronTransactionClient =
     in TransactionClient
         { listTransactions = \wid start end order _ ->
             _listTransactions wid start end order
-        , signTransaction = _signTransaction
         , postTransaction = _postTransaction
         , postTransactionFee = _postTransactionFee
         , postExternalTransaction = _postExternalTransaction . fromSerialisedTx
         , deleteTransaction = _deleteTransaction
         , getTransaction = \wid txid _  -> _getTransaction wid txid
-        , constructTransaction = _constructTransaction
         , balanceTransaction = error "balance transaction endpoint not supported for byron"
         , decodeTransaction = error "decode transaction endpoint not supported for byron"
         , submitTransaction = error "submit transaction endpoint not supported for byron"
+        , signTransaction = error "sign transaction endpoint not supported for byron"
+        , constructTransaction = error "construct transaction endpoint not supported for byron"
         }
 
 -- | Produces an 'AddressClient n' working against the /wallets API

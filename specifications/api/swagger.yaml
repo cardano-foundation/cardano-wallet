@@ -7058,47 +7058,6 @@ paths:
           - *parametersAddressId
         responses: *responsesPutRandomAddress
 
-  /byron-wallets/{walletId}/transactions-construct:
-    post:
-      operationId: constructByronTransaction
-      tags: ["Byron Transactions New"]
-      summary: Construct
-      description: |
-        <p align="right">status: <strong>unstable</strong></p>
-
-        Create a transaction to be signed from the wallet.
-      parameters:
-        - *parametersWalletId
-      requestBody:
-        required: true
-        content:
-          application/json:
-            schema: *ApiConstructTransactionData
-      responses: *responsesConstructTransaction
-
-  /byron-wallets/{walletId}/transactions-sign:
-    post:
-      operationId: signByronTransaction
-      tags: ["Byron Transactions New"]
-      summary: Sign
-      description: |
-        <p align="right">status: <strong>under development</strong></p>
-
-        Signs a serialised transaction, returning the modified
-        transaction.
-
-        This endpoint will add new witnesses using the keys available
-        to this wallet. Any existing witnesses will remain in the
-        witness set.
-      parameters:
-        - *parametersWalletId
-      requestBody:
-        required: true
-        content:
-          application/json:
-            schema: *ApiSignTransactionPostData
-      responses: *responsesSignTransaction
-
   /byron-wallets/{walletId}/payment-fees:
     post:
       operationId: postByronTransactionFee

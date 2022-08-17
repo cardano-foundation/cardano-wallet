@@ -709,7 +709,7 @@ createUnsignedTransaction
     -> (Method, Text)
 createUnsignedTransaction w = discriminate @style
     (endpoint @(Api.ConstructTransaction Net) (wid &))
-    (endpoint @(Api.ConstructByronTransaction Net) (wid &))
+    (notSupported "Byron")
     (endpoint @(Api.ConstructSharedTransaction Net) (wid &))
   where
     wid = w ^. typed @(ApiT WalletId)
@@ -724,7 +724,7 @@ signTransaction
     -> (Method, Text)
 signTransaction w = discriminate @style
     (endpoint @(Api.SignTransaction Net) (wid &))
-    (endpoint @(Api.SignByronTransaction Net) (wid &))
+    (notSupported "Byron")
     (notSupported "Shared") -- TODO: [ADP-909] should be supported in the final version of Transaction Workflow.
   where
     wid = w ^. typed @(ApiT WalletId)
