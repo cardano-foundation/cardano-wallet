@@ -2453,9 +2453,11 @@ balanceTransactionSpec = describe "balanceTransaction" $ do
         let mw = SomeMnemonic $ either (error . show) id
                 (entropyToMnemonic @12 <$> mkEntropy "0000000000000000")
         let rootK = Shelley.unsafeGenerateKeyFromSeed (mw, Nothing) mempty
-        let tid = Hash $ B8.replicate 32 '1'
+
+        -- Wallet with only small utxos, and enough of them to fill a tx in the
+        -- tests below.
         let wallet = mkTestWallet rootK $ UTxO $ Map.fromList $
-                [ ( TxIn tid ix
+                [ ( TxIn (Hash $ B8.replicate 32 '1') ix
                   , TxOut addr (TokenBundle.fromCoin $ Coin 1_000_000)
                   )
                 | ix <- [0 .. 500]
