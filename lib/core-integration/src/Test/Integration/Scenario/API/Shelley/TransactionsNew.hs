@@ -540,58 +540,6 @@ spec = describe "NEW_SHELLEY_TRANSACTIONS" $ do
             , expectField #withdrawals (`shouldSatisfy` (withdrawalWith External))
             ]
 
-    it "TRANS_NEW_CREATE_03b - Withdrawal from external wallet" $ \ctx -> runResourceT $ do
-
-        liftIO $ pendingWith "ADP-1189: Issues with withdrawals from external wallets"
-
-        (wr, mw) <- rewardWallet ctx
-        wa <- fixtureWallet ctx
-        let withdrawal = Json [json|{ "withdrawal": #{mnemonicToText mw} }|]
-        let withdrawalAmt = 1000000000000
-        let rewardInitialBalance = 100_000_000_000
-
-        rTx <- request @(ApiConstructTransaction n) ctx
-            (Link.createUnsignedTransaction @'Shelley wa) Default withdrawal
-        verify rTx
-            [ expectResponseCode HTTP.status202
-            , expectField (#coinSelection . #metadata) (`shouldBe` Nothing)
-            , expectField (#fee . #getQuantity) (`shouldSatisfy` (>0))
-            , expectField (#coinSelection . #withdrawals) (`shouldSatisfy` (not . null))
-            ]
-
-        let expectedFee = getFromResponse (#fee . #getQuantity) rTx
-        let apiTx = getFromResponse #transaction rTx
-
-        signedTx <- signTx ctx wa apiTx [ expectResponseCode HTTP.status202 ]
-
-        submittedTx <- submitTxWithWid ctx wa signedTx
-        verify submittedTx
-            [ expectSuccess
-            , expectResponseCode HTTP.status202
-            ]
-
-        -- Make sure wallet balance is increased by withdrawalAmt - fee
-        eventually "Wallet balance is increased by withdrawalAmt - fee" $ do
-            rWa <- request @ApiWallet ctx
-                (Link.getWallet @'Shelley wa) Default Empty
-            verify rWa
-                [ expectSuccess
-                , expectField
-                        (#balance . #available . #getQuantity)
-                        (`shouldBe` rewardInitialBalance + (withdrawalAmt - fromIntegral expectedFee))
-                ]
-
-        -- Check that reward account is 0 on external rewardWallet,
-        eventually "Reward wallet balance is zero" $ do
-            rWr <- request @ApiWallet ctx
-                (Link.getWallet @'Shelley wr) Default Empty
-            verify rWr
-                [ expectSuccess
-                , expectField
-                        (#balance . #available . #getQuantity)
-                        (`shouldBe` rewardInitialBalance)
-                ]
-
     it "TRANS_NEW_CREATE_04a - Single Output Transaction with decode transaction" $ \ctx -> runResourceT $ do
 
         let initialAmt = 3 * minUTxOValue (_mainEra ctx)
