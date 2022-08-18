@@ -6376,7 +6376,7 @@ paths:
       tags: ["Transactions New"]
       summary: Construct
       description: |
-        <p align="right">status: <strong>under development</strong></p>
+        <p align="right">status: <strong>stable</strong></p>
 
         Create a transaction to be signed from the wallet.
       parameters:
@@ -6394,10 +6394,10 @@ paths:
       tags: ["Transactions New"]
       summary: Sign
       description: |
-        <p align="right">status: <strong>under development</strong></p>
+        <p align="right">status: <strong>stable</strong></p>
 
-        Signs a serialised transaction, returning the modified
-        transaction.
+        Signs a serialised transaction either hex-encoded or base64-encoded,
+        returning the modified transaction.
 
         This endpoint will add new witnesses using the keys available
         to this wallet. Any existing witnesses will remain in the
@@ -6417,9 +6417,10 @@ paths:
       tags: ["Transactions New"]
       summary: Decode
       description: |
-        <p align="right">status: <strong>unstable</strong></p>
+        <p align="right">status: <strong>stable</strong></p>
 
-        Decode a serialized transaction.
+        Decode a serialized transaction, either freshly constructed,
+        partially signed or fully-signed.
       parameters:
         - *parametersWalletId
       requestBody:
@@ -7510,7 +7511,7 @@ paths:
       tags: ["Shared Transactions"]
       summary: Construct
       description: |
-        <p align="right">status: <strong>under development</strong></p>
+        <p align="right">status: <strong>stable</strong></p>
 
         Create a transaction to be signed from the shared wallet.
 
@@ -7533,9 +7534,10 @@ paths:
       tags: ["Shared Transactions"]
       summary: Decode
       description: |
-        <p align="right">status: <strong>unstable</strong></p>
+        <p align="right">status: <strong>stable</strong></p>
 
-        Decode a serialized transaction.
+        Decode a serialized transaction, either freshly constructed,
+        partially signed or fully-signed.
       parameters:
         - *parametersWalletId
       requestBody:
