@@ -165,7 +165,7 @@ module Helpers
     # Latest Cardano configs
     def get_latest_configs_base_url(env)
       case env
-      when 'mainnet', 'testnet', /vasil-*/
+      when 'mainnet', 'testnet', /vasil-*/, 'preview', 'preprod', 'shelley-qa'
         "https://book.world.dev.cardano.org/environments/#{env}/"
       else
         "https://hydra.iohk.io/job/Cardano/iohk-nix/cardano-deployment/latest/download/1/#{env}-"
