@@ -159,6 +159,7 @@ module Cardano.Wallet.Api.Types
     , ApiPostAccountKeyData (..)
     , ApiPostAccountKeyDataWithPurpose (..)
     , ApiConstructTransaction (..)
+    , ApiSealedTxEncoding (..)
     , ApiConstructTransactionData (..)
     , ApiMultiDelegationAction (..)
     , ApiStakeKeyIndex (..)
@@ -969,8 +970,12 @@ data ByronWalletPutPassphraseData = ByronWalletPutPassphraseData
     , newPassphrase :: !(ApiT (Passphrase "user"))
     } deriving (Eq, Generic, Show)
 
+data ApiSealedTxEncoding = HexEncoded | Base64Encoded
+      deriving (Eq, Generic, Show)
+      deriving anyclass NFData
+
 data ApiConstructTransaction (n :: NetworkDiscriminant) = ApiConstructTransaction
-    { transaction :: !(ApiT SealedTx)
+    { transaction :: !(ApiT SealedTx, ApiSealedTxEncoding)
     , coinSelection :: !(ApiCoinSelection n)
     , fee :: !(Quantity "lovelace" Natural)
     } deriving (Eq, Generic, Show, Typeable)
@@ -999,6 +1004,7 @@ data ApiConstructTransactionData (n :: NetworkDiscriminant) = ApiConstructTransa
     , mintBurn :: !(Maybe (NonEmpty (ApiMintBurnData n)))
     , delegations :: !(Maybe (NonEmpty ApiMultiDelegationAction))
     , validityInterval :: !(Maybe ApiValidityInterval)
+    , hexOutput :: !(Maybe Bool)
     } deriving (Eq, Generic, Show, Typeable)
     deriving anyclass NFData
 
@@ -3174,9 +3180,24 @@ instance FromJSON ApiValidityInterval where
     parseJSON = genericParseJSON defaultRecordTypeOptions
 
 instance (DecodeAddress t, DecodeStakeAddress t) => FromJSON (ApiConstructTransaction t) where
-    parseJSON = genericParseJSON defaultRecordTypeOptions
+    parseJSON = withObject "ApiConstructTransaction object" $ \o -> do
+        txTxt <- o .: "transaction"
+        tx <- (,HexEncoded) <$> parseSealedTxBytes @'Base16 txTxt <|>
+              (,Base64Encoded) <$> parseSealedTxBytes @'Base64 txTxt
+        sel <- o .: "coin_selection"
+        fee <- o .: "fee"
+        pure $ ApiConstructTransaction (first ApiT tx) sel fee
+
 instance (EncodeAddress t, EncodeStakeAddress t) => ToJSON (ApiConstructTransaction t) where
-    toJSON = genericToJSON defaultRecordTypeOptions
+    toJSON (ApiConstructTransaction (tx, encoding) sel fee) =
+        object $ [ "transaction" .= case encoding of
+                         HexEncoded ->
+                             sealedTxBytesValue @'Base16 . getApiT $ tx
+                         Base64Encoded ->
+                             sealedTxBytesValue @'Base64 . getApiT $ tx
+                 , "coin_selection" .= toJSON sel
+                 , "fee" .= toJSON fee
+                 ]
 
 instance FromJSON ApiWithdrawalPostData where
     parseJSON obj =

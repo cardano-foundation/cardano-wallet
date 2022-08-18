@@ -126,6 +126,7 @@ import Cardano.Wallet.Api.Types
     , ApiRedeemer (..)
     , ApiRegisterPool (..)
     , ApiScriptTemplateEntry (..)
+    , ApiSealedTxEncoding (..)
     , ApiSelectCoinsAction (..)
     , ApiSelectCoinsData (..)
     , ApiSelectCoinsPayments (..)
@@ -1236,6 +1237,8 @@ spec = parallel $ do
                         (x :: ApiConstructTransactionData ('Testnet 0))
                     , validityInterval = validityInterval
                         (x :: ApiConstructTransactionData ('Testnet 0))
+                    , hexOutput = hexOutput
+                        (x :: ApiConstructTransactionData ('Testnet 0))
                     }
             in
                 x' === x .&&. show x' === show x
@@ -2228,6 +2231,7 @@ instance Arbitrary (ApiConstructTransactionData n) where
         <*> arbitrary
         <*> arbitrary
         <*> pure Nothing
+        <*> elements [Just True, Nothing]
 
 instance Arbitrary (ApiExternalInput n) where
     arbitrary = ApiExternalInput
@@ -2354,6 +2358,9 @@ instance Arbitrary StakeAddress where
         pure $ fromJust $ deserialiseFromRawBytes
             (proxyToAsType Proxy)
             (header <> payload)
+
+instance Arbitrary ApiSealedTxEncoding where
+    arbitrary = elements [HexEncoded, Base64Encoded]
 
 instance Arbitrary (ApiConstructTransaction n) where
     arbitrary = applyArbitrary3 ApiConstructTransaction

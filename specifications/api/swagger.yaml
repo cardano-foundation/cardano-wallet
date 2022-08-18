@@ -2591,7 +2591,7 @@ components:
         - coin_selection
         - fee
       properties:
-        transaction: *serialisedTransactionBase64
+        transaction: *serialisedTransactionEncoded
         coin_selection: *ApiCoinSelection
         fee: *amount
 
@@ -3571,6 +3571,9 @@ components:
              containing helpful information.
         delegations: *transactionDelegations
         validity_interval: *ApiValidityInterval
+        hex_output:
+          type: boolean
+          default: false
 
     CredentialValue: *CredentialValue
 

@@ -213,7 +213,7 @@ spec = describe "SHARED_TRANSACTIONS" $ do
             , expectField (#fee . #getQuantity) (`shouldSatisfy` (>0))
             ]
 
-        let txCbor = getFromResponse #transaction rTx2
+        let (txCbor,_) = getFromResponse #transaction rTx2
         let decodePayload = Json (toJSON $ ApiSerialisedTransaction txCbor)
         rDecodedTx <- request @(ApiDecodedTransaction n) ctx
             (Link.decodeTransaction @'Shared wal) Default decodePayload
@@ -283,7 +283,7 @@ spec = describe "SHARED_TRANSACTIONS" $ do
             , expectField (#coinSelection . #change) (`shouldSatisfy` (not . null))
             , expectField (#fee . #getQuantity) (`shouldSatisfy` (> 0))
             ]
-        let txCbor = getFromResponse #transaction rTx
+        let (txCbor,_) = getFromResponse #transaction rTx
         let decodePayload = Json (toJSON $ ApiSerialisedTransaction txCbor)
         rDecodedTxSource <- request @(ApiDecodedTransaction n) ctx
             (Link.decodeTransaction @'Shared wa) Default decodePayload

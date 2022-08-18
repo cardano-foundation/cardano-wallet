@@ -268,6 +268,7 @@ import Cardano.Wallet.Api.Types
     , ApiRedeemer (..)
     , ApiRegisterPool (..)
     , ApiScriptTemplateEntry (..)
+    , ApiSealedTxEncoding (..)
     , ApiSelectCoinsPayments
     , ApiSerialisedTransaction (..)
     , ApiSharedWallet (..)
@@ -2527,7 +2528,9 @@ constructTransaction ctx genChange knownPools getPoolStatus (ApiT wid) body = do
             $ W.constructTransaction @_ @s @k @n wrk wid era txCtx' sel
 
         pure $ ApiConstructTransaction
-            { transaction = ApiT tx
+            { transaction = case body ^. #hexOutput of
+                    Just True -> (ApiT tx, HexEncoded)
+                    _ -> (ApiT tx, Base64Encoded)
             , coinSelection = mkApiCoinSelection
                 (maybeToList deposit) (maybeToList refund) Nothing md sel'
             , fee = Quantity $ fromIntegral fee
@@ -2711,7 +2714,9 @@ constructSharedTransaction
                     $ W.constructSharedTransaction @_ @s @k @n wrk wid era txCtx sel
 
                 pure $ ApiConstructTransaction
-                    { transaction = ApiT tx
+                    { transaction = case body ^. #hexOutput of
+                            Just True -> (ApiT tx, HexEncoded)
+                            _ -> (ApiT tx, Base64Encoded)
                     , coinSelection = mkApiCoinSelection [] [] Nothing md sel'
                     , fee = Quantity $ fromIntegral fee
                     }
