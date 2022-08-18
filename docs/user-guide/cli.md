@@ -108,22 +108,22 @@ Serve API that listens for commands/actions. Before launching user should start 
 
 :::{.cli}
 ```
-Usage: cardano-wallet serve [--listen-address HOST]
-                            (--node-socket FILE | --light
-                              --blockfrost-token-file FILE)
-                            [--random-port | --port INT]
+Usage: cardano-wallet serve [--listen-address HOST] 
+                            (--node-socket FILE [--sync-tolerance DURATION] | 
+                              --light --blockfrost-token-file FILE) 
+                            [--random-port | --port INT] 
                             [--tls-ca-cert FILE --tls-sv-cert FILE
-                              --tls-sv-key FILE]
-                            (--mainnet | --testnet FILE | --staging FILE)
-                            [--database DIR] [--sync-tolerance DURATION]
-                            [--shutdown-handler]
+                              --tls-sv-key FILE] 
+                            (--mainnet | --testnet FILE | --staging FILE) 
+                            [--database DIR] [--shutdown-handler] 
                             [--pool-metadata-fetching ( none | direct | SMASH-URL )]
-                            [--token-metadata-server URL]
+                            [--token-metadata-server URL] 
                             [--trace-NAME SEVERITY]
+
   Serve API that listens for commands/actions.
 
 Available options:
-
+  -h,--help                Show this help text
   --help-tracing           Show help for tracing options
   --listen-address HOST    Specification of which host to bind the API server
                            to. Can be an IPv[46] address, hostname, or '*'.
@@ -132,6 +132,10 @@ Available options:
                            name (Windows). Note: Maximum length for POSIX socket
                            files is approx. 100 bytes. Note: Windows named pipes
                            are of the form \\.\pipe\cardano-node
+  --sync-tolerance DURATION
+                           time duration within which we consider being synced
+                           with the network. Expressed in seconds with a
+                           trailing 's'. (default: 300s)
   --light                  Enable light mode
   --blockfrost-token-file FILE
                            FILE contains an authentication token for BlockFrost
@@ -148,10 +152,6 @@ Available options:
   --staging FILE           Path to the byron genesis data in JSON format.
   --database DIR           use this directory for storing wallets. Run in-memory
                            otherwise.
-  --sync-tolerance DURATION
-                           time duration within which we consider being synced
-                           with the network. Expressed in seconds with a
-                           trailing 's'. (default: 300s)
   --shutdown-handler       Enable the clean shutdown handler (exits when stdin
                            is closed)
   --pool-metadata-fetching ( none | direct | SMASH-URL )
