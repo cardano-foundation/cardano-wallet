@@ -1060,8 +1060,16 @@ withCluster tr dir LocalClusterConfig{..} faucetFunds onClusterStart = bracketTr
                     cfgNodeLogging
             operatePool pool0 pool0Cfg $ \runningPool0 -> do
                 extraClusterSetupUsingNode configuredPools runningPool0
-                launchPools otherPools genesisFiles ports onClusterStart
+                launchPools
+                    otherPools
+                    genesisFiles
+                    ports
+                    runningPool0
+                    onClusterStart
         else do
+            -- NOTE: We should soon be able to drop Alonzo support here after
+            -- the Vasil HF, which should enable some simplifications of the
+            -- logic in 'withCluster'.
             ports <- rotate <$> randomUnusedTCPPorts (1 + nPools)
             let bftCfg = NodeParams
                     genesisFiles
@@ -1078,7 +1086,12 @@ withCluster tr dir LocalClusterConfig{..} faucetFunds onClusterStart = bracketTr
                 -- setup working 100% correctly in alonzo will soon not be
                 -- important.
                 mapM_ (`registerViaTx` runningBFTNode) configuredPools
-                launchPools configuredPools genesisFiles (tail ports) onClusterStart
+                launchPools
+                    configuredPools
+                    genesisFiles
+                    (tail ports)
+                    runningBFTNode
+                    onClusterStart
   where
     nPools = length cfgStakePools
 
@@ -1116,10 +1129,12 @@ withCluster tr dir LocalClusterConfig{..} faucetFunds onClusterStart = bracketTr
         -> [(Int, [Int])]
         -- @(port, peers)@ pairs availible for the nodes. Can be used to e.g.
         -- add a BFT node as extra peer for all pools.
+        -> RunningNode
+        -- ^ Backup node to run the action with in case passed no pools.
         -> (RunningNode -> IO a)
         -- ^ Action to run once when the stake pools are setup.
         -> IO a
-    launchPools configuredPools genesisFiles ports action = do
+    launchPools configuredPools genesisFiles ports fallbackNode action = do
         waitGroup <- newChan
         doneGroup <- newChan
 
@@ -1165,9 +1180,13 @@ withCluster tr dir LocalClusterConfig{..} faucetFunds onClusterStart = bracketTr
                 ("cluster didn't start correctly: " <> errors)
                 (ExitFailure 1)
         else do
-            -- Run the action using the connection to the first pool
-            let firstPool = either (error . show) id $ head group
-            action firstPool `finally` cancelAll
+            -- Run the action using the connection to the first pool, or the
+            -- fallback.
+            let node = case group of
+                    [] -> fallbackNode
+                    Right firstPool : _ -> firstPool
+                    Left e : _ -> error $ show e
+            action node `finally` cancelAll
 
 
     -- | Get permutations of the size (n-1) for a list of n elements, alongside
