@@ -1147,6 +1147,7 @@ spec = parallel $ do
                 x' = ApiSignTransactionPostData
                     { transaction = transaction (x :: ApiSignTransactionPostData)
                     , passphrase = passphrase (x :: ApiSignTransactionPostData)
+                    , hexOutput = hexOutput (x :: ApiSignTransactionPostData)
                     }
             in
                 x' === x .&&. show x' === show x
@@ -2209,6 +2210,7 @@ instance Arbitrary ApiSignTransactionPostData where
     arbitrary = ApiSignTransactionPostData
         <$> arbitrary
         <*> arbitrary
+        <*> elements [Just True, Nothing]
 
 instance Arbitrary (PostTransactionOldData n) where
     arbitrary = PostTransactionOldData

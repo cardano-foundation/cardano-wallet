@@ -2037,8 +2037,10 @@ signTransaction ctx (ApiT wid) body = do
     -- TODO: The body+witnesses seem redundant with the sealedTx already. What's
     -- the use-case for having them provided separately? In the end, the client
     -- should be able to decouple them if they need to.
-    pure $ Api.ApiSerialisedTransaction
-        { transaction = ApiT sealedTx'
+    pure $ ApiSerialisedTransaction
+        { transaction = case body ^. #hexOutput of
+                Just True -> (ApiT sealedTx', HexEncoded)
+                _ -> (ApiT sealedTx', Base64Encoded)
         }
 
 postTransactionOld
@@ -2734,7 +2736,7 @@ decodeSharedTransaction
     -> ApiT WalletId
     -> ApiSerialisedTransaction
     -> Handler (ApiDecodedTransaction n)
-decodeSharedTransaction ctx (ApiT wid) (ApiSerialisedTransaction (ApiT sealed)) = do
+decodeSharedTransaction ctx (ApiT wid) (ApiSerialisedTransaction (ApiT sealed, _)) = do
     era <- liftIO $ NW.currentNodeEra nl
     let (decodedTx, _toMint, _toBurn, _allCerts, interval) =
             decodeTx tl era sealed
@@ -2845,7 +2847,8 @@ balanceTransaction ctx genChange (ApiT wid) body = do
         res <- withShelleyBasedTx anyShelleyTx
             (fmap inAnyCardanoEra . balanceTx . mkPartialTx)
 
-        pure $ ApiSerialisedTransaction $ ApiT $ W.sealedTxFromCardano res
+        pure $ ApiSerialisedTransaction
+            (ApiT $ W.sealedTxFromCardano res, Base64Encoded)
   where
     nl = ctx ^. networkLayer
 
@@ -2865,7 +2868,7 @@ decodeTransaction
     -> ApiT WalletId
     -> ApiSerialisedTransaction
     -> Handler (ApiDecodedTransaction n)
-decodeTransaction ctx (ApiT wid) (ApiSerialisedTransaction (ApiT sealed)) = do
+decodeTransaction ctx (ApiT wid) (ApiSerialisedTransaction (ApiT sealed,_)) = do
     era <- liftIO $ NW.currentNodeEra nl
     let (decodedTx, toMint, toBurn, allCerts, interval) =
             decodeTx tl era sealed
@@ -3073,7 +3076,7 @@ submitTransaction ctx apiw@(ApiT wid) apitx = do
     ttl <- liftIO $ W.getTxExpiry ti Nothing
     era <- liftIO $ NW.currentNodeEra nl
 
-    let sealedTx = getApiT . (view #transaction) $ apitx
+    let sealedTx = getApiT . fst . (view #transaction) $ apitx
     let (tx,_,_,_,_) = decodeTx tl era sealedTx
 
     apiDecoded <- decodeTransaction @_ @s @k @n ctx apiw apitx

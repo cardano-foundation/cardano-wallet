@@ -2514,7 +2514,7 @@ components:
       required:
         - transaction
       properties:
-        transaction: *serialisedTransactionBase64
+        transaction: *serialisedTransactionEncoded
 
     ApiSerialisedTransactionEncoded: &ApiSerialisedTransactionEncoded
       description: |
@@ -3424,6 +3424,9 @@ components:
           <<: *lenientPassphrase
           description: The wallet's master passphrase.
         transaction: *serialisedTransactionEncoded
+        hex_output:
+          type: boolean
+          default: false
 
     # ADP-908 Deprecated
     ApiPostTransactionDataByron: &ApiPostTransactionDataByron

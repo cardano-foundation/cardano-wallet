@@ -2362,7 +2362,7 @@ submitTx
     -> [(HTTP.Status, Either RequestException ApiTxId) -> m ()]
     -> m ApiTxId
 submitTx ctx tx expectations = do
-    let bytes = serialisedTx $ getApiT (tx ^. #transaction)
+    let bytes = serialisedTx $ getApiT $ fst $ (tx ^. #transaction)
     let submitEndpoint = Link.postExternalTransaction
     let headers = Headers
             [ ("Content-Type", "application/octet-stream")
