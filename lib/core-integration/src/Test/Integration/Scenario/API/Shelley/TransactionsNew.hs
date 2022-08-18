@@ -1761,13 +1761,39 @@ spec = describe "NEW_SHELLEY_TRANSACTIONS" $ do
                 <> largestFound
             ]
 
-    it "TRANS_NEW_BALANCE_03 - I can balance base-64 encoded tx" $
+    it "TRANS_NEW_BALANCE_03 - I can balance base-64 encoded tx and return base-64" $
         \ctx -> runResourceT $ do
         wa <- fixtureWallet ctx
         let pingPong1Base64 = Json [json|{
             "transaction": "hKUAgA2AAYGDWB1xTXLPVpozmhin2TAjE5g/VuDZbNRb3LHWUS3KahoAHoSAWCCSORjkA79Dw0tO9rSOsu4Eur7RcyDY0bn/mtCG6G9E7AIADoChBIHYeYD19g==",
             "redeemers": [],
             "inputs": []
+        }|]
+        rTx <- request @ApiSerialisedTransaction ctx
+            (Link.balanceTransaction @'Shelley wa) Default pingPong1Base64
+        verify rTx
+            [ expectSuccess
+            , expectResponseCode HTTP.status202
+            ]
+
+        let (apiTx,_) = getFromResponse #transaction rTx
+
+        signedTx <- signTx ctx wa apiTx [ expectResponseCode HTTP.status202 ]
+
+        submittedTx <- submitTxWithWid ctx wa signedTx
+        verify submittedTx
+            [ expectSuccess
+            , expectResponseCode HTTP.status202
+            ]
+
+    it "TRANS_NEW_BALANCE_03 - I can balance base-64 encoded tx and return hex" $
+        \ctx -> runResourceT $ do
+        wa <- fixtureWallet ctx
+        let pingPong1Base64 = Json [json|{
+            "transaction": "hKUAgA2AAYGDWB1xTXLPVpozmhin2TAjE5g/VuDZbNRb3LHWUS3KahoAHoSAWCCSORjkA79Dw0tO9rSOsu4Eur7RcyDY0bn/mtCG6G9E7AIADoChBIHYeYD19g==",
+            "redeemers": [],
+            "inputs": [],
+            "hex_output": true
         }|]
         rTx <- request @ApiSerialisedTransaction ctx
             (Link.balanceTransaction @'Shelley wa) Default pingPong1Base64
