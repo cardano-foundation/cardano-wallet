@@ -2847,8 +2847,12 @@ balanceTransaction ctx genChange (ApiT wid) body = do
         res <- withShelleyBasedTx anyShelleyTx
             (fmap inAnyCardanoEra . balanceTx . mkPartialTx)
 
-        pure $ ApiSerialisedTransaction
-            (ApiT $ W.sealedTxFromCardano res, Base64Encoded)
+        case body ^. #hexOutput of
+            Just True ->
+                pure $ ApiSerialisedTransaction
+                (ApiT $ W.sealedTxFromCardano res, HexEncoded)
+            _ -> pure $ ApiSerialisedTransaction
+                (ApiT $ W.sealedTxFromCardano res, Base64Encoded)
   where
     nl = ctx ^. networkLayer
 

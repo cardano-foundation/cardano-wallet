@@ -3835,6 +3835,9 @@ components:
             description: A list of redeemers data with their purpose.
             type: array
             items: *ApiRedeemer
+        hex_output:
+          type: boolean
+          default: false
 
     ApiBlockHeader: &ApiBlockHeader
         description: |
@@ -3847,7 +3850,6 @@ components:
           header_hash: *blockId
           slot_no: *numberOfSlots
           block_height: *numberOfBlocks
-
 
 #############################################################################
 #                                                                           #

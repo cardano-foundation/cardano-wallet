@@ -1087,6 +1087,7 @@ data ApiBalanceTransactionPostData (n :: NetworkDiscriminant) = ApiBalanceTransa
     { transaction :: !(ApiT SealedTx)
     , inputs :: ![ApiExternalInput n]
     , redeemers :: ![ApiRedeemer n]
+    , hexOutput :: !(Maybe Bool)
     } deriving (Eq, Generic, Show)
 
 type ApiRedeemerData = ApiBytesT 'Base16 ByteString

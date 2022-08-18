@@ -1178,6 +1178,7 @@ spec = parallel $ do
                     { transaction = transaction (x :: ApiBalanceTransactionPostData ('Testnet 0))
                     , inputs = inputs (x :: ApiBalanceTransactionPostData ('Testnet 0))
                     , redeemers = redeemers (x :: ApiBalanceTransactionPostData ('Testnet 0))
+                    , hexOutput = hexOutput (x :: ApiBalanceTransactionPostData ('Testnet 0))
                     }
             in
                 x' === x .&&. show x' === show x
@@ -2249,6 +2250,7 @@ instance Arbitrary (ApiBalanceTransactionPostData n) where
         <$> arbitrary
         <*> arbitrary
         <*> arbitrary
+        <*> elements [Just True, Nothing]
 
 instance Arbitrary (ApiRedeemer n) where
     arbitrary = oneof
