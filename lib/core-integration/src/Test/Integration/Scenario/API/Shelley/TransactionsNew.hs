@@ -549,16 +549,24 @@ spec = describe "NEW_SHELLEY_TRANSACTIONS" $ do
 
         payload <- liftIO $ mkTxPayload ctx wb amt
 
+        let expectedCreateTx =
+                [ expectSuccess
+                , expectResponseCode HTTP.status202
+                , expectField (#coinSelection . #inputs) (`shouldSatisfy` (not . null))
+                , expectField (#coinSelection . #outputs) (`shouldSatisfy` (not . null))
+                , expectField (#coinSelection . #change) (`shouldSatisfy` (not . null))
+                , expectField (#fee . #getQuantity) (`shouldSatisfy` (> 0))
+                ]
+
         rTx <- request @(ApiConstructTransaction n) ctx
             (Link.createUnsignedTransaction @'Shelley wa) Default payload
-        verify rTx
-            [ expectSuccess
-            , expectResponseCode HTTP.status202
-            , expectField (#coinSelection . #inputs) (`shouldSatisfy` (not . null))
-            , expectField (#coinSelection . #outputs) (`shouldSatisfy` (not . null))
-            , expectField (#coinSelection . #change) (`shouldSatisfy` (not . null))
-            , expectField (#fee . #getQuantity) (`shouldSatisfy` (> 0))
-            ]
+        verify rTx expectedCreateTx
+
+        payloadHex <- liftIO $ mkTxPayloadHex ctx wb amt
+        rTxHex <- request @(ApiConstructTransaction n) ctx
+            (Link.createUnsignedTransaction @'Shelley wa) Default payloadHex
+        verify rTxHex expectedCreateTx
+
         let expectedFee = getFromResponse (#fee . #getQuantity) rTx
         let (txCbor,_) = getFromResponse #transaction rTx
         let decodePayload = Json (toJSON $ ApiSerialisedTransaction txCbor)
@@ -607,9 +615,30 @@ spec = describe "NEW_SHELLEY_TRANSACTIONS" $ do
             , expectField (#outputs) ((`shouldBe` 1) . length . filter isOutOurs)
             ]
 
+        let (txCborHex,_) = getFromResponse #transaction rTxHex
+        let decodePayloadHex = Json (toJSON $ ApiSerialisedTransaction txCborHex)
+        rDecodedTxSourceHex <- request @(ApiDecodedTransaction n) ctx
+            (Link.decodeTransaction @'Shelley wa) Default decodePayloadHex
+        verify rDecodedTxSourceHex $
+            sharedExpectationsBetweenWallets ++
+            [ expectField #inputs (`shouldSatisfy` areOurs)
+            , expectField #outputs (`shouldNotContain` [expectedTxOutTarget])
+
+            -- Check that the change output is there:
+            , expectField (#outputs) ((`shouldBe` 1) . length . filter isOutOurs)
+            ]
+
         rDecodedTxTarget <- request @(ApiDecodedTransaction n) ctx
             (Link.decodeTransaction @'Shelley wb) Default decodePayload
         verify rDecodedTxTarget $
+            sharedExpectationsBetweenWallets ++
+            [ expectField #inputs (`shouldNotSatisfy` areOurs)
+            , expectField #outputs (`shouldContain` [expectedTxOutTarget])
+            ]
+
+        rDecodedTxTargetHex <- request @(ApiDecodedTransaction n) ctx
+            (Link.decodeTransaction @'Shelley wb) Default decodePayloadHex
+        verify rDecodedTxTargetHex $
             sharedExpectationsBetweenWallets ++
             [ expectField #inputs (`shouldNotSatisfy` areOurs)
             , expectField #outputs (`shouldContain` [expectedTxOutTarget])
@@ -3780,6 +3809,26 @@ spec = describe "NEW_SHELLEY_TRANSACTIONS" $ do
                         "unit": "lovelace"
                     }
                 }]
+            }|]
+
+    mkTxPayloadHex
+        :: MonadUnliftIO m
+        => Context
+        -> ApiWallet
+        -> Natural
+        -> m Payload
+    mkTxPayloadHex ctx wDest amt = do
+        addrs <- listAddresses @n ctx wDest
+        let destination = (addrs !! 1) ^. #id
+        return $ Json [json|{
+                "payments": [{
+                    "address": #{destination},
+                    "amount": {
+                        "quantity": #{amt},
+                        "unit": "lovelace"
+                    }
+                }],
+                "hex_output": true
             }|]
 
     -- Like mkTxPayload, except that assets are included in the payment.
