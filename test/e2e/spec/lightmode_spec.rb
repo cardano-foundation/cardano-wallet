@@ -1,7 +1,16 @@
 # coding: utf-8
 RSpec.describe "Light-mode E2E tests", :light do
 
+  after(:each) do
+    teardown
+  end
+
   describe "Syncing" do
+    before(:all) do
+      @wid_light = create_fixture_wallet(:shelley_light)
+      wait_for_shelley_wallet_to_sync(@wid_light)
+    end
+
     it "I can restore empty wallet" do
       wid = create_shelley_wallet
       wait_for_shelley_wallet_to_sync(wid)
@@ -11,14 +20,25 @@ RSpec.describe "Light-mode E2E tests", :light do
       expect(txs.size).to eq 0
     end
 
-    it "I can restore wallet with funds and I see ADA balance", :light_sync do
-      wid = create_fixture_wallet(:shelley_light)
-      wait_for_shelley_wallet_to_sync(wid)
-      wallet = SHELLEY.wallets.get(wid)
-      txs = SHELLEY.transactions.list(wid)
-      expect(wallet['balance']['total']['quantity']).to eq 500000000
-      expect(txs.size).to eq 1
+    it "I can restore wallet with funds and I see ADA and assets balance", :light_sync do
+      wallet = SHELLEY.wallets.get(@wid_light)
+      txs = SHELLEY.transactions.list(@wid_light)
+      expect(wallet['balance']['total']['quantity']).to be > 0
+      assets = [
+          {
+            "asset_name" => ASSETS[0]["asset_name"],
+            "policy_id" => ASSETS[0]["policy_id"],
+            "quantity" => 10
+          },
+          {
+            "asset_name" => ASSETS[1]["asset_name"],
+            "policy_id" => ASSETS[1]["policy_id"],
+            "quantity" => 10
+          }
+        ].to_set
+      expect(wallet['assets']['total'].to_set).to eq assets
     end
+  end
 
     describe "Network" do
       it "Can get network information" do
