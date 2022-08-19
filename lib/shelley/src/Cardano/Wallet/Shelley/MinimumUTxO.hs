@@ -1,6 +1,5 @@
 {-# LANGUAGE GADTs #-}
 {-# LANGUAGE LambdaCase #-}
-{-# LANGUAGE TypeApplications #-}
 
 -- |
 -- Copyright: © 2022 IOHK
@@ -34,19 +33,16 @@ import Cardano.Wallet.Primitive.Types.Tx
 import Cardano.Wallet.Shelley.Compatibility
     ( toCardanoTxOut, unsafeLovelaceToWalletCoin, unsafeValueToLovelace )
 import Cardano.Wallet.Shelley.Compatibility.Ledger
-    ( toBabbageTxOut )
+    ( toBabbageTxOut, toWalletCoin )
 import Data.Function
     ( (&) )
 import GHC.Stack
     ( HasCallStack )
-import Numeric.Natural
-    ( Natural )
 import Ouroboros.Consensus.Cardano.Block
     ( StandardBabbage )
 
 import qualified Cardano.Api.Shelley as Cardano
 import qualified Cardano.Ledger.Babbage.PParams as Babbage
-import qualified Cardano.Ledger.Coin as Ledger
 import qualified Cardano.Wallet.Primitive.Types.TokenBundle as TokenBundle
 
 -- | Computes a minimum 'Coin' value for a 'TokenMap' that is destined for
@@ -212,8 +208,7 @@ computeLedgerMinimumCoinForBabbage
     -> TokenBundle
     -> Coin
 computeLedgerMinimumCoinForBabbage pp addr tokenBundle =
-    Coin $ fromIntegral @Integer @Natural result
-  where
-    Ledger.Coin result = babbageMinUTxOValue pp
+    toWalletCoin
+        $ babbageMinUTxOValue pp
         $ mkSized
         $ toBabbageTxOut (TxOut addr tokenBundle) Nothing
