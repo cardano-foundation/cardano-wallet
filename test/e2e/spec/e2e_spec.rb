@@ -2,23 +2,32 @@
 RSpec.describe "Cardano Wallet E2E tests", :all, :e2e do
 
   before(:all) do
-    # shelley wallets
-    @wid = create_fixture_wallet(:shelley)
-    @target_id = create_target_wallet(:shelley)
 
-    # byron wallets
-    @wid_rnd = create_fixture_wallet(:random)
-    @wid_ic = create_fixture_wallet(:icarus)
+    if is_light_mode?
+      # shelley wallets
+      @wid = create_fixture_wallet(:shelley_light)
+      @target_id = create_target_wallet(:shelley_light)
+      @nightly_shelley_wallets = [ @wid, @target_id ]
+      wait_for_all_shelley_wallets(@nightly_shelley_wallets)
+    else
+      # shelley wallets
+      @wid = create_fixture_wallet(:shelley)
+      @target_id = create_target_wallet(:shelley)
 
-    # shared wallets
-    @wid_sha = create_target_wallet(:shared)
+      # byron wallets
+      @wid_rnd = create_fixture_wallet(:random)
+      @wid_ic = create_fixture_wallet(:icarus)
 
-    @nightly_shared_wallets = [ @wid_sha ]
-    @nighly_byron_wallets = [ @wid_rnd, @wid_ic ]
-    @nightly_shelley_wallets = [ @wid, @target_id ]
-    wait_for_all_shelley_wallets(@nightly_shelley_wallets)
-    wait_for_all_shared_wallets(@nightly_shared_wallets)
-    wait_for_all_byron_wallets(@nighly_byron_wallets)
+      # shared wallets
+      @wid_sha = create_target_wallet(:shared)
+
+      @nightly_shared_wallets = [ @wid_sha ]
+      @nighly_byron_wallets = [ @wid_rnd, @wid_ic ]
+      @nightly_shelley_wallets = [ @wid, @target_id ]
+      wait_for_all_shelley_wallets(@nightly_shelley_wallets)
+      wait_for_all_shared_wallets(@nightly_shared_wallets)
+      wait_for_all_byron_wallets(@nighly_byron_wallets)
+    end
   end
 
   after(:each) do
@@ -400,7 +409,7 @@ RSpec.describe "Cardano Wallet E2E tests", :all, :e2e do
   end
 
   describe "E2E Construct -> Sign -> Submit" do
-    it "Single output transaction" do
+    it "Single output transaction", :light do
       amt = MIN_UTXO_VALUE_PURE_ADA
       address = SHELLEY.addresses.list(@target_id)[0]['id']
       target_before = get_shelley_balances(@target_id)
@@ -439,7 +448,7 @@ RSpec.describe "Cardano Wallet E2E tests", :all, :e2e do
                          amt, expected_fee)
     end
 
-    it "Multi output transaction" do
+    it "Multi output transaction", :light do
       amt = MIN_UTXO_VALUE_PURE_ADA
       address = SHELLEY.addresses.list(@target_id)[0]['id']
       target_before = get_shelley_balances(@target_id)
@@ -483,7 +492,7 @@ RSpec.describe "Cardano Wallet E2E tests", :all, :e2e do
                          (2 * amt), expected_fee)
     end
 
-    it "Multi-assets transaction" do
+    it "Multi-assets transaction", :light do
       amt = 1
       amt_ada = 1600000
       address = SHELLEY.addresses.list(@target_id)[1]['id']
@@ -547,7 +556,7 @@ RSpec.describe "Cardano Wallet E2E tests", :all, :e2e do
       expect(assets.to_s).to include ASSETS[1]["metadata"]["name"]
     end
 
-    it "Only withdrawal" do
+    it "Only withdrawal", :light do
 
       balance = get_shelley_balances(@wid)
       tx_constructed = SHELLEY.transactions.construct(@wid,
@@ -583,7 +592,7 @@ RSpec.describe "Cardano Wallet E2E tests", :all, :e2e do
       expect(new_balance['total']).to eq (balance['total'] - expected_fee)
     end
 
-    it "Only metadata" do
+    it "Only metadata", :light do
       metadata = METADATA
       balance = get_shelley_balances(@wid)
       tx_constructed = SHELLEY.transactions.construct(@wid,
@@ -613,7 +622,9 @@ RSpec.describe "Cardano Wallet E2E tests", :all, :e2e do
       expect(expected_fee).to eq tx['fee']['quantity']
 
       # verify tx has metadata
-      expect(tx['metadata']).to eq metadata
+      # assert in light mode after
+      # ADP-2155 - [LightMode] Metadata seems to be differently serialized/presented in light-mode than in full-mode
+      expect(tx['metadata']).to eq metadata unless is_light_mode?
 
       # verify balance is as expected
       expect(new_balance['available']).to eq (balance['available'] - expected_fee)
@@ -1214,7 +1225,7 @@ RSpec.describe "Cardano Wallet E2E tests", :all, :e2e do
 
       ##
       # Tx1: Fail to burn asset that's not on the wallet
-      it "Cannot burn if I don't have it" do
+      it "Cannot burn if I don't have it", :light do
         policy_script = 'cosigner#0'
         burn = [burn(asset_name('AmazingNFTIdontHave'), 1, policy_script)]
         create_policy_key_if_not_exists(@wid)
@@ -1406,7 +1417,7 @@ RSpec.describe "Cardano Wallet E2E tests", :all, :e2e do
 
       ##
       # Make sure minting above boundary quantity values returns proper error
-      describe "Mint/Burn quantities" do
+      describe "Mint/Burn quantities", :light do
         matrix = [
                   [-9223372036854775808, 400, "bad_request"],
                   [-1, 400, "bad_request"],
@@ -1456,7 +1467,7 @@ RSpec.describe "Cardano Wallet E2E tests", :all, :e2e do
 
       ##
       # Make sure minting above boundary asset_name values returns proper error
-      describe "Mint/Burn asset_name" do
+      describe "Mint/Burn asset_name", :light do
         matrix = [
                   ['too long', '1' * 66, 403, "asset_name_too_long"],
                   ['invalid hex', '1', 400, "bad_request"]
@@ -1487,7 +1498,7 @@ RSpec.describe "Cardano Wallet E2E tests", :all, :e2e do
 
       ##
       # Test against some invalid policy script examples
-      describe "Mint/Burn invalid policy script" do
+      describe "Mint/Burn invalid policy script", :light do
         matrix = [
                   ['cosigner#1', 403, "created_wrong_policy_script_template"],
                   [{ "all" => [ "cosigner#0", "cosigner#1" ] }, 403, "created_wrong_policy_script_template"],
@@ -1519,7 +1530,7 @@ RSpec.describe "Cardano Wallet E2E tests", :all, :e2e do
 
       end
 
-      it "Cannot mint if I make too big transaction" do
+      it "Cannot mint if I make too big transaction", :light do
         address = SHELLEY.addresses.list(@wid).first['id']
         policy_script = 'cosigner#0'
         assets_quantity = 1500
@@ -1927,7 +1938,7 @@ RSpec.describe "Cardano Wallet E2E tests", :all, :e2e do
 
   describe "E2E Shelley" do
     describe "Native Assets" do
-      it "I can list native assets" do
+      it "I can list native assets", :light do
         assets = SHELLEY.assets.get @wid
         expect(assets).to be_correct_and_respond 200
         expect(assets.to_s).to include ASSETS[0]["policy_id"]
@@ -1949,7 +1960,7 @@ RSpec.describe "Cardano Wallet E2E tests", :all, :e2e do
         expect(assets["asset_name"]).not_to eq ASSETS[0]["asset_name"]
       end
 
-      it "I can list native assets and get offchain metadata", :offchain do
+      it "I can list native assets and get offchain metadata", :offchain, :light do
         assets = SHELLEY.assets.get @wid
         expect(assets).to be_correct_and_respond 200
         expect(assets.to_s).to include ASSETS[0]["policy_id"]
@@ -1977,7 +1988,8 @@ RSpec.describe "Cardano Wallet E2E tests", :all, :e2e do
         expect(assets["metadata"]).not_to eq ASSETS[0]["metadata"]["name"]
       end
 
-      it "I can send native assets tx and they are received" do
+      # TODO: turn on on light mode after ADP-2156
+      it "ADP-2156 - I can send native assets tx and they are received" do
         amt = 1
         address = SHELLEY.addresses.list(@target_id)[1]['id']
         target_before = get_shelley_balances(@target_id)
@@ -2024,7 +2036,7 @@ RSpec.describe "Cardano Wallet E2E tests", :all, :e2e do
 
     end
 
-    describe "Shelley Migrations" do
+    describe "Shelley Migrations", :light do
       it "I can create migration plan shelley -> shelley" do
         addrs = SHELLEY.addresses.list(@target_id).map { |a| a['id'] }
 
@@ -2038,7 +2050,7 @@ RSpec.describe "Cardano Wallet E2E tests", :all, :e2e do
     end
 
     describe "Shelley Transactions" do
-      it "I can send transaction and funds are received" do
+      it "I can send transaction and funds are received", :light do
         amt = MIN_UTXO_VALUE_PURE_ADA
 
         address = SHELLEY.addresses.list(@target_id)[0]['id']
@@ -2057,7 +2069,7 @@ RSpec.describe "Cardano Wallet E2E tests", :all, :e2e do
         end
       end
 
-      it "I can send transaction with ttl and funds are received" do
+      it "I can send transaction with ttl and funds are received", :light do
         amt = MIN_UTXO_VALUE_PURE_ADA
         ttl_in_s = 1200
 
@@ -2108,7 +2120,7 @@ RSpec.describe "Cardano Wallet E2E tests", :all, :e2e do
         expect(fres).to be_correct_and_respond 404
       end
 
-      it "I can send transaction using 'withdrawal' flag and funds are received" do
+      it "I can send transaction using 'withdrawal' flag and funds are received", :light do
         amt = MIN_UTXO_VALUE_PURE_ADA
         address = SHELLEY.addresses.list(@target_id)[0]['id']
         target_before = get_shelley_balances(@target_id)
@@ -2129,7 +2141,7 @@ RSpec.describe "Cardano Wallet E2E tests", :all, :e2e do
                            amt, fee)
       end
 
-      it "I can send transaction with metadata" do
+      it "I can send transaction with metadata", :light do
         amt = MIN_UTXO_VALUE_PURE_ADA
         metadata = METADATA
 
@@ -2155,12 +2167,15 @@ RSpec.describe "Cardano Wallet E2E tests", :all, :e2e do
 
         meta_src = SHELLEY.transactions.get(@wid, tx_sent['id'])['metadata']
         meta_dst = SHELLEY.transactions.get(@target_id, tx_sent['id'])['metadata']
-        expect(meta_src).to eq metadata
-        expect(meta_dst).to eq metadata
+
+        # assert in light mode after
+        # ADP-2155 - [LightMode] Metadata seems to be differently serialized/presented in light-mode than in full-mode
+        expect(meta_src).to eq metadata unless is_light_mode?
+        expect(meta_dst).to eq metadata unless is_light_mode?
 
       end
 
-      it "I can estimate fee" do
+      it "I can estimate fee", :light do
         metadata = METADATA
 
         address = SHELLEY.addresses.list(@target_id)[0]['id']
@@ -2303,7 +2318,7 @@ RSpec.describe "Cardano Wallet E2E tests", :all, :e2e do
 
     describe "Coin Selection" do
 
-      it "I can trigger random coin selection" do
+      it "I can trigger random coin selection", :light do
         addresses = SHELLEY.addresses.list(@target_id)
         payload = [{ "address" => addresses[0]['id'],
                     "amount" => { "quantity" => 2000000, "unit" => "lovelace" },
@@ -2346,7 +2361,7 @@ RSpec.describe "Cardano Wallet E2E tests", :all, :e2e do
         expect(rnd['certificates'].to_s).to include "join_pool"
       end
 
-      it "I could trigger random coin selection delegation action - if I had money" do
+      it "I could trigger random coin selection delegation action - if I had money", :light do
         wid = create_shelley_wallet
         pid = SHELLEY.stake_pools.list({ stake: 10000000 }).sample['id']
         action_join = { action: "join", pool: pid }
@@ -2356,7 +2371,7 @@ RSpec.describe "Cardano Wallet E2E tests", :all, :e2e do
         expect(rnd.to_s).to include "not_enough_money"
       end
 
-      it "I could trigger random coin selection delegation action - if I known pool id" do
+      it "I could trigger random coin selection delegation action - if I known pool id", :light do
         addresses = SHELLEY.addresses.list(@wid)
         action_join = { action: "join", pool: SPID_BECH32 }
         action_quit = { action: "quit" }
@@ -2373,8 +2388,9 @@ RSpec.describe "Cardano Wallet E2E tests", :all, :e2e do
     end
 
     describe "Update passphrase" do
-      it "I can update passphrase with mnemonic and the wallet does not have to re-sync" do
-        mnemonics = get_fixture_wallet_mnemonics(:fixture, :shelley)
+      it "I can update passphrase with mnemonic and the wallet does not have to re-sync", :light do
+        wallet_type = is_light_mode? ? :shelley_light : :shelley
+        mnemonics = get_fixture_wallet_mnemonics(:fixture, wallet_type)
         upd = SHELLEY.wallets.update_passphrase(@wid, { mnemonic_sentence: mnemonics,
                                                         new_passphrase: PASS })
         expect(upd).to be_correct_and_respond 204
@@ -2547,7 +2563,7 @@ RSpec.describe "Cardano Wallet E2E tests", :all, :e2e do
     end
   end
 
-  describe "E2E External transaction" do
+  describe "E2E External transaction", :light do
     it "Single output transaction" do
       amt = MIN_UTXO_VALUE_PURE_ADA
       address = SHELLEY.addresses.list(@target_id)[0]['id']
@@ -2588,7 +2604,7 @@ RSpec.describe "Cardano Wallet E2E tests", :all, :e2e do
     end
   end
 
-  describe "E2E Migration" do
+  describe "E2E Migration", :light do
     it "I can migrate all funds back to fixture wallet" do
       address = SHELLEY.addresses.list(@wid)[0]['id']
       src_before = get_shelley_balances(@target_id)
