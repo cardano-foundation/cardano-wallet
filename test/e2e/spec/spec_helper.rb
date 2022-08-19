@@ -298,7 +298,7 @@ def create_target_wallet(type)
               mnemonic_sentence: get_fixture_wallet_mnemonics(:target, type.to_sym)
             }
   case type.to_sym
-  when :shelley
+  when :shelley, :shelley_light
     wallet = SHELLEY.wallets.create(payload)
     return_wallet_id(wallet)
   when :shared
@@ -616,4 +616,8 @@ end
 # The same as get_sent_amts, but we assume single output tx
 def get_sent_amt(outputs)
   get_sent_amts(outputs).first
+end
+
+def is_light_mode?
+  NETWORK.information['wallet_mode'] == 'light'
 end
