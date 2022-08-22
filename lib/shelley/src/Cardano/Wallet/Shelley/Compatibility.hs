@@ -220,7 +220,11 @@ import Cardano.Wallet.Api.Types
     , EncodeStakeAddress (..)
     )
 import Cardano.Wallet.Byron.Compatibility
-    ( fromByronBlock, fromTxAux, maryTokenBundleMaxSize, toByronBlockHeader )
+    ( fromByronBlock
+    , fromTxAux
+    , maryTokenBundleMaxSize
+    , toByronBlockHeader
+    )
 import Cardano.Wallet.Primitive.AddressDerivation
     ( NetworkDiscriminant (..) )
 import Cardano.Wallet.Primitive.Types
@@ -2160,6 +2164,7 @@ instance (forall era. IsCardanoEra era => Eq (thing era)) =>
     InAnyCardanoEra e1 a == InAnyCardanoEra e2 b = case testEquality e1 e2 of
         Just Refl -> a == b
         Nothing -> False
+
 
 --------------------------------------------------------------------------------
 -- Unsafe conversions

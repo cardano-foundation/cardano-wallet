@@ -108,3 +108,4 @@ parseCBOR TxCBOR{..} = case txEra of
     boxEra era f =
         EraTx era . f . snd
             <$> deserialiseFromBytes fromCBOR txCBOR
+
