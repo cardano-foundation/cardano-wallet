@@ -815,6 +815,7 @@ assembleTransaction
                         else TxScriptInvalid
         pure Tx
             { txId
+            , txCBOR = Nothing
             , fee
             , resolvedInputs
             , resolvedCollateralInputs

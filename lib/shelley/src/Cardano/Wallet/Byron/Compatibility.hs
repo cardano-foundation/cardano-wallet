@@ -216,6 +216,7 @@ genesisBlockFromTxOuts gp outs = W.Block
   where
     mkTx out@(W.TxOut (W.Address bytes) _) = W.Tx
         { txId = W.Hash $ blake2b256 bytes
+        , txCBOR = Nothing
         , fee = Nothing
         , resolvedInputs = []
         , resolvedCollateralInputs = []
@@ -272,6 +273,8 @@ fromTxAux :: ATxAux a -> W.Tx
 fromTxAux txAux = case taTx txAux of
     tx@(UnsafeTx inputs outputs _attributes) -> W.Tx
         { txId = W.Hash $ CC.hashToBytes $ serializeCborHash tx
+
+        , txCBOR = error "txCBOR not implemented for byron"
 
         , fee = Nothing
 

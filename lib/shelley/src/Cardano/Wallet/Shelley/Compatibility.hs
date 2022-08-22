@@ -1099,6 +1099,7 @@ fromGenesisData g =
       where
         mkTx (addr, c) = W.Tx
             { txId = pseudoHash
+            , txCBOR = Nothing
             , fee = Nothing
             , resolvedInputs = []
             , resolvedCollateralInputs = []
@@ -1288,6 +1289,8 @@ fromShelleyTx tx =
     ( W.Tx
         { txId =
             fromShelleyTxId $ TxIn.txid @(Cardano.ShelleyLedgerEra ShelleyEra) bod
+        , txCBOR =
+            error "txCBOR not implemented for shelley"
         , fee =
             Just $ fromShelleyCoin fee
         , resolvedInputs =
@@ -1326,6 +1329,8 @@ fromAllegraTx tx =
     ( W.Tx
         { txId =
             fromShelleyTxId $ TxIn.txid @(Cardano.ShelleyLedgerEra AllegraEra) bod
+        , txCBOR =
+            error "txCBOR not implemented for allegra"
         , fee =
             Just $ fromShelleyCoin fee
         , resolvedInputs =
@@ -1384,6 +1389,8 @@ fromMaryTx tx =
     ( W.Tx
         { txId
             = fromShelleyTxId $ TxIn.txid @(Cardano.ShelleyLedgerEra MaryEra) bod
+        , txCBOR =
+            error "txCBOR not implemented for mary"
         , fee =
             Just $ fromShelleyCoin fee
         , resolvedInputs =
@@ -1489,6 +1496,8 @@ fromAlonzoTx (Alonzo.ValidatedTx bod wits (Alonzo.IsValid isValid) aux) =
     ( W.Tx
         { txId =
             fromShelleyTxId $ TxIn.txid @(Cardano.ShelleyLedgerEra AlonzoEra) bod
+        , txCBOR =
+            error "txCBOR not implemented for alonzo"
         , fee =
             Just $ fromShelleyCoin fee
         , resolvedInputs =
@@ -1577,6 +1586,8 @@ fromBabbageTx (Alonzo.ValidatedTx bod wits (Alonzo.IsValid isValid) aux) =
         { txId =
             fromShelleyTxId $
             TxIn.txid @(Cardano.ShelleyLedgerEra BabbageEra) bod
+        , txCBOR =
+            error "txCBOR not implemented for babbage"
         , fee =
             Just $ fromShelleyCoin fee
         , resolvedInputs =

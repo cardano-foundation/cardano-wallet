@@ -267,6 +267,7 @@ library
       Cardano.Wallet.Primitive.Types.TokenPolicy
       Cardano.Wallet.Primitive.Types.TokenQuantity
       Cardano.Wallet.Primitive.Types.Tx
+      Cardano.Wallet.Primitive.Types.Tx.CBOR
       Cardano.Wallet.Primitive.Types.UTxO
       Cardano.Wallet.Primitive.Types.UTxOIndex
       Cardano.Wallet.Primitive.Types.UTxOIndex.Internal

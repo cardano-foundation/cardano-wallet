@@ -573,6 +573,7 @@ mkTxHistory numTx numInputs numOutputs numAssets range =
     [ force
         ( Tx
             { txId = mkTxId resolvedInputs outputs mempty Nothing
+            , txCBOR = Nothing
             , fee = Nothing
             , resolvedInputs
             , resolvedCollateralInputs =

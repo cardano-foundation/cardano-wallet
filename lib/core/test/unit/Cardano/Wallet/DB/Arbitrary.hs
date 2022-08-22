@@ -132,6 +132,7 @@ import Cardano.Wallet.Primitive.Types.TokenMap.Gen
 import Cardano.Wallet.Primitive.Types.Tx
     ( Direction (..)
     , Tx (..)
+    , TxCBOR
     , TxIn (..)
     , TxMeta (..)
     , TxMetadata
@@ -411,9 +412,12 @@ arbitraryChainLength = 10
                                   Transactions
 -------------------------------------------------------------------------------}
 
+instance Arbitrary TxCBOR where
+    arbitrary = error "TxCBOR Arbitrary not implemented"
+
 instance Arbitrary Tx where
-    shrink (Tx _tid fees ins cins outs cout wdrls md validity) =
-        [ mkTx fees ins' cins' outs' cout' wdrls' md' validity'
+    shrink (Tx _tid cbor fees ins cins outs cout wdrls md validity) =
+        [ mkTx cbor fees ins' cins' outs' cout' wdrls' md' validity'
         | (ins', cins', outs', cout', wdrls', md', validity')
             <- shrink
                 (ins, cins, outs, cout, wdrls, md, validity)
@@ -426,7 +430,8 @@ instance Arbitrary Tx where
         cout <- arbitrary
         wdrls <- fmap (Map.fromList . L.take 5) arbitrary
         fees <- arbitrary
-        mkTx fees ins cins outs cout wdrls
+        cbor <- arbitrary
+        mkTx cbor fees ins cins outs cout wdrls
             <$> arbitrary <*> liftArbitrary genTxScriptValidity
 
 instance Arbitrary TokenMap where

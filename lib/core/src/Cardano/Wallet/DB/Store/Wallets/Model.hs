@@ -168,6 +168,7 @@ mkTransactionInfo ti tip TxRelationF{..} DB.TxMeta{..} = do
     return
         $ WT.TransactionInfo
         { WT.txInfoId = getTxId txMetaTxId
+        , WT.txInfoCBOR = Nothing
         , WT.txInfoFee = WC.Coin . fromIntegral <$> txMetaFee
         , WT.txInfoInputs = mkTxIn <$> ins
         , WT.txInfoCollateralInputs = mkTxCollateral <$> collateralIns
