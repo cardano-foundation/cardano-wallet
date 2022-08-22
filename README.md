@@ -46,7 +46,7 @@ start with Daedalus.
 
 ```
 wget https://raw.githubusercontent.com/input-output-hk/cardano-wallet/master/docker-compose.yml
-NETWORK=testnet docker-compose up
+NETWORK=mainnet docker-compose up
 ```
 
 Fantastic! The server is up-and-running, waiting for HTTP requests on `localhost:8090/v2` e.g.:
