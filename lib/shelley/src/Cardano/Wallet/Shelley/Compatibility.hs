@@ -220,11 +220,7 @@ import Cardano.Wallet.Api.Types
     , EncodeStakeAddress (..)
     )
 import Cardano.Wallet.Byron.Compatibility
-    ( fromByronBlock
-    , fromTxAux
-    , maryTokenBundleMaxSize
-    , toByronBlockHeader
-    )
+    ( fromByronBlock, fromTxAux, maryTokenBundleMaxSize, toByronBlockHeader )
 import Cardano.Wallet.Primitive.AddressDerivation
     ( NetworkDiscriminant (..) )
 import Cardano.Wallet.Primitive.Types
@@ -242,6 +238,8 @@ import Cardano.Wallet.Primitive.Types.TokenMap
     ( TokenMap, toNestedList )
 import Cardano.Wallet.Primitive.Types.TokenPolicy
     ( TokenPolicyId )
+import Cardano.Wallet.Primitive.Types.Tx.CBOR
+    ( mkTxCBOR )
 import Cardano.Wallet.Primitive.Types.Tx.CBOR.Hash
     ( fromShelleyTxId, shelleyTxHash )
 import Cardano.Wallet.Shelley.Compatibility.Ledger
@@ -1310,7 +1308,7 @@ fromShelleyTx tx =
         { txId =
             shelleyTxHash tx
         , txCBOR =
-            error "txCBOR not implemented for shelley"
+            Just $ mkTxCBOR tx $ AnyCardanoEra ShelleyEra
         , fee =
             Just $ fromShelleyCoin fee
         , resolvedInputs =
@@ -1350,7 +1348,7 @@ fromAllegraTx tx =
         { txId =
             shelleyTxHash tx
         , txCBOR =
-            error "txCBOR not implemented for allegra"
+            Just $ mkTxCBOR tx $ AnyCardanoEra AllegraEra
         , fee =
             Just $ fromShelleyCoin fee
         , resolvedInputs =
@@ -1410,7 +1408,7 @@ fromMaryTx tx =
         { txId =
             shelleyTxHash tx
         , txCBOR =
-            error "txCBOR not implemented for mary"
+            Just $ mkTxCBOR tx $ AnyCardanoEra MaryEra
         , fee =
             Just $ fromShelleyCoin fee
         , resolvedInputs =
@@ -1517,7 +1515,7 @@ fromAlonzoTx tx@(Alonzo.ValidatedTx bod wits (Alonzo.IsValid isValid) aux) =
         { txId =
             alonzoTxHash tx
         , txCBOR =
-            error "txCBOR not implemented for alonzo"
+            Just $ mkTxCBOR tx $ AnyCardanoEra AlonzoEra
         , fee =
             Just $ fromShelleyCoin fee
         , resolvedInputs =
@@ -1606,7 +1604,7 @@ fromBabbageTx tx@(Alonzo.ValidatedTx bod wits (Alonzo.IsValid isValid) aux) =
         { txId =
             alonzoTxHash tx
         , txCBOR =
-            error "txCBOR not implemented for babbage"
+            Just $ mkTxCBOR tx $ AnyCardanoEra BabbageEra
         , fee =
             Just $ fromShelleyCoin fee
         , resolvedInputs =
