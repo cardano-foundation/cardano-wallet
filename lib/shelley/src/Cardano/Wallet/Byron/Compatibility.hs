@@ -43,8 +43,10 @@ module Cardano.Wallet.Byron.Compatibility
 
 import Prelude
 
+import Cardano.Api
+    ( AnyCardanoEra (AnyCardanoEra), CardanoEra (ByronEra) )
 import Cardano.Binary
-    ( serialize' )
+    ( ToCBOR (..), serialize' )
 import Cardano.Chain.Block
     ( ABlockOrBoundary (..), blockTxPayload )
 import Cardano.Chain.Common
@@ -66,10 +68,14 @@ import Cardano.Crypto.ProtocolMagic
     ( ProtocolMagicId, unProtocolMagicId )
 import Cardano.Wallet.Primitive.Types.MinimumUTxO
     ( minimumUTxONone )
+import Cardano.Wallet.Primitive.Types.Tx.CBOR
+    ( TxCBOR (..) )
 import Cardano.Wallet.Primitive.Types.Tx.CBOR.Hash
     ( byronTxHash )
 import Cardano.Wallet.Unsafe
     ( unsafeFromHex )
+import Codec.CBOR.Write
+    ( toLazyByteString )
 import Crypto.Hash.Utils
     ( blake2b256 )
 import Data.Coerce
@@ -274,7 +280,8 @@ fromTxAux txAux = case taTx txAux of
     UnsafeTx inputs outputs _attributes -> W.Tx
         { txId = byronTxHash txAux
 
-        , txCBOR = error "txCBOR not implemented for byron"
+        , txCBOR  = Just $ TxCBOR (toLazyByteString $ toCBOR $ () <$ txAux)
+            $ AnyCardanoEra ByronEra
 
         , fee = Nothing
 
