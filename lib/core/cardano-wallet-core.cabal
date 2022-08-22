@@ -51,6 +51,7 @@ library
     , cardano-crypto
     , cardano-crypto-class
     , cardano-crypto-test
+    , cardano-crypto-wrapper
     , cardano-numeric
     , cardano-ledger-alonzo
     , cardano-ledger-alonzo-test
@@ -269,6 +270,7 @@ library
       Cardano.Wallet.Primitive.Types.TokenQuantity
       Cardano.Wallet.Primitive.Types.Tx
       Cardano.Wallet.Primitive.Types.Tx.CBOR
+      Cardano.Wallet.Primitive.Types.Tx.CBOR.Hash
       Cardano.Wallet.Primitive.Types.UTxO
       Cardano.Wallet.Primitive.Types.UTxOIndex
       Cardano.Wallet.Primitive.Types.UTxOIndex.Internal

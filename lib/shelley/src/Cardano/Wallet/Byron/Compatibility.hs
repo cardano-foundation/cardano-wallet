@@ -62,12 +62,12 @@ import Cardano.Chain.Update
     ( ProtocolParameters (..) )
 import Cardano.Chain.UTxO
     ( ATxAux (..), Tx (..), TxIn (..), TxOut (..), taTx, unTxPayload )
-import Cardano.Crypto
-    ( serializeCborHash )
 import Cardano.Crypto.ProtocolMagic
     ( ProtocolMagicId, unProtocolMagicId )
 import Cardano.Wallet.Primitive.Types.MinimumUTxO
     ( minimumUTxONone )
+import Cardano.Wallet.Primitive.Types.Tx.CBOR.Hash
+    ( byronTxHash )
 import Cardano.Wallet.Unsafe
     ( unsafeFromHex )
 import Crypto.Hash.Utils
@@ -271,8 +271,8 @@ toByronBlockHeader gp blk = W.BlockHeader
 
 fromTxAux :: ATxAux a -> W.Tx
 fromTxAux txAux = case taTx txAux of
-    tx@(UnsafeTx inputs outputs _attributes) -> W.Tx
-        { txId = W.Hash $ CC.hashToBytes $ serializeCborHash tx
+    UnsafeTx inputs outputs _attributes -> W.Tx
+        { txId = byronTxHash txAux
 
         , txCBOR = error "txCBOR not implemented for byron"
 
