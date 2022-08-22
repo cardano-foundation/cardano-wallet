@@ -55,6 +55,7 @@ library
     , cardano-ledger-alonzo
     , cardano-ledger-alonzo-test
     , cardano-ledger-babbage
+    , cardano-ledger-byron
     , cardano-ledger-byron-test
     , cardano-ledger-core
     , cardano-ledger-shelley
