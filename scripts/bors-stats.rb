@@ -345,7 +345,8 @@ def include_worthy_comment(c)
     (c.bodyText.include? 'Already running a review'),
     (c.bodyText.include? 'This PR was included in a batch that was canceled, it will be automatically retried'),
     (c.bodyText.include? 'This PR was included in a batch that successfully built, but then failed to merge into master'),
-    (c.bodyText.include?  '🔒 Permission denied')
+    (c.bodyText.include? '🔒 Permission denied'),
+    (c.bodyText.include? '👎 Rejected by code reviews')
   ].any?
 end
 
