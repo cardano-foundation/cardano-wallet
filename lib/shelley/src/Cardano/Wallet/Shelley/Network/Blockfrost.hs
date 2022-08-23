@@ -231,7 +231,7 @@ import Fmt
 import Ouroboros.Consensus.Cardano.Block
     ( CardanoBlock, StandardCrypto )
 import Ouroboros.Consensus.HardFork.History.EraParams
-    ( EraParams (..), SafeZone (StandardSafeZone, UnsafeIndefiniteSafeZone) )
+    ( EraParams (..) )
 import Ouroboros.Consensus.HardFork.History.Summary
     ( Bound (..), EraEnd (..), EraSummary (..), Summary (..) )
 import Text.Read
@@ -350,10 +350,9 @@ withNetworkLayer tr network np project k = do
                 $ fromBfEpoch _epochInfoEpoch
         epochLen <- throwBlockfrostError $
             unEpochSize eraEpochSize <?#> "EpochSize"
-        getSecurityParameter <- case eraSafeZone of
-            StandardSafeZone wo -> throwBlockfrostError $
-                Quantity <$> wo <?#> "StandardSafeZone"
-            UnsafeIndefiniteSafeZone -> error "UnsafeIndefiniteSafeZone"
+        getSecurityParameter <-
+            Quantity . fromIntegral . BF._genesisSecurityParam
+                <$> bfGetLedgerGenesis bfLayer
         getActiveSlotCoefficient <-
             ActiveSlotCoefficient . BF._genesisActiveSlotsCoefficient <$>
                 bfGetLedgerGenesis bfLayer
