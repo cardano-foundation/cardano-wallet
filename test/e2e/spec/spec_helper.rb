@@ -46,7 +46,7 @@ PROXY = CW.misc.proxy
 CA = CardanoAddresses.new
 
 CONTEXT = Context.new
-CONTEXT.env = ENV['NETWORK'] || 'testnet'
+CONTEXT.env = ENV['NETWORK'] || 'preview'
 
 CARDANO_CLI = CardanoCli.new
 
