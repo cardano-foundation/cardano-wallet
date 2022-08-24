@@ -31,11 +31,9 @@ import Cardano.Wallet.Primitive.Types.TokenMap
 import Cardano.Wallet.Primitive.Types.Tx
     ( TxOut (..), txOutMaxCoin )
 import Cardano.Wallet.Shelley.Compatibility
-    ( toCardanoTxOut, unsafeLovelaceToWalletCoin, unsafeValueToLovelace )
+    ( toCardanoTxOut )
 import Cardano.Wallet.Shelley.Compatibility.Ledger
     ( toBabbageTxOut, toWalletCoin )
-import Data.Function
-    ( (&) )
 import GHC.Stack
     ( HasCallStack )
 import Ouroboros.Consensus.Cardano.Block
@@ -44,6 +42,7 @@ import Ouroboros.Consensus.Cardano.Block
 import qualified Cardano.Api.Shelley as Cardano
 import qualified Cardano.Ledger.Babbage.PParams as Babbage
 import qualified Cardano.Wallet.Primitive.Types.TokenBundle as TokenBundle
+import qualified Cardano.Wallet.Shelley.MinimumUTxO.Internal as Internal
 
 -- | Computes a minimum 'Coin' value for a 'TokenMap' that is destined for
 --   inclusion in a transaction output.
@@ -84,7 +83,7 @@ computeMinimumCoinForUTxOShelleyBasedEra
             computeLedgerMinimumCoinForBabbage pp addr
                 (TokenBundle txOutMaxCoin tokenMap)
         _ ->
-            unsafeCoinFromCardanoApiCalculateMinimumUTxOResult $
+            Internal.unsafeCoinFromCardanoApiCalculateMinimumUTxOResult $
             Cardano.calculateMinimumUTxO era
                 (embedTokenMapWithinPaddedTxOut era addr tokenMap)
                 (Cardano.fromLedgerPParams era pp)
@@ -130,7 +129,7 @@ isBelowMinimumCoinForUTxOShelleyBasedEra
   where
     cardanoApiMinimumCoin :: Coin
     cardanoApiMinimumCoin =
-        unsafeCoinFromCardanoApiCalculateMinimumUTxOResult $
+        Internal.unsafeCoinFromCardanoApiCalculateMinimumUTxOResult $
         Cardano.calculateMinimumUTxO era
             (toCardanoTxOut era $ TxOut addr tokenBundle)
             (Cardano.fromLedgerPParams era pp)
@@ -165,40 +164,6 @@ embedTokenMapWithinPaddedTxOut
     -> Cardano.TxOut Cardano.CtxTx era
 embedTokenMapWithinPaddedTxOut era addr m =
     toCardanoTxOut era $ TxOut addr $ TokenBundle txOutMaxCoin m
-
--- | Extracts a 'Coin' value from the result of calling the Cardano API
---   function 'calculateMinimumUTxO'.
---
-unsafeCoinFromCardanoApiCalculateMinimumUTxOResult
-    :: HasCallStack
-    => Either Cardano.MinimumUTxOError Cardano.Value
-    -> Coin
-unsafeCoinFromCardanoApiCalculateMinimumUTxOResult = \case
-    Right value ->
-        -- We assume that the returned value is a non-negative ada quantity
-        -- with no other assets. If this assumption is violated, we have no
-        -- way to continue, and must raise an error:
-        value
-            & unsafeValueToLovelace
-            & unsafeLovelaceToWalletCoin
-    Left e ->
-        -- The 'Cardano.calculateMinimumUTxO' function should only return
-        -- an error if a required protocol parameter is missing.
-        --
-        -- However, given that values of 'MinimumUTxOForShelleyBasedEra'
-        -- can only be constructed by supplying an era-specific protocol
-        -- parameters record, it should be impossible to trigger this
-        -- condition.
-        --
-        -- Any violation of this assumption indicates a programming error.
-        -- If this condition is triggered, we have no way to continue, and
-        -- must raise an error:
-        --
-        error $ unwords
-            [ "unsafeCoinFromCardanoApiCalculateMinimumUTxOResult:"
-            , "unexpected error:"
-            , show e
-            ]
 
 -- | Uses the ledger to compute a minimum ada quantity for the Babbage era.
 --
