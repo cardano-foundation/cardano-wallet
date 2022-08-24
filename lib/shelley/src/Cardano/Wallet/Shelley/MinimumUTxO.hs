@@ -50,29 +50,15 @@ computeMinimumCoinForUTxO
     -> Address
     -> TokenMap
     -> Coin
-computeMinimumCoinForUTxO = \case
-    MinimumUTxONone ->
-        \_addr _tokenMap -> Coin 0
-    MinimumUTxOConstant c ->
-        \_addr _tokenMap -> c
-    MinimumUTxOForShelleyBasedEraOf minUTxO ->
-        computeMinimumCoinForUTxOShelleyBasedEra minUTxO
-
--- | Computes a minimum 'Coin' value for a 'TokenMap' that is destined for
---   inclusion in a transaction output.
---
--- This function returns a value that is specific to a given Shelley-based era.
--- Importantly, a value that is valid in one era will not necessarily be valid
--- in another era.
---
-computeMinimumCoinForUTxOShelleyBasedEra
-    :: MinimumUTxOForShelleyBasedEra
-    -> Address
-    -> TokenMap
-    -> Coin
-computeMinimumCoinForUTxOShelleyBasedEra minimumUTxO addr tokenMap =
-    Internal.computeMinimumCoinForUTxOCardanoLedger minimumUTxO
-        (TxOut addr $ TokenBundle txOutMaxCoin tokenMap)
+computeMinimumCoinForUTxO minimumUTxO addr tokenMap =
+    case minimumUTxO of
+        MinimumUTxONone ->
+            Coin 0
+        MinimumUTxOConstant c ->
+            c
+        MinimumUTxOForShelleyBasedEraOf minimumUTxOShelley ->
+            Internal.computeMinimumCoinForUTxOCardanoLedger minimumUTxOShelley
+                (TxOut addr $ TokenBundle txOutMaxCoin tokenMap)
 
 -- | Returns 'True' if and only if the given 'TokenBundle' has a 'Coin' value
 --   that is below the minimum acceptable 'Coin' value.
