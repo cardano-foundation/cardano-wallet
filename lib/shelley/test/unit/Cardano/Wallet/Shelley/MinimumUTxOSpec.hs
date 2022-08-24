@@ -128,11 +128,11 @@ spec = do
             it "prop_computeMinimumCoinForUTxO_isBelowMinimumCoinForUTxO" $
                 prop_computeMinimumCoinForUTxO_isBelowMinimumCoinForUTxO
                     & property
-            it "prop_computeMinimumCoinForUTxO_shelleyBasedEra_bounds" $
-                prop_computeMinimumCoinForUTxO_shelleyBasedEra_bounds
+            it "prop_computeMinimumCoinForUTxO_bounds" $
+                prop_computeMinimumCoinForUTxO_bounds
                     & property
-            it "prop_computeMinimumCoinForUTxO_shelleyBasedEra_stability" $
-                prop_computeMinimumCoinForUTxO_shelleyBasedEra_stability
+            it "prop_computeMinimumCoinForUTxO_stability" $
+                prop_computeMinimumCoinForUTxO_stability
                     & property
 
         describe "Golden Tests" $ do
@@ -215,12 +215,12 @@ prop_computeMinimumCoinForUTxO_isBelowMinimumCoinForUTxO minimumUTxO addr m =
 -- Check that 'computeMinimumCoinForUTxO' produces a result that is within
 -- bounds, as determined by the Cardano API function 'calculateMinimumUTxO'.
 --
-prop_computeMinimumCoinForUTxO_shelleyBasedEra_bounds
+prop_computeMinimumCoinForUTxO_bounds
     :: TokenBundle
     -> Cardano.AddressAny
     -> MinimumUTxOForShelleyBasedEra
     -> Property
-prop_computeMinimumCoinForUTxO_shelleyBasedEra_bounds
+prop_computeMinimumCoinForUTxO_bounds
     tokenBundle addr minimumUTxO =
         let ourResult = ourComputeMinCoin
                 (fromCardanoAddressAny addr)
@@ -285,12 +285,12 @@ prop_computeMinimumCoinForUTxO_shelleyBasedEra_bounds
 -- Demonstrate that applying the Cardano API function to the result of the
 -- wallet function does not lead to an increase in the ada quantity.
 --
-prop_computeMinimumCoinForUTxO_shelleyBasedEra_stability
+prop_computeMinimumCoinForUTxO_stability
     :: TokenMap
     -> Cardano.AddressAny
     -> MinimumUTxOForShelleyBasedEra
     -> Property
-prop_computeMinimumCoinForUTxO_shelleyBasedEra_stability
+prop_computeMinimumCoinForUTxO_stability
     tokenMap addr minimumUTxO =
         conjoin
             [ prop_apiFunctionStability
