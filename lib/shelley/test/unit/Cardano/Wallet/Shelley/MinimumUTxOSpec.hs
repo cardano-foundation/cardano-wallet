@@ -127,9 +127,6 @@ spec = do
             it "prop_computeMinimumCoinForUTxO_CardanoApi_CardanoLedger" $
                 prop_computeMinimumCoinForUTxO_CardanoApi_CardanoLedger
                     & property
-            it "prop_computeMinimumCoinForUTxO_evaluation" $
-                prop_computeMinimumCoinForUTxO_evaluation
-                    & property
             it "prop_computeMinimumCoinForUTxO_isBelowMinimumCoinForUTxO" $
                 prop_computeMinimumCoinForUTxO_isBelowMinimumCoinForUTxO
                     & property
@@ -203,15 +200,6 @@ prop_computeMinimumCoinForUTxO_CardanoApi_CardanoLedger
             minimumUTxO txOut
   where
     txOut = TxOut address (TokenBundle coin tokenMap)
-
--- Check that it's possible to evaluate 'computeMinimumCoinForUTxO' without
--- any run-time error.
---
-prop_computeMinimumCoinForUTxO_evaluation
-    :: MinimumUTxO -> Address -> TokenMap -> Property
-prop_computeMinimumCoinForUTxO_evaluation minimumUTxO addr m = property $
-    -- Use an arbitrary test to force evaluation of the result:
-    computeMinimumCoinForUTxO minimumUTxO addr m >= Coin 0
 
 -- Tests the following composition:
 --
