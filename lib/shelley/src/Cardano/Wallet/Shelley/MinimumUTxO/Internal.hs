@@ -7,21 +7,40 @@
 -- Computing minimum UTxO values: internal interface.
 --
 module Cardano.Wallet.Shelley.MinimumUTxO.Internal
-    ( unsafeCoinFromCardanoApiCalculateMinimumUTxOResult
+    ( computeMinimumCoinForUTxOCardanoApi
+    , unsafeCoinFromCardanoApiCalculateMinimumUTxOResult
     ) where
 
 import Prelude
 
 import Cardano.Wallet.Primitive.Types.Coin
     ( Coin )
+import Cardano.Wallet.Primitive.Types.MinimumUTxO
+    ( MinimumUTxOForShelleyBasedEra (..) )
+import Cardano.Wallet.Primitive.Types.Tx
+    ( TxOut )
 import Cardano.Wallet.Shelley.Compatibility
-    ( unsafeLovelaceToWalletCoin, unsafeValueToLovelace )
+    ( toCardanoTxOut, unsafeLovelaceToWalletCoin, unsafeValueToLovelace )
 import Data.Function
     ( (&) )
 import GHC.Stack
     ( HasCallStack )
 
 import qualified Cardano.Api.Shelley as Cardano
+
+-- | Computes a minimum UTxO value with the Cardano API.
+--
+computeMinimumCoinForUTxOCardanoApi
+    :: HasCallStack
+    => MinimumUTxOForShelleyBasedEra
+    -> TxOut
+    -> Coin
+computeMinimumCoinForUTxOCardanoApi
+    (MinimumUTxOForShelleyBasedEra era pp) txOut =
+        unsafeCoinFromCardanoApiCalculateMinimumUTxOResult $
+            Cardano.calculateMinimumUTxO era
+                (toCardanoTxOut era txOut)
+                (Cardano.fromLedgerPParams era pp)
 
 -- | Extracts a 'Coin' value from the result of calling the Cardano API
 --   function 'calculateMinimumUTxO'.
