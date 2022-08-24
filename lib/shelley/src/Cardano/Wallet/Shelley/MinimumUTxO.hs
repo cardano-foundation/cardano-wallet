@@ -34,8 +34,6 @@ import Cardano.Wallet.Shelley.Compatibility
     ( toCardanoTxOut )
 import Cardano.Wallet.Shelley.Compatibility.Ledger
     ( toBabbageTxOut, toWalletCoin )
-import GHC.Stack
-    ( HasCallStack )
 import Ouroboros.Consensus.Cardano.Block
     ( StandardBabbage )
 
@@ -48,8 +46,7 @@ import qualified Cardano.Wallet.Shelley.MinimumUTxO.Internal as Internal
 --   inclusion in a transaction output.
 --
 computeMinimumCoinForUTxO
-    :: HasCallStack
-    => MinimumUTxO
+    :: MinimumUTxO
     -> Address
     -> TokenMap
     -> Coin
@@ -69,8 +66,7 @@ computeMinimumCoinForUTxO = \case
 -- in another era.
 --
 computeMinimumCoinForUTxOShelleyBasedEra
-    :: HasCallStack
-    => MinimumUTxOForShelleyBasedEra
+    :: MinimumUTxOForShelleyBasedEra
     -> Address
     -> TokenMap
     -> Coin
@@ -84,7 +80,7 @@ computeMinimumCoinForUTxOShelleyBasedEra
                 computeLedgerMinimumCoinForBabbage pp addr
                     (TokenBundle txOutMaxCoin tokenMap)
             _ ->
-                Internal.computeMinimumCoinForUTxOCardanoApi minimumUTxO
+                Internal.computeMinimumCoinForUTxOCardanoLedger minimumUTxO
                     (TxOut addr $ TokenBundle txOutMaxCoin tokenMap)
 
 -- | Returns 'True' if and only if the given 'TokenBundle' has a 'Coin' value
@@ -124,7 +120,7 @@ isBelowMinimumCoinForUTxOShelleyBasedEra
                 Cardano.ShelleyBasedEraBabbage ->
                     computeLedgerMinimumCoinForBabbage pp addr tokenBundle
                 _ ->
-                    Internal.computeMinimumCoinForUTxOCardanoApi minimumUTxO
+                    Internal.computeMinimumCoinForUTxOCardanoLedger minimumUTxO
                         (TxOut addr tokenBundle)
 
 -- | Embeds a 'TokenMap' within a padded 'Cardano.TxOut' value.
