@@ -70,18 +70,9 @@ computeMinimumCoinForUTxOShelleyBasedEra
     -> Address
     -> TokenMap
     -> Coin
-computeMinimumCoinForUTxOShelleyBasedEra
-    minimumUTxO@(MinimumUTxOForShelleyBasedEra era pp) addr tokenMap =
-        case era of
-            -- Here we treat the Babbage era specially and use the ledger
-            -- to compute the minimum ada quantity, bypassing the Cardano
-            -- API. This appears to be significantly faster.
-            Cardano.ShelleyBasedEraBabbage ->
-                computeLedgerMinimumCoinForBabbage pp addr
-                    (TokenBundle txOutMaxCoin tokenMap)
-            _ ->
-                Internal.computeMinimumCoinForUTxOCardanoLedger minimumUTxO
-                    (TxOut addr $ TokenBundle txOutMaxCoin tokenMap)
+computeMinimumCoinForUTxOShelleyBasedEra minimumUTxO addr tokenMap =
+    Internal.computeMinimumCoinForUTxOCardanoLedger minimumUTxO
+        (TxOut addr $ TokenBundle txOutMaxCoin tokenMap)
 
 -- | Returns 'True' if and only if the given 'TokenBundle' has a 'Coin' value
 --   that is below the minimum acceptable 'Coin' value.
@@ -110,18 +101,10 @@ isBelowMinimumCoinForUTxOShelleyBasedEra
     -> Address
     -> TokenBundle
     -> Bool
-isBelowMinimumCoinForUTxOShelleyBasedEra
-    minimumUTxO@(MinimumUTxOForShelleyBasedEra era pp) addr tokenBundle =
-        TokenBundle.getCoin tokenBundle <
-            -- Here we treat the Babbage era specially and use the ledger
-            -- to compute the minimum ada quantity, bypassing the Cardano
-            -- API. This appears to be significantly faster.
-            case era of
-                Cardano.ShelleyBasedEraBabbage ->
-                    computeLedgerMinimumCoinForBabbage pp addr tokenBundle
-                _ ->
-                    Internal.computeMinimumCoinForUTxOCardanoLedger minimumUTxO
-                        (TxOut addr tokenBundle)
+isBelowMinimumCoinForUTxOShelleyBasedEra minimumUTxO addr tokenBundle =
+    TokenBundle.getCoin tokenBundle <
+        Internal.computeMinimumCoinForUTxOCardanoLedger minimumUTxO
+            (TxOut addr tokenBundle)
 
 -- | Embeds a 'TokenMap' within a padded 'Cardano.TxOut' value.
 --
@@ -156,12 +139,12 @@ _embedTokenMapWithinPaddedTxOut era addr m =
 
 -- | Uses the ledger to compute a minimum ada quantity for the Babbage era.
 --
-computeLedgerMinimumCoinForBabbage
+_computeLedgerMinimumCoinForBabbage
     :: Babbage.PParams StandardBabbage
     -> Address
     -> TokenBundle
     -> Coin
-computeLedgerMinimumCoinForBabbage pp addr tokenBundle =
+_computeLedgerMinimumCoinForBabbage pp addr tokenBundle =
     toWalletCoin
         $ babbageMinUTxOValue pp
         $ mkSized
