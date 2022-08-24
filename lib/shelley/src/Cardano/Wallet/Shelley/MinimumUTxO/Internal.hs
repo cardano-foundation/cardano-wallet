@@ -1,5 +1,6 @@
 {-# LANGUAGE GADTs #-}
 {-# LANGUAGE LambdaCase #-}
+{- HLINT ignore "Use camelCase" -}
 
 -- |
 -- Copyright: © 2022 IOHK
@@ -8,8 +9,8 @@
 -- Computing minimum UTxO values: internal interface.
 --
 module Cardano.Wallet.Shelley.MinimumUTxO.Internal
-    ( computeMinimumCoinForUTxOCardanoApi
-    , computeMinimumCoinForUTxOCardanoLedger
+    ( computeMinimumCoinForUTxO_CardanoApi
+    , computeMinimumCoinForUTxO_CardanoLedger
     ) where
 
 import Prelude
@@ -41,12 +42,12 @@ import qualified Cardano.Api.Shelley as Cardano
 
 -- | Computes a minimum UTxO value with the Cardano API.
 --
-computeMinimumCoinForUTxOCardanoApi
+computeMinimumCoinForUTxO_CardanoApi
     :: HasCallStack
     => MinimumUTxOForShelleyBasedEra
     -> TxOut
     -> Coin
-computeMinimumCoinForUTxOCardanoApi
+computeMinimumCoinForUTxO_CardanoApi
     (MinimumUTxOForShelleyBasedEra era pp) txOut =
         unsafeCoinFromResult $
             Cardano.calculateMinimumUTxO era
@@ -78,18 +79,18 @@ computeMinimumCoinForUTxOCardanoApi
             -- must raise an error:
             --
             error $ unwords
-                [ "computeMinimumCoinForUTxOCardanoApi:"
+                [ "computeMinimumCoinForUTxO_CardanoApi:"
                 , "unexpected error:"
                 , show e
                 ]
 
 -- | Computes a minimum UTxO value with Cardano Ledger.
 --
-computeMinimumCoinForUTxOCardanoLedger
+computeMinimumCoinForUTxO_CardanoLedger
     :: MinimumUTxOForShelleyBasedEra
     -> TxOut
     -> Coin
-computeMinimumCoinForUTxOCardanoLedger
+computeMinimumCoinForUTxO_CardanoLedger
     (MinimumUTxOForShelleyBasedEra era pp) txOut =
         toWalletCoin $ case era of
             Cardano.ShelleyBasedEraShelley ->

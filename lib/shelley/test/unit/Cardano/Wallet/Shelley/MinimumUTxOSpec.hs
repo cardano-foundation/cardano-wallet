@@ -193,10 +193,10 @@ prop_computeMinimumCoinForUTxO_CardanoApi_CardanoLedger
     -> Property
 prop_computeMinimumCoinForUTxO_CardanoApi_CardanoLedger
     minimumUTxO address coin tokenMap =
-        Internal.computeMinimumCoinForUTxOCardanoApi
+        Internal.computeMinimumCoinForUTxO_CardanoApi
             minimumUTxO txOut
         ===
-        Internal.computeMinimumCoinForUTxOCardanoLedger
+        Internal.computeMinimumCoinForUTxO_CardanoLedger
             minimumUTxO txOut
   where
     txOut = TxOut address (TokenBundle coin tokenMap)

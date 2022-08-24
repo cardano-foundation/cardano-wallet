@@ -44,7 +44,8 @@ computeMinimumCoinForUTxO minimumUTxO addr tokenMap =
         MinimumUTxOConstant c ->
             c
         MinimumUTxOForShelleyBasedEraOf minimumUTxOShelley ->
-            Internal.computeMinimumCoinForUTxOCardanoLedger minimumUTxOShelley
+            Internal.computeMinimumCoinForUTxO_CardanoLedger
+                minimumUTxOShelley
                 (TxOut addr $ TokenBundle txOutMaxCoin tokenMap)
 
 -- | Returns 'True' if and only if the given 'TokenBundle' has a 'Coin' value
@@ -63,5 +64,6 @@ isBelowMinimumCoinForUTxO minimumUTxO addr tokenBundle =
             TokenBundle.getCoin tokenBundle < c
         MinimumUTxOForShelleyBasedEraOf minimumUTxOShelley ->
             TokenBundle.getCoin tokenBundle <
-                Internal.computeMinimumCoinForUTxOCardanoLedger
-                    minimumUTxOShelley (TxOut addr tokenBundle)
+                Internal.computeMinimumCoinForUTxO_CardanoLedger
+                    minimumUTxOShelley
+                    (TxOut addr tokenBundle)
