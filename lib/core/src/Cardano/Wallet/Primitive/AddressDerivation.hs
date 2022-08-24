@@ -350,7 +350,7 @@ instance Bounded (Index 'Hardened level) where
 
 instance Bounded (Index 'Soft level) where
     minBound = Index minBound
-    maxBound = let (Index ix) = minBound @(Index 'Hardened _) in Index (ix - 1)
+    maxBound = let Index ix = minBound @(Index 'Hardened _) in Index (ix - 1)
 
 instance Bounded (Index 'WholeDomain level) where
     minBound = Index minBound

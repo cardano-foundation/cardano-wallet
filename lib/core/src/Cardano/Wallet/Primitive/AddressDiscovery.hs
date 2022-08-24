@@ -20,9 +20,7 @@
 --  * "Cardano.Wallet.Primitive.AddressDiscovery.Random"
 
 module Cardano.Wallet.Primitive.AddressDiscovery
-    (
-    -- * Abstractions
-      IsOurs(..)
+    ( IsOurs(..)
     , IsOwned(..)
     , GenChange(..)
     , CompareDiscovery(..)
@@ -55,7 +53,7 @@ import Cardano.Wallet.Primitive.AddressDerivation
     )
 import Cardano.Wallet.Primitive.BlockSummary
     ( ChainEvents )
-import Cardano.Wallet.Primitive.Passphrase
+import Cardano.Wallet.Primitive.Passphrase.Types
     ( Passphrase (..) )
 import Cardano.Wallet.Primitive.Types.Address
     ( Address (..), AddressState (..) )
@@ -65,6 +63,8 @@ import Control.DeepSeq
     ( NFData )
 import Data.Kind
     ( Type )
+import Data.List
+    ( intercalate )
 import Data.List.NonEmpty
     ( NonEmpty )
 import GHC.Generics

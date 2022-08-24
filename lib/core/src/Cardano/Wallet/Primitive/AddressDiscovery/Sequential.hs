@@ -1,5 +1,6 @@
 {-# LANGUAGE AllowAmbiguousTypes #-}
 {-# LANGUAGE BangPatterns #-}
+{-# LANGUAGE BlockArguments #-}
 {-# LANGUAGE ConstraintKinds #-}
 {-# LANGUAGE DeriveGeneric #-}
 {-# LANGUAGE DerivingStrategies #-}
@@ -8,7 +9,6 @@
 {-# LANGUAGE GADTs #-}
 {-# LANGUAGE LambdaCase #-}
 {-# LANGUAGE MultiParamTypeClasses #-}
-{-# LANGUAGE NamedFieldPuns #-}
 {-# LANGUAGE NumericUnderscores #-}
 {-# LANGUAGE ScopedTypeVariables #-}
 {-# LANGUAGE StandaloneDeriving #-}
@@ -21,6 +21,7 @@
 
 {-# OPTIONS_GHC -fno-warn-orphans #-}
 {-# OPTIONS_GHC -Wno-redundant-constraints #-}
+
 -- We intentionally specify the constraint  (k == SharedKey) ~ 'False
 -- in some exports.
 
@@ -116,7 +117,7 @@ import Cardano.Wallet.Primitive.AddressDiscovery
     )
 import Cardano.Wallet.Primitive.BlockSummary
     ( ChainEvents )
-import Cardano.Wallet.Primitive.Passphrase
+import Cardano.Wallet.Primitive.Passphrase.Types
     ( Passphrase )
 import Cardano.Wallet.Primitive.Types.Address
     ( Address (..), AddressState (..) )
@@ -134,6 +135,8 @@ import Data.Bifunctor
     ( first, second )
 import Data.Digest.CRC32
     ( crc32 )
+import Data.Function
+    ( (&) )
 import Data.Kind
     ( Type )
 import Data.List.NonEmpty
@@ -181,8 +184,7 @@ type SupportsDiscovery n k =
 -------------------------------------------------------------------------------}
 
 -- | Maximum number of consecutive undiscovered addresses allowed
-newtype AddressPoolGap = AddressPoolGap
-    { getAddressPoolGap :: Word32 }
+newtype AddressPoolGap = AddressPoolGap { getAddressPoolGap :: Word32 }
     deriving stock (Generic, Show, Eq, Ord)
 
 instance NFData AddressPoolGap
@@ -307,7 +309,8 @@ unsafePaymentKeyFingerprint from = case paymentKeyFingerprint @k from of
     Pretty printing
 -------------------------------------------------------------------------------}
 
-instance PersistPublicKey (key 'AccountK) => Buildable (key 'AccountK XPub) where
+instance PersistPublicKey (key 'AccountK) =>
+    Buildable (key 'AccountK XPub) where
     build key = prefixF 8 xpubF <> "..." <> suffixF 8 xpubF
       where
         xpubF = hexF $ serializeXPub key
@@ -319,7 +322,7 @@ instance PersistPublicKey (key 'PolicyK) => Buildable (key 'PolicyK XPub) where
 
 instance Buildable (ScriptTemplate, Maybe ScriptTemplate) where
     build (paymentTemplate, delegationTemplateM) =
-        mempty <> " payment script credential: " <> scriptPaymentF <>
+        " payment script credential: " <> scriptPaymentF <>
         " delegation script credential: " <> scriptDelegationF
       where
         scriptPaymentF = build paymentTemplate
@@ -331,14 +334,13 @@ accXPubTxt xpub =
     in T.take 8 keyFormatted <> "..." <> T.takeEnd 8 keyFormatted
 
 instance Buildable ScriptTemplate where
-    build (ScriptTemplate cosignersMap script') = mempty <>
+    build (ScriptTemplate cosignersMap script') =
         "Cosigners:" <> build (presentCosigners cosignersMap) <>
         " Script:" <> build (T.pack (show script'))
       where
-        printCosigner (Cosigner ix) =
-            "cosigner#"<> T.pack (show ix)
-        presentCosigners =
-            Map.foldrWithKey (\c k acc -> acc <> "| " <> printCosigner c <> " " <> accXPubTxt k ) mempty
+        printCosigner (Cosigner ix) = "cosigner#" <> T.pack (show ix)
+        presentCosigners = (`Map.foldrWithKey` mempty) $ \c k acc ->
+            acc <> "| " <> printCosigner c <> " " <> accXPubTxt k
 
 {-------------------------------------------------------------------------------
     SeqState
@@ -406,7 +408,8 @@ instance
 
 instance Buildable (SeqState n k) where
     build st = "SeqState:\n"
-        <> indentF 4 ("Derivation prefix: " <> build (toText (derivationPrefix st)))
+        <> indentF 4 ("Derivation prefix: " <>
+            build (toText (derivationPrefix st)))
         <> indentF 4 (build $ internalPool st)
         <> indentF 4 (build $ externalPool st)
         <> indentF 4 ("Change indexes: " <> indentF 4 chgsF)
@@ -426,7 +429,8 @@ purposeBIP44 = toEnum 0x8000002C
 -- | Purpose is a constant set to 1852' (or 0x8000073c) following the BIP-44
 -- extension for Cardano:
 --
--- https://github.com/input-output-hk/implementation-decisions/blob/e2d1bed5e617f0907bc5e12cf1c3f3302a4a7c42/text/1852-hd-chimeric.md
+-- https://github.com/input-output-hk/implementation-decisions/blob/
+-- 2d1bed5e617f0907bc5e12cf1c3f3302a4a7c42/text/1852-hd-chimeric.md
 --
 -- It indicates that the subtree of this node is used according to this
 -- specification.
@@ -435,7 +439,8 @@ purposeBIP44 = toEnum 0x8000002C
 purposeCIP1852 :: Index 'Hardened 'PurposeK
 purposeCIP1852 = toEnum 0x8000073c
 
--- | Construct a Sequential state for a wallet from root private key and password.
+-- | Construct a Sequential state for a wallet
+-- from root private key and password.
 mkSeqStateFromRootXPrv
     :: forall n k.
         ( WalletKey k
@@ -483,7 +488,7 @@ mkSeqStateFromAccountXPub accXPub policyXPubM purpose g = SeqState
 decoratePath
     :: SeqState n k -> Role -> Index 'Soft 'AddressK
     -> NE.NonEmpty DerivationIndex
-decoratePath SeqState{derivationPrefix} r ix = NE.fromList
+decoratePath st r ix = NE.fromList
     [ DerivationIndex $ getIndex purpose
     , DerivationIndex $ getIndex coinType
     , DerivationIndex $ getIndex accountIx
@@ -491,7 +496,9 @@ decoratePath SeqState{derivationPrefix} r ix = NE.fromList
     , DerivationIndex $ getIndex ix
     ]
   where
-    DerivationPrefix (purpose, coinType, accountIx) = derivationPrefix
+    SeqState
+        { derivationPrefix = DerivationPrefix (purpose, coinType, accountIx)
+        } = st
 
 -- NOTE
 -- We have to scan both the internal and external chain. Note that, the
@@ -527,12 +534,12 @@ instance SupportsDiscovery n k => IsOurs (SeqState n k) Address where
       where
         lookupAddress addr (SeqAddressPool pool) =
             case AddressPool.lookup addr pool of
-                Nothing -> (Nothing, SeqAddressPool pool)
-                Just ix -> (Just ix, SeqAddressPool $ AddressPool.update addr pool)
+                Nothing ->
+                    (Nothing, SeqAddressPool pool)
+                Just ix ->
+                    (Just ix, SeqAddressPool $ AddressPool.update addr pool)
 
-instance
-    ( SoftDerivation k
-    ) => GenChange (SeqState n k) where
+instance SoftDerivation k => GenChange (SeqState n k) where
     -- | We pick indexes in sequence from the first known available index (i.e.
     -- @length addrs - gap@) but we do not generate _new change addresses_. As a
     -- result, we can't generate more than @gap@ _pending_ change addresses and
@@ -540,10 +547,9 @@ instance
     --
     -- See also: 'nextChangeIndex'
     type ArgGenChange (SeqState n k) =
-        (k 'AddressK XPub -> k 'AddressK XPub -> Address)
+        k 'AddressK XPub -> k 'AddressK XPub -> Address
 
-    genChange mkAddress st =
-        (addr, st{ pendingChangeIxs = pending' })
+    genChange mkAddress st = (addr, st{pendingChangeIxs=pending'})
       where
         (ix, pending') =
             nextChangeIndex (getPool $ internalPool st) (pendingChangeIxs st)
@@ -612,10 +618,8 @@ instance
                 (liftPaymentAddress @n k, s, decoratePath st (roleVal @c) ix)
 
         nonChangeAddresses = listAddresses $ externalPool st
-
         changeAddresses = listAddresses $ internalPool st
-        usedChangeAddresses =
-            filter (\(_, status, _) -> status == Used) changeAddresses
+        usedChangeAddresses = [ addr | addr@(_, Used, _) <- changeAddresses ]
 
         -- pick as many unused change addresses as there are pending
         -- transactions. Note: the last `internalGap` addresses are all
@@ -637,16 +641,16 @@ discoverSeq
     :: forall n k m. (PaymentAddress n k, Monad m)
     => (Either Address RewardAccount -> m ChainEvents)
     -> SeqState n k -> m (ChainEvents, SeqState n k)
-discoverSeq query s@SeqState{internalPool,externalPool} = do
-    (blocks1,int) <- discover internalPool
-    (blocks2,ext) <- discover externalPool
-    pure
-        ( blocks1 <> blocks2
-        , s{internalPool=int,externalPool=ext}
-        )
+discoverSeq query state = do
+    (eventsInternal, internalPool') <- discover (internalPool state)
+    (eventsExternal, externalPool') <- discover (externalPool state)
+    let discoveredEvents = eventsInternal <> eventsExternal
+    let state' = state {internalPool=internalPool', externalPool=externalPool'}
+    pure (discoveredEvents, state')
   where
     -- Only enterprise address (for legacy Icarus keys)
     fromPayment hash = liftPaymentAddress @n hash
+
     discover :: SeqAddressPool r k -> m (ChainEvents, SeqAddressPool r k)
     discover = fmap (second SeqAddressPool)
         . AddressPool.discover (query . Left . fromPayment) . getPool
@@ -658,14 +662,13 @@ discoverSeqWithRewards
     :: forall n k m. (DelegationAddress n k, ToRewardAccount k, Monad m)
     => (Either Address RewardAccount -> m ChainEvents)
     -> SeqState n k -> m (ChainEvents, SeqState n k)
-discoverSeqWithRewards query s@SeqState{internalPool,externalPool,rewardAccountKey} = do
-    blocks0 <- query . Right $ toRewardAccount rewardAccountKey
-    (blocks1,int) <- discover internalPool
-    (blocks2,ext) <- discover externalPool
-    pure
-        ( blocks0 <> blocks1 <> blocks2
-        , s{internalPool=int,externalPool=ext}
-        )
+discoverSeqWithRewards query state = do
+    eventsReward <- query . Right $ toRewardAccount (rewardAccountKey state)
+    (eventsInternal, internalPool') <- discover (internalPool state)
+    (eventsExternal, externalPool') <- discover (externalPool state)
+    let discoveredEvents = eventsReward <> eventsInternal <> eventsExternal
+    let state' = state {internalPool=internalPool', externalPool=externalPool'}
+    pure (discoveredEvents, state')
   where
     -- Every 'Address' is composed of a payment part and a staking part.
     -- Ideally, we would want 'query' to give us all transactions
@@ -674,7 +677,8 @@ discoverSeqWithRewards query s@SeqState{internalPool,externalPool,rewardAccountK
     -- Unfortunately, this is not possible at the moment.
     -- However, fortunately, the staking part is always the same,
     -- so we supply it here in order to obtain an 'Address' that we can query.
-    fromPayment hash = liftDelegationAddress @n hash rewardAccountKey
+    fromPayment hash = liftDelegationAddress @n hash (rewardAccountKey state)
+
     discover :: SeqAddressPool r k -> m (ChainEvents, SeqAddressPool r k)
     discover = fmap (second SeqAddressPool)
         . AddressPool.discover (query . Left . fromPayment) . getPool
@@ -693,16 +697,17 @@ discoverSeqWithRewards query s@SeqState{internalPool,externalPool,rewardAccountK
 -- The proportion is stored as a type-level parameter so that we don't have to
 -- alter the database schema to store it. It simply exists and depends on the
 -- caller creating the wallet to define it.
-newtype SeqAnyState (network :: NetworkDiscriminant) key (p :: Nat) = SeqAnyState
-    { innerState :: SeqState network key
-    } deriving (Generic)
+newtype SeqAnyState (network :: NetworkDiscriminant) key (p :: Nat) =
+    SeqAnyState { innerState :: SeqState network key }
+    deriving (Generic)
 
 deriving instance
     ( Show (k 'AccountK XPub)
     , Show (k 'AddressK XPub)
     , Show (k 'PolicyK XPub)
     , Show (KeyFingerprint "payment" k)
-    ) => Show (SeqAnyState n k p)
+    )
+    => Show (SeqAnyState n k p)
 
 instance
     ( NFData (k 'AccountK XPub)
@@ -728,9 +733,8 @@ mkSeqAnyState
     -> Index 'Hardened 'PurposeK
     -> AddressPoolGap
     -> SeqAnyState n k p
-mkSeqAnyState credentials purpose poolGap = SeqAnyState
-    { innerState = mkSeqStateFromRootXPrv credentials purpose poolGap
-    }
+mkSeqAnyState credentials purpose poolGap =
+    SeqAnyState{innerState = mkSeqStateFromRootXPrv credentials purpose poolGap}
 
 instance KnownNat p => IsOurs (SeqAnyState n k p) Address where
     isOurs (Address bytes) st@(SeqAnyState inner)
@@ -743,7 +747,7 @@ instance KnownNat p => IsOurs (SeqAnyState n k p) Address where
                 path = DerivationIndex (getIndex ix) :| []
             in
                 ( Just path
-                , SeqAnyState $ inner{ externalPool = SeqAddressPool pool' }
+                , SeqAnyState $ inner{externalPool = SeqAddressPool pool'}
                 )
         | otherwise =
             (Nothing, st)
