@@ -480,4 +480,13 @@ CosignerKey
         cosignerKeyIndex
     Foreign Wallet OnDeleteCascade cosigner_key cosignerKeyWalletId
     deriving Show Generic
+
+CBOR
+    cborTxId       TxId             sql=tx_id
+    cborTxCBOR     B8.ByteString    sql=tx_cbor
+    cborTxEra      Word16            sql=tx_era
+
+    Primary cborTxId
+    deriving Show Generic Eq
+
 |]
