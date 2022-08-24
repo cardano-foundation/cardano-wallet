@@ -42,6 +42,11 @@ import qualified Cardano.Api.Shelley as Cardano
 
 -- | Computes a minimum UTxO value with the Cardano API.
 --
+-- Caution:
+--
+-- This function does /not/ attempt to reach a fixed point before returning its
+-- result.
+--
 computeMinimumCoinForUTxO_CardanoApi
     :: HasCallStack
     => MinimumUTxOForShelleyBasedEra
@@ -85,6 +90,11 @@ computeMinimumCoinForUTxO_CardanoApi
                 ]
 
 -- | Computes a minimum UTxO value with Cardano Ledger.
+--
+-- Caution:
+--
+-- This function does /not/ attempt to reach a fixed point before returning its
+-- result.
 --
 computeMinimumCoinForUTxO_CardanoLedger
     :: MinimumUTxOForShelleyBasedEra
