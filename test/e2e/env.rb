@@ -20,6 +20,7 @@ ENV['TESTS_E2E_BINDIR'] ||= "./bins"
 ENV['TESTS_E2E_TOKEN_METADATA'] ||= "https://metadata.cardano-testnet.iohkdev.io/"
 ENV['TESTS_E2E_SMASH'] ||= "https://smash.cardano-testnet.iohkdev.io"
 ENV['WALLET_PORT'] ||= "8090"
+ENV['NETWORK'] ||= "preview"
 
 ##
 # Apply workaround for ADP-827 - Deleting wallets sometimes takes >60s in integration tests

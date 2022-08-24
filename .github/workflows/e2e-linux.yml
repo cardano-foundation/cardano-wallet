@@ -8,7 +8,7 @@ on:
       network:
         description: 'Network'
         required: true
-        default: 'testnet'
+        default: 'preview'
       node_db_cache:
         description: 'Node DB Cache'
         required: true
@@ -107,7 +107,7 @@ jobs:
 
     env:
       TESTS_E2E_FIXTURES: ${{ secrets.TESTS_E2E_FIXTURES }}
-      NETWORK: ${{ github.event.inputs.network || 'testnet' }}
+      NETWORK: ${{ github.event.inputs.network || 'preview' }}
       PR: ${{ github.event.inputs.pr || '' }}
       NODE_DB_CACHE: ${{ github.event.inputs.node_db_cache || 'GH' }}
       TAGS: ${{ github.event.inputs.tags || 'all' }}

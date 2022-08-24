@@ -48,13 +48,13 @@ RSpec.describe "Cardano Wallet E2E tests", :all, :e2e do
       # We are trying to spend pre-created UTxO from the script address,
       # which was created as follows using fixtures/alwaysfails.plutus:
       #
-      # export NETWORK_ID="--testnet-magic 1097911063"
+      # export NETWORK_ID="--testnet-magic 2"
       # cardano-cli address build --payment-script-file alwaysfails.plutus $NETWORK_ID > AlwaysFails.addr
       # cardano-cli transaction hash-script-data --script-data-value 1914 > datumhash
       # cardano-cli transaction build  \
       # 	--babbage-era  \
       # 	$NETWORK_ID \
-      # 	--tx-in "6042918f95e9921772c0cf5c604a23c42e46cc6c6280b3bec5722041e056d2b0#0"  \
+      # 	--tx-in "f26945b0bcc0ad3de6c44fcc78473a193017748ce0d54189a8e4d3c810d04295#0"  \
       # 	--tx-out $(<AlwaysFails.addr)+50000000  \
       # 	--tx-out-datum-hash $(<datumhash) \
       # 	--change-address $(cat payment.addr) \
@@ -75,8 +75,9 @@ RSpec.describe "Cardano Wallet E2E tests", :all, :e2e do
       when 'vasil-dev'
         script_utxo = 'ce149a5dea4b09d1717ffbe79f8e46ddd9bf0401e95a69502b71f792982b5013#1'
       when 'testnet'
-        skip "Skipping temporarily as PlutusV2 cost model was removed from testnet"
         script_utxo = '54b4e4e34a022424e441b00d8a73e9aaef71b3c63084e76246d326074c5d3756#1'
+      when 'preview'
+        script_utxo = '3a759fbbcacacdeced0a885c1835f4c4dd583387acc393e0cebae60e2de678a2#1'
       else
         skip %(
                 This test cannot be executed on '#{ENV['NETWORK']}' yet!
@@ -289,23 +290,23 @@ RSpec.describe "Cardano Wallet E2E tests", :all, :e2e do
       #
       # 2. Register cert on-chain
       #
-      # $ cardano-cli query utxo --address $(cat payment.addr) --testnet-magic 1097911063
+      # $ cardano-cli query utxo --address $(cat payment.addr) --testnet-magic 2
       # $ cardano-cli transaction build  \
       # 	--alonzo-era  \
-      # 	--testnet-magic 1097911063 \
+      # 	--testnet-magic 2 \
       # 	--change-address "addr_test1qrfqc909vvxfq7903kaz09cuh5q2un8zw7j9ys4uh3k7j3qpgncz6fapajjvkyqka2sldfpk250nml40sf67am68wd2shl9fth" \
-      # 	--tx-in "8e9dd939a6096ce0d033a8a1ad61a83f0b7188f22516c45e1a69ff8cd4ad6f4f#0"  \
+      # 	--tx-in "3a759fbbcacacdeced0a885c1835f4c4dd583387acc393e0cebae60e2de678a2#0"  \
       # 	--certificate-file stake.cert \
       # 	--protocol-params-file protocol.json  \
       # 	--out-file body.tx
       #
       # $ cardano-cli transaction sign \
       #    --tx-body-file body.tx \
-      #    --testnet-magic 1097911063 \
+      #    --testnet-magic 2 \
       #    --signing-key-file payment.skey \
       #    --out-file signed.tx
       #
-      # $ cardano-cli transaction submit --tx-file signed.tx --testnet-magic 1097911063
+      # $ cardano-cli transaction submit --tx-file signed.tx --testnet-magic 2
       validator = read_mustached_file("withdrawal_validator")
       validator_hash = get_policy_id(validator)
       withdrawal_script = "withdrawal.json"

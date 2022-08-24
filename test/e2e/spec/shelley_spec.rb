@@ -416,40 +416,47 @@ RSpec.describe CardanoWallet::Shelley, :all, :shelley do
                                                              { "status" => "not_delegating" } })
     end
 
-    it "ADP-634 - Pool metadata is updated when settings are updated", :offchain, :smash do
-      settings = CW.misc.settings
-      pools = SHELLEY.stake_pools
+    describe "ADP-634 - Pool metadata is updated when settings are updated", :offchain, :smash do
+      it "pool_metadata_source = direct <> none" do
+        settings = CW.misc.settings
+        pools = SHELLEY.stake_pools
 
-      s = settings.update({ :pool_metadata_source => "direct" })
-      expect(s).to be_correct_and_respond 204
+        s = settings.update({ :pool_metadata_source => "direct" })
+        expect(s).to be_correct_and_respond 204
 
-      eventually "Pools have metadata when 'pool_metadata_source' => 'direct'" do
-        sps = pools.list({ stake: 1000 })
-        sps.select { |p| p['metadata'] }.size > 0
+        eventually "Pools have metadata when 'pool_metadata_source' => 'direct'" do
+          sps = pools.list({ stake: 1000 })
+          sps.select { |p| p['metadata'] }.size > 0
+        end
+
+        s = settings.update({ :pool_metadata_source => "none" })
+        expect(s).to be_correct_and_respond 204
+
+        eventually "Pools have no metadata when 'pool_metadata_source' => 'none'" do
+          sps = pools.list({ stake: 1000 })
+          sps.select { |p| p['metadata'] }.size == 0
+        end
       end
 
-      s = settings.update({ :pool_metadata_source => "none" })
-      expect(s).to be_correct_and_respond 204
+      it "pool_metadata_source = #{ENV['TESTS_E2E_SMASH']} <> none" do
+        skip "Smash is not set up yet on preview / preprod"
+        settings = CW.misc.settings
+        pools = SHELLEY.stake_pools
+        s = settings.update({ :pool_metadata_source => ENV['TESTS_E2E_SMASH'] })
+        expect(s).to be_correct_and_respond 204
 
-      eventually "Pools have no metadata when 'pool_metadata_source' => 'none'" do
-        sps = pools.list({ stake: 1000 })
-        sps.select { |p| p['metadata'] }.size == 0
-      end
+        eventually "Pools have metadata when 'pool_metadata_source' => '#{ENV['TESTS_E2E_SMASH']}'" do
+          sps = pools.list({ stake: 1000 })
+          sps.select { |p| p['metadata'] }.size > 0
+        end
 
-      s = settings.update({ :pool_metadata_source => ENV['TESTS_E2E_SMASH'] })
-      expect(s).to be_correct_and_respond 204
+        s = settings.update({ :pool_metadata_source => "none" })
+        expect(s).to be_correct_and_respond 204
 
-      eventually "Pools have metadata when 'pool_metadata_source' => '#{ENV['TESTS_E2E_SMASH']}'" do
-        sps = pools.list({ stake: 1000 })
-        sps.select { |p| p['metadata'] }.size > 0
-      end
-
-      s = settings.update({ :pool_metadata_source => "none" })
-      expect(s).to be_correct_and_respond 204
-
-      eventually "Pools have no metadata when 'pool_metadata_source' => 'none'" do
-        sps = pools.list({ stake: 1000 })
-        sps.select { |p| p['metadata'] }.size == 0
+        eventually "Pools have no metadata when 'pool_metadata_source' => 'none'" do
+          sps = pools.list({ stake: 1000 })
+          sps.select { |p| p['metadata'] }.size == 0
+        end
       end
     end
 
