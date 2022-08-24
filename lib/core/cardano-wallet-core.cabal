@@ -215,6 +215,7 @@ library
       Cardano.Wallet.DB.Sqlite.Schema
       Cardano.Wallet.DB.Sqlite.Stores
       Cardano.Wallet.DB.Sqlite.Types
+      Cardano.Wallet.DB.Store.CBOR.Model
       Cardano.Wallet.DB.Store.Checkpoints
       Cardano.Wallet.DB.Store.Meta.Model
       Cardano.Wallet.DB.Store.Meta.Store
