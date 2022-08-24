@@ -492,6 +492,7 @@ test-suite unit
       Cardano.Wallet.DB.Sqlite.TypesSpec
       Cardano.Wallet.DB.StateMachine
       Cardano.Wallet.DB.Store.CBOR.ModelSpec
+      Cardano.Wallet.DB.Store.CBOR.StoreSpec
       Cardano.Wallet.DB.Store.Meta.ModelSpec
       Cardano.Wallet.DB.Store.Meta.StoreSpec
       Cardano.Wallet.DB.Store.Submissions.ModelSpec
