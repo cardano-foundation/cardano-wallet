@@ -7,7 +7,7 @@ on:
       network:
         description: 'NETWORK'
         required: true
-        default: 'testnet'
+        default: 'mainnet'
 
 jobs:
   build:
@@ -17,7 +17,7 @@ jobs:
     runs-on: ${{ matrix.os }}
     steps:
       - uses: actions/checkout@v2
-      - uses: docker-practice/actions-setup-docker@1.0.10
+      - uses: docker-practice/actions-setup-docker@1.0.11
       - uses: ruby/setup-ruby@v1
         with:
           ruby-version: 2.7.1
@@ -28,4 +28,4 @@ jobs:
           docker-compose up -d
           ./scripts/connect_wallet.rb
         env:
-          NETWORK: ${{ github.event.inputs.network || 'testnet' }}
+          NETWORK: ${{ github.event.inputs.network || 'mainnet' }}
