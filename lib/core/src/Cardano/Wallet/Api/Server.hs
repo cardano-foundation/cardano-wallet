@@ -98,6 +98,7 @@ module Cardano.Wallet.Api.Server
     , postPolicyId
     , constructSharedTransaction
     , decodeSharedTransaction
+    , getBlocksLatestHeader
 
     -- * Server error responses
     , IsServerError(..)
@@ -119,7 +120,8 @@ module Cardano.Wallet.Api.Server
 
     -- * Logging
     , WalletEngineLog (..)
-    ) where
+    )
+    where
 
 import Prelude
 
@@ -338,6 +340,8 @@ import Cardano.Wallet.Api.Types
     , toApiNetworkParameters
     , toApiUtxoStatistics
     )
+import Cardano.Wallet.Api.Types.BlockHeader
+    ( ApiBlockHeader, mkApiBlockHeader )
 import Cardano.Wallet.Api.Types.SchemaMetadata
     ( TxMetadataSchema (..), TxMetadataWithSchema (TxMetadataWithSchema) )
 import Cardano.Wallet.CoinSelection
@@ -3768,6 +3772,9 @@ getNetworkParameters (_block0, genesisNp) nl tl = do
 
 getNetworkClock :: NtpClient -> Bool -> Handler ApiNetworkClock
 getNetworkClock client = liftIO . getNtpStatus client
+
+getBlocksLatestHeader :: NetworkLayer IO Block -> Handler ApiBlockHeader
+getBlocksLatestHeader nl = liftIO $ mkApiBlockHeader <$> NW.currentNodeTip nl
 
 {-------------------------------------------------------------------------------
                                Miscellaneous

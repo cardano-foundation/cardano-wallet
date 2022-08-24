@@ -150,7 +150,7 @@ module Cardano.Wallet.Api
     , SharedTransactions
         , ConstructSharedTransaction
         , DecodeSharedTransaction
-
+    , GetBlocksLatestHeader
     , Proxy_
         , PostExternalTransaction
 
@@ -234,6 +234,8 @@ import Cardano.Wallet.Api.Types
     , WalletPutData
     , WalletPutPassphraseData
     )
+import Cardano.Wallet.Api.Types.BlockHeader
+    ( ApiBlockHeader )
 import Cardano.Wallet.DB
     ( DBFactory, DBLayer )
 import Cardano.Wallet.Network
@@ -331,6 +333,7 @@ type Api n apiPool =
     :<|> SharedWalletKeys
     :<|> SharedAddresses n
     :<|> SharedTransactions n
+    :<|> GetBlocksLatestHeader
 
 {-------------------------------------------------------------------------------
                                   Wallets
@@ -996,6 +999,15 @@ type GetNetworkClock = "network"
     :> QueryFlag "forceNtpCheck"
     :> Get '[JSON] ApiNetworkClock
 
+{-------------------------------------------------------------------------------
+                                  Blocks
+
+-------------------------------------------------------------------------------}
+
+type GetBlocksLatestHeader = "blocks"
+    :> "latest"
+    :> "header"
+    :> Get '[JSON] ApiBlockHeader
 {-------------------------------------------------------------------------------
                                   SMASH
 

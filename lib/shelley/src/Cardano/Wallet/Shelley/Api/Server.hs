@@ -75,6 +75,7 @@ import Cardano.Wallet.Api.Server
     , getAccountPublicKey
     , getAsset
     , getAssetDefault
+    , getBlocksLatestHeader
     , getCurrentEpoch
     , getNetworkClock
     , getNetworkInformation
@@ -158,6 +159,8 @@ import Cardano.Wallet.Api.Types
     , SettingsPutData (..)
     , SomeByronWalletPostData (..)
     )
+import Cardano.Wallet.Api.Types.BlockHeader
+    ( ApiBlockHeader )
 import Cardano.Wallet.Api.Types.SchemaMetadata
     ( TxMetadataSchema (..), parseSimpleMetadataFlag )
 import Cardano.Wallet.Primitive.AddressDerivation
@@ -266,6 +269,7 @@ server byron icarus shelley multisig spl ntp blockchainSource =
     :<|> sharedWalletKeys multisig
     :<|> sharedAddresses multisig
     :<|> sharedTransactions multisig
+    :<|> blocks
   where
     wallets :: Server Wallets
     wallets = deleteWallet shelley
@@ -617,6 +621,9 @@ server byron icarus shelley multisig spl ntp blockchainSource =
         constructSharedTransaction apilayer (constructAddressFromIx @n UtxoInternal)
             (knownPools spl) (getPoolLifeCycleStatus spl)
         :<|> decodeSharedTransaction apilayer
+
+    blocks :: Handler ApiBlockHeader
+    blocks = getBlocksLatestHeader (shelley ^. networkLayer)
 
 postAnyAddress
     :: NetworkId

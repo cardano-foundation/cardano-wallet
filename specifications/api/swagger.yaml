@@ -66,7 +66,7 @@ x-epochInfo: &epochInfo
     epoch_start_time: *date
 
 x-blockId: &blockId
-  description: The hash of genesis block
+  description: The hash of a block
   type: string
   format: hex
   maxLength: 64
@@ -3833,6 +3833,18 @@ components:
             type: array
             items: *ApiRedeemer
 
+    ApiBlockHeader: &ApiBlockHeader
+        description: |
+          A Block Header.
+        required:
+          - header_hash
+          - slot_no
+          - block_height
+        properties:
+          header_hash: *blockId
+          slot_no: *numberOfSlots
+          block_height: *numberOfBlocks
+
 
 #############################################################################
 #                                                                           #
@@ -6040,6 +6052,7 @@ x-tagGroups:
     - Proxy
     - Settings
     - Experimental
+    - Node
 
 paths:
   /wallets/{walletId}/signatures/{role}/{index}:
@@ -7624,3 +7637,18 @@ paths:
         - *parametersWalletId
         - *parametersAddressState
       responses: *responsesListAddresses
+
+  /blocks/latest/header:
+    get:
+      tags: ["Node"]
+      summary: Block Header
+      description: |
+        <p align="right">status: <strong>stable</strong></p>
+
+        Return the latest block-header available at the chain source
+      responses: 
+        200:
+          description: OK
+          content:
+            application/json:
+              schema: *ApiBlockHeader
