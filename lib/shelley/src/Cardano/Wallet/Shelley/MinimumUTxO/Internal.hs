@@ -1,3 +1,4 @@
+{-# LANGUAGE GADTs #-}
 {-# LANGUAGE LambdaCase #-}
 
 -- |
@@ -8,10 +9,13 @@
 --
 module Cardano.Wallet.Shelley.MinimumUTxO.Internal
     ( computeMinimumCoinForUTxOCardanoApi
+    , computeMinimumCoinForUTxOCardanoLedger
     ) where
 
 import Prelude
 
+import Cardano.Ledger.Shelley.API.Wallet
+    ( evaluateMinLovelaceOutput )
 import Cardano.Wallet.Primitive.Types.Coin
     ( Coin )
 import Cardano.Wallet.Primitive.Types.MinimumUTxO
@@ -20,6 +24,14 @@ import Cardano.Wallet.Primitive.Types.Tx
     ( TxOut )
 import Cardano.Wallet.Shelley.Compatibility
     ( toCardanoTxOut, unsafeLovelaceToWalletCoin, unsafeValueToLovelace )
+import Cardano.Wallet.Shelley.Compatibility.Ledger
+    ( toAllegraTxOut
+    , toAlonzoTxOut
+    , toBabbageTxOut
+    , toMaryTxOut
+    , toShelleyTxOut
+    , toWalletCoin
+    )
 import Data.Function
     ( (&) )
 import GHC.Stack
@@ -70,3 +82,28 @@ computeMinimumCoinForUTxOCardanoApi
                 , "unexpected error:"
                 , show e
                 ]
+
+-- | Computes a minimum UTxO value with Cardano Ledger.
+--
+computeMinimumCoinForUTxOCardanoLedger
+    :: MinimumUTxOForShelleyBasedEra
+    -> TxOut
+    -> Coin
+computeMinimumCoinForUTxOCardanoLedger
+    (MinimumUTxOForShelleyBasedEra era pp) txOut =
+        toWalletCoin $ case era of
+            Cardano.ShelleyBasedEraShelley ->
+                evaluateMinLovelaceOutput pp
+                    $ toShelleyTxOut txOut
+            Cardano.ShelleyBasedEraAllegra ->
+                evaluateMinLovelaceOutput pp
+                    $ toAllegraTxOut txOut
+            Cardano.ShelleyBasedEraMary ->
+                evaluateMinLovelaceOutput pp
+                    $ toMaryTxOut txOut
+            Cardano.ShelleyBasedEraAlonzo ->
+                evaluateMinLovelaceOutput pp
+                    $ toAlonzoTxOut txOut Nothing
+            Cardano.ShelleyBasedEraBabbage ->
+                evaluateMinLovelaceOutput pp
+                    $ toBabbageTxOut txOut Nothing
