@@ -218,6 +218,7 @@ import qualified Cardano.Wallet.Primitive.Types.Tx as W
 import qualified Data.Map.Strict as Map
 import qualified Data.Set as Set
 import qualified Data.Text as T
+import Cardano.Wallet.DB.Store.TransactionsWithCBOR.Model (TxHistoryWithCBOR(TxHistoryWithCBOR))
 
 {-------------------------------------------------------------------------------
                                Database "factory"
@@ -797,7 +798,7 @@ newDBLayerWith _cacheBehavior _tr ti SqliteContext{runQuery} = do
                     $ ErrRemoveTxNoSuchWallet
                     $ ErrNoSuchWallet wid
                 Just _ -> modifyDBMaybe transactionsDBVar
-                    $ \(TxHistoryF _txsOld, ws) -> fromMaybe noTx $ do
+                    $ \(_ , ws) -> fromMaybe noTx $ do
                         (TxMetaHistory metas, _) <- Map.lookup wid ws
                         DB.TxMeta{..} <- Map.lookup (TxId txId) metas
                         pure $
@@ -1032,7 +1033,7 @@ selectTxHistory
     -> TxWalletsHistory
     -> m [W.TransactionInfo]
 selectTxHistory cp ti wid minWithdrawal order whichMeta
-    (txHistory, wmetas) = do
+    (TxHistoryWithCBOR txHistory _, wmetas) = do
     tinfos <- mapM (uncurry $ mkTransactionInfo ti (W.currentTip cp)) $ do
         (TxMetaHistory metas, _) <- maybeToList $ Map.lookup wid wmetas
         meta <- toList metas
