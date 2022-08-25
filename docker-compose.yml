@@ -2,7 +2,7 @@ version: "3.5"
 
 services:
   cardano-node:
-    image: inputoutput/cardano-node:1.35.3
+    image: inputoutput/cardano-node:1.35.3-configs
     environment:
       NETWORK:
     volumes:
@@ -17,7 +17,7 @@ services:
         max-size: "50m"
 
   cardano-wallet:
-    image: inputoutput/cardano-wallet:2022.8.16
+    image: inputoutput/cardano-wallet:2022.8.16-configs
     volumes:
       - wallet-${NETWORK}-db:/wallet-db
       - node-ipc:/ipc
@@ -41,10 +41,10 @@ services:
 
 volumes:
   node-mainnet-db:
-  node-testnet-db:
-  node-alonzo-purple-db:
   wallet-mainnet-db:
-  wallet-testnet-db:
-  wallet-alonzo-purple-db:
+  node-preprod-db:
+  wallet-preprod-db:
+  node-preview-db:
+  wallet-preview-db:
   node-ipc:
   node-config:
