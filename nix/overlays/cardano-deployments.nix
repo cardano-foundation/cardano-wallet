@@ -9,6 +9,8 @@ pkgs: _: {
         testnet
         shelley_qa
         alonzo-purple
+        preview
+        preprod
         ;
     };
     updateConfig = env: env.nodeConfig // {
