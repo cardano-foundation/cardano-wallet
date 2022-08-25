@@ -53,7 +53,7 @@ import Cardano.Wallet.Primitive.Slotting
 import Cardano.Wallet.Primitive.Types.TokenMap
     ( AssetId (AssetId) )
 import Cardano.Wallet.Primitive.Types.Tx
-    ( Tx (..), TxMeta (..), TxOut (..) )
+    ( Tx (..), TxCBOR, TxMeta (..), TxOut (..) )
 import Data.Delta
     ( Delta (..) )
 import Data.DeltaMap
@@ -178,14 +178,15 @@ mkTransactionInfo :: Monad m
     => TimeInterpreter m
     -> W.BlockHeader
     -> TxRelationF 'With
+    -> Maybe TxCBOR
     -> DB.TxMeta
     -> m WT.TransactionInfo
-mkTransactionInfo ti tip TxRelationF{..} DB.TxMeta{..} = do
+mkTransactionInfo ti tip TxRelationF{..} txCBOR DB.TxMeta{..} = do
     txTime <- interpretQuery ti . slotToUTCTime $ txMetaSlot
     return
         $ WT.TransactionInfo
         { WT.txInfoId = getTxId txMetaTxId
-        , WT.txInfoCBOR = Nothing
+        , WT.txInfoCBOR = txCBOR
         , WT.txInfoFee = WC.Coin . fromIntegral <$> txMetaFee
         , WT.txInfoInputs = mkTxIn <$> ins
         , WT.txInfoCollateralInputs = mkTxCollateral <$> collateralIns
