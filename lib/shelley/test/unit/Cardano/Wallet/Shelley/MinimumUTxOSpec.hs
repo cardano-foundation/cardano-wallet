@@ -29,8 +29,6 @@ import Cardano.Wallet.Primitive.Types.Address.Constants
     ( maxLengthAddress )
 import Cardano.Wallet.Primitive.Types.Coin
     ( Coin (..) )
-import Cardano.Wallet.Primitive.Types.Coin.Gen
-    ( chooseCoin )
 import Cardano.Wallet.Primitive.Types.MinimumUTxO
     ( MinimumUTxO (..)
     , MinimumUTxOForShelleyBasedEra (..)
@@ -60,12 +58,7 @@ import Cardano.Wallet.Primitive.Types.TokenPolicy
 import Cardano.Wallet.Primitive.Types.TokenPolicy.Gen
     ( mkTokenPolicyId )
 import Cardano.Wallet.Primitive.Types.Tx
-    ( TxOut (..)
-    , txOutMaxCoin
-    , txOutMaxTokenQuantity
-    , txOutMinCoin
-    , txOutMinTokenQuantity
-    )
+    ( TxOut (..), txOutMaxCoin, txOutMaxTokenQuantity, txOutMinTokenQuantity )
 import Cardano.Wallet.Primitive.Types.Tx.Gen
     ( genTxOutTokenBundle )
 import Cardano.Wallet.Shelley.MinimumUTxO
@@ -186,18 +179,15 @@ spec = do
 prop_computeMinimumCoinForUTxO_CardanoApi_CardanoLedger
     :: MinimumUTxOForShelleyBasedEra
     -> Address
-    -> Coin
-    -> TokenMap
+    -> TokenBundle
     -> Property
 prop_computeMinimumCoinForUTxO_CardanoApi_CardanoLedger
-    minimumUTxO address coin tokenMap =
+    minimumUTxO address tokenBundle =
         Internal.computeMinimumCoinForUTxO_CardanoApi
-            minimumUTxO txOut
+            minimumUTxO (TxOut address tokenBundle)
         ===
         Internal.computeMinimumCoinForUTxO_CardanoLedger
-            minimumUTxO txOut
-  where
-    txOut = TxOut address (TokenBundle coin tokenMap)
+            minimumUTxO (TxOut address tokenBundle)
 
 -- Tests the following composition:
 --
@@ -629,13 +619,6 @@ instance Arbitrary Cardano.AddressAny where
 
 instance Arbitrary Address where
     arbitrary = fromCardanoAddressAny <$> arbitrary
-
-instance Arbitrary Coin where
-    arbitrary = frequency
-        [ (1, pure txOutMinCoin)
-        , (1, pure txOutMaxCoin)
-        , (8, chooseCoin (txOutMinCoin, txOutMaxCoin))
-        ]
 
 instance Arbitrary TokenBundle where
     arbitrary = sized genTxOutTokenBundle
