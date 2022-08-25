@@ -52,6 +52,7 @@ import Cardano.Wallet.Primitive.Types.RewardAccount
     ( RewardAccount (..) )
 import Cardano.Wallet.Primitive.Types.Tx
     ( Tx (..)
+    , TxCBOR
     , TxIn (..)
     , TxMetadata (..)
     , TxOut (..)
@@ -135,7 +136,8 @@ dummyProtocolParameters = ProtocolParameters
 
 -- | Construct a @Tx@, computing its hash using the dummy @mkTxId@.
 mkTx
-    :: Maybe Coin
+    :: Maybe TxCBOR
+    -> Maybe Coin
     -> [(TxIn, Coin)]
     -> [(TxIn, Coin)]
     -> [TxOut]
@@ -144,9 +146,10 @@ mkTx
     -> Maybe TxMetadata
     -> Maybe TxScriptValidity
     -> Tx
-mkTx fees ins cins outs cout wdrls md validity =
+mkTx cbor fees ins cins outs cout wdrls md validity =
     Tx
       { txId = (mkTxId ins outs wdrls md)
+      , txCBOR = cbor
       , fee = fees
       , resolvedInputs = ins
       , resolvedCollateralInputs = cins

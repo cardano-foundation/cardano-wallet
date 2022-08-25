@@ -13,6 +13,7 @@
 {-# LANGUAGE KindSignatures #-}
 {-# LANGUAGE LambdaCase #-}
 {-# LANGUAGE NumericUnderscores #-}
+{-# LANGUAGE OverloadedLabels #-}
 {-# LANGUAGE RankNTypes #-}
 {-# LANGUAGE RecordWildCards #-}
 {-# LANGUAGE ScopedTypeVariables #-}
@@ -178,6 +179,7 @@ import Cardano.Wallet.Primitive.Types.Tx
     , SealedTx (..)
     , TransactionInfo (..)
     , Tx (..)
+    , TxCBOR
     , TxIn (..)
     , TxMeta
     , TxMetadata
@@ -208,6 +210,8 @@ import Data.Foldable
     ( foldl', toList )
 import Data.Functor.Classes
     ( Eq1, Show1 )
+import Data.Generics.Internal.VL
+    ( view )
 import Data.List.Extra
     ( enumerate )
 import Data.Map
@@ -1018,6 +1022,9 @@ instance ToExpr UTxO where
 
 instance ToExpr WalletMetadata where
     toExpr = defaultExprViaShow
+
+instance ToExpr TxCBOR where
+    toExpr = toExpr . view #txCBOR
 
 instance ToExpr Tx where
     toExpr = genericToExpr

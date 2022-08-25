@@ -163,7 +163,8 @@ shrinkTxWithoutId = genericRoundRobinShrink
     <:> Nil
 
 txWithoutIdToTx :: TxWithoutId -> Tx
-txWithoutIdToTx tx@TxWithoutId {..} = Tx {txId = mockHash tx, ..}
+txWithoutIdToTx tx@TxWithoutId {..}
+    = Tx {txId = mockHash tx, txCBOR = Nothing , ..}
 
 txToTxWithoutId :: Tx -> TxWithoutId
 txToTxWithoutId Tx {..} = TxWithoutId {..}

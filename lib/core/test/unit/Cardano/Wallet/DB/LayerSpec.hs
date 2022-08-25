@@ -586,6 +586,7 @@ fileModeSpec =  do
                     mockApply db (dummyHash "block1")
                         [ Tx
                             { txId = dummyHash "tx1"
+                            , txCBOR = Nothing
                             , fee = Nothing
                             , resolvedInputs =
                                 [ (TxIn (dummyHash "faucet") 0, Coin 4)
@@ -619,6 +620,7 @@ fileModeSpec =  do
                     mockApply db (dummyHash "block2")
                         [ Tx
                             { txId = dummyHash "tx2"
+                            , txCBOR = Nothing
                             , fee = Nothing
                             , resolvedInputs =
                                 [(TxIn (dummyHash "tx1") 0, Coin 4)]
@@ -660,6 +662,7 @@ fileModeSpec =  do
                     mockApply db (dummyHash "block3")
                         [ Tx
                             { txId = dummyHash "tx3"
+                            , txCBOR = Nothing
                             , fee = Nothing
                             , resolvedInputs =
                                 -- Here we refer to a collateral output from
@@ -700,6 +703,7 @@ fileModeSpec =  do
                 let mockApplyBlock1 = mockApply db (dummyHash "block1")
                         [ Tx
                             { txId = dummyHash "tx1"
+                            , txCBOR = Nothing
                             , fee = Nothing
                             , resolvedInputs =
                                 [(TxIn (dummyHash "faucet") 0, Coin 4)]
@@ -722,6 +726,7 @@ fileModeSpec =  do
                 mockApply db (dummyHash "block2a")
                     [ Tx
                         { txId = dummyHash "tx2a"
+                        , txCBOR = Nothing
                         , fee = Nothing
                         , resolvedInputs = [(TxIn (dummyHash "tx1") 0, Coin 4)]
                         -- TODO: (ADP-957)
@@ -1382,6 +1387,7 @@ testTxs = [(tx, txMeta)]
   where
     tx = Tx
         { txId = mockHash @String "tx2"
+        , txCBOR = Nothing
         , fee = Nothing
         , resolvedInputs = [(TxIn (mockHash @String "tx1") 0, Coin 1)]
         , resolvedCollateralInputs =

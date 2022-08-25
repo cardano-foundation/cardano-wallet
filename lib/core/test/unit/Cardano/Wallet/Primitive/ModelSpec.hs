@@ -1180,6 +1180,7 @@ instance Arbitrary (WithPending WalletState) where
                 scriptValidity <- liftArbitrary genTxScriptValidity
                 let pending = withWithdrawal $ Tx
                         { txId = arbitraryHash
+                        , txCBOR = Nothing
                         , fee = Nothing
                         , resolvedInputs = [(inp, txOutCoin out)]
                         -- TODO: (ADP-957)
@@ -1254,6 +1255,7 @@ blockchain =
             [ Tx
                 { txId = Hash "97928516bb05fce234d26e99b22b2e68c81841730fb5bd1d835b67374f1de8d7"
                 , fee = Nothing
+                , txCBOR = Nothing
                 , resolvedInputs =
                     [ (TxIn
                         { inputId = Hash "\199D\198\229\227\196\204\231\178\166m\226\134\211\DC1}\243[\204\DC4\171\213\230\246\SOHy\229\t\167\184\235g"
@@ -1293,6 +1295,7 @@ blockchain =
         , transactions =
             [ Tx
                 { txId = Hash "cd6f2081fdd619c623c71e5cd2a3b5f22289e598b727f325dbba9681ea723079"
+                , txCBOR = Nothing
                 , fee = Nothing
                 , resolvedInputs =
                     [ (TxIn
@@ -1318,6 +1321,7 @@ blockchain =
                 }
             , Tx
                 { txId = Hash "b17ca3d2b8a991ea4680d1ebd9940a03449b1b6261fbe625d5cae6599726ea41"
+                , txCBOR = Nothing
                 , fee = Nothing
                 , resolvedInputs =
                     [ (TxIn
@@ -1354,6 +1358,7 @@ blockchain =
         , transactions =
             [ Tx
                 { txId = Hash "73a5d20740d511e01090247f8aca90e1e550564244173235a1a47589007b9e76"
+                , txCBOR = Nothing
                 , fee = Nothing
                 , resolvedInputs =
                     [ (TxIn
@@ -1379,6 +1384,7 @@ blockchain =
                 }
             , Tx
                 { txId = Hash "6ed51b05821f0dc130a9411f0d63a241a624fbc8a9c8a2a13da8194ce3c463f4"
+                , txCBOR = Nothing
                 , fee = Nothing
                 , resolvedInputs =
                     [ ( TxIn
@@ -1415,6 +1421,7 @@ blockchain =
         , transactions =
             [ Tx
                 { txId = Hash "bbc7a1f0de24085ac48a52ee6f89d1815145845a8712547350a7e492385974ab"
+                , txCBOR = Nothing
                 , fee = Nothing
                 , resolvedInputs =
                     [ (TxIn
@@ -1461,6 +1468,7 @@ blockchain =
         , transactions =
             [ Tx
                 { txId = Hash "fd545d055c2241802d1518b7fd9f8842c217b54c73364e519ccada5cda07612a"
+                , txCBOR = Nothing
                 , fee = Nothing
                 , resolvedInputs =
                     [ (TxIn
@@ -1497,6 +1505,7 @@ blockchain =
         , transactions =
             [ Tx
                 { txId = Hash "dffbcd7ca494c4695cc2fd4ec525ffca0861bafb221ee185711f99ca49ae7c11"
+                , txCBOR = Nothing
                 , fee = Nothing
                 , resolvedInputs =
                     [ (TxIn
@@ -1532,6 +1541,7 @@ blockchain =
         , transactions =
             [ Tx
                 { txId = Hash "c430d9ae438b9fe1c0898e9c131f3ca2c64c34ef75b202a834b6eabe248eac88"
+                , txCBOR = Nothing
                 , fee = Nothing
                 , resolvedInputs =
                     [ (TxIn
@@ -1578,6 +1588,7 @@ blockchain =
         , transactions =
             [ Tx
                 { txId = Hash "b5af444a0d95ebd1a55185a0aee2b19835da1c86fc2b43f453f04c002bbc708e"
+                , txCBOR = Nothing
                 , fee = Nothing
                 , resolvedInputs =
                     [ ( TxIn
@@ -1658,6 +1669,7 @@ blockchain =
         , transactions =
             [ Tx
                 { txId = Hash "e65862828230aa340878c8d593f84d59397f10dfa0b183d2d15bea0a5db8ccaf"
+                , txCBOR = Nothing
                 , fee = Nothing
                 , resolvedInputs =
                     [ ( TxIn
@@ -1683,6 +1695,7 @@ blockchain =
                 }
             , Tx
                 { txId = Hash "611ce641f0f9282a35b1678fcd996016833c0de9e83a04bfa1178c8f045196ea"
+                , txCBOR = Nothing
                 , fee = Nothing
                 , resolvedInputs =
                     [ ( TxIn
@@ -1719,6 +1732,7 @@ blockchain =
         , transactions =
             [ Tx
                 { txId = Hash "0a5232f1683aaba994fb3774a5e123e2ed4f2842457b67b5309b825550a5f55d"
+                , txCBOR = Nothing
                 , fee = Nothing
                 , resolvedInputs =
                     [ ( TxIn
@@ -1744,6 +1758,7 @@ blockchain =
                 }
             , Tx
                 { txId = Hash "b8e9699ffff40c993d6778f586110b78cd30826feaa5314adf3a2e9894b9313a"
+                , txCBOR = Nothing
                 , fee = Nothing
                 , resolvedInputs =
                     [ ( TxIn
@@ -1840,6 +1855,7 @@ blockchain =
         , transactions =
             [ Tx
                 { txId = Hash "387b98d4cde710b78ce19e9077b61d6b7a2dff52fd16dcb884b31cd576904c86"
+                , txCBOR = Nothing
                 , fee = Nothing
                 , resolvedInputs =
                     [ ( TxIn
@@ -1865,6 +1881,7 @@ blockchain =
                 }
             , Tx
                 { txId = Hash "7726526b5cc003f71d9629c611397285004b5438eac9a118c2b20e2810e0783e"
+                , txCBOR = Nothing
                 , fee = Nothing
                 , resolvedInputs =
                     [ ( TxIn
@@ -1901,6 +1918,7 @@ blockchain =
         , transactions =
             [ Tx
                 { txId = Hash "9c6fed8fef3b296d4dee6e62ca72b180bf0ed1c13eb5f0445099b2a146235e77"
+                , txCBOR = Nothing
                 , fee = Nothing
                 , resolvedInputs =
                     [ (TxIn
@@ -1944,6 +1962,7 @@ blockchain =
             -- collateral output:
             [ Tx
                 { txId = Hash "tx-create-collateral-output"
+                , txCBOR = Nothing
                 , fee = Just (Coin 1)
                 , resolvedInputs =
                     [   ( TxIn
@@ -1992,6 +2011,7 @@ blockchain =
             -- created in the previous transaction:
             [ Tx
                 { txId = Hash "tx-spend-collateral-output"
+                , txCBOR = Nothing
                 , fee = Just (Coin 1)
                 , resolvedInputs =
                     [   ( TxIn

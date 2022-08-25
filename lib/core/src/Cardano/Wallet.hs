@@ -445,6 +445,8 @@ import Cardano.Wallet.Primitive.Types.Tx
     , txOutCoin
     , withdrawals
     )
+import Cardano.Wallet.Primitive.Types.Tx.CBOR
+    ( TxCBOR (..) )
 import Cardano.Wallet.Primitive.Types.UTxO
     ( UTxO (..), UTxOStatistics, computeUtxoStatistics, log10 )
 import Cardano.Wallet.Primitive.Types.UTxOIndex
@@ -512,8 +514,12 @@ import Control.Tracer
     ( Tracer, contramap, traceWith )
 import Crypto.Hash
     ( Blake2b_256, hash )
+import Data.ByteArray.Encoding
+    ( Base (..), convertToBase )
 import Data.ByteString
     ( ByteString )
+import Data.ByteString.Lazy
+    ( toStrict )
 import Data.DBVar
     ( modifyDBMaybe )
 import Data.Either
@@ -554,6 +560,8 @@ import Data.Text
     ( Text )
 import Data.Text.Class
     ( ToText (..) )
+import Data.Text.Encoding
+    ( decodeUtf8 )
 import Data.Time.Clock
     ( NominalDiffTime, UTCTime )
 import Data.Type.Equality
@@ -1159,7 +1167,12 @@ restoreBlocks ctx tr wid blocks nodeTip = db & \DBLayer{..} -> do
             ]
 
     mapExceptT atomically $ do
+        liftIO $ forM_ txs $ \(Tx {txCBOR=mcbor},_) ->
+            forM_ mcbor $ \cbor -> do
+                traceWith tr $ MsgStoringCBOR cbor
+
         putTxHistory wid txs
+
         updatePendingTxForExpiry wid (view #slotNo localTip)
         forM_ slotPoolDelegations $ \delegation@(slotNo, cert) -> do
             liftIO $ logDelegation delegation
@@ -3814,6 +3827,7 @@ data WalletFollowLog
     | MsgCheckpoint BlockHeader
     | MsgDiscoveredTxs [(Tx, TxMeta)]
     | MsgDiscoveredTxsContent [(Tx, TxMeta)]
+    | MsgStoringCBOR TxCBOR
     deriving (Show, Eq)
 
 -- | Helper wrapper type for the sake of logging.
@@ -3876,6 +3890,10 @@ instance ToText WalletFollowLog where
             "discovered " <> pretty (length txs) <> " new transaction(s)"
         MsgDiscoveredTxsContent txs ->
             "transactions: " <> pretty (blockListF (snd <$> txs))
+        MsgStoringCBOR TxCBOR{..} ->
+            "store new cbor for "
+                <> pretty (show txEra) <> ": "
+                <> (decodeUtf8 . convertToBase Base16 $ toStrict txCBOR)
 
 instance ToText WalletLog where
     toText = \case
@@ -3924,6 +3942,7 @@ instance HasSeverityAnnotation WalletFollowLog where
         MsgDiscoveredTxs [] -> Debug
         MsgDiscoveredTxs _ -> Info
         MsgDiscoveredTxsContent _ -> Debug
+        MsgStoringCBOR {} -> Debug
 
 instance HasPrivacyAnnotation WalletLog
 instance HasSeverityAnnotation WalletLog where

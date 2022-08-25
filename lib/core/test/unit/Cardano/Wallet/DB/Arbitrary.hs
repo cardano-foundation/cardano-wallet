@@ -132,6 +132,7 @@ import Cardano.Wallet.Primitive.Types.TokenMap.Gen
 import Cardano.Wallet.Primitive.Types.Tx
     ( Direction (..)
     , Tx (..)
+    , TxCBOR
     , TxIn (..)
     , TxMeta (..)
     , TxMetadata
@@ -140,6 +141,8 @@ import Cardano.Wallet.Primitive.Types.Tx
     , TxStatus (..)
     , isPending
     )
+import Cardano.Wallet.Primitive.Types.Tx.CBOR
+    ( TxCBOR (..) )
 import Cardano.Wallet.Primitive.Types.Tx.Gen
     ( genTxOutCoin, genTxScriptValidity, shrinkTxScriptValidity )
 import Cardano.Wallet.Primitive.Types.UTxO
@@ -227,6 +230,7 @@ import qualified Cardano.Wallet.Primitive.AddressDiscovery.Shared as Shared
 import qualified Data.ByteArray as BA
 import qualified Data.ByteString as BS
 import qualified Data.ByteString.Char8 as B8
+import qualified Data.ByteString.Lazy as BL
 import qualified Data.List as L
 import qualified Data.Map.Strict as Map
 
@@ -411,9 +415,18 @@ arbitraryChainLength = 10
                                   Transactions
 -------------------------------------------------------------------------------}
 
+instance Arbitrary TxCBOR where
+    arbitrary = TxCBOR
+        <$> cbor
+        <*> (toEnum <$> choose (0,5))
+      where
+        cbor = do
+            InfiniteList bytes _ <- arbitrary
+            return $ BL.pack $ take 500 bytes
+
 instance Arbitrary Tx where
-    shrink (Tx _tid fees ins cins outs cout wdrls md validity) =
-        [ mkTx fees ins' cins' outs' cout' wdrls' md' validity'
+    shrink (Tx _tid cbor fees ins cins outs cout wdrls md validity) =
+        [ mkTx cbor fees ins' cins' outs' cout' wdrls' md' validity'
         | (ins', cins', outs', cout', wdrls', md', validity')
             <- shrink
                 (ins, cins, outs, cout, wdrls, md, validity)
@@ -426,7 +439,7 @@ instance Arbitrary Tx where
         cout <- arbitrary
         wdrls <- fmap (Map.fromList . L.take 5) arbitrary
         fees <- arbitrary
-        mkTx fees ins cins outs cout wdrls
+        mkTx Nothing fees ins cins outs cout wdrls
             <$> arbitrary <*> liftArbitrary genTxScriptValidity
 
 instance Arbitrary TokenMap where

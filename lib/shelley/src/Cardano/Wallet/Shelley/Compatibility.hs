@@ -11,6 +11,7 @@
 {-# LANGUAGE PatternSynonyms #-}
 {-# LANGUAGE QuantifiedConstraints #-}
 {-# LANGUAGE QuasiQuotes #-}
+{-# LANGUAGE RankNTypes #-}
 {-# LANGUAGE RecordWildCards #-}
 {-# LANGUAGE ScopedTypeVariables #-}
 {-# LANGUAGE StandaloneDeriving #-}
@@ -29,7 +30,6 @@
 -- License: Apache-2.0
 --
 -- Conversion functions and static chain settings for Shelley.
-
 module Cardano.Wallet.Shelley.Compatibility
     ( CardanoBlock
     , StandardCrypto
@@ -111,8 +111,7 @@ module Cardano.Wallet.Shelley.Compatibility
     , fromNonMyopicMemberRewards
     , optimumNumberOfPools
     , getProducer
-
-    , HasNetworkId (..)
+    , HasNetworkId(..)
     , fromBlockNo
     , fromCardanoBlock
     , toCardanoEra
@@ -190,6 +189,8 @@ import Cardano.Api.Shelley
     , ShelleyGenesis (..)
     , fromShelleyMetadata
     )
+import Cardano.Binary
+    ( serialize' )
 import Cardano.Chain.Block
     ( ABlockOrBoundary (ABOBBlock, ABOBBoundary), blockTxPayload )
 import Cardano.Chain.UTxO
@@ -206,6 +207,8 @@ import Cardano.Ledger.Serialization
     ( ToCBORGroup, sizedValue )
 import Cardano.Ledger.Shelley.API
     ( StrictMaybe (SJust, SNothing) )
+import Cardano.Ledger.Shelley.TxBody
+    ( EraIndependentTxBody )
 import Cardano.Slotting.Slot
     ( EpochNo (..), EpochSize (..) )
 import Cardano.Slotting.Time
@@ -235,6 +238,10 @@ import Cardano.Wallet.Primitive.Types.TokenMap
     ( TokenMap, toNestedList )
 import Cardano.Wallet.Primitive.Types.TokenPolicy
     ( TokenPolicyId )
+import Cardano.Wallet.Primitive.Types.Tx.CBOR
+    ( mkTxCBOR )
+import Cardano.Wallet.Primitive.Types.Tx.CBOR.Hash
+    ( fromShelleyTxId, shelleyTxHash )
 import Cardano.Wallet.Shelley.Compatibility.Ledger
     ( toWalletScript
     , toWalletTokenName
@@ -354,7 +361,6 @@ import qualified Cardano.Api as Cardano
 import qualified Cardano.Api.Byron as Cardano
     ( Tx (ByronTx) )
 import qualified Cardano.Api.Shelley as Cardano
-import qualified Cardano.Binary as Binary
 import qualified Cardano.Byron.Codec.Cbor as CBOR
 import qualified Cardano.Chain.Common as Byron
 import qualified Cardano.Crypto.Hash as Crypto
@@ -1099,6 +1105,7 @@ fromGenesisData g =
       where
         mkTx (addr, c) = W.Tx
             { txId = pseudoHash
+            , txCBOR = Nothing
             , fee = Nothing
             , resolvedInputs = []
             , resolvedCollateralInputs = []
@@ -1156,10 +1163,6 @@ optimumNumberOfPools = unsafeConvert . getField @"_nOpt"
 --
 -- Txs
 --
-
-fromShelleyTxId :: SL.TxId crypto -> W.Hash "Tx"
-fromShelleyTxId (SL.TxId h) =
-    W.Hash $ Crypto.hashToBytes $ SafeHash.extractHash h
 
 fromShelleyTxIn
     :: SL.TxIn crypto
@@ -1275,6 +1278,22 @@ fromCardanoTx = \case
     extract (tx, certs, mint, burn, validity) =
         (tx, mint, burn, certs, validity)
 
+
+alonzoTxHash
+    :: ( Crypto.HashAlgorithm (SL.HASH crypto)
+       , SafeHash.HashAnnotated
+             (SL.Core.TxBody era)
+             EraIndependentTxBody
+             crypto)
+    => Babbage.ValidatedTx era
+    -> W.Hash "Tx"
+alonzoTxHash (Alonzo.ValidatedTx bod _ _ _) = fromShelleyTxId $ TxIn.txid bod
+
+
+
+
+
+
 -- NOTE: For resolved inputs we have to pass in a dummy value of 0.
 fromShelleyTx
     :: SLAPI.Tx (Cardano.ShelleyLedgerEra ShelleyEra)
@@ -1287,7 +1306,9 @@ fromShelleyTx
 fromShelleyTx tx =
     ( W.Tx
         { txId =
-            fromShelleyTxId $ TxIn.txid @(Cardano.ShelleyLedgerEra ShelleyEra) bod
+            shelleyTxHash tx
+        , txCBOR =
+            Just $ mkTxCBOR tx $ AnyCardanoEra ShelleyEra
         , fee =
             Just $ fromShelleyCoin fee
         , resolvedInputs =
@@ -1312,7 +1333,7 @@ fromShelleyTx tx =
     , Just (ValidityIntervalExplicit (Quantity 0) (Quantity ttl))
     )
   where
-    SL.Tx bod@(SL.TxBody ins outs certs wdrls fee (O.SlotNo ttl) _ _) _ mmd = tx
+    SL.Tx (SL.TxBody ins outs certs wdrls fee (O.SlotNo ttl) _ _) _ mmd = tx
 
 fromAllegraTx
     :: SLAPI.Tx (Cardano.ShelleyLedgerEra AllegraEra)
@@ -1325,7 +1346,9 @@ fromAllegraTx
 fromAllegraTx tx =
     ( W.Tx
         { txId =
-            fromShelleyTxId $ TxIn.txid @(Cardano.ShelleyLedgerEra AllegraEra) bod
+            shelleyTxHash tx
+        , txCBOR =
+            Just $ mkTxCBOR tx $ AnyCardanoEra AllegraEra
         , fee =
             Just $ fromShelleyCoin fee
         , resolvedInputs =
@@ -1351,7 +1374,7 @@ fromAllegraTx tx =
     , Just (fromLedgerTxValidity ttl)
     )
   where
-    SL.Tx bod@(MA.TxBody ins outs certs wdrls fee ttl _ _ _) _ mmd = tx
+    SL.Tx (MA.TxBody ins outs certs wdrls fee ttl _ _ _) _ mmd = tx
 
     -- fixme: [ADP-525] It is fine for now since we do not look at script
     -- pre-images. But this is precisely what we want as part of the
@@ -1382,8 +1405,10 @@ fromMaryTx
        )
 fromMaryTx tx =
     ( W.Tx
-        { txId
-            = fromShelleyTxId $ TxIn.txid @(Cardano.ShelleyLedgerEra MaryEra) bod
+        { txId =
+            shelleyTxHash tx
+        , txCBOR =
+            Just $ mkTxCBOR tx $ AnyCardanoEra MaryEra
         , fee =
             Just $ fromShelleyCoin fee
         , resolvedInputs =
@@ -1485,10 +1510,12 @@ fromAlonzoTx
        , TokenMapWithScripts
        , Maybe ValidityIntervalExplicit
        )
-fromAlonzoTx (Alonzo.ValidatedTx bod wits (Alonzo.IsValid isValid) aux) =
+fromAlonzoTx tx@(Alonzo.ValidatedTx bod wits (Alonzo.IsValid isValid) aux) =
     ( W.Tx
         { txId =
-            fromShelleyTxId $ TxIn.txid @(Cardano.ShelleyLedgerEra AlonzoEra) bod
+            alonzoTxHash tx
+        , txCBOR =
+            Just $ mkTxCBOR tx $ AnyCardanoEra AlonzoEra
         , fee =
             Just $ fromShelleyCoin fee
         , resolvedInputs =
@@ -1572,11 +1599,12 @@ fromBabbageTx
        , TokenMapWithScripts
        , Maybe ValidityIntervalExplicit
        )
-fromBabbageTx (Alonzo.ValidatedTx bod wits (Alonzo.IsValid isValid) aux) =
+fromBabbageTx tx@(Alonzo.ValidatedTx bod wits (Alonzo.IsValid isValid) aux) =
     ( W.Tx
         { txId =
-            fromShelleyTxId $
-            TxIn.txid @(Cardano.ShelleyLedgerEra BabbageEra) bod
+            alonzoTxHash tx
+        , txCBOR =
+            Just $ mkTxCBOR tx $ AnyCardanoEra BabbageEra
         , fee =
             Just $ fromShelleyCoin fee
         , resolvedInputs =
@@ -2135,6 +2163,7 @@ instance (forall era. IsCardanoEra era => Eq (thing era)) =>
         Just Refl -> a == b
         Nothing -> False
 
+
 --------------------------------------------------------------------------------
 -- Unsafe conversions
 --------------------------------------------------------------------------------
@@ -2195,7 +2224,7 @@ tokenBundleSizeAssessor maxSize = W.TokenBundleSizeAssessor {..}
 
 computeTokenBundleSerializedLengthBytes :: TokenBundle.TokenBundle -> W.TxSize
 computeTokenBundleSerializedLengthBytes = W.TxSize . safeCast
-    . BS.length . Binary.serialize' . Cardano.toMaryValue . toCardanoValue
+    . BS.length . serialize' . Cardano.toMaryValue . toCardanoValue
   where
     safeCast :: Int -> Natural
     safeCast = fromIntegral

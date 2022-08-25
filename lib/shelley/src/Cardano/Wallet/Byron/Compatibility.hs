@@ -43,8 +43,10 @@ module Cardano.Wallet.Byron.Compatibility
 
 import Prelude
 
+import Cardano.Api
+    ( AnyCardanoEra (AnyCardanoEra), CardanoEra (ByronEra) )
 import Cardano.Binary
-    ( serialize' )
+    ( ToCBOR (..), serialize' )
 import Cardano.Chain.Block
     ( ABlockOrBoundary (..), blockTxPayload )
 import Cardano.Chain.Common
@@ -62,14 +64,18 @@ import Cardano.Chain.Update
     ( ProtocolParameters (..) )
 import Cardano.Chain.UTxO
     ( ATxAux (..), Tx (..), TxIn (..), TxOut (..), taTx, unTxPayload )
-import Cardano.Crypto
-    ( serializeCborHash )
 import Cardano.Crypto.ProtocolMagic
     ( ProtocolMagicId, unProtocolMagicId )
 import Cardano.Wallet.Primitive.Types.MinimumUTxO
     ( minimumUTxONone )
+import Cardano.Wallet.Primitive.Types.Tx.CBOR
+    ( TxCBOR (..) )
+import Cardano.Wallet.Primitive.Types.Tx.CBOR.Hash
+    ( byronTxHash )
 import Cardano.Wallet.Unsafe
     ( unsafeFromHex )
+import Codec.CBOR.Write
+    ( toLazyByteString )
 import Crypto.Hash.Utils
     ( blake2b256 )
 import Data.Coerce
@@ -216,6 +222,7 @@ genesisBlockFromTxOuts gp outs = W.Block
   where
     mkTx out@(W.TxOut (W.Address bytes) _) = W.Tx
         { txId = W.Hash $ blake2b256 bytes
+        , txCBOR = Nothing
         , fee = Nothing
         , resolvedInputs = []
         , resolvedCollateralInputs = []
@@ -270,8 +277,11 @@ toByronBlockHeader gp blk = W.BlockHeader
 
 fromTxAux :: ATxAux a -> W.Tx
 fromTxAux txAux = case taTx txAux of
-    tx@(UnsafeTx inputs outputs _attributes) -> W.Tx
-        { txId = W.Hash $ CC.hashToBytes $ serializeCborHash tx
+    UnsafeTx inputs outputs _attributes -> W.Tx
+        { txId = byronTxHash txAux
+
+        , txCBOR  = Just $ TxCBOR (toLazyByteString $ toCBOR $ () <$ txAux)
+            $ AnyCardanoEra ByronEra
 
         , fee = Nothing
 

@@ -37,6 +37,7 @@ module Cardano.Wallet.Primitive.Types.Tx
     , TokenBundleSizeAssessment (..)
     , TxScriptValidity(..)
     , ScriptWitnessIndex (..)
+    , TxCBOR
 
     -- * Serialisation
     , SealedTx (serialisedTx)
@@ -140,6 +141,8 @@ import Cardano.Wallet.Primitive.Types.TokenMap
     ( AssetId, Lexicographic (..), TokenMap )
 import Cardano.Wallet.Primitive.Types.TokenQuantity
     ( TokenQuantity (..) )
+import Cardano.Wallet.Primitive.Types.Tx.CBOR
+    ( TxCBOR )
 import Cardano.Wallet.Util
     ( HasCallStack, internalError )
 import Control.DeepSeq
@@ -217,6 +220,9 @@ import qualified Data.Set as Set
 import qualified Data.Text as T
 import qualified Data.Text.Lazy.Builder as Builder
 
+
+
+
 -- | Primitive @Tx@-type.
 --
 -- Currently tailored for jormungandr in that inputs are @(TxIn, Coin)@
@@ -228,8 +234,11 @@ data Tx = Tx
         -- ^ Jörmungandr computes transaction id by hashing the full content of
         -- the transaction, which includes witnesses. Therefore, we need either
         -- to keep track of the witnesses to be able to re-compute the tx id
-        -- every time, or, simply keep track of the id itself.
 
+        -- every time, or, simply keep track of the id itself.
+    , txCBOR
+        :: Maybe TxCBOR
+        -- ^ Serialized version of the transaction as received from the Node.
     , fee
         :: !(Maybe Coin)
         -- ^ Explicit fee for that transaction, if available. Fee are available
@@ -766,6 +775,8 @@ isPending = (== Pending) . (status :: TxMeta -> TxStatus)
 data TransactionInfo = TransactionInfo
     { txInfoId :: !(Hash "Tx")
     -- ^ Transaction ID of this transaction
+    , txInfoCBOR :: (Maybe TxCBOR)
+    -- ^ Serialization of this transaction
     , txInfoFee :: !(Maybe Coin)
     -- ^ Explicit transaction fee
     , txInfoInputs :: ![(TxIn, Coin, Maybe TxOut)]
@@ -826,6 +837,7 @@ txScriptInvalid Tx {scriptValidity} = case scriptValidity of
 fromTransactionInfo :: TransactionInfo -> Tx
 fromTransactionInfo info = Tx
     { txId = txInfoId info
+    , txCBOR = txInfoCBOR info
     , fee = txInfoFee info
     , resolvedInputs = drop3rd <$> txInfoInputs info
     , resolvedCollateralInputs = drop3rd <$> txInfoCollateralInputs info

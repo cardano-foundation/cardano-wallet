@@ -474,6 +474,7 @@ mReadTxHistory ti wid minWithdrawal order range mstatus db@(Database wallets txs
     mkTransactionInfo cp (tx, meta) = TransactionInfo
         { txInfoId =
             view #txId tx
+        , txInfoCBOR = view #txCBOR tx
         , txInfoFee =
             fee tx
         , txInfoInputs =
