@@ -1,5 +1,4 @@
 {-# LANGUAGE GADTs #-}
-{-# LANGUAGE LambdaCase #-}
 
 -- |
 -- Copyright: © 2022 IOHK
@@ -14,201 +13,95 @@ module Cardano.Wallet.Shelley.MinimumUTxO
 
 import Prelude
 
-import Cardano.Ledger.Babbage.Rules.Utxo
-    ( babbageMinUTxOValue )
-import Cardano.Ledger.Serialization
-    ( mkSized )
 import Cardano.Wallet.Primitive.Types.Address
     ( Address (..) )
 import Cardano.Wallet.Primitive.Types.Coin
     ( Coin (..) )
 import Cardano.Wallet.Primitive.Types.MinimumUTxO
-    ( MinimumUTxO (..), MinimumUTxOForShelleyBasedEra (..) )
+    ( MinimumUTxO (..) )
 import Cardano.Wallet.Primitive.Types.TokenBundle
     ( TokenBundle (..) )
 import Cardano.Wallet.Primitive.Types.TokenMap
     ( TokenMap )
 import Cardano.Wallet.Primitive.Types.Tx
     ( TxOut (..), txOutMaxCoin )
-import Cardano.Wallet.Shelley.Compatibility
-    ( toCardanoTxOut, unsafeLovelaceToWalletCoin, unsafeValueToLovelace )
-import Cardano.Wallet.Shelley.Compatibility.Ledger
-    ( toBabbageTxOut, toWalletCoin )
-import Data.Function
-    ( (&) )
-import GHC.Stack
-    ( HasCallStack )
-import Ouroboros.Consensus.Cardano.Block
-    ( StandardBabbage )
 
-import qualified Cardano.Api.Shelley as Cardano
-import qualified Cardano.Ledger.Babbage.PParams as Babbage
 import qualified Cardano.Wallet.Primitive.Types.TokenBundle as TokenBundle
+import qualified Cardano.Wallet.Shelley.MinimumUTxO.Internal as Internal
 
 -- | Computes a minimum 'Coin' value for a 'TokenMap' that is destined for
 --   inclusion in a transaction output.
+--
+-- The value returned is a /safe/ minimum, in the sense that any value above
+-- the minimum should also satisfy the minimum UTxO rule. Consequently, when
+-- assigning ada quantities to outputs, it should be safe to assign any value
+-- that is greater than or equal to the value returned by this function.
 --
 computeMinimumCoinForUTxO
-    :: HasCallStack
-    => MinimumUTxO
+    :: MinimumUTxO
     -> Address
     -> TokenMap
     -> Coin
-computeMinimumCoinForUTxO = \case
-    MinimumUTxONone ->
-        \_addr _tokenMap -> Coin 0
-    MinimumUTxOConstant c ->
-        \_addr _tokenMap -> c
-    MinimumUTxOForShelleyBasedEraOf minUTxO ->
-        computeMinimumCoinForUTxOShelleyBasedEra minUTxO
-
--- | Computes a minimum 'Coin' value for a 'TokenMap' that is destined for
---   inclusion in a transaction output.
---
--- This function returns a value that is specific to a given Shelley-based era.
--- Importantly, a value that is valid in one era will not necessarily be valid
--- in another era.
---
-computeMinimumCoinForUTxOShelleyBasedEra
-    :: HasCallStack
-    => MinimumUTxOForShelleyBasedEra
-    -> Address
-    -> TokenMap
-    -> Coin
-computeMinimumCoinForUTxOShelleyBasedEra
-    (MinimumUTxOForShelleyBasedEra era pp) addr tokenMap = case era of
-        -- Here we treat the Babbage era specially and use the ledger
-        -- to compute the minimum ada quantity, bypassing the Cardano
-        -- API. This appears to be significantly faster.
-        Cardano.ShelleyBasedEraBabbage ->
-            computeLedgerMinimumCoinForBabbage pp addr
-                (TokenBundle txOutMaxCoin tokenMap)
-        _ ->
-            unsafeCoinFromCardanoApiCalculateMinimumUTxOResult $
-            Cardano.calculateMinimumUTxO era
-                (embedTokenMapWithinPaddedTxOut era addr tokenMap)
-                (Cardano.fromLedgerPParams era pp)
+computeMinimumCoinForUTxO minimumUTxO addr tokenMap =
+    case minimumUTxO of
+        MinimumUTxONone ->
+            Coin 0
+        MinimumUTxOConstant c ->
+            c
+        MinimumUTxOForShelleyBasedEraOf minimumUTxOShelley ->
+            -- It's very important that we do not underestimate minimum UTxO
+            -- quantities, as this may result in the creation of transactions
+            -- that are unacceptable to the ledger.
+            --
+            -- In the cases of change generation and wallet balance migration,
+            -- any underestimation would be particularly problematic, as
+            -- outputs are generated automatically, and users do not have
+            -- direct control over the ada quantities generated.
+            --
+            -- However, while we cannot underestimate minimum UTxO quantities,
+            -- we are at liberty to moderately overestimate them.
+            --
+            -- Since the minimum UTxO function is monotonically increasing
+            -- w.r.t. the size of the ada quantity, if we supply a 'TxOut' with
+            -- an ada quantity whose serialized length is the maximum possible
+            -- length, we can be confident that the resultant value can always
+            -- safely be increased.
+            --
+            Internal.computeMinimumCoinForUTxO_CardanoLedger
+                minimumUTxOShelley
+                (TxOut addr $ TokenBundle txOutMaxCoin tokenMap)
 
 -- | Returns 'True' if and only if the given 'TokenBundle' has a 'Coin' value
 --   that is below the minimum acceptable 'Coin' value.
+--
+-- This function should /only/ be used to validate existing 'Coin' values that
+-- do not need to be modified in any way.
+--
+-- Increasing the 'Coin' value of an output can lead to an increase in the
+-- serialized length of that output, which can in turn lead to an increase in
+-- the minimum required 'Coin' value, since the minimum required 'Coin' value
+-- is dependent on an output's serialized length.
+--
+-- Therefore, even if this function indicates that a given value 'Coin' value
+-- 'c' satisfies the minimum UTxO rule, it should not be taken to imply that
+-- all values greater than 'c' will also satisfy the minimum UTxO rule.
+--
+-- If you need to generate a value that can always safely be increased, use
+-- the 'computeMinimumCoinForUTxO' function instead.
 --
 isBelowMinimumCoinForUTxO
     :: MinimumUTxO
     -> Address
     -> TokenBundle
     -> Bool
-isBelowMinimumCoinForUTxO = \case
-    MinimumUTxONone ->
-        \_addr _tokenBundle ->
+isBelowMinimumCoinForUTxO minimumUTxO addr tokenBundle =
+    case minimumUTxO of
+        MinimumUTxONone ->
             False
-    MinimumUTxOConstant c ->
-        \_addr tokenBundle ->
+        MinimumUTxOConstant c ->
             TokenBundle.getCoin tokenBundle < c
-    MinimumUTxOForShelleyBasedEraOf minUTxO ->
-        isBelowMinimumCoinForUTxOShelleyBasedEra minUTxO
-
--- | Returns 'True' if and only if the given 'TokenBundle' has a 'Coin' value
---   that is below the minimum acceptable 'Coin' value for a Shelley-based
---   era.
---
-isBelowMinimumCoinForUTxOShelleyBasedEra
-    :: MinimumUTxOForShelleyBasedEra
-    -> Address
-    -> TokenBundle
-    -> Bool
-isBelowMinimumCoinForUTxOShelleyBasedEra
-    (MinimumUTxOForShelleyBasedEra era pp) addr tokenBundle =
-        TokenBundle.getCoin tokenBundle <
-            -- Here we treat the Babbage era specially and use the ledger
-            -- to compute the minimum ada quantity, bypassing the Cardano
-            -- API. This appears to be significantly faster.
-            case era of
-                Cardano.ShelleyBasedEraBabbage ->
-                    computeLedgerMinimumCoinForBabbage pp addr tokenBundle
-                _ ->
-                    cardanoApiMinimumCoin
-  where
-    cardanoApiMinimumCoin :: Coin
-    cardanoApiMinimumCoin =
-        unsafeCoinFromCardanoApiCalculateMinimumUTxOResult $
-        Cardano.calculateMinimumUTxO era
-            (toCardanoTxOut era $ TxOut addr tokenBundle)
-            (Cardano.fromLedgerPParams era pp)
-
--- | Embeds a 'TokenMap' within a padded 'Cardano.TxOut' value.
---
--- When computing the minimum UTxO quantity for a given 'TokenMap', we do not
--- have access to an address or to an ada quantity.
---
--- However, in order to compute a minimum UTxO quantity through the Cardano
--- API, we must supply a 'TxOut' value with a valid address and ada quantity.
---
--- It's imperative that we do not underestimate minimum UTxO quantities, as
--- this may result in the creation of transactions that are unacceptable to
--- the ledger. In the case of change generation, this would be particularly
--- problematic, as change outputs are generated automatically, and users do
--- not have direct control over the ada quantities generated.
---
--- However, while we cannot underestimate minimum UTxO quantities, we are at
--- liberty to moderately overestimate them.
---
--- Since the minimum UTxO quantity function is monotonically increasing w.r.t.
--- the size of the address and ada quantity, if we supply a 'TxOut' with an
--- address and ada quantity whose serialized lengths are the maximum possible
--- lengths, we can be confident that the resultant value will not be an
--- underestimate.
---
-embedTokenMapWithinPaddedTxOut
-    :: Cardano.ShelleyBasedEra era
-    -> Address
-    -> TokenMap
-    -> Cardano.TxOut Cardano.CtxTx era
-embedTokenMapWithinPaddedTxOut era addr m =
-    toCardanoTxOut era $ TxOut addr $ TokenBundle txOutMaxCoin m
-
--- | Extracts a 'Coin' value from the result of calling the Cardano API
---   function 'calculateMinimumUTxO'.
---
-unsafeCoinFromCardanoApiCalculateMinimumUTxOResult
-    :: HasCallStack
-    => Either Cardano.MinimumUTxOError Cardano.Value
-    -> Coin
-unsafeCoinFromCardanoApiCalculateMinimumUTxOResult = \case
-    Right value ->
-        -- We assume that the returned value is a non-negative ada quantity
-        -- with no other assets. If this assumption is violated, we have no
-        -- way to continue, and must raise an error:
-        value
-            & unsafeValueToLovelace
-            & unsafeLovelaceToWalletCoin
-    Left e ->
-        -- The 'Cardano.calculateMinimumUTxO' function should only return
-        -- an error if a required protocol parameter is missing.
-        --
-        -- However, given that values of 'MinimumUTxOForShelleyBasedEra'
-        -- can only be constructed by supplying an era-specific protocol
-        -- parameters record, it should be impossible to trigger this
-        -- condition.
-        --
-        -- Any violation of this assumption indicates a programming error.
-        -- If this condition is triggered, we have no way to continue, and
-        -- must raise an error:
-        --
-        error $ unwords
-            [ "unsafeCoinFromCardanoApiCalculateMinimumUTxOResult:"
-            , "unexpected error:"
-            , show e
-            ]
-
--- | Uses the ledger to compute a minimum ada quantity for the Babbage era.
---
-computeLedgerMinimumCoinForBabbage
-    :: Babbage.PParams StandardBabbage
-    -> Address
-    -> TokenBundle
-    -> Coin
-computeLedgerMinimumCoinForBabbage pp addr tokenBundle =
-    toWalletCoin
-        $ babbageMinUTxOValue pp
-        $ mkSized
-        $ toBabbageTxOut (TxOut addr tokenBundle) Nothing
+        MinimumUTxOForShelleyBasedEraOf minimumUTxOShelley ->
+            TokenBundle.getCoin tokenBundle <
+                Internal.computeMinimumCoinForUTxO_CardanoLedger
+                    minimumUTxOShelley
+                    (TxOut addr tokenBundle)

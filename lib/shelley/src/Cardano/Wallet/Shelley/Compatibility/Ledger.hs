@@ -20,8 +20,6 @@ module Cardano.Wallet.Shelley.Compatibility.Ledger
     , toLedgerTokenPolicyId
     , toLedgerTokenName
     , toLedgerTokenQuantity
-    , toAlonzoTxOut
-    , toBabbageTxOut
 
       -- * Conversions from ledger specification types to wallet types
     , toWalletCoin
@@ -34,6 +32,13 @@ module Cardano.Wallet.Shelley.Compatibility.Ledger
       -- * Roundtrip conversion between wallet types and ledger specification
       --   types
     , Convert (..)
+
+      -- * Conversions for transaction outputs
+    , toShelleyTxOut
+    , toAllegraTxOut
+    , toMaryTxOut
+    , toAlonzoTxOut
+    , toBabbageTxOut
 
     ) where
 
@@ -78,7 +83,13 @@ import GHC.Stack
 import Numeric.Natural
     ( Natural )
 import Ouroboros.Consensus.Shelley.Eras
-    ( StandardCrypto )
+    ( StandardAllegra
+    , StandardAlonzo
+    , StandardBabbage
+    , StandardCrypto
+    , StandardMary
+    , StandardShelley
+    )
 
 import qualified Cardano.Crypto.Hash.Class as Crypto
 import qualified Cardano.Ledger.Address as Ledger
@@ -90,6 +101,7 @@ import qualified Cardano.Ledger.Crypto as Ledger
 import qualified Cardano.Ledger.Keys as Ledger
 import qualified Cardano.Ledger.Mary.Value as Ledger
 import qualified Cardano.Ledger.Shelley.API as Ledger
+import qualified Cardano.Ledger.Shelley.TxBody as Shelley
 import qualified Cardano.Ledger.ShelleyMA.Timelocks as MA
 import qualified Cardano.Wallet.Primitive.Types.Coin as Coin
 import qualified Cardano.Wallet.Primitive.Types.TokenBundle as TokenBundle
@@ -248,10 +260,32 @@ instance Convert Address (Ledger.Addr StandardCrypto) where
             ]
     toWallet = Address . Ledger.serialiseAddr
 
+--------------------------------------------------------------------------------
+-- Conversions for 'TxOut'
+--------------------------------------------------------------------------------
+
+toShelleyTxOut
+    :: TxOut
+    -> Shelley.TxOut StandardShelley
+toShelleyTxOut (TxOut addr bundle) =
+    Shelley.TxOut (toLedger addr) (toLedger (TokenBundle.coin bundle))
+
+toAllegraTxOut
+    :: TxOut
+    -> Shelley.TxOut StandardAllegra
+toAllegraTxOut (TxOut addr bundle) =
+    Shelley.TxOut (toLedger addr) (toLedger (TokenBundle.coin bundle))
+
+toMaryTxOut
+    :: TxOut
+    -> Shelley.TxOut StandardMary
+toMaryTxOut (TxOut addr bundle) =
+    Shelley.TxOut (toLedger addr) (toLedger bundle)
+
 toAlonzoTxOut
     :: TxOut
     -> Maybe (Hash "Datum")
-    -> Alonzo.TxOut (Alonzo.AlonzoEra StandardCrypto)
+    -> Alonzo.TxOut StandardAlonzo
 toAlonzoTxOut (TxOut addr bundle) = \case
     Nothing ->
         Alonzo.TxOut
@@ -262,12 +296,15 @@ toAlonzoTxOut (TxOut addr bundle) = \case
         Alonzo.TxOut
             (toLedger addr)
             (toLedger bundle)
-            (Ledger.SJust $ unsafeMakeSafeHash $ Crypto.UnsafeHash $ toShort bytes)
+            (Ledger.SJust
+                $ unsafeMakeSafeHash
+                $ Crypto.UnsafeHash
+                $ toShort bytes)
 
 toBabbageTxOut
     :: TxOut
     -> Maybe (Hash "Datum")
-    -> Babbage.TxOut (Babbage.BabbageEra StandardCrypto)
+    -> Babbage.TxOut StandardBabbage
 toBabbageTxOut (TxOut addr bundle) = \case
     Nothing ->
         Babbage.TxOut
