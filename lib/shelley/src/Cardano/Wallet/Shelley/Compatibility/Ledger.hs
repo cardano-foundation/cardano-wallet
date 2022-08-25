@@ -83,7 +83,13 @@ import GHC.Stack
 import Numeric.Natural
     ( Natural )
 import Ouroboros.Consensus.Shelley.Eras
-    ( StandardAllegra, StandardCrypto, StandardMary, StandardShelley )
+    ( StandardAllegra
+    , StandardAlonzo
+    , StandardBabbage
+    , StandardCrypto
+    , StandardMary
+    , StandardShelley
+    )
 
 import qualified Cardano.Crypto.Hash.Class as Crypto
 import qualified Cardano.Ledger.Address as Ledger
@@ -279,7 +285,7 @@ toMaryTxOut (TxOut addr bundle) =
 toAlonzoTxOut
     :: TxOut
     -> Maybe (Hash "Datum")
-    -> Alonzo.TxOut (Alonzo.AlonzoEra StandardCrypto)
+    -> Alonzo.TxOut StandardAlonzo
 toAlonzoTxOut (TxOut addr bundle) = \case
     Nothing ->
         Alonzo.TxOut
@@ -298,7 +304,7 @@ toAlonzoTxOut (TxOut addr bundle) = \case
 toBabbageTxOut
     :: TxOut
     -> Maybe (Hash "Datum")
-    -> Babbage.TxOut (Babbage.BabbageEra StandardCrypto)
+    -> Babbage.TxOut StandardBabbage
 toBabbageTxOut (TxOut addr bundle) = \case
     Nothing ->
         Babbage.TxOut
