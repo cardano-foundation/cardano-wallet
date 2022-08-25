@@ -712,11 +712,11 @@ slotLengthValue =  0.2
 
 -- | Parameter in test cluster shelley genesis.
 securityParameterValue :: Word32
-securityParameterValue = 5
+securityParameterValue = 10
 
 -- | Parameter in test cluster shelley genesis.
 epochLengthValue :: Word32
-epochLengthValue = 80
+epochLengthValue = 160
 
 -- | Wallet server's chosen transaction TTL value (in seconds) when none is
 -- given.
