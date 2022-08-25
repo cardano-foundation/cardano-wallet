@@ -93,6 +93,8 @@ import Cardano.Wallet.DB.Sqlite.Schema
     )
 import Cardano.Wallet.DB.Sqlite.Types
     ( BlockId (..), TxId (..) )
+import Cardano.Wallet.DB.Store.CBOR.Model
+    ( TxCBORHistory (..) )
 import Cardano.Wallet.DB.Store.Checkpoints
     ( PersistAddressBook (..), blockHeaderFromEntity, mkStoreWallets )
 import Cardano.Wallet.DB.Store.Meta.Model
@@ -104,6 +106,8 @@ import Cardano.Wallet.DB.Store.Submissions.Model
     ( TxLocalSubmissionHistory (..) )
 import Cardano.Wallet.DB.Store.Transactions.Model
     ( TxHistoryF (..), decorateWithTxOuts, withdrawals )
+import Cardano.Wallet.DB.Store.TransactionsWithCBOR.Model
+    ( TxHistoryWithCBOR (TxHistoryWithCBOR) )
 import Cardano.Wallet.DB.Store.Wallets.Model
     ( DeltaWalletsMetaWithSubmissions (..)
     , TxWalletsHistory
@@ -218,7 +222,6 @@ import qualified Cardano.Wallet.Primitive.Types.Tx as W
 import qualified Data.Map.Strict as Map
 import qualified Data.Set as Set
 import qualified Data.Text as T
-import Cardano.Wallet.DB.Store.TransactionsWithCBOR.Model (TxHistoryWithCBOR(TxHistoryWithCBOR))
 
 {-------------------------------------------------------------------------------
                                Database "factory"
@@ -1033,8 +1036,8 @@ selectTxHistory
     -> TxWalletsHistory
     -> m [W.TransactionInfo]
 selectTxHistory cp ti wid minWithdrawal order whichMeta
-    (TxHistoryWithCBOR txHistory _, wmetas) = do
-    tinfos <- mapM (uncurry $ mkTransactionInfo ti (W.currentTip cp)) $ do
+    (TxHistoryWithCBOR txHistory (TxCBORHistory txCBORHistory), wmetas) = do
+    tinfos <- sequence $ do
         (TxMetaHistory metas, _) <- maybeToList $ Map.lookup wid wmetas
         meta <- toList metas
         guard $  whichMeta meta
@@ -1044,7 +1047,11 @@ selectTxHistory cp ti wid minWithdrawal order whichMeta
             (\coin -> any (>= coin)
                 $ txWithdrawalAmount <$>  withdrawals transaction)
             minWithdrawal
-        pure (transaction, meta)
+        pure $ mkTransactionInfo
+            ti (W.currentTip cp)
+                transaction
+                (Map.lookup (txMetaTxId meta) txCBORHistory)
+                meta
     pure $ sortTx tinfos
     where
         sortTx = case order of
