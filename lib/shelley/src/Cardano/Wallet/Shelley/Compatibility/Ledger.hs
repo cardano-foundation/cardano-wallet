@@ -262,7 +262,10 @@ toAlonzoTxOut (TxOut addr bundle) = \case
         Alonzo.TxOut
             (toLedger addr)
             (toLedger bundle)
-            (Ledger.SJust $ unsafeMakeSafeHash $ Crypto.UnsafeHash $ toShort bytes)
+            (Ledger.SJust
+                $ unsafeMakeSafeHash
+                $ Crypto.UnsafeHash
+                $ toShort bytes)
 
 toBabbageTxOut
     :: TxOut
