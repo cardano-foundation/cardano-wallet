@@ -4082,11 +4082,6 @@ paymentPartialTx txouts = PartialTx (Cardano.Tx body []) [] []
         Nothing
         Cardano.TxScriptValidityNone
 
-    -- NOTE: It would be nicer not to have to deal with the ledger internals
-    -- here. Perhaps we could go through cardano-api instead, if we create a
-    -- @TxBodyContent -> Tx@, where - unlike @makeTransactionBody@ - there is
-    -- no validation.
-    --
     -- NOTE: We should write this as @emptyTxBody { outputs = ... }@.
     -- The next time we bump the ledger , this may already be availible to us
     -- with 'mkBabbageTxBody' and 'initialTxBodyRaw'.
