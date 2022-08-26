@@ -285,6 +285,7 @@ test-suite unit
     , MonadRandom
     , optparse-applicative
     , ouroboros-consensus-shelley
+    , ouroboros-consensus
     , ouroboros-network
     , cardano-ledger-shelley
     , plutus-core

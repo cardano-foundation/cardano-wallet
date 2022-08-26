@@ -1554,8 +1554,17 @@ normalizeDelegationAddress s addr = do
 -- | A 'PartialTx' is an an unbalanced 'SealedTx' along with the necessary
 -- information to balance it.
 --
--- The 'inputs' and 'redeemers' must match the binary transaction contained in
--- the 'sealedTx'.
+-- The 'TxIn's of the 'inputs' must exactly match the inputs contained in the
+-- 'tx'. If not, the behaviour is undefined. This will be fixed by ADP-1662.
+--
+-- The provided 'redeemers' will overwrite any redeemers inside the 'tx'. This
+-- is done as the internal redeemers in the 'tx' use an index referring to a
+-- 'TxIn', rather than an actual 'TxIn'. When we are adding extra inputs as part
+-- of balancing, these indexes become incorrect.
+--
+-- TODO: With some extra care, we could probably remove the 'redeemers' field
+-- and instead adjust the existing redeemer indexes ourselves when balancing,
+-- even though they are in an "unordered" set.
 data PartialTx era = PartialTx
     { tx :: Cardano.Tx era
     , inputs :: [(TxIn, TxOut, Maybe (Hash "Datum"))]
@@ -1587,8 +1596,27 @@ balanceTransaction
     => ctx
     -> ArgGenChange s
     -> (W.ProtocolParameters, Cardano.ProtocolParameters)
+    -- ^ 'Cardano.ProtocolParameters' can be retrieved via a Local State Query
+    -- to a local node.
+    --
+    -- If passed an incorrect value, a phase 1 script integrity hash mismatch
+    -- will protect against collateral being forfeited.
+    --
+    -- TODO: Remove the 'W.ProtocolParameters' argument.
     -> TimeInterpreter (Either PastHorizonException)
+    -- ^ Needed to convert convert validity intervals from 'UTCTime' to 'SlotNo'
+    -- when executing Plutus scripts.
+    --
+    -- Can be hard-coded for a given network configuration. Just be
+    -- cautious of the fact that the value will occasionally
+    -- change as new eras are introduced to Cardano.
+    --
+    -- It is unclear whether an incorrect value could cause collateral to be
+    -- forfeited. We should ideally investigate and clarify as part of ADP-1544
+    -- or similar ticket. Relevant ledger code: https://github.com/input-output-hk/cardano-ledger/blob/fdec04e8c071060a003263cdcb37e7319fb4dbf3/eras/alonzo/impl/src/Cardano/Ledger/Alonzo/TxInfo.hs#L428-L440
     -> (UTxOIndex WalletUTxO, Wallet s, Set Tx)
+    -- ^ TODO [ADP-1789] Replace with @Cardano.UTxO@ and something simpler than
+    -- @Wallet s@ for change address generation.
     -> PartialTx era
     -> ExceptT ErrBalanceTx m (Cardano.Tx era)
 balanceTransaction ctx change pp ti wallet ptx = do
