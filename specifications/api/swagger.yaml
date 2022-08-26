@@ -3845,6 +3845,11 @@ components:
           slot_no: *numberOfSlots
           block_height: *numberOfBlocks
 
+    CBORStatus: &CBORStatus
+        description: |
+          The transactions CBOR status
+        type: "string"
+        enum: ["complete", "partial"]
 
 #############################################################################
 #                                                                           #
@@ -7652,3 +7657,18 @@ paths:
           content:
             application/json:
               schema: *ApiBlockHeader
+
+  /database/status/transactions/cbor:
+    get:
+      tags: ["Utils"]
+      summary: transactions CBOR syncing status
+      description: |
+        <p align="right">status: <strong>stable</strong></p>
+
+        Return the status of transactions CBOR 
+      responses: 
+        200:
+          description: OK
+          content:
+            application/json:
+              schema: *CBORStatus
