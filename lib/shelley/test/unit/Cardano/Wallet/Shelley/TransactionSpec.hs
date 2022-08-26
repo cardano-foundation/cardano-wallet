@@ -4086,6 +4086,11 @@ paymentPartialTx txouts = PartialTx (Cardano.Tx body []) [] []
     -- here. Perhaps we could go through cardano-api instead, if we create a
     -- @TxBodyContent -> Tx@, where - unlike @makeTransactionBody@ - there is
     -- no validation.
+    --
+    -- NOTE: We should write this as @emptyTxBody { outputs = ... }@.
+    -- The next time we bump the ledger , this may already be availible to us
+    -- with 'mkBabbageTxBody' and 'initialTxBodyRaw'.
+    -- https://github.com/input-output-hk/cardano-ledger/blob/17649bc09e4c47923f7ad103d337cc1b8e6d3078/eras/babbage/impl/src/Cardano/Ledger/Babbage/TxBody.hs#L940
     babbageBody = Babbage.TxBody
         { Babbage.inputs = mempty
         , Babbage.collateral = mempty
