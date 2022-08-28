@@ -11,6 +11,8 @@ It is compatible with the era-specific types from @cardano-ledger@.
 module Cardano.Wallet.Read.Block
     ( Block
     , getBlockHeight
+    , getSlotNo
+
     , getTxsFromBlock
     , getTxsListFromBlock
     ) where
@@ -90,6 +92,32 @@ getBlockHeight = fromBlockNo . \case
 -- FIXME unsafe conversion (Word64 -> Word32)
 fromBlockNo :: O.BlockNo -> Quantity "block" Word32
 fromBlockNo (O.BlockNo h) = Quantity (fromIntegral h)
+
+getSlotNo :: Block -> O.SlotNo
+getSlotNo = \case
+    -- See Note [SeeminglyRedundantPatternMatches]
+    O.BlockByron block ->
+        O.blockSlot block
+
+    O.BlockShelley block -> case block of
+        O.ShelleyBlock (Shelley.Block (Shelley.BHeader header _) _) _ ->
+            Shelley.bheaderSlotNo header
+
+    O.BlockAllegra block -> case block of
+        O.ShelleyBlock (Shelley.Block (Shelley.BHeader header _) _) _ ->
+            Shelley.bheaderSlotNo header
+
+    O.BlockMary block -> case block of
+        O.ShelleyBlock (Shelley.Block (Shelley.BHeader header _) _) _ ->
+            Shelley.bheaderSlotNo header
+
+    O.BlockAlonzo block -> case block of
+        O.ShelleyBlock (Shelley.Block (Shelley.BHeader header _) _) _ ->
+            Shelley.bheaderSlotNo header
+
+    O.BlockBabbage block -> case block of
+        O.ShelleyBlock (Shelley.Block (O.Header header _) _) _ ->
+            O.hbSlotNo header
 
 {-------------------------------------------------------------------------------
     Block transactions
