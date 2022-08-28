@@ -157,7 +157,6 @@ import Cardano.Wallet.Shelley.Compatibility
     , StandardCrypto
     , emptyGenesis
     , fromCardanoBlock
-    , numberOfTransactionsInBlock
     )
 import Cardano.Wallet.Shelley.Launch
     ( CardanoNodeConn, NetworkConfiguration (..), parseGenesisData )
@@ -254,6 +253,7 @@ import qualified Cardano.Wallet.Primitive.AddressDerivation.Shelley as Shelley
 import qualified Cardano.Wallet.Primitive.Types.TokenBundle as TokenBundle
 import qualified Cardano.Wallet.Primitive.Types.UTxOIndex as UTxOIndex
 import qualified Cardano.Wallet.Primitive.Types.UTxOSelection as UTxOSelection
+import qualified Cardano.Wallet.Types.Read as Read
 import qualified Data.Aeson as Aeson
 import qualified Data.ByteString as BS
 import qualified Data.ByteString.Char8 as B8
@@ -714,16 +714,16 @@ bench_baseline_restoration
             , rollForward = \blocks ntip -> do
                 atomically $ writeTVar chainPointT
                     [chainPointFromBlockHeader ntip]
-                let (ntxs, hss) = NE.unzip $
-                        numberOfTransactionsInBlock <$> blocks
-                    (heights, slots) = NE.unzip hss
-                    tip = NE.last heights
-                traceWith progressTrace $ Just tip
+                let ntxs = Read.numberOfTransactionsInBlock <$> blocks
+                    lastBlock = NE.last blocks
+                    lastSlot   = Read.getSlotNo lastBlock
+                    lastHeight = Read.getBlockHeight lastBlock
+                traceWith progressTrace $ Just lastHeight
                 seq (sum ntxs)
                     . atomically
                     . writeTVar wait
                     . Just
-                    $ NE.last slots
+                    $ lastSlot
             , rollBackward = pure
             }
         (_, restorationTime) <- bench "restoration" $

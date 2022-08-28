@@ -15,6 +15,7 @@ module Cardano.Wallet.Read.Block
 
     , getTxsFromBlock
     , getTxsListFromBlock
+    , numberOfTransactionsInBlock
     ) where
 
 import Prelude
@@ -125,6 +126,10 @@ getSlotNo = \case
 -- | Retrieve the sequence of 'Tx' contained in a block, as a list.
 getTxsListFromBlock :: Block -> [Read.Tx]
 getTxsListFromBlock = toList . getTxsFromBlock
+
+-- | Count the number of transactions in a 'Block'.
+numberOfTransactionsInBlock :: Block -> Int
+numberOfTransactionsInBlock = Seq.length . getTxsFromBlock
 
 -- | Retrieve the sequence of 'Tx' contained in a block, as a 'StrictSeq'.
 getTxsFromBlock :: Block -> StrictSeq Read.Tx

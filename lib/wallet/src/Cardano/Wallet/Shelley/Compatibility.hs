@@ -144,7 +144,6 @@ module Cardano.Wallet.Shelley.Compatibility
     , interval0
     , interval1
     , getScriptIntegrityHash
-    , numberOfTransactionsInBlock
     ) where
 
 import Prelude
@@ -184,10 +183,6 @@ import Cardano.Api.Shelley
     )
 import Cardano.Binary
     ( serialize' )
-import Cardano.Chain.Block
-    ( ABlockOrBoundary (ABOBBlock, ABOBBoundary), blockTxPayload )
-import Cardano.Chain.UTxO
-    ( unTxPayload )
 import Cardano.Crypto.Hash.Class
     ( Hash (UnsafeHash), hashToBytes )
 import Cardano.Launcher.Node
@@ -304,8 +299,6 @@ import GHC.TypeLits
     ( KnownNat, natVal )
 import Numeric.Natural
     ( Natural )
-import Ouroboros.Consensus.Byron.Ledger
-    ( byronBlockRaw )
 import Ouroboros.Consensus.Cardano.Block
     ( CardanoBlock
     , CardanoEras
@@ -547,48 +540,6 @@ fromCardanoBlock gp = \case
         fst $ fromAlonzoBlock gp blk
     BlockBabbage blk ->
         fst $ fromBabbageBlock gp blk
-
-numberOfTransactionsInBlock
-    :: CardanoBlock StandardCrypto -> (Int, (Quantity "block" Word32, O.SlotNo))
-numberOfTransactionsInBlock = \case
-    BlockByron byb -> transactionsByron byb
-    BlockShelley shb -> transactions shb
-    BlockAllegra shb -> transactions shb
-    BlockMary shb -> transactions shb
-    BlockAlonzo shb -> transactionsAlonzo shb
-    BlockBabbage shb -> transactionsBabbage shb
-  where
-    transactions
-        (ShelleyBlock (SL.Block (SL.BHeader header _) (SL.TxSeq txs')) _) =
-            ( length txs'
-            , (fromBlockNo $ SL.bheaderBlockNo header, SL.bheaderSlotNo header)
-            )
-    transactionsAlonzo
-        (ShelleyBlock (SL.Block (SL.BHeader header _) (Alonzo.TxSeq txs')) _) =
-            ( length txs'
-            , (fromBlockNo $ SL.bheaderBlockNo header, SL.bheaderSlotNo header)
-            )
-    transactionsBabbage
-        :: ShelleyBlock
-            (Consensus.Praos StandardCrypto)
-            (Babbage.BabbageEra StandardCrypto)
-        -> (Int, (Quantity "block" Word32, O.SlotNo))
-    transactionsBabbage
-        (ShelleyBlock
-            (SL.Block (Consensus.Header header _)
-            (Alonzo.TxSeq txs')) _) =
-                ( length txs'
-                , ( fromBlockNo $ Consensus.hbBlockNo header
-                  , Consensus.hbSlotNo header
-                  )
-                )
-    transactionsByron blk =
-        (, (fromBlockNo $ O.blockNo blk, O.blockSlot blk)) $
-            case byronBlockRaw blk of
-            ABOBBlock blk' ->
-                length $ fromTxAux <$> unTxPayload (blockTxPayload blk')
-            ABOBBoundary _ ->
-                0
 
 toCardanoEra :: CardanoBlock c -> AnyCardanoEra
 toCardanoEra = \case
