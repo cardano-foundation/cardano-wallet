@@ -5510,6 +5510,7 @@ x-responsesPostTransaction: &responsesPostTransaction
   <<: *responsesErr404WalletNotFound
   <<: *responsesErr406
   <<: *responsesErr415UnsupportedMediaType
+  <<: *responsesErr425MempoolIsFull
   202:
     description: Accepted
     content:
