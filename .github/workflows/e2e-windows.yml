@@ -135,5 +135,5 @@ jobs:
       NETWORK: ${{ github.event.inputs.network || 'preview' }}
       TESTS_E2E_FIXTURES: ${{ secrets.TESTS_E2E_FIXTURES }}
       PR: ${{ github.event.inputs.pr || 'master' }}
-      NODE_DB_CACHE: ${{ github.event.inputs.node_db_cache || 'AWS' }}
+      NODE_DB_CACHE: ${{ github.event.inputs.node_db_cache || 'GH' }}
       TAGS: ${{ github.event.inputs.tags || 'all' }}

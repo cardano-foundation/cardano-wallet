@@ -6,9 +6,7 @@ pkgs: _: {
       inherit (pkgs.cardanoLib.environments)
         mainnet
         staging
-        testnet
         shelley_qa
-        alonzo-purple
         preview
         preprod
         ;
