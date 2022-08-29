@@ -281,6 +281,8 @@ library
       Cardano.Wallet.Registry
       Cardano.Wallet.TokenMetadata.MockServer
       Cardano.Wallet.Transaction
+      Cardano.Wallet.Types.Read
+      Cardano.Wallet.Types.Read.Tx
       Cardano.Wallet.Unsafe
       Cardano.Wallet.Util
       Cardano.Wallet.Version

@@ -5,7 +5,6 @@
 {-# LANGUAGE FlexibleContexts #-}
 {-# LANGUAGE FlexibleInstances #-}
 {-# LANGUAGE GADTs #-}
-{-# LANGUAGE LambdaCase #-}
 {-# LANGUAGE QuantifiedConstraints #-}
 {-# LANGUAGE RankNTypes #-}
 {-# LANGUAGE ScopedTypeVariables #-}
@@ -17,14 +16,11 @@ module Cardano.Wallet.Primitive.Types.Tx.CBOR.Hash
     , alonzoTxHash
     , shelleyTxHash
     , fromShelleyTxId
-    , parseTxHash
     )
     where
 
 import Prelude
 
-import Cardano.Api
-    ( CardanoEra (..) )
 import Cardano.Binary
     ( ToCBOR (..) )
 import Cardano.Chain.UTxO
@@ -37,11 +33,6 @@ import Cardano.Ledger.Era
     ( Era (..) )
 import Cardano.Ledger.Shelley.TxBody
     ( EraIndependentTxBody )
-import Cardano.Wallet.Primitive.Types.Tx.CBOR
-import Codec.CBOR.Read
-    ( DeserialiseFailure )
-import Data.Functor
-    ( (<&>) )
 
 import qualified Cardano.Crypto as CryptoC
 import qualified Cardano.Crypto.Hash as Crypto
@@ -82,12 +73,3 @@ shelleyTxHash
 fromShelleyTxId :: SL.TxId crypto -> W.Hash "Tx"
 fromShelleyTxId (SL.TxId h) =
     W.Hash $ Crypto.hashToBytes $ SafeHash.extractHash h
-
-parseTxHash :: TxCBOR -> Either DeserialiseFailure (W.Hash "Tx")
-parseTxHash cbor = parseCBOR cbor <&> \case
-    EraTx ByronEra x -> byronTxHash x
-    EraTx ShelleyEra x -> shelleyTxHash x
-    EraTx MaryEra x -> shelleyTxHash x
-    EraTx AllegraEra x -> shelleyTxHash x
-    EraTx AlonzoEra x -> shelleyTxHash x
-    EraTx BabbageEra x -> shelleyTxHash x

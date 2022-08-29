@@ -1,6 +1,6 @@
 {-# LANGUAGE DeriveGeneric #-}
 {-# LANGUAGE ExistentialQuantification #-}
-{-# LANGUAGE RecordWildCards #-}
+{-# LANGUAGE NamedFieldPuns #-}
 {-# LANGUAGE TypeFamilies #-}
 {-# LANGUAGE UndecidableInstances #-}
 
@@ -9,38 +9,21 @@
 module Cardano.Wallet.Primitive.Types.Tx.CBOR
     ( TxCBOR (..)
     , mkTxCBOR
+    , getTxCBOR
     , parseCBOR
-    , EraTx (..)
-    , ParsedTx
-    , ParsedTxShelley
     )
     where
 
 import Prelude
 
 import Cardano.Api
-    ( AllegraEra
-    , AlonzoEra
-    , AnyCardanoEra
-    , AnyCardanoEra (AnyCardanoEra)
-    , BabbageEra
-    , ByronEra
-    , CardanoEra (..)
-    , FromCBOR
-    , MaryEra
-    , ShelleyEra
-    , ToCBOR
-    )
-import Cardano.Api.Shelley
-    ( ShelleyLedgerEra )
+    ( AnyCardanoEra (..), CardanoEra (..), FromCBOR, ToCBOR )
 import Cardano.Binary
     ( Annotator (runAnnotator)
     , FromCBOR (fromCBOR)
     , FullByteString (Full)
     , toCBOR
     )
-import Cardano.Chain.UTxO
-    ( ATxAux )
 import Codec.CBOR.Read
     ( DeserialiseFailure, deserialiseFromBytes )
 import Codec.CBOR.Write
@@ -52,7 +35,9 @@ import Data.Functor.Identity
 import GHC.Generics
     ( Generic )
 
-import qualified Cardano.Ledger.Shelley.API as SLAPI
+import qualified Cardano.Api as Api
+
+import qualified Cardano.Wallet.Types.Read.Tx as Read
 import qualified Data.ByteString.Lazy as BL
 
 -- | Serialized version of a transaction. Deserializing should at least expose
@@ -74,38 +59,45 @@ instance Ord TxCBOR where
 instance NFData TxCBOR where
     rnf (TxCBOR cb _) = rnf cb -- missing instance NFData AnyCardanoEra
 
-type ParsedTxShelley x = SLAPI.Tx (ShelleyLedgerEra x)
-
-type family ParsedTx x where
-    ParsedTx ByronEra = ATxAux ()
-    ParsedTx ShelleyEra = ParsedTxShelley ShelleyEra
-    ParsedTx MaryEra = ParsedTxShelley MaryEra
-    ParsedTx AllegraEra = ParsedTxShelley AllegraEra
-    ParsedTx AlonzoEra = ParsedTxShelley AlonzoEra
-    ParsedTx BabbageEra = ParsedTxShelley BabbageEra
+-- | Compute the CBOR representation of a transaction.
+--
+-- This CBOR includes the transaction body, but also witnesses.
+getTxCBOR :: Read.Tx -> TxCBOR
+getTxCBOR (Read.Tx era tx) = TxCBOR cbor (AnyCardanoEra era)
+  where
+    -- See Note [SeeminglyRedundantPatternMatches]
+    cbor = toLazyByteString $ case era of
+        ByronEra -> toCBOR tx
+        ShelleyEra -> toCBOR tx
+        MaryEra -> toCBOR tx
+        AllegraEra -> toCBOR tx
+        AlonzoEra -> toCBOR tx
+        BabbageEra -> toCBOR tx
 
 instance FromCBOR a => FromCBOR (Identity a) where
     fromCBOR = fmap Identity fromCBOR
 
-data EraTx = forall era . EraTx (CardanoEra era) (ParsedTx era)
-
+-- | Parse CBOR into a transaction.
 parseCBOR
-    :: TxCBOR -> Either DeserialiseFailure EraTx
-parseCBOR TxCBOR{..} = case txEra of
-    AnyCardanoEra ByronEra -> boxEra ByronEra runIdentity
-    AnyCardanoEra ShelleyEra -> boxEra ShelleyEra runA
-    AnyCardanoEra AllegraEra -> boxEra AllegraEra runA
-    AnyCardanoEra MaryEra -> boxEra MaryEra runA
-    AnyCardanoEra AlonzoEra -> boxEra AlonzoEra runA
-    AnyCardanoEra BabbageEra -> boxEra BabbageEra runA
-    where
+    :: TxCBOR -> Either DeserialiseFailure Read.Tx
+parseCBOR TxCBOR{txEra=AnyCardanoEra era,txCBOR} = case era of
+    ByronEra -> boxEra era runIdentity
+    ShelleyEra -> boxEra era runA
+    AllegraEra -> boxEra era runA
+    MaryEra -> boxEra era runA
+    AlonzoEra -> boxEra era runA
+    BabbageEra -> boxEra era runA
+  where
     runA :: Annotator x -> x
     runA x = runAnnotator x $ Full txCBOR
-    boxEra :: FromCBOR (k (ParsedTx era))
+    boxEra
+        ::  ( FromCBOR (k (Read.TxEra era))
+            , Api.IsCardanoEra era
+            )
         => CardanoEra era
-        -> (k (ParsedTx era) -> ParsedTx era)
-        -> Either DeserialiseFailure EraTx
-    boxEra era f =
-        EraTx era . f . snd
+        -> (k (Read.TxEra era) -> Read.TxEra era)
+        -> Either DeserialiseFailure Read.Tx
+    boxEra era_ f =
+        Read.Tx era_ . f . snd
             <$> deserialiseFromBytes fromCBOR txCBOR
 
