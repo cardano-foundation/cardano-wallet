@@ -1108,14 +1108,20 @@ withCluster tr dir LocalClusterConfig{..} faucetFunds onClusterStart = bracketTr
         -- first.
         moveInstantaneousRewardsTo tr conn dir mirFunds
 
-        sendFaucetAssetsTo tr conn dir 20 (encodeAddresses maFunds)
-
         -- Submit retirement certs for all pools using the connection to
         -- the only running first pool to avoid the certs being rolled
         -- back.
+        --
+        -- We run these second in hope that it reduces the risk that any of the
+        -- txs fail to make it on-chain. If this were to happen when running the
+        -- integration tests, the integration tests /will fail/ (c.f. #3440).
+        -- Later setup is less sensitive. Using a wallet with retrying
+        -- submission pool might also be an idea for the future.
         when postAlonzo $
             forM_ configuredPools $ \pool -> do
                 finalizeShelleyGenesisSetup pool runningNode
+
+        sendFaucetAssetsTo tr conn dir 20 (encodeAddresses maFunds)
 
         -- Should ideally not be hard-coded in 'withCluster'
         (rawTx, faucetPrv) <- prepareKeyRegistration tr dir
