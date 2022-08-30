@@ -66,6 +66,10 @@ spec = do
                 p2 = AddressPool.update (AddressPool.gap p1 + 1) p1
             in  addresses p1 === addresses p2
 
+        it "nextIndex always points to an unused address"
+            prop_next_is_unused
+
+
     parallel $ describe "Address discovery" $ do
         it "discover by query = discover in sequence" $
             prop_discover (AddressPool.new (*2) (6::Int))
@@ -131,6 +135,12 @@ prop_discover pool0 = forAll (genAddresses pool0) prop
         discoverQuery =
             second AddressPool.addresses
             . runIdentity $ AddressPool.discover query pool0
+
+prop_next_is_unused :: Property
+prop_next_is_unused = forAll (genPool testPool) $ \p ->
+    let i = AddressPool.nextIndex p
+        indexState = filter ((== i) . fst) (Map.elems (addresses p))
+    in  indexState == [(i, Unused)]
 
 {-------------------------------------------------------------------------------
     Generators

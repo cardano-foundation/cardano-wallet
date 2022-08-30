@@ -37,7 +37,6 @@ module Cardano.Wallet.Address.Pool
     , prop_fresh
     , prop_fromIx
     , prop_consistent
-    , prop_next_is_unused
     )
   where
 
@@ -138,12 +137,6 @@ prop_fromIx Pool{addressFromIx,addresses} =
   where
     isGenerated addr (ix,_) = addressFromIx ix == addr
 
-prop_next_is_unused :: (Eq ix, Enum ix) => Pool addr ix -> Bool
-prop_next_is_unused p =
-    let i = nextIndex p
-        indexState = filter ((== i) . fst) (Map.elems (addresses p))
-    in  indexState == [(i, Unused)]
-
 -- | Internal invariant: The pool satisfies all invariants above.
 prop_consistent :: (Ord ix, Enum ix, Eq addr) => Pool addr ix -> Bool
 prop_consistent p = all ($ p)
@@ -151,7 +144,6 @@ prop_consistent p = all ($ p)
     , prop_gap
     , prop_fresh
     , prop_fromIx
-    , prop_next_is_unused
     ]
 
 {-------------------------------------------------------------------------------
