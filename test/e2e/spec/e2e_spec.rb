@@ -2618,19 +2618,22 @@ RSpec.describe "Cardano Wallet E2E tests", :all, :e2e do
       tx_ids.each do |tx_id|
         wait_for_tx_in_ledger(@target_id, tx_id)
       end
-      src_after = get_shelley_balances(@target_id)
-      target_after = get_shelley_balances(@wid)
-      expected_src_balance = { 'total' => 0,
-                               'available' => 0,
-                               'rewards' => 0,
-                               'assets_total' => [],
-                               'assets_available' => [] }
+      
+      eventually "Balance is as expected" do
+        src_after = get_shelley_balances(@target_id)
+        target_after = get_shelley_balances(@wid)
+        expected_src_balance = { 'total' => 0,
+          'available' => 0,
+          'rewards' => 0,
+          'assets_total' => [],
+          'assets_available' => [] }
 
-      expect(src_after).to eq expected_src_balance
+        expect(src_after).to eq expected_src_balance
 
-      verify_ada_balance(src_after, src_before,
-                         target_after, target_before,
-                         amounts, fees)
+        verify_ada_balance(src_after, src_before,
+          target_after, target_before,
+          amounts, fees)
+      end
 
     end
   end
