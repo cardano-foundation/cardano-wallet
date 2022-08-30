@@ -3269,19 +3269,21 @@ shrinkInputResolution
     => Cardano.UTxO era
     -> [Cardano.UTxO era]
 shrinkInputResolution =
-     map utxoFromList . shrinkUTxOEntries . utxoToList
+    shrinkMapBy utxoFromList utxoToList shrinkUTxOEntries
    where
      utxoToList (Cardano.UTxO u) = Map.toList u
      utxoFromList = Cardano.UTxO . Map.fromList
 
-shrinkUTxOEntries :: Arbitrary o => [(i, o)] -> [[(i, o)]]
-shrinkUTxOEntries ((i,o) : rest) = mconcat
-    -- First shrink the first element
-    [ map (\o' -> (i, o') : rest ) (shrink o)
-    -- Recurse to shrink subsequent elements on their own
-    , map ((i,o):) (shrinkUTxOEntries rest)
-    ]
-shrinkUTxOEntries [] = []
+     -- NOTE: We only want to shrink the outputs, keeping the inputs and length
+     -- of the list the same.
+     shrinkUTxOEntries :: Arbitrary o => [(i, o)] -> [[(i, o)]]
+     shrinkUTxOEntries ((i,o) : rest) = mconcat
+         -- First shrink the first element
+         [ map (\o' -> (i, o') : rest ) (shrink o)
+         -- Recurse to shrink subsequent elements on their own
+         , map ((i,o):) (shrinkUTxOEntries rest)
+         ]
+     shrinkUTxOEntries [] = []
 
 instance Semigroup (Cardano.UTxO era) where
     Cardano.UTxO a <> Cardano.UTxO b = Cardano.UTxO (a <> b)
