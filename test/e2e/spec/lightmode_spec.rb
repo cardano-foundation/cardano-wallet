@@ -22,21 +22,8 @@ RSpec.describe "Light-mode E2E tests", :light do
 
     it "I can restore wallet with funds and I see ADA and assets balance", :light_sync do
       wallet = SHELLEY.wallets.get(@wid_light)
-      txs = SHELLEY.transactions.list(@wid_light)
       expect(wallet['balance']['total']['quantity']).to be > 0
-      assets = [
-          {
-            "asset_name" => ASSETS[0]["asset_name"],
-            "policy_id" => ASSETS[0]["policy_id"],
-            "quantity" => 10
-          },
-          {
-            "asset_name" => ASSETS[1]["asset_name"],
-            "policy_id" => ASSETS[1]["policy_id"],
-            "quantity" => 10
-          }
-        ].to_set
-      expect(wallet['assets']['total'].to_set).to eq assets
+      expect(wallet['assets']['total'].first['quantity']).to be > 0
     end
   end
 
