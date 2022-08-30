@@ -43,6 +43,7 @@ SETTINGS = CW.misc.settings
 UTILS = CW.misc.utils
 NETWORK = CW.misc.network
 PROXY = CW.misc.proxy
+NODE = CW.misc.node
 CA = CardanoAddresses.new
 
 CONTEXT = Context.new
