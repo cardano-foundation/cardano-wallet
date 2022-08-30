@@ -2166,7 +2166,7 @@ components:
         next_epoch: *epochInfo
         node_era: *ApiEra
         network_info: *NetworkInfo
-        wallet_mode: 
+        wallet_mode:
           type: string
           enum:
             - light
@@ -4176,7 +4176,7 @@ x-errMalformedTxPayload: &errMalformedTxPayload
 
 x-errMempoolIsFull: &errMempoolIsFull
   <<: *responsesErr
-  title: mempool_is_full 
+  title: mempool_is_full
   properties:
     message:
       type: string
@@ -5034,7 +5034,8 @@ x-errUnresolvedInputs: &errUnresolvedInputs
     message:
       type: string
       description: |
-        The transaction contains foreign inputs which cannot be resolved.
+        There are inputs in the transaction for which the corresponding outputs
+        could not be found.
     code:
       type: string
       enum: ['unknown_inputs']
@@ -5074,6 +5075,20 @@ x-errExistingKeyWitnesses: &errExistingKeyWitnesses
     code:
       type: string
       enum: ['existing_key_witnesses']
+
+x-errInputResolutionConflicts: &errInputResolutionConflicts
+  <<: *responsesErr
+  title: input_resolution_conflicts
+  properties:
+    message:
+      type: string
+      description: |
+        At least one of the provided inputs has an
+        asset quantity or address that is different from that
+        recorded in the wallet's UTxO set.
+    code:
+      type: string
+      enum: ['input_resolution_conflicts']
 
 x-responsesErr400: &responsesErr400
   400:
@@ -5975,8 +5990,9 @@ x-responsesBalanceTransaction: &responsesBalanceTransaction
             - <<: *errRedeemerScriptFailure
             - <<: *errRedeemerTargetNotFound
             - <<: *errRedeemerInvalidData
-            - <<: *errUnresolvedInputs
             - <<: *errTranslationError
+            - <<: *errUnresolvedInputs
+            - <<: *errInputResolutionConflicts
   403:
     description: Forbidden
     content:

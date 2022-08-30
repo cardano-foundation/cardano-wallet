@@ -141,8 +141,7 @@ import Cardano.Api.Extra
 import Cardano.BM.Tracing
     ( HasPrivacyAnnotation (..), HasSeverityAnnotation (..) )
 import Cardano.Ledger.Alonzo.TxInfo
-    ( TranslationError (TimeTranslationPastHorizon, TranslationLogicMissingInput)
-    )
+    ( TranslationError (..) )
 import Cardano.Mnemonic
     ( SomeMnemonic )
 import Cardano.Wallet
@@ -611,7 +610,7 @@ import Data.Type.Equality
 import Data.Word
     ( Word32 )
 import Fmt
-    ( listF, pretty )
+    ( blockListF', build, fmt, listF, pretty )
 import GHC.Generics
     ( Generic )
 import GHC.Stack
@@ -2814,12 +2813,15 @@ balanceTransaction ctx genChange (ApiT wid) body = do
         ti <- liftIO $ snapshot $ timeInterpreter $ ctx ^. networkLayer
 
         let mkPartialTx
-                :: forall era. Cardano.Tx era
+                :: forall era. Cardano.IsShelleyBasedEra era => Cardano.Tx era
                 -> W.PartialTx era
             mkPartialTx tx = W.PartialTx
                     tx
-                    (fromExternalInput <$> body ^. #inputs)
+                    (convertToCardano $ fromExternalInput <$> body ^. #inputs)
                     (fromApiRedeemer <$> body ^. #redeemers)
+              where
+                convertToCardano xs =
+                    toCardanoUTxO (wrk ^. W.transactionLayer @k) mempty xs
 
         let balanceTx
                 :: forall era. Cardano.IsShelleyBasedEra era
@@ -4862,7 +4864,22 @@ instance IsServerError ErrBalanceTx where
                 [ "I was not able to balance the transaction without exceeding"
                 , "the maximum transaction size."
                 ]
-
+        ErrBalanceTxUnresolvedInputs ins ->
+            apiError err400 UnresolvedInputs $ T.unwords
+                [ "There are inputs in the transaction for which corresponding"
+                , "outputs could not be found:\n"
+                , pretty $ NE.toList ins
+                ]
+        ErrBalanceTxInputResolutionConflicts conflicts -> do
+            let conflictF (a, b) = build a <> "\nvs\n" <> build b
+            apiError err400 InputResolutionConflicts $ mconcat
+                [ "At least one of the inputs you've told me about has an"
+                , "asset quantity or address that is different from that"
+                , "recorded in the wallet's UTxO set."
+                , "\n"
+                , "The conflict(s) are:\n"
+                , fmt $ blockListF' "-" conflictF conflicts
+                ]
 
 instance IsServerError ErrRemoveTx where
     toServerError = \case
