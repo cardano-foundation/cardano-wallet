@@ -101,16 +101,13 @@ import Cardano.Wallet.Primitive.Types.Address
 import Cardano.Wallet.Primitive.Types.Coin
     ( Coin (..) )
 import Cardano.Wallet.Primitive.Types.TokenBundle
-    ( Flat (..), TokenBundle )
+    ( Flat (..) )
 import Cardano.Wallet.Primitive.Types.TokenMap
     ( AssetId, TokenMap )
 import Cardano.Wallet.Primitive.Types.Tx
-    ( TokenBundleSizeAssessment
-    , TxIn
-    , TxOut (..)
-    , txOutMaxCoin
-    , txOutMaxTokenQuantity
-    )
+    ( TxIn, TxOut (..), txOutMaxCoin, txOutMaxTokenQuantity )
+import Cardano.Wallet.Primitive.Types.Tx.TokenBundleAssessments
+    ( TokenBundle, TokenBundleSizeAssessment )
 import Cardano.Wallet.Primitive.Types.UTxO
     ( UTxO (..) )
 import Cardano.Wallet.Primitive.Types.UTxOSelection

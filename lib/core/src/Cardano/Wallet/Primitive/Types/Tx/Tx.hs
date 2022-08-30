@@ -23,8 +23,6 @@ module Cardano.Wallet.Primitive.Types.Tx.Tx
     , TxOut (..)
     , TxMetadata (..)
     , TxMetadataValue (..)
-    , TokenBundleSizeAssessor (..)
-    , TokenBundleSizeAssessment (..)
     , TxScriptValidity(..)
     , ScriptWitnessIndex (..)
 
@@ -55,7 +53,6 @@ import Prelude
 
 import Cardano.Api
     ( ScriptWitnessIndex (..), TxMetadata (..), TxMetadataValue (..) )
-
 import Cardano.Wallet.Orphans
     ()
 import Cardano.Wallet.Primitive.Types.Address
@@ -312,6 +309,19 @@ data TxScriptValidity
 
 instance NFData TxScriptValidity
 
+--------------------------------------------------------------------------------
+-- Queries
+--------------------------------------------------------------------------------
+
+txAssetIds :: Tx -> Set AssetId
+txAssetIds tx = F.fold
+    [ F.foldMap txOutAssetIds (view #outputs tx)
+    , F.foldMap txOutAssetIds (view #collateralOutput tx)
+    ]
+
+txOutAssetIds :: TxOut -> Set AssetId
+txOutAssetIds (TxOut _ bundle) = TokenBundle.getAssets bundle
+
 -- | Returns 'True' if (and only if) the given transaction is marked as having
 --   an invalid script.
 --
@@ -328,56 +338,6 @@ txScriptInvalid Tx {scriptValidity} = case scriptValidity of
 -- | Test whether the given metadata map is empty.
 txMetadataIsNull :: TxMetadata -> Bool
 txMetadataIsNull (TxMetadata md) = Map.null md
-
--- | A function capable of assessing the size of a token bundle relative to the
---   upper limit of what can be included in a single transaction output.
---
--- In general, a token bundle size assessment function 'f' should satisfy the
--- following properties:
---
---    * Enlarging a bundle that exceeds the limit should also result in a
---      bundle that exceeds the limit:
---      @
---              f  b1           == TokenBundleSizeExceedsLimit
---          ==> f (b1 `add` b2) == TokenBundleSizeExceedsLimit
---      @
---
---    * Shrinking a bundle that's within the limit should also result in a
---      bundle that's within the limit:
---      @
---              f  b1                  == TokenBundleWithinLimit
---          ==> f (b1 `difference` b2) == TokenBundleWithinLimit
---      @
---
-newtype TokenBundleSizeAssessor = TokenBundleSizeAssessor
-    { assessTokenBundleSize :: TokenBundle -> TokenBundleSizeAssessment
-    }
-    deriving Generic
-
--- | Indicates the size of a token bundle relative to the upper limit of what
---   can be included in a single transaction output, defined by the protocol.
---
-data TokenBundleSizeAssessment
-    = TokenBundleSizeWithinLimit
-    -- ^ Indicates that the size of a token bundle does not exceed the maximum
-    -- size that can be included in a transaction output.
-    | TokenBundleSizeExceedsLimit
-    -- ^ Indicates that the size of a token bundle exceeds the maximum size
-    -- that can be included in a transaction output.
-    deriving (Eq, Generic, Show)
-
---------------------------------------------------------------------------------
--- Queries
---------------------------------------------------------------------------------
-
-txAssetIds :: Tx -> Set AssetId
-txAssetIds tx = F.fold
-    [ F.foldMap txOutAssetIds (view #outputs tx)
-    , F.foldMap txOutAssetIds (view #collateralOutput tx)
-    ]
-
-txOutAssetIds :: TxOut -> Set AssetId
-txOutAssetIds (TxOut _ bundle) = TokenBundle.getAssets bundle
 
 --------------------------------------------------------------------------------
 -- Transformations
@@ -413,5 +373,3 @@ txOutMapAssetIds f (TxOut address bundle) =
 txOutRemoveAssetId :: TxOut -> AssetId -> TxOut
 txOutRemoveAssetId (TxOut address bundle) asset =
     TxOut address (TokenBundle.setQuantity bundle asset mempty)
-
-

@@ -14,7 +14,7 @@
 -- Copyright: © 2018-2020 IOHK
 -- License: Apache-2.0
 --
--- This module re-export all transaction types.
+-- This module re-exports all transaction types.
 --
 module Cardano.Wallet.Primitive.Types.Tx
     (
@@ -31,8 +31,6 @@ module Cardano.Wallet.Primitive.Types.Tx
     , TransactionInfo (..)
     , Direction (..)
     , LocalTxSubmissionStatus (..)
-    , TokenBundleSizeAssessor (..)
-    , TokenBundleSizeAssessment (..)
     , TxScriptValidity(..)
     , ScriptWitnessIndex (..)
     , TxCBOR (..)
@@ -154,8 +152,6 @@ import Cardano.Wallet.Primitive.Types.Tx.TransactionInfo
     ( TransactionInfo (..), fromTransactionInfo, toTxHistory )
 import Cardano.Wallet.Primitive.Types.Tx.Tx
     ( ScriptWitnessIndex (..)
-    , TokenBundleSizeAssessment (..)
-    , TokenBundleSizeAssessor (..)
     , Tx (..)
     , TxIn (..)
     , TxMetadata (..)

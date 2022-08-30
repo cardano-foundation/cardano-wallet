@@ -230,6 +230,7 @@ import Cardano.Wallet.Primitive.Types
     , PoolRegistrationCertificate (..)
     , PoolRetirementCertificate (..)
     , ProtocolParameters (txParameters)
+    , TokenBundleMaxSize (..)
     , TxParameters (getTokenBundleMaxSize)
     )
 import Cardano.Wallet.Primitive.Types.MinimumUTxO
@@ -242,6 +243,8 @@ import Cardano.Wallet.Primitive.Types.Tx.CBOR
     ( mkTxCBOR )
 import Cardano.Wallet.Primitive.Types.Tx.CBOR.Hash
     ( fromShelleyTxId, shelleyTxHash )
+import Cardano.Wallet.Primitive.Types.Tx.TokenBundleAssessments
+    ( TokenBundleSizeAssessment (..), TokenBundleSizeAssessor (..) )
 import Cardano.Wallet.Shelley.Compatibility.Ledger
     ( toWalletScript
     , toWalletTokenName
@@ -2207,14 +2210,14 @@ unsafeValueToLovelace v =
 --
 -- See 'W.TokenBundleSizeAssessor' for the expected properties of this function.
 --
-tokenBundleSizeAssessor :: W.TokenBundleMaxSize -> W.TokenBundleSizeAssessor
-tokenBundleSizeAssessor maxSize = W.TokenBundleSizeAssessor {..}
+tokenBundleSizeAssessor :: TokenBundleMaxSize -> TokenBundleSizeAssessor
+tokenBundleSizeAssessor maxSize = TokenBundleSizeAssessor {..}
   where
     assessTokenBundleSize tb
         | serializedLengthBytes <= maxSize' =
-            W.TokenBundleSizeWithinLimit
+            TokenBundleSizeWithinLimit
         | otherwise =
-            W.TokenBundleSizeExceedsLimit
+            TokenBundleSizeExceedsLimit
       where
         serializedLengthBytes :: W.TxSize
         serializedLengthBytes = computeTokenBundleSerializedLengthBytes tb
