@@ -4,8 +4,10 @@
 {-# LANGUAGE DerivingVia #-}
 {-# LANGUAGE DuplicateRecordFields #-}
 {-# LANGUAGE FlexibleInstances #-}
+{-# LANGUAGE NumericUnderscores #-}
 {-# LANGUAGE ScopedTypeVariables #-}
 {-# LANGUAGE StrictData #-}
+{-# LANGUAGE TypeApplications #-}
 {-# LANGUAGE TypeFamilies #-}
 
 -- |
@@ -111,18 +113,81 @@ import Cardano.Slotting.Slot
 import Cardano.Wallet.Primitive.Types.Address
     ( Address )
 import Cardano.Wallet.Primitive.Types.Coin
-    ( Coin )
+    ( Coin (..) )
 import Cardano.Wallet.Primitive.Types.Hash
     ( Hash )
 import Cardano.Wallet.Primitive.Types.TokenMap
     ( TokenMap )
+import Cardano.Wallet.Primitive.Types.TokenQuantity
+    ( TokenQuantity (..) )
 import Cardano.Wallet.Primitive.Types.Tx.CBOR
+    ( TxCBOR (..) )
 import Cardano.Wallet.Primitive.Types.Tx.SealedTx
+    ( SealedTx (..)
+    , SerialisedTx (..)
+    , SerialisedTxParts (..)
+    , cardanoTxIdeallyNoLaterThan
+    , getSealedTxBody
+    , getSealedTxWitnesses
+    , getSerialisedTxParts
+    , mockSealedTx
+    , persistSealedTx
+    , sealedTxFromBytes
+    , sealedTxFromBytes'
+    , sealedTxFromCardano
+    , sealedTxFromCardano'
+    , sealedTxFromCardanoBody
+    , unPersistSealedTx
+    , unsafeSealedTxFromBytes
+    , withinEra
+    )
 import Cardano.Wallet.Primitive.Types.Tx.TransactionInfo
+    ( TransactionInfo (..), fromTransactionInfo, toTxHistory )
 import Cardano.Wallet.Primitive.Types.Tx.Tx
+    ( ScriptWitnessIndex (..)
+    , TokenBundleSizeAssessment (..)
+    , TokenBundleSizeAssessor (..)
+    , Tx (..)
+    , TxConstraints (..)
+    , TxIn (..)
+    , TxMetadata (..)
+    , TxMetadataValue (..)
+    , TxOut (..)
+    , TxScriptValidity (..)
+    , TxSize (..)
+    , collateralInputs
+    , inputs
+    , txAssetIds
+    , txIns
+    , txMapAssetIds
+    , txMapTxIds
+    , txMetadataIsNull
+    , txOutAddCoin
+    , txOutAssetIds
+    , txOutCoin
+    , txOutMapAssetIds
+    , txOutRemoveAssetId
+    , txOutSubtractCoin
+    , txOutputCoinCost
+    , txOutputCoinSize
+    , txOutputHasValidSize
+    , txOutputHasValidTokenQuantities
+    , txRemoveAssetId
+    , txScriptInvalid
+    , txSizeDistance
+    )
 import Cardano.Wallet.Primitive.Types.Tx.TxMeta
+    ( Direction (..), TxMeta (..), TxStatus (..), isPending )
+import Data.Int
+    ( Int64 )
+import Data.Word
+    ( Word64 )
 import GHC.Generics
     ( Generic )
+import GHC.Stack
+    ( HasCallStack )
+
+import qualified Cardano.Wallet.Primitive.Types.Coin as Coin
 
 -- | An unsigned transaction.
 --
@@ -178,3 +243,83 @@ data TxChange derivationPath = TxChange
     , assets :: TokenMap
     , derivationPath :: derivationPath
     } deriving (Show, Generic, Eq, Ord)
+
+{-------------------------------------------------------------------------------
+                          Constants
+-------------------------------------------------------------------------------}
+
+-- | The smallest quantity of lovelace that can appear in a transaction output's
+--   token bundle.
+--
+txOutMinCoin :: Coin
+txOutMinCoin = Coin 0
+
+-- | The greatest quantity of lovelace that can appear in a transaction output's
+--   token bundle.
+--
+txOutMaxCoin :: Coin
+txOutMaxCoin = Coin 45_000_000_000_000_000
+
+-- | The smallest token quantity that can appear in a transaction output's
+--   token bundle.
+--
+txOutMinTokenQuantity :: TokenQuantity
+txOutMinTokenQuantity = TokenQuantity 1
+
+-- | The greatest token quantity that can appear in a transaction output's
+--   token bundle.
+--
+-- Although the ledger specification allows token quantities of unlimited
+-- sizes, in practice we'll only see transaction outputs where the token
+-- quantities are bounded by the size of a 'Word64'.
+--
+txOutMaxTokenQuantity :: TokenQuantity
+txOutMaxTokenQuantity = TokenQuantity $ fromIntegral $ maxBound @Word64
+
+-- | The greatest quantity of any given token that can be minted or burned in a
+--   transaction.
+--
+txMintBurnMaxTokenQuantity :: TokenQuantity
+txMintBurnMaxTokenQuantity = TokenQuantity $ fromIntegral $ maxBound @Int64
+
+
+{-------------------------------------------------------------------------------
+                          Checks
+-------------------------------------------------------------------------------}
+
+coinIsValidForTxOut :: Coin -> Bool
+coinIsValidForTxOut c = (&&)
+    (c >= txOutMinCoin)
+    (c <= txOutMaxCoin)
+
+{-------------------------------------------------------------------------------
+                          Conversions (Unsafe)
+-------------------------------------------------------------------------------}
+
+-- | Converts the given 'Coin' value to a value that can be included in a
+--   transaction output.
+--
+-- Callers of this function must take responsibility for checking that the
+-- given value is:
+--
+--   - not smaller than 'txOutMinCoin'
+--   - not greater than 'txOutMaxCoin'
+--
+-- This function throws a run-time error if the pre-condition is violated.
+--
+unsafeCoinToTxOutCoinValue :: HasCallStack => Coin -> Word64
+unsafeCoinToTxOutCoinValue c
+    | c < txOutMinCoin =
+        error $ unwords
+            [ "unsafeCoinToTxOutCoinValue: coin value"
+            , show c
+            , "too small for transaction output"
+            ]
+    | c > txOutMaxCoin =
+          error $ unwords
+            [ "unsafeCoinToTxOutCoinValue: coin value"
+            , show c
+            , "too large for transaction output"
+            ]
+    | otherwise =
+        Coin.unsafeToWord64 c

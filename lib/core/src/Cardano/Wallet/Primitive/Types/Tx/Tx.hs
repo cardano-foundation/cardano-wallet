@@ -4,7 +4,6 @@
 {-# LANGUAGE DuplicateRecordFields #-}
 {-# LANGUAGE FlexibleInstances #-}
 {-# LANGUAGE NamedFieldPuns #-}
-{-# LANGUAGE NumericUnderscores #-}
 {-# LANGUAGE OverloadedLabels #-}
 {-# LANGUAGE ScopedTypeVariables #-}
 {-# LANGUAGE TypeApplications #-}
@@ -39,13 +38,6 @@ module Cardano.Wallet.Primitive.Types.Tx.Tx
     , txOutSubtractCoin
     , txScriptInvalid
 
-    -- * Constants
-    , txOutMinCoin
-    , txOutMaxCoin
-    , txOutMinTokenQuantity
-    , txOutMaxTokenQuantity
-    , txMintBurnMaxTokenQuantity
-
     -- * Constraints
     , TxConstraints (..)
     , txOutputCoinCost
@@ -65,12 +57,6 @@ module Cardano.Wallet.Primitive.Types.Tx.Tx
     , txRemoveAssetId
     , txOutMapAssetIds
     , txOutRemoveAssetId
-
-    -- * Checks
-    , coinIsValidForTxOut
-
-    -- * Conversions (Unsafe)
-    , unsafeCoinToTxOutCoinValue
 
     ) where
 
@@ -97,8 +83,6 @@ import Cardano.Wallet.Primitive.Types.TokenQuantity
     ( TokenQuantity (..) )
 import Cardano.Wallet.Primitive.Types.Tx.CBOR
     ( TxCBOR )
-import Cardano.Wallet.Util
-    ( HasCallStack )
 import Control.DeepSeq
     ( NFData (..) )
 import Data.Bifunctor
@@ -109,8 +93,6 @@ import Data.Generics.Internal.VL.Lens
     ( over, view )
 import Data.Generics.Labels
     ()
-import Data.Int
-    ( Int64 )
 import Data.Map.Strict
     ( Map )
 import Data.Ord
@@ -118,7 +100,7 @@ import Data.Ord
 import Data.Set
     ( Set )
 import Data.Word
-    ( Word32, Word64 )
+    ( Word32 )
 import Fmt
     ( Buildable (..)
     , blockListF'
@@ -400,44 +382,6 @@ data TokenBundleSizeAssessment
     deriving (Eq, Generic, Show)
 
 --------------------------------------------------------------------------------
--- Constants
---------------------------------------------------------------------------------
-
--- | The smallest quantity of lovelace that can appear in a transaction output's
---   token bundle.
---
-txOutMinCoin :: Coin
-txOutMinCoin = Coin 0
-
--- | The greatest quantity of lovelace that can appear in a transaction output's
---   token bundle.
---
-txOutMaxCoin :: Coin
-txOutMaxCoin = Coin 45_000_000_000_000_000
-
--- | The smallest token quantity that can appear in a transaction output's
---   token bundle.
---
-txOutMinTokenQuantity :: TokenQuantity
-txOutMinTokenQuantity = TokenQuantity 1
-
--- | The greatest token quantity that can appear in a transaction output's
---   token bundle.
---
--- Although the ledger specification allows token quantities of unlimited
--- sizes, in practice we'll only see transaction outputs where the token
--- quantities are bounded by the size of a 'Word64'.
---
-txOutMaxTokenQuantity :: TokenQuantity
-txOutMaxTokenQuantity = TokenQuantity $ fromIntegral $ maxBound @Word64
-
--- | The greatest quantity of any given token that can be minted or burned in a
---   transaction.
---
-txMintBurnMaxTokenQuantity :: TokenQuantity
-txMintBurnMaxTokenQuantity = TokenQuantity $ fromIntegral $ maxBound @Int64
-
---------------------------------------------------------------------------------
 -- Constraints
 --------------------------------------------------------------------------------
 
@@ -570,43 +514,4 @@ txOutRemoveAssetId :: TxOut -> AssetId -> TxOut
 txOutRemoveAssetId (TxOut address bundle) asset =
     TxOut address (TokenBundle.setQuantity bundle asset mempty)
 
-{-------------------------------------------------------------------------------
-                          Checks
--------------------------------------------------------------------------------}
 
-coinIsValidForTxOut :: Coin -> Bool
-coinIsValidForTxOut c = (&&)
-    (c >= txOutMinCoin)
-    (c <= txOutMaxCoin)
-
-{-------------------------------------------------------------------------------
-                          Conversions (Unsafe)
--------------------------------------------------------------------------------}
-
--- | Converts the given 'Coin' value to a value that can be included in a
---   transaction output.
---
--- Callers of this function must take responsibility for checking that the
--- given value is:
---
---   - not smaller than 'txOutMinCoin'
---   - not greater than 'txOutMaxCoin'
---
--- This function throws a run-time error if the pre-condition is violated.
---
-unsafeCoinToTxOutCoinValue :: HasCallStack => Coin -> Word64
-unsafeCoinToTxOutCoinValue c
-    | c < txOutMinCoin =
-        error $ unwords
-            [ "unsafeCoinToTxOutCoinValue: coin value"
-            , show c
-            , "too small for transaction output"
-            ]
-    | c > txOutMaxCoin =
-          error $ unwords
-            [ "unsafeCoinToTxOutCoinValue: coin value"
-            , show c
-            , "too large for transaction output"
-            ]
-    | otherwise =
-        Coin.unsafeToWord64 c
