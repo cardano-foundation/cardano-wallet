@@ -1,10 +1,12 @@
 {-# LANGUAGE DataKinds #-}
+{-# LANGUAGE DeriveFunctor #-}
+{-# LANGUAGE DeriveGeneric #-}
 {-# LANGUAGE DerivingVia #-}
 {-# LANGUAGE DuplicateRecordFields #-}
 {-# LANGUAGE FlexibleInstances #-}
 {-# LANGUAGE ScopedTypeVariables #-}
+{-# LANGUAGE StrictData #-}
 {-# LANGUAGE TypeFamilies #-}
-{-# LANGUAGE DeriveGeneric #-}
 
 -- |
 -- Copyright: © 2018-2020 IOHK
@@ -104,13 +106,17 @@ module Cardano.Wallet.Primitive.Types.Tx
 
 import Prelude
 
-import GHC.Generics (Generic)
-
+import Cardano.Slotting.Slot
+    ( SlotNo (..) )
+import Cardano.Wallet.Primitive.Types.Hash
+    ( Hash )
 import Cardano.Wallet.Primitive.Types.Tx.CBOR
+import Cardano.Wallet.Primitive.Types.Tx.SealedTx
 import Cardano.Wallet.Primitive.Types.Tx.TransactionInfo
 import Cardano.Wallet.Primitive.Types.Tx.Tx
 import Cardano.Wallet.Primitive.Types.Tx.TxMeta
-import Cardano.Wallet.Primitive.Types.Tx.SealedTx
+import GHC.Generics
+    ( Generic )
 
 -- | An unsigned transaction.
 --
@@ -148,3 +154,14 @@ data UnsignedTx input output change withdrawal = UnsignedTx
         :: [withdrawal]
     }
     deriving (Eq, Generic, Show)
+
+-- | Information about when a transaction was submitted to the local node.
+-- This is used for scheduling resubmissions.
+data LocalTxSubmissionStatus tx = LocalTxSubmissionStatus
+    { txId :: Hash "Tx"
+    , submittedTx :: tx
+    , firstSubmission :: SlotNo
+    -- ^ Time of first successful submission to the local node.
+    , latestSubmission :: SlotNo
+    -- ^ Time of most recent resubmission attempt.
+    } deriving stock (Generic, Show, Eq, Functor)

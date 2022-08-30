@@ -1,5 +1,4 @@
 {-# LANGUAGE DataKinds #-}
-{-# LANGUAGE DeriveFunctor #-}
 {-# LANGUAGE DeriveGeneric #-}
 {-# LANGUAGE DerivingVia #-}
 {-# LANGUAGE DuplicateRecordFields #-}
@@ -26,7 +25,6 @@ module Cardano.Wallet.Primitive.Types.Tx.Tx
     , TxChange (..)
     , TxMetadata (..)
     , TxMetadataValue (..)
-    , LocalTxSubmissionStatus (..)
     , TokenBundleSizeAssessor (..)
     , TokenBundleSizeAssessment (..)
     , TxScriptValidity(..)
@@ -81,8 +79,7 @@ import Prelude
 
 import Cardano.Api
     ( ScriptWitnessIndex (..), TxMetadata (..), TxMetadataValue (..) )
-import Cardano.Slotting.Slot
-    ( SlotNo (..) )
+
 import Cardano.Wallet.Orphans
     ()
 import Cardano.Wallet.Primitive.Types.Address
@@ -376,17 +373,6 @@ txScriptInvalid Tx {scriptValidity} = case scriptValidity of
 -- | Test whether the given metadata map is empty.
 txMetadataIsNull :: TxMetadata -> Bool
 txMetadataIsNull (TxMetadata md) = Map.null md
-
--- | Information about when a transaction was submitted to the local node.
--- This is used for scheduling resubmissions.
-data LocalTxSubmissionStatus tx = LocalTxSubmissionStatus
-    { txId :: !(Hash "Tx")
-    , submittedTx :: !tx
-    , firstSubmission :: !SlotNo
-    -- ^ Time of first successful submission to the local node.
-    , latestSubmission :: !SlotNo
-    -- ^ Time of most recent resubmission attempt.
-    } deriving stock (Generic, Show, Eq, Functor)
 
 -- | A function capable of assessing the size of a token bundle relative to the
 --   upper limit of what can be included in a single transaction output.
