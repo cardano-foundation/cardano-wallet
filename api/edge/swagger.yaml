@@ -302,8 +302,7 @@ x-dataHash: &dataHash
   example: ca54c8836c475a77c6914b4fd598080acadb0f0067778773484d2c12ae7dc756
 
 x-stakePoolMetadataUrl: &stakePoolMetadataUrl
-  description: |
-    A URL to the stake pool's website.
+  description: A URL to the stake pool's website.
   type: string
   format: uri
   pattern: "^https://.+"
@@ -333,7 +332,7 @@ x-assetQuantity: &assetQuantity
   minimum: 0
 
 x-assetValueNode: &assetValueNode
-  description:
+  description: |
      Map of asset values along with their quantities.
      assetName in field name is expected (max length 64-character hex-encoded text)
   type: object
@@ -353,7 +352,7 @@ x-valueNode: &valueNode
       title: asset value
 
 x-valueNodes: &valueNodes
-  description:
+  description: |
      Map of values along with their quantities. Can be lovelace or asset.
      In the former case 'lovelace' name is expected.
      In the latter case assetPolicyId name is expected (56-character hex-encoded text)
@@ -3569,7 +3568,7 @@ components:
           type: array
           items: *ApiMintBurnData
           minItems: 1
-          description:
+          description: |
              An entry for each unique asset to be minted and/or burned,
              containing helpful information.
         delegations: *transactionDelegations
@@ -4078,7 +4077,7 @@ x-errHardenedDerivationRequired: &errHardenedDerivationRequired
   properties:
     message:
       type: string
-      description:
+      description: |
         Occurs when hardened derivation is required and soft index is used
         (without suffix 'H').
     code:
@@ -4274,7 +4273,7 @@ x-errCreatedWrongPolicyScriptTemplate: &errCreatedWrongPolicyScriptTemplate
   properties:
     message:
       type: string
-      description:
+      description: |
           Occurs when a policy script template either does not pass validation
           or has more than one cosigner.
     code:
@@ -4287,8 +4286,7 @@ x-errAssetNameTooLong: &errAssetNameTooLong
   properties:
     message:
       type: string
-      description:
-          Occurs when an asset name exceeds 32 bytes in length.
+      description: Occurs when an asset name exceeds 32 bytes in length.
     code:
       type: string
       enum: ['asset_name_too_long']
@@ -4299,7 +4297,7 @@ x-errMintOrBurnAssetQuantityOutOfBounds: &errMintOrBurnAssetQuantityOutOfBounds
   properties:
     message:
       type: string
-      description:
+      description: |
           Occurs when attempting to mint or burn an asset quantity that is not
           greater than zero or exceeds 9223372036854775807 (2^63 - 1).
     code:
@@ -4312,7 +4310,7 @@ x-errInvalidValidityBounds: &errInvalidValidityBounds
   properties:
     message:
       type: string
-      description:
+      description: |
         Occurs when attempting to create a transaction with invalid validity
         bounds. The 'invalid_before' bound must precede the 'invalid_hereafter'
         bound, and the given time values must not be negative.
@@ -4326,7 +4324,7 @@ x-errValidityIntervalNotInsideScriptTimelock: &errValidityIntervalNotInsideScrip
   properties:
     message:
       type: string
-      description:
+      description: |
         Occurs when attempting to create a transaction with a validity interval
         that is not a subinterval of an associated script's timelock interval.
     code:
@@ -4339,7 +4337,7 @@ x-errSharedWalletPending: &errSharedWalletPending
   properties:
     message:
       type: string
-      description:
+      description: |
         Occurs when attempting to create a transaction for a pending shared wallet.
     code:
       type: string
