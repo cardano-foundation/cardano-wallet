@@ -122,6 +122,15 @@ import Cardano.Wallet.Primitive.Types.TokenQuantity
     ( TokenQuantity (..) )
 import Cardano.Wallet.Primitive.Types.Tx.CBOR
     ( TxCBOR (..) )
+import Cardano.Wallet.Primitive.Types.Tx.Constraints
+    ( TxConstraints (..)
+    , TxSize (..)
+    , txOutputCoinCost
+    , txOutputCoinSize
+    , txOutputHasValidSize
+    , txOutputHasValidTokenQuantities
+    , txSizeDistance
+    )
 import Cardano.Wallet.Primitive.Types.Tx.SealedTx
     ( SealedTx (..)
     , SerialisedTx (..)
@@ -148,13 +157,11 @@ import Cardano.Wallet.Primitive.Types.Tx.Tx
     , TokenBundleSizeAssessment (..)
     , TokenBundleSizeAssessor (..)
     , Tx (..)
-    , TxConstraints (..)
     , TxIn (..)
     , TxMetadata (..)
     , TxMetadataValue (..)
     , TxOut (..)
     , TxScriptValidity (..)
-    , TxSize (..)
     , collateralInputs
     , inputs
     , txAssetIds
@@ -168,13 +175,8 @@ import Cardano.Wallet.Primitive.Types.Tx.Tx
     , txOutMapAssetIds
     , txOutRemoveAssetId
     , txOutSubtractCoin
-    , txOutputCoinCost
-    , txOutputCoinSize
-    , txOutputHasValidSize
-    , txOutputHasValidTokenQuantities
     , txRemoveAssetId
     , txScriptInvalid
-    , txSizeDistance
     )
 import Cardano.Wallet.Primitive.Types.Tx.TxMeta
     ( Direction (..), TxMeta (..), TxStatus (..), isPending )
