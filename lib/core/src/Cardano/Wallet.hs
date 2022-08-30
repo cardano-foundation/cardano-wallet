@@ -1567,6 +1567,7 @@ normalizeDelegationAddress s addr = do
 data PartialTx era = PartialTx
     { tx :: Cardano.Tx era
     , inputs :: Cardano.UTxO era
+      -- ^ NOTE: Can we rename this to something better? Perhaps 'extraUTxO'?
     , redeemers :: [Redeemer]
     } deriving (Show, Generic, Eq)
 
