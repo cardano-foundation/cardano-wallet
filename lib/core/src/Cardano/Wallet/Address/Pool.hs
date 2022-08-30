@@ -206,6 +206,7 @@ usedAddresses :: Pool addr ix -> [addr]
 usedAddresses pool =
     [ addr | (addr,(_,Used)) <- Map.toList $ addresses pool ]
 
+-- | The first index that is 'Unused' and that comes after any 'Used' index.
 nextIndex :: Enum ix => Pool addr ix -> ix
 nextIndex Pool{addresses,gap} = toEnum (Map.size addresses - gap)
 
