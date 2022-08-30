@@ -246,33 +246,25 @@ prop_roundtripEnumGap g =
 
 -- | We can always generate at exactly `gap` change addresses (on the internal
 -- chain) using mkSeqStateFromRootXPrv
-prop_genChangeGapFromRootXPrv
-    :: AddressPoolGap
-    -> Property
-prop_genChangeGapFromRootXPrv g =
-    property prop
+prop_genChangeGapFromRootXPrv :: AddressPoolGap -> Property
+prop_genChangeGapFromRootXPrv g = property $
+    length (fst $ changeAddresses [] s0) === fromEnum g
   where
     mw = someDummyMnemonic (Proxy @12)
     key = Shelley.unsafeGenerateKeyFromSeed (mw, Nothing) mempty
     s0 = mkSeqStateFromRootXPrv (key, mempty) purposeCIP1852 g
-    prop =
-        length (fst $ changeAddresses [] s0) === fromEnum g
 
 -- | We can always generate at exactly `gap` change addresses (on the internal
 -- chain) using mkSeqStateFromAccountXPub
-prop_genChangeGapFromAccountXPub
-    :: AddressPoolGap
-    -> Property
-prop_genChangeGapFromAccountXPub g =
-    property prop
+prop_genChangeGapFromAccountXPub :: AddressPoolGap -> Property
+prop_genChangeGapFromAccountXPub g = property $
+    length (fst $ changeAddresses [] s0) === fromEnum g
   where
     mw = someDummyMnemonic (Proxy @12)
     rootXPrv = Shelley.unsafeGenerateKeyFromSeed (mw, Nothing) mempty
     accIx = toEnum 0x80000000
     accXPub = publicKey $ deriveAccountPrivateKey mempty rootXPrv accIx
     s0 = mkSeqStateFromAccountXPub accXPub Nothing purposeCIP1852 g
-    prop =
-        length (fst $ changeAddresses [] s0) === fromEnum g
 
 prop_changeAddressRotation
     :: SeqState 'Mainnet ShelleyKey
@@ -445,8 +437,7 @@ instance AddressPoolTest ShelleyKey where
       where
         mkAddress k = delegationAddress @'Mainnet k rewardAccount
 
-rewardAccount
-    :: ShelleyKey 'AddressK XPub
+rewardAccount :: ShelleyKey 'AddressK XPub
 rewardAccount = publicKey $
     Shelley.unsafeGenerateKeyFromSeed (mw, Nothing) mempty
   where
@@ -461,16 +452,12 @@ changeAddresses as s =
     in if a `elem` as then (as, s) else changeAddresses (a:as) s'
 
 unsafeMkAddressPoolGap :: (Integral a, Show a) => a -> AddressPoolGap
-unsafeMkAddressPoolGap g = case (mkAddressPoolGap $ fromIntegral g) of
+unsafeMkAddressPoolGap g = case mkAddressPoolGap (fromIntegral g) of
     Right a -> a
     Left _ -> error $ "unsafeMkAddressPoolGap: bad argument: " <> show g
 
 defaultPrefix :: DerivationPrefix
-defaultPrefix = DerivationPrefix
-    ( purposeCIP1852
-    , coinTypeAda
-    , minBound
-    )
+defaultPrefix = DerivationPrefix (purposeCIP1852, coinTypeAda, minBound)
 
 {-------------------------------------------------------------------------------
                                 Arbitrary Instances
