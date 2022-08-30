@@ -1,5 +1,17 @@
 RSpec.describe CardanoWallet::Misc, :all, :misc do
 
+  describe CardanoWallet::Misc::Node do
+
+    it "Can get latest block header info", :light do
+      res = NODE.block_header
+      expect(res).to be_correct_and_respond 200
+      expect(res.to_s).to include 'block_height'
+      expect(res.to_s).to include 'header_hash'
+      expect(res.to_s).to include 'slot_no'
+    end
+
+  end
+
   describe CardanoWallet::Misc::Network do
 
     it "Can get network information" do
