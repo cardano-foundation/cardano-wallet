@@ -278,6 +278,7 @@ library
       Cardano.Wallet.Primitive.Types.Tx
       Cardano.Wallet.Primitive.Types.Tx.CBOR
       Cardano.Wallet.Primitive.Types.Tx.CBOR.Hash
+      Cardano.Wallet.Primitive.Types.Tx.SealedTx
       Cardano.Wallet.Primitive.Types.Tx.TransactionInfo
       Cardano.Wallet.Primitive.Types.Tx.Tx
       Cardano.Wallet.Primitive.Types.Tx.TxMeta

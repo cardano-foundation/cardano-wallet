@@ -105,3 +105,4 @@ import Cardano.Wallet.Primitive.Types.Tx.CBOR
 import Cardano.Wallet.Primitive.Types.Tx.TransactionInfo
 import Cardano.Wallet.Primitive.Types.Tx.Tx
 import Cardano.Wallet.Primitive.Types.Tx.TxMeta
+import Cardano.Wallet.Primitive.Types.Tx.SealedTx
