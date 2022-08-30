@@ -1778,10 +1778,22 @@ balanceTransactionWithSelectionStrategy
     toSealed :: Cardano.Tx era -> SealedTx
     toSealed = sealedTxFromCardano . Cardano.InAnyCardanoEra Cardano.cardanoEra
 
-    -- | Extract the resolved inputs contained in the @PartialTx@
+    -- | Extract the inputs from the raw 'tx' of the 'Partialtx', with the
+    -- corresponding 'TxOut' according to @combinedUTxO@.
     --
-    -- Requires @guardWalletUTxOConsistencyWith inputUTxO@ to validate
-    -- for balancing to succeed.
+    -- === Examples using pseudo-code
+    --
+    -- >>> let extraUTxO = {inA -> outA, inB -> outB }
+    -- >>> let tx = addInputs [inA] emptyTx
+    -- >>> let ptx = PartialTx tx extraUTxO []
+    -- >>> extractExternallySelectedUTxO ptx
+    -- Right (UTxOIndex.fromMap {inA -> outA})
+    --
+    -- >>> let extraUTxO = {inB -> outB }
+    -- >>> let tx = addInputs [inA, inC] emptyTx
+    -- >>> let ptx = PartialTx tx extraUTxO []
+    -- >>> extractExternallySelectedUTxO ptx
+    -- Left (ErrBalanceTxUnresolvedInputs [inA, inC])
     extractExternallySelectedUTxO
         :: PartialTx era
         -> ExceptT ErrBalanceTx m (UTxOIndex WalletUTxO)
