@@ -1,6 +1,5 @@
 {-# LANGUAGE AllowAmbiguousTypes #-}
 {-# LANGUAGE BangPatterns #-}
-{-# LANGUAGE BlockArguments #-}
 {-# LANGUAGE ConstraintKinds #-}
 {-# LANGUAGE DeriveGeneric #-}
 {-# LANGUAGE DerivingStrategies #-}
@@ -110,10 +109,10 @@ import Cardano.Wallet.Primitive.AddressDiscovery
     , MaybeLight (..)
     , PendingIxs
     , coinTypeAda
+    , dropLowerPendingIxs
     , emptyPendingIxs
     , nextChangeIndex
     , pendingIxsToList
-    , updatePendingIxs
     )
 import Cardano.Wallet.Primitive.BlockSummary
     ( ChainEvents )
@@ -135,8 +134,6 @@ import Data.Bifunctor
     ( first, second )
 import Data.Digest.CRC32
     ( crc32 )
-import Data.Function
-    ( (&) )
 import Data.Kind
     ( Type )
 import Data.List.NonEmpty
@@ -506,30 +503,32 @@ decoratePath st r ix = NE.fromList
 -- chain so in theory, there's nothing forcing a wallet to generate change
 -- addresses on the internal chain anywhere in the available range.
 instance SupportsDiscovery n k => IsOurs (SeqState n k) Address where
-    isOurs addrRaw st@SeqState{pendingChangeIxs=ixs} =
+    isOurs addrRaw st =
         -- FIXME LATER: Check that the network discrimant of the type
         -- is compatible with the discriminant of the Address!
         case paymentKeyFingerprint addrRaw of
             Left _ -> (Nothing, st)
             Right addr ->
-                let (internal, !int) = lookupAddress addr (internalPool st)
-                    (external, !ext) = lookupAddress addr (externalPool st)
+                let (internalIndex, !internalPool') =
+                        lookupAddress addr (internalPool st)
+                    (externalIndex, !externalPool') =
+                        lookupAddress addr (externalPool st)
 
-                    !ixs' = case internal of
-                        Nothing -> ixs
-                        Just ix -> updatePendingIxs ix ixs
+                    ours = (decoratePath st UtxoExternal <$> externalIndex)
+                       <|> (decoratePath st UtxoInternal <$> internalIndex)
 
-                    ours = case (external, internal) of
-                        (Just ix, _) -> Just $ decoratePath st UtxoExternal ix
-                        (_, Just ix) -> Just $ decoratePath st UtxoInternal ix
-                        _ -> Nothing
+                    pendingChangeIxs' =
+                        case internalIndex of
+                            Nothing -> pendingChangeIxs st
+                            Just ix ->
+                                dropLowerPendingIxs ix (pendingChangeIxs st)
                 in
-                    ( ixs' `deepseq` ours `deepseq` ours
-                    , st
-                        { internalPool = int
-                        , externalPool = ext
-                        , pendingChangeIxs = ixs'
-                        }
+                    ( ours `deepseq` ours
+                    , st { internalPool = internalPool'
+                         , externalPool = externalPool'
+                         , pendingChangeIxs =
+                               pendingChangeIxs' `deepseq` pendingChangeIxs'
+                         }
                     )
       where
         lookupAddress addr (SeqAddressPool pool) =
@@ -645,7 +644,14 @@ discoverSeq query state = do
     (eventsInternal, internalPool') <- discover (internalPool state)
     (eventsExternal, externalPool') <- discover (externalPool state)
     let discoveredEvents = eventsInternal <> eventsExternal
-    let state' = state {internalPool=internalPool', externalPool=externalPool'}
+        state' = state
+            { internalPool = internalPool'
+            , externalPool = externalPool'
+            , pendingChangeIxs =
+                dropLowerPendingIxs
+                    (AddressPool.nextIndex (getPool internalPool'))
+                    (pendingChangeIxs state)
+            }
     pure (discoveredEvents, state')
   where
     -- Only enterprise address (for legacy Icarus keys)
@@ -667,7 +673,14 @@ discoverSeqWithRewards query state = do
     (eventsInternal, internalPool') <- discover (internalPool state)
     (eventsExternal, externalPool') <- discover (externalPool state)
     let discoveredEvents = eventsReward <> eventsInternal <> eventsExternal
-    let state' = state {internalPool=internalPool', externalPool=externalPool'}
+        state' = state
+            { internalPool = internalPool'
+            , externalPool = externalPool'
+            , pendingChangeIxs =
+                dropLowerPendingIxs
+                    (AddressPool.nextIndex (getPool internalPool'))
+                    (pendingChangeIxs state)
+            }
     pure (discoveredEvents, state')
   where
     -- Every 'Address' is composed of a payment part and a staking part.
