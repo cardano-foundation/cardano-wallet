@@ -22,7 +22,6 @@ module Cardano.Wallet.Primitive.Types.Tx.Tx
       Tx (..)
     , TxIn (..)
     , TxOut (..)
-    , TxChange (..)
     , TxMetadata (..)
     , TxMetadataValue (..)
     , TokenBundleSizeAssessor (..)
@@ -309,17 +308,6 @@ instance Ord TxOut where
     compare = comparing projection
       where
         projection (TxOut address bundle) = (address, Lexicographic bundle)
-
-data TxChange derivationPath = TxChange
-    { address
-        :: !Address
-    , amount
-        :: !Coin
-    , assets
-        :: !TokenMap
-    , derivationPath
-        :: derivationPath
-    } deriving (Show, Generic, Eq, Ord)
 
 instance NFData TxOut
 

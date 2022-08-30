@@ -108,8 +108,14 @@ import Prelude
 
 import Cardano.Slotting.Slot
     ( SlotNo (..) )
+import Cardano.Wallet.Primitive.Types.Address
+    ( Address )
+import Cardano.Wallet.Primitive.Types.Coin
+    ( Coin )
 import Cardano.Wallet.Primitive.Types.Hash
     ( Hash )
+import Cardano.Wallet.Primitive.Types.TokenMap
+    ( TokenMap )
 import Cardano.Wallet.Primitive.Types.Tx.CBOR
 import Cardano.Wallet.Primitive.Types.Tx.SealedTx
 import Cardano.Wallet.Primitive.Types.Tx.TransactionInfo
@@ -165,3 +171,10 @@ data LocalTxSubmissionStatus tx = LocalTxSubmissionStatus
     , latestSubmission :: SlotNo
     -- ^ Time of most recent resubmission attempt.
     } deriving stock (Generic, Show, Eq, Functor)
+
+data TxChange derivationPath = TxChange
+    { address :: Address
+    , amount :: Coin
+    , assets :: TokenMap
+    , derivationPath :: derivationPath
+    } deriving (Show, Generic, Eq, Ord)
