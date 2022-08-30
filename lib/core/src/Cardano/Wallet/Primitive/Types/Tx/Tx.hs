@@ -25,18 +25,14 @@ module Cardano.Wallet.Primitive.Types.Tx.Tx
     , TxIn (..)
     , TxOut (..)
     , TxChange (..)
-    , TxMeta (..)
     , TxMetadata (..)
     , TxMetadataValue (..)
-    , TxStatus (..)
     , UnsignedTx (..)
-    , Direction (..)
     , LocalTxSubmissionStatus (..)
     , TokenBundleSizeAssessor (..)
     , TokenBundleSizeAssessment (..)
     , TxScriptValidity(..)
     , ScriptWitnessIndex (..)
-    , TxCBOR
 
     -- * Serialisation
     , SealedTx (serialisedTx)
@@ -62,7 +58,6 @@ module Cardano.Wallet.Primitive.Types.Tx.Tx
     -- * Functions
     , inputs
     , collateralInputs
-    , isPending
     , txIns
     , txMetadataIsNull
     , txOutCoin
@@ -164,19 +159,10 @@ import Data.Map.Strict
     ( Map )
 import Data.Ord
     ( comparing )
-import Data.Quantity
-    ( Quantity (..) )
 import Data.Set
     ( Set )
 import Data.Text
     ( Text )
-import Data.Text.Class
-    ( CaseStyle (..)
-    , FromText (..)
-    , ToText (..)
-    , fromTextToBoundedEnum
-    , toTextFromBoundedEnum
-    )
 import Data.Type.Equality
     ( (:~:) (..), testEquality )
 import Data.Word
@@ -213,7 +199,6 @@ import qualified Data.Foldable as F
 import qualified Data.Map.Strict as Map
 import qualified Data.Set as Set
 import qualified Data.Text as T
-import qualified Data.Text.Lazy.Builder as Builder
 
 -- | Primitive @Tx@-type.
 --
@@ -414,54 +399,6 @@ instance Buildable TxOut where
 instance Buildable (TxIn, TxOut) where
     build (txin, txout) = build txin <> " ==> " <> build txout
 
--- | Additional information about a transaction, derived from the transaction
--- and ledger state. This should not be confused with 'TxMetadata' which is
--- application-specific data included with the transaction.
---
--- TODO: TxProperties or TxProps would be a good name for this type.
-data TxMeta = TxMeta
-    { status :: !TxStatus
-    , direction :: !Direction
-    , slotNo :: !SlotNo
-    , blockHeight :: !(Quantity "block" Word32)
-    , amount :: !Coin
-    -- ^ Amount seen from the perspective of the wallet. Refers either to a
-    -- spent value for outgoing transaction, or a received value on incoming
-    -- transaction.
-    , expiry :: !(Maybe SlotNo)
-      -- ^ The slot at which a pending transaction will no longer be accepted
-      -- into mempools.
-    } deriving (Show, Eq, Ord, Generic)
-
-instance NFData TxMeta
-
-instance Buildable TxMeta where
-    build (TxMeta s d sl (Quantity bh) c mex) = mempty
-        <> build (WithDirection d c)
-        <> " " <> build s
-        <> " since " <> build sl <> "#" <> build bh
-        <> maybe mempty (\ex -> " (expires slot " <> build ex <> ")") mex
-
-data TxStatus
-    = Pending
-        -- ^ Created, but not yet in a block.
-    | InLedger
-        -- ^ Has been found in a block.
-    | Expired
-        -- ^ Time to live (TTL) has passed.
-    deriving (Show, Eq, Ord, Bounded, Enum, Generic)
-
-instance NFData TxStatus
-
-instance Buildable TxStatus where
-    build = Builder.fromText . toTextFromBoundedEnum SpacedLowerCase
-
-instance FromText TxStatus where
-    fromText = fromTextToBoundedEnum SnakeLowerCase
-
-instance ToText TxStatus where
-    toText = toTextFromBoundedEnum SnakeLowerCase
-
 -- | An unsigned transaction.
 --
 -- See 'Tx' for a signed transaction.
@@ -499,29 +436,6 @@ data UnsignedTx input output change withdrawal = UnsignedTx
     }
     deriving (Eq, Generic, Show)
 
--- | The effect of a @Transaction@ on the wallet balance.
-data Direction
-    = Outgoing -- ^ The wallet balance decreases.
-    | Incoming -- ^ The wallet balance increases or stays the same.
-    deriving (Show, Bounded, Enum, Eq, Ord, Generic)
-
-instance NFData Direction
-
-instance Buildable Direction where
-    build = Builder.fromText . toTextFromBoundedEnum SpacedLowerCase
-
-instance FromText Direction where
-    fromText = fromTextToBoundedEnum SnakeLowerCase
-
-instance ToText Direction where
-    toText = toTextFromBoundedEnum SnakeLowerCase
-
-data WithDirection a = WithDirection Direction a
-
-instance Buildable a => Buildable (WithDirection a) where
-    build (WithDirection d a) = mempty
-        <> (case d of; Incoming -> "+"; Outgoing -> "-")
-        <> build a
 
 -- | 'SealedTx' is a transaction for any hard fork era, possibly incomplete,
 -- possibly unsigned, with dual representations to make it convenient to use.
@@ -758,9 +672,6 @@ data SerialisedTxParts = SerialisedTxParts
     , serialisedTxWitnesses :: [ByteString]
     } deriving stock (Show, Eq, Generic)
 
--- | True if the given metadata refers to a pending transaction
-isPending :: TxMeta -> Bool
-isPending = (== Pending) . (status :: TxMeta -> TxStatus)
 
 
 
