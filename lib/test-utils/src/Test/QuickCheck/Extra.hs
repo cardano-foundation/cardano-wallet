@@ -1,7 +1,9 @@
 {-# LANGUAGE BangPatterns #-}
 {-# LANGUAGE DataKinds #-}
+{-# LANGUAGE DerivingVia #-}
 {-# LANGUAGE FlexibleContexts #-}
 {-# LANGUAGE GADTs #-}
+{-# LANGUAGE KindSignatures #-}
 {-# LANGUAGE LambdaCase #-}
 {-# LANGUAGE ScopedTypeVariables #-}
 {-# LANGUAGE TypeApplications #-}
@@ -64,6 +66,8 @@ module Test.QuickCheck.Extra
 
       -- * Combinators
     , NotNull (..)
+    , ScaleDiv (..)
+    , ScaleMod (..)
 
       -- * Utilities
     , interleaveRoundRobin
@@ -87,6 +91,8 @@ import Data.Set
 import Fmt
     ( indentF, (+|), (|+) )
 import Generics.SOP
+import GHC.TypeNats
+    ( type (<=), KnownNat, Nat, natVal )
 import Numeric.Natural
     ( Natural )
 import Test.QuickCheck
@@ -575,6 +581,60 @@ newtype NotNull a = NotNull { unNotNull :: a }
 instance (Arbitrary a, Eq a, Monoid a) => Arbitrary (NotNull a) where
     arbitrary = NotNull <$> arbitrary `suchThat` (/= mempty)
     shrink (NotNull u) = NotNull <$> filter (/= mempty) (shrink u)
+
+--------------------------------------------------------------------------------
+-- Adjusting the QuickCheck size parameter
+--------------------------------------------------------------------------------
+
+-- | Divides the QuickCheck size parameter by the given positive integer and
+--   returns the quotient.
+--
+-- This combinator provides a convenient way to scale down the QuickCheck size
+-- parameter for a particular property argument. This can be useful if you wish
+-- to adjust the distribution of data for one property argument in isolation,
+-- without affecting the distribution of data for other property arguments.
+--
+-- Example:
+--
+-- @
+-- prop_foo :: Integer -> ScaleDiv 2 Integer -> Property
+-- prop_foo x (ScaleDiv y) = ...
+-- @
+--
+newtype ScaleDiv (n :: Nat) a = ScaleDiv { unScaleDiv :: a }
+    deriving stock (Eq, Ord)
+    deriving (Read, Show) via a
+
+instance (Arbitrary a, KnownNat n, 1 <= n) => Arbitrary (ScaleDiv n a) where
+    arbitrary = ScaleDiv <$> scale (`div` n) arbitrary
+      where
+        n = fromIntegral $ natVal $ Proxy @n
+    shrink = shrinkMapBy ScaleDiv unScaleDiv shrink
+
+-- | Divides the QuickCheck size parameter by the given positive integer and
+--   returns the remainder.
+--
+-- This combinator provides a convenient way to scale down the QuickCheck size
+-- parameter for a particular property argument. This can be useful if you wish
+-- to adjust the distribution of data for one property argument in isolation,
+-- without affecting the distribution of data for other property arguments.
+--
+-- Example:
+--
+-- @
+-- prop_foo :: Integer -> ScaleMod 8 Integer -> Property
+-- prop_foo x (ScaleMod y) = ...
+-- @
+--
+newtype ScaleMod (n :: Nat) a = ScaleMod { unScaleMod :: a }
+    deriving stock (Eq, Ord)
+    deriving (Read, Show) via a
+
+instance (Arbitrary a, KnownNat n, 1 <= n) => Arbitrary (ScaleMod n a) where
+    arbitrary = ScaleMod <$> scale (`mod` n) arbitrary
+      where
+        n = fromIntegral $ natVal $ Proxy @n
+    shrink = shrinkMapBy ScaleMod unScaleMod shrink
 
 --------------------------------------------------------------------------------
 -- Generic shrinking
