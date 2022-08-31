@@ -20,9 +20,7 @@
 --  * "Cardano.Wallet.Primitive.AddressDiscovery.Random"
 
 module Cardano.Wallet.Primitive.AddressDiscovery
-    (
-    -- * Abstractions
-      IsOurs(..)
+    ( IsOurs(..)
     , IsOwned(..)
     , GenChange(..)
     , CompareDiscovery(..)
@@ -38,7 +36,7 @@ module Cardano.Wallet.Primitive.AddressDiscovery
     , pendingIxsToList
     , pendingIxsFromList
     , nextChangeIndex
-    , updatePendingIxs
+    , dropLowerPendingIxs
     ) where
 
 import Prelude
@@ -55,7 +53,7 @@ import Cardano.Wallet.Primitive.AddressDerivation
     )
 import Cardano.Wallet.Primitive.BlockSummary
     ( ChainEvents )
-import Cardano.Wallet.Primitive.Passphrase
+import Cardano.Wallet.Primitive.Passphrase.Types
     ( Passphrase (..) )
 import Cardano.Wallet.Primitive.Types.Address
     ( Address (..), AddressState (..) )
@@ -204,13 +202,13 @@ newtype DiscoverTxs addr txs s = DiscoverTxs
     }
 
 {-------------------------------------------------------------------------------
-                            Pending Change Indexes
+                        Pending Tx Change Indexes
 -------------------------------------------------------------------------------}
 
--- | An ordered set of pending indexes. This keep track of indexes used
+-- | An ordered set of indexes used by pending transactions.
 newtype PendingIxs k = PendingIxs
-    { pendingIxsToList :: [Index 'Soft k] }
-    deriving stock (Generic, Show, Eq)
+    { pendingIxsToList :: [Index 'Soft k]
+    } deriving stock (Generic, Show, Eq)
 
 instance NFData (PendingIxs k)
 
@@ -233,34 +231,38 @@ nextChangeIndex
        AddressPool.Pool (KeyFingerprint "payment" key) (Index 'Soft k)
     -> PendingIxs k
     -> (Index 'Soft k, PendingIxs k)
-nextChangeIndex pool (PendingIxs ixs) =
-    let
-        poolLen = AddressPool.size  pool
-        (firstUnused, lastUnused) =
-            ( toEnum $ poolLen - AddressPool.gap pool
-            , toEnum $ poolLen - 1
-            )
-        (ix, ixs') = case ixs of
-            [] ->
-                (firstUnused, PendingIxs [firstUnused])
-            h:_ | length ixs < AddressPool.gap pool ->
-                (succ h, PendingIxs (succ h:ixs))
-            h:q ->
-                (h, PendingIxs (q++[h]))
+nextChangeIndex pool (PendingIxs pendingIndexes) =
+    let poolLen = AddressPool.size pool
+        gap = AddressPool.gap pool
+        firstUnused = toEnum $ poolLen - gap
+        lastUnused = toEnum $ poolLen - 1
+        (nextIndex, pendingIndexes') =
+            case pendingIndexes of
+                [] -> (firstUnused, PendingIxs [firstUnused])
+                firstIndex : restIndexes ->
+                    if length pendingIndexes < AddressPool.gap pool
+                        then let next = succ firstIndex
+                             in (next, PendingIxs (next : pendingIndexes))
+                        else ( firstIndex
+                             , PendingIxs (restIndexes <> [firstIndex])
+                             )
+        errorMessage = concat
+            [ "Next change index ("
+            , show (getIndex nextIndex)
+            , ") is NOT between the first unused ("
+            , show (getIndex firstUnused)
+            , ") and the last unused ("
+            , show (getIndex lastUnused)
+            , ") indexes. Pool length is "
+            , show poolLen
+            , ", gap is "
+            , show gap
+            , ". The pending indexes are: "
+            , L.intercalate ", " $ fmap (show . getIndex) pendingIndexes
+            ]
     in
-        invariant "index is within first unused and last unused" (ix, ixs')
-            (\(i,_) -> i >= firstUnused && i <= lastUnused)
+        invariant errorMessage (nextIndex, pendingIndexes') $ \(index, _) ->
+            index >= firstUnused && index <= lastUnused
 
--- | Update the set of pending indexes by discarding every indexes _below_ the
--- given index.
---
--- Why is that?
---
--- Because we really do care about the higher index that was last used in order
--- to know from where we can generate new indexes.
-updatePendingIxs
-    :: Index 'Soft k
-    -> PendingIxs k
-    -> PendingIxs k
-updatePendingIxs ix (PendingIxs ixs) =
-    PendingIxs $ L.filter (> ix) ixs
+dropLowerPendingIxs :: Index 'Soft k -> PendingIxs k -> PendingIxs k
+dropLowerPendingIxs ix (PendingIxs ixs) = PendingIxs $ L.filter (> ix) ixs

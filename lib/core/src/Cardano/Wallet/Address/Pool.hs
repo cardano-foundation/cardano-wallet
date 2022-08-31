@@ -25,6 +25,7 @@ module Cardano.Wallet.Address.Pool
     , load
     , update
     , clear
+    , nextIndex
 
     -- * Address Discovery
     , discover
@@ -138,8 +139,12 @@ prop_fromIx Pool{addressFromIx,addresses} =
 
 -- | Internal invariant: The pool satisfies all invariants above.
 prop_consistent :: (Ord ix, Enum ix, Eq addr) => Pool addr ix -> Bool
-prop_consistent p =
-    all ($ p) [prop_sequence, prop_gap, prop_fresh, prop_fromIx]
+prop_consistent p = all ($ p)
+    [ prop_sequence
+    , prop_gap
+    , prop_fresh
+    , prop_fromIx
+    ]
 
 {-------------------------------------------------------------------------------
     Pretty printing
@@ -192,6 +197,10 @@ lookup addr Pool{addresses} = fst <$> Map.lookup addr addresses
 usedAddresses :: Pool addr ix -> [addr]
 usedAddresses pool =
     [ addr | (addr,(_,Used)) <- Map.toList $ addresses pool ]
+
+-- | The first index that is 'Unused' and that comes after any 'Used' index.
+nextIndex :: Enum ix => Pool addr ix -> ix
+nextIndex Pool{addresses,gap} = toEnum (Map.size addresses - gap)
 
 -- | Number of addresses cached in the pool.
 size :: Pool addr ix -> Int

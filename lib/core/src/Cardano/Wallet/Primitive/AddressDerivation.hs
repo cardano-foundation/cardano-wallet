@@ -350,7 +350,7 @@ instance Bounded (Index 'Hardened level) where
 
 instance Bounded (Index 'Soft level) where
     minBound = Index minBound
-    maxBound = let (Index ix) = minBound @(Index 'Hardened _) in Index (ix - 1)
+    maxBound = let Index ix = minBound @(Index 'Hardened _) in Index (ix - 1)
 
 instance Bounded (Index 'WholeDomain level) where
     minBound = Index minBound
@@ -359,26 +359,53 @@ instance Bounded (Index 'WholeDomain level) where
 instance Enum (Index 'Hardened level) where
     fromEnum (Index ix) = fromIntegral ix
     toEnum ix
-        | Index (fromIntegral ix) < minBound @(Index 'Hardened _) =
-            error "Index@Hardened.toEnum: bad argument"
+        | ix >= minIndex && ix <= maxIndex = Index (fromIntegral ix)
         | otherwise =
-            Index (fromIntegral ix)
+            error $ concat
+                [ "Index@Hardened.toEnum: value "
+                , show ix
+                , " is not within bounds: "
+                , show minIndex
+                , " <= value <= "
+                , show maxIndex
+                ]
+      where
+        minIndex = fromIntegral (getIndex (minBound @(Index 'Hardened _)))
+        maxIndex = fromIntegral (getIndex (maxBound @(Index 'Hardened _)))
 
 instance Enum (Index 'Soft level) where
     fromEnum (Index ix) = fromIntegral ix
     toEnum ix
-        | Index (fromIntegral ix) > maxBound @(Index 'Soft _) =
-            error "Index@Soft.toEnum: bad argument"
+        | ix >= minIndex && ix <= maxIndex = Index (fromIntegral ix)
         | otherwise =
-            Index (fromIntegral ix)
+            error $ concat
+                [ "Index@Soft.toEnum: value "
+                , show ix
+                , " is not within bounds: "
+                , show minIndex
+                , " <= value <= "
+                , show maxIndex
+                ]
+      where
+        minIndex = fromIntegral (getIndex (minBound @(Index 'Soft _)))
+        maxIndex = fromIntegral (getIndex (maxBound @(Index 'Soft _)))
 
 instance Enum (Index 'WholeDomain level) where
     fromEnum (Index ix) = fromIntegral ix
     toEnum ix
-        | Index (fromIntegral ix) > maxBound @(Index 'WholeDomain _) =
-            error "Index@WholeDomain.toEnum: bad argument"
+        | ix >= minIndex && ix <= maxIndex = Index (fromIntegral ix)
         | otherwise =
-            Index (fromIntegral ix)
+            error $ concat
+                [ "Index@WholeDomain.toEnum: value "
+                , show ix
+                , " is not within bounds: "
+                , show minIndex
+                , " <= value <= "
+                , show maxIndex
+                ]
+      where
+        minIndex = fromIntegral (getIndex (minBound @(Index 'WholeDomain _)))
+        maxIndex = fromIntegral (getIndex (maxBound @(Index 'WholeDomain _)))
 
 instance Buildable (Index derivationType level) where
     build (Index ix) = fromString (show ix)

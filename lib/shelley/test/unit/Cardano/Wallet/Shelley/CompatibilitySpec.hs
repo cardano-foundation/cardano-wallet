@@ -44,6 +44,7 @@ import Cardano.Wallet.Byron.Compatibility
     ( maryTokenBundleMaxSize )
 import Cardano.Wallet.Primitive.AddressDerivation
     ( Depth (..)
+    , Index (getIndex)
     , NetworkDiscriminant (..)
     , PaymentAddress (..)
     , WalletKey
@@ -142,6 +143,7 @@ import Test.QuickCheck
     , Small (..)
     , checkCoverage
     , choose
+    , chooseInt
     , conjoin
     , counterexample
     , cover
@@ -163,6 +165,7 @@ import qualified Cardano.Ledger.BaseTypes as SL
 import qualified Cardano.Ledger.Shelley as SL
 import qualified Cardano.Ledger.Shelley as SLAPI
 import qualified Cardano.Ledger.Shelley.PParams as SL
+import qualified Cardano.Wallet.Primitive.AddressDerivation as AddressDerivation
 import qualified Cardano.Wallet.Primitive.AddressDerivation.Byron as Byron
 import qualified Cardano.Wallet.Primitive.AddressDerivation.Shelley as Shelley
 import qualified Cardano.Wallet.Primitive.Types as W
@@ -741,11 +744,22 @@ instance Arbitrary (ByronKey 'AddressK XPrv) where
     shrink _ = []
     arbitrary = do
         mnemonic <- arbitrary
-        acctIx <- toEnum <$> arbitrary
-        addrIx <- toEnum <$> arbitrary
-        return $ Byron.unsafeGenerateKeyFromSeed (acctIx, addrIx) mnemonic mempty
+        acctIx <- arbitrary
+        addrIx <- arbitrary
+        pure $ Byron.unsafeGenerateKeyFromSeed (acctIx, addrIx) mnemonic mempty
 
-instance (WalletKey k, Arbitrary (k 'AddressK XPrv)) => Arbitrary (k 'AddressK XPub)
+instance
+    ( Enum (AddressDerivation.Index derivationType depth)
+    , Bounded (AddressDerivation.Index derivationType depth)
+    ) =>
+    Arbitrary (AddressDerivation.Index derivationType depth) where
+    arbitrary = toEnum <$> chooseInt (0, maxIndex)
+      where
+        maxIndex = fromIntegral . getIndex $
+            maxBound @(AddressDerivation.Index derivationType depth)
+
+instance (WalletKey k, Arbitrary (k 'AddressK XPrv)) =>
+    Arbitrary (k 'AddressK XPub)
   where
     shrink _ = []
     arbitrary = publicKey <$> arbitrary
