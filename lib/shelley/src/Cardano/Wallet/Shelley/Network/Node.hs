@@ -352,7 +352,7 @@ withNodeNetworkLayerBase
     rewardsObserver <- newRewardBalanceFetcher tr readNodeTip queryRewardQ
     let readCurrentNodeEra = atomically $ readTMVar eraVar
 
-    action $ NetworkLayer
+    action NetworkLayer
         { chainSync = \trFollowLog follower -> do
             let withStats = withFollowStatsMonitoring
                     trFollowLog
@@ -433,6 +433,23 @@ withNodeNetworkLayerBase
         let client = mkLocalTxSubmissionClient tr q
         link =<< async (connectCardanoApiClient tr handlers connectInfo client)
         pure q
+          where
+            mkLocalTxSubmissionClient
+                :: TQueue IO
+                    ( LocalTxSubmissionCmd
+                        (Cardano.TxInMode CardanoMode)
+                        (Cardano.TxValidationErrorInMode CardanoMode)
+                        IO
+                    )
+                -> LocalNodeClientProtocolsInMode CardanoMode
+            mkLocalTxSubmissionClient localTxSubmissionQ =
+                LocalNodeClientProtocols
+                { localChainSyncClient = NoLocalChainSyncClient
+                , localStateQueryClient = Nothing
+                , localTxMonitoringClient = Nothing
+                , localTxSubmissionClient =
+                    Just $ localTxSubmission localTxSubmissionQ
+                }
 
     connectDelegationRewardsClient
         :: HasCallStack
@@ -471,8 +488,7 @@ withNodeNetworkLayerBase
                 queryNonMyopicMemberRewards
                 stakeDistr
 
-        mres <- bracketQuery "stakePoolsSummary" tr $
-            queue `send` (SomeLSQ qry)
+        mres <- bracketQuery "stakePoolsSummary" tr $ queue `send` (SomeLSQ qry)
 
         -- The result will be Nothing if query occurs during the byron era
         traceWith tr $ MsgFetchStakePoolsData mres
@@ -503,7 +519,7 @@ withNodeNetworkLayerBase
 
         queryNonMyopicMemberRewards
             :: LSQ (CardanoBlock StandardCrypto) IO
-                    (Maybe (Map W.PoolId W.Coin))
+                (Maybe (Map W.PoolId W.Coin))
         queryNonMyopicMemberRewards = shelleyBased $
             (getRewardMap . fromNonMyopicMemberRewards)
                 <$> LSQry (Shelley.GetNonMyopicMemberRewards stake)
@@ -512,12 +528,11 @@ withNodeNetworkLayerBase
             stake = Set.singleton $ Left $ toShelleyCoin coin
 
             fromJustRewards = fromMaybe
-                (error "stakeDistribution: requested rewards not included in response")
+                (error "stakeDistribution: requested rewards\
+                    \ not included in response")
 
             getRewardMap
-                :: Map
-                    (Either W.Coin W.RewardAccount)
-                    (Map W.PoolId W.Coin)
+                :: Map (Either W.Coin W.RewardAccount) (Map W.PoolId W.Coin)
                 -> Map W.PoolId W.Coin
             getRewardMap =
                 fromJustRewards . Map.lookup (Left coin)
@@ -542,9 +557,8 @@ withNodeNetworkLayerBase
         let readInterpreter = liftIO $ atomically $ readTMVar var
         mkTimeInterpreter tr' getGenesisBlockDate readInterpreter
 
-    _syncProgress :: TMVar IO (CardanoInterpreter sc)
-        -> SlotNo
-        -> IO SyncProgress
+    _syncProgress
+        :: TMVar IO (CardanoInterpreter sc) -> SlotNo -> IO SyncProgress
     _syncProgress var slot = atomically (tryReadTMVar var) >>= \case
         -- If the wallet has been started, but not yet been able to connect
         -- to the node, we don't have an interpreter summary, and can't
@@ -578,19 +592,12 @@ doNothingProtocol =
 -- | Type representing a network client running two mini-protocols to sync
 -- from the chain and, submit transactions.
 type NetworkClient m = NodeToClientVersion -> OuroborosApplication
-    'InitiatorMode
-        -- Initiator ~ Client (as opposed to Responder / Server)
-    LocalAddress
-        -- Address type
-    ByteString
-        -- Concrete representation for bytes string
-    m
-        -- Underlying monad we run in
-    Void
-        -- Return type of a network client. Void indicates that the client
-        -- never exits.
-    Void
-        -- Irrelevant for initiator. Return type of 'ResponderMode' application.
+    'InitiatorMode -- Initiator ~ Client (as opposed to Responder / Server)
+    LocalAddress -- Address type
+    ByteString -- Concrete representation for bytes string
+    m -- Underlying monad we run in
+    Void -- Return type of a network client. Void means the client never exits.
+    Void -- Irrelevant for initiator. Return type of 'ResponderMode' application.
 
 -- | Construct a network client with the given communication channel, for the
 -- purposes of syncing blocks to a single wallet.
@@ -770,21 +777,6 @@ mkTipSyncClient tr np onPParamsUpdate onInterpreterUpdate onEraUpdate = do
     return (client, snd <$> readTVar tipVar)
     -- FIXME: We can remove the era from the tip sync client now.
 
-mkLocalTxSubmissionClient
-    :: Tracer IO Log
-    -> TQueue IO (LocalTxSubmissionCmd
-            (Cardano.TxInMode CardanoMode)
-            (Cardano.TxValidationErrorInMode CardanoMode)
-            IO )
-    -> LocalNodeClientProtocolsInMode CardanoMode
-mkLocalTxSubmissionClient _tr localTxSubmissionQ = LocalNodeClientProtocols
-    { localChainSyncClient = NoLocalChainSyncClient
-    , localTxSubmissionClient = Just $ localTxSubmission localTxSubmissionQ
-    , localStateQueryClient = Nothing
-    , localTxMonitoringClient = Nothing
-    }
-    -- FIXME: Put back logging for local Tx Submission.
-    -- tr' = contramap MsgTxSubmission tr
 
 {-------------------------------------------------------------------------------
     Thread for observing
@@ -1177,12 +1169,17 @@ data Log where
     MsgConnectionLost :: Maybe IOException -> Log
     MsgTxSubmission
         :: (TraceSendRecv
-            (LocalTxSubmission (Cardano.TxInMode CardanoMode) (Cardano.TxValidationErrorInMode CardanoMode)))
+            (LocalTxSubmission
+                (Cardano.TxInMode CardanoMode)
+                (Cardano.TxValidationErrorInMode CardanoMode)))
         -> Log
     MsgLocalStateQuery
         :: QueryClientName
         -> (TraceSendRecv
-            (LocalStateQuery (CardanoBlock StandardCrypto) (Point (CardanoBlock StandardCrypto)) (Query (CardanoBlock StandardCrypto))))
+            (LocalStateQuery
+                (CardanoBlock StandardCrypto)
+                (Point (CardanoBlock StandardCrypto))
+                (Query (CardanoBlock StandardCrypto))))
         -> Log
     MsgHandshakeTracer ::
       (WithMuxBearer (ConnectionId LocalAddress) HandshakeTrace) -> Log
@@ -1190,12 +1187,14 @@ data Log where
     MsgNodeTip :: W.BlockHeader -> Log
     MsgProtocolParameters :: W.ProtocolParameters -> W.SlottingParameters -> Log
     MsgLocalStateQueryError :: QueryClientName -> String -> Log
-    MsgLocalStateQueryEraMismatch :: MismatchEraInfo (CardanoEras StandardCrypto) -> Log
-    MsgFetchRewardAccountBalance
-        :: Set W.RewardAccount
-        -> Log
+    MsgLocalStateQueryEraMismatch
+        :: MismatchEraInfo (CardanoEras StandardCrypto) -> Log
+    MsgFetchRewardAccountBalance :: Set W.RewardAccount -> Log
     MsgAccountDelegationAndRewards
-        :: forall era crypto. (Map (SL.Credential 'SL.Staking era) (SL.KeyHash 'SL.StakePool crypto))
+        :: forall era crypto
+         . (Map
+            (SL.Credential 'SL.Staking era)
+            (SL.KeyHash 'SL.StakePool crypto))
         -> SL.RewardAccounts era
         -> Log
     MsgDestroyCursor :: ThreadId -> Log
@@ -1210,9 +1209,7 @@ data Log where
     MsgInterpreterLog :: TimeInterpreterLog -> Log
     MsgQuery :: String -> BracketLog -> Log
     MsgQueryTime :: String -> DiffTime -> Log
-    MsgObserverLog
-        :: ObserverLog W.RewardAccount W.Coin
-        -> Log
+    MsgObserverLog :: ObserverLog W.RewardAccount W.Coin -> Log
 
 data QueryClientName
     = TipSyncClient
