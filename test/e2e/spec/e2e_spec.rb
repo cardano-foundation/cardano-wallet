@@ -2361,7 +2361,7 @@ RSpec.describe "Cardano Wallet E2E tests", :all, :e2e do
         expect(rnd['certificates'].to_s).to include "join_pool"
       end
 
-      it "I could trigger random coin selection delegation action - if I had money", :light do
+      it "I could trigger random coin selection delegation action - if I had money" do
         wid = create_shelley_wallet
         pid = SHELLEY.stake_pools.list({ stake: 10000000 }).sample['id']
         action_join = { action: "join", pool: pid }
@@ -2371,7 +2371,7 @@ RSpec.describe "Cardano Wallet E2E tests", :all, :e2e do
         expect(rnd.to_s).to include "not_enough_money"
       end
 
-      it "I could trigger random coin selection delegation action - if I known pool id", :light do
+      it "I could trigger random coin selection delegation action - if I known pool id" do
         addresses = SHELLEY.addresses.list(@wid)
         action_join = { action: "join", pool: SPID_BECH32 }
         action_quit = { action: "quit" }
@@ -2618,7 +2618,7 @@ RSpec.describe "Cardano Wallet E2E tests", :all, :e2e do
       tx_ids.each do |tx_id|
         wait_for_tx_in_ledger(@target_id, tx_id)
       end
-      
+
       eventually "Balance is as expected" do
         src_after = get_shelley_balances(@target_id)
         target_after = get_shelley_balances(@wid)
@@ -2628,11 +2628,9 @@ RSpec.describe "Cardano Wallet E2E tests", :all, :e2e do
           'assets_total' => [],
           'assets_available' => [] }
 
-        expect(src_after).to eq expected_src_balance
-
-        verify_ada_balance(src_after, src_before,
-          target_after, target_before,
-          amounts, fees)
+        ((src_after == expected_src_balance) &&
+        (target_after['available'] == amounts + target_before['available']) &&
+        (target_after['total'] == amounts + target_before['total']))
       end
 
     end
