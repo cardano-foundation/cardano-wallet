@@ -32,6 +32,7 @@ import Test.QuickCheck
     , applyFun
     , conjoin
     , property
+    , withMaxSuccess
     , (===)
     )
 
@@ -50,6 +51,7 @@ spec = describe "Control.Monad.UtilSpec" $ do
                 & property
         it "prop_applyNM_iterate @[] @Int" $
             prop_applyNM_iterate @[] @Int
+                & withMaxSuccess 10
                 & property
         it "prop_applyNM_unit @Identity @Int" $
             prop_applyNM_unit @Identity @Int
@@ -59,6 +61,7 @@ spec = describe "Control.Monad.UtilSpec" $ do
                 & property
         it "prop_applyNM_unit @[] @Int" $
             prop_applyNM_unit @[] @Int
+                & withMaxSuccess 10
                 & property
 
 --------------------------------------------------------------------------------
