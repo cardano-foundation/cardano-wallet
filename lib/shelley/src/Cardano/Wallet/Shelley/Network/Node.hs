@@ -104,7 +104,7 @@ import Cardano.Wallet.Shelley.Compatibility
 import Control.Applicative
     ( liftA3 )
 import Control.Monad
-    ( forever, guard, unless, void, when, (>=>) )
+    ( forever, guard, unless, void, when )
 import Control.Monad.Class.MonadAsync
     ( MonadAsync )
 import Control.Monad.Class.MonadST
@@ -156,6 +156,8 @@ import Data.Either
     ( fromRight )
 import Data.Function
     ( (&) )
+import Data.Functor
+    ( ($>) )
 import Data.Functor.Contravariant
     ( (>$<) )
 import Data.List
@@ -261,7 +263,7 @@ import Ouroboros.Network.Protocol.LocalStateQuery.Type
 import Ouroboros.Network.Protocol.LocalTxSubmission.Type
     ( LocalTxSubmission, SubmitResult (..) )
 import System.IO.Error
-    ( isDoesNotExistError )
+    ( isDoesNotExistError, isResourceVanishedError )
 import UnliftIO.Async
     ( async, link )
 import UnliftIO.Compat
@@ -337,17 +339,19 @@ withNodeNetworkLayerBase
     -- It is safe to retry when the connection is lost here because this client
     -- doesn't really do anything but sending messages to get the node's tip. It
     -- doesn't rely on the intersection to be up-to-date.
-    let handlers = retryOnConnectionLost tr
+    let handlers cl = retryOnConnectionLost (MsgConnectionStatus cl >$< tr)
 
     -- FIXME: Would be nice to remove these multiple vars.
     -- Not as trivial as it seems, since we'd need to preserve the @debounce@
     -- behaviour.
     (readNodeTip, networkParamsVar, interpreterVar, eraVar)
-        <- connectNodeTipClient handlers
+        <- connectNodeTipClient (handlers ClientNodeTip)
 
-    localTxSubmissionQ <- connectLocalTxSubmissionClient handlers
+    localTxSubmissionQ <-
+        connectLocalTxSubmissionClient (handlers ClientLocalTxSubmission)
 
-    queryRewardQ <- connectDelegationRewardsClient handlers
+    queryRewardQ <- connectDelegationRewardsClient
+        (handlers ClientDelegationRewards)
 
     rewardsObserver <- newRewardBalanceFetcher tr readNodeTip queryRewardQ
     let readCurrentNodeEra = atomically $ readTMVar eraVar
@@ -367,9 +371,10 @@ withNodeNetworkLayerBase
                         (mapChainFollower toPoint mapP blockHeader id follower)
                         cfg
                 traceWith trFollowLog MsgStartFollowing
-                connectClient tr handlers client versionData conn
+                let trChainSync = MsgConnectionStatus ClientChainSync >$< tr
+                    retryHandlers = handlers ClientChainSync
+                connectClient trChainSync retryHandlers client versionData conn
         , lightSync = Nothing
-
         , currentNodeTip =
             fromTip getGenesisBlockHash <$> atomically readNodeTip
         , currentNodeEra =
@@ -418,7 +423,9 @@ withNodeNetworkLayerBase
             (curry (atomically . repsertTMVar networkParamsVar))
             (atomically . repsertTMVar interpreterVar)
             (atomically . repsertTMVar eraVar)
-        link =<< async (connectClient tr handlers nodeTipClient versionData conn)
+        let trNodeTip = MsgConnectionStatus ClientNodeTip >$< tr
+        link =<< async
+            (connectClient trNodeTip handlers nodeTipClient versionData conn)
         pure (readTip, networkParamsVar, interpreterVar, eraVar)
 
     connectLocalTxSubmissionClient
@@ -430,8 +437,10 @@ withNodeNetworkLayerBase
               )
     connectLocalTxSubmissionClient handlers = do
         q <- atomically newTQueue
-        let client = mkLocalTxSubmissionClient tr q
-        link =<< async (connectCardanoApiClient tr handlers connectInfo client)
+        let client = mkLocalTxSubmissionClient q
+            trTxSubmission = MsgConnectionStatus ClientLocalTxSubmission >$< tr
+        link =<< async
+            (connectCardanoApiClient trTxSubmission handlers connectInfo client)
         pure q
           where
             mkLocalTxSubmissionClient
@@ -459,7 +468,9 @@ withNodeNetworkLayerBase
     connectDelegationRewardsClient handlers = do
         q <- atomically newTQueue
         let client = mkDelegationRewardsClient tr cfg q
-        link =<< async (connectClient tr handlers client versionData conn)
+            trRewardsClient = MsgConnectionStatus ClientDelegationRewards >$< tr
+        link =<< async
+            (connectClient trRewardsClient handlers client versionData conn)
         pure q
 
     -- NOTE1: only shelley transactions can be submitted like this, because they
@@ -984,8 +995,8 @@ serialisedCodecs nodeToClientVersion cfg =
 --
 -- * "Cardano.Api" is simpler in that it does not require so much plumbing.
 connectCardanoApiClient
-    :: Tracer IO Log
-        -- ^ Base trace for underlying protocols
+    :: Tracer IO ConnectionStatusLog
+    -- ^ Base trace for underlying protocols
     -> RetryHandlers
     -> LocalNodeConnectInfo CardanoMode
     -> LocalNodeClientProtocolsInMode CardanoMode
@@ -998,7 +1009,7 @@ connectCardanoApiClient tr handlers info =
 --
 -- >>> connectClient (mkWalletClient tr gp queue) mainnetVersionData conn
 connectClient
-    :: Tracer IO Log
+    :: Tracer IO ConnectionStatusLog
     -> RetryHandlers
     -> NetworkClient IO
     -> NodeToClientVersionData
@@ -1018,10 +1029,7 @@ connectClient tr handlers client vData conn = withIOManager $ \iocp -> do
         connectTo socket tracers versions (nodeSocketFile conn)
 
 recoveringNodeConnection
-    :: Tracer IO Log
-    -> RetryHandlers
-    -> IO a
-    -> IO a
+    :: Tracer IO ConnectionStatusLog -> RetryHandlers -> IO a -> IO a
 recoveringNodeConnection tr handlers action =
     recoveringDynamic policy (coerceHandlers handlers) $ \status -> do
         traceWith tr $ MsgCouldntConnect (rsIterNumber status)
@@ -1035,70 +1043,55 @@ recoveringNodeConnection tr handlers action =
 type RetryHandlers = [RetryStatus -> Handler IO RetryAction]
 
 -- | Handlers that are retrying on every connection lost.
-retryOnConnectionLost :: Tracer IO Log -> RetryHandlers
+retryOnConnectionLost :: Tracer IO ConnectionStatusLog -> RetryHandlers
 retryOnConnectionLost tr =
-    [ const $ Handler $ handleIOException tr' True
-    , const $ Handler $ handleMuxError tr' True
+    [ \_retryStatus -> Handler $ handleIOException $
+        MsgConnectionLost . ReasonException >$< tr
+    , \_retryStatus -> Handler $ handleMuxError $
+        MsgConnectionLost >$< tr
     ]
-  where
-    tr' = contramap MsgConnectionLost tr
 
 -- When the node's connection vanished, we may also want to handle things in a
 -- slightly different way depending on whether we are a waller worker or just
 -- the node's tip thread.
-handleIOException
-    :: Tracer IO (Maybe IOException)
-    -> Bool -- ^ 'True' = retry on 'ResourceVanishedError'
-    -> IOException
-    -> IO RetryAction
-handleIOException tr onResourceVanished e
-    -- There's a race-condition when starting the wallet and the node at the
-    -- same time: the socket might not be there yet when we try to open it.
-    -- In such case, we simply retry a bit later and hope it's there.
-    | isDoesNotExistError e =
-        pure ConsultPolicy
-
-    -- If the nonblocking UNIX domain socket connection cannot be completed
-    -- immediately (i.e. connect() returns EAGAIN), try again. This happens
-    -- because the node's listen queue is quite short.
-    | isTryAgainError e =
-        pure ConsultPolicy
-
-    | isResourceVanishedError e = do
-        traceWith tr $ Just e
-        pure $ if onResourceVanished then ConsultPolicy else DontRetry
-
-    | otherwise = do
-        pure DontRetry
+handleIOException :: Tracer IO IOException -> IOException -> IO RetryAction
+handleIOException tr e = traceWith tr e $> retryAction
   where
-    isResourceVanishedError = isInfixOf "resource vanished" . show
-    isTryAgainError = isInfixOf "resource exhausted" . show
+    retryAction
+        -- There's a race-condition when starting the wallet and the node at the
+        -- same time: the socket might not be there yet when we try to open it.
+        -- In such case, we simply retry a bit later and hope it's there.
+        | isDoesNotExistError e = ConsultPolicy
+        -- I/O error where the operation failed because the resource vanished.
+        -- This happens when, for example, attempting to write to a closed
+        -- socket or attempting to write to a named pipe that was deleted.
+        | isResourceVanishedError e = ConsultPolicy
+        -- If the nonblocking UNIX domain socket connection cannot be completed
+        -- immediately (i.e. connect() returns EAGAIN), try again. This happens
+        -- because the node's listen queue is quite short.
+        | "resource exhausted" `isInfixOf` show e = ConsultPolicy
+        | otherwise = DontRetry
 
-handleMuxError
-    :: Tracer IO (Maybe IOException)
-    -> Bool -- ^ 'True' = retry on 'ResourceVanishedError'
-    -> MuxError
-    -> IO RetryAction
-handleMuxError tr onResourceVanished = pure . errorType >=> \case
-    MuxUnknownMiniProtocol -> pure DontRetry
-    MuxDecodeError -> pure DontRetry
-    MuxIngressQueueOverRun -> pure DontRetry
-    MuxInitiatorOnly -> pure DontRetry
-    MuxShutdown _ -> pure DontRetry -- fixme: #2212 consider cases
-    MuxCleanShutdown -> pure DontRetry
-    MuxIOException e ->
-        handleIOException tr onResourceVanished e
-    MuxBearerClosed -> do
-        traceWith tr Nothing
-        pure $ if onResourceVanished then ConsultPolicy else DontRetry
+handleMuxError :: Tracer IO ReasonConnectionLost -> MuxError -> IO RetryAction
+handleMuxError tr muxErr = do
+    traceWith tr (ReasonMuxError muxErr)
+    case errorType muxErr of
+        MuxUnknownMiniProtocol -> pure DontRetry
+        MuxDecodeError -> pure DontRetry
+        MuxIngressQueueOverRun -> pure DontRetry
+        MuxInitiatorOnly -> pure DontRetry
+        MuxShutdown _ -> pure DontRetry -- fixme: #2212 consider cases
+        MuxCleanShutdown -> pure DontRetry
+        MuxIOException e -> handleIOException (ReasonException >$< tr) e
+        MuxBearerClosed -> pure ConsultPolicy
 
-    -- MuxSDU*Timeout errors arise because the bandwidth of the
-    -- interprocess communication socket dropped unexpectedly,
-    -- and the socket library decided to cut off the connection
-    -- after ~ 30 seconds.
-    -- Chances are that the system is overloaded, let's retry in 30 seconds.
-    MuxSDUReadTimeout -> pure $ ConsultPolicyOverrideDelay 30_000_000
-    MuxSDUWriteTimeout -> pure $ ConsultPolicyOverrideDelay 30_000_000
+        -- MuxSDU*Timeout errors arise because the bandwidth of the
+        -- interprocess communication socket dropped unexpectedly,
+        -- and the socket library decided to cut off the connection
+        -- after ~ 30 seconds.
+        -- Chances are that the system is overloaded, let's retry in 30 seconds.
+        MuxSDUReadTimeout -> pure $ ConsultPolicyOverrideDelay 30_000_000
+        MuxSDUWriteTimeout -> pure $ ConsultPolicyOverrideDelay 30_000_000
 
 {-------------------------------------------------------------------------------
     Helper functions of the Control.* and STM variety
@@ -1164,9 +1157,74 @@ traceQueryTimings tr = produceTimings msgQuery trDiffTime
 isSlowQuery :: String -> DiffTime -> Bool
 isSlowQuery _label = (>= 0.2)
 
+data ReasonConnectionLost
+    = ReasonMuxError MuxError
+    | ReasonException IOException
+
+data ConnectionStatusLog where
+    MsgCouldntConnect
+        :: Int -> ConnectionStatusLog
+    MsgConnectionLost
+        :: ReasonConnectionLost -> ConnectionStatusLog
+    MsgHandshakeTracer
+        :: WithMuxBearer (ConnectionId LocalAddress) HandshakeTrace
+        -> ConnectionStatusLog
+
+instance ToText ConnectionStatusLog where
+    toText = \case
+        MsgCouldntConnect n -> T.concat
+            [ "Couldn't connect to node (x"
+            , toText (n + 1)
+            , "). Retrying in a bit..."
+            ]
+        MsgConnectionLost reason -> case reason of
+            ReasonMuxError MuxError{errorType, errorMsg} ->
+                "Node connection lost because of the mux error ("
+                    <> T.pack (show errorType) <> "): " <> T.pack errorMsg
+            ReasonException e ->
+                "Node connection lost because of the exception: "
+                    <> T.pack (show e)
+        MsgHandshakeTracer (WithMuxBearer conn h) ->
+            pretty conn <> " " <> T.pack (show h)
+
+instance HasPrivacyAnnotation ConnectionStatusLog
+instance HasSeverityAnnotation ConnectionStatusLog where
+    getSeverityAnnotation = \case
+        MsgCouldntConnect 0 -> Debug
+        MsgCouldntConnect 1 -> Notice
+        MsgCouldntConnect{} -> Warning
+        MsgHandshakeTracer{} -> Debug
+        MsgConnectionLost reason -> case reason of
+          ReasonException ie | isResourceVanishedError ie -> Warning
+          ReasonException _ie -> Debug
+          ReasonMuxError muxError ->
+            case errorType muxError of
+                MuxUnknownMiniProtocol -> Debug
+                MuxDecodeError -> Debug
+                MuxIngressQueueOverRun -> Debug
+                MuxInitiatorOnly -> Debug
+                MuxIOException _ -> Debug
+                MuxSDUReadTimeout -> Debug
+                MuxSDUWriteTimeout -> Debug
+                MuxShutdown _ -> Debug
+                MuxCleanShutdown -> Debug
+                MuxBearerClosed -> Warning
+
+data Client
+    = ClientChainSync
+    | ClientLocalTxSubmission
+    | ClientNodeTip
+    | ClientDelegationRewards
+
+renderClientName :: Client -> T.Text
+renderClientName = \case
+  ClientChainSync -> "Chain Sync"
+  ClientLocalTxSubmission -> "Local TX Submission"
+  ClientNodeTip -> "Node Tip"
+  ClientDelegationRewards -> "Delegation Rewards"
+
 data Log where
-    MsgCouldntConnect :: Int -> Log
-    MsgConnectionLost :: Maybe IOException -> Log
+    MsgConnectionStatus :: Client -> ConnectionStatusLog -> Log
     MsgTxSubmission
         :: (TraceSendRecv
             (LocalTxSubmission
@@ -1181,8 +1239,6 @@ data Log where
                 (Point (CardanoBlock StandardCrypto))
                 (Query (CardanoBlock StandardCrypto))))
         -> Log
-    MsgHandshakeTracer ::
-      (WithMuxBearer (ConnectionId LocalAddress) HandshakeTrace) -> Log
     MsgPostTx :: W.SealedTx -> Log
     MsgNodeTip :: W.BlockHeader -> Log
     MsgProtocolParameters :: W.ProtocolParameters -> W.SlottingParameters -> Log
@@ -1220,20 +1276,10 @@ type HandshakeTrace = TraceSendRecv (Handshake NodeToClientVersion CBOR.Term)
 
 instance ToText Log where
     toText = \case
-        MsgCouldntConnect n -> T.unwords
-            [ "Couldn't connect to node (x" <> toText (n + 1) <> ")."
-            , "Retrying in a bit..."
-            ]
-        MsgConnectionLost Nothing  ->
-            "Connection lost with the node."
-        MsgConnectionLost (Just e) -> T.unwords
-            [ toText (MsgConnectionLost Nothing)
-            , T.pack (show e)
-            ]
+        MsgConnectionStatus client statusLog ->
+            renderClientName client <> " node client: " <> toText statusLog
         MsgTxSubmission msg ->
             T.pack (show msg)
-        MsgHandshakeTracer (WithMuxBearer conn h) ->
-            pretty conn <> " " <> T.pack (show h)
         MsgPostTx tx ->
             "Posting transaction, serialized as:\n"+|hexF (serialisedTx tx)|+""
         MsgLocalStateQuery client msg ->
@@ -1296,33 +1342,29 @@ instance ToText Log where
 instance HasPrivacyAnnotation Log
 instance HasSeverityAnnotation Log where
     getSeverityAnnotation = \case
-        MsgCouldntConnect 0                -> Debug
-        MsgCouldntConnect 1                -> Notice
-        MsgCouldntConnect{}                -> Warning
-        MsgConnectionLost{}                -> Warning
-        MsgTxSubmission{}                  -> Info
-        MsgHandshakeTracer{}               -> Debug
-        MsgPostTx{}                        -> Debug
-        MsgLocalStateQuery{}               -> Debug
-        MsgNodeTip{}                       -> Debug
-        MsgProtocolParameters{}            -> Info
-        MsgLocalStateQueryError{}          -> Error
-        MsgLocalStateQueryEraMismatch{}    -> Debug
-        MsgAccountDelegationAndRewards{}   -> Debug
-        MsgDestroyCursor{}                 -> Debug
-        MsgWillQueryRewardsForStake{}      -> Info
-        MsgFetchStakePoolsData{}           -> Debug
-        MsgFetchStakePoolsDataSummary{}    -> Info
-        MsgWatcherUpdate{}                 -> Debug
-        MsgInterpreter{}                   -> Debug
-        MsgQuery _ msg                     -> getSeverityAnnotation msg
+        MsgConnectionStatus{} -> Info
+        MsgTxSubmission{} -> Info
+        MsgPostTx{} -> Debug
+        MsgLocalStateQuery{} -> Debug
+        MsgNodeTip{} -> Debug
+        MsgProtocolParameters{} -> Info
+        MsgLocalStateQueryError{} -> Error
+        MsgLocalStateQueryEraMismatch{} -> Debug
+        MsgAccountDelegationAndRewards{} -> Debug
+        MsgDestroyCursor{} -> Debug
+        MsgWillQueryRewardsForStake{} -> Info
+        MsgFetchStakePoolsData{} -> Debug
+        MsgFetchStakePoolsDataSummary{} -> Info
+        MsgWatcherUpdate{} -> Debug
+        MsgInterpreter{} -> Debug
+        MsgQuery _ msg -> getSeverityAnnotation msg
         MsgQueryTime qry dt
-            | isSlowQuery qry dt           -> Notice
-            | otherwise                    -> Debug
-        MsgInterpreterLog msg              -> getSeverityAnnotation msg
-        MsgFetchRewardAccountBalance{}       -> Debug
-        MsgObserverLog (MsgDidChange _)    -> Notice
-        MsgObserverLog{}                   -> Debug
+            | isSlowQuery qry dt -> Notice
+            | otherwise -> Debug
+        MsgInterpreterLog msg -> getSeverityAnnotation msg
+        MsgFetchRewardAccountBalance{} -> Debug
+        MsgObserverLog (MsgDidChange _) -> Notice
+        MsgObserverLog{} -> Debug
 
 data ObserverLog key value
     = MsgWillFetch (Set key)

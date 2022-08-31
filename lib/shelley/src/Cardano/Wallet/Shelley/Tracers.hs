@@ -45,13 +45,14 @@ import Control.Applicative
     ( Const (..) )
 import Data.Text
     ( Text )
-import qualified Data.Text as T
 import Data.Text.Class
     ( ToText )
 import Network.NTP.Client
     ( NtpTrace )
 import Network.Wai.Middleware.Logging
     ( ApiLog )
+
+import qualified Data.Text as T
 
 -- | The types of trace events produced by the Shelley API server.
 data Tracers' f = Tracers
