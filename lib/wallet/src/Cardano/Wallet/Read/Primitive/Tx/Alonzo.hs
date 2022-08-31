@@ -15,24 +15,20 @@ module Cardano.Wallet.Read.Primitive.Tx.Alonzo
 
 import Prelude
 
-import Cardano.Address.Script
-    ( KeyRole (..) )
 import Cardano.Api
     ( AlonzoEra )
-import Cardano.Ledger.Era
-    ( Era (..) )
 import Cardano.Ledger.Shelley.TxBody
     ( EraIndependentTxBody )
-import Cardano.Wallet.Primitive.Types.TokenPolicy
-    ( TokenPolicyId )
 import Cardano.Wallet.Read.Eras
     ( alonzo, inject )
 import Cardano.Wallet.Read.Primitive.Tx.Allegra
     ( fromLedgerTxValidity )
 import Cardano.Wallet.Read.Primitive.Tx.Features.Certificates
     ( anyEraCerts )
+import Cardano.Wallet.Read.Primitive.Tx.Features.Mint
+    ( alonzoMint )
 import Cardano.Wallet.Read.Primitive.Tx.Mary
-    ( fromCardanoValue, fromLedgerMintValue, getScriptMap )
+    ( fromCardanoValue )
 import Cardano.Wallet.Read.Primitive.Tx.Shelley
     ( fromShelleyAddress
     , fromShelleyCoin
@@ -46,28 +42,15 @@ import Cardano.Wallet.Read.Tx.CBOR
     ( renderTxToCBOR )
 import Cardano.Wallet.Read.Tx.Hash
     ( fromShelleyTxId )
-import Cardano.Wallet.Shelley.Compatibility.Ledger
-    ( toWalletScript, toWalletTokenPolicyId )
 import Cardano.Wallet.Transaction
-    ( AnyScript (..)
-    , PlutusScriptInfo (..)
-    , PlutusVersion (..)
-    , TokenMapWithScripts (..)
-    , ValidityIntervalExplicit (..)
-    )
+    ( TokenMapWithScripts (..), ValidityIntervalExplicit (..) )
 import Data.Foldable
     ( toList )
-import Data.Map.Strict
-    ( Map )
-import Ouroboros.Consensus.Cardano.Block
-    ( StandardAlonzo )
 
 import qualified Cardano.Api.Shelley as Cardano
 import qualified Cardano.Crypto.Hash as Crypto
 import qualified Cardano.Ledger.Alonzo as Alonzo
 import qualified Cardano.Ledger.Alonzo.Data as Alonzo
-import qualified Cardano.Ledger.Alonzo.Language as Alonzo
-import qualified Cardano.Ledger.Alonzo.Scripts as Alonzo
 import qualified Cardano.Ledger.Alonzo.Tx as Alonzo
 import qualified Cardano.Ledger.Alonzo.TxBody as Alonzo
 import qualified Cardano.Ledger.Babbage.Tx as Babbage hiding
@@ -75,7 +58,6 @@ import qualified Cardano.Ledger.Babbage.Tx as Babbage hiding
 import qualified Cardano.Ledger.BaseTypes as SL
 import qualified Cardano.Ledger.Core as SL.Core
 import qualified Cardano.Ledger.Crypto as SL
-import qualified Cardano.Ledger.Mary.Value as SL
 import qualified Cardano.Ledger.SafeHash as SafeHash
 import qualified Cardano.Ledger.Shelley.API as SL
 import qualified Cardano.Ledger.TxIn as TxIn
@@ -83,7 +65,6 @@ import qualified Cardano.Wallet.Primitive.Types as W
 import qualified Cardano.Wallet.Primitive.Types.Coin as W
 import qualified Cardano.Wallet.Primitive.Types.Hash as W
 import qualified Cardano.Wallet.Primitive.Types.Tx as W
-import qualified Data.Map.Strict as Map
 
 alonzoTxHash
     :: ( Crypto.HashAlgorithm (SL.HASH crypto)
@@ -128,8 +109,8 @@ fromAlonzoTx tx@(Alonzo.ValidatedTx bod wits (Alonzo.IsValid isValid) aux) =
             validity
         }
     , anyEraCerts certs
-    , TokenMapWithScripts assetsToMint mintScriptMap
-    , TokenMapWithScripts assetsToBurn burnScriptMap
+    , assetsToMint
+    , assetsToBurn
     , Just (fromLedgerTxValidity ttl)
     )
   where
@@ -148,27 +129,7 @@ fromAlonzoTx tx@(Alonzo.ValidatedTx bod wits (Alonzo.IsValid isValid) aux) =
         _adHash
         _network
         = bod
-    (assetsToMint, assetsToBurn) = fromLedgerMintValue mint
-    scriptMap = fromAlonzoScriptMap $ Alonzo.txscripts' wits
-    mintScriptMap = getScriptMap scriptMap assetsToMint
-    burnScriptMap = getScriptMap scriptMap assetsToBurn
-
-    fromAlonzoScriptMap
-        :: Map
-            (SL.ScriptHash (Crypto StandardAlonzo))
-            (SL.Core.Script StandardAlonzo)
-        -> Map TokenPolicyId AnyScript
-    fromAlonzoScriptMap =
-        Map.map toAnyScript .
-        Map.mapKeys (toWalletTokenPolicyId . SL.PolicyID)
-      where
-        toAnyScript (Alonzo.TimelockScript script) =
-            NativeScript $ toWalletScript Policy script
-        toAnyScript (Alonzo.PlutusScript ver _) =
-            PlutusScript (PlutusScriptInfo (toPlutusVer ver))
-
-        toPlutusVer Alonzo.PlutusV1 = PlutusVersionV1
-        toPlutusVer Alonzo.PlutusV2 = PlutusVersionV2
+    (assetsToMint, assetsToBurn) = alonzoMint mint wits
 
     fromAlonzoTxOut
         :: Alonzo.TxOut (Cardano.ShelleyLedgerEra AlonzoEra)
@@ -183,3 +144,4 @@ fromAlonzoTx tx@(Alonzo.ValidatedTx bod wits (Alonzo.IsValid isValid) aux) =
         if isValid
         then Just W.TxScriptValid
         else Just W.TxScriptInvalid
+
