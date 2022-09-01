@@ -307,6 +307,7 @@ library
       Cardano.Wallet.Types.Read.Eras.InAnyCardanoEra
       Cardano.Wallet.Types.Read.Tx
       Cardano.Wallet.Types.Read.Tx.CBOR
+      Cardano.Wallet.Types.Read.Tx.Certificates
       Cardano.Wallet.Types.Read.Tx.Eras
       Cardano.Wallet.Types.Read.Tx.Hash
       Cardano.Wallet.Types.Read.Tx.Mint
