@@ -136,7 +136,7 @@ import Cardano.Wallet.Primitive.Types.TokenQuantity
     ( TokenQuantity (..) )
 import Cardano.Wallet.Primitive.Types.TokenQuantity.Gen
     ( genTokenQuantityPositive, shrinkTokenQuantityPositive )
-import Cardano.Wallet.Primitive.Types.Tx
+import Cardano.Wallet.Primitive.Types.Tx.TokenBundleAssessments
     ( TokenBundleSizeAssessment (..), TokenBundleSizeAssessor (..) )
 import Cardano.Wallet.Primitive.Types.UTxOIndex
     ( Asset (..), SelectionFilter (..), UTxOIndex )
