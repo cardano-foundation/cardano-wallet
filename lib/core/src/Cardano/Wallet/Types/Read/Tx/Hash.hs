@@ -11,7 +11,7 @@
 {-# LANGUAGE TypeFamilies #-}
 {-# LANGUAGE UndecidableInstances #-}
 
-module Cardano.Wallet.Primitive.Types.Tx.CBOR.Hash
+module Cardano.Wallet.Types.Read.Tx.Hash
     ( byronTxHash
     , alonzoTxHash
     , shelleyTxHash
