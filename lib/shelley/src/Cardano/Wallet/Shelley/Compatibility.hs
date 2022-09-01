@@ -255,8 +255,10 @@ import Cardano.Wallet.Transaction
     , ValidityIntervalExplicit (..)
     , emptyTokenMapWithScripts
     )
+import Cardano.Wallet.Types.Read.Tx
+    ( Tx (..) )
 import Cardano.Wallet.Types.Read.Tx.CBOR
-    ( mkTxCBOR )
+    ( getTxCBOR )
 import Cardano.Wallet.Types.Read.Tx.Hash
     ( fromShelleyTxId, shelleyTxHash )
 import Cardano.Wallet.Unsafe
@@ -1312,7 +1314,7 @@ fromShelleyTx tx =
         { txId =
             shelleyTxHash tx
         , txCBOR =
-            Just $ mkTxCBOR tx $ AnyCardanoEra ShelleyEra
+            Just $ getTxCBOR $ Tx ShelleyEra tx
         , fee =
             Just $ fromShelleyCoin fee
         , resolvedInputs =
@@ -1352,7 +1354,7 @@ fromAllegraTx tx =
         { txId =
             shelleyTxHash tx
         , txCBOR =
-            Just $ mkTxCBOR tx $ AnyCardanoEra AllegraEra
+            Just $ getTxCBOR $ Tx AllegraEra tx
         , fee =
             Just $ fromShelleyCoin fee
         , resolvedInputs =
@@ -1412,7 +1414,7 @@ fromMaryTx tx =
         { txId =
             shelleyTxHash tx
         , txCBOR =
-            Just $ mkTxCBOR tx $ AnyCardanoEra MaryEra
+            Just $ getTxCBOR $ Tx MaryEra tx
         , fee =
             Just $ fromShelleyCoin fee
         , resolvedInputs =
@@ -1519,7 +1521,7 @@ fromAlonzoTx tx@(Alonzo.ValidatedTx bod wits (Alonzo.IsValid isValid) aux) =
         { txId =
             alonzoTxHash tx
         , txCBOR =
-            Just $ mkTxCBOR tx $ AnyCardanoEra AlonzoEra
+            Just $ getTxCBOR $ Tx AlonzoEra tx
         , fee =
             Just $ fromShelleyCoin fee
         , resolvedInputs =
@@ -1608,7 +1610,7 @@ fromBabbageTx tx@(Alonzo.ValidatedTx bod wits (Alonzo.IsValid isValid) aux) =
         { txId =
             alonzoTxHash tx
         , txCBOR =
-            Just $ mkTxCBOR tx $ AnyCardanoEra BabbageEra
+            Just $ getTxCBOR $ Tx BabbageEra tx
         , fee =
             Just $ fromShelleyCoin fee
         , resolvedInputs =
