@@ -542,6 +542,7 @@ test-suite unit
       Cardano.Wallet.Primitive.Types.UTxOSelectionSpec
       Cardano.Wallet.Primitive.Types.UTxOSelectionSpec.TypeErrorSpec
       Cardano.Wallet.Primitive.TypesSpec
+      Cardano.Wallet.Types.Read.Tx.CBORSpec
       Cardano.Wallet.TokenMetadataSpec
       Cardano.Wallet.RegistrySpec
       Cardano.WalletSpec

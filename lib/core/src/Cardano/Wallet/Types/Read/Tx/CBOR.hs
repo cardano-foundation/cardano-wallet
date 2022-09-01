@@ -1,5 +1,6 @@
 {-# LANGUAGE DeriveGeneric #-}
 {-# LANGUAGE ExistentialQuantification #-}
+{-# LANGUAGE FlexibleContexts #-}
 {-# LANGUAGE NamedFieldPuns #-}
 {-# LANGUAGE TypeFamilies #-}
 {-# LANGUAGE UndecidableInstances #-}
@@ -91,9 +92,9 @@ parseCBOR TxCBOR{txEra=AnyCardanoEra era,txCBOR} = case era of
     runA :: Annotator x -> x
     runA x = runAnnotator x $ Full txCBOR
     boxEra
-        ::  ( FromCBOR (k (Read.TxEra era))
-            , Api.IsCardanoEra era
-            )
+        :: (FromCBOR (k (Read.TxEra era)), Show (Read.TxEra era)
+           , Api.IsCardanoEra era
+           )
         => CardanoEra era
         -> (k (Read.TxEra era) -> Read.TxEra era)
         -> Either DeserialiseFailure Read.Tx
