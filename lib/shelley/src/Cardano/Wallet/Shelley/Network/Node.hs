@@ -621,20 +621,20 @@ mkWalletClient
     -> ChainFollower m (Point block) (Tip block) (NonEmpty block)
     -> CodecConfig block
     -> NetworkClient m
-mkWalletClient tr pipeliningStrategy follower cfg v =
-    nodeToClientProtocols (const $ return $ NodeToClientProtocols
-        { localChainSyncProtocol =
-            InitiatorProtocolOnly $ MuxPeerRaw $ \channel ->
-                runPipelinedPeer nullTracer (cChainSyncCodec $ codecs v cfg) channel
-                $ chainSyncClientPeerPipelined
-                $ chainSyncWithBlocks tr pipeliningStrategy follower
-        , localTxSubmissionProtocol =
-            doNothingProtocol
-        , localStateQueryProtocol =
-            doNothingProtocol
-        , localTxMonitorProtocol =
-             doNothingProtocol
-        }) v
+mkWalletClient tr pipeliningStrategy follower cfg nodeToClientVer =
+    nodeToClientProtocols (\_connectionId _stm -> protocols) nodeToClientVer
+  where
+    protocols = NodeToClientProtocols
+        { localTxSubmissionProtocol = doNothingProtocol
+        , localStateQueryProtocol = doNothingProtocol
+        , localTxMonitorProtocol = doNothingProtocol
+        , localChainSyncProtocol =
+            InitiatorProtocolOnly $ MuxPeerRaw $ \channel -> do
+                let codec = cChainSyncCodec $ codecs nodeToClientVer cfg
+                runPipelinedPeer nullTracer codec channel
+                    $ chainSyncClientPeerPipelined
+                    $ chainSyncWithBlocks tr pipeliningStrategy follower
+        }
 
 -- | Construct a network client with the given communication channel, for the
 -- purposes of querying delegations and rewards.
@@ -646,27 +646,22 @@ mkDelegationRewardsClient
     -> TQueue m (LocalStateQueryCmd (CardanoBlock StandardCrypto) m)
         -- ^ Communication channel with the LocalStateQuery client
     -> NetworkClient m
-mkDelegationRewardsClient tr cfg queryRewardQ v =
-    nodeToClientProtocols (const $ return $ NodeToClientProtocols
-        { localChainSyncProtocol =
-            doNothingProtocol
-
-        , localTxSubmissionProtocol =
-            doNothingProtocol
-
-        , localStateQueryProtocol =
-            InitiatorProtocolOnly $ MuxPeerRaw
-                $ \channel -> runPeer tr' codec channel
-                $ localStateQueryClientPeer
-                $ localStateQuery queryRewardQ
-
-        , localTxMonitorProtocol =
-             doNothingProtocol
-        }) v
+mkDelegationRewardsClient tr cfg queryRewardQ nodeToClientVer =
+    nodeToClientProtocols (\_connectionId _stm -> protocols) nodeToClientVer
   where
-    tr' = contramap (MsgLocalStateQuery DelegationRewardsClient) tr
-    codec = cStateQueryCodec (serialisedCodecs v cfg)
-
+    protocols = NodeToClientProtocols
+        { localChainSyncProtocol = doNothingProtocol
+        , localTxSubmissionProtocol = doNothingProtocol
+        , localTxMonitorProtocol = doNothingProtocol
+        , localStateQueryProtocol =
+            InitiatorProtocolOnly $ MuxPeerRaw $ \channel -> do
+                let tr' = MsgLocalStateQuery DelegationRewardsClient >$< tr
+                    codecs' = serialisedCodecs nodeToClientVer cfg
+                    codec = cStateQueryCodec codecs'
+                runPeer tr' codec channel
+                    $ localStateQueryClientPeer
+                    $ localStateQuery queryRewardQ
+        }
 
 type CardanoInterpreter sc = Interpreter (CardanoEras sc)
 
@@ -759,7 +754,6 @@ mkTipSyncClient tr np onPParamsUpdate onInterpreterUpdate onEraUpdate = do
             onEraUpdate e
 
     link =<< async (observeForever (readTVar tipVar) onTipUpdate)
-
 
     let client v = nodeToClientProtocols (const $ return $ NodeToClientProtocols
             { localChainSyncProtocol =
@@ -1015,18 +1009,18 @@ connectClient
     -> NodeToClientVersionData
     -> CardanoNodeConn
     -> IO ()
-connectClient tr handlers client vData conn = withIOManager $ \iocp -> do
-    let versions = combineVersions
-            [ simpleSingletonVersions v vData (client v)
-            | v <- nodeToClientVersions
-            ]
-    let tracers = NetworkConnectTracers
-            { nctMuxTracer = nullTracer
-            , nctHandshakeTracer = contramap MsgHandshakeTracer tr
-            }
-    let socket = localSnocket iocp
-    recoveringNodeConnection tr handlers $
-        connectTo socket tracers versions (nodeSocketFile conn)
+connectClient tr handlers client vData conn = withIOManager $ \manager ->
+    connectTo (localSnocket manager) tracers versions (nodeSocketFile conn)
+        & recoveringNodeConnection tr handlers
+  where
+    versions = combineVersions
+        [ simpleSingletonVersions version vData (client version)
+        | version <- nodeToClientVersions
+        ]
+    tracers = NetworkConnectTracers
+        { nctMuxTracer = nullTracer
+        , nctHandshakeTracer = contramap MsgHandshakeTracer tr
+        }
 
 recoveringNodeConnection
     :: Tracer IO ConnectionStatusLog -> RetryHandlers -> IO a -> IO a
