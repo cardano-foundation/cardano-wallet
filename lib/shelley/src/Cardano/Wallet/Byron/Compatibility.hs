@@ -68,9 +68,9 @@ import Cardano.Crypto.ProtocolMagic
     ( ProtocolMagicId, unProtocolMagicId )
 import Cardano.Wallet.Primitive.Types.MinimumUTxO
     ( minimumUTxONone )
-import Cardano.Wallet.Primitive.Types.Tx.CBOR
+import Cardano.Wallet.Types.Read.Tx.CBOR
     ( TxCBOR (..) )
-import Cardano.Wallet.Primitive.Types.Tx.CBOR.Hash
+import Cardano.Wallet.Types.Read.Tx.Hash
     ( byronTxHash )
 import Cardano.Wallet.Unsafe
     ( unsafeFromHex )

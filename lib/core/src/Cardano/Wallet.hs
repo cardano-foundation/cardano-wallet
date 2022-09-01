@@ -444,8 +444,6 @@ import Cardano.Wallet.Primitive.Types.Tx
     , txOutCoin
     , withdrawals
     )
-import Cardano.Wallet.Primitive.Types.Tx.CBOR
-    ( TxCBOR (..) )
 import Cardano.Wallet.Primitive.Types.Tx.Constraints
     ( TxSize (..) )
 import Cardano.Wallet.Primitive.Types.UTxO
@@ -472,6 +470,8 @@ import Cardano.Wallet.Transaction
     , defaultTransactionCtx
     , withdrawalToCoin
     )
+import Cardano.Wallet.Types.Read.Tx.CBOR
+    ( TxCBOR (..) )
 import Control.Arrow
     ( first, left )
 import Control.DeepSeq

@@ -67,7 +67,7 @@ import Cardano.Wallet.Primitive.Types.TokenBundle
     ( TokenBundle (..) )
 import Cardano.Wallet.Primitive.Types.TokenMap
     ( AssetId, Lexicographic (..) )
-import Cardano.Wallet.Primitive.Types.Tx.CBOR
+import Cardano.Wallet.Types.Read.Tx.CBOR
     ( TxCBOR )
 import Control.DeepSeq
     ( NFData (..) )

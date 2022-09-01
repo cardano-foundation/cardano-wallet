@@ -239,10 +239,6 @@ import Cardano.Wallet.Primitive.Types.TokenMap
     ( TokenMap, toNestedList )
 import Cardano.Wallet.Primitive.Types.TokenPolicy
     ( TokenPolicyId )
-import Cardano.Wallet.Primitive.Types.Tx.CBOR
-    ( mkTxCBOR )
-import Cardano.Wallet.Primitive.Types.Tx.CBOR.Hash
-    ( fromShelleyTxId, shelleyTxHash )
 import Cardano.Wallet.Primitive.Types.Tx.Constraints
     ( TokenBundleSizeAssessment (..), TokenBundleSizeAssessor (..) )
 import Cardano.Wallet.Shelley.Compatibility.Ledger
@@ -259,6 +255,10 @@ import Cardano.Wallet.Transaction
     , ValidityIntervalExplicit (..)
     , emptyTokenMapWithScripts
     )
+import Cardano.Wallet.Types.Read.Tx.CBOR
+    ( mkTxCBOR )
+import Cardano.Wallet.Types.Read.Tx.Hash
+    ( fromShelleyTxId, shelleyTxHash )
 import Cardano.Wallet.Unsafe
     ( unsafeIntToWord, unsafeMkPercentage )
 import Cardano.Wallet.Util

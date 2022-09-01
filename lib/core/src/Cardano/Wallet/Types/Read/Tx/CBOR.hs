@@ -6,7 +6,7 @@
 
 {-# OPTIONS_GHC -Wno-orphans #-}
 
-module Cardano.Wallet.Primitive.Types.Tx.CBOR
+module Cardano.Wallet.Types.Read.Tx.CBOR
     ( TxCBOR (..)
     , mkTxCBOR
     , getTxCBOR
