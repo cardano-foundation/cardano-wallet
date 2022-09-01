@@ -9,7 +9,6 @@
 
 module Cardano.Wallet.Types.Read.Tx.CBOR
     ( TxCBOR (..)
-    , mkTxCBOR
     , getTxCBOR
     , parseCBOR
     )
@@ -18,7 +17,7 @@ module Cardano.Wallet.Types.Read.Tx.CBOR
 import Prelude
 
 import Cardano.Api
-    ( AnyCardanoEra (..), CardanoEra (..), FromCBOR, ToCBOR )
+    ( AnyCardanoEra (..), CardanoEra (..), FromCBOR )
 import Cardano.Binary
     ( Annotator (runAnnotator)
     , FromCBOR (fromCBOR)
@@ -50,9 +49,6 @@ data TxCBOR =
       -- | Era of the transaction, to identify the right codec.
     , txEra :: !AnyCardanoEra
     } deriving (Show, Generic, Eq)
-
-mkTxCBOR :: ToCBOR a => a -> AnyCardanoEra -> TxCBOR
-mkTxCBOR = TxCBOR . toLazyByteString . toCBOR
 
 instance Ord TxCBOR where
     compare (TxCBOR cb _) (TxCBOR cb' _) = compare cb cb'
