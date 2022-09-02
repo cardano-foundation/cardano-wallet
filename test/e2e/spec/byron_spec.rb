@@ -144,13 +144,16 @@ RSpec.describe CardanoWallet::Byron, :all, :byron do
 
       expect(addresses.size).to eq 0
 
-      BYRON.addresses.create(id, { passphrase: PASS })
+      create_addr = BYRON.addresses.create(id, { passphrase: PASS })
+      expect(create_addr).to be_correct_and_respond 201
+
       addresses = BYRON.addresses.list id
       expect(addresses).to be_correct_and_respond 200
 
       expect(addresses.size).to eq 1
-      expect(addresses.first['derivation_path'][0]).to eq '0H'
-      expect(addresses.first['derivation_path'][1]).to end_with 'H'
+      expect(addresses.first['id']).to eq create_addr['id']
+      expect(addresses.first['derivation_path'][0]).to eq create_addr['derivation_path'].first
+      expect(addresses.first['derivation_path'][1]).to eq create_addr['derivation_path'].last
     end
 
     it "Can list addresses - icarus" do
