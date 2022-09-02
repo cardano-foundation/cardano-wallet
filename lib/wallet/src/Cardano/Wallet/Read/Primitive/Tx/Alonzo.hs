@@ -5,7 +5,7 @@
 {-# LANGUAGE TypeFamilies #-}
 
 -- |
--- Copyright: © 2020 IOHK
+-- Copyright: © 2020-2022 IOHK
 -- License: Apache-2.0
 --
 -- Conversion functions and static chain settings for Shelley.
@@ -21,12 +21,12 @@ import Cardano.Ledger.Shelley.TxBody
     ( EraIndependentTxBody )
 import Cardano.Wallet.Read.Eras
     ( alonzo, inject )
-import Cardano.Wallet.Read.Primitive.Tx.Allegra
-    ( fromLedgerTxValidity )
 import Cardano.Wallet.Read.Primitive.Tx.Features.Certificates
     ( anyEraCerts )
 import Cardano.Wallet.Read.Primitive.Tx.Features.Mint
     ( alonzoMint )
+import Cardano.Wallet.Read.Primitive.Tx.Features.Validity
+    ( afterShelleyValidityInterval )
 import Cardano.Wallet.Read.Primitive.Tx.Mary
     ( fromCardanoValue )
 import Cardano.Wallet.Read.Primitive.Tx.Shelley
@@ -111,7 +111,7 @@ fromAlonzoTx tx@(Alonzo.ValidatedTx bod wits (Alonzo.IsValid isValid) aux) =
     , anyEraCerts certs
     , assetsToMint
     , assetsToBurn
-    , Just (fromLedgerTxValidity ttl)
+    , Just $ afterShelleyValidityInterval ttl
     )
   where
     Alonzo.TxBody
@@ -144,4 +144,3 @@ fromAlonzoTx tx@(Alonzo.ValidatedTx bod wits (Alonzo.IsValid isValid) aux) =
         if isValid
         then Just W.TxScriptValid
         else Just W.TxScriptInvalid
-

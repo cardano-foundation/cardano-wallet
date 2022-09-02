@@ -12,12 +12,12 @@
 {-# LANGUAGE UndecidableInstances #-}
 
 -- |
--- Copyright: © 2020 IOHK
+-- Copyright: © 2020-2022 IOHK
 -- License: Apache-2.0
 --
 -- Conversion functions and static chain settings for Shelley.
 module Cardano.Wallet.Read.Primitive.Tx.Allegra
-    (fromAllegraTx, fromLedgerTxValidity)
+    (fromAllegraTx)
     where
 
 import Prelude
@@ -28,6 +28,8 @@ import Cardano.Wallet.Read.Eras
     ( allegra, inject )
 import Cardano.Wallet.Read.Primitive.Tx.Features.Certificates
     ( anyEraCerts )
+import Cardano.Wallet.Read.Primitive.Tx.Features.Validity
+    ( afterShelleyValidityInterval )
 import Cardano.Wallet.Read.Primitive.Tx.Shelley
     ( fromShelleyCoin
     , fromShelleyMD
@@ -48,8 +50,6 @@ import Cardano.Wallet.Transaction
     )
 import Data.Foldable
     ( toList )
-import Data.Quantity
-    ( Quantity (..) )
 
 import qualified Cardano.Api.Shelley as Cardano
 import qualified Cardano.Ledger.BaseTypes as SL
@@ -60,7 +60,6 @@ import qualified Cardano.Ledger.ShelleyMA.TxBody as MA
 import qualified Cardano.Wallet.Primitive.Types as W
 import qualified Cardano.Wallet.Primitive.Types.Coin as W
 import qualified Cardano.Wallet.Primitive.Types.Tx as W
-import qualified Ouroboros.Network.Block as O
 
 -- NOTE: For resolved inputs we have to pass in a dummy value of 0.
 
@@ -100,7 +99,7 @@ fromAllegraTx tx =
     , anyEraCerts certs
     , emptyTokenMapWithScripts
     , emptyTokenMapWithScripts
-    , Just (fromLedgerTxValidity ttl)
+    , Just $ afterShelleyValidityInterval ttl
     )
   where
     SL.Tx (MA.TxBody ins outs certs wdrls fee ttl _ _ _) _ mmd = tx
@@ -109,17 +108,3 @@ fromAllegraTx tx =
     -- pre-images. But this is precisely what we want as part of the
     -- multisig/script balance reporting.
     toSLMetadata (MA.AuxiliaryData blob _scripts) = SL.Metadata blob
-
-fromLedgerTxValidity
-    :: MA.ValidityInterval
-    -> ValidityIntervalExplicit
-fromLedgerTxValidity (MA.ValidityInterval from to) =
-    case (from, to) of
-        (MA.SNothing, MA.SJust (O.SlotNo s)) ->
-            ValidityIntervalExplicit (Quantity 0) (Quantity s)
-        (MA.SNothing, MA.SNothing) ->
-            ValidityIntervalExplicit (Quantity 0) (Quantity maxBound)
-        (MA.SJust (O.SlotNo s1), MA.SJust (O.SlotNo s2)) ->
-            ValidityIntervalExplicit (Quantity s1) (Quantity s2)
-        (MA.SJust (O.SlotNo s1), MA.SNothing) ->
-            ValidityIntervalExplicit (Quantity s1) (Quantity maxBound)

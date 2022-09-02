@@ -4,7 +4,7 @@
 {-# LANGUAGE TypeFamilies #-}
 
 -- |
--- Copyright: © 2020 IOHK
+-- Copyright: © 2020-2022 IOHK
 -- License: Apache-2.0
 --
 -- Conversion functions and static chain settings for Shelley.
@@ -31,6 +31,8 @@ import Cardano.Wallet.Read.Eras
     ( inject, shelley )
 import Cardano.Wallet.Read.Primitive.Tx.Features.Certificates
     ( anyEraCerts, fromStakeCredential )
+import Cardano.Wallet.Read.Primitive.Tx.Features.Validity
+    ( shelleyValidityInterval )
 import Cardano.Wallet.Read.Tx
     ( Tx (..) )
 import Cardano.Wallet.Read.Tx.CBOR
@@ -48,8 +50,6 @@ import Data.Foldable
     ( toList )
 import Data.Map.Strict
     ( Map )
-import Data.Quantity
-    ( Quantity (..) )
 import Data.Word
     ( Word16, Word32, Word64 )
 
@@ -68,7 +68,6 @@ import qualified Cardano.Wallet.Primitive.Types.RewardAccount as W
 import qualified Cardano.Wallet.Primitive.Types.TokenBundle as TokenBundle
 import qualified Cardano.Wallet.Primitive.Types.Tx as W
 import qualified Data.Map.Strict as Map
-import qualified Ouroboros.Network.Block as O
 
 fromShelleyTxIn
     :: SL.TxIn crypto
@@ -141,10 +140,10 @@ fromShelleyTx tx =
     , anyEraCerts certs
     , emptyTokenMapWithScripts
     , emptyTokenMapWithScripts
-    , Just (ValidityIntervalExplicit (Quantity 0) (Quantity ttl))
+    , Just $ shelleyValidityInterval ttl
     )
   where
-    SL.Tx (SL.TxBody ins outs certs wdrls fee (O.SlotNo ttl) _ _) _ mmd = tx
+    SL.Tx (SL.TxBody ins outs certs wdrls fee ttl _ _) _ mmd = tx
 
 fromShelleyWdrl :: SL.Wdrl crypto -> Map W.RewardAccount W.Coin
 fromShelleyWdrl (SL.Wdrl wdrl) = Map.fromList $
@@ -154,5 +153,3 @@ fromShelleyWdrl (SL.Wdrl wdrl) = Map.fromList $
 fromShelleyMD :: SL.Metadata c -> Cardano.TxMetadata
 fromShelleyMD (SL.Metadata m) =
     Cardano.makeTransactionMetadata . fromShelleyMetadata $ m
-
-
