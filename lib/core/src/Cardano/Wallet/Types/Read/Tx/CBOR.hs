@@ -35,8 +35,6 @@ import Data.Functor.Identity
 import GHC.Generics
     ( Generic )
 
-import qualified Cardano.Api as Api
-
 import qualified Cardano.Wallet.Types.Read.Tx as Read
 import qualified Data.ByteString.Lazy as BL
 
@@ -89,7 +87,7 @@ parseCBOR TxCBOR{txEra=AnyCardanoEra era,txCBOR} = case era of
     runA x = runAnnotator x $ Full txCBOR
     boxEra
         :: (FromCBOR (k (Read.TxEra era)), Show (Read.TxEra era)
-           , Api.IsCardanoEra era
+           , Read.IsKnownEra era
            )
         => CardanoEra era
         -> (k (Read.TxEra era) -> Read.TxEra era)
@@ -97,4 +95,3 @@ parseCBOR TxCBOR{txEra=AnyCardanoEra era,txCBOR} = case era of
     boxEra era_ f =
         Read.Tx era_ . f . snd
             <$> deserialiseFromBytes fromCBOR txCBOR
-

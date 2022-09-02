@@ -87,6 +87,7 @@ library
     , generic-lens
     , generic-arbitrary
     , generics-sop
+    , ghc-prim
     , hashable
     , hedgehog
     , hedgehog-quickcheck
@@ -291,6 +292,7 @@ library
       Cardano.Wallet.Types.Read
       Cardano.Wallet.Types.Read.Tx
       Cardano.Wallet.Types.Read.Tx.CBOR
+      Cardano.Wallet.Types.Read.Tx.Eras
       Cardano.Wallet.Types.Read.Tx.Hash
       Cardano.Wallet.Unsafe
       Cardano.Wallet.Util

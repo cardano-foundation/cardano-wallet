@@ -1,10 +1,14 @@
+{-# LANGUAGE ConstraintKinds #-}
 {-# LANGUAGE DataKinds #-}
 {-# LANGUAGE FlexibleContexts #-}
+{-# LANGUAGE FlexibleInstances #-}
 {-# LANGUAGE GADTs #-}
 {-# LANGUAGE LambdaCase #-}
+{-# LANGUAGE MultiParamTypeClasses #-}
 {-# LANGUAGE ScopedTypeVariables #-}
 {-# LANGUAGE StandaloneDeriving #-}
 {-# LANGUAGE TypeFamilies #-}
+{-# LANGUAGE TypeOperators #-}
 {-# LANGUAGE UndecidableInstances #-}
 
 {- |
@@ -20,6 +24,9 @@ module Cardano.Wallet.Types.Read.Tx
     , Tx (..)
     , TxId
     , computeTxId
+    , KnownEras
+    , FindNP (..)
+    , IsKnownEra
     ) where
 
 import Prelude
@@ -33,6 +40,11 @@ import Cardano.Api
     , MaryEra
     , ShelleyEra
     )
+import Generics.SOP
+    ( NP ((:*)) )
+import GHC.Types
+    ( Type )
+
 
 import qualified Cardano.Api as Api
 import qualified Cardano.Api.Shelley as Api
@@ -44,6 +56,29 @@ import qualified Cardano.Ledger.SafeHash as SafeHash
 import qualified Cardano.Ledger.Shelley.API as Shelley
 import qualified Cardano.Ledger.TxIn as Shelley
 import qualified Cardano.Wallet.Primitive.Types.Hash as W
+
+-- TL search  for NP
+
+-- | `elem` at TL
+type family IsElem x (xs :: [Type]) where
+    IsElem x '[] = 'False
+    IsElem x (x ': xs) = 'True
+    IsElem x (_ ': xs) = IsElem x xs
+
+-- | selecting an element of an NP by type in linear time
+class FindNP x xs where
+    find :: NP f xs -> f x
+instance {-# OVERLAPS #-} (IsElem x xs ~ 'True, FindNP x xs)
+    => FindNP x (y : xs) where
+    find (_ :* fs) = find  fs
+instance FindNP x (x : xs) where
+    find  (f :* _) = f
+
+-- | known eras, from Api
+type KnownEras =
+    '[ByronEra, ShelleyEra, AllegraEra, MaryEra, AlonzoEra, BabbageEra]
+
+type IsKnownEra era = (FindNP era KnownEras, Api.IsCardanoEra era)
 
 {-------------------------------------------------------------------------------
     Transaction type
@@ -73,7 +108,7 @@ but the type family `Api.ShelleyLedgerEra` performs the conversion.
 data Tx where
     Tx
         :: forall era
-        . (Show (TxEra era), Api.IsCardanoEra era)
+        . (Show (TxEra era), IsKnownEra era)
         => Api.CardanoEra era
         -> TxEra era
         -> Tx
