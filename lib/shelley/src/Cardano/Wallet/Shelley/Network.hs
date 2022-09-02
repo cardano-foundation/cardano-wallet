@@ -28,7 +28,7 @@ import Cardano.Wallet.Shelley.BlockchainSource
 import Cardano.Wallet.Shelley.Compatibility
     ( CardanoBlock, StandardCrypto )
 import Cardano.Wallet.Shelley.Network.Discriminant
-    ( SomeNetworkDiscriminant, networkDiscriminantToId )
+    ( SomeNetworkDiscriminant )
 import Control.Monad.Trans.Cont
     ( ContT (ContT) )
 import Data.Functor.Contravariant
@@ -68,9 +68,8 @@ withNetworkLayer tr pipeliningStrategy blockchainSrc net netParams =
     ContT $ case blockchainSrc of
         NodeSource nodeConn ver tol ->
             let tr' = NodeNetworkLog >$< tr
-                netId = networkDiscriminantToId net
             in Node.withNetworkLayer
-                tr' pipeliningStrategy netId netParams nodeConn ver tol
+                tr' pipeliningStrategy netParams nodeConn ver tol
         BlockfrostSource project ->
             let tr' = BlockfrostNetworkLog >$< tr
             in Blockfrost.withNetworkLayer tr' net netParams project

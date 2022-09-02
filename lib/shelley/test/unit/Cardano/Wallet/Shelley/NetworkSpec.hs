@@ -18,8 +18,6 @@ import Cardano.Wallet.Primitive.SyncProgress
     ( SyncTolerance (..) )
 import Cardano.Wallet.Primitive.Types
     ( NetworkParameters (..) )
-import Cardano.Wallet.Shelley.Compatibility
-    ( NetworkId (..) )
 import Cardano.Wallet.Shelley.Launch
     ( CardanoNodeConn, withSystemTempDir )
 import Cardano.Wallet.Shelley.Launch.Cluster
@@ -82,7 +80,7 @@ concurrentConnectionSpec = describe "NetworkLayer regression test #1708" $ do
             tasks <- replicateM 10 $ async $
                 withNetworkLayer tr
                     tunedForMainnetPipeliningStrategy
-                    Mainnet np sock vData sTol $ \nl -> do
+                    np sock vData sTol $ \nl -> do
                         -- Wait for the first tip result from the node
                         waiter <- newEmptyMVar
                         race_
