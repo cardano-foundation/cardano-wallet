@@ -7565,7 +7565,7 @@ paths:
   /shared-wallets/{walletId}/transactions-decode:
     post:
       operationId: decodeSharedTransaction
-      tags: ["Shared Keys"]
+      tags: ["Shared Transactions"]
       summary: Decode
       description: |
         <p align="right">status: <strong>unstable</strong></p>
