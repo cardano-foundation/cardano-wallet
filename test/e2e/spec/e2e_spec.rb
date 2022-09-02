@@ -1585,6 +1585,31 @@ RSpec.describe "Cardano Wallet E2E tests", :all, :e2e do
                  }]
         tx_constructed = SHARED.transactions.construct(@wid_sha, payment)
         expect(tx_constructed).to be_correct_and_respond 202
+        expected_fee = tx_constructed['fee']['quantity']
+
+        # Can be decoded
+        tx_decoded = SHARED.transactions.decode(@wid_sha, tx_constructed["transaction"])
+        expect(tx_decoded).to be_correct_and_respond 202
+
+        expect(tx_decoded['id'].size).to be 64
+        decoded_fee = tx_decoded['fee']['quantity']
+        expect(expected_fee).to eq decoded_fee
+        # inputs are ours
+        expect(tx_decoded['inputs'].to_s).to include 'address'
+        expect(tx_decoded['inputs'].to_s).to include 'amount'
+        expect(tx_decoded['outputs']).not_to eq []
+        expect(tx_decoded['script_validity']).to eq 'valid'
+        expect(tx_decoded['validity_interval']['invalid_before']).to eq ({"quantity"=>0,"unit"=>"slot"})
+        expect(tx_decoded['validity_interval']['invalid_hereafter']['quantity']).to be > 0
+        expect(tx_decoded['collateral']).to eq []
+        expect(tx_decoded['collateral_outputs']).to eq []
+        expect(tx_decoded['metadata']).to eq nil
+        expect(tx_decoded['deposits_taken']).to eq []
+        expect(tx_decoded['deposits_returned']).to eq []
+        expect(tx_decoded['withdrawals']).to eq []
+        expect(tx_decoded['mint']).to eq ({"tokens"=>[]})
+        expect(tx_decoded['burn']).to eq ({"tokens"=>[]})
+        expect(tx_decoded['certificates']).to eq []
       end
 
       it "Multi output transaction" do
@@ -1604,6 +1629,31 @@ RSpec.describe "Cardano Wallet E2E tests", :all, :e2e do
                   ]
         tx_constructed = SHARED.transactions.construct(@wid_sha, payment)
         expect(tx_constructed).to be_correct_and_respond 202
+        expected_fee = tx_constructed['fee']['quantity']
+
+        # Can be decoded
+        tx_decoded = SHARED.transactions.decode(@wid_sha, tx_constructed["transaction"])
+        expect(tx_decoded).to be_correct_and_respond 202
+
+        expect(tx_decoded['id'].size).to be 64
+        decoded_fee = tx_decoded['fee']['quantity']
+        expect(expected_fee).to eq decoded_fee
+        # inputs are ours
+        expect(tx_decoded['inputs'].to_s).to include 'address'
+        expect(tx_decoded['inputs'].to_s).to include 'amount'
+        expect(tx_decoded['outputs']).not_to eq []
+        expect(tx_decoded['script_validity']).to eq 'valid'
+        expect(tx_decoded['validity_interval']['invalid_before']).to eq ({"quantity"=>0,"unit"=>"slot"})
+        expect(tx_decoded['validity_interval']['invalid_hereafter']['quantity']).to be > 0
+        expect(tx_decoded['collateral']).to eq []
+        expect(tx_decoded['collateral_outputs']).to eq []
+        expect(tx_decoded['metadata']).to eq nil
+        expect(tx_decoded['deposits_taken']).to eq []
+        expect(tx_decoded['deposits_returned']).to eq []
+        expect(tx_decoded['withdrawals']).to eq []
+        expect(tx_decoded['mint']).to eq ({"tokens"=>[]})
+        expect(tx_decoded['burn']).to eq ({"tokens"=>[]})
+        expect(tx_decoded['certificates']).to eq []
       end
 
       it "Multi-assets transaction" do
@@ -1628,6 +1678,31 @@ RSpec.describe "Cardano Wallet E2E tests", :all, :e2e do
                    ]
         tx_constructed = SHARED.transactions.construct(@wid_sha, payment)
         expect(tx_constructed).to be_correct_and_respond 202
+        expected_fee = tx_constructed['fee']['quantity']
+
+        # Can be decoded
+        tx_decoded = SHARED.transactions.decode(@wid_sha, tx_constructed["transaction"])
+        expect(tx_decoded).to be_correct_and_respond 202
+
+        expect(tx_decoded['id'].size).to be 64
+        decoded_fee = tx_decoded['fee']['quantity']
+        expect(expected_fee).to eq decoded_fee
+        # inputs are ours
+        expect(tx_decoded['inputs'].to_s).to include 'address'
+        expect(tx_decoded['inputs'].to_s).to include 'amount'
+        expect(tx_decoded['outputs']).not_to eq []
+        expect(tx_decoded['script_validity']).to eq 'valid'
+        expect(tx_decoded['validity_interval']['invalid_before']).to eq ({"quantity"=>0,"unit"=>"slot"})
+        expect(tx_decoded['validity_interval']['invalid_hereafter']['quantity']).to be > 0
+        expect(tx_decoded['collateral']).to eq []
+        expect(tx_decoded['collateral_outputs']).to eq []
+        expect(tx_decoded['metadata']).to eq nil
+        expect(tx_decoded['deposits_taken']).to eq []
+        expect(tx_decoded['deposits_returned']).to eq []
+        expect(tx_decoded['withdrawals']).to eq []
+        expect(tx_decoded['mint']).to eq ({"tokens"=>[]})
+        expect(tx_decoded['burn']).to eq ({"tokens"=>[]})
+        expect(tx_decoded['certificates']).to eq []
       end
 
       it "Only metadata" do
@@ -1638,7 +1713,31 @@ RSpec.describe "Cardano Wallet E2E tests", :all, :e2e do
                                                         withdrawal = nil,
                                                         metadata)
         expect(tx_constructed).to be_correct_and_respond 202
+        expected_fee = tx_constructed['fee']['quantity']
 
+        # Can be decoded
+        tx_decoded = SHARED.transactions.decode(@wid_sha, tx_constructed["transaction"])
+        expect(tx_decoded).to be_correct_and_respond 202
+
+        expect(tx_decoded['id'].size).to be 64
+        decoded_fee = tx_decoded['fee']['quantity']
+        expect(expected_fee).to eq decoded_fee
+        # inputs are ours
+        expect(tx_decoded['inputs'].to_s).to include 'address'
+        expect(tx_decoded['inputs'].to_s).to include 'amount'
+        expect(tx_decoded['outputs']).not_to eq []
+        expect(tx_decoded['script_validity']).to eq 'valid'
+        expect(tx_decoded['validity_interval']['invalid_before']).to eq ({"quantity"=>0,"unit"=>"slot"})
+        expect(tx_decoded['validity_interval']['invalid_hereafter']['quantity']).to be > 0
+        expect(tx_decoded['collateral']).to eq []
+        expect(tx_decoded['collateral_outputs']).to eq []
+        expect(tx_decoded['metadata']).to eq metadata
+        expect(tx_decoded['deposits_taken']).to eq []
+        expect(tx_decoded['deposits_returned']).to eq []
+        expect(tx_decoded['withdrawals']).to eq []
+        expect(tx_decoded['mint']).to eq ({"tokens"=>[]})
+        expect(tx_decoded['burn']).to eq ({"tokens"=>[]})
+        expect(tx_decoded['certificates']).to eq []
       end
 
       it "Validity intervals" do
@@ -1651,8 +1750,8 @@ RSpec.describe "Cardano Wallet E2E tests", :all, :e2e do
                    :amount => { :quantity => amt,
                              :unit => 'lovelace' }
                  }]
-        validity_interval = {:invalid_before => {:quantity => 0, :unit => "second"},
-                             :invalid_hereafter => {:quantity => 600, :unit => "second"}}
+        validity_interval = {"invalid_before" => {"quantity" => 500, "unit" => "slot"},
+                             "invalid_hereafter" => {"quantity" => 5000000000, "unit" => "slot"}}
         tx_constructed = SHARED.transactions.construct(@wid_sha, payment,
                                                         withdrawal = nil,
                                                         metadata = nil,
@@ -1660,6 +1759,85 @@ RSpec.describe "Cardano Wallet E2E tests", :all, :e2e do
                                                         mint_burn = nil,
                                                         validity_interval)
         expect(tx_constructed).to be_correct_and_respond 202
+        expected_fee = tx_constructed['fee']['quantity']
+
+        # Can be decoded
+        tx_decoded = SHARED.transactions.decode(@wid_sha, tx_constructed["transaction"])
+        expect(tx_decoded).to be_correct_and_respond 202
+
+        expect(tx_decoded['id'].size).to be 64
+        decoded_fee = tx_decoded['fee']['quantity']
+        expect(expected_fee).to eq decoded_fee
+        # inputs are ours
+        expect(tx_decoded['inputs'].to_s).to include 'address'
+        expect(tx_decoded['inputs'].to_s).to include 'amount'
+        expect(tx_decoded['outputs']).not_to eq []
+        expect(tx_decoded['script_validity']).to eq 'valid'
+        expect(tx_decoded['validity_interval']['invalid_before']).to eq validity_interval["invalid_before"]
+        expect(tx_decoded['validity_interval']['invalid_hereafter']).to eq validity_interval["invalid_hereafter"]
+        expect(tx_decoded['collateral']).to eq []
+        expect(tx_decoded['collateral_outputs']).to eq []
+        expect(tx_decoded['metadata']).to eq metadata
+        expect(tx_decoded['deposits_taken']).to eq []
+        expect(tx_decoded['deposits_returned']).to eq []
+        expect(tx_decoded['withdrawals']).to eq []
+        expect(tx_decoded['mint']).to eq ({"tokens"=>[]})
+        expect(tx_decoded['burn']).to eq ({"tokens"=>[]})
+        expect(tx_decoded['certificates']).to eq []
+      end
+
+      it "Delegation" do
+        balance = get_shared_balances(@wid_sha)
+        expected_deposit = get_key_deposit
+        puts "Expected deposit #{expected_deposit}"
+
+        # Pick up pool id to join
+        pools = SHELLEY.stake_pools
+        pool_id = pools.list({ stake: 1000 }).sample['id']
+
+        # Join pool
+        delegation = [{
+                        "join" => {
+                                    "pool" => pool_id,
+                                    "stake_key_index" => "0H"
+                                  }
+                      }]
+
+        tx_constructed = SHARED.transactions.construct(@wid_sha, payment = nil,
+                                                        withdrawal = nil,
+                                                        metadata = nil,
+                                                        delegation,
+                                                        mint_burn = nil,
+                                                        validity_interval = nil)
+        # Check fee and deposit on joining
+        tx_decoded = SHARED.transactions.decode(@wid_sha, tx_constructed["transaction"])
+        expect(tx_decoded).to be_correct_and_respond 202
+
+        # TODO: although you can construct and decode delegation, deposit_taken /deposit_returned are not shown atm
+        # deposit_taken = tx_constructed['coin_selection']['deposits_taken'].first['quantity']
+        # decoded_deposit_taken = tx_decoded['deposits_taken'].first['quantity']
+        # expect(deposit_taken).to eq decoded_deposit_taken
+        # expect(deposit_taken).to eq expected_deposit
+
+        expected_fee = tx_constructed['fee']['quantity']
+        decoded_fee = tx_decoded['fee']['quantity']
+        expect(decoded_fee).to eq expected_fee
+        # inputs are ours
+        expect(tx_decoded['inputs'].to_s).to include 'address'
+        expect(tx_decoded['inputs'].to_s).to include 'amount'
+        expect(tx_decoded['outputs']).not_to eq []
+        expect(tx_decoded['script_validity']).to eq 'valid'
+        expect(tx_decoded['validity_interval']['invalid_before']).to eq ({"quantity"=>0,"unit"=>"slot"})
+        expect(tx_decoded['validity_interval']['invalid_hereafter']['quantity']).to be > 0
+        expect(tx_decoded['collateral']).to eq []
+        expect(tx_decoded['collateral_outputs']).to eq []
+        expect(tx_decoded['metadata']).to eq nil
+        expect(tx_decoded['deposits_taken']).to eq []
+        expect(tx_decoded['deposits_returned']).to eq []
+        expect(tx_decoded['withdrawals']).to eq []
+        expect(tx_decoded['mint']).to eq ({"tokens"=>[]})
+        expect(tx_decoded['burn']).to eq ({"tokens"=>[]})
+        expect(tx_decoded['certificates']).to eq []
       end
     end
 
