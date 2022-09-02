@@ -5,19 +5,9 @@
 {-# LANGUAGE FlexibleInstances #-}
 {-# LANGUAGE UndecidableInstances #-}
 
--- | Provides the 'TokenBundle' type, which combines a 'Coin' (lovelace) value
---   with a map of named token quantities, scoped by token policy.
---
--- This module is meant to be imported qualified. For example:
---
--- >>> import qualified Cardano.Wallet.Primitive.Types.TokenBundle as TB
---
 module Cardano.Wallet.Primitive.Types.Tx.TokenBundleAssessments
     (
-    -- * Types
-      TokenBundle (..)
-
-    , TokenBundleSizeAssessor (..)
+      TokenBundleSizeAssessor (..)
     , TokenBundleSizeAssessment (..)
 
     ) where
@@ -28,7 +18,7 @@ import GHC.Generics
     ( Generic )
 
 import Cardano.Wallet.Primitive.Types.TokenBundle
-    ( TokenBundle (..) )
+    ( TokenBundle )
 
 -- | A function capable of assessing the size of a token bundle relative to the
 --   upper limit of what can be included in a single transaction output.
