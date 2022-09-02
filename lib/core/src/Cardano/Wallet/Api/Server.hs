@@ -512,9 +512,10 @@ import Cardano.Wallet.Primitive.Types.Tx
     , UnsignedTx (..)
     , cardanoTxIdeallyNoLaterThan
     , getSealedTxWitnesses
-    , txMintBurnMaxTokenQuantity
     , txOutCoin
     )
+import Cardano.Wallet.Primitive.Types.Tx.Constraints
+    ( txMintBurnMaxTokenQuantity )
 import Cardano.Wallet.Registry
     ( HasWorkerCtx (..)
     , MkWorker (..)

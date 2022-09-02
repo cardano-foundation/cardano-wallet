@@ -33,19 +33,14 @@ import Cardano.Api
 
 import qualified Cardano.Api as Api
 import qualified Cardano.Api.Shelley as Api
-
 import qualified Cardano.Chain.UTxO as Byron
-
-import qualified Cardano.Ledger.Shelley.API as Shelley
-import qualified Cardano.Ledger.TxIn as Shelley
-
-import qualified Cardano.Ledger.Alonzo.Tx as Alonzo
-
-import qualified Cardano.Wallet.Primitive.Types.Hash as W
-
 import qualified Cardano.Crypto as CryptoC
 import qualified Cardano.Crypto.Hash as Crypto
+import qualified Cardano.Ledger.Alonzo.Tx as Alonzo
 import qualified Cardano.Ledger.SafeHash as SafeHash
+import qualified Cardano.Ledger.Shelley.API as Shelley
+import qualified Cardano.Ledger.TxIn as Shelley
+import qualified Cardano.Wallet.Primitive.Types.Hash as W
 
 {-------------------------------------------------------------------------------
     Transaction type

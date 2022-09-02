@@ -138,7 +138,7 @@ import Cardano.Wallet.Primitive.Types.TokenMap
     ( AssetId, Lexicographic (..), TokenMap )
 import Cardano.Wallet.Primitive.Types.TokenQuantity
     ( TokenQuantity (..) )
-import Cardano.Wallet.Primitive.Types.Tx.TokenBundleAssessments
+import Cardano.Wallet.Primitive.Types.Tx.Constraints
     ( TokenBundleSizeAssessment (..), TokenBundleSizeAssessor (..) )
 import Cardano.Wallet.Primitive.Types.UTxOIndex
     ( Asset (..), SelectionFilter (..), UTxOIndex (..) )

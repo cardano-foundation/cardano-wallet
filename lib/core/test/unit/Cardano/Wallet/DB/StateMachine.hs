@@ -185,11 +185,12 @@ import Cardano.Wallet.Primitive.Types.Tx
     , TxMetadata
     , TxOut (..)
     , TxScriptValidity
-    , TxSize (..)
     , TxStatus
     , inputs
     , mockSealedTx
     )
+import Cardano.Wallet.Primitive.Types.Tx.Constraints
+    ( TxSize (..) )
 import Cardano.Wallet.Primitive.Types.UTxO
     ( UTxO (..) )
 import Control.Foldl

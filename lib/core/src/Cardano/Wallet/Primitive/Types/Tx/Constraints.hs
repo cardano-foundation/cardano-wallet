@@ -3,14 +3,17 @@
 {-# LANGUAGE DerivingVia #-}
 {-# LANGUAGE DuplicateRecordFields #-}
 {-# LANGUAGE FlexibleInstances #-}
+{-# LANGUAGE NumericUnderscores #-}
 {-# LANGUAGE ScopedTypeVariables #-}
+{-# LANGUAGE TypeApplications #-}
 {-# LANGUAGE TypeFamilies #-}
 
 -- |
--- Copyright: © 2018-2020 IOHK
+-- Copyright: © 2018-2022 IOHK
 -- License: Apache-2.0
 --
--- This module provides `TxConstraints` data type.
+-- This module provides types and functions that relate to constraints on the
+-- sizes and costs of transactions and their constituent components.
 --
 module Cardano.Wallet.Primitive.Types.Tx.Constraints
     ( TxConstraints (..)
@@ -20,6 +23,14 @@ module Cardano.Wallet.Primitive.Types.Tx.Constraints
     , txOutputHasValidTokenQuantities
     , TxSize (..)
     , txSizeDistance
+    , TokenBundleSizeAssessor (..)
+    , TokenBundleSizeAssessment (..)
+    , txOutMinCoin
+    , txOutMaxCoin
+    , txOutMinTokenQuantity
+    , txOutMaxTokenQuantity
+    , txMintBurnMaxTokenQuantity
+    , coinIsValidForTxOut
     ) where
 
 import Prelude
@@ -36,6 +47,10 @@ import Cardano.Wallet.Primitive.Types.TokenQuantity
     ( TokenQuantity (..) )
 import Control.DeepSeq
     ( NFData (..) )
+import Data.Int
+    ( Int64 )
+import Data.Word
+    ( Word64 )
 import GHC.Generics
     ( Generic )
 import Numeric.Natural
@@ -130,3 +145,93 @@ txSizeDistance :: TxSize -> TxSize -> TxSize
 txSizeDistance (TxSize a) (TxSize b)
     | a >= b    = TxSize (a - b)
     | otherwise = TxSize (b - a)
+
+--------------------------------------------------------------------------------
+-- Assessing the sizes of token bundles in the context of transaction outputs.
+--
+-- Transaction outputs have a maximum size, defined by the protocol.
+--------------------------------------------------------------------------------
+
+-- | A function capable of assessing the size of a token bundle relative to the
+--   upper limit of what can be included in a single transaction output.
+--
+-- In general, a token bundle size assessment function 'f' should satisfy the
+-- following properties:
+--
+--    * Enlarging a bundle that exceeds the limit should also result in a
+--      bundle that exceeds the limit:
+--      @
+--              f  b1           == TokenBundleSizeExceedsLimit
+--          ==> f (b1 `add` b2) == TokenBundleSizeExceedsLimit
+--      @
+--
+--    * Shrinking a bundle that's within the limit should also result in a
+--      bundle that's within the limit:
+--      @
+--              f  b1                  == TokenBundleWithinLimit
+--          ==> f (b1 `difference` b2) == TokenBundleWithinLimit
+--      @
+--
+newtype TokenBundleSizeAssessor = TokenBundleSizeAssessor
+    { assessTokenBundleSize :: TokenBundle -> TokenBundleSizeAssessment
+    }
+    deriving Generic
+
+-- | Indicates the size of a token bundle relative to the upper limit of what
+--   can be included in a single transaction output, defined by the protocol.
+--
+data TokenBundleSizeAssessment
+    = TokenBundleSizeWithinLimit
+    -- ^ Indicates that the size of a token bundle does not exceed the maximum
+    -- size that can be included in a transaction output.
+    | TokenBundleSizeExceedsLimit
+    -- ^ Indicates that the size of a token bundle exceeds the maximum size
+    -- that can be included in a transaction output.
+    deriving (Eq, Generic, Show)
+
+--------------------------------------------------------------------------------
+-- Constants
+--------------------------------------------------------------------------------
+
+-- | The smallest quantity of lovelace that can appear in a transaction output's
+--   token bundle.
+--
+txOutMinCoin :: Coin
+txOutMinCoin = Coin 0
+
+-- | The greatest quantity of lovelace that can appear in a transaction output's
+--   token bundle.
+--
+txOutMaxCoin :: Coin
+txOutMaxCoin = Coin 45_000_000_000_000_000
+
+-- | The smallest token quantity that can appear in a transaction output's
+--   token bundle.
+--
+txOutMinTokenQuantity :: TokenQuantity
+txOutMinTokenQuantity = TokenQuantity 1
+
+-- | The greatest token quantity that can appear in a transaction output's
+--   token bundle.
+--
+-- Although the ledger specification allows token quantities of unlimited
+-- sizes, in practice we'll only see transaction outputs where the token
+-- quantities are bounded by the size of a 'Word64'.
+--
+txOutMaxTokenQuantity :: TokenQuantity
+txOutMaxTokenQuantity = TokenQuantity $ fromIntegral $ maxBound @Word64
+
+-- | The greatest quantity of any given token that can be minted or burned in a
+--   transaction.
+--
+txMintBurnMaxTokenQuantity :: TokenQuantity
+txMintBurnMaxTokenQuantity = TokenQuantity $ fromIntegral $ maxBound @Int64
+
+--------------------------------------------------------------------------------
+-- Checks
+--------------------------------------------------------------------------------
+
+coinIsValidForTxOut :: Coin -> Bool
+coinIsValidForTxOut c = (&&)
+    (c >= txOutMinCoin)
+    (c <= txOutMaxCoin)

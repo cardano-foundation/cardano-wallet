@@ -180,7 +180,9 @@ import Cardano.Wallet.Primitive.Types.MinimumUTxO
 import Cardano.Wallet.Primitive.Types.RewardAccount
     ( RewardAccount (..) )
 import Cardano.Wallet.Primitive.Types.Tx
-    ( Tx (..), TxSize (..) )
+    ( Tx (..) )
+import Cardano.Wallet.Primitive.Types.Tx.Constraints
+    ( TxSize (..) )
 import Cardano.Wallet.Util
     ( ShowFmt (..), parseURI, uriToText )
 import Control.Arrow

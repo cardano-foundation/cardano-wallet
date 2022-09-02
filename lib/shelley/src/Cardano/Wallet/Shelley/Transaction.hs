@@ -143,19 +143,18 @@ import Cardano.Wallet.Primitive.Types.TokenQuantity
 import Cardano.Wallet.Primitive.Types.Tx
     ( SealedTx (..)
     , Tx (..)
-    , TxConstraints (..)
     , TxIn
     , TxMetadata (..)
     , TxOut (..)
-    , TxSize (..)
     , cardanoTxIdeallyNoLaterThan
     , sealedTxFromCardano'
     , sealedTxFromCardanoBody
     , txOutAddCoin
     , txOutCoin
-    , txSizeDistance
     , withinEra
     )
+import Cardano.Wallet.Primitive.Types.Tx.Constraints
+    ( TxConstraints (..), TxSize (..), txSizeDistance )
 import Cardano.Wallet.Primitive.Types.UTxO
     ( UTxO (..) )
 import Cardano.Wallet.Shelley.Compatibility

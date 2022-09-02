@@ -69,12 +69,15 @@ import Cardano.Wallet.Primitive.Types.TokenBundle
     ( TokenBundle )
 import Cardano.Wallet.Primitive.Types.TokenBundle.Gen
     ( genTokenBundle, genTokenBundleSmallRange, shrinkTokenBundleSmallRange )
-import Cardano.Wallet.Primitive.Types.Tx
-    ( TxSize (..), txOutMaxCoin, txOutMinCoin )
+import Cardano.Wallet.Primitive.Types.Tx.Constraints
+    ( TokenBundleSizeAssessment (..)
+    , TokenBundleSizeAssessor (..)
+    , TxSize (..)
+    , txOutMaxCoin
+    , txOutMinCoin
+    )
 import Cardano.Wallet.Primitive.Types.Tx.Gen
     ( genTxOutTokenBundle )
-import Cardano.Wallet.Primitive.Types.Tx.TokenBundleAssessments
-    ( TokenBundleSizeAssessment (..), TokenBundleSizeAssessor (..) )
 import Cardano.Wallet.Shelley.Compatibility
     ( CardanoBlock
     , StandardCrypto
