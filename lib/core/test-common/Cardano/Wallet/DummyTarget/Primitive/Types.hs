@@ -57,8 +57,9 @@ import Cardano.Wallet.Primitive.Types.Tx
     , TxMetadata (..)
     , TxOut (..)
     , TxScriptValidity (..)
-    , TxSize (..)
     )
+import Cardano.Wallet.Primitive.Types.Tx.Constraints
+    ( TxSize (..) )
 import Data.Functor.Identity
     ( Identity (..) )
 import Data.Map.Strict

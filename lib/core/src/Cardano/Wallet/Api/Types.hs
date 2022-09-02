@@ -351,7 +351,6 @@ import Cardano.Wallet.Primitive.Types.Tx
     ( Direction (..)
     , SealedTx (..)
     , SerialisedTx (..)
-    , TxConstraints (..)
     , TxIn (..)
     , TxMetadata
     , TxScriptValidity (..)
@@ -361,7 +360,7 @@ import Cardano.Wallet.Primitive.Types.Tx
     , txMetadataIsNull
     )
 import Cardano.Wallet.Primitive.Types.Tx.Constraints
-    ( txOutMaxCoin )
+    ( TxConstraints (..), txOutMaxCoin )
 import Cardano.Wallet.Primitive.Types.UTxO
     ( BoundType, HistogramBar (..), UTxOStatistics (..) )
 import Cardano.Wallet.TokenMetadata

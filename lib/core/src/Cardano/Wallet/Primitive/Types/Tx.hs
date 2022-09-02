@@ -67,15 +67,6 @@ module Cardano.Wallet.Primitive.Types.Tx
     , txOutSubtractCoin
     , txScriptInvalid
 
-    -- * Constraints
-    , TxConstraints (..)
-    , txOutputCoinCost
-    , txOutputCoinSize
-    , txOutputHasValidSize
-    , txOutputHasValidTokenQuantities
-    , TxSize (..)
-    , txSizeDistance
-
     -- * Queries
     , txAssetIds
     , txOutAssetIds
@@ -110,16 +101,7 @@ import Cardano.Wallet.Primitive.Types.TokenMap
 import Cardano.Wallet.Primitive.Types.Tx.CBOR
     ( TxCBOR (..) )
 import Cardano.Wallet.Primitive.Types.Tx.Constraints
-    ( TxConstraints (..)
-    , TxSize (..)
-    , txOutMaxCoin
-    , txOutMinCoin
-    , txOutputCoinCost
-    , txOutputCoinSize
-    , txOutputHasValidSize
-    , txOutputHasValidTokenQuantities
-    , txSizeDistance
-    )
+    ( txOutMaxCoin, txOutMinCoin )
 import Cardano.Wallet.Primitive.Types.Tx.SealedTx
     ( SealedTx (..)
     , SerialisedTx (..)

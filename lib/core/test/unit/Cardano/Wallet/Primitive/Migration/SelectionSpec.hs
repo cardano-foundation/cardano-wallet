@@ -42,17 +42,16 @@ import Cardano.Wallet.Primitive.Types.TokenPolicy
     ( TokenName (..), TokenPolicyId (..) )
 import Cardano.Wallet.Primitive.Types.TokenQuantity
     ( TokenQuantity (..) )
-import Cardano.Wallet.Primitive.Types.Tx
+import Cardano.Wallet.Primitive.Types.Tx.Constraints
     ( TxConstraints (..)
     , TxSize (..)
+    , txOutMaxCoin
     , txOutputCoinCost
     , txOutputCoinSize
     , txOutputHasValidSize
     , txOutputHasValidTokenQuantities
     , txSizeDistance
     )
-import Cardano.Wallet.Primitive.Types.Tx.Constraints
-    ( txOutMaxCoin )
 import Control.Monad
     ( replicateM )
 import Data.ByteArray.Encoding

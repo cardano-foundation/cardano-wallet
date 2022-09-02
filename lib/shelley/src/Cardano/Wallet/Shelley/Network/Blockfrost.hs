@@ -139,9 +139,10 @@ import Cardano.Wallet.Primitive.Types.Tx
     , TxIn (..)
     , TxOut (..)
     , TxScriptValidity (..)
-    , TxSize (..)
     , serialisedTx
     )
+import Cardano.Wallet.Primitive.Types.Tx.Constraints
+    ( TxSize (..) )
 import Cardano.Wallet.Shelley.Network.Blockfrost.Conversion
     ( bfBlockHeader
     , fromBfAddress

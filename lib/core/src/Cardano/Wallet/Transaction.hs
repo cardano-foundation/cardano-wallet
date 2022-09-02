@@ -99,9 +99,9 @@ import Cardano.Wallet.Primitive.Types.TokenMap
 import Cardano.Wallet.Primitive.Types.TokenPolicy
     ( TokenPolicyId )
 import Cardano.Wallet.Primitive.Types.Tx
-    ( Tx (..), TxConstraints, TxIn, TxMetadata, TxOut, TxSize )
+    ( Tx (..), TxIn, TxMetadata, TxOut )
 import Cardano.Wallet.Primitive.Types.Tx.Constraints
-    ( TokenBundleSizeAssessor )
+    ( TokenBundleSizeAssessor, TxConstraints, TxSize )
 import Cardano.Wallet.Primitive.Types.UTxO
     ( UTxO )
 import Cardano.Wallet.Util

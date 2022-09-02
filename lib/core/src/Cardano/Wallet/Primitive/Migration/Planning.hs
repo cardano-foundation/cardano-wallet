@@ -45,7 +45,9 @@ import Cardano.Wallet.Primitive.Types.Coin
 import Cardano.Wallet.Primitive.Types.TokenBundle
     ( TokenBundle (..) )
 import Cardano.Wallet.Primitive.Types.Tx
-    ( TxConstraints (..), TxIn, TxOut )
+    ( TxIn, TxOut )
+import Cardano.Wallet.Primitive.Types.Tx.Constraints
+    ( TxConstraints (..) )
 import Cardano.Wallet.Primitive.Types.UTxO
     ( UTxO (..) )
 import Data.Either

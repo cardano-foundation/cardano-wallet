@@ -190,12 +190,10 @@ import Cardano.Wallet.Primitive.Types.TokenPolicy.Gen
 import Cardano.Wallet.Primitive.Types.Tx
     ( SealedTx (..)
     , Tx
-    , TxConstraints (..)
     , TxIn (..)
     , TxMetadata (..)
     , TxMetadataValue (..)
     , TxOut (..)
-    , TxSize (..)
     , cardanoTxIdeallyNoLaterThan
     , getSealedTxWitnesses
     , sealedTxFromBytes
@@ -208,6 +206,8 @@ import Cardano.Wallet.Primitive.Types.Tx
     , txOutSubtractCoin
     , withinEra
     )
+import Cardano.Wallet.Primitive.Types.Tx.Constraints
+    ( TxConstraints (..), TxSize (..) )
 import Cardano.Wallet.Primitive.Types.Tx.Gen
     ( genTxIn, genTxOutTokenBundle )
 import Cardano.Wallet.Primitive.Types.UTxO

@@ -437,7 +437,6 @@ import Cardano.Wallet.Primitive.Types.Tx
     , TxMeta (..)
     , TxMetadata (..)
     , TxOut (..)
-    , TxSize (..)
     , TxStatus (..)
     , UnsignedTx (..)
     , fromTransactionInfo
@@ -447,6 +446,8 @@ import Cardano.Wallet.Primitive.Types.Tx
     )
 import Cardano.Wallet.Primitive.Types.Tx.CBOR
     ( TxCBOR (..) )
+import Cardano.Wallet.Primitive.Types.Tx.Constraints
+    ( TxSize (..) )
 import Cardano.Wallet.Primitive.Types.UTxO
     ( UTxO (..), UTxOStatistics, computeUtxoStatistics, log10 )
 import Cardano.Wallet.Primitive.Types.UTxOIndex
