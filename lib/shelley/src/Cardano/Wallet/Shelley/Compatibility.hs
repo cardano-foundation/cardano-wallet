@@ -243,7 +243,7 @@ import Cardano.Wallet.Primitive.Types.Tx.CBOR
     ( mkTxCBOR )
 import Cardano.Wallet.Primitive.Types.Tx.CBOR.Hash
     ( fromShelleyTxId, shelleyTxHash )
-import Cardano.Wallet.Primitive.Types.Tx.TokenBundleAssessments
+import Cardano.Wallet.Primitive.Types.Tx.Constraints
     ( TokenBundleSizeAssessment (..), TokenBundleSizeAssessor (..) )
 import Cardano.Wallet.Shelley.Compatibility.Ledger
     ( toWalletScript

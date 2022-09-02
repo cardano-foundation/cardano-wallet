@@ -88,7 +88,7 @@ import Cardano.Wallet.Primitive.Types.TokenQuantity
     ( TokenQuantity )
 import Cardano.Wallet.Primitive.Types.Tx
     ( txOutMaxTokenQuantity )
-import Cardano.Wallet.Primitive.Types.Tx.TokenBundleAssessments
+import Cardano.Wallet.Primitive.Types.Tx.Constraints
     ( TokenBundleSizeAssessment (..) )
 import Cardano.Wallet.Primitive.Types.UTxOSelection
     ( UTxOSelection )

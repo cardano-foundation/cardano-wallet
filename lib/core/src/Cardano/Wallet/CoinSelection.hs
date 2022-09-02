@@ -106,7 +106,7 @@ import Cardano.Wallet.Primitive.Types.TokenMap
     ( AssetId, TokenMap )
 import Cardano.Wallet.Primitive.Types.Tx
     ( TxIn, TxOut (..), txOutMaxCoin, txOutMaxTokenQuantity )
-import Cardano.Wallet.Primitive.Types.Tx.TokenBundleAssessments
+import Cardano.Wallet.Primitive.Types.Tx.Constraints
     ( TokenBundleSizeAssessment )
 import Cardano.Wallet.Primitive.Types.UTxO
     ( UTxO (..) )
