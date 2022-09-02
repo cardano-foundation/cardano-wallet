@@ -734,36 +734,6 @@ RSpec.describe "Cardano Wallet E2E tests", :all, :e2e do
     end
 
     describe "Minting and Burning" do
-      def mint(asset_name, quantity, policy_script, address = nil)
-        mint = { 'operation' => { 'mint' => { 'quantity' => quantity } },
-                 'policy_script_template' => policy_script
-               }
-         mint['operation']['mint']['receiving_address'] = address unless address == nil
-         mint['asset_name'] = asset_name unless asset_name == nil
-         mint
-      end
-
-      def burn(asset_name, quantity, policy_script)
-        burn = { 'operation' => { 'burn' => { 'quantity' => quantity } },
-                 'policy_script_template' => policy_script
-               }
-        burn['asset_name'] = asset_name unless asset_name == nil
-        burn
-      end
-
-      ##
-      # Gets assets list in the form of 'policy_id + asset_name' array
-      # @return [Array] - ["#{policy_id}#{asset_name}"...] of all minted/burnt assets
-      def get_assets_from_decode(tx_decoded_mint_or_burn)
-        tx_decoded_mint_or_burn['tokens'].map do |x|
-           assets = x['assets'].map {|z| z['asset_name']}
-           assets.map {|a| "#{x['policy_id']}#{a}"}
-        end.flatten
-      end
-
-      def get_policy_id_from_decode(tx_decoded_mint_or_burn)
-        tx_decoded_mint_or_burn['tokens'].first['policy_id']
-      end
 
       ##
       # Tx1: Mints 3 x 1000 assets, each guarded by different policy script
@@ -1838,6 +1808,53 @@ RSpec.describe "Cardano Wallet E2E tests", :all, :e2e do
         expect(tx_decoded['mint']).to eq ({"tokens"=>[]})
         expect(tx_decoded['burn']).to eq ({"tokens"=>[]})
         expect(tx_decoded['certificates']).to eq []
+      end
+
+      describe "Minting and Burning" do
+
+        it "Can mint and then burn" do
+          src_before = get_shared_balances(@wid_sha)
+          policy_script1 = 'cosigner#0'
+          policy_script2 = { "all" => [ "cosigner#0" ] }
+          policy_script3 = { "any" => [ "cosigner#0" ] }
+
+          # Minting:
+          mint = [mint(asset_name('Token1'), 1000, policy_script1),
+                  mint(asset_name('Token2'), 1000, policy_script2),
+                  mint('', 1000, policy_script3)
+                 ]
+
+          tx_constructed = SHARED.transactions.construct(@wid_sha, payment = nil,
+                                                          withdrawal = nil,
+                                                          metadata = nil,
+                                                          delegations = nil,
+                                                          mint)
+          expect(tx_constructed).to be_correct_and_respond 202
+
+          tx_decoded = SHARED.transactions.decode(@wid_sha, tx_constructed["transaction"])
+          expect(tx_decoded).to be_correct_and_respond 202
+
+          expected_fee = tx_constructed['fee']['quantity']
+          decoded_fee = tx_decoded['fee']['quantity']
+          expect(expected_fee).to eq decoded_fee
+          # inputs are ours
+          expect(tx_decoded['inputs'].to_s).to include 'address'
+          expect(tx_decoded['inputs'].to_s).to include 'amount'
+          expect(tx_decoded['outputs']).not_to eq []
+          expect(tx_decoded['script_validity']).to eq 'valid'
+          expect(tx_decoded['validity_interval']['invalid_before']).to eq ({"quantity"=>0,"unit"=>"slot"})
+          expect(tx_decoded['validity_interval']['invalid_hereafter']['quantity']).to be > 0
+          expect(tx_decoded['collateral']).to eq []
+          expect(tx_decoded['collateral_outputs']).to eq []
+          expect(tx_decoded['metadata']).to eq nil
+          expect(tx_decoded['deposits_taken']).to eq []
+          expect(tx_decoded['deposits_returned']).to eq []
+          expect(tx_decoded['withdrawals']).to eq []
+          # TODO: mint / burn currently not decoded
+          expect(tx_decoded['mint']).to eq ({"tokens"=>[]})
+          expect(tx_decoded['burn']).to eq ({"tokens"=>[]})
+          expect(tx_decoded['certificates']).to eq []
+        end
       end
     end
 
