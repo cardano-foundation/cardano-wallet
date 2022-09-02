@@ -4,10 +4,8 @@
 {-# LANGUAGE DerivingVia #-}
 {-# LANGUAGE DuplicateRecordFields #-}
 {-# LANGUAGE FlexibleInstances #-}
-{-# LANGUAGE NumericUnderscores #-}
 {-# LANGUAGE ScopedTypeVariables #-}
 {-# LANGUAGE StrictData #-}
-{-# LANGUAGE TypeApplications #-}
 {-# LANGUAGE TypeFamilies #-}
 
 -- |
@@ -69,13 +67,6 @@ module Cardano.Wallet.Primitive.Types.Tx
     , txOutSubtractCoin
     , txScriptInvalid
 
-    -- * Constants
-    , txOutMinCoin
-    , txOutMaxCoin
-    , txOutMinTokenQuantity
-    , txOutMaxTokenQuantity
-    , txMintBurnMaxTokenQuantity
-
     -- * Constraints
     , TxConstraints (..)
     , txOutputCoinCost
@@ -116,13 +107,13 @@ import Cardano.Wallet.Primitive.Types.Hash
     ( Hash )
 import Cardano.Wallet.Primitive.Types.TokenMap
     ( TokenMap )
-import Cardano.Wallet.Primitive.Types.TokenQuantity
-    ( TokenQuantity (..) )
 import Cardano.Wallet.Primitive.Types.Tx.CBOR
     ( TxCBOR (..) )
 import Cardano.Wallet.Primitive.Types.Tx.Constraints
     ( TxConstraints (..)
     , TxSize (..)
+    , txOutMaxCoin
+    , txOutMinCoin
     , txOutputCoinCost
     , txOutputCoinSize
     , txOutputHasValidSize
@@ -176,8 +167,6 @@ import Cardano.Wallet.Primitive.Types.Tx.Tx
     )
 import Cardano.Wallet.Primitive.Types.Tx.TxMeta
     ( Direction (..), TxMeta (..), TxStatus (..), isPending )
-import Data.Int
-    ( Int64 )
 import Data.Word
     ( Word64 )
 import GHC.Generics
@@ -241,45 +230,6 @@ data TxChange derivationPath = TxChange
     , assets :: TokenMap
     , derivationPath :: derivationPath
     } deriving (Show, Generic, Eq, Ord)
-
-{-------------------------------------------------------------------------------
-                          Constants
--------------------------------------------------------------------------------}
-
--- | The smallest quantity of lovelace that can appear in a transaction output's
---   token bundle.
---
-txOutMinCoin :: Coin
-txOutMinCoin = Coin 0
-
--- | The greatest quantity of lovelace that can appear in a transaction output's
---   token bundle.
---
-txOutMaxCoin :: Coin
-txOutMaxCoin = Coin 45_000_000_000_000_000
-
--- | The smallest token quantity that can appear in a transaction output's
---   token bundle.
---
-txOutMinTokenQuantity :: TokenQuantity
-txOutMinTokenQuantity = TokenQuantity 1
-
--- | The greatest token quantity that can appear in a transaction output's
---   token bundle.
---
--- Although the ledger specification allows token quantities of unlimited
--- sizes, in practice we'll only see transaction outputs where the token
--- quantities are bounded by the size of a 'Word64'.
---
-txOutMaxTokenQuantity :: TokenQuantity
-txOutMaxTokenQuantity = TokenQuantity $ fromIntegral $ maxBound @Word64
-
--- | The greatest quantity of any given token that can be minted or burned in a
---   transaction.
---
-txMintBurnMaxTokenQuantity :: TokenQuantity
-txMintBurnMaxTokenQuantity = TokenQuantity $ fromIntegral $ maxBound @Int64
-
 
 {-------------------------------------------------------------------------------
                           Checks

@@ -58,7 +58,9 @@ import Cardano.Wallet.Primitive.Types.TokenPolicy
 import Cardano.Wallet.Primitive.Types.TokenPolicy.Gen
     ( mkTokenPolicyId )
 import Cardano.Wallet.Primitive.Types.Tx
-    ( TxOut (..), txOutMaxCoin, txOutMaxTokenQuantity, txOutMinTokenQuantity )
+    ( TxOut (..) )
+import Cardano.Wallet.Primitive.Types.Tx.Constraints
+    ( txOutMaxCoin, txOutMaxTokenQuantity, txOutMinTokenQuantity )
 import Cardano.Wallet.Primitive.Types.Tx.Gen
     ( genTxOutTokenBundle )
 import Cardano.Wallet.Shelley.MinimumUTxO

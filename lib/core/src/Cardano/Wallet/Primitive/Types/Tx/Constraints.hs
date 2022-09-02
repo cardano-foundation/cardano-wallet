@@ -3,7 +3,9 @@
 {-# LANGUAGE DerivingVia #-}
 {-# LANGUAGE DuplicateRecordFields #-}
 {-# LANGUAGE FlexibleInstances #-}
+{-# LANGUAGE NumericUnderscores #-}
 {-# LANGUAGE ScopedTypeVariables #-}
+{-# LANGUAGE TypeApplications #-}
 {-# LANGUAGE TypeFamilies #-}
 
 -- |
@@ -23,6 +25,11 @@ module Cardano.Wallet.Primitive.Types.Tx.Constraints
     , txSizeDistance
     , TokenBundleSizeAssessor (..)
     , TokenBundleSizeAssessment (..)
+    , txOutMinCoin
+    , txOutMaxCoin
+    , txOutMinTokenQuantity
+    , txOutMaxTokenQuantity
+    , txMintBurnMaxTokenQuantity
     ) where
 
 import Prelude
@@ -39,6 +46,10 @@ import Cardano.Wallet.Primitive.Types.TokenQuantity
     ( TokenQuantity (..) )
 import Control.DeepSeq
     ( NFData (..) )
+import Data.Int
+    ( Int64 )
+import Data.Word
+    ( Word64 )
 import GHC.Generics
     ( Generic )
 import Numeric.Natural
@@ -176,3 +187,41 @@ data TokenBundleSizeAssessment
     -- ^ Indicates that the size of a token bundle exceeds the maximum size
     -- that can be included in a transaction output.
     deriving (Eq, Generic, Show)
+
+--------------------------------------------------------------------------------
+-- Constants
+--------------------------------------------------------------------------------
+
+-- | The smallest quantity of lovelace that can appear in a transaction output's
+--   token bundle.
+--
+txOutMinCoin :: Coin
+txOutMinCoin = Coin 0
+
+-- | The greatest quantity of lovelace that can appear in a transaction output's
+--   token bundle.
+--
+txOutMaxCoin :: Coin
+txOutMaxCoin = Coin 45_000_000_000_000_000
+
+-- | The smallest token quantity that can appear in a transaction output's
+--   token bundle.
+--
+txOutMinTokenQuantity :: TokenQuantity
+txOutMinTokenQuantity = TokenQuantity 1
+
+-- | The greatest token quantity that can appear in a transaction output's
+--   token bundle.
+--
+-- Although the ledger specification allows token quantities of unlimited
+-- sizes, in practice we'll only see transaction outputs where the token
+-- quantities are bounded by the size of a 'Word64'.
+--
+txOutMaxTokenQuantity :: TokenQuantity
+txOutMaxTokenQuantity = TokenQuantity $ fromIntegral $ maxBound @Word64
+
+-- | The greatest quantity of any given token that can be minted or burned in a
+--   transaction.
+--
+txMintBurnMaxTokenQuantity :: TokenQuantity
+txMintBurnMaxTokenQuantity = TokenQuantity $ fromIntegral $ maxBound @Int64

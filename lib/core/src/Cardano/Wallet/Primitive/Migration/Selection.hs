@@ -67,11 +67,12 @@ import Cardano.Wallet.Primitive.Types.TokenMap
 import Cardano.Wallet.Primitive.Types.Tx
     ( TxConstraints (..)
     , TxSize
-    , txOutMaxCoin
     , txOutputCoinCost
     , txOutputHasValidSize
     , txOutputHasValidTokenQuantities
     )
+import Cardano.Wallet.Primitive.Types.Tx.Constraints
+    ( txOutMaxCoin )
 import Control.Monad
     ( (>=>) )
 import Data.Bifunctor

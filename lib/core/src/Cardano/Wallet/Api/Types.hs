@@ -359,8 +359,9 @@ import Cardano.Wallet.Primitive.Types.Tx
     , coinIsValidForTxOut
     , sealedTxFromBytes
     , txMetadataIsNull
-    , txOutMaxCoin
     )
+import Cardano.Wallet.Primitive.Types.Tx.Constraints
+    ( txOutMaxCoin )
 import Cardano.Wallet.Primitive.Types.UTxO
     ( BoundType, HistogramBar (..), UTxOStatistics (..) )
 import Cardano.Wallet.TokenMetadata

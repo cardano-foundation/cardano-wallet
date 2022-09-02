@@ -58,7 +58,9 @@ import Cardano.Wallet.Primitive.Types.Tx
     , TxOut (..)
     , TxScriptValidity (..)
     , coinIsValidForTxOut
-    , txOutMaxCoin
+    )
+import Cardano.Wallet.Primitive.Types.Tx.Constraints
+    ( txOutMaxCoin
     , txOutMaxTokenQuantity
     , txOutMinCoin
     , txOutMinTokenQuantity

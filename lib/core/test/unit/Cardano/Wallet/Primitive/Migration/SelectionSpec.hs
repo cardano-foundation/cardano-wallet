@@ -45,13 +45,14 @@ import Cardano.Wallet.Primitive.Types.TokenQuantity
 import Cardano.Wallet.Primitive.Types.Tx
     ( TxConstraints (..)
     , TxSize (..)
-    , txOutMaxCoin
     , txOutputCoinCost
     , txOutputCoinSize
     , txOutputHasValidSize
     , txOutputHasValidTokenQuantities
     , txSizeDistance
     )
+import Cardano.Wallet.Primitive.Types.Tx.Constraints
+    ( txOutMaxCoin )
 import Control.Monad
     ( replicateM )
 import Data.ByteArray.Encoding

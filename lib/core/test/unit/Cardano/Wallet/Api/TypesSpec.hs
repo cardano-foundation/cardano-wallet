@@ -311,9 +311,10 @@ import Cardano.Wallet.Primitive.Types.Tx
     , TxOut (..)
     , TxScriptValidity (..)
     , TxStatus (..)
-    , txOutMaxCoin
     , unsafeSealedTxFromBytes
     )
+import Cardano.Wallet.Primitive.Types.Tx.Constraints
+    ( txOutMaxCoin )
 import Cardano.Wallet.Primitive.Types.Tx.Gen
     ( genTxOutCoin, genTxScriptValidity, shrinkTxScriptValidity )
 import Cardano.Wallet.Primitive.Types.UTxO

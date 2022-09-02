@@ -139,8 +139,9 @@ import Cardano.Wallet.Primitive.Types.Tx
     , isPending
     , mockSealedTx
     , txOutCoin
-    , txOutMaxCoin
     )
+import Cardano.Wallet.Primitive.Types.Tx.Constraints
+    ( txOutMaxCoin )
 import Cardano.Wallet.Primitive.Types.Tx.Gen
     ( genTx, genTxInLargeRange, shrinkTx )
 import Cardano.Wallet.Primitive.Types.UTxO
