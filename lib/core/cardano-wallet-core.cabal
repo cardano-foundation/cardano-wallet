@@ -312,6 +312,7 @@ library
       Cardano.Wallet.Types.Read.Tx.Hash
       Cardano.Wallet.Types.Read.Tx.Integrity
       Cardano.Wallet.Types.Read.Tx.Mint
+      Cardano.Wallet.Types.Read.Tx.Validity
       Cardano.Wallet.Unsafe
       Cardano.Wallet.Util
       Cardano.Wallet.Version
