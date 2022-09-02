@@ -78,9 +78,6 @@ module Cardano.Wallet.Primitive.Types.Tx
     , txOutMapAssetIds
     , txOutRemoveAssetId
 
-    -- * Checks
-    , coinIsValidForTxOut
-
     -- * Conversions (Unsafe)
     , unsafeCoinToTxOutCoinValue
 
@@ -212,15 +209,6 @@ data TxChange derivationPath = TxChange
     , assets :: TokenMap
     , derivationPath :: derivationPath
     } deriving (Show, Generic, Eq, Ord)
-
-{-------------------------------------------------------------------------------
-                          Checks
--------------------------------------------------------------------------------}
-
-coinIsValidForTxOut :: Coin -> Bool
-coinIsValidForTxOut c = (&&)
-    (c >= txOutMinCoin)
-    (c <= txOutMaxCoin)
 
 {-------------------------------------------------------------------------------
                           Conversions (Unsafe)

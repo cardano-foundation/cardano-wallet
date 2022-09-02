@@ -30,6 +30,7 @@ module Cardano.Wallet.Primitive.Types.Tx.Constraints
     , txOutMinTokenQuantity
     , txOutMaxTokenQuantity
     , txMintBurnMaxTokenQuantity
+    , coinIsValidForTxOut
     ) where
 
 import Prelude
@@ -225,3 +226,12 @@ txOutMaxTokenQuantity = TokenQuantity $ fromIntegral $ maxBound @Word64
 --
 txMintBurnMaxTokenQuantity :: TokenQuantity
 txMintBurnMaxTokenQuantity = TokenQuantity $ fromIntegral $ maxBound @Int64
+
+--------------------------------------------------------------------------------
+-- Checks
+--------------------------------------------------------------------------------
+
+coinIsValidForTxOut :: Coin -> Bool
+coinIsValidForTxOut c = (&&)
+    (c >= txOutMinCoin)
+    (c <= txOutMaxCoin)

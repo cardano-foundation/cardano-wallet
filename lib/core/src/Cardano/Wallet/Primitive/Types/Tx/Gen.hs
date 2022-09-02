@@ -52,15 +52,10 @@ import Cardano.Wallet.Primitive.Types.TokenMap.Gen
 import Cardano.Wallet.Primitive.Types.TokenQuantity
     ( TokenQuantity (..) )
 import Cardano.Wallet.Primitive.Types.Tx
-    ( Tx (..)
-    , TxIn (..)
-    , TxMetadata (..)
-    , TxOut (..)
-    , TxScriptValidity (..)
-    , coinIsValidForTxOut
-    )
+    ( Tx (..), TxIn (..), TxMetadata (..), TxOut (..), TxScriptValidity (..) )
 import Cardano.Wallet.Primitive.Types.Tx.Constraints
-    ( txOutMaxCoin
+    ( coinIsValidForTxOut
+    , txOutMaxCoin
     , txOutMaxTokenQuantity
     , txOutMinCoin
     , txOutMinTokenQuantity
