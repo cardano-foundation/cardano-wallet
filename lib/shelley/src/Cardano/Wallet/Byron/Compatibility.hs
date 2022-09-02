@@ -43,8 +43,6 @@ module Cardano.Wallet.Byron.Compatibility
 
 import Prelude
 
-import Cardano.Api
-    ( CardanoEra (ByronEra) )
 import Cardano.Binary
     ( serialize' )
 import Cardano.Chain.Block
@@ -68,6 +66,8 @@ import Cardano.Crypto.ProtocolMagic
     ( ProtocolMagicId, unProtocolMagicId )
 import Cardano.Wallet.Primitive.Types.MinimumUTxO
     ( minimumUTxONone )
+import Cardano.Wallet.Types.Read.Eras
+    ( byron, inject )
 import Cardano.Wallet.Types.Read.Tx
     ( Tx (..) )
 import Cardano.Wallet.Types.Read.Tx.CBOR
@@ -281,7 +281,8 @@ fromTxAux txAux = case taTx txAux of
     UnsafeTx inputs outputs _attributes -> W.Tx
         { txId = byronTxHash txAux
 
-        , txCBOR = Just $ getTxCBOR $ Tx ByronEra $ () <$ txAux
+        , txCBOR =
+            Just $ getTxCBOR $ inject byron $ Tx $ () <$ txAux
 
         , fee = Nothing
 

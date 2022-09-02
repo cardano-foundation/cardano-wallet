@@ -255,8 +255,8 @@ import Cardano.Wallet.Transaction
     , ValidityIntervalExplicit (..)
     , emptyTokenMapWithScripts
     )
-import Cardano.Wallet.Types.Read.Tx
-    ( Tx (..) )
+import Cardano.Wallet.Types.Read.Eras
+    ( allegra, alonzo, babbage, inject, mary, shelley )
 import Cardano.Wallet.Types.Read.Tx.CBOR
     ( getTxCBOR )
 import Cardano.Wallet.Types.Read.Tx.Hash
@@ -418,6 +418,7 @@ import qualified Cardano.Wallet.Primitive.Types.TokenQuantity as W
 import qualified Cardano.Wallet.Primitive.Types.Tx as W
 import qualified Cardano.Wallet.Primitive.Types.Tx.Constraints as W
 import qualified Cardano.Wallet.Primitive.Types.UTxO as W
+import qualified Cardano.Wallet.Types.Read.Tx as Read
 import qualified Codec.Binary.Bech32 as Bech32
 import qualified Codec.Binary.Bech32.TH as Bech32
 import qualified Codec.CBOR.Decoding as CBOR
@@ -1314,7 +1315,7 @@ fromShelleyTx tx =
         { txId =
             shelleyTxHash tx
         , txCBOR =
-            Just $ getTxCBOR $ Tx ShelleyEra tx
+            Just $ getTxCBOR $ inject shelley $ Read.Tx tx
         , fee =
             Just $ fromShelleyCoin fee
         , resolvedInputs =
@@ -1354,7 +1355,7 @@ fromAllegraTx tx =
         { txId =
             shelleyTxHash tx
         , txCBOR =
-            Just $ getTxCBOR $ Tx AllegraEra tx
+            Just $ getTxCBOR $ inject allegra $ Read.Tx tx
         , fee =
             Just $ fromShelleyCoin fee
         , resolvedInputs =
@@ -1414,7 +1415,7 @@ fromMaryTx tx =
         { txId =
             shelleyTxHash tx
         , txCBOR =
-            Just $ getTxCBOR $ Tx MaryEra tx
+            Just $ getTxCBOR $ inject mary $ Read.Tx tx
         , fee =
             Just $ fromShelleyCoin fee
         , resolvedInputs =
@@ -1521,7 +1522,7 @@ fromAlonzoTx tx@(Alonzo.ValidatedTx bod wits (Alonzo.IsValid isValid) aux) =
         { txId =
             alonzoTxHash tx
         , txCBOR =
-            Just $ getTxCBOR $ Tx AlonzoEra tx
+            Just $ getTxCBOR $ inject alonzo $ Read.Tx tx
         , fee =
             Just $ fromShelleyCoin fee
         , resolvedInputs =
@@ -1610,7 +1611,7 @@ fromBabbageTx tx@(Alonzo.ValidatedTx bod wits (Alonzo.IsValid isValid) aux) =
         { txId =
             alonzoTxHash tx
         , txCBOR =
-            Just $ getTxCBOR $ Tx BabbageEra tx
+            Just $ getTxCBOR $ inject babbage $ Read.Tx tx
         , fee =
             Just $ fromShelleyCoin fee
         , resolvedInputs =

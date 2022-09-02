@@ -471,8 +471,10 @@ import Cardano.Wallet.Transaction
     , defaultTransactionCtx
     , withdrawalToCoin
     )
+import Cardano.Wallet.Types.Read.Eras
+    ( eraValueSerialize )
 import Cardano.Wallet.Types.Read.Tx.CBOR
-    ( TxCBOR (..) )
+    ( TxCBOR )
 import Control.Arrow
     ( first, left )
 import Control.DeepSeq
@@ -624,6 +626,7 @@ import qualified Cardano.Wallet.Primitive.Types.UTxOIndex as UTxOIndex
 import qualified Cardano.Wallet.Primitive.Types.UTxOSelection as UTxOSelection
 import qualified Data.ByteArray as BA
 import qualified Data.Foldable as F
+import qualified Data.Generics.Internal.VL as Lens
 import qualified Data.List as L
 import qualified Data.List.NonEmpty as NE
 import qualified Data.Map.Strict as Map
@@ -4007,10 +4010,10 @@ instance ToText WalletFollowLog where
             "discovered " <> pretty (length txs) <> " new transaction(s)"
         MsgDiscoveredTxsContent txs ->
             "transactions: " <> pretty (blockListF (snd <$> txs))
-        MsgStoringCBOR TxCBOR{..} ->
+        MsgStoringCBOR txCBOR ->
             "store new cbor for "
-                <> pretty (show txEra) <> ": "
-                <> (decodeUtf8 . convertToBase Base16 $ toStrict txCBOR)
+                <> (decodeUtf8 . convertToBase Base16 $ toStrict
+                    $ fst $ Lens.build eraValueSerialize txCBOR )
 
 instance ToText WalletLog where
     toText = \case

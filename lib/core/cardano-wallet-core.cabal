@@ -87,6 +87,7 @@ library
     , generic-lens
     , generic-arbitrary
     , generics-sop
+    , ghc-prim
     , hashable
     , hedgehog
     , hedgehog-quickcheck
@@ -298,8 +299,15 @@ library
       Cardano.Wallet.TokenMetadata.MockServer
       Cardano.Wallet.Transaction
       Cardano.Wallet.Types.Read
+      Cardano.Wallet.Types.Read.Eras
+      Cardano.Wallet.Types.Read.Eras.KnownEras
+      Cardano.Wallet.Types.Read.Eras.EraValue
+      Cardano.Wallet.Types.Read.Eras.EraFun
+      Cardano.Wallet.Types.Read.Eras.EraFunK
+      Cardano.Wallet.Types.Read.Eras.InAnyCardanoEra
       Cardano.Wallet.Types.Read.Tx
       Cardano.Wallet.Types.Read.Tx.CBOR
+      Cardano.Wallet.Types.Read.Tx.Eras
       Cardano.Wallet.Types.Read.Tx.Hash
       Cardano.Wallet.Unsafe
       Cardano.Wallet.Util
