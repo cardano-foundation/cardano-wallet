@@ -1,3 +1,4 @@
+{-# LANGUAGE FlexibleContexts #-}
 {-# LANGUAGE GADTs #-}
 {-# LANGUAGE ScopedTypeVariables #-}
 
@@ -8,9 +9,9 @@ module Cardano.Wallet.Types.Read.Tx.CBORSpec
 import Prelude
 
 import Cardano.Api
-    ( AnyCardanoEra (..), CardanoEra (..), IsCardanoEra )
+    ( CardanoEra (..) )
 import Cardano.Wallet.Types.Read.Tx.CBOR
-    ( TxCBOR (..), getTxCBOR, parseCBOR )
+    ( TxCBOR (..), ValidEra (..), getTxCBOR, parseCBOR )
 import Data.ByteArray.Encoding
     ( Base (..), convertFromBase )
 import Data.ByteString
@@ -22,6 +23,8 @@ import Test.Hspec
 import Test.QuickCheck
     ( Property, property, (===) )
 
+import Cardano.Wallet.Types.Read.Tx
+    ( IsKnownEra )
 import qualified Data.ByteString.Lazy as BL
 
 spec :: Spec
@@ -161,8 +164,8 @@ shelleyTx = mkTxCBOR ShelleyEra
 _byronTx :: TxCBOR
 _byronTx = mkTxCBOR ByronEra
     ""
-mkTxCBOR :: IsCardanoEra era => CardanoEra era -> ByteString -> TxCBOR
-mkTxCBOR e b = TxCBOR (unsafeReadBase16 b) $ AnyCardanoEra e
+mkTxCBOR :: IsKnownEra era => CardanoEra era -> ByteString -> TxCBOR
+mkTxCBOR e b = TxCBOR (unsafeReadBase16 b) $ ValidEra e
 
 unsafeReadBase16 :: ByteString -> BL.ByteString
 unsafeReadBase16 b = let
