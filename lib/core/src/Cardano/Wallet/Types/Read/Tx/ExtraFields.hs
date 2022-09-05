@@ -13,6 +13,7 @@
 {-# LANGUAGE TypeFamilies #-}
 {-# LANGUAGE TypeOperators #-}
 {-# LANGUAGE UndecidableInstances #-}
+{-# LANGUAGE RecordWildCards #-}
 
 module Cardano.Wallet.Types.Read.Tx.ExtraFields where
 
@@ -27,11 +28,11 @@ import Cardano.Ledger.Crypto
 import Cardano.Ledger.SafeHash
     ( extractHash )
 import Cardano.Ledger.Shelley.API
-    ( Coin, KeyHash, KeyRole (..) )
+    ( Coin, KeyHash, KeyRole (..), StrictMaybe (..) )
 import Cardano.Ledger.Shelley.TxBody
     ( DCert )
 import Cardano.Ledger.ShelleyMA.Timelocks
-    ( ValidityInterval )
+    ( ValidityInterval (..) )
 import Cardano.Wallet.Types.Read.Tx.Certificates
     ( Certs (..), getEraCerts )
 import Cardano.Wallet.Types.Read.Tx.Eras
@@ -48,8 +49,6 @@ import Data.Aeson.Lens
     ( pattern JSON )
 import Data.Aeson.Types
     ( KeyValue ((.=)), ToJSON (toJSON), Value (..), object )
-import Data.Maybe.Strict
-    ( StrictMaybe )
 import Data.Sequence.Strict
     ( StrictSeq )
 import Data.Set
@@ -135,7 +134,10 @@ renderIntegrity :: StrictMaybe (ScriptIntegrityHash StandardCrypto) -> Value
 renderIntegrity s = JSON $ extractHash <$> s
 
 renderValidity :: ValidityInterval -> Value
-renderValidity = error "not implemented"
+renderValidity ValidityInterval {..} = object 
+    [ "invalid_before" .=  invalidBefore 
+    , "invalid_after" .= invalidHereafter 
+    ]
 
 renderMaryValue :: Mary.Value StandardCrypto -> Value
 renderMaryValue = error "not implemented"
