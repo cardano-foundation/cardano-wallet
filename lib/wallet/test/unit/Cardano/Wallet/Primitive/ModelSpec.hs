@@ -109,9 +109,9 @@ import Cardano.Wallet.Primitive.Types.Tx.Gen
     , shrinkTxIn
     , shrinkTxOut
     )
-import Cardano.Wallet.Primitive.Types.TxSeq
+import Cardano.Wallet.Primitive.Types.Tx.TxSeq
     ( TxSeq )
-import Cardano.Wallet.Primitive.Types.TxSeq.Gen
+import Cardano.Wallet.Primitive.Types.Tx.TxSeq.Gen
     ( ShrinkableTxSeq, genTxSeq, getTxSeq, shrinkTxSeq )
 import Cardano.Wallet.Primitive.Types.UTxO
     ( UTxO (..), balance, dom, excluding, filterByAddress, restrictedTo )
@@ -219,7 +219,7 @@ import Test.Utils.Pretty
 
 import qualified Cardano.Wallet.Primitive.Types.Coin as Coin
 import qualified Cardano.Wallet.Primitive.Types.TokenBundle as TokenBundle
-import qualified Cardano.Wallet.Primitive.Types.TxSeq as TxSeq
+import qualified Cardano.Wallet.Primitive.Types.Tx.TxSeq as TxSeq
 import qualified Cardano.Wallet.Primitive.Types.UTxO as UTxO
 import qualified Data.ByteString as BS
 import qualified Data.Foldable as F

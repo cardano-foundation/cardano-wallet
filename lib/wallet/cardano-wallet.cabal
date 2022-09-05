@@ -338,8 +338,8 @@ library
     Cardano.Wallet.Primitive.Types.Tx.TransactionInfo
     Cardano.Wallet.Primitive.Types.Tx.Tx
     Cardano.Wallet.Primitive.Types.Tx.TxMeta
-    Cardano.Wallet.Primitive.Types.TxSeq
-    Cardano.Wallet.Primitive.Types.TxSeq.Gen
+    Cardano.Wallet.Primitive.Types.Tx.TxSeq
+    Cardano.Wallet.Primitive.Types.Tx.TxSeq.Gen
     Cardano.Wallet.Primitive.Types.UTxO
     Cardano.Wallet.Primitive.Types.UTxO.Gen
     Cardano.Wallet.Primitive.Types.UTxOIndex
@@ -758,7 +758,7 @@ test-suite unit
     Cardano.Wallet.Primitive.Types.TokenMapSpec.TypeErrorSpec
     Cardano.Wallet.Primitive.Types.TokenPolicySpec
     Cardano.Wallet.Primitive.Types.TokenQuantitySpec
-    Cardano.Wallet.Primitive.Types.TxSeqSpec
+    Cardano.Wallet.Primitive.Types.Tx.TxSeqSpec
     Cardano.Wallet.Primitive.Types.TxSpec
     Cardano.Wallet.Primitive.Types.UTxOIndex.TypeErrorSpec
     Cardano.Wallet.Primitive.Types.UTxOIndexSpec

@@ -8,7 +8,7 @@
 {-# OPTIONS_GHC -fno-warn-orphans #-}
 {- HLINT ignore "Hoist not" -}
 
-module Cardano.Wallet.Primitive.Types.TxSeqSpec
+module Cardano.Wallet.Primitive.Types.Tx.TxSeqSpec
     ( spec
     ) where
 
@@ -24,7 +24,7 @@ import Cardano.Wallet.Primitive.Types.TokenMap.Gen
     ( genAssetId, shrinkAssetId )
 import Cardano.Wallet.Primitive.Types.TokenPolicy
     ( TokenName (..), TokenPolicyId (..) )
-import Cardano.Wallet.Primitive.Types.TxSeq.Gen
+import Cardano.Wallet.Primitive.Types.Tx.TxSeq.Gen
     ( ShrinkableTxSeq, genTxSeq, getShrinkPhase, getTxSeq, shrinkTxSeq )
 import Cardano.Wallet.Primitive.Types.UTxO.Gen
     ( genUTxO )
@@ -58,7 +58,7 @@ import Test.QuickCheck.Extra
 import Test.QuickCheck.Instances.ByteString
     ()
 
-import qualified Cardano.Wallet.Primitive.Types.TxSeq as TxSeq
+import qualified Cardano.Wallet.Primitive.Types.Tx.TxSeq as TxSeq
 import qualified Data.Foldable as F
 import qualified Data.List.NonEmpty as NE
 import qualified Data.Set as Set

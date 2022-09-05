@@ -52,7 +52,7 @@
 --
 -- By default, all transactions are held within a single group.
 --
-module Cardano.Wallet.Primitive.Types.TxSeq
+module Cardano.Wallet.Primitive.Types.Tx.TxSeq
     (
     -- * Types
       TxSeq

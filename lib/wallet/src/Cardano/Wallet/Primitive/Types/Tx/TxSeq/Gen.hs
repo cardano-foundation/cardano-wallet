@@ -15,7 +15,7 @@
 --  - Use 'getTxSeq' to extract a 'TxSeq' from a 'ShrinkableTxSeq'.
 --  - Use 'shrinkTxSeq' to shrink a 'ShrinkableTxSeq' value.
 --
-module Cardano.Wallet.Primitive.Types.TxSeq.Gen
+module Cardano.Wallet.Primitive.Types.Tx.TxSeq.Gen
     (
     -- * Public interface
       ShrinkableTxSeq
@@ -50,7 +50,7 @@ import Cardano.Wallet.Primitive.Types.Tx
     ( Tx (..), TxOut (..), TxScriptValidity (..) )
 import Cardano.Wallet.Primitive.Types.Tx.Gen
     ( TxWithoutId (..), txWithoutIdToTx )
-import Cardano.Wallet.Primitive.Types.TxSeq
+import Cardano.Wallet.Primitive.Types.Tx.TxSeq
     ( TxSeq )
 import Cardano.Wallet.Primitive.Types.UTxO
     ( UTxO (..) )
@@ -68,7 +68,7 @@ import Test.QuickCheck.Extra
     ( genMapWith )
 
 import qualified Cardano.Wallet.Primitive.Types.TokenBundle as TokenBundle
-import qualified Cardano.Wallet.Primitive.Types.TxSeq as TxSeq
+import qualified Cardano.Wallet.Primitive.Types.Tx.TxSeq as TxSeq
 import qualified Data.Foldable as F
 
 --------------------------------------------------------------------------------
