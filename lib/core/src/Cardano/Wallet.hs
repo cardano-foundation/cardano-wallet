@@ -219,7 +219,7 @@ import Cardano.Address.Script
 import Cardano.Address.Style.Shared
     ( deriveDelegationPublicKey )
 import Cardano.Api
-    ( serialiseToCBOR )
+    ( prettyPrintJSON, serialiseToCBOR )
 import Cardano.BM.Data.Severity
     ( Severity (..) )
 import Cardano.BM.Data.Tracer
@@ -471,7 +471,9 @@ import Cardano.Wallet.Transaction
     , withdrawalToCoin
     )
 import Cardano.Wallet.Types.Read.Tx.CBOR
-    ( TxCBOR (..) )
+    ( TxCBOR (..), parseCBOR )
+import Cardano.Wallet.Types.Read.Tx.ExtraFields
+    ( ApiExtraFields (..), extraFields )
 import Control.Arrow
     ( first, left )
 import Control.DeepSeq
@@ -513,18 +515,14 @@ import Control.Tracer
     ( Tracer, contramap, traceWith )
 import Crypto.Hash
     ( Blake2b_256, hash )
-import Data.ByteArray.Encoding
-    ( Base (..), convertToBase )
 import Data.ByteString
     ( ByteString )
-import Data.ByteString.Lazy
-    ( toStrict )
 import Data.DBVar
     ( modifyDBMaybe )
 import Data.Either
     ( lefts, partitionEithers )
 import Data.Either.Extra
-    ( eitherToMaybe )
+    ( eitherToMaybe, fromRight' )
 import Data.Foldable
     ( fold )
 import Data.Function
@@ -3972,10 +3970,11 @@ instance ToText WalletFollowLog where
             "discovered " <> pretty (length txs) <> " new transaction(s)"
         MsgDiscoveredTxsContent txs ->
             "transactions: " <> pretty (blockListF (snd <$> txs))
-        MsgStoringCBOR TxCBOR{..} ->
+        MsgStoringCBOR txc@TxCBOR{..} ->
             "store new cbor for "
-                <> pretty (show txEra) <> ": "
-                <> (decodeUtf8 . convertToBase Base16 $ toStrict txCBOR)
+                <> pretty (show txEra) <> ": \n"
+                <> decodeUtf8 (prettyPrintJSON $ ApiExtraFields $ extraFields
+                        $ fromRight' $ parseCBOR txc)
 
 instance ToText WalletLog where
     toText = \case
