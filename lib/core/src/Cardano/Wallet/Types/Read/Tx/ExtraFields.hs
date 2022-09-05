@@ -9,11 +9,12 @@
 {-# LANGUAGE PatternSynonyms #-}
 {-# LANGUAGE PolyKinds #-}
 {-# LANGUAGE RankNTypes #-}
+{-# LANGUAGE RecordWildCards #-}
 {-# LANGUAGE ScopedTypeVariables #-}
+{-# LANGUAGE TypeApplications #-}
 {-# LANGUAGE TypeFamilies #-}
 {-# LANGUAGE TypeOperators #-}
 {-# LANGUAGE UndecidableInstances #-}
-{-# LANGUAGE RecordWildCards #-}
 
 module Cardano.Wallet.Types.Read.Tx.ExtraFields where
 
@@ -28,9 +29,18 @@ import Cardano.Ledger.Crypto
 import Cardano.Ledger.SafeHash
     ( extractHash )
 import Cardano.Ledger.Shelley.API
-    ( Coin, KeyHash, KeyRole (..), StrictMaybe (..) )
+    ( Coin
+    , Delegation (..)
+    , GenesisDelegCert (..)
+    , KeyHash
+    , KeyRole (..)
+    , MIRCert (..)
+    , MIRPot (..)
+    , MIRTarget (..)
+    , StrictMaybe (..)
+    )
 import Cardano.Ledger.Shelley.TxBody
-    ( DCert )
+    ( DCert (..), DelegCert (..), PoolCert (..) )
 import Cardano.Ledger.ShelleyMA.Timelocks
     ( ValidityInterval (..) )
 import Cardano.Wallet.Types.Read.Tx.Certificates
@@ -48,7 +58,9 @@ import Cardano.Wallet.Types.Read.Tx.Validity
 import Data.Aeson.Lens
     ( pattern JSON )
 import Data.Aeson.Types
-    ( KeyValue ((.=)), ToJSON (toJSON), Value (..), object )
+    ( Key, KeyValue ((.=)), ToJSON (toJSON), Value (..), object )
+import Data.Foldable
+    ( toList )
 import Data.Sequence.Strict
     ( StrictSeq )
 import Data.Set
@@ -134,9 +146,9 @@ renderIntegrity :: StrictMaybe (ScriptIntegrityHash StandardCrypto) -> Value
 renderIntegrity s = JSON $ extractHash <$> s
 
 renderValidity :: ValidityInterval -> Value
-renderValidity ValidityInterval {..} = object 
-    [ "invalid_before" .= invalidBefore 
-    , "invalid_after" .= invalidHereafter 
+renderValidity ValidityInterval {..} = object
+    [ "invalid_before" .= invalidBefore
+    , "invalid_after" .= invalidHereafter
     ]
 
 renderMaryValue :: Mary.Value StandardCrypto -> Value
@@ -151,4 +163,57 @@ renderCoin lovelace =  object
     ]
 
 renderCerts :: StrictSeq (DCert StandardCrypto) -> Value
-renderCerts = error "not implemented"
+renderCerts s = JSON @[Value] $ do
+    x <- toList s
+    case x of
+      DCertDeleg dc -> pure
+        $ certType "delegation"
+        $ case dc of
+            RegKey cre -> certType "stake key registration" cre
+            DeRegKey cre -> certType "stake key deregistration" cre
+            Delegate Delegation {..} ->
+                certType "stake delegation"
+                $ object
+                [ "delegator" .= _delegator
+                , "delegatee" .= _delegatee
+                ]
+      DCertPool pc -> pure
+        $ certType "pool"
+        $ case pc of
+            RegPool pp -> certType "stake pool registration" pp
+            RetirePool kh en -> certType "stake pool retirement"
+                $ object
+                [ "pool_hash" .= kh
+                , "epoch_no" .= en
+                ]
+      DCertGenesis gdc -> pure
+        $ certType "genesis"
+        $ case gdc of
+            GenesisDelegCert kh kh' ha -> object
+                [ "genesis" .= kh
+                , "delegate" .= kh'
+                , "verify"  .= ha
+                ]
+      DCertMir mc -> pure
+        $ certType "MIR"
+        $ case mc of
+            MIRCert mp mt -> object
+                [ "pot" .= case mp of
+                    ReservesMIR -> "reverse" :: Text
+                    TreasuryMIR -> "treasury"
+                , "rewards" .= renderMIRTarget mt
+                ]
+
+renderMIRTarget :: MIRTarget StandardCrypto -> Value
+renderMIRTarget mt = case mt of
+  StakeAddressesMIR mp -> objectType "stake address" "staking values" mp
+  SendToOppositePotMIR co -> objectType "sent to opposite pot" "lovelace" co
+
+certType :: ToJSON v => Text -> v -> Value
+certType t = objectType t "certificate"
+
+objectType :: ToJSON v => Text -> Key -> v -> Value
+objectType t k x = object
+    [ "type" .= t
+    , k .= x
+    ]
