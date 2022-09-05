@@ -17,7 +17,7 @@ RSpec.describe CardanoWallet::Misc, :all, :misc do
     it "Can get network information" do
       res = NETWORK.information
       expect(res).to be_correct_and_respond 200
-      expect(res['network_info']['protocol_magic']).to eq get_protocol_magic
+      expect(res['network_info']['protocol_magic']).to eq get_protocol_magic(CONTEXT.env)
       expect(res['network_info']['network_id']).to eq 'testnet'
       expect(res['wallet_mode']).to eq 'node'
     end
