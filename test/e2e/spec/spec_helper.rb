@@ -455,6 +455,41 @@ def wait_for_tx_in_ledger(wid, tx_id)
   end
 end
 
+## Mint/burn helpers
+
+# Build mint payload for construct tx
+def mint(asset_name, quantity, policy_script, address = nil)
+  mint = { 'operation' => { 'mint' => { 'quantity' => quantity } },
+           'policy_script_template' => policy_script
+         }
+   mint['operation']['mint']['receiving_address'] = address unless address == nil
+   mint['asset_name'] = asset_name unless asset_name == nil
+   mint
+end
+
+# Build burn payload for construct tx
+def burn(asset_name, quantity, policy_script)
+  burn = { 'operation' => { 'burn' => { 'quantity' => quantity } },
+           'policy_script_template' => policy_script
+         }
+  burn['asset_name'] = asset_name unless asset_name == nil
+  burn
+end
+
+##
+# Gets assets list in the form of 'policy_id + asset_name' array
+# @return [Array] - ["#{policy_id}#{asset_name}"...] of all minted/burnt assets
+def get_assets_from_decode(tx_decoded_mint_or_burn)
+  tx_decoded_mint_or_burn['tokens'].map do |x|
+     assets = x['assets'].map {|z| z['asset_name']}
+     assets.map {|a| "#{x['policy_id']}#{a}"}
+  end.flatten
+end
+
+def get_policy_id_from_decode(tx_decoded_mint_or_burn)
+  tx_decoded_mint_or_burn['tokens'].first['policy_id']
+end
+
 ## Plutus helpers
 PLUTUS_DIR = "fixtures/plutus"
 
