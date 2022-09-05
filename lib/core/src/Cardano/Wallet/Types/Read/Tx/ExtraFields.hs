@@ -6,6 +6,7 @@
 {-# LANGUAGE GADTs #-}
 {-# LANGUAGE MultiParamTypeClasses #-}
 {-# LANGUAGE NoMonomorphismRestriction #-}
+{-# LANGUAGE PatternSynonyms #-}
 {-# LANGUAGE PolyKinds #-}
 {-# LANGUAGE RankNTypes #-}
 {-# LANGUAGE ScopedTypeVariables #-}
@@ -41,8 +42,10 @@ import Cardano.Wallet.Types.Read.Tx.Mint
     ( Mint (..), getEraMint )
 import Cardano.Wallet.Types.Read.Tx.Validity
     ( Validity (..), getEraValidity )
+import Data.Aeson.Lens
+    ( pattern JSON )
 import Data.Aeson.Types
-    ( KeyValue ((.=)), ToJSON (toJSON), Value, object )
+    ( KeyValue ((.=)), ToJSON (toJSON), Value (..), object )
 import Data.Maybe.Strict
     ( StrictMaybe )
 import Data.Sequence.Strict
@@ -124,7 +127,7 @@ instance ToJSON ApiExtraFields where
                     ]
 
 renderExtraSigs :: Set (KeyHash 'Witness StandardCrypto) -> Value
-renderExtraSigs = error "not implemented"
+renderExtraSigs = JSON
 
 renderIntegrity :: StrictMaybe (ScriptIntegrityHash StandardCrypto) -> Value
 renderIntegrity = error "not implemented"
