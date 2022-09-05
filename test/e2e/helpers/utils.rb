@@ -183,6 +183,14 @@ module Helpers
         "https://update-cardano-mainnet.iohk.io/cardano-node-state/db-mainnet.tar.gz"
       end
     end
+
+    ##
+    # Get protocol magic from byron-genesis.json corresponding to particular env
+    def get_protocol_magic(env)
+      config = File.join(absolute_path(ENV['CARDANO_NODE_CONFIGS']), env)
+      byron_genesis = JSON.parse(File.read(File.join(config, "byron-genesis.json")))
+      byron_genesis['protocolConsts']['protocolMagic'].to_i
+    end
   end
 end
 
