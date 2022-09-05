@@ -517,7 +517,7 @@ import Control.Tracer
 import Crypto.Hash
     ( Blake2b_256, hash )
 import Data.ByteArray.Encoding
-    ( Base (..), convertToBase )
+    ( Base (Base16), convertToBase )
 import Data.ByteString
     ( ByteString )
 import Data.ByteString.Lazy
@@ -4010,10 +4010,10 @@ instance ToText WalletFollowLog where
             "discovered " <> pretty (length txs) <> " new transaction(s)"
         MsgDiscoveredTxsContent txs ->
             "transactions: " <> pretty (blockListF (snd <$> txs))
-        MsgStoringCBOR txCBOR ->
+        MsgStoringCBOR txc ->
             "store new cbor for "
                 <> (decodeUtf8 . convertToBase Base16 $ toStrict
-                    $ fst $ Lens.build eraValueSerialize txCBOR )
+                    $ fst $ Lens.build eraValueSerialize txc )
 
 instance ToText WalletLog where
     toText = \case
