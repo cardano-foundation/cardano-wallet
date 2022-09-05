@@ -135,15 +135,20 @@ renderIntegrity s = JSON $ extractHash <$> s
 
 renderValidity :: ValidityInterval -> Value
 renderValidity ValidityInterval {..} = object 
-    [ "invalid_before" .=  invalidBefore 
+    [ "invalid_before" .= invalidBefore 
     , "invalid_after" .= invalidHereafter 
     ]
 
 renderMaryValue :: Mary.Value StandardCrypto -> Value
-renderMaryValue = error "not implemented"
+renderMaryValue (Mary.Value lovelace assets) = object
+    [ "lovelace" .= lovelace
+    , "assets"  .= assets
+    ]
 
 renderCoin :: Coin -> Value
-renderCoin =  error "not implemented"
+renderCoin lovelace =  object
+    [ "lovelace" .= lovelace
+    ]
 
 renderCerts :: StrictSeq (DCert StandardCrypto) -> Value
 renderCerts = error "not implemented"
