@@ -24,6 +24,8 @@ import Cardano.Ledger.Babbage.TxBody
     ( ScriptIntegrityHash )
 import Cardano.Ledger.Crypto
     ( StandardCrypto )
+import Cardano.Ledger.SafeHash
+    ( extractHash )
 import Cardano.Ledger.Shelley.API
     ( Coin, KeyHash, KeyRole (..) )
 import Cardano.Ledger.Shelley.TxBody
@@ -130,7 +132,7 @@ renderExtraSigs :: Set (KeyHash 'Witness StandardCrypto) -> Value
 renderExtraSigs = JSON
 
 renderIntegrity :: StrictMaybe (ScriptIntegrityHash StandardCrypto) -> Value
-renderIntegrity = error "not implemented"
+renderIntegrity s = JSON $ extractHash <$> s
 
 renderValidity :: ValidityInterval -> Value
 renderValidity = error "not implemented"
