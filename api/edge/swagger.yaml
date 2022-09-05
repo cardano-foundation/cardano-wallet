@@ -451,6 +451,14 @@ x-poolMetadataSource: &poolMetadataSource
   pattern: '^(none|direct|https?:\/\/[a-zA-Z0-9-_~.]+(:[0-9]+)?/?)$'
   example: https://smash.cardano-mainnet.iohk.io/
 
+x-scriptHash: &scriptHash
+  description: A script hash - 28 bytes
+  type: string
+  format: bech32
+  pattern: "^(script)1[0-9a-z]*$"
+  example:
+    - script1gr69m385thgvkrtspk73zmkwk537wxyxuevs2u9cukglvtlkz4k
+
 x-credentialPubKey: &credentialPubKey
   description: A public key (public key without chain code) for credential - 32 bytes
   type: string
@@ -684,6 +692,8 @@ x-CredentialValue: &CredentialValue
       title: key hash
     - <<: *script
       title: script
+    - <<: *scriptHash
+      title: script hash
   example:
     any:
     - addr_shared_vkh1zxt0uvrza94h3hv4jpv0ttddgnwkvdgeyq8jf9w30mcs6y8w3nq
