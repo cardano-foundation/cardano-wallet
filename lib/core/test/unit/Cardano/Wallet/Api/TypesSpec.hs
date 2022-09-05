@@ -33,6 +33,7 @@ import Cardano.Address.Script
     , KeyHash (..)
     , KeyRole (..)
     , Script (..)
+    , ScriptHash (..)
     , ScriptTemplate (..)
     , ValidationLevel (..)
     )
@@ -1474,9 +1475,11 @@ instance Arbitrary ApiCredential where
         pubKey <- BS.pack <$> replicateM 32 arbitrary
         xpubKey <- BS.pack <$> replicateM 64 arbitrary
         keyHash <- BS.pack <$> replicateM 28 arbitrary
+        scriptHash <- ScriptHash . BS.pack <$> replicateM 28 arbitrary
         oneof [ pure $ CredentialPubKey pubKey
               , pure $ CredentialExtendedPubKey xpubKey
               , pure $ CredentialKeyHash keyHash
+              , pure $ CredentialScriptHash scriptHash
               , CredentialScript <$> arbitrary ]
 
 instance Arbitrary ValidationLevel where

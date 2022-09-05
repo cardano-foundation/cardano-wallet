@@ -97,8 +97,8 @@ constructAddressFromIx
     -> Index 'Soft 'ScriptK
     -> Address
 constructAddressFromIx role pTemplate dTemplate ix =
-    let delegationCredential = DelegationFromScript . toScriptHash
-        paymentCredential = PaymentFromScript . toScriptHash
+    let delegationCredential = DelegationFromScriptHash . toScriptHash
+        paymentCredential = PaymentFromScriptHash . toScriptHash
         tag = toNetworkTag @n
         createBaseAddress pScript' dScript' =
             CA.unAddress $

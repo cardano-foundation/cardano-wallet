@@ -226,7 +226,6 @@ import qualified Cardano.Address.Style.Shelley as CA
 import qualified Cardano.Api as Cardano
 import qualified Cardano.Wallet.Primitive.AddressDerivation.Shared as Shared
 import qualified Cardano.Wallet.Primitive.AddressDerivation.Shelley as Shelley
-import qualified Data.ByteString as BS
 import qualified Data.Text as T
 
 
@@ -650,29 +649,32 @@ postAnyAddress net addrData = do
     pure $ AnyAddress addr addrType (fromInteger netTag)
   where
       fromXPub = fromJust . CA.xpubFromBytes
-      toXPub = fromJust . CA.xpubFromBytes . pubToXPub
-      pubToXPub bytes = BS.append bytes bytes
+      fromPub = fromJust . CA.pubFromBytes
       netTag = case net of
           Cardano.Mainnet -> 1
           _ -> 0
       spendingFrom cred = case cred of
           CredentialPubKey bytes ->
-              CA.PaymentFromKey $ CA.liftXPub $ toXPub bytes
+              CA.PaymentFromKey $ CA.liftPub $ fromPub bytes
           CredentialKeyHash bytes ->
               CA.PaymentFromKeyHash $ CA.KeyHash CA.Payment bytes
           CredentialExtendedPubKey bytes ->
-              CA.PaymentFromKey $ CA.liftXPub $ fromXPub bytes
-          CredentialScript  script' ->
-              CA.PaymentFromScript $ CA.toScriptHash script'
+              CA.PaymentFromExtendedKey $ CA.liftXPub $ fromXPub bytes
+          CredentialScript script' ->
+              CA.PaymentFromScript script'
+          CredentialScriptHash scriptHash ->
+              CA.PaymentFromScriptHash scriptHash
       stakingFrom cred = case cred of
           CredentialPubKey bytes ->
-              CA.DelegationFromKey $ CA.liftXPub $ toXPub bytes
+              CA.DelegationFromKey $ CA.liftPub $ fromPub bytes
           CredentialKeyHash bytes ->
               CA.DelegationFromKeyHash $ CA.KeyHash CA.Delegation bytes
           CredentialExtendedPubKey bytes ->
-              CA.DelegationFromKey $ CA.liftXPub $ fromXPub bytes
+              CA.DelegationFromExtendedKey $ CA.liftXPub $ fromXPub bytes
           CredentialScript script' ->
-              CA.DelegationFromScript $ CA.toScriptHash script'
+              CA.DelegationFromScript script'
+          CredentialScriptHash scriptHash ->
+              CA.DelegationFromScriptHash scriptHash
       guardValidation v cred =
             when (fst $ checkValidation v cred) $
                 Left $ snd $ checkValidation v cred
@@ -680,6 +682,7 @@ postAnyAddress net addrData = do
           CredentialPubKey _ -> (False, TextDecodingError "")
           CredentialKeyHash _ -> (False, TextDecodingError "")
           CredentialExtendedPubKey _ -> (False, TextDecodingError "")
+          CredentialScriptHash _ -> (False, TextDecodingError "")
           CredentialScript script' -> case v of
               Just (ApiT v') ->
                   case validateScript v' script' of

@@ -261,6 +261,7 @@ import Cardano.Address.Script
     ( Cosigner (..)
     , KeyHash (..)
     , Script
+    , ScriptHash (..)
     , ScriptTemplate
     , ValidationLevel (..)
     )
@@ -659,6 +660,7 @@ data ApiCredential =
     | CredentialPubKey ByteString
     | CredentialKeyHash ByteString
     | CredentialScript (Script KeyHash)
+    | CredentialScriptHash ScriptHash
     deriving (Eq, Generic, Show)
 
 data ApiAddressData = ApiAddressData
@@ -2825,6 +2827,7 @@ instance ToJSON (ApiT (Passphrase purpose)) where
 
 instance FromJSON ApiCredential where
     parseJSON v =
+        (CredentialScriptHash . ScriptHash <$> parseCredential 28 ["script"] v) <|>
         (CredentialKeyHash <$> parseCredential 28 ["stake_vkh","addr_vkh"] v) <|>
         (CredentialPubKey <$> parseCredential 32 ["stake_vk","addr_vk"] v) <|>
         (CredentialExtendedPubKey <$> parseCredential 64 ["stake_xvk","addr_xvk"] v) <|>
@@ -2867,6 +2870,9 @@ instance ToJSON ApiCredential where
     toJSON (CredentialKeyHash key') = do
         let hrp = [Bech32.humanReadablePart|addr_vkh|]
         String $ T.decodeUtf8 $ encode (EBech32 hrp) key'
+    toJSON (CredentialScriptHash (ScriptHash script)) = do
+        let hrp = [Bech32.humanReadablePart|script|]
+        String $ T.decodeUtf8 $ encode (EBech32 hrp) script
     toJSON (CredentialScript s) = toJSON s
 
 instance FromJSON ApiAddressData where
