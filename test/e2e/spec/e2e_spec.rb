@@ -622,7 +622,7 @@ RSpec.describe "Cardano Wallet E2E tests", :all, :e2e do
 
     it "Delegation (join and quit)" do
       balance = get_shelley_balances(@target_id)
-      expected_deposit = get_key_deposit
+      expected_deposit = CARDANO_CLI.get_protocol_params['stakeAddressDeposit']
       puts "Expected deposit #{expected_deposit}"
       # Check wallet stake keys before joing stake pool
       stake_keys = SHELLEY.stake_pools.list_stake_keys(@target_id)
@@ -2195,7 +2195,7 @@ RSpec.describe "Cardano Wallet E2E tests", :all, :e2e do
         # Get funds on the wallet
         address = SHELLEY.addresses.list(@target_id)[0]['id']
         amt = 10000000
-        deposit = get_key_deposit
+        deposit = CARDANO_CLI.get_protocol_params['stakeAddressDeposit']
         tx_sent = SHELLEY.transactions.create(@wid,
                                               PASS,
                                               [{ address => amt }])

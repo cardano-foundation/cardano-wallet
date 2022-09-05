@@ -73,6 +73,12 @@ class CardanoCli
     pparams_path
   end
 
+  def get_protocol_params
+    pparams = cmd(%(cardano-cli query protocol-parameters \
+                    --testnet-magic #{@protocol_magic}))
+    JSON.parse(pparams)
+  end
+
   ##
   # Build (using trasaction build-raw) an invalid transaction that is
   # spending from script address and always fails. Using collateral return option.

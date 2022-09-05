@@ -617,9 +617,3 @@ end
 def get_sent_amt(outputs)
   get_sent_amts(outputs).first
 end
-
-def get_key_deposit
-  config = File.join(absolute_path(ENV['CARDANO_NODE_CONFIGS']), CONTEXT.env)
-  shelley_genesis = JSON.parse(File.read(File.join(config, "shelley-genesis.json")))
-  shelley_genesis['protocolParams']['keyDeposit'].to_i
-end
