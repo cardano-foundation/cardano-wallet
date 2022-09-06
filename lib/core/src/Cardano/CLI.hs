@@ -148,6 +148,7 @@ import Cardano.Wallet.Api.Types
     , ApiBytesT (..)
     , ApiMnemonicT (..)
     , ApiPostRandomAddressData (..)
+    , ApiStakePool
     , ApiT (..)
     , ApiTxId (ApiTxId)
     , ApiWallet
@@ -391,9 +392,8 @@ cmdMnemonic = RecoveryPhrase.mod RecoveryPhrase.run
 type CmdWalletCreate wallet = WalletClient wallet -> Mod CommandFields (IO ())
 
 cmdWallet
-    :: (ToJSON wallet, CmdWalletUpdatePassphrase wallet)
-    => CmdWalletCreate wallet
-    -> WalletClient wallet
+    :: CmdWalletCreate ApiWallet
+    -> WalletClient ApiWallet
     -> Mod CommandFields (IO ())
 cmdWallet cmdCreate mkClient =
     command "wallet" $ info (helper <*> cmds) $ mempty
@@ -413,17 +413,13 @@ newtype WalletListArgs = WalletListArgs
     { _port :: Port "Wallet"
     }
 
-cmdWalletList
-    :: ToJSON wallet
-    => WalletClient wallet
-    -> Mod CommandFields (IO ())
+cmdWalletList :: WalletClient ApiWallet -> Mod CommandFields (IO ())
 cmdWalletList mkClient =
     command "list" $ info (helper <*> cmd) $ mempty
         <> progDesc "List all known wallets."
   where
-    cmd = fmap exec $ WalletListArgs
-        <$> portOption
-    exec (WalletListArgs wPort) = do
+    cmd = fmap exec $ WalletListArgs <$> portOption
+    exec (WalletListArgs wPort) =
         runClient wPort Aeson.encodePretty $ listWallets mkClient
 
 cmdWalletCreate
@@ -736,9 +732,7 @@ data WalletDeleteArgs = WalletDeleteArgs
     , _id :: WalletId
     }
 
-cmdWalletDelete
-    :: WalletClient wallet
-    -> Mod CommandFields (IO ())
+cmdWalletDelete :: WalletClient wallet -> Mod CommandFields (IO ())
 cmdWalletDelete mkClient =
     command "delete" $ info (helper <*> cmd) $ mempty
         <> progDesc "Deletes wallet with specified wallet id."
@@ -922,9 +916,7 @@ data TransactionListArgs = TransactionListArgs
     , _schema :: TxMetadataSchema
     }
 
-cmdTransactionList
-    :: TransactionClient
-    -> Mod CommandFields (IO ())
+cmdTransactionList :: TransactionClient -> Mod CommandFields (IO ())
 cmdTransactionList mkTxClient =
     command "list" $ info (helper <*> cmd) $ mempty
         <> progDesc "List the transactions associated with a wallet."
@@ -953,9 +945,7 @@ data TransactionSubmitArgs = TransactionSubmitArgs
     , _payload :: ApiBytesT 'Base16 SerialisedTx
     }
 
-cmdTransactionSubmit
-    :: TransactionClient
-    -> Mod CommandFields (IO ())
+cmdTransactionSubmit :: TransactionClient -> Mod CommandFields (IO ())
 cmdTransactionSubmit mkTxClient =
     command "submit" $ info (helper <*> cmd) $ mempty
         <> progDesc "Submit an externally-signed transaction."
@@ -974,9 +964,7 @@ data TransactionForgetArgs = TransactionForgetArgs
     , _txid :: TxId
     }
 
-cmdTransactionForget
-    :: TransactionClient
-    -> Mod CommandFields (IO ())
+cmdTransactionForget :: TransactionClient -> Mod CommandFields (IO ())
 cmdTransactionForget mkClient =
     command "forget" $ info (helper <*> cmd) $ mempty
         <> progDesc "Forget a pending transaction with specified id."
@@ -998,9 +986,7 @@ data TransactionGetArgs = TransactionGetArgs
     , _schema :: TxMetadataSchema
     }
 
-cmdTransactionGet
-    :: TransactionClient
-    -> Mod CommandFields (IO ())
+cmdTransactionGet :: TransactionClient -> Mod CommandFields (IO ())
 cmdTransactionGet mkClient =
     command "get" $ info (helper <*> cmd) $ mempty
         <> progDesc "Get a transaction with specified id."
@@ -1020,9 +1006,7 @@ cmdTransactionGet mkClient =
                             Commands - 'address'
 -------------------------------------------------------------------------------}
 
-cmdAddress
-    :: AddressClient
-    -> Mod CommandFields (IO ())
+cmdAddress :: AddressClient -> Mod CommandFields (IO ())
 cmdAddress mkClient =
     command "address" $ info (helper <*> cmds) $ mempty
         <> progDesc "About addresses"
@@ -1039,9 +1023,7 @@ data AddressListArgs = AddressListArgs
     , _id :: WalletId
     }
 
-cmdAddressList
-    :: AddressClient
-    -> Mod CommandFields (IO ())
+cmdAddressList :: AddressClient -> Mod CommandFields (IO ())
 cmdAddressList mkClient =
     command "list" $ info (helper <*> cmd) $ mempty
         <> progDesc "List all known addresses of a given wallet."
@@ -1062,9 +1044,7 @@ data AddressCreateArgs = AddressCreateArgs
     , _id :: WalletId
     }
 
-cmdAddressCreate
-    :: AddressClient
-    -> Mod CommandFields (IO ())
+cmdAddressCreate :: AddressClient -> Mod CommandFields (IO ())
 cmdAddressCreate mkClient =
     command "create" $ info (helper <*> cmd) $ mempty
         <> progDesc "Create a new random address. Only available for random wallets. \
@@ -1088,9 +1068,7 @@ data AddressImportArgs = AddressImportArgs
     , _addr :: Text
     }
 
-cmdAddressImport
-    :: AddressClient
-    -> Mod CommandFields (IO ())
+cmdAddressImport :: AddressClient -> Mod CommandFields (IO ())
 cmdAddressImport mkClient =
     command "import" $ info (helper <*> cmd) $ mempty
         <> progDesc "Import a random address generated elsewhere. Only available \
@@ -1120,16 +1098,12 @@ cmdVersion = command "version" $ info cmd $ mempty
                             Commands - 'stake-pool'
 -------------------------------------------------------------------------------}
 
-cmdStakePool
-    :: ToJSON apiPool
-    => StakePoolClient apiPool
-    -> Mod CommandFields (IO ())
+cmdStakePool :: StakePoolClient ApiStakePool -> Mod CommandFields (IO ())
 cmdStakePool mkClient =
     command "stake-pool" $ info (helper <*> cmds) $ mempty
         <> progDesc "About stake pools"
   where
-    cmds = subparser $ mempty
-        <> cmdStakePoolList mkClient
+    cmds = subparser $ mempty <> cmdStakePoolList mkClient
 
 -- | Arguments for 'stake-pool list' command
 data StakePoolListArgs = StakePoolListArgs
@@ -1137,26 +1111,21 @@ data StakePoolListArgs = StakePoolListArgs
     , _stake :: Maybe Coin
     }
 
-cmdStakePoolList
-    :: ToJSON apiPool
-    => StakePoolClient apiPool
-    -> Mod CommandFields (IO ())
+cmdStakePoolList :: StakePoolClient ApiStakePool -> Mod CommandFields (IO ())
 cmdStakePoolList mkClient =
-    command "list" $ info (helper <*> cmd) $ mempty
-        <> progDesc "List all known stake pools."
+    command "list" $ info (helper <*> cmd) $
+        mempty <> progDesc "List all known stake pools."
   where
     cmd = fmap exec $ StakePoolListArgs
         <$> portOption <*> stakeOption
-    exec (StakePoolListArgs wPort stake) = do
+    exec (StakePoolListArgs wPort stake) =
         runClient wPort Aeson.encodePretty $ listPools mkClient (ApiT <$> stake)
 
 {-------------------------------------------------------------------------------
                             Commands - 'network'
 -------------------------------------------------------------------------------}
 
-cmdNetwork
-    :: NetworkClient
-    -> Mod CommandFields (IO ())
+cmdNetwork :: NetworkClient -> Mod CommandFields (IO ())
 cmdNetwork mkClient =
     command "network" $ info (helper <*> cmds) $ mempty
         <> progDesc "About the network"
@@ -1171,9 +1140,7 @@ newtype NetworkInformationArgs = NetworkInformationArgs
     { _port :: Port "Wallet"
     }
 
-cmdNetworkInformation
-    :: NetworkClient
-    -> Mod CommandFields (IO ())
+cmdNetworkInformation :: NetworkClient -> Mod CommandFields (IO ())
 cmdNetworkInformation mkClient =
     command "information" $ info (helper <*> cmd) $ mempty
         <> progDesc "View network information."
@@ -1188,9 +1155,7 @@ newtype NetworkParametersArgs = NetworkParametersArgs
     { _port :: Port "Wallet"
     }
 
-cmdNetworkParameters
-    :: NetworkClient
-    -> Mod CommandFields (IO ())
+cmdNetworkParameters :: NetworkClient -> Mod CommandFields (IO ())
 cmdNetworkParameters mkClient =
     command "parameters" $ info (helper <*> cmd) $ mempty
         <> progDesc "View network parameters for the current epoch."
@@ -1206,9 +1171,7 @@ data NetworkClockArgs = NetworkClockArgs
     , _forceNtpCheck :: Bool
     }
 
-cmdNetworkClock
-    :: NetworkClient
-    -> Mod CommandFields (IO ())
+cmdNetworkClock :: NetworkClient -> Mod CommandFields (IO ())
 cmdNetworkClock mkClient =
     command "clock" $ info (helper <*> cmd) $ mempty
         <> progDesc "View NTP offset."

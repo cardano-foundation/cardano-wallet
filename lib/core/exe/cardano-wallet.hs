@@ -7,7 +7,6 @@
 {-# LANGUAGE LambdaCase #-}
 {-# LANGUAGE PackageImports #-}
 {-# LANGUAGE ScopedTypeVariables #-}
-{-# LANGUAGE TypeApplications #-}
 {-# LANGUAGE TypeFamilies #-}
 
 -- |
@@ -78,8 +77,6 @@ import Cardano.Wallet.Api.Client
     )
 import Cardano.Wallet.Api.Server
     ( HostPreference, Listen (..), TlsConfiguration )
-import Cardano.Wallet.Api.Types
-    ( ApiStakePool )
 import Cardano.Wallet.Logging
     ( trMessage, transformTextTrace )
 import Cardano.Wallet.Primitive.Types
@@ -167,7 +164,7 @@ main = withUtf8Encoding $ do
         <> cmdAddress addressClient
         <> cmdTransaction transactionClient walletClient
         <> cmdNetwork networkClient
-        <> cmdStakePool @ApiStakePool stakePoolClient
+        <> cmdStakePool stakePoolClient
         <> cmdVersion
 
 beforeMainLoop :: Trace IO MainLog -> URI -> IO ()

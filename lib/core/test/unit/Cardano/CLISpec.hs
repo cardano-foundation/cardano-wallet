@@ -376,7 +376,7 @@ parser = cli $ mempty
     <> cmdWallet cmdWalletCreate walletClient
     <> cmdTransaction transactionClient walletClient
     <> cmdAddress addressClient
-    <> cmdStakePool (stakePoolClient @()) -- Type of pool not important here.
+    <> cmdStakePool stakePoolClient
     <> cmdNetwork networkClient
 
 usageGolden :: HasCallStack => FilePath -> [String] -> Spec
