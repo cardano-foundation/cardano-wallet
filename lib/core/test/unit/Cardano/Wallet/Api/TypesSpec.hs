@@ -21,7 +21,12 @@
 {-# LANGUAGE TypeFamilies #-}
 {-# LANGUAGE TypeOperators #-}
 {-# LANGUAGE UndecidableInstances #-}
+
 {-# OPTIONS_GHC -fno-warn-orphans #-}
+
+-- |
+-- Copyright: © 2018-2022 IOHK
+-- License: Apache-2.0
 
 module Cardano.Wallet.Api.TypesSpec (spec) where
 
@@ -277,7 +282,7 @@ import Cardano.Wallet.Primitive.Types
 import Cardano.Wallet.Primitive.Types.Address
     ( Address (..), AddressState (..) )
 import Cardano.Wallet.Primitive.Types.Coin
-    ( Coin (..) )
+    ( Coin (..), coinToQuantity )
 import Cardano.Wallet.Primitive.Types.Coin.Gen
     ( genCoinPositive )
 import Cardano.Wallet.Primitive.Types.Hash
@@ -744,7 +749,6 @@ spec = parallel $ do
             Aeson.parseEither parseJSON [aesonQQ|
                 ["toilet", "toilet", "toilet"]
             |] `shouldBe` (Left @String @(ApiMnemonicT '[12]) msg)
-
 
         it "ApiT DerivationIndex (too small)" $ do
             let message = unwords
@@ -1440,7 +1444,6 @@ instance EncodeStakeAddress ('Testnet 0) where
 instance DecodeStakeAddress ('Testnet 0) where
     decodeStakeAddress "<stake-addr>" = Right $ RewardAccount "<stake-addr>"
     decodeStakeAddress _ = Left $ TextDecodingError "invalid stake address"
-
 
 {-------------------------------------------------------------------------------
                               Arbitrary Instances
