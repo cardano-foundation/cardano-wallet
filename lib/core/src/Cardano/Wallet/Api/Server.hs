@@ -2037,11 +2037,9 @@ signTransaction ctx (ApiT wid) body = do
     -- TODO: The body+witnesses seem redundant with the sealedTx already. What's
     -- the use-case for having them provided separately? In the end, the client
     -- should be able to decouple them if they need to.
-    pure $ ApiSerialisedTransaction
-        { transaction = case body ^. #hexOutput of
-                Just True -> (ApiT sealedTx', HexEncoded)
-                _ -> (ApiT sealedTx', Base64Encoded)
-        }
+    case body ^. #hexOutput of
+        Just True -> pure $ ApiSerialisedTransaction (ApiT sealedTx') HexEncoded
+        _ -> pure $ ApiSerialisedTransaction (ApiT sealedTx') Base64Encoded
 
 postTransactionOld
     :: forall ctx s k n.
@@ -2531,8 +2529,8 @@ constructTransaction ctx genChange knownPools getPoolStatus (ApiT wid) body = do
 
         pure $ ApiConstructTransaction
             { transaction = case body ^. #hexOutput of
-                    Just True -> (ApiT tx, HexEncoded)
-                    _ -> (ApiT tx, Base64Encoded)
+                    Just True -> ApiSerialisedTransaction (ApiT tx) HexEncoded
+                    _ -> ApiSerialisedTransaction (ApiT tx) Base64Encoded
             , coinSelection = mkApiCoinSelection
                 (maybeToList deposit) (maybeToList refund) Nothing md sel'
             , fee = Quantity $ fromIntegral fee
@@ -2717,8 +2715,8 @@ constructSharedTransaction
 
                 pure $ ApiConstructTransaction
                     { transaction = case body ^. #hexOutput of
-                            Just True -> (ApiT tx, HexEncoded)
-                            _ -> (ApiT tx, Base64Encoded)
+                            Just True -> ApiSerialisedTransaction (ApiT tx) HexEncoded
+                            _ -> ApiSerialisedTransaction (ApiT tx) Base64Encoded
                     , coinSelection = mkApiCoinSelection [] [] Nothing md sel'
                     , fee = Quantity $ fromIntegral fee
                     }
@@ -2736,7 +2734,7 @@ decodeSharedTransaction
     -> ApiT WalletId
     -> ApiSerialisedTransaction
     -> Handler (ApiDecodedTransaction n)
-decodeSharedTransaction ctx (ApiT wid) (ApiSerialisedTransaction (ApiT sealed, _)) = do
+decodeSharedTransaction ctx (ApiT wid) (ApiSerialisedTransaction (ApiT sealed) _) = do
     era <- liftIO $ NW.currentNodeEra nl
     let (decodedTx, _toMint, _toBurn, _allCerts, interval) =
             decodeTx tl era sealed
@@ -2850,9 +2848,9 @@ balanceTransaction ctx genChange (ApiT wid) body = do
         case body ^. #hexOutput of
             Just True ->
                 pure $ ApiSerialisedTransaction
-                (ApiT $ W.sealedTxFromCardano res, HexEncoded)
+                (ApiT $ W.sealedTxFromCardano res) HexEncoded
             _ -> pure $ ApiSerialisedTransaction
-                (ApiT $ W.sealedTxFromCardano res, Base64Encoded)
+                (ApiT $ W.sealedTxFromCardano res) Base64Encoded
   where
     nl = ctx ^. networkLayer
 
@@ -2872,7 +2870,7 @@ decodeTransaction
     -> ApiT WalletId
     -> ApiSerialisedTransaction
     -> Handler (ApiDecodedTransaction n)
-decodeTransaction ctx (ApiT wid) (ApiSerialisedTransaction (ApiT sealed,_)) = do
+decodeTransaction ctx (ApiT wid) (ApiSerialisedTransaction (ApiT sealed) _) = do
     era <- liftIO $ NW.currentNodeEra nl
     let (decodedTx, toMint, toBurn, allCerts, interval) =
             decodeTx tl era sealed
@@ -3080,7 +3078,7 @@ submitTransaction ctx apiw@(ApiT wid) apitx = do
     ttl <- liftIO $ W.getTxExpiry ti Nothing
     era <- liftIO $ NW.currentNodeEra nl
 
-    let sealedTx = getApiT . fst . (view #transaction) $ apitx
+    let sealedTx = getApiT . (view #serialisedTxSealed) $ apitx
     let (tx,_,_,_,_) = decodeTx tl era sealedTx
 
     apiDecoded <- decodeTransaction @_ @s @k @n ctx apiw apitx

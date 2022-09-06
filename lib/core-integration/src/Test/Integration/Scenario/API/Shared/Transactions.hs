@@ -26,7 +26,6 @@ import Cardano.Wallet.Api.Types
     , ApiConstructTransaction (..)
     , ApiDecodedTransaction (..)
     , ApiFee (..)
-    , ApiSerialisedTransaction (..)
     , ApiSharedWallet (..)
     , ApiT (..)
     , ApiTransaction
@@ -214,7 +213,7 @@ spec = describe "SHARED_TRANSACTIONS" $ do
             ]
 
         let txCbor = getFromResponse #transaction rTx2
-        let decodePayload = Json (toJSON $ ApiSerialisedTransaction txCbor)
+        let decodePayload = Json (toJSON txCbor)
         rDecodedTx <- request @(ApiDecodedTransaction n) ctx
             (Link.decodeTransaction @'Shared wal) Default decodePayload
         let expectedFee = getFromResponse (#fee . #getQuantity) rTx2
@@ -284,7 +283,7 @@ spec = describe "SHARED_TRANSACTIONS" $ do
             , expectField (#fee . #getQuantity) (`shouldSatisfy` (> 0))
             ]
         let txCbor = getFromResponse #transaction rTx
-        let decodePayload = Json (toJSON $ ApiSerialisedTransaction txCbor)
+        let decodePayload = Json (toJSON txCbor)
         rDecodedTxSource <- request @(ApiDecodedTransaction n) ctx
             (Link.decodeTransaction @'Shared wa) Default decodePayload
         rDecodedTxTarget <- request @(ApiDecodedTransaction n) ctx

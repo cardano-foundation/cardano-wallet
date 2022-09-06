@@ -978,13 +978,14 @@ data ApiSealedTxEncoding = HexEncoded | Base64Encoded
 instance ToJSON ApiSealedTxEncoding where
     toJSON HexEncoded = Bool True
     toJSON Base64Encoded = Bool False
+
 instance FromJSON ApiSealedTxEncoding where
     parseJSON = withBool "ApiSealedTxEncoding" $ \b -> case b of
         True -> pure HexEncoded
         False -> pure Base64Encoded
 
 data ApiConstructTransaction (n :: NetworkDiscriminant) = ApiConstructTransaction
-    { transaction :: !(ApiT SealedTx, ApiSealedTxEncoding)
+    { transaction :: !ApiSerialisedTransaction
     , coinSelection :: !(ApiCoinSelection n)
     , fee :: !(Quantity "lovelace" Natural)
     } deriving (Eq, Generic, Show, Typeable)
@@ -1068,8 +1069,9 @@ data PostTransactionFeeOldData (n :: NetworkDiscriminant) = PostTransactionFeeOl
 
 type ApiBase64 = ApiBytesT 'Base64 ByteString
 
-newtype ApiSerialisedTransaction = ApiSerialisedTransaction
-    { transaction :: (ApiT SealedTx, ApiSealedTxEncoding)
+data ApiSerialisedTransaction = ApiSerialisedTransaction
+    { serialisedTxSealed :: ApiT SealedTx
+    , serialisedTxEncoding :: ApiSealedTxEncoding
     } deriving stock (Eq, Generic, Show)
       deriving anyclass (NFData)
 
@@ -3091,12 +3093,12 @@ sealedTxBytesValue = toJSON . ApiBytesT @base . view #serialisedTx
 instance FromJSON ApiSerialisedTransaction where
     parseJSON = withObject "ApiSerialisedTransaction object" $ \o -> do
         txTxt <- o .: "transaction"
-        tx <- (,HexEncoded) <$> parseSealedTxBytes @'Base16 txTxt <|>
+        (tx, enc) <- (,HexEncoded) <$> parseSealedTxBytes @'Base16 txTxt <|>
               (,Base64Encoded) <$> parseSealedTxBytes @'Base64 txTxt
-        pure $ ApiSerialisedTransaction (first ApiT tx)
+        pure $ ApiSerialisedTransaction (ApiT tx) enc
 
 instance ToJSON ApiSerialisedTransaction where
-    toJSON (ApiSerialisedTransaction (tx, encoding)) =
+    toJSON (ApiSerialisedTransaction tx encoding) =
         object $ [ "transaction" .= case encoding of
                          HexEncoded ->
                              sealedTxBytesValue @'Base16 . getApiT $ tx
@@ -3204,14 +3206,14 @@ instance FromJSON ApiValidityInterval where
 instance (DecodeAddress t, DecodeStakeAddress t) => FromJSON (ApiConstructTransaction t) where
     parseJSON = withObject "ApiConstructTransaction object" $ \o -> do
         txTxt <- o .: "transaction"
-        tx <- (,HexEncoded) <$> parseSealedTxBytes @'Base16 txTxt <|>
-              (,Base64Encoded) <$> parseSealedTxBytes @'Base64 txTxt
+        (tx, enc) <- (,HexEncoded) <$> parseSealedTxBytes @'Base16 txTxt <|>
+            (,Base64Encoded) <$> parseSealedTxBytes @'Base64 txTxt
         sel <- o .: "coin_selection"
         fee <- o .: "fee"
-        pure $ ApiConstructTransaction (first ApiT tx) sel fee
+        pure $ ApiConstructTransaction (ApiSerialisedTransaction (ApiT tx) enc) sel fee
 
 instance (EncodeAddress t, EncodeStakeAddress t) => ToJSON (ApiConstructTransaction t) where
-    toJSON (ApiConstructTransaction (tx, encoding) sel fee) =
+    toJSON (ApiConstructTransaction (ApiSerialisedTransaction tx encoding) sel fee) =
         object $ [ "transaction" .= case encoding of
                          HexEncoded ->
                              sealedTxBytesValue @'Base16 . getApiT $ tx
@@ -3998,7 +4000,7 @@ instance ToText a => ToHttpApiData (ApiT a) where
     toUrlPiece = toText . getApiT
 
 instance MimeRender OctetStream ApiSerialisedTransaction where
-   mimeRender ct = mimeRender ct . fst . view #transaction
+   mimeRender ct = mimeRender ct . view #serialisedTxSealed
 
 instance FromHttpApiData ApiTxId where
     parseUrlPiece txt = case fromText txt of
