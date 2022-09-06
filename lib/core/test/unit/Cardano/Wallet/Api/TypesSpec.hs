@@ -282,7 +282,7 @@ import Cardano.Wallet.Primitive.Types
 import Cardano.Wallet.Primitive.Types.Address
     ( Address (..), AddressState (..) )
 import Cardano.Wallet.Primitive.Types.Coin
-    ( Coin (..), coinToQuantity )
+    ( Coin (..) )
 import Cardano.Wallet.Primitive.Types.Coin.Gen
     ( genCoinPositive )
 import Cardano.Wallet.Primitive.Types.Hash

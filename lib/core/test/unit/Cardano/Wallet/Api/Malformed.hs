@@ -296,7 +296,7 @@ instance Malformed (BodyParam ApiPostPolicyKeyData) where
         , ( Aeson.encode [aesonQQ|
             {
             }|]
-          , "Error in $: parsing Cardano.Wallet.Api.Types.ApiPostPolicyKeyData(ApiPostPolicyKeyData) failed, key 'passphrase' not found"
+          , "Error in $: parsing Cardano.Wallet.Api.Types.Transaction.ApiPostPolicyKeyData(ApiPostPolicyKeyData) failed, key 'passphrase' not found"
           )
         ]
 
@@ -1260,16 +1260,16 @@ instance Malformed (BodyParam ApiPostAccountKeyData) where
               , "Error in $: parsing Cardano.Wallet.Api.Types.ApiPostAccountKeyData(ApiPostAccountKeyData) failed, key 'format' not found"
               )
             , ( [aesonQQ| { "passphrase": "The proper passphrase", "format": 123 }|]
-              , "Error in $.format: parsing Cardano.Wallet.Api.Types.KeyFormat failed, expected String, but encountered Number"
+              , "Error in $.format: parsing Cardano.Wallet.Api.Types.Key.KeyFormat failed, expected String, but encountered Number"
               )
             , ( [aesonQQ| { "passphrase": "The proper passphrase", "format": [] }|]
-              , "Error in $.format: parsing Cardano.Wallet.Api.Types.KeyFormat failed, expected String, but encountered Array"
+              , "Error in $.format: parsing Cardano.Wallet.Api.Types.Key.KeyFormat failed, expected String, but encountered Array"
               )
             , ( [aesonQQ| { "passphrase": "The proper passphrase", "format": 1.5 }|]
-              , "Error in $.format: parsing Cardano.Wallet.Api.Types.KeyFormat failed, expected String, but encountered Number"
+              , "Error in $.format: parsing Cardano.Wallet.Api.Types.Key.KeyFormat failed, expected String, but encountered Number"
               )
             , ( [aesonQQ| { "passphrase": "The proper passphrase", "format": "ok" }|]
-              , "Error in $.format: parsing Cardano.Wallet.Api.Types.KeyFormat failed, expected one of the tags ['extended','non_extended'], but found tag 'ok'"
+              , "Error in $.format: parsing Cardano.Wallet.Api.Types.Key.KeyFormat failed, expected one of the tags ['extended','non_extended'], but found tag 'ok'"
               )
             ]
 
@@ -1302,16 +1302,16 @@ instance Malformed (BodyParam ApiPostAccountKeyDataWithPurpose) where
               , "Error in $: parsing Cardano.Wallet.Api.Types.ApiPostAccountKeyDataWithPurpose(ApiPostAccountKeyDataWithPurpose) failed, key 'format' not found"
               )
             , ( [aesonQQ| { "passphrase": "The proper passphrase", "format": 123 }|]
-              , "Error in $.format: parsing Cardano.Wallet.Api.Types.KeyFormat failed, expected String, but encountered Number"
+              , "Error in $.format: parsing Cardano.Wallet.Api.Types.Key.KeyFormat failed, expected String, but encountered Number"
               )
             , ( [aesonQQ| { "passphrase": "The proper passphrase", "format": [] }|]
-              , "Error in $.format: parsing Cardano.Wallet.Api.Types.KeyFormat failed, expected String, but encountered Array"
+              , "Error in $.format: parsing Cardano.Wallet.Api.Types.Key.KeyFormat failed, expected String, but encountered Array"
               )
             , ( [aesonQQ| { "passphrase": "The proper passphrase", "format": 1.5 }|]
-              , "Error in $.format: parsing Cardano.Wallet.Api.Types.KeyFormat failed, expected String, but encountered Number"
+              , "Error in $.format: parsing Cardano.Wallet.Api.Types.Key.KeyFormat failed, expected String, but encountered Number"
               )
             , ( [aesonQQ| { "passphrase": "The proper passphrase", "format": "ok" }|]
-              , "Error in $.format: parsing Cardano.Wallet.Api.Types.KeyFormat failed, expected one of the tags ['extended','non_extended'], but found tag 'ok'"
+              , "Error in $.format: parsing Cardano.Wallet.Api.Types.Key.KeyFormat failed, expected one of the tags ['extended','non_extended'], but found tag 'ok'"
               )
             ]
 
