@@ -405,21 +405,70 @@ executable cardano-wallet
     ghc-options: -O2 -Werror
 
   build-depends:
-      base
+      aeson
+    , aeson-qq
+    , base
+    , base16-bytestring
+    , base58-bytestring
+    , bech32
+    , bech32-th
+    , bytestring
+    , cardano-addresses
+    , cardano-api
+    , cardano-crypto
+    , cardano-crypto-class
+    , cardano-ledger-alonzo
+    , cardano-ledger-core
     , cardano-wallet-core
     , cardano-wallet-launcher
+    , cardano-wallet-test-utils
+    , cborg
+    , command
+    , containers
     , contra-tracer
+    , criterion-measurement
+    , cryptonite
+    , deepseq
+    , directory
+    , either
+    , extra
+    , filepath
+    , flat
+    , fmt
+    , generic-lens
+    , generic-lens-core
+    , hspec
+    , hspec-core
+    , hspec-expectations-lifted
+    , http-api-data
+    , http-client
+    , http-types
+    , HUnit
     , iohk-monitoring
+    , lens-aeson
     , lobemo-backend-ekg
+    , memory
+    , microstache
     , network-uri
     , optparse-applicative
+    , process
+    , resourcet
+    , retry
+    , say
+    , serialise
+    , string-interpolate
+    , template-haskell
     , text
     , text-class
+    , time
     , transformers
     , unliftio
+    , unliftio-core
+    , unordered-containers
 
-  hs-source-dirs:     exe
+  hs-source-dirs:     exe test/integration
   main-is:            cardano-wallet.hs
+  other-modules:      Cardano.Wallet.BenchShared
 
 executable local-cluster
   default-language:   Haskell2010
@@ -459,18 +508,79 @@ executable mock-token-metadata-server
   if flag(release)
     ghc-options: -O2 -Werror
 
+  other-modules:      Cardano.Wallet.BenchShared
   build-depends:
-      ansi-wl-pprint
+      aeson
+    , aeson-qq
+    , ansi-wl-pprint
     , base
+    , base16-bytestring
+    , base58-bytestring
+    , bech32
+    , bech32-th
+    , bytestring
+    , cardano-addresses
+    , cardano-api
+    , cardano-crypto
+    , cardano-crypto-class
+    , cardano-ledger-alonzo
+    , cardano-ledger-core
     , cardano-wallet-core
+    , cardano-wallet-launcher
+    , cardano-wallet-test-utils
+    , cborg
+    , command
+    , containers
+    , contra-tracer
+    , criterion
+    , criterion-measurement
+    , cryptonite
+    , deepseq
+    , directory
+    , either
+    , extra
+    , filepath
+    , flat
+    , fmt
+    , generic-lens
+    , generic-lens-core
+    , hspec
+    , hspec-core
+    , hspec-expectations-lifted
+    , http-api-data
+    , http-client
+    , http-types
+    , HUnit
+    , iohk-monitoring
+    , lens-aeson
+    , lobemo-backend-ekg
+    , memory
+    , microstache
+    , network-uri
     , optparse-applicative
+    , process
+    , random
+    , resourcet
+    , retry
+    , say
+    , serialise
+    , string-interpolate
+    , template-haskell
+    , text
+    , text-class
+    , time
+    , transformers
+    , unliftio
+    , unliftio-core
+    , unordered-containers
     , wai-extra
 
-  hs-source-dirs:     exe
+  hs-source-dirs:     exe test/integration
   main-is:            mock-token-metadata-server.hs
 
 test-suite unit
   default-language:   Haskell2010
+  ghc-options:        -threaded -rtsopts -Wall
   default-extensions:
     NoImplicitPrelude
     OverloadedStrings
@@ -485,6 +595,7 @@ test-suite unit
       aeson
     , aeson-qq
     , base
+    , base16-bytestring
     , base58-bytestring
     , bech32
     , bech32-th
@@ -513,27 +624,33 @@ test-suite unit
     , cardano-wallet-launcher
     , cardano-wallet-test-utils
     , cborg
+    , command
     , connection
     , containers
     , contra-tracer
+    , criterion-measurement
     , cryptonite
     , data-default
     , data-interval
     , dbvar
     , deepseq
     , directory
+    , either
     , extra                        >=1.6.17
     , file-embed
     , filepath
+    , flat
     , fmt
     , foldl
     , generic-arbitrary
     , generic-lens
+    , generic-lens-core
     , generics-sop
     , hedgehog
     , hedgehog-quickcheck
     , hspec                        >=2.8.2
     , hspec-core                   >=2.8.2
+    , hspec-expectations-lifted
     , hspec-golden
     , hspec-hedgehog
     , http-api-data
@@ -541,14 +658,18 @@ test-suite unit
     , http-client-tls
     , http-media
     , http-types
+    , HUnit
     , int-cast
     , io-classes
     , io-sim
     , iohk-monitoring
     , lattices
     , lens
+    , lens-aeson
     , list-transformer
+    , lobemo-backend-ekg
     , memory
+    , microstache
     , MonadRandom
     , mtl
     , network
@@ -565,6 +686,7 @@ test-suite unit
     , plutus-core
     , plutus-ledger-api
     , pretty-simple
+    , process
     , QuickCheck
     , quickcheck-classes
     , quickcheck-instances
@@ -573,8 +695,11 @@ test-suite unit
     , quiet
     , random
     , regex-pcre-builtin
+    , resourcet
     , retry
     , safe
+    , say
+    , serialise
     , servant
     , servant-openapi3
     , servant-server
@@ -582,7 +707,9 @@ test-suite unit
     , splitmix
     , strict-containers
     , strict-non-empty-containers
+    , string-interpolate
     , string-qq
+    , template-haskell
     , temporary
     , text
     , text-class
@@ -606,7 +733,7 @@ test-suite unit
 
   build-tool-depends: hspec-discover:hspec-discover -any
   type:               exitcode-stdio-1.0
-  hs-source-dirs:     test-common test/unit test/data
+  hs-source-dirs:     test-common test/unit test/data test/integration
   main-is:            core-unit-test.hs
   other-modules:
     Cardano.Api.GenSpec
@@ -624,6 +751,7 @@ test-suite unit
     Cardano.Wallet.Api.ServerSpec
     Cardano.Wallet.Api.TypesSpec
     Cardano.Wallet.ApiSpec
+    Cardano.Wallet.BenchShared
     Cardano.Wallet.Checkpoints.PolicySpec
     Cardano.Wallet.CheckpointsSpec
     Cardano.Wallet.CoinSelection.Internal.BalanceSpec
@@ -716,35 +844,83 @@ benchmark db
   if flag(release)
     ghc-options: -O2 -Werror
 
+  other-modules:
+    Cardano.Wallet.LatencyBenchShared
+    Test.Integration.Faucet
+    Test.Integration.Framework.Context
+    Test.Integration.Framework.DSL
+    Test.Integration.Framework.Request
+
   build-depends:
-      base
+      aeson
+    , aeson-qq
+    , base
+    , base16-bytestring
+    , base58-bytestring
+    , bech32
+    , bech32-th
     , bytestring
     , cardano-addresses
+    , cardano-api
     , cardano-crypto
+    , cardano-crypto-class
+    , cardano-ledger-alonzo
+    , cardano-ledger-core
     , cardano-wallet-core
     , cardano-wallet-launcher
     , cardano-wallet-test-utils
+    , cborg
+    , command
     , containers
     , contra-tracer
     , criterion
+    , criterion-measurement
     , cryptonite
     , deepseq
     , directory
+    , either
+    , extra
     , filepath
+    , flat
     , fmt
+    , generic-lens
+    , generic-lens-core
+    , hspec
+    , hspec-core
+    , hspec-expectations-lifted
+    , http-api-data
+    , http-client
+    , http-types
+    , HUnit
     , iohk-monitoring
+    , lens-aeson
+    , lobemo-backend-ekg
     , memory
+    , microstache
+    , network-uri
+    , optparse-applicative
+    , process
     , random
+    , resourcet
+    , retry
+    , say
+    , serialise
+    , string-interpolate
+    , template-haskell
     , text
     , text-class
     , time
     , transformers
     , unliftio
+    , unliftio-core
+    , unordered-containers
 
   type:               exitcode-stdio-1.0
-  hs-source-dirs:     bench test-common
+  hs-source-dirs:     bench test-common test/integration
   main-is:            db-bench.hs
-  other-modules:      Cardano.Wallet.DummyTarget.Primitive.Types
+  other-modules:
+    Cardano.Wallet.BenchShared
+    Cardano.Wallet.DummyTarget.Primitive.Types
 
 benchmark restore
   default-language:   Haskell2010
@@ -757,27 +933,78 @@ benchmark restore
   if flag(release)
     ghc-options: -O2 -Werror
 
+  other-modules:
+    Cardano.Wallet.BenchShared
+    Cardano.Wallet.LatencyBenchShared
+    Test.Integration.Faucet
+    Test.Integration.Framework.Context
+    Test.Integration.Framework.DSL
+    Test.Integration.Framework.Request
+
   build-depends:
       aeson
+    , aeson-qq
     , base
+    , base16-bytestring
+    , base58-bytestring
+    , bech32
+    , bech32-th
     , bytestring
     , cardano-addresses
+    , cardano-api
+    , cardano-crypto
+    , cardano-crypto-class
+    , cardano-ledger-alonzo
+    , cardano-ledger-core
     , cardano-wallet-core
+    , cardano-wallet-launcher
+    , cardano-wallet-test-utils
+    , cborg
+    , command
+    , containers
     , contra-tracer
+    , criterion-measurement
+    , cryptonite
     , deepseq
+    , directory
+    , either
+    , extra
     , filepath
+    , flat
     , fmt
     , generic-lens
+    , generic-lens-core
+    , hspec
+    , hspec-core
+    , hspec-expectations-lifted
+    , http-api-data
+    , http-client
+    , http-types
+    , HUnit
     , iohk-monitoring
+    , lens-aeson
+    , lobemo-backend-ekg
+    , memory
+    , microstache
+    , network-uri
+    , optparse-applicative
+    , process
+    , resourcet
+    , retry
     , say
+    , serialise
+    , string-interpolate
+    , template-haskell
     , text
     , text-class
     , time
     , transformers
     , unliftio
+    , unliftio-core
+    , unordered-containers
 
   type:               exitcode-stdio-1.0
-  hs-source-dirs:     bench
+  hs-source-dirs:     bench test/integration
   main-is:            restore-bench.hs
 
 benchmark latency
@@ -791,25 +1018,78 @@ benchmark latency
   if flag(release)
     ghc-options: -O2 -Werror
 
+  other-modules:
+    Cardano.Wallet.LatencyBenchShared
+    Cardano.Wallet.Shelley.Faucet
+    Test.Integration.Faucet
+    Test.Integration.Framework.Context
+    Test.Integration.Framework.DSL
+    Test.Integration.Framework.Request
+
   build-depends:
       aeson
+    , aeson-qq
     , base
+    , base16-bytestring
+    , base58-bytestring
+    , bech32
+    , bech32-th
+    , bytestring
+    , cardano-addresses
+    , cardano-api
+    , cardano-crypto
+    , cardano-crypto-class
+    , cardano-ledger-alonzo
+    , cardano-ledger-core
     , cardano-wallet-core
     , cardano-wallet-launcher
+    , cardano-wallet-test-utils
+    , cborg
+    , command
+    , containers
+    , contra-tracer
+    , criterion-measurement
+    , cryptonite
+    , deepseq
     , directory
+    , either
+    , extra
     , filepath
+    , flat
+    , fmt
     , generic-lens
+    , generic-lens-core
     , hspec
+    , hspec-core
+    , hspec-expectations-lifted
+    , http-api-data
     , http-client
     , http-types
+    , HUnit
     , iohk-monitoring
+    , lens-aeson
+    , lobemo-backend-ekg
+    , memory
+    , microstache
+    , network-uri
+    , optparse-applicative
+    , process
+    , resourcet
+    , retry
+    , say
+    , serialise
+    , string-interpolate
+    , template-haskell
     , text
+    , text-class
+    , time
     , unliftio
+    , unliftio-core
+    , unordered-containers
 
   type:               exitcode-stdio-1.0
   hs-source-dirs:     bench test/integration
   main-is:            latency-bench.hs
-  other-modules:      Cardano.Wallet.Shelley.Faucet
 
 library integration-framework
   default-language:   Haskell2010
@@ -965,6 +1245,8 @@ test-suite integration
   main-is:            shelley-integration-test.hs
   hs-source-dirs:     test/integration
   other-modules:
+    Cardano.Wallet.BenchShared
+    Cardano.Wallet.LatencyBenchShared
     Cardano.Wallet.Shelley.Faucet
     Test.Integration.Faucet
     Test.Integration.Framework.Context
