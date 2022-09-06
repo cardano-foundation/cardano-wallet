@@ -25,6 +25,7 @@ module Cardano.Wallet.Primitive.Types.UTxO
     , size
     , balance
     , isSubsetOf
+    , isProperSubsetOf
     , empty
     , disjoint
     , excluding
@@ -165,6 +166,11 @@ excluding (UTxO utxo) =
 isSubsetOf :: UTxO -> UTxO -> Bool
 isSubsetOf (UTxO a) (UTxO b) =
     a `Map.isSubmapOf` b
+
+-- | a ⊂ b
+isProperSubsetOf :: UTxO -> UTxO -> Bool
+isProperSubsetOf (UTxO a) (UTxO b) =
+    a `Map.isProperSubmapOf` b
 
 -- | ins⊲ u
 restrictedBy :: UTxO -> Set TxIn -> UTxO
