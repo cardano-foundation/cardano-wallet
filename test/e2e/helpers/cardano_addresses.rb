@@ -20,4 +20,8 @@ class CardanoAddresses
   def key_walletid(key, templates = '')
     cmd(%(echo #{key}| cardano-address key walletid #{templates})).gsub("\n", '')
   end
+
+  def script_hash(script)
+    cmd(%(cardano-address script hash "#{script}")).gsub("\n", '')
+  end
 end

@@ -143,73 +143,116 @@ RSpec.describe CardanoWallet::Misc, :all, :misc do
       end
 
       it "Enterprise script address - all" do
+        addr1 = "addr_shared_vkh1zxt0uvrza94h3hv4jpv0ttddgnwkvdgeyq8jf9w30mcs6y8w3nq"
+        addr2 = "addr_shared_vkh1y3zl4nqgm96ankt96dsdhc86vd5geny0wr7hu8cpzdfcqskq2cp"
         script = {
                   "payment": {
                       "all": [
-                          "addr_shared_vkh1zxt0uvrza94h3hv4jpv0ttddgnwkvdgeyq8jf9w30mcs6y8w3nq",
-                          "addr_shared_vkh1y3zl4nqgm96ankt96dsdhc86vd5geny0wr7hu8cpzdfcqskq2cp"
+                        addr1,
+                        addr2
                           ]
                       }
                   }
-        res = UTILS.post_address(script)
-        expect(res).to be_correct_and_respond 202
-        expect(res.to_s).to include "addr_test1wpq0ghwy73wapjcdwqxm6ytwe66j8eccsmn9jptshrjerashp7y82"
+        ca_script_hash = CA.script_hash("all [#{addr1}, #{addr2}]")
+        script_hash = {"payment": ca_script_hash }
+
+        script_res = UTILS.post_address(script)
+        expect(script_res).to be_correct_and_respond 202
+        script_hash_res = UTILS.post_address(script_hash)
+        expect(script_hash_res).to be_correct_and_respond 202
+
+        expect(script_res['address']).to eq script_hash_res['address']
+
+        expect(script_res['address']).to eq "addr_test1wpq0ghwy73wapjcdwqxm6ytwe66j8eccsmn9jptshrjerashp7y82"
       end
 
       it "Enterprise script address - some" do
+        addr1 = "addr_shared_vkh1zxt0uvrza94h3hv4jpv0ttddgnwkvdgeyq8jf9w30mcs6y8w3nq"
+        addr2 = "addr_shared_vkh1y3zl4nqgm96ankt96dsdhc86vd5geny0wr7hu8cpzdfcqskq2cp"
+        addr3 = "addr_shared_vkh175wsm9ckhm3snwcsn72543yguxeuqm7v9r6kl6gx57h8gdydcd9"
         script = {
                   "payment": {
                       "some": {
                           "from": [
-                              "addr_shared_vkh1zxt0uvrza94h3hv4jpv0ttddgnwkvdgeyq8jf9w30mcs6y8w3nq",
-                              "addr_shared_vkh1y3zl4nqgm96ankt96dsdhc86vd5geny0wr7hu8cpzdfcqskq2cp",
-                              "addr_shared_vkh175wsm9ckhm3snwcsn72543yguxeuqm7v9r6kl6gx57h8gdydcd9"
+                            addr1,
+                            addr2,
+                            addr3
                               ],
                            "at_least": 2
                            }
                    }
                  }
-        res = UTILS.post_address(script)
-        expect(res).to be_correct_and_respond 202
-        expect(res.to_s).to include "addr_test1wqqmnmwuh85e0fxaggl6ac2hfeqncg76gsr0ld8qdjd84agpc0nuz"
+        ca_script_hash = CA.script_hash("at_least 2 [#{addr1}, #{addr2}, #{addr3}]")
+        script_hash = {"payment": ca_script_hash }
+
+        script_res = UTILS.post_address(script)
+        expect(script_res).to be_correct_and_respond 202
+        script_hash_res = UTILS.post_address(script_hash)
+        expect(script_hash_res).to be_correct_and_respond 202
+
+        expect(script_res['address']).to eq script_hash_res['address']
+        expect(script_res['address']).to eq "addr_test1wqqmnmwuh85e0fxaggl6ac2hfeqncg76gsr0ld8qdjd84agpc0nuz"
       end
 
       it "Reward account script address - any" do
+        addr1 = "stake_shared_vkh1nqc00hvlc6cq0sfhretk0rmzw8dywmusp8retuqnnxzajtzhjg5"
+        addr2 = "stake_shared_vkh1nac0awgfa4zjsh4elnjmsscz0huhss8q2g0x3n7m539mwaa5m7s"
         script = {
                   "stake": {
                       "any": [
-                          "stake_shared_vkh1nqc00hvlc6cq0sfhretk0rmzw8dywmusp8retuqnnxzajtzhjg5",
-                          "stake_shared_vkh1nac0awgfa4zjsh4elnjmsscz0huhss8q2g0x3n7m539mwaa5m7s"
+                          addr1,
+                          addr2
                           ]
                       }
                   }
-        res = UTILS.post_address(script)
-        expect(res).to be_correct_and_respond 202
-        expect(res.to_s).to include "stake_test17qshpfjkgh98wumvnn9y3yfhevllp4y04u6y84q3flxcv9s2kvrnx"
+
+        ca_script_hash = CA.script_hash("any [#{addr1}, #{addr2}]")
+        script_hash = {"stake": ca_script_hash }
+
+        script_res = UTILS.post_address(script)
+        expect(script_res).to be_correct_and_respond 202
+        script_hash_res = UTILS.post_address(script_hash)
+        expect(script_hash_res).to be_correct_and_respond 202
+
+        expect(script_res['address']).to eq script_hash_res['address']
+        expect(script_res['address']).to eq "stake_test17qshpfjkgh98wumvnn9y3yfhevllp4y04u6y84q3flxcv9s2kvrnx"
       end
 
       it "Delegating script address - any" do
+        addr1 = "addr_shared_vkh1zxt0uvrza94h3hv4jpv0ttddgnwkvdgeyq8jf9w30mcs6y8w3nq"
+        addr2 = "addr_shared_vkh1y3zl4nqgm96ankt96dsdhc86vd5geny0wr7hu8cpzdfcqskq2cp"
+        addr3 = "addr_shared_vkh175wsm9ckhm3snwcsn72543yguxeuqm7v9r6kl6gx57h8gdydcd9"
+        addr4 = "addr_shared_vkh1zxt0uvrza94h3hv4jpv0ttddgnwkvdgeyq8jf9w30mcs6y8w3nq"
+        addr5 = "addr_shared_vkh1y3zl4nqgm96ankt96dsdhc86vd5geny0wr7hu8cpzdfcqskq2cp"
         script = {
                     "payment": {
                         "some": {
                             "from": [
-                                "addr_shared_vkh1zxt0uvrza94h3hv4jpv0ttddgnwkvdgeyq8jf9w30mcs6y8w3nq",
-                                "addr_shared_vkh1y3zl4nqgm96ankt96dsdhc86vd5geny0wr7hu8cpzdfcqskq2cp",
-                                "addr_shared_vkh175wsm9ckhm3snwcsn72543yguxeuqm7v9r6kl6gx57h8gdydcd9"
+                                addr1,
+                                addr2,
+                                addr3
                                 ],
                              "at_least": 2
                              }
                         },
                     "stake": {
                         "any": [
-                            "script_vkh1yf07000d4ml3ywd3d439kmwp07xzgv6p35cwx8h605jfx0dtd4a",
-                            "script_vkh1mwlngj4fcwegw53tdmyemfupen2758xwvudmcz9ap8cnqk7jmh4"
+                          addr4,
+                          addr5
                             ]
                         }
                   }
-        res = UTILS.post_address(script)
-        expect(res).to be_correct_and_respond 202
-        expect(res.to_s).to include "addr_test1wqqmnmwuh85e0fxaggl6ac2hfeqncg76gsr0ld8qdjd84agpc0nuz"
+        ca_script_hash_payment = CA.script_hash("at_least 2 [#{addr1}, #{addr2}, #{addr3}]")
+        ca_script_hash_stake = CA.script_hash("any [#{addr4}, #{addr5}]")
+        script_hash = {"payment": ca_script_hash_payment, "stake": ca_script_hash_stake }
+
+        script_res = UTILS.post_address(script)
+        expect(script_res).to be_correct_and_respond 202
+        script_hash_res = UTILS.post_address(script_hash)
+        expect(script_hash_res).to be_correct_and_respond 202
+
+        expect(script_res['address']).to eq script_hash_res['address']
+        expect(script_res['address']).to eq "addr_test1xqqmnmwuh85e0fxaggl6ac2hfeqncg76gsr0ld8qdjd84a0yh738jpn7vdl3d3qs8vmuxm5fsx3j3eghw42v7jlgw3kqrw53af"
       end
 
       it "Enterprise pub key address" do
