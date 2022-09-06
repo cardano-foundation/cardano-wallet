@@ -385,7 +385,7 @@ import Data.Aeson.Types
     , Parser
     , SumEncoding (..)
     , ToJSON (..)
-    , Value (Object, String, Bool)
+    , Value (Object, String)
     , camelTo2
     , constructorTagModifier
     , fieldLabelModifier
@@ -397,7 +397,6 @@ import Data.Aeson.Types
     , rejectUnknownFields
     , sumEncoding
     , tagSingleConstructors
-    , withBool
     , withObject
     , withText
     , (.!=)
@@ -975,14 +974,24 @@ data ApiSealedTxEncoding = HexEncoded | Base64Encoded
       deriving (Eq, Generic, Show)
       deriving anyclass NFData
 
-instance ToJSON ApiSealedTxEncoding where
-    toJSON HexEncoded = Bool True
-    toJSON Base64Encoded = Bool False
+instance ToText ApiSealedTxEncoding where
+    toText HexEncoded = "base16"
+    toText Base64Encoded = "base64"
+
+instance FromText ApiSealedTxEncoding where
+    fromText txt = case txt of
+        "base16" -> Right HexEncoded
+        "base64" -> Right Base64Encoded
+        _ -> Left $ TextDecodingError $ unwords
+            [ "I couldn't parse the given sealed tx encoding."
+            , "I am expecting one of the words 'base16' or"
+            , "'base64'."]
 
 instance FromJSON ApiSealedTxEncoding where
-    parseJSON = withBool "ApiSealedTxEncoding" $ \b -> case b of
-        True -> pure HexEncoded
-        False -> pure Base64Encoded
+    parseJSON =
+        parseJSON >=> eitherToParser . first ShowFmt . fromText
+instance ToJSON ApiSealedTxEncoding where
+    toJSON = toJSON . toText
 
 data ApiConstructTransaction (n :: NetworkDiscriminant) = ApiConstructTransaction
     { transaction :: !ApiSerialisedTransaction
@@ -1014,7 +1023,7 @@ data ApiConstructTransactionData (n :: NetworkDiscriminant) = ApiConstructTransa
     , mintBurn :: !(Maybe (NonEmpty (ApiMintBurnData n)))
     , delegations :: !(Maybe (NonEmpty ApiMultiDelegationAction))
     , validityInterval :: !(Maybe ApiValidityInterval)
-    , hexOutput :: !(Maybe Bool)
+    , encoding :: !(Maybe ApiSealedTxEncoding)
     } deriving (Eq, Generic, Show, Typeable)
     deriving anyclass NFData
 
@@ -1047,7 +1056,7 @@ data ApiValidityBound
 data ApiSignTransactionPostData = ApiSignTransactionPostData
     { transaction :: !(ApiT SealedTx)
     , passphrase :: !(ApiT (Passphrase "lenient"))
-    , hexOutput :: !(Maybe Bool)
+    , encoding :: !(Maybe ApiSealedTxEncoding)
     } deriving (Eq, Generic, Show)
 
 -- | Legacy transaction API.
@@ -1089,7 +1098,7 @@ data ApiBalanceTransactionPostData (n :: NetworkDiscriminant) = ApiBalanceTransa
     { transaction :: !(ApiT SealedTx)
     , inputs :: ![ApiExternalInput n]
     , redeemers :: ![ApiRedeemer n]
-    , hexOutput :: !(Maybe Bool)
+    , encoding :: !(Maybe ApiSealedTxEncoding)
     } deriving (Eq, Generic, Show)
 
 type ApiRedeemerData = ApiBytesT 'Base16 ByteString

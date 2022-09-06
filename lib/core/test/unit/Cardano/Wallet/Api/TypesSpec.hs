@@ -1147,7 +1147,7 @@ spec = parallel $ do
                 x' = ApiSignTransactionPostData
                     { transaction = transaction (x :: ApiSignTransactionPostData)
                     , passphrase = passphrase (x :: ApiSignTransactionPostData)
-                    , hexOutput = hexOutput (x :: ApiSignTransactionPostData)
+                    , encoding = encoding (x :: ApiSignTransactionPostData)
                     }
             in
                 x' === x .&&. show x' === show x
@@ -1178,7 +1178,7 @@ spec = parallel $ do
                     { transaction = transaction (x :: ApiBalanceTransactionPostData ('Testnet 0))
                     , inputs = inputs (x :: ApiBalanceTransactionPostData ('Testnet 0))
                     , redeemers = redeemers (x :: ApiBalanceTransactionPostData ('Testnet 0))
-                    , hexOutput = hexOutput (x :: ApiBalanceTransactionPostData ('Testnet 0))
+                    , encoding = encoding (x :: ApiBalanceTransactionPostData ('Testnet 0))
                     }
             in
                 x' === x .&&. show x' === show x
@@ -1239,7 +1239,7 @@ spec = parallel $ do
                         (x :: ApiConstructTransactionData ('Testnet 0))
                     , validityInterval = validityInterval
                         (x :: ApiConstructTransactionData ('Testnet 0))
-                    , hexOutput = hexOutput
+                    , encoding = encoding
                         (x :: ApiConstructTransactionData ('Testnet 0))
                     }
             in
@@ -2211,7 +2211,7 @@ instance Arbitrary ApiSignTransactionPostData where
     arbitrary = ApiSignTransactionPostData
         <$> arbitrary
         <*> arbitrary
-        <*> elements [Just True, Nothing]
+        <*> elements [Just HexEncoded, Just Base64Encoded, Nothing]
 
 instance Arbitrary (PostTransactionOldData n) where
     arbitrary = PostTransactionOldData
@@ -2234,7 +2234,7 @@ instance Arbitrary (ApiConstructTransactionData n) where
         <*> arbitrary
         <*> arbitrary
         <*> pure Nothing
-        <*> elements [Just True, Nothing]
+        <*> elements [Just HexEncoded, Just Base64Encoded, Nothing]
 
 instance Arbitrary (ApiExternalInput n) where
     arbitrary = ApiExternalInput
@@ -2250,7 +2250,7 @@ instance Arbitrary (ApiBalanceTransactionPostData n) where
         <$> arbitrary
         <*> arbitrary
         <*> arbitrary
-        <*> elements [Just True, Nothing]
+        <*> elements [Just HexEncoded, Just Base64Encoded, Nothing]
 
 instance Arbitrary (ApiRedeemer n) where
     arbitrary = oneof

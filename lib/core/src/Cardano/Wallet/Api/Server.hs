@@ -2037,8 +2037,8 @@ signTransaction ctx (ApiT wid) body = do
     -- TODO: The body+witnesses seem redundant with the sealedTx already. What's
     -- the use-case for having them provided separately? In the end, the client
     -- should be able to decouple them if they need to.
-    case body ^. #hexOutput of
-        Just True -> pure $ ApiSerialisedTransaction (ApiT sealedTx') HexEncoded
+    case body ^. #encoding of
+        Just HexEncoded -> pure $ ApiSerialisedTransaction (ApiT sealedTx') HexEncoded
         _ -> pure $ ApiSerialisedTransaction (ApiT sealedTx') Base64Encoded
 
 postTransactionOld
@@ -2528,8 +2528,8 @@ constructTransaction ctx genChange knownPools getPoolStatus (ApiT wid) body = do
             $ W.constructTransaction @_ @s @k @n wrk wid era txCtx' sel
 
         pure $ ApiConstructTransaction
-            { transaction = case body ^. #hexOutput of
-                    Just True -> ApiSerialisedTransaction (ApiT tx) HexEncoded
+            { transaction = case body ^. #encoding of
+                    Just HexEncoded -> ApiSerialisedTransaction (ApiT tx) HexEncoded
                     _ -> ApiSerialisedTransaction (ApiT tx) Base64Encoded
             , coinSelection = mkApiCoinSelection
                 (maybeToList deposit) (maybeToList refund) Nothing md sel'
@@ -2714,8 +2714,8 @@ constructSharedTransaction
                     $ W.constructSharedTransaction @_ @s @k @n wrk wid era txCtx sel
 
                 pure $ ApiConstructTransaction
-                    { transaction = case body ^. #hexOutput of
-                            Just True -> ApiSerialisedTransaction (ApiT tx) HexEncoded
+                    { transaction = case body ^. #encoding of
+                            Just HexEncoded -> ApiSerialisedTransaction (ApiT tx) HexEncoded
                             _ -> ApiSerialisedTransaction (ApiT tx) Base64Encoded
                     , coinSelection = mkApiCoinSelection [] [] Nothing md sel'
                     , fee = Quantity $ fromIntegral fee
@@ -2845,8 +2845,8 @@ balanceTransaction ctx genChange (ApiT wid) body = do
         res <- withShelleyBasedTx anyShelleyTx
             (fmap inAnyCardanoEra . balanceTx . mkPartialTx)
 
-        case body ^. #hexOutput of
-            Just True ->
+        case body ^. #encoding of
+            Just HexEncoded ->
                 pure $ ApiSerialisedTransaction
                 (ApiT $ W.sealedTxFromCardano res) HexEncoded
             _ -> pure $ ApiSerialisedTransaction

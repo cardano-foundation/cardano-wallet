@@ -3424,9 +3424,9 @@ components:
           <<: *lenientPassphrase
           description: The wallet's master passphrase.
         transaction: *serialisedTransactionEncoded
-        hex_output:
-          type: boolean
-          default: false
+        encoding:
+          type: string
+          enum: ["base16", "base64"]
 
     # ADP-908 Deprecated
     ApiPostTransactionDataByron: &ApiPostTransactionDataByron
@@ -3574,9 +3574,9 @@ components:
              containing helpful information.
         delegations: *transactionDelegations
         validity_interval: *ApiValidityInterval
-        hex_output:
-          type: boolean
-          default: false
+        encoding:
+          type: string
+          enum: ["base16", "base64"]
 
     CredentialValue: *CredentialValue
 
@@ -3835,9 +3835,9 @@ components:
             description: A list of redeemers data with their purpose.
             type: array
             items: *ApiRedeemer
-        hex_output:
-          type: boolean
-          default: false
+        encoding:
+          type: string
+          enum: ["base16", "base64"]
 
     ApiBlockHeader: &ApiBlockHeader
         description: |
