@@ -961,7 +961,6 @@ test-suite integration
     , unliftio-core
     , unordered-containers
 
-  build-tools:        cardano-wallet-core -any
   type:               exitcode-stdio-1.0
   main-is:            shelley-integration-test.hs
   hs-source-dirs:     test/integration
