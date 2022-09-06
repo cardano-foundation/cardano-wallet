@@ -1,6 +1,9 @@
 {-# LANGUAGE DataKinds #-}
+{-# LANGUAGE FlexibleContexts #-}
 {-# LANGUAGE GADTs #-}
+{-# LANGUAGE LambdaCase #-}
 {-# LANGUAGE ScopedTypeVariables #-}
+{-# LANGUAGE StandaloneDeriving #-}
 {-# LANGUAGE TypeFamilies #-}
 {-# LANGUAGE UndecidableInstances #-}
 
@@ -69,10 +72,33 @@ but the type family `Api.ShelleyLedgerEra` performs the conversion.
 -- This transaction can come from any era, old (Byron) and new (Babbage).
 data Tx where
     Tx
-        :: forall era. Api.IsCardanoEra era
+        :: forall era
+        . (Show (TxEra era), Api.IsCardanoEra era)
         => Api.CardanoEra era
         -> TxEra era
         -> Tx
+
+deriving instance Show Tx
+
+instance Eq Tx where
+    (==) (Tx ByronEra x) = \case
+        Tx ByronEra y -> x == y
+        _ -> False
+    (==) (Tx ShelleyEra x) = \case
+        Tx ShelleyEra y -> x == y
+        _ -> False
+    (==) (Tx AllegraEra x) = \case
+        Tx AllegraEra y -> x == y
+        _ -> False
+    (==) (Tx MaryEra x) = \case
+        Tx MaryEra y -> x == y
+        _ -> False
+    (==) (Tx AlonzoEra x) = \case
+        Tx AlonzoEra y -> x == y
+        _ -> False
+    (==) (Tx BabbageEra x) = \case
+        Tx BabbageEra y -> x == y
+        _ -> False
 
 {- Note [SeeminglyRedundantPatternMatches]
 

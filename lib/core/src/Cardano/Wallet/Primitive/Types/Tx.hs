@@ -95,8 +95,6 @@ import Cardano.Wallet.Primitive.Types.Hash
     ( Hash )
 import Cardano.Wallet.Primitive.Types.TokenMap
     ( TokenMap )
-import Cardano.Wallet.Primitive.Types.Tx.CBOR
-    ( TxCBOR (..) )
 import Cardano.Wallet.Primitive.Types.Tx.Constraints
     ( txOutMaxCoin, txOutMinCoin )
 import Cardano.Wallet.Primitive.Types.Tx.SealedTx
@@ -146,6 +144,8 @@ import Cardano.Wallet.Primitive.Types.Tx.Tx
     )
 import Cardano.Wallet.Primitive.Types.Tx.TxMeta
     ( Direction (..), TxMeta (..), TxStatus (..), isPending )
+import Cardano.Wallet.Types.Read.Tx.CBOR
+    ( TxCBOR (..) )
 import Data.Word
     ( Word64 )
 import GHC.Generics

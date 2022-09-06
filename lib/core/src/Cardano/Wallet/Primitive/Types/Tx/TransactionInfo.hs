@@ -28,12 +28,12 @@ import Cardano.Wallet.Primitive.Types.Hash
     ( Hash (..) )
 import Cardano.Wallet.Primitive.Types.RewardAccount
     ( RewardAccount (..) )
-import Cardano.Wallet.Primitive.Types.Tx.CBOR
-    ( TxCBOR )
 import Cardano.Wallet.Primitive.Types.Tx.Tx
     ( Tx (..), TxIn, TxMetadata, TxOut, TxScriptValidity )
 import Cardano.Wallet.Primitive.Types.Tx.TxMeta
     ( TxMeta )
+import Cardano.Wallet.Types.Read.Tx.CBOR
+    ( TxCBOR )
 import Control.DeepSeq
     ( NFData (..) )
 import Data.Map.Strict

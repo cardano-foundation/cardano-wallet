@@ -1,14 +1,14 @@
 {-# LANGUAGE DeriveGeneric #-}
 {-# LANGUAGE ExistentialQuantification #-}
+{-# LANGUAGE FlexibleContexts #-}
 {-# LANGUAGE NamedFieldPuns #-}
 {-# LANGUAGE TypeFamilies #-}
 {-# LANGUAGE UndecidableInstances #-}
 
 {-# OPTIONS_GHC -Wno-orphans #-}
 
-module Cardano.Wallet.Primitive.Types.Tx.CBOR
+module Cardano.Wallet.Types.Read.Tx.CBOR
     ( TxCBOR (..)
-    , mkTxCBOR
     , getTxCBOR
     , parseCBOR
     )
@@ -17,7 +17,7 @@ module Cardano.Wallet.Primitive.Types.Tx.CBOR
 import Prelude
 
 import Cardano.Api
-    ( AnyCardanoEra (..), CardanoEra (..), FromCBOR, ToCBOR )
+    ( AnyCardanoEra (..), CardanoEra (..), FromCBOR )
 import Cardano.Binary
     ( Annotator (runAnnotator)
     , FromCBOR (fromCBOR)
@@ -49,9 +49,6 @@ data TxCBOR =
       -- | Era of the transaction, to identify the right codec.
     , txEra :: !AnyCardanoEra
     } deriving (Show, Generic, Eq)
-
-mkTxCBOR :: ToCBOR a => a -> AnyCardanoEra -> TxCBOR
-mkTxCBOR = TxCBOR . toLazyByteString . toCBOR
 
 instance Ord TxCBOR where
     compare (TxCBOR cb _) (TxCBOR cb' _) = compare cb cb'
@@ -91,9 +88,9 @@ parseCBOR TxCBOR{txEra=AnyCardanoEra era,txCBOR} = case era of
     runA :: Annotator x -> x
     runA x = runAnnotator x $ Full txCBOR
     boxEra
-        ::  ( FromCBOR (k (Read.TxEra era))
-            , Api.IsCardanoEra era
-            )
+        :: (FromCBOR (k (Read.TxEra era)), Show (Read.TxEra era)
+           , Api.IsCardanoEra era
+           )
         => CardanoEra era
         -> (k (Read.TxEra era) -> Read.TxEra era)
         -> Either DeserialiseFailure Read.Tx

@@ -141,12 +141,12 @@ import Cardano.Wallet.Primitive.Types.Tx
     , TxStatus (..)
     , isPending
     )
-import Cardano.Wallet.Primitive.Types.Tx.CBOR
-    ( TxCBOR (..) )
 import Cardano.Wallet.Primitive.Types.Tx.Gen
     ( genTxOutCoin, genTxScriptValidity, shrinkTxScriptValidity )
 import Cardano.Wallet.Primitive.Types.UTxO
     ( UTxO (..) )
+import Cardano.Wallet.Types.Read.Tx.CBOR
+    ( TxCBOR (..) )
 import Cardano.Wallet.Unsafe
     ( someDummyMnemonic, unsafeMkPercentage )
 import Cardano.Wallet.Util
