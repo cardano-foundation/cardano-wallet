@@ -763,7 +763,6 @@ benchmark restore
     , bytestring
     , cardano-addresses
     , cardano-wallet-core
-    , cardano-wallet-core-integration
     , contra-tracer
     , deepseq
     , filepath
@@ -796,7 +795,6 @@ benchmark latency
       aeson
     , base
     , cardano-wallet-core
-    , cardano-wallet-core-integration
     , cardano-wallet-launcher
     , directory
     , filepath
