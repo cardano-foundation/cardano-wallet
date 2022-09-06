@@ -58,6 +58,19 @@ packages:
 package cryptonite
   flags: -support_rdrand
 
+-- TODO : This is patch to work with the new version of blockfrost (0.6.0.0)
+-- Removing this dependency require an upgrade of Haskell.nix and all the 
+-- consequent update modification to be done.
+source-repository-package
+  type: git
+  location: https://github.com/blockfrost/blockfrost-haskell
+  tag: 5ced57686d95e7b14569e96f4244b701f1e321e4
+  --sha256: sha256-jGTq+S7byvo/4eQFFzw71I65EefiFlkOcDYiMnuPtok=
+  subdir:
+    blockfrost-api
+    blockfrost-client
+    blockfrost-client-core
+
 -- TODO This was patched to work with aeson 1 & 2 with the help of hw-aeson.
 -- Once downstream projects are all upgraded to work with aeson-2, they can
 -- be changed to work strictly with aeson 2 only.
@@ -319,6 +332,8 @@ source-repository-package
   location: https://github.com/input-output-hk/hedgehog-extras
   tag: 714ee03a5a786a05fc57ac5d2f1c2edce4660d85
   --sha256: 1qa4mm36xynaf17990ijmzww0ij8hjrc0vw5nas6d0zx6q9hb978
+
+
 
 -- -------------------------------------------------------------------------
 -- Constraints tweaking

@@ -37,9 +37,9 @@ library
     , bech32
     , bech32-th
     , binary
-    , blockfrost-api >= 0.4 && < 0.5
-    , blockfrost-client >= 0.4 && < 0.5
-    , blockfrost-client-core >= 0.4 && < 0.5
+    , blockfrost-api >= 0.6 && < 0.7
+    , blockfrost-client >= 0.6 && < 0.7
+    , blockfrost-client-core >= 0.6 && < 0.7
     , bytestring
     , cardano-addresses
     , cardano-api
