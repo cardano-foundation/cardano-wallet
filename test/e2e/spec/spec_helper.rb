@@ -49,7 +49,7 @@ CA = CardanoAddresses.new
 CONTEXT = Context.new
 CONTEXT.env = ENV['NETWORK']
 
-CARDANO_CLI = CardanoCli.new
+CARDANO_CLI = CardanoCli.new(get_protocol_magic(CONTEXT.env))
 
 ##
 # default passphrase for wallets
@@ -616,16 +616,4 @@ end
 # The same as get_sent_amts, but we assume single output tx
 def get_sent_amt(outputs)
   get_sent_amts(outputs).first
-end
-
-def get_key_deposit
-  config = File.join(absolute_path(ENV['CARDANO_NODE_CONFIGS']), CONTEXT.env)
-  shelley_genesis = JSON.parse(File.read(File.join(config, "shelley-genesis.json")))
-  shelley_genesis['protocolParams']['keyDeposit'].to_i
-end
-
-def get_protocol_magic
-  config = File.join(absolute_path(ENV['CARDANO_NODE_CONFIGS']), CONTEXT.env)
-  byron_genesis = JSON.parse(File.read(File.join(config, "byron-genesis.json")))
-  byron_genesis['protocolConsts']['protocolMagic'].to_i
 end

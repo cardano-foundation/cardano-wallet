@@ -3,10 +3,11 @@
 #
 class CardanoCli
 
-  attr_reader :node_state, :socket_path
+  attr_reader :node_state, :socket_path, :protocol_magic
 
-  def initialize
+  def initialize(protocol_magic)
     @node_state = File.join(absolute_path(ENV['TESTS_NODE_DB']), CONTEXT.env)
+    @protocol_magic = protocol_magic
 
     if is_win?
       @socket_path = '\\\\.\\pipe\\cardano-node-testnet'
@@ -22,7 +23,7 @@ class CardanoCli
   def build_script_address(script_file_path)
     cmd(%(cardano-cli address build \
           --payment-script-file #{script_file_path} \
-          --testnet-magic #{get_protocol_magic})).gsub("\n", '')
+          --testnet-magic #{@protocol_magic})).gsub("\n", '')
   end
 
   def generate_payment_keys
@@ -39,7 +40,7 @@ class CardanoCli
   def build_payment_address(keys)
     cmd(%(cardano-cli address build \
            --payment-verification-key-file #{keys[:vkey]} \
-           --testnet-magic #{get_protocol_magic})).gsub("\n", '')
+           --testnet-magic #{@protocol_magic})).gsub("\n", '')
   end
 
   ##
@@ -55,7 +56,7 @@ class CardanoCli
   def get_utxos(address)
     output = cmd(%(cardano-cli query utxo \
                     --address #{address} \
-                    --testnet-magic #{get_protocol_magic}))
+                    --testnet-magic #{@protocol_magic}))
     # [utxo1, utxo2, ... utxoN]
     #     where utxoN = {utxo: utxoId, ix: index, amt: ada amount}
     output.partition("-" * 86).last.strip.split("\n").map do |utxo|
@@ -64,17 +65,18 @@ class CardanoCli
     end
   end
 
+  def get_protocol_params_to_file(file = 'pparams.json')
+    pparams_path = File.join(@node_state, file)
+    cmd(%(cardano-cli query protocol-parameters \
+          --testnet-magic #{@protocol_magic} \
+          --out-file #{pparams_path}))
+    pparams_path
+  end
+
   def get_protocol_params
-    pparams = File.join(@node_state, 'pparams.json')
-    unless File.exists?(pparams)
-      log "Getting pparams.json"
-      cmd(%(cardano-cli query protocol-parameters \
-            --testnet-magic #{get_protocol_magic} \
-            --out-file #{pparams}))
-    else
-      log "Using existing pparams.json"
-    end
-    pparams
+    pparams = cmd(%(cardano-cli query protocol-parameters \
+                    --testnet-magic #{@protocol_magic}))
+    JSON.parse(pparams)
   end
 
   ##
@@ -96,7 +98,7 @@ class CardanoCli
           --tx-in-redeemer-value 123 \
           --tx-in-collateral #{collateral_utxo} \
           --tx-in-execution-units "(10, 10)" \
-          --protocol-params-file #{get_protocol_params} \
+          --protocol-params-file #{get_protocol_params_to_file} \
           --fee #{fee} \
           --tx-out-return-collateral "#{collateral_ret_addr}+#{collateral_utxo_amt - (fee * 1.5).to_i}" \
           --tx-total-collateral #{(fee * 1.5).to_i} \
@@ -110,7 +112,7 @@ class CardanoCli
     txsigned = File.join(@node_state, 'txsigned')
     cmd(%(cardano-cli transaction sign \
            --tx-body-file #{txbody} \
-           --testnet-magic #{get_protocol_magic} \
+           --testnet-magic #{@protocol_magic} \
            --signing-key-file #{keys[:skey]} \
            --out-file #{txsigned}))
     txsigned
@@ -120,7 +122,7 @@ class CardanoCli
     # submit
     cmd(%(cardano-cli transaction submit \
           --tx-file #{txsigned} \
-          --testnet-magic #{get_protocol_magic} ))
+          --testnet-magic #{@protocol_magic} ))
 
     # return tx id
     cmd(%(cardano-cli transaction txid --tx-file #{txsigned})).gsub("\n", '')
