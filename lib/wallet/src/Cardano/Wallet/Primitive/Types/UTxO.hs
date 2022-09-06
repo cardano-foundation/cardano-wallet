@@ -32,6 +32,7 @@ module Cardano.Wallet.Primitive.Types.UTxO
     , restrictedBy
     , restrictedTo
     , difference
+    , intersection
     , partition
     , lookup
     , filter
@@ -151,6 +152,9 @@ balance =
 
 difference :: UTxO -> UTxO -> UTxO
 difference a b = a `excluding` Map.keysSet (unUTxO b)
+
+intersection :: UTxO -> UTxO -> UTxO
+intersection (UTxO a) (UTxO b) = UTxO (a `Map.intersection` b)
 
 -- | Indicates whether a pair of UTxO sets are disjoint.
 --
