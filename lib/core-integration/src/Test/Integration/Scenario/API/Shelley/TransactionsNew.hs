@@ -2214,10 +2214,10 @@ spec = describe "NEW_SHELLEY_TRANSACTIONS" $ do
 
             -- Balance
             let toBalance = Json setup
-            (_, sealedTx) <- second (view #serialisedTxSealed) <$>
+            (_, apiTx1@(ApiSerialisedTransaction sealedTx _)) <-
                 unsafeRequest @ApiSerialisedTransaction ctx balanceEndpoint toBalance
 
-            let decodePayload = Json (toJSON sealedTx)
+            let decodePayload = Json (toJSON apiTx1)
             rDecodedTx <- request @(ApiDecodedTransaction n) ctx
                 (Link.decodeTransaction @'Shelley w) Default decodePayload
             verify rDecodedTx decodeExp
@@ -2226,7 +2226,7 @@ spec = describe "NEW_SHELLEY_TRANSACTIONS" $ do
             let toSign = Json [json|
                     { "transaction": #{sealedTx}
                     , "passphrase": #{fixturePassphrase}
-                    , "hex_output": true
+                    , "encoding": "base16"
                     }|]
             (_, signedTx) <-
                 unsafeRequest @ApiSerialisedTransaction ctx signEndpoint toSign
