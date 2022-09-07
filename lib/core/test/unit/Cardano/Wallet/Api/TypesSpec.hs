@@ -130,6 +130,7 @@ import Cardano.Wallet.Api.Types
     , ApiSelectCoinsAction (..)
     , ApiSelectCoinsData (..)
     , ApiSelectCoinsPayments (..)
+    , ApiSelfWithdrawalPostData (..)
     , ApiSerialisedTransaction (..)
     , ApiSharedWallet (..)
     , ApiSharedWalletPatchData (..)
@@ -2229,7 +2230,7 @@ instance Arbitrary TxMetadataWithSchema where
 instance Arbitrary (ApiConstructTransactionData n) where
     arbitrary = ApiConstructTransactionData
         <$> arbitrary
-        <*> elements [Just SelfWithdrawal]
+        <*> elements [Just SelfWithdraw, Nothing]
         <*> arbitrary
         <*> arbitrary
         <*> arbitrary

@@ -270,6 +270,7 @@ import Cardano.Wallet.Api.Types
     , ApiScriptTemplateEntry (..)
     , ApiSealedTxEncoding (..)
     , ApiSelectCoinsPayments
+    , ApiSelfWithdrawalPostData (..)
     , ApiSerialisedTransaction (..)
     , ApiSharedWallet (..)
     , ApiSharedWalletPatchData (..)
@@ -2383,8 +2384,11 @@ constructTransaction ctx genChange knownPools getPoolStatus (ApiT wid) body = do
     -- FIXME [ADP-1489] mkRewardAccountBuilder does itself read
     -- @currentNodeEra@ which is not guaranteed with the era read here. This
     -- could cause problems under exceptional circumstances.
+    let apiwithdrawal = case body ^. #withdrawal of
+            Just SelfWithdraw -> Just SelfWithdrawal
+            _ -> Nothing
     (wdrl, _) <-
-        mkRewardAccountBuilder @_ @s @_ @n ctx wid (body ^. #withdrawal)
+        mkRewardAccountBuilder @_ @s @_ @n ctx wid apiwithdrawal
 
     withWorkerCtx ctx wid liftE liftE $ \wrk -> do
         pp <- liftIO $ NW.currentProtocolParameters (wrk ^. networkLayer)

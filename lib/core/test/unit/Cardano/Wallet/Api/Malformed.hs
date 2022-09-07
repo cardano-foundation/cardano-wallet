@@ -1552,13 +1552,13 @@ instance Malformed (BodyParam (ApiConstructTransactionData ('Testnet pm))) where
                , "Error in $.metadata: The JSON metadata top level must be a map (JSON object) from word to value."
               )
             , ( [aesonQQ|{ "withdrawal": "slef" }|]
-               , "Error in $.withdrawal: parsing [] failed, expected Array, but encountered String"
+               , "Error in $.withdrawal: empty"
               )
             , ( [aesonQQ|{ "withdrawal": ["self"] }|]
-               , "Error in $.withdrawal: Invalid number of words: 15, 18, 21 or 24 words are expected."
+               , "Error in $.withdrawal: expected String, but encountered Array"
               )
             , ( [aesonQQ|{"withdrawal":["word,","word,","word,","word,","word,","word,","word,","word,","word,","word,","word,","word,","word,","word,","word,"]}|]
-               , "Error in $.withdrawal: Found an unknown word not present in the pre-defined dictionary. The full dictionary is available here: https://github.com/input-output-hk/cardano-wallet/tree/master/specifications/mnemonic/english.txt"
+               , "Error in $.withdrawal: expected String, but encountered Array"
               )
             ]
 

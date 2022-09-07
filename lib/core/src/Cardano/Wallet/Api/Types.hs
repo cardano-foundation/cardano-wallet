@@ -100,6 +100,7 @@ module Cardano.Wallet.Api.Types
     , ApiSerialisedTransaction (..)
     , ApiTransaction (..)
     , ApiWithdrawalPostData (..)
+    , ApiSelfWithdrawalPostData (..)
     , ApiMaintenanceAction (..)
     , ApiMaintenanceActionPostData (..)
     , MaintenanceAction (..)
@@ -1018,7 +1019,7 @@ data ApiMultiDelegationAction
 -- | Input parameters for transaction construction.
 data ApiConstructTransactionData (n :: NetworkDiscriminant) = ApiConstructTransactionData
     { payments :: !(Maybe (ApiPaymentDestination n))
-    , withdrawal :: !(Maybe ApiWithdrawalPostData)
+    , withdrawal :: !(Maybe ApiSelfWithdrawalPostData)
     , metadata :: !(Maybe TxMetadataWithSchema)
     , mintBurn :: !(Maybe (NonEmpty (ApiMintBurnData n)))
     , delegations :: !(Maybe (NonEmpty ApiMultiDelegationAction))
@@ -1397,6 +1398,10 @@ data ApiCoinSelectionWithdrawal n = ApiCoinSelectionWithdrawal
     , amount :: !(Quantity "lovelace" Natural)
     } deriving (Eq, Generic, Show)
       deriving anyclass NFData
+
+data ApiSelfWithdrawalPostData = SelfWithdraw
+    deriving (Eq, Generic, Show)
+    deriving anyclass NFData
 
 data ApiWithdrawalPostData
     = SelfWithdrawal
@@ -3231,6 +3236,14 @@ instance (EncodeAddress t, EncodeStakeAddress t) => ToJSON (ApiConstructTransact
                  , "coin_selection" .= toJSON sel
                  , "fee" .= toJSON fee
                  ]
+
+instance FromJSON ApiSelfWithdrawalPostData where
+    parseJSON obj = do
+        str <- parseJSON obj
+        SelfWithdraw <$ guard (str == ("self" :: String))
+
+instance ToJSON ApiSelfWithdrawalPostData where
+    toJSON SelfWithdraw = toJSON ("self" :: String)
 
 instance FromJSON ApiWithdrawalPostData where
     parseJSON obj =
