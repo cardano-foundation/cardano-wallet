@@ -1758,7 +1758,7 @@ RSpec.describe "Cardano Wallet E2E tests", :all, :e2e do
 
       it "Delegation" do
         balance = get_shared_balances(@wid_sha)
-        expected_deposit = get_key_deposit
+        expected_deposit = CARDANO_CLI.get_protocol_params['stakeAddressDeposit']
         puts "Expected deposit #{expected_deposit}"
 
         # Pick up pool id to join
