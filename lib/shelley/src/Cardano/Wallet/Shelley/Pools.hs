@@ -232,6 +232,7 @@ import qualified Cardano.Pool.DB as PoolDb
 import qualified Cardano.Pool.DB.Sqlite as Pool
 import qualified Cardano.Wallet.Api.Types as Api
 import qualified Cardano.Wallet.Checkpoints.Policy as CP
+import qualified Cardano.Wallet.Primitive.Types.Coin as Coin
 import qualified Cardano.Wallet.Shelley.Network.Blockfrost.Monad as BFM
 import qualified Data.List as L
 import qualified Data.List.NonEmpty as NE
@@ -584,7 +585,7 @@ combineDbAndLsqData ti nOpt lsqData =
         pure $ Api.ApiStakePool
             { Api.id = ApiT pid
             , Api.metrics = Api.ApiStakePoolMetrics
-                { Api.nonMyopicMemberRewards = Api.coinToQuantity prew
+                { Api.nonMyopicMemberRewards = Coin.toQuantity prew
                 , Api.relativeStake = Quantity pstk
                 , Api.saturation = psat
                 , Api.producedBlocks =
@@ -593,9 +594,9 @@ combineDbAndLsqData ti nOpt lsqData =
             , Api.metadata =
                 ApiT <$> metadata dbData
             , Api.cost =
-                Api.coinToQuantity $ poolCost $ registrationCert dbData
+                Coin.toQuantity $ poolCost $ registrationCert dbData
             , Api.pledge =
-                Api.coinToQuantity $ poolPledge $ registrationCert dbData
+                Coin.toQuantity $ poolPledge $ registrationCert dbData
             , Api.margin =
                 Quantity $ poolMargin $ registrationCert dbData
             , Api.retirement =

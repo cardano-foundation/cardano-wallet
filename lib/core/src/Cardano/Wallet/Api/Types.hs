@@ -487,6 +487,7 @@ import Web.HttpApiData
 import qualified Cardano.Crypto.Wallet as CC
 import qualified Cardano.Wallet.Primitive.AddressDerivation as AD
 import qualified Cardano.Wallet.Primitive.Types as W
+import qualified Cardano.Wallet.Primitive.Types.Coin as Coin
 import qualified Cardano.Wallet.Primitive.Types.RewardAccount as W
 import qualified Cardano.Wallet.Primitive.Types.TokenBundle as W
 import qualified Cardano.Wallet.Primitive.Types.TokenMap as TokenMap
@@ -3275,7 +3276,7 @@ instance FromJSON a => FromJSON (AddressAmount a) where
 instance ToJSON (ApiT W.TokenBundle) where
     -- TODO: consider other structures
     toJSON (ApiT (W.TokenBundle c ts)) = object
-        [ "amount" .= coinToQuantity @Word c
+        [ "amount" .= Coin.unsafeToQuantity @Word @"lovelace" c
         , "assets" .= toJSON (ApiT ts)
         ]
 

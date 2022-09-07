@@ -957,9 +957,9 @@ mkShelleyWallet ctx wid cp meta pending progress = do
     pure ApiWallet
         { addressPoolGap = ApiT $ getGap $ getState cp ^. #externalPool
         , balance = ApiWalletBalance
-            { available = coinToQuantity (available ^. #coin)
-            , total = coinToQuantity (total ^. #coin)
-            , reward = coinToQuantity reward
+            { available = Coin.toQuantity (available ^. #coin)
+            , total = Coin.toQuantity (total ^. #coin)
+            , reward = Coin.toQuantity reward
             }
         , assets = ApiWalletAssetsBalance
             { available = ApiT (available ^. #tokens)
@@ -1164,9 +1164,9 @@ mkSharedWallet ctx wid cp meta pending progress = case Shared.ready st of
             , delegationScriptTemplate = Shared.delegationTemplate st
             , delegation = apiDelegation
             , balance = ApiWalletBalance
-                { available = coinToQuantity (available ^. #coin)
-                , total = coinToQuantity (total ^. #coin)
-                , reward = coinToQuantity reward
+                { available = Coin.toQuantity (available ^. #coin)
+                , total = Coin.toQuantity (total ^. #coin)
+                , reward = Coin.toQuantity reward
                 }
             , assets = ApiWalletAssetsBalance
                 { available = ApiT (available ^. #tokens)
@@ -1279,8 +1279,8 @@ mkLegacyWallet ctx wid cp meta pending progress = do
     let total = totalBalance pending (Coin 0) cp
     pure ApiByronWallet
         { balance = ApiByronWalletBalance
-            { available = coinToQuantity $ TokenBundle.getCoin available
-            , total = coinToQuantity $ TokenBundle.getCoin total
+            { available = Coin.toQuantity $ TokenBundle.getCoin available
+            , total = Coin.toQuantity $ TokenBundle.getCoin total
             }
         , assets = ApiWalletAssetsBalance
             { available = ApiT (available ^. #tokens)
@@ -1660,8 +1660,8 @@ getWalletUtxoSnapshot ctx (ApiT wid) = do
     mkApiWalletUtxoSnapshotEntry
         :: (TokenBundle, Coin) -> ApiWalletUtxoSnapshotEntry
     mkApiWalletUtxoSnapshotEntry (bundle, minCoin) = ApiWalletUtxoSnapshotEntry
-        { ada = coinToQuantity $ view #coin bundle
-        , adaMinimum = coinToQuantity minCoin
+        { ada = Coin.toQuantity $ view #coin bundle
+        , adaMinimum = Coin.toQuantity minCoin
         , assets = ApiT $ view #tokens bundle
         }
 
@@ -3444,25 +3444,25 @@ listStakeKeys' utxo lookupStakeRef fetchRewards ourKeysWithInfo = do
         let mkOurs (acc, ix, deleg) = ApiOurStakeKey
                 { _index = ix
                 , _key = (ApiT acc, Proxy)
-                , _rewardBalance = coinToQuantity $
+                , _rewardBalance = Coin.toQuantity $
                     rewards acc
                 , _delegation = deleg
-                , _stake = coinToQuantity $
+                , _stake = Coin.toQuantity $
                     stake (Just acc) <> rewards acc
                 }
 
         let mkForeign acc = ApiForeignStakeKey
                 { _key = (ApiT acc, Proxy)
-                , _rewardBalance = coinToQuantity $
+                , _rewardBalance = Coin.toQuantity $
                     rewards acc
-                , _stake = coinToQuantity $
+                , _stake = Coin.toQuantity $
                     stake (Just acc) <> rewards acc
                 }
 
         let foreignKeys = stakeKeysInUTxO \\ ourKeys
 
         let nullKey = ApiNullStakeKey
-                { _stake = coinToQuantity $ stake Nothing
+                { _stake = Coin.toQuantity $ stake Nothing
                 }
 
         return $ ApiStakeKeys
@@ -3577,7 +3577,7 @@ mkApiWalletMigrationPlan s addresses rewardWithdrawal plan =
             withdrawal (selection {change = []}) s
 
     totalFee :: Quantity "lovelace" Natural
-    totalFee = coinToQuantity $ view #totalFee plan
+    totalFee = Coin.toQuantity $ view #totalFee plan
 
     balanceLeftover :: ApiWalletMigrationBalance
     balanceLeftover = plan
@@ -3600,7 +3600,7 @@ mkApiWalletMigrationPlan s addresses rewardWithdrawal plan =
 
     mkApiWalletMigrationBalance :: TokenBundle -> ApiWalletMigrationBalance
     mkApiWalletMigrationBalance b = ApiWalletMigrationBalance
-        { ada = coinToQuantity $ view #coin b
+        { ada = Coin.toQuantity $ view #coin b
         , assets = ApiT $ view #tokens b
         }
 
@@ -4078,7 +4078,7 @@ mkApiCoinSelection deps refunds mcerts metadata unsignedTx =
             { id = ApiT txid
             , index = index
             , address = (ApiT addr, Proxy @n)
-            , amount = coinToQuantity amount
+            , amount = Coin.toQuantity amount
             , assets = ApiT assets
             , derivationPath = ApiT <$> path
             }
@@ -4086,7 +4086,7 @@ mkApiCoinSelection deps refunds mcerts metadata unsignedTx =
     mkApiCoinSelectionOutput :: output -> ApiCoinSelectionOutput n
     mkApiCoinSelectionOutput (TxOut addr (TokenBundle amount assets)) =
         ApiCoinSelectionOutput (ApiT addr, Proxy @n)
-        (coinToQuantity amount)
+        (Coin.toQuantity amount)
         (ApiT assets)
 
     mkApiCoinSelectionChange :: change -> ApiCoinSelectionChange n
@@ -4095,7 +4095,7 @@ mkApiCoinSelection deps refunds mcerts metadata unsignedTx =
             { address =
                 (ApiT $ view #address txChange, Proxy @n)
             , amount =
-                coinToQuantity $ view #amount txChange
+                Coin.toQuantity $ view #amount txChange
             , assets =
                 ApiT $ view #assets txChange
             , derivationPath =
@@ -4109,7 +4109,7 @@ mkApiCoinSelection deps refunds mcerts metadata unsignedTx =
             { id = ApiT txid
             , index = index
             , address = (ApiT addr, Proxy @n)
-            , amount = coinToQuantity amount
+            , amount = Coin.toQuantity amount
             , derivationPath = ApiT <$> path
             }
 
@@ -4119,7 +4119,7 @@ mkApiCoinSelection deps refunds mcerts metadata unsignedTx =
             { stakeAddress =
                 (ApiT rewardAcct, Proxy @n)
             , amount =
-                coinToQuantity wdrl
+                Coin.toQuantity wdrl
             , derivationPath =
                 ApiT <$> path
             }
