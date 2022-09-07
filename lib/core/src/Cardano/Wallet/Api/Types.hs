@@ -1028,8 +1028,8 @@ data ApiConstructTransactionData (n :: NetworkDiscriminant) = ApiConstructTransa
     } deriving (Eq, Generic, Show, Typeable)
     deriving anyclass NFData
 
-data ApiPaymentDestination (n :: NetworkDiscriminant)
-    = ApiPaymentAddresses !(NonEmpty (AddressAmount (ApiAddressIdT n)))
+newtype ApiPaymentDestination (n :: NetworkDiscriminant)
+    = ApiPaymentAddresses (NonEmpty (AddressAmount (ApiAddressIdT n)))
     -- ^ Pay amounts to one or more addresses.
     deriving (Eq, Generic, Show, Typeable)
     deriving anyclass NFData
@@ -3113,12 +3113,12 @@ instance FromJSON ApiSerialisedTransaction where
 
 instance ToJSON ApiSerialisedTransaction where
     toJSON (ApiSerialisedTransaction tx encoding) =
-        object $ [ "transaction" .= case encoding of
-                         HexEncoded ->
-                             sealedTxBytesValue @'Base16 . getApiT $ tx
-                         Base64Encoded ->
-                             sealedTxBytesValue @'Base64 . getApiT $ tx
-                 ]
+        object [ "transaction" .= case encoding of
+                       HexEncoded ->
+                           sealedTxBytesValue @'Base16 . getApiT $ tx
+                       Base64Encoded ->
+                           sealedTxBytesValue @'Base64 . getApiT $ tx
+               ]
 
 instance FromJSON ApiSignTransactionPostData where
     parseJSON = genericParseJSON strictRecordTypeOptions
@@ -3228,14 +3228,14 @@ instance (DecodeAddress t, DecodeStakeAddress t) => FromJSON (ApiConstructTransa
 
 instance (EncodeAddress t, EncodeStakeAddress t) => ToJSON (ApiConstructTransaction t) where
     toJSON (ApiConstructTransaction (ApiSerialisedTransaction tx encoding) sel fee) =
-        object $ [ "transaction" .= case encoding of
-                         HexEncoded ->
-                             sealedTxBytesValue @'Base16 . getApiT $ tx
-                         Base64Encoded ->
-                             sealedTxBytesValue @'Base64 . getApiT $ tx
-                 , "coin_selection" .= toJSON sel
-                 , "fee" .= toJSON fee
-                 ]
+        object [ "transaction" .= case encoding of
+                       HexEncoded ->
+                           sealedTxBytesValue @'Base16 . getApiT $ tx
+                       Base64Encoded ->
+                           sealedTxBytesValue @'Base64 . getApiT $ tx
+               , "coin_selection" .= toJSON sel
+               , "fee" .= toJSON fee
+               ]
 
 instance FromJSON ApiSelfWithdrawalPostData where
     parseJSON obj = do
