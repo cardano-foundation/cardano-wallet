@@ -237,10 +237,6 @@ module Cardano.Wallet.Api.Types
     , ApiBalanceTransactionPostDataT
     , ApiDecodedTransactionT
 
-    -- * API Type Conversions
-    , coinToQuantity
-    , coinFromQuantity
-
     -- * Others
     , defaultRecordTypeOptions
     , strictRecordTypeOptions
@@ -487,6 +483,7 @@ import Web.HttpApiData
 import qualified Cardano.Crypto.Wallet as CC
 import qualified Cardano.Wallet.Primitive.AddressDerivation as AD
 import qualified Cardano.Wallet.Primitive.Types as W
+import qualified Cardano.Wallet.Primitive.Types.Coin as Coin
 import qualified Cardano.Wallet.Primitive.Types.RewardAccount as W
 import qualified Cardano.Wallet.Primitive.Types.TokenBundle as W
 import qualified Cardano.Wallet.Primitive.Types.TokenMap as TokenMap
@@ -1406,12 +1403,6 @@ data AddressAmountNoAssets addr = AddressAmountNoAssets
     }
     deriving (Eq, Generic, Show)
     deriving anyclass NFData
-
-coinToQuantity :: Integral n => Coin -> Quantity "lovelace" n
-coinToQuantity = Quantity . fromIntegral . unCoin
-
-coinFromQuantity :: Integral n => Quantity "lovelace" n -> Coin
-coinFromQuantity = Coin . fromIntegral . getQuantity
 
 newtype ApiAddressInspect = ApiAddressInspect
     { unApiAddressInspect :: Aeson.Value }
@@ -3267,7 +3258,7 @@ instance FromJSON a => FromJSON (AddressAmount a) where
             <*> v .:? "assets" .!= mempty
       where
         validateCoin q
-            | coinIsValidForTxOut (coinFromQuantity q) = pure q
+            | coinIsValidForTxOut (Coin.fromQuantity q) = pure q
             | otherwise = fail $
                 "invalid coin value: value has to be lower than or equal to "
                 <> show (unCoin txOutMaxCoin) <> " lovelace."
@@ -3275,7 +3266,7 @@ instance FromJSON a => FromJSON (AddressAmount a) where
 instance ToJSON (ApiT W.TokenBundle) where
     -- TODO: consider other structures
     toJSON (ApiT (W.TokenBundle c ts)) = object
-        [ "amount" .= coinToQuantity @Word c
+        [ "amount" .= Coin.unsafeToQuantity @Word c
         , "assets" .= toJSON (ApiT ts)
         ]
 
@@ -3288,7 +3279,7 @@ instance FromJSON (ApiT W.TokenBundle) where
             <*> fmap getApiT (v .: "assets" .!= mempty)
       where
         validateCoin :: Quantity "lovelace" Word64 -> Aeson.Parser Coin
-        validateCoin (coinFromQuantity -> c)
+        validateCoin (Coin.fromQuantity -> c)
             | coinIsValidForTxOut c = pure c
             | otherwise = fail $
                 "invalid coin value: value has to be lower than or equal to "

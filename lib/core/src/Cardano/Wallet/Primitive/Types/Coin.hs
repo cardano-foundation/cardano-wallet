@@ -1,7 +1,10 @@
+{-# LANGUAGE DataKinds #-}
 {-# LANGUAGE DeriveGeneric #-}
 {-# LANGUAGE DerivingVia #-}
 {-# LANGUAGE ExplicitForAll #-}
 {-# LANGUAGE TypeApplications #-}
+{-# LANGUAGE TypeFamilies #-}
+{-# LANGUAGE TypeOperators #-}
 
 -- |
 -- Copyright: © 2018-2020 IOHK
@@ -15,13 +18,15 @@ module Cardano.Wallet.Primitive.Types.Coin
       Coin (..)
 
       -- * Conversions (Safe)
-    , fromIntegral
+    , fromIntegralMaybe
     , fromNatural
+    , fromQuantity
     , fromWord64
     , toInteger
     , toNatural
     , toQuantity
-    , toWord64
+    , toQuantityMaybe
+    , toWord64Maybe
 
       -- * Conversions (Unsafe)
     , unsafeFromIntegral
@@ -54,7 +59,7 @@ import Data.Bits
 import Data.Hashable
     ( Hashable )
 import Data.IntCast
-    ( intCast, intCastMaybe )
+    ( IsIntSubType, intCast, intCastMaybe )
 import Data.List.NonEmpty
     ( NonEmpty (..) )
 import Data.Maybe
@@ -121,13 +126,21 @@ instance Buildable Coin where
 --
 -- Returns 'Nothing' if the given value is negative.
 --
-fromIntegral :: (Bits i, Integral i) => i -> Maybe Coin
-fromIntegral i = Coin <$> intCastMaybe i
+fromIntegralMaybe :: (Bits i, Integral i) => i -> Maybe Coin
+fromIntegralMaybe i = Coin <$> intCastMaybe i
 
 -- | Constructs a 'Coin' from a 'Natural' value.
 --
 fromNatural :: Natural -> Coin
 fromNatural = Coin
+
+-- | Constructs a 'Coin' from a 'Quantity'.
+--
+fromQuantity
+    :: (Integral i, IsIntSubType i Natural ~ 'True)
+    => Quantity "lovelace" i
+    -> Coin
+fromQuantity (Quantity c) = Coin (intCast c)
 
 -- | Constructs a 'Coin' from a 'Word64' value.
 --
@@ -146,19 +159,30 @@ toNatural = unCoin
 
 -- | Converts a 'Coin' to a 'Quantity'.
 --
+toQuantity
+    :: (Integral i, IsIntSubType Natural i ~ 'True)
+    => Coin
+    -> Quantity "lovelace" i
+toQuantity (Coin c) = Quantity (intCast c)
+
+-- | Converts a 'Coin' to a 'Quantity'.
+--
 -- Returns 'Nothing' if the given value does not fit within the bounds of
 -- the target type.
 --
-toQuantity :: (Bits i, Integral i) => Coin -> Maybe (Quantity n i)
-toQuantity (Coin c) = Quantity <$> intCastMaybe c
+toQuantityMaybe
+    :: (Bits i, Integral i)
+    => Coin
+    -> Maybe (Quantity "lovelace" i)
+toQuantityMaybe (Coin c) = Quantity <$> intCastMaybe c
 
 -- | Converts a 'Coin' to a 'Word64' value.
 --
 -- Returns 'Nothing' if the given value does not fit within the bounds of a
 -- 64-bit word.
 --
-toWord64 :: Coin -> Maybe Word64
-toWord64 (Coin c) = intCastMaybe c
+toWord64Maybe :: Coin -> Maybe Word64
+toWord64Maybe (Coin c) = intCastMaybe c
 
 --------------------------------------------------------------------------------
 -- Conversions (Unsafe)
@@ -176,7 +200,7 @@ unsafeFromIntegral
     => (Bits i, Integral i, Show i)
     => i
     -> Coin
-unsafeFromIntegral i = fromMaybe onError (fromIntegral i)
+unsafeFromIntegral i = fromMaybe onError (fromIntegralMaybe i)
   where
     onError =  error $ unwords
         [ "Coin.unsafeFromIntegral:"
@@ -195,8 +219,8 @@ unsafeToQuantity
     :: HasCallStack
     => (Bits i, Integral i)
     => Coin
-    -> Quantity n i
-unsafeToQuantity c = fromMaybe onError (toQuantity c)
+    -> Quantity "lovelace" i
+unsafeToQuantity c = fromMaybe onError (toQuantityMaybe c)
   where
     onError = error $ unwords
         [ "Coin.unsafeToQuantity:"
@@ -212,7 +236,7 @@ unsafeToQuantity c = fromMaybe onError (toQuantity c)
 -- Produces a run-time error if the given value is out of bounds.
 --
 unsafeToWord64 :: HasCallStack => Coin -> Word64
-unsafeToWord64 c = fromMaybe onError (toWord64 c)
+unsafeToWord64 c = fromMaybe onError (toWord64Maybe c)
   where
     onError = error $ unwords
         [ "Coin.unsafeToWord64:"

@@ -473,6 +473,7 @@ import Web.HttpApiData
     ( FromHttpApiData (..) )
 
 import qualified Cardano.Wallet.Api.Types as Api
+import qualified Cardano.Wallet.Primitive.Types.Coin as Coin
 import qualified Data.Aeson as Aeson
 import qualified Data.Aeson.Key as Aeson
 import qualified Data.Aeson.KeyMap as Aeson
@@ -2682,8 +2683,8 @@ instance Arbitrary ApiWalletUtxoSnapshot where
             adaValue2 <- genCoinPositive
             -- The actual ada quantity of an output's token bundle must be
             -- greater than or equal to the minimum permissible ada quantity:
-            let ada = Api.coinToQuantity $ max adaValue1 adaValue2
-            let adaMinimum = Api.coinToQuantity $ min adaValue1 adaValue2
+            let ada = Coin.toQuantity $ max adaValue1 adaValue2
+            let adaMinimum = Coin.toQuantity $ min adaValue1 adaValue2
             assets <- ApiT <$> genTokenMapSmallRange
             pure ApiWalletUtxoSnapshotEntry
                 { ada
