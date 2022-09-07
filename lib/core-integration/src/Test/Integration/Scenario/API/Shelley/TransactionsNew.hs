@@ -34,7 +34,7 @@ import Cardano.Api
 import Cardano.Crypto.DSIGN.Class
     ( rawDeserialiseVerKeyDSIGN )
 import Cardano.Mnemonic
-    ( SomeMnemonic (..), mnemonicToText )
+    ( SomeMnemonic (..) )
 import Cardano.Wallet.Api.Types
     ( AddressAmount (..)
     , ApiAddress (..)
@@ -304,7 +304,7 @@ spec = describe "NEW_SHELLEY_TRANSACTIONS" $ do
             ]
 
         let expectedFee = getFromResponse (#fee . #getQuantity) rTx
-        let apiTx = getFromResponse #transaction rTx
+        let (ApiSerialisedTransaction apiTx _) = getFromResponse #transaction rTx
         signedTx <- signTx ctx wa apiTx [ expectResponseCode HTTP.status202 ]
 
         -- Check for the presence of metadata on signed transaction
@@ -317,7 +317,7 @@ spec = describe "NEW_SHELLEY_TRANSACTIONS" $ do
                             Just m
 
         let era = fromApiEra $ _mainEra ctx
-        let tx = cardanoTxIdeallyNoLaterThan era $ getApiT (signedTx ^. #transaction)
+        let tx = cardanoTxIdeallyNoLaterThan era $ getApiT (signedTx ^. #serialisedTxSealed)
         case getMetadata tx of
             Nothing -> error "Tx doesn't include metadata"
             Just m  -> case Map.lookup 1 m of
@@ -325,9 +325,7 @@ spec = describe "NEW_SHELLEY_TRANSACTIONS" $ do
                 Just (Cardano.TxMetaText "hello") -> pure ()
                 Just _ -> error "Tx metadata incorrect"
 
-        let txCbor =
-                getFromResponse #transaction (HTTP.status202, Right signedTx)
-        let decodePayload = Json (toJSON $ ApiSerialisedTransaction txCbor)
+        let decodePayload = Json (toJSON signedTx)
         let expMetadata =
                 ApiT (TxMetadata (Map.fromList [(1,TxMetaText "hello")]))
         rDecodedTx <- request @(ApiDecodedTransaction n) ctx
@@ -371,7 +369,7 @@ spec = describe "NEW_SHELLEY_TRANSACTIONS" $ do
             ]
 
         let expectedFee = getFromResponse (#fee . #getQuantity) rTx
-        let apiTx = getFromResponse #transaction rTx
+        let (ApiSerialisedTransaction apiTx _) = getFromResponse #transaction rTx
         signedTx <- signTx ctx wa apiTx [ expectResponseCode HTTP.status202 ]
 
         -- Check for the presence of metadata on signed transaction
@@ -384,7 +382,7 @@ spec = describe "NEW_SHELLEY_TRANSACTIONS" $ do
                             Just m
 
         let era = fromApiEra $ _mainEra ctx
-        let tx = cardanoTxIdeallyNoLaterThan era $ getApiT (signedTx ^. #transaction)
+        let tx = cardanoTxIdeallyNoLaterThan era $ getApiT (signedTx ^. #serialisedTxSealed)
         case getMetadata tx of
             Nothing -> error "Tx doesn't include metadata"
             Just m  -> case Map.lookup 1 m of
@@ -392,9 +390,7 @@ spec = describe "NEW_SHELLEY_TRANSACTIONS" $ do
                 Just (Cardano.TxMetaText "hello") -> pure ()
                 Just _ -> error "Tx metadata incorrect"
 
-        let txCbor =
-                getFromResponse #transaction (HTTP.status202, Right signedTx)
-        let decodePayload = Json (toJSON $ ApiSerialisedTransaction txCbor)
+        let decodePayload = Json (toJSON signedTx)
         let expMetadata = ApiT (TxMetadata (Map.fromList [(1,TxMetaText "hello")]))
         rDecodedTx <- request @(ApiDecodedTransaction n) ctx
             (Link.decodeTransaction @'Shelley wa) Default decodePayload
@@ -435,12 +431,11 @@ spec = describe "NEW_SHELLEY_TRANSACTIONS" $ do
             ]
         let expectedFee = getFromResponse (#fee . #getQuantity) rTx
 
-        let apiTx = getFromResponse #transaction rTx
+        let (ApiSerialisedTransaction apiTx _) = getFromResponse #transaction rTx
 
         signedTx <- signTx ctx wa apiTx [ expectResponseCode HTTP.status202 ]
 
-        let txCbor = getFromResponse #transaction (HTTP.status202, Right signedTx)
-        let decodePayload = Json (toJSON $ ApiSerialisedTransaction txCbor)
+        let decodePayload = Json (toJSON signedTx)
         rDecodedTx <- request @(ApiDecodedTransaction n) ctx
             (Link.decodeTransaction @'Shelley wa) Default decodePayload
         verify rDecodedTx
@@ -485,12 +480,11 @@ spec = describe "NEW_SHELLEY_TRANSACTIONS" $ do
             ]
 
         let expectedFee = getFromResponse (#fee . #getQuantity) rTx
-        let apiTx = getFromResponse #transaction rTx
+        let (ApiSerialisedTransaction apiTx _) = getFromResponse #transaction rTx
 
         signedTx <- signTx ctx wa apiTx [ expectResponseCode HTTP.status202 ]
 
-        let txCbor = getFromResponse #transaction (HTTP.status202, Right signedTx)
-        let decodePayload = Json (toJSON $ ApiSerialisedTransaction txCbor)
+        let decodePayload = Json (toJSON signedTx)
         let withdrawalWith ownership wdrls = case wdrls of
                 [wdrl] ->
                     wdrl ^. #amount == Quantity withdrawalAmt &&
@@ -540,58 +534,6 @@ spec = describe "NEW_SHELLEY_TRANSACTIONS" $ do
             , expectField #withdrawals (`shouldSatisfy` (withdrawalWith External))
             ]
 
-    it "TRANS_NEW_CREATE_03b - Withdrawal from external wallet" $ \ctx -> runResourceT $ do
-
-        liftIO $ pendingWith "ADP-1189: Issues with withdrawals from external wallets"
-
-        (wr, mw) <- rewardWallet ctx
-        wa <- fixtureWallet ctx
-        let withdrawal = Json [json|{ "withdrawal": #{mnemonicToText mw} }|]
-        let withdrawalAmt = 1000000000000
-        let rewardInitialBalance = 100_000_000_000
-
-        rTx <- request @(ApiConstructTransaction n) ctx
-            (Link.createUnsignedTransaction @'Shelley wa) Default withdrawal
-        verify rTx
-            [ expectResponseCode HTTP.status202
-            , expectField (#coinSelection . #metadata) (`shouldBe` Nothing)
-            , expectField (#fee . #getQuantity) (`shouldSatisfy` (>0))
-            , expectField (#coinSelection . #withdrawals) (`shouldSatisfy` (not . null))
-            ]
-
-        let expectedFee = getFromResponse (#fee . #getQuantity) rTx
-        let apiTx = getFromResponse #transaction rTx
-
-        signedTx <- signTx ctx wa apiTx [ expectResponseCode HTTP.status202 ]
-
-        submittedTx <- submitTxWithWid ctx wa signedTx
-        verify submittedTx
-            [ expectSuccess
-            , expectResponseCode HTTP.status202
-            ]
-
-        -- Make sure wallet balance is increased by withdrawalAmt - fee
-        eventually "Wallet balance is increased by withdrawalAmt - fee" $ do
-            rWa <- request @ApiWallet ctx
-                (Link.getWallet @'Shelley wa) Default Empty
-            verify rWa
-                [ expectSuccess
-                , expectField
-                        (#balance . #available . #getQuantity)
-                        (`shouldBe` rewardInitialBalance + (withdrawalAmt - fromIntegral expectedFee))
-                ]
-
-        -- Check that reward account is 0 on external rewardWallet,
-        eventually "Reward wallet balance is zero" $ do
-            rWr <- request @ApiWallet ctx
-                (Link.getWallet @'Shelley wr) Default Empty
-            verify rWr
-                [ expectSuccess
-                , expectField
-                        (#balance . #available . #getQuantity)
-                        (`shouldBe` rewardInitialBalance)
-                ]
-
     it "TRANS_NEW_CREATE_04a - Single Output Transaction with decode transaction" $ \ctx -> runResourceT $ do
 
         let initialAmt = 3 * minUTxOValue (_mainEra ctx)
@@ -601,19 +543,27 @@ spec = describe "NEW_SHELLEY_TRANSACTIONS" $ do
 
         payload <- liftIO $ mkTxPayload ctx wb amt
 
+        let expectedCreateTx =
+                [ expectSuccess
+                , expectResponseCode HTTP.status202
+                , expectField (#coinSelection . #inputs) (`shouldSatisfy` (not . null))
+                , expectField (#coinSelection . #outputs) (`shouldSatisfy` (not . null))
+                , expectField (#coinSelection . #change) (`shouldSatisfy` (not . null))
+                , expectField (#fee . #getQuantity) (`shouldSatisfy` (> 0))
+                ]
+
         rTx <- request @(ApiConstructTransaction n) ctx
             (Link.createUnsignedTransaction @'Shelley wa) Default payload
-        verify rTx
-            [ expectSuccess
-            , expectResponseCode HTTP.status202
-            , expectField (#coinSelection . #inputs) (`shouldSatisfy` (not . null))
-            , expectField (#coinSelection . #outputs) (`shouldSatisfy` (not . null))
-            , expectField (#coinSelection . #change) (`shouldSatisfy` (not . null))
-            , expectField (#fee . #getQuantity) (`shouldSatisfy` (> 0))
-            ]
+        verify rTx expectedCreateTx
+
+        payloadHex <- liftIO $ mkTxPayloadHex ctx wb amt
+        rTxHex <- request @(ApiConstructTransaction n) ctx
+            (Link.createUnsignedTransaction @'Shelley wa) Default payloadHex
+        verify rTxHex expectedCreateTx
+
         let expectedFee = getFromResponse (#fee . #getQuantity) rTx
         let txCbor = getFromResponse #transaction rTx
-        let decodePayload = Json (toJSON $ ApiSerialisedTransaction txCbor)
+        let decodePayload = Json (toJSON txCbor)
         let sharedExpectationsBetweenWallets =
                 [ expectResponseCode HTTP.status202
                 , expectField (#fee . #getQuantity) (`shouldBe` expectedFee)
@@ -659,9 +609,30 @@ spec = describe "NEW_SHELLEY_TRANSACTIONS" $ do
             , expectField (#outputs) ((`shouldBe` 1) . length . filter isOutOurs)
             ]
 
+        let txCborHex = getFromResponse #transaction rTxHex
+        let decodePayloadHex = Json (toJSON txCborHex)
+        rDecodedTxSourceHex <- request @(ApiDecodedTransaction n) ctx
+            (Link.decodeTransaction @'Shelley wa) Default decodePayloadHex
+        verify rDecodedTxSourceHex $
+            sharedExpectationsBetweenWallets ++
+            [ expectField #inputs (`shouldSatisfy` areOurs)
+            , expectField #outputs (`shouldNotContain` [expectedTxOutTarget])
+
+            -- Check that the change output is there:
+            , expectField (#outputs) ((`shouldBe` 1) . length . filter isOutOurs)
+            ]
+
         rDecodedTxTarget <- request @(ApiDecodedTransaction n) ctx
             (Link.decodeTransaction @'Shelley wb) Default decodePayload
         verify rDecodedTxTarget $
+            sharedExpectationsBetweenWallets ++
+            [ expectField #inputs (`shouldNotSatisfy` areOurs)
+            , expectField #outputs (`shouldContain` [expectedTxOutTarget])
+            ]
+
+        rDecodedTxTargetHex <- request @(ApiDecodedTransaction n) ctx
+            (Link.decodeTransaction @'Shelley wb) Default decodePayloadHex
+        verify rDecodedTxTargetHex $
             sharedExpectationsBetweenWallets ++
             [ expectField #inputs (`shouldNotSatisfy` areOurs)
             , expectField #outputs (`shouldContain` [expectedTxOutTarget])
@@ -674,7 +645,7 @@ spec = describe "NEW_SHELLEY_TRANSACTIONS" $ do
                 getFromResponse (#coinSelection . #inputs) rTx
         length coinSelInputs `shouldBe` 1
 
-        let apiTx = getFromResponse #transaction rTx
+        let (ApiSerialisedTransaction apiTx _) = getFromResponse #transaction rTx
 
         signedTx <- signTx ctx wa apiTx [ expectResponseCode HTTP.status202 ]
 
@@ -737,8 +708,7 @@ spec = describe "NEW_SHELLEY_TRANSACTIONS" $ do
                 , assets = ApiT TokenMap.empty
                 , derivationPath = derPath
                 }
-        let txCbor' = getFromResponse #transaction (HTTP.status202, Right signedTx)
-        let decodePayload' = Json (toJSON $ ApiSerialisedTransaction txCbor')
+        let decodePayload' = Json (toJSON signedTx)
         rDecodedTxSource' <- request @(ApiDecodedTransaction n) ctx
             (Link.decodeTransaction @'Shelley wa) Default decodePayload'
         verify rDecodedTxSource' $
@@ -769,7 +739,7 @@ spec = describe "NEW_SHELLEY_TRANSACTIONS" $ do
 
         let expectedInputs = getFromResponse (#coinSelection . #inputs) rTx
         let txCbor = getFromResponse #transaction rTx
-        let decodePayload = Json (toJSON $ ApiSerialisedTransaction txCbor)
+        let decodePayload = Json (toJSON txCbor)
 
         rDecodedTxSource <- request @(ApiDecodedTransaction n) ctx
             (Link.decodeTransaction @'Shelley wa) Default decodePayload
@@ -871,7 +841,7 @@ spec = describe "NEW_SHELLEY_TRANSACTIONS" $ do
             ]
 
         let expectedFee = getFromResponse (#fee . #getQuantity) rTx
-        let apiTx = getFromResponse #transaction rTx
+        let (ApiSerialisedTransaction apiTx _) = getFromResponse #transaction rTx
 
         signedTx <- signTx ctx wa apiTx [ expectResponseCode HTTP.status202 ]
 
@@ -921,7 +891,7 @@ spec = describe "NEW_SHELLEY_TRANSACTIONS" $ do
             ]
         let expectedFee = getFromResponse (#fee . #getQuantity) rTx
 
-        let apiTx = getFromResponse #transaction rTx
+        let (ApiSerialisedTransaction apiTx _) = getFromResponse #transaction rTx
 
         signedTx <- signTx ctx wa apiTx [ expectResponseCode HTTP.status202 ]
 
@@ -997,7 +967,7 @@ spec = describe "NEW_SHELLEY_TRANSACTIONS" $ do
             ]
 
         let expectedFee = getFromResponse (#fee . #getQuantity) rTx
-        let apiTx = getFromResponse #transaction rTx
+        let (ApiSerialisedTransaction apiTx _) = getFromResponse #transaction rTx
 
         signedTx <- signTx ctx wa apiTx [ expectResponseCode HTTP.status202 ]
 
@@ -1084,7 +1054,7 @@ spec = describe "NEW_SHELLEY_TRANSACTIONS" $ do
             ]
 
         let expectedFee = getFromResponse (#fee . #getQuantity) rTx
-        let apiTx = getFromResponse #transaction rTx
+        let (ApiSerialisedTransaction apiTx _) = getFromResponse #transaction rTx
 
         signedTx <- signTx ctx wa apiTx [ expectResponseCode HTTP.status202 ]
 
@@ -1187,7 +1157,7 @@ spec = describe "NEW_SHELLEY_TRANSACTIONS" $ do
             [ expectResponseCode HTTP.status202
             ]
 
-        let apiTx = getFromResponse #transaction rTx
+        let (ApiSerialisedTransaction apiTx _) = getFromResponse #transaction rTx
 
         signedTx <- signTx ctx wa apiTx [ expectResponseCode HTTP.status202 ]
 
@@ -1233,16 +1203,14 @@ spec = describe "NEW_SHELLEY_TRANSACTIONS" $ do
         let validityInterval =
                 ValidityIntervalExplicit (Quantity 0) (Quantity $ toSlot + 10)
 
-        let rTxCBOR = getFromResponse #transaction rTx
-        let decodePayload1 = Json (toJSON $ ApiSerialisedTransaction rTxCBOR)
+        let apiTx'@(ApiSerialisedTransaction apiTx _)= getFromResponse #transaction rTx
+        let decodePayload1 = Json (toJSON apiTx')
         rDecodedTx1 <- request @(ApiDecodedTransaction n) ctx
             (Link.decodeTransaction @'Shelley wa) Default decodePayload1
         verify rDecodedTx1
             [ expectResponseCode HTTP.status202
             , expectField #validityInterval (`shouldBe` Just validityInterval)
             ]
-
-        let apiTx = getFromResponse #transaction rTx
 
         signedTx <- signTx ctx wa apiTx [ expectResponseCode HTTP.status202 ]
 
@@ -1755,7 +1723,7 @@ spec = describe "NEW_SHELLEY_TRANSACTIONS" $ do
             [ expectResponseCode HTTP.status202
             ]
 
-        let apiTx = getFromResponse #transaction rTx
+        let apiTx = getFromResponse #serialisedTxSealed rTx
         signedTx <- signTx ctx wa apiTx [ expectResponseCode HTTP.status202 ]
         submittedTx <- submitTxWithWid ctx wa signedTx
         verify submittedTx
@@ -1786,7 +1754,7 @@ spec = describe "NEW_SHELLEY_TRANSACTIONS" $ do
                 <> largestFound
             ]
 
-    it "TRANS_NEW_BALANCE_03 - I can balance base-64 encoded tx" $
+    it "TRANS_NEW_BALANCE_03 - I can balance base-64 encoded tx and return base-64" $
         \ctx -> runResourceT $ do
         wa <- fixtureWallet ctx
         let pingPong1Base64 = Json [json|{
@@ -1801,7 +1769,33 @@ spec = describe "NEW_SHELLEY_TRANSACTIONS" $ do
             , expectResponseCode HTTP.status202
             ]
 
-        let apiTx = getFromResponse #transaction rTx
+        let apiTx = getFromResponse #serialisedTxSealed rTx
+
+        signedTx <- signTx ctx wa apiTx [ expectResponseCode HTTP.status202 ]
+
+        submittedTx <- submitTxWithWid ctx wa signedTx
+        verify submittedTx
+            [ expectSuccess
+            , expectResponseCode HTTP.status202
+            ]
+
+    it "TRANS_NEW_BALANCE_03 - I can balance base-64 encoded tx and return hex" $
+        \ctx -> runResourceT $ do
+        wa <- fixtureWallet ctx
+        let pingPong1Base64 = Json [json|{
+            "transaction": "hKUAgA2AAYGDWB1xTXLPVpozmhin2TAjE5g/VuDZbNRb3LHWUS3KahoAHoSAWCCSORjkA79Dw0tO9rSOsu4Eur7RcyDY0bn/mtCG6G9E7AIADoChBIHYeYD19g==",
+            "redeemers": [],
+            "inputs": [],
+            "hex_output": true
+        }|]
+        rTx <- request @ApiSerialisedTransaction ctx
+            (Link.balanceTransaction @'Shelley wa) Default pingPong1Base64
+        verify rTx
+            [ expectSuccess
+            , expectResponseCode HTTP.status202
+            ]
+
+        let apiTx = getFromResponse #serialisedTxSealed rTx
 
         signedTx <- signTx ctx wa apiTx [ expectResponseCode HTTP.status202 ]
 
@@ -1904,8 +1898,9 @@ spec = describe "NEW_SHELLEY_TRANSACTIONS" $ do
         rTx <- request @ApiSerialisedTransaction ctx
             (Link.balanceTransaction @'Shelley wa) Default balancePayload
         verify rTx [ expectResponseCode HTTP.status202 ]
-        let apiTx = getFromResponse #transaction rTx
-        let decodePayload = Json (toJSON $ ApiSerialisedTransaction apiTx)
+        let apiTx = getFromResponse #serialisedTxSealed rTx
+        let serTx = getFromResponse Prelude.id rTx
+        let decodePayload = Json (toJSON serTx)
 
         rDecodedTx <- request @(ApiDecodedTransaction n) ctx
             (Link.decodeTransaction @'Shelley wa) Default decodePayload
@@ -1939,7 +1934,7 @@ spec = describe "NEW_SHELLEY_TRANSACTIONS" $ do
 
         -- Sign tx
         let toSign = Json [json|
-                { "transaction": #{sealedTx}
+                { "transaction": #{serialisedTxSealed sealedTx}
                 , "passphrase": #{fixturePassphrase}
                 }|]
         let signEndpoint = Link.signTransaction @'Shelley w
@@ -1963,7 +1958,7 @@ spec = describe "NEW_SHELLEY_TRANSACTIONS" $ do
             request @(ApiConstructTransaction n) ctx constructEndpoint Default payload
 
         -- Submit tx
-        submittedTx <- submitTxWithWid ctx w (ApiSerialisedTransaction sealedTx)
+        submittedTx <- submitTxWithWid ctx w sealedTx
         verify submittedTx
             [ expectResponseCode HTTP.status403
             , expectErrorMessage (errMsg403MissingWitsInTransaction 1 0)
@@ -1981,7 +1976,7 @@ spec = describe "NEW_SHELLEY_TRANSACTIONS" $ do
         -- Sign tx
         let sealedTx = apiTx ^. #transaction
             toSign = Json [json|
-                { "transaction": #{sealedTx}
+                { "transaction": #{serialisedTxSealed sealedTx}
                 , "passphrase": #{fixturePassphrase}
                 }|]
         let signEndpoint = Link.signTransaction @'Shelley w
@@ -2001,7 +1996,7 @@ spec = describe "NEW_SHELLEY_TRANSACTIONS" $ do
         -- Construct tx
         payload <- mkTxPayload ctx w $ minUTxOValue (_mainEra ctx)
         let constructEndpoint = Link.createUnsignedTransaction @'Shelley w
-        apiTx <- getFromResponse (#transaction . #getApiT) <$>
+        (ApiSerialisedTransaction (ApiT apiTx) _) <- getFromResponse #transaction <$>
             request @(ApiConstructTransaction n) ctx constructEndpoint Default payload
 
         -- NOTE: Picking a key that is
@@ -2059,7 +2054,7 @@ spec = describe "NEW_SHELLEY_TRANSACTIONS" $ do
 
             -- Sign tx
             let toSign = Json [json|
-                    { "transaction": #{sealedTx}
+                    { "transaction": #{serialisedTxSealed sealedTx}
                     , "passphrase": #{fixturePassphrase}
                     }|]
             let signEndpoint = Link.signTransaction @'Shelley wa
@@ -2091,7 +2086,7 @@ spec = describe "NEW_SHELLEY_TRANSACTIONS" $ do
 
             -- Sign tx
             let toSign = Json [json|
-                    { "transaction": #{sealedTx}
+                    { "transaction": #{serialisedTxSealed sealedTx}
                     , "passphrase": #{fixturePassphrase}
                     }|]
             let signEndpoint = Link.signTransaction @'Shelley wa
@@ -2119,11 +2114,11 @@ spec = describe "NEW_SHELLEY_TRANSACTIONS" $ do
 
         -- Sign tx
         let toSign = Json [json|
-                { "transaction": #{sealedTx}
+                { "transaction": #{serialisedTxSealed sealedTx}
                 , "passphrase": #{fixturePassphrase}
                 }|]
         let signEndpoint = Link.signTransaction @'Shelley wa
-        signedTx <- getFromResponse #transaction <$>
+        signedTx <- getFromResponse #serialisedTxSealed <$>
             request @ApiSerialisedTransaction ctx signEndpoint Default toSign
         let signedTxHex = PlutusScenario.toHex $ serialisedTx $ getApiT signedTx
 
@@ -2219,10 +2214,10 @@ spec = describe "NEW_SHELLEY_TRANSACTIONS" $ do
 
             -- Balance
             let toBalance = Json setup
-            (_, sealedTx) <- second (view #transaction) <$>
+            (_, apiTx1@(ApiSerialisedTransaction sealedTx _)) <-
                 unsafeRequest @ApiSerialisedTransaction ctx balanceEndpoint toBalance
 
-            let decodePayload = Json (toJSON $ ApiSerialisedTransaction sealedTx)
+            let decodePayload = Json (toJSON apiTx1)
             rDecodedTx <- request @(ApiDecodedTransaction n) ctx
                 (Link.decodeTransaction @'Shelley w) Default decodePayload
             verify rDecodedTx decodeExp
@@ -2231,6 +2226,7 @@ spec = describe "NEW_SHELLEY_TRANSACTIONS" $ do
             let toSign = Json [json|
                     { "transaction": #{sealedTx}
                     , "passphrase": #{fixturePassphrase}
+                    , "encoding": "base16"
                     }|]
             (_, signedTx) <-
                 unsafeRequest @ApiSerialisedTransaction ctx signEndpoint toSign
@@ -2251,7 +2247,7 @@ spec = describe "NEW_SHELLEY_TRANSACTIONS" $ do
                     let toBalance' = Json (toJSON partialTx')
 
                     -- Sign
-                    (_, sealedTx') <- second (view #transaction) <$>
+                    (_, sealedTx') <- second (view #serialisedTxSealed) <$>
                         unsafeRequest @ApiSerialisedTransaction ctx balanceEndpoint toBalance'
                     let toSign' = Json [json|
                             { "transaction": #{sealedTx'}
@@ -2297,7 +2293,7 @@ spec = describe "NEW_SHELLEY_TRANSACTIONS" $ do
             , expectField (#coinSelection . #depositsReturned) (`shouldBe` [])
             ]
 
-        let apiTx1 = getFromResponse #transaction rTx1
+        let (ApiSerialisedTransaction apiTx1 _)= getFromResponse #transaction rTx1
         signedTx1 <- signTx ctx src apiTx1 [ expectResponseCode HTTP.status202 ]
 
         -- as we are joining for the first time we expect two certificates
@@ -2313,8 +2309,7 @@ spec = describe "NEW_SHELLEY_TRANSACTIONS" $ do
         let delegatingCert =
                 WalletDelegationCertificate $ JoinPool stakeKeyDerPath pool1
 
-        let txCbor1 = getFromResponse #transaction (HTTP.status202, Right signedTx1)
-        let decodePayload1 = Json (toJSON $ ApiSerialisedTransaction txCbor1)
+        let decodePayload1 = Json (toJSON signedTx1)
         rDecodedTx1 <- request @(ApiDecodedTransaction n) ctx
             (Link.decodeTransaction @'Shelley src) Default decodePayload1
         verify rDecodedTx1
@@ -2389,14 +2384,12 @@ spec = describe "NEW_SHELLEY_TRANSACTIONS" $ do
             , expectField (#coinSelection . #depositsTaken) (`shouldBe` [])
             , expectField (#coinSelection . #depositsReturned) (`shouldBe` [])
             ]
-        let apiTx2 = getFromResponse #transaction rTx2
+        let (ApiSerialisedTransaction apiTx2 _)= getFromResponse #transaction rTx2
         signedTx2 <- signTx ctx src apiTx2 [ expectResponseCode HTTP.status202 ]
         let delegatingCert2 =
                 WalletDelegationCertificate $ JoinPool stakeKeyDerPath pool2
 
-        let txCbor2 =
-                getFromResponse #transaction (HTTP.status202, Right signedTx2)
-        let decodePayload2 = Json (toJSON $ ApiSerialisedTransaction txCbor2)
+        let decodePayload2 = Json (toJSON signedTx2)
         rDecodedTx2 <- request @(ApiDecodedTransaction n) ctx
             (Link.decodeTransaction @'Shelley src) Default decodePayload2
         verify rDecodedTx2
@@ -2508,13 +2501,12 @@ spec = describe "NEW_SHELLEY_TRANSACTIONS" $ do
             , expectField (#coinSelection . #depositsTaken) (`shouldBe` [])
             , expectField (#coinSelection . #depositsReturned) (`shouldBe` [depositAmt])
             ]
-        let apiTx4 = getFromResponse #transaction rTx4
+        let (ApiSerialisedTransaction apiTx4 _) = getFromResponse #transaction rTx4
         signedTx4 <- signTx ctx src apiTx4 [ expectResponseCode HTTP.status202 ]
         let quittingCert =
                 WalletDelegationCertificate $ QuitPool stakeKeyDerPath
 
-        let txCbor4 = getFromResponse #transaction (HTTP.status202, Right signedTx4)
-        let decodePayload4 = Json (toJSON $ ApiSerialisedTransaction txCbor4)
+        let decodePayload4 = Json (toJSON signedTx4)
         rDecodedTx4 <- request @(ApiDecodedTransaction n) ctx
             (Link.decodeTransaction @'Shelley src) Default decodePayload4
         verify rDecodedTx4
@@ -2656,7 +2648,7 @@ spec = describe "NEW_SHELLEY_TRANSACTIONS" $ do
             }|]
         rTx1 <- request @(ApiConstructTransaction n) ctx
             (Link.createUnsignedTransaction @'Shelley src) Default delegationJoin
-        let apiTx1 = getFromResponse #transaction rTx1
+        let (ApiSerialisedTransaction apiTx1 _)= getFromResponse #transaction rTx1
         signedTx1 <- signTx ctx src apiTx1 [ expectResponseCode HTTP.status202 ]
         submittedTx1 <- submitTxWithWid ctx src signedTx1
         verify submittedTx1
@@ -2742,7 +2734,7 @@ spec = describe "NEW_SHELLEY_TRANSACTIONS" $ do
             (Link.createUnsignedTransaction @'Shelley wa) Default payload
         verify rTx [ expectSuccess ]
 
-        let apiTx = getFromResponse #transaction rTx
+        let (ApiSerialisedTransaction apiTx _) = getFromResponse #transaction rTx
         signedTx <- signTx ctx wa apiTx [ expectResponseCode HTTP.status202 ]
 
         submittedTx <- submitTxWithWid ctx wa signedTx
@@ -2779,11 +2771,10 @@ spec = describe "NEW_SHELLEY_TRANSACTIONS" $ do
             , expectField (#coinSelection . #depositsReturned) (`shouldBe` [])
             ]
 
-        let apiTx1 = getFromResponse #transaction rTx1
+        let (ApiSerialisedTransaction apiTx1 _) = getFromResponse #transaction rTx1
         signedTx1 <- signTx ctx src apiTx1 [ expectResponseCode HTTP.status202 ]
 
-        let txCbor1 = getFromResponse #transaction (HTTP.status202, Right signedTx1)
-        let decodePayload1 = Json (toJSON $ ApiSerialisedTransaction txCbor1)
+        let decodePayload1 = Json (toJSON signedTx1)
         rDecodedTx1 <- request @(ApiDecodedTransaction n) ctx
             (Link.decodeTransaction @'Shelley src) Default decodePayload1
         verify rDecodedTx1
@@ -2845,7 +2836,7 @@ spec = describe "NEW_SHELLEY_TRANSACTIONS" $ do
                     }
                 }]
             }|]
-        unsignedTx1 <- view #transaction . snd
+        (ApiSerialisedTransaction unsignedTx1 _) <- view #transaction . snd
             <$> unsafeRequest @(ApiConstructTransaction n) ctx
             (Link.createUnsignedTransaction @'Shelley w) payload
         signedTx1 <- signTx ctx w unsignedTx1 [ expectResponseCode HTTP.status202 ]
@@ -2888,7 +2879,8 @@ spec = describe "NEW_SHELLEY_TRANSACTIONS" $ do
             }|]
         rUnsignedTx1 <- request @(ApiConstructTransaction n) ctx
             (Link.createUnsignedTransaction @'Shelley w) Default payload
-        let unsignedTx1 = getFromResponse #transaction rUnsignedTx1
+        let (ApiSerialisedTransaction unsignedTx1 _) =
+                getFromResponse #transaction rUnsignedTx1
         verify rUnsignedTx1
             [ expectField (#coinSelection . #depositsReturned)
                 (`shouldBe` [])
@@ -2913,7 +2905,8 @@ spec = describe "NEW_SHELLEY_TRANSACTIONS" $ do
             }|]
         rUnsignedTx2 <- request @(ApiConstructTransaction n) ctx
             (Link.createUnsignedTransaction @'Shelley w) Default payload2
-        let unsignedTx2 = getFromResponse #transaction rUnsignedTx2
+        let (ApiSerialisedTransaction unsignedTx2 _) =
+                getFromResponse #transaction rUnsignedTx2
         verify rUnsignedTx2
             [ expectField (#coinSelection . #depositsReturned)
                 (`shouldBe` [Quantity 1000000])
@@ -2999,7 +2992,7 @@ spec = describe "NEW_SHELLEY_TRANSACTIONS" $ do
         let expectedFee = getFromResponse (#fee . #getQuantity) rTx
 
         -- Sign tx
-        let apiTx = getFromResponse #transaction rTx
+        let (ApiSerialisedTransaction apiTx _) = getFromResponse #transaction rTx
         signedTx <- signTx ctx wa apiTx [ expectResponseCode HTTP.status202 ]
         -- Submit tx
         submittedTx <- submitTxWithWid ctx wa signedTx
@@ -3566,7 +3559,8 @@ spec = describe "NEW_SHELLEY_TRANSACTIONS" $ do
             rTx <- request @(ApiConstructTransaction n) ctx
                 (Link.createUnsignedTransaction @'Shelley w) Default payloadMint
             verify rTx [ expectResponseCode HTTP.status202 ]
-            let apiTx = getFromResponse #transaction rTx
+            let (ApiSerialisedTransaction apiTx _) =
+                    getFromResponse #transaction rTx
             signedTx <- signTx ctx w apiTx [ expectResponseCode HTTP.status202 ]
             submittedTx <- submitTxWithWid ctx w signedTx
             verify submittedTx [ expectResponseCode HTTP.status202 ]
@@ -3616,7 +3610,8 @@ spec = describe "NEW_SHELLEY_TRANSACTIONS" $ do
             rTx2 <- request @(ApiConstructTransaction n) ctx
                 (Link.createUnsignedTransaction @'Shelley w) Default payloadBurn
             verify rTx2 [ expectResponseCode HTTP.status202 ]
-            let apiTx2 = getFromResponse #transaction rTx2
+            let (ApiSerialisedTransaction apiTx2 _) =
+                     getFromResponse #transaction rTx2
             signedTx2 <- signTx ctx w apiTx2 [ expectResponseCode HTTP.status202 ]
             submittedTx2 <- submitTxWithWid ctx w signedTx2
             verify submittedTx2 [ expectResponseCode HTTP.status202 ]
@@ -3834,6 +3829,26 @@ spec = describe "NEW_SHELLEY_TRANSACTIONS" $ do
                         "unit": "lovelace"
                     }
                 }]
+            }|]
+
+    mkTxPayloadHex
+        :: MonadUnliftIO m
+        => Context
+        -> ApiWallet
+        -> Natural
+        -> m Payload
+    mkTxPayloadHex ctx wDest amt = do
+        addrs <- listAddresses @n ctx wDest
+        let destination = (addrs !! 1) ^. #id
+        return $ Json [json|{
+                "payments": [{
+                    "address": #{destination},
+                    "amount": {
+                        "quantity": #{amt},
+                        "unit": "lovelace"
+                    }
+                }],
+                "hex_output": true
             }|]
 
     -- Like mkTxPayload, except that assets are included in the payment.
@@ -4177,7 +4192,7 @@ spec = describe "NEW_SHELLEY_TRANSACTIONS" $ do
             ]
 
         let txCbor1 = getFromResponse #transaction rTx
-        let decodePayload1 = Json (toJSON $ ApiSerialisedTransaction txCbor1)
+        let decodePayload1 = Json (toJSON txCbor1)
 
         let policyWithHash = Link.getPolicyKey @'Shelley wa (Just True)
         (_, policyKeyHashPayload) <-
@@ -4236,11 +4251,9 @@ spec = describe "NEW_SHELLEY_TRANSACTIONS" $ do
             , expectField #burn (`shouldBe` inactiveAssetsInfo)
             ]
 
-        let apiTx = getFromResponse #transaction rTx
+        let (ApiSerialisedTransaction apiTx _) = getFromResponse #transaction rTx
         signedTx <- signTx ctx wa apiTx [ expectResponseCode HTTP.status202 ]
-        let txCbor2 =
-                getFromResponse #transaction (HTTP.status202, Right signedTx)
-        let decodePayload2 = Json (toJSON $ ApiSerialisedTransaction txCbor2)
+        let decodePayload2 = Json (toJSON signedTx)
         rDecodedTx2 <- request @(ApiDecodedTransaction n) ctx
             (Link.decodeTransaction @'Shelley wa) Default decodePayload2
         verify rDecodedTx2
@@ -4306,7 +4319,7 @@ spec = describe "NEW_SHELLEY_TRANSACTIONS" $ do
             ]
 
         let txCbor = getFromResponse #transaction rTx
-        let decodePayload = Json (toJSON $ ApiSerialisedTransaction txCbor)
+        let decodePayload = Json (toJSON txCbor)
 
         let policyWithHash = Link.getPolicyKey @'Shelley wa (Just True)
         (_, policyKeyHashPayload) <-
@@ -4350,11 +4363,10 @@ spec = describe "NEW_SHELLEY_TRANSACTIONS" $ do
             , expectField #burn (`shouldBe` inactiveAssetsInfo)
             ]
 
-        let apiTx = getFromResponse #transaction rTx
+        let (ApiSerialisedTransaction apiTx _) =
+                getFromResponse #transaction rTx
         signedTx <- signTx ctx wa apiTx [ expectResponseCode HTTP.status202 ]
-        let txCbor2 =
-                getFromResponse #transaction (HTTP.status202, Right signedTx)
-        let decodePayload2 = Json (toJSON $ ApiSerialisedTransaction txCbor2)
+        let decodePayload2 = Json (toJSON signedTx)
         rDecodedTx2 <- request @(ApiDecodedTransaction n) ctx
             (Link.decodeTransaction @'Shelley wa) Default decodePayload2
         verify rDecodedTx2

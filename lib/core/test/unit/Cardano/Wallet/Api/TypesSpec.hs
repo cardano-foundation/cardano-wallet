@@ -126,9 +126,11 @@ import Cardano.Wallet.Api.Types
     , ApiRedeemer (..)
     , ApiRegisterPool (..)
     , ApiScriptTemplateEntry (..)
+    , ApiSealedTxEncoding (..)
     , ApiSelectCoinsAction (..)
     , ApiSelectCoinsData (..)
     , ApiSelectCoinsPayments (..)
+    , ApiSelfWithdrawalPostData (..)
     , ApiSerialisedTransaction (..)
     , ApiSharedWallet (..)
     , ApiSharedWalletPatchData (..)
@@ -1146,6 +1148,7 @@ spec = parallel $ do
                 x' = ApiSignTransactionPostData
                     { transaction = transaction (x :: ApiSignTransactionPostData)
                     , passphrase = passphrase (x :: ApiSignTransactionPostData)
+                    , encoding = encoding (x :: ApiSignTransactionPostData)
                     }
             in
                 x' === x .&&. show x' === show x
@@ -1176,6 +1179,7 @@ spec = parallel $ do
                     { transaction = transaction (x :: ApiBalanceTransactionPostData ('Testnet 0))
                     , inputs = inputs (x :: ApiBalanceTransactionPostData ('Testnet 0))
                     , redeemers = redeemers (x :: ApiBalanceTransactionPostData ('Testnet 0))
+                    , encoding = encoding (x :: ApiBalanceTransactionPostData ('Testnet 0))
                     }
             in
                 x' === x .&&. show x' === show x
@@ -1235,6 +1239,8 @@ spec = parallel $ do
                     , delegations = delegations
                         (x :: ApiConstructTransactionData ('Testnet 0))
                     , validityInterval = validityInterval
+                        (x :: ApiConstructTransactionData ('Testnet 0))
+                    , encoding = encoding
                         (x :: ApiConstructTransactionData ('Testnet 0))
                     }
             in
@@ -2206,6 +2212,7 @@ instance Arbitrary ApiSignTransactionPostData where
     arbitrary = ApiSignTransactionPostData
         <$> arbitrary
         <*> arbitrary
+        <*> elements [Just HexEncoded, Just Base64Encoded, Nothing]
 
 instance Arbitrary (PostTransactionOldData n) where
     arbitrary = PostTransactionOldData
@@ -2223,11 +2230,12 @@ instance Arbitrary TxMetadataWithSchema where
 instance Arbitrary (ApiConstructTransactionData n) where
     arbitrary = ApiConstructTransactionData
         <$> arbitrary
-        <*> elements [Just SelfWithdrawal]
+        <*> elements [Just SelfWithdraw, Nothing]
         <*> arbitrary
         <*> arbitrary
         <*> arbitrary
         <*> pure Nothing
+        <*> elements [Just HexEncoded, Just Base64Encoded, Nothing]
 
 instance Arbitrary (ApiExternalInput n) where
     arbitrary = ApiExternalInput
@@ -2243,6 +2251,7 @@ instance Arbitrary (ApiBalanceTransactionPostData n) where
         <$> arbitrary
         <*> arbitrary
         <*> arbitrary
+        <*> elements [Just HexEncoded, Just Base64Encoded, Nothing]
 
 instance Arbitrary (ApiRedeemer n) where
     arbitrary = oneof
@@ -2355,6 +2364,9 @@ instance Arbitrary StakeAddress where
             (proxyToAsType Proxy)
             (header <> payload)
 
+instance Arbitrary ApiSealedTxEncoding where
+    arbitrary = elements [HexEncoded, Base64Encoded]
+
 instance Arbitrary (ApiConstructTransaction n) where
     arbitrary = applyArbitrary3 ApiConstructTransaction
 
@@ -2445,9 +2457,7 @@ instance Arbitrary (ApiMintData n) where
     arbitrary = ApiMintData <$> arbitrary <*> arbitrary
 
 instance Arbitrary (ApiPaymentDestination n) where
-    arbitrary = oneof
-        [ ApiPaymentAddresses <$> arbitrary
-        , ApiPaymentAll <$> arbitrary]
+    arbitrary = ApiPaymentAddresses <$> arbitrary
 
 instance Arbitrary ApiBurnData where
     arbitrary = ApiBurnData <$> arbitrary

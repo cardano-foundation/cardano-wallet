@@ -1418,23 +1418,23 @@ instance Malformed (BodyParam ApiSerialisedTransaction) where
     malformed = jsonValid ++ jsonInvalid
      where
          jsonInvalid = first BodyParam <$>
-            [ ("1020344", "Error in $: parsing Cardano.Wallet.Api.Types.ApiSerialisedTransaction(ApiSerialisedTransaction) failed, expected Object, but encountered Number")
-            , ("\"hello\"", "Error in $: parsing Cardano.Wallet.Api.Types.ApiSerialisedTransaction(ApiSerialisedTransaction) failed, expected Object, but encountered String")
+            [ ("1020344", "Error in $: parsing ApiSerialisedTransaction object failed, expected Object, but encountered Number")
+            , ("\"hello\"", "Error in $: parsing ApiSerialisedTransaction object failed, expected Object, but encountered String")
             , ("{\"transaction\": \"\", \"random\"}", msgJsonInvalid)
-            , ("{\"transaction\": 1020344}", "Error in $.transaction: parsing 'Base64 ByteString failed, expected String, but encountered Number")
-            , ("{\"transaction\": { \"body\": 1020344 }}", "Error in $.transaction: parsing 'Base64 ByteString failed, expected String, but encountered Object")
+            , ("{\"transaction\": 1020344}", "Error in $: parsing 'Base64 ByteString failed, expected String, but encountered Number")
+            , ("{\"transaction\": { \"body\": 1020344 }}", "Error in $: parsing 'Base64 ByteString failed, expected String, but encountered Object")
             ]
          jsonValid = first (BodyParam . Aeson.encode) <$>
             [
               ( [aesonQQ|
                 { "transaction": "!!!"
                 }|]
-              , "Error in $.transaction: Parse error. Expecting Base64-encoded format."
+              , "Error in $: Parse error. Expecting Base64-encoded format."
               )
             , ( [aesonQQ|
                { "transaction": "cafecafe"
                }|]
-               , "Error in $.transaction: Deserialisation failure while decoding Shelley Tx. CBOR failed with error: DeserialiseFailure 0 'expected list len or indef'"
+               , "Error in $: Deserialisation failure while decoding Shelley Tx. CBOR failed with error: DeserialiseFailure 0 'expected list len or indef'"
               )
             ]
 
@@ -1552,13 +1552,13 @@ instance Malformed (BodyParam (ApiConstructTransactionData ('Testnet pm))) where
                , "Error in $.metadata: The JSON metadata top level must be a map (JSON object) from word to value."
               )
             , ( [aesonQQ|{ "withdrawal": "slef" }|]
-               , "Error in $.withdrawal: parsing [] failed, expected Array, but encountered String"
+               , "Error in $.withdrawal: empty"
               )
             , ( [aesonQQ|{ "withdrawal": ["self"] }|]
-               , "Error in $.withdrawal: Invalid number of words: 15, 18, 21 or 24 words are expected."
+               , "Error in $.withdrawal: expected String, but encountered Array"
               )
             , ( [aesonQQ|{"withdrawal":["word,","word,","word,","word,","word,","word,","word,","word,","word,","word,","word,","word,","word,","word,","word,"]}|]
-               , "Error in $.withdrawal: Found an unknown word not present in the pre-defined dictionary. The full dictionary is available here: https://github.com/input-output-hk/cardano-wallet/tree/master/specifications/mnemonic/english.txt"
+               , "Error in $.withdrawal: expected String, but encountered Array"
               )
             ]
 

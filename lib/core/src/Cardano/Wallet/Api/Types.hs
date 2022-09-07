@@ -100,6 +100,7 @@ module Cardano.Wallet.Api.Types
     , ApiSerialisedTransaction (..)
     , ApiTransaction (..)
     , ApiWithdrawalPostData (..)
+    , ApiSelfWithdrawalPostData (..)
     , ApiMaintenanceAction (..)
     , ApiMaintenanceActionPostData (..)
     , MaintenanceAction (..)
@@ -159,6 +160,7 @@ module Cardano.Wallet.Api.Types
     , ApiPostAccountKeyData (..)
     , ApiPostAccountKeyDataWithPurpose (..)
     , ApiConstructTransaction (..)
+    , ApiSealedTxEncoding (..)
     , ApiConstructTransactionData (..)
     , ApiMultiDelegationAction (..)
     , ApiStakeKeyIndex (..)
@@ -969,8 +971,31 @@ data ByronWalletPutPassphraseData = ByronWalletPutPassphraseData
     , newPassphrase :: !(ApiT (Passphrase "user"))
     } deriving (Eq, Generic, Show)
 
+data ApiSealedTxEncoding = HexEncoded | Base64Encoded
+      deriving (Eq, Generic, Show)
+      deriving anyclass NFData
+
+instance ToText ApiSealedTxEncoding where
+    toText HexEncoded = "base16"
+    toText Base64Encoded = "base64"
+
+instance FromText ApiSealedTxEncoding where
+    fromText txt = case txt of
+        "base16" -> Right HexEncoded
+        "base64" -> Right Base64Encoded
+        _ -> Left $ TextDecodingError $ unwords
+            [ "I couldn't parse the given sealed tx encoding."
+            , "I am expecting one of the words 'base16' or"
+            , "'base64'."]
+
+instance FromJSON ApiSealedTxEncoding where
+    parseJSON =
+        parseJSON >=> eitherToParser . first ShowFmt . fromText
+instance ToJSON ApiSealedTxEncoding where
+    toJSON = toJSON . toText
+
 data ApiConstructTransaction (n :: NetworkDiscriminant) = ApiConstructTransaction
-    { transaction :: !(ApiT SealedTx)
+    { transaction :: !ApiSerialisedTransaction
     , coinSelection :: !(ApiCoinSelection n)
     , fee :: !(Quantity "lovelace" Natural)
     } deriving (Eq, Generic, Show, Typeable)
@@ -994,19 +1019,18 @@ data ApiMultiDelegationAction
 -- | Input parameters for transaction construction.
 data ApiConstructTransactionData (n :: NetworkDiscriminant) = ApiConstructTransactionData
     { payments :: !(Maybe (ApiPaymentDestination n))
-    , withdrawal :: !(Maybe ApiWithdrawalPostData)
+    , withdrawal :: !(Maybe ApiSelfWithdrawalPostData)
     , metadata :: !(Maybe TxMetadataWithSchema)
     , mintBurn :: !(Maybe (NonEmpty (ApiMintBurnData n)))
     , delegations :: !(Maybe (NonEmpty ApiMultiDelegationAction))
     , validityInterval :: !(Maybe ApiValidityInterval)
+    , encoding :: !(Maybe ApiSealedTxEncoding)
     } deriving (Eq, Generic, Show, Typeable)
     deriving anyclass NFData
 
-data ApiPaymentDestination (n :: NetworkDiscriminant)
-    = ApiPaymentAddresses !(NonEmpty (AddressAmount (ApiAddressIdT n)))
+newtype ApiPaymentDestination (n :: NetworkDiscriminant)
+    = ApiPaymentAddresses (NonEmpty (AddressAmount (ApiAddressIdT n)))
     -- ^ Pay amounts to one or more addresses.
-    | ApiPaymentAll !(NonEmpty  (ApiT Address, Proxy n))
-    -- ^ Migrate all money to one or more addresses.
     deriving (Eq, Generic, Show, Typeable)
     deriving anyclass NFData
 
@@ -1033,6 +1057,7 @@ data ApiValidityBound
 data ApiSignTransactionPostData = ApiSignTransactionPostData
     { transaction :: !(ApiT SealedTx)
     , passphrase :: !(ApiT (Passphrase "lenient"))
+    , encoding :: !(Maybe ApiSealedTxEncoding)
     } deriving (Eq, Generic, Show)
 
 -- | Legacy transaction API.
@@ -1054,8 +1079,9 @@ data PostTransactionFeeOldData (n :: NetworkDiscriminant) = PostTransactionFeeOl
 
 type ApiBase64 = ApiBytesT 'Base64 ByteString
 
-newtype ApiSerialisedTransaction = ApiSerialisedTransaction
-    { transaction :: ApiT SealedTx
+data ApiSerialisedTransaction = ApiSerialisedTransaction
+    { serialisedTxSealed :: ApiT SealedTx
+    , serialisedTxEncoding :: ApiSealedTxEncoding
     } deriving stock (Eq, Generic, Show)
       deriving anyclass (NFData)
 
@@ -1073,6 +1099,7 @@ data ApiBalanceTransactionPostData (n :: NetworkDiscriminant) = ApiBalanceTransa
     { transaction :: !(ApiT SealedTx)
     , inputs :: ![ApiExternalInput n]
     , redeemers :: ![ApiRedeemer n]
+    , encoding :: !(Maybe ApiSealedTxEncoding)
     } deriving (Eq, Generic, Show)
 
 type ApiRedeemerData = ApiBytesT 'Base16 ByteString
@@ -1371,6 +1398,10 @@ data ApiCoinSelectionWithdrawal n = ApiCoinSelectionWithdrawal
     , amount :: !(Quantity "lovelace" Natural)
     } deriving (Eq, Generic, Show)
       deriving anyclass NFData
+
+data ApiSelfWithdrawalPostData = SelfWithdraw
+    deriving (Eq, Generic, Show)
+    deriving anyclass NFData
 
 data ApiWithdrawalPostData
     = SelfWithdrawal
@@ -3074,9 +3105,20 @@ sealedTxBytesValue :: forall (base :: Base). HasBase base => SealedTx -> Value
 sealedTxBytesValue = toJSON . ApiBytesT @base . view #serialisedTx
 
 instance FromJSON ApiSerialisedTransaction where
-    parseJSON = genericParseJSON defaultRecordTypeOptions
+    parseJSON = withObject "ApiSerialisedTransaction object" $ \o -> do
+        txTxt <- o .: "transaction"
+        (tx, enc) <- (,HexEncoded) <$> parseSealedTxBytes @'Base16 txTxt <|>
+              (,Base64Encoded) <$> parseSealedTxBytes @'Base64 txTxt
+        pure $ ApiSerialisedTransaction (ApiT tx) enc
+
 instance ToJSON ApiSerialisedTransaction where
-    toJSON = genericToJSON defaultRecordTypeOptions
+    toJSON (ApiSerialisedTransaction tx encoding) =
+        object [ "transaction" .= case encoding of
+                       HexEncoded ->
+                           sealedTxBytesValue @'Base16 . getApiT $ tx
+                       Base64Encoded ->
+                           sealedTxBytesValue @'Base64 . getApiT $ tx
+               ]
 
 instance FromJSON ApiSignTransactionPostData where
     parseJSON = genericParseJSON strictRecordTypeOptions
@@ -3089,14 +3131,12 @@ instance EncodeAddress t => ToJSON (PostTransactionOldData t) where
     toJSON = genericToJSON defaultRecordTypeOptions
 
 instance DecodeAddress t => FromJSON (ApiPaymentDestination t) where
-    parseJSON obj = parseAll <|> parseAddrs
+    parseJSON obj = parseAddrs
       where
-        parseAll = ApiPaymentAll <$> parseJSON obj
         parseAddrs = ApiPaymentAddresses <$> parseJSON obj
 
 instance EncodeAddress t => ToJSON (ApiPaymentDestination t) where
     toJSON (ApiPaymentAddresses addrs) = toJSON addrs
-    toJSON (ApiPaymentAll addrs) = toJSON addrs
 
 instance DecodeAddress t => FromJSON (ApiConstructTransactionData t) where
     parseJSON = genericParseJSON defaultRecordTypeOptions
@@ -3178,9 +3218,32 @@ instance FromJSON ApiValidityInterval where
     parseJSON = genericParseJSON defaultRecordTypeOptions
 
 instance (DecodeAddress t, DecodeStakeAddress t) => FromJSON (ApiConstructTransaction t) where
-    parseJSON = genericParseJSON defaultRecordTypeOptions
+    parseJSON = withObject "ApiConstructTransaction object" $ \o -> do
+        txTxt <- o .: "transaction"
+        (tx, enc) <- (,HexEncoded) <$> parseSealedTxBytes @'Base16 txTxt <|>
+            (,Base64Encoded) <$> parseSealedTxBytes @'Base64 txTxt
+        sel <- o .: "coin_selection"
+        fee <- o .: "fee"
+        pure $ ApiConstructTransaction (ApiSerialisedTransaction (ApiT tx) enc) sel fee
+
 instance (EncodeAddress t, EncodeStakeAddress t) => ToJSON (ApiConstructTransaction t) where
-    toJSON = genericToJSON defaultRecordTypeOptions
+    toJSON (ApiConstructTransaction (ApiSerialisedTransaction tx encoding) sel fee) =
+        object [ "transaction" .= case encoding of
+                       HexEncoded ->
+                           sealedTxBytesValue @'Base16 . getApiT $ tx
+                       Base64Encoded ->
+                           sealedTxBytesValue @'Base64 . getApiT $ tx
+               , "coin_selection" .= toJSON sel
+               , "fee" .= toJSON fee
+               ]
+
+instance FromJSON ApiSelfWithdrawalPostData where
+    parseJSON obj = do
+        str <- parseJSON obj
+        SelfWithdraw <$ guard (str == ("self" :: String))
+
+instance ToJSON ApiSelfWithdrawalPostData where
+    toJSON SelfWithdraw = toJSON ("self" :: String)
 
 instance FromJSON ApiWithdrawalPostData where
     parseJSON obj =
@@ -3959,7 +4022,7 @@ instance ToText a => ToHttpApiData (ApiT a) where
     toUrlPiece = toText . getApiT
 
 instance MimeRender OctetStream ApiSerialisedTransaction where
-   mimeRender ct = mimeRender ct . view #transaction
+   mimeRender ct = mimeRender ct . view #serialisedTxSealed
 
 instance FromHttpApiData ApiTxId where
     parseUrlPiece txt = case fromText txt of

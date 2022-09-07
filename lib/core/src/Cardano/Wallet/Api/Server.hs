@@ -268,7 +268,9 @@ import Cardano.Wallet.Api.Types
     , ApiRedeemer (..)
     , ApiRegisterPool (..)
     , ApiScriptTemplateEntry (..)
+    , ApiSealedTxEncoding (..)
     , ApiSelectCoinsPayments
+    , ApiSelfWithdrawalPostData (..)
     , ApiSerialisedTransaction (..)
     , ApiSharedWallet (..)
     , ApiSharedWalletPatchData (..)
@@ -2036,9 +2038,9 @@ signTransaction ctx (ApiT wid) body = do
     -- TODO: The body+witnesses seem redundant with the sealedTx already. What's
     -- the use-case for having them provided separately? In the end, the client
     -- should be able to decouple them if they need to.
-    pure $ Api.ApiSerialisedTransaction
-        { transaction = ApiT sealedTx'
-        }
+    case body ^. #encoding of
+        Just HexEncoded -> pure $ ApiSerialisedTransaction (ApiT sealedTx') HexEncoded
+        _ -> pure $ ApiSerialisedTransaction (ApiT sealedTx') Base64Encoded
 
 postTransactionOld
     :: forall ctx s k n.
@@ -2382,8 +2384,11 @@ constructTransaction ctx genChange knownPools getPoolStatus (ApiT wid) body = do
     -- FIXME [ADP-1489] mkRewardAccountBuilder does itself read
     -- @currentNodeEra@ which is not guaranteed with the era read here. This
     -- could cause problems under exceptional circumstances.
+    let apiwithdrawal = case body ^. #withdrawal of
+            Just SelfWithdraw -> Just SelfWithdrawal
+            _ -> Nothing
     (wdrl, _) <-
-        mkRewardAccountBuilder @_ @s @_ @n ctx wid (body ^. #withdrawal)
+        mkRewardAccountBuilder @_ @s @_ @n ctx wid apiwithdrawal
 
     withWorkerCtx ctx wid liftE liftE $ \wrk -> do
         pp <- liftIO $ NW.currentProtocolParameters (wrk ^. networkLayer)
@@ -2503,9 +2508,6 @@ constructTransaction ctx genChange knownPools getPoolStatus (ApiT wid) body = do
                 Nothing -> pure []
                 Just (ApiPaymentAddresses content) ->
                     pure $ F.toList (addressAmountToTxOut <$> content)
-                Just (ApiPaymentAll _) -> do
-                    liftHandler $
-                        throwE $ ErrConstructTxNotImplemented "ADP-1189"
 
             let mintWithAddress
                     (ApiMintBurnData _ _ (ApiMint (ApiMintData (Just _) _)))
@@ -2530,7 +2532,9 @@ constructTransaction ctx genChange knownPools getPoolStatus (ApiT wid) body = do
             $ W.constructTransaction @_ @s @k @n wrk wid era txCtx' sel
 
         pure $ ApiConstructTransaction
-            { transaction = ApiT tx
+            { transaction = case body ^. #encoding of
+                    Just HexEncoded -> ApiSerialisedTransaction (ApiT tx) HexEncoded
+                    _ -> ApiSerialisedTransaction (ApiT tx) Base64Encoded
             , coinSelection = mkApiCoinSelection
                 (maybeToList deposit) (maybeToList refund) Nothing md sel'
             , fee = Quantity $ fromIntegral fee
@@ -2714,7 +2718,9 @@ constructSharedTransaction
                     $ W.constructSharedTransaction @_ @s @k @n wrk wid era txCtx sel
 
                 pure $ ApiConstructTransaction
-                    { transaction = ApiT tx
+                    { transaction = case body ^. #encoding of
+                            Just HexEncoded -> ApiSerialisedTransaction (ApiT tx) HexEncoded
+                            _ -> ApiSerialisedTransaction (ApiT tx) Base64Encoded
                     , coinSelection = mkApiCoinSelection [] [] Nothing md sel'
                     , fee = Quantity $ fromIntegral fee
                     }
@@ -2732,7 +2738,7 @@ decodeSharedTransaction
     -> ApiT WalletId
     -> ApiSerialisedTransaction
     -> Handler (ApiDecodedTransaction n)
-decodeSharedTransaction ctx (ApiT wid) (ApiSerialisedTransaction (ApiT sealed)) = do
+decodeSharedTransaction ctx (ApiT wid) (ApiSerialisedTransaction (ApiT sealed) _) = do
     era <- liftIO $ NW.currentNodeEra nl
     let (decodedTx, _toMint, _toBurn, _allCerts, interval) =
             decodeTx tl era sealed
@@ -2843,7 +2849,12 @@ balanceTransaction ctx genChange (ApiT wid) body = do
         res <- withShelleyBasedTx anyShelleyTx
             (fmap inAnyCardanoEra . balanceTx . mkPartialTx)
 
-        pure $ ApiSerialisedTransaction $ ApiT $ W.sealedTxFromCardano res
+        case body ^. #encoding of
+            Just HexEncoded ->
+                pure $ ApiSerialisedTransaction
+                (ApiT $ W.sealedTxFromCardano res) HexEncoded
+            _ -> pure $ ApiSerialisedTransaction
+                (ApiT $ W.sealedTxFromCardano res) Base64Encoded
   where
     nl = ctx ^. networkLayer
 
@@ -2863,7 +2874,7 @@ decodeTransaction
     -> ApiT WalletId
     -> ApiSerialisedTransaction
     -> Handler (ApiDecodedTransaction n)
-decodeTransaction ctx (ApiT wid) (ApiSerialisedTransaction (ApiT sealed)) = do
+decodeTransaction ctx (ApiT wid) (ApiSerialisedTransaction (ApiT sealed) _) = do
     era <- liftIO $ NW.currentNodeEra nl
     let (decodedTx, toMint, toBurn, allCerts, interval) =
             decodeTx tl era sealed
@@ -3071,7 +3082,7 @@ submitTransaction ctx apiw@(ApiT wid) apitx = do
     ttl <- liftIO $ W.getTxExpiry ti Nothing
     era <- liftIO $ NW.currentNodeEra nl
 
-    let sealedTx = getApiT . (view #transaction) $ apitx
+    let sealedTx = getApiT . (view #serialisedTxSealed) $ apitx
     let (tx,_,_,_,_) = decodeTx tl era sealedTx
 
     apiDecoded <- decodeTransaction @_ @s @k @n ctx apiw apitx
@@ -4783,9 +4794,6 @@ instance IsServerError ErrConstructTx where
             , "'PATCH /shared-wallets/{walletId}/delegation-script-template' to make "
             , "it applicable for constructing transaction."
             ]
-        ErrConstructTxNotImplemented _ ->
-            apiError err501 NotImplemented
-                "This feature is not yet implemented."
 
 instance IsServerError ErrGetPolicyId where
     toServerError = \case
