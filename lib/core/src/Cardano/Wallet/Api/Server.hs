@@ -330,8 +330,6 @@ import Cardano.Wallet.Api.Types
     , WalletPutData (..)
     , WalletPutPassphraseData (..)
     , XPubOrSelf (..)
-    , coinFromQuantity
-    , coinToQuantity
     , getApiMnemonicT
     , toApiAsset
     , toApiEpochInfo
