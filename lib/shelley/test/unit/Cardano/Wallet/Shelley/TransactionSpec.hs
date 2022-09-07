@@ -2615,7 +2615,7 @@ balanceTransactionSpec = describe "balanceTransaction" $ do
 distributeSurplusSpec :: Spec
 distributeSurplusSpec = do
     describe "sizeOfCoin" $ do
-        let coinToWord64Clamped = fromMaybe maxBound . Coin.toWord64
+        let coinToWord64Clamped = fromMaybe maxBound . Coin.toWord64Maybe
         let cborSizeOfCoin =
                 TxSize
                 . fromIntegral
