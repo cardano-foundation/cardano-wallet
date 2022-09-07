@@ -3268,7 +3268,7 @@ instance FromJSON a => FromJSON (AddressAmount a) where
             <*> v .:? "assets" .!= mempty
       where
         validateCoin q
-            | coinIsValidForTxOut (coinFromQuantity q) = pure q
+            | coinIsValidForTxOut (Coin.fromQuantity q) = pure q
             | otherwise = fail $
                 "invalid coin value: value has to be lower than or equal to "
                 <> show (unCoin txOutMaxCoin) <> " lovelace."
@@ -3289,7 +3289,7 @@ instance FromJSON (ApiT W.TokenBundle) where
             <*> fmap getApiT (v .: "assets" .!= mempty)
       where
         validateCoin :: Quantity "lovelace" Word64 -> Aeson.Parser Coin
-        validateCoin (coinFromQuantity -> c)
+        validateCoin (Coin.fromQuantity -> c)
             | coinIsValidForTxOut c = pure c
             | otherwise = fail $
                 "invalid coin value: value has to be lower than or equal to "

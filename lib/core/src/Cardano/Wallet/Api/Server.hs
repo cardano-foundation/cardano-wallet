@@ -4276,7 +4276,7 @@ addressAmountToTxOut
     :: forall (n :: NetworkDiscriminant). AddressAmount (ApiT Address, Proxy n)
     -> TxOut
 addressAmountToTxOut (AddressAmount (ApiT addr, _) c (ApiT assets)) =
-    TxOut addr (TokenBundle.TokenBundle (coinFromQuantity c) assets)
+    TxOut addr (TokenBundle.TokenBundle (Coin.fromQuantity c) assets)
 
 natural :: Quantity q Word32 -> Quantity q Natural
 natural = Quantity . fromIntegral . getQuantity
