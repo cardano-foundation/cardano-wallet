@@ -1176,14 +1176,6 @@ x-transactionCollateralOutputs: &transactionCollateralOutputs
       amount: *amount
       assets: *walletAssets
 
-x-transactionNoAmountOutputs: &transactionNoAmountOutputs
-  description: A list of target outputs without amounts specified
-  type: array
-  minItems: 0
-  items:
-    type: string
-    <<: *addressId
-
 x-delegationAction: &delegationAction
   description: |
     A delegation action.
@@ -2522,7 +2514,7 @@ components:
       required:
         - transaction
       properties:
-        transaction: *serialisedTransactionBase64
+        transaction: *serialisedTransactionEncoded
 
     ApiSerialisedTransactionEncoded: &ApiSerialisedTransactionEncoded
       description: |
@@ -2599,7 +2591,7 @@ components:
         - coin_selection
         - fee
       properties:
-        transaction: *serialisedTransactionBase64
+        transaction: *serialisedTransactionEncoded
         coin_selection: *ApiCoinSelection
         fee: *amount
 
@@ -3432,6 +3424,9 @@ components:
           <<: *lenientPassphrase
           description: The wallet's master passphrase.
         transaction: *serialisedTransactionEncoded
+        encoding:
+          type: string
+          enum: ["base16", "base64"]
 
     # ADP-908 Deprecated
     ApiPostTransactionDataByron: &ApiPostTransactionDataByron
@@ -3526,11 +3521,7 @@ components:
         invalid_hereafter: *validityBound
 
     ApiPaymentDestination: &ApiPaymentDestination
-      oneOf:
-        - title: outputs with specified amounts
-          <<: *transactionOutputs
-        - title: outputs without amounts
-          <<: *transactionNoAmountOutputs
+       <<: *transactionOutputs
 
     ApiMintData: &ApiMintData
       type: object
@@ -3583,6 +3574,9 @@ components:
              containing helpful information.
         delegations: *transactionDelegations
         validity_interval: *ApiValidityInterval
+        encoding:
+          type: string
+          enum: ["base16", "base64"]
 
     CredentialValue: *CredentialValue
 
@@ -3841,6 +3835,9 @@ components:
             description: A list of redeemers data with their purpose.
             type: array
             items: *ApiRedeemer
+        encoding:
+          type: string
+          enum: ["base16", "base64"]
 
     ApiBlockHeader: &ApiBlockHeader
         description: |
@@ -3853,7 +3850,6 @@ components:
           header_hash: *blockId
           slot_no: *numberOfSlots
           block_height: *numberOfBlocks
-
 
 #############################################################################
 #                                                                           #
@@ -6380,7 +6376,7 @@ paths:
       tags: ["Transactions New"]
       summary: Construct
       description: |
-        <p align="right">status: <strong>under development</strong></p>
+        <p align="right">status: <strong>stable</strong></p>
 
         Create a transaction to be signed from the wallet.
       parameters:
@@ -6398,10 +6394,10 @@ paths:
       tags: ["Transactions New"]
       summary: Sign
       description: |
-        <p align="right">status: <strong>under development</strong></p>
+        <p align="right">status: <strong>stable</strong></p>
 
-        Signs a serialised transaction, returning the modified
-        transaction.
+        Signs a serialised transaction either hex-encoded or base64-encoded,
+        returning the modified transaction.
 
         This endpoint will add new witnesses using the keys available
         to this wallet. Any existing witnesses will remain in the
@@ -6421,9 +6417,10 @@ paths:
       tags: ["Transactions New"]
       summary: Decode
       description: |
-        <p align="right">status: <strong>unstable</strong></p>
+        <p align="right">status: <strong>stable</strong></p>
 
-        Decode a serialized transaction.
+        Decode a serialized transaction, either freshly constructed,
+        partially signed or fully-signed.
       parameters:
         - *parametersWalletId
       requestBody:
@@ -7058,47 +7055,6 @@ paths:
           - *parametersAddressId
         responses: *responsesPutRandomAddress
 
-  /byron-wallets/{walletId}/transactions-construct:
-    post:
-      operationId: constructByronTransaction
-      tags: ["Byron Transactions New"]
-      summary: Construct
-      description: |
-        <p align="right">status: <strong>unstable</strong></p>
-
-        Create a transaction to be signed from the wallet.
-      parameters:
-        - *parametersWalletId
-      requestBody:
-        required: true
-        content:
-          application/json:
-            schema: *ApiConstructTransactionData
-      responses: *responsesConstructTransaction
-
-  /byron-wallets/{walletId}/transactions-sign:
-    post:
-      operationId: signByronTransaction
-      tags: ["Byron Transactions New"]
-      summary: Sign
-      description: |
-        <p align="right">status: <strong>under development</strong></p>
-
-        Signs a serialised transaction, returning the modified
-        transaction.
-
-        This endpoint will add new witnesses using the keys available
-        to this wallet. Any existing witnesses will remain in the
-        witness set.
-      parameters:
-        - *parametersWalletId
-      requestBody:
-        required: true
-        content:
-          application/json:
-            schema: *ApiSignTransactionPostData
-      responses: *responsesSignTransaction
-
   /byron-wallets/{walletId}/payment-fees:
     post:
       operationId: postByronTransactionFee
@@ -7555,7 +7511,7 @@ paths:
       tags: ["Shared Transactions"]
       summary: Construct
       description: |
-        <p align="right">status: <strong>under development</strong></p>
+        <p align="right">status: <strong>stable</strong></p>
 
         Create a transaction to be signed from the shared wallet.
 
@@ -7578,9 +7534,10 @@ paths:
       tags: ["Shared Transactions"]
       summary: Decode
       description: |
-        <p align="right">status: <strong>unstable</strong></p>
+        <p align="right">status: <strong>stable</strong></p>
 
-        Decode a serialized transaction.
+        Decode a serialized transaction, either freshly constructed,
+        partially signed or fully-signed.
       parameters:
         - *parametersWalletId
       requestBody:
