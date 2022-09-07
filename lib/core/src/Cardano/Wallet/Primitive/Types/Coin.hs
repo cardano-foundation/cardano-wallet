@@ -15,7 +15,7 @@ module Cardano.Wallet.Primitive.Types.Coin
       Coin (..)
 
       -- * Conversions (Safe)
-    , fromIntegral
+    , fromIntegralMaybe
     , fromNatural
     , fromWord64
     , toInteger
@@ -121,8 +121,8 @@ instance Buildable Coin where
 --
 -- Returns 'Nothing' if the given value is negative.
 --
-fromIntegral :: (Bits i, Integral i) => i -> Maybe Coin
-fromIntegral i = Coin <$> intCastMaybe i
+fromIntegralMaybe :: (Bits i, Integral i) => i -> Maybe Coin
+fromIntegralMaybe i = Coin <$> intCastMaybe i
 
 -- | Constructs a 'Coin' from a 'Natural' value.
 --
@@ -176,7 +176,7 @@ unsafeFromIntegral
     => (Bits i, Integral i, Show i)
     => i
     -> Coin
-unsafeFromIntegral i = fromMaybe onError (fromIntegral i)
+unsafeFromIntegral i = fromMaybe onError (fromIntegralMaybe i)
   where
     onError =  error $ unwords
         [ "Coin.unsafeFromIntegral:"
