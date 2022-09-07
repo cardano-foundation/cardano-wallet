@@ -3266,7 +3266,7 @@ instance FromJSON a => FromJSON (AddressAmount a) where
 instance ToJSON (ApiT W.TokenBundle) where
     -- TODO: consider other structures
     toJSON (ApiT (W.TokenBundle c ts)) = object
-        [ "amount" .= Coin.unsafeToQuantity @Word @"lovelace" c
+        [ "amount" .= Coin.unsafeToQuantity @Word c
         , "assets" .= toJSON (ApiT ts)
         ]
 

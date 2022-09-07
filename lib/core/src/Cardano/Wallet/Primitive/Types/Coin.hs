@@ -138,7 +138,7 @@ fromNatural = Coin
 --
 fromQuantity
     :: (Integral i, IsIntSubType i Natural ~ 'True)
-    => Quantity n i
+    => Quantity "lovelace" i
     -> Coin
 fromQuantity (Quantity c) = Coin (intCast c)
 
@@ -162,7 +162,7 @@ toNatural = unCoin
 toQuantity
     :: (Integral i, IsIntSubType Natural i ~ 'True)
     => Coin
-    -> Quantity n i
+    -> Quantity "lovelace" i
 toQuantity (Coin c) = Quantity (intCast c)
 
 -- | Converts a 'Coin' to a 'Quantity'.
@@ -170,7 +170,10 @@ toQuantity (Coin c) = Quantity (intCast c)
 -- Returns 'Nothing' if the given value does not fit within the bounds of
 -- the target type.
 --
-toQuantityMaybe :: (Bits i, Integral i) => Coin -> Maybe (Quantity n i)
+toQuantityMaybe
+    :: (Bits i, Integral i)
+    => Coin
+    -> Maybe (Quantity "lovelace" i)
 toQuantityMaybe (Coin c) = Quantity <$> intCastMaybe c
 
 -- | Converts a 'Coin' to a 'Word64' value.
@@ -216,7 +219,7 @@ unsafeToQuantity
     :: HasCallStack
     => (Bits i, Integral i)
     => Coin
-    -> Quantity n i
+    -> Quantity "lovelace" i
 unsafeToQuantity c = fromMaybe onError (toQuantityMaybe c)
   where
     onError = error $ unwords
