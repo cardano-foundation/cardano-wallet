@@ -20,6 +20,7 @@ module Cardano.Wallet.Primitive.Types.Coin
       -- * Conversions (Safe)
     , fromIntegralMaybe
     , fromNatural
+    , fromQuantity
     , fromWord64
     , toInteger
     , toNatural
@@ -132,6 +133,14 @@ fromIntegralMaybe i = Coin <$> intCastMaybe i
 --
 fromNatural :: Natural -> Coin
 fromNatural = Coin
+
+-- | Constructs a 'Coin' from a 'Quantity'.
+--
+fromQuantity
+    :: (Integral i, IsIntSubType i Natural ~ 'True)
+    => Quantity n i
+    -> Coin
+fromQuantity (Quantity c) = Coin (intCast c)
 
 -- | Constructs a 'Coin' from a 'Word64' value.
 --
