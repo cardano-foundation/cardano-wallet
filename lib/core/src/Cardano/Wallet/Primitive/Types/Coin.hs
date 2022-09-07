@@ -20,7 +20,7 @@ module Cardano.Wallet.Primitive.Types.Coin
     , fromWord64
     , toInteger
     , toNatural
-    , toQuantity
+    , toQuantityMaybe
     , toWord64
 
       -- * Conversions (Unsafe)
@@ -149,8 +149,8 @@ toNatural = unCoin
 -- Returns 'Nothing' if the given value does not fit within the bounds of
 -- the target type.
 --
-toQuantity :: (Bits i, Integral i) => Coin -> Maybe (Quantity n i)
-toQuantity (Coin c) = Quantity <$> intCastMaybe c
+toQuantityMaybe :: (Bits i, Integral i) => Coin -> Maybe (Quantity n i)
+toQuantityMaybe (Coin c) = Quantity <$> intCastMaybe c
 
 -- | Converts a 'Coin' to a 'Word64' value.
 --
@@ -196,7 +196,7 @@ unsafeToQuantity
     => (Bits i, Integral i)
     => Coin
     -> Quantity n i
-unsafeToQuantity c = fromMaybe onError (toQuantity c)
+unsafeToQuantity c = fromMaybe onError (toQuantityMaybe c)
   where
     onError = error $ unwords
         [ "Coin.unsafeToQuantity:"
