@@ -189,7 +189,9 @@ RSpec.describe CardanoWallet::Shared, :all, :shared do
                                                                   acc_xpub_upd)
 
         expect(update_delegation).to be_correct_and_respond 200
-        expect(SHARED.wallets.get(incomplete_wid)['state']['status']).to eq 'syncing'
+        eventually "The wallet is no longer 'incomplete'" do
+          SHARED.wallets.get(incomplete_wid)['state']['status'] != 'incomplete'
+        end
         expect(SHARED.wallets.list).to be_correct_and_respond 200
       end
 
