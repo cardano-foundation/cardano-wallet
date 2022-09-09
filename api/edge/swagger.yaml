@@ -3427,6 +3427,7 @@ components:
         encoding:
           type: string
           enum: ["base16", "base64"]
+          description: Encoding of transaction CBOR returned in response (base64 by default).
 
     # ADP-908 Deprecated
     ApiPostTransactionDataByron: &ApiPostTransactionDataByron
@@ -3577,6 +3578,7 @@ components:
         encoding:
           type: string
           enum: ["base16", "base64"]
+          description: Encoding of transaction CBOR returned in response (base64 by default).
 
     CredentialValue: *CredentialValue
 
@@ -3838,6 +3840,7 @@ components:
         encoding:
           type: string
           enum: ["base16", "base64"]
+          description: Encoding of transaction CBOR returned in response (base64 by default).
 
     ApiBlockHeader: &ApiBlockHeader
         description: |
