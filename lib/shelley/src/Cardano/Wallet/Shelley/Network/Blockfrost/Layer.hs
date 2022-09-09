@@ -34,7 +34,7 @@ import Blockfrost.Client
     , SortOrder (Ascending)
     , Transaction
     , TransactionDelegation
-    , TransactionMetaJSON
+    , TransactionMetaCBOR
     , TransactionStake
     , TransactionUtxos
     , TransactionWithdrawal
@@ -56,7 +56,7 @@ import Blockfrost.Client
     , getPoolHistory'
     , getTx
     , getTxDelegations
-    , getTxMetadataJSON
+    , getTxMetadataCBOR
     , getTxStakes
     , getTxUtxos
     , getTxWithdrawals
@@ -129,8 +129,8 @@ data BlockfrostLayer m = BlockfrostLayer
         TxHash -> m [TransactionWithdrawal]
     , bfGetTxDelegations ::
         TxHash -> m [TransactionDelegation]
-    , bfGetTxMetadataJSON ::
-        TxHash -> m [TransactionMetaJSON]
+    , bfGetTxMetadataCBOR ::
+        TxHash -> m [TransactionMetaCBOR]
     , bfGetAddressTransactions ::
         Address
         -> Maybe BlockIndex
@@ -171,7 +171,7 @@ blockfrostLayer = BlockfrostLayer
     , bfGetTxUtxos = getTxUtxos
     , bfGetTxWithdrawals = getTxWithdrawals
     , bfGetTxDelegations = getTxDelegations
-    , bfGetTxMetadataJSON = getTxMetadataJSON
+    , bfGetTxMetadataCBOR = getTxMetadataCBOR
     , bfGetAddressTransactions = \a f t ->
         empty404 $ allPages' \p -> getAddressTransactions' a p Ascending f t
     , bfGetAccountRegistrations = \a ->
@@ -205,7 +205,7 @@ hoistBlockfrostLayer BlockfrostLayer{..} nt =
     , bfGetTxUtxos = nt . bfGetTxUtxos
     , bfGetTxWithdrawals = nt . bfGetTxWithdrawals
     , bfGetTxDelegations = nt . bfGetTxDelegations
-    , bfGetTxMetadataJSON = nt . bfGetTxMetadataJSON
+    , bfGetTxMetadataCBOR = nt . bfGetTxMetadataCBOR
     , bfGetAddressTransactions = ((nt .) .) . bfGetAddressTransactions
     , bfGetAccountRegistrations = nt . bfGetAccountRegistrations
     , bfGetAccountDelegations = nt . bfGetAccountDelegations

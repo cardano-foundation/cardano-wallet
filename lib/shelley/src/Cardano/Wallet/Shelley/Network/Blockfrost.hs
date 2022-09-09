@@ -27,6 +27,7 @@ module Cardano.Wallet.Shelley.Network.Blockfrost
 
         -- * Internal
         getPoolPerformanceEstimate,
+        unmarshalMetadata,
         eraByEpoch
     )
 where
@@ -43,8 +44,9 @@ import Cardano.Api
     , NetworkId (..)
     , PlutusScriptVersion (PlutusScriptV1)
     , ShelleyBasedEra (ShelleyBasedEraAlonzo)
-    , TxMetadata (TxMetadata)
-    , TxMetadataValue (..)
+    , TxMetadata
+    , deserialiseFromCBOR
+    , proxyToAsType
     )
 import Cardano.BM.Data.Severity
     ( Severity (..) )
@@ -59,7 +61,7 @@ import Cardano.Pool.Rank.Likelihood
 import Cardano.Slotting.Slot
     ( unEpochSize )
 import Cardano.Wallet.Api.Types
-    ( decodeStakeAddress, encodeAddress, encodeStakeAddress )
+    ( Base (Base16), decodeStakeAddress, encodeAddress, encodeStakeAddress )
 import Cardano.Wallet.Logging
     ( BracketLog, bracketTracer )
 import Cardano.Wallet.Network
@@ -215,14 +217,14 @@ import Data.Quantity
     )
 import Data.Ratio
     ( (%) )
-import Data.Scientific
-    ( isInteger )
 import Data.Set
     ( Set )
 import Data.Text
     ( Text )
 import Data.Text.Class
     ( ToText (..), fromText )
+import Data.Text.Encoding
+    ( encodeUtf8 )
 import Data.These
     ( These (That, These, This) )
 import Data.Traversable
@@ -235,8 +237,6 @@ import Ouroboros.Consensus.HardFork.History.EraParams
     ( EraParams (..) )
 import Ouroboros.Consensus.HardFork.History.Summary
     ( Bound (..), EraEnd (..), EraSummary (..), Summary (..) )
-import Text.Read
-    ( readEither )
 import UnliftIO.Async
     ( async, link )
 import UnliftIO.STM
@@ -259,15 +259,13 @@ import qualified Cardano.Wallet.Primitive.Types.Coin as Coin
 import qualified Cardano.Wallet.Primitive.Types.TokenMap as TokenMap
 import qualified Cardano.Wallet.Shelley.Network.Blockfrost.Fixture as Fixture
 import qualified Cardano.Wallet.Shelley.Network.Blockfrost.Layer as Layer
-import qualified Data.Aeson as Aeson
-import qualified Data.Aeson.Key as Aeson
-import qualified Data.Aeson.KeyMap as Aeson
+import Data.ByteArray.Encoding
+    ( convertFromBase )
 import qualified Data.ByteString.Lazy as BL
 import qualified Data.Map.Strict as Map
 import qualified Data.Sequence as Seq
 import qualified Data.Set as Set
 import qualified Data.Text as T
-import qualified Data.Vector as V
 import qualified Money
 import qualified Ouroboros.Consensus.HardFork.History.Qry as HF
 import qualified Ouroboros.Consensus.Util.Counting as UC
@@ -741,7 +739,7 @@ fetchTransaction tr nd BlockfrostLayer{..} hash = do
     transaction <- bfGetTx hash
     utxos <- bfGetTxUtxos hash
     withdrawals <- bfGetTxWithdrawals hash
-    metadata <- bfGetTxMetadataJSON hash
+    metadata <- bfGetTxMetadataCBOR hash
     (transaction,)
         <$> assembleTransaction nd transaction utxos withdrawals metadata
 
@@ -750,14 +748,14 @@ assembleTransaction
     -> BF.Transaction
     -> BF.TransactionUtxos
     -> [BF.TransactionWithdrawal]
-    -> [BF.TransactionMetaJSON]
+    -> [BF.TransactionMetaCBOR]
     -> IO Tx
 assembleTransaction
     network@(SomeNetworkDiscriminant (Proxy :: Proxy nd))
     BF.Transaction{..}
     BF.TransactionUtxos{..}
     txWithdrawals
-    metadataJSON = either (throwIO . BlockfrostException) pure do
+    metadataCBOR = either (throwIO . BlockfrostException) pure do
         txId <- fromBfTxHash $ BF.TxHash _transactionHash
         let fee = Just $ Coin $ fromIntegral _transactionFees
         (resolvedInputs, resolvedCollateralInputs) <-
@@ -798,17 +796,9 @@ assembleTransaction
                     coin <- fromBfLovelaces _transactionWithdrawalAmount
                     pure (rewardAccount, coin)
         metadata <-
-            if null metadataJSON
+            if null metadataCBOR
                 then pure Nothing
-                else Just . TxMetadata . Map.fromList . catMaybes
-                    <$> for metadataJSON \BF.TransactionMetaJSON{..} -> do
-                        label <-
-                            either (throwError . InvalidTxMetadataLabel) pure $
-                                readEither (T.unpack _transactionMetaJSONLabel)
-                        fmap (label,) <$>
-                            for _transactionMetaJSONJSONMetadata
-                                (first InvalidTxMetadataValue
-                                . unmarshalMetadataValue)
+                else Just <$> unmarshalMetadata metadataCBOR
         let scriptValidity =
                 Just if _transactionValidContract
                         then TxScriptValid
@@ -843,25 +833,15 @@ assembleTransaction
                         _ -> throwError $ InvalidUtxoInputAmount input
                 pure (TxIn txHash txIndex, coin)
 
-unmarshalMetadataValue :: Aeson.Value -> Either String TxMetadataValue
-unmarshalMetadataValue = \case
-    Aeson.Object km ->
-        TxMetaMap <$> for
-            (Aeson.toList km)
-            (bitraverse (unmarshalMetadataValue . Aeson.String . Aeson.toText)
-                unmarshalMetadataValue)
-    Aeson.Array vec ->
-        TxMetaList . V.toList <$> for vec unmarshalMetadataValue
-    Aeson.String txt ->
-        Right $ TxMetaText txt
-    Aeson.Number sci ->
-        if isInteger sci
-            then Right (TxMetaNumber (truncate sci))
-            else Left "Non-integer metadata value"
-    Aeson.Bool b ->
-        Left $ "Expected TxMetadataValue but got bool (" <> show b <> ")"
-    Aeson.Null ->
-        Left "Expected TxMetadataValue but got null"
+unmarshalMetadata ::
+    [BF.TransactionMetaCBOR] -> Either BlockfrostError TxMetadata
+unmarshalMetadata cbor =
+    mconcat . catMaybes <$> for cbor \BF.TransactionMetaCBOR{..} ->
+        for _transactionMetaCBORMetadata $ \b16 -> do
+            decoded <- first MetadataBase16Error $
+                convertFromBase Base16 $ encodeUtf8 b16
+            first MetadataCborError $
+                deserialiseFromCBOR (proxyToAsType (Proxy @TxMetadata)) decoded
 
 {-------------------------------------------------------------------------------
     Protocol parameters and network information

@@ -30,6 +30,7 @@ import Data.Text.Class
     ( TextDecodingError )
 
 import qualified Blockfrost.Client as BF
+import qualified Cardano.Binary as Binary
 import qualified Servant.Client as Servant
 
 data BlockfrostError
@@ -37,8 +38,8 @@ data BlockfrostError
     | NoSlotError BF.Block
     | IntegralCastError String
     | InvalidBlockHash BF.BlockHash TextDecodingError
-    | InvalidTxMetadataLabel String
-    | InvalidTxMetadataValue String
+    | MetadataBase16Error String
+    | MetadataCborError Binary.DecoderError
     | InvalidStakePoolMetadataHash Text TextDecodingError
     | PoolRegistrationIsMissing PoolId
     | PoolRetirementCertificateNotFound PoolId BF.PoolUpdate
