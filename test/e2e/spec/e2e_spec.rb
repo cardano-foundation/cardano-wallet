@@ -1539,6 +1539,32 @@ RSpec.describe "Cardano Wallet E2E tests", :all, :e2e do
         expect(tx_constructed['code']).to eq 'output_token_bundle_size_exceeds_limit'
       end
     end
+
+    describe "Output encoding" do
+      # Check construct and sign output has desired encoding as per
+      # encoding parameter
+      matrix = ["base16", "base64"]
+      matrix.each do |o_enc|
+        it o_enc do
+          tx_constructed = SHELLEY.transactions.construct(@wid,
+                                                          payments = nil,
+                                                          withdrawal = nil,
+                                                          METADATA,
+                                                          delegations = nil,
+                                                          mint = nil,
+                                                          validity_interval = nil,
+                                                          encoding = o_enc)
+          expect(tx_constructed).to be_correct_and_respond 202
+          expect(method("#{o_enc}?".to_sym).call tx_constructed['transaction']).to be true
+
+          tx_signed = SHELLEY.transactions.sign(@wid, PASS,
+                                                tx_constructed['transaction'],
+                                                encoding = o_enc)
+          expect(tx_signed).to be_correct_and_respond 202
+          expect(method("#{o_enc}?".to_sym).call tx_signed['transaction']).to be true
+        end
+      end
+    end
   end
 
   describe "E2E Shared" do

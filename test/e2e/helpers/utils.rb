@@ -191,6 +191,14 @@ module Helpers
       byron_genesis = JSON.parse(File.read(File.join(config, "byron-genesis.json")))
       byron_genesis['protocolConsts']['protocolMagic'].to_i
     end
+
+    def base64?(value)
+      value.is_a?(String) && Base64.strict_encode64(Base64.decode64(value)) == value
+    end
+    
+    def base16?(value)
+      value.is_a?(String) && value.match?(/^[[:xdigit:]]+$/)
+    end
   end
 end
 
