@@ -707,7 +707,9 @@ instance Arbitrary a => Arbitrary (NonEmpty a) where
 keyToAddress :: (XPrv, Passphrase "encryption") -> Address
 keyToAddress (xprv, _pwd) =
     -- TODO, decrypt?
-    paymentAddress @'Mainnet . publicKey . liftRawKey @ShelleyKey $ xprv
+    paymentAddress @'Mainnet @ShelleyKey @'CredFromKeyK .
+    publicKey .
+    liftRawKey @ShelleyKey $ xprv
 
 utxoFromKeys
     :: [(XPrv, Passphrase "encryption")]
@@ -732,11 +734,11 @@ utxoFromKeys keys utxoProp =
 
 lookupFnFromKeys
     :: [(XPrv, Passphrase "encryption")]
-    -> (Address -> Maybe (ShelleyKey 'AddressK XPrv, Passphrase "encryption"))
+    -> (Address -> Maybe (ShelleyKey 'CredFromKeyK XPrv, Passphrase "encryption"))
 lookupFnFromKeys keys addr =
     let
         addrMap
-            :: Map Address (ShelleyKey 'AddressK XPrv, Passphrase "encryption")
+            :: Map Address (ShelleyKey 'CredFromKeyK XPrv, Passphrase "encryption")
         addrMap = Map.fromList
             $ zip (keyToAddress <$> keys) (first liftRawKey <$> keys)
     in
@@ -1806,7 +1808,7 @@ binaryCalculationsSpec' era = describe ("calculateBinary - "+||era||+"") $ do
           fee = toCardanoLovelace $ selectionDelta txOutCoin cs
           Right unsigned =
               mkUnsignedTx era (Nothing, slotNo) cs md mempty [] fee
-              TokenMap.empty TokenMap.empty Map.empty
+              TokenMap.empty TokenMap.empty Map.empty Map.empty
           cs = Selection
             { inputs = NE.fromList inps
             , collateral = []
@@ -1895,7 +1897,7 @@ makeShelleyTx era testCase = Cardano.makeSignedTransaction addrWits unsigned
     fee = toCardanoLovelace $ selectionDelta txOutCoin cs
     Right unsigned =
         mkUnsignedTx era (Nothing, slotNo) cs md mempty [] fee
-        TokenMap.empty TokenMap.empty Map.empty
+        TokenMap.empty TokenMap.empty Map.empty Map.empty
     addrWits = map (mkShelleyWitness unsigned) pairs
     cs = Selection
         { inputs = NE.fromList inps
@@ -1938,7 +1940,7 @@ makeByronTx era testCase = Cardano.makeSignedTransaction byronWits unsigned
     fee = toCardanoLovelace $ selectionDelta txOutCoin cs
     Right unsigned =
         mkUnsignedTx era (Nothing, slotNo) cs Nothing mempty [] fee
-        TokenMap.empty TokenMap.empty Map.empty
+        TokenMap.empty TokenMap.empty Map.empty Map.empty
     -- byronWits = map (mkByronWitness unsigned ntwrk Nothing) pairs
     byronWits = map (error "makeByronTx: broken") pairs  -- TODO: [ADP-919]
     cs = Selection
@@ -1993,7 +1995,7 @@ prop_biggerMaxSizeMeansMoreInputs era size outs
         <=
         _estimateMaxNumberOfInputs @k era ((*2) <$> size ) defaultTransactionCtx outs
 
-testTxLayer :: TransactionLayer ShelleyKey SealedTx
+testTxLayer :: TransactionLayer ShelleyKey 'CredFromKeyK SealedTx
 testTxLayer = newTransactionLayer @ShelleyKey Cardano.Mainnet
 
 newtype ForByron a = ForByron { getForByron :: a } deriving (Show, Eq)
@@ -2422,7 +2424,7 @@ instance Arbitrary KeyHash where
         cred <- oneof [pure Payment, pure Delegation]
         KeyHash cred . BS.pack <$> vectorOf 28 arbitrary
 
-data Ctx m = Ctx (Tracer m WalletWorkerLog) (TransactionLayer ShelleyKey SealedTx)
+data Ctx m = Ctx (Tracer m WalletWorkerLog) (TransactionLayer ShelleyKey 'CredFromKeyK SealedTx)
     deriving Generic
 
 instance Arbitrary StdGenSeed  where

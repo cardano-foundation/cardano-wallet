@@ -288,7 +288,7 @@ isConsecutiveRange (a:b:t)
 newtype StakeKey' (depth :: Depth) key = StakeKey' Word
     deriving newtype (Eq, Enum, Ord, Show, Bounded)
 
-type StakeKey = StakeKey' 'AddressK XPub
+type StakeKey = StakeKey' 'CredFromKeyK XPub
 
 instance ToRewardAccount StakeKey' where
     toRewardAccount (StakeKey' i) = RewardAccount . B8.pack $ show i
@@ -296,6 +296,8 @@ instance ToRewardAccount StakeKey' where
 
 instance HardDerivation StakeKey' where
     type AddressIndexDerivationType StakeKey' = 'Soft
+    type AddressCredential StakeKey' = 'CredFromKeyK
+
     deriveAccountPrivateKey _ _ _ =
         error "deriveAccountPrivateKey: not implemented"
     deriveAddressPrivateKey _ _ _ _ =
@@ -307,11 +309,11 @@ instance SoftDerivation StakeKey' where
 instance MkKeyFingerprint StakeKey' Address where
     paymentKeyFingerprint (Address addr) = Right $ KeyFingerprint $ B8.drop 4 addr
 
-instance PaymentAddress 'Mainnet StakeKey' where
+instance PaymentAddress 'Mainnet StakeKey' 'CredFromKeyK where
     liftPaymentAddress (KeyFingerprint fp) = Address fp
     paymentAddress k = Address $ "addr" <> unRewardAccount (toRewardAccount k)
 
-instance MkKeyFingerprint StakeKey' (StakeKey' 'AddressK XPub) where
+instance MkKeyFingerprint StakeKey' (StakeKey' 'CredFromKeyK XPub) where
     paymentKeyFingerprint k =
         Right $ KeyFingerprint $ unRewardAccount (toRewardAccount k)
 
@@ -465,7 +467,8 @@ stepCmd CmdOldWalletToggleFirstKey env =
             in tryApplyTx tx env
 stepCmd (CmdMimicPointerOutput (RewardAccount acc)) env =
             let
-                addr = liftPaymentAddress @'Mainnet @StakeKey' $ KeyFingerprint acc
+                addr = liftPaymentAddress @'Mainnet @StakeKey' @'CredFromKeyK $
+                    KeyFingerprint acc
                 c = Coin 1
                 out = TxOut addr (TB.fromCoin c)
                 tx = Tx [] [] [out]

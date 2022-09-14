@@ -72,6 +72,7 @@ module Cardano.Wallet.Primitive.AddressDerivation
     , MkKeyFingerprint(..)
     , ErrMkKeyFingerprint(..)
     , KeyFingerprint(..)
+    , unsafePaymentKeyFingerprint
     ) where
 
 import Prelude
@@ -134,6 +135,8 @@ import Fmt
     ( Buildable (..) )
 import GHC.Generics
     ( Generic )
+import GHC.Stack
+    ( HasCallStack )
 import GHC.TypeLits
     ( KnownNat, Nat, Symbol, natVal )
 import Quiet
@@ -168,8 +171,8 @@ data Depth
     | CoinTypeK
     | AccountK
     | RoleK
-    | AddressK
-    | ScriptK
+    | CredFromKeyK
+    | CredFromScriptK
     | PolicyK
 
 -- | Marker for addresses type engaged. We want to handle four cases here.
@@ -251,7 +254,7 @@ utxoInternal = toEnum $ fromEnum UtxoInternal
 mutableAccount :: Index 'Soft 'RoleK
 mutableAccount = toEnum $ fromEnum MutableAccount
 
-zeroAccount :: Index 'Soft 'AddressK
+zeroAccount :: Index 'Soft 'CredFromKeyK
 zeroAccount = minBound
 
 -- | Full path to the stake key. There's only one.
@@ -336,7 +339,7 @@ instance FromText DerivationIndex where
 --
 -- @
 -- let accountIx = Index 'Hardened 'AccountK
--- let addressIx = Index 'Soft 'AddressK
+-- let addressIx = Index 'Soft 'CredFromKeyK
 -- @
 newtype Index (derivationType :: DerivationType) (level :: Depth) = Index
     { getIndex :: Word32 }
@@ -482,6 +485,7 @@ data DerivationType = Hardened | Soft | WholeDomain
 -- | An interface for doing hard derivations from the root private key
 class HardDerivation (key :: Depth -> Type -> Type) where
     type AddressIndexDerivationType key :: DerivationType
+    type AddressCredential key :: Depth
 
     -- | Derives account private key from the given root private key, using
     -- derivation scheme 2 (see <https://github.com/input-output-hk/cardano-crypto/ cardano-crypto>
@@ -512,8 +516,8 @@ class HardDerivation (key :: Depth -> Type -> Type) where
         :: Passphrase "encryption"
         -> key 'AccountK XPrv
         -> Role
-        -> Index (AddressIndexDerivationType key) 'AddressK
-        -> key 'AddressK XPrv
+        -> Index (AddressIndexDerivationType key) (AddressCredential key)
+        -> key (AddressCredential key) XPrv
 
 -- | An interface for doing soft derivations from an account public key
 class HardDerivation key => SoftDerivation (key :: Depth -> Type -> Type) where
@@ -525,13 +529,13 @@ class HardDerivation key => SoftDerivation (key :: Depth -> Type -> Type) where
     deriveAddressPublicKey
         :: key 'AccountK XPub
         -> Role
-        -> Index 'Soft 'AddressK
-        -> key 'AddressK XPub
+        -> Index 'Soft (AddressCredential key)
+        -> key (AddressCredential key) XPub
 
 -- | Derivation of a reward account, as a type-class because different between
 -- key types (in particular, Jörmungandr vs Shelley).
 class ToRewardAccount k where
-    toRewardAccount :: k 'AddressK XPub -> RewardAccount
+    toRewardAccount :: k 'CredFromKeyK XPub -> RewardAccount
     someRewardAccount :: SomeMnemonic -> (XPrv, RewardAccount, NonEmpty DerivationIndex)
 
 -- | Derive a reward account from a root private key. It is agreed by standard
@@ -539,19 +543,18 @@ class ToRewardAccount k where
 -- located into a special derivation path and uses the first index of that path.
 deriveRewardAccount
     :: ( HardDerivation k
-       , Bounded (Index (AddressIndexDerivationType k) 'AddressK)
-       )
+       , Bounded (Index (AddressIndexDerivationType k) (AddressCredential k)) )
     => Passphrase "encryption"
     -> k 'RootK XPrv
-    -> k 'AddressK XPrv
+    -> k (AddressCredential k) XPrv
 deriveRewardAccount pwd rootPrv =
     let accPrv = deriveAccountPrivateKey pwd rootPrv minBound
     in deriveAddressPrivateKey pwd accPrv MutableAccount minBound
 
 hashVerificationKey
-    :: WalletKey key
+    :: WalletKey k
     => KeyRole
-    -> key depth XPub
+    -> k depth XPub
     -> KeyHash
 hashVerificationKey keyRole =
     KeyHash keyRole . blake2b224 . xpubPublicKey . getRawKey
@@ -658,14 +661,14 @@ class BoundedAddressLength key where
 
 -- | Encoding of addresses for certain key types and backend targets.
 class MkKeyFingerprint key Address
-    => PaymentAddress (network :: NetworkDiscriminant) key where
+    => PaymentAddress (network :: NetworkDiscriminant) key ktype where
     -- | Convert a public key to a payment 'Address' valid for the given
     -- network discrimination.
     --
     -- Note that 'paymentAddress' is ambiguous and requires therefore a type
     -- application.
     paymentAddress
-        :: key 'AddressK XPub
+        :: key ktype XPub
         -> Address
 
     -- | Lift a payment fingerprint back into a payment address.
@@ -674,12 +677,12 @@ class MkKeyFingerprint key Address
             -- ^ Payment fingerprint
         -> Address
 
-instance PaymentAddress 'Mainnet k => PaymentAddress ('Staging pm) k where
-    paymentAddress = paymentAddress @'Mainnet
-    liftPaymentAddress = liftPaymentAddress @'Mainnet
+instance PaymentAddress 'Mainnet k ktype => PaymentAddress ('Staging pm) k ktype where
+    paymentAddress = paymentAddress @'Mainnet @k @ktype
+    liftPaymentAddress = liftPaymentAddress @'Mainnet @k @ktype
 
-class PaymentAddress network key
-    => DelegationAddress (network :: NetworkDiscriminant) key where
+class PaymentAddress network key ktype
+    => DelegationAddress (network :: NetworkDiscriminant) key ktype where
     -- | Convert a public key and a staking key to a delegation 'Address' valid
     -- for the given network discrimination. Funds sent to this address will be
     -- delegated according to the delegation settings attached to the delegation
@@ -688,9 +691,9 @@ class PaymentAddress network key
     -- Note that 'delegationAddress' is ambiguous and requires therefore a type
     -- application.
     delegationAddress
-        :: key 'AddressK XPub
+        :: key ktype XPub
             -- ^ Payment key
-        -> key 'AddressK XPub
+        -> key ktype XPub
             -- ^ Staking key / Reward account
         -> Address
 
@@ -698,11 +701,11 @@ class PaymentAddress network key
     liftDelegationAddress
         :: KeyFingerprint "payment" key
             -- ^ Payment fingerprint
-        -> key 'AddressK XPub
+        -> key ktype XPub
             -- ^ Staking key / Reward account
         -> Address
 
-instance DelegationAddress 'Mainnet k => DelegationAddress ('Staging pm) k where
+instance DelegationAddress 'Mainnet k ktype => DelegationAddress ('Staging pm) k ktype where
     delegationAddress = delegationAddress @'Mainnet
     liftDelegationAddress = liftDelegationAddress @'Mainnet
 
@@ -767,6 +770,23 @@ class Show from => MkKeyFingerprint (key :: Depth -> Type -> Type) from where
 
 data ErrMkKeyFingerprint key from
     = ErrInvalidAddress from (Proxy key) deriving (Show, Eq)
+
+-- Extract the fingerprint from an 'Address', we expect the caller to
+-- provide addresses that are compatible with the key scheme being used.
+--
+-- Actually, addresses passed as asgument should have been "generated" by
+-- the address pool itself in the past, so they ought to be valid!
+unsafePaymentKeyFingerprint
+    :: forall k from. (HasCallStack, MkKeyFingerprint k from)
+    => from
+    -> KeyFingerprint "payment" k
+unsafePaymentKeyFingerprint from = case paymentKeyFingerprint @k @from from of
+    Right a -> a
+    Left err -> error $ unwords
+        [ "unsafePaymentKeyFingerprint was given a source invalid with its"
+        , "key type:"
+        , show err
+        ]
 
 {-------------------------------------------------------------------------------
                                 Helpers

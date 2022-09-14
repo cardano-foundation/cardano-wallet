@@ -37,9 +37,11 @@
 
 module Cardano.Wallet.Primitive.AddressDiscovery.Sequential
     (
+      SupportsDiscovery
+
     -- * Sequential Derivation
     -- ** Address Pool Gap
-      AddressPoolGap
+    , AddressPoolGap
     , MkAddressPoolGapError (..)
     , defaultAddressPoolGap
     , getAddressPoolGap
@@ -50,7 +52,6 @@ module Cardano.Wallet.Primitive.AddressDiscovery.Sequential
     , SeqAddressPool (..)
     , getGap
     , newSeqAddressPool
-    , unsafePaymentKeyFingerprint
 
     -- ** State
     , SeqState (..)
@@ -94,6 +95,7 @@ import Cardano.Wallet.Primitive.AddressDerivation
     , ToRewardAccount (..)
     , WalletKey (..)
     , roleVal
+    , unsafePaymentKeyFingerprint
     )
 import Cardano.Wallet.Primitive.AddressDerivation.MintBurn
     ( derivePolicyPrivateKey )
@@ -154,8 +156,6 @@ import Fmt
     ( Buildable (..), blockListF', hexF, indentF, prefixF, suffixF )
 import GHC.Generics
     ( Generic )
-import GHC.Stack
-    ( HasCallStack )
 import GHC.TypeLits
     ( KnownNat, Nat, natVal )
 import Type.Reflection
@@ -170,8 +170,9 @@ import qualified Data.Text.Encoding as T
 
 -- | Convenient constraint alias for commonly used class contexts on keys.
 type SupportsDiscovery n k =
-    ( MkKeyFingerprint k (Proxy n, k 'AddressK XPub)
+    ( MkKeyFingerprint k (Proxy n, k 'CredFromKeyK XPub)
     , MkKeyFingerprint k Address
+    , AddressCredential k ~ 'CredFromKeyK
     , SoftDerivation k
     , Typeable n
     )
@@ -254,7 +255,7 @@ newtype SeqAddressPool (c :: Role) (key :: Depth -> Type -> Type) =
         getPool ::
             AddressPool.Pool
                 (KeyFingerprint "payment" key)
-                (Index 'Soft 'AddressK)
+                (Index 'Soft 'CredFromKeyK)
     } deriving (Generic, Show)
 
 instance NFData (SeqAddressPool c k)
@@ -284,23 +285,6 @@ newSeqAddressPool account g =
 
 getGap :: SeqAddressPool c k -> AddressPoolGap
 getGap = AddressPoolGap . fromIntegral . AddressPool.gap . getPool
-
--- Extract the fingerprint from an 'Address', we expect the caller to
--- provide addresses that are compatible with the key scheme being used.
---
--- Actually, addresses passed as asgument should have been "generated" by
--- the address pool itself in the past, so they ought to be valid!
-unsafePaymentKeyFingerprint
-    :: forall k from. (HasCallStack, MkKeyFingerprint k from)
-    => from
-    -> KeyFingerprint "payment" k
-unsafePaymentKeyFingerprint from = case paymentKeyFingerprint @k from of
-    Right a -> a
-    Left err -> error $ unwords
-        [ "unsafePaymentKeyFingerprint was given a source invalid with its"
-        , "key type:"
-        , show err
-        ]
 
 {-------------------------------------------------------------------------------
     Pretty printing
@@ -354,7 +338,7 @@ data SeqState (n :: NetworkDiscriminant) k = SeqState
         -- ^ Addresses living on the 'UtxoInternal'
     , externalPool :: !(SeqAddressPool 'UtxoExternal k)
         -- ^ Addresses living on the 'UtxoExternal'
-    , pendingChangeIxs :: !(PendingIxs 'AddressK)
+    , pendingChangeIxs :: !(PendingIxs 'CredFromKeyK)
         -- ^ Indexes from the internal pool that have been used in pending
         -- transactions. The list is maintained sorted in descending order
         -- (cf: 'PendingIxs')
@@ -363,7 +347,7 @@ data SeqState (n :: NetworkDiscriminant) k = SeqState
     , policyXPub :: Maybe (k 'PolicyK XPub)
         -- ^ The policy public key associated with this state derived for
         -- policy key hardened index=0
-    , rewardAccountKey :: k 'AddressK XPub
+    , rewardAccountKey :: k 'CredFromKeyK XPub
         -- ^ Reward account public key associated with this wallet
     , derivationPrefix :: DerivationPrefix
         -- ^ Derivation path prefix from a root key up to the internal account
@@ -372,14 +356,14 @@ data SeqState (n :: NetworkDiscriminant) k = SeqState
 
 deriving instance
     ( Show (k 'AccountK XPub)
-    , Show (k 'AddressK XPub)
+    , Show (k 'CredFromKeyK XPub)
     , Show (k 'PolicyK XPub)
     , Show (KeyFingerprint "payment" k)
     ) => Show (SeqState n k)
 
 instance
     ( NFData (k 'AccountK XPub)
-    , NFData (k 'AddressK XPub)
+    , NFData (k 'CredFromKeyK XPub)
     , NFData (k 'PolicyK XPub)
     , NFData (KeyFingerprint "payment" k)
     )
@@ -388,7 +372,7 @@ instance
 -- Hand-written, because 'AddressPool.Pool' is not an instance of 'Eq'.
 instance
     ( Eq (k 'AccountK XPub)
-    , Eq (k 'AddressK XPub)
+    , Eq (k 'CredFromKeyK XPub)
     , Eq (k 'PolicyK XPub)
     , Eq (KeyFingerprint "payment" k)
     ) => Eq (SeqState n k)
@@ -483,7 +467,7 @@ mkSeqStateFromAccountXPub accXPub policyXPubM purpose g = SeqState
 
 -- | Decorate an index with the derivation prefix corresponding to the state.
 decoratePath
-    :: SeqState n k -> Role -> Index 'Soft 'AddressK
+    :: SeqState n k -> Role -> Index 'Soft 'CredFromKeyK
     -> NE.NonEmpty DerivationIndex
 decoratePath st r ix = NE.fromList
     [ DerivationIndex $ getIndex purpose
@@ -538,7 +522,9 @@ instance SupportsDiscovery n k => IsOurs (SeqState n k) Address where
                 Just ix ->
                     (Just ix, SeqAddressPool $ AddressPool.update addr pool)
 
-instance SoftDerivation k => GenChange (SeqState n k) where
+instance
+    ( SoftDerivation k, AddressCredential k ~ 'CredFromKeyK
+    ) => GenChange (SeqState n k) where
     -- | We pick indexes in sequence from the first known available index (i.e.
     -- @length addrs - gap@) but we do not generate _new change addresses_. As a
     -- result, we can't generate more than @gap@ _pending_ change addresses and
@@ -546,7 +532,7 @@ instance SoftDerivation k => GenChange (SeqState n k) where
     --
     -- See also: 'nextChangeIndex'
     type ArgGenChange (SeqState n k) =
-        k 'AddressK XPub -> k 'AddressK XPub -> Address
+        (k 'CredFromKeyK XPub -> k 'CredFromKeyK XPub -> Address)
 
     genChange mkAddress st = (addr, st{pendingChangeIxs=pending'})
       where
@@ -560,7 +546,7 @@ instance
     , SupportsDiscovery n k
     , AddressIndexDerivationType k ~ 'Soft
     )
-    => IsOwned (SeqState n k) k where
+    => IsOwned (SeqState n k) k 'CredFromKeyK where
     isOwned st (rootPrv, pwd) addrRaw =
         case paymentKeyFingerprint addrRaw of
             Left _ -> Nothing
@@ -579,7 +565,7 @@ instance
             :: forall c. (Typeable c)
             => KeyFingerprint "payment" k
             -> SeqAddressPool c k
-            -> Maybe (k 'AddressK XPrv)
+            -> Maybe (k 'CredFromKeyK XPrv)
         lookupAndDeriveXPrv addr (SeqAddressPool pool) =
                 deriveAddressPrivateKey pwd accountPrv (roleVal @c)
             <$> AddressPool.lookup addr pool
@@ -592,13 +578,13 @@ instance SupportsDiscovery n k => CompareDiscovery (SeqState n k) where
             (Just _, Nothing)  -> LT
             (Just i1, Just i2) -> compare i1 i2
       where
-        ix :: Address -> SeqAddressPool c k -> Maybe (Index 'Soft 'AddressK)
+        ix :: Address -> SeqAddressPool c k -> Maybe (Index 'Soft 'CredFromKeyK)
         ix a (SeqAddressPool pool) = case paymentKeyFingerprint a of
             Left _ -> Nothing
             Right addr -> AddressPool.lookup addr pool
 
 instance
-    ( PaymentAddress n k
+    ( PaymentAddress n k 'CredFromKeyK
     ) => KnownAddresses (SeqState n k) where
     knownAddresses st =
         nonChangeAddresses <> usedChangeAddresses <> pendingChangeAddresses
@@ -614,7 +600,7 @@ instance
           where
             idx (_,(ix,_)) = ix
             shuffle (k,(ix,s)) =
-                (liftPaymentAddress @n k, s, decoratePath st (roleVal @c) ix)
+                (liftPaymentAddress @n @k @'CredFromKeyK k, s, decoratePath st (roleVal @c) ix)
 
         nonChangeAddresses = listAddresses $ externalPool st
         changeAddresses = listAddresses $ internalPool st
@@ -637,7 +623,7 @@ instance GetAccount (SeqState n k) k where
 -- efficient query @addr -> m txs@.
 -- Does /not/ take 'RewardAccount' into account.
 discoverSeq
-    :: forall n k m. (PaymentAddress n k, Monad m)
+    :: forall n k m. (PaymentAddress n k 'CredFromKeyK, Monad m)
     => (Either Address RewardAccount -> m ChainEvents)
     -> SeqState n k -> m (ChainEvents, SeqState n k)
 discoverSeq query state = do
@@ -655,8 +641,7 @@ discoverSeq query state = do
     pure (discoveredEvents, state')
   where
     -- Only enterprise address (for legacy Icarus keys)
-    fromPayment hash = liftPaymentAddress @n hash
-
+    fromPayment hash = liftPaymentAddress @n @k @'CredFromKeyK hash
     discover :: SeqAddressPool r k -> m (ChainEvents, SeqAddressPool r k)
     discover = fmap (second SeqAddressPool)
         . AddressPool.discover (query . Left . fromPayment) . getPool
@@ -665,7 +650,7 @@ discoverSeq query state = do
 -- efficient query @addr -> m txs@.
 -- Does take 'RewardAccount' into account.
 discoverSeqWithRewards
-    :: forall n k m. (DelegationAddress n k, ToRewardAccount k, Monad m)
+    :: forall n k m. (DelegationAddress n k 'CredFromKeyK, ToRewardAccount k, Monad m)
     => (Either Address RewardAccount -> m ChainEvents)
     -> SeqState n k -> m (ChainEvents, SeqState n k)
 discoverSeqWithRewards query state = do
@@ -716,7 +701,7 @@ newtype SeqAnyState (network :: NetworkDiscriminant) key (p :: Nat) =
 
 deriving instance
     ( Show (k 'AccountK XPub)
-    , Show (k 'AddressK XPub)
+    , Show (k 'CredFromKeyK XPub)
     , Show (k 'PolicyK XPub)
     , Show (KeyFingerprint "payment" k)
     )
@@ -724,7 +709,7 @@ deriving instance
 
 instance
     ( NFData (k 'AccountK XPub)
-    , NFData (k 'AddressK XPub)
+    , NFData (k 'CredFromKeyK XPub)
     , NFData (k 'PolicyK XPub)
     , NFData (KeyFingerprint "payment" k)
     )
@@ -778,18 +763,22 @@ instance IsOurs (SeqAnyState n k p) RewardAccount where
 instance
     ( AddressIndexDerivationType k ~ 'Soft
     , KnownNat p
-    ) => IsOwned (SeqAnyState n k p) k
+    ) => IsOwned (SeqAnyState n k p) k 'CredFromKeyK
   where
     isOwned _ _ _ = Nothing
 
-instance SoftDerivation k => GenChange (SeqAnyState n k p) where
+instance
+    ( SoftDerivation k
+    , AddressCredential k ~ 'CredFromKeyK
+    ) => GenChange (SeqAnyState n k p)
+  where
     type ArgGenChange (SeqAnyState n k p) = ArgGenChange (SeqState n k)
     genChange a (SeqAnyState s) = SeqAnyState <$> genChange a s
 
 instance SupportsDiscovery n k => CompareDiscovery (SeqAnyState n k p) where
     compareDiscovery (SeqAnyState s) = compareDiscovery s
 
-instance PaymentAddress n k => KnownAddresses (SeqAnyState n k p) where
+instance PaymentAddress n k 'CredFromKeyK => KnownAddresses (SeqAnyState n k p) where
     knownAddresses (SeqAnyState s) = knownAddresses s
 
 instance MaybeLight (SeqAnyState n k p) where

@@ -16,6 +16,7 @@ import Cardano.Wallet.Api.Types
     ( DecodeAddress, DecodeStakeAddress, EncodeAddress, EncodeStakeAddress )
 import Cardano.Wallet.Primitive.AddressDerivation
     ( DelegationAddress
+    , Depth (..)
     , NetworkDiscriminant
     , NetworkDiscriminantVal
     , PaymentAddress
@@ -39,10 +40,10 @@ data SomeNetworkDiscriminant where
     SomeNetworkDiscriminant
         :: forall (n :: NetworkDiscriminant).
             ( NetworkDiscriminantVal n
-            , PaymentAddress n IcarusKey
-            , PaymentAddress n ByronKey
-            , PaymentAddress n ShelleyKey
-            , DelegationAddress n ShelleyKey
+            , PaymentAddress n IcarusKey 'CredFromKeyK
+            , PaymentAddress n ByronKey 'CredFromKeyK
+            , PaymentAddress n ShelleyKey 'CredFromKeyK
+            , DelegationAddress n ShelleyKey 'CredFromKeyK
             , HasNetworkId n
             , DecodeAddress n
             , EncodeAddress n

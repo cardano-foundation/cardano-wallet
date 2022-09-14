@@ -147,7 +147,10 @@ module Cardano.Wallet.Api
 
     , SharedTransactions
         , ConstructSharedTransaction
+        , SignSharedTransaction
         , DecodeSharedTransaction
+        , SubmitSharedTransaction
+
     , GetBlocksLatestHeader
     , Proxy_
         , PostExternalTransaction
@@ -1107,7 +1110,9 @@ type ListSharedAddresses n = "shared-wallets"
 
 type SharedTransactions n =
          ConstructSharedTransaction n
+    :<|> SignSharedTransaction n
     :<|> DecodeSharedTransaction n
+    :<|> SubmitSharedTransaction
 
 -- | https://input-output-hk.github.io/cardano-wallet/api/#operation/constructSharedTransaction
 type ConstructSharedTransaction n = "shared-wallets"
@@ -1116,12 +1121,26 @@ type ConstructSharedTransaction n = "shared-wallets"
     :> ReqBody '[JSON] (ApiConstructTransactionDataT n)
     :> PostAccepted '[JSON] (ApiConstructTransactionT n)
 
+-- | https://input-output-hk.github.io/cardano-wallet/api/#operation/signSharedTransaction
+type SignSharedTransaction n = "shared-wallets"
+    :> Capture "walletId" (ApiT WalletId)
+    :> "transactions-sign"
+    :> ReqBody '[JSON] ApiSignTransactionPostData
+    :> PostAccepted '[JSON] ApiSerialisedTransaction
+
 -- | https://input-output-hk.github.io/cardano-wallet/api/#operation/decodeSharedTransaction
 type DecodeSharedTransaction n = "shared-wallets"
     :> Capture "walletId" (ApiT WalletId)
     :> "transactions-decode"
     :> ReqBody '[JSON] ApiSerialisedTransaction
     :> PostAccepted '[JSON] (ApiDecodedTransactionT n)
+
+-- | https://input-output-hk.github.io/cardano-wallet/api/#operation/submitSharedTransaction
+type SubmitSharedTransaction = "shared-wallets"
+    :> Capture "walletId" (ApiT WalletId)
+    :> "transactions-submit"
+    :> ReqBody '[JSON] ApiSerialisedTransaction
+    :> PostAccepted '[JSON] ApiTxId
 
 {-------------------------------------------------------------------------------
                                    Proxy_
@@ -1142,13 +1161,13 @@ type PostExternalTransaction = "proxy"
                                Api Layer
 -------------------------------------------------------------------------------}
 
-data ApiLayer s (k :: Depth -> Type -> Type)
+data ApiLayer s (k :: Depth -> Type -> Type) ktype
     = ApiLayer
         (Tracer IO TxSubmitLog)
         (Tracer IO (WorkerLog WalletId WalletWorkerLog))
         (Block, NetworkParameters)
         (NetworkLayer IO Block)
-        (TransactionLayer k SealedTx)
+        (TransactionLayer k ktype SealedTx)
         (DBFactory IO s k)
         (WorkerRegistry WalletId (DBLayer IO s k))
         (Concierge IO WalletLock)
@@ -1161,10 +1180,10 @@ data ApiLayer s (k :: Depth -> Type -> Type)
 data WalletLock = PostTransactionOld WalletId
     deriving (Eq, Ord, Show)
 
-instance HasWorkerCtx (DBLayer IO s k) (ApiLayer s k) where
-    type WorkerCtx (ApiLayer s k) = WalletLayer IO s k
-    type WorkerMsg (ApiLayer s k) = WalletWorkerLog
-    type WorkerKey (ApiLayer s k) = WalletId
+instance HasWorkerCtx (DBLayer IO s k) (ApiLayer s k ktype) where
+    type WorkerCtx (ApiLayer s k ktype) = WalletLayer IO s k ktype
+    type WorkerMsg (ApiLayer s k ktype) = WalletWorkerLog
+    type WorkerKey (ApiLayer s k ktype) = WalletId
     hoistResource db transform (ApiLayer _ tr gp nw tl _ _ _ _) =
         WalletLayer (contramap transform tr) gp nw tl db
 

@@ -81,7 +81,7 @@ purposeCIP1854 = toEnum 0x8000073E
 -- @
 -- let rootPrivateKey = SharedKey 'RootK XPrv
 -- let accountPubKey = SharedKey 'AccountK XPub
--- let addressPubKey = SharedKey 'AddressK XPub
+-- let addressPubKey = SharedKey 'CredFromScriptK XPub
 -- @
 newtype SharedKey (depth :: Depth) key =
     SharedKey { getKey :: key }
@@ -94,7 +94,7 @@ constructAddressFromIx
     => Role
     -> ScriptTemplate
     -> Maybe ScriptTemplate
-    -> Index 'Soft 'ScriptK
+    -> Index 'Soft 'CredFromScriptK
     -> Address
 constructAddressFromIx role pTemplate dTemplate ix =
     let delegationCredential = DelegationFromScriptHash . toScriptHash
@@ -126,7 +126,7 @@ constructAddressFromIx role pTemplate dTemplate ix =
 replaceCosignersWithVerKeys
     :: CA.Role
     -> ScriptTemplate
-    -> Index 'Soft 'ScriptK
+    -> Index 'Soft 'CredFromScriptK
     -> Script KeyHash
 replaceCosignersWithVerKeys role' (ScriptTemplate xpubs scriptTemplate) ix =
     replaceCosigner scriptTemplate
@@ -139,7 +139,7 @@ replaceCosignersWithVerKeys role' (ScriptTemplate xpubs scriptTemplate) ix =
         RequireSomeOf m xs   -> RequireSomeOf m (map replaceCosigner xs)
         ActiveFromSlot s     -> ActiveFromSlot s
         ActiveUntilSlot s    -> ActiveUntilSlot s
-    convertIndex :: Index 'Soft 'ScriptK -> CA.Index 'CA.Soft 'CA.PaymentK
+    convertIndex :: Index 'Soft 'CredFromScriptK -> CA.Index 'CA.Soft 'CA.PaymentK
     convertIndex = fromJust . CA.indexFromWord32 . fromIntegral . fromEnum
     toKeyHash :: Cosigner -> KeyHash
     toKeyHash c =

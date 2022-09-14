@@ -143,13 +143,13 @@ import qualified Cardano.Wallet.Primitive.Types.TokenMap as TokenMap
 import qualified Data.Aeson.Types as Aeson
 import qualified Data.Map.Strict as Map
 
-data TransactionLayer k tx = TransactionLayer
+data TransactionLayer k ktype tx = TransactionLayer
     { mkTransaction
         :: AnyCardanoEra
             -- Era for which the transaction should be created.
         -> (XPrv, Passphrase "encryption")
             -- Reward account
-        -> (Address -> Maybe (k 'AddressK XPrv, Passphrase "encryption"))
+        -> (Address -> Maybe (k 'CredFromKeyK XPrv, Passphrase "encryption"))
             -- Key store
         -> ProtocolParameters
             -- Current protocol parameters
@@ -174,7 +174,7 @@ data TransactionLayer k tx = TransactionLayer
             -- Reward account
         -> (KeyHash, XPrv, Passphrase "encryption")
             -- policy public and private key
-        -> (Address -> Maybe (k 'AddressK XPrv, Passphrase "encryption"))
+        -> (Address -> Maybe (k ktype XPrv, Passphrase "encryption"))
             -- Key store / address resolution
         -> (TxIn -> Maybe Address)
             -- Input resolution
@@ -412,6 +412,8 @@ data TransactionCtx = TransactionCtx
     -- ^ The assets to mint.
     , txAssetsToBurn :: (TokenMap, Map AssetId (Script KeyHash))
     -- ^ The assets to burn.
+    , txNativeScriptInputs :: Map TxIn (Script KeyHash)
+    -- ^ A map of script hashes related to inputs. Only for multisig wallets
     , txCollateralRequirement :: SelectionCollateralRequirement
     -- ^ The collateral requirement.
     , txFeePadding :: !Coin
@@ -443,6 +445,7 @@ defaultTransactionCtx = TransactionCtx
     , txPlutusScriptExecutionCost = Coin 0
     , txAssetsToMint = (TokenMap.empty, Map.empty)
     , txAssetsToBurn = (TokenMap.empty, Map.empty)
+    , txNativeScriptInputs = Map.empty
     , txCollateralRequirement = SelectionCollateralNotRequired
     , txFeePadding = Coin 0
     }

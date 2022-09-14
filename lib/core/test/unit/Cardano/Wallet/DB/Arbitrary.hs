@@ -558,7 +558,7 @@ instance Arbitrary (ShelleyKey 'RootK XPrv) where
 --        map pendingIxsFromList . shrink . pendingIxsToList
 --    arbitrary =
 --        pendingIxsFromList . Set.toList <$> arbitrary
-instance Arbitrary (PendingIxs 'AddressK) where
+instance Arbitrary (PendingIxs 'CredFromKeyK) where
     arbitrary = pure emptyPendingIxs
 
 instance ( Typeable ( c :: Role ) )
@@ -593,7 +593,7 @@ arbitrarySeqAccount =
     mw = someDummyMnemonic (Proxy @15)
 
 arbitraryRewardAccount
-    :: ShelleyKey 'AddressK XPub
+    :: ShelleyKey 'CredFromKeyK XPub
 arbitraryRewardAccount =
     publicKey $ Shelley.unsafeGenerateKeyFromSeed (mw, Nothing) mempty
   where

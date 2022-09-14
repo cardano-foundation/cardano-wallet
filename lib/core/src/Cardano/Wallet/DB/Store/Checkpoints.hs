@@ -91,6 +91,7 @@ import Cardano.Wallet.DB.WalletState
     )
 import Cardano.Wallet.Primitive.AddressDerivation
     ( Depth (..)
+    , HardDerivation (..)
     , MkKeyFingerprint (..)
     , PaymentAddress (..)
     , PersistPublicKey (..)
@@ -98,6 +99,7 @@ import Cardano.Wallet.Primitive.AddressDerivation
     , SoftDerivation (..)
     , WalletKey (..)
     , roleVal
+    , unsafePaymentKeyFingerprint
     )
 import Cardano.Wallet.Primitive.AddressDerivation.SharedKey
     ( SharedKey (..) )
@@ -440,10 +442,11 @@ instance
 
 instance
     ( PersistPublicKey (key 'AccountK)
-    , PersistPublicKey (key 'AddressK)
+    , PersistPublicKey (key 'CredFromKeyK)
     , PersistPublicKey (key 'PolicyK)
-    , MkKeyFingerprint key (Proxy n, key 'AddressK XPub)
-    , PaymentAddress n key
+    , MkKeyFingerprint key (Proxy n, key 'CredFromKeyK XPub)
+    , PaymentAddress n key 'CredFromKeyK
+    , AddressCredential key ~ 'CredFromKeyK
     , SoftDerivation key
     , Typeable n
     , (key == SharedKey) ~ 'False
@@ -493,11 +496,11 @@ instance
             <$> selectSeqAddressMap wid sl
             <*> selectSeqAddressMap wid sl
 
-mkSeqStatePendingIxs :: W.WalletId -> PendingIxs 'AddressK -> [SeqStatePendingIx]
+mkSeqStatePendingIxs :: W.WalletId -> PendingIxs 'CredFromKeyK -> [SeqStatePendingIx]
 mkSeqStatePendingIxs wid =
     fmap (SeqStatePendingIx wid . W.getIndex) . pendingIxsToList
 
-selectSeqStatePendingIxs :: W.WalletId -> SqlPersistT IO (PendingIxs 'AddressK)
+selectSeqStatePendingIxs :: W.WalletId -> SqlPersistT IO (PendingIxs 'CredFromKeyK)
 selectSeqStatePendingIxs wid =
     pendingIxsFromList . fromRes <$> selectList
         [SeqStatePendingWalletId ==. wid]
@@ -506,16 +509,16 @@ selectSeqStatePendingIxs wid =
     fromRes = fmap (W.Index . seqStatePendingIxIndex . entityVal)
 
 insertSeqAddressMap
-    :: forall n c key. (PaymentAddress n key, Typeable c)
+    :: forall n c key. (PaymentAddress n key 'CredFromKeyK, Typeable c)
     =>  W.WalletId -> W.SlotNo -> SeqAddressMap c key -> SqlPersistT IO ()
 insertSeqAddressMap wid sl (SeqAddressMap pool) = void $
     dbChunked insertMany_
-        [ SeqStateAddress wid sl (liftPaymentAddress @n addr)
+        [ SeqStateAddress wid sl (liftPaymentAddress @n @key @'CredFromKeyK addr)
             (W.getIndex ix) (roleVal @c) status
         | (addr, (ix, status)) <- Map.toList pool
         ]
 
--- MkKeyFingerprint key (Proxy n, key 'AddressK XPub)
+-- MkKeyFingerprint key (Proxy n, key 'CredFromKeyK XPub)
 selectSeqAddressMap :: forall (c :: Role) key.
     ( MkKeyFingerprint key W.Address
     , Typeable c
@@ -528,7 +531,7 @@ selectSeqAddressMap wid sl = do
         ] [Asc SeqStateAddressIndex]
   where
     toTriple x =
-        ( Seq.unsafePaymentKeyFingerprint @key (seqStateAddressAddress x)
+        ( unsafePaymentKeyFingerprint @key (seqStateAddressAddress x)
         ,   ( toEnum $ fromIntegral $ seqStateAddressIndex x
             , seqStateAddressStatus x
             )
@@ -574,7 +577,7 @@ instance
                 | ((Cosigner c), xpub) <- Map.assocs cs
                 ]
 
-        mkSharedStatePendingIxs :: PendingIxs 'ScriptK -> [SharedStatePendingIx]
+        mkSharedStatePendingIxs :: PendingIxs 'CredFromScriptK -> [SharedStatePendingIx]
         mkSharedStatePendingIxs =
             fmap (SharedStatePendingIx wid . W.getIndex) . pendingIxsToList
 
@@ -613,7 +616,7 @@ instance
                 pendingIxs
         pure $ SharedPrologue prologue
       where
-        selectSharedStatePendingIxs :: SqlPersistT IO (PendingIxs 'ScriptK)
+        selectSharedStatePendingIxs :: SqlPersistT IO (PendingIxs 'CredFromScriptK)
         selectSharedStatePendingIxs =
             pendingIxsFromList . fromRes <$> selectList
                 [SharedStatePendingWalletId ==. wid]

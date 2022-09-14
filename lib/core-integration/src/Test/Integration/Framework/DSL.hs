@@ -116,6 +116,7 @@ module Test.Integration.Framework.DSL
     , selectCoinsWith
     , listAddresses
     , signTx
+    , signSharedTx
     , submitTx
     , submitTxWithWid
     , getWallet
@@ -176,6 +177,7 @@ module Test.Integration.Framework.DSL
     , hexText
     , fromHexText
     , accPubKeyFromMnemonics
+    , submitSharedTxWithWid
 
     -- * Delegation helpers
     , notDelegating
@@ -237,6 +239,7 @@ import Cardano.Mnemonic
 import Cardano.Wallet.Api.Types
     ( AddressAmount
     , ApiAccountKeyShared
+    , ApiActiveSharedWallet
     , ApiAddress
     , ApiBlockReference (..)
     , ApiByronWallet
@@ -1812,7 +1815,7 @@ fixtureRandomWallet = fmap fst . fixtureRandomWalletMws
 
 fixtureRandomWalletAddrs
     :: forall (n :: NetworkDiscriminant) m.
-        ( PaymentAddress n ByronKey
+        ( PaymentAddress n ByronKey 'CredFromKeyK
         , MonadIO m
         , MonadUnliftIO m
         )
@@ -1834,7 +1837,7 @@ fixtureRandomWalletWith
         ( EncodeAddress n
         , DecodeAddress n
         , DecodeStakeAddress n
-        , PaymentAddress n ByronKey
+        , PaymentAddress n ByronKey 'CredFromKeyK
         , MonadIO m
         , MonadUnliftIO m
         )
@@ -1872,7 +1875,7 @@ fixtureIcarusWallet = fmap fst . fixtureIcarusWalletMws
 
 fixtureIcarusWalletAddrs
     :: forall (n :: NetworkDiscriminant) m.
-        ( PaymentAddress n IcarusKey
+        ( PaymentAddress n IcarusKey 'CredFromKeyK
         , MonadIO m
         , MonadUnliftIO m
         )
@@ -1894,7 +1897,7 @@ fixtureIcarusWalletWith
         ( EncodeAddress n
         , DecodeAddress n
         , DecodeStakeAddress n
-        , PaymentAddress n IcarusKey
+        , PaymentAddress n IcarusKey 'CredFromKeyK
         , MonadIO m
         , MonadUnliftIO m
         )
@@ -2259,7 +2262,7 @@ delegationFee ctx w = do
 -- >>> take 1 (randomAddresses @n)
 -- [addr]
 randomAddresses
-    :: forall (n :: NetworkDiscriminant). (PaymentAddress n ByronKey)
+    :: forall (n :: NetworkDiscriminant). (PaymentAddress n ByronKey 'CredFromKeyK)
     => Mnemonic 12
     -> [Address]
 randomAddresses mw =
@@ -2284,7 +2287,7 @@ randomAddresses mw =
 -- >>> take 1 (icarusAddresses @n)
 -- [addr]
 icarusAddresses
-    :: forall (n :: NetworkDiscriminant). (PaymentAddress n IcarusKey)
+    :: forall (n :: NetworkDiscriminant). (PaymentAddress n IcarusKey 'CredFromKeyK)
     => Mnemonic 15
     -> [Address]
 icarusAddresses mw =
@@ -2309,7 +2312,7 @@ icarusAddresses mw =
 -- >>> take 1 (shelleyAddresses @n)
 -- [addr]
 shelleyAddresses
-    :: forall (n :: NetworkDiscriminant). (PaymentAddress n ShelleyKey)
+    :: forall (n :: NetworkDiscriminant). (PaymentAddress n ShelleyKey 'CredFromKeyK)
     => Mnemonic 15
     -> [Address]
 shelleyAddresses mw =
@@ -2355,6 +2358,23 @@ signTx ctx w sealedTx expectations = do
     verify r expectations
     pure $ getFromResponse Prelude.id r
 
+signSharedTx
+    :: MonadUnliftIO m
+    => Context
+    -> ApiActiveSharedWallet
+    -> ApiT SealedTx
+    -> [(HTTP.Status, Either RequestException ApiSerialisedTransaction) -> m ()]
+    -> m ApiSerialisedTransaction
+signSharedTx ctx w sealedTx expectations = do
+    let toSign = Json [aesonQQ|
+                           { "transaction": #{sealedTx}
+                           , "passphrase": #{fixturePassphrase}
+                           }|]
+    let signEndpoint = Link.signTransaction @'Shared w
+    r <- request @ApiSerialisedTransaction ctx signEndpoint Default toSign
+    verify r expectations
+    pure $ getFromResponse Prelude.id r
+
 submitTx
     :: MonadUnliftIO m
     => Context
@@ -2380,6 +2400,17 @@ submitTxWithWid
     -> m (HTTP.Status, Either RequestException ApiTxId)
 submitTxWithWid ctx w tx = do
     let submitEndpoint = Link.submitTransaction @'Shelley w
+    let payload = Json $ Aeson.toJSON tx
+    request @ApiTxId ctx submitEndpoint Default payload
+
+submitSharedTxWithWid
+    :: MonadUnliftIO m
+    => Context
+    -> ApiActiveSharedWallet
+    -> ApiSerialisedTransaction
+    -> m (HTTP.Status, Either RequestException ApiTxId)
+submitSharedTxWithWid ctx w tx = do
+    let submitEndpoint = Link.submitTransaction @'Shared w
     let payload = Json $ Aeson.toJSON tx
     request @ApiTxId ctx submitEndpoint Default payload
 

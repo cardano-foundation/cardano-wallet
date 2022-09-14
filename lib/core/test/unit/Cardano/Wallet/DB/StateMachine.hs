@@ -1000,7 +1000,7 @@ instance ToExpr (SharedKey 'AccountK CC.XPub) where
 instance ToExpr (KeyFingerprint "payment" SharedKey) where
     toExpr = defaultExprViaShow
 
-instance ToExpr (PendingIxs 'ScriptK) where
+instance ToExpr (PendingIxs 'CredFromScriptK) where
     toExpr = genericToExpr
 
 instance ToExpr (SharedAddressPool 'UtxoExternal SharedKey) where

@@ -133,7 +133,7 @@ newtype SeqAddressMap (c :: Role) (key :: Depth -> Type -> Type) =
     SeqAddressMap
         ( Map
             (KeyFingerprint "payment" key)
-            (Index 'Soft 'AddressK, AddressState)
+            (Index 'Soft 'CredFromKeyK, AddressState)
         )
     deriving Eq
 
@@ -166,7 +166,7 @@ newtype SharedAddressMap (c :: Role) (key :: Depth -> Type -> Type) =
     SharedAddressMap
         ( Map
             (KeyFingerprint "payment" key)
-            (Index 'Soft 'ScriptK, AddressState)
+            (Index 'Soft 'CredFromScriptK, AddressState)
         )
     deriving Eq
 

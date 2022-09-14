@@ -336,9 +336,9 @@ prop_keyHashMatchesXPrv pwd masterkey policyIx =
 
     getPublicKey
         :: ShelleyKey 'PolicyK XPrv
-        -> ShelleyKey 'ScriptK XPub
+        -> ShelleyKey 'CredFromScriptK XPub
     getPublicKey =
-        publicKey . (liftRawKey :: XPrv -> ShelleyKey 'ScriptK XPrv) . getRawKey
+        publicKey . (liftRawKey :: XPrv -> ShelleyKey 'CredFromScriptK XPrv) . getRawKey
 
 prop_keyDerivationSameIndexSameKey
     :: Passphrase "encryption"

@@ -125,6 +125,7 @@ import Cardano.Wallet.Api.Server
     , selectCoinsForQuit
     , signMetadata
     , signTransaction
+    , submitSharedTransaction
     , submitTransaction
     , withLegacyLayer
     , withLegacyLayer'
@@ -164,7 +165,7 @@ import Cardano.Wallet.Api.Types.BlockHeader
 import Cardano.Wallet.Api.Types.SchemaMetadata
     ( TxMetadataSchema (..), parseSimpleMetadataFlag )
 import Cardano.Wallet.Primitive.AddressDerivation
-    ( DelegationAddress (..), PaymentAddress (..), Role (..) )
+    ( DelegationAddress (..), Depth (..), PaymentAddress (..), Role (..) )
 import Cardano.Wallet.Primitive.AddressDerivation.Byron
     ( ByronKey )
 import Cardano.Wallet.Primitive.AddressDerivation.Icarus
@@ -231,16 +232,16 @@ import qualified Data.Text as T
 
 server
     :: forall n.
-        ( PaymentAddress n IcarusKey
-        , PaymentAddress n ByronKey
-        , DelegationAddress n ShelleyKey
+        ( PaymentAddress n IcarusKey 'CredFromKeyK
+        , PaymentAddress n ByronKey 'CredFromKeyK
+        , DelegationAddress n ShelleyKey 'CredFromKeyK
         , Typeable n
         , HasNetworkId n
         )
-    => ApiLayer (RndState n) ByronKey
-    -> ApiLayer (SeqState n IcarusKey) IcarusKey
-    -> ApiLayer (SeqState n ShelleyKey) ShelleyKey
-    -> ApiLayer (SharedState n SharedKey) SharedKey
+    => ApiLayer (RndState n) ByronKey 'CredFromKeyK
+    -> ApiLayer (SeqState n IcarusKey) IcarusKey 'CredFromKeyK
+    -> ApiLayer (SeqState n ShelleyKey) ShelleyKey 'CredFromKeyK
+    -> ApiLayer (SharedState n SharedKey) SharedKey 'CredFromScriptK
     -> StakePoolLayer
     -> NtpClient
     -> BlockchainSource
@@ -331,7 +332,7 @@ server byron icarus shelley multisig spl ntp blockchainSource =
     shelleyTransactions :: Server (ShelleyTransactions n)
     shelleyTransactions =
              constructTransaction shelley (delegationAddress @n) (knownPools spl) (getPoolLifeCycleStatus spl)
-        :<|> signTransaction shelley
+        :<|> signTransaction @_ @_ @_ @'CredFromKeyK shelley
         :<|>
             (\wid mMinWithdrawal mStart mEnd mOrder simpleMetadataFlag ->
                 listTransactions shelley wid mMinWithdrawal mStart mEnd mOrder
@@ -534,7 +535,7 @@ server byron icarus shelley multisig spl ntp blockchainSource =
         :<|> getNetworkClock ntp
       where
         nl = icarus ^. networkLayer
-        tl = icarus ^. transactionLayer @IcarusKey
+        tl = icarus ^. transactionLayer @IcarusKey @'CredFromKeyK
         genesis@(_,_) = icarus ^. genesisData
         mode = case blockchainSource of
           NodeSource {} -> Node
@@ -569,7 +570,7 @@ server byron icarus shelley multisig spl ntp blockchainSource =
                 _ -> pure (ApiHealthCheck NoSmashConfigured)
 
     sharedWallets
-        :: ApiLayer (SharedState n SharedKey) SharedKey
+        :: ApiLayer (SharedState n SharedKey) SharedKey 'CredFromScriptK
         -> Server SharedWallets
     sharedWallets apilayer =
              postSharedWallet @_ @_ @SharedKey apilayer Shared.generateKeyFromSeed SharedKey
@@ -580,7 +581,7 @@ server byron icarus shelley multisig spl ntp blockchainSource =
         :<|> deleteWallet apilayer
 
     sharedWalletKeys
-        :: ApiLayer (SharedState n SharedKey) SharedKey
+        :: ApiLayer (SharedState n SharedKey) SharedKey 'CredFromScriptK
         -> Server SharedWalletKeys
     sharedWalletKeys apilayer = derivePublicKey apilayer ApiVerificationKeyShared
         :<|> (\wid ix p -> postAccountPublicKey apilayer ApiAccountKeyShared wid ix (toKeyDataPurpose p) )
@@ -591,18 +592,20 @@ server byron icarus shelley multisig spl ntp blockchainSource =
               ApiPostAccountKeyDataWithPurpose p f Nothing
 
     sharedAddresses
-        :: ApiLayer (SharedState n SharedKey) SharedKey
+        :: ApiLayer (SharedState n SharedKey) SharedKey 'CredFromScriptK
         -> Server (SharedAddresses n)
     sharedAddresses apilayer =
         listAddresses apilayer normalizeSharedAddress
 
     sharedTransactions
-        :: ApiLayer (SharedState n SharedKey) SharedKey
+        :: ApiLayer (SharedState n SharedKey) SharedKey 'CredFromScriptK
         -> Server (SharedTransactions n)
     sharedTransactions apilayer =
         constructSharedTransaction apilayer (constructAddressFromIx @n UtxoInternal)
             (knownPools spl) (getPoolLifeCycleStatus spl)
+        :<|> signTransaction @_ @_ @_ @'CredFromScriptK apilayer
         :<|> decodeSharedTransaction apilayer
+        :<|> submitSharedTransaction @_ @_ @_ apilayer
 
     blocks :: Handler ApiBlockHeader
     blocks = getBlocksLatestHeader (shelley ^. networkLayer)

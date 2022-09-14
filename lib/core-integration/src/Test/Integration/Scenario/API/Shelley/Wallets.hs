@@ -33,7 +33,7 @@ import Cardano.Wallet.Api.Types
     , WalletStyle (..)
     )
 import Cardano.Wallet.Primitive.AddressDerivation
-    ( DerivationIndex (..), PaymentAddress, Role (..) )
+    ( Depth (..), DerivationIndex (..), PaymentAddress, Role (..) )
 import Cardano.Wallet.Primitive.AddressDerivation.Byron
     ( ByronKey )
 import Cardano.Wallet.Primitive.AddressDerivation.Icarus
@@ -157,9 +157,9 @@ spec :: forall n.
     ( DecodeAddress n
     , DecodeStakeAddress n
     , EncodeAddress n
-    , PaymentAddress n ShelleyKey
-    , PaymentAddress n IcarusKey
-    , PaymentAddress n ByronKey
+    , PaymentAddress n ShelleyKey 'CredFromKeyK
+    , PaymentAddress n IcarusKey 'CredFromKeyK
+    , PaymentAddress n ByronKey 'CredFromKeyK
     ) => SpecWith Context
 spec = describe "SHELLEY_WALLETS" $ do
     it "WALLETS_CREATE_01 - Create a wallet" $ \ctx -> runResourceT $ do

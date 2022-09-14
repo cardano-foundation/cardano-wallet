@@ -20,7 +20,7 @@ import Cardano.Mnemonic
 import Cardano.Wallet.Gen
     ( genMnemonic )
 import Cardano.Wallet.Primitive.AddressDerivation
-    ( Depth (AccountK, AddressK, RootK)
+    ( Depth (AccountK, CredFromKeyK, RootK)
     , DerivationType (..)
     , Index
     , NetworkDiscriminant (..)
@@ -81,11 +81,11 @@ spec = do
 -------------------------------------------------------------------------------}
 
 prop_derivedKeysAreOurs
-    :: forall (n :: NetworkDiscriminant). (PaymentAddress n ByronKey)
+    :: forall (n :: NetworkDiscriminant). (PaymentAddress n ByronKey 'CredFromKeyK)
     => SomeMnemonic
     -> Passphrase "encryption"
     -> Index 'WholeDomain 'AccountK
-    -> Index 'WholeDomain 'AddressK
+    -> Index 'WholeDomain 'CredFromKeyK
     -> ByronKey 'RootK XPrv
     -> Property
 prop_derivedKeysAreOurs seed encPwd accIx addrIx rk' =
@@ -95,7 +95,7 @@ prop_derivedKeysAreOurs seed encPwd accIx addrIx rk' =
     fst' (a,_,_) = a
     (resPos, stPos') = isOurs addr (mkRndState @n rootXPrv 0)
     (resNeg, stNeg') = isOurs addr (mkRndState @n rk' 0)
-    key = publicKey $ unsafeGenerateKeyFromSeed (accIx, addrIx) seed encPwd
+    key = publicKey $ unsafeGenerateKeyFromSeed @'CredFromKeyK (accIx, addrIx) seed encPwd
     rootXPrv = generateKeyFromSeed seed encPwd
     addr = paymentAddress @n key
 
@@ -107,7 +107,7 @@ instance Arbitrary (Index 'WholeDomain 'AccountK) where
     shrink _ = []
     arbitrary = arbitraryBoundedEnum
 
-instance Arbitrary (Index 'WholeDomain 'AddressK) where
+instance Arbitrary (Index 'WholeDomain 'CredFromKeyK) where
     shrink _ = []
     arbitrary = arbitraryBoundedEnum
 

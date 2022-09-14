@@ -364,16 +364,18 @@ constructUnsignedTx
     -- ^ Assets to be minted
     -> (TokenMap, Map AssetId (Script KeyHash))
     -- ^ Assets to be burned
+    -> Map TxIn (Script KeyHash)
+    -- ^ scripts for inputs
     -> ShelleyBasedEra era
     -> Either ErrMkTransaction SealedTx
 constructUnsignedTx
-    networkId (md, certs) ttl rewardAcnt wdrl cs fee toMint toBurn era =
+    networkId (md, certs) ttl rewardAcnt wdrl cs fee toMint toBurn inpScripts era =
         sealedTxFromCardanoBody <$> tx
   where
     tx = mkUnsignedTx era ttl cs md wdrls certs (toCardanoLovelace fee)
-        (fst toMint) (fst toBurn) allScripts
+        (fst toMint) (fst toBurn) mintingScripts inpScripts
     wdrls = mkWithdrawals networkId rewardAcnt wdrl
-    allScripts = Map.union (snd toMint) (snd toBurn)
+    mintingScripts = Map.union (snd toMint) (snd toBurn)
 
 mkTx
     :: forall k era.
@@ -387,7 +389,7 @@ mkTx
     -- ^ Slot at which the transaction will start and expire.
     -> (XPrv, Passphrase "encryption")
     -- ^ Reward account
-    -> (Address -> Maybe (k 'AddressK XPrv, Passphrase "encryption"))
+    -> (Address -> Maybe (k 'CredFromKeyK XPrv, Passphrase "encryption"))
     -- ^ Key store
     -> Coin
     -- ^ An optional withdrawal amount, can be zero
@@ -405,7 +407,7 @@ mkTx networkId payload ttl (rewardAcnt, pwdAcnt) addrResolver wdrl cs fees era =
             wdrl
 
     unsigned <- mkUnsignedTx era ttl cs md wdrls certs (toCardanoLovelace fees)
-        TokenMap.empty TokenMap.empty Map.empty
+        TokenMap.empty TokenMap.empty Map.empty Map.empty
     let signed = signTransaction networkId acctResolver (const Nothing)
             addrResolver inputResolver (unsigned, mkExtraWits unsigned)
 
@@ -435,7 +437,7 @@ mkTx networkId payload ttl (rewardAcnt, pwdAcnt) addrResolver wdrl cs fees era =
 --
 -- If a key for a given input isn't found, the input is skipped.
 signTransaction
-    :: forall k era.
+    :: forall k ktype era.
         ( EraConstraints era
         , TxWitnessTagFor k
         , WalletKey k
@@ -446,7 +448,7 @@ signTransaction
     -- ^ Stake key store / reward account resolution
     -> (KeyHash -> Maybe (XPrv, Passphrase "encryption"))
     -- ^ Policy key resolution
-    -> (Address -> Maybe (k 'AddressK XPrv, Passphrase "encryption"))
+    -> (Address -> Maybe (k ktype XPrv, Passphrase "encryption"))
     -- ^ Payment key store
     -> (TxIn -> Maybe Address)
     -- ^ Input resolver
@@ -550,12 +552,12 @@ signTransaction
         pure $ mkShelleyWitness body (getRawKey k, pwd)
 
 newTransactionLayer
-    :: forall k.
+    :: forall k ktype.
         ( TxWitnessTagFor k
         , WalletKey k
         )
     => NetworkId
-    -> TransactionLayer k SealedTx
+    -> TransactionLayer k ktype SealedTx
 newTransactionLayer networkId = TransactionLayer
     { mkTransaction = \era stakeCreds keystore _pp ctx selection -> do
         let ttl   = txValidityInterval ctx
@@ -620,19 +622,21 @@ newTransactionLayer networkId = TransactionLayer
         let rewardAcct = toRewardAccountRaw stakeXPub
         let assetsToBeMinted = view #txAssetsToMint ctx
         let assetsToBeBurned = view #txAssetsToBurn ctx
+        let inpsScripts = view #txNativeScriptInputs ctx
+
         case view #txDelegationAction ctx of
             Nothing -> do
                 withShelleyBasedEra era $ do
                     let md = view #txMetadata ctx
                     constructUnsignedTx networkId (md, []) ttl rewardAcct wdrl
-                        selection delta assetsToBeMinted assetsToBeBurned
+                        selection delta assetsToBeMinted assetsToBeBurned inpsScripts
 
             Just action -> do
                 withShelleyBasedEra era $ do
                     let certs = mkDelegationCertificates action stakeXPub
                     let payload = (view #txMetadata ctx, certs)
                     constructUnsignedTx networkId payload ttl rewardAcct wdrl
-                        selection delta assetsToBeMinted assetsToBeBurned
+                        selection delta assetsToBeMinted assetsToBeBurned inpsScripts
 
     , estimateSignedTxSize = \pp (Cardano.Tx body _) -> do
         _estimateSignedTxSize pp body
@@ -2293,13 +2297,11 @@ mkUnsignedTx
     -> TokenMap
     -> TokenMap
     -> Map AssetId (Script KeyHash)
+    -> Map TxIn (Script KeyHash)
     -> Either ErrMkTransaction (Cardano.TxBody era)
-mkUnsignedTx era ttl cs md wdrls certs fees mintData burnData allScripts =
+mkUnsignedTx era ttl cs md wdrls certs fees mintData burnData mintingScripts inpsScripts =
     left toErrMkTx $ Cardano.makeTransactionBody $ Cardano.TxBodyContent
-    { Cardano.txIns =
-        (,Cardano.BuildTxWith (Cardano.KeyWitness Cardano.KeyWitnessForSpending))
-        . toCardanoTxIn
-        . fst <$> F.toList (view #inputs cs)
+    { Cardano.txIns = inputWits
 
     , txInsReference = Cardano.TxInsReferenceNone
 
@@ -2372,15 +2374,10 @@ mkUnsignedTx era ttl cs md wdrls certs fees mintData burnData allScripts =
                     burnValue =
                         Cardano.negateValue $
                         toCardanoValue (TokenBundle (Coin 0) burnData)
-                    toScriptWitness script =
-                        Cardano.SimpleScriptWitness
-                          scriptWitsSupported
-                          Cardano.SimpleScriptV2
-                          (Cardano.SScript $ toCardanoSimpleScript script)
                     witMap =
                         Map.map toScriptWitness $
                         Map.mapKeys (toCardanoPolicyId . TokenMap.tokenPolicyId)
-                        allScripts
+                        mintingScripts
                     ctx = Cardano.BuildTxWith witMap
                 in Cardano.TxMintValue mintedEra (mintValue <> burnValue) ctx
     }
@@ -2447,6 +2444,30 @@ mkUnsignedTx era ttl cs md wdrls certs fees mintData burnData allScripts =
         ShelleyBasedEraMary -> Cardano.SimpleScriptV2InMary
         ShelleyBasedEraAlonzo -> Cardano.SimpleScriptV2InAlonzo
         ShelleyBasedEraBabbage -> Cardano.SimpleScriptV2InBabbage
+
+    toScriptWitness :: Script KeyHash -> Cardano.ScriptWitness witctx era
+    toScriptWitness script =
+        Cardano.SimpleScriptWitness
+        scriptWitsSupported
+        Cardano.SimpleScriptV2
+        (Cardano.SScript $ toCardanoSimpleScript script)
+
+    constructInpScriptWit inp =
+        let script = case Map.lookup inp inpsScripts of
+                Nothing -> error "constructInpScriptWit: each input should have script in multisig"
+                Just script' -> script'
+            scriptWit = toScriptWitness script
+        in ( toCardanoTxIn inp
+           , Cardano.BuildTxWith
+             (Cardano.ScriptWitness Cardano.ScriptWitnessForSpending scriptWit)
+           )
+    inputWits =
+        if inpsScripts == Map.empty then
+            (,Cardano.BuildTxWith (Cardano.KeyWitness Cardano.KeyWitnessForSpending))
+            . toCardanoTxIn
+            . fst <$> F.toList (view #inputs cs)
+        else
+            constructInpScriptWit . fst <$> F.toList (view #inputs cs)
 
 mkWithdrawals
     :: NetworkId
@@ -2523,4 +2544,3 @@ toLedgerUTxO =
     . unCardanoUTxO
   where
     unCardanoUTxO (Cardano.UTxO m) = m
-
