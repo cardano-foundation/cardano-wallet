@@ -451,6 +451,7 @@ networkClient =
         _networkInformation
             :<|> _networkParameters
             :<|> _networkClock
+            :<|> _protocolParameters
             = client (Proxy @("v2" :> Network))
     in
         NetworkClient

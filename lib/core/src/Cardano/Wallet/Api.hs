@@ -125,6 +125,7 @@ module Cardano.Wallet.Api
         , GetNetworkInformation
         , GetNetworkParameters
         , GetNetworkClock
+        , GetProtocolParameters
     , SMASH
         , GetCurrentSMASHHealth
 
@@ -169,6 +170,8 @@ module Cardano.Wallet.Api
 
 import Prelude
 
+import Cardano.Api.Shelley
+    ( ProtocolParameters )
 import Cardano.Wallet
     ( TxSubmitLog, WalletLayer (..), WalletWorkerLog )
 import Cardano.Wallet.Api.Types
@@ -970,6 +973,7 @@ type Network =
          GetNetworkInformation
     :<|> GetNetworkParameters
     :<|> GetNetworkClock
+    :<|> GetProtocolParameters
 
 type GetNetworkInformation = "network"
     :> "information"
@@ -983,6 +987,10 @@ type GetNetworkClock = "network"
     :> "clock"
     :> QueryFlag "forceNtpCheck"
     :> Get '[JSON] ApiNetworkClock
+
+type GetProtocolParameters = "network"
+    :> "protocol-parameters"
+    :> Get '[JSON] ProtocolParameters
 
 {-------------------------------------------------------------------------------
                                   Blocks

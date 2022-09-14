@@ -44,6 +44,10 @@ import Cardano.Address.Script
     )
 import Cardano.Api
     ( StakeAddress, deserialiseFromRawBytes, proxyToAsType )
+import Cardano.Api.Gen
+    ( genProtocolParameters )
+import Cardano.Api.Shelley
+    ( ProtocolParameters )
 import Cardano.Mnemonic
     ( CheckSumBits
     , ConsistentEntropy
@@ -2831,6 +2835,10 @@ instance Arbitrary (Hash "BlockHeader") where
 instance Arbitrary ApiBlockHeader where
     arbitrary = genericArbitrary
     shrink = genericShrink
+
+instance Arbitrary ProtocolParameters where
+    arbitrary = genProtocolParameters
+
 {-------------------------------------------------------------------------------
                    Specification / Servant-Swagger Machinery
 
@@ -3212,6 +3220,9 @@ instance Typeable n => ToSchema (ApiDecodedTransaction n) where
 
 instance ToSchema ApiBlockHeader where
     declareNamedSchema _ = declareSchemaForDefinition "ApiBlockHeader"
+
+instance ToSchema ProtocolParameters where
+    declareNamedSchema _ = declareSchemaForDefinition "ProtocolParameters"
 
 -- | Utility function to provide an ad-hoc 'ToSchema' instance for a definition:
 -- we simply look it up within the Swagger specification.

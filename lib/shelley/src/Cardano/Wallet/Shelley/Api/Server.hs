@@ -23,6 +23,8 @@ import Cardano.Address
     ( unAddress )
 import Cardano.Address.Script
     ( prettyErrValidateScript, validateScript )
+import Cardano.Api.Shelley
+    ( ProtocolParameters )
 import Cardano.Pool.Metadata
     ( defaultManagerSettings, healthCheck, newManager, toHealthCheckSMASH )
 import Cardano.Wallet
@@ -533,6 +535,7 @@ server byron icarus shelley multisig spl ntp blockchainSource =
         getNetworkInformation nid nl mode
         :<|> getNetworkParameters genesis nl tl
         :<|> getNetworkClock ntp
+        :<|> getProtocolParameters
       where
         nl = icarus ^. networkLayer
         tl = icarus ^. transactionLayer @IcarusKey @'CredFromKeyK
@@ -540,6 +543,10 @@ server byron icarus shelley multisig spl ntp blockchainSource =
         mode = case blockchainSource of
           NodeSource {} -> Node
           BlockfrostSource {} -> Light
+
+        -- TODO: Add implementation:
+        getProtocolParameters :: Handler ProtocolParameters
+        getProtocolParameters = undefined
 
     proxy :: Server Proxy_
     proxy = postExternalTransaction icarus
