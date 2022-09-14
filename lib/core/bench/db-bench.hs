@@ -924,7 +924,7 @@ mkAddress i j =
 
 mkByronAddress :: Int -> Int -> Address
 mkByronAddress i j =
-    paymentAddress @'Mainnet ByronKey 'CredFromKeyK
+    paymentAddress @'Mainnet @ByronKey @'CredFromKeyK
         (ByronKey
             (unsafeXPub (B8.pack $ take 64 $ randoms g))
             (Index acctIx, Index addrIx)

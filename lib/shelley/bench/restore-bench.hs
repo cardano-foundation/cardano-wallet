@@ -485,12 +485,12 @@ benchmarksRnd
     :: forall (n :: NetworkDiscriminant) s k p.
         ( s ~ RndAnyState n p
         , k ~ ByronKey
-        , PaymentAddress n k
+        , PaymentAddress n k 'CredFromKeyK
         , NetworkDiscriminantVal n
         , KnownNat p
         )
     => Proxy n
-    -> WalletLayer IO s k
+    -> WalletLayer IO s k 'CredFromKeyK
     -> WalletId
     -> WalletName
     -> Text
@@ -533,7 +533,7 @@ benchmarksRnd _ w wid wname benchname restoreTime = do
                 , selectionStrategy = SelectionStrategyOptimal
                 }
         let runSelection =
-                W.selectAssets @_ @_ @s @k w era pp selectAssetsParams getFee
+                W.selectAssets @_ @_ @s @k @'CredFromKeyK w era pp selectAssetsParams getFee
         runExceptT $ withExceptT show $ W.estimateFee runSelection
 
     oneAddress <- genAddresses 1 cp
@@ -590,12 +590,12 @@ benchmarksSeq
         ( s ~ SeqAnyState n k p
         , k ~ ShelleyKey
         , Typeable n
-        , PaymentAddress n k
+        , PaymentAddress n k 'CredFromKeyK
         , NetworkDiscriminantVal n
         , KnownNat p
         )
     => Proxy n
-    -> WalletLayer IO s k
+    -> WalletLayer IO s k 'CredFromKeyK
     -> WalletId
     -> WalletName
     -> Text -- ^ Bench name
@@ -637,7 +637,7 @@ benchmarksSeq _ w wid _wname benchname restoreTime = do
                 , selectionStrategy = SelectionStrategyOptimal
                 }
         let runSelection =
-                W.selectAssets @_ @_ @s @k w era pp selectAssetsParams getFee
+                W.selectAssets @_ @_ @s @k @'CredFromKeyK w era pp selectAssetsParams getFee
         runExceptT $ withExceptT show $ W.estimateFee runSelection
 
     let walletOverview = WalletOverview{utxo,addresses,transactions}
@@ -742,7 +742,7 @@ bench_restoration
         ( IsOurs s Address
         , IsOurs s RewardAccount
         , MaybeLight s
-        , IsOwned s k
+        , IsOwned s k 'CredFromKeyK
         , WalletKey k
         , NFData s
         , Show s
@@ -768,7 +768,7 @@ bench_restoration
     -> Bool -- ^ If @True@, will trace detailed progress to a .timelog file.
     -> Percentage -- ^ Target sync progress
     -> (Proxy n
-        -> WalletLayer IO s k
+        -> WalletLayer IO s k 'CredFromKeyK
         -> WalletId
         -> WalletName
         -> Text
@@ -894,7 +894,7 @@ traceBlockHeadersProgressForPlotting t0  tr = Tracer $ \bs -> do
 
 withBenchDBLayer
     :: forall s k a.
-        ( IsOwned s k
+        ( IsOwned s k 'CredFromKeyK
         , NFData s
         , Show s
         , PersistAddressBook s
@@ -947,7 +947,7 @@ waitForWalletsSyncTo
     => Percentage
     -> Tracer IO (BenchmarkLog n)
     -> Proxy n
-    -> WalletLayer IO s k
+    -> WalletLayer IO s k 'CredFromKeyK
     -> [WalletId]
     -> GenesisParameters
     -> NodeToClientVersionData
