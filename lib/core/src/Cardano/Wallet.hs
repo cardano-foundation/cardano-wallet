@@ -2577,7 +2577,9 @@ constructSharedTransaction ctx wid era txCtx sel = db & \DBLayer{..} -> do
             (view #collateral sel) ++
             NE.toList (view #inputs sel)
     let getScript (_, TxOut addr _) = case fst (isShared addr s) of
-            Nothing -> error "each input coin selected of multisig must be recognized"
+            Nothing ->
+                error $ "Some inputs selected by coin selection do not belong "
+                <> "to multi-signature wallet"
             Just (ix,role) ->
                 let template = paymentTemplate s
                     role' = case role of
@@ -2589,7 +2591,7 @@ constructSharedTransaction ctx wid era txCtx sel = db & \DBLayer{..} -> do
     let scriptInps =
             foldr (\inp@(txin,_) -> Map.insert txin (getScript inp))
             Map.empty allInps
-    let txCtx' = txCtx {txScriptInputs = scriptInps}
+    let txCtx' = txCtx {txNativeScriptInputs = scriptInps}
     mapExceptT atomically $ do
         pp <- liftIO $ currentProtocolParameters nl
         withExceptT ErrConstructTxBody $ ExceptT $ pure $

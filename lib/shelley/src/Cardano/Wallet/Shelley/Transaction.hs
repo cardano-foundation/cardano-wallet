@@ -622,7 +622,7 @@ newTransactionLayer networkId = TransactionLayer
         let rewardAcct = toRewardAccountRaw stakeXPub
         let assetsToBeMinted = view #txAssetsToMint ctx
         let assetsToBeBurned = view #txAssetsToBurn ctx
-        let inpsScripts = view #txScriptInputs ctx
+        let inpsScripts = view #txNativeScriptInputs ctx
 
         case view #txDelegationAction ctx of
             Nothing -> do
@@ -2544,4 +2544,3 @@ toLedgerUTxO =
     . unCardanoUTxO
   where
     unCardanoUTxO (Cardano.UTxO m) = m
-

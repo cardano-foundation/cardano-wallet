@@ -2806,7 +2806,7 @@ balanceTransaction ctx genChange (ApiT wid) body = do
                     (fromApiRedeemer <$> body ^. #redeemers)
               where
                 convertToCardano xs =
-                    toCardanoUTxO (wrk ^. W.transactionLayer @k) mempty xs
+                    toCardanoUTxO (wrk ^. W.transactionLayer @k @'CredFromKeyK) mempty xs
 
         let balanceTx
                 :: forall era. Cardano.IsShelleyBasedEra era
@@ -3177,7 +3177,7 @@ isForeign apiDecodedTx =
         all isWdrlForeign generalWdrls
 
 submitSharedTransaction
-    :: forall ctx s k (n :: NetworkDiscriminant).
+    :: forall ctx s k.
         ( ctx ~ ApiLayer s k 'CredFromScriptK
         , HasNetworkLayer IO ctx
         , IsOwned s k 'CredFromScriptK
@@ -3190,10 +3190,10 @@ submitSharedTransaction ctx apiw@(ApiT wid) apitx = do
     ttl <- liftIO $ W.getTxExpiry ti Nothing
     era <- liftIO $ NW.currentNodeEra nl
 
-    let sealedTx = getApiT . (view #transaction) $ apitx
+    let sealedTx = getApiT . (view #serialisedTxSealed) $ apitx
     let (tx,_,_,_,_) = decodeTx tl era sealedTx
 
-    apiDecoded <- decodeSharedTransaction @_ @s @k @n ctx apiw apitx
+    apiDecoded <- decodeSharedTransaction @_ @s @k ctx apiw apitx
     when (isForeign apiDecoded) $
         liftHandler $ throwE ErrSubmitTransactionForeignWallet
     let ourOuts = getOurOuts apiDecoded

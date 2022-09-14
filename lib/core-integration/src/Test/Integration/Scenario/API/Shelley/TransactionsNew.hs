@@ -1204,7 +1204,8 @@ spec = describe "NEW_SHELLEY_TRANSACTIONS" $ do
         let validityInterval =
                 ValidityIntervalExplicit (Quantity 0) (Quantity $ toSlot + 10)
 
-        let apiTx'@(ApiSerialisedTransaction apiTx _)= getFromResponse #transaction rTx
+        let apiTx'@(ApiSerialisedTransaction apiTx _)=
+                getFromResponse #transaction rTx
         let decodePayload1 = Json (toJSON apiTx')
         rDecodedTx1 <- request @(ApiDecodedTransaction n) ctx
             (Link.decodeTransaction @'Shelley wa) Default decodePayload1

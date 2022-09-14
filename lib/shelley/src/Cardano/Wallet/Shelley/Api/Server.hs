@@ -605,7 +605,7 @@ server byron icarus shelley multisig spl ntp blockchainSource =
             (knownPools spl) (getPoolLifeCycleStatus spl)
         :<|> signTransaction @_ @_ @_ @'CredFromScriptK apilayer
         :<|> decodeSharedTransaction apilayer
-        :<|> submitSharedTransaction @_ @_ @_ @n apilayer
+        :<|> submitSharedTransaction @_ @_ @_ apilayer
 
     blocks :: Handler ApiBlockHeader
     blocks = getBlocksLatestHeader (shelley ^. networkLayer)

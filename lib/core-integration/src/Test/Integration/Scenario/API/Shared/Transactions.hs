@@ -26,6 +26,7 @@ import Cardano.Wallet.Api.Types
     , ApiConstructTransaction (..)
     , ApiDecodedTransaction (..)
     , ApiFee (..)
+    , ApiSerialisedTransaction (..)
     , ApiSharedWallet (..)
     , ApiT (..)
     , ApiTransaction
@@ -210,7 +211,7 @@ spec = describe "SHARED_TRANSACTIONS" $ do
             ]
 
         let txCbor1 = getFromResponse #transaction rTx2
-        let decodePayload1 = Json (toJSON $ ApiSerialisedTransaction txCbor1)
+        let decodePayload1 = Json (toJSON txCbor1)
         rDecodedTx1 <- request @(ApiDecodedTransaction n) ctx
             (Link.decodeTransaction @'Shared wal) Default decodePayload1
         let expectedFee = getFromResponse (#fee . #getQuantity) rTx2
@@ -226,12 +227,11 @@ spec = describe "SHARED_TRANSACTIONS" $ do
                 ]
         verify rDecodedTx1 decodedExpectations
 
-        let apiTx = getFromResponse #transaction rTx2
+        let (ApiSerialisedTransaction apiTx _) =
+                getFromResponse #transaction rTx2
         signedTx <-
             signSharedTx ctx wal apiTx [ expectResponseCode HTTP.status202 ]
-        let txCbor2 =
-                getFromResponse #transaction (HTTP.status202, Right signedTx)
-        let decodePayload2 = Json (toJSON $ ApiSerialisedTransaction txCbor2)
+        let decodePayload2 = Json (toJSON signedTx)
         rDecodedTx2 <- request @(ApiDecodedTransaction n) ctx
             (Link.decodeTransaction @'Shared wal) Default decodePayload2
         verify rDecodedTx2 decodedExpectations
@@ -357,12 +357,10 @@ spec = describe "SHARED_TRANSACTIONS" $ do
             , expectField (#outputs) ((`shouldBe` 1) . length . filter isOutOurs)
             ]
 
-        let apiTx = getFromResponse #transaction rTx
+        let (ApiSerialisedTransaction apiTx _) = getFromResponse #transaction rTx
         signedTx <-
             signSharedTx ctx wa apiTx [ expectResponseCode HTTP.status202 ]
-        let txCbor1 =
-                getFromResponse #transaction (HTTP.status202, Right signedTx)
-        let decodePayload1 = Json (toJSON $ ApiSerialisedTransaction txCbor1)
+        let decodePayload1 = Json (toJSON signedTx)
         rDecodedTxSource1 <- request @(ApiDecodedTransaction n) ctx
             (Link.decodeTransaction @'Shared wa) Default decodePayload1
         rDecodedTxTarget1 <- request @(ApiDecodedTransaction n) ctx
