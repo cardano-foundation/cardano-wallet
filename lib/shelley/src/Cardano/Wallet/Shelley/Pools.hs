@@ -735,12 +735,12 @@ monitorStakePools tr (NetworkParameters gp sp _pp) genesisPools nl DBLayer{..} =
         -- Write genesis pools to DB. These are specific to the integration test
         -- cluster, and is always set to [] in the cardano-wallet executable.
         --
-        -- Had this not been unique to the integration tests, this code could
-        -- have been run twice just by restarting the wallet server, which
-        -- may not have be a good idea.
-        let psudoGenesisSlotNo = SlotNo 0
+        -- Had they not been unique to the integration tests, this code as-is
+        -- could have been run twice just by restarting the wallet server, which
+        -- may or may not have been safe.
+        let pseudoGenesisSlotNo = SlotNo 0
         atomically $ do
-            putPoolCertificates psudoGenesisSlotNo genesisPools
+            putPoolCertificates pseudoGenesisSlotNo genesisPools
 
         chainSync nl (contramap MsgChainMonitoring tr) $ ChainFollower
             { checkpointPolicy = CP.defaultPolicy
