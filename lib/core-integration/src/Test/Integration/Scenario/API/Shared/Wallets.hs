@@ -27,6 +27,7 @@ import Cardano.Wallet.Api.Types
     ( ApiAccountKeyShared (..)
     , ApiActiveSharedWallet
     , ApiAddress
+    , ApiAddress
     , ApiFee (..)
     , ApiSharedWallet (..)
     , ApiT (..)
@@ -42,14 +43,18 @@ import Cardano.Wallet.Compat
     ( (^?) )
 import Cardano.Wallet.Primitive.AddressDerivation
     ( DerivationIndex (..), Role (..) )
+import Cardano.Wallet.Primitive.AddressDiscovery.Sequential
+    ( defaultAddressPoolGap, getAddressPoolGap )
 import Cardano.Wallet.Primitive.AddressDiscovery.Shared
     ( CredentialType (..) )
 import Cardano.Wallet.Primitive.Passphrase
     ( Passphrase (..) )
 import Cardano.Wallet.Primitive.SyncProgress
     ( SyncProgress (..) )
+import Cardano.Wallet.Primitive.Types.Address
+    ( AddressState (..) )
 import Control.Monad
-    ( forM )
+    ( forM, forM_ )
 import Control.Monad.IO.Class
     ( liftIO )
 import Control.Monad.Trans.Resource
@@ -818,6 +823,11 @@ spec = describe "SHARED_WALLETS" $ do
         let cosignerKeysPost = pendingWal ^. #paymentScriptTemplate
         liftIO $ cosigners cosignerKeysPost `shouldBe` Map.fromList [(Cosigner 0,accXPub0)]
 
+        rAddrsPending <- request @[ApiAddress n] ctx
+            (Link.listAddresses @'Shared pendingWal) Default Empty
+        expectResponseCode HTTP.status200 rAddrsPending
+        expectListSize 0 rAddrsPending
+
         let payloadPatch = Json [json| {
                 "cosigner#1": #{accXPubTxt1}
                 } |]
@@ -827,6 +837,14 @@ spec = describe "SHARED_WALLETS" $ do
         let (ApiSharedWallet (Right activeWal)) = getFromResponse id rPatch
         let cosignerKeysPatch = activeWal ^. #paymentScriptTemplate
         liftIO $ cosigners cosignerKeysPatch `shouldBe` Map.fromList [(Cosigner 0,accXPub0), (Cosigner 1,accXPub1)]
+
+        rAddrsActive <- request @[ApiAddress n] ctx
+            (Link.listAddresses @'Shared activeWal) Default Empty
+        expectResponseCode HTTP.status200 rAddrsActive
+        let g = fromIntegral $ getAddressPoolGap defaultAddressPoolGap
+        expectListSize g rAddrsActive
+        forM_ [0..(g-1)] $ \addrNum -> do
+            expectListField addrNum (#state . #getApiT) (`shouldBe` Unused) rAddrsActive
 
     it "SHARED_WALLETS_PATCH_02 - Add cosigner for delegation script template" $ \ctx -> runResourceT $ do
         [(accXPub0, accXPubTxt0),(accXPub1,accXPubTxt1)] <- liftIO $ genXPubs 2
