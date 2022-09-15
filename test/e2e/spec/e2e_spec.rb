@@ -1606,6 +1606,13 @@ RSpec.describe "Cardano Wallet E2E tests", :all, :e2e do
         expect(tx_decoded['mint']).to eq ({"tokens"=>[]})
         expect(tx_decoded['burn']).to eq ({"tokens"=>[]})
         expect(tx_decoded['certificates']).to eq []
+
+        tx_signed = SHARED.transactions.sign(@wid_sha, PASS, tx_constructed["transaction"])
+        expect(tx_signed).to be_correct_and_respond 202
+
+        # ADP-2221 [SharedWallets] FeeTooSmallUTxO when submitting transaction from Shared wallet
+        # tx_submitted = SHARED.transactions.submit(@wid_sha, tx_signed["transaction"])
+        # expect(tx_submitted).to be_correct_and_respond 202
       end
 
       it "Multi output transaction" do
@@ -1650,6 +1657,13 @@ RSpec.describe "Cardano Wallet E2E tests", :all, :e2e do
         expect(tx_decoded['mint']).to eq ({"tokens"=>[]})
         expect(tx_decoded['burn']).to eq ({"tokens"=>[]})
         expect(tx_decoded['certificates']).to eq []
+
+        tx_signed = SHARED.transactions.sign(@wid_sha, PASS, tx_constructed["transaction"])
+        expect(tx_signed).to be_correct_and_respond 202
+
+        # ADP-2221 [SharedWallets] FeeTooSmallUTxO when submitting transaction from Shared wallet
+        # tx_submitted = SHARED.transactions.submit(@wid_sha, tx_signed["transaction"])
+        # expect(tx_submitted).to be_correct_and_respond 202
       end
 
       it "Multi-assets transaction" do
@@ -1699,6 +1713,13 @@ RSpec.describe "Cardano Wallet E2E tests", :all, :e2e do
         expect(tx_decoded['mint']).to eq ({"tokens"=>[]})
         expect(tx_decoded['burn']).to eq ({"tokens"=>[]})
         expect(tx_decoded['certificates']).to eq []
+
+        tx_signed = SHARED.transactions.sign(@wid_sha, PASS, tx_constructed["transaction"])
+        expect(tx_signed).to be_correct_and_respond 202
+
+        # ADP-2221 [SharedWallets] FeeTooSmallUTxO when submitting transaction from Shared wallet
+        # tx_submitted = SHARED.transactions.submit(@wid_sha, tx_signed["transaction"])
+        # expect(tx_submitted).to be_correct_and_respond 202
       end
 
       it "Only metadata" do
@@ -1734,6 +1755,13 @@ RSpec.describe "Cardano Wallet E2E tests", :all, :e2e do
         expect(tx_decoded['mint']).to eq ({"tokens"=>[]})
         expect(tx_decoded['burn']).to eq ({"tokens"=>[]})
         expect(tx_decoded['certificates']).to eq []
+
+        tx_signed = SHARED.transactions.sign(@wid_sha, PASS, tx_constructed["transaction"])
+        expect(tx_signed).to be_correct_and_respond 202
+
+        # ADP-2221 [SharedWallets] FeeTooSmallUTxO when submitting transaction from Shared wallet
+        # tx_submitted = SHARED.transactions.submit(@wid_sha, tx_signed["transaction"])
+        # expect(tx_submitted).to be_correct_and_respond 202
       end
 
       it "Validity intervals" do
@@ -1780,6 +1808,13 @@ RSpec.describe "Cardano Wallet E2E tests", :all, :e2e do
         expect(tx_decoded['mint']).to eq ({"tokens"=>[]})
         expect(tx_decoded['burn']).to eq ({"tokens"=>[]})
         expect(tx_decoded['certificates']).to eq []
+
+        tx_signed = SHARED.transactions.sign(@wid_sha, PASS, tx_constructed["transaction"])
+        expect(tx_signed).to be_correct_and_respond 202
+
+        # ADP-2221 [SharedWallets] FeeTooSmallUTxO when submitting transaction from Shared wallet
+        # tx_submitted = SHARED.transactions.submit(@wid_sha, tx_signed["transaction"])
+        # expect(tx_submitted).to be_correct_and_respond 202
       end
 
       it "Delegation" do
@@ -1834,6 +1869,13 @@ RSpec.describe "Cardano Wallet E2E tests", :all, :e2e do
         expect(tx_decoded['mint']).to eq ({"tokens"=>[]})
         expect(tx_decoded['burn']).to eq ({"tokens"=>[]})
         expect(tx_decoded['certificates']).to eq []
+
+        tx_signed = SHARED.transactions.sign(@wid_sha, PASS, tx_constructed["transaction"])
+        expect(tx_signed).to be_correct_and_respond 202
+
+        # ADP-2221 [SharedWallets] FeeTooSmallUTxO when submitting transaction from Shared wallet
+        # tx_submitted = SHARED.transactions.submit(@wid_sha, tx_signed["transaction"])
+        # expect(tx_submitted).to be_correct_and_respond 202
       end
 
       describe "Minting and Burning" do
@@ -1880,6 +1922,13 @@ RSpec.describe "Cardano Wallet E2E tests", :all, :e2e do
           expect(tx_decoded['mint']).to eq ({"tokens"=>[]})
           expect(tx_decoded['burn']).to eq ({"tokens"=>[]})
           expect(tx_decoded['certificates']).to eq []
+
+          tx_signed = SHARED.transactions.sign(@wid_sha, PASS, tx_constructed["transaction"])
+          expect(tx_signed).to be_correct_and_respond 202
+
+          # ADP-2221 [SharedWallets] FeeTooSmallUTxO when submitting transaction from Shared wallet
+          # tx_submitted = SHARED.transactions.submit(@wid_sha, tx_signed["transaction"])
+          # expect(tx_submitted).to be_correct_and_respond 202
         end
       end
     end
