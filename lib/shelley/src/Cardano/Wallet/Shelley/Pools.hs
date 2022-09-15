@@ -241,7 +241,6 @@ import qualified Data.Map.Strict as Map
 import qualified Data.Set as Set
 import qualified UnliftIO.STM as STM
 
-
 data StakePoolLayer = StakePoolLayer
     { getPoolLifeCycleStatus :: PoolId -> IO PoolLifeCycleStatus
 
@@ -731,7 +730,6 @@ monitorStakePools tr (NetworkParameters gp sp _pp) genesisPools nl DBLayer{..} =
             toChainPoint (BlockHeader  0 _ _ _) = ChainPointAtGenesis
             toChainPoint (BlockHeader sl _ h _) = ChainPoint sl h
 
-
         -- Write genesis pools to DB. These are specific to the integration test
         -- cluster, and is always set to [] in the cardano-wallet executable.
         --
@@ -901,7 +899,6 @@ monitorStakePools tr (NetworkParameters gp sp _pp) genesisPools nl DBLayer{..} =
             (publicationTime, Retirement cert) -> do
                 liftIO $ traceWith tr $ MsgStakePoolRetirement cert
                 putPoolRetirement publicationTime cert
-
 
 -- | Worker thread that monitors pool metadata and syncs it to the database.
 monitorMetadata

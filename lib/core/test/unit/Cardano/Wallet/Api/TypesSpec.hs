@@ -21,7 +21,12 @@
 {-# LANGUAGE TypeFamilies #-}
 {-# LANGUAGE TypeOperators #-}
 {-# LANGUAGE UndecidableInstances #-}
+
 {-# OPTIONS_GHC -fno-warn-orphans #-}
+
+-- |
+-- Copyright: © 2018-2022 IOHK
+-- License: Apache-2.0
 
 module Cardano.Wallet.Api.TypesSpec (spec) where
 
@@ -745,7 +750,6 @@ spec = parallel $ do
                 ["toilet", "toilet", "toilet"]
             |] `shouldBe` (Left @String @(ApiMnemonicT '[12]) msg)
 
-
         it "ApiT DerivationIndex (too small)" $ do
             let message = unwords
                   [ "Error in $:"
@@ -1440,7 +1444,6 @@ instance EncodeStakeAddress ('Testnet 0) where
 instance DecodeStakeAddress ('Testnet 0) where
     decodeStakeAddress "<stake-addr>" = Right $ RewardAccount "<stake-addr>"
     decodeStakeAddress _ = Left $ TextDecodingError "invalid stake address"
-
 
 {-------------------------------------------------------------------------------
                               Arbitrary Instances

@@ -2358,7 +2358,6 @@ constructTransaction ctx genChange knownPools getPoolStatus (ApiT wid) body = do
         $ liftHandler
         $ throwE ErrConstructTxValidityIntervalNotWithinScriptTimelock
 
-
     -- FIXME [ADP-1489] mkRewardAccountBuilder does itself read
     -- @currentNodeEra@ which is not guaranteed with the era read here. This
     -- could cause problems under exceptional circumstances.

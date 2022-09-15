@@ -3,6 +3,10 @@
 {-# LANGUAGE DerivingStrategies #-}
 {-# LANGUAGE RecordWildCards #-}
 
+-- |
+-- Copyright: © 2018-2022 IOHK
+-- License: Apache-2.0
+
 module Cardano.Wallet.Api.Types.BlockHeader
     ( ApiBlockHeader (..)
     , mkApiBlockHeader

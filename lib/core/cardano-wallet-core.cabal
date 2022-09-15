@@ -178,8 +178,8 @@ library
       Cardano.Ledger.Credential.Safe
       Cardano.Pool.DB
       Cardano.Pool.DB.Log
-      Cardano.Pool.DB.MVar
       Cardano.Pool.DB.Model
+      Cardano.Pool.DB.MVar
       Cardano.Pool.DB.Sqlite
       Cardano.Pool.DB.Sqlite.TH
       Cardano.Pool.Metadata
@@ -189,18 +189,27 @@ library
       Cardano.Wallet.Address.Book
       Cardano.Wallet.Address.Pool
       Cardano.Wallet.Api
+      Cardano.Wallet.Api.Aeson
       Cardano.Wallet.Api.Aeson.Variant
       Cardano.Wallet.Api.Client
-      Cardano.Wallet.Api.Aeson
       Cardano.Wallet.Api.Hex
+      Cardano.Wallet.Api.Lib.ApiAsArray
+      Cardano.Wallet.Api.Lib.ApiT
+      Cardano.Wallet.Api.Lib.ExtendedObject
+      Cardano.Wallet.Api.Lib.Options
       Cardano.Wallet.Api.Link
       Cardano.Wallet.Api.Server
       Cardano.Wallet.Api.Server.Tls
       Cardano.Wallet.Api.Types
+      Cardano.Wallet.Api.Types.Address
       Cardano.Wallet.Api.Types.BlockHeader
+      Cardano.Wallet.Api.Types.Certificate
+      Cardano.Wallet.Api.Types.Key
+      Cardano.Wallet.Api.Types.Primitive
       Cardano.Wallet.Api.Types.SchemaMetadata
-      Cardano.Wallet.Checkpoints.Policy
+      Cardano.Wallet.Api.Types.Transaction
       Cardano.Wallet.Checkpoints
+      Cardano.Wallet.Checkpoints.Policy
       Cardano.Wallet.CoinSelection
       Cardano.Wallet.CoinSelection.Internal
       Cardano.Wallet.CoinSelection.Internal.Balance
@@ -208,9 +217,9 @@ library
       Cardano.Wallet.CoinSelection.Internal.Context
       Cardano.Wallet.Compat
       Cardano.Wallet.DB
+      Cardano.Wallet.DB.Layer
       Cardano.Wallet.DB.Pure.Implementation
       Cardano.Wallet.DB.Pure.Layer
-      Cardano.Wallet.DB.Layer
       Cardano.Wallet.DB.Sqlite.Migration
       Cardano.Wallet.DB.Sqlite.Schema
       Cardano.Wallet.DB.Sqlite.Stores
@@ -230,7 +239,6 @@ library
       Cardano.Wallet.Network.Light
       Cardano.Wallet.Network.Ports
       Cardano.Wallet.Orphans
-      Cardano.Wallet.TokenMetadata
       Cardano.Wallet.Primitive.AddressDerivation
       Cardano.Wallet.Primitive.AddressDerivation.Byron
       Cardano.Wallet.Primitive.AddressDerivation.Icarus
@@ -250,13 +258,13 @@ library
       Cardano.Wallet.Primitive.Migration.Planning
       Cardano.Wallet.Primitive.Migration.Selection
       Cardano.Wallet.Primitive.Model
-      Cardano.Wallet.Primitive.Slotting
-      Cardano.Wallet.Primitive.SyncProgress
       Cardano.Wallet.Primitive.Passphrase
       Cardano.Wallet.Primitive.Passphrase.Current
       Cardano.Wallet.Primitive.Passphrase.Gen
       Cardano.Wallet.Primitive.Passphrase.Legacy
       Cardano.Wallet.Primitive.Passphrase.Types
+      Cardano.Wallet.Primitive.Slotting
+      Cardano.Wallet.Primitive.SyncProgress
       Cardano.Wallet.Primitive.Types
       Cardano.Wallet.Primitive.Types.Address
       Cardano.Wallet.Primitive.Types.Address.Constants
@@ -282,6 +290,7 @@ library
       Cardano.Wallet.Primitive.Types.UTxOIndex.Internal
       Cardano.Wallet.Primitive.Types.UTxOSelection
       Cardano.Wallet.Registry
+      Cardano.Wallet.TokenMetadata
       Cardano.Wallet.TokenMetadata.MockServer
       Cardano.Wallet.Transaction
       Cardano.Wallet.Types.Read
@@ -299,13 +308,13 @@ library
       Crypto.Hash.Utils
       Data.Aeson.Extra
       Data.Function.Utils
+      Data.Quantity
       Data.Time.Text
       Data.Time.Utils
-      Data.Quantity
       Data.Vector.Shuffle
       Network.Ntp
-      Network.Wai.Middleware.ServerError
       Network.Wai.Middleware.Logging
+      Network.Wai.Middleware.ServerError
       Ouroboros.Network.Client.Wallet
       UnliftIO.Compat
         -- TODO:
