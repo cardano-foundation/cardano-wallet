@@ -3854,6 +3854,11 @@ components:
           slot_no: *numberOfSlots
           block_height: *numberOfBlocks
 
+    ProtocolParameters: &ProtocolParameters
+        description: |
+            A set of protocol parameters.
+        type: object
+
 #############################################################################
 #                                                                           #
 #                               PARAMETERS                                  #
@@ -5923,6 +5928,14 @@ x-responsesGetNetworkParameters: &responsesGetNetworkParameters
       application/json:
         schema: *ApiNetworkParameters
 
+x-responsesGetProtocolParameters: &responsesGetProtocolParameters
+  <<: *responsesErr406
+  200:
+    description: Ok
+    content:
+      application/json:
+        schema: *ProtocolParameters
+
 x-responsesPostRandomAddress: &responsesPostRandomAddress
   <<: *responsesErr400
   <<: *responsesErr403
@@ -7264,6 +7277,17 @@ paths:
 
         Returns the set of network parameters for the current epoch.
       responses: *responsesGetNetworkParameters
+
+  /network/protocol-parameters:
+    get:
+      operationId: GetProtocolParameters
+      tags: ["Network"]
+      summary: Protocol Parameters
+      description: |
+        <p align="right">status: <strong>stable</strong></p>
+
+        Returns the set of protocol parameters for the current epoch.
+      responses: *responsesGetProtocolParameters
 
   /proxy/transactions:
     post:

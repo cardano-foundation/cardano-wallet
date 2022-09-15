@@ -109,6 +109,7 @@ library
     , nothunks
     , ntp-client
     , OddWord
+    , openapi3
     , ouroboros-consensus
     , ouroboros-network
     , path-pieces
@@ -206,6 +207,7 @@ library
       Cardano.Wallet.Api.Types.Certificate
       Cardano.Wallet.Api.Types.Key
       Cardano.Wallet.Api.Types.Primitive
+      Cardano.Wallet.Api.Types.ProtocolParameters
       Cardano.Wallet.Api.Types.SchemaMetadata
       Cardano.Wallet.Api.Types.Transaction
       Cardano.Wallet.Checkpoints

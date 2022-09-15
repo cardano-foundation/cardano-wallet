@@ -217,6 +217,8 @@ import Cardano.Wallet.Api.Types
     )
 import Cardano.Wallet.Api.Types.BlockHeader
     ( ApiBlockHeader )
+import Cardano.Wallet.Api.Types.ProtocolParameters
+    ()
 import Cardano.Wallet.Api.Types.SchemaMetadata
     ( TxMetadataSchema (..), TxMetadataWithSchema (..) )
 import Cardano.Wallet.Gen
@@ -3221,9 +3223,6 @@ instance Typeable n => ToSchema (ApiDecodedTransaction n) where
 
 instance ToSchema ApiBlockHeader where
     declareNamedSchema _ = declareSchemaForDefinition "ApiBlockHeader"
-
-instance ToSchema ProtocolParameters where
-    declareNamedSchema _ = declareSchemaForDefinition "ProtocolParameters"
 
 -- | Utility function to provide an ad-hoc 'ToSchema' instance for a definition:
 -- we simply look it up within the Swagger specification.
