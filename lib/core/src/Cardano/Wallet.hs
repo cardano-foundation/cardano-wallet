@@ -229,7 +229,7 @@ import Cardano.Crypto.Wallet
 import Cardano.Slotting.Slot
     ( SlotNo (..) )
 import Cardano.Wallet.Address.Book
-    ( AddressBookIso, Prologue (..), getPrologue )
+    ( AddressBookIso, Prologue (..), getDiscoveries, getPrologue )
 import Cardano.Wallet.Checkpoints
     ( DeltaCheckpoints (..)
     , SparseCheckpointsConfig (..)
@@ -610,6 +610,7 @@ import qualified Cardano.Api.Shelley as Cardano
 import qualified Cardano.Crypto.Wallet as CC
 import qualified Cardano.Wallet.Checkpoints.Policy as CP
 import qualified Cardano.Wallet.CoinSelection as CS
+import qualified Cardano.Wallet.DB.WalletState as WS
 import qualified Cardano.Wallet.Primitive.AddressDiscovery.Random as Rnd
 import qualified Cardano.Wallet.Primitive.AddressDiscovery.Sequential as Seq
 import qualified Cardano.Wallet.Primitive.AddressDiscovery.Shared as Shared
@@ -3551,18 +3552,35 @@ updateCosigner
     -> Cosigner
     -> CredentialType
     -> ExceptT ErrAddCosignerKey IO ()
-updateCosigner ctx wid cosignerXPub cosigner cred = db & \DBLayer{..} ->
+updateCosigner ctx wid cosignerXPub cosigner cred = db & \DBLayer{..} -> do
+    cp <- withExceptT ErrAddCosignerKeyNoSuchWallet
+        $ mapExceptT atomically
+        $ withNoSuchWallet wid
+        $ readCheckpoint wid
     ExceptT $ atomically $ modifyDBMaybe walletsDB $
         adjustNoSuchWallet wid ErrAddCosignerKeyNoSuchWallet
-            updateCosigner'
+            (updateCosigner' cp)
   where
     db = ctx ^. dbLayer @_ @s @k
-    updateCosigner' wallet =
+    updateCosigner' cp wallet =
         case addCosignerAccXPub (cosigner, cosignerXPub) cred s0 of
             Left err -> Left $ ErrAddCosignerKey err
-            Right s1 -> Right ([ReplacePrologue $ getPrologue s1], ())
+            Right s1 -> case ready s1 of
+                Shared.Pending ->
+                    Right (prologueUpdate s1, ())
+                Shared.Active _ ->
+                  Right (prologueUpdate s1 ++ discoveriesUpdate s1, ())
       where
         s0 = getState $ getLatest wallet
+        prologueUpdate s =
+            [ReplacePrologue $ getPrologue s]
+        wc@(WS.WalletCheckpoint bh utxo' _) = snd $ fromWallet cp
+        discoveriesUpdate s =
+            [ UpdateCheckpoints
+              [ PutCheckpoint (getSlot wc)
+                (WS.WalletCheckpoint bh utxo' (getDiscoveries s))
+              ]
+            ]
 
 -- NOTE
 -- Addresses coming from the transaction history might be base (having payment credential) or

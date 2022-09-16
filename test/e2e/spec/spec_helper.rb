@@ -130,6 +130,22 @@ def create_incomplete_shared_wallet(m, acc_ix, acc_xpub)
   WalletFactory.create(:shared, payload)['id']
 end
 
+def patch_incomplete_shared_wallet(wid, payment_patch, deleg_patch)
+  if payment_patch
+    p_upd = SHARED.wallets.update_payment_script(wid,
+                                                 payment_patch.keys.first,
+                                                 payment_patch.values.first)
+    expect(p_upd).to be_correct_and_respond 200
+  end
+
+  if deleg_patch
+    d_upd = SHARED.wallets.update_delegation_script(wid,
+                                                    deleg_patch.keys.first,
+                                                    deleg_patch.values.first)
+    expect(d_upd).to be_correct_and_respond 200
+  end
+end
+
 def create_active_shared_wallet(m, acc_ix, acc_xpub)
   script_template = { 'cosigners' =>
                         { 'cosigner#0' => acc_xpub },
