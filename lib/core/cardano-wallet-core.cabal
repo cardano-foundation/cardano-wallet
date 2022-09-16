@@ -38,6 +38,8 @@ library
     build-depends: scrypt
   build-depends:
       aeson
+    , aeson-pretty
+    , aeson-yaml
     , async
     , base
     , base16-bytestring
