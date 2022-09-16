@@ -172,6 +172,9 @@ RSpec.describe CardanoWallet::Shared, :all, :shared do
         m24 = mnemonic_sentence(24)
         acc_xpub = cardano_address_get_acc_xpub(m24, "1854H/1815H/0H")
         incomplete_wid = create_incomplete_shared_wallet(m24, '0H', acc_xpub)
+        addr = SHARED.addresses.list(incomplete_wid)
+        expect(addr).to be_correct_and_respond 200
+        expect(addr.size).to eq 0
 
         acc_xpub_upd = cardano_address_get_acc_xpub(mnemonic_sentence(24),
                                                 "1854H/1815H/0H")
@@ -183,6 +186,9 @@ RSpec.describe CardanoWallet::Shared, :all, :shared do
         expect(update_payment).to be_correct_and_respond 200
         expect(SHARED.wallets.get(incomplete_wid)['state']['status']).to eq 'incomplete'
         expect(SHARED.wallets.get(incomplete_wid)).to be_correct_and_respond 200
+        addr = SHARED.addresses.list(incomplete_wid)
+        expect(addr).to be_correct_and_respond 200
+        expect(addr.size).to eq 0
 
         update_delegation = SHARED.wallets.update_delegation_script(incomplete_wid,
                                                                   "cosigner#1",
@@ -193,6 +199,9 @@ RSpec.describe CardanoWallet::Shared, :all, :shared do
           SHARED.wallets.get(incomplete_wid)['state']['status'] != 'incomplete'
         end
         expect(SHARED.wallets.list).to be_correct_and_respond 200
+        addr = SHARED.addresses.list(incomplete_wid)
+        expect(addr).to be_correct_and_respond 200
+        expect(addr.size).to eq 20
       end
 
       it "Create / update partially / get / list / delete" do
@@ -468,36 +477,70 @@ RSpec.describe CardanoWallet::Shared, :all, :shared do
         m24 = mnemonic_sentence(24)
         acc_ix = '0H'
         acc_xpub = cardano_address_get_acc_xpub(m24, "1854H/1815H/#{acc_ix}")
-        active_wid = create_incomplete_shared_wallet(acc_xpub, acc_ix, "self")
+        incomplete_wid = create_incomplete_shared_wallet(acc_xpub, acc_ix, "self")
 
-        a = SHARED.addresses.list(active_wid)
+        a = SHARED.addresses.list(incomplete_wid)
         expect(a).to be_correct_and_respond 200
         expect(a.size).to be 0
 
-        a = SHARED.addresses.list(active_wid, { state: "used" })
+        a = SHARED.addresses.list(incomplete_wid, { state: "used" })
         expect(a).to be_correct_and_respond 200
         expect(a.size).to be 0
 
-        a = SHARED.addresses.list(active_wid, { state: "unused" })
+        a = SHARED.addresses.list(incomplete_wid, { state: "unused" })
         expect(a).to be_correct_and_respond 200
         expect(a.size).to be 0
+
+        acc_xpub = cardano_address_get_acc_xpub(mnemonic_sentence(24), "1854H/1815H/0H")
+        patch_incomplete_shared_wallet(incomplete_wid,
+                                      {"cosigner#1" => acc_xpub},
+                                      {"cosigner#1" => acc_xpub})
+
+        a = SHARED.addresses.list(incomplete_wid)
+        expect(a).to be_correct_and_respond 200
+        expect(a.size).to be 20
+
+        a = SHARED.addresses.list(incomplete_wid, { state: "used" })
+        expect(a).to be_correct_and_respond 200
+        expect(a.size).to be 0
+
+        a = SHARED.addresses.list(incomplete_wid, { state: "unused" })
+        expect(a).to be_correct_and_respond 200
+        expect(a.size).to be 20
       end
 
       it "Lists empty addresses on incomplete shared wallet - from mnemonics" do
         m24 = mnemonic_sentence(24)
-        active_wid = create_incomplete_shared_wallet(m24, '0H', "self")
+        incomplete_wid = create_incomplete_shared_wallet(m24, '0H', "self")
 
-        a = SHARED.addresses.list(active_wid)
+        a = SHARED.addresses.list(incomplete_wid)
         expect(a).to be_correct_and_respond 200
         expect(a.size).to be 0
 
-        a = SHARED.addresses.list(active_wid, { state: "used" })
+        a = SHARED.addresses.list(incomplete_wid, { state: "used" })
         expect(a).to be_correct_and_respond 200
         expect(a.size).to be 0
 
-        a = SHARED.addresses.list(active_wid, { state: "unused" })
+        a = SHARED.addresses.list(incomplete_wid, { state: "unused" })
         expect(a).to be_correct_and_respond 200
         expect(a.size).to be 0
+
+        acc_xpub = cardano_address_get_acc_xpub(mnemonic_sentence(24), "1854H/1815H/0H")
+        patch_incomplete_shared_wallet(incomplete_wid,
+                                      {"cosigner#1" => acc_xpub},
+                                      {"cosigner#1" => acc_xpub})
+
+        a = SHARED.addresses.list(incomplete_wid)
+        expect(a).to be_correct_and_respond 200
+        expect(a.size).to be 20
+
+        a = SHARED.addresses.list(incomplete_wid, { state: "used" })
+        expect(a).to be_correct_and_respond 200
+        expect(a.size).to be 0
+
+        a = SHARED.addresses.list(incomplete_wid, { state: "unused" })
+        expect(a).to be_correct_and_respond 200
+        expect(a.size).to be 20
       end
     end
 
