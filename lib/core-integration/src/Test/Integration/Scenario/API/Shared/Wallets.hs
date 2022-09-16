@@ -572,7 +572,8 @@ spec = describe "SHARED_WALLETS" $ do
             [ expectResponseCode HTTP.status201
             ]
 
-        let walWithSelf@(ApiSharedWallet (Right activeWal)) = getFromResponse id rPostWithSelf
+        let walWithSelf@(ApiSharedWallet (Right activeWal)) =
+                getFromResponse id rPostWithSelf
 
         getWalletIdFromSharedWallet walWithSelf `shouldBe` getWalletIdFromSharedWallet wal
 
@@ -631,9 +632,18 @@ spec = describe "SHARED_WALLETS" $ do
             [ expectResponseCode HTTP.status201
             ]
 
-        let walWithSelf = getFromResponse id rPostWithSelf
+        let walWithSelf@(ApiSharedWallet (Right activeWal)) =
+                getFromResponse id rPostWithSelf
 
         getWalletIdFromSharedWallet walWithSelf `shouldBe` getWalletIdFromSharedWallet wal
+
+        rAddrsActive <- request @[ApiAddress n] ctx
+            (Link.listAddresses @'Shared activeWal) Default Empty
+        expectResponseCode HTTP.status200 rAddrsActive
+        let g = fromIntegral $ getAddressPoolGap defaultAddressPoolGap
+        expectListSize g rAddrsActive
+        forM_ [0..(g-1)] $ \addrNum -> do
+            expectListField addrNum (#state . #getApiT) (`shouldBe` Unused) rAddrsActive
 
     it "SHARED_WALLETS_CREATE_07 - Incorrect script template due to NoCosignerInScript" $ \ctx -> runResourceT $ do
         (_, accXPubTxt):_ <- liftIO $ genXPubs 1
