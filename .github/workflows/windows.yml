@@ -45,26 +45,6 @@ jobs:
           name: cardano-wallet-tests-win64
       - run: '.\\cardano-wallet-core-test-unit.exe --color --jobs 1 --skip /Cardano.Wallet.DB.Sqlite/ +RTS -M2G -N2'
 
-  cardano-wallet-test-unit:
-    name: 'cardano-wallet:unit'
-    needs: setup
-    runs-on: windows-2022
-    steps:
-      - uses: actions/download-artifact@v2
-        with:
-          name: cardano-wallet-tests-win64
-      - run: '.\\cardano-wallet-test-unit.exe --color'
-
-  cardano-wallet-cli-test-unit:
-    name: 'cardano-wallet-cli:unit'
-    needs: setup
-    runs-on: windows-2022
-    steps:
-      - uses: actions/download-artifact@v2
-        with:
-          name: cardano-wallet-tests-win64
-      - run: '.\\cardano-wallet-cli-test-unit.exe --color'
-
   text-class-test-unit:
     name: 'test-class:unit'
     needs: setup
@@ -104,8 +84,6 @@ jobs:
     if: always()
     needs:
       - cardano-wallet-core-test-unit
-      - cardano-wallet-test-unit
-      - cardano-wallet-cli-test-unit
       - text-class-test-unit
       - cardano-wallet-launcher-test-unit
       - cardano-wallet-test-integration
