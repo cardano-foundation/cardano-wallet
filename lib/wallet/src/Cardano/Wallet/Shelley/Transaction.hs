@@ -1594,9 +1594,10 @@ mkTxSkeleton witness context skeleton = TxSkeleton
     , txInputCount = view #skeletonInputCount skeleton
     , txOutputs = view #skeletonOutputs skeleton
     , txChange = view #skeletonChange skeleton
-    , txScripts = (<>)
-        (Map.elems (snd $ view #txAssetsToMint context))
-        (Map.elems (snd $ view #txAssetsToBurn context))
+    , txScripts =
+        (Map.elems (snd $ view #txAssetsToMint context)) <>
+        (Map.elems (snd $ view #txAssetsToBurn context)) <>
+        (L.nub $ Map.elems $ view #txNativeScriptInputs context)
     , txAssetsToMintOrBurn = (<>)
         (TokenMap.getAssets (fst $ view #txAssetsToMint context))
         (TokenMap.getAssets (fst $ view #txAssetsToBurn context))
