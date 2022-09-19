@@ -296,7 +296,7 @@
             (hsPkgs."unliftio" or (errorHandler.buildDepError "unliftio"))
             ];
           build-tools = [
-            (hsPkgs.buildPackages.cardano-wallet.components.exes.cardano-wallet or (pkgs.buildPackages.cardano-wallet or (errorHandler.buildToolDepError "cardano-wallet:cardano-wallet")))
+            (hsPkgs.buildPackages.cardano-wallet-core.components.exes.cardano-wallet or (pkgs.buildPackages.cardano-wallet or (errorHandler.buildToolDepError "cardano-wallet:cardano-wallet")))
             ];
           buildable = true;
           modules = [ "Cardano/Wallet/Shelley/Faucet" ];

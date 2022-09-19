@@ -291,7 +291,7 @@ haskell-nix: haskell-nix.cabalProject' [
                 };
 
 
-              packages.cardano-wallet.components.exes.local-cluster =
+              packages.cardano-wallet-core.components.exes.local-cluster =
                 let
                   testData = src + /lib/shelley/test/data/cardano-node-shelley;
                 in
@@ -310,7 +310,7 @@ haskell-nix: haskell-nix.cabalProject' [
                 };
 
               # Add shell completions for main executables.
-              packages.cardano-wallet.components.exes.cardano-wallet.postInstall = optparseCompletionPostInstall + setGitRevPostInstall + rewriteLibsPostInstall + stripBinariesPostInstall;
+              packages.cardano-wallet-core.components.exes.cardano-wallet.postInstall = optparseCompletionPostInstall + setGitRevPostInstall + rewriteLibsPostInstall + stripBinariesPostInstall;
             })
 
           ({ config, ... }:
@@ -372,7 +372,7 @@ haskell-nix: haskell-nix.cabalProject' [
           # Enable profiling on executables if the profiling argument is set.
           (lib.optionalAttrs profiling {
             enableLibraryProfiling = true;
-            packages.cardano-wallet.components.exes.cardano-wallet.enableProfiling = true;
+            packages.cardano-wallet-core.components.exes.cardano-wallet.enableProfiling = true;
             packages.cardano-wallet.components.benchmarks.restore.enableProfiling = true;
             packages.plutus-core.ghcOptions = [ "-fexternal-interpreter" ];
           })
@@ -392,7 +392,7 @@ haskell-nix: haskell-nix.cabalProject' [
             {
               # Apply fully static options to our Haskell executables
               packages.cardano-wallet.components.benchmarks.restore = fullyStaticOptions;
-              packages.cardano-wallet.components.exes.cardano-wallet = fullyStaticOptions;
+              packages.cardano-wallet-core.components.exes.cardano-wallet = fullyStaticOptions;
               packages.cardano-wallet.components.tests.integration = fullyStaticOptions;
               packages.cardano-wallet.components.tests.unit = fullyStaticOptions;
               packages.cardano-wallet-cli.components.tests.unit = fullyStaticOptions;
