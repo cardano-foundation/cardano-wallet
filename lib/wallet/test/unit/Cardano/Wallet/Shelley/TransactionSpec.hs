@@ -1155,7 +1155,7 @@ feeCalculationSpec era = describe "fee calculations" $ do
     it "scripts incur fees" $ property $ \scripts ->
         let
             costWith =
-                minFeeSkeleton $ emptyTxSkeleton { txScripts = scripts }
+                minFeeSkeleton $ emptyTxSkeleton { txMintOrBurnScripts = scripts }
             costWithout =
                 minFeeSkeleton emptyTxSkeleton
 
@@ -1214,7 +1214,7 @@ feeCalculationSpec era = describe "fee calculations" $ do
                 F.foldMap (Sum . BS.length . serializeScript ) scripts
 
             sizeWith =
-                estimateTxSize' $ emptyTxSkeleton { txScripts = scripts }
+                estimateTxSize' $ emptyTxSkeleton { txMintOrBurnScripts = scripts }
             sizeWithout =
                 estimateTxSize' emptyTxSkeleton
 
@@ -1319,7 +1319,7 @@ feeCalculationSpec era = describe "fee calculations" $ do
         it "scripts incur fees" $ property $ \scripts ->
             let
                 costWith =
-                    minFeeSkeleton $ emptyTxSkeleton { txScripts = scripts }
+                    minFeeSkeleton $ emptyTxSkeleton { txMintOrBurnScripts = scripts }
                 costWithout =
                     minFeeSkeleton emptyTxSkeleton
 
@@ -1378,7 +1378,7 @@ feeCalculationSpec era = describe "fee calculations" $ do
                     F.foldMap (Sum . BS.length . serializeScript ) scripts
 
                 sizeWith =
-                    estimateTxSize' $ emptyTxSkeleton { txScripts = scripts }
+                    estimateTxSize' $ emptyTxSkeleton { txMintOrBurnScripts = scripts }
                 sizeWithout =
                     estimateTxSize' emptyTxSkeleton
 
