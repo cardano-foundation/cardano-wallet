@@ -7,7 +7,6 @@
 {-# LANGUAGE NamedFieldPuns #-}
 {-# LANGUAGE NumericUnderscores #-}
 {-# LANGUAGE ScopedTypeVariables #-}
-{-# LANGUAGE TupleSections #-}
 {-# LANGUAGE TypeFamilies #-}
 
 -- |
@@ -43,10 +42,6 @@ module Cardano.Wallet.Byron.Compatibility
 
 import Prelude
 
-import Cardano.Api
-    ( CardanoEra (ByronEra) )
-import Cardano.Binary
-    ( serialize' )
 import Cardano.Chain.Block
     ( ABlockOrBoundary (..), blockTxPayload )
 import Cardano.Chain.Common
@@ -63,17 +58,13 @@ import Cardano.Chain.Slotting
 import Cardano.Chain.Update
     ( ProtocolParameters (..) )
 import Cardano.Chain.UTxO
-    ( ATxAux (..), Tx (..), TxIn (..), TxOut (..), taTx, unTxPayload )
+    ( TxOut (..), unTxPayload )
 import Cardano.Crypto.ProtocolMagic
     ( ProtocolMagicId, unProtocolMagicId )
 import Cardano.Wallet.Primitive.Types.MinimumUTxO
     ( minimumUTxONone )
-import Cardano.Wallet.Types.Read.Tx
-    ( Tx (..) )
-import Cardano.Wallet.Types.Read.Tx.CBOR
-    ( getTxCBOR )
-import Cardano.Wallet.Types.Read.Tx.Hash
-    ( byronTxHash )
+import Cardano.Wallet.Types.Read.Primitive.Tx.Byron
+    ( fromTxAux, fromTxIn, fromTxOut )
 import Cardano.Wallet.Unsafe
     ( unsafeFromHex )
 import Crypto.Hash.Utils
@@ -105,14 +96,11 @@ import qualified Cardano.Chain.Update.Validation.Interface as Update
 import qualified Cardano.Crypto.Hashing as CC
 import qualified Cardano.Wallet.Primitive.Types as W
 import qualified Cardano.Wallet.Primitive.Types.Address as W
-import qualified Cardano.Wallet.Primitive.Types.Coin as Coin
 import qualified Cardano.Wallet.Primitive.Types.Coin as W
 import qualified Cardano.Wallet.Primitive.Types.Hash as W
 import qualified Cardano.Wallet.Primitive.Types.ProtocolMagic as W
-import qualified Cardano.Wallet.Primitive.Types.TokenBundle as TokenBundle
 import qualified Cardano.Wallet.Primitive.Types.Tx as W
 import qualified Cardano.Wallet.Primitive.Types.Tx.Constraints as W
-import qualified Data.List.NonEmpty as NE
 import qualified Data.Map.Strict as Map
 import qualified Ouroboros.Consensus.Block as O
 
@@ -274,49 +262,6 @@ toByronBlockHeader gp blk = W.BlockHeader
     , parentHeaderHash = Just $
         fromChainHash (W.getGenesisBlockHash gp) $
         headerPrevHash (O.getHeader blk)
-    }
-
-fromTxAux :: ATxAux a -> W.Tx
-fromTxAux txAux = case taTx txAux of
-    UnsafeTx inputs outputs _attributes -> W.Tx
-        { txId = byronTxHash txAux
-
-        , txCBOR = Just $ getTxCBOR $ Tx ByronEra $ () <$ txAux
-
-        , fee = Nothing
-
-        -- TODO: Review 'W.Tx' to not require resolved inputs but only inputs
-        , resolvedInputs =
-            (, W.Coin 0) . fromTxIn <$> NE.toList inputs
-
-        , resolvedCollateralInputs = []
-
-        , outputs =
-            fromTxOut <$> NE.toList outputs
-
-        , collateralOutput =
-            Nothing
-
-        , withdrawals =
-            mempty
-
-        , metadata =
-            Nothing
-
-        , scriptValidity =
-            Nothing
-        }
-
-fromTxIn :: TxIn -> W.TxIn
-fromTxIn (TxInUtxo id_ ix) = W.TxIn
-    { inputId = W.Hash $ CC.hashToBytes id_
-    , inputIx = fromIntegral ix
-    }
-
-fromTxOut :: TxOut -> W.TxOut
-fromTxOut (TxOut addr coin) = W.TxOut
-    { address = W.Address (serialize' addr)
-    , tokens = TokenBundle.fromCoin $ Coin.fromWord64 $ unsafeGetLovelace coin
     }
 
 fromByronHash :: ByronHash -> W.Hash "BlockHeader"
