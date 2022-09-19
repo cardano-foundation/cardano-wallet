@@ -175,7 +175,7 @@ haskell-nix: haskell-nix.cabalProject' [
           (lib.optionalAttrs (!buildBenchmarks) {
             packages = {
               cardano-wallet-core.components.benchmarks.db.buildable = lib.mkForce false;
-              cardano-wallet.components.benchmarks = {
+              cardano-wallet-core.components.benchmarks = {
                 latency.buildable = lib.mkForce false;
                 restore.buildable = lib.mkForce false;
               };
@@ -205,20 +205,6 @@ haskell-nix: haskell-nix.cabalProject' [
               packages.system-filepath.components.setup.doExactConfig = true;
 
               packages.cardano-wallet-core.components.tests = {
-                unit.preCheck = noCacheTestFailuresCookie;
-                # Attempt to ensure visible progress in the macOS hydra job.
-                #
-                # An hypothesis is that #2472 is caused by heavy load and unfocused
-                # resources from running the tests concurrently, risking that the slowest
-                # hspec runner - and therefore the stdout - being silent for 900s causing
-                # hydra to timeout.
-                #
-                # Setting -j 1 should hopefully focus the resource we have in one place. It
-                # should go silent less often, at the expense of the full run getting slower.
-                unit.testFlags = lib.optionals pkgs.stdenv.hostPlatform.isDarwin [ "-j" "1" ];
-              };
-
-              packages.cardano-wallet.components.tests = {
                 # Running Windows integration tests under Wine is disabled
                 # because ouroboros-network doesn't fully work under Wine.
                 integration.doCheck = doIntegrationCheck && !pkgs.stdenv.hostPlatform.isWindows;
@@ -267,7 +253,7 @@ haskell-nix: haskell-nix.cabalProject' [
 
               # Add node backend to the PATH of the latency benchmarks, and
               # set the source tree as its working directory.
-              packages.cardano-wallet.components.benchmarks.latency =
+              packages.cardano-wallet-core.components.benchmarks.latency =
                 lib.optionalAttrs (!stdenv.hostPlatform.isWindows) {
                   build-tools = [ pkgs.buildPackages.makeWrapper ];
                   postInstall = ''
@@ -280,7 +266,7 @@ haskell-nix: haskell-nix.cabalProject' [
               # Add cardano-node to the PATH of the byroon restore benchmark.
               # cardano-node will want to write logs to a subdirectory of the working directory.
               # We don't `cd $src` because of that.
-              packages.cardano-wallet.components.benchmarks.restore =
+              packages.cardano-wallet-core.components.benchmarks.restore =
                 lib.optionalAttrs (!stdenv.hostPlatform.isWindows) {
                   build-tools = [ pkgs.buildPackages.makeWrapper ];
                   postInstall = ''
@@ -373,7 +359,7 @@ haskell-nix: haskell-nix.cabalProject' [
           (lib.optionalAttrs profiling {
             enableLibraryProfiling = true;
             packages.cardano-wallet-core.components.exes.cardano-wallet.enableProfiling = true;
-            packages.cardano-wallet.components.benchmarks.restore.enableProfiling = true;
+            packages.cardano-wallet-core.components.benchmarks.restore.enableProfiling = true;
             packages.plutus-core.ghcOptions = [ "-fexternal-interpreter" ];
           })
 
@@ -391,13 +377,11 @@ haskell-nix: haskell-nix.cabalProject' [
             in
             {
               # Apply fully static options to our Haskell executables
-              packages.cardano-wallet.components.benchmarks.restore = fullyStaticOptions;
+              packages.cardano-wallet-core.components.benchmarks.restore = fullyStaticOptions;
               packages.cardano-wallet-core.components.exes.cardano-wallet = fullyStaticOptions;
-              packages.cardano-wallet.components.tests.integration = fullyStaticOptions;
-              packages.cardano-wallet.components.tests.unit = fullyStaticOptions;
-              packages.cardano-wallet-cli.components.tests.unit = fullyStaticOptions;
-              packages.cardano-wallet-core.components.benchmarks.db = fullyStaticOptions;
+              packages.cardano-wallet-core.components.tests.integration = fullyStaticOptions;
               packages.cardano-wallet-core.components.tests.unit = fullyStaticOptions;
+              packages.cardano-wallet-core.components.benchmarks.db = fullyStaticOptions;
               packages.cardano-wallet-launcher.components.tests.unit = fullyStaticOptions;
 
               # systemd can't be statically linked - disable lobemo-scribe-journal

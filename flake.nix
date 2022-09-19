@@ -206,7 +206,7 @@
                       # Run the integration tests in the previous era too:
                       (
                         let
-                          integrationCheck = check coveredProject.hsPkgs.cardano-wallet.components.tests.integration;
+                          integrationCheck = check coveredProject.hsPkgs.cardano-wallet-core.components.tests.integration;
                           integrationPrevEraCheck = integrationCheck.overrideAttrs (prev: {
                             preCheck = prev.preCheck + ''
                               export LOCAL_CLUSTER_ERA=alonzo
