@@ -4539,10 +4539,9 @@ withWorkerCtx ctx wid onMissing onNotResponding action =
     Registry.lookup re wid >>= \case
         Nothing -> do
             wids <- liftIO $ listDatabases df
-            if wid `elem` wids then
-                onNotResponding (ErrWalletNotResponding wid)
-            else
-                onMissing (ErrNoSuchWallet wid)
+            if wid `elem` wids
+                then onNotResponding (ErrWalletNotResponding wid)
+                else onMissing (ErrNoSuchWallet wid)
         Just wrk ->
             action $ hoistResource (workerResource wrk) (MsgFromWorker wid) ctx
   where

@@ -10,6 +10,7 @@
 {-# LANGUAGE MultiParamTypeClasses #-}
 {-# LANGUAGE NamedFieldPuns #-}
 {-# LANGUAGE OverloadedLabels #-}
+{-# LANGUAGE PatternGuards #-}
 {-# LANGUAGE RankNTypes #-}
 {-# LANGUAGE RecordWildCards #-}
 {-# LANGUAGE ScopedTypeVariables #-}
@@ -1259,9 +1260,10 @@ readNextWithdrawal ctx era (Coin withdrawal) = do
     let costOfWithdrawal =
             Coin.toInteger costWith - Coin.toInteger costWithout
 
-    if toInteger withdrawal < 2 * costOfWithdrawal
-    then pure (Coin 0)
-    else pure (Coin withdrawal)
+    pure . Coin $
+        if toInteger withdrawal < 2 * costOfWithdrawal
+            then 0
+            else withdrawal
   where
     tl = ctx ^. transactionLayer @k @ktype
     nl = ctx ^. networkLayer
@@ -1840,8 +1842,8 @@ balanceTransactionWithSelectionStrategy
     guardTxBalanced tx = do
         let bal = txBalance tx
         if bal == mempty
-        then pure tx
-        else throwE $ ErrBalanceTxInternalError $ ErrFailedBalancing bal
+            then pure tx
+            else throwE $ ErrBalanceTxInternalError $ ErrFailedBalancing bal
 
     txBalance :: Cardano.Tx era -> Cardano.Value
     txBalance tx =

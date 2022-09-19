@@ -125,16 +125,13 @@ syncProgress (SyncTolerance tolerance) ti slot now = do
             | now == start = 0
             | otherwise = convert timeCovered % convert now
 
-    if withinTolerance timeCovered now then
-        return Ready
-    else
-        return
-        . Syncing
-        . Quantity
-        . fromRight (error $ errMsg progress)
-        . mkPercentage
-        . toRational
-        $ progress
+    pure $ if withinTolerance timeCovered now
+        then Ready
+        else Syncing
+            . Quantity
+            . fromRight (error $ errMsg progress)
+            . mkPercentage
+            $ toRational progress
   where
     start = RelativeTime 0
 

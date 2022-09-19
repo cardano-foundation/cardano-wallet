@@ -173,7 +173,7 @@ import Cardano.Wallet.Primitive.AddressDerivation
     ( Depth (..), DerivationType (..), Index (..) )
 import Cardano.Wallet.Primitive.AddressDiscovery.Sequential
     ( AddressPoolGap, defaultAddressPoolGap )
-import Cardano.Wallet.Primitive.Passphrase
+import Cardano.Wallet.Primitive.Passphrase.Types
     ( Passphrase (..), PassphraseMaxLength, PassphraseMinLength )
 import Cardano.Wallet.Primitive.SyncProgress
     ( SyncTolerance (..) )
@@ -190,7 +190,7 @@ import Cardano.Wallet.Primitive.Types.Coin
     ( Coin (..) )
 import Cardano.Wallet.Primitive.Types.Hash
     ( Hash (..) )
-import Cardano.Wallet.Primitive.Types.Tx
+import Cardano.Wallet.Primitive.Types.Tx.SealedTx
     ( SerialisedTx (..) )
 import Cardano.Wallet.Version
     ( gitRevision, showFullVersion, version )
@@ -391,9 +391,8 @@ cmdMnemonic = RecoveryPhrase.mod RecoveryPhrase.run
 type CmdWalletCreate wallet = WalletClient wallet -> Mod CommandFields (IO ())
 
 cmdWallet
-    :: (ToJSON wallet, CmdWalletUpdatePassphrase wallet)
-    => CmdWalletCreate wallet
-    -> WalletClient wallet
+    :: CmdWalletCreate ApiWallet
+    -> WalletClient ApiWallet
     -> Mod CommandFields (IO ())
 cmdWallet cmdCreate mkClient =
     command "wallet" $ info (helper <*> cmds) $ mempty
@@ -413,10 +412,7 @@ newtype WalletListArgs = WalletListArgs
     { _port :: Port "Wallet"
     }
 
-cmdWalletList
-    :: ToJSON wallet
-    => WalletClient wallet
-    -> Mod CommandFields (IO ())
+cmdWalletList :: WalletClient ApiWallet -> Mod CommandFields (IO ())
 cmdWalletList mkClient =
     command "list" $ info (helper <*> cmd) $ mempty
         <> progDesc "List all known wallets."
@@ -1120,10 +1116,7 @@ cmdVersion = command "version" $ info cmd $ mempty
                             Commands - 'stake-pool'
 -------------------------------------------------------------------------------}
 
-cmdStakePool
-    :: ToJSON apiPool
-    => StakePoolClient apiPool
-    -> Mod CommandFields (IO ())
+cmdStakePool :: StakePoolClient -> Mod CommandFields (IO ())
 cmdStakePool mkClient =
     command "stake-pool" $ info (helper <*> cmds) $ mempty
         <> progDesc "About stake pools"
@@ -1137,10 +1130,7 @@ data StakePoolListArgs = StakePoolListArgs
     , _stake :: Maybe Coin
     }
 
-cmdStakePoolList
-    :: ToJSON apiPool
-    => StakePoolClient apiPool
-    -> Mod CommandFields (IO ())
+cmdStakePoolList :: StakePoolClient -> Mod CommandFields (IO ())
 cmdStakePoolList mkClient =
     command "list" $ info (helper <*> cmd) $ mempty
         <> progDesc "List all known stake pools."
@@ -1154,9 +1144,7 @@ cmdStakePoolList mkClient =
                             Commands - 'network'
 -------------------------------------------------------------------------------}
 
-cmdNetwork
-    :: NetworkClient
-    -> Mod CommandFields (IO ())
+cmdNetwork :: NetworkClient -> Mod CommandFields (IO ())
 cmdNetwork mkClient =
     command "network" $ info (helper <*> cmds) $ mempty
         <> progDesc "About the network"
@@ -1171,9 +1159,7 @@ newtype NetworkInformationArgs = NetworkInformationArgs
     { _port :: Port "Wallet"
     }
 
-cmdNetworkInformation
-    :: NetworkClient
-    -> Mod CommandFields (IO ())
+cmdNetworkInformation :: NetworkClient -> Mod CommandFields (IO ())
 cmdNetworkInformation mkClient =
     command "information" $ info (helper <*> cmd) $ mempty
         <> progDesc "View network information."
@@ -1188,9 +1174,7 @@ newtype NetworkParametersArgs = NetworkParametersArgs
     { _port :: Port "Wallet"
     }
 
-cmdNetworkParameters
-    :: NetworkClient
-    -> Mod CommandFields (IO ())
+cmdNetworkParameters :: NetworkClient -> Mod CommandFields (IO ())
 cmdNetworkParameters mkClient =
     command "parameters" $ info (helper <*> cmd) $ mempty
         <> progDesc "View network parameters for the current epoch."
@@ -1206,9 +1190,7 @@ data NetworkClockArgs = NetworkClockArgs
     , _forceNtpCheck :: Bool
     }
 
-cmdNetworkClock
-    :: NetworkClient
-    -> Mod CommandFields (IO ())
+cmdNetworkClock :: NetworkClient -> Mod CommandFields (IO ())
 cmdNetworkClock mkClient =
     command "clock" $ info (helper <*> cmd) $ mempty
         <> progDesc "View NTP offset."
@@ -2021,9 +2003,7 @@ withSGR h sgr action = hIsTerminalDevice h >>= \case
 -------------------------------------------------------------------------------}
 
 -- | Decode API error messages and extract the corresponding message.
-decodeError
-    :: BL.ByteString
-    -> Maybe Text
+decodeError :: BL.ByteString -> Maybe Text
 decodeError bytes = do
     obj <- Aeson.decode bytes
     Aeson.parseMaybe (Aeson.withObject "Error" (.: "message")) obj
@@ -2054,10 +2034,7 @@ requireFilePath path = doesFileExist path >>= \case
     pathT = T.pack path
 
 -- | Make a parser optional
-optionalE
-    :: (Monoid m, Eq m)
-    => (m -> Either e a)
-    -> (m -> Either e (Maybe a))
+optionalE :: (Monoid m, Eq m) => (m -> Either e a) -> (m -> Either e (Maybe a))
 optionalE parse = \case
     m | m == mempty -> Right Nothing
     m  -> Just <$> parse m

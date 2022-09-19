@@ -930,33 +930,30 @@ monitorMetadata gcStatus tr sp db@DBLayer{..} = do
         _ -> pure NoSmashConfigured
 
     if health == Available || health == NoSmashConfigured
-    then do
-        case poolMetadataSource settings of
-            FetchNone -> do
-                STM.atomically $ writeTVar gcStatus NotApplicable
+        then do
+            case poolMetadataSource settings of
+                FetchNone -> do
+                    STM.atomically $ writeTVar gcStatus NotApplicable
 
-            FetchDirect -> do
-                STM.atomically $ writeTVar gcStatus NotApplicable
-                void $ fetchMetadata manager [identityUrlBuilder]
+                FetchDirect -> do
+                    STM.atomically $ writeTVar gcStatus NotApplicable
+                    void $ fetchMetadata manager [identityUrlBuilder]
 
-            FetchSMASH (unSmashServer -> uri) -> do
-                STM.atomically $ writeTVar gcStatus NotStarted
-                let getDelistedPools =
-                        fetchDelistedPools trFetch uri manager
-                tid <- forkFinally
-                    (gcDelistedPools gcStatus tr db getDelistedPools)
-                    (traceAfterThread (contramap MsgGCThreadExit tr))
-                void $ fetchMetadata manager [registryUrlBuilder uri]
-                    `finally` killThread tid
-    else
-        traceWith tr MsgSMASHUnreachable
+                FetchSMASH (unSmashServer -> uri) -> do
+                    STM.atomically $ writeTVar gcStatus NotStarted
+                    let getDelistedPools =
+                            fetchDelistedPools trFetch uri manager
+                    tid <- forkFinally
+                        (gcDelistedPools gcStatus tr db getDelistedPools)
+                        (traceAfterThread (contramap MsgGCThreadExit tr))
+                    void $ fetchMetadata manager [registryUrlBuilder uri]
+                        `finally` killThread tid
+        else
+            traceWith tr MsgSMASHUnreachable
   where
     trFetch = contramap MsgFetchPoolMetadata tr
 
-    fetchMetadata
-        :: Manager
-        -> [UrlBuilder]
-        -> IO Void
+    fetchMetadata :: Manager -> [UrlBuilder] -> IO Void
     fetchMetadata manager strategies = do
         inFlights <- STM.atomically $ newTBQueue maxInFlight
         settings <- atomically readSettings

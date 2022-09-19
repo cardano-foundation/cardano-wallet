@@ -1401,27 +1401,27 @@ genTxBodyContent era = do
     let witnesses = collectTxBodyScriptWitnesses txBody
     -- No use of a script language means no need for collateral
     if Set.null (languages witnesses)
-    then do
-        pparams <- BuildTxWith <$> liftArbitrary genProtocolParameters
-        collateral <- genTxInsCollateral era
-        pure $ txBody
-            { Api.txProtocolParams = pparams
-            , Api.txInsCollateral = collateral
-            }
-    else do
-        pparams <-
-            (BuildTxWith . Just) <$> genProtocolParametersWithAlonzoScripts
-        collateral <-
-            case collateralSupportedInEra era of
-                Nothing -> pure TxInsCollateralNone
-                Just supported -> TxInsCollateral supported <$> frequency
-                    [ (95, return [])
-                    , (5, listOf genTxIn)
-                    ]
-        pure $ txBody
-            { Api.txProtocolParams = pparams
-            , Api.txInsCollateral = collateral
-            }
+        then do
+            pparams <- BuildTxWith <$> liftArbitrary genProtocolParameters
+            collateral <- genTxInsCollateral era
+            pure txBody
+                { Api.txProtocolParams = pparams
+                , Api.txInsCollateral = collateral
+                }
+        else do
+            pparams <-
+                (BuildTxWith . Just) <$> genProtocolParametersWithAlonzoScripts
+            collateral <-
+                case collateralSupportedInEra era of
+                    Nothing -> pure TxInsCollateralNone
+                    Just supported -> TxInsCollateral supported <$> frequency
+                        [ (95, return [])
+                        , (5, listOf genTxIn)
+                        ]
+            pure txBody
+                { Api.txProtocolParams = pparams
+                , Api.txInsCollateral = collateral
+                }
 
     where
         languages :: [(a, AnyScriptWitness era)] -> Set AnyPlutusScriptVersion

@@ -437,8 +437,10 @@ migrateManually tr proxy defaultFieldValues =
                     , ";"
                     ]
 
-                if n > 0 then do
-                    traceWith tr $ MsgManualMigrationNeeded rndStateAddressStatus "-"
+                if n > 0
+                    then do
+                    traceWith tr $
+                        MsgManualMigrationNeeded rndStateAddressStatus "-"
 
                     void $ runSql conn $ T.unwords
                         [ "INSERT INTO", rndStatePendingTable
@@ -454,8 +456,9 @@ migrateManually tr proxy defaultFieldValues =
                         , "WHERE", fieldName rndStateAddressStatus, "=", unused
                         , ";"
                         ]
-                else do
-                    traceWith tr $ MsgManualMigrationNotNeeded rndStateAddressStatus
+                    else
+                        traceWith tr $
+                            MsgManualMigrationNotNeeded rndStateAddressStatus
       where
         rndStateAddressStatus = DBField RndStateAddressStatus
         rndStateDiscoveredTable = tableName $ DBField RndStateAddressWalletId

@@ -2369,11 +2369,10 @@ parseCredential payloadLength prefixes = withText "Credential" $ \txt ->
                     Nothing ->
                           fail "Credential has invalid Bech32 datapart."
                     Just bytes -> checkPayload bytes
-            if Bech32.humanReadablePartToText hrp `L.elem` prefixes then
-                proceedWhenHrpCorrect
-            else
-                fail $ "Credential must have following prefixes: "
-                <> show prefixes
+            if Bech32.humanReadablePartToText hrp `L.elem` prefixes
+                then proceedWhenHrpCorrect
+                else fail $ "Credential must have following prefixes: "
+                    <> show prefixes
         _ -> fail "Credential must be must be encoded as Bech32."
 
 instance ToJSON ApiCredential where

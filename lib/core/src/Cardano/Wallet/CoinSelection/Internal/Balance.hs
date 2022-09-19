@@ -879,8 +879,9 @@ performSelectionNonEmpty constraints params
                 let utxoSelected = UTxOSelection.selectedIndex selection
                 let utxoBalanceSelected = UTxOIndex.balance utxoSelected
                 if utxoBalanceRequired `leq` utxoBalanceSelected
-                then makeChangeRepeatedly selection
-                else selectionLimitReachedError (UTxOIndex.toList utxoSelected)
+                    then makeChangeRepeatedly selection
+                    else selectionLimitReachedError
+                        (UTxOIndex.toList utxoSelected)
   where
     SelectionConstraints
         { assessTokenBundleSize

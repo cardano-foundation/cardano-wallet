@@ -79,6 +79,7 @@ import Cardano.Wallet.Api.Types
     , ApiSerialisedTransaction (..)
     , ApiSignTransactionPostData
     , ApiStakeKeysT
+    , ApiStakePool
     , ApiT (..)
     , ApiTransactionT
     , ApiTxId (..)
@@ -232,9 +233,9 @@ data AddressClient = AddressClient
         -> ClientM NoContent
     }
 
-data StakePoolClient apiPool = StakePoolClient
+data StakePoolClient = StakePoolClient
     { listPools
-        :: Maybe (ApiT Coin) -> ClientM [apiPool]
+        :: Maybe (ApiT Coin) -> ClientM [ApiStakePool]
     , joinStakePool
         :: ApiPoolId
         -> ApiT WalletId
@@ -424,8 +425,7 @@ byronAddressClient =
             }
 
 -- | Produces an 'StakePoolsClient n' working against the /stake-pools API
-stakePoolClient
-    :: forall apiPool. Aeson.FromJSON apiPool => StakePoolClient apiPool
+stakePoolClient :: StakePoolClient
 stakePoolClient =
     let
         _listPools
@@ -435,7 +435,7 @@ stakePoolClient =
             :<|> _listStakeKeys
             :<|> _postPoolMaintenance
             :<|> _getPoolMaintenance
-            = client (Proxy @("v2" :> StakePools Aeson.Value apiPool))
+            = client (Proxy @("v2" :> StakePools Aeson.Value ApiStakePool))
     in
         StakePoolClient
             { listPools = _listPools

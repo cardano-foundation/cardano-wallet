@@ -1049,49 +1049,49 @@ withCluster tr dir LocalClusterConfig{..} faucetFunds onClusterStart = bracketTr
             (if postAlonzo then addGenesisPools else federalizeNetwork)
 
         if postAlonzo
-        then do
-            port0:ports <- rotate <$> randomUnusedTCPPorts nPools
-            let pool0:otherPools = configuredPools
+            then do
+                port0:ports <- rotate <$> randomUnusedTCPPorts nPools
+                let pool0:otherPools = configuredPools
 
-            let pool0Cfg = NodeParams
-                    genesisFiles
-                    cfgLastHardFork
-                    port0
-                    cfgNodeLogging
-            operatePool pool0 pool0Cfg $ \runningPool0 -> do
-                extraClusterSetupUsingNode configuredPools runningPool0
-                launchPools
-                    otherPools
-                    genesisFiles
-                    ports
-                    runningPool0
-                    onClusterStart
-        else do
-            -- NOTE: We should soon be able to drop Alonzo support here after
-            -- the Vasil HF, which should enable some simplifications of the
-            -- logic in 'withCluster'.
-            ports <- rotate <$> randomUnusedTCPPorts (1 + nPools)
-            let bftCfg = NodeParams
-                    genesisFiles
-                    cfgLastHardFork
-                    (head ports)
-                    cfgNodeLogging
-            withBFTNode tr dir bftCfg $ \runningBFTNode -> do
-                extraClusterSetupUsingNode configuredPools runningBFTNode
+                let pool0Cfg = NodeParams
+                        genesisFiles
+                        cfgLastHardFork
+                        port0
+                        cfgNodeLogging
+                operatePool pool0 pool0Cfg $ \runningPool0 -> do
+                    extraClusterSetupUsingNode configuredPools runningPool0
+                    launchPools
+                        otherPools
+                        genesisFiles
+                        ports
+                        runningPool0
+                        onClusterStart
+            else do
+                -- NOTE: We should soon be able to drop Alonzo support here
+                -- after the Vasil HF, which should enable some simplifications
+                -- of the logic in 'withCluster'.
+                ports <- rotate <$> randomUnusedTCPPorts (1 + nPools)
+                let bftCfg = NodeParams
+                        genesisFiles
+                        cfgLastHardFork
+                        (head ports)
+                        cfgNodeLogging
+                withBFTNode tr dir bftCfg $ \runningBFTNode -> do
+                    extraClusterSetupUsingNode configuredPools runningBFTNode
 
-                -- NOTE: We used to perform 'registerViaTx' as part of 'launchPools'
-                -- where we waited for the pools to become active (e.g. be in
-                -- the stake distribution) in parallel. Just submitting the
-                -- registration certs in sequence /seems/ to work though, and the
-                -- setup working 100% correctly in alonzo will soon not be
-                -- important.
-                mapM_ (`registerViaTx` runningBFTNode) configuredPools
-                launchPools
-                    configuredPools
-                    genesisFiles
-                    (tail ports)
-                    runningBFTNode
-                    onClusterStart
+                    -- NOTE: We used to perform 'registerViaTx' as part of
+                    -- 'launchPools' where we waited for the pools to become
+                    -- active (e.g. be in the stake distribution) in parallel.
+                    -- Just submitting the registration certs in sequence
+                    -- /seems/ to work though, and the setup working 100%
+                    -- correctly in alonzo will soon not be important.
+                    mapM_ (`registerViaTx` runningBFTNode) configuredPools
+                    launchPools
+                        configuredPools
+                        genesisFiles
+                        (tail ports)
+                        runningBFTNode
+                        onClusterStart
   where
     nPools = length cfgStakePools
 
@@ -1173,20 +1173,21 @@ withCluster tr dir LocalClusterConfig{..} faucetFunds onClusterStart = bracketTr
 
         traceWith tr $ MsgRegisteringStakePools poolCount
         group <- waitAll
-        if length (filter isRight group) /= poolCount then do
-            cancelAll
-            let errors = show (filter isLeft group)
-            throwIO $ ProcessHasExited
-                ("cluster didn't start correctly: " <> errors)
-                (ExitFailure 1)
-        else do
-            -- Run the action using the connection to the first pool, or the
-            -- fallback.
-            let node = case group of
-                    [] -> fallbackNode
-                    Right firstPool : _ -> firstPool
-                    Left e : _ -> error $ show e
-            action node `finally` cancelAll
+        if length (filter isRight group) /= poolCount
+            then do
+                cancelAll
+                let errors = show (filter isLeft group)
+                throwIO $ ProcessHasExited
+                    ("cluster didn't start correctly: " <> errors)
+                    (ExitFailure 1)
+            else do
+                -- Run the action using the connection to the first pool, or the
+                -- fallback.
+                let node = case group of
+                        [] -> fallbackNode
+                        Right firstPool : _ -> firstPool
+                        Left e : _ -> error $ show e
+                action node `finally` cancelAll
 
 
     -- | Get permutations of the size (n-1) for a list of n elements, alongside
