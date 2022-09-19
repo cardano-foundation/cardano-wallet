@@ -690,11 +690,10 @@ localTxSubmission
         -- outside of the network client to the client itself.
         -- Requests are pushed to the queue which are then transformed into
         -- messages to keep the state-machine moving.
-    -> LocalTxSubmissionClient tx err m ()
+    -> LocalTxSubmissionClient tx err m Void
 localTxSubmission queue = LocalTxSubmissionClient clientStIdle
   where
-    clientStIdle
-        :: m (LocalTxClientStIdle tx err m ())
+    clientStIdle :: m (LocalTxClientStIdle tx err m Void)
     clientStIdle = atomically (peekTQueue queue) <&> \case
         CmdSubmitTx tx respond ->
             SendMsgSubmitTx tx $ \res -> do
@@ -717,11 +716,7 @@ localTxSubmission queue = LocalTxSubmissionClient clientStIdle
 -- the type @a@, so that the 'TQueue' has elements with a monomorphic type.
 -- However, the type signature of `send` allows us to retrieve this particular
 -- type @a@ for later use again.
-send
-    :: MonadSTM m
-    => TQueue m (cmd m)
-    -> ((a -> m ()) -> cmd m)
-    -> m a
+send :: MonadSTM m => TQueue m (cmd m) -> ((a -> m ()) -> cmd m) -> m a
 send queue cmd = do
     tvar <- newEmptyTMVarIO
     atomically $ writeTQueue queue (cmd (atomically . putTMVar tvar))

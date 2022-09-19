@@ -35,15 +35,11 @@ import Prelude
 import Cardano.Api
     ( AnyCardanoEra (..)
     , CardanoEra (..)
-    , CardanoMode
-    , LocalChainSyncClient (NoLocalChainSyncClient)
-    , LocalNodeClientProtocols (..)
-    , LocalNodeClientProtocolsInMode
-    , LocalNodeConnectInfo (..)
     , NodeToClientVersion (..)
     , SlotNo (..)
-    , connectToLocalNode
     )
+import Cardano.Api.Shelley
+    ( toConsensusGenTx )
 import Cardano.BM.Data.Severity
     ( Severity (..) )
 import Cardano.BM.Data.Tracer
@@ -90,7 +86,6 @@ import Cardano.Wallet.Shelley.Compatibility
     , fromStakeCredential
     , fromTip
     , fromTip'
-    , localNodeConnectInfo
     , nodeToClientVersions
     , optimumNumberOfPools
     , slottingParametersFromGenesis
@@ -104,7 +99,7 @@ import Cardano.Wallet.Shelley.Compatibility
 import Control.Applicative
     ( liftA3 )
 import Control.Monad
-    ( forever, guard, unless, void, when, (>=>) )
+    ( forever, guard, unless, void, when )
 import Control.Monad.Class.MonadAsync
     ( MonadAsync )
 import Control.Monad.Class.MonadST
@@ -121,6 +116,7 @@ import Control.Monad.Class.MonadSTM
     , newEmptyTMVarIO
     , newTMVarIO
     , newTQueue
+    , newTQueueIO
     , newTVarIO
     , putTMVar
     , readTMVar
@@ -156,6 +152,8 @@ import Data.Either
     ( fromRight )
 import Data.Function
     ( (&) )
+import Data.Functor
+    ( ($>) )
 import Data.Functor.Contravariant
     ( (>$<) )
 import Data.List
@@ -191,6 +189,7 @@ import Ouroboros.Consensus.Cardano.Block
     , CardanoEras
     , CodecConfig (..)
     , EraCrypto
+    , GenTx
     , StandardAllegra
     , StandardAlonzo
     , StandardBabbage
@@ -205,6 +204,8 @@ import Ouroboros.Consensus.HardFork.History.Qry
     ( Interpreter, PastHorizonException (..) )
 import Ouroboros.Consensus.Ledger.Query
     ( Query (..) )
+import Ouroboros.Consensus.Ledger.SupportsMempool
+    ( ApplyTxErr )
 import Ouroboros.Consensus.Network.NodeToClient
     ( ClientCodecs, Codecs' (..), DefaultCodecs, clientCodecs, defaultCodecs )
 import Ouroboros.Consensus.Node.NetworkProtocolVersion
@@ -258,10 +259,12 @@ import Ouroboros.Network.Protocol.LocalStateQuery.Client
     ( localStateQueryClientPeer )
 import Ouroboros.Network.Protocol.LocalStateQuery.Type
     ( LocalStateQuery )
+import Ouroboros.Network.Protocol.LocalTxSubmission.Client
+    ( localTxSubmissionClientPeer )
 import Ouroboros.Network.Protocol.LocalTxSubmission.Type
-    ( LocalTxSubmission, SubmitResult (..) )
+    ( LocalTxSubmission (..), SubmitResult (..) )
 import System.IO.Error
-    ( isDoesNotExistError )
+    ( isDoesNotExistError, isResourceVanishedError )
 import UnliftIO.Async
     ( async, link )
 import UnliftIO.Compat
@@ -301,8 +304,6 @@ withNetworkLayer
         -- ^ Logging of network layer startup
     -> PipeliningStrategy (CardanoBlock StandardCrypto)
         -- ^ pipelining value by the block heigh
-    -> Cardano.NetworkId
-       -- ^ NetworkId for local node connection
     -> W.NetworkParameters
         -- ^ Initial blockchain parameters
     -> CardanoNodeConn
@@ -313,16 +314,15 @@ withNetworkLayer
     -> (NetworkLayer IO (CardanoBlock StandardCrypto) -> IO a)
         -- ^ Callback function with the network layer
     -> IO a
-withNetworkLayer tr pipeliningStrategy net np conn ver tol action = do
+withNetworkLayer tr pipeliningStrategy np conn ver tol action = do
     trTimings <- traceQueryTimings tr
     withNodeNetworkLayerBase
-        (tr <> trTimings) pipeliningStrategy net np conn ver tol action
+        (tr <> trTimings) pipeliningStrategy np conn ver tol action
 
 withNodeNetworkLayerBase
     :: HasCallStack
     => Tracer IO Log
     -> PipeliningStrategy (CardanoBlock StandardCrypto)
-    -> Cardano.NetworkId
     -> W.NetworkParameters
     -> CardanoNodeConn
     -> NodeToClientVersionData
@@ -330,29 +330,28 @@ withNodeNetworkLayerBase
     -> (NetworkLayer IO (CardanoBlock StandardCrypto) -> IO a)
     -> IO a
 withNodeNetworkLayerBase
-        tr pipeliningStrategy net np conn versionData tol action = do
+        tr pipeliningStrategy np conn versionData tol action = do
     -- NOTE: We keep client connections running for accessing the node tip,
     -- submitting transactions, querying parameters and delegations/rewards.
     --
     -- It is safe to retry when the connection is lost here because this client
-    -- doesn't really do anything but sending messages to get the node's tip. It
-    -- doesn't rely on the intersection to be up-to-date.
-    let handlers = retryOnConnectionLost tr
+    -- doesn't really do anything but sending messages to get the node's tip.
+    -- It doesn't rely on the intersection to be up-to-date.
+    let handlers cl = retryOnConnectionLost (MsgConnectionStatus cl >$< tr)
 
     -- FIXME: Would be nice to remove these multiple vars.
     -- Not as trivial as it seems, since we'd need to preserve the @debounce@
     -- behaviour.
-    (readNodeTip, networkParamsVar, interpreterVar, eraVar)
-        <- connectNodeTipClient handlers
+    (readNodeTip, networkParamsVar, interpreterVar, eraVar, txSubmissionQ)
+        <- connectNodeClient (handlers ClientNodeTip)
 
-    localTxSubmissionQ <- connectLocalTxSubmissionClient handlers
-
-    queryRewardQ <- connectDelegationRewardsClient handlers
+    queryRewardQ <- connectDelegationRewardsClient
+        (handlers ClientDelegationRewards)
 
     rewardsObserver <- newRewardBalanceFetcher tr readNodeTip queryRewardQ
     let readCurrentNodeEra = atomically $ readTMVar eraVar
 
-    action $ NetworkLayer
+    action NetworkLayer
         { chainSync = \trFollowLog follower -> do
             let withStats = withFollowStatsMonitoring
                     trFollowLog
@@ -367,9 +366,10 @@ withNodeNetworkLayerBase
                         (mapChainFollower toPoint mapP blockHeader id follower)
                         cfg
                 traceWith trFollowLog MsgStartFollowing
-                connectClient tr handlers client versionData conn
+                let trChainSync = MsgConnectionStatus ClientChainSync >$< tr
+                    retryHandlers = handlers ClientChainSync
+                connectClient trChainSync retryHandlers client versionData conn
         , lightSync = Nothing
-
         , currentNodeTip =
             fromTip getGenesisBlockHash <$> atomically readNodeTip
         , currentNodeEra =
@@ -382,7 +382,7 @@ withNodeNetworkLayerBase
         , currentSlottingParameters =
             snd <$> atomically (readTMVar networkParamsVar)
         , postTx =
-            _postTx localTxSubmissionQ readCurrentNodeEra
+            _postTx txSubmissionQ readCurrentNodeEra
         , stakeDistribution =
             _stakeDistribution queryRewardQ
         , getCachedRewardAccountBalance =
@@ -399,50 +399,49 @@ withNodeNetworkLayerBase
         , getGenesisBlockDate
         } = W.genesisParameters np
     sp = W.slottingParameters np
-    connectInfo = localNodeConnectInfo sp net conn
     cfg = codecConfig sp
 
-    connectNodeTipClient
+    connectNodeClient
         :: HasCallStack
         => RetryHandlers
         -> IO ( STM IO (Tip (CardanoBlock StandardCrypto))
               , TMVar IO (W.ProtocolParameters, W.SlottingParameters)
               , TMVar IO (CardanoInterpreter StandardCrypto)
               , TMVar IO AnyCardanoEra
+              , TQueue IO (
+                    LocalTxSubmissionCmd
+                        (GenTx (CardanoBlock StandardCrypto))
+                        (ApplyTxErr (CardanoBlock StandardCrypto))
+                        IO
+                )
               )
-    connectNodeTipClient handlers = do
+    connectNodeClient handlers = do
         networkParamsVar <- newEmptyTMVarIO
         interpreterVar <- newEmptyTMVarIO
         eraVar <- newEmptyTMVarIO
-        (nodeTipClient, readTip) <- mkTipSyncClient tr np
+        txSubmissionQ <- newTQueueIO
+        (mkProtocols, readTip) <- mkWalletToNodeProtocols tr np
             (curry (atomically . repsertTMVar networkParamsVar))
             (atomically . repsertTMVar interpreterVar)
             (atomically . repsertTMVar eraVar)
-        link =<< async (connectClient tr handlers nodeTipClient versionData conn)
-        pure (readTip, networkParamsVar, interpreterVar, eraVar)
-
-    connectLocalTxSubmissionClient
-        :: RetryHandlers
-        -> IO ( TQueue IO (LocalTxSubmissionCmd
-                  (Cardano.TxInMode CardanoMode)
-                  (Cardano.TxValidationErrorInMode CardanoMode)
-                  IO)
-              )
-    connectLocalTxSubmissionClient handlers = do
-        q <- atomically newTQueue
-        let client = mkLocalTxSubmissionClient tr q
-        link =<< async (connectCardanoApiClient tr handlers connectInfo client)
-        pure q
+            txSubmissionQ
+        let trNodeTip = MsgConnectionStatus ClientNodeTip >$< tr
+            ouroborosApp :: NodeToClientVersion -> WalletOuroborosApplication IO
+            ouroborosApp = nodeToClientProtocols =<< const . const . mkProtocols
+        link =<< async
+            (connectClient trNodeTip handlers ouroborosApp versionData conn)
+        pure (readTip, networkParamsVar, interpreterVar, eraVar, txSubmissionQ)
 
     connectDelegationRewardsClient
         :: HasCallStack
         => RetryHandlers
-        -> IO (TQueue IO
-                (LocalStateQueryCmd (CardanoBlock StandardCrypto) IO))
+        -> IO (TQueue IO (LocalStateQueryCmd (CardanoBlock StandardCrypto) IO))
     connectDelegationRewardsClient handlers = do
         q <- atomically newTQueue
         let client = mkDelegationRewardsClient tr cfg q
-        link =<< async (connectClient tr handlers client versionData conn)
+            trRewardsClient = MsgConnectionStatus ClientDelegationRewards >$< tr
+        link =<< async
+            (connectClient trRewardsClient handlers client versionData conn)
         pure q
 
     -- NOTE1: only shelley transactions can be submitted like this, because they
@@ -454,11 +453,12 @@ withNodeNetworkLayerBase
     -- all form of type-level indicator about the era. The 'SealedTx' type
     -- shouldn't be needed anymore since we've dropped jormungandr, so we could
     -- instead carry a transaction from cardano-api types with proper typing.
-    _postTx localTxSubmissionQ readCurrentEra tx = do
+    _postTx txSubmissionQueue readCurrentEra tx = do
         liftIO $ traceWith tr $ MsgPostTx tx
         preferredEra <- liftIO readCurrentEra
-        let cmd = CmdSubmitTx $ unsealShelleyTx preferredEra tx
-        liftIO (localTxSubmissionQ `send` cmd) >>= \case
+        let cmd = CmdSubmitTx . toConsensusGenTx $
+                unsealShelleyTx preferredEra tx
+        liftIO (send txSubmissionQueue cmd) >>= \case
             SubmitSuccess -> pure ()
             SubmitFail e -> throwE $ ErrPostTxValidationError $ T.pack $ show e
 
@@ -471,8 +471,7 @@ withNodeNetworkLayerBase
                 queryNonMyopicMemberRewards
                 stakeDistr
 
-        mres <- bracketQuery "stakePoolsSummary" tr $
-            queue `send` (SomeLSQ qry)
+        mres <- bracketQuery "stakePoolsSummary" tr $ queue `send` (SomeLSQ qry)
 
         -- The result will be Nothing if query occurs during the byron era
         traceWith tr $ MsgFetchStakePoolsData mres
@@ -503,7 +502,7 @@ withNodeNetworkLayerBase
 
         queryNonMyopicMemberRewards
             :: LSQ (CardanoBlock StandardCrypto) IO
-                    (Maybe (Map W.PoolId W.Coin))
+                (Maybe (Map W.PoolId W.Coin))
         queryNonMyopicMemberRewards = shelleyBased $
             (getRewardMap . fromNonMyopicMemberRewards)
                 <$> LSQry (Shelley.GetNonMyopicMemberRewards stake)
@@ -512,12 +511,11 @@ withNodeNetworkLayerBase
             stake = Set.singleton $ Left $ toShelleyCoin coin
 
             fromJustRewards = fromMaybe
-                (error "stakeDistribution: requested rewards not included in response")
+                (error "stakeDistribution: requested rewards\
+                    \ not included in response")
 
             getRewardMap
-                :: Map
-                    (Either W.Coin W.RewardAccount)
-                    (Map W.PoolId W.Coin)
+                :: Map (Either W.Coin W.RewardAccount) (Map W.PoolId W.Coin)
                 -> Map W.PoolId W.Coin
             getRewardMap =
                 fromJustRewards . Map.lookup (Left coin)
@@ -542,9 +540,8 @@ withNodeNetworkLayerBase
         let readInterpreter = liftIO $ atomically $ readTMVar var
         mkTimeInterpreter tr' getGenesisBlockDate readInterpreter
 
-    _syncProgress :: TMVar IO (CardanoInterpreter sc)
-        -> SlotNo
-        -> IO SyncProgress
+    _syncProgress
+        :: TMVar IO (CardanoInterpreter sc) -> SlotNo -> IO SyncProgress
     _syncProgress var slot = atomically (tryReadTMVar var) >>= \case
         -- If the wallet has been started, but not yet been able to connect
         -- to the node, we don't have an interpreter summary, and can't
@@ -575,22 +572,20 @@ doNothingProtocol =
     InitiatorProtocolOnly $ MuxPeerRaw $
     const $ forever $ threadDelay 1e6
 
--- | Type representing a network client running two mini-protocols to sync
--- from the chain and, submit transactions.
-type NetworkClient m = NodeToClientVersion -> OuroborosApplication
-    'InitiatorMode
-        -- Initiator ~ Client (as opposed to Responder / Server)
-    LocalAddress
-        -- Address type
-    ByteString
-        -- Concrete representation for bytes string
-    m
-        -- Underlying monad we run in
-    Void
-        -- Return type of a network client. Void indicates that the client
-        -- never exits.
-    Void
-        -- Irrelevant for initiator. Return type of 'ResponderMode' application.
+type WalletOuroborosApplication m = OuroborosApplication
+    'InitiatorMode -- Initiator ~ Client (as opposed to Responder / Server)
+    LocalAddress -- Address type
+    ByteString -- Concrete representation for bytes string
+    m -- Underlying monad the wallet runs in
+    Void -- Return type of a network client. Void means the client never exits.
+    Void -- Irrelevant for initiator. Return type of 'ResponderMode' app.
+
+type WalletNodeToClientProtocols m = NodeToClientProtocols
+    'InitiatorMode -- Initiator ~ Client (as opposed to Responder / Server)
+    ByteString -- Concrete representation for bytes string
+    m -- Underlying monad the wallet runs in
+    Void -- Return type of a network client. Void means the client never exits.
+    Void -- Irrelevant for initiator. Return type of 'ResponderMode' app.
 
 -- | Construct a network client with the given communication channel, for the
 -- purposes of syncing blocks to a single wallet.
@@ -602,21 +597,22 @@ mkWalletClient
     -> PipeliningStrategy block
     -> ChainFollower m (Point block) (Tip block) (NonEmpty block)
     -> CodecConfig block
-    -> NetworkClient m
-mkWalletClient tr pipeliningStrategy follower cfg v =
-    nodeToClientProtocols (const $ return $ NodeToClientProtocols
-        { localChainSyncProtocol =
-            InitiatorProtocolOnly $ MuxPeerRaw $ \channel ->
-                runPipelinedPeer nullTracer (cChainSyncCodec $ codecs v cfg) channel
-                $ chainSyncClientPeerPipelined
-                $ chainSyncWithBlocks tr pipeliningStrategy follower
-        , localTxSubmissionProtocol =
-            doNothingProtocol
-        , localStateQueryProtocol =
-            doNothingProtocol
-        , localTxMonitorProtocol =
-             doNothingProtocol
-        }) v
+    -> NodeToClientVersion
+    -> WalletOuroborosApplication m
+mkWalletClient tr pipeliningStrategy follower cfg nodeToClientVer =
+    nodeToClientProtocols (\_connectionId _stm -> protocols) nodeToClientVer
+  where
+    protocols = NodeToClientProtocols
+        { localTxSubmissionProtocol = doNothingProtocol
+        , localStateQueryProtocol = doNothingProtocol
+        , localTxMonitorProtocol = doNothingProtocol
+        , localChainSyncProtocol =
+            InitiatorProtocolOnly $ MuxPeerRaw $ \channel -> do
+                let codec = cChainSyncCodec $ codecs nodeToClientVer cfg
+                runPipelinedPeer nullTracer codec channel
+                    $ chainSyncClientPeerPipelined
+                    $ chainSyncWithBlocks tr pipeliningStrategy follower
+        }
 
 -- | Construct a network client with the given communication channel, for the
 -- purposes of querying delegations and rewards.
@@ -627,39 +623,37 @@ mkDelegationRewardsClient
     -> CodecConfig (CardanoBlock StandardCrypto)
     -> TQueue m (LocalStateQueryCmd (CardanoBlock StandardCrypto) m)
         -- ^ Communication channel with the LocalStateQuery client
-    -> NetworkClient m
-mkDelegationRewardsClient tr cfg queryRewardQ v =
-    nodeToClientProtocols (const $ return $ NodeToClientProtocols
-        { localChainSyncProtocol =
-            doNothingProtocol
-
-        , localTxSubmissionProtocol =
-            doNothingProtocol
-
-        , localStateQueryProtocol =
-            InitiatorProtocolOnly $ MuxPeerRaw
-                $ \channel -> runPeer tr' codec channel
-                $ localStateQueryClientPeer
-                $ localStateQuery queryRewardQ
-
-        , localTxMonitorProtocol =
-             doNothingProtocol
-        }) v
+    -> NodeToClientVersion
+    -> WalletOuroborosApplication m
+mkDelegationRewardsClient tr cfg queryRewardQ nodeToClientVer =
+    nodeToClientProtocols (\_connectionId _stm -> protocols) nodeToClientVer
   where
-    tr' = contramap (MsgLocalStateQuery DelegationRewardsClient) tr
-    codec = cStateQueryCodec (serialisedCodecs v cfg)
-
+    protocols = NodeToClientProtocols
+        { localChainSyncProtocol = doNothingProtocol
+        , localTxSubmissionProtocol = doNothingProtocol
+        , localTxMonitorProtocol = doNothingProtocol
+        , localStateQueryProtocol =
+            InitiatorProtocolOnly $ MuxPeerRaw $ \channel -> do
+                let tr' = MsgLocalStateQuery DelegationRewardsClient >$< tr
+                    codecs' = serialisedCodecs nodeToClientVer cfg
+                    codec = cStateQueryCodec codecs'
+                runPeer tr' codec channel
+                    $ localStateQueryClientPeer
+                    $ localStateQuery queryRewardQ
+        }
 
 type CardanoInterpreter sc = Interpreter (CardanoEras sc)
 
--- | Construct a network client with the given communication channel, for the
--- purpose of:
+-- | Construct node protocols with the given communication channels,
+-- for the purpose of:
 --
 --  * Tracking the node tip
 --  * Tracking the latest protocol parameters state.
 --  * Querying the history interpreter as necessary.
-mkTipSyncClient
-    :: forall m. (HasCallStack, MonadUnliftIO m, MonadThrow m, MonadST m, MonadTimer m)
+--  * Submitting transactions
+mkWalletToNodeProtocols
+    :: forall m
+     . (HasCallStack, MonadUnliftIO m, MonadThrow m, MonadST m, MonadTimer m)
     => Tracer m Log
         -- ^ Base trace for underlying protocols
     -> W.NetworkParameters
@@ -670,8 +664,17 @@ mkTipSyncClient
         -- ^ Notifier callback for when time interpreter is updated.
     -> (AnyCardanoEra -> m ())
         -- ^ Notifier callback for when the era is updated
-    -> m (NetworkClient m, STM m (Tip (CardanoBlock StandardCrypto)))
-mkTipSyncClient tr np onPParamsUpdate onInterpreterUpdate onEraUpdate = do
+    -> TQueue m (
+            LocalTxSubmissionCmd
+                (GenTx (CardanoBlock StandardCrypto))
+                (ApplyTxErr (CardanoBlock StandardCrypto))
+                m
+        )
+    -> m ( NodeToClientVersion -> WalletNodeToClientProtocols m
+         , STM m (Tip (CardanoBlock StandardCrypto))
+         )
+mkWalletToNodeProtocols
+        tr np onPParamsUpdate onInterpreterUpdate onEraUpdate txSubmissionQ = do
     (localStateQueryQ :: TQueue m (LocalStateQueryCmd (CardanoBlock StandardCrypto) m))
         <- atomically newTQueue
 
@@ -742,49 +745,34 @@ mkTipSyncClient tr np onPParamsUpdate onInterpreterUpdate onEraUpdate = do
 
     link =<< async (observeForever (readTVar tipVar) onTipUpdate)
 
-
-    let client v = nodeToClientProtocols (const $ return $ NodeToClientProtocols
+    let ntcProtocols v = NodeToClientProtocols
             { localChainSyncProtocol =
-                let
-                    codec = cChainSyncCodec $ codecs v cfg
-                in
-                InitiatorProtocolOnly $ MuxPeerRaw
-                    $ \channel -> runPeer nullTracer codec channel
-                    $ chainSyncClientPeer
-                    $ chainSyncFollowTip toCardanoEra (curry (atomically . writeTVar tipVar))
-
-            , localTxSubmissionProtocol = doNothingProtocol
-
+                InitiatorProtocolOnly $ MuxPeerRaw $ \channel -> do
+                    let codec = cChainSyncCodec $ codecs v cfg
+                    runPeer nullTracer codec channel
+                        $ chainSyncClientPeer
+                        $ chainSyncFollowTip toCardanoEra
+                        $ curry (atomically . writeTVar tipVar)
             , localStateQueryProtocol =
-                let
-                    tr' = contramap (MsgLocalStateQuery TipSyncClient) tr
-                    codec = cStateQueryCodec $ (serialisedCodecs v) cfg
-                in
-                InitiatorProtocolOnly $ MuxPeerRaw
-                    $ \channel -> runPeer tr' codec channel
-                    $ localStateQueryClientPeer
-                    $ localStateQuery localStateQueryQ
-
+                InitiatorProtocolOnly $ MuxPeerRaw $ \channel -> do
+                    let codec = cStateQueryCodec $ serialisedCodecs v cfg
+                        client = localStateQuery localStateQueryQ
+                        peer = localStateQueryClientPeer client
+                        tr' = MsgLocalStateQuery TipSyncClient >$< tr
+                    runPeer tr' codec channel peer
+            , localTxSubmissionProtocol =
+                InitiatorProtocolOnly $ MuxPeerRaw $ \channel -> do
+                    let bn2cVer = codecVersion v
+                        codec = cTxSubmissionCodec (clientCodecs cfg bn2cVer v)
+                        trTxSubmission = MsgTxSubmission >$< tr
+                        client = localTxSubmission txSubmissionQ
+                        peer = localTxSubmissionClientPeer client
+                    runPeer trTxSubmission codec channel peer
             , localTxMonitorProtocol = doNothingProtocol
-            }) v
-    return (client, snd <$> readTVar tipVar)
-    -- FIXME: We can remove the era from the tip sync client now.
+            }
+    pure (ntcProtocols, snd <$> readTVar tipVar)
 
-mkLocalTxSubmissionClient
-    :: Tracer IO Log
-    -> TQueue IO (LocalTxSubmissionCmd
-            (Cardano.TxInMode CardanoMode)
-            (Cardano.TxValidationErrorInMode CardanoMode)
-            IO )
-    -> LocalNodeClientProtocolsInMode CardanoMode
-mkLocalTxSubmissionClient _tr localTxSubmissionQ = LocalNodeClientProtocols
-    { localChainSyncClient = NoLocalChainSyncClient
-    , localTxSubmissionClient = Just $ localTxSubmission localTxSubmissionQ
-    , localStateQueryClient = Nothing
-    , localTxMonitoringClient = Nothing
-    }
-    -- FIXME: Put back logging for local Tx Submission.
-    -- tr' = contramap MsgTxSubmission tr
+    -- FIXME: We can remove the era from the tip sync client now.
 
 {-------------------------------------------------------------------------------
     Thread for observing
@@ -974,62 +962,30 @@ serialisedCodecs nodeToClientVersion cfg =
 {-------------------------------------------------------------------------------
     I/O -- Connect to the cardano-node process.
 -------------------------------------------------------------------------------}
--- | Construct a network client with the given protocols.
---
--- TODO: This functions overlaps with 'connectClient'.
--- However, it is more modern in that it uses "Cardano.Api".
---
--- Do we want to switch to "Cardano.Api" for the NodeToClient protocols?
---
--- Cons:
---
--- * "Cardano.Api" is not polymorphic in the underlying monad.
--- But in order to use /checked exception/ in the client monad,
--- we would need the 'connectToLocalNode' function to be polymorphic
--- in the monad (and therefore also in the exceptions).
---
--- Pro:
---
--- * "Cardano.Api" is simpler in that it does not require so much plumbing.
-connectCardanoApiClient
-    :: Tracer IO Log
-        -- ^ Base trace for underlying protocols
-    -> RetryHandlers
-    -> LocalNodeConnectInfo CardanoMode
-    -> LocalNodeClientProtocolsInMode CardanoMode
-    -> IO ()
-connectCardanoApiClient tr handlers info =
-    recoveringNodeConnection tr handlers . connectToLocalNode info
-
--- Connect a client to a network, see `mkWalletClient` to construct a network
--- client interface.
---
--- >>> connectClient (mkWalletClient tr gp queue) mainnetVersionData conn
+-- Connect a client to a network.
+-- See `mkWalletClient` to construct a network client interface.
 connectClient
-    :: Tracer IO Log
+    :: Tracer IO ConnectionStatusLog
     -> RetryHandlers
-    -> NetworkClient IO
+    -> (NodeToClientVersion -> WalletOuroborosApplication IO)
     -> NodeToClientVersionData
     -> CardanoNodeConn
     -> IO ()
-connectClient tr handlers client vData conn = withIOManager $ \iocp -> do
-    let versions = combineVersions
-            [ simpleSingletonVersions v vData (client v)
-            | v <- nodeToClientVersions
-            ]
-    let tracers = NetworkConnectTracers
-            { nctMuxTracer = nullTracer
-            , nctHandshakeTracer = contramap MsgHandshakeTracer tr
-            }
-    let socket = localSnocket iocp
-    recoveringNodeConnection tr handlers $
-        connectTo socket tracers versions (nodeSocketFile conn)
+connectClient tr handlers client vData conn = withIOManager $ \manager ->
+    connectTo (localSnocket manager) tracers versions (nodeSocketFile conn)
+        & recoveringNodeConnection tr handlers
+  where
+    versions = combineVersions
+        [ simpleSingletonVersions version vData (client version)
+        | version <- nodeToClientVersions
+        ]
+    tracers = NetworkConnectTracers
+        { nctMuxTracer = nullTracer
+        , nctHandshakeTracer = contramap MsgHandshakeTracer tr
+        }
 
 recoveringNodeConnection
-    :: Tracer IO Log
-    -> RetryHandlers
-    -> IO a
-    -> IO a
+    :: Tracer IO ConnectionStatusLog -> RetryHandlers -> IO a -> IO a
 recoveringNodeConnection tr handlers action =
     recoveringDynamic policy (coerceHandlers handlers) $ \status -> do
         traceWith tr $ MsgCouldntConnect (rsIterNumber status)
@@ -1043,70 +999,55 @@ recoveringNodeConnection tr handlers action =
 type RetryHandlers = [RetryStatus -> Handler IO RetryAction]
 
 -- | Handlers that are retrying on every connection lost.
-retryOnConnectionLost :: Tracer IO Log -> RetryHandlers
+retryOnConnectionLost :: Tracer IO ConnectionStatusLog -> RetryHandlers
 retryOnConnectionLost tr =
-    [ const $ Handler $ handleIOException tr' True
-    , const $ Handler $ handleMuxError tr' True
+    [ \_retryStatus -> Handler $ handleIOException $
+        MsgConnectionLost . ReasonException >$< tr
+    , \_retryStatus -> Handler $ handleMuxError $
+        MsgConnectionLost >$< tr
     ]
-  where
-    tr' = contramap MsgConnectionLost tr
 
 -- When the node's connection vanished, we may also want to handle things in a
 -- slightly different way depending on whether we are a waller worker or just
 -- the node's tip thread.
-handleIOException
-    :: Tracer IO (Maybe IOException)
-    -> Bool -- ^ 'True' = retry on 'ResourceVanishedError'
-    -> IOException
-    -> IO RetryAction
-handleIOException tr onResourceVanished e
-    -- There's a race-condition when starting the wallet and the node at the
-    -- same time: the socket might not be there yet when we try to open it.
-    -- In such case, we simply retry a bit later and hope it's there.
-    | isDoesNotExistError e =
-        pure ConsultPolicy
-
-    -- If the nonblocking UNIX domain socket connection cannot be completed
-    -- immediately (i.e. connect() returns EAGAIN), try again. This happens
-    -- because the node's listen queue is quite short.
-    | isTryAgainError e =
-        pure ConsultPolicy
-
-    | isResourceVanishedError e = do
-        traceWith tr $ Just e
-        pure $ if onResourceVanished then ConsultPolicy else DontRetry
-
-    | otherwise = do
-        pure DontRetry
+handleIOException :: Tracer IO IOException -> IOException -> IO RetryAction
+handleIOException tr e = traceWith tr e $> retryAction
   where
-    isResourceVanishedError = isInfixOf "resource vanished" . show
-    isTryAgainError = isInfixOf "resource exhausted" . show
+    retryAction
+        -- There's a race-condition when starting the wallet and the node at the
+        -- same time: the socket might not be there yet when we try to open it.
+        -- In such case, we simply retry a bit later and hope it's there.
+        | isDoesNotExistError e = ConsultPolicy
+        -- I/O error where the operation failed because the resource vanished.
+        -- This happens when, for example, attempting to write to a closed
+        -- socket or attempting to write to a named pipe that was deleted.
+        | isResourceVanishedError e = ConsultPolicy
+        -- If the nonblocking UNIX domain socket connection cannot be completed
+        -- immediately (i.e. connect() returns EAGAIN), try again. This happens
+        -- because the node's listen queue is quite short.
+        | "resource exhausted" `isInfixOf` show e = ConsultPolicy
+        | otherwise = DontRetry
 
-handleMuxError
-    :: Tracer IO (Maybe IOException)
-    -> Bool -- ^ 'True' = retry on 'ResourceVanishedError'
-    -> MuxError
-    -> IO RetryAction
-handleMuxError tr onResourceVanished = pure . errorType >=> \case
-    MuxUnknownMiniProtocol -> pure DontRetry
-    MuxDecodeError -> pure DontRetry
-    MuxIngressQueueOverRun -> pure DontRetry
-    MuxInitiatorOnly -> pure DontRetry
-    MuxShutdown _ -> pure DontRetry -- fixme: #2212 consider cases
-    MuxCleanShutdown -> pure DontRetry
-    MuxIOException e ->
-        handleIOException tr onResourceVanished e
-    MuxBearerClosed -> do
-        traceWith tr Nothing
-        pure $ if onResourceVanished then ConsultPolicy else DontRetry
+handleMuxError :: Tracer IO ReasonConnectionLost -> MuxError -> IO RetryAction
+handleMuxError tr muxErr = do
+    traceWith tr (ReasonMuxError muxErr)
+    case errorType muxErr of
+        MuxUnknownMiniProtocol -> pure DontRetry
+        MuxDecodeError -> pure DontRetry
+        MuxIngressQueueOverRun -> pure DontRetry
+        MuxInitiatorOnly -> pure DontRetry
+        MuxShutdown _ -> pure DontRetry -- fixme: #2212 consider cases
+        MuxCleanShutdown -> pure DontRetry
+        MuxIOException e -> handleIOException (ReasonException >$< tr) e
+        MuxBearerClosed -> pure ConsultPolicy
 
-    -- MuxSDU*Timeout errors arise because the bandwidth of the
-    -- interprocess communication socket dropped unexpectedly,
-    -- and the socket library decided to cut off the connection
-    -- after ~ 30 seconds.
-    -- Chances are that the system is overloaded, let's retry in 30 seconds.
-    MuxSDUReadTimeout -> pure $ ConsultPolicyOverrideDelay 30_000_000
-    MuxSDUWriteTimeout -> pure $ ConsultPolicyOverrideDelay 30_000_000
+        -- MuxSDU*Timeout errors arise because the bandwidth of the
+        -- interprocess communication socket dropped unexpectedly,
+        -- and the socket library decided to cut off the connection
+        -- after ~ 30 seconds.
+        -- Chances are that the system is overloaded, let's retry in 30 seconds.
+        MuxSDUReadTimeout -> pure $ ConsultPolicyOverrideDelay 30_000_000
+        MuxSDUWriteTimeout -> pure $ ConsultPolicyOverrideDelay 30_000_000
 
 {-------------------------------------------------------------------------------
     Helper functions of the Control.* and STM variety
@@ -1172,30 +1113,97 @@ traceQueryTimings tr = produceTimings msgQuery trDiffTime
 isSlowQuery :: String -> DiffTime -> Bool
 isSlowQuery _label = (>= 0.2)
 
+data ReasonConnectionLost
+    = ReasonMuxError MuxError
+    | ReasonException IOException
+
+data ConnectionStatusLog where
+    MsgCouldntConnect
+        :: Int -> ConnectionStatusLog
+    MsgConnectionLost
+        :: ReasonConnectionLost -> ConnectionStatusLog
+    MsgHandshakeTracer
+        :: WithMuxBearer (ConnectionId LocalAddress) HandshakeTrace
+        -> ConnectionStatusLog
+
+instance ToText ConnectionStatusLog where
+    toText = \case
+        MsgCouldntConnect n -> T.concat
+            [ "Couldn't connect to node (x"
+            , toText (n + 1)
+            , "). Retrying in a bit..."
+            ]
+        MsgConnectionLost reason -> case reason of
+            ReasonMuxError MuxError{errorType, errorMsg} ->
+                "Node connection lost because of the mux error ("
+                    <> T.pack (show errorType) <> "): " <> T.pack errorMsg
+            ReasonException e ->
+                "Node connection lost because of the exception: "
+                    <> T.pack (show e)
+        MsgHandshakeTracer (WithMuxBearer conn h) ->
+            pretty conn <> " " <> T.pack (show h)
+
+instance HasPrivacyAnnotation ConnectionStatusLog
+instance HasSeverityAnnotation ConnectionStatusLog where
+    getSeverityAnnotation = \case
+        MsgCouldntConnect 0 -> Debug
+        MsgCouldntConnect 1 -> Notice
+        MsgCouldntConnect{} -> Warning
+        MsgHandshakeTracer{} -> Debug
+        MsgConnectionLost reason -> case reason of
+          ReasonException ie | isResourceVanishedError ie -> Warning
+          ReasonException _ie -> Debug
+          ReasonMuxError muxError ->
+            case errorType muxError of
+                MuxUnknownMiniProtocol -> Debug
+                MuxDecodeError -> Debug
+                MuxIngressQueueOverRun -> Debug
+                MuxInitiatorOnly -> Debug
+                MuxIOException _ -> Debug
+                MuxSDUReadTimeout -> Debug
+                MuxSDUWriteTimeout -> Debug
+                MuxShutdown _ -> Debug
+                MuxCleanShutdown -> Debug
+                MuxBearerClosed -> Warning
+
+data Client
+    = ClientChainSync
+    | ClientLocalTxSubmission
+    | ClientNodeTip
+    | ClientDelegationRewards
+
+renderClientName :: Client -> T.Text
+renderClientName = \case
+  ClientChainSync -> "Chain Sync"
+  ClientLocalTxSubmission -> "Local TX Submission"
+  ClientNodeTip -> "Node Tip"
+  ClientDelegationRewards -> "Delegation Rewards"
+
 data Log where
-    MsgCouldntConnect :: Int -> Log
-    MsgConnectionLost :: Maybe IOException -> Log
+    MsgConnectionStatus :: Client -> ConnectionStatusLog -> Log
     MsgTxSubmission
-        :: (TraceSendRecv
-            (LocalTxSubmission (Cardano.TxInMode CardanoMode) (Cardano.TxValidationErrorInMode CardanoMode)))
-        -> Log
+        :: (Show tx, Show err)
+        => TraceSendRecv (LocalTxSubmission tx err) -> Log
     MsgLocalStateQuery
         :: QueryClientName
         -> (TraceSendRecv
-            (LocalStateQuery (CardanoBlock StandardCrypto) (Point (CardanoBlock StandardCrypto)) (Query (CardanoBlock StandardCrypto))))
+            (LocalStateQuery
+                (CardanoBlock StandardCrypto)
+                (Point (CardanoBlock StandardCrypto))
+                (Query (CardanoBlock StandardCrypto))))
         -> Log
-    MsgHandshakeTracer ::
-      (WithMuxBearer (ConnectionId LocalAddress) HandshakeTrace) -> Log
     MsgPostTx :: W.SealedTx -> Log
     MsgNodeTip :: W.BlockHeader -> Log
     MsgProtocolParameters :: W.ProtocolParameters -> W.SlottingParameters -> Log
     MsgLocalStateQueryError :: QueryClientName -> String -> Log
-    MsgLocalStateQueryEraMismatch :: MismatchEraInfo (CardanoEras StandardCrypto) -> Log
-    MsgFetchRewardAccountBalance
-        :: Set W.RewardAccount
-        -> Log
+    MsgLocalStateQueryEraMismatch
+        :: MismatchEraInfo (CardanoEras StandardCrypto) -> Log
+    MsgFetchRewardAccountBalance :: Set W.RewardAccount -> Log
     MsgAccountDelegationAndRewards
-        :: forall era crypto. (Map (SL.Credential 'SL.Staking era) (SL.KeyHash 'SL.StakePool crypto))
+        :: forall era crypto
+         . (Map
+            (SL.Credential 'SL.Staking era)
+            (SL.KeyHash 'SL.StakePool crypto))
         -> SL.RewardAccounts era
         -> Log
     MsgDestroyCursor :: ThreadId -> Log
@@ -1210,9 +1218,7 @@ data Log where
     MsgInterpreterLog :: TimeInterpreterLog -> Log
     MsgQuery :: String -> BracketLog -> Log
     MsgQueryTime :: String -> DiffTime -> Log
-    MsgObserverLog
-        :: ObserverLog W.RewardAccount W.Coin
-        -> Log
+    MsgObserverLog :: ObserverLog W.RewardAccount W.Coin -> Log
 
 data QueryClientName
     = TipSyncClient
@@ -1223,20 +1229,10 @@ type HandshakeTrace = TraceSendRecv (Handshake NodeToClientVersion CBOR.Term)
 
 instance ToText Log where
     toText = \case
-        MsgCouldntConnect n -> T.unwords
-            [ "Couldn't connect to node (x" <> toText (n + 1) <> ")."
-            , "Retrying in a bit..."
-            ]
-        MsgConnectionLost Nothing  ->
-            "Connection lost with the node."
-        MsgConnectionLost (Just e) -> T.unwords
-            [ toText (MsgConnectionLost Nothing)
-            , T.pack (show e)
-            ]
+        MsgConnectionStatus client statusLog ->
+            renderClientName client <> " node client: " <> toText statusLog
         MsgTxSubmission msg ->
             T.pack (show msg)
-        MsgHandshakeTracer (WithMuxBearer conn h) ->
-            pretty conn <> " " <> T.pack (show h)
         MsgPostTx tx ->
             "Posting transaction, serialized as:\n"+|hexF (serialisedTx tx)|+""
         MsgLocalStateQuery client msg ->
@@ -1299,33 +1295,29 @@ instance ToText Log where
 instance HasPrivacyAnnotation Log
 instance HasSeverityAnnotation Log where
     getSeverityAnnotation = \case
-        MsgCouldntConnect 0                -> Debug
-        MsgCouldntConnect 1                -> Notice
-        MsgCouldntConnect{}                -> Warning
-        MsgConnectionLost{}                -> Warning
-        MsgTxSubmission{}                  -> Info
-        MsgHandshakeTracer{}               -> Debug
-        MsgPostTx{}                        -> Debug
-        MsgLocalStateQuery{}               -> Debug
-        MsgNodeTip{}                       -> Debug
-        MsgProtocolParameters{}            -> Info
-        MsgLocalStateQueryError{}          -> Error
-        MsgLocalStateQueryEraMismatch{}    -> Debug
-        MsgAccountDelegationAndRewards{}   -> Debug
-        MsgDestroyCursor{}                 -> Debug
-        MsgWillQueryRewardsForStake{}      -> Info
-        MsgFetchStakePoolsData{}           -> Debug
-        MsgFetchStakePoolsDataSummary{}    -> Info
-        MsgWatcherUpdate{}                 -> Debug
-        MsgInterpreter{}                   -> Debug
-        MsgQuery _ msg                     -> getSeverityAnnotation msg
+        MsgConnectionStatus{} -> Info
+        MsgTxSubmission{} -> Info
+        MsgPostTx{} -> Debug
+        MsgLocalStateQuery{} -> Debug
+        MsgNodeTip{} -> Debug
+        MsgProtocolParameters{} -> Info
+        MsgLocalStateQueryError{} -> Error
+        MsgLocalStateQueryEraMismatch{} -> Debug
+        MsgAccountDelegationAndRewards{} -> Debug
+        MsgDestroyCursor{} -> Debug
+        MsgWillQueryRewardsForStake{} -> Info
+        MsgFetchStakePoolsData{} -> Debug
+        MsgFetchStakePoolsDataSummary{} -> Info
+        MsgWatcherUpdate{} -> Debug
+        MsgInterpreter{} -> Debug
+        MsgQuery _ msg -> getSeverityAnnotation msg
         MsgQueryTime qry dt
-            | isSlowQuery qry dt           -> Notice
-            | otherwise                    -> Debug
-        MsgInterpreterLog msg              -> getSeverityAnnotation msg
-        MsgFetchRewardAccountBalance{}       -> Debug
-        MsgObserverLog (MsgDidChange _)    -> Notice
-        MsgObserverLog{}                   -> Debug
+            | isSlowQuery qry dt -> Notice
+            | otherwise -> Debug
+        MsgInterpreterLog msg -> getSeverityAnnotation msg
+        MsgFetchRewardAccountBalance{} -> Debug
+        MsgObserverLog (MsgDidChange _) -> Notice
+        MsgObserverLog{} -> Debug
 
 data ObserverLog key value
     = MsgWillFetch (Set key)

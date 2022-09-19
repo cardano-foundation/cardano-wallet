@@ -694,10 +694,8 @@ bench_baseline_restoration
     withRestoreEnvironment action =
         withWalletLayerTracer benchName pipeliningStrat traceToDisk $
             \progressTrace -> withNetworkLayer
-                networkTrace
-                pipeliningStrat
-                networkId np socket vData sTol $
-                    \nw -> action progressTrace nw
+                networkTrace pipeliningStrat np socket vData sTol $ \nw ->
+                    action progressTrace nw
       where
         networkId = networkIdVal proxy
         networkTrace = trMessageText wlTr
@@ -783,7 +781,7 @@ bench_restoration
     let tl = newTransactionLayer @k networkId
     let gp = genesisParameters np
     withNetworkLayer (trMessageText wlTr) pipeliningStrat
-        networkId np socket vData sTol $ \nw' -> do
+        np socket vData sTol $ \nw' -> do
             let convert = fromCardanoBlock gp
             let nw = convert <$> nw'
             let ti = neverFails "bench db shouldn't forecast into future"
@@ -933,7 +931,7 @@ prepareNode tr proxy socketPath np vData = do
     let networkId = networkIdVal proxy
     sl <- withNetworkLayer nullTracer
             tunedForMainnetPipeliningStrategy
-            networkId np socketPath vData sTol $ \nw' -> do
+            np socketPath vData sTol $ \nw' -> do
         let gp = genesisParameters np
         let convert = fromCardanoBlock gp
         let nw = convert <$> nw'
