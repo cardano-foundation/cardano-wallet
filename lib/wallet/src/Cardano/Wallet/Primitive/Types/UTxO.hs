@@ -154,7 +154,7 @@ difference :: UTxO -> UTxO -> UTxO
 difference a b = a `excluding` Map.keysSet (unUTxO b)
 
 intersection :: UTxO -> UTxO -> UTxO
-intersection (UTxO a) (UTxO b) = UTxO (a `Map.intersection` b)
+intersection (UTxO a) (UTxO b) = UTxO $ Map.intersection a b
 
 -- | Indicates whether a pair of UTxO sets are disjoint.
 --
@@ -168,13 +168,11 @@ excluding (UTxO utxo) =
 
 -- | a ⊆ b
 isSubsetOf :: UTxO -> UTxO -> Bool
-isSubsetOf (UTxO a) (UTxO b) =
-    a `Map.isSubmapOf` b
+isSubsetOf (UTxO a) (UTxO b) = Map.isSubmapOf a b
 
 -- | a ⊂ b
 isProperSubsetOf :: UTxO -> UTxO -> Bool
-isProperSubsetOf (UTxO a) (UTxO b) =
-    a `Map.isProperSubmapOf` b
+isProperSubsetOf (UTxO a) (UTxO b) = Map.isProperSubmapOf a b
 
 -- | ins⊲ u
 restrictedBy :: UTxO -> Set TxIn -> UTxO

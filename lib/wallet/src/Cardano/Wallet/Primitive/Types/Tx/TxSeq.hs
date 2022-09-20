@@ -8,7 +8,7 @@
 -- This module provides the 'TxSeq' type and related functions.
 --
 -- The 'TxSeq' type provides a way to model a linear sequence of transactions
--- and intermediate UTxO sets, where each individual transaction 't_i_j'' is
+-- and intermediate UTxO sets, where each individual transaction 't_i_j' is
 -- associated with:
 --
 --    - a __preceding__ UTxO set 'utxo_i', to which 't_i_j' can be applied; and

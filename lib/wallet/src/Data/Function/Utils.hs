@@ -30,5 +30,4 @@ applyN !n !f !a
 -- False
 --
 isInjectiveOver :: Ord b => (a -> b) -> Set a -> Bool
-isInjectiveOver f domain =
-    Set.size domain == Set.size (Set.map f domain)
+isInjectiveOver f domain = Set.size domain == Set.size (Set.map f domain)
