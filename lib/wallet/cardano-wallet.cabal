@@ -376,6 +376,7 @@ library
     Cardano.Wallet.Transaction
     Cardano.Wallet.Types.Read
     Cardano.Wallet.Types.Read.Eras.KnownEras
+    Cardano.Wallet.Types.Read.Eras.EraValue
     Cardano.Wallet.Types.Read.Primitive.Tx
     Cardano.Wallet.Types.Read.Primitive.Tx.Allegra
     Cardano.Wallet.Types.Read.Primitive.Tx.Alonzo
