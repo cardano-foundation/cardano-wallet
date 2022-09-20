@@ -43,14 +43,11 @@ with-compiler: ghc-8.10.7
 
 packages:
     lib/dbvar/
-  , lib/core/
-  , lib/core-integration/
-  , lib/cli/
+  , lib/wallet/
   , lib/launcher/
   , lib/numeric/
   , lib/text-class/
   , lib/test-utils/
-  , lib/shelley/
   , lib/strict-non-empty-containers/
 
 -- Using RDRAND instead of /dev/urandom as an entropy source for key
@@ -384,7 +381,7 @@ package cardano-wallet
   tests: True
   ghc-options: -fwrite-ide-info
 
-package cardano-wallet-core
+package cardano-wallet
   tests: True
   ghc-options: -fwrite-ide-info
 
@@ -404,7 +401,7 @@ package cardano-numeric
   tests: True
   ghc-options: -fwrite-ide-info
 
-package cardano-wallet-core-integration
+package cardano-wallet-integration
   tests: True
   ghc-options: -fwrite-ide-info
 

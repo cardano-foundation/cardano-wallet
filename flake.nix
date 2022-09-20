@@ -14,15 +14,15 @@
   #
   #   - cardano-wallet - cli executable
   #   - tests - attrset of test-suite executables
-  #     - cardano-wallet-core.unit
+  #     - cardano-wallet.unit
   #     - cardano-wallet.integration
   #     - etc (layout is PACKAGE.COMPONENT)
   #   - checks - attrset of test-suite results
-  #     - cardano-wallet-core.unit
+  #     - cardano-wallet.unit
   #     - cardano-wallet.integration
   #     - etc
   #   - benchmarks - attret of benchmark executables
-  #     - cardano-wallet-core.db
+  #     - cardano-wallet.db
   #     - cardano-wallet.latency
   #     - etc
   #   - dockerImage - tarball of the docker image
@@ -176,9 +176,7 @@
                     backend = self.cardano-node;
                   };
                   # Local test cluster and mock metadata server
-                  inherit (project.hsPkgs.cardano-wallet.components.exes)
-                    local-cluster
-                    mock-token-metadata-server;
+                  inherit (project.hsPkgs.cardano-wallet.components.exes) local-cluster mock-token-metadata-server;
 
                   # Adrestia tool belt
                   inherit (project.hsPkgs.bech32.components.exes) bech32;
@@ -192,8 +190,7 @@
 
                   # Provide db-converter, so daedalus can ship it without needing to
                   # pin an ouroborus-network rev.
-                  inherit (project.hsPkgs.ouroboros-consensus-byron.components.exes)
-                    db-converter;
+                  inherit (project.hsPkgs.ouroboros-consensus-byron.components.exes) db-converter;
 
                   # Combined project coverage report
                   testCoverageReport = coveredProject.projectCoverageReport;

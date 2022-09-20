@@ -174,7 +174,7 @@ haskell-nix: haskell-nix.cabalProject' [
 
           (lib.optionalAttrs (!buildBenchmarks) {
             packages = {
-              cardano-wallet-core.components.benchmarks.db.buildable = lib.mkForce false;
+              cardano-wallet.components.benchmarks.db.buildable = lib.mkForce false;
               cardano-wallet.components.benchmarks = {
                 latency.buildable = lib.mkForce false;
                 restore.buildable = lib.mkForce false;
@@ -203,20 +203,6 @@ haskell-nix: haskell-nix.cabalProject' [
               packages.openapi3.components.setup.doExactConfig = true;
               packages.servant-openapi3.components.setup.doExactConfig = true;
               packages.system-filepath.components.setup.doExactConfig = true;
-
-              packages.cardano-wallet-core.components.tests = {
-                unit.preCheck = noCacheTestFailuresCookie;
-                # Attempt to ensure visible progress in the macOS hydra job.
-                #
-                # An hypothesis is that #2472 is caused by heavy load and unfocused
-                # resources from running the tests concurrently, risking that the slowest
-                # hspec runner - and therefore the stdout - being silent for 900s causing
-                # hydra to timeout.
-                #
-                # Setting -j 1 should hopefully focus the resource we have in one place. It
-                # should go silent less often, at the expense of the full run getting slower.
-                unit.testFlags = lib.optionals pkgs.stdenv.hostPlatform.isDarwin [ "-j" "1" ];
-              };
 
               packages.cardano-wallet.components.tests = {
                 # Running Windows integration tests under Wine is disabled
@@ -272,7 +258,7 @@ haskell-nix: haskell-nix.cabalProject' [
                   build-tools = [ pkgs.buildPackages.makeWrapper ];
                   postInstall = ''
                     wrapProgram $out/bin/* \
-                      --run "cd ${srcAll}/lib/shelley" \
+                      --run "cd ${srcAll}/lib/wallet" \
                       --prefix PATH : ${lib.makeBinPath cardanoNodeExes}
                   '';
                 };
@@ -293,7 +279,7 @@ haskell-nix: haskell-nix.cabalProject' [
 
               packages.cardano-wallet.components.exes.local-cluster =
                 let
-                  testData = src + /lib/shelley/test/data/cardano-node-shelley;
+                  testData = src + /lib/wallet/test/data/cardano-node-shelley;
                 in
                 if (stdenv.hostPlatform.isWindows) then {
                   postInstall = ''
@@ -337,7 +323,7 @@ haskell-nix: haskell-nix.cabalProject' [
           # tests because it is located outside of the Cabal package
           # source tree.
           {
-            packages.cardano-wallet-core.components.tests.unit.preBuild = ''
+            packages.cardano-wallet.components.tests.unit.preBuild = ''
               export SWAGGER_YAML=${src + /specifications/api/swagger.yaml}
             '';
           }
@@ -395,9 +381,7 @@ haskell-nix: haskell-nix.cabalProject' [
               packages.cardano-wallet.components.exes.cardano-wallet = fullyStaticOptions;
               packages.cardano-wallet.components.tests.integration = fullyStaticOptions;
               packages.cardano-wallet.components.tests.unit = fullyStaticOptions;
-              packages.cardano-wallet-cli.components.tests.unit = fullyStaticOptions;
-              packages.cardano-wallet-core.components.benchmarks.db = fullyStaticOptions;
-              packages.cardano-wallet-core.components.tests.unit = fullyStaticOptions;
+              packages.cardano-wallet.components.benchmarks.db = fullyStaticOptions;
               packages.cardano-wallet-launcher.components.tests.unit = fullyStaticOptions;
 
               # systemd can't be statically linked - disable lobemo-scribe-journal
@@ -418,7 +402,7 @@ haskell-nix: haskell-nix.cabalProject' [
 
           # Disable scrypt support on ARM64
           ({ pkgs, ... }: {
-            packages.cardano-wallet-core.flags.scrypt = !pkgs.stdenv.hostPlatform.isAarch64;
+            packages.cardano-wallet.flags.scrypt = !pkgs.stdenv.hostPlatform.isAarch64;
           })
         ];
     })

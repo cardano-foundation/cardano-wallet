@@ -5,7 +5,6 @@
 ## Unit Tests
 
 ```
-$ cabal test cardano-wallet-core:unit
 $ cabal test cardano-wallet:unit
 ```
 
@@ -184,7 +183,7 @@ If your test fails with something like:
 user error (No more faucet wallet available in MVar!)
 ```
 
-Generate more wallet mnemonics and populate the appropriate list in `lib/core-integration/src/Test/Integration/Faucet.hs`.
+Generate more wallet mnemonics and populate the appropriate list in `lib/wallet/src/Test/Integration/Faucet.hs`.
 
 Generate new mnemonics with:
 
@@ -205,7 +204,7 @@ instructions.
 ### Database
 
 ```
-$ cabal bench cardano-wallet-core:db
+$ cabal bench cardano-wallet:db
 ```
 
 ### Restoration

@@ -19,7 +19,7 @@ index 1ba2edf625..109534719a 100644
 +with-compiler: ghc-8.10.7
  
  packages:
-     lib/core/
+     lib/wallet/
 ```
 
 - Update "compiler-nix-name" in nix/overlays/build-tools
@@ -57,7 +57,7 @@ index 18b0916933..29f2d6e961 100644
 +compiler: ghc-8.10.7
  
  packages:
- - lib/core
+ - lib/wallet
 ```
 - Update haskell.nix `niv update haskell.nix -b master`.
 - Run nix/regenerate.sh.
@@ -126,7 +126,7 @@ index 8bb80f7e99..8ac227a865 100644
     modules = [
        # ...
 +      {
-+        packages.cardano-wallet-core.components.library.build-tools = [ pkgs.buildPackages.buildPackages.gitMinimal ];
++        packages.cardano-wallet.components.library.build-tools = [ pkgs.buildPackages.buildPackages.gitMinimal ];
 +        packages.cardano-config.components.library.build-tools = [ pkgs.buildPackages.buildPackages.gitMinimal ];
 +      }
      ];
