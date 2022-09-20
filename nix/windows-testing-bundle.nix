@@ -18,8 +18,6 @@
 let
   testData = {
     core = ../lib/core/test/data;
-    shelley = ../lib/shelley/test/data;
-    cli = ../lib/cli/test/data;
   };
 
   name = "cardano-wallet-${cardano-wallet.version}-tests-win64";

@@ -321,7 +321,7 @@
                       # This is used for testing the build on windows.
                       cardano-wallet-tests-win64 = import ./nix/windows-testing-bundle.nix {
                         inherit pkgs;
-                        cardano-wallet = windowsPackages.cardano-wallet-core;
+                        cardano-wallet = windowsPackages.cardano-wallet;
                         cardano-node = windowsPackages.cardano-node;
                         cardano-cli = windowsPackages.cardano-cli;
                         tests = lib.collect lib.isDerivation windowsPackages.tests;
