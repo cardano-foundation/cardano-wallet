@@ -14,16 +14,16 @@
   #
   #   - cardano-wallet - cli executable
   #   - tests - attrset of test-suite executables
-  #     - cardano-wallet-core.unit
-  #     - cardano-wallet-core.integration
+  #     - cardano-wallet.unit
+  #     - cardano-wallet.integration
   #     - etc (layout is PACKAGE.COMPONENT)
   #   - checks - attrset of test-suite results
-  #     - cardano-wallet-core.unit
-  #     - cardano-wallet-core.integration
+  #     - cardano-wallet.unit
+  #     - cardano-wallet.integration
   #     - etc
   #   - benchmarks - attret of benchmark executables
-  #     - cardano-wallet-core.db
-  #     - cardano-wallet-core.latency
+  #     - cardano-wallet.db
+  #     - cardano-wallet.latency
   #     - etc
   #   - dockerImage - tarball of the docker image
   #
@@ -68,7 +68,7 @@
       defaultSystem = lib.head supportedSystems;
       overlay = final: prev: {
         cardanoWalletHaskellProject = self.legacyPackages.${final.system};
-        inherit (final.cardanoWalletHaskellProject.hsPkgs.cardano-wallet-core.components.exes) cardano-wallet;
+        inherit (final.cardanoWalletHaskellProject.hsPkgs.cardano-wallet.components.exes) cardano-wallet;
       };
       nixosModule = { pkgs, lib, ... }: {
         imports = [ ./nix/nixos/cardano-wallet-service.nix ];
@@ -172,13 +172,11 @@
                   # Cardano wallet
                   cardano-wallet = import ./nix/release-build.nix {
                     inherit pkgs;
-                    exe = project.hsPkgs.cardano-wallet-core.components.exes.cardano-wallet;
+                    exe = project.hsPkgs.cardano-wallet.components.exes.cardano-wallet;
                     backend = self.cardano-node;
                   };
                   # Local test cluster and mock metadata server
-                  inherit (project.hsPkgs.cardano-wallet-core.components.exes)
-                    local-cluster
-                    mock-token-metadata-server;
+                  inherit (project.hsPkgs.cardano-wallet.components.exes) local-cluster mock-token-metadata-server;
 
                   # Adrestia tool belt
                   inherit (project.hsPkgs.bech32.components.exes) bech32;
@@ -192,8 +190,7 @@
 
                   # Provide db-converter, so daedalus can ship it without needing to
                   # pin an ouroborus-network rev.
-                  inherit (project.hsPkgs.ouroboros-consensus-byron.components.exes)
-                    db-converter;
+                  inherit (project.hsPkgs.ouroboros-consensus-byron.components.exes) db-converter;
 
                   # Combined project coverage report
                   testCoverageReport = coveredProject.projectCoverageReport;
@@ -206,7 +203,7 @@
                       # Run the integration tests in the previous era too:
                       (
                         let
-                          integrationCheck = check coveredProject.hsPkgs.cardano-wallet-core.components.tests.integration;
+                          integrationCheck = check coveredProject.hsPkgs.cardano-wallet.components.tests.integration;
                           integrationPrevEraCheck = integrationCheck.overrideAttrs (prev: {
                             preCheck = prev.preCheck + ''
                               export LOCAL_CLUSTER_ERA=alonzo

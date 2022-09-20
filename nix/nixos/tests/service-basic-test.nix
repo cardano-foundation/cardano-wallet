@@ -1,6 +1,6 @@
 { pkgs, project, lib, ... }: with pkgs;
 let
-  inherit (project.hsPkgs.cardano-wallet-core.components.exes) cardano-wallet;
+  inherit (project.hsPkgs.cardano-wallet.components.exes) cardano-wallet;
   inherit (pkgs) cardanoLib;
 in
 {

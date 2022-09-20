@@ -46,7 +46,7 @@ import Data.Version
     ( Version (..), showVersion )
 import Fmt
     ( build, fmt, padLeftF )
-import Paths_cardano_wallet_core
+import Paths_cardano_wallet
     ( version )
 
 import qualified Data.Text as T

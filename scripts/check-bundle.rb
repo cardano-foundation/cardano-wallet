@@ -10,12 +10,11 @@
 require 'open3'
 
 tests = {
-  "cardano-wallet-jormungandr" => [ ],
   "cardano-wallet" => [ "cardano-node", "cardano-cli", "bech32", "cardano-address" ]
 }
 
 if ARGV.length < 1 || ARGV.length > 2 || tests[ARGV[0]] == nil
-  STDERR.puts "Usage: check-bundle (cardano-wallet|cardano-wallet-jormungandr) [RUNNER]"
+  STDERR.puts "Usage: check-bundle cardano-wallet [RUNNER]"
   exit 1
 end
 

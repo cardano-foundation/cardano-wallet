@@ -10,16 +10,16 @@
 #
 #   - cardano-wallet - cli executable
 #   - tests - attrset of test-suite executables
-#     - cardano-wallet-core.unit
-#     - cardano-wallet-core.integration
+#     - cardano-wallet.unit
+#     - cardano-wallet.integration
 #     - etc (layout is PACKAGE.COMPONENT)
 #   - checks - attrset of test-suite results
-#     - cardano-wallet-core.unit
-#     - cardano-wallet-core.integration
+#     - cardano-wallet.unit
+#     - cardano-wallet.integration
 #     - etc
 #   - benchmarks - attret of benchmark executables
-#     - cardano-wallet-core.db
-#     - cardano-wallet-core.latency
+#     - cardano-wallet.db
+#     - cardano-wallet.latency
 #     - etc
 #   - dockerImage - tarball of the docker image
 #

@@ -174,8 +174,8 @@ haskell-nix: haskell-nix.cabalProject' [
 
           (lib.optionalAttrs (!buildBenchmarks) {
             packages = {
-              cardano-wallet-core.components.benchmarks.db.buildable = lib.mkForce false;
-              cardano-wallet-core.components.benchmarks = {
+              cardano-wallet.components.benchmarks.db.buildable = lib.mkForce false;
+              cardano-wallet.components.benchmarks = {
                 latency.buildable = lib.mkForce false;
                 restore.buildable = lib.mkForce false;
               };
@@ -204,7 +204,7 @@ haskell-nix: haskell-nix.cabalProject' [
               packages.servant-openapi3.components.setup.doExactConfig = true;
               packages.system-filepath.components.setup.doExactConfig = true;
 
-              packages.cardano-wallet-core.components.tests = {
+              packages.cardano-wallet.components.tests = {
                 # Running Windows integration tests under Wine is disabled
                 # because ouroboros-network doesn't fully work under Wine.
                 integration.doCheck = doIntegrationCheck && !pkgs.stdenv.hostPlatform.isWindows;
@@ -253,12 +253,12 @@ haskell-nix: haskell-nix.cabalProject' [
 
               # Add node backend to the PATH of the latency benchmarks, and
               # set the source tree as its working directory.
-              packages.cardano-wallet-core.components.benchmarks.latency =
+              packages.cardano-wallet.components.benchmarks.latency =
                 lib.optionalAttrs (!stdenv.hostPlatform.isWindows) {
                   build-tools = [ pkgs.buildPackages.makeWrapper ];
                   postInstall = ''
                     wrapProgram $out/bin/* \
-                      --run "cd ${srcAll}/lib/core" \
+                      --run "cd ${srcAll}/lib/wallet" \
                       --prefix PATH : ${lib.makeBinPath cardanoNodeExes}
                   '';
                 };
@@ -266,7 +266,7 @@ haskell-nix: haskell-nix.cabalProject' [
               # Add cardano-node to the PATH of the byroon restore benchmark.
               # cardano-node will want to write logs to a subdirectory of the working directory.
               # We don't `cd $src` because of that.
-              packages.cardano-wallet-core.components.benchmarks.restore =
+              packages.cardano-wallet.components.benchmarks.restore =
                 lib.optionalAttrs (!stdenv.hostPlatform.isWindows) {
                   build-tools = [ pkgs.buildPackages.makeWrapper ];
                   postInstall = ''
@@ -277,9 +277,9 @@ haskell-nix: haskell-nix.cabalProject' [
                 };
 
 
-              packages.cardano-wallet-core.components.exes.local-cluster =
+              packages.cardano-wallet.components.exes.local-cluster =
                 let
-                  testData = src + /lib/core/test/data/cardano-node-shelley;
+                  testData = src + /lib/wallet/test/data/cardano-node-shelley;
                 in
                 if (stdenv.hostPlatform.isWindows) then {
                   postInstall = ''
@@ -296,7 +296,7 @@ haskell-nix: haskell-nix.cabalProject' [
                 };
 
               # Add shell completions for main executables.
-              packages.cardano-wallet-core.components.exes.cardano-wallet.postInstall = optparseCompletionPostInstall + setGitRevPostInstall + rewriteLibsPostInstall + stripBinariesPostInstall;
+              packages.cardano-wallet.components.exes.cardano-wallet.postInstall = optparseCompletionPostInstall + setGitRevPostInstall + rewriteLibsPostInstall + stripBinariesPostInstall;
             })
 
           ({ config, ... }:
@@ -323,7 +323,7 @@ haskell-nix: haskell-nix.cabalProject' [
           # tests because it is located outside of the Cabal package
           # source tree.
           {
-            packages.cardano-wallet-core.components.tests.unit.preBuild = ''
+            packages.cardano-wallet.components.tests.unit.preBuild = ''
               export SWAGGER_YAML=${src + /specifications/api/swagger.yaml}
             '';
           }
@@ -358,8 +358,8 @@ haskell-nix: haskell-nix.cabalProject' [
           # Enable profiling on executables if the profiling argument is set.
           (lib.optionalAttrs profiling {
             enableLibraryProfiling = true;
-            packages.cardano-wallet-core.components.exes.cardano-wallet.enableProfiling = true;
-            packages.cardano-wallet-core.components.benchmarks.restore.enableProfiling = true;
+            packages.cardano-wallet.components.exes.cardano-wallet.enableProfiling = true;
+            packages.cardano-wallet.components.benchmarks.restore.enableProfiling = true;
             packages.plutus-core.ghcOptions = [ "-fexternal-interpreter" ];
           })
 
@@ -377,11 +377,11 @@ haskell-nix: haskell-nix.cabalProject' [
             in
             {
               # Apply fully static options to our Haskell executables
-              packages.cardano-wallet-core.components.benchmarks.restore = fullyStaticOptions;
-              packages.cardano-wallet-core.components.exes.cardano-wallet = fullyStaticOptions;
-              packages.cardano-wallet-core.components.tests.integration = fullyStaticOptions;
-              packages.cardano-wallet-core.components.tests.unit = fullyStaticOptions;
-              packages.cardano-wallet-core.components.benchmarks.db = fullyStaticOptions;
+              packages.cardano-wallet.components.benchmarks.restore = fullyStaticOptions;
+              packages.cardano-wallet.components.exes.cardano-wallet = fullyStaticOptions;
+              packages.cardano-wallet.components.tests.integration = fullyStaticOptions;
+              packages.cardano-wallet.components.tests.unit = fullyStaticOptions;
+              packages.cardano-wallet.components.benchmarks.db = fullyStaticOptions;
               packages.cardano-wallet-launcher.components.tests.unit = fullyStaticOptions;
 
               # systemd can't be statically linked - disable lobemo-scribe-journal
@@ -402,7 +402,7 @@ haskell-nix: haskell-nix.cabalProject' [
 
           # Disable scrypt support on ARM64
           ({ pkgs, ... }: {
-            packages.cardano-wallet-core.flags.scrypt = !pkgs.stdenv.hostPlatform.isAarch64;
+            packages.cardano-wallet.flags.scrypt = !pkgs.stdenv.hostPlatform.isAarch64;
           })
         ];
     })

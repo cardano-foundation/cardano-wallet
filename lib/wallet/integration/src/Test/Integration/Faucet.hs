@@ -135,7 +135,7 @@ takeNext description mvar = do
         Nothing -> fail
             $ "No more faucet wallets of type " <> description <> "! "
             <> "You may need to manually add entries to the relevant list in "
-            <> "lib/core-integration/src/Test/Integration/Faucet.hs"
+            <> "lib/wallet/src/Test/Integration/Faucet.hs"
         Just a  -> pure a
 
 instance NextWallet "shelley" where

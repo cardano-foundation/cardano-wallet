@@ -1,5 +1,5 @@
 cabal-version:       >=1.10
-name:                cardano-wallet-core
+name:                cardano-wallet
 version:             2022.8.16
 synopsis:            The Wallet Backend for a Cardano node.
 description:         Please see README.md
@@ -385,9 +385,9 @@ library
       Ouroboros.Network.Client.Wallet
       UnliftIO.Compat
   other-modules:
-      Paths_cardano_wallet_core
+      Paths_cardano_wallet
 
-library cardano-wallet-core-integration
+library cardano-wallet-integration
   default-language:
       Haskell2010
   default-extensions:
@@ -416,7 +416,7 @@ library cardano-wallet-core-integration
     , cardano-crypto-class
     , cardano-ledger-alonzo
     , cardano-ledger-core
-    , cardano-wallet-core
+    , cardano-wallet
     , cardano-wallet-launcher
     , cardano-wallet-test-utils
     , cborg
@@ -513,7 +513,7 @@ executable cardano-wallet
     ghc-options: -O2 -Werror
   build-depends:
       base
-    , cardano-wallet-core
+    , cardano-wallet
     , cardano-wallet-launcher
     , contra-tracer
     , iohk-monitoring
@@ -542,8 +542,8 @@ executable local-cluster
     ghc-options: -O2 -Werror
   build-depends:
       base
-    , cardano-wallet-core
-    , cardano-wallet-core-integration
+    , cardano-wallet
+    , cardano-wallet-integration
     , cardano-wallet-launcher
     , contra-tracer
     , iohk-monitoring
@@ -571,7 +571,7 @@ executable mock-token-metadata-server
   build-depends:
       base
     , ansi-wl-pprint
-    , cardano-wallet-core
+    , cardano-wallet
     , optparse-applicative
     , wai-extra
   hs-source-dirs:
@@ -620,7 +620,7 @@ test-suite unit
     , cardano-numeric
     , cardano-sl-x509
     , cardano-slotting
-    , cardano-wallet-core
+    , cardano-wallet
     , cardano-wallet-launcher
     , cardano-wallet-test-utils
     , cborg
@@ -838,8 +838,8 @@ test-suite integration
     ghc-options: -O2 -Werror
   build-depends:
       base
-    , cardano-wallet-core
-    , cardano-wallet-core-integration
+    , cardano-wallet
+    , cardano-wallet-integration
     , cardano-wallet-launcher
     , cardano-wallet-test-utils
     , contra-tracer
@@ -883,8 +883,8 @@ benchmark restore
     , aeson
     , bytestring
     , cardano-addresses
-    , cardano-wallet-core
-    , cardano-wallet-core-integration
+    , cardano-wallet
+    , cardano-wallet-integration
     , contra-tracer
     , deepseq
     , filepath
@@ -918,8 +918,8 @@ benchmark latency
   build-depends:
       base
     , aeson
-    , cardano-wallet-core
-    , cardano-wallet-core-integration
+    , cardano-wallet
+    , cardano-wallet-integration
     , cardano-wallet-launcher
     , directory
     , filepath
@@ -956,7 +956,7 @@ benchmark db
     , bytestring
     , cardano-addresses
     , cardano-crypto
-    , cardano-wallet-core
+    , cardano-wallet
     , cardano-wallet-launcher
     , cardano-wallet-test-utils
     , containers

@@ -121,7 +121,7 @@ import qualified Data.Text as T
 -- special wallets identified by recovery phrases. Pre-registered wallets can be
 -- seen in
 --
---   `lib/core-integration/src/Test/Integration/Faucet.hs`.
+--   `lib/wallet/src/Test/Integration/Faucet.hs`.
 --
 -- All wallets (Byron, Icarus, Shelley) all have 10 UTxOs worth 100_000 Ada
 -- each (so 1M Ada in total). Additionally, the file also contains a set of

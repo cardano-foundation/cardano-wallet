@@ -58,12 +58,12 @@ See [`nix/overlays/build-tools.nix`](https://github.com/input-output-hk/cardano-
 
    To run one of the unit test suites:
    ```console
-   $ cabal run cardano-wallet-core:test:unit
+   $ cabal run cardano-wallet:test:unit
    ```
 
    To run the DB benchmark:
    ```console
-   $ cabal run cardano-wallet-core:bench:db
+   $ cabal run cardano-wallet:bench:db
    ```
 
    To run the integration test suite:
@@ -266,7 +266,7 @@ This will prime **haskell-language-server** to work with all modules of the proj
 To test the **haskell-language-server**, use the following commands (these should be in your $PATH because you executed `direnv allow` previously, or have entered a nix development environment):
 
 ```
-hie-bios check lib/core/src/Cardano/Wallet.hs
+hie-bios check lib/wallet/src/Cardano/Wallet.hs
 haskell-language-server lib/shelley/exe/cardano-wallet.hs
 ```
 
@@ -315,19 +315,19 @@ NOTE: [hie-bios BIOS Configuration](https://github.com/haskell/hie-bios#bios) is
 
 ##### Source Filtering
 
-In the past **haskell-language-server** failed when processing the `lib/core-integration/extra/Plutus/FlatInteger.hs` file, as it was technically a Haskell file in the repository, but wasn't intended to be compiled with the project.
+In the past **haskell-language-server** failed when processing the `lib/wallet/extra/Plutus/FlatInteger.hs` file, as it was technically a Haskell file in the repository, but wasn't intended to be compiled with the project.
 
-To fix this issue, we excluded the `lib/core-integration/extra` folder from the project sources.
+To fix this issue, we excluded the `lib/wallet/extra` folder from the project sources.
 
 The bash function `list_sources` in `scripts/cabal-lib.sh` is responsible for determining the source files **haskell-language-server** sees. Modify this function to further remove any other files you wish to exclude:
 
 ```
 list_sources() {
-  # Exclude lib/core-integration/extra. Those files are Plutus scripts intended
+  # Exclude lib/wallet/extra. Those files are Plutus scripts intended
   # to be serialised for use in the tests. They are not intended to be built
   # with the project.
   # Exclude prototypes dir because it's a different project.
-  git ls-files 'lib/**/*.hs' | grep -v Main.hs | grep -v prototypes/ | grep -v lib/core-integration/extra
+  git ls-files 'lib/**/*.hs' | grep -v Main.hs | grep -v prototypes/ | grep -v lib/wallet/extra
 }
 ```
 

@@ -73,7 +73,7 @@ data Context = Context
         -- ^ Base URL of the mock smash server.
 
     , _mintSeaHorseAssets :: Int -> Int -> Coin -> [Address] -> IO ()
-        -- ^ TODO: Remove once we can unify cardano-wallet-core-integration and
+        -- ^ TODO: Remove once we can unify cardano-wallet-integration and
         -- cardano-wallet:integration, or when the wallet supports minting.
         --
         -- Cannot be used by several tests at a time. (!)

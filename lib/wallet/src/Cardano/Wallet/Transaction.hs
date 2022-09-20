@@ -262,11 +262,8 @@ data TransactionLayer k ktype tx = TransactionLayer
         -- is not automatically the minimum fee.
         --
         -- The function takes two UTxOs of different types and merges them. The
-        -- reason is to workaround a combination of:
-        -- 1. The wallet 'UTxO' type doesn't support Datum hashes
-        -- 2. A 'UTxO -> Cardano.UTxO' conversion function is not available in
-        -- the cardano-wallet-core package, only cardano-wallet. (This package
-        -- boundary will soon hopefully go away, however)
+        -- reason is to workaround that wallet 'UTxO' type doesn't support
+        -- Datum hashes
 
     , distributeSurplus
         :: FeePolicy

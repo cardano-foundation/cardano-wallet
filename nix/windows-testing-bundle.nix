@@ -17,7 +17,7 @@
 
 let
   testData = {
-    core = ../lib/core/test/data;
+    wallet = ../lib/wallet/test/data;
   };
 
   name = "cardano-wallet-${cardano-wallet.version}-tests-win64";

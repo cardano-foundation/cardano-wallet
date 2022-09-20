@@ -79,7 +79,7 @@ let
       };
 
   # Grab the migration test from the current version.
-  migrationTest = (importRelease null).haskellPackages.cardano-wallet-core.components.exes.migration-test;
+  migrationTest = (importRelease null).haskellPackages.cardano-wallet.components.exes.migration-test;
 
   # Generate attribute name/filename for a release.
   releaseName = rel: if rel == null

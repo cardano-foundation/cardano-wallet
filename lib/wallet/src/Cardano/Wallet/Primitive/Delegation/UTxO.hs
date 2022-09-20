@@ -22,9 +22,6 @@ import qualified Data.Map as Map
 
 -- | Calculate how much `Coin` exists on each `Maybe RewardAccount` in the
 -- `UTxO` given a way to extract `Maybe RewardAccount` from an `Address`.
---
--- This is intended to be used with `rewardAccountFromAddress`, which exists
--- elsewhere because of the cardano-wallet-core / cardano-wallet split.
 stakeKeyCoinDistr
     :: (Address -> Maybe RewardAccount)
     -> UTxO

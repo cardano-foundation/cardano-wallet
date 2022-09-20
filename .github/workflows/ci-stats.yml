@@ -20,7 +20,7 @@ jobs:
           jobs: required
           requiredJob: required
           project: Cardano
-          jobset: cardano-wallet-core
+          jobset: cardano-wallet
         timeout-minutes: 180
 
       - name: '📥 Checkout Code'
