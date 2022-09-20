@@ -161,7 +161,6 @@ import Cardano.Wallet.Shelley.Compatibility
     ( cardanoCertKeysForWitnesses
     , fromCardanoAddress
     , fromCardanoLovelace
-    , fromCardanoTx
     , fromCardanoWdrls
     , toCardanoLovelace
     , toCardanoPolicyId
@@ -196,6 +195,8 @@ import Cardano.Wallet.Transaction
     , mapTxFeeAndChange
     , withdrawalToCoin
     )
+import Cardano.Wallet.Types.Read.Primitive.Tx
+    ( fromCardanoTx )
 import Cardano.Wallet.Util
     ( internalError, modifyM )
 import Codec.Serialise

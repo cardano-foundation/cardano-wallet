@@ -127,17 +127,11 @@ module Cardano.Wallet.Shelley.Compatibility
     , fromTip
     , fromTip'
     , toTip
-    , fromCardanoTx
-    , fromShelleyTx
-    , fromAllegraTx
     , fromShelleyBlock
     , fromAllegraBlock
     , slottingParametersFromGenesis
     , fromMaryBlock
-    , fromMaryTx
-    , fromAlonzoTx
     , fromAlonzoBlock
-    , fromBabbageTx
     , fromBabbageBlock
     , getBabbageProducer
 
@@ -160,7 +154,7 @@ import Cardano.Address
 import Cardano.Address.Derivation
     ( XPub, xpubPublicKey )
 import Cardano.Address.Script
-    ( KeyHash (..), KeyRole (..), Script (..) )
+    ( KeyHash (..), Script (..) )
 import Cardano.Api
     ( AllegraEra
     , AlonzoEra
@@ -187,7 +181,6 @@ import Cardano.Api.Shelley
     , IsShelleyBasedEra (..)
     , ShelleyBasedEra (..)
     , ShelleyGenesis (..)
-    , fromShelleyMetadata
     )
 import Cardano.Binary
     ( serialize' )
@@ -204,11 +197,7 @@ import Cardano.Ledger.BaseTypes
 import Cardano.Ledger.Era
     ( Era (..) )
 import Cardano.Ledger.Serialization
-    ( ToCBORGroup, sizedValue )
-import Cardano.Ledger.Shelley.API
-    ( StrictMaybe (SJust, SNothing) )
-import Cardano.Ledger.Shelley.TxBody
-    ( EraIndependentTxBody )
+    ( ToCBORGroup )
 import Cardano.Slotting.Slot
     ( EpochNo (..), EpochSize (..) )
 import Cardano.Slotting.Time
@@ -224,43 +213,33 @@ import Cardano.Wallet.Byron.Compatibility
 import Cardano.Wallet.Primitive.AddressDerivation
     ( NetworkDiscriminant (..) )
 import Cardano.Wallet.Primitive.Types
-    ( Certificate (..)
-    , ChainPoint (..)
-    , PoolCertificate (..)
+    ( ChainPoint (..)
     , PoolRegistrationCertificate (..)
-    , PoolRetirementCertificate (..)
     , ProtocolParameters (txParameters)
     , TokenBundleMaxSize (..)
     , TxParameters (getTokenBundleMaxSize)
     )
 import Cardano.Wallet.Primitive.Types.MinimumUTxO
     ( minimumUTxOForShelleyBasedEra )
-import Cardano.Wallet.Primitive.Types.TokenMap
-    ( TokenMap, toNestedList )
-import Cardano.Wallet.Primitive.Types.TokenPolicy
-    ( TokenPolicyId )
 import Cardano.Wallet.Primitive.Types.Tx.Constraints
     ( TokenBundleSizeAssessment (..), TokenBundleSizeAssessor (..) )
-import Cardano.Wallet.Shelley.Compatibility.Ledger
-    ( toWalletScript
-    , toWalletTokenName
-    , toWalletTokenPolicyId
-    , toWalletTokenQuantity
+import Cardano.Wallet.Types.Read.Primitive.Tx.Allegra
+    ( fromAllegraTx )
+import Cardano.Wallet.Types.Read.Primitive.Tx.Alonzo
+    ( fromAlonzoTx )
+import Cardano.Wallet.Types.Read.Primitive.Tx.Babbage
+    ( fromBabbageTx )
+import Cardano.Wallet.Types.Read.Primitive.Tx.Mary
+    ( fromCardanoValue, fromMaryTx )
+import Cardano.Wallet.Types.Read.Primitive.Tx.Shelley
+    ( fromShelleyAddress
+    , fromShelleyCoin
+    , fromShelleyTx
+    , fromShelleyTxIn
+    , fromShelleyTxOut
     )
-import Cardano.Wallet.Transaction
-    ( AnyScript (..)
-    , PlutusScriptInfo (..)
-    , PlutusVersion (..)
-    , TokenMapWithScripts (..)
-    , ValidityIntervalExplicit (..)
-    , emptyTokenMapWithScripts
-    )
-import Cardano.Wallet.Types.Read.Tx
-    ( Tx (..) )
-import Cardano.Wallet.Types.Read.Tx.CBOR
-    ( getTxCBOR )
 import Cardano.Wallet.Types.Read.Tx.Hash
-    ( fromShelleyTxId, shelleyTxHash )
+    ( fromShelleyTxId )
 import Cardano.Wallet.Unsafe
     ( unsafeIntToWord, unsafeMkPercentage )
 import Cardano.Wallet.Util
@@ -295,8 +274,6 @@ import Data.Coerce
     ( coerce )
 import Data.Foldable
     ( toList )
-import Data.Function
-    ( (&) )
 import Data.IntCast
     ( intCast, intCastMaybe )
 import Data.List
@@ -316,7 +293,7 @@ import Data.Text.Class
 import Data.Type.Equality
     ( (:~:) (..), testEquality )
 import Data.Word
-    ( Word16, Word32, Word64, Word8 )
+    ( Word16, Word32, Word8 )
 import Fmt
     ( Buildable (..), Builder, (+|), (+||), (||+) )
 import GHC.Records
@@ -372,12 +349,10 @@ import qualified Cardano.Crypto.Hash as Crypto
 import qualified Cardano.Ledger.Address as SL
 import qualified Cardano.Ledger.Allegra as Allegra
 import qualified Cardano.Ledger.Alonzo as Alonzo
-import qualified Cardano.Ledger.Alonzo.Data as Alonzo
 import qualified Cardano.Ledger.Alonzo.Language as Alonzo
 import qualified Cardano.Ledger.Alonzo.PParams as Alonzo
 import qualified Cardano.Ledger.Alonzo.Scripts as Alonzo
 import qualified Cardano.Ledger.Alonzo.Tx as Alonzo
-import qualified Cardano.Ledger.Alonzo.TxBody as Alonzo
 import qualified Cardano.Ledger.Alonzo.TxSeq as Alonzo
 import qualified Cardano.Ledger.Babbage as Babbage
 import qualified Cardano.Ledger.Babbage.PParams as Babbage
@@ -385,7 +360,6 @@ import qualified Cardano.Ledger.Babbage.Tx as Babbage hiding
     ( ScriptIntegrityHash, TxBody )
 import qualified Cardano.Ledger.Babbage.TxBody as Babbage
 import qualified Cardano.Ledger.BaseTypes as SL
-import qualified Cardano.Ledger.Core as SL.Core
 import qualified Cardano.Ledger.Credential as SL
 import qualified Cardano.Ledger.Crypto as SL
 import qualified Cardano.Ledger.Era as Ledger.Era
@@ -398,11 +372,7 @@ import qualified Cardano.Ledger.Shelley as Shelley
 import qualified Cardano.Ledger.Shelley.API as SL
 import qualified Cardano.Ledger.Shelley.API as SLAPI
 import qualified Cardano.Ledger.Shelley.BlockChain as SL
-import qualified Cardano.Ledger.Shelley.Tx as Shelley
 import qualified Cardano.Ledger.ShelleyMA as MA
-import qualified Cardano.Ledger.ShelleyMA.AuxiliaryData as MA
-import qualified Cardano.Ledger.ShelleyMA.TxBody as MA
-import qualified Cardano.Ledger.TxIn as TxIn
 import qualified Cardano.Protocol.TPraos.BHeader as SL
 import qualified Cardano.Wallet.Primitive.Types as W
 import qualified Cardano.Wallet.Primitive.Types.Address as W
@@ -412,7 +382,6 @@ import qualified Cardano.Wallet.Primitive.Types.Hash as W
 import qualified Cardano.Wallet.Primitive.Types.Redeemer as W
 import qualified Cardano.Wallet.Primitive.Types.RewardAccount as W
 import qualified Cardano.Wallet.Primitive.Types.TokenBundle as TokenBundle
-import qualified Cardano.Wallet.Primitive.Types.TokenMap as TokenMap
 import qualified Cardano.Wallet.Primitive.Types.TokenPolicy as W
 import qualified Cardano.Wallet.Primitive.Types.TokenQuantity as W
 import qualified Cardano.Wallet.Primitive.Types.Tx as W
@@ -427,7 +396,6 @@ import qualified Data.ByteString as BS
 import qualified Data.ByteString.Lazy as BL
 import qualified Data.ByteString.Short as SBS
 import qualified Data.Map.Strict as Map
-import qualified Data.Map.Strict.NonEmptyMap as NonEmptyMap
 import qualified Data.Set as Set
 import qualified Data.Text.Encoding as T
 import qualified Ouroboros.Consensus.Protocol.Praos as Consensus
@@ -1170,24 +1138,6 @@ optimumNumberOfPools = unsafeConvert . getField @"_nOpt"
 -- Txs
 --
 
-fromShelleyTxIn
-    :: SL.TxIn crypto
-    -> W.TxIn
-fromShelleyTxIn (SL.TxIn txid (SL.TxIx ix)) =
-    W.TxIn (fromShelleyTxId txid) (unsafeCast ix)
-  where
-    -- During the Vasil hard-fork the cardano-ledger team moved from
-    -- representing transaction indices with Word16s, to using Word64s (see
-    -- commit
-    -- https://github.com/input-output-hk/cardano-ledger/commit/4097a9055e6ea57161755e6a8cbfcf719b65e9ab).
-    -- However, the valid range is still 0 <= x <= (maxBound :: Word16), so we
-    -- reflect that here.
-    unsafeCast :: Word64 -> Word32
-    unsafeCast txIx =
-        if txIx > fromIntegral (maxBound :: Word16)
-        then error $ "Value for wallet TxIx is out of a valid range: " <> show txIx
-        else fromIntegral txIx
-
 fromCardanoTxIn
     :: Cardano.TxIn
     -> W.TxIn
@@ -1233,251 +1183,8 @@ cardanoCertKeysForWitnesses = \case
         _ ->
             Nothing
 
-fromShelleyTxOut
-    :: ( Era era
-       , SL.Core.Value era ~ SL.Coin
-       )
-    => SLAPI.TxOut era
-    -> W.TxOut
-fromShelleyTxOut (SLAPI.TxOut addr amount) = W.TxOut
-    (fromShelleyAddress addr)
-    (TokenBundle.fromCoin $ fromShelleyCoin amount)
-
-fromShelleyAddress :: SL.Addr crypto -> W.Address
-fromShelleyAddress = W.Address
-    . SL.serialiseAddr
-
-fromShelleyCoin :: SL.Coin -> W.Coin
-fromShelleyCoin (SL.Coin c) = Coin.unsafeFromIntegral c
-
 toShelleyCoin :: W.Coin -> SL.Coin
 toShelleyCoin (W.Coin c) = SL.Coin $ intCast c
-
-fromCardanoTx
-    :: Cardano.Tx era
-    ->  ( W.Tx
-        , TokenMapWithScripts
-        , TokenMapWithScripts
-        , [Certificate]
-        , Maybe ValidityIntervalExplicit
-        )
-fromCardanoTx = \case
-    Cardano.ShelleyTx era tx -> case era of
-        Cardano.ShelleyBasedEraShelley ->
-            extract $ fromShelleyTx tx
-        Cardano.ShelleyBasedEraAllegra ->
-            extract $ fromAllegraTx tx
-        Cardano.ShelleyBasedEraMary ->
-            extract $ fromMaryTx tx
-        Cardano.ShelleyBasedEraAlonzo ->
-            extract $ fromAlonzoTx tx
-        Cardano.ShelleyBasedEraBabbage ->
-            extract $ fromBabbageTx tx
-    Cardano.ByronTx tx ->
-        ( fromTxAux tx
-        , emptyTokenMapWithScripts
-        , emptyTokenMapWithScripts
-        , []
-        , Nothing
-        )
-  where
-    extract (tx, certs, mint, burn, validity) =
-        (tx, mint, burn, certs, validity)
-
-
-alonzoTxHash
-    :: ( Crypto.HashAlgorithm (SL.HASH crypto)
-       , SafeHash.HashAnnotated
-             (SL.Core.TxBody era)
-             EraIndependentTxBody
-             crypto)
-    => Babbage.ValidatedTx era
-    -> W.Hash "Tx"
-alonzoTxHash (Alonzo.ValidatedTx bod _ _ _) = fromShelleyTxId $ TxIn.txid bod
-
-
-
-
-
-
--- NOTE: For resolved inputs we have to pass in a dummy value of 0.
-fromShelleyTx
-    :: SLAPI.Tx (Cardano.ShelleyLedgerEra ShelleyEra)
-    -> ( W.Tx
-       , [W.Certificate]
-       , TokenMapWithScripts
-       , TokenMapWithScripts
-       , Maybe ValidityIntervalExplicit
-       )
-fromShelleyTx tx =
-    ( W.Tx
-        { txId =
-            shelleyTxHash tx
-        , txCBOR =
-            Just $ getTxCBOR $ Tx ShelleyEra tx
-        , fee =
-            Just $ fromShelleyCoin fee
-        , resolvedInputs =
-            map ((,W.Coin 0) . fromShelleyTxIn) (toList ins)
-        , resolvedCollateralInputs =
-            []
-        , outputs =
-            map fromShelleyTxOut (toList outs)
-        , collateralOutput =
-            -- Collateral outputs are not supported in Shelley.
-            Nothing
-        , withdrawals =
-            fromShelleyWdrl wdrls
-        , metadata =
-            fromShelleyMD <$> SL.strictMaybeToMaybe mmd
-        , scriptValidity =
-            Nothing
-        }
-    , map fromShelleyCert (toList certs)
-    , emptyTokenMapWithScripts
-    , emptyTokenMapWithScripts
-    , Just (ValidityIntervalExplicit (Quantity 0) (Quantity ttl))
-    )
-  where
-    SL.Tx (SL.TxBody ins outs certs wdrls fee (O.SlotNo ttl) _ _) _ mmd = tx
-
-fromAllegraTx
-    :: SLAPI.Tx (Cardano.ShelleyLedgerEra AllegraEra)
-    -> ( W.Tx
-       , [W.Certificate]
-       , TokenMapWithScripts
-       , TokenMapWithScripts
-       , Maybe ValidityIntervalExplicit
-       )
-fromAllegraTx tx =
-    ( W.Tx
-        { txId =
-            shelleyTxHash tx
-        , txCBOR =
-            Just $ getTxCBOR $ Tx AllegraEra tx
-        , fee =
-            Just $ fromShelleyCoin fee
-        , resolvedInputs =
-            map ((,W.Coin 0) . fromShelleyTxIn) (toList ins)
-        , resolvedCollateralInputs =
-            -- TODO: (ADP-957)
-            []
-        , outputs =
-            map fromShelleyTxOut (toList outs)
-        , collateralOutput =
-            -- Collateral outputs are not supported in Allegra.
-            Nothing
-        , withdrawals =
-            fromShelleyWdrl wdrls
-        , metadata =
-            fromShelleyMD . toSLMetadata <$> SL.strictMaybeToMaybe mmd
-        , scriptValidity =
-            Nothing
-        }
-    , map fromShelleyCert (toList certs)
-    , emptyTokenMapWithScripts
-    , emptyTokenMapWithScripts
-    , Just (fromLedgerTxValidity ttl)
-    )
-  where
-    SL.Tx (MA.TxBody ins outs certs wdrls fee ttl _ _ _) _ mmd = tx
-
-    -- fixme: [ADP-525] It is fine for now since we do not look at script
-    -- pre-images. But this is precisely what we want as part of the
-    -- multisig/script balance reporting.
-    toSLMetadata (MA.AuxiliaryData blob _scripts) = SL.Metadata blob
-
-fromLedgerTxValidity
-    :: MA.ValidityInterval
-    -> ValidityIntervalExplicit
-fromLedgerTxValidity (MA.ValidityInterval from to) =
-    case (from, to) of
-        (MA.SNothing, MA.SJust (O.SlotNo s)) ->
-            ValidityIntervalExplicit (Quantity 0) (Quantity s)
-        (MA.SNothing, MA.SNothing) ->
-            ValidityIntervalExplicit (Quantity 0) (Quantity maxBound)
-        (MA.SJust (O.SlotNo s1), MA.SJust (O.SlotNo s2)) ->
-            ValidityIntervalExplicit (Quantity s1) (Quantity s2)
-        (MA.SJust (O.SlotNo s1), MA.SNothing) ->
-            ValidityIntervalExplicit (Quantity s1) (Quantity maxBound)
-
-fromMaryTx
-    :: SLAPI.Tx (Cardano.ShelleyLedgerEra MaryEra)
-    -> ( W.Tx
-       , [W.Certificate]
-       , TokenMapWithScripts
-       , TokenMapWithScripts
-       , Maybe ValidityIntervalExplicit
-       )
-fromMaryTx tx =
-    ( W.Tx
-        { txId =
-            shelleyTxHash tx
-        , txCBOR =
-            Just $ getTxCBOR $ Tx MaryEra tx
-        , fee =
-            Just $ fromShelleyCoin fee
-        , resolvedInputs =
-            map ((,W.Coin 0) . fromShelleyTxIn) (toList ins)
-        , resolvedCollateralInputs =
-            []
-        , outputs =
-            map fromMaryTxOut (toList outs)
-        , collateralOutput =
-            -- Collateral outputs are not supported in Mary.
-            Nothing
-        , withdrawals =
-            fromShelleyWdrl wdrls
-        , metadata =
-            fromShelleyMD . toSLMetadata <$> SL.strictMaybeToMaybe mad
-        , scriptValidity =
-            Nothing
-        }
-    , map fromShelleyCert (toList certs)
-    , TokenMapWithScripts assetsToMint mintScriptMap
-    , TokenMapWithScripts assetsToBurn burnScriptMap
-    , Just (fromLedgerTxValidity ttl)
-    )
-  where
-    SL.Tx bod wits mad = tx
-    MA.TxBody ins outs certs wdrls fee ttl _upd _adh mint = bod
-    (assetsToMint, assetsToBurn) = fromLedgerMintValue mint
-    scriptMap = fromMaryScriptMap $ Shelley.scriptWits wits
-
-    mintScriptMap = getScriptMap scriptMap assetsToMint
-    burnScriptMap = getScriptMap scriptMap assetsToBurn
-
-    -- fixme: [ADP-525] It is fine for now since we do not look at script
-    -- pre-images. But this is precisely what we want as part of the
-    -- multisig/script balance reporting.
-    toSLMetadata (MA.AuxiliaryData blob _scripts) = SL.Metadata blob
-
-    fromMaryTxOut
-        :: SLAPI.TxOut (Cardano.ShelleyLedgerEra MaryEra)
-        -> W.TxOut
-    fromMaryTxOut (SL.TxOut addr value) =
-        W.TxOut (fromShelleyAddress addr) $
-        fromCardanoValue $ Cardano.fromMaryValue value
-
-    fromMaryScriptMap
-        :: Map
-            (SL.ScriptHash (Crypto (MA.ShelleyMAEra 'MA.Mary StandardCrypto)))
-            (SL.Core.Script (MA.ShelleyMAEra 'MA.Mary StandardCrypto))
-        -> Map TokenPolicyId AnyScript
-    fromMaryScriptMap =
-        Map.map (NativeScript . toWalletScript Policy) .
-        Map.mapKeys (toWalletTokenPolicyId . SL.PolicyID)
-
-getScriptMap
-    :: Map TokenPolicyId AnyScript
-    -> TokenMap
-    -> Map TokenPolicyId AnyScript
-getScriptMap scriptMap =
-    Map.fromList .
-    map (\(policyid, (Just script)) -> (policyid, script)) .
-    filter (isJust . snd) .
-    map (\(policyid, _) -> (policyid, Map.lookup policyid scriptMap) ) .
-    toNestedList
 
 getScriptIntegrityHash
     :: Cardano.Tx era
@@ -1507,229 +1214,12 @@ getScriptIntegrityHash = \case
       scriptIntegrityHashOfBabbageTx
           (Babbage.ValidatedTx body _wits _isValid _auxData)
               = strictMaybeToMaybe . Babbage.scriptIntegrityHash $ body
-
-fromAlonzoTx
-    :: Alonzo.ValidatedTx (Cardano.ShelleyLedgerEra AlonzoEra)
-    -> ( W.Tx
-       , [W.Certificate]
-       , TokenMapWithScripts
-       , TokenMapWithScripts
-       , Maybe ValidityIntervalExplicit
-       )
-fromAlonzoTx tx@(Alonzo.ValidatedTx bod wits (Alonzo.IsValid isValid) aux) =
-    ( W.Tx
-        { txId =
-            alonzoTxHash tx
-        , txCBOR =
-            Just $ getTxCBOR $ Tx AlonzoEra tx
-        , fee =
-            Just $ fromShelleyCoin fee
-        , resolvedInputs =
-            map ((,W.Coin 0) . fromShelleyTxIn) (toList ins)
-        , resolvedCollateralInputs =
-            map ((,W.Coin 0) . fromShelleyTxIn) (toList collateral)
-        , outputs =
-            map fromAlonzoTxOut (toList outs)
-        , collateralOutput =
-            -- Collateral outputs are not supported in Alonzo.
-            Nothing
-        , withdrawals =
-            fromShelleyWdrl wdrls
-        , metadata =
-            fromShelleyMD . toSLMetadata <$> SL.strictMaybeToMaybe aux
-        , scriptValidity =
-            validity
-        }
-    , map fromShelleyCert (toList certs)
-    , TokenMapWithScripts assetsToMint mintScriptMap
-    , TokenMapWithScripts assetsToBurn burnScriptMap
-    , Just (fromLedgerTxValidity ttl)
-    )
-  where
-    Alonzo.TxBody
-        ins
-        collateral
-        outs
-        certs
-        wdrls
-        fee
-        ttl
-        _upd
-        _reqSignerHashes
-        mint
-        _wwpHash
-        _adHash
-        _network
-        = bod
-    (assetsToMint, assetsToBurn) = fromLedgerMintValue mint
-    scriptMap = fromAlonzoScriptMap $ Alonzo.txscripts' wits
-    mintScriptMap = getScriptMap scriptMap assetsToMint
-    burnScriptMap = getScriptMap scriptMap assetsToBurn
-
-    fromAlonzoScriptMap
-        :: Map
-            (SL.ScriptHash (Crypto StandardAlonzo))
-            (SL.Core.Script StandardAlonzo)
-        -> Map TokenPolicyId AnyScript
-    fromAlonzoScriptMap =
-        Map.map toAnyScript .
-        Map.mapKeys (toWalletTokenPolicyId . SL.PolicyID)
-      where
-        toAnyScript (Alonzo.TimelockScript script) =
-            NativeScript $ toWalletScript Policy script
-        toAnyScript (Alonzo.PlutusScript ver _) =
-            PlutusScript (PlutusScriptInfo (toPlutusVer ver))
-
-        toPlutusVer Alonzo.PlutusV1 = PlutusVersionV1
-        toPlutusVer Alonzo.PlutusV2 = PlutusVersionV2
-
-    fromAlonzoTxOut
-        :: Alonzo.TxOut (Cardano.ShelleyLedgerEra AlonzoEra)
-        -> W.TxOut
-    fromAlonzoTxOut (Alonzo.TxOut addr value _) =
-        W.TxOut (fromShelleyAddress addr) $
-        fromCardanoValue $ Cardano.fromMaryValue value
-
-    toSLMetadata (Alonzo.AuxiliaryData blob _scripts) = SL.Metadata blob
-
-    validity =
-        if isValid
-        then Just W.TxScriptValid
-        else Just W.TxScriptInvalid
-
-fromBabbageTx
-    :: Alonzo.ValidatedTx (Cardano.ShelleyLedgerEra BabbageEra)
-    -> ( W.Tx
-       , [W.Certificate]
-       , TokenMapWithScripts
-       , TokenMapWithScripts
-       , Maybe ValidityIntervalExplicit
-       )
-fromBabbageTx tx@(Alonzo.ValidatedTx bod wits (Alonzo.IsValid isValid) aux) =
-    ( W.Tx
-        { txId =
-            alonzoTxHash tx
-        , txCBOR =
-            Just $ getTxCBOR $ Tx BabbageEra tx
-        , fee =
-            Just $ fromShelleyCoin fee
-        , resolvedInputs =
-            map ((,W.Coin 0) . fromShelleyTxIn) (toList inps)
-        , resolvedCollateralInputs =
-            map ((,W.Coin 0) . fromShelleyTxIn) (toList collateralInps)
-        , outputs =
-            map (fromBabbageTxOut . sizedValue) (toList outs)
-        , collateralOutput =
-            case fmap (fromBabbageTxOut . sizedValue) collateralReturn of
-                SNothing -> Nothing
-                SJust txout -> Just txout
-        , withdrawals =
-            fromShelleyWdrl wdrls
-        , metadata =
-            fromShelleyMD . toSLMetadata <$> SL.strictMaybeToMaybe aux
-        , scriptValidity =
-            validity
-        }
-    , map fromShelleyCert (toList certs)
-    , TokenMapWithScripts assetsToMint mintScriptMap
-    , TokenMapWithScripts assetsToBurn burnScriptMap
-    , Just (fromLedgerTxValidity ttl)
-    )
-  where
-    Babbage.TxBody
-        inps
-        collateralInps
-        _refInps
-        outs
-        collateralReturn
-        _collateralTotal
-        certs
-        wdrls
-        fee
-        ttl
-        _upd
-        _reqSignerHashes
-        mint
-        _wwpHash
-        _adHash
-        _network
-        = bod
-    (assetsToMint, assetsToBurn) = fromLedgerMintValue mint
-    scriptMap = fromBabbageScriptMap $ Alonzo.txscripts' wits
-    mintScriptMap = getScriptMap scriptMap assetsToMint
-    burnScriptMap = getScriptMap scriptMap assetsToBurn
-
-    fromBabbageScriptMap
-        :: Map
-            (SL.ScriptHash (Crypto StandardBabbage))
-            (SL.Core.Script StandardBabbage)
-        -> Map TokenPolicyId AnyScript
-    fromBabbageScriptMap =
-        Map.map toAnyScript .
-        Map.mapKeys (toWalletTokenPolicyId . SL.PolicyID)
-      where
-        toAnyScript (Alonzo.TimelockScript script) =
-            NativeScript $ toWalletScript Policy script
-        toAnyScript (Alonzo.PlutusScript ver _) =
-            PlutusScript (PlutusScriptInfo (toPlutusVer ver))
-
-        toPlutusVer Alonzo.PlutusV1 = PlutusVersionV1
-        toPlutusVer Alonzo.PlutusV2 = PlutusVersionV2
-
-    fromBabbageTxOut
-        :: Babbage.TxOut (Cardano.ShelleyLedgerEra BabbageEra)
-        -> W.TxOut
-    fromBabbageTxOut (Babbage.TxOut addr value _datum _refScript) =
-        W.TxOut (fromShelleyAddress addr) $
-        fromCardanoValue $ Cardano.fromMaryValue value
-
-    toSLMetadata (Alonzo.AuxiliaryData blob _scripts) = SL.Metadata blob
-
-    validity =
-        if isValid
-        then Just W.TxScriptValid
-        else Just W.TxScriptInvalid
-
 -- Lovelace to coin. Quantities from ledger should always fit in Word64.
 fromCardanoLovelace :: HasCallStack => Cardano.Lovelace -> W.Coin
 fromCardanoLovelace =
     Coin.unsafeFromIntegral . unQuantity . Cardano.lovelaceToQuantity
   where
     unQuantity (Cardano.Quantity q) = q
-
-fromCardanoValue :: HasCallStack => Cardano.Value -> TokenBundle.TokenBundle
-fromCardanoValue = uncurry TokenBundle.fromFlatList . extract
-  where
-    extract value =
-        ( fromCardanoLovelace $ Cardano.selectLovelace value
-        , mkBundle $ Cardano.valueToList value
-        )
-
-    -- Do Integer to Natural conversion. Quantities from ledger TxOuts can
-    -- never be negative (but unminted values could be negative).
-    mkQuantity :: Integer -> W.TokenQuantity
-    mkQuantity = W.TokenQuantity . checkBounds
-      where
-        checkBounds n
-          | n >= 0 = fromIntegral n
-          | otherwise = internalError "negative token quantity"
-
-    mkBundle assets =
-        [ (TokenBundle.AssetId (mkPolicyId p) (mkTokenName n) , mkQuantity q)
-        | (Cardano.AssetId p n, Cardano.Quantity q) <- assets
-        ]
-
-    mkPolicyId = W.UnsafeTokenPolicyId . W.Hash . Cardano.serialiseToRawBytes
-    mkTokenName = W.UnsafeTokenName . Cardano.serialiseToRawBytes
-
-fromShelleyWdrl :: SL.Wdrl crypto -> Map W.RewardAccount W.Coin
-fromShelleyWdrl (SL.Wdrl wdrl) = Map.fromList $
-    bimap (fromStakeCredential . SL.getRwdCred) fromShelleyCoin
-        <$> Map.toList wdrl
-
-fromShelleyMD :: SL.Metadata c -> Cardano.TxMetadata
-fromShelleyMD (SL.Metadata m) =
-    Cardano.makeTransactionMetadata . fromShelleyMetadata $ m
 
 toDelegationCertificates
     :: [W.Certificate]
@@ -1748,40 +1238,6 @@ toPoolCertificates = mapMaybe isPoolCert
       isPoolCert = \case
           W.CertificateOfPool cert -> Just cert
           _ -> Nothing
-
-fromShelleyCert
-    :: SL.DCert crypto
-    -> W.Certificate
-fromShelleyCert = \case
-    SL.DCertDeleg (SL.Delegate delegation)  ->
-        W.CertificateOfDelegation $ W.CertDelegateFull
-            (fromStakeCredential (SL._delegator delegation))
-            (fromPoolKeyHash (SL._delegatee delegation))
-
-    SL.DCertDeleg (SL.DeRegKey credentials) ->
-        W.CertificateOfDelegation $ W.CertDelegateNone (fromStakeCredential credentials)
-
-    SL.DCertDeleg (SL.RegKey cred) ->
-        W.CertificateOfDelegation $ W.CertRegisterKey $ fromStakeCredential cred
-
-    SL.DCertPool (SL.RegPool pp) -> W.CertificateOfPool $ Registration
-        ( W.PoolRegistrationCertificate
-            { W.poolId = fromPoolKeyHash $ SL._poolId pp
-            , W.poolOwners = fromOwnerKeyHash <$> Set.toList (SL._poolOwners pp)
-            , W.poolMargin = fromUnitInterval (SL._poolMargin pp)
-            , W.poolCost = toWalletCoin (SL._poolCost pp)
-            , W.poolPledge = toWalletCoin (SL._poolPledge pp)
-            , W.poolMetadata = fromPoolMetadata <$> strictMaybeToMaybe (SL._poolMD pp)
-            }
-        )
-
-    SL.DCertPool (SL.RetirePool pid (EpochNo e)) ->
-        W.CertificateOfPool $ Retirement $ PoolRetirementCertificate (fromPoolKeyHash pid)
-        (W.EpochNo $ fromIntegral e)
-
-    SL.DCertGenesis{} -> W.CertificateOther W.GenesisCertificate
-
-    SL.DCertMir{}     -> W.CertificateOther W.MIRCertificate
 
 toWalletCoin :: HasCallStack => SL.Coin -> W.Coin
 toWalletCoin (SL.Coin c) = Coin.unsafeFromIntegral c
@@ -2019,30 +1475,6 @@ toCardanoSimpleScript = \case
 
 just :: Builder -> Builder -> [Maybe a] -> a
 just t1 t2 = tina (t1+|": unable to deserialise "+|t2)
-
-fromLedgerMintValue
-    :: SL.Value StandardCrypto
-    -> (TokenMap, TokenMap)
-fromLedgerMintValue (SL.Value _ ledgerTokens) =
-    (assetsToMint, assetsToBurn)
-  where
-    assetsToMint = ledgerTokens
-        & Map.map (Map.filter (> 0))
-        & Map.mapKeys toWalletTokenPolicyId
-        & Map.map mapInner
-        & Map.mapMaybe NonEmptyMap.fromMap
-        & TokenMap.fromNestedMap
-
-    assetsToBurn = ledgerTokens
-        & Map.map (Map.mapMaybe (\n -> if n > 0 then Nothing else Just (-n)))
-        & Map.mapKeys toWalletTokenPolicyId
-        & Map.map mapInner
-        & Map.mapMaybe NonEmptyMap.fromMap
-        & TokenMap.fromNestedMap
-
-    mapInner inner = inner
-        & Map.mapKeys toWalletTokenName
-        & Map.map toWalletTokenQuantity
 
 -- | Convert from reward account address (which is a hash of a public key)
 -- to a shelley ledger stake credential.
