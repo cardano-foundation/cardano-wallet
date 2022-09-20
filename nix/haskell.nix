@@ -258,7 +258,7 @@ haskell-nix: haskell-nix.cabalProject' [
                   build-tools = [ pkgs.buildPackages.makeWrapper ];
                   postInstall = ''
                     wrapProgram $out/bin/* \
-                      --run "cd ${srcAll}/lib/shelley" \
+                      --run "cd ${srcAll}/lib/core" \
                       --prefix PATH : ${lib.makeBinPath cardanoNodeExes}
                   '';
                 };
@@ -279,7 +279,7 @@ haskell-nix: haskell-nix.cabalProject' [
 
               packages.cardano-wallet-core.components.exes.local-cluster =
                 let
-                  testData = src + /lib/shelley/test/data/cardano-node-shelley;
+                  testData = src + /lib/core/test/data/cardano-node-shelley;
                 in
                 if (stdenv.hostPlatform.isWindows) then {
                   postInstall = ''
