@@ -375,6 +375,7 @@ library
     Cardano.Wallet.TokenMetadata.MockServer
     Cardano.Wallet.Transaction
     Cardano.Wallet.Types.Read
+    Cardano.Wallet.Types.Read.Eras
     Cardano.Wallet.Types.Read.Eras.KnownEras
     Cardano.Wallet.Types.Read.Eras.EraValue
     Cardano.Wallet.Types.Read.Eras.EraFun

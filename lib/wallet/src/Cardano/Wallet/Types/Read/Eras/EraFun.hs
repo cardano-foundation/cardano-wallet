@@ -147,7 +147,7 @@ f *&&&* g = toEraFun $ zipWith_NP r (fromEraFun f) (fromEraFun g)
 newtype EraFunK src ft = EraFunK (EraFun src (K ft))
 
 instance Functor (EraFunK src) where
-    fmap :: forall a b src . (a -> b) -> EraFunK src a -> EraFunK src b
+    fmap :: forall a b . (a -> b) -> EraFunK src a -> EraFunK src b
     fmap f (EraFunK g)
         = EraFunK (toEraFun $ map_NP q $ fromEraFun g )
         where
