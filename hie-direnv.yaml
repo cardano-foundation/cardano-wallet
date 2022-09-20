@@ -17,7 +17,7 @@
 #
 # Test your configuration with commands such as:
 # $ hie-bios check lib/wallet/src/Cardano/Wallet.hs
-# $ haskell-language-server lib/shelley/exe/cardano-wallet.hs
+# $ haskell-language-server lib/wallet/exe/cardano-wallet.hs
 #
 # See https://github.com/haskell/hie-bios for information about the
 # cradle yaml config format.

@@ -267,7 +267,7 @@ To test the **haskell-language-server**, use the following commands (these shoul
 
 ```
 hie-bios check lib/wallet/src/Cardano/Wallet.hs
-haskell-language-server lib/shelley/exe/cardano-wallet.hs
+haskell-language-server lib/wallet/exe/cardano-wallet.hs
 ```
 
 Occasionally `hie-bios` will fail with a `Segmentation Fault`. In these cases just run `hie-bios` again.
