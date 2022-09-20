@@ -2626,14 +2626,6 @@ applyBlocksLastUTxO
     :: NonEmpty ([FilteredBlock], (DeltaWallet s, Wallet s)) -> UTxO
 applyBlocksLastUTxO = utxo . snd . snd . NE.last
 
--- | Removes a fee from a transaction.
---
--- Useful in situations where we want to compare transactions without comparing
--- their fees.
---
-nullifyFee :: Tx -> Tx
-nullifyFee = set #fee Nothing
-
 --------------------------------------------------------------------------------
 -- Convenience functions for manipulating UTxO sets
 --------------------------------------------------------------------------------
@@ -2668,8 +2660,8 @@ prop_applyBlocks_filteredTxs_someOurs
 prop_applyBlocks_filteredTxs_someOurs (Pretty someOurs) (Pretty blockSeq)
     -- TODO: we currently ignore transaction fees, as under some circumstances
     -- the 'applyBlocks' function can modify fee values:
-    = fmap nullifyFee ourTxsReturned ====
-      fmap nullifyFee ourTxsExpected
+    = fmap (set #fee Nothing) ourTxsReturned ====
+      fmap (set #fee Nothing) ourTxsExpected
     & labelInterval 10
         "length allTxsProvided"
         (length allTxsProvided)
@@ -2695,8 +2687,8 @@ prop_applyBlocks_filteredTxs_allOurs :: Pretty BlockSeq -> Property
 prop_applyBlocks_filteredTxs_allOurs (Pretty blockSeq) =
     -- TODO: we currently ignore transaction fees, as under some circumstances
     -- the 'applyBlocks' function can modify fee values:
-    fmap nullifyFee ourTxsReturned ====
-    fmap nullifyFee ourTxsExpected
+    fmap (set #fee Nothing) ourTxsReturned ====
+    fmap (set #fee Nothing) ourTxsExpected
   where
     ourHeadUTxOProvided = blockSeqHeadUTxO blockSeq
     ourTxsExpected = blockSeqOurTxs AllOurs blockSeq
