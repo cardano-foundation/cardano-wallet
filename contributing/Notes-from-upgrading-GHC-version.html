@@ -27,7 +27,7 @@
 
 
   
-  <link href='tailwind.css?instanceId=1dc7303c-faa3-4bb2-a301-75f61c09580d' rel='stylesheet' type='text/css' />
+  <link href='tailwind.css?instanceId=ae99dced-1c47-49f3-a7b4-dc0dc0b66726' rel='stylesheet' type='text/css' />
 
   <!-- Heist error element -->
   <style type='text/css'>
@@ -2394,7 +2394,7 @@ index 1ba2edf625..109534719a 100644
 +with-compiler: ghc-8.10.7
  
  packages:
-     lib/core/</code></pre></div>
+     lib/wallet/</code></pre></div>
     <ul class='my-3 ml-6 space-y-1 list-disc'>
       
         <li>
@@ -2436,7 +2436,7 @@ index 18b0916933..29f2d6e961 100644
 +compiler: ghc-8.10.7
  
  packages:
- - lib/core</code></pre></div>
+ - lib/wallet</code></pre></div>
     <ul class='my-3 ml-6 space-y-1 list-disc'>
       
         <li>
@@ -2515,7 +2515,7 @@ index 8bb80f7e99..8ac227a865 100644
     modules = [
        # ...
 +      {
-+        packages.cardano-wallet-core.components.library.build-tools = [ pkgs.buildPackages.buildPackages.gitMinimal ];
++        packages.cardano-wallet.components.library.build-tools = [ pkgs.buildPackages.buildPackages.gitMinimal ];
 +        packages.cardano-config.components.library.build-tools = [ pkgs.buildPackages.buildPackages.gitMinimal ];
 +      }
      ];

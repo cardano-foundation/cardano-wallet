@@ -27,7 +27,7 @@
 
 
   
-  <link href='tailwind.css?instanceId=1dc7303c-faa3-4bb2-a301-75f61c09580d' rel='stylesheet' type='text/css' />
+  <link href='tailwind.css?instanceId=ae99dced-1c47-49f3-a7b4-dc0dc0b66726' rel='stylesheet' type='text/css' />
 
   <!-- Heist error element -->
   <style type='text/css'>
@@ -2438,11 +2438,11 @@
     <p class='mb-3'>
       To run one of the unit test suites:
     </p>
-  <div class='py-0.5 mb-3 text-sm'><pre><code class='console language-console'>$ cabal run cardano-wallet-core:test:unit</code></pre></div>
+  <div class='py-0.5 mb-3 text-sm'><pre><code class='console language-console'>$ cabal run cardano-wallet:test:unit</code></pre></div>
     <p class='mb-3'>
       To run the DB benchmark:
     </p>
-  <div class='py-0.5 mb-3 text-sm'><pre><code class='console language-console'>$ cabal run cardano-wallet-core:bench:db</code></pre></div>
+  <div class='py-0.5 mb-3 text-sm'><pre><code class='console language-console'>$ cabal run cardano-wallet:bench:db</code></pre></div>
     <p class='mb-3'>
       To run the integration test suite:
     </p>
@@ -2738,8 +2738,8 @@ cabal build all</code></pre></div>
     <p class='mb-3'>
       To test the <strong>haskell-language-server</strong>, use the following commands (these should be in your $PATH because you executed <code class='py-0.5 px-0.5 bg-gray-100'>direnv allow</code> previously, or have entered a nix development environment):
     </p>
-  <div class='py-0.5 mb-3 text-sm'><pre><code class='language-none'>hie-bios check lib/core/src/Cardano/Wallet.hs
-haskell-language-server lib/shelley/exe/cardano-wallet.hs</code></pre></div>
+  <div class='py-0.5 mb-3 text-sm'><pre><code class='language-none'>hie-bios check lib/wallet/src/Cardano/Wallet.hs
+haskell-language-server lib/wallet/exe/cardano-wallet.hs</code></pre></div>
     <p class='mb-3'>
       Occasionally <code class='py-0.5 px-0.5 bg-gray-100'>hie-bios</code> will fail with a <code class='py-0.5 px-0.5 bg-gray-100'>Segmentation Fault</code>. In these cases just run <code class='py-0.5 px-0.5 bg-gray-100'>hie-bios</code> again.
     </p>
@@ -2817,22 +2817,22 @@ haskell-language-server "${srcs[@]}"</code></pre></div>
     </p>
   <h5 id='source-filtering' class='mt-6 mb-2 text-xl font-bold text-gray-700'>Source Filtering</h5>
     <p class='mb-3'>
-      In the past <strong>haskell-language-server</strong> failed when processing the <code class='py-0.5 px-0.5 bg-gray-100'>lib/core-integration/extra/Plutus/FlatInteger.hs</code> file, as it was technically a Haskell file in the repository, but wasn’t intended to be compiled with the project.
+      In the past <strong>haskell-language-server</strong> failed when processing the <code class='py-0.5 px-0.5 bg-gray-100'>lib/wallet/extra/Plutus/FlatInteger.hs</code> file, as it was technically a Haskell file in the repository, but wasn’t intended to be compiled with the project.
     </p>
   
     <p class='mb-3'>
-      To fix this issue, we excluded the <code class='py-0.5 px-0.5 bg-gray-100'>lib/core-integration/extra</code> folder from the project sources.
+      To fix this issue, we excluded the <code class='py-0.5 px-0.5 bg-gray-100'>lib/wallet/extra</code> folder from the project sources.
     </p>
   
     <p class='mb-3'>
       The bash function <code class='py-0.5 px-0.5 bg-gray-100'>list_sources</code> in <code class='py-0.5 px-0.5 bg-gray-100'>scripts/cabal-lib.sh</code> is responsible for determining the source files <strong>haskell-language-server</strong> sees. Modify this function to further remove any other files you wish to exclude:
     </p>
   <div class='py-0.5 mb-3 text-sm'><pre><code class='language-none'>list_sources() {
-  # Exclude lib/core-integration/extra. Those files are Plutus scripts intended
+  # Exclude lib/wallet/extra. Those files are Plutus scripts intended
   # to be serialised for use in the tests. They are not intended to be built
   # with the project.
   # Exclude prototypes dir because it's a different project.
-  git ls-files 'lib/**/*.hs' | grep -v Main.hs | grep -v prototypes/ | grep -v lib/core-integration/extra
+  git ls-files 'lib/**/*.hs' | grep -v Main.hs | grep -v prototypes/ | grep -v lib/wallet/extra
 }</code></pre></div><h5 id='ghci-flags' class='mt-6 mb-2 text-xl font-bold text-gray-700'>GHCI Flags</h5>
     <p class='mb-3'>
       There were previously issues debugging overlapping/ambiguous instances as the error message printed by <strong>haskell-language-server</strong> did not contain enough information. We rectified this by adding <code class='py-0.5 px-0.5 bg-gray-100'>-fprint-potential-instances</code> to the GHCI flags of the <strong>haskell-language-server</strong> BIOS.
