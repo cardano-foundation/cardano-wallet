@@ -455,7 +455,7 @@ import Cardano.Wallet.Primitive.Types.UTxOIndex
 import Cardano.Wallet.Primitive.Types.UTxOSelection
     ( UTxOSelection )
 import Cardano.Wallet.Read.Tx.CBOR
-    ( TxCBOR (..) )
+    ( TxCBOR )
 import Cardano.Wallet.Transaction
     ( DelegationAction (..)
     , ErrAssignRedeemers (..)
@@ -515,12 +515,8 @@ import Control.Tracer
     ( Tracer, contramap, traceWith )
 import Crypto.Hash
     ( Blake2b_256, hash )
-import Data.ByteArray.Encoding
-    ( Base (..), convertToBase )
 import Data.ByteString
     ( ByteString )
-import Data.ByteString.Lazy
-    ( toStrict )
 import Data.DBVar
     ( modifyDBMaybe )
 import Data.Either
@@ -561,8 +557,6 @@ import Data.Text
     ( Text )
 import Data.Text.Class
     ( ToText (..) )
-import Data.Text.Encoding
-    ( decodeUtf8 )
 import Data.Time.Clock
     ( NominalDiffTime, UTCTime )
 import Data.Type.Equality
@@ -4009,10 +4003,9 @@ instance ToText WalletFollowLog where
             "discovered " <> pretty (length txs) <> " new transaction(s)"
         MsgDiscoveredTxsContent txs ->
             "transactions: " <> pretty (blockListF (snd <$> txs))
-        MsgStoringCBOR TxCBOR{..} ->
+        MsgStoringCBOR txCBOR ->
             "store new cbor for "
-                <> pretty (show txEra) <> ": "
-                <> (decodeUtf8 . convertToBase Base16 $ toStrict txCBOR)
+                <> toText txCBOR
 
 instance ToText WalletLog where
     toText = \case

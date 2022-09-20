@@ -11,10 +11,6 @@
 {-# LANGUAGE TypeFamilies #-}
 {-# LANGUAGE UndecidableInstances #-}
 
--- Orphan instances for {Encode,Decode}Address until we get rid of the
--- Jörmungandr dual support.
-{-# OPTIONS_GHC -fno-warn-orphans #-}
-
 -- |
 -- Copyright: © 2020 IOHK
 -- License: Apache-2.0
@@ -27,7 +23,9 @@ module Cardano.Wallet.Read.Primitive.Tx.Allegra
 import Prelude
 
 import Cardano.Api
-    ( AllegraEra, CardanoEra (..) )
+    ( AllegraEra )
+import Cardano.Wallet.Read.Eras
+    ( allegra, inject )
 import Cardano.Wallet.Read.Primitive.Tx.Shelley
     ( fromShelleyCert
     , fromShelleyCoin
@@ -39,7 +37,7 @@ import Cardano.Wallet.Read.Primitive.Tx.Shelley
 import Cardano.Wallet.Read.Tx
     ( Tx (..) )
 import Cardano.Wallet.Read.Tx.CBOR
-    ( getTxCBOR )
+    ( renderTxToCBOR )
 import Cardano.Wallet.Read.Tx.Hash
     ( shelleyTxHash )
 import Cardano.Wallet.Transaction
@@ -79,7 +77,7 @@ fromAllegraTx tx =
         { txId =
             shelleyTxHash tx
         , txCBOR =
-            Just $ getTxCBOR $ Tx AllegraEra tx
+            Just $ renderTxToCBOR $ inject allegra $ Tx tx
         , fee =
             Just $ fromShelleyCoin fee
         , resolvedInputs =

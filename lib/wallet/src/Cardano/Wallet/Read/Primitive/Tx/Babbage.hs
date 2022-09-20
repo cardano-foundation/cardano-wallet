@@ -17,7 +17,7 @@ import Prelude
 import Cardano.Address.Script
     ( KeyRole (..) )
 import Cardano.Api
-    ( BabbageEra, CardanoEra (..) )
+    ( BabbageEra )
 import Cardano.Ledger.Era
     ( Era (..) )
 import Cardano.Ledger.Serialization
@@ -26,6 +26,8 @@ import Cardano.Ledger.Shelley.API
     ( StrictMaybe (SJust, SNothing) )
 import Cardano.Wallet.Primitive.Types.TokenPolicy
     ( TokenPolicyId )
+import Cardano.Wallet.Read.Eras
+    ( babbage, inject )
 import Cardano.Wallet.Read.Primitive.Tx.Allegra
     ( fromLedgerTxValidity )
 import Cardano.Wallet.Read.Primitive.Tx.Alonzo
@@ -43,7 +45,7 @@ import Cardano.Wallet.Read.Primitive.Tx.Shelley
 import Cardano.Wallet.Read.Tx
     ( Tx (..) )
 import Cardano.Wallet.Read.Tx.CBOR
-    ( getTxCBOR )
+    ( renderTxToCBOR )
 import Cardano.Wallet.Shelley.Compatibility.Ledger
     ( toWalletScript, toWalletTokenPolicyId )
 import Cardano.Wallet.Transaction
@@ -89,7 +91,7 @@ fromBabbageTx tx@(Alonzo.ValidatedTx bod wits (Alonzo.IsValid isValid) aux) =
         { txId =
             alonzoTxHash tx
         , txCBOR =
-            Just $ getTxCBOR $ Tx BabbageEra tx
+            Just $ renderTxToCBOR $ inject babbage $ Tx tx
         , fee =
             Just $ fromShelleyCoin fee
         , resolvedInputs =

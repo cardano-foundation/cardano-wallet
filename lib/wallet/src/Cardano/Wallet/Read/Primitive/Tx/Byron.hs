@@ -5,29 +5,29 @@
 -- Copyright: © 2020 IOHK
 -- License: Apache-2.0
 --
--- Conversion functions and static chain settings for Byron.
 
 module Cardano.Wallet.Read.Primitive.Tx.Byron
     (
     fromTxAux
     , fromTxIn
     , fromTxOut
-    ) where
+    )
+    where
 
 import Prelude
 
-import Cardano.Api
-    ( CardanoEra (ByronEra) )
 import Cardano.Binary
     ( serialize' )
 import Cardano.Chain.Common
     ( unsafeGetLovelace )
 import Cardano.Chain.UTxO
     ( ATxAux (..), Tx (..), TxIn (..), TxOut (..), taTx )
+import Cardano.Wallet.Read.Eras
+    ( byron, inject )
 import Cardano.Wallet.Read.Tx
     ( Tx (..) )
 import Cardano.Wallet.Read.Tx.CBOR
-    ( getTxCBOR )
+    ( renderTxToCBOR )
 import Cardano.Wallet.Read.Tx.Hash
     ( byronTxHash )
 
@@ -45,7 +45,7 @@ fromTxAux txAux = case taTx txAux of
     UnsafeTx inputs outputs _attributes -> W.Tx
         { txId = byronTxHash txAux
 
-        , txCBOR = Just $ getTxCBOR $ Tx ByronEra $ () <$ txAux
+        , txCBOR = Just $ renderTxToCBOR $ inject byron $ Tx $ () <$ txAux
 
         , fee = Nothing
 

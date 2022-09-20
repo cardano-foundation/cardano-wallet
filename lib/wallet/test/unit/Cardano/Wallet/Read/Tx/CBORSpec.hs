@@ -7,10 +7,8 @@ module Cardano.Wallet.Read.Tx.CBORSpec
 
 import Prelude
 
-import Cardano.Api
-    ( AnyCardanoEra (..), CardanoEra (..), IsCardanoEra )
 import Cardano.Wallet.Read.Tx.CBOR
-    ( TxCBOR (..), getTxCBOR, parseCBOR )
+    ( TxCBOR, parseTxFromCBOR, serializeTx )
 import Data.ByteArray.Encoding
     ( Base (..), convertFromBase )
 import Data.ByteString
@@ -22,6 +20,19 @@ import Test.Hspec
 import Test.QuickCheck
     ( Property, property, (===) )
 
+import Cardano.Wallet.Read.Eras
+    ( EraValue
+    , K (..)
+    , MkEraValue
+    , allegra
+    , alonzo
+    , applyEraFun
+    , babbage
+    , byron
+    , inject
+    , mary
+    , shelley
+    )
 import qualified Data.ByteString.Lazy as BL
 
 spec :: Spec
@@ -43,10 +54,11 @@ spec = describe "Cardano.Wallet.Read.Tx.CBOR" $ do
             property $ prop_roundtrip babbageTx
 
 prop_roundtrip :: TxCBOR -> Property
-prop_roundtrip tx = (getTxCBOR <$> parseCBOR tx) === Right tx
+prop_roundtrip tx =
+    (applyEraFun serializeTx <$> parseTxFromCBOR tx) === Right tx
 
 alonzoTx :: TxCBOR
-alonzoTx = mkTxCBOR AlonzoEra
+alonzoTx = mkTxCBOR alonzo
     "84a400828258200000000000000000000000000000000000000000\
     \000000000000000000000000008258200000000000000000000000\
     \000000000000000000000000000000000000000000010183825839\
@@ -71,7 +83,7 @@ alonzoTx = mkTxCBOR AlonzoEra
     \f6"
 
 babbageTx :: TxCBOR
-babbageTx = mkTxCBOR BabbageEra
+babbageTx = mkTxCBOR babbage
     "84a400818258200000000000000000000000000000000000000000\
     \000000000000000000000000000182a20058390101010101010101\
     \010101010101010101010101010101010101010101010101010101\
@@ -87,7 +99,7 @@ babbageTx = mkTxCBOR BabbageEra
     \44a1024100f5f6"
 
 maryTx :: TxCBOR
-maryTx = mkTxCBOR MaryEra
+maryTx = mkTxCBOR mary
     "83a400828258200000000000000000000000000000000000000000\
     \000000000000000000000000008258200000000000000000000000\
     \000000000000000000000000000000000000000000010183825839\
@@ -111,7 +123,7 @@ maryTx = mkTxCBOR MaryEra
     \00000000000000000000000000000000000000000044a1024100f6"
 
 allegraTx :: TxCBOR
-allegraTx = mkTxCBOR AllegraEra
+allegraTx = mkTxCBOR allegra
     "83a400828258200000000000000000000000000000000000000000\
     \000000000000000000000000008258200000000000000000000000\
     \000000000000000000000000000000000000000000010183825839\
@@ -135,7 +147,7 @@ allegraTx = mkTxCBOR AllegraEra
     \00000000000000000000000000000000000000000044a1024100f6"
 
 shelleyTx :: TxCBOR
-shelleyTx = mkTxCBOR ShelleyEra
+shelleyTx = mkTxCBOR shelley
     "83a400828258200000000000000000000000000000000000000000\
     \000000000000000000000000008258200000000000000000000000\
     \000000000000000000000000000000000000000000010183825839\
@@ -159,11 +171,14 @@ shelleyTx = mkTxCBOR ShelleyEra
     \00000000000000000000000000000000000000000044a1024100f6"
 
 _byronTx :: TxCBOR
-_byronTx = mkTxCBOR ByronEra
+_byronTx = mkTxCBOR byron
     ""
 
-mkTxCBOR :: IsCardanoEra era => CardanoEra era -> ByteString -> TxCBOR
-mkTxCBOR e b = TxCBOR (unsafeReadBase16 b) $ AnyCardanoEra e
+mkTxCBOR
+    :: MkEraValue (K BL.ByteString) era
+    -> ByteString
+    -> EraValue (K BL.ByteString)
+mkTxCBOR era = inject era . K . unsafeReadBase16
 
 unsafeReadBase16 :: ByteString -> BL.ByteString
 unsafeReadBase16 = either reportError fromStrict . convertFromBase Base16

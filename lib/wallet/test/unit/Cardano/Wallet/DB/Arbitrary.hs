@@ -145,8 +145,8 @@ import Cardano.Wallet.Primitive.Types.Tx.Gen
     ( genTxOutCoin, genTxScriptValidity, shrinkTxScriptValidity )
 import Cardano.Wallet.Primitive.Types.UTxO
     ( UTxO (..) )
-import Cardano.Wallet.Read.Tx.CBOR
-    ( TxCBOR (..) )
+import Cardano.Wallet.Read.Eras
+    ( eraValueSerialize, knownEraIndices )
 import Cardano.Wallet.Unsafe
     ( someDummyMnemonic, unsafeMkPercentage )
 import Cardano.Wallet.Util
@@ -159,8 +159,12 @@ import Crypto.Hash
     ( hash )
 import Data.ByteArray.Encoding
     ( Base (Base16), convertToBase )
+import Data.Either.Extra
+    ( fromRight' )
 import Data.Functor.Identity
     ( Identity (..) )
+import Data.Generics.Internal.VL
+    ( match )
 import Data.Generics.Internal.VL.Lens
     ( view, (^.) )
 import Data.Generics.Labels
@@ -416,9 +420,10 @@ arbitraryChainLength = 10
 -------------------------------------------------------------------------------}
 
 instance Arbitrary TxCBOR where
-    arbitrary = TxCBOR
-        <$> cbor
-        <*> (toEnum <$> choose (0,5))
+    arbitrary = do
+        c <- cbor
+        n <- elements knownEraIndices
+        pure $ fromRight' $ match eraValueSerialize (c,n)
       where
         cbor = do
             InfiniteList bytes _ <- arbitrary
