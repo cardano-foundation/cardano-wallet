@@ -914,7 +914,7 @@ generateGenesis dir systemStart initialFunds addPoolsToGenesis = do
             -- There are a few smaller features/fixes which are enabled based on
             -- the protocol version rather than just the era, so we need to
             -- set it to a realisitic value.
-            , _protocolVersion = Ledger.ProtVer 6 0
+            , _protocolVersion = Ledger.ProtVer 7 0
 
             -- Sensible pool & reward parameters:
             , _nOpt = 3
