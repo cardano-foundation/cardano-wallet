@@ -1295,7 +1295,7 @@ instance ToText Log where
 instance HasPrivacyAnnotation Log
 instance HasSeverityAnnotation Log where
     getSeverityAnnotation = \case
-        MsgConnectionStatus{} -> Info
+        MsgConnectionStatus _client msg -> getSeverityAnnotation msg
         MsgTxSubmission{} -> Info
         MsgPostTx{} -> Debug
         MsgLocalStateQuery{} -> Debug
