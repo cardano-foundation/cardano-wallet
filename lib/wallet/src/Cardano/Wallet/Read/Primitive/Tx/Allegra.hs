@@ -15,9 +15,11 @@
 -- Copyright: © 2020 IOHK
 -- License: Apache-2.0
 --
--- Conversion functions and static chain settings for Shelley.
+
 module Cardano.Wallet.Read.Primitive.Tx.Allegra
-    (fromAllegraTx, fromLedgerTxValidity)
+    ( fromAllegraTx
+    , fromLedgerTxValidity
+    )
     where
 
 import Prelude
@@ -26,9 +28,10 @@ import Cardano.Api
     ( AllegraEra )
 import Cardano.Wallet.Read.Eras
     ( allegra, inject )
+import Cardano.Wallet.Read.Primitive.Tx.Features.Certificates
+    ( anyEraCerts )
 import Cardano.Wallet.Read.Primitive.Tx.Shelley
-    ( fromShelleyCert
-    , fromShelleyCoin
+    ( fromShelleyCoin
     , fromShelleyMD
     , fromShelleyTxIn
     , fromShelleyTxOut
@@ -61,7 +64,6 @@ import qualified Cardano.Wallet.Primitive.Types.Coin as W
 import qualified Cardano.Wallet.Primitive.Types.Hash as W
 import qualified Cardano.Wallet.Primitive.Types.Tx as W
 import qualified Ouroboros.Network.Block as O
-
 
 -- NOTE: For resolved inputs we have to pass in a dummy value of 0.
 
@@ -98,7 +100,7 @@ fromAllegraTx tx =
         , scriptValidity =
             Nothing
         }
-    , map fromShelleyCert (toList certs)
+    , anyEraCerts certs
     , emptyTokenMapWithScripts
     , emptyTokenMapWithScripts
     , Just (fromLedgerTxValidity ttl)
