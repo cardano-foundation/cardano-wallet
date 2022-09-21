@@ -29,11 +29,12 @@ import Cardano.Wallet.Read.Eras
     ( alonzo, inject )
 import Cardano.Wallet.Read.Primitive.Tx.Allegra
     ( fromLedgerTxValidity )
+import Cardano.Wallet.Read.Primitive.Tx.Features.Certificates
+    ( anyEraCerts )
 import Cardano.Wallet.Read.Primitive.Tx.Mary
     ( fromCardanoValue, fromLedgerMintValue, getScriptMap )
 import Cardano.Wallet.Read.Primitive.Tx.Shelley
     ( fromShelleyAddress
-    , fromShelleyCert
     , fromShelleyCoin
     , fromShelleyMD
     , fromShelleyTxIn
@@ -126,7 +127,7 @@ fromAlonzoTx tx@(Alonzo.ValidatedTx bod wits (Alonzo.IsValid isValid) aux) =
         , scriptValidity =
             validity
         }
-    , map fromShelleyCert (toList certs)
+    , anyEraCerts certs
     , TokenMapWithScripts assetsToMint mintScriptMap
     , TokenMapWithScripts assetsToBurn burnScriptMap
     , Just (fromLedgerTxValidity ttl)

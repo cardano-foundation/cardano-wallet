@@ -28,9 +28,10 @@ import Cardano.Wallet.Read.Eras
     ( inject, mary )
 import Cardano.Wallet.Read.Primitive.Tx.Allegra
     ( fromLedgerTxValidity )
+import Cardano.Wallet.Read.Primitive.Tx.Features.Certificates
+    ( anyEraCerts )
 import Cardano.Wallet.Read.Primitive.Tx.Shelley
     ( fromShelleyAddress
-    , fromShelleyCert
     , fromShelleyCoin
     , fromShelleyMD
     , fromShelleyTxIn
@@ -120,7 +121,7 @@ fromMaryTx tx =
         , scriptValidity =
             Nothing
         }
-    , map fromShelleyCert (toList certs)
+    , anyEraCerts certs
     , TokenMapWithScripts assetsToMint mintScriptMap
     , TokenMapWithScripts assetsToBurn burnScriptMap
     , Just (fromLedgerTxValidity ttl)

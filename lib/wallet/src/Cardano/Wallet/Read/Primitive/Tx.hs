@@ -12,8 +12,6 @@ module Cardano.Wallet.Read.Primitive.Tx (fromCardanoTx)
 
 import Prelude
 
-import Cardano.Wallet.Primitive.Types
-    ( Certificate (..) )
 import Cardano.Wallet.Read.Primitive.Tx.Allegra
     ( fromAllegraTx )
 import Cardano.Wallet.Read.Primitive.Tx.Alonzo
@@ -36,6 +34,7 @@ import qualified Cardano.Api as Cardano
 import qualified Cardano.Api.Byron as Cardano
     ( Tx (ByronTx) )
 import qualified Cardano.Api.Shelley as Cardano
+import qualified Cardano.Wallet.Primitive.Types as W
 import qualified Cardano.Wallet.Primitive.Types.Tx as W
 
 fromCardanoTx
@@ -43,7 +42,7 @@ fromCardanoTx
     ->  ( W.Tx
         , TokenMapWithScripts
         , TokenMapWithScripts
-        , [Certificate]
+        , [W.Certificate]
         , Maybe ValidityIntervalExplicit
         )
 fromCardanoTx = \case
@@ -68,3 +67,5 @@ fromCardanoTx = \case
   where
     extract (tx, certs, mint, burn, validity) =
         (tx, mint, burn, certs, validity)
+
+
