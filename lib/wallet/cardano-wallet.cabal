@@ -203,6 +203,7 @@ library
     , yaml
 
   exposed-modules:
+
     Cardano.Api.Extra
     Cardano.Api.Gen
     Cardano.Byron.Codec.Cbor
@@ -234,6 +235,7 @@ library
     Cardano.Wallet.Api.Link
     Cardano.Wallet.Api.Server
     Cardano.Wallet.Api.Server.Error
+    Cardano.Wallet.Api.Server.Handlers.Certificates
     Cardano.Wallet.Api.Server.Tls
     Cardano.Wallet.Api.Types
     Cardano.Wallet.Api.Types.Address
@@ -369,9 +371,9 @@ library
     Cardano.Wallet.Read.Tx.Certificates
     Cardano.Wallet.Read.Tx.Eras
     Cardano.Wallet.Read.Tx.ExtraSigs
+    Cardano.Wallet.Read.Tx.Hash
     Cardano.Wallet.Read.Tx.Integrity
     Cardano.Wallet.Read.Tx.Mint
-    Cardano.Wallet.Read.Tx.Hash
     Cardano.Wallet.Read.Tx.Validity
     Cardano.Wallet.Read.Tx.Witnesses
     Cardano.Wallet.Registry

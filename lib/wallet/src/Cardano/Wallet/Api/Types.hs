@@ -1246,6 +1246,7 @@ data ApiTransaction (n :: NetworkDiscriminant) = ApiTransaction
     , status :: !(ApiT TxStatus)
     , metadata :: !(Maybe TxMetadataWithSchema)
     , scriptValidity :: !(Maybe (ApiT TxScriptValidity))
+    , certificates :: [ApiAnyCertificate n]
     }
     deriving (Eq, Generic, Show, Typeable)
     deriving anyclass NFData

@@ -182,6 +182,8 @@ import Cardano.Wallet.Api
     )
 import Cardano.Wallet.Api.Server.Error
     ( IsServerError (..), apiError, liftE, liftHandler )
+import Cardano.Wallet.Api.Server.Handlers.Certificates
+    ( parseCertificates, toApiAnyCertificate )
 import Cardano.Wallet.Api.Server.Tls
     ( TlsConfiguration (..), requireClientAuth )
 import Cardano.Wallet.Api.Types
@@ -211,10 +213,8 @@ import Cardano.Wallet.Api.Types
     , ApiConstructTransaction (..)
     , ApiConstructTransactionData (..)
     , ApiDecodedTransaction (..)
-    , ApiDeregisterPool (..)
     , ApiEpochInfo (ApiEpochInfo)
     , ApiErrorCode (..)
-    , ApiExternalCertificate (..)
     , ApiExternalInput (..)
     , ApiFee (..)
     , ApiForeignStakeKey (..)
@@ -239,7 +239,6 @@ import Cardano.Wallet.Api.Types
     , ApiPostRandomAddressData (..)
     , ApiPutAddressesData (..)
     , ApiRedeemer (..)
-    , ApiRegisterPool (..)
     , ApiScriptTemplateEntry (..)
     , ApiSealedTxEncoding (..)
     , ApiSelectCoinsPayments
@@ -462,6 +461,7 @@ import Cardano.Wallet.Primitive.Types.TokenQuantity
 import Cardano.Wallet.Primitive.Types.Tx
     ( TransactionInfo
     , Tx (..)
+    , TxCBOR
     , TxChange (..)
     , TxIn (..)
     , TxOut (..)
@@ -606,6 +606,8 @@ import UnliftIO.Exception
 import qualified Cardano.Api as Cardano
 import qualified Cardano.Wallet as W
 import qualified Cardano.Wallet.Api.Types as Api
+import Cardano.Wallet.Api.Types.Certificate
+    ( mkApiAnyCertificate )
 import qualified Cardano.Wallet.DB as W
 import qualified Cardano.Wallet.Network as NW
 import qualified Cardano.Wallet.Primitive.AddressDerivation.Byron as Byron
@@ -1987,8 +1989,9 @@ postTransactionOld ctx genChange (ApiT wid) body = do
             , txValidityInterval = (Nothing, ttl)
             }
 
-    (sel, tx, txMeta, txTime, pp) <- withWorkerCtx ctx wid liftE liftE $ \wrk ->
-        atomicallyWithHandler (ctx ^. walletLocks) (PostTransactionOld wid) $ do
+    withWorkerCtx ctx wid liftE liftE $ \wrk -> do
+        (sel, tx, txMeta, txTime, pp) <- atomicallyWithHandler
+            (ctx ^. walletLocks) (PostTransactionOld wid) $ do
             (utxoAvailable, wallet, pendingTxs) <-
                 liftHandler $ W.readWalletUTxOIndex @_ @s @k wrk wid
             pp <- liftIO $ NW.currentProtocolParameters (wrk ^. networkLayer)
@@ -2017,26 +2020,27 @@ postTransactionOld ctx genChange (ApiT wid) body = do
             liftHandler
                 $ W.submitTx @_ @s @k wrk wid (tx, txMeta, sealedTx)
             pure (sel, tx, txMeta, txTime, pp)
-
-    liftIO $ mkApiTransaction
-        (timeInterpreter $ ctx ^. networkLayer)
-        #pendingSince
-        $ MkApiTransactionParams
-            { txId = tx ^. #txId
-            , txFee = tx ^. #fee
-            , txInputs = NE.toList $ second Just <$> sel ^. #inputs
-              -- TODO: ADP-957:
-            , txCollateralInputs = []
-            , txOutputs = tx ^. #outputs
-            , txCollateralOutput = tx ^. #collateralOutput
-            , txWithdrawals = tx ^. #withdrawals
-            , txMeta
-            , txMetadata = tx ^. #metadata
-            , txTime
-            , txScriptValidity = tx ^. #scriptValidity
-            , txDeposit = W.stakeKeyDeposit pp
-            , txMetadataSchema = TxMetadataDetailedSchema
-            }
+        mkApiTransaction
+            (timeInterpreter $ ctx ^. networkLayer)
+            wrk wid
+            #pendingSince
+            $ MkApiTransactionParams
+                { txId = tx ^. #txId
+                , txFee = tx ^. #fee
+                , txInputs = NE.toList $ second Just <$> sel ^. #inputs
+                -- TODO: ADP-957:
+                , txCollateralInputs = []
+                , txOutputs = tx ^. #outputs
+                , txCollateralOutput = tx ^. #collateralOutput
+                , txWithdrawals = tx ^. #withdrawals
+                , txMeta
+                , txMetadata = tx ^. #metadata
+                , txTime
+                , txScriptValidity = tx ^. #scriptValidity
+                , txDeposit = W.stakeKeyDeposit pp
+                , txMetadataSchema = TxMetadataDetailedSchema
+                , txCBOR  = tx ^. #txCBOR
+                }
   where
     ti :: TimeInterpreter (ExceptT PastHorizonException IO)
     ti = timeInterpreter (ctx ^. networkLayer)
@@ -2053,7 +2057,8 @@ deleteTransaction ctx (ApiT wid) (ApiTxId (ApiT (tid))) = do
     return NoContent
 
 listTransactions
-    :: forall ctx s k n. (ctx ~ ApiLayer s k 'CredFromKeyK)
+    :: forall ctx s k n
+    . (Typeable s, Typeable n, ctx ~ ApiLayer s k 'CredFromKeyK)
     => ctx
     -> ApiT WalletId
     -> Maybe MinWithdrawal
@@ -2063,8 +2068,8 @@ listTransactions
     -> TxMetadataSchema
     -> Handler [ApiTransaction n]
 listTransactions
-    ctx (ApiT wid) mMinWithdrawal mStart mEnd mOrder metadataSchema = do
-        (txs, depo) <- withWorkerCtx ctx wid liftE liftE $ \wrk -> do
+    ctx (ApiT wid) mMinWithdrawal mStart mEnd mOrder metadataSchema =
+        withWorkerCtx ctx wid liftE liftE $ \wrk -> do
             txs <- liftHandler $
                 W.listTransactions @_ @_ @_ wrk wid
                 (Coin . fromIntegral . getMinWithdrawal <$> mMinWithdrawal)
@@ -2073,48 +2078,48 @@ listTransactions
                 (maybe defaultSortOrder getApiT mOrder)
             depo <- liftIO $ W.stakeKeyDeposit <$>
                 NW.currentProtocolParameters (wrk ^. networkLayer)
-            pure (txs, depo)
-        liftIO $ forM txs $ \tx ->
-            mkApiTransactionFromInfo
-                (timeInterpreter (ctx ^. networkLayer))
-                depo
-                tx
-                metadataSchema
+            forM txs $ \tx ->
+                mkApiTransactionFromInfo
+                    (timeInterpreter (ctx ^. networkLayer))
+                    wrk wid
+                    depo
+                    tx
+                    metadataSchema
   where
     defaultSortOrder :: SortOrder
     defaultSortOrder = Descending
 
 getTransaction
-    :: forall ctx s k n. (ctx ~ ApiLayer s k 'CredFromKeyK)
+    :: forall ctx s k n
+    . (Typeable s, Typeable n, ctx ~ ApiLayer s k 'CredFromKeyK)
     => ctx
     -> ApiT WalletId
     -> ApiTxId
     -> TxMetadataSchema
     -> Handler (ApiTransaction n)
-getTransaction ctx (ApiT wid) (ApiTxId (ApiT (tid))) metadataSchema = do
-    (tx, depo) <- withWorkerCtx ctx wid liftE liftE $ \wrk -> do
+getTransaction ctx (ApiT wid) (ApiTxId (ApiT (tid))) metadataSchema =
+    withWorkerCtx ctx wid liftE liftE $ \wrk -> do
         tx <- liftHandler $ W.getTransaction wrk wid tid
         depo <- liftIO $ W.stakeKeyDeposit <$>
             NW.currentProtocolParameters (wrk ^. networkLayer)
-        pure (tx, depo)
-    liftIO
-        $ mkApiTransactionFromInfo
-            (timeInterpreter (ctx ^. networkLayer)) depo tx
-            metadataSchema
+        mkApiTransactionFromInfo
+                (timeInterpreter (ctx ^. networkLayer)) wrk wid depo tx
+                metadataSchema
 
 -- Populate an API transaction record with 'TransactionInfo' from the wallet
 -- layer.
 mkApiTransactionFromInfo
-    :: MonadIO m
+    :: (Typeable s, Typeable n)
     => TimeInterpreter (ExceptT PastHorizonException IO)
+    -> W.WalletLayer IO s k 'CredFromKeyK
+    -> WalletId
     -> Coin
     -> TransactionInfo
     -> TxMetadataSchema
-    -> m (ApiTransaction n)
-mkApiTransactionFromInfo ti deposit info metadataSchema = do
-    apiTx <- liftIO $ mkApiTransaction
-        ti
-        status
+    -> Handler (ApiTransaction n)
+mkApiTransactionFromInfo ti wrk wid deposit info metadataSchema = do
+    apiTx <- mkApiTransaction
+        ti wrk wid status
         MkApiTransactionParams
             { txId = info ^. #txInfoId
             , txFee = info ^. #txInfoFee
@@ -2129,6 +2134,7 @@ mkApiTransactionFromInfo ti deposit info metadataSchema = do
             , txScriptValidity = info ^. #txInfoScriptValidity
             , txDeposit = deposit
             , txMetadataSchema = metadataSchema
+            , txCBOR = info ^. #txInfoCBOR
             }
     return $ case info ^. (#txInfoMeta . #status) of
         Pending  -> apiTx
@@ -2821,6 +2827,7 @@ decodeTransaction ctx (ApiT wid) (ApiSerialisedTransaction (ApiT sealed) _) = do
             , pp
             , policyXPubM
             )
+    let certs = mkApiAnyCertificate acct acctPath <$> allCerts
     pure $ ApiDecodedTransaction
         { id = ApiT txId
         , fee = maybe (Quantity 0) (Quantity . fromIntegral . unCoin) fee
@@ -2832,15 +2839,13 @@ decodeTransaction ctx (ApiT wid) (ApiSerialisedTransaction (ApiT sealed) _) = do
         , withdrawals = map (toWrdl acct) $ Map.assocs withdrawals
         , mint = toApiAssetMintBurn policyXPubM toMint
         , burn = toApiAssetMintBurn policyXPubM toBurn
-        , certificates = map (toApiAnyCert acct acctPath) allCerts
+        , certificates = certs
         , depositsTaken =
             (Quantity . fromIntegral . unCoin . W.stakeKeyDeposit $ pp)
-                <$ filter ourRewardAccountRegistration
-                    (toApiAnyCert acct acctPath <$> allCerts)
+                <$ filter ourRewardAccountRegistration certs
         , depositsReturned =
             (Quantity . fromIntegral . unCoin . W.stakeKeyDeposit $ pp)
-                <$ filter ourRewardAccountDeregistration
-                    (toApiAnyCert acct acctPath <$> allCerts)
+                <$ filter ourRewardAccountDeregistration certs
         , metadata = ApiTxMetadata $ ApiT <$> metadata
         , scriptValidity = ApiT <$> scriptValidity
         , validityInterval = interval
@@ -2897,47 +2902,6 @@ decodeTransaction ctx (ApiT wid) (ApiSerialisedTransaction (ApiT sealed) _) = do
            ApiWithdrawalGeneral (ApiT rewardKey, Proxy @n) (Quantity $ fromIntegral c) Our
         else
            ApiWithdrawalGeneral (ApiT rewardKey, Proxy @n) (Quantity $ fromIntegral c) External
-
-    toApiAnyCert acct acctPath = \case
-        W.CertificateOfDelegation delCert -> toApiDelCert acct acctPath delCert
-        W.CertificateOfPool poolCert -> toApiPoolCert poolCert
-        W.CertificateOther otherCert -> toApiOtherCert otherCert
-    toApiOtherCert = OtherCertificate . ApiT
-
-    toApiPoolCert (W.Registration (W.PoolRegistrationCertificate poolId' poolOwners' poolMargin' poolCost' poolPledge' poolMetadata')) =
-        let enrich (a, b) = (ApiT a, ApiT b)
-        in StakePoolRegister $ ApiRegisterPool
-           (ApiT poolId')
-           (map ApiT poolOwners')
-           (Quantity poolMargin')
-           (Quantity $ unCoin poolCost')
-           (Quantity $ unCoin poolPledge')
-           (enrich <$> poolMetadata')
-    toApiPoolCert (W.Retirement (W.PoolRetirementCertificate poolId' retirementEpoch')) =
-        StakePoolDeregister $ ApiDeregisterPool
-        (ApiT poolId')
-        (ApiT retirementEpoch')
-
-    toApiDelCert acct acctPath (W.CertDelegateNone rewardKey) =
-        if rewardKey == acct then
-            WalletDelegationCertificate $ QuitPool $ NE.map ApiT acctPath
-        else
-            DelegationCertificate $ QuitPoolExternal (ApiT rewardKey, Proxy @n)
-    toApiDelCert acct acctPath (W.CertRegisterKey rewardKey) =
-        if rewardKey == acct then
-            WalletDelegationCertificate $
-            RegisterRewardAccount $ NE.map ApiT acctPath
-        else
-            DelegationCertificate $
-            RegisterRewardAccountExternal (ApiT rewardKey, Proxy @n)
-    toApiDelCert acct acctPath (W.CertDelegateFull rewardKey poolId') =
-        if rewardKey == acct then
-            WalletDelegationCertificate $
-            JoinPool (NE.map ApiT acctPath) (ApiT poolId')
-        else
-            DelegationCertificate $
-            JoinPoolExternal (ApiT rewardKey, Proxy @n) (ApiT poolId')
-
     ourRewardAccountRegistration = \case
         WalletDelegationCertificate (RegisterRewardAccount _) -> True
         _ -> False
@@ -3185,8 +3149,7 @@ joinStakePool ctx knownPools getPoolStatus apiPoolId (ApiT wid) body = do
     poolStatus <- liftIO (getPoolStatus pid)
     pools <- liftIO knownPools
     curEpoch <- getCurrentEpoch ctx
-
-    (sel, tx, txMeta, txTime, pp) <- withWorkerCtx ctx wid liftE liftE $ \wrk -> do
+    withWorkerCtx ctx wid liftE liftE $ \wrk -> do
         (action, _) <- liftHandler
             $ W.joinStakePool @_ @s @k wrk curEpoch pools pid poolStatus wid
 
@@ -3226,28 +3189,27 @@ joinStakePool ctx knownPools getPoolStatus apiPoolId (ApiT wid) body = do
                 wrk wid era mkRwdAcct pwd txCtx sel'
         liftHandler
             $ W.submitTx @_ @s @k wrk wid (tx, txMeta, sealedTx)
-
-        pure (sel, tx, txMeta, txTime, pp)
-
-    liftIO $ mkApiTransaction
-        (timeInterpreter (ctx ^. networkLayer))
-        (#pendingSince)
-        MkApiTransactionParams
-            { txId = tx ^. #txId
-            , txFee = tx ^. #fee
-            , txInputs = NE.toList $ second Just <$> sel ^. #inputs
-              -- Joining a stake pool does not require collateral:
-            , txCollateralInputs = []
-            , txOutputs = tx ^. #outputs
-            , txCollateralOutput = tx ^. #collateralOutput
-            , txWithdrawals = tx ^. #withdrawals
-            , txMeta
-            , txMetadata = Nothing
-            , txTime
-            , txScriptValidity = tx ^. #scriptValidity
-            , txDeposit = W.stakeKeyDeposit pp
-            , txMetadataSchema = TxMetadataDetailedSchema
-            }
+        mkApiTransaction
+            (timeInterpreter (ctx ^. networkLayer))
+            wrk wid
+            (#pendingSince)
+            MkApiTransactionParams
+                { txId = tx ^. #txId
+                , txFee = tx ^. #fee
+                , txInputs = NE.toList $ second Just <$> sel ^. #inputs
+                -- Joining a stake pool does not require collateral:
+                , txCollateralInputs = []
+                , txOutputs = tx ^. #outputs
+                , txCollateralOutput = tx ^. #collateralOutput
+                , txWithdrawals = tx ^. #withdrawals
+                , txMeta
+                , txMetadata = Nothing
+                , txTime
+                , txScriptValidity = tx ^. #scriptValidity
+                , txDeposit = W.stakeKeyDeposit pp
+                , txMetadataSchema = TxMetadataDetailedSchema
+                , txCBOR  = tx ^. #txCBOR
+                }
   where
     ti :: TimeInterpreter (ExceptT PastHorizonException IO)
     ti = timeInterpreter (ctx ^. networkLayer)
@@ -3314,7 +3276,7 @@ quitStakePool
 quitStakePool ctx (ApiT wid) body = do
     let pwd = coerce $ getApiT $ body ^. #passphrase
 
-    (sel, tx, txMeta, txTime, pp) <- withWorkerCtx ctx wid liftE liftE $ \wrk -> do
+    withWorkerCtx ctx wid liftE liftE $ \wrk -> do
         -- FIXME [ADP-1489] mkRewardAccountBuilder does itself read
         -- @currentNodeEra@ which is not guaranteed with the era read here. This
         -- could cause problems under exceptional circumstances.
@@ -3352,28 +3314,27 @@ quitStakePool ctx (ApiT wid) body = do
                 wrk wid era mkRwdAcct pwd txCtx sel'
         liftHandler
             $ W.submitTx @_ @s @k wrk wid (tx, txMeta, sealedTx)
-
-        pure (sel, tx, txMeta, txTime, pp)
-
-    liftIO $ mkApiTransaction
-        (timeInterpreter (ctx ^. networkLayer))
-        (#pendingSince)
-        MkApiTransactionParams
-            { txId = tx ^. #txId
-            , txFee = tx ^. #fee
-            , txInputs = NE.toList $ second Just <$> sel ^. #inputs
-              -- Quitting a stake pool does not require collateral:
-            , txCollateralInputs = []
-            , txOutputs = tx ^. #outputs
-            , txCollateralOutput = tx ^. #collateralOutput
-            , txWithdrawals = tx ^. #withdrawals
-            , txMeta
-            , txMetadata = Nothing
-            , txTime
-            , txScriptValidity = tx ^. #scriptValidity
-            , txDeposit = W.stakeKeyDeposit pp
-            , txMetadataSchema = TxMetadataDetailedSchema
-            }
+        mkApiTransaction
+            (timeInterpreter (ctx ^. networkLayer))
+            wrk wid
+            (#pendingSince)
+            MkApiTransactionParams
+                { txId = tx ^. #txId
+                , txFee = tx ^. #fee
+                , txInputs = NE.toList $ second Just <$> sel ^. #inputs
+                -- Quitting a stake pool does not require collateral:
+                , txCollateralInputs = []
+                , txOutputs = tx ^. #outputs
+                , txCollateralOutput = tx ^. #collateralOutput
+                , txWithdrawals = tx ^. #withdrawals
+                , txMeta
+                , txMetadata = Nothing
+                , txTime
+                , txScriptValidity = tx ^. #scriptValidity
+                , txDeposit = W.stakeKeyDeposit pp
+                , txMetadataSchema = TxMetadataDetailedSchema
+                , txCBOR  = tx ^. #txCBOR
+                }
   where
     ti :: TimeInterpreter (ExceptT PastHorizonException IO)
     ti = timeInterpreter (ctx ^. networkLayer)
@@ -3625,8 +3586,9 @@ migrateWallet ctx withdrawalType (ApiT wid) postData = do
                     txContext (selection {change = []})
             liftHandler $
                 W.submitTx @_ @s @k wrk wid (tx, txMeta, sealedTx)
-            liftIO $ mkApiTransaction
+            mkApiTransaction
                 (timeInterpreter (ctx ^. networkLayer))
+                wrk wid
                 (#pendingSince)
                 MkApiTransactionParams
                     { txId = tx ^. #txId
@@ -3644,6 +3606,7 @@ migrateWallet ctx withdrawalType (ApiT wid) postData = do
                     , txScriptValidity = tx ^. #scriptValidity
                     , txDeposit = W.stakeKeyDeposit pp
                     , txMetadataSchema = TxMetadataDetailedSchema
+                    , txCBOR  = tx ^. #txCBOR
                     }
   where
     addresses = getApiT . fst <$> view #addresses postData
@@ -4111,31 +4074,40 @@ data MkApiTransactionParams = MkApiTransactionParams
     , txScriptValidity :: Maybe W.TxScriptValidity
     , txDeposit :: Coin
     , txMetadataSchema :: TxMetadataSchema
+    , txCBOR :: Maybe TxCBOR
     }
     deriving (Eq, Generic, Show)
 
 mkApiTransaction
-    :: forall n. ()
+    :: forall n s k . (Typeable s, Typeable n)
     => TimeInterpreter (ExceptT PastHorizonException IO)
+    -> W.WalletLayer IO s k 'CredFromKeyK
+    -> WalletId
     -> Lens' (ApiTransaction n) (Maybe ApiBlockReference)
     -> MkApiTransactionParams
-    -> IO (ApiTransaction n)
-mkApiTransaction timeInterpreter setTimeReference tx = do
-    timeRef <- (#time .~ (tx ^. #txTime)) <$> makeApiBlockReference
-        (neverFails
-            "makeApiBlockReference shouldn't fail getting the time of \
-            \transactions with slots in the past" timeInterpreter)
-        (tx ^. (#txMeta . #slotNo))
-        (natural (tx ^. (#txMeta . #blockHeight)))
+    -> Handler (ApiTransaction n)
+mkApiTransaction timeInterpreter wrk wid setTimeReference tx = do
+    mkApiAnyCertificate <- toApiAnyCertificate @_ @s @k @n wrk wid
+    timeRef <- liftIO $ (#time .~ (tx ^. #txTime)) <$> makeApiBlockReference
+            (neverFails
+                "makeApiBlockReference shouldn't fail getting the time of \
+                \transactions with slots in the past" timeInterpreter)
+            (tx ^. (#txMeta . #slotNo))
+            (natural (tx ^. (#txMeta . #blockHeight)))
 
-    expRef <- traverse makeApiSlotReference' (tx ^. (#txMeta . #expiry))
-    return $ apiTx & setTimeReference .~ Just timeRef & #expiresAt .~ expRef
+    expRef <- liftIO $ traverse makeApiSlotReference' (tx ^. (#txMeta . #expiry))
+    parsedCertificates <- fmap (fmap mkApiAnyCertificate) $
+        parseCertificates $ tx ^. #txCBOR
+    return $
+        apiTx
+            & setTimeReference .~ Just timeRef
+            & #expiresAt .~ expRef
+            & #certificates .~ parsedCertificates
   where
     -- Since tx expiry can be far in the future, we use unsafeExtendSafeZone for
     -- now.
     makeApiSlotReference' = makeApiSlotReference
         $ unsafeExtendSafeZone timeInterpreter
-
     apiTx :: ApiTransaction n
     apiTx = ApiTransaction
         { id = ApiT $ tx ^. #txId
@@ -4164,6 +4136,7 @@ mkApiTransaction timeInterpreter setTimeReference tx = do
         , metadata = TxMetadataWithSchema (tx ^. #txMetadataSchema)
             <$> tx ^. #txMetadata
         , scriptValidity = ApiT <$> tx ^. #txScriptValidity
+        , certificates = []
         }
 
     depositIfAny :: Natural

@@ -2595,48 +2595,6 @@ components:
         coin_selection: *ApiCoinSelection
         fee: *amount
 
-    ApiTransaction: &ApiTransaction
-      type: object
-      required:
-        - id
-        - amount
-        - fee
-        - deposit_taken
-        - deposit_returned
-        - direction
-        - inputs
-        - outputs
-        - withdrawals
-        - status
-      properties:
-        id: *transactionId
-        amount:
-          <<: *amount
-          description: |
-            An amount of Ada spent or received, from the perspective of the wallet.
-
-            That is, for outgoing transaction, it represents the amount of Ada consumed
-            as inputs, minus the amount of Ada spent as fees, as deposits or to addresses
-            which do not belong to the wallet.
-
-            For incoming transaction, it represents the total amount of Ada received to
-            addresses that belong to the wallet.
-        fee: *amount
-        deposit_taken: *amount
-        deposit_returned: *amount
-        inserted_at: *transactionInsertedAt
-        expires_at: *transactionExpiresAt
-        pending_since: *transactionPendingSince
-        depth: *transactionDepth
-        direction: *transactionDirection
-        inputs: *transactionInputs
-        outputs: *transactionOutputs
-        collateral: *transactionCollateral
-        collateral_outputs: *transactionCollateralOutputs
-        withdrawals: *transactionWithdrawals
-        status: *transactionStatus
-        metadata: *transactionMetadata
-        script_validity: *txScriptValidity
 
     ApiInputsGeneral: &ApiInputsGeneral
       <<: *transactionInputsGeneral
@@ -2758,6 +2716,53 @@ components:
         deposits_returned: *deposits
         script_validity: *txScriptValidity
         validity_interval: *ApiValidityIntervalExplicit
+
+    ApiTransaction: &ApiTransaction
+      type: object
+      required:
+        - id
+        - amount
+        - fee
+        - deposit_taken
+        - deposit_returned
+        - direction
+        - inputs
+        - outputs
+        - withdrawals
+        - status
+      properties:
+        id: *transactionId
+        amount:
+          <<: *amount
+          description: |
+            An amount of Ada spent or received, from the perspective of the wallet.
+
+            That is, for outgoing transaction, it represents the amount of Ada consumed
+            as inputs, minus the amount of Ada spent as fees, as deposits or to addresses
+            which do not belong to the wallet.
+
+            For incoming transaction, it represents the total amount of Ada received to
+            addresses that belong to the wallet.
+        fee: *amount
+        deposit_taken: *amount
+        deposit_returned: *amount
+        inserted_at: *transactionInsertedAt
+        expires_at: *transactionExpiresAt
+        pending_since: *transactionPendingSince
+        depth: *transactionDepth
+        direction: *transactionDirection
+        inputs: *transactionInputs
+        outputs: *transactionOutputs
+        collateral: *transactionCollateral
+        collateral_outputs: *transactionCollateralOutputs
+        withdrawals: *transactionWithdrawals
+        status: *transactionStatus
+        metadata: *transactionMetadata
+        script_validity: *txScriptValidity
+        certificates:
+          type: array
+          minItems: 0
+          items: *ApiCertificate
 
     x-txBody: &txBody
       oneOf:
