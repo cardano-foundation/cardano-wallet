@@ -7,9 +7,6 @@
 -- Copyright: © 2020 IOHK
 -- License: Apache-2.0
 --
--- Era dependent functions to compute primitive types certificates from
--- ledger types certificates
---
 
 module Cardano.Wallet.Read.Primitive.Tx.Features.Certificates
     ( certificates

@@ -4,13 +4,16 @@
 {-# LANGUAGE DerivingVia #-}
 {-# LANGUAGE DuplicateRecordFields #-}
 {-# LANGUAGE FlexibleInstances #-}
+{-# LANGUAGE LambdaCase #-}
 {-# LANGUAGE PolyKinds #-}
 {-# LANGUAGE ScopedTypeVariables #-}
 {-# LANGUAGE StrictData #-}
+{-# LANGUAGE TypeApplications #-}
 
 -- |
 -- Copyright: © 2018-2022 IOHK
 -- License: Apache-2.0
+--
 
 module Cardano.Wallet.Api.Types.Certificate
     ( ApiAnyCertificate (..)
@@ -18,13 +21,13 @@ module Cardano.Wallet.Api.Types.Certificate
     , ApiDeregisterPool (..)
     , ApiExternalCertificate (..)
     , ApiRegisterPool (..)
-    )
+    , mkApiAnyCertificate)
     where
 
 import Prelude
 
 import Cardano.Wallet.Api.Lib.ApiT
-    ( ApiT )
+    ( ApiT (..) )
 import Cardano.Wallet.Api.Lib.ExtendedObject
     ( extendAesonObject, parseExtendedAesonObject )
 import Cardano.Wallet.Api.Types.Address
@@ -56,15 +59,18 @@ import Data.List.NonEmpty
 import Data.Quantity
     ( Percentage, Quantity (..) )
 import Data.Typeable
-    ( Proxy )
+    ( Proxy (..) )
 import GHC.Generics
     ( Generic )
 import Numeric.Natural
     ( Natural )
 
 import qualified Cardano.Wallet.Primitive.Types as W
+import Cardano.Wallet.Primitive.Types.Coin
+    ( unCoin )
 import qualified Cardano.Wallet.Primitive.Types.RewardAccount as W
 import qualified Data.Aeson.Types as Aeson
+import qualified Data.List.NonEmpty as NE
 
 data ApiExternalCertificate (n :: NetworkDiscriminant)
     = RegisterRewardAccountExternal
@@ -170,9 +176,59 @@ apiCertificateOptions = defaultOptions
           , contentsFieldName = "details" -- this isn't actually used
           }
       }
-
 instance FromJSON ApiCertificate where
     parseJSON = genericParseJSON apiCertificateOptions
 
 instance ToJSON ApiCertificate where
     toJSON = genericToJSON apiCertificateOptions
+
+mkApiAnyCertificate
+    :: forall n . W.RewardAccount
+    -> NonEmpty DerivationIndex
+    -> W.Certificate
+    -> ApiAnyCertificate n
+mkApiAnyCertificate acct' acctPath' = \case
+    W.CertificateOfDelegation delCert -> toApiDelCert acct' acctPath' delCert
+    W.CertificateOfPool poolCert -> toApiPoolCert poolCert
+    W.CertificateOther otherCert -> toApiOtherCert otherCert
+    where
+    toApiOtherCert = OtherCertificate . ApiT
+
+    toApiPoolCert
+        (W.Registration
+            (W.PoolRegistrationCertificate
+                poolId' poolOwners' poolMargin'
+                poolCost' poolPledge' poolMetadata')) =
+        let enrich (a, b) = (ApiT a, ApiT b)
+        in StakePoolRegister $ ApiRegisterPool
+           (ApiT poolId')
+           (map ApiT poolOwners')
+           (Quantity poolMargin')
+           (Quantity $ unCoin poolCost')
+           (Quantity $ unCoin poolPledge')
+           (enrich <$> poolMetadata')
+    toApiPoolCert
+        (W.Retirement (W.PoolRetirementCertificate poolId' retirementEpoch')) =
+        StakePoolDeregister $ ApiDeregisterPool
+        (ApiT poolId')
+        (ApiT retirementEpoch')
+
+    toApiDelCert acct acctPath (W.CertDelegateNone rewardKey) =
+        if rewardKey == acct then
+            WalletDelegationCertificate $ QuitPool $ NE.map ApiT acctPath
+        else
+            DelegationCertificate $ QuitPoolExternal (ApiT rewardKey, Proxy @n)
+    toApiDelCert acct acctPath (W.CertRegisterKey rewardKey) =
+        if rewardKey == acct then
+            WalletDelegationCertificate $
+            RegisterRewardAccount $ NE.map ApiT acctPath
+        else
+            DelegationCertificate $
+            RegisterRewardAccountExternal (ApiT rewardKey, Proxy @n)
+    toApiDelCert acct acctPath (W.CertDelegateFull rewardKey poolId') =
+        if rewardKey == acct then
+            WalletDelegationCertificate $
+            JoinPool (NE.map ApiT acctPath) (ApiT poolId')
+        else
+            DelegationCertificate $
+            JoinPoolExternal (ApiT rewardKey, Proxy @n) (ApiT poolId')

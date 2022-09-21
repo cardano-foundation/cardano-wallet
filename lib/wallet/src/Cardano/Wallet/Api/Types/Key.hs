@@ -23,7 +23,7 @@ module Cardano.Wallet.Api.Types.Key
     , ApiVerificationKeyShelley (..)
     , KeyFormat (..)
     , VerificationKeyHashing (..)
-    )
+    , computeKeyPayload)
     where
 
 import Prelude
@@ -57,7 +57,11 @@ import Servant.API
 import Web.Internal.HttpApiData
     ( ToHttpApiData (..) )
 
+import Cardano.Address.Derivation
+    ( XPub, xpubPublicKey )
 import qualified Codec.Binary.Bech32 as Bech32
+import Crypto.Hash.Utils
+    ( blake2b224 )
 import qualified Data.Aeson.Types as Aeson
 import qualified Data.ByteString as BS
 import qualified Data.Text as T
@@ -112,6 +116,15 @@ parsePub bytes extd
     bytesExpectedLength = case extd of
         Extended -> 64
         NonExtended -> 32
+
+computeKeyPayload :: Maybe Bool -> XPub -> (ByteString, VerificationKeyHashing)
+computeKeyPayload hashed' k = case hashing of
+    WithoutHashing -> (xpubPublicKey k, WithoutHashing)
+    WithHashing -> (blake2b224 $ xpubPublicKey k, WithHashing)
+  where
+    hashing = case hashed' of
+        Nothing -> WithoutHashing
+        Just v -> if v then WithHashing else WithoutHashing
 
 -- ApiPolicyKey
 
