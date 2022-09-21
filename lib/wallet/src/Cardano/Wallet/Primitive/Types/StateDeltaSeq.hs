@@ -147,8 +147,8 @@ import qualified Data.Sequence as Seq
 -- @
 --
 data StateDeltaSeq state delta = StateDeltaSeq
-    { head :: !state
-    , tail :: !(Seq (delta, state))
+    { head :: state
+    , tail :: (Seq (delta, state))
     }
     deriving Eq
 
