@@ -1,45 +1,57 @@
-cabal-version:       >=1.10
-name:                cardano-wallet
-version:             2022.8.16
-synopsis:            The Wallet Backend for a Cardano node.
-description:         Please see README.md
-homepage:            https://github.com/input-output-hk/cardano-wallet
-author:              IOHK Engineering Team
-maintainer:          operations@iohk.io
-copyright:           2018-2022 IOHK
-license:             Apache-2.0
-category:            Web
-build-type:          Simple
+cabal-version:      2.2
+name:               cardano-wallet
+version:            2022.8.16
+synopsis:           The Wallet Backend for a Cardano node.
+description:        Please see README.md
+homepage:           https://github.com/input-output-hk/cardano-wallet
+author:             IOHK Engineering Team
+maintainer:         operations@iohk.io
+copyright:          2018-2022 IOHK
+license:            Apache-2.0
+category:           Web
+build-type:         Simple
 extra-source-files:
-  specifications/api/swagger.yaml
   extra/Plutus/*.hs
+  specifications/api/swagger.yaml
+
+common language
+  default-language:   Haskell2010
+  default-extensions:
+    NoImplicitPrelude
+    OverloadedStrings
+
+common opts-lib
+  ghc-options: -Wall -Wcompat
+
+  if flag(release)
+    ghc-options: -O2 -Werror
+
+common opts-exe
+  ghc-options: -threaded -rtsopts -Wall
+
+  if flag(release)
+    ghc-options: -O2 -Werror
 
 flag release
-    description: Enable optimization and `-Werror`
-    default: False
-    manual: True
+  description: Enable optimization and `-Werror`
+  default:     False
+  manual:      True
 
 flag scrypt
-    description: Enable compatibility support for legacy wallet passwords.
-    default: True
+  description: Enable compatibility support for legacy wallet passwords.
+  default:     True
 
 library
-  default-language:
-      Haskell2010
-  default-extensions:
-      NoImplicitPrelude
-      OverloadedStrings
-  ghc-options:
-      -Wall
-      -Wcompat
-      -fwarn-redundant-constraints
-  if (flag(release))
-    ghc-options: -O2 -Werror
-  if (flag(scrypt))
-    cpp-options: -DHAVE_SCRYPT
+  import:          language, opts-lib
+  ghc-options:     -fwarn-redundant-constraints
+  hs-source-dirs:  src
+
+  if flag(scrypt)
+    cpp-options:   -DHAVE_SCRYPT
     build-depends: scrypt
+
   build-depends:
-      aeson
+    , aeson
     , aeson-pretty
     , aeson-qq
     , ansi-terminal
@@ -51,9 +63,9 @@ library
     , bech32
     , bech32-th
     , binary
-    , blockfrost-api >= 0.4 && < 0.5
-    , blockfrost-client >= 0.4 && < 0.5
-    , blockfrost-client-core >= 0.4 && < 0.5
+    , blockfrost-api                ^>=0.4
+    , blockfrost-client             ^>=0.4
+    , blockfrost-client-core        ^>=0.4
     , bytestring
     , cardano-addresses
     , cardano-addresses-cli
@@ -136,9 +148,9 @@ library
     , ouroboros-network
     , ouroboros-network-framework
     , path-pieces
-    , persistent >=2.13 && <2.14
-    , persistent-sqlite >=2.13 && <2.14
-    , persistent-template >=2.12 && <2.13
+    , persistent                    ^>=2.13
+    , persistent-sqlite             ^>=2.13
+    , persistent-template           ^>=2.12
     , plutus-core
     , plutus-ledger-api
     , pretty-simple
@@ -191,223 +203,212 @@ library
     , x509-store
     , x509-validation
     , yaml
-  hs-source-dirs:
-      src
+
   exposed-modules:
-      Cardano.Api.Extra
-      Cardano.Api.Gen
-      Cardano.Byron.Codec.Cbor
-      Cardano.CLI
-      Cardano.DB.Sqlite
-      Cardano.DB.Sqlite.Delete
-      Cardano.Ledger.Credential.Safe
-      Cardano.Pool.DB
-      Cardano.Pool.DB.Log
-      Cardano.Pool.DB.Model
-      Cardano.Pool.DB.MVar
-      Cardano.Pool.DB.Sqlite
-      Cardano.Pool.DB.Sqlite.TH
-      Cardano.Pool.Metadata
-      Cardano.Pool.Rank
-      Cardano.Pool.Rank.Likelihood
-      Cardano.Wallet
-      Cardano.Wallet.Address.Book
-      Cardano.Wallet.Address.Pool
-      Cardano.Wallet.Api
-      Cardano.Wallet.Api.Aeson
-      Cardano.Wallet.Api.Aeson.Variant
-      Cardano.Wallet.Api.Client
-      Cardano.Wallet.Api.Hex
-      Cardano.Wallet.Api.Lib.ApiAsArray
-      Cardano.Wallet.Api.Lib.ApiT
-      Cardano.Wallet.Api.Lib.ExtendedObject
-      Cardano.Wallet.Api.Lib.Options
-      Cardano.Wallet.Api.Link
-      Cardano.Wallet.Api.Server
-      Cardano.Wallet.Api.Server.Tls
-      Cardano.Wallet.Api.Types
-      Cardano.Wallet.Api.Types.Address
-      Cardano.Wallet.Api.Types.BlockHeader
-      Cardano.Wallet.Api.Types.Certificate
-      Cardano.Wallet.Api.Types.Key
-      Cardano.Wallet.Api.Types.Primitive
-      Cardano.Wallet.Api.Types.SchemaMetadata
-      Cardano.Wallet.Api.Types.Transaction
-      Cardano.Wallet.Byron.Compatibility
-      Cardano.Wallet.Checkpoints
-      Cardano.Wallet.Checkpoints.Policy
-      Cardano.Wallet.CoinSelection
-      Cardano.Wallet.CoinSelection.Gen
-      Cardano.Wallet.CoinSelection.Internal
-      Cardano.Wallet.CoinSelection.Internal.Balance
-      Cardano.Wallet.CoinSelection.Internal.Balance.Gen
-      Cardano.Wallet.CoinSelection.Internal.Collateral
-      Cardano.Wallet.CoinSelection.Internal.Context
-      Cardano.Wallet.Compat
-      Cardano.Wallet.DB
-      Cardano.Wallet.DB.Layer
-      Cardano.Wallet.DB.Pure.Implementation
-      Cardano.Wallet.DB.Pure.Layer
-      Cardano.Wallet.DB.Sqlite.Migration
-      Cardano.Wallet.DB.Sqlite.Schema
-      Cardano.Wallet.DB.Sqlite.Stores
-      Cardano.Wallet.DB.Sqlite.Types
-      Cardano.Wallet.DB.Store.CBOR.Model
-      Cardano.Wallet.DB.Store.CBOR.Store
-      Cardano.Wallet.DB.Store.Checkpoints
-      Cardano.Wallet.DB.Store.Meta.Model
-      Cardano.Wallet.DB.Store.Meta.Store
-      Cardano.Wallet.DB.Store.Submissions.Model
-      Cardano.Wallet.DB.Store.Submissions.Store
-      Cardano.Wallet.DB.Store.Transactions.Model
-      Cardano.Wallet.DB.Store.Transactions.Store
-      Cardano.Wallet.DB.Store.TransactionsWithCBOR.Model
-      Cardano.Wallet.DB.Store.TransactionsWithCBOR.Store
-      Cardano.Wallet.DB.Store.Wallets.Model
-      Cardano.Wallet.DB.Store.Wallets.Store
-      Cardano.Wallet.DB.WalletState
-      Cardano.Wallet.Gen
-      Cardano.Wallet.Logging
-      Cardano.Wallet.Network
-      Cardano.Wallet.Network.Light
-      Cardano.Wallet.Network.Ports
-      Cardano.Wallet.Orphans
-      Cardano.Wallet.Primitive.AddressDerivation
-      Cardano.Wallet.Primitive.AddressDerivation.Byron
-      Cardano.Wallet.Primitive.AddressDerivation.Icarus
-      Cardano.Wallet.Primitive.AddressDerivation.MintBurn
-      Cardano.Wallet.Primitive.AddressDerivation.Shared
-      Cardano.Wallet.Primitive.AddressDerivation.SharedKey
-      Cardano.Wallet.Primitive.AddressDerivation.Shelley
-      Cardano.Wallet.Primitive.AddressDiscovery
-      Cardano.Wallet.Primitive.AddressDiscovery.Random
-      Cardano.Wallet.Primitive.AddressDiscovery.Sequential
-      Cardano.Wallet.Primitive.AddressDiscovery.Shared
-      Cardano.Wallet.Primitive.BlockSummary
-      Cardano.Wallet.Primitive.Collateral
-      Cardano.Wallet.Primitive.Delegation.State
-      Cardano.Wallet.Primitive.Delegation.UTxO
-      Cardano.Wallet.Primitive.Migration
-      Cardano.Wallet.Primitive.Migration.Planning
-      Cardano.Wallet.Primitive.Migration.Selection
-      Cardano.Wallet.Primitive.Model
-      Cardano.Wallet.Primitive.Passphrase
-      Cardano.Wallet.Primitive.Passphrase.Current
-      Cardano.Wallet.Primitive.Passphrase.Gen
-      Cardano.Wallet.Primitive.Passphrase.Legacy
-      Cardano.Wallet.Primitive.Passphrase.Types
-      Cardano.Wallet.Primitive.Slotting
-      Cardano.Wallet.Primitive.SyncProgress
-      Cardano.Wallet.Primitive.Types
-      Cardano.Wallet.Primitive.Types.Address
-      Cardano.Wallet.Primitive.Types.Address.Constants
-      Cardano.Wallet.Primitive.Types.Address.Gen
-      Cardano.Wallet.Primitive.Types.Coin
-      Cardano.Wallet.Primitive.Types.Coin.Gen
-      Cardano.Wallet.Primitive.Types.Hash
-      Cardano.Wallet.Primitive.Types.MinimumUTxO
-      Cardano.Wallet.Primitive.Types.MinimumUTxO.Gen
-      Cardano.Wallet.Primitive.Types.ProtocolMagic
-      Cardano.Wallet.Primitive.Types.Redeemer
-      Cardano.Wallet.Primitive.Types.RewardAccount
-      Cardano.Wallet.Primitive.Types.RewardAccount.Gen
-      Cardano.Wallet.Primitive.Types.TokenBundle
-      Cardano.Wallet.Primitive.Types.TokenBundle.Gen
-      Cardano.Wallet.Primitive.Types.TokenMap
-      Cardano.Wallet.Primitive.Types.TokenMap.Gen
-      Cardano.Wallet.Primitive.Types.TokenPolicy
-      Cardano.Wallet.Primitive.Types.TokenPolicy.Gen
-      Cardano.Wallet.Primitive.Types.TokenQuantity
-      Cardano.Wallet.Primitive.Types.TokenQuantity.Gen
-      Cardano.Wallet.Primitive.Types.Tx
-      Cardano.Wallet.Primitive.Types.Tx.Constraints
-      Cardano.Wallet.Primitive.Types.Tx.Gen
-      Cardano.Wallet.Primitive.Types.Tx.SealedTx
-      Cardano.Wallet.Primitive.Types.Tx.TransactionInfo
-      Cardano.Wallet.Primitive.Types.Tx.Tx
-      Cardano.Wallet.Primitive.Types.Tx.TxMeta
-      Cardano.Wallet.Primitive.Types.UTxO
-      Cardano.Wallet.Primitive.Types.UTxO.Gen
-      Cardano.Wallet.Primitive.Types.UTxOIndex
-      Cardano.Wallet.Primitive.Types.UTxOIndex.Gen
-      Cardano.Wallet.Primitive.Types.UTxOIndex.Internal
-      Cardano.Wallet.Primitive.Types.UTxOSelection
-      Cardano.Wallet.Primitive.Types.UTxOSelection.Gen
-      Cardano.Wallet.Registry
-      Cardano.Wallet.Shelley
-      Cardano.Wallet.Shelley.Api.Server
-      Cardano.Wallet.Shelley.BlockchainSource
-      Cardano.Wallet.Shelley.Compatibility
-      Cardano.Wallet.Shelley.Compatibility.Ledger
-      Cardano.Wallet.Shelley.Launch
-      Cardano.Wallet.Shelley.Launch.Blockfrost
-      Cardano.Wallet.Shelley.Launch.Cluster
-      Cardano.Wallet.Shelley.Logging
-      Cardano.Wallet.Shelley.MinimumUTxO
-      Cardano.Wallet.Shelley.MinimumUTxO.Internal
-      Cardano.Wallet.Shelley.Network
-      Cardano.Wallet.Shelley.Network.Blockfrost
-      Cardano.Wallet.Shelley.Network.Blockfrost.Conversion
-      Cardano.Wallet.Shelley.Network.Blockfrost.Error
-      Cardano.Wallet.Shelley.Network.Blockfrost.Fixture
-      Cardano.Wallet.Shelley.Network.Blockfrost.Layer
-      Cardano.Wallet.Shelley.Network.Blockfrost.Monad
-      Cardano.Wallet.Shelley.Network.Discriminant
-      Cardano.Wallet.Shelley.Network.Node
-      Cardano.Wallet.Shelley.Pools
-      Cardano.Wallet.Shelley.Tracers
-      Cardano.Wallet.Shelley.Transaction
-      Cardano.Wallet.TokenMetadata
-      Cardano.Wallet.TokenMetadata.MockServer
-      Cardano.Wallet.Transaction
-      Cardano.Wallet.Types.Read
-      Cardano.Wallet.Types.Read.Primitive.Tx
-      Cardano.Wallet.Types.Read.Primitive.Tx.Allegra
-      Cardano.Wallet.Types.Read.Primitive.Tx.Alonzo
-      Cardano.Wallet.Types.Read.Primitive.Tx.Babbage
-      Cardano.Wallet.Types.Read.Primitive.Tx.Byron
-      Cardano.Wallet.Types.Read.Primitive.Tx.Mary
-      Cardano.Wallet.Types.Read.Primitive.Tx.Shelley
-      Cardano.Wallet.Types.Read.Tx
-      Cardano.Wallet.Types.Read.Tx.CBOR
-      Cardano.Wallet.Types.Read.Tx.Hash
-      Cardano.Wallet.Unsafe
-      Cardano.Wallet.Util
-      Cardano.Wallet.Version
-      Cardano.Wallet.Version.TH
-      Control.Concurrent.Concierge
-      Control.Monad.Exception.Unchecked
-      Control.Monad.Random.Extra
-      Control.Monad.Util
-      Crypto.Hash.Utils
-      Data.Aeson.Extra
-      Data.Function.Utils
-      Data.Quantity
-      Data.Time.Text
-      Data.Time.Utils
-      Data.Vector.Shuffle
-      Network.Ntp
-      Network.Wai.Middleware.Logging
-      Network.Wai.Middleware.ServerError
-      Ouroboros.Network.Client.Wallet
-      UnliftIO.Compat
-  other-modules:
-      Paths_cardano_wallet
+    Cardano.Api.Extra
+    Cardano.Api.Gen
+    Cardano.Byron.Codec.Cbor
+    Cardano.CLI
+    Cardano.DB.Sqlite
+    Cardano.DB.Sqlite.Delete
+    Cardano.Ledger.Credential.Safe
+    Cardano.Pool.DB
+    Cardano.Pool.DB.Log
+    Cardano.Pool.DB.Model
+    Cardano.Pool.DB.MVar
+    Cardano.Pool.DB.Sqlite
+    Cardano.Pool.DB.Sqlite.TH
+    Cardano.Pool.Metadata
+    Cardano.Pool.Rank
+    Cardano.Pool.Rank.Likelihood
+    Cardano.Wallet
+    Cardano.Wallet.Address.Book
+    Cardano.Wallet.Address.Pool
+    Cardano.Wallet.Api
+    Cardano.Wallet.Api.Aeson
+    Cardano.Wallet.Api.Aeson.Variant
+    Cardano.Wallet.Api.Client
+    Cardano.Wallet.Api.Hex
+    Cardano.Wallet.Api.Lib.ApiAsArray
+    Cardano.Wallet.Api.Lib.ApiT
+    Cardano.Wallet.Api.Lib.ExtendedObject
+    Cardano.Wallet.Api.Lib.Options
+    Cardano.Wallet.Api.Link
+    Cardano.Wallet.Api.Server
+    Cardano.Wallet.Api.Server.Tls
+    Cardano.Wallet.Api.Types
+    Cardano.Wallet.Api.Types.Address
+    Cardano.Wallet.Api.Types.BlockHeader
+    Cardano.Wallet.Api.Types.Certificate
+    Cardano.Wallet.Api.Types.Key
+    Cardano.Wallet.Api.Types.Primitive
+    Cardano.Wallet.Api.Types.SchemaMetadata
+    Cardano.Wallet.Api.Types.Transaction
+    Cardano.Wallet.Byron.Compatibility
+    Cardano.Wallet.Checkpoints
+    Cardano.Wallet.Checkpoints.Policy
+    Cardano.Wallet.CoinSelection
+    Cardano.Wallet.CoinSelection.Gen
+    Cardano.Wallet.CoinSelection.Internal
+    Cardano.Wallet.CoinSelection.Internal.Balance
+    Cardano.Wallet.CoinSelection.Internal.Balance.Gen
+    Cardano.Wallet.CoinSelection.Internal.Collateral
+    Cardano.Wallet.CoinSelection.Internal.Context
+    Cardano.Wallet.Compat
+    Cardano.Wallet.DB
+    Cardano.Wallet.DB.Layer
+    Cardano.Wallet.DB.Pure.Implementation
+    Cardano.Wallet.DB.Pure.Layer
+    Cardano.Wallet.DB.Sqlite.Migration
+    Cardano.Wallet.DB.Sqlite.Schema
+    Cardano.Wallet.DB.Sqlite.Stores
+    Cardano.Wallet.DB.Sqlite.Types
+    Cardano.Wallet.DB.Store.CBOR.Model
+    Cardano.Wallet.DB.Store.CBOR.Store
+    Cardano.Wallet.DB.Store.Checkpoints
+    Cardano.Wallet.DB.Store.Meta.Model
+    Cardano.Wallet.DB.Store.Meta.Store
+    Cardano.Wallet.DB.Store.Submissions.Model
+    Cardano.Wallet.DB.Store.Submissions.Store
+    Cardano.Wallet.DB.Store.Transactions.Model
+    Cardano.Wallet.DB.Store.Transactions.Store
+    Cardano.Wallet.DB.Store.TransactionsWithCBOR.Model
+    Cardano.Wallet.DB.Store.TransactionsWithCBOR.Store
+    Cardano.Wallet.DB.Store.Wallets.Model
+    Cardano.Wallet.DB.Store.Wallets.Store
+    Cardano.Wallet.DB.WalletState
+    Cardano.Wallet.Gen
+    Cardano.Wallet.Logging
+    Cardano.Wallet.Network
+    Cardano.Wallet.Network.Light
+    Cardano.Wallet.Network.Ports
+    Cardano.Wallet.Orphans
+    Cardano.Wallet.Primitive.AddressDerivation
+    Cardano.Wallet.Primitive.AddressDerivation.Byron
+    Cardano.Wallet.Primitive.AddressDerivation.Icarus
+    Cardano.Wallet.Primitive.AddressDerivation.MintBurn
+    Cardano.Wallet.Primitive.AddressDerivation.Shared
+    Cardano.Wallet.Primitive.AddressDerivation.SharedKey
+    Cardano.Wallet.Primitive.AddressDerivation.Shelley
+    Cardano.Wallet.Primitive.AddressDiscovery
+    Cardano.Wallet.Primitive.AddressDiscovery.Random
+    Cardano.Wallet.Primitive.AddressDiscovery.Sequential
+    Cardano.Wallet.Primitive.AddressDiscovery.Shared
+    Cardano.Wallet.Primitive.BlockSummary
+    Cardano.Wallet.Primitive.Collateral
+    Cardano.Wallet.Primitive.Delegation.State
+    Cardano.Wallet.Primitive.Delegation.UTxO
+    Cardano.Wallet.Primitive.Migration
+    Cardano.Wallet.Primitive.Migration.Planning
+    Cardano.Wallet.Primitive.Migration.Selection
+    Cardano.Wallet.Primitive.Model
+    Cardano.Wallet.Primitive.Passphrase
+    Cardano.Wallet.Primitive.Passphrase.Current
+    Cardano.Wallet.Primitive.Passphrase.Gen
+    Cardano.Wallet.Primitive.Passphrase.Legacy
+    Cardano.Wallet.Primitive.Passphrase.Types
+    Cardano.Wallet.Primitive.Slotting
+    Cardano.Wallet.Primitive.SyncProgress
+    Cardano.Wallet.Primitive.Types
+    Cardano.Wallet.Primitive.Types.Address
+    Cardano.Wallet.Primitive.Types.Address.Constants
+    Cardano.Wallet.Primitive.Types.Address.Gen
+    Cardano.Wallet.Primitive.Types.Coin
+    Cardano.Wallet.Primitive.Types.Coin.Gen
+    Cardano.Wallet.Primitive.Types.Hash
+    Cardano.Wallet.Primitive.Types.MinimumUTxO
+    Cardano.Wallet.Primitive.Types.MinimumUTxO.Gen
+    Cardano.Wallet.Primitive.Types.ProtocolMagic
+    Cardano.Wallet.Primitive.Types.Redeemer
+    Cardano.Wallet.Primitive.Types.RewardAccount
+    Cardano.Wallet.Primitive.Types.RewardAccount.Gen
+    Cardano.Wallet.Primitive.Types.TokenBundle
+    Cardano.Wallet.Primitive.Types.TokenBundle.Gen
+    Cardano.Wallet.Primitive.Types.TokenMap
+    Cardano.Wallet.Primitive.Types.TokenMap.Gen
+    Cardano.Wallet.Primitive.Types.TokenPolicy
+    Cardano.Wallet.Primitive.Types.TokenPolicy.Gen
+    Cardano.Wallet.Primitive.Types.TokenQuantity
+    Cardano.Wallet.Primitive.Types.TokenQuantity.Gen
+    Cardano.Wallet.Primitive.Types.Tx
+    Cardano.Wallet.Primitive.Types.Tx.Constraints
+    Cardano.Wallet.Primitive.Types.Tx.Gen
+    Cardano.Wallet.Primitive.Types.Tx.SealedTx
+    Cardano.Wallet.Primitive.Types.Tx.TransactionInfo
+    Cardano.Wallet.Primitive.Types.Tx.Tx
+    Cardano.Wallet.Primitive.Types.Tx.TxMeta
+    Cardano.Wallet.Primitive.Types.UTxO
+    Cardano.Wallet.Primitive.Types.UTxO.Gen
+    Cardano.Wallet.Primitive.Types.UTxOIndex
+    Cardano.Wallet.Primitive.Types.UTxOIndex.Gen
+    Cardano.Wallet.Primitive.Types.UTxOIndex.Internal
+    Cardano.Wallet.Primitive.Types.UTxOSelection
+    Cardano.Wallet.Primitive.Types.UTxOSelection.Gen
+    Cardano.Wallet.Registry
+    Cardano.Wallet.Shelley
+    Cardano.Wallet.Shelley.Api.Server
+    Cardano.Wallet.Shelley.BlockchainSource
+    Cardano.Wallet.Shelley.Compatibility
+    Cardano.Wallet.Shelley.Compatibility.Ledger
+    Cardano.Wallet.Shelley.Launch
+    Cardano.Wallet.Shelley.Launch.Blockfrost
+    Cardano.Wallet.Shelley.Launch.Cluster
+    Cardano.Wallet.Shelley.Logging
+    Cardano.Wallet.Shelley.MinimumUTxO
+    Cardano.Wallet.Shelley.MinimumUTxO.Internal
+    Cardano.Wallet.Shelley.Network
+    Cardano.Wallet.Shelley.Network.Blockfrost
+    Cardano.Wallet.Shelley.Network.Blockfrost.Conversion
+    Cardano.Wallet.Shelley.Network.Blockfrost.Error
+    Cardano.Wallet.Shelley.Network.Blockfrost.Fixture
+    Cardano.Wallet.Shelley.Network.Blockfrost.Layer
+    Cardano.Wallet.Shelley.Network.Blockfrost.Monad
+    Cardano.Wallet.Shelley.Network.Discriminant
+    Cardano.Wallet.Shelley.Network.Node
+    Cardano.Wallet.Shelley.Pools
+    Cardano.Wallet.Shelley.Tracers
+    Cardano.Wallet.Shelley.Transaction
+    Cardano.Wallet.TokenMetadata
+    Cardano.Wallet.TokenMetadata.MockServer
+    Cardano.Wallet.Transaction
+    Cardano.Wallet.Types.Read
+    Cardano.Wallet.Types.Read.Primitive.Tx
+    Cardano.Wallet.Types.Read.Primitive.Tx.Allegra
+    Cardano.Wallet.Types.Read.Primitive.Tx.Alonzo
+    Cardano.Wallet.Types.Read.Primitive.Tx.Babbage
+    Cardano.Wallet.Types.Read.Primitive.Tx.Byron
+    Cardano.Wallet.Types.Read.Primitive.Tx.Mary
+    Cardano.Wallet.Types.Read.Primitive.Tx.Shelley
+    Cardano.Wallet.Types.Read.Tx
+    Cardano.Wallet.Types.Read.Tx.CBOR
+    Cardano.Wallet.Types.Read.Tx.Hash
+    Cardano.Wallet.Unsafe
+    Cardano.Wallet.Util
+    Cardano.Wallet.Version
+    Cardano.Wallet.Version.TH
+    Control.Concurrent.Concierge
+    Control.Monad.Exception.Unchecked
+    Control.Monad.Random.Extra
+    Control.Monad.Util
+    Crypto.Hash.Utils
+    Data.Aeson.Extra
+    Data.Function.Utils
+    Data.Quantity
+    Data.Time.Text
+    Data.Time.Utils
+    Data.Vector.Shuffle
+    Network.Ntp
+    Network.Wai.Middleware.Logging
+    Network.Wai.Middleware.ServerError
+    Ouroboros.Network.Client.Wallet
+    UnliftIO.Compat
+
+  other-modules:   Paths_cardano_wallet
 
 library cardano-wallet-integration
-  default-language:
-      Haskell2010
-  default-extensions:
-      NoImplicitPrelude
-      OverloadedStrings
-  ghc-options:
-      -Wall
-      -Wcompat
-  if (flag(release))
-    ghc-options:
-      -Werror
+  import:          language, opts-lib
+  hs-source-dirs:  integration/src
   build-depends:
-      HUnit
     , aeson
     , aeson-qq
     , base
@@ -416,7 +417,6 @@ library cardano-wallet-integration
     , bech32
     , bech32-th
     , bytestring
-    , cardano-api
     , cardano-addresses
     , cardano-api
     , cardano-crypto
@@ -445,6 +445,7 @@ library cardano-wallet-integration
     , http-api-data
     , http-client
     , http-types
+    , HUnit
     , iohk-monitoring
     , lens-aeson
     , memory
@@ -464,62 +465,54 @@ library cardano-wallet-integration
     , unliftio
     , unliftio-core
     , unordered-containers
-  hs-source-dirs:
-      integration/src
+
   exposed-modules:
-      Test.Integration.Faucet
-      Test.Integration.Framework.Context
-      Test.Integration.Framework.DSL
-      Test.Integration.Framework.Request
-      Test.Integration.Framework.TestData
-      Test.Integration.Plutus
-      Test.Integration.Scenario.API.Blocks
-      Test.Integration.Scenario.API.Byron.Wallets
-      Test.Integration.Scenario.API.Byron.HWWallets
-      Test.Integration.Scenario.API.Byron.Addresses
-      Test.Integration.Scenario.API.Byron.CoinSelections
-      Test.Integration.Scenario.API.Byron.Transactions
-      Test.Integration.Scenario.API.Byron.Migrations
-      Test.Integration.Scenario.API.Byron.Network
-      Test.Integration.Scenario.API.Shelley.Addresses
-      Test.Integration.Scenario.API.Shelley.CoinSelections
-      Test.Integration.Scenario.API.Shelley.HWWallets
-      Test.Integration.Scenario.API.Shelley.Network
-      Test.Integration.Scenario.API.Shelley.Settings
-      Test.Integration.Scenario.API.Shelley.StakePools
-      Test.Integration.Scenario.API.Shelley.Transactions
-      Test.Integration.Scenario.API.Shelley.TransactionsNew
-      Test.Integration.Scenario.API.Shelley.Migrations
-      Test.Integration.Scenario.API.Shelley.Wallets
-      Test.Integration.Scenario.API.Shared.Wallets
-      Test.Integration.Scenario.API.Shared.Addresses
-      Test.Integration.Scenario.API.Shared.Transactions
-      Test.Integration.Scenario.API.Network
-      Test.Integration.Scenario.CLI.Byron.Wallets
-      Test.Integration.Scenario.CLI.Byron.Addresses
-      Test.Integration.Scenario.CLI.Shelley.Addresses
-      Test.Integration.Scenario.CLI.Shelley.HWWallets
-      Test.Integration.Scenario.CLI.Shelley.Transactions
-      Test.Integration.Scenario.CLI.Shelley.Wallets
-      Test.Integration.Scenario.CLI.Miscellaneous
-      Test.Integration.Scenario.CLI.Network
-      Test.Integration.Scenario.CLI.Port
-      Cardano.Wallet.LatencyBenchShared
-      Cardano.Wallet.BenchShared
+    Cardano.Wallet.BenchShared
+    Cardano.Wallet.LatencyBenchShared
+    Test.Integration.Faucet
+    Test.Integration.Framework.Context
+    Test.Integration.Framework.DSL
+    Test.Integration.Framework.Request
+    Test.Integration.Framework.TestData
+    Test.Integration.Plutus
+    Test.Integration.Scenario.API.Blocks
+    Test.Integration.Scenario.API.Byron.Addresses
+    Test.Integration.Scenario.API.Byron.CoinSelections
+    Test.Integration.Scenario.API.Byron.HWWallets
+    Test.Integration.Scenario.API.Byron.Migrations
+    Test.Integration.Scenario.API.Byron.Network
+    Test.Integration.Scenario.API.Byron.Transactions
+    Test.Integration.Scenario.API.Byron.Wallets
+    Test.Integration.Scenario.API.Network
+    Test.Integration.Scenario.API.Shared.Addresses
+    Test.Integration.Scenario.API.Shared.Transactions
+    Test.Integration.Scenario.API.Shared.Wallets
+    Test.Integration.Scenario.API.Shelley.Addresses
+    Test.Integration.Scenario.API.Shelley.CoinSelections
+    Test.Integration.Scenario.API.Shelley.HWWallets
+    Test.Integration.Scenario.API.Shelley.Migrations
+    Test.Integration.Scenario.API.Shelley.Network
+    Test.Integration.Scenario.API.Shelley.Settings
+    Test.Integration.Scenario.API.Shelley.StakePools
+    Test.Integration.Scenario.API.Shelley.Transactions
+    Test.Integration.Scenario.API.Shelley.TransactionsNew
+    Test.Integration.Scenario.API.Shelley.Wallets
+    Test.Integration.Scenario.CLI.Byron.Addresses
+    Test.Integration.Scenario.CLI.Byron.Wallets
+    Test.Integration.Scenario.CLI.Miscellaneous
+    Test.Integration.Scenario.CLI.Network
+    Test.Integration.Scenario.CLI.Port
+    Test.Integration.Scenario.CLI.Shelley.Addresses
+    Test.Integration.Scenario.CLI.Shelley.HWWallets
+    Test.Integration.Scenario.CLI.Shelley.Transactions
+    Test.Integration.Scenario.CLI.Shelley.Wallets
 
 executable cardano-wallet
-  default-language:
-      Haskell2010
-  default-extensions:
-      NoImplicitPrelude
-      OverloadedStrings
-  ghc-options:
-      -threaded -rtsopts
-      -Wall
-  if (flag(release))
-    ghc-options: -O2 -Werror
+  import:         language, opts-exe
+  hs-source-dirs: exe
+  main-is:        cardano-wallet.hs
   build-depends:
-      base
+    , base
     , cardano-wallet
     , cardano-wallet-launcher
     , contra-tracer
@@ -531,76 +524,44 @@ executable cardano-wallet
     , text-class
     , transformers
     , unliftio
-  hs-source-dirs:
-      exe
-  main-is:
-    cardano-wallet.hs
 
 executable local-cluster
-  default-language:
-      Haskell2010
-  default-extensions:
-      NoImplicitPrelude
-      OverloadedStrings
-  ghc-options:
-      -threaded -rtsopts
-      -Wall
-  if (flag(release))
-    ghc-options: -O2 -Werror
+  import:         language, opts-exe
+  hs-source-dirs: exe
+  main-is:        local-cluster.hs
   build-depends:
-      base
+    , base
     , cardano-wallet
     , cardano-wallet-integration
     , cardano-wallet-launcher
     , contra-tracer
-    , iohk-monitoring
     , directory
     , filepath
+    , iohk-monitoring
     , lobemo-backend-ekg
     , text
     , text-class
-  hs-source-dirs:
-      exe
-  main-is:
-      local-cluster.hs
 
 executable mock-token-metadata-server
-  default-language:
-      Haskell2010
-  default-extensions:
-      NoImplicitPrelude
-      OverloadedStrings
-  ghc-options:
-      -threaded -rtsopts
-      -Wall
-  if (flag(release))
-    ghc-options: -O2 -Werror
+  import:         language, opts-exe
   build-depends:
-      base
     , ansi-wl-pprint
+    , base
     , cardano-wallet
     , optparse-applicative
     , wai-extra
-  hs-source-dirs:
-      exe
-  main-is:
-     mock-token-metadata-server.hs
+
+  hs-source-dirs: exe
+  main-is:        mock-token-metadata-server.hs
 
 test-suite unit
-  default-language:
-      Haskell2010
-  default-extensions:
-      NoImplicitPrelude
-      OverloadedStrings
-  ghc-options:
-      -threaded -rtsopts
-      -Wall
-      "-with-rtsopts=-M2G"
-      "-with-rtsopts=-N4"
-  if (flag(release))
-    ghc-options: -O2 -Werror
+  import:             language, opts-exe
+  ghc-options:        -with-rtsopts=-M2G -with-rtsopts=-N4
+  type:               exitcode-stdio-1.0
+  hs-source-dirs:     test-common test/unit test/data
+  main-is:            core-unit-test.hs
   build-depends:
-      aeson
+    , aeson
     , aeson-qq
     , base
     , base58-bytestring
@@ -640,7 +601,7 @@ test-suite unit
     , dbvar
     , deepseq
     , directory
-    , extra >= 1.6.17
+    , extra                        >=1.6.17
     , file-embed
     , filepath
     , fmt
@@ -650,10 +611,8 @@ test-suite unit
     , generics-sop
     , hedgehog
     , hedgehog-quickcheck
-    , hspec
-    , hspec >= 2.8.2
-    , hspec-core
-    , hspec-core >= 2.8.2
+    , hspec                        >=2.8.2
+    , hspec-core                   >=2.8.2
     , hspec-golden
     , hspec-hedgehog
     , http-api-data
@@ -675,13 +634,13 @@ test-suite unit
     , network-uri
     , nothunks
     , OddWord
-    , openapi3 == 3.2.2
+    , openapi3                     ==3.2.2
     , optparse-applicative
     , ouroboros-consensus
     , ouroboros-consensus-shelley
     , ouroboros-network
-    , persistent >=2.13 && <2.14
-    , persistent-sqlite >=2.13 && <2.14
+    , persistent                   ^>=2.13
+    , persistent-sqlite            ^>=2.13
     , plutus-core
     , plutus-ledger-api
     , pretty-simple
@@ -689,7 +648,7 @@ test-suite unit
     , quickcheck-classes
     , quickcheck-instances
     , quickcheck-quid
-    , quickcheck-state-machine >= 0.6.0
+    , quickcheck-state-machine     >=0.6.0
     , quiet
     , random
     , regex-pcre-builtin
@@ -719,132 +678,119 @@ test-suite unit
     , x509
     , x509-store
     , yaml
-  if (flag(scrypt))
-    cpp-options: -DHAVE_SCRYPT
+
+  if flag(scrypt)
+    cpp-options:   -DHAVE_SCRYPT
     build-depends: scrypt
-  build-tool-depends:
-      hspec-discover:hspec-discover
-  type:
-      exitcode-stdio-1.0
-  hs-source-dirs:
-      test-common
-      test/unit
-      test/data
-  main-is:
-      core-unit-test.hs
+
+  build-tool-depends: hspec-discover:hspec-discover -any
   other-modules:
-      Cardano.Api.GenSpec
-      Cardano.Byron.Codec.CborSpec
-      Cardano.CLISpec
-      Cardano.DB.Sqlite.DeleteSpec
-      Cardano.Pool.DB.Arbitrary
-      Cardano.Pool.DB.MVarSpec
-      Cardano.Pool.DB.Properties
-      Cardano.Pool.DB.SqliteSpec
-      Cardano.Pool.RankSpec
-      Cardano.Wallet.Address.PoolSpec
-      Cardano.Wallet.Api.Malformed
-      Cardano.Wallet.Api.Server.TlsSpec
-      Cardano.Wallet.Api.ServerSpec
-      Cardano.Wallet.Api.TypesSpec
-      Cardano.Wallet.ApiSpec
-      Cardano.Wallet.Checkpoints.PolicySpec
-      Cardano.Wallet.CheckpointsSpec
-      Cardano.Wallet.CoinSelection.Internal.BalanceSpec
-      Cardano.Wallet.CoinSelection.Internal.CollateralSpec
-      Cardano.Wallet.CoinSelection.InternalSpec
-      Cardano.Wallet.CoinSelectionSpec
-      Cardano.Wallet.DB.Arbitrary
-      Cardano.Wallet.DB.Fixtures
-      Cardano.Wallet.DB.LayerSpec
-      Cardano.Wallet.DB.Properties
-      Cardano.Wallet.DB.Pure.ImplementationSpec
-      Cardano.Wallet.DB.Sqlite.StoresSpec
-      Cardano.Wallet.DB.Sqlite.TypesSpec
-      Cardano.Wallet.DB.StateMachine
-      Cardano.Wallet.DB.Store.CBOR.ModelSpec
-      Cardano.Wallet.DB.Store.CBOR.StoreSpec
-      Cardano.Wallet.DB.Store.Meta.ModelSpec
-      Cardano.Wallet.DB.Store.Meta.StoreSpec
-      Cardano.Wallet.DB.Store.Submissions.ModelSpec
-      Cardano.Wallet.DB.Store.Submissions.StoreSpec
-      Cardano.Wallet.DB.Store.Transactions.StoreSpec
-      Cardano.Wallet.DB.Store.Wallets.StoreSpec
-      Cardano.Wallet.DummyTarget.Primitive.Types
-      Cardano.Wallet.Network.LightSpec
-      Cardano.Wallet.Network.PortsSpec
-      Cardano.Wallet.NetworkSpec
-      Cardano.Wallet.Primitive.AddressDerivation.ByronSpec
-      Cardano.Wallet.Primitive.AddressDerivation.IcarusSpec
-      Cardano.Wallet.Primitive.AddressDerivation.MintBurnSpec
-      Cardano.Wallet.Primitive.AddressDerivationSpec
-      Cardano.Wallet.Primitive.AddressDiscovery.RandomSpec
-      Cardano.Wallet.Primitive.AddressDiscovery.SequentialSpec
-      Cardano.Wallet.Primitive.AddressDiscovery.SharedSpec
-      Cardano.Wallet.Primitive.AddressDiscoverySpec
-      Cardano.Wallet.Primitive.BlockSummarySpec
-      Cardano.Wallet.Primitive.CollateralSpec
-      Cardano.Wallet.Primitive.Delegation.StateSpec
-      Cardano.Wallet.Primitive.Migration.PlanningSpec
-      Cardano.Wallet.Primitive.Migration.SelectionSpec
-      Cardano.Wallet.Primitive.MigrationSpec
-      Cardano.Wallet.Primitive.ModelSpec
-      Cardano.Wallet.Primitive.Passphrase.LegacySpec
-      Cardano.Wallet.Primitive.PassphraseSpec
-      Cardano.Wallet.Primitive.Slotting.Legacy
-      Cardano.Wallet.Primitive.SlottingSpec
-      Cardano.Wallet.Primitive.SyncProgressSpec
-      Cardano.Wallet.Primitive.Types.AddressSpec
-      Cardano.Wallet.Primitive.Types.CoinSpec
-      Cardano.Wallet.Primitive.Types.HashSpec
-      Cardano.Wallet.Primitive.Types.TokenBundleSpec
-      Cardano.Wallet.Primitive.Types.TokenMapSpec
-      Cardano.Wallet.Primitive.Types.TokenMapSpec.TypeErrorSpec
-      Cardano.Wallet.Primitive.Types.TokenPolicySpec
-      Cardano.Wallet.Primitive.Types.TokenQuantitySpec
-      Cardano.Wallet.Primitive.Types.TxSpec
-      Cardano.Wallet.Primitive.Types.UTxOIndex.TypeErrorSpec
-      Cardano.Wallet.Primitive.Types.UTxOIndexSpec
-      Cardano.Wallet.Primitive.Types.UTxOSelectionSpec
-      Cardano.Wallet.Primitive.Types.UTxOSelectionSpec.TypeErrorSpec
-      Cardano.Wallet.Primitive.Types.UTxOSpec
-      Cardano.Wallet.Primitive.TypesSpec
-      Cardano.Wallet.RegistrySpec
-      Cardano.Wallet.Shelley.Compatibility.LedgerSpec
-      Cardano.Wallet.Shelley.CompatibilitySpec
-      Cardano.Wallet.Shelley.Launch.BlockfrostSpec
-      Cardano.Wallet.Shelley.LaunchSpec
-      Cardano.Wallet.Shelley.MinimumUTxOSpec
-      Cardano.Wallet.Shelley.Network.BlockfrostSpec
-      Cardano.Wallet.Shelley.NetworkSpec
-      Cardano.Wallet.Shelley.TransactionSpec
-      Cardano.Wallet.TokenMetadataSpec
-      Cardano.Wallet.Types.Read.Tx.CBORSpec
-      Cardano.WalletSpec
-      Control.Concurrent.ConciergeSpec
-      Control.Monad.Random.ExtraSpec
-      Control.Monad.UtilSpec
-      Data.Function.UtilsSpec
-      Data.QuantitySpec
-      Data.Time.TextSpec
-      Data.Time.UtilsSpec
-      Data.Vector.ShuffleSpec
-      Network.Wai.Middleware.LoggingSpec
-      Spec
+    Cardano.Api.GenSpec
+    Cardano.Byron.Codec.CborSpec
+    Cardano.CLISpec
+    Cardano.DB.Sqlite.DeleteSpec
+    Cardano.Pool.DB.Arbitrary
+    Cardano.Pool.DB.MVarSpec
+    Cardano.Pool.DB.Properties
+    Cardano.Pool.DB.SqliteSpec
+    Cardano.Pool.RankSpec
+    Cardano.Wallet.Address.PoolSpec
+    Cardano.Wallet.Api.Malformed
+    Cardano.Wallet.Api.Server.TlsSpec
+    Cardano.Wallet.Api.ServerSpec
+    Cardano.Wallet.Api.TypesSpec
+    Cardano.Wallet.ApiSpec
+    Cardano.Wallet.Checkpoints.PolicySpec
+    Cardano.Wallet.CheckpointsSpec
+    Cardano.Wallet.CoinSelection.Internal.BalanceSpec
+    Cardano.Wallet.CoinSelection.Internal.CollateralSpec
+    Cardano.Wallet.CoinSelection.InternalSpec
+    Cardano.Wallet.CoinSelectionSpec
+    Cardano.Wallet.DB.Arbitrary
+    Cardano.Wallet.DB.Fixtures
+    Cardano.Wallet.DB.LayerSpec
+    Cardano.Wallet.DB.Properties
+    Cardano.Wallet.DB.Pure.ImplementationSpec
+    Cardano.Wallet.DB.Sqlite.StoresSpec
+    Cardano.Wallet.DB.Sqlite.TypesSpec
+    Cardano.Wallet.DB.StateMachine
+    Cardano.Wallet.DB.Store.CBOR.ModelSpec
+    Cardano.Wallet.DB.Store.CBOR.StoreSpec
+    Cardano.Wallet.DB.Store.Meta.ModelSpec
+    Cardano.Wallet.DB.Store.Meta.StoreSpec
+    Cardano.Wallet.DB.Store.Submissions.ModelSpec
+    Cardano.Wallet.DB.Store.Submissions.StoreSpec
+    Cardano.Wallet.DB.Store.Transactions.StoreSpec
+    Cardano.Wallet.DB.Store.Wallets.StoreSpec
+    Cardano.Wallet.DummyTarget.Primitive.Types
+    Cardano.Wallet.Network.LightSpec
+    Cardano.Wallet.Network.PortsSpec
+    Cardano.Wallet.NetworkSpec
+    Cardano.Wallet.Primitive.AddressDerivation.ByronSpec
+    Cardano.Wallet.Primitive.AddressDerivation.IcarusSpec
+    Cardano.Wallet.Primitive.AddressDerivation.MintBurnSpec
+    Cardano.Wallet.Primitive.AddressDerivationSpec
+    Cardano.Wallet.Primitive.AddressDiscovery.RandomSpec
+    Cardano.Wallet.Primitive.AddressDiscovery.SequentialSpec
+    Cardano.Wallet.Primitive.AddressDiscovery.SharedSpec
+    Cardano.Wallet.Primitive.AddressDiscoverySpec
+    Cardano.Wallet.Primitive.BlockSummarySpec
+    Cardano.Wallet.Primitive.CollateralSpec
+    Cardano.Wallet.Primitive.Delegation.StateSpec
+    Cardano.Wallet.Primitive.Migration.PlanningSpec
+    Cardano.Wallet.Primitive.Migration.SelectionSpec
+    Cardano.Wallet.Primitive.MigrationSpec
+    Cardano.Wallet.Primitive.ModelSpec
+    Cardano.Wallet.Primitive.Passphrase.LegacySpec
+    Cardano.Wallet.Primitive.PassphraseSpec
+    Cardano.Wallet.Primitive.Slotting.Legacy
+    Cardano.Wallet.Primitive.SlottingSpec
+    Cardano.Wallet.Primitive.SyncProgressSpec
+    Cardano.Wallet.Primitive.Types.AddressSpec
+    Cardano.Wallet.Primitive.Types.CoinSpec
+    Cardano.Wallet.Primitive.Types.HashSpec
+    Cardano.Wallet.Primitive.Types.TokenBundleSpec
+    Cardano.Wallet.Primitive.Types.TokenMapSpec
+    Cardano.Wallet.Primitive.Types.TokenMapSpec.TypeErrorSpec
+    Cardano.Wallet.Primitive.Types.TokenPolicySpec
+    Cardano.Wallet.Primitive.Types.TokenQuantitySpec
+    Cardano.Wallet.Primitive.Types.TxSpec
+    Cardano.Wallet.Primitive.Types.UTxOIndex.TypeErrorSpec
+    Cardano.Wallet.Primitive.Types.UTxOIndexSpec
+    Cardano.Wallet.Primitive.Types.UTxOSelectionSpec
+    Cardano.Wallet.Primitive.Types.UTxOSelectionSpec.TypeErrorSpec
+    Cardano.Wallet.Primitive.Types.UTxOSpec
+    Cardano.Wallet.Primitive.TypesSpec
+    Cardano.Wallet.RegistrySpec
+    Cardano.Wallet.Shelley.Compatibility.LedgerSpec
+    Cardano.Wallet.Shelley.CompatibilitySpec
+    Cardano.Wallet.Shelley.Launch.BlockfrostSpec
+    Cardano.Wallet.Shelley.LaunchSpec
+    Cardano.Wallet.Shelley.MinimumUTxOSpec
+    Cardano.Wallet.Shelley.Network.BlockfrostSpec
+    Cardano.Wallet.Shelley.NetworkSpec
+    Cardano.Wallet.Shelley.TransactionSpec
+    Cardano.Wallet.TokenMetadataSpec
+    Cardano.Wallet.Types.Read.Tx.CBORSpec
+    Cardano.WalletSpec
+    Control.Concurrent.ConciergeSpec
+    Control.Monad.Random.ExtraSpec
+    Control.Monad.UtilSpec
+    Data.Function.UtilsSpec
+    Data.QuantitySpec
+    Data.Time.TextSpec
+    Data.Time.UtilsSpec
+    Data.Vector.ShuffleSpec
+    Network.Wai.Middleware.LoggingSpec
+    Spec
 
 test-suite integration
-  default-language:
-      Haskell2010
-  default-extensions:
-      NoImplicitPrelude
-      OverloadedStrings
-  ghc-options:
-      -threaded -rtsopts
-      -Wall
-  if (flag(release))
-    ghc-options: -O2 -Werror
+  import:             language, opts-exe
+  type:               exitcode-stdio-1.0
+  hs-source-dirs:     test/integration test/data
+  main-is:            shelley-integration-test.hs
   build-depends:
-      base
+    , base
     , cardano-wallet
     , cardano-wallet-integration
     , cardano-wallet-launcher
@@ -862,32 +808,18 @@ test-suite integration
     , text
     , text-class
     , unliftio
-  build-tools:
-      cardano-wallet
-  type:
-     exitcode-stdio-1.0
-  hs-source-dirs:
-      test/integration
-      test/data
-  main-is:
-      shelley-integration-test.hs
-  other-modules:
-      Cardano.Wallet.Shelley.Faucet
+
+  build-tool-depends: cardano-wallet:cardano-wallet -any
+  other-modules:      Cardano.Wallet.Shelley.Faucet
 
 benchmark restore
-  default-language:
-      Haskell2010
-  default-extensions:
-      NoImplicitPrelude
-      OverloadedStrings
-  ghc-options:
-      -threaded -rtsopts
-      -Wall
-  if (flag(release))
-    ghc-options: -O2 -Werror
+  import:         language, opts-exe
+  type:           exitcode-stdio-1.0
+  hs-source-dirs: bench
+  main-is:        restore-bench.hs
   build-depends:
-      base
     , aeson
+    , base
     , bytestring
     , cardano-addresses
     , cardano-wallet
@@ -904,62 +836,37 @@ benchmark restore
     , time
     , transformers
     , unliftio
-  type:
-     exitcode-stdio-1.0
-  hs-source-dirs:
-      bench
-  main-is:
-      restore-bench.hs
 
 benchmark latency
-  default-language:
-      Haskell2010
-  default-extensions:
-      NoImplicitPrelude
-      OverloadedStrings
-  ghc-options:
-      -threaded -rtsopts
-      -Wall
-  if (flag(release))
-    ghc-options: -O2 -Werror
+  import:         language, opts-exe
+  type:           exitcode-stdio-1.0
+  hs-source-dirs: bench test/integration
+  main-is:        latency-bench.hs
   build-depends:
-      base
     , aeson
+    , base
     , cardano-wallet
     , cardano-wallet-integration
     , cardano-wallet-launcher
     , directory
     , filepath
     , generic-lens
+    , hspec
     , http-client
     , http-types
-    , hspec
     , iohk-monitoring
     , text
     , unliftio
-  type:
-     exitcode-stdio-1.0
-  hs-source-dirs:
-      bench
-      test/integration
-  main-is:
-      latency-bench.hs
-  other-modules:
-      Cardano.Wallet.Shelley.Faucet
+
+  other-modules:  Cardano.Wallet.Shelley.Faucet
 
 benchmark db
-  default-language:
-      Haskell2010
-  default-extensions:
-      NoImplicitPrelude
-      OverloadedStrings
-  ghc-options:
-      -threaded -rtsopts
-      -Wall
-  if (flag(release))
-    ghc-options: -O2 -Werror
+  import:         language, opts-exe
+  type:           exitcode-stdio-1.0
+  hs-source-dirs: bench test-common
+  main-is:        db-bench.hs
   build-depends:
-      base
+    , base
     , bytestring
     , cardano-addresses
     , cardano-crypto
@@ -982,12 +889,5 @@ benchmark db
     , time
     , transformers
     , unliftio
-  type:
-     exitcode-stdio-1.0
-  hs-source-dirs:
-      bench
-      test-common
-  main-is:
-      db-bench.hs
-  other-modules:
-      Cardano.Wallet.DummyTarget.Primitive.Types
+
+  other-modules:  Cardano.Wallet.DummyTarget.Primitive.Types
