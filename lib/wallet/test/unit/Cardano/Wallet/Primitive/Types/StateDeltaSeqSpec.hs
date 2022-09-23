@@ -3,6 +3,7 @@
 {-# LANGUAGE DerivingStrategies #-}
 {-# LANGUAGE FlexibleContexts #-}
 {-# LANGUAGE LambdaCase #-}
+{-# LANGUAGE PatternSynonyms #-}
 {-# LANGUAGE ScopedTypeVariables #-}
 {-# LANGUAGE StandaloneDeriving #-}
 {-# LANGUAGE TypeApplications #-}
@@ -34,7 +35,6 @@ import Test.QuickCheck
     , Function
     , Gen
     , Property
-    , applyFun
     , arbitraryBoundedEnum
     , checkCoverage
     , choose
@@ -53,6 +53,8 @@ import Test.QuickCheck.Classes
     , functorLaws
     , showLaws
     )
+import Test.QuickCheck.Extra
+    ( pattern ViewFun )
 import Test.Utils.Laws
     ( testLawsMany )
 
@@ -343,7 +345,7 @@ prop_applyDeltas_length (TestStateDeltaSeq seq) deltas =
 prop_countEmptyTransitionsWhere_coverage
     :: TestStateDeltaSeq -> Fun TestDelta Bool -> Property
 prop_countEmptyTransitionsWhere_coverage
-    (TestStateDeltaSeq seq) (applyFun -> f) =
+    (TestStateDeltaSeq seq) (ViewFun f) =
         checkCoverage $
         cover 10
             (strictlyIncreasing [0, matchCount, emptyCount, length seq])
@@ -370,7 +372,7 @@ prop_dropEmptyTransitions_toStateList (TestStateDeltaSeq seq) =
 prop_dropEmptyTransitionWhere_countEmptyTransitionsWhere
     :: TestStateDeltaSeq -> Fun TestDelta Bool -> Property
 prop_dropEmptyTransitionWhere_countEmptyTransitionsWhere
-    (TestStateDeltaSeq seq) (applyFun -> f) =
+    (TestStateDeltaSeq seq) (ViewFun f) =
         all ((== pred emptyTransitionCount) . Seq.countEmptyTransitionsWhere f)
             (Seq.dropEmptyTransitionWhere f seq)
         === True
@@ -380,14 +382,14 @@ prop_dropEmptyTransitionWhere_countEmptyTransitionsWhere
 prop_dropEmptyTransitionWhere_isValid
     :: TestStateDeltaSeq -> Fun TestDelta Bool -> Property
 prop_dropEmptyTransitionWhere_isValid
-    (TestStateDeltaSeq seq) (applyFun -> f) =
+    (TestStateDeltaSeq seq) (ViewFun f) =
         all (Seq.isValid applyTestDelta) (Seq.dropEmptyTransitionWhere f seq)
         === True
 
 prop_dropEmptyTransitionWhere_headState
     :: TestStateDeltaSeq -> Fun TestDelta Bool -> Property
 prop_dropEmptyTransitionWhere_headState
-    (TestStateDeltaSeq seq) (applyFun -> f) =
+    (TestStateDeltaSeq seq) (ViewFun f) =
         all ((== Seq.headState seq) . Seq.headState)
             (Seq.dropEmptyTransitionWhere f seq)
         === True
@@ -395,7 +397,7 @@ prop_dropEmptyTransitionWhere_headState
 prop_dropEmptyTransitionWhere_lastState
     :: TestStateDeltaSeq -> Fun TestDelta Bool -> Property
 prop_dropEmptyTransitionWhere_lastState
-    (TestStateDeltaSeq seq) (applyFun -> f) =
+    (TestStateDeltaSeq seq) (ViewFun f) =
         all ((== Seq.lastState seq) . Seq.lastState)
             (Seq.dropEmptyTransitionWhere f seq)
         === True
@@ -403,7 +405,7 @@ prop_dropEmptyTransitionWhere_lastState
 prop_dropEmptyTransitionWhere_length
     :: TestStateDeltaSeq -> Fun TestDelta Bool -> Property
 prop_dropEmptyTransitionWhere_length
-    (TestStateDeltaSeq seq) (applyFun -> f) =
+    (TestStateDeltaSeq seq) (ViewFun f) =
         length (Seq.dropEmptyTransitionWhere f seq)
         === Seq.countEmptyTransitionsWhere f seq
 
@@ -414,35 +416,35 @@ prop_dropEmptyTransitionWhere_length
 prop_dropEmptyTransitionsWhere_countEmptyTransitionsWhere
     :: TestStateDeltaSeq -> Fun TestDelta Bool -> Property
 prop_dropEmptyTransitionsWhere_countEmptyTransitionsWhere
-    (TestStateDeltaSeq seq) (applyFun -> f) =
+    (TestStateDeltaSeq seq) (ViewFun f) =
         Seq.countEmptyTransitionsWhere f (Seq.dropEmptyTransitionsWhere f seq)
         === 0
 
 prop_dropEmptyTransitionsWhere_isValid
     :: TestStateDeltaSeq -> Fun TestDelta Bool -> Property
 prop_dropEmptyTransitionsWhere_isValid
-    (TestStateDeltaSeq seq) (applyFun -> f) =
+    (TestStateDeltaSeq seq) (ViewFun f) =
         Seq.isValid applyTestDelta (Seq.dropEmptyTransitionsWhere f seq)
         === True
 
 prop_dropEmptyTransitionsWhere_headState
     :: TestStateDeltaSeq -> Fun TestDelta Bool -> Property
 prop_dropEmptyTransitionsWhere_headState
-    (TestStateDeltaSeq seq) (applyFun -> f) =
+    (TestStateDeltaSeq seq) (ViewFun f) =
         Seq.headState (Seq.dropEmptyTransitionsWhere f seq)
         === Seq.headState seq
 
 prop_dropEmptyTransitionsWhere_lastState
     :: TestStateDeltaSeq -> Fun TestDelta Bool -> Property
 prop_dropEmptyTransitionsWhere_lastState
-    (TestStateDeltaSeq seq) (applyFun -> f) =
+    (TestStateDeltaSeq seq) (ViewFun f) =
         Seq.lastState (Seq.dropEmptyTransitionsWhere f seq)
         === Seq.lastState seq
 
 prop_dropEmptyTransitionsWhere_length
     :: TestStateDeltaSeq -> Fun TestDelta Bool -> Property
 prop_dropEmptyTransitionsWhere_length
-    (TestStateDeltaSeq seq) (applyFun -> f) =
+    (TestStateDeltaSeq seq) (ViewFun f) =
         length (Seq.dropEmptyTransitionsWhere f seq)
             + Seq.countEmptyTransitionsWhere f seq
         === length seq

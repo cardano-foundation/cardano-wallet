@@ -4,8 +4,8 @@
 {-# LANGUAGE FlexibleInstances #-}
 {-# LANGUAGE GeneralizedNewtypeDeriving #-}
 {-# LANGUAGE OverloadedLabels #-}
+{-# LANGUAGE PatternSynonyms #-}
 {-# LANGUAGE StandaloneDeriving #-}
-{-# LANGUAGE ViewPatterns #-}
 {-# OPTIONS_GHC -fno-warn-orphans #-}
 {- HLINT ignore "Use camelCase" -}
 
@@ -63,13 +63,14 @@ import Test.QuickCheck
     , Function (..)
     , Property
     , Testable
-    , applyFun
     , checkCoverage
     , conjoin
     , cover
     , property
     , (===)
     )
+import Test.QuickCheck.Extra
+    ( pattern ViewFun )
 import Test.QuickCheck.Instances.ByteString
     ()
 
@@ -320,7 +321,7 @@ prop_mapAssetIds_composition
     -> Fun AssetId AssetId
     -> Fun AssetId AssetId
     -> Property
-prop_mapAssetIds_composition m (applyFun -> f) (applyFun -> g) =
+prop_mapAssetIds_composition m (ViewFun f) (ViewFun g) =
     UTxO.mapAssetIds f (UTxO.mapAssetIds g m) ===
     UTxO.mapAssetIds (f . g) m
 
@@ -333,7 +334,7 @@ prop_mapTxIds_composition
     -> Fun (Hash "Tx") (Hash "Tx")
     -> Fun (Hash "Tx") (Hash "Tx")
     -> Property
-prop_mapTxIds_composition m (applyFun -> f) (applyFun -> g) =
+prop_mapTxIds_composition m (ViewFun f) (ViewFun g) =
     UTxO.mapTxIds f (UTxO.mapTxIds g m) ===
     UTxO.mapTxIds (f . g) m
 

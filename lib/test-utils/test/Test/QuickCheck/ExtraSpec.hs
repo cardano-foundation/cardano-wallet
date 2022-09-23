@@ -3,6 +3,7 @@
 {-# LANGUAGE DuplicateRecordFields #-}
 {-# LANGUAGE NumericUnderscores #-}
 {-# LANGUAGE OverloadedLabels #-}
+{-# LANGUAGE PatternSynonyms #-}
 {-# LANGUAGE ScopedTypeVariables #-}
 {-# LANGUAGE TypeApplications #-}
 {-# LANGUAGE ViewPatterns #-}
@@ -53,7 +54,6 @@ import Test.QuickCheck
     , Property
     , Small (..)
     , Testable
-    , applyFun
     , checkCoverage
     , chooseInteger
     , conjoin
@@ -71,6 +71,7 @@ import Test.QuickCheck
     )
 import Test.QuickCheck.Extra
     ( Pretty (..)
+    , pattern ViewFun
     , genShrinkSequence
     , genericRoundRobinShrink
     , interleaveRoundRobin
@@ -744,7 +745,7 @@ prop_shrinkSpace_singleton a =
 --------------------------------------------------------------------------------
 
 prop_shrinkWhile_coverage :: Arbitrary a => Fun a Bool -> a -> Property
-prop_shrinkWhile_coverage (applyFun -> condition) a
+prop_shrinkWhile_coverage (ViewFun condition) a
     = checkCoverage
     $ cover 10
         (isJust shrinkWhileResult)
@@ -757,17 +758,17 @@ prop_shrinkWhile_coverage (applyFun -> condition) a
     shrinkWhileResult = shrinkWhile condition shrink a
 
 prop_shrinkWhile_isNothing :: Arbitrary a => Fun a Bool -> a -> Property
-prop_shrinkWhile_isNothing (applyFun -> condition) a =
+prop_shrinkWhile_isNothing (ViewFun condition) a =
     isNothing (shrinkWhile condition shrink a)
     === (not (condition a) || null (L.find condition (shrink a)))
 
 prop_shrinkWhile_satisfy :: Arbitrary a => Fun a Bool -> a -> Property
-prop_shrinkWhile_satisfy (applyFun -> condition) a =
+prop_shrinkWhile_satisfy (ViewFun condition) a =
     all condition (shrinkWhile condition shrink a)
     === True
 
 prop_shrinkWhileSteps_coverage :: Arbitrary a => Fun a Bool -> a -> Property
-prop_shrinkWhileSteps_coverage (applyFun -> condition) a
+prop_shrinkWhileSteps_coverage (ViewFun condition) a
     = checkCoverage
     $ cover 10
         (null shrinkWhileStepsResult)
@@ -783,7 +784,7 @@ prop_shrinkWhileSteps_coverage (applyFun -> condition) a
     shrinkWhileStepsResult = shrinkWhileSteps condition shrink a
 
 prop_shrinkWhileSteps_satisfy :: Arbitrary a => Fun a Bool -> a -> Property
-prop_shrinkWhileSteps_satisfy (applyFun -> condition) a =
+prop_shrinkWhileSteps_satisfy (ViewFun condition) a =
     all condition (shrinkWhileSteps condition shrink a)
     === True
 

@@ -4,11 +4,11 @@
 {-# LANGUAGE FlexibleInstances #-}
 {-# LANGUAGE GeneralizedNewtypeDeriving #-}
 {-# LANGUAGE NoMonomorphismRestriction #-}
+{-# LANGUAGE PatternSynonyms #-}
 {-# LANGUAGE QuasiQuotes #-}
 {-# LANGUAGE StandaloneDeriving #-}
 {-# LANGUAGE TemplateHaskell #-}
 {-# LANGUAGE TypeApplications #-}
-{-# LANGUAGE ViewPatterns #-}
 {-# OPTIONS_GHC -fno-warn-orphans #-}
 {- HLINT ignore "Use camelCase" -}
 {- HLINT ignore "Functor law" -}
@@ -122,6 +122,8 @@ import Test.QuickCheck
     )
 import Test.QuickCheck.Classes
     ( eqLaws, monoidLaws, ordLaws, semigroupLaws, semigroupMonoidLaws )
+import Test.QuickCheck.Extra
+    ( pattern ViewFun )
 import Test.QuickCheck.Instances.ByteString
     ()
 import Test.Utils.Laws
@@ -739,7 +741,7 @@ prop_mapAssetIds_identity m =
 
 prop_mapAssetIds_composition
     :: TokenMap -> Fun AssetId AssetId -> Fun AssetId AssetId -> Property
-prop_mapAssetIds_composition m (applyFun -> f) (applyFun -> g) =
+prop_mapAssetIds_composition m (ViewFun f) (ViewFun g) =
     TokenMap.mapAssetIds f (TokenMap.mapAssetIds g m) ===
     TokenMap.mapAssetIds (f . g) m
 

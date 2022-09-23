@@ -3,8 +3,8 @@
 {-# LANGUAGE DerivingStrategies #-}
 {-# LANGUAGE FlexibleInstances #-}
 {-# LANGUAGE GeneralizedNewtypeDeriving #-}
+{-# LANGUAGE PatternSynonyms #-}
 {-# LANGUAGE StandaloneDeriving #-}
-{-# LANGUAGE ViewPatterns #-}
 {-# OPTIONS_GHC -fno-warn-orphans #-}
 
 -- |
@@ -61,10 +61,11 @@ import Test.QuickCheck
     , Fun (..)
     , Function (..)
     , Property
-    , applyFun
     , property
     , (===)
     )
+import Test.QuickCheck.Extra
+    ( pattern ViewFun )
 import Test.QuickCheck.Instances.ByteString
     ()
 
@@ -135,7 +136,7 @@ prop_txMapAssetIds_identity m =
 
 prop_txMapAssetIds_composition
     :: Tx -> Fun AssetId AssetId -> Fun AssetId AssetId -> Property
-prop_txMapAssetIds_composition m (applyFun -> f) (applyFun -> g) =
+prop_txMapAssetIds_composition m (ViewFun f) (ViewFun g) =
     txMapAssetIds f (txMapAssetIds g m) ===
     txMapAssetIds (f . g) m
 
@@ -148,7 +149,7 @@ prop_txMapTxIds_composition
     -> Fun (Hash "Tx") (Hash "Tx")
     -> Fun (Hash "Tx") (Hash "Tx")
     -> Property
-prop_txMapTxIds_composition m (applyFun -> f) (applyFun -> g) =
+prop_txMapTxIds_composition m (ViewFun f) (ViewFun g) =
     txMapTxIds f (txMapTxIds g m) ===
     txMapTxIds (f . g) m
 
@@ -171,7 +172,7 @@ prop_txOutMapAssetIds_identity m =
 
 prop_txOutMapAssetIds_composition
     :: TxOut -> Fun AssetId AssetId -> Fun AssetId AssetId -> Property
-prop_txOutMapAssetIds_composition m (applyFun -> f) (applyFun -> g) =
+prop_txOutMapAssetIds_composition m (ViewFun f) (ViewFun g) =
     txOutMapAssetIds f (txOutMapAssetIds g m) ===
     txOutMapAssetIds (f . g) m
 

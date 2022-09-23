@@ -1,3 +1,4 @@
+{-# LANGUAGE PatternSynonyms #-}
 {-# LANGUAGE ScopedTypeVariables #-}
 {-# LANGUAGE TypeApplications #-}
 {-# LANGUAGE ViewPatterns #-}
@@ -29,12 +30,13 @@ import Test.QuickCheck
     ( Fun (..)
     , NonNegative (..)
     , Property
-    , applyFun
     , conjoin
     , property
     , withMaxSuccess
     , (===)
     )
+import Test.QuickCheck.Extra
+    ( pattern ViewFun )
 
 spec :: Spec
 spec = describe "Control.Monad.UtilSpec" $ do
@@ -70,7 +72,7 @@ spec = describe "Control.Monad.UtilSpec" $ do
 
 prop_applyNM_applyN
     :: (Eq a, Show a) => Int -> Fun a a -> a -> Property
-prop_applyNM_applyN n (applyFun -> f) a =
+prop_applyNM_applyN n (ViewFun f) a =
     applyNM n (Identity <$> f) a === Identity (applyN n f a)
 
 prop_applyNM_iterate
@@ -79,14 +81,14 @@ prop_applyNM_iterate
     -> Fun a (m a)
     -> a
     -> Property
-prop_applyNM_iterate (getNonNegative -> n) (applyFun -> f) a =
+prop_applyNM_iterate (getNonNegative -> n) (ViewFun f) a =
     applyNM n f a === applyNM_iterate n f a
   where
     applyNM_iterate n' f' = (!! n') . iterate (f' =<<) . pure
 
 prop_applyNM_unit
     :: (Monad m, Eq (m a), Show (m a)) => Fun a (m a) -> a -> Property
-prop_applyNM_unit (applyFun -> f) a = conjoin
+prop_applyNM_unit (ViewFun f) a = conjoin
     [ applyNM 0 f a === pure a
     , applyNM 1 f a === f a
     , applyNM 2 f a === (f <=< f) a

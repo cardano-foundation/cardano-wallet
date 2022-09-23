@@ -3,6 +3,7 @@
 {-# LANGUAGE DerivingStrategies #-}
 {-# LANGUAGE FlexibleInstances #-}
 {-# LANGUAGE GeneralizedNewtypeDeriving #-}
+{-# LANGUAGE PatternSynonyms #-}
 {-# LANGUAGE StandaloneDeriving #-}
 {-# LANGUAGE ViewPatterns #-}
 {-# OPTIONS_GHC -fno-warn-orphans #-}
@@ -43,7 +44,6 @@ import Test.QuickCheck
     , Function (..)
     , Property
     , Testable (..)
-    , applyFun
     , checkCoverage
     , chooseInt
     , cover
@@ -54,7 +54,12 @@ import Test.QuickCheck
     , (==>)
     )
 import Test.QuickCheck.Extra
-    ( ScaleDiv (..), genShrinkSequence, labelInterval, shrinkWhile )
+    ( ScaleDiv (..)
+    , pattern ViewFun
+    , genShrinkSequence
+    , labelInterval
+    , shrinkWhile
+    )
 import Test.QuickCheck.Instances.ByteString
     ()
 
@@ -415,7 +420,7 @@ prop_shrinkTxSeq_genShrinkSequence_length =
 --------------------------------------------------------------------------------
 
 prop_mapAssetIds_assetIds :: ShrinkableTxSeq -> Fun AssetId AssetId -> Property
-prop_mapAssetIds_assetIds (getTxSeq -> txSeq) (applyFun -> f) =
+prop_mapAssetIds_assetIds (getTxSeq -> txSeq) (ViewFun f) =
     TxSeq.assetIds (TxSeq.mapAssetIds f txSeq)
     ===
     Set.map f (TxSeq.assetIds txSeq)
@@ -426,7 +431,7 @@ prop_mapAssetIds_composition
     -> Fun AssetId AssetId
     -> Property
 prop_mapAssetIds_composition
-    (getTxSeq -> txSeq) (applyFun -> f) (applyFun -> g) =
+    (getTxSeq -> txSeq) (ViewFun f) (ViewFun g) =
         TxSeq.mapAssetIds f (TxSeq.mapAssetIds g txSeq) ===
         TxSeq.mapAssetIds (f . g) txSeq
 
@@ -438,7 +443,7 @@ prop_mapAssetIds_isValid
     :: ScaleDiv 2 ShrinkableTxSeq
     -> Fun AssetId AssetId
     -> Property
-prop_mapAssetIds_isValid (getTxSeq . unScaleDiv -> txSeq) (applyFun -> f) =
+prop_mapAssetIds_isValid (getTxSeq . unScaleDiv -> txSeq) (ViewFun f) =
     -- Validity is maintained regardless of whether the specified mapping
     -- function is injective w.r.t. the set of asset identifiers in the
     -- given sequence.
@@ -455,7 +460,7 @@ prop_mapAssetIds_isValid (getTxSeq . unScaleDiv -> txSeq) (applyFun -> f) =
 
 prop_mapTxIds_txIds
     :: ShrinkableTxSeq -> Fun (Hash "Tx") (Hash "Tx") -> Property
-prop_mapTxIds_txIds (getTxSeq -> txSeq) (applyFun -> f) =
+prop_mapTxIds_txIds (getTxSeq -> txSeq) (ViewFun f) =
     TxSeq.txIds (TxSeq.mapTxIds f txSeq) === Set.map f (TxSeq.txIds txSeq)
 
 prop_mapTxIds_composition
@@ -463,7 +468,7 @@ prop_mapTxIds_composition
     -> Fun (Hash "Tx") (Hash "Tx")
     -> Fun (Hash "Tx") (Hash "Tx")
     -> Property
-prop_mapTxIds_composition (getTxSeq -> txSeq) (applyFun -> f) (applyFun -> g) =
+prop_mapTxIds_composition (getTxSeq -> txSeq) (ViewFun f) (ViewFun g) =
     TxSeq.mapTxIds f (TxSeq.mapTxIds g txSeq) ===
     TxSeq.mapTxIds (f . g) txSeq
 
@@ -473,7 +478,7 @@ prop_mapTxIds_identity (getTxSeq -> txSeq) =
 
 prop_mapTxIds_isValid
     :: ShrinkableTxSeq -> Fun (Hash "Tx") (Hash "Tx") -> Property
-prop_mapTxIds_isValid (getTxSeq -> txSeq) (applyFun -> f) =
+prop_mapTxIds_isValid (getTxSeq -> txSeq) (ViewFun f) =
     -- Validity is only guaranteed if the specified mapping function is
     -- injective w.r.t. the set of transaction identifiers in the given
     -- sequence.
