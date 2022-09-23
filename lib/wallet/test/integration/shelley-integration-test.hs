@@ -210,7 +210,7 @@ main = withTestsSetup $ \testDir tracers -> do
                     ByronHWWallets.spec @n
 
             -- Possible conflict with StakePools - mark as not parallizable
-            sequential $ Settings.spec @n
+            sequential Settings.spec
 
             -- Hydra runs tests with code coverage enabled. CLI tests run
             -- multiple processes. These processes can try to write to the

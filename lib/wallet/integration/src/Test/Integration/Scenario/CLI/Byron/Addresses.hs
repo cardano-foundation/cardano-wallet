@@ -84,19 +84,18 @@ spec = do
         scenario_ADDRESS_LIST_02 @n "random" fixtureRandomWallet
         scenario_ADDRESS_LIST_02 @n "icarus" fixtureIcarusWallet
 
-        scenario_ADDRESS_LIST_04 @n "random" emptyRandomWallet
-        scenario_ADDRESS_LIST_04 @n "icarus" emptyIcarusWallet
+        scenario_ADDRESS_LIST_04 "random" emptyRandomWallet
+        scenario_ADDRESS_LIST_04 "icarus" emptyIcarusWallet
 
         scenario_ADDRESS_CREATE_01 @n
-        scenario_ADDRESS_CREATE_02 @n
-        scenario_ADDRESS_CREATE_03 @n
+        scenario_ADDRESS_CREATE_02
+        scenario_ADDRESS_CREATE_03
         scenario_ADDRESS_CREATE_04 @n
         scenario_ADDRESS_CREATE_05 @n
-        scenario_ADDRESS_CREATE_06 @n
-
+        scenario_ADDRESS_CREATE_06
         scenario_ADDRESS_IMPORT_01 @n
         scenario_ADDRESS_IMPORT_02 @n
-        scenario_ADDRESS_IMPORT_03 @n
+        scenario_ADDRESS_IMPORT_03
 
         describe "CLI_ADDRESS_CREATE_07 - False indexes" $ do
             let outOfBoundIndexes =
@@ -107,20 +106,18 @@ spec = do
                     \ between Index {getIndex = 2147483648}\
                     \ and Index {getIndex = 4294967295}"
             forM_ outOfBoundIndexes $ \idx ->
-                scenario_ADDRESS_CREATE_07 @n idx expectedMsgOutOfBound
+                scenario_ADDRESS_CREATE_07 idx expectedMsgOutOfBound
 
             let invalidIndexes = [ "patate", "1500sto900", "2147483648e"]
             let expectedMsginvalidIdx =
                     "Int is an integer number between\
                     \ -9223372036854775808 and 9223372036854775807."
             forM_ invalidIndexes $ \idx ->
-                scenario_ADDRESS_CREATE_07 @n idx expectedMsginvalidIdx
+                scenario_ADDRESS_CREATE_07 idx expectedMsginvalidIdx
 
 scenario_ADDRESS_LIST_01
-    :: forall (n :: NetworkDiscriminant).
-        ( DecodeAddress n
-        , EncodeAddress n
-        )
+    :: forall (n :: NetworkDiscriminant)
+     . DecodeAddress n
     => String
     -> (Context -> ResourceT IO ApiByronWallet)
     -> SpecWith Context
@@ -140,10 +137,8 @@ scenario_ADDRESS_LIST_01 walType fixture = it title $ \ctx -> runResourceT $ do
         ++ walType ++ " can list known addresses on a default wallet"
 
 scenario_ADDRESS_LIST_02
-    :: forall (n :: NetworkDiscriminant).
-        ( DecodeAddress n
-        , EncodeAddress n
-        )
+    :: forall (n :: NetworkDiscriminant)
+     . DecodeAddress n
     => String
     -> (Context -> ResourceT IO ApiByronWallet)
     -> SpecWith Context
@@ -177,13 +172,7 @@ scenario_ADDRESS_LIST_02 walType fixture = it title $ \ctx -> runResourceT $ do
         ++ walType ++ " can filter used and unused addresses"
 
 scenario_ADDRESS_LIST_04
-    :: forall (n :: NetworkDiscriminant).
-        ( DecodeAddress n
-        , EncodeAddress n
-        )
-    => String
-    -> (Context -> ResourceT IO ApiByronWallet)
-    -> SpecWith Context
+    :: String -> (Context -> ResourceT IO ApiByronWallet) -> SpecWith Context
 scenario_ADDRESS_LIST_04 walType fixture = it title $ \ctx -> runResourceT $ do
     w <- fixture ctx
     let wid = w ^. walletId
@@ -197,11 +186,7 @@ scenario_ADDRESS_LIST_04 walType fixture = it title $ \ctx -> runResourceT $ do
     title = "CLI_ADDRESS_LIST_04 - " ++ walType ++ " deleted wallet"
 
 scenario_ADDRESS_CREATE_01
-    :: forall (n :: NetworkDiscriminant).
-        ( DecodeAddress n
-        , EncodeAddress n
-        )
-    => SpecWith Context
+    :: forall (n :: NetworkDiscriminant). DecodeAddress n => SpecWith Context
 scenario_ADDRESS_CREATE_01 = it title $ \ctx -> runResourceT @IO $ do
     w <- emptyRandomWallet ctx
     let wid = T.unpack (w ^. walletId)
@@ -213,12 +198,7 @@ scenario_ADDRESS_CREATE_01 = it title $ \ctx -> runResourceT @IO $ do
   where
     title = "CLI_ADDRESS_CREATE_01 - Can create a random address without index"
 
-scenario_ADDRESS_CREATE_02
-    :: forall (n :: NetworkDiscriminant).
-        ( DecodeAddress n
-        , EncodeAddress n
-        )
-    => SpecWith Context
+scenario_ADDRESS_CREATE_02 :: SpecWith Context
 scenario_ADDRESS_CREATE_02 = it title $ \ctx -> runResourceT @IO $ do
     w <- emptyIcarusWallet ctx
     let wid = T.unpack (w ^. walletId)
@@ -229,12 +209,7 @@ scenario_ADDRESS_CREATE_02 = it title $ \ctx -> runResourceT @IO $ do
   where
     title = "CLI_ADDRESS_CREATE_02 - Creation is forbidden on Icarus wallets"
 
-scenario_ADDRESS_CREATE_03
-    :: forall (n :: NetworkDiscriminant).
-        ( DecodeAddress n
-        , EncodeAddress n
-        )
-    => SpecWith Context
+scenario_ADDRESS_CREATE_03 :: SpecWith Context
 scenario_ADDRESS_CREATE_03 = it title $ \ctx -> runResourceT @IO $ do
     w <- emptyRandomWallet ctx
     let wid = T.unpack (w ^. walletId)
@@ -246,11 +221,7 @@ scenario_ADDRESS_CREATE_03 = it title $ \ctx -> runResourceT @IO $ do
     title = "ADDRESS_CREATE_03 - Cannot create a random address with wrong passphrase"
 
 scenario_ADDRESS_CREATE_04
-    :: forall (n :: NetworkDiscriminant).
-        ( DecodeAddress n
-        , EncodeAddress n
-        )
-    => SpecWith Context
+    :: forall (n :: NetworkDiscriminant). DecodeAddress n => SpecWith Context
 scenario_ADDRESS_CREATE_04 = it title $ \ctx -> runResourceT @IO $ do
     w <- emptyRandomWallet ctx
     let wid = T.unpack (w ^. walletId)
@@ -268,11 +239,7 @@ scenario_ADDRESS_CREATE_04 = it title $ \ctx -> runResourceT @IO $ do
     title = "CLI_ADDRESS_CREATE_04 - Can list address after creating it"
 
 scenario_ADDRESS_CREATE_05
-    :: forall (n :: NetworkDiscriminant).
-        ( DecodeAddress n
-        , EncodeAddress n
-        )
-    => SpecWith Context
+    :: forall (n :: NetworkDiscriminant). DecodeAddress n => SpecWith Context
 scenario_ADDRESS_CREATE_05 = it title $ \ctx -> runResourceT @IO $ do
     w <- emptyRandomWallet ctx
     let wid = T.unpack (w ^. walletId)
@@ -285,12 +252,7 @@ scenario_ADDRESS_CREATE_05 = it title $ \ctx -> runResourceT @IO $ do
   where
     title = "CLI_ADDRESS_CREATE_05 - Can create an address and specify the index"
 
-scenario_ADDRESS_CREATE_06
-    :: forall (n :: NetworkDiscriminant).
-        ( DecodeAddress n
-        , EncodeAddress n
-        )
-    => SpecWith Context
+scenario_ADDRESS_CREATE_06 :: SpecWith Context
 scenario_ADDRESS_CREATE_06 = it title $ \ctx -> runResourceT @IO $ do
     w <- emptyRandomWallet ctx
     let wid = T.unpack (w ^. walletId)
@@ -306,14 +268,7 @@ scenario_ADDRESS_CREATE_06 = it title $ \ctx -> runResourceT @IO $ do
   where
     title = "CLI_ADDRESS_CREATE_06 - Cannot create an address that already exists"
 
-scenario_ADDRESS_CREATE_07
-    :: forall (n :: NetworkDiscriminant).
-        ( DecodeAddress n
-        , EncodeAddress n
-        )
-    => String
-    -> String
-    -> SpecWith Context
+scenario_ADDRESS_CREATE_07 :: String -> String -> SpecWith Context
 scenario_ADDRESS_CREATE_07 index expectedMsg = it index $ \ctx -> runResourceT @IO $ do
     w <- emptyRandomWallet ctx
     let wid = T.unpack (w ^. walletId)
@@ -325,8 +280,7 @@ scenario_ADDRESS_CREATE_07 index expectedMsg = it index $ \ctx -> runResourceT @
 
 scenario_ADDRESS_IMPORT_01
     :: forall (n :: NetworkDiscriminant).
-        ( DecodeAddress n
-        , EncodeAddress n
+        ( EncodeAddress n
         , PaymentAddress n ByronKey 'CredFromKeyK
         )
     => SpecWith Context
@@ -342,8 +296,7 @@ scenario_ADDRESS_IMPORT_01 = it title $ \ctx -> runResourceT @IO $ do
 
 scenario_ADDRESS_IMPORT_02
     :: forall (n :: NetworkDiscriminant).
-        ( DecodeAddress n
-        , EncodeAddress n
+        ( EncodeAddress n
         , PaymentAddress n IcarusKey 'CredFromKeyK
         )
     => SpecWith Context
@@ -357,13 +310,7 @@ scenario_ADDRESS_IMPORT_02 = it title $ \ctx -> runResourceT @IO $ do
   where
     title = "CLI_ADDRESS_IMPORT_02 - I can't import an address on an Icarus wallets"
 
-scenario_ADDRESS_IMPORT_03
-    :: forall (n :: NetworkDiscriminant).
-        ( DecodeAddress n
-        , EncodeAddress n
-        , PaymentAddress n ByronKey 'CredFromKeyK
-        )
-    => SpecWith Context
+scenario_ADDRESS_IMPORT_03 :: SpecWith Context
 scenario_ADDRESS_IMPORT_03 = it title $ \ctx -> runResourceT @IO $ do
     w <- emptyRandomWallet ctx
     let wid = T.unpack (w ^. walletId)

@@ -14,7 +14,7 @@ module Test.Integration.Scenario.CLI.Byron.Wallets
 import Prelude
 
 import Cardano.Wallet.Api.Types
-    ( ApiByronWallet, ApiUtxoStatistics, DecodeAddress )
+    ( ApiByronWallet, ApiUtxoStatistics )
 import Cardano.Wallet.Primitive.Passphrase
     ( PassphraseMaxLength (..), PassphraseMinLength (..) )
 import Cardano.Wallet.Primitive.SyncProgress
@@ -76,9 +76,7 @@ import Test.Integration.Framework.TestData
 
 import qualified Data.Text as T
 
-spec :: forall n.
-    ( DecodeAddress n
-    ) => SpecWith Context
+spec :: SpecWith Context
 spec = describe "BYRON_CLI_WALLETS" $ do
 
     describe "CLI_BYRON_GET_04, CLI_BYRON_DELETE_01, BYRON_RESTORE_02, BYRON_RESTORE_03 -\
