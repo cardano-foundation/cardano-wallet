@@ -32,7 +32,7 @@ import Cardano.Wallet.Primitive.Types.Tx.Tx
     ( Tx (..), TxIn, TxMetadata, TxOut, TxScriptValidity )
 import Cardano.Wallet.Primitive.Types.Tx.TxMeta
     ( TxMeta )
-import Cardano.Wallet.Types.Read.Tx.CBOR
+import Cardano.Wallet.Read.Tx.CBOR
     ( TxCBOR )
 import Control.DeepSeq
     ( NFData (..) )

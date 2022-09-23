@@ -8,7 +8,7 @@
 -- License: Apache-2.0
 --
 -- Conversion functions and static chain settings for Shelley.
-module Cardano.Wallet.Types.Read.Primitive.Tx.Mary
+module Cardano.Wallet.Read.Primitive.Tx.Mary
     (fromMaryTx, getScriptMap, fromLedgerMintValue, fromCardanoValue)
  where
 
@@ -24,6 +24,22 @@ import Cardano.Wallet.Primitive.Types.TokenMap
     ( TokenMap, toNestedList )
 import Cardano.Wallet.Primitive.Types.TokenPolicy
     ( TokenPolicyId )
+import Cardano.Wallet.Read.Primitive.Tx.Allegra
+    ( fromLedgerTxValidity )
+import Cardano.Wallet.Read.Primitive.Tx.Shelley
+    ( fromShelleyAddress
+    , fromShelleyCert
+    , fromShelleyCoin
+    , fromShelleyMD
+    , fromShelleyTxIn
+    , fromShelleyWdrl
+    )
+import Cardano.Wallet.Read.Tx
+    ( Tx (..) )
+import Cardano.Wallet.Read.Tx.CBOR
+    ( getTxCBOR )
+import Cardano.Wallet.Read.Tx.Hash
+    ( shelleyTxHash )
 import Cardano.Wallet.Shelley.Compatibility.Ledger
     ( toWalletScript
     , toWalletTokenName
@@ -32,22 +48,6 @@ import Cardano.Wallet.Shelley.Compatibility.Ledger
     )
 import Cardano.Wallet.Transaction
     ( AnyScript (..), TokenMapWithScripts (..), ValidityIntervalExplicit (..) )
-import Cardano.Wallet.Types.Read.Primitive.Tx.Allegra
-    ( fromLedgerTxValidity )
-import Cardano.Wallet.Types.Read.Primitive.Tx.Shelley
-    ( fromShelleyAddress
-    , fromShelleyCert
-    , fromShelleyCoin
-    , fromShelleyMD
-    , fromShelleyTxIn
-    , fromShelleyWdrl
-    )
-import Cardano.Wallet.Types.Read.Tx
-    ( Tx (..) )
-import Cardano.Wallet.Types.Read.Tx.CBOR
-    ( getTxCBOR )
-import Cardano.Wallet.Types.Read.Tx.Hash
-    ( shelleyTxHash )
 import Cardano.Wallet.Util
     ( internalError )
 import Data.Foldable

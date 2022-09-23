@@ -1,7 +1,7 @@
 {-# LANGUAGE GADTs #-}
 {-# LANGUAGE ScopedTypeVariables #-}
 
-module Cardano.Wallet.Types.Read.Tx.CBORSpec
+module Cardano.Wallet.Read.Tx.CBORSpec
     ( spec
     ) where
 
@@ -9,7 +9,7 @@ import Prelude
 
 import Cardano.Api
     ( AnyCardanoEra (..), CardanoEra (..), IsCardanoEra )
-import Cardano.Wallet.Types.Read.Tx.CBOR
+import Cardano.Wallet.Read.Tx.CBOR
     ( TxCBOR (..), getTxCBOR, parseCBOR )
 import Data.ByteArray.Encoding
     ( Base (..), convertFromBase )
@@ -25,7 +25,7 @@ import Test.QuickCheck
 import qualified Data.ByteString.Lazy as BL
 
 spec :: Spec
-spec = describe "Cardano.Wallet.Types.Read.Tx.CBOR" $ do
+spec = describe "Cardano.Wallet.Read.Tx.CBOR" $ do
     parallel $ describe "TxCBOR encoding" $ do
 
         it "roundtrips byron tx properly" $ do

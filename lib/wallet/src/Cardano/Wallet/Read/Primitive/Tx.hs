@@ -7,30 +7,30 @@
 -- License: Apache-2.0
 --
 -- Conversion functions and static chain settings for Shelley.
-module Cardano.Wallet.Types.Read.Primitive.Tx (fromCardanoTx)
+module Cardano.Wallet.Read.Primitive.Tx (fromCardanoTx)
  where
 
 import Prelude
 
 import Cardano.Wallet.Primitive.Types
     ( Certificate (..) )
+import Cardano.Wallet.Read.Primitive.Tx.Allegra
+    ( fromAllegraTx )
+import Cardano.Wallet.Read.Primitive.Tx.Alonzo
+    ( fromAlonzoTx )
+import Cardano.Wallet.Read.Primitive.Tx.Babbage
+    ( fromBabbageTx )
+import Cardano.Wallet.Read.Primitive.Tx.Byron
+    ( fromTxAux )
+import Cardano.Wallet.Read.Primitive.Tx.Mary
+    ( fromMaryTx )
+import Cardano.Wallet.Read.Primitive.Tx.Shelley
+    ( fromShelleyTx )
 import Cardano.Wallet.Transaction
     ( TokenMapWithScripts (..)
     , ValidityIntervalExplicit (..)
     , emptyTokenMapWithScripts
     )
-import Cardano.Wallet.Types.Read.Primitive.Tx.Allegra
-    ( fromAllegraTx )
-import Cardano.Wallet.Types.Read.Primitive.Tx.Alonzo
-    ( fromAlonzoTx )
-import Cardano.Wallet.Types.Read.Primitive.Tx.Babbage
-    ( fromBabbageTx )
-import Cardano.Wallet.Types.Read.Primitive.Tx.Byron
-    ( fromTxAux )
-import Cardano.Wallet.Types.Read.Primitive.Tx.Mary
-    ( fromMaryTx )
-import Cardano.Wallet.Types.Read.Primitive.Tx.Shelley
-    ( fromShelleyTx )
 
 import qualified Cardano.Api as Cardano
 import qualified Cardano.Api.Byron as Cardano

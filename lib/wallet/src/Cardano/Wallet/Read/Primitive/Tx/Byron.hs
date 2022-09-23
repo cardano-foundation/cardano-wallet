@@ -7,7 +7,7 @@
 --
 -- Conversion functions and static chain settings for Byron.
 
-module Cardano.Wallet.Types.Read.Primitive.Tx.Byron
+module Cardano.Wallet.Read.Primitive.Tx.Byron
     (
     fromTxAux
     , fromTxIn
@@ -24,11 +24,11 @@ import Cardano.Chain.Common
     ( unsafeGetLovelace )
 import Cardano.Chain.UTxO
     ( ATxAux (..), Tx (..), TxIn (..), TxOut (..), taTx )
-import Cardano.Wallet.Types.Read.Tx
+import Cardano.Wallet.Read.Tx
     ( Tx (..) )
-import Cardano.Wallet.Types.Read.Tx.CBOR
+import Cardano.Wallet.Read.Tx.CBOR
     ( getTxCBOR )
-import Cardano.Wallet.Types.Read.Tx.Hash
+import Cardano.Wallet.Read.Tx.Hash
     ( byronTxHash )
 
 import qualified Cardano.Crypto.Hashing as CC

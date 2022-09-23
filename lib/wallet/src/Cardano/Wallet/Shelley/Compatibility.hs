@@ -223,22 +223,22 @@ import Cardano.Wallet.Primitive.Types.MinimumUTxO
     ( minimumUTxOForShelleyBasedEra )
 import Cardano.Wallet.Primitive.Types.Tx.Constraints
     ( TokenBundleSizeAssessment (..), TokenBundleSizeAssessor (..) )
-import Cardano.Wallet.Types.Read.Primitive.Tx.Allegra
+import Cardano.Wallet.Read.Primitive.Tx.Allegra
     ( fromAllegraTx )
-import Cardano.Wallet.Types.Read.Primitive.Tx.Alonzo
+import Cardano.Wallet.Read.Primitive.Tx.Alonzo
     ( fromAlonzoTx )
-import Cardano.Wallet.Types.Read.Primitive.Tx.Babbage
+import Cardano.Wallet.Read.Primitive.Tx.Babbage
     ( fromBabbageTx )
-import Cardano.Wallet.Types.Read.Primitive.Tx.Mary
+import Cardano.Wallet.Read.Primitive.Tx.Mary
     ( fromCardanoValue, fromMaryTx )
-import Cardano.Wallet.Types.Read.Primitive.Tx.Shelley
+import Cardano.Wallet.Read.Primitive.Tx.Shelley
     ( fromShelleyAddress
     , fromShelleyCoin
     , fromShelleyTx
     , fromShelleyTxIn
     , fromShelleyTxOut
     )
-import Cardano.Wallet.Types.Read.Tx.Hash
+import Cardano.Wallet.Read.Tx.Hash
     ( fromShelleyTxId )
 import Cardano.Wallet.Unsafe
     ( unsafeIntToWord, unsafeMkPercentage )

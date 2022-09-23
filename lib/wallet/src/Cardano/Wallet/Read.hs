@@ -9,11 +9,11 @@ This module re-exports the children of this module hierarchy
 and is meant to be imported qualified, e.g.
 
 @
-import qualified Cardano.Wallet.Types.Read as Read
+import qualified Cardano.Wallet.Read as Read
 @
 -}
-module Cardano.Wallet.Types.Read
-    ( module Cardano.Wallet.Types.Read.Tx
+module Cardano.Wallet.Read
+    ( module Cardano.Wallet.Read.Tx
     ) where
 
-import Cardano.Wallet.Types.Read.Tx
+import Cardano.Wallet.Read.Tx

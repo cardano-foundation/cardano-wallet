@@ -20,7 +20,7 @@ import Cardano.Wallet.DB.Sqlite.Types
     ( TxId (..) )
 import Cardano.Wallet.DB.Store.CBOR.Model
     ( DeltaTxCBOR (..), TxCBORHistory (..) )
-import Cardano.Wallet.Types.Read.Tx.CBOR
+import Cardano.Wallet.Read.Tx.CBOR
     ( TxCBOR (..) )
 import Data.ByteString.Lazy.Char8
     ( fromStrict, toStrict )

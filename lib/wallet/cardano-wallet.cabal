@@ -347,6 +347,22 @@ library
     Cardano.Wallet.Primitive.Types.UTxOIndex.Internal
     Cardano.Wallet.Primitive.Types.UTxOSelection
     Cardano.Wallet.Primitive.Types.UTxOSelection.Gen
+    Cardano.Wallet.Read
+    Cardano.Wallet.Read.Eras
+    Cardano.Wallet.Read.Eras.EraFun
+    Cardano.Wallet.Read.Eras.EraValue
+    Cardano.Wallet.Read.Eras.InAnyCardanoEra
+    Cardano.Wallet.Read.Eras.KnownEras
+    Cardano.Wallet.Read.Primitive.Tx
+    Cardano.Wallet.Read.Primitive.Tx.Allegra
+    Cardano.Wallet.Read.Primitive.Tx.Alonzo
+    Cardano.Wallet.Read.Primitive.Tx.Babbage
+    Cardano.Wallet.Read.Primitive.Tx.Byron
+    Cardano.Wallet.Read.Primitive.Tx.Mary
+    Cardano.Wallet.Read.Primitive.Tx.Shelley
+    Cardano.Wallet.Read.Tx
+    Cardano.Wallet.Read.Tx.CBOR
+    Cardano.Wallet.Read.Tx.Hash
     Cardano.Wallet.Registry
     Cardano.Wallet.Shelley
     Cardano.Wallet.Shelley.Api.Server
@@ -374,17 +390,6 @@ library
     Cardano.Wallet.TokenMetadata
     Cardano.Wallet.TokenMetadata.MockServer
     Cardano.Wallet.Transaction
-    Cardano.Wallet.Types.Read
-    Cardano.Wallet.Types.Read.Primitive.Tx
-    Cardano.Wallet.Types.Read.Primitive.Tx.Allegra
-    Cardano.Wallet.Types.Read.Primitive.Tx.Alonzo
-    Cardano.Wallet.Types.Read.Primitive.Tx.Babbage
-    Cardano.Wallet.Types.Read.Primitive.Tx.Byron
-    Cardano.Wallet.Types.Read.Primitive.Tx.Mary
-    Cardano.Wallet.Types.Read.Primitive.Tx.Shelley
-    Cardano.Wallet.Types.Read.Tx
-    Cardano.Wallet.Types.Read.Tx.CBOR
-    Cardano.Wallet.Types.Read.Tx.Hash
     Cardano.Wallet.Unsafe
     Cardano.Wallet.Util
     Cardano.Wallet.Version
@@ -776,7 +781,7 @@ test-suite unit
     Cardano.Wallet.Shelley.NetworkSpec
     Cardano.Wallet.Shelley.TransactionSpec
     Cardano.Wallet.TokenMetadataSpec
-    Cardano.Wallet.Types.Read.Tx.CBORSpec
+    Cardano.Wallet.Read.Tx.CBORSpec
     Cardano.WalletSpec
     Control.Concurrent.ConciergeSpec
     Control.Monad.Random.ExtraSpec

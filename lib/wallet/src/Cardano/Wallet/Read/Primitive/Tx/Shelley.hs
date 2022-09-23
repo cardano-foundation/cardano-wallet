@@ -9,7 +9,7 @@
 -- License: Apache-2.0
 --
 -- Conversion functions and static chain settings for Shelley.
-module Cardano.Wallet.Types.Read.Primitive.Tx.Shelley
+module Cardano.Wallet.Read.Primitive.Tx.Shelley
     ( fromShelleyTxIn
     , fromShelleyTxOut
     , fromShelleyCoin
@@ -40,17 +40,17 @@ import Cardano.Wallet.Primitive.Types
     , PoolRegistrationCertificate (..)
     , PoolRetirementCertificate (..)
     )
+import Cardano.Wallet.Read.Tx
+    ( Tx (..) )
+import Cardano.Wallet.Read.Tx.CBOR
+    ( getTxCBOR )
+import Cardano.Wallet.Read.Tx.Hash
+    ( fromShelleyTxId, shelleyTxHash )
 import Cardano.Wallet.Transaction
     ( TokenMapWithScripts (..)
     , ValidityIntervalExplicit (..)
     , emptyTokenMapWithScripts
     )
-import Cardano.Wallet.Types.Read.Tx
-    ( Tx (..) )
-import Cardano.Wallet.Types.Read.Tx.CBOR
-    ( getTxCBOR )
-import Cardano.Wallet.Types.Read.Tx.Hash
-    ( fromShelleyTxId, shelleyTxHash )
 import Cardano.Wallet.Util
     ( internalError )
 import Data.Bifunctor

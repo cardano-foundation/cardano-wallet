@@ -454,6 +454,8 @@ import Cardano.Wallet.Primitive.Types.UTxOIndex
     ( UTxOIndex )
 import Cardano.Wallet.Primitive.Types.UTxOSelection
     ( UTxOSelection )
+import Cardano.Wallet.Read.Tx.CBOR
+    ( TxCBOR (..) )
 import Cardano.Wallet.Transaction
     ( DelegationAction (..)
     , ErrAssignRedeemers (..)
@@ -472,8 +474,6 @@ import Cardano.Wallet.Transaction
     , defaultTransactionCtx
     , withdrawalToCoin
     )
-import Cardano.Wallet.Types.Read.Tx.CBOR
-    ( TxCBOR (..) )
 import Control.Arrow
     ( first, left )
 import Control.DeepSeq

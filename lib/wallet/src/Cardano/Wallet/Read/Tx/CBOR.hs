@@ -7,7 +7,7 @@
 
 {-# OPTIONS_GHC -Wno-orphans #-}
 
-module Cardano.Wallet.Types.Read.Tx.CBOR
+module Cardano.Wallet.Read.Tx.CBOR
     ( TxCBOR (..)
     , getTxCBOR
     , parseCBOR
@@ -37,7 +37,7 @@ import GHC.Generics
 
 import qualified Cardano.Api as Api
 
-import qualified Cardano.Wallet.Types.Read.Tx as Read
+import qualified Cardano.Wallet.Read.Tx as Read
 import qualified Data.ByteString.Lazy as BL
 
 -- | Serialized version of a transaction. Deserializing should at least expose
