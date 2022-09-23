@@ -24,6 +24,8 @@ module Cardano.Wallet.Primitive.Types.Tx.Gen
     , shrinkTxOut
     , shrinkTxOutCoin
     , shrinkTxScriptValidity
+    , TxWithoutId (..)
+    , txWithoutIdToTx
     )
     where
 
@@ -161,7 +163,7 @@ shrinkTxWithoutId = genericRoundRobinShrink
 
 txWithoutIdToTx :: TxWithoutId -> Tx
 txWithoutIdToTx tx@TxWithoutId {..}
-    = Tx {txId = mockHash tx, txCBOR = Nothing , ..}
+    = Tx {txId = mockHash tx, txCBOR = Nothing, ..}
 
 txToTxWithoutId :: Tx -> TxWithoutId
 txToTxWithoutId Tx {..} = TxWithoutId {..}

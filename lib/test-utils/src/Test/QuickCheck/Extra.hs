@@ -57,6 +57,9 @@ module Test.QuickCheck.Extra
     , genNonEmpty
     , shrinkNonEmpty
 
+      -- * Labelling
+    , labelInterval
+
       -- * Counterexamples
     , report
     , verify
@@ -104,6 +107,7 @@ import Test.QuickCheck
     , chooseInteger
     , counterexample
     , elements
+    , label
     , liftArbitrary2
     , liftShrink2
     , listOf
@@ -532,6 +536,58 @@ shrinkMapWith shrinkKey shrinkValue
     = shrinkMapBy Map.fromList Map.toList
     $ shrinkList
     $ liftShrink2 shrinkKey shrinkValue
+
+--------------------------------------------------------------------------------
+-- Labelling
+--------------------------------------------------------------------------------
+
+-- | Partitions the integer number line into intervals of the given size, and
+--   produces a label indicating within which inclusive interval the given
+--   value falls.
+--
+-- This combinator can be used to report the distribution of an arbitrary
+-- integral value during a test run.
+--
+-- Example:
+--
+-- >>> quickCheck $ \(Positive foo) -> labelInterval 10 "foo" foo True
+-- +++ OK, passed 100 tests:
+-- 35% "foo" within [0, 9]
+-- 17% "foo" within [20, 29]
+-- 15% "foo" within [10, 19]
+-- 10% "foo" within [40, 49]
+--  6% "foo" within [30, 39]
+--  6% "foo" within [60, 69]
+--  5% "foo" within [50, 59]
+--  4% "foo" within [80, 89]
+--  2% "foo" within [70, 79]
+--
+labelInterval
+    :: (Integral i, Show i, Testable t)
+    => i
+    -- ^ Interval size
+    -> String
+    -- ^ Variable name
+    -> i
+    -- ^ Value to categorise
+    -> t
+    -- ^ Test to adjust
+    -> Property
+labelInterval intervalSize variableName valueToCategorise
+    | intervalSize <= 0 =
+        error "labelInterval: interval size must be greater than zero"
+    | otherwise =
+        label $ mconcat
+            [ show variableName
+            , " within ["
+            , show lo
+            , ", "
+            , show hi
+            , "]"
+            ]
+  where
+    lo = (valueToCategorise `div` intervalSize) * intervalSize
+    hi = lo + (pred intervalSize)
 
 --------------------------------------------------------------------------------
 -- Counterexamples
