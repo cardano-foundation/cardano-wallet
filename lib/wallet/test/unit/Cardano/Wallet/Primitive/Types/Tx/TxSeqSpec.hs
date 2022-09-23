@@ -5,7 +5,6 @@
 {-# LANGUAGE GeneralizedNewtypeDeriving #-}
 {-# LANGUAGE PatternSynonyms #-}
 {-# LANGUAGE StandaloneDeriving #-}
-{-# LANGUAGE ViewPatterns #-}
 {-# OPTIONS_GHC -fno-warn-orphans #-}
 {- HLINT ignore "Hoist not" -}
 
@@ -449,7 +448,7 @@ prop_mapAssetIds_isValid
     :: ScaleDiv 2 ShrinkableTxSeq
     -> Fun AssetId AssetId
     -> Property
-prop_mapAssetIds_isValid (unScaleDiv -> (ViewTxSeq txSeq)) (ViewFun f) =
+prop_mapAssetIds_isValid (ScaleDiv (ViewTxSeq txSeq)) (ViewFun f) =
     -- Validity is maintained regardless of whether the specified mapping
     -- function is injective w.r.t. the set of asset identifiers in the
     -- given sequence.
