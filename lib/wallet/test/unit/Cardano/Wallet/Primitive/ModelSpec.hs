@@ -2516,9 +2516,9 @@ blockSeqToBlockData = List . blockSeqToBlockList
     blockSeqToBlockList :: BlockSeq -> NonEmpty Block
     blockSeqToBlockList blockSeq =
         NE.fromList $ getZipList $ makeBlock
-            <$> ZipList (enumFrom $ blockSeq & initialBlockHeight)
-            <*> ZipList (enumFrom $ blockSeq & initialSlotNo)
-            <*> ZipList (NE.toList $ TxSeq.toTxGroupList txSeq)
+            <$> ZipList (enumFrom (blockSeq & initialBlockHeight))
+            <*> ZipList (enumFrom (blockSeq & initialSlotNo))
+            <*> ZipList (NE.toList (TxSeq.toTxGroupList txSeq))
       where
         txSeq :: TxSeq
         txSeq = blockSeqToTxSeq blockSeq
