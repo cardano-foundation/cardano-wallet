@@ -85,12 +85,16 @@ import Cardano.Crypto.Wallet
     ( XPub )
 import Cardano.Ledger.Alonzo.Tools
     ( evaluateTransactionExecutionUnits )
+import Cardano.Ledger.Alonzo.TxInfo
+    ( languages )
 import Cardano.Ledger.Crypto
     ( DSIGN )
 import Cardano.Ledger.Era
-    ( Crypto, Era, ValidateScript (..) )
+    ( Crypto, Era )
 import Cardano.Ledger.Shelley.API
     ( StrictMaybe (..) )
+import Cardano.Ledger.Shelley.UTxO
+    ( scriptsNeeded )
 import Cardano.Slotting.EpochInfo
     ( EpochInfo )
 import Cardano.Slotting.EpochInfo.API
@@ -243,8 +247,6 @@ import GHC.Generics
     ( Generic )
 import Numeric.Natural
     ( Natural )
-import Ouroboros.Consensus.Shelley.Eras
-    ( StandardAlonzo, StandardBabbage )
 import Ouroboros.Network.Block
     ( SlotNo )
 
@@ -257,7 +259,6 @@ import qualified Cardano.Crypto.DSIGN as DSIGN
 import qualified Cardano.Crypto.Hash.Class as Crypto
 import qualified Cardano.Crypto.Wallet as Crypto.HD
 import qualified Cardano.Ledger.Alonzo.Data as Alonzo
-import qualified Cardano.Ledger.Alonzo.PlutusScriptApi as Alonzo
 import qualified Cardano.Ledger.Alonzo.PParams as Alonzo
 import qualified Cardano.Ledger.Alonzo.Scripts as Alonzo
 import qualified Cardano.Ledger.Alonzo.Tx as Alonzo
@@ -1308,50 +1309,42 @@ _assignScriptRedeemers pparams ti utxo redeemers tx =
     -- | Finally, calculate and add the script integrity hash with the new
     -- final redeemers, if any.
     addScriptIntegrityHashAlonzo
-        :: AlonzoTx
+        :: era ~ Cardano.AlonzoEra
+        => AlonzoTx
         -> AlonzoTx
     addScriptIntegrityHashAlonzo alonzoTx =
         let
             wits  = Alonzo.wits alonzoTx
-            langs =
-                [ l
-                | (_hash, script) <- Map.toList (Alonzo.txscripts wits)
-                , (not . isNativeScript @StandardAlonzo) script
-                , Just l <- [Alonzo.language script]
-                ]
+            alonzoUTxO = fromCardanoUTxO utxo
+            scripts = scriptsNeeded alonzoUTxO alonzoTx
+            langs = languages alonzoTx alonzoUTxO scripts
+            pp = Cardano.toLedgerPParams Cardano.ShelleyBasedEraAlonzo pparams
         in
         alonzoTx
             { Alonzo.body = (Alonzo.body alonzoTx)
                 { Alonzo.scriptIntegrityHash = Alonzo.hashScriptIntegrity
-                    (Set.fromList $ Alonzo.getLanguageView
-                        (Cardano.toLedgerPParams
-                            Cardano.ShelleyBasedEraAlonzo pparams)
-                        <$> langs)
+                    (Set.map (Alonzo.getLanguageView pp) langs)
                     (Alonzo.txrdmrs wits)
                     (Alonzo.txdats wits)
                 }
             }
 
     addScriptIntegrityHashBabbage
-        :: BabbageTx
+        :: era ~ Cardano.BabbageEra
+        => BabbageTx
         -> BabbageTx
     addScriptIntegrityHashBabbage babbageTx =
         let
-            wits  = Alonzo.wits babbageTx
-            langs =
-                [ l
-                | (_hash, script) <- Map.toList (Alonzo.txscripts wits)
-                , (not . isNativeScript @StandardBabbage) script
-                , Just l <- [Alonzo.language script]
-                ]
+            wits = Babbage.wits babbageTx
+            babbageUTxO = fromCardanoUTxO utxo
+            scripts = scriptsNeeded babbageUTxO babbageTx
+            langs = languages babbageTx babbageUTxO scripts
+            pp = Cardano.toLedgerPParams Cardano.ShelleyBasedEraBabbage pparams
         in
         babbageTx
             { Babbage.body = (Babbage.body babbageTx)
                 { Babbage.scriptIntegrityHash = Alonzo.hashScriptIntegrity
-                    (Set.fromList $ Alonzo.getLanguageView
-                        (Cardano.toLedgerPParams
-                            Cardano.ShelleyBasedEraBabbage pparams)
-                        <$> langs)
+                    (Set.map (Alonzo.getLanguageView pp) langs)
                     (Alonzo.txrdmrs wits)
                     (Alonzo.txdats wits)
                 }
