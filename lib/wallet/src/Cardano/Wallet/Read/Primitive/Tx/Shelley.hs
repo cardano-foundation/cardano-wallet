@@ -19,12 +19,12 @@ module Cardano.Wallet.Read.Primitive.Tx.Shelley
     , fromShelleyTx
     , fromShelleyAddress
     )
-  where
+    where
 
 import Prelude
 
 import Cardano.Api
-    ( CardanoEra (..), ShelleyEra )
+    ( ShelleyEra )
 import Cardano.Api.Shelley
     ( fromShelleyMetadata )
 import Cardano.Crypto.Hash.Class
@@ -43,7 +43,7 @@ import Cardano.Wallet.Primitive.Types
 import Cardano.Wallet.Read.Tx
     ( Tx (..) )
 import Cardano.Wallet.Read.Tx.CBOR
-    ( getTxCBOR )
+    ( renderTxToCBOR )
 import Cardano.Wallet.Read.Tx.Hash
     ( fromShelleyTxId, shelleyTxHash )
 import Cardano.Wallet.Transaction
@@ -83,6 +83,7 @@ import qualified Cardano.Wallet.Primitive.Types.Coin as W
 import qualified Cardano.Wallet.Primitive.Types.RewardAccount as W
 import qualified Cardano.Wallet.Primitive.Types.TokenBundle as TokenBundle
 import qualified Cardano.Wallet.Primitive.Types.Tx as W
+import Cardano.Wallet.Read.Eras
 import qualified Data.Map.Strict as Map
 import qualified Data.Set as Set
 import qualified Ouroboros.Network.Block as O
@@ -136,7 +137,7 @@ fromShelleyTx tx =
         { txId =
             shelleyTxHash tx
         , txCBOR =
-            Just $ getTxCBOR $ Tx ShelleyEra tx
+            Just $ renderTxToCBOR $ inject shelley $ Tx tx
         , fee =
             Just $ fromShelleyCoin fee
         , resolvedInputs =

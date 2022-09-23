@@ -31,7 +31,7 @@ module Cardano.Wallet.Primitive.Types.Tx
     , LocalTxSubmissionStatus (..)
     , TxScriptValidity(..)
     , ScriptWitnessIndex (..)
-    , TxCBOR (..)
+    , TxCBOR
 
     -- * Serialisation
     , SealedTx (serialisedTx)
@@ -145,7 +145,7 @@ import Cardano.Wallet.Primitive.Types.Tx.Tx
 import Cardano.Wallet.Primitive.Types.Tx.TxMeta
     ( Direction (..), TxMeta (..), TxStatus (..), isPending )
 import Cardano.Wallet.Read.Tx.CBOR
-    ( TxCBOR (..) )
+    ( TxCBOR )
 import Data.Word
     ( Word64 )
 import GHC.Generics

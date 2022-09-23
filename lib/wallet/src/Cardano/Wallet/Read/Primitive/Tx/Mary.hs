@@ -17,13 +17,15 @@ import Prelude
 import Cardano.Address.Script
     ( KeyRole (..) )
 import Cardano.Api
-    ( CardanoEra (..), MaryEra )
+    ( MaryEra )
 import Cardano.Ledger.Era
     ( Era (..) )
 import Cardano.Wallet.Primitive.Types.TokenMap
     ( TokenMap, toNestedList )
 import Cardano.Wallet.Primitive.Types.TokenPolicy
     ( TokenPolicyId )
+import Cardano.Wallet.Read.Eras
+    ( inject, mary )
 import Cardano.Wallet.Read.Primitive.Tx.Allegra
     ( fromLedgerTxValidity )
 import Cardano.Wallet.Read.Primitive.Tx.Shelley
@@ -37,7 +39,7 @@ import Cardano.Wallet.Read.Primitive.Tx.Shelley
 import Cardano.Wallet.Read.Tx
     ( Tx (..) )
 import Cardano.Wallet.Read.Tx.CBOR
-    ( getTxCBOR )
+    ( renderTxToCBOR )
 import Cardano.Wallet.Read.Tx.Hash
     ( shelleyTxHash )
 import Cardano.Wallet.Shelley.Compatibility.Ledger
@@ -99,7 +101,7 @@ fromMaryTx tx =
         { txId =
             shelleyTxHash tx
         , txCBOR =
-            Just $ getTxCBOR $ Tx MaryEra tx
+            Just $ renderTxToCBOR $ inject mary $ Tx tx
         , fee =
             Just $ fromShelleyCoin fee
         , resolvedInputs =

@@ -193,6 +193,8 @@ import Cardano.Wallet.Primitive.Types.Tx.Constraints
     ( TxSize (..) )
 import Cardano.Wallet.Primitive.Types.UTxO
     ( UTxO (..) )
+import Cardano.Wallet.Read.Eras
+    ( eraValueSerialize )
 import Control.Foldl
     ( Fold (..) )
 import Control.Monad
@@ -212,7 +214,7 @@ import Data.Foldable
 import Data.Functor.Classes
     ( Eq1, Show1 )
 import Data.Generics.Internal.VL
-    ( view )
+    ( build )
 import Data.List.Extra
     ( enumerate )
 import Data.Map
@@ -1025,7 +1027,7 @@ instance ToExpr WalletMetadata where
     toExpr = defaultExprViaShow
 
 instance ToExpr TxCBOR where
-    toExpr = toExpr . view #txCBOR
+    toExpr = toExpr . fst . build eraValueSerialize
 
 instance ToExpr Tx where
     toExpr = genericToExpr

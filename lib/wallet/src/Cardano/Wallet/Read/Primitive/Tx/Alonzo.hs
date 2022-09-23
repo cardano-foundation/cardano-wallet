@@ -18,13 +18,15 @@ import Prelude
 import Cardano.Address.Script
     ( KeyRole (..) )
 import Cardano.Api
-    ( AlonzoEra, CardanoEra (..) )
+    ( AlonzoEra )
 import Cardano.Ledger.Era
     ( Era (..) )
 import Cardano.Ledger.Shelley.TxBody
     ( EraIndependentTxBody )
 import Cardano.Wallet.Primitive.Types.TokenPolicy
     ( TokenPolicyId )
+import Cardano.Wallet.Read.Eras
+    ( alonzo, inject )
 import Cardano.Wallet.Read.Primitive.Tx.Allegra
     ( fromLedgerTxValidity )
 import Cardano.Wallet.Read.Primitive.Tx.Mary
@@ -40,7 +42,7 @@ import Cardano.Wallet.Read.Primitive.Tx.Shelley
 import Cardano.Wallet.Read.Tx
     ( Tx (..) )
 import Cardano.Wallet.Read.Tx.CBOR
-    ( getTxCBOR )
+    ( renderTxToCBOR )
 import Cardano.Wallet.Read.Tx.Hash
     ( fromShelleyTxId )
 import Cardano.Wallet.Shelley.Compatibility.Ledger
@@ -105,7 +107,7 @@ fromAlonzoTx tx@(Alonzo.ValidatedTx bod wits (Alonzo.IsValid isValid) aux) =
         { txId =
             alonzoTxHash tx
         , txCBOR =
-            Just $ getTxCBOR $ Tx AlonzoEra tx
+            Just $ renderTxToCBOR $ inject alonzo $ Tx tx
         , fee =
             Just $ fromShelleyCoin fee
         , resolvedInputs =
