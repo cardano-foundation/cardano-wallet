@@ -18,7 +18,7 @@
 -- A datatype that represents values that can be different in any known eras.
 --
 
-module Cardano.Wallet.Types.Read.Eras.EraValue
+module Cardano.Wallet.Read.Eras.EraValue
   ( -- * Era bounded values.
   EraValue (..)
   , eraValueSerialize
@@ -42,7 +42,7 @@ import Prelude
 
 import Cardano.Api
     ( AllegraEra, AlonzoEra, BabbageEra, ByronEra, MaryEra, ShelleyEra )
-import Cardano.Wallet.Types.Read.Eras.KnownEras
+import Cardano.Wallet.Read.Eras.KnownEras
     ( KnownEras )
 import Control.DeepSeq
     ( NFData )

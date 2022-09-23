@@ -14,7 +14,7 @@ License: Apache-2.0
 The 'Tx' type represents transactions as they are read from the mainnet ledger.
 It is compatible with the era-specific types from @cardano-ledger@.
 -}
-module Cardano.Wallet.Types.Read.Tx
+module Cardano.Wallet.Read.Tx
     ( -- * Transactions
       TxEra
     , Tx (..)

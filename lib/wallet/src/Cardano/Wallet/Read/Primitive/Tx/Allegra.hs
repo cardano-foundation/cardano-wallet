@@ -20,7 +20,7 @@
 -- License: Apache-2.0
 --
 -- Conversion functions and static chain settings for Shelley.
-module Cardano.Wallet.Types.Read.Primitive.Tx.Allegra
+module Cardano.Wallet.Read.Primitive.Tx.Allegra
     (fromAllegraTx, fromLedgerTxValidity)
     where
 
@@ -28,12 +28,7 @@ import Prelude
 
 import Cardano.Api
     ( AllegraEra, CardanoEra (..) )
-import Cardano.Wallet.Transaction
-    ( TokenMapWithScripts (..)
-    , ValidityIntervalExplicit (..)
-    , emptyTokenMapWithScripts
-    )
-import Cardano.Wallet.Types.Read.Primitive.Tx.Shelley
+import Cardano.Wallet.Read.Primitive.Tx.Shelley
     ( fromShelleyCert
     , fromShelleyCoin
     , fromShelleyMD
@@ -41,12 +36,17 @@ import Cardano.Wallet.Types.Read.Primitive.Tx.Shelley
     , fromShelleyTxOut
     , fromShelleyWdrl
     )
-import Cardano.Wallet.Types.Read.Tx
+import Cardano.Wallet.Read.Tx
     ( Tx (..) )
-import Cardano.Wallet.Types.Read.Tx.CBOR
+import Cardano.Wallet.Read.Tx.CBOR
     ( getTxCBOR )
-import Cardano.Wallet.Types.Read.Tx.Hash
+import Cardano.Wallet.Read.Tx.Hash
     ( shelleyTxHash )
+import Cardano.Wallet.Transaction
+    ( TokenMapWithScripts (..)
+    , ValidityIntervalExplicit (..)
+    , emptyTokenMapWithScripts
+    )
 import Data.Foldable
     ( toList )
 import Data.Quantity

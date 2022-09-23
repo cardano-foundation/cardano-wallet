@@ -11,7 +11,7 @@
 --
 -- A type list of known eras, useful for indexed-by-era operations.
 
-module Cardano.Wallet.Types.Read.Eras.KnownEras
+module Cardano.Wallet.Read.Eras.KnownEras
     ( KnownEras
     , knownEraIndices
     ) where

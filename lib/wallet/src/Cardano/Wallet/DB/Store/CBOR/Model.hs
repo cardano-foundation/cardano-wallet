@@ -12,7 +12,7 @@ import Prelude
 
 import Cardano.Wallet.DB.Sqlite.Types
     ( TxId )
-import Cardano.Wallet.Types.Read.Tx.CBOR
+import Cardano.Wallet.Read.Tx.CBOR
     ( TxCBOR )
 import Data.Delta
     ( Delta (..) )

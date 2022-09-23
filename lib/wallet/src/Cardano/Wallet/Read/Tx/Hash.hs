@@ -11,7 +11,7 @@
 {-# LANGUAGE TypeFamilies #-}
 {-# LANGUAGE UndecidableInstances #-}
 
-module Cardano.Wallet.Types.Read.Tx.Hash
+module Cardano.Wallet.Read.Tx.Hash
     ( byronTxHash
     , alonzoTxHash
     , shelleyTxHash

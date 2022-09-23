@@ -6,7 +6,7 @@
 -- Re-export `EraValue` library.
 --
 
-module Cardano.Wallet.Types.Read.Eras
+module Cardano.Wallet.Read.Eras
   ( -- * Eras.
     KnownEras
   , knownEraIndices
@@ -44,9 +44,9 @@ module Cardano.Wallet.Types.Read.Eras
   )
   where
 
-import Cardano.Wallet.Types.Read.Eras.EraFun
+import Cardano.Wallet.Read.Eras.EraFun
     ( EraFun (..), applyEraFun, (*&&&*), (*.**) )
-import Cardano.Wallet.Types.Read.Eras.EraValue
+import Cardano.Wallet.Read.Eras.EraValue
     ( EraValue
     , MkEraValue (..)
     , allegra
@@ -61,9 +61,9 @@ import Cardano.Wallet.Types.Read.Eras.EraValue
     , sequenceEraValue
     , shelley
     )
-import Cardano.Wallet.Types.Read.Eras.InAnyCardanoEra
+import Cardano.Wallet.Read.Eras.InAnyCardanoEra
     ( isoInAnyCardanoEra )
-import Cardano.Wallet.Types.Read.Eras.KnownEras
+import Cardano.Wallet.Read.Eras.KnownEras
     ( KnownEras, knownEraIndices )
 import Generics.SOP
     ( (:.:) (..), K (..), unK )

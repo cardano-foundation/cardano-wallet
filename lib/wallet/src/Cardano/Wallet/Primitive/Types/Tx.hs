@@ -144,7 +144,7 @@ import Cardano.Wallet.Primitive.Types.Tx.Tx
     )
 import Cardano.Wallet.Primitive.Types.Tx.TxMeta
     ( Direction (..), TxMeta (..), TxStatus (..), isPending )
-import Cardano.Wallet.Types.Read.Tx.CBOR
+import Cardano.Wallet.Read.Tx.CBOR
     ( TxCBOR (..) )
 import Data.Word
     ( Word64 )

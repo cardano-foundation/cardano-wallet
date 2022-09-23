@@ -14,7 +14,7 @@
 -- An isomorphism between 'InAnyCardanoEra' and 'EraValue'.
 --
 
-module Cardano.Wallet.Types.Read.Eras.InAnyCardanoEra
+module Cardano.Wallet.Read.Eras.InAnyCardanoEra
     ( isoInAnyCardanoEra
     )
   where
@@ -23,7 +23,7 @@ import Prelude
 
 import Cardano.Api
     ( CardanoEra (..), InAnyCardanoEra (InAnyCardanoEra), IsCardanoEra )
-import Cardano.Wallet.Types.Read.Eras.EraValue
+import Cardano.Wallet.Read.Eras.EraValue
     ( EraValue (..)
     , MkEraValue (..)
     , allegra
@@ -34,7 +34,7 @@ import Cardano.Wallet.Types.Read.Eras.EraValue
     , mary
     , shelley
     )
-import Cardano.Wallet.Types.Read.Eras.KnownEras
+import Cardano.Wallet.Read.Eras.KnownEras
     ( KnownEras )
 import Data.Generics.Internal.VL
     ( Iso', build, iso )

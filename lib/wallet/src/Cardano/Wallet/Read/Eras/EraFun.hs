@@ -26,7 +26,7 @@
 -- just cache and reuse the compositions
 --
 
-module Cardano.Wallet.Types.Read.Eras.EraFun
+module Cardano.Wallet.Read.Eras.EraFun
   ( -- * Types.
   EraFun (..)
   -- * Composition.
@@ -44,9 +44,9 @@ import Prelude hiding
 
 import Cardano.Api
     ( AllegraEra, AlonzoEra, BabbageEra, ByronEra, MaryEra, ShelleyEra )
-import Cardano.Wallet.Types.Read.Eras.EraValue
+import Cardano.Wallet.Read.Eras.EraValue
     ( EraValue (..) )
-import Cardano.Wallet.Types.Read.Eras.KnownEras
+import Cardano.Wallet.Read.Eras.KnownEras
     ( KnownEras )
 import Control.Category
     ( Category (..) )

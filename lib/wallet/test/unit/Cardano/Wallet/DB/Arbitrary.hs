@@ -145,7 +145,7 @@ import Cardano.Wallet.Primitive.Types.Tx.Gen
     ( genTxOutCoin, genTxScriptValidity, shrinkTxScriptValidity )
 import Cardano.Wallet.Primitive.Types.UTxO
     ( UTxO (..) )
-import Cardano.Wallet.Types.Read.Tx.CBOR
+import Cardano.Wallet.Read.Tx.CBOR
     ( TxCBOR (..) )
 import Cardano.Wallet.Unsafe
     ( someDummyMnemonic, unsafeMkPercentage )

@@ -157,6 +157,8 @@ import Cardano.Wallet.Primitive.Types.Tx.Constraints
     ( TxConstraints (..), TxSize (..), txSizeDistance )
 import Cardano.Wallet.Primitive.Types.UTxO
     ( UTxO (..) )
+import Cardano.Wallet.Read.Primitive.Tx
+    ( fromCardanoTx )
 import Cardano.Wallet.Shelley.Compatibility
     ( cardanoCertKeysForWitnesses
     , fromCardanoAddress
@@ -195,8 +197,6 @@ import Cardano.Wallet.Transaction
     , mapTxFeeAndChange
     , withdrawalToCoin
     )
-import Cardano.Wallet.Types.Read.Primitive.Tx
-    ( fromCardanoTx )
 import Cardano.Wallet.Util
     ( internalError, modifyM )
 import Codec.Serialise
