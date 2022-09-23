@@ -5,9 +5,11 @@
 {-# LANGUAGE GADTs #-}
 {-# LANGUAGE KindSignatures #-}
 {-# LANGUAGE LambdaCase #-}
+{-# LANGUAGE PatternSynonyms #-}
 {-# LANGUAGE ScopedTypeVariables #-}
 {-# LANGUAGE TypeApplications #-}
 {-# LANGUAGE TypeOperators #-}
+{-# LANGUAGE ViewPatterns #-}
 
 -- |
 -- Copyright: © 2018-2020 IOHK
@@ -72,6 +74,11 @@ module Test.QuickCheck.Extra
     , ScaleDiv (..)
     , ScaleMod (..)
 
+      -- * Pattern synonyms
+    , pattern ViewFun
+    , pattern ViewFun2
+    , pattern ViewFun3
+
       -- * Utilities
     , interleaveRoundRobin
 
@@ -100,9 +107,13 @@ import Numeric.Natural
     ( Natural )
 import Test.QuickCheck
     ( Arbitrary (..)
+    , Fun (..)
     , Gen
     , Property
     , Testable
+    , applyFun
+    , applyFun2
+    , applyFun3
     , chooseInt
     , chooseInteger
     , counterexample
@@ -930,3 +941,19 @@ infixl 6 <@>
 (<:>) :: (x -> [x]) -> NP (I -.-> []) xs -> NP (I -.-> []) (x : xs)
 a <:> b = liftShrinker a :* b
 infixr 7 <:>
+
+--------------------------------------------------------------------------------
+-- Pattern synonyms
+--------------------------------------------------------------------------------
+
+{-# COMPLETE ViewFun #-}
+pattern ViewFun :: (a -> b) -> Fun a b
+pattern ViewFun f <- (applyFun -> f)
+
+{-# COMPLETE ViewFun2 #-}
+pattern ViewFun2 :: (a -> b -> c) -> Fun (a, b) c
+pattern ViewFun2 f <- (applyFun2 -> f)
+
+{-# COMPLETE ViewFun3 #-}
+pattern ViewFun3 :: (a -> b -> c -> d) -> Fun (a, b, c) d
+pattern ViewFun3 f <- (applyFun3 -> f)
