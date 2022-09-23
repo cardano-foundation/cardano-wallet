@@ -2,6 +2,8 @@
 {-# LANGUAGE LambdaCase #-}
 {-# LANGUAGE MultiParamTypeClasses #-}
 {-# LANGUAGE NamedFieldPuns #-}
+{-# LANGUAGE PatternSynonyms #-}
+{-# LANGUAGE ViewPatterns #-}
 
 -- |
 -- Copyright: © 2022 IOHK
@@ -19,6 +21,7 @@ module Cardano.Wallet.Primitive.Types.Tx.TxSeq.Gen
     (
     -- * Public interface
       ShrinkableTxSeq
+    , pattern ViewTxSeq
     , genTxSeq
     , getTxSeq
     , shrinkTxSeq
@@ -116,6 +119,10 @@ genTxSeq genUTxO genAddr = fmap toShrinkable $ sized $ \size ->
 --
 getTxSeq :: ShrinkableTxSeq -> TxSeq
 getTxSeq = txSeq
+
+{-# COMPLETE ViewTxSeq #-}
+pattern ViewTxSeq :: TxSeq -> ShrinkableTxSeq
+pattern ViewTxSeq s <- (txSeq -> s)
 
 -- | Shrinks a transaction sequence.
 --
