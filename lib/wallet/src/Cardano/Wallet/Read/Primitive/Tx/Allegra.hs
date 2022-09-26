@@ -58,6 +58,7 @@ import qualified Cardano.Ledger.ShelleyMA.AuxiliaryData as MA
 import qualified Cardano.Ledger.ShelleyMA.TxBody as MA
 import qualified Cardano.Wallet.Primitive.Types as W
 import qualified Cardano.Wallet.Primitive.Types.Coin as W
+import qualified Cardano.Wallet.Primitive.Types.Hash as W
 import qualified Cardano.Wallet.Primitive.Types.Tx as W
 import qualified Ouroboros.Network.Block as O
 
@@ -75,7 +76,7 @@ fromAllegraTx
 fromAllegraTx tx =
     ( W.Tx
         { txId =
-            shelleyTxHash tx
+            W.Hash $ shelleyTxHash tx
         , txCBOR =
             Just $ renderTxToCBOR $ inject allegra $ Tx tx
         , fee =

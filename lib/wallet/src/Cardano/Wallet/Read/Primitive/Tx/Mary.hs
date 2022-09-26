@@ -99,7 +99,7 @@ fromMaryTx
 fromMaryTx tx =
     ( W.Tx
         { txId =
-            shelleyTxHash tx
+            W.Hash $ shelleyTxHash tx
         , txCBOR =
             Just $ renderTxToCBOR $ inject mary $ Tx tx
         , fee =
