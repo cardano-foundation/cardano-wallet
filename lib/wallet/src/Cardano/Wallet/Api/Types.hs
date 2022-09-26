@@ -318,15 +318,14 @@ import Cardano.Wallet.Api.Types.Key
     , KeyFormat (..)
     , VerificationKeyHashing (..)
     )
+import Cardano.Wallet.Api.Types.MintBurn
+    ( ApiAssetMintBurn (..), ApiTokenAmountFingerprint (..), ApiTokens (..) )
 import Cardano.Wallet.Api.Types.SchemaMetadata
     ( TxMetadataWithSchema )
 import Cardano.Wallet.Api.Types.Transaction
     ( AddressAmount (..)
-    , ApiAssetMintBurn (..)
     , ApiDecodedTransaction (..)
     , ApiPostPolicyKeyData (..)
-    , ApiTokenAmountFingerprint (..)
-    , ApiTokens (..)
     , ApiTxInputGeneral (..)
     , ApiTxMetadata (..)
     , ApiTxOutput
@@ -1247,6 +1246,8 @@ data ApiTransaction (n :: NetworkDiscriminant) = ApiTransaction
     , metadata :: !(Maybe TxMetadataWithSchema)
     , scriptValidity :: !(Maybe (ApiT TxScriptValidity))
     , certificates :: [ApiAnyCertificate n]
+    , mint :: ApiAssetMintBurn
+    , burn :: ApiAssetMintBurn
     }
     deriving (Eq, Generic, Show, Typeable)
     deriving anyclass NFData

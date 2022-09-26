@@ -1228,6 +1228,10 @@ spec = parallel $ do
                         (x :: ApiTransaction ('Testnet 0))
                     , certificates = certificates
                         (x :: ApiTransaction ('Testnet 0))
+                    , mint = mint
+                        (x :: ApiTransaction ('Testnet 0))
+                    , burn = burn
+                        (x :: ApiTransaction ('Testnet 0))
                     }
             in
                 x' === x .&&. show x' === show x
@@ -2630,6 +2634,8 @@ instance Arbitrary (ApiTransaction n) where
             <*> arbitrary
             <*> liftArbitrary (ApiT <$> genTxScriptValidity)
             <*> arbitrary
+            <*> arbitrary
+            <*> arbitrary
       where
         genInputs =
             Test.QuickCheck.scale (`mod` 3) arbitrary
@@ -3036,6 +3042,7 @@ instance Typeable n => ToSchema (ApiTransaction n) where
     declareNamedSchema _ = do
         addDefinition =<< declareSchemaForDefinition "TransactionMetadataValue"
         addDefinition =<< declareSchemaForDefinition "TransactionMetadataValueNoSchema"
+        addDefinition =<< declareSchemaForDefinition "ScriptValue"
         declareSchemaForDefinition "ApiTransaction"
 
 instance ToSchema ApiUtxoStatistics where

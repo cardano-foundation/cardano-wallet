@@ -9,11 +9,10 @@
 --
 -- Conversion functions and static chain settings for Shelley.
 module Cardano.Wallet.Read.Primitive.Tx.Features.Certificates
-    (certificates, anyEraCerts, fromStakeCredential, extractCertificates)
+    (certificates, anyEraCerts, fromStakeCredential)
  where
 
-import Prelude hiding
-    ( (.) )
+import Prelude
 
 import Cardano.Crypto.Hash.Class
     ( hashToBytes )
@@ -29,21 +28,11 @@ import Cardano.Wallet.Primitive.Types
     , PoolRetirementCertificate (..)
     )
 import Cardano.Wallet.Read.Eras
-    ( EraFun (..)
-    , K (..)
-    , applyEraFun
-    , extractEraValue
-    , sequenceEraValue
-    , (*.**)
-    )
-import Cardano.Wallet.Read.Tx.CBOR
-    ( TxCBOR, deserializeTx )
+    ( EraFun (..), K (..) )
 import Cardano.Wallet.Read.Tx.Certificates
-    ( Certificates (..), CertificatesType, getEraCertificates )
+    ( Certificates (..), CertificatesType )
 import Cardano.Wallet.Util
     ( internalError )
-import Codec.CBOR.Read
-    ( DeserialiseFailure )
 import Data.Foldable
     ( toList )
 import Data.Quantity
@@ -60,16 +49,7 @@ import qualified Cardano.Wallet.Primitive.Types as W
 import qualified Cardano.Wallet.Primitive.Types.Coin as Coin
 import qualified Cardano.Wallet.Primitive.Types.Coin as W
 import qualified Cardano.Wallet.Primitive.Types.RewardAccount as W
-import Control.Category
-    ( (.) )
 import qualified Data.Set as Set
-
-extractCertificates :: TxCBOR -> Either DeserialiseFailure [W.Certificate]
-extractCertificates
-    = fmap extractEraValue
-    . sequenceEraValue
-    . applyEraFun
-        ((certificates . getEraCertificates) *.** deserializeTx)
 
 certificates :: EraFun Certificates (K [W.Certificate])
 certificates = EraFun
