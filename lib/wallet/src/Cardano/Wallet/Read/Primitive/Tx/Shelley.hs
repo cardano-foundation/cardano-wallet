@@ -40,6 +40,8 @@ import Cardano.Wallet.Primitive.Types
     , PoolRegistrationCertificate (..)
     , PoolRetirementCertificate (..)
     )
+import Cardano.Wallet.Read.Eras
+    ( inject, shelley )
 import Cardano.Wallet.Read.Tx
     ( Tx (..) )
 import Cardano.Wallet.Read.Tx.CBOR
@@ -80,10 +82,10 @@ import qualified Cardano.Wallet.Primitive.Types as W
 import qualified Cardano.Wallet.Primitive.Types.Address as W
 import qualified Cardano.Wallet.Primitive.Types.Coin as Coin
 import qualified Cardano.Wallet.Primitive.Types.Coin as W
+import qualified Cardano.Wallet.Primitive.Types.Hash as W
 import qualified Cardano.Wallet.Primitive.Types.RewardAccount as W
 import qualified Cardano.Wallet.Primitive.Types.TokenBundle as TokenBundle
 import qualified Cardano.Wallet.Primitive.Types.Tx as W
-import Cardano.Wallet.Read.Eras
 import qualified Data.Map.Strict as Map
 import qualified Data.Set as Set
 import qualified Ouroboros.Network.Block as O
@@ -92,7 +94,7 @@ fromShelleyTxIn
     :: SL.TxIn crypto
     -> W.TxIn
 fromShelleyTxIn (SL.TxIn txid (SL.TxIx ix)) =
-    W.TxIn (fromShelleyTxId txid) (unsafeCast ix)
+    W.TxIn (W.Hash $ fromShelleyTxId txid) (unsafeCast ix)
   where
     -- During the Vasil hard-fork the cardano-ledger team moved from
     -- representing transaction indices with Word16s, to using Word64s (see
@@ -135,7 +137,7 @@ fromShelleyTx
 fromShelleyTx tx =
     ( W.Tx
         { txId =
-            shelleyTxHash tx
+            W.Hash $ shelleyTxHash tx
         , txCBOR =
             Just $ renderTxToCBOR $ inject shelley $ Tx tx
         , fee =
@@ -163,7 +165,6 @@ fromShelleyTx tx =
     )
   where
     SL.Tx (SL.TxBody ins outs certs wdrls fee (O.SlotNo ttl) _ _) _ mmd = tx
-
 
 fromShelleyWdrl :: SL.Wdrl crypto -> Map W.RewardAccount W.Coin
 fromShelleyWdrl (SL.Wdrl wdrl) = Map.fromList $

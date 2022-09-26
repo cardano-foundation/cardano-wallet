@@ -30,8 +30,6 @@ import Cardano.Wallet.Read.Eras
     ( babbage, inject )
 import Cardano.Wallet.Read.Primitive.Tx.Allegra
     ( fromLedgerTxValidity )
-import Cardano.Wallet.Read.Primitive.Tx.Alonzo
-    ( alonzoTxHash )
 import Cardano.Wallet.Read.Primitive.Tx.Mary
     ( fromCardanoValue, fromLedgerMintValue, getScriptMap )
 import Cardano.Wallet.Read.Primitive.Tx.Shelley
@@ -46,6 +44,8 @@ import Cardano.Wallet.Read.Tx
     ( Tx (..) )
 import Cardano.Wallet.Read.Tx.CBOR
     ( renderTxToCBOR )
+import Cardano.Wallet.Read.Tx.Hash
+    ( alonzoTxHash )
 import Cardano.Wallet.Shelley.Compatibility.Ledger
     ( toWalletScript, toWalletTokenPolicyId )
 import Cardano.Wallet.Transaction
@@ -75,6 +75,7 @@ import qualified Cardano.Ledger.Mary.Value as SL
 import qualified Cardano.Ledger.Shelley.API as SL
 import qualified Cardano.Wallet.Primitive.Types as W
 import qualified Cardano.Wallet.Primitive.Types.Coin as W
+import qualified Cardano.Wallet.Primitive.Types.Hash as W
 import qualified Cardano.Wallet.Primitive.Types.Tx as W
 import qualified Data.Map.Strict as Map
 
@@ -89,7 +90,7 @@ fromBabbageTx
 fromBabbageTx tx@(Alonzo.ValidatedTx bod wits (Alonzo.IsValid isValid) aux) =
     ( W.Tx
         { txId =
-            alonzoTxHash tx
+            W.Hash $ alonzoTxHash tx
         , txCBOR =
             Just $ renderTxToCBOR $ inject babbage $ Tx tx
         , fee =
