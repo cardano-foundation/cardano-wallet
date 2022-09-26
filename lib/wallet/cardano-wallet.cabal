@@ -233,6 +233,7 @@ library
     Cardano.Wallet.Api.Lib.Options
     Cardano.Wallet.Api.Link
     Cardano.Wallet.Api.Server
+    Cardano.Wallet.Api.Server.Error
     Cardano.Wallet.Api.Server.Tls
     Cardano.Wallet.Api.Types
     Cardano.Wallet.Api.Types.Address
