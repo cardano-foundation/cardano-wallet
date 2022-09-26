@@ -2451,7 +2451,7 @@ spec = describe "SHELLEY_TRANSACTIONS" $ do
             expectErrorMessage (errMsg404CannotFindTx txid) ra
 
     verifyWalletBalance
-        :: (MonadIO m, MonadUnliftIO m)
+        :: MonadUnliftIO m
         => Context
         -> ApiWallet
         -> Quantity "lovelace" Natural

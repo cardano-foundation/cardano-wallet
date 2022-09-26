@@ -21,8 +21,7 @@ common language
     OverloadedStrings
 
 common opts-lib
-  ghc-options: -Wall -Wcompat
-
+  ghc-options: -Wall -Wcompat -fwarn-redundant-constraints
   if flag(release)
     ghc-options: -O2 -Werror
 
@@ -43,7 +42,6 @@ flag scrypt
 
 library
   import:          language, opts-lib
-  ghc-options:     -fwarn-redundant-constraints
   hs-source-dirs:  src
 
   if flag(scrypt)

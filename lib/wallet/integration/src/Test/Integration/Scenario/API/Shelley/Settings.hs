@@ -14,20 +14,7 @@ module Test.Integration.Scenario.API.Shelley.Settings
 import Prelude
 
 import Cardano.Wallet.Api.Types
-    ( ApiStakePool
-    , ApiT (..)
-    , DecodeAddress
-    , DecodeStakeAddress
-    , EncodeAddress (..)
-    )
-import Cardano.Wallet.Primitive.AddressDerivation
-    ( Depth (..), PaymentAddress )
-import Cardano.Wallet.Primitive.AddressDerivation.Byron
-    ( ByronKey )
-import Cardano.Wallet.Primitive.AddressDerivation.Icarus
-    ( IcarusKey )
-import Cardano.Wallet.Primitive.AddressDerivation.Shelley
-    ( ShelleyKey )
+    ( ApiStakePool, ApiT (..) )
 import Cardano.Wallet.Primitive.Types
     ( PoolMetadataSource (..), Settings )
 import Cardano.Wallet.Primitive.Types.Coin
@@ -62,14 +49,7 @@ import Test.Integration.Framework.DSL
 import qualified Cardano.Wallet.Api.Link as Link
 import qualified Network.HTTP.Types.Status as HTTP
 
-spec :: forall n.
-    ( DecodeAddress n
-    , DecodeStakeAddress n
-    , EncodeAddress n
-    , PaymentAddress n ShelleyKey 'CredFromKeyK
-    , PaymentAddress n IcarusKey 'CredFromKeyK
-    , PaymentAddress n ByronKey 'CredFromKeyK
-    ) => SpecWith Context
+spec :: SpecWith Context
 spec = describe "SHELLEY_SETTINGS" $ do
     it "SETTINGS_01 - Can put and read settings" $ \ctx -> do
         let uri = "http://smash.it"

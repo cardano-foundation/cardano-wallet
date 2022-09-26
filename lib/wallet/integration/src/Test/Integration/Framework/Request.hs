@@ -99,7 +99,6 @@ data Headers
 request
     :: forall a m s.
         ( FromJSON a
-        , MonadIO m
         , MonadUnliftIO m
         , HasType (URI, Manager) s
         )
@@ -136,8 +135,7 @@ request = baseRequest defaultHeaders handleResponse
 -- | Like 'request', but does not attempt to deserialize the response.
 rawRequest
     :: forall m s.
-        ( MonadIO m
-        , MonadUnliftIO m
+        ( MonadUnliftIO m
         , HasType (URI, Manager) s
         )
     => s
@@ -189,10 +187,8 @@ baseRequest defaultHeaders handleResponse ctx (verb, path) headers payload = do
         NonJson x -> RequestBodyLBS x
         Empty -> mempty
 
-    handleException
-        :: MonadIO m
-        => HttpException
-        -> m (HTTP.Status, Either RequestException a)
+    handleException ::
+        HttpException -> m (HTTP.Status, Either RequestException a)
     handleException = \case
         e@InvalidUrlException{} -> throwIO e
         HttpExceptionRequest _ e -> pure (status500, Left (HttpException e))
