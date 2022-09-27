@@ -512,6 +512,8 @@ import qualified Cardano.Wallet.Primitive.Types.TokenBundle as W
 import qualified Cardano.Wallet.Primitive.Types.TokenMap as TokenMap
 import qualified Cardano.Wallet.Primitive.Types.TokenMap as W
 import qualified Cardano.Wallet.Primitive.Types.TokenPolicy as W
+import Cardano.Wallet.Transaction
+    ( ValidityIntervalExplicit )
 import qualified Codec.Binary.Bech32 as Bech32
 import qualified Codec.Binary.Bech32.TH as Bech32
 import qualified Data.Aeson as Aeson
@@ -1248,6 +1250,7 @@ data ApiTransaction (n :: NetworkDiscriminant) = ApiTransaction
     , certificates :: [ApiAnyCertificate n]
     , mint :: ApiAssetMintBurn
     , burn :: ApiAssetMintBurn
+    , validityInterval :: Maybe ValidityIntervalExplicit
     }
     deriving (Eq, Generic, Show, Typeable)
     deriving anyclass NFData

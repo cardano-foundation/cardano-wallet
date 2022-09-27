@@ -1232,6 +1232,8 @@ spec = parallel $ do
                         (x :: ApiTransaction ('Testnet 0))
                     , burn = burn
                         (x :: ApiTransaction ('Testnet 0))
+                    , validityInterval = validityInterval
+                        (x :: ApiTransaction ('Testnet 0))
                     }
             in
                 x' === x .&&. show x' === show x
@@ -2633,6 +2635,7 @@ instance Arbitrary (ApiTransaction n) where
             <*> pure txStatus
             <*> arbitrary
             <*> liftArbitrary (ApiT <$> genTxScriptValidity)
+            <*> arbitrary
             <*> arbitrary
             <*> arbitrary
             <*> arbitrary
