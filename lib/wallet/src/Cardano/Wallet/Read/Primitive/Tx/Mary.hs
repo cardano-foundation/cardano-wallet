@@ -4,7 +4,7 @@
 {-# LANGUAGE TupleSections #-}
 
 -- |
--- Copyright: © 2020 IOHK
+-- Copyright: © 2020-2022 IOHK
 -- License: Apache-2.0
 --
 
@@ -20,12 +20,12 @@ import Cardano.Api
     ( MaryEra )
 import Cardano.Wallet.Read.Eras
     ( inject, mary )
-import Cardano.Wallet.Read.Primitive.Tx.Allegra
-    ( fromLedgerTxValidity )
 import Cardano.Wallet.Read.Primitive.Tx.Features.Certificates
     ( anyEraCerts )
 import Cardano.Wallet.Read.Primitive.Tx.Features.Mint
     ( maryMint )
+import Cardano.Wallet.Read.Primitive.Tx.Features.Validity
+    ( afterShelleyValidityInterval )
 import Cardano.Wallet.Read.Primitive.Tx.Shelley
     ( fromShelleyAddress
     , fromShelleyCoin
@@ -98,11 +98,11 @@ fromMaryTx tx =
     , anyEraCerts certs
     , assetsToMint
     , assetsToBurn
-    , Just (fromLedgerTxValidity ttl)
+    , Just $ afterShelleyValidityInterval val
     )
   where
     SL.Tx bod wits mad = tx
-    MA.TxBody ins outs certs wdrls fee ttl _upd _adh mint = bod
+    MA.TxBody ins outs certs wdrls fee val _upd _adh mint = bod
     (assetsToMint, assetsToBurn) = maryMint mint wits
 
     -- fixme: [ADP-525] It is fine for now since we do not look at script
