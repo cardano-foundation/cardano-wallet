@@ -70,8 +70,12 @@ import Cardano.Wallet.Primitive.Types.TokenPolicy
     ( TokenName, TokenPolicyId )
 import Cardano.Wallet.Primitive.Types.TokenQuantity
     ( TokenQuantity )
+import Control.Applicative
+    ( (<|>) )
 import Control.Arrow
     ( (&&&) )
+import Control.Monad
+    ( guard )
 import Data.Delta
     ( Delta (..) )
 import Data.Foldable
@@ -79,9 +83,11 @@ import Data.Foldable
 import Data.Generics.Internal.VL
     ( view, (^.) )
 import Data.List
-    ( sortOn )
+    ( find, sortOn )
 import Data.Map.Strict
     ( Map )
+import Data.Maybe
+    ( catMaybes )
 import Data.Word
     ( Word32 )
 import Fmt
@@ -369,8 +375,24 @@ lookupTxOutForTxCollateral tx =
 -- by searching the 'TxHistory' for corresponding output values.
 decorateTxIns
     :: TxHistory -> TxRelationF 'Without -> DecoratedTxIns
-decorateTxIns (TxHistoryF _relations) TxRelationF{} =
-    mempty -- TODO: actual implementation
+decorateTxIns (TxHistoryF relations) TxRelationF{ins,collateralIns} =
+    DecoratedTxIns . Map.fromList . catMaybes $
+        (lookupOutput . toKeyTxIn <$> ins)
+        ++ (lookupOutput . toKeyTxCollateral <$> collateralIns)
+  where
+    lookupOutput key@(txid, index) = do
+        tx <- Map.lookup txid relations
+        out <- lookupTxOut tx index <|> lookupTxCollateralOut tx index
+        pure (key, out)
+
+    lookupTxOut tx index = fromTxOut <$>
+        Data.List.find ((index ==) . txOutputIndex . fst) (outs tx)
+
+    lookupTxCollateralOut tx index = do
+        out <- collateralOuts tx
+        let collateralOutputIndex = toEnum $ length (outs tx)
+        guard $ index == collateralOutputIndex  -- Babbage leder spec
+        pure $ fromTxCollateralOut out
 
 toKeyTxIn :: TxIn -> TxOutKey
 toKeyTxIn txin = (txInputSourceTxId txin, txInputSourceIndex txin)
