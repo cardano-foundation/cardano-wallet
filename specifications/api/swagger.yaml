@@ -2720,6 +2720,7 @@ components:
           items: *ApiCertificate
         mint: *ApiAssetMintBurn
         burn: *ApiAssetMintBurn
+        validity_interval: *ApiValidityIntervalExplicit
 
     x-txBody: &txBody
       oneOf:

@@ -390,6 +390,8 @@ import Cardano.Wallet.Shelley.Pools
     ( EpochInfo, StakePool (..), StakePoolFlag, StakePoolMetrics )
 import Cardano.Wallet.TokenMetadata
     ( TokenMetadataError (..) )
+import Cardano.Wallet.Transaction
+    ( ValidityIntervalExplicit )
 import Cardano.Wallet.Util
     ( ShowFmt (..) )
 import "cardano-addresses" Codec.Binary.Encoding
@@ -1283,6 +1285,7 @@ data ApiTransaction (n :: NetworkDiscriminant) = ApiTransaction
     , certificates :: [ApiAnyCertificate n]
     , mint :: ApiAssetMintBurn
     , burn :: ApiAssetMintBurn
+    , validityInterval :: Maybe ValidityIntervalExplicit
     }
     deriving (Eq, Generic, Show, Typeable)
     deriving (FromJSON, ToJSON) via DefaultRecord (ApiTransaction n)

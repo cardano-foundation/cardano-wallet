@@ -2167,6 +2167,7 @@ instance Arbitrary (ApiTransaction n) where
             <*> arbitrary
             <*> arbitrary
             <*> arbitrary
+            <*> arbitrary
       where
         genInputs =
             Test.QuickCheck.scale (`mod` 3) arbitrary

@@ -4052,6 +4052,8 @@ mkApiTransaction timeInterpreter wrk wid setTimeReference tx = do
         else pure Nothing
     parsedMintBurn <- forM parsedValues
         $ getTxApiAssetMintBurn @_ @s @k @n wrk wid
+    let parsedValidity = view #validityInterval =<< parsedValues
+
     return $
         apiTx
             & setTimeReference .~ Just timeRef
@@ -4059,6 +4061,7 @@ mkApiTransaction timeInterpreter wrk wid setTimeReference tx = do
             & #certificates .~ fromMaybe [] parsedCertificates
             & #mint  .~ maybe noApiAsset fst parsedMintBurn
             & #burn  .~ maybe noApiAsset snd parsedMintBurn
+            & #validityInterval .~ parsedValidity
   where
     -- Since tx expiry can be far in the future, we use unsafeExtendSafeZone for
     -- now.
@@ -4095,6 +4098,7 @@ mkApiTransaction timeInterpreter wrk wid setTimeReference tx = do
         , certificates = []
         , mint = ApiAssetMintBurn [] Nothing Nothing
         , burn = ApiAssetMintBurn [] Nothing Nothing
+        , validityInterval = Nothing
         }
 
     depositIfAny :: Natural
