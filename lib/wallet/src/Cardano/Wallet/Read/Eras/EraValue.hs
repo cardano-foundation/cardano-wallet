@@ -7,6 +7,7 @@
 {-# LANGUAGE RankNTypes #-}
 {-# LANGUAGE ScopedTypeVariables #-}
 {-# LANGUAGE StandaloneDeriving #-}
+{-# LANGUAGE TypeApplications #-}
 {-# LANGUAGE TypeFamilies #-}
 {-# LANGUAGE TypeOperators #-}
 {-# LANGUAGE UndecidableInstances #-}
@@ -35,13 +36,25 @@ module Cardano.Wallet.Read.Eras.EraValue
   , project
   -- * Specials.
   , sequenceEraValue
+  , witnessEra
+  -- *Internals.
+  , cardanoEras
   )
   where
 
 import Prelude
 
 import Cardano.Api
-    ( AllegraEra, AlonzoEra, BabbageEra, ByronEra, MaryEra, ShelleyEra )
+    ( AllegraEra
+    , AlonzoEra
+    , AnyCardanoEra (..)
+    , BabbageEra
+    , ByronEra
+    , CardanoEra (..)
+    , IsCardanoEra
+    , MaryEra
+    , ShelleyEra
+    )
 import Cardano.Wallet.Read.Eras.KnownEras
     ( KnownEras )
 import Control.DeepSeq
@@ -57,6 +70,7 @@ import Generics.SOP
     , K (..)
     , NP (..)
     , NS
+    , Proxy (..)
     , ejections
     , injections
     , unComp
@@ -64,9 +78,9 @@ import Generics.SOP
     )
 import Generics.SOP.Classes
 import Generics.SOP.NP
-    ( zipWith_NP )
+    ( cmap_NP, zipWith_NP )
 import Generics.SOP.NS
-    ( collapse_NS, index_NS, sequence'_NS )
+    ( ap_NS, collapse_NS, index_NS, sequence'_NS )
 
 import qualified GHC.Generics as GHC
 
@@ -78,6 +92,25 @@ deriving instance (All (Compose Show f) KnownEras) => Show (EraValue f)
 deriving instance (All (Compose Eq f) KnownEras) => Eq (EraValue f)
 deriving instance (All (Compose Ord f) KnownEras) => Ord (EraValue f)
 deriving instance (All (Compose NFData f) KnownEras) => NFData (EraValue f)
+
+-- | Internal product of 'CardanoEra'
+cardanoEras :: NP CardanoEra KnownEras
+cardanoEras =
+    ByronEra
+        :* ShelleyEra
+        :* AllegraEra
+        :* MaryEra
+        :* AlonzoEra
+        :* BabbageEra
+        :* Nil
+
+-- | Add an era witness to an era independent EraValue.
+witnessEra :: EraValue (K b) -> EraValue (K (AnyCardanoEra, b))
+witnessEra (EraValue v) = EraValue $ ap_NS
+    (cmap_NP (Proxy @IsCardanoEra)
+        (Fn . (\x (K y) -> K (AnyCardanoEra x, y))) cardanoEras
+    )
+    v
 
 -- | Extract an era indipendent value.
 extractEraValue :: EraValue (K a) -> a
