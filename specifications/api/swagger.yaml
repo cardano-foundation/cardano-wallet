@@ -2718,6 +2718,8 @@ components:
           type: array
           minItems: 0
           items: *ApiCertificate
+        mint: *ApiAssetMintBurn
+        burn: *ApiAssetMintBurn
 
     x-txBody: &txBody
       oneOf:
