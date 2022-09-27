@@ -30,11 +30,18 @@ module Cardano.Wallet.DB.Store.Transactions.Model
     , mkTxHistory
     , Decoration (..)
     , WithTxOut (..)
+
     , decorateWithTxOuts
+    , undecorateFromTxOuts
+
+    -- * Type conversion from wallet types
     , mkTxIn
     , mkTxCollateral
     , mkTxOut
-    , undecorateFromTxOuts
+
+    -- * Type conversions to wallet types
+    , fromTxOut
+    , fromTxCollateralOut
     ) where
 
 import Prelude
@@ -173,6 +180,10 @@ instance Delta DeltaTxHistory where
     apply (DeleteTx tid) (TxHistoryF txs) =
         TxHistoryF $ Map.delete tid txs
 
+{-------------------------------------------------------------------------------
+    Type conversions
+    From wallet types -> to database tables
+-------------------------------------------------------------------------------}
 mkTxIn :: TxId -> (Int, (W.TxIn, W.Coin)) -> TxIn
 mkTxIn tid (ix,(txIn,amt)) =
     TxIn
@@ -289,6 +300,43 @@ mkTxHistory txs = TxHistoryF $ fold $ do
     let relation = mkTxRelation tx
     pure $ Map.singleton (TxId $ tx ^. #txId) relation
 
+{-------------------------------------------------------------------------------
+    Type conversions
+    From database tables -> to wallet types
+-------------------------------------------------------------------------------}
+fromTxOut :: (TxOut, [TxOutToken]) -> W.TxOut
+fromTxOut (out,tokens) =
+    W.TxOut
+    { W.address = txOutputAddress out
+    , W.tokens = TokenBundle.fromFlatList
+            (txOutputAmount out)
+            (fromTxOutToken <$> tokens)
+    }
+  where
+    fromTxOutToken token =
+        ( AssetId (txOutTokenPolicyId token) (txOutTokenName token)
+        , txOutTokenQuantity token
+        )
+
+fromTxCollateralOut :: (TxCollateralOut, [TxCollateralOutToken]) -> W.TxOut
+fromTxCollateralOut (out,tokens) =
+    W.TxOut
+    { W.address = txCollateralOutAddress out
+    , W.tokens = TokenBundle.fromFlatList
+            (txCollateralOutAmount out)
+            (fromTxCollateralOutToken <$> tokens)
+    }
+  where
+    fromTxCollateralOutToken token =
+        ( AssetId
+            (txCollateralOutTokenPolicyId token)
+            (txCollateralOutTokenName token)
+        , txCollateralOutTokenQuantity token
+        )
+
+{-------------------------------------------------------------------------------
+    Decorating Tx inputs with outputs
+-------------------------------------------------------------------------------}
 type TxOutKey = (TxId, Word32)
 
 decorateWithTxOuts :: TxHistoryF 'Without -> TxHistoryF 'With
