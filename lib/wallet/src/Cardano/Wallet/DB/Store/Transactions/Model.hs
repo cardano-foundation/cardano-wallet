@@ -31,6 +31,11 @@ module Cardano.Wallet.DB.Store.Transactions.Model
     , Decoration (..)
     , WithTxOut (..)
 
+    -- * Decoration
+    , DecoratedTxIns
+    , lookupTxOutForTxIn
+    , lookupTxOutForTxCollateral
+    , decorateTxIns
     , decorateWithTxOuts
     , undecorateFromTxOuts
 
@@ -337,6 +342,43 @@ fromTxCollateralOut (out,tokens) =
 {-------------------------------------------------------------------------------
     Decorating Tx inputs with outputs
 -------------------------------------------------------------------------------}
+-- | A collection of Tx inputs
+-- (regular or collateral, refered to by input and order)
+-- that are decorated with the values of their corresponding Tx outputs.
+newtype DecoratedTxIns = DecoratedTxIns
+    { unDecoratedTxIns
+        :: Map TxOutKey W.TxOut
+    }
+
+instance Semigroup DecoratedTxIns where
+    (DecoratedTxIns a) <> (DecoratedTxIns b) = DecoratedTxIns (a <> b)
+
+instance Monoid DecoratedTxIns where
+    mempty = DecoratedTxIns mempty
+
+lookupTxOutForTxIn
+    :: TxIn -> DecoratedTxIns -> Maybe W.TxOut
+lookupTxOutForTxIn tx = Map.lookup (toKeyTxIn tx) . unDecoratedTxIns
+
+lookupTxOutForTxCollateral
+    :: TxCollateral -> DecoratedTxIns -> Maybe W.TxOut
+lookupTxOutForTxCollateral tx =
+    Map.lookup (toKeyTxCollateral tx) . unDecoratedTxIns
+
+-- | Decorate the Tx inputs of a given 'TxRelation'
+-- by searching the 'TxHistory' for corresponding output values.
+decorateTxIns
+    :: TxHistory -> TxRelationF 'Without -> DecoratedTxIns
+decorateTxIns (TxHistoryF _relations) TxRelationF{} =
+    mempty -- TODO: actual implementation
+
+toKeyTxIn :: TxIn -> TxOutKey
+toKeyTxIn txin = (txInputSourceTxId txin, txInputSourceIndex txin)
+
+toKeyTxCollateral :: TxCollateral -> TxOutKey
+toKeyTxCollateral txcol =
+    (txCollateralSourceTxId txcol, txCollateralSourceIndex txcol)
+
 type TxOutKey = (TxId, Word32)
 
 decorateWithTxOuts :: TxHistoryF 'Without -> TxHistoryF 'With
