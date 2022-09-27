@@ -39,17 +39,19 @@ import Cardano.Wallet.Read.Eras.KnownEras
 import Data.Generics.Internal.VL
     ( Iso', build, iso )
 import Generics.SOP
-    ( K (..), NP (..), Proxy (Proxy) )
+    ( K (..), NP, Proxy (Proxy) )
 import Generics.SOP.Classes
 import Generics.SOP.NP
-    ( cmap_NP )
+    ( NP (..), cmap_NP )
 import Generics.SOP.NS
     ( ap_NS )
 
 toInAnyCardanoEra :: EraValue f -> InAnyCardanoEra f
-toInAnyCardanoEra (EraValue f)
-    = fst . build eraValueSerialize . EraValue . ap_NS existentials $ f
-    where
+toInAnyCardanoEra (EraValue f) =
+    fst . build eraValueSerialize . EraValue . ap_NS existentials $ f
+
+  where
+
     cardanoEras :: NP CardanoEra KnownEras
     cardanoEras =
         ByronEra
