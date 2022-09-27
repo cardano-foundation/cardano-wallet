@@ -661,15 +661,27 @@ RSpec.describe "Cardano Wallet E2E tests", :all, :e2e do
       decoded_fee = decoded_tx['fee']['quantity']
       expect(decoded_fee).to eq expected_fee
 
+      # Certificates
+      expect(decoded_tx['certificates']).to include(have_key('certificate_type')).twice
+      expect(decoded_tx['certificates']).to include(have_value('register_reward_account')).once
+      expect(decoded_tx['certificates']).to include(have_value('join_pool')).once
+      expect(decoded_tx['certificates']).to include(have_key('reward_account_path')).twice
+      expect(decoded_tx['certificates']).to include(have_value(['1852H', '1815H', '0H', '2', '0'])).twice
+      expect(decoded_tx['certificates']).to include(have_key('pool')).once
+      expect(decoded_tx['certificates']).to include(have_value(pool_id)).once
+
       tx_id = tx_submitted['id']
       wait_for_tx_in_ledger(@target_id, tx_id)
 
       # Check fee and balance and deposit after joining
       join_balance = get_shelley_balances(@target_id)
       tx = SHELLEY.transactions.get(@target_id, tx_id)
+      # Certificates
+      expect(tx['certificates']).to eq decoded_tx['certificates']
+      #Fees & deposits
       expect(tx['fee']['quantity']).to eq expected_fee
-      # expect(tx['deposit_taken']['quantity']).to eq deposit_taken
-      # expect(tx['deposit_returned']['quantity']).to eq 0
+      expect(tx['deposit_taken']['quantity']).to eq deposit_taken
+      expect(tx['deposit_returned']['quantity']).to eq 0
       expected_join_balance = balance['total'] - deposit_taken - expected_fee
       expect(join_balance['total']).to eq expected_join_balance
 
@@ -695,6 +707,15 @@ RSpec.describe "Cardano Wallet E2E tests", :all, :e2e do
       decoded_tx = SHELLEY.transactions.decode(@target_id, tx_constructed["transaction"])
       expect(decoded_tx).to be_correct_and_respond 202
 
+      # Certificates
+      expect(decoded_tx['certificates']).to include(have_key('certificate_type')).once
+      expect(decoded_tx['certificates']).to include(have_value('quit_pool')).once
+      expect(decoded_tx['certificates']).to include(have_key('reward_account_path')).once
+      expect(decoded_tx['certificates']).to include(have_value(['1852H', '1815H', '0H', '2', '0'])).once
+      expect(decoded_tx['certificates']).not_to include(have_value('register_reward_account'))
+      expect(decoded_tx['certificates']).not_to include(have_key('pool')).once
+      expect(decoded_tx['certificates']).not_to include(have_value(pool_id)).once
+
       expect(tx_constructed['coin_selection']['deposits_taken']).to eq []
       expect(decoded_tx['deposits_taken']).to eq []
       deposit_returned = tx_constructed['coin_selection']['deposits_returned'].first['quantity']
@@ -712,11 +733,14 @@ RSpec.describe "Cardano Wallet E2E tests", :all, :e2e do
       # Check fee and balance and deposit after quitting
       quit_balance = get_shelley_balances(@target_id)
       tx = SHELLEY.transactions.get(@target_id, tx_id)
+      # Certificates
+      expect(tx['certificates']).to eq decoded_tx['certificates']
+      #Fees & deposits
       # tx is changed to 'incoming' and fee = 0 because deposit was returned
       expect(tx['fee']['quantity']).to eq 0
       expect(tx['direction']).to eq 'incoming'
-      # expect(tx['deposit_taken']['quantity']).to eq 0
-      # expect(tx['deposit_returned']['quantity']).to eq deposit_returned
+      expect(tx['deposit_taken']['quantity']).to eq 0
+      expect(tx['deposit_returned']['quantity']).to eq deposit_returned
       expected_quit_balance = join_balance['total'] + deposit_returned - expected_fee
       expect(quit_balance['total']).to eq expected_quit_balance
 
