@@ -2139,6 +2139,8 @@ instance Arbitrary (ApiTransaction n) where
             <*> arbitrary
             <*> liftArbitrary (ApiT <$> genTxScriptValidity)
             <*> arbitrary
+            <*> arbitrary
+            <*> arbitrary
       where
         genInputs =
             Test.QuickCheck.scale (`mod` 3) arbitrary
@@ -2545,6 +2547,7 @@ instance Typeable n => ToSchema (ApiTransaction n) where
     declareNamedSchema _ = do
         addDefinition =<< declareSchemaForDefinition "TransactionMetadataValue"
         addDefinition =<< declareSchemaForDefinition "TransactionMetadataValueNoSchema"
+        addDefinition =<< declareSchemaForDefinition "ScriptValue"
         declareSchemaForDefinition "ApiTransaction"
 
 instance ToSchema ApiUtxoStatistics where
