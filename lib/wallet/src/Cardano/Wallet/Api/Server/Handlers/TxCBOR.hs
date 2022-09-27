@@ -27,7 +27,6 @@ import Cardano.Wallet.Read
 import Cardano.Wallet.Read.Eras
     ( (:.:)
     , EraFun (..)
-    , EraValue
     , K (..)
     , applyEraFun
     , extractEraValue
