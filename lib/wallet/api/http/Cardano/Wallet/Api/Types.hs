@@ -1286,6 +1286,7 @@ data ApiTransaction (n :: NetworkDiscriminant) = ApiTransaction
     , mint :: ApiAssetMintBurn
     , burn :: ApiAssetMintBurn
     , validityInterval :: Maybe ValidityIntervalExplicit
+    , scriptIntegrity :: Maybe (ApiT (Hash "ScriptIntegrity"))
     }
     deriving (Eq, Generic, Show, Typeable)
     deriving (FromJSON, ToJSON) via DefaultRecord (ApiTransaction n)

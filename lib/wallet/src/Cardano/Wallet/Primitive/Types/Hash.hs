@@ -85,6 +85,7 @@ instance FromText (Hash "RewardAccount")   where fromText = hashFromText 28
 instance FromText (Hash "TokenPolicy")     where fromText = hashFromText 28 -- Script Hash
 instance FromText (Hash "Datum")           where fromText = hashFromText 32
 instance FromText (Hash "VerificationKey") where fromText = hashFromText 28
+instance FromText (Hash "ScriptIntegrity") where fromText = hashFromText 32
 
 hashFromText
     :: forall t. (KnownSymbol t)

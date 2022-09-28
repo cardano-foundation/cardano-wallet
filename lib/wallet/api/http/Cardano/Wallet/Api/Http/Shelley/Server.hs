@@ -4099,6 +4099,7 @@ mkApiTransaction timeInterpreter wrk wid setTimeReference tx = do
         , mint = ApiAssetMintBurn [] Nothing Nothing
         , burn = ApiAssetMintBurn [] Nothing Nothing
         , validityInterval = Nothing
+        , scriptIntegrity = Nothing
         }
 
     depositIfAny :: Natural
