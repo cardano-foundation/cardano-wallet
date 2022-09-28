@@ -769,6 +769,12 @@ RSpec.describe "Cardano Wallet E2E tests", :all, :e2e do
         policy_script1 = 'cosigner#0'
         policy_script2 = { "all" => [ "cosigner#0" ] }
         policy_script3 = { "any" => [ "cosigner#0" ] }
+        # Get policy_ids:
+        policy_id1 = SHELLEY.keys.create_policy_id(@wid, policy_script1)['policy_id']
+        policy_id2 = SHELLEY.keys.create_policy_id(@wid, policy_script2)['policy_id']
+        policy_id3 = SHELLEY.keys.create_policy_id(@wid, policy_script3)['policy_id']
+        # Get policy key hash
+        policy_vkh = SHELLEY.keys.get_policy_key(@wid, { hash: true }).gsub("\"", '')
 
         # Minting:
         mint = [mint(asset_name('Token1'), 1000, policy_script1, address),
@@ -788,9 +794,22 @@ RSpec.describe "Cardano Wallet E2E tests", :all, :e2e do
         decoded_fee = tx_decoded['fee']['quantity']
         expect(expected_fee).to eq decoded_fee
 
+        # Mint
+        expect(tx_decoded['mint']['tokens']).to include(have_key('assets')).exactly(3).times
+        expect(tx_decoded['mint']['tokens'].to_s).to include(policy_vkh).exactly(3).times
+        expect(tx_decoded['mint']['tokens'].to_s).to include('1000').exactly(3).times
+        expect(tx_decoded['mint']['tokens'].to_s).to include(policy_id1).once
+        expect(tx_decoded['mint']['tokens'].to_s).to include(policy_id2).once
+        expect(tx_decoded['mint']['tokens'].to_s).to include(policy_id3).once
+        expect(tx_decoded['mint']['tokens'].to_s).to include(asset_name('Token1')).once
+        expect(tx_decoded['mint']['tokens'].to_s).to include(asset_name('Token2')).once
+
         tx_id = tx_submitted['id']
         wait_for_tx_in_ledger(@wid, tx_id)
         src_after_minting = get_shelley_balances(@wid)
+        # Mint
+        tx = SHELLEY.transactions.get(@wid, tx_id)
+        expect(tx['mint']).to eq tx_decoded['mint']
 
         # verify ADA balance is correct (fee is deducted)
         expect(src_after_minting['available']).to eq (src_before['available'] - expected_fee)
@@ -818,9 +837,22 @@ RSpec.describe "Cardano Wallet E2E tests", :all, :e2e do
         decoded_fee = tx_decoded['fee']['quantity']
         expect(expected_fee).to eq decoded_fee
 
+        # Burn
+        expect(tx_decoded['burn']['tokens']).to include(have_key('assets')).exactly(3).times
+        expect(tx_decoded['burn']['tokens'].to_s).to include(policy_vkh).exactly(3).times
+        expect(tx_decoded['burn']['tokens'].to_s).to include('500').exactly(3).times
+        expect(tx_decoded['burn']['tokens'].to_s).to include(policy_id1).once
+        expect(tx_decoded['burn']['tokens'].to_s).to include(policy_id2).once
+        expect(tx_decoded['burn']['tokens'].to_s).to include(policy_id3).once
+        expect(tx_decoded['burn']['tokens'].to_s).to include(asset_name('Token1')).once
+        expect(tx_decoded['burn']['tokens'].to_s).to include(asset_name('Token2')).once
+
         tx_id = tx_submitted['id']
         wait_for_tx_in_ledger(@wid, tx_id)
         src_after_burning = get_shelley_balances(@wid)
+        # Burn
+        tx = SHELLEY.transactions.get(@wid, tx_id)
+        expect(tx['burn']).to eq tx_decoded['burn']
 
         # verify ADA balance is correct (fee is deducted)
         expect(src_after_burning['available']).to eq (src_after_minting['available'] - expected_fee)
@@ -848,9 +880,22 @@ RSpec.describe "Cardano Wallet E2E tests", :all, :e2e do
         decoded_fee = tx_decoded['fee']['quantity']
         expect(expected_fee).to eq decoded_fee
 
+        # Burn again
+        expect(tx_decoded['burn']['tokens']).to include(have_key('assets')).exactly(3).times
+        expect(tx_decoded['burn']['tokens'].to_s).to include(policy_vkh).exactly(3).times
+        expect(tx_decoded['burn']['tokens'].to_s).to include('500').exactly(3).times
+        expect(tx_decoded['burn']['tokens'].to_s).to include(policy_id1).once
+        expect(tx_decoded['burn']['tokens'].to_s).to include(policy_id2).once
+        expect(tx_decoded['burn']['tokens'].to_s).to include(policy_id3).once
+        expect(tx_decoded['burn']['tokens'].to_s).to include(asset_name('Token1')).once
+        expect(tx_decoded['burn']['tokens'].to_s).to include(asset_name('Token2')).once
+
         tx_id = tx_submitted['id']
         wait_for_tx_in_ledger(@wid, tx_id)
         src_after_burning_all = get_shelley_balances(@wid)
+        # Burn again
+        tx = SHELLEY.transactions.get(@wid, tx_id)
+        expect(tx['burn']).to eq tx_decoded['burn']
 
         # verify ADA balance is correct (fee is deducted)
         expect(src_after_burning_all['available']).to eq (src_after_burning['available'] - expected_fee)
