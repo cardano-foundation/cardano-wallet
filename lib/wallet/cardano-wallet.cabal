@@ -329,6 +329,7 @@ library
     Cardano.Wallet.Read.Primitive.Tx.Babbage
     Cardano.Wallet.Read.Primitive.Tx.Byron
     Cardano.Wallet.Read.Primitive.Tx.Features.Certificates
+    Cardano.Wallet.Read.Primitive.Tx.Features.Integrity
     Cardano.Wallet.Read.Primitive.Tx.Features.Mint
     Cardano.Wallet.Read.Primitive.Tx.Features.Validity
     Cardano.Wallet.Read.Primitive.Tx.Mary
@@ -337,8 +338,9 @@ library
     Cardano.Wallet.Read.Tx.CBOR
     Cardano.Wallet.Read.Tx.Certificates
     Cardano.Wallet.Read.Tx.Eras
-    Cardano.Wallet.Read.Tx.Mint
     Cardano.Wallet.Read.Tx.Hash
+    Cardano.Wallet.Read.Tx.Integrity
+    Cardano.Wallet.Read.Tx.Mint
     Cardano.Wallet.Read.Tx.Validity
     Cardano.Wallet.Read.Tx.Witnesses
     Cardano.Wallet.Read.Tx.Cardano
