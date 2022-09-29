@@ -6,7 +6,6 @@
 {-# LANGUAGE NamedFieldPuns #-}
 {-# LANGUAGE OverloadedLabels #-}
 {-# LANGUAGE RankNTypes #-}
-{-# LANGUAGE RecordWildCards #-}
 {-# LANGUAGE ScopedTypeVariables #-}
 {-# LANGUAGE StandaloneDeriving #-}
 {-# LANGUAGE TypeFamilies #-}
@@ -36,8 +35,6 @@ module Cardano.Wallet.DB.Store.Transactions.Model
     , lookupTxOutForTxIn
     , lookupTxOutForTxCollateral
     , decorateTxIns
-    , decorateWithTxOuts
-    , undecorateFromTxOuts
 
     -- * Type conversion from wallet types
     , mkTxIn
@@ -79,7 +76,7 @@ import Control.Monad
 import Data.Delta
     ( Delta (..) )
 import Data.Foldable
-    ( fold, toList )
+    ( fold )
 import Data.Generics.Internal.VL
     ( view, (^.) )
 import Data.List
@@ -348,6 +345,15 @@ fromTxCollateralOut (out,tokens) =
 {-------------------------------------------------------------------------------
     Decorating Tx inputs with outputs
 -------------------------------------------------------------------------------}
+type TxOutKey = (TxId, Word32)
+
+toKeyTxIn :: TxIn -> TxOutKey
+toKeyTxIn txin = (txInputSourceTxId txin, txInputSourceIndex txin)
+
+toKeyTxCollateral :: TxCollateral -> TxOutKey
+toKeyTxCollateral txcol =
+    (txCollateralSourceTxId txcol, txCollateralSourceIndex txcol)
+
 -- | A collection of Tx inputs
 -- (regular or collateral, refered to by input and order)
 -- that are decorated with the values of their corresponding Tx outputs.
@@ -393,62 +399,3 @@ decorateTxIns (TxHistoryF relations) TxRelationF{ins,collateralIns} =
         let collateralOutputIndex = toEnum $ length (outs tx)
         guard $ index == collateralOutputIndex  -- Babbage leder spec
         pure $ fromTxCollateralOut out
-
-toKeyTxIn :: TxIn -> TxOutKey
-toKeyTxIn txin = (txInputSourceTxId txin, txInputSourceIndex txin)
-
-toKeyTxCollateral :: TxCollateral -> TxOutKey
-toKeyTxCollateral txcol =
-    (txCollateralSourceTxId txcol, txCollateralSourceIndex txcol)
-
-type TxOutKey = (TxId, Word32)
-
-decorateWithTxOuts :: TxHistoryF 'Without -> TxHistoryF 'With
-decorateWithTxOuts (TxHistoryF w) =
-    let
-        txouts :: Map TxOutKey (TxOut, [TxOutToken])
-        txouts = Map.fromList $ do
-            TxRelationF {..} <- toList w
-            [(txOutputTxId &&& txOutputIndex $ txout, x) | x@(txout,_ ) <- outs]
-    in  TxHistoryF $ fmap (solveTxOut txouts) w
-
-decorateInputs
-    :: (t -> TxOutKey)
-    -> Map TxOutKey (TxOut, [TxOutToken])
-    -> [t]
-    -> [WithTxOut t]
-decorateInputs keyOf txOutMap ins = do
-        i <- ins
-        pure $ WithTxOut i $ Map.lookup (keyOf i) txOutMap
-
-solveTxOut
-    :: Map TxOutKey (TxOut, [TxOutToken])
-    -> TxRelationF 'Without
-    -> TxRelationF 'With
-solveTxOut txOutMap TxRelationF {..} = TxRelationF
-    { ins =
-        decorateInputs
-            (txInputSourceTxId &&& txInputSourceIndex)
-            txOutMap
-            ins
-    , collateralIns =
-        decorateInputs
-            (txCollateralSourceTxId &&& txCollateralSourceIndex)
-            txOutMap
-            collateralIns
-    , outs = outs
-    , collateralOuts = collateralOuts
-    , withdrawals = withdrawals
-    }
-
-undecorateFromTxOuts :: TxHistoryF 'With -> TxHistoryF 'Without
-undecorateFromTxOuts (TxHistoryF w) = TxHistoryF $ fmap unsolveTxOut w
-
-unsolveTxOut :: TxRelationF 'With -> TxRelationF 'Without
-unsolveTxOut TxRelationF {..} = TxRelationF
-    { ins = fmap txIn ins
-    , collateralIns = fmap txIn collateralIns
-    , outs = outs
-    , collateralOuts = collateralOuts
-    , withdrawals = withdrawals
-    }

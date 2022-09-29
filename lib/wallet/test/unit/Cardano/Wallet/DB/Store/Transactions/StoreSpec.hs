@@ -23,13 +23,11 @@ import Cardano.Wallet.DB.Store.Transactions.Model
     ( DeltaTxHistory (..)
     , TxHistoryF (..)
     , collateralIns
-    , decorateWithTxOuts
     , decorateTxIns
     , ins
     , lookupTxOutForTxCollateral
     , lookupTxOutForTxIn
     , mkTxHistory
-    , undecorateFromTxOuts
     )
 import Cardano.Wallet.DB.Store.Transactions.Store
     ( mkStoreTransactions )
@@ -56,8 +54,6 @@ spec = do
                 property . prop_StoreLaws
 
     describe "TxOut decoration" $ do
-        it "respects order and content of transactions" $
-            property prop_DecorateIsInvertible
         it
             "reports a transaction where inputs point \
             \to all other transactions output"
@@ -70,11 +66,6 @@ spec = do
 {-----------------------------------------------------------------------------
     Properties
 ------------------------------------------------------------------------------}
-prop_DecorateIsInvertible :: [Tx] -> Bool
-prop_DecorateIsInvertible transactions =
-    let txh = mkTxHistory transactions
-     in undecorateFromTxOuts (decorateWithTxOuts txh) == txh
-
 {- | We check that `decorateTxIns` indeed decorates transaction inputs.
 We do this by generating a set of random transactions, as well as a
 "guinea pig" transaction, whose inputs point to all outputs
