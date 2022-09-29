@@ -1061,7 +1061,7 @@ selectTxHistory cp ti wid minWithdrawal order whichMeta
                 $ (,) <$> slotNo . txInfoMeta <*> Down . txInfoId
             W.Descending -> sortOn
                 $ (,) <$> (Down . slotNo . txInfoMeta) <*> txInfoId
-        TxHistoryF txs = txHistory
+        TxHistory txs = txHistory
 
 
 -- | Returns the initial submission slot and submission record for all pending

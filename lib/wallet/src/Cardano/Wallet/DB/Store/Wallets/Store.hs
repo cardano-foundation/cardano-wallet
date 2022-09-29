@@ -155,7 +155,7 @@ mkStoreTxWalletsHistory =
     , writeS = \(txHistory,txMetaHistory) -> do
           writeS mkStoreTransactionsWithCBOR txHistory
           writeS mkStoreWalletsMetaWithSubmissions txMetaHistory
-    , updateS = \(txh@(TxHistoryWithCBOR (TxHistoryF mtxh) _) ,mtxmh) -> \case
+    , updateS = \(txh@(TxHistoryWithCBOR (TxHistory mtxh) _) ,mtxmh) -> \case
             ChangeTxMetaWalletsHistory wid change
                 -> updateS mkStoreWalletsMetaWithSubmissions mtxmh
                 $ Adjust wid change

@@ -103,7 +103,7 @@ write txs = do
 
 -- | Insert multiple transactions
 putTxHistory :: TxHistory -> SqlPersistT IO ()
-putTxHistory (TxHistoryF tx_map) = forM_ tx_map $ \TxRelationF {..} -> do
+putTxHistory (TxHistory tx_map) = forM_ tx_map $ \TxRelationF {..} -> do
     repsertMany' ins
     repsertMany' collateralIns
     repsertMany' $ fst <$> outs
@@ -121,7 +121,7 @@ putTxHistory (TxHistoryF tx_map) = forM_ tx_map $ \TxRelationF {..} -> do
 
 -- | Select transactions history from the database
 selectTxHistory :: SqlPersistT IO TxHistory
-selectTxHistory = TxHistoryF <$> select
+selectTxHistory = TxHistory <$> select
   where
     selectListAll = selectList [] []
     select :: SqlPersistT IO (Map TxId TxRelation)

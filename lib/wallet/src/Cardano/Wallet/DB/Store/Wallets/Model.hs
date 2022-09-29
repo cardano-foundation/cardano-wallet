@@ -138,12 +138,12 @@ instance Delta DeltaTxWalletsHistory where
             $ mtxmh & apply (Adjust wid change)
             )
     apply GarbageCollectTxWalletsHistory
-        (TxHistoryWithCBOR (TxHistoryF txh) (TxCBORHistory cborh) , mtxmh) =
+        (TxHistoryWithCBOR (TxHistory txh) (TxCBORHistory cborh) , mtxmh) =
             let gc :: Map TxId x -> Map TxId x
                 gc x = Map.restrictKeys x
                     $ walletsLinkedTransactions mtxmh
             in (TxHistoryWithCBOR
-                (TxHistoryF $ gc txh)
+                (TxHistory $ gc txh)
                 (TxCBORHistory $ gc cborh)
                     , mtxmh)
     apply (RemoveWallet wid) (x , mtxmh) = (x, Map.delete wid mtxmh)

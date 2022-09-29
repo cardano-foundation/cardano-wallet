@@ -107,15 +107,15 @@ data TxRelation =
 
 -- | Transactions history is 'TxRelation's indexed by 'TxId'
 newtype TxHistory =
-    TxHistoryF { relations :: Map TxId TxRelation }
+    TxHistory { relations :: Map TxId TxRelation }
     deriving ( Generic, Eq, Show )
 
 instance Monoid TxHistory where
-    mempty = TxHistoryF mempty
+    mempty = TxHistory mempty
 
 instance Semigroup TxHistory where
-    TxHistoryF h1 <> TxHistoryF h2 =
-        TxHistoryF $ h1 <> h2
+    TxHistory h1 <> TxHistory h2 =
+        TxHistory $ h1 <> h2
 
 instance Buildable TxHistory where
     build txs = "TxHistory " <> build (show $ relations txs)
@@ -137,8 +137,8 @@ instance Delta DeltaTxHistory where
     -- transactions are immutable so here there should happen no rewriting
     -- but we mimic the repsert in the store
     apply (Append txs) h = txs <> h
-    apply (DeleteTx tid) (TxHistoryF txs) =
-        TxHistoryF $ Map.delete tid txs
+    apply (DeleteTx tid) (TxHistory txs) =
+        TxHistory $ Map.delete tid txs
 
 {-------------------------------------------------------------------------------
     Type conversions
@@ -255,7 +255,7 @@ mkTxRelation tx =
 
 -- | Convert high level transactions definition in low level DB history
 mkTxHistory :: [W.Tx] -> TxHistory
-mkTxHistory txs = TxHistoryF $ fold $ do
+mkTxHistory txs = TxHistory $ fold $ do
     tx <- txs
     let relation = mkTxRelation tx
     pure $ Map.singleton (TxId $ tx ^. #txId) relation
@@ -333,7 +333,7 @@ lookupTxOutForTxCollateral tx =
 -- by searching the 'TxHistory' for corresponding output values.
 decorateTxIns
     :: TxHistory -> TxRelation -> DecoratedTxIns
-decorateTxIns (TxHistoryF relations) TxRelationF{ins,collateralIns} =
+decorateTxIns (TxHistory relations) TxRelationF{ins,collateralIns} =
     DecoratedTxIns . Map.fromList . catMaybes $
         (lookupOutput . toKeyTxIn <$> ins)
         ++ (lookupOutput . toKeyTxCollateral <$> collateralIns)

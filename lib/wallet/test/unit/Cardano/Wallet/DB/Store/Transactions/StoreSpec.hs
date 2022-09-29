@@ -87,9 +87,9 @@ prop_DecorateLinksTxInToTxOuts = do
             let guinea' = set #resolvedInputs txins guinea
             pure (guineaId, mkTxHistory (guinea' : transactions), txouts)
 
-    forAll transactionsGen $ \(txid, TxHistoryF history, txouts) ->
+    forAll transactionsGen $ \(txid, TxHistory history, txouts) ->
         let guinea = history Map.! txid
-            deco   = decorateTxIns (TxHistoryF history) guinea
+            deco   = decorateTxIns (TxHistory history) guinea
         in  [ lookupTxOutForTxIn txin deco | txin <- ins guinea]
             === map Just txouts
 
@@ -114,9 +114,9 @@ prop_DecorateLinksTxCollateralsToTxOuts = do
             let guinea' = set #resolvedCollateralInputs txins guinea
             pure (guineaId, mkTxHistory (guinea' : transactions), txouts)
 
-    forAll transactionsGen $ \(txid, TxHistoryF history, txouts) ->
+    forAll transactionsGen $ \(txid, TxHistory history, txouts) ->
         let guinea = history Map.! txid
-            deco   = decorateTxIns (TxHistoryF history) guinea
+            deco   = decorateTxIns (TxHistory history) guinea
         in  [ lookupTxOutForTxCollateral txcol deco
             | txcol <- collateralIns guinea
             ]
@@ -132,7 +132,7 @@ prop_StoreLaws = withStoreProp $ \runQ ->
 
 -- | Generate interesting changes to 'TxHistory'.
 genDeltas :: GenDelta DeltaTxHistory
-genDeltas (TxHistoryF history) =
+genDeltas (TxHistory history) =
     frequency
         [ (8, Append . mkTxHistory <$> arbitrary)
         , (1, DeleteTx . TxId <$> arbitrary)
