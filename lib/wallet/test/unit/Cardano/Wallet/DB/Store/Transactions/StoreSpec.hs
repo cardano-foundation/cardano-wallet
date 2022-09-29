@@ -21,7 +21,7 @@ import Cardano.Wallet.DB.Sqlite.Types
     ( TxId (TxId) )
 import Cardano.Wallet.DB.Store.Transactions.Model
     ( DeltaTxHistory (..)
-    , TxHistoryF (..)
+    , TxHistory (..)
     , collateralIns
     , decorateTxIns
     , ins

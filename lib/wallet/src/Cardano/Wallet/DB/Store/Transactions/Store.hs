@@ -33,11 +33,9 @@ import Cardano.Wallet.DB.Sqlite.Schema
 import Cardano.Wallet.DB.Sqlite.Types
     ( TxId )
 import Cardano.Wallet.DB.Store.Transactions.Model
-    ( Decoration (Without)
-    , DeltaTxHistory (..)
-    , TxHistory
-    , TxHistoryF (TxHistoryF)
-    , TxRelationF (..)
+    ( DeltaTxHistory (..)
+    , TxHistory (..)
+    , TxRelation (..)
     , tokenCollateralOrd
     , tokenOutOrd
     )
@@ -126,7 +124,7 @@ selectTxHistory :: SqlPersistT IO TxHistory
 selectTxHistory = TxHistoryF <$> select
   where
     selectListAll = selectList [] []
-    select :: SqlPersistT IO (Map TxId (TxRelationF 'Without))
+    select :: SqlPersistT IO (Map TxId TxRelation)
     select = do
         inputs <- mkMap txInputTxId selectListAll
         collaterals <- mkMap txCollateralTxId selectListAll

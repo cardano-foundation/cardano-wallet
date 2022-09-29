@@ -105,7 +105,7 @@ import Cardano.Wallet.DB.Store.Meta.Model
 import Cardano.Wallet.DB.Store.Submissions.Model
     ( TxLocalSubmissionHistory (..) )
 import Cardano.Wallet.DB.Store.Transactions.Model
-    ( TxHistoryF (..), decorateTxIns, withdrawals )
+    ( TxHistory (..), decorateTxIns, withdrawals )
 import Cardano.Wallet.DB.Store.TransactionsWithCBOR.Model
     ( TxHistoryWithCBOR (TxHistoryWithCBOR) )
 import Cardano.Wallet.DB.Store.Wallets.Model

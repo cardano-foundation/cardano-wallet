@@ -34,7 +34,7 @@ import Cardano.Wallet.DB.Store.Submissions.Model
 import Cardano.Wallet.DB.Store.Submissions.Store
     ( mkStoreSubmissions )
 import Cardano.Wallet.DB.Store.Transactions.Model
-    ( TxHistoryF (..) )
+    ( TxHistory (..) )
 import Cardano.Wallet.DB.Store.TransactionsWithCBOR.Model
     ( DeltaTx (..), TxHistoryWithCBOR (TxHistoryWithCBOR) )
 import Cardano.Wallet.DB.Store.TransactionsWithCBOR.Store

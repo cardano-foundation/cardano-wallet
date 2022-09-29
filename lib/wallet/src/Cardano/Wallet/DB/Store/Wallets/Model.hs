@@ -37,9 +37,8 @@ import Cardano.Wallet.DB.Store.Submissions.Model
     ( DeltaTxLocalSubmission (..), TxLocalSubmissionHistory (..) )
 import Cardano.Wallet.DB.Store.Transactions.Model
     ( DecoratedTxIns
-    , Decoration (Without)
-    , TxHistoryF (..)
-    , TxRelationF (..)
+    , TxHistory (..)
+    , TxRelation (..)
     , fromTxCollateralOut
     , fromTxOut
     , lookupTxOutForTxCollateral
@@ -165,12 +164,12 @@ walletsLinkedTransactions
 walletsLinkedTransactions = Set.unions . toList . fmap linkedTransactions
 
 -- | Compute a high level view of a transaction known as 'TransactionInfo'
--- from a 'TxMeta' and a 'TxRelationF'.
+-- from a 'TxMeta' and a 'TxRelation'.
 -- Assumes that these data refer to the same 'TxId', does /not/ check this.
 mkTransactionInfo :: Monad m
     => TimeInterpreter m
     -> W.BlockHeader
-    -> TxRelationF 'Without
+    -> TxRelation
     -> DecoratedTxIns
     -> Maybe TxCBOR
     -> DB.TxMeta
