@@ -103,7 +103,7 @@ write txs = do
 
 -- | Insert multiple transactions
 putTxHistory :: TxHistory -> SqlPersistT IO ()
-putTxHistory (TxHistory tx_map) = forM_ tx_map $ \TxRelationF {..} -> do
+putTxHistory (TxHistory tx_map) = forM_ tx_map $ \TxRelation {..} -> do
     repsertMany' ins
     repsertMany' collateralIns
     repsertMany' $ fst <$> outs
@@ -157,7 +157,7 @@ selectTxHistory = TxHistory <$> select
             k <- toList ids
             pure
                 $ Map.singleton k
-                $ TxRelationF
+                $ TxRelation
                 { ins = sortOn txInputOrder $ Map.findWithDefault [] k inputs
                 , collateralIns = sortOn txCollateralOrder
                       $ Map.findWithDefault [] k collaterals

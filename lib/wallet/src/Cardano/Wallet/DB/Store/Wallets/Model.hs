@@ -174,7 +174,7 @@ mkTransactionInfo :: Monad m
     -> Maybe TxCBOR
     -> DB.TxMeta
     -> m WT.TransactionInfo
-mkTransactionInfo ti tip TxRelationF{..} decor txCBOR DB.TxMeta{..} = do
+mkTransactionInfo ti tip TxRelation{..} decor txCBOR DB.TxMeta{..} = do
     txTime <- interpretQuery ti . slotToUTCTime $ txMetaSlot
     return
         $ WT.TransactionInfo

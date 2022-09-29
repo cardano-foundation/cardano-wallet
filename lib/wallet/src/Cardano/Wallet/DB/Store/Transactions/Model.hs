@@ -96,7 +96,7 @@ import qualified Data.Map.Strict as Map
  but they are not removed from the data.
 -}
 data TxRelation =
-    TxRelationF
+    TxRelation
     { ins :: [TxIn]
     , collateralIns :: [TxCollateral]
     , outs :: [(TxOut, [TxOutToken])]
@@ -239,7 +239,7 @@ mkTxWithdrawal tid (txWithdrawalAccount,txWithdrawalAmount) =
 
 mkTxRelation :: W.Tx -> TxRelation
 mkTxRelation tx =
-    TxRelationF
+    TxRelation
     { ins = fmap (mkTxIn tid) $ indexed . W.resolvedInputs $ tx
     , collateralIns =
           fmap (mkTxCollateral tid) $ indexed $ W.resolvedCollateralInputs tx
@@ -333,7 +333,7 @@ lookupTxOutForTxCollateral tx =
 -- by searching the 'TxHistory' for corresponding output values.
 decorateTxIns
     :: TxHistory -> TxRelation -> DecoratedTxIns
-decorateTxIns (TxHistory relations) TxRelationF{ins,collateralIns} =
+decorateTxIns (TxHistory relations) TxRelation{ins,collateralIns} =
     DecoratedTxIns . Map.fromList . catMaybes $
         (lookupOutput . toKeyTxIn <$> ins)
         ++ (lookupOutput . toKeyTxCollateral <$> collateralIns)
