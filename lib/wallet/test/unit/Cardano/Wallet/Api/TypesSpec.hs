@@ -1373,8 +1373,6 @@ spec = parallel $ do
                         (x :: ApiNetworkParameters)
                     , desiredPoolNumber = desiredPoolNumber
                         (x :: ApiNetworkParameters)
-                    , minimumUtxoValue = minimumUtxoValue
-                        (x :: ApiNetworkParameters)
                     , maximumTokenBundleSize = maximumTokenBundleSize
                         (x :: ApiNetworkParameters)
                     , eras = eras
