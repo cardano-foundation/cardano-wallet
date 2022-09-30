@@ -389,8 +389,6 @@ import Cardano.Wallet.Primitive.Types.Tx
     , TxStatus (..)
     , sealedTxFromBytes
     )
-import Cardano.Wallet.Primitive.Types.Tx.Constraints
-    ( TxConstraints (..) )
 import Cardano.Wallet.Primitive.Types.UTxO
     ( BoundType, HistogramBar (..), UTxOStatistics (..) )
 import Cardano.Wallet.TokenMetadata
@@ -1148,10 +1146,9 @@ data ApiEraInfo = ApiEraInfo
 toApiNetworkParameters
     :: Monad m
     => NetworkParameters
-    -> TxConstraints
     -> (EpochNo -> m ApiEpochInfo)
     -> m ApiNetworkParameters
-toApiNetworkParameters (NetworkParameters gp sp pp) _txConstraints toEpochInfo = do
+toApiNetworkParameters (NetworkParameters gp sp pp) toEpochInfo = do
     byron <- traverse toEpochInfo (pp ^. #eras . #byron)
     shelley <- traverse toEpochInfo (pp ^. #eras . #shelley)
     allegra <- traverse toEpochInfo (pp ^. #eras . #allegra)
