@@ -4,6 +4,7 @@ require "base64"
 require "blake2b"
 require "mustache"
 require "cbor"
+require 'tmpdir'
 require_relative "../env"
 require_relative "../helpers/utils"
 require_relative "../helpers/matchers"

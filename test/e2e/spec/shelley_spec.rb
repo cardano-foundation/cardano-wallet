@@ -569,6 +569,20 @@ RSpec.describe CardanoWallet::Shelley, :all, :shelley do
       end
     end
 
+    it "Create account public key - non_extended" do
+      m24 = mnemonic_sentence(24)
+      wid = create_shelley_wallet("Wallet", m24)
+      ["0H", "1H", "2147483647H", "44H"].each do |index|
+        payload = { passphrase: PASS, format: 'non_extended' }
+        res = SHELLEY.keys.create_acc_public_key(wid, index, payload)
+        expect(res.to_s).to include cardano_address_get_acc_xpub(m24,
+                                                                 "1852H/1815H/#{index}",
+                                                                 hex = false,
+                                                                 "Shelley",
+                                                                 "--without-chain-code")
+      end
+    end
+
     it "Create account public key - extended with purpose" do
       m24 = mnemonic_sentence(24)
       wid = create_shelley_wallet("Wallet", m24)
@@ -614,10 +628,40 @@ RSpec.describe CardanoWallet::Shelley, :all, :shelley do
     end
 
     it "Get account public key - wallet from mnemonics" do
-      wid = create_shelley_wallet
-      res = SHELLEY.keys.get_acc_public_key(wid, { format: "extended" })
-      expect(res).to be_correct_and_respond 200
-      expect(res.to_s).to include "acct_xvk"
+      m24 = mnemonic_sentence(24)
+      wid = create_shelley_wallet("Wallet", m24)
+
+      # Get account pub key from the wallet
+      w_acct_key = SHELLEY.keys.get_acc_public_key(wid, { format: "extended" })
+      expect(w_acct_key).to be_correct_and_respond 200
+
+      # Get equivalent account pub key using cardano-addresses
+      root_xsk = CA.prv_key_from_recovery_phrase(m24, "Shelley")
+      acct_key = CA.key_child(root_xsk, "1852H/1815H/0H")
+      pub_key = CA.key_public(acct_key, with_chain_code = true)
+
+      expect(pub_key).to eq w_acct_key.parsed_response
+    end
+
+    it "Get account public key (mnemonic_snd_factor)" do
+      m24 = mnemonic_sentence(24)
+      m12 = mnemonic_sentence(12)
+      wid = create_shelley_wallet("Wallet", m24, m12)
+
+      # Get account pub key from the wallet
+      w_acct_key = SHELLEY.keys.get_acc_public_key(wid, {format: 'extended'})
+      expect(w_acct_key).to be_correct_and_respond 200
+
+      # Get equivalent account pub key using cardano-addresses
+      pub_key = Dir.mktmpdir do |dir|
+        sndfactor_file = File.join(dir, 'sndfactor.prv')
+        File.open(sndfactor_file, 'w') { |file| file.write(m12.join ' ') }
+        root_xsk = CA.prv_key_from_recovery_phrase(m24, "Shelley --passphrase from-mnemonic --from-file #{sndfactor_file}")
+        acct_key = CA.key_child(root_xsk, "1852H/1815H/0H")
+        CA.key_public(acct_key, with_chain_code = true)
+      end
+
+      expect(pub_key).to eq w_acct_key.parsed_response
     end
 
     it "I can create and get policy key and it's hash" do
