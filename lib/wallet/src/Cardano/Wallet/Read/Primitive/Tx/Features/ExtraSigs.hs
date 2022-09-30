@@ -36,7 +36,7 @@ import Data.Set
 
 import qualified Cardano.Wallet.Primitive.Types.Hash as W
 
-extraSigs :: EraFun ExtraSigs (K [W.Hash "ExtraSigners"])
+extraSigs :: EraFun ExtraSigs (K [W.Hash "ExtraSignature"])
 extraSigs = EraFun
     { byronFun = noExtraSigs
     , shelleyFun = noExtraSigs
@@ -51,7 +51,7 @@ extraSigs = EraFun
 
 getExtraSigs
     :: Set (KeyHash 'Witness StandardCrypto)
-    -> [W.Hash "ExtraSigners"]
+    -> [W.Hash "ExtraSignature"]
 getExtraSigs es =
     toList es <&> \(KeyHash (UnsafeHash h)) -> W.Hash $ fromShort h
 

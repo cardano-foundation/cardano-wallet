@@ -4102,6 +4102,7 @@ mkApiTransaction timeInterpreter wrk wid setTimeReference tx = do
         , burn = ApiAssetMintBurn [] Nothing Nothing
         , validityInterval = Nothing
         , scriptIntegrity = Nothing
+        , extraSignatures = []
         }
 
     depositIfAny :: Natural
