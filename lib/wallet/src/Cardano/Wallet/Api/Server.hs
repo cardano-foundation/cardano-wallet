@@ -3796,15 +3796,12 @@ getNetworkInformation nid
 getNetworkParameters
     :: (Block, NetworkParameters)
     -> NetworkLayer IO Block
-    -> TransactionLayer k ktype W.SealedTx
     -> Handler ApiNetworkParameters
-getNetworkParameters (_block0, genesisNp) nl tl = do
+getNetworkParameters (_block0, genesisNp) nl = do
     pp <- liftIO $ NW.currentProtocolParameters nl
     sp <- liftIO $ NW.currentSlottingParameters nl
-    era <- liftIO $ NW.currentNodeEra nl
     let np = genesisNp { protocolParameters = pp, slottingParameters = sp }
-    let txConstraints = constraints tl era pp
-    liftIO $ toApiNetworkParameters np txConstraints (interpretQuery ti . toApiEpochInfo)
+    liftIO $ toApiNetworkParameters np (interpretQuery ti . toApiEpochInfo)
   where
     ti :: TimeInterpreter IO
     ti = neverFails

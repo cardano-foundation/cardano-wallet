@@ -1357,34 +1357,32 @@ spec = parallel $ do
                 x' === x .&&. show x' === show x
         it "ApiNetworkParameters" $ property $ \x ->
             let x' = ApiNetworkParameters
-                    { genesisBlockHash =
-                        genesisBlockHash (x :: ApiNetworkParameters)
-                    , blockchainStartTime =
-                        blockchainStartTime (x :: ApiNetworkParameters)
-                    , slotLength =
-                        slotLength (x :: ApiNetworkParameters)
-                    , epochLength =
-                        epochLength (x :: ApiNetworkParameters)
-                    , securityParameter =
-                        securityParameter (x :: ApiNetworkParameters)
-                    , activeSlotCoefficient =
-                        activeSlotCoefficient (x :: ApiNetworkParameters)
-                    , decentralizationLevel =
-                        decentralizationLevel (x :: ApiNetworkParameters)
-                    , desiredPoolNumber =
-                        desiredPoolNumber (x :: ApiNetworkParameters)
-                    , minimumUtxoValue =
-                        minimumUtxoValue (x :: ApiNetworkParameters)
-                    , maximumTokenBundleSize =
-                        maximumTokenBundleSize (x :: ApiNetworkParameters)
-                    , eras =
-                        eras (x :: ApiNetworkParameters)
-                    , maximumCollateralInputCount =
-                        maximumCollateralInputCount (x :: ApiNetworkParameters)
-                    , minimumCollateralPercentage =
-                        minimumCollateralPercentage (x :: ApiNetworkParameters)
-                    , executionUnitPrices =
-                        executionUnitPrices (x :: ApiNetworkParameters)
+                    { genesisBlockHash = genesisBlockHash
+                        (x :: ApiNetworkParameters)
+                    , blockchainStartTime = blockchainStartTime
+                        (x :: ApiNetworkParameters)
+                    , slotLength = slotLength
+                        (x :: ApiNetworkParameters)
+                    , epochLength = epochLength
+                        (x :: ApiNetworkParameters)
+                    , securityParameter = securityParameter
+                        (x :: ApiNetworkParameters)
+                    , activeSlotCoefficient = activeSlotCoefficient
+                        (x :: ApiNetworkParameters)
+                    , decentralizationLevel = decentralizationLevel
+                        (x :: ApiNetworkParameters)
+                    , desiredPoolNumber = desiredPoolNumber
+                        (x :: ApiNetworkParameters)
+                    , maximumTokenBundleSize = maximumTokenBundleSize
+                        (x :: ApiNetworkParameters)
+                    , eras = eras
+                        (x :: ApiNetworkParameters)
+                    , maximumCollateralInputCount = maximumCollateralInputCount
+                        (x :: ApiNetworkParameters)
+                    , minimumCollateralPercentage = minimumCollateralPercentage
+                        (x :: ApiNetworkParameters)
+                    , executionUnitPrices = executionUnitPrices
+                        (x :: ApiNetworkParameters)
                     }
             in
             x' === x .&&. show x' === show x

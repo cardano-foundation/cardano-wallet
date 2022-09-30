@@ -377,10 +377,6 @@ import Cardano.Wallet.Primitive.Types
     )
 import Cardano.Wallet.Primitive.Types.Address
     ( Address (..), AddressState (..) )
-import Cardano.Wallet.Primitive.Types.Address.Constants
-    ( minLengthAddress )
-import Cardano.Wallet.Primitive.Types.Coin
-    ( Coin (..) )
 import Cardano.Wallet.Primitive.Types.Hash
     ( Hash (..) )
 import Cardano.Wallet.Primitive.Types.Tx
@@ -393,8 +389,6 @@ import Cardano.Wallet.Primitive.Types.Tx
     , TxStatus (..)
     , sealedTxFromBytes
     )
-import Cardano.Wallet.Primitive.Types.Tx.Constraints
-    ( TxConstraints (..) )
 import Cardano.Wallet.Primitive.Types.UTxO
     ( BoundType, HistogramBar (..), UTxOStatistics (..) )
 import Cardano.Wallet.TokenMetadata
@@ -510,7 +504,6 @@ import qualified Cardano.Wallet.Primitive.AddressDerivation as AD
 import qualified Cardano.Wallet.Primitive.Types as W
 import qualified Cardano.Wallet.Primitive.Types.RewardAccount as W
 import qualified Cardano.Wallet.Primitive.Types.TokenBundle as W
-import qualified Cardano.Wallet.Primitive.Types.TokenMap as TokenMap
 import qualified Cardano.Wallet.Primitive.Types.TokenMap as W
 import qualified Cardano.Wallet.Primitive.Types.TokenPolicy as W
 import qualified Codec.Binary.Bech32 as Bech32
@@ -1134,7 +1127,6 @@ data ApiNetworkParameters = ApiNetworkParameters
     , activeSlotCoefficient :: !(Quantity "percent" Double)
     , decentralizationLevel :: !(Quantity "percent" Percentage)
     , desiredPoolNumber :: !Word16
-    , minimumUtxoValue :: !(Quantity "lovelace" Natural)
     , maximumTokenBundleSize :: !(Quantity "byte" Natural)
     , eras :: !ApiEraInfo
     , maximumCollateralInputCount :: !Word16
@@ -1154,10 +1146,9 @@ data ApiEraInfo = ApiEraInfo
 toApiNetworkParameters
     :: Monad m
     => NetworkParameters
-    -> TxConstraints
     -> (EpochNo -> m ApiEpochInfo)
     -> m ApiNetworkParameters
-toApiNetworkParameters (NetworkParameters gp sp pp) txConstraints toEpochInfo = do
+toApiNetworkParameters (NetworkParameters gp sp pp) toEpochInfo = do
     byron <- traverse toEpochInfo (pp ^. #eras . #byron)
     shelley <- traverse toEpochInfo (pp ^. #eras . #shelley)
     allegra <- traverse toEpochInfo (pp ^. #eras . #allegra)
@@ -1181,31 +1172,6 @@ toApiNetworkParameters (NetworkParameters gp sp pp) txConstraints toEpochInfo = 
             $ getDecentralizationLevel
             $ view #decentralizationLevel pp
         , desiredPoolNumber = view #desiredNumberOfStakePools pp
-        , minimumUtxoValue = toApiCoin $
-            -- NOTE:
-            --
-            -- In eras prior to Babbage, the ledger minimum UTxO function was
-            -- independent of the length of an address.
-            --
-            -- However, from the Babbage era onwards, the ledger minimum UTxO
-            -- function is *dependent* on the length of an address: longer
-            -- addresses give rise to greater minimum UTxO values.
-            --
-            -- Since address lengths are variable, there is no single ideal
-            -- constant that we can return here.
-            --
-            -- Therefore, we return the absolute minimum UTxO quantity for an
-            -- output that sends ada (and no other assets) to an address of the
-            -- minimum possible length.
-            --
-            -- We should consider deprecating this parameter, and replacing it
-            -- with era-specific protocol parameters such as:
-            --
-            -- - lovelacePerUTxOWord (Alonzo)
-            -- - lovelacePerUTxOByte (Babbage)
-            --
-            txOutputMinimumAdaQuantity
-                txConstraints minLengthAddress TokenMap.empty
         , eras = apiEras
         , maximumCollateralInputCount =
             view #maximumCollateralInputCount pp
@@ -1216,8 +1182,6 @@ toApiNetworkParameters (NetworkParameters gp sp pp) txConstraints toEpochInfo = 
             #unTxSize)
         , executionUnitPrices = view #executionUnitPrices pp
         }
-  where
-    toApiCoin = Quantity . fromIntegral . unCoin
 
 newtype ApiTxId = ApiTxId
     { id :: ApiT (Hash "Tx")
