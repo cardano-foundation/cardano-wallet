@@ -4054,6 +4054,7 @@ mkApiTransaction timeInterpreter wrk wid setTimeReference tx = do
         $ getTxApiAssetMintBurn @_ @s @k @n wrk wid
     let parsedValidity = view #validityInterval =<< parsedValues
         parsedIntegrity = view #scriptIntegrity =<< parsedValues
+        parsedExtraSigs = view #extraSignatures <$> parsedValues
 
     return $
         apiTx
@@ -4064,6 +4065,7 @@ mkApiTransaction timeInterpreter wrk wid setTimeReference tx = do
             & #burn  .~ maybe noApiAsset snd parsedMintBurn
             & #validityInterval .~ parsedValidity
             & #scriptIntegrity .~ (ApiT <$> parsedIntegrity)
+            & #extraSignatures .~ maybe [] (fmap ApiT) parsedExtraSigs
   where
     -- Since tx expiry can be far in the future, we use unsafeExtendSafeZone for
     -- now.
