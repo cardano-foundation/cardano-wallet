@@ -34,7 +34,6 @@ import Test.Integration.Framework.DSL
     , expectField
     , expectResponseCode
     , maximumCollateralInputCountByEra
-    , minUTxOValueForMinLengthAddress
     , minimumCollateralPercentageByEra
     , request
     , securityParameterValue
@@ -93,9 +92,6 @@ spec = describe "SHELLEY_NETWORK" $ do
                 (`shouldBe` d)
             , expectField #desiredPoolNumber
                 (`shouldBe` nOpt)
-            , expectField #minimumUtxoValue
-                (`shouldBe` Quantity
-                    (minUTxOValueForMinLengthAddress (_mainEra ctx)))
             , expectField #slotLength
                 (`shouldBe` Quantity slotLengthValue)
             , expectField #epochLength
