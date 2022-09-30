@@ -30,7 +30,7 @@ RSpec.describe CardanoWallet::Shelley, :all, :shelley do
       it "I can create, get and delete wallet from mnemonics" do
         payload = { name: "Wallet from mnemonic_sentence",
                     passphrase: "Secure Passphrase",
-                    mnemonic_sentence: mnemonic_sentence(15),
+                    mnemonic_sentence: CW.utils.mnemonic_sentence(15),
                    }
         wallet = WalletFactory.create(:shelley, payload)
         expect(wallet).to be_correct_and_respond 201
@@ -45,8 +45,8 @@ RSpec.describe CardanoWallet::Shelley, :all, :shelley do
       it "I can create, get and delete wallet from mnemonics / second factor" do
         payload = { name: "Wallet from mnemonic_sentence",
                     passphrase: "Secure Passphrase",
-                    mnemonic_sentence: mnemonic_sentence(15),
-                    mnemonic_second_factor: mnemonic_sentence(12)
+                    mnemonic_sentence: CW.utils.mnemonic_sentence(15),
+                    mnemonic_second_factor: CW.utils.mnemonic_sentence(12)
                    }
         wallet = WalletFactory.create(:shelley, payload)
         expect(wallet).to be_correct_and_respond 201
@@ -61,7 +61,7 @@ RSpec.describe CardanoWallet::Shelley, :all, :shelley do
         pool_gap = 55
         payload = { name: "Wallet from mnemonic_sentence",
                     passphrase: "Secure Passphrase",
-                    mnemonic_sentence: mnemonic_sentence(15),
+                    mnemonic_sentence: CW.utils.mnemonic_sentence(15),
                     address_pool_gap: pool_gap
                    }
         wallet = WalletFactory.create(:shelley, payload)
@@ -87,7 +87,7 @@ RSpec.describe CardanoWallet::Shelley, :all, :shelley do
 
       describe "Wallet id" do
         it "I can get Shelley walletid using cardano-addresses" do
-          mnemonics = mnemonic_sentence(24)
+          mnemonics = CW.utils.mnemonic_sentence(24)
           wid = create_shelley_wallet("Shelley Wallet", mnemonics)
 
           # based on root prv key
@@ -102,7 +102,7 @@ RSpec.describe CardanoWallet::Shelley, :all, :shelley do
         end
 
         it "Shelley walletid is not based on acct key" do
-          mnemonics = mnemonic_sentence(24)
+          mnemonics = CW.utils.mnemonic_sentence(24)
           wid = create_shelley_wallet("Shelley Wallet", mnemonics)
 
           # based on acct prv key
@@ -151,7 +151,7 @@ RSpec.describe CardanoWallet::Shelley, :all, :shelley do
 
       it "Can update_passphrase, mnemonics" do
         w = SHELLEY.wallets
-        mnemonics = mnemonic_sentence(24)
+        mnemonics = CW.utils.mnemonic_sentence(24)
         id = create_shelley_wallet('Wallet', mnemonics)
         upd = w.update_passphrase(id, { mnemonic_sentence: mnemonics,
                                         new_passphrase: "Securer Passphrase" })
@@ -160,8 +160,8 @@ RSpec.describe CardanoWallet::Shelley, :all, :shelley do
 
       it "Can update_passphrase, mnemonics, mnemonic_second_factor" do
         w = SHELLEY.wallets
-        mnemonics = mnemonic_sentence(24)
-        mnemonic_second_factor = mnemonic_sentence(12)
+        mnemonics = CW.utils.mnemonic_sentence(24)
+        mnemonic_second_factor = CW.utils.mnemonic_sentence(12)
         id = create_shelley_wallet('Wallet', mnemonics, mnemonic_second_factor)
         upd = w.update_passphrase(id, { mnemonic_sentence: mnemonics,
                                         mnemonic_second_factor: mnemonic_second_factor,
@@ -171,8 +171,8 @@ RSpec.describe CardanoWallet::Shelley, :all, :shelley do
 
       it "Cannot update_passphrase with wrong mnemonics" do
         w = SHELLEY.wallets
-        mnemonics = mnemonic_sentence(24)
-        wrong_mnemonics = mnemonic_sentence(24)
+        mnemonics = CW.utils.mnemonic_sentence(24)
+        wrong_mnemonics = CW.utils.mnemonic_sentence(24)
         id = create_shelley_wallet('Wallet', mnemonics)
         upd = w.update_passphrase(id, { mnemonic_sentence: wrong_mnemonics,
                                         new_passphrase: "Securer Passphrase" })
@@ -182,9 +182,9 @@ RSpec.describe CardanoWallet::Shelley, :all, :shelley do
 
       it "Cannot update_passphrase with wrong mnemonic_second_factor" do
         w = SHELLEY.wallets
-        mnemonics = mnemonic_sentence(24)
-        mnemonic_second_factor = mnemonic_sentence(12)
-        wrong_mnemonic_second_factor = mnemonic_sentence(12)
+        mnemonics = CW.utils.mnemonic_sentence(24)
+        mnemonic_second_factor = CW.utils.mnemonic_sentence(12)
+        wrong_mnemonic_second_factor = CW.utils.mnemonic_sentence(12)
         id = create_shelley_wallet('Wallet', mnemonics, mnemonic_second_factor)
         upd = w.update_passphrase(id, { mnemonic_sentence: mnemonics,
                                         mnemonic_second_factor: wrong_mnemonic_second_factor,
@@ -209,7 +209,7 @@ RSpec.describe CardanoWallet::Shelley, :all, :shelley do
       end
 
       it "Can update_passphrase of wallet from pub key using mnemonics from which pub key is derived" do
-        mnemonics = mnemonic_sentence(24)
+        mnemonics = CW.utils.mnemonic_sentence(24)
         root_xsk = CA.prv_key_from_recovery_phrase(mnemonics, "Shelley")
         acct_key = CA.key_child(root_xsk, "1852H/1815H/0H")
         pub_key = CA.key_public(acct_key, with_chain_code = true)
@@ -237,7 +237,7 @@ RSpec.describe CardanoWallet::Shelley, :all, :shelley do
       end
 
       it "Cannot update_passphrase of wallet from pub key using wrong mnemonics" do
-        mnemonics = mnemonic_sentence(24)
+        mnemonics = CW.utils.mnemonic_sentence(24)
         root_xsk = CA.prv_key_from_recovery_phrase(mnemonics, "Shelley")
         acct_key = CA.key_child(root_xsk, "1852H/1815H/0H")
         pub_key = CA.key_public(acct_key, with_chain_code = true)
@@ -251,7 +251,7 @@ RSpec.describe CardanoWallet::Shelley, :all, :shelley do
         expect(wallet).to be_correct_and_respond 201
 
         wid = wallet['id']
-        wrong_mnemonics = mnemonic_sentence(24)
+        wrong_mnemonics = CW.utils.mnemonic_sentence(24)
         upd = SHELLEY.wallets.update_passphrase(wid, { mnemonic_sentence: wrong_mnemonics,
                                                        new_passphrase: "Securer Passphrase" })
         expect(upd).to be_correct_and_respond 403
@@ -542,7 +542,7 @@ RSpec.describe CardanoWallet::Shelley, :all, :shelley do
     end
 
     it "Create account public key - extended" do
-      m24 = mnemonic_sentence(24)
+      m24 = CW.utils.mnemonic_sentence(24)
       wid = create_shelley_wallet("Wallet", m24)
       ["0H", "1H", "2147483647H", "44H"].each do |index|
         payload = { passphrase: PASS, format: 'extended' }
@@ -556,7 +556,7 @@ RSpec.describe CardanoWallet::Shelley, :all, :shelley do
     end
 
     it "Create account public key - non_extended" do
-      m24 = mnemonic_sentence(24)
+      m24 = CW.utils.mnemonic_sentence(24)
       wid = create_shelley_wallet("Wallet", m24)
       ["0H", "1H", "2147483647H", "44H"].each do |index|
         payload = { passphrase: PASS, format: 'non_extended' }
@@ -570,7 +570,7 @@ RSpec.describe CardanoWallet::Shelley, :all, :shelley do
     end
 
     it "Create account public key - extended with purpose" do
-      m24 = mnemonic_sentence(24)
+      m24 = CW.utils.mnemonic_sentence(24)
       wid = create_shelley_wallet("Wallet", m24)
       ["0H", "1H", "2147483647H", "1854H"].each do |index_purpose|
         payload = { passphrase: PASS, format: 'extended', purpose: index_purpose }
@@ -585,7 +585,7 @@ RSpec.describe CardanoWallet::Shelley, :all, :shelley do
     end
 
     it "Create account public key - non_extended with purpose" do
-      m24 = mnemonic_sentence(24)
+      m24 = CW.utils.mnemonic_sentence(24)
       wid = create_shelley_wallet("Wallet", m24)
       ["0H", "1H", "2147483647H", "1854H"].each do |index_purpose|
         payload = { passphrase: PASS, format: 'non_extended', purpose: index_purpose }
@@ -614,7 +614,7 @@ RSpec.describe CardanoWallet::Shelley, :all, :shelley do
     end
 
     it "Get account public key - wallet from mnemonics" do
-      m24 = mnemonic_sentence(24)
+      m24 = CW.utils.mnemonic_sentence(24)
       wid = create_shelley_wallet("Wallet", m24)
 
       # Get account pub key from the wallet
@@ -630,8 +630,8 @@ RSpec.describe CardanoWallet::Shelley, :all, :shelley do
     end
 
     it "Get account public key (mnemonic_snd_factor)" do
-      m24 = mnemonic_sentence(24)
-      m12 = mnemonic_sentence(12)
+      m24 = CW.utils.mnemonic_sentence(24)
+      m12 = CW.utils.mnemonic_sentence(12)
       wid = create_shelley_wallet("Wallet", m24, m12)
 
       # Get account pub key from the wallet

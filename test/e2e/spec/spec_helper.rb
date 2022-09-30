@@ -204,7 +204,7 @@ def wait_for_all_shared_wallets(wids)
 end
 
 def create_shelley_wallet(name = "Wallet from mnemonic_sentence",
-                          mnemonic_sentence = mnemonic_sentence(24),
+                          mnemonic_sentence = CW.utils.mnemonic_sentence(24),
                           mnemonic_second_factor = nil)
   payload = { name: name,
               passphrase: PASS,
@@ -240,7 +240,7 @@ end
 
 def create_byron_wallet(style = "random",
                         name = "Wallet from mnemonic_sentence",
-                        mnemonics = mnemonic_sentence(24))
+                        mnemonics = CW.utils.mnemonic_sentence(24))
   payload = { style: style,
               name: name,
               passphrase: PASS,

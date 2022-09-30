@@ -8,7 +8,7 @@ RSpec.describe CardanoWallet::Shared, :all, :shared do
     describe "Create wallets" do
 
       it "I can create, get and delete wallet from mnemonics getting acc_xpub from cardano-address" do
-        m24 = mnemonic_sentence(24)
+        m24 = CW.utils.mnemonic_sentence(24)
         acc_ix = '0H'
         acc_xpub = cardano_address_get_acc_xpub(m24, "1854H/1815H/#{acc_ix}")
         script_template = { "cosigners" =>
@@ -43,7 +43,7 @@ RSpec.describe CardanoWallet::Shared, :all, :shared do
       end
 
       it "I can create, get and delete wallet from pub key getting acc_xpub from cardano-address" do
-        m24 = mnemonic_sentence(24)
+        m24 = CW.utils.mnemonic_sentence(24)
         acc_ix = '0H'
         acc_xpub = cardano_address_get_acc_xpub(m24, "1854H/1815H/#{acc_ix}")
 
@@ -88,9 +88,9 @@ RSpec.describe CardanoWallet::Shared, :all, :shared do
       end
 
       it "Cannot create wallet with different acc xpub - derived from different mnemonic sentence" do
-        m24 = mnemonic_sentence(24)
+        m24 = CW.utils.mnemonic_sentence(24)
         acc_ix = '0H'
-        acc_xpub_wrong = cardano_address_get_acc_xpub(mnemonic_sentence(24),
+        acc_xpub_wrong = cardano_address_get_acc_xpub(CW.utils.mnemonic_sentence(24),
                                                               "1854H/1815H/0H")
 
         payment_script_template = { "cosigners" =>
@@ -129,7 +129,7 @@ RSpec.describe CardanoWallet::Shared, :all, :shared do
       end
 
       it "Cannot create wallet with different acc xpub - derived from different acc ix" do
-        m24 = mnemonic_sentence(24)
+        m24 = CW.utils.mnemonic_sentence(24)
         acc_ix = '0H'
         acc_xpub_wrong = cardano_address_get_acc_xpub(m24, "1854H/1815H/255H")
 
@@ -169,14 +169,14 @@ RSpec.describe CardanoWallet::Shared, :all, :shared do
       end
 
       it "I can create incomplete wallet and update cosigners with acc_xpub from cardano-address" do
-        m24 = mnemonic_sentence(24)
+        m24 = CW.utils.mnemonic_sentence(24)
         acc_xpub = cardano_address_get_acc_xpub(m24, "1854H/1815H/0H")
         incomplete_wid = create_incomplete_shared_wallet(m24, '0H', acc_xpub)
         addr = SHARED.addresses.list(incomplete_wid)
         expect(addr).to be_correct_and_respond 200
         expect(addr.size).to eq 0
 
-        acc_xpub_upd = cardano_address_get_acc_xpub(mnemonic_sentence(24),
+        acc_xpub_upd = cardano_address_get_acc_xpub(CW.utils.mnemonic_sentence(24),
                                                 "1854H/1815H/0H")
 
         update_payment = SHARED.wallets.update_payment_script(incomplete_wid,
@@ -205,11 +205,11 @@ RSpec.describe CardanoWallet::Shared, :all, :shared do
       end
 
       it "Create / update partially / get / list / delete" do
-        m24 = mnemonic_sentence(24)
+        m24 = CW.utils.mnemonic_sentence(24)
         acc_xpub = cardano_address_get_acc_xpub(m24, "1854H/1815H/0H")
         incomplete_wid = create_incomplete_shared_wallet(m24, '0H', acc_xpub)
 
-        acc_xpub_upd = cardano_address_get_acc_xpub(mnemonic_sentence(24),
+        acc_xpub_upd = cardano_address_get_acc_xpub(CW.utils.mnemonic_sentence(24),
                                                 "1854H/1815H/0H")
 
         update_payment = SHARED.wallets.update_payment_script(incomplete_wid,
@@ -227,10 +227,10 @@ RSpec.describe CardanoWallet::Shared, :all, :shared do
       end
 
       it "Cannot update main cosigner" do
-        m24 = mnemonic_sentence(24)
+        m24 = CW.utils.mnemonic_sentence(24)
         acc_xpub = cardano_address_get_acc_xpub(m24, "1854H/1815H/0H")
         incomplete_wid = create_incomplete_shared_wallet(m24, '0H', acc_xpub)
-        acc_xpub_upd = cardano_address_get_acc_xpub(mnemonic_sentence(24),
+        acc_xpub_upd = cardano_address_get_acc_xpub(CW.utils.mnemonic_sentence(24),
                                                 "1854H/1815H/0H")
 
         update_payment = SHARED.wallets.update_payment_script(incomplete_wid,
@@ -247,7 +247,7 @@ RSpec.describe CardanoWallet::Shared, :all, :shared do
       end
 
       it "Cannot update cosigner with main cosigner's xpub" do
-        m24 = mnemonic_sentence(24)
+        m24 = CW.utils.mnemonic_sentence(24)
         acc_xpub = cardano_address_get_acc_xpub(m24, "1854H/1815H/0H")
         incomplete_wid = create_incomplete_shared_wallet(m24, '0H', acc_xpub)
 
@@ -265,7 +265,7 @@ RSpec.describe CardanoWallet::Shared, :all, :shared do
       end
 
       it "I can create/get/list/delete wallet using cosigner: 'self' - from mnemonics" do
-        m24 = mnemonic_sentence(24)
+        m24 = CW.utils.mnemonic_sentence(24)
         acc_ix = '0H'
         script_template = { "cosigners" =>
                               { "cosigner#0" => "self" },
@@ -300,7 +300,7 @@ RSpec.describe CardanoWallet::Shared, :all, :shared do
       end
 
       it "I can create/get/list/delete wallet using cosigner: 'self' - from pub key" do
-        m24 = mnemonic_sentence(24)
+        m24 = CW.utils.mnemonic_sentence(24)
         acc_ix = '0H'
         acc_xpub = cardano_address_get_acc_xpub(m24, "1854H/1815H/#{acc_ix}")
         payment_script_template = { "cosigners" =>
@@ -347,7 +347,7 @@ RSpec.describe CardanoWallet::Shared, :all, :shared do
 
       describe "Wallet id" do
         it "Shared walletid with only spending template from cardano-addresses" do
-          mnemonics = mnemonic_sentence(24)
+          mnemonics = CW.utils.mnemonic_sentence(24)
           acc_ix = '0H'
           script_template = { "cosigners" => { "cosigner#0" => "self" },
                               "template" =>
@@ -385,7 +385,7 @@ RSpec.describe CardanoWallet::Shared, :all, :shared do
         end
 
         it "Shared walletid with spending and delegation template from cardano-addresses" do
-          mnemonics = mnemonic_sentence(24)
+          mnemonics = CW.utils.mnemonic_sentence(24)
           acc_ix = '0H'
           script_template = { "cosigners" => { "cosigner#0" => "self" },
                               "template" =>
@@ -438,7 +438,7 @@ RSpec.describe CardanoWallet::Shared, :all, :shared do
 
     describe "Addresses" do
       it "Can list addresses on active shared wallet - from pub key" do
-        m24 = mnemonic_sentence(24)
+        m24 = CW.utils.mnemonic_sentence(24)
         acc_ix = '0H'
         acc_xpub = cardano_address_get_acc_xpub(m24, "1854H/1815H/#{acc_ix}")
         active_wid = create_active_shared_wallet(acc_xpub, acc_ix, "self")
@@ -457,7 +457,7 @@ RSpec.describe CardanoWallet::Shared, :all, :shared do
       end
 
       it "Can list addresses on active shared wallet - from mnemonics" do
-        m24 = mnemonic_sentence(24)
+        m24 = CW.utils.mnemonic_sentence(24)
         active_wid = create_active_shared_wallet(m24, '0H', "self")
 
         a = SHARED.addresses.list(active_wid)
@@ -474,7 +474,7 @@ RSpec.describe CardanoWallet::Shared, :all, :shared do
       end
 
       it "Lists empty addresses on incomplete shared wallet - from pub key" do
-        m24 = mnemonic_sentence(24)
+        m24 = CW.utils.mnemonic_sentence(24)
         acc_ix = '0H'
         acc_xpub = cardano_address_get_acc_xpub(m24, "1854H/1815H/#{acc_ix}")
         incomplete_wid = create_incomplete_shared_wallet(acc_xpub, acc_ix, "self")
@@ -491,7 +491,7 @@ RSpec.describe CardanoWallet::Shared, :all, :shared do
         expect(a).to be_correct_and_respond 200
         expect(a.size).to be 0
 
-        acc_xpub = cardano_address_get_acc_xpub(mnemonic_sentence(24), "1854H/1815H/0H")
+        acc_xpub = cardano_address_get_acc_xpub(CW.utils.mnemonic_sentence(24), "1854H/1815H/0H")
         patch_incomplete_shared_wallet(incomplete_wid,
                                       {"cosigner#1" => acc_xpub},
                                       {"cosigner#1" => acc_xpub})
@@ -510,7 +510,7 @@ RSpec.describe CardanoWallet::Shared, :all, :shared do
       end
 
       it "Lists empty addresses on incomplete shared wallet - from mnemonics" do
-        m24 = mnemonic_sentence(24)
+        m24 = CW.utils.mnemonic_sentence(24)
         incomplete_wid = create_incomplete_shared_wallet(m24, '0H', "self")
 
         a = SHARED.addresses.list(incomplete_wid)
@@ -525,7 +525,7 @@ RSpec.describe CardanoWallet::Shared, :all, :shared do
         expect(a).to be_correct_and_respond 200
         expect(a.size).to be 0
 
-        acc_xpub = cardano_address_get_acc_xpub(mnemonic_sentence(24), "1854H/1815H/0H")
+        acc_xpub = cardano_address_get_acc_xpub(CW.utils.mnemonic_sentence(24), "1854H/1815H/0H")
         patch_incomplete_shared_wallet(incomplete_wid,
                                       {"cosigner#1" => acc_xpub},
                                       {"cosigner#1" => acc_xpub})
@@ -557,7 +557,7 @@ RSpec.describe CardanoWallet::Shared, :all, :shared do
       }
 
       it "Get public key - incomplete wallet from mnemonics" do
-        m24 = mnemonic_sentence(24)
+        m24 = CW.utils.mnemonic_sentence(24)
         acc_xpub = cardano_address_get_acc_xpub(m24, "1854H/1815H/0H")
         incomplete_wid = create_incomplete_shared_wallet(m24, '0H', acc_xpub)
 
@@ -577,7 +577,7 @@ RSpec.describe CardanoWallet::Shared, :all, :shared do
       end
 
       it "Get public key - incomplete wallet from acc pub key" do
-        m24 = mnemonic_sentence(24)
+        m24 = CW.utils.mnemonic_sentence(24)
         acc_ix = '0H'
         acc_xpub = cardano_address_get_acc_xpub(m24, "1854H/1815H/#{acc_ix}")
         incomplete_wid = create_incomplete_shared_wallet(acc_xpub, acc_ix, acc_xpub)
@@ -598,7 +598,7 @@ RSpec.describe CardanoWallet::Shared, :all, :shared do
       end
 
       it "Get public key - active wallet from mnemonics" do
-        m24 = mnemonic_sentence(24)
+        m24 = CW.utils.mnemonic_sentence(24)
         active_wid = create_incomplete_shared_wallet(m24, '11H', 'self')
 
         matrix.each do |role, addr_prefix|
@@ -617,7 +617,7 @@ RSpec.describe CardanoWallet::Shared, :all, :shared do
       end
 
       it "Get public key - active wallet from acc pub key" do
-        m24 = mnemonic_sentence(24)
+        m24 = CW.utils.mnemonic_sentence(24)
         acc_ix = '0H'
         acc_xpub = cardano_address_get_acc_xpub(m24, "1854H/1815H/#{acc_ix}")
         active_wid = create_active_shared_wallet(acc_xpub, acc_ix, "self")
@@ -641,7 +641,7 @@ RSpec.describe CardanoWallet::Shared, :all, :shared do
 
     describe "Account Public Keys" do
       it "Create account public key - incomplete wallet from mnemonics" do
-        m24 = mnemonic_sentence(24)
+        m24 = CW.utils.mnemonic_sentence(24)
         der_path = "1854H/1815H/0H"
         acc_xpub = cardano_address_get_acc_xpub(m24, der_path)
         incomplete_wid = create_incomplete_shared_wallet(m24, '0H', acc_xpub)
@@ -667,7 +667,7 @@ RSpec.describe CardanoWallet::Shared, :all, :shared do
       end
 
       it "Cannot create account public key - incomplete wallet from acc pub key" do
-        m24 = mnemonic_sentence(24)
+        m24 = CW.utils.mnemonic_sentence(24)
         acc_ix = '0H'
         acc_xpub = cardano_address_get_acc_xpub(m24, "1854H/1815H/#{acc_ix}")
         incomplete_wid = create_incomplete_shared_wallet(acc_xpub, acc_ix, "self")
@@ -683,7 +683,7 @@ RSpec.describe CardanoWallet::Shared, :all, :shared do
       end
 
       it "Create account public key - active wallet from mnemonics" do
-        m24 = mnemonic_sentence(24)
+        m24 = CW.utils.mnemonic_sentence(24)
         acc_xpub = cardano_address_get_acc_xpub(m24, "1854H/1815H/0H")
         active_wid = create_active_shared_wallet(m24, '0H', acc_xpub)
         ["0H", "1H", "2147483647H", "44H"].each do |index|
@@ -705,7 +705,7 @@ RSpec.describe CardanoWallet::Shared, :all, :shared do
       end
 
       it "Cannot create account public key - active wallet from acc pub key" do
-        m24 = mnemonic_sentence(24)
+        m24 = CW.utils.mnemonic_sentence(24)
         acc_ix = '0H'
         acc_xpub = cardano_address_get_acc_xpub(m24, "1854H/1815H/#{acc_ix}")
         active_wid = create_active_shared_wallet(acc_xpub, acc_ix, "self")
@@ -721,7 +721,7 @@ RSpec.describe CardanoWallet::Shared, :all, :shared do
       end
 
       it "Get account public key - active wallet from mnemonics" do
-        m24 = mnemonic_sentence(24)
+        m24 = CW.utils.mnemonic_sentence(24)
         acc_xpub = cardano_address_get_acc_xpub(m24, "1854H/1815H/0H")
         active_wid = create_active_shared_wallet(m24, '0H', acc_xpub)
 
@@ -739,7 +739,7 @@ RSpec.describe CardanoWallet::Shared, :all, :shared do
       end
 
       it "Get account public key - active wallet from acc pub key" do
-        m24 = mnemonic_sentence(24)
+        m24 = CW.utils.mnemonic_sentence(24)
         acc_ix = '0H'
         acc_xpub = cardano_address_get_acc_xpub(m24, "1854H/1815H/#{acc_ix}")
         active_wid = create_active_shared_wallet(acc_xpub, acc_ix, "self")
@@ -758,7 +758,7 @@ RSpec.describe CardanoWallet::Shared, :all, :shared do
       end
 
       it "Get account public key - incomplete wallet from mnemonics" do
-        m24 = mnemonic_sentence(24)
+        m24 = CW.utils.mnemonic_sentence(24)
         acc_xpub = cardano_address_get_acc_xpub(m24, "1854H/1815H/0H")
         incomplete_wid = create_incomplete_shared_wallet(m24, '0H', acc_xpub)
 
@@ -776,7 +776,7 @@ RSpec.describe CardanoWallet::Shared, :all, :shared do
       end
 
       it "Get account public key - incomplete wallet from acc pub key" do
-        m24 = mnemonic_sentence(24)
+        m24 = CW.utils.mnemonic_sentence(24)
         acc_ix = '0H'
         acc_xpub = cardano_address_get_acc_xpub(m24, "1854H/1815H/#{acc_ix}")
         incomplete_wid = create_incomplete_shared_wallet(acc_xpub, acc_ix, "self")
