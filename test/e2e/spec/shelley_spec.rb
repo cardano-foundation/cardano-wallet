@@ -548,7 +548,7 @@ RSpec.describe CardanoWallet::Shelley, :all, :shelley do
         payload = { passphrase: PASS, format: 'extended' }
         res = SHELLEY.keys.create_acc_public_key(wid, index, payload)
         expect(res).to be_correct_and_respond 202
-        expect(res.to_s).to include cardano_address_get_acc_xpub(m24,
+        expect(res.parsed_response).to eq cardano_address_get_acc_xpub(m24,
                                                                  "1852H/1815H/#{index}",
                                                                  hex = false,
                                                                  "Shelley")
@@ -561,21 +561,7 @@ RSpec.describe CardanoWallet::Shelley, :all, :shelley do
       ["0H", "1H", "2147483647H", "44H"].each do |index|
         payload = { passphrase: PASS, format: 'non_extended' }
         res = SHELLEY.keys.create_acc_public_key(wid, index, payload)
-        expect(res.to_s).to include cardano_address_get_acc_xpub(m24,
-                                                                 "1852H/1815H/#{index}",
-                                                                 hex = false,
-                                                                 "Shelley",
-                                                                 "--without-chain-code")
-      end
-    end
-
-    it "Create account public key - non_extended" do
-      m24 = mnemonic_sentence(24)
-      wid = create_shelley_wallet("Wallet", m24)
-      ["0H", "1H", "2147483647H", "44H"].each do |index|
-        payload = { passphrase: PASS, format: 'non_extended' }
-        res = SHELLEY.keys.create_acc_public_key(wid, index, payload)
-        expect(res.to_s).to include cardano_address_get_acc_xpub(m24,
+        expect(res.parsed_response).to eq cardano_address_get_acc_xpub(m24,
                                                                  "1852H/1815H/#{index}",
                                                                  hex = false,
                                                                  "Shelley",
@@ -591,7 +577,7 @@ RSpec.describe CardanoWallet::Shelley, :all, :shelley do
         res = SHELLEY.keys.create_acc_public_key(wid, index_purpose, payload)
         expect(res).to be_correct_and_respond 202
         type_for_cardano_address = index_purpose == "1854H" ? "Shared" : "Shelley"
-        expect(res.to_s).to include cardano_address_get_acc_xpub(m24,
+        expect(res.parsed_response).to eq cardano_address_get_acc_xpub(m24,
                                                                  "#{index_purpose}/1815H/#{index_purpose}",
                                                                  hex = false,
                                                                  type_for_cardano_address)
@@ -606,7 +592,7 @@ RSpec.describe CardanoWallet::Shelley, :all, :shelley do
         res = SHELLEY.keys.create_acc_public_key(wid, index_purpose, payload)
         expect(res).to be_correct_and_respond 202
         type_for_cardano_address = index_purpose == "1854H" ? "Shared" : "Shelley"
-        expect(res.to_s).to include cardano_address_get_acc_xpub(m24,
+        expect(res.parsed_response).to eq cardano_address_get_acc_xpub(m24,
                                                                  "#{index_purpose}/1815H/#{index_purpose}",
                                                                  hex = false,
                                                                  type_for_cardano_address,
@@ -624,7 +610,7 @@ RSpec.describe CardanoWallet::Shelley, :all, :shelley do
 
       res = SHELLEY.keys.get_acc_public_key(wallet['id'], { format: "non_extended" })
       expect(res).to be_correct_and_respond 200
-      expect(res.to_s).to include "acct_vk"
+      expect(res.parsed_response).to include "acct_vk"
     end
 
     it "Get account public key - wallet from mnemonics" do
