@@ -3796,9 +3796,8 @@ getNetworkInformation nid
 getNetworkParameters
     :: (Block, NetworkParameters)
     -> NetworkLayer IO Block
-    -> TransactionLayer k ktype W.SealedTx
     -> Handler ApiNetworkParameters
-getNetworkParameters (_block0, genesisNp) nl _tl = do
+getNetworkParameters (_block0, genesisNp) nl = do
     pp <- liftIO $ NW.currentProtocolParameters nl
     sp <- liftIO $ NW.currentSlottingParameters nl
     let np = genesisNp { protocolParameters = pp, slottingParameters = sp }
