@@ -27,11 +27,10 @@ import Cardano.Wallet.Primitive.AddressDerivation.Shelley
     ( ShelleyKey )
 import Cardano.Wallet.Primitive.Types.Address
     ( Address (..) )
-import Data.Proxy
-    ( Proxy (..) )
-
 import Data.Function
     ( on )
+import Data.Proxy
+    ( Proxy (..) )
 
 import qualified Data.ByteString as BS
 import qualified Data.List as L
