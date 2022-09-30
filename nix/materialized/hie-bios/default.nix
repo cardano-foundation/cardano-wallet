@@ -6,7 +6,6 @@
         "wcwidth".flags.split-base = true;
         "wcwidth".flags.cli = false;
         "ghc-boot".revision = (((hackage."ghc-boot")."8.10.7").revisions).default;
-        "network-bsd".revision = (((hackage."network-bsd")."2.8.1.0").revisions).default;
         "streaming-commons".revision = (((hackage."streaming-commons")."0.2.2.4").revisions).default;
         "streaming-commons".flags.use-bytestring-builder = false;
         "pretty".revision = (((hackage."pretty")."1.1.3.6").revisions).default;
@@ -45,7 +44,6 @@
         "assoc".revision = (((hackage."assoc")."1.0.2").revisions).default;
         "data-fix".revision = (((hackage."data-fix")."0.3.2").revisions).default;
         "tasty-expected-failure".revision = (((hackage."tasty-expected-failure")."0.12.3").revisions).default;
-        "old-locale".revision = (((hackage."old-locale")."1.0.0.7").revisions).default;
         "tasty".revision = (((hackage."tasty")."1.4.2.3").revisions).default;
         "tasty".flags.clock = true;
         "tasty".flags.unix = true;
@@ -83,8 +81,6 @@
         "cryptohash-sha1".revision = (((hackage."cryptohash-sha1")."0.11.101.0").revisions).default;
         "call-stack".revision = (((hackage."call-stack")."0.4.0").revisions).default;
         "ghc-prim".revision = (((hackage."ghc-prim")."0.6.1").revisions).default;
-        "hslogger".revision = (((hackage."hslogger")."1.3.1.0").revisions).default;
-        "hslogger".flags.network--gt-3_0_0 = true;
         "ghc-boot-th".revision = (((hackage."ghc-boot-th")."8.10.7").revisions).default;
         "indexed-traversable".revision = (((hackage."indexed-traversable")."0.1.2").revisions).default;
         "distributive".revision = (((hackage."distributive")."0.6.2.1").revisions).default;
@@ -136,6 +132,9 @@
         "optparse-applicative".flags.process = true;
         "clock".revision = (((hackage."clock")."0.8.3").revisions).default;
         "clock".flags.llvm = false;
+        "prettyprinter".revision = (((hackage."prettyprinter")."1.7.1").revisions).default;
+        "prettyprinter".flags.buildreadme = false;
+        "prettyprinter".flags.text = true;
         "rts".revision = (((hackage."rts")."1.0.1").revisions).default;
         "semialign".revision = (((hackage."semialign")."1.2.0.1").revisions).default;
         "semialign".flags.semigroupoids = true;
@@ -175,6 +174,7 @@
         "QuickCheck".flags.templatehaskell = true;
         "uuid-types".revision = (((hackage."uuid-types")."1.0.5").revisions).default;
         "containers".revision = (((hackage."containers")."0.6.5.1").revisions).default;
+        "co-log-core".revision = (((hackage."co-log-core")."0.3.1.0").revisions).default;
         "StateVar".revision = (((hackage."StateVar")."1.2.2").revisions).default;
         "colour".revision = (((hackage."colour")."2.3.6").revisions).default;
         };
@@ -261,6 +261,7 @@
           "StateVar".components.library.planned = lib.mkOverride 900 true;
           "ghc".components.library.planned = lib.mkOverride 900 true;
           "tasty-expected-failure".components.library.planned = lib.mkOverride 900 true;
+          "co-log-core".components.library.planned = lib.mkOverride 900 true;
           "cryptohash-sha1".components.library.planned = lib.mkOverride 900 true;
           "unix-compat".components.library.planned = lib.mkOverride 900 true;
           "vector-algorithms".components.library.planned = lib.mkOverride 900 true;
@@ -276,6 +277,7 @@
           "text-short".components.library.planned = lib.mkOverride 900 true;
           "assoc".components.library.planned = lib.mkOverride 900 true;
           "process".components.library.planned = lib.mkOverride 900 true;
+          "prettyprinter".components.library.planned = lib.mkOverride 900 true;
           "clock".components.library.planned = lib.mkOverride 900 true;
           "template-haskell".components.library.planned = lib.mkOverride 900 true;
           "libyaml".components.library.planned = lib.mkOverride 900 true;
@@ -285,14 +287,12 @@
           "semialign".components.library.planned = lib.mkOverride 900 true;
           "async".components.library.planned = lib.mkOverride 900 true;
           "ghc-boot".components.library.planned = lib.mkOverride 900 true;
-          "hslogger".components.library.planned = lib.mkOverride 900 true;
           "hpc".components.library.planned = lib.mkOverride 900 true;
           "wcwidth".components.library.planned = lib.mkOverride 900 true;
           "QuickCheck".components.library.planned = lib.mkOverride 900 true;
           "ansi-wl-pprint".components.library.planned = lib.mkOverride 900 true;
           "uuid-types".components.library.planned = lib.mkOverride 900 true;
           "semigroupoids".components.library.planned = lib.mkOverride 900 true;
-          "network-bsd".components.library.planned = lib.mkOverride 900 true;
           "ghc-heap".components.library.planned = lib.mkOverride 900 true;
           "attoparsec".components.library.planned = lib.mkOverride 900 true;
           "hie-bios".components.library.planned = lib.mkOverride 900 true;
@@ -304,7 +304,6 @@
           "OneTuple".components.library.planned = lib.mkOverride 900 true;
           "deepseq".components.library.planned = lib.mkOverride 900 true;
           "primitive".components.library.planned = lib.mkOverride 900 true;
-          "old-locale".components.library.planned = lib.mkOverride 900 true;
           "conduit".components.library.planned = lib.mkOverride 900 true;
           "text".components.library.planned = lib.mkOverride 900 true;
           "bifunctors".components.library.planned = lib.mkOverride 900 true;

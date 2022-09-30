@@ -11,7 +11,7 @@
     flags = {};
     package = {
       specVersion = "2.2";
-      identifier = { name = "hie-bios"; version = "0.9.1"; };
+      identifier = { name = "hie-bios"; version = "0.11.0"; };
       license = "BSD-3-Clause";
       copyright = "";
       maintainer = "Matthew Pickering <matthewtpickering@gmail.com>";
@@ -150,6 +150,7 @@
           (hsPkgs."aeson" or (errorHandler.buildDepError "aeson"))
           (hsPkgs."base16-bytestring" or (errorHandler.buildDepError "base16-bytestring"))
           (hsPkgs."bytestring" or (errorHandler.buildDepError "bytestring"))
+          (hsPkgs."co-log-core" or (errorHandler.buildDepError "co-log-core"))
           (hsPkgs."deepseq" or (errorHandler.buildDepError "deepseq"))
           (hsPkgs."exceptions" or (errorHandler.buildDepError "exceptions"))
           (hsPkgs."containers" or (errorHandler.buildDepError "containers"))
@@ -158,6 +159,7 @@
           (hsPkgs."filepath" or (errorHandler.buildDepError "filepath"))
           (hsPkgs."time" or (errorHandler.buildDepError "time"))
           (hsPkgs."extra" or (errorHandler.buildDepError "extra"))
+          (hsPkgs."prettyprinter" or (errorHandler.buildDepError "prettyprinter"))
           (hsPkgs."process" or (errorHandler.buildDepError "process"))
           (hsPkgs."ghc" or (errorHandler.buildDepError "ghc"))
           (hsPkgs."transformers" or (errorHandler.buildDepError "transformers"))
@@ -167,7 +169,6 @@
           (hsPkgs."unordered-containers" or (errorHandler.buildDepError "unordered-containers"))
           (hsPkgs."vector" or (errorHandler.buildDepError "vector"))
           (hsPkgs."yaml" or (errorHandler.buildDepError "yaml"))
-          (hsPkgs."hslogger" or (errorHandler.buildDepError "hslogger"))
           (hsPkgs."file-embed" or (errorHandler.buildDepError "file-embed"))
           (hsPkgs."conduit" or (errorHandler.buildDepError "conduit"))
           (hsPkgs."conduit-extra" or (errorHandler.buildDepError "conduit-extra"))
@@ -177,12 +178,12 @@
           "Paths_hie_bios"
           "HIE/Bios"
           "HIE/Bios/Config"
+          "HIE/Bios/Config/YAML"
           "HIE/Bios/Cradle"
           "HIE/Bios/Environment"
           "HIE/Bios/Internal/Debug"
           "HIE/Bios/Flags"
           "HIE/Bios/Types"
-          "HIE/Bios/Internal/Log"
           "HIE/Bios/Ghc/Api"
           "HIE/Bios/Ghc/Check"
           "HIE/Bios/Ghc/Doc"
@@ -197,11 +198,13 @@
         "hie-bios" = {
           depends = [
             (hsPkgs."base" or (errorHandler.buildDepError "base"))
+            (hsPkgs."co-log-core" or (errorHandler.buildDepError "co-log-core"))
             (hsPkgs."directory" or (errorHandler.buildDepError "directory"))
             (hsPkgs."filepath" or (errorHandler.buildDepError "filepath"))
             (hsPkgs."ghc" or (errorHandler.buildDepError "ghc"))
             (hsPkgs."hie-bios" or (errorHandler.buildDepError "hie-bios"))
             (hsPkgs."optparse-applicative" or (errorHandler.buildDepError "optparse-applicative"))
+            (hsPkgs."prettyprinter" or (errorHandler.buildDepError "prettyprinter"))
             ];
           buildable = true;
           modules = [ "Paths_hie_bios" ];
@@ -230,6 +233,7 @@
           depends = [
             (hsPkgs."base" or (errorHandler.buildDepError "base"))
             (hsPkgs."extra" or (errorHandler.buildDepError "extra"))
+            (hsPkgs."transformers" or (errorHandler.buildDepError "transformers"))
             (hsPkgs."tasty" or (errorHandler.buildDepError "tasty"))
             (hsPkgs."tasty-hunit" or (errorHandler.buildDepError "tasty-hunit"))
             (hsPkgs."tasty-expected-failure" or (errorHandler.buildDepError "tasty-expected-failure"))
@@ -241,6 +245,7 @@
             (hsPkgs."ghc" or (errorHandler.buildDepError "ghc"))
             ];
           buildable = true;
+          modules = [ "Utils" ];
           hsSourceDirs = [ "tests/" ];
           mainPath = [ "BiosTests.hs" ];
           };

@@ -147,10 +147,6 @@ haskell-nix: haskell-nix.cabalProject' [
         ] ++ lib.filter
           (drv: lib.isDerivation drv && drv.name != "regenerate-materialized-nix")
           (lib.attrValues haskell-build-tools));
-
-        CARDANO_NODE_CONFIGS = pkgs.cardano-node-deployments;
-
-        meta.platforms = lib.platforms.unix;
       };
 
       modules =
