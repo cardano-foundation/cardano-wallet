@@ -39,7 +39,6 @@ RSpec.describe CardanoWallet::Misc, :all, :misc do
                         "minimum_collateral_percentage",
                         "active_slot_coefficient",
                         "security_parameter",
-                        "minimum_utxo_value",
                         "maximum_collateral_input_count"]
       res = NETWORK.parameters
       expect(res).to be_correct_and_respond 200
