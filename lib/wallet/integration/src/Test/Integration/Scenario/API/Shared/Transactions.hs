@@ -467,14 +467,28 @@ spec = describe "SHARED_TRANSACTIONS" $ do
 
     it "SHARED_TRANSACTIONS_CREATE_05a - Single Output Transaction with decode transaction - multi party" $ \ctx -> runResourceT $ do
 
-        wa <- fixtureSharedWallet ctx
+        (sharedWal1, sharedWal2) <- fixtureTwoPartySharedWallet ctx
+
+        -- check we see balance from two wallets
+        rSharedWal1 <- getSharedWallet ctx (ApiSharedWallet (Right sharedWal1))
+        rSharedWal2 <- getSharedWallet ctx (ApiSharedWallet (Right sharedWal2))
+
+        let balanceExp =
+                [ expectResponseCode HTTP.status200
+                , expectField (traverse . #balance . #available)
+                    (`shouldBe` Quantity faucetUtxoAmt)
+                ]
+
+        verify (fmap (view #wallet) <$> rSharedWal1) balanceExp
+        verify (fmap (view #wallet) <$> rSharedWal2) balanceExp
+
         wb <- emptyWallet ctx
         let amt = (minUTxOValue (_mainEra ctx) :: Natural)
 
         payload <- liftIO $ mkTxPayload ctx wb amt
 
         rTx <- request @(ApiConstructTransaction n) ctx
-            (Link.createUnsignedTransaction @'Shared wa) Default payload
+            (Link.createUnsignedTransaction @'Shared sharedWal1) Default payload
         verify rTx
             [ expectSuccess
             , expectResponseCode HTTP.status202
