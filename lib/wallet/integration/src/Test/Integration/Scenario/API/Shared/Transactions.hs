@@ -289,7 +289,7 @@ spec = describe "SHARED_TRANSACTIONS" $ do
             , expectErrorMessage errMsg403InvalidConstructTx
             ]
 
-    it "SHARED_TRANSACTIONS_CREATE_04a - Single Output Transaction with decode transaction" $ \ctx -> runResourceT $ do
+    it "SHARED_TRANSACTIONS_CREATE_04a - Single Output Transaction with decode transaction - single party" $ \ctx -> runResourceT $ do
 
         wa <- fixtureSharedWallet ctx
         wb <- emptyWallet ctx
@@ -464,6 +464,27 @@ spec = describe "SHARED_TRANSACTIONS" $ do
             , expectField (#coinSelection . #change) (`shouldSatisfy` (not . null))
             , expectField (#fee . #getQuantity) (`shouldSatisfy` (> 0))
             ]
+
+    it "SHARED_TRANSACTIONS_CREATE_05a - Single Output Transaction with decode transaction - multi party" $ \ctx -> runResourceT $ do
+
+        wa <- fixtureSharedWallet ctx
+        wb <- emptyWallet ctx
+        let amt = (minUTxOValue (_mainEra ctx) :: Natural)
+
+        payload <- liftIO $ mkTxPayload ctx wb amt
+
+        rTx <- request @(ApiConstructTransaction n) ctx
+            (Link.createUnsignedTransaction @'Shared wa) Default payload
+        verify rTx
+            [ expectSuccess
+            , expectResponseCode HTTP.status202
+            , expectField (#coinSelection . #inputs) (`shouldSatisfy` (not . null))
+            , expectField (#coinSelection . #outputs) (`shouldSatisfy` (not . null))
+            , expectField (#coinSelection . #change) (`shouldSatisfy` (not . null))
+            , expectField (#fee . #getQuantity) (`shouldSatisfy` (> 0))
+            ]
+
+
   where
      fundSharedWallet ctx amt walShared = do
         let wal = case walShared of
@@ -538,6 +559,61 @@ spec = describe "SHARED_TRANSACTIONS" $ do
         fundSharedWallet ctx faucetUtxoAmt walShared
 
         return wal
+
+     fixtureTwoPartySharedWallet ctx = do
+
+        let index = 30
+        let passphrase = Passphrase $ BA.convert $ T.encodeUtf8 fixturePassphrase
+
+        -- first participant, cosigner 0
+        m15txtA <- liftIO $ genMnemonics M15
+        m12txtA <- liftIO $ genMnemonics M12
+        let (Right m15A) = mkSomeMnemonic @'[ 15 ] m15txtA
+        let (Right m12A) = mkSomeMnemonic @'[ 12 ] m12txtA
+        let accXPubDerivedA = accPubKeyFromMnemonics m15A (Just m12A) index passphrase
+
+        -- second participant, cosigner 1
+        m15txtB <- liftIO $ genMnemonics M15
+        m12txtB <- liftIO $ genMnemonics M12
+        let (Right m15B) = mkSomeMnemonic @'[ 15 ] m15txtB
+        let (Right m12B) = mkSomeMnemonic @'[ 12 ] m12txtB
+        let accXPubDerivedB = accPubKeyFromMnemonics m15B (Just m12B) index passphrase
+
+        -- payload
+        let payload m15txt m12txt = Json [json| {
+                "name": "Shared Wallet",
+                "mnemonic_sentence": #{m15txt},
+                "mnemonic_second_factor": #{m12txt},
+                "passphrase": #{fixturePassphrase},
+                "account_index": "30H",
+                "payment_script_template":
+                    { "cosigners":
+                        { "cosigner#0": #{accXPubDerivedA}, "cosigner#1": #{accXPubDerivedB} },
+                      "template":
+                          { "all":
+                             [ "cosigner#0", "cosigner#1" ]
+                          }
+                    }
+                } |]
+
+        rPostA <- postSharedWallet ctx Default (payload m15txtA m12txtA)
+        verify (fmap (swapEither . view #wallet) <$> rPostA)
+            [ expectResponseCode HTTP.status201
+            ]
+        let walShared@(ApiSharedWallet (Right walA)) =
+                getFromResponse Prelude.id rPostA
+
+        fundSharedWallet ctx faucetUtxoAmt walShared
+
+        rPostB <- postSharedWallet ctx Default (payload m15txtB m12txtB)
+        verify (fmap (swapEither . view #wallet) <$> rPostB)
+            [ expectResponseCode HTTP.status201
+            ]
+        let (ApiSharedWallet (Right walB)) =
+                getFromResponse Prelude.id rPostA
+
+        return (walA, walB)
+
 
      mkTxPayload
          :: MonadUnliftIO m
