@@ -125,7 +125,7 @@ pingPong_2 =
                 "id": "{{transactionId}}",
                 "index": 0,
                 "address": "addr1w9xh9n6kngee5x98myczxyuc8atwpktv63daevwk2yku56sce02jy",
-                "datum": "923918e403bf43c34b4ef6b48eb2ee04babed17320d8d1b9ff9ad086e86f44ec",
+                "datum": { "hash": "923918e403bf43c34b4ef6b48eb2ee04babed17320d8d1b9ff9ad086e86f44ec"},
                 "amount": {
                   "quantity": 2000000,
                   "unit": "lovelace"
@@ -167,12 +167,13 @@ game_2 =
                 "id": "{{transactionId}}",
                 "index": 0,
                 "address": "addr1w89gquc23wc7h8k4chyaad268mjft7t0c08wqertwms70sc5pc6gt",
-                "datum": "14845e067bf83c19a97207c8a2057d9499624783f1fce1ef5abf600392240ad0",
+                "datum": { "hash": "14845e067bf83c19a97207c8a2057d9499624783f1fce1ef5abf600392240ad0"},
                 "amount": {
                   "quantity": 10000000,
                   "unit": "lovelace"
                 },
-                "assets": []
+                "assets": [],
+                "datum": null
             }
         ],
         "redeemers": [
@@ -203,12 +204,13 @@ game_3 =
                 "id": "{{transactionId}}",
                 "index": 0,
                 "address": "addr1w89gquc23wc7h8k4chyaad268mjft7t0c08wqertwms70sc5pc6gt",
-                "datum": "4401f9f4de01abb2164d77909afb1249f2c519331aa034bbfc5248e50b08db86",
+                "datum": {"hash": "4401f9f4de01abb2164d77909afb1249f2c519331aa034bbfc5248e50b08db86"},
                 "amount": {
                   "quantity": 10000000,
                   "unit": "lovelace"
                 },
-                "assets": []
+                "assets": [],
+                "datum": null
             }
         ],
         "redeemers": [

@@ -5,6 +5,7 @@
 {-# LANGUAGE FlexibleContexts #-}
 {-# LANGUAGE FlexibleInstances #-}
 {-# LANGUAGE GeneralizedNewtypeDeriving #-}
+{-# LANGUAGE IncoherentInstances #-}
 {-# LANGUAGE LambdaCase #-}
 {-# LANGUAGE NamedFieldPuns #-}
 {-# LANGUAGE NoMonomorphismRestriction #-}
@@ -44,6 +45,8 @@ import Cardano.Address.Script
     )
 import Cardano.Api
     ( StakeAddress, deserialiseFromRawBytes, proxyToAsType )
+import Cardano.Api.Gen
+    ( genScriptInAnyLang )
 import Cardano.Mnemonic
     ( CheckSumBits
     , ConsistentEntropy
@@ -343,7 +346,7 @@ import Cardano.Wallet.Transaction
 import Cardano.Wallet.Unsafe
     ( unsafeFromText, unsafeXPrv )
 import Cardano.Wallet.Write.Tx.Gen
-    ( genDatumHash )
+    ( genData, genDatumHash )
 import Control.Lens
     ( at, (?~) )
 import Control.Monad
@@ -484,6 +487,7 @@ import Web.HttpApiData
 
 import qualified Cardano.Wallet.Api.Types as Api
 import qualified Cardano.Wallet.Primitive.Types.Coin as Coin
+import qualified Cardano.Wallet.Write.Tx as WriteTx
 import qualified Data.Aeson as Aeson
 import qualified Data.Aeson.Key as Aeson
 import qualified Data.Aeson.KeyMap as Aeson
@@ -1766,8 +1770,20 @@ instance Arbitrary (ApiExternalInput n) where
         <*> arbitrary
         <*> arbitrary
         <*> arbitrary
-        <*> liftArbitrary (liftArbitrary genDatumHash)
+        <*> arbitrary
+        <*> arbitrary
 
+instance Arbitrary (WriteTx.Datum WriteTx.StandardBabbage) where
+    arbitrary = oneof
+        [ WriteTx.Datum <$> genData
+        , pure WriteTx.NoDatum
+        , WriteTx.DatumHash <$> genDatumHash
+        ]
+
+instance Arbitrary (WriteTx.Script WriteTx.StandardBabbage) where
+    arbitrary =
+        WriteTx.scriptFromCardanoScriptInAnyLang
+        <$> genScriptInAnyLang
 
 instance Arbitrary (ApiBalanceTransactionPostData n) where
     arbitrary = ApiBalanceTransactionPostData

@@ -10,6 +10,9 @@ module Cardano.Wallet.Write.Tx
       RecentEra (..)
     , IsRecentEra (..)
     , isRecentEra
+    , LatestEra
+    , LatestLedgerEra
+    , StandardBabbage
 
     -- ** Helpers for cardano-api compatibility
     , cardanoEra
@@ -98,6 +101,8 @@ import Data.Maybe
     ( fromMaybe )
 import Data.Maybe.Strict
     ( StrictMaybe (..) )
+import Ouroboros.Consensus.Shelley.Eras
+    ( StandardBabbage )
 
 import qualified Cardano.Api as Cardano
 import qualified Cardano.Api.Extra as Cardano

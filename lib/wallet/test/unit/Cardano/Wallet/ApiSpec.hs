@@ -7,6 +7,7 @@
 {-# LANGUAGE FlexibleInstances #-}
 {-# LANGUAGE GADTs #-}
 {-# LANGUAGE GeneralizedNewtypeDeriving #-}
+{-# LANGUAGE IncoherentInstances #-}
 {-# LANGUAGE LambdaCase #-}
 {-# LANGUAGE MultiParamTypeClasses #-}
 {-# LANGUAGE NamedFieldPuns #-}
@@ -126,6 +127,8 @@ import Servant.API
     ( (:<|>) (..), (:>), Capture, OctetStream )
 import Servant.API.Verbs
     ( NoContentVerb, ReflectMethod (..) )
+import Test.Cardano.Ledger.Alonzo.Serialisation.Generators
+    ()
 import Test.Hspec
     ( HasCallStack, Spec, describe, it, runIO, xdescribe )
 import Test.Hspec.Extra

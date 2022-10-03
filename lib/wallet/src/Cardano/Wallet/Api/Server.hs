@@ -4413,16 +4413,16 @@ fromExternalInput ApiExternalInput
     , address = (ApiT addr, _)
     , amount = Quantity amt
     , assets = ApiT assets
-    , datum
+    , datum = ApiT datum'
+    , script = script
     }
   =
     let
         inp = toLedger $ TxIn tid ix
-        script = Nothing
         addr' = toLedger addr
         val = toLedger $ TokenBundle (Coin.fromNatural amt) assets
-        datum' = maybe WriteTx.NoDatum WriteTx.DatumHash (getApiT <$> datum)
-        out = WriteTx.TxOutInRecentEra addr' val datum' script
+        script' = getApiT <$> script
+        out = WriteTx.TxOutInRecentEra addr' val datum' script'
     in
         (inp, out)
 
