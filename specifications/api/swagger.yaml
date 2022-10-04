@@ -1148,7 +1148,24 @@ x-derivationPath: &derivationPath
   items: *derivationSegment
 
 x-transactionOutputs: &transactionOutputs
-  description: A list of target outputs with amounts specified.
+  description: |
+    A list of target outputs with amounts specified.
+
+    When creating a new transaction, the wallet software ensures that all
+    user-specified transaction outputs have ada amounts that satisfy the ledger
+    minimum UTxO rule:
+
+    - If a user-specified transaction output has an ada `amount` that is
+      **zero**, the wallet software will automatically assign a minimal amount
+      of ada to the output so that it satisfies the ledger minimum UTxO rule.
+
+    - If a user-specified transaction output has an ada `amount` that is
+      **non-zero**, the wallet software will verify that the specified amount
+      is large enough to satisfy the ledger minimum UTxO rule. If the amount is
+      not large enough, the wallet software will return a `utxo_too_small`
+      error, together with a revised ada amount that does satisfy the minimum
+      UTxO rule.
+
   type: array
   minItems: 0
   items:
