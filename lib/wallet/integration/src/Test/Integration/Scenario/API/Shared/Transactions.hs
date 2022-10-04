@@ -497,7 +497,60 @@ spec = describe "SHARED_TRANSACTIONS" $ do
             , expectField (#coinSelection . #change) (`shouldSatisfy` (not . null))
             , expectField (#fee . #getQuantity) (`shouldSatisfy` (> 0))
             ]
+        let txCbor = getFromResponse #transaction rTx
+        let decodePayload = Json (toJSON txCbor)
+        rDecodedTxWal1 <- request @(ApiDecodedTransaction n) ctx
+            (Link.decodeTransaction @'Shared sharedWal1) Default decodePayload
+        rDecodedTxWal2 <- request @(ApiDecodedTransaction n) ctx
+            (Link.decodeTransaction @'Shared sharedWal2) Default decodePayload
+        rDecodedTxTarget <- request @(ApiDecodedTransaction n) ctx
+            (Link.decodeTransaction @'Shelley wb) Default decodePayload
 
+        let expectedFee = getFromResponse (#fee . #getQuantity) rTx
+        let sharedExpectationsBetweenWallets =
+                [ expectResponseCode HTTP.status202
+                , expectField (#fee . #getQuantity) (`shouldBe` expectedFee)
+                , expectField #withdrawals (`shouldBe` [])
+                , expectField #collateral (`shouldBe` [])
+                , expectField #metadata (`shouldBe` (ApiTxMetadata Nothing))
+                , expectField #scriptValidity (`shouldBe` (Just $ ApiT TxScriptValid))
+                ]
+
+        verify rDecodedTxTarget sharedExpectationsBetweenWallets
+
+        let isInpOurs inp = case inp of
+                ExternalInput _ -> False
+                WalletInput _ -> True
+        let areOurs = all isInpOurs
+        addrs <- listAddresses @n ctx wb
+        let addrIx = 1
+        let addrDest = (addrs !! addrIx) ^. #id
+        let expectedTxOutTarget = WalletOutput $ ApiWalletOutput
+                { address = addrDest
+                , amount = Quantity amt
+                , assets = ApiT TokenMap.empty
+                , derivationPath = NE.fromList
+                    [ ApiT (DerivationIndex 2147485500)
+                    , ApiT (DerivationIndex 2147485463)
+                    , ApiT (DerivationIndex 2147483648)
+                    , ApiT (DerivationIndex 0)
+                    , ApiT (DerivationIndex $ fromIntegral addrIx)
+                    ]
+                }
+        let isOutOurs out = case out of
+                WalletOutput _ -> False
+                ExternalOutput _ -> True
+
+        let decodeCosntructedTxSharedWal =
+                sharedExpectationsBetweenWallets ++
+                [ expectField #inputs (`shouldSatisfy` areOurs)
+                , expectField #outputs (`shouldNotContain` [expectedTxOutTarget])
+                -- Check that the change output is there:
+                , expectField (#outputs) ((`shouldBe` 1) . length . filter isOutOurs)
+                ]
+
+        verify rDecodedTxWal1 decodeCosntructedTxSharedWal
+        verify rDecodedTxWal2 decodeCosntructedTxSharedWal
 
   where
      fundSharedWallet ctx amt walShared = do
