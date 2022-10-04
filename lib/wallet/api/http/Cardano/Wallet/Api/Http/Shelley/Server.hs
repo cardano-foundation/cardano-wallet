@@ -2672,7 +2672,7 @@ decodeSharedTransaction
     -> Handler (ApiDecodedTransaction n)
 decodeSharedTransaction ctx (ApiT wid) (ApiSerialisedTransaction (ApiT sealed) _) = do
     era <- liftIO $ NW.currentNodeEra nl
-    let (decodedTx, _toMint, _toBurn, _allCerts, interval) =
+    let (decodedTx, _toMint, _toBurn, _allCerts, interval, _witsCount) =
             decodeTx tl era sealed
     let (Tx { txId
             , fee
@@ -2843,7 +2843,7 @@ decodeTransaction
     -> Handler (ApiDecodedTransaction n)
 decodeTransaction ctx (ApiT wid) (ApiSerialisedTransaction (ApiT sealed) _) = do
     era <- liftIO $ NW.currentNodeEra nl
-    let (decodedTx, toMint, toBurn, allCerts, interval) =
+    let (decodedTx, toMint, toBurn, allCerts, interval, _witsCount) =
             decodeTx tl era sealed
         Tx { txId
             , fee
@@ -2955,7 +2955,7 @@ submitTransaction ctx apiw@(ApiT wid) apitx = do
     era <- liftIO $ NW.currentNodeEra nl
 
     let sealedTx = getApiT . (view #serialisedTxSealed) $ apitx
-    let (tx,_,_,_,_) = decodeTx tl era sealedTx
+    let (tx,_,_,_,_,_) = decodeTx tl era sealedTx
 
     apiDecoded <- decodeTransaction @_ @s @k @n ctx apiw apitx
     when (isForeign apiDecoded) $
@@ -3083,7 +3083,7 @@ submitSharedTransaction ctx apiw@(ApiT wid) apitx = do
     era <- liftIO $ NW.currentNodeEra nl
 
     let sealedTx = getApiT . (view #serialisedTxSealed) $ apitx
-    let (tx,_,_,_,_) = decodeTx tl era sealedTx
+    let (tx,_,_,_,_,_) = decodeTx tl era sealedTx
 
     apiDecoded <- decodeSharedTransaction @_ @s @k ctx apiw apitx
     when (isForeign apiDecoded) $

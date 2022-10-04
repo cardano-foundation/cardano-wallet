@@ -47,7 +47,8 @@ import Cardano.Wallet.Transaction
     ( TokenMapWithScripts (..)
     , TokenMapWithScripts (..)
     , ValidityIntervalExplicit (..)
-    , ValidityIntervalExplicit (..)
+    , WitnessCount (..)
+    , emptyWitnessCount
     )
 import Data.Foldable
     ( toList )
@@ -71,6 +72,7 @@ fromBabbageTx
        , TokenMapWithScripts
        , TokenMapWithScripts
        , Maybe ValidityIntervalExplicit
+       , WitnessCount
        )
 fromBabbageTx tx@(Alonzo.ValidatedTx bod wits (Alonzo.IsValid isValid) aux) =
     ( W.Tx
@@ -101,6 +103,7 @@ fromBabbageTx tx@(Alonzo.ValidatedTx bod wits (Alonzo.IsValid isValid) aux) =
     , assetsToMint
     , assetsToBurn
     , Just $ afterShelleyValidityInterval ttl
+    , emptyWitnessCount
     )
   where
     Babbage.TxBody

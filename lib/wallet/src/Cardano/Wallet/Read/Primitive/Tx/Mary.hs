@@ -40,7 +40,12 @@ import Cardano.Wallet.Read.Tx.CBOR
 import Cardano.Wallet.Read.Tx.Hash
     ( shelleyTxHash )
 import Cardano.Wallet.Transaction
-    ( TokenMapWithScripts, ValidityIntervalExplicit )
+    ( AnyScript (..)
+    , TokenMapWithScripts (..)
+    , ValidityIntervalExplicit (..)
+    , WitnessCount
+    , emptyWitnessCount
+    )
 import Cardano.Wallet.Util
     ( internalError )
 import Data.Foldable
@@ -70,6 +75,7 @@ fromMaryTx
        , TokenMapWithScripts
        , TokenMapWithScripts
        , Maybe ValidityIntervalExplicit
+       , WitnessCount
        )
 fromMaryTx tx =
     ( W.Tx
@@ -99,6 +105,7 @@ fromMaryTx tx =
     , assetsToMint
     , assetsToBurn
     , Just $ afterShelleyValidityInterval ttl
+    , emptyWitnessCount
     )
   where
     SL.Tx bod wits mad = tx

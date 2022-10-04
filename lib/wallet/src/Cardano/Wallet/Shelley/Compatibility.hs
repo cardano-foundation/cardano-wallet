@@ -287,7 +287,7 @@ import Data.Foldable
 import Data.IntCast
     ( intCast, intCastMaybe )
 import Data.List
-    ( unzip5 )
+    ( unzip6 )
 import Data.Map.Strict
     ( Map )
 import Data.Maybe
@@ -616,7 +616,7 @@ fromShelleyBlock
     -> (W.Block, [PoolCertificate])
 fromShelleyBlock gp blk@(ShelleyBlock (SL.Block _ (SL.TxSeq txs')) _) =
     let
-       (txs, certs, _, _, _) = unzip5 $ map fromShelleyTx $ toList txs'
+       (txs, certs, _, _, _, _) = unzip6 $ map fromShelleyTx $ toList txs'
        certs' = mconcat certs
     in
         ( W.Block
@@ -635,7 +635,7 @@ fromAllegraBlock
     -> (W.Block, [PoolCertificate])
 fromAllegraBlock gp blk@(ShelleyBlock (SL.Block _ (SL.TxSeq txs')) _) =
     let
-       (txs, certs, _, _, _) = unzip5 $ map fromAllegraTx $ toList txs'
+       (txs, certs, _, _, _, _) = unzip6 $ map fromAllegraTx $ toList txs'
        certs' = mconcat certs
     in
         ( W.Block
@@ -654,7 +654,7 @@ fromMaryBlock
     -> (W.Block, [PoolCertificate])
 fromMaryBlock gp blk@(ShelleyBlock (SL.Block _ (SL.TxSeq txs')) _) =
     let
-       (txs, certs, _, _, _) = unzip5 $ map fromMaryTx $ toList txs'
+       (txs, certs, _, _, _, _) = unzip6 $ map fromMaryTx $ toList txs'
        certs' = mconcat certs
     in
         ( W.Block
@@ -684,7 +684,7 @@ fromAlonzoBlock
 fromAlonzoBlock gp blk@(ShelleyBlock (SL.Block _ txSeq) _) =
     let
         Alonzo.TxSeq txs' = txSeq
-        (txs, certs, _, _, _) = unzip5 $ map fromAlonzoTx $ toList txs'
+        (txs, certs, _, _, _, _) = unzip6 $ map fromAlonzoTx $ toList txs'
         certs' = mconcat certs
     in
         ( W.Block
@@ -704,7 +704,7 @@ fromBabbageBlock
 fromBabbageBlock gp blk@(ShelleyBlock (SL.Block _ txSeq) _) =
     let
         Alonzo.TxSeq txs' = txSeq
-        (txs, certs, _, _, _) = unzip5 $ map fromBabbageTx $ toList txs'
+        (txs, certs, _, _, _, _) = unzip6 $ map fromBabbageTx $ toList txs'
         certs' = mconcat certs
     in
         ( W.Block

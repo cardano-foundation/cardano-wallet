@@ -47,7 +47,9 @@ import Cardano.Wallet.Read.Tx.Hash
 import Cardano.Wallet.Transaction
     ( TokenMapWithScripts (..)
     , ValidityIntervalExplicit (..)
+    , WitnessCount (..)
     , emptyTokenMapWithScripts
+    , emptyWitnessCount
     )
 import Data.Foldable
     ( toList )
@@ -72,6 +74,7 @@ fromAllegraTx
        , TokenMapWithScripts
        , TokenMapWithScripts
        , Maybe ValidityIntervalExplicit
+       , WitnessCount
        )
 fromAllegraTx tx =
     ( W.Tx
@@ -102,6 +105,7 @@ fromAllegraTx tx =
     , emptyTokenMapWithScripts
     , emptyTokenMapWithScripts
     , Just $ afterShelleyValidityInterval ttl
+    , emptyWitnessCount
     )
   where
     SL.Tx (MA.TxBody ins outs certs wdrls fee ttl _ _ _) _ mmd = tx

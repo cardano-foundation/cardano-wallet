@@ -541,7 +541,7 @@ spec = describe "SHARED_TRANSACTIONS" $ do
                 WalletOutput _ -> False
                 ExternalOutput _ -> True
 
-        let decodeCosntructedTxSharedWal =
+        let decodeConstructedTxSharedWal =
                 sharedExpectationsBetweenWallets ++
                 [ expectField #inputs (`shouldSatisfy` areOurs)
                 , expectField #outputs (`shouldNotContain` [expectedTxOutTarget])
@@ -549,8 +549,8 @@ spec = describe "SHARED_TRANSACTIONS" $ do
                 , expectField (#outputs) ((`shouldBe` 1) . length . filter isOutOurs)
                 ]
 
-        verify rDecodedTxWal1 decodeCosntructedTxSharedWal
-        verify rDecodedTxWal2 decodeCosntructedTxSharedWal
+        verify rDecodedTxWal1 decodeConstructedTxSharedWal
+        verify rDecodedTxWal2 decodeConstructedTxSharedWal
 
   where
      fundSharedWallet ctx amt walShared = do

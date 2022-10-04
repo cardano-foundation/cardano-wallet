@@ -38,6 +38,8 @@ module Cardano.Wallet.Transaction
     , TxFeeAndChange (..)
     , mapTxFeeAndChange
     , ValidityIntervalExplicit (..)
+    , WitnessCount (..)
+    , emptyWitnessCount
 
     -- * Errors
     , ErrSignTx (..)
@@ -128,7 +130,7 @@ import Data.Text
 import Data.Text.Class
     ( FromText (..), TextDecodingError (..), ToText (..) )
 import Data.Word
-    ( Word64 )
+    ( Word64, Word8 )
 import Fmt
     ( Buildable (..), genericF )
 import GHC.Generics
@@ -327,6 +329,7 @@ data TransactionLayer k ktype tx = TransactionLayer
             , TokenMapWithScripts
             , [Certificate]
             , Maybe ValidityIntervalExplicit
+            , WitnessCount
             )
     -- ^ Decode an externally-created transaction.
 
@@ -485,6 +488,21 @@ emptyTokenMapWithScripts :: TokenMapWithScripts
 emptyTokenMapWithScripts = TokenMapWithScripts
     { txTokenMap = mempty
     , txScripts = Map.empty
+    }
+
+data WitnessCount = WitnessCount
+    { verificationKey :: Word8
+    , scriptHash :: Word8
+    , bootstrap :: Word8
+    }
+    deriving (Eq, Generic, Show)
+    deriving anyclass NFData
+
+emptyWitnessCount :: WitnessCount
+emptyWitnessCount = WitnessCount
+    { verificationKey = 0
+    , scriptHash = 0
+    , bootstrap = 0
     }
 
 data ErrMkTransaction

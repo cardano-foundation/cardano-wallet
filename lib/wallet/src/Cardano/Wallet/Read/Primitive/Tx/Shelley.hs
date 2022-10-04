@@ -1,5 +1,7 @@
 {-# LANGUAGE DataKinds #-}
 {-# LANGUAGE DuplicateRecordFields #-}
+{-# LANGUAGE FlexibleContexts #-}
+{-# LANGUAGE LambdaCase #-}
 {-# LANGUAGE TupleSections #-}
 {-# LANGUAGE TypeFamilies #-}
 
@@ -42,6 +44,7 @@ import Cardano.Wallet.Read.Tx.Hash
 import Cardano.Wallet.Transaction
     ( TokenMapWithScripts (..)
     , ValidityIntervalExplicit (..)
+    , WitnessCount (..)
     , emptyTokenMapWithScripts
     )
 import Data.Bifunctor
@@ -59,7 +62,7 @@ import qualified Cardano.Ledger.Address as SL
 import qualified Cardano.Ledger.BaseTypes as SL
 import qualified Cardano.Ledger.Core as SL.Core
 import qualified Cardano.Ledger.Shelley.API as SL
-import qualified Cardano.Ledger.Shelley.API as SLAPI
+import qualified Cardano.Ledger.Shelley.Tx as SL
 import qualified Cardano.Wallet.Primitive.Types as W
 import qualified Cardano.Wallet.Primitive.Types.Address as W
 import qualified Cardano.Wallet.Primitive.Types.Coin as Coin
@@ -92,9 +95,9 @@ fromShelleyTxOut
     :: ( Era era
        , SL.Core.Value era ~ SL.Coin
        )
-    => SLAPI.TxOut era
+    => SL.TxOut era
     -> W.TxOut
-fromShelleyTxOut (SLAPI.TxOut addr amount) = W.TxOut
+fromShelleyTxOut (SL.TxOut addr amount) = W.TxOut
     (fromShelleyAddress addr)
     (TokenBundle.fromCoin $ fromShelleyCoin amount)
 
@@ -106,12 +109,13 @@ fromShelleyCoin (SL.Coin c) = Coin.unsafeFromIntegral c
 
 -- NOTE: For resolved inputs we have to pass in a dummy value of 0.
 fromShelleyTx
-    :: SLAPI.Tx (Cardano.ShelleyLedgerEra ShelleyEra)
+    :: SL.Tx (Cardano.ShelleyLedgerEra ShelleyEra)
     -> ( W.Tx
        , [W.Certificate]
        , TokenMapWithScripts
        , TokenMapWithScripts
        , Maybe ValidityIntervalExplicit
+       , WitnessCount
        )
 fromShelleyTx tx =
     ( W.Tx
@@ -141,9 +145,14 @@ fromShelleyTx tx =
     , emptyTokenMapWithScripts
     , emptyTokenMapWithScripts
     , Just $ shelleyValidityInterval ttl
+    , countWits
     )
   where
-    SL.Tx (SL.TxBody ins outs certs wdrls fee ttl _ _) _ mmd = tx
+    SL.Tx (SL.TxBody ins outs certs wdrls fee ttl _ _) wits mmd = tx
+    countWits = WitnessCount
+        (fromIntegral $ Set.size $ SL.addrWits wits)
+        (fromIntegral $ Map.size $ SL.scriptWits wits)
+        (fromIntegral $ Set.size $ SL.bootWits wits)
 
 fromShelleyWdrl :: SL.Wdrl crypto -> Map W.RewardAccount W.Coin
 fromShelleyWdrl (SL.Wdrl wdrl) = Map.fromList $

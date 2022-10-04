@@ -42,7 +42,14 @@ import Cardano.Wallet.Read.Tx.CBOR
 import Cardano.Wallet.Read.Tx.Hash
     ( alonzoTxHash )
 import Cardano.Wallet.Transaction
-    ( TokenMapWithScripts (..), ValidityIntervalExplicit (..) )
+    ( AnyScript (..)
+    , PlutusScriptInfo (..)
+    , PlutusVersion (..)
+    , TokenMapWithScripts (..)
+    , ValidityIntervalExplicit (..)
+    , WitnessCount (..)
+    , emptyWitnessCount
+    )
 import Data.Foldable
     ( toList )
 
@@ -65,6 +72,7 @@ fromAlonzoTx
        , TokenMapWithScripts
        , TokenMapWithScripts
        , Maybe ValidityIntervalExplicit
+       , WitnessCount
        )
 fromAlonzoTx tx@(Alonzo.ValidatedTx bod wits (Alonzo.IsValid isValid) aux) =
     ( W.Tx
@@ -94,6 +102,7 @@ fromAlonzoTx tx@(Alonzo.ValidatedTx bod wits (Alonzo.IsValid isValid) aux) =
     , assetsToMint
     , assetsToBurn
     , Just $ afterShelleyValidityInterval ttl
+    , emptyWitnessCount
     )
   where
     Alonzo.TxBody

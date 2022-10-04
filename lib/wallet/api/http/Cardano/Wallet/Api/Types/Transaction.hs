@@ -83,7 +83,7 @@ import Data.Text
 import Data.Typeable
     ( Proxy, Typeable )
 import Data.Word
-    ( Word32 )
+    ( Word8, Word32 )
 import GHC.Generics
     ( Generic )
 import Numeric.Natural
