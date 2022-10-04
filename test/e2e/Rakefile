@@ -58,38 +58,38 @@ end
 
 task :fixture_wallets_template do
   log ">> Creating #{FIXTURES_FILE}"
-
+  utils = CardanoWallet.new.utils
   fixture_wallets = { :linux => {
-                          :fixture => { :shelley => mnemonic_sentence(24),
-                                         :icarus => mnemonic_sentence(15),
-                                         :random => mnemonic_sentence(12),
-                                         :shelley_light => mnemonic_sentence(24)
+                          :fixture => { :shelley => utils.mnemonic_sentence(24),
+                                         :icarus => utils.mnemonic_sentence(15),
+                                         :random => utils.mnemonic_sentence(12),
+                                         :shelley_light => utils.mnemonic_sentence(24)
                                        },
-                          :target =>  { :shelley => mnemonic_sentence(24),
-                                         :shared => mnemonic_sentence(24)
+                          :target =>  { :shelley => utils.mnemonic_sentence(24),
+                                         :shared => utils.mnemonic_sentence(24)
                                        }
                                 },
                       :macos => {
-                          :fixture => { :shelley => mnemonic_sentence(24),
-                                         :icarus => mnemonic_sentence(15),
-                                         :random => mnemonic_sentence(12),
-                                         :shelley_light => mnemonic_sentence(24)
+                          :fixture => { :shelley => utils.mnemonic_sentence(24),
+                                         :icarus => utils.mnemonic_sentence(15),
+                                         :random => utils.mnemonic_sentence(12),
+                                         :shelley_light => utils.mnemonic_sentence(24)
                                        },
-                          :target =>  { :shelley => mnemonic_sentence(24),
-                                         :shared => mnemonic_sentence(24)
+                          :target =>  { :shelley => utils.mnemonic_sentence(24),
+                                         :shared => utils.mnemonic_sentence(24)
                                        }
                                 },
                       :windows => {
-                          :fixture => { :shelley => mnemonic_sentence(24),
-                                         :icarus => mnemonic_sentence(15),
-                                         :random => mnemonic_sentence(12),
-                                         :shelley_light => mnemonic_sentence(24)
+                          :fixture => { :shelley => utils.mnemonic_sentence(24),
+                                         :icarus => utils.mnemonic_sentence(15),
+                                         :random => utils.mnemonic_sentence(12),
+                                         :shelley_light => utils.mnemonic_sentence(24)
                                        },
-                          :target =>  { :shelley => mnemonic_sentence(24),
-                                         :shared => mnemonic_sentence(24)
+                          :target =>  { :shelley => utils.mnemonic_sentence(24),
+                                         :shared => utils.mnemonic_sentence(24)
                                        }
                                 },
-                       :currency_contract_wallet => mnemonic_sentence(24)
+                       :currency_contract_wallet => utils.mnemonic_sentence(24)
                     }
   if File.exists?(FIXTURES_FILE)
     err = "

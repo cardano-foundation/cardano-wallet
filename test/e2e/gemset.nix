@@ -9,16 +9,36 @@
     };
     version = "0.0.4";
   };
-  cardano_wallet = {
-    dependencies = ["httparty"];
+  blake2b = {
     groups = ["default"];
     platforms = [];
     source = {
       remotes = ["https://rubygems.org"];
-      sha256 = "03xsp9v8za8xm9ry0vld2ygqaa60c14gq3wjnvll62pxr3ablwj6";
+      sha256 = "1i7kxnnvv2lqglc1crhkqp0s9hybx20wgrl04jqkk7y2sawyb6hg";
       type = "gem";
     };
-    version = "0.3.7";
+    version = "0.10.0";
+  };
+  cardano_wallet = {
+    dependencies = ["bip_mnemonic" "httparty"];
+    groups = ["default"];
+    platforms = [];
+    source = {
+      remotes = ["https://rubygems.org"];
+      sha256 = "1ay11nh7wcri87zzvn4i3n9lx0wnv2d5wfknk5nx8zyvlk8305r7";
+      type = "gem";
+    };
+    version = "0.3.27";
+  };
+  cbor = {
+    groups = ["default"];
+    platforms = [];
+    source = {
+      remotes = ["https://rubygems.org"];
+      sha256 = "0511idr8xps9625nh3kxr68sdy6l3xy2kcz7r57g47fxb1v18jj3";
+      type = "gem";
+    };
+    version = "0.5.9.6";
   };
   diff-lcs = {
     groups = ["default"];
@@ -47,20 +67,20 @@
     platforms = [];
     source = {
       remotes = ["https://rubygems.org"];
-      sha256 = "1zj12l9qk62anvk9bjvandpa6vy4xslil15wl6wlivyf51z773vh";
+      sha256 = "0ipw892jbksbxxcrlx9g5ljq60qx47pm24ywgfbyjskbcl78pkvb";
       type = "gem";
     };
-    version = "3.3.1";
+    version = "3.4.1";
   };
   mime-types-data = {
     groups = ["default"];
     platforms = [];
     source = {
       remotes = ["https://rubygems.org"];
-      sha256 = "1phcq7z0zpipwd7y4fbqmlaqghv07fjjgrx99mwq3z3n0yvy7fmi";
+      sha256 = "003gd7mcay800k2q4pb2zn8lwwgci4bhi42v2jvlidm8ksx03i6q";
       type = "gem";
     };
-    version = "3.2021.0225";
+    version = "3.2022.0105";
   };
   multi_xml = {
     groups = ["default"];
@@ -71,6 +91,16 @@
       type = "gem";
     };
     version = "0.6.0";
+  };
+  mustache = {
+    groups = ["default"];
+    platforms = [];
+    source = {
+      remotes = ["https://rubygems.org"];
+      sha256 = "1l0p4wx15mi3wnamfv92ipkia4nsx8qi132c6g51jfdma3fiz2ch";
+      type = "gem";
+    };
+    version = "1.1.1";
   };
   rake = {
     groups = ["default"];

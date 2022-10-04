@@ -4,9 +4,8 @@
 class CardanoAddresses
   ##
   # @param mnemonics
-  # @param type = Byron | Icarus | Shelley | Shared
-  def prv_key_from_recovery_phrase(mnemonics, type)
-    cmd(%(echo #{mnemonics.join(' ')}| cardano-address key from-recovery-phrase #{type})).gsub("\n", '')
+  def prv_key_from_recovery_phrase(mnemonics, cmd_params)
+    cmd(%(echo #{mnemonics.join(' ')}| cardano-address key from-recovery-phrase #{cmd_params})).gsub("\n", '')
   end
 
   def key_public(key, with_chain_code = true)

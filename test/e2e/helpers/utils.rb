@@ -1,4 +1,3 @@
-require 'bip_mnemonic'
 require 'httparty'
 require 'fileutils'
 
@@ -93,26 +92,6 @@ module Helpers
       end
     end
 
-    def mnemonic_sentence(word_count = 15)
-      case word_count
-      when 9
-        bits = 96
-      when 12
-        bits = 128
-      when 15
-        bits = 164
-      when 18
-        bits = 196
-      when 21
-        bits = 224
-      when 24
-        bits = 256
-      else
-        raise "Non-supported no of words #{word_count}!"
-      end
-      BipMnemonic.to_mnemonic(bits: bits, language: 'english').split
-    end
-
     def wget(url, file = nil)
       file ||= File.basename(url)
       resp = HTTParty.get(url)
@@ -195,7 +174,7 @@ module Helpers
     def base64?(value)
       value.is_a?(String) && Base64.strict_encode64(Base64.decode64(value)) == value
     end
-    
+
     def base16?(value)
       value.is_a?(String) && value.match?(/^[[:xdigit:]]+$/)
     end

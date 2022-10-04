@@ -24,7 +24,7 @@ RSpec.describe CardanoWallet::Byron, :all, :byron do
       payload = { style: "icarus",
                   name: "Wallet from mnemonic_sentence",
                   passphrase: "Secure Passphrase",
-                  mnemonic_sentence: mnemonic_sentence(15)
+                  mnemonic_sentence: CW.utils.mnemonic_sentence(15)
                  }
       wallet = WalletFactory.create(:byron, payload)
       expect(wallet).to be_correct_and_respond 201
@@ -38,7 +38,7 @@ RSpec.describe CardanoWallet::Byron, :all, :byron do
       payload = { style: "random",
                   name: "Wallet from mnemonic_sentence",
                   passphrase: "Secure Passphrase",
-                  mnemonic_sentence: mnemonic_sentence(12)
+                  mnemonic_sentence: CW.utils.mnemonic_sentence(12)
                  }
       wallet = WalletFactory.create(:byron, payload)
       expect(wallet).to be_correct_and_respond 201
@@ -99,7 +99,7 @@ RSpec.describe CardanoWallet::Byron, :all, :byron do
         wallet_type = m[0]
         wallet_style = m[1]
         it "I can get #{wallet_type} #{wallet_style} walletid using cardano-addresses" do
-          mnemonics = mnemonic_sentence(24)
+          mnemonics = CW.utils.mnemonic_sentence(24)
           wid = create_byron_wallet(style = wallet_style, "Wallet - ID", mnemonics)
 
           # based on root prv key
@@ -114,7 +114,7 @@ RSpec.describe CardanoWallet::Byron, :all, :byron do
         end
 
         it "#{wallet_type} walletid is not based on acct key" do
-          mnemonics = mnemonic_sentence(24)
+          mnemonics = CW.utils.mnemonic_sentence(24)
           wid = create_byron_wallet(style = wallet_style, "Wallet - ID", mnemonics)
 
           # based on acct prv key
@@ -206,7 +206,7 @@ RSpec.describe CardanoWallet::Byron, :all, :byron do
     end
 
     it "I can import address - random" do
-      mnemonics = mnemonic_sentence(15)
+      mnemonics = CW.utils.mnemonic_sentence(15)
       derivation_path = '14H/42H'
       id = create_byron_wallet("random", "Wallet - import", mnemonics)
 
