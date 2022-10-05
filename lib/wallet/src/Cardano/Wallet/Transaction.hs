@@ -347,16 +347,6 @@ data TransactionLayer k ktype tx = TransactionLayer
         -> (Cardano.Tx era)
             -- Transaction containing scripts
         -> (Either ErrAssignRedeemers (Cardano.Tx era))
-
-    , fromCardanoTxIn
-        :: Cardano.TxIn -> TxIn
-        -- ^ Temporary hack to allow access to conversion in balanceTransaction
-
-    , fromCardanoTxOut
-        :: forall era ctx. Cardano.IsCardanoEra era
-        => Cardano.TxOut ctx era
-        -> TxOut
-        -- ^ Temporary hack to allow access to conversion in balanceTransaction
     }
 
 -- | Method to use when updating the fee of a transaction.

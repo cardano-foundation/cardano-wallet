@@ -671,9 +671,6 @@ newTransactionLayer networkId = TransactionLayer
     , decodeTx = _decodeSealedTx
 
     , updateTx = updateSealedTx
-
-    , fromCardanoTxOut = Compatibility.fromCardanoTxOut
-    , fromCardanoTxIn = Compatibility.fromCardanoTxIn
     }
 
 _decodeSealedTx

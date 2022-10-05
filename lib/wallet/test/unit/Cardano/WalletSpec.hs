@@ -1394,10 +1394,6 @@ dummyTransactionLayer = TransactionLayer
         error "dummyTransactionLayer: tokenBundleSizeAssessor not implemented"
     , constraints =
         error "dummyTransactionLayer: constraints not implemented"
-    , fromCardanoTxIn =
-        error "dummyTransactionLayer: fromCardanoTxIn not implemented"
-    , fromCardanoTxOut =
-        error "dummyTransactionLayer: fromCardanoTxOut not implemented"
     , decodeTx = \_era _sealed ->
         ( Tx
             { txId = Hash ""

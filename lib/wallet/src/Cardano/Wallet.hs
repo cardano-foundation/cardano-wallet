@@ -457,7 +457,7 @@ import Cardano.Wallet.Primitive.Types.UTxOSelection
 import Cardano.Wallet.Read.Tx.CBOR
     ( TxCBOR )
 import Cardano.Wallet.Shelley.Compatibility
-    ( toCardanoUTxO )
+    ( fromCardanoTxIn, fromCardanoTxOut, toCardanoUTxO )
 import Cardano.Wallet.Transaction
     ( DelegationAction (..)
     , ErrAssignRedeemers (..)
@@ -1806,8 +1806,8 @@ balanceTransactionWithSelectionStrategy
                     Nothing ->
                        Left i
                     Just o -> do
-                        let i' = fromCardanoTxIn tl i
-                        let TxOut addr bundle = fromCardanoTxOut tl o
+                        let i' = fromCardanoTxIn i
+                        let TxOut addr bundle = fromCardanoTxOut o
                         pure (WalletUTxO i' addr, bundle)
 
         case partitionEithers res of
@@ -1816,7 +1816,7 @@ balanceTransactionWithSelectionStrategy
             (unresolvedInsHead:unresolvedInsTail, _) ->
                 throwE
                 . ErrBalanceTxUnresolvedInputs
-                . fmap (fromCardanoTxIn tl)
+                . fmap fromCardanoTxIn
                 $ (unresolvedInsHead :| unresolvedInsTail)
       where
         Cardano.UTxO utxo = combinedUTxO
@@ -1872,8 +1872,8 @@ balanceTransactionWithSelectionStrategy
         :: Cardano.UTxO era
         -> ExceptT ErrBalanceTx m ()
     guardWalletUTxOConsistencyWith u' = do
-        let u = Map.mapKeys (fromCardanoTxIn tl)
-                . Map.map (fromCardanoTxOut tl)
+        let u = Map.mapKeys fromCardanoTxIn
+                . Map.map fromCardanoTxOut
                 $ (unUTxO u')
         let conflicts = lefts $ flip map (Map.toList u) $ \(i, o) ->
                 case i `UTxO.lookup` walletUTxO of
