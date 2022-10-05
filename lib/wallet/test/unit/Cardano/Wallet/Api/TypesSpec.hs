@@ -342,6 +342,8 @@ import Cardano.Wallet.Transaction
     )
 import Cardano.Wallet.Unsafe
     ( unsafeFromText, unsafeXPrv )
+import Cardano.Wallet.Write.Tx.Gen
+    ( genDatumHash )
 import Control.Lens
     ( at, (?~) )
 import Control.Monad
@@ -434,6 +436,7 @@ import Test.Hspec.Extra
     ( parallel )
 import Test.QuickCheck
     ( Arbitrary (..)
+    , Arbitrary1 (..)
     , Gen
     , InfiniteList (..)
     , applyArbitrary2
@@ -453,6 +456,7 @@ import Test.QuickCheck
     , property
     , scale
     , shrinkIntegral
+    , shrinkMapBy
     , sized
     , suchThat
     , vector
@@ -941,18 +945,18 @@ instance FromJSON SchemaApiErrorCode where
 -------------------------------------------------------------------------------}
 
 -- Dummy instances
-instance EncodeAddress ('Testnet 0) where
+instance {-# INCOHERENT #-} EncodeAddress ('Testnet 0) where
     encodeAddress = const "<addr>"
 
-instance DecodeAddress ('Testnet 0) where
+instance {-# INCOHERENT #-} DecodeAddress ('Testnet 0) where
     decodeAddress "<addr>" = Right $ Address "<addr>"
     decodeAddress _ = Left $ TextDecodingError "invalid address"
 
 -- Dummy instances
-instance EncodeStakeAddress ('Testnet 0) where
+instance {-# INCOHERENT #-} EncodeStakeAddress ('Testnet 0) where
     encodeStakeAddress = const "<stake-addr>"
 
-instance DecodeStakeAddress ('Testnet 0) where
+instance {-# INCOHERENT #-} DecodeStakeAddress ('Testnet 0) where
     decodeStakeAddress "<stake-addr>" = Right $ RewardAccount "<stake-addr>"
     decodeStakeAddress _ = Left $ TextDecodingError "invalid stake address"
 
@@ -1453,6 +1457,10 @@ instance Arbitrary a => Arbitrary (ApiT a) where
     arbitrary = ApiT <$> arbitrary
     shrink = fmap ApiT . shrink . getApiT
 
+instance Arbitrary1 ApiT where
+    liftArbitrary = fmap ApiT
+    liftShrink = shrinkMapBy ApiT getApiT
+
 instance Arbitrary a => Arbitrary (NonEmpty a) where
     arbitrary = genericArbitrary
     shrink = genericShrink
@@ -1758,7 +1766,8 @@ instance Arbitrary (ApiExternalInput n) where
         <*> arbitrary
         <*> arbitrary
         <*> arbitrary
-        <*> arbitrary
+        <*> liftArbitrary (liftArbitrary genDatumHash)
+
 
 instance Arbitrary (ApiBalanceTransactionPostData n) where
     arbitrary = ApiBalanceTransactionPostData

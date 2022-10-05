@@ -88,8 +88,6 @@ import Cardano.Wallet.Primitive.Types.Address
     ( Address (..) )
 import Cardano.Wallet.Primitive.Types.Coin
     ( Coin (..) )
-import Cardano.Wallet.Primitive.Types.Hash
-    ( Hash )
 import Cardano.Wallet.Primitive.Types.Redeemer
     ( Redeemer )
 import Cardano.Wallet.Primitive.Types.RewardAccount
@@ -102,8 +100,6 @@ import Cardano.Wallet.Primitive.Types.Tx
     ( Tx (..), TxIn, TxMetadata, TxOut )
 import Cardano.Wallet.Primitive.Types.Tx.Constraints
     ( TokenBundleSizeAssessor, TxConstraints, TxSize )
-import Cardano.Wallet.Primitive.Types.UTxO
-    ( UTxO )
 import Cardano.Wallet.Util
     ( ShowFmt (..) )
 import Control.DeepSeq
@@ -351,13 +347,6 @@ data TransactionLayer k ktype tx = TransactionLayer
         -> (Cardano.Tx era)
             -- Transaction containing scripts
         -> (Either ErrAssignRedeemers (Cardano.Tx era))
-
-    , toCardanoUTxO
-        :: forall era. Cardano.IsShelleyBasedEra era
-        => UTxO
-        -> [(TxIn, TxOut, Maybe (Hash "Datum"))]
-        -> Cardano.UTxO era
-        -- ^ Temporary hack to allow access to conversion in balanceTransaction
 
     , fromCardanoTxIn
         :: Cardano.TxIn -> TxIn

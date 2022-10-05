@@ -392,6 +392,8 @@ library
     Cardano.Wallet.Util
     Cardano.Wallet.Version
     Cardano.Wallet.Version.TH
+    Cardano.Wallet.Write.Tx
+    Cardano.Wallet.Write.Tx.Gen
     Control.Concurrent.Concierge
     Control.Monad.Exception.Unchecked
     Control.Monad.Random.Extra
@@ -584,6 +586,7 @@ test-suite unit
     , cardano-crypto-class
     , cardano-crypto-wrapper
     , cardano-ledger-alonzo
+    , cardano-ledger-alonzo-test
     , cardano-ledger-babbage
     , cardano-ledger-byron
     , cardano-ledger-byron-test
@@ -780,6 +783,7 @@ test-suite unit
     Cardano.Wallet.Shelley.TransactionSpec
     Cardano.Wallet.TokenMetadataSpec
     Cardano.Wallet.Read.Tx.CBORSpec
+    Cardano.Wallet.Write.TxSpec
     Cardano.WalletSpec
     Control.Concurrent.ConciergeSpec
     Control.Monad.Random.ExtraSpec

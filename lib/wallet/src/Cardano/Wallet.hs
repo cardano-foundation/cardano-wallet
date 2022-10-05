@@ -456,6 +456,8 @@ import Cardano.Wallet.Primitive.Types.UTxOSelection
     ( UTxOSelection )
 import Cardano.Wallet.Read.Tx.CBOR
     ( TxCBOR )
+import Cardano.Wallet.Shelley.Compatibility
+    ( toCardanoUTxO )
 import Cardano.Wallet.Transaction
     ( DelegationAction (..)
     , ErrAssignRedeemers (..)
@@ -1896,8 +1898,9 @@ balanceTransactionWithSelectionStrategy
          -- UTxO set. (Whether or not this is a sane thing for the user to do,
          -- is another question.)
          [ unUTxO inputUTxO
-         , unUTxO $ toCardanoUTxO tl walletUTxO []
+         , unUTxO $ toCardanoUTxO Cardano.shelleyBasedEra walletUTxO
          ]
+
       where
          unUTxO (Cardano.UTxO u) = u
 
@@ -3675,7 +3678,7 @@ data ErrBalanceTx
     | ErrBalanceTxZeroAdaOutput
     | ErrBalanceTxInputResolutionConflicts (NonEmpty (TxOut, TxOut))
     | ErrBalanceTxUnresolvedInputs (NonEmpty TxIn)
-    | ErrByronTxNotSupported
+    | ErrOldEraNotSupported Cardano.AnyCardanoEra
     deriving (Show, Eq)
 
 data ErrBalanceTxInternalError

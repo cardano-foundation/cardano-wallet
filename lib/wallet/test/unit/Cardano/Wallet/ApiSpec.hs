@@ -365,17 +365,17 @@ server = error
     \delegated to our handlers."
 
 -- Dummy instances
-instance EncodeAddress ('Testnet 0) where
+instance {-# INCOHERENT #-} EncodeAddress ('Testnet 0) where
     encodeAddress = T.pack . show
 
-instance DecodeAddress ('Testnet 0) where
+instance {-# INCOHERENT #-} DecodeAddress ('Testnet 0) where
     decodeAddress _ = pure (Address "<addr>")
 
 -- Dummy instances
-instance EncodeStakeAddress ('Testnet 0) where
+instance {-# INCOHERENT #-} EncodeStakeAddress ('Testnet 0) where
     encodeStakeAddress = T.pack . show
 
-instance DecodeStakeAddress ('Testnet 0) where
+instance {-# INCOHERENT #-} DecodeStakeAddress ('Testnet 0) where
     decodeStakeAddress _ = pure (RewardAccount "<acct>")
 
 everyPathParam :: GEveryEndpoints api => Proxy api -> MkPathRequest api
