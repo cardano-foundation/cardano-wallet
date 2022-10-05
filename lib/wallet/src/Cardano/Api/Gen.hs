@@ -5,6 +5,7 @@
 {-# LANGUAGE NumericUnderscores #-}
 {-# LANGUAGE ScopedTypeVariables #-}
 {-# LANGUAGE StandaloneDeriving #-}
+{-# LANGUAGE TupleSections #-}
 {-# LANGUAGE TypeApplications #-}
 {-# OPTIONS_GHC -fno-warn-orphans #-}
 
@@ -42,6 +43,7 @@ module Cardano.Api.Gen
     , genRationalInt64
     , genScript
     , genScriptData
+    , shrinkScriptData
     , genScriptHash
     , genScriptInAnyLang
     , genScriptInEra
@@ -143,6 +145,8 @@ import Data.Int
     ( Int64 )
 import Data.IntCast
     ( intCast )
+import Data.List
+    ( nub )
 import Data.Map
     ( Map )
 import Data.Maybe
@@ -186,6 +190,8 @@ import Test.QuickCheck
     , listOf1
     , oneof
     , scale
+    , shrink
+    , shrinkList
     , sized
     , vector
     , vectorOf
@@ -198,24 +204,18 @@ import qualified Cardano.Binary as CBOR
 import qualified Cardano.Crypto.Hash as Crypto
 import qualified Cardano.Crypto.Seed as Crypto
 import qualified Cardano.Ledger.BaseTypes as Ledger
-    ( CertIx (..), Port, TxIx (..), dnsToText )
 import qualified Cardano.Ledger.Shelley.API as Ledger
-    ( StakePoolRelay (..), portToWord16 )
 import qualified Cardano.Ledger.Shelley.TxBody as Ledger
-    ( EraIndependentTxBody )
 import qualified Data.Aeson as Aeson
 import qualified Data.ByteString as BS
 import qualified Data.ByteString.Lazy as BL
 import qualified Data.ByteString.Short as SBS
-import Data.List
-    ( nub )
 import qualified Data.Map as Map
 import qualified Data.Set as Set
 import qualified Data.Text as T
 import qualified Data.Text.Encoding as T
 import qualified PlutusCore as Plutus
 import qualified Test.Cardano.Ledger.Shelley.Serialisation.Generators.Genesis as Ledger
-    ( genStakePoolRelay )
 
 --------------------------------------------------------------------------------
 -- Constants
@@ -666,8 +666,47 @@ genScriptData =
             oneof
                 [ ScriptDataList <$> vectorOf k smallerGen
                 , ScriptDataMap <$> vectorOf k ((,) <$> smallerGen <*> smallerGen)
-                , ScriptDataConstructor <$> arbitrary <*> vectorOf k smallerGen
+                , ScriptDataConstructor <$> genConstructorIx <*> vectorOf k smallerGen
                 ]
+
+        genConstructorIx = oneof
+            [ choose (0, 10) -- more realistic values
+            , abs <$> arbitrary
+                -- Negative values would trigger "Impossible" errors to be
+                -- thrown. This seems expected and fine:
+                -- https://github.com/input-output-hk/cardano-ledger/pull/2333#issuecomment-864159342
+            ]
+
+shrinkScriptData :: ScriptData -> [ScriptData]
+shrinkScriptData s = aggressivelyShrink s ++ case s of
+    ScriptDataList l ->
+        ScriptDataList <$> shrinkList shrinkScriptData l
+    ScriptDataMap m ->
+        ScriptDataMap <$> shrinkList (shrinkTuple shrinkScriptData) m
+    ScriptDataNumber n -> ScriptDataNumber <$> shrink n
+    ScriptDataBytes bs -> ScriptDataBytes <$> shrinkByteString bs
+    ScriptDataConstructor n l -> tail
+        [ ScriptDataConstructor n' l'
+        | n' <- n : shrink n
+        , l' <- l : shrinkList shrinkScriptData l
+        ]
+  where
+    aggressivelyShrink = \case
+        ScriptDataList l -> l
+        ScriptDataMap m -> map snd m
+        ScriptDataNumber _ -> []
+        ScriptDataBytes _ -> []
+        ScriptDataConstructor _ l -> l
+
+    shrinkTuple f (a, b) = map (,b) (f a) ++ map (a,) (f b)
+
+    shrinkByteString :: BS.ByteString -> [BS.ByteString]
+    shrinkByteString bs
+        | n <= 1    = []
+        | otherwise = [ BS.take (n `div` 2) bs, BS.drop (n `div` 2) bs ]
+      where
+        n = BS.length bs
+
 
 genExecutionUnits :: Gen ExecutionUnits
 genExecutionUnits = do
