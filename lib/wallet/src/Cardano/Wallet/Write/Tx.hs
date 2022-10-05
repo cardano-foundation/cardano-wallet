@@ -1,7 +1,6 @@
-{-# LANGUAGE ExplicitNamespaces #-}
+{-# LANGUAGE FlexibleInstances #-}
 {-# LANGUAGE GADTs #-}
 {-# LANGUAGE LambdaCase #-}
-{-# LANGUAGE PatternSynonyms #-}
 {-# LANGUAGE RankNTypes #-}
 {-# LANGUAGE ScopedTypeVariables #-}
 {-# LANGUAGE TypeApplications #-}
@@ -36,12 +35,9 @@ module Cardano.Wallet.Write.Tx
     , Value
 
     -- ** Datum
-    , type Datum
-    , type DatumHash
-    , type BinaryData
-    , pattern Alonzo.Datum
-    , pattern Alonzo.DatumHash
-    , pattern Alonzo.NoDatum
+    , Datum (..)
+    , DatumHash
+    , BinaryData
     , datumFromBytes
     , datumToBytes
     , datumFromCardanoScriptData
@@ -51,7 +47,7 @@ module Cardano.Wallet.Write.Tx
     , datumHashToBytes
 
     -- ** Script
-    , type Script
+    , Script (..)
     , scriptFromBytes
     , scriptFromCardanoScriptInAnyLang
     , scriptToCardanoScriptInAnyLang
@@ -76,11 +72,15 @@ module Cardano.Wallet.Write.Tx
 import Prelude
 
 import Cardano.Api
-    ( AlonzoEra, BabbageEra, CardanoEra (..) )
+    ( AlonzoEra, BabbageEra )
 import Cardano.Api.Shelley
     ( ShelleyLedgerEra )
 import Cardano.Crypto.Hash
     ( Hash (UnsafeHash) )
+import Cardano.Ledger.Alonzo.Data
+    ( BinaryData, Datum (..) )
+import Cardano.Ledger.Alonzo.Scripts
+    ( Script (..) )
 import Cardano.Ledger.Crypto
     ( StandardCrypto )
 import Cardano.Ledger.Era
@@ -99,8 +99,6 @@ import Data.Maybe
     ( fromMaybe )
 import Data.Maybe.Strict
     ( StrictMaybe (..) )
-import Ouroboros.Consensus.Cardano.Block
-    ( StandardBabbage )
 
 import qualified Cardano.Api as Cardano
 import qualified Cardano.Api.Extra as Cardano
@@ -121,6 +119,14 @@ import qualified Data.Aeson.Types as Aeson
 import qualified Data.Map as Map
 
 --------------------------------------------------------------------------------
+-- Eras
+--------------------------------------------------------------------------------
+
+type LatestEra = BabbageEra
+
+type LatestLedgerEra = Cardano.ShelleyLedgerEra LatestEra
+
+--------------------------------------------------------------------------------
 -- RecentEra
 --------------------------------------------------------------------------------
 
@@ -134,18 +140,18 @@ class Cardano.IsShelleyBasedEra era => IsRecentEra era where
     recentEra :: RecentEra era
 
 -- | Return a proof that the wallet can create txs in this era, or @Nothing@.
-isRecentEra :: CardanoEra era -> Maybe (RecentEra era)
-isRecentEra BabbageEra = Just RecentEraBabbage
-isRecentEra AlonzoEra = Just RecentEraAlonzo
-isRecentEra MaryEra = Nothing
-isRecentEra AllegraEra = Nothing
-isRecentEra ShelleyEra = Nothing
-isRecentEra ByronEra = Nothing
+isRecentEra :: Cardano.CardanoEra era -> Maybe (RecentEra era)
+isRecentEra Cardano.BabbageEra = Just RecentEraBabbage
+isRecentEra Cardano.AlonzoEra = Just RecentEraAlonzo
+isRecentEra Cardano.MaryEra = Nothing
+isRecentEra Cardano.AllegraEra = Nothing
+isRecentEra Cardano.ShelleyEra = Nothing
+isRecentEra Cardano.ByronEra = Nothing
 
-instance IsRecentEra Cardano.BabbageEra where
+instance IsRecentEra BabbageEra where
     recentEra = RecentEraBabbage
 
-instance IsRecentEra Cardano.AlonzoEra where
+instance IsRecentEra AlonzoEra where
     recentEra = RecentEraAlonzo
 
 cardanoEraFromRecentEra :: RecentEra era -> Cardano.CardanoEra era
@@ -186,9 +192,9 @@ asAnyRecentEra
     :: Cardano.InAnyCardanoEra a
     -> Maybe (InAnyRecentEra a)
 asAnyRecentEra = \case
-    Cardano.InAnyCardanoEra BabbageEra a ->
+    Cardano.InAnyCardanoEra Cardano.BabbageEra a ->
         Just $ InAnyRecentEra RecentEraBabbage a
-    Cardano.InAnyCardanoEra AlonzoEra a ->
+    Cardano.InAnyCardanoEra Cardano.AlonzoEra a ->
         Just $ InAnyRecentEra RecentEraAlonzo a
     _ -> Nothing
 
@@ -221,15 +227,14 @@ unsafeAddressFromBytes bytes = case Ledger.deserialiseAddr bytes of
     Just addr -> addr
     Nothing -> error "unsafeAddressFromBytes: failed to deserialise"
 
-type Script = Alonzo.Script (Babbage.BabbageEra StandardCrypto)
--- NOTE: Era only used for its 'Crypto era'
-
-scriptFromBytes :: ByteString -> Either CBOR.DecoderError Script
+scriptFromBytes
+    :: ByteString
+    -> Either CBOR.DecoderError (Script LatestLedgerEra)
 scriptFromBytes bs = CBOR.decodeAnnotator "Script" CBOR.fromCBOR (fromStrict bs)
 
 scriptFromCardanoScriptInAnyLang
     :: Cardano.ScriptInAnyLang
-    -> Script
+    -> (Script LatestLedgerEra)
 scriptFromCardanoScriptInAnyLang
     = Cardano.toShelleyScript
     . fromMaybe (error "all valid scripts should be valid in latest era")
@@ -238,7 +243,7 @@ scriptFromCardanoScriptInAnyLang
     latestEra = Cardano.BabbageEra
 
 scriptToCardanoScriptInAnyLang
-    :: Script
+    :: Script LatestLedgerEra
     -> Cardano.ScriptInAnyLang
 scriptToCardanoScriptInAnyLang =
     rewrap
@@ -247,7 +252,7 @@ scriptToCardanoScriptInAnyLang =
     rewrap (Cardano.ScriptInEra _ s) = Cardano.toScriptInAnyLang s
     latestEra = Cardano.ShelleyBasedEraBabbage
 
-scriptToCardanoEnvelopeJSON :: Script -> Aeson.Value
+scriptToCardanoEnvelopeJSON :: Script LatestLedgerEra -> Aeson.Value
 scriptToCardanoEnvelopeJSON = scriptToJSON . scriptToCardanoScriptInAnyLang
   where
     scriptToJSON
@@ -267,33 +272,41 @@ scriptToCardanoEnvelopeJSON = scriptToJSON . scriptToCardanoScriptInAnyLang
             (Cardano.PlutusScriptLanguage Cardano.PlutusScriptV1) -> f
             (Cardano.PlutusScriptLanguage Cardano.PlutusScriptV2) -> f
 
-scriptFromCardanoEnvelopeJSON :: Aeson.Value -> Aeson.Parser Script
+scriptFromCardanoEnvelopeJSON
+    :: Aeson.Value
+    -> Aeson.Parser (Script LatestLedgerEra)
 scriptFromCardanoEnvelopeJSON v = fmap scriptFromCardanoScriptInAnyLang $ do
     envelope <- Aeson.parseJSON v
     case textEnvelopeToScript envelope of
       Left textEnvErr -> fail $ Cardano.displayError textEnvErr
       Right (Cardano.ScriptInAnyLang l s) -> pure $ Cardano.ScriptInAnyLang l s
   where
-    textEnvelopeToScript :: Cardano.TextEnvelope -> Either Cardano.TextEnvelopeError Cardano.ScriptInAnyLang
-    textEnvelopeToScript = Cardano.deserialiseFromTextEnvelopeAnyOf textEnvTypes
-     where
-      textEnvTypes :: [Cardano.FromSomeType Cardano.HasTextEnvelope Cardano.ScriptInAnyLang]
-      textEnvTypes =
-        [ Cardano.FromSomeType (Cardano.AsScript Cardano.AsSimpleScriptV1)
-                       (Cardano.ScriptInAnyLang (Cardano.SimpleScriptLanguage Cardano.SimpleScriptV1))
-        , Cardano.FromSomeType (Cardano.AsScript Cardano.AsSimpleScriptV2)
-                       (Cardano.ScriptInAnyLang (Cardano.SimpleScriptLanguage Cardano.SimpleScriptV2))
-        , Cardano.FromSomeType (Cardano.AsScript Cardano.AsPlutusScriptV1)
-                       (Cardano.ScriptInAnyLang (Cardano.PlutusScriptLanguage Cardano.PlutusScriptV1))
-        , Cardano.FromSomeType (Cardano.AsScript Cardano.AsPlutusScriptV2)
-                       (Cardano.ScriptInAnyLang (Cardano.PlutusScriptLanguage Cardano.PlutusScriptV2))
-        ]
+    textEnvelopeToScript
+        :: Cardano.TextEnvelope
+        -> Either Cardano.TextEnvelopeError Cardano.ScriptInAnyLang
+    textEnvelopeToScript =
+        Cardano.deserialiseFromTextEnvelopeAnyOf textEnvTypes
 
-type Datum = Alonzo.Datum (Babbage.BabbageEra StandardCrypto)
-
-type BinaryData = Alonzo.BinaryData (Babbage.BabbageEra StandardCrypto)
-
-type DatumHash = Alonzo.DataHash StandardCrypto
+    textEnvTypes
+      :: [Cardano.FromSomeType Cardano.HasTextEnvelope Cardano.ScriptInAnyLang]
+    textEnvTypes =
+      [ Cardano.FromSomeType
+          (Cardano.AsScript Cardano.AsSimpleScriptV1)
+          (Cardano.ScriptInAnyLang
+              (Cardano.SimpleScriptLanguage Cardano.SimpleScriptV1))
+      , Cardano.FromSomeType
+          (Cardano.AsScript Cardano.AsSimpleScriptV2)
+          (Cardano.ScriptInAnyLang
+              (Cardano.SimpleScriptLanguage Cardano.SimpleScriptV2))
+      , Cardano.FromSomeType
+          (Cardano.AsScript Cardano.AsPlutusScriptV1)
+          (Cardano.ScriptInAnyLang
+              (Cardano.PlutusScriptLanguage Cardano.PlutusScriptV1))
+      , Cardano.FromSomeType
+          (Cardano.AsScript Cardano.AsPlutusScriptV2)
+          (Cardano.ScriptInAnyLang
+              (Cardano.PlutusScriptLanguage Cardano.PlutusScriptV2))
+      ]
 
 -- NOTE on binary format: There are a couple of related types in the ledger each
 -- with their own binary encoding. 'Plutus.Data' seems to be the type with the
@@ -305,26 +318,30 @@ type DatumHash = Alonzo.DataHash StandardCrypto
 -- - 'Alonzo.Datum' - adds tags to differentiate between e.g. inline datums and
 -- datum hashes. We could add helpers for this roundtrip, but they would be
 -- separate from the existing 'datum{From,To}Bytes' pair.
-datumFromBytes :: ByteString -> Either String (Alonzo.BinaryData StandardBabbage)
+datumFromBytes
+    :: ByteString
+    -> Either String (BinaryData LatestLedgerEra)
 datumFromBytes =
     Alonzo.makeBinaryData . toShort
 
-datumToBytes :: Alonzo.BinaryData StandardBabbage -> ByteString
+datumToBytes :: BinaryData LatestLedgerEra -> ByteString
 datumToBytes = CBOR.serialize' . Alonzo.getPlutusData . Alonzo.binaryDataToData
 
 datumFromCardanoScriptData
     :: Cardano.ScriptData
-    -> Alonzo.BinaryData StandardBabbage
+    -> BinaryData LatestLedgerEra
 datumFromCardanoScriptData =
     Alonzo.dataToBinaryData
     . Cardano.toAlonzoData
 
 datumToCardanoScriptData
-    :: Alonzo.BinaryData StandardBabbage
+    :: BinaryData LatestLedgerEra
     -> Cardano.ScriptData
 datumToCardanoScriptData =
     Cardano.fromAlonzoData
     . Alonzo.binaryDataToData
+
+type DatumHash = Alonzo.DataHash StandardCrypto
 
 datumHashFromBytes :: ByteString -> Maybe DatumHash
 datumHashFromBytes =
@@ -341,29 +358,29 @@ datumHashToBytes = Crypto.hashToBytes . extractHash
 -- @ToJSON@ / @FromJSON@ instances to be written for two eras using only one
 -- implementation.
 newtype TxOutInRecentEra
-    = TxOutInRecentEra (Core.TxOut (ShelleyLedgerEra BabbageEra))
-        -- NOTE: Assuming @TxOut BabbageEra@ contains the same
-        -- information as @TxOut AlonzoEra@ or more.
+    = TxOutInRecentEra (TxOut LatestLedgerEra)
+        -- NOTE: Assuming @TxOut latestEra@ contains the same
+        -- information as @TxOut prevEra@ or more.
 
 data ErrInvalidTxOutInEra
     = ErrInlineDatumNotSupportedInAlonzo
     | ErrInlineScriptNotSupportedInAlonzo
 
 wrapTxOutInRecentEra
-    :: Core.TxOut (ShelleyLedgerEra BabbageEra)
+    :: TxOut LatestLedgerEra
     -> TxOutInRecentEra
 wrapTxOutInRecentEra = TxOutInRecentEra
 
 unwrapTxOutInRecentEra
     :: RecentEra era
     -> TxOutInRecentEra
-    -> Either ErrInvalidTxOutInEra (Core.TxOut (ShelleyLedgerEra era))
+    -> Either ErrInvalidTxOutInEra (TxOut (ShelleyLedgerEra era))
 unwrapTxOutInRecentEra era (TxOutInRecentEra babbageTxOut) = case era of
     RecentEraBabbage -> pure babbageTxOut
     RecentEraAlonzo -> downcastTxOut babbageTxOut
   where
     downcastTxOut
-        :: Core.TxOut (ShelleyLedgerEra BabbageEra)
+        :: TxOut (ShelleyLedgerEra BabbageEra)
         -> Either
             ErrInvalidTxOutInEra
             (Core.TxOut (ShelleyLedgerEra AlonzoEra))

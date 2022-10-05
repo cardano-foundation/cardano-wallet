@@ -1,5 +1,4 @@
-{-# LANGUAGE ExplicitNamespaces #-}
-{-# LANGUAGE PatternSynonyms #-}
+{-# LANGUAGE TypeFamilies #-}
 module Cardano.Wallet.Write.Tx.Gen
     ( genDatum
     , genData
@@ -10,19 +9,21 @@ module Cardano.Wallet.Write.Tx.Gen
 import Prelude
 
 import Cardano.Ledger.Alonzo.Data
-    ( Data (..), dataToBinaryData)
+    ( Data (..), dataToBinaryData )
 import Cardano.Wallet.Write.Tx
-    ( type Datum, type DatumHash, pattern Datum, pattern DatumHash, pattern NoDatum, datumHashFromBytes, BinaryData )
+    ( BinaryData, Datum (..), DatumHash, datumHashFromBytes )
 import Data.ByteString
     ( ByteString )
 import Data.Maybe
     ( fromMaybe )
+import Ouroboros.Consensus.Cardano.Block
+    ( EraCrypto, StandardCrypto )
 import Test.QuickCheck
 
 import qualified Data.ByteString as BS
 import qualified Plutus.V1.Ledger.Api as PV1
 
-genDatum :: Gen Datum
+genDatum :: (EraCrypto era ~ StandardCrypto) => Gen (Datum era)
 genDatum = oneof
     [ Datum <$> genData
     , DatumHash <$> genDatumHash
@@ -30,7 +31,7 @@ genDatum = oneof
     ]
 
 -- Originally from https://github.com/input-output-hk/cardano-ledger/blob/c7c63dabdb215ebdaed8b63274965966f2bf408f/eras/alonzo/test-suite/src/Test/Cardano/Ledger/Alonzo/Serialisation/Generators.hs#L66-L79
-genData :: Gen BinaryData
+genData :: Gen (BinaryData era)
 genData = dataToBinaryData . Data <$> resize 5 (sized gendata)
   where
     gendata n
