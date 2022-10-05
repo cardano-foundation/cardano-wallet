@@ -1072,8 +1072,7 @@ rollbackBlocks ctx wid point = db & \DBLayer{..} -> do
 -- | Apply the given blocks to the wallet and update the wallet state,
 -- transaction history and corresponding metadata.
 --
--- Concurrency: `restoreBlocks` is atomic.
--- However, in the future, we may assume that
+-- Concurrency: `restoreBlocks` is not atomic; we assume that
 -- it is called in a sequential fashion for each wallet.
 restoreBlocks
     :: forall ctx s k.
@@ -1089,10 +1088,10 @@ restoreBlocks
     -> BlockData IO (Either Address RewardAccount) ChainEvents s
     -> BlockHeader
     -> ExceptT ErrNoSuchWallet IO ()
-restoreBlocks ctx tr wid blocks nodeTip = db & \DBLayer{..} ->
-  mapExceptT atomically $ do
+restoreBlocks ctx tr wid blocks nodeTip = db & \DBLayer{..} -> do
     sp  <- liftIO $ currentSlottingParameters nl
-    cp0 <- withNoSuchWallet wid (readCheckpoint wid)
+    cp0 <- mapExceptT atomically $
+        withNoSuchWallet wid (readCheckpoint wid)
     unless (cp0 `isParentOf` firstHeader blocks) $ fail $ T.unpack $ T.unwords
         [ "restoreBlocks: given chain isn't a valid continuation."
         , "Wallet is at:", pretty (currentTip cp0)
@@ -1100,9 +1099,9 @@ restoreBlocks ctx tr wid blocks nodeTip = db & \DBLayer{..} ->
         , pretty (firstHeader blocks)
         ]
 
-    -- TODO on concurrency:
+    -- NOTE on concurrency:
     -- In light-mode, 'applyBlocks' may take some time to retrieve
-    -- transaction data. We want avoid blocking the database by
+    -- transaction data. We avoid blocking the database by
     -- not wrapping this into a call to 'atomically'.
     -- However, this only works if the latest database checkpoint, `cp0`,
     -- does not change in the meantime.
@@ -1165,26 +1164,27 @@ restoreBlocks ctx tr wid blocks nodeTip = db & \DBLayer{..} ->
             | wcp <- map (snd . fromWallet) cpsKeep
             ]
 
-    liftIO $ forM_ txs $ \(Tx {txCBOR=mcbor},_) ->
-        forM_ mcbor $ \cbor -> do
-            traceWith tr $ MsgStoringCBOR cbor
+    mapExceptT atomically $ do
+        liftIO $ forM_ txs $ \(Tx {txCBOR=mcbor},_) ->
+            forM_ mcbor $ \cbor -> do
+                traceWith tr $ MsgStoringCBOR cbor
 
-    putTxHistory wid txs
+        putTxHistory wid txs
 
-    updatePendingTxForExpiry wid (view #slotNo localTip)
-    forM_ slotPoolDelegations $ \delegation@(slotNo, cert) -> do
-        liftIO $ logDelegation delegation
-        putDelegationCertificate wid cert slotNo
+        updatePendingTxForExpiry wid (view #slotNo localTip)
+        forM_ slotPoolDelegations $ \delegation@(slotNo, cert) -> do
+            liftIO $ logDelegation delegation
+            putDelegationCertificate wid cert slotNo
 
-    liftIO $ mapM_ logCheckpoint cpsKeep
-    ExceptT $ modifyDBMaybe walletsDB $
-        adjustNoSuchWallet wid id $ \_ -> Right ( delta, () )
+        liftIO $ mapM_ logCheckpoint cpsKeep
+        ExceptT $ modifyDBMaybe walletsDB $
+            adjustNoSuchWallet wid id $ \_ -> Right ( delta, () )
 
-    prune wid epochStability
+        prune wid epochStability
 
-    liftIO $ do
-        traceWith tr $ MsgDiscoveredTxs txs
-        traceWith tr $ MsgDiscoveredTxsContent txs
+        liftIO $ do
+            traceWith tr $ MsgDiscoveredTxs txs
+            traceWith tr $ MsgDiscoveredTxsContent txs
   where
     nl = ctx ^. networkLayer
     db = ctx ^. dbLayer @IO @s @k
