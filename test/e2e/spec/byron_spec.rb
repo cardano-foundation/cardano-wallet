@@ -137,11 +137,6 @@ RSpec.describe CardanoWallet::Byron, :all, :byron do
 
   describe CardanoWallet::Byron::Addresses do
     it "Can list addresses - random", :adp_2211 do
-      skip %(ADP-2211 - Creating Byron random address intermittently fails with
-                       `POST /byron-wallets/{walletId}/addresses`
-
-             The test fails randomly ~15% of the time.
-            )
       id = create_byron_wallet
       addresses = BYRON.addresses.list id
       expect(addresses).to be_correct_and_respond 200
