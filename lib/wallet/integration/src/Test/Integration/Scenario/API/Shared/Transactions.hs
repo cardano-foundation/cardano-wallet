@@ -46,6 +46,8 @@ import Cardano.Wallet.Primitive.Passphrase
     ( Passphrase (..) )
 import Cardano.Wallet.Primitive.Types.Tx
     ( TxMetadata (..), TxMetadataValue (..), TxScriptValidity (..) )
+import Cardano.Wallet.Transaction
+    ( WitnessCount (..) )
 import Control.Monad.IO.Unlift
     ( MonadUnliftIO (..), liftIO )
 import Control.Monad.Trans.Resource
@@ -498,13 +500,13 @@ spec = describe "SHARED_TRANSACTIONS" $ do
             , expectField (#fee . #getQuantity) (`shouldSatisfy` (> 0))
             ]
         let txCbor = getFromResponse #transaction rTx
-        let decodePayload = Json (toJSON txCbor)
-        rDecodedTxWal1 <- request @(ApiDecodedTransaction n) ctx
-            (Link.decodeTransaction @'Shared sharedWal1) Default decodePayload
-        rDecodedTxWal2 <- request @(ApiDecodedTransaction n) ctx
-            (Link.decodeTransaction @'Shared sharedWal2) Default decodePayload
-        rDecodedTxTarget <- request @(ApiDecodedTransaction n) ctx
-            (Link.decodeTransaction @'Shelley wb) Default decodePayload
+        let decodePayload1 = Json (toJSON txCbor)
+        rDecodedTx1Wal1 <- request @(ApiDecodedTransaction n) ctx
+            (Link.decodeTransaction @'Shared sharedWal1) Default decodePayload1
+        rDecodedTx1Wal2 <- request @(ApiDecodedTransaction n) ctx
+            (Link.decodeTransaction @'Shared sharedWal2) Default decodePayload1
+        rDecodedTx1Target <- request @(ApiDecodedTransaction n) ctx
+            (Link.decodeTransaction @'Shelley wb) Default decodePayload1
 
         let expectedFee = getFromResponse (#fee . #getQuantity) rTx
         let sharedExpectationsBetweenWallets =
@@ -516,7 +518,7 @@ spec = describe "SHARED_TRANSACTIONS" $ do
                 , expectField #scriptValidity (`shouldBe` (Just $ ApiT TxScriptValid))
                 ]
 
-        verify rDecodedTxTarget sharedExpectationsBetweenWallets
+        verify rDecodedTx1Target sharedExpectationsBetweenWallets
 
         let isInpOurs inp = case inp of
                 ExternalInput _ -> False
@@ -541,6 +543,12 @@ spec = describe "SHARED_TRANSACTIONS" $ do
                 WalletOutput _ -> False
                 ExternalOutput _ -> True
 
+        let noVerKeyWitness = WitnessCount
+                { verificationKey = 0
+                , scriptHash = 1
+                , bootstrap = 0
+                }
+
         let decodeConstructedTxSharedWal =
                 sharedExpectationsBetweenWallets ++
                 [ expectField #inputs (`shouldSatisfy` areOurs)
@@ -548,9 +556,34 @@ spec = describe "SHARED_TRANSACTIONS" $ do
                 -- Check that the change output is there:
                 , expectField (#outputs) ((`shouldBe` 1) . length . filter isOutOurs)
                 ]
+        let witsExp1 = [ expectField (#witnessCount) (`shouldBe` noVerKeyWitness) ]
 
-        verify rDecodedTxWal1 decodeConstructedTxSharedWal
-        verify rDecodedTxWal2 decodeConstructedTxSharedWal
+        verify rDecodedTx1Wal1 (decodeConstructedTxSharedWal ++ witsExp1)
+        verify rDecodedTx1Wal2 (decodeConstructedTxSharedWal ++ witsExp1)
+
+        -- adding one witness
+        let (ApiSerialisedTransaction apiTx1 _) =
+                getFromResponse #transaction rTx
+        signedTx1 <-
+            signSharedTx ctx sharedWal1 apiTx1 [ expectResponseCode HTTP.status202 ]
+        let decodePayload2 = Json (toJSON signedTx1)
+        rDecodedTx2Wal1 <- request @(ApiDecodedTransaction n) ctx
+            (Link.decodeTransaction @'Shared sharedWal1) Default decodePayload2
+        rDecodedTx2Wal2 <- request @(ApiDecodedTransaction n) ctx
+            (Link.decodeTransaction @'Shared sharedWal2) Default decodePayload2
+        rDecodedTx2Target <- request @(ApiDecodedTransaction n) ctx
+            (Link.decodeTransaction @'Shelley wb) Default decodePayload2
+
+        let oneVerKeyWitness = WitnessCount
+                { verificationKey = 1
+                , scriptHash = 1
+                , bootstrap = 0
+                }
+        let witsExp2 = [ expectField (#witnessCount) (`shouldBe` oneVerKeyWitness) ]
+
+        verify rDecodedTx2Target sharedExpectationsBetweenWallets
+        verify rDecodedTx2Wal1 (decodeConstructedTxSharedWal ++ witsExp2)
+        verify rDecodedTx2Wal2 (decodeConstructedTxSharedWal ++ witsExp2)
 
   where
      fundSharedWallet ctx amt walShared = do
