@@ -191,6 +191,8 @@ import Test.QuickCheck
     , property
     , (===)
     )
+import Test.QuickCheck.Instances.ByteString
+    ()
 
 import qualified Data.ByteString as BS
 import qualified Data.ByteString.Char8 as B8

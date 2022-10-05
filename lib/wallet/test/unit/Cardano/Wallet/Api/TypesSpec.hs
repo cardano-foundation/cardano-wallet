@@ -348,6 +348,8 @@ import Cardano.Wallet.Transaction
     )
 import Cardano.Wallet.Unsafe
     ( unsafeFromText, unsafeXPrv )
+import Cardano.Wallet.Write.Tx.Gen
+    ( genDatumHash )
 import Control.Lens
     ( at, (?~) )
 import Control.Monad
@@ -442,6 +444,7 @@ import Test.Hspec.Extra
     ( parallel )
 import Test.QuickCheck
     ( Arbitrary (..)
+    , Arbitrary1 (..)
     , Gen
     , InfiniteList (..)
     , applyArbitrary2
@@ -461,6 +464,7 @@ import Test.QuickCheck
     , property
     , scale
     , shrinkIntegral
+    , shrinkMapBy
     , sized
     , suchThat
     , vector
@@ -1481,6 +1485,10 @@ instance Arbitrary a => Arbitrary (ApiT a) where
     arbitrary = ApiT <$> arbitrary
     shrink = fmap ApiT . shrink . getApiT
 
+instance Arbitrary1 ApiT where
+    liftArbitrary = fmap ApiT
+    liftShrink = shrinkMapBy ApiT getApiT
+
 -- | The initial seed has to be vector or length multiple of 4 bytes and shorter
 -- than 64 bytes. Note that this is good for testing or examples, but probably
 -- not for generating truly random Mnemonic words.
@@ -1782,7 +1790,7 @@ instance Arbitrary (ApiExternalInput n) where
         <*> arbitrary
         <*> arbitrary
         <*> arbitrary
-        <*> arbitrary
+        <*> liftArbitrary (liftArbitrary genDatumHash)
 
 instance Arbitrary (ApiBalanceTransactionPostData n) where
     arbitrary = ApiBalanceTransactionPostData

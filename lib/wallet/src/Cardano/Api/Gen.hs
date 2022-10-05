@@ -198,6 +198,8 @@ import Test.QuickCheck
     )
 import Test.QuickCheck.Hedgehog
     ( hedgehog )
+import Test.QuickCheck.Instances.ByteString
+    ()
 
 import qualified Cardano.Api as Api
 import qualified Cardano.Binary as CBOR
@@ -684,7 +686,7 @@ shrinkScriptData s = aggressivelyShrink s ++ case s of
     ScriptDataMap m ->
         ScriptDataMap <$> shrinkList (shrinkTuple shrinkScriptData) m
     ScriptDataNumber n -> ScriptDataNumber <$> shrink n
-    ScriptDataBytes bs -> ScriptDataBytes <$> shrinkByteString bs
+    ScriptDataBytes bs -> ScriptDataBytes <$> shrink bs
     ScriptDataConstructor n l -> tail
         [ ScriptDataConstructor n' l'
         | n' <- n : shrink n
@@ -699,14 +701,6 @@ shrinkScriptData s = aggressivelyShrink s ++ case s of
         ScriptDataConstructor _ l -> l
 
     shrinkTuple f (a, b) = map (,b) (f a) ++ map (a,) (f b)
-
-    shrinkByteString :: BS.ByteString -> [BS.ByteString]
-    shrinkByteString bs
-        | n <= 1    = []
-        | otherwise = [ BS.take (n `div` 2) bs, BS.drop (n `div` 2) bs ]
-      where
-        n = BS.length bs
-
 
 genExecutionUnits :: Gen ExecutionUnits
 genExecutionUnits = do
