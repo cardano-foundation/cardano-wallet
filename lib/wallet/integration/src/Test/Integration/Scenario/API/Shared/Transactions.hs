@@ -600,6 +600,15 @@ spec = describe "SHARED_TRANSACTIONS" $ do
         verify rDecodedTx3Wal1 (decodeConstructedTxSharedWal ++ witsExp2)
         verify rDecodedTx3Wal2 (decodeConstructedTxSharedWal ++ witsExp2)
 
+        signedTx3 <-
+            signSharedTx ctx sharedWal2 apiTx2 [ expectResponseCode HTTP.status202 ]
+
+        -- Submit tx
+        submittedTx <- submitSharedTxWithWid ctx sharedWal1 signedTx3
+        verify submittedTx
+            [ expectSuccess
+            , expectResponseCode HTTP.status202
+            ]
 
   where
      fundSharedWallet ctx amt walShared = do
