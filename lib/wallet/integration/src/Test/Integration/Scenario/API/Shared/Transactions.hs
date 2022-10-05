@@ -585,6 +585,22 @@ spec = describe "SHARED_TRANSACTIONS" $ do
         verify rDecodedTx2Wal1 (decodeConstructedTxSharedWal ++ witsExp2)
         verify rDecodedTx2Wal2 (decodeConstructedTxSharedWal ++ witsExp2)
 
+        --adding the witness by the same participant does not change the situation
+        let (ApiSerialisedTransaction apiTx2 _) = signedTx1
+        signedTx2 <-
+            signSharedTx ctx sharedWal1 apiTx2 [ expectResponseCode HTTP.status202 ]
+        let decodePayload3 = Json (toJSON signedTx2)
+        rDecodedTx3Wal1 <- request @(ApiDecodedTransaction n) ctx
+            (Link.decodeTransaction @'Shared sharedWal1) Default decodePayload3
+        rDecodedTx3Wal2 <- request @(ApiDecodedTransaction n) ctx
+            (Link.decodeTransaction @'Shared sharedWal2) Default decodePayload3
+        rDecodedTx3Target <- request @(ApiDecodedTransaction n) ctx
+            (Link.decodeTransaction @'Shelley wb) Default decodePayload3
+        verify rDecodedTx3Target sharedExpectationsBetweenWallets
+        verify rDecodedTx3Wal1 (decodeConstructedTxSharedWal ++ witsExp2)
+        verify rDecodedTx3Wal2 (decodeConstructedTxSharedWal ++ witsExp2)
+
+
   where
      fundSharedWallet ctx amt walShared = do
         let wal = case walShared of
