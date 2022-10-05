@@ -29,6 +29,13 @@ import Cardano.Api.Shelley
     ( fromShelleyMetadata )
 import Cardano.Ledger.Era
     ( Era (..) )
+import Cardano.Slotting.Slot
+    ( EpochNo (..) )
+import Cardano.Wallet.Primitive.Types
+    ( PoolCertificate (..)
+    , PoolRegistrationCertificate (..)
+    , PoolRetirementCertificate (..)
+    )
 import Cardano.Wallet.Read.Eras
     ( inject, shelley )
 import Cardano.Wallet.Read.Primitive.Tx.Features.Certificates
@@ -55,6 +62,7 @@ import Data.Map.Strict
     ( Map )
 import Data.Word
     ( Word16, Word32, Word64 )
+
 
 import qualified Cardano.Api as Cardano
 import qualified Cardano.Api.Shelley as Cardano

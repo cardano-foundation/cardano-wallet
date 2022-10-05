@@ -48,7 +48,6 @@ import Cardano.Wallet.Transaction
     , TokenMapWithScripts (..)
     , ValidityIntervalExplicit (..)
     , WitnessCount (..)
-    , emptyWitnessCount
     )
 import Data.Foldable
     ( toList )
@@ -56,6 +55,7 @@ import Data.Foldable
 import qualified Cardano.Api.Shelley as Cardano
 import qualified Cardano.Ledger.Alonzo.Data as Alonzo
 import qualified Cardano.Ledger.Alonzo.Tx as Alonzo
+import qualified Cardano.Ledger.Alonzo.TxWitness as Alonzo
 import qualified Cardano.Ledger.Babbage as Babbage
 import qualified Cardano.Ledger.Babbage.TxBody as Babbage
 import qualified Cardano.Ledger.BaseTypes as SL
@@ -64,6 +64,8 @@ import qualified Cardano.Wallet.Primitive.Types as W
 import qualified Cardano.Wallet.Primitive.Types.Coin as W
 import qualified Cardano.Wallet.Primitive.Types.Hash as W
 import qualified Cardano.Wallet.Primitive.Types.Tx as W
+import qualified Data.Map.Strict as Map
+import qualified Data.Set as Set
 
 fromBabbageTx
     :: Alonzo.ValidatedTx (Cardano.ShelleyLedgerEra BabbageEra)
@@ -103,7 +105,7 @@ fromBabbageTx tx@(Alonzo.ValidatedTx bod wits (Alonzo.IsValid isValid) aux) =
     , assetsToMint
     , assetsToBurn
     , Just $ afterShelleyValidityInterval ttl
-    , emptyWitnessCount
+    , countWits
     )
   where
     Babbage.TxBody
@@ -125,6 +127,31 @@ fromBabbageTx tx@(Alonzo.ValidatedTx bod wits (Alonzo.IsValid isValid) aux) =
         _network
         = bod
     (assetsToMint, assetsToBurn) = babbageMint mint wits
+    scriptMap = fromBabbageScriptMap $ Alonzo.txscripts' wits
+    mintScriptMap = getScriptMap scriptMap assetsToMint
+    burnScriptMap = getScriptMap scriptMap assetsToBurn
+
+    countWits = WitnessCount
+        (fromIntegral $ Set.size $ Alonzo.txwitsVKey' wits)
+        (fromIntegral $ Map.size $ Alonzo.txscripts' wits)
+        (fromIntegral $ Set.size $ Alonzo.txwitsBoot' wits)
+
+    fromBabbageScriptMap
+        :: Map
+            (SL.ScriptHash (Crypto StandardBabbage))
+            (SL.Core.Script StandardBabbage)
+        -> Map TokenPolicyId AnyScript
+    fromBabbageScriptMap =
+        Map.map toAnyScript .
+        Map.mapKeys (toWalletTokenPolicyId . SL.PolicyID)
+      where
+        toAnyScript (Alonzo.TimelockScript script) =
+            NativeScript $ toWalletScript Policy script
+        toAnyScript (Alonzo.PlutusScript ver _) =
+            PlutusScript (PlutusScriptInfo (toPlutusVer ver))
+
+        toPlutusVer Alonzo.PlutusV1 = PlutusVersionV1
+        toPlutusVer Alonzo.PlutusV2 = PlutusVersionV2
 
     fromBabbageTxOut
         :: Babbage.TxOut (Cardano.ShelleyLedgerEra BabbageEra)

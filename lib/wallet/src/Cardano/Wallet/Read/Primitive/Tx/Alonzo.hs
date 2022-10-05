@@ -48,7 +48,6 @@ import Cardano.Wallet.Transaction
     , TokenMapWithScripts (..)
     , ValidityIntervalExplicit (..)
     , WitnessCount (..)
-    , emptyWitnessCount
     )
 import Data.Foldable
     ( toList )
@@ -58,12 +57,17 @@ import qualified Cardano.Ledger.Alonzo as Alonzo
 import qualified Cardano.Ledger.Alonzo.Data as Alonzo
 import qualified Cardano.Ledger.Alonzo.Tx as Alonzo
 import qualified Cardano.Ledger.Alonzo.TxBody as Alonzo
+import qualified Cardano.Ledger.Alonzo.TxWitness as Alonzo
+import qualified Cardano.Ledger.Babbage.Tx as Babbage hiding
+    ( ScriptIntegrityHash, TxBody )
 import qualified Cardano.Ledger.BaseTypes as SL
 import qualified Cardano.Ledger.Shelley.API as SL
 import qualified Cardano.Wallet.Primitive.Types as W
 import qualified Cardano.Wallet.Primitive.Types.Coin as W
 import qualified Cardano.Wallet.Primitive.Types.Hash as W
 import qualified Cardano.Wallet.Primitive.Types.Tx as W
+import qualified Data.Map.Strict as Map
+import qualified Data.Set as Set
 
 fromAlonzoTx
     :: Alonzo.ValidatedTx (Cardano.ShelleyLedgerEra AlonzoEra)
@@ -102,7 +106,7 @@ fromAlonzoTx tx@(Alonzo.ValidatedTx bod wits (Alonzo.IsValid isValid) aux) =
     , assetsToMint
     , assetsToBurn
     , Just $ afterShelleyValidityInterval ttl
-    , emptyWitnessCount
+    , countWits
     )
   where
     Alonzo.TxBody
@@ -121,6 +125,31 @@ fromAlonzoTx tx@(Alonzo.ValidatedTx bod wits (Alonzo.IsValid isValid) aux) =
         _network
         = bod
     (assetsToMint, assetsToBurn) = alonzoMint mint wits
+    scriptMap = fromAlonzoScriptMap $ Alonzo.txscripts' wits
+    mintScriptMap = getScriptMap scriptMap assetsToMint
+    burnScriptMap = getScriptMap scriptMap assetsToBurn
+
+    countWits = WitnessCount
+        (fromIntegral $ Set.size $ Alonzo.txwitsVKey' wits)
+        (fromIntegral $ Map.size $ Alonzo.txscripts' wits)
+        (fromIntegral $ Set.size $ Alonzo.txwitsBoot' wits)
+
+    fromAlonzoScriptMap
+        :: Map
+            (SL.ScriptHash (Crypto StandardAlonzo))
+            (SL.Core.Script StandardAlonzo)
+        -> Map TokenPolicyId AnyScript
+    fromAlonzoScriptMap =
+        Map.map toAnyScript .
+        Map.mapKeys (toWalletTokenPolicyId . SL.PolicyID)
+      where
+        toAnyScript (Alonzo.TimelockScript script) =
+            NativeScript $ toWalletScript Policy script
+        toAnyScript (Alonzo.PlutusScript ver _) =
+            PlutusScript (PlutusScriptInfo (toPlutusVer ver))
+
+        toPlutusVer Alonzo.PlutusV1 = PlutusVersionV1
+        toPlutusVer Alonzo.PlutusV2 = PlutusVersionV2
 
     fromAlonzoTxOut
         :: Alonzo.TxOut (Cardano.ShelleyLedgerEra AlonzoEra)

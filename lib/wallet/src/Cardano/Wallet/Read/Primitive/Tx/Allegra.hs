@@ -49,7 +49,6 @@ import Cardano.Wallet.Transaction
     , ValidityIntervalExplicit (..)
     , WitnessCount (..)
     , emptyTokenMapWithScripts
-    , emptyWitnessCount
     )
 import Data.Foldable
     ( toList )
@@ -57,18 +56,20 @@ import Data.Foldable
 import qualified Cardano.Api.Shelley as Cardano
 import qualified Cardano.Ledger.BaseTypes as SL
 import qualified Cardano.Ledger.Shelley.API as SL
-import qualified Cardano.Ledger.Shelley.API as SLAPI
+import qualified Cardano.Ledger.Shelley.Tx as SL
 import qualified Cardano.Ledger.ShelleyMA.AuxiliaryData as MA
 import qualified Cardano.Ledger.ShelleyMA.TxBody as MA
 import qualified Cardano.Wallet.Primitive.Types as W
 import qualified Cardano.Wallet.Primitive.Types.Coin as W
 import qualified Cardano.Wallet.Primitive.Types.Hash as W
 import qualified Cardano.Wallet.Primitive.Types.Tx as W
+import qualified Data.Map.Strict as Map
+import qualified Data.Set as Set
 
 -- NOTE: For resolved inputs we have to pass in a dummy value of 0.
 
 fromAllegraTx
-    :: SLAPI.Tx (Cardano.ShelleyLedgerEra AllegraEra)
+    :: SL.Tx (Cardano.ShelleyLedgerEra AllegraEra)
     -> ( W.Tx
        , [W.Certificate]
        , TokenMapWithScripts
@@ -105,10 +106,14 @@ fromAllegraTx tx =
     , emptyTokenMapWithScripts
     , emptyTokenMapWithScripts
     , Just $ afterShelleyValidityInterval ttl
-    , emptyWitnessCount
+    , countWits
     )
   where
-    SL.Tx (MA.TxBody ins outs certs wdrls fee ttl _ _ _) _ mmd = tx
+    SL.Tx (MA.TxBody ins outs certs wdrls fee ttl _ _ _) wits mmd = tx
+    countWits = WitnessCount
+        (fromIntegral $ Set.size $ SL.addrWits wits)
+        (fromIntegral $ Map.size $ SL.scriptWits wits)
+        (fromIntegral $ Set.size $ SL.bootWits wits)
 
     -- fixme: [ADP-525] It is fine for now since we do not look at script
     -- pre-images. But this is precisely what we want as part of the
