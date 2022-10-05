@@ -59,7 +59,7 @@ import Cardano.Wallet.Primitive.Types.Tx.Tx
 import Cardano.Wallet.Shelley.Network.Discriminant
     ( DecodeAddress, DecodeStakeAddress, EncodeAddress, EncodeStakeAddress )
 import Cardano.Wallet.Transaction
-    ( ValidityIntervalExplicit (..) )
+    ( AnyScript, ValidityIntervalExplicit (..), WitnessCount )
 import Control.DeepSeq
     ( NFData )
 import Data.Aeson.Types
@@ -83,7 +83,7 @@ import Data.Text
 import Data.Typeable
     ( Proxy, Typeable )
 import Data.Word
-    ( Word8, Word32 )
+    ( Word32 )
 import GHC.Generics
     ( Generic )
 import Numeric.Natural
@@ -128,6 +128,7 @@ data ApiDecodedTransaction (n :: NetworkDiscriminant) = ApiDecodedTransaction
     , metadata :: ApiTxMetadata
     , scriptValidity :: Maybe (ApiT TxScriptValidity)
     , validityInterval :: Maybe ValidityIntervalExplicit
+    , witnessCount :: WitnessCount
     }
     deriving (Eq, Generic, Show, Typeable)
     deriving (FromJSON, ToJSON) via DefaultRecord (ApiDecodedTransaction n)

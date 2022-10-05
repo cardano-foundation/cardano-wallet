@@ -350,6 +350,7 @@ import Cardano.Wallet.Transaction
     , PlutusScriptInfo (..)
     , PlutusVersion (..)
     , ValidityIntervalExplicit (..)
+    , WitnessCount (..)
     )
 import Cardano.Wallet.Unsafe
     ( unsafeFromText, unsafeXPrv )
@@ -1893,9 +1894,16 @@ instance Arbitrary ValidityIntervalExplicit where
         slot2 <- arbitrary `suchThat` (> slot1)
         pure $ ValidityIntervalExplicit (Quantity slot1) (Quantity slot2)
 
+instance Arbitrary WitnessCount where
+    arbitrary = WitnessCount
+        <$> choose (0, 10)
+        <*> choose (0, 10)
+        <*> choose (0, 2)
+
 instance Arbitrary (ApiDecodedTransaction n) where
     arbitrary = ApiDecodedTransaction
         <$> arbitrary
+        <*> arbitrary
         <*> arbitrary
         <*> arbitrary
         <*> arbitrary

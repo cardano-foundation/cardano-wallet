@@ -81,6 +81,12 @@ x-absoluteSlot: &absoluteSlot
   minimum: 0
   example: 8086
 
+x-witnessCount: &witnessCount
+  type: integer
+  description: The number of witnesses detected
+  minimum: 0
+  maximum: 127
+
 x-numberOfSlots: &numberOfSlots
   type: object
   required:
@@ -2657,6 +2663,17 @@ components:
         invalid_before: *numberOfSlots
         invalid_hereafter: *numberOfSlots
 
+    ApiWitnessCount: &ApiWitnessCount
+      type: object
+      required:
+        - verification_key
+        - script_hash
+        - bootstrap
+      properties:
+        verification_key: *witnessCount
+        script_hash: *witnessCount
+        bootstrap: *witnessCount
+
     ApiDecodedTransaction: &ApiDecodedTransaction
       type: object
       required:
@@ -2668,6 +2685,7 @@ components:
         - mint
         - burn
         - certificates
+        - witness_count
       properties:
         id: *transactionId
         fee: *amount
@@ -2687,6 +2705,7 @@ components:
         deposits_returned: *deposits
         script_validity: *txScriptValidity
         validity_interval: *ApiValidityIntervalExplicit
+        witness_count: *ApiWitnessCount
 
     ApiTransaction: &ApiTransaction
       type: object
