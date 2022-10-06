@@ -332,6 +332,17 @@ data DBLayer m s k = forall stm. (MonadIO stm, MonadFail stm) => DBLayer
         -- ^ Execute operations of the database in isolation and atomically.
     }
 
+{-----------------------------------------------------------------------------
+    Helper functions
+------------------------------------------------------------------------------}
+-- | Clean a database by removing all wallets.
+cleanDB :: DBLayer m s k -> m ()
+cleanDB DBLayer{..} = atomically $
+    listWallets >>= mapM_ (runExceptT . removeWallet)
+
+{-----------------------------------------------------------------------------
+    Errors
+------------------------------------------------------------------------------}
 -- | Can't read the database file because it's in a bad format
 -- (corrupted, too old, …)
 data ErrBadFormat
@@ -364,8 +375,3 @@ data ErrNoSuchTransaction
 newtype ErrWalletAlreadyExists
     = ErrWalletAlreadyExists WalletId -- Wallet already exists in db
     deriving (Eq, Show)
-
--- | Clean a database by removing all wallets.
-cleanDB :: DBLayer m s k -> m ()
-cleanDB DBLayer{..} = atomically $
-    listWallets >>= mapM_ (runExceptT . removeWallet)
