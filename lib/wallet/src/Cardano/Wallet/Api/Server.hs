@@ -145,8 +145,6 @@ import Cardano.BM.Tracing
     ( HasPrivacyAnnotation (..), HasSeverityAnnotation (..) )
 import Cardano.Ledger.Alonzo.TxInfo
     ( TranslationError (..) )
-import Cardano.Ledger.BaseTypes
-    ( StrictMaybe (..) )
 import Cardano.Mnemonic
     ( SomeMnemonic )
 import Cardano.Wallet
@@ -4420,12 +4418,11 @@ fromExternalInput ApiExternalInput
   =
     let
         inp = toLedger $ TxIn tid ix
-        script = SNothing
+        script = Nothing
         addr' = toLedger addr
         val = toLedger $ TokenBundle (Coin.fromNatural amt) assets
         datum' = maybe WriteTx.NoDatum WriteTx.DatumHash (getApiT <$> datum)
-        out = WriteTx.wrapTxOutInRecentEra
-            $ WriteTx.TxOut addr' val datum' script
+        out = WriteTx.TxOutInRecentEra addr' val datum' script
     in
         (inp, out)
 

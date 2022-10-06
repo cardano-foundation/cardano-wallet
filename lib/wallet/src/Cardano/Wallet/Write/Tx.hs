@@ -21,9 +21,8 @@ module Cardano.Wallet.Write.Tx
     , withRecentEra
 
     -- * TxOut
-    , Babbage.TxOut (..) -- FIXME!
-    , TxOutInRecentEra -- opaque
-    , wrapTxOutInRecentEra
+    , Babbage.TxOut (..)
+    , TxOutInRecentEra (..)
     , unwrapTxOutInRecentEra
     , ErrInvalidTxOutInEra (..)
 
@@ -350,53 +349,65 @@ datumHashFromBytes =
 datumHashToBytes :: SafeHash crypto a -> ByteString
 datumHashToBytes = Crypto.hashToBytes . extractHash
 
--- | Type representing a TxOut in the latest **and/or** previous era. I.e. the
--- type is similar to @Data.These latestEraTxOut prevEraTxOut@.
+-- | Type representing a TxOut in the latest or previous era.
 --
--- Assumes @TxOut latestEra ⊇ TxOut prevEra@ in the sense that the latest era
--- has not removed information from the @TxOut@. This is allows e.g.
--- @ToJSON@ / @FromJSON@ instances to be written for two eras using only one
--- implementation.
-newtype TxOutInRecentEra
-    = TxOutInRecentEra (TxOut LatestLedgerEra)
-        -- NOTE: Assuming @TxOut latestEra@ contains the same
-        -- information as @TxOut prevEra@ or more.
+-- The underlying respresentation is isomorphic to 'TxOut LatestLedgerEra'.
+--
+-- Can be unwrapped using 'unwrapTxOutInRecentEra' or
+-- 'utxoFromTxOutsInRecentEra'.
+--
+-- Implementation assumes @TxOut latestEra ⊇ TxOut prevEra@ in the sense that
+-- the latest era has not removed information from the @TxOut@. This is allows
+-- e.g. @ToJSON@ / @FromJSON@ instances to be written for two eras using only
+-- one implementation.
+data TxOutInRecentEra
+    = TxOutInRecentEra
+        Address
+        (Value LatestLedgerEra)
+        (Datum LatestLedgerEra)
+        (Maybe (Script LatestLedgerEra))
+        -- Same contents as 'TxOut LatestLedgerEra'.
 
 data ErrInvalidTxOutInEra
     = ErrInlineDatumNotSupportedInAlonzo
     | ErrInlineScriptNotSupportedInAlonzo
 
-wrapTxOutInRecentEra
-    :: TxOut LatestLedgerEra
-    -> TxOutInRecentEra
-wrapTxOutInRecentEra = TxOutInRecentEra
-
 unwrapTxOutInRecentEra
     :: RecentEra era
     -> TxOutInRecentEra
     -> Either ErrInvalidTxOutInEra (TxOut (ShelleyLedgerEra era))
-unwrapTxOutInRecentEra era (TxOutInRecentEra babbageTxOut) = case era of
-    RecentEraBabbage -> pure babbageTxOut
-    RecentEraAlonzo -> downcastTxOut babbageTxOut
+unwrapTxOutInRecentEra era recentEraTxOut = case era of
+    RecentEraBabbage -> pure $ castTxOut recentEraTxOut
+    RecentEraAlonzo -> downcastTxOut recentEraTxOut
   where
+    castTxOut
+        :: TxOutInRecentEra
+        -> TxOut (ShelleyLedgerEra BabbageEra)
+    castTxOut (TxOutInRecentEra addr val datum mscript) =
+        (Babbage.TxOut addr val datum (toStrict mscript))
+      where
+        toStrict (Just a) = SJust a
+        toStrict Nothing = SNothing
+
     downcastTxOut
-        :: TxOut (ShelleyLedgerEra BabbageEra)
+        :: TxOutInRecentEra
         -> Either
             ErrInvalidTxOutInEra
             (Core.TxOut (ShelleyLedgerEra AlonzoEra))
-    downcastTxOut (Babbage.TxOut _addr _val _datum (SJust _script))
+    downcastTxOut (TxOutInRecentEra _addr _val _datum (Just _script))
         = Left ErrInlineScriptNotSupportedInAlonzo
-    downcastTxOut (Babbage.TxOut _addr _val (Alonzo.Datum _) _script)
+    downcastTxOut (TxOutInRecentEra _addr _val (Alonzo.Datum _) _script)
         = Left ErrInlineDatumNotSupportedInAlonzo
-    downcastTxOut (Babbage.TxOut addr val Alonzo.NoDatum SNothing)
+    downcastTxOut (TxOutInRecentEra addr val Alonzo.NoDatum Nothing)
         = Right $ Alonzo.TxOut addr val SNothing
-    downcastTxOut (Babbage.TxOut addr val (Alonzo.DatumHash dh) SNothing)
+    downcastTxOut (TxOutInRecentEra addr val (Alonzo.DatumHash dh) Nothing)
         = Right $ Alonzo.TxOut addr val (SJust dh)
 
 --------------------------------------------------------------------------------
 -- UTxO
 --------------------------------------------------------------------------------
 
+-- | Construct a 'UTxO era' using 'TxIn's and 'TxOut's in said era.
 utxoFromTxOuts
     :: RecentEra era
     -> [(TxIn, Core.TxOut (ShelleyLedgerEra era))]
@@ -404,12 +415,14 @@ utxoFromTxOuts
 utxoFromTxOuts era = withStandardCryptoConstraint era $
     Shelley.UTxO . Map.fromList
 
+-- | Construct a 'UTxO era' using 'TxOutInRecentEra'. Fails if any output is
+-- invalid in the targeted 'era'.
 utxoFromTxOutsInRecentEra
     :: forall era. RecentEra era
     -> [(TxIn, TxOutInRecentEra)]
     -> Either ErrInvalidTxOutInEra (Shelley.UTxO (ShelleyLedgerEra era))
 utxoFromTxOutsInRecentEra era = withStandardCryptoConstraint era $
-    fmap (Shelley.UTxO . Map.fromList) . mapM (downcast)
+    fmap (Shelley.UTxO . Map.fromList) . mapM downcast
   where
     downcast
         :: (TxIn, TxOutInRecentEra)
@@ -419,7 +432,6 @@ utxoFromTxOutsInRecentEra era = withStandardCryptoConstraint era $
     downcast (i, o) = do
         o' <- unwrapTxOutInRecentEra era o
         pure (i, o')
-
 
 --------------------------------------------------------------------------------
 -- Compatibility
