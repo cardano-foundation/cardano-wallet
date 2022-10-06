@@ -12,12 +12,19 @@ module Cardano.Api.Extra
     , inAnyCardanoEra
     , asAnyShelleyBasedEra
     , fromShelleyBasedScript
+
+    , paymentPartialTx
+    , emptyTx
+    , addReferenceInputs
+    , addInputs
     ) where
 
 import Prelude
 
 import Cardano.Api
-    ( CardanoEra (..)
+    ( BabbageEra
+    , CardanoEra (..)
+    , CtxUTxO
     , InAnyCardanoEra (..)
     , InAnyShelleyBasedEra (..)
     , IsCardanoEra (cardanoEra)
@@ -30,17 +37,36 @@ import Cardano.Api
     , SimpleScriptVersion (..)
     , TimeLocksSupported (TimeLocksInSimpleScriptV2)
     , Tx (..)
+    , TxBodyScriptData (TxBodyNoScriptData)
+    , TxIn
+    , TxOut
+    , TxScriptValidity (TxScriptValidityNone)
     )
 import Cardano.Api.Shelley
     ( PlutusScript (PlutusScriptSerialised)
     , ShelleyLedgerEra
+    , TxBody (..)
     , fromAllegraTimelock
     , fromShelleyMultiSig
+    , toShelleyTxIn
+    , toShelleyTxOut
     )
+import Cardano.Ledger.Shelley.API
+    ( StrictMaybe (..), Wdrl (Wdrl) )
+import Cardano.Ledger.ShelleyMA.TxBody
+    ( ValidityInterval (ValidityInterval) )
+import Cardano.Wallet.Orphans
+    ()
+import Ouroboros.Consensus.Shelley.Eras
+    ( StandardBabbage )
 
 import qualified Cardano.Ledger.Alonzo.Language as Alonzo
 import qualified Cardano.Ledger.Alonzo.Scripts as Alonzo
+import qualified Cardano.Ledger.Babbage.Tx as Babbage
 import qualified Cardano.Ledger.Core as Ledger
+import qualified Cardano.Ledger.Serialization as Ledger
+import qualified Data.Sequence.Strict as StrictSeq
+import qualified Data.Set as Set
 
 -- | Apply an era-parameterized function to an existentially-wrapped
 -- tx.
@@ -118,3 +144,113 @@ fromShelleyBasedScript era script =
           ScriptInEra PlutusScriptV2InBabbage $
           PlutusScript PlutusScriptV2 $
           PlutusScriptSerialised s
+
+-- NOTE: Could be moved to some build/balanceTx module
+emptyTx :: Tx BabbageEra
+emptyTx = Tx body []
+  where
+    body = ShelleyTxBody
+        ShelleyBasedEraBabbage
+        alonzoBody
+        []
+        TxBodyNoScriptData
+        Nothing
+        TxScriptValidityNone
+
+    alonzoBody = Babbage.TxBody
+        { Babbage.inputs = mempty
+        , Babbage.collateral = mempty
+        , Babbage.outputs = mempty
+        , Babbage.txcerts = mempty
+        , Babbage.txwdrls = Wdrl mempty
+        , Babbage.txfee = mempty
+        , Babbage.txvldt = ValidityInterval SNothing SNothing
+        , Babbage.txUpdates = SNothing
+        , Babbage.reqSignerHashes = mempty
+        , Babbage.mint = mempty
+        , Babbage.scriptIntegrityHash = SNothing
+        , Babbage.adHash = SNothing
+        , Babbage.txnetworkid = SNothing
+        , Babbage.referenceInputs = mempty
+        , Babbage.collateralReturn = SNothing
+        , Babbage.totalCollateral = SNothing
+        }
+
+addReferenceInputs :: [TxIn] -> Tx BabbageEra -> Tx BabbageEra
+addReferenceInputs ins = modifyBabbageTxBody $ \body ->
+    body
+        { Babbage.referenceInputs =
+                Set.map toShelleyTxIn (Set.fromList ins)
+                <> (Babbage.referenceInputs body)
+        }
+
+addInputs
+    :: [TxIn]
+    -> Tx BabbageEra
+    -> Tx BabbageEra
+addInputs ins = modifyBabbageTxBody $ \body ->
+    body
+        { Babbage.inputs = Babbage.inputs body
+            <> (Set.map toShelleyTxIn (Set.fromList ins))
+        }
+
+-- Ideally merge with 'updateSealedTx'
+modifyBabbageTxBody
+    :: (Babbage.TxBody StandardBabbage -> Babbage.TxBody StandardBabbage)
+    -> Tx BabbageEra -> Tx BabbageEra
+modifyBabbageTxBody
+    f
+    (Tx
+        (ShelleyTxBody
+            era
+            body
+            scripts
+            scriptData
+            auxData
+            scriptValidity)
+        keyWits)
+    = Tx
+        (ShelleyTxBody
+            era
+            (f body)
+            scripts
+            scriptData
+            auxData
+            scriptValidity)
+        keyWits
+
+-- NOTE: Could be moved to some build/balanceTx module
+paymentPartialTx :: [TxOut CtxUTxO BabbageEra] -> Tx BabbageEra
+paymentPartialTx txouts = Tx body []
+  where
+    body = ShelleyTxBody
+        ShelleyBasedEraBabbage
+        alonzoBody
+        []
+        TxBodyNoScriptData
+        Nothing
+        TxScriptValidityNone
+
+    -- NOTE: It would be nicer not to have to deal with the ledger internals
+    -- here. Perhaps we could go through cardano-api instead, if we create a
+    -- @TxBodyContent -> Tx@, where - unlike @makeTransactionBody@ - there is
+    -- no validation.
+    alonzoBody = Babbage.TxBody
+        { Babbage.inputs = mempty
+        , Babbage.collateral = mempty
+        , Babbage.outputs = StrictSeq.fromList $
+            map (Ledger.mkSized . toShelleyTxOut ShelleyBasedEraBabbage) txouts
+        , Babbage.txcerts = mempty
+        , Babbage.txwdrls = Wdrl mempty
+        , Babbage.txfee = mempty
+        , Babbage.txvldt = ValidityInterval SNothing SNothing
+        , Babbage.txUpdates = SNothing
+        , Babbage.reqSignerHashes = mempty
+        , Babbage.mint = mempty
+        , Babbage.scriptIntegrityHash = SNothing
+        , Babbage.adHash = SNothing
+        , Babbage.txnetworkid = SNothing
+        , Babbage.referenceInputs = mempty
+        , Babbage.collateralReturn = SNothing
+        , Babbage.totalCollateral = SNothing
+        }
