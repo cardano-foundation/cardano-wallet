@@ -16,6 +16,17 @@ module Cardano.Wallet.DB
     , DBFactory (..)
     , cleanDB
 
+    -- * DBLayer building blocks
+    , DBLayerCollection (..)
+    , DBWallets (..)
+    , DBCheckpoints (..)
+    , DBWalletMeta (..)
+    , DBDelegation (..)
+    , DBTxHistory (..)
+    , DBPendingTxs (..)
+    , DBPrivateKey (..)
+    , mkDBLayerFromParts
+
       -- * Errors
     , ErrBadFormat(..)
     , ErrWalletAlreadyExists(..)
@@ -330,6 +341,297 @@ data DBLayer m s k = forall stm. (MonadIO stm, MonadFail stm) => DBLayer
     , atomically
         :: forall a. stm a -> m a
         -- ^ Execute operations of the database in isolation and atomically.
+    }
+
+{-----------------------------------------------------------------------------
+    Build DBLayer from smaller parts
+------------------------------------------------------------------------------}
+{- Note [TransitionDBLayer]
+
+In order to allow modularization of the wallet logic,
+we want to transition the monolithic 'DBLayer' type into a more modular
+set of database functions.
+
+Design notes:
+
+* Ideally, we want to transition everything into 'DBVar'.
+However, memory consumption for the 'TxHistory' is an issue for large wallets.
+Hence
+
+    * By transition to records first, we may choose *not* to transition to
+      'DBVar' for the 'TxHistory' in the future.
+
+    * But we still need to work on disentangling the pending transactions
+      (formerly: local tx submission) from the 'TxHistory'.
+
+* We choose not to remove the legacy 'DBLayer' type for now, as we still
+have the state machine unit tests for it. It is less development effort
+to delete them wholesale rather than maintaining them.
+
+-}
+data DBLayerCollection stm m s k = DBLayerCollection
+    { dbWallets :: DBWallets stm s
+    , dbCheckpoints :: DBCheckpoints stm s
+    , dbWalletMeta :: DBWalletMeta stm
+    , dbDelegation :: DBDelegation stm
+    , dbTxHistory :: DBTxHistory stm
+    , dbPendingTxs :: DBPendingTxs stm
+    , dbPrivateKey :: DBPrivateKey stm k
+
+    -- The following two functions will need to be split up
+    -- and distributed the smaller layer parts as well.
+    , rollbackTo_
+        :: WalletId
+        -> Slot
+        -> ExceptT ErrNoSuchWallet stm ChainPoint
+    , prune_
+        :: WalletId
+        -> Quantity "block" Word32
+        -> ExceptT ErrNoSuchWallet stm ()
+    , atomically_
+        :: forall a. stm a -> m a
+    }
+
+-- | Create a legacy 'DBLayer' from smaller database layers.
+mkDBLayerFromParts
+    :: (MonadIO stm, MonadFail stm)
+    => DBLayerCollection stm m s k -> DBLayer m s k
+mkDBLayerFromParts DBLayerCollection{..} = DBLayer
+    { initializeWallet = initializeWallet_ dbWallets
+    , removeWallet = removeWallet_ dbWallets
+    , listWallets = listWallets_ dbWallets
+    , walletsDB = walletsDB_ dbCheckpoints
+    , putCheckpoint = putCheckpoint_ dbCheckpoints
+    , readCheckpoint = readCheckpoint_ dbCheckpoints
+    , listCheckpoints = listCheckpoints_ dbCheckpoints
+    , putWalletMeta = putWalletMeta_ dbWalletMeta
+    , readWalletMeta = readWalletMeta_ dbWalletMeta
+    , isStakeKeyRegistered = isStakeKeyRegistered_ dbDelegation
+    , putDelegationCertificate = putDelegationCertificate_ dbDelegation
+    , putDelegationRewardBalance = putDelegationRewardBalance_ dbDelegation
+    , readDelegationRewardBalance = readDelegationRewardBalance_ dbDelegation
+    , putTxHistory = putTxHistory_ dbTxHistory
+    , readTxHistory = readTxHistory_ dbTxHistory
+    , getTx = getTx_ dbTxHistory
+    , putLocalTxSubmission = putLocalTxSubmission_ dbPendingTxs
+    , readLocalTxSubmissionPending = readLocalTxSubmissionPending_ dbPendingTxs
+    , updatePendingTxForExpiry = updatePendingTxForExpiry_ dbPendingTxs
+    , removePendingOrExpiredTx = removePendingOrExpiredTx_ dbPendingTxs
+    , putPrivateKey = putPrivateKey_ dbPrivateKey
+    , readPrivateKey = readPrivateKey_ dbPrivateKey
+    , readGenesisParameters = readGenesisParameters_ dbWallets
+    , rollbackTo = rollbackTo_
+    , prune = prune_
+    , atomically = atomically_
+    }
+
+-- | A database layer for a collection of wallets
+data DBWallets stm s = DBWallets
+    { initializeWallet_
+        :: WalletId
+        -> Wallet s
+        -> WalletMetadata
+        -> [(Tx, TxMeta)]
+        -> GenesisParameters
+        -> ExceptT ErrWalletAlreadyExists stm ()
+        -- ^ Initialize a database entry for a given wallet. 'putCheckpoint',
+        -- 'putWalletMeta', 'putTxHistory' or 'putProtocolParameters' will
+        -- actually all fail if they are called _first_ on a wallet.
+
+    , readGenesisParameters_
+        :: WalletId
+        -> stm (Maybe GenesisParameters)
+        -- ^ Read the *Byron* genesis parameters.
+
+    , removeWallet_
+        :: WalletId
+        -> ExceptT ErrNoSuchWallet stm ()
+        -- ^ Remove a given wallet and all its associated data (checkpoints,
+        -- metadata, tx history ...)
+
+    , listWallets_
+        :: stm [WalletId]
+        -- ^ Get the list of all known wallets in the DB, possibly empty.
+    }
+
+-- | A database layer for storing wallet states.
+data DBCheckpoints stm s = DBCheckpoints
+    { walletsDB_
+        :: DBVar stm (DeltaMap WalletId (DeltaWalletState s))
+        -- ^ 'DBVar' containing the 'WalletState' of each wallet in the database.
+        -- Currently contains all 'Checkpoints' of the 'UTxO' and the
+        -- 'Discoveries', as well as the 'Prologue' of the address discovery state.
+        --
+        -- Intended to replace 'putCheckpoint' and 'readCheckpoint' in the short-term,
+        -- and all other functions in the long-term.
+
+    , putCheckpoint_
+        :: WalletId
+        -> Wallet s
+        -> ExceptT ErrNoSuchWallet stm ()
+        -- ^ Replace the current checkpoint for a given wallet. We do not handle
+        -- rollbacks yet, and therefore only stores the latest available
+        -- checkpoint.
+        --
+        -- If the wallet doesn't exist, this operation returns an error.
+
+    , readCheckpoint_
+        :: WalletId
+        -> stm (Maybe (Wallet s))
+        -- ^ Fetch the most recent checkpoint of a given wallet.
+        --
+        -- Return 'Nothing' if there's no such wallet.
+
+    , listCheckpoints_
+        :: WalletId
+        -> stm [ChainPoint]
+        -- ^ List all known checkpoint tips, ordered by slot ids from the oldest
+        -- to the newest.
+    }
+
+-- | A database layer for storing 'WalletMetadata'.
+data DBWalletMeta stm = DBWalletMeta
+    { putWalletMeta_
+        :: WalletId
+        -> WalletMetadata
+        -> ExceptT ErrNoSuchWallet stm ()
+        -- ^ Replace an existing wallet metadata with the given one.
+        --
+        -- If the wallet doesn't exist, this operation returns an error
+
+    , readWalletMeta_
+        :: WalletId
+        -> stm (Maybe WalletMetadata)
+        -- ^ Fetch a wallet metadata, if they exist.
+        --
+        -- Return 'Nothing' if there's no such wallet.
+    }
+
+-- | A database layer for storing delegation certificates
+-- and the reward balance.
+data DBDelegation stm = DBDelegation
+    { isStakeKeyRegistered_
+        :: WalletId
+        -> ExceptT ErrNoSuchWallet stm Bool
+
+    , putDelegationCertificate_
+        :: WalletId
+        -> DelegationCertificate
+        -> SlotNo
+        -> ExceptT ErrNoSuchWallet stm ()
+        -- ^ Binds a stake pool id to a wallet. This will have an influence on
+        -- the wallet metadata: the last known certificate will indicate to
+        -- which pool a wallet is currently delegating.
+        --
+        -- This is done separately from 'putWalletMeta' because certificate
+        -- declarations are:
+        --
+        -- 1. Stored on-chain.
+        -- 2. Affected by rollbacks (or said differently, tied to a 'SlotNo').
+
+    , putDelegationRewardBalance_
+        :: WalletId
+        -> Coin
+        -> ExceptT ErrNoSuchWallet stm ()
+        -- ^ Store the latest known reward account balance.
+        --
+        -- This is separate from checkpoints because the data corresponds to the
+        -- node tip.
+        -- This is separate from putWalletMeta because it's not meta data
+
+    , readDelegationRewardBalance_
+        :: WalletId
+        -> stm Coin
+        -- ^ Get the reward account balance.
+        --
+        -- Returns zero if the wallet isn't found or if wallet hasn't delegated
+        -- stake.
+    }
+
+-- | A database layer that stores the transaction history.
+data DBTxHistory stm = DBTxHistory
+    { putTxHistory_
+        :: WalletId
+        -> [(Tx, TxMeta)]
+        -> ExceptT ErrNoSuchWallet stm ()
+        -- ^ Augments the transaction history for a known wallet.
+        --
+        -- If an entry for a particular transaction already exists it is not
+        -- altered nor merged (just ignored).
+        --
+        -- If the wallet doesn't exist, this operation returns an error.
+
+    , readTxHistory_
+        :: WalletId
+        -> Maybe Coin
+        -> SortOrder
+        -> Range SlotNo
+        -> Maybe TxStatus
+        -> stm [TransactionInfo]
+        -- ^ Fetch the current transaction history of a known wallet, ordered by
+        -- descending slot number.
+        --
+        -- Returns an empty list if the wallet isn't found.
+
+    , getTx_
+        :: WalletId
+        -> Hash "Tx"
+        -> ExceptT ErrNoSuchWallet stm (Maybe TransactionInfo)
+        -- ^ Fetch the latest transaction by id, returns Nothing when the
+        -- transaction isn't found.
+        --
+        -- If the wallet doesn't exist, this operation returns an error.
+    }
+
+-- | A database layer for storing pending transactions.
+data DBPendingTxs stm = DBPendingTxs
+    { putLocalTxSubmission_
+        :: WalletId
+        -> Hash "Tx"
+        -> SealedTx
+        -> SlotNo
+        -> ExceptT ErrPutLocalTxSubmission stm ()
+        -- ^ Add or update a transaction in the local submission pool with the
+        -- most recent submission slot.
+
+    , readLocalTxSubmissionPending_
+        :: WalletId
+        -> stm [LocalTxSubmissionStatus SealedTx]
+        -- ^ List all transactions from the local submission pool which are
+        -- still pending as of the latest checkpoint of the given wallet. The
+        -- slot numbers for first submission and most recent submission are
+        -- included.
+
+    , updatePendingTxForExpiry_
+        :: WalletId
+        -> SlotNo
+        -> ExceptT ErrNoSuchWallet stm ()
+        -- ^ Removes any expired transactions from the pending set and marks
+        -- their status as expired.
+
+    , removePendingOrExpiredTx_
+        :: WalletId
+        -> Hash "Tx"
+        -> ExceptT ErrRemoveTx stm ()
+        -- ^ Manually remove a pending transaction.
+    }
+
+-- | A database layer for storing the private key.
+data DBPrivateKey stm k = DBPrivateKey
+    { putPrivateKey_
+        :: WalletId
+        -> (k 'RootK XPrv, PassphraseHash)
+        -> ExceptT ErrNoSuchWallet stm ()
+        -- ^ Store or replace a private key for a given wallet. Note that wallet
+        -- _could_ be stored and manipulated without any private key associated
+        -- to it. A private key is only seldomly required for very specific
+        -- operations (like transaction signing).
+
+    , readPrivateKey_
+        :: WalletId
+        -> stm (Maybe (k 'RootK XPrv, PassphraseHash))
+        -- ^ Read a previously stored private key and its associated passphrase
+        -- hash.
     }
 
 {-----------------------------------------------------------------------------
