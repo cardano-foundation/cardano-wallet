@@ -346,7 +346,7 @@ import Cardano.Wallet.Transaction
 import Cardano.Wallet.Unsafe
     ( unsafeFromText, unsafeXPrv )
 import Cardano.Wallet.Write.Tx.Gen
-    ( genData, genDatumHash )
+    ( genDatum, shrinkDatum )
 import Control.Lens
     ( at, (?~) )
 import Control.Monad
@@ -1772,13 +1772,11 @@ instance Arbitrary (ApiExternalInput n) where
         <*> arbitrary
         <*> arbitrary
         <*> arbitrary
+    shrink = genericShrink
 
 instance Arbitrary (WriteTx.Datum WriteTx.StandardBabbage) where
-    arbitrary = oneof
-        [ WriteTx.Datum <$> genData
-        , pure WriteTx.NoDatum
-        , WriteTx.DatumHash <$> genDatumHash
-        ]
+    arbitrary = genDatum
+    shrink = shrinkDatum
 
 instance Arbitrary (WriteTx.Script WriteTx.StandardBabbage) where
     arbitrary =

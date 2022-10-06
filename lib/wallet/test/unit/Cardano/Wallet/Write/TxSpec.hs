@@ -1,5 +1,6 @@
 {-# LANGUAGE ExplicitNamespaces #-}
 {-# LANGUAGE FlexibleInstances #-}
+{-# LANGUAGE ScopedTypeVariables #-}
 
 {-# OPTIONS_GHC -fno-warn-orphans #-}
 
@@ -12,7 +13,12 @@ import Cardano.Api.Gen
 import Cardano.Wallet.Unsafe
     ( unsafeFromHex )
 import Cardano.Wallet.Write.Tx
-    ( datumFromBytes
+    ( BinaryData
+    , Datum
+    , DatumHash
+    , LatestLedgerEra
+    , StandardBabbage
+    , datumFromBytes
     , datumFromCardanoScriptData
     , datumHashFromBytes
     , datumHashToBytes
@@ -21,19 +27,18 @@ import Cardano.Wallet.Write.Tx
     , isPlutusScript
     , scriptFromCardanoEnvelopeJSON
     )
+import Cardano.Wallet.Write.Tx.Gen
+    ( genData, genDatum, genDatumHash, shrinkData, shrinkDatum )
 import Data.Aeson
     ( (.=) )
 import Plutus.V1.Ledger.Api
     ( Data (..) )
-import Test.Cardano.Ledger.Alonzo.Serialisation.Generators
-    ()
 import Test.Hspec
     ( Spec, describe, expectationFailure, it, shouldBe )
 import Test.QuickCheck
     ( Arbitrary (..), property, (===) )
 
 import qualified Cardano.Api as Cardano
-import qualified Cardano.Api.Shelley as Cardano
 import qualified Cardano.Ledger.Alonzo.Data as Alonzo
 import qualified Data.Aeson as Aeson
 import qualified Data.Aeson.Types as Aeson
@@ -52,27 +57,6 @@ spec = do
                     let f = datumToCardanoScriptData . datumFromCardanoScriptData
                     f x === x
 
-        describe "Alonzo.BinaryData <-> Alonzo.Data" $ do
-            it "dataToBinaryData . binaryDataToData == id"
-                $ property $ \d -> do
-                     let f = Alonzo.dataToBinaryData . Alonzo.binaryDataToData
-                     f d === d
-
-            it "binaryDataToData . dataToBinaryData  == id"
-                $ property $ \d -> do
-                     let f = Alonzo.binaryDataToData . Alonzo.dataToBinaryData
-                     f d === d
-        describe "Alonzo.Data <-> Cardano.ScriptData" $ do
-            it "Cardano.toAlonzoData . Cardano.fromAlonzoData == id"
-                $ property $ \d -> do
-                     let f = Cardano.toAlonzoData . Cardano.fromAlonzoData
-                     f d === d
-
-            it "Cardano.fromAlonzoData . Cardano.toAlonzoData == id"
-                $ property $ \d -> do
-                     let f = Cardano.toAlonzoData . Cardano.fromAlonzoData
-                     f d === d
-
     describe "Roundtrips" $ do
         it "datumFromBytes . datumToBytes == Right"
             $ property $ \d -> do
@@ -82,6 +66,11 @@ spec = do
             $ property $ \h -> do
                  let f = datumHashFromBytes . datumHashToBytes
                  f h === Just h
+
+        it "dataToBinaryData . binaryDataToData == id"
+            $ property $ \(d :: BinaryData LatestLedgerEra) -> do
+                 let f = Alonzo.dataToBinaryData . Alonzo.binaryDataToData
+                 f d === d
 
 
     describe "Goldens" $ do
@@ -108,6 +97,7 @@ spec = do
                             \\188\241\SYN\149\SUBR\244\184i\143\&4\193\252\128"
                         , Map [(B "",Map [(B "",I 2000000)])]
                         ]
+
         it "scriptFromCardanoEnvelopeJSON" $ do
             case Aeson.parse scriptFromCardanoEnvelopeJSON plutusScriptV2Json of
                 Aeson.Success s -> isPlutusScript s `shouldBe` True
@@ -116,6 +106,21 @@ spec = do
 instance Arbitrary Cardano.ScriptData where
      arbitrary = genScriptData
      shrink = shrinkScriptData
+
+instance Arbitrary (Datum StandardBabbage) where
+     arbitrary = genDatum
+     shrink = shrinkDatum
+
+-- NOTE: This instance, and some of the other, could be imported from
+-- "Test.Cardano.Ledger.Alonzo.Serialisation.Generators". We are however
+-- interested in testing the generators we expose in
+-- "Cardano.Wallet.Write.Tx.Gen".
+instance Arbitrary (BinaryData StandardBabbage) where
+     arbitrary = genData
+     shrink = shrinkData
+
+instance Arbitrary DatumHash where
+     arbitrary = genDatumHash
 
 --------------------------------------------------------------------------------
 -- Test Data

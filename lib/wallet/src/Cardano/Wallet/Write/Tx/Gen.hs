@@ -3,15 +3,26 @@ module Cardano.Wallet.Write.Tx.Gen
     ( genDatum
     , genData
     , genDatumHash
+    , shrinkData
+    , shrinkDatum
     )
     where
 
 import Prelude
 
+import Cardano.Api.Gen
+    ( shrinkScriptData )
 import Cardano.Ledger.Alonzo.Data
     ( Data (..), dataToBinaryData )
 import Cardano.Wallet.Write.Tx
-    ( BinaryData, Datum (..), DatumHash, datumHashFromBytes )
+    ( BinaryData
+    , Datum (..)
+    , DatumHash
+    , LatestLedgerEra
+    , datumFromCardanoScriptData
+    , datumHashFromBytes
+    , datumToCardanoScriptData
+    )
 import Data.ByteString
     ( ByteString )
 import Data.Maybe
@@ -40,11 +51,22 @@ genData = dataToBinaryData . Data <$> resize 5 (sized gendata)
             [ PV1.I <$> arbitrary,
               PV1.B <$> genByteString,
               PV1.Map <$> listOf ((,) <$> gendata (n `div` 2) <*> gendata (n `div` 2)),
-              PV1.Constr <$> fmap fromIntegral (arbitrary :: Gen Integer)
+              PV1.Constr <$> fmap (fromIntegral . abs) (arbitrary :: Gen Integer)
                 <*> listOf (gendata (n `div` 2)),
               PV1.List <$> listOf (gendata (n `div` 2))
             ]
     gendata _ = oneof [PV1.I <$> arbitrary, PV1.B <$> genByteString]
+
+shrinkDatum :: Datum LatestLedgerEra -> [Datum LatestLedgerEra]
+shrinkDatum (Datum x) = NoDatum : map Datum (shrinkData x)
+shrinkDatum (DatumHash x) = [NoDatum]
+shrinkDatum NoDatum = []
+
+shrinkData :: BinaryData LatestLedgerEra -> [BinaryData LatestLedgerEra]
+shrinkData = shrinkMapBy
+    datumFromCardanoScriptData
+    datumToCardanoScriptData
+    shrinkScriptData
 
 genDatumHash :: Gen DatumHash
 genDatumHash =

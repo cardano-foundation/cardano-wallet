@@ -3809,6 +3809,7 @@ components:
                         type: string
                         enum: ["PlutusScriptV2", "PlutusScriptV1", "SimpleScriptV1", "SimpleScriptV2"]
                 datum:
+                    nullable: true
                     oneOf:
                       - type: object
                         title: Inline datum
@@ -3822,7 +3823,6 @@ components:
                           - hash
                         properties:
                           hash: *datumHash
-                      - type: 'null'
                 assets: *walletAssets
         redeemers:
             description: A list of redeemers data with their purpose.

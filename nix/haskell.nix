@@ -136,7 +136,7 @@ haskell-nix: haskell-nix.cabalProject' [
           go-jira
           haskellPackages.ghcid
           pkgconfig
-          python3Packages.openapi-spec-validator
+          python310Packages.openapi-spec-validator
           (ruby.withPackages (ps: [ ps.thor ]))
           sqlite-interactive
           curlFull
