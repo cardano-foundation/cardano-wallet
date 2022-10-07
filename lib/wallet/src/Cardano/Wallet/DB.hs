@@ -1,7 +1,9 @@
 {-# LANGUAGE DataKinds #-}
 {-# LANGUAGE ExistentialQuantification #-}
+{-# LANGUAGE LambdaCase #-}
 {-# LANGUAGE RankNTypes #-}
 {-# LANGUAGE RecordWildCards #-}
+{-# LANGUAGE ScopedTypeVariables #-}
 
 -- |
 -- Copyright: © 2018-2020 IOHK
@@ -73,7 +75,7 @@ import Cardano.Wallet.Primitive.Types.Tx
 import Control.Monad.IO.Class
     ( MonadIO )
 import Control.Monad.Trans.Except
-    ( ExceptT, runExceptT )
+    ( ExceptT (..), runExceptT )
 import Data.DBVar
     ( DBVar )
 import Data.Quantity
@@ -376,7 +378,7 @@ data DBLayerCollection stm m s k = DBLayerCollection
     , dbDelegation :: DBDelegation stm
     , dbTxHistory :: DBTxHistory stm
     , dbPendingTxs :: DBPendingTxs stm
-    , dbPrivateKey :: DBPrivateKey stm k
+    , dbPrivateKey :: WalletId -> DBPrivateKey stm k
 
     -- The following two functions will need to be split up
     -- and distributed the smaller layer parts as well.
@@ -394,7 +396,7 @@ data DBLayerCollection stm m s k = DBLayerCollection
 
 -- | Create a legacy 'DBLayer' from smaller database layers.
 mkDBLayerFromParts
-    :: (MonadIO stm, MonadFail stm)
+    :: forall stm m s k. (MonadIO stm, MonadFail stm)
     => DBLayerCollection stm m s k -> DBLayer m s k
 mkDBLayerFromParts DBLayerCollection{..} = DBLayer
     { initializeWallet = initializeWallet_ dbWallets
@@ -417,13 +419,24 @@ mkDBLayerFromParts DBLayerCollection{..} = DBLayer
     , readLocalTxSubmissionPending = readLocalTxSubmissionPending_ dbPendingTxs
     , updatePendingTxForExpiry = updatePendingTxForExpiry_ dbPendingTxs
     , removePendingOrExpiredTx = removePendingOrExpiredTx_ dbPendingTxs
-    , putPrivateKey = putPrivateKey_ dbPrivateKey
-    , readPrivateKey = readPrivateKey_ dbPrivateKey
+    , putPrivateKey = \wid a -> wrapNoSuchWallet wid $
+        putPrivateKey_ (dbPrivateKey wid) a
+    , readPrivateKey = \wid ->
+        readPrivateKey_ (dbPrivateKey wid)
     , readGenesisParameters = readGenesisParameters_ dbWallets
     , rollbackTo = rollbackTo_
     , prune = prune_
     , atomically = atomically_
     }
+  where
+    wrapNoSuchWallet
+        :: WalletId
+        -> stm a
+        -> ExceptT ErrNoSuchWallet stm a
+    wrapNoSuchWallet wid action = ExceptT $
+        hasWallet_ dbWallets wid >>= \case
+            False -> pure $ Left $ ErrNoSuchWallet wid
+            True  -> Right <$> action
 
 -- | A database layer for a collection of wallets
 data DBWallets stm s = DBWallets
@@ -625,17 +638,15 @@ data DBPendingTxs stm = DBPendingTxs
 -- | A database layer for storing the private key.
 data DBPrivateKey stm k = DBPrivateKey
     { putPrivateKey_
-        :: WalletId
-        -> (k 'RootK XPrv, PassphraseHash)
-        -> ExceptT ErrNoSuchWallet stm ()
+        :: (k 'RootK XPrv, PassphraseHash)
+        -> stm ()
         -- ^ Store or replace a private key for a given wallet. Note that wallet
         -- _could_ be stored and manipulated without any private key associated
         -- to it. A private key is only seldomly required for very specific
         -- operations (like transaction signing).
 
     , readPrivateKey_
-        :: WalletId
-        -> stm (Maybe (k 'RootK XPrv, PassphraseHash))
+        :: stm (Maybe (k 'RootK XPrv, PassphraseHash))
         -- ^ Read a previously stored private key and its associated passphrase
         -- hash.
     }

@@ -878,17 +878,7 @@ newDBLayerWith _cacheBehavior _tr ti SqliteContext{runQuery} = do
         {-----------------------------------------------------------------------
                                        Keystore
         -----------------------------------------------------------------------}
-    let
-      dbPrivateKey = DBPrivateKey
-        { putPrivateKey_ = \wid key -> ExceptT $ do
-            selectWallet wid >>= \case
-                Nothing -> pure $ Left $ ErrNoSuchWallet wid
-                Just _ -> Right <$> do
-                    deleteWhere [PrivateKeyWalletId ==. wid]
-                    insert_ (mkPrivateKeyEntity wid key)
-
-        , readPrivateKey_ = selectPrivateKey
-        }
+    let dbPrivateKey = mkDBPrivateKey
 
         {-----------------------------------------------------------------------
                                      ACID Execution
@@ -989,6 +979,29 @@ metadataFromEntity walDelegation wal = W.WalletMetadata
     , delegation = walDelegation
     }
 
+genesisParametersFromEntity
+    :: Wallet
+    -> W.GenesisParameters
+genesisParametersFromEntity (Wallet _ _ _ _ _ hash startTime) =
+    W.GenesisParameters
+        { W.getGenesisBlockHash = coerce (getBlockId hash)
+        , W.getGenesisBlockDate = W.StartTime startTime
+        }
+
+{-----------------------------------------------------------------------
+                    Private Key store
+-----------------------------------------------------------------------}
+mkDBPrivateKey
+    :: forall k. PersistPrivateKey (k 'RootK)
+    => W.WalletId
+    -> DBPrivateKey (SqlPersistT IO) k
+mkDBPrivateKey wid = DBPrivateKey
+    { putPrivateKey_ = \key -> do
+        deleteWhere [PrivateKeyWalletId ==. wid]
+        insert_ (mkPrivateKeyEntity wid key)
+    , readPrivateKey_ = selectPrivateKey wid
+    }
+
 mkPrivateKeyEntity
     :: PersistPrivateKey (k 'RootK)
     => W.WalletId
@@ -1008,16 +1021,6 @@ privateKeyFromEntity
     -> (k 'RootK XPrv, PassphraseHash)
 privateKeyFromEntity (PrivateKey _ k h) =
     unsafeDeserializeXPrv (k, h)
-
-
-genesisParametersFromEntity
-    :: Wallet
-    -> W.GenesisParameters
-genesisParametersFromEntity (Wallet _ _ _ _ _ hash startTime) =
-    W.GenesisParameters
-        { W.getGenesisBlockHash = coerce (getBlockId hash)
-        , W.getGenesisBlockDate = W.StartTime startTime
-        }
 
 {-------------------------------------------------------------------------------
     SQLite database operations
