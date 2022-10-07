@@ -1,16 +1,9 @@
-{-# LANGUAGE DataKinds #-}
-{-# LANGUAGE DeriveFunctor #-}
 {-# LANGUAGE DeriveGeneric #-}
 {-# LANGUAGE DuplicateRecordFields #-}
 {-# LANGUAGE FlexibleContexts #-}
 {-# LANGUAGE NamedFieldPuns #-}
 {-# LANGUAGE OverloadedLabels #-}
-{-# LANGUAGE RankNTypes #-}
-{-# LANGUAGE RecordWildCards #-}
-{-# LANGUAGE ScopedTypeVariables #-}
-{-# LANGUAGE StandaloneDeriving #-}
 {-# LANGUAGE TypeFamilies #-}
-{-# LANGUAGE UndecidableInstances #-}
 
 {- |
 Copyright: © 2022 IOHK
@@ -22,19 +15,26 @@ Transactions are encoded "as" expressed in DB tables.
 -}
 module Cardano.Wallet.DB.Store.Transactions.Model
     ( DeltaTxHistory (..)
-    , TxHistory
-    , TxHistoryF (TxHistoryF)
-    , TxRelationF (..)
+    , TxHistory (..)
+    , TxRelation (..)
     , tokenCollateralOrd
     , tokenOutOrd
     , mkTxHistory
-    , Decoration (..)
-    , WithTxOut (..)
-    , decorateWithTxOuts
+
+    -- * Decoration
+    , DecoratedTxIns
+    , lookupTxOutForTxIn
+    , lookupTxOutForTxCollateral
+    , decorateTxIns
+
+    -- * Type conversion from wallet types
     , mkTxIn
     , mkTxCollateral
     , mkTxOut
-    , undecorateFromTxOuts
+
+    -- * Type conversions to wallet types
+    , fromTxOut
+    , fromTxCollateralOut
     ) where
 
 import Prelude
@@ -58,18 +58,24 @@ import Cardano.Wallet.Primitive.Types.TokenPolicy
     ( TokenName, TokenPolicyId )
 import Cardano.Wallet.Primitive.Types.TokenQuantity
     ( TokenQuantity )
+import Control.Applicative
+    ( (<|>) )
 import Control.Arrow
     ( (&&&) )
+import Control.Monad
+    ( guard )
 import Data.Delta
     ( Delta (..) )
 import Data.Foldable
-    ( fold, toList )
+    ( fold )
 import Data.Generics.Internal.VL
     ( view, (^.) )
 import Data.List
-    ( sortOn )
+    ( find, sortOn )
 import Data.Map.Strict
     ( Map )
+import Data.Maybe
+    ( catMaybes )
 import Data.Word
     ( Word32 )
 import Fmt
@@ -82,23 +88,6 @@ import qualified Cardano.Wallet.Primitive.Types.TokenBundle as TokenBundle
 import qualified Cardano.Wallet.Primitive.Types.Tx as W
 import qualified Data.Map.Strict as Map
 
--- | A context that carries a TxOut together with its tokens
--- (this will be needed in the future for the DB Layer
--- to reconstruct 'TransactionInfo').
-data WithTxOut txin = WithTxOut
-    { txIn :: txin, context :: Maybe (TxOut, [TxOutToken]) }
-    deriving ( Show, Eq, Functor )
-
--- | A kind to index the 2 flavours of a 'TxRelationF', with or without 'TxOuts'
-data Decoration
-    = Without
-    | With
-
--- | Define the TxOut context type
-type family DecorateWithTxOut f a where
-    DecorateWithTxOut 'Without a = a
-    DecorateWithTxOut 'With a = WithTxOut a
-
 {- | A low level definition of a transaction covering all transaction content
  by collecting all related-to-index database rows.
  Normalization is performed anyway after the first relation level.
@@ -106,52 +95,30 @@ type family DecorateWithTxOut f a where
  Foreign keys are used to group data correctly,
  but they are not removed from the data.
 -}
-data TxRelationF (f :: Decoration) =
-    TxRelationF
-    { ins :: [DecorateWithTxOut f TxIn]
-    , collateralIns :: [DecorateWithTxOut f TxCollateral]
+data TxRelation =
+    TxRelation
+    { ins :: [TxIn]
+    , collateralIns :: [TxCollateral]
     , outs :: [(TxOut, [TxOutToken])]
     , collateralOuts :: Maybe (TxCollateralOut, [TxCollateralOutToken])
     , withdrawals :: [TxWithdrawal]
     }
-    deriving ( Generic )
+    deriving ( Generic, Eq, Show )
 
-deriving instance ( Eq (DecorateWithTxOut f TxIn)
-                  , Eq (DecorateWithTxOut f TxCollateral))
-    => Eq (TxRelationF f)
+-- | Transactions history is 'TxRelation's indexed by 'TxId'
+newtype TxHistory =
+    TxHistory { relations :: Map TxId TxRelation }
+    deriving ( Generic, Eq, Show )
 
-deriving instance ( Show (DecorateWithTxOut f TxIn)
-                  , Show (DecorateWithTxOut f TxCollateral))
-    => Show (TxRelationF f)
+instance Monoid TxHistory where
+    mempty = TxHistory mempty
 
--- | Transactions history is 'TxRelationF's indexed by 'TxId'
-newtype TxHistoryF f =
-    TxHistoryF { relations :: Map TxId (TxRelationF f) }
-    deriving ( Generic )
+instance Semigroup TxHistory where
+    TxHistory h1 <> TxHistory h2 =
+        TxHistory $ h1 <> h2
 
-deriving instance ( Eq (DecorateWithTxOut f TxIn)
-                  , Eq (DecorateWithTxOut f TxCollateral))
-    => Eq (TxHistoryF f)
-
-deriving instance ( Show (DecorateWithTxOut f TxIn)
-                  , Show (DecorateWithTxOut f TxCollateral))
-    => Show (TxHistoryF f)
-
-instance Monoid (TxHistoryF f) where
-    mempty = TxHistoryF mempty
-
-instance Semigroup (TxHistoryF f) where
-    TxHistoryF h1 <> TxHistoryF h2 =
-        TxHistoryF $ h1 <> h2
-
-instance ( Show (DecorateWithTxOut f TxIn)
-         , Show (DecorateWithTxOut f TxCollateral))
-    => Buildable (TxHistoryF f) where
+instance Buildable TxHistory where
     build txs = "TxHistory " <> build (show $ relations txs)
-
--- | Shortcut type for transaction history where inputs are not
--- decorated with their corresponding `TxOut`.
-type TxHistory = TxHistoryF 'Without
 
 -- | Verbs to change a 'TxHistory'.
 data DeltaTxHistory
@@ -170,9 +137,13 @@ instance Delta DeltaTxHistory where
     -- transactions are immutable so here there should happen no rewriting
     -- but we mimic the repsert in the store
     apply (Append txs) h = txs <> h
-    apply (DeleteTx tid) (TxHistoryF txs) =
-        TxHistoryF $ Map.delete tid txs
+    apply (DeleteTx tid) (TxHistory txs) =
+        TxHistory $ Map.delete tid txs
 
+{-------------------------------------------------------------------------------
+    Type conversions
+    From wallet types -> to database tables
+-------------------------------------------------------------------------------}
 mkTxIn :: TxId -> (Int, (W.TxIn, W.Coin)) -> TxIn
 mkTxIn tid (ix,(txIn,amt)) =
     TxIn
@@ -266,9 +237,9 @@ mkTxWithdrawal tid (txWithdrawalAccount,txWithdrawalAmount) =
   where
     txWithdrawalTxId = tid
 
-mkTxRelation :: W.Tx -> TxRelationF 'Without
+mkTxRelation :: W.Tx -> TxRelation
 mkTxRelation tx =
-    TxRelationF
+    TxRelation
     { ins = fmap (mkTxIn tid) $ indexed . W.resolvedInputs $ tx
     , collateralIns =
           fmap (mkTxCollateral tid) $ indexed $ W.resolvedCollateralInputs tx
@@ -284,59 +255,99 @@ mkTxRelation tx =
 
 -- | Convert high level transactions definition in low level DB history
 mkTxHistory :: [W.Tx] -> TxHistory
-mkTxHistory txs = TxHistoryF $ fold $ do
+mkTxHistory txs = TxHistory $ fold $ do
     tx <- txs
     let relation = mkTxRelation tx
     pure $ Map.singleton (TxId $ tx ^. #txId) relation
 
+{-------------------------------------------------------------------------------
+    Type conversions
+    From database tables -> to wallet types
+-------------------------------------------------------------------------------}
+fromTxOut :: (TxOut, [TxOutToken]) -> W.TxOut
+fromTxOut (out,tokens) =
+    W.TxOut
+    { W.address = txOutputAddress out
+    , W.tokens = TokenBundle.fromFlatList
+            (txOutputAmount out)
+            (fromTxOutToken <$> tokens)
+    }
+  where
+    fromTxOutToken token =
+        ( AssetId (txOutTokenPolicyId token) (txOutTokenName token)
+        , txOutTokenQuantity token
+        )
+
+fromTxCollateralOut :: (TxCollateralOut, [TxCollateralOutToken]) -> W.TxOut
+fromTxCollateralOut (out,tokens) =
+    W.TxOut
+    { W.address = txCollateralOutAddress out
+    , W.tokens = TokenBundle.fromFlatList
+            (txCollateralOutAmount out)
+            (fromTxCollateralOutToken <$> tokens)
+    }
+  where
+    fromTxCollateralOutToken token =
+        ( AssetId
+            (txCollateralOutTokenPolicyId token)
+            (txCollateralOutTokenName token)
+        , txCollateralOutTokenQuantity token
+        )
+
+{-------------------------------------------------------------------------------
+    Decorating Tx inputs with outputs
+-------------------------------------------------------------------------------}
 type TxOutKey = (TxId, Word32)
 
-decorateWithTxOuts :: TxHistoryF 'Without -> TxHistoryF 'With
-decorateWithTxOuts (TxHistoryF w) =
-    let
-        txouts :: Map TxOutKey (TxOut, [TxOutToken])
-        txouts = Map.fromList $ do
-            TxRelationF {..} <- toList w
-            [(txOutputTxId &&& txOutputIndex $ txout, x) | x@(txout,_ ) <- outs]
-    in  TxHistoryF $ fmap (solveTxOut txouts) w
+toKeyTxIn :: TxIn -> TxOutKey
+toKeyTxIn txin = (txInputSourceTxId txin, txInputSourceIndex txin)
 
-decorateInputs
-    :: (t -> TxOutKey)
-    -> Map TxOutKey (TxOut, [TxOutToken])
-    -> [t]
-    -> [WithTxOut t]
-decorateInputs keyOf txOutMap ins = do
-        i <- ins
-        pure $ WithTxOut i $ Map.lookup (keyOf i) txOutMap
+toKeyTxCollateral :: TxCollateral -> TxOutKey
+toKeyTxCollateral txcol =
+    (txCollateralSourceTxId txcol, txCollateralSourceIndex txcol)
 
-solveTxOut
-    :: Map TxOutKey (TxOut, [TxOutToken])
-    -> TxRelationF 'Without
-    -> TxRelationF 'With
-solveTxOut txOutMap TxRelationF {..} = TxRelationF
-    { ins =
-        decorateInputs
-            (txInputSourceTxId &&& txInputSourceIndex)
-            txOutMap
-            ins
-    , collateralIns =
-        decorateInputs
-            (txCollateralSourceTxId &&& txCollateralSourceIndex)
-            txOutMap
-            collateralIns
-    , outs = outs
-    , collateralOuts = collateralOuts
-    , withdrawals = withdrawals
+-- | A collection of Tx inputs
+-- (regular or collateral, refered to by input and order)
+-- that are decorated with the values of their corresponding Tx outputs.
+newtype DecoratedTxIns = DecoratedTxIns
+    { unDecoratedTxIns
+        :: Map TxOutKey W.TxOut
     }
 
-undecorateFromTxOuts :: TxHistoryF 'With -> TxHistoryF 'Without
-undecorateFromTxOuts (TxHistoryF w) = TxHistoryF $ fmap unsolveTxOut w
+instance Semigroup DecoratedTxIns where
+    (DecoratedTxIns a) <> (DecoratedTxIns b) = DecoratedTxIns (a <> b)
 
-unsolveTxOut :: TxRelationF 'With -> TxRelationF 'Without
-unsolveTxOut TxRelationF {..} = TxRelationF
-    { ins = fmap txIn ins
-    , collateralIns = fmap txIn collateralIns
-    , outs = outs
-    , collateralOuts = collateralOuts
-    , withdrawals = withdrawals
-    }
+instance Monoid DecoratedTxIns where
+    mempty = DecoratedTxIns mempty
+
+lookupTxOutForTxIn
+    :: TxIn -> DecoratedTxIns -> Maybe W.TxOut
+lookupTxOutForTxIn tx = Map.lookup (toKeyTxIn tx) . unDecoratedTxIns
+
+lookupTxOutForTxCollateral
+    :: TxCollateral -> DecoratedTxIns -> Maybe W.TxOut
+lookupTxOutForTxCollateral tx =
+    Map.lookup (toKeyTxCollateral tx) . unDecoratedTxIns
+
+-- | Decorate the Tx inputs of a given 'TxRelation'
+-- by searching the 'TxHistory' for corresponding output values.
+decorateTxIns
+    :: TxHistory -> TxRelation -> DecoratedTxIns
+decorateTxIns (TxHistory relations) TxRelation{ins,collateralIns} =
+    DecoratedTxIns . Map.fromList . catMaybes $
+        (lookupOutput . toKeyTxIn <$> ins)
+        ++ (lookupOutput . toKeyTxCollateral <$> collateralIns)
+  where
+    lookupOutput key@(txid, index) = do
+        tx <- Map.lookup txid relations
+        out <- lookupTxOut tx index <|> lookupTxCollateralOut tx index
+        pure (key, out)
+
+    lookupTxOut tx index = fromTxOut <$>
+        Data.List.find ((index ==) . txOutputIndex . fst) (outs tx)
+
+    lookupTxCollateralOut tx index = do
+        out <- collateralOuts tx
+        let collateralOutputIndex = toEnum $ length (outs tx)
+        guard $ index == collateralOutputIndex  -- Babbage leder spec
+        pure $ fromTxCollateralOut out

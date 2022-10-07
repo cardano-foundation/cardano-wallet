@@ -156,8 +156,8 @@ properties = do
                 (\DBLayer{..} -> atomically . readWalletMeta)
         it "Tx History" $
             property . prop_readAfterPut
-                putTxHistoryF
-                readTxHistoryF
+                putTxHistory_
+                readTxHistory_
         it "Private Key" $
             property . prop_readAfterPut
                 (\DBLayer{..} a0 -> mapExceptT atomically . putPrivateKey a0)
@@ -184,8 +184,8 @@ properties = do
                 Nothing
         it "Tx History" $
             property . prop_putBeforeInit
-                putTxHistoryF
-                readTxHistoryF
+                putTxHistory_
+                readTxHistory_
                 (pure mempty)
         it "Private Key" $
             property . prop_putBeforeInit
@@ -198,17 +198,17 @@ properties = do
             property . prop_isolation
                 (\DBLayer{..} a0 -> mapExceptT atomically . putCheckpoint a0)
                 (\DBLayer{..} -> atomically . readWalletMeta)
-                readTxHistoryF
+                readTxHistory_
                 (\DBLayer{..} -> atomically . readPrivateKey)
         it "Wallet Metadata vs Tx History & Checkpoint & Private Key" $
             property . prop_isolation
                 (\DBLayer{..} a0 -> mapExceptT atomically . putWalletMeta a0)
-                readTxHistoryF
+                readTxHistory_
                 (\DBLayer{..} -> atomically . readCheckpoint)
                 (\DBLayer{..} -> atomically . readPrivateKey)
         it "Tx History vs Checkpoint & Wallet Metadata & Private Key" $
             property . prop_isolation
-                putTxHistoryF
+                putTxHistory_
                 (\DBLayer{..} -> atomically . readCheckpoint)
                 (\DBLayer{..} -> atomically . readWalletMeta)
                 (\DBLayer{..} -> atomically . readPrivateKey)
@@ -224,7 +224,7 @@ properties = do
                 Nothing
         it "Tx History" $
             property . prop_readAfterDelete
-                readTxHistoryF
+                readTxHistory_
                 (pure mempty)
         it "Private Key" $
             property . prop_readAfterDelete
@@ -244,8 +244,8 @@ properties = do
                 lrp
         it "Tx History" $
             checkCoverage . prop_sequentialPut
-                putTxHistoryF
-                readTxHistoryF
+                putTxHistory_
+                readTxHistory_
                 sortedUnions
         it "Private Key" $
             checkCoverage . prop_sequentialPut
@@ -266,8 +266,8 @@ properties = do
                 (length . lrp @Maybe)
         it "Tx History" $
             checkCoverage . prop_parallelPut
-                putTxHistoryF
-                readTxHistoryF
+                putTxHistory_
+                readTxHistory_
                 (length . sortedUnions)
         it "Private Key" $
             checkCoverage . prop_parallelPut
@@ -282,21 +282,21 @@ properties = do
             (checkCoverage . prop_rollbackTxHistory)
 
 -- | Wrap the result of 'readTxHistory' in an arbitrary identity Applicative
-readTxHistoryF
+readTxHistory_
     :: Functor m
     => DBLayer m s ShelleyKey
     -> WalletId
     -> m (Identity GenTxHistory)
-readTxHistoryF DBLayer{..} wid =
+readTxHistory_ DBLayer{..} wid =
     (Identity . GenTxHistory . fmap toTxHistory)
         <$> atomically (readTxHistory wid Nothing Descending wholeRange Nothing)
 
-putTxHistoryF
+putTxHistory_
     :: DBLayer m s ShelleyKey
     -> WalletId
     -> GenTxHistory
     -> ExceptT ErrNoSuchWallet m ()
-putTxHistoryF DBLayer{..} wid =
+putTxHistory_ DBLayer{..} wid =
     mapExceptT atomically . putTxHistory wid . unGenTxHistory
 
 {-------------------------------------------------------------------------------

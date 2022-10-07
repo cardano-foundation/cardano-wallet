@@ -105,7 +105,7 @@ import Cardano.Wallet.DB.Store.Meta.Model
 import Cardano.Wallet.DB.Store.Submissions.Model
     ( TxLocalSubmissionHistory (..) )
 import Cardano.Wallet.DB.Store.Transactions.Model
-    ( TxHistoryF (..), decorateWithTxOuts, withdrawals )
+    ( TxHistory (..), decorateTxIns, withdrawals )
 import Cardano.Wallet.DB.Store.TransactionsWithCBOR.Model
     ( TxHistoryWithCBOR (TxHistoryWithCBOR) )
 import Cardano.Wallet.DB.Store.Wallets.Model
@@ -1047,9 +1047,11 @@ selectTxHistory cp ti wid minWithdrawal order whichMeta
             (\coin -> any (>= coin)
                 $ txWithdrawalAmount <$>  withdrawals transaction)
             minWithdrawal
+        let decoration = decorateTxIns txHistory transaction
         pure $ mkTransactionInfo
             ti (W.currentTip cp)
                 transaction
+                decoration
                 (Map.lookup (txMetaTxId meta) txCBORHistory)
                 meta
     pure $ sortTx tinfos
@@ -1059,7 +1061,7 @@ selectTxHistory cp ti wid minWithdrawal order whichMeta
                 $ (,) <$> slotNo . txInfoMeta <*> Down . txInfoId
             W.Descending -> sortOn
                 $ (,) <$> (Down . slotNo . txInfoMeta) <*> txInfoId
-        TxHistoryF txs = decorateWithTxOuts txHistory
+        TxHistory txs = txHistory
 
 
 -- | Returns the initial submission slot and submission record for all pending

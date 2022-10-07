@@ -26,15 +26,7 @@ module Cardano.Wallet.DB.Store.Wallets.Model
 import Prelude
 
 import Cardano.Wallet.DB.Sqlite.Schema
-    ( TxCollateral (..)
-    , TxCollateralOut (..)
-    , TxCollateralOutToken (..)
-    , TxIn (..)
-    , TxMeta (..)
-    , TxOut (..)
-    , TxOutToken (..)
-    , TxWithdrawal (..)
-    )
+    ( TxCollateral (..), TxIn (..), TxMeta (..), TxWithdrawal (..) )
 import Cardano.Wallet.DB.Sqlite.Types
     ( TxId (..) )
 import Cardano.Wallet.DB.Store.CBOR.Model
@@ -44,20 +36,21 @@ import Cardano.Wallet.DB.Store.Meta.Model
 import Cardano.Wallet.DB.Store.Submissions.Model
     ( DeltaTxLocalSubmission (..), TxLocalSubmissionHistory (..) )
 import Cardano.Wallet.DB.Store.Transactions.Model
-    ( Decoration (With)
-    , TxHistoryF (..)
-    , TxRelationF (..)
-    , WithTxOut (..)
+    ( DecoratedTxIns
+    , TxHistory (..)
+    , TxRelation (..)
+    , fromTxCollateralOut
+    , fromTxOut
+    , lookupTxOutForTxCollateral
+    , lookupTxOutForTxIn
     , mkTxHistory
     )
 import Cardano.Wallet.DB.Store.TransactionsWithCBOR.Model
     ( TxHistoryWithCBOR (..) )
 import Cardano.Wallet.Primitive.Slotting
     ( TimeInterpreter, interpretQuery, slotToUTCTime )
-import Cardano.Wallet.Primitive.Types.TokenMap
-    ( AssetId (AssetId) )
 import Cardano.Wallet.Primitive.Types.Tx
-    ( Tx (..), TxCBOR, TxMeta (..), TxOut (..) )
+    ( Tx (..), TxCBOR, TxMeta (..) )
 import Data.Delta
     ( Delta (..) )
 import Data.DeltaMap
@@ -86,7 +79,6 @@ import qualified Cardano.Wallet.DB.Store.Meta.Model as TxMetaStore
 import qualified Cardano.Wallet.DB.Store.TransactionsWithCBOR.Model as TxStore
 import qualified Cardano.Wallet.Primitive.Types as W
 import qualified Cardano.Wallet.Primitive.Types.Coin as WC
-import qualified Cardano.Wallet.Primitive.Types.TokenBundle as TokenBundle
 import qualified Cardano.Wallet.Primitive.Types.Tx as WT
 import qualified Data.Map.Strict as Map
 import qualified Data.Set as Set
@@ -146,12 +138,12 @@ instance Delta DeltaTxWalletsHistory where
             $ mtxmh & apply (Adjust wid change)
             )
     apply GarbageCollectTxWalletsHistory
-        (TxHistoryWithCBOR (TxHistoryF txh) (TxCBORHistory cborh) , mtxmh) =
+        (TxHistoryWithCBOR (TxHistory txh) (TxCBORHistory cborh) , mtxmh) =
             let gc :: Map TxId x -> Map TxId x
                 gc x = Map.restrictKeys x
                     $ walletsLinkedTransactions mtxmh
             in (TxHistoryWithCBOR
-                (TxHistoryF $ gc txh)
+                (TxHistory $ gc txh)
                 (TxCBORHistory $ gc cborh)
                     , mtxmh)
     apply (RemoveWallet wid) (x , mtxmh) = (x, Map.delete wid mtxmh)
@@ -172,16 +164,17 @@ walletsLinkedTransactions
 walletsLinkedTransactions = Set.unions . toList . fmap linkedTransactions
 
 -- | Compute a high level view of a transaction known as 'TransactionInfo'
--- from a 'TxMeta' and a 'TxRelationF'.
+-- from a 'TxMeta' and a 'TxRelation'.
 -- Assumes that these data refer to the same 'TxId', does /not/ check this.
 mkTransactionInfo :: Monad m
     => TimeInterpreter m
     -> W.BlockHeader
-    -> TxRelationF 'With
+    -> TxRelation
+    -> DecoratedTxIns
     -> Maybe TxCBOR
     -> DB.TxMeta
     -> m WT.TransactionInfo
-mkTransactionInfo ti tip TxRelationF{..} txCBOR DB.TxMeta{..} = do
+mkTransactionInfo ti tip TxRelation{..} decor txCBOR DB.TxMeta{..} = do
     txTime <- interpretQuery ti . slotToUTCTime $ txMetaSlot
     return
         $ WT.TransactionInfo
@@ -190,8 +183,8 @@ mkTransactionInfo ti tip TxRelationF{..} txCBOR DB.TxMeta{..} = do
         , WT.txInfoFee = WC.Coin . fromIntegral <$> txMetaFee
         , WT.txInfoInputs = mkTxIn <$> ins
         , WT.txInfoCollateralInputs = mkTxCollateral <$> collateralIns
-        , WT.txInfoOutputs = mkTxOut <$> outs
-        , WT.txInfoCollateralOutput = mkTxCollateralOut <$> collateralOuts
+        , WT.txInfoOutputs = fromTxOut <$> outs
+        , WT.txInfoCollateralOutput = fromTxCollateralOut <$> collateralOuts
         , WT.txInfoWithdrawals = Map.fromList $ map mkTxWithdrawal withdrawals
         , WT.txInfoMeta = WT.TxMeta
               { WT.status = txMetaStatus
@@ -214,40 +207,20 @@ mkTransactionInfo ti tip TxRelationF{..} txCBOR DB.TxMeta{..} = do
         }
   where
     tipH = getQuantity $ tip ^. #blockHeight
-    mkTxIn (WithTxOut tx out) =
+    mkTxIn tx =
         ( WT.TxIn
           { WT.inputId = getTxId (txInputSourceTxId tx)
           , WT.inputIx = txInputSourceIndex tx
           }
         , txInputSourceAmount tx
-        , mkTxOut <$> out)
-    mkTxCollateral (WithTxOut tx out) =
+        , lookupTxOutForTxIn tx decor
+        )
+    mkTxCollateral tx =
         ( WT.TxIn
           { WT.inputId = getTxId (txCollateralSourceTxId tx)
           , WT.inputIx = txCollateralSourceIndex tx
           }
         , txCollateralSourceAmount tx
-        , mkTxOut <$> out)
-    mkTxOut (out,tokens) =
-        WT.TxOut
-        { address = txOutputAddress out
-        , WT.tokens = TokenBundle.fromFlatList
-              (txOutputAmount out)
-              (mkTxOutToken <$> tokens)
-        }
-    mkTxOutToken token =
-        ( AssetId (txOutTokenPolicyId token) (txOutTokenName token)
-        , txOutTokenQuantity token)
-    mkTxCollateralOut (out,tokens) =
-        WT.TxOut
-        { address = txCollateralOutAddress out
-        , WT.tokens = TokenBundle.fromFlatList
-              (txCollateralOutAmount out)
-              (mkTxCollateralOutToken <$> tokens)
-        }
-    mkTxCollateralOutToken token =
-        ( AssetId
-              (txCollateralOutTokenPolicyId token)
-              (txCollateralOutTokenName token)
-        , txCollateralOutTokenQuantity token)
+        , lookupTxOutForTxCollateral tx decor
+        )
     mkTxWithdrawal w = (txWithdrawalAccount w, txWithdrawalAmount w)

@@ -33,11 +33,9 @@ import Cardano.Wallet.DB.Sqlite.Schema
 import Cardano.Wallet.DB.Sqlite.Types
     ( TxId )
 import Cardano.Wallet.DB.Store.Transactions.Model
-    ( Decoration (Without)
-    , DeltaTxHistory (..)
-    , TxHistory
-    , TxHistoryF (TxHistoryF)
-    , TxRelationF (..)
+    ( DeltaTxHistory (..)
+    , TxHistory (..)
+    , TxRelation (..)
     , tokenCollateralOrd
     , tokenOutOrd
     )
@@ -105,7 +103,7 @@ write txs = do
 
 -- | Insert multiple transactions
 putTxHistory :: TxHistory -> SqlPersistT IO ()
-putTxHistory (TxHistoryF tx_map) = forM_ tx_map $ \TxRelationF {..} -> do
+putTxHistory (TxHistory tx_map) = forM_ tx_map $ \TxRelation {..} -> do
     repsertMany' ins
     repsertMany' collateralIns
     repsertMany' $ fst <$> outs
@@ -123,10 +121,10 @@ putTxHistory (TxHistoryF tx_map) = forM_ tx_map $ \TxRelationF {..} -> do
 
 -- | Select transactions history from the database
 selectTxHistory :: SqlPersistT IO TxHistory
-selectTxHistory = TxHistoryF <$> select
+selectTxHistory = TxHistory <$> select
   where
     selectListAll = selectList [] []
-    select :: SqlPersistT IO (Map TxId (TxRelationF 'Without))
+    select :: SqlPersistT IO (Map TxId TxRelation)
     select = do
         inputs <- mkMap txInputTxId selectListAll
         collaterals <- mkMap txCollateralTxId selectListAll
@@ -159,7 +157,7 @@ selectTxHistory = TxHistoryF <$> select
             k <- toList ids
             pure
                 $ Map.singleton k
-                $ TxRelationF
+                $ TxRelation
                 { ins = sortOn txInputOrder $ Map.findWithDefault [] k inputs
                 , collateralIns = sortOn txCollateralOrder
                       $ Map.findWithDefault [] k collaterals
