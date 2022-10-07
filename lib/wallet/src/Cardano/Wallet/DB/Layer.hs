@@ -168,7 +168,7 @@ import Data.Generics.Internal.VL.Lens
 import Data.List
     ( sortOn )
 import Data.Maybe
-    ( catMaybes, fromMaybe, listToMaybe, maybeToList )
+    ( catMaybes, fromMaybe, isJust, listToMaybe, maybeToList )
 import Data.Ord
     ( Down (..) )
 import Data.Proxy
@@ -603,6 +603,8 @@ newDBLayerWith _cacheBehavior _tr ti SqliteContext{runQuery} = do
                         in  (delta, Right ())
 
         , listWallets_ = map unWalletKey <$> selectKeysList [] [Asc WalId]
+
+        , hasWallet_ = fmap isJust . selectWallet
         }
 
         {-----------------------------------------------------------------------

@@ -452,6 +452,12 @@ data DBWallets stm s = DBWallets
     , listWallets_
         :: stm [WalletId]
         -- ^ Get the list of all known wallets in the DB, possibly empty.
+
+    , hasWallet_
+        :: WalletId
+        -> stm Bool
+        -- ^ Check whether the wallet with 'WalletId' is present
+        -- in the database.
     }
 
 -- | A database layer for storing wallet states.
