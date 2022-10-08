@@ -741,16 +741,13 @@ newDBLayerWith _cacheBehavior _tr ti SqliteContext{runQuery} = do
                         ti wid minWithdrawal
                         order filtering txHistory
 
-        , getTx_ = \wid tid -> ExceptT $ do
-            readCheckpoint wid >>= \case
-                Nothing -> pure $ Left $ ErrNoSuchWallet wid
-                Just cp -> do
-                    txHistory <- readDBVar transactionsDBVar
-                    metas <- lift $ selectTxHistory (view #currentTip cp)
-                        ti wid Nothing W.Descending
-                            (\meta -> txMetaTxId meta == TxId tid )
-                            txHistory
-                    pure $ Right $ listToMaybe metas
+        , getTx_ = \wid txid tip -> do
+            txHistory <- readDBVar transactionsDBVar
+            metas <- lift $ selectTxHistory tip
+                ti wid Nothing W.Descending
+                    (\meta -> txMetaTxId meta == TxId txid )
+                    txHistory
+            pure $ listToMaybe metas
         }
 
         {-----------------------------------------------------------------------

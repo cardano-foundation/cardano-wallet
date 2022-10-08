@@ -46,11 +46,12 @@ import Cardano.Wallet.DB.WalletState
 import Cardano.Wallet.Primitive.AddressDerivation
     ( Depth (..) )
 import Cardano.Wallet.Primitive.Model
-    ( Wallet )
+    ( Wallet, currentTip )
 import Cardano.Wallet.Primitive.Passphrase
     ( PassphraseHash )
 import Cardano.Wallet.Primitive.Types
-    ( ChainPoint
+    ( BlockHeader
+    , ChainPoint
     , DelegationCertificate
     , GenesisParameters
     , Range (..)
@@ -419,7 +420,9 @@ mkDBLayerFromParts DBLayerCollection{..} = DBLayer
         readDelegationRewardBalance_ (dbDelegation wid)
     , putTxHistory = putTxHistory_ dbTxHistory
     , readTxHistory = readTxHistory_ dbTxHistory
-    , getTx = getTx_ dbTxHistory
+    , getTx = \wid txid -> wrapNoSuchWallet wid $ do
+        Just tip <- readCurrentTip wid -- wallet exists
+        (getTx_ dbTxHistory) wid txid tip
     , putLocalTxSubmission = putLocalTxSubmission_ dbPendingTxs
     , readLocalTxSubmissionPending = readLocalTxSubmissionPending_ dbPendingTxs
     , updatePendingTxForExpiry = updatePendingTxForExpiry_ dbPendingTxs
@@ -442,6 +445,10 @@ mkDBLayerFromParts DBLayerCollection{..} = DBLayer
         hasWallet_ dbWallets wid >>= \case
             False -> pure $ Left $ ErrNoSuchWallet wid
             True  -> Right <$> action
+
+    readCurrentTip :: WalletId -> stm (Maybe BlockHeader)
+    readCurrentTip =
+        (fmap . fmap) currentTip . readCheckpoint_ dbCheckpoints
 
 -- | A database layer for a collection of wallets
 data DBWallets stm s = DBWallets
@@ -595,7 +602,8 @@ data DBTxHistory stm = DBTxHistory
     , getTx_
         :: WalletId
         -> Hash "Tx"
-        -> ExceptT ErrNoSuchWallet stm (Maybe TransactionInfo)
+        -> BlockHeader
+        -> stm (Maybe TransactionInfo)
         -- ^ Fetch the latest transaction by id, returns Nothing when the
         -- transaction isn't found.
         --
