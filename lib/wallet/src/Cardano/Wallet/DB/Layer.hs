@@ -737,7 +737,8 @@ newDBLayerWith _cacheBehavior _tr ti SqliteContext{runQuery} = do
                             , (txMetaSlot <=) <$> W.inclusiveUpperBound range
                             , (txMetaStatus ==) <$> status
                             ]
-                    lift $ selectTxHistory cp ti wid minWithdrawal
+                    lift $ selectTxHistory (view #currentTip cp)
+                        ti wid minWithdrawal
                         order filtering txHistory
 
         , getTx_ = \wid tid -> ExceptT $ do
@@ -745,7 +746,7 @@ newDBLayerWith _cacheBehavior _tr ti SqliteContext{runQuery} = do
                 Nothing -> pure $ Left $ ErrNoSuchWallet wid
                 Just cp -> do
                     txHistory <- readDBVar transactionsDBVar
-                    metas <- lift $ selectTxHistory cp
+                    metas <- lift $ selectTxHistory (view #currentTip cp)
                         ti wid Nothing W.Descending
                             (\meta -> txMetaTxId meta == TxId tid )
                             txHistory
@@ -1057,7 +1058,7 @@ deleteDelegationCertificates wid filters = do
 -- See also: issue #573.
 selectTxHistory
     :: Monad m
-    => W.Wallet s
+    => W.BlockHeader
     -> TimeInterpreter m
     -> W.WalletId
     -> Maybe W.Coin
@@ -1065,7 +1066,7 @@ selectTxHistory
     -> (DB.TxMeta -> Bool)
     -> TxWalletsHistory
     -> m [W.TransactionInfo]
-selectTxHistory cp ti wid minWithdrawal order whichMeta
+selectTxHistory tip ti wid minWithdrawal order whichMeta
     (TxHistoryWithCBOR txHistory (TxCBORHistory txCBORHistory), wmetas) = do
     tinfos <- sequence $ do
         (TxMetaHistory metas, _) <- maybeToList $ Map.lookup wid wmetas
@@ -1078,7 +1079,7 @@ selectTxHistory cp ti wid minWithdrawal order whichMeta
                 $ txWithdrawalAmount <$>  withdrawals transaction)
             minWithdrawal
         pure $ mkTransactionInfo
-            ti (W.currentTip cp)
+            ti tip
                 transaction
                 (Map.lookup (txMetaTxId meta) txCBORHistory)
                 meta
