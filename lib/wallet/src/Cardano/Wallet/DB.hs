@@ -375,7 +375,7 @@ data DBLayerCollection stm m s k = DBLayerCollection
     { dbWallets :: DBWallets stm s
     , dbCheckpoints :: DBCheckpoints stm s
     , dbWalletMeta :: DBWalletMeta stm
-    , dbDelegation :: DBDelegation stm
+    , dbDelegation :: WalletId -> DBDelegation stm
     , dbTxHistory :: DBTxHistory stm
     , dbPendingTxs :: DBPendingTxs stm
     , dbPrivateKey :: WalletId -> DBPrivateKey stm k
@@ -394,6 +394,7 @@ data DBLayerCollection stm m s k = DBLayerCollection
         :: forall a. stm a -> m a
     }
 
+{- HLINT ignore mkDBLayerFromParts "Avoid lambda" -}
 -- | Create a legacy 'DBLayer' from smaller database layers.
 mkDBLayerFromParts
     :: forall stm m s k. (MonadIO stm, MonadFail stm)
@@ -408,10 +409,14 @@ mkDBLayerFromParts DBLayerCollection{..} = DBLayer
     , listCheckpoints = listCheckpoints_ dbCheckpoints
     , putWalletMeta = putWalletMeta_ dbWalletMeta
     , readWalletMeta = readWalletMeta_ dbWalletMeta
-    , isStakeKeyRegistered = isStakeKeyRegistered_ dbDelegation
-    , putDelegationCertificate = putDelegationCertificate_ dbDelegation
-    , putDelegationRewardBalance = putDelegationRewardBalance_ dbDelegation
-    , readDelegationRewardBalance = readDelegationRewardBalance_ dbDelegation
+    , isStakeKeyRegistered = \wid -> wrapNoSuchWallet wid $
+        isStakeKeyRegistered_ (dbDelegation wid)
+    , putDelegationCertificate = \wid a b -> wrapNoSuchWallet wid $
+        putDelegationCertificate_ (dbDelegation wid) a b
+    , putDelegationRewardBalance = \wid a -> wrapNoSuchWallet wid $
+        putDelegationRewardBalance_ (dbDelegation wid) a
+    , readDelegationRewardBalance = \wid ->
+        readDelegationRewardBalance_ (dbDelegation wid)
     , putTxHistory = putTxHistory_ dbTxHistory
     , readTxHistory = readTxHistory_ dbTxHistory
     , getTx = getTx_ dbTxHistory
@@ -530,14 +535,12 @@ data DBWalletMeta stm = DBWalletMeta
 -- and the reward balance.
 data DBDelegation stm = DBDelegation
     { isStakeKeyRegistered_
-        :: WalletId
-        -> ExceptT ErrNoSuchWallet stm Bool
+        :: stm Bool
 
     , putDelegationCertificate_
-        :: WalletId
-        -> DelegationCertificate
+        :: DelegationCertificate
         -> SlotNo
-        -> ExceptT ErrNoSuchWallet stm ()
+        -> stm ()
         -- ^ Binds a stake pool id to a wallet. This will have an influence on
         -- the wallet metadata: the last known certificate will indicate to
         -- which pool a wallet is currently delegating.
@@ -549,9 +552,8 @@ data DBDelegation stm = DBDelegation
         -- 2. Affected by rollbacks (or said differently, tied to a 'SlotNo').
 
     , putDelegationRewardBalance_
-        :: WalletId
-        -> Coin
-        -> ExceptT ErrNoSuchWallet stm ()
+        :: Coin
+        -> stm ()
         -- ^ Store the latest known reward account balance.
         --
         -- This is separate from checkpoints because the data corresponds to the
@@ -559,12 +561,10 @@ data DBDelegation stm = DBDelegation
         -- This is separate from putWalletMeta because it's not meta data
 
     , readDelegationRewardBalance_
-        :: WalletId
-        -> stm Coin
+        :: stm Coin
         -- ^ Get the reward account balance.
         --
-        -- Returns zero if the wallet isn't found or if wallet hasn't delegated
-        -- stake.
+        -- Returns zero if the wallet hasn't delegated stake.
     }
 
 -- | A database layer that stores the transaction history.
