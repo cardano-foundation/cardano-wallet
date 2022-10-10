@@ -54,7 +54,7 @@ import Prelude
 import Cardano.Address.Derivation
     ( XPrv, XPub )
 import Cardano.Address.Script
-    ( KeyHash, Script )
+    ( KeyHash, Script, ScriptTemplate )
 import Cardano.Api
     ( AnyCardanoEra )
 import Cardano.Api.Extra
@@ -409,6 +409,8 @@ data TransactionCtx = TransactionCtx
     -- ^ The assets to mint.
     , txAssetsToBurn :: (TokenMap, Map AssetId (Script KeyHash))
     -- ^ The assets to burn.
+    , txPaymentCredentialScriptTemplate :: Maybe ScriptTemplate
+    -- ^ Script template regulating payment credentials
     , txNativeScriptInputs :: Map TxIn (Script KeyHash)
     -- ^ A map of script hashes related to inputs. Only for multisig wallets
     , txCollateralRequirement :: SelectionCollateralRequirement
@@ -442,6 +444,7 @@ defaultTransactionCtx = TransactionCtx
     , txPlutusScriptExecutionCost = Coin 0
     , txAssetsToMint = (TokenMap.empty, Map.empty)
     , txAssetsToBurn = (TokenMap.empty, Map.empty)
+    , txPaymentCredentialScriptTemplate = Nothing
     , txNativeScriptInputs = Map.empty
     , txCollateralRequirement = SelectionCollateralNotRequired
     , txFeePadding = Coin 0
