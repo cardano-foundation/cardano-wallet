@@ -896,8 +896,8 @@ generateGenesis dir systemStart initialFunds addPoolsToGenesis = do
     let systemStart' = posixSecondsToUTCTime . fromRational . toRational $ startTime
 
     let pparams = Ledger.PParams
-            { _minfeeA = 44
-            , _minfeeB = 155381
+            { _minfeeA = 100
+            , _minfeeB = 100000
             , _minUTxOValue = Ledger.Coin 1_000_000
 
             , _keyDeposit = Ledger.Coin 1_000_000

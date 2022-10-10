@@ -67,7 +67,7 @@ import Prelude
 import Cardano.Address.Derivation
     ( XPrv, toXPub )
 import Cardano.Address.Script
-    ( KeyHash, Cosigner, Script (..), foldScript, ScriptTemplate (..) )
+    ( Cosigner, KeyHash, Script (..), ScriptTemplate (..), foldScript )
 import Cardano.Api
     ( AnyCardanoEra (..)
     , ByronEra
