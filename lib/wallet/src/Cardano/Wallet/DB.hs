@@ -418,7 +418,8 @@ mkDBLayerFromParts DBLayerCollection{..} = DBLayer
         putDelegationRewardBalance_ (dbDelegation wid) a
     , readDelegationRewardBalance = \wid ->
         readDelegationRewardBalance_ (dbDelegation wid)
-    , putTxHistory = putTxHistory_ dbTxHistory
+    , putTxHistory = \wid a -> wrapNoSuchWallet wid $
+        putTxHistory_ dbTxHistory wid a
     , readTxHistory = \wid minWithdrawal order range status ->
         readCurrentTip wid >>= \case
             Just tip ->
@@ -585,13 +586,14 @@ data DBTxHistory stm = DBTxHistory
     { putTxHistory_
         :: WalletId
         -> [(Tx, TxMeta)]
-        -> ExceptT ErrNoSuchWallet stm ()
+        -> stm ()
         -- ^ Augments the transaction history for a known wallet.
         --
         -- If an entry for a particular transaction already exists it is not
         -- altered nor merged (just ignored).
         --
-        -- If the wallet doesn't exist, this operation returns an error.
+        -- If the wallet does not exist, the function may throw
+        -- an error, but need not.
 
     , readTxHistory_
         :: WalletId

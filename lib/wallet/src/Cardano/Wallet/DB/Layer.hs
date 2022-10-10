@@ -719,13 +719,8 @@ newDBLayerWith _cacheBehavior _tr ti SqliteContext{runQuery} = do
         -----------------------------------------------------------------------}
     let
       dbTxHistory = DBTxHistory
-        { putTxHistory_ = \wid txs -> ExceptT $ do
-            selectWallet wid >>= \case
-                Nothing -> pure $ Left $ ErrNoSuchWallet wid
-                Just _ -> modifyDBMaybe transactionsDBVar $ \_ ->
-                    let
-                        delta = Just $ ExpandTxWalletsHistory wid txs
-                    in  (delta, Right ())
+        { putTxHistory_ = \wid ->
+            updateDBVar transactionsDBVar . ExpandTxWalletsHistory wid
 
         , readTxHistory_ = \wid minWithdrawal order range status tip -> do
             txHistory <- readDBVar transactionsDBVar
