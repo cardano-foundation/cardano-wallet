@@ -727,19 +727,16 @@ newDBLayerWith _cacheBehavior _tr ti SqliteContext{runQuery} = do
                         delta = Just $ ExpandTxWalletsHistory wid txs
                     in  (delta, Right ())
 
-        , readTxHistory_ = \wid minWithdrawal order range status -> do
-            readCheckpoint wid >>= \case
-                Nothing -> pure []
-                Just cp -> do
-                    txHistory <- readDBVar transactionsDBVar
-                    let filtering DB.TxMeta{..} = and $ catMaybes
-                            [ (txMetaSlot >=) <$> W.inclusiveLowerBound range
-                            , (txMetaSlot <=) <$> W.inclusiveUpperBound range
-                            , (txMetaStatus ==) <$> status
-                            ]
-                    lift $ selectTxHistory (view #currentTip cp)
-                        ti wid minWithdrawal
-                        order filtering txHistory
+        , readTxHistory_ = \wid minWithdrawal order range status tip -> do
+            txHistory <- readDBVar transactionsDBVar
+            let filtering DB.TxMeta{..} = and $ catMaybes
+                    [ (txMetaSlot >=) <$> W.inclusiveLowerBound range
+                    , (txMetaSlot <=) <$> W.inclusiveUpperBound range
+                    , (txMetaStatus ==) <$> status
+                    ]
+            lift $ selectTxHistory tip
+                ti wid minWithdrawal
+                order filtering txHistory
 
         , getTx_ = \wid txid tip -> do
             txHistory <- readDBVar transactionsDBVar

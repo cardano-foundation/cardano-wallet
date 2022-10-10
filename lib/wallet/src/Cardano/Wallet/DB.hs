@@ -419,7 +419,13 @@ mkDBLayerFromParts DBLayerCollection{..} = DBLayer
     , readDelegationRewardBalance = \wid ->
         readDelegationRewardBalance_ (dbDelegation wid)
     , putTxHistory = putTxHistory_ dbTxHistory
-    , readTxHistory = readTxHistory_ dbTxHistory
+    , readTxHistory = \wid minWithdrawal order range status ->
+        readCurrentTip wid >>= \case
+            Just tip ->
+                (readTxHistory_ dbTxHistory)
+                    wid minWithdrawal order range status tip
+            Nothing ->
+                pure []
     , getTx = \wid txid -> wrapNoSuchWallet wid $ do
         Just tip <- readCurrentTip wid -- wallet exists
         (getTx_ dbTxHistory) wid txid tip
@@ -593,6 +599,7 @@ data DBTxHistory stm = DBTxHistory
         -> SortOrder
         -> Range SlotNo
         -> Maybe TxStatus
+        -> BlockHeader
         -> stm [TransactionInfo]
         -- ^ Fetch the current transaction history of a known wallet, ordered by
         -- descending slot number.
