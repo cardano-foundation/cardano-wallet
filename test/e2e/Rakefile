@@ -237,7 +237,9 @@ task :stop_node_and_wallet, [:env] do |task, args|
     cmd "nssm remove cardano-wallet confirm"
     cmd "nssm remove cardano-node confirm"
   else
+    cmd "screen -S WALLET_#{args[:env]} -X at '0' stuff '^C'"
     cmd "screen -XS WALLET_#{args[:env]} quit"
+    cmd "screen -S NODE_#{args[:env]} -X at '0' stuff '^C'"
     cmd "screen -XS NODE_#{args[:env]} quit"
   end
 
