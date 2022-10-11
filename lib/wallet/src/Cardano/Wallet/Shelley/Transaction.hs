@@ -67,7 +67,7 @@ import Prelude
 import Cardano.Address.Derivation
     ( XPrv, toXPub )
 import Cardano.Address.Script
-    ( KeyHash, Script (..), foldScript )
+    ( Cosigner, KeyHash, Script (..), ScriptTemplate (..), foldScript )
 import Cardano.Api
     ( AnyCardanoEra (..)
     , ByronEra
@@ -1551,7 +1551,8 @@ data TxSkeleton = TxSkeleton
     , txInputCount :: !Int
     , txOutputs :: ![TxOut]
     , txChange :: ![Set AssetId]
-    , txScripts :: [Script KeyHash]
+    , txPaymentTemplate :: !(Maybe (Script Cosigner))
+    , txMintOrBurnScripts :: [Script KeyHash]
     , txAssetsToMintOrBurn :: Set AssetId
     -- ^ The set of assets to mint or burn.
     , txScriptExecutionCost :: !Coin
@@ -1571,7 +1572,8 @@ emptyTxSkeleton txWitnessTag = TxSkeleton
     , txInputCount = 0
     , txOutputs = []
     , txChange = []
-    , txScripts = []
+    , txPaymentTemplate = Nothing
+    , txMintOrBurnScripts = []
     , txAssetsToMintOrBurn = Set.empty
     , txScriptExecutionCost = Coin 0
     }
@@ -1594,7 +1596,10 @@ mkTxSkeleton witness context skeleton = TxSkeleton
     , txInputCount = view #skeletonInputCount skeleton
     , txOutputs = view #skeletonOutputs skeleton
     , txChange = view #skeletonChange skeleton
-    , txScripts = (<>)
+    , txPaymentTemplate =
+        template <$>
+        view #txPaymentCredentialScriptTemplate context
+    , txMintOrBurnScripts = (<>)
         (Map.elems (snd $ view #txAssetsToMint context))
         (Map.elems (snd $ view #txAssetsToBurn context))
     , txAssetsToMintOrBurn = (<>)
@@ -1805,7 +1810,8 @@ estimateTxSize era skeleton =
         , txInputCount
         , txOutputs
         , txChange
-        , txScripts
+        , txPaymentTemplate
+        , txMintOrBurnScripts
         , txAssetsToMintOrBurn
         } = skeleton
 
@@ -1819,10 +1825,13 @@ estimateTxSize era skeleton =
         = if txRewardWithdrawal > Coin 0 then 1 else 0
 
     -- Total number of signatures the scripts require
-    numberOf_ScriptVkeyWitnesses
-        = sumVia scriptRequiredKeySigs txScripts
+    numberOf_MintingWitnesses
+        = sumVia scriptRequiredKeySigs txMintOrBurnScripts
 
-    scriptRequiredKeySigs :: Num num => Script KeyHash -> num
+    numberOf_ScriptVkeyWitnesses
+        = maybe 0 scriptRequiredKeySigs txPaymentTemplate
+
+    scriptRequiredKeySigs :: Num num => Script object -> num
     scriptRequiredKeySigs = \case
         RequireSignatureOf _ ->
             1
@@ -1843,10 +1852,16 @@ estimateTxSize era skeleton =
         = case txWitnessTag of
             TxWitnessByronUTxO{} -> 0
             TxWitnessShelleyUTxO ->
-                numberOf_Inputs
-                + numberOf_Withdrawals
-                + numberOf_CertificateSignatures
-                + numberOf_ScriptVkeyWitnesses
+                if numberOf_ScriptVkeyWitnesses == 0 then
+                    numberOf_Inputs
+                    + numberOf_Withdrawals
+                    + numberOf_CertificateSignatures
+                    + numberOf_MintingWitnesses
+                else
+                    (numberOf_Inputs * numberOf_ScriptVkeyWitnesses)
+                    + numberOf_Withdrawals
+                    + numberOf_CertificateSignatures
+                    + numberOf_MintingWitnesses
 
     numberOf_BootstrapWitnesses
         = case txWitnessTag of
@@ -2122,15 +2137,31 @@ estimateTxSize era skeleton =
         = sizeOf_Hash28
         + sizeOf_LargeUInt
 
+    -- [* native_script ]
+    sizeOf_NativeScripts []
+        = 0
+    sizeOf_NativeScripts ss
+        = sizeOf_Array
+        + sizeOf_SmallUInt
+        + sumVia sizeOf_NativeScript ss
+
+    determinePaymentTemplateSize [] scriptCosigner
+        = sizeOf_Array
+        + sizeOf_SmallUInt
+        + numberOf_Inputs * (sizeOf_NativeScript scriptCosigner)
+    determinePaymentTemplateSize _ scriptCosigner
+        = numberOf_Inputs * (sizeOf_NativeScript scriptCosigner)
+
     -- transaction_witness_set =
     --   { ?0 => [* vkeywitness ]
-    --   , ?1 => [* multisig_script ]
+    --   , ?1 => [* native_script ]
     --   , ?2 => [* bootstrap_witness ]
     --   }
     sizeOf_WitnessSet
         = sizeOf_SmallMap
         + sizeOf_VKeyWitnesses
-        + sizeOf_NativeScripts txScripts
+        + sizeOf_NativeScripts txMintOrBurnScripts
+        + maybe 0 (determinePaymentTemplateSize txMintOrBurnScripts) txPaymentTemplate
         + sizeOf_BootstrapWitnesses
       where
         -- ?0 => [* vkeywitness ]
@@ -2140,12 +2171,6 @@ estimateTxSize era skeleton =
             + sizeOf_VKeyWitness * numberOf_VkeyWitnesses
 
         -- ?1 => [* native_script ]
-        sizeOf_NativeScripts []
-            = 0
-        sizeOf_NativeScripts ss
-            = sizeOf_Array
-            + sizeOf_SmallUInt
-            + sumVia sizeOf_NativeScript ss
 
         -- ?2 => [* bootstrap_witness ]
         sizeOf_BootstrapWitnesses
@@ -2191,6 +2216,7 @@ estimateTxSize era skeleton =
     --      ; Timelock validity intervals are half-open intervals [a, b).
     --      ; This field specifies the right (excluded) endpoint b.
     --   ]
+    sizeOf_NativeScript :: Script object -> Integer
     sizeOf_NativeScript = \case
         RequireSignatureOf _ ->
             sizeOf_SmallUInt + sizeOf_Hash28

@@ -2638,23 +2638,26 @@ constructSharedTransaction
     when (hereafter < before || isThereNegativeTime) $
         liftHandler $ throwE ErrConstructTxWrongValidityBounds
 
-    let txCtx = defaultTransactionCtx
-            { txWithdrawal = NoWithdrawal
-            , txMetadata = md
-            , txValidityInterval = (Just before, hereafter)
-            , txDelegationAction = Nothing
-            }
-
-    let transform s sel =
-            ( W.assignChangeAddresses genChange sel s
-                & uncurry (W.selectionToUnsignedTx (txWithdrawal txCtx))
-            , sel
-            , selectionDelta TokenBundle.getCoin sel
-            )
-
     withWorkerCtx ctx wid liftE liftE $ \wrk -> do
         (cp, _, _) <- liftHandler $ withExceptT ErrConstructTxNoSuchWallet $
             W.readWallet @_ @s @k wrk wid
+
+        let txCtx = defaultTransactionCtx
+                { txWithdrawal = NoWithdrawal
+                , txMetadata = md
+                , txValidityInterval = (Just before, hereafter)
+                , txDelegationAction = Nothing
+                , txPaymentCredentialScriptTemplate =
+                        Just (Shared.paymentTemplate $ getState cp)
+                }
+
+        let transform s sel =
+                ( W.assignChangeAddresses genChange sel s
+                    & uncurry (W.selectionToUnsignedTx (txWithdrawal txCtx))
+                , sel
+                , selectionDelta TokenBundle.getCoin sel
+                )
+
         case Shared.ready (getState cp) of
             Shared.Pending ->
                 liftHandler $ throwE ErrConstructTxSharedWalletPending

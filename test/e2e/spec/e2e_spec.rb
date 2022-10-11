@@ -1766,9 +1766,39 @@ RSpec.describe "Cardano Wallet E2E tests", :all, :e2e do
         tx_signed = SHARED.transactions.sign(@wid_sha, PASS, tx_constructed["transaction"])
         expect(tx_signed).to be_correct_and_respond 202
 
-        # ADP-2221 [SharedWallets] FeeTooSmallUTxO when submitting transaction from Shared wallet
-        # tx_submitted = SHARED.transactions.submit(@wid_sha, tx_signed["transaction"])
-        # expect(tx_submitted).to be_correct_and_respond 202
+        tx_submitted = SHARED.transactions.submit(@wid_sha, tx_signed["transaction"])
+        expect(tx_submitted).to be_correct_and_respond 202
+
+        tx_id = tx_submitted['id']
+        # TODO ADP-2224: change to wait_for_tx_in_ledger(@wid_sha, tx_id)
+        eventually "Funds are on target wallet: #{@target_id}" do
+          available = SHELLEY.wallets.get(@target_id)['balance']['available']['quantity']
+          total = SHELLEY.wallets.get(@target_id)['balance']['total']['quantity']
+          (available == amt + target_before['available']) &&
+          (total == amt + target_before['total'])
+        end
+
+        target_after = get_shelley_balances(@target_id)
+        src_after = get_shared_balances(@wid_sha)
+
+        verify_ada_balance(src_after, src_before,
+                           target_after, target_before,
+                           amt, expected_fee)
+        # tx history
+        # TODO ADP-2224: check tx history on src wallet
+        # on target wallet
+        txt = SHELLEY.transactions.get(@target_id, tx_id)
+        expect(txt['amount']['quantity']).to eq amt
+        expect(txt['inputs']).not_to eq []
+        expect(txt['outputs']).not_to eq []
+        expect(txt['script_validity']).to eq 'valid'
+        expect(txt['status']).to eq 'in_ledger'
+        expect(txt['collateral']).to eq []
+        expect(txt['collateral_outputs']).to eq []
+        expect(txt['metadata']).to eq nil
+        expect(txt['deposit_taken']).to eq({"quantity" => 0,"unit" => "lovelace"})
+        expect(txt['deposit_returned']).to eq({"quantity" => 0,"unit" => "lovelace"})
+        expect(txt['withdrawals']).to eq []
       end
 
       it "Multi output transaction" do
@@ -1817,9 +1847,39 @@ RSpec.describe "Cardano Wallet E2E tests", :all, :e2e do
         tx_signed = SHARED.transactions.sign(@wid_sha, PASS, tx_constructed["transaction"])
         expect(tx_signed).to be_correct_and_respond 202
 
-        # ADP-2221 [SharedWallets] FeeTooSmallUTxO when submitting transaction from Shared wallet
-        # tx_submitted = SHARED.transactions.submit(@wid_sha, tx_signed["transaction"])
-        # expect(tx_submitted).to be_correct_and_respond 202
+        tx_submitted = SHARED.transactions.submit(@wid_sha, tx_signed["transaction"])
+        expect(tx_submitted).to be_correct_and_respond 202
+
+        tx_id = tx_submitted['id']
+        # TODO ADP-2224: change to wait_for_tx_in_ledger(@wid_sha, tx_id)
+        eventually "Funds are on target wallet: #{@target_id}" do
+          available = SHELLEY.wallets.get(@target_id)['balance']['available']['quantity']
+          total = SHELLEY.wallets.get(@target_id)['balance']['total']['quantity']
+          (available == amt*2 + target_before['available']) &&
+          (total == amt*2 + target_before['total'])
+        end
+
+        target_after = get_shelley_balances(@target_id)
+        src_after = get_shared_balances(@wid_sha)
+
+        verify_ada_balance(src_after, src_before,
+                           target_after, target_before,
+                           amt*2, expected_fee)
+        # tx history
+        # TODO ADP-2224: check tx history on src wallet
+        # on target wallet
+        txt = SHELLEY.transactions.get(@target_id, tx_id)
+        expect(txt['amount']['quantity']).to eq amt*2
+        expect(txt['inputs']).not_to eq []
+        expect(txt['outputs']).not_to eq []
+        expect(txt['script_validity']).to eq 'valid'
+        expect(txt['status']).to eq 'in_ledger'
+        expect(txt['collateral']).to eq []
+        expect(txt['collateral_outputs']).to eq []
+        expect(txt['metadata']).to eq nil
+        expect(txt['deposit_taken']).to eq({"quantity" => 0,"unit" => "lovelace"})
+        expect(txt['deposit_returned']).to eq({"quantity" => 0,"unit" => "lovelace"})
+        expect(txt['withdrawals']).to eq []
       end
 
       it "Multi-assets transaction" do
@@ -1874,50 +1934,43 @@ RSpec.describe "Cardano Wallet E2E tests", :all, :e2e do
         expect(tx_signed).to be_correct_and_respond 202
 
         # ADP-2221 [SharedWallets] FeeTooSmallUTxO when submitting transaction from Shared wallet
-        # tx_submitted = SHARED.transactions.submit(@wid_sha, tx_signed["transaction"])
-        # expect(tx_submitted).to be_correct_and_respond 202
-      end
+        tx_submitted = SHARED.transactions.submit(@wid_sha, tx_signed["transaction"])
+        expect(tx_submitted).to be_correct_and_respond 202
 
-      it "Only metadata" do
-        metadata = METADATA
-        balance = get_shared_balances(@wid_sha)
-        tx_constructed = SHARED.transactions.construct(@wid_sha,
-                                                        payments = nil,
-                                                        withdrawal = nil,
-                                                        metadata)
-        expect(tx_constructed).to be_correct_and_respond 202
-        expected_fee = tx_constructed['fee']['quantity']
+        tx_id = tx_submitted['id']
+        # TODO ADP-2224: change to wait_for_tx_in_ledger(@wid_sha, tx_id)
+        eventually "Funds are on target wallet: #{@target_id}" do
+          available = SHELLEY.wallets.get(@target_id)['balance']['available']['quantity']
+          total = SHELLEY.wallets.get(@target_id)['balance']['total']['quantity']
+          (available == amt_ada + target_before['available']) &&
+          (total == amt_ada + target_before['total'])
+        end
 
-        # Can be decoded
-        tx_decoded = SHARED.transactions.decode(@wid_sha, tx_constructed["transaction"])
-        expect(tx_decoded).to be_correct_and_respond 202
+        target_after = get_shelley_balances(@target_id)
+        src_after = get_shared_balances(@wid_sha)
 
-        expect(tx_decoded['id'].size).to be 64
-        decoded_fee = tx_decoded['fee']['quantity']
-        expect(expected_fee).to eq decoded_fee
-        # inputs are ours
-        expect(tx_decoded['inputs'].to_s).to include 'address'
-        expect(tx_decoded['inputs'].to_s).to include 'amount'
-        expect(tx_decoded['outputs']).not_to eq []
-        expect(tx_decoded['script_validity']).to eq 'valid'
-        expect(tx_decoded['validity_interval']['invalid_before']).to eq ({"quantity"=>0,"unit"=>"slot"})
-        expect(tx_decoded['validity_interval']['invalid_hereafter']['quantity']).to be > 0
-        expect(tx_decoded['collateral']).to eq []
-        expect(tx_decoded['collateral_outputs']).to eq []
-        expect(tx_decoded['metadata']).to eq metadata
-        expect(tx_decoded['deposits_taken']).to eq []
-        expect(tx_decoded['deposits_returned']).to eq []
-        expect(tx_decoded['withdrawals']).to eq []
-        expect(tx_decoded['mint']).to eq ({"tokens"=>[]})
-        expect(tx_decoded['burn']).to eq ({"tokens"=>[]})
-        expect(tx_decoded['certificates']).to eq []
+        verify_ada_balance(src_after, src_before,
+                           target_after, target_before,
+                           amt_ada, expected_fee)
 
-        tx_signed = SHARED.transactions.sign(@wid_sha, PASS, tx_constructed["transaction"])
-        expect(tx_signed).to be_correct_and_respond 202
-
-        # ADP-2221 [SharedWallets] FeeTooSmallUTxO when submitting transaction from Shared wallet
-        # tx_submitted = SHARED.transactions.submit(@wid_sha, tx_signed["transaction"])
-        # expect(tx_submitted).to be_correct_and_respond 202
+        verify_asset_balance(src_after, src_before,
+                             target_after, target_before,
+                             amt)
+        # tx history
+        # TODO ADP-2224: check tx history on src wallet
+        # on target wallet
+        txt = SHELLEY.transactions.get(@target_id, tx_id)
+        expect(txt['amount']['quantity']).to eq amt_ada
+        expect(txt['inputs']).not_to eq []
+        expect(txt['outputs']).not_to eq []
+        expect(txt['script_validity']).to eq 'valid'
+        expect(txt['status']).to eq 'in_ledger'
+        expect(txt['collateral']).to eq []
+        expect(txt['collateral_outputs']).to eq []
+        expect(txt['metadata']).to eq nil
+        expect(txt['deposit_taken']).to eq({"quantity" => 0,"unit" => "lovelace"})
+        expect(txt['deposit_returned']).to eq({"quantity" => 0,"unit" => "lovelace"})
+        expect(txt['withdrawals']).to eq []
       end
 
       it "Validity intervals" do
@@ -1969,11 +2022,92 @@ RSpec.describe "Cardano Wallet E2E tests", :all, :e2e do
         expect(tx_signed).to be_correct_and_respond 202
 
         # ADP-2221 [SharedWallets] FeeTooSmallUTxO when submitting transaction from Shared wallet
-        # tx_submitted = SHARED.transactions.submit(@wid_sha, tx_signed["transaction"])
-        # expect(tx_submitted).to be_correct_and_respond 202
+        tx_submitted = SHARED.transactions.submit(@wid_sha, tx_signed["transaction"])
+        expect(tx_submitted).to be_correct_and_respond 202
+
+        tx_id = tx_submitted['id']
+        # TODO ADP-2224: change to wait_for_tx_in_ledger(@wid_sha, tx_id)
+        eventually "Funds are on target wallet: #{@target_id}" do
+          available = SHELLEY.wallets.get(@target_id)['balance']['available']['quantity']
+          total = SHELLEY.wallets.get(@target_id)['balance']['total']['quantity']
+          (available == amt + target_before['available']) &&
+          (total == amt + target_before['total'])
+        end
+
+        target_after = get_shelley_balances(@target_id)
+        src_after = get_shared_balances(@wid_sha)
+
+        verify_ada_balance(src_after, src_before,
+                           target_after, target_before,
+                           amt, expected_fee)
+        # tx history
+        # TODO ADP-2224: check tx history on src wallet
+        # on target wallet
+        txt = SHELLEY.transactions.get(@target_id, tx_id)
+        expect(txt['amount']['quantity']).to eq amt
+        expect(txt['inputs']).not_to eq []
+        expect(txt['outputs']).not_to eq []
+        expect(txt['script_validity']).to eq 'valid'
+        expect(txt['status']).to eq 'in_ledger'
+        expect(txt['collateral']).to eq []
+        expect(txt['collateral_outputs']).to eq []
+        expect(txt['metadata']).to eq nil
+        expect(txt['deposit_taken']).to eq({"quantity" => 0,"unit" => "lovelace"})
+        expect(txt['deposit_returned']).to eq({"quantity" => 0,"unit" => "lovelace"})
+        expect(txt['withdrawals']).to eq []
       end
 
-      it "Delegation" do
+      it "Only metadata (without submitting)" do
+        # We can submit such tx, but cannot tell when tx is actually in ledger
+        # (as we cannot get tx history (ADP-2224))
+        metadata = METADATA
+        balance = get_shared_balances(@wid_sha)
+        tx_constructed = SHARED.transactions.construct(@wid_sha,
+                                                        payments = nil,
+                                                        withdrawal = nil,
+                                                        metadata)
+        expect(tx_constructed).to be_correct_and_respond 202
+        expected_fee = tx_constructed['fee']['quantity']
+
+        # Can be decoded
+        tx_decoded = SHARED.transactions.decode(@wid_sha, tx_constructed["transaction"])
+        expect(tx_decoded).to be_correct_and_respond 202
+
+        expect(tx_decoded['id'].size).to be 64
+        decoded_fee = tx_decoded['fee']['quantity']
+        expect(expected_fee).to eq decoded_fee
+        # inputs are ours
+        expect(tx_decoded['inputs'].to_s).to include 'address'
+        expect(tx_decoded['inputs'].to_s).to include 'amount'
+        expect(tx_decoded['outputs']).not_to eq []
+        expect(tx_decoded['script_validity']).to eq 'valid'
+        expect(tx_decoded['validity_interval']['invalid_before']).to eq ({"quantity"=>0,"unit"=>"slot"})
+        expect(tx_decoded['validity_interval']['invalid_hereafter']['quantity']).to be > 0
+        expect(tx_decoded['collateral']).to eq []
+        expect(tx_decoded['collateral_outputs']).to eq []
+        expect(tx_decoded['metadata']).to eq metadata
+        expect(tx_decoded['deposits_taken']).to eq []
+        expect(tx_decoded['deposits_returned']).to eq []
+        expect(tx_decoded['withdrawals']).to eq []
+        expect(tx_decoded['mint']).to eq ({"tokens"=>[]})
+        expect(tx_decoded['burn']).to eq ({"tokens"=>[]})
+        expect(tx_decoded['certificates']).to eq []
+
+        tx_signed = SHARED.transactions.sign(@wid_sha, PASS, tx_constructed["transaction"])
+        expect(tx_signed).to be_correct_and_respond 202
+
+        # TODO ADP-2224: cannot tell when tx is actually in ledger, so this needs
+        # to be commented for now, because of potential race conditions with subsequent tests
+        # tx_submitted = SHARED.transactions.submit(@wid_sha, tx_signed["transaction"])
+        # expect(tx_submitted).to be_correct_and_respond 202
+        # tx_id = tx_submitted['id']
+
+        # TODO ADP-2224: change to wait_for_tx_in_ledger(@wid_sha, tx_id)
+        # TODO ADP-2224: check tx history on src wallet and metadata is there
+      end
+
+      it "Delegation (without submitting)" do
+        # Delegation not yet implemented, only construct and sign in this tc
         balance = get_shared_balances(@wid_sha)
         expected_deposit = CARDANO_CLI.get_protocol_params['stakeAddressDeposit']
         puts "Expected deposit #{expected_deposit}"
@@ -2028,15 +2162,11 @@ RSpec.describe "Cardano Wallet E2E tests", :all, :e2e do
 
         tx_signed = SHARED.transactions.sign(@wid_sha, PASS, tx_constructed["transaction"])
         expect(tx_signed).to be_correct_and_respond 202
-
-        # ADP-2221 [SharedWallets] FeeTooSmallUTxO when submitting transaction from Shared wallet
-        # tx_submitted = SHARED.transactions.submit(@wid_sha, tx_signed["transaction"])
-        # expect(tx_submitted).to be_correct_and_respond 202
       end
 
       describe "Minting and Burning" do
-
-        it "Can mint and then burn" do
+        it "Can mint and then burn (without submitting)" do
+          # Minting and Burning not yet implemented, only construct and sign in this tc
           src_before = get_shared_balances(@wid_sha)
           policy_script1 = 'cosigner#0'
           policy_script2 = { "all" => [ "cosigner#0" ] }
@@ -2081,10 +2211,6 @@ RSpec.describe "Cardano Wallet E2E tests", :all, :e2e do
 
           tx_signed = SHARED.transactions.sign(@wid_sha, PASS, tx_constructed["transaction"])
           expect(tx_signed).to be_correct_and_respond 202
-
-          # ADP-2221 [SharedWallets] FeeTooSmallUTxO when submitting transaction from Shared wallet
-          # tx_submitted = SHARED.transactions.submit(@wid_sha, tx_signed["transaction"])
-          # expect(tx_submitted).to be_correct_and_respond 202
         end
       end
     end

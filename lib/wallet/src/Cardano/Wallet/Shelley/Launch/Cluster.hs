@@ -2509,4 +2509,3 @@ instance HasSeverityAnnotation ClusterLog where
 
 bracketTracer' :: Tracer IO ClusterLog -> Text -> IO a -> IO a
 bracketTracer' tr name = bracketTracer (contramap (MsgBracket name) tr)
-
