@@ -1,5 +1,5 @@
+{-# LANGUAGE GADTs #-}
 {-# LANGUAGE LambdaCase #-}
-{-# LANGUAGE TypeFamilies #-}
 
 -- |
 -- Copyright: © 2020 IOHK
