@@ -2,6 +2,7 @@
 {-# LANGUAGE FlexibleContexts #-}
 {-# LANGUAGE RankNTypes #-}
 {-# LANGUAGE RecordWildCards #-}
+{-# LANGUAGE NamedFieldPuns #-}
 {-# LANGUAGE ScopedTypeVariables #-}
 {-# LANGUAGE TypeApplications #-}
 {-# LANGUAGE TypeFamilies #-}
@@ -39,7 +40,8 @@ import Servant.Server
 
 import qualified Cardano.Wallet as W
 
--- | Compute a function to promote a certificate to its API type
+-- | Promote certificates of a transaction to API type,
+-- using additional context from the 'WorkerCtx'.
 getApiAnyCertificates
     :: forall ctx s k n.
         ( ctx ~ ApiLayer s k 'CredFromKeyK
@@ -50,7 +52,7 @@ getApiAnyCertificates
     -> WalletId
     -> ParsedTxCBOR
     -> Handler [ApiAnyCertificate n]
-getApiAnyCertificates wrk wid ParsedTxCBOR{..} = do
+getApiAnyCertificates wrk wid ParsedTxCBOR{certificates} = do
     (acct, _, acctPath) <-
         liftHandler $ W.readRewardAccount @_ @s @k @n wrk wid
     pure $ mkApiAnyCertificate acct acctPath <$> certificates

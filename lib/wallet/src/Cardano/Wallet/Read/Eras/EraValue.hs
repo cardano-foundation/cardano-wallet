@@ -20,11 +20,12 @@
 --
 
 module Cardano.Wallet.Read.Eras.EraValue
-  ( -- * Era bounded values.
-  EraValue (..)
+  ( -- * Era bounded values
+    EraValue (..)
   , eraValueSerialize
   , extractEraValue
-  -- * Era specific prisms.
+
+  -- * Era specific prisms
   , MkEraValue (..)
   , byron
   , shelley
@@ -34,10 +35,12 @@ module Cardano.Wallet.Read.Eras.EraValue
   , babbage
   , inject
   , project
-  -- * Specials.
+
+  -- * Specials
   , sequenceEraValue
   , witnessEra
-  -- *Internals.
+
+  -- * Internals
   , cardanoEras
   )
   where
@@ -116,15 +119,12 @@ witnessEra (EraValue v) = EraValue $ ap_NS
 extractEraValue :: EraValue (K a) -> a
 extractEraValue (EraValue v) = collapse_NS v
 
--- support for serializing
 indexEraValue :: EraValue f -> Int
 indexEraValue (EraValue v) = index_NS v
 
 -- | Sequence one applicative functor level out.
 sequenceEraValue :: Applicative f => EraValue (f :.: g) -> f (EraValue g)
 sequenceEraValue (EraValue v) = EraValue <$> sequence'_NS v
-
---- era dependent api
 
 -- | A prism for one era that can project `f era` into `EraValue f`
 -- it's a prism because extracting the `f era` is potentially impossible
@@ -166,8 +166,9 @@ inject (MkEraValue p) = build p
 project :: MkEraValue f era -> EraValue f -> Maybe (f era)
 project (MkEraValue p) = eitherToMaybe . match p
 
--- serialization
-
+{-----------------------------------------------------------------------------
+    Serialization
+------------------------------------------------------------------------------}
 parseEraValue
   :: forall a n
   . (Eq n, Num n)

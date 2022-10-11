@@ -10,8 +10,9 @@
 --
 
 module Cardano.Wallet.Read.Primitive.Tx.Alonzo
-    (fromAlonzoTx)
- where
+    ( fromAlonzoTx
+    )
+    where
 
 import Prelude
 

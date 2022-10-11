@@ -49,9 +49,7 @@ import Generics.SOP.NS
 toInAnyCardanoEra :: EraValue f -> InAnyCardanoEra f
 toInAnyCardanoEra (EraValue f) =
     fst . build eraValueSerialize . EraValue . ap_NS existentials $ f
-
   where
-
     cardanoEras :: NP CardanoEra KnownEras
     cardanoEras =
         ByronEra

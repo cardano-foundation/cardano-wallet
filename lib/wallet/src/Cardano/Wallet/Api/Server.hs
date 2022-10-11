@@ -1967,7 +1967,8 @@ postTransactionOld
         , Typeable s
         , WalletKey k
         , AddressBookIso s
-        , BoundedAddressLength k, HasDelegation s)
+        , BoundedAddressLength k
+        , HasDelegation s)
     => ctx
     -> ArgGenChange s
     -> ApiT WalletId
@@ -2060,8 +2061,12 @@ deleteTransaction ctx (ApiT wid) (ApiTxId (ApiT (tid))) = do
     return NoContent
 
 listTransactions
-    :: forall ctx s k n
-    . (Typeable s, Typeable n, ctx ~ ApiLayer s k 'CredFromKeyK, HasDelegation s)
+    :: forall ctx s k n.
+        ( Typeable s
+        , Typeable n
+        , ctx ~ ApiLayer s k 'CredFromKeyK
+        , HasDelegation s
+        )
     => ctx
     -> ApiT WalletId
     -> Maybe MinWithdrawal
@@ -2093,8 +2098,12 @@ listTransactions
     defaultSortOrder = Descending
 
 getTransaction
-    :: forall ctx s k n
-    . (Typeable s, Typeable n, ctx ~ ApiLayer s k 'CredFromKeyK, HasDelegation s)
+    :: forall ctx s k n.
+        ( Typeable s
+        , Typeable n
+        , ctx ~ ApiLayer s k 'CredFromKeyK
+        , HasDelegation s
+        )
     => ctx
     -> ApiT WalletId
     -> ApiTxId
@@ -4080,12 +4089,13 @@ mkApiTransaction timeInterpreter wrk wid setTimeReference tx = do
                 \transactions with slots in the past" timeInterpreter)
             (tx ^. (#txMeta . #slotNo))
             (natural (tx ^. (#txMeta . #blockHeight)))
-    expRef <- liftIO $ traverse makeApiSlotReference' (tx ^. (#txMeta . #expiry))
+    expRef <- liftIO $
+        traverse makeApiSlotReference' (tx ^. (#txMeta . #expiry))
 
     parsedValues <- traverse parseTxCBOR $ tx ^. #txCBOR
     parsedCertificates <- if hasDelegation  (Proxy @s)
-            then traverse (getApiAnyCertificates wrk wid) parsedValues
-            else pure Nothing
+        then traverse (getApiAnyCertificates wrk wid) parsedValues
+        else pure Nothing
 
     return $
         apiTx

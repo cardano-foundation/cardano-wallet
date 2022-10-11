@@ -7,8 +7,7 @@
 --
 
 module Cardano.Wallet.Read.Primitive.Tx.Byron
-    (
-    fromTxAux
+    ( fromTxAux
     , fromTxIn
     , fromTxOut
     )

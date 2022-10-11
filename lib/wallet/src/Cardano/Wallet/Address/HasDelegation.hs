@@ -7,10 +7,10 @@
 -- Copyright: © 2018-2020 IOHK
 -- License: Apache-2.0
 --
-
+-- Type class that discriminates whether an
+-- address state supports delegation.
 module Cardano.Wallet.Address.HasDelegation
-    (
-    HasDelegation(..)
+    ( HasDelegation (..)
     ) where
 
 import Prelude
@@ -24,9 +24,9 @@ import Cardano.Wallet.Primitive.AddressDiscovery.Random
 import Cardano.Wallet.Primitive.AddressDiscovery.Sequential
     ( SeqState )
 
--- | Discriminate if a particular state supports delegation
+-- | Discriminate whether an address state supports delegation.
 class HasDelegation s where
-    hasDelegation :: p s -> Bool
+    hasDelegation :: proxy s -> Bool
 
 instance HasDelegation (SeqState n ShelleyKey) where
     hasDelegation _ = True

@@ -203,7 +203,6 @@ library
     , yaml
 
   exposed-modules:
-
     Cardano.Api.Extra
     Cardano.Api.Gen
     Cardano.Byron.Codec.Cbor

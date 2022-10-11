@@ -14,7 +14,7 @@
 -- Copyright: © 2020-2022 IOHK
 -- License: Apache-2.0
 --
--- CBOR operations for eras dependent transactions.
+-- CBOR operations for era dependent transactions.
 --
 
 module Cardano.Wallet.Read.Tx.CBOR

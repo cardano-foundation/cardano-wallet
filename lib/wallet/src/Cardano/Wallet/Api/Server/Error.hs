@@ -11,7 +11,6 @@
 --
 -- 'IsServerError' definition along with most instances
 --
-
 module Cardano.Wallet.Api.Server.Error
   ( IsServerError (..)
   , liftHandler
