@@ -1963,8 +1963,7 @@ estimateTxSize era skeleton =
 
         -- ?8 => uint ; validity interval start
         sizeOf_ValidityIntervalStart
-            = sizeOf_SmallUInt
-            + sizeOf_UInt
+            = sizeOf_UInt
 
         -- ?9 => mint = multiasset<int64>
         -- mint = multiasset<int64>
