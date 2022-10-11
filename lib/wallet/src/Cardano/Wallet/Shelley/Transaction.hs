@@ -2148,9 +2148,9 @@ estimateTxSize era skeleton =
     determinePaymentTemplateSize [] scriptCosigner
         = sizeOf_Array
         + sizeOf_SmallUInt
-        + sizeOf_NativeScript scriptCosigner
+        + numberOf_Inputs * (sizeOf_NativeScript scriptCosigner)
     determinePaymentTemplateSize _ scriptCosigner
-        = sizeOf_NativeScript scriptCosigner
+        = numberOf_Inputs * (sizeOf_NativeScript scriptCosigner)
 
     -- transaction_witness_set =
     --   { ?0 => [* vkeywitness ]
