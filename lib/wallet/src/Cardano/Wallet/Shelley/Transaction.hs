@@ -1825,9 +1825,11 @@ estimateTxSize era skeleton =
         = if txRewardWithdrawal > Coin 0 then 1 else 0
 
     -- Total number of signatures the scripts require
-    numberOf_ScriptVkeyWitnesses
+    numberOf_MintingWitnesses
         = sumVia scriptRequiredKeySigs txMintOrBurnScripts
-        + maybe 0 scriptRequiredKeySigs txPaymentTemplate
+
+    numberOf_ScriptVkeyWitnesses
+        = maybe 0 scriptRequiredKeySigs txPaymentTemplate
 
     scriptRequiredKeySigs :: Num num => Script object -> num
     scriptRequiredKeySigs = \case
@@ -1850,10 +1852,16 @@ estimateTxSize era skeleton =
         = case txWitnessTag of
             TxWitnessByronUTxO{} -> 0
             TxWitnessShelleyUTxO ->
-                numberOf_Inputs
-                + numberOf_Withdrawals
-                + numberOf_CertificateSignatures
-                + numberOf_ScriptVkeyWitnesses
+                if numberOf_ScriptVkeyWitnesses == 0 then
+                    numberOf_Inputs
+                    + numberOf_Withdrawals
+                    + numberOf_CertificateSignatures
+                    + numberOf_MintingWitnesses
+                else
+                    (numberOf_Inputs * numberOf_ScriptVkeyWitnesses)
+                    + numberOf_Withdrawals
+                    + numberOf_CertificateSignatures
+                    + numberOf_MintingWitnesses
 
     numberOf_BootstrapWitnesses
         = case txWitnessTag of
@@ -1955,7 +1963,8 @@ estimateTxSize era skeleton =
 
         -- ?8 => uint ; validity interval start
         sizeOf_ValidityIntervalStart
-            = sizeOf_UInt
+            = sizeOf_SmallUInt
+            + sizeOf_UInt
 
         -- ?9 => mint = multiasset<int64>
         -- mint = multiasset<int64>
@@ -2128,7 +2137,6 @@ estimateTxSize era skeleton =
     sizeOf_Withdrawal
         = sizeOf_Hash28
         + sizeOf_LargeUInt
-
 
     -- [* native_script ]
     sizeOf_NativeScripts []
