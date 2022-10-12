@@ -16,7 +16,10 @@ module Cardano.Wallet.Api.Types.MintBurn
     , ApiTokenAmountFingerprint (..)
     , ApiTokens (..)
     , noApiAsset
-    , toApiTokens, includePolicyKeyInfo, policyIx)
+    , toApiTokens
+    , includePolicyKeyInfo
+    , policyIx
+    )
     where
 
 import Prelude

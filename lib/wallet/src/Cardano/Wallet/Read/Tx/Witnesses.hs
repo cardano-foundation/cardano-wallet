@@ -47,13 +47,13 @@ import qualified Cardano.Ledger.Alonzo.TxWitness as AL
 import qualified Cardano.Ledger.Shelley.API as SH
 
 type family WitnessesType era where
-  WitnessesType ByronEra = ()
-  WitnessesType ShelleyEra = ()
-  WitnessesType AllegraEra = ()
-  WitnessesType MaryEra = WitnessSetHKD Identity
-                         (ShelleyMAEra 'Mary StandardCrypto)
-  WitnessesType AlonzoEra = AL.TxWitness StandardAlonzo
-  WitnessesType BabbageEra = AL.TxWitness StandardBabbage
+    WitnessesType ByronEra = ()
+    WitnessesType ShelleyEra = ()
+    WitnessesType AllegraEra = ()
+    WitnessesType MaryEra =
+        WitnessSetHKD Identity (ShelleyMAEra 'Mary StandardCrypto)
+    WitnessesType AlonzoEra = AL.TxWitness StandardAlonzo
+    WitnessesType BabbageEra = AL.TxWitness StandardBabbage
 
 newtype Witnesses era = Witnesses (WitnessesType era)
 

@@ -40,6 +40,8 @@ import Cardano.Wallet.Api.Types.Address
     ( DecodeAddress, DecodeStakeAddress, EncodeAddress, EncodeStakeAddress )
 import Cardano.Wallet.Api.Types.Certificate
     ( ApiAnyCertificate )
+import Cardano.Wallet.Api.Types.MintBurn
+    ( ApiAssetMintBurn )
 import Cardano.Wallet.Api.Types.Primitive
     ()
 import Cardano.Wallet.Primitive.AddressDerivation
@@ -91,8 +93,6 @@ import Numeric.Natural
 import Quiet
     ( Quiet (Quiet) )
 
-import Cardano.Wallet.Api.Types.MintBurn
-    ( ApiAssetMintBurn )
 import qualified Cardano.Wallet.Primitive.Types.RewardAccount as W
 import qualified Cardano.Wallet.Primitive.Types.TokenMap as W
 import qualified Data.Aeson.Types as Aeson
