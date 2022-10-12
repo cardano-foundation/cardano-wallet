@@ -7,8 +7,7 @@
 --
 
 module Cardano.Wallet.Read.Primitive.Tx.Byron
-    (
-    fromTxAux
+    ( fromTxAux
     , fromTxIn
     , fromTxOut
     )
@@ -43,7 +42,7 @@ import qualified Data.List.NonEmpty as NE
 fromTxAux :: ATxAux a -> W.Tx
 fromTxAux txAux = case taTx txAux of
     UnsafeTx inputs outputs _attributes -> W.Tx
-        { txId = byronTxHash txAux
+        { txId = W.Hash $ byronTxHash txAux
 
         , txCBOR = Just $ renderTxToCBOR $ inject byron $ Tx $ () <$ txAux
 

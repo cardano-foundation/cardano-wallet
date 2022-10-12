@@ -16,6 +16,7 @@ module Cardano.Wallet.Read.Tx.Hash
     , alonzoTxHash
     , shelleyTxHash
     , fromShelleyTxId
+    , getEraTxHash
     )
     where
 
@@ -33,6 +34,12 @@ import Cardano.Ledger.Era
     ( Era (..) )
 import Cardano.Ledger.Shelley.TxBody
     ( EraIndependentTxBody )
+import Cardano.Wallet.Read
+    ( Tx )
+import Cardano.Wallet.Read.Eras
+    ( EraFun (..), K (..) )
+import Cardano.Wallet.Read.Tx.Eras
+    ( onTx )
 
 import qualified Cardano.Crypto as CryptoC
 import qualified Cardano.Crypto.Hash as Crypto
@@ -45,10 +52,19 @@ import qualified Cardano.Ledger.SafeHash as SafeHash
 import qualified Cardano.Ledger.Shelley.API as SL
 import qualified Cardano.Ledger.ShelleyMA as MA
 import qualified Cardano.Ledger.TxIn as TxIn
-import qualified Cardano.Wallet.Primitive.Types.Hash as W
 
-byronTxHash :: ATxAux a -> W.Hash tag
-byronTxHash = W.Hash . CryptoC.hashToBytes . serializeCborHash . taTx
+getEraTxHash :: EraFun Tx (K Crypto.ByteString)
+getEraTxHash = EraFun
+    { byronFun = onTx $ K . byronTxHash
+    , shelleyFun = onTx $ K . shelleyTxHash
+    , allegraFun = onTx $ K . shelleyTxHash
+    , maryFun = onTx $ K . shelleyTxHash
+    , alonzoFun = onTx $ K . alonzoTxHash
+    , babbageFun = onTx $ K . alonzoTxHash
+    }
+
+byronTxHash :: ATxAux a -> Crypto.ByteString
+byronTxHash = CryptoC.hashToBytes . serializeCborHash . taTx
 
 alonzoTxHash
     :: ( Crypto.HashAlgorithm (SL.HASH crypto)
@@ -57,7 +73,7 @@ alonzoTxHash
              EraIndependentTxBody
              crypto)
     => Babbage.ValidatedTx era
-    -> W.Hash "Tx"
+    -> Crypto.ByteString
 alonzoTxHash (Alonzo.ValidatedTx bod _ _ _) = fromShelleyTxId $ TxIn.txid bod
 
 shelleyTxHash
@@ -66,10 +82,10 @@ shelleyTxHash
        , ToCBOR (SL.Core.TxBody x)
        , ToCBOR (SL.Core.Witnesses x))
     => MA.Tx x
-    -> W.Hash "Tx"
+    -> Crypto.ByteString
 shelleyTxHash
     (SL.Tx bod _ _) = fromShelleyTxId $ TxIn.txid bod
 
-fromShelleyTxId :: SL.TxId crypto -> W.Hash "Tx"
+fromShelleyTxId :: SL.TxId crypto -> Crypto.ByteString
 fromShelleyTxId (SL.TxId h) =
-    W.Hash $ Crypto.hashToBytes $ SafeHash.extractHash h
+    Crypto.hashToBytes $ SafeHash.extractHash h

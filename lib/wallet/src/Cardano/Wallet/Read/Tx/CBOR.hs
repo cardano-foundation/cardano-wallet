@@ -1,19 +1,15 @@
-{-# LANGUAGE ExistentialQuantification #-}
 {-# LANGUAGE FlexibleContexts #-}
 {-# LANGUAGE FlexibleInstances #-}
-{-# LANGUAGE QuantifiedConstraints #-}
-{-# LANGUAGE RankNTypes #-}
 {-# LANGUAGE ScopedTypeVariables #-}
-{-# LANGUAGE TypeFamilies #-}
 {-# LANGUAGE TypeOperators #-}
-{-# LANGUAGE UndecidableInstances #-}
 
 {-# OPTIONS_GHC -Wno-orphans #-}
+
 -- |
 -- Copyright: © 2020-2022 IOHK
 -- License: Apache-2.0
 --
--- CBOR for transaction in specific eras.
+-- CBOR operations for era dependent transactions.
 --
 
 module Cardano.Wallet.Read.Tx.CBOR

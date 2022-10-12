@@ -8,10 +8,11 @@
 -- Copyright: © 2020 IOHK
 -- License: Apache-2.0
 --
--- Conversion functions and static chain settings for Shelley.
+
 module Cardano.Wallet.Read.Primitive.Tx.Alonzo
-    (alonzoTxHash, fromAlonzoTx)
- where
+    ( fromAlonzoTx
+    )
+    where
 
 import Prelude
 
@@ -21,19 +22,18 @@ import Cardano.Api
     ( AlonzoEra )
 import Cardano.Ledger.Era
     ( Era (..) )
-import Cardano.Ledger.Shelley.TxBody
-    ( EraIndependentTxBody )
 import Cardano.Wallet.Primitive.Types.TokenPolicy
     ( TokenPolicyId )
 import Cardano.Wallet.Read.Eras
     ( alonzo, inject )
 import Cardano.Wallet.Read.Primitive.Tx.Allegra
     ( fromLedgerTxValidity )
+import Cardano.Wallet.Read.Primitive.Tx.Features.Certificates
+    ( anyEraCerts )
 import Cardano.Wallet.Read.Primitive.Tx.Mary
     ( fromCardanoValue, fromLedgerMintValue, getScriptMap )
 import Cardano.Wallet.Read.Primitive.Tx.Shelley
     ( fromShelleyAddress
-    , fromShelleyCert
     , fromShelleyCoin
     , fromShelleyMD
     , fromShelleyTxIn
@@ -44,7 +44,7 @@ import Cardano.Wallet.Read.Tx
 import Cardano.Wallet.Read.Tx.CBOR
     ( renderTxToCBOR )
 import Cardano.Wallet.Read.Tx.Hash
-    ( fromShelleyTxId )
+    ( alonzoTxHash )
 import Cardano.Wallet.Shelley.Compatibility.Ledger
     ( toWalletScript, toWalletTokenPolicyId )
 import Cardano.Wallet.Transaction
@@ -62,37 +62,21 @@ import Ouroboros.Consensus.Cardano.Block
     ( StandardAlonzo )
 
 import qualified Cardano.Api.Shelley as Cardano
-import qualified Cardano.Crypto.Hash as Crypto
 import qualified Cardano.Ledger.Alonzo as Alonzo
 import qualified Cardano.Ledger.Alonzo.Data as Alonzo
 import qualified Cardano.Ledger.Alonzo.Language as Alonzo
 import qualified Cardano.Ledger.Alonzo.Scripts as Alonzo
 import qualified Cardano.Ledger.Alonzo.Tx as Alonzo
 import qualified Cardano.Ledger.Alonzo.TxBody as Alonzo
-import qualified Cardano.Ledger.Babbage.Tx as Babbage hiding
-    ( ScriptIntegrityHash, TxBody )
 import qualified Cardano.Ledger.BaseTypes as SL
 import qualified Cardano.Ledger.Core as SL.Core
-import qualified Cardano.Ledger.Crypto as SL
 import qualified Cardano.Ledger.Mary.Value as SL
-import qualified Cardano.Ledger.SafeHash as SafeHash
 import qualified Cardano.Ledger.Shelley.API as SL
-import qualified Cardano.Ledger.TxIn as TxIn
 import qualified Cardano.Wallet.Primitive.Types as W
 import qualified Cardano.Wallet.Primitive.Types.Coin as W
 import qualified Cardano.Wallet.Primitive.Types.Hash as W
 import qualified Cardano.Wallet.Primitive.Types.Tx as W
 import qualified Data.Map.Strict as Map
-
-alonzoTxHash
-    :: ( Crypto.HashAlgorithm (SL.HASH crypto)
-       , SafeHash.HashAnnotated
-             (SL.Core.TxBody era)
-             EraIndependentTxBody
-             crypto)
-    => Babbage.ValidatedTx era
-    -> W.Hash "Tx"
-alonzoTxHash (Alonzo.ValidatedTx bod _ _ _) = fromShelleyTxId $ TxIn.txid bod
 
 fromAlonzoTx
     :: Alonzo.ValidatedTx (Cardano.ShelleyLedgerEra AlonzoEra)
@@ -105,7 +89,7 @@ fromAlonzoTx
 fromAlonzoTx tx@(Alonzo.ValidatedTx bod wits (Alonzo.IsValid isValid) aux) =
     ( W.Tx
         { txId =
-            alonzoTxHash tx
+            W.Hash $ alonzoTxHash tx
         , txCBOR =
             Just $ renderTxToCBOR $ inject alonzo $ Tx tx
         , fee =
@@ -126,7 +110,7 @@ fromAlonzoTx tx@(Alonzo.ValidatedTx bod wits (Alonzo.IsValid isValid) aux) =
         , scriptValidity =
             validity
         }
-    , map fromShelleyCert (toList certs)
+    , anyEraCerts certs
     , TokenMapWithScripts assetsToMint mintScriptMap
     , TokenMapWithScripts assetsToBurn burnScriptMap
     , Just (fromLedgerTxValidity ttl)

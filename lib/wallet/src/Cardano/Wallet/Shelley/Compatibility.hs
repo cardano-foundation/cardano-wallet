@@ -1142,7 +1142,9 @@ fromCardanoTxIn
     :: Cardano.TxIn
     -> W.TxIn
 fromCardanoTxIn (Cardano.TxIn txid (Cardano.TxIx ix)) =
-    W.TxIn (fromShelleyTxId $ Cardano.toShelleyTxId txid) (fromIntegral ix)
+    W.TxIn
+        (W.Hash $ fromShelleyTxId $ Cardano.toShelleyTxId txid)
+        (fromIntegral ix)
 
 -- | WARNING: Datum hashes are lost in the conversion!
 fromCardanoTxOut :: IsCardanoEra era => Cardano.TxOut ctx era -> W.TxOut

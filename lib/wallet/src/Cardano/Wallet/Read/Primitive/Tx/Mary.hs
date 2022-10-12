@@ -7,10 +7,14 @@
 -- Copyright: © 2020 IOHK
 -- License: Apache-2.0
 --
--- Conversion functions and static chain settings for Shelley.
+
 module Cardano.Wallet.Read.Primitive.Tx.Mary
-    (fromMaryTx, getScriptMap, fromLedgerMintValue, fromCardanoValue)
- where
+    ( fromMaryTx
+    , getScriptMap
+    , fromLedgerMintValue
+    , fromCardanoValue
+    )
+    where
 
 import Prelude
 
@@ -28,9 +32,10 @@ import Cardano.Wallet.Read.Eras
     ( inject, mary )
 import Cardano.Wallet.Read.Primitive.Tx.Allegra
     ( fromLedgerTxValidity )
+import Cardano.Wallet.Read.Primitive.Tx.Features.Certificates
+    ( anyEraCerts )
 import Cardano.Wallet.Read.Primitive.Tx.Shelley
     ( fromShelleyAddress
-    , fromShelleyCert
     , fromShelleyCoin
     , fromShelleyMD
     , fromShelleyTxIn
@@ -99,7 +104,7 @@ fromMaryTx
 fromMaryTx tx =
     ( W.Tx
         { txId =
-            shelleyTxHash tx
+            W.Hash $ shelleyTxHash tx
         , txCBOR =
             Just $ renderTxToCBOR $ inject mary $ Tx tx
         , fee =
@@ -120,7 +125,7 @@ fromMaryTx tx =
         , scriptValidity =
             Nothing
         }
-    , map fromShelleyCert (toList certs)
+    , anyEraCerts certs
     , TokenMapWithScripts assetsToMint mintScriptMap
     , TokenMapWithScripts assetsToBurn burnScriptMap
     , Just (fromLedgerTxValidity ttl)

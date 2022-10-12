@@ -7,9 +7,12 @@
 -- Copyright: © 2020 IOHK
 -- License: Apache-2.0
 --
--- Conversion functions and static chain settings for Shelley.
+
 module Cardano.Wallet.Read.Primitive.Tx.Features.Certificates
-    (certificates, anyEraCerts, fromStakeCredential)
+    ( certificates
+    , anyEraCerts
+    , fromStakeCredential
+    )
  where
 
 import Prelude

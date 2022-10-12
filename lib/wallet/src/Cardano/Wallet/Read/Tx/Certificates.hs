@@ -13,7 +13,10 @@
 --
 
 module Cardano.Wallet.Read.Tx.Certificates
-    (CertificatesType, Certificates (..), getEraCertificates)
+    ( CertificatesType
+    , Certificates (..)
+    , getEraCertificates
+    )
     where
 
 import Prelude
