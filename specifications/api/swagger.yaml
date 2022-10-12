@@ -3754,7 +3754,9 @@ components:
         - title: List
           type: array
           items:
-            $ref: "#/components/schemas/TransactionMetadataValueNoSchema"
+            type: object
+            additionalProperties:
+              $ref: "#/components/schemas/TransactionMetadataValueNoSchema"
 
         - title: Map
           type: object
