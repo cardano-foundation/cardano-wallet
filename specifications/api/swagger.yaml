@@ -1,4 +1,4 @@
-openapi: 3.0.3
+openapi: 3.1.0
 info:
   title: Cardano Wallet Backend API
   version: v2022-12-14
@@ -25,7 +25,7 @@ servers:
 x-date: &date
   type: string
   format: iso-8601-date-and-time
-  example: 2019-02-27T14:46:45Z
+  example: "2019-02-27T14:46:45Z"
 
 x-slotNumber: &slotNumber
   type: integer
@@ -60,6 +60,17 @@ x-epochNumber: &epochNumber
 
 x-epochInfo: &epochInfo
   type: object
+  required:
+    - epoch_number
+    - epoch_start_time
+  properties:
+    epoch_number: *epochNumber
+    epoch_start_time: *date
+
+x-nullableEpochInfo: &nullableEpochInfo
+  type:
+    - object
+    - null
   required:
     - epoch_number
     - epoch_start_time
@@ -352,7 +363,6 @@ x-assetValueNode: &assetValueNode
     - {"asset1": 12, "asset2": 33}
 
 x-valueNode: &valueNode
-  nullable: false
   oneOf:
     - <<: *adaQuantity
       title: ada coin
@@ -413,7 +423,6 @@ x-self: &self
     - self
 
 x-accountPubkeyOrSelf: &accountPubkeyOrSelf
-  nullable: false
   oneOf:
     - <<: *sharedWalletAccountXPubkey
       title: public key
@@ -712,7 +721,6 @@ x-scriptTemplateEntry: &scriptTemplateEntry
     template: *ScriptTemplateValue
 
 x-CredentialValue: &CredentialValue
-  nullable: false
   oneOf:
     - <<: *credentialPubKey
       title: public key
@@ -1703,9 +1711,10 @@ x-transactionMetadata: &transactionMetadata
   # with oneOf we get errors about the 2 schema being both valid
   # anyOf seems broken trying to find properties
   anyOf:
-    - type: object
+    - type:
+      - object
+      - null
       title: full
-      nullable: true
       additionalProperties:
             $ref: "#/components/schemas/TransactionMetadataValue"
       example:
@@ -1714,9 +1723,10 @@ x-transactionMetadata: &transactionMetadata
         2: { "bytes": "2512a00e9653fe49a44a5886202e24d77eeb998f" }
         3: { "list": [ { "int": 14 }, { "int": 42 }, { "string": "1337" } ] }
         4: { "map": [{ "k": { "string": "key" }, "v": { "string": "value" }}, { "k": { "int": 14 }, "v": { "int": 42 } }] }
-    - type: object
+    - type:
+      - object
+      - null
       title: simple
-      nullable: true
       additionalProperties:
             $ref: "#/components/schemas/TransactionMetadataValueNoSchema"
             example:
@@ -2031,8 +2041,9 @@ x-txScriptValidity: &txScriptValidity
     transaction was from an era that doesn't support phase-2 monetary policy
     scripts, or is a pending transaction (we don't know if validation passed or
     failed until the transaction hits the ledger).
-  nullable: true
-  type: string
+  type:
+    - string
+    - null
   enum:
     - valid
     - invalid
@@ -2055,7 +2066,6 @@ x-rationalAsNumber: &rationalAsNumber
   minimum: 0
 
 x-rational: &rational
-  nullable: false
   oneOf:
     - <<: *rationalAsNumber
       title: rational as number
@@ -2239,10 +2249,6 @@ components:
 
     ApiNetworkClock: &ApiNetworkClock
       <<: *networkInformationNtpStatus
-
-    nullableEpochInfo: &nullableEpochInfo
-      <<: *epochInfo
-      nullable: True
 
     ApiEraInfo: &ApiEraInfo
       type: object
@@ -2891,7 +2897,7 @@ components:
         status: not_delegating
         changes_at:
           epoch_number: 14
-          epoch_start_time: 2020-01-22T10:06:39.037Z
+          epoch_start_time: "2020-01-22T10:06:39.037Z"
 
     ApiWalletDelegation: &ApiWalletDelegation
       description: Delegation settings
@@ -3316,7 +3322,6 @@ components:
 
     ApiAddressData: &ApiAddressData
       type: object
-      nullable: false
       properties:
         payment: *ApiCredential
         stake:
@@ -3733,7 +3738,6 @@ components:
               type: array
               items:
                 type: object
-                nullable: true
                 properties:
                   k:
                     $ref: "#/components/schemas/TransactionMetadataValue"
