@@ -26,7 +26,6 @@ module Cardano.Wallet.Gen
     , genScript
     , genScriptCosigners
     , genScriptTemplate
-    , genScriptTemplateEntry
     , genMockXPub
     , genNatural
     ) where
@@ -45,8 +44,6 @@ import Cardano.Api
     )
 import Cardano.Mnemonic
     ( ConsistentEntropy, EntropySize, Mnemonic, entropyToMnemonic )
-import Cardano.Wallet.Api.Types
-    ( ApiScriptTemplateEntry (..), XPubOrSelf (..) )
 import Cardano.Wallet.Primitive.AddressDiscovery.Shared
     ( retrieveAllCosigners )
 import Cardano.Wallet.Primitive.Types
@@ -346,20 +343,9 @@ genScriptTemplate = do
     xpubs <- vectorOf (length cosignersSubset) genMockXPub
     pure $ ScriptTemplate (Map.fromList $ zip cosignersSubset xpubs) script
 
-genScriptTemplateEntry :: Gen ApiScriptTemplateEntry
-genScriptTemplateEntry = do
-    script <- genScriptCosigners `suchThat` (not . null . retrieveAllCosigners)
-    let scriptCosigners = retrieveAllCosigners script
-    cosignersSubset <- sublistOf scriptCosigners `suchThat` (not . null)
-    xpubsOrSelf <- vectorOf (length cosignersSubset) genXPubOrSelf
-    pure $ ApiScriptTemplateEntry (Map.fromList $ zip cosignersSubset xpubsOrSelf) script
-
 genMockXPub :: Gen XPub
 genMockXPub = fromMaybe impossible . xpubFromBytes . BS.pack <$> genBytes
   where
     genBytes = vectorOf 64 arbitrary
     impossible = error "incorrect length in genMockXPub"
 
-genXPubOrSelf :: Gen XPubOrSelf
-genXPubOrSelf =
-    oneof [SomeAccountKey <$> genMockXPub, pure Self]

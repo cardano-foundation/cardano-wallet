@@ -695,7 +695,8 @@ decodePoolIdBech32 t =
         Right _ -> Left textDecodingError
       where
         textDecodingError = TextDecodingError $ unwords
-            [ "Invalid stake pool id: expecting a Bech32 encoded value with human readable part of 'pool'."
+            [ "Invalid stake pool id: expecting a Bech32 encoded value"
+            , "with human readable part of 'pool'."
             ]
 
 -- | A stake pool owner, which is a public key encoded in bech32 with prefix

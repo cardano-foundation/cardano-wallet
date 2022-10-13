@@ -15,7 +15,7 @@ import Cardano.BM.Trace
     ( nullTracer )
 import Cardano.Slotting.Slot
     ( EpochNo (..) )
-import Cardano.Wallet.Api.Server
+import Cardano.Wallet.Api.Http.Shelley.Server
     ( IsServerError (..)
     , Listen (..)
     , ListenError (..)

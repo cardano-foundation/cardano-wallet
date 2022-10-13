@@ -12,15 +12,9 @@ import Cardano.BM.Data.Severity
     ( Severity (..) )
 import Cardano.BM.Trace
     ( nullTracer, traceInTVarIO )
-import Cardano.Wallet.Network
-    ( NetworkLayer (..) )
-import Cardano.Wallet.Primitive.SyncProgress
-    ( SyncTolerance (..) )
-import Cardano.Wallet.Primitive.Types
-    ( NetworkParameters (..) )
-import Cardano.Wallet.Shelley.Launch
+import Cardano.Wallet.Launch
     ( CardanoNodeConn, withSystemTempDir )
-import Cardano.Wallet.Shelley.Launch.Cluster
+import Cardano.Wallet.Launch.Cluster
     ( ClusterEra (..)
     , ClusterLog (..)
     , LocalClusterConfig (..)
@@ -29,6 +23,12 @@ import Cardano.Wallet.Shelley.Launch.Cluster
     , defaultPoolConfigs
     , withCluster
     )
+import Cardano.Wallet.Network
+    ( NetworkLayer (..) )
+import Cardano.Wallet.Primitive.SyncProgress
+    ( SyncTolerance (..) )
+import Cardano.Wallet.Primitive.Types
+    ( NetworkParameters (..) )
 import Cardano.Wallet.Shelley.Network.Node
     ( Observer (..), ObserverLog (..), newObserver, withNetworkLayer )
 import Control.Monad

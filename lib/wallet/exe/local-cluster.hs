@@ -29,6 +29,21 @@ import Cardano.Startup
     ( installSignalHandlers, setDefaultFilePermissions, withUtf8Encoding )
 import Cardano.Wallet.Api.Types
     ( decodeAddress )
+import Cardano.Wallet.Launch
+    ( withSystemTempDir )
+import Cardano.Wallet.Launch.Cluster
+    ( ClusterLog (..)
+    , Credential (..)
+    , FaucetFunds (..)
+    , RunningNode (..)
+    , localClusterConfigFromEnv
+    , oneMillionAda
+    , testMinSeverityFromEnv
+    , tokenMetadataServerFromEnv
+    , walletListenFromEnv
+    , walletMinSeverityFromEnv
+    , withCluster
+    )
 import Cardano.Wallet.Logging
     ( stdoutTextTracer, trMessageText )
 import Cardano.Wallet.Primitive.AddressDerivation
@@ -45,21 +60,6 @@ import Cardano.Wallet.Shelley
     )
 import Cardano.Wallet.Shelley.BlockchainSource
     ( BlockchainSource (..) )
-import Cardano.Wallet.Shelley.Launch
-    ( withSystemTempDir )
-import Cardano.Wallet.Shelley.Launch.Cluster
-    ( ClusterLog (..)
-    , Credential (..)
-    , FaucetFunds (..)
-    , RunningNode (..)
-    , localClusterConfigFromEnv
-    , oneMillionAda
-    , testMinSeverityFromEnv
-    , tokenMetadataServerFromEnv
-    , walletListenFromEnv
-    , walletMinSeverityFromEnv
-    , withCluster
-    )
 import Control.Arrow
     ( first )
 import Control.Monad

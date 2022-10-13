@@ -37,15 +37,6 @@
 --
 -- since it relies on lots of configuration most most easily retrieved with nix.
 --
--- You can also connect to an already-running node using:
--- @
---      stack bench cardano-wallet:bench:restore
---          --ba 'mainnet -c $CONFIGURATION_DIR
---          --running-node $CARDANO_NODE_SOCKET_PATH
--- @
---
--- This makes iteration easy, but requires you to have the configuration
--- directory layout setup correctly, and to know how to start a node.
 
 module Main where
 
@@ -80,6 +71,8 @@ import Cardano.Wallet.DB
     ( DBLayer )
 import Cardano.Wallet.DB.Layer
     ( PersistAddressBook, withDBLayer )
+import Cardano.Wallet.Launch
+    ( CardanoNodeConn, NetworkConfiguration (..), parseGenesisData )
 import Cardano.Wallet.Logging
     ( trMessageText )
 import Cardano.Wallet.Network
@@ -152,15 +145,12 @@ import Cardano.Wallet.Shelley
     ( SomeNetworkDiscriminant (..) )
 import Cardano.Wallet.Shelley.Compatibility
     ( CardanoBlock
-    , HasNetworkId (..)
     , NodeToClientVersionData
     , StandardCrypto
     , emptyGenesis
     , fromCardanoBlock
     , numberOfTransactionsInBlock
     )
-import Cardano.Wallet.Shelley.Launch
-    ( CardanoNodeConn, NetworkConfiguration (..), parseGenesisData )
 import Cardano.Wallet.Shelley.Network.Node
     ( withNetworkLayer )
 import Cardano.Wallet.Shelley.Transaction
@@ -254,6 +244,8 @@ import qualified Cardano.Wallet.Primitive.AddressDerivation.Shelley as Shelley
 import qualified Cardano.Wallet.Primitive.Types.TokenBundle as TokenBundle
 import qualified Cardano.Wallet.Primitive.Types.UTxOIndex as UTxOIndex
 import qualified Cardano.Wallet.Primitive.Types.UTxOSelection as UTxOSelection
+import Cardano.Wallet.Shelley.Network.Discriminant
+    ( HasNetworkId (networkIdVal) )
 import qualified Data.Aeson as Aeson
 import qualified Data.ByteString as BS
 import qualified Data.ByteString.Char8 as B8

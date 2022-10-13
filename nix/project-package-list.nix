@@ -1,1 +1,1 @@
-[ "cardano-numeric" "cardano-wallet" "cardano-wallet-launcher" "cardano-wallet-test-utils" "dbvar" "strict-non-empty-containers" "text-class" ]
+[ "cardano-numeric" "cardano-wallet" "cardano-wallet-launcher" "cardano-wallet-test-utils" "dbvar" "strict-non-empty-containers" "text-class" "wai-middleware-logging" ]

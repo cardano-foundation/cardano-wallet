@@ -56,7 +56,7 @@ import Cardano.Wallet.Api.Types
     , ApiBytesT (..)
     , ApiConstructTransactionData
     , ApiMaintenanceActionPostData
-    , ApiPoolId
+    , ApiPoolSpecifier
     , ApiPostAccountKeyData
     , ApiPostAccountKeyDataWithPurpose
     , ApiPostPolicyIdData
@@ -172,13 +172,13 @@ instance Malformed (PathParam ApiTxId) where
       where
         msg = "Invalid tx hash: expecting a hex-encoded value that is 32 bytes in length."
 
-instance Wellformed (PathParam ApiPoolId) where
+instance Wellformed (PathParam ApiPoolSpecifier) where
     wellformed = PathParam <$>
         [ T.replicate 64 "0"
         , "pool1wqaz0q0zhtxlgn0ewssevn2mrtm30fgh2g7hr7z9rj5856457mm"
         ]
 
-instance Malformed (PathParam ApiPoolId) where
+instance Malformed (PathParam ApiPoolSpecifier) where
     malformed = first PathParam <$>
         [ (T.replicate 64 "ś", msg)
         , (T.replicate 63 "1", msg)

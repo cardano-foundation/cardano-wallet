@@ -1,5 +1,6 @@
 {-# LANGUAGE DeriveGeneric #-}
 {-# LANGUAGE DerivingStrategies #-}
+{-# LANGUAGE GeneralizedNewtypeDeriving #-}
 {-# LANGUAGE LambdaCase #-}
 {-# LANGUAGE NumericUnderscores #-}
 {-# LANGUAGE Rank2Types #-}
@@ -15,11 +16,11 @@
 
 module Cardano.Pool.Metadata
     (
-
     -- * Fetch
       fetchFromRemote
     , StakePoolMetadataFetchLog (..)
     , fetchDelistedPools
+    , HealthCheckSMASH(..)
     , healthCheck
     , isHealthyStatus
     , toHealthCheckSMASH
@@ -45,8 +46,6 @@ import Cardano.BM.Data.Severity
     ( Severity (..) )
 import Cardano.BM.Data.Tracer
     ( HasPrivacyAnnotation (..), HasSeverityAnnotation (..) )
-import Cardano.Wallet.Api.Types
-    ( HealthCheckSMASH (..), HealthStatusSMASH (..), defaultRecordTypeOptions )
 import Cardano.Wallet.Primitive.AddressDerivation
     ( hex )
 import Cardano.Wallet.Primitive.Types
@@ -68,13 +67,11 @@ import Crypto.Hash.Utils
     ( blake2b256 )
 import Data.Aeson
     ( FromJSON
-    , ToJSON
+    , Options (..)
+    , camelTo2
     , eitherDecodeStrict
-    , fieldLabelModifier
     , genericParseJSON
-    , genericToJSON
     , parseJSON
-    , toJSON
     )
 import Data.Bifunctor
     ( first )
@@ -86,6 +83,8 @@ import Data.Coerce
     ( coerce )
 import Data.List
     ( intercalate )
+import Data.Text
+    ( Text )
 import Data.Text.Class
     ( TextDecodingError (..), ToText (..), fromText )
 import Fmt
@@ -112,6 +111,7 @@ import Network.URI
 import UnliftIO.Exception
     ( IOException, handle )
 
+import qualified Data.Aeson as Aeson
 import qualified Data.ByteString as BS
 import qualified Data.ByteString.Char8 as B8
 import qualified Data.ByteString.Lazy as BL
@@ -134,20 +134,6 @@ healthCheckEP = T.unpack $ T.intercalate "/" ["api", "v1", "status"]
 
 delistedEP :: String
 delistedEP = T.unpack $ T.intercalate "/" ["api", "v1", "delisted"]
-
--- | TODO: import SMASH types
-newtype SMASHPoolId = SMASHPoolId
-    { poolId :: T.Text
-    } deriving stock (Eq, Show, Ord)
-      deriving (Generic)
-
-instance FromJSON SMASHPoolId where
-    parseJSON = genericParseJSON defaultRecordTypeOptions
-        { fieldLabelModifier = id }
-
-instance ToJSON SMASHPoolId where
-    toJSON = genericToJSON defaultRecordTypeOptions
-        { fieldLabelModifier = id }
 
 toPoolId :: SMASHPoolId -> Either TextDecodingError PoolId
 toPoolId (SMASHPoolId pid) =
@@ -228,8 +214,12 @@ healthCheck
     -> Manager
     -> IO (Maybe HealthStatusSMASH)
 healthCheck tr uri manager = runExceptTLog $ do
-    pl <- smashRequest tr
-        (uri { uriPath = "/" <> healthCheckEP , uriQuery = "", uriFragment = "" })
+    pl <- smashRequest tr (
+        uri { uriPath = "/" <> healthCheckEP
+            , uriQuery = ""
+            , uriFragment = ""
+            }
+        )
         manager
     except . eitherDecodeStrict @HealthStatusSMASH $ pl
   where
@@ -362,6 +352,42 @@ fetchFromRemote tr builders manager pid url hash = runExceptTLog $ do
 
 fromIOException :: Monad m => IOException -> m (Either String a)
 fromIOException = return . Left . ("IO exception: " <>) . show
+
+--------------------------------------------------------------------------------
+-- Types
+--------------------------------------------------------------------------------
+
+newtype SMASHPoolId = SMASHPoolId { poolId :: T.Text }
+    deriving newtype (Eq, Show, Ord)
+    deriving stock (Generic)
+
+instance FromJSON SMASHPoolId where
+    parseJSON = genericParseJSON smashRecordTypeOptions{fieldLabelModifier=id}
+
+-- | Parses the SMASH HealthCheck type from the SMASH API.
+data HealthStatusSMASH = HealthStatusSMASH { status :: Text, version :: Text }
+    deriving stock (Generic, Show, Eq, Ord)
+
+instance FromJSON HealthStatusSMASH where
+    parseJSON = genericParseJSON smashRecordTypeOptions
+
+smashRecordTypeOptions :: Aeson.Options
+smashRecordTypeOptions = Aeson.defaultOptions
+    { fieldLabelModifier = camelTo2 '_' . dropWhile (== '_')
+    , omitNothingFields = True
+    }
+
+-- | Dscribes the health status of the SMASH server.
+data HealthCheckSMASH
+    = Available          -- server available
+    | Unavailable        -- server reachable, but unavailable
+    | Unreachable        -- could not get a response from the SMASH server
+    | NoSmashConfigured  -- no SMASH server has been configured
+    deriving stock (Generic, Show, Eq, Ord)
+
+--------------------------------------------------------------------------------
+-- Logging
+--------------------------------------------------------------------------------
 
 data StakePoolMetadataFetchLog
     = MsgFetchPoolMetadata StakePoolMetadataHash URI

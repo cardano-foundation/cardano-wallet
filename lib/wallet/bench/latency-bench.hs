@@ -33,7 +33,7 @@ import Cardano.Wallet.Api.Types
     , ApiEra
     , ApiFee
     , ApiNetworkInformation
-    , ApiStakePool
+    , ApiT
     , ApiTransaction
     , ApiTxId (..)
     , ApiUtxoStatistics
@@ -43,6 +43,17 @@ import Cardano.Wallet.Api.Types
     )
 import Cardano.Wallet.LatencyBenchShared
     ( LogCaptureFunc, fmtResult, fmtTitle, measureApiLogs, withLatencyLogging )
+import Cardano.Wallet.Launch
+    ( withSystemTempDir )
+import Cardano.Wallet.Launch.Cluster
+    ( FaucetFunds (..)
+    , LocalClusterConfig (..)
+    , LogFileConfig (..)
+    , RunningNode (..)
+    , defaultPoolConfigs
+    , walletListenFromEnv
+    , withCluster
+    )
 import Cardano.Wallet.Logging
     ( trMessage )
 import Cardano.Wallet.Network.Ports
@@ -64,17 +75,8 @@ import Cardano.Wallet.Shelley.BlockchainSource
     ( BlockchainSource (..) )
 import Cardano.Wallet.Shelley.Faucet
     ( initFaucet )
-import Cardano.Wallet.Shelley.Launch
-    ( withSystemTempDir )
-import Cardano.Wallet.Shelley.Launch.Cluster
-    ( FaucetFunds (..)
-    , LocalClusterConfig (..)
-    , LogFileConfig (..)
-    , RunningNode (..)
-    , defaultPoolConfigs
-    , walletListenFromEnv
-    , withCluster
-    )
+import Cardano.Wallet.Shelley.Pools
+    ( StakePool )
 import Cardano.Wallet.Unsafe
     ( unsafeFromText )
 import Control.Monad
@@ -374,7 +376,7 @@ walletApiBench capture ctx = do
             (Link.createTransactionOld @'Shelley walMA) Default payloadMA
         fmtResult "postTransactionMA  " t7b
 
-        t8 <- measureApiLogs capture $ request @[ApiStakePool] ctx
+        t8 <- measureApiLogs capture $ request @[ApiT StakePool] ctx
             (Link.listStakePools arbitraryStake) Default Empty
         fmtResult "listStakePools     " t8
 

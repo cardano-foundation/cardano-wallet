@@ -22,6 +22,7 @@ common language
 
 common opts-lib
   ghc-options: -Wall -Wcompat -fwarn-redundant-constraints
+
   if flag(release)
     ghc-options: -O2 -Werror
 
@@ -118,7 +119,6 @@ library
     , http-api-data
     , http-client
     , http-client-tls
-    , http-media
     , http-types
     , int-cast
     , io-classes
@@ -164,10 +164,8 @@ library
     , scientific
     , semialign
     , serialise
-    , servant
     , servant-client
     , servant-client-core
-    , servant-server
     , split
     , splitmix
     , statistics
@@ -193,20 +191,13 @@ library
     , unliftio-core
     , unordered-containers
     , vector
-    , wai
-    , warp
-    , warp-tls
     , Win32-network
-    , x509
-    , x509-store
-    , x509-validation
     , yaml
 
   exposed-modules:
     Cardano.Api.Extra
     Cardano.Api.Gen
     Cardano.Byron.Codec.Cbor
-    Cardano.CLI
     Cardano.DB.Sqlite
     Cardano.DB.Sqlite.Delete
     Cardano.Ledger.Credential.Safe
@@ -223,29 +214,6 @@ library
     Cardano.Wallet.Address.Book
     Cardano.Wallet.Address.HasDelegation
     Cardano.Wallet.Address.Pool
-    Cardano.Wallet.Api
-    Cardano.Wallet.Api.Aeson
-    Cardano.Wallet.Api.Aeson.Variant
-    Cardano.Wallet.Api.Client
-    Cardano.Wallet.Api.Hex
-    Cardano.Wallet.Api.Lib.ApiAsArray
-    Cardano.Wallet.Api.Lib.ApiT
-    Cardano.Wallet.Api.Lib.ExtendedObject
-    Cardano.Wallet.Api.Lib.Options
-    Cardano.Wallet.Api.Link
-    Cardano.Wallet.Api.Server
-    Cardano.Wallet.Api.Server.Error
-    Cardano.Wallet.Api.Server.Handlers.Certificates
-    Cardano.Wallet.Api.Server.Handlers.TxCBOR
-    Cardano.Wallet.Api.Server.Tls
-    Cardano.Wallet.Api.Types
-    Cardano.Wallet.Api.Types.Address
-    Cardano.Wallet.Api.Types.BlockHeader
-    Cardano.Wallet.Api.Types.Certificate
-    Cardano.Wallet.Api.Types.Key
-    Cardano.Wallet.Api.Types.Primitive
-    Cardano.Wallet.Api.Types.SchemaMetadata
-    Cardano.Wallet.Api.Types.Transaction
     Cardano.Wallet.Byron.Compatibility
     Cardano.Wallet.Checkpoints
     Cardano.Wallet.Checkpoints.Policy
@@ -369,15 +337,9 @@ library
     Cardano.Wallet.Read.Tx.Eras
     Cardano.Wallet.Read.Tx.Hash
     Cardano.Wallet.Registry
-    Cardano.Wallet.Shelley
-    Cardano.Wallet.Shelley.Api.Server
     Cardano.Wallet.Shelley.BlockchainSource
     Cardano.Wallet.Shelley.Compatibility
     Cardano.Wallet.Shelley.Compatibility.Ledger
-    Cardano.Wallet.Shelley.Launch
-    Cardano.Wallet.Shelley.Launch.Blockfrost
-    Cardano.Wallet.Shelley.Launch.Cluster
-    Cardano.Wallet.Shelley.Logging
     Cardano.Wallet.Shelley.MinimumUTxO
     Cardano.Wallet.Shelley.MinimumUTxO.Internal
     Cardano.Wallet.Shelley.Network
@@ -390,10 +352,8 @@ library
     Cardano.Wallet.Shelley.Network.Discriminant
     Cardano.Wallet.Shelley.Network.Node
     Cardano.Wallet.Shelley.Pools
-    Cardano.Wallet.Shelley.Tracers
     Cardano.Wallet.Shelley.Transaction
     Cardano.Wallet.TokenMetadata
-    Cardano.Wallet.TokenMetadata.MockServer
     Cardano.Wallet.Transaction
     Cardano.Wallet.Unsafe
     Cardano.Wallet.Util
@@ -411,12 +371,126 @@ library
     Data.Time.Utils
     Data.Vector.Shuffle
     Network.Ntp
-    Network.Wai.Middleware.Logging
-    Network.Wai.Middleware.ServerError
     Ouroboros.Network.Client.Wallet
     UnliftIO.Compat
 
   other-modules:   Paths_cardano_wallet
+
+library cardano-wallet-api-http
+  import:          language, opts-lib
+  hs-source-dirs:  api/http
+  build-depends:
+    , aeson
+    , aeson-pretty
+    , aeson-qq
+    , ansi-terminal
+    , base
+    , base58-bytestring
+    , bech32
+    , bech32-th
+    , binary
+    , blockfrost-api
+    , blockfrost-client
+    , bytestring
+    , cardano-addresses
+    , cardano-addresses-cli
+    , cardano-api
+    , cardano-binary
+    , cardano-cli
+    , cardano-crypto
+    , cardano-ledger-alonzo
+    , cardano-ledger-byron
+    , cardano-ledger-core
+    , cardano-ledger-shelley
+    , cardano-wallet
+    , cardano-wallet-launcher
+    , cardano-wallet-test-utils
+    , cborg
+    , containers
+    , contra-tracer
+    , data-default
+    , deepseq
+    , directory
+    , either
+    , errors
+    , extra
+    , filepath
+    , fmt
+    , generic-lens
+    , hashable
+    , http-api-data
+    , http-client
+    , http-client-tls
+    , http-media
+    , http-types
+    , int-cast
+    , iohk-monitoring
+    , memory
+    , mtl
+    , network
+    , network-uri
+    , ntp-client
+    , OddWord
+    , optparse-applicative
+    , ouroboros-network
+    , quiet
+    , random
+    , retry
+    , servant
+    , servant-client
+    , servant-client-core
+    , servant-server
+    , streaming-commons
+    , temporary
+    , text
+    , text-class
+    , time
+    , tls
+    , transformers
+    , typed-process
+    , unliftio
+    , unliftio-core
+    , wai
+    , wai-middleware-logging
+    , warp
+    , warp-tls
+    , Win32-network
+    , x509
+    , x509-store
+    , x509-validation
+    , yaml
+
+  exposed-modules:
+    Cardano.CLI
+    Cardano.Wallet.Api
+    Cardano.Wallet.Api.Aeson
+    Cardano.Wallet.Api.Aeson.Variant
+    Cardano.Wallet.Api.Client
+    Cardano.Wallet.Api.Hex
+    Cardano.Wallet.Api.Http.Logging
+    Cardano.Wallet.Api.Http.Server
+    Cardano.Wallet.Api.Http.Server.Error
+    Cardano.Wallet.Api.Http.Server.Handlers.Certificates
+    Cardano.Wallet.Api.Http.Server.Handlers.TxCBOR
+    Cardano.Wallet.Api.Http.Server.Tls
+    Cardano.Wallet.Api.Http.Shelley.Server
+    Cardano.Wallet.Api.Lib.ApiAsArray
+    Cardano.Wallet.Api.Lib.ApiT
+    Cardano.Wallet.Api.Lib.ExtendedObject
+    Cardano.Wallet.Api.Lib.Options
+    Cardano.Wallet.Api.Link
+    Cardano.Wallet.Api.Types
+    Cardano.Wallet.Api.Types.BlockHeader
+    Cardano.Wallet.Api.Types.Certificate
+    Cardano.Wallet.Api.Types.Key
+    Cardano.Wallet.Api.Types.Primitive
+    Cardano.Wallet.Api.Types.SchemaMetadata
+    Cardano.Wallet.Api.Types.Transaction
+    Cardano.Wallet.Launch
+    Cardano.Wallet.Launch.Blockfrost
+    Cardano.Wallet.Launch.Cluster
+    Cardano.Wallet.Shelley
+    Cardano.Wallet.Tracers
 
 library cardano-wallet-integration
   import:          language, opts-lib
@@ -437,6 +511,7 @@ library cardano-wallet-integration
     , cardano-ledger-alonzo
     , cardano-ledger-core
     , cardano-wallet
+    , cardano-wallet-api-http
     , cardano-wallet-launcher
     , cardano-wallet-test-utils
     , cborg
@@ -478,6 +553,7 @@ library cardano-wallet-integration
     , unliftio
     , unliftio-core
     , unordered-containers
+    , wai-middleware-logging
 
   exposed-modules:
     Cardano.Wallet.BenchShared
@@ -520,6 +596,31 @@ library cardano-wallet-integration
     Test.Integration.Scenario.CLI.Shelley.Transactions
     Test.Integration.Scenario.CLI.Shelley.Wallets
 
+library mock-token-metadata
+  import:          language, opts-lib
+  hs-source-dirs:  mock-token-metadata/src
+  build-depends:
+    , aeson
+    , ansi-wl-pprint
+    , base
+    , bytestring
+    , cardano-wallet
+    , generic-lens
+    , memory
+    , network-uri
+    , optparse-applicative
+    , servant
+    , servant-server
+    , text
+    , unliftio
+    , unordered-containers
+    , wai
+    , wai-extra
+    , wai-middleware-logging
+    , warp
+
+  exposed-modules: Cardano.Wallet.TokenMetadata.MockServer
+
 executable cardano-wallet
   import:         language, opts-exe
   hs-source-dirs: exe
@@ -527,6 +628,7 @@ executable cardano-wallet
   build-depends:
     , base
     , cardano-wallet
+    , cardano-wallet-api-http
     , cardano-wallet-launcher
     , contra-tracer
     , iohk-monitoring
@@ -545,6 +647,7 @@ executable local-cluster
   build-depends:
     , base
     , cardano-wallet
+    , cardano-wallet-api-http
     , cardano-wallet-integration
     , cardano-wallet-launcher
     , contra-tracer
@@ -555,17 +658,17 @@ executable local-cluster
     , text
     , text-class
 
+-- Triggers this https://github.com/haskell/cabal/issues/6470
+-- if moved to an external library
 executable mock-token-metadata-server
-  import:         language, opts-exe
+  import:        language, opts-exe
+  main-is:       exe/mock-token-metadata-server.hs
   build-depends:
-    , ansi-wl-pprint
     , base
     , cardano-wallet
+    , mock-token-metadata
     , optparse-applicative
     , wai-extra
-
-  hs-source-dirs: exe
-  main-is:        mock-token-metadata-server.hs
 
 test-suite unit
   import:             language, opts-exe
@@ -602,6 +705,7 @@ test-suite unit
     , cardano-sl-x509
     , cardano-slotting
     , cardano-wallet
+    , cardano-wallet-api-http
     , cardano-wallet-launcher
     , cardano-wallet-test-utils
     , cborg
@@ -641,6 +745,7 @@ test-suite unit
     , lens
     , list-transformer
     , memory
+    , mock-token-metadata
     , MonadRandom
     , mtl
     , network
@@ -687,6 +792,7 @@ test-suite unit
     , unordered-containers
     , wai
     , wai-extra
+    , wai-middleware-logging
     , warp
     , x509
     , x509-store
@@ -696,7 +802,7 @@ test-suite unit
     cpp-options:   -DHAVE_SCRYPT
     build-depends: scrypt
 
-  build-tool-depends: hspec-discover:hspec-discover -any
+  build-tool-depends: hspec-discover:hspec-discover
   other-modules:
     Cardano.Api.GenSpec
     Cardano.Byron.Codec.CborSpec
@@ -776,6 +882,7 @@ test-suite unit
     Cardano.Wallet.Primitive.Types.UTxOSelectionSpec.TypeErrorSpec
     Cardano.Wallet.Primitive.Types.UTxOSpec
     Cardano.Wallet.Primitive.TypesSpec
+    Cardano.Wallet.Read.Tx.CBORSpec
     Cardano.Wallet.RegistrySpec
     Cardano.Wallet.Shelley.Compatibility.LedgerSpec
     Cardano.Wallet.Shelley.CompatibilitySpec
@@ -786,7 +893,6 @@ test-suite unit
     Cardano.Wallet.Shelley.NetworkSpec
     Cardano.Wallet.Shelley.TransactionSpec
     Cardano.Wallet.TokenMetadataSpec
-    Cardano.Wallet.Read.Tx.CBORSpec
     Cardano.WalletSpec
     Control.Concurrent.ConciergeSpec
     Control.Monad.Random.ExtraSpec
@@ -796,7 +902,6 @@ test-suite unit
     Data.Time.TextSpec
     Data.Time.UtilsSpec
     Data.Vector.ShuffleSpec
-    Network.Wai.Middleware.LoggingSpec
     Spec
 
 test-suite integration
@@ -807,6 +912,7 @@ test-suite integration
   build-depends:
     , base
     , cardano-wallet
+    , cardano-wallet-api-http
     , cardano-wallet-integration
     , cardano-wallet-launcher
     , cardano-wallet-test-utils
@@ -819,12 +925,13 @@ test-suite integration
     , http-client
     , iohk-monitoring
     , lobemo-backend-ekg
+    , mock-token-metadata
     , network-uri
     , text
     , text-class
     , unliftio
 
-  build-tool-depends: cardano-wallet:cardano-wallet -any
+  build-tool-depends: cardano-wallet:cardano-wallet
   other-modules:      Cardano.Wallet.Shelley.Faucet
 
 benchmark restore
@@ -838,6 +945,7 @@ benchmark restore
     , bytestring
     , cardano-addresses
     , cardano-wallet
+    , cardano-wallet-api-http
     , cardano-wallet-integration
     , contra-tracer
     , deepseq
@@ -861,6 +969,7 @@ benchmark latency
     , aeson
     , base
     , cardano-wallet
+    , cardano-wallet-api-http
     , cardano-wallet-integration
     , cardano-wallet-launcher
     , directory
@@ -872,6 +981,7 @@ benchmark latency
     , iohk-monitoring
     , text
     , unliftio
+    , wai-middleware-logging
 
   other-modules:  Cardano.Wallet.Shelley.Faucet
 

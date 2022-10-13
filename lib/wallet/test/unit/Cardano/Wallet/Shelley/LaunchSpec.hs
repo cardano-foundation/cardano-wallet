@@ -8,7 +8,7 @@ module Cardano.Wallet.Shelley.LaunchSpec (spec) where
 
 import Prelude
 
-import Cardano.Wallet.Shelley.Launch
+import Cardano.Wallet.Launch
     ( nodeSocketOption )
 -- See ADP-1910
 import "optparse-applicative" Options.Applicative

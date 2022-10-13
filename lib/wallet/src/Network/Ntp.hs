@@ -1,6 +1,11 @@
+{-# LANGUAGE DataKinds #-}
+{-# LANGUAGE DeriveAnyClass #-}
+{-# LANGUAGE DeriveGeneric #-}
+{-# LANGUAGE DerivingStrategies #-}
 {-# LANGUAGE LambdaCase #-}
 {-# LANGUAGE NumericUnderscores #-}
 {-# LANGUAGE TypeApplications #-}
+
 {-# OPTIONS_GHC -fno-warn-orphans #-}
 
 -- |
@@ -13,6 +18,9 @@
 module Network.Ntp
     ( withWalletNtpClient
     , getNtpStatus
+    , NtpSyncingStatus (..)
+    , NtpStatusWithOffset (..)
+    , ForceCheck (..)
 
     -- * re-exports from ntp-client
     , NtpTrace (..)
@@ -25,8 +33,8 @@ import Cardano.BM.Data.Severity
     ( Severity (..) )
 import Cardano.BM.Data.Tracer
     ( HasPrivacyAnnotation (..), HasSeverityAnnotation (..) )
-import Cardano.Wallet.Api.Types
-    ( ApiNetworkClock (..), ApiNtpStatus (..), NtpSyncingStatus (..) )
+import Control.DeepSeq
+    ( NFData )
 import Control.Tracer
     ( Tracer )
 import Data.Quantity
@@ -35,6 +43,8 @@ import Data.Text
     ( Text )
 import Data.Text.Class
     ( ToText (..) )
+import GHC.Generics
+    ( Generic )
 import Network.NTP.Client
     ( IPVersion (..)
     , NtpClient (..)
@@ -73,6 +83,28 @@ ntpSettings = NtpSettings
     , ntpResponseTimeout = 1_000_000
     , ntpPollDelay = 300_000_000
     }
+
+--------------------------------------------------------------------------------
+-- Types
+--------------------------------------------------------------------------------
+
+data NtpSyncingStatus
+    = NtpSyncingStatusUnavailable
+    | NtpSyncingStatusPending
+    | NtpSyncingStatusAvailable
+    deriving (Eq, Generic, Show)
+    deriving anyclass NFData
+
+data NtpStatusWithOffset = NtpStatusWithOffset
+    { status :: !NtpSyncingStatus
+    , offset :: !(Maybe (Quantity "microsecond" Integer))
+    }
+    deriving (Eq, Generic, Show)
+    deriving anyclass NFData
+
+--------------------------------------------------------------------------------
+-- Printing and Logging
+--------------------------------------------------------------------------------
 
 -- TODO: Move this upstream.
 prettyNtpStatus :: NtpStatus -> Text
@@ -160,30 +192,26 @@ instance HasSeverityAnnotation NtpTrace where
       where
         ms = 1000
 
-getNtpStatus
-    :: NtpClient
-    -> Bool
-        -- ^ When 'True', will block and force a NTP check instead of using cached results
-    -> IO ApiNetworkClock
-getNtpStatus client forceCheck = (ApiNetworkClock . toStatus) <$>
-    if forceCheck
-    -- Forces an NTP check / query on the central servers, use with care
-    then do
-        ntpQueryBlocking client
+data ForceCheck = ForceBlockingRequest | CanUseCachedResults
 
-    else atomically $ do
-      -- Reads a cached NTP status from an STM.TVar so we don't get
-      -- blacklisted by the central NTP "authorities" for sending too many NTP
-      -- requests.
-      s <- ntpGetStatus client
-      checkSTM (s /= NtpSyncPending)
-      pure s
+getNtpStatus :: NtpClient -> ForceCheck -> IO NtpStatusWithOffset
+getNtpStatus client forceCheck = toStatus <$> case forceCheck of
+    ForceBlockingRequest ->
+        -- Forces an NTP check / query on the central servers, use with care
+        ntpQueryBlocking client
+    CanUseCachedResults ->  atomically $ do
+        -- Reads a cached NTP status from an STM.TVar so we don't get
+        -- blacklisted by the central NTP "authorities" for sending
+        -- too many NTP requests.
+        s <- ntpGetStatus client
+        checkSTM (s /= NtpSyncPending)
+        pure s
   where
     toStatus = \case
         NtpSyncPending ->
-            ApiNtpStatus NtpSyncingStatusPending Nothing
+            NtpStatusWithOffset NtpSyncingStatusPending Nothing
         NtpSyncUnavailable ->
-            ApiNtpStatus NtpSyncingStatusUnavailable Nothing
+            NtpStatusWithOffset NtpSyncingStatusUnavailable Nothing
         NtpDrift ms ->
-            ApiNtpStatus NtpSyncingStatusAvailable
-            (Just $ Quantity (fromIntegral ms :: Integer))
+            NtpStatusWithOffset NtpSyncingStatusAvailable
+                (Just $ Quantity (fromIntegral ms :: Integer))

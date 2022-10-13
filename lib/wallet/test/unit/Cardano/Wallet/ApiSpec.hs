@@ -27,8 +27,7 @@
 -- mount an existing request body in a request.
 {-# OPTIONS_GHC -fno-warn-deprecations #-}
 
--- See comment in Cardano.Wallet.Shelley.Compatibility
-{-# OPTIONS_GHC -fno-warn-orphans #-}
+{-# OPTIONS_GHC -Wno-orphans #-}
 
 module Cardano.Wallet.ApiSpec
     ( spec
@@ -38,6 +37,8 @@ import Prelude
 
 import Cardano.Wallet.Api
     ( Api )
+import Cardano.Wallet.Api.Http.Shelley.Server
+    ( IsServerError (..) )
 import Cardano.Wallet.Api.Malformed
     ( BodyParam (..)
     , ExpectedError (..)
@@ -48,21 +49,18 @@ import Cardano.Wallet.Api.Malformed
     , malformed
     , wellformed
     )
-import Cardano.Wallet.Api.Server
-    ( IsServerError (..) )
-import Cardano.Wallet.Api.Types
-    ( ApiStakePool
-    , DecodeAddress (..)
-    , DecodeStakeAddress (..)
-    , EncodeAddress (..)
-    , EncodeStakeAddress (..)
-    )
 import Cardano.Wallet.Primitive.AddressDerivation
     ( NetworkDiscriminant (..) )
 import Cardano.Wallet.Primitive.Types.Address
     ( Address (..) )
 import Cardano.Wallet.Primitive.Types.RewardAccount
     ( RewardAccount (..) )
+import Cardano.Wallet.Shelley.Network.Discriminant
+    ( DecodeAddress (..)
+    , DecodeStakeAddress (..)
+    , EncodeAddress (..)
+    , EncodeStakeAddress (..)
+    )
 import Control.Monad
     ( forM_ )
 import Data.Aeson.QQ
@@ -74,7 +72,7 @@ import Data.Function
 import Data.IORef
     ( atomicModifyIORef, newIORef )
 import Data.List
-    ( (\\) )
+    ( delete, (\\) )
 import Data.Map.Strict
     ( Map )
 import Data.Maybe
@@ -98,7 +96,7 @@ import Network.HTTP.Media.RenderHeader
 import Network.HTTP.Types.Header
     ( hAccept, hContentType )
 import Network.HTTP.Types.Method
-    ( Method )
+    ( Method, methodHead, renderStdMethod )
 import Network.Wai
     ( Request
     , RequestBodyLength (..)
@@ -140,6 +138,18 @@ import qualified Data.Map.Strict as Map
 import qualified Data.Text as T
 import qualified Servant
 
+
+instance {-# OVERLAPPING #-} EncodeAddress ('Testnet 0) where
+    encodeAddress = T.pack . show
+
+instance {-# OVERLAPPING #-} DecodeAddress ('Testnet 0) where
+    decodeAddress _ = pure (Address "<addr>")
+
+instance {-# OVERLAPPING #-} EncodeStakeAddress ('Testnet 0) where
+    encodeStakeAddress = T.pack . show
+
+instance {-# OVERLAPPING #-} DecodeStakeAddress ('Testnet 0) where
+    decodeStakeAddress _ = pure (RewardAccount "<acct>")
 
 spec :: Spec
 spec = parallel $ do
@@ -183,10 +193,8 @@ assertErrorResponse
 assertErrorResponse status code (ExpectedError msg) response = do
     response & assertStatus status
     response & assertHeader "Content-Type" "application/json;charset=utf-8"
-    response & assertBody (Aeson.encode [aesonQQ|
-        { "code": #{code}
-        , "message": #{msg}
-        }|])
+    response & assertBody
+        (Aeson.encode [aesonQQ|{ "code": #{code}, "message": #{msg} }|])
 
 spec_MalformedParam :: Request -> ExpectedError -> Session ()
 spec_MalformedParam malformedRequest expectedError = do
@@ -322,8 +330,8 @@ instance GenericApiSpec (Map [Text] [Method])
     gSpec allowedMethods toSpec = do
         toSpec $ SomeTest (Proxy @Void) $ mconcat $
             for (Map.toList allowedMethods) $ \(pathInfo, methods) ->
-                forMaybe (allMethods \\ methods) $ \requestMethod ->
-                    if isWhiteListed pathInfo requestMethod
+                forMaybe (allMethodsButHead \\ methods) $ \requestMethod ->
+                    if shouldSkipRequest requestMethod pathInfo
                     then Nothing
                     else Just (defaultRequest { pathInfo, requestMethod }, msg)
       where
@@ -335,15 +343,14 @@ instance GenericApiSpec (Map [Text] [Method])
             \the method: one of them is likely to be incorrect (for example: \
             \POST instead of PUT, or GET instead of POST...)."
 
-        allMethods :: [Method]
-        allMethods =
-            ["GET","PUT","POST","PATCH","DELETE","CONNECT","TRACE","OPTIONS"]
+        allMethodsButHead :: [Method]
+        allMethodsButHead =
+            delete methodHead (renderStdMethod <$> [minBound .. maxBound])
 
-        isWhiteListed :: [Text] -> Method -> Bool
-        isWhiteListed
-            [ "stake-pools", "*", "wallets", _ ] "PUT" = True
-        isWhiteListed
-            _ _ = False
+        shouldSkipRequest :: Method -> [Text] -> Bool
+        shouldSkipRequest method = \case
+            [ "stake-pools", "*", "wallets", _ ] -> method /= "DELETE"
+            _ -> False
 
 
 --
@@ -354,29 +361,15 @@ application :: Application
 application = serve api server
     & handleRawError (curry toServerError)
 
-api :: Proxy (Api ('Testnet 0) ApiStakePool)
+api :: Proxy (Api ('Testnet 0))
 api = Proxy
 
-server :: Server (Api ('Testnet 0) ApiStakePool)
+server :: Server (Api ('Testnet 0))
 server = error
     "No test from this module should actually reach handlers of the server. \
     \Tests are indeed all testing the internal machinery of Servant + Wai and \
     \the way they interact with the outside world. Only valid requests are \
     \delegated to our handlers."
-
--- Dummy instances
-instance EncodeAddress ('Testnet 0) where
-    encodeAddress = T.pack . show
-
-instance DecodeAddress ('Testnet 0) where
-    decodeAddress _ = pure (Address "<addr>")
-
--- Dummy instances
-instance EncodeStakeAddress ('Testnet 0) where
-    encodeStakeAddress = T.pack . show
-
-instance DecodeStakeAddress ('Testnet 0) where
-    decodeStakeAddress _ = pure (RewardAccount "<acct>")
 
 everyPathParam :: GEveryEndpoints api => Proxy api -> MkPathRequest api
 everyPathParam proxy = gEveryPathParam proxy defaultRequest
