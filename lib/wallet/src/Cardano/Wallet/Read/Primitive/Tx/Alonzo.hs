@@ -131,7 +131,7 @@ fromAlonzoTx tx@(Alonzo.ValidatedTx bod wits (Alonzo.IsValid isValid) aux) =
 
     countWits = WitnessCount
         (fromIntegral $ Set.size $ Alonzo.txwitsVKey' wits)
-        (fromIntegral $ Map.size $ Alonzo.txscripts' wits)
+        (Map.elems scriptMap)
         (fromIntegral $ Set.size $ Alonzo.txwitsBoot' wits)
 
     fromAlonzoScriptMap

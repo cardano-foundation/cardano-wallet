@@ -545,7 +545,7 @@ spec = describe "SHARED_TRANSACTIONS" $ do
 
         let noVerKeyWitness = WitnessCount
                 { verificationKey = 0
-                , scriptHash = 1
+                , scripts = []
                 , bootstrap = 0
                 }
 
@@ -576,7 +576,7 @@ spec = describe "SHARED_TRANSACTIONS" $ do
 
         let oneVerKeyWitness = WitnessCount
                 { verificationKey = 1
-                , scriptHash = 1
+                , scripts = []
                 , bootstrap = 0
                 }
         let witsExp2 = [ expectField (#witnessCount) (`shouldBe` oneVerKeyWitness) ]

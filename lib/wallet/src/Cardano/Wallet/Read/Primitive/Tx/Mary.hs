@@ -115,7 +115,7 @@ fromMaryTx tx =
     scriptMap = fromMaryScriptMap $ Shelley.scriptWits wits
     countWits = WitnessCount
         (fromIntegral $ Set.size $ Shelley.addrWits wits)
-        (fromIntegral $ Map.size $ Shelley.scriptWits wits)
+        (Map.elems scriptMap)
         (fromIntegral $ Set.size $ Shelley.bootWits wits)
 
     mintScriptMap = getScriptMap scriptMap assetsToMint

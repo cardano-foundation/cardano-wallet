@@ -1895,10 +1895,12 @@ instance Arbitrary ValidityIntervalExplicit where
         pure $ ValidityIntervalExplicit (Quantity slot1) (Quantity slot2)
 
 instance Arbitrary WitnessCount where
-    arbitrary = WitnessCount
-        <$> choose (0, 10)
-        <*> choose (0, 10)
-        <*> choose (0, 2)
+    arbitrary = do
+        numberOfScripts <- choose (0, 1)
+        WitnessCount
+            <$> choose (0, 10)
+            <*> vectorOf numberOfScripts (NativeScript <$> arbitrary)
+            <*> choose (0, 2)
 
 instance Arbitrary (ApiDecodedTransaction n) where
     arbitrary = ApiDecodedTransaction

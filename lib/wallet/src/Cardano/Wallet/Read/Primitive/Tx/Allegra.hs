@@ -23,6 +23,8 @@ module Cardano.Wallet.Read.Primitive.Tx.Allegra
 
 import Prelude
 
+import Cardano.Address.Script
+    ( KeyRole (..) )
 import Cardano.Api
     ( AllegraEra )
 import Cardano.Wallet.Read.Eras
@@ -44,8 +46,11 @@ import Cardano.Wallet.Read.Tx.CBOR
     ( renderTxToCBOR )
 import Cardano.Wallet.Read.Tx.Hash
     ( shelleyTxHash )
+import Cardano.Wallet.Shelley.Compatibility.Ledger
+    ( toWalletScript )
 import Cardano.Wallet.Transaction
-    ( TokenMapWithScripts (..)
+    ( AnyScript (..)
+    , TokenMapWithScripts (..)
     , ValidityIntervalExplicit (..)
     , WitnessCount (..)
     , emptyTokenMapWithScripts
@@ -110,9 +115,11 @@ fromAllegraTx tx =
     )
   where
     SL.Tx (MA.TxBody ins outs certs wdrls fee ttl _ _ _) wits mmd = tx
+    scriptMap =
+        Map.map (NativeScript . toWalletScript Payment) $ SL.scriptWits wits
     countWits = WitnessCount
         (fromIntegral $ Set.size $ SL.addrWits wits)
-        (fromIntegral $ Map.size $ SL.scriptWits wits)
+        (Map.elems scriptMap)
         (fromIntegral $ Set.size $ SL.bootWits wits)
 
     -- fixme: [ADP-525] It is fine for now since we do not look at script

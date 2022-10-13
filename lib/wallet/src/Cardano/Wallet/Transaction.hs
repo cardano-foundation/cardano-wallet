@@ -113,9 +113,15 @@ import Data.Aeson.Types
     ( FromJSON (..)
     , Parser
     , ToJSON (..)
+    , Value (..)
     , camelTo2
     , genericParseJSON
     , genericToJSON
+    , object
+    , withObject
+    , (.:)
+    , (.:?)
+    , (.=)
     )
 import Data.Bifunctor
     ( bimap )
@@ -473,6 +479,24 @@ instance FromJSON PlutusScriptInfo where
 instance ToJSON PlutusScriptInfo where
     toJSON (PlutusScriptInfo v) = toJSON $ toText v
 
+instance FromJSON AnyScript where
+    parseJSON = withObject "AnyScript" $ \obj -> do
+        scriptType <- obj .:? "script_type"
+        case (scriptType :: Maybe String) of
+            Just t | t == "plutus"  ->
+                PlutusScript <$> obj .: "language_version"
+            Just t | t == "native" ->
+                NativeScript <$> obj .: "script"
+            _ -> fail "AnyScript needs either 'native' or 'plutus' in 'script_type'"
+
+instance ToJSON AnyScript where
+    toJSON (NativeScript s) =
+        object [ "script_type" .= String "native"
+               , "script" .= toJSON s]
+    toJSON (PlutusScript v) =
+        object [ "script_type" .= String "plutus"
+               , "language_version" .= toJSON v]
+
 data AnyScript =
       NativeScript !(Script KeyHash)
     | PlutusScript !PlutusScriptInfo
@@ -492,7 +516,7 @@ emptyTokenMapWithScripts = TokenMapWithScripts
 
 data WitnessCount = WitnessCount
     { verificationKey :: Word8
-    , scriptHash :: Word8
+    , scripts :: [AnyScript]
     , bootstrap :: Word8
     }
     deriving (Eq, Generic, Show)
@@ -506,7 +530,7 @@ instance FromJSON WitnessCount where
 emptyWitnessCount :: WitnessCount
 emptyWitnessCount = WitnessCount
     { verificationKey = 0
-    , scriptHash = 0
+    , scripts = []
     , bootstrap = 0
     }
 
