@@ -1,7 +1,9 @@
 {-# LANGUAGE DataKinds #-}
 {-# LANGUAGE ExistentialQuantification #-}
+{-# LANGUAGE LambdaCase #-}
 {-# LANGUAGE RankNTypes #-}
 {-# LANGUAGE RecordWildCards #-}
+{-# LANGUAGE ScopedTypeVariables #-}
 
 -- |
 -- Copyright: © 2018-2020 IOHK
@@ -73,7 +75,7 @@ import Cardano.Wallet.Primitive.Types.Tx
 import Control.Monad.IO.Class
     ( MonadIO )
 import Control.Monad.Trans.Except
-    ( ExceptT, runExceptT )
+    ( ExceptT (..), runExceptT )
 import Data.DBVar
     ( DBVar )
 import Data.Quantity
@@ -373,10 +375,10 @@ data DBLayerCollection stm m s k = DBLayerCollection
     { dbWallets :: DBWallets stm s
     , dbCheckpoints :: DBCheckpoints stm s
     , dbWalletMeta :: DBWalletMeta stm
-    , dbDelegation :: DBDelegation stm
+    , dbDelegation :: WalletId -> DBDelegation stm
     , dbTxHistory :: DBTxHistory stm
     , dbPendingTxs :: DBPendingTxs stm
-    , dbPrivateKey :: DBPrivateKey stm k
+    , dbPrivateKey :: WalletId -> DBPrivateKey stm k
 
     -- The following two functions will need to be split up
     -- and distributed the smaller layer parts as well.
@@ -392,9 +394,10 @@ data DBLayerCollection stm m s k = DBLayerCollection
         :: forall a. stm a -> m a
     }
 
+{- HLINT ignore mkDBLayerFromParts "Avoid lambda" -}
 -- | Create a legacy 'DBLayer' from smaller database layers.
 mkDBLayerFromParts
-    :: (MonadIO stm, MonadFail stm)
+    :: forall stm m s k. (MonadIO stm, MonadFail stm)
     => DBLayerCollection stm m s k -> DBLayer m s k
 mkDBLayerFromParts DBLayerCollection{..} = DBLayer
     { initializeWallet = initializeWallet_ dbWallets
@@ -406,10 +409,14 @@ mkDBLayerFromParts DBLayerCollection{..} = DBLayer
     , listCheckpoints = listCheckpoints_ dbCheckpoints
     , putWalletMeta = putWalletMeta_ dbWalletMeta
     , readWalletMeta = readWalletMeta_ dbWalletMeta
-    , isStakeKeyRegistered = isStakeKeyRegistered_ dbDelegation
-    , putDelegationCertificate = putDelegationCertificate_ dbDelegation
-    , putDelegationRewardBalance = putDelegationRewardBalance_ dbDelegation
-    , readDelegationRewardBalance = readDelegationRewardBalance_ dbDelegation
+    , isStakeKeyRegistered = \wid -> wrapNoSuchWallet wid $
+        isStakeKeyRegistered_ (dbDelegation wid)
+    , putDelegationCertificate = \wid a b -> wrapNoSuchWallet wid $
+        putDelegationCertificate_ (dbDelegation wid) a b
+    , putDelegationRewardBalance = \wid a -> wrapNoSuchWallet wid $
+        putDelegationRewardBalance_ (dbDelegation wid) a
+    , readDelegationRewardBalance = \wid ->
+        readDelegationRewardBalance_ (dbDelegation wid)
     , putTxHistory = putTxHistory_ dbTxHistory
     , readTxHistory = readTxHistory_ dbTxHistory
     , getTx = getTx_ dbTxHistory
@@ -417,13 +424,24 @@ mkDBLayerFromParts DBLayerCollection{..} = DBLayer
     , readLocalTxSubmissionPending = readLocalTxSubmissionPending_ dbPendingTxs
     , updatePendingTxForExpiry = updatePendingTxForExpiry_ dbPendingTxs
     , removePendingOrExpiredTx = removePendingOrExpiredTx_ dbPendingTxs
-    , putPrivateKey = putPrivateKey_ dbPrivateKey
-    , readPrivateKey = readPrivateKey_ dbPrivateKey
+    , putPrivateKey = \wid a -> wrapNoSuchWallet wid $
+        putPrivateKey_ (dbPrivateKey wid) a
+    , readPrivateKey = \wid ->
+        readPrivateKey_ (dbPrivateKey wid)
     , readGenesisParameters = readGenesisParameters_ dbWallets
     , rollbackTo = rollbackTo_
     , prune = prune_
     , atomically = atomically_
     }
+  where
+    wrapNoSuchWallet
+        :: WalletId
+        -> stm a
+        -> ExceptT ErrNoSuchWallet stm a
+    wrapNoSuchWallet wid action = ExceptT $
+        hasWallet_ dbWallets wid >>= \case
+            False -> pure $ Left $ ErrNoSuchWallet wid
+            True  -> Right <$> action
 
 -- | A database layer for a collection of wallets
 data DBWallets stm s = DBWallets
@@ -452,6 +470,12 @@ data DBWallets stm s = DBWallets
     , listWallets_
         :: stm [WalletId]
         -- ^ Get the list of all known wallets in the DB, possibly empty.
+
+    , hasWallet_
+        :: WalletId
+        -> stm Bool
+        -- ^ Check whether the wallet with 'WalletId' is present
+        -- in the database.
     }
 
 -- | A database layer for storing wallet states.
@@ -511,14 +535,12 @@ data DBWalletMeta stm = DBWalletMeta
 -- and the reward balance.
 data DBDelegation stm = DBDelegation
     { isStakeKeyRegistered_
-        :: WalletId
-        -> ExceptT ErrNoSuchWallet stm Bool
+        :: stm Bool
 
     , putDelegationCertificate_
-        :: WalletId
-        -> DelegationCertificate
+        :: DelegationCertificate
         -> SlotNo
-        -> ExceptT ErrNoSuchWallet stm ()
+        -> stm ()
         -- ^ Binds a stake pool id to a wallet. This will have an influence on
         -- the wallet metadata: the last known certificate will indicate to
         -- which pool a wallet is currently delegating.
@@ -530,9 +552,8 @@ data DBDelegation stm = DBDelegation
         -- 2. Affected by rollbacks (or said differently, tied to a 'SlotNo').
 
     , putDelegationRewardBalance_
-        :: WalletId
-        -> Coin
-        -> ExceptT ErrNoSuchWallet stm ()
+        :: Coin
+        -> stm ()
         -- ^ Store the latest known reward account balance.
         --
         -- This is separate from checkpoints because the data corresponds to the
@@ -540,12 +561,10 @@ data DBDelegation stm = DBDelegation
         -- This is separate from putWalletMeta because it's not meta data
 
     , readDelegationRewardBalance_
-        :: WalletId
-        -> stm Coin
+        :: stm Coin
         -- ^ Get the reward account balance.
         --
-        -- Returns zero if the wallet isn't found or if wallet hasn't delegated
-        -- stake.
+        -- Returns zero if the wallet hasn't delegated stake.
     }
 
 -- | A database layer that stores the transaction history.
@@ -619,17 +638,15 @@ data DBPendingTxs stm = DBPendingTxs
 -- | A database layer for storing the private key.
 data DBPrivateKey stm k = DBPrivateKey
     { putPrivateKey_
-        :: WalletId
-        -> (k 'RootK XPrv, PassphraseHash)
-        -> ExceptT ErrNoSuchWallet stm ()
+        :: (k 'RootK XPrv, PassphraseHash)
+        -> stm ()
         -- ^ Store or replace a private key for a given wallet. Note that wallet
         -- _could_ be stored and manipulated without any private key associated
         -- to it. A private key is only seldomly required for very specific
         -- operations (like transaction signing).
 
     , readPrivateKey_
-        :: WalletId
-        -> stm (Maybe (k 'RootK XPrv, PassphraseHash))
+        :: stm (Maybe (k 'RootK XPrv, PassphraseHash))
         -- ^ Read a previously stored private key and its associated passphrase
         -- hash.
     }

@@ -168,7 +168,7 @@ import Data.Generics.Internal.VL.Lens
 import Data.List
     ( sortOn )
 import Data.Maybe
-    ( catMaybes, fromMaybe, listToMaybe, maybeToList )
+    ( catMaybes, fromMaybe, isJust, listToMaybe, maybeToList )
 import Data.Ord
     ( Down (..) )
 import Data.Proxy
@@ -603,6 +603,8 @@ newDBLayerWith _cacheBehavior _tr ti SqliteContext{runQuery} = do
                         in  (delta, Right ())
 
         , listWallets_ = map unWalletKey <$> selectKeysList [] [Asc WalId]
+
+        , hasWallet_ = fmap isJust . selectWallet
         }
 
         {-----------------------------------------------------------------------
@@ -710,53 +712,7 @@ newDBLayerWith _cacheBehavior _tr ti SqliteContext{runQuery} = do
         {-----------------------------------------------------------------------
                                     Wallet Delegation
         -----------------------------------------------------------------------}
-    let
-      dbDelegation = DBDelegation
-        { putDelegationCertificate_ = \wid cert sl -> ExceptT $ do
-            selectWallet wid >>= \case
-                Nothing -> pure $ Left $ ErrNoSuchWallet wid
-                Just _  -> case cert of
-                    W.CertDelegateNone _ -> do
-                        repsert
-                            (DelegationCertificateKey wid sl)
-                            (DelegationCertificate wid sl Nothing)
-                        pure <$> repsert
-                            (StakeKeyCertificateKey wid sl)
-                            (StakeKeyCertificate wid sl W.StakeKeyDeregistration)
-                    W.CertDelegateFull _ pool ->
-                        pure <$> repsert
-                            (DelegationCertificateKey wid sl)
-                            (DelegationCertificate wid sl (Just pool))
-                    W.CertRegisterKey _ ->
-                        pure <$> repsert
-                            (StakeKeyCertificateKey wid sl)
-                            (StakeKeyCertificate wid sl W.StakeKeyRegistration)
-
-        , isStakeKeyRegistered_ = \wid -> ExceptT $ do
-              selectWallet wid >>= \case
-                Nothing -> pure $ Left $ ErrNoSuchWallet wid
-                Just{} -> do
-                    val <- fmap entityVal <$> selectFirst
-                        [StakeKeyCertWalletId ==. wid]
-                        [Desc StakeKeyCertSlot]
-                    return $ case val of
-                        Nothing -> Right False
-                        Just (StakeKeyCertificate _ _ status) ->
-                            Right (status == W.StakeKeyRegistration)
-
-        , putDelegationRewardBalance_ =
-            \wid amt -> ExceptT $ do
-            selectWallet wid >>= \case
-                Nothing -> pure $ Left $ ErrNoSuchWallet wid
-                Just _  -> Right <$> repsert
-                    (DelegationRewardKey wid)
-                    (DelegationReward wid (Coin.unsafeToWord64 amt))
-
-        , readDelegationRewardBalance_ =
-            \wid ->
-                Coin.fromWord64 . maybe 0 (rewardAccountBalance . entityVal) <$>
-                selectFirst [RewardWalletId ==. wid] []
-        }
+    let dbDelegation = mkDBDelegation
 
         {-----------------------------------------------------------------------
                                      Tx History
@@ -876,17 +832,7 @@ newDBLayerWith _cacheBehavior _tr ti SqliteContext{runQuery} = do
         {-----------------------------------------------------------------------
                                        Keystore
         -----------------------------------------------------------------------}
-    let
-      dbPrivateKey = DBPrivateKey
-        { putPrivateKey_ = \wid key -> ExceptT $ do
-            selectWallet wid >>= \case
-                Nothing -> pure $ Left $ ErrNoSuchWallet wid
-                Just _ -> Right <$> do
-                    deleteWhere [PrivateKeyWalletId ==. wid]
-                    insert_ (mkPrivateKeyEntity wid key)
-
-        , readPrivateKey_ = selectPrivateKey
-        }
+    let dbPrivateKey = mkDBPrivateKey
 
         {-----------------------------------------------------------------------
                                      ACID Execution
@@ -904,6 +850,50 @@ readWalletMetadata
 readWalletMetadata wid walDel =
      fmap (metadataFromEntity walDel . entityVal)
         <$> selectFirst [WalId ==. wid] []
+
+{-----------------------------------------------------------------------
+                            Wallet Delegation
+-----------------------------------------------------------------------}
+{- HLINT ignore mkDBDelegation "Avoid lambda" -}
+mkDBDelegation
+    :: W.WalletId
+    -> DBDelegation (SqlPersistT IO)
+mkDBDelegation wid = DBDelegation
+    { isStakeKeyRegistered_ = do
+        val <- fmap entityVal <$> selectFirst
+            [StakeKeyCertWalletId ==. wid]
+            [Desc StakeKeyCertSlot]
+        return $ case val of
+            Nothing -> False
+            Just (StakeKeyCertificate _ _ status) ->
+                status == W.StakeKeyRegistration
+
+    , putDelegationCertificate_ = \cert sl -> case cert of
+        W.CertDelegateNone _ -> do
+            repsert
+                (DelegationCertificateKey wid sl)
+                (DelegationCertificate wid sl Nothing)
+            repsert
+                (StakeKeyCertificateKey wid sl)
+                (StakeKeyCertificate wid sl W.StakeKeyDeregistration)
+        W.CertDelegateFull _ pool ->
+            repsert
+                (DelegationCertificateKey wid sl)
+                (DelegationCertificate wid sl (Just pool))
+        W.CertRegisterKey _ ->
+            repsert
+                (StakeKeyCertificateKey wid sl)
+                (StakeKeyCertificate wid sl W.StakeKeyRegistration)
+
+    , putDelegationRewardBalance_ = \amt ->
+        repsert
+            (DelegationRewardKey wid)
+            (DelegationReward wid (Coin.unsafeToWord64 amt))
+
+    , readDelegationRewardBalance_ =
+        Coin.fromWord64 . maybe 0 (rewardAccountBalance . entityVal) <$>
+            selectFirst [RewardWalletId ==. wid] []
+    }
 
 readWalletDelegation
     :: TimeInterpreter IO
@@ -987,6 +977,29 @@ metadataFromEntity walDelegation wal = W.WalletMetadata
     , delegation = walDelegation
     }
 
+genesisParametersFromEntity
+    :: Wallet
+    -> W.GenesisParameters
+genesisParametersFromEntity (Wallet _ _ _ _ _ hash startTime) =
+    W.GenesisParameters
+        { W.getGenesisBlockHash = coerce (getBlockId hash)
+        , W.getGenesisBlockDate = W.StartTime startTime
+        }
+
+{-----------------------------------------------------------------------
+                    Private Key store
+-----------------------------------------------------------------------}
+mkDBPrivateKey
+    :: forall k. PersistPrivateKey (k 'RootK)
+    => W.WalletId
+    -> DBPrivateKey (SqlPersistT IO) k
+mkDBPrivateKey wid = DBPrivateKey
+    { putPrivateKey_ = \key -> do
+        deleteWhere [PrivateKeyWalletId ==. wid]
+        insert_ (mkPrivateKeyEntity wid key)
+    , readPrivateKey_ = selectPrivateKey wid
+    }
+
 mkPrivateKeyEntity
     :: PersistPrivateKey (k 'RootK)
     => W.WalletId
@@ -1006,16 +1019,6 @@ privateKeyFromEntity
     -> (k 'RootK XPrv, PassphraseHash)
 privateKeyFromEntity (PrivateKey _ k h) =
     unsafeDeserializeXPrv (k, h)
-
-
-genesisParametersFromEntity
-    :: Wallet
-    -> W.GenesisParameters
-genesisParametersFromEntity (Wallet _ _ _ _ _ hash startTime) =
-    W.GenesisParameters
-        { W.getGenesisBlockHash = coerce (getBlockId hash)
-        , W.getGenesisBlockDate = W.StartTime startTime
-        }
 
 {-------------------------------------------------------------------------------
     SQLite database operations
