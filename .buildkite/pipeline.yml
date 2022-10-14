@@ -101,3 +101,23 @@ steps:
     command: 'rm -vrf $CABAL_DIR'
     agents:
       system: x86_64-linux
+
+  - label: 'Clearing cabal cache 2'
+    command: 'rm -vrf $CABAL_DIR'
+    agents:
+      system: x86_64-linux
+
+  - label: 'Clearing cabal cache 3'
+    command: 'rm -vrf $CABAL_DIR'
+    agents:
+      system: x86_64-linux
+
+  - label: 'Clearing cabal cache 4'
+    command: 'rm -vrf $CABAL_DIR'
+    agents:
+      system: x86_64-linux
+
+  - label: 'Clearing cabal cache 5'
+    command: 'rm -vrf $CABAL_DIR'
+    agents:
+      system: x86_64-linux
