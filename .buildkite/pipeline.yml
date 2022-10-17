@@ -93,11 +93,32 @@ steps:
       system: x86_64-linux
 
   - block: "Clear cabal cache"
+    prompt: "This command cannot guarantee the caches to be cleared on every buildkite agent, but will try to make this likely by scheduling many duplicated cache-clearing steps."
     key: 'should_clear_cache'
     allow_dependency_failure: true
     depends_on: [] # allows triggering this step even if previous steps failed
 
   - label: 'Clearing cabal cache'
+    command: 'rm -vrf $CABAL_DIR'
+    agents:
+      system: x86_64-linux
+
+  - label: 'Clearing cabal cache 2'
+    command: 'rm -vrf $CABAL_DIR'
+    agents:
+      system: x86_64-linux
+
+  - label: 'Clearing cabal cache 3'
+    command: 'rm -vrf $CABAL_DIR'
+    agents:
+      system: x86_64-linux
+
+  - label: 'Clearing cabal cache 4'
+    command: 'rm -vrf $CABAL_DIR'
+    agents:
+      system: x86_64-linux
+
+  - label: 'Clearing cabal cache 5'
     command: 'rm -vrf $CABAL_DIR'
     agents:
       system: x86_64-linux
