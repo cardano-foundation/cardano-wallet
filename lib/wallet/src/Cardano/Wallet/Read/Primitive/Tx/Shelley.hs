@@ -29,15 +29,10 @@ import Cardano.Api
     ( ShelleyEra )
 import Cardano.Api.Shelley
     ( fromShelleyMetadata )
+import Cardano.Crypto.Hash
+    ( hashToBytes )
 import Cardano.Ledger.Era
     ( Era (..) )
-import Cardano.Slotting.Slot
-    ( EpochNo (..) )
-import Cardano.Wallet.Primitive.Types
-    ( PoolCertificate (..)
-    , PoolRegistrationCertificate (..)
-    , PoolRetirementCertificate (..)
-    )
 import Cardano.Wallet.Read.Eras
     ( inject, shelley )
 import Cardano.Wallet.Read.Primitive.Tx.Features.Certificates
@@ -72,7 +67,6 @@ import qualified Cardano.Api.Shelley as Cardano
 import qualified Cardano.Ledger.Address as SL
 import qualified Cardano.Ledger.BaseTypes as SL
 import qualified Cardano.Ledger.Core as SL.Core
-import qualified Cardano.Ledger.Credential as SL
 import qualified Cardano.Ledger.Crypto as SL
 import qualified Cardano.Ledger.Keys as SL
 import qualified Cardano.Ledger.Shelley.API as SL
@@ -86,6 +80,7 @@ import qualified Cardano.Wallet.Primitive.Types.RewardAccount as W
 import qualified Cardano.Wallet.Primitive.Types.TokenBundle as TokenBundle
 import qualified Cardano.Wallet.Primitive.Types.Tx as W
 import qualified Data.Map.Strict as Map
+import qualified Data.Set as Set
 
 fromShelleyTxIn
     :: SL.TxIn crypto
