@@ -19,6 +19,8 @@ module Test.Integration.Scenario.API.Shared.Transactions
 
 import Prelude
 
+import Cardano.Address.Script
+    ( KeyHash (..), Script (..) )
 import Cardano.Mnemonic
     ( MkSomeMnemonic (..) )
 import Cardano.Wallet.Api.Types
@@ -41,13 +43,15 @@ import Cardano.Wallet.Api.Types
     , WalletStyle (..)
     )
 import Cardano.Wallet.Primitive.AddressDerivation
-    ( DerivationIndex (..) )
+    ( DerivationIndex (..), Index (..) )
+import Cardano.Wallet.Primitive.AddressDerivation.SharedKey
+    ( replaceCosignersWithVerKeys )
 import Cardano.Wallet.Primitive.Passphrase
     ( Passphrase (..) )
 import Cardano.Wallet.Primitive.Types.Tx
     ( TxMetadata (..), TxMetadataValue (..), TxScriptValidity (..) )
 import Cardano.Wallet.Transaction
-    ( WitnessCount (..) )
+    ( AnyScript (..), WitnessCount (..) )
 import Control.Monad.IO.Unlift
     ( MonadUnliftIO (..), liftIO )
 import Control.Monad.Trans.Resource
@@ -107,6 +111,8 @@ import Test.Integration.Framework.TestData
     , errMsg403SharedWalletPending
     )
 
+import qualified Cardano.Address.Script as CA
+import qualified Cardano.Address.Style.Shelley as CA
 import qualified Cardano.Wallet.Api.Link as Link
 import qualified Cardano.Wallet.Primitive.Types.TokenMap as TokenMap
 import qualified Data.ByteArray as BA
@@ -543,9 +549,15 @@ spec = describe "SHARED_TRANSACTIONS" $ do
                 WalletOutput _ -> False
                 ExternalOutput _ -> True
 
+        let scriptTemplate = sharedWal1 ^. #paymentScriptTemplate
+        let paymentScript =
+                -- We will want CA.Payment here
+                NativeScript $ changeRole CA.Policy $
+                replaceCosignersWithVerKeys CA.UTxOExternal scriptTemplate (Index 1)
+
         let noVerKeyWitness = WitnessCount
                 { verificationKey = 0
-                , scripts = []
+                , scripts = [paymentScript]
                 , bootstrap = 0
                 }
 
@@ -576,7 +588,7 @@ spec = describe "SHARED_TRANSACTIONS" $ do
 
         let oneVerKeyWitness = WitnessCount
                 { verificationKey = 1
-                , scripts = []
+                , scripts = [paymentScript]
                 , bootstrap = 0
                 }
         let witsExp2 = [ expectField (#witnessCount) (`shouldBe` oneVerKeyWitness) ]
@@ -758,3 +770,14 @@ spec = describe "SHARED_TRANSACTIONS" $ do
                      }
                  }]
              }|]
+
+     --Hack until we figure out what to do with Role in KeyHash. We
+     --may just get rid of it n the end if I cannot do it right in decodeTransaction
+     changeRole :: CA.KeyRole -> Script KeyHash -> Script KeyHash
+     changeRole role = \case
+         RequireSignatureOf (KeyHash _ p) -> RequireSignatureOf $ KeyHash role p
+         RequireAllOf xs      -> RequireAllOf (map (changeRole role) xs)
+         RequireAnyOf xs      -> RequireAnyOf (map (changeRole role) xs)
+         RequireSomeOf m xs   -> RequireSomeOf m (map (changeRole role) xs)
+         ActiveFromSlot s     -> ActiveFromSlot s
+         ActiveUntilSlot s    -> ActiveUntilSlot s
