@@ -678,8 +678,8 @@ errMsg403ForeignTransaction = mconcat
 
 errMsg403MissingWitsInTransaction :: Int -> Int -> String
 errMsg403MissingWitsInTransaction expected got = mconcat
-    [ "The transaction has ", show expected
-    , " inputs and ", show got, " witnesses included."
+    [ "The transaction expects ", show expected
+    , " witness(es) to be fully-signed but ", show got, " was provided."
     , " Submit fully-signed transaction."
     ]
 

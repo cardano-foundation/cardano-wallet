@@ -43,6 +43,7 @@ module Cardano.Wallet.Primitive.AddressDiscovery.Shared
     , retrieveAllCosigners
     , validateScriptTemplates
     , toSharedWalletId
+    , estimateWitnessRequiredPerInput
 
     , CredentialType (..)
     , liftPaymentAddress
@@ -744,3 +745,12 @@ instance ( key ~ SharedKey
             in Just ( deriveAddressPrivateKey pwd accXPrv role' ix
                     , pwd )
         (Nothing, _) -> Nothing
+
+estimateWitnessRequiredPerInput :: Script k -> Int
+estimateWitnessRequiredPerInput = \case
+    RequireSignatureOf _ -> 1
+    RequireAllOf xs      -> sum $ map estimateWitnessRequiredPerInput xs
+    RequireAnyOf xs      -> minimum $ map estimateWitnessRequiredPerInput xs
+    RequireSomeOf m _    -> fromIntegral m
+    ActiveFromSlot _     -> 0
+    ActiveUntilSlot _    -> 0

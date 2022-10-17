@@ -108,6 +108,7 @@ import Test.Integration.Framework.TestData
     , errMsg403Fee
     , errMsg403InvalidConstructTx
     , errMsg403MinUTxOValue
+    , errMsg403MissingWitsInTransaction
     , errMsg403SharedWalletPending
     )
 
@@ -617,9 +618,10 @@ spec = describe "SHARED_TRANSACTIONS" $ do
 
         -- Submit tx
         submittedTx <- submitSharedTxWithWid ctx sharedWal1 signedTx3
+
         verify submittedTx
-            [ expectSuccess
-            , expectResponseCode HTTP.status202
+            [ expectResponseCode HTTP.status403
+            , expectErrorMessage (errMsg403MissingWitsInTransaction 2 1)
             ]
 
   where
