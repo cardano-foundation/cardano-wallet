@@ -45,7 +45,7 @@ import Plutus.V1.Ledger.Api
 import Test.Cardano.Ledger.Alonzo.Serialisation.Generators
     ()
 import Test.Hspec
-    ( Spec, describe, expectationFailure, it, shouldBe )
+    ( Spec, describe, expectationFailure, it, shouldBe, shouldNotBe )
 import Test.QuickCheck
     ( Arbitrary (..)
     , Arbitrary1 (liftArbitrary)
@@ -62,11 +62,12 @@ import qualified Cardano.Api.Shelley as Cardano
 import qualified Cardano.Ledger.Alonzo.Data as Alonzo
 import qualified Data.Aeson as Aeson
 import qualified Data.Aeson.Types as Aeson
+import qualified Data.ByteString as BS
 import qualified Data.Map as Map
 
 spec :: Spec
 spec = do
-    describe "Datum" $ do
+    describe "BinaryData" $ do
         it "BinaryData is isomorphic to Cardano.ScriptData" $
             testIsomorphism
                 (NamedFun
@@ -78,10 +79,6 @@ spec = do
             $ property $ \d -> do
                  let f = datumFromBytes . datumToBytes
                  f d === Right d
-        it "datumHashFromBytes . datumHashToBytes == Just"
-            $ property $ \h -> do
-                 let f = datumHashFromBytes . datumHashToBytes
-                 f h === Just h
 
         describe "datumFromBytes goldens" $ do
             let decodePlutusData hex =
@@ -106,6 +103,23 @@ spec = do
                             \\188\241\SYN\149\SUBR\244\184i\143\&4\193\252\128"
                         , Map [(B "", Map [(B "", I 2000000)])]
                         ]
+
+    describe "DatumHash" $ do
+        it "datumHashFromBytes . datumHashToBytes == Just"
+            $ property $ \h -> do
+                 let f = datumHashFromBytes . datumHashToBytes
+                 f h === Just h
+
+        describe "datumHashFromBytes goldens" $ do
+            it "32 bytes -> Just" $ do
+                datumHashFromBytes (BS.replicate 32 0)
+                    `shouldNotBe` Nothing
+            it "28 bytes -> Nothing" $ do
+                datumHashFromBytes (BS.replicate 28 0)
+                    `shouldBe` Nothing
+            it "33 bytes -> Nothing" $ do
+                datumHashFromBytes (BS.replicate 28 0)
+                    `shouldBe` Nothing
 
     describe "Script" $ do
         it "is isomorphic to Cardano.ScriptInAnyLang (modulo SimpleScriptV1/2)"
