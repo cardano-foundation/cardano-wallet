@@ -52,6 +52,8 @@ import Cardano.Wallet.Primitive.Types.Tx
     ( TxMetadata (..), TxMetadataValue (..), TxScriptValidity (..) )
 import Cardano.Wallet.Transaction
     ( AnyScript (..), WitnessCount (..) )
+import Control.Monad
+    ( when )
 import Control.Monad.IO.Unlift
     ( MonadUnliftIO (..), liftIO )
 import Control.Monad.Trans.Resource
@@ -63,7 +65,7 @@ import Data.Either.Combinators
 import Data.Generics.Internal.VL.Lens
     ( view, (^.) )
 import Data.Maybe
-    ( isJust )
+    ( fromJust, isJust )
 import Data.Quantity
     ( Quantity (..) )
 import Numeric.Natural
@@ -209,7 +211,7 @@ spec = describe "SHARED_TRANSACTIONS" $ do
             ]
 
         let amt = 10 * minUTxOValue (_mainEra ctx)
-        fundSharedWallet ctx amt walShared
+        fundSharedWallet ctx amt walShared Nothing
 
         rTx2 <- request @(ApiConstructTransaction n) ctx
             (Link.createUnsignedTransaction @'Shared wal) Default metadata
@@ -598,6 +600,12 @@ spec = describe "SHARED_TRANSACTIONS" $ do
         verify rDecodedTx2Wal1 (decodeConstructedTxSharedWal ++ witsExp2)
         verify rDecodedTx2Wal2 (decodeConstructedTxSharedWal ++ witsExp2)
 
+        submittedTx1 <- submitSharedTxWithWid ctx sharedWal1 signedTx1
+        verify submittedTx1
+            [ expectResponseCode HTTP.status403
+            , expectErrorMessage (errMsg403MissingWitsInTransaction 2 1)
+            ]
+
         --adding the witness by the same participant does not change the situation
         let (ApiSerialisedTransaction apiTx2 _) = signedTx1
         signedTx2 <-
@@ -613,20 +621,22 @@ spec = describe "SHARED_TRANSACTIONS" $ do
         verify rDecodedTx3Wal1 (decodeConstructedTxSharedWal ++ witsExp2)
         verify rDecodedTx3Wal2 (decodeConstructedTxSharedWal ++ witsExp2)
 
-        signedTx3 <-
-            signSharedTx ctx sharedWal2 apiTx2 [ expectResponseCode HTTP.status202 ]
-
-        -- Submit tx
-        submittedTx <- submitSharedTxWithWid ctx sharedWal1 signedTx3
-
-        verify submittedTx
+        submittedTx2 <- submitSharedTxWithWid ctx sharedWal1 signedTx2
+        verify submittedTx2
             [ expectResponseCode HTTP.status403
             , expectErrorMessage (errMsg403MissingWitsInTransaction 2 1)
             ]
 
+        --adding the witness by the second participant make tx valid for submission
+        signedTx3 <-
+            signSharedTx ctx sharedWal2 apiTx2 [ expectResponseCode HTTP.status202 ]
+        submittedTx3 <- submitSharedTxWithWid ctx sharedWal1 signedTx3
+        verify submittedTx3
+            [ expectResponseCode HTTP.status202
+            ]
   where
-     fundSharedWallet ctx amt walShared = do
-        let wal = case walShared of
+     fundSharedWallet ctx amt walShared1 walShared2 = do
+        let wal = case walShared1 of
                 ApiSharedWallet (Right wal') -> wal'
                 _ -> error "funding of shared wallet make sense only for active one"
 
@@ -659,11 +669,18 @@ spec = describe "SHARED_TRANSACTIONS" $ do
                 (#balance . #available)
                 (`shouldBe` Quantity (faucetAmt - feeMax - amt)) ra
 
-        rWal <- getSharedWallet ctx walShared
+        rWal <- getSharedWallet ctx walShared1
         verify (fmap (view #wallet) <$> rWal)
             [ expectResponseCode HTTP.status200
             , expectField (traverse . #balance . #available) (`shouldBe` Quantity amt)
             ]
+
+        when (isJust walShared2) $ do
+            rWal2 <- getSharedWallet ctx (fromJust walShared2)
+            verify (fmap (view #wallet) <$> rWal2)
+                [ expectResponseCode HTTP.status200
+                , expectField (traverse . #balance . #available) (`shouldBe` Quantity amt)
+                ]
 
      fixtureSharedWallet ctx = do
         m15txt <- liftIO $ genMnemonics M15
@@ -695,7 +712,7 @@ spec = describe "SHARED_TRANSACTIONS" $ do
         let walShared@(ApiSharedWallet (Right wal)) =
                 getFromResponse Prelude.id rPost
 
-        fundSharedWallet ctx faucetUtxoAmt walShared
+        fundSharedWallet ctx faucetUtxoAmt walShared Nothing
 
         return wal
 
@@ -739,20 +756,19 @@ spec = describe "SHARED_TRANSACTIONS" $ do
         verify (fmap (swapEither . view #wallet) <$> rPostA)
             [ expectResponseCode HTTP.status201
             ]
-        let walShared@(ApiSharedWallet (Right walA)) =
+        let walShared1@(ApiSharedWallet (Right walA)) =
                 getFromResponse Prelude.id rPostA
-
-        fundSharedWallet ctx faucetUtxoAmt walShared
 
         rPostB <- postSharedWallet ctx Default (payload m15txtB m12txtB)
         verify (fmap (swapEither . view #wallet) <$> rPostB)
             [ expectResponseCode HTTP.status201
             ]
-        let (ApiSharedWallet (Right walB)) =
-                getFromResponse Prelude.id rPostA
+        let walShared2@(ApiSharedWallet (Right walB)) =
+                getFromResponse Prelude.id rPostB
+
+        fundSharedWallet ctx faucetUtxoAmt walShared1 (Just walShared2)
 
         return (walA, walB)
-
 
      mkTxPayload
          :: MonadUnliftIO m
