@@ -4,6 +4,18 @@
 {-# LANGUAGE RankNTypes #-}
 {-# LANGUAGE ScopedTypeVariables #-}
 {-# LANGUAGE TypeApplications #-}
+
+-- |
+-- Copyright: © 2022 IOHK
+-- License: Apache-2.0
+--
+-- Module containing primitive types and functionality appropriate for
+-- constructing transactions.
+--
+-- Indented as a replacement to 'cardano-api' closer
+-- to the ledger types, and only caring about the two latest eras (Cf.
+-- 'RecentEra'). Intended to be used by things like balanceTx, constructTx and
+-- wallet migration.
 module Cardano.Wallet.Write.Tx
     (
     -- * RecentEra
@@ -137,6 +149,15 @@ type LatestLedgerEra = StandardBabbage
 -- RecentEra
 --------------------------------------------------------------------------------
 
+
+-- | 'RecentEra' respresents the eras we care about constructing transactions
+-- for.
+--
+-- To have the same software constructing transactions just before and just
+-- after a hard-fork, we need to, at that time, support the two latest eras. We
+-- could get away with just supporting one era at other times, but for
+-- simplicity we stick with always supporting the two latest eras for now.
+--
 -- NOTE: We /could/ let 'era' refer to eras from the ledger rather than from
 -- cardano-api.
 data RecentEra era where
