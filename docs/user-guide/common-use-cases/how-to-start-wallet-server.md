@@ -33,7 +33,7 @@ $ cardano-node run \
 ```
 2. Start wallet:
 
-When starting wallet against any testnet environment like `preview` or `preprod` we need to feed wallet with `byron-genesis.json` file:
+When starting a wallet instance that targets a testing environment such as `preview` or `preprod`, we need to provide a `byron-genesis.json` file to the wallet:
 
 ```bash
 $ cardano-wallet serve --port 8090 \
@@ -51,7 +51,7 @@ $ cardano-wallet serve --port 8090 \
   --database ./wallet-db \
   --token-metadata-server https://tokens.cardano.org
 ```
-> :information_source: Notice that we use different urls for `mainnet` and `testnet` `--token-metadata-server` option. These are links to [Cardano Token Registry](https://developers.cardano.org/docs/native-tokens/token-registry/cardano-token-registry) servers. See [[assets]] for more information.
+> :information_source: Notice that we use different URLs for mainnet and test networks with the --token-metadata-server option. These URLs point to [Cardano Token Registry](https://developers.cardano.org/docs/native-tokens/token-registry/cardano-token-registry) servers. See [[assets]] for more information.
 
 That's it! We can basically start managing our wallets from this point onwards. See [[how-to-create-a-wallet]] and [[how-to-manage-wallets]].
 

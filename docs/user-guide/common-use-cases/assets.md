@@ -7,7 +7,7 @@ title: Managing native assets
 
  - [[how-to-start-wallet-server]]
  - [[how-to-create-a-wallet]]
- - In order to be able to send transactions we need funds on the wallet. In case of `preview` and `preprod` [testnets](https://testnets.cardano.org/en/testnets/cardano/overview/) we can request tADA from the [faucet](https://testnets.cardano.org/en/testnets/cardano/tools/faucet/).
+ - In order to be able to send transactions, our wallet must have funds. In case of `preview` and `preprod` [testnets](https://testnets.cardano.org/en/testnets/cardano/overview/) we can request tADA from the [faucet](https://testnets.cardano.org/en/testnets/cardano/tools/faucet/).
 
 ## Overview
 
@@ -62,7 +62,7 @@ You can also list assets that were ever associated with the wallet.
 
 ## Assets off-chain metadata
 
-Issuers of native assets may put some off-chain metadata about them in the **Cardano Token Registry**. There are separate instances of token registry for `mainnet` and testnets (e.g. `preview` or `preprod`). Users can submit metadata to the repository which will be then served via corresponding server.
+Issuers of native assets may submit off-chain metadata relating to those assets to the **Cardano Token Registry**. There are separate instances of the token registry for `mainnet` and for each test network (e.g. `preview` or `preprod`). Metadata submitted to the registry will be then served via the corresponding server.
 
 |  | Mainnet | Testnets  |
 |--|--|--|
@@ -71,7 +71,7 @@ Issuers of native assets may put some off-chain metadata about them in the **Car
 
 > :information_source: Read more: [Cardano Token Registry](https://developers.cardano.org/docs/native-tokens/token-registry/cardano-token-registry), [CIP26](https://cips.cardano.org/cips/cip26).
 
-Cardano-wallet is capable of reading that metadata and serving it along while listing assets. All you have to do is to start wallet with `--token-metadata-server` parameter pointing to an off-chain metadata server corresponding to your network.
+Cardano-wallet is capable of reading that metadata and serving it when listing assets. All you have to do is to start the wallet with the `--token-metadata-server` option, specifying an off-chain metadata server that corresponds to your network.
 
 For example on `preview` or `preprod` that would be:
 
@@ -147,8 +147,7 @@ $ curl -X POST http://localhost:8091/v2/wallets/73d38c71e4b8b5d71769622ab4f5bfde
 "policy_vk12d0gdel9u6px8wf3uv4z6m4h447n9qsad24gztaku8dzzdqfajzqfm3rr0"
 ```
 
-Once we sort it out we are all set and we can proceed into minting NFT from our wallet!
-
+Once we have finished, we can proceed to minting NFTs from our wallet!
 
 #### CIP-25 metadata
 
@@ -276,7 +275,7 @@ $ curl -X POST http://localhost:8090/v2/wallets/73d38c71e4b8b5d71769622ab4f5bfde
 ```
 That's it! I should now receive CBOR-encoded `transaction`, `fee` and `coin_selection` details in response.
 I can now **sign** and **submit** such a transaction just like in [[how-to-make-a-transaction]].
-Once transaction submitted your freshly minted NFT should be added to the wallet balance!
+After the transaction has been submitted, your freshly-minted NFT should appear in your wallet balance!
 
 ### Burning an NFT
 
