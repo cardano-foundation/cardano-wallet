@@ -143,8 +143,6 @@ import Cardano.Api.Shelley
     ( ShelleyLedgerEra )
 import Cardano.BM.Tracing
     ( HasPrivacyAnnotation (..), HasSeverityAnnotation (..) )
-import Cardano.Ledger.Alonzo.TxInfo
-    ( TranslationError (..) )
 import Cardano.Mnemonic
     ( SomeMnemonic )
 import Cardano.Pool.Types
