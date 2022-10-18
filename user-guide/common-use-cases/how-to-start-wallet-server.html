@@ -27,7 +27,7 @@
 
 
   
-  <link href='tailwind.css?instanceId=f4b41bb9-243b-4272-9d9a-7b4062d7de0e' rel='stylesheet' type='text/css' />
+  <link href='tailwind.css?instanceId=505ae62d-bb2c-4aef-b36d-c1b72be3842a' rel='stylesheet' type='text/css' />
 
   <!-- Heist error element -->
   <style type='text/css'>
@@ -2387,7 +2387,7 @@
     <blockquote class='py-0.5 px-4 mb-3 italic border-l-4 bg-gray-50 text-gray-600 border-gray-400 quote'>
       
     <p class='mb-3'>
-      <span class='emoji' data-emoji='information_source' style='font-family: emoji'>ℹ️</span> Alternatively one can use handy <a href='https://github.com/input-output-hk/cardano-wallet#getting-started' class='text-blue-600 hover:underline' target='_blank' rel='noopener'>docker-compose</a> to start wallet and the node. <code class='py-0.5 px-0.5 bg-gray-100'>$ NETWORK=testnet docker-compose up</code>
+      <span class='emoji' data-emoji='information_source' style='font-family: emoji'>ℹ️</span> Alternatively one can use handy <a href='https://github.com/input-output-hk/cardano-wallet#getting-started' class='text-blue-600 hover:underline' target='_blank' rel='noopener'>docker-compose</a> to start wallet and the node on different networks: <code class='py-0.5 px-0.5 bg-gray-100'>$ NETWORK=mainnet docker-compose up</code> <code class='py-0.5 px-0.5 bg-gray-100'>$ NETWORK=preprod docker-compose up</code> <code class='py-0.5 px-0.5 bg-gray-100'>$ NETWORK=preview docker-compose up</code>
     </p>
   
     </blockquote>
@@ -2403,14 +2403,18 @@
         </li>
       
         <li>
-          Download up-to-date configuration files from <a href='https://hydra.iohk.io/job/Cardano/iohk-nix/cardano-deployment/latest/download/1' class='text-blue-600 hover:underline' target='_blank' rel='noopener'>Cardano configurations</a>.
+          Download up-to-date configuration files from <a href='https://book.world.dev.cardano.org/environments.html' class='text-blue-600 hover:underline' target='_blank' rel='noopener'>Cardano Book</a>.
         </li>
       
     </ul>
   <h4 id='start-cardano-wallet-in-full-node-mode' class='mt-6 mb-2 text-2xl font-bold text-gray-700'>Start <code class='py-0.5 px-0.5 bg-gray-100'>cardano-wallet</code> in full node mode</h4>
+    <blockquote class='py-0.5 px-4 mb-3 italic border-l-4 bg-gray-50 text-gray-600 border-gray-400 quote'>
+      
     <p class='mb-3'>
-      We are going to use <code class='py-0.5 px-0.5 bg-gray-100'>testnet</code> configuration in this example.
+      <span class='emoji' data-emoji='information_source' style='font-family: emoji'>ℹ️</span> Configuration files for all Cardano networks can be found in <a href='https://book.world.dev.cardano.org/environments.html' class='text-blue-600 hover:underline' target='_blank' rel='noopener'>Cardano Book</a>.
     </p>
+  
+    </blockquote>
   
     <ul class='my-3 ml-6 space-y-1 list-decimal list-inside'>
       
@@ -2420,8 +2424,8 @@
       
     </ul>
   <div class='py-0.5 mb-3 text-sm'><pre><code class='bash language-bash'>$ cardano-node run \
-  --config testnet-config.json \
-  --topology testnet-topology.json \
+  --config config.json \
+  --topology topology.json \
   --database-path ./db \
   --socket-path /path/to/node.socket</code></pre></div>
     <ul class='my-3 ml-6 space-y-1 list-decimal list-inside'>
@@ -2431,11 +2435,31 @@
         </li>
       
     </ul>
+  
+    <p class='mb-3'>
+      When starting a wallet instance that targets a testing environment such as <code class='py-0.5 px-0.5 bg-gray-100'>preview</code> or <code class='py-0.5 px-0.5 bg-gray-100'>preprod</code>, we need to provide a <code class='py-0.5 px-0.5 bg-gray-100'>byron-genesis.json</code> file to the wallet:
+    </p>
   <div class='py-0.5 mb-3 text-sm'><pre><code class='bash language-bash'>$ cardano-wallet serve --port 8090 \
   --node-socket /path/to/node.socket \
-  --testnet testnet-byron-genesis.json \
+  --testnet byron-genesis.json \
   --database ./wallet-db \
-  --token-metadata-server https://metadata.cardano-testnet.iohkdev.io/</code></pre></div>
+  --token-metadata-server https://metadata.cardano-testnet.iohkdev.io</code></pre></div>
+    <p class='mb-3'>
+      In case of <code class='py-0.5 px-0.5 bg-gray-100'>mainnet</code> we simply replace <code class='py-0.5 px-0.5 bg-gray-100'>--testnet byron-genesis.json</code> with option <code class='py-0.5 px-0.5 bg-gray-100'>--mainnet</code>.
+    </p>
+  <div class='py-0.5 mb-3 text-sm'><pre><code class='bash language-bash'>$ cardano-wallet serve --port 8090 \
+  --node-socket /path/to/node.socket \
+  --mainnet \
+  --database ./wallet-db \
+  --token-metadata-server https://tokens.cardano.org</code></pre></div>
+    <blockquote class='py-0.5 px-4 mb-3 italic border-l-4 bg-gray-50 text-gray-600 border-gray-400 quote'>
+      
+    <p class='mb-3'>
+      <span class='emoji' data-emoji='information_source' style='font-family: emoji'>ℹ️</span> Notice that we use different URLs for mainnet and test networks with the –token-metadata-server option. These URLs point to <a href='https://developers.cardano.org/docs/native-tokens/token-registry/cardano-token-registry' class='text-blue-600 hover:underline' target='_blank' rel='noopener'>Cardano Token Registry</a> servers. See <a href='user-guide/common-use-cases/assets' class='text-blue-600 mavenLinkBold hover:underline' data-wikilink-type='WikiLinkNormal'>Managing native assets</a> for more information.
+    </p>
+  
+    </blockquote>
+  
     <p class='mb-3'>
       That’s it! We can basically start managing our wallets from this point onwards. See <a href='user-guide/common-use-cases/how-to-create-a-wallet' class='text-blue-600 mavenLinkBold hover:underline' data-wikilink-type='WikiLinkNormal'>How to create a wallet</a> and <a href='user-guide/common-use-cases/how-to-manage-wallets' class='text-blue-600 mavenLinkBold hover:underline' data-wikilink-type='WikiLinkNormal'>How to manage wallets</a>.
     </p>
@@ -2454,7 +2478,7 @@
     <blockquote class='py-0.5 px-4 mb-3 italic border-l-4 bg-gray-50 text-gray-600 border-gray-400 quote'>
       
     <p class='mb-3'>
-      <span class='emoji' data-emoji='warning' style='font-family: emoji'>⚠️</span> This mode is currently <strong>under development</strong>. Please note that some parts may be available only in <code class='py-0.5 px-0.5 bg-gray-100'>master</code> branch.
+      <span class='emoji' data-emoji='warning' style='font-family: emoji'>⚠️</span> This mode is currently <strong>under development</strong>. Please note that some parts may not work.
     </p>
   
     </blockquote>
@@ -2506,7 +2530,7 @@
 	--port 8091 \
 	--light \
 	--blockfrost-token-file blockfrost-testnet.key \
-	--testnet testnet-byron-genesis.json \
+	--testnet byron-genesis.json \
 	--database ./wallet-testnet-db-light \</code></pre></div><h5 id='mainnet' class='mt-6 mb-2 text-xl font-bold text-gray-700'>Mainnet</h5><div class='py-0.5 mb-3 text-sm'><pre><code class='language-none'>$ cardano-wallet serve \
 	--port 8092 \
 	--light \

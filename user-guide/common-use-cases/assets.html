@@ -27,7 +27,7 @@
 
 
   
-  <link href='tailwind.css?instanceId=f4b41bb9-243b-4272-9d9a-7b4062d7de0e' rel='stylesheet' type='text/css' />
+  <link href='tailwind.css?instanceId=505ae62d-bb2c-4aef-b36d-c1b72be3842a' rel='stylesheet' type='text/css' />
 
   <!-- Heist error element -->
   <style type='text/css'>
@@ -2387,7 +2387,7 @@
         </li>
       
         <li>
-          In order to be able to send transactions we need funds on the wallet. In case of <a href='https://testnets.cardano.org/en/testnets/cardano/overview/' class='text-blue-600 hover:underline' target='_blank' rel='noopener'>Testnet</a> we can request tADA from the <a href='https://testnets.cardano.org/en/testnets/cardano/tools/faucet/' class='text-blue-600 hover:underline' target='_blank' rel='noopener'>faucet</a>.
+          In order to be able to send transactions, our wallet must have funds. In case of <code class='py-0.5 px-0.5 bg-gray-100'>preview</code> and <code class='py-0.5 px-0.5 bg-gray-100'>preprod</code> <a href='https://testnets.cardano.org/en/testnets/cardano/overview/' class='text-blue-600 hover:underline' target='_blank' rel='noopener'>testnets</a> we can request tADA from the <a href='https://testnets.cardano.org/en/testnets/cardano/tools/faucet/' class='text-blue-600 hover:underline' target='_blank' rel='noopener'>faucet</a>.
         </li>
       
     </ul>
@@ -2464,9 +2464,9 @@
     </ul>
   <h2 id='assets-off-chain-metadata' class='inline-block mt-6 mb-4 text-4xl font-bold text-gray-700 border-b-2'>Assets off-chain metadata</h2>
     <p class='mb-3'>
-      Issuers of native assets may put some metadata about them in the off-chain metadata server, like <strong>Cardano Token Registry</strong>.
+      Issuers of native assets may submit off-chain metadata relating to those assets to the <strong>Cardano Token Registry</strong>. There are separate instances of the token registry for <code class='py-0.5 px-0.5 bg-gray-100'>mainnet</code> and for each test network (e.g. <code class='py-0.5 px-0.5 bg-gray-100'>preview</code> or <code class='py-0.5 px-0.5 bg-gray-100'>preprod</code>). Metadata submitted to the registry will be then served via the corresponding server.
     </p>
-  
+  <table class='mb-3'><thead><tr class='border-b-2 border-t-2 border-gray-300'><th class='py-2 px-2 align-top border-r-2 border-l-2 border-gray-300'></th><th class='py-2 px-2 align-top border-r-2 border-l-2 border-gray-300'>Mainnet</th><th class='py-2 px-2 align-top border-r-2 border-l-2 border-gray-300'>Testnets</th></tr></thead><tbody><tr class='border-b-2 border-t-2 border-gray-300'><td class='py-2 px-2 align-top border-r-2 border-l-2 border-gray-300'><strong>Repository</strong></td><td class='py-2 px-2 align-top border-r-2 border-l-2 border-gray-300'><a href='https://github.com/cardano-foundation/cardano-token-registry' class='text-blue-600 hover:underline' target='_blank' rel='noopener'>https://github.com/cardano-foundation/cardano-token-registry</a></td><td class='py-2 px-2 align-top border-r-2 border-l-2 border-gray-300'><a href='https://github.com/input-output-hk/metadata-registry-testnet' class='text-blue-600 hover:underline' target='_blank' rel='noopener'>https://github.com/input-output-hk/metadata-registry-testnet</a></td></tr><tr class='border-b-2 border-t-2 border-gray-300'><td class='py-2 px-2 align-top border-r-2 border-l-2 border-gray-300'><strong>Server</strong></td><td class='py-2 px-2 align-top border-r-2 border-l-2 border-gray-300'><a href='https://tokens.cardano.org' class='text-blue-600 hover:underline' target='_blank' rel='noopener'>https://tokens.cardano.org</a></td><td class='py-2 px-2 align-top border-r-2 border-l-2 border-gray-300'><a href='https://metadata.cardano-testnet.iohkdev.io' class='text-blue-600 hover:underline' target='_blank' rel='noopener'>https://metadata.cardano-testnet.iohkdev.io</a></td></tr></tbody></table>
     <blockquote class='py-0.5 px-4 mb-3 italic border-l-4 bg-gray-50 text-gray-600 border-gray-400 quote'>
       
     <p class='mb-3'>
@@ -2476,15 +2476,15 @@
     </blockquote>
   
     <p class='mb-3'>
-      Cardano-wallet is capable of reading that metadata and serving it along while listing assets. All you have to do is to start wallet with <code class='py-0.5 px-0.5 bg-gray-100'>--token-metadata-server</code> parameter pointing to an off-chain metadata server.
+      Cardano-wallet is capable of reading that metadata and serving it when listing assets. All you have to do is to start the wallet with the <code class='py-0.5 px-0.5 bg-gray-100'>--token-metadata-server</code> option, specifying an off-chain metadata server that corresponds to your network.
     </p>
   
     <p class='mb-3'>
-      For example on testnet that would be:
+      For example on <code class='py-0.5 px-0.5 bg-gray-100'>preview</code> or <code class='py-0.5 px-0.5 bg-gray-100'>preprod</code> that would be:
     </p>
   <div class='py-0.5 mb-3 text-sm'><pre><code class='bash language-bash'>$ cardano-wallet serve --port 8090 \
   --node-socket /path/to/node.socket \
-  --testnet testnet-byron-genesis.json \
+  --testnet byron-genesis.json \
   --database ./wallet-db \
   --token-metadata-server https://metadata.cardano-testnet.iohkdev.io/</code></pre></div>
     <p class='mb-3'>
@@ -2563,7 +2563,7 @@
 
 "policy_vk12d0gdel9u6px8wf3uv4z6m4h447n9qsad24gztaku8dzzdqfajzqfm3rr0"</code></pre></div>
     <p class='mb-3'>
-      Once we sort it out we are all set and we can proceed into minting an NFT from our wallet!
+      Once we have finished, we can proceed to minting NFTs from our wallet!
     </p>
   <h4 id='cip-25-metadata' class='mt-6 mb-2 text-2xl font-bold text-gray-700'>CIP-25 metadata</h4>
     <p class='mb-3'>
@@ -2702,7 +2702,7 @@
 }' \
 -H "Content-Type: application/json"</code></pre></div>
     <p class='mb-3'>
-      That’s it! I should now receive CBOR-encoded <code class='py-0.5 px-0.5 bg-gray-100'>transaction</code>, <code class='py-0.5 px-0.5 bg-gray-100'>fee</code> and <code class='py-0.5 px-0.5 bg-gray-100'>coin_selection</code> details in response. I can now <strong>sign</strong> and <strong>submit</strong> such a transaction just like in <a href='user-guide/common-use-cases/how-to-make-a-transaction' class='text-blue-600 mavenLinkBold hover:underline' data-wikilink-type='WikiLinkNormal'>How to make a transaction</a>. Once submitted my freshly minted NFT should be added to my wallet balance!
+      That’s it! I should now receive CBOR-encoded <code class='py-0.5 px-0.5 bg-gray-100'>transaction</code>, <code class='py-0.5 px-0.5 bg-gray-100'>fee</code> and <code class='py-0.5 px-0.5 bg-gray-100'>coin_selection</code> details in response. I can now <strong>sign</strong> and <strong>submit</strong> such a transaction just like in <a href='user-guide/common-use-cases/how-to-make-a-transaction' class='text-blue-600 mavenLinkBold hover:underline' data-wikilink-type='WikiLinkNormal'>How to make a transaction</a>. After the transaction has been submitted, your freshly-minted NFT should appear in your wallet balance!
     </p>
   <h3 id='burning-an-nft' class='mt-6 mb-2 text-3xl font-bold text-gray-700'>Burning an NFT</h3>
     <p class='mb-3'>
@@ -2799,6 +2799,28 @@
             <div class='flex flex-col lg:flex-row lg:space-x-2'>
               
               
+  <div class='flex-1 p-4 mt-8 bg-gray-100 rounded'>
+    <header class='mb-2 text-xl font-semibold text-gray-500'>Links to this page</header>
+    <ul class='space-y-1'>
+      
+        <li>
+          <a class='text-blue-600 mavenLinkBold hover:bg-blue-50' href='user-guide/common-use-cases/how-to-start-wallet-server'>
+            How to start wallet server
+          </a>
+          
+            <div class='mb-4 overflow-auto text-sm text-gray-500'>
+  
+    <div class='pl-2 mt-2 border-l-2 border-blue-200 hover:border-blue-500'>
+      <div><p><span class='emoji' data-emoji='information_source'>ℹ️</span> Notice that we use different URLs for mainnet and test networks with the –token-metadata-server option. These URLs point to <a href='https://developers.cardano.org/docs/native-tokens/token-registry/cardano-token-registry' class='text-gray-600 hover:underline' target='_blank' rel='noopener'>Cardano Token Registry</a> servers. See <a href='user-guide/common-use-cases/assets' class='text-gray-600 font-bold hover:bg-gray-50' data-wikilink-type='WikiLinkNormal'>Managing native assets</a> for more information.</p></div>
+    </div>
+  
+</div>
+          
+        </li>
+      
+    </ul>
+  </div>
+
             </div>
             
   <section class='flex flex-wrap items-end justify-center my-4 space-x-2 space-y-2 font-mono text-sm'>

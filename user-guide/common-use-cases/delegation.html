@@ -27,7 +27,7 @@
 
 
   
-  <link href='tailwind.css?instanceId=f4b41bb9-243b-4272-9d9a-7b4062d7de0e' rel='stylesheet' type='text/css' />
+  <link href='tailwind.css?instanceId=505ae62d-bb2c-4aef-b36d-c1b72be3842a' rel='stylesheet' type='text/css' />
 
   <!-- Heist error element -->
   <style type='text/css'>
@@ -2387,7 +2387,7 @@
         </li>
       
         <li>
-          In order to be able to send transactions we need funds on the wallet. In case of <a href='https://testnets.cardano.org/en/testnets/cardano/overview/' class='text-blue-600 hover:underline' target='_blank' rel='noopener'>Testnet</a> we can request tADA from the <a href='https://testnets.cardano.org/en/testnets/cardano/tools/faucet/' class='text-blue-600 hover:underline' target='_blank' rel='noopener'>faucet</a>.
+          In order to be able to send transactions, our wallet must have funds. In case of <code class='py-0.5 px-0.5 bg-gray-100'>preview</code> and <code class='py-0.5 px-0.5 bg-gray-100'>preprod</code> <a href='https://testnets.cardano.org/en/testnets/cardano/overview/' class='text-blue-600 hover:underline' target='_blank' rel='noopener'>testnets</a> we can request tADA from the <a href='https://testnets.cardano.org/en/testnets/cardano/tools/faucet/' class='text-blue-600 hover:underline' target='_blank' rel='noopener'>faucet</a>.
         </li>
       
     </ul>
@@ -2581,18 +2581,14 @@
 -d '{"withdrawal":"self",
      "delegations":[{"quit":{"stake_key_index":"0H"}}]}' \  
 -H "Content-Type: application/json"</code></pre></div>
-    <blockquote class='py-0.5 px-4 mb-3 italic border-l-4 bg-gray-50 text-gray-600 border-gray-400 quote'>
-      
     <p class='mb-3'>
-      <span class='emoji' data-emoji='information_source' style='font-family: emoji'>ℹ️</span> Note that all rewards will be withdrawn only if you add {“withdrawal”:“self”} to the payload. You can do it in a single transaction though as above.
+      After constructing a transaction that undelegates from a stake pool, I should receive a CBOR-encoded <code class='py-0.5 px-0.5 bg-gray-100'>transaction</code>, <code class='py-0.5 px-0.5 bg-gray-100'>fee</code>, and <code class='py-0.5 px-0.5 bg-gray-100'>coin_selection</code> in the response. I can now <strong>sign</strong> and <strong>submit</strong> such a transaction just like in <a href='user-guide/common-use-cases/how-to-make-a-transaction' class='text-blue-600 mavenLinkBold hover:underline' data-wikilink-type='WikiLinkNormal'>How to make a transaction</a>.
     </p>
   
-    </blockquote>
-  
     <blockquote class='py-0.5 px-4 mb-3 italic border-l-4 bg-gray-50 text-gray-600 border-gray-400 quote'>
       
     <p class='mb-3'>
-      <span class='emoji' data-emoji='information_source' style='font-family: emoji'>ℹ️</span> Refer to <a href='user-guide/common-use-cases/how-to-make-a-transaction' class='text-blue-600 mavenLinkBold hover:underline' data-wikilink-type='WikiLinkNormal'>How to make a transaction</a> for details on signing and submitting it to the network.
+      <span class='emoji' data-emoji='information_source' style='font-family: emoji'>ℹ️</span> Note that all rewards will be withdrawn only if you add {“withdrawal”:“self”} to the payload. You can achieve this with a single transaction, as shown above.
     </p>
   
     </blockquote>
