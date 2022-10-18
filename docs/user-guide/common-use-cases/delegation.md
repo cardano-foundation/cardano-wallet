@@ -7,7 +7,7 @@ title: Delegation
 
  - [[how-to-start-wallet-server]]
  - [[how-to-create-a-wallet]]
- - In order to be able to send transactions we need funds on the wallet. In case of [Testnet](https://testnets.cardano.org/en/testnets/cardano/overview/) we can request tADA from the [faucet](https://testnets.cardano.org/en/testnets/cardano/tools/faucet/).
+ - In order to be able to send transactions we need funds on the wallet. In case of `preview` and `preprod` [testnets](https://testnets.cardano.org/en/testnets/cardano/overview/) we can request tADA from the [faucet](https://testnets.cardano.org/en/testnets/cardano/tools/faucet/).
 
 ## Overview
 
@@ -135,6 +135,7 @@ $ curl -X POST http://localhost:8090/v2/wallets/1b0aa24994b4181e79116c131510f2ab
 -H "Content-Type: application/json"
 ```
 
-> :information_source: Note that all rewards will be withdrawn only if you add {"withdrawal":"self"} to the payload. You can do it in a single transaction though as above.
+After constructing delegation quit transaction I should receive CBOR-encoded `transaction`, `fee` and `coin_selection` details in response.
+I can now **sign** and **submit** such a transaction just like in [[how-to-make-a-transaction]].
 
-> :information_source: Refer to [[how-to-make-a-transaction]] for details on signing and submitting it to the network.
+> :information_source: Note that all rewards will be withdrawn only if you add {"withdrawal":"self"} to the payload. You can do it in a single transaction though as above.

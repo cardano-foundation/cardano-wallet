@@ -10,33 +10,49 @@ The easiest and most common way of managing your funds on the Cardano blockchain
 
 Here we are going to start `cardano-wallet` in full node mode, meaning that we need to have also `cardano-node` running on the same machine. We can get binaries of `cardano-wallet` and compatible version of `cardano-node` from [cardano wallet release page](https://github.com/input-output-hk/cardano-wallet/releases). `Cardano-wallet` archives published for each release, besides `cardano-wallet` itself, include all the relevant tools like `cardano-node`, `cardano-cli`, `cardano-addresses` or `bech32`.
 
-> :information_source: Alternatively one can use handy [docker-compose](https://github.com/input-output-hk/cardano-wallet#getting-started) to start wallet and the node.
-> `$ NETWORK=testnet docker-compose up`
+> :information_source: Alternatively one can use handy [docker-compose](https://github.com/input-output-hk/cardano-wallet#getting-started) to start wallet and the node on different networks:
+> `$ NETWORK=mainnet docker-compose up`
+> `$ NETWORK=preprod docker-compose up`
+> `$ NETWORK=preview docker-compose up`
 
 #### Pre-requisites
 - Install cardano-wallet from [cardano wallet release page](https://github.com/input-output-hk/cardano-wallet/releases).
 - Install cardano-node from [cardano wallet release page](https://github.com/input-output-hk/cardano-wallet/releases).
-- Download up-to-date configuration files from [Cardano configurations](https://hydra.iohk.io/job/Cardano/iohk-nix/cardano-deployment/latest/download/1).
+- Download up-to-date configuration files from [Cardano Book](https://book.world.dev.cardano.org/environments.html).
 
 #### Start `cardano-wallet` in full node mode
-We are going to use `testnet` configuration in this example.
+> :information_source: Configuration files for all Cardano networks can be found in [Cardano Book](https://book.world.dev.cardano.org/environments.html).
 
 1. Start node:
 ```bash
 $ cardano-node run \
-  --config testnet-config.json \
-  --topology testnet-topology.json \
+  --config config.json \
+  --topology topology.json \
   --database-path ./db \
   --socket-path /path/to/node.socket
 ```
 2. Start wallet:
+
+When starting wallet against any testnet environment like `preview` or `preprod` we need to feed wallet with `byron-genesis.json` file:
+
 ```bash
 $ cardano-wallet serve --port 8090 \
   --node-socket /path/to/node.socket \
-  --testnet testnet-byron-genesis.json \
+  --testnet byron-genesis.json \
   --database ./wallet-db \
-  --token-metadata-server https://metadata.cardano-testnet.iohkdev.io/
+  --token-metadata-server https://metadata.cardano-testnet.iohkdev.io
 ```
+In case of `mainnet` we simply replace `--testnet byron-genesis.json` with option `--mainnet`.
+
+```bash
+$ cardano-wallet serve --port 8090 \
+  --node-socket /path/to/node.socket \
+  --mainnet \
+  --database ./wallet-db \
+  --token-metadata-server https://tokens.cardano.org
+```
+> :information_source: Notice that we use different urls for `mainnet` and `testnet` `--token-metadata-server` option. These are links to [Cardano Token Registry](https://developers.cardano.org/docs/native-tokens/token-registry/cardano-token-registry) servers. See [[assets]] for more information.
+
 That's it! We can basically start managing our wallets from this point onwards. See [[how-to-create-a-wallet]] and [[how-to-manage-wallets]].
 
 However, in order to be able to make transactions, we still need to wait until `cardano-node` is synced fully with the Cardano blockchain. In case of `mainnet` it may take several hours, in case of `testnet` a bit less.
@@ -52,7 +68,7 @@ $ curl -X GET http://localhost:8090/v2/network/information | jq .sync_progress
 
 ## Light mode
 
-> :warning: This mode is currently **under development**. Please note that some parts may be available only in `master` branch.
+> :warning: This mode is currently **under development**. Please note that some parts may not work.
 
 You can start your cardano-wallet server also in **light mode**. As opposed to full-node mode, in light-mode your wallet is not connected to a locally running instance of `cardano-node`. Instead it relays on external source of blockchain data. This significantly improves synchronization speed of the wallet and also removes the need to spend time synchronizing the node itself. The downside is that external source of data is obviously less trusted than the local one provided by your own `cardano-node` instance.
 
@@ -75,7 +91,7 @@ $ cardano-wallet serve \
 	--port 8091 \
 	--light \
 	--blockfrost-token-file blockfrost-testnet.key \
-	--testnet testnet-byron-genesis.json \
+	--testnet byron-genesis.json \
 	--database ./wallet-testnet-db-light \
 ```
 ##### Mainnet
