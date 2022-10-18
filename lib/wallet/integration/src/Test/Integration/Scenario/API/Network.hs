@@ -11,13 +11,11 @@ import Prelude
 
 import Cardano.Wallet.Api.Types
     ( ApiByronWallet
-    , ApiEpochInfo (..)
     , ApiNetworkClock
     , ApiNetworkInformation
     , ApiWalletMode (..)
     , NtpSyncingStatus (..)
     , WalletStyle (..)
-    , epochStartTime
     , nextEpoch
     )
 import Cardano.Wallet.Primitive.SyncProgress
@@ -57,6 +55,8 @@ import Test.Utils.Paths
     ( inNixBuild )
 
 import qualified Cardano.Wallet.Api.Link as Link
+import Cardano.Wallet.Shelley.Pools
+    ( EpochInfo (..) )
 import qualified Network.HTTP.Types.Status as HTTP
 
 spec :: SpecWith Context
@@ -82,7 +82,7 @@ spec = describe "COMMON_NETWORK" $ do
                 let Just currentEpochNum =
                         view (#slotId . #epochNumber . #getApiT) <$> (i ^. #networkTip)
                 let Just nextEpochNum =
-                        view (#epochNumber . #getApiT) <$> getFromResponse #nextEpoch r
+                        view #epochNumber <$> getFromResponse #nextEpoch r
                 nextEpochNum `shouldBe` currentEpochNum + 1
 
     it "NETWORK_BYRON - Byron wallet has the same tip as network/information" $

@@ -218,6 +218,8 @@ module Test.Integration.Framework.DSL
     , ResourceT
     ) where
 
+import Prelude
+
 import Cardano.Address.Derivation
     ( XPub, xpubFromBytes )
 import Cardano.CLI
@@ -241,15 +243,14 @@ import Cardano.Wallet.Api.Types
     , ApiBlockReference (..)
     , ApiByronWallet
     , ApiCoinSelection
-    , ApiEpochInfo
     , ApiEra (..)
     , ApiFee
     , ApiMaintenanceAction (..)
     , ApiNetworkInformation
     , ApiNetworkParameters (..)
+    , ApiPoolSpecifier
     , ApiSerialisedTransaction
     , ApiSharedWallet (..)
-    , ApiStakePool
     , ApiT (..)
     , ApiTransaction
     , ApiTxId (ApiTxId)
@@ -334,6 +335,8 @@ import Cardano.Wallet.Primitive.Types.UTxO
     , computeUtxoStatistics
     , log10
     )
+import Cardano.Wallet.Shelley.Pools
+    ( EpochInfo, StakePool )
 import Control.Arrow
     ( second )
 import Control.Monad
@@ -404,7 +407,6 @@ import Network.HTTP.Types.Method
     ( Method )
 import Numeric.Natural
     ( Natural )
-import Prelude
 import System.Command
     ( CmdOption (..), CmdResult, Exit (..), Stderr, Stdout (..), command )
 import System.Directory
@@ -2082,13 +2084,11 @@ joinStakePool
         , MonadUnliftIO m
         )
     => Context
-    -> ApiT PoolId
+    -> ApiPoolSpecifier
     -> (w, Text)
     -> m (HTTP.Status, Either RequestException (ApiTransaction n))
 joinStakePool ctx p (w, pass) = do
-    let payload = Json [aesonQQ| {
-            "passphrase": #{pass}
-            } |]
+    let payload = Json [aesonQQ| { "passphrase": #{pass} } |]
     request @(ApiTransaction n) ctx
         (Link.joinStakePool (Identity p) w) Default payload
 
@@ -2121,11 +2121,8 @@ quitStakePool
     -> (w, Text)
     -> m (HTTP.Status, Either RequestException (ApiTransaction n))
 quitStakePool ctx (w, pass) = do
-    let payload = Json [aesonQQ| {
-            "passphrase": #{pass}
-            } |]
-    request @(ApiTransaction n) ctx
-        (Link.quitStakePool w) Default payload
+    let payload = Json [aesonQQ|{ "passphrase": #{pass} }|]
+    request @(ApiTransaction n) ctx (Link.quitStakePool w) Default payload
 
 quitStakePoolUnsigned
     :: forall n style w m.
@@ -2139,9 +2136,7 @@ quitStakePoolUnsigned
     -> w
     -> m (HTTP.Status, Either RequestException (ApiCoinSelection n))
 quitStakePoolUnsigned ctx w = liftIO $ do
-    let payload = Json [aesonQQ| {
-            "delegation_action": { "action": "quit" }
-        } |]
+    let payload = Json [aesonQQ|{ "delegation_action": { "action": "quit" } }|]
     request @(ApiCoinSelection n) ctx
         (Link.selectCoins @style w) Default payload
 
@@ -3014,7 +3009,7 @@ getTTLSlots ctx dt = liftIO $ do
 
 -- | Wallet not delegating and not about to join any stake pool.
 notDelegating
-    :: [(Maybe (ApiT PoolId), ApiEpochInfo)]
+    :: [(Maybe (ApiT PoolId), EpochInfo)]
     -- ^ Pools to be joined & epoch at which the new delegation will become active
     -> ApiWalletDelegation
 notDelegating nexts = ApiWalletDelegation
@@ -3029,7 +3024,7 @@ notDelegating nexts = ApiWalletDelegation
 delegating
     :: ApiT PoolId
     -- ^ Pool joined
-    -> [(Maybe (ApiT PoolId), ApiEpochInfo)]
+    -> [(Maybe (ApiT PoolId), EpochInfo)]
     -- ^ Pools to be joined & epoch at which the new delegation will become active
     -> ApiWalletDelegation
 delegating pidActive nexts = (notDelegating nexts)
@@ -3037,8 +3032,8 @@ delegating pidActive nexts = (notDelegating nexts)
     }
 
 
-getRetirementEpoch :: ApiStakePool -> Maybe EpochNo
-getRetirementEpoch = fmap (view (#epochNumber . #getApiT)) .  view #retirement
+getRetirementEpoch :: StakePool -> Maybe EpochNo
+getRetirementEpoch = fmap (view #epochNumber) . view #retirement
 
 unsafeResponse :: (HTTP.Status, Either RequestException a) -> a
 unsafeResponse = either (error . show) id . snd

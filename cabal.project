@@ -49,6 +49,7 @@ packages:
   , lib/text-class/
   , lib/test-utils/
   , lib/strict-non-empty-containers/
+  , lib/wai-middleware-logging/
 
 -- Using RDRAND instead of /dev/urandom as an entropy source for key
 -- generation is dubious. Set the flag so we use /dev/urandom by default.
@@ -381,7 +382,7 @@ package cardano-wallet
   tests: True
   ghc-options: -fwrite-ide-info
 
-package cardano-wallet
+package cardano-wallet-api-http
   tests: True
   ghc-options: -fwrite-ide-info
 
@@ -410,6 +411,10 @@ package cardano-wallet-test-utils
   ghc-options: -fwrite-ide-info
 
 package strict-non-empty-containers
+  tests: True
+  ghc-options: -fwrite-ide-info
+
+package wai-middleware-logging
   tests: True
   ghc-options: -fwrite-ide-info
 

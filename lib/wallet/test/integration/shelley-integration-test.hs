@@ -41,6 +41,27 @@ import Cardano.Startup
     )
 import Cardano.Wallet.Api.Types
     ( DecodeAddress (..), EncodeAddress (..) )
+import Cardano.Wallet.Launch
+    ( withSystemTempDir )
+import Cardano.Wallet.Launch.Cluster
+    ( ClusterLog
+    , Credential (..)
+    , FaucetFunds (..)
+    , RunningNode (..)
+    , clusterEraFromEnv
+    , clusterEraToString
+    , clusterToApiEra
+    , localClusterConfigFromEnv
+    , moveInstantaneousRewardsTo
+    , oneMillionAda
+    , sendFaucetAssetsTo
+    , testLogDirFromEnv
+    , testMinSeverityFromEnv
+    , walletListenFromEnv
+    , walletMinSeverityFromEnv
+    , withCluster
+    , withSMASH
+    )
 import Cardano.Wallet.Logging
     ( BracketLog, bracketTracer, stdoutTextTracer, trMessageText )
 import Cardano.Wallet.Network.Ports
@@ -62,27 +83,6 @@ import Cardano.Wallet.Shelley.BlockchainSource
     ( BlockchainSource (..) )
 import Cardano.Wallet.Shelley.Faucet
     ( initFaucet )
-import Cardano.Wallet.Shelley.Launch
-    ( withSystemTempDir )
-import Cardano.Wallet.Shelley.Launch.Cluster
-    ( ClusterLog
-    , Credential (..)
-    , FaucetFunds (..)
-    , RunningNode (..)
-    , clusterEraFromEnv
-    , clusterEraToString
-    , clusterToApiEra
-    , localClusterConfigFromEnv
-    , moveInstantaneousRewardsTo
-    , oneMillionAda
-    , sendFaucetAssetsTo
-    , testLogDirFromEnv
-    , testMinSeverityFromEnv
-    , walletListenFromEnv
-    , walletMinSeverityFromEnv
-    , withCluster
-    , withSMASH
-    )
 import Cardano.Wallet.TokenMetadata.MockServer
     ( queryServerStatic, withMetadataServer )
 import Control.Arrow

@@ -10,9 +10,9 @@ import qualified Data.Text as T
 
 import Blockfrost.Env
     ( Env (Testnet) )
-import Cardano.Wallet.Shelley.Launch
+import Cardano.Wallet.Launch
     ( Mode (Light, Normal), modeOption )
-import Cardano.Wallet.Shelley.Launch.Blockfrost
+import Cardano.Wallet.Launch.Blockfrost
     ( TokenException (..), TokenFile (TokenFile), readToken )
 -- See ADP-1910
 import "optparse-applicative" Options.Applicative

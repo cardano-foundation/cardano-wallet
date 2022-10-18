@@ -11,9 +11,11 @@ module Test.Integration.Scenario.API.Shelley.Network
 import Prelude
 
 import Cardano.Wallet.Api.Types
-    ( ApiEpochInfo, ApiEra (..), ApiNetworkParameters (..) )
+    ( ApiEra (..), ApiNetworkParameters (..) )
 import Cardano.Wallet.Primitive.Types
     ( ExecutionUnitPrices (..) )
+import Cardano.Wallet.Shelley.Pools
+    ( EpochInfo (..) )
 import Data.List
     ( (\\) )
 import Data.Quantity
@@ -59,7 +61,7 @@ spec = describe "SHELLEY_NETWORK" $ do
         let nOpt = 3
         let
             expectEraField
-                :: (Maybe ApiEpochInfo -> Expectation)
+                :: (Maybe EpochInfo -> Expectation)
                 -> ApiEra
                 -> (HTTP.Status, Either RequestException ApiNetworkParameters)
                 -> IO ()

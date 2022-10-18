@@ -1,6 +1,8 @@
 {-# LANGUAGE BlockArguments #-}
 {-# LANGUAGE DataKinds #-}
+{-# LANGUAGE DeriveAnyClass #-}
 {-# LANGUAGE DeriveGeneric #-}
+{-# LANGUAGE DerivingStrategies #-}
 {-# LANGUAGE DuplicateRecordFields #-}
 {-# LANGUAGE LambdaCase #-}
 {-# LANGUAGE NamedFieldPuns #-}
@@ -22,6 +24,11 @@
 -- as provided through @StakePoolLayer@.
 module Cardano.Wallet.Shelley.Pools
     ( StakePoolLayer (..)
+    , StakePool (..)
+    , StakePoolMetrics (..)
+    , StakePoolFlag (..)
+    , EpochInfo (..)
+    , toEpochInfo
     , withBlockfrostStakePoolLayer
     , withNodeStakePoolLayer
     , withStakePoolDbLayer
@@ -51,30 +58,28 @@ import Cardano.Pool.DB
 import Cardano.Pool.DB.Log
     ( PoolDbLog )
 import Cardano.Pool.Metadata
-    ( Manager
+    ( HealthCheckSMASH (..)
     , StakePoolMetadataFetchLog
     , UrlBuilder
-    , defaultManagerSettings
     , fetchDelistedPools
     , fetchFromRemote
     , healthCheck
     , identityUrlBuilder
-    , newManager
     , registryUrlBuilder
     , toHealthCheckSMASH
     )
-import Cardano.Wallet.Api.Types
-    ( ApiT (..), HealthCheckSMASH (..), toApiEpochInfo )
 import Cardano.Wallet.Byron.Compatibility
     ( toByronBlockHeader )
 import Cardano.Wallet.Network
     ( ChainFollowLog (..), ChainFollower (..), NetworkLayer (..) )
 import Cardano.Wallet.Primitive.Slotting
     ( PastHorizonException (..)
+    , Qry
     , TimeInterpreter
     , epochOf
     , interpretQuery
     , neverFails
+    , timeOfEpoch
     , unsafeExtendSafeZone
     )
 import Cardano.Wallet.Primitive.Types
@@ -134,10 +139,10 @@ import Cardano.Wallet.Shelley.Network.Blockfrost.Error
     ( BlockfrostError (..) )
 import Cardano.Wallet.Shelley.Network.Blockfrost.Monad
     ( BFM )
-import Cardano.Wallet.Shelley.Network.Discriminant
-    ( SomeNetworkDiscriminant (..) )
 import Cardano.Wallet.Unsafe
     ( unsafeMkPercentage )
+import Control.DeepSeq
+    ( NFData )
 import Control.Monad
     ( forM, forM_, forever, join, void, when, (>=>) )
 import Control.Monad.Cont
@@ -180,14 +185,14 @@ import Data.Maybe
     ( fromMaybe, mapMaybe )
 import Data.Ord
     ( Down (..) )
-import Data.Proxy
-    ( Proxy (..) )
 import Data.Quantity
     ( Percentage (..), Quantity (..) )
 import Data.Set
     ( Set )
 import Data.Text.Class
     ( ToText (..) )
+import Data.Time
+    ( UTCTime )
 import Data.Time.Clock.POSIX
     ( getPOSIXTime, posixDayLength )
 import Data.Traversable
@@ -202,6 +207,10 @@ import Fmt
     ( fixedF, pretty )
 import GHC.Generics
     ( Generic )
+import Network.HTTP.Client
+    ( Manager, defaultManagerSettings, newManager )
+import Numeric.Natural
+    ( Natural )
 import Ouroboros.Consensus.Cardano.Block
     ( CardanoBlock, HardForkBlock (..) )
 import System.Exit
@@ -228,9 +237,9 @@ import UnliftIO.STM
     )
 
 import qualified Blockfrost.Client as BF
+import qualified Cardano.Ledger.BaseTypes as Ledger
 import qualified Cardano.Pool.DB as PoolDb
 import qualified Cardano.Pool.DB.Sqlite as Pool
-import qualified Cardano.Wallet.Api.Types as Api
 import qualified Cardano.Wallet.Checkpoints.Policy as CP
 import qualified Cardano.Wallet.Primitive.Types.Coin as Coin
 import qualified Cardano.Wallet.Shelley.Network.Blockfrost.Monad as BFM
@@ -256,7 +265,7 @@ data StakePoolLayer = StakePoolLayer
     , listStakePools
         :: EpochNo -- Exclude all pools that retired in or before this epoch.
         -> Coin
-        -> IO [Api.ApiStakePool]
+        -> IO [StakePool]
 
     , forceMetadataGC :: IO ()
 
@@ -308,7 +317,7 @@ withStakePoolDbLayer poolDbTracer databaseDir poolDbDecorator netLayer =
 withBlockfrostStakePoolLayer
     :: Tracer IO StakePoolLog
     -> BF.Project
-    -> SomeNetworkDiscriminant
+    -> Ledger.Network
     -> ContT r IO StakePoolLayer
 withBlockfrostStakePoolLayer _tr project network = do
     bfConfig <- lift (BFM.newClientConfig project)
@@ -322,31 +331,25 @@ withBlockfrostStakePoolLayer _tr project network = do
         , getGCMetadataStatus = pure NotApplicable
         }
 
-_getPoolLifeCycleStatus
-    :: BF.ClientConfig
-    -> SomeNetworkDiscriminant
-    -> PoolId
-    -> IO PoolLifeCycleStatus
-_getPoolLifeCycleStatus
-    cfg network@(SomeNetworkDiscriminant (Proxy :: Proxy nd)) poolId =
-        BFM.run cfg do
-            let bfPoolId = BF.PoolId (toText poolId)
-            poolUpdates <- BF.allPages \paged ->
-                BF.getPoolUpdates' bfPoolId paged BF.Descending
-            case poolUpdates of
-                [] -> pure PoolNotRegistered
-                lastUpdate : otherUpdates ->
-                    case BF._poolUpdateAction lastUpdate of
-                        BF.PoolRegistered ->
-                            PoolRegistered <$> poolRegCert lastUpdate
-                        BF.PoolDeregistered ->
-                            case findRegCert otherUpdates of
-                                Just regCertUpdate ->
-                                    PoolRegisteredAndRetired
-                                        <$> poolRegCert regCertUpdate
-                                        <*> poolDeregCert lastUpdate
-                                Nothing -> throwError $
-                                    PoolRegistrationIsMissing poolId
+_getPoolLifeCycleStatus ::
+    BF.ClientConfig -> Ledger.Network -> PoolId -> IO PoolLifeCycleStatus
+_getPoolLifeCycleStatus cfg network poolId = BFM.run cfg do
+    let bfPoolId = BF.PoolId (toText poolId)
+    poolUpdates <- BF.allPages \paged ->
+        BF.getPoolUpdates' bfPoolId paged BF.Descending
+    case poolUpdates of
+        [] -> pure PoolNotRegistered
+        lastUpdate : otherUpdates ->
+            case BF._poolUpdateAction lastUpdate of
+                BF.PoolRegistered -> PoolRegistered <$> poolRegCert lastUpdate
+                BF.PoolDeregistered ->
+                    case findRegCert otherUpdates of
+                        Just regCertUpdate ->
+                            PoolRegisteredAndRetired
+                                <$> poolRegCert regCertUpdate
+                                <*> poolDeregCert lastUpdate
+                        Nothing -> throwError $
+                            PoolRegistrationIsMissing poolId
 
   where
     findRegCert :: [BF.PoolUpdate] -> Maybe BF.PoolUpdate
@@ -360,7 +363,8 @@ _getPoolLifeCycleStatus
         case find byIdx poolUpdates of
             Just BF.TransactionPoolUpdate{..} -> do
                 poolOwners <- for _transactionPoolUpdateOwners do
-                    (PoolOwner . unRewardAccount <$>) . fromBfStakeAddress network
+                    (PoolOwner . unRewardAccount <$>)
+                        . fromBfStakeAddress network
                 poolMargin <-
                     percentageFromDouble _transactionPoolUpdateMarginCost
                 poolCost <-
@@ -450,7 +454,7 @@ newStakePoolLayer gcStatus nl db@DBLayer{..} restartSyncThread =
         :: EpochNo
         -- Exclude all pools that retired in or before this epoch.
         -> Coin
-        -> IO [Api.ApiStakePool]
+        -> IO [StakePool]
     _listPools currentEpoch userStake = do
         rawLsqData <- stakeDistribution nl userStake
         dbData <- readPoolDbData db currentEpoch
@@ -472,8 +476,8 @@ newStakePoolLayer gcStatus nl db@DBLayer{..} restartSyncThread =
         sortByReward
             :: RandomGen g
             => g
-            -> [Api.ApiStakePool]
-            -> [Api.ApiStakePool]
+            -> [StakePool]
+            -> [StakePool]
         sortByReward g0 =
             map stakePool
             . L.sortOn (Down . rewards)
@@ -521,7 +525,7 @@ data PoolDbData = PoolDbData
     { registrationCert :: PoolRegistrationCertificate
     , retirementCert :: Maybe PoolRetirementCertificate
     , nProducedBlocks :: Quantity "block" Word64
-    , metadata :: Maybe StakePoolMetadata
+    , poolDbMetadata :: Maybe StakePoolMetadata
     , delisted :: Bool
     }
 
@@ -531,7 +535,7 @@ combineDbAndLsqData
     -> Int -- ^ nOpt; desired number of pools
     -> Map PoolId PoolLsqData
     -> Map PoolId PoolDbData
-    -> IO (Map PoolId Api.ApiStakePool)
+    -> IO (Map PoolId StakePool)
 combineDbAndLsqData ti nOpt lsqData =
     Map.mergeA lsqButNoDb dbButNoLsq bothPresent lsqData
   where
@@ -545,14 +549,11 @@ combineDbAndLsqData ti nOpt lsqData =
     -- for all stake pool metric values so that the pool can still be
     -- included in the list of all known stake pools:
     --
-    dbButNoLsq = traverseMissing $ \k db ->
-        mkApiPool k lsqDefault db
-      where
-        lsqDefault = PoolLsqData
-            { nonMyopicMemberRewards = freshmanMemberRewards
-            , relativeStake = minBound
-            , saturation = 0
-            }
+    dbButNoLsq = traverseMissing $ \k -> mkApiPool k PoolLsqData
+        { nonMyopicMemberRewards = freshmanMemberRewards
+        , relativeStake = minBound
+        , saturation = 0
+        }
 
     -- To give a chance to freshly registered pools that haven't been part of
     -- any leader schedule, we assign them the average reward of the top @k@
@@ -562,7 +563,7 @@ combineDbAndLsqData ti nOpt lsqData =
         $ average
         $ L.take nOpt
         $ L.sort
-        $ map (Down . unCoin . nonMyopicMemberRewards)
+        $ map (Down . unCoin . view #nonMyopicMemberRewards)
         $ Map.elems lsqData
       where
         average [] = 0
@@ -571,37 +572,26 @@ combineDbAndLsqData ti nOpt lsqData =
         double :: Integral a => a -> Double
         double = fromIntegral
 
-    mkApiPool
-        :: PoolId
-        -> PoolLsqData
-        -> PoolDbData
-        -> IO Api.ApiStakePool
+    mkApiPool :: PoolId -> PoolLsqData -> PoolDbData -> IO StakePool
     mkApiPool pid (PoolLsqData prew pstk psat) dbData = do
         let mRetirementEpoch = retirementEpoch <$> retirementCert dbData
         retirementEpochInfo <- traverse
-            (interpretQuery (unsafeExtendSafeZone ti) . toApiEpochInfo)
+            (interpretQuery (unsafeExtendSafeZone ti) . toEpochInfo)
             mRetirementEpoch
-        pure $ Api.ApiStakePool
-            { Api.id = ApiT pid
-            , Api.metrics = Api.ApiStakePoolMetrics
-                { Api.nonMyopicMemberRewards = Coin.toQuantity prew
-                , Api.relativeStake = Quantity pstk
-                , Api.saturation = psat
-                , Api.producedBlocks =
-                    (fmap fromIntegral . nProducedBlocks) dbData
+        pure StakePool
+            { id = pid
+            , metrics = StakePoolMetrics
+                { nonMyopicMemberRewards = Coin.toQuantity prew
+                , relativeStake = Quantity pstk
+                , saturation = psat
+                , producedBlocks = (fmap fromIntegral . nProducedBlocks) dbData
                 }
-            , Api.metadata =
-                ApiT <$> metadata dbData
-            , Api.cost =
-                Coin.toQuantity $ poolCost $ registrationCert dbData
-            , Api.pledge =
-                Coin.toQuantity $ poolPledge $ registrationCert dbData
-            , Api.margin =
-                Quantity $ poolMargin $ registrationCert dbData
-            , Api.retirement =
-                retirementEpochInfo
-            , Api.flags =
-                [ Api.Delisted | delisted dbData ]
+            , metadata = poolDbMetadata dbData
+            , cost = Coin.toQuantity $ poolCost $ registrationCert dbData
+            , pledge = Coin.toQuantity $ poolPledge $ registrationCert dbData
+            , margin = Quantity $ poolMargin $ registrationCert dbData
+            , retirement = retirementEpochInfo
+            , flags = [ Delisted | delisted dbData ]
             }
 
 -- | Combines all the LSQ data into a single map.
@@ -611,9 +601,7 @@ combineDbAndLsqData ti nOpt lsqData =
 --
 -- Calculating e.g. the nonMyopicMemberRewards ourselves through chain-following
 -- would be completely impractical.
-combineLsqData
-    :: StakePoolsSummary
-    -> Map PoolId PoolLsqData
+combineLsqData :: StakePoolsSummary -> Map PoolId PoolLsqData
 combineLsqData StakePoolsSummary{nOpt, rewards, stake} =
     Map.merge stakeButNoRewards rewardsButNoStake bothPresent stake rewards
   where
@@ -918,8 +906,8 @@ monitorMetadata gcStatus tr sp db@DBLayer{..} = do
 
                 maxRetries = 8
                 retryCheck RetryStatus{rsIterNumber} b
-                    | rsIterNumber < maxRetries = pure
-                        (b == Unavailable || b == Unreachable)
+                    | rsIterNumber < maxRetries =
+                        pure (b == Unavailable || b == Unreachable)
                     | otherwise = pure False
 
                 ms = (* 1_000_000)
@@ -1032,6 +1020,60 @@ gcDelistedPools gcStatus tr DBLayer{..} fetchDelisted = forever $ do
     threadDelay sleepTime
     pure ()
 
+--------------------------------------------------------------------------------
+-- Types
+--------------------------------------------------------------------------------
+
+data StakePool = StakePool
+    { id :: !(PoolId)
+    , metrics :: !StakePoolMetrics
+    , metadata :: !(Maybe StakePoolMetadata)
+    , cost :: !(Quantity "lovelace" Natural)
+    , margin :: !(Quantity "percent" Percentage)
+    , pledge :: !(Quantity "lovelace" Natural)
+    , retirement :: !(Maybe EpochInfo)
+    , flags :: ![StakePoolFlag]
+    }
+    deriving (Eq, Generic, Show)
+
+data EpochInfo = EpochInfo
+    { epochNumber :: !EpochNo
+    , epochStartTime :: !UTCTime
+    }
+    deriving (Eq, Generic, Show)
+    deriving anyclass NFData
+
+toEpochInfo :: EpochNo -> Qry EpochInfo
+toEpochInfo ep = EpochInfo ep . fst <$> timeOfEpoch ep
+
+data StakePoolFlag = Delisted
+    deriving stock (Eq, Generic, Show)
+    deriving anyclass NFData
+
+data StakePoolMetrics = StakePoolMetrics
+    { nonMyopicMemberRewards :: !(Quantity "lovelace" Natural)
+    , relativeStake :: !(Quantity "percent" Percentage)
+    , saturation :: !Double
+    , producedBlocks :: !(Quantity "block" Natural)
+    }
+    deriving (Eq, Generic, Show)
+    deriving anyclass NFData
+
+data PoolGarbageCollectionInfo = PoolGarbageCollectionInfo
+    { currentEpoch :: EpochNo
+        -- ^ The current epoch at the point in time the garbage collector
+        -- was invoked.
+    , latestRetirementEpoch :: EpochNo
+        -- ^ The latest retirement epoch for which garbage collection will be
+        -- performed. The garbage collector will remove all pools that have an
+        -- active retirement epoch equal to or earlier than this epoch.
+    }
+    deriving (Eq, Show)
+
+--------------------------------------------------------------------------------
+-- Logging
+--------------------------------------------------------------------------------
+
 data StakePoolLog
     = MsgExitMonitoring AfterThreadLog
     | MsgChainMonitoring ChainFollowLog
@@ -1045,17 +1087,6 @@ data StakePoolLog
     | MsgGCThreadExit AfterThreadLog
     | MsgSMASHUnreachable
     deriving (Show, Eq)
-
-data PoolGarbageCollectionInfo = PoolGarbageCollectionInfo
-    { currentEpoch :: EpochNo
-        -- ^ The current epoch at the point in time the garbage collector
-        -- was invoked.
-    , latestRetirementEpoch :: EpochNo
-        -- ^ The latest retirement epoch for which garbage collection will be
-        -- performed. The garbage collector will remove all pools that have an
-        -- active retirement epoch equal to or earlier than this epoch.
-    }
-    deriving (Eq, Show)
 
 instance HasPrivacyAnnotation StakePoolLog
 instance HasSeverityAnnotation StakePoolLog where

@@ -97,6 +97,12 @@ module Cardano.Wallet.Shelley.Compatibility
     , toCardanoPolicyId
     , toCardanoSimpleScript
 
+      -- * Address encoding
+    , shelleyEncodeAddress
+    , shelleyEncodeStakeAddress
+    , shelleyDecodeAddress
+    , shelleyDecodeStakeAddress
+
       -- * Unsafe conversions
     , unsafeLovelaceToWalletCoin
     , unsafeValueToLovelace
@@ -111,7 +117,6 @@ module Cardano.Wallet.Shelley.Compatibility
     , fromNonMyopicMemberRewards
     , optimumNumberOfPools
     , getProducer
-    , HasNetworkId(..)
     , fromBlockNo
     , fromCardanoBlock
     , toCardanoEra
@@ -202,12 +207,6 @@ import Cardano.Slotting.Slot
     ( EpochNo (..), EpochSize (..) )
 import Cardano.Slotting.Time
     ( SystemStart (..) )
-import Cardano.Wallet.Api.Types
-    ( DecodeAddress (..)
-    , DecodeStakeAddress (..)
-    , EncodeAddress (..)
-    , EncodeStakeAddress (..)
-    )
 import Cardano.Wallet.Byron.Compatibility
     ( fromByronBlock, fromTxAux, maryTokenBundleMaxSize, toByronBlockHeader )
 import Cardano.Wallet.Primitive.AddressDerivation
@@ -240,6 +239,12 @@ import Cardano.Wallet.Read.Primitive.Tx.Shelley
     )
 import Cardano.Wallet.Read.Tx.Hash
     ( fromShelleyTxId )
+import Cardano.Wallet.Shelley.Network.Discriminant
+    ( DecodeAddress (..)
+    , DecodeStakeAddress (..)
+    , EncodeAddress (..)
+    , EncodeStakeAddress (..)
+    )
 import Cardano.Wallet.Unsafe
     ( unsafeIntToWord, unsafeMkPercentage )
 import Cardano.Wallet.Util
@@ -282,8 +287,6 @@ import Data.Map.Strict
     ( Map )
 import Data.Maybe
     ( fromMaybe, isJust, mapMaybe )
-import Data.Proxy
-    ( Proxy (..) )
 import Data.Quantity
     ( Percentage, Quantity (..), mkPercentage )
 import Data.Text
@@ -300,8 +303,6 @@ import GHC.Records
     ( HasField (..) )
 import GHC.Stack
     ( HasCallStack )
-import GHC.TypeLits
-    ( KnownNat, natVal )
 import Numeric.Natural
     ( Natural )
 import Ouroboros.Consensus.Byron.Ledger
@@ -1674,14 +1675,14 @@ computeTokenBundleSerializedLengthBytes = W.TxSize . safeCast
 -------------------------------------------------------------------------------}
 
 instance EncodeStakeAddress 'Mainnet where
-    encodeStakeAddress = _encodeStakeAddress SL.Mainnet
+    encodeStakeAddress = shelleyEncodeStakeAddress SL.Mainnet
 instance EncodeStakeAddress ('Testnet pm) where
-    encodeStakeAddress = _encodeStakeAddress SL.Testnet
+    encodeStakeAddress = shelleyEncodeStakeAddress SL.Testnet
 
 instance DecodeStakeAddress 'Mainnet where
-    decodeStakeAddress = _decodeStakeAddress SL.Mainnet
+    decodeStakeAddress = shelleyDecodeStakeAddress SL.Mainnet
 instance DecodeStakeAddress ('Testnet pm) where
-    decodeStakeAddress = _decodeStakeAddress SL.Testnet
+    decodeStakeAddress = shelleyDecodeStakeAddress SL.Testnet
 
 stakeAddressPrefix :: Word8
 stakeAddressPrefix = 0xE0
@@ -1694,11 +1695,8 @@ toNetworkId = \case
     SL.Testnet -> 0
     SL.Mainnet -> 1
 
-_encodeStakeAddress
-    :: SL.Network
-    -> W.RewardAccount
-    -> Text
-_encodeStakeAddress network (W.RewardAccount acct) =
+shelleyEncodeStakeAddress :: SL.Network -> W.RewardAccount -> Text
+shelleyEncodeStakeAddress network (W.RewardAccount acct) =
     Bech32.encodeLenient hrp (dataPartFromBytes bytes)
   where
     hrp = case network of
@@ -1708,11 +1706,9 @@ _encodeStakeAddress network (W.RewardAccount acct) =
         putWord8 $ (networkIdMask .&. toNetworkId network) .|. stakeAddressPrefix
         putByteString acct
 
-_decodeStakeAddress
-    :: SL.Network
-    -> Text
-    -> Either TextDecodingError W.RewardAccount
-_decodeStakeAddress serverNetwork txt = do
+shelleyDecodeStakeAddress ::
+    SL.Network -> Text -> Either TextDecodingError W.RewardAccount
+shelleyDecodeStakeAddress serverNetwork txt = do
     (_, dp) <- left (const errBech32) $ Bech32.decodeLenient txt
     bytes <- maybe (Left errBech32) Right $ dataPartToBytes dp
     rewardAcnt <- runGetOrFail' (SL.getRewardAcnt @StandardCrypto) bytes
@@ -1739,26 +1735,29 @@ _decodeStakeAddress serverNetwork txt = do
         "Unable to decode stake-address: must be a valid bech32 string."
 
 instance EncodeAddress 'Mainnet where
-    encodeAddress = _encodeAddress [Bech32.humanReadablePart|addr|]
+    encodeAddress = shelleyEncodeAddress SL.Mainnet
 
 instance EncodeAddress ('Testnet pm) where
     -- https://github.com/cardano-foundation/CIPs/tree/master/CIP5
-    encodeAddress = _encodeAddress [Bech32.humanReadablePart|addr_test|]
+    encodeAddress = shelleyEncodeAddress SL.Testnet
 
-_encodeAddress :: Bech32.HumanReadablePart -> W.Address -> Text
-_encodeAddress hrp (W.Address bytes) =
+shelleyEncodeAddress :: SL.Network -> W.Address -> Text
+shelleyEncodeAddress network (W.Address bytes) =
     if isJust (CBOR.deserialiseCbor CBOR.decodeAddressPayload bytes)
         then base58
         else bech32
   where
     base58 = T.decodeUtf8 $ encodeBase58 bitcoinAlphabet bytes
     bech32 = Bech32.encodeLenient hrp (dataPartFromBytes bytes)
+    hrp = case network of
+        SL.Testnet -> [Bech32.humanReadablePart|addr_test|]
+        SL.Mainnet -> [Bech32.humanReadablePart|addr|]
 
 instance DecodeAddress 'Mainnet where
-    decodeAddress = _decodeAddress SL.Mainnet
+    decodeAddress = shelleyDecodeAddress SL.Mainnet
 
 instance DecodeAddress ('Testnet pm) where
-    decodeAddress = _decodeAddress SL.Testnet
+    decodeAddress = shelleyDecodeAddress SL.Testnet
 
 decodeBytes :: Text -> Either TextDecodingError ByteString
 decodeBytes t =
@@ -1801,14 +1800,12 @@ errMalformedAddress = TextDecodingError
 -- practice, there is one discrimination for 'Shelley' addresses, and one for
 -- 'Byron' addresses. Yet, on Mainnet, 'Byron' addresses have no explicit
 -- discrimination.
-_decodeAddress
-    :: SL.Network
-    -> Text
-    -> Either TextDecodingError W.Address
-_decodeAddress serverNetwork =
+shelleyDecodeAddress :: SL.Network -> Text -> Either TextDecodingError W.Address
+shelleyDecodeAddress serverNetwork =
     decodeBytes >=> decodeShelleyAddress @StandardCrypto
   where
-    decodeShelleyAddress :: forall c. (SL.Crypto c) => ByteString -> Either TextDecodingError W.Address
+    decodeShelleyAddress :: forall c.
+        (SL.Crypto c) => ByteString -> Either TextDecodingError W.Address
     decodeShelleyAddress bytes = do
         case SL.deserialiseAddr @c bytes of
             Just (SL.Addr addrNetwork _ _) -> do
@@ -1816,7 +1813,9 @@ _decodeAddress serverNetwork =
                 pure (W.Address bytes)
 
             Just (SL.AddrBootstrap (SL.BootstrapAddress addr)) -> do
-                guardNetwork (fromByronNetworkMagic (Byron.addrNetworkMagic addr)) serverNetwork
+                guardNetwork
+                    (fromByronNetworkMagic (Byron.addrNetworkMagic addr))
+                    serverNetwork
                 pure (W.Address bytes)
 
             Nothing -> Left errMalformedAddress
@@ -1867,23 +1866,6 @@ guardNetwork addrNetwork serverNetwork =
             <> " but got "
             <> show addrNetwork
             <> "."
-
--- | Class to extract a @NetworkId@ from @NetworkDiscriminant@.
-class HasNetworkId (n :: NetworkDiscriminant) where
-    networkIdVal :: Proxy n -> NetworkId
-
-instance HasNetworkId 'Mainnet where
-    networkIdVal _ = Cardano.Mainnet
-
-instance KnownNat protocolMagic => HasNetworkId ('Testnet protocolMagic) where
-    networkIdVal _ = Cardano.Testnet networkMagic
-      where
-        networkMagic = Cardano.NetworkMagic
-            . fromIntegral
-            $ natVal (Proxy @protocolMagic)
-
-instance HasNetworkId ('Staging protocolMagic) where
-    networkIdVal _ = Cardano.Mainnet
 
 {-------------------------------------------------------------------------------
                                     Logging

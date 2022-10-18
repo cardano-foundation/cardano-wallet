@@ -75,8 +75,15 @@ import Cardano.Wallet.Api.Client
     , transactionClient
     , walletClient
     )
-import Cardano.Wallet.Api.Server
+import Cardano.Wallet.Api.Http.Shelley.Server
     ( HostPreference, Listen (..), TlsConfiguration )
+import Cardano.Wallet.Launch
+    ( Mode (Light, Normal)
+    , NetworkConfiguration (..)
+    , modeOption
+    , networkConfigurationOption
+    , parseGenesisData
+    )
 import Cardano.Wallet.Logging
     ( trMessage, transformTextTrace )
 import Cardano.Wallet.Primitive.Types
@@ -92,13 +99,6 @@ import Cardano.Wallet.Shelley
     )
 import Cardano.Wallet.Shelley.BlockchainSource
     ( BlockchainSource (..) )
-import Cardano.Wallet.Shelley.Launch
-    ( Mode (Light, Normal)
-    , NetworkConfiguration (..)
-    , modeOption
-    , networkConfigurationOption
-    , parseGenesisData
-    )
 import Cardano.Wallet.Version
     ( GitRevision, Version, showFullVersion )
 import Control.Applicative
@@ -144,7 +144,7 @@ import UnliftIO.Exception
     ( catch, withException )
 
 import qualified Cardano.BM.Backend.EKGView as EKG
-import qualified Cardano.Wallet.Shelley.Launch.Blockfrost as Blockfrost
+import qualified Cardano.Wallet.Launch.Blockfrost as Blockfrost
 import qualified Cardano.Wallet.Version as V
 import qualified Data.Text as T
 import qualified System.Info as I

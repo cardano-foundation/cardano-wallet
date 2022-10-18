@@ -56,8 +56,7 @@ spec :: SpecWith Context
 spec = describe "COMMON_CLI_NETWORK" $ do
     it "CLI_NETWORK - cardano-wallet network information" $ \ctx -> do
         info <- getNetworkInfoViaCLI ctx
-        let nextEpochNum =
-                (fromJust (info ^. #nextEpoch)) ^. #epochNumber . #getApiT
+        let nextEpochNum = fromJust (info ^. #nextEpoch) ^. #epochNumber
         nextEpochNum `shouldBe` (currentEpochNo info) + 1
 
     it "NETWORK_PARAMS - network parameters" $ \ctx -> do

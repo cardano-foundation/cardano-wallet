@@ -1,6 +1,7 @@
 {-# LANGUAGE AllowAmbiguousTypes #-}
 {-# LANGUAGE DataKinds #-}
 {-# LANGUAGE DeriveGeneric #-}
+{-# LANGUAGE DerivingStrategies #-}
 {-# LANGUAGE DuplicateRecordFields #-}
 {-# LANGUAGE FlexibleContexts #-}
 {-# LANGUAGE FlexibleInstances #-}
@@ -13,6 +14,7 @@
 {-# LANGUAGE PolyKinds #-}
 {-# LANGUAGE QuasiQuotes #-}
 {-# LANGUAGE RankNTypes #-}
+{-# LANGUAGE RecordWildCards #-}
 {-# LANGUAGE ScopedTypeVariables #-}
 {-# LANGUAGE StandaloneDeriving #-}
 {-# LANGUAGE TemplateHaskell #-}
@@ -56,6 +58,8 @@ import Cardano.Mnemonic
     , entropyToMnemonic
     , mkEntropy
     )
+import Cardano.Pool.Metadata
+    ( HealthCheckSMASH )
 import Cardano.Wallet.Api
     ( Api )
 import Cardano.Wallet.Api.Types
@@ -95,7 +99,6 @@ import Cardano.Wallet.Api.Types
     , ApiDecodedTransaction (..)
     , ApiDelegationAction (..)
     , ApiDeregisterPool (..)
-    , ApiEpochInfo (..)
     , ApiEra (..)
     , ApiEraInfo (..)
     , ApiErrorCode (..)
@@ -115,7 +118,6 @@ import Cardano.Wallet.Api.Types
     , ApiNetworkInfo (..)
     , ApiNetworkInformation (..)
     , ApiNetworkParameters (..)
-    , ApiNtpStatus (..)
     , ApiNullStakeKey
     , ApiOurStakeKey
     , ApiPaymentDestination (..)
@@ -147,9 +149,6 @@ import Cardano.Wallet.Api.Types
     , ApiSlotReference (..)
     , ApiStakeKeyIndex (..)
     , ApiStakeKeys
-    , ApiStakePool (..)
-    , ApiStakePoolFlag (..)
-    , ApiStakePoolMetrics (..)
     , ApiT (..)
     , ApiTokenAmountFingerprint (..)
     , ApiTokens (..)
@@ -189,11 +188,6 @@ import Cardano.Wallet.Api.Types
     , ByronWalletFromXPrvPostData (..)
     , ByronWalletPostData (..)
     , ByronWalletPutPassphraseData (..)
-    , DecodeAddress (..)
-    , DecodeStakeAddress (..)
-    , EncodeAddress (..)
-    , EncodeStakeAddress (..)
-    , HealthCheckSMASH (..)
     , Iso8601Time (..)
     , KeyFormat (..)
     , NtpSyncingStatus (..)
@@ -209,6 +203,7 @@ import Cardano.Wallet.Api.Types
     , WalletPutPassphraseData (..)
     , WalletPutPassphraseMnemonicData (..)
     , WalletPutPassphraseOldPassphraseData (..)
+    , XPubOrSelf (..)
     , toApiAsset
     )
 import Cardano.Wallet.Api.Types.BlockHeader
@@ -217,13 +212,12 @@ import Cardano.Wallet.Api.Types.SchemaMetadata
     ( TxMetadataSchema (..), TxMetadataWithSchema (..) )
 import Cardano.Wallet.Gen
     ( genMnemonic
-    , genNatural
+    , genMockXPub
     , genNestedTxMetadata
     , genPercentage
     , genScript
     , genScriptCosigners
     , genScriptTemplate
-    , genScriptTemplateEntry
     , shrinkPercentage
     , shrinkTxMetadata
     )
@@ -246,6 +240,8 @@ import Cardano.Wallet.Primitive.AddressDerivationSpec
     ()
 import Cardano.Wallet.Primitive.AddressDiscovery.Sequential
     ( AddressPoolGap, getAddressPoolGap, purposeCIP1852 )
+import Cardano.Wallet.Primitive.AddressDiscovery.Shared
+    ( retrieveAllCosigners )
 import Cardano.Wallet.Primitive.Passphrase.Types
     ( Passphrase (..)
     , PassphraseHash (PassphraseHash)
@@ -332,6 +328,18 @@ import Cardano.Wallet.Primitive.Types.UTxO
     , computeUtxoStatistics
     , log10
     )
+import Cardano.Wallet.Shelley.Network.Discriminant
+    ( DecodeAddress (..)
+    , DecodeStakeAddress (..)
+    , EncodeAddress (..)
+    , EncodeStakeAddress (..)
+    )
+import Cardano.Wallet.Shelley.Pools
+    ( EpochInfo (..)
+    , StakePool (StakePool)
+    , StakePoolFlag
+    , StakePoolMetrics (StakePoolMetrics)
+    )
 import Cardano.Wallet.TokenMetadata
     ( TokenMetadataError (..) )
 import Cardano.Wallet.Transaction
@@ -359,12 +367,14 @@ import Data.Aeson
     , (.:?)
     , (.=)
     )
+import Data.Aeson.KeyMap
+    ( keys )
 import Data.Aeson.QQ
     ( aesonQQ )
+import Data.Bifunctor
+    ( Bifunctor (..) )
 import Data.ByteString
     ( ByteString )
-import Data.Char
-    ( toLower )
 import Data.Data
     ( dataTypeConstrs, dataTypeOf, showConstr )
 import Data.Either
@@ -374,7 +384,7 @@ import Data.FileEmbed
 import Data.Function
     ( (&) )
 import Data.List
-    ( foldl' )
+    ( foldl', intercalate )
 import Data.List.NonEmpty
     ( NonEmpty (..) )
 import Data.Maybe
@@ -393,8 +403,6 @@ import Data.Text.Class
     ( FromText (..), TextDecodingError (..) )
 import Data.Time.Clock
     ( NominalDiffTime )
-import Data.Time.Clock.POSIX
-    ( utcTimeToPOSIXSeconds )
 import Data.Typeable
     ( Typeable )
 import Data.Word
@@ -403,6 +411,8 @@ import Data.Word.Odd
     ( Word31 )
 import GHC.TypeLits
     ( KnownSymbol, natVal, symbolVal )
+import Network.Ntp
+    ( NtpStatusWithOffset (..) )
 import Network.URI
     ( URI, parseURI )
 import Numeric.Natural
@@ -463,6 +473,8 @@ import Test.QuickCheck.Arbitrary.Generic
     ( genericArbitrary, genericShrink )
 import Test.QuickCheck.Extra
     ( reasonablySized )
+import Test.QuickCheck.Gen
+    ( sublistOf )
 import Test.QuickCheck.Modifiers
     ( NonNegative (..) )
 import Test.Text.Roundtrip
@@ -487,6 +499,7 @@ import qualified Data.Aeson.Types as Aeson
 import qualified Data.ByteArray as BA
 import qualified Data.ByteString as BS
 import qualified Data.ByteString.Char8 as B8
+import qualified Data.Char as Char
 import qualified Data.List.NonEmpty as NE
 import qualified Data.Map.Strict as Map
 import qualified Data.Text as T
@@ -566,7 +579,6 @@ spec = parallel $ do
         jsonTest @ApiByronWalletBalance
         jsonTest @ApiCredential
         jsonTest @ApiDelegationAction
-        jsonTest @ApiEpochInfo
         jsonTest @ApiEra
         jsonTest @ApiEraInfo
         jsonTest @ApiFee
@@ -594,9 +606,8 @@ spec = parallel $ do
         jsonTest @ApiSharedWalletPostDataFromMnemonics
         jsonTest @ApiSignTransactionPostData
         jsonTest @ApiSlotReference
-        jsonTest @ApiStakePool
-        jsonTest @ApiStakePoolMetrics
-        jsonTest @ApiStakePoolMetrics
+        jsonTest @(ApiT StakePool)
+        jsonTest @(ApiT StakePoolMetrics)
         jsonTest @ApiTokenAmountFingerprint
         jsonTest @ApiTokens
         jsonTest @ApiTxId
@@ -635,7 +646,8 @@ spec = parallel $ do
     describe "SealedTx JSON decoding" $ do
         -- NOTE(AB): I tried to factor more of the properties as their structure only
         -- differs by the encoding but this required exporting 'HasBase' from Types to
-        let parseJSONSealedTx jsonTx = (serialisedTx . getApiT  <$> Aeson.eitherDecode @(ApiT SealedTx) jsonTx)
+        let parseJSONSealedTx jsonTx =
+                (serialisedTx . getApiT  <$> Aeson.eitherDecode @(ApiT SealedTx) jsonTx)
 
         it "can decode from base-16 encoded string" $
             forAll selectFromPreparedBinaries $ \ bs ->
@@ -659,32 +671,49 @@ spec = parallel $ do
                     === Left (TextDecodingError err)
 
     describe "HttpApiData roundtrip" $ do
-            httpApiDataRoundtrip $ Proxy @(ApiT WalletId)
-            httpApiDataRoundtrip $ Proxy @(ApiT AddressState)
-            httpApiDataRoundtrip $ Proxy @Iso8601Time
-            httpApiDataRoundtrip $ Proxy @(ApiT SortOrder)
+        httpApiDataRoundtrip $ Proxy @(ApiT PoolId)
+        httpApiDataRoundtrip $ Proxy @(ApiT WalletId)
+        httpApiDataRoundtrip $ Proxy @(ApiT AddressState)
+        httpApiDataRoundtrip $ Proxy @Iso8601Time
+        httpApiDataRoundtrip $ Proxy @(ApiT SortOrder)
 
     describe
         "verify that every type used with JSON content type in a servant API \
-        \has compatible ToJSON and ToSchema instances using validateToJSON." $ do
+        \has compatible ToJSON and ToSchema instances using a matcher" $ do
         let match regex sourc = matchTest
                 (makeRegexOpts compBlank execBlank $ T.unpack regex)
                 (T.unpack sourc)
-        validateEveryToJSONWithPatternChecker
-            match
-            (Proxy :: Proxy (Api ('Testnet 0) ApiStakePool))
-        -- NOTE See (ToSchema WalletOrAccountPostData)
-        validateEveryToJSON
-            (Proxy :: Proxy (
+        validateEveryToJSONWithPatternChecker match (Proxy @(Api ('Testnet 0)))
+
+    describe
+        "Verify that every type used with JSON content type in a servant API \
+        \has compatible ToJSON and ToSchema instances using validateEveryToJSON" $
+        validateEveryToJSON $
+            Proxy @(
                 ReqBody '[JSON] AccountPostData :> PostNoContent
               :<|>
                 ReqBody '[JSON] WalletPostData  :> PostNoContent
-            ))
+            )
 
     describe
         "verify that every path specified by the servant server matches an \
         \existing path in the specification" $
-        validateEveryPath (Proxy :: Proxy (Api ('Testnet 0) ApiStakePool))
+        forM_ (everyApiEndpoint (Proxy @(Api ('Testnet 0)))) $ \endpoint ->
+        it (show endpoint <> " exists in specification") $ do
+            let path = T.pack (apiEndpointPath endpoint)
+                verb = apiEndpointVerb endpoint
+            case foldl' unsafeLookupKey specification ["paths", path] of
+                Aeson.Object obj -> do
+                    let key = Aeson.fromString (Char.toLower <$> verb)
+                    case Aeson.lookup key obj of
+                        Just{} -> pure @IO ()
+                        Nothing ->
+                            fail $ "Path " <> show path
+                                <> " doesn't allow method " <> show verb
+                _ -> fail $
+                    "couldn't find path " <> show path <> " in specification: "
+                    <> show (unsafeLookupKey specification "paths" &
+                        \(Aeson.Object m) -> keys m)
 
     describe "verify JSON parsing failures too" $ do
 
@@ -940,29 +969,23 @@ instance FromJSON SchemaApiErrorCode where
                               Address Encoding
 -------------------------------------------------------------------------------}
 
--- Dummy instances
-instance EncodeAddress ('Testnet 0) where
+instance {-# OVERLAPPING #-} EncodeAddress ('Testnet 0) where
     encodeAddress = const "<addr>"
 
-instance DecodeAddress ('Testnet 0) where
+instance {-# OVERLAPPING #-} DecodeAddress ('Testnet 0) where
     decodeAddress "<addr>" = Right $ Address "<addr>"
     decodeAddress _ = Left $ TextDecodingError "invalid address"
 
--- Dummy instances
-instance EncodeStakeAddress ('Testnet 0) where
+instance {-# OVERLAPPING #-} EncodeStakeAddress ('Testnet 0) where
     encodeStakeAddress = const "<stake-addr>"
 
-instance DecodeStakeAddress ('Testnet 0) where
+instance {-# OVERLAPPING #-} DecodeStakeAddress ('Testnet 0) where
     decodeStakeAddress "<stake-addr>" = Right $ RewardAccount "<stake-addr>"
     decodeStakeAddress _ = Left $ TextDecodingError "invalid stake address"
 
 {-------------------------------------------------------------------------------
                               Arbitrary Instances
 -------------------------------------------------------------------------------}
-
-instance Arbitrary (Proxy (n :: NetworkDiscriminant)) where
-    shrink _ = []
-    arbitrary = pure (Proxy @n)
 
 instance Arbitrary (ApiAddress n) where
     shrink _ = []
@@ -971,8 +994,8 @@ instance Arbitrary (ApiAddress n) where
         <*> arbitrary
         <*> arbitrary
 
-instance Arbitrary ApiEpochInfo where
-    arbitrary = ApiEpochInfo <$> arbitrary <*> genUniformTime
+instance Arbitrary EpochInfo where
+    arbitrary = EpochInfo <$> arbitrary <*> genUniformTime
     shrink _ = []
 
 instance Arbitrary (Script KeyHash) where
@@ -1053,7 +1076,17 @@ instance Arbitrary ApiSharedWallet where
         , ApiSharedWallet . Left <$> arbitrary ]
 
 instance Arbitrary ApiScriptTemplateEntry where
-    arbitrary = genScriptTemplateEntry
+    arbitrary = do
+        script <-
+            genScriptCosigners `suchThat` (not . null . retrieveAllCosigners)
+        let scriptCosigners = retrieveAllCosigners script
+        cosignersSubset <- sublistOf scriptCosigners `suchThat` (not . null)
+        xpubsOrSelf <- vectorOf (length cosignersSubset) genXPubOrSelf
+        pure $ ApiScriptTemplateEntry
+            (Map.fromList $ zip cosignersSubset xpubsOrSelf) script
+      where
+        genXPubOrSelf :: Gen XPubOrSelf
+        genXPubOrSelf = oneof [SomeAccountKey <$> genMockXPub, pure Self]
 
 instance Arbitrary ApiSharedWalletPostDataFromMnemonics where
     arbitrary = genericArbitrary
@@ -1220,9 +1253,6 @@ instance Arbitrary ApiTxId where
 instance Arbitrary AddressPoolGap where
     arbitrary = arbitraryBoundedEnum
 
-instance Arbitrary NominalDiffTime where
-    arbitrary = fmap utcTimeToPOSIXSeconds genUniformTime
-
 instance Arbitrary Iso8601Time where
     arbitrary = Iso8601Time <$> genUniformTime
 
@@ -1372,8 +1402,8 @@ instance Arbitrary PoolId where
         InfiniteList bytes _ <- arbitrary
         return $ PoolId $ BS.pack $ take 28 bytes
 
-instance Arbitrary ApiStakePool where
-    arbitrary = ApiStakePool
+instance Arbitrary StakePool where
+    arbitrary = StakePool
         <$> arbitrary
         <*> arbitrary
         <*> arbitrary
@@ -1383,16 +1413,16 @@ instance Arbitrary ApiStakePool where
         <*> arbitrary
         <*> arbitrary
 
-instance Arbitrary ApiStakePoolMetrics where
-    arbitrary = ApiStakePoolMetrics
+instance Arbitrary StakePoolFlag where
+    shrink = genericShrink
+    arbitrary = genericArbitrary
+
+instance Arbitrary StakePoolMetrics where
+    arbitrary = StakePoolMetrics
         <$> (Quantity . fromIntegral <$> choose (1::Integer, 1_000_000_000_000))
         <*> arbitrary
         <*> (choose (0.0, 5.0))
         <*> (Quantity . fromIntegral <$> choose (1::Integer, 22_600_000))
-
-instance Arbitrary ApiStakePoolFlag where
-    shrink = genericShrink
-    arbitrary = genericArbitrary
 
 instance Arbitrary StakePoolMetadata where
     arbitrary = StakePoolMetadata
@@ -1452,10 +1482,6 @@ instance Arbitrary SyncProgress where
 instance Arbitrary a => Arbitrary (ApiT a) where
     arbitrary = ApiT <$> arbitrary
     shrink = fmap ApiT . shrink . getApiT
-
-instance Arbitrary a => Arbitrary (NonEmpty a) where
-    arbitrary = genericArbitrary
-    shrink = genericShrink
 
 -- | The initial seed has to be vector or length multiple of 4 bytes and shorter
 -- than 64 bytes. Note that this is good for testing or examples, but probably
@@ -1546,13 +1572,13 @@ instance Arbitrary ApiNetworkInformation where
     arbitrary = genericArbitrary
     shrink = genericShrink
 
-instance Arbitrary ApiNtpStatus where
+instance Arbitrary NtpStatusWithOffset where
     arbitrary = do
-        o <- Quantity <$> (arbitrary @Integer)
+        o <- Quantity <$> arbitrary @Integer
         elements
-            [ ApiNtpStatus NtpSyncingStatusUnavailable Nothing
-            , ApiNtpStatus NtpSyncingStatusPending Nothing
-            , ApiNtpStatus NtpSyncingStatusAvailable (Just o)
+            [ NtpStatusWithOffset NtpSyncingStatusUnavailable Nothing
+            , NtpStatusWithOffset NtpSyncingStatusPending Nothing
+            , NtpStatusWithOffset NtpSyncingStatusAvailable (Just o)
             ]
 
 instance Arbitrary ApiNetworkClock where
@@ -2317,10 +2343,6 @@ instance Arbitrary ApiAccountKeyShared where
         oneof [ pure $ ApiAccountKeyShared pubKey NonExtended purposeCIP1854
               , pure $ ApiAccountKeyShared xpubKey Extended purposeCIP1854 ]
 
-instance Arbitrary Natural where
-    shrink = shrinkIntegral
-    arbitrary = genNatural
-
 instance Arbitrary (Proxy n) => Arbitrary (ApiStakeKeys n) where
     arbitrary = Test.QuickCheck.scale (`div` 4) genericArbitrary
     shrink = genericShrink
@@ -2369,7 +2391,7 @@ instance Arbitrary ApiBlockHeader where
 
   2/ The above verification is rather weak, because it just controls the return
      types of endpoints, but not that those endpoints are somewhat valid. Thus,
-     we've also built another check 'validateEveryPath' which crawls our servant
+     we've also built another check 'extractEndpoints' which crawls our servant
      API type, and checks whether every path we have in our API appears in the
      specification. It does it by defining a few recursive type-classes to
      crawl the API, and for each endpoint:
@@ -2453,11 +2475,11 @@ instance ToSchema ApiWalletUtxoSnapshot where
     declareNamedSchema _ =
         declareSchemaForDefinition "ApiWalletUtxoSnapshot"
 
-instance ToSchema ApiStakePool where
+instance ToSchema (ApiT StakePool) where
     declareNamedSchema _ = declareSchemaForDefinition "ApiStakePool"
 
-instance ToSchema ApiStakePoolMetrics where
-    declareNamedSchema _ = declareSchemaForDefinition "ApiStakePoolMetrics"
+instance ToSchema (ApiT StakePoolMetrics) where
+    declareNamedSchema _ = declareSchemaForDefinition "StakePoolMetrics"
 
 instance ToSchema ApiFee where
     declareNamedSchema _ = declareSchemaForDefinition "ApiFee"
@@ -2757,60 +2779,75 @@ unsafeLookupKey json k = case json of
     bombMissing =
         error $ "no value found in map for key: " <> T.unpack k
 
+data ApiEndpoint = ApiEndpoint
+    { apiEndpointVerb :: String
+    , apiEndpointPath :: String
+    }
+
+instance Show ApiEndpoint where
+    show (ApiEndpoint verb path) = verb <> " " <> path
+
+everyApiEndpoint :: ExtractEndpoints api => Proxy api -> [ApiEndpoint]
+everyApiEndpoint p = extractEndpoints p []
+
 -- | Verify that all servant endpoints are present and match the specification
-class ValidateEveryPath api where
-    validateEveryPath :: Proxy api -> Spec
+class ExtractEndpoints api where
+    extractEndpoints :: Proxy api -> [String] -> [ApiEndpoint]
 
-instance {-# OVERLAPS #-} HasPath a => ValidateEveryPath a where
-    validateEveryPath proxy = do
-        let (verb, path) = getPath proxy
-        let verbStr = toLower <$> show verb
-        it (verbStr <> " " <> path <> " exists in specification") $ do
-            case foldl' unsafeLookupKey specification ["paths", T.pack path] of
-                Aeson.Object m ->
-                    case Aeson.lookup (Aeson.fromString verbStr) m of
-                        Just{}  -> return @IO ()
-                        Nothing -> fail "couldn't find path in specification"
-                _ -> fail "couldn't find path in specification"
+instance {-# OVERLAPPING #-} (ExtractEndpoints sub, KnownSymbol path) =>
+    ExtractEndpoints (path :> sub) where
+        extractEndpoints _ prefixes = do
+            let prefixes' = symbolVal (Proxy @path) : prefixes
+            extractEndpoints (Proxy @sub) prefixes'
 
-instance (ValidateEveryPath a, ValidateEveryPath b) => ValidateEveryPath (a :<|> b) where
-    validateEveryPath _ = do
-        validateEveryPath (Proxy @a)
-        validateEveryPath (Proxy @b)
+instance {-# OVERLAPPING #-} (ExtractEndpoints left, ExtractEndpoints right) =>
+    ExtractEndpoints (left :<|> right) where
+        extractEndpoints _ paths =
+            extractEndpoints (Proxy @left) paths
+            <> extractEndpoints (Proxy @right) paths
+
+instance {-# OVERLAPPABLE #-} GetPath a => ExtractEndpoints a where
+    extractEndpoints proxy prefixes = do
+        let (verb, subPath) = first show (getPath proxy)
+            path = "/" <> intercalate "/" (reverse prefixes) <> subPath
+        [ApiEndpoint verb path]
 
 -- | Extract the path of a given endpoint, in a format that is swagger-friendly
-class HasPath api where
+class GetPath api where
     getPath :: Proxy api -> (StdMethod, String)
 
-instance (Method m) => HasPath (Verb m s ct a) where
+instance (Method m) => GetPath (Verb m s ct a) where
     getPath _ = (method (Proxy @m), "")
 
-instance (Method m) => HasPath (NoContentVerb m) where
+instance (Method m) => GetPath (NoContentVerb m) where
     getPath _ = (method (Proxy @m), "")
 
-instance (KnownSymbol path, HasPath sub) => HasPath (path :> sub) where
+instance (KnownSymbol path, GetPath sub) => GetPath (path :> sub) where
     getPath _ =
-        let (verb, sub) = getPath (Proxy @sub)
-        in (verb, "/" <> symbolVal (Proxy :: Proxy path) <> sub)
+        getPath (Proxy @sub) & \(verb, sub) ->
+            (verb, "/" <> symbolVal (Proxy @path) <> sub)
 
-instance (KnownSymbol param, HasPath sub) => HasPath (Capture param t :> sub)
+instance (KnownSymbol param, GetPath sub) => GetPath (Capture param t :> sub)
   where
     getPath _ =
-        let (verb, sub) = getPath (Proxy @sub)
-        in case symbolVal (Proxy :: Proxy param) of
-            sym | sym == "*" -> (verb, "/" <> sym <> sub)
-            sym -> (verb, "/{" <> sym <> "}" <> sub)
+         case symbolVal (Proxy :: Proxy param) of
+            sym | sym == "*" ->
+                getPath (Proxy @sub) & \(verb, sub) ->
+                    (verb, "/" <> sym <> sub)
+            sym ->
+                getPath (Proxy @sub) & \(verb, sub) ->
+                    (verb, "/{" <> sym <> "}" <> sub)
 
-instance HasPath sub => HasPath (ReqBody a b :> sub) where
+instance GetPath sub => GetPath (ReqBody a b :> sub) where
     getPath _ = getPath (Proxy @sub)
 
-instance HasPath sub => HasPath (QueryParam a b :> sub) where
+instance GetPath sub => GetPath (QueryParam a b :> sub) where
     getPath _ = getPath (Proxy @sub)
 
-instance HasPath sub => HasPath (QueryFlag sym :> sub) where
+instance GetPath sub => GetPath (QueryFlag sym :> sub) where
     getPath _ = getPath (Proxy @sub)
 
-instance HasPath sub => HasPath (Header' opts name ty :> sub) where
+instance GetPath sub => GetPath (Header' opts name ty :> sub) where
     getPath _ = getPath (Proxy @sub)
 
 -- A way to demote 'StdMethod' back to the world of values. Servant provides a

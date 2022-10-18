@@ -9,8 +9,6 @@ module Cardano.Wallet.Shelley.Network.Blockfrost.Conversion where
 
 import Prelude
 
-import Cardano.Wallet.Api.Types
-    ( decodeAddress, decodeStakeAddress )
 import Cardano.Wallet.Primitive.Types
     ( BlockHeader (..)
     , EpochNo
@@ -27,10 +25,10 @@ import Cardano.Wallet.Primitive.Types.Hash
     ( Hash )
 import Cardano.Wallet.Primitive.Types.RewardAccount
     ( RewardAccount )
+import Cardano.Wallet.Shelley.Compatibility
+    ( shelleyDecodeAddress, shelleyDecodeStakeAddress )
 import Cardano.Wallet.Shelley.Network.Blockfrost.Error
     ( BlockfrostError (..), (<?#>) )
-import Cardano.Wallet.Shelley.Network.Discriminant
-    ( SomeNetworkDiscriminant (..) )
 import Control.Monad.Error.Class
     ( MonadError (throwError) )
 import Data.Bifunctor
@@ -39,8 +37,6 @@ import Data.IntCast
     ( intCast )
 import Data.Maybe
     ( fromMaybe )
-import Data.Proxy
-    ( Proxy (..) )
 import Data.Quantity
     ( Percentage, Quantity (Quantity), mkPercentage )
 import Data.Text
@@ -51,27 +47,23 @@ import Data.Traversable
     ( for )
 
 import qualified Blockfrost.Client as BF
+import qualified Cardano.Ledger.BaseTypes as Ledger
 
 fromBfLovelaces :: MonadError BlockfrostError m => BF.Lovelaces -> m Coin
 fromBfLovelaces lovs = Coin <$> (intCast @_ @Integer lovs <?#> "Lovelaces")
 
 fromBfAddress
-    :: MonadError BlockfrostError m
-    => SomeNetworkDiscriminant
-    -> BF.Address
-    -> m Address
-fromBfAddress (SomeNetworkDiscriminant (Proxy :: Proxy nd)) (BF.Address addr) =
-    case decodeAddress @nd addr of
+    :: MonadError BlockfrostError m => Ledger.Network -> BF.Address -> m Address
+fromBfAddress network (BF.Address addr) =
+    case shelleyDecodeAddress network addr of
         Left e -> throwError (InvalidAddress addr e)
         Right a -> pure a
 
 fromBfStakeAddress
     :: MonadError BlockfrostError m
-    => SomeNetworkDiscriminant
-    -> BF.Address
-    -> m RewardAccount
-fromBfStakeAddress (SomeNetworkDiscriminant (Proxy :: Proxy nd)) (BF.Address addr) =
-    case decodeStakeAddress @nd addr of
+    => Ledger.Network -> BF.Address -> m RewardAccount
+fromBfStakeAddress network (BF.Address addr) =
+    case shelleyDecodeStakeAddress network addr of
         Left e -> throwError (InvalidStakeAddress addr e)
         Right a -> pure a
 

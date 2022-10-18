@@ -52,7 +52,6 @@ import Cardano.Wallet.Api.Types
     , ApiPolicyKey (..)
     , ApiRegisterPool (..)
     , ApiSerialisedTransaction (..)
-    , ApiStakePool
     , ApiT (..)
     , ApiTokenAmountFingerprint (..)
     , ApiTokens (..)
@@ -115,6 +114,8 @@ import Cardano.Wallet.Primitive.Types.Tx
     , getSealedTxBody
     , sealedTxFromCardanoBody
     )
+import Cardano.Wallet.Shelley.Pools
+    ( StakePool )
 import Cardano.Wallet.Transaction
     ( AnyScript (..), ValidityIntervalExplicit (..) )
 import Cardano.Wallet.Unsafe
@@ -133,6 +134,8 @@ import Data.Function
     ( (&) )
 import Data.Generics.Internal.VL.Lens
     ( view, (^.) )
+import Data.Generics.Wrapped
+    ( _Unwrapped )
 import Data.Maybe
     ( fromJust, isJust )
 import Data.Proxy
@@ -2268,14 +2271,13 @@ spec = describe "NEW_SHELLEY_TRANSACTIONS" $ do
         dest <- emptyWallet ctx
         let depositAmt = Quantity 1000000
 
-        pool1:pool2:_ <- map (view #id) . snd <$> unsafeRequest
-            @[ApiStakePool]
+        pool1:pool2:_ <- map (view $ _Unwrapped . #id) . snd <$> unsafeRequest @[ApiT StakePool]
             ctx (Link.listStakePools arbitraryStake) Empty
 
         let delegationJoin = Json [json|{
                 "delegations": [{
                     "join": {
-                        "pool": #{pool1},
+                        "pool": #{ApiT pool1},
                         "stake_key_index": "0H"
                     }
                 }]
@@ -2288,7 +2290,7 @@ spec = describe "NEW_SHELLEY_TRANSACTIONS" $ do
             , expectField (#coinSelection . #depositsReturned) (`shouldBe` [])
             ]
 
-        let (ApiSerialisedTransaction apiTx1 _)= getFromResponse #transaction rTx1
+        let (ApiSerialisedTransaction apiTx1 _) = getFromResponse #transaction rTx1
         signedTx1 <- signTx ctx src apiTx1 [ expectResponseCode HTTP.status202 ]
 
         -- as we are joining for the first time we expect two certificates
@@ -2302,7 +2304,7 @@ spec = describe "NEW_SHELLEY_TRANSACTIONS" $ do
         let registerStakeKeyCert =
                 WalletDelegationCertificate $ RegisterRewardAccount stakeKeyDerPath
         let delegatingCert =
-                WalletDelegationCertificate $ JoinPool stakeKeyDerPath pool1
+                WalletDelegationCertificate $ JoinPool stakeKeyDerPath (ApiT pool1)
 
         let decodePayload1 = Json (toJSON signedTx1)
         rDecodedTx1 <- request @(ApiDecodedTransaction n) ctx
@@ -2360,14 +2362,14 @@ spec = describe "NEW_SHELLEY_TRANSACTIONS" $ do
         eventually "Wallet is delegating to pool1" $ do
             request @ApiWallet ctx (Link.getWallet @'Shelley src) Default Empty
                 >>= flip verify
-                    [ expectField #delegation (`shouldBe` delegating pool1 [])
+                    [ expectField #delegation (`shouldBe` delegating (ApiT pool1) [])
                     ]
 
         -- join another stake pool
         let delegationRejoin = Json [json|{
                 "delegations": [{
                     "join": {
-                        "pool": #{pool2},
+                        "pool": #{ApiT pool2},
                         "stake_key_index": "0H"
                     }
                 }]
@@ -2382,7 +2384,7 @@ spec = describe "NEW_SHELLEY_TRANSACTIONS" $ do
         let (ApiSerialisedTransaction apiTx2 _)= getFromResponse #transaction rTx2
         signedTx2 <- signTx ctx src apiTx2 [ expectResponseCode HTTP.status202 ]
         let delegatingCert2 =
-                WalletDelegationCertificate $ JoinPool stakeKeyDerPath pool2
+                WalletDelegationCertificate $ JoinPool stakeKeyDerPath (ApiT pool2)
 
         let decodePayload2 = Json (toJSON signedTx2)
         rDecodedTx2 <- request @(ApiDecodedTransaction n) ctx
@@ -2421,7 +2423,7 @@ spec = describe "NEW_SHELLEY_TRANSACTIONS" $ do
         eventually "Wallet is delegating to pool2" $ do
             request @ApiWallet ctx (Link.getWallet @'Shelley src) Default Empty
                 >>= flip verify
-                    [ expectField #delegation (`shouldBe` delegating pool2 [])
+                    [ expectField #delegation (`shouldBe` delegating (ApiT pool2) [])
                     ]
 
         -- there's currently no withdrawals in the wallet
@@ -2628,14 +2630,14 @@ spec = describe "NEW_SHELLEY_TRANSACTIONS" $ do
 
     it "TRANS_NEW_JOIN_01e - Can re-join and withdraw at once"  $ \ctx -> runResourceT $ do
         (src, _) <- rewardWallet ctx
-        pool1:_ <- map (view #id) . snd <$> unsafeRequest
-            @[ApiStakePool]
+        pool1:_ <- map (view #id . getApiT) . snd <$> unsafeRequest
+            @[ApiT StakePool]
             ctx (Link.listStakePools arbitraryStake) Empty
 
         let delegationJoin = Json [json|{
                 "delegations": [{
                     "join": {
-                        "pool": #{pool1},
+                        "pool": #{ApiT pool1},
                         "stake_key_index": "0H"
                     }
                 }]
@@ -2688,7 +2690,7 @@ spec = describe "NEW_SHELLEY_TRANSACTIONS" $ do
         eventually "Wallet is delegating to pool1" $ do
             request @ApiWallet ctx (Link.getWallet @'Shelley src) Default Empty
                 >>= flip verify
-                    [ expectField #delegation (`shouldBe` delegating pool1 [])
+                    [ expectField #delegation (`shouldBe` delegating (ApiT pool1) [])
                     ]
 
     it "TRANS_NEW_JOIN_02 - Can join stakepool in case I have many UTxOs on 1 address"
@@ -2746,14 +2748,14 @@ spec = describe "NEW_SHELLEY_TRANSACTIONS" $ do
                 ]
 
         -- Delegate from src wallet
-        pool1:_ <- map (view #id) . snd <$> unsafeRequest
-            @[ApiStakePool]
+        pool1:_ <- map (view #id . getApiT) . snd <$> unsafeRequest
+            @[ApiT StakePool]
             ctx (Link.listStakePools arbitraryStake) Empty
 
         let delegationJoin = Json [json|{
                 "delegations": [{
                     "join": {
-                        "pool": #{pool1},
+                        "pool": #{ApiT pool1},
                         "stake_key_index": "0H"
                     }
                 }]
@@ -2819,14 +2821,14 @@ spec = describe "NEW_SHELLEY_TRANSACTIONS" $ do
         $ \ctx -> runResourceT $ do
         (w, _) <- rewardWallet ctx
 
-        pool1:_:_ <- map (view #id) . snd
-            <$> unsafeRequest @[ApiStakePool]
+        pool1:_:_ <- map (view #id . getApiT) . snd
+            <$> unsafeRequest @[ApiT StakePool]
                 ctx (Link.listStakePools arbitraryStake) Empty
 
         let payload = Json [json|{
                 "delegations": [{
                     "join": {
-                        "pool": #{pool1},
+                        "pool": #{ApiT pool1},
                         "stake_key_index": "0H"
                     }
                 }]
@@ -2860,14 +2862,14 @@ spec = describe "NEW_SHELLEY_TRANSACTIONS" $ do
         $ \ctx -> runResourceT $ do
         (w, _) <- rewardWallet ctx
 
-        pool1:_:_ <- map (view #id) . snd
-            <$> unsafeRequest @[ApiStakePool]
+        pool1:_:_ <- map (view #id . getApiT) . snd
+            <$> unsafeRequest @[ApiT StakePool]
                 ctx (Link.listStakePools arbitraryStake) Empty
 
         let payload = Json [json|{
                 "delegations": [{
                     "join": {
-                        "pool": #{pool1},
+                        "pool": #{ApiT pool1},
                         "stake_key_index": "0H"
                     }
                 }]
@@ -2891,11 +2893,7 @@ spec = describe "NEW_SHELLEY_TRANSACTIONS" $ do
         waitForTxImmutability ctx
 
         let payload2 = Json [json|{
-                "delegations": [{
-                    "quit": {
-                        "stake_key_index": "0H"
-                    }
-                }],
+                "delegations": [{ "quit": { "stake_key_index": "0H" } }],
                 "withdrawal": "self"
             }|]
         rUnsignedTx2 <- request @(ApiConstructTransaction n) ctx
@@ -2926,8 +2924,8 @@ spec = describe "NEW_SHELLEY_TRANSACTIONS" $ do
         let destination1 = (addrs !! 1) ^. #id
         let destination2 = (addrs !! 2) ^. #id
         let deposit = fromIntegral oneAda
-        pool':_ <- map (view #id) . snd <$> unsafeRequest
-            @[ApiStakePool]
+        pool':_ <- map (view #id . getApiT) . snd <$> unsafeRequest
+            @[ApiT StakePool]
             ctx (Link.listStakePools arbitraryStake) Empty
 
         rSlot <- request @ApiNetworkInformation ctx
@@ -2953,7 +2951,7 @@ spec = describe "NEW_SHELLEY_TRANSACTIONS" $ do
                 }],
                 "delegations": [{
                     "join": {
-                        "pool": #{pool'},
+                        "pool": #{ApiT pool'},
                         "stake_key_index": "0H"
                     }
                 }],
@@ -3007,7 +3005,8 @@ spec = describe "NEW_SHELLEY_TRANSACTIONS" $ do
                         (`shouldBe` InLedger)
                 , expectField
                         (#metadata . traverse . #txMetadataWithSchema_metadata)
-                        (`shouldBe` Cardano.TxMetadata (Map.fromList [(1, Cardano.TxMetaText "hello")]))
+                        (`shouldBe` Cardano.TxMetadata
+                            (Map.fromList [(1, Cardano.TxMetaText "hello")]))
                 ]
 
         eventually "Delegation certificates are inserted" $ do
@@ -3015,9 +3014,7 @@ spec = describe "NEW_SHELLEY_TRANSACTIONS" $ do
                 (Link.getWallet @'Shelley wa) Default Empty
             verify rWa
                 [ expectSuccess
-                , expectField
-                        #delegation
-                        (`shouldBe` delegating pool' [])
+                , expectField #delegation (`shouldBe` delegating (ApiT pool') [])
                 ]
 
         eventually "Destination wallet balance is as expected" $ do

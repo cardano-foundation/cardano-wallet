@@ -8,7 +8,7 @@ module Cardano.Wallet.Api.Server.TlsSpec
 
 import Prelude
 
-import Cardano.Wallet.Api.Server
+import Cardano.Wallet.Api.Http.Shelley.Server
     ( Listen (..), TlsConfiguration (..), withListeningSocket )
 import Cardano.X509.Configuration
     ( CertDescription (..)
@@ -85,7 +85,7 @@ import UnliftIO.Async
 import UnliftIO.Exception
     ( fromException )
 
-import qualified Cardano.Wallet.Api.Server as Server
+import qualified Cardano.Wallet.Api.Http.Shelley.Server as Server
 import qualified Data.ByteString as BS
 import qualified Network.HTTP.Types.Status as Http
 import qualified Network.Wai as Wai

@@ -60,8 +60,6 @@ import Cardano.Pool.Rank.Likelihood
     ( BlockProduction (..), PerformanceEstimate (..), estimatePoolPerformance )
 import Cardano.Slotting.Slot
     ( unEpochSize )
-import Cardano.Wallet.Api.Types
-    ( Base (Base16), decodeStakeAddress, encodeAddress, encodeStakeAddress )
 import Cardano.Wallet.Logging
     ( BracketLog, bracketTracer )
 import Cardano.Wallet.Network
@@ -145,6 +143,11 @@ import Cardano.Wallet.Primitive.Types.Tx
     )
 import Cardano.Wallet.Primitive.Types.Tx.Constraints
     ( TxSize (..) )
+import Cardano.Wallet.Shelley.Compatibility
+    ( shelleyDecodeStakeAddress
+    , shelleyEncodeAddress
+    , shelleyEncodeStakeAddress
+    )
 import Cardano.Wallet.Shelley.Network.Blockfrost.Conversion
     ( bfBlockHeader
     , fromBfAddress
@@ -166,7 +169,10 @@ import Cardano.Wallet.Shelley.Network.Blockfrost.Layer
     , withRecovery
     )
 import Cardano.Wallet.Shelley.Network.Discriminant
-    ( SomeNetworkDiscriminant (..), networkDiscriminantToId )
+    ( SomeNetworkDiscriminant (..)
+    , discriminantNetwork
+    , networkDiscriminantToId
+    )
 import Control.Concurrent
     ( threadDelay )
 import Control.Concurrent.Async.Lifted
@@ -187,6 +193,8 @@ import Data.Bifunctor
     ( first )
 import Data.Bitraversable
     ( bitraverse )
+import Data.ByteArray.Encoding
+    ( Base (..), convertFromBase )
 import Data.Default
     ( Default (..) )
 import Data.Function
@@ -259,8 +267,6 @@ import qualified Cardano.Wallet.Primitive.Types.Coin as Coin
 import qualified Cardano.Wallet.Primitive.Types.TokenMap as TokenMap
 import qualified Cardano.Wallet.Shelley.Network.Blockfrost.Fixture as Fixture
 import qualified Cardano.Wallet.Shelley.Network.Blockfrost.Layer as Layer
-import Data.ByteArray.Encoding
-    ( convertFromBase )
 import qualified Data.ByteString.Lazy as BL
 import qualified Data.Map.Strict as Map
 import qualified Data.Sequence as Seq
@@ -384,17 +390,19 @@ withNetworkLayer tr network np project k = do
         -> BlockfrostLayer IO
         -> Set RewardAccount
         -> IO (Map RewardAccount Coin)
-    fetchNetworkRewardAccountBalances
-        (SomeNetworkDiscriminant (Proxy :: Proxy nd)) bfLayer accounts = do
-            traceWith tr MsgFetchNetworkRewardAccountBalances
-            Map.fromList . catMaybes <$>
-                for (Set.toList accounts) \rewardAccount -> do
-                    let addr = BF.mkAddress $ encodeStakeAddress @nd rewardAccount
-                    bfGetAccount bfLayer addr
-                        >>= traverse \BF.AccountInfo{..} -> throwBlockfrostError $
-                            (rewardAccount,) . Coin <$>
-                                fromIntegral @_ @Integer _accountInfoWithdrawableAmount
-                                    <?#> "AccountInfoRewardsSum"
+    fetchNetworkRewardAccountBalances nd bfLayer accounts = do
+        traceWith tr MsgFetchNetworkRewardAccountBalances
+        Map.fromList . catMaybes <$>
+            for (Set.toList accounts) \rewardAccount -> do
+                let addr = BF.mkAddress $
+                        shelleyEncodeStakeAddress
+                            (discriminantNetwork nd)
+                            rewardAccount
+                bfGetAccount bfLayer addr
+                    >>= traverse \BF.AccountInfo{..} -> throwBlockfrostError $
+                        (rewardAccount,) . Coin <$>
+                            fromIntegral @_ @Integer _accountInfoWithdrawableAmount
+                                <?#> "AccountInfoRewardsSum"
 
     getCachedRewardAccountBalance :: BlockfrostLayer IO -> RewardAccount -> IO Coin
     getCachedRewardAccountBalance bfLayer account =
@@ -572,7 +580,8 @@ blockfrostLightSyncSource
             Left address -> do
                 txs <-
                     bfGetAddressTransactions
-                        (BF.Address (encodeAddress @nd address))
+                        (BF.Address (shelleyEncodeAddress
+                            (discriminantNetwork network) address))
                         (Just $ headerToIndex bhFrom)
                         (Just $ headerToIndex bhTo)
                 for txs \BF.AddressTransaction{..} -> do
@@ -590,7 +599,9 @@ blockfrostLightSyncSource
                         (unsafeMkSublist [((txIndex, 0), tx)])
                         (unsafeMkSublist [])
             Right account -> do
-                let address = BF.Address $ encodeStakeAddress @nd account
+                let address = BF.Address $
+                        shelleyEncodeStakeAddress
+                            (discriminantNetwork network) account
                 regTxHashes <-
                     fmap BF._accountRegistrationTxHash
                         <$> bfGetAccountRegistrations address
@@ -692,8 +703,7 @@ fetchDelegation
     -> BlockfrostLayer IO
     -> BF.TxHash
     -> IO [DelegationCertificate]
-fetchDelegation
-    tr (SomeNetworkDiscriminant (Proxy :: Proxy nd)) bfLayer hash = do
+fetchDelegation tr network bfLayer hash = do
     liftIO $ traceWith tr $ MsgFetchDelegation hash
     delegations <-
         concurrently
@@ -712,7 +722,8 @@ fetchDelegation
     parseTxDelegation BF.TransactionDelegation{..} = do
         let addr = BF.unAddress _transactionDelegationAddress
         rewardAccount <-
-            first (InvalidAddress addr) $ decodeStakeAddress @nd addr
+            first (InvalidAddress addr) $
+                shelleyDecodeStakeAddress (discriminantNetwork network) addr
         poolId <- fromBfPoolId _transactionDelegationPoolId
         pure
             ( _transactionDelegationCertIndex
@@ -721,7 +732,8 @@ fetchDelegation
     parseTxStake BF.TransactionStake{..} = do
         let addr = BF.unAddress _transactionStakeAddress
         rewardAccount <-
-            first (InvalidAddress addr) $ decodeStakeAddress @nd addr
+            first (InvalidAddress addr) $
+                shelleyDecodeStakeAddress (discriminantNetwork network) addr
         let action =
                 if _transactionStakeRegistration
                     then CertRegisterKey
@@ -751,7 +763,7 @@ assembleTransaction
     -> [BF.TransactionMetaCBOR]
     -> IO Tx
 assembleTransaction
-    network@(SomeNetworkDiscriminant (Proxy :: Proxy nd))
+    network
     BF.Transaction{..}
     BF.TransactionUtxos{..}
     txWithdrawals
@@ -763,7 +775,7 @@ assembleTransaction
         let sortedTransactionUtxosOutputs =
                 sortOn BF._utxoOutputOutputIndex _transactionUtxosOutputs
         outputs <- for sortedTransactionUtxosOutputs \out@BF.UtxoOutput{..} -> do
-            address <- fromBfAddress network _utxoOutputAddress
+            address <- fromBfAddress (discriminantNetwork network) _utxoOutputAddress
             tokens <- do
                 coin <- case [ lovelaces
                              | BF.AdaAmount lovelaces <- _utxoOutputAmount
@@ -792,7 +804,9 @@ assembleTransaction
                 <$> for txWithdrawals \BF.TransactionWithdrawal{..} -> do
                     let addr = BF.unAddress _transactionWithdrawalAddress
                     rewardAccount <-
-                        first (InvalidAddress addr) $ decodeStakeAddress @nd addr
+                        first (InvalidAddress addr) $
+                            shelleyDecodeStakeAddress
+                                (discriminantNetwork network) addr
                     coin <- fromBfLovelaces _transactionWithdrawalAmount
                     pure (rewardAccount, coin)
         metadata <-
@@ -1218,3 +1232,4 @@ instance HasSeverityAnnotation Log where
         MsgNextBlockHeader{} -> Notice
         MsgGotNextBlocks {} -> Notice
         MsgBlockfrostLayer l -> getSeverityAnnotation l
+

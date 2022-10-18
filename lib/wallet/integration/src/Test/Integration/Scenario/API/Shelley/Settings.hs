@@ -13,12 +13,14 @@ module Test.Integration.Scenario.API.Shelley.Settings
 
 import Prelude
 
-import Cardano.Wallet.Api.Types
-    ( ApiStakePool, ApiT (..) )
+import Cardano.Wallet.Api.Lib.ApiT
+    ( ApiT (..) )
 import Cardano.Wallet.Primitive.Types
     ( PoolMetadataSource (..), Settings )
 import Cardano.Wallet.Primitive.Types.Coin
     ( Coin (..) )
+import Cardano.Wallet.Shelley.Pools
+    ( StakePool )
 import Data.Either
     ( fromRight )
 import Data.Generics.Internal.VL.Lens
@@ -66,8 +68,8 @@ spec = describe "SHELLEY_SETTINGS" $ do
     it "SETTINGS_02 - Changing pool_metadata_source re-syncs metadata" $ \ctx -> do
         let toNone = "none"
             toDirect = "direct"
-            getMetadata = fmap (view #metadata) . snd <$> unsafeRequest
-                @[ApiStakePool] ctx (Link.listStakePools arbitraryStake) Empty
+            getMetadata = fmap (view #metadata . getApiT) . snd <$> unsafeRequest
+                @[ApiT StakePool] ctx (Link.listStakePools arbitraryStake) Empty
             delay = 500 * 1000
             timeout = 120
 
