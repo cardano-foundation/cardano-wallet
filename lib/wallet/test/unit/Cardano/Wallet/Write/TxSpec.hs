@@ -19,7 +19,6 @@ import Cardano.Wallet.Write.Tx
     , RecentEra (RecentEraBabbage)
     , Script
     , TxOutInBabbage
-    , UTxO
     , datumFromBytes
     , datumFromCardanoScriptData
     , datumHashFromBytes
@@ -47,7 +46,14 @@ import Test.Cardano.Ledger.Alonzo.Serialisation.Generators
 import Test.Hspec
     ( Spec, describe, expectationFailure, it, shouldBe )
 import Test.QuickCheck
-    ( Arbitrary (..), Arbitrary1 (liftArbitrary), property, (===) )
+    ( Arbitrary (..)
+    , Arbitrary1 (liftArbitrary)
+    , Property
+    , conjoin
+    , counterexample
+    , property
+    , (===)
+    )
 
 import qualified Cardano.Api as Cardano
 import qualified Cardano.Api.Gen as Cardano
@@ -59,47 +65,14 @@ import qualified Data.Map as Map
 
 spec :: Spec
 spec = do
-    describe "Isomorphisms" $ do
-        describe "BinaryData <-> Cardano.ScriptData" $ do
-            it "datumFromCardanoScriptData . datumToCardanoScriptData == id" $
-                property $ \x -> do
-                    let f = datumFromCardanoScriptData . datumToCardanoScriptData
-                    f x === x
-
-            it "datumToCardanoScriptData . datumFromCardanoScriptData == id" $ do
-                property $ \x -> do
-                    let f = datumToCardanoScriptData . datumFromCardanoScriptData
-                    f x === x
-
-        describe "Script LatestLedgerEra <-> Cardano.ScriptInAnyLang" $ do
-            -- cardano-api differentiates SimpleScriptV1 from SimpleScriptV2.
-            -- The ledger does not. So information is lost in this roundtrip.
-            it "scriptToCardanoScriptInAnyLang . \
-               \scriptFromCardanoScriptInAnyLang" $ property $ \s -> do
-                let f = scriptToCardanoScriptInAnyLang
-                        . scriptFromCardanoScriptInAnyLang
-                let normalize = normalizeCardanoScriptInAnyLang
-                f (normalize s) === normalize s
-
-            it "scriptFromCardanoScriptInAnyLang . \
-               \scriptToCardanoScriptInAnyLang" $ property $ \s -> do
-                let f = scriptFromCardanoScriptInAnyLang
-                        . scriptToCardanoScriptInAnyLang
-                f s === s
-
-        describe "UTxO <-> Cardano.UTxO " $ do
-            -- NOTE: Should ideally be tested for all 'RecentEra'.
-            it "toCardanoUTxO . fromCardanoUTxO == id (modulo SimpleScriptV1/2)"
-                $ property $ \(x :: Cardano.UTxO LatestEra) -> do
-                     let f = toCardanoUTxO . fromCardanoUTxO
-                     let normalize = normalizeCardanoUTxO
-                     f (normalize x) === normalize x
-
-            it "fromCardanoUTxO . toCardanoUTxO == id"
-                $ property $ \(x :: UTxO LatestLedgerEra) -> do
-                     fromCardanoUTxO @LatestEra (toCardanoUTxO x) === x
-
-    describe "Roundtrips" $ do
+    describe "Datum" $ do
+        it "BinaryData is isomorphic to Cardano.ScriptData" $
+            testIsomorphism
+                (NamedFun
+                    datumToCardanoScriptData "datumToCardanoScriptData")
+                (NamedFun
+                    datumFromCardanoScriptData "datumFromCardanoScriptData")
+                id
         it "datumFromBytes . datumToBytes == Right"
             $ property $ \d -> do
                  let f = datumFromBytes . datumToBytes
@@ -109,14 +82,7 @@ spec = do
                  let f = datumHashFromBytes . datumHashToBytes
                  f h === Just h
 
-        it "parseEither (scriptFromCardanoEnvelopeJSON . \
-           \scriptToCardanoEnvelopeJSON) == Right" $ property $ \s -> do
-            let f = scriptFromCardanoEnvelopeJSON
-                    . scriptToCardanoEnvelopeJSON
-            parseEither f s === Right s
-
-    describe "Goldens" $ do
-        describe "datumFromBytes" $ do
+        describe "datumFromBytes goldens" $ do
             let decodePlutusData hex =
                     Alonzo.getPlutusData . Alonzo.binaryDataToData
                     <$> datumFromBytes (unsafeFromHex hex)
@@ -139,10 +105,39 @@ spec = do
                             \\188\241\SYN\149\SUBR\244\184i\143\&4\193\252\128"
                         , Map [(B "", Map [(B "", I 2000000)])]
                         ]
-        it "scriptFromCardanoEnvelopeJSON" $ do
+
+    describe "Script" $ do
+        it "is isomorphic to Cardano.ScriptInAnyLang (modulo SimpleScriptV1/2)"
+            $ testIsomorphism
+                (NamedFun
+                    scriptToCardanoScriptInAnyLang
+                    "scriptToCardanoScriptInAnyLang")
+                (NamedFun
+                    scriptFromCardanoScriptInAnyLang
+                    "scriptFromCardanoScriptInAnyLang")
+                normalizeCardanoScriptInAnyLang
+
+        it "parseEither (scriptFromCardanoEnvelopeJSON . \
+           \scriptToCardanoEnvelopeJSON) == Right" $ property $ \s -> do
+            let f = scriptFromCardanoEnvelopeJSON
+                    . scriptToCardanoEnvelopeJSON
+            parseEither f s === Right s
+
+        it "scriptFromCardanoEnvelopeJSON golden" $ do
             case Aeson.parse scriptFromCardanoEnvelopeJSON plutusScriptV2Json of
                 Aeson.Success s -> isPlutusScript s `shouldBe` True
                 Aeson.Error e -> expectationFailure e
+
+    describe "UTxO" $ do
+        it "is isomorphic to Cardano.UTxO (modulo SimpleScriptV1/2)" $ do
+            testIsomorphism
+                (NamedFun
+                    (toCardanoUTxO @Cardano.BabbageEra)
+                    "toCardanoUTxO")
+                (NamedFun
+                    (fromCardanoUTxO @Cardano.BabbageEra)
+                    "fromCardanoUTxO")
+                normalizeCardanoUTxO
 
 instance Arbitrary Cardano.ScriptData where
      arbitrary = genScriptData
@@ -209,6 +204,54 @@ normalizeCardanoScriptInAnyLang
         scriptToCardanoScriptInAnyLang
         . scriptFromCardanoScriptInAnyLang
 normalizeCardanoScriptInAnyLang other = other
+
+--------------------------------------------------------------------------------
+-- Helpers
+--------------------------------------------------------------------------------
+
+-- | Allows 'testIsomorphism' to be called more conveniently when short on
+-- horizontal space, compared to a multiline "(a -> b, String)".
+--
+-- @@
+--      (NamedFun
+--          fun
+--          "fun")
+-- @@
+--
+-- vs
+--
+-- @@
+--      ( fun
+--      , "fun"
+--      )
+-- @@
+data NamedFun a b = NamedFun (a -> b) String
+
+-- | Tests @f . g == id@ and @g . f == id@
+--
+-- @@
+--                 f
+--      ┌───┐ ─────────▶ ┌───┐
+--      │ a │            │ b │
+--      │   │            │   │
+--      └───┘ ◀───────── └───┘
+--                 g
+-- @@
+testIsomorphism
+    :: (Arbitrary a, Arbitrary b, Show a, Show b, Eq a, Eq b)
+    => NamedFun a b
+    -> NamedFun b a
+    -> (b -> b) -- ^ Optional normalization, otherwise use @id@.
+    -> Property
+testIsomorphism (NamedFun f fName) (NamedFun g gName) normalize =
+    conjoin
+        [ counterexample
+            (fName <> " . " <> gName <> " == id")
+            (property $ \x -> f (g (normalize x)) === normalize x)
+        , counterexample
+            (gName <> " . " <> gName <> " == id")
+            (property $ \x -> g (f x) === x)
+        ]
 
 --------------------------------------------------------------------------------
 -- Test Data
