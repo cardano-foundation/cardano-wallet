@@ -971,6 +971,7 @@ instance FromJSON SchemaApiErrorCode where
                               Address Encoding
 -------------------------------------------------------------------------------}
 
+-- TODO [ADP-2302] Remove need for overlapping dummy instances
 instance {-# OVERLAPPING #-} EncodeAddress ('Testnet 0) where
     encodeAddress = const "<addr>"
 
