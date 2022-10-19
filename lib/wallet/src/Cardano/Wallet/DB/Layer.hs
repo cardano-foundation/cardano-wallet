@@ -719,37 +719,27 @@ newDBLayerWith _cacheBehavior _tr ti SqliteContext{runQuery} = do
         -----------------------------------------------------------------------}
     let
       dbTxHistory = DBTxHistory
-        { putTxHistory_ = \wid txs -> ExceptT $ do
-            selectWallet wid >>= \case
-                Nothing -> pure $ Left $ ErrNoSuchWallet wid
-                Just _ -> modifyDBMaybe transactionsDBVar $ \_ ->
-                    let
-                        delta = Just $ ExpandTxWalletsHistory wid txs
-                    in  (delta, Right ())
+        { putTxHistory_ = \wid ->
+            updateDBVar transactionsDBVar . ExpandTxWalletsHistory wid
 
-        , readTxHistory_ = \wid minWithdrawal order range status -> do
-            readCheckpoint wid >>= \case
-                Nothing -> pure []
-                Just cp -> do
-                    txHistory <- readDBVar transactionsDBVar
-                    let filtering DB.TxMeta{..} = and $ catMaybes
-                            [ (txMetaSlot >=) <$> W.inclusiveLowerBound range
-                            , (txMetaSlot <=) <$> W.inclusiveUpperBound range
-                            , (txMetaStatus ==) <$> status
-                            ]
-                    lift $ selectTxHistory cp ti wid minWithdrawal
-                        order filtering txHistory
+        , readTxHistory_ = \wid minWithdrawal order range status tip -> do
+            txHistory <- readDBVar transactionsDBVar
+            let filtering DB.TxMeta{..} = and $ catMaybes
+                    [ (txMetaSlot >=) <$> W.inclusiveLowerBound range
+                    , (txMetaSlot <=) <$> W.inclusiveUpperBound range
+                    , (txMetaStatus ==) <$> status
+                    ]
+            lift $ selectTxHistory tip
+                ti wid minWithdrawal
+                order filtering txHistory
 
-        , getTx_ = \wid tid -> ExceptT $ do
-            readCheckpoint wid >>= \case
-                Nothing -> pure $ Left $ ErrNoSuchWallet wid
-                Just cp -> do
-                    txHistory <- readDBVar transactionsDBVar
-                    metas <- lift $ selectTxHistory cp
-                        ti wid Nothing W.Descending
-                            (\meta -> txMetaTxId meta == TxId tid )
-                            txHistory
-                    pure $ Right $ listToMaybe metas
+        , getTx_ = \wid txid tip -> do
+            txHistory <- readDBVar transactionsDBVar
+            metas <- lift $ selectTxHistory tip
+                ti wid Nothing W.Descending
+                    (\meta -> txMetaTxId meta == TxId txid )
+                    txHistory
+            pure $ listToMaybe metas
         }
 
         {-----------------------------------------------------------------------
@@ -1057,7 +1047,7 @@ deleteDelegationCertificates wid filters = do
 -- See also: issue #573.
 selectTxHistory
     :: Monad m
-    => W.Wallet s
+    => W.BlockHeader
     -> TimeInterpreter m
     -> W.WalletId
     -> Maybe W.Coin
@@ -1065,7 +1055,7 @@ selectTxHistory
     -> (DB.TxMeta -> Bool)
     -> TxWalletsHistory
     -> m [W.TransactionInfo]
-selectTxHistory cp ti wid minWithdrawal order whichMeta
+selectTxHistory tip ti wid minWithdrawal order whichMeta
     (TxHistoryWithCBOR txHistory (TxCBORHistory txCBORHistory), wmetas) = do
     tinfos <- sequence $ do
         (TxMetaHistory metas, _) <- maybeToList $ Map.lookup wid wmetas
@@ -1079,7 +1069,7 @@ selectTxHistory cp ti wid minWithdrawal order whichMeta
             minWithdrawal
         let decoration = decorateTxIns txHistory transaction
         pure $ mkTransactionInfo
-            ti (W.currentTip cp)
+            ti tip
                 transaction
                 decoration
                 (Map.lookup (txMetaTxId meta) txCBORHistory)

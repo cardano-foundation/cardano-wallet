@@ -46,11 +46,12 @@ import Cardano.Wallet.DB.WalletState
 import Cardano.Wallet.Primitive.AddressDerivation
     ( Depth (..) )
 import Cardano.Wallet.Primitive.Model
-    ( Wallet )
+    ( Wallet, currentTip )
 import Cardano.Wallet.Primitive.Passphrase
     ( PassphraseHash )
 import Cardano.Wallet.Primitive.Types
-    ( ChainPoint
+    ( BlockHeader
+    , ChainPoint
     , DelegationCertificate
     , GenesisParameters
     , Range (..)
@@ -417,9 +418,18 @@ mkDBLayerFromParts DBLayerCollection{..} = DBLayer
         putDelegationRewardBalance_ (dbDelegation wid) a
     , readDelegationRewardBalance = \wid ->
         readDelegationRewardBalance_ (dbDelegation wid)
-    , putTxHistory = putTxHistory_ dbTxHistory
-    , readTxHistory = readTxHistory_ dbTxHistory
-    , getTx = getTx_ dbTxHistory
+    , putTxHistory = \wid a -> wrapNoSuchWallet wid $
+        putTxHistory_ dbTxHistory wid a
+    , readTxHistory = \wid minWithdrawal order range status ->
+        readCurrentTip wid >>= \case
+            Just tip ->
+                (readTxHistory_ dbTxHistory)
+                    wid minWithdrawal order range status tip
+            Nothing ->
+                pure []
+    , getTx = \wid txid -> wrapNoSuchWallet wid $ do
+        Just tip <- readCurrentTip wid -- wallet exists
+        (getTx_ dbTxHistory) wid txid tip
     , putLocalTxSubmission = putLocalTxSubmission_ dbPendingTxs
     , readLocalTxSubmissionPending = readLocalTxSubmissionPending_ dbPendingTxs
     , updatePendingTxForExpiry = updatePendingTxForExpiry_ dbPendingTxs
@@ -442,6 +452,10 @@ mkDBLayerFromParts DBLayerCollection{..} = DBLayer
         hasWallet_ dbWallets wid >>= \case
             False -> pure $ Left $ ErrNoSuchWallet wid
             True  -> Right <$> action
+
+    readCurrentTip :: WalletId -> stm (Maybe BlockHeader)
+    readCurrentTip =
+        (fmap . fmap) currentTip . readCheckpoint_ dbCheckpoints
 
 -- | A database layer for a collection of wallets
 data DBWallets stm s = DBWallets
@@ -572,13 +586,14 @@ data DBTxHistory stm = DBTxHistory
     { putTxHistory_
         :: WalletId
         -> [(Tx, TxMeta)]
-        -> ExceptT ErrNoSuchWallet stm ()
+        -> stm ()
         -- ^ Augments the transaction history for a known wallet.
         --
         -- If an entry for a particular transaction already exists it is not
         -- altered nor merged (just ignored).
         --
-        -- If the wallet doesn't exist, this operation returns an error.
+        -- If the wallet does not exist, the function may throw
+        -- an error, but need not.
 
     , readTxHistory_
         :: WalletId
@@ -586,6 +601,7 @@ data DBTxHistory stm = DBTxHistory
         -> SortOrder
         -> Range SlotNo
         -> Maybe TxStatus
+        -> BlockHeader
         -> stm [TransactionInfo]
         -- ^ Fetch the current transaction history of a known wallet, ordered by
         -- descending slot number.
@@ -595,7 +611,8 @@ data DBTxHistory stm = DBTxHistory
     , getTx_
         :: WalletId
         -> Hash "Tx"
-        -> ExceptT ErrNoSuchWallet stm (Maybe TransactionInfo)
+        -> BlockHeader
+        -> stm (Maybe TransactionInfo)
         -- ^ Fetch the latest transaction by id, returns Nothing when the
         -- transaction isn't found.
         --
