@@ -413,7 +413,6 @@ spec = describe "SHARED_TRANSACTIONS" $ do
                         (`shouldBe` amt)
                 ]
 
-
     it "SHARED_TRANSACTIONS_CREATE_04b - Cannot spend less than minUTxOValue" $ \ctx -> runResourceT $ do
         wa <- fixtureSharedWallet ctx
         wb <- emptyWallet ctx
@@ -630,10 +629,36 @@ spec = describe "SHARED_TRANSACTIONS" $ do
         --adding the witness by the second participant make tx valid for submission
         signedTx3 <-
             signSharedTx ctx sharedWal2 apiTx2 [ expectResponseCode HTTP.status202 ]
+
+        -- now submission works
         submittedTx3 <- submitSharedTxWithWid ctx sharedWal1 signedTx3
         verify submittedTx3
             [ expectResponseCode HTTP.status202
             ]
+
+       -- checking decreased balance of shared wallets
+        eventually "wShared balance is decreased" $ do
+            rSharedWal1 <- getSharedWallet ctx (ApiSharedWallet (Right sharedWal1))
+            rSharedWal2 <- getSharedWallet ctx (ApiSharedWallet (Right sharedWal2))
+            let balanceExp1 =
+                    [ expectResponseCode HTTP.status200
+                    , expectField (traverse . #balance . #available)
+                        (`shouldBe` Quantity (faucetUtxoAmt - expectedFee - amt))
+                    ]
+            verify (fmap (view #wallet) <$> rSharedWal1) balanceExp1
+            verify (fmap (view #wallet) <$> rSharedWal2) balanceExp1
+
+       -- checking the balance of target wallet has increased
+        eventually "Target wallet balance is increased by amt" $ do
+            rWa <- request @ApiWallet ctx
+                (Link.getWallet @'Shelley wb) Default Empty
+            verify rWa
+                [ expectSuccess
+                , expectField
+                        (#balance . #available . #getQuantity)
+                        (`shouldBe` amt)
+                ]
+
   where
      fundSharedWallet ctx amt walShared1 walShared2 = do
         let wal = case walShared1 of
