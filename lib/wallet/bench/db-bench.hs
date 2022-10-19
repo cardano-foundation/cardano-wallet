@@ -93,7 +93,7 @@ import Cardano.Wallet.Primitive.AddressDerivation.Byron
 import Cardano.Wallet.Primitive.AddressDerivation.Shelley
     ( ShelleyKey (..), generateKeyFromSeed, unsafeGenerateKeyFromSeed )
 import Cardano.Wallet.Primitive.AddressDiscovery.Random
-    ( DerivationPath, RndState (..), mkRndState )
+    ( RndState (..), mkRndState )
 import Cardano.Wallet.Primitive.AddressDiscovery.Sequential
     ( DerivationPrefix (..)
     , SeqAddressPool (..)
@@ -174,13 +174,11 @@ import Data.ByteString
 import Data.Either
     ( fromRight )
 import Data.Functor
-    ( ($>) )
+    ( ($>), (<&>) )
 import Data.Functor.Identity
     ( Identity (..) )
 import Data.List
     ( foldl' )
-import Data.Map.Strict
-    ( Map )
 import Data.Maybe
     ( fromMaybe )
 import Data.Proxy
@@ -385,8 +383,6 @@ mkSeqState numAddrs _ = s
 -- Wallet State (Random Scheme) Benchmarks
 --
 
-
-
 bgroupWriteRndState :: DBLayerBenchByron -> Benchmark
 bgroupWriteRndState db = bgroup "RndState"
     --      #Checkpoints  #Addresses  #Pending
@@ -399,38 +395,30 @@ bgroupWriteRndState db = bgroup "RndState"
     , bRndState      100        1000      1000
     ]
   where
-    bRndState n a p = bench lbl $ withCleanDB db fixture (uncurry benchPutRndState)
+    bRndState checkpoints numAddrs numPending =
+        bench lbl $ withCleanDB db fixture (uncurry benchPutRndState)
       where
-        lbl = n|+" CP x "+|a|+" addr x "+|p|+" pending"
-        fixture db_ = do
-            walletFixtureByron db_
-            pure cps
+        lbl = checkpoints|+" CP x "+|numAddrs|+" addr x "+|numPending|+" pending"
+        fixture db_ = walletFixtureByron db_ $> cps
         cps :: [Wallet (RndState 'Mainnet)]
         cps =
             [ snd $ initWallet (withMovingSlot i block0) $
                 RndState
                     { hdPassphrase = dummyPassphrase
                     , accountIndex = minBound
-                    , discoveredAddresses = (,Used) <$> mkRndAddresses a i
-                    , pendingAddresses = mkRndAddresses p (-i)
                     , gen = mkStdGen 42
+                    , pendingAddresses = Map.fromList (drop numAddrs addresses)
+                    , discoveredAddresses =
+                        (,Used) <$> Map.fromList (take numAddrs addresses)
                     }
-            | i <- [1..n]
+            | i <- [1 .. checkpoints]
+            , let addresses = [1 .. numAddrs + numPending] <&> \j ->
+                    force ((toEnum i, toEnum j), mkByronAddress i j)
             ]
 
-benchPutRndState
-    :: DBLayerBenchByron
-    -> [Wallet (RndState 'Mainnet)]
-    -> IO ()
+benchPutRndState :: DBLayerBenchByron -> [Wallet (RndState 'Mainnet)] -> IO ()
 benchPutRndState DBLayer{..} cps =
     unsafeRunExceptT $ mapExceptT atomically $ mapM_ (putCheckpoint testWid) cps
-
-mkRndAddresses
-    :: Int -> Int -> Map DerivationPath Address
-mkRndAddresses numAddrs i =
-    Map.fromList addrs
-  where
-    addrs = [ force ((toEnum i, toEnum j), mkByronAddress i j) | j <- [1..numAddrs] ]
 
 ----------------------------------------------------------------------------
 -- Tx history Benchmarks
