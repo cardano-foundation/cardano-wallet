@@ -2369,7 +2369,7 @@ instance FromJSON (ApiT StakePool) where
 
 instance ToJSON (ApiT StakePool) where
     toJSON (ApiT pool) = Aeson.object
-        [ "id" .= view #id pool
+        [ "id" .= ApiT (view #id pool)
         , "metrics" .= toJsonStakePoolMetrics (view #metrics pool)
         , "metadata" .= view #metadata pool
         , "cost" .= view #cost pool
