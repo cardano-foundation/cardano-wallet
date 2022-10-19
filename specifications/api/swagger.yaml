@@ -2667,11 +2667,14 @@ components:
       type: object
       required:
         - verification_key
-        - script_hash
+        - scripts
         - bootstrap
       properties:
         verification_key: *witnessCount
-        script_hash: *witnessCount
+        scripts:
+          type: array
+          minItems: 0
+          items: *AnyScript
         bootstrap: *witnessCount
 
     ApiDecodedTransaction: &ApiDecodedTransaction

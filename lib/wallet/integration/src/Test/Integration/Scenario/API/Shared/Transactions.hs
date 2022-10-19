@@ -553,7 +553,7 @@ spec = describe "SHARED_TRANSACTIONS" $ do
 
         let scriptTemplate = sharedWal1 ^. #paymentScriptTemplate
         let paymentScript =
-                -- We will want CA.Payment here
+                -- TODO- ADP-2312 We will want CA.Payment here
                 NativeScript $ changeRole CA.Policy $
                 replaceCosignersWithVerKeys CA.UTxOExternal scriptTemplate (Index 1)
 
@@ -702,7 +702,7 @@ spec = describe "SHARED_TRANSACTIONS" $ do
         let expectedFee = getFromResponse (#fee . #getQuantity) rTx
         let scriptTemplate = sharedWal1 ^. #paymentScriptTemplate
         let paymentScript =
-                -- We will want CA.Payment here
+                -- TODO- ADP-2312 We will want CA.Payment here
                 NativeScript $ changeRole CA.Policy $
                 replaceCosignersWithVerKeys CA.UTxOExternal scriptTemplate (Index 1)
         let noVerKeyWitness = WitnessCount
@@ -1020,7 +1020,7 @@ spec = describe "SHARED_TRANSACTIONS" $ do
                  }]
              }|]
 
-     --Hack until we figure out what to do with Role in KeyHash. We
+     --TODO- ADP-2312 Hack until we figure out what to do with Role in KeyHash. We
      --may just get rid of it n the end if I cannot do it right in decodeTransaction
      changeRole :: CA.KeyRole -> Script KeyHash -> Script KeyHash
      changeRole role = \case
