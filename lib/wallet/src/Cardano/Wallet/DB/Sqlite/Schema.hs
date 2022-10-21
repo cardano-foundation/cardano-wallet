@@ -30,6 +30,7 @@ import Prelude
 
 import Cardano.Address.Script
     ( Cosigner, Script )
+import Cardano.Pool.Types
 import Cardano.Slotting.Slot
     ( SlotNo )
 import Cardano.Wallet.DB.Sqlite.Types
@@ -281,7 +282,7 @@ StakeKeyCertificate
 DelegationCertificate
     certWalletId             W.WalletId     sql=wallet_id
     certSlot                 SlotNo         sql=slot
-    certPoolId               W.PoolId Maybe sql=delegation
+    certPoolId               PoolId Maybe sql=delegation
 
     Primary certWalletId certSlot
     Foreign Wallet OnDeleteCascade delegationCertificate certWalletId

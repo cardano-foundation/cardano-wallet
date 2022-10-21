@@ -19,7 +19,7 @@ import Cardano.Pool.Rank
 import Cardano.Wallet.Gen
     ( genPercentage )
 import Cardano.Wallet.Primitive.Types
-    ( EpochNo (..), PoolId (..) )
+    ( EpochNo (..) )
 import Cardano.Wallet.Primitive.Types.Coin
     ( Coin (..) )
 import Cardano.Wallet.Primitive.Types.Coin.Gen
@@ -46,6 +46,8 @@ import Test.QuickCheck
     , (=/=)
     )
 
+import Cardano.Pool.Types
+    ( PoolId (..) )
 import qualified Data.ByteString as BS
 import Data.Map.Strict as Map
 
@@ -105,8 +107,7 @@ genStakePoolsSummary rp =
     StakePoolsSummary rp <$> liftArbitrary (genRewardInfoPool rp)
 
 instance Arbitrary PoolId where
-    arbitrary =
-        PoolId . convertToBase Base16 . BS.pack <$> vector 16
+    arbitrary = PoolId . convertToBase Base16 . BS.pack <$> vector 16
 
 chooseCoin :: (Coin,Coin) -> Gen Coin
 chooseCoin (Coin a', Coin b') = Coin . fromIntegral <$>

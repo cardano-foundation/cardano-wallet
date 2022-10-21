@@ -143,6 +143,8 @@ import Cardano.BM.Tracing
     ( HasPrivacyAnnotation (..), HasSeverityAnnotation (..) )
 import Cardano.Mnemonic
     ( SomeMnemonic )
+import Cardano.Pool.Types
+    ( PoolId )
 import Cardano.Wallet
     ( ErrBalanceTx (..)
     , ErrConstructSharedWallet (..)
@@ -434,8 +436,7 @@ import Cardano.Wallet.Primitive.Types
     ( Block
     , BlockHeader (..)
     , NetworkParameters (..)
-    , PoolId
-    , PoolLifeCycleStatus (..)
+    , PoolLifeCycleStatus
     , Signature (..)
     , SlotId
     , SlotNo (..)

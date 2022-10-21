@@ -69,7 +69,7 @@ import Cardano.Wallet.Primitive.Slotting
 import Cardano.Wallet.Primitive.SyncProgress
     ( SyncProgress (..), SyncTolerance )
 import Cardano.Wallet.Primitive.Types
-    ( GenesisParameters (..), StakePoolsSummary (..) )
+    ( GenesisParameters (..) )
 import Cardano.Wallet.Primitive.Types.Tx
     ( SealedTx (..) )
 import Cardano.Wallet.Shelley.Compatibility
@@ -281,6 +281,8 @@ import qualified Cardano.Ledger.Babbage.PParams as Babbage
 import qualified Cardano.Ledger.Crypto as SL
 import qualified Cardano.Ledger.Shelley.API as SL
 import qualified Cardano.Ledger.Shelley.LedgerState as SL
+import Cardano.Pool.Types
+    ( PoolId, StakePoolsSummary (..) )
 import qualified Cardano.Wallet.Primitive.SyncProgress as SP
 import qualified Cardano.Wallet.Primitive.Types as W
 import qualified Cardano.Wallet.Primitive.Types.Coin as W
@@ -465,8 +467,8 @@ withNodeNetworkLayerBase
     _stakeDistribution queue coin = do
         liftIO $ traceWith tr $ MsgWillQueryRewardsForStake coin
 
-        let qry :: LSQ (CardanoBlock StandardCrypto) IO (Maybe W.StakePoolsSummary)
-            qry = liftA3 (liftA3 W.StakePoolsSummary)
+        let qry :: LSQ (CardanoBlock StandardCrypto) IO (Maybe StakePoolsSummary)
+            qry = liftA3 (liftA3 StakePoolsSummary)
                 getNOpt
                 queryNonMyopicMemberRewards
                 stakeDistr
@@ -476,16 +478,16 @@ withNodeNetworkLayerBase
         -- The result will be Nothing if query occurs during the byron era
         traceWith tr $ MsgFetchStakePoolsData mres
         case mres of
-            Just res@W.StakePoolsSummary{rewards,stake} -> do
+            Just res@StakePoolsSummary{rewards,stake} -> do
                 liftIO $ traceWith tr $ MsgFetchStakePoolsDataSummary
                     (Map.size stake)
                     (Map.size rewards)
                 return res
-            Nothing -> pure $ W.StakePoolsSummary 0 mempty mempty
+            Nothing -> pure $ StakePoolsSummary 0 mempty mempty
       where
         stakeDistr
             :: LSQ (CardanoBlock StandardCrypto) IO
-                (Maybe (Map W.PoolId Percentage))
+                (Maybe (Map PoolId Percentage))
         stakeDistr = shelleyBased
             (fromPoolDistr <$> LSQry Shelley.GetStakeDistribution)
 
@@ -502,7 +504,7 @@ withNodeNetworkLayerBase
 
         queryNonMyopicMemberRewards
             :: LSQ (CardanoBlock StandardCrypto) IO
-                (Maybe (Map W.PoolId W.Coin))
+                (Maybe (Map PoolId W.Coin))
         queryNonMyopicMemberRewards = shelleyBased $
             (getRewardMap . fromNonMyopicMemberRewards)
                 <$> LSQry (Shelley.GetNonMyopicMemberRewards stake)
@@ -515,8 +517,8 @@ withNodeNetworkLayerBase
                     \ not included in response")
 
             getRewardMap
-                :: Map (Either W.Coin W.RewardAccount) (Map W.PoolId W.Coin)
-                -> Map W.PoolId W.Coin
+                :: Map (Either W.Coin W.RewardAccount) (Map PoolId W.Coin)
+                -> Map PoolId W.Coin
             getRewardMap =
                 fromJustRewards . Map.lookup (Left coin)
 
@@ -1208,7 +1210,7 @@ data Log where
         -> Log
     MsgDestroyCursor :: ThreadId -> Log
     MsgWillQueryRewardsForStake :: W.Coin -> Log
-    MsgFetchStakePoolsData :: Maybe W.StakePoolsSummary -> Log
+    MsgFetchStakePoolsData :: Maybe StakePoolsSummary -> Log
     MsgFetchStakePoolsDataSummary :: Int -> Int -> Log
       -- ^ Number of pools in stake distribution, and rewards map,
       -- respectively.

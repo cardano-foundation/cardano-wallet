@@ -28,6 +28,8 @@ import Cardano.Api
     ( AnyCardanoEra (..), CardanoEra (..) )
 import Cardano.Mnemonic
     ( SomeMnemonic (..) )
+import Cardano.Pool.Types
+    ( PoolId (..) )
 import Cardano.Wallet
     ( ErrSignPayment (..)
     , ErrSubmitTx (..)
@@ -96,7 +98,6 @@ import Cardano.Wallet.Primitive.Types
     , BlockHeader (BlockHeader)
     , EpochNo (..)
     , NetworkParameters (..)
-    , PoolId (..)
     , SlotNo (..)
     , SlottingParameters (..)
     , SortOrder (..)

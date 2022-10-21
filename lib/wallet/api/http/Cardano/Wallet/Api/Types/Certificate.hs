@@ -26,6 +26,10 @@ module Cardano.Wallet.Api.Types.Certificate
 
 import Prelude
 
+import Cardano.Pool.Metadata.Types
+    ( StakePoolMetadataHash, StakePoolMetadataUrl )
+import Cardano.Pool.Types
+    ( PoolId (..), PoolOwner )
 import Cardano.Wallet.Api.Lib.ApiT
     ( ApiT (..) )
 import Cardano.Wallet.Api.Lib.ExtendedObject
@@ -35,7 +39,9 @@ import Cardano.Wallet.Api.Types.Primitive
 import Cardano.Wallet.Primitive.AddressDerivation
     ( DerivationIndex (..), NetworkDiscriminant )
 import Cardano.Wallet.Primitive.Types
-    ( NonWalletCertificate, PoolId (..) )
+    ( NonWalletCertificate )
+import Cardano.Wallet.Primitive.Types.Coin
+    ( unCoin )
 import Cardano.Wallet.Shelley.Network.Discriminant
     ( DecodeStakeAddress, EncodeStakeAddress )
 import Control.DeepSeq
@@ -66,8 +72,6 @@ import Numeric.Natural
     ( Natural )
 
 import qualified Cardano.Wallet.Primitive.Types as W
-import Cardano.Wallet.Primitive.Types.Coin
-    ( unCoin )
 import qualified Cardano.Wallet.Primitive.Types.RewardAccount as W
 import qualified Data.Aeson.Types as Aeson
 import qualified Data.List.NonEmpty as NE
@@ -92,11 +96,11 @@ instance EncodeStakeAddress n => ToJSON (ApiExternalCertificate n) where
 
 data ApiRegisterPool = ApiRegisterPool
     { poolId :: ApiT PoolId
-    , poolOwners :: [ApiT W.PoolOwner]
+    , poolOwners :: [ApiT PoolOwner]
     , poolMargin :: Quantity "percent" Percentage
     , poolCost :: Quantity "lovelace" Natural
     , poolPledge :: Quantity "lovelace" Natural
-    , poolMetadata :: Maybe (ApiT W.StakePoolMetadataUrl, ApiT W.StakePoolMetadataHash)
+    , poolMetadata :: Maybe (ApiT StakePoolMetadataUrl, ApiT StakePoolMetadataHash)
     }
     deriving (Eq, Generic, Show)
     deriving anyclass NFData

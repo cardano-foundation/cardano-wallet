@@ -33,8 +33,10 @@ module Cardano.Pool.Rank
 
 import Prelude
 
+import Cardano.Pool.Types
+    ( PoolId )
 import Cardano.Wallet.Primitive.Types
-    ( EpochNo, PoolId )
+    ( EpochNo )
 import Cardano.Wallet.Primitive.Types.Coin
     ( Coin (..) )
 import Data.Map
@@ -53,6 +55,7 @@ import qualified Data.Map.Strict as Map
 {-------------------------------------------------------------------------------
     Pool information necessary to compute rewards
 -------------------------------------------------------------------------------}
+
 -- | Information need for the computation of rewards, such as the
 -- stake currently delegated to a pool, or the pool cost and margin.
 data RewardInfoPool = RewardInfoPool

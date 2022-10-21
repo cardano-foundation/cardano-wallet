@@ -78,6 +78,8 @@ import Cardano.Mnemonic
     ( SomeMnemonic (SomeMnemonic), entropyToMnemonic, mkEntropy )
 import Cardano.Numeric.Util
     ( power )
+import Cardano.Pool.Types
+    ( PoolId (..) )
 import Cardano.Wallet
     ( ErrBalanceTx (..)
     , ErrBalanceTxInternalError (..)
@@ -152,7 +154,6 @@ import Cardano.Wallet.Primitive.Types
     , FeePolicy (..)
     , GenesisParameters (..)
     , LinearFunction (..)
-    , PoolId (PoolId)
     , ProtocolParameters (..)
     , SlotLength (SlotLength)
     , SlottingParameters (..)

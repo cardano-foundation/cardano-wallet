@@ -70,6 +70,8 @@ module Cardano.Wallet.DB.Pure.Implementation
 
 import Prelude
 
+import Cardano.Pool.Types
+    ( PoolId )
 import Cardano.Wallet.Primitive.Model
     ( Wallet, currentTip, utxo )
 import Cardano.Wallet.Primitive.Slotting
@@ -80,7 +82,6 @@ import Cardano.Wallet.Primitive.Types
     , DelegationCertificate (..)
     , EpochNo (..)
     , GenesisParameters (..)
-    , PoolId
     , Range (..)
     , Slot
     , SlotNo (..)
@@ -154,7 +155,8 @@ data Database wid s xprv = Database
     , txs :: !(Map (Hash "Tx") Tx)
     -- ^ In the database, transactions are global and not associated with any
     -- particular wallet.
-    } deriving (Generic, NFData)
+    }
+    deriving (Generic, NFData)
 
 deriving instance (Show wid, Show s, Show xprv) => Show (Database wid s xprv)
 deriving instance (Eq wid, Eq xprv, Eq s) => Eq (Database wid s xprv)
@@ -170,7 +172,8 @@ data WalletDatabase s xprv = WalletDatabase
     , genesisParameters :: !GenesisParameters
     , rewardAccountBalance :: !Coin
     , submittedTxs :: !(Map (Hash "Tx") (SealedTx, SlotNo))
-    } deriving (Show, Eq, Generic, NFData)
+    }
+    deriving (Show, Eq, Generic, NFData)
 
 -- | Shorthand for the putTxHistory argument type.
 type TxHistoryMap = Map (Hash "Tx") (Tx, TxMeta)

@@ -203,6 +203,10 @@ import Cardano.Ledger.Era
     ( Era (..) )
 import Cardano.Ledger.Serialization
     ( ToCBORGroup )
+import Cardano.Pool.Metadata.Types
+    ( StakePoolMetadataHash (..), StakePoolMetadataUrl (..) )
+import Cardano.Pool.Types
+    ( PoolId (..), PoolOwner (..) )
 import Cardano.Slotting.Slot
     ( EpochNo (..), EpochSize (..) )
 import Cardano.Slotting.Time
@@ -213,6 +217,7 @@ import Cardano.Wallet.Primitive.AddressDerivation
     ( NetworkDiscriminant (..) )
 import Cardano.Wallet.Primitive.Types
     ( ChainPoint (..)
+    , PoolCertificate
     , PoolRegistrationCertificate (..)
     , ProtocolParameters (txParameters)
     , TokenBundleMaxSize (..)
@@ -385,8 +390,11 @@ import qualified Cardano.Wallet.Primitive.Types.RewardAccount as W
 import qualified Cardano.Wallet.Primitive.Types.TokenBundle as TokenBundle
 import qualified Cardano.Wallet.Primitive.Types.TokenPolicy as W
 import qualified Cardano.Wallet.Primitive.Types.TokenQuantity as W
-import qualified Cardano.Wallet.Primitive.Types.Tx as W
 import qualified Cardano.Wallet.Primitive.Types.Tx.Constraints as W
+import qualified Cardano.Wallet.Primitive.Types.Tx.SealedTx as W
+    ( SealedTx, cardanoTxIdeallyNoLaterThan )
+import qualified Cardano.Wallet.Primitive.Types.Tx.Tx as W
+    ( Tx (..), TxIn (TxIn), TxOut (TxOut) )
 import qualified Cardano.Wallet.Primitive.Types.UTxO as W
 import qualified Codec.Binary.Bech32 as Bech32
 import qualified Codec.Binary.Bech32.TH as Bech32
@@ -521,13 +529,13 @@ toBabbageBlockHeader genesisHash blk =
 
 getProducer
     :: (Era era, ToCBORGroup (Ledger.Era.TxSeq era))
-    => ShelleyBlock (Consensus.TPraos StandardCrypto) era -> W.PoolId
+    => ShelleyBlock (Consensus.TPraos StandardCrypto) era -> PoolId
 getProducer (ShelleyBlock (SL.Block (SL.BHeader header _) _) _) =
     fromPoolKeyHash $ SL.hashKey (SL.bheaderVk header)
 
 getBabbageProducer
     :: (Era era, ToCBORGroup (Ledger.Era.TxSeq era))
-    => ShelleyBlock (Consensus.Praos StandardCrypto) era -> W.PoolId
+    => ShelleyBlock (Consensus.Praos StandardCrypto) era -> PoolId
 getBabbageProducer (ShelleyBlock (SL.Block (Consensus.Header header _) _) _) =
     fromPoolKeyHash $ SL.hashKey (Consensus.hbVk header)
 
@@ -605,7 +613,7 @@ fromShelleyBlock
     -> ShelleyBlock
         (Consensus.TPraos StandardCrypto)
         (SL.ShelleyEra StandardCrypto)
-    -> (W.Block, [W.PoolCertificate])
+    -> (W.Block, [PoolCertificate])
 fromShelleyBlock gp blk@(ShelleyBlock (SL.Block _ (SL.TxSeq txs')) _) =
     let
        (txs, certs, _, _, _) = unzip5 $ map fromShelleyTx $ toList txs'
@@ -624,7 +632,7 @@ fromAllegraBlock
     -> ShelleyBlock
         (Consensus.TPraos StandardCrypto)
         (MA.ShelleyMAEra 'MA.Allegra StandardCrypto)
-    -> (W.Block, [W.PoolCertificate])
+    -> (W.Block, [PoolCertificate])
 fromAllegraBlock gp blk@(ShelleyBlock (SL.Block _ (SL.TxSeq txs')) _) =
     let
        (txs, certs, _, _, _) = unzip5 $ map fromAllegraTx $ toList txs'
@@ -643,7 +651,7 @@ fromMaryBlock
     -> ShelleyBlock
         (Consensus.TPraos StandardCrypto)
         (MA.ShelleyMAEra 'MA.Mary StandardCrypto)
-    -> (W.Block, [W.PoolCertificate])
+    -> (W.Block, [PoolCertificate])
 fromMaryBlock gp blk@(ShelleyBlock (SL.Block _ (SL.TxSeq txs')) _) =
     let
        (txs, certs, _, _, _) = unzip5 $ map fromMaryTx $ toList txs'
@@ -672,7 +680,7 @@ fromAlonzoBlock
     -> ShelleyBlock
         (Consensus.TPraos StandardCrypto)
         (Alonzo.AlonzoEra StandardCrypto)
-    -> (W.Block, [W.PoolCertificate])
+    -> (W.Block, [PoolCertificate])
 fromAlonzoBlock gp blk@(ShelleyBlock (SL.Block _ txSeq) _) =
     let
         Alonzo.TxSeq txs' = txSeq
@@ -692,7 +700,7 @@ fromBabbageBlock
     -> ShelleyBlock
         (Consensus.Praos StandardCrypto)
         (Babbage.BabbageEra StandardCrypto)
-    -> (W.Block, [W.PoolCertificate])
+    -> (W.Block, [PoolCertificate])
 fromBabbageBlock gp blk@(ShelleyBlock (SL.Block _ txSeq) _) =
     let
         Alonzo.TxSeq txs' = txSeq
@@ -1024,7 +1032,7 @@ localNodeConnectInfo sp net = LocalNodeConnectInfo params net . nodeSocketFile
 fromGenesisData
     :: forall e crypto. (e ~ SL.ShelleyEra crypto, crypto ~ StandardCrypto)
     => ShelleyGenesis e
-    -> (W.NetworkParameters, W.Block, [W.PoolCertificate])
+    -> (W.NetworkParameters, W.Block, [PoolCertificate])
 fromGenesisData g =
     ( W.NetworkParameters
         { genesisParameters = W.GenesisParameters
@@ -1045,10 +1053,10 @@ fromGenesisData g =
     -- For now we use a dummy value.
     dummyGenesisHash = W.Hash . BS.pack $ replicate 32 1
 
-    poolCerts :: SLAPI.ShelleyGenesisStaking (Crypto e) -> [W.PoolCertificate]
+    poolCerts :: SLAPI.ShelleyGenesisStaking (Crypto e) -> [PoolCertificate]
     poolCerts (SLAPI.ShelleyGenesisStaking pools _stake) = do
         (_, pp) <- Map.toList pools
-        pure $ W.Registration $ W.PoolRegistrationCertificate
+        pure $ W.Registration $ PoolRegistrationCertificate
             { W.poolId = fromPoolKeyHash $ SL._poolId pp
             , W.poolOwners = fromOwnerKeyHash <$> Set.toList (SL._poolOwners pp)
             , W.poolMargin = fromUnitInterval (SL._poolMargin pp)
@@ -1103,13 +1111,13 @@ fromGenesisData g =
 -- Stake pools
 --
 
-fromPoolId :: forall crypto. SL.KeyHash 'SL.StakePool crypto -> W.PoolId
-fromPoolId (SL.KeyHash x) = W.PoolId $ hashToBytes x
+fromPoolId :: forall crypto. SL.KeyHash 'SL.StakePool crypto -> PoolId
+fromPoolId (SL.KeyHash x) = PoolId $ hashToBytes x
 
 fromPoolDistr
     :: forall crypto. ()
     => SL.PoolDistr crypto
-    -> Map W.PoolId Percentage
+    -> Map PoolId Percentage
 fromPoolDistr =
     Map.map (unsafeMkPercentage . SL.individualPoolStake)
     . Map.mapKeys fromPoolId
@@ -1119,7 +1127,7 @@ fromPoolDistr =
 fromNonMyopicMemberRewards
     :: forall era. ()
     => O.NonMyopicMemberRewards era
-    -> Map (Either W.Coin W.RewardAccount) (Map W.PoolId W.Coin)
+    -> Map (Either W.Coin W.RewardAccount) (Map PoolId W.Coin)
 fromNonMyopicMemberRewards =
     Map.map (Map.map toWalletCoin . Map.mapKeys fromPoolId)
     . Map.mapKeys (bimap fromShelleyCoin fromStakeCredential)
@@ -1235,7 +1243,7 @@ toDelegationCertificates = mapMaybe isDelCert
 
 toPoolCertificates
     :: [W.Certificate]
-    -> [W.PoolCertificate]
+    -> [PoolCertificate]
 toPoolCertificates = mapMaybe isPoolCert
   where
       isPoolCert = \case
@@ -1245,10 +1253,10 @@ toPoolCertificates = mapMaybe isPoolCert
 toWalletCoin :: HasCallStack => SL.Coin -> W.Coin
 toWalletCoin (SL.Coin c) = Coin.unsafeFromIntegral c
 
-fromPoolMetadata :: SL.PoolMetadata -> (W.StakePoolMetadataUrl, W.StakePoolMetadataHash)
+fromPoolMetadata :: SL.PoolMetadata -> (StakePoolMetadataUrl, StakePoolMetadataHash)
 fromPoolMetadata meta =
-    ( W.StakePoolMetadataUrl (urlToText (SL._poolMDUrl meta))
-    , W.StakePoolMetadataHash (SL._poolMDHash meta)
+    ( StakePoolMetadataUrl (urlToText (SL._poolMDUrl meta))
+    , StakePoolMetadataHash (SL._poolMDHash meta)
     )
 
 -- | Convert a stake credentials to a 'RewardAccount' type.
@@ -1263,13 +1271,11 @@ fromStakeCredential = \case
     SL.KeyHashObj (SL.KeyHash h) ->
         W.RewardAccount (hashToBytes h)
 
-fromPoolKeyHash :: SL.KeyHash rol sc -> W.PoolId
-fromPoolKeyHash (SL.KeyHash h) =
-    W.PoolId (hashToBytes h)
+fromPoolKeyHash :: SL.KeyHash rol sc -> PoolId
+fromPoolKeyHash (SL.KeyHash h) = PoolId (hashToBytes h)
 
-fromOwnerKeyHash :: SL.KeyHash 'SL.Staking crypto -> W.PoolOwner
-fromOwnerKeyHash (SL.KeyHash h) =
-    W.PoolOwner (hashToBytes h)
+fromOwnerKeyHash :: SL.KeyHash 'SL.Staking crypto -> PoolOwner
+fromOwnerKeyHash (SL.KeyHash h) = PoolOwner (hashToBytes h)
 
 fromCardanoAddress :: Cardano.Address Cardano.ShelleyAddr -> W.Address
 fromCardanoAddress = W.Address . Cardano.serialiseToRawBytes
@@ -1513,8 +1519,8 @@ toStakeKeyRegCert = Cardano.makeStakeAddressRegistrationCertificate
     . blake2b224
     . xpubPublicKey
 
-toStakePoolDlgCert :: XPub -> W.PoolId -> Cardano.Certificate
-toStakePoolDlgCert xpub (W.PoolId pid) =
+toStakePoolDlgCert :: XPub -> PoolId -> Cardano.Certificate
+toStakePoolDlgCert xpub (PoolId pid) =
     Cardano.makeStakeAddressDelegationCertificate
         (Cardano.StakeCredentialByKey $ Cardano.StakeKeyHash cred)
         (Cardano.StakePoolKeyHash pool)

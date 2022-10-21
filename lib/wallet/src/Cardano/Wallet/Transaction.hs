@@ -63,6 +63,8 @@ import Cardano.Ledger.Alonzo.TxInfo
     ( TranslationError (..) )
 import Cardano.Ledger.Crypto
     ( StandardCrypto )
+import Cardano.Pool.Types
+    ( PoolId )
 import Cardano.Wallet.CoinSelection
     ( SelectionCollateralRequirement (..)
     , SelectionLimit
@@ -71,14 +73,13 @@ import Cardano.Wallet.CoinSelection
     )
 import Cardano.Wallet.Primitive.AddressDerivation
     ( Depth (..), DerivationIndex )
-import Cardano.Wallet.Primitive.Passphrase
+import Cardano.Wallet.Primitive.Passphrase.Types
     ( Passphrase )
 import Cardano.Wallet.Primitive.Slotting
     ( PastHorizonException, TimeInterpreter )
 import Cardano.Wallet.Primitive.Types
     ( Certificate
     , FeePolicy
-    , PoolId
     , ProtocolParameters
     , SlotNo (..)
     , TokenBundleMaxSize (..)
@@ -98,10 +99,10 @@ import Cardano.Wallet.Primitive.Types.TokenMap
     ( AssetId, TokenMap )
 import Cardano.Wallet.Primitive.Types.TokenPolicy
     ( TokenPolicyId )
-import Cardano.Wallet.Primitive.Types.Tx
-    ( Tx (..), TxIn, TxMetadata, TxOut )
 import Cardano.Wallet.Primitive.Types.Tx.Constraints
     ( TokenBundleSizeAssessor, TxConstraints, TxSize )
+import Cardano.Wallet.Primitive.Types.Tx.Tx
+    ( Tx (..), TxIn, TxMetadata, TxOut )
 import Cardano.Wallet.Primitive.Types.UTxO
     ( UTxO )
 import Cardano.Wallet.Util

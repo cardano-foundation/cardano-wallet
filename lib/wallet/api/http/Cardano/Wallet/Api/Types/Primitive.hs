@@ -20,6 +20,10 @@ import Cardano.Api
     , metadataFromJson
     , metadataToJson
     )
+import Cardano.Pool.Metadata.Types
+    ( StakePoolMetadataHash, StakePoolMetadataUrl )
+import Cardano.Pool.Types
+    ( PoolId, PoolOwner, decodePoolIdBech32, encodePoolIdBech32 )
 import Cardano.Wallet.Api.Aeson
     ( eitherToParser )
 import Cardano.Wallet.Api.Hex
@@ -33,11 +37,8 @@ import Cardano.Wallet.Primitive.Passphrase.Types
 import Cardano.Wallet.Primitive.Types
     ( EpochNo (..)
     , NonWalletCertificate (..)
-    , PoolId (..)
     , SlotInEpoch (..)
     , SlotNo (..)
-    , decodePoolIdBech32
-    , encodePoolIdBech32
     , unsafeEpochNo
     )
 import Cardano.Wallet.Primitive.Types.Address
@@ -241,19 +242,19 @@ instance FromJSON (ApiT PoolId) where
 instance ToJSON (ApiT PoolId) where
     toJSON = toJSON . encodePoolIdBech32 . getApiT
 
-instance FromJSON (ApiT W.StakePoolMetadataHash) where
+instance FromJSON (ApiT StakePoolMetadataHash) where
     parseJSON = fromTextApiT "ApiT StakePoolMetadataHash"
-instance ToJSON (ApiT W.StakePoolMetadataHash) where
+instance ToJSON (ApiT StakePoolMetadataHash) where
     toJSON = toTextApiT
 
-instance FromJSON (ApiT W.PoolOwner) where
+instance FromJSON (ApiT PoolOwner) where
     parseJSON = fromTextApiT "ApiT PoolOwner"
-instance ToJSON (ApiT W.PoolOwner) where
+instance ToJSON (ApiT PoolOwner) where
     toJSON = toTextApiT
 
-instance FromJSON (ApiT W.StakePoolMetadataUrl) where
+instance FromJSON (ApiT StakePoolMetadataUrl) where
     parseJSON = fromTextApiT "ApiT StakePoolMetadataUrl"
-instance ToJSON (ApiT W.StakePoolMetadataUrl) where
+instance ToJSON (ApiT StakePoolMetadataUrl) where
     toJSON = toTextApiT
 
 instance FromJSON (ApiT W.NonWalletCertificate) where

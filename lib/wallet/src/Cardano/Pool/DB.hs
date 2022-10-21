@@ -23,19 +23,19 @@ module Cardano.Pool.DB
 
 import Prelude
 
+import Cardano.Pool.Metadata.Types
+    ( StakePoolMetadata, StakePoolMetadataHash, StakePoolMetadataUrl )
+import Cardano.Pool.Types
+    ( PoolId )
 import Cardano.Wallet.Primitive.Types
     ( BlockHeader
     , CertificatePublicationTime (..)
     , EpochNo (..)
-    , PoolId
     , PoolLifeCycleStatus (..)
     , PoolRegistrationCertificate
     , PoolRetirementCertificate
     , Settings
     , SlotNo (..)
-    , StakePoolMetadata
-    , StakePoolMetadataHash
-    , StakePoolMetadataUrl
     )
 import Control.Monad.IO.Class
     ( MonadIO )
@@ -302,10 +302,8 @@ determinePoolLifeCycleStatus
     -> Maybe (publicationTime, PoolRetirementCertificate)
     -> PoolLifeCycleStatus
 determinePoolLifeCycleStatus mReg mRet = case (mReg, mRet) of
-    (Nothing, _) ->
-        PoolNotRegistered
-    (Just (_, regCert), Nothing) ->
-        PoolRegistered regCert
+    (Nothing, _) -> PoolNotRegistered
+    (Just (_, regCert), Nothing) -> PoolRegistered regCert
     (Just (regTime, regCert), Just (retTime, retCert))
         | regPoolId /= retPoolId ->
             differentPoolsError

@@ -68,6 +68,14 @@ import Cardano.Pool.Metadata
     , registryUrlBuilder
     , toHealthCheckSMASH
     )
+import Cardano.Pool.Metadata.Types
+    ( PoolMetadataGCStatus (..)
+    , StakePoolMetadata
+    , StakePoolMetadataHash
+    , StakePoolMetadataUrl (..)
+    )
+import Cardano.Pool.Types
+    ( PoolId (..), PoolOwner (..), StakePoolsSummary (..), decodePoolIdBech32 )
 import Cardano.Wallet.Byron.Compatibility
     ( toByronBlockHeader )
 import Cardano.Wallet.Network
@@ -91,22 +99,14 @@ import Cardano.Wallet.Primitive.Types
     , GenesisParameters (..)
     , NetworkParameters (..)
     , PoolCertificate (..)
-    , PoolId
     , PoolLifeCycleStatus (..)
-    , PoolMetadataGCStatus (..)
     , PoolMetadataSource (..)
-    , PoolOwner (PoolOwner)
     , PoolRegistrationCertificate (..)
     , PoolRetirementCertificate (..)
     , Settings (..)
     , SlotLength (..)
     , SlotNo (..)
     , SlottingParameters (..)
-    , StakePoolMetadata
-    , StakePoolMetadataHash
-    , StakePoolMetadataUrl (StakePoolMetadataUrl)
-    , StakePoolsSummary (..)
-    , decodePoolIdBech32
     , getPoolRegistrationCertificate
     , getPoolRetirementCertificate
     , unSmashServer

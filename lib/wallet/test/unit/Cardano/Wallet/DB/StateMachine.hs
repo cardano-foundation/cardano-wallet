@@ -2,8 +2,6 @@
 {-# LANGUAGE ConstraintKinds #-}
 {-# LANGUAGE DataKinds #-}
 {-# LANGUAGE DeriveAnyClass #-}
-{-# LANGUAGE DeriveFoldable #-}
-{-# LANGUAGE DeriveFunctor #-}
 {-# LANGUAGE DeriveGeneric #-}
 {-# LANGUAGE DeriveTraversable #-}
 {-# LANGUAGE DerivingStrategies #-}
@@ -12,8 +10,6 @@
 {-# LANGUAGE GADTs #-}
 {-# LANGUAGE KindSignatures #-}
 {-# LANGUAGE LambdaCase #-}
-{-# LANGUAGE NumericUnderscores #-}
-{-# LANGUAGE OverloadedLabels #-}
 {-# LANGUAGE RankNTypes #-}
 {-# LANGUAGE RecordWildCards #-}
 {-# LANGUAGE ScopedTypeVariables #-}
@@ -59,6 +55,8 @@ import Cardano.Address.Derivation
     ( XPrv )
 import Cardano.Address.Script
     ( ScriptTemplate (..) )
+import Cardano.Pool.Types
+    ( PoolId (..) )
 import Cardano.Wallet.DB
     ( DBLayer (..)
     , ErrNoSuchTransaction (..)
@@ -146,7 +144,6 @@ import Cardano.Wallet.Primitive.Types
     , FeePolicy
     , GenesisParameters (..)
     , LinearFunction
-    , PoolId (..)
     , Range (..)
     , Slot
     , SlotNo (..)
@@ -193,7 +190,7 @@ import Cardano.Wallet.Primitive.Types.Tx.Constraints
     ( TxSize (..) )
 import Cardano.Wallet.Primitive.Types.UTxO
     ( UTxO (..) )
-import Cardano.Wallet.Read.Eras
+import Cardano.Wallet.Read.Eras.EraValue
     ( eraValueSerialize )
 import Control.Foldl
     ( Fold (..) )
@@ -299,8 +296,6 @@ import qualified Data.TreeDiff.OMap as Expr
 import qualified Test.QuickCheck as QC
 import qualified Test.StateMachine.Types as QSM
 import qualified Test.StateMachine.Types.Rank2 as Rank2
-
-{- HLINT ignore "Unused LANGUAGE pragma" -}
 
 {-------------------------------------------------------------------------------
   Mock implementation

@@ -74,6 +74,8 @@ import Prelude
 
 import Cardano.Pool.DB
     ( determinePoolLifeCycleStatus )
+import Cardano.Pool.Types
+    ( PoolId, PoolOwner )
 import Cardano.Wallet.Primitive.Slotting
     ( TimeInterpreter, epochOf, interpretQuery )
 import Cardano.Wallet.Primitive.Types
@@ -81,16 +83,11 @@ import Cardano.Wallet.Primitive.Types
     , CertificatePublicationTime
     , EpochNo (..)
     , InternalState (..)
-    , PoolId
     , PoolLifeCycleStatus (..)
-    , PoolOwner (..)
     , PoolRegistrationCertificate (..)
     , PoolRetirementCertificate (..)
     , Settings
     , SlotNo (..)
-    , StakePoolMetadata (..)
-    , StakePoolMetadataHash
-    , StakePoolMetadataUrl
     , defaultInternalState
     , defaultSettings
     )
@@ -127,6 +124,8 @@ import GHC.Generics
 import System.Random
     ( StdGen, newStdGen )
 
+import Cardano.Pool.Metadata.Types
+    ( StakePoolMetadata, StakePoolMetadataHash, StakePoolMetadataUrl )
 import qualified Control.Monad.Trans.State.Strict as State
 import qualified Data.List as L
 import qualified Data.Map.Strict as Map

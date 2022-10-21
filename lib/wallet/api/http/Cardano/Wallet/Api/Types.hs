@@ -275,6 +275,10 @@ import Cardano.Mnemonic
     )
 import Cardano.Pool.Metadata
     ( HealthCheckSMASH, HealthStatusSMASH (..), SMASHPoolId (..) )
+import Cardano.Pool.Metadata.Types
+    ( PoolMetadataGCStatus (..), StakePoolMetadata (..) )
+import Cardano.Pool.Types
+    ( PoolId (..), decodePoolIdBech32, encodePoolIdBech32 )
 import Cardano.Wallet.Api.Aeson
     ( eitherToParser )
 import Cardano.Wallet.Api.Aeson.Variant
@@ -347,19 +351,14 @@ import Cardano.Wallet.Primitive.Types
     , ExecutionUnitPrices (..)
     , GenesisParameters (..)
     , NetworkParameters (..)
-    , PoolId (..)
-    , PoolMetadataGCStatus (..)
     , SlotInEpoch (..)
     , SlotLength (..)
     , SlotNo (..)
     , SlottingParameters (..)
     , SmashServer (..)
-    , StakePoolMetadata (..)
     , StartTime (..)
     , WalletId (..)
     , WalletName (..)
-    , decodePoolIdBech32
-    , encodePoolIdBech32
     , getDecentralizationLevel
     , unsafeEpochNo
     )

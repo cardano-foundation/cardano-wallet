@@ -6,8 +6,10 @@ module Cardano.Wallet.Shelley.Network.Blockfrost.Error where
 
 import Prelude
 
+import Cardano.Pool.Types
+    ( PoolId )
 import Cardano.Wallet.Primitive.Types
-    ( EpochNo, PoolId )
+    ( EpochNo )
 import Cardano.Wallet.Primitive.Types.Coin
     ( Coin )
 import Control.Exception

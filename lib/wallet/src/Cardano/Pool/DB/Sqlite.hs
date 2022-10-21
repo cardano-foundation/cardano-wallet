@@ -55,6 +55,10 @@ import Cardano.Pool.DB.Log
     ( ParseFailure (..), PoolDbLog (..) )
 import Cardano.Pool.DB.Sqlite.TH hiding
     ( BlockHeader, blockHeight )
+import Cardano.Pool.Metadata.Types
+    ( StakePoolMetadata (..), StakePoolMetadataHash )
+import Cardano.Pool.Types
+    ( PoolId (..) )
 import Cardano.Wallet.DB.Sqlite.Types
     ( BlockId (..), fromMaybeHash, toMaybeHash )
 import Cardano.Wallet.Logging
@@ -65,12 +69,9 @@ import Cardano.Wallet.Primitive.Types
     ( BlockHeader (..)
     , CertificatePublicationTime (..)
     , EpochNo (..)
-    , PoolId (..)
     , PoolLifeCycleStatus (..)
     , PoolRegistrationCertificate (..)
     , PoolRetirementCertificate (..)
-    , StakePoolMetadata (..)
-    , StakePoolMetadataHash
     , defaultSettings
     )
 import Cardano.Wallet.Unsafe
@@ -906,10 +907,7 @@ selectPoolProduction ti epoch = do
                               To / From SQLite
 -------------------------------------------------------------------------------}
 
-mkPoolProduction
-    :: PoolId
-    -> BlockHeader
-    -> PoolProduction
+mkPoolProduction :: PoolId -> BlockHeader -> PoolProduction
 mkPoolProduction pool block = PoolProduction
     { poolProductionPoolId = pool
     , poolProductionSlot = view #slotNo block
@@ -918,9 +916,7 @@ mkPoolProduction pool block = PoolProduction
     , poolProductionBlockHeight = getQuantity (blockHeight block)
     }
 
-fromPoolProduction
-    :: PoolProduction
-    -> (PoolId, BlockHeader)
+fromPoolProduction :: PoolProduction -> (PoolId, BlockHeader)
 fromPoolProduction (PoolProduction pool slot headerH parentH height) =
     ( pool
     , BlockHeader
@@ -931,9 +927,7 @@ fromPoolProduction (PoolProduction pool slot headerH parentH height) =
         }
     )
 
-mkBlockHeader
-    :: BlockHeader
-    -> TH.BlockHeader
+mkBlockHeader :: BlockHeader -> TH.BlockHeader
 mkBlockHeader block = TH.BlockHeader
     { blockSlot = view #slotNo block
     , blockHeaderHash = BlockId (headerHash block)
@@ -974,9 +968,7 @@ fromStakeDistribution distribution =
     , Quantity (stakeDistributionStake distribution)
     )
 
-fromPoolMeta
-    :: PoolMetadata
-    -> (StakePoolMetadataHash, StakePoolMetadata)
+fromPoolMeta :: PoolMetadata -> (StakePoolMetadataHash, StakePoolMetadata)
 fromPoolMeta meta = (poolMetadataHash meta,) $
     StakePoolMetadata
         { ticker = poolMetadataTicker meta
@@ -985,17 +977,11 @@ fromPoolMeta meta = (poolMetadataHash meta,) $
         , homepage = poolMetadataHomepage meta
         }
 
-fromSettings
-    :: Settings
-    -> W.Settings
+fromSettings :: Settings -> W.Settings
 fromSettings (Settings pms) = W.Settings pms
 
-toSettings
-    :: W.Settings
-    -> Settings
+toSettings :: W.Settings -> Settings
 toSettings (W.Settings pms) = Settings pms
 
-fromInternalState
-    :: InternalState
-    -> W.InternalState
+fromInternalState :: InternalState -> W.InternalState
 fromInternalState (InternalState utc) = W.InternalState utc

@@ -19,6 +19,8 @@ import Prelude
 
 import Cardano.Address.Derivation
     ( XPrv )
+import Cardano.Pool.Types
+    ( PoolId (..), PoolOwner (..), decodePoolIdBech32, encodePoolIdBech32 )
 import Cardano.Wallet.Gen
     ( genActiveSlotCoefficient
     , genBlockHeader
@@ -57,8 +59,6 @@ import Cardano.Wallet.Primitive.Types
     , EpochNo (..)
     , FeePolicy (..)
     , LinearFunction (..)
-    , PoolId (..)
-    , PoolOwner (..)
     , Range (..)
     , RangeBound (..)
     , SlotId (..)
@@ -68,8 +68,6 @@ import Cardano.Wallet.Primitive.Types
     , StartTime (..)
     , WalletId (..)
     , WalletName (..)
-    , decodePoolIdBech32
-    , encodePoolIdBech32
     , isAfterRange
     , isBeforeRange
     , isSubrangeOf
@@ -100,18 +98,12 @@ import Cardano.Wallet.Primitive.Types.HashSpec
     ()
 import Cardano.Wallet.Primitive.Types.RewardAccount
     ( RewardAccount (..) )
-import Cardano.Wallet.Primitive.Types.Tx
-    ( Direction (..)
-    , Tx (..)
-    , TxIn (..)
-    , TxMeta (..)
-    , TxMetadata (..)
-    , TxMetadataValue (..)
-    , TxOut (..)
-    , TxStatus (..)
-    )
 import Cardano.Wallet.Primitive.Types.Tx.Gen
     ( genTx, shrinkTx )
+import Cardano.Wallet.Primitive.Types.Tx.Tx
+    ( Tx (..), TxIn (..), TxMetadata (..), TxMetadataValue (..), TxOut (..) )
+import Cardano.Wallet.Primitive.Types.Tx.TxMeta
+    ( Direction (..), TxMeta (..), TxStatus (..) )
 import Cardano.Wallet.Primitive.Types.UTxO
     ( BoundType
     , HistogramBar (..)

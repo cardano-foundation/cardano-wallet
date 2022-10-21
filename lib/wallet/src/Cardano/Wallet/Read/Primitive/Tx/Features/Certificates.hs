@@ -23,6 +23,10 @@ import Cardano.Ledger.BaseTypes
     ( strictMaybeToMaybe, urlToText )
 import Cardano.Ledger.Shelley.TxBody
     ( DCert )
+import Cardano.Pool.Metadata.Types
+    ( StakePoolMetadataHash (..), StakePoolMetadataUrl (..) )
+import Cardano.Pool.Types
+    ( PoolId (PoolId), PoolOwner (PoolOwner) )
 import Cardano.Slotting.Slot
     ( EpochNo (..) )
 import Cardano.Wallet.Primitive.Types
@@ -89,7 +93,7 @@ fromShelleyCert = \case
         W.CertificateOfDelegation $ W.CertRegisterKey $ fromStakeCredential cred
 
     SL.DCertPool (SL.RegPool pp) -> W.CertificateOfPool $ Registration
-        ( W.PoolRegistrationCertificate
+        ( PoolRegistrationCertificate
             { poolId = fromPoolKeyHash $ SL._poolId pp
             , poolOwners = fromOwnerKeyHash <$> Set.toList (SL._poolOwners pp)
             , poolMargin = fromUnitInterval (SL._poolMargin pp)
@@ -108,10 +112,10 @@ fromShelleyCert = \case
 
     SL.DCertMir{}     -> W.CertificateOther W.MIRCertificate
 
-fromPoolMetadata :: SL.PoolMetadata -> (W.StakePoolMetadataUrl, W.StakePoolMetadataHash)
+fromPoolMetadata :: SL.PoolMetadata -> (StakePoolMetadataUrl, StakePoolMetadataHash)
 fromPoolMetadata meta =
-    ( W.StakePoolMetadataUrl (urlToText (SL._poolMDUrl meta))
-    , W.StakePoolMetadataHash (SL._poolMDHash meta)
+    ( StakePoolMetadataUrl (urlToText (SL._poolMDUrl meta))
+    , StakePoolMetadataHash (SL._poolMDHash meta)
     )
 
 -- | Convert a stake credentials to a 'RewardAccount' type.
@@ -126,13 +130,13 @@ fromStakeCredential = \case
     SL.KeyHashObj (SL.KeyHash h) ->
         W.RewardAccount (hashToBytes h)
 
-fromPoolKeyHash :: SL.KeyHash rol sc -> W.PoolId
+fromPoolKeyHash :: SL.KeyHash rol sc -> PoolId
 fromPoolKeyHash (SL.KeyHash h) =
-    W.PoolId (hashToBytes h)
+    PoolId (hashToBytes h)
 
-fromOwnerKeyHash :: SL.KeyHash 'SL.Staking crypto -> W.PoolOwner
+fromOwnerKeyHash :: SL.KeyHash 'SL.Staking crypto -> PoolOwner
 fromOwnerKeyHash (SL.KeyHash h) =
-    W.PoolOwner (hashToBytes h)
+    PoolOwner (hashToBytes h)
 
 fromUnitInterval :: HasCallStack => SL.UnitInterval -> Percentage
 fromUnitInterval x =

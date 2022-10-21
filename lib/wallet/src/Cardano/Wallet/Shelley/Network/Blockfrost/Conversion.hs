@@ -9,14 +9,10 @@ module Cardano.Wallet.Shelley.Network.Blockfrost.Conversion where
 
 import Prelude
 
+import Cardano.Pool.Metadata.Types
+    ( StakePoolMetadataHash )
 import Cardano.Wallet.Primitive.Types
-    ( BlockHeader (..)
-    , EpochNo
-    , PoolId
-    , SlotNo (SlotNo)
-    , StakePoolMetadataHash
-    , decodePoolIdBech32
-    )
+    ( BlockHeader (..), EpochNo, SlotNo (SlotNo) )
 import Cardano.Wallet.Primitive.Types.Address
     ( Address )
 import Cardano.Wallet.Primitive.Types.Coin
@@ -48,6 +44,8 @@ import Data.Traversable
 
 import qualified Blockfrost.Client as BF
 import qualified Cardano.Ledger.BaseTypes as Ledger
+import Cardano.Pool.Types
+    ( PoolId, decodePoolIdBech32 )
 
 fromBfLovelaces :: MonadError BlockfrostError m => BF.Lovelaces -> m Coin
 fromBfLovelaces lovs = Coin <$> (intCast @_ @Integer lovs <?#> "Lovelaces")

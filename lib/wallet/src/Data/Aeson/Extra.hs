@@ -11,14 +11,17 @@
 --
 module Data.Aeson.Extra
     ( parseBoundedIntegral
+    , aesonFromText
     ) where
 
 import Prelude
 
 import Data.Aeson
-    ( Value (Number) )
+    ( Value (Number), withText )
 import Data.Aeson.Types
     ( Parser )
+import Data.Text.Class
+    ( FromText (fromText) )
 
 import qualified Data.Scientific as Scientific
 
@@ -41,3 +44,7 @@ parseBoundedIntegral typeName =
         , show (toInteger $ maxBound @a)
         , "]."
         ]
+
+-- | Aeson parser defined in terms of 'fromText'
+aesonFromText :: FromText a => String -> Value -> Parser a
+aesonFromText what = withText what $ either (fail . show) pure . fromText

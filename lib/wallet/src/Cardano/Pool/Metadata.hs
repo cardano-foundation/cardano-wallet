@@ -46,15 +46,18 @@ import Cardano.BM.Data.Severity
     ( Severity (..) )
 import Cardano.BM.Data.Tracer
     ( HasPrivacyAnnotation (..), HasSeverityAnnotation (..) )
-import Cardano.Wallet.Primitive.AddressDerivation
-    ( hex )
-import Cardano.Wallet.Primitive.Types
-    ( PoolId (..)
-    , StakePoolMetadata (..)
+import Cardano.Pool.Metadata.Types
+    ( StakePoolMetadata
     , StakePoolMetadataHash (..)
     , StakePoolMetadataUrl (..)
-    , decodePoolIdBech32
+    , UrlBuilder
     )
+import Cardano.Pool.Types
+    ( PoolId, decodePoolIdBech32 )
+import Cardano.Wallet.Primitive.AddressDerivation
+    ( hex )
+import Control.Error
+    ( note )
 import Control.Monad
     ( forM, when )
 import Control.Monad.IO.Class
@@ -152,29 +155,17 @@ defaultManagerSettings =
 newManager :: MonadIO m => ManagerSettings -> m Manager
 newManager = HTTPS.newTlsManagerWith
 
--- | A type-alias to ease signatures
-type UrlBuilder
-    =  PoolId
-    -> StakePoolMetadataUrl
-    -> StakePoolMetadataHash
-    -> Either HttpException URI
-
 -- | Simply return a pool metadata url, unchanged
-identityUrlBuilder
-    :: UrlBuilder
-identityUrlBuilder _ (StakePoolMetadataUrl url) _ =
-    maybe (Left e) Right $ parseURI (T.unpack url)
+identityUrlBuilder :: UrlBuilder
+identityUrlBuilder _poolId (StakePoolMetadataUrl urlText) _metadataHash =
+    note (InvalidUrlException url "Invalid URL") (parseURI url)
   where
-    e = InvalidUrlException (T.unpack url) "Invalid URL"
+    url = T.unpack urlText
 
 -- | Build a URL from a metadata hash compatible with an aggregation registry
-registryUrlBuilder
-    :: URI
-    -> UrlBuilder
-registryUrlBuilder baseUrl pid _ hash =
-    Right $ baseUrl
-        { uriPath = "/" <> metadaFetchEp pid hash
-        }
+registryUrlBuilder :: URI -> UrlBuilder
+registryUrlBuilder baseUrl pid _metadataUrl hash =
+    pure baseUrl{ uriPath = "/" <> metadaFetchEp pid hash }
 
 -- | A smash GET request that reads the result at once into memory.
 smashRequest

@@ -235,6 +235,10 @@ import Cardano.Mnemonic
     , genEntropy
     , mnemonicToText
     )
+import Cardano.Pool.Metadata.Types
+    ( PoolMetadataGCStatus (..) )
+import Cardano.Pool.Types
+    ( PoolId (..) )
 import Cardano.Wallet.Api.Types
     ( AddressAmount
     , ApiAccountKeyShared
@@ -308,8 +312,6 @@ import Cardano.Wallet.Primitive.Types
     ( ActiveSlotCoefficient (..)
     , EpochLength (..)
     , EpochNo
-    , PoolId (..)
-    , PoolMetadataGCStatus (..)
     , PoolMetadataSource
     , Settings
     , SlotLength (..)

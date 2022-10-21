@@ -394,8 +394,7 @@ import Cardano.Wallet.Primitive.Types
     , IsDelegatingTo (..)
     , LinearFunction (LinearFunction)
     , NetworkParameters (..)
-    , PoolId (..)
-    , PoolLifeCycleStatus (..)
+    , PoolLifeCycleStatus
     , ProtocolParameters (..)
     , Range (..)
     , Signature (..)
@@ -603,6 +602,8 @@ import qualified Cardano.Address.Style.Shelley as CAShelley
 import qualified Cardano.Api as Cardano
 import qualified Cardano.Api.Shelley as Cardano
 import qualified Cardano.Crypto.Wallet as CC
+import Cardano.Pool.Types
+    ( PoolId )
 import qualified Cardano.Wallet.Checkpoints.Policy as CP
 import qualified Cardano.Wallet.CoinSelection as CS
 import qualified Cardano.Wallet.DB.WalletState as WS
@@ -3122,9 +3123,8 @@ joinStakePool ctx currentEpoch knownPools pid poolStatus wid =
 
 -- | Helper function to factor necessary logic for quitting a stake pool.
 quitStakePool
-    :: forall ctx s k.
-        ( HasDBLayer IO s k ctx
-        )
+    :: forall ctx s k
+     . HasDBLayer IO s k ctx
     => ctx
     -> WalletId
     -> Withdrawal

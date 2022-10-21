@@ -60,6 +60,9 @@ import Cardano.Mnemonic
     )
 import Cardano.Pool.Metadata
     ( HealthCheckSMASH )
+import Cardano.Pool.Metadata.Types
+import Cardano.Pool.Types
+    ( PoolId (..), PoolOwner (..), StakePoolTicker (..) )
 import Cardano.Wallet.Api
     ( Api )
 import Cardano.Wallet.Api.Types
@@ -256,18 +259,13 @@ import Cardano.Wallet.Primitive.Types
     ( EpochNo (..)
     , ExecutionUnitPrices (..)
     , NonWalletCertificate (..)
-    , PoolId (..)
-    , PoolMetadataGCStatus (..)
     , PoolMetadataSource
-    , PoolOwner (..)
     , Settings
     , SlotId (..)
     , SlotInEpoch (..)
     , SlotNo (..)
     , SmashServer
     , SortOrder (..)
-    , StakePoolMetadata (..)
-    , StakePoolTicker
     , StartTime (..)
     , WalletDelegationStatus (..)
     , WalletId (..)

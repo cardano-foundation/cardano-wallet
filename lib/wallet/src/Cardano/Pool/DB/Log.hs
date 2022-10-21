@@ -19,10 +19,12 @@ import Cardano.BM.Data.Tracer
     ( HasPrivacyAnnotation (..), HasSeverityAnnotation (..) )
 import Cardano.DB.Sqlite
     ( DBLog (..) )
+import Cardano.Pool.Types
+    ( PoolId )
 import Cardano.Wallet.Logging
     ( BracketLog )
 import Cardano.Wallet.Primitive.Types
-    ( EpochNo, PoolId, PoolRetirementCertificate )
+    ( EpochNo, PoolRetirementCertificate )
 import Data.Text
     ( Text )
 import Data.Text.Class

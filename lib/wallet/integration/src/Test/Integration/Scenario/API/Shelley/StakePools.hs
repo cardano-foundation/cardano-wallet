@@ -19,6 +19,8 @@ import Prelude hiding
 
 import Cardano.Pool.Metadata
     ( HealthCheckSMASH (..) )
+import Cardano.Pool.Metadata.Types
+import Cardano.Pool.Types
 import Cardano.Wallet.Api.Types
     ( ApiCertificate (JoinPool, QuitPool, RegisterRewardAccount)
     , ApiEra (..)
@@ -35,15 +37,7 @@ import Cardano.Wallet.Api.Types
     , WalletStyle (..)
     )
 import Cardano.Wallet.Primitive.Types
-    ( FeePolicy (..)
-    , LinearFunction (..)
-    , PoolId (..)
-    , PoolMetadataGCStatus (..)
-    , PoolMetadataSource (..)
-    , StakePoolMetadata (..)
-    , StakePoolTicker (..)
-    , decodePoolIdBech32
-    )
+    ( FeePolicy (..), LinearFunction (..), PoolMetadataSource (..) )
 import Cardano.Wallet.Primitive.Types.Coin
     ( Coin (..) )
 import Cardano.Wallet.Primitive.Types.Tx.TxMeta
