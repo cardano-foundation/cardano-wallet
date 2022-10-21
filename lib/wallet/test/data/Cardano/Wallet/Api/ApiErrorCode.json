@@ -1,105 +1,616 @@
 {
     "samples": [
-        "no_root_key",
-        "transaction_is_too_big",
-        "nothing_to_migrate",
-        "no_such_wallet",
-        "input_resolution_conflicts",
-        "invalid_coin_selection",
-        "transaction_is_too_big",
-        "not_enough_money",
-        "output_token_quantity_exceeds_limit",
-        "key_not_found_for_address",
-        "balance_tx_underestimated_fee",
-        "non_null_rewards",
-        "balance_tx_existing_collateral",
-        "soft_derivation_required",
-        "insufficient_collateral",
-        "balance_tx_existing_collateral",
-        "balance_tx_existing_return_collateral",
-        "malformed_tx_payload",
-        "translation_error",
-        "shared_wallet_cannot_update_key",
-        "missing_policy_public_key",
-        "balance_tx_existing_return_collateral",
-        "wallet_already_exists",
-        "redeemer_script_failure",
-        "shared_wallet_pending",
-        "not_acceptable",
-        "transaction_is_too_big",
-        "mempool_is_full",
-        "not_delegating_to",
-        "rejected_by_core_node",
-        "created_wrong_policy_script_template",
-        "utxo_too_small",
-        "pool_already_joined",
-        "redeemer_script_failure",
-        "transaction_already_in_ledger",
-        "balance_tx_existing_collateral",
-        "transaction_already_balanced",
-        "already_withdrawing",
-        "not_enough_money",
-        "hardened_derivation_required",
-        "created_invalid_transaction",
-        "redeemer_invalid_data",
-        "balance_tx_existing_total_collateral",
-        "malformed_tx_payload",
-        "unresolved_inputs",
-        "no_such_pool",
-        "malformed_tx_payload",
-        "address_already_exists",
-        "balance_tx_zero_ada_output",
-        "created_multiaccount_transaction",
-        "wallet_not_responding",
-        "not_delegating_to",
-        "rejected_by_core_node",
-        "not_implemented",
-        "validity_interval_not_inside_script_timelock",
-        "insufficient_collateral",
-        "balance_tx_existing_return_collateral",
-        "balance_tx_zero_ada_output",
-        "no_such_pool",
-        "not_enough_money",
-        "transaction_is_too_big",
-        "nothing_to_migrate",
-        "inputs_depleted",
-        "transaction_already_balanced",
-        "mint_or_burn_asset_quantity_out_of_bounds",
-        "tokens_minted_but_not_spent_or_burned",
-        "cannot_cover_fee",
-        "not_synced",
-        "nothing_to_migrate",
-        "output_token_quantity_exceeds_limit",
-        "hardened_derivation_required",
-        "key_not_found_for_address",
-        "query_param_missing",
-        "foreign_transaction",
-        "shared_wallet_key_already_exists",
-        "no_root_key",
-        "balance_tx_underestimated_fee",
-        "not_acceptable",
-        "shared_wallet_key_already_exists",
-        "shared_wallet_pending",
-        "shared_wallet_pending",
-        "query_param_missing",
-        "not_delegating_to",
-        "unable_to_determine_current_epoch",
-        "not_delegating_to",
-        "balance_tx_internal_error",
-        "redeemer_script_failure",
-        "created_wrong_policy_script_template",
-        "shared_wallet_no_delegation_template",
-        "withdrawal_not_worth",
-        "pool_already_joined",
-        "key_not_found_for_address",
-        "not_acceptable",
-        "balance_tx_zero_ada_output",
-        "redeemer_script_failure",
-        "insufficient_collateral",
-        "validity_interval_not_inside_script_timelock",
-        "soft_derivation_required",
-        "shared_wallet_script_template_invalid",
-        "min_withdrawal_wrong"
+        {
+            "tag": "balance_tx_max_size_limit_exceeded"
+        },
+        {
+            "tag": "transaction_already_balanced"
+        },
+        {
+            "tag": "unable_to_determine_current_epoch"
+        },
+        {
+            "tag": "shared_wallet_not_pending"
+        },
+        {
+            "tag": "asset_name_too_long"
+        },
+        {
+            "tag": "balance_tx_existing_collateral"
+        },
+        {
+            "tag": "unsupported_media_type"
+        },
+        {
+            "tag": "wallet_not_responding"
+        },
+        {
+            "tag": "wallet_already_exists"
+        },
+        {
+            "tag": "balance_tx_zero_ada_output"
+        },
+        {
+            "tag": "bad_request"
+        },
+        {
+            "tag": "no_root_key"
+        },
+        {
+            "tag": "shared_wallet_no_such_cosigner"
+        },
+        {
+            "tag": "key_not_found_for_address"
+        },
+        {
+            "tag": "created_multiaccount_transaction"
+        },
+        {
+            "tag": "invalid_validity_bounds"
+        },
+        {
+            "tag": "cannot_cover_fee"
+        },
+        {
+            "tag": "inputs_depleted"
+        },
+        {
+            "tag": "shared_wallet_no_delegation_template"
+        },
+        {
+            "tag": "method_not_allowed"
+        },
+        {
+            "tag": "invalid_coin_selection"
+        },
+        {
+            "tag": "pool_already_joined"
+        },
+        {
+            "tag": "wrong_mnemonic"
+        },
+        {
+            "tag": "network_misconfigured"
+        },
+        {
+            "tag": "validity_interval_not_inside_script_timelock"
+        },
+        {
+            "tag": "redeemer_script_failure"
+        },
+        {
+            "tag": "unsupported_media_type"
+        },
+        {
+            "tag": "balance_tx_existing_total_collateral"
+        },
+        {
+            "tag": "translation_error"
+        },
+        {
+            "tag": "redeemer_invalid_data"
+        },
+        {
+            "tag": "balance_tx_underestimated_fee"
+        },
+        {
+            "tag": "not_acceptable"
+        },
+        {
+            "tag": "cannot_cover_fee"
+        },
+        {
+            "tag": "input_resolution_conflicts"
+        },
+        {
+            "tag": "rejected_by_core_node"
+        },
+        {
+            "tag": "unexpected_error"
+        },
+        {
+            "tag": "redeemer_script_failure"
+        },
+        {
+            "tag": "transaction_is_too_big"
+        },
+        {
+            "tag": "wallet_not_responding"
+        },
+        {
+            "tag": "no_root_key"
+        },
+        {
+            "tag": "translation_error"
+        },
+        {
+            "tag": "not_enough_money"
+        },
+        {
+            "tag": "shared_wallet_pending"
+        },
+        {
+            "tag": "balance_tx_zero_ada_output"
+        },
+        {
+            "tag": "withdrawal_not_worth"
+        },
+        {
+            "tag": "network_misconfigured"
+        },
+        {
+            "tag": "transaction_already_in_ledger"
+        },
+        {
+            "tag": "balance_tx_existing_collateral"
+        },
+        {
+            "tag": "cannot_cover_fee"
+        },
+        {
+            "tag": "invalid_coin_selection"
+        },
+        {
+            "tag": "created_multidelegation_transaction"
+        },
+        {
+            "tag": "wrong_encryption_passphrase"
+        },
+        {
+            "tag": "balance_tx_zero_ada_output"
+        },
+        {
+            "tag": "input_resolution_conflicts"
+        },
+        {
+            "tag": "shared_wallet_no_delegation_template"
+        },
+        {
+            "tag": "transaction_is_too_big"
+        },
+        {
+            "tag": "validity_interval_not_inside_script_timelock"
+        },
+        {
+            "tag": "balance_tx_max_size_limit_exceeded"
+        },
+        {
+            "tag": "pool_already_joined"
+        },
+        {
+            "tag": "nothing_to_migrate"
+        },
+        {
+            "tag": "output_token_bundle_size_exceeds_limit"
+        },
+        {
+            "tag": "unsupported_media_type"
+        },
+        {
+            "tag": "not_enough_money"
+        },
+        {
+            "tag": "pool_already_joined"
+        },
+        {
+            "tag": "tokens_minted_but_not_spent_or_burned"
+        },
+        {
+            "tag": "created_wrong_policy_script_template"
+        },
+        {
+            "tag": "shared_wallet_script_template_invalid"
+        },
+        {
+            "tag": "input_resolution_conflicts"
+        },
+        {
+            "tag": "unresolved_inputs"
+        },
+        {
+            "tag": "not_acceptable"
+        },
+        {
+            "tag": "malformed_tx_payload"
+        },
+        {
+            "tag": "already_withdrawing"
+        },
+        {
+            "tag": "query_param_missing"
+        },
+        {
+            "tag": "insufficient_collateral"
+        },
+        {
+            "tag": "shared_wallet_key_already_exists"
+        },
+        {
+            "tag": "bad_request"
+        },
+        {
+            "tag": "missing_witnesses_in_transaction"
+        },
+        {
+            "tag": "transaction_already_balanced"
+        },
+        {
+            "tag": "created_invalid_transaction"
+        },
+        {
+            "tag": "soft_derivation_required"
+        },
+        {
+            "tag": "redeemer_script_failure"
+        },
+        {
+            "tag": "unsupported_media_type"
+        },
+        {
+            "tag": "shared_wallet_key_already_exists"
+        },
+        {
+            "tag": "output_token_bundle_size_exceeds_limit"
+        },
+        {
+            "tag": "nothing_to_migrate"
+        },
+        {
+            "tag": "unresolved_inputs"
+        },
+        {
+            "tag": "nothing_to_migrate"
+        },
+        {
+            "tag": "balance_tx_conflicting_networks"
+        },
+        {
+            "tag": "foreign_transaction"
+        },
+        {
+            "tag": "shared_wallet_pending"
+        },
+        {
+            "tag": "shared_wallet_not_pending"
+        },
+        {
+            "tag": "balance_tx_existing_return_collateral"
+        },
+        {
+            "tag": "withdrawal_not_worth"
+        },
+        {
+            "tag": "network_unreachable"
+        },
+        {
+            "tag": "wrong_encryption_passphrase"
+        },
+        {
+            "tag": "non_null_rewards"
+        },
+        {
+            "tag": "balance_tx_underestimated_fee"
+        },
+        {
+            "tag": "mempool_is_full"
+        },
+        {
+            "tag": "input_resolution_conflicts"
+        },
+        {
+            "tag": "already_withdrawing"
+        },
+        {
+            "tag": "mint_or_burn_asset_quantity_out_of_bounds"
+        },
+        {
+            "tag": "shared_wallet_key_already_exists"
+        },
+        {
+            "tag": "unable_to_assign_input_output"
+        },
+        {
+            "tag": "key_not_found_for_address"
+        },
+        {
+            "tag": "wallet_not_responding"
+        },
+        {
+            "tag": "wallet_not_responding"
+        },
+        {
+            "tag": "shared_wallet_key_already_exists"
+        },
+        {
+            "tag": "created_wrong_policy_script_template"
+        },
+        {
+            "tag": "cannot_cover_fee"
+        },
+        {
+            "tag": "shared_wallet_key_already_exists"
+        },
+        {
+            "tag": "method_not_allowed"
+        },
+        {
+            "tag": "method_not_allowed"
+        },
+        {
+            "tag": "not_synced"
+        },
+        {
+            "tag": "shared_wallet_cannot_update_key"
+        },
+        {
+            "tag": "translation_error"
+        },
+        {
+            "tag": "address_already_exists"
+        },
+        {
+            "tag": "cannot_cover_fee"
+        },
+        {
+            "tag": "unexpected_error"
+        },
+        {
+            "tag": "transaction_is_too_big"
+        },
+        {
+            "tag": "unsupported_media_type"
+        },
+        {
+            "tag": "unsupported_media_type"
+        },
+        {
+            "tag": "mint_or_burn_asset_quantity_out_of_bounds"
+        },
+        {
+            "tag": "balance_tx_existing_key_witnesses"
+        },
+        {
+            "tag": "not_enough_money"
+        },
+        {
+            "tag": "transaction_already_in_ledger"
+        },
+        {
+            "tag": "malformed_tx_payload"
+        },
+        {
+            "tag": "address_already_exists"
+        },
+        {
+            "tag": "missing_policy_public_key"
+        },
+        {
+            "tag": "method_not_allowed"
+        },
+        {
+            "tag": "no_root_key"
+        },
+        {
+            "tag": "no_such_pool"
+        },
+        {
+            "tag": "cannot_cover_fee"
+        },
+        {
+            "tag": "missing_policy_public_key"
+        },
+        {
+            "tag": "shared_wallet_cannot_update_key"
+        },
+        {
+            "tag": "not_enough_money"
+        },
+        {
+            "tag": "withdrawal_not_worth"
+        },
+        {
+            "tag": "inputs_depleted"
+        },
+        {
+            "tag": "balance_tx_existing_collateral"
+        },
+        {
+            "tag": "created_multiaccount_transaction"
+        },
+        {
+            "tag": "method_not_allowed"
+        },
+        {
+            "tag": "not_delegating_to"
+        },
+        {
+            "tag": "balance_tx_byron_not_supported"
+        },
+        {
+            "tag": "created_invalid_transaction"
+        },
+        {
+            "tag": "key_not_found_for_address"
+        },
+        {
+            "tag": "not_found"
+        },
+        {
+            "tag": "asset_name_too_long"
+        },
+        {
+            "tag": "shared_wallet_no_such_cosigner"
+        },
+        {
+            "tag": "validity_interval_not_inside_script_timelock"
+        },
+        {
+            "tag": "output_token_quantity_exceeds_limit"
+        },
+        {
+            "tag": "not_enough_money"
+        },
+        {
+            "tag": "malformed_tx_payload"
+        },
+        {
+            "tag": "past_horizon"
+        },
+        {
+            "tag": "balance_tx_existing_collateral"
+        },
+        {
+            "tag": "created_multidelegation_transaction"
+        },
+        {
+            "tag": "existing_key_witnesses"
+        },
+        {
+            "tag": "redeemer_invalid_data"
+        },
+        {
+            "tag": "redeemer_target_not_found"
+        },
+        {
+            "tag": "existing_key_witnesses"
+        },
+        {
+            "tag": "validity_interval_not_inside_script_timelock"
+        },
+        {
+            "tag": "hardened_derivation_required"
+        },
+        {
+            "tag": "transaction_already_in_ledger"
+        },
+        {
+            "tag": "address_already_exists"
+        },
+        {
+            "tag": "foreign_transaction"
+        },
+        {
+            "tag": "created_multidelegation_transaction"
+        },
+        {
+            "tag": "asset_not_present"
+        },
+        {
+            "tag": "created_multidelegation_transaction"
+        },
+        {
+            "tag": "unable_to_determine_current_epoch"
+        },
+        {
+            "tag": "shared_wallet_pending"
+        },
+        {
+            "tag": "unable_to_determine_current_epoch"
+        },
+        {
+            "tag": "min_withdrawal_wrong"
+        },
+        {
+            "tag": "key_not_found_for_address"
+        },
+        {
+            "contents": {
+                "tx_output_index": 9296,
+                "tx_output_lovelace_required_minimum": {
+                    "quantity": 255,
+                    "unit": "lovelace"
+                },
+                "tx_output_lovelace_specified": {
+                    "quantity": 168,
+                    "unit": "lovelace"
+                }
+            },
+            "tag": "utxo_too_small"
+        },
+        {
+            "tag": "wallet_not_responding"
+        },
+        {
+            "tag": "not_acceptable"
+        },
+        {
+            "tag": "created_invalid_transaction"
+        },
+        {
+            "tag": "balance_tx_existing_collateral"
+        },
+        {
+            "tag": "balance_tx_existing_total_collateral"
+        },
+        {
+            "tag": "wrong_encryption_passphrase"
+        },
+        {
+            "tag": "input_resolution_conflicts"
+        },
+        {
+            "tag": "shared_wallet_no_delegation_template"
+        },
+        {
+            "tag": "created_wrong_policy_script_template"
+        },
+        {
+            "tag": "network_unreachable"
+        },
+        {
+            "tag": "shared_wallet_cannot_update_key"
+        },
+        {
+            "tag": "shared_wallet_script_template_invalid"
+        },
+        {
+            "tag": "transaction_already_in_ledger"
+        },
+        {
+            "tag": "no_such_pool"
+        },
+        {
+            "tag": "balance_tx_existing_collateral"
+        },
+        {
+            "tag": "past_horizon"
+        },
+        {
+            "tag": "balance_tx_existing_return_collateral"
+        },
+        {
+            "tag": "not_found"
+        },
+        {
+            "tag": "mempool_is_full"
+        },
+        {
+            "tag": "shared_wallet_key_already_exists"
+        },
+        {
+            "tag": "bad_request"
+        },
+        {
+            "tag": "nothing_to_migrate"
+        },
+        {
+            "tag": "balance_tx_underestimated_fee"
+        },
+        {
+            "tag": "transaction_already_in_ledger"
+        },
+        {
+            "tag": "network_misconfigured"
+        },
+        {
+            "tag": "output_token_quantity_exceeds_limit"
+        },
+        {
+            "tag": "wrong_encryption_passphrase"
+        },
+        {
+            "tag": "balance_tx_existing_key_witnesses"
+        }
     ],
-    "seed": -1121883059
+    "seed": -2113662631
 }

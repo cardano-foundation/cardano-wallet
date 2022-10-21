@@ -1709,7 +1709,7 @@ data ApiErrorCode
     | UnresolvedInputs
     | InputResolutionConflicts
     | UnsupportedMediaType
-    | UtxoTooSmall
+    | UtxoTooSmall ApiErrorTxOutputLovelaceInsufficient
     | WalletAlreadyExists
     | WalletNotResponding
     | WithdrawalNotWorth
