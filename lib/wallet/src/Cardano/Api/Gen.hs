@@ -187,6 +187,7 @@ import Test.QuickCheck
     , frequency
     , infiniteListOf
     , liftArbitrary
+    , liftShrink2
     , listOf
     , listOf1
     , oneof
@@ -691,11 +692,8 @@ shrinkScriptData s = aggressivelyShrink s ++ case s of
         ScriptDataMap <$> shrinkList (shrinkTuple shrinkScriptData) m
     ScriptDataNumber n -> ScriptDataNumber <$> shrink n
     ScriptDataBytes bs -> ScriptDataBytes <$> shrink bs
-    ScriptDataConstructor n l -> tail
-        [ ScriptDataConstructor n' l'
-        | n' <- n : shrink n
-        , l' <- l : shrinkList shrinkScriptData l
-        ]
+    ScriptDataConstructor n l -> uncurry ScriptDataConstructor
+        <$> liftShrink2 shrink (shrinkList shrinkScriptData) (n, l)
   where
     aggressivelyShrink = \case
         ScriptDataList l -> l
@@ -704,7 +702,8 @@ shrinkScriptData s = aggressivelyShrink s ++ case s of
         ScriptDataBytes _ -> []
         ScriptDataConstructor _ l -> l
 
-    shrinkTuple f (a, b) = map (,b) (f a) ++ map (a,) (f b)
+    shrinkTuple :: (a -> [a]) -> (a, a) -> [(a, a)]
+    shrinkTuple f = liftShrink2 f f
 
 genExecutionUnits :: Gen ExecutionUnits
 genExecutionUnits = do
