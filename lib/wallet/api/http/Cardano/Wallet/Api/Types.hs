@@ -1149,9 +1149,8 @@ instance FromJSON (ApiT WriteTx.DatumHash) where
         ApiT <$> WriteTx.datumHashFromBytes bytes
       where
         maybeToParser = maybe failWithHelp pure
-        failWithHelp = fail $ mconcat
-            [ "expected hex-encoded 32-byte datum hash"
-            ]
+        failWithHelp = fail
+            "expected hex-encoded 32-byte datum hash"
 
         parseHex :: Text -> Maybe ByteString
         parseHex = eitherToMaybe . fromHexText

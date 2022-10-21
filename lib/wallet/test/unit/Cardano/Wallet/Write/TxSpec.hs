@@ -173,17 +173,17 @@ instance Arbitrary (Script LatestLedgerEra) where
 instance Arbitrary (Cardano.UTxO LatestEra) where
     arbitrary = Cardano.UTxO . Map.fromList <$> liftArbitrary genTxInOutEntry
       where
-        genTxInOutEntry = ((,)
+        genTxInOutEntry = (,)
             <$> genTxIn
-            <*> Cardano.genTxOut Cardano.BabbageEra)
+            <*> Cardano.genTxOut Cardano.BabbageEra
 
 instance Arbitrary TxOutInBabbage where
     arbitrary = genTxOut RecentEraBabbage
     shrink = shrink
 
 --------------------------------------------------------------------------------
--- Workaround the distinction between SimpleScriptV1 and SimpleScriptV2 in
--- cardano-api which neither we nor the ledger cares about.
+-- Work around the distinction between SimpleScriptV1 and SimpleScriptV2 in
+-- cardano-api which neither we nor the ledger care about.
 --------------------------------------------------------------------------------
 
 normalizeCardanoUTxO

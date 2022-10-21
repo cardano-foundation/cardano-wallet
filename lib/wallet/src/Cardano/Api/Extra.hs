@@ -103,8 +103,9 @@ fromShelleyBasedScript era script = case era of
                 PlutusScript PlutusScriptV1 $
                 PlutusScriptSerialised s
             Alonzo.PlutusScript Alonzo.PlutusV2 _ ->
-                error "fromShelleyBasedScript: \
-                      \PlutusV2 not supported in Alonzo era"
+                error
+                    "fromShelleyBasedScript: \
+                    \PlutusV2 not supported in Alonzo era"
     ShelleyBasedEraBabbage ->
         case script of
             Alonzo.TimelockScript s ->

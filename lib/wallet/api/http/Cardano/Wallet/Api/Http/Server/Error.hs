@@ -386,19 +386,17 @@ instance IsServerError ErrDecodeTx where
 instance IsServerError WriteTx.ErrInvalidTxOutInEra where
      toServerError = \case
          WriteTx.ErrInlineDatumNotSupportedInAlonzo ->
-             apiError err400 BalanceTxInlineDatumsNotSupportedInAlonzo $ mconcat
-                 [ "Inline datums are not supported in the Alonzo era."
-                 ]
+             apiError err400 BalanceTxInlineDatumsNotSupportedInAlonzo
+                 "Inline datums are not supported in the Alonzo era."
          WriteTx.ErrInlineScriptNotSupportedInAlonzo ->
-             apiError err400 BalanceTxInlineScriptsNotSupportedInAlonzo $ mconcat
-                 [ "Inline scripts are not supported in the Alonzo era."
-                 ]
+             apiError err400 BalanceTxInlineScriptsNotSupportedInAlonzo
+                 "Inline scripts are not supported in the Alonzo era."
 
 instance IsServerError ErrBalanceTx where
     toServerError = \case
         ErrOldEraNotSupported (Cardano.AnyCardanoEra era) ->
             apiError err403 BalanceTxEraNotSupported $ T.unwords
-                [ "Balancing in ", T.pack (show era), " "
+                [ "Balancing in ", showT era, " "
                 , "is not supported."
                 ]
         ErrBalanceTxUpdateError (ErrExistingKeyWitnesses n) ->
