@@ -73,7 +73,6 @@ import Quiet
 
 import qualified Data.Text as T
 
-
 -- | @Quantity (unit :: Symbol) a@ is a primitive @a@  multiplied by an @unit@.
 --
 -- Example:
