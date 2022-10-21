@@ -179,6 +179,7 @@ import Test.QuickCheck
     , NonNegative (..)
     , Positive (..)
     , arbitrary
+    , arbitrarySizedNatural
     , choose
     , chooseInt
     , chooseInteger
@@ -671,12 +672,15 @@ genScriptData =
                 , ScriptDataConstructor <$> genConstructorIx <*> vectorOf k smallerGen
                 ]
 
-        genConstructorIx = oneof
-            [ choose (0, 10) -- more realistic values
-            , abs <$> arbitrary
-                -- Negative values would trigger "Impossible" errors to be
-                -- thrown. This seems expected and fine:
-                -- https://github.com/input-output-hk/cardano-ledger/pull/2333#issuecomment-864159342
+
+        -- NOTE: Negative values would trigger "Impossible" errors to be
+        -- thrown. This seems expected and fine:
+        -- https://github.com/input-output-hk/cardano-ledger/pull/2333#issuecomment-864159342
+        genConstructorIx :: Gen Integer
+        genConstructorIx = frequency
+            [ (45, arbitrarySizedNatural)
+            , (40, choose (0, 5))
+            , (5, fromIntegral <$> arbitrary @Word64)
             ]
 
 shrinkScriptData :: ScriptData -> [ScriptData]
