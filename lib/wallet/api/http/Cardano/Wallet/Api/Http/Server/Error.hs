@@ -75,7 +75,12 @@ import Cardano.Wallet
     , ErrWrongPassphrase (..)
     )
 import Cardano.Wallet.Api.Types
-    ( ApiError (..), ApiErrorInfo (..), ApiErrorMessage (..), Iso8601Time (..) )
+    ( ApiError (..)
+    , ApiErrorInfo (..)
+    , ApiErrorMessage (..)
+    , ApiErrorTxOutputLovelaceInsufficient (..)
+    , Iso8601Time (..)
+    )
 import Cardano.Wallet.CoinSelection
     ( SelectionBalanceError (..)
     , SelectionCollateralError
@@ -135,6 +140,7 @@ import Servant.Server
     , err503
     )
 
+import qualified Cardano.Wallet.Primitive.Types.Coin as Coin
 import qualified Cardano.Wallet.Primitive.Types.TokenBundle as TokenBundle
 import qualified Cardano.Wallet.Primitive.Types.TokenMap as TokenMap
 import qualified Data.Aeson as Aeson
@@ -777,23 +783,24 @@ instance IsServerError
     (SelectionOutputCoinInsufficientError WalletSelectionContext)
   where
     toServerError e =
-        apiError err403 UtxoTooSmall $ T.unlines [preamble, details]
+        apiError err403 (UtxoTooSmall details) message
       where
-        preamble = T.unwords
+        message = T.unwords
             [ "One of the outputs you've specified has an ada quantity that is"
             , "below the minimum required. Either increase the ada quantity to"
             , "at least the minimum, or specify an ada quantity of zero, in"
             , "which case the wallet will automatically assign the correct"
             , "minimum ada quantity to the output."
             ]
-        details = T.unlines
-            [ "Destination address:"
-            , pretty (fst $ view #output e)
-            , "Required minimum ada quantity:"
-            , pretty (view #minimumExpectedCoin e)
-            , "Specified ada quantity:"
-            , pretty (TokenBundle.getCoin $ snd $ view #output e)
-            ]
+        details = ApiErrorTxOutputLovelaceInsufficient
+            { txOutputIndex =
+                -- TODO: ADP-2299
+                0
+            , txOutputLovelaceSpecified =
+                Coin.toQuantity $ TokenBundle.getCoin $ snd $ view #output e
+            , txOutputLovelaceRequiredMinimum =
+                Coin.toQuantity $ view #minimumExpectedCoin e
+            }
 
 instance IsServerError
     (SelectionOutputSizeExceedsLimitError WalletSelectionContext)
