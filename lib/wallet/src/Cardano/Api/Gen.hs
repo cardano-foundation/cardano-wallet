@@ -668,9 +668,13 @@ genScriptData =
             k <- choose (0, n)
             let smallerGen = genTerm (n `div` (max k 1))
             oneof
-                [ ScriptDataList <$> vectorOf k smallerGen
-                , ScriptDataMap <$> vectorOf k ((,) <$> smallerGen <*> smallerGen)
-                , ScriptDataConstructor <$> genConstructorIx <*> vectorOf k smallerGen
+                [ ScriptDataList
+                    <$> vectorOf k smallerGen
+                , ScriptDataMap
+                    <$> vectorOf k ((,) <$> smallerGen <*> smallerGen)
+                , ScriptDataConstructor
+                    <$> genConstructorIx
+                    <*> vectorOf k smallerGen
                 ]
 
 
