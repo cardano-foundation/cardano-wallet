@@ -2755,9 +2755,9 @@ decodeSharedTransaction ctx (ApiT wid) (ApiSerialisedTransaction (ApiT sealed) _
         }
 
 balanceTransaction
-    :: forall s k (n :: NetworkDiscriminant)
+    :: forall s k ktype (n :: NetworkDiscriminant)
      . (GenChange s, BoundedAddressLength k)
-    => ApiLayer s k 'CredFromKeyK
+    => ApiLayer s k ktype
     -> ArgGenChange s
     -> ApiT WalletId
     -> ApiBalanceTransactionPostData n
@@ -2823,7 +2823,7 @@ balanceTransaction ctx@ApiLayer{..} genChange (ApiT wid) body = do
                 => W.PartialTx era
                 -> Handler (Cardano.Tx era)
             balanceTx partialTx =
-                liftHandler $ W.balanceTransaction @_ @IO @s @k @'CredFromKeyK
+                liftHandler $ W.balanceTransaction @_ @IO @s @k @ktype
                     wrk
                     genChange
                     (pp, nodePParams)
