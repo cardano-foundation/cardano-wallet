@@ -1,0 +1,115 @@
+{
+    "samples": [
+        {
+            "tx_output_index": 8805,
+            "tx_output_lovelace_required_minimum": {
+                "quantity": 249,
+                "unit": "lovelace"
+            },
+            "tx_output_lovelace_specified": {
+                "quantity": 24,
+                "unit": "lovelace"
+            }
+        },
+        {
+            "tx_output_index": 4003,
+            "tx_output_lovelace_required_minimum": {
+                "quantity": 239,
+                "unit": "lovelace"
+            },
+            "tx_output_lovelace_specified": {
+                "quantity": 155,
+                "unit": "lovelace"
+            }
+        },
+        {
+            "tx_output_index": 1804,
+            "tx_output_lovelace_required_minimum": {
+                "quantity": 43,
+                "unit": "lovelace"
+            },
+            "tx_output_lovelace_specified": {
+                "quantity": 180,
+                "unit": "lovelace"
+            }
+        },
+        {
+            "tx_output_index": 2323,
+            "tx_output_lovelace_required_minimum": {
+                "quantity": 221,
+                "unit": "lovelace"
+            },
+            "tx_output_lovelace_specified": {
+                "quantity": 197,
+                "unit": "lovelace"
+            }
+        },
+        {
+            "tx_output_index": 12953,
+            "tx_output_lovelace_required_minimum": {
+                "quantity": 148,
+                "unit": "lovelace"
+            },
+            "tx_output_lovelace_specified": {
+                "quantity": 13,
+                "unit": "lovelace"
+            }
+        },
+        {
+            "tx_output_index": 10636,
+            "tx_output_lovelace_required_minimum": {
+                "quantity": 242,
+                "unit": "lovelace"
+            },
+            "tx_output_lovelace_specified": {
+                "quantity": 77,
+                "unit": "lovelace"
+            }
+        },
+        {
+            "tx_output_index": 10372,
+            "tx_output_lovelace_required_minimum": {
+                "quantity": 66,
+                "unit": "lovelace"
+            },
+            "tx_output_lovelace_specified": {
+                "quantity": 119,
+                "unit": "lovelace"
+            }
+        },
+        {
+            "tx_output_index": 13642,
+            "tx_output_lovelace_required_minimum": {
+                "quantity": 94,
+                "unit": "lovelace"
+            },
+            "tx_output_lovelace_specified": {
+                "quantity": 17,
+                "unit": "lovelace"
+            }
+        },
+        {
+            "tx_output_index": 13830,
+            "tx_output_lovelace_required_minimum": {
+                "quantity": 162,
+                "unit": "lovelace"
+            },
+            "tx_output_lovelace_specified": {
+                "quantity": 206,
+                "unit": "lovelace"
+            }
+        },
+        {
+            "tx_output_index": 6768,
+            "tx_output_lovelace_required_minimum": {
+                "quantity": 78,
+                "unit": "lovelace"
+            },
+            "tx_output_lovelace_specified": {
+                "quantity": 34,
+                "unit": "lovelace"
+            }
+        }
+    ],
+    "seed": -1480236285
+}
