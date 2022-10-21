@@ -6,9 +6,9 @@
 --
 module Cardano.Wallet.Write.Tx.Gen
     ( genDatum
-    , genData
+    , genBinaryData
     , genDatumHash
-    , shrinkData
+    , shrinkBinaryData
     , shrinkDatum
     , genTxOut
     )
@@ -58,14 +58,14 @@ import qualified Plutus.V1.Ledger.Api as PV1
 
 genDatum :: (EraCrypto era ~ StandardCrypto) => Gen (Datum era)
 genDatum = oneof
-    [ Datum <$> genData
+    [ Datum <$> genBinaryData
     , DatumHash <$> genDatumHash
     , pure NoDatum
     ]
 
 -- Originally from https://github.com/input-output-hk/cardano-ledger/blob/c7c63dabdb215ebdaed8b63274965966f2bf408f/eras/alonzo/test-suite/src/Test/Cardano/Ledger/Alonzo/Serialisation/Generators.hs#L66-L79
-genData :: Gen (BinaryData era)
-genData = dataToBinaryData . Data <$> scale (min 7) (sized gendata)
+genBinaryData :: Gen (BinaryData era)
+genBinaryData = dataToBinaryData . Data <$> scale (min 7) (sized gendata)
   where
     gendata n | n > 0 = oneof
         [ PV1.I <$> arbitrary
@@ -73,7 +73,7 @@ genData = dataToBinaryData . Data <$> scale (min 7) (sized gendata)
         , PV1.Map
             <$> listOf ((,) <$> gendata (n `div` 2) <*> gendata (n `div` 2))
         , PV1.Constr
-            <$> fmap (fromIntegral . abs) (arbitrary :: Gen Integer)
+            <$> fmap abs (arbitrary :: Gen Integer)
             <*> listOf (gendata (n `div` 2))
         , PV1.List
             <$> listOf (gendata (n `div` 2))
@@ -81,12 +81,12 @@ genData = dataToBinaryData . Data <$> scale (min 7) (sized gendata)
     gendata _ = oneof [PV1.I <$> arbitrary, PV1.B <$> genByteString]
 
 shrinkDatum :: Datum LatestLedgerEra -> [Datum LatestLedgerEra]
-shrinkDatum (Datum x) = NoDatum : map Datum (shrinkData x)
+shrinkDatum (Datum x) = NoDatum : map Datum (shrinkBinaryData x)
 shrinkDatum (DatumHash _) = [NoDatum]
 shrinkDatum NoDatum = []
 
-shrinkData :: BinaryData LatestLedgerEra -> [BinaryData LatestLedgerEra]
-shrinkData = shrinkMapBy
+shrinkBinaryData :: BinaryData LatestLedgerEra -> [BinaryData LatestLedgerEra]
+shrinkBinaryData = shrinkMapBy
     datumFromCardanoScriptData
     datumToCardanoScriptData
     Cardano.shrinkScriptData

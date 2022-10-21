@@ -35,7 +35,7 @@ import Cardano.Wallet.Write.Tx
     , toCardanoUTxO
     )
 import Cardano.Wallet.Write.Tx.Gen
-    ( genData, genTxOut, shrinkData )
+    ( genBinaryData, genTxOut, shrinkBinaryData )
 import Data.Aeson
     ( (.=) )
 import Data.Aeson.Types
@@ -161,8 +161,8 @@ instance Arbitrary Cardano.ScriptData where
 -- | The OVERLAPS can be removed when we remove import of
 -- "Test.Cardano.Ledger.Alonzo.Serialisation.Generators"
 instance {-# OVERLAPS #-} Arbitrary (BinaryData LatestLedgerEra) where
-    arbitrary = genData
-    shrink = shrinkData
+    arbitrary = genBinaryData
+    shrink = shrinkBinaryData
 
 instance Arbitrary Cardano.ScriptInAnyLang where
     arbitrary = genScriptInAnyLang
