@@ -2731,8 +2731,8 @@ decodeSharedTransaction ctx (ApiT wid) (ApiSerialisedTransaction (ApiT sealed) _
         }
 
 balanceTransaction
-    :: forall ctx s k (n :: NetworkDiscriminant).
-        ( ctx ~ ApiLayer s k 'CredFromKeyK
+    :: forall ctx s k ktype (n :: NetworkDiscriminant).
+        ( ctx ~ ApiLayer s k ktype
         , HasNetworkLayer IO ctx
         , GenChange s
         , BoundedAddressLength k
@@ -2761,14 +2761,14 @@ balanceTransaction ctx genChange (ApiT wid) body = do
                     (fromApiRedeemer <$> body ^. #redeemers)
               where
                 convertToCardano xs =
-                    toCardanoUTxO (wrk ^. W.transactionLayer @k @'CredFromKeyK) mempty xs
+                    toCardanoUTxO (wrk ^. W.transactionLayer @k @ktype) mempty xs
 
         let balanceTx
                 :: forall era. Cardano.IsShelleyBasedEra era
                 => W.PartialTx era
                 -> Handler (Cardano.Tx era)
             balanceTx partialTx =
-                liftHandler $ W.balanceTransaction @_ @IO @s @k @'CredFromKeyK
+                liftHandler $ W.balanceTransaction @_ @IO @s @k @ktype
                     wrk
                     genChange
                     (pp, nodePParams)
