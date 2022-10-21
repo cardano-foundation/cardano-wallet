@@ -85,6 +85,7 @@ module Cardano.Wallet.Api.Types
     , ApiEra (..)
     , ApiEraInfo (..)
     , ApiErrorCode (..)
+    , ApiErrorTxOutputLovelaceInsufficient (..)
     , ApiExternalCertificate (..)
     , ApiExternalInput (..)
     , ApiFee (..)
@@ -1717,6 +1718,19 @@ data ApiErrorCode
     | ValidityIntervalNotInsideScriptTimelock
     deriving (Eq, Generic, Show, Data, Typeable)
     deriving (FromJSON, ToJSON) via DefaultSum ApiErrorCode
+    deriving anyclass NFData
+
+data ApiErrorTxOutputLovelaceInsufficient = ApiErrorTxOutputLovelaceInsufficient
+    { txOutputIndex
+        :: !Word32
+    , txOutputLovelaceSpecified
+        :: !(Quantity "lovelace" Natural)
+    , txOutputLovelaceRequiredMinimum
+        :: !(Quantity "lovelace" Natural)
+    }
+    deriving (Data, Eq, Generic, Show, Typeable)
+    deriving (FromJSON, ToJSON)
+        via DefaultRecord ApiErrorTxOutputLovelaceInsufficient
     deriving anyclass NFData
 
 -- | Defines a point in time that can be formatted as and parsed from an

@@ -105,6 +105,7 @@ import Cardano.Wallet.Api.Types
     , ApiEra (..)
     , ApiEraInfo (..)
     , ApiErrorCode (..)
+    , ApiErrorTxOutputLovelaceInsufficient (..)
     , ApiExternalCertificate (..)
     , ApiExternalInput (..)
     , ApiFee (..)
@@ -582,6 +583,7 @@ spec = parallel $ do
         jsonTest @ApiEra
         jsonTest @ApiEraInfo
         jsonTest @ApiErrorCode
+        jsonTest @ApiErrorTxOutputLovelaceInsufficient
         jsonTest @ApiFee
         jsonTest @ApiHealthCheck
         jsonTest @ApiMaintenanceAction
@@ -2126,6 +2128,10 @@ instance Arbitrary SerialisedTxParts where
 instance Arbitrary TxMetadata where
     arbitrary = genNestedTxMetadata
     shrink = shrinkTxMetadata
+
+instance Arbitrary ApiErrorTxOutputLovelaceInsufficient where
+    arbitrary = genericArbitrary
+    shrink = genericShrink
 
 instance Arbitrary ApiTxMetadata where
     arbitrary = genericArbitrary
