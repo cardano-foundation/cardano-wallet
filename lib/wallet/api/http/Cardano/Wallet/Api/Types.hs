@@ -407,6 +407,8 @@ import Control.DeepSeq
     ( NFData (..) )
 import Control.Monad
     ( guard, when, (<=<), (>=>) )
+import Data.Aeson.Extra
+    ( objectUnion )
 import Data.Aeson.Types
     ( FromJSON (..)
     , Parser
@@ -458,6 +460,8 @@ import Data.List.NonEmpty
     ( NonEmpty (..) )
 import Data.Map.Strict
     ( Map )
+import Data.Maybe
+    ( fromMaybe )
 import Data.Proxy
     ( Proxy (..) )
 import Data.Quantity
@@ -1660,20 +1664,16 @@ data ApiError = ApiError
     deriving anyclass NFData
 
 instance ToJSON ApiError where
-    toJSON ApiError {info, message} = object
-        [ "code" .= info
-        , "message" .= message
-        ]
+    toJSON ApiError {info, message}
+        = fromMaybe (error "ToJSON ApiError: Unexpected encoding")
+        $ toJSON info `objectUnion` toJSON message
 
 instance FromJSON ApiError where
-    parseJSON = withObject "ApiError" $ \o ->
-        ApiError
-            <$> o .: "code"
-            <*> o .: "message"
+    parseJSON o = ApiError <$> parseJSON o <*> parseJSON o
 
 newtype ApiErrorMessage = ApiErrorMessage {message :: Text}
     deriving (Eq, Generic, Show)
-    deriving (FromJSON, ToJSON) via Text
+    deriving (FromJSON, ToJSON) via DefaultRecord ApiErrorMessage
     deriving anyclass NFData
 
 data ApiErrorInfo
@@ -1759,7 +1759,7 @@ data ApiErrorInfo
     | UnresolvedInputs
     | InputResolutionConflicts
     | UnsupportedMediaType
-    | UtxoTooSmall
+    | UtxoTooSmall ApiErrorTxOutputLovelaceInsufficient
     | WalletAlreadyExists
     | WalletNotResponding
     | WithdrawalNotWorth
@@ -1767,8 +1767,21 @@ data ApiErrorInfo
     | WrongMnemonic
     | ValidityIntervalNotInsideScriptTimelock
     deriving (Eq, Generic, Show, Data, Typeable)
-    deriving (FromJSON, ToJSON) via DefaultSum ApiErrorInfo
     deriving anyclass NFData
+
+instance FromJSON ApiErrorInfo where
+    parseJSON = genericParseJSON apiErrorInfoOptions
+
+instance ToJSON ApiErrorInfo where
+    toJSON = genericToJSON apiErrorInfoOptions
+
+apiErrorInfoOptions :: Aeson.Options
+apiErrorInfoOptions = defaultSumTypeOptions
+    { sumEncoding = TaggedObject
+        { tagFieldName = "code"
+        , contentsFieldName = "info"
+        }
+    }
 
 data ApiErrorTxOutputLovelaceInsufficient = ApiErrorTxOutputLovelaceInsufficient
     { txOutputIndex
