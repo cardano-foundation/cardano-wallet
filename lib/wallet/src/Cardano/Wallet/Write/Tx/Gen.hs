@@ -65,7 +65,7 @@ genDatum = oneof
 
 -- Originally from https://github.com/input-output-hk/cardano-ledger/blob/c7c63dabdb215ebdaed8b63274965966f2bf408f/eras/alonzo/test-suite/src/Test/Cardano/Ledger/Alonzo/Serialisation/Generators.hs#L66-L79
 genBinaryData :: Gen (BinaryData era)
-genBinaryData = dataToBinaryData . Data <$> scale (min 7) (sized gendata)
+genBinaryData = dataToBinaryData . Data <$> scale (`div` 10) (sized gendata)
   where
     gendata n | n > 0 = oneof
         [ PV1.I <$> arbitrary
