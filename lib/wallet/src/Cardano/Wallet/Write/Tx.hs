@@ -53,13 +53,16 @@ module Cardano.Wallet.Write.Tx
 
     -- ** Datum
     , Datum (..)
-    , DatumHash
-    , BinaryData
-    , binaryDataFromBytes
-    , binaryDataToBytes
     , datumFromCardanoScriptData
     , datumToCardanoScriptData
 
+    -- *** Binary Data
+    , BinaryData
+    , binaryDataFromBytes
+    , binaryDataToBytes
+
+    -- *** Datum Hash
+    , DatumHash
     , datumHashFromBytes
     , datumHashToBytes
 
