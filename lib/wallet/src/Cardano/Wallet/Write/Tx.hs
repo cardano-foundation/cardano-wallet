@@ -494,8 +494,6 @@ utxoFromTxOutsInLatestEra = withStandardCryptoConstraint RecentEraBabbage $
 --------------------------------------------------------------------------------
 -- Compatibility
 --------------------------------------------------------------------------------
-
-
 -- | NOTE: The roundtrip
 -- @
 --     toCardanoUTxO . fromCardanoUTxO
