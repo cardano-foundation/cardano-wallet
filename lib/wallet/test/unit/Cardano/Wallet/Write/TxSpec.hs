@@ -77,7 +77,7 @@ spec = do
                 id
         it "binaryDataFromBytes . binaryDataToBytes == Right"
             $ property $ \d -> do
-                 let f = binaryDataFromBytes . datumToBytes
+                 let f = binaryDataFromBytes . binaryDataToBytes
                  f d === Right d
 
         describe "binaryDataFromBytes goldens" $ do
