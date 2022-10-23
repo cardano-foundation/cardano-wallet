@@ -55,8 +55,8 @@ module Cardano.Wallet.Write.Tx
     , Datum (..)
     , DatumHash
     , BinaryData
-    , datumFromBytes
-    , datumToBytes
+    , binaryDataFromBytes
+    , binaryDataToBytes
     , datumFromCardanoScriptData
     , datumToCardanoScriptData
 
@@ -362,14 +362,17 @@ scriptFromCardanoEnvelopeJSON v = fmap scriptFromCardanoScriptInAnyLang $ do
 -- - 'Alonzo.Datum' - adds tags to differentiate between e.g. inline datums and
 -- datum hashes. We could add helpers for this roundtrip, but they would be
 -- separate from the existing 'datum{From,To}Bytes' pair.
-datumFromBytes
+binaryDataFromBytes
     :: ByteString
     -> Either String (BinaryData LatestLedgerEra)
-datumFromBytes =
+binaryDataFromBytes =
     Alonzo.makeBinaryData . toShort
 
-datumToBytes :: BinaryData LatestLedgerEra -> ByteString
-datumToBytes = CBOR.serialize' . Alonzo.getPlutusData . Alonzo.binaryDataToData
+binaryDataToBytes :: BinaryData LatestLedgerEra -> ByteString
+binaryDataToBytes =
+    CBOR.serialize'
+    . Alonzo.getPlutusData
+    . Alonzo.binaryDataToData
 
 datumFromCardanoScriptData
     :: Cardano.ScriptData

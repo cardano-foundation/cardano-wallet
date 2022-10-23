@@ -20,11 +20,11 @@ import Cardano.Wallet.Write.Tx
     , RecentEra (RecentEraBabbage)
     , Script
     , TxOutInBabbage
-    , datumFromBytes
+    , binaryDataFromBytes
+    , binaryDataToBytes
     , datumFromCardanoScriptData
     , datumHashFromBytes
     , datumHashToBytes
-    , datumToBytes
     , datumToCardanoScriptData
     , fromCardanoUTxO
     , isPlutusScript
@@ -75,15 +75,15 @@ spec = do
                 (NamedFun
                     datumFromCardanoScriptData "datumFromCardanoScriptData")
                 id
-        it "datumFromBytes . datumToBytes == Right"
+        it "binaryDataFromBytes . binaryDataToBytes == Right"
             $ property $ \d -> do
-                 let f = datumFromBytes . datumToBytes
+                 let f = binaryDataFromBytes . datumToBytes
                  f d === Right d
 
-        describe "datumFromBytes goldens" $ do
+        describe "binaryDataFromBytes goldens" $ do
             let decodePlutusData hex =
                     Alonzo.getPlutusData . Alonzo.binaryDataToData
-                    <$> datumFromBytes (unsafeFromHex hex)
+                    <$> binaryDataFromBytes (unsafeFromHex hex)
             let shouldBeRight a b = a `shouldBe` Right b
 
             it "I 42" $
