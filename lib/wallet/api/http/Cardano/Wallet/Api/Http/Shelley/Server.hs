@@ -97,6 +97,7 @@ module Cardano.Wallet.Api.Http.Shelley.Server
     , postPolicyKey
     , postPolicyId
     , constructSharedTransaction
+    , constructSharedTransaction1
     , decodeSharedTransaction
     , getBlocksLatestHeader
     , submitSharedTransaction
@@ -2551,6 +2552,71 @@ decodeValidityInterval ti validityInterval = do
             pure (before'', hereafter'')
 
     pure (before, hereafter, isThereNegativeTime)
+
+-- TO-DO delegations/withdrawals
+-- TO-DO minting/burning
+constructSharedTransaction1
+    :: forall ctx s k n.
+        ( k ~ SharedKey
+        , s ~ SharedState n k
+        , ctx ~ ApiLayer s k 'CredFromScriptK
+        , GenChange s
+        , HasNetworkLayer IO ctx
+        , IsOurs s Address
+        , BoundedAddressLength k
+        , Typeable n
+        )
+    => ctx
+    -> ArgGenChange s
+    -> IO (Set PoolId)
+    -> (PoolId -> IO PoolLifeCycleStatus)
+    -> ApiT WalletId
+    -> ApiConstructTransactionData n
+    -> Handler (ApiConstructTransaction n)
+constructSharedTransaction1
+    ctx genChange _knownPools _getPoolStatus (ApiT wid) body = do
+    let isNoPayload =
+            isNothing (body ^. #payments) &&
+            isNothing (body ^. #withdrawal) &&
+            isNothing (body ^. #metadata) &&
+            isNothing (body ^. #mintBurn) &&
+            isNothing (body ^. #delegations)
+    when isNoPayload $
+        liftHandler $ throwE ErrConstructTxWrongPayload
+
+    let md = body ^? #metadata . traverse . #txMetadataWithSchema_metadata
+
+    (before, hereafter, isThereNegativeTime) <-
+        decodeValidityInterval ti (body ^. #validityInterval)
+
+    when (hereafter < before || isThereNegativeTime) $
+        liftHandler $ throwE ErrConstructTxWrongValidityBounds
+
+    withWorkerCtx ctx wid liftE liftE $ \wrk -> do
+        (cp, _, _) <- liftHandler $ withExceptT ErrConstructTxNoSuchWallet $
+            W.readWallet @_ @s @k wrk wid
+
+        let txCtx = defaultTransactionCtx
+                { txWithdrawal = NoWithdrawal
+                , txMetadata = md
+                , txValidityInterval = (Just before, hereafter)
+                , txDelegationAction = Nothing
+                , txPaymentCredentialScriptTemplate =
+                        Just (Shared.paymentTemplate $ getState cp)
+                }
+
+        case Shared.ready (getState cp) of
+            Shared.Pending ->
+                liftHandler $ throwE ErrConstructTxSharedWalletPending
+            Shared.Active _ -> do
+                era <- liftIO $ NW.currentNodeEra (wrk ^. networkLayer)
+
+                (utxoAvailable, wallet, pendingTxs) <-
+                    liftHandler $ W.readWalletUTxOIndex @_ @s @k wrk wid
+                undefined
+  where
+    ti :: TimeInterpreter (ExceptT PastHorizonException IO)
+    ti = timeInterpreter (ctx ^. networkLayer)
 
 -- TO-DO delegations/withdrawals
 -- TO-DO minting/burning
