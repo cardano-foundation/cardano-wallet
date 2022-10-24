@@ -28,6 +28,11 @@ import Cardano.Wallet.Api.Lib.ApiT
     ( ApiT (..), fromTextApiT, toTextApiT )
 import Cardano.Wallet.Primitive.AddressDerivation
     ( DerivationIndex, RewardAccount )
+import Cardano.Wallet.Primitive.Passphrase.Types
+    ( Passphrase (..)
+    , PassphraseMaxLength (..)
+    , PassphraseMinLength (..)
+    )
 import Cardano.Wallet.Primitive.Types
     ( EpochNo (..)
     , NonWalletCertificate (..)
@@ -101,6 +106,12 @@ instance ToJSON (ApiT DerivationIndex) where
     toJSON = toTextApiT
 instance FromJSON (ApiT DerivationIndex) where
     parseJSON = fromTextApiT "DerivationIndex"
+
+instance (PassphraseMaxLength purpose, PassphraseMinLength purpose)
+    => FromJSON (ApiT (Passphrase purpose)) where
+    parseJSON = fromTextApiT "Passphrase"
+instance ToJSON (ApiT (Passphrase purpose)) where
+    toJSON = toTextApiT
 
 instance FromJSON (ApiT W.TokenPolicyId) where
     parseJSON = fromTextApiT "PolicyId"

@@ -2261,12 +2261,6 @@ instance FromJSON ApiFee where
 instance ToJSON ApiFee where
     toJSON = genericToJSON defaultRecordTypeOptions
 
-instance (PassphraseMaxLength purpose, PassphraseMinLength purpose)
-    => FromJSON (ApiT (Passphrase purpose)) where
-    parseJSON = fromTextApiT "Passphrase"
-instance ToJSON (ApiT (Passphrase purpose)) where
-    toJSON = toTextApiT
-
 instance FromJSON ApiCredential where
     parseJSON v =
         (CredentialScriptHash . ScriptHash <$> parseCredential 28 ["script"] v) <|>
