@@ -323,7 +323,7 @@ import Cardano.Wallet.Api.Types.Key
 import Cardano.Wallet.Api.Types.SchemaMetadata
     ( TxMetadataSchema (..), TxMetadataWithSchema (TxMetadataWithSchema) )
 import Cardano.Wallet.CoinSelection
-    ( SelectionOf (..), SelectionStrategy (..), selectionDelta )
+    ( PreSelection (..), SelectionOf (..), SelectionStrategy (..), selectionDelta )
 import Cardano.Wallet.Compat
     ( (^?) )
 import Cardano.Wallet.DB
@@ -2610,9 +2610,20 @@ constructSharedTransaction1
                 liftHandler $ throwE ErrConstructTxSharedWalletPending
             Shared.Active _ -> do
                 era <- liftIO $ NW.currentNodeEra (wrk ^. networkLayer)
+                let preSel = PreSelection
+                        { outputs = case (body ^. #payments) of
+                                Nothing ->
+                                    []
+                                Just (ApiPaymentAddresses content) ->
+                                    F.toList (addressAmountToTxOut <$> content)
+                        , assetsToMint = TokenMap.empty
+                        , assetsToBurn = TokenMap.empty
+                        , extraCoinSource = Coin 0
+                        , extraCoinSink = Coin 0
+                        }
+                tx <- liftHandler
+                    $ W.constructUnbalancedSharedTransaction @_ @s @k @n wrk wid era txCtx preSel
 
-                (utxoAvailable, wallet, pendingTxs) <-
-                    liftHandler $ W.readWalletUTxOIndex @_ @s @k wrk wid
                 undefined
   where
     ti :: TimeInterpreter (ExceptT PastHorizonException IO)

@@ -103,6 +103,7 @@ module Cardano.Wallet
     , ErrConstructSharedWallet (..)
     , normalizeSharedAddress
     , constructSharedTransaction
+    , constructUnbalancedSharedTransaction
 
     -- ** Address
     , createRandomAddress
@@ -238,7 +239,8 @@ import Cardano.Wallet.Checkpoints
     , sparseCheckpoints
     )
 import Cardano.Wallet.CoinSelection
-    ( Selection
+    ( PreSelection (..)
+    , Selection
     , SelectionBalanceError (..)
     , SelectionCollateralRequirement (..)
     , SelectionConstraints (..)
@@ -2593,6 +2595,39 @@ constructSharedTransaction ctx wid era txCtx sel = db & \DBLayer{..} -> do
         pp <- liftIO $ currentProtocolParameters nl
         withExceptT ErrConstructTxBody $ ExceptT $ pure $
             mkUnsignedTransaction tl era xpub pp txCtx' (Right sel)
+  where
+    db = ctx ^. dbLayer @IO @s @k
+    tl = ctx ^. transactionLayer @k @'CredFromScriptK
+    nl = ctx ^. networkLayer
+
+constructUnbalancedSharedTransaction
+    :: forall ctx s k (n :: NetworkDiscriminant).
+        ( HasTransactionLayer k 'CredFromScriptK ctx
+        , HasDBLayer IO s k ctx
+        , HasNetworkLayer IO ctx
+        , k ~ SharedKey
+        , s ~ SharedState n k
+        , Typeable n
+        )
+    => ctx
+    -> WalletId
+    -> Cardano.AnyCardanoEra
+    -> TransactionCtx
+    -> PreSelection
+    -> ExceptT ErrConstructTx IO SealedTx
+constructUnbalancedSharedTransaction ctx wid era txCtx sel = db & \DBLayer{..} -> do
+    cp <- withExceptT ErrConstructTxNoSuchWallet
+        $ mapExceptT atomically
+        $ withNoSuchWallet wid
+        $ readCheckpoint wid
+    let s = getState cp
+    let accXPub = getRawKey $ Shared.accountXPub s
+    let xpub = CA.getKey $
+            deriveDelegationPublicKey (CA.liftXPub accXPub) minBound
+    mapExceptT atomically $ do
+        pp <- liftIO $ currentProtocolParameters nl
+        withExceptT ErrConstructTxBody $ ExceptT $ pure $
+            mkUnsignedTransaction tl era xpub pp txCtx (Left sel)
   where
     db = ctx ^. dbLayer @IO @s @k
     tl = ctx ^. transactionLayer @k @'CredFromScriptK
