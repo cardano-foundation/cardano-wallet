@@ -112,7 +112,7 @@ import Network.HTTP.Types.Status
 import Network.URI
     ( URI (..), parseURI )
 import UnliftIO.Exception
-    ( IOException, handle )
+    ( Exception (displayException), IOException, handle )
 
 import qualified Data.Aeson as Aeson
 import qualified Data.ByteString as BS
@@ -249,13 +249,9 @@ fetchDelistedPools tr uri manager = runExceptTLog $ do
     smashPids <- except $ eitherDecodeStrict @[SMASHPoolId] pl
     forM smashPids $ except . first getTextDecodingError . toPoolId
   where
-    runExceptTLog
-        :: ExceptT String IO [PoolId]
-        -> IO (Maybe [PoolId])
+    runExceptTLog :: ExceptT String IO [PoolId] -> IO (Maybe [PoolId])
     runExceptTLog action = runExceptT action >>= \case
-        Left msg ->
-            Nothing <$ traceWith tr (MsgFetchDelistedPoolsFailure msg)
-
+        Left msg -> Nothing <$ traceWith tr (MsgFetchDelistedPoolsFailure msg)
         Right meta ->
             Just meta <$ traceWith tr (MsgFetchDelistedPoolsSuccess meta)
 
@@ -329,20 +325,22 @@ fetchFromRemote tr builders manager pid url hash = runExceptTLog $ do
                     let body = responseBody res
                     Right . Just . BL.toStrict <$> brReadSome body 513
 
-                s | s == status404 -> do
+                s | s == status404 ->
                     pure $ Left "There's no known metadata for this pool."
 
-                s -> do
+                s ->
                     pure $ Left $ mconcat
                         [ "The server replied with something unexpected: "
                         , show s
                         ]
 
-    fromHttpException :: Monad m => HttpException -> m (Either String (Maybe a))
-    fromHttpException = const (return $ Right Nothing)
+    fromHttpException :: HttpException -> IO (Either String (Maybe a))
+    fromHttpException exception = do
+        traceWith tr $ MsgFetchPoolMetadataHttpException exception
+        pure $ Right Nothing
 
 fromIOException :: Monad m => IOException -> m (Either String a)
-fromIOException = return . Left . ("IO exception: " <>) . show
+fromIOException = pure . Left . ("IO exception: " <>) . show
 
 --------------------------------------------------------------------------------
 -- Types
@@ -383,6 +381,7 @@ data HealthCheckSMASH
 data StakePoolMetadataFetchLog
     = MsgFetchPoolMetadata StakePoolMetadataHash URI
     | MsgFetchPoolMetadataSuccess StakePoolMetadataHash StakePoolMetadata
+    | MsgFetchPoolMetadataHttpException HttpException
     | MsgFetchPoolMetadataFailure StakePoolMetadataHash String
     | MsgFetchPoolMetadataFallback URI Bool
     | MsgFetchSMASH URI
@@ -390,13 +389,13 @@ data StakePoolMetadataFetchLog
     | MsgFetchDelistedPoolsSuccess [PoolId]
     | MsgFetchHealthCheckFailure String
     | MsgFetchHealthCheckSuccess HealthStatusSMASH
-    deriving (Show, Eq)
 
 instance HasPrivacyAnnotation StakePoolMetadataFetchLog
 instance HasSeverityAnnotation StakePoolMetadataFetchLog where
     getSeverityAnnotation = \case
         MsgFetchPoolMetadata{} -> Info
         MsgFetchPoolMetadataSuccess{} -> Info
+        MsgFetchPoolMetadataHttpException{} -> Debug
         MsgFetchPoolMetadataFailure{} -> Warning
         MsgFetchPoolMetadataFallback{} -> Warning
         MsgFetchSMASH{} -> Debug
@@ -415,8 +414,13 @@ instance ToText StakePoolMetadataFetchLog where
             [ "Successfully fetched metadata with hash ", pretty hash
             , ": ", T.pack (show meta)
             ]
+        MsgFetchPoolMetadataHttpException exception -> mconcat
+            [ "Exception occurred while fetching a pool metadata: "
+            , T.pack (displayException exception)
+            ]
         MsgFetchPoolMetadataFailure hash msg -> mconcat
-            [ "Failed to fetch metadata with hash ", pretty hash, ": ", T.pack msg
+            [ "Failed to fetch metadata with hash "
+            , pretty hash, ": ", T.pack msg
             ]
         MsgFetchPoolMetadataFallback uri noMoreUrls -> mconcat
             [ "Couldn't reach server at ", T.pack (show uri), "."
