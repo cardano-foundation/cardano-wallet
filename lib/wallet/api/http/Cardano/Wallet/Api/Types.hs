@@ -1012,7 +1012,8 @@ data ApiMultiDelegationAction
     deriving anyclass NFData
 
 -- | Input parameters for transaction construction.
-data ApiConstructTransactionData (n :: NetworkDiscriminant) = ApiConstructTransactionData
+data ApiConstructTransactionData (n :: NetworkDiscriminant) =
+    ApiConstructTransactionData
     { payments :: !(Maybe (ApiPaymentDestination n))
     , withdrawal :: !(Maybe ApiSelfWithdrawalPostData)
     , metadata :: !(Maybe TxMetadataWithSchema)
@@ -1069,7 +1070,8 @@ data PostTransactionOldData (n :: NetworkDiscriminant) = PostTransactionOldData
     deriving (Eq, Generic, Show, Typeable)
 
 -- | Legacy transaction API.
-data PostTransactionFeeOldData (n :: NetworkDiscriminant) = PostTransactionFeeOldData
+data PostTransactionFeeOldData (n :: NetworkDiscriminant) =
+    PostTransactionFeeOldData
     { payments :: !(NonEmpty (ApiTxOutput n))
     , withdrawal :: !(Maybe ApiWithdrawalPostData)
     , metadata :: !(Maybe TxMetadataWithSchema )
@@ -1097,7 +1099,8 @@ data ApiExternalInput (n :: NetworkDiscriminant) = ApiExternalInput
     deriving (Eq, Generic, Show, Typeable)
     deriving anyclass NFData
 
-data ApiBalanceTransactionPostData (n :: NetworkDiscriminant) = ApiBalanceTransactionPostData
+data ApiBalanceTransactionPostData (n :: NetworkDiscriminant) =
+    ApiBalanceTransactionPostData
     { transaction :: !(ApiT SealedTx)
     , inputs :: ![ApiExternalInput n]
     , redeemers :: ![ApiRedeemer n]
@@ -1479,10 +1482,12 @@ data ApiScriptTemplateEntry = ApiScriptTemplateEntry
     deriving (Eq, Generic, Show)
     deriving anyclass NFData
 
-data ApiSharedWalletPostDataFromMnemonics = ApiSharedWalletPostDataFromMnemonics
+data ApiSharedWalletPostDataFromMnemonics =
+    ApiSharedWalletPostDataFromMnemonics
     { name :: !(ApiT WalletName)
     , mnemonicSentence :: !(ApiMnemonicT (AllowedMnemonics 'Shelley))
-    , mnemonicSecondFactor :: !(Maybe (ApiMnemonicT (AllowedMnemonics 'SndFactor)))
+    , mnemonicSecondFactor
+        :: !(Maybe (ApiMnemonicT (AllowedMnemonics 'SndFactor)))
     , passphrase :: !(ApiT (Passphrase "user"))
     , accountIndex :: !(ApiT DerivationIndex)
     , paymentScriptTemplate :: !ApiScriptTemplateEntry
@@ -1491,7 +1496,8 @@ data ApiSharedWalletPostDataFromMnemonics = ApiSharedWalletPostDataFromMnemonics
     }
     deriving (Eq, Generic, Show)
 
-data ApiSharedWalletPostDataFromAccountPubX = ApiSharedWalletPostDataFromAccountPubX
+data ApiSharedWalletPostDataFromAccountPubX =
+    ApiSharedWalletPostDataFromAccountPubX
     { name :: !(ApiT WalletName)
     , accountPublicKey :: !ApiAccountPublicKey
     , accountIndex :: !(ApiT DerivationIndex)
