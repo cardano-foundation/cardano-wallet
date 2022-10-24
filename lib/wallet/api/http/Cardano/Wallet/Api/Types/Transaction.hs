@@ -157,8 +157,9 @@ data ApiWalletInput (n :: NetworkDiscriminant) = ApiWalletInput
     , derivationPath :: NonEmpty (ApiT DerivationIndex)
     , amount :: Quantity "lovelace" Natural
     , assets :: ApiT W.TokenMap
-    } deriving (Eq, Generic, Show, Typeable)
-      deriving anyclass NFData
+    }
+    deriving (Eq, Generic, Show, Typeable)
+    deriving anyclass NFData
 
 instance DecodeAddress n => FromJSON (ApiWalletInput n) where
     parseJSON = genericParseJSON defaultRecordTypeOptions
@@ -168,8 +169,8 @@ instance EncodeAddress n => ToJSON (ApiWalletInput n) where
 data ApiTxInputGeneral (n :: NetworkDiscriminant) =
       ExternalInput (ApiT TxIn)
     | WalletInput (ApiWalletInput n)
-      deriving (Eq, Generic, Show, Typeable)
-      deriving anyclass NFData
+    deriving (Eq, Generic, Show, Typeable)
+    deriving anyclass NFData
 
 instance
     ( DecodeAddress n
@@ -197,23 +198,25 @@ instance
     toJSON (WalletInput content) = toJSON content
 
 data ResourceContext = External | Our
-      deriving (Eq, Generic, Show, Typeable)
-      deriving anyclass NFData
+    deriving (Eq, Generic, Show, Typeable)
+    deriving anyclass NFData
 
 data ApiWithdrawalGeneral (n :: NetworkDiscriminant) = ApiWithdrawalGeneral
     { stakeAddress :: (ApiT W.RewardAccount, Proxy n)
     , amount :: Quantity "lovelace" Natural
     , context :: ResourceContext
-    } deriving (Eq, Generic, Show)
-      deriving anyclass NFData
+    }
+    deriving (Eq, Generic, Show)
+    deriving anyclass NFData
 
 data ApiWalletOutput (n :: NetworkDiscriminant) = ApiWalletOutput
     { address :: (ApiT Address, Proxy n)
     , amount :: Quantity "lovelace" Natural
     , assets :: ApiT W.TokenMap
     , derivationPath :: NonEmpty (ApiT DerivationIndex)
-    } deriving (Eq, Generic, Show, Typeable)
-      deriving anyclass NFData
+    }
+    deriving (Eq, Generic, Show, Typeable)
+    deriving anyclass NFData
 instance DecodeAddress n => FromJSON (ApiWalletOutput n) where
     parseJSON = genericParseJSON defaultRecordTypeOptions
 instance EncodeAddress n => ToJSON (ApiWalletOutput n) where
@@ -223,8 +226,9 @@ data AddressAmount addr = AddressAmount
     { address :: addr
     , amount :: Quantity "lovelace" Natural
     , assets :: ApiT W.TokenMap
-    } deriving (Eq, Generic, Show)
-      deriving anyclass NFData
+    }
+    deriving (Eq, Generic, Show)
+    deriving anyclass NFData
 
 instance FromJSON a => FromJSON (AddressAmount a) where
     parseJSON = withObject "AddressAmount " $ \v ->
@@ -249,8 +253,8 @@ type ApiTxOutput n = AddressAmount (ApiT Address, Proxy n)
 data ApiTxOutputGeneral (n :: NetworkDiscriminant) =
       ExternalOutput (ApiTxOutput n)
     | WalletOutput (ApiWalletOutput n)
-      deriving (Eq, Generic, Show, Typeable)
-      deriving anyclass NFData
+    deriving (Eq, Generic, Show, Typeable)
+    deriving anyclass NFData
 
 instance
     ( DecodeAddress n
@@ -327,8 +331,9 @@ instance ToJSON ApiAssetMintBurn where
 data ApiWithdrawal n = ApiWithdrawal
     { stakeAddress :: !(ApiT W.RewardAccount, Proxy n)
     , amount :: !(Quantity "lovelace" Natural)
-    } deriving (Eq, Generic, Show)
-      deriving anyclass NFData
+    }
+    deriving (Eq, Generic, Show)
+    deriving anyclass NFData
 
 instance DecodeStakeAddress n => FromJSON (ApiWithdrawal n) where
     parseJSON = genericParseJSON defaultRecordTypeOptions

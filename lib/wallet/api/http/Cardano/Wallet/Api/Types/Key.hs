@@ -170,8 +170,9 @@ instance FromJSON ApiPolicyKey where
 data ApiVerificationKeyShared = ApiVerificationKeyShared
     { getApiVerificationKey :: (ByteString, Role)
     , hashed :: VerificationKeyHashing
-    } deriving (Eq, Generic, Show)
-      deriving anyclass NFData
+    }
+    deriving (Eq, Generic, Show)
+    deriving anyclass NFData
 
 instance ToJSON ApiVerificationKeyShared where
     toJSON (ApiVerificationKeyShared (pub, role_) hashed') =
@@ -214,8 +215,9 @@ data ApiAccountKey = ApiAccountKey
     { getApiAccountKey :: ByteString
     , format :: KeyFormat
     , purpose :: Index 'Hardened 'PurposeK
-    } deriving (Eq, Generic, Show)
-      deriving anyclass NFData
+    }
+    deriving (Eq, Generic, Show)
+    deriving anyclass NFData
 
 instance ToJSON ApiAccountKey where
     toJSON (ApiAccountKey pub extd purpose') =
@@ -275,8 +277,9 @@ data ApiAccountKeyShared = ApiAccountKeyShared
     { getApiAccountKey :: ByteString
     , format :: KeyFormat
     , purpose :: Index 'Hardened 'PurposeK
-    } deriving (Eq, Generic, Show)
-      deriving anyclass NFData
+    }
+    deriving (Eq, Generic, Show)
+    deriving anyclass NFData
 
 instance ToJSON ApiAccountKeyShared where
     toJSON (ApiAccountKeyShared pub extd _) =
@@ -307,8 +310,9 @@ instance FromJSON ApiAccountKeyShared where
 data ApiVerificationKeyShelley = ApiVerificationKeyShelley
     { getApiVerificationKey :: (ByteString, Role)
     , hashed :: VerificationKeyHashing
-    } deriving (Eq, Generic, Show)
-      deriving anyclass NFData
+    }
+    deriving (Eq, Generic, Show)
+    deriving anyclass NFData
 
 instance ToJSON ApiVerificationKeyShelley where
     toJSON (ApiVerificationKeyShelley (pub, role_) hashed') =
