@@ -1,3 +1,6 @@
+{-# LANGUAGE FlexibleContexts #-}
+{-# LANGUAGE UndecidableInstances #-}
+
 -- |
 -- Copyright: © 2018-2022 IOHK
 -- License: Apache-2.0
@@ -9,13 +12,30 @@ module Cardano.Wallet.Api.Lib.Options
     , explicitNothingRecordTypeOptions
     , strictRecordTypeOptions
     , taggedSumTypeOptions
+
+    -- * Support for deriving default JSON encodings
+    , DefaultRecord (..)
+    , DefaultSum (..)
     )
     where
 
 import Prelude
 
 import Data.Aeson
-    ( Options (..), SumEncoding (..), camelTo2 )
+    ( FromJSON (..)
+    , GFromJSON
+    , GToJSON'
+    , Options (..)
+    , SumEncoding (..)
+    , ToJSON (..)
+    , Value
+    , Zero
+    , camelTo2
+    , genericParseJSON
+    , genericToJSON
+    )
+import GHC.Generics
+    ( Generic, Rep )
 
 import qualified Data.Aeson as Aeson
 
@@ -50,3 +70,48 @@ explicitNothingRecordTypeOptions :: Aeson.Options
 explicitNothingRecordTypeOptions = defaultRecordTypeOptions
     { omitNothingFields = False
     }
+
+-- | Enables deriving of the default API JSON encoding for record types.
+--
+-- Usage:
+--
+-- @
+-- data ApiMyRecord = ApiMyRecord
+--     { foo :: Foo
+--     , bar :: Bar
+--     , baz :: Baz
+--     }
+--     deriving (FromJSON, ToJSON) via DefaultRecord ApiMyRecord
+-- @
+--
+newtype DefaultRecord a = DefaultRecord {unDefaultRecord :: a}
+
+instance (Generic a, GFromJSON Zero (Rep a)) => FromJSON (DefaultRecord a)
+  where
+    parseJSON = fmap DefaultRecord . genericParseJSON defaultRecordTypeOptions
+
+instance (Generic a, GToJSON' Value Zero (Rep a)) => ToJSON (DefaultRecord a)
+  where
+    toJSON = genericToJSON defaultRecordTypeOptions . unDefaultRecord
+
+-- | Enables deriving of the default API JSON encoding for sum types.
+--
+-- Usage:
+--
+-- @
+-- data ApiMySum
+--     = Foo
+--     | Bar
+--     | Baz
+--     deriving (FromJSON, ToJSON) via DefaultSum ApiMySum
+-- @
+--
+newtype DefaultSum a = DefaultSum {unDefaultSum :: a}
+
+instance (Generic a, GFromJSON Zero (Rep a)) => FromJSON (DefaultSum a)
+  where
+    parseJSON = fmap DefaultSum . genericParseJSON defaultSumTypeOptions
+
+instance (Generic a, GToJSON' Value Zero (Rep a)) => ToJSON (DefaultSum a)
+  where
+    toJSON = genericToJSON defaultSumTypeOptions . unDefaultSum
