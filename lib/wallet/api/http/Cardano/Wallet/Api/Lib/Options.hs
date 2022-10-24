@@ -1,3 +1,6 @@
+{-# LANGUAGE FlexibleContexts #-}
+{-# LANGUAGE UndecidableInstances #-}
+
 -- |
 -- Copyright: © 2018-2022 IOHK
 -- License: Apache-2.0
@@ -9,13 +12,27 @@ module Cardano.Wallet.Api.Lib.Options
     , explicitNothingRecordTypeOptions
     , strictRecordTypeOptions
     , taggedSumTypeOptions
+    , DefaultRecord (..)
     )
     where
 
 import Prelude
 
 import Data.Aeson
-    ( Options (..), SumEncoding (..), camelTo2 )
+    ( FromJSON (..)
+    , GFromJSON
+    , GToJSON'
+    , Options (..)
+    , SumEncoding (..)
+    , ToJSON (..)
+    , Value
+    , Zero
+    , camelTo2
+    , genericParseJSON
+    , genericToJSON
+    )
+import GHC.Generics
+    ( Generic, Rep )
 
 import qualified Data.Aeson as Aeson
 
@@ -50,3 +67,13 @@ explicitNothingRecordTypeOptions :: Aeson.Options
 explicitNothingRecordTypeOptions = defaultRecordTypeOptions
     { omitNothingFields = False
     }
+
+newtype DefaultRecord a = DefaultRecord {unDefaultRecord :: a}
+
+instance (Generic a, GFromJSON Zero (Rep a)) => FromJSON (DefaultRecord a)
+  where
+    parseJSON = fmap DefaultRecord . genericParseJSON defaultRecordTypeOptions
+
+instance (Generic a, GToJSON' Value Zero (Rep a)) => ToJSON (DefaultRecord a)
+  where
+    toJSON = genericToJSON defaultRecordTypeOptions . unDefaultRecord
