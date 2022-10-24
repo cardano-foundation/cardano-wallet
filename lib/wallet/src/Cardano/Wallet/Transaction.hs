@@ -66,7 +66,8 @@ import Cardano.Ledger.Crypto
 import Cardano.Pool.Types
     ( PoolId )
 import Cardano.Wallet.CoinSelection
-    ( SelectionCollateralRequirement (..)
+    ( PreSelection
+    , SelectionCollateralRequirement (..)
     , SelectionLimit
     , SelectionOf (..)
     , SelectionSkeleton
@@ -192,7 +193,7 @@ data TransactionLayer k ktype tx = TransactionLayer
             -- Current protocol parameters
         -> TransactionCtx
             -- An additional context about the transaction
-        -> SelectionOf TxOut
+        -> Either PreSelection (SelectionOf TxOut)
             -- A balanced coin selection where all change addresses have been
             -- assigned.
         -> Either ErrMkTransaction tx

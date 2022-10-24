@@ -2542,7 +2542,7 @@ constructTransaction ctx wid era txCtx sel = db & \DBLayer{..} -> do
     mapExceptT atomically $ do
         pp <- liftIO $ currentProtocolParameters nl
         withExceptT ErrConstructTxBody $ ExceptT $ pure $
-            mkUnsignedTransaction tl era xpub pp txCtx sel
+            mkUnsignedTransaction tl era xpub pp txCtx (Right sel)
   where
     db = ctx ^. dbLayer @IO @s @k
     tl = ctx ^. transactionLayer @k @'CredFromKeyK
@@ -2596,7 +2596,7 @@ constructSharedTransaction ctx wid era txCtx sel = db & \DBLayer{..} -> do
     mapExceptT atomically $ do
         pp <- liftIO $ currentProtocolParameters nl
         withExceptT ErrConstructTxBody $ ExceptT $ pure $
-            mkUnsignedTransaction tl era xpub pp txCtx' sel
+            mkUnsignedTransaction tl era xpub pp txCtx' (Right sel)
   where
     db = ctx ^. dbLayer @IO @s @k
     tl = ctx ^. transactionLayer @k @'CredFromScriptK
