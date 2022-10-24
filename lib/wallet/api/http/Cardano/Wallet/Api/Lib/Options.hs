@@ -12,6 +12,8 @@ module Cardano.Wallet.Api.Lib.Options
     , explicitNothingRecordTypeOptions
     , strictRecordTypeOptions
     , taggedSumTypeOptions
+
+    -- * Support for deriving default JSON encodings
     , DefaultRecord (..)
     , DefaultSum (..)
     )
@@ -69,6 +71,19 @@ explicitNothingRecordTypeOptions = defaultRecordTypeOptions
     { omitNothingFields = False
     }
 
+-- | Enables deriving of the default API JSON encoding for record types.
+--
+-- Usage:
+--
+-- @
+-- data ApiMyRecord = ApiMyRecord
+--     { foo :: Foo
+--     , bar :: Bar
+--     , baz :: Baz
+--     }
+--     deriving (FromJSON, ToJSON) via DefaultRecord ApiMyRecord
+-- @
+--
 newtype DefaultRecord a = DefaultRecord {unDefaultRecord :: a}
 
 instance (Generic a, GFromJSON Zero (Rep a)) => FromJSON (DefaultRecord a)
@@ -79,6 +94,18 @@ instance (Generic a, GToJSON' Value Zero (Rep a)) => ToJSON (DefaultRecord a)
   where
     toJSON = genericToJSON defaultRecordTypeOptions . unDefaultRecord
 
+-- | Enables deriving of the default API JSON encoding for sum types.
+--
+-- Usage:
+--
+-- @
+-- data ApiMySum
+--     = Foo
+--     | Bar
+--     | Baz
+--     deriving (FromJSON, ToJSON) via DefaultSum ApiMySum
+-- @
+--
 newtype DefaultSum a = DefaultSum {unDefaultSum :: a}
 
 instance (Generic a, GFromJSON Zero (Rep a)) => FromJSON (DefaultSum a)
