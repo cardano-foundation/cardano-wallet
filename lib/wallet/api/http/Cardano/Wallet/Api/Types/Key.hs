@@ -28,6 +28,8 @@ module Cardano.Wallet.Api.Types.Key
 
 import Prelude
 
+import Cardano.Wallet.Api.Lib.Options
+    ( DefaultSum (..) )
 import Cardano.Wallet.Primitive.AddressDerivation
     ( Depth (..), DerivationType (..), Index (..), Role (..) )
 import Cardano.Wallet.Primitive.AddressDerivation.SharedKey
@@ -170,8 +172,9 @@ instance FromJSON ApiPolicyKey where
 data ApiVerificationKeyShared = ApiVerificationKeyShared
     { getApiVerificationKey :: (ByteString, Role)
     , hashed :: VerificationKeyHashing
-    } deriving (Eq, Generic, Show)
-      deriving anyclass NFData
+    }
+    deriving (Eq, Generic, Show)
+    deriving anyclass NFData
 
 instance ToJSON ApiVerificationKeyShared where
     toJSON (ApiVerificationKeyShared (pub, role_) hashed') =
@@ -214,8 +217,9 @@ data ApiAccountKey = ApiAccountKey
     { getApiAccountKey :: ByteString
     , format :: KeyFormat
     , purpose :: Index 'Hardened 'PurposeK
-    } deriving (Eq, Generic, Show)
-      deriving anyclass NFData
+    }
+    deriving (Eq, Generic, Show)
+    deriving anyclass NFData
 
 instance ToJSON ApiAccountKey where
     toJSON (ApiAccountKey pub extd purpose') =
@@ -251,6 +255,7 @@ instance FromJSON ApiAccountKey where
 
 data KeyFormat = Extended | NonExtended
     deriving (Eq, Generic, Show)
+    deriving (FromJSON, ToJSON) via DefaultSum KeyFormat
     deriving anyclass NFData
 
 instance ToText KeyFormat where
@@ -275,8 +280,9 @@ data ApiAccountKeyShared = ApiAccountKeyShared
     { getApiAccountKey :: ByteString
     , format :: KeyFormat
     , purpose :: Index 'Hardened 'PurposeK
-    } deriving (Eq, Generic, Show)
-      deriving anyclass NFData
+    }
+    deriving (Eq, Generic, Show)
+    deriving anyclass NFData
 
 instance ToJSON ApiAccountKeyShared where
     toJSON (ApiAccountKeyShared pub extd _) =
@@ -307,8 +313,9 @@ instance FromJSON ApiAccountKeyShared where
 data ApiVerificationKeyShelley = ApiVerificationKeyShelley
     { getApiVerificationKey :: (ByteString, Role)
     , hashed :: VerificationKeyHashing
-    } deriving (Eq, Generic, Show)
-      deriving anyclass NFData
+    }
+    deriving (Eq, Generic, Show)
+    deriving anyclass NFData
 
 instance ToJSON ApiVerificationKeyShelley where
     toJSON (ApiVerificationKeyShelley (pub, role_) hashed') =

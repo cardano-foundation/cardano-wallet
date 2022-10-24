@@ -2,31 +2,19 @@
     "samples": [
         {
             "gc_stake_pools": {
-                "last_run": "1868-12-14T05:02:16.260267343024Z",
-                "status": "has_run"
-            }
-        },
-        {
-            "gc_stake_pools": {
-                "last_run": "1884-08-26T12:27:10.800119806901Z",
-                "status": "has_run"
-            }
-        },
-        {
-            "gc_stake_pools": {
-                "last_run": "1896-07-06T04:00:00Z",
-                "status": "has_run"
-            }
-        },
-        {
-            "gc_stake_pools": {
-                "last_run": "1907-03-18T00:14:13.797405421185Z",
+                "last_run": "1969-12-31T23:59:40.132119511464Z",
                 "status": "restarting"
             }
         },
         {
             "gc_stake_pools": {
-                "last_run": "1885-02-10T19:00:00Z",
+                "last_run": "1970-01-01T00:00:21.728201225563Z",
+                "status": "has_run"
+            }
+        },
+        {
+            "gc_stake_pools": {
+                "last_run": "1970-01-01T00:00:07.436541207939Z",
                 "status": "restarting"
             }
         },
@@ -37,28 +25,37 @@
         },
         {
             "gc_stake_pools": {
-                "last_run": "1878-08-20T00:00:00Z",
+                "last_run": "1970-01-01T00:00:20.866150873471Z",
                 "status": "restarting"
             }
         },
         {
             "gc_stake_pools": {
-                "last_run": "1889-11-24T04:00:00Z",
+                "status": "not_started"
+            }
+        },
+        {
+            "gc_stake_pools": {
+                "last_run": "1969-12-31T23:59:43.885249842191Z",
                 "status": "restarting"
             }
         },
         {
             "gc_stake_pools": {
-                "last_run": "1875-01-26T11:00:00Z",
-                "status": "restarting"
+                "last_run": "1969-12-31T23:59:39.11860679892Z",
+                "status": "has_run"
             }
         },
         {
             "gc_stake_pools": {
-                "last_run": "1899-01-23T02:00:00Z",
-                "status": "restarting"
+                "status": "not_applicable"
+            }
+        },
+        {
+            "gc_stake_pools": {
+                "status": "not_applicable"
             }
         }
     ],
-    "seed": -1856003903
+    "seed": -295654182
 }
