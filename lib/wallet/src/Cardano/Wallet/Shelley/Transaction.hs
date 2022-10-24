@@ -98,6 +98,7 @@ import Cardano.Slotting.EpochInfo.API
 import Cardano.Wallet.CoinSelection
     ( SelectionLimitOf (..)
     , SelectionOf (..)
+    , PreSelection (..)
     , SelectionSkeleton (..)
     , selectionDelta
     )
@@ -357,7 +358,7 @@ constructUnsignedTx
     -- ^ Reward account
     -> Coin
     -- ^ An optional withdrawal amount, can be zero
-    -> SelectionOf TxOut
+    -> Either PreSelection (SelectionOf TxOut)
     -- ^ Finalized asset selection
     -> Coin
     -- ^ Explicit fee amount
@@ -407,7 +408,7 @@ mkTx networkId payload ttl (rewardAcnt, pwdAcnt) addrResolver wdrl cs fees era =
             (toRewardAccountRaw . toXPub $ rewardAcnt)
             wdrl
 
-    unsigned <- mkUnsignedTx era ttl cs md wdrls certs (toCardanoLovelace fees)
+    unsigned <- mkUnsignedTx era ttl (Right cs) md wdrls certs (toCardanoLovelace fees)
         TokenMap.empty TokenMap.empty Map.empty Map.empty
     let signed = signTransaction networkId acctResolver (const Nothing)
             addrResolver inputResolver (unsigned, mkExtraWits unsigned)
@@ -619,7 +620,9 @@ newTransactionLayer networkId = TransactionLayer
     , mkUnsignedTransaction = \era stakeXPub _pp ctx selection -> do
         let ttl   = txValidityInterval ctx
         let wdrl  = withdrawalToCoin $ view #txWithdrawal ctx
-        let delta = selectionDelta txOutCoin selection
+        let delta = case selection of
+                Right selOf -> selectionDelta txOutCoin selOf
+                Left _preSel -> Coin 0
         let rewardAcct = toRewardAccountRaw stakeXPub
         let assetsToBeMinted = view #txAssetsToMint ctx
         let assetsToBeBurned = view #txAssetsToBurn ctx
@@ -2316,7 +2319,7 @@ mkUnsignedTx
     :: forall era.  Cardano.IsCardanoEra era
     => ShelleyBasedEra era
     -> (Maybe SlotNo, SlotNo)
-    -> SelectionOf TxOut
+    -> Either PreSelection (SelectionOf TxOut)
     -> Maybe Cardano.TxMetadata
     -> [(Cardano.StakeAddress, Cardano.Lovelace)]
     -> [Cardano.Certificate]
@@ -2332,8 +2335,11 @@ mkUnsignedTx era ttl cs md wdrls certs fees mintData burnData mintingScripts inp
 
     , txInsReference = Cardano.TxInsReferenceNone
 
-    , Cardano.txOuts =
-        toCardanoTxOut era <$> view #outputs cs ++ F.toList (view #change cs)
+    , Cardano.txOuts = case cs of
+            Right selOf ->
+                toCardanoTxOut era <$> view #outputs selOf ++ F.toList (view #change selOf)
+            Left preSel ->
+                toCardanoTxOut era <$> view #outputs preSel
 
     , Cardano.txWithdrawals =
         let
@@ -2488,13 +2494,16 @@ mkUnsignedTx era ttl cs md wdrls certs fees mintData burnData mintingScripts inp
            , Cardano.BuildTxWith
              (Cardano.ScriptWitness Cardano.ScriptWitnessForSpending scriptWit)
            )
-    inputWits =
-        if inpsScripts == Map.empty then
-            (,Cardano.BuildTxWith (Cardano.KeyWitness Cardano.KeyWitnessForSpending))
-            . toCardanoTxIn
-            . fst <$> F.toList (view #inputs cs)
-        else
-            constructInpScriptWit . fst <$> F.toList (view #inputs cs)
+    inputWits = case cs of
+        Right selOf ->
+            if inpsScripts == Map.empty then
+                (,Cardano.BuildTxWith (Cardano.KeyWitness Cardano.KeyWitnessForSpending))
+                . toCardanoTxIn
+                . fst <$> F.toList (view #inputs selOf)
+            else
+                constructInpScriptWit . fst <$> F.toList (view #inputs selOf)
+        Left _preSel ->
+            []
 
 mkWithdrawals
     :: NetworkId
